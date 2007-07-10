@@ -181,7 +181,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	}
 	zlib_inflateEnd(&inf_strm);
 	mutex_unlock(&inflate_mutex);
-        return 0;
+	return 0;
 }
 
 static struct jffs2_compressor jffs2_zlib_comp = {
@@ -203,11 +203,11 @@ int __init jffs2_zlib_init(void)
 
     ret = alloc_workspaces();
     if (ret)
-        return ret;
+	    return ret;
 
     ret = jffs2_register_compressor(&jffs2_zlib_comp);
     if (ret)
-        free_workspaces();
+	    free_workspaces();
 
     return ret;
 }

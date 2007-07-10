@@ -556,7 +556,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 
 	node = kmalloc(rawlen, GFP_KERNEL);
 	if (!node)
-               return -ENOMEM;
+		return -ENOMEM;
 
 	ret = jffs2_flash_read(c, ref_offset(raw), rawlen, &retlen, (char *)node);
 	if (!ret && retlen != rawlen)
@@ -624,7 +624,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 
 	if (ret || (retlen != rawlen)) {
 		printk(KERN_NOTICE "Write of %d bytes at 0x%08x failed. returned %d, retlen %zd\n",
-                       rawlen, phys_ofs, ret, retlen);
+		       rawlen, phys_ofs, ret, retlen);
 		if (retlen) {
 			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, rawlen, NULL);
 		} else {

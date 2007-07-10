@@ -32,7 +32,7 @@ static int jffs2_mkdir (struct inode *,struct dentry *,int);
 static int jffs2_rmdir (struct inode *,struct dentry *);
 static int jffs2_mknod (struct inode *,struct dentry *,int,dev_t);
 static int jffs2_rename (struct inode *, struct dentry *,
-                        struct inode *, struct dentry *);
+			 struct inode *, struct dentry *);
 
 const struct file_operations jffs2_dir_operations =
 {
@@ -770,7 +770,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 }
 
 static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
-                        struct inode *new_dir_i, struct dentry *new_dentry)
+			 struct inode *new_dir_i, struct dentry *new_dentry)
 {
 	int ret;
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(old_dir_i->i_sb);

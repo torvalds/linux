@@ -38,8 +38,8 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 #ifdef __ECOS
        ret = jffs2_flash_erase(c, jeb);
        if (!ret) {
-               jffs2_erase_succeeded(c, jeb);
-               return;
+	       jffs2_erase_succeeded(c, jeb);
+	       return;
        }
        bad_offset = jeb->offset;
 #else /* Linux */

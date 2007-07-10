@@ -104,7 +104,7 @@ static int jffs2_rtime_decompress(unsigned char *data_in,
 			}
 		}
 	}
-        return 0;
+	return 0;
 }
 
 static struct jffs2_compressor jffs2_rtime_comp = {

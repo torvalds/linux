@@ -154,7 +154,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 	while(ret == -EAGAIN) {
 		ret = jffs2_do_reserve_space(c, minsize, len, sumsize);
 		if (ret) {
-		        D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
+			D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
 		}
 	}
 	spin_unlock(&c->erase_completion_lock);

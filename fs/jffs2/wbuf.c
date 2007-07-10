@@ -1021,8 +1021,8 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 /*
  * Check for a valid cleanmarker.
  * Returns: 0 if a valid cleanmarker was found
- *          1 if no cleanmarker was found
- *          negative error code if an error occurred
+ *	    1 if no cleanmarker was found
+ *	    negative error code if an error occurred
  */
 int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
 				 struct jffs2_eraseblock *jeb)
