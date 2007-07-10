@@ -392,6 +392,7 @@ struct ieee80211_local {
 	int monitors;
 	struct iw_statistics wstats;
 	u8 wstats_flags;
+	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	enum {
 		IEEE80211_DEV_UNINITIALIZED = 0,
