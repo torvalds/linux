@@ -45,7 +45,7 @@ void __init pcibios_fixup(void)
 	/* nothing to do here */
 }
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return pnx8550_irq_tab[slot][pin];
 }

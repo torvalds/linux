@@ -169,7 +169,7 @@ void i8259_init(void)
 }
 #endif
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	extern int pci_probe_only;
 	pci_probe_only = 1;
