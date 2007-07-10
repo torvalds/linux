@@ -19,18 +19,18 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/ioport.h>
+#include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
-#include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
-#include <asm/serial.h>
-#include <asm/io.h>
 #include <asm/time.h>
 #include <asm/mips-boards/sim.h>
 #include <asm/mips-boards/simint.h>
@@ -62,7 +62,7 @@ void __init plat_mem_setup(void)
 #endif
 }
 
-void prom_init(void)
+void __init prom_init(void)
 {
 	set_io_port_base(0xbfd00000);
 

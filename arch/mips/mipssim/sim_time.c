@@ -5,10 +5,10 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
+#include <linux/mipsregs.h>
+#include <linux/smp.h>
 #include <linux/timex.h>
 
-#include <asm/mipsregs.h>
-#include <asm/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/div64.h>
 #include <asm/cpu.h>
@@ -16,7 +16,6 @@
 #include <asm/irq.h>
 #include <asm/mc146818-time.h>
 #include <asm/msc01_ic.h>
-#include <asm/smp.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
@@ -37,8 +36,7 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id)
 #ifndef CONFIG_MIPS_MT_SMTC
 	if (cpu == 0) {
 		timer_interrupt(irq, dev_id);
-	}
-	else {
+	} else {
 		/* Everyone else needs to reset the timer int here as
 		   ll_local_timer_interrupt doesn't */
 		/*
@@ -76,8 +74,10 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id)
 	irq_enable_hazard();
 	evpe(vpflags);
 
-	if(cpu_data[cpu].vpe_id == 0) timer_interrupt(irq, dev_id);
-	else write_c0_compare (read_c0_count() + ( mips_hpt_frequency/HZ));
+	if (cpu_data[cpu].vpe_id == 0)
+		timer_interrupt(irq, dev_id);
+	else
+		write_c0_compare (read_c0_count() + ( mips_hpt_frequency/HZ));
 	smtc_timer_broadcast(cpu_data[cpu].vpe_id);
 
 #endif /* CONFIG_MIPS_MT_SMTC */
@@ -85,7 +85,8 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id)
 	/*
 	 * every CPU should do profiling and process accounting
 	 */
- 	local_timer_interrupt (irq, dev_id);
+	local_timer_interrupt (irq, dev_id);
+
 	return IRQ_HANDLED;
 #else
 	return timer_interrupt (irq, dev_id);
@@ -152,17 +153,15 @@ void __init sim_time_init(void)
 
 	local_irq_save(flags);
 
-
-        /* Set Data mode - binary. */
+	/* Set Data mode - binary. */
 	CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
-
 
 	est_freq = estimate_cpu_frequency ();
 
-	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
-	       (est_freq%1000000)*100/1000000);
+	printk(KERN_INFO "CPU frequency %d.%02d MHz\n", est_freq / 1000000,
+	       (est_freq % 1000000) * 100 / 1000000);
 
-        cpu_khz = est_freq / 1000;
+	cpu_khz = est_freq / 1000;
 
 	local_irq_restore(flags);
 }
@@ -180,8 +179,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
-	}
-	else {
+	} else {
 		if (cpu_has_vint)
 			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
 		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;

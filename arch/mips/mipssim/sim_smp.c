@@ -22,13 +22,13 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/smp.h>
+
 #include <asm/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/smtc_ipi.h>
 #endif /* CONFIG_MIPS_MT_SMTC */
@@ -73,11 +73,19 @@ void prom_init_secondary(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 }
 
+void plat_smp_setup(void)
+{
+#ifdef CONFIG_MIPS_MT_SMTC
+	if (read_c0_config3() & (1 << 2))
+		mipsmt_build_cpu_map(0);
+#endif /* CONFIG_MIPS_MT_SMTC */
+}
+
 /*
  * Platform SMP pre-initialization
  */
 
-void prom_prepare_cpus(unsigned int max_cpus)
+void plat_prepare_cpus(unsigned int max_cpus)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	/*
@@ -85,8 +93,8 @@ void prom_prepare_cpus(unsigned int max_cpus)
 	 * but it may be multithreaded.
 	 */
 
-	if (read_c0_config3() & (1<<2)) {
-		mipsmt_prepare_cpus(max_cpus);
+	if (read_c0_config3() & (1 << 2)) {
+		mipsmt_prepare_cpus();
 	}
 #endif /* CONFIG_MIPS_MT_SMTC */
 }

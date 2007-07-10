@@ -18,8 +18,8 @@
  *   written by Ralf Baechle
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/serial_reg.h>
-#include <asm/io.h>
 
 static inline unsigned int serial_in(int offset)
 {

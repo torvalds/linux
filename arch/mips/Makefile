@@ -327,7 +327,7 @@ load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
 #
 # MIPS SIM
 #
-core-$(CONFIG_MIPS_SIM)		+= arch/mips/mips-boards/sim/
+core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
 cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-sim
 load-$(CONFIG_MIPS_SIM)		+= 0x80100000
 

@@ -138,15 +138,14 @@
 EXPORT(stext)					# used for profiling
 EXPORT(_stext)
 
-#ifdef CONFIG_MIPS_SIM
+#ifndef CONFIG_MIPS_SIM
 	/*
 	 * Give us a fighting chance of running if execution beings at the
 	 * kernel load address.  This is needed because this platform does
 	 * not have a ELF loader yet.
 	 */
-	j	kernel_entry
-#endif
 	__INIT
+#endif
 
 NESTED(kernel_entry, 16, sp)			# kernel entry point
 
@@ -197,9 +196,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	j		start_kernel
 	END(kernel_entry)
 
-#ifdef CONFIG_QEMU
 	__INIT
-#endif
 
 #ifdef CONFIG_SMP
 /*
