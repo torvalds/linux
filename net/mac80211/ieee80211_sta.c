@@ -314,6 +314,27 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 }
 
 
+static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	int use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
+
+	if (use_protection != !!ifsta->use_protection) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: CTS protection %s (BSSID="
+			       MAC_FMT ")\n",
+			       dev->name,
+			       use_protection ? "enabled" : "disabled",
+			       MAC_ARG(ifsta->bssid));
+		}
+		ifsta->use_protection = use_protection ? 1 : 0;
+		local->cts_protect_erp_frames = use_protection;
+	}
+}
+
+
 static void ieee80211_sta_send_associnfo(struct net_device *dev,
 					 struct ieee80211_if_sta *ifsta)
 {
@@ -377,9 +398,18 @@ static void ieee80211_set_associated(struct net_device *dev,
 
 	if (assoc) {
 		struct ieee80211_sub_if_data *sdata;
+		struct ieee80211_sta_bss *bss;
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 		if (sdata->type != IEEE80211_IF_TYPE_STA)
 			return;
+
+		bss = ieee80211_rx_bss_get(dev, ifsta->bssid);
+		if (bss) {
+			if (bss->has_erp_value)
+				ieee80211_handle_erp_ie(dev, bss->erp_value);
+			ieee80211_rx_bss_put(dev, bss);
+		}
+
 		netif_carrier_on(dev);
 		ifsta->prev_bssid_set = 1;
 		memcpy(ifsta->prev_bssid, sdata->u.sta.bssid, ETH_ALEN);
@@ -1177,6 +1207,18 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 		return;
 	}
 
+	/* it probably doesn't, but if the frame includes an ERP value then
+	 * update our stored copy */
+	if (elems.erp_info && elems.erp_info_len >= 1) {
+		struct ieee80211_sta_bss *bss
+			= ieee80211_rx_bss_get(dev, ifsta->bssid);
+		if (bss) {
+			bss->erp_value = elems.erp_info[0];
+			bss->has_erp_value = 1;
+			ieee80211_rx_bss_put(dev, bss);
+		}
+	}
+
 	printk(KERN_DEBUG "%s: associated\n", dev->name);
 	ifsta->aid = aid;
 	ifsta->ap_capab = capab_info;
@@ -1499,6 +1541,12 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		return;
 	}
 
+	/* save the ERP value so that it is available at association time */
+	if (elems.erp_info && elems.erp_info_len >= 1) {
+		bss->erp_value = elems.erp_info[0];
+		bss->has_erp_value = 1;
+	}
+
 	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
 	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
 	if (elems.ssid && elems.ssid_len <= IEEE80211_MAX_SSID_LEN) {
@@ -1614,10 +1662,8 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 				     size_t len,
 				     struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_sta *ifsta;
-	int use_protection;
 	size_t baselen;
 	struct ieee802_11_elems elems;
 
@@ -1641,23 +1687,8 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 				   &elems) == ParseFailed)
 		return;
 
-	use_protection = 0;
-	if (elems.erp_info && elems.erp_info_len >= 1) {
-		use_protection =
-			(elems.erp_info[0] & ERP_INFO_USE_PROTECTION) != 0;
-	}
-
-	if (use_protection != !!ifsta->use_protection) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: CTS protection %s (BSSID="
-			       MAC_FMT ")\n",
-			       dev->name,
-			       use_protection ? "enabled" : "disabled",
-			       MAC_ARG(ifsta->bssid));
-		}
-		ifsta->use_protection = use_protection ? 1 : 0;
-		local->cts_protect_erp_frames = use_protection;
-	}
+	if (elems.erp_info && elems.erp_info_len >= 1)
+		ieee80211_handle_erp_ie(dev, elems.erp_info[0]);
 
 	if (elems.wmm_param && ifsta->wmm_enabled) {
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,

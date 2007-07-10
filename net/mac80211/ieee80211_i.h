@@ -99,6 +99,12 @@ struct ieee80211_sta_bss {
 	int probe_resp;
 	unsigned long last_update;
 
+	/* during assocation, we save an ERP value from a probe response so
+	 * that we can feed ERP info to the driver when handling the
+	 * association completes. these fields probably won't be up-to-date
+	 * otherwise, you probably don't want to use them. */
+	int has_erp_value;
+	u8 erp_value;
 };
 
 

@@ -227,6 +227,17 @@ struct ieee80211_cts {
 #define WLAN_CAPABILITY_SHORT_SLOT_TIME	(1<<10)
 #define WLAN_CAPABILITY_DSSS_OFDM	(1<<13)
 
+/* 802.11g ERP information element */
+#define WLAN_ERP_NON_ERP_PRESENT (1<<0)
+#define WLAN_ERP_USE_PROTECTION (1<<1)
+#define WLAN_ERP_BARKER_PREAMBLE (1<<2)
+
+/* WLAN_ERP_BARKER_PREAMBLE values */
+enum {
+	WLAN_ERP_PREAMBLE_SHORT = 0,
+	WLAN_ERP_PREAMBLE_LONG = 1,
+};
+
 /* Status codes */
 enum ieee80211_statuscode {
 	WLAN_STATUS_SUCCESS = 0,
