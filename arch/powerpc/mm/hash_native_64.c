@@ -163,7 +163,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 	hptep->r = hpte_r;
 	/* Guarantee the second dword is visible before the valid bit */
-	__asm__ __volatile__ ("eieio" : : : "memory");
+	eieio();
 	/*
 	 * Now set the first dword including the valid bit
 	 * NOTE: this also unlocks the hpte

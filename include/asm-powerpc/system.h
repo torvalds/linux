@@ -43,7 +43,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
+#define smp_wmb()	eieio()
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
