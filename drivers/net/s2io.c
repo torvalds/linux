@@ -8036,7 +8036,7 @@ static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 /**
  * s2io_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
- * @state: The current pci conneection state
+ * @state: The current pci connection state
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.
