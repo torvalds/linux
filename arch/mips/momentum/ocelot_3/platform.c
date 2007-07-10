@@ -1,8 +1,19 @@
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (C) 2006, 07 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2007 Dale Farnsworth (dale@farnsworth.org)
+ */
 #include <linux/delay.h>
 #include <linux/if_ether.h>
+#include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/module.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
+#include <linux/serial_8250.h>
 
 #include "ocelot_3_fpga.h"
 
@@ -206,3 +217,36 @@ static int __init mv643xx_eth_add_pds(void)
 device_initcall(mv643xx_eth_add_pds);
 
 #endif /* defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE) */
+
+#define OCELOT3_UART_FLAGS (UPF_BOOT_AUTOCONF | UPF_SKIP_TEST)
+
+static struct plat_serial8250_port uart8250_data[] = {
+	{
+		.membase	= (signed long) 0xfd000020,
+		.irq		= 6,
+		.uartclk	= 20000000,
+		.iotype		= UPIO_MEM,
+		.flags		= OCELOT3_UART_FLAGS,
+		.regshift	= 2,
+	},
+	{ },
+};
+
+static struct platform_device uart8250_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= uart8250_data,
+	},
+};
+
+static int __init uart8250_init(void)
+{
+	return platform_device_register(&uart8250_device);
+}
+
+module_init(uart8250_init);
+
+MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("8250 UART probe driver for the Ocelot 3");
