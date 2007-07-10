@@ -514,8 +514,6 @@ struct ieee80211_local {
 		STA_ANTENNA_SEL_SW_CTRL_DEBUG = 2
 	} sta_antenna_sel;
 
-	int rate_ctrl_num_up, rate_ctrl_num_down;
-
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;

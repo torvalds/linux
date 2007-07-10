@@ -4924,8 +4924,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->short_retry_limit = 7;
 	local->long_retry_limit = 4;
 	local->hw.conf.radio_enabled = 1;
-	local->rate_ctrl_num_up = RATE_CONTROL_NUM_UP;
-	local->rate_ctrl_num_down = RATE_CONTROL_NUM_DOWN;
 
 	local->enabled_modes = (unsigned int) -1;
 

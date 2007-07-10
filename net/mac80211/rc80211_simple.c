@@ -187,9 +187,13 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		}
 #endif
 
-		if (per_failed > local->rate_ctrl_num_down) {
+		/*
+		 * XXX: Make these configurable once we have an
+		 * interface to the rate control algorithms
+		 */
+		if (per_failed > RATE_CONTROL_NUM_DOWN) {
 			rate_control_rate_dec(local, sta);
-		} else if (per_failed < local->rate_ctrl_num_up) {
+		} else if (per_failed < RATE_CONTROL_NUM_UP) {
 			rate_control_rate_inc(local, sta);
 		}
 		srctrl->tx_avg_rate_sum += status->control.rate->rate;
