@@ -76,33 +76,36 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 
 /* Parsed Information Elements */
 struct ieee802_11_elems {
+	/* pointers to IEs */
 	u8 *ssid;
-	u8 ssid_len;
 	u8 *supp_rates;
-	u8 supp_rates_len;
 	u8 *fh_params;
-	u8 fh_params_len;
 	u8 *ds_params;
-	u8 ds_params_len;
 	u8 *cf_params;
-	u8 cf_params_len;
 	u8 *tim;
-	u8 tim_len;
 	u8 *ibss_params;
-	u8 ibss_params_len;
 	u8 *challenge;
-	u8 challenge_len;
 	u8 *wpa;
-	u8 wpa_len;
 	u8 *rsn;
-	u8 rsn_len;
 	u8 *erp_info;
-	u8 erp_info_len;
 	u8 *ext_supp_rates;
-	u8 ext_supp_rates_len;
 	u8 *wmm_info;
-	u8 wmm_info_len;
 	u8 *wmm_param;
+
+	/* length of them, respectively */
+	u8 ssid_len;
+	u8 supp_rates_len;
+	u8 fh_params_len;
+	u8 ds_params_len;
+	u8 cf_params_len;
+	u8 tim_len;
+	u8 ibss_params_len;
+	u8 challenge_len;
+	u8 wpa_len;
+	u8 rsn_len;
+	u8 erp_info_len;
+	u8 ext_supp_rates_len;
+	u8 wmm_info_len;
 	u8 wmm_param_len;
 };
 
