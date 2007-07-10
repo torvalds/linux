@@ -384,6 +384,7 @@ config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
 	help
 	  Support for TI's DaVinci platform.
 
