@@ -1673,6 +1673,56 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
 }
 
 
+int ieee80211_monitor_start_xmit(struct sk_buff *skb,
+				 struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_radiotap_header *prthdr =
+		(struct ieee80211_radiotap_header *)skb->data;
+	u16 len;
+
+	/*
+	 * there must be a radiotap header at the
+	 * start in this case
+	 */
+	if (unlikely(prthdr->it_version)) {
+		/* only version 0 is supported */
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	skb->dev = local->mdev;
+
+	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
+	memset(pkt_data, 0, sizeof(*pkt_data));
+	pkt_data->ifindex = dev->ifindex;
+	pkt_data->mgmt_iface = 0;
+	pkt_data->do_not_encrypt = 1;
+
+	/* above needed because we set skb device to master */
+
+	/*
+	 * fix up the pointers accounting for the radiotap
+	 * header still being in there.  We are being given
+	 * a precooked IEEE80211 header so no need for
+	 * normal processing
+	 */
+	len = le16_to_cpu(get_unaligned(&prthdr->it_len));
+	skb_set_mac_header(skb, len);
+	skb_set_network_header(skb, len + sizeof(struct ieee80211_hdr));
+	skb_set_transport_header(skb, len + sizeof(struct ieee80211_hdr));
+
+	/*
+	 * pass the radiotap header up to
+	 * the next stage intact
+	 */
+	dev_queue_xmit(skb);
+
+	return NETDEV_TX_OK;
+}
+
+
 /**
  * ieee80211_subif_start_xmit - netif start_xmit function for Ethernet-type
  * subinterfaces (wlan#, WDS, and VLAN interfaces)
@@ -1688,8 +1738,8 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
  * encapsulated packet will then be passed to master interface, wlan#.11, for
  * transmission (through low-level driver).
  */
-static int ieee80211_subif_start_xmit(struct sk_buff *skb,
-				      struct net_device *dev)
+int ieee80211_subif_start_xmit(struct sk_buff *skb,
+			       struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_tx_packet_data *pkt_data;
@@ -1708,51 +1758,6 @@ static int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		       dev->name, skb->len);
 		ret = 0;
 		goto fail;
-	}
-
-	if (unlikely(sdata->type == IEEE80211_IF_TYPE_MNTR)) {
-		struct ieee80211_radiotap_header *prthdr =
-			(struct ieee80211_radiotap_header *)skb->data;
-		u16 len;
-
-		/*
-		 * there must be a radiotap header at the
-		 * start in this case
-		 */
-		if (unlikely(prthdr->it_version)) {
-			/* only version 0 is supported  */
-			ret = 0;
-			goto fail;
-		}
-
-		skb->dev = local->mdev;
-
-		pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
-		memset(pkt_data, 0, sizeof(*pkt_data));
-		pkt_data->ifindex = sdata->dev->ifindex;
-		pkt_data->mgmt_iface = 0;
-		pkt_data->do_not_encrypt = 1;
-
-		/* above needed because we set skb device to master */
-
-		/*
-		 * fix up the pointers accounting for the radiotap
-		 * header still being in there.  We are being given
-		 * a precooked IEEE80211 header so no need for
-		 * normal processing
-		 */
-		len = le16_to_cpu(get_unaligned(&prthdr->it_len));
-		skb_set_mac_header(skb, len);
-		skb_set_network_header(skb, len + sizeof(hdr));
-		skb_set_transport_header(skb, len + sizeof(hdr));
-
-		/*
-		 * pass the radiotap header up to
-		 * the next stage intact
-		 */
-		dev_queue_xmit(skb);
-
-		return 0;
 	}
 
 	nh_pos = skb_network_header(skb) - skb->data;
@@ -1882,7 +1887,7 @@ static int ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
-	pkt_data->ifindex = sdata->dev->ifindex;
+	pkt_data->ifindex = dev->ifindex;
 	pkt_data->mgmt_iface = (sdata->type == IEEE80211_IF_TYPE_MGMT);
 	pkt_data->do_not_encrypt = no_encrypt;
 
