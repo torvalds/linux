@@ -79,6 +79,11 @@ struct sccb_header {
 	u16	response_code;
 } __attribute__((packed));
 
+extern u64 sclp_facilities;
+
+#define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
+#define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
+
 struct gds_subvector {
 	u8	length;
 	u8	key;

@@ -30,6 +30,8 @@ struct sclp_readinfo_sccb {
 static struct sclp_readinfo_sccb __initdata early_readinfo_sccb;
 static int __initdata early_readinfo_sccb_valid;
 
+u64 sclp_facilities;
+
 void __init sclp_readinfo_early(void)
 {
 	int ret;
@@ -68,6 +70,13 @@ void __init sclp_readinfo_early(void)
 	}
 	/* Disable service signal subclass mask again. */
 	__ctl_clear_bit(0, 9);
+}
+
+void __init sclp_facilities_detect(void)
+{
+	if (!early_readinfo_sccb_valid)
+		return;
+	sclp_facilities = early_readinfo_sccb.facilities;
 }
 
 unsigned long long __init sclp_memory_detect(void)

@@ -275,6 +275,7 @@ void __init startup_init(void)
 	sort_main_extable();
 	setup_lowcore_early();
 	sclp_readinfo_early();
+	sclp_facilities_detect();
 	memsize = sclp_memory_detect();
 #ifndef CONFIG_64BIT
 	/*

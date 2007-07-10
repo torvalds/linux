@@ -28,6 +28,7 @@ struct sclp_ipl_info {
 };
 
 void sclp_readinfo_early(void);
+void sclp_facilities_detect(void);
 unsigned long long sclp_memory_detect(void);
 int sclp_sdias_blk_count(void);
 int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
