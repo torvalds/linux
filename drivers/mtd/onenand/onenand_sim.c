@@ -3,7 +3,7 @@
  *
  *  The OneNAND simulator
  *
- *  Copyright(C) 2005-2007 Samsung Electronics
+ *  Copyright © 2005-2007 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/onenand.h>
 
-#include <asm/io.h>
-#include <asm/sizes.h>
+#include <linux/io.h>
 
 #ifndef CONFIG_ONENAND_SIM_MANUFACTURER
 #define CONFIG_ONENAND_SIM_MANUFACTURER         0xec
@@ -83,7 +82,8 @@ struct onenand_info *info;
 
 #define DPRINTK(format, args...)					\
 do {									\
-	printk("%s[%d]: " format "\n", __func__, __LINE__, ##args);	\
+	printk(KERN_DEBUG "%s[%d]: " format "\n", __func__,		\
+			   __LINE__, ##args);				\
 } while (0)
 
 /**
@@ -382,9 +382,9 @@ static int __init flash_init(struct onenand_flash *flash)
 	int density, size;
 	int buffer_size;
 
-	flash->base = kzalloc(SZ_128K, GFP_KERNEL);
+	flash->base = kzalloc(131072, GFP_KERNEL);
 	if (!flash->base) {
-		printk(KERN_ERR "Unalbe to allocate base address.\n");
+		printk(KERN_ERR "Unable to allocate base address.\n");
 		return -ENOMEM;
 	}
 
@@ -393,7 +393,7 @@ static int __init flash_init(struct onenand_flash *flash)
 
 	ONENAND_CORE(flash) = vmalloc(size + (size >> 5));
 	if (!ONENAND_CORE(flash)) {
-		printk(KERN_ERR "Unalbe to allocate nand core address.\n");
+		printk(KERN_ERR "Unable to allocate nand core address.\n");
 		kfree(flash->base);
 		return -ENOMEM;
 	}
@@ -406,9 +406,9 @@ static int __init flash_init(struct onenand_flash *flash)
 	writew(version_id, flash->base + ONENAND_REG_VERSION_ID);
 
 	if (density < 2)
-		buffer_size = 0x0400;	/* 1KB page */
+		buffer_size = 0x0400;	/* 1KiB page */
 	else
-		buffer_size = 0x0800;	/* 2KB page */
+		buffer_size = 0x0800;	/* 2KiB page */
 	writew(buffer_size, flash->base + ONENAND_REG_DATA_BUFFER_SIZE);
 
 	return 0;
