@@ -27,13 +27,33 @@
 #include <linux/mmc/sd.h>
 
 #include "core.h"
-#include "sysfs.h"
+#include "bus.h"
+#include "host.h"
 
 #include "mmc_ops.h"
 #include "sd_ops.h"
 
 extern int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
 extern int mmc_attach_sd(struct mmc_host *host, u32 ocr);
+
+static struct workqueue_struct *workqueue;
+
+/*
+ * Internal function. Schedule delayed work in the MMC work queue.
+ */
+static int mmc_schedule_delayed_work(struct delayed_work *work,
+				     unsigned long delay)
+{
+	return queue_delayed_work(workqueue, work, delay);
+}
+
+/*
+ * Internal function. Flush all scheduled work from the MMC work queue.
+ */
+static void mmc_flush_scheduled_work(void)
+{
+	flush_workqueue(workqueue);
+}
 
 /**
  *	mmc_request_done - finish processing an MMC request
@@ -369,22 +389,6 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
 }
 
 /*
- * Allocate a new MMC card
- */
-struct mmc_card *mmc_alloc_card(struct mmc_host *host)
-{
-	struct mmc_card *card;
-
-	card = kmalloc(sizeof(struct mmc_card), GFP_KERNEL);
-	if (!card)
-		return ERR_PTR(-ENOMEM);
-
-	mmc_init_card(card, host);
-
-	return card;
-}
-
-/*
  * Apply power to the MMC stack.  This is a two-stage process.
  * First, we enable power to the card without the clock running.
  * We then wait a bit for the power to stabilise.  Finally,
@@ -512,7 +516,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 EXPORT_SYMBOL(mmc_detect_change);
 
 
-static void mmc_rescan(struct work_struct *work)
+void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
@@ -561,69 +565,13 @@ static void mmc_rescan(struct work_struct *work)
 	}
 }
 
-
-/**
- *	mmc_alloc_host - initialise the per-host structure.
- *	@extra: sizeof private data structure
- *	@dev: pointer to host device model structure
- *
- *	Initialise the per-host structure.
- */
-struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
+void mmc_start_host(struct mmc_host *host)
 {
-	struct mmc_host *host;
-
-	host = mmc_alloc_host_sysfs(extra, dev);
-	if (host) {
-		spin_lock_init(&host->lock);
-		init_waitqueue_head(&host->wq);
-		INIT_DELAYED_WORK(&host->detect, mmc_rescan);
-
-		/*
-		 * By default, hosts do not support SGIO or large requests.
-		 * They have to set these according to their abilities.
-		 */
-		host->max_hw_segs = 1;
-		host->max_phys_segs = 1;
-		host->max_seg_size = PAGE_CACHE_SIZE;
-
-		host->max_req_size = PAGE_CACHE_SIZE;
-		host->max_blk_size = 512;
-		host->max_blk_count = PAGE_CACHE_SIZE / 512;
-	}
-
-	return host;
+	mmc_power_off(host);
+	mmc_detect_change(host, 0);
 }
 
-EXPORT_SYMBOL(mmc_alloc_host);
-
-/**
- *	mmc_add_host - initialise host hardware
- *	@host: mmc host
- */
-int mmc_add_host(struct mmc_host *host)
-{
-	int ret;
-
-	ret = mmc_add_host_sysfs(host);
-	if (ret == 0) {
-		mmc_power_off(host);
-		mmc_detect_change(host, 0);
-	}
-
-	return ret;
-}
-
-EXPORT_SYMBOL(mmc_add_host);
-
-/**
- *	mmc_remove_host - remove host hardware
- *	@host: mmc host
- *
- *	Unregister and remove all cards associated with this host,
- *	and power down the MMC bus.
- */
-void mmc_remove_host(struct mmc_host *host)
+void mmc_stop_host(struct mmc_host *host)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
@@ -648,23 +596,7 @@ void mmc_remove_host(struct mmc_host *host)
 	BUG_ON(host->card);
 
 	mmc_power_off(host);
-	mmc_remove_host_sysfs(host);
 }
-
-EXPORT_SYMBOL(mmc_remove_host);
-
-/**
- *	mmc_free_host - free the host structure
- *	@host: mmc host
- *
- *	Free the host once all references to it have been dropped.
- */
-void mmc_free_host(struct mmc_host *host)
-{
-	mmc_free_host_sysfs(host);
-}
-
-EXPORT_SYMBOL(mmc_free_host);
 
 #ifdef CONFIG_PM
 
@@ -725,5 +657,32 @@ int mmc_resume_host(struct mmc_host *host)
 EXPORT_SYMBOL(mmc_resume_host);
 
 #endif
+
+static int __init mmc_init(void)
+{
+	int ret;
+
+	workqueue = create_singlethread_workqueue("kmmcd");
+	if (!workqueue)
+		return -ENOMEM;
+
+	ret = mmc_register_bus();
+	if (ret == 0) {
+		ret = mmc_register_host_class();
+		if (ret)
+			mmc_unregister_bus();
+	}
+	return ret;
+}
+
+static void __exit mmc_exit(void)
+{
+	mmc_unregister_host_class();
+	mmc_unregister_bus();
+	destroy_workqueue(workqueue);
+}
+
+module_init(mmc_init);
+module_exit(mmc_exit);
 
 MODULE_LICENSE("GPL");

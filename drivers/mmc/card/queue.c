@@ -17,6 +17,8 @@
 #include <linux/mmc/host.h>
 #include "queue.h"
 
+#define MMC_QUEUE_BOUNCESZ	65536
+
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 
 /*
@@ -118,6 +120,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	struct mmc_host *host = card->host;
 	u64 limit = BLK_BOUNCE_HIGH;
 	int ret;
+	unsigned int bouncesz;
 
 	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
 		limit = *mmc_dev(host)->dma_mask;
@@ -127,21 +130,61 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	if (!mq->queue)
 		return -ENOMEM;
 
-	blk_queue_prep_rq(mq->queue, mmc_prep_request);
-	blk_queue_bounce_limit(mq->queue, limit);
-	blk_queue_max_sectors(mq->queue, host->max_req_size / 512);
-	blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
-	blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
-	blk_queue_max_segment_size(mq->queue, host->max_seg_size);
-
 	mq->queue->queuedata = mq;
 	mq->req = NULL;
 
-	mq->sg = kmalloc(sizeof(struct scatterlist) * host->max_phys_segs,
-			 GFP_KERNEL);
-	if (!mq->sg) {
-		ret = -ENOMEM;
-		goto cleanup_queue;
+	blk_queue_prep_rq(mq->queue, mmc_prep_request);
+
+#ifdef CONFIG_MMC_BLOCK_BOUNCE
+	if (host->max_hw_segs == 1) {
+		bouncesz = MMC_QUEUE_BOUNCESZ;
+
+		if (bouncesz > host->max_req_size)
+			bouncesz = host->max_req_size;
+		if (bouncesz > host->max_seg_size)
+			bouncesz = host->max_seg_size;
+
+		mq->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+		if (!mq->bounce_buf) {
+			printk(KERN_WARNING "%s: unable to allocate "
+				"bounce buffer\n", mmc_card_name(card));
+		} else {
+			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_HIGH);
+			blk_queue_max_sectors(mq->queue, bouncesz / 512);
+			blk_queue_max_phys_segments(mq->queue, bouncesz / 512);
+			blk_queue_max_hw_segments(mq->queue, bouncesz / 512);
+			blk_queue_max_segment_size(mq->queue, bouncesz);
+
+			mq->sg = kmalloc(sizeof(struct scatterlist),
+				GFP_KERNEL);
+			if (!mq->sg) {
+				ret = -ENOMEM;
+				goto free_bounce_buf;
+			}
+
+			mq->bounce_sg = kmalloc(sizeof(struct scatterlist) *
+				bouncesz / 512, GFP_KERNEL);
+			if (!mq->bounce_sg) {
+				ret = -ENOMEM;
+				goto free_sg;
+			}
+		}
+	}
+#endif
+
+	if (!mq->bounce_buf) {
+		blk_queue_bounce_limit(mq->queue, limit);
+		blk_queue_max_sectors(mq->queue, host->max_req_size / 512);
+		blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
+		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
+		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
+
+		mq->sg = kmalloc(sizeof(struct scatterlist) *
+			host->max_phys_segs, GFP_KERNEL);
+		if (!mq->sg) {
+			ret = -ENOMEM;
+			goto cleanup_queue;
+		}
 	}
 
 	init_MUTEX(&mq->thread_sem);
@@ -149,14 +192,21 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd");
 	if (IS_ERR(mq->thread)) {
 		ret = PTR_ERR(mq->thread);
-		goto free_sg;
+		goto free_bounce_sg;
 	}
 
 	return 0;
-
+ free_bounce_sg:
+ 	if (mq->bounce_sg)
+ 		kfree(mq->bounce_sg);
+ 	mq->bounce_sg = NULL;
  free_sg:
 	kfree(mq->sg);
 	mq->sg = NULL;
+ free_bounce_buf:
+	if (mq->bounce_buf)
+		kfree(mq->bounce_buf);
+	mq->bounce_buf = NULL;
  cleanup_queue:
 	blk_cleanup_queue(mq->queue);
 	return ret;
@@ -178,8 +228,16 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
 
+ 	if (mq->bounce_sg)
+ 		kfree(mq->bounce_sg);
+ 	mq->bounce_sg = NULL;
+
 	kfree(mq->sg);
 	mq->sg = NULL;
+
+	if (mq->bounce_buf)
+		kfree(mq->bounce_buf);
+	mq->bounce_buf = NULL;
 
 	blk_cleanup_queue(mq->queue);
 
@@ -229,5 +287,110 @@ void mmc_queue_resume(struct mmc_queue *mq)
 		blk_start_queue(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
+}
+
+static void copy_sg(struct scatterlist *dst, unsigned int dst_len,
+	struct scatterlist *src, unsigned int src_len)
+{
+	unsigned int chunk;
+	char *dst_buf, *src_buf;
+	unsigned int dst_size, src_size;
+
+	dst_buf = NULL;
+	src_buf = NULL;
+	dst_size = 0;
+	src_size = 0;
+
+	while (src_len) {
+		BUG_ON(dst_len == 0);
+
+		if (dst_size == 0) {
+			dst_buf = page_address(dst->page) + dst->offset;
+			dst_size = dst->length;
+		}
+
+		if (src_size == 0) {
+			src_buf = page_address(src->page) + src->offset;
+			src_size = src->length;
+		}
+
+		chunk = min(dst_size, src_size);
+
+		memcpy(dst_buf, src_buf, chunk);
+
+		dst_buf += chunk;
+		src_buf += chunk;
+		dst_size -= chunk;
+		src_size -= chunk;
+
+		if (dst_size == 0) {
+			dst++;
+			dst_len--;
+		}
+
+		if (src_size == 0) {
+			src++;
+			src_len--;
+		}
+	}
+}
+
+unsigned int mmc_queue_map_sg(struct mmc_queue *mq)
+{
+	unsigned int sg_len;
+
+	if (!mq->bounce_buf)
+		return blk_rq_map_sg(mq->queue, mq->req, mq->sg);
+
+	BUG_ON(!mq->bounce_sg);
+
+	sg_len = blk_rq_map_sg(mq->queue, mq->req, mq->bounce_sg);
+
+	mq->bounce_sg_len = sg_len;
+
+	/*
+	 * Shortcut in the event we only get a single entry.
+	 */
+	if (sg_len == 1) {
+		memcpy(mq->sg, mq->bounce_sg, sizeof(struct scatterlist));
+		return 1;
+	}
+
+	mq->sg[0].page = virt_to_page(mq->bounce_buf);
+	mq->sg[0].offset = offset_in_page(mq->bounce_buf);
+	mq->sg[0].length = 0;
+
+	while (sg_len) {
+		mq->sg[0].length += mq->bounce_sg[sg_len - 1].length;
+		sg_len--;
+	}
+
+	return 1;
+}
+
+void mmc_queue_bounce_pre(struct mmc_queue *mq)
+{
+	if (!mq->bounce_buf)
+		return;
+
+	if (mq->bounce_sg_len == 1)
+		return;
+	if (rq_data_dir(mq->req) != WRITE)
+		return;
+
+	copy_sg(mq->sg, 1, mq->bounce_sg, mq->bounce_sg_len);
+}
+
+void mmc_queue_bounce_post(struct mmc_queue *mq)
+{
+	if (!mq->bounce_buf)
+		return;
+
+	if (mq->bounce_sg_len == 1)
+		return;
+	if (rq_data_dir(mq->req) != READ)
+		return;
+
+	copy_sg(mq->bounce_sg, mq->bounce_sg_len, mq->sg, 1);
 }
 
