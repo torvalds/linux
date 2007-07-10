@@ -280,7 +280,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 		vol->used_ebs = vol->reserved_pebs;
 		vol->last_eb_bytes = vol->usable_leb_size;
-		vol->used_bytes = vol->used_ebs * vol->usable_leb_size;
+		vol->used_bytes =
+			(long long)vol->used_ebs * vol->usable_leb_size;
 	} else {
 		bytes = vol->used_bytes;
 		vol->last_eb_bytes = do_div(bytes, vol->usable_leb_size);
@@ -538,7 +539,8 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 		vol->used_ebs = reserved_pebs;
 		vol->last_eb_bytes = vol->usable_leb_size;
-		vol->used_bytes = vol->used_ebs * vol->usable_leb_size;
+		vol->used_bytes =
+			(long long)vol->used_ebs * vol->usable_leb_size;
 	}
 
 	paranoid_check_volumes(ubi);
@@ -739,7 +741,7 @@ static void paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 		goto fail;
 	}
 
-	n = vol->used_ebs * vol->usable_leb_size;
+	n = (long long)vol->used_ebs * vol->usable_leb_size;
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 		if (vol->corrupted != 0) {
 			ubi_err("corrupted dynamic volume");

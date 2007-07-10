@@ -531,7 +531,8 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 			vol->used_ebs = vol->reserved_pebs;
 			vol->last_eb_bytes = vol->usable_leb_size;
-			vol->used_bytes = vol->used_ebs * vol->usable_leb_size;
+			vol->used_bytes =
+				(long long)vol->used_ebs * vol->usable_leb_size;
 			continue;
 		}
 
@@ -561,7 +562,8 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		}
 
 		vol->used_ebs = sv->used_ebs;
-		vol->used_bytes = (vol->used_ebs - 1) * vol->usable_leb_size;
+		vol->used_bytes =
+			(long long)(vol->used_ebs - 1) * vol->usable_leb_size;
 		vol->used_bytes += sv->last_data_size;
 		vol->last_eb_bytes = sv->last_data_size;
 	}
@@ -578,7 +580,8 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 	vol->usable_leb_size = ubi->leb_size;
 	vol->used_ebs = vol->reserved_pebs;
 	vol->last_eb_bytes = vol->reserved_pebs;
-	vol->used_bytes = vol->used_ebs * (ubi->leb_size - vol->data_pad);
+	vol->used_bytes =
+		(long long)vol->used_ebs * (ubi->leb_size - vol->data_pad);
 	vol->vol_id = UBI_LAYOUT_VOL_ID;
 
 	ubi_assert(!ubi->volumes[i]);
