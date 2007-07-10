@@ -345,6 +345,8 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct iw_range *range = (struct iw_range *) extra;
+	struct ieee80211_hw_mode *mode = NULL;
+	int c = 0;
 
 	data->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(struct iw_range));
@@ -377,6 +379,29 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
+
+	list_for_each_entry(mode, &local->modes_list, list) {
+		int i = 0;
+
+		if (!(local->enabled_modes & (1 << mode->mode)) ||
+		    (local->hw_modes & local->enabled_modes &
+		     (1 << MODE_IEEE80211G) && mode->mode == MODE_IEEE80211B))
+			continue;
+
+		while (i < mode->num_channels && c < IW_MAX_FREQUENCIES) {
+			struct ieee80211_channel *chan = &mode->channels[i];
+
+			if (chan->flag & IEEE80211_CHAN_W_SCAN) {
+				range->freq[c].i = chan->chan;
+				range->freq[c].m = chan->freq * 100000;
+				range->freq[c].e = 1;
+				c++;
+			}
+			i++;
+		}
+	}
+	range->num_channels = c;
+	range->num_frequency = c;
 
 	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWTHRSPY);
