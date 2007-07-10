@@ -82,23 +82,12 @@ including draining and flushing.
 typedef void (prepare_flush_fn)(request_queue_t *q, struct request *rq);
 
 int blk_queue_ordered(request_queue_t *q, unsigned ordered,
-		      prepare_flush_fn *prepare_flush_fn,
-		      unsigned gfp_mask);
-
-int blk_queue_ordered_locked(request_queue_t *q, unsigned ordered,
-			     prepare_flush_fn *prepare_flush_fn,
-			     unsigned gfp_mask);
-
-The only difference between the two functions is whether or not the
-caller is holding q->queue_lock on entry.  The latter expects the
-caller is holding the lock.
+		      prepare_flush_fn *prepare_flush_fn);
 
 @q			: the queue in question
 @ordered		: the ordered mode the driver/device supports
 @prepare_flush_fn	: this function should prepare @rq such that it
 			  flushes cache to physical medium when executed
-@gfp_mask		: gfp_mask used when allocating data structures
-			  for ordered processing
 
 For example, SCSI disk driver's prepare_flush_fn looks like the
 following.
@@ -106,9 +95,10 @@ following.
 static void sd_prepare_flush(request_queue_t *q, struct request *rq)
 {
 	memset(rq->cmd, 0, sizeof(rq->cmd));
-	rq->flags |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->timeout = SD_TIMEOUT;
 	rq->cmd[0] = SYNCHRONIZE_CACHE;
+	rq->cmd_len = 10;
 }
 
 The following seven ordered modes are supported.  The following table

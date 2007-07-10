@@ -623,7 +623,8 @@ repeat:
 	cyl   = track / disk->head;
 #ifdef DEBUG
 	printk("%s: %sing: CHS=%d/%d/%d, sectors=%d, buffer=%p\n",
-		req->rq_disk->disk_name, (req->cmd == READ)?"read":"writ",
+		req->rq_disk->disk_name,
+		req_data_dir(req) == READ ? "read" : "writ",
 		cyl, head, sec, nsect, req->buffer);
 #endif
 	if (blk_fs_request(req)) {
