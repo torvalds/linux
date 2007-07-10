@@ -51,6 +51,16 @@
 	wl = __wl;					\
 })
 
+#ifdef __s390x__
+#define udiv_qrnnd(q, r, n1, n0, d)			\
+  do { unsigned long __n;				\
+       unsigned int __r, __d;				\
+    __n = ((unsigned long)(n1) << 32) + n0;		\
+    __d = (d);						\
+    (q) = __n / __d;					\
+    (r) = __n % __d;					\
+  } while (0)
+#else
 #define udiv_qrnnd(q, r, n1, n0, d)			\
   do { unsigned int __r;				\
     (q) = __udiv_qrnnd (&__r, (n1), (n0), (d));		\
@@ -58,6 +68,7 @@
   } while (0)
 extern unsigned long __udiv_qrnnd (unsigned int *, unsigned int,
 				   unsigned int , unsigned int);
+#endif
 
 #define UDIV_NEEDS_NORMALIZATION 0
 
