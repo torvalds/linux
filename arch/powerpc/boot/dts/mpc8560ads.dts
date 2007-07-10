@@ -136,7 +136,7 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			compatible = "85xx";
+			compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
 			device_type = "pci";
 			reg = <8000 1000>;
 			clock-frequency = <3f940aa>;

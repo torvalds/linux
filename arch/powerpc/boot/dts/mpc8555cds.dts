@@ -193,7 +193,7 @@
 			#size-cells = <2>;
 			#address-cells = <3>;
 			reg = <8000 1000>;
-			compatible = "85xx";
+			compatible = "fsl,mpc8540-pci";
 			device_type = "pci";
 
 			i8259@19000 {
@@ -230,7 +230,7 @@
 			#size-cells = <2>;
 			#address-cells = <3>;
 			reg = <9000 1000>;
-			compatible = "85xx";
+			compatible = "fsl,mpc8540-pci";
 			device_type = "pci";
 		};
 

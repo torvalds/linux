@@ -169,7 +169,7 @@
 			#size-cells = <2>;
 			#address-cells = <3>;
 			reg = <8500 100>;
-			compatible = "83xx";
+			compatible = "fsl,mpc8349-pci";
 			device_type = "pci";
 		};
 
