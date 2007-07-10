@@ -3165,34 +3165,6 @@ int ieee80211_radar_status(struct ieee80211_hw *hw, int channel,
 }
 EXPORT_SYMBOL(ieee80211_radar_status);
 
-int ieee80211_set_aid_for_sta(struct ieee80211_hw *hw, u8 *peer_address,
-			      u16 aid)
-{
-	struct sk_buff *skb;
-	struct ieee80211_msg_set_aid_for_sta *msg;
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	/* unlikely because if this event only happens for APs,
-	 * which require an open ap device. */
-	if (unlikely(!local->apdev))
-		return 0;
-
-	skb = dev_alloc_skb(sizeof(struct ieee80211_frame_info) +
-			    sizeof(struct ieee80211_msg_set_aid_for_sta));
-
-	if (!skb)
-		return -ENOMEM;
-	skb_reserve(skb, sizeof(struct ieee80211_frame_info));
-
-	msg = (struct ieee80211_msg_set_aid_for_sta *)
-		skb_put(skb, sizeof(struct ieee80211_msg_set_aid_for_sta));
-	memcpy(msg->sta_address, peer_address, ETH_ALEN);
-	msg->aid = aid;
-
-	ieee80211_rx_mgmt(local, skb, NULL, ieee80211_msg_set_aid_for_sta);
-	return 0;
-}
-EXPORT_SYMBOL(ieee80211_set_aid_for_sta);
 
 static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 {

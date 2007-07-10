@@ -52,14 +52,9 @@ enum ieee80211_msg_type {
 	ieee80211_msg_michael_mic_failure = 5,
 	/* hole at 6, was monitor but never sent to userspace */
 	ieee80211_msg_sta_not_assoc = 7,
-	ieee80211_msg_set_aid_for_sta = 8 /* used by Intersil MVC driver */,
+	/* 8 was ieee80211_msg_set_aid_for_sta */
 	ieee80211_msg_key_threshold_notification = 9,
 	ieee80211_msg_radar = 11,
-};
-
-struct ieee80211_msg_set_aid_for_sta {
-	char	sta_address[ETH_ALEN];
-	u16	aid;
 };
 
 struct ieee80211_msg_key_notification {

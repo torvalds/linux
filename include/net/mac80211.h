@@ -921,12 +921,6 @@ struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 			  struct ieee80211_tx_control *control);
 
-/* Low level drivers that have their own MLME and MAC indicate
- * the aid for an associating station with this call */
-int ieee80211_set_aid_for_sta(struct ieee80211_hw *hw,
-			      u8 *peer_address, u16 aid);
-
-
 /* Given an sk_buff with a raw 802.11 header at the data pointer this function
  * returns the 802.11 header length in bytes (not including encryption
  * headers). If the data in the sk_buff is too short to contain a valid 802.11
