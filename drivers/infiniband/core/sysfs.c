@@ -311,7 +311,7 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		return sprintf(buf, "N/A (no PMA)\n");
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad) {
 		ret = -ENOMEM;
 		goto out;
