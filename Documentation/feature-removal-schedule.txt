@@ -248,14 +248,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What:   sk98lin network driver
-When:   July 2007
-Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
-	replaced by the skge driver. 
-Who:    Stephen Hemminger <shemminger@osdl.org>
-
----------------------------
-
 What:	Compaq touchscreen device emulation
 When:	Oct 2007
 Files:	drivers/input/tsdev.c
