@@ -6,6 +6,8 @@
  * Copyright (C) 1994 - 2003, 07 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2007 MIPS Technologies, Inc.
  */
+#include <linux/fs.h>
+#include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -163,4 +165,12 @@ void __init cpu_cache_init(void)
 	}
 
 	panic(cache_panic);
+}
+
+int __weak __uncached_access(struct file *file, unsigned long addr)
+{
+	if (file->f_flags & O_SYNC)
+		return 1;
+
+	return addr >= __pa(high_memory);
 }
