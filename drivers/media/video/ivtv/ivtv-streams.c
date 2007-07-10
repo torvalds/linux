@@ -807,7 +807,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		then = jiffies;
 		/* Make sure DMA is complete */
 		add_wait_queue(&s->waitq, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
 		do {
 			/* check if DMA is pending */
 			if ((s->type == IVTV_ENC_STREAM_TYPE_MPG) &&	/* MPG Only */
@@ -822,9 +821,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			} else if (read_reg(IVTV_REG_DMASTATUS) & 0x02) {
 				break;
 			}
-
-			ivtv_sleep_timeout(HZ / 100, 1);
-		} while (then + HZ * 2 > jiffies);
+		} while (!ivtv_sleep_timeout(HZ / 100, 1) && then + HZ * 2 > jiffies);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&s->waitq, &wait);
