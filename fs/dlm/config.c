@@ -90,6 +90,7 @@ struct cluster {
 	unsigned int cl_scan_secs;
 	unsigned int cl_log_debug;
 	unsigned int cl_protocol;
+	unsigned int cl_timewarn_cs;
 };
 
 enum {
@@ -103,6 +104,7 @@ enum {
 	CLUSTER_ATTR_SCAN_SECS,
 	CLUSTER_ATTR_LOG_DEBUG,
 	CLUSTER_ATTR_PROTOCOL,
+	CLUSTER_ATTR_TIMEWARN_CS,
 };
 
 struct cluster_attribute {
@@ -162,6 +164,7 @@ CLUSTER_ATTR(toss_secs, 1);
 CLUSTER_ATTR(scan_secs, 1);
 CLUSTER_ATTR(log_debug, 0);
 CLUSTER_ATTR(protocol, 0);
+CLUSTER_ATTR(timewarn_cs, 1);
 
 static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_TCP_PORT] = &cluster_attr_tcp_port.attr,
@@ -174,6 +177,7 @@ static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_SCAN_SECS] = &cluster_attr_scan_secs.attr,
 	[CLUSTER_ATTR_LOG_DEBUG] = &cluster_attr_log_debug.attr,
 	[CLUSTER_ATTR_PROTOCOL] = &cluster_attr_protocol.attr,
+	[CLUSTER_ATTR_TIMEWARN_CS] = &cluster_attr_timewarn_cs.attr,
 	NULL,
 };
 
@@ -429,6 +433,8 @@ static struct config_group *make_cluster(struct config_group *g,
 	cl->cl_toss_secs = dlm_config.ci_toss_secs;
 	cl->cl_scan_secs = dlm_config.ci_scan_secs;
 	cl->cl_log_debug = dlm_config.ci_log_debug;
+	cl->cl_protocol = dlm_config.ci_protocol;
+	cl->cl_timewarn_cs = dlm_config.ci_timewarn_cs;
 
 	space_list = &sps->ss_group;
 	comm_list = &cms->cs_group;
@@ -748,9 +754,16 @@ static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len)
 
 static struct space *get_space(char *name)
 {
+	struct config_item *i;
+
 	if (!space_list)
 		return NULL;
-	return to_space(config_group_find_obj(space_list, name));
+
+	down(&space_list->cg_subsys->su_sem);
+	i = config_group_find_obj(space_list, name);
+	up(&space_list->cg_subsys->su_sem);
+
+	return to_space(i);
 }
 
 static void put_space(struct space *sp)
@@ -776,20 +789,20 @@ static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 			if (cm->nodeid != nodeid)
 				continue;
 			found = 1;
+			config_item_get(i);
 			break;
 		} else {
 			if (!cm->addr_count ||
 			    memcmp(cm->addr[0], addr, sizeof(*addr)))
 				continue;
 			found = 1;
+			config_item_get(i);
 			break;
 		}
 	}
 	up(&clusters_root.subsys.su_sem);
 
-	if (found)
-		config_item_get(i);
-	else
+	if (!found)
 		cm = NULL;
 	return cm;
 }
@@ -909,6 +922,7 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_SCAN_SECS          5
 #define DEFAULT_LOG_DEBUG          0
 #define DEFAULT_PROTOCOL           0
+#define DEFAULT_TIMEWARN_CS      500 /* 5 sec = 500 centiseconds */
 
 struct dlm_config_info dlm_config = {
 	.ci_tcp_port = DEFAULT_TCP_PORT,
@@ -920,6 +934,7 @@ struct dlm_config_info dlm_config = {
 	.ci_toss_secs = DEFAULT_TOSS_SECS,
 	.ci_scan_secs = DEFAULT_SCAN_SECS,
 	.ci_log_debug = DEFAULT_LOG_DEBUG,
-	.ci_protocol = DEFAULT_PROTOCOL
+	.ci_protocol = DEFAULT_PROTOCOL,
+	.ci_timewarn_cs = DEFAULT_TIMEWARN_CS
 };
 

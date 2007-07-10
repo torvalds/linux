@@ -54,18 +54,6 @@ struct gfs2_inum {
 	__be64 no_addr;
 };
 
-struct gfs2_inum_host {
-	__u64 no_formal_ino;
-	__u64 no_addr;
-};
-
-static inline int gfs2_inum_equal(const struct gfs2_inum_host *ino1,
-				  const struct gfs2_inum_host *ino2)
-{
-	return ino1->no_formal_ino == ino2->no_formal_ino &&
-	       ino1->no_addr == ino2->no_addr;
-}
-
 /*
  * Generic metadata head structure
  * Every inplace buffer logged in the journal must start with this.
@@ -92,12 +80,6 @@ struct gfs2_meta_header {
 	__be64 __pad0;		/* Was generation number in gfs1 */
 	__be32 mh_format;
 	__be32 __pad1;		/* Was incarnation number in gfs1 */
-};
-
-struct gfs2_meta_header_host {
-	__u32 mh_magic;
-	__u32 mh_type;
-	__u32 mh_format;
 };
 
 /*
@@ -139,23 +121,6 @@ struct gfs2_sb {
 	/* In gfs1, quota and license dinodes followed */
 };
 
-struct gfs2_sb_host {
-	struct gfs2_meta_header_host sb_header;
-
-	__u32 sb_fs_format;
-	__u32 sb_multihost_format;
-
-	__u32 sb_bsize;
-	__u32 sb_bsize_shift;
-
-	struct gfs2_inum_host sb_master_dir; /* Was jindex dinode in gfs1 */
-	struct gfs2_inum_host sb_root_dir;
-
-	char sb_lockproto[GFS2_LOCKNAME_LEN];
-	char sb_locktable[GFS2_LOCKNAME_LEN];
-	/* In gfs1, quota and license dinodes followed */
-};
-
 /*
  * resource index structure
  */
@@ -171,14 +136,6 @@ struct gfs2_rindex {
 	__be32 ri_bitbytes;	/* number of bytes in data bitmaps */
 
 	__u8 ri_reserved[64];
-};
-
-struct gfs2_rindex_host {
-	__u64 ri_addr;	/* grp block disk address */
-	__u64 ri_data0;	/* first data location */
-	__u32 ri_length;	/* length of rgrp header in fs blocks */
-	__u32 ri_data;	/* num of data blocks in rgrp */
-	__u32 ri_bitbytes;	/* number of bytes in data bitmaps */
 };
 
 /*
@@ -212,13 +169,6 @@ struct gfs2_rgrp {
 	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
 };
 
-struct gfs2_rgrp_host {
-	__u32 rg_flags;
-	__u32 rg_free;
-	__u32 rg_dinodes;
-	__u64 rg_igeneration;
-};
-
 /*
  * quota structure
  */
@@ -228,12 +178,6 @@ struct gfs2_quota {
 	__be64 qu_warn;
 	__be64 qu_value;
 	__u8 qu_reserved[64];
-};
-
-struct gfs2_quota_host {
-	__u64 qu_limit;
-	__u64 qu_warn;
-	__u64 qu_value;
 };
 
 /*
@@ -315,29 +259,11 @@ struct gfs2_dinode {
 	struct gfs2_inum __pad4; /* Unused even in current gfs1 */
 
 	__be64 di_eattr;	/* extended attribute block number */
+	__be32 di_atime_nsec;   /* nsec portion of atime */
+	__be32 di_mtime_nsec;   /* nsec portion of mtime */
+	__be32 di_ctime_nsec;   /* nsec portion of ctime */
 
-	__u8 di_reserved[56];
-};
-
-struct gfs2_dinode_host {
-	__u64 di_size;	/* number of bytes in file */
-	__u64 di_blocks;	/* number of blocks in file */
-
-	/* This section varies from gfs1. Padding added to align with
-         * remainder of dinode
-	 */
-	__u64 di_goal_meta;	/* rgrp to alloc from next */
-	__u64 di_goal_data;	/* data block goal */
-	__u64 di_generation;	/* generation number for NFS */
-
-	__u32 di_flags;	/* GFS2_DIF_... */
-	__u16 di_height;	/* height of metadata */
-
-	/* These only apply to directories  */
-	__u16 di_depth;	/* Number of bits in the table */
-	__u32 di_entries;	/* The number of entries in the directory */
-
-	__u64 di_eattr;	/* extended attribute block number */
+	__u8 di_reserved[44];
 };
 
 /*
@@ -414,16 +340,6 @@ struct gfs2_log_header {
 	__be32 lh_hash;
 };
 
-struct gfs2_log_header_host {
-	struct gfs2_meta_header_host lh_header;
-
-	__u64 lh_sequence;	/* Sequence number of this transaction */
-	__u32 lh_flags;	/* GFS2_LOG_HEAD_... */
-	__u32 lh_tail;		/* Block number of log tail */
-	__u32 lh_blkno;
-	__u32 lh_hash;
-};
-
 /*
  * Log type descriptor
  */
@@ -464,11 +380,6 @@ struct gfs2_inum_range {
 	__be64 ir_length;
 };
 
-struct gfs2_inum_range_host {
-	__u64 ir_start;
-	__u64 ir_length;
-};
-
 /*
  * Statfs change
  * Describes an change to the pool of free and allocated
@@ -479,12 +390,6 @@ struct gfs2_statfs_change {
 	__be64 sc_total;
 	__be64 sc_free;
 	__be64 sc_dinodes;
-};
-
-struct gfs2_statfs_change_host {
-	__u64 sc_total;
-	__u64 sc_free;
-	__u64 sc_dinodes;
 };
 
 /*
@@ -501,39 +406,12 @@ struct gfs2_quota_change {
 	__be32 qc_id;
 };
 
-struct gfs2_quota_change_host {
-	__u64 qc_change;
-	__u32 qc_flags;	/* GFS2_QCF_... */
-	__u32 qc_id;
+struct gfs2_quota_lvb {
+        __be32 qb_magic;
+        __u32 __pad;
+        __be64 qb_limit;      /* Hard limit of # blocks to alloc */
+        __be64 qb_warn;       /* Warn user when alloc is above this # */
+        __be64 qb_value;       /* Current # blocks allocated */
 };
-
-#ifdef __KERNEL__
-/* Translation functions */
-
-extern void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf);
-extern void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf);
-extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
-extern void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf);
-extern void gfs2_rindex_out(const struct gfs2_rindex_host *ri, void *buf);
-extern void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf);
-extern void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf);
-extern void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf);
-struct gfs2_inode;
-extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
-extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
-extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
-extern void gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf);
-extern void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf);
-extern void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf);
-extern void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf);
-extern void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf);
-extern void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf);
-
-/* Printing functions */
-
-extern void gfs2_rindex_print(const struct gfs2_rindex_host *ri);
-extern void gfs2_dinode_print(const struct gfs2_inode *ip);
-
-#endif /* __KERNEL__ */
 
 #endif /* __GFS2_ONDISK_DOT_H__ */

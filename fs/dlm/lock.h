@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -24,6 +24,10 @@ void dlm_put_rsb(struct dlm_rsb *r);
 void dlm_hold_rsb(struct dlm_rsb *r);
 int dlm_put_lkb(struct dlm_lkb *lkb);
 void dlm_scan_rsbs(struct dlm_ls *ls);
+int dlm_lock_recovery_try(struct dlm_ls *ls);
+void dlm_unlock_recovery(struct dlm_ls *ls);
+void dlm_scan_timeout(struct dlm_ls *ls);
+void dlm_adjust_timeouts(struct dlm_ls *ls);
 
 int dlm_purge_locks(struct dlm_ls *ls);
 void dlm_purge_mstcpy_locks(struct dlm_rsb *r);
@@ -34,15 +38,18 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc);
 int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc);
 
 int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua, int mode,
-	uint32_t flags, void *name, unsigned int namelen, uint32_t parent_lkid);
+	uint32_t flags, void *name, unsigned int namelen,
+	unsigned long timeout_cs);
 int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
-	int mode, uint32_t flags, uint32_t lkid, char *lvb_in);
+	int mode, uint32_t flags, uint32_t lkid, char *lvb_in,
+	unsigned long timeout_cs);
 int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	uint32_t flags, uint32_t lkid, char *lvb_in);
 int dlm_user_cancel(struct dlm_ls *ls,  struct dlm_user_args *ua_tmp,
 	uint32_t flags, uint32_t lkid);
 int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
 	int nodeid, int pid);
+int dlm_user_deadlock(struct dlm_ls *ls, uint32_t flags, uint32_t lkid);
 void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc);
 
 static inline int is_master(struct dlm_rsb *r)

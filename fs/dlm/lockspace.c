@@ -197,13 +197,24 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	else
 		kobject_uevent(&ls->ls_kobj, KOBJ_OFFLINE);
 
+	log_debug(ls, "%s the lockspace group...", in ? "joining" : "leaving");
+
+	/* dlm_controld will see the uevent, do the necessary group management
+	   and then write to sysfs to wake us */
+
 	error = wait_event_interruptible(ls->ls_uevent_wait,
 			test_and_clear_bit(LSFL_UEVENT_WAIT, &ls->ls_flags));
+
+	log_debug(ls, "group event done %d %d", error, ls->ls_uevent_result);
+
 	if (error)
 		goto out;
 
 	error = ls->ls_uevent_result;
  out:
+	if (error)
+		log_error(ls, "group %s failed %d %d", in ? "join" : "leave",
+			  error, ls->ls_uevent_result);
 	return error;
 }
 
@@ -234,8 +245,13 @@ static int dlm_scand(void *data)
 	struct dlm_ls *ls;
 
 	while (!kthread_should_stop()) {
-		list_for_each_entry(ls, &lslist, ls_list)
-			dlm_scan_rsbs(ls);
+		list_for_each_entry(ls, &lslist, ls_list) {
+			if (dlm_lock_recovery_try(ls)) {
+				dlm_scan_rsbs(ls);
+				dlm_scan_timeout(ls);
+				dlm_unlock_recovery(ls);
+			}
+		}
 		schedule_timeout_interruptible(dlm_config.ci_scan_secs * HZ);
 	}
 	return 0;
@@ -395,6 +411,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 {
 	struct dlm_ls *ls;
 	int i, size, error = -ENOMEM;
+	int do_unreg = 0;
 
 	if (namelen > DLM_LOCKSPACE_LEN)
 		return -EINVAL;
@@ -417,10 +434,21 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		goto out;
 	memcpy(ls->ls_name, name, namelen);
 	ls->ls_namelen = namelen;
-	ls->ls_exflags = flags;
 	ls->ls_lvblen = lvblen;
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
+
+	if (flags & DLM_LSFL_TIMEWARN)
+		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
+
+	if (flags & DLM_LSFL_FS)
+		ls->ls_allocation = GFP_NOFS;
+	else
+		ls->ls_allocation = GFP_KERNEL;
+
+	/* ls_exflags are forced to match among nodes, and we don't
+	   need to require all nodes to have TIMEWARN or FS set */
+	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS));
 
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
@@ -461,6 +489,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	mutex_init(&ls->ls_waiters_mutex);
 	INIT_LIST_HEAD(&ls->ls_orphans);
 	mutex_init(&ls->ls_orphans_mutex);
+	INIT_LIST_HEAD(&ls->ls_timeout);
+	mutex_init(&ls->ls_timeout_mutex);
 
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);
@@ -477,6 +507,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
+	init_completion(&ls->ls_members_done);
+	ls->ls_members_result = -1;
 
 	ls->ls_recoverd_task = NULL;
 	mutex_init(&ls->ls_recoverd_active);
@@ -513,32 +545,49 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
-		goto out_rcomfree;
+		goto out_delist;
 	}
-
-	dlm_create_debug_file(ls);
 
 	error = kobject_setup(ls);
 	if (error)
-		goto out_del;
+		goto out_stop;
 
 	error = kobject_register(&ls->ls_kobj);
 	if (error)
-		goto out_del;
+		goto out_stop;
+
+	/* let kobject handle freeing of ls if there's an error */
+	do_unreg = 1;
+
+	/* This uevent triggers dlm_controld in userspace to add us to the
+	   group of nodes that are members of this lockspace (managed by the
+	   cluster infrastructure.)  Once it's done that, it tells us who the
+	   current lockspace members are (via configfs) and then tells the
+	   lockspace to start running (via sysfs) in dlm_ls_start(). */
 
 	error = do_uevent(ls, 1);
 	if (error)
-		goto out_unreg;
+		goto out_stop;
+
+	wait_for_completion(&ls->ls_members_done);
+	error = ls->ls_members_result;
+	if (error)
+		goto out_members;
+
+	dlm_create_debug_file(ls);
+
+	log_debug(ls, "join complete");
 
 	*lockspace = ls;
 	return 0;
 
- out_unreg:
-	kobject_unregister(&ls->ls_kobj);
- out_del:
-	dlm_delete_debug_file(ls);
+ out_members:
+	do_uevent(ls, 0);
+	dlm_clear_members(ls);
+	kfree(ls->ls_node_array);
+ out_stop:
 	dlm_recoverd_stop(ls);
- out_rcomfree:
+ out_delist:
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock(&lslist_lock);
@@ -550,7 +599,10 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
  out_rsbfree:
 	kfree(ls->ls_rsbtbl);
  out_lsfree:
-	kfree(ls);
+	if (do_unreg)
+		kobject_unregister(&ls->ls_kobj);
+	else
+		kfree(ls);
  out:
 	module_put(THIS_MODULE);
 	return error;
@@ -570,6 +622,8 @@ int dlm_new_lockspace(char *name, int namelen, void **lockspace,
 	error = new_lockspace(name, namelen, lockspace, flags, lvblen);
 	if (!error)
 		ls_count++;
+	else if (!ls_count)
+		threads_stop();
  out:
 	mutex_unlock(&ls_lock);
 	return error;
@@ -696,7 +750,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
 	kobject_unregister(&ls->ls_kobj);
-        /* The ls structure will be freed when the kobject is done with */
+	/* The ls structure will be freed when the kobject is done with */
 
 	mutex_lock(&ls_lock);
 	ls_count--;

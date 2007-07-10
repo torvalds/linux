@@ -116,6 +116,22 @@ void gfs2_revoke_clean(struct gfs2_sbd *sdp)
 	}
 }
 
+static int gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf)
+{
+	const struct gfs2_log_header *str = buf;
+
+	if (str->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
+	    str->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH))
+		return 1;
+
+	lh->lh_sequence = be64_to_cpu(str->lh_sequence);
+	lh->lh_flags = be32_to_cpu(str->lh_flags);
+	lh->lh_tail = be32_to_cpu(str->lh_tail);
+	lh->lh_blkno = be32_to_cpu(str->lh_blkno);
+	lh->lh_hash = be32_to_cpu(str->lh_hash);
+	return 0;
+}
+
 /**
  * get_log_header - read the log header for a given segment
  * @jd: the journal
@@ -147,12 +163,10 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 					     sizeof(u32));
 	hash = crc32_le(hash, (unsigned char const *)&nothing, sizeof(nothing));
 	hash ^= (u32)~0;
-	gfs2_log_header_in(&lh, bh->b_data);
+	error = gfs2_log_header_in(&lh, bh->b_data);
 	brelse(bh);
 
-	if (lh.lh_header.mh_magic != GFS2_MAGIC ||
-	    lh.lh_header.mh_type != GFS2_METATYPE_LH ||
-	    lh.lh_blkno != blk || lh.lh_hash != hash)
+	if (error || lh.lh_blkno != blk || lh.lh_hash != hash)
 		return 1;
 
 	*head = lh;

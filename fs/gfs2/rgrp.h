@@ -65,5 +65,6 @@ void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
 void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state,
 		      int flags);
 void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
+u64 gfs2_ri_total(struct gfs2_sbd *sdp);
 
 #endif /* __RGRP_DOT_H__ */

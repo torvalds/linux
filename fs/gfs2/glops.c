@@ -156,9 +156,9 @@ static void inode_go_sync(struct gfs2_glock *gl)
 		ip = NULL;
 
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
-		gfs2_log_flush(gl->gl_sbd, gl);
 		if (ip)
 			filemap_fdatawrite(ip->i_inode.i_mapping);
+		gfs2_log_flush(gl->gl_sbd, gl);
 		gfs2_meta_sync(gl);
 		if (ip) {
 			struct address_space *mapping = ip->i_inode.i_mapping;

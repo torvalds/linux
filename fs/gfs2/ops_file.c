@@ -502,7 +502,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
 	struct lm_lockname name =
-		{ .ln_number = ip->i_num.no_addr,
+		{ .ln_number = ip->i_no_addr,
 		  .ln_type = LM_TYPE_PLOCK };
 
 	if (!(fl->fl_flags & FL_POSIX))
@@ -557,7 +557,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		gfs2_glock_dq_uninit(fl_gh);
 	} else {
 		error = gfs2_glock_get(GFS2_SB(&ip->i_inode),
-				      ip->i_num.no_addr, &gfs2_flock_glops,
+				      ip->i_no_addr, &gfs2_flock_glops,
 				      CREATE, &gl);
 		if (error)
 			goto out;
