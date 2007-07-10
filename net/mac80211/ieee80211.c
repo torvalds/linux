@@ -2605,8 +2605,7 @@ static void ieee80211_start_hard_monitor(struct ieee80211_local *local)
 	struct ieee80211_if_init_conf conf;
 
 	if (local->open_count && local->open_count == local->monitors &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER) &&
-	    local->ops->add_interface) {
+	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER)) {
 		conf.if_id = -1;
 		conf.type = IEEE80211_IF_TYPE_MNTR;
 		conf.mac_addr = NULL;
@@ -2649,21 +2648,14 @@ static int ieee80211_open(struct net_device *dev)
 	}
 	ieee80211_start_soft_monitor(local);
 
-	if (local->ops->add_interface) {
-		conf.if_id = dev->ifindex;
-		conf.type = sdata->type;
-		conf.mac_addr = dev->dev_addr;
-		res = local->ops->add_interface(local_to_hw(local), &conf);
-		if (res) {
-			if (sdata->type == IEEE80211_IF_TYPE_MNTR)
-				ieee80211_start_hard_monitor(local);
-			return res;
-		}
-	} else {
-		if (sdata->type != IEEE80211_IF_TYPE_STA)
-			return -EOPNOTSUPP;
-		if (local->open_count > 0)
-			return -ENOBUFS;
+	conf.if_id = dev->ifindex;
+	conf.type = sdata->type;
+	conf.mac_addr = dev->dev_addr;
+	res = local->ops->add_interface(local_to_hw(local), &conf);
+	if (res) {
+		if (sdata->type == IEEE80211_IF_TYPE_MNTR)
+			ieee80211_start_hard_monitor(local);
+		return res;
 	}
 
 	if (local->open_count == 0) {
@@ -4896,6 +4888,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			 ((sizeof(struct ieee80211_local) +
 			   NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 
+	BUG_ON(!ops->tx);
+	BUG_ON(!ops->config);
+	BUG_ON(!ops->add_interface);
 	local->ops = ops;
 
 	/* for now, mdev needs sub_if_data :/ */
