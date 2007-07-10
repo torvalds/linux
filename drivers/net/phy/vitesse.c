@@ -65,7 +65,15 @@ static int vsc824x_config_init(struct phy_device *phydev)
 
 static int vsc824x_ack_interrupt(struct phy_device *phydev)
 {
-	int err = phy_read(phydev, MII_VSC8244_ISTAT);
+	int err = 0;
+	
+	/*
+	 * Don't bother to ACK the interrupts if interrupts
+	 * are disabled.  The 824x cannot clear the interrupts
+	 * if they are disabled.
+	 */
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		err = phy_read(phydev, MII_VSC8244_ISTAT);
 
 	return (err < 0) ? err : 0;
 }
@@ -77,8 +85,19 @@ static int vsc824x_config_intr(struct phy_device *phydev)
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
 		err = phy_write(phydev, MII_VSC8244_IMASK,
 				MII_VSC8244_IMASK_MASK);
-	else
+	else {
+		/*
+		 * The Vitesse PHY cannot clear the interrupt
+		 * once it has disabled them, so we clear them first
+		 */
+		err = phy_read(phydev, MII_VSC8244_ISTAT);
+
+		if (err)
+			return err;
+
 		err = phy_write(phydev, MII_VSC8244_IMASK, 0);
+	}
+
 	return err;
 }
 
