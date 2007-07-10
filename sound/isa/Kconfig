@@ -1,8 +1,5 @@
 # ALSA ISA drivers
 
-menu "ISA devices"
-	depends on SND!=n && ISA && ISA_DMA_API
-
 config SND_AD1848_LIB
         tristate
         select SND_PCM
@@ -23,6 +20,9 @@ config SND_SB16_DSP
         tristate
         select SND_PCM
         select SND_SB_COMMON
+
+menu "ISA devices"
+	depends on SND!=n && ISA && ISA_DMA_API
 
 config SND_ADLIB
 	tristate "AdLib FM card"
