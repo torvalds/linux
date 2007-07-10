@@ -604,6 +604,12 @@ config CASSINI
 	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
 	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
 
+config SUNVNET
+	tristate "Sun Virtual Network support"
+	depends on SUN_LDOMS
+	help
+	  Support for virtual network devices under Sun Logical Domains.
+
 config NET_VENDOR_3COM
 	bool "3COM cards"
 	depends on ISA || EISA || MCA || PCI
