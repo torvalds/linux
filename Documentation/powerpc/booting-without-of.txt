@@ -1250,6 +1250,12 @@ platforms are moved over to use the flattened-device-tree model.
       network device.  This is used by the bootwrapper to interpret
       MAC addresses passed by the firmware when no information other
       than indices is available to associate an address with a device.
+    - phy-connection-type : a string naming the controller/PHY interface type,
+      i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "sgmii",
+      "tbi", or "rtbi".  This property is only really needed if the connection
+      is of type "rgmii-id", as all other connection types are detected by
+      hardware.
+
 
   Example:
 

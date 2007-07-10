@@ -131,6 +131,7 @@
 			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		ethernet@25000 {
@@ -150,6 +151,7 @@
 			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
 		};
 		
 		ethernet@26000 {
@@ -169,6 +171,7 @@
 			interrupts = <1F 2 20 2 21 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy2>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		ethernet@27000 {
@@ -188,6 +191,7 @@
 			interrupts = <25 2 26 2 27 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;
+			phy-connection-type = "rgmii-id";
 		};
 		serial@4500 {
 			device_type = "serial";
