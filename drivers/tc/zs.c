@@ -136,7 +136,7 @@ struct dec_serial *zs_chain;	/* list of all channels */
 struct tty_struct zs_ttys[NUM_CHANNELS];
 
 #ifdef CONFIG_SERIAL_DEC_CONSOLE
-static struct console sercons;
+static struct console zs_console;
 #endif
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
@@ -383,7 +383,7 @@ static void receive_chars(struct dec_serial *info)
 
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
-		if (break_pressed && info->line == sercons.index) {
+		if (break_pressed && info->line == zs_console.index) {
 			/* Ignore the null char got when BREAK is removed.  */
 			if (ch == 0)
 				continue;
@@ -446,7 +446,7 @@ static void status_handle(struct dec_serial *info)
 	if ((stat & BRK_ABRT) && !(info->read_reg_zero & BRK_ABRT)) {
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
-		if (info->line == sercons.index) {
+		if (info->line == zs_console.index) {
 			if (!break_pressed)
 				break_pressed = jiffies;
 		} else
@@ -1557,9 +1557,9 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	}
 
 #ifdef CONFIG_SERIAL_DEC_CONSOLE
-	if (sercons.cflag && sercons.index == line) {
-		tty->termios->c_cflag = sercons.cflag;
-		sercons.cflag = 0;
+	if (zs_console.cflag && zs_console.index == line) {
+		tty->termios->c_cflag = zs_console.cflag;
+		zs_console.cflag = 0;
 		change_speed(info);
 	}
 #endif
@@ -2069,7 +2069,7 @@ static int __init serial_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct console sercons = {
+static struct console zs_console = {
 	.name		= "ttyS",
 	.write		= serial_console_write,
 	.device		= serial_console_device,
@@ -2083,7 +2083,7 @@ static struct console sercons = {
  */
 void __init zs_serial_console_init(void)
 {
-	register_console(&sercons);
+	register_console(&zs_console);
 }
 #endif /* ifdef CONFIG_SERIAL_DEC_CONSOLE */
 
