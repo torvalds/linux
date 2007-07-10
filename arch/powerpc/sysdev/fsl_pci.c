@@ -24,9 +24,9 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <sysdev/fsl_soc.h>
-#include <sysdev/fsl_pcie.h>
+#include <sysdev/fsl_pci.h>
 
-#include "mpc86xx.h"
+#include "../platforms/86xx/mpc86xx.h"
 
 #undef DEBUG
 
