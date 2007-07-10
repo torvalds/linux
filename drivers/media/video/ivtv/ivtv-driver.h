@@ -722,6 +722,7 @@ struct ivtv {
 	int search_pack_header;
 
 	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
+	struct mutex serialize_lock;  /* lock used to serialize starting streams */
 
 	/* User based DMA for OSD */
 	struct ivtv_user_dma udma;

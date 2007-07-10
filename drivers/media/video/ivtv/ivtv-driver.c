@@ -623,6 +623,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
 
+	mutex_init(&itv->serialize_lock);
 	mutex_init(&itv->i2c_bus_lock);
 	mutex_init(&itv->udma.lock);
 
