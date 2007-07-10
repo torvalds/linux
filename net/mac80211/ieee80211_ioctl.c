@@ -1201,10 +1201,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		local->cts_protect_erp_frames = value;
 		break;
 
-	case PRISM2_PARAM_DROP_UNENCRYPTED:
-		sdata->drop_unencrypted = value;
-		break;
-
 	case PRISM2_PARAM_PREAMBLE:
 		local->short_preamble = value;
 		break;
@@ -1330,10 +1326,6 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
 		*param = local->cts_protect_erp_frames;
-		break;
-
-	case PRISM2_PARAM_DROP_UNENCRYPTED:
-		*param = sdata->drop_unencrypted;
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
