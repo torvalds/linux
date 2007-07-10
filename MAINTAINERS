@@ -1989,9 +1989,10 @@ M:	jjciarla@raiz.uncu.edu.ar
 S:	Maintained
 
 IPATH DRIVER:
-P:	Bryan O'Sullivan
-M:	support@pathscale.com
-L:	openib-general@openib.org
+P:	Arthur Jones
+M:	infinipath@qlogic.com
+L:	general@lists.openfabrics.org
+T:	git git://git.qlogic.com/ipath-linux-2.6
 S:	Supported
 
 IPMI SUBSYSTEM
