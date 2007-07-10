@@ -1018,62 +1018,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_clear_keys(struct net_device *dev)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_key_conf key;
-	int i;
-	u8 addr[ETH_ALEN];
-	struct ieee80211_key_conf *keyconf;
-	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta;
-
-	memset(addr, 0xff, ETH_ALEN);
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
-		for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-			keyconf = NULL;
-			if (sdata->keys[i] &&
-			    !sdata->keys[i]->force_sw_encrypt &&
-			    local->ops->set_key &&
-			    (keyconf = ieee80211_key_data2conf(local,
-							       sdata->keys[i])))
-				local->ops->set_key(local_to_hw(local),
-						   DISABLE_KEY, addr,
-						   keyconf, 0);
-			kfree(keyconf);
-			ieee80211_key_free(sdata->keys[i]);
-			sdata->keys[i] = NULL;
-		}
-		sdata->default_key = NULL;
-	}
-	read_unlock(&local->sub_if_lock);
-
-	spin_lock_bh(&local->sta_lock);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		keyconf = NULL;
-		if (sta->key && !sta->key->force_sw_encrypt &&
-		    local->ops->set_key &&
-		    (keyconf = ieee80211_key_data2conf(local, sta->key)))
-			local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-					   sta->addr, keyconf, sta->aid);
-		kfree(keyconf);
-		ieee80211_key_free(sta->key);
-		sta->key = NULL;
-	}
-	spin_unlock_bh(&local->sta_lock);
-
-	memset(&key, 0, sizeof(key));
-	if (local->ops->set_key &&
-		    local->ops->set_key(local_to_hw(local), REMOVE_ALL_KEYS,
-				       NULL, &key, 0))
-		printk(KERN_DEBUG "%s: failed to remove hwaccel keys\n",
-		       dev->name);
-
-	return 0;
-}
-
-
 static void ieee80211_key_enable_hwaccel(struct ieee80211_local *local,
 					 struct ieee80211_key *key)
 {
@@ -1225,10 +1169,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_NEXT_MODE:
 		local->next_mode = value;
-		break;
-
-	case PRISM2_PARAM_CLEAR_KEYS:
-		ret = ieee80211_ioctl_clear_keys(dev);
 		break;
 
 	case PRISM2_PARAM_RADIO_ENABLED:
