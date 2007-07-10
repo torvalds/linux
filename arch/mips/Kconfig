@@ -433,8 +433,7 @@ config SGI_IP27
 	  here.
 
 config SGI_IP32
-	bool "SGI IP32 (O2) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "SGI IP32 (O2)"
 	select ARC
 	select ARC32
 	select BOOT_ELF32
