@@ -28,6 +28,7 @@
 
 #define GFS2_SMALL_FH_SIZE 4
 #define GFS2_LARGE_FH_SIZE 8
+#define GFS2_OLD_FH_SIZE 10
 
 static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     __u32 *p,
@@ -44,6 +45,7 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 
 	switch (fh_len) {
 	case GFS2_LARGE_FH_SIZE:
+	case GFS2_OLD_FH_SIZE:
 		parent.no_formal_ino = ((u64)be32_to_cpu(fh[4])) << 32;
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
 		parent.no_addr = ((u64)be32_to_cpu(fh[6])) << 32;
