@@ -46,6 +46,7 @@ struct btrfs_iget_args {
 static struct inode_operations btrfs_dir_inode_operations;
 static struct inode_operations btrfs_symlink_inode_operations;
 static struct inode_operations btrfs_dir_ro_inode_operations;
+static struct inode_operations btrfs_special_inode_operations;
 static struct inode_operations btrfs_file_inode_operations;
 static struct address_space_operations btrfs_aops;
 static struct address_space_operations btrfs_symlink_aops;
@@ -75,6 +76,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
 	u64 alloc_group_block;
+	u32 rdev;
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -104,6 +106,8 @@ void btrfs_read_locked_inode(struct inode *inode)
 	inode->i_ctime.tv_nsec = btrfs_timespec_nsec(&inode_item->ctime);
 	inode->i_blocks = btrfs_inode_nblocks(inode_item);
 	inode->i_generation = btrfs_inode_generation(inode_item);
+	inode->i_rdev = 0;
+	rdev = btrfs_inode_rdev(inode_item);
 	alloc_group_block = btrfs_inode_block_group(inode_item);
 	BTRFS_I(inode)->block_group = btrfs_lookup_block_group(root->fs_info,
 						       alloc_group_block);
@@ -114,12 +118,6 @@ void btrfs_read_locked_inode(struct inode *inode)
 	mutex_unlock(&root->fs_info->fs_mutex);
 
 	switch (inode->i_mode & S_IFMT) {
-#if 0
-	default:
-		init_special_inode(inode, inode->i_mode,
-				   btrfs_inode_rdev(inode_item));
-		break;
-#endif
 	case S_IFREG:
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_fop = &btrfs_file_operations;
@@ -135,6 +133,9 @@ void btrfs_read_locked_inode(struct inode *inode)
 	case S_IFLNK:
 		inode->i_op = &btrfs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &btrfs_symlink_aops;
+		break;
+	default:
+		init_special_inode(inode, inode->i_mode, rdev);
 		break;
 	}
 	return;
@@ -162,6 +163,7 @@ static void fill_inode_item(struct btrfs_inode_item *item,
 	btrfs_set_timespec_nsec(&item->ctime, inode->i_ctime.tv_nsec);
 	btrfs_set_inode_nblocks(item, inode->i_blocks);
 	btrfs_set_inode_generation(item, inode->i_generation);
+	btrfs_set_inode_rdev(item, inode->i_rdev);
 	btrfs_set_inode_block_group(item,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
@@ -1067,6 +1069,58 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 	}
 	if (err > 0)
 		err = -EEXIST;
+	return err;
+}
+
+static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
+			int mode, dev_t rdev)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct inode *inode;
+	int err;
+	int drop_inode = 0;
+	u64 objectid;
+
+	if (!new_valid_dev(rdev))
+		return -EINVAL;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, dir);
+
+	err = btrfs_find_free_objectid(trans, root, dir->i_ino, &objectid);
+	if (err) {
+		err = -ENOSPC;
+		goto out_unlock;
+	}
+
+	inode = btrfs_new_inode(trans, root, objectid,
+				BTRFS_I(dir)->block_group, mode);
+	err = PTR_ERR(inode);
+	if (IS_ERR(inode))
+		goto out_unlock;
+
+	btrfs_set_trans_block_group(trans, inode);
+	err = btrfs_add_nondir(trans, dentry, inode);
+	if (err)
+		drop_inode = 1;
+	else {
+		inode->i_op = &btrfs_special_inode_operations;
+		init_special_inode(inode, inode->i_mode, rdev);
+	}
+	dir->i_sb->s_dirt = 1;
+	btrfs_update_inode_block_group(trans, inode);
+	btrfs_update_inode_block_group(trans, dir);
+out_unlock:
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+
+	if (drop_inode) {
+		inode_dec_link_count(inode);
+		iput(inode);
+	}
+	btrfs_btree_balance_dirty(root);
 	return err;
 }
 
@@ -2526,6 +2580,7 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.rename		= btrfs_rename,
 	.symlink	= btrfs_symlink,
 	.setattr	= btrfs_setattr,
+	.mknod		= btrfs_mknod,
 };
 
 static struct inode_operations btrfs_dir_ro_inode_operations = {
@@ -2558,6 +2613,11 @@ static struct address_space_operations btrfs_symlink_aops = {
 
 static struct inode_operations btrfs_file_inode_operations = {
 	.truncate	= btrfs_truncate,
+	.getattr	= btrfs_getattr,
+	.setattr	= btrfs_setattr,
+};
+
+static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 };
