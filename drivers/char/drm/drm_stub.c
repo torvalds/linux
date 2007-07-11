@@ -60,6 +60,10 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	int retcode;
 
 	INIT_LIST_HEAD(&dev->filelist);
+	INIT_LIST_HEAD(&dev->ctxlist);
+	INIT_LIST_HEAD(&dev->vmalist);
+	INIT_LIST_HEAD(&dev->maplist);
+
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->drw_lock);
 	spin_lock_init(&dev->tasklet_lock);
@@ -80,8 +84,6 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	if (drm_ht_create(&dev->map_hash, 12)) {
 		return -ENOMEM;
 	}
-
-	INIT_LIST_HEAD(&dev->maplist);
 
 	/* the DRM has 6 basic counters */
 	dev->counters = 6;
