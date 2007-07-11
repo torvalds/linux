@@ -9,7 +9,7 @@ verify_cpu:
 	pushl	$0			# Kill any dangerous flags
 	popfl
 
-#if CONFIG_X86_MINIMUM_CPU_MODEL >= 4
+#if CONFIG_X86_MINIMUM_CPU_FAMILY >= 4
 	pushfl
 	pop	%eax
 	orl	$(1<<18),%eax		# try setting AC
@@ -75,7 +75,7 @@ verify_cpu:
 	movl    $0x1,%eax		# Does the cpu have what it takes
 	cpuid
 
-#if CONFIG_X86_MINIMUM_CPU_MODEL > 4
+#if CONFIG_X86_MINIMUM_CPU_FAMILY > 4
 #error	add proper model checking here
 #endif
 
