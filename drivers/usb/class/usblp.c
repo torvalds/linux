@@ -741,10 +741,11 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 		 */
 		rv = usblp_wwait(usblp, !!(file->f_flags&O_NONBLOCK));
 		if (rv < 0) {
-			/*
-			 * If interrupted, we simply leave the URB to dangle,
-			 * so the ->release will call usb_kill_urb().
-			 */
+			if (rv == -EAGAIN) {
+				/* Presume that it's going to complete well. */
+				writecount += transfer_length;
+			}
+			/* Leave URB dangling, to be cleaned on close. */
 			goto collect_error;
 		}
 
