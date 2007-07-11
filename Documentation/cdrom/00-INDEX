@@ -2,32 +2,10 @@
 	- this file (info on CD-ROMs and Linux)
 Makefile
 	- only used to generate TeX output from the documentation.
-aztcd
-	- info on Aztech/Orchid/Okano/Wearnes/Conrad/CyCDROM driver.
 cdrom-standard.tex
 	- LaTeX document on standardizing the CD-ROM programming interface.
-cdu31a
-	- info on the Sony CDU31A/CDU33A CD-ROM driver.
-cm206
-	- info on the Philips/LMS cm206/cm260 CD-ROM driver.
-gscd
-	- info on the Goldstar R420 CD-ROM driver.
 ide-cd
 	- info on setting up and using ATAPI (aka IDE) CD-ROMs.
-isp16
-	- info on the CD-ROM interface on ISP16, MAD16 or Mozart sound card.
-mcd
-	- info on limitations of standard Mitsumi CD-ROM driver.
-mcdx
-	- info on improved Mitsumi CD-ROM driver.
-optcd
-	- info on the Optics Storage 8000 AT CD-ROM driver
 packet-writing.txt
 	- Info on the CDRW packet writing module
-sbpcd
-	- info on the SoundBlaster/Panasonic CD-ROM interface driver.
-sjcd
-	- info on the SANYO CDR-H94A CD-ROM interface driver.
-sonycd535
-	- info on the Sony CDU-535 (and 531) CD-ROM driver.
 
