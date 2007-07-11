@@ -140,7 +140,16 @@ static void mmc_wait_done(struct mmc_request *mrq)
 	complete(mrq->done_data);
 }
 
-int mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
+/**
+ *	mmc_wait_for_req - start a request and wait for completion
+ *	@host: MMC host to start command
+ *	@mrq: MMC request to start
+ *
+ *	Start a new MMC custom command request for a host, and wait
+ *	for the command to complete. Does not attempt to parse the
+ *	response.
+ */
+void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	DECLARE_COMPLETION_ONSTACK(complete);
 
@@ -150,8 +159,6 @@ int mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 	wait_for_completion(&complete);
-
-	return 0;
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -192,6 +199,9 @@ EXPORT_SYMBOL(mmc_wait_for_cmd);
  *	@data: data phase for command
  *	@card: the MMC card associated with the data transfer
  *	@write: flag to differentiate reads from writes
+ *
+ *	Computes the data timeout parameters according to the
+ *	correct algorithm given the card type.
  */
 void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 			  int write)
@@ -240,15 +250,10 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
 /**
- *	__mmc_claim_host - exclusively claim a host
+ *	mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
- *	@card: mmc card to claim host for
  *
- *	Claim a host for a set of operations.  If a valid card
- *	is passed and this wasn't the last card selected, select
- *	the card before returning.
- *
- *	Note: you should use mmc_card_claim_host or mmc_claim_host.
+ *	Claim a host for a set of operations.
  */
 void mmc_claim_host(struct mmc_host *host)
 {
@@ -498,8 +503,10 @@ void __mmc_release_bus(struct mmc_host *host)
  *	@host: host which changed state.
  *	@delay: optional delay to wait before detection (jiffies)
  *
- *	All we know is that card(s) have been inserted or removed
- *	from the socket(s).  We don't know which socket or cards.
+ *	MMC drivers should call this when they detect a card has been
+ *	inserted or removed. The MMC layer will confirm that any
+ *	present card is still functional, and initialize any newly
+ *	inserted.
  */
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {

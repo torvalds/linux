@@ -25,7 +25,7 @@
  *	mmc_wait_for_app_cmd - start an application command and wait for
  			       completion
  *	@host: MMC host to start command
- *	@rca: RCA to send MMC_APP_CMD to
+ *	@card: Card to send MMC_APP_CMD to
  *	@cmd: MMC command to start
  *	@retries: maximum number of retries
  *
