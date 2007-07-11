@@ -37,20 +37,6 @@ verify_cpu:
 	pushl	$0			# Kill any dangerous flags
 	popfl
 
-	/* minimum CPUID flags for x86-64 as defined by AMD */
-#define M(x) (1<<(x))
-#define M2(a,b) M(a)|M(b)
-#define M4(a,b,c,d) M(a)|M(b)|M(c)|M(d)
-
-#define SSE_MASK \
-	(M2(X86_FEATURE_XMM,X86_FEATURE_XMM2))
-#define REQUIRED_MASK1 \
-	(M4(X86_FEATURE_FPU,X86_FEATURE_PSE,X86_FEATURE_TSC,X86_FEATURE_MSR)|\
-	 M4(X86_FEATURE_PAE,X86_FEATURE_CX8,X86_FEATURE_PGE,X86_FEATURE_CMOV)|\
-	 M(X86_FEATURE_FXSR))
-#define REQUIRED_MASK2 \
-	(M(X86_FEATURE_LM - 32))
-
 	pushfl				# standard way to check for cpuid
 	popl	%eax
 	movl	%eax,%ebx
@@ -79,8 +65,8 @@ verify_cpu:
 verify_cpu_noamd:
 	movl    $0x1,%eax		# Does the cpu have what it takes
 	cpuid
-	andl	$REQUIRED_MASK1,%edx
-	xorl	$REQUIRED_MASK1,%edx
+	andl	$REQUIRED_MASK0,%edx
+	xorl	$REQUIRED_MASK0,%edx
 	jnz	verify_cpu_no_longmode
 
 	movl    $0x80000000,%eax	# See if extended cpuid is implemented
@@ -90,8 +76,8 @@ verify_cpu_noamd:
 
 	movl    $0x80000001,%eax	# Does the cpu have what it takes
 	cpuid
-	andl    $REQUIRED_MASK2,%edx
-	xorl    $REQUIRED_MASK2,%edx
+	andl    $REQUIRED_MASK1,%edx
+	xorl    $REQUIRED_MASK1,%edx
 	jnz     verify_cpu_no_longmode
 
 verify_cpu_sse_test:

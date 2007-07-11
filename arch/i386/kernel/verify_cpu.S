@@ -20,7 +20,7 @@ verify_cpu:
 	testl	$(1<<18),%eax
 	jz	bad
 #endif
-#if REQUIRED_MASK1 != 0
+#if REQUIRED_MASK0 != 0
 	pushfl				# standard way to check for cpuid
 	popl	%eax
 	movl	%eax,%ebx
@@ -39,14 +39,14 @@ verify_cpu:
 	pushfl
 	popl	%eax
 	cmpl	%eax,%ebx
-	jz	bad			# REQUIRED_MASK1 != 0 requires CPUID
+	jz	bad			# REQUIRED_MASK0 != 0 requires CPUID
 
 	movl	$0x0,%eax		# See if cpuid 1 is implemented
 	cpuid
 	cmpl	$0x1,%eax
 	jb	bad			# no cpuid 1
 
-#if REQUIRED_MASK1 & NEED_CMPXCHG64
+#if REQUIRED_MASK0 & NEED_CMPXCHG64
 	/* Some VIA C3s need magic MSRs to enable CX64. Do this here */
 	cmpl	$0x746e6543,%ebx	# Cent
 	jne	1f
@@ -79,10 +79,10 @@ verify_cpu:
 #error	add proper model checking here
 #endif
 
-	andl	$REQUIRED_MASK1,%edx
-	xorl	$REQUIRED_MASK1,%edx
+	andl	$REQUIRED_MASK0,%edx
+	xorl	$REQUIRED_MASK0,%edx
 	jnz	bad
-#endif /* REQUIRED_MASK1 */
+#endif /* REQUIRED_MASK0 */
 
 	popfl
 	xor	%eax,%eax
