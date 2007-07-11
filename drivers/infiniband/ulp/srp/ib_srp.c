@@ -1545,6 +1545,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 
 	memcpy(ids.port_id, &target->id_ext, 8);
 	memcpy(ids.port_id + 8, &target->ioc_guid, 8);
+	ids.roles = SRP_RPORT_ROLE_TARGET;
 	rport = srp_rport_add(target->scsi_host, &ids);
 	if (IS_ERR(rport)) {
 		scsi_remove_host(target->scsi_host);

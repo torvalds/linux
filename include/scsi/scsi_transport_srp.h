@@ -5,14 +5,19 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 
+#define SRP_RPORT_ROLE_INITIATOR 0
+#define SRP_RPORT_ROLE_TARGET 1
+
 struct srp_rport_identifiers {
 	u8 port_id[16];
+	u8 roles;
 };
 
 struct srp_rport {
 	struct device dev;
 
 	u8 port_id[16];
+	u8 roles;
 };
 
 struct srp_function_template {

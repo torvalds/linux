@@ -1599,6 +1599,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	/* we don't have a proper target_port_id so let's use the fake one */
 	memcpy(ids.port_id, hostdata->madapter_info.partition_name,
 	       sizeof(ids.port_id));
+	ids.roles = SRP_RPORT_ROLE_TARGET;
 	rport = srp_rport_add(host, &ids);
 	if (IS_ERR(rport))
 		goto add_srp_port_failed;

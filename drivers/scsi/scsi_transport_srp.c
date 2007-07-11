@@ -37,7 +37,7 @@ struct srp_host_attrs {
 #define to_srp_host_attrs(host)	((struct srp_host_attrs *)(host)->shost_data)
 
 #define SRP_HOST_ATTRS 0
-#define SRP_RPORT_ATTRS 3
+#define SRP_RPORT_ATTRS 2
 
 struct srp_internal {
 	struct scsi_transport_template t;
@@ -106,6 +106,31 @@ show_srp_rport_id(struct class_device *cdev, char *buf)
 }
 
 static CLASS_DEVICE_ATTR(port_id, S_IRUGO, show_srp_rport_id, NULL);
+
+static const struct {
+	u32 value;
+	char *name;
+} srp_rport_role_names[] = {
+	{SRP_RPORT_ROLE_INITIATOR, "SRP Initiator"},
+	{SRP_RPORT_ROLE_TARGET, "SRP Target"},
+};
+
+static ssize_t
+show_srp_rport_roles(struct class_device *cdev, char *buf)
+{
+	struct srp_rport *rport = transport_class_to_srp_rport(cdev);
+	int i;
+	char *name = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(srp_rport_role_names); i++)
+		if (srp_rport_role_names[i].value == rport->roles) {
+			name = srp_rport_role_names[i].name;
+			break;
+		}
+	return sprintf(buf, "%s\n", name ? : "unknown");
+}
+
+static CLASS_DEVICE_ATTR(roles, S_IRUGO, show_srp_rport_roles, NULL);
 
 static void srp_rport_release(struct device *dev)
 {
@@ -182,6 +207,7 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 	rport->dev.release = srp_rport_release;
 
 	memcpy(rport->port_id, ids->port_id, sizeof(rport->port_id));
+	rport->roles = ids->roles;
 
 	id = atomic_inc_return(&to_srp_host_attrs(shost)->next_port_id);
 	sprintf(rport->dev.bus_id, "port-%d:%d", shost->host_no, id);
@@ -266,6 +292,7 @@ srp_attach_transport(struct srp_function_template *ft)
 
 	count = 0;
 	SETUP_RPORT_ATTRIBUTE_RD(port_id);
+	SETUP_RPORT_ATTRIBUTE_RD(roles);
 	i->rport_attrs[count] = NULL;
 
 	i->f = ft;
