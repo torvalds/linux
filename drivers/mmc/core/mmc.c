@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc.c
+ *  linux/drivers/mmc/core/mmc.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.

@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sd_ops.h
+ *  linux/drivers/mmc/core/sd_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
  *

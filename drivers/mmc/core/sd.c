@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sd.c
+ *  linux/drivers/mmc/core/sd.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.

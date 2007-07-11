@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/media/mmc/omap.c
+ *  linux/drivers/mmc/host/omap.c
  *
  *  Copyright (C) 2004 Nokia Corporation
  *  Written by Tuukka Tikkanen and Juha Yrjölä<juha.yrjola@nokia.com>

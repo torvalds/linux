@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/wbsd.c - Winbond W83L51xD SD/MMC driver
+ *  linux/drivers/mmc/host/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
  *  Copyright (C) 2004-2007 Pierre Ossman, All Rights Reserved.
  *
