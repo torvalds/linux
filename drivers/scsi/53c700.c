@@ -267,8 +267,6 @@ NCR_700_offset_period_to_sxfer(struct NCR_700_Host_Parameters *hostdata,
 		offset = max_offset;
 	}
 	if(XFERP < min_xferp) {
-		printk(KERN_WARNING "53c700: XFERP %d is less than minium, setting to %d\n",
-		       XFERP,  min_xferp);
 		XFERP =  min_xferp;
 	}
 	return (offset & 0x0f) | (XFERP & 0x07)<<4;
