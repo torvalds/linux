@@ -47,7 +47,7 @@
 
 static struct drm_buf *i810_freelist_get(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 	int used;
 
@@ -204,7 +204,7 @@ static int i810_dma_get_buffer(struct drm_device * dev, drm_i810_dma_t * d,
 
 static int i810_dma_cleanup(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
 	 * may not have been called from userspace and after dev_private
@@ -290,7 +290,7 @@ static void i810_kernel_lost_context(struct drm_device * dev)
 
 static int i810_freelist_init(struct drm_device * dev, drm_i810_private_t * dev_priv)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int my_idx = 24;
 	u32 *hw_status = (u32 *) (dev_priv->hw_status_page + my_idx);
 	int i;
@@ -936,7 +936,7 @@ static void i810_dma_quiescent(struct drm_device * dev)
 static int i810_flush_queue(struct drm_device * dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i, ret = 0;
 	RING_LOCALS;
 
@@ -970,7 +970,7 @@ static int i810_flush_queue(struct drm_device * dev)
 /* Must be called with the lock held */
 static void i810_reclaim_buffers(struct drm_device * dev, struct file *filp)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	if (!dma)
@@ -1015,7 +1015,7 @@ static int i810_dma_vertex(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_i810_private_t *dev_priv = (drm_i810_private_t *) dev->dev_private;
 	u32 *hw_status = dev_priv->hw_status_page;
 	drm_i810_sarea_t *sarea_priv = (drm_i810_sarea_t *)
@@ -1207,7 +1207,7 @@ static int i810_dma_mc(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_i810_private_t *dev_priv = (drm_i810_private_t *) dev->dev_private;
 	u32 *hw_status = dev_priv->hw_status_page;
 	drm_i810_sarea_t *sarea_priv = (drm_i810_sarea_t *)

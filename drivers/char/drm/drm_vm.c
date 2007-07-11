@@ -276,7 +276,7 @@ static __inline__ struct page *drm_do_vm_dma_nopage(struct vm_area_struct *vma,
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	unsigned long offset;
 	unsigned long page_nr;
 	struct page *page;
@@ -474,7 +474,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev;
-	drm_device_dma_t *dma;
+	struct drm_device_dma *dma;
 	unsigned long length = vma->vm_end - vma->vm_start;
 
 	dev = priv->head->dev;

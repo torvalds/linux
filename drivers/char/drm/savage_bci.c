@@ -206,7 +206,7 @@ uint16_t savage_bci_emit_event(drm_savage_private_t * dev_priv,
 static int savage_freelist_init(struct drm_device * dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_savage_buf_priv_t *entry;
 	int i;
@@ -1034,7 +1034,7 @@ static int savage_bci_get_buffers(DRMFILE filp, struct drm_device *dev, struct d
 int savage_bci_buffers(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_dma d;
 	int ret = 0;
 
@@ -1071,7 +1071,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 
 void savage_reclaim_buffers(struct drm_device *dev, DRMFILE filp)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	int i;
 

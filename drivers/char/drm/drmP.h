@@ -319,7 +319,7 @@ struct drm_buf {
 };
 
 /** bufs is one longer than it has to be */
-typedef struct drm_waitlist {
+struct drm_waitlist {
 	int count;			/**< Number of possible buffers */
 	struct drm_buf **bufs;		/**< List of pointers to buffers */
 	struct drm_buf **rp;			/**< Read pointer */
@@ -327,9 +327,9 @@ typedef struct drm_waitlist {
 	struct drm_buf **end;		/**< End pointer */
 	spinlock_t read_lock;
 	spinlock_t write_lock;
-} drm_waitlist_t;
+};
 
-typedef struct drm_freelist {
+struct drm_freelist {
 	int initialized;	       /**< Freelist in use */
 	atomic_t count;		       /**< Number of free buffers */
 	struct drm_buf *next;	       /**< End pointer */
@@ -339,7 +339,7 @@ typedef struct drm_freelist {
 	int high_mark;		       /**< High water mark */
 	atomic_t wfh;		       /**< If waiting for high mark */
 	spinlock_t lock;
-} drm_freelist_t;
+};
 
 typedef struct drm_dma_handle {
 	dma_addr_t busaddr;
@@ -350,16 +350,16 @@ typedef struct drm_dma_handle {
 /**
  * Buffer entry.  There is one of this for each buffer size order.
  */
-typedef struct drm_buf_entry {
+struct drm_buf_entry {
 	int buf_size;			/**< size */
 	int buf_count;			/**< number of buffers */
 	struct drm_buf *buflist;		/**< buffer list */
 	int seg_count;
 	int page_order;
-	drm_dma_handle_t **seglist;
+	struct drm_dma_handle **seglist;
 
-	drm_freelist_t freelist;
-} drm_buf_entry_t;
+	struct drm_freelist freelist;
+};
 
 /** File private data */
 struct drm_file {
@@ -378,7 +378,7 @@ struct drm_file {
 };
 
 /** Wait queue */
-typedef struct drm_queue {
+struct drm_queue {
 	atomic_t use_count;		/**< Outstanding uses (+1) */
 	atomic_t finalization;		/**< Finalization in progress */
 	atomic_t block_count;		/**< Count of processes waiting */
@@ -392,9 +392,9 @@ typedef struct drm_queue {
 	atomic_t total_locks;		/**< Total locks statistics */
 #endif
 	enum drm_ctx_flags flags;	/**< Context preserving and 2D-only */
-	drm_waitlist_t waitlist;	/**< Pending buffers */
+	struct drm_waitlist waitlist;	/**< Pending buffers */
 	wait_queue_head_t flush_queue;	/**< Processes waiting until flush */
-} drm_queue_t;
+};
 
 /**
  * Lock data.
@@ -413,9 +413,9 @@ typedef struct drm_lock_data {
 /**
  * DMA data.
  */
-typedef struct drm_device_dma {
+struct drm_device_dma {
 
-	drm_buf_entry_t bufs[DRM_MAX_ORDER + 1];	/**< buffers, grouped by their size order */
+	struct drm_buf_entry bufs[DRM_MAX_ORDER + 1];	/**< buffers, grouped by their size order */
 	int buf_count;			/**< total number of buffers */
 	struct drm_buf **buflist;		/**< Vector of pointers into drm_device_dma::bufs */
 	int seg_count;
@@ -429,7 +429,7 @@ typedef struct drm_device_dma {
 		_DRM_DMA_USE_PCI_RO = 0x08
 	} flags;
 
-} drm_device_dma_t;
+};
 
 /**
  * AGP memory entry.  Stored as a doubly linked list.
@@ -688,8 +688,8 @@ struct drm_device {
 	int queue_count;		/**< Number of active DMA queues */
 	int queue_reserved;		  /**< Number of reserved DMA queues */
 	int queue_slots;		/**< Actual length of queuelist */
-	drm_queue_t **queuelist;	/**< Vector of pointers to DMA queues */
-	drm_device_dma_t *dma;		/**< Optional pointer for DMA support */
+	struct drm_queue **queuelist;	/**< Vector of pointers to DMA queues */
+	struct drm_device_dma *dma;		/**< Optional pointer for DMA support */
 	/*@} */
 
 	/** \name Context support */

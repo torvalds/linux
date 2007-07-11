@@ -785,7 +785,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 		      drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf = NULL;
 	int emit_dispatch_age = 0;
 	int ret = 0;

@@ -780,7 +780,7 @@ static int r128_cce_dispatch_blit(DRMFILE filp,
 				  struct drm_device * dev, drm_r128_blit_t * blit)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	u32 *data;
@@ -1354,7 +1354,7 @@ static int r128_cce_vertex(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_vertex_t vertex;
@@ -1413,7 +1413,7 @@ static int r128_cce_indices(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indices_t elts;
@@ -1483,7 +1483,7 @@ static int r128_cce_indices(DRM_IOCTL_ARGS)
 static int r128_cce_blit(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_blit_t blit;
 	int ret;
@@ -1571,7 +1571,7 @@ static int r128_cce_indirect(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indirect_t indirect;

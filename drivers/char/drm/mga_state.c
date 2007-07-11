@@ -880,7 +880,7 @@ static int mga_dma_vertex(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_vertex_t vertex;
@@ -920,7 +920,7 @@ static int mga_dma_indices(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_indices_t indices;
@@ -959,7 +959,7 @@ static int mga_dma_indices(DRM_IOCTL_ARGS)
 static int mga_dma_iload(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;

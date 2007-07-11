@@ -69,7 +69,7 @@ int drm_dma_setup(struct drm_device *dev)
  */
 void drm_dma_takedown(struct drm_device *dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i, j;
 
 	if (!dma)
@@ -154,7 +154,7 @@ void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
  */
 void drm_core_reclaim_buffers(struct drm_device *dev, struct file *filp)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	if (!dma)

@@ -2048,7 +2048,7 @@ int radeon_fullscreen(DRM_IOCTL_ARGS)
 
 struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv;
 	struct drm_buf *buf;
@@ -2088,7 +2088,7 @@ struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 #if 0
 struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv;
 	struct drm_buf *buf;
@@ -2122,7 +2122,7 @@ struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 
 void radeon_freelist_reset(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	int i;
 
@@ -2198,7 +2198,7 @@ static int radeon_cp_get_buffers(DRMFILE filp, struct drm_device * dev,
 int radeon_cp_buffers(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int ret = 0;
 	struct drm_dma __user *argp = (void __user *)data;
 	struct drm_dma d;

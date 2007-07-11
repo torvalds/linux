@@ -287,7 +287,7 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
 	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	int i;
-	drm_queue_t *q;
+	struct drm_queue *q;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -359,7 +359,7 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 {
 	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	if (!dma || offset > DRM_PROC_LIMIT) {

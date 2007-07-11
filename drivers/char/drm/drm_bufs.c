@@ -504,7 +504,8 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
  *
  * Frees any pages and buffers associated with the given entry.
  */
-static void drm_cleanup_buf_error(struct drm_device * dev, drm_buf_entry_t * entry)
+static void drm_cleanup_buf_error(struct drm_device * dev,
+				  struct drm_buf_entry * entry)
 {
 	int i;
 
@@ -551,8 +552,8 @@ static void drm_cleanup_buf_error(struct drm_device * dev, drm_buf_entry_t * ent
  */
 int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 {
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_entry_t *entry;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf_entry *entry;
 	drm_agp_mem_t *agp_entry;
 	struct drm_buf *buf;
 	unsigned long offset;
@@ -721,13 +722,13 @@ EXPORT_SYMBOL(drm_addbufs_agp);
 
 int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int count;
 	int order;
 	int size;
 	int total;
 	int page_order;
-	drm_buf_entry_t *entry;
+	struct drm_buf_entry *entry;
 	drm_dma_handle_t *dmah;
 	struct drm_buf *buf;
 	int alignment;
@@ -947,8 +948,8 @@ EXPORT_SYMBOL(drm_addbufs_pci);
 
 static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request)
 {
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_entry_t *entry;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf_entry *entry;
 	struct drm_buf *buf;
 	unsigned long offset;
 	unsigned long agp_offset;
@@ -1109,8 +1110,8 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 
 static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request)
 {
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_entry_t *entry;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf_entry *entry;
 	struct drm_buf *buf;
 	unsigned long offset;
 	unsigned long agp_offset;
@@ -1339,7 +1340,7 @@ int drm_infobufs(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_info request;
 	struct drm_buf_info __user *argp = (void __user *)arg;
 	int i;
@@ -1374,8 +1375,8 @@ int drm_infobufs(struct inode *inode, struct file *filp,
 			if (dma->bufs[i].buf_count) {
 				struct drm_buf_desc __user *to =
 				    &request.list[count];
-				drm_buf_entry_t *from = &dma->bufs[i];
-				drm_freelist_t *list = &dma->bufs[i].freelist;
+				struct drm_buf_entry *from = &dma->bufs[i];
+				struct drm_freelist *list = &dma->bufs[i].freelist;
 				if (copy_to_user(&to->count,
 						 &from->buf_count,
 						 sizeof(from->buf_count)) ||
@@ -1427,10 +1428,10 @@ int drm_markbufs(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_desc request;
 	int order;
-	drm_buf_entry_t *entry;
+	struct drm_buf_entry *entry;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
@@ -1477,7 +1478,7 @@ int drm_freebufs(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_free request;
 	int i;
 	int idx;
@@ -1533,7 +1534,7 @@ int drm_mapbufs(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_map __user *argp = (void __user *)arg;
 	int retcode = 0;
 	const int zero = 0;

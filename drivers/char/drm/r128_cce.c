@@ -771,7 +771,7 @@ int r128_fullscreen(DRM_IOCTL_ARGS)
 #if 0
 static int r128_freelist_init(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
@@ -817,7 +817,7 @@ static int r128_freelist_init(struct drm_device * dev)
 
 static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv;
 	struct drm_buf *buf;
@@ -855,7 +855,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 
 void r128_freelist_reset(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	for (i = 0; i < dma->buf_count; i++) {
@@ -913,7 +913,7 @@ static int r128_cce_get_buffers(DRMFILE filp, struct drm_device * dev, struct dr
 int r128_cce_buffers(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int ret = 0;
 	struct drm_dma __user *argp = (void __user *)data;
 	struct drm_dma d;

@@ -247,7 +247,7 @@ static void mga_freelist_print(struct drm_device * dev)
 
 static int mga_freelist_init(struct drm_device * dev, drm_mga_private_t * dev_priv)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_freelist_t *entry;
@@ -313,7 +313,7 @@ static void mga_freelist_cleanup(struct drm_device * dev)
  */
 static void mga_freelist_reset(struct drm_device * dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	int i;
@@ -1113,7 +1113,7 @@ static int mga_dma_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm
 int mga_dma_buffers(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	struct drm_dma __user *argp = (void __user *)data;
 	struct drm_dma d;
