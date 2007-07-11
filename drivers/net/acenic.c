@@ -159,10 +159,6 @@ static struct pci_device_id acenic_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
 
-#ifndef SET_NETDEV_DEV
-#define SET_NETDEV_DEV(net, pdev)	do{} while(0)
-#endif
-
 #define ace_sync_irq(irq)	synchronize_irq(irq)
 
 #ifndef offset_in_page

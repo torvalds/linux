@@ -794,7 +794,6 @@ struct s2io_nic {
 
 	struct net_device_stats stats;
 	int high_dma_flag;
-	int device_close_flag;
 	int device_enabled_once;
 
 	char name[60];
@@ -1051,6 +1050,11 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro);
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 			   struct sk_buff *skb, u32 tcp_len);
 static int rts_ds_steer(struct s2io_nic *nic, u8 ds_codepoint, u8 ring);
+
+static pci_ers_result_t s2io_io_error_detected(struct pci_dev *pdev,
+			                      pci_channel_state_t state);
+static pci_ers_result_t s2io_io_slot_reset(struct pci_dev *pdev);
+static void s2io_io_resume(struct pci_dev *pdev);
 
 #define s2io_tcp_mss(skb) skb_shinfo(skb)->gso_size
 #define s2io_udp_mss(skb) skb_shinfo(skb)->gso_size

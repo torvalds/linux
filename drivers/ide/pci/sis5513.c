@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.20	Mar 4, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.25	Jun 10, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -796,9 +796,32 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 	return 0;
 }
 
-static unsigned int __devinit ata66_sis5513 (ide_hwif_t *hwif)
+struct sis_laptop {
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+};
+
+static const struct sis_laptop sis_laptop[] = {
+	/* devid, subvendor, subdev */
+	{ 0x5513, 0x1043, 0x1107 },	/* ASUS A6K */
+	/* end marker */
+	{ 0, }
+};
+
+static u8 __devinit ata66_sis5513(ide_hwif_t *hwif)
 {
+	struct pci_dev *pdev = hwif->pci_dev;
+	const struct sis_laptop *lap = &sis_laptop[0];
 	u8 ata66 = 0;
+
+	while (lap->device) {
+		if (lap->device == pdev->device &&
+		    lap->subvendor == pdev->subsystem_vendor &&
+		    lap->subdevice == pdev->subsystem_device)
+			return ATA_CBL_PATA40_SHORT;
+		lap++;
+	}
 
 	if (chipset_family >= ATA_133) {
 		u16 regw = 0;
@@ -811,7 +834,8 @@ static unsigned int __devinit ata66_sis5513 (ide_hwif_t *hwif)
 		pci_read_config_byte(hwif->pci_dev, 0x48, &reg48h);
 		ata66 = (reg48h & mask) ? 0 : 1;
 	}
-        return ata66;
+
+	return ata66 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
@@ -841,8 +865,8 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (!chipset_family)
 		return;
 
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66_sis5513(hwif);
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_sis5513(hwif);
 
 	if (chipset_family > ATA_16) {
 		hwif->ide_dma_check = &sis5513_config_xfer_rate;
@@ -872,6 +896,7 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 static struct pci_device_id sis5513_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5513, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5518, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_1180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);

@@ -211,34 +211,34 @@ static inline void epa_store_acc(struct h_epa epa, u32 offset, u64 value)
 }
 
 #define epa_store_eq(epa, offset, value)\
-        epa_store(epa, EQTEMM_OFFSET(offset), value)
+	epa_store(epa, EQTEMM_OFFSET(offset), value)
 #define epa_load_eq(epa, offset)\
-        epa_load(epa, EQTEMM_OFFSET(offset))
+	epa_load(epa, EQTEMM_OFFSET(offset))
 
 #define epa_store_cq(epa, offset, value)\
-        epa_store(epa, CQTEMM_OFFSET(offset), value)
+	epa_store(epa, CQTEMM_OFFSET(offset), value)
 #define epa_load_cq(epa, offset)\
-        epa_load(epa, CQTEMM_OFFSET(offset))
+	epa_load(epa, CQTEMM_OFFSET(offset))
 
 #define epa_store_qp(epa, offset, value)\
-        epa_store(epa, QPTEMM_OFFSET(offset), value)
+	epa_store(epa, QPTEMM_OFFSET(offset), value)
 #define epa_load_qp(epa, offset)\
-        epa_load(epa, QPTEMM_OFFSET(offset))
+	epa_load(epa, QPTEMM_OFFSET(offset))
 
 #define epa_store_qped(epa, offset, value)\
-        epa_store(epa, QPEDMM_OFFSET(offset), value)
+	epa_store(epa, QPEDMM_OFFSET(offset), value)
 #define epa_load_qped(epa, offset)\
-        epa_load(epa, QPEDMM_OFFSET(offset))
+	epa_load(epa, QPEDMM_OFFSET(offset))
 
 #define epa_store_mrmw(epa, offset, value)\
-        epa_store(epa, MRMWMM_OFFSET(offset), value)
+	epa_store(epa, MRMWMM_OFFSET(offset), value)
 #define epa_load_mrmw(epa, offset)\
-        epa_load(epa, MRMWMM_OFFSET(offset))
+	epa_load(epa, MRMWMM_OFFSET(offset))
 
 #define epa_store_base(epa, offset, value)\
-        epa_store(epa, HCAGR_OFFSET(offset), value)
+	epa_store(epa, HCAGR_OFFSET(offset), value)
 #define epa_load_base(epa, offset)\
-        epa_load(epa, HCAGR_OFFSET(offset))
+	epa_load(epa, HCAGR_OFFSET(offset))
 
 static inline void ehea_update_sqa(struct ehea_qp *qp, u16 nr_wqes)
 {

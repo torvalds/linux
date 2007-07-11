@@ -125,7 +125,7 @@ static void usb_kbd_irq(struct urb *urb)
 resubmit:
 	i = usb_submit_urb (urb, GFP_ATOMIC);
 	if (i)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
+		err_hid ("can't resubmit intr, %s-%s/input0, status %d",
 				kbd->usbdev->bus->bus_name,
 				kbd->usbdev->devpath, i);
 }
@@ -151,7 +151,7 @@ static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err("usb_submit_urb(leds) failed");
+		err_hid("usb_submit_urb(leds) failed");
 
 	return 0;
 }
@@ -169,7 +169,7 @@ static void usb_kbd_led(struct urb *urb)
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err("usb_submit_urb(leds) failed");
+		err_hid("usb_submit_urb(leds) failed");
 }
 
 static int usb_kbd_open(struct input_dev *dev)

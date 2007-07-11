@@ -1,0 +1,51 @@
+menuconfig POWER_SUPPLY
+	tristate "Power supply class support"
+	help
+	  Say Y here to enable power supply class support. This allows
+	  power supply (batteries, AC, USB) monitoring by userspace
+	  via sysfs and uevent (if available) and/or APM kernel interface
+	  (if selected below).
+
+if POWER_SUPPLY
+
+config POWER_SUPPLY_DEBUG
+	bool "Power supply debug"
+	help
+	  Say Y here to enable debugging messages for power supply class
+	  and drivers.
+
+config PDA_POWER
+	tristate "Generic PDA/phone power driver"
+	help
+	  Say Y here to enable generic power driver for PDAs and phones with
+	  one or two external power supplies (AC/USB) connected to main and
+	  backup batteries, and optional builtin charger.
+
+config APM_POWER
+	tristate "APM emulation for class batteries"
+	depends on APM_EMULATION
+	help
+	  Say Y here to enable support APM status emulation using
+	  battery class devices.
+
+config BATTERY_DS2760
+	tristate "DS2760 battery driver (HP iPAQ & others)"
+	select W1
+	select W1_SLAVE_DS2760
+	help
+	  Say Y here to enable support for batteries with ds2760 chip.
+
+config BATTERY_PMU
+	tristate "Apple PMU battery"
+	depends on ADB_PMU
+	help
+	  Say Y here to expose battery information on Apple machines
+	  through the generic battery class.
+
+config BATTERY_OLPC
+	tristate "One Laptop Per Child battery"
+	depends on X86_32 && OLPC
+	help
+	  Say Y to enable support for the battery on the OLPC laptop.
+
+endif # POWER_SUPPLY

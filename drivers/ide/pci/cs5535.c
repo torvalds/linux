@@ -187,7 +187,8 @@ static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
 
 	/* if a 80 wire cable was detected */
 	pci_read_config_byte(dev, CS5535_CABLE_DETECT, &bit);
-	return (bit & 1);
+
+	return (bit & 1) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 /****
@@ -212,8 +213,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x1F;
 	hwif->mwdma_mask = 0x07;
 
-
-	hwif->udma_four = cs5535_cable_detect(hwif->pci_dev);
+	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
 
 	if (!noautodma)
 		hwif->autodma = 1;

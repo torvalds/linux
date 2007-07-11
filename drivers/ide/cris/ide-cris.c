@@ -819,7 +819,7 @@ init_e100_ide (void)
 		hwif->dma_host_off = &cris_dma_off;
 		hwif->dma_host_on = &cris_dma_on;
 		hwif->dma_off_quietly = &cris_dma_off;
-		hwif->udma_four = 0;
+		hwif->cbl = ATA_CBL_PATA40;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
 		hwif->autodma = 1;

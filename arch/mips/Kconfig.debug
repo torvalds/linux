@@ -37,7 +37,7 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
-config CONFIG_SMTC_IDLE_HOOK_DEBUG
+config SMTC_IDLE_HOOK_DEBUG
 	bool "Enable additional debug checks before going into CPU idle loop"
 	depends on DEBUG_KERNEL && MIPS_MT_SMTC
 	help

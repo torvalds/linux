@@ -89,7 +89,7 @@ static unsigned char atkbd_set2_keycode[512] = {
 	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	217,100,255,  0, 97,165,  0,  0,156,  0,  0,  0,  0,  0,  0,125,
 	173,114,  0,113,  0,  0,  0,126,128,  0,  0,140,  0,  0,  0,127,
-	159,  0,115,  0,164,  0,  0,116,158,  0,150,166,  0,  0,  0,142,
+	159,  0,115,  0,164,  0,  0,116,158,  0,172,166,  0,  0,  0,142,
 	157,  0,  0,  0,  0,  0,  0,  0,155,  0, 98,  0,  0,163,  0,  0,
 	226,  0,  0,  0,  0,  0,  0,  0,  0,255, 96,  0,  0,  0,143,  0,
 	  0,  0,  0,  0,  0,  0,  0,  0,  0,107,  0,105,102,  0,  0,112,
@@ -111,7 +111,7 @@ static unsigned char atkbd_set3_keycode[512] = {
 	 82, 83, 80, 76, 77, 72, 69, 98,  0, 96, 81,  0, 78, 73, 55,183,
 
 	184,185,186,187, 74, 94, 92, 93,  0,  0,  0,125,126,127,112,  0,
-	  0,139,150,163,165,115,152,150,166,140,160,154,113,114,167,168,
+	  0,139,172,163,165,115,152,172,166,140,160,154,113,114,167,168,
 	148,149,147,140
 };
 
@@ -219,7 +219,8 @@ struct atkbd {
 	unsigned long time;
 	unsigned long err_count;
 
-	struct work_struct event_work;
+	struct delayed_work event_work;
+	unsigned long event_jiffies;
 	struct mutex event_mutex;
 	unsigned long event_mask;
 };
@@ -408,9 +409,10 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			goto out;
 		case ATKBD_RET_ACK:
 		case ATKBD_RET_NAK:
-			printk(KERN_WARNING "atkbd.c: Spurious %s on %s. "
-			       "Some program might be trying access hardware directly.\n",
-			       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
+			if (printk_ratelimit())
+				printk(KERN_WARNING "atkbd.c: Spurious %s on %s. "
+				       "Some program might be trying access hardware directly.\n",
+				       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
 			goto out;
 		case ATKBD_RET_HANGEUL:
 		case ATKBD_RET_HANJA:
@@ -565,7 +567,7 @@ static int atkbd_set_leds(struct atkbd *atkbd)
 
 static void atkbd_event_work(struct work_struct *work)
 {
-	struct atkbd *atkbd = container_of(work, struct atkbd, event_work);
+	struct atkbd *atkbd = container_of(work, struct atkbd, event_work.work);
 
 	mutex_lock(&atkbd->event_mutex);
 
@@ -579,12 +581,30 @@ static void atkbd_event_work(struct work_struct *work)
 }
 
 /*
+ * Schedule switch for execution. We need to throttle requests,
+ * otherwise keyboard may become unresponsive.
+ */
+static void atkbd_schedule_event_work(struct atkbd *atkbd, int event_bit)
+{
+	unsigned long delay = msecs_to_jiffies(50);
+
+	if (time_after(jiffies, atkbd->event_jiffies + delay))
+		delay = 0;
+
+	atkbd->event_jiffies = jiffies;
+	set_bit(event_bit, &atkbd->event_mask);
+	wmb();
+	schedule_delayed_work(&atkbd->event_work, delay);
+}
+
+/*
  * Event callback from the input module. Events that change the state of
  * the hardware are processed here. If action can not be performed in
  * interrupt context it is offloaded to atkbd_event_work.
  */
 
-static int atkbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static int atkbd_event(struct input_dev *dev,
+			unsigned int type, unsigned int code, int value)
 {
 	struct atkbd *atkbd = input_get_drvdata(dev);
 
@@ -594,19 +614,12 @@ static int atkbd_event(struct input_dev *dev, unsigned int type, unsigned int co
 	switch (type) {
 
 		case EV_LED:
-			set_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask);
-			wmb();
-			schedule_work(&atkbd->event_work);
+			atkbd_schedule_event_work(atkbd, ATKBD_LED_EVENT_BIT);
 			return 0;
 
 		case EV_REP:
-
-			if (!atkbd->softrepeat) {
-				set_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask);
-				wmb();
-				schedule_work(&atkbd->event_work);
-			}
-
+			if (!atkbd->softrepeat)
+				atkbd_schedule_event_work(atkbd, ATKBD_REP_EVENT_BIT);
 			return 0;
 	}
 
@@ -940,7 +953,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
-	INIT_WORK(&atkbd->event_work, atkbd_event_work);
+	INIT_DELAYED_WORK(&atkbd->event_work, atkbd_event_work);
 	mutex_init(&atkbd->event_mutex);
 
 	switch (serio->id.type) {

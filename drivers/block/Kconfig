@@ -2,9 +2,12 @@
 # Block device driver configuration
 #
 
-if BLOCK
+menuconfig BLK_DEV
+	bool "Block devices"
+	depends on BLOCK
+	default y
 
-menu "Block devices"
+if BLK_DEV
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
@@ -56,40 +59,9 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
-config ATARI_ACSI
-	tristate "Atari ACSI support"
-	depends on ATARI && BROKEN
-	---help---
-	  This enables support for the Atari ACSI interface. The driver
-	  supports hard disks and CD-ROMs, which have 512-byte sectors, or can
-	  be switched to that mode. Due to the ACSI command format, only disks
-	  up to 1 GB are supported. Special support for certain ACSI to SCSI
-	  adapters, which could relax that, isn't included yet. The ACSI
-	  driver is also the basis for certain other drivers for devices
-	  attached to the ACSI bus: Atari SLM laser printer, BioNet-100
-	  Ethernet, and PAMsNet Ethernet. If you want to use one of these
-	  devices, you need ACSI support, too.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called acsi.
-
-comment "Some devices (e.g. CD jukebox) support multiple LUNs"
-	depends on ATARI && ATARI_ACSI
-
-config ACSI_MULTI_LUN
-	bool "Probe all LUNs on each ACSI device"
-	depends on ATARI_ACSI
-	help
-	  If you have a ACSI device that supports more than one LUN (Logical
-	  Unit Number), e.g. a CD jukebox, you should say Y here so that all
-	  will be found by the ACSI driver. An ACSI device with multiple LUNs
-	  acts logically like multiple ACSI devices. The vast majority of ACSI
-	  devices have only one LUN, and so most people can say N here and
-	  should in fact do so, because it is safer.
-
 config ATARI_SLM
 	tristate "Atari SLM laser printer support"
-	depends on ATARI && ATARI_ACSI!=n
+	depends on ATARI
 	help
 	  If you have an Atari SLM laser printer, say Y to include support for
 	  it in the kernel. Otherwise, say N. This driver is also available as
@@ -453,6 +425,4 @@ config ATA_OVER_ETH
 
 source "drivers/s390/block/Kconfig"
 
-endmenu
-
-endif
+endif # BLK_DEV

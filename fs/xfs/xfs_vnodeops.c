@@ -4680,9 +4680,6 @@ bhv_vnodeops_t xfs_vnodeops = {
 	.vop_open		= xfs_open,
 	.vop_close		= xfs_close,
 	.vop_read		= xfs_read,
-#ifdef HAVE_SENDFILE
-	.vop_sendfile		= xfs_sendfile,
-#endif
 #ifdef HAVE_SPLICE
 	.vop_splice_read	= xfs_splice_read,
 	.vop_splice_write	= xfs_splice_write,

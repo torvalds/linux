@@ -1014,49 +1014,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mga=		[HW,DRM]
 
-	migration_cost=
-			[KNL,SMP] debug: override scheduler migration costs
-			Format: <level-1-usecs>,<level-2-usecs>,...
-			This debugging option can be used to override the
-			default scheduler migration cost matrix. The numbers
-			are indexed by 'CPU domain distance'.
-			E.g. migration_cost=1000,2000,3000 on an SMT NUMA
-			box will set up an intra-core migration cost of
-			1 msec, an inter-core migration cost of 2 msecs,
-			and an inter-node migration cost of 3 msecs.
-
-			WARNING: using the wrong values here can break
-			scheduler performance, so it's only for scheduler
-			development purposes, not production environments.
-
-	migration_debug=
-			[KNL,SMP] migration cost auto-detect verbosity
-			Format=<0|1|2>
-			If a system's migration matrix reported at bootup
-			seems erroneous then this option can be used to
-			increase verbosity of the detection process.
-			We default to 0 (no extra messages), 1 will print
-			some more information, and 2 will be really
-			verbose (probably only useful if you also have a
-			serial console attached to the system).
-
-	migration_factor=
-			[KNL,SMP] multiply/divide migration costs by a factor
-			Format=<percent>
-			This debug option can be used to proportionally
-			increase or decrease the auto-detected migration
-			costs for all entries of the migration matrix.
-			E.g. migration_factor=150 will increase migration
-			costs by 50%. (and thus the scheduler will be less
-			eager migrating cache-hot tasks)
-			migration_factor=80 will decrease migration costs
-			by 20%. (thus the scheduler will be more eager to
-			migrate tasks)
-
-			WARNING: using the wrong values here can break
-			scheduler performance, so it's only for scheduler
-			development purposes, not production environments.
-
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
 			leaving touchpad surface for touch to be considered

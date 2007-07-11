@@ -24,7 +24,7 @@
  */
 
 typedef struct {
-	volatile int counter;
+	int counter;
 } __attribute__ ((aligned (4))) atomic_t;
 #define ATOMIC_INIT(i)  { (i) }
 
@@ -141,7 +141,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 
 #ifdef __s390x__
 typedef struct {
-	volatile long long counter;
+	long long counter;
 } __attribute__ ((aligned (8))) atomic64_t;
 #define ATOMIC64_INIT(i)  { (i) }
 

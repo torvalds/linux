@@ -64,6 +64,12 @@ config ZLIB_INFLATE
 config ZLIB_DEFLATE
 	tristate
 
+config LZO_COMPRESS
+	tristate
+
+config LZO_DECOMPRESS
+	tristate
+
 #
 # Generic allocator support is selected if needed
 #

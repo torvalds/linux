@@ -2276,7 +2276,7 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 	phy_stop(phydev);
 
 	/* Mask all interrupts */
-	out_be32(ugeth->uccf->p_ucce, 0x00000000);
+	out_be32(ugeth->uccf->p_uccm, 0x00000000);
 
 	/* Clear all interrupts */
 	out_be32(ugeth->uccf->p_ucce, 0xffffffff);

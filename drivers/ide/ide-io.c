@@ -1350,7 +1350,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 						hwif->INB(IDE_STATUS_REG));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		(void) hwif->ide_dma_timeout(drive);
+		hwif->dma_timeout(drive);
 	}
 
 	/*
@@ -1466,7 +1466,7 @@ void ide_timer_expiry (unsigned long data)
 				startstop = handler(drive);
 			} else if (drive_is_ready(drive)) {
 				if (drive->waiting_for_dma)
-					(void) hwgroup->hwif->ide_dma_lostirq(drive);
+					hwgroup->hwif->dma_lost_irq(drive);
 				(void)ide_ack_intr(hwif);
 				printk(KERN_WARNING "%s: lost interrupt\n", drive->name);
 				startstop = handler(drive);

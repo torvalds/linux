@@ -328,7 +328,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
  *		dentry	- child directory dentry
  *
  * RETURN:	-EINVAL	- if name is . or ..
- *		-EINVAL  - if . or .. exist but are invalid.
+ *		-EINVAL - if . or .. exist but are invalid.
  *		errors from subroutines
  *
  * note:
@@ -517,7 +517,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	inode_dec_link_count(ip);
 
 	/*
-	 *      commit zero link count object
+	 *	commit zero link count object
 	 */
 	if (ip->i_nlink == 0) {
 		assert(!test_cflag(COMMIT_Nolink, ip));
@@ -596,7 +596,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 /*
  * NAME:	commitZeroLink()
  *
- * FUNCTION:    for non-directory, called by jfs_remove(),
+ * FUNCTION:	for non-directory, called by jfs_remove(),
  *		truncate a regular file, directory or symbolic
  *		link to zero length. return 0 if type is not
  *		one of these.
@@ -676,7 +676,7 @@ static s64 commitZeroLink(tid_t tid, struct inode *ip)
 /*
  * NAME:	jfs_free_zero_link()
  *
- * FUNCTION:    for non-directory, called by iClose(),
+ * FUNCTION:	for non-directory, called by iClose(),
  *		free resources of a file from cache and WORKING map
  *		for a file previously committed with zero link count
  *		while associated with a pager object,
@@ -855,12 +855,12 @@ static int jfs_link(struct dentry *old_dentry,
  * NAME:	jfs_symlink(dip, dentry, name)
  *
  * FUNCTION:	creates a symbolic link to <symlink> by name <name>
- *		        in directory <dip>
+ *			in directory <dip>
  *
- * PARAMETER:	dip	    - parent directory vnode
- *		        dentry	- dentry of symbolic link
- *		        name    - the path name of the existing object
- *			              that will be the source of the link
+ * PARAMETER:	dip	- parent directory vnode
+ *		dentry	- dentry of symbolic link
+ *		name	- the path name of the existing object
+ *			  that will be the source of the link
  *
  * RETURN:	errors from subroutines
  *
@@ -1052,9 +1052,9 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 
 
 /*
- * NAME:        jfs_rename
+ * NAME:	jfs_rename
  *
- * FUNCTION:    rename a file or directory
+ * FUNCTION:	rename a file or directory
  */
 static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	       struct inode *new_dir, struct dentry *new_dentry)
@@ -1331,9 +1331,9 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 
 /*
- * NAME:        jfs_mknod
+ * NAME:	jfs_mknod
  *
- * FUNCTION:    Create a special file (device)
+ * FUNCTION:	Create a special file (device)
  */
 static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 		int mode, dev_t rdev)

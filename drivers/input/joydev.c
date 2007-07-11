@@ -43,6 +43,8 @@ struct joydev {
 	struct input_handle handle;
 	wait_queue_head_t wait;
 	struct list_head client_list;
+	struct device dev;
+
 	struct js_corr corr[ABS_MAX + 1];
 	struct JS_DATA_SAVE_TYPE glue;
 	int nabs;
@@ -138,8 +140,10 @@ static int joydev_fasync(int fd, struct file *file, int on)
 	return retval < 0 ? retval : 0;
 }
 
-static void joydev_free(struct joydev *joydev)
+static void joydev_free(struct device *dev)
 {
+	struct joydev *joydev = container_of(dev, struct joydev, dev);
+
 	joydev_table[joydev->minor] = NULL;
 	kfree(joydev);
 }
@@ -154,12 +158,10 @@ static int joydev_release(struct inode *inode, struct file *file)
 	list_del(&client->node);
 	kfree(client);
 
-	if (!--joydev->open) {
-		if (joydev->exist)
-			input_close_device(&joydev->handle);
-		else
-			joydev_free(joydev);
-	}
+	if (!--joydev->open && joydev->exist)
+		input_close_device(&joydev->handle);
+
+	put_device(&joydev->dev);
 
 	return 0;
 }
@@ -178,24 +180,32 @@ static int joydev_open(struct inode *inode, struct file *file)
 	if (!joydev || !joydev->exist)
 		return -ENODEV;
 
+	get_device(&joydev->dev);
+
 	client = kzalloc(sizeof(struct joydev_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
+	if (!client) {
+		error = -ENOMEM;
+		goto err_put_joydev;
+	}
 
 	client->joydev = joydev;
 	list_add_tail(&client->node, &joydev->client_list);
 
 	if (!joydev->open++ && joydev->exist) {
 		error = input_open_device(&joydev->handle);
-		if (error) {
-			list_del(&client->node);
-			kfree(client);
-			return error;
-		}
+		if (error)
+			goto err_free_client;
 	}
 
 	file->private_data = client;
 	return 0;
+
+ err_free_client:
+	list_del(&client->node);
+	kfree(client);
+ err_put_joydev:
+	put_device(&joydev->dev);
+	return error;
 }
 
 static ssize_t joydev_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
@@ -481,8 +491,6 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			  const struct input_device_id *id)
 {
 	struct joydev *joydev;
-	struct class_device *cdev;
-	dev_t devt;
 	int i, j, t, minor;
 	int error;
 
@@ -505,7 +513,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	joydev->handle.name = joydev->name;
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;
-	sprintf(joydev->name, "js%d", minor);
+	snprintf(joydev->name, sizeof(joydev->name), "js%d", minor);
 
 	for (i = 0; i < ABS_MAX + 1; i++)
 		if (test_bit(i, dev->absbit)) {
@@ -547,36 +555,30 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		joydev->abs[i] = joydev_correct(dev->abs[j], joydev->corr + i);
 	}
 
+	snprintf(joydev->dev.bus_id, sizeof(joydev->dev.bus_id),
+		 "js%d", minor);
+	joydev->dev.class = &input_class;
+	joydev->dev.parent = &dev->dev;
+	joydev->dev.devt = MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor);
+	joydev->dev.release = joydev_free;
+	device_initialize(&joydev->dev);
+
 	joydev_table[minor] = joydev;
 
-	devt = MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-
-	cdev = class_device_create(&input_class, &dev->cdev, devt,
-				   dev->cdev.dev, joydev->name);
-	if (IS_ERR(cdev)) {
-		error = PTR_ERR(cdev);
-		goto err_free_joydev;
-	}
-
-	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kobj,
-				  &cdev->kobj, joydev->name);
+	error = device_add(&joydev->dev);
 	if (error)
-		goto err_cdev_destroy;
+		goto err_free_joydev;
 
 	error = input_register_handle(&joydev->handle);
 	if (error)
-		goto err_remove_link;
+		goto err_delete_joydev;
 
 	return 0;
 
- err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kobj, joydev->name);
- err_cdev_destroy:
-	class_device_destroy(&input_class, devt);
+ err_delete_joydev:
+	device_del(&joydev->dev);
  err_free_joydev:
-	joydev_table[minor] = NULL;
-	kfree(joydev);
+	put_device(&joydev->dev);
 	return error;
 }
 
@@ -587,9 +589,8 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev_client *client;
 
 	input_unregister_handle(handle);
+	device_del(&joydev->dev);
 
-	sysfs_remove_link(&input_class.subsys.kobj, joydev->name);
-	class_device_destroy(&input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
 	joydev->exist = 0;
 
 	if (joydev->open) {
@@ -597,8 +598,9 @@ static void joydev_disconnect(struct input_handle *handle)
 		list_for_each_entry(client, &joydev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 		wake_up_interruptible(&joydev->wait);
-	} else
-		joydev_free(joydev);
+	}
+
+	put_device(&joydev->dev);
 }
 
 static const struct input_device_id joydev_blacklist[] = {

@@ -109,9 +109,11 @@ struct tsdev {
 	int open;
 	int minor;
 	char name[8];
+	struct input_handle handle;
 	wait_queue_head_t wait;
 	struct list_head client_list;
-	struct input_handle handle;
+	struct device dev;
+
 	int x, y, pressure;
 	struct ts_calibration cal;
 };
@@ -163,9 +165,13 @@ static int tsdev_open(struct inode *inode, struct file *file)
 	if (!tsdev || !tsdev->exist)
 		return -ENODEV;
 
+	get_device(&tsdev->dev);
+
 	client = kzalloc(sizeof(struct tsdev_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
+	if (!client) {
+		error = -ENOMEM;
+		goto err_put_tsdev;
+	}
 
 	client->tsdev = tsdev;
 	client->raw = (i >= TSDEV_MINORS / 2) ? 1 : 0;
@@ -173,19 +179,25 @@ static int tsdev_open(struct inode *inode, struct file *file)
 
 	if (!tsdev->open++ && tsdev->exist) {
 		error = input_open_device(&tsdev->handle);
-		if (error) {
-			list_del(&client->node);
-			kfree(client);
-			return error;
-		}
+		if (error)
+			goto err_free_client;
 	}
 
 	file->private_data = client;
 	return 0;
+
+ err_free_client:
+	list_del(&client->node);
+	kfree(client);
+ err_put_tsdev:
+	put_device(&tsdev->dev);
+	return error;
 }
 
-static void tsdev_free(struct tsdev *tsdev)
+static void tsdev_free(struct device *dev)
 {
+	struct tsdev *tsdev = container_of(dev, struct tsdev, dev);
+
 	tsdev_table[tsdev->minor] = NULL;
 	kfree(tsdev);
 }
@@ -200,12 +212,10 @@ static int tsdev_release(struct inode *inode, struct file *file)
 	list_del(&client->node);
 	kfree(client);
 
-	if (!--tsdev->open) {
-		if (tsdev->exist)
-			input_close_device(&tsdev->handle);
-		else
-			tsdev_free(tsdev);
-	}
+	if (!--tsdev->open && tsdev->exist)
+		input_close_device(&tsdev->handle);
+
+	put_device(&tsdev->dev);
 
 	return 0;
 }
@@ -361,7 +371,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 		int x, y, tmp;
 
 		do_gettimeofday(&time);
-		client->event[client->head].millisecs = time.tv_usec / 100;
+		client->event[client->head].millisecs = time.tv_usec / 1000;
 		client->event[client->head].pressure = tsdev->pressure;
 
 		x = tsdev->x;
@@ -388,8 +398,6 @@ static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
 			 const struct input_device_id *id)
 {
 	struct tsdev *tsdev;
-	struct class_device *cdev;
-	dev_t devt;
 	int minor, delta;
 	int error;
 
@@ -407,14 +415,13 @@ static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
 	INIT_LIST_HEAD(&tsdev->client_list);
 	init_waitqueue_head(&tsdev->wait);
 
-	sprintf(tsdev->name, "ts%d", minor);
-
 	tsdev->exist = 1;
 	tsdev->minor = minor;
 	tsdev->handle.dev = dev;
 	tsdev->handle.name = tsdev->name;
 	tsdev->handle.handler = handler;
 	tsdev->handle.private = tsdev;
+	snprintf(tsdev->name, sizeof(tsdev->name), "ts%d", minor);
 
 	/* Precompute the rough calibration matrix */
 	delta = dev->absmax [ABS_X] - dev->absmin [ABS_X] + 1;
@@ -429,36 +436,30 @@ static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
 	tsdev->cal.yscale = (yres << 8) / delta;
 	tsdev->cal.ytrans = - ((dev->absmin [ABS_Y] * tsdev->cal.yscale) >> 8);
 
+	snprintf(tsdev->dev.bus_id, sizeof(tsdev->dev.bus_id),
+		 "ts%d", minor);
+	tsdev->dev.class = &input_class;
+	tsdev->dev.parent = &dev->dev;
+	tsdev->dev.devt = MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor);
+	tsdev->dev.release = tsdev_free;
+	device_initialize(&tsdev->dev);
+
 	tsdev_table[minor] = tsdev;
 
-	devt = MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-
-	cdev = class_device_create(&input_class, &dev->cdev, devt,
-				   dev->cdev.dev, tsdev->name);
-	if (IS_ERR(cdev)) {
-		error = PTR_ERR(cdev);
-		goto err_free_tsdev;
-	}
-
-	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kobj,
-				  &cdev->kobj, tsdev->name);
+	error = device_add(&tsdev->dev);
 	if (error)
-		goto err_cdev_destroy;
+		goto err_free_tsdev;
 
 	error = input_register_handle(&tsdev->handle);
 	if (error)
-		goto err_remove_link;
+		goto err_delete_tsdev;
 
 	return 0;
 
- err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
- err_cdev_destroy:
-	class_device_destroy(&input_class, devt);
+ err_delete_tsdev:
+	device_del(&tsdev->dev);
  err_free_tsdev:
-	tsdev_table[minor] = NULL;
-	kfree(tsdev);
+	put_device(&tsdev->dev);
 	return error;
 }
 
@@ -468,10 +469,8 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev_client *client;
 
 	input_unregister_handle(handle);
+	device_del(&tsdev->dev);
 
-	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
-	class_device_destroy(&input_class,
-			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;
 
 	if (tsdev->open) {
@@ -479,8 +478,9 @@ static void tsdev_disconnect(struct input_handle *handle)
 		list_for_each_entry(client, &tsdev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 		wake_up_interruptible(&tsdev->wait);
-	} else
-		tsdev_free(tsdev);
+	}
+
+	put_device(&tsdev->dev);
 }
 
 static const struct input_device_id tsdev_ids[] = {

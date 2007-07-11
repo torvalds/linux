@@ -483,6 +483,7 @@ int zd_rf_init_al7230b(struct zd_rf *rf)
 		rf->switch_radio_on = zd1211_al7230b_switch_radio_on;
 		rf->set_channel = zd1211_al7230b_set_channel;
 		rf->patch_6m_band_edge = zd_rf_generic_patch_6m;
+		rf->patch_cck_gain = 1;
 	}
 
 	rf->switch_radio_off = al7230b_switch_radio_off;

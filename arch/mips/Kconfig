@@ -15,6 +15,29 @@ choice
 	prompt "System type"
 	default SGI_IP22
 
+config LEMOTE_FULONG
+	bool "Lemote Fulong mini-PC"
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_HAS_CPU_LOONGSON2
+	select DMA_NONCOHERENT
+	select BOOT_ELF32
+	select BOARD_SCACHE
+	select HAVE_STD_PC_SERIAL_PORT
+	select HW_HAS_PCI
+	select I8259
+	select ISA
+	select IRQ_CPU
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_HAS_EARLY_PRINTK
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select CPU_HAS_WB
+	help
+	  Lemote Fulong mini-PC board based on the Chinese Loongson-2E CPU and
+	  an FPGA northbridge
+
 config MACH_ALCHEMY
 	bool "Alchemy processor based machines"
 
@@ -63,7 +86,7 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
+	select NO_IOPORT
 	select IRQ_CPU
 	select SYS_HAS_CPU_R3000
 	select SYS_HAS_CPU_R4X00
@@ -88,24 +111,6 @@ config MACH_DECSTATION
 
 	  otherwise choose R3000.
 
-config MIPS_EV64120
-	bool "Galileo EV64120 Evaluation board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select PCI_GT64XXX_PCI0
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	help
-	  This is an evaluation board based on the Galileo GT-64120
-	  single-chip system controller that contains a MIPS R5000 compatible
-	  core running at 75/100MHz.  Their website is located at
-	  <http://www.marvell.com/>.  Say Y here if you wish to build a
-	  kernel for this platform.
-
 config MACH_JAZZ
 	bool "Jazz family of machines"
 	select ARC
@@ -125,20 +130,6 @@ config MACH_JAZZ
 	 used by several vendors to build RISC/os and Windows NT workstations.
 	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millenium and
 	 Olivetti M700-10 workstations.
-
-config LASAT
-	bool "LASAT Networks platforms"
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select HW_HAS_PCI
-	select PCI_GT64XXX_PCI0
-	select MIPS_NILE4
-	select R5000_CPU_SCACHE
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config MIPS_ATLAS
 	bool "MIPS Atlas board"
@@ -173,7 +164,6 @@ config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
-	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
@@ -246,11 +236,13 @@ config MIPS_SIM
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
+	select BOOT_RAW
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  This option enables support for MIPS Technologies MIPSsim software
@@ -270,43 +262,6 @@ config MOMENCO_OCELOT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
-	help
-	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
-config MOMENCO_OCELOT_3
-	bool "Momentum Ocelot-3 board"
-	select BOOT_ELF32
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_MV64340
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM9000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  The Ocelot-3 is based off Discovery III System Controller and
-	  PMC-Sierra Rm79000 core.
-
-config MOMENCO_OCELOT_C
-	bool "Momentum Ocelot-C board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_MV64340
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -345,6 +300,27 @@ config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select SYS_HAS_CPU_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+
+config PMC_MSP
+	bool "PMC-Sierra MSP chipsets"
+	depends on EXPERIMENTAL
+	select DMA_NONCOHERENT
+	select SWAP_IO_SPACE
+	select NO_EXCEPT_FILL
+	select BOOT_RAW
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_KGDB
+	select IRQ_CPU
+	select SERIAL_8250
+	select SERIAL_8250_CONSOLE
+	help
+	  This adds support for the PMC-Sierra family of Multi-Service
+	  Processor System-On-A-Chips.  These parts include a number
+	  of integrated peripherals, interfaces and DSPs in addition to
+	  a variety of MIPS cores.
 
 config PMC_YOSEMITE
 	bool "PMC-Sierra Yosemite eval board"
@@ -450,8 +426,7 @@ config SGI_IP27
 	  here.
 
 config SGI_IP32
-	bool "SGI IP32 (O2) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "SGI IP32 (O2)"
 	select ARC
 	select ARC32
 	select BOOT_ELF32
@@ -652,6 +627,7 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_GPIO
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
@@ -660,9 +636,7 @@ endchoice
 
 source "arch/mips/au1000/Kconfig"
 source "arch/mips/ddb5xxx/Kconfig"
-source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
-source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
@@ -721,6 +695,9 @@ config ARC
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
+config BOOT_RAW
+	bool
+
 config DMA_COHERENT
 	bool
 
@@ -768,15 +745,18 @@ config MIPS_BONITO64
 config MIPS_MSC
 	bool
 
-config MIPS_NILE4
-	bool
-
 config MIPS_DISABLE_OBSOLETE_IDE
 	bool
+
+config NO_IOPORT
+	def_bool n
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select ZONE_DMA
+
+config GENERIC_GPIO
+	bool
 
 #
 # Endianess selection.  Sufficiently obscure so many users don't know what to
@@ -821,7 +801,10 @@ config IRQ_CPU_RM7K
 config IRQ_CPU_RM9K
 	bool
 
-config IRQ_MV64340
+config IRQ_MSP_SLP
+	bool
+
+config IRQ_MSP_CIC
 	bool
 
 config DDB5XXX_COMMON
@@ -834,6 +817,9 @@ config MIPS_BOARDS_GEN
 config PCI_GT64XXX_PCI0
 	bool
 
+config NO_EXCEPT_FILL
+	bool
+
 config MIPS_TX3927
 	bool
 	select HAS_TXX9_SERIAL
@@ -841,14 +827,6 @@ config MIPS_TX3927
 config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
-	select GPI_RM9000
-	select WDT_RM9000
-
-config PCI_MARVELL
-	bool
-
-config SERIAL_RM9000
-	bool
 
 config PNX8550
 	bool
@@ -863,6 +841,7 @@ config SOC_PNX8550
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select SYS_SUPPORTS_KGDB
+	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
 	bool
@@ -875,31 +854,17 @@ config EMMA2RH
 config SERIAL_RM9000
 	bool
 
-config GPI_RM9000
-	bool
-
-config WDT_RM9000
-	bool
-
 #
 # Unfortunately not all GT64120 systems run the chip at the same clock.
 # As the user for the clock rate and try to minimize the available options.
 #
 choice
 	prompt "Galileo Chip Clock"
-	#default SYSCLK_83 if MIPS_EV64120
-	depends on MIPS_EV64120 || MOMENCO_OCELOT
-	default SYSCLK_83 if MIPS_EV64120
+	depends on MOMENCO_OCELOT
 	default SYSCLK_100 if MOMENCO_OCELOT
 
-config SYSCLK_75
-	bool "75" if MIPS_EV64120
-
-config SYSCLK_83
-	bool "83.3" if MIPS_EV64120
-
 config SYSCLK_100
-	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT
+	bool "100" if MOMENCO_OCELOT
 
 endchoice
 
@@ -911,8 +876,9 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION || SNI_RM
-	default "7" if SGI_IP27
+	default "4" if MACH_DECSTATION
+	default "7" if SGI_IP27 || SNI_RM
+	default "4" if PMC_MSP4200_EVAL
 	default "5"
 
 config HAVE_STD_PC_SERIAL_PORT
@@ -943,6 +909,16 @@ menu "CPU selection"
 choice
 	prompt "CPU type"
 	default CPU_R4X00
+
+config CPU_LOONGSON2
+	bool "Loongson 2"
+	depends on SYS_HAS_CPU_LOONGSON2
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	help
+	  The Loongson 2E processor implements the MIPS III instruction set
+	  with many extensions.
 
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
@@ -1153,6 +1129,9 @@ config CPU_SB1
 	select WEAK_ORDERING
 
 endchoice
+
+config SYS_HAS_CPU_LOONGSON2
+	bool
 
 config SYS_HAS_CPU_MIPS32_R1
 	bool
@@ -1487,6 +1466,15 @@ config CPU_HAS_SMARTMIPS
 
 config CPU_HAS_WB
 	bool
+
+config 64BIT_CONTEXT
+	bool "Save 64bit integer registers"
+	depends on 32BIT && CPU_LOONGSON2
+	help
+	  Loongson2 CPU is 64bit , when used in 32BIT mode, its integer
+	  registers can still be accessed as 64bit, mainly for multimedia
+	  instructions. We must have all 64bit save/restored to make sure
+	  those instructions to get correct result.
 
 #
 # Vectored interrupt mode is an R2 feature

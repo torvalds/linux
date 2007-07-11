@@ -49,6 +49,7 @@ header-y += consolemap.h
 header-y += const.h
 header-y += cycx_cfm.h
 header-y += dlm_device.h
+header-y += dlm_netlink.h
 header-y += dm-ioctl.h
 header-y += dn.h
 header-y += dqblk_v1.h

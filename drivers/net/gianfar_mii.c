@@ -43,13 +43,18 @@
 #include "gianfar.h"
 #include "gianfar_mii.h"
 
-/* Write value to the PHY at mii_id at register regnum,
- * on the bus, waiting until the write is done before returning.
- * All PHY configuration is done through the TSEC1 MIIM regs */
-int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
+/*
+ * Write value to the PHY at mii_id at register regnum,
+ * on the bus attached to the local interface, which may be different from the
+ * generic mdio bus (tied to a single interface), waiting until the write is
+ * done before returning. This is helpful in programming interfaces like
+ * the TBI which control interfaces like onchip SERDES and are always tied to
+ * the local mdio pins, which may not be the same as system mdio bus, used for
+ * controlling the external PHYs, for example.
+ */
+int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id,
+			  int regnum, u16 value)
 {
-	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
-
 	/* Set the PHY address and the register address we want to write */
 	gfar_write(&regs->miimadd, (mii_id << 8) | regnum);
 
@@ -63,12 +68,19 @@ int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
 	return 0;
 }
 
-/* Read the bus for PHY at addr mii_id, register regnum, and
- * return the value.  Clears miimcom first.  All PHY
- * configuration has to be done through the TSEC1 MIIM regs */
-int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+/*
+ * Read the bus for PHY at addr mii_id, register regnum, and
+ * return the value.  Clears miimcom first.  All PHY operation
+ * done on the bus attached to the local interface,
+ * which may be different from the generic mdio bus
+ * This is helpful in programming interfaces like
+ * the TBI which, inturn, control interfaces like onchip SERDES
+ * and are always tied to the local mdio pins, which may not be the
+ * same as system mdio bus, used for controlling the external PHYs, for eg.
+ */
+int gfar_local_mdio_read(struct gfar_mii *regs, int mii_id, int regnum)
+
 {
-	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 	u16 value;
 
 	/* Set the PHY address and the register address we want to read */
@@ -88,6 +100,27 @@ int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	return value;
 }
 
+/* Write value to the PHY at mii_id at register regnum,
+ * on the bus, waiting until the write is done before returning.
+ * All PHY configuration is done through the TSEC1 MIIM regs */
+int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
+{
+	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
+
+	/* Write to the local MII regs */
+	return(gfar_local_mdio_write(regs, mii_id, regnum, value));
+}
+
+/* Read the bus for PHY at addr mii_id, register regnum, and
+ * return the value.  Clears miimcom first.  All PHY
+ * configuration has to be done through the TSEC1 MIIM regs */
+int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+{
+	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
+
+	/* Read the local MII regs */
+	return(gfar_local_mdio_read(regs, mii_id, regnum));
+}
 
 /* Reset the MIIM registers, and wait for the bus to free */
 int gfar_mdio_reset(struct mii_bus *bus)

@@ -98,17 +98,15 @@ extern struct ata_port *ata_port_alloc(struct ata_host *host);
 
 /* libata-acpi.c */
 #ifdef CONFIG_ATA_ACPI
-extern int ata_acpi_exec_tfs(struct ata_port *ap);
-extern int ata_acpi_push_id(struct ata_device *dev);
+extern void ata_acpi_associate(struct ata_host *host);
+extern int ata_acpi_on_suspend(struct ata_port *ap);
+extern void ata_acpi_on_resume(struct ata_port *ap);
+extern int ata_acpi_on_devcfg(struct ata_device *adev);
 #else
-static inline int ata_acpi_exec_tfs(struct ata_port *ap)
-{
-	return 0;
-}
-static inline int ata_acpi_push_id(struct ata_device *dev)
-{
-	return 0;
-}
+static inline void ata_acpi_associate(struct ata_host *host) { }
+static inline int ata_acpi_on_suspend(struct ata_port *ap) { return 0; }
+static inline void ata_acpi_on_resume(struct ata_port *ap) { }
+static inline int ata_acpi_on_devcfg(struct ata_device *adev) { return 0; }
 #endif
 
 /* libata-scsi.c */

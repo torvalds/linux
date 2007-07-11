@@ -20,37 +20,31 @@
 #include <linux/io.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
-#include <linux/input.h>
+#include <linux/input-polldev.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mc146818rtc.h>
 #include <linux/module.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
-#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
+#include <linux/leds.h>
 
-/*
- * Number of attempts to read data from queue per poll;
- * the queue can hold up to 31 entries
- */
-#define MAX_POLL_ITERATIONS 64
-
-#define POLL_FREQUENCY 10 /* Number of polls per second */
-
-#if POLL_FREQUENCY > HZ
-#error "POLL_FREQUENCY too high"
-#endif
+/* How often we poll keys - msecs */
+#define POLL_INTERVAL_DEFAULT	500 /* when idle */
+#define POLL_INTERVAL_BURST	100 /* when a key was recently pressed */
 
 /* BIOS subsystem IDs */
 #define WIFI		0x35
 #define BLUETOOTH	0x34
+#define MAIL_LED	0x31
 
 MODULE_AUTHOR("Miloslav Trmac <mitr@volny.cz>");
 MODULE_DESCRIPTION("Wistron laptop button driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.2");
+MODULE_VERSION("0.3");
 
 static int force; /* = 0; */
 module_param(force, bool, 0);
@@ -248,9 +242,10 @@ enum { KE_END, KE_KEY, KE_SW, KE_WIFI, KE_BLUETOOTH };
 #define FE_WIFI_LED 0x02
 #define FE_UNTESTED 0x80
 
-static const struct key_entry *keymap; /* = NULL; Current key map */
+static struct key_entry *keymap; /* = NULL; Current key map */
 static int have_wifi;
 static int have_bluetooth;
+static int have_leds;
 
 static int __init dmi_matched(struct dmi_system_id *dmi)
 {
@@ -263,6 +258,8 @@ static int __init dmi_matched(struct dmi_system_id *dmi)
 		else if (key->type == KE_BLUETOOTH)
 			have_bluetooth = 1;
 	}
+	have_leds = key->code & (FE_MAIL_LED | FE_WIFI_LED);
+
 	return 1;
 }
 
@@ -966,21 +963,249 @@ static int __init select_keymap(void)
 
  /* Input layer interface */
 
-static struct input_dev *input_dev;
+static struct input_polled_dev *wistron_idev;
+static unsigned long jiffies_last_press;
+static int wifi_enabled;
+static int bluetooth_enabled;
+
+static void report_key(struct input_dev *dev, unsigned int keycode)
+{
+	input_report_key(dev, keycode, 1);
+	input_sync(dev);
+	input_report_key(dev, keycode, 0);
+	input_sync(dev);
+}
+
+static void report_switch(struct input_dev *dev, unsigned int code, int value)
+{
+	input_report_switch(dev, code, value);
+	input_sync(dev);
+}
+
+
+ /* led management */
+static void wistron_mail_led_set(struct led_classdev *led_cdev,
+				enum led_brightness value)
+{
+	bios_set_state(MAIL_LED, (value != LED_OFF) ? 1 : 0);
+}
+
+/* same as setting up wifi card, but for laptops on which the led is managed */
+static void wistron_wifi_led_set(struct led_classdev *led_cdev,
+				enum led_brightness value)
+{
+	bios_set_state(WIFI, (value != LED_OFF) ? 1 : 0);
+}
+
+static struct led_classdev wistron_mail_led = {
+	.name			= "mail:green",
+	.brightness_set		= wistron_mail_led_set,
+};
+
+static struct led_classdev wistron_wifi_led = {
+	.name			= "wifi:red",
+	.brightness_set		= wistron_wifi_led_set,
+};
+
+static void __devinit wistron_led_init(struct device *parent)
+{
+	if (have_leds & FE_WIFI_LED) {
+		u16 wifi = bios_get_default_setting(WIFI);
+		if (wifi & 1) {
+			wistron_wifi_led.brightness = (wifi & 2) ? LED_FULL : LED_OFF;
+			if (led_classdev_register(parent, &wistron_wifi_led))
+				have_leds &= ~FE_WIFI_LED;
+			else
+				bios_set_state(WIFI, wistron_wifi_led.brightness);
+
+		} else
+			have_leds &= ~FE_WIFI_LED;
+	}
+
+	if (have_leds & FE_MAIL_LED) {
+		/* bios_get_default_setting(MAIL) always retuns 0, so just turn the led off */
+		wistron_mail_led.brightness = LED_OFF;
+		if (led_classdev_register(parent, &wistron_mail_led))
+			have_leds &= ~FE_MAIL_LED;
+		else
+			bios_set_state(MAIL_LED, wistron_mail_led.brightness);
+	}
+}
+
+static void __devexit wistron_led_remove(void)
+{
+	if (have_leds & FE_MAIL_LED)
+		led_classdev_unregister(&wistron_mail_led);
+
+	if (have_leds & FE_WIFI_LED)
+		led_classdev_unregister(&wistron_wifi_led);
+}
+
+static inline void wistron_led_suspend(void)
+{
+	if (have_leds & FE_MAIL_LED)
+		led_classdev_suspend(&wistron_mail_led);
+
+	if (have_leds & FE_WIFI_LED)
+		led_classdev_suspend(&wistron_wifi_led);
+}
+
+static inline void wistron_led_resume(void)
+{
+	if (have_leds & FE_MAIL_LED)
+		led_classdev_resume(&wistron_mail_led);
+
+	if (have_leds & FE_WIFI_LED)
+		led_classdev_resume(&wistron_wifi_led);
+}
+
+static struct key_entry *wistron_get_entry_by_scancode(int code)
+{
+	struct key_entry *key;
+
+	for (key = keymap; key->type != KE_END; key++)
+		if (code == key->code)
+			return key;
+
+	return NULL;
+}
+
+static struct key_entry *wistron_get_entry_by_keycode(int keycode)
+{
+	struct key_entry *key;
+
+	for (key = keymap; key->type != KE_END; key++)
+		if (key->type == KE_KEY && keycode == key->keycode)
+			return key;
+
+	return NULL;
+}
+
+static void handle_key(u8 code)
+{
+	const struct key_entry *key = wistron_get_entry_by_scancode(code);
+
+	if (key) {
+		switch (key->type) {
+		case KE_KEY:
+			report_key(wistron_idev->input, key->keycode);
+			break;
+
+		case KE_SW:
+			report_switch(wistron_idev->input,
+				      key->sw.code, key->sw.value);
+			break;
+
+		case KE_WIFI:
+			if (have_wifi) {
+				wifi_enabled = !wifi_enabled;
+				bios_set_state(WIFI, wifi_enabled);
+			}
+			break;
+
+		case KE_BLUETOOTH:
+			if (have_bluetooth) {
+				bluetooth_enabled = !bluetooth_enabled;
+				bios_set_state(BLUETOOTH, bluetooth_enabled);
+			}
+			break;
+
+		default:
+			BUG();
+		}
+		jiffies_last_press = jiffies;
+	} else
+		printk(KERN_NOTICE
+			"wistron_btns: Unknown key code %02X\n", code);
+}
+
+static void poll_bios(bool discard)
+{
+	u8 qlen;
+	u16 val;
+
+	for (;;) {
+		qlen = CMOS_READ(cmos_address);
+		if (qlen == 0)
+			break;
+		val = bios_pop_queue();
+		if (val != 0 && !discard)
+			handle_key((u8)val);
+	}
+}
+
+static void wistron_flush(struct input_polled_dev *dev)
+{
+	/* Flush stale event queue */
+	poll_bios(true);
+}
+
+static void wistron_poll(struct input_polled_dev *dev)
+{
+	poll_bios(false);
+
+	/* Increase poll frequency if user is currently pressing keys (< 2s ago) */
+	if (time_before(jiffies, jiffies_last_press + 2 * HZ))
+		dev->poll_interval = POLL_INTERVAL_BURST;
+	else
+		dev->poll_interval = POLL_INTERVAL_DEFAULT;
+}
+
+static int wistron_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+{
+	const struct key_entry *key = wistron_get_entry_by_scancode(scancode);
+
+	if (key && key->type == KE_KEY) {
+		*keycode = key->keycode;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int wistron_setkeycode(struct input_dev *dev, int scancode, int keycode)
+{
+	struct key_entry *key;
+	int old_keycode;
+
+	if (keycode < 0 || keycode > KEY_MAX)
+		return -EINVAL;
+
+	key = wistron_get_entry_by_scancode(scancode);
+	if (key && key->type == KE_KEY) {
+		old_keycode = key->keycode;
+		key->keycode = keycode;
+		set_bit(keycode, dev->keybit);
+		if (!wistron_get_entry_by_keycode(old_keycode))
+			clear_bit(old_keycode, dev->keybit);
+		return 0;
+	}
+
+	return -EINVAL;
+}
 
 static int __devinit setup_input_dev(void)
 {
 	const struct key_entry *key;
+	struct input_dev *input_dev;
 	int error;
 
-	input_dev = input_allocate_device();
-	if (!input_dev)
+	wistron_idev = input_allocate_polled_device();
+	if (!wistron_idev)
 		return -ENOMEM;
 
+	wistron_idev->flush = wistron_flush;
+	wistron_idev->poll = wistron_poll;
+	wistron_idev->poll_interval = POLL_INTERVAL_DEFAULT;
+
+	input_dev = wistron_idev->input;
 	input_dev->name = "Wistron laptop buttons";
 	input_dev->phys = "wistron/input0";
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->cdev.dev = &wistron_device->dev;
+	input_dev->dev.parent = &wistron_device->dev;
+
+	input_dev->getkeycode = wistron_getkeycode;
+	input_dev->setkeycode = wistron_setkeycode;
 
 	for (key = keymap; key->type != KE_END; key++) {
 		switch (key->type) {
@@ -995,7 +1220,7 @@ static int __devinit setup_input_dev(void)
 				break;
 
 			default:
-				;
+				break;
 		}
 	}
 
@@ -1005,100 +1230,20 @@ static int __devinit setup_input_dev(void)
 			"please report success or failure to eric.piel"
 			"@tremplin-utc.net\n");
 
-	error = input_register_device(input_dev);
+	error = input_register_polled_device(wistron_idev);
 	if (error) {
-		input_free_device(input_dev);
+		input_free_polled_device(wistron_idev);
 		return error;
 	}
 
 	return 0;
 }
 
-static void report_key(unsigned keycode)
-{
-	input_report_key(input_dev, keycode, 1);
-	input_sync(input_dev);
-	input_report_key(input_dev, keycode, 0);
-	input_sync(input_dev);
-}
-
-static void report_switch(unsigned code, int value)
-{
-	input_report_switch(input_dev, code, value);
-	input_sync(input_dev);
-}
-
- /* Driver core */
-
-static int wifi_enabled;
-static int bluetooth_enabled;
-
-static void poll_bios(unsigned long);
-
-static struct timer_list poll_timer = TIMER_INITIALIZER(poll_bios, 0, 0);
-
-static void handle_key(u8 code)
-{
-	const struct key_entry *key;
-
-	for (key = keymap; key->type != KE_END; key++) {
-		if (code == key->code) {
-			switch (key->type) {
-			case KE_KEY:
-				report_key(key->keycode);
-				break;
-
-			case KE_SW:
-				report_switch(key->sw.code, key->sw.value);
-				break;
-
-			case KE_WIFI:
-				if (have_wifi) {
-					wifi_enabled = !wifi_enabled;
-					bios_set_state(WIFI, wifi_enabled);
-				}
-				break;
-
-			case KE_BLUETOOTH:
-				if (have_bluetooth) {
-					bluetooth_enabled = !bluetooth_enabled;
-					bios_set_state(BLUETOOTH, bluetooth_enabled);
-				}
-				break;
-
-			case KE_END:
-				break;
-			default:
-				BUG();
-			}
-			return;
-		}
-	}
-	printk(KERN_NOTICE "wistron_btns: Unknown key code %02X\n", code);
-}
-
-static void poll_bios(unsigned long discard)
-{
-	u8 qlen;
-	u16 val;
-
-	for (;;) {
-		qlen = CMOS_READ(cmos_address);
-		if (qlen == 0)
-			break;
-		val = bios_pop_queue();
-		if (val != 0 && !discard)
-			handle_key((u8)val);
-	}
-
-	mod_timer(&poll_timer, jiffies + HZ / POLL_FREQUENCY);
-}
+/* Driver core */
 
 static int __devinit wistron_probe(struct platform_device *dev)
 {
-	int err = setup_input_dev();
-	if (err)
-		return err;
+	int err;
 
 	bios_attach();
 	cmos_address = bios_get_cmos_address();
@@ -1125,15 +1270,21 @@ static int __devinit wistron_probe(struct platform_device *dev)
 			bios_set_state(BLUETOOTH, bluetooth_enabled);
 	}
 
-	poll_bios(1); /* Flush stale event queue and arm timer */
+	wistron_led_init(&dev->dev);
+	err = setup_input_dev();
+	if (err) {
+		bios_detach();
+		return err;
+	}
 
 	return 0;
 }
 
 static int __devexit wistron_remove(struct platform_device *dev)
 {
-	del_timer_sync(&poll_timer);
-	input_unregister_device(input_dev);
+	wistron_led_remove();
+	input_unregister_polled_device(wistron_idev);
+	input_free_polled_device(wistron_idev);
 	bios_detach();
 
 	return 0;
@@ -1142,14 +1293,13 @@ static int __devexit wistron_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int wistron_suspend(struct platform_device *dev, pm_message_t state)
 {
-	del_timer_sync(&poll_timer);
-
 	if (have_wifi)
 		bios_set_state(WIFI, 0);
 
 	if (have_bluetooth)
 		bios_set_state(BLUETOOTH, 0);
 
+	wistron_led_suspend();
 	return 0;
 }
 
@@ -1161,7 +1311,8 @@ static int wistron_resume(struct platform_device *dev)
 	if (have_bluetooth)
 		bios_set_state(BLUETOOTH, bluetooth_enabled);
 
-	poll_bios(1);
+	wistron_led_resume();
+	poll_bios(true);
 
 	return 0;
 }

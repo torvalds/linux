@@ -136,11 +136,10 @@ static int quirk_smc_fir_enabled(struct pnp_dev *dev)
 
 static void quirk_smc_enable(struct pnp_dev *dev)
 {
-	/*
-	 * If the BIOS left the device disabled, or it is enabled and
-	 * responding correctly, we're in good shape.
-	 */
-	if (!dev->active || quirk_smc_fir_enabled(dev))
+	struct resource fir, sir, irq;
+
+	pnp_activate_dev(dev);
+	if (quirk_smc_fir_enabled(dev))
 		return;
 
 	/*
@@ -152,16 +151,62 @@ static void quirk_smc_enable(struct pnp_dev *dev)
 	 * this.  Fortunately, they do fix things up if we auto-configure
 	 * the device using its _PRS and _SRS methods.
 	 */
-	dev_err(&dev->dev, "%s device not responding, auto-configuring "
-		"resources\n", dev->id->id);
+	dev_err(&dev->dev, "%s not responding at SIR 0x%lx, FIR 0x%lx; "
+		"auto-configuring\n", dev->id->id,
+		(unsigned long) pnp_port_start(dev, 0),
+		(unsigned long) pnp_port_start(dev, 1));
 
 	pnp_disable_dev(dev);
 	pnp_init_resource_table(&dev->res);
 	pnp_auto_config_dev(dev);
 	pnp_activate_dev(dev);
+	if (quirk_smc_fir_enabled(dev)) {
+		dev_err(&dev->dev, "responds at SIR 0x%lx, FIR 0x%lx\n",
+			(unsigned long) pnp_port_start(dev, 0),
+			(unsigned long) pnp_port_start(dev, 1));
+		return;
+	}
 
-	if (!quirk_smc_fir_enabled(dev))
-		dev_err(&dev->dev, "giving up; try \"smsc-ircc2.nopnp\"\n");
+	/*
+	 * The Toshiba Portege 4000 _CRS reports the FIR region first,
+	 * followed by the SIR region.  The BIOS will configure the bridge,
+	 * but only if we call _SRS with SIR first, then FIR.  It also
+	 * reports the IRQ as active high, when it is really active low.
+	 */
+	dev_err(&dev->dev, "not responding at SIR 0x%lx, FIR 0x%lx; "
+		"swapping SIR/FIR and reconfiguring\n",
+		(unsigned long) pnp_port_start(dev, 0),
+		(unsigned long) pnp_port_start(dev, 1));
+
+	/*
+	 * Clear IORESOURCE_AUTO so pnp_activate_dev() doesn't reassign
+	 * these resources any more.
+	 */
+	fir = dev->res.port_resource[0];
+	sir = dev->res.port_resource[1];
+	fir.flags &= ~IORESOURCE_AUTO;
+	sir.flags &= ~IORESOURCE_AUTO;
+
+	irq = dev->res.irq_resource[0];
+	irq.flags &= ~IORESOURCE_AUTO;
+	irq.flags &= ~IORESOURCE_BITS;
+	irq.flags |= IORESOURCE_IRQ_LOWEDGE;
+
+	pnp_disable_dev(dev);
+	dev->res.port_resource[0] = sir;
+	dev->res.port_resource[1] = fir;
+	dev->res.irq_resource[0] = irq;
+	pnp_activate_dev(dev);
+
+	if (quirk_smc_fir_enabled(dev)) {
+		dev_err(&dev->dev, "responds at SIR 0x%lx, FIR 0x%lx\n",
+			(unsigned long) pnp_port_start(dev, 0),
+			(unsigned long) pnp_port_start(dev, 1));
+		return;
+	}
+
+	dev_err(&dev->dev, "giving up; try \"smsc-ircc2.nopnp\" and "
+		"email bjorn.helgaas@hp.com\n");
 }
 
 

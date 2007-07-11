@@ -46,7 +46,7 @@ static struct timer_list power_timer, blink_timer, debounce_timer, volume_timer;
 
 static int machine_state;
 
-static void ATTRIB_NORET sgi_machine_power_off(void)
+static void __noreturn sgi_machine_power_off(void)
 {
 	unsigned int tmp;
 
@@ -68,7 +68,7 @@ static void ATTRIB_NORET sgi_machine_power_off(void)
 	}
 }
 
-static void ATTRIB_NORET sgi_machine_restart(char *command)
+static void __noreturn sgi_machine_restart(char *command)
 {
 	if (machine_state & MACHINE_SHUTTING_DOWN)
 		sgi_machine_power_off();
@@ -76,7 +76,7 @@ static void ATTRIB_NORET sgi_machine_restart(char *command)
 	while (1);
 }
 
-static void ATTRIB_NORET sgi_machine_halt(void)
+static void __noreturn sgi_machine_halt(void)
 {
 	if (machine_state & MACHINE_SHUTTING_DOWN)
 		sgi_machine_power_off();

@@ -105,12 +105,6 @@
 #define rbtx4938_pcireset_ptr	\
 	((volatile unsigned char *)RBTX4938_PCIRESET_ADDR)
 
-/* SPI */
-#define RBTX4938_SEEPROM1_CHIPID	0
-#define RBTX4938_SEEPROM2_CHIPID	1
-#define RBTX4938_SEEPROM3_CHIPID	2
-#define RBTX4938_SRTC_CHIPID	3
-
 /*
  * IRQ mappings
  */

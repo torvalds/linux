@@ -25,7 +25,7 @@ static char pci_irq_tab[PCI_SLOT_MAXNR][5] __initdata = {
 	[6] = {0, WRPPMC_PCI_INTA_IRQ, 0, 0, 0},
 };
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return pci_irq_tab[slot][pin];
 }

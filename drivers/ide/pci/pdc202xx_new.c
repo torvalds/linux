@@ -225,7 +225,10 @@ static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
 
 static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 {
-	return get_indexed_reg(hwif, 0x0b) & 0x04;
+	if (get_indexed_reg(hwif, 0x0b) & 0x04)
+		return ATA_CBL_PATA40;
+	else
+		return ATA_CBL_PATA80;
 }
 
 static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
@@ -509,8 +512,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 
 	hwif->ide_dma_check = &pdcnew_config_drive_xfer_rate;
 
-	if (!hwif->udma_four)
-		hwif->udma_four = pdcnew_cable_detect(hwif) ? 0 : 1;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = pdcnew_cable_detect(hwif);
 
 	if (!noautodma)
 		hwif->autodma = 1;

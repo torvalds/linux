@@ -78,7 +78,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[1] = 0x08;
 		report->field[0]->value[2] = x;
 		report->field[0]->value[3] = y;
-		dbg("(x, y)=(%04x, %04x)", x, y);
+		dbg_hid("(x, y)=(%04x, %04x)\n", x, y);
 		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 
@@ -93,7 +93,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[1] = 0x00;
 		report->field[0]->value[2] = left;
 		report->field[0]->value[3] = right;
-		dbg("(left, right)=(%04x, %04x)", left, right);
+		dbg_hid("(left, right)=(%04x, %04x)\n", left, right);
 		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 	}
@@ -113,20 +113,20 @@ int hid_lgff_init(struct hid_device* hid)
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
-		err("No output report found");
+		err_hid("No output report found");
 		return -1;
 	}
 
 	/* Check that the report looks ok */
 	report = list_entry(report_list->next, struct hid_report, list);
 	if (!report) {
-		err("NULL output report");
+		err_hid("NULL output report");
 		return -1;
 	}
 
 	field = report->field[0];
 	if (!field) {
-		err("NULL field");
+		err_hid("NULL field");
 		return -1;
 	}
 

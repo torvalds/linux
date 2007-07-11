@@ -805,7 +805,6 @@ static void __cpuinit
 get_max_cacheline_size (void)
 {
 	unsigned long line_size, max = 1;
-	unsigned int cache_size = 0;
 	u64 l, levels, unique_caches;
         pal_cache_config_info_t cci;
         s64 status;
@@ -835,8 +834,6 @@ get_max_cacheline_size (void)
 		line_size = 1 << cci.pcci_line_size;
 		if (line_size > max)
 			max = line_size;
-		if (cache_size < cci.pcci_cache_size)
-			cache_size = cci.pcci_cache_size;
 		if (!cci.pcci_unified) {
 			status = ia64_pal_cache_config_info(l,
 						    /* cache_type (instruction)= */ 1,
@@ -853,9 +850,6 @@ get_max_cacheline_size (void)
 			ia64_i_cache_stride_shift = cci.pcci_stride;
 	}
   out:
-#ifdef CONFIG_SMP
-	max_cache_size = max(max_cache_size, cache_size);
-#endif
 	if (max > ia64_max_cacheline_size)
 		ia64_max_cacheline_size = max;
 }

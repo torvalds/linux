@@ -169,7 +169,7 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 static int idebus_parameter;	/* holds the "idebus=" parameter */
 static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
 
-DECLARE_MUTEX(ide_cfg_sem);
+DEFINE_MUTEX(ide_cfg_mtx);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
@@ -460,6 +460,8 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->mwdma_mask		= tmp_hwif->mwdma_mask;
 	hwif->swdma_mask		= tmp_hwif->swdma_mask;
 
+	hwif->cbl			= tmp_hwif->cbl;
+
 	hwif->chipset			= tmp_hwif->chipset;
 	hwif->hold			= tmp_hwif->hold;
 
@@ -496,8 +498,8 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
 	hwif->dma_host_on		= tmp_hwif->dma_host_on;
 	hwif->dma_host_off		= tmp_hwif->dma_host_off;
-	hwif->ide_dma_lostirq		= tmp_hwif->ide_dma_lostirq;
-	hwif->ide_dma_timeout		= tmp_hwif->ide_dma_timeout;
+	hwif->dma_lost_irq		= tmp_hwif->dma_lost_irq;
+	hwif->dma_timeout		= tmp_hwif->dma_timeout;
 
 	hwif->OUTB			= tmp_hwif->OUTB;
 	hwif->OUTBSYNC			= tmp_hwif->OUTBSYNC;
@@ -533,7 +535,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->extra_base		= tmp_hwif->extra_base;
 	hwif->extra_ports		= tmp_hwif->extra_ports;
 	hwif->autodma			= tmp_hwif->autodma;
-	hwif->udma_four			= tmp_hwif->udma_four;
 
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }
@@ -564,7 +565,7 @@ void ide_unregister(unsigned int index)
 {
 	ide_drive_t *drive;
 	ide_hwif_t *hwif, *g;
-	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_sem */
+	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_mtx */
 	ide_hwgroup_t *hwgroup;
 	int irq_count = 0, unit;
 
@@ -572,7 +573,7 @@ void ide_unregister(unsigned int index)
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
-	down(&ide_cfg_sem);
+	mutex_lock(&ide_cfg_mtx);
 	spin_lock_irq(&ide_lock);
 	hwif = &ide_hwifs[index];
 	if (!hwif->present)
@@ -679,7 +680,7 @@ void ide_unregister(unsigned int index)
 
 abort:
 	spin_unlock_irq(&ide_lock);
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 }
 
 EXPORT_SYMBOL(ide_unregister);
@@ -817,9 +818,9 @@ EXPORT_SYMBOL(ide_register_hw);
  *	Locks for IDE setting functionality
  */
 
-DECLARE_MUTEX(ide_setting_sem);
+DEFINE_MUTEX(ide_setting_mtx);
 
-EXPORT_SYMBOL_GPL(ide_setting_sem);
+EXPORT_SYMBOL_GPL(ide_setting_mtx);
 
 /**
  *	ide_spin_wait_hwgroup	-	wait for group
@@ -1192,11 +1193,11 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	}
 
 read_val:
-	down(&ide_setting_sem);
+	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
 	err = *val;
 	spin_unlock_irqrestore(&ide_lock, flags);
-	up(&ide_setting_sem);
+	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;
 
 set_val:
@@ -1206,9 +1207,9 @@ set_val:
 		if (!capable(CAP_SYS_ADMIN))
 			err = -EACCES;
 		else {
-			down(&ide_setting_sem);
+			mutex_lock(&ide_setting_mtx);
 			err = setfunc(drive, arg);
-			up(&ide_setting_sem);
+			mutex_unlock(&ide_setting_mtx);
 		}
 	}
 	return err;
@@ -1548,7 +1549,11 @@ static int __init ide_setup(char *s)
 				goto bad_option;
 			case -7: /* ata66 */
 #ifdef CONFIG_BLK_DEV_IDEPCI
-				hwif->udma_four = 1;
+				/*
+				 * Use ATA_CBL_PATA40_SHORT so drive side
+				 * cable detection is also overriden.
+				 */
+				hwif->cbl = ATA_CBL_PATA40_SHORT;
 				goto obsolete_option;
 #else
 				goto bad_hwif;

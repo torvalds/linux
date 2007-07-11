@@ -21,6 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
+#include <linux/splice.h>
 
 /* list of open channels, for cpu hotplug */
 static DEFINE_MUTEX(relay_channels_mutex);
@@ -121,6 +122,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
 		buf->page_array[i] = alloc_page(GFP_KERNEL);
 		if (unlikely(!buf->page_array[i]))
 			goto depopulate;
+		set_page_private(buf->page_array[i], (unsigned long)buf);
 	}
 	mem = vmap(buf->page_array, n_pages, VM_MAP, PAGE_KERNEL);
 	if (!mem)
@@ -970,43 +972,6 @@ static int subbuf_read_actor(size_t read_start,
 	return ret;
 }
 
-/*
- *	subbuf_send_actor - send up to one subbuf's worth of data
- */
-static int subbuf_send_actor(size_t read_start,
-			     struct rchan_buf *buf,
-			     size_t avail,
-			     read_descriptor_t *desc,
-			     read_actor_t actor)
-{
-	unsigned long pidx, poff;
-	unsigned int subbuf_pages;
-	int ret = 0;
-
-	subbuf_pages = buf->chan->alloc_size >> PAGE_SHIFT;
-	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
-	poff = read_start & ~PAGE_MASK;
-	while (avail) {
-		struct page *p = buf->page_array[pidx];
-		unsigned int len;
-
-		len = PAGE_SIZE - poff;
-		if (len > avail)
-			len = avail;
-
-		len = actor(desc, p, poff, len);
-		if (desc->error)
-			break;
-
-		avail -= len;
-		ret += len;
-		poff = 0;
-		pidx = (pidx + 1) % subbuf_pages;
-	}
-
-	return ret;
-}
-
 typedef int (*subbuf_actor_t) (size_t read_start,
 			       struct rchan_buf *buf,
 			       size_t avail,
@@ -1067,19 +1032,159 @@ static ssize_t relay_file_read(struct file *filp,
 				       NULL, &desc);
 }
 
-static ssize_t relay_file_sendfile(struct file *filp,
-				   loff_t *ppos,
-				   size_t count,
-				   read_actor_t actor,
-				   void *target)
+static void relay_consume_bytes(struct rchan_buf *rbuf, int bytes_consumed)
 {
-	read_descriptor_t desc;
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
-	return relay_file_read_subbufs(filp, ppos, subbuf_send_actor,
-				       actor, &desc);
+	rbuf->bytes_consumed += bytes_consumed;
+
+	if (rbuf->bytes_consumed >= rbuf->chan->subbuf_size) {
+		relay_subbufs_consumed(rbuf->chan, rbuf->cpu, 1);
+		rbuf->bytes_consumed %= rbuf->chan->subbuf_size;
+	}
+}
+
+static void relay_pipe_buf_release(struct pipe_inode_info *pipe,
+				   struct pipe_buffer *buf)
+{
+	struct rchan_buf *rbuf;
+
+	rbuf = (struct rchan_buf *)page_private(buf->page);
+	relay_consume_bytes(rbuf, buf->private);
+}
+
+static struct pipe_buf_operations relay_pipe_buf_ops = {
+	.can_merge = 0,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.confirm = generic_pipe_buf_confirm,
+	.release = relay_pipe_buf_release,
+	.steal = generic_pipe_buf_steal,
+	.get = generic_pipe_buf_get,
+};
+
+/**
+ *	subbuf_splice_actor - splice up to one subbuf's worth of data
+ */
+static int subbuf_splice_actor(struct file *in,
+			       loff_t *ppos,
+			       struct pipe_inode_info *pipe,
+			       size_t len,
+			       unsigned int flags,
+			       int *nonpad_ret)
+{
+	unsigned int pidx, poff, total_len, subbuf_pages, ret;
+	struct rchan_buf *rbuf = in->private_data;
+	unsigned int subbuf_size = rbuf->chan->subbuf_size;
+	size_t read_start = ((size_t)*ppos) % rbuf->chan->alloc_size;
+	size_t read_subbuf = read_start / subbuf_size;
+	size_t padding = rbuf->padding[read_subbuf];
+	size_t nonpad_end = read_subbuf * subbuf_size + subbuf_size - padding;
+	struct page *pages[PIPE_BUFFERS];
+	struct partial_page partial[PIPE_BUFFERS];
+	struct splice_pipe_desc spd = {
+		.pages = pages,
+		.nr_pages = 0,
+		.partial = partial,
+		.flags = flags,
+		.ops = &relay_pipe_buf_ops,
+	};
+
+	if (rbuf->subbufs_produced == rbuf->subbufs_consumed)
+		return 0;
+
+	/*
+	 * Adjust read len, if longer than what is available
+	 */
+	if (len > (subbuf_size - read_start % subbuf_size))
+		len = subbuf_size - read_start % subbuf_size;
+
+	subbuf_pages = rbuf->chan->alloc_size >> PAGE_SHIFT;
+	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
+	poff = read_start & ~PAGE_MASK;
+
+	for (total_len = 0; spd.nr_pages < subbuf_pages; spd.nr_pages++) {
+		unsigned int this_len, this_end, private;
+		unsigned int cur_pos = read_start + total_len;
+
+		if (!len)
+			break;
+
+		this_len = min_t(unsigned long, len, PAGE_SIZE - poff);
+		private = this_len;
+
+		spd.pages[spd.nr_pages] = rbuf->page_array[pidx];
+		spd.partial[spd.nr_pages].offset = poff;
+
+		this_end = cur_pos + this_len;
+		if (this_end >= nonpad_end) {
+			this_len = nonpad_end - cur_pos;
+			private = this_len + padding;
+		}
+		spd.partial[spd.nr_pages].len = this_len;
+		spd.partial[spd.nr_pages].private = private;
+
+		len -= this_len;
+		total_len += this_len;
+		poff = 0;
+		pidx = (pidx + 1) % subbuf_pages;
+
+		if (this_end >= nonpad_end) {
+			spd.nr_pages++;
+			break;
+		}
+	}
+
+	if (!spd.nr_pages)
+		return 0;
+
+	ret = *nonpad_ret = splice_to_pipe(pipe, &spd);
+	if (ret < 0 || ret < total_len)
+		return ret;
+
+        if (read_start + ret == nonpad_end)
+                ret += padding;
+
+        return ret;
+}
+
+static ssize_t relay_file_splice_read(struct file *in,
+				      loff_t *ppos,
+				      struct pipe_inode_info *pipe,
+				      size_t len,
+				      unsigned int flags)
+{
+	ssize_t spliced;
+	int ret;
+	int nonpad_ret = 0;
+
+	ret = 0;
+	spliced = 0;
+
+	while (len) {
+		ret = subbuf_splice_actor(in, ppos, pipe, len, flags, &nonpad_ret);
+		if (ret < 0)
+			break;
+		else if (!ret) {
+			if (spliced)
+				break;
+			if (flags & SPLICE_F_NONBLOCK) {
+				ret = -EAGAIN;
+				break;
+			}
+		}
+
+		*ppos += ret;
+		if (ret > len)
+			len = 0;
+		else
+			len -= ret;
+		spliced += nonpad_ret;
+		nonpad_ret = 0;
+	}
+
+	if (spliced)
+		return spliced;
+
+	return ret;
 }
 
 const struct file_operations relay_file_operations = {
@@ -1089,7 +1194,7 @@ const struct file_operations relay_file_operations = {
 	.read		= relay_file_read,
 	.llseek		= no_llseek,
 	.release	= relay_file_release,
-	.sendfile       = relay_file_sendfile,
+	.splice_read	= relay_file_splice_read,
 };
 EXPORT_SYMBOL_GPL(relay_file_operations);
 

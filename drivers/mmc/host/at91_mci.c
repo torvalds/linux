@@ -78,8 +78,6 @@
 
 #define DRIVER_NAME "at91_mci"
 
-#undef	SUPPORT_4WIRE
-
 #define FL_SENT_COMMAND	(1 << 0)
 #define FL_SENT_STOP	(1 << 1)
 
@@ -131,7 +129,7 @@ struct at91mci_host
 /*
  * Copy from sg to a dma block - used for transfers
  */
-static inline void at91mci_sg_to_dma(struct at91mci_host *host, struct mmc_data *data)
+static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data *data)
 {
 	unsigned int len, i, size;
 	unsigned *dmabuf = host->buffer;
@@ -180,7 +178,7 @@ static inline void at91mci_sg_to_dma(struct at91mci_host *host, struct mmc_data 
 /*
  * Prepare a dma read
  */
-static void at91mci_pre_dma_read(struct at91mci_host *host)
+static void at91_mci_pre_dma_read(struct at91mci_host *host)
 {
 	int i;
 	struct scatterlist *sg;
@@ -248,7 +246,7 @@ static void at91mci_pre_dma_read(struct at91mci_host *host)
 /*
  * Handle after a dma read
  */
-static void at91mci_post_dma_read(struct at91mci_host *host)
+static void at91_mci_post_dma_read(struct at91mci_host *host)
 {
 	struct mmc_command *cmd;
 	struct mmc_data *data;
@@ -268,8 +266,6 @@ static void at91mci_post_dma_read(struct at91mci_host *host)
 	}
 
 	while (host->in_use_index < host->transfer_index) {
-		unsigned int *buffer;
-
 		struct scatterlist *sg;
 
 		pr_debug("finishing index %d\n", host->in_use_index);
@@ -280,29 +276,31 @@ static void at91mci_post_dma_read(struct at91mci_host *host)
 
 		dma_unmap_page(NULL, sg->dma_address, sg->length, DMA_FROM_DEVICE);
 
-		/* Swap the contents of the buffer */
-		buffer = kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
-		pr_debug("buffer = %p, length = %d\n", buffer, sg->length);
-
 		data->bytes_xfered += sg->length;
 
 		if (cpu_is_at91rm9200()) {	/* AT91RM9200 errata */
+			unsigned int *buffer;
 			int index;
+
+			/* Swap the contents of the buffer */
+			buffer = kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
+			pr_debug("buffer = %p, length = %d\n", buffer, sg->length);
 
 			for (index = 0; index < (sg->length / 4); index++)
 				buffer[index] = swab32(buffer[index]);
+
+			kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
 		}
 
-		kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
 		flush_dcache_page(sg->page);
 	}
 
 	/* Is there another transfer to trigger? */
 	if (host->transfer_index < data->sg_len)
-		at91mci_pre_dma_read(host);
+		at91_mci_pre_dma_read(host);
 	else {
+		at91_mci_write(host, AT91_MCI_IDR, AT91_MCI_ENDRX);
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_RXBUFF);
-		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 	}
 
 	pr_debug("post dma read done\n");
@@ -323,7 +321,6 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 
 	/* Now wait for cmd ready */
 	at91_mci_write(host, AT91_MCI_IDR, AT91_MCI_TXBUFE);
-	at91_mci_write(host, AT91_MCI_IER, AT91_MCI_NOTBUSY);
 
 	cmd = host->cmd;
 	if (!cmd) return;
@@ -331,18 +328,53 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 	data = cmd->data;
 	if (!data) return;
 
+	if (cmd->data->flags & MMC_DATA_MULTI) {
+		pr_debug("multiple write : wait for BLKE...\n");
+		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
+	} else
+		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_NOTBUSY);
+
 	data->bytes_xfered = host->total_length;
 }
+
+/*Handle after command sent ready*/
+static int at91_mci_handle_cmdrdy(struct at91mci_host *host)
+{
+	if (!host->cmd)
+		return 1;
+	else if (!host->cmd->data) {
+		if (host->flags & FL_SENT_STOP) {
+			/*After multi block write, we must wait for NOTBUSY*/
+			at91_mci_write(host, AT91_MCI_IER, AT91_MCI_NOTBUSY);
+		} else return 1;
+	} else if (host->cmd->data->flags & MMC_DATA_WRITE) {
+		/*After sendding multi-block-write command, start DMA transfer*/
+		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_TXBUFE);
+		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
+		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
+	}
+
+	/* command not completed, have to wait */
+	return 0;
+}
+
 
 /*
  * Enable the controller
  */
 static void at91_mci_enable(struct at91mci_host *host)
 {
+	unsigned int mr;
+
 	at91_mci_write(host, AT91_MCI_CR, AT91_MCI_MCIEN);
 	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
 	at91_mci_write(host, AT91_MCI_DTOR, AT91_MCI_DTOMUL_1M | AT91_MCI_DTOCYC);
-	at91_mci_write(host, AT91_MCI_MR, AT91_MCI_PDCMODE | 0x34a);
+	mr = AT91_MCI_PDCMODE | 0x34a;
+
+	if (cpu_is_at91sam9260() || cpu_is_at91sam9263())
+		mr |= AT91_MCI_RDPROOF | AT91_MCI_WRPROOF;
+
+	at91_mci_write(host, AT91_MCI_MR, mr);
 
 	/* use Slot A or B (only one at same time) */
 	at91_mci_write(host, AT91_MCI_SDCR, host->board->slot_b);
@@ -358,9 +390,8 @@ static void at91_mci_disable(struct at91mci_host *host)
 
 /*
  * Send a command
- * return the interrupts to enable
  */
-static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_command *cmd)
+static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command *cmd)
 {
 	unsigned int cmdr, mr;
 	unsigned int block_length;
@@ -371,8 +402,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 
 	host->cmd = cmd;
 
-	/* Not sure if this is needed */
-#if 0
+	/* Needed for leaving busy state before CMD1 */
 	if ((at91_mci_read(host, AT91_MCI_SR) & AT91_MCI_RTOE) && (cmd->opcode == 1)) {
 		pr_debug("Clearing timeout\n");
 		at91_mci_write(host, AT91_MCI_ARGR, 0);
@@ -382,7 +412,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 			pr_debug("Clearing: SR = %08X\n", at91_mci_read(host, AT91_MCI_SR));
 		}
 	}
-#endif
+
 	cmdr = cmd->opcode;
 
 	if (mmc_resp_type(cmd) == MMC_RSP_NONE)
@@ -439,50 +469,48 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 		at91_mci_write(host, ATMEL_PDC_TCR, 0);
 		at91_mci_write(host, ATMEL_PDC_TNPR, 0);
 		at91_mci_write(host, ATMEL_PDC_TNCR, 0);
+		ier = AT91_MCI_CMDRDY;
+	} else {
+		/* zero block length and PDC mode */
+		mr = at91_mci_read(host, AT91_MCI_MR) & 0x7fff;
+		at91_mci_write(host, AT91_MCI_MR, mr | (block_length << 16) | AT91_MCI_PDCMODE);
 
-		at91_mci_write(host, AT91_MCI_ARGR, cmd->arg);
-		at91_mci_write(host, AT91_MCI_CMDR, cmdr);
-		return AT91_MCI_CMDRDY;
-	}
+		/*
+		 * Disable the PDC controller
+		 */
+		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 
-	mr = at91_mci_read(host, AT91_MCI_MR) & 0x7fff;	/* zero block length and PDC mode */
-	at91_mci_write(host, AT91_MCI_MR, mr | (block_length << 16) | AT91_MCI_PDCMODE);
+		if (cmdr & AT91_MCI_TRCMD_START) {
+			data->bytes_xfered = 0;
+			host->transfer_index = 0;
+			host->in_use_index = 0;
+			if (cmdr & AT91_MCI_TRDIR) {
+				/*
+				 * Handle a read
+				 */
+				host->buffer = NULL;
+				host->total_length = 0;
 
-	/*
-	 * Disable the PDC controller
-	 */
-	at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
+				at91_mci_pre_dma_read(host);
+				ier = AT91_MCI_ENDRX /* | AT91_MCI_RXBUFF */;
+			}
+			else {
+				/*
+				 * Handle a write
+				 */
+				host->total_length = block_length * blocks;
+				host->buffer = dma_alloc_coherent(NULL,
+						host->total_length,
+						&host->physical_address, GFP_KERNEL);
 
-	if (cmdr & AT91_MCI_TRCMD_START) {
-		data->bytes_xfered = 0;
-		host->transfer_index = 0;
-		host->in_use_index = 0;
-		if (cmdr & AT91_MCI_TRDIR) {
-			/*
-			 * Handle a read
-			 */
-			host->buffer = NULL;
-			host->total_length = 0;
+				at91_mci_sg_to_dma(host, data);
 
-			at91mci_pre_dma_read(host);
-			ier = AT91_MCI_ENDRX /* | AT91_MCI_RXBUFF */;
-		}
-		else {
-			/*
-			 * Handle a write
-			 */
-			host->total_length = block_length * blocks;
-			host->buffer = dma_alloc_coherent(NULL,
-						  host->total_length,
-						  &host->physical_address, GFP_KERNEL);
+				pr_debug("Transmitting %d bytes\n", host->total_length);
 
-			at91mci_sg_to_dma(host, data);
-
-			pr_debug("Transmitting %d bytes\n", host->total_length);
-
-			at91_mci_write(host, ATMEL_PDC_TPR, host->physical_address);
-			at91_mci_write(host, ATMEL_PDC_TCR, host->total_length / 4);
-			ier = AT91_MCI_TXBUFE;
+				at91_mci_write(host, ATMEL_PDC_TPR, host->physical_address);
+				at91_mci_write(host, ATMEL_PDC_TCR, host->total_length / 4);
+				ier = AT91_MCI_CMDRDY;
+			}
 		}
 	}
 
@@ -497,39 +525,24 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 	if (cmdr & AT91_MCI_TRCMD_START) {
 		if (cmdr & AT91_MCI_TRDIR)
 			at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTEN);
-		else
-			at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
 	}
-	return ier;
-}
 
-/*
- * Wait for a command to complete
- */
-static void at91mci_process_command(struct at91mci_host *host, struct mmc_command *cmd)
-{
-	unsigned int ier;
-
-	ier = at91_mci_send_command(host, cmd);
-
-	pr_debug("setting ier to %08X\n", ier);
-
-	/* Stop on errors or the required value */
+	/* Enable selected interrupts */
 	at91_mci_write(host, AT91_MCI_IER, AT91_MCI_ERRORS | ier);
 }
 
 /*
  * Process the next step in the request
  */
-static void at91mci_process_next(struct at91mci_host *host)
+static void at91_mci_process_next(struct at91mci_host *host)
 {
 	if (!(host->flags & FL_SENT_COMMAND)) {
 		host->flags |= FL_SENT_COMMAND;
-		at91mci_process_command(host, host->request->cmd);
+		at91_mci_send_command(host, host->request->cmd);
 	}
 	else if ((!(host->flags & FL_SENT_STOP)) && host->request->stop) {
 		host->flags |= FL_SENT_STOP;
-		at91mci_process_command(host, host->request->stop);
+		at91_mci_send_command(host, host->request->stop);
 	}
 	else
 		mmc_request_done(host->mmc, host->request);
@@ -538,7 +551,7 @@ static void at91mci_process_next(struct at91mci_host *host)
 /*
  * Handle a command that has been completed
  */
-static void at91mci_completed_command(struct at91mci_host *host)
+static void at91_mci_completed_command(struct at91mci_host *host)
 {
 	struct mmc_command *cmd = host->cmd;
 	unsigned int status;
@@ -583,7 +596,7 @@ static void at91mci_completed_command(struct at91mci_host *host)
 	else
 		cmd->error = MMC_ERR_NONE;
 
-	at91mci_process_next(host);
+	at91_mci_process_next(host);
 }
 
 /*
@@ -595,7 +608,7 @@ static void at91_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->request = mrq;
 	host->flags = 0;
 
-	at91mci_process_next(host);
+	at91_mci_process_next(host);
 }
 
 /*
@@ -698,29 +711,33 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 			at91_mci_handle_transmitted(host);
 		}
 
+		if (int_status & AT91_MCI_ENDRX) {
+			pr_debug("ENDRX\n");
+			at91_mci_post_dma_read(host);
+		}
+
 		if (int_status & AT91_MCI_RXBUFF) {
 			pr_debug("RX buffer full\n");
-			at91_mci_write(host, AT91_MCI_IER, AT91_MCI_CMDRDY);
+			at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
+			at91_mci_write(host, AT91_MCI_IDR, AT91_MCI_RXBUFF | AT91_MCI_ENDRX);
+			completed = 1;
 		}
 
 		if (int_status & AT91_MCI_ENDTX)
 			pr_debug("Transmit has ended\n");
 
-		if (int_status & AT91_MCI_ENDRX) {
-			pr_debug("Receive has ended\n");
-			at91mci_post_dma_read(host);
-		}
-
 		if (int_status & AT91_MCI_NOTBUSY) {
 			pr_debug("Card is ready\n");
-			at91_mci_write(host, AT91_MCI_IER, AT91_MCI_CMDRDY);
+			completed = 1;
 		}
 
 		if (int_status & AT91_MCI_DTIP)
 			pr_debug("Data transfer in progress\n");
 
-		if (int_status & AT91_MCI_BLKE)
+		if (int_status & AT91_MCI_BLKE) {
 			pr_debug("Block transfer has ended\n");
+			completed = 1;
+		}
 
 		if (int_status & AT91_MCI_TXRDY)
 			pr_debug("Ready to transmit\n");
@@ -730,14 +747,14 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 		if (int_status & AT91_MCI_CMDRDY) {
 			pr_debug("Command ready\n");
-			completed = 1;
+			completed = at91_mci_handle_cmdrdy(host);
 		}
 	}
 
 	if (completed) {
 		pr_debug("Completed command\n");
 		at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
-		at91mci_completed_command(host);
+		at91_mci_completed_command(host);
 	} else
 		at91_mci_write(host, AT91_MCI_IDR, int_status);
 
@@ -830,11 +847,11 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	host->bus_mode = 0;
 	host->board = pdev->dev.platform_data;
 	if (host->board->wire4) {
-#ifdef SUPPORT_4WIRE
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
-#else
-		printk("AT91 MMC: 4 wire bus mode not supported by this driver - using 1 wire\n");
-#endif
+		if (cpu_is_at91sam9260() || cpu_is_at91sam9263())
+			mmc->caps |= MMC_CAP_4_BIT_DATA;
+		else
+			printk("AT91 MMC: 4 wire bus mode not supported"
+				" - using 1 wire\n");
 	}
 
 	/*

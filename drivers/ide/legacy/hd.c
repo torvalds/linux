@@ -130,7 +130,7 @@ struct hd_i_struct {
 	
 #ifdef HD_TYPE
 static struct hd_i_struct hd_info[] = { HD_TYPE };
-static int NR_HD = ((sizeof (hd_info))/(sizeof (struct hd_i_struct)));
+static int NR_HD = ARRAY_SIZE(hd_info);
 #else
 static struct hd_i_struct hd_info[MAX_HD];
 static int NR_HD;
@@ -623,7 +623,8 @@ repeat:
 	cyl   = track / disk->head;
 #ifdef DEBUG
 	printk("%s: %sing: CHS=%d/%d/%d, sectors=%d, buffer=%p\n",
-		req->rq_disk->disk_name, (req->cmd == READ)?"read":"writ",
+		req->rq_disk->disk_name,
+		req_data_dir(req) == READ ? "read" : "writ",
 		cyl, head, sec, nsect, req->buffer);
 #endif
 	if (blk_fs_request(req)) {

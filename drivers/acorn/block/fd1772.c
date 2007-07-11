@@ -1246,7 +1246,7 @@ repeat:
 	del_timer(&motor_off_timer);
 
 	ReqCnt = 0;
-	ReqCmd = CURRENT->cmd;
+	ReqCmd = rq_data_dir(CURRENT);
 	ReqBlock = CURRENT->sector;
 	ReqBuffer = CURRENT->buffer;
 	setup_req_params(drive);

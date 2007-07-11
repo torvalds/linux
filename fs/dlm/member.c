@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -233,6 +233,12 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	*neg_out = neg;
 
 	error = ping_members(ls);
+	if (!error || error == -EPROTO) {
+		/* new_lockspace() may be waiting to know if the config
+		   is good or bad */
+		ls->ls_members_result = error;
+		complete(&ls->ls_members_done);
+	}
 	if (error)
 		goto out;
 
@@ -284,6 +290,9 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	dlm_recoverd_suspend(ls);
 	ls->ls_recover_status = 0;
 	dlm_recoverd_resume(ls);
+
+	if (!ls->ls_recover_begin)
+		ls->ls_recover_begin = jiffies;
 	return 0;
 }
 

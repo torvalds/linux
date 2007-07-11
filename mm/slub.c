@@ -2020,7 +2020,6 @@ error:
 			s->offset, flags);
 	return 0;
 }
-EXPORT_SYMBOL(kmem_cache_open);
 
 /*
  * Check if a given pointer is valid

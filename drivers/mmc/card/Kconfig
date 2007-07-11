@@ -14,3 +14,21 @@ config MMC_BLOCK
 	  mount the filesystem. Almost everyone wishing MMC support
 	  should say Y or M here.
 
+config MMC_BLOCK_BOUNCE
+	bool "Use bounce buffer for simple hosts"
+	depends on MMC_BLOCK
+	default y
+	help
+	  SD/MMC is a high latency protocol where it is crucial to
+	  send large requests in order to get high performance. Many
+	  controllers, however, are restricted to continuous memory
+	  (i.e. they can't do scatter-gather), something the kernel
+	  rarely can provide.
+
+	  Say Y here to help these restricted hosts by bouncing
+	  requests back and forth from a large buffer. You will get
+	  a big performance gain at the cost of up to 64 KiB of
+	  physical memory.
+
+	  If unsure, say Y here.
+

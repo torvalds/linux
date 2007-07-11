@@ -136,6 +136,12 @@ extern const char gfar_driver_version[];
 #define MIIMCFG_RESET           0x80000000
 #define MIIMIND_BUSY            0x00000001
 
+/* TBI register addresses */
+#define MII_TBICON		0x11
+
+/* TBICON register bit fields */
+#define TBICON_CLK_SELECT	0x0020
+
 /* MAC register bits */
 #define MACCFG1_SOFT_RESET	0x80000000
 #define MACCFG1_RESET_RX_MC	0x00080000

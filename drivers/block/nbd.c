@@ -416,7 +416,7 @@ static void nbd_clear_que(struct nbd_device *lo)
 /*
  * We always wait for result of write, for now. It would be nice to make it optional
  * in future
- * if ((req->cmd == WRITE) && (lo->flags & NBD_WRITE_NOCHK)) 
+ * if ((rq_data_dir(req) == WRITE) && (lo->flags & NBD_WRITE_NOCHK))
  *   { printk( "Warning: Ignoring result!\n"); nbd_end_request( req ); }
  */
 

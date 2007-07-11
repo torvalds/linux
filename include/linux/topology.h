@@ -98,7 +98,7 @@
 	.cache_nice_tries	= 0,			\
 	.busy_idx		= 0,			\
 	.idle_idx		= 0,			\
-	.newidle_idx		= 1,			\
+	.newidle_idx		= 0,			\
 	.wake_idx		= 0,			\
 	.forkexec_idx		= 0,			\
 	.flags			= SD_LOAD_BALANCE	\
@@ -128,14 +128,15 @@
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
 	.busy_idx		= 2,			\
-	.idle_idx		= 1,			\
-	.newidle_idx		= 2,			\
+	.idle_idx		= 0,			\
+	.newidle_idx		= 0,			\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_EXEC	\
 				| SD_WAKE_AFFINE	\
+				| SD_WAKE_IDLE		\
 				| SD_SHARE_PKG_RESOURCES\
 				| BALANCE_FOR_MC_POWER,	\
 	.last_balance		= jiffies,		\
@@ -158,14 +159,15 @@
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
 	.busy_idx		= 2,			\
-	.idle_idx		= 1,			\
-	.newidle_idx		= 2,			\
+	.idle_idx		= 0,			\
+	.newidle_idx		= 0,			\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_EXEC	\
 				| SD_WAKE_AFFINE	\
+				| SD_WAKE_IDLE		\
 				| BALANCE_FOR_PKG_POWER,\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\

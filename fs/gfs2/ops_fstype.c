@@ -27,7 +27,6 @@
 #include "inode.h"
 #include "lm.h"
 #include "mount.h"
-#include "ops_export.h"
 #include "ops_fstype.h"
 #include "ops_super.h"
 #include "recovery.h"
@@ -105,6 +104,7 @@ static void init_vfs(struct super_block *sb, unsigned noatime)
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_export_op = &gfs2_export_ops;
+	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	if (sb->s_flags & (MS_NOATIME | MS_NODIRATIME))
@@ -116,7 +116,6 @@ static void init_vfs(struct super_block *sb, unsigned noatime)
 
 static int init_names(struct gfs2_sbd *sdp, int silent)
 {
-	struct page *page;
 	char *proto, *table;
 	int error = 0;
 
@@ -126,14 +125,9 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	/*  Try to autodetect  */
 
 	if (!proto[0] || !table[0]) {
-		struct gfs2_sb *sb;
-		page = gfs2_read_super(sdp->sd_vfs, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
-		if (!page)
-			return -ENOBUFS;
-		sb = kmap(page);
-		gfs2_sb_in(&sdp->sd_sb, sb);
-		kunmap(page);
-		__free_page(page);
+		error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+		if (error)
+			return error;
 
 		error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
 		if (error)
@@ -150,6 +144,9 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 
 	snprintf(sdp->sd_proto_name, GFS2_FSNAME_LEN, "%s", proto);
 	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
+
+	while ((table = strchr(sdp->sd_table_name, '/')))
+		*table = '_';
 
 out:
 	return error;
@@ -236,17 +233,17 @@ fail:
 	return error;
 }
 
-static struct inode *gfs2_lookup_root(struct super_block *sb,
-				      struct gfs2_inum_host *inum)
+static inline struct inode *gfs2_lookup_root(struct super_block *sb,
+					     u64 no_addr)
 {
-	return gfs2_inode_lookup(sb, inum, DT_DIR);
+	return gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
-	struct gfs2_inum_host *inum;
+	u64 no_addr;
 	struct inode *inode;
 	int error = 0;
 
@@ -289,10 +286,10 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
 	/* Get the root inode */
-	inum = &sdp->sd_sb.sb_root_dir;
+	no_addr = sdp->sd_sb.sb_root_dir.no_addr;
 	if (sb->s_type == &gfs2meta_fs_type)
-		inum = &sdp->sd_sb.sb_master_dir;
-	inode = gfs2_lookup_root(sb, inum);
+		no_addr = sdp->sd_sb.sb_master_dir.no_addr;
+	inode = gfs2_lookup_root(sb, no_addr);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in root inode: %d\n", error);
@@ -449,7 +446,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (undo)
 		goto fail_qinode;
 
-	inode = gfs2_lookup_root(sdp->sd_vfs, &sdp->sd_sb.sb_master_dir);
+	inode = gfs2_lookup_root(sdp->sd_vfs, sdp->sd_sb.sb_master_dir.no_addr);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in master directory: %d\n", error);

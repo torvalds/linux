@@ -24,7 +24,7 @@
 #include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/pfn.h>
 
 #include <asm/uaccess.h>
@@ -75,6 +75,13 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 	 * On ia64, we ignore O_SYNC because we cannot tolerate memory attribute aliases.
 	 */
 	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
+#elif defined(CONFIG_MIPS)
+	{
+		extern int __uncached_access(struct file *file,
+					     unsigned long addr);
+
+		return __uncached_access(file, addr);
+	}
 #else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a file pointer

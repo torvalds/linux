@@ -11,44 +11,17 @@
 #define _ASM_MACH_IP22_SPACES_H
 
 
-#ifdef CONFIG_32BIT
-
-#define CAC_BASE		0x80000000
-#define IO_BASE			0xa0000000
-#define UNCAC_BASE		0xa0000000
-#define MAP_BASE		0xc0000000
-
-/*
- * This handles the memory map.
- * We handle pages at KSEG0 for kernels with 32 bit address space.
- */
-#define PAGE_OFFSET		0x80000000UL
-
-/*
- * Memory above this physical address will be considered highmem.
- */
-#ifndef HIGHMEM_START
-#define HIGHMEM_START		0x20000000UL
-#endif
-
-#endif /* CONFIG_32BIT */
-
 #ifdef CONFIG_64BIT
-#define PAGE_OFFSET		0xffffffff80000000UL
 
-#ifndef HIGHMEM_START
-#define HIGHMEM_START		(1UL << 59UL)
-#endif
+#define PAGE_OFFSET		0xffffffff80000000UL
 
 #define CAC_BASE		0xffffffff80000000
 #define IO_BASE			0xffffffffa0000000
 #define UNCAC_BASE		0xffffffffa0000000
 #define MAP_BASE		0xc000000000000000
 
-#define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
-#define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
-#define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
-
 #endif /* CONFIG_64BIT */
+
+#include <asm/mach-generic/spaces.h>
 
 #endif /* __ASM_MACH_IP22_SPACES_H */

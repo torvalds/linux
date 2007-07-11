@@ -1531,7 +1531,6 @@ const struct file_operations reiserfs_file_operations = {
 	.open = generic_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,
-	.sendfile = generic_file_sendfile,
 	.aio_read = generic_file_aio_read,
 	.aio_write = generic_file_aio_write,
 	.splice_read = generic_file_splice_read,

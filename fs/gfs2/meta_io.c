@@ -387,12 +387,18 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 
 			if (test_clear_buffer_pinned(bh)) {
 				struct gfs2_trans *tr = current->journal_info;
+				struct gfs2_inode *bh_ip =
+					GFS2_I(bh->b_page->mapping->host);
+
 				gfs2_log_lock(sdp);
 				list_del_init(&bd->bd_le.le_list);
 				gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 				sdp->sd_log_num_buf--;
 				gfs2_log_unlock(sdp);
-				tr->tr_num_buf_rm++;
+				if (bh_ip->i_inode.i_private != NULL)
+					tr->tr_num_databuf_rm++;
+				else
+					tr->tr_num_buf_rm++;
 				brelse(bh);
 			}
 			if (bd) {

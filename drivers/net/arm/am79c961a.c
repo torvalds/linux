@@ -634,7 +634,7 @@ static void am79c961_poll_controller(struct net_device *dev)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	am79c961_interrupt(dev->irq, dev, NULL);
+	am79c961_interrupt(dev->irq, dev);
 	local_irq_restore(flags);
 }
 #endif

@@ -518,7 +518,7 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 			CHECK_BOUND(bs, 2);
 			len = get_len(bs);
 			CHECK_BOUND(bs, len);
-			if (!base) {
+			if (!base || !(son->attr & DECODE)) {
 				PRINT("%*.s%s\n", (level + 1) * TAB_SIZE,
 				      " ", son->name);
 				bs->cur += len;
@@ -704,6 +704,8 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 	} else {
 		ext = 0;
 		type = get_bits(bs, f->sz);
+		if (type >= f->lb)
+			return H323_ERROR_RANGE;
 	}
 
 	/* Write Type */

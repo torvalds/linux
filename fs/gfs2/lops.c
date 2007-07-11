@@ -17,6 +17,7 @@
 
 #include "gfs2.h"
 #include "incore.h"
+#include "inode.h"
 #include "glock.h"
 #include "log.h"
 #include "lops.h"
@@ -117,15 +118,13 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 	struct gfs2_log_descriptor *ld;
 	struct gfs2_bufdata *bd1 = NULL, *bd2;
 	unsigned int total = sdp->sd_log_num_buf;
-	unsigned int offset = sizeof(struct gfs2_log_descriptor);
+	unsigned int offset = BUF_OFFSET;
 	unsigned int limit;
 	unsigned int num;
 	unsigned n;
 	__be64 *ptr;
 
-	offset += sizeof(__be64) - 1;
-	offset &= ~(sizeof(__be64) - 1);
-	limit = (sdp->sd_sb.sb_bsize - offset)/sizeof(__be64);
+	limit = buf_limit(sdp);
 	/* for 4k blocks, limit = 503 */
 
 	bd1 = bd2 = list_prepare_entry(bd1, &sdp->sd_log_le_buf, bd_le.le_list);
@@ -134,7 +133,6 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		if (total > limit)
 			num = limit;
 		bh = gfs2_log_get_buf(sdp);
-		sdp->sd_log_num_hdrs++;
 		ld = (struct gfs2_log_descriptor *)bh->b_data;
 		ptr = (__be64 *)(bh->b_data + offset);
 		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
@@ -469,25 +467,28 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 
 	gfs2_log_lock(sdp);
+	if (!list_empty(&bd->bd_list_tr)) {
+		gfs2_log_unlock(sdp);
+		return;
+	}
 	tr->tr_touched = 1;
-	if (list_empty(&bd->bd_list_tr) &&
-	    (ip->i_di.di_flags & GFS2_DIF_JDATA)) {
+	if (gfs2_is_jdata(ip)) {
 		tr->tr_num_buf++;
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
-		gfs2_log_unlock(sdp);
-		gfs2_pin(sdp, bd->bd_bh);
-		tr->tr_num_buf_new++;
-	} else {
-		gfs2_log_unlock(sdp);
 	}
+	gfs2_log_unlock(sdp);
+	if (!list_empty(&le->le_list))
+		return;
+
 	gfs2_trans_add_gl(bd->bd_gl);
-	gfs2_log_lock(sdp);
-	if (list_empty(&le->le_list)) {
-		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
-			sdp->sd_log_num_jdata++;
-		sdp->sd_log_num_databuf++;
-		list_add(&le->le_list, &sdp->sd_log_le_databuf);
+	if (gfs2_is_jdata(ip)) {
+		sdp->sd_log_num_jdata++;
+		gfs2_pin(sdp, bd->bd_bh);
+		tr->tr_num_databuf_new++;
 	}
+	sdp->sd_log_num_databuf++;
+	gfs2_log_lock(sdp);
+	list_add(&le->le_list, &sdp->sd_log_le_databuf);
 	gfs2_log_unlock(sdp);
 }
 
@@ -520,7 +521,6 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	LIST_HEAD(started);
 	struct gfs2_bufdata *bd1 = NULL, *bd2, *bdt;
 	struct buffer_head *bh = NULL,*bh1 = NULL;
-	unsigned int offset = sizeof(struct gfs2_log_descriptor);
 	struct gfs2_log_descriptor *ld;
 	unsigned int limit;
 	unsigned int total_dbuf = sdp->sd_log_num_databuf;
@@ -528,9 +528,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	unsigned int num, n;
 	__be64 *ptr = NULL;
 
-	offset += 2*sizeof(__be64) - 1;
-	offset &= ~(2*sizeof(__be64) - 1);
-	limit = (sdp->sd_sb.sb_bsize - offset)/sizeof(__be64);
+	limit = databuf_limit(sdp);
 
 	/*
 	 * Start writing ordered buffers, write journaled buffers
@@ -581,10 +579,10 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				gfs2_log_unlock(sdp);
 				if (!bh) {
 					bh = gfs2_log_get_buf(sdp);
-					sdp->sd_log_num_hdrs++;
 					ld = (struct gfs2_log_descriptor *)
 					     bh->b_data;
-					ptr = (__be64 *)(bh->b_data + offset);
+					ptr = (__be64 *)(bh->b_data +
+							 DATABUF_OFFSET);
 					ld->ld_header.mh_magic =
 						cpu_to_be32(GFS2_MAGIC);
 					ld->ld_header.mh_type =
@@ -605,7 +603,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				if (unlikely(magic != 0))
 					set_buffer_escaped(bh1);
 				gfs2_log_lock(sdp);
-				if (n++ > num)
+				if (++n >= num)
 					break;
 			} else if (!bh1) {
 				total_dbuf--;
@@ -622,6 +620,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 		gfs2_log_unlock(sdp);
 		if (bh) {
+			set_buffer_mapped(bh);
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
 			bh = NULL;

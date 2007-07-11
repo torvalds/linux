@@ -25,10 +25,6 @@
 
 #define IPL_PARM_BLOCK_VERSION 0
 
-#define SCCB_VALID (s390_readinfo_sccb.header.response_code == 0x10)
-#define SCCB_LOADPARM (&s390_readinfo_sccb.loadparm)
-#define SCCB_FLAG (s390_readinfo_sccb.flags)
-
 #define IPL_UNKNOWN_STR		"unknown"
 #define IPL_CCW_STR		"ccw"
 #define IPL_FCP_STR		"fcp"
@@ -145,6 +141,8 @@ static struct ipl_parameter_block *dump_block_fcp;
 static struct ipl_parameter_block *dump_block_ccw;
 
 static enum shutdown_action on_panic_action = SHUTDOWN_STOP;
+
+static struct sclp_ipl_info sclp_ipl_info;
 
 int diag308(unsigned long subcode, void *addr)
 {
@@ -375,9 +373,9 @@ static ssize_t ipl_ccw_loadparm_show(struct kset *kset, char *page)
 {
 	char loadparm[LOADPARM_LEN + 1] = {};
 
-	if (!SCCB_VALID)
+	if (!sclp_ipl_info.is_valid)
 		return sprintf(page, "#unknown#\n");
-	memcpy(loadparm, SCCB_LOADPARM, LOADPARM_LEN);
+	memcpy(loadparm, &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
 	strstrip(loadparm);
 	return sprintf(page, "%s\n", loadparm);
@@ -910,9 +908,9 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw->hdr.blk0_len = IPL_PARM_BLK0_CCW_LEN;
 	reipl_block_ccw->hdr.pbt = DIAG308_IPL_TYPE_CCW;
 	/* check if read scp info worked and set loadparm */
-	if (SCCB_VALID)
+	if (sclp_ipl_info.is_valid)
 		memcpy(reipl_block_ccw->ipl_info.ccw.load_param,
-		       SCCB_LOADPARM, LOADPARM_LEN);
+		       &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	else
 		/* read scp info failed: set empty loadparm (EBCDIC blanks) */
 		memset(reipl_block_ccw->ipl_info.ccw.load_param, 0x40,
@@ -1007,7 +1005,7 @@ static int __init dump_fcp_init(void)
 {
 	int rc;
 
-	if(!(SCCB_FLAG & 0x2) || !SCCB_VALID)
+	if (!sclp_ipl_info.has_dump)
 		return 0; /* LDIPL DUMP is not installed */
 	if (!diag308_set_works)
 		return 0;
@@ -1088,6 +1086,7 @@ static int __init s390_ipl_init(void)
 {
 	int rc;
 
+	sclp_get_ipl_info(&sclp_ipl_info);
 	reipl_probe();
 	rc = ipl_init();
 	if (rc)

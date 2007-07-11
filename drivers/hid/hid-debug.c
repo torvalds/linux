@@ -347,6 +347,9 @@ static void resolv_usage_page(unsigned page) {
 void hid_resolv_usage(unsigned usage) {
 	const struct hid_usage_entry *p;
 
+	if (!hid_debug)
+		return;
+
 	resolv_usage_page(usage >> 16);
 	printk(".");
 	for (p = hid_usage_table; p->description; p++)
@@ -368,6 +371,9 @@ __inline__ static void tab(int n) {
 
 void hid_dump_field(struct hid_field *field, int n) {
 	int j;
+
+	if (!hid_debug)
+		return;
 
 	if (field->physical) {
 		tab(n);
@@ -466,6 +472,9 @@ void hid_dump_device(struct hid_device *device) {
 	unsigned i,k;
 	static char *table[] = {"INPUT", "OUTPUT", "FEATURE"};
 
+	if (!hid_debug)
+		return;
+
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		report_enum = device->report_enum + i;
 		list = report_enum->report_list.next;
@@ -489,6 +498,9 @@ void hid_dump_device(struct hid_device *device) {
 EXPORT_SYMBOL_GPL(hid_dump_device);
 
 void hid_dump_input(struct hid_usage *usage, __s32 value) {
+	if (!hid_debug)
+		return;
+
 	printk("hid-debug: input ");
 	hid_resolv_usage(usage->hid);
 	printk(" = %d\n", value);
@@ -757,6 +769,9 @@ static char **names[EV_MAX + 1] = {
 };
 
 void hid_resolv_event(__u8 type, __u16 code) {
+
+	if (!hid_debug)
+		return;
 
 	printk("%s.%s", events[type] ? events[type] : "?",
 		names[type] ? (names[type][code] ? names[type][code] : "?") : "?");

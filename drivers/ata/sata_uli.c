@@ -129,7 +129,7 @@ static const struct ata_port_info uli_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 			  ATA_FLAG_IGN_SIMPLEX,
 	.pio_mask       = 0x1f,		/* pio0-4 */
-	.udma_mask      = 0x7f,		/* udma0-6 */
+	.udma_mask      = ATA_UDMA6,
 	.port_ops       = &uli_ops,
 };
 

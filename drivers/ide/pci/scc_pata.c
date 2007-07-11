@@ -716,7 +716,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->atapi_dma = 1;
 
 	/* we support 80c cable only. */
-	hwif->udma_four = 1;
+	hwif->cbl = ATA_CBL_PATA80;
 
 	hwif->autodma = 0;
 	if (!noautodma)

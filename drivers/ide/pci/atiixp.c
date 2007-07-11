@@ -264,10 +264,11 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
+
 	if ((udma_mode & 0x07) >= 0x04 || (udma_mode & 0x70) >= 0x40)
-		hwif->udma_four = 1;
+		hwif->cbl = ATA_CBL_PATA80;
 	else
-		hwif->udma_four = 0;
+		hwif->cbl = ATA_CBL_PATA40;
 
 	hwif->dma_host_on = &atiixp_dma_host_on;
 	hwif->dma_host_off = &atiixp_dma_host_off;

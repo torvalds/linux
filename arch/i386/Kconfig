@@ -441,8 +441,8 @@ config X86_REBOOTFIXUPS
 	  this config is intended, is when reboot ends with a stalled/hung
 	  system.
 
-	  Currently, the only fixup is for the Geode GX1/CS5530A/TROM2.1.
-	  combination.
+	  Currently, the only fixup is for the Geode machines using
+	  CS5530A and CS5536 chipsets.
 
 	  Say Y if you want to enable the fixup. Currently, it's safe to
 	  enable this option even if you don't need it.

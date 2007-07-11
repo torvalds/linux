@@ -122,9 +122,9 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->maj_flt += tsk->maj_flt;
 		sig->nvcsw += tsk->nvcsw;
 		sig->nivcsw += tsk->nivcsw;
-		sig->sched_time += tsk->sched_time;
 		sig->inblock += task_io_get_inblock(tsk);
 		sig->oublock += task_io_get_oublock(tsk);
+		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 		sig = NULL; /* Marker for below. */
 	}
 
@@ -182,7 +182,6 @@ repeat:
 		zap_leader = (leader->exit_signal == -1);
 	}
 
-	sched_exit(p);
 	write_unlock_irq(&tasklist_lock);
 	proc_flush_task(p);
 	release_thread(p);
@@ -291,7 +290,7 @@ static void reparent_to_kthreadd(void)
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
 	current->exit_signal = SIGCHLD;
 
-	if (!has_rt_policy(current) && (task_nice(current) < 0))
+	if (task_nice(current) < 0)
 		set_user_nice(current, 0);
 	/* cpus_allowed? */
 	/* rt_priority? */

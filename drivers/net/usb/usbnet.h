@@ -47,7 +47,7 @@ struct usbnet {
 	unsigned long		data [5];
 	u32			xid;
 	u32			hard_mtu;	/* count any extra framing */
-	size_t		        rx_urb_size;    /* size for rx urbs  */
+	size_t			rx_urb_size;	/* size for rx urbs */
 	struct mii_if_info	mii;
 
 	/* various kinds of pending driver work */
@@ -85,7 +85,7 @@ struct driver_info {
 #define FLAG_NO_SETINT	0x0010		/* device can't set_interface() */
 #define FLAG_ETHER	0x0020		/* maybe use "eth%d" names */
 
-#define FLAG_FRAMING_AX 0x0040          /* AX88772/178 packets */
+#define FLAG_FRAMING_AX 0x0040		/* AX88772/178 packets */
 
 	/* init device ... can sleep, or cause probe() failure */
 	int	(*bind)(struct usbnet *, struct usb_interface *);
@@ -146,9 +146,9 @@ extern void usbnet_cdc_unbind (struct usbnet *, struct usb_interface *);
 
 /* CDC and RNDIS support the same host-chosen packet filters for IN transfers */
 #define	DEFAULT_FILTER	(USB_CDC_PACKET_TYPE_BROADCAST \
- 			|USB_CDC_PACKET_TYPE_ALL_MULTICAST \
- 			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
- 			|USB_CDC_PACKET_TYPE_DIRECTED)
+			|USB_CDC_PACKET_TYPE_ALL_MULTICAST \
+			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
+			|USB_CDC_PACKET_TYPE_DIRECTED)
 
 
 /* we record the state for each of our queued skbs */

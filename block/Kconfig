@@ -1,7 +1,7 @@
 #
 # Block layer core configuration
 #
-config BLOCK
+menuconfig BLOCK
        bool "Enable the block layer" if EMBEDDED
        default y
        help
@@ -49,6 +49,6 @@ config LSF
 
 	  If unsure, say Y.
 
-endif
+endif # BLOCK
 
 source block/Kconfig.iosched

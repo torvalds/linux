@@ -160,7 +160,7 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer, size_t cou
 {
 	struct serio_raw_list *list = file->private_data;
 	struct serio_raw *serio_raw = list->serio_raw;
-	char c;
+	char uninitialized_var(c);
 	ssize_t retval = 0;
 
 	if (!serio_raw->serio)

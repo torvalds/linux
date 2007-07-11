@@ -14,13 +14,13 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/proc_fs.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include <asm/wbflush.h>
 #include <asm/reboot.h>
@@ -35,6 +35,9 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
+#include <linux/spi/spi.h>
+#include <asm/tx4938/spi.h>
+#include <asm/gpio.h>
 
 extern void rbtx4938_time_init(void) __init;
 extern char * __init prom_getcmdline(void);
@@ -349,7 +352,7 @@ static struct pci_dev *fake_pci_dev(struct pci_controller *hose,
 	static struct pci_dev dev;
 	static struct pci_bus bus;
 
-	dev.sysdata = (void *)hose;
+	dev.sysdata = bus.sysdata = hose;
 	dev.devfn = devfn;
 	bus.number = busnr;
 	bus.ops = hose->pci_ops;
@@ -382,8 +385,10 @@ int txboard_pci66_check(struct pci_controller *hose, int top_bus, int current_bu
 	printk("PCI: Checking 66MHz capabilities...\n");
 
 	for (pci_devfn=devfn_start; pci_devfn<devfn_stop; pci_devfn++) {
-		early_read_config_word(hose, top_bus, current_bus, pci_devfn,
-				       PCI_VENDOR_ID, &vid);
+		if (early_read_config_word(hose, top_bus, current_bus,
+					   pci_devfn, PCI_VENDOR_ID,
+					   &vid) != PCIBIOS_SUCCESSFUL)
+			continue;
 
 		if (vid == 0xffff) continue;
 
@@ -460,7 +465,6 @@ static int __init tx4938_pcibios_init(void)
 	int extarb = !(tx4938_ccfgptr->ccfg & TX4938_CCFG_PCIXARB);
 
 	PCIBIOS_MIN_IO = 0x00001000UL;
-	PCIBIOS_MIN_MEM = 0x01000000UL;
 
 	mem_base[0] = txboard_request_phys_region_shrink(&mem_size[0]);
 	io_base[0] = txboard_request_phys_region_shrink(&io_size[0]);
@@ -574,82 +578,43 @@ arch_initcall(tx4938_pcibios_init);
 #define	SEEPROM3_CS	1	/* IOC */
 #define	SRTC_CS	2	/* IOC */
 
-static int rbtx4938_spi_cs_func(int chipid, int on)
-{
-	unsigned char bit;
-	switch (chipid) {
-	case RBTX4938_SEEPROM1_CHIPID:
-		if (on)
-			tx4938_pioptr->dout &= ~(1 << SEEPROM1_CS);
-		else
-			tx4938_pioptr->dout |= (1 << SEEPROM1_CS);
-		return 0;
-		break;
-	case RBTX4938_SEEPROM2_CHIPID:
-		bit = (1 << SEEPROM2_CS);
-		break;
-	case RBTX4938_SEEPROM3_CHIPID:
-		bit = (1 << SEEPROM3_CS);
-		break;
-	case RBTX4938_SRTC_CHIPID:
-		bit = (1 << SRTC_CS);
-		break;
-	default:
-		return -ENODEV;
-	}
-	/* bit1,2,4 are low active, bit3 is high active */
-	*rbtx4938_spics_ptr =
-		(*rbtx4938_spics_ptr & ~bit) |
-		((on ? (bit ^ 0x0b) : ~(bit ^ 0x0b)) & bit);
-	return 0;
-}
-
 #ifdef CONFIG_PCI
-extern int spi_eeprom_read(int chipid, int address, unsigned char *buf, int len);
-
-int rbtx4938_get_tx4938_ethaddr(struct pci_dev *dev, unsigned char *addr)
+static int __init rbtx4938_ethaddr_init(void)
 {
-	struct pci_controller *channel = (struct pci_controller *)dev->bus->sysdata;
-	static unsigned char dat[17];
-	static int read_dat = 0;
-	int ch = 0;
+	unsigned char dat[17];
+	unsigned char sum;
+	int i;
 
-	if (channel != &tx4938_pci_controller[1])
+	/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
+	if (spi_eeprom_read(SEEPROM1_CS, 0, dat, sizeof(dat))) {
+		printk(KERN_ERR "seeprom: read error.\n");
 		return -ENODEV;
-	/* TX4938 PCIC1 */
-	switch (PCI_SLOT(dev->devfn)) {
-	case TX4938_PCIC_IDSEL_AD_TO_SLOT(31):
-		ch = 0;
-		break;
-	case TX4938_PCIC_IDSEL_AD_TO_SLOT(30):
-		ch = 1;
-		break;
-	default:
-		return -ENODEV;
+	} else {
+		if (strcmp(dat, "MAC") != 0)
+			printk(KERN_WARNING "seeprom: bad signature.\n");
+		for (i = 0, sum = 0; i < sizeof(dat); i++)
+			sum += dat[i];
+		if (sum)
+			printk(KERN_WARNING "seeprom: bad checksum.\n");
 	}
-	if (!read_dat) {
-		unsigned char sum;
-		int i;
-		read_dat = 1;
-		/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
-		if (spi_eeprom_read(RBTX4938_SEEPROM1_CHIPID,
-				    0, dat, sizeof(dat))) {
-			printk(KERN_ERR "seeprom: read error.\n");
-		} else {
-			if (strcmp(dat, "MAC") != 0)
-				printk(KERN_WARNING "seeprom: bad signature.\n");
-			for (i = 0, sum = 0; i < sizeof(dat); i++)
-				sum += dat[i];
-			if (sum)
-				printk(KERN_WARNING "seeprom: bad checksum.\n");
-		}
+	for (i = 0; i < 2; i++) {
+		unsigned int slot = TX4938_PCIC_IDSEL_AD_TO_SLOT(31 - i);
+		unsigned int id = (1 << 8) | PCI_DEVFN(slot, 0); /* bus 1 */
+		struct platform_device *pdev;
+		if (!(tx4938_ccfgptr->pcfg &
+		      (i ? TX4938_PCFG_ETH1_SEL : TX4938_PCFG_ETH0_SEL)))
+			continue;
+		pdev = platform_device_alloc("tc35815-mac", id);
+		if (!pdev ||
+		    platform_device_add_data(pdev, &dat[4 + 6 * i], 6) ||
+		    platform_device_add(pdev))
+			platform_device_put(pdev);
 	}
-	memcpy(addr, &dat[4 + 6 * ch], 6);
 	return 0;
 }
+device_initcall(rbtx4938_ethaddr_init);
 #endif /* CONFIG_PCI */
 
-extern void __init txx9_spi_init(unsigned long base, int (*cs_func)(int chipid, int on));
 static void __init rbtx4938_spi_setup(void)
 {
 	/* set SPI_SEL */
@@ -657,7 +622,6 @@ static void __init rbtx4938_spi_setup(void)
 	/* chip selects for SPI devices */
 	tx4938_pioptr->dout |= (1 << SEEPROM1_CS);
 	tx4938_pioptr->dir |= (1 << SEEPROM1_CS);
-	txx9_spi_init(TX4938_SPI_REG, rbtx4938_spi_cs_func);
 }
 
 static struct resource rbtx4938_fpga_resource;
@@ -896,10 +860,8 @@ void tx4938_report_pcic_status(void)
 /* We use onchip r4k counter or TMR timer as our system wide timer
  * interrupt running at 100HZ. */
 
-extern void __init rtc_rx5c348_init(int chipid);
 void __init rbtx4938_time_init(void)
 {
-	rtc_rx5c348_init(RBTX4938_SRTC_CHIPID);
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 }
 
@@ -1016,29 +978,6 @@ void __init toshiba_rbtx4938_setup(void)
 	       *rbtx4938_dipsw_ptr, *rbtx4938_bdipsw_ptr);
 }
 
-#ifdef CONFIG_PROC_FS
-extern void spi_eeprom_proc_create(struct proc_dir_entry *dir, int chipid);
-static int __init tx4938_spi_proc_setup(void)
-{
-	struct proc_dir_entry *tx4938_spi_eeprom_dir;
-
-	tx4938_spi_eeprom_dir = proc_mkdir("spi_eeprom", 0);
-
-	if (!tx4938_spi_eeprom_dir)
-		return -ENOMEM;
-
-	/* don't allow user access to RBTX4938_SEEPROM1_CHIPID
-	 * as it contains eth0 and eth1 MAC addresses
-	 */
-	spi_eeprom_proc_create(tx4938_spi_eeprom_dir, RBTX4938_SEEPROM2_CHIPID);
-	spi_eeprom_proc_create(tx4938_spi_eeprom_dir, RBTX4938_SEEPROM3_CHIPID);
-
-	return 0;
-}
-
-__initcall(tx4938_spi_proc_setup);
-#endif
-
 static int __init rbtx4938_ne_init(void)
 {
 	struct resource res[] = {
@@ -1057,3 +996,176 @@ static int __init rbtx4938_ne_init(void)
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 device_initcall(rbtx4938_ne_init);
+
+/* GPIO support */
+
+static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);
+
+static void rbtx4938_spi_gpio_set(unsigned gpio, int value)
+{
+	u8 val;
+	unsigned long flags;
+	gpio -= 16;
+	spin_lock_irqsave(&rbtx4938_spi_gpio_lock, flags);
+	val = *rbtx4938_spics_ptr;
+	if (value)
+		val |= 1 << gpio;
+	else
+		val &= ~(1 << gpio);
+	*rbtx4938_spics_ptr = val;
+	mmiowb();
+	spin_unlock_irqrestore(&rbtx4938_spi_gpio_lock, flags);
+}
+
+static int rbtx4938_spi_gpio_dir_out(unsigned gpio, int value)
+{
+	rbtx4938_spi_gpio_set(gpio, value);
+	return 0;
+}
+
+static DEFINE_SPINLOCK(tx4938_gpio_lock);
+
+static int tx4938_gpio_get(unsigned gpio)
+{
+	return tx4938_pioptr->din & (1 << gpio);
+}
+
+static void tx4938_gpio_set_raw(unsigned gpio, int value)
+{
+	u32 val;
+	val = tx4938_pioptr->dout;
+	if (value)
+		val |= 1 << gpio;
+	else
+		val &= ~(1 << gpio);
+	tx4938_pioptr->dout = val;
+}
+
+static void tx4938_gpio_set(unsigned gpio, int value)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tx4938_gpio_lock, flags);
+	tx4938_gpio_set_raw(gpio, value);
+	mmiowb();
+	spin_unlock_irqrestore(&tx4938_gpio_lock, flags);
+}
+
+static int tx4938_gpio_dir_in(unsigned gpio)
+{
+	spin_lock_irq(&tx4938_gpio_lock);
+	tx4938_pioptr->dir &= ~(1 << gpio);
+	mmiowb();
+	spin_unlock_irq(&tx4938_gpio_lock);
+	return 0;
+}
+
+static int tx4938_gpio_dir_out(unsigned int gpio, int value)
+{
+	spin_lock_irq(&tx4938_gpio_lock);
+	tx4938_gpio_set_raw(gpio, value);
+	tx4938_pioptr->dir |= 1 << gpio;
+	mmiowb();
+	spin_unlock_irq(&tx4938_gpio_lock);
+	return 0;
+}
+
+int gpio_direction_input(unsigned gpio)
+{
+	if (gpio < 16)
+		return tx4938_gpio_dir_in(gpio);
+	return -EINVAL;
+}
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	if (gpio < 16)
+		return tx4938_gpio_dir_out(gpio, value);
+	if (gpio < 16 + 3)
+		return rbtx4938_spi_gpio_dir_out(gpio, value);
+	return -EINVAL;
+}
+
+int gpio_get_value(unsigned gpio)
+{
+	if (gpio < 16)
+		return tx4938_gpio_get(gpio);
+	return 0;
+}
+
+void gpio_set_value(unsigned gpio, int value)
+{
+	if (gpio < 16)
+		tx4938_gpio_set(gpio, value);
+	else
+		rbtx4938_spi_gpio_set(gpio, value);
+}
+
+/* SPI support */
+
+static void __init txx9_spi_init(unsigned long base, int irq)
+{
+	struct resource res[] = {
+		{
+			.start	= base,
+			.end	= base + 0x20 - 1,
+			.flags	= IORESOURCE_MEM,
+			.parent	= &tx4938_reg_resource,
+		}, {
+			.start	= irq,
+			.flags	= IORESOURCE_IRQ,
+		},
+	};
+	platform_device_register_simple("txx9spi", 0,
+					res, ARRAY_SIZE(res));
+}
+
+static int __init rbtx4938_spi_init(void)
+{
+	struct spi_board_info srtc_info = {
+		.modalias = "rs5c348",
+		.max_speed_hz = 1000000, /* 1.0Mbps @ Vdd 2.0V */
+		.bus_num = 0,
+		.chip_select = 16 + SRTC_CS,
+		/* Mode 1 (High-Active, Shift-Then-Sample), High Avtive CS  */
+		.mode = SPI_MODE_1 | SPI_CS_HIGH,
+	};
+	spi_register_board_info(&srtc_info, 1);
+	spi_eeprom_register(SEEPROM1_CS);
+	spi_eeprom_register(16 + SEEPROM2_CS);
+	spi_eeprom_register(16 + SEEPROM3_CS);
+	txx9_spi_init(TX4938_SPI_REG & 0xfffffffffULL, RBTX4938_IRQ_IRC_SPI);
+	return 0;
+}
+arch_initcall(rbtx4938_spi_init);
+
+/* Minimum CLK support */
+
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	if (!strcmp(id, "spi-baseclk"))
+		return (struct clk *)(txx9_gbus_clock / 2 / 4);
+	return ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get);
+
+int clk_enable(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_disable);
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return (unsigned long)clk;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);

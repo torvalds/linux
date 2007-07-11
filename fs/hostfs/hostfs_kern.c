@@ -390,7 +390,7 @@ int hostfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 static const struct file_operations hostfs_file_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
 	.write		= do_sync_write,

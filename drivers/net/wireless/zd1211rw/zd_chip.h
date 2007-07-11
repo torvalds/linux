@@ -608,6 +608,9 @@ enum {
 #define CR_ZD1211B_TXOP			CTL_REG(0x0b20)
 #define CR_ZD1211B_RETRY_MAX		CTL_REG(0x0b28)
 
+/* Used to detect PLL lock */
+#define UW2453_INTR_REG			((zd_addr_t)0x85c1)
+
 #define CWIN_SIZE			0x007f043f
 
 

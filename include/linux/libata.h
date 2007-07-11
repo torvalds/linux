@@ -116,6 +116,7 @@ static inline struct device *pci_dev_to_dev(struct pci_dev *pdev)
 enum {
 	/* various global constants */
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
+	LIBATA_DUMB_MAX_PRD	= ATA_MAX_PRD / 4,	/* Worst case */
 	ATA_MAX_PORTS		= 8,
 	ATA_DEF_QUEUE		= 1,
 	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
@@ -136,6 +137,8 @@ enum {
 	ATA_DFLAG_CDB_INTR	= (1 << 2), /* device asserts INTRQ when ready for CDB */
 	ATA_DFLAG_NCQ		= (1 << 3), /* device supports NCQ */
 	ATA_DFLAG_FLUSH_EXT	= (1 << 4), /* do FLUSH_EXT instead of FLUSH */
+	ATA_DFLAG_ACPI_PENDING	= (1 << 5), /* ACPI resume action pending */
+	ATA_DFLAG_ACPI_FAILED	= (1 << 6), /* ACPI on devcfg has failed */
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device limited to PIO mode */
@@ -196,6 +199,7 @@ enum {
 	ATA_PFLAG_FLUSH_PORT_TASK = (1 << 16), /* flush port task */
 	ATA_PFLAG_SUSPENDED	= (1 << 17), /* port is suspended (power) */
 	ATA_PFLAG_PM_PENDING	= (1 << 18), /* PM operation pending */
+	ATA_PFLAG_GTM_VALID	= (1 << 19), /* acpi_gtm data valid */
 
 	/* struct ata_queued_cmd flags */
 	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
@@ -363,6 +367,9 @@ struct ata_host {
 	void			*private_data;
 	const struct ata_port_operations *ops;
 	unsigned long		flags;
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+#endif
 	struct ata_port		*simplex_claimed;	/* channel owning the DMA */
 	struct ata_port		*ports[0];
 };
@@ -429,6 +436,9 @@ struct ata_device {
 	unsigned int		devno;		/* 0 or 1 */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+#endif
 	/* n_sector is used as CLEAR_OFFSET, read comment above CLEAR_OFFSET */
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned int		class;		/* ATA_DEV_xxx */
@@ -457,10 +467,6 @@ struct ata_device {
 	struct ata_ering	ering;
 	int			spdn_cnt;
 	unsigned int		horkage;	/* List of broken features */
-#ifdef CONFIG_ATA_ACPI
-	/* ACPI objects info */
-	acpi_handle obj_handle;
-#endif
 };
 
 /* Offset into struct ata_device.  Fields above it are maintained
@@ -488,6 +494,17 @@ struct ata_eh_context {
 	unsigned int		classes[ATA_MAX_DEVICES];
 	unsigned int		did_probe_mask;
 };
+
+struct ata_acpi_drive
+{
+	u32 pio;
+	u32 dma;
+} __packed;
+
+struct ata_acpi_gtm {
+	struct ata_acpi_drive drive[2];
+	u32 flags;
+} __packed;
 
 struct ata_port {
 	struct Scsi_Host	*scsi_host; /* our co-allocated scsi host */
@@ -549,6 +566,10 @@ struct ata_port {
 
 	void			*private_data;
 
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+	struct ata_acpi_gtm	acpi_gtm;
+#endif
 	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
 
@@ -758,6 +779,7 @@ extern void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
 			  unsigned int buflen, int write_data);
 extern void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
 				unsigned int buflen, int write_data);
+extern void ata_dumb_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc);

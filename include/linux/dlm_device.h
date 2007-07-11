@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -18,21 +18,24 @@
 #define DLM_USER_LVB_LEN	32
 
 /* Version of the device interface */
-#define DLM_DEVICE_VERSION_MAJOR 5
-#define DLM_DEVICE_VERSION_MINOR 1
+#define DLM_DEVICE_VERSION_MAJOR 6
+#define DLM_DEVICE_VERSION_MINOR 0
 #define DLM_DEVICE_VERSION_PATCH 0
 
 /* struct passed to the lock write */
 struct dlm_lock_params {
 	__u8 mode;
 	__u8 namelen;
-	__u16 flags;
+	__u16 unused;
+	__u32 flags;
 	__u32 lkid;
 	__u32 parent;
-        void __user *castparam;
+	__u64 xid;
+	__u64 timeout;
+	void __user *castparam;
 	void __user *castaddr;
 	void __user *bastparam;
-        void __user *bastaddr;
+	void __user *bastaddr;
 	struct dlm_lksb __user *lksb;
 	char lvb[DLM_USER_LVB_LEN];
 	char name[0];
@@ -62,9 +65,15 @@ struct dlm_write_request {
 	} i;
 };
 
+struct dlm_device_version {
+	__u32 version[3];
+};
+
 /* struct read from the "device" fd,
    consists mainly of userspace pointers for the library to use */
+
 struct dlm_lock_result {
+	__u32 version[3];
 	__u32 length;
 	void __user * user_astaddr;
 	void __user * user_astparam;
@@ -83,6 +92,7 @@ struct dlm_lock_result {
 #define DLM_USER_CREATE_LOCKSPACE  4
 #define DLM_USER_REMOVE_LOCKSPACE  5
 #define DLM_USER_PURGE        6
+#define DLM_USER_DEADLOCK     7
 
 /* Arbitrary length restriction */
 #define MAX_LS_NAME_LEN 64

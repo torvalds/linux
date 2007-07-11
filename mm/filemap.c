@@ -1245,26 +1245,6 @@ int file_send_actor(read_descriptor_t * desc, struct page *page, unsigned long o
 	return written;
 }
 
-ssize_t generic_file_sendfile(struct file *in_file, loff_t *ppos,
-			 size_t count, read_actor_t actor, void *target)
-{
-	read_descriptor_t desc;
-
-	if (!count)
-		return 0;
-
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
-
-	do_generic_file_read(in_file, ppos, &desc, actor);
-	if (desc.written)
-		return desc.written;
-	return desc.error;
-}
-EXPORT_SYMBOL(generic_file_sendfile);
-
 static ssize_t
 do_readahead(struct address_space *mapping, struct file *filp,
 	     unsigned long index, unsigned long nr)
@@ -1786,7 +1766,6 @@ retry:
 	page = __read_cache_page(mapping, index, filler, data);
 	if (IS_ERR(page))
 		return page;
-	mark_page_accessed(page);
 	if (PageUptodate(page))
 		goto out;
 

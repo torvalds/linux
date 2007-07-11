@@ -50,5 +50,16 @@ int seq_release_private(struct inode *, struct file *);
 
 #define SEQ_START_TOKEN ((void *)1)
 
+/*
+ * Helpers for iteration over list_head-s in seq_files
+ */
+
+extern struct list_head *seq_list_start(struct list_head *head,
+		loff_t pos);
+extern struct list_head *seq_list_start_head(struct list_head *head,
+		loff_t pos);
+extern struct list_head *seq_list_next(void *v, struct list_head *head,
+		loff_t *ppos);
+
 #endif
 #endif

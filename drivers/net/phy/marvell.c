@@ -60,6 +60,7 @@
 #define MII_M1111_PHY_EXT_SR		0x1b
 #define MII_M1111_HWCFG_MODE_MASK	0xf
 #define MII_M1111_HWCFG_MODE_RGMII	0xb
+#define MII_M1111_HWCFG_MODE_SGMII_NO_CLK	0x4
 
 MODULE_DESCRIPTION("Marvell PHY driver");
 MODULE_AUTHOR("Andy Fleming");
@@ -169,6 +170,21 @@ static int m88e1111_config_init(struct phy_device *phydev)
 			return err;
 	}
 
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		int temp;
+
+		temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
+		if (temp < 0)
+			return temp;
+
+		temp &= ~(MII_M1111_HWCFG_MODE_MASK);
+		temp |= MII_M1111_HWCFG_MODE_SGMII_NO_CLK;
+
+		err = phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
+		if (err < 0)
+			return err;
+	}
+
 	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
 	if (err < 0)
 		return err;
@@ -238,77 +254,84 @@ static int m88e1145_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static struct phy_driver m88e1101_driver = {
-	.phy_id = 0x01410c60,
-	.phy_id_mask = 0xfffffff0,
-	.name = "Marvell 88E1101",
-	.features = PHY_GBIT_FEATURES,
-	.flags = PHY_HAS_INTERRUPT,
-	.config_aneg = &marvell_config_aneg,
-	.read_status = &genphy_read_status,
-	.ack_interrupt = &marvell_ack_interrupt,
-	.config_intr = &marvell_config_intr,
-	.driver = {.owner = THIS_MODULE,},
-};
-
-static struct phy_driver m88e1111_driver = {
-	.phy_id = 0x01410cc0,
-	.phy_id_mask = 0xfffffff0,
-	.name = "Marvell 88E1111",
-	.features = PHY_GBIT_FEATURES,
-	.flags = PHY_HAS_INTERRUPT,
-	.config_aneg = &marvell_config_aneg,
-	.read_status = &genphy_read_status,
-	.ack_interrupt = &marvell_ack_interrupt,
-	.config_intr = &marvell_config_intr,
-	.config_init = &m88e1111_config_init,
-	.driver = {.owner = THIS_MODULE,},
-};
-
-static struct phy_driver m88e1145_driver = {
-	.phy_id = 0x01410cd0,
-	.phy_id_mask = 0xfffffff0,
-	.name = "Marvell 88E1145",
-	.features = PHY_GBIT_FEATURES,
-	.flags = PHY_HAS_INTERRUPT,
-	.config_init = &m88e1145_config_init,
-	.config_aneg = &marvell_config_aneg,
-	.read_status = &genphy_read_status,
-	.ack_interrupt = &marvell_ack_interrupt,
-	.config_intr = &marvell_config_intr,
-	.driver = {.owner = THIS_MODULE,},
+static struct phy_driver marvell_drivers[] = {
+	{
+		.phy_id = 0x01410c60,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1101",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = {.owner = THIS_MODULE,},
+	},
+	{
+		.phy_id = 0x01410c90,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1112",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_init = &m88e1111_config_init,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = {.owner = THIS_MODULE,},
+	},
+	{
+		.phy_id = 0x01410cc0,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1111",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_init = &m88e1111_config_init,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = {.owner = THIS_MODULE,},
+	},
+	{
+		.phy_id = 0x01410cd0,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1145",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_init = &m88e1145_config_init,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = {.owner = THIS_MODULE,},
+	}
 };
 
 static int __init marvell_init(void)
 {
 	int ret;
+	int i;
 
-	ret = phy_driver_register(&m88e1101_driver);
-	if (ret)
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(marvell_drivers); i++) {
+		ret = phy_driver_register(&marvell_drivers[i]);
 
-	ret = phy_driver_register(&m88e1111_driver);
-	if (ret)
-		goto err1111;
-
-	ret = phy_driver_register(&m88e1145_driver);
-	if (ret)
-		goto err1145;
+		if (ret) {
+			while (i-- > 0)
+				phy_driver_unregister(&marvell_drivers[i]);
+			return ret;
+		}
+	}
 
 	return 0;
-
-err1145:
-	phy_driver_unregister(&m88e1111_driver);
-err1111:
-	phy_driver_unregister(&m88e1101_driver);
-	return ret;
 }
 
 static void __exit marvell_exit(void)
 {
-	phy_driver_unregister(&m88e1101_driver);
-	phy_driver_unregister(&m88e1111_driver);
-	phy_driver_unregister(&m88e1145_driver);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(marvell_drivers); i++)
+		phy_driver_unregister(&marvell_drivers[i]);
 }
 
 module_init(marvell_init);

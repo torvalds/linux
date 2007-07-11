@@ -35,4 +35,17 @@ config W1_SLAVE_DS2433_CRC
 	  Each block has 30 bytes of data and a two byte CRC16.
 	  Full block writes are only allowed if the CRC is valid.
 
+config W1_SLAVE_DS2760
+	tristate "Dallas 2760 battery monitor chip (HP iPAQ & others)"
+	depends on W1
+	help
+	  If you enable this you will have the DS2760 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
 endmenu

@@ -33,6 +33,7 @@
 #define W1_THERM_DS1822  	0x22
 #define W1_EEPROM_DS2433  	0x23
 #define W1_THERM_DS18B20 	0x28
+#define W1_FAMILY_DS2760	0x30
 
 #define MAXNAMELEN		32
 
