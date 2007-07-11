@@ -106,6 +106,9 @@ struct jffs2_sb_info {
 
 	uint32_t wbuf_pagesize; /* 0 for NOR and other flashes with no wbuf */
 
+#ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
+	unsigned char *wbuf_verify; /* read-back buffer for verification */
+#endif
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	unsigned char *wbuf; /* Write-behind buffer for NAND flash */
 	uint32_t wbuf_ofs;
