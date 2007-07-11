@@ -7,11 +7,12 @@
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o
-EXTRA_AFLAGS	:= -traditional
 
-# cannot use EXTRA_CFLAGS because base CFLAGS contains -mkernel which conflicts with
-# -m32
-CFLAGS := -m64 -D__KERNEL__ -Iinclude -O2  -fno-strict-aliasing -fPIC -mcmodel=small -fno-builtin
+CFLAGS := -m64 -D__KERNEL__ $(LINUXINCLUDE) -O2  \
+	  -fno-strict-aliasing -fPIC -mcmodel=small \
+	   $(call cc-option, -ffreestanding) \
+	   $(call cc-option, -fno-stack-protector)
+AFLAGS  := $(CFLAGS) -D__ASSEMBLY__
 LDFLAGS := -m elf_x86_64
 
 LDFLAGS_vmlinux := -T
