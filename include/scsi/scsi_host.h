@@ -146,7 +146,7 @@ struct scsi_host_template {
 				  void (*done)(struct scsi_cmnd *));
 
 	/* Used as callback for the completion of task management request. */
-	int (* tsk_mgmt_response)(u64 mid, int result);
+	int (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64 mid, int result);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to

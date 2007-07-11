@@ -65,6 +65,12 @@ struct scsi_transport_template {
 	 * EH_NOT_HANDLED	Begin normal error recovery
 	 */
 	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
+
+	/*
+	 * Used as callback for the completion of i_t_nexus request
+	 * for target drivers.
+	 */
+	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
 };
 
 #define transport_class_to_shost(tc) \
