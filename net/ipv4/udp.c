@@ -951,14 +951,10 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		 * >0 if skb should be passed on to UDP.
 		 * <0 if skb should be resubmitted as proto -N
 		 */
-		unsigned int len;
 
 		/* if we're overly short, let UDP handle it */
-		len = skb->len - sizeof(struct udphdr);
-		if (len <= 0)
-			goto udp;
-
-		if (up->encap_rcv != NULL) {
+		if (skb->len > sizeof(struct udphdr) &&
+		    up->encap_rcv != NULL) {
 			int ret;
 
 			ret = (*up->encap_rcv)(sk, skb);
@@ -971,7 +967,6 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		/* FALLTHROUGH -- it's a UDP Packet */
 	}
 
-udp:
 	/*
 	 * 	UDP-Lite specific tests, ignored on UDP sockets
 	 */
