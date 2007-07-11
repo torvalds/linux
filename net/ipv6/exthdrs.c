@@ -372,21 +372,12 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 	struct rt0_hdr *rthdr;
 	int accept_source_route = ipv6_devconf.accept_source_route;
 
-	if (accept_source_route < 0 ||
-	    ((idev = in6_dev_get(skb->dev)) == NULL)) {
-		kfree_skb(skb);
-		return -1;
-	}
-	if (idev->cnf.accept_source_route < 0) {
+	idev = in6_dev_get(skb->dev);
+	if (idev) {
+		if (accept_source_route > idev->cnf.accept_source_route)
+			accept_source_route = idev->cnf.accept_source_route;
 		in6_dev_put(idev);
-		kfree_skb(skb);
-		return -1;
 	}
-
-	if (accept_source_route > idev->cnf.accept_source_route)
-		accept_source_route = idev->cnf.accept_source_route;
-
-	in6_dev_put(idev);
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
@@ -398,24 +389,6 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 	}
 
 	hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb);
-
-	switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
-	case IPV6_SRCRT_TYPE_2:
-		break;
-#endif
-	case IPV6_SRCRT_TYPE_0:
-		if (accept_source_route > 0)
-			break;
-		kfree_skb(skb);
-		return -1;
-	default:
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
-				 IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
-				  (&hdr->type) - skb_network_header(skb));
-		return -1;
-	}
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ||
 	    skb->pkt_type != PACKET_HOST) {
@@ -455,6 +428,8 @@ looped_back:
 
 	switch (hdr->type) {
 	case IPV6_SRCRT_TYPE_0:
+		if (accept_source_route <= 0)
+			goto unknown_rh;
 		if (hdr->hdrlen & 0x01) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INHDRERRORS);
@@ -466,6 +441,8 @@ looped_back:
 		break;
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	case IPV6_SRCRT_TYPE_2:
+		if (accept_source_route < 0)
+			goto unknown_rh;
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
@@ -475,6 +452,8 @@ looped_back:
 		}
 		break;
 #endif
+	default:
+		goto unknown_rh;
 	}
 
 	/*
@@ -577,6 +556,12 @@ looped_back:
 
 	skb_push(skb, skb->data - skb_network_header(skb));
 	dst_input(skb);
+	return -1;
+
+unknown_rh:
+	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
+	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
+			  (&hdr->type) - skb_network_header(skb));
 	return -1;
 }
 
