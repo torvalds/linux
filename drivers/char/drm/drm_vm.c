@@ -81,7 +81,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 {
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_map_t *map = NULL;
+	struct drm_map *map = NULL;
 	drm_map_list_t *r_list;
 	drm_hash_item_t *hash;
 
@@ -163,7 +163,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,
 						    unsigned long address)
 {
-	drm_map_t *map = (drm_map_t *) vma->vm_private_data;
+	struct drm_map *map = (struct drm_map *) vma->vm_private_data;
 	unsigned long offset;
 	unsigned long i;
 	struct page *page;
@@ -197,7 +197,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_vma_entry_t *pt, *temp;
-	drm_map_t *map;
+	struct drm_map *map;
 	drm_map_list_t *r_list;
 	int found_maps = 0;
 
@@ -310,7 +310,7 @@ static __inline__ struct page *drm_do_vm_dma_nopage(struct vm_area_struct *vma,
 static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 						   unsigned long address)
 {
-	drm_map_t *map = (drm_map_t *) vma->vm_private_data;
+	struct drm_map *map = (struct drm_map *) vma->vm_private_data;
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_sg_mem_t *entry = dev->sg;
@@ -512,7 +512,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-unsigned long drm_core_get_map_ofs(drm_map_t * map)
+unsigned long drm_core_get_map_ofs(struct drm_map * map)
 {
 	return map->offset;
 }
@@ -547,7 +547,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_map_t *map = NULL;
+	struct drm_map *map = NULL;
 	unsigned long offset = 0;
 	drm_hash_item_t *hash;
 

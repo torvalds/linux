@@ -67,8 +67,8 @@ int drm_sg_alloc(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_scatter_gather_t __user *argp = (void __user *)arg;
-	drm_scatter_gather_t request;
+	struct drm_scatter_gather __user *argp = (void __user *)arg;
+	struct drm_scatter_gather request;
 	drm_sg_mem_t *entry;
 	unsigned long pages, i, j;
 
@@ -203,14 +203,14 @@ int drm_sg_free(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_scatter_gather_t request;
+	struct drm_scatter_gather request;
 	drm_sg_mem_t *entry;
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
 
 	if (copy_from_user(&request,
-			   (drm_scatter_gather_t __user *) arg,
+			   (struct drm_scatter_gather __user *) arg,
 			   sizeof(request)))
 		return -EFAULT;
 

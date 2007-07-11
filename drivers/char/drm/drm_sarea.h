@@ -67,9 +67,9 @@ typedef struct drm_sarea_frame {
 /** SAREA */
 typedef struct drm_sarea {
     /** first thing is always the DRM locking structure */
-	drm_hw_lock_t lock;
+	struct drm_hw_lock lock;
     /** \todo Use readers/writer lock for drm_sarea::drawable_lock */
-	drm_hw_lock_t drawable_lock;
+	struct drm_hw_lock drawable_lock;
 	drm_sarea_drawable_t drawableTable[SAREA_MAX_DRAWABLES];	/**< drawables */
 	drm_sarea_frame_t frame;	/**< frame */
 	drm_context_t dummy_context;

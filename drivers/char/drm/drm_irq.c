@@ -55,8 +55,8 @@ int drm_irq_by_busid(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_irq_busid_t __user *argp = (void __user *)arg;
-	drm_irq_busid_t p;
+	struct drm_irq_busid __user *argp = (void __user *)arg;
+	struct drm_irq_busid p;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
@@ -199,11 +199,11 @@ int drm_control(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_control_t ctl;
+	struct drm_control ctl;
 
 	/* if we haven't irq we fallback for compatibility reasons - this used to be a separate function in drm_dma.h */
 
-	if (copy_from_user(&ctl, (drm_control_t __user *) arg, sizeof(ctl)))
+	if (copy_from_user(&ctl, (struct drm_control __user *) arg, sizeof(ctl)))
 		return -EFAULT;
 
 	switch (ctl.func) {
@@ -246,8 +246,8 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_wait_vblank_t __user *argp = (void __user *)data;
-	drm_wait_vblank_t vblwait;
+	union drm_wait_vblank __user *argp = (void __user *)data;
+	union drm_wait_vblank vblwait;
 	struct timeval now;
 	int ret = 0;
 	unsigned int flags, seq;

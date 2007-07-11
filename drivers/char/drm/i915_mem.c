@@ -47,7 +47,7 @@ static void mark_block(drm_device_t * dev, struct mem_block *p, int in_use)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	drm_tex_region_t *list;
+	struct drm_tex_region *list;
 	unsigned shift, nr;
 	unsigned start;
 	unsigned end;

@@ -303,7 +303,7 @@ typedef struct drm_radeon_kcmd_buffer {
 	int bufsz;
 	char *buf;
 	int nbox;
-	drm_clip_rect_t __user *boxes;
+	struct drm_clip_rect __user *boxes;
 } drm_radeon_kcmd_buffer_t;
 
 extern int radeon_no_wb;

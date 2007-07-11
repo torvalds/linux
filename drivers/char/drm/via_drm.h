@@ -40,7 +40,7 @@
 #define VIA_NR_XVMC_LOCKS               5
 #define VIA_MAX_CACHELINE_SIZE          64
 #define XVMCLOCKPTR(saPriv,lockNo)					\
-	((volatile drm_hw_lock_t *)(((((unsigned long) (saPriv)->XvMCLockArea) + \
+	((volatile struct drm_hw_lock *)(((((unsigned long) (saPriv)->XvMCLockArea) + \
 				      (VIA_MAX_CACHELINE_SIZE - 1)) &	\
 				     ~(VIA_MAX_CACHELINE_SIZE - 1)) +	\
 				    VIA_MAX_CACHELINE_SIZE*(lockNo)))
@@ -182,7 +182,7 @@ typedef struct _drm_via_tex_region {
 typedef struct _drm_via_sarea {
 	unsigned int dirty;
 	unsigned int nbox;
-	drm_clip_rect_t boxes[VIA_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[VIA_NR_SAREA_CLIPRECTS];
 	drm_via_tex_region_t texList[VIA_NR_TEX_REGIONS + 1];
 	int texAge;		/* last time texture was uploaded */
 	int ctxOwner;		/* last context to upload state */

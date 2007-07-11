@@ -54,8 +54,8 @@ int drm_getunique(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_unique_t __user *argp = (void __user *)arg;
-	drm_unique_t u;
+	struct drm_unique __user *argp = (void __user *)arg;
+	struct drm_unique u;
 
 	if (copy_from_user(&u, argp, sizeof(u)))
 		return -EFAULT;
@@ -88,13 +88,13 @@ int drm_setunique(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_unique_t u;
+	struct drm_unique u;
 	int domain, bus, slot, func, ret;
 
 	if (dev->unique_len || dev->unique)
 		return -EBUSY;
 
-	if (copy_from_user(&u, (drm_unique_t __user *) arg, sizeof(u)))
+	if (copy_from_user(&u, (struct drm_unique __user *) arg, sizeof(u)))
 		return -EFAULT;
 
 	if (!u.unique_len || u.unique_len > 1024)
@@ -186,8 +186,8 @@ int drm_getmap(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_map_t __user *argp = (void __user *)arg;
-	drm_map_t map;
+	struct drm_map __user *argp = (void __user *)arg;
+	struct drm_map map;
 	drm_map_list_t *r_list = NULL;
 	struct list_head *list;
 	int idx;
@@ -247,8 +247,8 @@ int drm_getclient(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_client_t __user *argp = (drm_client_t __user *)arg;
-	drm_client_t client;
+	struct drm_client __user *argp = (struct drm_client __user *)arg;
+	struct drm_client client;
 	drm_file_t *pt;
 	int idx;
 	int i;
@@ -296,7 +296,7 @@ int drm_getstats(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_stats_t stats;
+	struct drm_stats stats;
 	int i;
 
 	memset(&stats, 0, sizeof(stats));
@@ -316,7 +316,7 @@ int drm_getstats(struct inode *inode, struct file *filp,
 
 	mutex_unlock(&dev->struct_mutex);
 
-	if (copy_to_user((drm_stats_t __user *) arg, &stats, sizeof(stats)))
+	if (copy_to_user((struct drm_stats __user *) arg, &stats, sizeof(stats)))
 		return -EFAULT;
 	return 0;
 }
@@ -335,10 +335,10 @@ int drm_getstats(struct inode *inode, struct file *filp,
 int drm_setversion(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_set_version_t sv;
-	drm_set_version_t retv;
+	struct drm_set_version sv;
+	struct drm_set_version retv;
 	int if_version;
-	drm_set_version_t __user *argp = (void __user *)data;
+	struct drm_set_version __user *argp = (void __user *)data;
 	int ret;
 
 	if (copy_from_user(&sv, argp, sizeof(sv)))

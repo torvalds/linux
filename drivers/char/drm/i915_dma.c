@@ -397,11 +397,11 @@ static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
 }
 
 static int i915_emit_box(drm_device_t * dev,
-			 drm_clip_rect_t __user * boxes,
+			 struct drm_clip_rect __user * boxes,
 			 int i, int DR1, int DR4)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_clip_rect_t box;
+	struct drm_clip_rect box;
 	RING_LOCALS;
 
 	if (DRM_COPY_FROM_USER_UNCHECKED(&box, &boxes[i], sizeof(box))) {
@@ -493,7 +493,7 @@ static int i915_dispatch_batchbuffer(drm_device_t * dev,
 				     drm_i915_batchbuffer_t * batch)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_clip_rect_t __user *boxes = batch->cliprects;
+	struct drm_clip_rect __user *boxes = batch->cliprects;
 	int nbox = batch->num_cliprects;
 	int i = 0, count;
 	RING_LOCALS;
@@ -625,7 +625,7 @@ static int i915_batchbuffer(DRM_IOCTL_ARGS)
 
 	if (batch.num_cliprects && DRM_VERIFYAREA_READ(batch.cliprects,
 						       batch.num_cliprects *
-						       sizeof(drm_clip_rect_t)))
+						       sizeof(struct drm_clip_rect)))
 		return DRM_ERR(EFAULT);
 
 	ret = i915_dispatch_batchbuffer(dev, &batch);
@@ -655,7 +655,7 @@ static int i915_cmdbuffer(DRM_IOCTL_ARGS)
 	if (cmdbuf.num_cliprects &&
 	    DRM_VERIFYAREA_READ(cmdbuf.cliprects,
 				cmdbuf.num_cliprects *
-				sizeof(drm_clip_rect_t))) {
+				sizeof(struct drm_clip_rect))) {
 		DRM_ERROR("Fault accessing cliprects\n");
 		return DRM_ERR(EFAULT);
 	}

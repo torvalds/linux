@@ -417,7 +417,7 @@ typedef struct {
 
 	/* The current cliprects, or a subset thereof.
 	 */
-	drm_clip_rect_t boxes[RADEON_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[RADEON_NR_SAREA_CLIPRECTS];
 	unsigned int nbox;
 
 	/* Counters for client-side throttling of rendering clients.
@@ -426,7 +426,7 @@ typedef struct {
 	unsigned int last_dispatch;
 	unsigned int last_clear;
 
-	drm_tex_region_t tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS +
+	struct drm_tex_region tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS +
 						       1];
 	unsigned int tex_age[RADEON_NR_TEX_HEAPS];
 	int ctx_owner;
@@ -604,7 +604,7 @@ typedef struct drm_radeon_cmd_buffer {
 	int bufsz;
 	char __user *buf;
 	int nbox;
-	drm_clip_rect_t __user *boxes;
+	struct drm_clip_rect __user *boxes;
 } drm_radeon_cmd_buffer_t;
 
 typedef struct drm_radeon_tex_image {

@@ -55,7 +55,7 @@ static const int r300_cliprect_cntl[4] = {
 static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 			       drm_radeon_kcmd_buffer_t *cmdbuf, int n)
 {
-	drm_clip_rect_t box;
+	struct drm_clip_rect box;
 	int nr;
 	int i;
 	RING_LOCALS;

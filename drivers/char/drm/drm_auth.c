@@ -144,7 +144,7 @@ int drm_getmagic(struct inode *inode, struct file *filp,
 	static DEFINE_SPINLOCK(lock);
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_auth_t auth;
+	struct drm_auth auth;
 
 	/* Find unique magic */
 	if (priv->magic) {
@@ -162,7 +162,7 @@ int drm_getmagic(struct inode *inode, struct file *filp,
 	}
 
 	DRM_DEBUG("%u\n", auth.magic);
-	if (copy_to_user((drm_auth_t __user *) arg, &auth, sizeof(auth)))
+	if (copy_to_user((struct drm_auth __user *) arg, &auth, sizeof(auth)))
 		return -EFAULT;
 	return 0;
 }
@@ -183,10 +183,10 @@ int drm_authmagic(struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_auth_t auth;
+	struct drm_auth auth;
 	drm_file_t *file;
 
-	if (copy_from_user(&auth, (drm_auth_t __user *) arg, sizeof(auth)))
+	if (copy_from_user(&auth, (struct drm_auth __user *) arg, sizeof(auth)))
 		return -EFAULT;
 	DRM_DEBUG("%u\n", auth.magic);
 	if ((file = drm_find_file(dev, auth.magic))) {

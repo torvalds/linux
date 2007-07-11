@@ -2171,7 +2171,7 @@ int radeon_wait_ring(drm_radeon_private_t * dev_priv, int n)
 }
 
 static int radeon_cp_get_buffers(DRMFILE filp, drm_device_t * dev,
-				 drm_dma_t * d)
+				 struct drm_dma * d)
 {
 	int i;
 	drm_buf_t *buf;
@@ -2200,8 +2200,8 @@ int radeon_cp_buffers(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_device_dma_t *dma = dev->dma;
 	int ret = 0;
-	drm_dma_t __user *argp = (void __user *)data;
-	drm_dma_t d;
+	struct drm_dma __user *argp = (void __user *)data;
+	struct drm_dma d;
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 

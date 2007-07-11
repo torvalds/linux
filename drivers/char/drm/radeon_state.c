@@ -421,7 +421,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
  */
 
 static __inline__ void radeon_emit_clip_rect(drm_radeon_private_t * dev_priv,
-					     drm_clip_rect_t * box)
+					     struct drm_clip_rect * box)
 {
 	RING_LOCALS;
 
@@ -852,7 +852,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_depth_clear_t *depth_clear = &dev_priv->depth_clear;
 	int nbox = sarea_priv->nbox;
-	drm_clip_rect_t *pbox = sarea_priv->boxes;
+	struct drm_clip_rect *pbox = sarea_priv->boxes;
 	unsigned int flags = clear->flags;
 	u32 rb3d_cntl = 0, rb3d_stencilrefmask = 0;
 	int i;
@@ -1340,7 +1340,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	int nbox = sarea_priv->nbox;
-	drm_clip_rect_t *pbox = sarea_priv->boxes;
+	struct drm_clip_rect *pbox = sarea_priv->boxes;
 	int i;
 	RING_LOCALS;
 	DRM_DEBUG("\n");
@@ -2760,10 +2760,10 @@ static int radeon_emit_packet3_cliprect(drm_device_t *dev,
 					int orig_nbox)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_clip_rect_t box;
+	struct drm_clip_rect box;
 	unsigned int cmdsz;
 	int ret;
-	drm_clip_rect_t __user *boxes = cmdbuf->boxes;
+	struct drm_clip_rect __user *boxes = cmdbuf->boxes;
 	int i = 0;
 	RING_LOCALS;
 
