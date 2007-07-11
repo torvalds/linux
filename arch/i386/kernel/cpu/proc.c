@@ -65,6 +65,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"osvw", "ibs", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
+		/* Auxiliary (Linux-defined) */
+		"ida", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};
 	static const char * const x86_power_flags[] = {
 		"ts",	/* temperature sensor */

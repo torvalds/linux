@@ -41,5 +41,6 @@
 #define REQUIRED_MASK4	0
 #define REQUIRED_MASK5	0
 #define REQUIRED_MASK6	0
+#define REQUIRED_MASK7	0
 
 #endif

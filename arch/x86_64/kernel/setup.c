@@ -846,6 +846,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
+	init_scattered_cpuid_features(c);
+
 	c->apicid = phys_pkg_id(0);
 
 	/*
@@ -971,6 +973,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"altmovcr8", "abm", "sse4a",
 		"misalignsse", "3dnowprefetch",
 		"osvw", "ibs", NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
+		/* Auxiliary (Linux-defined) */
+		"ida", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};
