@@ -59,7 +59,7 @@ extern void srp_target_free(struct srp_target *);
 extern struct iu_entry *srp_iu_get(struct srp_target *);
 extern void srp_iu_put(struct iu_entry *);
 
-extern int srp_cmd_queue(struct Scsi_Host *, struct srp_cmd *, void *, u64);
+extern int srp_cmd_queue(struct Scsi_Host *, struct srp_cmd *, void *, u64, u64);
 extern int srp_transfer_data(struct scsi_cmnd *, struct srp_cmd *,
 			     srp_rdma_t, int, int);
 

@@ -392,7 +392,7 @@ static int vscsis_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 }
 
 int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
-		  u64 addr)
+		  u64 itn_id, u64 addr)
 {
 	enum dma_data_direction dir;
 	struct scsi_cmnd *sc;
@@ -428,7 +428,8 @@ int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
 	sc->request_bufflen = len;
 	sc->request_buffer = (void *) (unsigned long) addr;
 	sc->tag = tag;
-	err = scsi_tgt_queue_command(sc, (struct scsi_lun *) &cmd->lun, cmd->tag);
+	err = scsi_tgt_queue_command(sc, itn_id, (struct scsi_lun *)&cmd->lun,
+				     cmd->tag);
 	if (err)
 		scsi_host_put_command(shost, sc);
 

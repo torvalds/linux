@@ -848,7 +848,7 @@ config SCSI_IBMVSCSI
 
 config SCSI_IBMVSCSIS
 	tristate "IBM Virtual SCSI Server support"
-	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP
+	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP && SCSI_SRP_ATTRS
 	help
 	  This is the SRP target driver for IBM pSeries virtual environments.
 
