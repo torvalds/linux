@@ -577,7 +577,7 @@ int scsi_tgt_kspace_tsk_mgmt(int host_no, u64 itn_id, u64 mid, int result)
 		goto done;
 	}
 
-	err = shost->hostt->tsk_mgmt_response(shost, itn_id, mid, result);
+	err = shost->transportt->tsk_mgmt_response(shost, itn_id, mid, result);
 done:
 	scsi_host_put(shost);
 	return err;

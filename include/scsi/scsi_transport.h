@@ -71,6 +71,12 @@ struct scsi_transport_template {
 	 * for target drivers.
 	 */
 	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
+
+	/*
+	 * Used as callback for the completion of task management
+	 * request for target drivers.
+	 */
+	int (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
 };
 
 #define transport_class_to_shost(tc) \

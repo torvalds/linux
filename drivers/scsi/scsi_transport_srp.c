@@ -280,10 +280,17 @@ void srp_remove_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL_GPL(srp_remove_host);
 
-static int srp_it_nexus_response(struct Scsi_Host *shost, u64 id, int result)
+static int srp_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
+				 int result)
 {
 	struct srp_internal *i = to_srp_internal(shost->transportt);
-	return i->f->it_nexus_response(shost, id, result);
+	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
+}
+
+static int srp_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
+{
+	struct srp_internal *i = to_srp_internal(shost->transportt);
+	return i->f->it_nexus_response(shost, nexus, result);
 }
 
 /**
@@ -300,6 +307,7 @@ srp_attach_transport(struct srp_function_template *ft)
 	if (!i)
 		return NULL;
 
+	i->t.tsk_mgmt_response = srp_tsk_mgmt_response;
 	i->t.it_nexus_response = srp_it_nexus_response;
 
 	i->t.host_size = sizeof(struct srp_host_attrs);
