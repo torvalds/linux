@@ -625,12 +625,11 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	kfree(svm);
 }
 
-static void svm_vcpu_load(struct kvm_vcpu *vcpu)
+static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	int cpu, i;
+	int i;
 
-	cpu = get_cpu();
 	if (unlikely(cpu != vcpu->cpu)) {
 		u64 tsc_this, delta;
 
@@ -657,7 +656,6 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	rdtscll(vcpu->host_tsc);
-	put_cpu();
 }
 
 static void svm_vcpu_decache(struct kvm_vcpu *vcpu)

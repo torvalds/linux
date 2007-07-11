@@ -13,6 +13,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/preempt.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -301,6 +302,7 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 
 struct kvm_vcpu {
 	struct kvm *kvm;
+	struct preempt_notifier preempt_notifier;
 	int vcpu_id;
 	struct mutex mutex;
 	int   cpu;
@@ -429,7 +431,7 @@ struct kvm_arch_ops {
 	struct kvm_vcpu *(*vcpu_create)(struct kvm *kvm, unsigned id);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 
-	void (*vcpu_load)(struct kvm_vcpu *vcpu);
+	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 

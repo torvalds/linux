@@ -396,6 +396,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 static void vmx_load_host_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	unsigned long flags;
 
 	if (!vmx->host_state.loaded)
 		return;
@@ -408,12 +409,12 @@ static void vmx_load_host_state(struct kvm_vcpu *vcpu)
 		 * If we have to reload gs, we must take care to
 		 * preserve our gs base.
 		 */
-		local_irq_disable();
+		local_irq_save(flags);
 		load_gs(vmx->host_state.gs_sel);
 #ifdef CONFIG_X86_64
 		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
 #endif
-		local_irq_enable();
+		local_irq_restore(flags);
 
 		reload_tss();
 	}
@@ -427,14 +428,11 @@ static void vmx_load_host_state(struct kvm_vcpu *vcpu)
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
  */
-static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 phys_addr = __pa(vmx->vmcs);
-	int cpu;
 	u64 tsc_this, delta;
-
-	cpu = get_cpu();
 
 	if (vcpu->cpu != cpu)
 		vcpu_clear(vcpu);
@@ -480,7 +478,6 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vmx_load_host_state(vcpu);
 	kvm_put_guest_fpu(vcpu);
-	put_cpu();
 }
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
@@ -2127,6 +2124,8 @@ again:
 	if (unlikely(r))
 		goto out;
 
+	preempt_disable();
+
 	if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(vcpu, kvm_run);
 
@@ -2269,6 +2268,9 @@ again:
 	vcpu->interrupt_window_open = (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
 
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
+	vmx->launched = 1;
+
+	preempt_enable();
 
 	if (unlikely(fail)) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
@@ -2283,7 +2285,6 @@ again:
 	if (unlikely(prof_on == KVM_PROFILING))
 		profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
 
-	vmx->launched = 1;
 	r = kvm_handle_exit(kvm_run, vcpu);
 	if (r > 0) {
 		/* Give scheduler a change to reschedule. */
@@ -2372,6 +2373,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 {
 	int err;
 	struct vcpu_vmx *vmx = kzalloc(sizeof(*vmx), GFP_KERNEL);
+	int cpu;
 
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
@@ -2396,9 +2398,11 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	vmcs_clear(vmx->vmcs);
 
-	vmx_vcpu_load(&vmx->vcpu);
+	cpu = get_cpu();
+	vmx_vcpu_load(&vmx->vcpu, cpu);
 	err = vmx_vcpu_setup(&vmx->vcpu);
 	vmx_vcpu_put(&vmx->vcpu);
+	put_cpu();
 	if (err)
 		goto free_vmcs;
 

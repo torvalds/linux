@@ -54,6 +54,8 @@ static cpumask_t cpus_hardware_enabled;
 
 struct kvm_arch_ops *kvm_arch_ops;
 
+static __read_mostly struct preempt_ops kvm_preempt_ops;
+
 #define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
 
 static struct kvm_stats_debugfs_item {
@@ -239,13 +241,21 @@ EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
  */
 static void vcpu_load(struct kvm_vcpu *vcpu)
 {
+	int cpu;
+
 	mutex_lock(&vcpu->mutex);
-	kvm_arch_ops->vcpu_load(vcpu);
+	cpu = get_cpu();
+	preempt_notifier_register(&vcpu->preempt_notifier);
+	kvm_arch_ops->vcpu_load(vcpu, cpu);
+	put_cpu();
 }
 
 static void vcpu_put(struct kvm_vcpu *vcpu)
 {
+	preempt_disable();
 	kvm_arch_ops->vcpu_put(vcpu);
+	preempt_notifier_unregister(&vcpu->preempt_notifier);
+	preempt_enable();
 	mutex_unlock(&vcpu->mutex);
 }
 
@@ -1672,9 +1682,7 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 {
 	if (!need_resched())
 		return;
-	vcpu_put(vcpu);
 	cond_resched();
-	vcpu_load(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
@@ -1722,11 +1730,9 @@ static int pio_copy_data(struct kvm_vcpu *vcpu)
 	unsigned bytes;
 	int nr_pages = vcpu->pio.guest_pages[1] ? 2 : 1;
 
-	kvm_arch_ops->vcpu_put(vcpu);
 	q = vmap(vcpu->pio.guest_pages, nr_pages, VM_READ|VM_WRITE,
 		 PAGE_KERNEL);
 	if (!q) {
-		kvm_arch_ops->vcpu_load(vcpu);
 		free_pio_guest_pages(vcpu);
 		return -ENOMEM;
 	}
@@ -1738,7 +1744,6 @@ static int pio_copy_data(struct kvm_vcpu *vcpu)
 		memcpy(p, q, bytes);
 	q -= vcpu->pio.guest_page_offset;
 	vunmap(q);
-	kvm_arch_ops->vcpu_load(vcpu);
 	free_pio_guest_pages(vcpu);
 	return 0;
 }
@@ -2412,6 +2417,8 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 	vcpu = kvm_arch_ops->vcpu_create(kvm, n);
 	if (IS_ERR(vcpu))
 		return PTR_ERR(vcpu);
+
+	preempt_notifier_init(&vcpu->preempt_notifier, &kvm_preempt_ops);
 
 	vcpu_load(vcpu);
 	r = kvm_mmu_setup(vcpu);
@@ -3145,6 +3152,27 @@ static struct sys_device kvm_sysdev = {
 
 hpa_t bad_page_address;
 
+static inline
+struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
+{
+	return container_of(pn, struct kvm_vcpu, preempt_notifier);
+}
+
+static void kvm_sched_in(struct preempt_notifier *pn, int cpu)
+{
+	struct kvm_vcpu *vcpu = preempt_notifier_to_vcpu(pn);
+
+	kvm_arch_ops->vcpu_load(vcpu, cpu);
+}
+
+static void kvm_sched_out(struct preempt_notifier *pn,
+			  struct task_struct *next)
+{
+	struct kvm_vcpu *vcpu = preempt_notifier_to_vcpu(pn);
+
+	kvm_arch_ops->vcpu_put(vcpu);
+}
+
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 {
 	int r;
@@ -3190,6 +3218,9 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 		printk (KERN_ERR "kvm: misc device register failed\n");
 		goto out_free;
 	}
+
+	kvm_preempt_ops.sched_in = kvm_sched_in;
+	kvm_preempt_ops.sched_out = kvm_sched_out;
 
 	return r;
 

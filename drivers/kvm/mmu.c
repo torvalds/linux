@@ -276,9 +276,7 @@ static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 	kvm_mmu_free_some_pages(vcpu);
 	if (r < 0) {
 		spin_unlock(&vcpu->kvm->lock);
-		kvm_arch_ops->vcpu_put(vcpu);
 		r = __mmu_topup_memory_caches(vcpu, GFP_KERNEL);
-		kvm_arch_ops->vcpu_load(vcpu);
 		spin_lock(&vcpu->kvm->lock);
 		kvm_mmu_free_some_pages(vcpu);
 	}
