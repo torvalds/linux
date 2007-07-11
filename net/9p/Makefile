@@ -1,6 +1,6 @@
-obj-$(CONFIG_NET_9P) := 9p.o
+obj-$(CONFIG_NET_9P) := 9pnet.o
 
-9p-objs := \
+9pnet-objs := \
 	mod.o \
 	trans_fd.o \
 	mux.o \
@@ -10,4 +10,4 @@ obj-$(CONFIG_NET_9P) := 9p.o
 	fcprint.o \
 	util.o \
 
-9p-$(CONFIG_SYSCTL) += sysctl.o
+9pnet-$(CONFIG_SYSCTL) += sysctl.o
