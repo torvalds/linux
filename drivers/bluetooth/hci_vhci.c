@@ -180,11 +180,6 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 	return total;
 }
 
-static loff_t vhci_llseek(struct file *file, loff_t offset, int origin)
-{
-	return -ESPIPE;
-}
-
 static ssize_t vhci_read(struct file *file,
 				char __user *buf, size_t count, loff_t *pos)
 {
@@ -334,7 +329,6 @@ static int vhci_fasync(int fd, struct file *file, int on)
 
 static const struct file_operations vhci_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= vhci_llseek,
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
