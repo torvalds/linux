@@ -108,8 +108,6 @@ enum {
 	MV_SATAHC_ARBTR_REG_SZ	= MV_MINOR_REG_AREA_SZ,		/* arbiter */
 	MV_PORT_REG_SZ		= MV_MINOR_REG_AREA_SZ,
 
-	MV_USE_Q_DEPTH		= ATA_DEF_QUEUE,
-
 	MV_MAX_Q_DEPTH		= 32,
 	MV_MAX_Q_DEPTH_MASK	= MV_MAX_Q_DEPTH - 1,
 
@@ -133,18 +131,22 @@ enum {
 	/* Host Flags */
 	MV_FLAG_DUAL_HC		= (1 << 30),  /* two SATA Host Controllers */
 	MV_FLAG_IRQ_COALESCE	= (1 << 29),  /* IRQ coalescing capability */
-	MV_COMMON_FLAGS		= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
-				   ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING),
+	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
 	MV_6XXX_FLAGS		= MV_FLAG_IRQ_COALESCE,
 
 	CRQB_FLAG_READ		= (1 << 0),
 	CRQB_TAG_SHIFT		= 1,
+	CRQB_IOID_SHIFT		= 6,	/* CRQB Gen-II/IIE IO Id shift */
+	CRQB_HOSTQ_SHIFT	= 17,	/* CRQB Gen-II/IIE HostQueTag shift */
 	CRQB_CMD_ADDR_SHIFT	= 8,
 	CRQB_CMD_CS		= (0x2 << 11),
 	CRQB_CMD_LAST		= (1 << 15),
 
 	CRPB_FLAG_STATUS_SHIFT	= 8,
+	CRPB_IOID_SHIFT_6	= 5,	/* CRPB Gen-II IO Id shift */
+	CRPB_IOID_SHIFT_7	= 7,	/* CRPB Gen-IIE IO Id shift */
 
 	EPRD_FLAG_END_OF_TBL	= (1 << 31),
 
@@ -236,8 +238,10 @@ enum {
 	EDMA_ERR_DEV_DCON	= (1 << 3),
 	EDMA_ERR_DEV_CON	= (1 << 4),
 	EDMA_ERR_SERR		= (1 << 5),
-	EDMA_ERR_SELF_DIS	= (1 << 7),
+	EDMA_ERR_SELF_DIS	= (1 << 7),	/* Gen II/IIE self-disable */
+	EDMA_ERR_SELF_DIS_5	= (1 << 8),	/* Gen I self-disable */
 	EDMA_ERR_BIST_ASYNC	= (1 << 8),
+	EDMA_ERR_TRANS_IRQ_7	= (1 << 8),	/* Gen IIE transprt layer irq */
 	EDMA_ERR_CRBQ_PAR	= (1 << 9),
 	EDMA_ERR_CRPB_PAR	= (1 << 10),
 	EDMA_ERR_INTRL_PAR	= (1 << 11),
@@ -248,6 +252,8 @@ enum {
 	EDMA_ERR_LNK_CTRL_TX	= (0x1f << 21),
 	EDMA_ERR_LNK_DATA_TX	= (0x1f << 26),
 	EDMA_ERR_TRANS_PROTO	= (1 << 31),
+	EDMA_ERR_OVERRUN_5	= (1 << 5),
+	EDMA_ERR_UNDERRUN_5	= (1 << 6),
 	EDMA_ERR_FATAL		= (EDMA_ERR_D_PAR | EDMA_ERR_PRD_PAR |
 				   EDMA_ERR_DEV_DCON | EDMA_ERR_CRBQ_PAR |
 				   EDMA_ERR_CRPB_PAR | EDMA_ERR_INTRL_PAR |
@@ -288,6 +294,7 @@ enum {
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),
 	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
+	MV_PP_FLAG_HAD_A_RESET	= (1 << 2),
 };
 
 #define IS_50XX(hpriv) ((hpriv)->hp_flags & MV_HP_50XX)
@@ -417,12 +424,30 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 			     unsigned int port_no);
 static void mv_stop_and_reset(struct ata_port *ap);
 
-static struct scsi_host_template mv_sht = {
+static struct scsi_host_template mv5_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= MV_USE_Q_DEPTH,
+	.can_queue		= ATA_DEF_QUEUE,
+	.this_id		= ATA_SHT_THIS_ID,
+	.sg_tablesize		= MV_MAX_SG_CT,
+	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
+	.emulated		= ATA_SHT_EMULATED,
+	.use_clustering		= 1,
+	.proc_name		= DRV_NAME,
+	.dma_boundary		= MV_DMA_BOUNDARY,
+	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
+	.bios_param		= ata_std_bios_param,
+};
+
+static struct scsi_host_template mv6_sht = {
+	.module			= THIS_MODULE,
+	.name			= DRV_NAME,
+	.ioctl			= ata_scsi_ioctl,
+	.queuecommand		= ata_scsi_queuecmd,
+	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= MV_MAX_SG_CT,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
@@ -530,38 +555,38 @@ static const struct ata_port_info mv_port_info[] = {
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
-		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
+		.flags		= MV_COMMON_FLAGS | MV_FLAG_DUAL_HC,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
-		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
+		.flags		= MV_COMMON_FLAGS | MV_FLAG_DUAL_HC,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
-		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
+		.flags		= MV_COMMON_FLAGS | MV_6XXX_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
-		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
-				   MV_FLAG_DUAL_HC),
+		.flags		= MV_COMMON_FLAGS | MV_6XXX_FLAGS |
+				  MV_FLAG_DUAL_HC,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_6042 */
-		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
+		.flags		= MV_COMMON_FLAGS | MV_6XXX_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_7042 */
-		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
+		.flags		= MV_COMMON_FLAGS | MV_6XXX_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
@@ -709,6 +734,41 @@ static void mv_irq_clear(struct ata_port *ap)
 {
 }
 
+static void mv_set_edma_ptrs(void __iomem *port_mmio,
+			     struct mv_host_priv *hpriv,
+			     struct mv_port_priv *pp)
+{
+	/*
+	 * initialize request queue
+	 */
+	WARN_ON(pp->crqb_dma & 0x3ff);
+	writel((pp->crqb_dma >> 16) >> 16, port_mmio + EDMA_REQ_Q_BASE_HI_OFS);
+	writelfl(pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK,
+		 port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
+
+	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
+		writelfl(pp->crqb_dma & 0xffffffff,
+			 port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
+	else
+		writelfl(0, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
+
+	/*
+	 * initialize response queue
+	 */
+	WARN_ON(pp->crpb_dma & 0xff);
+	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
+
+	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
+		writelfl(pp->crpb_dma & 0xffffffff,
+			 port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
+	else
+		writelfl(0, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
+
+	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
+		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
+
+}
+
 /**
  *      mv_start_dma - Enable eDMA engine
  *      @base: port base address
@@ -720,9 +780,10 @@ static void mv_irq_clear(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_start_dma(void __iomem *base, struct mv_port_priv *pp)
+static void mv_start_dma(void __iomem *base, struct mv_host_priv *hpriv,
+			 struct mv_port_priv *pp)
 {
-	if (!(MV_PP_FLAG_EDMA_EN & pp->pp_flags)) {
+	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
 		writelfl(EDMA_EN, base + EDMA_CMD_OFS);
 		pp->pp_flags |= MV_PP_FLAG_EDMA_EN;
 	}
@@ -739,12 +800,12 @@ static void mv_start_dma(void __iomem *base, struct mv_port_priv *pp)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_stop_dma(struct ata_port *ap)
+static int mv_stop_dma(struct ata_port *ap)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct mv_port_priv *pp	= ap->private_data;
 	u32 reg;
-	int i;
+	int i, err = 0;
 
 	if (MV_PP_FLAG_EDMA_EN & pp->pp_flags) {
 		/* Disable EDMA if active.   The disable bit auto clears.
@@ -764,10 +825,13 @@ static void mv_stop_dma(struct ata_port *ap)
 		udelay(100);
 	}
 
-	if (EDMA_EN & reg) {
+	if (reg & EDMA_EN) {
 		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
 		/* FIXME: Consider doing a reset here to recover */
+		err = -EIO;
 	}
+
+	return err;
 }
 
 #ifdef ATA_DEBUG
@@ -884,12 +948,13 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 		writelfl(val, mv_ap_base(ap) + ofs);
 }
 
-static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
+static void mv_edma_cfg(struct ata_port *ap, struct mv_host_priv *hpriv,
+			void __iomem *port_mmio)
 {
 	u32 cfg = readl(port_mmio + EDMA_CFG_OFS);
 
 	/* set up non-NCQ EDMA configuration */
-	cfg &= ~(1 << 9);	/* disable equeue */
+	cfg &= ~(1 << 9);	/* disable eQue */
 
 	if (IS_GEN_I(hpriv)) {
 		cfg &= ~0x1f;		/* clear queue depth */
@@ -971,28 +1036,9 @@ static int mv_port_start(struct ata_port *ap)
 	pp->sg_tbl = mem;
 	pp->sg_tbl_dma = mem_dma;
 
-	mv_edma_cfg(hpriv, port_mmio);
+	mv_edma_cfg(ap, hpriv, port_mmio);
 
-	writel((pp->crqb_dma >> 16) >> 16, port_mmio + EDMA_REQ_Q_BASE_HI_OFS);
-	writelfl(pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK,
-		 port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl(pp->crqb_dma & 0xffffffff,
-			 port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
-	else
-		writelfl(0, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
-
-	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl(pp->crpb_dma & 0xffffffff,
-			 port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-	else
-		writelfl(0, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-
-	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
-		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
+	mv_set_edma_ptrs(port_mmio, hpriv, pp);
 
 	/* Don't turn on EDMA here...do it before DMA commands only.  Else
 	 * we'll be unable to send non-data, PIO, etc due to restricted access
@@ -1088,7 +1134,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	u16 flags = 0;
 	unsigned in_index;
 
- 	if (ATA_PROT_DMA != qc->tf.protocol)
+ 	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
 
 	/* Fill in command request block
@@ -1180,7 +1226,7 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	unsigned in_index;
 	u32 flags = 0;
 
- 	if (ATA_PROT_DMA != qc->tf.protocol)
+ 	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
 
 	/* Fill in Gen IIE command request block
@@ -1241,17 +1287,19 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
  */
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 {
-	void __iomem *port_mmio = mv_ap_base(qc->ap);
-	struct mv_port_priv *pp = qc->ap->private_data;
+	struct ata_port *ap = qc->ap;
+	void __iomem *port_mmio = mv_ap_base(ap);
+	struct mv_port_priv *pp = ap->private_data;
+	struct mv_host_priv *hpriv = ap->host->private_data;
 	unsigned in_index;
 	u32 in_ptr;
 
-	if (ATA_PROT_DMA != qc->tf.protocol) {
+	if (qc->tf.protocol != ATA_PROT_DMA) {
 		/* We're about to send a non-EDMA capable command to the
 		 * port.  Turn off EDMA so there won't be problems accessing
 		 * shadow block, etc registers.
 		 */
-		mv_stop_dma(qc->ap);
+		mv_stop_dma(ap);
 		return ata_qc_issue_prot(qc);
 	}
 
@@ -1264,7 +1312,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 
 	in_index = mv_inc_q_index(in_index);	/* now incr producer index */
 
-	mv_start_dma(port_mmio, pp);
+	mv_start_dma(port_mmio, hpriv, pp);
 
 	/* and write the request in pointer to kick the EDMA to life */
 	in_ptr &= EDMA_REQ_Q_BASE_LO_MASK;
@@ -1379,7 +1427,8 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
-	int shift, port, port0, hard_port, handled;
+	int port, port0;
+	int shift, hard_port, handled;
 	unsigned int err_mask;
 
 	if (hc == 0)
@@ -1458,10 +1507,9 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 }
 
 /**
- *      mv_interrupt -
+ *      mv_interrupt - Main interrupt event handler
  *      @irq: unused
  *      @dev_instance: private data; in this case the host structure
- *      @regs: unused
  *
  *      Read the read only register to determine if any host
  *      controllers have pending interrupts.  If so, call lower level
@@ -1965,7 +2013,7 @@ static void __mv_phy_reset(struct ata_port *ap, int can_sleep)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
-	unsigned long timeout;
+	unsigned long deadline;
 	int retry = 5;
 	u32 sstatus;
 
@@ -1983,14 +2031,14 @@ comreset_retry:
 	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
 	__msleep(20, can_sleep);
 
-	timeout = jiffies + msecs_to_jiffies(200);
+	deadline = jiffies + msecs_to_jiffies(200);
 	do {
 		sata_scr_read(ap, SCR_STATUS, &sstatus);
 		if (((sstatus & 0x3) == 3) || ((sstatus & 0x3) == 0))
 			break;
 
 		__msleep(1, can_sleep);
-	} while (time_before(jiffies, timeout));
+	} while (time_before(jiffies, deadline));
 
 	/* work around errata */
 	if (IS_60XX(hpriv) &&
@@ -2427,7 +2475,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
-				 &mv_sht);
+				 IS_GEN_I(hpriv) ? &mv5_sht : &mv6_sht);
 }
 
 static int __init mv_init(void)
