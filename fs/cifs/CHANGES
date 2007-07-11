@@ -1,6 +1,7 @@
 Version 1.50
 ------------
-Fix NTLMv2 signing
+Fix NTLMv2 signing. NFS server mounted over cifs works (if cifs mount is
+done with "serverino" mount option).
 
 Version 1.49
 ------------

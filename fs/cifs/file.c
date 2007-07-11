@@ -212,7 +212,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	cFYI(1, (" inode = 0x%p file flags are 0x%x for %s",
+	cFYI(1, ("inode = 0x%p file flags are 0x%x for %s",
 		 inode, file->f_flags, full_path));
 	desiredAccess = cifs_convert_flags(file->f_flags);
 

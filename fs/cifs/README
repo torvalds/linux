@@ -370,7 +370,7 @@ A partial list of the supported mount options follows:
 		Note that this does not affect the normal ACL check on the
 		target machine done by the server software (of the server
 		ACL against the user name provided at mount time).
-  serverino	Use servers inode numbers instead of generating automatically
+  serverino	Use server's inode numbers instead of generating automatically
 		incrementing inode numbers on the client.  Although this will
 		make it easier to spot hardlinked files (as they will have
 		the same inode numbers) and inode numbers may be persistent,
@@ -378,12 +378,11 @@ A partial list of the supported mount options follows:
 		are unique if multiple server side mounts are exported under a
 		single share (since inode numbers on the servers might not
 		be unique if multiple filesystems are mounted under the same
-		shared higher level directory).  Note that this requires that
-		the server support the CIFS Unix Extensions as other servers
-		do not return a unique IndexNumber on SMB FindFirst (most
-		servers return zero as the IndexNumber).  Parameter has no
-		effect to Windows servers and others which do not support the
-		CIFS Unix Extensions.
+		shared higher level directory).  Note that some older
+		(e.g. pre-Windows 2000) do not support returning UniqueIDs
+		or the CIFS Unix Extensions equivalent and for those
+		this mount option will have no effect.  Exporting cifs mounts
+		under nfsd requires this mount option on the cifs mount.
   noserverino   Client generates inode numbers (rather than using the actual one
 		from the server) by default.
   setuids       If the CIFS Unix extensions are negotiated with the server

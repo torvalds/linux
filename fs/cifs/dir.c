@@ -264,7 +264,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
-		if ((nd->flags & LOOKUP_OPEN) == FALSE) {
+		if ((nd == NULL /* nfsd case - nfs srv does not set nd */) ||
+			((nd->flags & LOOKUP_OPEN) == FALSE)) {
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {

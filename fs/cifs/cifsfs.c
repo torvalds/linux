@@ -114,10 +114,6 @@ cifs_read_super(struct super_block *sb, void *data,
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-	if (experimEnabled != 0)
-		sb->s_export_op = &cifs_export_ops;
-#endif /* EXPERIMENTAL */
 /*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize =
 		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
@@ -139,6 +135,13 @@ cifs_read_super(struct super_block *sb, void *data,
 		rc = -ENOMEM;
 		goto out_no_root;
 	}
+	
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+		cFYI(1, ("export ops supported"));
+		sb->s_export_op = &cifs_export_ops;
+	}
+#endif /* EXPERIMENTAL */
 
 	return 0;
 
