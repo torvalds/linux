@@ -4243,7 +4243,6 @@ errout:
 void __exit addrconf_cleanup(void)
 {
 	struct net_device *dev;
-	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa;
 	int i;
 
@@ -4261,7 +4260,7 @@ void __exit addrconf_cleanup(void)
 	 */
 
 	for_each_netdev(dev) {
-		if ((idev = __in6_dev_get(dev)) == NULL)
+		if (__in6_dev_get(dev) == NULL)
 			continue;
 		addrconf_ifdown(dev, 1);
 	}
