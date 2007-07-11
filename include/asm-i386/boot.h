@@ -1,5 +1,5 @@
-#ifndef _LINUX_BOOT_H
-#define _LINUX_BOOT_H
+#ifndef _ASM_BOOT_H
+#define _ASM_BOOT_H
 
 /* Don't touch these, unless you really know what you're doing. */
 #define DEF_INITSEG	0x9000
@@ -17,4 +17,4 @@
 				+ (CONFIG_PHYSICAL_ALIGN - 1)) \
 				& ~(CONFIG_PHYSICAL_ALIGN - 1))
 
-#endif /* _LINUX_BOOT_H */
+#endif /* _ASM_BOOT_H */
