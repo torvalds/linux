@@ -45,10 +45,15 @@ struct pci_controller {
 	 *   on Freescale PCI-e controllers since they used the PCI_PRIMARY_BUS
 	 *   to determine which bus number to match on when generating type0
 	 *   config cycles
+	 *  NO_PCIE_LINK - the Freescale PCI-e controllers have issues with
+	 *   hanging if we don't have link and try to do config cycles to
+	 *   anything but the PHB.  Only allow talking to the PHB if this is
+	 *   set.
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		(0x00000001)
 #define PPC_INDIRECT_TYPE_EXT_REG		(0x00000002)
 #define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	(0x00000004)
+#define PPC_INDIRECT_TYPE_NO_PCIE_LINK		(0x00000008)
 	u32 indirect_type;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem

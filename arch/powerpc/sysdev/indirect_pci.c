@@ -35,10 +35,17 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	u8 cfg_type = 0;
 	u32 bus_no, reg;
 
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
+		if (bus->number != hose->first_busno)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		if (devfn != 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
-	
+
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
 		if (bus->number != hose->first_busno)
 			cfg_type = 1;
@@ -82,6 +89,13 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
 	u32 bus_no, reg;
+
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
+		if (bus->number != hose->first_busno)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		if (devfn != 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
