@@ -254,7 +254,7 @@ static __inline__ drm_local_map_t *via_drm_lookup_agp_map(drm_via_state_t *seq,
 						    unsigned long size,
 						    struct drm_device * dev)
 {
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 	drm_local_map_t *map = seq->map_cache;
 
 	if (map && map->offset <= offset

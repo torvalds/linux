@@ -217,7 +217,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 	struct drm_ctx_priv_map __user *argp = (void __user *)arg;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map;
-	drm_map_list_t *_entry;
+	struct drm_map_list *_entry;
 
 	if (copy_from_user(&request, argp, sizeof(request)))
 		return -EFAULT;
@@ -267,7 +267,7 @@ int drm_setsareactx(struct inode *inode, struct file *filp,
 	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map = NULL;
-	drm_map_list_t *r_list = NULL;
+	struct drm_map_list *r_list = NULL;
 
 	if (copy_from_user(&request,
 			   (struct drm_ctx_priv_map __user *) arg,
@@ -410,7 +410,7 @@ int drm_addctx(struct inode *inode, struct file *filp,
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_ctx_list_t *ctx_entry;
+	struct drm_ctx_list *ctx_entry;
 	struct drm_ctx __user *argp = (void __user *)arg;
 	struct drm_ctx ctx;
 
@@ -575,7 +575,7 @@ int drm_rmctx(struct inode *inode, struct file *filp,
 
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
-		drm_ctx_list_t *pos, *n;
+		struct drm_ctx_list *pos, *n;
 
 		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
 			if (pos->handle == ctx.handle) {

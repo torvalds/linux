@@ -49,10 +49,10 @@ unsigned long drm_get_resource_len(struct drm_device *dev, unsigned int resource
 
 EXPORT_SYMBOL(drm_get_resource_len);
 
-static drm_map_list_t *drm_find_matching_map(struct drm_device *dev,
+static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 					     drm_local_map_t *map)
 {
-	drm_map_list_t *entry;
+	struct drm_map_list *entry;
 	list_for_each_entry(entry, &dev->maplist, head) {
 		if (entry->map && map->type == entry->map->type &&
 		    ((entry->map->offset == map->offset) ||
@@ -103,10 +103,11 @@ static int drm_map_handle(struct drm_device *dev, drm_hash_item_t *hash,
  */
 static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 			   unsigned int size, enum drm_map_type type,
-			   enum drm_map_flags flags, drm_map_list_t ** maplist)
+			   enum drm_map_flags flags,
+			   struct drm_map_list ** maplist)
 {
 	struct drm_map *map;
-	drm_map_list_t *list;
+	struct drm_map_list *list;
 	drm_dma_handle_t *dmah;
 	unsigned long user_token;
 	int ret;
@@ -212,7 +213,7 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 		}
 		break;
 	case _DRM_AGP: {
-		drm_agp_mem_t *entry;
+		struct drm_agp_mem *entry;
 		int valid = 0;
 
 		if (!drm_core_has_AGP(dev)) {
@@ -314,7 +315,7 @@ int drm_addmap(struct drm_device * dev, unsigned int offset,
 	       unsigned int size, enum drm_map_type type,
 	       enum drm_map_flags flags, drm_local_map_t ** map_ptr)
 {
-	drm_map_list_t *list;
+	struct drm_map_list *list;
 	int rc;
 
 	rc = drm_addmap_core(dev, offset, size, type, flags, &list);
@@ -331,7 +332,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map map;
-	drm_map_list_t *maplist;
+	struct drm_map_list *maplist;
 	struct drm_map __user *argp = (void __user *)arg;
 	int err;
 
@@ -378,7 +379,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
  */
 int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 {
-	drm_map_list_t *r_list = NULL, *list_t;
+	struct drm_map_list *r_list = NULL, *list_t;
 	drm_dma_handle_t dmah;
 	int found = 0;
 
@@ -453,7 +454,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map request;
 	drm_local_map_t *map = NULL;
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 	int ret;
 
 	if (copy_from_user(&request, (struct drm_map __user *) arg, sizeof(request))) {
@@ -554,7 +555,7 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_entry *entry;
-	drm_agp_mem_t *agp_entry;
+	struct drm_agp_mem *agp_entry;
 	struct drm_buf *buf;
 	unsigned long offset;
 	unsigned long agp_offset;

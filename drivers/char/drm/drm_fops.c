@@ -401,7 +401,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
-		drm_ctx_list_t *pos, *n;
+		struct drm_ctx_list *pos, *n;
 
 		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
 			if (pos->tag == priv &&

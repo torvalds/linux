@@ -327,7 +327,7 @@ static int i810_dma_initialize(struct drm_device * dev,
 			       drm_i810_private_t * dev_priv,
 			       drm_i810_init_t * init)
 {
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 	memset(dev_priv, 0, sizeof(drm_i810_private_t));
 
 	list_for_each_entry(r_list, &dev->maplist, head) {

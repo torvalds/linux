@@ -399,7 +399,7 @@ struct drm_queue {
 /**
  * Lock data.
  */
-typedef struct drm_lock_data {
+struct drm_lock_data {
 	struct drm_hw_lock *hw_lock;	/**< Hardware lock */
 	struct file *filp;		/**< File descr of lock holder (0=kernel) */
 	wait_queue_head_t lock_queue;	/**< Queue of blocked processes */
@@ -408,7 +408,7 @@ typedef struct drm_lock_data {
 	uint32_t kernel_waiters;
 	uint32_t user_waiters;
 	int idle_has_lock;
-} drm_lock_data_t;
+};
 
 /**
  * DMA data.
@@ -434,20 +434,20 @@ struct drm_device_dma {
 /**
  * AGP memory entry.  Stored as a doubly linked list.
  */
-typedef struct drm_agp_mem {
+struct drm_agp_mem {
 	unsigned long handle;		/**< handle */
 	DRM_AGP_MEM *memory;
 	unsigned long bound;		/**< address */
 	int pages;
 	struct list_head head;
-} drm_agp_mem_t;
+};
 
 /**
  * AGP data.
  *
  * \sa drm_agp_init() and drm_device::agp.
  */
-typedef struct drm_agp_head {
+struct drm_agp_head {
 	DRM_AGP_KERN agp_info;		/**< AGP device information */
 	struct list_head memory;
 	unsigned long mode;		/**< AGP mode */
@@ -458,51 +458,51 @@ typedef struct drm_agp_head {
 	int agp_mtrr;
 	int cant_use_aperture;
 	unsigned long page_mask;
-} drm_agp_head_t;
+};
 
 /**
  * Scatter-gather memory.
  */
-typedef struct drm_sg_mem {
+struct drm_sg_mem {
 	unsigned long handle;
 	void *virtual;
 	int pages;
 	struct page **pagelist;
 	dma_addr_t *busaddr;
-} drm_sg_mem_t;
+};
 
-typedef struct drm_sigdata {
+struct drm_sigdata {
 	int context;
 	struct drm_hw_lock *lock;
-} drm_sigdata_t;
+};
 
 /**
  * Mappings list
  */
-typedef struct drm_map_list {
+struct drm_map_list {
 	struct list_head head;		/**< list head */
 	drm_hash_item_t hash;
 	struct drm_map *map;			/**< mapping */
 	unsigned int user_token;
-} drm_map_list_t;
+};
 
 typedef struct drm_map drm_local_map_t;
 
 /**
  * Context handle list
  */
-typedef struct drm_ctx_list {
+struct drm_ctx_list {
 	struct list_head head;		/**< list head */
 	drm_context_t handle;		/**< context handle */
 	struct drm_file *tag;		/**< associated fd private data */
-} drm_ctx_list_t;
+};
 
-typedef struct drm_vbl_sig {
+struct drm_vbl_sig {
 	struct list_head head;
 	unsigned int sequence;
 	struct siginfo info;
 	struct task_struct *task;
-} drm_vbl_sig_t;
+};
 
 /* location of GART table */
 #define DRM_ATI_GART_MAIN 1
@@ -512,19 +512,19 @@ typedef struct drm_vbl_sig {
 #define DRM_ATI_GART_PCIE 2
 #define DRM_ATI_GART_IGP 3
 
-typedef struct ati_pcigart_info {
+struct drm_ati_pcigart_info {
 	int gart_table_location;
 	int gart_reg_if;
 	void *addr;
 	dma_addr_t bus_addr;
 	drm_local_map_t mapping;
 	int table_size;
-} drm_ati_pcigart_info;
+};
 
 /*
  * Generic memory manager structs
  */
-typedef struct drm_mm_node {
+struct drm_mm_node {
 	struct list_head fl_entry;
 	struct list_head ml_entry;
 	int free;
@@ -532,12 +532,12 @@ typedef struct drm_mm_node {
 	unsigned long size;
 	struct drm_mm *mm;
 	void *private;
-} drm_mm_node_t;
+};
 
-typedef struct drm_mm {
+struct drm_mm {
 	struct list_head fl_entry;
 	struct list_head ml_entry;
-} drm_mm_t;
+};
 
 /**
  * DRM driver structure. This structure represent the common code for
@@ -680,7 +680,7 @@ struct drm_device {
 	int max_context;
 
 	struct list_head vmalist;	/**< List of vmas (for debugging) */
-	drm_lock_data_t lock;		/**< Information on hardware lock */
+	struct drm_lock_data lock;	/**< Information on hardware lock */
 	/*@} */
 
 	/** \name DMA queues (contexts) */
@@ -728,7 +728,7 @@ struct drm_device {
 	wait_queue_head_t buf_readers;	/**< Processes waiting to read */
 	wait_queue_head_t buf_writers;	/**< Processes waiting to ctx switch */
 
-	drm_agp_head_t *agp;	/**< AGP data */
+	struct drm_agp_head *agp;	/**< AGP data */
 
 	struct pci_dev *pdev;		/**< PCI device structure */
 	int pci_vendor;			/**< PCI vendor id */
@@ -736,10 +736,10 @@ struct drm_device {
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
-	drm_sg_mem_t *sg;	/**< Scatter gather memory */
+	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned long *ctx_bitmap;	/**< context bitmap */
 	void *dev_private;		/**< device private data */
-	drm_sigdata_t sigdata;	   /**< For block_all_signals */
+	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
 
 	struct drm_driver *driver;
@@ -915,10 +915,10 @@ extern int drm_lock(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg);
 extern int drm_unlock(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg);
-extern int drm_lock_take(drm_lock_data_t *lock_data, unsigned int context);
-extern int drm_lock_free(drm_lock_data_t *lock_data, unsigned int context);
-extern void drm_idlelock_take(drm_lock_data_t *lock_data);
-extern void drm_idlelock_release(drm_lock_data_t *lock_data);
+extern int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
+extern int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context);
+extern void drm_idlelock_take(struct drm_lock_data *lock_data);
+extern void drm_idlelock_release(struct drm_lock_data *lock_data);
 
 /*
  * These are exported to drivers so that they can implement fencing using
@@ -979,7 +979,7 @@ extern void drm_vbl_send_signals(struct drm_device *dev);
 extern void drm_locked_tasklet(struct drm_device *dev, void(*func)(struct drm_device*));
 
 				/* AGP/GART support (drm_agpsupport.h) */
-extern drm_agp_head_t *drm_agp_init(struct drm_device *dev);
+extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);
 extern int drm_agp_acquire(struct drm_device *dev);
 extern int drm_agp_acquire_ioctl(struct inode *inode, struct file *filp,
 				 unsigned int cmd, unsigned long arg);
@@ -1033,7 +1033,7 @@ extern int drm_proc_cleanup(int minor,
 			    struct proc_dir_entry *dev_root);
 
 				/* Scatter Gather Support (drm_scatter.h) */
-extern void drm_sg_cleanup(drm_sg_mem_t * entry);
+extern void drm_sg_cleanup(struct drm_sg_mem * entry);
 extern int drm_sg_alloc(struct inode *inode, struct file *filp,
 			unsigned int cmd, unsigned long arg);
 extern int drm_sg_free(struct inode *inode, struct file *filp,
@@ -1041,9 +1041,9 @@ extern int drm_sg_free(struct inode *inode, struct file *filp,
 
 			       /* ATI PCIGART support (ati_pcigart.h) */
 extern int drm_ati_pcigart_init(struct drm_device *dev,
-				drm_ati_pcigart_info * gart_info);
+				struct drm_ati_pcigart_info * gart_info);
 extern int drm_ati_pcigart_cleanup(struct drm_device *dev,
-				   drm_ati_pcigart_info * gart_info);
+				   struct drm_ati_pcigart_info * gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align, dma_addr_t maxaddr);
@@ -1060,18 +1060,18 @@ extern void drm_sysfs_device_remove(struct class_device *class_dev);
 /*
  * Basic memory manager support (drm_mm.c)
  */
-extern drm_mm_node_t *drm_mm_get_block(drm_mm_node_t * parent,
+extern struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 				       unsigned long size,
 				       unsigned alignment);
-void drm_mm_put_block(drm_mm_node_t * cur);
-extern drm_mm_node_t *drm_mm_search_free(const drm_mm_t *mm, unsigned long size,
+void drm_mm_put_block(struct drm_mm_node * cur);
+extern struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm, unsigned long size,
 					 unsigned alignment, int best_match);
-extern int drm_mm_init(drm_mm_t *mm, unsigned long start, unsigned long size);
-extern void drm_mm_takedown(drm_mm_t *mm);
-extern int drm_mm_clean(drm_mm_t *mm);
-extern unsigned long drm_mm_tail_space(drm_mm_t *mm);
-extern int drm_mm_remove_space_from_tail(drm_mm_t *mm, unsigned long size);
-extern int drm_mm_add_space_to_tail(drm_mm_t *mm, unsigned long size);
+extern int drm_mm_init(struct drm_mm *mm, unsigned long start, unsigned long size);
+extern void drm_mm_takedown(struct drm_mm *mm);
+extern int drm_mm_clean(struct drm_mm *mm);
+extern unsigned long drm_mm_tail_space(struct drm_mm *mm);
+extern int drm_mm_remove_space_from_tail(struct drm_mm *mm, unsigned long size);
+extern int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size);
 
 extern void drm_core_ioremap(struct drm_map *map, struct drm_device *dev);
 extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
@@ -1079,7 +1079,7 @@ extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
 static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev,
 						   unsigned int token)
 {
-	drm_map_list_t *_entry;
+	struct drm_map_list *_entry;
 	list_for_each_entry(_entry, &dev->maplist, head)
 	    if (_entry->user_token == token)
 		return _entry->map;

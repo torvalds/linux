@@ -88,8 +88,8 @@ EXPORT_SYMBOL(drm_sman_init);
 static void *drm_sman_mm_allocate(void *private, unsigned long size,
 				  unsigned alignment)
 {
-	drm_mm_t *mm = (drm_mm_t *) private;
-	drm_mm_node_t *tmp;
+	struct drm_mm *mm = (struct drm_mm *) private;
+	struct drm_mm_node *tmp;
 
 	tmp = drm_mm_search_free(mm, size, alignment, 1);
 	if (!tmp) {
@@ -101,21 +101,21 @@ static void *drm_sman_mm_allocate(void *private, unsigned long size,
 
 static void drm_sman_mm_free(void *private, void *ref)
 {
-	drm_mm_node_t *node = (drm_mm_node_t *) ref;
+	struct drm_mm_node *node = (struct drm_mm_node *) ref;
 
 	drm_mm_put_block(node);
 }
 
 static void drm_sman_mm_destroy(void *private)
 {
-	drm_mm_t *mm = (drm_mm_t *) private;
+	struct drm_mm *mm = (struct drm_mm *) private;
 	drm_mm_takedown(mm);
 	drm_free(mm, sizeof(*mm), DRM_MEM_MM);
 }
 
 static unsigned long drm_sman_mm_offset(void *private, void *ref)
 {
-	drm_mm_node_t *node = (drm_mm_node_t *) ref;
+	struct drm_mm_node *node = (struct drm_mm_node *) ref;
 	return node->start;
 }
 
@@ -124,7 +124,7 @@ drm_sman_set_range(drm_sman_t * sman, unsigned int manager,
 		   unsigned long start, unsigned long size)
 {
 	drm_sman_mm_t *sman_mm;
-	drm_mm_t *mm;
+	struct drm_mm *mm;
 	int ret;
 
 	BUG_ON(manager >= sman->num_managers);

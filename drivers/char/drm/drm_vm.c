@@ -82,7 +82,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map *map = NULL;
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 	drm_hash_item_t *hash;
 
 	/*
@@ -97,7 +97,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff, &hash))
 		goto vm_nopage_error;
 
-	r_list = drm_hash_entry(hash, drm_map_list_t, hash);
+	r_list = drm_hash_entry(hash, struct drm_map_list, hash);
 	map = r_list->map;
 
 	if (map && map->type == _DRM_AGP) {
@@ -198,7 +198,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 	struct drm_device *dev = priv->head->dev;
 	struct drm_vma_entry *pt, *temp;
 	struct drm_map *map;
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 	int found_maps = 0;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
@@ -313,7 +313,7 @@ static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 	struct drm_map *map = (struct drm_map *) vma->vm_private_data;
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_sg_mem_t *entry = dev->sg;
+	struct drm_sg_mem *entry = dev->sg;
 	unsigned long offset;
 	unsigned long map_offset;
 	unsigned long page_offset;
@@ -574,7 +574,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	map = drm_hash_entry(hash, drm_map_list_t, hash)->map;
+	map = drm_hash_entry(hash, struct drm_map_list, hash)->map;
 	if (!map || ((map->flags & _DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN)))
 		return -EPERM;
 

@@ -209,7 +209,7 @@ int drm_agp_enable_ioctl(struct inode *inode, struct file *filp,
  */
 int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	DRM_AGP_MEM *memory;
 	unsigned long pages;
 	u32 type;
@@ -258,7 +258,7 @@ int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
 		return err;
 
 	if (copy_to_user(argp, &request, sizeof(request))) {
-		drm_agp_mem_t *entry;
+		struct drm_agp_mem *entry;
 		list_for_each_entry(entry, &dev->agp->memory, head) {
 			if (entry->handle == request.handle)
 				break;
@@ -281,10 +281,10 @@ int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
  *
  * Walks through drm_agp_head::memory until finding a matching handle.
  */
-static drm_agp_mem_t *drm_agp_lookup_entry(struct drm_device * dev,
+static struct drm_agp_mem *drm_agp_lookup_entry(struct drm_device * dev,
 					   unsigned long handle)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 
 	list_for_each_entry(entry, &dev->agp->memory, head) {
 		if (entry->handle == handle)
@@ -307,7 +307,7 @@ static drm_agp_mem_t *drm_agp_lookup_entry(struct drm_device * dev,
  */
 int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	int ret;
 
 	if (!dev->agp || !dev->agp->acquired)
@@ -352,7 +352,7 @@ int drm_agp_unbind_ioctl(struct inode *inode, struct file *filp,
  */
 int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	int retcode;
 	int page;
 
@@ -402,7 +402,7 @@ int drm_agp_bind_ioctl(struct inode *inode, struct file *filp,
  */
 int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -442,9 +442,9 @@ int drm_agp_free_ioctl(struct inode *inode, struct file *filp,
  * via the inter_module_* functions. Creates and initializes a drm_agp_head
  * structure.
  */
-drm_agp_head_t *drm_agp_init(struct drm_device *dev)
+struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
-	drm_agp_head_t *head = NULL;
+	struct drm_agp_head *head = NULL;
 
 	if (!(head = drm_alloc(sizeof(*head), DRM_MEM_AGPLISTS)))
 		return NULL;

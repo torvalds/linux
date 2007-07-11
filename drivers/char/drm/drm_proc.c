@@ -208,7 +208,7 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	struct drm_map *map;
-	drm_map_list_t *r_list;
+	struct drm_map_list *r_list;
 
 	/* Hardcoded from _DRM_FRAME_BUFFER,
 	   _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and

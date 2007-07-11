@@ -231,7 +231,7 @@ static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
 
 static drm_local_map_t *sis_reg_init(struct drm_device *dev)
 {
-	drm_map_list_t *entry;
+	struct drm_map_list *entry;
 	drm_local_map_t *map;
 
 	list_for_each_entry(entry, &dev->maplist, head) {

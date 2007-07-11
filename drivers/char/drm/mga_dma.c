@@ -548,7 +548,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 	}
 
 	{
-		drm_map_list_t *_entry;
+		struct drm_map_list *_entry;
 		unsigned long agp_token = 0;
 		
 		list_for_each_entry(_entry, &dev->maplist, head) {

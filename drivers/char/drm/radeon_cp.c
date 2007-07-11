@@ -1174,7 +1174,7 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 	} else
 #endif
 	{
-		drm_sg_mem_t *entry = dev->sg;
+		struct drm_sg_mem *entry = dev->sg;
 		unsigned long tmp_ofs, page_ofs;
 
 		tmp_ofs = dev_priv->ring_rptr->offset -

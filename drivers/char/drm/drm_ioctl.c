@@ -188,7 +188,7 @@ int drm_getmap(struct inode *inode, struct file *filp,
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map __user *argp = (void __user *)arg;
 	struct drm_map map;
-	drm_map_list_t *r_list = NULL;
+	struct drm_map_list *r_list = NULL;
 	struct list_head *list;
 	int idx;
 	int i;
@@ -206,7 +206,7 @@ int drm_getmap(struct inode *inode, struct file *filp,
 	i = 0;
 	list_for_each(list, &dev->maplist) {
 		if (i == idx) {
-			r_list = list_entry(list, drm_map_list_t, head);
+			r_list = list_entry(list, struct drm_map_list, head);
 			break;
 		}
 		i++;

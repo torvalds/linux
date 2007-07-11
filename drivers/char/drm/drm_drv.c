@@ -132,7 +132,7 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 int drm_lastclose(struct drm_device * dev)
 {
 	struct drm_magic_entry *pt, *next;
-	drm_map_list_t *r_list, *list_t;
+	struct drm_map_list *r_list, *list_t;
 	struct drm_vma_entry *vma, *vma_temp;
 	int i;
 
@@ -178,7 +178,7 @@ int drm_lastclose(struct drm_device * dev)
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		drm_agp_mem_t *entry, *tempe;
+		struct drm_agp_mem *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
 		   intact until drv_cleanup is called. */
@@ -520,7 +520,7 @@ EXPORT_SYMBOL(drm_ioctl);
 
 drm_local_map_t *drm_getsarea(struct drm_device *dev)
 {
-	drm_map_list_t *entry;
+	struct drm_map_list *entry;
 
 	list_for_each_entry(entry, &dev->maplist, head) {
 		if (entry->map && entry->map->type == _DRM_SHM &&

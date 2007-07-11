@@ -294,7 +294,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		unsigned long irqflags;
 		struct list_head *vbl_sigs = (flags & _DRM_VBLANK_SECONDARY)
 				      ? &dev->vbl_sigs2 : &dev->vbl_sigs;
-		drm_vbl_sig_t *vbl_sig;
+		struct drm_vbl_sig *vbl_sig;
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
@@ -324,7 +324,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 
 		if (!
 		    (vbl_sig =
-		     drm_alloc(sizeof(drm_vbl_sig_t), DRM_MEM_DRIVER))) {
+		     drm_alloc(sizeof(struct drm_vbl_sig), DRM_MEM_DRIVER))) {
 			return -ENOMEM;
 		}
 
@@ -379,7 +379,7 @@ void drm_vbl_send_signals(struct drm_device * dev)
 	spin_lock_irqsave(&dev->vbl_lock, flags);
 
 	for (i = 0; i < 2; i++) {
-		drm_vbl_sig_t *vbl_sig, *tmp;
+		struct drm_vbl_sig *vbl_sig, *tmp;
 		struct list_head *vbl_sigs = i ? &dev->vbl_sigs2 : &dev->vbl_sigs;
 		unsigned int vbl_seq = atomic_read(i ? &dev->vbl_received2 :
 						   &dev->vbl_received);

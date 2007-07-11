@@ -287,7 +287,7 @@ typedef struct drm_radeon_private {
 
 	unsigned long pcigart_offset;
 	unsigned int pcigart_offset_set;
-	drm_ati_pcigart_info gart_info;
+	struct drm_ati_pcigart_info gart_info;
 
 	u32 scratch_ages[5];
 
