@@ -102,19 +102,10 @@ static unsigned int highmem_pages = -1;
 /*
  * Setup options
  */
-struct drive_info_struct { char dummy[32]; } drive_info;
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD) || \
-    defined(CONFIG_BLK_DEV_IDE_MODULE) || defined(CONFIG_BLK_DEV_HD_MODULE)
-EXPORT_SYMBOL(drive_info);
-#endif
 struct screen_info screen_info;
 EXPORT_SYMBOL(screen_info);
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);
-struct sys_desc_table_struct {
-	unsigned short length;
-	unsigned char table[0];
-};
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
 struct ist_info ist_info;
@@ -134,7 +125,7 @@ unsigned long saved_videomode;
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
-unsigned char __initdata boot_params[PARAM_SIZE];
+struct boot_params __initdata boot_params;
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 struct edd edd;
@@ -528,7 +519,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
- 	drive_info = DRIVE_INFO;
  	screen_info = SCREEN_INFO;
 	edid_info = EDID_INFO;
 	apm_info.bios = APM_BIOS_INFO;
