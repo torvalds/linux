@@ -142,21 +142,21 @@ extern int r128_engine_reset(DRM_IOCTL_ARGS);
 extern int r128_fullscreen(DRM_IOCTL_ARGS);
 extern int r128_cce_buffers(DRM_IOCTL_ARGS);
 
-extern void r128_freelist_reset(drm_device_t * dev);
+extern void r128_freelist_reset(struct drm_device * dev);
 
 extern int r128_wait_ring(drm_r128_private_t * dev_priv, int n);
 
 extern int r128_do_cce_idle(drm_r128_private_t * dev_priv);
-extern int r128_do_cleanup_cce(drm_device_t * dev);
+extern int r128_do_cleanup_cce(struct drm_device * dev);
 
-extern int r128_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence);
+extern int r128_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence);
 
 extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
-extern void r128_driver_irq_preinstall(drm_device_t * dev);
-extern void r128_driver_irq_postinstall(drm_device_t * dev);
-extern void r128_driver_irq_uninstall(drm_device_t * dev);
-extern void r128_driver_lastclose(drm_device_t * dev);
-extern void r128_driver_preclose(drm_device_t * dev, DRMFILE filp);
+extern void r128_driver_irq_preinstall(struct drm_device * dev);
+extern void r128_driver_irq_postinstall(struct drm_device * dev);
+extern void r128_driver_irq_uninstall(struct drm_device * dev);
+extern void r128_driver_lastclose(struct drm_device * dev);
+extern void r128_driver_preclose(struct drm_device * dev, DRMFILE filp);
 
 extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);

@@ -81,7 +81,7 @@ static u32 r128_cce_microcode[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static int R128_READ_PLL(drm_device_t * dev, int addr)
+static int R128_READ_PLL(struct drm_device * dev, int addr)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 
@@ -271,7 +271,7 @@ static void r128_do_cce_stop(drm_r128_private_t * dev_priv)
 
 /* Reset the engine.  This will stop the CCE if it is running.
  */
-static int r128_do_engine_reset(drm_device_t * dev)
+static int r128_do_engine_reset(struct drm_device * dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	u32 clock_cntl_index, mclk_cntl, gen_reset_cntl;
@@ -308,7 +308,7 @@ static int r128_do_engine_reset(drm_device_t * dev)
 	return 0;
 }
 
-static void r128_cce_init_ring_buffer(drm_device_t * dev,
+static void r128_cce_init_ring_buffer(struct drm_device * dev,
 				      drm_r128_private_t * dev_priv)
 {
 	u32 ring_start;
@@ -347,7 +347,7 @@ static void r128_cce_init_ring_buffer(drm_device_t * dev,
 	R128_WRITE(R128_BUS_CNTL, tmp);
 }
 
-static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
+static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 {
 	drm_r128_private_t *dev_priv;
 
@@ -584,7 +584,7 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 	return 0;
 }
 
-int r128_do_cleanup_cce(drm_device_t * dev)
+int r128_do_cleanup_cce(struct drm_device * dev)
 {
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
@@ -769,7 +769,7 @@ int r128_fullscreen(DRM_IOCTL_ARGS)
 #define R128_BUFFER_FREE	0
 
 #if 0
-static int r128_freelist_init(drm_device_t * dev)
+static int r128_freelist_init(struct drm_device * dev)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -815,7 +815,7 @@ static int r128_freelist_init(drm_device_t * dev)
 }
 #endif
 
-static drm_buf_t *r128_freelist_get(drm_device_t * dev)
+static drm_buf_t *r128_freelist_get(struct drm_device * dev)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -853,7 +853,7 @@ static drm_buf_t *r128_freelist_get(drm_device_t * dev)
 	return NULL;
 }
 
-void r128_freelist_reset(drm_device_t * dev)
+void r128_freelist_reset(struct drm_device * dev)
 {
 	drm_device_dma_t *dma = dev->dma;
 	int i;
@@ -886,7 +886,7 @@ int r128_wait_ring(drm_r128_private_t * dev_priv, int n)
 	return DRM_ERR(EBUSY);
 }
 
-static int r128_cce_get_buffers(DRMFILE filp, drm_device_t * dev, drm_dma_t * d)
+static int r128_cce_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm_dma * d)
 {
 	int i;
 	drm_buf_t *buf;
@@ -915,8 +915,8 @@ int r128_cce_buffers(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_device_dma_t *dma = dev->dma;
 	int ret = 0;
-	drm_dma_t __user *argp = (void __user *)data;
-	drm_dma_t d;
+	struct drm_dma __user *argp = (void __user *)data;
+	struct drm_dma d;
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 

@@ -37,7 +37,7 @@
 
 irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	int status;
 	int handled = 0;
@@ -78,7 +78,7 @@ irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_NONE;
 }
 
-int mga_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
+int mga_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence)
 {
 	unsigned int cur_vblank;
 	int ret = 0;
@@ -96,7 +96,7 @@ int mga_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 	return ret;
 }
 
-int mga_driver_fence_wait(drm_device_t * dev, unsigned int *sequence)
+int mga_driver_fence_wait(struct drm_device * dev, unsigned int *sequence)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	unsigned int cur_fence;
@@ -115,7 +115,7 @@ int mga_driver_fence_wait(drm_device_t * dev, unsigned int *sequence)
 	return ret;
 }
 
-void mga_driver_irq_preinstall(drm_device_t * dev)
+void mga_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
@@ -125,7 +125,7 @@ void mga_driver_irq_preinstall(drm_device_t * dev)
 	MGA_WRITE(MGA_ICLEAR, ~0);
 }
 
-void mga_driver_irq_postinstall(drm_device_t * dev)
+void mga_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
@@ -135,7 +135,7 @@ void mga_driver_irq_postinstall(drm_device_t * dev)
 	MGA_WRITE(MGA_IEN, MGA_VLINEIEN | MGA_SOFTRAPEN);
 }
 
-void mga_driver_irq_uninstall(drm_device_t * dev)
+void mga_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	if (!dev_priv)
