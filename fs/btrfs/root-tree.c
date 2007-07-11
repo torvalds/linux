@@ -135,8 +135,8 @@ int btrfs_find_dead_roots(struct btrfs_root *root)
 		if (btrfs_root_refs(ri) != 0)
 			goto next;
 		dead_root = btrfs_read_fs_root_no_radix(root->fs_info, &key);
-		if (IS_ERR(root)) {
-			ret = PTR_ERR(root);
+		if (IS_ERR(dead_root)) {
+			ret = PTR_ERR(dead_root);
 			goto err;
 		}
 		ret = btrfs_add_dead_root(dead_root,

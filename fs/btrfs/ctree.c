@@ -172,11 +172,13 @@ static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 
 	if (path->nodes[level + 1])
 		parent = btrfs_buffer_node(path->nodes[level + 1]);
-	parent_slot = path->slots[level + 1];
+
 	slot = path->slots[level];
 	BUG_ON(nritems == 0);
 	if (parent) {
 		struct btrfs_disk_key *parent_key;
+
+		parent_slot = path->slots[level + 1];
 		parent_key = &parent->ptrs[parent_slot].key;
 		BUG_ON(memcmp(parent_key, &node->ptrs[0].key,
 			      sizeof(struct btrfs_disk_key)));
@@ -208,7 +210,7 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 
 	if (path->nodes[level + 1])
 		parent = btrfs_buffer_node(path->nodes[level + 1]);
-	parent_slot = path->slots[level + 1];
+
 	BUG_ON(btrfs_leaf_free_space(root, leaf) < 0);
 
 	if (nritems == 0)
@@ -216,6 +218,8 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 
 	if (parent) {
 		struct btrfs_disk_key *parent_key;
+
+		parent_slot = path->slots[level + 1];
 		parent_key = &parent->ptrs[parent_slot].key;
 		BUG_ON(memcmp(parent_key, &leaf->items[0].key,
 		       sizeof(struct btrfs_disk_key)));
