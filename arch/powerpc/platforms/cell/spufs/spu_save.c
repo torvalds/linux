@@ -44,7 +44,7 @@ static inline void save_event_mask(void)
 	 *    Read the SPU_RdEventMsk channel and save to the LSCSA.
 	 */
 	offset = LSCSA_QW_OFFSET(event_mask);
-	regs_spill[offset].slot[0] = spu_readch(SPU_RdEventStatMask);
+	regs_spill[offset].slot[0] = spu_readch(SPU_RdEventMask);
 }
 
 static inline void save_tag_mask(void)

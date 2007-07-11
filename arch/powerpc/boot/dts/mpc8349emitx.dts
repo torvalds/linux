@@ -131,6 +131,11 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <20 8 21 8 22 8>;
@@ -145,6 +150,11 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 8 24 8 25 8>;

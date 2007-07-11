@@ -67,7 +67,6 @@ EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
 
-EXPORT_SYMBOL(do_signal);
 EXPORT_SYMBOL(transfer_to_handler);
 EXPORT_SYMBOL(do_IRQ);
 EXPORT_SYMBOL(machine_check_exception);
@@ -106,10 +105,6 @@ EXPORT_SYMBOL(isa_mem_base);
 EXPORT_SYMBOL(pci_dram_offset);
 EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
-EXPORT_SYMBOL(pci_bus_io_base);
-EXPORT_SYMBOL(pci_bus_io_base_phys);
-EXPORT_SYMBOL(pci_bus_mem_base_phys);
-EXPORT_SYMBOL(pci_bus_to_hose);
 #endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL(start_thread);

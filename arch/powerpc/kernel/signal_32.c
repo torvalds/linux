@@ -51,12 +51,11 @@
 #include <asm/pgtable.h>
 #endif
 
+#include "signal.h"
+
 #undef DEBUG_SIG
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #ifdef CONFIG_PPC64
-#define do_signal	do_signal32
 #define sys_sigsuspend	compat_sys_sigsuspend
 #define sys_rt_sigsuspend	compat_sys_rt_sigsuspend
 #define sys_rt_sigreturn	compat_sys_rt_sigreturn
@@ -231,8 +230,6 @@ static inline int restore_general_regs(struct pt_regs *regs,
 
 #endif /* CONFIG_PPC64 */
 
-int do_signal(sigset_t *oldset, struct pt_regs *regs);
-
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -250,14 +247,6 @@ long sys_sigsuspend(old_sigset_t mask)
  	set_thread_flag(TIF_RESTORE_SIGMASK);
  	return -ERESTARTNOHAND;
 }
-
-#ifdef CONFIG_PPC32
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss, int r5,
-		int r6, int r7, int r8, struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->gpr[1]);
-}
-#endif
 
 long sys_sigaction(int sig, struct old_sigaction __user *act,
 		struct old_sigaction __user *oact)
@@ -293,14 +282,17 @@ long sys_sigaction(int sig, struct old_sigaction __user *act,
 /*
  * When we have signals to deliver, we set up on the
  * user stack, going down from the original stack pointer:
- *	a sigregs struct
+ *	an ABI gap of 56 words
+ *	an mcontext struct
  *	a sigcontext struct
  *	a gap of __SIGNAL_FRAMESIZE bytes
  *
- * Each of these things must be a multiple of 16 bytes in size.
+ * Each of these things must be a multiple of 16 bytes in size. The following
+ * structure represent all of this except the __SIGNAL_FRAMESIZE gap
  *
  */
-struct sigregs {
+struct sigframe {
+	struct sigcontext sctx;		/* the sigcontext */
 	struct mcontext	mctx;		/* all the register values */
 	/*
 	 * Programs using the rs6000/xcoff abi can save up to 19 gp
@@ -703,44 +695,22 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 }
 #endif /* CONFIG_PPC64 */
 
-
-/*
- * Restore the user process's signal mask
- */
-#ifdef CONFIG_PPC64
-extern void restore_sigmask(sigset_t *set);
-#else /* CONFIG_PPC64 */
-static void restore_sigmask(sigset_t *set)
-{
-	sigdelsetmask(set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = *set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-#endif
-
 /*
  * Set up a signal frame for a "real-time" signal handler
  * (one which gets siginfo).
  */
-static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
+int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, sigset_t *oldset,
-		struct pt_regs *regs, unsigned long newsp)
+		struct pt_regs *regs)
 {
 	struct rt_sigframe __user *rt_sf;
 	struct mcontext __user *frame;
-	unsigned long origsp = newsp;
+	unsigned long newsp = 0;
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
-	newsp -= sizeof(*rt_sf);
-	rt_sf = (struct rt_sigframe __user *)newsp;
-
-	/* create a stack frame for the caller of the handler */
-	newsp -= __SIGNAL_FRAMESIZE + 16;
-
-	if (!access_ok(VERIFY_WRITE, (void __user *)newsp, origsp - newsp))
+	rt_sf = get_sigframe(ka, regs, sizeof(*rt_sf));
+	if (unlikely(rt_sf == NULL))
 		goto badframe;
 
 	/* Put the siginfo & fill in most of the ucontext */
@@ -770,8 +740,12 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 
 	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
+	/* create a stack frame for the caller of the handler */
+	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
+
+	/* Fill registers for signal handler */
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = sig;
 	regs->gpr[4] = (unsigned long) &rt_sf->info;
@@ -1015,27 +989,18 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
-		siginfo_t *info, sigset_t *oldset, struct pt_regs *regs,
-		unsigned long newsp)
+int handle_signal32(unsigned long sig, struct k_sigaction *ka,
+		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
 	struct sigcontext __user *sc;
-	struct sigregs __user *frame;
-	unsigned long origsp = newsp;
+	struct sigframe __user *frame;
+	unsigned long newsp = 0;
 
 	/* Set up Signal Frame */
-	newsp -= sizeof(struct sigregs);
-	frame = (struct sigregs __user *) newsp;
-
-	/* Put a sigcontext on the stack */
-	newsp -= sizeof(*sc);
-	sc = (struct sigcontext __user *) newsp;
-
-	/* create a stack frame for the caller of the handler */
-	newsp -= __SIGNAL_FRAMESIZE;
-
-	if (!access_ok(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
+	frame = get_sigframe(ka, regs, sizeof(*frame));
+	if (unlikely(frame == NULL))
 		goto badframe;
+	sc = (struct sigcontext __user *) &frame->sctx;
 
 #if _NSIG != 64
 #error "Please adjust handle_signal()"
@@ -1047,7 +1012,7 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 #else
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
 #endif
-	    || __put_user(to_user_ptr(frame), &sc->regs)
+	    || __put_user(to_user_ptr(&frame->mctx), &sc->regs)
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
@@ -1063,8 +1028,11 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 
 	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
+	/* create a stack frame for the caller of the handler */
+	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
+
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = sig;
 	regs->gpr[4] = (unsigned long) sc;
@@ -1125,107 +1093,4 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
-}
-
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- */
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
-{
-	siginfo_t info;
-	struct k_sigaction ka;
-	unsigned int newsp;
-	int signr, ret;
-
-#ifdef CONFIG_PPC32
-	if (try_to_freeze()) {
-		signr = 0;
-		if (!signal_pending(current))
-			goto no_signal;
-	}
-#endif
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-#ifdef CONFIG_PPC32
-no_signal:
-#endif
-	if (TRAP(regs) == 0x0C00		/* System Call! */
-	    && regs->ccr & 0x10000000		/* error signalled */
-	    && ((ret = regs->gpr[3]) == ERESTARTSYS
-		|| ret == ERESTARTNOHAND || ret == ERESTARTNOINTR
-		|| ret == ERESTART_RESTARTBLOCK)) {
-
-		if (signr > 0
-		    && (ret == ERESTARTNOHAND || ret == ERESTART_RESTARTBLOCK
-			|| (ret == ERESTARTSYS
-			    && !(ka.sa.sa_flags & SA_RESTART)))) {
-			/* make the system call return an EINTR error */
-			regs->result = -EINTR;
-			regs->gpr[3] = EINTR;
-			/* note that the cr0.SO bit is already set */
-		} else {
-			regs->nip -= 4;	/* Back up & retry system call */
-			regs->result = 0;
-			regs->trap = 0;
-			if (ret == ERESTART_RESTARTBLOCK)
-				regs->gpr[0] = __NR_restart_syscall;
-			else
-				regs->gpr[3] = regs->orig_gpr3;
-		}
-	}
-
-	if (signr == 0) {
-		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
-		return 0;		/* no signals delivered */
-	}
-
-	if ((ka.sa.sa_flags & SA_ONSTACK) && current->sas_ss_size
-	    && !on_sig_stack(regs->gpr[1]))
-		newsp = current->sas_ss_sp + current->sas_ss_size;
-	else
-		newsp = regs->gpr[1];
-	newsp &= ~0xfUL;
-
-#ifdef CONFIG_PPC64
-	/*
-	 * Reenable the DABR before delivering the signal to
-	 * user space. The DABR will have been cleared if it
-	 * triggered inside the kernel.
-	 */
-	if (current->thread.dabr)
-		set_dabr(current->thread.dabr);
-#endif
-
-	/* Whee!  Actually deliver the signal.  */
-	if (ka.sa.sa_flags & SA_SIGINFO)
-		ret = handle_rt_signal(signr, &ka, &info, oldset, regs, newsp);
-	else
-		ret = handle_signal(signr, &ka, &info, oldset, regs, newsp);
-
-	if (ret) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked,
-			  &ka.sa.sa_mask);
-		if (!(ka.sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-		/* A signal was successfully delivered; the saved sigmask is in
-		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-	}
-
-	return ret;
 }

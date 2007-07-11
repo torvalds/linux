@@ -52,7 +52,7 @@
 			compatible = "fsl,8548-memory-controller";
 			reg = <2000 1000>;
 			interrupt-parent = <&mpic>;
-			interrupts = <2 2>;
+			interrupts = <12 2>;
 		};
 
 		l2-cache-controller@20000 {
@@ -61,14 +61,14 @@
 			cache-line-size = <20>;	// 32 bytes
 			cache-size = <80000>;	// L2, 512K
 			interrupt-parent = <&mpic>;
-			interrupts = <0 2>;
+			interrupts = <10 2>;
 		};
 
 		i2c@3000 {
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
-			interrupts = <1b 2>;
+			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
@@ -81,25 +81,25 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 0>;
+				interrupts = <5 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 0>;
+				interrupts = <5 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
 			phy2: ethernet-phy@2 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 0>;
+				interrupts = <5 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 0>;
+				interrupts = <5 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 			};
@@ -112,8 +112,8 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 00 ];
-			interrupts = <d 2 e 2 12 2>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
 		};
@@ -125,8 +125,8 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 01 ];
-			interrupts = <13 2 14 2 18 2>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
 		};
@@ -139,8 +139,8 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 02 ];
-			interrupts = <f 2 10 2 11 2>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <1f 2 20 2 21 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy2>;
 		};
@@ -152,8 +152,8 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <27000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 03 ];
-			interrupts = <15 2 16 2 17 2>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <25 2 26 2 27 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;
 		};
@@ -164,7 +164,7 @@
 			compatible = "ns16550";
 			reg = <4500 100>; 	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -173,8 +173,14 @@
 			compatible = "ns16550";
 			reg = <4600 100>;	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
+		};
+
+		global-utilities@e0000 {	//global utilities reg
+			compatible = "fsl,mpc8548-guts";
+			reg = <e0000 1000>;
+			fsl,has-rstcr;
 		};
 
 		pci1: pci@8000 {
@@ -182,49 +188,49 @@
 			interrupt-map = <
 
 				/* IDSEL 0x10 */
-				08000 0 0 1 &mpic 30 1
-				08000 0 0 2 &mpic 31 1
-				08000 0 0 3 &mpic 32 1
-				08000 0 0 4 &mpic 33 1
+				08000 0 0 1 &mpic 0 1
+				08000 0 0 2 &mpic 1 1
+				08000 0 0 3 &mpic 2 1
+				08000 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x11 */
-				08800 0 0 1 &mpic 30 1
-				08800 0 0 2 &mpic 31 1
-				08800 0 0 3 &mpic 32 1
-				08800 0 0 4 &mpic 33 1
+				08800 0 0 1 &mpic 0 1
+				08800 0 0 2 &mpic 1 1
+				08800 0 0 3 &mpic 2 1
+				08800 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x12 (Slot 1) */
-				09000 0 0 1 &mpic 30 1
-				09000 0 0 2 &mpic 31 1
-				09000 0 0 3 &mpic 32 1
-				09000 0 0 4 &mpic 33 1
+				09000 0 0 1 &mpic 0 1
+				09000 0 0 2 &mpic 1 1
+				09000 0 0 3 &mpic 2 1
+				09000 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x13 (Slot 2) */
-				09800 0 0 1 &mpic 31 1
-				09800 0 0 2 &mpic 32 1
-				09800 0 0 3 &mpic 33 1
-				09800 0 0 4 &mpic 30 1
+				09800 0 0 1 &mpic 1 1
+				09800 0 0 2 &mpic 2 1
+				09800 0 0 3 &mpic 3 1
+				09800 0 0 4 &mpic 0 1
 
 				/* IDSEL 0x14 (Slot 3) */
-				0a000 0 0 1 &mpic 32 1
-				0a000 0 0 2 &mpic 33 1
-				0a000 0 0 3 &mpic 30 1
-				0a000 0 0 4 &mpic 31 1
+				0a000 0 0 1 &mpic 2 1
+				0a000 0 0 2 &mpic 3 1
+				0a000 0 0 3 &mpic 0 1
+				0a000 0 0 4 &mpic 1 1
 
 				/* IDSEL 0x15 (Slot 4) */
-				0a800 0 0 1 &mpic 33 1
-				0a800 0 0 2 &mpic 30 1
-				0a800 0 0 3 &mpic 31 1
-				0a800 0 0 4 &mpic 32 1
+				0a800 0 0 1 &mpic 3 1
+				0a800 0 0 2 &mpic 0 1
+				0a800 0 0 3 &mpic 1 1
+				0a800 0 0 4 &mpic 2 1
 
 				/* Bus 1 (Tundra Bridge) */
 				/* IDSEL 0x12 (ISA bridge) */
-				19000 0 0 1 &mpic 30 1
-				19000 0 0 2 &mpic 31 1
-				19000 0 0 3 &mpic 32 1
-				19000 0 0 4 &mpic 33 1>;
+				19000 0 0 1 &mpic 0 1
+				19000 0 0 2 &mpic 1 1
+				19000 0 0 3 &mpic 2 1
+				19000 0 0 4 &mpic 3 1>;
 			interrupt-parent = <&mpic>;
-			interrupts = <08 2>;
+			interrupts = <18 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 00100000>;
@@ -256,12 +262,12 @@
 			interrupt-map = <
 
 				/* IDSEL 0x15 */
-				a800 0 0 1 &mpic 3b 1
-				a800 0 0 2 &mpic 3b 1
-				a800 0 0 3 &mpic 3b 1
-				a800 0 0 4 &mpic 3b 1>;
+				a800 0 0 1 &mpic b 1
+				a800 0 0 2 &mpic b 1
+				a800 0 0 3 &mpic b 1
+				a800 0 0 4 &mpic b 1>;
 			interrupt-parent = <&mpic>;
-			interrupts = <09 2>;
+			interrupts = <19 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 a0000000 a0000000 0 20000000
 				  01000000 0 00000000 e3000000 0 00100000>;

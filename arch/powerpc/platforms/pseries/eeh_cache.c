@@ -2,7 +2,8 @@
  * eeh_cache.c
  * PCI address cache; allows the lookup of PCI devices based on I/O address
  *
- * Copyright (C) 2004 Linas Vepstas <linas@austin.ibm.com> IBM Corporation
+ * Copyright IBM Corporation 2004
+ * Copyright Linas Vepstas <linas@austin.ibm.com> 2004
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -295,6 +296,8 @@ void __init pci_addr_cache_build(void)
 			continue;
 		pci_dev_get (dev);  /* matching put is in eeh_remove_device() */
 		PCI_DN(dn)->pcidev = dev;
+
+		eeh_sysfs_add_device(dev);
 	}
 
 #ifdef DEBUG

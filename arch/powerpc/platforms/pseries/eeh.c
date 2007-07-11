@@ -1,6 +1,8 @@
 /*
  * eeh.c
- * Copyright (C) 2001 Dave Engebretsen & Todd Inglett IBM Corporation
+ * Copyright IBM Corporation 2001, 2005, 2006
+ * Copyright Dave Engebretsen & Todd Inglett 2001
+ * Copyright Linas Vepstas 2005, 2006
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,6 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *
+ * Please address comments and feedback to Linas Vepstas <linas@austin.ibm.com>
  */
 
 #include <linux/delay.h>
@@ -117,7 +121,6 @@ static unsigned long no_cfg_addr;
 static unsigned long ignored_check;
 static unsigned long total_mmio_ffs;
 static unsigned long false_positives;
-static unsigned long ignored_failures;
 static unsigned long slot_resets;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
@@ -505,6 +508,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		printk(KERN_WARNING "EEH: read_slot_reset_state() failed; rc=%d dn=%s\n",
 		       ret, dn->full_name);
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -513,6 +517,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * they are empty when they don't have children. */
 	if ((rets[0] == 5) && (dn->child == NULL)) {
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -522,6 +527,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		printk(KERN_WARNING "EEH: event on unsupported device, rc=%d dn=%s\n",
 		       ret, dn->full_name);
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -529,6 +535,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* If not the kind of error we know about, punt. */
 	if (rets[0] != 1 && rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -921,6 +928,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	pdn->eeh_mode = 0;
 	pdn->eeh_check_count = 0;
 	pdn->eeh_freeze_count = 0;
+	pdn->eeh_false_positives = 0;
 
 	if (status && strcmp(status, "ok") != 0)
 		return NULL;	/* ignore devices with bad status */
@@ -1139,7 +1147,8 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	pdn = PCI_DN(dn);
 	pdn->pcidev = dev;
 
-	pci_addr_cache_insert_device (dev);
+	pci_addr_cache_insert_device(dev);
+	eeh_sysfs_add_device(dev);
 }
 
 void eeh_add_device_tree_late(struct pci_bus *bus)
@@ -1178,6 +1187,7 @@ static void eeh_remove_device(struct pci_dev *dev)
 	printk(KERN_DEBUG "EEH: remove device %s\n", pci_name(dev));
 #endif
 	pci_addr_cache_remove_device(dev);
+	eeh_sysfs_remove_device(dev);
 
 	dn = pci_device_to_OF_node(dev);
 	if (PCI_DN(dn)->pcidev) {
@@ -1214,11 +1224,10 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 				"check not wanted=%ld\n"
 				"eeh_total_mmio_ffs=%ld\n"
 				"eeh_false_positives=%ld\n"
-				"eeh_ignored_failures=%ld\n"
 				"eeh_slot_resets=%ld\n",
 				no_device, no_dn, no_cfg_addr, 
 				ignored_check, total_mmio_ffs, 
-				false_positives, ignored_failures, 
+				false_positives,
 				slot_resets);
 	}
 

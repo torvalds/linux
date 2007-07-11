@@ -26,7 +26,7 @@ extern int global_phb_number;
 
 extern void find_and_init_phbs(void);
 
-extern struct pci_dev *ppc64_isabridge_dev;	/* may be NULL if no ISA bus */
+extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
 #define BUID_HI(buid) ((buid) >> 32)
@@ -47,8 +47,8 @@ extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
-/* From pSeries_pci.h */
-extern void pSeries_final_fixup(void);
+/* From iSeries PCI */
+extern void iSeries_pcibios_init(void);
 
 extern unsigned long pci_probe_only;
 
@@ -138,6 +138,9 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag);
  * @pdn:       pci device node
  */
 struct device_node * find_device_pe(struct device_node *dn);
+
+void eeh_sysfs_add_device(struct pci_dev *pdev);
+void eeh_sysfs_remove_device(struct pci_dev *pdev);
 
 #endif /* CONFIG_EEH */
 

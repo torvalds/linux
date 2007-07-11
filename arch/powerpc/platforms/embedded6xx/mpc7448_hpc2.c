@@ -54,15 +54,10 @@
 
 #define MPC7448HPC2_PCI_CFG_PHYS 0xfb000000
 
-#ifndef CONFIG_PCI
-isa_io_base = MPC7448_HPC2_ISA_IO_BASE;
-isa_mem_base = MPC7448_HPC2_ISA_MEM_BASE;
-pci_dram_offset = MPC7448_HPC2_PCI_MEM_OFFSET;
-#endif
-
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 
-int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
+int mpc7448_hpc2_exclude_device(struct pci_controller *hose,
+				u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;

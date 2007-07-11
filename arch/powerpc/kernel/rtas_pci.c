@@ -278,10 +278,8 @@ void __init find_and_init_phbs(void)
 {
 	struct device_node *node;
 	struct pci_controller *phb;
-	unsigned int index;
 	struct device_node *root = of_find_node_by_path("/");
 
-	index = 0;
 	for (node = of_get_next_child(root, NULL);
 	     node != NULL;
 	     node = of_get_next_child(root, node)) {
@@ -295,8 +293,7 @@ void __init find_and_init_phbs(void)
 			continue;
 		rtas_setup_phb(phb);
 		pci_process_bridge_OF_ranges(phb, node, 0);
-		pci_setup_phb_io(phb, index == 0);
-		index++;
+		isa_bridge_find_early(phb);
 	}
 
 	of_node_put(root);
@@ -335,7 +332,7 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 		return 1;
 	}
 
-	rc = unmap_bus_range(b);
+	rc = pcibios_unmap_io_space(b);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to unmap IO on bus %s\n",
 			__FUNCTION__, b->name);

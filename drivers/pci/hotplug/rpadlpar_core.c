@@ -159,8 +159,8 @@ static void dlpar_pci_add_bus(struct device_node *dn)
 	/* Claim new bus resources */
 	pcibios_claim_one_bus(dev->bus);
 
-	/* ioremap() for child bus, which may or may not succeed */
-	remap_bus_range(dev->subordinate);
+	/* Map IO space for child bus, which may or may not succeed */
+	pcibios_map_io_space(dev->subordinate);
 
 	/* Add new devices to global lists.  Register in proc, sysfs. */
 	pci_bus_add_devices(phb->bus);
@@ -390,7 +390,7 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	} else
 		pcibios_remove_pci_devices(bus);
 
-	if (unmap_bus_range(bus)) {
+	if (pcibios_unmap_io_space(bus)) {
 		printk(KERN_ERR "%s: failed to unmap bus range\n",
 			__FUNCTION__);
 		return -ERANGE;

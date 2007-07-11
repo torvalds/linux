@@ -607,9 +607,9 @@ static inline void iosync(void)
  *
  * * iounmap undoes such a mapping and can be hooked
  *
- * * __ioremap_explicit (and the pending __iounmap_explicit) are low level
- *   functions to create hand-made mappings for use only by the PCI code
- *   and cannot currently be hooked.
+ * * __ioremap_at (and the pending __iounmap_at) are low level functions to
+ *   create hand-made mappings for use only by the PCI code and cannot
+ *   currently be hooked. Must be page aligned.
  *
  * * __ioremap is the low level implementation used by ioremap and
  *   ioremap_flags and cannot be hooked (but can be used by a hook on one
@@ -629,19 +629,9 @@ extern void __iomem *__ioremap(phys_addr_t, unsigned long size,
 			       unsigned long flags);
 extern void __iounmap(volatile void __iomem *addr);
 
-extern int __ioremap_explicit(phys_addr_t p_addr, unsigned long v_addr,
-		     	      unsigned long size, unsigned long flags);
-extern int __iounmap_explicit(volatile void __iomem *start,
-			      unsigned long size);
-
-extern void __iomem * reserve_phb_iospace(unsigned long size);
-
-/* Those are more 32 bits only functions */
-extern unsigned long iopa(unsigned long addr);
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
-extern void io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags);
-
+extern void __iomem * __ioremap_at(phys_addr_t pa, void *ea,
+				   unsigned long size, unsigned long flags);
+extern void __iounmap_at(void *ea, unsigned long size);
 
 /*
  * When CONFIG_PPC_INDIRECT_IO is set, we use the generic iomap implementation
@@ -651,8 +641,8 @@ extern void io_block_mapping(unsigned long virt, phys_addr_t phys,
  */
 #define HAVE_ARCH_PIO_SIZE		1
 #define PIO_OFFSET			0x00000000UL
-#define PIO_MASK			0x3fffffffUL
-#define PIO_RESERVED			0x40000000UL
+#define PIO_MASK			(FULL_IO_SIZE - 1)
+#define PIO_RESERVED			(FULL_IO_SIZE)
 
 #define mmio_read16be(addr)		readw_be(addr)
 #define mmio_read32be(addr)		readl_be(addr)

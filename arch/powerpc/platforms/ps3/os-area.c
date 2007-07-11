@@ -133,7 +133,7 @@ struct saved_params {
 } static saved_params;
 
 #define dump_header(_a) _dump_header(_a, __func__, __LINE__)
-static void _dump_header(const struct os_area_header __iomem *h, const char* func,
+static void _dump_header(const struct os_area_header *h, const char *func,
 	int line)
 {
 	pr_debug("%s:%d: h.magic_num:         '%s'\n", func, line,
@@ -151,7 +151,7 @@ static void _dump_header(const struct os_area_header __iomem *h, const char* fun
 }
 
 #define dump_params(_a) _dump_params(_a, __func__, __LINE__)
-static void _dump_params(const struct os_area_params __iomem *p, const char* func,
+static void _dump_params(const struct os_area_params *p, const char *func,
 	int line)
 {
 	pr_debug("%s:%d: p.boot_flag:       %u\n", func, line, p->boot_flag);

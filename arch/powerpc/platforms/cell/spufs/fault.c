@@ -33,7 +33,8 @@
  * function. Currently, there are a few corner cases that we haven't had
  * to handle fortunately.
  */
-static int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea, unsigned long dsisr)
+static int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+		unsigned long dsisr, unsigned *flt)
 {
 	struct vm_area_struct *vma;
 	unsigned long is_write;
@@ -73,7 +74,8 @@ good_area:
 			goto bad_area;
 	}
 	ret = 0;
-	switch (handle_mm_fault(mm, vma, ea, is_write)) {
+	*flt = handle_mm_fault(mm, vma, ea, is_write);
+	switch (*flt) {
 	case VM_FAULT_MINOR:
 		current->min_flt++;
 		break;
@@ -153,6 +155,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 {
 	u64 ea, dsisr, access;
 	unsigned long flags;
+	unsigned flt = 0;
 	int ret;
 
 	/*
@@ -178,8 +181,16 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (!(dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)))
 		return 0;
 
+	spuctx_switch_state(ctx, SPUCTX_UTIL_IOWAIT);
+
 	pr_debug("ctx %p: ea %016lx, dsisr %016lx state %d\n", ctx, ea,
 		dsisr, ctx->state);
+
+	ctx->stats.hash_flt++;
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		ctx->spu->stats.hash_flt++;
+		spu_switch_state(ctx->spu, SPU_UTIL_IOWAIT);
+	}
 
 	/* we must not hold the lock when entering spu_handle_mm_fault */
 	spu_release(ctx);
@@ -192,7 +203,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 
 	/* hashing failed, so try the actual fault handler */
 	if (ret)
-		ret = spu_handle_mm_fault(current->mm, ea, dsisr);
+		ret = spu_handle_mm_fault(current->mm, ea, dsisr, &flt);
 
 	spu_acquire(ctx);
 	/*
@@ -201,11 +212,23 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * In case of unhandled error report the problem to user space.
 	 */
 	if (!ret) {
+		if (flt == VM_FAULT_MINOR)
+			ctx->stats.min_flt++;
+		else
+			ctx->stats.maj_flt++;
+		if (ctx->state == SPU_STATE_RUNNABLE) {
+			if (flt == VM_FAULT_MINOR)
+				ctx->spu->stats.min_flt++;
+			else
+				ctx->spu->stats.maj_flt++;
+		}
+
 		if (ctx->spu)
 			ctx->ops->restart_dma(ctx);
 	} else
 		spufs_handle_dma_error(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
+	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spufs_handle_class1);

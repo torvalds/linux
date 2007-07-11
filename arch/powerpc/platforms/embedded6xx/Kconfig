@@ -28,6 +28,7 @@ config PPC_HOLLY
 	bool "PPC750GX/CL with TSI10x bridge (Hickory/Holly)"
 	select TSI108_BRIDGE
 	select PPC_UDBG_16550
+	select WANT_DEVICE_TREE
 	help
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
@@ -44,6 +45,7 @@ endchoice
 config TSI108_BRIDGE
 	bool
 	depends on MPC7448HPC2 || PPC_HOLLY
+	select PCI
 	select MPIC
 	select MPIC_WEIRD
 	default y

@@ -42,15 +42,16 @@ Table of Contents
     1) Defining child nodes of an SOC
     2) Representing devices without a current OF specification
       a) MDIO IO device
-      c) PHY nodes
       b) Gianfar-compatible ethernet nodes
+      c) PHY nodes
       d) Interrupt controllers
       e) I2C
       f) Freescale SOC USB controllers
       g) Freescale SOC SEC Security Engines
       h) Board Control and Status (BCSR)
       i) Freescale QUICC Engine module (QE)
-      g) Flash chip nodes
+      j) Flash chip nodes
+      k) Global Utilities Block
 
   VII - Specifying interrupt information for devices
     1) interrupts property
@@ -625,6 +626,14 @@ Here's the basic structure of a single node:
 So the node content can be summarized as a start token, a full path,
 a list of properties, a list of child nodes, and an end token. Every
 child node is a full node structure itself as defined above.
+
+NOTE: The above definition requires that all property definitions for
+a particular node MUST precede any subnode definitions for that node.
+Although the structure would not be ambiguous if properties and
+subnodes were intermingled, the kernel parser requires that the
+properties come first (up until at least 2.6.22).  Any tools
+manipulating a flattened tree must take care to preserve this
+constraint.
 
 4) Device tree "strings" block
 
@@ -1781,6 +1790,33 @@ platforms are moved over to use the flattened-device-tree model.
  			      00f80000 00080001>;
  		partition-names = "fs\0firmware";
  	};
+
+   k) Global Utilities Block
+
+   The global utilities block controls power management, I/O device
+   enabling, power-on-reset configuration monitoring, general-purpose
+   I/O signal configuration, alternate function selection for multiplexed
+   signals, and clock control.
+
+   Required properties:
+
+    - compatible : Should define the compatible device type for
+      global-utilities.
+    - reg : Offset and length of the register set for the device.
+
+  Recommended properties:
+
+    - fsl,has-rstcr : Indicates that the global utilities register set
+      contains a functioning "reset control register" (i.e. the board
+      is wired to reset upon setting the HRESET_REQ bit in this register).
+
+    Example:
+
+	global-utilities@e0000 {	/* global utilities block */
+		compatible = "fsl,mpc8548-guts";
+		reg = <e0000 1000>;
+		fsl,has-rstcr;
+	};
 
    More devices will be defined as this spec matures.
 

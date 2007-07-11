@@ -12,7 +12,8 @@ endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   irq.o align.o signal_32.o pmc.o vdso.o \
-				   init_task.o process.o systbl.o idle.o
+				   init_task.o process.o systbl.o idle.o \
+				   signal.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
@@ -65,9 +66,9 @@ obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 
-pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o
+pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o isa-bridge.o
 pci32-$(CONFIG_PPC32)		:= pci_32.o
-obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y)
+obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y) pci-common.o
 obj-$(CONFIG_PCI_MSI)		+= msi.o
 kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o
 kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o

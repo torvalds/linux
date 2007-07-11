@@ -52,7 +52,7 @@
 			compatible = "fsl,8540-memory-controller";
 			reg = <2000 1000>;
 			interrupt-parent = <&mpic>;
-			interrupts = <2 2>;
+			interrupts = <12 2>;
 		};
 
 		l2-cache-controller@20000 {
@@ -61,14 +61,14 @@
 			cache-line-size = <20>;	// 32 bytes
 			cache-size = <40000>;	// L2, 256K
 			interrupt-parent = <&mpic>;
-			interrupts = <0 2>;
+			interrupts = <10 2>;
 		};
 
 		i2c@3000 {
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
-			interrupts = <1b 2>;
+			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
@@ -81,19 +81,19 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 1>;
+				interrupts = <5 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <35 1>;
+				interrupts = <5 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
-				interrupts = <37 1>;
+				interrupts = <7 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 			};
@@ -106,9 +106,14 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			address = [ 00 E0 0C 00 73 00 ];
-			local-mac-address = [ 00 E0 0C 00 73 00 ];
-			interrupts = <d 2 e 2 12 2>;
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
 		};
@@ -120,9 +125,14 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			address = [ 00 E0 0C 00 73 01 ];
-			local-mac-address = [ 00 E0 0C 00 73 01 ];
-			interrupts = <13 2 14 2 18 2>;
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
 		};
@@ -134,9 +144,14 @@
 			model = "FEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			address = [ 00 E0 0C 00 73 02 ];
-			local-mac-address = [ 00 E0 0C 00 73 02 ];
-			interrupts = <19 2>;
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <29 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;
 		};
@@ -146,7 +161,7 @@
 			compatible = "ns16550";
 			reg = <4500 100>; 	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -155,7 +170,7 @@
 			compatible = "ns16550";
 			reg = <4600 100>;	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 		pci@8000 {
@@ -163,78 +178,78 @@
 			interrupt-map = <
 
 				/* IDSEL 0x02 */
-				1000 0 0 1 &mpic 31 1
-				1000 0 0 2 &mpic 32 1
-				1000 0 0 3 &mpic 33 1
-				1000 0 0 4 &mpic 34 1
+				1000 0 0 1 &mpic 1 1
+				1000 0 0 2 &mpic 2 1
+				1000 0 0 3 &mpic 3 1
+				1000 0 0 4 &mpic 4 1
 
 				/* IDSEL 0x03 */
-				1800 0 0 1 &mpic 34 1
-				1800 0 0 2 &mpic 31 1
-				1800 0 0 3 &mpic 32 1
-				1800 0 0 4 &mpic 33 1
+				1800 0 0 1 &mpic 4 1
+				1800 0 0 2 &mpic 1 1
+				1800 0 0 3 &mpic 2 1
+				1800 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x04 */
-				2000 0 0 1 &mpic 33 1
-				2000 0 0 2 &mpic 34 1
-				2000 0 0 3 &mpic 31 1
-				2000 0 0 4 &mpic 32 1
+				2000 0 0 1 &mpic 3 1
+				2000 0 0 2 &mpic 4 1
+				2000 0 0 3 &mpic 1 1
+				2000 0 0 4 &mpic 2 1
 
 				/* IDSEL 0x05 */
-				2800 0 0 1 &mpic 32 1
-				2800 0 0 2 &mpic 33 1
-				2800 0 0 3 &mpic 34 1
-				2800 0 0 4 &mpic 31 1
+				2800 0 0 1 &mpic 2 1
+				2800 0 0 2 &mpic 3 1
+				2800 0 0 3 &mpic 4 1
+				2800 0 0 4 &mpic 1 1
 
 				/* IDSEL 0x0c */
-				6000 0 0 1 &mpic 31 1
-				6000 0 0 2 &mpic 32 1
-				6000 0 0 3 &mpic 33 1
-				6000 0 0 4 &mpic 34 1
+				6000 0 0 1 &mpic 1 1
+				6000 0 0 2 &mpic 2 1
+				6000 0 0 3 &mpic 3 1
+				6000 0 0 4 &mpic 4 1
 
 				/* IDSEL 0x0d */
-				6800 0 0 1 &mpic 34 1
-				6800 0 0 2 &mpic 31 1
-				6800 0 0 3 &mpic 32 1
-				6800 0 0 4 &mpic 33 1
+				6800 0 0 1 &mpic 4 1
+				6800 0 0 2 &mpic 1 1
+				6800 0 0 3 &mpic 2 1
+				6800 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x0e */
-				7000 0 0 1 &mpic 33 1
-				7000 0 0 2 &mpic 34 1
-				7000 0 0 3 &mpic 31 1
-				7000 0 0 4 &mpic 32 1
+				7000 0 0 1 &mpic 3 1
+				7000 0 0 2 &mpic 4 1
+				7000 0 0 3 &mpic 1 1
+				7000 0 0 4 &mpic 2 1
 
 				/* IDSEL 0x0f */
-				7800 0 0 1 &mpic 32 1
-				7800 0 0 2 &mpic 33 1
-				7800 0 0 3 &mpic 34 1
-				7800 0 0 4 &mpic 31 1
+				7800 0 0 1 &mpic 2 1
+				7800 0 0 2 &mpic 3 1
+				7800 0 0 3 &mpic 4 1
+				7800 0 0 4 &mpic 1 1
 
 				/* IDSEL 0x12 */
-				9000 0 0 1 &mpic 31 1
-				9000 0 0 2 &mpic 32 1
-				9000 0 0 3 &mpic 33 1
-				9000 0 0 4 &mpic 34 1
+				9000 0 0 1 &mpic 1 1
+				9000 0 0 2 &mpic 2 1
+				9000 0 0 3 &mpic 3 1
+				9000 0 0 4 &mpic 4 1
 
 				/* IDSEL 0x13 */
-				9800 0 0 1 &mpic 34 1
-				9800 0 0 2 &mpic 31 1
-				9800 0 0 3 &mpic 32 1
-				9800 0 0 4 &mpic 33 1
+				9800 0 0 1 &mpic 4 1
+				9800 0 0 2 &mpic 1 1
+				9800 0 0 3 &mpic 2 1
+				9800 0 0 4 &mpic 3 1
 
 				/* IDSEL 0x14 */
-				a000 0 0 1 &mpic 33 1
-				a000 0 0 2 &mpic 34 1
-				a000 0 0 3 &mpic 31 1
-				a000 0 0 4 &mpic 32 1
+				a000 0 0 1 &mpic 3 1
+				a000 0 0 2 &mpic 4 1
+				a000 0 0 3 &mpic 1 1
+				a000 0 0 4 &mpic 2 1
 
 				/* IDSEL 0x15 */
-				a800 0 0 1 &mpic 32 1
-				a800 0 0 2 &mpic 33 1
-				a800 0 0 3 &mpic 34 1
-				a800 0 0 4 &mpic 31 1>;
+				a800 0 0 1 &mpic 2 1
+				a800 0 0 2 &mpic 3 1
+				a800 0 0 3 &mpic 4 1
+				a800 0 0 4 &mpic 1 1>;
 			interrupt-parent = <&mpic>;
-			interrupts = <08 2>;
+			interrupts = <18 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 00100000>;

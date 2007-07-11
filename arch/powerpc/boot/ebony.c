@@ -100,28 +100,13 @@ static void ebony_fixups(void)
 	ibm440gp_fixup_clocks(sysclk, 6 * 1843200);
 	ibm44x_fixup_memsize();
 	dt_fixup_mac_addresses(ebony_mac0, ebony_mac1);
-}
-
-#define SPRN_DBCR0		0x134
-#define   DBCR0_RST_SYSTEM	0x30000000
-
-static void ebony_exit(void)
-{
-	unsigned long tmp;
-
-	asm volatile (
-		"mfspr	%0,%1\n"
-		"oris	%0,%0,%2@h\n"
-		"mtspr	%1,%0"
-		: "=&r"(tmp) : "i"(SPRN_DBCR0), "i"(DBCR0_RST_SYSTEM)
-		);
-
+	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 }
 
 void ebony_init(void *mac0, void *mac1)
 {
 	platform_ops.fixups = ebony_fixups;
-	platform_ops.exit = ebony_exit;
+	platform_ops.exit = ibm44x_dbcr_reset;
 	ebony_mac0 = mac0;
 	ebony_mac1 = mac1;
 	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);

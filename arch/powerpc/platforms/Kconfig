@@ -2,7 +2,7 @@ menu "Platform support"
 
 choice
 	prompt "Machine type"
-	depends on PPC64 || CLASSIC32
+	depends on PPC64 || 6xx
 	default PPC_MULTIPLATFORM
 
 config PPC_MULTIPLATFORM
@@ -16,14 +16,29 @@ config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
 	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
 
-config APUS
-	bool "Amiga-APUS"
-	depends on PPC32 && BROKEN
+config PPC_82xx
+	bool "Freescale 82xx"
+	depends on 6xx
+
+config PPC_83xx
+	bool "Freescale 83xx"
+	depends on 6xx
+	select FSL_SOC
+	select 83xx
+	select WANT_DEVICE_TREE
+
+config PPC_86xx
+	bool "Freescale 86xx"
+	depends on 6xx
+	select FSL_SOC
+	select ALTIVEC
 	help
-	  Select APUS if configuring for a PowerUP Amiga.
-	  More information is available at:
-	  <http://linux-apus.sourceforge.net/>.
+	  The Freescale E600 SoCs have 74xx cores.
 endchoice
+
+config CLASSIC32
+	def_bool y
+	depends on 6xx && PPC_MULTIPLATFORM
 
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"

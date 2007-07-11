@@ -34,9 +34,9 @@
 #include <asm/syscalls.h>
 #include <asm/vdso.h>
 
-#define DEBUG_SIG 0
+#include "signal.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
+#define DEBUG_SIG 0
 
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
 #define FP_REGS_SIZE	sizeof(elf_fpregset_t)
@@ -63,14 +63,6 @@ struct rt_sigframe {
 	/* 64 bit ABI allows for 288 bytes below sp before decrementing it. */
 	char abigap[288];
 } __attribute__ ((aligned (16)));
-
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss, unsigned long r5,
-		     unsigned long r6, unsigned long r7, unsigned long r8,
-		     struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->gpr[1]);
-}
-
 
 /*
  * Set up the sigcontext for the signal frame.
@@ -208,25 +200,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 }
 
 /*
- * Allocate space for the signal frame
- */
-static inline void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-				  size_t frame_size)
-{
-        unsigned long newsp;
-
-        /* Default to using normal stack */
-        newsp = regs->gpr[1];
-
-	if ((ka->sa.sa_flags & SA_ONSTACK) && current->sas_ss_size) {
-		if (! on_sig_stack(regs->gpr[1]))
-			newsp = (current->sas_ss_sp + current->sas_ss_size);
-	}
-
-        return (void __user *)((newsp - frame_size) & -16ul);
-}
-
-/*
  * Setup the trampoline code on the stack
  */
 static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
@@ -251,19 +224,6 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 
 	return err;
 }
-
-/*
- * Restore the user process's signal mask (also used by signal32.c)
- */
-void restore_sigmask(sigset_t *set)
-{
-	sigdelsetmask(set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = *set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-
 
 /*
  * Handle {get,set,swap}_context operations
@@ -359,7 +319,7 @@ badframe:
 	return 0;
 }
 
-static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
+int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 		sigset_t *set, struct pt_regs *regs)
 {
 	/* Handler is *really* a pointer to the function descriptor for
@@ -373,8 +333,7 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	long err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
-
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (unlikely(frame == NULL))
 		goto badframe;
 
 	err |= __put_user(&frame->info, &frame->pinfo);
@@ -411,7 +370,7 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	funct_desc_ptr = (func_descr_t __user *) ka->sa.sa_handler;
 
 	/* Allocate a dummy caller frame for the signal handler. */
-	newsp = (unsigned long)frame - __SIGNAL_FRAMESIZE;
+	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
 	err |= put_user(regs->gpr[1], (unsigned long __user *)newsp);
 
 	/* Set up "regs" so we "return" to the signal handler. */
@@ -442,134 +401,3 @@ badframe:
 	force_sigsegv(signr, current);
 	return 0;
 }
-
-
-/*
- * OK, we're invoking a handler
- */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
-			 siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
-{
-	int ret;
-
-	/* Set up Signal Frame */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
-
-	if (ret) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked,sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-
-	return ret;
-}
-
-static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
-{
-	switch ((int)regs->result) {
-	case -ERESTART_RESTARTBLOCK:
-	case -ERESTARTNOHAND:
-		/* ERESTARTNOHAND means that the syscall should only be
-		 * restarted if there was no handler for the signal, and since
-		 * we only get here if there is a handler, we dont restart.
-		 */
-		regs->result = -EINTR;
-		regs->gpr[3] = EINTR;
-		regs->ccr |= 0x10000000;
-		break;
-	case -ERESTARTSYS:
-		/* ERESTARTSYS means to restart the syscall if there is no
-		 * handler or the handler was registered with SA_RESTART
-		 */
-		if (!(ka->sa.sa_flags & SA_RESTART)) {
-			regs->result = -EINTR;
-			regs->gpr[3] = EINTR;
-			regs->ccr |= 0x10000000;
-			break;
-		}
-		/* fallthrough */
-	case -ERESTARTNOINTR:
-		/* ERESTARTNOINTR means that the syscall should be
-		 * called again after the signal handler returns.
-		 */
-		regs->gpr[3] = regs->orig_gpr3;
-		regs->nip -= 4;
-		regs->result = 0;
-		break;
-	}
-}
-
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- */
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
-{
-	siginfo_t info;
-	int signr;
-	struct k_sigaction ka;
-
-	/*
-	 * If the current thread is 32 bit - invoke the
-	 * 32 bit signal handling code
-	 */
-	if (test_thread_flag(TIF_32BIT))
-		return do_signal32(oldset, regs);
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		int ret;
-
-		/* Whee!  Actually deliver the signal.  */
-		if (TRAP(regs) == 0x0C00)
-			syscall_restart(regs, &ka);
-
-		/*
-		 * Reenable the DABR before delivering the signal to
-		 * user space. The DABR will have been cleared if it
-		 * triggered inside the kernel.
-		 */
-		if (current->thread.dabr)
-			set_dabr(current->thread.dabr);
-
-		ret = handle_signal(signr, &ka, &info, oldset, regs);
-
-		/* If a signal was successfully delivered, the saved sigmask is in
-		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
-		if (ret && test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-		return ret;
-	}
-
-	if (TRAP(regs) == 0x0C00) {	/* System Call! */
-		if ((int)regs->result == -ERESTARTNOHAND ||
-		    (int)regs->result == -ERESTARTSYS ||
-		    (int)regs->result == -ERESTARTNOINTR) {
-			regs->gpr[3] = regs->orig_gpr3;
-			regs->nip -= 4; /* Back up & retry system call */
-			regs->result = 0;
-		} else if ((int)regs->result == -ERESTART_RESTARTBLOCK) {
-			regs->gpr[0] = __NR_restart_syscall;
-			regs->nip -= 4;
-			regs->result = 0;
-		}
-	}
-	/* No signal to deliver -- put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(do_signal);

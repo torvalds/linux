@@ -8,7 +8,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -37,7 +36,6 @@
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
-int io_bat_index;
 
 #if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
 #define HAVE_BATS	1
@@ -300,51 +298,6 @@ void __init mapin_ram(void)
 	}
 }
 
-/* is x a power of 4? */
-#define is_power_of_4(x)	is_power_of_2(x) && (ffs(x) & 1)
-
-/*
- * Set up a mapping for a block of I/O.
- * virt, phys, size must all be page-aligned.
- * This should only be called before ioremap is called.
- */
-void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags)
-{
-	int i;
-
-	if (virt > KERNELBASE && virt < ioremap_bot)
-		ioremap_bot = ioremap_base = virt;
-
-#ifdef HAVE_BATS
-	/*
-	 * Use a BAT for this if possible...
-	 */
-	if (io_bat_index < 2 && is_power_of_2(size)
-	    && (virt & (size - 1)) == 0 && (phys & (size - 1)) == 0) {
-		setbat(io_bat_index, virt, phys, size, flags);
-		++io_bat_index;
-		return;
-	}
-#endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-	/*
-	 * Use a CAM for this if possible...
-	 */
-	if (tlbcam_index < num_tlbcam_entries && is_power_of_4(size)
-	    && (virt & (size - 1)) == 0 && (phys & (size - 1)) == 0) {
-		settlbcam(tlbcam_index, virt, phys, size, flags, 0);
-		++tlbcam_index;
-		return;
-	}
-#endif /* HAVE_TLBCAM */
-
-	/* No BATs available, put it in the page tables. */
-	for (i = 0; i < size; i += PAGE_SIZE)
-		map_page(virt + i, phys + i, flags);
-}
-
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
@@ -377,82 +330,6 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 		}
         }
         return(retval);
-}
-
-/* Find physical address for this virtual address.  Normally used by
- * I/O functions, but anyone can call it.
- */
-unsigned long iopa(unsigned long addr)
-{
-	unsigned long pa;
-
-	/* I don't know why this won't work on PMacs or CHRP.  It
-	 * appears there is some bug, or there is some implicit
-	 * mapping done not properly represented by BATs or in page
-	 * tables.......I am actively working on resolving this, but
-	 * can't hold up other stuff.  -- Dan
-	 */
-	pte_t *pte;
-	struct mm_struct *mm;
-
-	/* Check the BATs */
-	pa = v_mapped_by_bats(addr);
-	if (pa)
-		return pa;
-
-	/* Allow mapping of user addresses (within the thread)
-	 * for DMA if necessary.
-	 */
-	if (addr < TASK_SIZE)
-		mm = current->mm;
-	else
-		mm = &init_mm;
-
-	pa = 0;
-	if (get_pteptr(mm, addr, &pte, NULL)) {
-		pa = (pte_val(*pte) & PAGE_MASK) | (addr & ~PAGE_MASK);
-		pte_unmap(pte);
-	}
-
-	return(pa);
-}
-
-/* This is will find the virtual address for a physical one....
- * Swiped from APUS, could be dangerous :-).
- * This is only a placeholder until I really find a way to make this
- * work.  -- Dan
- */
-unsigned long
-mm_ptov (unsigned long paddr)
-{
-	unsigned long ret;
-#if 0
-	if (paddr < 16*1024*1024)
-		ret = ZTWO_VADDR(paddr);
-	else {
-		int i;
-
-		for (i = 0; i < kmap_chunk_count;){
-			unsigned long phys = kmap_chunks[i++];
-			unsigned long size = kmap_chunks[i++];
-			unsigned long virt = kmap_chunks[i++];
-			if (paddr >= phys
-			    && paddr < (phys + size)){
-				ret = virt + paddr - phys;
-				goto exit;
-			}
-		}
-	
-		ret = (unsigned long) __va(paddr);
-	}
-exit:
-#ifdef DEBUGPV
-	printk ("PTOV(%lx)=%lx\n", paddr, ret);
-#endif
-#else
-	ret = (unsigned long)paddr + KERNELBASE;
-#endif
-	return ret;
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC

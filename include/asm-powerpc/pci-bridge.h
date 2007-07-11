@@ -2,12 +2,91 @@
 #define _ASM_POWERPC_PCI_BRIDGE_H
 #ifdef __KERNEL__
 
-#ifndef CONFIG_PPC64
-#include <asm-ppc/pci-bridge.h>
-#else
-
 #include <linux/pci.h>
 #include <linux/list.h>
+#include <linux/ioport.h>
+
+#ifndef CONFIG_PPC64
+
+struct device_node;
+struct pci_controller;
+
+/*
+ * Structure of a PCI controller (host bridge)
+ */
+struct pci_controller {
+	struct pci_bus *bus;
+	char is_dynamic;
+	void *arch_data;
+	struct list_head list_node;
+	struct device *parent;
+
+	int first_busno;
+	int last_busno;
+	int self_busno;
+
+	void __iomem *io_base_virt;
+	resource_size_t io_base_phys;
+
+	/* Some machines (PReP) have a non 1:1 mapping of
+	 * the PCI memory space in the CPU bus space
+	 */
+	resource_size_t pci_mem_offset;
+
+	struct pci_ops *ops;
+	volatile unsigned int __iomem *cfg_addr;
+	volatile void __iomem *cfg_data;
+
+	/*
+	 * Used for variants of PCI indirect handling and possible quirks:
+	 *  SET_CFG_TYPE - used on 4xx or any PHB that does explicit type0/1
+	 *  EXT_REG - provides access to PCI-e extended registers
+	 *  SURPRESS_PRIMARY_BUS - we surpress the setting of PCI_PRIMARY_BUS
+	 *   on Freescale PCI-e controllers since they used the PCI_PRIMARY_BUS
+	 *   to determine which bus number to match on when generating type0
+	 *   config cycles
+	 */
+#define PPC_INDIRECT_TYPE_SET_CFG_TYPE		(0x00000001)
+#define PPC_INDIRECT_TYPE_EXT_REG		(0x00000002)
+#define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	(0x00000004)
+	u32 indirect_type;
+
+	/* Currently, we limit ourselves to 1 IO range and 3 mem
+	 * ranges since the common pci_bus structure can't handle more
+	 */
+	struct resource	io_resource;
+	struct resource mem_resources[3];
+	int global_number;		/* PCI domain number */
+};
+
+static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
+{
+	return bus->sysdata;
+}
+
+/* These are used for config access before all the PCI probing
+   has been done. */
+int early_read_config_byte(struct pci_controller *hose, int bus, int dev_fn,
+			   int where, u8 *val);
+int early_read_config_word(struct pci_controller *hose, int bus, int dev_fn,
+			   int where, u16 *val);
+int early_read_config_dword(struct pci_controller *hose, int bus, int dev_fn,
+			    int where, u32 *val);
+int early_write_config_byte(struct pci_controller *hose, int bus, int dev_fn,
+			    int where, u8 val);
+int early_write_config_word(struct pci_controller *hose, int bus, int dev_fn,
+			    int where, u16 val);
+int early_write_config_dword(struct pci_controller *hose, int bus, int dev_fn,
+			     int where, u32 val);
+
+extern void setup_indirect_pci_nomap(struct pci_controller* hose,
+			       void __iomem *cfg_addr, void __iomem *cfg_data);
+extern void setup_indirect_pci(struct pci_controller* hose,
+			       u32 cfg_addr, u32 cfg_data);
+extern void setup_grackle(struct pci_controller *hose);
+
+#else
+
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -31,6 +110,7 @@ struct pci_controller {
 	int last_busno;
 
 	void __iomem *io_base_virt;
+	void *io_base_alloc;
 	resource_size_t io_base_phys;
 
 	/* Some machines have a non 1:1 mapping of
@@ -48,8 +128,7 @@ struct pci_controller {
 	 */
 	struct resource io_resource;
 	struct resource mem_resources[3];
-	int global_number;		
-	int local_number;		
+	int global_number;
 	unsigned long buid;
 	unsigned long dma_window_base_cur;
 	unsigned long dma_window_size;
@@ -70,19 +149,22 @@ struct pci_dn {
 	int	devfn;			/* pci device and function number */
 	int	class_code;		/* pci device class */
 
-#ifdef CONFIG_PPC_PSERIES
+	struct  pci_controller *phb;	/* for pci devices */
+	struct	iommu_table *iommu_table;	/* for phb's or bridges */
+	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
+	struct	device_node *node;	/* back-pointer to the device_node */
+
+	int	pci_ext_config_space;	/* for pci devices */
+
+#ifdef CONFIG_EEH
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
 	int	eeh_pe_config_addr; /* new-style partition endpoint address */
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
-#endif
-	int	pci_ext_config_space;	/* for pci devices */
-	struct  pci_controller *phb;	/* for pci devices */
-	struct	iommu_table *iommu_table;	/* for phb's or bridges */
-	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
-	struct	device_node *node;	/* back-pointer to the device_node */
+	int 	eeh_false_positives;	/* # times this device reported #ff's */
 	u32	config_space[16];	/* saved PCI config space */
+#endif
 };
 
 /* Get the pointer to a device_node's pci_dn */
@@ -128,9 +210,6 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 /** Find the bus corresponding to the indicated device node */
 struct pci_bus * pcibios_find_pci_bus(struct device_node *dn);
 
-extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-					 struct device_node *dev, int primary);
-
 /** Remove all of the PCI devices under this bus */
 void pcibios_remove_pci_devices(struct pci_bus *bus);
 
@@ -148,21 +227,12 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
-extern struct pci_controller*
-pci_find_hose_for_OF_device(struct device_node* node);
-
-extern struct pci_controller *
-pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 
-#ifdef CONFIG_PCI
-extern unsigned long pci_address_to_pio(phys_addr_t address);
-#else
-static inline unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	return (unsigned long)-1;
-}
-#endif
+extern void isa_bridge_find_early(struct pci_controller *hose);
+
+extern int pcibios_unmap_io_space(struct pci_bus *bus);
+extern int pcibios_map_io_space(struct pci_bus *bus);
 
 /* Return values for ppc_md.pci_probe_mode function */
 #define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
@@ -176,5 +246,29 @@ static inline unsigned long pci_address_to_pio(phys_addr_t address)
 #endif
 
 #endif /* CONFIG_PPC64 */
+
+/* Get the PCI host controller for an OF device */
+extern struct pci_controller*
+pci_find_hose_for_OF_device(struct device_node* node);
+
+/* Fill up host controller resources from the OF node */
+extern void
+pci_process_bridge_OF_ranges(struct pci_controller *hose,
+			   struct device_node *dev, int primary);
+
+/* Allocate a new PCI host bridge structure */
+extern struct pci_controller *
+pcibios_alloc_controller(struct device_node *dev);
+#ifdef CONFIG_PCI
+extern unsigned long pci_address_to_pio(phys_addr_t address);
+#else
+static inline unsigned long pci_address_to_pio(phys_addr_t address)
+{
+	return (unsigned long)-1;
+}
+#endif
+
+
+
 #endif /* __KERNEL__ */
 #endif

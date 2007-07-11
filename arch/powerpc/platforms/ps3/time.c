@@ -39,7 +39,7 @@ static void _dump_tm(const struct rtc_time *tm, const char* func, int line)
 }
 
 #define dump_time(_a) _dump_time(_a, __func__, __LINE__)
-static void __attribute__ ((unused)) _dump_time(int time, const char* func,
+static void __maybe_unused _dump_time(int time, const char *func,
 	int line)
 {
 	struct rtc_time tm;

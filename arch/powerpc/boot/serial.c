@@ -27,7 +27,7 @@ static int serial_open(void)
 	return scdp->open();
 }
 
-static void serial_write(char *buf, int len)
+static void serial_write(const char *buf, int len)
 {
 	struct serial_console_data *scdp = console_ops.data;
 

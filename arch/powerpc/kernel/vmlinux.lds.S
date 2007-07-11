@@ -7,6 +7,7 @@
 #define PROVIDE32(x)	PROVIDE(x)
 #endif
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/cache.h>
 
 ENTRY(_stext)
 
@@ -209,6 +210,11 @@ SECTIONS
 
 	.data.cacheline_aligned : {
 		*(.data.cacheline_aligned)
+	}
+
+	. = ALIGN(L1_CACHE_BYTES);
+	.data.read_mostly : {
+		*(.data.read_mostly)
 	}
 
 	. = ALIGN(PAGE_SIZE);

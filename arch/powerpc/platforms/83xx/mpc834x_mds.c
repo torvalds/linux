@@ -38,61 +38,17 @@
 
 #include "mpc83xx.h"
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-#endif
-
 #define BCSR5_INT_USB		0x02
-/* Note: This is only for PB, not for PB+PIB
- * On PB only port0 is connected using ULPI */
-static int mpc834x_usb_cfg(void)
+static int mpc834xemds_usb_cfg(void)
 {
-	unsigned long sccr, sicrl;
-	void __iomem *immap;
+	struct device_node *np;
 	void __iomem *bcsr_regs = NULL;
 	u8 bcsr5;
-	struct device_node *np = NULL;
-	int port0_is_dr = 0;
 
-	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr")) != NULL)
-		port0_is_dr = 1;
-	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-mph")) != NULL){
-		if (port0_is_dr) {
-			printk(KERN_WARNING
-				"There is only one USB port on PB board! \n");
-			return -1;
-		} else if (!port0_is_dr)
-			/* No usb port enabled */
-			return -1;
-	}
-
-	immap = ioremap(get_immrbase(), 0x1000);
-	if (!immap)
-		return -1;
-
-	/* Configure clock */
-	sccr = in_be32(immap + MPC83XX_SCCR_OFFS);
-	if (port0_is_dr)
-		sccr |= MPC83XX_SCCR_USB_DRCM_11;  /* 1:3 */
-	else
-		sccr |= MPC83XX_SCCR_USB_MPHCM_11; /* 1:3 */
-	out_be32(immap + MPC83XX_SCCR_OFFS, sccr);
-
-	/* Configure Pin */
-	sicrl = in_be32(immap + MPC83XX_SICRL_OFFS);
-	/* set port0 only */
-	if (port0_is_dr)
-		sicrl |= MPC83XX_SICRL_USB0;
-	else
-		sicrl &= ~(MPC83XX_SICRL_USB0);
-	out_be32(immap + MPC83XX_SICRL_OFFS, sicrl);
-
-	iounmap(immap);
-
+	mpc834x_usb_cfg();
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
-	if (np != 0) {
+	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
@@ -129,12 +85,12 @@ static void __init mpc834x_mds_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc83xx_add_bridge(np);
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
 
-	mpc834x_usb_cfg();
+	mpc834xemds_usb_cfg();
 }
 
 static void __init mpc834x_mds_init_IRQ(void)

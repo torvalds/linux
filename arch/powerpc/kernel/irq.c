@@ -7,7 +7,6 @@
  *    Copyright (C) 1996-2001 Cort Dougan
  *  Adapted for Power Macintosh by Paul Mackerras
  *    Copyright (C) 1996 Paul Mackerras (paulus@cs.anu.edu.au)
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -337,7 +336,8 @@ void do_IRQ(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-	ppc_md.init_IRQ();
+	if (ppc_md.init_IRQ)
+		ppc_md.init_IRQ();
 #ifdef CONFIG_PPC64
 	irq_ctx_init();
 #endif
@@ -597,6 +597,49 @@ static void irq_radix_rdunlock(unsigned long flags)
 	local_irq_restore(flags);
 }
 
+static int irq_setup_virq(struct irq_host *host, unsigned int virq,
+			    irq_hw_number_t hwirq)
+{
+	/* Clear IRQ_NOREQUEST flag */
+	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
+
+	/* map it */
+	smp_wmb();
+	irq_map[virq].hwirq = hwirq;
+	smp_mb();
+
+	if (host->ops->map(host, virq, hwirq)) {
+		pr_debug("irq: -> mapping failed, freeing\n");
+		irq_free_virt(virq, 1);
+		return -1;
+	}
+
+	return 0;
+}
+
+unsigned int irq_create_direct_mapping(struct irq_host *host)
+{
+	unsigned int virq;
+
+	if (host == NULL)
+		host = irq_default_host;
+
+	BUG_ON(host == NULL);
+	WARN_ON(host->revmap_type != IRQ_HOST_MAP_NOMAP);
+
+	virq = irq_alloc_virt(host, 1, 0);
+	if (virq == NO_IRQ) {
+		pr_debug("irq: create_direct virq allocation failed\n");
+		return NO_IRQ;
+	}
+
+	pr_debug("irq: create_direct obtained virq %d\n", virq);
+
+	if (irq_setup_virq(host, virq, virq))
+		return NO_IRQ;
+
+	return virq;
+}
 
 unsigned int irq_create_mapping(struct irq_host *host,
 				irq_hw_number_t hwirq)
@@ -645,18 +688,9 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 	pr_debug("irq: -> obtained virq %d\n", virq);
 
-	/* Clear IRQ_NOREQUEST flag */
-	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
-
-	/* map it */
-	smp_wmb();
-	irq_map[virq].hwirq = hwirq;
-	smp_mb();
-	if (host->ops->map(host, virq, hwirq)) {
-		pr_debug("irq: -> mapping failed, freeing\n");
-		irq_free_virt(virq, 1);
+	if (irq_setup_virq(host, virq, hwirq))
 		return NO_IRQ;
-	}
+
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);

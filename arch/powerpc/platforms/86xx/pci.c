@@ -122,7 +122,6 @@ static void __init
 mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 {
 	u16 cmd;
-	unsigned int temps;
 
 	DBG("PCIE host controller register offset 0x%08x, size 0x%08x.\n",
 			pcie_offset, pcie_size);
@@ -133,22 +132,49 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_write_config_word(hose, 0, 0, PCI_COMMAND, cmd);
 
 	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
-
-	/* PCIE Bus, Fix the MPC8641D host bridge's location to bus 0xFF. */
-	early_read_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, &temps);
-	temps = (temps & 0xff000000) | (0xff) | (0x0 << 8) | (0xfe << 16);
-	early_write_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, temps);
 }
 
-int mpc86xx_exclude_device(u_char bus, u_char devfn)
+static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
 {
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+	struct resource *res;
+	int i, res_idx = PCI_BRIDGE_RESOURCES;
+	struct pci_controller *hose;
 
-	return PCIBIOS_SUCCESSFUL;
+	/*
+	 * Make the bridge be transparent.
+	 */
+	dev->transparent = 1;
+
+	hose = pci_bus_to_host(dev->bus);
+	if (!hose) {
+		printk(KERN_ERR "Can't find hose for bus %d\n",
+		       dev->bus->number);
+		return;
+	}
+
+	if (hose->io_resource.flags) {
+		res = &dev->resource[res_idx++];
+		res->start = hose->io_resource.start;
+		res->end = hose->io_resource.end;
+		res->flags = hose->io_resource.flags;
+	}
+
+	for (i = 0; i < 3; i++) {
+		res = &dev->resource[res_idx + i];
+		res->start = hose->mem_resources[i].start;
+		res->end = hose->mem_resources[i].end;
+		res->flags = hose->mem_resources[i].flags;
+	}
 }
 
-int __init add_bridge(struct device_node *dev)
+
+DECLARE_PCI_FIXUP_EARLY(0x1957, 0x7010, quirk_fsl_pcie_transparent);
+DECLARE_PCI_FIXUP_EARLY(0x1957, 0x7011, quirk_fsl_pcie_transparent);
+
+#define PCIE_LTSSM	0x404	/* PCIe Link Training and Status */
+#define PCIE_LTSSM_L0	0x16	/* L0 state */
+
+int __init mpc86xx_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -156,6 +182,7 @@ int __init add_bridge(struct device_node *dev)
 	const int *bus_range;
 	int has_address = 0;
 	int primary = 0;
+	u16 val;
 
 	DBG("Adding PCIE host bridge %s\n", dev->full_name);
 
@@ -168,17 +195,23 @@ int __init add_bridge(struct device_node *dev)
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);
 
-	hose = pcibios_alloc_controller();
+	pci_assign_all_buses = 1;
+	hose = pcibios_alloc_controller(dev);
 	if (!hose)
 		return -ENOMEM;
-	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
-	/* last_busno = 0xfe cause by MPC8641 PCIE bug */
+	hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG |
+				PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
+
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xfe;
+	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	setup_indirect_pcie(hose, rsrc.start, rsrc.start + 0x4);
+	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4);
+
+	/* Probe the hose link training status */
+	early_read_config_word(hose, 0, 0, PCIE_LTSSM, &val);
+	if (val < PCIE_LTSSM_L0)
+		return -ENXIO;
 
 	/* Setup the PCIE host controller. */
 	mpc86xx_setup_pcie(hose, rsrc.start, rsrc.end - rsrc.start + 1);

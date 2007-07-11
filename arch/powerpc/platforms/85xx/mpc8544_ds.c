@@ -61,23 +61,10 @@ void __init mpc8544_ds_pic_init(void)
 		return;
 	}
 
-	/* Alloc mpic structure and per isu has 16 INT entries. */
 	mpic = mpic_alloc(np, r.start,
 			  MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			  16, 64, " OPENPIC     ");
+			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
-
-	/*
-	 * 48 Internal Interrupts
-	 */
-	mpic_assign_isu(mpic, 0, r.start + 0x10200);
-	mpic_assign_isu(mpic, 1, r.start + 0x10400);
-	mpic_assign_isu(mpic, 2, r.start + 0x10600);
-
-	/*
-	 * 16 External interrupts
-	 */
-	mpic_assign_isu(mpic, 3, r.start + 0x10000);
 
 	mpic_init(mpic);
 

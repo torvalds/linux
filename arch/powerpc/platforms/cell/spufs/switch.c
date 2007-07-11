@@ -70,7 +70,7 @@
   }
 #endif				/* debug */
 
-#define POLL_WHILE_FALSE(_c) 	POLL_WHILE_TRUE(!(_c))
+#define POLL_WHILE_FALSE(_c)	POLL_WHILE_TRUE(!(_c))
 
 static inline void acquire_spu_lock(struct spu *spu)
 {
@@ -385,6 +385,19 @@ static inline void save_ppu_querytype(struct spu_state *csa, struct spu *spu)
 	 *     in the CSA.
 	 */
 	csa->prob.dma_querytype_RW = in_be32(&prob->dma_querytype_RW);
+}
+
+static inline void save_ppu_tagstatus(struct spu_state *csa, struct spu *spu)
+{
+	struct spu_problem __iomem *prob = spu->problem;
+
+	/* Save the Prxy_TagStatus register in the CSA.
+	 *
+	 * It is unnecessary to restore dma_tagstatus_R, however,
+	 * dma_tagstatus_R in the CSA is accessed via backing_ops, so
+	 * we must save it.
+	 */
+	csa->prob.dma_tagstatus_R = in_be32(&prob->dma_tagstatus_R);
 }
 
 static inline void save_mfc_csr_tsq(struct spu_state *csa, struct spu *spu)
@@ -1812,6 +1825,7 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	save_mfc_queues(prev, spu);	/* Step 19. */
 	save_ppu_querymask(prev, spu);	/* Step 20. */
 	save_ppu_querytype(prev, spu);	/* Step 21. */
+	save_ppu_tagstatus(prev, spu);  /* NEW.     */
 	save_mfc_csr_tsq(prev, spu);	/* Step 22. */
 	save_mfc_csr_cmd(prev, spu);	/* Step 23. */
 	save_mfc_csr_ato(prev, spu);	/* Step 24. */
@@ -1930,7 +1944,7 @@ static void harvest(struct spu_state *prev, struct spu *spu)
 	reset_spu_privcntl(prev, spu);	        /* Step 16. */
 	reset_spu_lslr(prev, spu);              /* Step 17. */
 	setup_mfc_sr1(prev, spu);	        /* Step 18. */
-	spu_invalidate_slbs(spu);        	/* Step 19. */
+	spu_invalidate_slbs(spu);		/* Step 19. */
 	reset_ch_part1(prev, spu);	        /* Step 20. */
 	reset_ch_part2(prev, spu);	        /* Step 21. */
 	enable_interrupts(prev, spu);	        /* Step 22. */

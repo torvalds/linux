@@ -11,8 +11,7 @@ obj-$(CONFIG_PPC32)		+= init_32.o pgtable_32.o mmu_context_32.o
 hash-$(CONFIG_PPC_NATIVE)	:= hash_native_64.o
 obj-$(CONFIG_PPC64)		+= init_64.o pgtable_64.o mmu_context_64.o \
 				   hash_utils_64.o hash_low_64.o tlb_64.o \
-				   slb_low.o slb.o stab.o mmap.o imalloc.o \
-				   $(hash-y)
+				   slb_low.o slb.o stab.o mmap.o $(hash-y)
 obj-$(CONFIG_PPC_STD_MMU_32)	+= ppc_mmu_32.o hash_low_32.o tlb_32.o
 obj-$(CONFIG_40x)		+= 4xx_mmu.o
 obj-$(CONFIG_44x)		+= 44x_mmu.o

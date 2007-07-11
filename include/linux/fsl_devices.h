@@ -120,5 +120,10 @@ struct fsl_spi_platform_data {
 	u32	sysclk;
 };
 
+struct mpc8xx_pcmcia_ops {
+	void(*hw_ctrl)(int slot, int enable);
+	int(*voltage_set)(int slot, int vcc, int vpp);
+};
+
 #endif /* _FSL_DEVICE_H_ */
 #endif /* __KERNEL__ */

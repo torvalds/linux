@@ -252,10 +252,10 @@ static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct gendisk *disk = bdev->bd_disk;
 	struct viodasd_device *d = disk->private_data;
 
-	geo->sectors = d->sectors ? d->sectors : 0;
+	geo->sectors = d->sectors ? d->sectors : 32;
 	geo->heads = d->tracks ? d->tracks  : 64;
 	geo->cylinders = d->cylinders ? d->cylinders :
-		get_capacity(disk) / (geo->cylinders * geo->heads);
+		get_capacity(disk) / (geo->sectors * geo->heads);
 
 	return 0;
 }

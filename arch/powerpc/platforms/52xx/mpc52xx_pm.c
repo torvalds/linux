@@ -9,8 +9,8 @@
 
 
 /* these are defined in mpc52xx_sleep.S, and only used here */
-extern void mpc52xx_deep_sleep(void *sram, void *sdram_regs,
-		struct mpc52xx_cdm *, struct mpc52xx_intr *);
+extern void mpc52xx_deep_sleep(void __iomem *sram, void __iomem *sdram_regs,
+		struct mpc52xx_cdm __iomem *, struct mpc52xx_intr __iomem*);
 extern void mpc52xx_ds_sram(void);
 extern const long mpc52xx_ds_sram_size;
 extern void mpc52xx_ds_cached(void);
@@ -21,7 +21,7 @@ static void __iomem *sdram;
 static struct mpc52xx_cdm __iomem *cdm;
 static struct mpc52xx_intr __iomem *intr;
 static struct mpc52xx_gpio_wkup __iomem *gpiow;
-static void *sram;
+static void __iomem *sram;
 static int sram_size;
 
 struct mpc52xx_suspend mpc52xx_suspend;
@@ -100,7 +100,7 @@ int mpc52xx_pm_enter(suspend_state_t state)
 	u32 clk_enables;
 	u32 msr, hid0;
 	u32 intr_main_mask;
-	void __iomem * irq_0x500 = (void *)CONFIG_KERNEL_START + 0x500;
+	void __iomem * irq_0x500 = (void __iomem *)CONFIG_KERNEL_START + 0x500;
 	unsigned long irq_0x500_stop = (unsigned long)irq_0x500 + mpc52xx_ds_cached_size;
 	char saved_0x500[mpc52xx_ds_cached_size];
 

@@ -444,7 +444,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	u3_ht = hose;
 }
 
-static int __init add_bridge(struct device_node *dev)
+static int __init maple_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -519,23 +519,6 @@ void __devinit maple_pci_irq_fixup(struct pci_dev *dev)
 	DBG(" <- maple_pci_irq_fixup\n");
 }
 
-static void __init maple_fixup_phb_resources(void)
-{
-	struct pci_controller *hose, *tmp;
-	
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		unsigned long offset = (unsigned long)hose->io_base_virt - pci_io_base;
-
-		hose->io_resource.start += offset;
-		hose->io_resource.end += offset;
-
-		printk(KERN_INFO "PCI Host %d, io start: %llx; io end: %llx\n",
-		       hose->global_number,
-		       (unsigned long long)hose->io_resource.start,
-		       (unsigned long long)hose->io_resource.end);
-	}
-}
-
 void __init maple_pci_init(void)
 {
 	struct device_node *np, *root;
@@ -558,7 +541,7 @@ void __init maple_pci_init(void)
 			continue;
 		if ((of_device_is_compatible(np, "u4-pcie") ||
 		     of_device_is_compatible(np, "u3-agp")) &&
-		    add_bridge(np) == 0)
+		    maple_add_bridge(np) == 0)
 			of_node_get(np);
 
 		if (of_device_is_compatible(np, "u3-ht")) {
@@ -570,26 +553,8 @@ void __init maple_pci_init(void)
 
 	/* Now setup the HyperTransport host if we found any
 	 */
-	if (ht && add_bridge(ht) != 0)
+	if (ht && maple_add_bridge(ht) != 0)
 		of_node_put(ht);
-
-        /*
-         * We need to call pci_setup_phb_io for the HT bridge first
-         * so it gets the I/O port numbers starting at 0, and we
-         * need to call it for the AGP bridge after that so it gets
-         * small positive I/O port numbers.
-         */
-        if (u3_ht)
-                pci_setup_phb_io(u3_ht, 1);
-        if (u3_agp)
-                pci_setup_phb_io(u3_agp, 0);
-        if (u4_pcie)
-                pci_setup_phb_io(u4_pcie, 0);
-
-	/* Fixup the IO resources on our host bridges as the common code
-	 * does it only for childs of the host bridges
-	 */
-	maple_fixup_phb_resources();
 
 	/* Setup the linkage between OF nodes and PHBs */ 
 	pci_devs_phb_init();

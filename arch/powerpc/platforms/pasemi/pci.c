@@ -132,7 +132,7 @@ static void __init setup_pa_pxp(struct pci_controller *hose)
 	hose->cfg_data = ioremap(0xe0000000, 0x10000000);
 }
 
-static int __init add_bridge(struct device_node *dev)
+static int __init pas_add_bridge(struct device_node *dev)
 {
 	struct pci_controller *hose;
 
@@ -150,28 +150,10 @@ static int __init add_bridge(struct device_node *dev)
 	printk(KERN_INFO "Found PA-PXP PCI host bridge.\n");
 
 	/* Interpret the "ranges" property */
-	/* This also maps the I/O region and sets isa_io/mem_base */
 	pci_process_bridge_OF_ranges(hose, dev, 1);
-	pci_setup_phb_io(hose, 1);
 
 	return 0;
 }
-
-
-static void __init pas_fixup_phb_resources(void)
-{
-	struct pci_controller *hose, *tmp;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		unsigned long offset = (unsigned long)hose->io_base_virt - pci_io_base;
-		hose->io_resource.start += offset;
-		hose->io_resource.end += offset;
-		printk(KERN_INFO "PCI Host %d, io start: %lx; io end: %lx\n",
-		       hose->global_number,
-		       hose->io_resource.start, hose->io_resource.end);
-	}
-}
-
 
 void __init pas_pci_init(void)
 {
@@ -185,12 +167,10 @@ void __init pas_pci_init(void)
 	}
 
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;)
-		if (np->name && !strcmp(np->name, "pxp") && !add_bridge(np))
+		if (np->name && !strcmp(np->name, "pxp") && !pas_add_bridge(np))
 			of_node_get(np);
 
 	of_node_put(root);
-
-	pas_fixup_phb_resources();
 
 	/* Setup the linkage between OF nodes and PHBs */
 	pci_devs_phb_init();

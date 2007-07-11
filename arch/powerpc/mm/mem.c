@@ -5,7 +5,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *  PPC44x/36-bit changes by Matt Porter (mporter@mvista.com)
  *
  *  Derived from "arch/i386/mm/init.c"
@@ -129,8 +128,6 @@ int __devinit arch_add_memory(int nid, u64 start, u64 size)
 	zone = pgdata->node_zones;
 
 	return __add_pages(zone, start_pfn, nr_pages);
-
-	return 0;
 }
 
 /*

@@ -49,7 +49,7 @@
 #include <linux/fs_enet_pd.h>
 
 #include <sysdev/fsl_soc.h>
-#include <../sysdev/cpm2_pic.h>
+#include <sysdev/cpm2_pic.h>
 
 #include "pq2ads.h"
 
@@ -507,7 +507,8 @@ void m82xx_pci_init_irq(void)
 	return;
 }
 
-static int m82xx_pci_exclude_device(u_char bus, u_char devfn)
+static int m82xx_pci_exclude_device(struct pci_controller *hose,
+				    u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -515,7 +516,7 @@ static int m82xx_pci_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 
-void __init add_bridge(struct device_node *np)
+static void __init mpc82xx_add_bridge(struct device_node *np)
 {
 	int len;
 	struct pci_controller *hose;
@@ -542,19 +543,13 @@ void __init add_bridge(struct device_node *np)
 
 	pci_assign_all_buses = 1;
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(np);
 
 	if (!hose)
 		return;
 
-	hose->arch_data = np;
-	hose->set_cfg_type = 1;
-
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-	hose->bus_offset = 0;
-
-	hose->set_cfg_type = 1;
 
 	setup_indirect_pci(hose,
 			   r.start + offsetof(pci_cpm2_t, pci_cfg_addr),
@@ -584,7 +579,7 @@ static void __init mpc82xx_ads_setup_arch(void)
 #ifdef CONFIG_PCI
 	ppc_md.pci_exclude_device = m82xx_pci_exclude_device;
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc82xx_add_bridge(np);
 
 	of_node_put(np);
 #endif

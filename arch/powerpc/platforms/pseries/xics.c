@@ -156,9 +156,9 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 
 
 #ifdef CONFIG_SMP
-static int get_irq_server(unsigned int virq)
+static int get_irq_server(unsigned int virq, unsigned int strict_check)
 {
-	unsigned int server;
+	int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
 	cpumask_t cpumask = irq_desc[virq].affinity;
 	cpumask_t tmp = CPU_MASK_NONE;
@@ -166,22 +166,25 @@ static int get_irq_server(unsigned int virq)
 	if (!distribute_irqs)
 		return default_server;
 
-	if (cpus_equal(cpumask, CPU_MASK_ALL)) {
-		server = default_distrib_server;
-	} else {
+	if (!cpus_equal(cpumask, CPU_MASK_ALL)) {
 		cpus_and(tmp, cpu_online_map, cpumask);
 
-		if (cpus_empty(tmp))
-			server = default_distrib_server;
-		else
-			server = get_hard_smp_processor_id(first_cpu(tmp));
+		server = first_cpu(tmp);
+
+		if (server < NR_CPUS)
+			return get_hard_smp_processor_id(server);
+
+		if (strict_check)
+			return -1;
 	}
 
-	return server;
+	if (cpus_equal(cpu_online_map, cpu_present_map))
+		return default_distrib_server;
 
+	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq)
+static int get_irq_server(unsigned int virq, unsigned int strict_check)
 {
 	return default_server;
 }
@@ -192,7 +195,7 @@ static void xics_unmask_irq(unsigned int virq)
 {
 	unsigned int irq;
 	int call_status;
-	unsigned int server;
+	int server;
 
 	pr_debug("xics: unmask virq %d\n", virq);
 
@@ -201,7 +204,7 @@ static void xics_unmask_irq(unsigned int virq)
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq);
+	server = get_irq_server(virq, 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -398,8 +401,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	unsigned int irq;
 	int status;
 	int xics_status[2];
-	unsigned long newmask;
-	cpumask_t tmp = CPU_MASK_NONE;
+	int irq_server;
 
 	irq = (unsigned int)irq_map[virq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
@@ -413,18 +415,21 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 		return;
 	}
 
-	/* For the moment only implement delivery to all cpus or one cpu */
-	if (cpus_equal(cpumask, CPU_MASK_ALL)) {
-		newmask = default_distrib_server;
-	} else {
-		cpus_and(tmp, cpu_online_map, cpumask);
-		if (cpus_empty(tmp))
-			return;
-		newmask = get_hard_smp_processor_id(first_cpu(tmp));
+	/*
+	 * For the moment only implement delivery to all cpus or one cpu.
+	 * Get current irq_server for the given irq
+	 */
+	irq_server = get_irq_server(irq, 1);
+	if (irq_server == -1) {
+		char cpulist[128];
+		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
+		printk(KERN_WARNING "xics_set_affinity: No online cpus in "
+				"the mask %s for irq %d\n", cpulist, virq);
+		return;
 	}
 
 	status = rtas_call(ibm_set_xive, 3, 1, NULL,
-				irq, newmask, xics_status[1]);
+				irq, irq_server, xics_status[1]);
 
 	if (status) {
 		printk(KERN_ERR "xics_set_affinity: irq=%u ibm,set-xive "

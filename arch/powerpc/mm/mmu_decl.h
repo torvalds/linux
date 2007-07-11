@@ -8,7 +8,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -40,8 +39,8 @@ extern int __map_without_bats;
 extern unsigned long ioremap_base;
 extern unsigned int rtas_data, rtas_size;
 
-struct _PTE;
-extern struct _PTE *Hash, *Hash_end;
+struct hash_pte;
+extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
 
 extern unsigned int num_tlbcam_entries;
@@ -90,16 +89,4 @@ static inline void flush_HPTE(unsigned context, unsigned long va,
 	else
 		_tlbie(va);
 }
-#else /* CONFIG_PPC64 */
-/* imalloc region types */
-#define IM_REGION_UNUSED	0x1
-#define IM_REGION_SUBSET	0x2
-#define IM_REGION_EXISTS	0x4
-#define IM_REGION_OVERLAP	0x8
-#define IM_REGION_SUPERSET	0x10
-
-extern struct vm_struct * im_get_free_area(unsigned long size);
-extern struct vm_struct * im_get_area(unsigned long v_addr, unsigned long size,
-				      int region_type);
-extern void im_free(void *addr);
 #endif

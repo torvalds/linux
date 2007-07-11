@@ -320,6 +320,12 @@ static int spu_backing_set_mfc_query(struct spu_context * ctx, u32 mask,
 	/* FIXME: what are the side-effects of this? */
 	prob->dma_querymask_RW = mask;
 	prob->dma_querytype_RW = mode;
+	/* In the current implementation, the SPU context is always
+	 * acquired in runnable state when new bits are added to the
+	 * mask (tagwait), so it's sufficient just to mask
+	 * dma_tagstatus_R with the 'mask' parameter here.
+	 */
+	ctx->csa.prob.dma_tagstatus_R &= mask;
 out:
 	spin_unlock(&ctx->csa.register_lock);
 

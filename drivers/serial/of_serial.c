@@ -17,6 +17,11 @@
 #include <asm/of_platform.h>
 #include <asm/prom.h>
 
+struct of_serial_info {
+	int type;
+	int line;
+};
+
 /*
  * Fill a struct uart_port for a given device node
  */
@@ -62,6 +67,7 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 						const struct of_device_id *id)
 {
+	struct of_serial_info *info;
 	struct uart_port port;
 	int port_type;
 	int ret;
@@ -69,30 +75,35 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 	if (of_find_property(ofdev->node, "used-by-rtas", NULL))
 		return -EBUSY;
 
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (info == NULL)
+		return -ENOMEM;
+
 	port_type = (unsigned long)id->data;
 	ret = of_platform_serial_setup(ofdev, port_type, &port);
 	if (ret)
 		goto out;
 
 	switch (port_type) {
-	case PORT_UNKNOWN:
-		dev_info(&ofdev->dev, "Unknown serial port found, "
-			"attempting to use 8250 driver\n");
-		/* fallthrough */
 	case PORT_8250 ... PORT_MAX_8250:
 		ret = serial8250_register_port(&port);
 		break;
 	default:
 		/* need to add code for these */
+	case PORT_UNKNOWN:
+		dev_info(&ofdev->dev, "Unknown serial port found, ignored\n");
 		ret = -ENODEV;
 		break;
 	}
 	if (ret < 0)
 		goto out;
 
-	ofdev->dev.driver_data = (void *)(unsigned long)ret;
+	info->type = port_type;
+	info->line = ret;
+	ofdev->dev.driver_data = info;
 	return 0;
 out:
+	kfree(info);
 	irq_dispose_mapping(port.irq);
 	return ret;
 }
@@ -102,8 +113,16 @@ out:
  */
 static int of_platform_serial_remove(struct of_device *ofdev)
 {
-	int line = (unsigned long)ofdev->dev.driver_data;
-	serial8250_unregister_port(line);
+	struct of_serial_info *info = ofdev->dev.driver_data;
+	switch (info->type) {
+	case PORT_8250 ... PORT_MAX_8250:
+		serial8250_unregister_port(info->line);
+		break;
+	default:
+		/* need to add code for these */
+		break;
+	}
+	kfree(info);
 	return 0;
 }
 

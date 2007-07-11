@@ -46,7 +46,7 @@
 
   	tsi109@c0000000 {
 		device_type = "tsi-bridge";
-		compatible = "tsi-bridge";
+		compatible = "tsi109-bridge", "tsi108-bridge";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <00000000 c0000000 00010000>;
@@ -54,52 +54,55 @@
 
 		i2c@7000 {
 			device_type = "i2c";
-			compatible  = "tsi-i2c";
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			compatible  = "tsi109-i2c", "tsi108-i2c";
+			interrupt-parent = <&MPIC>;
 			interrupts = <e 2>;
 			reg = <7000 400>;
 		};
 
-		mdio@6000 {
+		MDIO: mdio@6000 {
 			device_type = "mdio";
-			compatible = "tsi-ethernet";
+			compatible = "tsi109-mdio", "tsi108-mdio";
+			reg = <6000 50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			PHY1: ethernet-phy@6000 {
-				device_type = "ethernet-phy";
-				compatible = "bcm54xx";
-				reg = <6000 50>;
-				phy-id = <1>;
+			PHY1: ethernet-phy@1 {
+				compatible = "bcm5461a";
+				reg = <1>;
+				txc-rxc-delay-disable;
 			};
 
-			PHY2: ethernet-phy@6400 {
-				device_type = "ethernet-phy";
-				compatible = "bcm54xx";
-				reg = <6000 50>;
-				phy-id = <2>;
+			PHY2: ethernet-phy@2 {
+				compatible = "bcm5461a";
+				reg = <2>;
+				txc-rxc-delay-disable;
 			};
 		};
 
 		ethernet@6200 {
 			device_type = "network";
-			compatible = "tsi-ethernet";
+			compatible = "tsi109-ethernet", "tsi108-ethernet";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <6000 200>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			interrupt-parent = <&MPIC>;
 			interrupts = <10 2>;
+			mdio-handle = <&MDIO>;
 			phy-handle = <&PHY1>;
 		};
 
 		ethernet@6600 {
 			device_type = "network";
-			compatible = "tsi-ethernet";
+			compatible = "tsi109-ethernet", "tsi108-ethernet";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <6400 200>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			interrupt-parent = <&MPIC>;
 			interrupts = <11 2>;
+			mdio-handle = <&MDIO>;
 			phy-handle = <&PHY2>;
 		};
 
@@ -110,7 +113,7 @@
 			virtual-reg = <c0007808>;
 			clock-frequency = <3F9C6000>;
 			current-speed = <1c200>;
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			interrupt-parent = <&MPIC>;
 			interrupts = <c 2>;
 		};
 
@@ -121,7 +124,7 @@
 			virtual-reg = <c0007c08>;
 			clock-frequency = <3F9C6000>;
 			current-speed = <1c200>;
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			interrupt-parent = <&MPIC>;
 			interrupts = <d 2>;
 		};
 
@@ -136,7 +139,7 @@
 
 		pci@1000 {
 			device_type = "pci";
-			compatible = "tsi109";
+			compatible = "tsi109-pci", "tsi108-pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
@@ -150,7 +153,7 @@
 			ranges = <02000000 0 40000000 40000000 0 10000000
 				  01000000 0 00000000 7e000000 0 00010000>;
 			clock-frequency = <7f28154>;
-			interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+			interrupt-parent = <&MPIC>;
 			interrupts = <17 2>;
 			interrupt-map-mask = <f800 0 0 7>;
 			/*----------------------------------------------------+
@@ -186,13 +189,12 @@
  				#address-cells = <0>;
  				#interrupt-cells = <2>;
  				interrupts = <17 2>;
-				interrupt-parent = < &/tsi109@c0000000/pic@7400 >;
+				interrupt-parent = <&MPIC>;
 			};
 		};
 	};
 
 	chosen {
 		linux,stdout-path = "/tsi109@c0000000/serial@7808";
-		bootargs = "console=ttyS0,115200";
 	};
 };

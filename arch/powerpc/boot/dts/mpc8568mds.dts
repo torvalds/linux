@@ -61,7 +61,7 @@
 			compatible = "fsl,8568-memory-controller";
 			reg = <2000 1000>;
 			interrupt-parent = <&mpic>;
-			interrupts = <2 2>;
+			interrupts = <12 2>;
 		};
 
 		l2-cache-controller@20000 {
@@ -70,14 +70,14 @@
 			cache-line-size = <20>;	// 32 bytes
 			cache-size = <80000>;	// L2, 512K
 			interrupt-parent = <&mpic>;
-			interrupts = <0 2>;
+			interrupts = <10 2>;
 		};
 
 		i2c@3000 {
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
-			interrupts = <1b 2>;
+			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
@@ -86,7 +86,7 @@
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
-			interrupts = <1b 2>;
+			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
@@ -99,25 +99,25 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <31 1>;
+				interrupts = <1 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <32 1>;
+				interrupts = <2 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
 			phy2: ethernet-phy@2 {
 				interrupt-parent = <&mpic>;
-				interrupts = <31 1>;
+				interrupts = <1 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
-				interrupts = <32 1>;
+				interrupts = <2 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 			};
@@ -130,8 +130,14 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
 			mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <d 2 e 2 12 2>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+ 			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy2>;
 		};
@@ -143,8 +149,14 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			mac-address = [ 00 00 00 00 00 00];
-			interrupts = <13 2 14 2 18 2>;
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			mac-address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
+ 			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;
 		};
@@ -154,7 +166,7 @@
 			compatible = "ns16550";
 			reg = <4500 100>;
 			clock-frequency = <0>;
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -163,7 +175,7 @@
 			compatible = "ns16550";
 			reg = <4600 100>;
 			clock-frequency = <0>;
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -172,7 +184,7 @@
 			model = "SEC2";
 			compatible = "talitos";
 			reg = <30000 f000>;
-			interrupts = <1d 2>;
+			interrupts = <2d 2>;
 			interrupt-parent = <&mpic>;
 			num-channels = <4>;
 			channel-fifo-len = <18>;
@@ -300,7 +312,13 @@
 			reg = <2000 200>;
 			interrupts = <20>;
 			interrupt-parent = <&qeic>;
-			mac-address = [ 00 04 9f 00 23 23 ];
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			mac-address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
 			tx-clock = <19>;
 			phy-handle = <&qe_phy0>;
@@ -316,7 +334,13 @@
 			reg = <3000 200>;
 			interrupts = <21>;
 			interrupt-parent = <&qeic>;
-			mac-address = [ 00 11 22 33 44 55 ];
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			mac-address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
 			tx-clock = <14>;
 			phy-handle = <&qe_phy1>;
@@ -335,25 +359,25 @@
 			 * gianfar's MDIO bus */
 			qe_phy0: ethernet-phy@00 {
 				interrupt-parent = <&mpic>;
-				interrupts = <31 1>;
+				interrupts = <1 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			qe_phy1: ethernet-phy@01 {
 				interrupt-parent = <&mpic>;
-				interrupts = <32 1>;
+				interrupts = <2 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
 			qe_phy2: ethernet-phy@02 {
 				interrupt-parent = <&mpic>;
-				interrupts = <31 1>;
+				interrupts = <1 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
 			qe_phy3: ethernet-phy@03 {
 				interrupt-parent = <&mpic>;
-				interrupts = <32 1>;
+				interrupts = <2 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 			};
@@ -367,7 +391,7 @@
 			reg = <80 80>;
 			built-in;
 			big-endian;
-			interrupts = <1e 2 1e 2>; //high:30 low:30
+			interrupts = <2e 2 2e 2>; //high:30 low:30
 			interrupt-parent = <&mpic>;
 		};
 

@@ -77,9 +77,8 @@
 /* keep track of when we need to update the rtc */
 time_t last_rtc_update;
 #ifdef CONFIG_PPC_ISERIES
-unsigned long iSeries_recal_titan = 0;
-unsigned long iSeries_recal_tb = 0; 
-static unsigned long first_settimeofday = 1;
+static unsigned long __initdata iSeries_recal_titan;
+static signed long __initdata iSeries_recal_tb;
 #endif
 
 /* The decrementer counts down by 128 every 128ns on a 601. */
@@ -113,8 +112,9 @@ u64 ticklen_to_xs;	/* 0.64 fraction */
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
 
-u64 tb_to_ns_scale;
-unsigned tb_to_ns_shift;
+static u64 tb_to_ns_scale __read_mostly;
+static unsigned tb_to_ns_shift __read_mostly;
+static unsigned long boot_tb __read_mostly;
 
 struct gettimeofday_struct do_gtod;
 
@@ -214,7 +214,6 @@ static void account_process_time(struct pt_regs *regs)
  	run_posix_cpu_timers(current);
 }
 
-#ifdef CONFIG_PPC_SPLPAR
 /*
  * Stuff for accounting stolen time.
  */
@@ -222,19 +221,28 @@ struct cpu_purr_data {
 	int	initialized;			/* thread is running */
 	u64	tb;			/* last TB value read */
 	u64	purr;			/* last PURR value read */
-	spinlock_t lock;
 };
 
+/*
+ * Each entry in the cpu_purr_data array is manipulated only by its
+ * "owner" cpu -- usually in the timer interrupt but also occasionally
+ * in process context for cpu online.  As long as cpus do not touch
+ * each others' cpu_purr_data, disabling local interrupts is
+ * sufficient to serialize accesses.
+ */
 static DEFINE_PER_CPU(struct cpu_purr_data, cpu_purr_data);
 
 static void snapshot_tb_and_purr(void *data)
 {
+	unsigned long flags;
 	struct cpu_purr_data *p = &__get_cpu_var(cpu_purr_data);
 
+	local_irq_save(flags);
 	p->tb = mftb();
 	p->purr = mfspr(SPRN_PURR);
 	wmb();
 	p->initialized = 1;
+	local_irq_restore(flags);
 }
 
 /*
@@ -242,15 +250,14 @@ static void snapshot_tb_and_purr(void *data)
  */
 void snapshot_timebases(void)
 {
-	int cpu;
-
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	for_each_possible_cpu(cpu)
-		spin_lock_init(&per_cpu(cpu_purr_data, cpu).lock);
 	on_each_cpu(snapshot_tb_and_purr, NULL, 0, 1);
 }
 
+/*
+ * Must be called with interrupts disabled.
+ */
 void calculate_steal_time(void)
 {
 	u64 tb, purr;
@@ -262,7 +269,6 @@ void calculate_steal_time(void)
 	pme = &per_cpu(cpu_purr_data, smp_processor_id());
 	if (!pme->initialized)
 		return;		/* this can happen in early boot */
-	spin_lock(&pme->lock);
 	tb = mftb();
 	purr = mfspr(SPRN_PURR);
 	stolen = (tb - pme->tb) - (purr - pme->purr);
@@ -270,9 +276,9 @@ void calculate_steal_time(void)
 		account_steal_time(current, stolen);
 	pme->tb = tb;
 	pme->purr = purr;
-	spin_unlock(&pme->lock);
 }
 
+#ifdef CONFIG_PPC_SPLPAR
 /*
  * Must be called before the cpu is added to the online map when
  * a cpu is being brought up at runtime.
@@ -284,12 +290,12 @@ static void snapshot_purr(void)
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
+	local_irq_save(flags);
 	pme = &per_cpu(cpu_purr_data, smp_processor_id());
-	spin_lock_irqsave(&pme->lock, flags);
 	pme->tb = mftb();
 	pme->purr = mfspr(SPRN_PURR);
 	pme->initialized = 1;
-	spin_unlock_irqrestore(&pme->lock, flags);
+	local_irq_restore(flags);
 }
 
 #endif /* CONFIG_PPC_SPLPAR */
@@ -550,10 +556,15 @@ EXPORT_SYMBOL(profile_pc);
  * returned by the service processor for the timebase frequency.  
  */
 
-static void iSeries_tb_recal(void)
+static int __init iSeries_tb_recal(void)
 {
 	struct div_result divres;
 	unsigned long titan, tb;
+
+	/* Make sure we only run on iSeries */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
+
 	tb = get_tb();
 	titan = HvCallXm_loadTod();
 	if ( iSeries_recal_titan ) {
@@ -594,8 +605,18 @@ static void iSeries_tb_recal(void)
 	}
 	iSeries_recal_titan = titan;
 	iSeries_recal_tb = tb;
+
+	return 0;
 }
-#endif
+late_initcall(iSeries_tb_recal);
+
+/* Called from platform early init */
+void __init iSeries_time_init_early(void)
+{
+	iSeries_recal_tb = get_tb();
+	iSeries_recal_titan = HvCallXm_loadTod();
+}
+#endif /* CONFIG_PPC_ISERIES */
 
 /*
  * For iSeries shared processors, we have to let the hypervisor
@@ -735,7 +756,7 @@ unsigned long long sched_clock(void)
 {
 	if (__USE_RTC())
 		return get_rtc();
-	return mulhdu(get_tb(), tb_to_ns_scale) << tb_to_ns_shift;
+	return mulhdu(get_tb() - boot_tb, tb_to_ns_scale) << tb_to_ns_shift;
 }
 
 int do_settimeofday(struct timespec *tv)
@@ -759,12 +780,6 @@ int do_settimeofday(struct timespec *tv)
 	 * to the RTC again, or write to the RTC but then they don't call
 	 * settimeofday to perform this operation.
 	 */
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES) && first_settimeofday) {
-		iSeries_tb_recal();
-		first_settimeofday = 0;
-	}
-#endif
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
@@ -960,6 +975,8 @@ void __init time_init(void)
 	}
 	tb_to_ns_scale = scale;
 	tb_to_ns_shift = shift;
+	/* Save the current timebase to pretty up CONFIG_PRINTK_TIME */
+	boot_tb = get_tb();
 
 	tm = get_boot_time();
 

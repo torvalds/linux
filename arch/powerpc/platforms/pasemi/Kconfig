@@ -25,4 +25,13 @@ config PPC_PASEMI_MDIO
 	help
 	  Driver for MDIO via GPIO on PWRficient platforms
 
+config ELECTRA_IDE
+      tristate "Electra IDE driver"
+      default y
+      depends on PPC_PASEMI && ATA
+      select PATA_PLATFORM
+      help
+	This includes driver support for the Electra on-board IDE
+	interface.
+
 endmenu

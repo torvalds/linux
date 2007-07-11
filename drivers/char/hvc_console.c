@@ -674,7 +674,7 @@ static const cpumask_t cpus_in_xmon = CPU_MASK_NONE;
  * calling hvc_poll() who determines whether a console adapter support
  * interrupts.
  */
-int khvcd(void *unused)
+static int khvcd(void *unused)
 {
 	int poll_mask;
 	struct hvc_struct *hp;
