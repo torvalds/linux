@@ -274,22 +274,18 @@ typedef struct drm_ioctl_desc {
 	int flags;
 } drm_ioctl_desc_t;
 
-typedef struct drm_devstate {
-	pid_t owner;			/**< X server pid holding x_lock */
-} drm_devstate_t;
-
-typedef struct drm_magic_entry {
+struct drm_magic_entry {
 	struct list_head head;
 	drm_hash_item_t hash_item;
 	struct drm_file *priv;
 	struct drm_magic_entry *next;
-} drm_magic_entry_t;
+};
 
-typedef struct drm_vma_entry {
+struct drm_vma_entry {
 	struct list_head head;
 	struct vm_area_struct *vma;
 	pid_t pid;
-} drm_vma_entry_t;
+};
 
 /**
  * DMA buffer.

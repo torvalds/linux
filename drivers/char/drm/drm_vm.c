@@ -196,7 +196,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_vma_entry_t *pt, *temp;
+	struct drm_vma_entry *pt, *temp;
 	struct drm_map *map;
 	drm_map_list_t *r_list;
 	int found_maps = 0;
@@ -407,7 +407,7 @@ static void drm_vm_open_locked(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_vma_entry_t *vma_entry;
+	struct drm_vma_entry *vma_entry;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
@@ -443,7 +443,7 @@ static void drm_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->head->dev;
-	drm_vma_entry_t *pt, *temp;
+	struct drm_vma_entry *pt, *temp;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);

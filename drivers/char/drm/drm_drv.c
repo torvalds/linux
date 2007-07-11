@@ -131,9 +131,9 @@ static drm_ioctl_desc_t drm_ioctls[] = {
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	drm_magic_entry_t *pt, *next;
+	struct drm_magic_entry *pt, *next;
 	drm_map_list_t *r_list, *list_t;
-	drm_vma_entry_t *vma, *vma_temp;
+	struct drm_vma_entry *vma, *vma_temp;
 	int i;
 
 	DRM_DEBUG("\n");

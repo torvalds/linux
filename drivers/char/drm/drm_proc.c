@@ -478,7 +478,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 {
 	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_vma_entry_t *pt;
+	struct drm_vma_entry *pt;
 	struct vm_area_struct *vma;
 #if defined(__i386__)
 	unsigned int pgprot;
