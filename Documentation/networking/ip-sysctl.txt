@@ -874,8 +874,7 @@ accept_redirects - BOOLEAN
 accept_source_route - INTEGER
 	Accept source routing (routing extension header).
 
-	> 0: Accept routing header.
-	= 0: Accept only routing header type 2.
+	>= 0: Accept only routing header type 2.
 	< 0: Do not accept routing header.
 
 	Default: 0

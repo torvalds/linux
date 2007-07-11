@@ -253,17 +253,6 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 
 	if (dst == NULL) {
 		opt = np->opt;
-		if (opt == NULL &&
-		    np->rxopt.bits.osrcrt == 2 &&
-		    ireq6->pktopts) {
-			struct sk_buff *pktopts = ireq6->pktopts;
-			struct inet6_skb_parm *rxopt = IP6CB(pktopts);
-
-			if (rxopt->srcrt)
-				opt = ipv6_invert_rthdr(sk,
-			  (struct ipv6_rt_hdr *)(skb_network_header(pktopts) +
-						 rxopt->srcrt));
-		}
 
 		if (opt != NULL && opt->srcrt != NULL) {
 			const struct rt0_hdr *rt0 = (struct rt0_hdr *)opt->srcrt;
@@ -569,15 +558,6 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 	if (sk_acceptq_is_full(sk))
 		goto out_overflow;
-
-	if (np->rxopt.bits.osrcrt == 2 && opt == NULL && ireq6->pktopts) {
-		const struct inet6_skb_parm *rxopt = IP6CB(ireq6->pktopts);
-
-		if (rxopt->srcrt)
-			opt = ipv6_invert_rthdr(sk,
-		   (struct ipv6_rt_hdr *)(skb_network_header(ireq6->pktopts) +
-					  rxopt->srcrt));
-	}
 
 	if (dst == NULL) {
 		struct in6_addr *final_p = NULL, final;
