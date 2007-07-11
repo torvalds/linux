@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include "ctree.h"

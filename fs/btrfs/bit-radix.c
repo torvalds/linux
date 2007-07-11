@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/module.h>
 #include "bit-radix.h"
 
 #define BIT_ARRAY_BYTES 256

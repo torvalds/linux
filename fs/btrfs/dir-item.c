@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/module.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "hash.h"
