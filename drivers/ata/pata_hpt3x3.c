@@ -52,6 +52,7 @@ static void hpt3x3_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_dword(pdev, 0x48, r2);
 }
 
+#if defined(CONFIG_PATA_HPT3X3_DMA)
 /**
  *	hpt3x3_set_dmamode		-	DMA timing setup
  *	@ap: ATA interface
@@ -86,6 +87,7 @@ static void hpt3x3_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_dword(pdev, 0x44, r1);
 	pci_write_config_dword(pdev, 0x48, r2);
 }
+#endif /* CONFIG_PATA_HPT3X3_DMA */
 
 /**
  *	hpt3x3_atapi_dma	-	ATAPI DMA check
@@ -120,6 +122,9 @@ static struct scsi_host_template hpt3x3_sht = {
 static struct ata_port_operations hpt3x3_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt3x3_set_piomode,
+#if defined(CONFIG_PATA_HPT3X3_DMA)
+	.set_dmamode	= hpt3x3_set_dmamode,
+#endif
 	.mode_filter	= ata_pci_default_filter,
 
 	.tf_load	= ata_tf_load,
