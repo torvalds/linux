@@ -1078,6 +1078,11 @@ xfs_iread_extents(
  * also returns the [locked] bp pointing to the head of the freelist
  * as ialloc_context.  The caller should hold this buffer across
  * the commit and pass it back into this routine on the second call.
+ *
+ * If we are allocating quota inodes, we do not have a parent inode
+ * to attach to or associate with (i.e. pip == NULL) because they
+ * are not linked into the directory structure - they are attached
+ * directly to the superblock - and so have no parent.
  */
 int
 xfs_ialloc(
@@ -1103,7 +1108,7 @@ xfs_ialloc(
 	 * Call the space management code to pick
 	 * the on-disk inode to be allocated.
 	 */
-	error = xfs_dialloc(tp, pip->i_ino, mode, okalloc,
+	error = xfs_dialloc(tp, pip ? pip->i_ino : 0, mode, okalloc,
 			    ialloc_context, call_again, &ino);
 	if (error != 0) {
 		return error;
@@ -1157,7 +1162,7 @@ xfs_ialloc(
 	if ((prid != 0) && (ip->i_d.di_version == XFS_DINODE_VERSION_1))
 		xfs_bump_ino_vers2(tp, ip);
 
-	if (XFS_INHERIT_GID(pip, vp->v_vfsp)) {
+	if (pip && XFS_INHERIT_GID(pip, vp->v_vfsp)) {
 		ip->i_d.di_gid = pip->i_d.di_gid;
 		if ((pip->i_d.di_mode & S_ISGID) && (mode & S_IFMT) == S_IFDIR) {
 			ip->i_d.di_mode |= S_ISGID;
@@ -1199,7 +1204,7 @@ xfs_ialloc(
 		flags |= XFS_ILOG_DEV;
 		break;
 	case S_IFREG:
-		if (xfs_inode_is_filestream(pip)) {
+		if (pip && xfs_inode_is_filestream(pip)) {
 			error = xfs_filestream_associate(pip, ip);
 			if (error < 0)
 				return -error;
@@ -1208,7 +1213,7 @@ xfs_ialloc(
 		}
 		/* fall through */
 	case S_IFDIR:
-		if (pip->i_d.di_flags & XFS_DIFLAG_ANY) {
+		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
 			uint	di_flags = 0;
 
 			if ((mode & S_IFMT) == S_IFDIR) {
