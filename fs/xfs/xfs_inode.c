@@ -645,8 +645,7 @@ xfs_iformat_extents(
 			ep->l1 = INT_GET(get_unaligned((__uint64_t*)&dp->l1),
 								ARCH_CONVERT);
 		}
-		xfs_bmap_trace_exlist("xfs_iformat_extents", ip, nex,
-			whichfork);
+		XFS_BMAP_TRACE_EXLIST(ip, nex, whichfork);
 		if (whichfork != XFS_DATA_FORK ||
 			XFS_EXTFMT_INODE(ip) == XFS_EXTFMT_NOSTATE)
 				if (unlikely(xfs_check_nostate_extents(
@@ -2894,9 +2893,6 @@ xfs_iextents_copy(
 	int			copied;
 	xfs_bmbt_rec_t		*dest_ep;
 	xfs_bmbt_rec_t		*ep;
-#ifdef XFS_BMAP_TRACE
-	static char		fname[] = "xfs_iextents_copy";
-#endif
 	int			i;
 	xfs_ifork_t		*ifp;
 	int			nrecs;
@@ -2907,7 +2903,7 @@ xfs_iextents_copy(
 	ASSERT(ifp->if_bytes > 0);
 
 	nrecs = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
-	xfs_bmap_trace_exlist(fname, ip, nrecs, whichfork);
+	XFS_BMAP_TRACE_EXLIST(ip, nrecs, whichfork);
 	ASSERT(nrecs > 0);
 
 	/*

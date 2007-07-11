@@ -144,12 +144,14 @@ extern ktrace_t	*xfs_bmap_trace_buf;
  */
 void
 xfs_bmap_trace_exlist(
-	char			*fname,		/* function name */
+	const char		*fname,		/* function name */
 	struct xfs_inode	*ip,		/* incore inode pointer */
 	xfs_extnum_t		cnt,		/* count of entries in list */
 	int			whichfork);	/* data or attr fork */
+#define	XFS_BMAP_TRACE_EXLIST(ip,c,w)	\
+	xfs_bmap_trace_exlist(__FUNCTION__,ip,c,w)
 #else
-#define	xfs_bmap_trace_exlist(f,ip,c,w)
+#define	XFS_BMAP_TRACE_EXLIST(ip,c,w)
 #endif
 
 /*

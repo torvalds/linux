@@ -55,17 +55,17 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 ktrace_t *xfs_alloc_trace_buf;
 
 #define	TRACE_ALLOC(s,a)	\
-	xfs_alloc_trace_alloc(fname, s, a, __LINE__)
+	xfs_alloc_trace_alloc(__FUNCTION__, s, a, __LINE__)
 #define	TRACE_FREE(s,a,b,x,f)	\
-	xfs_alloc_trace_free(fname, s, mp, a, b, x, f, __LINE__)
+	xfs_alloc_trace_free(__FUNCTION__, s, mp, a, b, x, f, __LINE__)
 #define	TRACE_MODAGF(s,a,f)	\
-	xfs_alloc_trace_modagf(fname, s, mp, a, f, __LINE__)
-#define	TRACE_BUSY(fname,s,ag,agb,l,sl,tp)	\
-	xfs_alloc_trace_busy(fname, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSY, __LINE__)
-#define	TRACE_UNBUSY(fname,s,ag,sl,tp)	\
-	xfs_alloc_trace_busy(fname, s, mp, ag, -1, -1, sl, tp, XFS_ALLOC_KTRACE_UNBUSY, __LINE__)
-#define	TRACE_BUSYSEARCH(fname,s,ag,agb,l,sl,tp)	\
-	xfs_alloc_trace_busy(fname, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
+	xfs_alloc_trace_modagf(__FUNCTION__, s, mp, a, f, __LINE__)
+#define	TRACE_BUSY(__FUNCTION__,s,ag,agb,l,sl,tp)	\
+	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSY, __LINE__)
+#define	TRACE_UNBUSY(__FUNCTION__,s,ag,sl,tp)	\
+	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, -1, -1, sl, tp, XFS_ALLOC_KTRACE_UNBUSY, __LINE__)
+#define	TRACE_BUSYSEARCH(__FUNCTION__,s,ag,agb,l,sl,tp)	\
+	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
 #else
 #define	TRACE_ALLOC(s,a)
 #define	TRACE_FREE(s,a,b,x,f)
@@ -420,7 +420,7 @@ xfs_alloc_read_agfl(
  */
 STATIC void
 xfs_alloc_trace_alloc(
-	char		*name,		/* function tag string */
+	const char	*name,		/* function tag string */
 	char		*str,		/* additional string */
 	xfs_alloc_arg_t	*args,		/* allocation argument structure */
 	int		line)		/* source line number */
@@ -453,7 +453,7 @@ xfs_alloc_trace_alloc(
  */
 STATIC void
 xfs_alloc_trace_free(
-	char		*name,		/* function tag string */
+	const char	*name,		/* function tag string */
 	char		*str,		/* additional string */
 	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_agnumber_t	agno,		/* allocation group number */
@@ -479,7 +479,7 @@ xfs_alloc_trace_free(
  */
 STATIC void
 xfs_alloc_trace_modagf(
-	char		*name,		/* function tag string */
+	const char	*name,		/* function tag string */
 	char		*str,		/* additional string */
 	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_agf_t	*agf,		/* new agf value */
@@ -507,7 +507,7 @@ xfs_alloc_trace_modagf(
 
 STATIC void
 xfs_alloc_trace_busy(
-	char		*name,		/* function tag string */
+	const char	*name,		/* function tag string */
 	char		*str,		/* additional string */
 	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_agnumber_t	agno,		/* allocation group number */
@@ -549,9 +549,6 @@ xfs_alloc_ag_vextent(
 	xfs_alloc_arg_t	*args)	/* argument structure for allocation */
 {
 	int		error=0;
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_ag_vextent";
-#endif
 
 	ASSERT(args->minlen > 0);
 	ASSERT(args->maxlen > 0);
@@ -635,9 +632,6 @@ xfs_alloc_ag_vextent_exact(
 	xfs_agblock_t	fbno;	/* start block of found extent */
 	xfs_agblock_t	fend;	/* end block of found extent */
 	xfs_extlen_t	flen;	/* length of found extent */
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_ag_vextent_exact";
-#endif
 	int		i;	/* success/failure of operation */
 	xfs_agblock_t	maxend;	/* end of maximal extent */
 	xfs_agblock_t	minend;	/* end of minimal extent */
@@ -737,9 +731,6 @@ xfs_alloc_ag_vextent_near(
 	xfs_btree_cur_t	*bno_cur_gt;	/* cursor for bno btree, right side */
 	xfs_btree_cur_t	*bno_cur_lt;	/* cursor for bno btree, left side */
 	xfs_btree_cur_t	*cnt_cur;	/* cursor for count btree */
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_ag_vextent_near";
-#endif
 	xfs_agblock_t	gtbno;		/* start bno of right side entry */
 	xfs_agblock_t	gtbnoa;		/* aligned ... */
 	xfs_extlen_t	gtdiff;		/* difference to right side entry */
@@ -1270,9 +1261,6 @@ xfs_alloc_ag_vextent_size(
 	int		error;		/* error result */
 	xfs_agblock_t	fbno;		/* start of found freespace */
 	xfs_extlen_t	flen;		/* length of found freespace */
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_ag_vextent_size";
-#endif
 	int		i;		/* temp status variable */
 	xfs_agblock_t	rbno;		/* returned block number */
 	xfs_extlen_t	rlen;		/* length of returned extent */
@@ -1427,9 +1415,6 @@ xfs_alloc_ag_vextent_small(
 	int		error;
 	xfs_agblock_t	fbno;
 	xfs_extlen_t	flen;
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_ag_vextent_small";
-#endif
 	int		i;
 
 	if ((error = xfs_alloc_decrement(ccur, 0, &i)))
@@ -1516,9 +1501,6 @@ xfs_free_ag_extent(
 	xfs_btree_cur_t	*bno_cur;	/* cursor for by-block btree */
 	xfs_btree_cur_t	*cnt_cur;	/* cursor for by-size btree */
 	int		error;		/* error return value */
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_free_ag_extent";
-#endif
 	xfs_agblock_t	gtbno;		/* start of right neighbor block */
 	xfs_extlen_t	gtlen;		/* length of right neighbor block */
 	int		haveleft;	/* have a left neighbor block */
@@ -2003,9 +1985,6 @@ xfs_alloc_get_freelist(
 	xfs_agblock_t	bno;	/* block number returned */
 	int		error;
 	int		logflags;
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_get_freelist";
-#endif
 	xfs_mount_t	*mp;	/* mount structure */
 	xfs_perag_t	*pag;	/* per allocation group data */
 
@@ -2128,9 +2107,6 @@ xfs_alloc_put_freelist(
 	__be32			*blockp;/* pointer to array entry */
 	int			error;
 	int			logflags;
-#ifdef XFS_ALLOC_TRACE
-	static char		fname[] = "xfs_alloc_put_freelist";
-#endif
 	xfs_mount_t		*mp;	/* mount structure */
 	xfs_perag_t		*pag;	/* per allocation group data */
 
@@ -2263,9 +2239,6 @@ xfs_alloc_vextent(
 	xfs_agblock_t	agsize;	/* allocation group size */
 	int		error;
 	int		flags;	/* XFS_ALLOC_FLAG_... locking flags */
-#ifdef XFS_ALLOC_TRACE
-	static char	fname[] = "xfs_alloc_vextent";
-#endif
 	xfs_extlen_t	minleft;/* minimum left value, temp copy */
 	xfs_mount_t	*mp;	/* mount structure pointer */
 	xfs_agnumber_t	sagno;	/* starting allocation group number */
