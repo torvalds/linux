@@ -622,7 +622,7 @@ static void mga_dma_dispatch_swap(struct drm_device * dev)
 	DRM_DEBUG("%s... done.\n", __FUNCTION__);
 }
 
-static void mga_dma_dispatch_vertex(struct drm_device * dev, drm_buf_t * buf)
+static void mga_dma_dispatch_vertex(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_buf_priv_t *buf_priv = buf->dev_private;
@@ -669,7 +669,7 @@ static void mga_dma_dispatch_vertex(struct drm_device * dev, drm_buf_t * buf)
 	FLUSH_DMA();
 }
 
-static void mga_dma_dispatch_indices(struct drm_device * dev, drm_buf_t * buf,
+static void mga_dma_dispatch_indices(struct drm_device * dev, struct drm_buf * buf,
 				     unsigned int start, unsigned int end)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
@@ -718,7 +718,7 @@ static void mga_dma_dispatch_indices(struct drm_device * dev, drm_buf_t * buf,
 /* This copies a 64 byte aligned agp region to the frambuffer with a
  * standard blit, the ioctl needs to do checking.
  */
-static void mga_dma_dispatch_iload(struct drm_device * dev, drm_buf_t * buf,
+static void mga_dma_dispatch_iload(struct drm_device * dev, struct drm_buf * buf,
 				   unsigned int dstorg, unsigned int length)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
@@ -881,7 +881,7 @@ static int mga_dma_vertex(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_vertex_t vertex;
 
@@ -921,7 +921,7 @@ static int mga_dma_indices(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_indices_t indices;
 
@@ -961,7 +961,7 @@ static int mga_dma_iload(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_device_dma_t *dma = dev->dma;
 	drm_mga_private_t *dev_priv = dev->dev_private;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_iload_t iload;
 	DRM_DEBUG("\n");

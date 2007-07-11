@@ -1492,7 +1492,7 @@ typedef struct {
 } drm_radeon_tcl_prim_t;
 
 static void radeon_cp_dispatch_vertex(struct drm_device * dev,
-				      drm_buf_t * buf,
+				      struct drm_buf * buf,
 				      drm_radeon_tcl_prim_t * prim)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -1537,7 +1537,7 @@ static void radeon_cp_dispatch_vertex(struct drm_device * dev,
 	} while (i < nbox);
 }
 
-static void radeon_cp_discard_buffer(struct drm_device * dev, drm_buf_t * buf)
+static void radeon_cp_discard_buffer(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv = buf->dev_private;
@@ -1555,7 +1555,7 @@ static void radeon_cp_discard_buffer(struct drm_device * dev, drm_buf_t * buf)
 }
 
 static void radeon_cp_dispatch_indirect(struct drm_device * dev,
-					drm_buf_t * buf, int start, int end)
+					struct drm_buf * buf, int start, int end)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -1589,7 +1589,7 @@ static void radeon_cp_dispatch_indirect(struct drm_device * dev,
 }
 
 static void radeon_cp_dispatch_indices(struct drm_device * dev,
-				       drm_buf_t * elt_buf,
+				       struct drm_buf * elt_buf,
 				       drm_radeon_tcl_prim_t * prim)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -1653,7 +1653,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	struct drm_file *filp_priv;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	u32 format;
 	u32 *buffer;
 	const u8 __user *data;
@@ -2209,7 +2209,7 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 	struct drm_file *filp_priv;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_radeon_vertex_t vertex;
 	drm_radeon_tcl_prim_t prim;
 
@@ -2292,7 +2292,7 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	struct drm_file *filp_priv;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_radeon_indices_t elts;
 	drm_radeon_tcl_prim_t prim;
 	int count;
@@ -2439,7 +2439,7 @@ static int radeon_cp_indirect(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_radeon_indirect_t indirect;
 	RING_LOCALS;
 
@@ -2510,7 +2510,7 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	struct drm_file *filp_priv;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_radeon_vertex2_t vertex;
 	int i;
 	unsigned char laststate;
@@ -2851,7 +2851,7 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	struct drm_file *filp_priv;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf = NULL;
+	struct drm_buf *buf = NULL;
 	int idx;
 	drm_radeon_kcmd_buffer_t cmdbuf;
 	drm_radeon_cmd_header_t header;

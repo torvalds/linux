@@ -567,7 +567,7 @@ static void r128_cce_dispatch_flip(struct drm_device * dev)
 	ADVANCE_RING();
 }
 
-static void r128_cce_dispatch_vertex(struct drm_device * dev, drm_buf_t * buf)
+static void r128_cce_dispatch_vertex(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv = buf->dev_private;
@@ -638,7 +638,7 @@ static void r128_cce_dispatch_vertex(struct drm_device * dev, drm_buf_t * buf)
 }
 
 static void r128_cce_dispatch_indirect(struct drm_device * dev,
-				       drm_buf_t * buf, int start, int end)
+				       struct drm_buf * buf, int start, int end)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv = buf->dev_private;
@@ -693,7 +693,7 @@ static void r128_cce_dispatch_indirect(struct drm_device * dev,
 }
 
 static void r128_cce_dispatch_indices(struct drm_device * dev,
-				      drm_buf_t * buf,
+				      struct drm_buf * buf,
 				      int start, int end, int count)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -781,7 +781,7 @@ static int r128_cce_dispatch_blit(DRMFILE filp,
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	u32 *data;
 	int dword_shift, dwords;
@@ -1355,7 +1355,7 @@ static int r128_cce_vertex(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_vertex_t vertex;
 
@@ -1414,7 +1414,7 @@ static int r128_cce_indices(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indices_t elts;
 	int count;
@@ -1572,7 +1572,7 @@ static int r128_cce_indirect(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indirect_t indirect;
 #if 0

@@ -773,7 +773,7 @@ static int r128_freelist_init(struct drm_device * dev)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_freelist_t *entry;
 	int i;
@@ -815,12 +815,12 @@ static int r128_freelist_init(struct drm_device * dev)
 }
 #endif
 
-static drm_buf_t *r128_freelist_get(struct drm_device * dev)
+static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	int i, t;
 
 	/* FIXME: Optimize -- use freelist code */
@@ -859,7 +859,7 @@ void r128_freelist_reset(struct drm_device * dev)
 	int i;
 
 	for (i = 0; i < dma->buf_count; i++) {
-		drm_buf_t *buf = dma->buflist[i];
+		struct drm_buf *buf = dma->buflist[i];
 		drm_r128_buf_priv_t *buf_priv = buf->dev_private;
 		buf_priv->age = 0;
 	}
@@ -889,7 +889,7 @@ int r128_wait_ring(drm_r128_private_t * dev_priv, int n)
 static int r128_cce_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm_dma * d)
 {
 	int i;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 
 	for (i = d->granted_count; i < d->request_count; i++) {
 		buf = r128_freelist_get(dev);

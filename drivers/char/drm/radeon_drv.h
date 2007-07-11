@@ -155,7 +155,7 @@ enum radeon_chip_flags {
 
 typedef struct drm_radeon_freelist {
 	unsigned int age;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	struct drm_radeon_freelist *next;
 	struct drm_radeon_freelist *prev;
 } drm_radeon_freelist_t;
@@ -337,7 +337,7 @@ extern int radeon_fullscreen(DRM_IOCTL_ARGS);
 extern int radeon_cp_buffers(DRM_IOCTL_ARGS);
 
 extern void radeon_freelist_reset(struct drm_device * dev);
-extern drm_buf_t *radeon_freelist_get(struct drm_device * dev);
+extern struct drm_buf *radeon_freelist_get(struct drm_device * dev);
 
 extern int radeon_wait_ring(drm_radeon_private_t * dev_priv, int n);
 

@@ -95,7 +95,7 @@ typedef struct drm_i830_private {
 
 	dma_addr_t dma_status_page;
 
-	drm_buf_t *mmap_buffer;
+	struct drm_buf *mmap_buffer;
 
 	u32 front_di1, back_di1, zi1;
 

@@ -129,7 +129,7 @@ void drm_dma_takedown(struct drm_device *dev)
  *
  * Resets the fields of \p buf.
  */
-void drm_free_buffer(struct drm_device *dev, drm_buf_t * buf)
+void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 {
 	if (!buf)
 		return;

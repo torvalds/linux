@@ -207,7 +207,7 @@ static int savage_freelist_init(struct drm_device * dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	drm_savage_buf_priv_t *entry;
 	int i;
 	DRM_DEBUG("count=%d\n", dma->buf_count);
@@ -236,7 +236,7 @@ static int savage_freelist_init(struct drm_device * dev)
 	return 0;
 }
 
-static drm_buf_t *savage_freelist_get(struct drm_device * dev)
+static struct drm_buf *savage_freelist_get(struct drm_device * dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	drm_savage_buf_priv_t *tail = dev_priv->tail.prev;
@@ -269,7 +269,7 @@ static drm_buf_t *savage_freelist_get(struct drm_device * dev)
 	return NULL;
 }
 
-void savage_freelist_put(struct drm_device * dev, drm_buf_t * buf)
+void savage_freelist_put(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	drm_savage_buf_priv_t *entry = buf->dev_private, *prev, *next;
@@ -1009,7 +1009,7 @@ static int savage_bci_event_wait(DRM_IOCTL_ARGS)
 
 static int savage_bci_get_buffers(DRMFILE filp, struct drm_device *dev, struct drm_dma *d)
 {
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	int i;
 
 	for (i = d->granted_count; i < d->request_count; i++) {
@@ -1085,7 +1085,7 @@ void savage_reclaim_buffers(struct drm_device *dev, DRMFILE filp)
 	/*i830_flush_queue(dev); */
 
 	for (i = 0; i < dma->buf_count; i++) {
-		drm_buf_t *buf = dma->buflist[i];
+		struct drm_buf *buf = dma->buflist[i];
 		drm_savage_buf_priv_t *buf_priv = buf->dev_private;
 
 		if (buf->filp == filp && buf_priv &&

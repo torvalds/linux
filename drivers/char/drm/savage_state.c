@@ -277,7 +277,7 @@ static int savage_dispatch_state(drm_savage_private_t * dev_priv,
 
 static int savage_dispatch_dma_prim(drm_savage_private_t * dev_priv,
 				    const drm_savage_cmd_header_t * cmd_header,
-				    const drm_buf_t * dmabuf)
+				    const struct drm_buf * dmabuf)
 {
 	unsigned char reorder = 0;
 	unsigned int prim = cmd_header->prim.prim;
@@ -536,7 +536,7 @@ static int savage_dispatch_vb_prim(drm_savage_private_t * dev_priv,
 static int savage_dispatch_dma_idx(drm_savage_private_t * dev_priv,
 				   const drm_savage_cmd_header_t * cmd_header,
 				   const uint16_t *idx,
-				   const drm_buf_t * dmabuf)
+				   const struct drm_buf * dmabuf)
 {
 	unsigned char reorder = 0;
 	unsigned int prim = cmd_header->idx.prim;
@@ -892,7 +892,7 @@ static int savage_dispatch_swap(drm_savage_private_t * dev_priv,
 static int savage_dispatch_draw(drm_savage_private_t * dev_priv,
 				const drm_savage_cmd_header_t *start,
 				const drm_savage_cmd_header_t *end,
-				const drm_buf_t * dmabuf,
+				const struct drm_buf * dmabuf,
 				const unsigned int *vtxbuf,
 				unsigned int vb_size, unsigned int vb_stride,
 				unsigned int nbox,
@@ -958,7 +958,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *dmabuf;
+	struct drm_buf *dmabuf;
 	drm_savage_cmdbuf_t cmdbuf;
 	drm_savage_cmd_header_t *kcmd_addr = NULL;
 	drm_savage_cmd_header_t *first_draw_cmd;

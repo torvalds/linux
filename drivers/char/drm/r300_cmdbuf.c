@@ -706,7 +706,7 @@ static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
  * The actual age emit is done by r300_do_cp_cmdbuf, which is why you must
  * be careful about how this function is called.
  */
-static void r300_discard_buffer(struct drm_device * dev, drm_buf_t * buf)
+static void r300_discard_buffer(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv = buf->dev_private;
@@ -786,7 +786,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf = NULL;
+	struct drm_buf *buf = NULL;
 	int emit_dispatch_age = 0;
 	int ret = 0;
 

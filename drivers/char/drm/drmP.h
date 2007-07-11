@@ -294,7 +294,7 @@ typedef struct drm_vma_entry {
 /**
  * DMA buffer.
  */
-typedef struct drm_buf {
+struct drm_buf {
 	int idx;		       /**< Index into master buflist */
 	int total;		       /**< Buffer size */
 	int order;		       /**< log-base-2(total) */
@@ -320,15 +320,15 @@ typedef struct drm_buf {
 
 	int dev_priv_size;		 /**< Size of buffer private storage */
 	void *dev_private;		 /**< Per-buffer private storage */
-} drm_buf_t;
+};
 
 /** bufs is one longer than it has to be */
 typedef struct drm_waitlist {
 	int count;			/**< Number of possible buffers */
-	drm_buf_t **bufs;		/**< List of pointers to buffers */
-	drm_buf_t **rp;			/**< Read pointer */
-	drm_buf_t **wp;			/**< Write pointer */
-	drm_buf_t **end;		/**< End pointer */
+	struct drm_buf **bufs;		/**< List of pointers to buffers */
+	struct drm_buf **rp;			/**< Read pointer */
+	struct drm_buf **wp;			/**< Write pointer */
+	struct drm_buf **end;		/**< End pointer */
 	spinlock_t read_lock;
 	spinlock_t write_lock;
 } drm_waitlist_t;
@@ -336,7 +336,7 @@ typedef struct drm_waitlist {
 typedef struct drm_freelist {
 	int initialized;	       /**< Freelist in use */
 	atomic_t count;		       /**< Number of free buffers */
-	drm_buf_t *next;	       /**< End pointer */
+	struct drm_buf *next;	       /**< End pointer */
 
 	wait_queue_head_t waiting;     /**< Processes waiting on free bufs */
 	int low_mark;		       /**< Low water mark */
@@ -357,7 +357,7 @@ typedef struct drm_dma_handle {
 typedef struct drm_buf_entry {
 	int buf_size;			/**< size */
 	int buf_count;			/**< number of buffers */
-	drm_buf_t *buflist;		/**< buffer list */
+	struct drm_buf *buflist;		/**< buffer list */
 	int seg_count;
 	int page_order;
 	drm_dma_handle_t **seglist;
@@ -421,7 +421,7 @@ typedef struct drm_device_dma {
 
 	drm_buf_entry_t bufs[DRM_MAX_ORDER + 1];	/**< buffers, grouped by their size order */
 	int buf_count;			/**< total number of buffers */
-	drm_buf_t **buflist;		/**< Vector of pointers into drm_device_dma::bufs */
+	struct drm_buf **buflist;		/**< Vector of pointers into drm_device_dma::bufs */
 	int seg_count;
 	int page_count;			/**< number of pages */
 	unsigned long *pagelist;	/**< page list */
@@ -964,7 +964,7 @@ extern unsigned long drm_get_resource_len(struct drm_device *dev,
 				/* DMA support (drm_dma.h) */
 extern int drm_dma_setup(struct drm_device *dev);
 extern void drm_dma_takedown(struct drm_device *dev);
-extern void drm_free_buffer(struct drm_device *dev, drm_buf_t * buf);
+extern void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf);
 extern void drm_core_reclaim_buffers(struct drm_device *dev, struct file *filp);
 
 				/* IRQ support (drm_irq.h) */

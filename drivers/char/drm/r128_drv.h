@@ -57,7 +57,7 @@
 
 typedef struct drm_r128_freelist {
 	unsigned int age;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 	struct drm_r128_freelist *next;
 	struct drm_r128_freelist *prev;
 } drm_r128_freelist_t;

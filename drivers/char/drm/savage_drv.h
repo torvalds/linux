@@ -58,7 +58,7 @@ typedef struct drm_savage_buf_priv {
 	struct drm_savage_buf_priv *next;
 	struct drm_savage_buf_priv *prev;
 	drm_savage_age_t age;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 } drm_savage_buf_priv_t;
 
 typedef struct drm_savage_dma_page {
@@ -203,7 +203,7 @@ extern int savage_bci_buffers(DRM_IOCTL_ARGS);
 /* BCI functions */
 extern uint16_t savage_bci_emit_event(drm_savage_private_t * dev_priv,
 				      unsigned int flags);
-extern void savage_freelist_put(struct drm_device * dev, drm_buf_t * buf);
+extern void savage_freelist_put(struct drm_device * dev, struct drm_buf * buf);
 extern void savage_dma_reset(drm_savage_private_t * dev_priv);
 extern void savage_dma_wait(drm_savage_private_t * dev_priv, unsigned int page);
 extern uint32_t *savage_dma_alloc(drm_savage_private_t * dev_priv,
