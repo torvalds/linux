@@ -818,7 +818,6 @@ static struct scsi_host_template ibmvstgt_sht = {
 	.max_sectors		= DEFAULT_MAX_SECTORS,
 	.transfer_response	= ibmvstgt_cmd_done,
 	.eh_abort_handler	= ibmvstgt_eh_abort_handler,
-	.tsk_mgmt_response	= ibmvstgt_tsk_mgmt_response,
 	.shost_attrs		= ibmvstgt_attrs,
 	.proc_name		= TGT_NAME,
 };
@@ -945,6 +944,7 @@ static int get_system_info(void)
 }
 
 static struct srp_function_template ibmvstgt_transport_functions = {
+	.tsk_mgmt_response = ibmvstgt_tsk_mgmt_response,
 	.it_nexus_response = ibmvstgt_it_nexus_response,
 };
 
