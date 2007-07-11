@@ -11,8 +11,6 @@
 #ifndef __E820_HEADER
 #define __E820_HEADER
 
-#include <linux/mmzone.h>
-
 #define E820MAP	0x2d0		/* our map */
 #define E820MAX	128		/* number of entries in E820MAP */
 #define E820NR	0x1e8		/* # entries in E820MAP */
@@ -30,7 +28,7 @@ struct e820entry {
 } __attribute__((packed));
 
 struct e820map {
-    int nr_map;
+	u32 nr_map;
 	struct e820entry map[E820MAX];
 };
 

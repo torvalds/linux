@@ -734,7 +734,7 @@ void __init print_memory_map(char *who)
 		case E820_NVS:
 				printk("(ACPI NVS)\n");
 				break;
-		default:	printk("type %lu\n", e820.map[i].type);
+		default:	printk("type %u\n", e820.map[i].type);
 				break;
 		}
 	}
