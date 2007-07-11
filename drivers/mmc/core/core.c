@@ -260,6 +260,8 @@ void mmc_claim_host(struct mmc_host *host)
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
+	might_sleep();
+
 	add_wait_queue(&host->wq, &wait);
 	spin_lock_irqsave(&host->lock, flags);
 	while (1) {
