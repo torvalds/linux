@@ -61,9 +61,9 @@ typedef struct drm_sis_private {
 	unsigned long agp_offset;
 } drm_sis_private_t;
 
-extern int sis_idle(drm_device_t *dev);
-extern void sis_reclaim_buffers_locked(drm_device_t *dev, struct file *filp);
-extern void sis_lastclose(drm_device_t *dev);
+extern int sis_idle(struct drm_device *dev);
+extern void sis_reclaim_buffers_locked(struct drm_device *dev, struct file *filp);
+extern void sis_lastclose(struct drm_device *dev);
 
 extern drm_ioctl_desc_t sis_ioctls[];
 extern int sis_max_ioctl;

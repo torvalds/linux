@@ -36,20 +36,20 @@
 #include <linux/vmalloc.h>
 #include "drmP.h"
 
-unsigned long drm_get_resource_start(drm_device_t *dev, unsigned int resource)
+unsigned long drm_get_resource_start(struct drm_device *dev, unsigned int resource)
 {
 	return pci_resource_start(dev->pdev, resource);
 }
 EXPORT_SYMBOL(drm_get_resource_start);
 
-unsigned long drm_get_resource_len(drm_device_t *dev, unsigned int resource)
+unsigned long drm_get_resource_len(struct drm_device *dev, unsigned int resource)
 {
 	return pci_resource_len(dev->pdev, resource);
 }
 
 EXPORT_SYMBOL(drm_get_resource_len);
 
-static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
+static drm_map_list_t *drm_find_matching_map(struct drm_device *dev,
 					     drm_local_map_t *map)
 {
 	drm_map_list_t *entry;
@@ -64,7 +64,7 @@ static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
 	return NULL;
 }
 
-static int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
+static int drm_map_handle(struct drm_device *dev, drm_hash_item_t *hash,
 			  unsigned long user_token, int hashed_handle)
 {
 	int use_hashed_handle;
@@ -101,7 +101,7 @@ static int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
  * applicable and if supported by the kernel.
  */
-static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
+static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 			   unsigned int size, enum drm_map_type type,
 			   enum drm_map_flags flags, drm_map_list_t ** maplist)
 {
@@ -310,7 +310,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	return 0;
 	}
 
-int drm_addmap(drm_device_t * dev, unsigned int offset,
+int drm_addmap(struct drm_device * dev, unsigned int offset,
 	       unsigned int size, enum drm_map_type type,
 	       enum drm_map_flags flags, drm_local_map_t ** map_ptr)
 {
@@ -328,8 +328,8 @@ EXPORT_SYMBOL(drm_addmap);
 int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 		     unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_map map;
 	drm_map_list_t *maplist;
 	struct drm_map __user *argp = (void __user *)arg;
@@ -376,7 +376,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
  *
  * \sa drm_addmap
  */
-int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
+int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 {
 	drm_map_list_t *r_list = NULL, *list_t;
 	drm_dma_handle_t dmah;
@@ -426,7 +426,7 @@ int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 	return 0;
 }
 
-int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
+int drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 {
 	int ret;
 
@@ -449,8 +449,8 @@ int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
 int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_map request;
 	drm_local_map_t *map = NULL;
 	drm_map_list_t *r_list;
@@ -504,7 +504,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
  *
  * Frees any pages and buffers associated with the given entry.
  */
-static void drm_cleanup_buf_error(drm_device_t * dev, drm_buf_entry_t * entry)
+static void drm_cleanup_buf_error(struct drm_device * dev, drm_buf_entry_t * entry)
 {
 	int i;
 
@@ -541,7 +541,7 @@ static void drm_cleanup_buf_error(drm_device_t * dev, drm_buf_entry_t * entry)
 /**
  * Add AGP buffers for DMA transfers.
  *
- * \param dev drm_device_t to which the buffers are to be added.
+ * \param dev struct drm_device to which the buffers are to be added.
  * \param request pointer to a struct drm_buf_desc describing the request.
  * \return zero on success or a negative number on failure.
  *
@@ -549,7 +549,7 @@ static void drm_cleanup_buf_error(drm_device_t * dev, drm_buf_entry_t * entry)
  * reallocates the buffer list of the same size order to accommodate the new
  * buffers.
  */
-int drm_addbufs_agp(drm_device_t * dev, struct drm_buf_desc * request)
+int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -719,7 +719,7 @@ int drm_addbufs_agp(drm_device_t * dev, struct drm_buf_desc * request)
 EXPORT_SYMBOL(drm_addbufs_agp);
 #endif				/* __OS_HAS_AGP */
 
-int drm_addbufs_pci(drm_device_t * dev, struct drm_buf_desc * request)
+int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	int count;
@@ -945,7 +945,7 @@ int drm_addbufs_pci(drm_device_t * dev, struct drm_buf_desc * request)
 }
 EXPORT_SYMBOL(drm_addbufs_pci);
 
-static int drm_addbufs_sg(drm_device_t * dev, struct drm_buf_desc * request)
+static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -1107,7 +1107,7 @@ static int drm_addbufs_sg(drm_device_t * dev, struct drm_buf_desc * request)
 	return 0;
 }
 
-static int drm_addbufs_fb(drm_device_t * dev, struct drm_buf_desc * request)
+static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -1286,8 +1286,8 @@ int drm_addbufs(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
 	struct drm_buf_desc request;
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
@@ -1337,8 +1337,8 @@ int drm_addbufs(struct inode *inode, struct file *filp,
 int drm_infobufs(struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_device_dma_t *dma = dev->dma;
 	struct drm_buf_info request;
 	struct drm_buf_info __user *argp = (void __user *)arg;
@@ -1425,8 +1425,8 @@ int drm_infobufs(struct inode *inode, struct file *filp,
 int drm_markbufs(struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_device_dma_t *dma = dev->dma;
 	struct drm_buf_desc request;
 	int order;
@@ -1475,8 +1475,8 @@ int drm_markbufs(struct inode *inode, struct file *filp,
 int drm_freebufs(struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_device_dma_t *dma = dev->dma;
 	struct drm_buf_free request;
 	int i;
@@ -1531,8 +1531,8 @@ int drm_freebufs(struct inode *inode, struct file *filp,
 int drm_mapbufs(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_device_dma_t *dma = dev->dma;
 	struct drm_buf_map __user *argp = (void __user *)arg;
 	int retcode = 0;

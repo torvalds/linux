@@ -129,7 +129,7 @@ static drm_ioctl_desc_t drm_ioctls[] = {
  *
  * \sa drm_device
  */
-int drm_lastclose(drm_device_t * dev)
+int drm_lastclose(struct drm_device * dev)
 {
 	drm_magic_entry_t *pt, *next;
 	drm_map_list_t *r_list, *list_t;
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(drm_init);
  *
  * \sa drm_init
  */
-static void drm_cleanup(drm_device_t * dev)
+static void drm_cleanup(struct drm_device * dev)
 {
 	DRM_DEBUG("\n");
 
@@ -330,8 +330,8 @@ static void drm_cleanup(drm_device_t * dev)
 void drm_exit(struct drm_driver *driver)
 {
 	int i;
-	drm_device_t *dev = NULL;
-	drm_head_t *head;
+	struct drm_device *dev = NULL;
+	struct drm_head *head;
 
 	DRM_DEBUG("\n");
 
@@ -430,8 +430,8 @@ module_exit(drm_core_exit);
 static int drm_version(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_version __user *argp = (void __user *)arg;
 	struct drm_version version;
 	int len;
@@ -466,8 +466,8 @@ static int drm_version(struct inode *inode, struct file *filp,
 int drm_ioctl(struct inode *inode, struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_ioctl_desc_t *ioctl;
 	drm_ioctl_t *func;
 	unsigned int nr = DRM_IOCTL_NR(cmd);

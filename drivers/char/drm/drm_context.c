@@ -56,7 +56,7 @@
  * in drm_device::context_sareas, while holding the drm_device::struct_mutex
  * lock.
  */
-void drm_ctxbitmap_free(drm_device_t * dev, int ctx_handle)
+void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
 {
 	if (ctx_handle < 0)
 		goto failed;
@@ -85,7 +85,7 @@ void drm_ctxbitmap_free(drm_device_t * dev, int ctx_handle)
  * drm_device::context_sareas to accommodate the new entry while holding the
  * drm_device::struct_mutex lock.
  */
-static int drm_ctxbitmap_next(drm_device_t * dev)
+static int drm_ctxbitmap_next(struct drm_device * dev)
 {
 	int bit;
 
@@ -147,7 +147,7 @@ static int drm_ctxbitmap_next(drm_device_t * dev)
  * Allocates and initialize drm_device::ctx_bitmap and drm_device::context_sareas, while holding
  * the drm_device::struct_mutex lock.
  */
-int drm_ctxbitmap_init(drm_device_t * dev)
+int drm_ctxbitmap_init(struct drm_device * dev)
 {
 	int i;
 	int temp;
@@ -180,7 +180,7 @@ int drm_ctxbitmap_init(drm_device_t * dev)
  * Frees drm_device::ctx_bitmap and drm_device::context_sareas, while holding
  * the drm_device::struct_mutex lock.
  */
-void drm_ctxbitmap_cleanup(drm_device_t * dev)
+void drm_ctxbitmap_cleanup(struct drm_device * dev)
 {
 	mutex_lock(&dev->struct_mutex);
 	if (dev->context_sareas)
@@ -212,8 +212,8 @@ void drm_ctxbitmap_cleanup(drm_device_t * dev)
 int drm_getsareactx(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx_priv_map __user *argp = (void __user *)arg;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map;
@@ -263,8 +263,8 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 int drm_setsareactx(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map = NULL;
 	drm_map_list_t *r_list = NULL;
@@ -313,7 +313,7 @@ int drm_setsareactx(struct inode *inode, struct file *filp,
  *
  * Attempt to set drm_device::context_flag.
  */
-static int drm_context_switch(drm_device_t * dev, int old, int new)
+static int drm_context_switch(struct drm_device * dev, int old, int new)
 {
 	if (test_and_set_bit(0, &dev->context_flag)) {
 		DRM_ERROR("Reentering -- FIXME\n");
@@ -341,7 +341,7 @@ static int drm_context_switch(drm_device_t * dev, int old, int new)
  * hardware lock is held, clears the drm_device::context_flag and wakes up
  * drm_device::context_wait.
  */
-static int drm_context_switch_complete(drm_device_t * dev, int new)
+static int drm_context_switch_complete(struct drm_device * dev, int new)
 {
 	dev->last_context = new;	/* PRE/POST: This is the _only_ writer. */
 	dev->last_switch = jiffies;
@@ -408,8 +408,8 @@ int drm_resctx(struct inode *inode, struct file *filp,
 int drm_addctx(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_ctx_list_t *ctx_entry;
 	struct drm_ctx __user *argp = (void __user *)arg;
 	struct drm_ctx ctx;
@@ -504,8 +504,8 @@ int drm_getctx(struct inode *inode, struct file *filp,
 int drm_switchctx(struct inode *inode, struct file *filp,
 		  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))
@@ -529,8 +529,8 @@ int drm_switchctx(struct inode *inode, struct file *filp,
 int drm_newctx(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))
@@ -556,8 +556,8 @@ int drm_newctx(struct inode *inode, struct file *filp,
 int drm_rmctx(struct inode *inode, struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))

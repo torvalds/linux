@@ -80,7 +80,7 @@ void drm_sysfs_destroy(struct class *class)
 
 static ssize_t show_dri(struct class_device *class_device, char *buf)
 {
-	drm_device_t * dev = ((drm_head_t *)class_get_devdata(class_device))->dev;
+	struct drm_device * dev = ((struct drm_head *)class_get_devdata(class_device))->dev;
 	if (dev->driver->dri_library_name)
 		return dev->driver->dri_library_name(dev, buf);
 	return snprintf(buf, PAGE_SIZE, "%s\n", dev->driver->pci_driver.name);
@@ -104,7 +104,7 @@ static struct class_device_attribute class_device_attrs[] = {
  * Note: the struct class passed to this function must have previously been
  * created with a call to drm_sysfs_create().
  */
-struct class_device *drm_sysfs_device_add(struct class *cs, drm_head_t *head)
+struct class_device *drm_sysfs_device_add(struct class *cs, struct drm_head *head)
 {
 	struct class_device *class_dev;
 	int i, j, err;

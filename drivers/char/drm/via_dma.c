@@ -151,7 +151,7 @@ static inline uint32_t *via_check_dma(drm_via_private_t * dev_priv,
 	return (uint32_t *) (dev_priv->dma_ptr + dev_priv->dma_low);
 }
 
-int via_dma_cleanup(drm_device_t * dev)
+int via_dma_cleanup(struct drm_device * dev)
 {
 	if (dev->dev_private) {
 		drm_via_private_t *dev_priv =
@@ -169,7 +169,7 @@ int via_dma_cleanup(drm_device_t * dev)
 	return 0;
 }
 
-static int via_initialize(drm_device_t * dev,
+static int via_initialize(struct drm_device * dev,
 			  drm_via_private_t * dev_priv,
 			  drm_via_dma_init_t * init)
 {
@@ -262,7 +262,7 @@ static int via_dma_init(DRM_IOCTL_ARGS)
 	return retcode;
 }
 
-static int via_dispatch_cmdbuffer(drm_device_t * dev, drm_via_cmdbuffer_t * cmd)
+static int via_dispatch_cmdbuffer(struct drm_device * dev, drm_via_cmdbuffer_t * cmd)
 {
 	drm_via_private_t *dev_priv;
 	uint32_t *vb;
@@ -316,7 +316,7 @@ static int via_dispatch_cmdbuffer(drm_device_t * dev, drm_via_cmdbuffer_t * cmd)
 	return 0;
 }
 
-int via_driver_dma_quiescent(drm_device_t * dev)
+int via_driver_dma_quiescent(struct drm_device * dev)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 
@@ -356,7 +356,7 @@ static int via_cmdbuffer(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-static int via_dispatch_pci_cmdbuffer(drm_device_t * dev,
+static int via_dispatch_pci_cmdbuffer(struct drm_device * dev,
 				      drm_via_cmdbuffer_t * cmd)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;

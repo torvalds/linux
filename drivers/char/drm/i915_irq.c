@@ -42,7 +42,7 @@
  *
  * This function will be called with the HW lock held.
  */
-static void i915_vblank_tasklet(drm_device_t *dev)
+static void i915_vblank_tasklet(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
@@ -211,7 +211,7 @@ static void i915_vblank_tasklet(drm_device_t *dev)
 
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u16 temp;
 
@@ -257,7 +257,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_HANDLED;
 }
 
-static int i915_emit_irq(drm_device_t * dev)
+static int i915_emit_irq(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -283,7 +283,7 @@ static int i915_emit_irq(drm_device_t * dev)
 	return dev_priv->counter;
 }
 
-static int i915_wait_irq(drm_device_t * dev, int irq_nr)
+static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = 0;
@@ -309,7 +309,7 @@ static int i915_wait_irq(drm_device_t * dev, int irq_nr)
 	return ret;
 }
 
-static int i915_driver_vblank_do_wait(drm_device_t *dev, unsigned int *sequence,
+static int i915_driver_vblank_do_wait(struct drm_device *dev, unsigned int *sequence,
 				      atomic_t *counter)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -331,12 +331,12 @@ static int i915_driver_vblank_do_wait(drm_device_t *dev, unsigned int *sequence,
 }
 
 
-int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+int i915_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence)
 {
 	return i915_driver_vblank_do_wait(dev, sequence, &dev->vbl_received);
 }
 
-int i915_driver_vblank_wait2(drm_device_t *dev, unsigned int *sequence)
+int i915_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence)
 {
 	return i915_driver_vblank_do_wait(dev, sequence, &dev->vbl_received2);
 }
@@ -389,7 +389,7 @@ int i915_irq_wait(DRM_IOCTL_ARGS)
 	return i915_wait_irq(dev, irqwait.irq_seq);
 }
 
-static void i915_enable_interrupt (drm_device_t *dev)
+static void i915_enable_interrupt (struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u16 flag;
@@ -569,7 +569,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 /* drm_dma.h hooks
 */
-void i915_driver_irq_preinstall(drm_device_t * dev)
+void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
@@ -578,7 +578,7 @@ void i915_driver_irq_preinstall(drm_device_t * dev)
 	I915_WRITE16(I915REG_INT_ENABLE_R, 0x0);
 }
 
-void i915_driver_irq_postinstall(drm_device_t * dev)
+void i915_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
@@ -592,7 +592,7 @@ void i915_driver_irq_postinstall(drm_device_t * dev)
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 }
 
-void i915_driver_irq_uninstall(drm_device_t * dev)
+void i915_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u16 temp;

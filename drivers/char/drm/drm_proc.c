@@ -87,7 +87,7 @@ static struct drm_proc_list {
  * "/proc/dri/%minor%/", and each entry in proc_list as
  * "/proc/dri/%minor%/%name%".
  */
-int drm_proc_init(drm_device_t * dev, int minor,
+int drm_proc_init(struct drm_device * dev, int minor,
 		  struct proc_dir_entry *root, struct proc_dir_entry **dev_root)
 {
 	struct proc_dir_entry *ent;
@@ -163,7 +163,7 @@ int drm_proc_cleanup(int minor, struct proc_dir_entry *root,
 static int drm_name_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 
 	if (offset > DRM_PROC_LIMIT) {
@@ -205,7 +205,7 @@ static int drm_name_info(char *buf, char **start, off_t offset, int request,
 static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	struct drm_map *map;
 	drm_map_list_t *r_list;
@@ -261,7 +261,7 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 static int drm_vm_info(char *buf, char **start, off_t offset, int request,
 		       int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -284,7 +284,7 @@ static int drm_vm_info(char *buf, char **start, off_t offset, int request,
 static int drm__queues_info(char *buf, char **start, off_t offset,
 			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	int i;
 	drm_queue_t *q;
@@ -334,7 +334,7 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
 static int drm_queues_info(char *buf, char **start, off_t offset, int request,
 			   int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -357,7 +357,7 @@ static int drm_queues_info(char *buf, char **start, off_t offset, int request,
 static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 			  int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	drm_device_dma_t *dma = dev->dma;
 	int i;
@@ -406,7 +406,7 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -429,9 +429,9 @@ static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 static int drm__clients_info(char *buf, char **start, off_t offset,
 			     int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_file_t *priv;
+	struct drm_file *priv;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -462,7 +462,7 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 static int drm_clients_info(char *buf, char **start, off_t offset,
 			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -476,7 +476,7 @@ static int drm_clients_info(char *buf, char **start, off_t offset,
 static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	drm_vma_entry_t *pt;
 	struct vm_area_struct *vma;
@@ -535,7 +535,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 static int drm_vma_info(char *buf, char **start, off_t offset, int request,
 			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);

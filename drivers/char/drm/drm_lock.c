@@ -51,8 +51,8 @@ static int drm_notifier(void *priv);
 int drm_lock(struct inode *inode, struct file *filp,
 	     unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	DECLARE_WAITQUEUE(entry, current);
 	struct drm_lock lock;
 	int ret = 0;
@@ -152,8 +152,8 @@ int drm_lock(struct inode *inode, struct file *filp,
 int drm_unlock(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_lock lock;
 	unsigned long irqflags;
 

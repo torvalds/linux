@@ -47,7 +47,7 @@
  * the head pointer changes, so that EBUSY only happens if the ring
  * actually stalls for (eg) 3 seconds.
  */
-int i915_wait_ring(drm_device_t * dev, int n, const char *caller)
+int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
@@ -73,7 +73,7 @@ int i915_wait_ring(drm_device_t * dev, int n, const char *caller)
 	return DRM_ERR(EBUSY);
 }
 
-void i915_kernel_lost_context(drm_device_t * dev)
+void i915_kernel_lost_context(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
@@ -88,7 +88,7 @@ void i915_kernel_lost_context(drm_device_t * dev)
 		dev_priv->sarea_priv->perf_boxes |= I915_BOX_RING_EMPTY;
 }
 
-static int i915_dma_cleanup(drm_device_t * dev)
+static int i915_dma_cleanup(struct drm_device * dev)
 {
 	/* Make sure interrupts are disabled here because the uninstall ioctl
 	 * may not have been called from userspace and after dev_private
@@ -126,7 +126,7 @@ static int i915_dma_cleanup(drm_device_t * dev)
 	return 0;
 }
 
-static int i915_initialize(drm_device_t * dev,
+static int i915_initialize(struct drm_device * dev,
 			   drm_i915_private_t * dev_priv,
 			   drm_i915_init_t * init)
 {
@@ -211,7 +211,7 @@ static int i915_initialize(drm_device_t * dev,
 	return 0;
 }
 
-static int i915_dma_resume(drm_device_t * dev)
+static int i915_dma_resume(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
@@ -357,7 +357,7 @@ static int validate_cmd(int cmd)
 	return ret;
 }
 
-static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
+static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwords)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
@@ -396,7 +396,7 @@ static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
 	return 0;
 }
 
-static int i915_emit_box(drm_device_t * dev,
+static int i915_emit_box(struct drm_device * dev,
 			 struct drm_clip_rect __user * boxes,
 			 int i, int DR1, int DR4)
 {
@@ -439,7 +439,7 @@ static int i915_emit_box(drm_device_t * dev,
  * emit. For now, do it in both places:
  */
 
-static void i915_emit_breadcrumb(drm_device_t *dev)
+static void i915_emit_breadcrumb(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -457,7 +457,7 @@ static void i915_emit_breadcrumb(drm_device_t *dev)
 	ADVANCE_LP_RING();
 }
 
-static int i915_dispatch_cmdbuffer(drm_device_t * dev,
+static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 				   drm_i915_cmdbuffer_t * cmd)
 {
 	int nbox = cmd->num_cliprects;
@@ -489,7 +489,7 @@ static int i915_dispatch_cmdbuffer(drm_device_t * dev,
 	return 0;
 }
 
-static int i915_dispatch_batchbuffer(drm_device_t * dev,
+static int i915_dispatch_batchbuffer(struct drm_device * dev,
 				     drm_i915_batchbuffer_t * batch)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -535,7 +535,7 @@ static int i915_dispatch_batchbuffer(drm_device_t * dev,
 	return 0;
 }
 
-static int i915_dispatch_flip(drm_device_t * dev)
+static int i915_dispatch_flip(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -583,7 +583,7 @@ static int i915_dispatch_flip(drm_device_t * dev)
 	return 0;
 }
 
-static int i915_quiescent(drm_device_t * dev)
+static int i915_quiescent(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -792,7 +792,7 @@ static int i915_set_status_page(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int i915_driver_load(drm_device_t *dev, unsigned long flags)
+int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -804,7 +804,7 @@ int i915_driver_load(drm_device_t *dev, unsigned long flags)
 	return 0;
 }
 
-void i915_driver_lastclose(drm_device_t * dev)
+void i915_driver_lastclose(struct drm_device * dev)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -813,7 +813,7 @@ void i915_driver_lastclose(drm_device_t * dev)
 	i915_dma_cleanup(dev);
 }
 
-void i915_driver_preclose(drm_device_t * dev, DRMFILE filp)
+void i915_driver_preclose(struct drm_device * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -854,7 +854,7 @@ int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
  * \returns
  * A value of 1 is always retured to indictate every i9x5 is AGP.
  */
-int i915_driver_device_is_agp(drm_device_t * dev)
+int i915_driver_device_is_agp(struct drm_device * dev)
 {
 	return 1;
 }

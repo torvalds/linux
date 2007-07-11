@@ -64,7 +64,7 @@ static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv,
 
 irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
@@ -109,7 +109,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_HANDLED;
 }
 
-static int radeon_emit_irq(drm_device_t * dev)
+static int radeon_emit_irq(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int ret;
@@ -127,7 +127,7 @@ static int radeon_emit_irq(drm_device_t * dev)
 	return ret;
 }
 
-static int radeon_wait_irq(drm_device_t * dev, int swi_nr)
+static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
@@ -144,7 +144,7 @@ static int radeon_wait_irq(drm_device_t * dev, int swi_nr)
 	return ret;
 }
 
-int radeon_driver_vblank_do_wait(drm_device_t * dev, unsigned int *sequence,
+int radeon_driver_vblank_do_wait(struct drm_device * dev, unsigned int *sequence,
 				 int crtc)
 {
 	drm_radeon_private_t *dev_priv =
@@ -184,12 +184,12 @@ int radeon_driver_vblank_do_wait(drm_device_t * dev, unsigned int *sequence,
 	return ret;
 }
 
-int radeon_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+int radeon_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence)
 {
 	return radeon_driver_vblank_do_wait(dev, sequence, DRM_RADEON_VBLANK_CRTC1);
 }
 
-int radeon_driver_vblank_wait2(drm_device_t *dev, unsigned int *sequence)
+int radeon_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence)
 {
 	return radeon_driver_vblank_do_wait(dev, sequence, DRM_RADEON_VBLANK_CRTC2);
 }
@@ -242,7 +242,7 @@ int radeon_irq_wait(DRM_IOCTL_ARGS)
 	return radeon_wait_irq(dev, irqwait.irq_seq);
 }
 
-static void radeon_enable_interrupt(drm_device_t *dev)
+static void radeon_enable_interrupt(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
 
@@ -259,7 +259,7 @@ static void radeon_enable_interrupt(drm_device_t *dev)
 
 /* drm_dma.h hooks
 */
-void radeon_driver_irq_preinstall(drm_device_t * dev)
+void radeon_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
@@ -273,7 +273,7 @@ void radeon_driver_irq_preinstall(drm_device_t * dev)
 					   RADEON_CRTC2_VBLANK_STAT));
 }
 
-void radeon_driver_irq_postinstall(drm_device_t * dev)
+void radeon_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
@@ -284,7 +284,7 @@ void radeon_driver_irq_postinstall(drm_device_t * dev)
 	radeon_enable_interrupt(dev);
 }
 
-void radeon_driver_irq_uninstall(drm_device_t * dev)
+void radeon_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
@@ -298,7 +298,7 @@ void radeon_driver_irq_uninstall(drm_device_t * dev)
 }
 
 
-int radeon_vblank_crtc_get(drm_device_t *dev)
+int radeon_vblank_crtc_get(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
 	u32 flag;
@@ -315,7 +315,7 @@ int radeon_vblank_crtc_get(drm_device_t *dev)
 	return value;
 }
 
-int radeon_vblank_crtc_set(drm_device_t *dev, int64_t value)
+int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value)
 {
 	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
 	if (value & ~(DRM_RADEON_VBLANK_CRTC1 | DRM_RADEON_VBLANK_CRTC2)) {

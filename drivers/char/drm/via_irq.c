@@ -98,7 +98,7 @@ static unsigned time_diff(struct timeval *now, struct timeval *then)
 
 irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 	int handled = 0;
@@ -163,7 +163,7 @@ static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t * dev_priv)
 	}
 }
 
-int via_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
+int via_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	unsigned int cur_vblank;
@@ -191,7 +191,7 @@ int via_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 }
 
 static int
-via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
+via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequence,
 		    unsigned int *sequence)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
@@ -244,7 +244,7 @@ via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
  * drm_dma.h hooks
  */
 
-void via_driver_irq_preinstall(drm_device_t * dev)
+void via_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
@@ -293,7 +293,7 @@ void via_driver_irq_preinstall(drm_device_t * dev)
 	}
 }
 
-void via_driver_irq_postinstall(drm_device_t * dev)
+void via_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
@@ -312,7 +312,7 @@ void via_driver_irq_postinstall(drm_device_t * dev)
 	}
 }
 
-void via_driver_irq_uninstall(drm_device_t * dev)
+void via_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;

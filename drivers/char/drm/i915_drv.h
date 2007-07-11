@@ -120,11 +120,11 @@ extern drm_ioctl_desc_t i915_ioctls[];
 extern int i915_max_ioctl;
 
 				/* i915_dma.c */
-extern void i915_kernel_lost_context(drm_device_t * dev);
+extern void i915_kernel_lost_context(struct drm_device * dev);
 extern int i915_driver_load(struct drm_device *, unsigned long flags);
-extern void i915_driver_lastclose(drm_device_t * dev);
-extern void i915_driver_preclose(drm_device_t * dev, DRMFILE filp);
-extern int i915_driver_device_is_agp(drm_device_t * dev);
+extern void i915_driver_lastclose(struct drm_device * dev);
+extern void i915_driver_preclose(struct drm_device * dev, DRMFILE filp);
+extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 
@@ -132,12 +132,12 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 extern int i915_irq_emit(DRM_IOCTL_ARGS);
 extern int i915_irq_wait(DRM_IOCTL_ARGS);
 
-extern int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
-extern int i915_driver_vblank_wait2(drm_device_t *dev, unsigned int *sequence);
+extern int i915_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
+extern int i915_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
-extern void i915_driver_irq_preinstall(drm_device_t * dev);
-extern void i915_driver_irq_postinstall(drm_device_t * dev);
-extern void i915_driver_irq_uninstall(drm_device_t * dev);
+extern void i915_driver_irq_preinstall(struct drm_device * dev);
+extern void i915_driver_irq_postinstall(struct drm_device * dev);
+extern void i915_driver_irq_uninstall(struct drm_device * dev);
 extern int i915_vblank_pipe_set(DRM_IOCTL_ARGS);
 extern int i915_vblank_pipe_get(DRM_IOCTL_ARGS);
 extern int i915_vblank_swap(DRM_IOCTL_ARGS);
@@ -148,7 +148,7 @@ extern int i915_mem_free(DRM_IOCTL_ARGS);
 extern int i915_mem_init_heap(DRM_IOCTL_ARGS);
 extern int i915_mem_destroy_heap(DRM_IOCTL_ARGS);
 extern void i915_mem_takedown(struct mem_block **heap);
-extern void i915_mem_release(drm_device_t * dev,
+extern void i915_mem_release(struct drm_device * dev,
 			     DRMFILE filp, struct mem_block *heap);
 
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, (reg))
@@ -188,7 +188,7 @@ extern void i915_mem_release(drm_device_t * dev,
 	I915_WRITE(LP_RING + RING_TAIL, outring);			\
 } while(0)
 
-extern int i915_wait_ring(drm_device_t * dev, int n, const char *caller);
+extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))

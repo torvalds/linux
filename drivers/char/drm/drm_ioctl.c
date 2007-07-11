@@ -52,8 +52,8 @@
 int drm_getunique(struct inode *inode, struct file *filp,
 		  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_unique __user *argp = (void __user *)arg;
 	struct drm_unique u;
 
@@ -86,8 +86,8 @@ int drm_getunique(struct inode *inode, struct file *filp,
 int drm_setunique(struct inode *inode, struct file *filp,
 		  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_unique u;
 	int domain, bus, slot, func, ret;
 
@@ -136,7 +136,7 @@ int drm_setunique(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static int drm_set_busid(drm_device_t * dev)
+static int drm_set_busid(struct drm_device * dev)
 {
 	int len;
 
@@ -184,8 +184,8 @@ static int drm_set_busid(drm_device_t * dev)
 int drm_getmap(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_map __user *argp = (void __user *)arg;
 	struct drm_map map;
 	drm_map_list_t *r_list = NULL;
@@ -245,11 +245,11 @@ int drm_getmap(struct inode *inode, struct file *filp,
 int drm_getclient(struct inode *inode, struct file *filp,
 		  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_client __user *argp = (struct drm_client __user *)arg;
 	struct drm_client client;
-	drm_file_t *pt;
+	struct drm_file *pt;
 	int idx;
 	int i;
 
@@ -294,8 +294,8 @@ int drm_getclient(struct inode *inode, struct file *filp,
 int drm_getstats(struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_stats stats;
 	int i;
 

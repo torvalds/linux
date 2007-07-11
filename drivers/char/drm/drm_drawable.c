@@ -322,7 +322,7 @@ error:
 /**
  * Caller must hold the drawable spinlock!
  */
-struct drm_drawable_info *drm_get_drawable_info(drm_device_t *dev, drm_drawable_t id) {
+struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev, drm_drawable_t id) {
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned int idx, shift;
 

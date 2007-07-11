@@ -45,9 +45,9 @@
  * the one with matching magic number, while holding the drm_device::struct_mutex
  * lock.
  */
-static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
+static struct drm_file *drm_find_file(struct drm_device * dev, drm_magic_t magic)
 {
-	drm_file_t *retval = NULL;
+	struct drm_file *retval = NULL;
 	drm_magic_entry_t *pt;
 	drm_hash_item_t *hash;
 
@@ -71,7 +71,7 @@ static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
  * associated the magic number hash key in drm_device::magiclist, while holding
  * the drm_device::struct_mutex lock.
  */
-static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
+static int drm_add_magic(struct drm_device * dev, struct drm_file * priv,
 			 drm_magic_t magic)
 {
 	drm_magic_entry_t *entry;
@@ -102,7 +102,7 @@ static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
  * Searches and unlinks the entry in drm_device::magiclist with the magic
  * number hash key, while holding the drm_device::struct_mutex lock.
  */
-static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
+static int drm_remove_magic(struct drm_device * dev, drm_magic_t magic)
 {
 	drm_magic_entry_t *pt;
 	drm_hash_item_t *hash;
@@ -142,8 +142,8 @@ int drm_getmagic(struct inode *inode, struct file *filp,
 {
 	static drm_magic_t sequence = 0;
 	static DEFINE_SPINLOCK(lock);
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_auth auth;
 
 	/* Find unique magic */
@@ -181,10 +181,10 @@ int drm_getmagic(struct inode *inode, struct file *filp,
 int drm_authmagic(struct inode *inode, struct file *filp,
 		  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	struct drm_auth auth;
-	drm_file_t *file;
+	struct drm_file *file;
 
 	if (copy_from_user(&auth, (struct drm_auth __user *) arg, sizeof(auth)))
 		return -EFAULT;

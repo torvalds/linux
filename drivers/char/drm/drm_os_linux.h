@@ -34,8 +34,8 @@
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
 /** DRM device local declaration */
-#define DRM_DEVICE	drm_file_t	*priv	= filp->private_data; \
-			drm_device_t	*dev	= priv->head->dev
+#define DRM_DEVICE	struct drm_file	*priv	= filp->private_data; \
+			struct drm_device *dev	= priv->head->dev
 
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg

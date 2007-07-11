@@ -39,9 +39,9 @@
 #include <linux/poll.h>
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   drm_device_t * dev);
+			   struct drm_device * dev);
 
-static int drm_setup(drm_device_t * dev)
+static int drm_setup(struct drm_device * dev)
 {
 	drm_local_map_t *map;
 	int i;
@@ -128,7 +128,7 @@ static int drm_setup(drm_device_t * dev)
  */
 int drm_open(struct inode *inode, struct file *filp)
 {
-	drm_device_t *dev = NULL;
+	struct drm_device *dev = NULL;
 	int minor = iminor(inode);
 	int retcode = 0;
 
@@ -167,7 +167,7 @@ EXPORT_SYMBOL(drm_open);
  */
 int drm_stub_open(struct inode *inode, struct file *filp)
 {
-	drm_device_t *dev = NULL;
+	struct drm_device *dev = NULL;
 	int minor = iminor(inode);
 	int err = -ENODEV;
 	const struct file_operations *old_fops;
@@ -223,10 +223,10 @@ static int drm_cpu_valid(void)
  * filp and add it into the double linked list in \p dev.
  */
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   drm_device_t * dev)
+			   struct drm_device * dev)
 {
 	int minor = iminor(inode);
-	drm_file_t *priv;
+	struct drm_file *priv;
 	int ret;
 
 	if (filp->f_flags & O_EXCL)
@@ -295,8 +295,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 /** No-op. */
 int drm_fasync(int fd, struct file *filp, int on)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	int retcode;
 
 	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
@@ -322,8 +322,8 @@ EXPORT_SYMBOL(drm_fasync);
  */
 int drm_release(struct inode *inode, struct file *filp)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev;
 	int retcode = 0;
 
 	lock_kernel();
@@ -422,7 +422,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->struct_mutex);
 	if (priv->remove_auth_on_close == 1) {
-		drm_file_t *temp;
+		struct drm_file *temp;
 
 		list_for_each_entry(temp, &dev->filelist, lhead)
 			temp->authenticated = 0;
