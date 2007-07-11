@@ -42,6 +42,8 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include <net/ax88796.h>
+
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -260,6 +262,38 @@ static struct platform_device anubis_device_ide1 = {
 	.resource	= anubis_ide1_resource,
 };
 
+/* Asix AX88796 10/100 ethernet controller */
+
+static struct ax_plat_data anubis_asix_platdata = {
+	.flags		= AXFLG_MAC_FROMDEV,
+	.wordlength	= 2,
+	.dcr_val	= 0x48,
+	.rcr_val	= 0x40,
+};
+
+static struct resource anubis_asix_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5,
+		.end   = S3C2410_CS5 + (0x20 * 0x20) -1,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = IRQ_ASIX,
+		.end   = IRQ_ASIX,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static struct platform_device anubis_device_asix = {
+	.name		= "ax88796",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(anubis_asix_resource),
+	.resource	= anubis_asix_resource,
+	.dev		= {
+		.platform_data = &anubis_asix_platdata,
+	}
+};
+
 /* Standard Anubis devices */
 
 static struct platform_device *anubis_devices[] __initdata = {
@@ -271,6 +305,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&s3c_device_nand,
 	&anubis_device_ide0,
 	&anubis_device_ide1,
+	&anubis_device_asix,
 };
 
 static struct clk *anubis_clocks[] = {
