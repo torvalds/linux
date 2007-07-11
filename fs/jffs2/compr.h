@@ -94,5 +94,9 @@ void jffs2_rtime_exit(void);
 int jffs2_zlib_init(void);
 void jffs2_zlib_exit(void);
 #endif
+#ifdef CONFIG_JFFS2_LZO
+int jffs2_lzo_init(void);
+void jffs2_lzo_exit(void);
+#endif
 
 #endif /* __JFFS2_COMPR_H__ */
