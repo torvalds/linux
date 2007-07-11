@@ -512,7 +512,16 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 
 int usbhid_open(struct hid_device *hid)
 {
-	++hid->open;
+	struct usbhid_device *usbhid = hid->driver_data;
+	int res;
+
+	if (!hid->open++) {
+		res = usb_autopm_get_interface(usbhid->intf);
+		if (res < 0) {
+			hid->open--;
+			return -EIO;
+		}
+	}
 	if (hid_start_in(hid))
 		hid_io_error(hid);
 	return 0;
@@ -522,8 +531,10 @@ void usbhid_close(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (!--hid->open)
+	if (!--hid->open) {
 		usb_kill_urb(usbhid->urbin);
+		usb_autopm_put_interface(usbhid->intf);
+	}
 }
 
 /*
@@ -1048,6 +1059,7 @@ static struct usb_driver hid_driver = {
 	.pre_reset =	hid_pre_reset,
 	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,
+	.supports_autosuspend = 1,
 };
 
 static int __init hid_init(void)
