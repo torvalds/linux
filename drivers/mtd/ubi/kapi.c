@@ -38,9 +38,8 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 	const struct ubi_device *ubi;
 
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES ||
-	    !ubi_devices[ubi_num]) {
+	    !ubi_devices[ubi_num])
 		return -ENODEV;
-	}
 
 	ubi = ubi_devices[ubi_num];
 	di->ubi_num = ubi->ubi_num;

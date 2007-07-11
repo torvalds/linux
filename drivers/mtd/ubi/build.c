@@ -685,13 +685,6 @@ static int __init ubi_init(void)
 		struct mtd_dev_param *p = &mtd_dev_param[i];
 
 		cond_resched();
-
-		if (!p->name) {
-			dbg_err("empty name");
-			err = -EINVAL;
-			goto out_detach;
-		}
-
 		err = attach_mtd_dev(p->name, p->vid_hdr_offs, p->data_offs);
 		if (err)
 			goto out_detach;
@@ -798,7 +791,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 
 	/* Get rid of the final newline */
 	if (buf[len - 1] == '\n')
-		buf[len - 1] = 0;
+		buf[len - 1] = '\0';
 
 	for (i = 0; i < 3; i++)
 		tokens[i] = strsep(&pbuf, ",");
@@ -807,9 +800,6 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 		printk("UBI error: too many arguments at \"%s\"\n", val);
 		return -EINVAL;
 	}
-
-	if (tokens[0] == '\0')
-		return -EINVAL;
 
 	p = &mtd_dev_param[mtd_devs];
 	strcpy(&p->name[0], tokens[0]);
