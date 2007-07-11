@@ -109,6 +109,7 @@ struct hci_dev {
 	struct sk_buff_head	cmd_q;
 
 	struct sk_buff		*sent_cmd;
+	struct sk_buff		*reassembly[3];
 
 	struct semaphore	req_lock;
 	wait_queue_head_t	req_wait_q;
@@ -436,6 +437,8 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 	hci_sched_rx(hdev);
 	return 0;
 }
+
+int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count);
 
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
