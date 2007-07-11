@@ -30,6 +30,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_srp.h>
+#include <scsi/scsi_tgt.h>
 
 struct srp_host_attrs {
 	atomic_t next_port_id;
@@ -221,6 +222,17 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 		return ERR_PTR(ret);
 	}
 
+	if (ids->roles == SRP_RPORT_ROLE_INITIATOR) {
+		ret = scsi_tgt_it_nexus_create(shost, (unsigned long)rport,
+					       rport->port_id);
+		if (ret) {
+			device_del(&rport->dev);
+			transport_destroy_device(&rport->dev);
+			put_device(&rport->dev);
+			return ERR_PTR(ret);
+		}
+	}
+
 	transport_add_device(&rport->dev);
 	transport_configure_device(&rport->dev);
 
@@ -237,6 +249,10 @@ EXPORT_SYMBOL_GPL(srp_rport_add);
 void srp_rport_del(struct srp_rport *rport)
 {
 	struct device *dev = &rport->dev;
+
+	if (rport->roles == SRP_RPORT_ROLE_INITIATOR)
+		scsi_tgt_it_nexus_destroy(dev_to_shost(dev->parent),
+					  (unsigned long)rport);
 
 	transport_remove_device(dev);
 	device_del(dev);
@@ -264,6 +280,12 @@ void srp_remove_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL_GPL(srp_remove_host);
 
+static int srp_it_nexus_response(struct Scsi_Host *shost, u64 id, int result)
+{
+	struct srp_internal *i = to_srp_internal(shost->transportt);
+	return i->f->it_nexus_response(shost, id, result);
+}
+
 /**
  * srp_attach_transport  --  instantiate SRP transport template
  * @ft:		SRP transport class function template
@@ -277,6 +299,8 @@ srp_attach_transport(struct srp_function_template *ft)
 	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (!i)
 		return NULL;
+
+	i->t.it_nexus_response = srp_it_nexus_response;
 
 	i->t.host_size = sizeof(struct srp_host_attrs);
 	i->t.host_attrs.ac.attrs = &i->host_attrs[0];

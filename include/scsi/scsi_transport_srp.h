@@ -21,7 +21,8 @@ struct srp_rport {
 };
 
 struct srp_function_template {
-	/* later */
+	/* for target drivers */
+	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
 };
 
 extern struct scsi_transport_template *
