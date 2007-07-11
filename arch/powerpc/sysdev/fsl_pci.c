@@ -102,6 +102,10 @@ static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
 	int i, res_idx = PCI_BRIDGE_RESOURCES;
 	struct pci_controller *hose;
 
+	/* if we aren't a PCIe don't bother */
+	if (!pci_find_capability(dev, PCI_CAP_ID_EXP))
+		return ;
+
 	/*
 	 * Make the bridge be transparent.
 	 */
@@ -167,20 +171,16 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	/* check PCI express bridge */
-	if (of_device_is_compatible(dev, "fsl,mpc8548-pcie") ||
-		of_device_is_compatible(dev, "fsl,mpc8641-pcie"))
-		hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG |
-			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
-
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4);
 	setup_pci_cmd(hose);
 
 	/* check PCI express link status */
-	if (of_device_is_compatible(dev, "fsl,mpc8548-pcie") ||
-		of_device_is_compatible(dev, "fsl,mpc8641-pcie"))
+	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
+		hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG |
+			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 		if (fsl_pcie_check_link(hose))
-			return -ENXIO;
+			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+	}
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx."
 		"Firmware bus number: %d->%d\n",
