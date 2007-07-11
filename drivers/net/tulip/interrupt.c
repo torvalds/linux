@@ -197,8 +197,8 @@ int tulip_poll(struct net_device *dev, int *budget)
 								   tp->rx_buffers[entry].mapping,
 								   pkt_len, PCI_DMA_FROMDEVICE);
 #if ! defined(__alpha__)
-                                       eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->data,
-                                                        pkt_len, 0);
+                                       skb_copy_to_linear_data(skb, tp->rx_buffers[entry].skb->data,
+                                                        pkt_len);
                                        skb_put(skb, pkt_len);
 #else
                                        memcpy(skb_put(skb, pkt_len),
@@ -420,8 +420,8 @@ static int tulip_rx(struct net_device *dev)
 							    tp->rx_buffers[entry].mapping,
 							    pkt_len, PCI_DMA_FROMDEVICE);
 #if ! defined(__alpha__)
-				eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->data,
-						 pkt_len, 0);
+				skb_copy_to_linear_data(skb, tp->rx_buffers[entry].skb->data,
+						 pkt_len);
 				skb_put(skb, pkt_len);
 #else
 				memcpy(skb_put(skb, pkt_len),

@@ -1567,7 +1567,7 @@ static void netdrv_rx_interrupt (struct net_device *dev,
 		if (skb) {
 			skb_reserve (skb, 2);	/* 16 byte align the IP fields. */
 
-			eth_copy_and_sum (skb, &rx_ring[ring_offset + 4], pkt_size, 0);
+			skb_copy_to_linear_data (skb, &rx_ring[ring_offset + 4], pkt_size);
 			skb_put (skb, pkt_size);
 
 			skb->protocol = eth_type_trans (skb, dev);

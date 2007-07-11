@@ -1096,7 +1096,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 #ifdef RCV_VIA_SKB
 				if( (unsigned long) (skb->data + R_BUF_SIZE) > 0x1000000) {
 					skb_put(skb,len);
-					eth_copy_and_sum(skb, (unsigned char *)(p->recv_skb[p->rmdnum]->data),len,0);
+					skb_copy_to_linear_data(skb, (unsigned char *)(p->recv_skb[p->rmdnum]->data),len);
 				}
 				else {
 					struct sk_buff *skb1 = p->recv_skb[p->rmdnum];
@@ -1108,7 +1108,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 				}
 #else
 				skb_put(skb,len);
-				eth_copy_and_sum(skb, (unsigned char *) p->recvbounce[p->rmdnum],len,0);
+				skb_copy_to_linear_data(skb, (unsigned char *) p->recvbounce[p->rmdnum],len);
 #endif
 				p->stats.rx_packets++;
 				p->stats.rx_bytes += len;

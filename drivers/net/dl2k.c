@@ -866,9 +866,9 @@ receive_packet (struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
-				eth_copy_and_sum (skb,
+				skb_copy_to_linear_data (skb,
 						  np->rx_skbuff[entry]->data,
-						  pkt_len, 0);
+						  pkt_len);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
 				  			       desc->fraginfo &

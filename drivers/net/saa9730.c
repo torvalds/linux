@@ -690,9 +690,9 @@ static int lan_saa9730_rx(struct net_device *dev)
 				lp->stats.rx_packets++;
 				skb_reserve(skb, 2);	/* 16 byte align */
 				skb_put(skb, len);	/* make room */
-				eth_copy_and_sum(skb,
+				skb_copy_to_linear_data(skb,
 						 (unsigned char *) pData,
-						 len, 0);
+						 len);
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;

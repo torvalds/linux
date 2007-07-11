@@ -1186,9 +1186,9 @@ lance_rx(struct net_device *dev)
 				}
 				skb_reserve(skb,2);	/* 16 byte align */
 				skb_put(skb,pkt_len);	/* Make room */
-				eth_copy_and_sum(skb,
+				skb_copy_to_linear_data(skb,
 					(unsigned char *)isa_bus_to_virt((lp->rx_ring[entry].base & 0x00ffffff)),
-					pkt_len,0);
+					pkt_len);
 				skb->protocol=eth_type_trans(skb,dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;

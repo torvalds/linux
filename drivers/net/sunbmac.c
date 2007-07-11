@@ -860,7 +860,7 @@ static void bigmac_rx(struct bigmac *bp)
 			sbus_dma_sync_single_for_cpu(bp->bigmac_sdev,
 						     this->rx_addr, len,
 						     SBUS_DMA_FROMDEVICE);
-			eth_copy_and_sum(copy_skb, (unsigned char *)skb->data, len, 0);
+			skb_copy_to_linear_data(copy_skb, (unsigned char *)skb->data, len);
 			sbus_dma_sync_single_for_device(bp->bigmac_sdev,
 							this->rx_addr, len,
 							SBUS_DMA_FROMDEVICE);

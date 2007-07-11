@@ -40,12 +40,6 @@ extern int		eth_header_cache(struct neighbour *neigh,
 					 struct hh_cache *hh);
 
 extern struct net_device *alloc_etherdev(int sizeof_priv);
-static inline void eth_copy_and_sum (struct sk_buff *dest, 
-				     const unsigned char *src, 
-				     int len, int base)
-{
-	memcpy (dest->data, src, len);
-}
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.

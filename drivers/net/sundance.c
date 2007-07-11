@@ -1313,7 +1313,7 @@ static void rx_poll(unsigned long data)
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 
-				eth_copy_and_sum(skb, np->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb, np->rx_skbuff[entry]->data, pkt_len);
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       desc->frag[0].addr,
 							       np->rx_buf_sz,

@@ -1208,7 +1208,7 @@ static void investigate_read_descriptor(struct net_device *dev,struct xircom_pri
 				goto out;
 			}
 			skb_reserve(skb, 2);
-			eth_copy_and_sum(skb, (unsigned char*)&card->rx_buffer[bufferoffset / 4], pkt_len, 0);
+			skb_copy_to_linear_data(skb, (unsigned char*)&card->rx_buffer[bufferoffset / 4], pkt_len);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);

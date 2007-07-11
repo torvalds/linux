@@ -1575,8 +1575,8 @@ static int hamachi_rx(struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 				/* Call copy + cksum if available. */
 #if 1 || USE_IP_COPYSUM
-				eth_copy_and_sum(skb,
-					hmp->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb,
+					hmp->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
 				memcpy(skb_put(skb, pkt_len), hmp->rx_ring_dma
