@@ -102,9 +102,9 @@ struct hci_usb {
 	struct hci_dev		*hdev;
 
 	unsigned long		state;
-	
+
 	struct usb_device	*udev;
-	
+
 	struct usb_host_endpoint	*bulk_in_ep;
 	struct usb_host_endpoint	*bulk_out_ep;
 	struct usb_host_endpoint	*intr_in_ep;
@@ -116,7 +116,6 @@ struct hci_usb {
 	__u8			ctrl_req;
 
 	struct sk_buff_head	transmit_q[4];
-	struct sk_buff		*reassembly[4];		/* Reassembly buffers */
 
 	rwlock_t		completion_lock;
 
