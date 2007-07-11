@@ -51,6 +51,7 @@
 #include "xfs_refcache.h"
 #include "xfs_trans_space.h"
 #include "xfs_log_priv.h"
+#include "xfs_filestream.h"
 
 STATIC int
 xfs_open(
@@ -783,6 +784,8 @@ xfs_setattr(
 				di_flags |= XFS_DIFLAG_PROJINHERIT;
 			if (vap->va_xflags & XFS_XFLAG_NODEFRAG)
 				di_flags |= XFS_DIFLAG_NODEFRAG;
+			if (vap->va_xflags & XFS_XFLAG_FILESTREAM)
+				di_flags |= XFS_DIFLAG_FILESTREAM;
 			if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
 				if (vap->va_xflags & XFS_XFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
@@ -1536,7 +1539,17 @@ xfs_release(
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return 0;
 
-	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (!XFS_FORCED_SHUTDOWN(mp)) {
+		/*
+		 * If we are using filestreams, and we have an unlinked
+		 * file that we are processing the last close on, then nothing
+		 * will be able to reopen and write to this file. Purge this
+		 * inode from the filestreams cache so that it doesn't delay
+		 * teardown of the inode.
+		 */
+		if ((ip->i_d.di_nlink == 0) && xfs_inode_is_filestream(ip))
+			xfs_filestream_deassociate(ip);
+
 		/*
 		 * If we previously truncated this file and removed old data
 		 * in the process, we want to initiate "early" writeout on
@@ -1550,7 +1563,6 @@ xfs_release(
 		if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
 			bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
 	}
-
 
 #ifdef HAVE_REFCACHE
 	/* If we are in the NFS reference cache then don't do this now */
@@ -2540,6 +2552,15 @@ xfs_remove(
 	 * xfs_refcache_purge_ip routine (although that would be OK).
 	 */
 	xfs_refcache_purge_ip(ip);
+
+	/*
+	 * If we are using filestreams, kill the stream association.
+	 * If the file is still open it may get a new one but that
+	 * will get killed on last close in xfs_close() so we don't
+	 * have to worry about that.
+	 */
+	if (link_zero && xfs_inode_is_filestream(ip))
+		xfs_filestream_deassociate(ip);
 
 	vn_trace_exit(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
 

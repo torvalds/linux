@@ -48,6 +48,7 @@
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
 #include "xfs_acl.h"
+#include "xfs_filestream.h"
 
 #include <linux/log2.h>
 
@@ -818,6 +819,8 @@ _xfs_dic2xflags(
 			flags |= XFS_XFLAG_EXTSZINHERIT;
 		if (di_flags & XFS_DIFLAG_NODEFRAG)
 			flags |= XFS_XFLAG_NODEFRAG;
+		if (di_flags & XFS_DIFLAG_FILESTREAM)
+			flags |= XFS_XFLAG_FILESTREAM;
 	}
 
 	return flags;
@@ -1151,7 +1154,7 @@ xfs_ialloc(
 	/*
 	 * Project ids won't be stored on disk if we are using a version 1 inode.
 	 */
-	if ( (prid != 0) && (ip->i_d.di_version == XFS_DINODE_VERSION_1))
+	if ((prid != 0) && (ip->i_d.di_version == XFS_DINODE_VERSION_1))
 		xfs_bump_ino_vers2(tp, ip);
 
 	if (XFS_INHERIT_GID(pip, vp->v_vfsp)) {
@@ -1196,8 +1199,16 @@ xfs_ialloc(
 		flags |= XFS_ILOG_DEV;
 		break;
 	case S_IFREG:
+		if (xfs_inode_is_filestream(pip)) {
+			error = xfs_filestream_associate(pip, ip);
+			if (error < 0)
+				return -error;
+			if (!error)
+				xfs_iflags_set(ip, XFS_IFILESTREAM);
+		}
+		/* fall through */
 	case S_IFDIR:
-		if (unlikely(pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
+		if (pip->i_d.di_flags & XFS_DIFLAG_ANY) {
 			uint	di_flags = 0;
 
 			if ((mode & S_IFMT) == S_IFDIR) {
@@ -1234,6 +1245,8 @@ xfs_ialloc(
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NODEFRAG) &&
 			    xfs_inherit_nodefrag)
 				di_flags |= XFS_DIFLAG_NODEFRAG;
+			if (pip->i_d.di_flags & XFS_DIFLAG_FILESTREAM)
+				di_flags |= XFS_DIFLAG_FILESTREAM;
 			ip->i_d.di_flags |= di_flags;
 		}
 		/* FALLTHROUGH */

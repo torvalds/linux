@@ -51,6 +51,8 @@
 #include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_clnt.h"
+#include "xfs_mru_cache.h"
+#include "xfs_filestream.h"
 #include "xfs_fsops.h"
 
 STATIC int	xfs_sync(bhv_desc_t *, int, cred_t *);
@@ -81,6 +83,8 @@ xfs_init(void)
 	xfs_dabuf_zone = kmem_zone_init(sizeof(xfs_dabuf_t), "xfs_dabuf");
 	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
 	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
+	xfs_mru_cache_init();
+	xfs_filestream_init();
 
 	/*
 	 * The size of the zone allocated buf log item is the maximum
@@ -164,6 +168,8 @@ xfs_cleanup(void)
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
 	xfs_refcache_destroy();
+	xfs_filestream_uninit();
+	xfs_mru_cache_uninit();
 	xfs_acl_zone_destroy(xfs_acl_zone);
 
 #ifdef XFS_DIR2_TRACE
@@ -319,6 +325,9 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_BARRIER;
 	else
 		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+
+	if (ap->flags2 & XFSMNT2_FILESTREAMS)
+		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 
 	return 0;
 }
@@ -518,6 +527,9 @@ xfs_mount(
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
 
+	if ((error = xfs_filestream_mount(mp)))
+		goto error2;
+
 	error = XFS_IOINIT(vfsp, args, flags);
 	if (error)
 		goto error2;
@@ -574,6 +586,13 @@ xfs_unmount(
 	 * out of the reference cache, and delete the timer.
 	 */
 	xfs_refcache_purge_mp(mp);
+
+	/*
+	 * Blow away any referenced inode in the filestreams cache.
+	 * This can and will cause log traffic as inodes go inactive
+	 * here.
+	 */
+	xfs_filestream_unmount(mp);
 
 	XFS_bflush(mp->m_ddev_targp);
 	error = xfs_unmount_flush(mp, 0);
@@ -694,6 +713,7 @@ xfs_mntupdate(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		}
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
+		xfs_filestream_flush(mp);
 		bhv_vfs_sync(vfsp, SYNC_DATA_QUIESCE, NULL);
 		xfs_attr_quiesce(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
@@ -908,6 +928,9 @@ xfs_sync(
 	cred_t		*credp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
+
+	if (flags & SYNC_IOWAIT)
+		xfs_filestream_flush(mp);
 
 	return xfs_syncsub(mp, flags, NULL);
 }
@@ -1659,6 +1682,7 @@ xfs_vget(
 					 * in stat(). */
 #define MNTOPT_ATTR2	"attr2"		/* do use attr2 attribute format */
 #define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
+#define MNTOPT_FILESTREAM  "filestreams" /* use filestreams allocator */
 
 STATIC unsigned long
 suffix_strtoul(char *s, char **endp, unsigned int base)
@@ -1845,6 +1869,8 @@ xfs_parseargs(
 			args->flags |= XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
 			args->flags &= ~XFSMNT_ATTR2;
+		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
+			args->flags2 |= XFSMNT2_FILESTREAMS;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 			cmn_err(CE_WARN,

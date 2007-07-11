@@ -52,6 +52,7 @@
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
 #include "xfs_buf_item.h"
+#include "xfs_filestream.h"
 
 
 #ifdef DEBUG
@@ -2725,9 +2726,15 @@ xfs_bmap_btalloc(
 	}
 	nullfb = ap->firstblock == NULLFSBLOCK;
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, ap->firstblock);
-	if (nullfb)
-		ap->rval = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
-	else
+	if (nullfb) {
+		if (ap->userdata && xfs_inode_is_filestream(ap->ip)) {
+			ag = xfs_filestream_lookup_ag(ap->ip);
+			ag = (ag != NULLAGNUMBER) ? ag : 0;
+			ap->rval = XFS_AGB_TO_FSB(mp, ag, 0);
+		} else {
+			ap->rval = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
+		}
+	} else
 		ap->rval = ap->firstblock;
 
 	xfs_bmap_adjacent(ap);
@@ -2751,13 +2758,22 @@ xfs_bmap_btalloc(
 	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
-		args.type = XFS_ALLOCTYPE_START_BNO;
+		if (ap->userdata && xfs_inode_is_filestream(ap->ip))
+			args.type = XFS_ALLOCTYPE_NEAR_BNO;
+		else
+			args.type = XFS_ALLOCTYPE_START_BNO;
 		args.total = ap->total;
+
 		/*
-		 * Find the longest available space.
-		 * We're going to try for the whole allocation at once.
+		 * Search for an allocation group with a single extent
+		 * large enough for the request.
+		 *
+		 * If one isn't found, then adjust the minimum allocation
+		 * size to the largest space found.
 		 */
 		startag = ag = XFS_FSB_TO_AGNO(mp, args.fsbno);
+		if (startag == NULLAGNUMBER)
+			startag = ag = 0;
 		notinit = 0;
 		down_read(&mp->m_peraglock);
 		while (blen < ap->alen) {
@@ -2783,6 +2799,35 @@ xfs_bmap_btalloc(
 					blen = longest;
 			} else
 				notinit = 1;
+
+			if (xfs_inode_is_filestream(ap->ip)) {
+				if (blen >= ap->alen)
+					break;
+
+				if (ap->userdata) {
+					/*
+					 * If startag is an invalid AG, we've
+					 * come here once before and
+					 * xfs_filestream_new_ag picked the
+					 * best currently available.
+					 *
+					 * Don't continue looping, since we
+					 * could loop forever.
+					 */
+					if (startag == NULLAGNUMBER)
+						break;
+
+					error = xfs_filestream_new_ag(ap, &ag);
+					if (error) {
+						up_read(&mp->m_peraglock);
+						return error;
+					}
+
+					/* loop again to set 'blen'*/
+					startag = NULLAGNUMBER;
+					continue;
+				}
+			}
 			if (++ag == mp->m_sb.sb_agcount)
 				ag = 0;
 			if (ag == startag)
@@ -2807,8 +2852,18 @@ xfs_bmap_btalloc(
 		 */
 		else
 			args.minlen = ap->alen;
+
+		/*
+		 * set the failure fallback case to look in the selected
+		 * AG as the stream may have moved.
+		 */
+		if (xfs_inode_is_filestream(ap->ip))
+			ap->rval = args.fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
 	} else if (ap->low) {
-		args.type = XFS_ALLOCTYPE_START_BNO;
+		if (xfs_inode_is_filestream(ap->ip))
+			args.type = XFS_ALLOCTYPE_FIRST_AG;
+		else
+			args.type = XFS_ALLOCTYPE_START_BNO;
 		args.total = args.minlen = ap->minlen;
 	} else {
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;

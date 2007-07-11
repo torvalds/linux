@@ -196,6 +196,7 @@ typedef struct xfs_perag
 	lock_t		pagb_lock;	/* lock for pagb_list */
 #endif
 	xfs_perag_busy_t *pagb_list;	/* unstable blocks */
+	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 } xfs_perag_t;
 
 #define	XFS_AG_MAXLEVELS(mp)		((mp)->m_ag_maxlevels)

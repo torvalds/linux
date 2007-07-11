@@ -66,6 +66,7 @@ struct xfs_bmbt_irec;
 struct xfs_bmap_free;
 struct xfs_extdelta;
 struct xfs_swapext;
+struct xfs_mru_cache;
 
 extern struct bhv_vfsops xfs_vfsops;
 extern struct bhv_vnodeops xfs_vnodeops;
@@ -424,6 +425,7 @@ typedef struct xfs_mount {
 	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
+	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 } xfs_mount_t;
 
 /*
@@ -463,6 +465,8 @@ typedef struct xfs_mount {
 						 * I/O size in stat() */
 #define XFS_MOUNT_NO_PERCPU_SB	(1ULL << 23)	/* don't use per-cpu superblock
 						   counters */
+#define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
+						   allocator */
 
 
 /*
