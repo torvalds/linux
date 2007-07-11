@@ -9,8 +9,13 @@ targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o \
 EXTRA_AFLAGS	:= -traditional
 
 LDFLAGS_vmlinux := -T
-CFLAGS_misc.o += -fPIC
 hostprogs-y	:= relocs
+
+CFLAGS  := -m32 -D__KERNEL__ $(LINUX_INCLUDE) -O2 \
+	   -fno-strict-aliasing -fPIC \
+	   $(call cc-option,-ffreestanding) \
+	   $(call cc-option,-fno-stack-protector)
+LDFLAGS := -m elf_i386
 
 $(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
