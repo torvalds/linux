@@ -4647,14 +4647,14 @@ static void show_task(struct task_struct *p)
 	state = p->state ? __ffs(p->state) + 1 : 0;
 	printk("%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
-#if (BITS_PER_LONG == 32)
+#if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
-		printk(" running ");
+		printk(" running  ");
 	else
-		printk(" %08lX ", thread_saved_pc(p));
+		printk(" %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk("  running task   ");
+		printk("  running task    ");
 	else
 		printk(" %016lx ", thread_saved_pc(p));
 #endif
@@ -4666,11 +4666,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d", free, p->pid, p->parent->pid);
-	if (!p->mm)
-		printk(" (L-TLB)\n");
-	else
-		printk(" (NOTLB)\n");
+	printk("%5lu %5d %6d\n", free, p->pid, p->parent->pid);
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -4680,14 +4676,12 @@ void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
 
-#if (BITS_PER_LONG == 32)
-	printk("\n"
-	       "                         free                        sibling\n");
-	printk("  task             PC    stack   pid father child younger older\n");
+#if BITS_PER_LONG == 32
+	printk(KERN_INFO
+		"  task                PC stack   pid father\n");
 #else
-	printk("\n"
-	       "                                 free                        sibling\n");
-	printk("  task                 PC        stack   pid father child younger older\n");
+	printk(KERN_INFO
+		"  task                        PC stack   pid father\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
