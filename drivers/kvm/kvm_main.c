@@ -2285,7 +2285,6 @@ static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
 	unsigned long pgoff;
 	struct page *page;
 
-	*type = VM_FAULT_MINOR;
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 	if (pgoff == 0)
 		page = virt_to_page(vcpu->run);
@@ -2294,6 +2293,9 @@ static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
 	else
 		return NOPAGE_SIGBUS;
 	get_page(page);
+	if (type != NULL)
+		*type = VM_FAULT_MINOR;
+
 	return page;
 }
 
@@ -2768,12 +2770,14 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 	unsigned long pgoff;
 	struct page *page;
 
-	*type = VM_FAULT_MINOR;
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 	page = gfn_to_page(kvm, pgoff);
 	if (!page)
 		return NOPAGE_SIGBUS;
 	get_page(page);
+	if (type != NULL)
+		*type = VM_FAULT_MINOR;
+
 	return page;
 }
 
