@@ -928,7 +928,7 @@ static int clip_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations arp_seq_ops = {
+static const struct seq_operations arp_seq_ops = {
 	.start	= clip_seq_start,
 	.next	= neigh_seq_next,
 	.stop	= neigh_seq_stop,

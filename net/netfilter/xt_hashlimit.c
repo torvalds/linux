@@ -701,7 +701,7 @@ static int dl_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations dl_seq_ops = {
+static const struct seq_operations dl_seq_ops = {
 	.start = dl_seq_start,
 	.next  = dl_seq_next,
 	.stop  = dl_seq_stop,

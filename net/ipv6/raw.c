@@ -1280,7 +1280,7 @@ static int raw6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations raw6_seq_ops = {
+static const struct seq_operations raw6_seq_ops = {
 	.start =	raw6_seq_start,
 	.next =		raw6_seq_next,
 	.stop =		raw6_seq_stop,

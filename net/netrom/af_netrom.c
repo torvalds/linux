@@ -1328,7 +1328,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations nr_info_seqops = {
+static const struct seq_operations nr_info_seqops = {
 	.start = nr_info_start,
 	.next = nr_info_next,
 	.stop = nr_info_stop,

@@ -395,7 +395,7 @@ static int discovery_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations discovery_seq_ops = {
+static const struct seq_operations discovery_seq_ops = {
 	.start  = discovery_seq_start,
 	.next   = discovery_seq_next,
 	.stop   = discovery_seq_stop,

@@ -758,7 +758,7 @@ static int br2684_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations br2684_seq_ops = {
+static const struct seq_operations br2684_seq_ops = {
 	.start = br2684_seq_start,
 	.next  = br2684_seq_next,
 	.stop  = br2684_seq_stop,

@@ -464,7 +464,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	return seq_putc(s, '\n');
 }
 
-static struct seq_operations exp_seq_ops = {
+static const struct seq_operations exp_seq_ops = {
 	.start = exp_seq_start,
 	.next = exp_seq_next,
 	.stop = exp_seq_stop,

@@ -1174,7 +1174,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations lec_seq_ops = {
+static const struct seq_operations lec_seq_ops = {
 	.start = lec_seq_start,
 	.next = lec_seq_next,
 	.stop = lec_seq_stop,

@@ -1713,7 +1713,7 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations netlink_seq_ops = {
+static const struct seq_operations netlink_seq_ops = {
 	.start  = netlink_seq_start,
 	.next   = netlink_seq_next,
 	.stop   = netlink_seq_stop,

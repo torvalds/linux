@@ -164,14 +164,14 @@ static int status_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations config_op = {
+static const struct seq_operations config_op = {
 	.start	= r_start,
 	.next	= r_next,
 	.stop	= r_stop,
 	.show	= config_show,
 };
 
-static struct seq_operations status_op = {
+static const struct seq_operations status_op = {
 	.start	= r_start,
 	.next	= r_next,
 	.stop	= r_stop,

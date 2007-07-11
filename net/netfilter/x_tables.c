@@ -745,7 +745,7 @@ static int xt_name_seq_show(struct seq_file *seq, void *v)
 		return 0;
 }
 
-static struct seq_operations xt_tgt_seq_ops = {
+static const struct seq_operations xt_tgt_seq_ops = {
 	.start	= xt_tgt_seq_start,
 	.next	= xt_tgt_seq_next,
 	.stop	= xt_tgt_seq_stop,

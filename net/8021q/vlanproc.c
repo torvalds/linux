@@ -69,7 +69,7 @@ static const char name_conf[]	 = "config";
  *	Generic /proc/net/vlan/<file> file and inode operations
  */
 
-static struct seq_operations vlan_seq_ops = {
+static const struct seq_operations vlan_seq_ops = {
 	.start = vlan_seq_start,
 	.next = vlan_seq_next,
 	.stop = vlan_seq_stop,

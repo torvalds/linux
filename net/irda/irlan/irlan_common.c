@@ -1217,7 +1217,7 @@ static int irlan_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irlan_seq_ops = {
+static const struct seq_operations irlan_seq_ops = {
 	.start = irlan_seq_start,
 	.next  = irlan_seq_next,
 	.stop  = irlan_seq_stop,

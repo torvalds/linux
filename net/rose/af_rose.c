@@ -1454,7 +1454,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rose_info_seqops = {
+static const struct seq_operations rose_info_seqops = {
 	.start = rose_info_start,
 	.next = rose_info_next,
 	.stop = rose_info_stop,

@@ -2785,7 +2785,7 @@ static int if6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations if6_seq_ops = {
+static const struct seq_operations if6_seq_ops = {
 	.start	= if6_seq_start,
 	.next	= if6_seq_next,
 	.show	= if6_seq_show,

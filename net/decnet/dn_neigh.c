@@ -569,7 +569,7 @@ static void *dn_neigh_seq_start(struct seq_file *seq, loff_t *pos)
 			       NEIGH_SEQ_NEIGH_ONLY);
 }
 
-static struct seq_operations dn_neigh_seq_ops = {
+static const struct seq_operations dn_neigh_seq_ops = {
 	.start = dn_neigh_seq_start,
 	.next  = neigh_seq_next,
 	.stop  = neigh_seq_stop,

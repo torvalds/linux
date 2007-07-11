@@ -1210,7 +1210,7 @@ static int c_show(struct seq_file *m, void *p)
 	return cd->cache_show(m, cd, cp);
 }
 
-static struct seq_operations cache_content_op = {
+static const struct seq_operations cache_content_op = {
 	.start	= c_start,
 	.next	= c_next,
 	.stop	= c_stop,

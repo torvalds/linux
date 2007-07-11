@@ -86,7 +86,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rxrpc_call_seq_ops = {
+static const struct seq_operations rxrpc_call_seq_ops = {
 	.start  = rxrpc_call_seq_start,
 	.next   = rxrpc_call_seq_next,
 	.stop   = rxrpc_call_seq_stop,
@@ -170,7 +170,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rxrpc_connection_seq_ops = {
+static const struct seq_operations rxrpc_connection_seq_ops = {
 	.start  = rxrpc_connection_seq_start,
 	.next   = rxrpc_connection_seq_next,
 	.stop   = rxrpc_connection_seq_stop,

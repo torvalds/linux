@@ -1118,7 +1118,7 @@ static int rose_node_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rose_node_seqops = {
+static const struct seq_operations rose_node_seqops = {
 	.start = rose_node_start,
 	.next = rose_node_next,
 	.stop = rose_node_stop,
@@ -1200,7 +1200,7 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 }
 
 
-static struct seq_operations rose_neigh_seqops = {
+static const struct seq_operations rose_neigh_seqops = {
 	.start = rose_neigh_start,
 	.next = rose_neigh_next,
 	.stop = rose_neigh_stop,
@@ -1284,7 +1284,7 @@ static int rose_route_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rose_route_seqops = {
+static const struct seq_operations rose_route_seqops = {
 	.start = rose_route_start,
 	.next = rose_route_next,
 	.stop = rose_route_stop,

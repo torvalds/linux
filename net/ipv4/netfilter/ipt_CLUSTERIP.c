@@ -639,7 +639,7 @@ static int clusterip_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations clusterip_seq_ops = {
+static const struct seq_operations clusterip_seq_ops = {
 	.start	= clusterip_seq_start,
 	.next	= clusterip_seq_next,
 	.stop	= clusterip_seq_stop,

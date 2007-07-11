@@ -648,7 +648,7 @@ static int ip6fl_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ip6fl_seq_ops = {
+static const struct seq_operations ip6fl_seq_ops = {
 	.start	=	ip6fl_seq_start,
 	.next	=	ip6fl_seq_next,
 	.stop	=	ip6fl_seq_stop,

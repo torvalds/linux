@@ -260,7 +260,7 @@ static int atm_dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations atm_dev_seq_ops = {
+static const struct seq_operations atm_dev_seq_ops = {
 	.start	= atm_dev_seq_start,
 	.next	= atm_dev_seq_next,
 	.stop	= atm_dev_seq_stop,
@@ -295,7 +295,7 @@ static int pvc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations pvc_seq_ops = {
+static const struct seq_operations pvc_seq_ops = {
 	.start	= vcc_seq_start,
 	.next	= vcc_seq_next,
 	.stop	= vcc_seq_stop,
@@ -329,7 +329,7 @@ static int vcc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations vcc_seq_ops = {
+static const struct seq_operations vcc_seq_ops = {
 	.start	= vcc_seq_start,
 	.next	= vcc_seq_next,
 	.stop	= vcc_seq_stop,
@@ -364,7 +364,7 @@ static int svc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations svc_seq_ops = {
+static const struct seq_operations svc_seq_ops = {
 	.start	= vcc_seq_start,
 	.next	= vcc_seq_next,
 	.stop	= vcc_seq_stop,

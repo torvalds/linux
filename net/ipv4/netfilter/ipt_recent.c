@@ -370,7 +370,7 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations recent_seq_ops = {
+static const struct seq_operations recent_seq_ops = {
 	.start		= recent_seq_start,
 	.next		= recent_seq_next,
 	.stop		= recent_seq_stop,

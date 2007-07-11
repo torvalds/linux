@@ -320,7 +320,7 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ax25_rt_seqops = {
+static const struct seq_operations ax25_rt_seqops = {
 	.start = ax25_rt_seq_start,
 	.next = ax25_rt_seq_next,
 	.stop = ax25_rt_seq_stop,

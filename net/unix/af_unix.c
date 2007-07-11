@@ -2048,7 +2048,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations unix_seq_ops = {
+static const struct seq_operations unix_seq_ops = {
 	.start  = unix_seq_start,
 	.next   = unix_seq_next,
 	.stop   = unix_seq_stop,

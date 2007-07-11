@@ -1048,7 +1048,7 @@ static int seq_show(struct seq_file *s, void *v)
 			  atomic_read(&inst->use));
 }
 
-static struct seq_operations nfqnl_seq_ops = {
+static const struct seq_operations nfqnl_seq_ops = {
 	.start	= seq_start,
 	.next	= seq_next,
 	.stop	= seq_stop,
