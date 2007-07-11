@@ -112,6 +112,18 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 
 	The /dev/mem mmap constraints apply.
 
+    mmap of /proc/bus/pci/.../??.?
+
+    	This is an MMIO mmap of PCI functions, which additionally may or
+	may not be requested as using the WC attribute.
+
+	If WC is requested, and the region in kern_memmap is either WC
+	or UC, and the EFI memory map designates the region as WC, then
+	the WC mapping is allowed.
+
+	Otherwise, the user mapping must use the same attribute as the
+	kernel mapping.
+
     read/write of /dev/mem
 
 	This uses copy_from_user(), which implicitly uses a kernel

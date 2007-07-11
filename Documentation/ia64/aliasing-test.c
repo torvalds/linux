@@ -19,6 +19,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <linux/pci.h>
 
 int sum;
 
@@ -34,13 +35,19 @@ int map_mem(char *path, off_t offset, size_t length, int touch)
 		return -1;
 	}
 
+	if (fnmatch("/proc/bus/pci/*", path, 0) == 0) {
+		rc = ioctl(fd, PCIIOC_MMAP_IS_MEM);
+		if (rc == -1)
+			perror("PCIIOC_MMAP_IS_MEM ioctl");
+	}
+
 	addr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_SHARED, fd, offset);
 	if (addr == MAP_FAILED)
 		return 1;
 
 	if (touch) {
 		c = (int *) addr;
-		while (c < (int *) (offset + length))
+		while (c < (int *) (addr + length))
 			sum += *c++;
 	}
 
@@ -54,7 +61,7 @@ int map_mem(char *path, off_t offset, size_t length, int touch)
 	return 0;
 }
 
-int scan_sysfs(char *path, char *file, off_t offset, size_t length, int touch)
+int scan_tree(char *path, char *file, off_t offset, size_t length, int touch)
 {
 	struct dirent **namelist;
 	char *name, *path2;
@@ -93,7 +100,7 @@ int scan_sysfs(char *path, char *file, off_t offset, size_t length, int touch)
 		} else {
 			r = lstat(path2, &buf);
 			if (r == 0 && S_ISDIR(buf.st_mode)) {
-				rc = scan_sysfs(path2, file, offset, length, touch);
+				rc = scan_tree(path2, file, offset, length, touch);
 				if (rc < 0)
 					return rc;
 			}
@@ -238,10 +245,15 @@ int main()
 	else
 		fprintf(stderr, "FAIL: /dev/mem 0x0-0x100000 not accessible\n");
 
-	scan_sysfs("/sys/class/pci_bus", "legacy_mem", 0, 0xA0000, 1);
-	scan_sysfs("/sys/class/pci_bus", "legacy_mem", 0xA0000, 0x20000, 0);
-	scan_sysfs("/sys/class/pci_bus", "legacy_mem", 0xC0000, 0x40000, 1);
-	scan_sysfs("/sys/class/pci_bus", "legacy_mem", 0, 1024*1024, 0);
+	scan_tree("/sys/class/pci_bus", "legacy_mem", 0, 0xA0000, 1);
+	scan_tree("/sys/class/pci_bus", "legacy_mem", 0xA0000, 0x20000, 0);
+	scan_tree("/sys/class/pci_bus", "legacy_mem", 0xC0000, 0x40000, 1);
+	scan_tree("/sys/class/pci_bus", "legacy_mem", 0, 1024*1024, 0);
 
 	scan_rom("/sys/devices", "rom");
+
+	scan_tree("/proc/bus/pci", "??.?", 0, 0xA0000, 1);
+	scan_tree("/proc/bus/pci", "??.?", 0xA0000, 0x20000, 0);
+	scan_tree("/proc/bus/pci", "??.?", 0xC0000, 0x40000, 1);
+	scan_tree("/proc/bus/pci", "??.?", 0, 1024*1024, 0);
 }
