@@ -78,6 +78,7 @@ struct hci_dev {
 	__u16		voice_setting;
 
 	__u16		pkt_type;
+	__u16		esco_type;
 	__u16		link_policy;
 	__u16		link_mode;
 
@@ -452,6 +453,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
 #define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
+#define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {

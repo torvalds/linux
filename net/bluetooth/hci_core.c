@@ -851,6 +851,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hdev->flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
+	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 
 	hdev->idle_timeout = 0;
@@ -1254,7 +1255,7 @@ EXPORT_SYMBOL(hci_send_sco);
 static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int *quote)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct hci_conn  *conn = NULL;
+	struct hci_conn *conn = NULL;
 	int num = 0, min = ~0;
 	struct list_head *p;
 
