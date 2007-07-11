@@ -505,8 +505,12 @@ again:
 		return;
 	}
 
-	if (err <= 0)
+	if (err < 0)
 		goto error;
+	else if (err == 0) {
+		err = -EREMOTEIO;
+		goto error;
+	}
 
 	m->wpos += err;
 	if (m->wpos == m->wsize)
