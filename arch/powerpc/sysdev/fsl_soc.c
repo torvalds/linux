@@ -197,6 +197,7 @@ static int __init gfar_of_init(void)
 		struct gianfar_platform_data gfar_data;
 		const unsigned int *id;
 		const char *model;
+		const char *ctype;
 		const void *mac_addr;
 		const phandle *ph;
 		int n_res = 2;
@@ -253,6 +254,14 @@ static int __init gfar_of_init(void)
 			    FSL_GIANFAR_DEV_HAS_CSUM |
 			    FSL_GIANFAR_DEV_HAS_VLAN |
 			    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
+
+		ctype = of_get_property(np, "phy-connection-type", NULL);
+
+		/* We only care about rgmii-id.  The rest are autodetected */
+		if (ctype && !strcmp(ctype, "rgmii-id"))
+			gfar_data.interface = PHY_INTERFACE_MODE_RGMII_ID;
+		else
+			gfar_data.interface = PHY_INTERFACE_MODE_MII;
 
 		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
