@@ -719,74 +719,25 @@ static int __init hd_init(void)
 	device_timer.function = hd_times_out;
 	blk_queue_hardsect_size(hd_queue, 512);
 
-#ifdef __i386__
 	if (!NR_HD) {
-		extern struct drive_info drive_info;
-		unsigned char *BIOS = (unsigned char *) &drive_info;
-		unsigned long flags;
-		int cmos_disks;
-
-		for (drive=0 ; drive<2 ; drive++) {
-			hd_info[drive].cyl = *(unsigned short *) BIOS;
-			hd_info[drive].head = *(2+BIOS);
-			hd_info[drive].wpcom = *(unsigned short *) (5+BIOS);
-			hd_info[drive].ctl = *(8+BIOS);
-			hd_info[drive].lzone = *(unsigned short *) (12+BIOS);
-			hd_info[drive].sect = *(14+BIOS);
-#ifdef does_not_work_for_everybody_with_scsi_but_helps_ibm_vp
-			if (hd_info[drive].cyl && NR_HD == drive)
-				NR_HD++;
-#endif
-			BIOS += 16;
-		}
-
-	/*
-		We query CMOS about hard disks : it could be that 
-		we have a SCSI/ESDI/etc controller that is BIOS
-		compatible with ST-506, and thus showing up in our
-		BIOS table, but not register compatible, and therefore
-		not present in CMOS.
-
-		Furthermore, we will assume that our ST-506 drives
-		<if any> are the primary drives in the system, and 
-		the ones reflected as drive 1 or 2.
-
-		The first drive is stored in the high nibble of CMOS
-		byte 0x12, the second in the low nibble.  This will be
-		either a 4 bit drive type or 0xf indicating use byte 0x19 
-		for an 8 bit type, drive 1, 0x1a for drive 2 in CMOS.
-
-		Needless to say, a non-zero value means we have 
-		an AT controller hard disk for that drive.
-
-		Currently the rtc_lock is a bit academic since this
-		driver is non-modular, but someday... ?         Paul G.
-	*/
-
-		spin_lock_irqsave(&rtc_lock, flags);
-		cmos_disks = CMOS_READ(0x12);
-		spin_unlock_irqrestore(&rtc_lock, flags);
-
-		if (cmos_disks & 0xf0) {
-			if (cmos_disks & 0x0f)
-				NR_HD = 2;
-			else
-				NR_HD = 1;
-		}
-	}
-#endif /* __i386__ */
-#ifdef __arm__
-	if (!NR_HD) {
-		/* We don't know anything about the drive.  This means
+		/*
+		 * We don't know anything about the drive.  This means
 		 * that you *MUST* specify the drive parameters to the
 		 * kernel yourself.
+		 *
+		 * If we were on an i386, we used to read this info from
+		 * the BIOS or CMOS.  This doesn't work all that well,
+		 * since this assumes that this is a primary or secondary
+		 * drive, and if we're using this legacy driver, it's
+		 * probably an auxilliary controller added to recover
+		 * legacy data off an ST-506 drive.  Either way, it's
+		 * definitely safest to have the user explicitly specify
+		 * the information.
 		 */
 		printk("hd: no drives specified - use hd=cyl,head,sectors"
 			" on kernel command line\n");
-	}
-#endif
-	if (!NR_HD)
 		goto out;
+	}
 
 	for (drive=0 ; drive < NR_HD ; drive++) {
 		struct gendisk *disk = alloc_disk(64);
