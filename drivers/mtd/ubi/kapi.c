@@ -37,12 +37,8 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 {
 	const struct ubi_device *ubi;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES ||
 	    !ubi_devices[ubi_num]) {
-		module_put(THIS_MODULE);
 		return -ENODEV;
 	}
 
@@ -52,7 +48,6 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 	di->min_io_size = ubi->min_io_size;
 	di->ro_mode = ubi->ro_mode;
 	di->cdev = MKDEV(ubi->major, 0);
-	module_put(THIS_MODULE);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_get_device_info);
