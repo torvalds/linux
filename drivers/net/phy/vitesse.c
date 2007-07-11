@@ -21,6 +21,10 @@
 /* Vitesse Extended Control Register 1 */
 #define MII_VSC8244_EXT_CON1           0x17
 #define MII_VSC8244_EXTCON1_INIT       0x0000
+#define MII_VSC8244_EXTCON1_TX_SKEW_MASK	0x0c00
+#define MII_VSC8244_EXTCON1_RX_SKEW_MASK	0x0300
+#define MII_VSC8244_EXTCON1_TX_SKEW	0x0800
+#define MII_VSC8244_EXTCON1_RX_SKEW	0x0200
 
 /* Vitesse Interrupt Mask Register */
 #define MII_VSC8244_IMASK		0x19
@@ -39,7 +43,7 @@
 
 /* Vitesse Auxiliary Control/Status Register */
 #define MII_VSC8244_AUX_CONSTAT        	0x1c
-#define MII_VSC8244_AUXCONSTAT_INIT    	0x0004
+#define MII_VSC8244_AUXCONSTAT_INIT    	0x0000
 #define MII_VSC8244_AUXCONSTAT_DUPLEX  	0x0020
 #define MII_VSC8244_AUXCONSTAT_SPEED   	0x0018
 #define MII_VSC8244_AUXCONSTAT_GBIT    	0x0010
@@ -51,6 +55,7 @@ MODULE_LICENSE("GPL");
 
 static int vsc824x_config_init(struct phy_device *phydev)
 {
+	int extcon;
 	int err;
 
 	err = phy_write(phydev, MII_VSC8244_AUX_CONSTAT,
@@ -58,8 +63,20 @@ static int vsc824x_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_VSC8244_EXT_CON1,
-			MII_VSC8244_EXTCON1_INIT);
+	extcon = phy_read(phydev, MII_VSC8244_EXT_CON1);
+
+	if (extcon < 0)
+		return err;
+
+	extcon &= ~(MII_VSC8244_EXTCON1_TX_SKEW_MASK |
+			MII_VSC8244_EXTCON1_RX_SKEW_MASK);
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+		extcon |= (MII_VSC8244_EXTCON1_TX_SKEW |
+				MII_VSC8244_EXTCON1_RX_SKEW);
+
+	err = phy_write(phydev, MII_VSC8244_EXT_CON1, extcon);
+
 	return err;
 }
 
