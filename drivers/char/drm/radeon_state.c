@@ -3085,6 +3085,9 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 		else
 			value = RADEON_CARD_PCI;
 		break;
+	case RADEON_PARAM_VBLANK_CRTC:
+		value = radeon_vblank_crtc_get(dev);
+		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
@@ -3140,6 +3143,9 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		dev_priv->gart_info.table_size = sp.value;
 		if (dev_priv->gart_info.table_size < RADEON_PCIGART_TABLE_SIZE)
 			dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
+		break;
+	case RADEON_SETPARAM_VBLANK_CRTC:
+		return radeon_vblank_crtc_set(dev, sp.value);
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);

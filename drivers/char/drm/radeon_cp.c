@@ -1420,6 +1420,10 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 		return DRM_ERR(EINVAL);
 	}
 
+	/* Enable vblank on CRTC1 for older X servers
+	 */
+	dev_priv->vblank_crtc = DRM_RADEON_VBLANK_CRTC1;
+
 	switch(init->func) {
 	case RADEON_INIT_R200_CP:
 		dev_priv->microcode_version = UCODE_R200;

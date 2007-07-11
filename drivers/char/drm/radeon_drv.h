@@ -97,9 +97,10 @@
  *       new packet type)
  * 1.26- Add support for variable size PCI(E) gart aperture
  * 1.27- Add support for IGP GART
+ * 1.28- Add support for VBL on CRTC2
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		27
+#define DRIVER_MINOR		28
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -277,6 +278,9 @@ typedef struct drm_radeon_private {
 	/* SW interrupt */
 	wait_queue_head_t swi_queue;
 	atomic_t swi_emitted;
+	int vblank_crtc;
+	uint32_t irq_enable_reg;
+	int irq_enabled;
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
 	struct radeon_virt_surface virt_surfaces[2 * RADEON_MAX_SURFACES];
@@ -356,10 +360,14 @@ extern int radeon_irq_wait(DRM_IOCTL_ARGS);
 extern void radeon_do_release(drm_device_t * dev);
 extern int radeon_driver_vblank_wait(drm_device_t * dev,
 				     unsigned int *sequence);
+extern int radeon_driver_vblank_wait2(drm_device_t * dev,
+				      unsigned int *sequence);
 extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(drm_device_t * dev);
 extern void radeon_driver_irq_postinstall(drm_device_t * dev);
 extern void radeon_driver_irq_uninstall(drm_device_t * dev);
+extern int radeon_vblank_crtc_get(drm_device_t *dev);
+extern int radeon_vblank_crtc_set(drm_device_t *dev, int64_t value);
 
 extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
 extern int radeon_driver_unload(struct drm_device *dev);
@@ -496,12 +504,15 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 
 #define RADEON_GEN_INT_CNTL		0x0040
 #	define RADEON_CRTC_VBLANK_MASK		(1 << 0)
+#	define RADEON_CRTC2_VBLANK_MASK		(1 << 9)
 #	define RADEON_GUI_IDLE_INT_ENABLE	(1 << 19)
 #	define RADEON_SW_INT_ENABLE		(1 << 25)
 
 #define RADEON_GEN_INT_STATUS		0x0044
 #	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
 #	define RADEON_CRTC_VBLANK_STAT_ACK   	(1 << 0)
+#	define RADEON_CRTC2_VBLANK_STAT		(1 << 9)
+#	define RADEON_CRTC2_VBLANK_STAT_ACK   	(1 << 9)
 #	define RADEON_GUI_IDLE_INT_TEST_ACK     (1 << 19)
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK   	(1 << 25)
