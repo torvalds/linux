@@ -65,13 +65,20 @@
  *	    is able to produce some skb->csum, it MUST use COMPLETE,
  *	    not UNNECESSARY.
  *
+ *	PARTIAL: identical to the case for output below.  This may occur
+ *	    on a packet received directly from another Linux OS, e.g.,
+ *	    a virtualised Linux kernel on the same host.  The packet can
+ *	    be treated in the same way as UNNECESSARY except that on
+ *	    output (i.e., forwarding) the checksum must be filled in
+ *	    by the OS or the hardware.
+ *
  * B. Checksumming on output.
  *
  *	NONE: skb is checksummed by protocol or csum is not required.
  *
  *	PARTIAL: device is required to csum packet as seen by hard_start_xmit
- *	from skb->transport_header to the end and to record the checksum
- *	at skb->transport_header + skb->csum.
+ *	from skb->csum_start to the end and to record the checksum
+ *	at skb->csum_start + skb->csum_offset.
  *
  *	Device must show its capabilities in dev->features, set
  *	at device setup time.
@@ -82,6 +89,7 @@
  *			  TCP/UDP over IPv4. Sigh. Vendors like this
  *			  way by an unknown reason. Though, see comment above
  *			  about CHECKSUM_UNNECESSARY. 8)
+ *	NETIF_F_IPV6_CSUM about as dumb as the last one but does IPv6 instead.
  *
  *	Any questions? No questions, good. 		--ANK
  */
