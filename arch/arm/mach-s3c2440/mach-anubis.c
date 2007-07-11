@@ -158,6 +158,29 @@ static struct mtd_partition anubis_default_nand_part[] = {
 	}
 };
 
+static struct mtd_partition anubis_default_nand_part_large[] = {
+	[0] = {
+		.name	= "Boot Agent",
+		.size	= SZ_128K,
+		.offset	= 0,
+	},
+	[1] = {
+		.name	= "/boot",
+		.size	= SZ_4M - SZ_128K,
+		.offset	= SZ_128K,
+	},
+	[2] = {
+		.name	= "user1",
+		.offset	= SZ_4M,
+		.size	= SZ_32M - SZ_4M,
+	},
+	[3] = {
+		.name	= "user2",
+		.offset	= SZ_32M,
+		.size	= MTDPART_SIZ_FULL,
+	}
+};
+
 /* the Anubis has 3 selectable slots for nand-flash, the two
  * on-board chip areas, as well as the external slot.
  *
@@ -409,8 +432,17 @@ static void __init anubis_map_io(void)
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(anubis_uartcfgs, ARRAY_SIZE(anubis_uartcfgs));
 
-	/* ensure that the GPIO is setup */
-	s3c2410_gpio_setpin(S3C2410_GPA0, 1);
+	/* check for the newer revision boards with large page nand */
+
+	if ((__raw_readb(ANUBIS_VA_IDREG) & ANUBIS_IDREG_REVMASK) >= 4) {
+		printk(KERN_INFO "ANUBIS-B detected (revision %d)\n",
+		       __raw_readb(ANUBIS_VA_IDREG) & ANUBIS_IDREG_REVMASK);
+		anubis_nand_sets[0].partitions = anubis_default_nand_part_large;
+		anubis_nand_sets[0].nr_partitions = ARRAY_SIZE(anubis_default_nand_part_large);
+	} else {
+		/* ensure that the GPIO is setup */
+		s3c2410_gpio_setpin(S3C2410_GPA0, 1);
+	}
 }
 
 static void __init anubis_init(void)
