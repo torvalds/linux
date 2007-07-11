@@ -383,6 +383,10 @@ static int rfcomm_release_dev(void __user *arg)
 	if (req.flags & (1 << RFCOMM_HANGUP_NOW))
 		rfcomm_dlc_close(dev->dlc, 0);
 
+	/* Shut down TTY synchronously before freeing rfcomm_dev */
+	if (dev->tty)
+		tty_vhangup(dev->tty);
+
 	rfcomm_dev_del(dev);
 	rfcomm_dev_put(dev);
 	return 0;
