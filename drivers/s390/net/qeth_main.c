@@ -1935,6 +1935,7 @@ qeth_send_control_data(struct qeth_card *card, int len,
 			atomic_inc(&reply->received);
 			wake_up(&reply->wait_q);
 		}
+		cpu_relax();
 	};
 	rc = reply->rc;
 	qeth_put_reply(reply);
