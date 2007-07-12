@@ -20,7 +20,8 @@ __switch_data:
 	.long	_end				@ r7
 	.long	processor_id			@ r4
 	.long	__machine_arch_type		@ r5
-	.long	cr_alignment			@ r6
+	.long	__atags_pointer			@ r6
+	.long	cr_alignment			@ r7
 	.long	init_thread_union + THREAD_START_SP @ sp
 
 /*
@@ -29,6 +30,7 @@ __switch_data:
  *
  *  r0  = cp#15 control register
  *  r1  = machine ID
+ *  r2  = atags pointer
  *  r9  = processor ID
  */
 	.type	__mmap_switched, %function
@@ -47,11 +49,12 @@ __mmap_switched:
 	strcc	fp, [r6],#4
 	bcc	1b
 
-	ldmia	r3, {r4, r5, r6, sp}
+	ldmia	r3, {r4, r5, r6, r7, sp}
 	str	r9, [r4]			@ Save processor ID
 	str	r1, [r5]			@ Save machine type
+	str	r2, [r6]			@ Save atags pointer
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
-	stmia	r6, {r0, r4}			@ Save control register values
+	stmia	r7, {r0, r4}			@ Save control register values
 	b	start_kernel
 
 /*
@@ -215,3 +218,34 @@ ENTRY(lookup_machine_type)
 	bl	__lookup_machine_type
 	mov	r0, r5
 	ldmfd	sp!, {r4 - r6, pc}
+
+/* Determine validity of the r2 atags pointer.  The heuristic requires
+ * that the pointer be aligned, in the first 16k of physical RAM and
+ * that the ATAG_CORE marker is first and present.  Future revisions
+ * of this function may be more lenient with the physical address and
+ * may also be able to move the ATAGS block if necessary.
+ *
+ * r8  = machinfo
+ *
+ * Returns:
+ *  r2 either valid atags pointer, or zero
+ *  r5, r6 corrupted
+ */
+
+	.type	__vet_atags, %function
+__vet_atags:
+	tst	r2, #0x3			@ aligned?
+	bne	1f
+
+	ldr	r5, [r2, #0]			@ is first tag ATAG_CORE?
+	subs	r5, r5, #ATAG_CORE_SIZE
+	bne	1f
+	ldr	r5, [r2, #4]
+	ldr	r6, =ATAG_CORE
+	cmp	r5, r6
+	bne	1f
+
+	mov	pc, lr				@ atag pointer is ok
+
+1:	mov	r2, #0
+	mov	pc, lr

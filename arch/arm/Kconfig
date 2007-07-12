@@ -241,6 +241,9 @@ config ARCH_H720X
 
 config ARCH_IMX
 	bool "IMX"
+	select GENERIC_GPIO
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
@@ -308,6 +311,7 @@ config ARCH_L7200
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
+	select GENERIC_GPIO
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -384,6 +388,7 @@ config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
 	help
 	  Support for TI's DaVinci platform.
 

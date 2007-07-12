@@ -436,6 +436,28 @@ __armv4_mmu_cache_on:
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 		mov	pc, r12
 
+__armv7_mmu_cache_on:
+		mov	r12, lr
+		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
+		tst	r11, #0xf		@ VMSA
+		blne	__setup_mmu
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+		tst	r11, #0xf		@ VMSA
+		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
+		orr	r0, r0, #0x003c		@ write buffer
+		orrne	r0, r0, #1		@ MMU enabled
+		movne	r1, #-1
+		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
+		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
+		mcr	p15, 0, r0, c1, c0, 0	@ load control register
+		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c5, 4	@ ISB
+		mov	pc, r12
+
 __arm6_mmu_cache_on:
 		mov	r12, lr
 		bl	__setup_mmu
@@ -622,10 +644,16 @@ proc_types:
 		b	__armv4_mmu_cache_flush
 
 		.word	0x0007b000		@ ARMv6
-		.word	0x0007f000
+		.word	0x000ff000
 		b	__armv4_mmu_cache_on
 		b	__armv4_mmu_cache_off
 		b	__armv6_mmu_cache_flush
+
+		.word	0x000f0000		@ new CPU Id
+		.word	0x000f0000
+		b	__armv7_mmu_cache_on
+		b	__armv7_mmu_cache_off
+		b	__armv7_mmu_cache_flush
 
 		.word	0			@ unrecognised type
 		.word	0
@@ -673,6 +701,16 @@ __armv4_mmu_cache_off:
 		mcr	p15, 0, r0, c7, c7	@ invalidate whole cache v4
 		mcr	p15, 0, r0, c8, c7	@ invalidate whole TLB v4
 		mov	pc, lr
+
+__armv7_mmu_cache_off:
+		mrc	p15, 0, r0, c1, c0
+		bic	r0, r0, #0x000d
+		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
+		mov	r12, lr
+		bl	__armv7_mmu_cache_flush
+		mov	r0, #0
+		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
+		mov	pc, r12
 
 __arm6_mmu_cache_off:
 		mov	r0, #0x00000030		@ ARM6 control reg.
@@ -728,6 +766,59 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
+		mov	pc, lr
+
+__armv7_mmu_cache_flush:
+		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
+		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
+		beq	hierarchical
+		mov	r10, #0
+		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
+		b	iflush
+hierarchical:
+		stmfd	sp!, {r0-r5, r7, r9-r11}
+		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
+		ands	r3, r0, #0x7000000	@ extract loc from clidr
+		mov	r3, r3, lsr #23		@ left align loc bit field
+		beq	finished		@ if loc is 0, then no need to clean
+		mov	r10, #0			@ start clean at cache level 0
+loop1:
+		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
+		mov	r1, r0, lsr r2		@ extract cache type bits from clidr
+		and	r1, r1, #7		@ mask of the bits for current cache only
+		cmp	r1, #2			@ see what cache we have at this level
+		blt	skip			@ skip if no cache, or just i-cache
+		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
+		and	r2, r1, #7		@ extract the length of the cache lines
+		add	r2, r2, #4		@ add 4 (line length offset)
+		ldr	r4, =0x3ff
+		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
+		.word	0xe16f5f14		@ clz r5, r4 - find bit position of way size increment
+		ldr	r7, =0x7fff
+		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
+loop2:
+		mov	r9, r4			@ create working copy of max way size
+loop3:
+		orr	r11, r10, r9, lsl r5	@ factor way and cache number into r11
+		orr	r11, r11, r7, lsl r2	@ factor index number into r11
+		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
+		subs	r9, r9, #1		@ decrement the way
+		bge	loop3
+		subs	r7, r7, #1		@ decrement the index
+		bge	loop2
+skip:
+		add	r10, r10, #2		@ increment cache number
+		cmp	r3, r10
+		bgt	loop1
+finished:
+		mov	r10, #0			@ swith back to cache level 0
+		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+		ldmfd	sp!, {r0-r5, r7, r9-r11}
+iflush:
+		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
+		mcr	p15, 0, r10, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
 __armv4_mmu_cache_flush:

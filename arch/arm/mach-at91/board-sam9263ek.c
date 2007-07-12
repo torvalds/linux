@@ -26,6 +26,9 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/fb.h>
+
+#include <video/atmel_lcdc.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -202,6 +205,65 @@ static struct at91_nand_data __initdata ek_nand_data = {
 
 
 /*
+ * LCD Controller
+ */
+#if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
+static struct fb_videomode at91_tft_vga_modes[] = {
+	{
+	        .name           = "TX09D50VM1CCA @ 60",
+		.refresh	= 60,
+		.xres		= 240,		.yres		= 320,
+		.pixclock	= KHZ2PICOS(4965),
+
+		.left_margin	= 1,		.right_margin	= 33,
+		.upper_margin	= 1,		.lower_margin	= 0,
+		.hsync_len	= 5,		.vsync_len	= 1,
+
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+	},
+};
+
+static struct fb_monspecs at91fb_default_monspecs = {
+	.manufacturer	= "HIT",
+	.monitor        = "TX09D70VM1CCA",
+
+	.modedb		= at91_tft_vga_modes,
+	.modedb_len	= ARRAY_SIZE(at91_tft_vga_modes),
+	.hfmin		= 15000,
+	.hfmax		= 64000,
+	.vfmin		= 50,
+	.vfmax		= 150,
+};
+
+#define AT91SAM9263_DEFAULT_LCDCON2 	(ATMEL_LCDC_MEMOR_LITTLE \
+					| ATMEL_LCDC_DISTYPE_TFT    \
+					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
+
+static void at91_lcdc_power_control(int on)
+{
+	if (on)
+		at91_set_gpio_value(AT91_PIN_PD12, 0);	/* power up */
+	else
+		at91_set_gpio_value(AT91_PIN_PD12, 1);	/* power down */
+}
+
+/* Driver datas */
+static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.default_bpp			= 16,
+	.default_dmacon			= ATMEL_LCDC_DMAEN,
+	.default_lcdcon2		= AT91SAM9263_DEFAULT_LCDCON2,
+	.default_monspecs		= &at91fb_default_monspecs,
+	.atmel_lcdfb_power_control	= at91_lcdc_power_control,
+	.guard_time			= 1,
+};
+
+#else
+static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+#endif
+
+
+/*
  * AC97
  */
 static struct atmel_ac97_data ek_ac97_data = {
@@ -230,6 +292,8 @@ static void __init ek_board_init(void)
 	at91_add_device_nand(&ek_nand_data);
 	/* I2C */
 	at91_add_device_i2c();
+	/* LCD Controller */
+	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
 }

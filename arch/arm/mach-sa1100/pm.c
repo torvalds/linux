@@ -57,12 +57,7 @@ enum {	SLEEP_SAVE_SP = 0,
 static int sa11x0_pm_enter(suspend_state_t state)
 {
 	unsigned long gpio, sleep_save[SLEEP_SAVE_SIZE];
-	struct timespec delta, rtc;
 
-	/* preserve current time */
-	rtc.tv_sec = RCNR;
-	rtc.tv_nsec = 0;
-	save_time_delta(&delta, &rtc);
 	gpio = GPLR;
 
 	/* save vital registers */
@@ -118,10 +113,6 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	 * Clear the peripheral sleep-hold bit.
 	 */
 	PSSR = PSSR_PH;
-
-	/* restore current time */
-	rtc.tv_sec = RCNR;
-	restore_time_delta(&delta, &rtc);
 
 	return 0;
 }

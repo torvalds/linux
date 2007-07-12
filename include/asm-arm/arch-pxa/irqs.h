@@ -11,14 +11,9 @@
  */
 
 
+#define PXA_IRQ(x)	(x)
+
 #ifdef CONFIG_PXA27x
-#define PXA_IRQ_SKIP	0
-#else
-#define PXA_IRQ_SKIP	7
-#endif
-
-#define PXA_IRQ(x)	((x) - PXA_IRQ_SKIP)
-
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
 #define IRQ_MSL		PXA_IRQ(1)	/* MSL Interface interrupt */
 #define IRQ_USBH2	PXA_IRQ(2)	/* USB Host interrupt 1 (OHCI) */
@@ -26,6 +21,8 @@
 #define IRQ_KEYPAD	PXA_IRQ(4)	/* Key pad controller */
 #define IRQ_MEMSTK	PXA_IRQ(5)	/* Memory Stick interrupt */
 #define IRQ_PWRI2C	PXA_IRQ(6)	/* Power I2C interrupt */
+#endif
+
 #define IRQ_HWUART	PXA_IRQ(7)	/* HWUART Transmit/Receive/Error (PXA26x) */
 #define IRQ_OST_4_11	PXA_IRQ(7)	/* OS timer 4-11 matches (PXA27x) */
 #define	IRQ_GPIO0	PXA_IRQ(8)	/* GPIO0 Edge Detect */
@@ -58,18 +55,15 @@
 #ifdef CONFIG_PXA27x
 #define IRQ_TPM		PXA_IRQ(32)	/* TPM interrupt */
 #define IRQ_CAMERA	PXA_IRQ(33)	/* Camera Interface */
-
-#define PXA_INTERNAL_IRQS 34
-#else
-#define PXA_INTERNAL_IRQS 32
 #endif
 
-#define GPIO_2_x_TO_IRQ(x)	\
-			PXA_IRQ((x) - 2 + PXA_INTERNAL_IRQS)
+#define PXA_GPIO_IRQ_BASE	(64)
+#define PXA_GPIO_IRQ_NUM	(128)
+
+#define GPIO_2_x_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
 #define IRQ_GPIO(x)	(((x) < 2) ? (IRQ_GPIO0 + (x)) : GPIO_2_x_TO_IRQ(x))
 
-#define IRQ_TO_GPIO_2_x(i)	\
-			((i) - IRQ_GPIO(2) + 2)
+#define IRQ_TO_GPIO_2_x(i)	((i) - PXA_GPIO_IRQ_BASE)
 #define IRQ_TO_GPIO(i)	(((i) < IRQ_GPIO(2)) ? ((i) - IRQ_GPIO0) : IRQ_TO_GPIO_2_x(i))
 
 #if defined(CONFIG_PXA25x)
@@ -84,7 +78,7 @@
  * these.  If you need more, increase IRQ_BOARD_END, but keep it
  * within sensible limits.
  */
-#define IRQ_BOARD_START		(IRQ_GPIO(PXA_LAST_GPIO) + 1)
+#define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_GPIO_IRQ_NUM)
 #define IRQ_BOARD_END		(IRQ_BOARD_START + 16)
 
 #define IRQ_SA1111_START	(IRQ_BOARD_END)

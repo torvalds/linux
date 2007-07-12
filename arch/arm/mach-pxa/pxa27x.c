@@ -19,10 +19,14 @@
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/ohci.h>
+#include <asm/arch/pm.h>
+#include <asm/arch/dma.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
@@ -122,17 +126,6 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-int pxa_cpu_pm_prepare(suspend_state_t state)
-{
-	switch (state) {
-	case PM_SUSPEND_MEM:
-	case PM_SUSPEND_STANDBY:
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 void pxa_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
@@ -162,6 +155,15 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	}
 }
 
+static int pxa27x_pm_valid(suspend_state_t state)
+{
+	return state == PM_SUSPEND_MEM || state == PM_SUSPEND_STANDBY;
+}
+
+static struct pm_ops pxa27x_pm_ops = {
+	.enter		= pxa_pm_enter,
+	.valid		= pxa27x_pm_valid,
+};
 #endif
 
 /*
@@ -183,7 +185,7 @@ static struct resource pxa27x_ohci_resources[] = {
 	},
 };
 
-static struct platform_device ohci_device = {
+static struct platform_device pxaohci_device = {
 	.name		= "pxa27x-ohci",
 	.id		= -1,
 	.dev		= {
@@ -196,16 +198,62 @@ static struct platform_device ohci_device = {
 
 void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 {
-	ohci_device.dev.platform_data = info;
+	pxaohci_device.dev.platform_data = info;
 }
 
-static struct platform_device *devices[] __initdata = {
-	&ohci_device,
+static struct resource i2c_power_resources[] = {
+	{
+		.start	= 0x40f00180,
+		.end	= 0x40f001a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
+
+static struct platform_device pxai2c_power_device = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= i2c_power_resources,
+	.num_resources	= ARRAY_SIZE(i2c_power_resources),
+};
+
+static struct platform_device *devices[] __initdata = {
+	&pxamci_device,
+	&pxaudc_device,
+	&pxafb_device,
+	&ffuart_device,
+	&btuart_device,
+	&stuart_device,
+	&pxai2c_device,
+	&pxai2c_power_device,
+	&pxai2s_device,
+	&pxaficp_device,
+	&pxartc_device,
+	&pxaohci_device,
+};
+
+void __init pxa27x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_high();
+	pxa_init_irq_gpio(128);
+}
 
 static int __init pxa27x_init(void)
 {
-	return platform_add_devices(devices, ARRAY_SIZE(devices));
+	int ret = 0;
+	if (cpu_is_pxa27x()) {
+		if ((ret = pxa_init_dma(32)))
+			return ret;
+#ifdef CONFIG_PM
+		pm_set_ops(&pxa27x_pm_ops);
+#endif
+		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	}
+	return ret;
 }
 
 subsys_initcall(pxa27x_init);
