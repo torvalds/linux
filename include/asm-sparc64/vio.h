@@ -265,12 +265,17 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 }
 
 struct vio_dev {
-	struct mdesc_node	*mp;
+	u64			mp;
 	struct device_node	*dp;
 
 	const char		*type;
 	const char		*compat;
 	int			compat_len;
+
+	unsigned long		channel_id;
+
+	unsigned int		tx_irq;
+	unsigned int		rx_irq;
 
 	struct device		dev;
 };
@@ -345,15 +350,9 @@ struct vio_driver_state {
 
 	struct vio_dev		*vdev;
 
-	unsigned long		channel_id;
-	unsigned int		tx_irq;
-	unsigned int		rx_irq;
-
 	struct timer_list	timer;
 
 	struct vio_version	ver;
-
-	struct mdesc_node	*endpoint;
 
 	struct vio_version	*ver_table;
 	int			ver_table_entries;
@@ -365,7 +364,8 @@ struct vio_driver_state {
 
 #define viodbg(TYPE, f, a...) \
 do {	if (vio->debug & VIO_DEBUG_##TYPE) \
-		printk(KERN_INFO "vio: ID[%lu] " f, vio->channel_id, ## a); \
+		printk(KERN_INFO "vio: ID[%lu] " f, \
+		       vio->vdev->channel_id, ## a); \
 } while (0)
 
 extern int vio_register_driver(struct vio_driver *drv);
@@ -392,11 +392,10 @@ extern int vio_ldc_alloc(struct vio_driver_state *vio,
 			 struct ldc_channel_config *base_cfg, void *event_arg);
 extern void vio_ldc_free(struct vio_driver_state *vio);
 extern int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
-			   u8 dev_class, struct mdesc_node *channel_endpoint,
-			   struct vio_version *ver_table, int ver_table_size,
-			   struct vio_driver_ops *ops, char *name);
+			   u8 dev_class, struct vio_version *ver_table,
+			   int ver_table_size, struct vio_driver_ops *ops,
+			   char *name);
 
-extern struct mdesc_node *vio_find_endpoint(struct vio_dev *vdev);
 extern void vio_port_up(struct vio_driver_state *vio);
 
 #endif /* _SPARC64_VIO_H */

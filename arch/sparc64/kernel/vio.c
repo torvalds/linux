@@ -147,30 +147,6 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 }
 EXPORT_SYMBOL(vio_unregister_driver);
 
-struct mdesc_node *vio_find_endpoint(struct vio_dev *vdev)
-{
-	struct mdesc_node *endp, *mp = vdev->mp;
-	int i;
-
-	endp = NULL;
-	for (i = 0; i < mp->num_arcs; i++) {
-		struct mdesc_node *t;
-
-		if (strcmp(mp->arcs[i].name, "fwd"))
-			continue;
-
-		t = mp->arcs[i].arc;
-		if (strcmp(t->name, "channel-endpoint"))
-			continue;
-
-		endp = t;
-		break;
-	}
-
-	return endp;
-}
-EXPORT_SYMBOL(vio_find_endpoint);
-
 static void __devinit vio_dev_release(struct device *dev)
 {
 	kfree(to_vio_dev(dev));
@@ -197,22 +173,47 @@ struct device_node *cdev_node;
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
 
-static struct vio_dev *vio_create_one(struct mdesc_node *mp,
+static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
+				  struct vio_dev *vdev)
+{
+	u64 a;
+
+	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
+		const u64 *chan_id;
+		const u64 *irq;
+		u64 target;
+
+		target = mdesc_arc_target(hp, a);
+
+		irq = mdesc_get_property(hp, target, "tx-ino", NULL);
+		if (irq)
+			vdev->tx_irq = sun4v_build_virq(cdev_cfg_handle, *irq);
+
+		irq = mdesc_get_property(hp, target, "rx-ino", NULL);
+		if (irq)
+			vdev->rx_irq = sun4v_build_virq(cdev_cfg_handle, *irq);
+
+		chan_id = mdesc_get_property(hp, target, "id", NULL);
+		if (chan_id)
+			vdev->channel_id = *chan_id;
+	}
+}
+
+static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 				      struct device *parent)
 {
 	const char *type, *compat;
 	struct device_node *dp;
 	struct vio_dev *vdev;
-	const u64 *irq;
 	int err, clen;
 
-	type = md_get_property(mp, "device-type", NULL);
+	type = mdesc_get_property(hp, mp, "device-type", NULL);
 	if (!type) {
-		type = md_get_property(mp, "name", NULL);
+		type = mdesc_get_property(hp, mp, "name", NULL);
 		if (!type)
-			type = mp->name;
+			type = mdesc_node_name(hp, mp);
 	}
-	compat = md_get_property(mp, "device-type", &clen);
+	compat = mdesc_get_property(hp, mp, "device-type", &clen);
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
@@ -225,15 +226,13 @@ static struct vio_dev *vio_create_one(struct mdesc_node *mp,
 	vdev->compat = compat;
 	vdev->compat_len = clen;
 
-	irq = md_get_property(mp, "tx-ino", NULL);
-	if (irq)
-		mp->irqs[0] = sun4v_build_virq(cdev_cfg_handle, *irq);
+	vdev->channel_id = ~0UL;
+	vdev->tx_irq = ~0;
+	vdev->rx_irq = ~0;
 
-	irq = md_get_property(mp, "rx-ino", NULL);
-	if (irq)
-		mp->irqs[1] = sun4v_build_virq(cdev_cfg_handle, *irq);
+	vio_fill_channel_info(hp, mp, vdev);
 
-	snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%lx", mp->node);
+	snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%lx", mp);
 	vdev->dev.parent = parent;
 	vdev->dev.bus = &vio_bus_type;
 	vdev->dev.release = vio_dev_release;
@@ -267,46 +266,43 @@ static struct vio_dev *vio_create_one(struct mdesc_node *mp,
 	return vdev;
 }
 
-static void walk_tree(struct mdesc_node *n, struct vio_dev *parent)
+static void walk_tree(struct mdesc_handle *hp, u64 n, struct vio_dev *parent)
 {
-	int i;
+	u64 a;
 
-	for (i = 0; i < n->num_arcs; i++) {
-		struct mdesc_node *mp;
+	mdesc_for_each_arc(a, hp, n, MDESC_ARC_TYPE_FWD) {
 		struct vio_dev *vdev;
+		u64 target;
 
-		if (strcmp(n->arcs[i].name, "fwd"))
-			continue;
-
-		mp = n->arcs[i].arc;
-
-		vdev = vio_create_one(mp, &parent->dev);
-		if (vdev && mp->num_arcs)
-			walk_tree(mp, vdev);
+		target = mdesc_arc_target(hp, a);
+		vdev = vio_create_one(hp, target, &parent->dev);
+		if (vdev)
+			walk_tree(hp, target, vdev);
 	}
 }
 
-static void create_devices(struct mdesc_node *root)
+static void create_devices(struct mdesc_handle *hp, u64 root)
 {
-	struct mdesc_node *mp;
+	u64 mp;
 
-	root_vdev = vio_create_one(root, NULL);
+	root_vdev = vio_create_one(hp, root, NULL);
 	if (!root_vdev) {
 		printk(KERN_ERR "VIO: Coult not create root device.\n");
 		return;
 	}
 
-	walk_tree(root, root_vdev);
+	walk_tree(hp, root, root_vdev);
 
 	/* Domain services is odd as it doesn't sit underneath the
 	 * channel-devices node, so we plug it in manually.
 	 */
-	mp = md_find_node_by_name(NULL, "domain-services");
-	if (mp) {
-		struct vio_dev *parent = vio_create_one(mp, &root_vdev->dev);
+	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "domain-services");
+	if (mp != MDESC_NODE_NULL) {
+		struct vio_dev *parent = vio_create_one(hp, mp,
+							&root_vdev->dev);
 
 		if (parent)
-			walk_tree(mp, parent);
+			walk_tree(hp, mp, parent);
 	}
 }
 
@@ -316,40 +312,47 @@ const char *cfg_handle_prop = "cfg-handle";
 
 static int __init vio_init(void)
 {
-	struct mdesc_node *root;
+	struct mdesc_handle *hp;
 	const char *compat;
 	const u64 *cfg_handle;
 	int err, len;
+	u64 root;
 
-	root = md_find_node_by_name(NULL, channel_devices_node);
-	if (!root) {
+	hp = mdesc_grab();
+	if (!hp)
+		return 0;
+
+	root = mdesc_node_by_name(hp, MDESC_NODE_NULL, channel_devices_node);
+	if (root == MDESC_NODE_NULL) {
 		printk(KERN_INFO "VIO: No channel-devices MDESC node.\n");
+		mdesc_release(hp);
 		return 0;
 	}
 
 	cdev_node = of_find_node_by_name(NULL, "channel-devices");
+	err = -ENODEV;
 	if (!cdev_node) {
 		printk(KERN_INFO "VIO: No channel-devices OBP node.\n");
-		return -ENODEV;
+		goto out_release;
 	}
 
-	compat = md_get_property(root, "compatible", &len);
+	compat = mdesc_get_property(hp, root, "compatible", &len);
 	if (!compat) {
 		printk(KERN_ERR "VIO: Channel devices lacks compatible "
 		       "property\n");
-		return -ENODEV;
+		goto out_release;
 	}
 	if (!find_in_proplist(compat, channel_devices_compat, len)) {
 		printk(KERN_ERR "VIO: Channel devices node lacks (%s) "
 		       "compat entry.\n", channel_devices_compat);
-		return -ENODEV;
+		goto out_release;
 	}
 
-	cfg_handle = md_get_property(root, cfg_handle_prop, NULL);
+	cfg_handle = mdesc_get_property(hp, root, cfg_handle_prop, NULL);
 	if (!cfg_handle) {
 		printk(KERN_ERR "VIO: Channel devices lacks %s property\n",
 		       cfg_handle_prop);
-		return -ENODEV;
+		goto out_release;
 	}
 
 	cdev_cfg_handle = *cfg_handle;
@@ -361,9 +364,15 @@ static int __init vio_init(void)
 		return err;
 	}
 
-	create_devices(root);
+	create_devices(hp, root);
+
+	mdesc_release(hp);
 
 	return 0;
+
+out_release:
+	mdesc_release(hp);
+	return err;
 }
 
 postcore_initcall(vio_init);

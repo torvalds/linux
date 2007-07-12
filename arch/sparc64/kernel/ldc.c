@@ -2335,15 +2335,20 @@ EXPORT_SYMBOL(ldc_free_exp_dring);
 
 static int __init ldc_init(void)
 {
-	struct mdesc_node *mp;
 	unsigned long major, minor;
+	struct mdesc_handle *hp;
 	const u64 *v;
+	u64 mp;
 
-	mp = md_find_node_by_name(NULL, "platform");
-	if (!mp)
+	hp = mdesc_grab();
+	if (!hp)
 		return -ENODEV;
 
-	v = md_get_property(mp, "domaining-enabled", NULL);
+	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "platform");
+	if (mp == MDESC_NODE_NULL)
+		return -ENODEV;
+
+	v = mdesc_get_property(hp, mp, "domaining-enabled", NULL);
 	if (!v)
 		return -ENODEV;
 

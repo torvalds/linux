@@ -15,6 +15,7 @@
 #include <asm/ldc.h>
 #include <asm/vio.h>
 #include <asm/power.h>
+#include <asm/mdesc.h>
 
 #define DRV_MODULE_NAME		"ds"
 #define PFX DRV_MODULE_NAME	": "
@@ -170,8 +171,7 @@ static void md_update_data(struct ldc_channel *lp,
 
 	rp = (struct ds_md_update_req *) (dpkt + 1);
 
-	printk(KERN_ERR PFX "MD update REQ [%lx] len=%d\n",
-	       rp->req_num, len);
+	printk(KERN_ERR PFX "Machine description update.\n");
 
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.data.tag.type = DS_DATA;
@@ -181,6 +181,8 @@ static void md_update_data(struct ldc_channel *lp,
 	pkt.res.result = DS_OK;
 
 	ds_send(lp, &pkt, sizeof(pkt));
+
+	mdesc_update();
 }
 
 struct ds_shutdown_req {
@@ -555,7 +557,6 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 			      const struct vio_device_id *id)
 {
 	static int ds_version_printed;
-	struct mdesc_node *endp;
 	struct ldc_channel_config ds_cfg = {
 		.event		= ds_event,
 		.mtu		= 4096,
@@ -563,19 +564,10 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 	};
 	struct ldc_channel *lp;
 	struct ds_info *dp;
-	const u64 *chan_id;
 	int err;
 
 	if (ds_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
-
-	endp = vio_find_endpoint(vdev);
-	if (!endp)
-		return -ENODEV;
-
-	chan_id = md_get_property(endp, "id", NULL);
-	if (!chan_id)
-		return -ENODEV;
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	err = -ENOMEM;
@@ -588,10 +580,10 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 
 	dp->rcv_buf_len = 4096;
 
-	ds_cfg.tx_irq = endp->irqs[0];
-	ds_cfg.rx_irq = endp->irqs[1];
+	ds_cfg.tx_irq = vdev->tx_irq;
+	ds_cfg.rx_irq = vdev->rx_irq;
 
-	lp = ldc_alloc(*chan_id, &ds_cfg, dp);
+	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp);
 	if (IS_ERR(lp)) {
 		err = PTR_ERR(lp);
 		goto out_free_rcv_buf;

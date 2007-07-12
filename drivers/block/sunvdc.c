@@ -750,7 +750,7 @@ static struct vio_driver_ops vdc_vio_ops = {
 static int __devinit vdc_port_probe(struct vio_dev *vdev,
 				    const struct vio_device_id *id)
 {
-	struct mdesc_node *endp;
+	struct mdesc_handle *hp;
 	struct vdc_port *port;
 	unsigned long flags;
 	struct vdc *vp;
@@ -763,26 +763,24 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 		return -ENODEV;
 	}
 
-	endp = vio_find_endpoint(vdev);
-	if (!endp) {
-		printk(KERN_ERR PFX "Port lacks channel-endpoint.\n");
-		return -ENODEV;
-	}
+	hp = mdesc_grab();
 
-	port_id = md_get_property(vdev->mp, "id", NULL);
+	port_id = mdesc_get_property(hp, vdev->mp, "id", NULL);
+	err = -ENODEV;
 	if (!port_id) {
 		printk(KERN_ERR PFX "Port lacks id property.\n");
-		return -ENODEV;
+		goto err_out_release_mdesc;
 	}
 	if ((*port_id << PARTITION_SHIFT) & ~(u64)MINORMASK) {
 		printk(KERN_ERR PFX "Port id [%lu] too large.\n", *port_id);
-		return -ENODEV;
+		goto err_out_release_mdesc;
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	err = -ENOMEM;
 	if (!port) {
 		printk(KERN_ERR PFX "Cannot allocate vdc_port.\n");
-		return -ENOMEM;
+		goto err_out_release_mdesc;
 	}
 
 	port->vp = vp;
@@ -797,7 +795,7 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c", 'a' + (port->dev_no % 26));
 
-	err = vio_driver_init(&port->vio, vdev, VDEV_DISK, endp,
+	err = vio_driver_init(&port->vio, vdev, VDEV_DISK,
 			      vdc_versions, ARRAY_SIZE(vdc_versions),
 			      &vdc_vio_ops, port->disk_name);
 	if (err)
@@ -828,6 +826,8 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 
 	dev_set_drvdata(&vdev->dev, port);
 
+	mdesc_release(hp);
+
 	return 0;
 
 err_out_free_tx_ring:
@@ -839,6 +839,8 @@ err_out_free_ldc:
 err_out_free_port:
 	kfree(port);
 
+err_out_release_mdesc:
+	mdesc_release(hp);
 	return err;
 }
 

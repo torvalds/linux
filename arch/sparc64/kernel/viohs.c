@@ -136,7 +136,7 @@ static int process_unknown(struct vio_driver_state *vio, void *arg)
 	       pkt->type, pkt->stype, pkt->stype_env, pkt->sid);
 
 	printk(KERN_ERR "vio: ID[%lu] Resetting connection.\n",
-	       vio->channel_id);
+	       vio->vdev->channel_id);
 
 	ldc_disconnect(vio->lp);
 
@@ -678,21 +678,11 @@ extern int vio_ldc_alloc(struct vio_driver_state *vio,
 {
 	struct ldc_channel_config cfg = *base_cfg;
 	struct ldc_channel *lp;
-	const u64 *id;
 
-	id = md_get_property(vio->endpoint, "id", NULL);
-	if (!id) {
-		printk(KERN_ERR "%s: Channel lacks id property.\n",
-		       vio->name);
-		return -ENODEV;
-	}
+	cfg.tx_irq = vio->vdev->tx_irq;
+	cfg.rx_irq = vio->vdev->rx_irq;
 
-	vio->channel_id = *id;
-
-	cfg.rx_irq = vio->rx_irq;
-	cfg.tx_irq = vio->tx_irq;
-
-	lp = ldc_alloc(vio->channel_id, &cfg, event_arg);
+	lp = ldc_alloc(vio->vdev->channel_id, &cfg, event_arg);
 	if (IS_ERR(lp))
 		return PTR_ERR(lp);
 
@@ -728,7 +718,7 @@ void vio_port_up(struct vio_driver_state *vio)
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu bind failed, "
 			       "err=%d\n",
-			       vio->name, vio->channel_id, err);
+			       vio->name, vio->vdev->channel_id, err);
 	}
 
 	if (!err) {
@@ -736,7 +726,7 @@ void vio_port_up(struct vio_driver_state *vio)
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu connect failed, "
 			       "err=%d\n",
-			       vio->name, vio->channel_id, err);
+			       vio->name, vio->vdev->channel_id, err);
 	}
 	if (err) {
 		unsigned long expires = jiffies + HZ;
@@ -757,9 +747,9 @@ static void vio_port_timer(unsigned long _arg)
 }
 
 int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
-		    u8 dev_class, struct mdesc_node *channel_endpoint,
-		    struct vio_version *ver_table, int ver_table_size,
-		    struct vio_driver_ops *ops, char *name)
+		    u8 dev_class, struct vio_version *ver_table,
+		    int ver_table_size, struct vio_driver_ops *ops,
+		    char *name)
 {
 	switch (dev_class) {
 	case VDEV_NETWORK:
@@ -777,9 +767,6 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 	    !ops->handshake_complete)
 		return -EINVAL;
 
-	if (!channel_endpoint)
-		return -EINVAL;
-
 	if (!ver_table || ver_table_size < 0)
 		return -EINVAL;
 
@@ -792,10 +779,6 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 
 	vio->dev_class = dev_class;
 	vio->vdev = vdev;
-
-	vio->endpoint = channel_endpoint;
-	vio->tx_irq = channel_endpoint->irqs[0];
-	vio->rx_irq = channel_endpoint->irqs[1];
 
 	vio->ver_table = ver_table;
 	vio->ver_table_entries = ver_table_size;

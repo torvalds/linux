@@ -892,7 +892,7 @@ const char *remote_macaddr_prop = "remote-mac-address";
 static int __devinit vnet_port_probe(struct vio_dev *vdev,
 				     const struct vio_device_id *id)
 {
-	struct mdesc_node *endp;
+	struct mdesc_handle *hp;
 	struct vnet_port *port;
 	unsigned long flags;
 	struct vnet *vp;
@@ -905,23 +905,21 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 		return -ENODEV;
 	}
 
-	rmac = md_get_property(vdev->mp, remote_macaddr_prop, &len);
+	hp = mdesc_grab();
+
+	rmac = mdesc_get_property(hp, vdev->mp, remote_macaddr_prop, &len);
+	err = -ENODEV;
 	if (!rmac) {
 		printk(KERN_ERR PFX "Port lacks %s property.\n",
 		       remote_macaddr_prop);
-		return -ENODEV;
-	}
-
-	endp = vio_find_endpoint(vdev);
-	if (!endp) {
-		printk(KERN_ERR PFX "Port lacks channel-endpoint.\n");
-		return -ENODEV;
+		goto err_out_put_mdesc;
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	err = -ENOMEM;
 	if (!port) {
 		printk(KERN_ERR PFX "Cannot allocate vnet_port.\n");
-		return -ENOMEM;
+		goto err_out_put_mdesc;
 	}
 
 	for (i = 0; i < ETH_ALEN; i++)
@@ -929,7 +927,7 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 
 	port->vp = vp;
 
-	err = vio_driver_init(&port->vio, vdev, VDEV_NETWORK, endp,
+	err = vio_driver_init(&port->vio, vdev, VDEV_NETWORK,
 			      vnet_versions, ARRAY_SIZE(vnet_versions),
 			      &vnet_vio_ops, vp->dev->name);
 	if (err)
@@ -947,7 +945,7 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 	INIT_LIST_HEAD(&port->list);
 
 	switch_port = 0;
-	if (md_get_property(vdev->mp, "switch-port", NULL) != NULL)
+	if (mdesc_get_property(hp, vdev->mp, "switch-port", NULL) != NULL)
 		switch_port = 1;
 
 	spin_lock_irqsave(&vp->lock, flags);
@@ -969,6 +967,8 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 
 	vio_port_up(&port->vio);
 
+	mdesc_release(hp);
+
 	return 0;
 
 err_out_free_ldc:
@@ -977,6 +977,8 @@ err_out_free_ldc:
 err_out_free_port:
 	kfree(port);
 
+err_out_put_mdesc:
+	mdesc_release(hp);
 	return err;
 }
 
@@ -1029,6 +1031,7 @@ static int __devinit vnet_probe(struct vio_dev *vdev,
 				const struct vio_device_id *id)
 {
 	static int vnet_version_printed;
+	struct mdesc_handle *hp;
 	struct net_device *dev;
 	struct vnet *vp;
 	const u64 *mac;
@@ -1037,7 +1040,9 @@ static int __devinit vnet_probe(struct vio_dev *vdev,
 	if (vnet_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 
-	mac = md_get_property(vdev->mp, local_mac_prop, &len);
+	hp = mdesc_grab();
+
+	mac = mdesc_get_property(hp, vdev->mp, local_mac_prop, &len);
 	if (!mac) {
 		printk(KERN_ERR PFX "vnet lacks %s property.\n",
 		       local_mac_prop);
@@ -1093,12 +1098,15 @@ static int __devinit vnet_probe(struct vio_dev *vdev,
 
 	dev_set_drvdata(&vdev->dev, vp);
 
+	mdesc_release(hp);
+
 	return 0;
 
 err_out_free_dev:
 	free_netdev(dev);
 
 err_out:
+	mdesc_release(hp);
 	return err;
 }
 
