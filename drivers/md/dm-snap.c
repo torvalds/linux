@@ -42,8 +42,8 @@
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
 
-struct pending_exception {
-	struct exception e;
+struct dm_snap_pending_exception {
+	struct dm_snap_exception e;
 
 	/*
 	 * Origin buffers waiting for this to complete are held
@@ -63,7 +63,7 @@ struct pending_exception {
 	 * group of pending_exceptions.  It is always last to get freed.
 	 * These fields get set up when writing to the origin.
 	 */
-	struct pending_exception *primary_pe;
+	struct dm_snap_pending_exception *primary_pe;
 
 	/*
 	 * Number of pending_exceptions processing this chunk.
@@ -137,7 +137,7 @@ static void exit_origin_hash(void)
 	kfree(_origins);
 }
 
-static inline unsigned int origin_hash(struct block_device *bdev)
+static unsigned origin_hash(struct block_device *bdev)
 {
 	return bdev->bd_dev & ORIGIN_MASK;
 }
@@ -231,7 +231,7 @@ static int init_exception_table(struct exception_table *et, uint32_t size)
 static void exit_exception_table(struct exception_table *et, struct kmem_cache *mem)
 {
 	struct list_head *slot;
-	struct exception *ex, *next;
+	struct dm_snap_exception *ex, *next;
 	int i, size;
 
 	size = et->hash_mask + 1;
@@ -245,18 +245,19 @@ static void exit_exception_table(struct exception_table *et, struct kmem_cache *
 	vfree(et->table);
 }
 
-static inline uint32_t exception_hash(struct exception_table *et, chunk_t chunk)
+static uint32_t exception_hash(struct exception_table *et, chunk_t chunk)
 {
 	return chunk & et->hash_mask;
 }
 
-static void insert_exception(struct exception_table *eh, struct exception *e)
+static void insert_exception(struct exception_table *eh,
+			     struct dm_snap_exception *e)
 {
 	struct list_head *l = &eh->table[exception_hash(eh, e->old_chunk)];
 	list_add(&e->hash_list, l);
 }
 
-static inline void remove_exception(struct exception *e)
+static void remove_exception(struct dm_snap_exception *e)
 {
 	list_del(&e->hash_list);
 }
@@ -265,11 +266,11 @@ static inline void remove_exception(struct exception *e)
  * Return the exception data for a sector, or NULL if not
  * remapped.
  */
-static struct exception *lookup_exception(struct exception_table *et,
-					  chunk_t chunk)
+static struct dm_snap_exception *lookup_exception(struct exception_table *et,
+						  chunk_t chunk)
 {
 	struct list_head *slot;
-	struct exception *e;
+	struct dm_snap_exception *e;
 
 	slot = &et->table[exception_hash(et, chunk)];
 	list_for_each_entry (e, slot, hash_list)
@@ -279,9 +280,9 @@ static struct exception *lookup_exception(struct exception_table *et,
 	return NULL;
 }
 
-static inline struct exception *alloc_exception(void)
+static struct dm_snap_exception *alloc_exception(void)
 {
-	struct exception *e;
+	struct dm_snap_exception *e;
 
 	e = kmem_cache_alloc(exception_cache, GFP_NOIO);
 	if (!e)
@@ -290,24 +291,24 @@ static inline struct exception *alloc_exception(void)
 	return e;
 }
 
-static inline void free_exception(struct exception *e)
+static void free_exception(struct dm_snap_exception *e)
 {
 	kmem_cache_free(exception_cache, e);
 }
 
-static inline struct pending_exception *alloc_pending_exception(void)
+static struct dm_snap_pending_exception *alloc_pending_exception(void)
 {
 	return mempool_alloc(pending_pool, GFP_NOIO);
 }
 
-static inline void free_pending_exception(struct pending_exception *pe)
+static void free_pending_exception(struct dm_snap_pending_exception *pe)
 {
 	mempool_free(pe, pending_pool);
 }
 
 int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new)
 {
-	struct exception *e;
+	struct dm_snap_exception *e;
 
 	e = alloc_exception();
 	if (!e)
@@ -334,7 +335,7 @@ static int calc_max_buckets(void)
 /*
  * Rounds a number down to a power of 2.
  */
-static inline uint32_t round_down(uint32_t n)
+static uint32_t round_down(uint32_t n)
 {
 	while (n & (n - 1))
 		n &= (n - 1);
@@ -384,7 +385,7 @@ static int init_hash_tables(struct dm_snapshot *s)
  * Round a number up to the nearest 'size' boundary.  size must
  * be a power of 2.
  */
-static inline ulong round_up(ulong n, ulong size)
+static ulong round_up(ulong n, ulong size)
 {
 	size--;
 	return (n + size) & ~size;
@@ -577,7 +578,7 @@ static void __free_exceptions(struct dm_snapshot *s)
 
 static void snapshot_dtr(struct dm_target *ti)
 {
-	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
+	struct dm_snapshot *s = ti->private;
 
 	flush_workqueue(ksnapd);
 
@@ -655,14 +656,14 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 	dm_table_event(s->table);
 }
 
-static void get_pending_exception(struct pending_exception *pe)
+static void get_pending_exception(struct dm_snap_pending_exception *pe)
 {
 	atomic_inc(&pe->ref_count);
 }
 
-static struct bio *put_pending_exception(struct pending_exception *pe)
+static struct bio *put_pending_exception(struct dm_snap_pending_exception *pe)
 {
-	struct pending_exception *primary_pe;
+	struct dm_snap_pending_exception *primary_pe;
 	struct bio *origin_bios = NULL;
 
 	primary_pe = pe->primary_pe;
@@ -692,9 +693,9 @@ static struct bio *put_pending_exception(struct pending_exception *pe)
 	return origin_bios;
 }
 
-static void pending_complete(struct pending_exception *pe, int success)
+static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 {
-	struct exception *e;
+	struct dm_snap_exception *e;
 	struct dm_snapshot *s = pe->snap;
 	struct bio *origin_bios = NULL;
 	struct bio *snapshot_bios = NULL;
@@ -748,7 +749,8 @@ static void pending_complete(struct pending_exception *pe, int success)
 
 static void commit_callback(void *context, int success)
 {
-	struct pending_exception *pe = (struct pending_exception *) context;
+	struct dm_snap_pending_exception *pe = context;
+
 	pending_complete(pe, success);
 }
 
@@ -758,7 +760,7 @@ static void commit_callback(void *context, int success)
  */
 static void copy_callback(int read_err, unsigned int write_err, void *context)
 {
-	struct pending_exception *pe = (struct pending_exception *) context;
+	struct dm_snap_pending_exception *pe = context;
 	struct dm_snapshot *s = pe->snap;
 
 	if (read_err || write_err)
@@ -773,7 +775,7 @@ static void copy_callback(int read_err, unsigned int write_err, void *context)
 /*
  * Dispatches the copy operation to kcopyd.
  */
-static void start_copy(struct pending_exception *pe)
+static void start_copy(struct dm_snap_pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
 	struct io_region src, dest;
@@ -803,11 +805,11 @@ static void start_copy(struct pending_exception *pe)
  * NOTE: a write lock must be held on snap->lock before calling
  * this.
  */
-static struct pending_exception *
+static struct dm_snap_pending_exception *
 __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 {
-	struct exception *e;
-	struct pending_exception *pe;
+	struct dm_snap_exception *e;
+	struct dm_snap_pending_exception *pe;
 	chunk_t chunk = sector_to_chunk(s, bio->bi_sector);
 
 	/*
@@ -816,7 +818,7 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	e = lookup_exception(&s->pending, chunk);
 	if (e) {
 		/* cast the exception to a pending exception */
-		pe = container_of(e, struct pending_exception, e);
+		pe = container_of(e, struct dm_snap_pending_exception, e);
 		goto out;
 	}
 
@@ -836,7 +838,7 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	e = lookup_exception(&s->pending, chunk);
 	if (e) {
 		free_pending_exception(pe);
-		pe = container_of(e, struct pending_exception, e);
+		pe = container_of(e, struct dm_snap_pending_exception, e);
 		goto out;
 	}
 
@@ -860,8 +862,8 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	return pe;
 }
 
-static inline void remap_exception(struct dm_snapshot *s, struct exception *e,
-				   struct bio *bio)
+static void remap_exception(struct dm_snapshot *s, struct dm_snap_exception *e,
+			    struct bio *bio)
 {
 	bio->bi_bdev = s->cow->bdev;
 	bio->bi_sector = chunk_to_sector(s, e->new_chunk) +
@@ -871,11 +873,11 @@ static inline void remap_exception(struct dm_snapshot *s, struct exception *e,
 static int snapshot_map(struct dm_target *ti, struct bio *bio,
 			union map_info *map_context)
 {
-	struct exception *e;
-	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
+	struct dm_snap_exception *e;
+	struct dm_snapshot *s = ti->private;
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
-	struct pending_exception *pe = NULL;
+	struct dm_snap_pending_exception *pe = NULL;
 
 	chunk = sector_to_chunk(s, bio->bi_sector);
 
@@ -945,7 +947,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 
 static void snapshot_resume(struct dm_target *ti)
 {
-	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
+	struct dm_snapshot *s = ti->private;
 
 	down_write(&s->lock);
 	s->active = 1;
@@ -955,7 +957,7 @@ static void snapshot_resume(struct dm_target *ti)
 static int snapshot_status(struct dm_target *ti, status_type_t type,
 			   char *result, unsigned int maxlen)
 {
-	struct dm_snapshot *snap = (struct dm_snapshot *) ti->private;
+	struct dm_snapshot *snap = ti->private;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -999,8 +1001,8 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 {
 	int r = DM_MAPIO_REMAPPED, first = 0;
 	struct dm_snapshot *snap;
-	struct exception *e;
-	struct pending_exception *pe, *next_pe, *primary_pe = NULL;
+	struct dm_snap_exception *e;
+	struct dm_snap_pending_exception *pe, *next_pe, *primary_pe = NULL;
 	chunk_t chunk;
 	LIST_HEAD(pe_queue);
 
@@ -1147,14 +1149,14 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 static void origin_dtr(struct dm_target *ti)
 {
-	struct dm_dev *dev = (struct dm_dev *) ti->private;
+	struct dm_dev *dev = ti->private;
 	dm_put_device(ti, dev);
 }
 
 static int origin_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
-	struct dm_dev *dev = (struct dm_dev *) ti->private;
+	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
 
 	if (unlikely(bio_barrier(bio)))
@@ -1172,7 +1174,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
  */
 static void origin_resume(struct dm_target *ti)
 {
-	struct dm_dev *dev = (struct dm_dev *) ti->private;
+	struct dm_dev *dev = ti->private;
 	struct dm_snapshot *snap;
 	struct origin *o;
 	chunk_t chunk_size = 0;
@@ -1190,7 +1192,7 @@ static void origin_resume(struct dm_target *ti)
 static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 			 unsigned int maxlen)
 {
-	struct dm_dev *dev = (struct dm_dev *) ti->private;
+	struct dm_dev *dev = ti->private;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -1249,21 +1251,14 @@ static int __init dm_snapshot_init(void)
 		goto bad2;
 	}
 
-	exception_cache = kmem_cache_create("dm-snapshot-ex",
-					    sizeof(struct exception),
-					    __alignof__(struct exception),
-					    0, NULL, NULL);
+	exception_cache = KMEM_CACHE(dm_snap_exception, 0);
 	if (!exception_cache) {
 		DMERR("Couldn't create exception cache.");
 		r = -ENOMEM;
 		goto bad3;
 	}
 
-	pending_cache =
-	    kmem_cache_create("dm-snapshot-in",
-			      sizeof(struct pending_exception),
-			      __alignof__(struct pending_exception),
-			      0, NULL, NULL);
+	pending_cache = KMEM_CACHE(dm_snap_pending_exception, 0);
 	if (!pending_cache) {
 		DMERR("Couldn't create pending cache.");
 		r = -ENOMEM;

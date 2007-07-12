@@ -127,7 +127,7 @@ struct pstore {
 	struct dm_io_client *io_client;
 };
 
-static inline unsigned int sectors_to_pages(unsigned int sectors)
+static unsigned sectors_to_pages(unsigned sectors)
 {
 	return sectors / (PAGE_SIZE >> 9);
 }
@@ -393,7 +393,7 @@ static int read_exceptions(struct pstore *ps)
 	return 0;
 }
 
-static inline struct pstore *get_info(struct exception_store *store)
+static struct pstore *get_info(struct exception_store *store)
 {
 	return (struct pstore *) store->context;
 }
@@ -480,7 +480,7 @@ static int persistent_read_metadata(struct exception_store *store)
 }
 
 static int persistent_prepare(struct exception_store *store,
-			      struct exception *e)
+			      struct dm_snap_exception *e)
 {
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
@@ -505,7 +505,7 @@ static int persistent_prepare(struct exception_store *store,
 }
 
 static void persistent_commit(struct exception_store *store,
-			      struct exception *e,
+			      struct dm_snap_exception *e,
 			      void (*callback) (void *, int success),
 			      void *callback_context)
 {
@@ -616,7 +616,8 @@ static int transient_read_metadata(struct exception_store *store)
 	return 0;
 }
 
-static int transient_prepare(struct exception_store *store, struct exception *e)
+static int transient_prepare(struct exception_store *store,
+			     struct dm_snap_exception *e)
 {
 	struct transient_c *tc = (struct transient_c *) store->context;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
@@ -631,9 +632,9 @@ static int transient_prepare(struct exception_store *store, struct exception *e)
 }
 
 static void transient_commit(struct exception_store *store,
-		      struct exception *e,
-		      void (*callback) (void *, int success),
-		      void *callback_context)
+			     struct dm_snap_exception *e,
+			     void (*callback) (void *, int success),
+			     void *callback_context)
 {
 	/* Just succeed */
 	callback(callback_context, 1);

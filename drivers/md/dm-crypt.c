@@ -30,7 +30,7 @@
 /*
  * per bio private data
  */
-struct crypt_io {
+struct dm_crypt_io {
 	struct dm_target *target;
 	struct bio *base_bio;
 	struct work_struct work;
@@ -106,7 +106,7 @@ struct crypt_config {
 
 static struct kmem_cache *_crypt_io_pool;
 
-static void clone_init(struct crypt_io *, struct bio *);
+static void clone_init(struct dm_crypt_io *, struct bio *);
 
 /*
  * Different IV generation algorithms:
@@ -382,7 +382,7 @@ static int crypt_convert(struct crypt_config *cc,
 
  static void dm_crypt_bio_destructor(struct bio *bio)
  {
-	struct crypt_io *io = bio->bi_private;
+	struct dm_crypt_io *io = bio->bi_private;
 	struct crypt_config *cc = io->target->private;
 
 	bio_free(bio, cc->bs);
@@ -393,7 +393,7 @@ static int crypt_convert(struct crypt_config *cc,
  * This should never violate the device limitations
  * May return a smaller bio when running out of pages
  */
-static struct bio *crypt_alloc_buffer(struct crypt_io *io, unsigned int size)
+static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
@@ -479,7 +479,7 @@ static void crypt_free_buffer_pages(struct crypt_config *cc,
  * One of the bios was finished. Check for completion of
  * the whole request and correctly clean up the buffer.
  */
-static void dec_pending(struct crypt_io *io, int error)
+static void dec_pending(struct dm_crypt_io *io, int error)
 {
 	struct crypt_config *cc = (struct crypt_config *) io->target->private;
 
@@ -503,7 +503,7 @@ static void dec_pending(struct crypt_io *io, int error)
 static struct workqueue_struct *_kcryptd_workqueue;
 static void kcryptd_do_work(struct work_struct *work);
 
-static void kcryptd_queue_io(struct crypt_io *io)
+static void kcryptd_queue_io(struct dm_crypt_io *io)
 {
 	INIT_WORK(&io->work, kcryptd_do_work);
 	queue_work(_kcryptd_workqueue, &io->work);
@@ -511,7 +511,7 @@ static void kcryptd_queue_io(struct crypt_io *io)
 
 static int crypt_endio(struct bio *clone, unsigned int done, int error)
 {
-	struct crypt_io *io = clone->bi_private;
+	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->target->private;
 	unsigned read_io = bio_data_dir(clone) == READ;
 
@@ -545,7 +545,7 @@ out:
 	return error;
 }
 
-static void clone_init(struct crypt_io *io, struct bio *clone)
+static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 {
 	struct crypt_config *cc = io->target->private;
 
@@ -556,7 +556,7 @@ static void clone_init(struct crypt_io *io, struct bio *clone)
 	clone->bi_destructor = dm_crypt_bio_destructor;
 }
 
-static void process_read(struct crypt_io *io)
+static void process_read(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
@@ -587,7 +587,7 @@ static void process_read(struct crypt_io *io)
 	generic_make_request(clone);
 }
 
-static void process_write(struct crypt_io *io)
+static void process_write(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
@@ -644,7 +644,7 @@ static void process_write(struct crypt_io *io)
 	}
 }
 
-static void process_read_endio(struct crypt_io *io)
+static void process_read_endio(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct convert_context ctx;
@@ -657,7 +657,7 @@ static void process_read_endio(struct crypt_io *io)
 
 static void kcryptd_do_work(struct work_struct *work)
 {
-	struct crypt_io *io = container_of(work, struct crypt_io, work);
+	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
 
 	if (io->post_process)
 		process_read_endio(io);
@@ -939,7 +939,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 		     union map_info *map_context)
 {
 	struct crypt_config *cc = ti->private;
-	struct crypt_io *io;
+	struct dm_crypt_io *io;
 
 	if (bio_barrier(bio))
 		return -EOPNOTSUPP;
@@ -1062,9 +1062,7 @@ static int __init dm_crypt_init(void)
 {
 	int r;
 
-	_crypt_io_pool = kmem_cache_create("dm-crypt_io",
-	                                   sizeof(struct crypt_io),
-	                                   0, 0, NULL, NULL);
+	_crypt_io_pool = KMEM_CACHE(dm_crypt_io, 0);
 	if (!_crypt_io_pool)
 		return -ENOMEM;
 

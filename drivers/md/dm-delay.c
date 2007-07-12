@@ -37,7 +37,7 @@ struct delay_c {
 	unsigned writes;
 };
 
-struct delay_info {
+struct dm_delay_info {
 	struct delay_c *context;
 	struct list_head list;
 	struct bio *bio;
@@ -80,7 +80,7 @@ static void flush_bios(struct bio *bio)
 
 static struct bio *flush_delayed_bios(struct delay_c *dc, int flush_all)
 {
-	struct delay_info *delayed, *next;
+	struct dm_delay_info *delayed, *next;
 	unsigned long next_expires = 0;
 	int start_timer = 0;
 	BIO_LIST(flush_bios);
@@ -227,7 +227,7 @@ static void delay_dtr(struct dm_target *ti)
 
 static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 {
-	struct delay_info *delayed;
+	struct dm_delay_info *delayed;
 	unsigned long expires = 0;
 
 	if (!delay || !atomic_read(&dc->may_delay))
@@ -338,10 +338,7 @@ static int __init dm_delay_init(void)
 		goto bad_queue;
 	}
 
-	delayed_cache = kmem_cache_create("dm-delay",
-					  sizeof(struct delay_info),
-					  __alignof__(struct delay_info),
-					  0, NULL, NULL);
+	delayed_cache = KMEM_CACHE(dm_delay_info, 0);
 	if (!delayed_cache) {
 		DMERR("Couldn't create delayed bio cache.");
 		goto bad_memcache;

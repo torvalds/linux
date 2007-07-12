@@ -83,7 +83,7 @@ struct multipath {
 	struct work_struct trigger_event;
 
 	/*
-	 * We must use a mempool of mpath_io structs so that we
+	 * We must use a mempool of dm_mpath_io structs so that we
 	 * can resubmit bios on error.
 	 */
 	mempool_t *mpio_pool;
@@ -92,7 +92,7 @@ struct multipath {
 /*
  * Context information attached to each bio we process.
  */
-struct mpath_io {
+struct dm_mpath_io {
 	struct pgpath *pgpath;
 	struct dm_bio_details details;
 };
@@ -122,7 +122,7 @@ static struct pgpath *alloc_pgpath(void)
 	return pgpath;
 }
 
-static inline void free_pgpath(struct pgpath *pgpath)
+static void free_pgpath(struct pgpath *pgpath)
 {
 	kfree(pgpath);
 }
@@ -299,8 +299,8 @@ static int __must_push_back(struct multipath *m)
 		dm_noflush_suspending(m->ti));
 }
 
-static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
-		  unsigned was_queued)
+static int map_io(struct multipath *m, struct bio *bio,
+		  struct dm_mpath_io *mpio, unsigned was_queued)
 {
 	int r = DM_MAPIO_REMAPPED;
 	unsigned long flags;
@@ -374,7 +374,7 @@ static void dispatch_queued_ios(struct multipath *m)
 	int r;
 	unsigned long flags;
 	struct bio *bio = NULL, *next;
-	struct mpath_io *mpio;
+	struct dm_mpath_io *mpio;
 	union map_info *info;
 
 	spin_lock_irqsave(&m->lock, flags);
@@ -795,7 +795,7 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 			 union map_info *map_context)
 {
 	int r;
-	struct mpath_io *mpio;
+	struct dm_mpath_io *mpio;
 	struct multipath *m = (struct multipath *) ti->private;
 
 	if (bio_barrier(bio))
@@ -1014,7 +1014,7 @@ void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
  * end_io handling
  */
 static int do_end_io(struct multipath *m, struct bio *bio,
-		     int error, struct mpath_io *mpio)
+		     int error, struct dm_mpath_io *mpio)
 {
 	struct hw_handler *hwh = &m->hw_handler;
 	unsigned err_flags = MP_FAIL_PATH;	/* Default behavior */
@@ -1075,8 +1075,8 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 static int multipath_end_io(struct dm_target *ti, struct bio *bio,
 			    int error, union map_info *map_context)
 {
-	struct multipath *m = (struct multipath *) ti->private;
-	struct mpath_io *mpio = (struct mpath_io *) map_context->ptr;
+	struct multipath *m = ti->private;
+	struct dm_mpath_io *mpio = map_context->ptr;
 	struct pgpath *pgpath = mpio->pgpath;
 	struct path_selector *ps;
 	int r;
@@ -1346,8 +1346,7 @@ static int __init dm_multipath_init(void)
 	int r;
 
 	/* allocate a slab for the dm_ios */
-	_mpio_cache = kmem_cache_create("dm_mpath", sizeof(struct mpath_io),
-					0, 0, NULL, NULL);
+	_mpio_cache = KMEM_CACHE(dm_mpath_io, 0);
 	if (!_mpio_cache)
 		return -ENOMEM;
 

@@ -45,7 +45,7 @@ struct dm_io {
  * One of these is allocated per target within a bio.  Hopefully
  * this will be simplified out one day.
  */
-struct target_io {
+struct dm_target_io {
 	struct dm_io *io;
 	struct dm_target *ti;
 	union map_info info;
@@ -54,7 +54,7 @@ struct target_io {
 union map_info *dm_get_mapinfo(struct bio *bio)
 {
 	if (bio && bio->bi_private)
-		return &((struct target_io *)bio->bi_private)->info;
+		return &((struct dm_target_io *)bio->bi_private)->info;
 	return NULL;
 }
 
@@ -132,14 +132,12 @@ static int __init local_init(void)
 	int r;
 
 	/* allocate a slab for the dm_ios */
-	_io_cache = kmem_cache_create("dm_io",
-				      sizeof(struct dm_io), 0, 0, NULL, NULL);
+	_io_cache = KMEM_CACHE(dm_io, 0);
 	if (!_io_cache)
 		return -ENOMEM;
 
 	/* allocate a slab for the target ios */
-	_tio_cache = kmem_cache_create("dm_tio", sizeof(struct target_io),
-				       0, 0, NULL, NULL);
+	_tio_cache = KMEM_CACHE(dm_target_io, 0);
 	if (!_tio_cache) {
 		kmem_cache_destroy(_io_cache);
 		return -ENOMEM;
@@ -325,22 +323,22 @@ out:
 	return r;
 }
 
-static inline struct dm_io *alloc_io(struct mapped_device *md)
+static struct dm_io *alloc_io(struct mapped_device *md)
 {
 	return mempool_alloc(md->io_pool, GFP_NOIO);
 }
 
-static inline void free_io(struct mapped_device *md, struct dm_io *io)
+static void free_io(struct mapped_device *md, struct dm_io *io)
 {
 	mempool_free(io, md->io_pool);
 }
 
-static inline struct target_io *alloc_tio(struct mapped_device *md)
+static struct dm_target_io *alloc_tio(struct mapped_device *md)
 {
 	return mempool_alloc(md->tio_pool, GFP_NOIO);
 }
 
-static inline void free_tio(struct mapped_device *md, struct target_io *tio)
+static void free_tio(struct mapped_device *md, struct dm_target_io *tio)
 {
 	mempool_free(tio, md->tio_pool);
 }
@@ -498,7 +496,7 @@ static void dec_pending(struct dm_io *io, int error)
 static int clone_endio(struct bio *bio, unsigned int done, int error)
 {
 	int r = 0;
-	struct target_io *tio = bio->bi_private;
+	struct dm_target_io *tio = bio->bi_private;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
 
@@ -558,7 +556,7 @@ static sector_t max_io_len(struct mapped_device *md,
 }
 
 static void __map_bio(struct dm_target *ti, struct bio *clone,
-		      struct target_io *tio)
+		      struct dm_target_io *tio)
 {
 	int r;
 	sector_t sector;
@@ -672,7 +670,7 @@ static void __clone_and_map(struct clone_info *ci)
 	struct bio *clone, *bio = ci->bio;
 	struct dm_target *ti = dm_table_find_target(ci->map, ci->sector);
 	sector_t len = 0, max = max_io_len(ci->md, ci->sector, ti);
-	struct target_io *tio;
+	struct dm_target_io *tio;
 
 	/*
 	 * Allocate a target io object.
