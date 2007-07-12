@@ -193,15 +193,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #else
 	/* 0x02 - User Defined, Caught by default */
 #endif
-	/* 0x03  - Atomic test and set */
+	/* 0x03 - User Defined, userspace stack overflow */
 	case VEC_EXCPT03:
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
 		printk(KERN_EMERG EXC_0x03);
 		CHK_DEBUGGER_TRAP();
 		break;
-	/* 0x04 - spinlock - handled by _ex_spinlock,
-		getting here is an error */
+	/* 0x04 - User Defined, Caught by default */
 	/* 0x05 - User Defined, Caught by default */
 	/* 0x06 - User Defined, Caught by default */
 	/* 0x07 - User Defined, Caught by default */

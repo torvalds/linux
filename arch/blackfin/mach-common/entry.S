@@ -97,17 +97,6 @@ ENTRY(_ex_icplb)
 	rtx;
 ENDPROC(_ex_icplb)
 
-ENTRY(_ex_spinlock)
-	/* Transform this into a syscall - twiddle the syscall vector.  */
-	p5.l = lo(EVT15);
-	p5.h = hi(EVT15);
-	r7.l = _spinlock_bh;
-	r7.h = _spinlock_bh;
-	[p5] = r7;
-	csync;
-	/* Fall through.  */
-ENDPROC(_ex_spinlock)
-
 ENTRY(_ex_syscall)
 	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
@@ -116,26 +105,6 @@ ENTRY(_ex_syscall)
 	sp = retn;
 	rtx
 ENDPROC(_ex_syscall)
-
-ENTRY(_spinlock_bh)
-	SAVE_ALL_SYS
-	/* To end up here, vector 15 was changed - so we have to change it
-	 * back.
-	 */
-	p0.l = lo(EVT15);
-	p0.h = hi(EVT15);
-	p1.l = _evt_system_call;
-	p1.h = _evt_system_call;
-	[p0] = p1;
-	csync;
-	r0 = [sp + PT_R0];
-	sp += -12;
-	call _sys_bfin_spinlock;
-	sp += 12;
-	[SP + PT_R0] = R0;
-	RESTORE_ALL_SYS
-	rti;
-ENDPROC(_spinlock_bh)
 
 ENTRY(_ex_soft_bp)
 	r7 = retx;
@@ -775,14 +744,14 @@ ENDPROC(_init_exception_buff)
 ALIGN
 _extable:
 	/* entry for each EXCAUSE[5:0]
-	 * This table bmust be in sync with the table in ./kernel/traps.c
+	 * This table must be in sync with the table in ./kernel/traps.c
 	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined
 	 */
 	.long _ex_syscall;      /* 0x00 - User Defined - Linux Syscall */
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
 	.long _ex_trap_c        /* 0x02 - User Defined */
-	.long _ex_trap_c        /* 0x03 - User Defined  - Atomic test and set service */
-	.long _ex_spinlock      /* 0x04 - User Defined */
+	.long _ex_trap_c        /* 0x03 - User Defined - userspace stack overflow */
+	.long _ex_trap_c        /* 0x04 - User Defined */
 	.long _ex_trap_c        /* 0x05 - User Defined */
 	.long _ex_trap_c        /* 0x06 - User Defined */
 	.long _ex_trap_c        /* 0x07 - User Defined */
