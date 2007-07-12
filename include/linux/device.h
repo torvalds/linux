@@ -238,7 +238,6 @@ extern int __must_check class_device_create_file(struct class_device *,
  * @devt: for internal use by the driver core only.
  * @node: for internal use by the driver core only.
  * @kobj: for internal use by the driver core only.
- * @devt_attr: for internal use by the driver core only.
  * @groups: optional additional groups to be created
  * @dev: if set, a symlink to the struct device is created in the sysfs
  * directory for this struct class device.
@@ -263,8 +262,6 @@ struct class_device {
 	struct kobject		kobj;
 	struct class		* class;	/* required */
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
-	struct class_device_attribute *devt_attr;
-	struct class_device_attribute uevent_attr;
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 	struct class_device	*parent;	/* parent of this child device, if there is one */
@@ -419,8 +416,6 @@ struct device {
 	struct device_type	*type;
 	unsigned		is_registered:1;
 	unsigned		uevent_suppress:1;
-	struct device_attribute uevent_attr;
-	struct device_attribute *devt_attr;
 
 	struct semaphore	sem;	/* semaphore to synchronize calls to
 					 * its driver.

@@ -32,9 +32,9 @@ static void runtime_resume(struct device * dev)
 
 void dpm_runtime_resume(struct device * dev)
 {
-	down(&dpm_sem);
+	mutex_lock(&dpm_mtx);
 	runtime_resume(dev);
-	up(&dpm_sem);
+	mutex_unlock(&dpm_mtx);
 }
 EXPORT_SYMBOL(dpm_runtime_resume);
 
@@ -49,7 +49,7 @@ int dpm_runtime_suspend(struct device * dev, pm_message_t state)
 {
 	int error = 0;
 
-	down(&dpm_sem);
+	mutex_lock(&dpm_mtx);
 	if (dev->power.power_state.event == state.event)
 		goto Done;
 
@@ -59,7 +59,7 @@ int dpm_runtime_suspend(struct device * dev, pm_message_t state)
 	if (!(error = suspend_device(dev, state)))
 		dev->power.power_state = state;
  Done:
-	up(&dpm_sem);
+	mutex_unlock(&dpm_mtx);
 	return error;
 }
 EXPORT_SYMBOL(dpm_runtime_suspend);
@@ -78,8 +78,8 @@ EXPORT_SYMBOL(dpm_runtime_suspend);
  */
 void dpm_set_power_state(struct device * dev, pm_message_t state)
 {
-	down(&dpm_sem);
+	mutex_lock(&dpm_mtx);
 	dev->power.power_state = state;
-	up(&dpm_sem);
+	mutex_unlock(&dpm_mtx);
 }
 #endif  /*  0  */

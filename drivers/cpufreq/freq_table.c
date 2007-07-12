@@ -199,7 +199,6 @@ static ssize_t show_available_freqs (struct cpufreq_policy *policy, char *buf)
 struct freq_attr cpufreq_freq_attr_scaling_available_freqs = {
 	.attr = { .name = "scaling_available_frequencies",
 		  .mode = 0444,
-		  .owner=THIS_MODULE
 		},
 	.show = show_available_freqs,
 };

@@ -42,13 +42,13 @@ static u8 bad_roms[][9] = {
 				{}
 			};
 
-static ssize_t w1_therm_read_bin(struct kobject *, char *, loff_t, size_t);
+static ssize_t w1_therm_read_bin(struct kobject *, struct bin_attribute *,
+				 char *, loff_t, size_t);
 
 static struct bin_attribute w1_therm_bin_attr = {
 	.attr = {
 		.name = "w1_slave",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = W1_SLAVE_DATA_SIZE,
 	.read = w1_therm_read_bin,
@@ -159,7 +159,9 @@ static int w1_therm_check_rom(u8 rom[9])
 	return 0;
 }
 
-static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t w1_therm_read_bin(struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	struct w1_master *dev = sl->master;

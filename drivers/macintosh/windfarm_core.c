@@ -212,7 +212,6 @@ int wf_register_control(struct wf_control *new_ct)
 	list_add(&new_ct->link, &wf_controls);
 
 	new_ct->attr.attr.name = new_ct->name;
-	new_ct->attr.attr.owner = THIS_MODULE;
 	new_ct->attr.attr.mode = 0644;
 	new_ct->attr.show = wf_show_control;
 	new_ct->attr.store = wf_store_control;
@@ -325,7 +324,6 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 	list_add(&new_sr->link, &wf_sensors);
 
 	new_sr->attr.attr.name = new_sr->name;
-	new_sr->attr.attr.owner = THIS_MODULE;
 	new_sr->attr.attr.mode = 0444;
 	new_sr->attr.show = wf_show_sensor;
 	new_sr->attr.store = NULL;

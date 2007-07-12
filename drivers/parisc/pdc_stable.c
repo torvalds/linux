@@ -121,14 +121,14 @@ struct pdcspath_entry pdcspath_entry_##_name = { \
 
 #define PDCS_ATTR(_name, _mode, _show, _store) \
 struct subsys_attribute pdcs_attr_##_name = { \
-	.attr = {.name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE}, \
+	.attr = {.name = __stringify(_name), .mode = _mode}, \
 	.show = _show, \
 	.store = _store, \
 };
 
 #define PATHS_ATTR(_name, _mode, _show, _store) \
 struct pdcspath_attribute paths_attr_##_name = { \
-	.attr = {.name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE}, \
+	.attr = {.name = __stringify(_name), .mode = _mode}, \
 	.show = _show, \
 	.store = _store, \
 };

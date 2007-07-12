@@ -310,6 +310,9 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static struct device_attribute uevent_attr =
+	__ATTR(uevent, S_IRUGO | S_IWUSR, show_uevent, store_uevent);
+
 static int device_add_attributes(struct device *dev,
 				 struct device_attribute *attrs)
 {
@@ -422,6 +425,9 @@ static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
 {
 	return print_dev_t(buf, dev->devt);
 }
+
+static struct device_attribute devt_attr =
+	__ATTR(dev, S_IRUGO, show_dev, NULL);
 
 /*
  *	devices_subsys - structure to be registered with kobject core.
@@ -681,35 +687,14 @@ int device_add(struct device *dev)
 		blocking_notifier_call_chain(&dev->bus->bus_notifier,
 					     BUS_NOTIFY_ADD_DEVICE, dev);
 
-	dev->uevent_attr.attr.name = "uevent";
-	dev->uevent_attr.attr.mode = S_IRUGO | S_IWUSR;
-	if (dev->driver)
-		dev->uevent_attr.attr.owner = dev->driver->owner;
-	dev->uevent_attr.store = store_uevent;
-	dev->uevent_attr.show = show_uevent;
-	error = device_create_file(dev, &dev->uevent_attr);
+	error = device_create_file(dev, &uevent_attr);
 	if (error)
 		goto attrError;
 
 	if (MAJOR(dev->devt)) {
-		struct device_attribute *attr;
-		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
-		if (!attr) {
-			error = -ENOMEM;
+		error = device_create_file(dev, &devt_attr);
+		if (error)
 			goto ueventattrError;
-		}
-		attr->attr.name = "dev";
-		attr->attr.mode = S_IRUGO;
-		if (dev->driver)
-			attr->attr.owner = dev->driver->owner;
-		attr->show = show_dev;
-		error = device_create_file(dev, attr);
-		if (error) {
-			kfree(attr);
-			goto ueventattrError;
-		}
-
-		dev->devt_attr = attr;
 	}
 
 	if (dev->class) {
@@ -733,11 +718,14 @@ int device_add(struct device *dev)
 		}
 	}
 
-	if ((error = device_add_attrs(dev)))
+	error = device_add_attrs(dev);
+	if (error)
 		goto AttrsError;
-	if ((error = device_pm_add(dev)))
+	error = device_pm_add(dev);
+	if (error)
 		goto PMError;
-	if ((error = bus_add_device(dev)))
+	error = bus_add_device(dev);
+	if (error)
 		goto BusError;
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	bus_attach_device(dev);
@@ -767,10 +755,8 @@ int device_add(struct device *dev)
 					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_remove_attrs(dev);
  AttrsError:
-	if (dev->devt_attr) {
-		device_remove_file(dev, dev->devt_attr);
-		kfree(dev->devt_attr);
-	}
+	if (MAJOR(dev->devt))
+		device_remove_file(dev, &devt_attr);
 
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
@@ -792,7 +778,7 @@ int device_add(struct device *dev)
 		}
 	}
  ueventattrError:
-	device_remove_file(dev, &dev->uevent_attr);
+	device_remove_file(dev, &uevent_attr);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
@@ -869,10 +855,8 @@ void device_del(struct device * dev)
 
 	if (parent)
 		klist_del(&dev->knode_parent);
-	if (dev->devt_attr) {
-		device_remove_file(dev, dev->devt_attr);
-		kfree(dev->devt_attr);
-	}
+	if (MAJOR(dev->devt))
+		device_remove_file(dev, &devt_attr);
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		/* If this is not a "fake" compatible device, remove the
@@ -926,7 +910,7 @@ void device_del(struct device * dev)
 			up(&dev->class->sem);
 		}
 	}
-	device_remove_file(dev, &dev->uevent_attr);
+	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
 

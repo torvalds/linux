@@ -479,7 +479,6 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 
 		element->attr.attr.name  = element->name;
 		element->attr.attr.mode  = S_IRUGO;
-		element->attr.attr.owner = THIS_MODULE;
 		element->attr.show       = show;
 		element->index		 = i;
 

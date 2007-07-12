@@ -67,8 +67,7 @@
 #define DCDBAS_BIN_ATTR_RW(_name) \
 struct bin_attribute bin_attr_##_name = { \
 	.attr =  { .name = __stringify(_name), \
-		   .mode = 0600, \
-		   .owner = THIS_MODULE }, \
+		   .mode = 0600 }, \
 	.read =  _name##_read, \
 	.write = _name##_write, \
 }

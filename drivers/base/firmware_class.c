@@ -175,7 +175,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 static DEVICE_ATTR(loading, 0644, firmware_loading_show, firmware_loading_store);
 
 static ssize_t
-firmware_data_read(struct kobject *kobj,
+firmware_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		   char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = to_dev(kobj);
@@ -240,7 +240,7 @@ fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
  *	the driver as a firmware image.
  **/
 static ssize_t
-firmware_data_write(struct kobject *kobj,
+firmware_data_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		    char *buffer, loff_t offset, size_t count)
 {
 	struct device *dev = to_dev(kobj);
@@ -271,7 +271,7 @@ out:
 }
 
 static struct bin_attribute firmware_attr_data_tmpl = {
-	.attr = {.name = "data", .mode = 0644, .owner = THIS_MODULE},
+	.attr = {.name = "data", .mode = 0644},
 	.size = 0,
 	.read = firmware_data_read,
 	.write = firmware_data_write,

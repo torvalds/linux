@@ -19,10 +19,15 @@ struct kobject;
 struct module;
 struct nameidata;
 struct dentry;
+struct sysfs_dirent;
 
+/* FIXME
+ * The *owner field is no longer used, but leave around
+ * until the tree gets cleaned up fully.
+ */
 struct attribute {
 	const char		* name;
-	struct module 		* owner;
+	struct module		* owner;
 	mode_t			mode;
 };
 
@@ -39,14 +44,14 @@ struct attribute_group {
  */
 
 #define __ATTR(_name,_mode,_show,_store) { \
-	.attr = {.name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },	\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
 }
 
 #define __ATTR_RO(_name) { \
-	.attr	= { .name = __stringify(_name), .mode = 0444, .owner = THIS_MODULE },	\
-	.show	= _name##_show,	\
+	.attr	= { .name = __stringify(_name), .mode = 0444 },	\
+	.show	= _name##_show,					\
 }
 
 #define __ATTR_NULL { .attr = { .name = NULL } }
@@ -59,8 +64,10 @@ struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
 	void			*private;
-	ssize_t (*read)(struct kobject *, char *, loff_t, size_t);
-	ssize_t (*write)(struct kobject *, char *, loff_t, size_t);
+	ssize_t (*read)(struct kobject *, struct bin_attribute *,
+			char *, loff_t, size_t);
+	ssize_t (*write)(struct kobject *, struct bin_attribute *,
+			 char *, loff_t, size_t);
 	int (*mmap)(struct kobject *, struct bin_attribute *attr,
 		    struct vm_area_struct *vma);
 };
@@ -70,12 +77,16 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 
+#define SYSFS_TYPE_MASK		0x00ff
 #define SYSFS_ROOT		0x0001
 #define SYSFS_DIR		0x0002
 #define SYSFS_KOBJ_ATTR 	0x0004
 #define SYSFS_KOBJ_BIN_ATTR	0x0008
 #define SYSFS_KOBJ_LINK 	0x0020
-#define SYSFS_NOT_PINNED	(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR | SYSFS_KOBJ_LINK)
+#define SYSFS_COPY_NAME		(SYSFS_DIR | SYSFS_KOBJ_LINK)
+
+#define SYSFS_FLAG_MASK		~SYSFS_TYPE_MASK
+#define SYSFS_FLAG_REMOVED	0x0100
 
 #ifdef CONFIG_SYSFS
 
@@ -83,13 +94,14 @@ extern int sysfs_schedule_callback(struct kobject *kobj,
 		void (*func)(void *), void *data, struct module *owner);
 
 extern int __must_check
-sysfs_create_dir(struct kobject *, struct dentry *);
+sysfs_create_dir(struct kobject *kobj, struct sysfs_dirent *shadow_parent_sd);
 
 extern void
 sysfs_remove_dir(struct kobject *);
 
 extern int __must_check
-sysfs_rename_dir(struct kobject *, struct dentry *, const char *new_name);
+sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
+		 const char *new_name);
 
 extern int __must_check
 sysfs_move_dir(struct kobject *, struct kobject *);
@@ -129,8 +141,8 @@ void sysfs_notify(struct kobject * k, char *dir, char *attr);
 
 extern int sysfs_make_shadowed_dir(struct kobject *kobj,
 	void * (*follow_link)(struct dentry *, struct nameidata *));
-extern struct dentry *sysfs_create_shadow_dir(struct kobject *kobj);
-extern void sysfs_remove_shadow_dir(struct dentry *dir);
+extern struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj);
+extern void sysfs_remove_shadow_dir(struct sysfs_dirent *shadow_sd);
 
 extern int __must_check sysfs_init(void);
 
@@ -142,7 +154,8 @@ static inline int sysfs_schedule_callback(struct kobject *kobj,
 	return -ENOSYS;
 }
 
-static inline int sysfs_create_dir(struct kobject * k, struct dentry *shadow)
+static inline int sysfs_create_dir(struct kobject *kobj,
+				   struct sysfs_dirent *shadow_parent_sd)
 {
 	return 0;
 }
@@ -152,9 +165,9 @@ static inline void sysfs_remove_dir(struct kobject * k)
 	;
 }
 
-static inline int sysfs_rename_dir(struct kobject * k,
-					struct dentry *new_parent,
-					const char *new_name)
+static inline int sysfs_rename_dir(struct kobject *kobj,
+				   struct sysfs_dirent *new_parent_sd,
+				   const char *new_name)
 {
 	return 0;
 }

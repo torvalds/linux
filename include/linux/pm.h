@@ -267,14 +267,9 @@ struct dev_pm_info {
 	unsigned		can_wakeup:1;
 #ifdef	CONFIG_PM
 	unsigned		should_wakeup:1;
-	pm_message_t		prev_state;
-	void			* saved_state;
-	struct device		* pm_parent;
 	struct list_head	entry;
 #endif
 };
-
-extern void device_pm_set_parent(struct device * dev, struct device * parent);
 
 extern int device_power_down(pm_message_t state);
 extern void device_power_up(void);

@@ -1109,11 +1109,6 @@ void usb_root_hub_lost_power(struct usb_device *rhdev)
 
 	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
 
-	/* Make sure no potential wakeup events get lost,
-	 * by forcing the root hub to be resumed.
-	 */
-	rhdev->dev.power.prev_state.event = PM_EVENT_ON;
-
 	spin_lock_irqsave(&device_state_lock, flags);
 	hub = hdev_to_hub(rhdev);
 	for (port1 = 1; port1 <= rhdev->maxchild; ++port1) {

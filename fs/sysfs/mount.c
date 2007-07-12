@@ -19,27 +19,17 @@ struct vfsmount *sysfs_mount;
 struct super_block * sysfs_sb = NULL;
 struct kmem_cache *sysfs_dir_cachep;
 
-static void sysfs_clear_inode(struct inode *inode);
-
 static const struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= sysfs_delete_inode,
-	.clear_inode	= sysfs_clear_inode,
 };
 
-static struct sysfs_dirent sysfs_root = {
-	.s_sibling	= LIST_HEAD_INIT(sysfs_root.s_sibling),
-	.s_children	= LIST_HEAD_INIT(sysfs_root.s_children),
-	.s_element	= NULL,
-	.s_type		= SYSFS_ROOT,
-	.s_iattr	= NULL,
+struct sysfs_dirent sysfs_root = {
+	.s_count	= ATOMIC_INIT(1),
+	.s_flags	= SYSFS_ROOT,
+	.s_mode		= S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 	.s_ino		= 1,
 };
-
-static void sysfs_clear_inode(struct inode *inode)
-{
-	kfree(inode->i_private);
-}
 
 static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -53,17 +43,18 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sysfs_sb = sb;
 
-	inode = sysfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
-				 &sysfs_root);
-	if (inode) {
-		inode->i_op = &sysfs_dir_inode_operations;
-		inode->i_fop = &sysfs_dir_operations;
-		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inc_nlink(inode);
-	} else {
+	inode = new_inode(sysfs_sb);
+	if (!inode) {
 		pr_debug("sysfs: could not get root inode\n");
 		return -ENOMEM;
 	}
+
+	sysfs_init_inode(&sysfs_root, inode);
+
+	inode->i_op = &sysfs_dir_inode_operations;
+	inode->i_fop = &sysfs_dir_operations;
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(inode);
 
 	root = d_alloc_root(inode);
 	if (!root) {
@@ -71,6 +62,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 		iput(inode);
 		return -ENOMEM;
 	}
+	sysfs_root.s_dentry = root;
 	root->d_fsdata = &sysfs_root;
 	sb->s_root = root;
 	return 0;

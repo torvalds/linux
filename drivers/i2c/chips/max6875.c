@@ -126,8 +126,9 @@ exit_up:
 	mutex_unlock(&data->update_lock);
 }
 
-static ssize_t max6875_read(struct kobject *kobj, char *buf, loff_t off,
-			    size_t count)
+static ssize_t max6875_read(struct kobject *kobj,
+			    struct bin_attribute *bin_attr,
+			    char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	struct max6875_data *data = i2c_get_clientdata(client);
@@ -153,7 +154,6 @@ static struct bin_attribute user_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = USER_EEPROM_SIZE,
 	.read = max6875_read,

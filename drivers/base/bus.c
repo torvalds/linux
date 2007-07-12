@@ -138,12 +138,24 @@ void bus_remove_file(struct bus_type * bus, struct bus_attribute * attr)
 	}
 }
 
-static struct kobj_type ktype_bus = {
+static struct kobj_type bus_ktype = {
 	.sysfs_ops	= &bus_sysfs_ops,
-
 };
 
-static decl_subsys(bus, &ktype_bus, NULL);
+static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
+{
+	struct kobj_type *ktype = get_ktype(kobj);
+
+	if (ktype == &bus_ktype)
+		return 1;
+	return 0;
+}
+
+static struct kset_uevent_ops bus_uevent_ops = {
+	.filter = bus_uevent_filter,
+};
+
+static decl_subsys(bus, &bus_ktype, &bus_uevent_ops);
 
 
 #ifdef CONFIG_HOTPLUG
@@ -562,7 +574,6 @@ static int add_probe_files(struct bus_type *bus)
 
 	bus->drivers_probe_attr.attr.name = "drivers_probe";
 	bus->drivers_probe_attr.attr.mode = S_IWUSR;
-	bus->drivers_probe_attr.attr.owner = bus->owner;
 	bus->drivers_probe_attr.store = store_drivers_probe;
 	retval = bus_create_file(bus, &bus->drivers_probe_attr);
 	if (retval)
@@ -570,7 +581,6 @@ static int add_probe_files(struct bus_type *bus)
 
 	bus->drivers_autoprobe_attr.attr.name = "drivers_autoprobe";
 	bus->drivers_autoprobe_attr.attr.mode = S_IWUSR | S_IRUGO;
-	bus->drivers_autoprobe_attr.attr.owner = bus->owner;
 	bus->drivers_autoprobe_attr.show = show_drivers_autoprobe;
 	bus->drivers_autoprobe_attr.store = store_drivers_autoprobe;
 	retval = bus_create_file(bus, &bus->drivers_autoprobe_attr);
@@ -610,7 +620,8 @@ int bus_add_driver(struct device_driver *drv)
 	if (error)
 		goto out_put_bus;
 	drv->kobj.kset = &bus->drivers;
-	if ((error = kobject_register(&drv->kobj)))
+	error = kobject_register(&drv->kobj);
+	if (error)
 		goto out_put_bus;
 
 	if (drv->bus->drivers_autoprobe) {
@@ -760,7 +771,8 @@ static int bus_add_attrs(struct bus_type * bus)
 
 	if (bus->bus_attrs) {
 		for (i = 0; attr_name(bus->bus_attrs[i]); i++) {
-			if ((error = bus_create_file(bus,&bus->bus_attrs[i])))
+			error = bus_create_file(bus,&bus->bus_attrs[i]);
+			if (error)
 				goto Err;
 		}
 	}
