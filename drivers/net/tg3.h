@@ -1642,6 +1642,11 @@
 
 #define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
 
+#define MII_TG3_AUXCTL_MISC_WREN	0x8000
+#define MII_TG3_AUXCTL_MISC_FORCE_AMDIX	0x0200
+#define MII_TG3_AUXCTL_MISC_RDSEL_MISC	0x7000
+#define MII_TG3_AUXCTL_SHDWSEL_MISC		0x0007
+
 #define MII_TG3_AUX_STAT		0x19 /* auxilliary status register */
 #define MII_TG3_AUX_STAT_LPASS		0x0004
 #define MII_TG3_AUX_STAT_SPDMASK	0x0700
@@ -1666,6 +1671,9 @@
 
 #define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
 #define MII_TG3_EPHY_SHADOW_EN		0x80
+
+#define MII_TG3_EPHYTST_MISCCTRL	0x10 /* 5906 EPHY misc ctrl shadow register */
+#define MII_TG3_EPHYTST_MISCCTRL_MDIX	0x4000
 
 #define MII_TG3_TEST1			0x1e
 #define MII_TG3_TEST1_TRIM_EN		0x0010

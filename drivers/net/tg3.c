@@ -721,6 +721,44 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 	return ret;
 }
 
+static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
+{
+	u32 phy;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
+	    (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES))
+		return;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 ephy;
+
+		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &ephy)) {
+			tg3_writephy(tp, MII_TG3_EPHY_TEST,
+				     ephy | MII_TG3_EPHY_SHADOW_EN);
+			if (!tg3_readphy(tp, MII_TG3_EPHYTST_MISCCTRL, &phy)) {
+				if (enable)
+					phy |= MII_TG3_EPHYTST_MISCCTRL_MDIX;
+				else
+					phy &= ~MII_TG3_EPHYTST_MISCCTRL_MDIX;
+				tg3_writephy(tp, MII_TG3_EPHYTST_MISCCTRL, phy);
+			}
+			tg3_writephy(tp, MII_TG3_EPHY_TEST, ephy);
+		}
+	} else {
+		phy = MII_TG3_AUXCTL_MISC_RDSEL_MISC |
+		      MII_TG3_AUXCTL_SHDWSEL_MISC;
+		if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, phy) &&
+		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &phy)) {
+			if (enable)
+				phy |= MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
+			else
+				phy &= ~MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
+			phy |= MII_TG3_AUXCTL_MISC_WREN;
+			tg3_writephy(tp, MII_TG3_AUX_CTRL, phy);
+		}
+	}
+}
+
 static void tg3_phy_set_wirespeed(struct tg3 *tp)
 {
 	u32 val;
@@ -1045,23 +1083,11 @@ out:
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 phy_reg;
-
 		/* adjust output voltage */
 		tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x12);
-
-		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &phy_reg)) {
-			u32 phy_reg2;
-
-			tg3_writephy(tp, MII_TG3_EPHY_TEST,
-				     phy_reg | MII_TG3_EPHY_SHADOW_EN);
-			/* Enable auto-MDIX */
-			if (!tg3_readphy(tp, 0x10, &phy_reg2))
-				tg3_writephy(tp, 0x10, phy_reg2 | 0x4000);
-			tg3_writephy(tp, MII_TG3_EPHY_TEST, phy_reg);
-		}
 	}
 
+	tg3_phy_toggle_automdix(tp, 1);
 	tg3_phy_set_wirespeed(tp);
 	return 0;
 }
@@ -8847,13 +8873,13 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 					     phytest | MII_TG3_EPHY_SHADOW_EN);
 				if (!tg3_readphy(tp, 0x1b, &phy))
 					tg3_writephy(tp, 0x1b, phy & ~0x20);
-				if (!tg3_readphy(tp, 0x10, &phy))
-					tg3_writephy(tp, 0x10, phy & ~0x4000);
 				tg3_writephy(tp, MII_TG3_EPHY_TEST, phytest);
 			}
 			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED100;
 		} else
 			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED1000;
+
+		tg3_phy_toggle_automdix(tp, 0);
 
 		tg3_writephy(tp, MII_BMCR, val);
 		udelay(40);
