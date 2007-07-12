@@ -877,7 +877,7 @@ config NET_NETX
 
 config DM9000
 	tristate "DM9000 support"
-	depends on ARM || MIPS
+	depends on ARM || BLACKFIN || MIPS
 	select CRC32
 	select MII
 	---help---
