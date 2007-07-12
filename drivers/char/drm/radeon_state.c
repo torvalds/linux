@@ -1415,7 +1415,7 @@ static void radeon_cp_dispatch_swap(struct drm_device * dev)
 static void radeon_cp_dispatch_flip(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_sarea_t *sarea = (drm_sarea_t *) dev_priv->sarea->handle;
+	struct drm_sarea *sarea = (struct drm_sarea *) dev_priv->sarea->handle;
 	int offset = (dev_priv->sarea_priv->pfCurrentPage == 1)
 	    ? dev_priv->front_offset : dev_priv->back_offset;
 	RING_LOCALS;
