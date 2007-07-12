@@ -127,7 +127,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 
 	drm_via_mem_t mem;
 	int retval = 0;
-	drm_memblock_item_t *item;
+	struct drm_memblock_item *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	unsigned long tmpSize;
 

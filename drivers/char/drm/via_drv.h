@@ -87,7 +87,7 @@ typedef struct drm_via_private {
 	uint32_t irq_pending_mask;
 	int *irq_map;
 	unsigned int idle_fault;
-	drm_sman_t sman;
+	struct drm_sman sman;
 	int vram_initialized;
 	int agp_initialized;
 	unsigned long vram_offset;

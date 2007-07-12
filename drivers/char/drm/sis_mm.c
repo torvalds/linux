@@ -130,7 +130,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
 	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *) data;
 	drm_sis_mem_t mem;
 	int retval = 0;
-	drm_memblock_item_t *item;
+	struct drm_memblock_item *item;
 
 	DRM_COPY_FROM_USER_IOCTL(mem, argp, sizeof(mem));
 

@@ -46,6 +46,7 @@ enum sis_family {
 
 #include "drm_sman.h"
 
+
 #define SIS_BASE (dev_priv->mmio)
 #define SIS_READ(reg)         DRM_READ32(SIS_BASE, reg);
 #define SIS_WRITE(reg, val)   DRM_WRITE32(SIS_BASE, reg, val);
@@ -53,7 +54,7 @@ enum sis_family {
 typedef struct drm_sis_private {
 	drm_local_map_t *mmio;
 	unsigned int idle_fault;
-	drm_sman_t sman;
+	struct drm_sman sman;
 	unsigned int chipset;
 	int vram_initialized;
 	int agp_initialized;
