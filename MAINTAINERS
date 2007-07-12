@@ -1850,7 +1850,7 @@ M:	rolandd@cisco.com
 P:	Sean Hefty
 M:	mshefty@ichips.intel.com
 P:	Hal Rosenstock
-M:	halr@voltaire.com
+M:	hal.rosenstock@gmail.com 
 L:	general@lists.openfabrics.org
 W:	http://www.openib.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
