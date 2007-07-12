@@ -207,6 +207,7 @@ EXPORT_SYMBOL_GPL(i2c_bus_type);
  * i2c_new_device - instantiate an i2c device for use with a new style driver
  * @adap: the adapter managing the device
  * @info: describes one I2C device; bus_num is ignored
+ * Context: can sleep
  *
  * Create a device to work with a new style i2c driver, where binding is
  * handled through driver model probe()/remove() methods.  This call is not
@@ -255,6 +256,7 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
 /**
  * i2c_unregister_device - reverse effect of i2c_new_device()
  * @client: value returned from i2c_new_device()
+ * Context: can sleep
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
@@ -379,6 +381,7 @@ out_list:
 /**
  * i2c_add_adapter - declare i2c adapter, use dynamic bus number
  * @adapter: the adapter to add
+ * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
  * doesn't matter.  Examples: for I2C adapters dynamically added by
@@ -416,6 +419,7 @@ EXPORT_SYMBOL(i2c_add_adapter);
 /**
  * i2c_add_numbered_adapter - declare i2c adapter, use static bus number
  * @adap: the adapter to register (with adap->nr initialized)
+ * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
  * matters.  Example: for I2C adapters from system-on-chip CPUs, or
@@ -463,6 +467,14 @@ retry:
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
+/**
+ * i2c_del_adapter - unregister I2C adapter
+ * @adap: the adapter being unregistered
+ * Context: can sleep
+ *
+ * This unregisters an I2C adapter which was previously registered
+ * by @i2c_add_adapter or @i2c_add_numbered_adapter.
+ */
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct list_head  *item, *_n;
@@ -598,6 +610,7 @@ EXPORT_SYMBOL(i2c_register_driver);
 /**
  * i2c_del_driver - unregister I2C driver
  * @driver: the driver being unregistered
+ * Context: can sleep
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
