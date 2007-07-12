@@ -212,6 +212,12 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 		      "  Skb fragments sent in SG mode          : %u\n\n",
 		      card->perf_stats.sg_skbs_sent,
 		      card->perf_stats.sg_frags_sent);
+	seq_printf(s, "  Skbs received in SG mode               : %u\n"
+		      "  Skb fragments received in SG mode      : %u\n"
+		      "  Page allocations for rx SG mode        : %u\n\n",
+		      card->perf_stats.sg_skbs_rx,
+		      card->perf_stats.sg_frags_rx,
+		      card->perf_stats.sg_alloc_page_rx);
 	seq_printf(s, "  large_send tx (in Kbytes)              : %u\n"
 		      "  large_send count                       : %u\n\n",
 		      card->perf_stats.large_send_bytes >> 10,
