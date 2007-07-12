@@ -540,7 +540,8 @@ config IP_CHECKSUM_L1
 
 config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
-	default y
+	default y if !BF54x
+	default n if BF54x
 	depends on !BF531
 	help
 	  If enabled cacheline_anligned data is linked
