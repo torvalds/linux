@@ -520,8 +520,10 @@ config PCI
 	  here unless you are using a simulator without PCI support.
 
 config PCI_DOMAINS
-	bool
-	default PCI
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
 
 source "drivers/pci/pcie/Kconfig"
 

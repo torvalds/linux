@@ -205,7 +205,6 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 {
 	struct net_device *dev = NULL;
 	struct xircom_private *private;
-	unsigned char chip_rev;
 	unsigned long flags;
 	unsigned short tmp16;
 	enter("xircom_probe");
@@ -223,8 +222,6 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	/* clear PCI status, if any */
 	pci_read_config_word (pdev,PCI_STATUS, &tmp16);
 	pci_write_config_word (pdev, PCI_STATUS,tmp16);
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &chip_rev);
 
 	if (!request_region(pci_resource_start(pdev, 0), 128, "xircom_cb")) {
 		printk(KERN_ERR "xircom_probe: failed to allocate io-region\n");
@@ -286,7 +283,7 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 		goto reg_fail;
 	}
 
-	printk(KERN_INFO "%s: Xircom cardbus revision %i at irq %i \n", dev->name, chip_rev, pdev->irq);
+	printk(KERN_INFO "%s: Xircom cardbus revision %i at irq %i \n", dev->name, pdev->revision, pdev->irq);
 	/* start the transmitter to get a heartbeat */
 	/* TODO: send 2 dummy packets here */
 	transceiver_voodoo(private);

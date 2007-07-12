@@ -3741,10 +3741,8 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	                          &bcm->board_type);
 	if (err)
 		goto err_iounmap;
-	err = bcm43xx_pci_read_config16(bcm, PCI_REVISION_ID,
-	                          &bcm->board_revision);
-	if (err)
-		goto err_iounmap;
+
+	bcm->board_revision = bcm->pci_dev->revision;
 
 	err = bcm43xx_chipset_attach(bcm);
 	if (err)

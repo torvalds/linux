@@ -1293,13 +1293,12 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 	}
 
 	pci_set_master(pci);
-	/* read revision & serial */
-	pci_read_config_byte(pci, PCI_REVISION_ID, &chip->revision);
+	/* read serial */
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &chip->serial);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &chip->model);
 #if 1
 	printk(KERN_INFO "snd-ca0106: Model %04x Rev %08x Serial %08x\n", chip->model,
-	       chip->revision, chip->serial);
+	       pci->revision, chip->serial);
 #endif
 	strcpy(card->driver, "CA0106");
 	strcpy(card->shortname, "CA0106");

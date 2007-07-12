@@ -506,7 +506,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct pci_dev *isa = NULL;
 	const struct via_isa_bridge *config;
 	static int printed_version;
-	u8 t;
 	u8 enable;
 	u32 timing;
 
@@ -520,9 +519,8 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			!!(config->flags & VIA_BAD_ID),
 			config->id, NULL))) {
 
-			pci_read_config_byte(isa, PCI_REVISION_ID, &t);
-			if (t >= config->rev_min &&
-			    t <= config->rev_max)
+			if (isa->revision >= config->rev_min &&
+			    isa->revision <= config->rev_max)
 				break;
 			pci_dev_put(isa);
 		}

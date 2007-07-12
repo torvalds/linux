@@ -740,7 +740,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* enable MWI -- it vastly improves Rx performance on sparc64 */
-	pci_set_mwi(pdev);
+	pci_try_set_mwi(pdev);
 
 #ifdef ZEROCOPY
 	/* Starfire can do TCP/UDP checksumming */

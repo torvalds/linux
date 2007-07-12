@@ -1369,7 +1369,6 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 				      struct fm801 ** rchip)
 {
 	struct fm801 *chip;
-	unsigned char rev;
 	int err;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_fm801_dev_free,
@@ -1405,8 +1404,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		pci_set_master(pci);
 	}
 
-	pci_read_config_byte(pci, PCI_REVISION_ID, &rev);
-	if (rev >= 0xb1)	/* FM801-AU */
+	if (pci->revision >= 0xb1)	/* FM801-AU */
 		chip->multichannel = 1;
 
 	snd_fm801_chip_init(chip, 0);

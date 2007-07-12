@@ -289,7 +289,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 					 const struct pci_device_id *ent)
 {
 	card_t *card;
-	u8 rev_id;
 	u32 __iomem *p;
 	int i;
 	u32 ramsize;
@@ -330,7 +329,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
 	if (pci_resource_len(pdev, 0) != PCI200SYN_PLX_SIZE ||
 	    pci_resource_len(pdev, 2) != PCI200SYN_SCA_SIZE ||
 	    pci_resource_len(pdev, 3) < 16384) {

@@ -508,7 +508,7 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 	u8 tmpbyte;
 	struct pci_dev *north = pci_get_slot(dev->bus, PCI_DEVFN(0,0));
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &m5229_revision);
+	m5229_revision = dev->revision;
 
 	isa_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 

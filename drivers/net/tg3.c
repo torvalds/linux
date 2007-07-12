@@ -10551,11 +10551,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 				continue;
 			}
 			if (pci_id->rev != PCI_ANY_ID) {
-				u8 rev;
-
-				pci_read_config_byte(bridge, PCI_REVISION_ID,
-						     &rev);
-				if (rev > pci_id->rev)
+				if (bridge->revision > pci_id->rev)
 					continue;
 			}
 			if (bridge->subordinate &&

@@ -113,9 +113,6 @@ initialization with a pointer to a structure describing the driver
 		(Please see Documentation/power/pci.txt for descriptions
 		of PCI Power Management and the related functions.)
 
-	enable_wake	Enable device to generate wake events from a low power
-			state.
-
 	shutdown	Hook into reboot_notifier_list (kernel/sys.c).
 			Intended to stop any idling DMA operations.
 			Useful for enabling wake-on-lan (NIC) or changing
@@ -299,7 +296,10 @@ If the PCI device can use the PCI Memory-Write-Invalidate transaction,
 call pci_set_mwi().  This enables the PCI_COMMAND bit for Mem-Wr-Inval
 and also ensures that the cache line size register is set correctly.
 Check the return value of pci_set_mwi() as not all architectures
-or chip-sets may support Memory-Write-Invalidate.
+or chip-sets may support Memory-Write-Invalidate.  Alternatively,
+if Mem-Wr-Inval would be nice to have but is not required, call
+pci_try_set_mwi() to have the system do its best effort at enabling
+Mem-Wr-Inval.
 
 
 3.2 Request MMIO/IOP resources

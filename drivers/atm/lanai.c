@@ -246,8 +246,8 @@ struct lanai_vcc {
 };
 
 enum lanai_type {
-	lanai2	= PCI_VENDOR_ID_EF_ATM_LANAI2,
-	lanaihb	= PCI_VENDOR_ID_EF_ATM_LANAIHB
+	lanai2	= PCI_DEVICE_ID_EF_ATM_LANAI2,
+	lanaihb	= PCI_DEVICE_ID_EF_ATM_LANAIHB
 };
 
 struct lanai_dev_stats {
@@ -293,7 +293,6 @@ struct lanai_dev {
 	struct atm_vcc *cbrvcc;
 	int number;
 	int board_rev;
-	u8 pci_revision;
 /* TODO - look at race conditions with maintence of conf1/conf2 */
 /* TODO - transmit locking: should we use _irq not _irqsave? */
 /* TODO - organize above in some rational fashion (see <asm/cache.h>) */
@@ -1969,14 +1968,6 @@ static int __devinit lanai_pci_start(struct lanai_dev *lanai)
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;
 	}
-	/* Get the pci revision byte */
-	result = pci_read_config_byte(pci, PCI_REVISION_ID,
-	    &lanai->pci_revision);
-	if (result != PCIBIOS_SUCCESSFUL) {
-		printk(KERN_ERR DEV_LABEL "(itf %d): can't read "
-		    "PCI_REVISION_ID: %d\n", lanai->number, result);
-		return -EINVAL;
-	}
 	result = pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &w);
 	if (result != PCIBIOS_SUCCESSFUL) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't read "
@@ -2254,7 +2245,7 @@ static int __devinit lanai_dev_open(struct atm_dev *atmdev)
 	lanai_timed_poll_start(lanai);
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=0x%lx, irq=%u "
 	    "(%02X-%02X-%02X-%02X-%02X-%02X)\n", lanai->number,
-	    (int) lanai->pci_revision, (unsigned long) lanai->base,
+	    (int) lanai->pci->revision, (unsigned long) lanai->base,
 	    lanai->pci->irq,
 	    atmdev->esi[0], atmdev->esi[1], atmdev->esi[2],
 	    atmdev->esi[3], atmdev->esi[4], atmdev->esi[5]);
@@ -2491,7 +2482,7 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		    (unsigned int) lanai->magicno, lanai->num_vci);
 	if (left-- == 0)
 		return sprintf(page, "revision: board=%d, pci_if=%d\n",
-		    lanai->board_rev, (int) lanai->pci_revision);
+		    lanai->board_rev, (int) lanai->pci->revision);
 	if (left-- == 0)
 		return sprintf(page, "EEPROM ESI: "
 		    "%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -2631,14 +2622,8 @@ static int __devinit lanai_init_one(struct pci_dev *pci,
 }
 
 static struct pci_device_id lanai_pci_tbl[] = {
-	{
-		PCI_VENDOR_ID_EF, PCI_VENDOR_ID_EF_ATM_LANAI2,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
-	},
-	{
-		PCI_VENDOR_ID_EF, PCI_VENDOR_ID_EF_ATM_LANAIHB,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
-	},
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */
 };
 MODULE_DEVICE_TABLE(pci, lanai_pci_tbl);

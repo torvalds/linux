@@ -6736,10 +6736,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		while ((amd_8132 = pci_get_device(PCI_VENDOR_ID_AMD,
 						  PCI_DEVICE_ID_AMD_8132_BRIDGE,
 						  amd_8132))) {
-			u8 rev;
 
-			pci_read_config_byte(amd_8132, PCI_REVISION_ID, &rev);
-			if (rev >= 0x10 && rev <= 0x13) {
+			if (amd_8132->revision >= 0x10 &&
+			    amd_8132->revision <= 0x13) {
 				disable_msi = 1;
 				pci_dev_put(amd_8132);
 				break;

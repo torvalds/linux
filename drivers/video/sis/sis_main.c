@@ -5789,7 +5789,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->warncount = 0;
 	ivideo->chip_id = pdev->device;
 	ivideo->chip_vendor = pdev->vendor;
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &ivideo->revision_id);
+	ivideo->revision_id = pdev->revision;
 	ivideo->SiS_Pr.ChipRevision = ivideo->revision_id;
 	pci_read_config_word(pdev, PCI_COMMAND, &reg16);
 	ivideo->sisvga_enabled = reg16 & 0x01;

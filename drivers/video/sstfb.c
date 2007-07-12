@@ -1348,7 +1348,7 @@ static int __devinit sstfb_probe(struct pci_dev *pdev,
 	f_ddprintk("found device : %s\n", spec->name);
 
 	par->dev = pdev;
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &par->revision);
+	par->revision = pdev->revision;
 
 	fix->mmio_start = pci_resource_start(pdev,0);
 	fix->mmio_len	= 0x400000;

@@ -654,7 +654,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 			       pcibios_assign_all_busses() ? " " :
 			       " (try 'pci=assign-busses')");
 			printk(KERN_WARNING "Please report the result to "
-			       "linux-kernel to fix this permanently\n");
+			       "<bk@suse.de> to fix this permanently\n");
 		}
 		bus = bus->parent;
 	}
@@ -700,6 +700,7 @@ static int pci_setup_device(struct pci_dev * dev)
 		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	dev->revision = class & 0xff;
 	class >>= 8;				    /* upper 3 bytes */
 	dev->class = class;
 	class >>= 8;

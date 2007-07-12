@@ -531,6 +531,9 @@ config PCI
 	  information about which PCI hardware does work under Linux and which
 	  doesn't.
 
+config PCI_SYSCALL
+	def_bool PCI
+
 # Select the host bridge type
 config PCI_HOST_VIA82C505
 	bool

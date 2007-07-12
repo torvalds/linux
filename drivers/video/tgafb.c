@@ -1625,8 +1625,7 @@ tgafb_register(struct device *dev)
 	par->tga_regs_base = mem_base + TGA_REGS_OFFSET;
 	par->tga_type = tga_type;
 	if (tga_bus_pci)
-		pci_read_config_byte(to_pci_dev(dev), PCI_REVISION_ID,
-				     &par->tga_chip_rev);
+		par->tga_chip_rev = (to_pci_dev(dev))->revision;
 	if (tga_bus_tc)
 		par->tga_chip_rev = TGA_READ_REG(par, TGA_START_REG) & 0xff;
 

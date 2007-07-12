@@ -296,7 +296,7 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	d &= ~PCI_ROM_ADDRESS_ENABLE;
 	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->chip_revision);
+	ha->chip_revision = ha->pdev->revision;
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);

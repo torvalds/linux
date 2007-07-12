@@ -524,7 +524,6 @@ static int __devinit xircom_init_one(struct pci_dev *pdev, const struct pci_devi
 	int chip_idx = id->driver_data;
 	long ioaddr;
 	int i;
-	u8 chip_rev;
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -620,9 +619,8 @@ static int __devinit xircom_init_one(struct pci_dev *pdev, const struct pci_devi
 	if (register_netdev(dev))
 		goto err_out_cleardev;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &chip_rev);
 	printk(KERN_INFO "%s: %s rev %d at %#3lx,",
-	       dev->name, xircom_tbl[chip_idx].chip_name, chip_rev, ioaddr);
+	       dev->name, xircom_tbl[chip_idx].chip_name, pdev->revision, ioaddr);
 	for (i = 0; i < 6; i++)
 		printk("%c%2.2X", i ? ':' : ' ', dev->dev_addr[i]);
 	printk(", IRQ %d.\n", dev->irq);

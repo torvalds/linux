@@ -1799,7 +1799,6 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *regs;
 	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
-	u8 pci_rev;
 
 #ifndef MODULE
 	static int version_printed;
@@ -1807,13 +1806,11 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk("%s", version);
 #endif
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &pci_rev);
-
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
-	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pci_rev < 0x20) {
+	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pdev->revision < 0x20) {
 		dev_err(&pdev->dev,
 			   "This (id %04x:%04x rev %02x) is not an 8139C+ compatible chip\n",
-		           pdev->vendor, pdev->device, pci_rev);
+		           pdev->vendor, pdev->device, pdev->revision);
 		dev_err(&pdev->dev, "Try the \"8139too\" driver instead.\n");
 		return -ENODEV;
 	}

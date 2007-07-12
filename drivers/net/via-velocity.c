@@ -890,8 +890,7 @@ static void __devinit velocity_init_info(struct pci_dev *pdev,
 
 static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pci_dev *pdev)
 {
-	if (pci_read_config_byte(pdev, PCI_REVISION_ID, &vptr->rev_id) < 0)
-		return -EIO;
+	vptr->rev_id = pdev->revision;
 
 	pci_set_master(pdev);
 

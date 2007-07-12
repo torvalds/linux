@@ -149,8 +149,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		 * fixed in newer silicon.
 		 */
 		case 0x0068:
-			pci_read_config_dword(pdev, PCI_REVISION_ID, &temp);
-			if ((temp & 0xff) < 0xa4)
+			if (pdev->revision < 0xa4)
 				ehci->no_selective_suspend = 1;
 			break;
 		}

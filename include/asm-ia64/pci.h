@@ -71,14 +71,6 @@ pcibios_penalize_isa_irq (int irq, int active)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
 	(((PTR)->LEN_NAME) = (VAL))
 
-/* The ia64 platform always supports 64-bit addressing. */
-#define pci_dac_dma_supported(pci_dev, mask)		(1)
-#define pci_dac_page_to_dma(dev,pg,off,dir)		((dma_addr_t) page_to_bus(pg) + (off))
-#define pci_dac_dma_to_page(dev,dma_addr)		(virt_to_page(bus_to_virt(dma_addr)))
-#define pci_dac_dma_to_offset(dev,dma_addr)		offset_in_page(dma_addr)
-#define pci_dac_dma_sync_single_for_cpu(dev,dma_addr,len,dir)	do { } while (0)
-#define pci_dac_dma_sync_single_for_device(dev,dma_addr,len,dir)	do { mb(); } while (0)
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
@@ -141,10 +133,6 @@ extern struct pci_ops pci_root_ops;
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return (pci_domain_nr(bus) != 0);
-}
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
 }
 
 extern void pcibios_resource_to_bus(struct pci_dev *dev,

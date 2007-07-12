@@ -22,10 +22,6 @@ struct pci_dev;
 
 #define pcibios_assign_all_busses()	0
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 extern void pcibios_set_master(struct pci_dev *dev);
 
 extern void pcibios_penalize_isa_irq(int irq);
@@ -43,9 +39,6 @@ extern void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 
 extern void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
-
-/* This is always fine. */
-#define pci_dac_dma_supported(pci_dev, mask)	(1)
 
 /* Return the index of the PCI controller for device PDEV. */
 #define pci_controller_num(PDEV)	(0)

@@ -103,6 +103,7 @@ struct controller {
 	u8 cap_base;
 	struct timer_list poll_timer;
 	volatile int cmd_busy;
+	spinlock_t lock;
 };
 
 #define INT_BUTTON_IGNORE		0

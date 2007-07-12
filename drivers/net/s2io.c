@@ -1135,7 +1135,7 @@ static int init_nic(struct s2io_nic *nic)
 	 * SXE-008 TRANSMIT DMA ARBITRATION ISSUE.
 	 */
 	if ((nic->device_type == XFRAME_I_DEVICE) &&
-		(get_xena_rev_id(nic->pdev) < 4))
+		(nic->pdev->revision < 4))
 		writeq(PCC_ENABLE_FOUR, &bar0->pcc_enable);
 
 	val64 = readq(&bar0->tx_fifo_partition_0);
@@ -1873,7 +1873,7 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 	herc = (sp->device_type == XFRAME_II_DEVICE);
 
 	if (flag == FALSE) {
-		if ((!herc && (get_xena_rev_id(sp->pdev) >= 4)) || herc) {
+		if ((!herc && (sp->pdev->revision >= 4)) || herc) {
 			if (!(val64 & ADAPTER_STATUS_RMAC_PCC_IDLE))
 				ret = 1;
 		} else {
@@ -1881,7 +1881,7 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 				ret = 1;
 		}
 	} else {
-		if ((!herc && (get_xena_rev_id(sp->pdev) >= 4)) || herc) {
+		if ((!herc && (sp->pdev->revision >= 4)) || herc) {
 			if (((val64 & ADAPTER_STATUS_RMAC_PCC_IDLE) ==
 			     ADAPTER_STATUS_RMAC_PCC_IDLE))
 				ret = 1;
@@ -7076,23 +7076,6 @@ static void s2io_link(struct s2io_nic * sp, int link)
 }
 
 /**
- *  get_xena_rev_id - to identify revision ID of xena.
- *  @pdev : PCI Dev structure
- *  Description:
- *  Function to identify the Revision ID of xena.
- *  Return value:
- *  returns the revision ID of the device.
- */
-
-static int get_xena_rev_id(struct pci_dev *pdev)
-{
-	u8 id = 0;
-	int ret;
-	ret = pci_read_config_byte(pdev, PCI_REVISION_ID, (u8 *) & id);
-	return id;
-}
-
-/**
  *  s2io_init_pci -Initialization of PCI and PCI-X configuration registers .
  *  @sp : private member of the device structure, which is a pointer to the
  *  s2io_nic structure.
@@ -7550,7 +7533,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	s2io_vpd_read(sp);
 	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2007 Neterion Inc.\n");
 	DBG_PRINT(ERR_DBG, "%s: Neterion %s (rev %d)\n",dev->name,
-		  sp->product_name, get_xena_rev_id(sp->pdev));
+		  sp->product_name, pdev->revision);
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,
 		  s2io_driver_version);
 	DBG_PRINT(ERR_DBG, "%s: MAC ADDR: "

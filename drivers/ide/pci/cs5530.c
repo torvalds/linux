@@ -236,7 +236,7 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 	 */
 
 	pci_set_master(cs5530_0);
-	pci_set_mwi(cs5530_0);
+	pci_try_set_mwi(cs5530_0);
 
 	/*
 	 * Set PCI CacheLineSize to 16-bytes:

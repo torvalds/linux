@@ -55,7 +55,6 @@ static const char *svwks_bad_ata100[] = {
 	NULL
 };
 
-static u8 svwks_revision = 0;
 static struct pci_dev *isa_dev;
 
 static int check_in_drive_lists (ide_drive_t *drive, const char **list)
@@ -71,9 +70,6 @@ static u8 svwks_udma_filter(ide_drive_t *drive)
 	struct pci_dev *dev     = HWIF(drive)->pci_dev;
 	u8 mask = 0;
 
-	if (!svwks_revision)
-		pci_read_config_byte(dev, PCI_REVISION_ID, &svwks_revision);
-
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
 		return 0x1f;
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
@@ -88,9 +84,9 @@ static u8 svwks_udma_filter(ide_drive_t *drive)
 			return 0;
 		/* Check the OSB4 DMA33 enable bit */
 		return ((reg & 0x00004000) == 0x00004000) ? 0x07 : 0;
-	} else if (svwks_revision < SVWKS_CSB5_REVISION_NEW) {
+	} else if (dev->revision < SVWKS_CSB5_REVISION_NEW) {
 		return 0x07;
-	} else if (svwks_revision >= SVWKS_CSB5_REVISION_NEW) {
+	} else if (dev->revision >= SVWKS_CSB5_REVISION_NEW) {
 		u8 btr = 0, mode;
 		pci_read_config_byte(dev, 0x5A, &btr);
 		mode = btr & 0x3;
@@ -234,9 +230,6 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 	unsigned int reg;
 	u8 btr;
 
-	/* save revision id to determine DMA capability */
-	pci_read_config_byte(dev, PCI_REVISION_ID, &svwks_revision);
-
 	/* force Master Latency Timer value to 64 PCICLKs */
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x40);
 
@@ -315,7 +308,7 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 		if (!(PCI_FUNC(dev->devfn) & 1))
 			btr |= 0x2;
 		else
-			btr |= (svwks_revision >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
+			btr |= (dev->revision >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
 		pci_write_config_byte(dev, 0x5A, btr);
 	}
 	/* Setup HT1000 SouthBridge Controller - Single Channel Only */

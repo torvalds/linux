@@ -20,19 +20,18 @@
 
 /**
  * aer_osc_setup - run ACPI _OSC method
+ * @pciedev: pcie_device which AER is being enabled on
  *
- * Return:
- *	Zero if success. Nonzero for otherwise.
+ * @return: Zero on success. Nonzero otherwise.
  *
  * Invoked when PCIE bus loads AER service driver. To avoid conflict with
  * BIOS AER support requires BIOS to yield AER control to OS native driver.
  **/
-int aer_osc_setup(struct pci_dev *dev)
+int aer_osc_setup(struct pcie_device *pciedev)
 {
-	int retval = OSC_METHOD_RUN_SUCCESS;
-	acpi_status status;
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-	struct pci_dev *pdev = dev;
+	acpi_status status = AE_NOT_FOUND;
+	struct pci_dev *pdev = pciedev->port;
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&pdev->dev);
 	struct pci_bus *parent;
 
 	while (!handle) {
@@ -50,19 +49,20 @@ int aer_osc_setup(struct pci_dev *dev)
 		pdev = parent->self;
 	}
 
-	if (!handle)
-		return OSC_METHOD_NOT_SUPPORTED;
-
-	pci_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
-	status = pci_osc_control_set(handle, OSC_PCI_EXPRESS_AER_CONTROL |
-		OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_SUPPORT)
-			retval = OSC_METHOD_NOT_SUPPORTED;
-	 	else
-			retval = OSC_METHOD_RUN_FAILURE;
+	if (handle) {
+		pci_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
+		status = pci_osc_control_set(handle,
+					OSC_PCI_EXPRESS_AER_CONTROL |
+					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
 	}
 
-	return retval;
-}
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_DEBUG "AER service couldn't init device %s - %s\n",
+		    pciedev->device.bus_id,
+		    (status == AE_SUPPORT || status == AE_NOT_FOUND) ?
+		    "no _OSC support" : "Run ACPI _OSC fails");
+		return -1;
+	}
 
+	return 0;
+}

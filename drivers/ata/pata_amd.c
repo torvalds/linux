@@ -623,17 +623,15 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static int printed_version;
 	int type = id->driver_data;
-	u8 rev;
 	u8 fifo;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 	pci_read_config_byte(pdev, 0x41, &fifo);
 
 	/* Check for AMD7409 without swdma errata and if found adjust type */
-	if (type == 1 && rev > 0x7)
+	if (type == 1 && pdev->revision > 0x7)
 		type = 2;
 
 	/* Check for AMD7411 */

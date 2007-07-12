@@ -102,12 +102,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-/*
- * At present there are very few 32-bit PPC machines that can have
- * memory above the 4GB point, and we don't support that.
- */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
-
 /* Return the index of the PCI controller for device PDEV. */
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
 
@@ -144,8 +138,6 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 
 	return root;
 }
-
-extern void pcibios_add_platform_entries(struct pci_dev *dev);
 
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,

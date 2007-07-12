@@ -1155,7 +1155,7 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 	/* set or disable MWI in the standard PCI command bit.
 	 * Check for the case where  mwi is desired but not available
 	 */
-	if (csr0 & MWI)	pci_set_mwi(pdev);
+	if (csr0 & MWI)	pci_try_set_mwi(pdev);
 	else		pci_clear_mwi(pdev);
 
 	/* read result from hardware (in case bit refused to enable) */
@@ -1238,7 +1238,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	};
 	static int last_irq;
 	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
-	u8 chip_rev;
 	int i, irq;
 	unsigned short sum;
 	unsigned char *ee_data;
@@ -1274,10 +1273,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	if (pdev->vendor == 0x1282 && pdev->device == 0x9100)
 	{
-		u32 dev_rev;
 		/* Read Chip revision */
-		pci_read_config_dword(pdev, PCI_REVISION_ID, &dev_rev);
-		if(dev_rev < 0x02000030)
+		if (pdev->revision < 0x02000030)
 		{
 			printk(KERN_ERR PFX "skipping early DM9100 with Crc bug (use dmfe)\n");
 			return -ENODEV;
@@ -1360,8 +1357,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	if (!ioaddr)
 		goto err_out_free_res;
 
-	pci_read_config_byte (pdev, PCI_REVISION_ID, &chip_rev);
-
 	/*
 	 * initialize private data structure 'tp'
 	 * it is zeroed and aligned in alloc_etherdev
@@ -1382,7 +1377,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	tp->flags = tulip_tbl[chip_idx].flags;
 	tp->pdev = pdev;
 	tp->base_addr = ioaddr;
-	tp->revision = chip_rev;
+	tp->revision = pdev->revision;
 	tp->csr0 = csr0;
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->mii_lock);
@@ -1399,7 +1394,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		tulip_mwi_config (pdev, dev);
 #else
 	/* MWI is broken for DC21143 rev 65... */
-	if (chip_idx == DC21143 && chip_rev == 65)
+	if (chip_idx == DC21143 && pdev->revision == 65)
 		tp->csr0 &= ~MWI;
 #endif
 
@@ -1640,7 +1635,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 #else
 		"Port"
 #endif
-		" %#llx,", dev->name, chip_name, chip_rev,
+		" %#llx,", dev->name, chip_name, pdev->revision,
 		(unsigned long long) pci_resource_start(pdev, TULIP_BAR));
 	pci_set_drvdata(pdev, dev);
 

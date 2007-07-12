@@ -54,8 +54,6 @@ static char netxen_nic_driver_string[] = "NetXen Network Driver version "
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
 
-u8 nx_p2_id = NX_P2_C0;
-
 #define DMA_32BIT_MASK	0x00000000ffffffffULL
 #define DMA_35BIT_MASK	0x00000007ffffffffULL
 
@@ -307,8 +305,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_disable_pdev;
 
 	pci_set_master(pdev);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &nx_p2_id);
-	if (nx_p2_id == NX_P2_C1 &&
+	if (pdev->revision == NX_P2_C1 &&
 	    (pci_set_dma_mask(pdev, DMA_35BIT_MASK) == 0) &&
 	    (pci_set_consistent_dma_mask(pdev, DMA_35BIT_MASK) == 0)) {
 		pci_using_dac = 1;
@@ -552,7 +549,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	adapter->ahw.pdev = pdev;
 	adapter->proc_cmd_buf_counter = 0;
-	adapter->ahw.revision_id = nx_p2_id;
+	adapter->ahw.revision_id = pdev->revision;
 
 	/* make sure Window == 1 */
 	netxen_nic_pci_change_crbwindow(adapter, 1);

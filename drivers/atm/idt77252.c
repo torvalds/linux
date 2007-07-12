@@ -3679,7 +3679,6 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	unsigned long membase, srambase;
 	struct idt77252_dev *card;
 	struct atm_dev *dev;
-	ushort revision = 0;
 	int i, err;
 
 
@@ -3688,19 +3687,13 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		return err;
 	}
 
-	if (pci_read_config_word(pcidev, PCI_REVISION_ID, &revision)) {
-		printk("idt77252-%d: can't read PCI_REVISION_ID\n", index);
-		err = -ENODEV;
-		goto err_out_disable_pdev;
-	}
-
 	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
 	if (!card) {
 		printk("idt77252-%d: can't allocate private data\n", index);
 		err = -ENOMEM;
 		goto err_out_disable_pdev;
 	}
-	card->revision = revision;
+	card->revision = pcidev->revision;
 	card->index = index;
 	card->pcidev = pcidev;
 	sprintf(card->name, "idt77252-%d", card->index);
@@ -3762,8 +3755,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	}
 
 	printk("%s: ABR SAR (Rev %c): MEM %08lx SRAM %08lx [%u KB]\n",
-	       card->name, ((revision > 1) && (revision < 25)) ?
-	       'A' + revision - 1 : '?', membase, srambase,
+	       card->name, ((card->revision > 1) && (card->revision < 25)) ?
+	       'A' + card->revision - 1 : '?', membase, srambase,
 	       card->sramsize / 1024);
 
 	if (init_card(dev)) {

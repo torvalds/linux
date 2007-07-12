@@ -338,7 +338,6 @@ static void sl82c105_tune_drive(ide_drive_t *drive, u8 pio)
 static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 {
 	struct pci_dev *bridge;
-	u8 rev;
 
 	/*
 	 * The bridge should be part of the same device, but function 0.
@@ -360,10 +359,9 @@ static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 	/*
 	 * We need to find function 0's revision, not function 1
 	 */
-	pci_read_config_byte(bridge, PCI_REVISION_ID, &rev);
 	pci_dev_put(bridge);
 
-	return rev;
+	return bridge->revision;
 }
 
 /*

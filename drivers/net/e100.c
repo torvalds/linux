@@ -583,7 +583,6 @@ struct nic {
 	u32 rx_tco_frames;
 	u32 rx_over_length_errors;
 
-	u8 rev_id;
 	u16 leds;
 	u16 eeprom_wc;
 	u16 eeprom[256];
@@ -937,9 +936,8 @@ static void e100_get_defaults(struct nic *nic)
 	struct param_range rfds = { .min = 16, .max = 256, .count = 256 };
 	struct param_range cbs  = { .min = 64, .max = 256, .count = 128 };
 
-	pci_read_config_byte(nic->pdev, PCI_REVISION_ID, &nic->rev_id);
 	/* MAC type is encoded as rev ID; exception: ICH is treated as 82559 */
-	nic->mac = (nic->flags & ich) ? mac_82559_D101M : nic->rev_id;
+	nic->mac = (nic->flags & ich) ? mac_82559_D101M : nic->pdev->revision;
 	if(nic->mac == mac_unknown)
 		nic->mac = mac_82557_D100_A;
 
@@ -1279,7 +1277,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 	if (nic->flags & ich)
 		goto noloaducode;
 
-	/* Search for ucode match against h/w rev_id */
+	/* Search for ucode match against h/w revision */
 	for (opts = ucode_opts; opts->mac; opts++) {
 		int i;
 		u32 *ucode = opts->ucode;
@@ -2238,7 +2236,7 @@ static void e100_get_regs(struct net_device *netdev,
 	u32 *buff = p;
 	int i;
 
-	regs->version = (1 << 24) | nic->rev_id;
+	regs->version = (1 << 24) | nic->pdev->revision;
 	buff[0] = ioread8(&nic->csr->scb.cmd_hi) << 24 |
 		ioread8(&nic->csr->scb.cmd_lo) << 16 |
 		ioread16(&nic->csr->scb.status);

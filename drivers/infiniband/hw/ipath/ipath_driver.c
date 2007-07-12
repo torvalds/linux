@@ -270,7 +270,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	struct ipath_devdata *dd;
 	unsigned long long addr;
 	u32 bar0 = 0, bar1 = 0;
-	u8 rev;
 
 	dd = ipath_alloc_devdata(pdev);
 	if (IS_ERR(dd)) {
@@ -432,13 +431,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	dd->ipath_deviceid = ent->device;	/* save for later use */
 	dd->ipath_vendorid = ent->vendor;
 
-	ret = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
-	if (ret) {
-		ipath_dev_err(dd, "Failed to read PCI revision ID unit "
-			      "%u: err %d\n", dd->ipath_unit, -ret);
-		goto bail_regions;	/* shouldn't ever happen */
-	}
-	dd->ipath_pcirev = rev;
+	dd->ipath_pcirev = pdev->revision;
 
 #if defined(__powerpc__)
 	/* There isn't a generic way to specify writethrough mappings */

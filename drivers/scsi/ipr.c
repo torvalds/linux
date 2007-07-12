@@ -5373,18 +5373,12 @@ static const u16 ipr_blocked_processors[] = {
  **/
 static int ipr_invalid_adapter(struct ipr_ioa_cfg *ioa_cfg)
 {
-	u8 rev_id;
 	int i;
 
-	if (ioa_cfg->type == 0x5702) {
-		if (pci_read_config_byte(ioa_cfg->pdev, PCI_REVISION_ID,
-					 &rev_id) == PCIBIOS_SUCCESSFUL) {
-			if (rev_id < 4) {
-				for (i = 0; i < ARRAY_SIZE(ipr_blocked_processors); i++){
-					if (__is_processor(ipr_blocked_processors[i]))
-						return 1;
-				}
-			}
+	if ((ioa_cfg->type == 0x5702) && (ioa_cfg->pdev->revision < 4)) {
+		for (i = 0; i < ARRAY_SIZE(ipr_blocked_processors); i++){
+			if (__is_processor(ipr_blocked_processors[i]))
+				return 1;
 		}
 	}
 	return 0;
@@ -7541,13 +7535,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	else
 		ioa_cfg->transop_timeout = IPR_OPERATIONAL_TIMEOUT;
 
-	rc = pci_read_config_byte(pdev, PCI_REVISION_ID, &ioa_cfg->revid);
-
-	if (rc != PCIBIOS_SUCCESSFUL) {
-		dev_err(&pdev->dev, "Failed to read PCI revision ID\n");
-		rc = -EIO;
-		goto out_scsi_host_put;
-	}
+	ioa_cfg->revid = pdev->revision;
 
 	ipr_regs_pci = pci_resource_start(pdev, 0);
 

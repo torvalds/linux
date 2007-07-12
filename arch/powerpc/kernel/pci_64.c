@@ -367,8 +367,10 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	dev->class = get_int_prop(node, "class-code", 0);
+	dev->revision = get_int_prop(node, "revision-id", 0);
 
 	DBG("    class: 0x%x\n", dev->class);
+	DBG("    revision: 0x%x\n", dev->revision);
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
@@ -876,9 +878,9 @@ static ssize_t pci_show_devspec(struct device *dev,
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
 
-void pcibios_add_platform_entries(struct pci_dev *pdev)
+int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
-	device_create_file(&pdev->dev, &dev_attr_devspec);
+	return device_create_file(&pdev->dev, &dev_attr_devspec);
 }
 
 #define ISA_SPACE_MASK 0x1

@@ -123,8 +123,7 @@ static int amd74xx_get_info(char *buffer, char **addr, off_t offset, int count)
 	amd_print("Driver Version:                     2.13");
 	amd_print("South Bridge:                       %s", pci_name(bmide_dev));
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &t);
-	amd_print("Revision:                           IDE %#x", t);
+	amd_print("Revision:                           IDE %#x", dev->revision);
 	amd_print("Highest DMA rate:                   UDMA%s", amd_dma[fls(amd_config->udma_mask) - 1]);
 
 	amd_print("BM-DMA base:                        %#lx", amd_base);
@@ -312,8 +311,7 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
  */
 
 	if (amd_config->flags & AMD_CHECK_SWDMA) {
-		pci_read_config_byte(dev, PCI_REVISION_ID, &t);
-		if (t <= 7)
+		if (dev->revision <= 7)
 			amd_config->flags |= AMD_BAD_SWDMA;
 	}
 
@@ -383,7 +381,7 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &t);
 	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
-		amd_chipset->name, pci_name(dev), t,
+		amd_chipset->name, pci_name(dev), dev->revision,
 		amd_dma[fls(amd_config->udma_mask) - 1]);
 
 /*

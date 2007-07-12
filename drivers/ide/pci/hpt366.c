@@ -1413,11 +1413,9 @@ static int __devinit init_setup_hpt372n(struct pci_dev *dev, ide_pci_device_t *d
 static int __devinit init_setup_hpt371(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct hpt_info *info;
-	u8 rev = 0, mcr1 = 0;
+	u8 mcr1 = 0;
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-
-	if (rev > 1) {
+	if (dev->revision > 1) {
 		d->name = "HPT371N";
 
 		info = &hpt371n;
@@ -1442,11 +1440,8 @@ static int __devinit init_setup_hpt371(struct pci_dev *dev, ide_pci_device_t *d)
 static int __devinit init_setup_hpt372a(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct hpt_info *info;
-	u8 rev = 0;
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-
-	if (rev > 1) {
+	if (dev->revision > 1) {
 		d->name = "HPT372N";
 
 		info = &hpt372n;
@@ -1460,11 +1455,8 @@ static int __devinit init_setup_hpt372a(struct pci_dev *dev, ide_pci_device_t *d
 static int __devinit init_setup_hpt302(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct hpt_info *info;
-	u8 rev = 0;
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-
-	if (rev > 1) {
+	if (dev->revision > 1) {
 		d->name = "HPT302N";
 
 		info = &hpt302n;
@@ -1478,7 +1470,7 @@ static int __devinit init_setup_hpt302(struct pci_dev *dev, ide_pci_device_t *d)
 static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	struct pci_dev *dev2;
-	u8 rev = 0;
+	u8 rev = dev->revision;
 	static char   *chipset_names[] = { "HPT366", "HPT366",  "HPT368",
 					   "HPT370", "HPT370A", "HPT372",
 					   "HPT372N" };
@@ -1488,8 +1480,6 @@ static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 
 	if (PCI_FUNC(dev->devfn) & 1)
 		return -ENODEV;
-
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 
 	switch (rev) {
 	case 0:
