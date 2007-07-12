@@ -315,10 +315,9 @@ M:	zippel@linux-m68k.org
 S:	Maintained
 
 AGPGART DRIVER
-P:	Dave Jones
-M:	davej@codemonkey.org.uk
-W:	http://www.codemonkey.org.uk/projects/agp/
-T:	git kernel.org:/pub/scm/linux/kernel/git/davej/agpgart.git
+P:	David Airlie
+M:	airlied@linux.ie
+T:	git kernel.org:/pub/scm/linux/kernel/git/airlied/drm-2.6.git
 S:	Maintained
 
 AHA152X SCSI DRIVER
