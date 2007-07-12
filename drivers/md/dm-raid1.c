@@ -134,6 +134,7 @@ struct mirror_set {
 	/* recovery */
 	region_t nr_regions;
 	int in_sync;
+	int log_failure;
 
 	struct mirror *default_mirror;	/* Default mirror */
 
@@ -589,9 +590,9 @@ static void rh_recovery_end(struct region *reg, int success)
 	wake(rh->ms);
 }
 
-static void rh_flush(struct region_hash *rh)
+static int rh_flush(struct region_hash *rh)
 {
-	rh->log->type->flush(rh->log);
+	return rh->log->type->flush(rh->log);
 }
 
 static void rh_delay(struct region_hash *rh, struct bio *bio)
@@ -892,12 +893,15 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 */
 	rh_inc_pending(&ms->rh, &sync);
 	rh_inc_pending(&ms->rh, &nosync);
-	rh_flush(&ms->rh);
+	ms->log_failure = rh_flush(&ms->rh) ? 1 : 0;
 
 	/*
 	 * Dispatch io.
 	 */
-	while ((bio = bio_list_pop(&sync)))
+	if (unlikely(ms->log_failure))
+		while ((bio = bio_list_pop(&sync)))
+			bio_endio(bio, bio->bi_size, -EIO);
+	else while ((bio = bio_list_pop(&sync)))
 		do_write(ms, bio);
 
 	while ((bio = bio_list_pop(&recover)))
