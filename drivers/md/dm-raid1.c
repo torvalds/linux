@@ -1335,8 +1335,7 @@ static int __init dm_mirror_init(void)
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
-		DMERR("%s: Failed to register mirror target",
-		      mirror_target.name);
+		DMERR("Failed to register mirror target");
 		dm_dirty_log_exit();
 	}
 
@@ -1349,7 +1348,7 @@ static void __exit dm_mirror_exit(void)
 
 	r = dm_unregister_target(&mirror_target);
 	if (r < 0)
-		DMERR("%s: unregister failed %d", mirror_target.name, r);
+		DMERR("unregister failed %d", r);
 
 	dm_dirty_log_exit();
 }

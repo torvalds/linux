@@ -1352,15 +1352,14 @@ static int __init dm_multipath_init(void)
 
 	r = dm_register_target(&multipath_target);
 	if (r < 0) {
-		DMERR("%s: register failed %d", multipath_target.name, r);
+		DMERR("register failed %d", r);
 		kmem_cache_destroy(_mpio_cache);
 		return -EINVAL;
 	}
 
 	kmultipathd = create_workqueue("kmpathd");
 	if (!kmultipathd) {
-		DMERR("%s: failed to create workqueue kmpathd",
-				multipath_target.name);
+		DMERR("failed to create workqueue kmpathd");
 		dm_unregister_target(&multipath_target);
 		kmem_cache_destroy(_mpio_cache);
 		return -ENOMEM;
@@ -1381,8 +1380,7 @@ static void __exit dm_multipath_exit(void)
 
 	r = dm_unregister_target(&multipath_target);
 	if (r < 0)
-		DMERR("%s: target unregister failed %d",
-		      multipath_target.name, r);
+		DMERR("target unregister failed %d", r);
 	kmem_cache_destroy(_mpio_cache);
 }
 
