@@ -306,6 +306,8 @@ static inline int tcf_em_tree_match(struct sk_buff *skb,
 		return 1;
 }
 
+#define MODULE_ALIAS_TCF_EMATCH(kind)	MODULE_ALIAS("ematch-kind-" __stringify(kind))
+
 #else /* CONFIG_NET_EMATCH */
 
 struct tcf_ematch_tree

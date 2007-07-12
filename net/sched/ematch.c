@@ -222,6 +222,19 @@ static int tcf_em_validate(struct tcf_proto *tp,
 
 		if (em->ops == NULL) {
 			err = -ENOENT;
+#ifdef CONFIG_KMOD
+			__rtnl_unlock();
+			request_module("ematch-kind-%u", em_hdr->kind);
+			rtnl_lock();
+			em->ops = tcf_em_lookup(em_hdr->kind);
+			if (em->ops) {
+				/* We dropped the RTNL mutex in order to
+				 * perform the module load. Tell the caller
+				 * to replay the request. */
+				module_put(em->ops->owner);
+				err = -EAGAIN;
+			}
+#endif
 			goto errout;
 		}
 
