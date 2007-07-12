@@ -724,7 +724,7 @@ void vio_port_up(struct vio_driver_state *vio)
 
 	err = 0;
 	if (state == LDC_STATE_INIT) {
-		err = ldc_bind(vio->lp);
+		err = ldc_bind(vio->lp, vio->name);
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu bind failed, "
 			       "err=%d\n",

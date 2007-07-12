@@ -598,7 +598,7 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 	}
 	dp->lp = lp;
 
-	err = ldc_bind(lp);
+	err = ldc_bind(lp, "DS");
 	if (err)
 		goto out_free_ldc;
 

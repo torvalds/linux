@@ -158,6 +158,10 @@ struct ldc_channel {
 	u8				mss;
 	u8				state;
 
+#define LDC_IRQ_NAME_MAX		32
+	char				rx_irq_name[LDC_IRQ_NAME_MAX];
+	char				tx_irq_name[LDC_IRQ_NAME_MAX];
+
 	struct hlist_head		mh_list;
 
 	struct hlist_node		list;
@@ -1226,25 +1230,31 @@ EXPORT_SYMBOL(ldc_free);
  * state.  This does not initiate a handshake, ldc_connect() does
  * that.
  */
-int ldc_bind(struct ldc_channel *lp)
+int ldc_bind(struct ldc_channel *lp, const char *name)
 {
 	unsigned long hv_err, flags;
 	int err = -EINVAL;
 
 	spin_lock_irqsave(&lp->lock, flags);
 
+	if (!name)
+		goto out_err;
+
 	if (lp->state != LDC_STATE_INIT)
 		goto out_err;
 
+	snprintf(lp->rx_irq_name, LDC_IRQ_NAME_MAX, "%s RX", name);
+	snprintf(lp->tx_irq_name, LDC_IRQ_NAME_MAX, "%s TX", name);
+
 	err = request_irq(lp->cfg.rx_irq, ldc_rx,
 			  IRQF_SAMPLE_RANDOM | IRQF_SHARED,
-			  "LDC RX", lp);
+			  lp->rx_irq_name, lp);
 	if (err)
 		goto out_err;
 
 	err = request_irq(lp->cfg.tx_irq, ldc_tx,
 			  IRQF_SAMPLE_RANDOM | IRQF_SHARED,
-			  "LDC TX", lp);
+			  lp->tx_irq_name, lp);
 	if (err)
 		goto out_free_rx_irq;
 

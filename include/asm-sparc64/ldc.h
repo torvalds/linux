@@ -56,7 +56,7 @@ extern struct ldc_channel *ldc_alloc(unsigned long id,
 extern void ldc_free(struct ldc_channel *lp);
 
 /* Register TX and RX queues of the link with the hypervisor.  */
-extern int ldc_bind(struct ldc_channel *lp);
+extern int ldc_bind(struct ldc_channel *lp, const char *name);
 
 /* For non-RAW protocols we need to complete a handshake before
  * communication can proceed.  ldc_connect() does that, if the
