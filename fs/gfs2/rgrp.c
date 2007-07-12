@@ -863,16 +863,19 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 	u64 no_addr;
 
 	for(;;) {
+		if (goal >= rgd->rd_data)
+			break;
 		goal = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
 				    GFS2_BLKST_UNLINKED);
 		if (goal == 0)
-			return 0;
+			break;
 		no_addr = goal + rgd->rd_data0;
-		if (no_addr <= *last_unlinked)
+		goal++;
+		if (no_addr < *last_unlinked)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
-					no_addr, -1);
+					  no_addr, -1);
 		if (!IS_ERR(inode))
 			return inode;
 	}
