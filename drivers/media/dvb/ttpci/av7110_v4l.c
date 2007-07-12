@@ -333,7 +333,7 @@ static int av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 			return -EINVAL;
 
 		memset(t, 0, sizeof(*t));
-		strcpy(t->name, "Television");
+		strcpy((char *)t->name, "Television");
 
 		t->type = V4L2_TUNER_ANALOG_TV;
 		t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |

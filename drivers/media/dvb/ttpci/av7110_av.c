@@ -391,7 +391,7 @@ static int get_video_format(struct av7110 *av7110, u8 *buf, int count)
  ****************************************************************************/
 
 static inline long aux_ring_buffer_write(struct dvb_ringbuffer *rbuf,
-					 const char *buf, unsigned long count)
+					 const u8 *buf, unsigned long count)
 {
 	unsigned long todo = count;
 	int free;
@@ -436,7 +436,7 @@ static void play_audio_cb(u8 *buf, int count, void *priv)
 #define FREE_COND (dvb_ringbuffer_free(&av7110->avout) >= 20 * 1024 && \
 		   dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)
 
-static ssize_t dvb_play(struct av7110 *av7110, const u8 __user *buf,
+static ssize_t dvb_play(struct av7110 *av7110, const char __user *buf,
 			unsigned long count, int nonblock, int type)
 {
 	unsigned long todo = count, n;
@@ -499,7 +499,7 @@ static ssize_t dvb_play_kernel(struct av7110 *av7110, const u8 *buf,
 	return count - todo;
 }
 
-static ssize_t dvb_aplay(struct av7110 *av7110, const u8 __user *buf,
+static ssize_t dvb_aplay(struct av7110 *av7110, const char __user *buf,
 			 unsigned long count, int nonblock, int type)
 {
 	unsigned long todo = count, n;
@@ -959,7 +959,7 @@ static u8 iframe_header[] = { 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x80, 0x00, 0x
 
 #define MIN_IFRAME 400000
 
-static int play_iframe(struct av7110 *av7110, u8 __user *buf, unsigned int len, int nonblock)
+static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len, int nonblock)
 {
 	int i, n;
 
