@@ -18,6 +18,9 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
+#include <linux/sm501.h>
+#include <linux/sm501-regs.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -294,6 +297,72 @@ static struct platform_device anubis_device_asix = {
 	}
 };
 
+/* SM501 */
+
+static struct resource anubis_sm501_resource[] = {
+	[0] = {
+		.start	= S3C2410_CS2,
+		.end	= S3C2410_CS2 + SZ_8M,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= S3C2410_CS2 + SZ_64M - SZ_2M,
+		.end	= S3C2410_CS2 + SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_EINT0,
+		.end	= IRQ_EINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sm501_initdata anubis_sm501_initdata = {
+	.gpio_high	= {
+		.set	= 0x3F000000,		/* 24bit panel */
+		.mask	= 0x0,
+	},
+	.misc_timing	= {
+		.set	= 0x010100,		/* SDRAM timing */
+		.mask	= 0x1F1F00,
+	},
+	.misc_control	= {
+		.set	= SM501_MISC_PNL_24BIT,
+		.mask	= 0,
+	},
+
+	/* set the SDRAM and bus clocks */
+	.mclk		= 72 * MHZ,
+	.m1xclk		= 144 * MHZ,
+};
+
+static struct sm501_platdata_gpio_i2c anubis_sm501_gpio_i2c[] = {
+	[0] = {
+		.pin_scl	= 44,
+		.pin_sda	= 45,
+	},
+	[1] = {
+		.pin_scl	= 40,
+		.pin_sda	= 41,
+	},
+};
+
+static struct sm501_platdata anubis_sm501_platdata = {
+	.init		= &anubis_sm501_initdata,
+	.gpio_i2c	= anubis_sm501_gpio_i2c,
+	.gpio_i2c_nr	= ARRAY_SIZE(anubis_sm501_gpio_i2c),
+};
+
+static struct platform_device anubis_device_sm501 = {
+	.name		= "sm501",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(anubis_sm501_resource),
+	.resource	= anubis_sm501_resource,
+	.dev		= {
+		.platform_data = &anubis_sm501_platdata,
+	},
+};
+
 /* Standard Anubis devices */
 
 static struct platform_device *anubis_devices[] __initdata = {
@@ -306,6 +375,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&anubis_device_ide0,
 	&anubis_device_ide1,
 	&anubis_device_asix,
+	&anubis_device_sm501,
 };
 
 static struct clk *anubis_clocks[] = {
