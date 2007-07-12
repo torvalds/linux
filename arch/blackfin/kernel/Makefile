@@ -7,7 +7,7 @@ extra-y := init_task.o vmlinux.lds
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \
 	sys_bfin.o time.o traps.o irqchip.o dma-mapping.o flat.o \
-	fixed_code.o
+	fixed_code.o cplbinit.o cacheinit.o
 
 obj-$(CONFIG_BF53x)		     += bfin_gpio.o
 obj-$(CONFIG_BF561)		     += bfin_gpio.o
