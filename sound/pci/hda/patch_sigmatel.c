@@ -334,8 +334,6 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac925x_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0xe, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0xe, 0, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -1401,7 +1399,15 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 			continue;
 		add_spec_dacs(spec, nid);
 	}
-
+	for (i = 0; i < cfg->line_outs; i++) {
+		nid = snd_hda_codec_read(codec, cfg->line_out_pins[i], 0,
+					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
+		if (check_in_dac_nids(spec, nid))
+			nid = 0;
+		if (! nid)
+			continue;
+		add_spec_dacs(spec, nid);
+	}
 	for (i = old_num_dacs; i < spec->multiout.num_dacs; i++) {
 		static const char *pfxs[] = {
 			"Speaker", "External Speaker", "Speaker2",
