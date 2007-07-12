@@ -391,11 +391,6 @@ config I2C_PROSAVAGE
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-prosavage.
 
-config I2C_RPXLITE
-	tristate "Embedded Planet RPX Lite/Classic support"
-	depends on RPXLITE || RPXCLASSIC
-	select I2C_ALGO8XX
-
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
 	depends on ARCH_S3C2410
