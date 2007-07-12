@@ -191,16 +191,13 @@ static int storage_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
+	US_DEBUGP("%s\n", __FUNCTION__);
+
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_SUSPEND);
-	iface->dev.power.power_state.event = message.event;
-
-	/* When runtime PM is working, we'll set a flag to indicate
-	 * whether we should autoresume when a SCSI request arrives. */
 
 	mutex_unlock(&us->dev_mutex);
 	return 0;
@@ -210,14 +207,25 @@ static int storage_resume(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	mutex_lock(&us->dev_mutex);
-
 	US_DEBUGP("%s\n", __FUNCTION__);
+
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
-	iface->dev.power.power_state.event = PM_EVENT_ON;
 
-	mutex_unlock(&us->dev_mutex);
+	return 0;
+}
+
+static int storage_reset_resume(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+
+	/* Report the reset to the SCSI core */
+	usb_stor_report_bus_reset(us);
+
+	/* FIXME: Notify the subdrivers that they need to reinitialize
+	 * the device */
 	return 0;
 }
 
@@ -228,7 +236,7 @@ static int storage_resume(struct usb_interface *iface)
  * a USB port reset, whether from this driver or a different one.
  */
 
-static void storage_pre_reset(struct usb_interface *iface)
+static int storage_pre_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
@@ -236,22 +244,23 @@ static void storage_pre_reset(struct usb_interface *iface)
 
 	/* Make sure no command runs during the reset */
 	mutex_lock(&us->dev_mutex);
+	return 0;
 }
 
-static void storage_post_reset(struct usb_interface *iface)
+static int storage_post_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
 	US_DEBUGP("%s\n", __FUNCTION__);
 
 	/* Report the reset to the SCSI core */
-	scsi_lock(us_to_host(us));
 	usb_stor_report_bus_reset(us);
-	scsi_unlock(us_to_host(us));
 
 	/* FIXME: Notify the subdrivers that they need to reinitialize
 	 * the device */
+
 	mutex_unlock(&us->dev_mutex);
+	return 0;
 }
 
 /*
@@ -300,6 +309,7 @@ static int usb_stor_control_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
+	int autopm_rc;
 
 	current->flags |= PF_NOFREEZE;
 
@@ -309,6 +319,9 @@ static int usb_stor_control_thread(void * __us)
 			break;
 			
 		US_DEBUGP("*** thread awakened.\n");
+
+		/* Autoresume the device */
+		autopm_rc = usb_autopm_get_interface(us->pusb_intf);
 
 		/* lock the device pointers */
 		mutex_lock(&(us->dev_mutex));
@@ -368,6 +381,12 @@ static int usb_stor_control_thread(void * __us)
 			us->srb->result = SAM_STAT_GOOD;
 		}
 
+		/* Did the autoresume fail? */
+		else if (autopm_rc < 0) {
+			US_DEBUGP("Could not wake device\n");
+			us->srb->result = DID_ERROR << 16;
+		}
+
 		/* we've got a command, let's do it! */
 		else {
 			US_DEBUG(usb_stor_show_command(us->srb));
@@ -410,25 +429,21 @@ SkipForAbort:
 
 		/* unlock the device pointers */
 		mutex_unlock(&us->dev_mutex);
+
+		/* Start an autosuspend */
+		if (autopm_rc == 0)
+			usb_autopm_put_interface(us->pusb_intf);
 	} /* for (;;) */
 
-	scsi_host_put(host);
-
-	/* notify the exit routine that we're actually exiting now 
-	 *
-	 * complete()/wait_for_completion() is similar to up()/down(),
-	 * except that complete() is safe in the case where the structure
-	 * is getting deleted in a parallel mode of execution (i.e. just
-	 * after the down() -- that's necessary for the thread-shutdown
-	 * case.
-	 *
-	 * complete_and_exit() goes even further than this -- it is safe in
-	 * the case that the thread of the caller is going away (not just
-	 * the structure) -- this is necessary for the module-remove case.
-	 * This is important in preemption kernels, which transfer the flow
-	 * of execution immediately upon a complete().
-	 */
-	complete_and_exit(&threads_gone, 0);
+	/* Wait until we are told to stop */
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop())
+			break;
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+	return 0;
 }	
 
 /***********************************************************************
@@ -796,19 +811,13 @@ static int usb_stor_acquire_resources(struct us_data *us)
 	}
 
 	/* Start up our control thread */
-	th = kthread_create(usb_stor_control_thread, us, "usb-storage");
+	th = kthread_run(usb_stor_control_thread, us, "usb-storage");
 	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start control thread\n");
 		return PTR_ERR(th);
 	}
-
-	/* Take a reference to the host for the control thread and
-	 * count it among all the threads we have launched.  Then
-	 * start it up. */
-	scsi_host_get(us_to_host(us));
-	atomic_inc(&total_threads);
-	wake_up_process(th);
+	us->ctl_thread = th;
 
 	return 0;
 }
@@ -825,6 +834,8 @@ static void usb_stor_release_resources(struct us_data *us)
 	US_DEBUGP("-- sending exit command to thread\n");
 	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
 	up(&us->sema);
+	if (us->ctl_thread)
+		kthread_stop(us->ctl_thread);
 
 	/* Call the destructor routine, if it exists */
 	if (us->extra_destructor) {
@@ -938,6 +949,7 @@ retry:
 	}
 
 	scsi_host_put(us_to_host(us));
+	usb_autopm_put_interface(us->pusb_intf);
 	complete_and_exit(&threads_gone, 0);
 }
 
@@ -1027,6 +1039,7 @@ static int storage_probe(struct usb_interface *intf,
 	 * start it up. */
 	scsi_host_get(us_to_host(us));
 	atomic_inc(&total_threads);
+	usb_autopm_get_interface(intf); /* dropped in the scanning thread */
 	wake_up_process(th);
 
 	return 0;
@@ -1059,10 +1072,12 @@ static struct usb_driver usb_storage_driver = {
 #ifdef CONFIG_PM
 	.suspend =	storage_suspend,
 	.resume =	storage_resume,
+	.reset_resume =	storage_reset_resume,
 #endif
 	.pre_reset =	storage_pre_reset,
 	.post_reset =	storage_post_reset,
 	.id_table =	storage_usb_ids,
+	.supports_autosuspend = 1,
 };
 
 static int __init usb_stor_init(void)

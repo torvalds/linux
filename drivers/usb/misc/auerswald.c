@@ -2034,11 +2034,11 @@ static void auerswald_disconnect (struct usb_interface *intf)
 	if (!cp)
 		return;
 
-	down (&cp->mutex);
-	info ("device /dev/%s now disconnecting", cp->name);
-
 	/* give back our USB minor number */
 	usb_deregister_dev(intf, &auerswald_class);
+
+	down (&cp->mutex);
+	info ("device /dev/%s now disconnecting", cp->name);
 
 	/* Stop the interrupt endpoint */
 	auerswald_int_release (cp);

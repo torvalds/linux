@@ -207,7 +207,8 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 	 * We must ignore the FREEZE vs SUSPEND distinction here, because
 	 * otherwise the swsusp will save (and restore) garbage state.
 	 */
-	if (hcd->self.root_hub->dev.power.power_state.event == PM_EVENT_ON)
+	if (!(hcd->state == HC_STATE_SUSPENDED ||
+			hcd->state == HC_STATE_HALT))
 		return -EBUSY;
 
 	if (hcd->driver->suspend) {

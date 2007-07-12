@@ -74,6 +74,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/termbits.h>
 #include <linux/usb.h>
@@ -203,7 +204,7 @@ static struct usb_serial_driver whiteheat_device = {
 
 
 struct whiteheat_command_private {
-	spinlock_t		lock;
+	struct mutex		mutex;
 	__u8			port_running;
 	__u8			command_finished;
 	wait_queue_head_t	wait_command;	/* for handling sleeping while waiting for a command to finish */
@@ -232,6 +233,7 @@ struct whiteheat_private {
 	struct usb_serial_port	*port;
 	struct list_head	tx_urbs_free;
 	struct list_head	tx_urbs_submitted;
+	struct mutex		deathwarrant;
 };
 
 
@@ -425,6 +427,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 		}
 
 		spin_lock_init(&info->lock);
+		mutex_init(&info->deathwarrant);
 		info->flags = 0;
 		info->mcr = 0;
 		INIT_WORK(&info->rx_work, rx_data_softint);
@@ -495,7 +498,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 		goto no_command_private;
 	}
 
-	spin_lock_init(&command_info->lock);
+	mutex_init(&command_info->mutex);
 	command_info->port_running = 0;
 	init_waitqueue_head(&command_info->wait_command);
 	usb_set_serial_port_data(command_port, command_info);
@@ -654,7 +657,6 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 	struct urb *urb;
 	struct list_head *tmp;
 	struct list_head *tmp2;
-	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	
@@ -683,24 +685,32 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 
 	firm_close(port);
 
+printk(KERN_ERR"Before processing rx_urbs_submitted.\n");
 	/* shutdown our bulk reads and writes */
-	spin_lock_irqsave(&info->lock, flags);
+	mutex_lock(&info->deathwarrant);
+	spin_lock_irq(&info->lock);
 	list_for_each_safe(tmp, tmp2, &info->rx_urbs_submitted) {
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
+		list_del(tmp);
+		spin_unlock_irq(&info->lock);
 		usb_kill_urb(urb);
-		list_move(tmp, &info->rx_urbs_free);
+		spin_lock_irq(&info->lock);
+		list_add(tmp, &info->rx_urbs_free);
 	}
 	list_for_each_safe(tmp, tmp2, &info->rx_urb_q)
 		list_move(tmp, &info->rx_urbs_free);
-
 	list_for_each_safe(tmp, tmp2, &info->tx_urbs_submitted) {
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
+		list_del(tmp);
+		spin_unlock_irq(&info->lock);
 		usb_kill_urb(urb);
-		list_move(tmp, &info->tx_urbs_free);
+		spin_lock_irq(&info->lock);
+		list_add(tmp, &info->tx_urbs_free);
 	}
-	spin_unlock_irqrestore(&info->lock, flags);
+	spin_unlock_irq(&info->lock);
+	mutex_unlock(&info->deathwarrant);
 
 	stop_command_port(port->serial);
 
@@ -872,7 +882,7 @@ static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, un
 }
 
 
-static void whiteheat_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
+static void whiteheat_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s -port %d", __FUNCTION__, port->number);
 
@@ -881,15 +891,6 @@ static void whiteheat_set_termios (struct usb_serial_port *port, struct ktermios
 		goto exit;
 	}
 	
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((port->tty->termios->c_cflag == old_termios->c_cflag) &&
-		    (port->tty->termios->c_iflag == old_termios->c_iflag)) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			goto exit;
-		}
-	}
-
 	firm_setup_port(port);
 
 exit:
@@ -920,7 +921,7 @@ static int whiteheat_chars_in_buffer(struct usb_serial_port *port)
 	spin_unlock_irqrestore(&info->lock, flags);
 
 	dbg ("%s - returns %d", __FUNCTION__, chars);
-	return (chars);
+	return chars;
 }
 
 
@@ -962,54 +963,57 @@ static void whiteheat_unthrottle (struct usb_serial_port *port)
 /*****************************************************************************
  * Connect Tech's White Heat callback routines
  *****************************************************************************/
-static void command_port_write_callback (struct urb *urb)
+static void command_port_write_callback(struct urb *urb)
 {
+	int status = urb->status;
+
 	dbg("%s", __FUNCTION__);
 
-	if (urb->status) {
-		dbg ("nonzero urb status: %d", urb->status);
+	if (status) {
+		dbg("nonzero urb status: %d", status);
 		return;
 	}
 }
 
 
-static void command_port_read_callback (struct urb *urb)
+static void command_port_read_callback(struct urb *urb)
 {
 	struct usb_serial_port *command_port = (struct usb_serial_port *)urb->context;
 	struct whiteheat_command_private *command_info;
+	int status = urb->status;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
-	unsigned long flags;
 
 	dbg("%s", __FUNCTION__);
-
-	if (urb->status) {
-		dbg("%s - nonzero urb status: %d", __FUNCTION__, urb->status);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &command_port->dev, __FUNCTION__, urb->actual_length, data);
 
 	command_info = usb_get_serial_port_data(command_port);
 	if (!command_info) {
 		dbg ("%s - command_info is NULL, exiting.", __FUNCTION__);
 		return;
 	}
-	spin_lock_irqsave(&command_info->lock, flags);
+	if (status) {
+		dbg("%s - nonzero urb status: %d", __FUNCTION__, status);
+		if (status != -ENOENT)
+			command_info->command_finished = WHITEHEAT_CMD_FAILURE;
+		wake_up(&command_info->wait_command);
+		return;
+	}
+
+	usb_serial_debug_data(debug, &command_port->dev, __FUNCTION__, urb->actual_length, data);
 
 	if (data[0] == WHITEHEAT_CMD_COMPLETE) {
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;
-		wake_up_interruptible(&command_info->wait_command);
+		wake_up(&command_info->wait_command);
 	} else if (data[0] == WHITEHEAT_CMD_FAILURE) {
 		command_info->command_finished = WHITEHEAT_CMD_FAILURE;
-		wake_up_interruptible(&command_info->wait_command);
+		wake_up(&command_info->wait_command);
 	} else if (data[0] == WHITEHEAT_EVENT) {
 		/* These are unsolicited reports from the firmware, hence no waiting command to wakeup */
 		dbg("%s - event received", __FUNCTION__);
 	} else if (data[0] == WHITEHEAT_GET_DTR_RTS) {
 		memcpy(command_info->result_buffer, &data[1], urb->actual_length - 1);
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;
-		wake_up_interruptible(&command_info->wait_command);
+		wake_up(&command_info->wait_command);
 	} else {
 		dbg("%s - bad reply from firmware", __FUNCTION__);
 	}
@@ -1017,7 +1021,6 @@ static void command_port_read_callback (struct urb *urb)
 	/* Continue trying to always read */
 	command_port->read_urb->dev = command_port->serial->dev;
 	result = usb_submit_urb(command_port->read_urb, GFP_ATOMIC);
-	spin_unlock_irqrestore(&command_info->lock, flags);
 	if (result)
 		dbg("%s - failed resubmitting read urb, error %d", __FUNCTION__, result);
 }
@@ -1029,6 +1032,7 @@ static void whiteheat_read_callback(struct urb *urb)
 	struct whiteheat_urb_wrap *wrap;
 	unsigned char *data = urb->transfer_buffer;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -1042,8 +1046,9 @@ static void whiteheat_read_callback(struct urb *urb)
 	list_del(&wrap->list);
 	spin_unlock(&info->lock);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		spin_lock(&info->lock);
 		list_add(&wrap->list, &info->rx_urbs_free);
 		spin_unlock(&info->lock);
@@ -1070,6 +1075,7 @@ static void whiteheat_write_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct whiteheat_urb_wrap *wrap;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -1083,8 +1089,9 @@ static void whiteheat_write_callback(struct urb *urb)
 	list_move(&wrap->list, &info->tx_urbs_free);
 	spin_unlock(&info->lock);
 
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -1095,20 +1102,20 @@ static void whiteheat_write_callback(struct urb *urb)
 /*****************************************************************************
  * Connect Tech's White Heat firmware interface
  *****************************************************************************/
-static int firm_send_command (struct usb_serial_port *port, __u8 command, __u8 *data, __u8 datasize)
+static int firm_send_command(struct usb_serial_port *port, __u8 command, __u8 *data, __u8 datasize)
 {
 	struct usb_serial_port *command_port;
 	struct whiteheat_command_private *command_info;
 	struct whiteheat_private *info;
 	__u8 *transfer_buffer;
 	int retval = 0;
-	unsigned long flags;
+	int t;
 
 	dbg("%s - command %d", __FUNCTION__, command);
 
 	command_port = port->serial->port[COMMAND_PORT];
 	command_info = usb_get_serial_port_data(command_port);
-	spin_lock_irqsave(&command_info->lock, flags);
+	mutex_lock(&command_info->mutex);
 	command_info->command_finished = false;
 	
 	transfer_buffer = (__u8 *)command_port->write_urb->transfer_buffer;
@@ -1116,18 +1123,17 @@ static int firm_send_command (struct usb_serial_port *port, __u8 command, __u8 *
 	memcpy (&transfer_buffer[1], data, datasize);
 	command_port->write_urb->transfer_buffer_length = datasize + 1;
 	command_port->write_urb->dev = port->serial->dev;
-	retval = usb_submit_urb (command_port->write_urb, GFP_KERNEL);
+	retval = usb_submit_urb (command_port->write_urb, GFP_NOIO);
 	if (retval) {
 		dbg("%s - submit urb failed", __FUNCTION__);
 		goto exit;
 	}
-	spin_unlock_irqrestore(&command_info->lock, flags);
 
 	/* wait for the command to complete */
-	wait_event_interruptible_timeout(command_info->wait_command,
+	t = wait_event_timeout(command_info->wait_command,
 		(bool)command_info->command_finished, COMMAND_TIMEOUT);
-
-	spin_lock_irqsave(&command_info->lock, flags);
+	if (!t)
+		usb_kill_urb(command_port->write_urb);
 
 	if (command_info->command_finished == false) {
 		dbg("%s - command timed out.", __FUNCTION__);
@@ -1152,7 +1158,7 @@ static int firm_send_command (struct usb_serial_port *port, __u8 command, __u8 *
 	}
 
 exit:
-	spin_unlock_irqrestore(&command_info->lock, flags);
+	mutex_unlock(&command_info->mutex);
 	return retval;
 }
 
@@ -1305,12 +1311,11 @@ static int start_command_port(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
 	struct whiteheat_command_private *command_info;
-	unsigned long flags;
 	int retval = 0;
 	
 	command_port = serial->port[COMMAND_PORT];
 	command_info = usb_get_serial_port_data(command_port);
-	spin_lock_irqsave(&command_info->lock, flags);
+	mutex_lock(&command_info->mutex);
 	if (!command_info->port_running) {
 		/* Work around HCD bugs */
 		usb_clear_halt(serial->dev, command_port->read_urb->pipe);
@@ -1325,7 +1330,7 @@ static int start_command_port(struct usb_serial *serial)
 	command_info->port_running++;
 
 exit:
-	spin_unlock_irqrestore(&command_info->lock, flags);
+	mutex_unlock(&command_info->mutex);
 	return retval;
 }
 
@@ -1334,15 +1339,14 @@ static void stop_command_port(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
 	struct whiteheat_command_private *command_info;
-	unsigned long flags;
 
 	command_port = serial->port[COMMAND_PORT];
 	command_info = usb_get_serial_port_data(command_port);
-	spin_lock_irqsave(&command_info->lock, flags);
+	mutex_lock(&command_info->mutex);
 	command_info->port_running--;
 	if (!command_info->port_running)
 		usb_kill_urb(command_port->read_urb);
-	spin_unlock_irqrestore(&command_info->lock, flags);
+	mutex_unlock(&command_info->mutex);
 }
 
 
@@ -1363,17 +1367,23 @@ static int start_port_read(struct usb_serial_port *port)
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
 		urb->dev = port->serial->dev;
+		spin_unlock_irqrestore(&info->lock, flags);
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 		if (retval) {
+			spin_lock_irqsave(&info->lock, flags);
 			list_add(tmp, &info->rx_urbs_free);
 			list_for_each_safe(tmp, tmp2, &info->rx_urbs_submitted) {
 				wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 				urb = wrap->urb;
+				list_del(tmp);
+				spin_unlock_irqrestore(&info->lock, flags);
 				usb_kill_urb(urb);
-				list_move(tmp, &info->rx_urbs_free);
+				spin_lock_irqsave(&info->lock, flags);
+				list_add(tmp, &info->rx_urbs_free);
 			}
 			break;
 		}
+		spin_lock_irqsave(&info->lock, flags);
 		list_add(tmp, &info->rx_urbs_submitted);
 	}
 

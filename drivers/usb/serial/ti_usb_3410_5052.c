@@ -1112,22 +1112,24 @@ static void ti_interrupt_callback(struct urb *urb)
 	int length = urb->actual_length;
 	int port_number;
 	int function;
-	int status;
+	int status = urb->status;
+	int retval;
 	__u8 msr;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		dbg("%s - urb shutting down, %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down, %d", __FUNCTION__, status);
 		tdev->td_urb_error = 1;
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n", __FUNCTION__, urb->status);
+		dev_err(dev, "%s - nonzero urb status, %d\n",
+			__FUNCTION__, status);
 		tdev->td_urb_error = 1;
 		goto exit;
 	}
@@ -1175,9 +1177,10 @@ static void ti_interrupt_callback(struct urb *urb)
 	}
 
 exit:
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
-		dev_err(dev, "%s - resubmit interrupt urb failed, %d\n", __FUNCTION__, status);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		dev_err(dev, "%s - resubmit interrupt urb failed, %d\n",
+			__FUNCTION__, retval);
 }
 
 
@@ -1186,30 +1189,32 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;
 	struct device *dev = &urb->dev->dev;
-	int status = 0;
+	int status = urb->status;
+	int retval = 0;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		dbg("%s - urb shutting down, %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down, %d", __FUNCTION__, status);
 		tport->tp_tdev->td_urb_error = 1;
 		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n", __FUNCTION__, urb->status );
+		dev_err(dev, "%s - nonzero urb status, %d\n",
+			__FUNCTION__, status );
 		tport->tp_tdev->td_urb_error = 1;
 		wake_up_interruptible(&tport->tp_write_wait);
 	}
 
-	if (urb->status == -EPIPE)
+	if (status == -EPIPE)
 		goto exit;
 
-	if (urb->status) {
+	if (status) {
 		dev_err(dev, "%s - stopping read!\n", __FUNCTION__);
 		return;
 	}
@@ -1234,13 +1239,14 @@ exit:
 	spin_lock(&tport->tp_lock);
 	if (tport->tp_read_urb_state == TI_READ_URB_RUNNING) {
 		urb->dev = port->serial->dev;
-		status = usb_submit_urb(urb, GFP_ATOMIC);
+		retval = usb_submit_urb(urb, GFP_ATOMIC);
 	} else if (tport->tp_read_urb_state == TI_READ_URB_STOPPING) {
 		tport->tp_read_urb_state = TI_READ_URB_STOPPED;
 	}
 	spin_unlock(&tport->tp_lock);
-	if (status)
-		dev_err(dev, "%s - resubmit read urb failed, %d\n", __FUNCTION__, status);
+	if (retval)
+		dev_err(dev, "%s - resubmit read urb failed, %d\n",
+			__FUNCTION__, retval);
 }
 
 
@@ -1249,23 +1255,25 @@ static void ti_bulk_out_callback(struct urb *urb)
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;
 	struct device *dev = &urb->dev->dev;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	tport->tp_write_urb_in_use = 0;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		dbg("%s - urb shutting down, %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down, %d", __FUNCTION__, status);
 		tport->tp_tdev->td_urb_error = 1;
 		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n", __FUNCTION__, urb->status);
+		dev_err(dev, "%s - nonzero urb status, %d\n",
+			__FUNCTION__, status);
 		tport->tp_tdev->td_urb_error = 1;
 		wake_up_interruptible(&tport->tp_write_wait);
 	}

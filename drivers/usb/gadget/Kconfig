@@ -42,6 +42,20 @@ config USB_GADGET
 	   For more information, see <http://www.linux-usb.org/gadget> and
 	   the kernel DocBook documentation for this API.
 
+config USB_GADGET_DEBUG
+	boolean "Debugging messages"
+	depends on USB_GADGET && DEBUG_KERNEL && EXPERIMENTAL
+	help
+	   Many controller and gadget drivers will print some debugging
+	   messages if you use this option to ask for those messages.
+
+	   Avoid enabling these messages, even if you're actively
+	   debugging such a driver.  Many drivers will emit so many
+	   messages that the driver timings are affected, which will
+	   either create new failure modes or remove the one you're
+	   trying to track down.  Never enable these messages for a
+	   production build.
+
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files"
 	depends on USB_GADGET && PROC_FS
@@ -208,6 +222,27 @@ config USB_OTG
 
 	   Select this only if your OMAP board has a Mini-AB connector.
 
+config USB_GADGET_S3C2410
+	boolean "S3C2410 USB Device Controller"
+	depends on ARCH_S3C2410
+	help
+	  Samsung's S3C2410 is an ARM-4 processor with an integrated
+	  full speed USB 1.1 device controller.  It has 4 configurable
+	  endpoints, as well as endpoint zero (for control transfers).
+
+	  This driver has been tested on the S3C2410, S3C2412, and
+	  S3C2440 processors.
+
+config USB_S3C2410
+	tristate
+	depends on USB_GADGET_S3C2410
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
+config USB_S3C2410_DEBUG
+	boolean "S3C2410 udc debug messages"
+	depends on USB_GADGET_S3C2410
+
 config USB_GADGET_AT91
 	boolean "AT91 USB Device Port"
 	depends on ARCH_AT91 && !ARCH_AT91SAM9RL
@@ -225,6 +260,24 @@ config USB_AT91
 	tristate
 	depends on USB_GADGET_AT91
 	default USB_GADGET
+
+config USB_GADGET_M66592
+	boolean "M66592 driver"
+	select USB_GADGET_DUALSPEED
+	help
+	   M66592 is a USB 2.0 peripheral controller.
+
+	   It has seven configurable endpoints, and endpoint zero.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "m66592_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_M66592
+	tristate
+	depends on USB_GADGET_M66592
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 config USB_GADGET_DUMMY_HCD
 	boolean "Dummy HCD (DEVELOPMENT)"

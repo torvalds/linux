@@ -220,6 +220,8 @@ static void mon_bus_remove(struct usb_bus *ubus)
 	list_del(&mbus->bus_link);
 	if (mbus->text_inited)
 		mon_text_del(mbus);
+	if (mbus->bin_inited)
+		mon_bin_del(mbus);
 
 	mon_dissolve(mbus, ubus);
 	kref_put(&mbus->ref, mon_bus_drop);
@@ -301,8 +303,8 @@ static void mon_bus_init(struct usb_bus *ubus)
 	mbus->u_bus = ubus;
 	ubus->mon_bus = mbus;
 
-	mbus->text_inited = mon_text_add(mbus, ubus->busnum);
-	// mon_bin_add(...)
+	mbus->text_inited = mon_text_add(mbus, ubus);
+	mbus->bin_inited = mon_bin_add(mbus, ubus);
 
 	mutex_lock(&mon_lock);
 	list_add_tail(&mbus->bus_link, &mon_buses);
@@ -321,8 +323,8 @@ static void mon_bus0_init(void)
 	spin_lock_init(&mbus->lock);
 	INIT_LIST_HEAD(&mbus->r_list);
 
-	mbus->text_inited = mon_text_add(mbus, 0);
-	// mbus->bin_inited = mon_bin_add(mbus, 0);
+	mbus->text_inited = mon_text_add(mbus, NULL);
+	mbus->bin_inited = mon_bin_add(mbus, NULL);
 }
 
 /*
@@ -403,6 +405,8 @@ static void __exit mon_exit(void)
 
 		if (mbus->text_inited)
 			mon_text_del(mbus);
+		if (mbus->bin_inited)
+			mon_bin_del(mbus);
 
 		/*
 		 * This never happens, because the open/close paths in
@@ -423,6 +427,8 @@ static void __exit mon_exit(void)
 	mbus = &mon_bus0;
 	if (mbus->text_inited)
 		mon_text_del(mbus);
+	if (mbus->bin_inited)
+		mon_bin_del(mbus);
 
 	mutex_unlock(&mon_lock);
 

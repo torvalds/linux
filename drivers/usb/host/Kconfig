@@ -69,8 +69,20 @@ config USB_EHCI_TT_NEWSCHED
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD
-	default n
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX)
+	default y
+
+config USB_EHCI_BIG_ENDIAN_DESC
+	bool
+	depends on USB_EHCI_HCD && 440EPX
+	default y
+
+config USB_EHCI_FSL
+	bool
+	select USB_EHCI_ROOT_HUB_TT
+	default y if MPC834x || PPC_MPC831x
+	---help---
+	  Variation of ARC USB block used in some Freescale chips.
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
@@ -223,4 +235,16 @@ config USB_SL811_CS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called "sl811_cs".
+
+config USB_R8A66597_HCD
+	tristate "R8A66597 HCD suppoort"
+	depends on USB
+	help
+	  The R8A66597 is a USB 2.0 host and peripheral controller.
+
+	  Enable this option if your board has this chip, and you want
+	  to use it as a host controller.  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called r8a66597-hcd.
 

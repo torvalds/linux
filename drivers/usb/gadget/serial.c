@@ -2215,7 +2215,7 @@ static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
  *
  * Free the buffer and all associated memory.
  */
-void gs_buf_free(struct gs_buf *gb)
+static void gs_buf_free(struct gs_buf *gb)
 {
 	if (gb) {
 		kfree(gb->buf_buf);
@@ -2228,7 +2228,7 @@ void gs_buf_free(struct gs_buf *gb)
  *
  * Clear out all data in the circular buffer.
  */
-void gs_buf_clear(struct gs_buf *gb)
+static void gs_buf_clear(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		gb->buf_get = gb->buf_put;
@@ -2241,7 +2241,7 @@ void gs_buf_clear(struct gs_buf *gb)
  * Return the number of bytes of data available in the circular
  * buffer.
  */
-unsigned int gs_buf_data_avail(struct gs_buf *gb)
+static unsigned int gs_buf_data_avail(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		return (gb->buf_size + gb->buf_put - gb->buf_get) % gb->buf_size;
@@ -2255,7 +2255,7 @@ unsigned int gs_buf_data_avail(struct gs_buf *gb)
  * Return the number of bytes of space available in the circular
  * buffer.
  */
-unsigned int gs_buf_space_avail(struct gs_buf *gb)
+static unsigned int gs_buf_space_avail(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		return (gb->buf_size + gb->buf_get - gb->buf_put - 1) % gb->buf_size;
@@ -2271,7 +2271,8 @@ unsigned int gs_buf_space_avail(struct gs_buf *gb)
  *
  * Return the number of bytes copied.
  */
-unsigned int gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
+static unsigned int
+gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
 {
 	unsigned int len;
 
@@ -2309,7 +2310,8 @@ unsigned int gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
  *
  * Return the number of bytes copied.
  */
-unsigned int gs_buf_get(struct gs_buf *gb, char *buf, unsigned int count)
+static unsigned int
+gs_buf_get(struct gs_buf *gb, char *buf, unsigned int count)
 {
 	unsigned int len;
 

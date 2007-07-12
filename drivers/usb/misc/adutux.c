@@ -108,8 +108,6 @@ struct adu_device {
 	struct urb*		interrupt_out_urb;
 };
 
-/* prevent races between open() and disconnect */
-static DEFINE_MUTEX(disconnect_mutex);
 static struct usb_driver adu_driver;
 
 static void adu_debug_data(int level, const char *function, int size,
@@ -256,8 +254,6 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
-	mutex_lock(&disconnect_mutex);
-
 	interface = usb_find_interface(&adu_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d",
@@ -306,7 +302,6 @@ static int adu_open(struct inode *inode, struct file *file)
 	up(&dev->sem);
 
 exit_no_device:
-	mutex_unlock(&disconnect_mutex);
 	dbg(2,"%s : leave, return value %d ", __FUNCTION__, retval);
 
 	return retval;
@@ -318,12 +313,6 @@ static int adu_release_internal(struct adu_device *dev)
 
 	dbg(2," %s : enter", __FUNCTION__);
 
-	if (dev->udev == NULL) {
-		/* the device was unplugged before the file was released */
-		adu_delete(dev);
-		goto exit;
-	}
-
 	/* decrement our usage count for the device */
 	--dev->open_count;
 	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
@@ -332,7 +321,6 @@ static int adu_release_internal(struct adu_device *dev)
 		dev->open_count = 0;
 	}
 
-exit:
 	dbg(2," %s : leave", __FUNCTION__);
 	return retval;
 }
@@ -367,8 +355,15 @@ static int adu_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	/* do the work */
-	retval = adu_release_internal(dev);
+	if (dev->udev == NULL) {
+		/* the device was unplugged before the file was released */
+		up(&dev->sem);
+		adu_delete(dev);
+		dev = NULL;
+	} else {
+		/* do the work */
+		retval = adu_release_internal(dev);
+	}
 
 exit:
 	if (dev)
@@ -831,18 +826,16 @@ static void adu_disconnect(struct usb_interface *interface)
 
 	dbg(2," %s : enter", __FUNCTION__);
 
-	mutex_lock(&disconnect_mutex); /* not interruptible */
-
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
-
-	down(&dev->sem); /* not interruptible */
 
 	minor = dev->minor;
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &adu_class);
 	dev->minor = 0;
+
+	down(&dev->sem); /* not interruptible */
 
 	/* if the device is not opened, then we clean up right now */
 	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
@@ -853,8 +846,6 @@ static void adu_disconnect(struct usb_interface *interface)
 		dev->udev = NULL;
 		up(&dev->sem);
 	}
-
-	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&interface->dev, "ADU device adutux%d now disconnected",
 		 (minor - ADU_MINOR_BASE));

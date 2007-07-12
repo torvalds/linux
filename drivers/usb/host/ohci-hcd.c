@@ -35,15 +35,13 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
-#ifdef CONFIG_PPC_PS3
-#include <asm/firmware.h>
-#endif
 
 #include "../core/hcd.h"
 
@@ -82,6 +80,8 @@ static const char	hcd_name [] = "ohci_hcd";
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
+static int ohci_restart (struct ohci_hcd *ohci);
+static void ohci_quirk_nec_worker (struct work_struct *work);
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -510,15 +510,7 @@ static int ohci_run (struct ohci_hcd *ohci)
 	// flush the writes
 	(void) ohci_readl (ohci, &ohci->regs->control);
 	msleep(temp);
-	temp = roothub_a (ohci);
-	if (!(temp & RH_A_NPS)) {
-		/* power down each port */
-		for (temp = 0; temp < ohci->num_ports; temp++)
-			ohci_writel (ohci, RH_PS_LSDA,
-				&ohci->regs->roothub.portstatus [temp]);
-	}
-	// flush those writes
-	(void) ohci_readl (ohci, &ohci->regs->control);
+
 	memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
 
 	/* 2msec timelimit here means no irqs/preempt */
@@ -659,9 +651,20 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_UE) {
-		disable (ohci);
-		ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
 		// e.g. due to PCI Master/Target Abort
+		if (ohci->flags & OHCI_QUIRK_NEC) {
+			/* Workaround for a silicon bug in some NEC chips used
+			 * in Apple's PowerBooks. Adapted from Darwin code.
+			 */
+			ohci_err (ohci, "OHCI Unrecoverable Error, scheduling NEC chip restart\n");
+
+			ohci_writel (ohci, OHCI_INTR_UE, &regs->intrdisable);
+
+			schedule_work (&ohci->nec_work);
+		} else {
+			disable (ohci);
+			ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
+		}
 
 		ohci_dump (ohci, 1);
 		ohci_usb_reset (ohci);
@@ -763,23 +766,16 @@ static void ohci_stop (struct usb_hcd *hcd)
 /*-------------------------------------------------------------------------*/
 
 /* must not be called from interrupt context */
-
-#ifdef	CONFIG_PM
-
 static int ohci_restart (struct ohci_hcd *ohci)
 {
 	int temp;
 	int i;
 	struct urb_priv *priv;
 
-	/* mark any devices gone, so they do nothing till khubd disconnects.
-	 * recycle any "live" eds/tds (and urbs) right away.
-	 * later, khubd disconnect processing will recycle the other state,
-	 * (either as disconnect/reconnect, or maybe someday as a reset).
-	 */
 	spin_lock_irq(&ohci->lock);
 	disable (ohci);
-	usb_root_hub_lost_power(ohci_to_hcd(ohci)->self.root_hub);
+
+	/* Recycle any "live" eds/tds (and urbs). */
 	if (!list_empty (&ohci->pending))
 		ohci_dbg(ohci, "abort schedule...\n");
 	list_for_each_entry (priv, &ohci->pending, pending) {
@@ -826,20 +822,31 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	if ((temp = ohci_run (ohci)) < 0) {
 		ohci_err (ohci, "can't restart, %d\n", temp);
 		return temp;
-	} else {
-		/* here we "know" root ports should always stay powered,
-		 * and that if we try to turn them back on the root hub
-		 * will respond to CSC processing.
-		 */
-		i = ohci->num_ports;
-		while (i--)
-			ohci_writel (ohci, RH_PS_PSS,
-				&ohci->regs->roothub.portstatus [i]);
-		ohci_dbg (ohci, "restart complete\n");
 	}
+	ohci_dbg(ohci, "restart complete\n");
 	return 0;
 }
-#endif
+
+/*-------------------------------------------------------------------------*/
+
+/* NEC workaround */
+static void ohci_quirk_nec_worker(struct work_struct *work)
+{
+	struct ohci_hcd *ohci = container_of(work, struct ohci_hcd, nec_work);
+	int status;
+
+	status = ohci_init(ohci);
+	if (status != 0) {
+		ohci_err(ohci, "Restarting NEC controller failed "
+			 "in ohci_init, %d\n", status);
+		return;
+	}
+
+	status = ohci_restart(ohci);
+	if (status != 0)
+		ohci_err(ohci, "Restarting NEC controller failed "
+			 "in ohci_restart, %d\n", status);
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -917,7 +924,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PPC_PS3
 #include "ohci-ps3.c"
-#define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_sb_driver
+#define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\
@@ -940,12 +947,9 @@ static int __init ohci_hcd_mod_init(void)
 		sizeof (struct ed), sizeof (struct td));
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		retval = ps3_system_bus_driver_register(
-				&PS3_SYSTEM_BUS_DRIVER);
-		if (retval < 0)
-			goto error_ps3;
-	}
+	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
+	if (retval < 0)
+		goto error_ps3;
 #endif
 
 #ifdef PLATFORM_DRIVER
@@ -991,8 +995,7 @@ static int __init ohci_hcd_mod_init(void)
  error_platform:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
-		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
 	return retval;
@@ -1014,8 +1017,7 @@ static void __exit ohci_hcd_mod_exit(void)
 	platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
-		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);

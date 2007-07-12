@@ -19,6 +19,7 @@
 
 #include <linux/usb.h>
 #include "usb.h"
+#include "hcd.h"
 
 static inline const char *plural(int n)
 {
@@ -193,16 +194,34 @@ static void generic_disconnect(struct usb_device *udev)
 
 static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
-	/* USB devices enter SUSPEND state through their hubs, but can be
-	 * marked for FREEZE as soon as their children are already idled.
-	 * But those semantics are useless, so we equate the two (sigh).
+	int rc;
+
+	/* Normal USB devices suspend through their upstream port.
+	 * Root hubs don't have upstream ports to suspend,
+	 * so we have to shut down their downstream HC-to-USB
+	 * interfaces manually by doing a bus (or "global") suspend.
 	 */
-	return usb_port_suspend(udev);
+	if (!udev->parent)
+		rc = hcd_bus_suspend(udev);
+	else
+		rc = usb_port_suspend(udev);
+	return rc;
 }
 
 static int generic_resume(struct usb_device *udev)
 {
-	return usb_port_resume(udev);
+	int rc;
+
+	/* Normal USB devices resume/reset through their upstream port.
+	 * Root hubs don't have upstream ports to resume or reset,
+	 * so we have to start up their downstream HC-to-USB
+	 * interfaces manually by doing a bus (or "global") resume.
+	 */
+	if (!udev->parent)
+		rc = hcd_bus_resume(udev);
+	else
+		rc = usb_port_resume(udev);
+	return rc;
 }
 
 #endif	/* CONFIG_PM */

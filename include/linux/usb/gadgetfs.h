@@ -1,3 +1,5 @@
+#ifndef __LINUX_USB_GADGETFS_H
+#define __LINUX_USB_GADGETFS_H
 
 #include <asm/types.h>
 #include <asm/ioctl.h>
@@ -7,11 +9,12 @@
 /*
  * Filesystem based user-mode API to USB Gadget controller hardware
  *
- * Almost everything can be done with only read and write operations,
+ * Other than ep0 operations, most things are done by read() and write()
  * on endpoint files found in one directory.  They are configured by
  * writing descriptors, and then may be used for normal stream style
  * i/o requests.  When ep0 is configured, the device can enumerate;
- * when it's closed, the device disconnects from usb.
+ * when it's closed, the device disconnects from usb.  Operations on
+ * ep0 require ioctl() operations.
  *
  * Configuration and device descriptors get written to /dev/gadget/$CHIP,
  * which may then be used to read usb_gadgetfs_event structs.  The driver
@@ -21,9 +24,9 @@
  */
 
 /*
- * Events are delivered on the ep0 file descriptor, if the user mode driver
+ * Events are delivered on the ep0 file descriptor, when the user mode driver
  * reads from this file descriptor after writing the descriptors.  Don't
- * stop polling this descriptor, if you write that kind of driver.
+ * stop polling this descriptor.
  */
 
 enum usb_gadgetfs_event_type {
@@ -36,8 +39,10 @@ enum usb_gadgetfs_event_type {
 	// and likely more !
 };
 
+/* NOTE:  this structure must stay the same size and layout on
+ * both 32-bit and 64-bit kernels.
+ */
 struct usb_gadgetfs_event {
-	enum usb_gadgetfs_event_type	type;
 	union {
 		// NOP, DISCONNECT, SUSPEND: nothing
 		// ... some hardware can't report disconnection
@@ -46,19 +51,20 @@ struct usb_gadgetfs_event {
 		enum usb_device_speed	speed;
 
 		// SETUP: packet; DATA phase i/o precedes next event
-		// (setup.bmRequestType & USB_DIR_IN) flags direction 
+		// (setup.bmRequestType & USB_DIR_IN) flags direction
 		// ... includes SET_CONFIGURATION, SET_INTERFACE
 		struct usb_ctrlrequest	setup;
 	} u;
+	enum usb_gadgetfs_event_type	type;
 };
 
 
 /* endpoint ioctls */
 
 /* IN transfers may be reported to the gadget driver as complete
- * 	when the fifo is loaded, before the host reads the data;
+ *	when the fifo is loaded, before the host reads the data;
  * OUT transfers may be reported to the host's "client" driver as
- * 	complete when they're sitting in the FIFO unread.
+ *	complete when they're sitting in the FIFO unread.
  * THIS returns how many bytes are "unclaimed" in the endpoint fifo
  * (needed for precise fault handling, when the hardware allows it)
  */
@@ -72,4 +78,4 @@ struct usb_gadgetfs_event {
  */
 #define	GADGETFS_CLEAR_HALT	_IO('g',3)
 
-
+#endif /* __LINUX_USB_GADGETFS_H */

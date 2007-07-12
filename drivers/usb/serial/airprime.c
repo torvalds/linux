@@ -82,12 +82,13 @@ static void airprime_read_bulk_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 		return;
 	}
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
@@ -109,6 +110,7 @@ static void airprime_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct airprime_private *priv = usb_get_serial_port_data(port);
+	int status = urb->status;
 	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -116,9 +118,9 @@ static void airprime_write_bulk_callback(struct urb *urb)
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
-	if (urb->status)
+	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
 	spin_unlock_irqrestore(&priv->lock, flags);

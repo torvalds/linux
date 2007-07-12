@@ -277,7 +277,7 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define DEV_CONFIG_CDC
 #endif
 
-#ifdef CONFIG_USB_GADGET_HUSB2DEV
+#ifdef CONFIG_USB_GADGET_ATMEL_USBA
 #define DEV_CONFIG_CDC
 #endif
 
@@ -292,13 +292,17 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define	DEV_CONFIG_SUBSET
 #endif
 
-#ifdef CONFIG_USB_GADGET_SH
+#ifdef CONFIG_USB_GADGET_SUPERH
 #define	DEV_CONFIG_SUBSET
 #endif
 
 #ifdef CONFIG_USB_GADGET_SA1100
 /* use non-CDC for backwards compatibility */
 #define	DEV_CONFIG_SUBSET
+#endif
+
+#ifdef CONFIG_USB_GADGET_M66592
+#define DEV_CONFIG_CDC
 #endif
 
 

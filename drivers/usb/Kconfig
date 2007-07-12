@@ -2,8 +2,11 @@
 # USB device configuration
 #
 
-menu "USB support"
+menuconfig USB_SUPPORT
+	bool "USB support"
 	depends on HAS_IOMEM
+
+if USB_SUPPORT
 
 # Host-side USB depends on having a host controller
 # NOTE:  dummy_hcd is always an option, but it's ignored here ...
@@ -12,6 +15,7 @@ config USB_ARCH_HAS_HCD
 	boolean
 	default y if USB_ARCH_HAS_OHCI
 	default y if USB_ARCH_HAS_EHCI
+	default y if PCMCIA				# sl811_cs
 	default y if ARM				# SL-811
 	default PCI
 
@@ -130,5 +134,4 @@ source "drivers/usb/atm/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
 
-endmenu
-
+endif # USB_SUPPORT

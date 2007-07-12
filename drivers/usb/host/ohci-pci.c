@@ -111,6 +111,18 @@ static int ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
 #endif
 }
 
+/* Check for NEC chip and apply quirk for allegedly lost interrupts.
+ */
+static int ohci_quirk_nec(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	ohci->flags |= OHCI_QUIRK_NEC;
+	ohci_dbg (ohci, "enabled NEC chipset lost interrupt quirk\n");
+
+	return 0;
+}
+
 /* List of quirks for OHCI */
 static const struct pci_device_id ohci_pci_quirks[] = {
 	{
@@ -132,6 +144,10 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, 0x01b6),
 		.driver_data = (unsigned long)ohci_quirk_toshiba_scc,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB),
+		.driver_data = (unsigned long)ohci_quirk_nec,
 	},
 	{
 		/* Toshiba portege 4000 */
@@ -202,6 +218,42 @@ static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 	return ret;
 }
 
+#if	defined(CONFIG_USB_PERSIST) && (defined(CONFIG_USB_EHCI_HCD) || \
+		defined(CONFIG_USB_EHCI_HCD_MODULE))
+
+/* Following a power loss, we must prepare to regain control of the ports
+ * we used to own.  This means turning on the port power before ehci-hcd
+ * tries to switch ownership.
+ *
+ * This isn't a 100% perfect solution.  On most systems the OHCI controllers
+ * lie at lower PCI addresses than the EHCI controller, so they will be
+ * discovered (and hence resumed) first.  But there is no guarantee things
+ * will always work this way.  If the EHCI controller is resumed first and
+ * the OHCI ports are unpowered, then the handover will fail.
+ */
+static void prepare_for_handover(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+	int		port;
+
+	/* Here we "know" root ports should always stay powered */
+	ohci_dbg(ohci, "powerup ports\n");
+	for (port = 0; port < ohci->num_ports; port++)
+		ohci_writel(ohci, RH_PS_PPS,
+				&ohci->regs->roothub.portstatus[port]);
+
+	/* Flush those writes */
+	ohci_readl(ohci, &ohci->regs->control);
+	msleep(20);
+}
+
+#else
+
+static inline void prepare_for_handover(struct usb_hcd *hcd)
+{ }
+
+#endif	/* CONFIG_USB_PERSIST etc. */
+
 #ifdef	CONFIG_PM
 
 static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
@@ -241,7 +293,10 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 static int ohci_pci_resume (struct usb_hcd *hcd)
 {
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	usb_hcd_resume_root_hub(hcd);
+
+	/* FIXME: we should try to detect loss of VBUS power here */
+	prepare_for_handover(hcd);
+
 	return 0;
 }
 

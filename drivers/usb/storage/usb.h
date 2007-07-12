@@ -144,6 +144,7 @@ struct us_data {
 	unsigned char		*sensebuf;	 /* sense data buffer	 */
 	dma_addr_t		cr_dma;		 /* buffer DMA addresses */
 	dma_addr_t		iobuf_dma;
+	struct task_struct	*ctl_thread;	 /* the control thread   */
 
 	/* mutual exclusion and synchronization structures */
 	struct semaphore	sema;		 /* to sleep thread on	    */

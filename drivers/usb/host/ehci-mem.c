@@ -27,7 +27,7 @@
  *	  need to use dma_pool or dma_alloc_coherent
  *	- driver buffers, read/written by HC ... single shot DMA mapped
  *
- * There's also PCI "register" data, which is memory mapped.
+ * There's also "register" data (e.g. PCI or SOC), which is memory mapped.
  * No memory seen by this driver is pageable.
  */
 
@@ -35,13 +35,14 @@
 
 /* Allocate the key transfer structures from the previously allocated pool */
 
-static inline void ehci_qtd_init (struct ehci_qtd *qtd, dma_addr_t dma)
+static inline void ehci_qtd_init(struct ehci_hcd *ehci, struct ehci_qtd *qtd,
+				  dma_addr_t dma)
 {
 	memset (qtd, 0, sizeof *qtd);
 	qtd->qtd_dma = dma;
 	qtd->hw_token = cpu_to_le32 (QTD_STS_HALT);
-	qtd->hw_next = EHCI_LIST_END;
-	qtd->hw_alt_next = EHCI_LIST_END;
+	qtd->hw_next = EHCI_LIST_END(ehci);
+	qtd->hw_alt_next = EHCI_LIST_END(ehci);
 	INIT_LIST_HEAD (&qtd->qtd_list);
 }
 
@@ -52,7 +53,7 @@ static struct ehci_qtd *ehci_qtd_alloc (struct ehci_hcd *ehci, gfp_t flags)
 
 	qtd = dma_pool_alloc (ehci->qtd_pool, flags, &dma);
 	if (qtd != NULL) {
-		ehci_qtd_init (qtd, dma);
+		ehci_qtd_init(ehci, qtd, dma);
 	}
 	return qtd;
 }
@@ -63,9 +64,8 @@ static inline void ehci_qtd_free (struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 }
 
 
-static void qh_destroy (struct kref *kref)
+static void qh_destroy(struct ehci_qh *qh)
 {
-	struct ehci_qh *qh = container_of(kref, struct ehci_qh, kref);
 	struct ehci_hcd *ehci = qh->ehci;
 
 	/* clean qtds first, and know this is not linked */
@@ -89,11 +89,14 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 		return qh;
 
 	memset (qh, 0, sizeof *qh);
-	kref_init(&qh->kref);
+	qh->refcount = 1;
 	qh->ehci = ehci;
 	qh->qh_dma = dma;
 	// INIT_LIST_HEAD (&qh->qh_list);
 	INIT_LIST_HEAD (&qh->qtd_list);
+#ifdef CONFIG_CPU_FREQ
+	INIT_LIST_HEAD (&qh->split_intr_qhs);
+#endif
 
 	/* dummy td enables safe urb queuing */
 	qh->dummy = ehci_qtd_alloc (ehci, flags);
@@ -108,13 +111,15 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 /* to share a qh (cpu threads, or hc) */
 static inline struct ehci_qh *qh_get (struct ehci_qh *qh)
 {
-	kref_get(&qh->kref);
+	WARN_ON(!qh->refcount);
+	qh->refcount++;
 	return qh;
 }
 
 static inline void qh_put (struct ehci_qh *qh)
 {
-	kref_put(&qh->kref, qh_destroy);
+	if (!--qh->refcount)
+		qh_destroy(qh);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -217,7 +222,7 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		goto fail;
 	}
 	for (i = 0; i < ehci->periodic_size; i++)
-		ehci->periodic [i] = EHCI_LIST_END;
+		ehci->periodic [i] = EHCI_LIST_END(ehci);
 
 	/* software shadow of hardware table */
 	ehci->pshadow = kcalloc(ehci->periodic_size, sizeof(void *), flags);

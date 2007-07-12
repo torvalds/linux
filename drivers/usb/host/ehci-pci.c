@@ -312,12 +312,13 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	ehci_work(ehci);
 	spin_unlock_irq(&ehci->lock);
 
-	/* here we "know" root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
+
+	/* here we "know" root ports should always stay powered */
+	ehci_port_power(ehci, 1);
+	ehci_handover_companion_ports(ehci);
 
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;

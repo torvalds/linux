@@ -21,6 +21,22 @@
 
 /* definitions used for the EHCI driver */
 
+/*
+ * __hc32 and __hc16 are "Host Controller" types, they may be equivalent to
+ * __leXX (normally) or __beXX (given EHCI_BIG_ENDIAN_DESC), depending on
+ * the host controller implementation.
+ *
+ * To facilitate the strongest possible byte-order checking from "sparse"
+ * and so on, we use __leXX unless that's not practical.
+ */
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
+typedef __u32 __bitwise __hc32;
+typedef __u16 __bitwise __hc16;
+#else
+#define __hc32	__le32
+#define __hc16	__le16
+#endif
+
 /* statistics can be kept for for tuning/monitoring */
 struct ehci_stats {
 	/* irq usage */
@@ -55,6 +71,12 @@ struct ehci_hcd {			/* one per controller */
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
 
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block	cpufreq_transition;
+	int			cpufreq_changing;
+	struct list_head	split_intr_qhs;
+#endif
+
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*reclaim;
@@ -64,7 +86,7 @@ struct ehci_hcd {			/* one per controller */
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024		/* some HCs can do less */
 	unsigned		periodic_size;
-	__le32			*periodic;	/* hw periodic table */
+	__hc32			*periodic;	/* hw periodic table */
 	dma_addr_t		periodic_dma;
 	unsigned		i_thresh;	/* uframes HC might cache */
 
@@ -74,11 +96,14 @@ struct ehci_hcd {			/* one per controller */
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
+
 	/* bit vectors (one bit per port) */
 	unsigned long		bus_suspended;		/* which ports were
 			already suspended at the start of a bus suspend */
 	unsigned long		companion_ports;	/* which ports are
 			dedicated to the companion controller */
+	unsigned long		owned_ports;		/* which ports are
+			owned by the companion during a bus suspend */
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -97,6 +122,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		no_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		big_endian_mmio:1;
+	unsigned		big_endian_desc:1;
 
 	u8			sbrn;		/* packed release number */
 
@@ -276,6 +302,12 @@ struct ehci_regs {
 #define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
 } __attribute__ ((packed));
 
+#define USBMODE		0x68		/* USB Device mode */
+#define USBMODE_SDIS	(1<<3)		/* Stream disable */
+#define USBMODE_BE	(1<<2)		/* BE/LE endianness select */
+#define USBMODE_CM_HC	(3<<0)		/* host controller mode */
+#define USBMODE_CM_IDLE	(0<<0)		/* idle state */
+
 /* Appendix C, Debug port ... intended for use with special "debug devices"
  * that can help if there's no serial console.  (nonstandard enumeration.)
  */
@@ -303,7 +335,7 @@ struct ehci_dbg_port {
 
 /*-------------------------------------------------------------------------*/
 
-#define	QTD_NEXT(dma)	cpu_to_le32((u32)dma)
+#define	QTD_NEXT(ehci, dma)	cpu_to_hc32(ehci, (u32)dma)
 
 /*
  * EHCI Specification 0.95 Section 3.5
@@ -315,9 +347,9 @@ struct ehci_dbg_port {
  */
 struct ehci_qtd {
 	/* first part defined by EHCI spec */
-	__le32			hw_next;	  /* see EHCI 3.5.1 */
-	__le32			hw_alt_next;      /* see EHCI 3.5.2 */
-	__le32			hw_token;         /* see EHCI 3.5.3 */
+	__hc32			hw_next;	/* see EHCI 3.5.1 */
+	__hc32			hw_alt_next;    /* see EHCI 3.5.2 */
+	__hc32			hw_token;       /* see EHCI 3.5.3 */
 #define	QTD_TOGGLE	(1 << 31)	/* data toggle */
 #define	QTD_LENGTH(tok)	(((tok)>>16) & 0x7fff)
 #define	QTD_IOC		(1 << 15)	/* interrupt on complete */
@@ -331,8 +363,13 @@ struct ehci_qtd {
 #define	QTD_STS_MMF	(1 << 2)	/* incomplete split transaction */
 #define	QTD_STS_STS	(1 << 1)	/* split transaction state */
 #define	QTD_STS_PING	(1 << 0)	/* issue PING? */
-	__le32			hw_buf [5];        /* see EHCI 3.5.4 */
-	__le32			hw_buf_hi [5];        /* Appendix B */
+
+#define ACTIVE_BIT(ehci)	cpu_to_hc32(ehci, QTD_STS_ACTIVE)
+#define HALT_BIT(ehci)		cpu_to_hc32(ehci, QTD_STS_HALT)
+#define STATUS_BIT(ehci)	cpu_to_hc32(ehci, QTD_STS_STS)
+
+	__hc32			hw_buf [5];        /* see EHCI 3.5.4 */
+	__hc32			hw_buf_hi [5];        /* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		qtd_dma;		/* qtd address */
@@ -342,26 +379,33 @@ struct ehci_qtd {
 } __attribute__ ((aligned (32)));
 
 /* mask NakCnt+T in qh->hw_alt_next */
-#define QTD_MASK __constant_cpu_to_le32 (~0x1f)
+#define QTD_MASK(ehci)	cpu_to_hc32 (ehci, ~0x1f)
 
 #define IS_SHORT_READ(token) (QTD_LENGTH (token) != 0 && QTD_PID (token) == 1)
 
 /*-------------------------------------------------------------------------*/
 
 /* type tag from {qh,itd,sitd,fstn}->hw_next */
-#define Q_NEXT_TYPE(dma) ((dma) & __constant_cpu_to_le32 (3 << 1))
+#define Q_NEXT_TYPE(ehci,dma)	((dma) & cpu_to_hc32(ehci, 3 << 1))
 
+/*
+ * Now the following defines are not converted using the
+ * __constant_cpu_to_le32() macro anymore, since we have to support
+ * "dynamic" switching between be and le support, so that the driver
+ * can be used on one system with SoC EHCI controller using big-endian
+ * descriptors as well as a normal little-endian PCI EHCI controller.
+ */
 /* values for that type tag */
-#define Q_TYPE_ITD	__constant_cpu_to_le32 (0 << 1)
-#define Q_TYPE_QH	__constant_cpu_to_le32 (1 << 1)
-#define Q_TYPE_SITD	__constant_cpu_to_le32 (2 << 1)
-#define Q_TYPE_FSTN	__constant_cpu_to_le32 (3 << 1)
+#define Q_TYPE_ITD	(0 << 1)
+#define Q_TYPE_QH	(1 << 1)
+#define Q_TYPE_SITD	(2 << 1)
+#define Q_TYPE_FSTN	(3 << 1)
 
 /* next async queue entry, or pointer to interrupt/periodic QH */
-#define	QH_NEXT(dma)	(cpu_to_le32(((u32)dma)&~0x01f)|Q_TYPE_QH)
+#define QH_NEXT(ehci,dma)	(cpu_to_hc32(ehci, (((u32)dma)&~0x01f)|Q_TYPE_QH))
 
 /* for periodic/async schedules and qtd lists, mark end of list */
-#define	EHCI_LIST_END	__constant_cpu_to_le32(1) /* "null pointer" to hw */
+#define EHCI_LIST_END(ehci)	cpu_to_hc32(ehci, 1) /* "null pointer" to hw */
 
 /*
  * Entries in periodic shadow table are pointers to one of four kinds
@@ -376,7 +420,7 @@ union ehci_shadow {
 	struct ehci_itd		*itd;		/* Q_TYPE_ITD */
 	struct ehci_sitd	*sitd;		/* Q_TYPE_SITD */
 	struct ehci_fstn	*fstn;		/* Q_TYPE_FSTN */
-	__le32			*hw_next;	/* (all types) */
+	__hc32			*hw_next;	/* (all types) */
 	void			*ptr;
 };
 
@@ -392,23 +436,27 @@ union ehci_shadow {
 
 struct ehci_qh {
 	/* first part defined by EHCI spec */
-	__le32			hw_next;	 /* see EHCI 3.6.1 */
-	__le32			hw_info1;        /* see EHCI 3.6.2 */
+	__hc32			hw_next;	/* see EHCI 3.6.1 */
+	__hc32			hw_info1;       /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
-	__le32			hw_info2;        /* see EHCI 3.6.2 */
+#define	QH_INACTIVATE	0x00000080
+
+#define INACTIVATE_BIT(ehci)	cpu_to_hc32(ehci, QH_INACTIVATE)
+
+	__hc32			hw_info2;        /* see EHCI 3.6.2 */
 #define	QH_SMASK	0x000000ff
 #define	QH_CMASK	0x0000ff00
 #define	QH_HUBADDR	0x007f0000
 #define	QH_HUBPORT	0x3f800000
 #define	QH_MULT		0xc0000000
-	__le32			hw_current;	 /* qtd list - see EHCI 3.6.4 */
+	__hc32			hw_current;	/* qtd list - see EHCI 3.6.4 */
 
 	/* qtd overlay (hardware parts of a struct ehci_qtd) */
-	__le32			hw_qtd_next;
-	__le32			hw_alt_next;
-	__le32			hw_token;
-	__le32			hw_buf [5];
-	__le32			hw_buf_hi [5];
+	__hc32			hw_qtd_next;
+	__hc32			hw_alt_next;
+	__hc32			hw_token;
+	__hc32			hw_buf [5];
+	__hc32			hw_buf_hi [5];
 
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
@@ -418,7 +466,14 @@ struct ehci_qh {
 	struct ehci_qh		*reclaim;	/* next to reclaim */
 
 	struct ehci_hcd		*ehci;
-	struct kref		kref;
+
+	/*
+	 * Do NOT use atomic operations for QH refcounting. On some CPUs
+	 * (PPC7448 for example), atomic operations cannot be performed on
+	 * memory that is cache-inhibited (i.e. being used for DMA).
+	 * Spinlocks are used to protect all QH fields.
+	 */
+	u32			refcount;
 	unsigned		stamp;
 
 	u8			qh_state;
@@ -437,6 +492,10 @@ struct ehci_qh {
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
 	struct usb_device	*dev;		/* access to TT */
+#ifdef CONFIG_CPU_FREQ
+	struct list_head	split_intr_qhs; /* list of split qhs */
+	__le32			was_active;	/* active bit before "i" set */
+#endif
 } __attribute__ ((aligned (32)));
 
 /*-------------------------------------------------------------------------*/
@@ -445,7 +504,7 @@ struct ehci_qh {
 struct ehci_iso_packet {
 	/* These will be copied to iTD when scheduling */
 	u64			bufp;		/* itd->hw_bufp{,_hi}[pg] |= */
-	__le32			transaction;	/* itd->hw_transaction[i] |= */
+	__hc32			transaction;	/* itd->hw_transaction[i] |= */
 	u8			cross;		/* buf crosses pages */
 	/* for full speed OUT splits */
 	u32			buf1;
@@ -467,8 +526,8 @@ struct ehci_iso_sched {
  */
 struct ehci_iso_stream {
 	/* first two fields match QH, but info1 == 0 */
-	__le32			hw_next;
-	__le32			hw_info1;
+	__hc32			hw_next;
+	__hc32			hw_info1;
 
 	u32			refcount;
 	u8			bEndpointAddress;
@@ -483,7 +542,7 @@ struct ehci_iso_stream {
 	unsigned long		start;		/* jiffies */
 	unsigned long		rescheduled;
 	int			next_uframe;
-	__le32			splits;
+	__hc32			splits;
 
 	/* the rest is derived from the endpoint descriptor,
 	 * trusting urb->interval == f(epdesc->bInterval) and
@@ -497,12 +556,12 @@ struct ehci_iso_stream {
 	unsigned		bandwidth;
 
 	/* This is used to initialize iTD's hw_bufp fields */
-	__le32			buf0;
-	__le32			buf1;
-	__le32			buf2;
+	__hc32			buf0;
+	__hc32			buf1;
+	__hc32			buf2;
 
 	/* this is used to initialize sITD's tt info */
-	__le32			address;
+	__hc32			address;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -515,8 +574,8 @@ struct ehci_iso_stream {
  */
 struct ehci_itd {
 	/* first part defined by EHCI spec */
-	__le32			hw_next;           /* see EHCI 3.3.1 */
-	__le32			hw_transaction [8]; /* see EHCI 3.3.2 */
+	__hc32			hw_next;           /* see EHCI 3.3.1 */
+	__hc32			hw_transaction [8]; /* see EHCI 3.3.2 */
 #define EHCI_ISOC_ACTIVE        (1<<31)        /* activate transfer this slot */
 #define EHCI_ISOC_BUF_ERR       (1<<30)        /* Data buffer error */
 #define EHCI_ISOC_BABBLE        (1<<29)        /* babble detected */
@@ -524,10 +583,10 @@ struct ehci_itd {
 #define	EHCI_ITD_LENGTH(tok)	(((tok)>>16) & 0x0fff)
 #define	EHCI_ITD_IOC		(1 << 15)	/* interrupt on complete */
 
-#define ITD_ACTIVE	__constant_cpu_to_le32(EHCI_ISOC_ACTIVE)
+#define ITD_ACTIVE(ehci)	cpu_to_hc32(ehci, EHCI_ISOC_ACTIVE)
 
-	__le32			hw_bufp [7];	/* see EHCI 3.3.3 */
-	__le32			hw_bufp_hi [7];	/* Appendix B */
+	__hc32			hw_bufp [7];	/* see EHCI 3.3.3 */
+	__hc32			hw_bufp_hi [7];	/* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		itd_dma;	/* for this itd */
@@ -554,11 +613,11 @@ struct ehci_itd {
  */
 struct ehci_sitd {
 	/* first part defined by EHCI spec */
-	__le32			hw_next;
+	__hc32			hw_next;
 /* uses bit field macros above - see EHCI 0.95 Table 3-8 */
-	__le32			hw_fullspeed_ep;	/* EHCI table 3-9 */
-	__le32			hw_uframe;		/* EHCI table 3-10 */
-	__le32			hw_results;		/* EHCI table 3-11 */
+	__hc32			hw_fullspeed_ep;	/* EHCI table 3-9 */
+	__hc32			hw_uframe;		/* EHCI table 3-10 */
+	__hc32			hw_results;		/* EHCI table 3-11 */
 #define	SITD_IOC	(1 << 31)	/* interrupt on completion */
 #define	SITD_PAGE	(1 << 30)	/* buffer 0/1 */
 #define	SITD_LENGTH(x)	(0x3ff & ((x)>>16))
@@ -570,11 +629,11 @@ struct ehci_sitd {
 #define	SITD_STS_MMF	(1 << 2)	/* incomplete split transaction */
 #define	SITD_STS_STS	(1 << 1)	/* split transaction state */
 
-#define SITD_ACTIVE	__constant_cpu_to_le32(SITD_STS_ACTIVE)
+#define SITD_ACTIVE(ehci)	cpu_to_hc32(ehci, SITD_STS_ACTIVE)
 
-	__le32			hw_buf [2];		/* EHCI table 3-12 */
-	__le32			hw_backpointer;		/* EHCI table 3-13 */
-	__le32			hw_buf_hi [2];		/* Appendix B */
+	__hc32			hw_buf [2];		/* EHCI table 3-12 */
+	__hc32			hw_backpointer;		/* EHCI table 3-13 */
+	__hc32			hw_buf_hi [2];		/* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		sitd_dma;
@@ -599,8 +658,8 @@ struct ehci_sitd {
  * it hits a "restore" FSTN; then it returns to finish other uframe 0/1 work.
  */
 struct ehci_fstn {
-	__le32			hw_next;	/* any periodic q entry */
-	__le32			hw_prev;	/* qh or EHCI_LIST_END */
+	__hc32			hw_next;	/* any periodic q entry */
+	__hc32			hw_prev;	/* qh or EHCI_LIST_END */
 
 	/* the rest is HCD-private */
 	dma_addr_t		fstn_dma;
@@ -672,8 +731,21 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #define ehci_big_endian_mmio(e)		0
 #endif
 
-static inline unsigned int ehci_readl (const struct ehci_hcd *ehci,
-				       __u32 __iomem * regs)
+/*
+ * Big-endian read/write functions are arch-specific.
+ * Other arches can be added if/when they're needed.
+ *
+ * REVISIT: arch/powerpc now has readl/writel_be, so the
+ * definition below can die once the 4xx support is
+ * finally ported over.
+ */
+#if defined(CONFIG_PPC)
+#define readl_be(addr)		in_be32((__force unsigned *)addr)
+#define writel_be(val, addr)	out_be32((__force unsigned *)addr, val)
+#endif
+
+static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,
+		__u32 __iomem * regs)
 {
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	return ehci_big_endian_mmio(ehci) ?
@@ -684,8 +756,8 @@ static inline unsigned int ehci_readl (const struct ehci_hcd *ehci,
 #endif
 }
 
-static inline void ehci_writel (const struct ehci_hcd *ehci,
-				const unsigned int val, __u32 __iomem *regs)
+static inline void ehci_writel(const struct ehci_hcd *ehci,
+		const unsigned int val, __u32 __iomem *regs)
 {
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	ehci_big_endian_mmio(ehci) ?
@@ -695,6 +767,62 @@ static inline void ehci_writel (const struct ehci_hcd *ehci,
 	writel(val, regs);
 #endif
 }
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * The AMCC 440EPx not only implements its EHCI registers in big-endian
+ * format, but also its DMA data structures (descriptors).
+ *
+ * EHCI controllers accessed through PCI work normally (little-endian
+ * everywhere), so we won't bother supporting a BE-only mode for now.
+ */
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
+#define ehci_big_endian_desc(e)		((e)->big_endian_desc)
+
+/* cpu to ehci */
+static inline __hc32 cpu_to_hc32 (const struct ehci_hcd *ehci, const u32 x)
+{
+	return ehci_big_endian_desc(ehci)
+		? (__force __hc32)cpu_to_be32(x)
+		: (__force __hc32)cpu_to_le32(x);
+}
+
+/* ehci to cpu */
+static inline u32 hc32_to_cpu (const struct ehci_hcd *ehci, const __hc32 x)
+{
+	return ehci_big_endian_desc(ehci)
+		? be32_to_cpu((__force __be32)x)
+		: le32_to_cpu((__force __le32)x);
+}
+
+static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
+{
+	return ehci_big_endian_desc(ehci)
+		? be32_to_cpup((__force __be32 *)x)
+		: le32_to_cpup((__force __le32 *)x);
+}
+
+#else
+
+/* cpu to ehci */
+static inline __hc32 cpu_to_hc32 (const struct ehci_hcd *ehci, const u32 x)
+{
+	return cpu_to_le32(x);
+}
+
+/* ehci to cpu */
+static inline u32 hc32_to_cpu (const struct ehci_hcd *ehci, const __hc32 x)
+{
+	return le32_to_cpu(x);
+}
+
+static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
+{
+	return le32_to_cpup(x);
+}
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 

@@ -358,24 +358,26 @@ static void kobil_close (struct usb_serial_port *port, struct file *filp)
 }
 
 
-static void kobil_read_int_callback( struct urb *purb)
+static void kobil_read_int_callback(struct urb *urb)
 {
 	int result;
-	struct usb_serial_port *port = (struct usb_serial_port *) purb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
-	unsigned char *data = purb->transfer_buffer;
+	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 //	char *dbg_data;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (purb->status) {
-		dbg("%s - port %d Read int status not zero: %d", __FUNCTION__, port->number, purb->status);
+	if (status) {
+		dbg("%s - port %d Read int status not zero: %d",
+		    __FUNCTION__, port->number, status);
 		return;
 	}
-	
-	tty = port->tty; 
-	if (purb->actual_length) {
-		
+
+	tty = port->tty;
+	if (urb->actual_length) {
+
 		// BEGIN DEBUG
 		/*
 		  dbg_data = kzalloc((3 *  purb->actual_length + 10) * sizeof(char), GFP_KERNEL);
@@ -390,15 +392,15 @@ static void kobil_read_int_callback( struct urb *purb)
 		*/
 		// END DEBUG
 
-		tty_buffer_request_room(tty, purb->actual_length);
-		tty_insert_flip_string(tty, data, purb->actual_length);
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 
 	// someone sets the dev to 0 if the close method has been called
 	port->interrupt_in_urb->dev = port->serial->dev;
 
-	result = usb_submit_urb( port->interrupt_in_urb, GFP_ATOMIC ); 
+	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	dbg("%s - port %d Send read URB returns: %i", __FUNCTION__, port->number, result);
 }
 
