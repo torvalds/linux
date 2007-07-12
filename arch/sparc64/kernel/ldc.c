@@ -239,8 +239,7 @@ static struct ldc_packet *handshake_get_tx_packet(struct ldc_channel *lp,
  */
 static unsigned long head_for_data(struct ldc_channel *lp)
 {
-	if (lp->cfg.mode == LDC_MODE_RELIABLE ||
-	    lp->cfg.mode == LDC_MODE_STREAM)
+	if (lp->cfg.mode == LDC_MODE_STREAM)
 		return lp->tx_acked;
 	return lp->tx_head;
 }
@@ -494,7 +493,7 @@ static int send_data_nack(struct ldc_channel *lp, struct ldc_packet *data_pkt)
 	p->type = data_pkt->type;
 	p->stype = LDC_NACK;
 	p->ctrl = data_pkt->ctrl & LDC_CTRL_MSK;
-	p->seqid = lp->snd_nxt;
+	p->seqid = lp->snd_nxt + 1;
 	p->u.r.ackid = lp->rcv_nxt;
 
 	ldcdbg(HS, "SEND DATA NACK type[0x%x] ctl[0x%x] seq[0x%x] ack[0x%x]\n",
@@ -765,7 +764,7 @@ static int process_data_ack(struct ldc_channel *lp,
 			lp->tx_acked = head;
 			return 0;
 		}
-		if (head == lp->tx_head)
+		if (head == lp->tx_tail)
 			return ldc_abort(lp);
 	}
 
@@ -1091,11 +1090,6 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 	case LDC_MODE_UNRELIABLE:
 		mops = &nonraw_ops;
 		mss = LDC_PACKET_SIZE - 8;
-		break;
-
-	case LDC_MODE_RELIABLE:
-		mops = &nonraw_ops;
-		mss = LDC_PACKET_SIZE - 8 - 8;
 		break;
 
 	case LDC_MODE_STREAM:
@@ -1579,15 +1573,14 @@ static int rx_data_wait(struct ldc_channel *lp, unsigned long cur_head)
 		if (hv_err)
 			return ldc_abort(lp);
 
-		ldcdbg(DATA, "REREAD head[%lx] tail[%lx] chan_state[%lx]\n",
-		       dummy, lp->rx_tail, lp->chan_state);
-
 		if (lp->chan_state == LDC_CHANNEL_DOWN ||
 		    lp->chan_state == LDC_CHANNEL_RESETTING)
 			return -ECONNRESET;
 
 		if (cur_head != lp->rx_tail) {
-			ldcdbg(DATA, "DATA WAIT DONE\n");
+			ldcdbg(DATA, "DATA WAIT DONE "
+			       "head[%lx] tail[%lx] chan_state[%lx]\n",
+			       dummy, lp->rx_tail, lp->chan_state);
 			return 0;
 		}
 
@@ -1605,6 +1598,28 @@ static int rx_set_head(struct ldc_channel *lp, unsigned long head)
 
 	lp->rx_head = head;
 	return 0;
+}
+
+static void send_data_ack(struct ldc_channel *lp)
+{
+	unsigned long new_tail;
+	struct ldc_packet *p;
+
+	p = data_get_tx_packet(lp, &new_tail);
+	if (likely(p)) {
+		int err;
+
+		memset(p, 0, sizeof(*p));
+		p->type = LDC_DATA;
+		p->stype = LDC_ACK;
+		p->ctrl = 0;
+		p->seqid = lp->snd_nxt + 1;
+		p->u.r.ackid = lp->rcv_nxt;
+
+		err = send_tx_packet(lp, p, new_tail);
+		if (!err)
+			lp->snd_nxt++;
+	}
 }
 
 static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
@@ -1637,13 +1652,14 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		BUG_ON(new == lp->rx_tail);
 		p = lp->rx_base + (new / LDC_PACKET_SIZE);
 
-		ldcdbg(RX, "RX read pkt[%02x:%02x:%02x:%02x:%08x] "
+		ldcdbg(RX, "RX read pkt[%02x:%02x:%02x:%02x:%08x:%08x] "
 		       "rcv_nxt[%08x]\n",
 		       p->type,
 		       p->stype,
 		       p->ctrl,
 		       p->env,
 		       p->seqid,
+		       p->u.r.ackid,
 		       lp->rcv_nxt);
 
 		if (unlikely(!rx_seq_ok(lp, p->seqid))) {
@@ -1672,6 +1688,9 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		}
 		if (!(p->stype & LDC_INFO)) {
 			new = rx_advance(lp, new);
+			err = rx_set_head(lp, new);
+			if (err)
+				break;
 			goto no_data;
 		}
 
@@ -1748,8 +1767,11 @@ no_data:
 	if (err && first_frag)
 		lp->rcv_nxt = first_frag->seqid - 1;
 
-	if (!err)
+	if (!err) {
 		err = copied;
+		if (err > 0 && lp->cfg.mode != LDC_MODE_UNRELIABLE)
+			send_data_ack(lp);
+	}
 
 	return err;
 }
@@ -1770,9 +1792,7 @@ static int write_stream(struct ldc_channel *lp, const void *buf,
 static int read_stream(struct ldc_channel *lp, void *buf, unsigned int size)
 {
 	if (!lp->mssbuf_len) {
-		int err = read_nonraw(lp, lp->mssbuf,
-				      (size > lp->cfg.mtu ?
-				       lp->cfg.mtu : size));
+		int err = read_nonraw(lp, lp->mssbuf, lp->cfg.mtu);
 		if (err < 0)
 			return err;
 

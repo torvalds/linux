@@ -25,8 +25,7 @@ struct ldc_channel_config {
 #define LDC_MODE_RAW		0x00
 #define LDC_MODE_UNRELIABLE	0x01
 #define LDC_MODE_RESERVED	0x02
-#define LDC_MODE_RELIABLE	0x03
-#define LDC_MODE_STREAM		0x04
+#define LDC_MODE_STREAM		0x03
 
 	u8			debug;
 #define LDC_DEBUG_HS		0x01
