@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -323,13 +323,14 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 {
 	u32 __iomem *piobuf;
 	u32 plen, clen, pbufn;
-	struct ipath_diag_pkt dp;
+	struct ipath_diag_pkt odp;
+	struct ipath_diag_xpkt dp;
 	u32 *tmpbuf = NULL;
 	struct ipath_devdata *dd;
 	ssize_t ret = 0;
 	u64 val;
 
-	if (count < sizeof(dp)) {
+	if (count != sizeof(dp)) {
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -337,6 +338,29 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 	if (copy_from_user(&dp, data, sizeof(dp))) {
 		ret = -EFAULT;
 		goto bail;
+	}
+
+	/*
+	 * Due to padding/alignment issues (lessened with new struct)
+	 * the old and new structs are the same length. We need to
+	 * disambiguate them, which we can do because odp.len has never
+	 * been less than the total of LRH+BTH+DETH so far, while
+	 * dp.unit (same offset) unit is unlikely to get that high.
+	 * Similarly, dp.data, the pointer to user at the same offset
+	 * as odp.unit, is almost certainly at least one (512byte)page
+	 * "above" NULL. The if-block below can be omitted if compatibility
+	 * between a new driver and older diagnostic code is unimportant.
+	 * compatibility the other direction (new diags, old driver) is
+	 * handled in the diagnostic code, with a warning.
+	 */
+	if (dp.unit >= 20 && dp.data < 512) {
+		/* very probable version mismatch. Fix it up */
+		memcpy(&odp, &dp, sizeof(odp));
+		/* We got a legacy dp, copy elements to dp */
+		dp.unit = odp.unit;
+		dp.data = odp.data;
+		dp.len = odp.len;
+		dp.pbc_wd = 0; /* Indicate we need to compute PBC wd */
 	}
 
 	/* send count must be an exact number of dwords */
@@ -371,9 +395,10 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		ret = -ENODEV;
 		goto bail;
 	}
+	/* Check link state, but not if we have custom PBC */
 	val = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
-	if (val != IPATH_IBSTATE_INIT && val != IPATH_IBSTATE_ARM &&
-	    val != IPATH_IBSTATE_ACTIVE) {
+	if (!dp.pbc_wd && val != IPATH_IBSTATE_INIT &&
+		val != IPATH_IBSTATE_ARM && val != IPATH_IBSTATE_ACTIVE) {
 		ipath_cdbg(VERBOSE, "unit %u not ready (state %llx)\n",
 			   dd->ipath_unit, (unsigned long long) val);
 		ret = -EINVAL;
@@ -419,9 +444,13 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		ipath_cdbg(VERBOSE, "unit %u 0x%x+1w pio%d\n",
 			   dd->ipath_unit, plen - 1, pbufn);
 
+	if (dp.pbc_wd == 0)
+		/* Legacy operation, use computed pbc_wd */
+		dp.pbc_wd = plen;
+
 	/* we have to flush after the PBC for correctness on some cpus
 	 * or WC buffer can be written out of order */
-	writeq(plen, piobuf);
+	writeq(dp.pbc_wd, piobuf);
 	ipath_flush_wc();
 	/* copy all by the trigger word, then flush, so it's written
 	 * to chip before trigger word, then write trigger word, then

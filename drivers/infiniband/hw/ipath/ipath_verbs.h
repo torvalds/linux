@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -321,6 +321,7 @@ struct ipath_sge_state {
  */
 struct ipath_ack_entry {
 	u8 opcode;
+	u8 sent;
 	u32 psn;
 	union {
 		struct ipath_sge_state rdma_sge;

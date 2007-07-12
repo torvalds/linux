@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -95,39 +95,37 @@ static int i2c_gpio_set(struct ipath_devdata *dd,
 			enum i2c_type line,
 			enum i2c_state new_line_state)
 {
-	u64 read_val, write_val, mask, *gpioval;
+	u64 out_mask, dir_mask, *gpioval;
+	unsigned long flags = 0;
 
 	gpioval = &dd->ipath_gpio_out;
-	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
-	if (line == i2c_line_scl)
-		mask = dd->ipath_gpio_scl;
-	else
-		mask = dd->ipath_gpio_sda;
-
-	if (new_line_state == i2c_line_high)
-		/* tri-state the output rather than force high */
-		write_val = read_val & ~mask;
-	else
-		/* config line to be an output */
-		write_val = read_val | mask;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, write_val);
-
-	/* set high and verify */
-	if (new_line_state == i2c_line_high)
-		write_val = 0x1UL;
-	else
-		write_val = 0x0UL;
 
 	if (line == i2c_line_scl) {
-		write_val <<= dd->ipath_gpio_scl_num;
-		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_scl_num);
-		*gpioval |= write_val;
+		dir_mask = dd->ipath_gpio_scl;
+		out_mask = (1UL << dd->ipath_gpio_scl_num);
 	} else {
-		write_val <<= dd->ipath_gpio_sda_num;
-		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_sda_num);
-		*gpioval |= write_val;
+		dir_mask = dd->ipath_gpio_sda;
+		out_mask = (1UL << dd->ipath_gpio_sda_num);
 	}
+
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	if (new_line_state == i2c_line_high) {
+		/* tri-state the output rather than force high */
+		dd->ipath_extctrl &= ~dir_mask;
+	} else {
+		/* config line to be an output */
+		dd->ipath_extctrl |= dir_mask;
+	}
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, dd->ipath_extctrl);
+
+	/* set output as well (no real verify) */
+	if (new_line_state == i2c_line_high)
+		*gpioval |= out_mask;
+	else
+		*gpioval &= ~out_mask;
+
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_out, *gpioval);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
 
 	return 0;
 }
@@ -145,8 +143,9 @@ static int i2c_gpio_get(struct ipath_devdata *dd,
 			enum i2c_type line,
 			enum i2c_state *curr_statep)
 {
-	u64 read_val, write_val, mask;
+	u64 read_val, mask;
 	int ret;
+	unsigned long flags = 0;
 
 	/* check args */
 	if (curr_statep == NULL) {
@@ -154,15 +153,21 @@ static int i2c_gpio_get(struct ipath_devdata *dd,
 		goto bail;
 	}
 
-	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	/* config line to be an input */
 	if (line == i2c_line_scl)
 		mask = dd->ipath_gpio_scl;
 	else
 		mask = dd->ipath_gpio_sda;
-	write_val = read_val & ~mask;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, write_val);
+
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	dd->ipath_extctrl &= ~mask;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, dd->ipath_extctrl);
+	/*
+	 * Below is very unlikely to reflect true input state if Output
+	 * Enable actually changed.
+	 */
 	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extstatus);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
 
 	if (read_val & mask)
 		*curr_statep = i2c_line_high;
@@ -192,6 +197,7 @@ static void i2c_wait_for_writes(struct ipath_devdata *dd)
 
 static void scl_out(struct ipath_devdata *dd, u8 bit)
 {
+	udelay(1);
 	i2c_gpio_set(dd, i2c_line_scl, bit ? i2c_line_high : i2c_line_low);
 
 	i2c_wait_for_writes(dd);
@@ -314,12 +320,18 @@ static int eeprom_reset(struct ipath_devdata *dd)
 	int clock_cycles_left = 9;
 	u64 *gpioval = &dd->ipath_gpio_out;
 	int ret;
+	unsigned long flags;
 
-	eeprom_init = 1;
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	/* Make sure shadows are consistent */
+	dd->ipath_extctrl = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	*gpioval = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_out);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
+
 	ipath_cdbg(VERBOSE, "Resetting i2c eeprom; initial gpioout reg "
 		   "is %llx\n", (unsigned long long) *gpioval);
 
+	eeprom_init = 1;
 	/*
 	 * This is to get the i2c into a known state, by first going low,
 	 * then tristate sda (and then tristate scl as first thing
@@ -355,8 +367,8 @@ bail:
  * @len: number of bytes to receive
  */
 
-int ipath_eeprom_read(struct ipath_devdata *dd, u8 eeprom_offset,
-		      void *buffer, int len)
+static int ipath_eeprom_internal_read(struct ipath_devdata *dd,
+					u8 eeprom_offset, void *buffer, int len)
 {
 	/* compiler complains unless initialized */
 	u8 single_byte = 0;
@@ -406,6 +418,7 @@ bail:
 	return ret;
 }
 
+
 /**
  * ipath_eeprom_write - writes data to the eeprom via I2C
  * @dd: the infinipath device
@@ -413,8 +426,8 @@ bail:
  * @buffer: data to write
  * @len: number of bytes to write
  */
-int ipath_eeprom_write(struct ipath_devdata *dd, u8 eeprom_offset,
-		       const void *buffer, int len)
+int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offset,
+				const void *buffer, int len)
 {
 	u8 single_byte;
 	int sub_len;
@@ -488,6 +501,38 @@ bail:
 	return ret;
 }
 
+/*
+ * The public entry-points ipath_eeprom_read() and ipath_eeprom_write()
+ * are now just wrappers around the internal functions.
+ */
+int ipath_eeprom_read(struct ipath_devdata *dd, u8 eeprom_offset,
+			void *buff, int len)
+{
+	int ret;
+
+	ret = down_interruptible(&dd->ipath_eep_sem);
+	if (!ret) {
+		ret = ipath_eeprom_internal_read(dd, eeprom_offset, buff, len);
+		up(&dd->ipath_eep_sem);
+	}
+
+	return ret;
+}
+
+int ipath_eeprom_write(struct ipath_devdata *dd, u8 eeprom_offset,
+			const void *buff, int len)
+{
+	int ret;
+
+	ret = down_interruptible(&dd->ipath_eep_sem);
+	if (!ret) {
+		ret = ipath_eeprom_internal_write(dd, eeprom_offset, buff, len);
+		up(&dd->ipath_eep_sem);
+	}
+
+	return ret;
+}
+
 static u8 flash_csum(struct ipath_flash *ifp, int adjust)
 {
 	u8 *ip = (u8 *) ifp;
@@ -515,7 +560,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 	void *buf;
 	struct ipath_flash *ifp;
 	__be64 guid;
-	int len;
+	int len, eep_stat;
 	u8 csum, *bguid;
 	int t = dd->ipath_unit;
 	struct ipath_devdata *dd0 = ipath_lookup(0);
@@ -559,7 +604,11 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	if (ipath_eeprom_read(dd, 0, buf, len)) {
+	down(&dd->ipath_eep_sem);
+	eep_stat = ipath_eeprom_internal_read(dd, 0, buf, len);
+	up(&dd->ipath_eep_sem);
+
+	if (eep_stat) {
 		ipath_dev_err(dd, "Failed reading GUID from eeprom\n");
 		goto done;
 	}
@@ -634,8 +683,192 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 	ipath_cdbg(VERBOSE, "Initted GUID to %llx from eeprom\n",
 		   (unsigned long long) be64_to_cpu(dd->ipath_guid));
 
+	memcpy(&dd->ipath_eep_st_errs, &ifp->if_errcntp, IPATH_EEP_LOG_CNT);
+	/*
+	 * Power-on (actually "active") hours are kept as little-endian value
+	 * in EEPROM, but as seconds in a (possibly as small as 24-bit)
+	 * atomic_t while running.
+	 */
+	atomic_set(&dd->ipath_active_time, 0);
+	dd->ipath_eep_hrs = ifp->if_powerhour[0] | (ifp->if_powerhour[1] << 8);
+
 done:
 	vfree(buf);
 
 bail:;
+}
+
+/**
+ * ipath_update_eeprom_log - copy active-time and error counters to eeprom
+ * @dd: the infinipath device
+ *
+ * Although the time is kept as seconds in the ipath_devdata struct, it is
+ * rounded to hours for re-write, as we have only 16 bits in EEPROM.
+ * First-cut code reads whole (expected) struct ipath_flash, modifies,
+ * re-writes. Future direction: read/write only what we need, assuming
+ * that the EEPROM had to have been "good enough" for driver init, and
+ * if not, we aren't making it worse.
+ *
+ */
+
+int ipath_update_eeprom_log(struct ipath_devdata *dd)
+{
+	void *buf;
+	struct ipath_flash *ifp;
+	int len, hi_water;
+	uint32_t new_time, new_hrs;
+	u8 csum;
+	int ret, idx;
+	unsigned long flags;
+
+	/* first, check if we actually need to do anything. */
+	ret = 0;
+	for (idx = 0; idx < IPATH_EEP_LOG_CNT; ++idx) {
+		if (dd->ipath_eep_st_new_errs[idx]) {
+			ret = 1;
+			break;
+		}
+	}
+	new_time = atomic_read(&dd->ipath_active_time);
+
+	if (ret == 0 && new_time < 3600)
+		return 0;
+
+	/*
+	 * The quick-check above determined that there is something worthy
+	 * of logging, so get current contents and do a more detailed idea.
+	 */
+	len = offsetof(struct ipath_flash, if_future);
+	buf = vmalloc(len);
+	ret = 1;
+	if (!buf) {
+		ipath_dev_err(dd, "Couldn't allocate memory to read %u "
+				"bytes from eeprom for logging\n", len);
+		goto bail;
+	}
+
+	/* Grab semaphore and read current EEPROM. If we get an
+	 * error, let go, but if not, keep it until we finish write.
+	 */
+	ret = down_interruptible(&dd->ipath_eep_sem);
+	if (ret) {
+		ipath_dev_err(dd, "Unable to acquire EEPROM for logging\n");
+		goto free_bail;
+	}
+	ret = ipath_eeprom_internal_read(dd, 0, buf, len);
+	if (ret) {
+		up(&dd->ipath_eep_sem);
+		ipath_dev_err(dd, "Unable read EEPROM for logging\n");
+		goto free_bail;
+	}
+	ifp = (struct ipath_flash *)buf;
+
+	csum = flash_csum(ifp, 0);
+	if (csum != ifp->if_csum) {
+		up(&dd->ipath_eep_sem);
+		ipath_dev_err(dd, "EEPROM cks err (0x%02X, S/B 0x%02X)\n",
+				csum, ifp->if_csum);
+		ret = 1;
+		goto free_bail;
+	}
+	hi_water = 0;
+	spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
+	for (idx = 0; idx < IPATH_EEP_LOG_CNT; ++idx) {
+		int new_val = dd->ipath_eep_st_new_errs[idx];
+		if (new_val) {
+			/*
+			 * If we have seen any errors, add to EEPROM values
+			 * We need to saturate at 0xFF (255) and we also
+			 * would need to adjust the checksum if we were
+			 * trying to minimize EEPROM traffic
+			 * Note that we add to actual current count in EEPROM,
+			 * in case it was altered while we were running.
+			 */
+			new_val += ifp->if_errcntp[idx];
+			if (new_val > 0xFF)
+				new_val = 0xFF;
+			if (ifp->if_errcntp[idx] != new_val) {
+				ifp->if_errcntp[idx] = new_val;
+				hi_water = offsetof(struct ipath_flash,
+						if_errcntp) + idx;
+			}
+			/*
+			 * update our shadow (used to minimize EEPROM
+			 * traffic), to match what we are about to write.
+			 */
+			dd->ipath_eep_st_errs[idx] = new_val;
+			dd->ipath_eep_st_new_errs[idx] = 0;
+		}
+	}
+	/*
+	 * now update active-time. We would like to round to the nearest hour
+	 * but unless atomic_t are sure to be proper signed ints we cannot,
+	 * because we need to account for what we "transfer" to EEPROM and
+	 * if we log an hour at 31 minutes, then we would need to set
+	 * active_time to -29 to accurately count the _next_ hour.
+	 */
+	if (new_time > 3600) {
+		new_hrs = new_time / 3600;
+		atomic_sub((new_hrs * 3600), &dd->ipath_active_time);
+		new_hrs += dd->ipath_eep_hrs;
+		if (new_hrs > 0xFFFF)
+			new_hrs = 0xFFFF;
+		dd->ipath_eep_hrs = new_hrs;
+		if ((new_hrs & 0xFF) != ifp->if_powerhour[0]) {
+			ifp->if_powerhour[0] = new_hrs & 0xFF;
+			hi_water = offsetof(struct ipath_flash, if_powerhour);
+		}
+		if ((new_hrs >> 8) != ifp->if_powerhour[1]) {
+			ifp->if_powerhour[1] = new_hrs >> 8;
+			hi_water = offsetof(struct ipath_flash, if_powerhour)
+					+ 1;
+		}
+	}
+	/*
+	 * There is a tiny possibility that we could somehow fail to write
+	 * the EEPROM after updating our shadows, but problems from holding
+	 * the spinlock too long are a much bigger issue.
+	 */
+	spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
+	if (hi_water) {
+		/* we made some change to the data, uopdate cksum and write */
+		csum = flash_csum(ifp, 1);
+		ret = ipath_eeprom_internal_write(dd, 0, buf, hi_water + 1);
+	}
+	up(&dd->ipath_eep_sem);
+	if (ret)
+		ipath_dev_err(dd, "Failed updating EEPROM\n");
+
+free_bail:
+	vfree(buf);
+bail:
+	return ret;
+
+}
+
+/**
+ * ipath_inc_eeprom_err - increment one of the four error counters
+ * that are logged to EEPROM.
+ * @dd: the infinipath device
+ * @eidx: 0..3, the counter to increment
+ * @incr: how much to add
+ *
+ * Each counter is 8-bits, and saturates at 255 (0xFF). They
+ * are copied to the EEPROM (aka flash) whenever ipath_update_eeprom_log()
+ * is called, but it can only be called in a context that allows sleep.
+ * This function can be called even at interrupt level.
+ */
+
+void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr)
+{
+	uint new_val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
+	new_val = dd->ipath_eep_st_new_errs[eidx] + incr;
+	if (new_val > 255)
+		new_val = 255;
+	dd->ipath_eep_st_new_errs[eidx] = new_val;
+	spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
+	return;
 }

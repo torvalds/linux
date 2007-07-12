@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -596,6 +596,43 @@ bail:
 	return ret;
 }
 
+static ssize_t store_led_override(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret;
+	u16 val;
+
+	ret = ipath_parse_ushort(buf, &val);
+	if (ret > 0)
+		ipath_set_led_override(dd, val);
+	else
+		ipath_dev_err(dd, "attempt to set invalid LED override\n");
+	return ret;
+}
+
+static ssize_t show_logged_errs(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int idx, count;
+
+	/* force consistency with actual EEPROM */
+	if (ipath_update_eeprom_log(dd) != 0)
+		return -ENXIO;
+
+	count = 0;
+	for (idx = 0; idx < IPATH_EEP_LOG_CNT; ++idx) {
+		count += scnprintf(buf + count, PAGE_SIZE - count, "%d%c",
+			dd->ipath_eep_st_errs[idx],
+			idx == (IPATH_EEP_LOG_CNT - 1) ? '\n' : ' ');
+	}
+
+	return count;
+}
 
 static DRIVER_ATTR(num_units, S_IRUGO, show_num_units, NULL);
 static DRIVER_ATTR(version, S_IRUGO, show_version, NULL);
@@ -625,6 +662,8 @@ static DEVICE_ATTR(status_str, S_IRUGO, show_status_str, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
 static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
+static DEVICE_ATTR(led_override, S_IWUSR, NULL, store_led_override);
+static DEVICE_ATTR(logged_errors, S_IRUGO, show_logged_errs, NULL);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
@@ -641,6 +680,8 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_unit.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_rx_pol_inv.attr,
+	&dev_attr_led_override.attr,
+	&dev_attr_logged_errors.attr,
 	NULL
 };
 

@@ -5,6 +5,7 @@
  *
  *  Authors: Christoph Raisch <raisch@de.ibm.com>
  *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *           Gerd Bayer <gerd.bayer@de.ibm.com>
  *           Waleri Fomin <fomin@de.ibm.com>
  *
@@ -62,6 +63,12 @@
 #define H_ALL_RES_QP_MAX_SEND_SGE       EHCA_BMASK_IBM(32, 39)
 #define H_ALL_RES_QP_MAX_RECV_SGE       EHCA_BMASK_IBM(40, 47)
 
+#define H_ALL_RES_QP_UD_AV_LKEY         EHCA_BMASK_IBM(32, 63)
+#define H_ALL_RES_QP_SRQ_QP_TOKEN       EHCA_BMASK_IBM(0, 31)
+#define H_ALL_RES_QP_SRQ_QP_HANDLE      EHCA_BMASK_IBM(0, 64)
+#define H_ALL_RES_QP_SRQ_LIMIT          EHCA_BMASK_IBM(48, 63)
+#define H_ALL_RES_QP_SRQ_QPN            EHCA_BMASK_IBM(40, 63)
+
 #define H_ALL_RES_QP_ACT_OUTST_SEND_WR  EHCA_BMASK_IBM(16, 31)
 #define H_ALL_RES_QP_ACT_OUTST_RECV_WR  EHCA_BMASK_IBM(48, 63)
 #define H_ALL_RES_QP_ACT_SEND_SGE       EHCA_BMASK_IBM(8, 15)
@@ -74,10 +81,7 @@
 #define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
 #define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
 
-/* direct access qp controls */
-#define DAQP_CTRL_ENABLE    0x01
-#define DAQP_CTRL_SEND_COMP 0x20
-#define DAQP_CTRL_RECV_COMP 0x40
+static DEFINE_SPINLOCK(hcall_lock);
 
 static u32 get_longbusy_msecs(int longbusy_rc)
 {
@@ -155,7 +159,7 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 {
 	long ret;
 	int i, sleep_msecs, lock_is_set = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
 		     "arg5=%lx arg6=%lx arg7=%lx arg8=%lx arg9=%lx",
@@ -284,53 +288,53 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 }
 
 u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
-			     struct ehca_qp *qp,
 			     struct ehca_alloc_qp_parms *parms)
 {
 	u64 ret;
-	u64 allocate_controls;
-	u64 max_r10_reg;
+	u64 allocate_controls, max_r10_reg, r11, r12;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
-	u16 max_nr_receive_wqes = qp->init_attr.cap.max_recv_wr + 1;
-	u16 max_nr_send_wqes = qp->init_attr.cap.max_send_wr + 1;
-	int daqp_ctrl = parms->daqp_ctrl;
 
 	allocate_controls =
-		EHCA_BMASK_SET(H_ALL_RES_QP_ENHANCED_OPS,
-			       (daqp_ctrl & DAQP_CTRL_ENABLE) ? 1 : 0)
+		EHCA_BMASK_SET(H_ALL_RES_QP_ENHANCED_OPS, parms->ext_type)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_PTE_PIN, 0)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_SERVICE_TYPE, parms->servicetype)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_SIGNALING_TYPE, parms->sigtype)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_LL_RQ_CQE_POSTING,
-				 (daqp_ctrl & DAQP_CTRL_RECV_COMP) ? 1 : 0)
+				 !!(parms->ll_comp_flags & LLQP_RECV_COMP))
 		| EHCA_BMASK_SET(H_ALL_RES_QP_LL_SQ_CQE_POSTING,
-				 (daqp_ctrl & DAQP_CTRL_SEND_COMP) ? 1 : 0)
+				 !!(parms->ll_comp_flags & LLQP_SEND_COMP))
 		| EHCA_BMASK_SET(H_ALL_RES_QP_UD_AV_LKEY_CTRL,
 				 parms->ud_av_l_key_ctl)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_RESOURCE_TYPE, 1);
 
 	max_r10_reg =
 		EHCA_BMASK_SET(H_ALL_RES_QP_MAX_OUTST_SEND_WR,
-			       max_nr_send_wqes)
+			       parms->max_send_wr + 1)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_OUTST_RECV_WR,
-				 max_nr_receive_wqes)
+				 parms->max_recv_wr + 1)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_SEND_SGE,
 				 parms->max_send_sge)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_RECV_SGE,
 				 parms->max_recv_sge);
 
+	r11 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QP_TOKEN, parms->srq_token);
+
+	if (parms->ext_type == EQPT_SRQ)
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_LIMIT, parms->srq_limit);
+	else
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QPN, parms->srq_qpn);
+
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,	           /* r4  */
 				allocate_controls,	           /* r5  */
-				qp->send_cq->ipz_cq_handle.handle,
-				qp->recv_cq->ipz_cq_handle.handle,
-				parms->ipz_eq_handle.handle,
-				((u64)qp->token << 32) | parms->pd.value,
-				max_r10_reg,	                   /* r10 */
-				parms->ud_av_l_key_ctl,            /* r11 */
-				0);
-	qp->ipz_qp_handle.handle = outs[0];
-	qp->real_qp_num = (u32)outs[1];
+				parms->send_cq_handle.handle,
+				parms->recv_cq_handle.handle,
+				parms->eq_handle.handle,
+				((u64)parms->token << 32) | parms->pd.value,
+				max_r10_reg, r11, r12);
+
+	parms->qp_handle.handle = outs[0];
+	parms->real_qp_num = (u32)outs[1];
 	parms->act_nr_send_wqes =
 		(u16)EHCA_BMASK_GET(H_ALL_RES_QP_ACT_OUTST_SEND_WR, outs[2]);
 	parms->act_nr_recv_wqes =
@@ -345,7 +349,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 		(u32)EHCA_BMASK_GET(H_ALL_RES_QP_RQUEUE_SIZE_PAGES, outs[4]);
 
 	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&qp->galpas, outs[6], outs[6]);
+		hcp_galpas_ctor(&parms->galpas, outs[6], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lx", ret);

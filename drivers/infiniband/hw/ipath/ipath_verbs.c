@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -164,9 +164,11 @@ void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length)
 	while (length) {
 		u32 len = sge->length;
 
-		BUG_ON(len == 0);
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
+		BUG_ON(len == 0);
 		memcpy(sge->vaddr, data, len);
 		sge->vaddr += len;
 		sge->length -= len;
@@ -202,9 +204,11 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 	while (length) {
 		u32 len = sge->length;
 
-		BUG_ON(len == 0);
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
+		BUG_ON(len == 0);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;
@@ -323,6 +327,8 @@ static int ipath_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		wqe->num_sge = wr->num_sge;
 		for (i = 0; i < wr->num_sge; i++)
 			wqe->sg_list[i] = wr->sg_list[i];
+		/* Make sure queue entry is written before the head index. */
+		smp_wmb();
 		wq->head = next;
 		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 	}
@@ -948,6 +954,7 @@ int ipath_ib_piobufavail(struct ipath_ibdev *dev)
 		qp = list_entry(dev->piowait.next, struct ipath_qp,
 				piowait);
 		list_del_init(&qp->piowait);
+		clear_bit(IPATH_S_BUSY, &qp->s_busy);
 		tasklet_hi_schedule(&qp->s_task);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
@@ -981,6 +988,8 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->max_ah = ib_ipath_max_ahs;
 	props->max_cqe = ib_ipath_max_cqes;
 	props->max_mr = dev->lk_table.max;
+	props->max_fmr = dev->lk_table.max;
+	props->max_map_per_fmr = 32767;
 	props->max_pd = ib_ipath_max_pds;
 	props->max_qp_rd_atom = IPATH_MAX_RDMA_ATOMIC;
 	props->max_qp_init_rd_atom = 255;
@@ -1051,7 +1060,12 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->max_vl_num = 1;		/* VLCap = VL0 */
 	props->init_type_reply = 0;
 
-	props->max_mtu = IB_MTU_4096;
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so set the maximum value
+	 * to 2048.
+	 */
+	props->max_mtu = IB_MTU_2048;
 	switch (dev->dd->ipath_ibmtu) {
 	case 4096:
 		mtu = IB_MTU_4096;
@@ -1360,13 +1374,6 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev);
 static void __verbs_timer(unsigned long arg)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *) arg;
-
-	/*
-	 * If port 0 receive packet interrupts are not available, or
-	 * can be missed, poll the receive queue
-	 */
-	if (dd->ipath_flags & IPATH_POLL_RX_INTR)
-		ipath_kreceive(dd);
 
 	/* Handle verbs layer timeouts. */
 	ipath_ib_timer(dd->verbs_dev);

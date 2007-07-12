@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -104,6 +104,9 @@ static int __devinit ipath_init_one(struct pci_dev *,
 #define PCI_DEVICE_ID_INFINIPATH_HT 0xd
 #define PCI_DEVICE_ID_INFINIPATH_PE800 0x10
 
+/* Number of seconds before our card status check...  */
+#define STATUS_TIMEOUT 60
+
 static const struct pci_device_id ipath_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_HT) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_PE800) },
@@ -119,6 +122,18 @@ static struct pci_driver ipath_driver = {
 	.id_table = ipath_pci_tbl,
 };
 
+static void ipath_check_status(struct work_struct *work)
+{
+	struct ipath_devdata *dd = container_of(work, struct ipath_devdata,
+						status_work.work);
+
+	/*
+	 * If we don't have any interrupts, let the user know and
+	 * don't bother checking again.
+	 */
+	if (dd->ipath_int_counter == 0)
+		dev_err(&dd->pcidev->dev, "No interrupts detected.\n");
+}
 
 static inline void read_bars(struct ipath_devdata *dd, struct pci_dev *dev,
 			     u32 *bar0, u32 *bar1)
@@ -186,6 +201,8 @@ static struct ipath_devdata *ipath_alloc_devdata(struct pci_dev *pdev)
 
 	dd->pcidev = pdev;
 	pci_set_drvdata(pdev, dd);
+
+	INIT_DELAYED_WORK(&dd->status_work, ipath_check_status);
 
 	list_add(&dd->ipath_list, &ipath_dev_list);
 
@@ -504,6 +521,9 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_diag_add(dd);
 	ipath_register_ib_device(dd);
 
+	/* Check that card status in STATUS_TIMEOUT seconds. */
+	schedule_delayed_work(&dd->status_work, HZ * STATUS_TIMEOUT);
+
 	goto bail;
 
 bail_irqsetup:
@@ -631,6 +651,9 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	 */
 	ipath_shutdown_device(dd);
 
+	cancel_delayed_work(&dd->status_work);
+	flush_scheduled_work();
+
 	if (dd->verbs_dev)
 		ipath_unregister_ib_device(dd->verbs_dev);
 
@@ -699,9 +722,9 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 	u64 sendctrl, sendorig;
 
 	ipath_cdbg(PKT, "disarm %u PIObufs first=%u\n", cnt, first);
-	sendorig = dd->ipath_sendctrl | INFINIPATH_S_DISARM;
+	sendorig = dd->ipath_sendctrl;
 	for (i = first; i < last; i++) {
-		sendctrl = sendorig |
+		sendctrl = sendorig  | INFINIPATH_S_DISARM |
 			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT);
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 sendctrl);
@@ -712,12 +735,12 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 	 * while we were looping; no critical bits that would require
 	 * locking.
 	 *
-	 * Write a 0, and then the original value, reading scratch in
+	 * disable PIOAVAILUPD, then re-enable, reading scratch in
 	 * between.  This seems to avoid a chip timing race that causes
 	 * pioavail updates to memory to stop.
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 0);
+			 sendorig & ~IPATH_S_PIOBUFAVAILUPD);
 	sendorig = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
@@ -1014,14 +1037,10 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	/* There is already a thread processing this queue. */
-	if (test_and_set_bit(0, &dd->ipath_rcv_pending))
-		goto bail;
-
 	l = dd->ipath_port0head;
 	hdrqtail = (u32) le64_to_cpu(*dd->ipath_hdrqtailptr);
 	if (l == hdrqtail)
-		goto done;
+		goto bail;
 
 reloop:
 	for (i = 0; l != hdrqtail; i++) {
@@ -1155,10 +1174,6 @@ reloop:
 	ipath_stats.sps_port0pkts += pkttot;
 	ipath_stats.sps_avgpkts_call =
 		ipath_stats.sps_port0pkts / ++totcalls;
-
-done:
-	clear_bit(0, &dd->ipath_rcv_pending);
-	smp_mb__after_clear_bit();
 
 bail:;
 }
@@ -1589,6 +1604,35 @@ int ipath_waitfor_mdio_cmdready(struct ipath_devdata *dd)
 	return ret;
 }
 
+
+/*
+ * Flush all sends that might be in the ready to send state, as well as any
+ * that are in the process of being sent.   Used whenever we need to be
+ * sure the send side is idle.  Cleans up all buffer state by canceling
+ * all pio buffers, and issuing an abort, which cleans up anything in the
+ * launch fifo.  The cancel is superfluous on some chip versions, but
+ * it's safer to always do it.
+ * PIOAvail bits are updated by the chip as if normal send had happened.
+ */
+void ipath_cancel_sends(struct ipath_devdata *dd)
+{
+	ipath_dbg("Cancelling all in-progress send buffers\n");
+	dd->ipath_lastcancel = jiffies+HZ/2; /* skip armlaunch errs a bit */
+	/*
+	 * the abort bit is auto-clearing.  We read scratch to be sure
+	 * that cancels and the abort have taken effect in the chip.
+	 */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+		INFINIPATH_S_ABORT);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_disarm_piobufs(dd, 0,
+		(unsigned)(dd->ipath_piobcnt2k + dd->ipath_piobcnt4k));
+
+	/* and again, be sure all have hit the chip */
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+}
+
+
 static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 {
 	static const char *what[4] = {
@@ -1610,14 +1654,8 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 			   INFINIPATH_IBCS_LINKTRAININGSTATE_MASK]);
 	/* flush all queued sends when going to DOWN or INIT, to be sure that
 	 * they don't block MAD packets */
-	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT) {
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 INFINIPATH_S_ABORT);
-		ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
-		                    (unsigned)(dd->ipath_piobcnt2k +
-				    dd->ipath_piobcnt4k) -
-				    dd->ipath_lastport_piobuf);
-	}
+	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT)
+		ipath_cancel_sends(dd);
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 			 dd->ipath_ibcctrl | which);
@@ -1839,6 +1877,87 @@ void ipath_write_kreg_port(const struct ipath_devdata *dd, ipath_kreg regno,
 	ipath_write_kreg(dd, where, value);
 }
 
+/*
+ * Following deal with the "obviously simple" task of overriding the state
+ * of the LEDS, which normally indicate link physical and logical status.
+ * The complications arise in dealing with different hardware mappings
+ * and the board-dependent routine being called from interrupts.
+ * and then there's the requirement to _flash_ them.
+ */
+#define LED_OVER_FREQ_SHIFT 8
+#define LED_OVER_FREQ_MASK (0xFF<<LED_OVER_FREQ_SHIFT)
+/* Below is "non-zero" to force override, but both actual LEDs are off */
+#define LED_OVER_BOTH_OFF (8)
+
+void ipath_run_led_override(unsigned long opaque)
+{
+	struct ipath_devdata *dd = (struct ipath_devdata *)opaque;
+	int timeoff;
+	int pidx;
+	u64 lstate, ltstate, val;
+
+	if (!(dd->ipath_flags & IPATH_INITTED))
+		return;
+
+	pidx = dd->ipath_led_override_phase++ & 1;
+	dd->ipath_led_override = dd->ipath_led_override_vals[pidx];
+	timeoff = dd->ipath_led_override_timeoff;
+
+	/*
+	 * below potentially restores the LED values per current status,
+	 * should also possibly setup the traffic-blink register,
+	 * but leave that to per-chip functions.
+	 */
+	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
+	ltstate = (val >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
+		  INFINIPATH_IBCS_LINKTRAININGSTATE_MASK;
+	lstate = (val >> INFINIPATH_IBCS_LINKSTATE_SHIFT) &
+		 INFINIPATH_IBCS_LINKSTATE_MASK;
+
+	dd->ipath_f_setextled(dd, lstate, ltstate);
+	mod_timer(&dd->ipath_led_override_timer, jiffies + timeoff);
+}
+
+void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
+{
+	int timeoff, freq;
+
+	if (!(dd->ipath_flags & IPATH_INITTED))
+		return;
+
+	/* First check if we are blinking. If not, use 1HZ polling */
+	timeoff = HZ;
+	freq = (val & LED_OVER_FREQ_MASK) >> LED_OVER_FREQ_SHIFT;
+
+	if (freq) {
+		/* For blink, set each phase from one nybble of val */
+		dd->ipath_led_override_vals[0] = val & 0xF;
+		dd->ipath_led_override_vals[1] = (val >> 4) & 0xF;
+		timeoff = (HZ << 4)/freq;
+	} else {
+		/* Non-blink set both phases the same. */
+		dd->ipath_led_override_vals[0] = val & 0xF;
+		dd->ipath_led_override_vals[1] = val & 0xF;
+	}
+	dd->ipath_led_override_timeoff = timeoff;
+
+	/*
+	 * If the timer has not already been started, do so. Use a "quick"
+	 * timeout so the function will be called soon, to look at our request.
+	 */
+	if (atomic_inc_return(&dd->ipath_led_override_timer_active) == 1) {
+		/* Need to start timer */
+		init_timer(&dd->ipath_led_override_timer);
+		dd->ipath_led_override_timer.function =
+						 ipath_run_led_override;
+		dd->ipath_led_override_timer.data = (unsigned long) dd;
+		dd->ipath_led_override_timer.expires = jiffies + 1;
+		add_timer(&dd->ipath_led_override_timer);
+	} else {
+		atomic_dec(&dd->ipath_led_override_timer_active);
+	}
+}
+
 /**
  * ipath_shutdown_device - shut down a device
  * @dd: the infinipath device
@@ -1879,17 +1998,9 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 */
 	udelay(5);
 
-	/*
-	 * abort any armed or launched PIO buffers that didn't go. (self
-	 * clearing).  Will cause any packet currently being transmitted to
-	 * go out with an EBP, and may also cause a short packet error on
-	 * the receiver.
-	 */
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 INFINIPATH_S_ABORT);
-
 	ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
 			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+	ipath_cancel_sends(dd);
 
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;
@@ -1902,7 +2013,6 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 * Turn the LEDs off explictly for the same reason.
 	 */
 	dd->ipath_f_quiet_serdes(dd);
-	dd->ipath_f_setextled(dd, 0, 0);
 
 	if (dd->ipath_stats_timer_active) {
 		del_timer_sync(&dd->ipath_stats_timer);
@@ -1918,6 +2028,9 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 			 ~0ULL & ~INFINIPATH_HWE_MEMBISTFAILED);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear, -1LL);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, -1LL);
+
+	ipath_cdbg(VERBOSE, "Flush time and errors to EEPROM\n");
+	ipath_update_eeprom_log(dd);
 }
 
 /**
@@ -2077,6 +2190,16 @@ int ipath_reset_device(int unit)
 		ret = -ENODEV;
 		goto bail;
 	}
+
+	if (atomic_read(&dd->ipath_led_override_timer_active)) {
+		/* Need to stop LED timer, _then_ shut off LEDs */
+		del_timer_sync(&dd->ipath_led_override_timer);
+		atomic_set(&dd->ipath_led_override_timer_active, 0);
+	}
+
+	/* Shut off LEDs after we are sure timer is not running */
+	dd->ipath_led_override = LED_OVER_BOTH_OFF;
+	dd->ipath_f_setextled(dd, 0, 0);
 
 	dev_info(&dd->pcidev->dev, "Reset on unit %u requested\n", unit);
 

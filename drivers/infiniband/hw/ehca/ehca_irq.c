@@ -5,6 +5,8 @@
  *
  *  Authors: Heiko J Schick <schickhj@de.ibm.com>
  *           Khadija Souissi <souissi@de.ibm.com>
+ *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *
  *  Copyright (c) 2005 IBM Corporation
  *
@@ -59,6 +61,7 @@
 #define NEQE_EVENT_CODE        EHCA_BMASK_IBM(2,7)
 #define NEQE_PORT_NUMBER       EHCA_BMASK_IBM(8,15)
 #define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16,16)
+#define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16,16)
 
 #define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52,63)
 #define ERROR_DATA_TYPE        EHCA_BMASK_IBM(0,7)
@@ -178,12 +181,11 @@ static void qp_event_callback(struct ehca_shca *shca,
 {
 	struct ib_event event;
 	struct ehca_qp *qp;
-	unsigned long flags;
 	u32 token = EHCA_BMASK_GET(EQE_QP_TOKEN, eqe);
 
-	spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+	read_lock(&ehca_qp_idr_lock);
 	qp = idr_find(&ehca_qp_idr, token);
-	spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+	read_unlock(&ehca_qp_idr_lock);
 
 
 	if (!qp)
@@ -207,17 +209,21 @@ static void cq_event_callback(struct ehca_shca *shca,
 			      u64 eqe)
 {
 	struct ehca_cq *cq;
-	unsigned long flags;
 	u32 token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe);
 
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	read_lock(&ehca_cq_idr_lock);
 	cq = idr_find(&ehca_cq_idr, token);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	if (cq)
+		atomic_inc(&cq->nr_events);
+	read_unlock(&ehca_cq_idr_lock);
 
 	if (!cq)
 		return;
 
 	ehca_error_data(shca, cq, cq->ipz_cq_handle.handle);
+
+	if (atomic_dec_and_test(&cq->nr_events))
+		wake_up(&cq->wait_completion);
 
 	return;
 }
@@ -281,30 +287,61 @@ static void parse_identifier(struct ehca_shca *shca, u64 eqe)
 	return;
 }
 
-static void parse_ec(struct ehca_shca *shca, u64 eqe)
+static void dispatch_port_event(struct ehca_shca *shca, int port_num,
+				enum ib_event_type type, const char *msg)
 {
 	struct ib_event event;
+
+	ehca_info(&shca->ib_device, "port %d %s.", port_num, msg);
+	event.device = &shca->ib_device;
+	event.event = type;
+	event.element.port_num = port_num;
+	ib_dispatch_event(&event);
+}
+
+static void notify_port_conf_change(struct ehca_shca *shca, int port_num)
+{
+	struct ehca_sma_attr  new_attr;
+	struct ehca_sma_attr *old_attr = &shca->sport[port_num - 1].saved_attr;
+
+	ehca_query_sma_attr(shca, port_num, &new_attr);
+
+	if (new_attr.sm_sl  != old_attr->sm_sl ||
+	    new_attr.sm_lid != old_attr->sm_lid)
+		dispatch_port_event(shca, port_num, IB_EVENT_SM_CHANGE,
+				    "SM changed");
+
+	if (new_attr.lid != old_attr->lid ||
+	    new_attr.lmc != old_attr->lmc)
+		dispatch_port_event(shca, port_num, IB_EVENT_LID_CHANGE,
+				    "LID changed");
+
+	if (new_attr.pkey_tbl_len != old_attr->pkey_tbl_len ||
+	    memcmp(new_attr.pkeys, old_attr->pkeys,
+		   sizeof(u16) * new_attr.pkey_tbl_len))
+		dispatch_port_event(shca, port_num, IB_EVENT_PKEY_CHANGE,
+				    "P_Key changed");
+
+	*old_attr = new_attr;
+}
+
+static void parse_ec(struct ehca_shca *shca, u64 eqe)
+{
 	u8 ec   = EHCA_BMASK_GET(NEQE_EVENT_CODE, eqe);
 	u8 port = EHCA_BMASK_GET(NEQE_PORT_NUMBER, eqe);
 
 	switch (ec) {
 	case 0x30: /* port availability change */
 		if (EHCA_BMASK_GET(NEQE_PORT_AVAILABILITY, eqe)) {
-			ehca_info(&shca->ib_device,
-				  "port %x is active.", port);
-			event.device = &shca->ib_device;
-			event.event = IB_EVENT_PORT_ACTIVE;
-			event.element.port_num = port;
 			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
-			ib_dispatch_event(&event);
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
+					    "is active");
+			ehca_query_sma_attr(shca, port,
+					    &shca->sport[port - 1].saved_attr);
 		} else {
-			ehca_info(&shca->ib_device,
-				  "port %x is inactive.", port);
-			event.device = &shca->ib_device;
-			event.event = IB_EVENT_PORT_ERR;
-			event.element.port_num = port;
 			shca->sport[port - 1].port_state = IB_PORT_DOWN;
-			ib_dispatch_event(&event);
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
+					    "is inactive");
 		}
 		break;
 	case 0x31:
@@ -312,24 +349,19 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 		 * disruptive change is caused by
 		 * LID, PKEY or SM change
 		 */
-		ehca_warn(&shca->ib_device,
-			  "disruptive port %x configuration change", port);
+		if (EHCA_BMASK_GET(NEQE_DISRUPTIVE, eqe)) {
+			ehca_warn(&shca->ib_device, "disruptive port "
+				  "%d configuration change", port);
 
-		ehca_info(&shca->ib_device,
-			  "port %x is inactive.", port);
-		event.device = &shca->ib_device;
-		event.event = IB_EVENT_PORT_ERR;
-		event.element.port_num = port;
-		shca->sport[port - 1].port_state = IB_PORT_DOWN;
-		ib_dispatch_event(&event);
+			shca->sport[port - 1].port_state = IB_PORT_DOWN;
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
+					    "is inactive");
 
-		ehca_info(&shca->ib_device,
-			  "port %x is active.", port);
-		event.device = &shca->ib_device;
-		event.event = IB_EVENT_PORT_ACTIVE;
-		event.element.port_num = port;
-		shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
-		ib_dispatch_event(&event);
+			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
+					    "is active");
+		} else
+			notify_port_conf_change(shca, port);
 		break;
 	case 0x32: /* adapter malfunction */
 		ehca_err(&shca->ib_device, "Adapter malfunction.");
@@ -404,7 +436,6 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 {
 	u64 eqe_value;
 	u32 token;
-	unsigned long flags;
 	struct ehca_cq *cq;
 
 	eqe_value = eqe->entry;
@@ -412,27 +443,24 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 	if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
 		ehca_dbg(&shca->ib_device, "Got completion event");
 		token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, token);
+		if (cq)
+			atomic_inc(&cq->nr_events);
+		read_unlock(&ehca_cq_idr_lock);
 		if (cq == NULL) {
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 			ehca_err(&shca->ib_device,
 				 "Invalid eqe for non-existing cq token=%x",
 				 token);
 			return;
 		}
 		reset_eq_pending(cq);
-		cq->nr_events++;
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		if (ehca_scaling_code)
 			queue_comp_task(cq);
 		else {
 			comp_event_callback(cq);
-			spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-			cq->nr_events--;
-			if (!cq->nr_events)
+			if (atomic_dec_and_test(&cq->nr_events))
 				wake_up(&cq->wait_completion);
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		}
 	} else {
 		ehca_dbg(&shca->ib_device, "Got non completion event");
@@ -476,17 +504,17 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 		eqe_value = eqe_cache[eqe_cnt].eqe->entry;
 		if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
 			token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
-			spin_lock(&ehca_cq_idr_lock);
+			read_lock(&ehca_cq_idr_lock);
 			eqe_cache[eqe_cnt].cq = idr_find(&ehca_cq_idr, token);
+			if (eqe_cache[eqe_cnt].cq)
+				atomic_inc(&eqe_cache[eqe_cnt].cq->nr_events);
+			read_unlock(&ehca_cq_idr_lock);
 			if (!eqe_cache[eqe_cnt].cq) {
-				spin_unlock(&ehca_cq_idr_lock);
 				ehca_err(&shca->ib_device,
 					 "Invalid eqe for non-existing cq "
 					 "token=%x", token);
 				continue;
 			}
-			eqe_cache[eqe_cnt].cq->nr_events++;
-			spin_unlock(&ehca_cq_idr_lock);
 		} else
 			eqe_cache[eqe_cnt].cq = NULL;
 		eqe_cnt++;
@@ -517,11 +545,8 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 			else {
 				struct ehca_cq *cq = eq->eqe_cache[i].cq;
 				comp_event_callback(cq);
-				spin_lock(&ehca_cq_idr_lock);
-				cq->nr_events--;
-				if (!cq->nr_events)
+				if (atomic_dec_and_test(&cq->nr_events))
 					wake_up(&cq->wait_completion);
-				spin_unlock(&ehca_cq_idr_lock);
 			}
 		} else {
 			ehca_dbg(&shca->ib_device, "Got non completion event");
@@ -621,13 +646,10 @@ static void run_comp_task(struct ehca_cpu_comp_task* cct)
 	while (!list_empty(&cct->cq_list)) {
 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
 		spin_unlock_irqrestore(&cct->task_lock, flags);
-		comp_event_callback(cq);
 
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-		cq->nr_events--;
-		if (!cq->nr_events)
+		comp_event_callback(cq);
+		if (atomic_dec_and_test(&cq->nr_events))
 			wake_up(&cq->wait_completion);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 		spin_lock_irqsave(&cct->task_lock, flags);
 		spin_lock(&cq->task_lock);

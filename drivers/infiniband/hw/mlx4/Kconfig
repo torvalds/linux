@@ -1,6 +1,5 @@
 config MLX4_INFINIBAND
 	tristate "Mellanox ConnectX HCA support"
-	depends on INFINIBAND
 	select MLX4_CORE
 	---help---
 	  This driver provides low-level InfiniBand support for

@@ -254,8 +254,6 @@ static void release_ep_resources(struct iwch_ep *ep)
 	cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
 	dst_release(ep->dst);
 	l2t_release(L2DATA(ep->com.tdev), ep->l2t);
-	if (ep->com.tdev->type == T3B)
-		release_tid(ep->com.tdev, ep->hwtid, NULL);
 	put_ep(&ep->com);
 }
 
@@ -515,7 +513,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	req->len = htonl(len);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
 			   V_TX_SNDBUF(snd_win>>15));
-	req->flags = htonl(F_TX_IMM_ACK|F_TX_INIT);
+	req->flags = htonl(F_TX_INIT);
 	req->sndseq = htonl(ep->snd_seq);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
@@ -566,7 +564,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	req->len = htonl(mpalen);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
 			   V_TX_SNDBUF(snd_win>>15));
-	req->flags = htonl(F_TX_IMM_ACK|F_TX_INIT);
+	req->flags = htonl(F_TX_INIT);
 	req->sndseq = htonl(ep->snd_seq);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
@@ -618,7 +616,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	req->len = htonl(len);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
 			   V_TX_SNDBUF(snd_win>>15));
-	req->flags = htonl(F_TX_MORE | F_TX_IMM_ACK | F_TX_INIT);
+	req->flags = htonl(F_TX_INIT);
 	req->sndseq = htonl(ep->snd_seq);
 	ep->mpa_skb = skb;
 	state_set(&ep->com, MPA_REP_SENT);
@@ -641,6 +639,7 @@ static int act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	cxgb3_insert_tid(ep->com.tdev, &t3c_client, ep, tid);
 
 	ep->snd_seq = ntohl(req->snd_isn);
+	ep->rcv_seq = ntohl(req->rcv_isn);
 
 	set_emss(ep, ntohs(req->tcp_opt));
 
@@ -1023,6 +1022,9 @@ static int rx_data(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, dlen);
 
+	ep->rcv_seq += dlen;
+	BUG_ON(ep->rcv_seq != (ntohl(hdr->seq) + dlen));
+
 	switch (state_read(&ep->com)) {
 	case MPA_REQ_SENT:
 		process_mpa_reply(ep, skb);
@@ -1060,7 +1062,6 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *ep = ctx;
 	struct cpl_wr_ack *hdr = cplhdr(skb);
 	unsigned int credits = ntohs(hdr->credits);
-	enum iwch_qp_attr_mask  mask;
 
 	PDBG("%s ep %p credits %u\n", __FUNCTION__, ep, credits);
 
@@ -1072,30 +1073,6 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	ep->mpa_skb = NULL;
 	dst_confirm(ep->dst);
 	if (state_read(&ep->com) == MPA_REP_SENT) {
-		struct iwch_qp_attributes attrs;
-
-		/* bind QP to EP and move to RTS */
-		attrs.mpa_attr = ep->mpa_attr;
-		attrs.max_ird = ep->ord;
-		attrs.max_ord = ep->ord;
-		attrs.llp_stream_handle = ep;
-		attrs.next_state = IWCH_QP_STATE_RTS;
-
-		/* bind QP and TID with INIT_WR */
-		mask = IWCH_QP_ATTR_NEXT_STATE |
-				     IWCH_QP_ATTR_LLP_STREAM_HANDLE |
-				     IWCH_QP_ATTR_MPA_ATTR |
-				     IWCH_QP_ATTR_MAX_IRD |
-				     IWCH_QP_ATTR_MAX_ORD;
-
-		ep->com.rpl_err = iwch_modify_qp(ep->com.qp->rhp,
-				     ep->com.qp, mask, &attrs, 1);
-
-		if (!ep->com.rpl_err) {
-			state_set(&ep->com, FPDU_MODE);
-			established_upcall(ep);
-		}
-
 		ep->com.rpl_done = 1;
 		PDBG("waking up ep %p\n", ep);
 		wake_up(&ep->com.waitq);
@@ -1124,6 +1101,15 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	return CPL_RET_BUF_DONE;
 }
 
+/*
+ * Return whether a failed active open has allocated a TID
+ */
+static inline int act_open_has_tid(int status)
+{
+	return status != CPL_ERR_TCAM_FULL && status != CPL_ERR_CONN_EXIST &&
+	       status != CPL_ERR_ARP_MISS;
+}
+
 static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 {
 	struct iwch_ep *ep = ctx;
@@ -1133,7 +1119,7 @@ static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	     status2errno(rpl->status));
 	connect_reply_upcall(ep, status2errno(rpl->status));
 	state_set(&ep->com, DEAD);
-	if (ep->com.tdev->type == T3B)
+	if (ep->com.tdev->type == T3B && act_open_has_tid(rpl->status))
 		release_tid(ep->com.tdev, GET_TID(rpl), NULL);
 	cxgb3_free_atid(ep->com.tdev, ep->atid);
 	dst_release(ep->dst);
@@ -1378,6 +1364,7 @@ static int pass_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 	PDBG("%s ep %p\n", __FUNCTION__, ep);
 	ep->snd_seq = ntohl(req->snd_isn);
+	ep->rcv_seq = ntohl(req->rcv_isn);
 
 	set_emss(ep, ntohs(req->tcp_opt));
 
@@ -1485,19 +1472,19 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	int ret;
 	int state;
 
+	if (is_neg_adv_abort(req->status)) {
+		PDBG("%s neg_adv_abort ep %p tid %d\n", __FUNCTION__, ep,
+		     ep->hwtid);
+		t3_l2t_send_event(ep->com.tdev, ep->l2t);
+		return CPL_RET_BUF_DONE;
+	}
+
 	/*
 	 * We get 2 peer aborts from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
 	if (!(ep->flags & PEER_ABORT_IN_PROGRESS)) {
 		ep->flags |= PEER_ABORT_IN_PROGRESS;
-		return CPL_RET_BUF_DONE;
-	}
-
-	if (is_neg_adv_abort(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %d\n", __FUNCTION__, ep,
-		     ep->hwtid);
-		t3_l2t_send_event(ep->com.tdev, ep->l2t);
 		return CPL_RET_BUF_DONE;
 	}
 
@@ -1732,10 +1719,8 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iwch_qp *qp = get_qhp(h, conn_param->qpn);
 
 	PDBG("%s ep %p tid %u\n", __FUNCTION__, ep, ep->hwtid);
-	if (state_read(&ep->com) == DEAD) {
-		put_ep(&ep->com);
+	if (state_read(&ep->com) == DEAD)
 		return -ECONNRESET;
-	}
 
 	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	BUG_ON(!qp);
@@ -1755,17 +1740,8 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
 	PDBG("%s %d ird %d ord %d\n", __FUNCTION__, __LINE__, ep->ird, ep->ord);
+
 	get_ep(&ep->com);
-	err = send_mpa_reply(ep, conn_param->private_data,
-			     conn_param->private_data_len);
-	if (err) {
-		ep->com.cm_id = NULL;
-		ep->com.qp = NULL;
-		cm_id->rem_ref(cm_id);
-		abort_connection(ep, NULL, GFP_KERNEL);
-		put_ep(&ep->com);
-		return err;
-	}
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
@@ -1783,16 +1759,28 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	err = iwch_modify_qp(ep->com.qp->rhp,
 			     ep->com.qp, mask, &attrs, 1);
+	if (err)
+		goto err;
 
-	if (err) {
-		ep->com.cm_id = NULL;
-		ep->com.qp = NULL;
-		cm_id->rem_ref(cm_id);
-		abort_connection(ep, NULL, GFP_KERNEL);
-	} else {
-		state_set(&ep->com, FPDU_MODE);
-		established_upcall(ep);
-	}
+	err = send_mpa_reply(ep, conn_param->private_data,
+			     conn_param->private_data_len);
+	if (err)
+		goto err;
+
+	/* wait for wr_ack */
+	wait_event(ep->com.waitq, ep->com.rpl_done);
+	err = ep->com.rpl_err;
+	if (err)
+		goto err;
+
+	state_set(&ep->com, FPDU_MODE);
+	established_upcall(ep);
+	put_ep(&ep->com);
+	return 0;
+err:
+	ep->com.cm_id = NULL;
+	ep->com.qp = NULL;
+	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
 	return err;
 }

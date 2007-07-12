@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -55,6 +55,7 @@ u64 ipath_snap_cntr(struct ipath_devdata *dd, ipath_creg creg)
 	u64 val64;
 	unsigned long t0, t1;
 	u64 ret;
+	unsigned long flags;
 
 	t0 = jiffies;
 	/* If fast increment counters are only 32 bits, snapshot them,
@@ -91,12 +92,18 @@ u64 ipath_snap_cntr(struct ipath_devdata *dd, ipath_creg creg)
 	if (creg == dd->ipath_cregs->cr_wordsendcnt) {
 		if (val != dd->ipath_lastsword) {
 			dd->ipath_sword += val - dd->ipath_lastsword;
+			spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
+			dd->ipath_traffic_wds += val - dd->ipath_lastsword;
+			spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 			dd->ipath_lastsword = val;
 		}
 		val64 = dd->ipath_sword;
 	} else if (creg == dd->ipath_cregs->cr_wordrcvcnt) {
 		if (val != dd->ipath_lastrword) {
 			dd->ipath_rword += val - dd->ipath_lastrword;
+			spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
+			dd->ipath_traffic_wds += val - dd->ipath_lastrword;
+			spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 			dd->ipath_lastrword = val;
 		}
 		val64 = dd->ipath_rword;
@@ -200,6 +207,7 @@ void ipath_get_faststats(unsigned long opaque)
 	struct ipath_devdata *dd = (struct ipath_devdata *) opaque;
 	u32 val;
 	static unsigned cnt;
+	unsigned long flags;
 
 	/*
 	 * don't access the chip while running diags, or memory diags can
@@ -210,9 +218,20 @@ void ipath_get_faststats(unsigned long opaque)
 		/* but re-arm the timer, for diags case; won't hurt other */
 		goto done;
 
+	/*
+	 * We now try to maintain a "active timer", based on traffic
+	 * exceeding a threshold, so we need to check the word-counts
+	 * even if they are 64-bit.
+	 */
+	ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordsendcnt);
+	ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordrcvcnt);
+	spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
+	if (dd->ipath_traffic_wds  >= IPATH_TRAFFIC_ACTIVE_THRESHOLD)
+		atomic_add(5, &dd->ipath_active_time); /* S/B #define */
+	dd->ipath_traffic_wds = 0;
+	spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
+
 	if (dd->ipath_flags & IPATH_32BITCOUNTERS) {
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordsendcnt);
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordrcvcnt);
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktsendcnt);
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktrcvcnt);
 	}
