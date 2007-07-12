@@ -396,7 +396,7 @@ int __init init_arch_irq(void)
 	bfin_write_EVT15(evt_system_call);
 	CSYNC();
 
-	for (irq = 0; irq < SYS_IRQS; irq++) {
+	for (irq = 0; irq <= SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
 			set_irq_chip(irq, &bf561_core_irqchip);
 		else
