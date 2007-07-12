@@ -213,7 +213,7 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->private_data = hpriv;
 
 	/* the first two ports are standard SFF */
-	rc = ata_pci_init_native_host(host);
+	rc = ata_pci_init_sff_host(host);
 	if (rc)
 		return rc;
 

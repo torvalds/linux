@@ -164,6 +164,8 @@ enum {
 	ATA_CMD_SET_MAX		= 0xF9,
 	ATA_CMD_SET_MAX_EXT	= 0x37,
 	ATA_CMD_READ_LOG_EXT	= 0x2f,
+	ATA_CMD_PMP_READ	= 0xE4,
+	ATA_CMD_PMP_WRITE	= 0xE8,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
@@ -211,6 +213,28 @@ enum {
 	ATAPI_DMADIR		= (1 << 2),	/* ATAPI data dir:
 						   0=to device, 1=to host */
 	ATAPI_CDB_LEN		= 16,
+
+	/* PMP stuff */
+	SATA_PMP_MAX_PORTS	= 15,
+	SATA_PMP_CTRL_PORT	= 15,
+
+	SATA_PMP_GSCR_DWORDS	= 128,
+	SATA_PMP_GSCR_PROD_ID	= 0,
+	SATA_PMP_GSCR_REV	= 1,
+	SATA_PMP_GSCR_PORT_INFO	= 2,
+	SATA_PMP_GSCR_ERROR	= 32,
+	SATA_PMP_GSCR_ERROR_EN	= 33,
+	SATA_PMP_GSCR_FEAT	= 64,
+	SATA_PMP_GSCR_FEAT_EN	= 96,
+
+	SATA_PMP_PSCR_STATUS	= 0,
+	SATA_PMP_PSCR_ERROR	= 1,
+	SATA_PMP_PSCR_CONTROL	= 2,
+
+	SATA_PMP_FEAT_BIST	= (1 << 0),
+	SATA_PMP_FEAT_PMREQ	= (1 << 1),
+	SATA_PMP_FEAT_DYNSSC	= (1 << 2),
+	SATA_PMP_FEAT_NOTIFY	= (1 << 3),
 
 	/* cable types */
 	ATA_CBL_NONE		= 0,
@@ -417,5 +441,10 @@ static inline int lba_48_ok(u64 block, u32 n_block)
 	/* check the ending block number */
 	return ((block + n_block - 1) < ((u64)1 << 48)) && (n_block <= 65536);
 }
+
+#define sata_pmp_gscr_vendor(gscr)	((gscr)[SATA_PMP_GSCR_PROD_ID] & 0xffff)
+#define sata_pmp_gscr_devid(gscr)	((gscr)[SATA_PMP_GSCR_PROD_ID] >> 16)
+#define sata_pmp_gscr_rev(gscr)		(((gscr)[SATA_PMP_GSCR_REV] >> 8) & 0xff)
+#define sata_pmp_gscr_ports(gscr)	((gscr)[SATA_PMP_GSCR_PORT_INFO] & 0xf)
 
 #endif /* __LINUX_ATA_H__ */
