@@ -7,69 +7,6 @@
 #include "power.h"
 
 
-#ifdef	CONFIG_PM_SYSFS_DEPRECATED
-
-/**
- *	state - Control current power state of device
- *
- *	show() returns the current power state of the device. '0' indicates
- *	the device is on. Other values (2) indicate the device is in some low
- *	power state.
- *
- *	store() sets the current power state, which is an integer valued
- *	0, 2, or 3.  Devices with bus.suspend_late(), or bus.resume_early()
- *	methods fail this operation; those methods couldn't be called.
- *	Otherwise,
- *
- *	- If the recorded dev->power.power_state.event matches the
- *	  target value, nothing is done.
- *	- If the recorded event code is nonzero, the device is reactivated
- *	  by calling bus.resume() and/or class.resume().
- *	- If the target value is nonzero, the device is suspended by
- *	  calling class.suspend() and/or bus.suspend() with event code
- *	  PM_EVENT_SUSPEND.
- *
- *	This mechanism is DEPRECATED and should only be used for testing.
- */
-
-static ssize_t state_show(struct device * dev, struct device_attribute *attr, char * buf)
-{
-	if (dev->power.power_state.event)
-		return sprintf(buf, "2\n");
-	else
-		return sprintf(buf, "0\n");
-}
-
-static ssize_t state_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t n)
-{
-	pm_message_t state;
-	int error = -EINVAL;
-
-	/* disallow incomplete suspend sequences */
-	if (dev->bus && (dev->bus->suspend_late || dev->bus->resume_early))
-		return error;
-
-	state.event = PM_EVENT_SUSPEND;
-	/* Older apps expected to write "3" here - confused with PCI D3 */
-	if ((n == 1) && !strcmp(buf, "3"))
-		error = dpm_runtime_suspend(dev, state);
-
-	if ((n == 1) && !strcmp(buf, "2"))
-		error = dpm_runtime_suspend(dev, state);
-
-	if ((n == 1) && !strcmp(buf, "0")) {
-		dpm_runtime_resume(dev);
-		error = 0;
-	}
-
-	return error ? error : n;
-}
-
-static DEVICE_ATTR(state, 0644, state_show, state_store);
-
-
-#endif	/* CONFIG_PM_SYSFS_DEPRECATED */
-
 /*
  *	wakeup - Report/change current wakeup option for device
  *
@@ -143,9 +80,6 @@ static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
 
 static struct attribute * power_attrs[] = {
-#ifdef	CONFIG_PM_SYSFS_DEPRECATED
-	&dev_attr_state.attr,
-#endif
 	&dev_attr_wakeup.attr,
 	NULL,
 };

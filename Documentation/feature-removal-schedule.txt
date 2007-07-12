@@ -26,8 +26,7 @@ Who:	Hans Verkuil <hverkuil@xs4all.nl> and
 
 ---------------------------
 
-What:	/sys/devices/.../power/state
-	dev->power.power_state
+What:	dev->power.power_state
 	dpm_runtime_{suspend,resume)()
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing
