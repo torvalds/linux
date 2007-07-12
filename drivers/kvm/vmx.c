@@ -1253,7 +1253,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	vcpu->cr8 = 0;
 	vcpu->apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
-	if (vcpu == &vcpu->kvm->vcpus[0])
+	if (vcpu->vcpu_id == 0)
 		vcpu->apic_base |= MSR_IA32_APICBASE_BSP;
 
 	fx_init(vcpu);

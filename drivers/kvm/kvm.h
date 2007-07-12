@@ -328,6 +328,7 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 
 struct kvm_vcpu {
 	struct kvm *kvm;
+	int vcpu_id;
 	union {
 		struct vmcs *vmcs;
 		struct vcpu_svm *svm;
