@@ -224,6 +224,7 @@ ohci_update_phy_reg(struct fw_card *card, int addr,
 	u32 val, old;
 
 	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
+	flush_writes(ohci);
 	msleep(2);
 	val = reg_read(ohci, OHCI1394_PhyControl);
 	if ((val & OHCI1394_PhyControl_ReadDone) == 0) {
