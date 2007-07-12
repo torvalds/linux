@@ -20,7 +20,7 @@
 
 struct delay_c {
 	struct timer_list delay_timer;
-	struct semaphore timer_lock;
+	struct mutex timer_lock;
 	struct work_struct flush_expired_bios;
 	struct list_head delayed_bios;
 	atomic_t may_delay;
@@ -58,12 +58,12 @@ static void handle_delayed_timer(unsigned long data)
 
 static void queue_timeout(struct delay_c *dc, unsigned long expires)
 {
-	down(&dc->timer_lock);
+	mutex_lock(&dc->timer_lock);
 
 	if (!timer_pending(&dc->delay_timer) || expires < dc->delay_timer.expires)
 		mod_timer(&dc->delay_timer, expires);
 
-	up(&dc->timer_lock);
+	mutex_unlock(&dc->timer_lock);
 }
 
 static void flush_bios(struct bio *bio)
@@ -193,13 +193,11 @@ out:
 		goto bad;
 	}
 
-	init_timer(&dc->delay_timer);
-	dc->delay_timer.function = handle_delayed_timer;
-	dc->delay_timer.data = (unsigned long)dc;
+	setup_timer(&dc->delay_timer, handle_delayed_timer, (unsigned long)dc);
 
 	INIT_WORK(&dc->flush_expired_bios, flush_expired_bios);
 	INIT_LIST_HEAD(&dc->delayed_bios);
-	init_MUTEX(&dc->timer_lock);
+	mutex_init(&dc->timer_lock);
 	atomic_set(&dc->may_delay, 1);
 
 	ti->private = dc;
