@@ -34,23 +34,25 @@
 
 #define BF548_FAMILY
 
+#include "bf548.h"
+#include "mem_map.h"
+#include "anomaly.h"
+
 #ifdef CONFIG_BF542
-#include "bf542.h"
+#include "defBF542.h"
+#endif
 
 #ifdef CONFIG_BF544
-#include "bf544.h"
+#include "defBF544.h"
 #endif
 
 #ifdef CONFIG_BF548
-#include "bf548.h"
+#include "defBF548.h"
 #endif
 
 #ifdef CONFIG_BF549
-#include "bf549.h"
+#include "defBF549.h"
 #endif
-
-#include "mem_map.h"
-#include "anomaly.h"
 
 #if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #ifdef CONFIG_BF542

@@ -30,6 +30,8 @@
 #ifndef __MACH_BF548_H__
 #define __MACH_BF548_H__
 
+#define SUPPORTED_REVID 0
+
 /* Masks for generic ERROR IRQ demultiplexing used in int-priority-sc.c */
 
 #define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */

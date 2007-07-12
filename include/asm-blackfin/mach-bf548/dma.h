@@ -44,7 +44,6 @@
 #define CH_UART1_TX 		9
 #define CH_ATAPI_RX		10
 #define CH_ATAPI_TX		11
-
 #define CH_EPPI0		12
 #define CH_EPPI1		13
 #define CH_EPPI2		14
@@ -58,6 +57,17 @@
 #define CH_SDH			22
 #define CH_SPI2			23
 
-#define MAX_BLACKFIN_DMA_CHANNEL CH_SPI2
+#define CH_MEM_STREAM0_DEST	24
+#define CH_MEM_STREAM0_SRC	25
+#define CH_MEM_STREAM1_DEST	26
+#define CH_MEM_STREAM1_SRC	27
+#define CH_MEM_STREAM2_DEST	28
+#define CH_MEM_STREAM2_SRC	29
+#define CH_MEM_STREAM3_DEST	30
+#define CH_MEM_STREAM3_SRC	31
 
+#define MAX_BLACKFIN_DMA_CHANNEL 32
+
+extern int channel2irq(unsigned int channel);
+extern struct dma_register *base_addr[];
 #endif

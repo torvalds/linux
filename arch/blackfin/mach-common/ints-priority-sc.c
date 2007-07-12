@@ -13,7 +13,7 @@
  *               2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
  *               2003 Metrowerks/Motorola
  *               2003 Bas Vermeulen <bas@buyways.nl>
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2007 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -65,9 +65,9 @@ atomic_t num_spurious;
 
 struct ivgx {
 	/* irq number for request_irq, available in mach-bf533/irq.h */
-	int irqno;
+	unsigned int irqno;
 	/* corresponding bit in the SIC_ISR register */
-	int isrflag;
+	unsigned int isrflag;
 } ivg_table[NR_PERI_INTS];
 
 struct ivg_slice {
@@ -98,7 +98,7 @@ static void __init search_IAR(void)
 			     bfin_read32((unsigned long *) SIC_IAR0 +
 					 (irqn >> 3)) >> iar_shift)) {
 				ivg_table[irq_pos].irqno = IVG7 + irqn;
-				ivg_table[irq_pos].isrflag = 1 << irqn;
+				ivg_table[irq_pos].isrflag = 1 << (irqn % 32);
 				ivg7_13[ivg].istop++;
 				irq_pos++;
 			}
@@ -141,15 +141,31 @@ static void bfin_core_unmask_irq(unsigned int irq)
 
 static void bfin_internal_mask_irq(unsigned int irq)
 {
+#ifndef CONFIG_BF54x
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
 			     ~(1 << (irq - (IRQ_CORETMR + 1))));
+#else
+	unsigned mask_bank, mask_bit;
+	mask_bank = (irq - (IRQ_CORETMR +1))/32;
+	mask_bit = (irq - (IRQ_CORETMR + 1))%32;
+	bfin_write_SIC_IMASK( mask_bank, bfin_read_SIC_IMASK(mask_bank) & \
+			    ~(1 << mask_bit));
+#endif
 	SSYNC();
 }
 
 static void bfin_internal_unmask_irq(unsigned int irq)
 {
+#ifndef CONFIG_BF54x
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
 			     (1 << (irq - (IRQ_CORETMR + 1))));
+#else
+	unsigned mask_bank, mask_bit;
+	mask_bank = (irq - (IRQ_CORETMR +1))/32;
+	mask_bit = (irq - (IRQ_CORETMR + 1))%32;
+	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) | \
+			( 1 << mask_bit));
+#endif
 	SSYNC();
 }
 
@@ -452,7 +468,14 @@ int __init init_arch_irq(void)
 	int irq;
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
+#ifdef CONFIG_BF54x
+	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
+	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
+	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
+#else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
+#endif
+
 	SSYNC();
 
 	local_irq_disable();
@@ -555,8 +578,24 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-		unsigned long sic_status;
+#ifdef CONFIG_BF54x
+		unsigned long sic_status[3];
 
+		SSYNC();
+		sic_status[0] = bfin_read_SIC_ISR(0) & bfin_read_SIC_IMASK(0);
+		sic_status[1] = bfin_read_SIC_ISR(1) & bfin_read_SIC_IMASK(1);
+		sic_status[2] = bfin_read_SIC_ISR(2) & bfin_read_SIC_IMASK(2);
+		SSYNC();
+		for(;; ivg++) {
+			if (ivg >= ivg_stop) {
+				atomic_inc(&num_spurious);
+				return;
+			}
+			if (sic_status[(ivg->irqno - IVG7)/32] & ivg->isrflag)
+				break;
+		}
+#else
+		unsigned long sic_status;
 		SSYNC();
 		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
 
@@ -567,6 +606,7 @@ void do_irq(int vec, struct pt_regs *fp)
 			} else if (sic_status & ivg->isrflag)
 				break;
 		}
+#endif
 		vec = ivg->irqno;
 	}
 	asm_do_IRQ(vec, fp);

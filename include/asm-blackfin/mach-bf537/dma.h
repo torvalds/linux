@@ -52,4 +52,7 @@
 #define CH_MEM_STREAM1_DEST	14	 /* TX */
 #define CH_MEM_STREAM1_SRC 	15	 /* RX */
 
+extern int channel2irq(unsigned int channel);
+extern struct dma_register *base_addr[];
+
 #endif

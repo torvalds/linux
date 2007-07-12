@@ -47,6 +47,8 @@
 			    SPORT external receive and transmit clocks. */
 #define ANOMALY_05000272 /* Certain data cache write through modes fail for
 			    VDDint <=0.9V */
+#define ANOMALY_05000281 /* False Hardware Error Exception when ISR context is
+			    not restored */
 #define ANOMALY_05000310 /* False Hardware Errors Caused by Fetches at the
 			    Boundary of Reserved Memory */
 #define ANOMALY_05000312 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and

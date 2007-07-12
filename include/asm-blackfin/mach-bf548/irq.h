@@ -51,7 +51,7 @@ Events         (highest priority)  EMU         0
                  (lowest priority)  IVG15       32 *
  */
 
-#define NR_PERI_INTS    32
+#define NR_PERI_INTS    (32 * 3)
 
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
@@ -92,7 +92,7 @@ Events         (highest priority)  EMU         0
 #define IRQ_DMAC1_ERR	BFIN_IRQ(24)	/* DMAC1 Status (Error) Interrupt */
 #define IRQ_SPORT2_ERR	BFIN_IRQ(25)	/* SPORT2 Error Interrupt */
 #define IRQ_SPORT3_ERR	BFIN_IRQ(26)	/* SPORT3 Error Interrupt */
-#define IRQ_MXVR	BFIN_IRQ(27)	/* SPORT3 Error Interrupt */
+#define IRQ_MXVR_DATA	BFIN_IRQ(27)	/* MXVR Data Interrupt */
 #define IRQ_SPI1_ERR	BFIN_IRQ(28)	/* SPI1 Status (Error) Interrupt */
 #define IRQ_SPI2_ERR	BFIN_IRQ(29)	/* SPI2 Status (Error) Interrupt */
 #define IRQ_UART1_ERR	BFIN_IRQ(30)	/* UART1 Status (Error) Interrupt */
@@ -102,8 +102,8 @@ Events         (highest priority)  EMU         0
 #define IRQ_SPORT2_TX	BFIN_IRQ(34)	/* SPORT2 TX (DMA19) Interrupt */
 #define IRQ_SPORT3_RX	BFIN_IRQ(35)	/* SPORT3 RX (DMA20) Interrupt */
 #define IRQ_SPORT3_TX	BFIN_IRQ(36)	/* SPORT3 TX (DMA21) Interrupt */
-#define IRQ_EPP1	BFIN_IRQ(37)	/* EPP1 (DMA13) Interrupt */
-#define IRQ_EPP2	BFIN_IRQ(38)	/* EPP2 (DMA14) Interrupt */
+#define IRQ_EPPI1	BFIN_IRQ(37)	/* EPP1 (DMA13) Interrupt */
+#define IRQ_EPPI2	BFIN_IRQ(38)	/* EPP2 (DMA14) Interrupt */
 #define IRQ_SPI1	BFIN_IRQ(39)	/* SPI1 (DMA5) Interrupt */
 #define IRQ_SPI2	BFIN_IRQ(40)	/* SPI2 (DMA23) Interrupt */
 #define IRQ_UART1_RX	BFIN_IRQ(41)	/* UART1 RX (DMA8) Interrupt */
@@ -143,14 +143,14 @@ Events         (highest priority)  EMU         0
 #define IRQ_USB_INT2	BFIN_IRQ(77)	/* USB INT2 Interrupt */
 #define IRQ_USB_DMA	BFIN_IRQ(78)	/* USB DMA Interrupt */
 #define IRQ_OPTSEC	BFIN_IRQ(79)	/* OTPSEC Interrupt */
-#define IRQ_TMR0	BFIN_IRQ(86)	/* Timer 0 Interrupt */
-#define IRQ_TMR1	BFIN_IRQ(87)	/* Timer 1 Interrupt */
-#define IRQ_TMR2	BFIN_IRQ(88)	/* Timer 2 Interrupt */
-#define IRQ_TMR3	BFIN_IRQ(89)	/* Timer 3 Interrupt */
-#define IRQ_TMR4	BFIN_IRQ(90)	/* Timer 4 Interrupt */
-#define IRQ_TMR5	BFIN_IRQ(91)	/* Timer 5 Interrupt */
-#define IRQ_TMR6	BFIN_IRQ(92)	/* Timer 6 Interrupt */
-#define IRQ_TMR7	BFIN_IRQ(93)	/* Timer 7 Interrupt */
+#define IRQ_TIMER0	BFIN_IRQ(86)	/* Timer 0 Interrupt */
+#define IRQ_TIMER1	BFIN_IRQ(87)	/* Timer 1 Interrupt */
+#define IRQ_TIMER2	BFIN_IRQ(88)	/* Timer 2 Interrupt */
+#define IRQ_TIMER3	BFIN_IRQ(89)	/* Timer 3 Interrupt */
+#define IRQ_TIMER4	BFIN_IRQ(90)	/* Timer 4 Interrupt */
+#define IRQ_TIMER5	BFIN_IRQ(91)	/* Timer 5 Interrupt */
+#define IRQ_TIMER6	BFIN_IRQ(92)	/* Timer 6 Interrupt */
+#define IRQ_TIMER7	BFIN_IRQ(93)	/* Timer 7 Interrupt */
 #define IRQ_PINT2	BFIN_IRQ(94)	/* PINT2 Interrupt */
 #define IRQ_PINT3	BFIN_IRQ(95)	/* PINT3 Interrupt */
 
@@ -248,9 +248,9 @@ Events         (highest priority)  EMU         0
 
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-#define NR_IRQS     (IRQ_PH15+1)
+#define NR_IRQS     (IRQ_PE15+1)
 #else
-#define NR_IRQS     (IRQ_UART1_ERROR+1)
+#define NR_IRQS     (SYS_IRQS+1)
 #endif
 
 #define IVG7            7
@@ -263,44 +263,116 @@ Events         (highest priority)  EMU         0
 #define IVG14           14
 #define IVG15           15
 
-/* IAR0 BIT FIELDS*/
-#define IRQ_PLL_WAKEUP_POS  0
-#define IRQ_DMA_ERROR_POS   4
-#define IRQ_ERROR_POS       8
-#define IRQ_RTC_POS         12
-#define IRQ_PPI_POS         16
-#define IRQ_SPORT0_RX_POS   20
-#define IRQ_SPORT0_TX_POS   24
-#define IRQ_SPORT1_RX_POS   28
+/* IAR0 BIT FIELDS */
+#define IRQ_PLL_WAKEUP_POS	0
+#define IRQ_DMAC0_ERR_POS	4
+#define IRQ_EPPI0_ERR_POS	8
+#define IRQ_SPORT0_ERR_POS	12
+#define IRQ_SPORT1_ERR_POS	16
+#define IRQ_SPI0_ERR_POS	20
+#define IRQ_UART0_ERR_POS	24
+#define IRQ_RTC_POS		28
 
-/* IAR1 BIT FIELDS*/
-#define IRQ_SPORT1_TX_POS   0
-#define IRQ_TWI_POS         4
-#define IRQ_SPI_POS         8
-#define IRQ_UART0_RX_POS    12
-#define IRQ_UART0_TX_POS    16
-#define IRQ_UART1_RX_POS    20
-#define IRQ_UART1_TX_POS    24
-#define IRQ_CAN_RX_POS      28
+/* IAR1 BIT FIELDS */
+#define IRQ_EPPI0_POS		0
+#define IRQ_SPORT0_RX_POS	4
+#define IRQ_SPORT0_TX_POS	8
+#define IRQ_SPORT1_RX_POS	12
+#define IRQ_SPORT1_TX_POS	16
+#define IRQ_SPI0_POS		20
+#define IRQ_UART0_RX_POS	24
+#define IRQ_UART0_TX_POS	28
 
-/* IAR2 BIT FIELDS*/
-#define IRQ_CAN_TX_POS      0
-#define IRQ_MAC_RX_POS      4
-#define IRQ_MAC_TX_POS      8
-#define IRQ_TMR0_POS        12
-#define IRQ_TMR1_POS        16
-#define IRQ_TMR2_POS        20
-#define IRQ_TMR3_POS        24
-#define IRQ_TMR4_POS        28
+/* IAR2 BIT FIELDS */
+#define IRQ_TIMER8_POS		0
+#define IRQ_TIMER9_POS		4
+#define IRQ_TIMER10_POS		8
+#define IRQ_PINT0_POS		12
+#define IRQ_PINT1_POS		16
+#define IRQ_MDMAS0_POS		20
+#define IRQ_MDMAS1_POS		24
+#define IRQ_WATCHDOG_POS	28
 
-/* IAR3 BIT FIELDS*/
-#define IRQ_TMR5_POS        0
-#define IRQ_TMR6_POS        4
-#define IRQ_TMR7_POS        8
-#define IRQ_PROG_INTA_POS   12
-#define IRQ_PORTG_INTB_POS   16
-#define IRQ_MEM_DMA0_POS    20
-#define IRQ_MEM_DMA1_POS    24
-#define IRQ_WATCH_POS       28
+/* IAR3 BIT FIELDS */
+#define IRQ_DMAC1_ERR_POS	0
+#define IRQ_SPORT2_ERR_POS	4
+#define IRQ_SPORT3_ERR_POS	8
+#define IRQ_MXVR_DATA_POS	12
+#define IRQ_SPI1_ERR_POS	16
+#define IRQ_SPI2_ERR_POS	20
+#define IRQ_UART1_ERR_POS	24
+#define IRQ_UART2_ERR_POS	28
 
-#endif				/* _BF537_IRQ_H_ */
+/* IAR4 BIT FILEDS */
+#define IRQ_CAN0_ERR_POS	0
+#define IRQ_SPORT2_RX_POS	4
+#define IRQ_SPORT2_TX_POS	8
+#define IRQ_SPORT3_RX_POS	12
+#define IRQ_SPORT3_TX_POS	16
+#define IRQ_EPPI1_POS		20
+#define IRQ_EPPI2_POS		24
+#define IRQ_SPI1_POS		28
+
+/* IAR5 BIT FIELDS */
+#define IRQ_SPI2_POS		0
+#define IRQ_UART1_RX_POS	4
+#define IRQ_UART1_TX_POS	8
+#define IRQ_ATAPI_RX_POS	12
+#define IRQ_ATAPI_TX_POS	16
+#define IRQ_TWI0_POS		20
+#define IRQ_TWI1_POS		24
+#define IRQ_CAN0_RX_POS		28
+
+/* IAR6 BIT FIELDS */
+#define IRQ_CAN0_TX_POS		0
+#define IRQ_MDMAS2_POS		4
+#define IRQ_MDMAS3_POS		8
+#define IRQ_MXVR_ERR_POS	12
+#define IRQ_MXVR_MSG_POS	16
+#define IRQ_MXVR_PKT_POS	20
+#define IRQ_EPPI1_ERR_POS	24
+#define IRQ_EPPI2_ERR_POS	28
+
+/* IAR7 BIT FIELDS */
+#define IRQ_UART3_ERR_POS	0
+#define IRQ_HOST_ERR_POS	4
+#define IRQ_PIXC_ERR_POS	12
+#define IRQ_NFC_ERR_POS		16
+#define IRQ_ATAPI_ERR_POS	20
+#define IRQ_CAN1_ERR_POS	24
+#define IRQ_HS_DMA_ERR_POS	28
+
+/* IAR8 BIT FIELDS */
+#define IRQ_PIXC_IN0_POS	0
+#define IRQ_PIXC_IN1_POS	4
+#define IRQ_PIXC_OUT_POS	8
+#define IRQ_SDH_POS		12
+#define IRQ_CNT_POS		16
+#define IRQ_KEY_POS		20
+#define IRQ_CAN1_RX_POS		24
+#define IRQ_CAN1_TX_POS		28
+
+/* IAR9 BIT FIELDS */
+#define IRQ_SDH_MASK0_POS	0
+#define IRQ_SDH_MASK1_POS	4
+#define IRQ_USB_INT0_POS	12
+#define IRQ_USB_INT1_POS	16
+#define IRQ_USB_INT2_POS	20
+#define IRQ_USB_DMA_POS		24
+#define IRQ_OTPSEC_POS		28
+
+/* IAR10 BIT FIELDS */
+#define IRQ_TIMER0_POS		24
+#define IRQ_TIMER1_POS		28
+
+/* IAR11 BIT FIELDS */
+#define IRQ_TIMER2_POS		0
+#define IRQ_TIMER3_POS		4
+#define IRQ_TIMER4_POS		8
+#define IRQ_TIMER5_POS		12
+#define IRQ_TIMER6_POS		16
+#define IRQ_TIMER7_POS		20
+#define IRQ_PINT2_POS		24
+#define IRQ_PINT3_POS		28
+
+#endif /* _BF548_IRQ_H_ */
