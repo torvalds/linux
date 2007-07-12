@@ -441,6 +441,54 @@ static struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 
+/* Binary descriptors */
+
+static ssize_t
+read_descriptors(struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct usb_device *udev = to_usb_device(
+			container_of(kobj, struct device, kobj));
+	size_t nleft = count;
+	size_t srclen, n;
+
+	usb_lock_device(udev);
+
+	/* The binary attribute begins with the device descriptor */
+	srclen = sizeof(struct usb_device_descriptor);
+	if (off < srclen) {
+		n = min_t(size_t, nleft, srclen - off);
+		memcpy(buf, off + (char *) &udev->descriptor, n);
+		nleft -= n;
+		buf += n;
+		off = 0;
+	} else {
+		off -= srclen;
+	}
+
+	/* Then follows the raw descriptor entry for the current
+	 * configuration (config plus subsidiary descriptors).
+	 */
+	if (udev->actconfig) {
+		int cfgno = udev->actconfig - udev->config;
+
+		srclen = __le16_to_cpu(udev->actconfig->desc.wTotalLength);
+		if (off < srclen) {
+			n = min_t(size_t, nleft, srclen - off);
+			memcpy(buf, off + udev->rawdescriptors[cfgno], n);
+			nleft -= n;
+		}
+	}
+	usb_unlock_device(udev);
+	return count - nleft;
+}
+
+static struct bin_attribute dev_bin_attr_descriptors = {
+	.attr = {.name = "descriptors", .mode = 0444},
+	.read = read_descriptors,
+	.size = 18 + 65535,	/* dev descr + max-size raw descriptor */
+};
+
 int usb_create_sysfs_dev_files(struct usb_device *udev)
 {
 	struct device *dev = &udev->dev;
@@ -449,6 +497,10 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	retval = sysfs_create_group(&dev->kobj, &dev_attr_grp);
 	if (retval)
 		return retval;
+
+	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
+	if (retval)
+		goto error;
 
 	retval = add_persist_attributes(dev);
 	if (retval)
@@ -492,6 +544,7 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	device_remove_file(dev, &dev_attr_serial);
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
+	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 }
 
