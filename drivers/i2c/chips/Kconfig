@@ -30,6 +30,16 @@ config SENSORS_DS1374
 	  This driver is deprecated and will be dropped soon. Use
 	  rtc-ds1374 instead.
 
+config DS1682
+	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1682 Total Elapsed Time Recorder.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1682.
+
 config SENSORS_EEPROM
 	tristate "EEPROM reader"
 	depends on EXPERIMENTAL
