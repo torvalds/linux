@@ -3512,9 +3512,9 @@ static inline int tg3_irq_sync(struct tg3 *tp)
  */
 static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
 {
+	spin_lock_bh(&tp->lock);
 	if (irq_sync)
 		tg3_irq_quiesce(tp);
-	spin_lock_bh(&tp->lock);
 }
 
 static inline void tg3_full_unlock(struct tg3 *tp)
@@ -9116,10 +9116,10 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	/* Update RX_MODE_KEEP_VLAN_TAG bit in RX_MODE register. */
 	__tg3_set_rx_mode(dev);
 
-	tg3_full_unlock(tp);
-
 	if (netif_running(dev))
 		tg3_netif_start(tp);
+
+	tg3_full_unlock(tp);
 }
 #endif
 
