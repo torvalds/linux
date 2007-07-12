@@ -3050,6 +3050,15 @@
 #define                  FIFO_RWM  0x18000000 /* FIFO Regular Watermarks */
 #define                  FIFO_UWM  0x60000000 /* FIFO Urgent Watermarks */
 
+#define DLEN_8		(0 << 15) /* 000 - 8 bits */
+#define DLEN_10		(1 << 15) /* 001 - 10 bits */
+#define DLEN_12		(2 << 15) /* 010 - 12 bits */
+#define DLEN_14		(3 << 15) /* 011 - 14 bits */
+#define DLEN_16		(4 << 15) /* 100 - 16 bits */
+#define DLEN_18		(5 << 15) /* 101 - 18 bits */
+#define DLEN_24		(6 << 15) /* 110 - 24 bits */
+
+
 /* Bit masks for EPPIx_FS2W_LVB */
 
 #define                   F1VB_BD  0xff       /* Vertical Blanking before Field 1 Active Data */
@@ -3365,32 +3374,32 @@
 /* BCODE bit field options (SYSCFG register) */
 
 #define BCODE_WAKEUP    0x0000  /* boot according to wake-up condition */
-#define BCODE_FULLBOOT  0x0010  /* always perform full boot */ 
+#define BCODE_FULLBOOT  0x0010  /* always perform full boot */
 #define BCODE_QUICKBOOT 0x0020  /* always perform quick boot */
 #define BCODE_NOBOOT    0x0030  /* always perform full boot */
 
 /* CNT_COMMAND bit field options */
- 
+
 #define W1LCNT_ZERO   0x0001   /* write 1 to load CNT_COUNTER with zero */
 #define W1LCNT_MIN    0x0004   /* write 1 to load CNT_COUNTER from CNT_MIN */
 #define W1LCNT_MAX    0x0008   /* write 1 to load CNT_COUNTER from CNT_MAX */
- 
+
 #define W1LMIN_ZERO   0x0010   /* write 1 to load CNT_MIN with zero */
 #define W1LMIN_CNT    0x0020   /* write 1 to load CNT_MIN from CNT_COUNTER */
 #define W1LMIN_MAX    0x0080   /* write 1 to load CNT_MIN from CNT_MAX */
- 
+
 #define W1LMAX_ZERO   0x0100   /* write 1 to load CNT_MAX with zero */
 #define W1LMAX_CNT    0x0200   /* write 1 to load CNT_MAX from CNT_COUNTER */
 #define W1LMAX_MIN    0x0400   /* write 1 to load CNT_MAX from CNT_MIN */
- 
+
 /* CNT_CONFIG bit field options */
- 
+
 #define CNTMODE_QUADENC  0x0000  /* quadrature encoder mode */
 #define CNTMODE_BINENC   0x0100  /* binary encoder mode */
 #define CNTMODE_UDCNT    0x0200  /* up/down counter mode */
 #define CNTMODE_DIRCNT   0x0400  /* direction counter mode */
 #define CNTMODE_DIRTMR   0x0500  /* direction timer mode */
- 
+
 #define BNDMODE_COMP     0x0000  /* boundary compare mode */
 #define BNDMODE_ZERO     0x1000  /* boundary compare and zero mode */
 #define BNDMODE_CAPT     0x2000  /* boundary capture mode */
@@ -3403,7 +3412,7 @@
 #define EXT_CLK  0x0003
 
 /* UARTx_LCR bit field options */
- 
+
 #define WLS_5   0x0000    /* 5 data bits */
 #define WLS_6   0x0001    /* 6 data bits */
 #define WLS_7   0x0002    /* 7 data bits */
@@ -3451,7 +3460,7 @@
 #define PIQ30 0x40000000
 #define PIQ31 0x80000000
 
-/* PORT A Bit Definitions for the registers 
+/* PORT A Bit Definitions for the registers
 PORTA, PORTA_SET, PORTA_CLEAR,
 PORTA_DIR_SET, PORTA_DIR_CLEAR, PORTA_INEN,
 PORTA_FER registers
@@ -3474,7 +3483,7 @@ PORTA_FER registers
 #define PA14 0x4000
 #define PA15 0x8000
 
-/* PORT B Bit Definitions for the registers 
+/* PORT B Bit Definitions for the registers
 PORTB, PORTB_SET, PORTB_CLEAR,
 PORTB_DIR_SET, PORTB_DIR_CLEAR, PORTB_INEN,
 PORTB_FER registers
@@ -3497,7 +3506,7 @@ PORTB_FER registers
 #define PB14 0x4000
 
 
-/* PORT C Bit Definitions for the registers 
+/* PORT C Bit Definitions for the registers
 PORTC, PORTC_SET, PORTC_CLEAR,
 PORTC_DIR_SET, PORTC_DIR_CLEAR, PORTC_INEN,
 PORTC_FER registers
@@ -3520,7 +3529,7 @@ PORTC_FER registers
 #define PC13 0x2000
 
 
-/* PORT D Bit Definitions for the registers 
+/* PORT D Bit Definitions for the registers
 PORTD, PORTD_SET, PORTD_CLEAR,
 PORTD_DIR_SET, PORTD_DIR_CLEAR, PORTD_INEN,
 PORTD_FER registers
@@ -3543,7 +3552,7 @@ PORTD_FER registers
 #define PD14 0x4000
 #define PD15 0x8000
 
-/* PORT E Bit Definitions for the registers 
+/* PORT E Bit Definitions for the registers
 PORTE, PORTE_SET, PORTE_CLEAR,
 PORTE_DIR_SET, PORTE_DIR_CLEAR, PORTE_INEN,
 PORTE_FER registers
@@ -3567,7 +3576,7 @@ PORTE_FER registers
 #define PE14 0x4000
 #define PE15 0x8000
 
-/* PORT F Bit Definitions for the registers 
+/* PORT F Bit Definitions for the registers
 PORTF, PORTF_SET, PORTF_CLEAR,
 PORTF_DIR_SET, PORTF_DIR_CLEAR, PORTF_INEN,
 PORTF_FER registers
@@ -3591,7 +3600,7 @@ PORTF_FER registers
 #define PF14 0x4000
 #define PF15 0x8000
 
-/* PORT G Bit Definitions for the registers 
+/* PORT G Bit Definitions for the registers
 PORTG, PORTG_SET, PORTG_CLEAR,
 PORTG_DIR_SET, PORTG_DIR_CLEAR, PORTG_INEN,
 PORTG_FER registers
@@ -3615,7 +3624,7 @@ PORTG_FER registers
 #define PG14 0x4000
 #define PG15 0x8000
 
-/* PORT H Bit Definitions for the registers 
+/* PORT H Bit Definitions for the registers
 PORTH, PORTH_SET, PORTH_CLEAR,
 PORTH_DIR_SET, PORTH_DIR_CLEAR, PORTH_INEN,
 PORTH_FER registers
@@ -3638,7 +3647,7 @@ PORTH_FER registers
 #define PH13 0x2000
 
 
-/* PORT I Bit Definitions for the registers 
+/* PORT I Bit Definitions for the registers
 PORTI, PORTI_SET, PORTI_CLEAR,
 PORTI_DIR_SET, PORTI_DIR_CLEAR, PORTI_INEN,
 PORTI_FER registers
@@ -3662,7 +3671,7 @@ PORTI_FER registers
 #define PI14 0x4000
 #define PI15 0x8000
 
-/* PORT J Bit Definitions for the registers 
+/* PORT J Bit Definitions for the registers
 PORTJ, PORTJ_SET, PORTJ_CLEAR,
 PORTJ_DIR_SET, PORTJ_DIR_CLEAR, PORTJ_INEN,
 PORTJ_FER registers
@@ -3683,7 +3692,7 @@ PORTJ_FER registers
 #define PJ11 0x0800
 #define PJ12 0x1000
 #define PJ13 0x2000
- 
+
 
 /* Port Muxing Bit Fields for PORTx_MUX Registers */
 
@@ -3827,7 +3836,7 @@ PORTJ_FER registers
 #define B0MAP_PIL 0x00000006 /* Map Port I Low to Byte 0 */
 #define B0MAP_PJL 0x00000007 /* Map Port J Low to Byte 0 */
 
-#define B1MAP_PCH 0x00000000 /* Map Port C High to Byte 1 */ 
+#define B1MAP_PCH 0x00000000 /* Map Port C High to Byte 1 */
 #define B1MAP_PDH 0x00000100 /* Map Port D High to Byte 1 */
 #define B1MAP_PEH 0x00000200 /* Map Port E High to Byte 1 */
 #define B1MAP_PFH 0x00000300 /* Map Port F High to Byte 1 */
@@ -3836,27 +3845,27 @@ PORTJ_FER registers
 #define B1MAP_PIH 0x00000600 /* Map Port I High to Byte 1 */
 #define B1MAP_PJH 0x00000700 /* Map Port J High to Byte 1 */
 
-#define B2MAP_PCL 0x00000000 /* Map Port C Low to Byte 2 */ 
-#define B2MAP_PDL 0x00010000 /* Map Port D Low to Byte 2 */ 
-#define B2MAP_PEL 0x00020000 /* Map Port E Low to Byte 2 */ 
-#define B2MAP_PFL 0x00030000 /* Map Port F Low to Byte 2 */ 
-#define B2MAP_PGL 0x00040000 /* Map Port G Low to Byte 2 */ 
-#define B2MAP_PHL 0x00050000 /* Map Port H Low to Byte 2 */ 
-#define B2MAP_PIL 0x00060000 /* Map Port I Low to Byte 2 */ 
-#define B2MAP_PJL 0x00070000 /* Map Port J Low to Byte 2 */ 
+#define B2MAP_PCL 0x00000000 /* Map Port C Low to Byte 2 */
+#define B2MAP_PDL 0x00010000 /* Map Port D Low to Byte 2 */
+#define B2MAP_PEL 0x00020000 /* Map Port E Low to Byte 2 */
+#define B2MAP_PFL 0x00030000 /* Map Port F Low to Byte 2 */
+#define B2MAP_PGL 0x00040000 /* Map Port G Low to Byte 2 */
+#define B2MAP_PHL 0x00050000 /* Map Port H Low to Byte 2 */
+#define B2MAP_PIL 0x00060000 /* Map Port I Low to Byte 2 */
+#define B2MAP_PJL 0x00070000 /* Map Port J Low to Byte 2 */
 
-#define B3MAP_PCH 0x00000000 /* Map Port C High to Byte 3 */ 
-#define B3MAP_PDH 0x01000000 /* Map Port D High to Byte 3 */ 
-#define B3MAP_PEH 0x02000000 /* Map Port E High to Byte 3 */ 
-#define B3MAP_PFH 0x03000000 /* Map Port F High to Byte 3 */ 
-#define B3MAP_PGH 0x04000000 /* Map Port G High to Byte 3 */ 
-#define B3MAP_PHH 0x05000000 /* Map Port H High to Byte 3 */ 
-#define B3MAP_PIH 0x06000000 /* Map Port I High to Byte 3 */ 
-#define B3MAP_PJH 0x07000000 /* Map Port J High to Byte 3 */ 
+#define B3MAP_PCH 0x00000000 /* Map Port C High to Byte 3 */
+#define B3MAP_PDH 0x01000000 /* Map Port D High to Byte 3 */
+#define B3MAP_PEH 0x02000000 /* Map Port E High to Byte 3 */
+#define B3MAP_PFH 0x03000000 /* Map Port F High to Byte 3 */
+#define B3MAP_PGH 0x04000000 /* Map Port G High to Byte 3 */
+#define B3MAP_PHH 0x05000000 /* Map Port H High to Byte 3 */
+#define B3MAP_PIH 0x06000000 /* Map Port I High to Byte 3 */
+#define B3MAP_PJH 0x07000000 /* Map Port J High to Byte 3 */
 
 
 /* for legacy compatibility */
- 
+
 #define WLS(x)  (((x)-5) & 0x03) /* Word Length Select */
 #define W1LMAX_MAX W1LMAX_MIN
 #define EBIU_AMCBCTL0 EBIU_AMBCTL0
