@@ -147,8 +147,8 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	unsigned mask_bank, mask_bit;
 	mask_bank = (irq - (IRQ_CORETMR + 1)) / 32;
 	mask_bit = (irq - (IRQ_CORETMR + 1)) % 32;
-	bfin_write_SIC_IMASK( mask_bank, bfin_read_SIC_IMASK(mask_bank) & \
-			    ~(1 << mask_bit));
+	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
+			     ~(1 << mask_bit));
 #endif
 	SSYNC();
 }
@@ -161,9 +161,9 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 #else
 	unsigned mask_bank, mask_bit;
 	mask_bank = (irq - (IRQ_CORETMR + 1)) / 32;
-	mask_bit = (irq - (IRQ_CORETMR + 1))%32;
-	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) | \
-			( 1 << mask_bit));
+	mask_bit = (irq - (IRQ_CORETMR + 1)) % 32;
+	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) |
+			     (1 << mask_bit));
 #endif
 	SSYNC();
 }
@@ -728,7 +728,7 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
 	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
-	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);		
+	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
@@ -878,7 +878,6 @@ void do_irq(int vec, struct pt_regs *fp)
 		sic_status[0] = bfin_read_SIC_ISR(0) & bfin_read_SIC_IMASK(0);
 		sic_status[1] = bfin_read_SIC_ISR(1) & bfin_read_SIC_IMASK(1);
 		sic_status[2] = bfin_read_SIC_ISR(2) & bfin_read_SIC_IMASK(2);
-		
 
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
