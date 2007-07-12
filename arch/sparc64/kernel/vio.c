@@ -44,12 +44,11 @@ static const struct vio_device_id *vio_match_device(
 
 	while (matches->type[0] || matches->compat[0]) {
 		int match = 1;
-		if (matches->type[0]) {
-			match &= type
-				&& !strcmp(matches->type, type);
-		}
+		if (matches->type[0])
+			match &= !strcmp(matches->type, type);
+
 		if (matches->compat[0]) {
-			match &= compat &&
+			match &= len &&
 				find_in_proplist(compat, matches->compat, len);
 		}
 		if (match)
@@ -205,15 +204,30 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	const char *type, *compat;
 	struct device_node *dp;
 	struct vio_dev *vdev;
-	int err, clen;
+	int err, tlen, clen;
 
-	type = mdesc_get_property(hp, mp, "device-type", NULL);
+	type = mdesc_get_property(hp, mp, "device-type", &tlen);
 	if (!type) {
-		type = mdesc_get_property(hp, mp, "name", NULL);
-		if (!type)
+		type = mdesc_get_property(hp, mp, "name", &tlen);
+		if (!type) {
 			type = mdesc_node_name(hp, mp);
+			tlen = strlen(type) + 1;
+		}
 	}
+	if (tlen > VIO_MAX_TYPE_LEN) {
+		printk(KERN_ERR "VIO: Type string [%s] is too long.\n",
+		       type);
+		return NULL;
+	}
+
 	compat = mdesc_get_property(hp, mp, "device-type", &clen);
+	if (!compat) {
+		clen = 0;
+	} else if (clen > VIO_MAX_COMPAT_LEN) {
+		printk(KERN_ERR "VIO: Compat len %d for [%s] is too long.\n",
+		       clen, type);
+		return NULL;
+	}
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
@@ -222,8 +236,11 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	}
 
 	vdev->mp = mp;
-	vdev->type = type;
-	vdev->compat = compat;
+	memcpy(vdev->type, type, tlen);
+	if (compat)
+		memcpy(vdev->compat, compat, clen);
+	else
+		memset(vdev->compat, 0, sizeof(vdev->compat));
 	vdev->compat_len = clen;
 
 	vdev->channel_id = ~0UL;

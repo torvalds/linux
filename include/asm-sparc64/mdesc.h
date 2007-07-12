@@ -23,8 +23,28 @@ extern u64 mdesc_node_by_name(struct mdesc_handle *handle,
 	     (__node) != MDESC_NODE_NULL; \
 	     __node = mdesc_node_by_name(__hdl, __node, __name))
 
+/* Access to property values returned from mdesc_get_property() are
+ * only valid inside of a mdesc_grab()/mdesc_release() sequence.
+ * Once mdesc_release() is called, the memory backed up by these
+ * pointers may reference freed up memory.
+ *
+ * Therefore callers must make copies of any property values
+ * they need.
+ *
+ * These same rules apply to mdesc_node_name().
+ */
 extern const void *mdesc_get_property(struct mdesc_handle *handle,
 				      u64 node, const char *name, int *lenp);
+extern const char *mdesc_node_name(struct mdesc_handle *hp, u64 node);
+
+/* MD arc iteration, the standard sequence is:
+ *
+ *	unsigned long arc;
+ *	mdesc_for_each_arc(arc, handle, node, MDESC_ARC_TYPE_{FWD,BACK}) {
+ *		unsigned long target = mdesc_arc_target(handle, arc);
+ *		...
+ *	}
+ */
 
 #define MDESC_ARC_TYPE_FWD	"fwd"
 #define MDESC_ARC_TYPE_BACK	"back"
@@ -37,8 +57,6 @@ extern u64 mdesc_next_arc(struct mdesc_handle *handle, u64 from,
 	     __arc = mdesc_next_arc(__hdl, __arc, __type))
 
 extern u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
-
-extern const char *mdesc_node_name(struct mdesc_handle *hp, u64 node);
 
 extern void mdesc_update(void);
 

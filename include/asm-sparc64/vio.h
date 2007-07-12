@@ -264,12 +264,15 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 		((dr->prod - dr->cons) & (ring_size - 1)));
 }
 
+#define VIO_MAX_TYPE_LEN	64
+#define VIO_MAX_COMPAT_LEN	64
+
 struct vio_dev {
 	u64			mp;
 	struct device_node	*dp;
 
-	const char		*type;
-	const char		*compat;
+	char			type[VIO_MAX_TYPE_LEN];
+	char			compat[VIO_MAX_COMPAT_LEN];
 	int			compat_len;
 
 	unsigned long		channel_id;
