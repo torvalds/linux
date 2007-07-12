@@ -37,11 +37,6 @@
 #include <linux/rtnetlink.h>
 #include <net/rtnetlink.h>
 
-struct dummy_priv {
-	struct net_device *dev;
-	struct list_head list;
-};
-
 static int numdummies = 1;
 
 static int dummy_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -89,37 +84,9 @@ static int dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static LIST_HEAD(dummies);
-
-static int dummy_newlink(struct net_device *dev,
-			 struct nlattr *tb[], struct nlattr *data[])
-{
-	struct dummy_priv *priv = netdev_priv(dev);
-	int err;
-
-	err = register_netdevice(dev);
-	if (err < 0)
-		return err;
-
-	priv->dev = dev;
-	list_add_tail(&priv->list, &dummies);
-	return 0;
-}
-
-static void dummy_dellink(struct net_device *dev)
-{
-	struct dummy_priv *priv = netdev_priv(dev);
-
-	list_del(&priv->list);
-	unregister_netdevice(dev);
-}
-
 static struct rtnl_link_ops dummy_link_ops __read_mostly = {
 	.kind		= "dummy",
-	.priv_size	= sizeof(struct dummy_priv),
 	.setup		= dummy_setup,
-	.newlink	= dummy_newlink,
-	.dellink	= dummy_dellink,
 };
 
 /* Number of dummy devices to be set up by this module. */
@@ -129,12 +96,9 @@ MODULE_PARM_DESC(numdummies, "Number of dummy pseudo devices");
 static int __init dummy_init_one(void)
 {
 	struct net_device *dev_dummy;
-	struct dummy_priv *priv;
 	int err;
 
-	dev_dummy = alloc_netdev(sizeof(struct dummy_priv), "dummy%d",
-				 dummy_setup);
-
+	dev_dummy = alloc_netdev(0, "dummy%d", dummy_setup);
 	if (!dev_dummy)
 		return -ENOMEM;
 
@@ -146,10 +110,6 @@ static int __init dummy_init_one(void)
 	err = register_netdevice(dev_dummy);
 	if (err < 0)
 		goto err;
-
-	priv = netdev_priv(dev_dummy);
-	priv->dev = dev_dummy;
-	list_add_tail(&priv->list, &dummies);
 	return 0;
 
 err:
@@ -159,7 +119,6 @@ err:
 
 static int __init dummy_init_module(void)
 {
-	struct dummy_priv *priv, *next;
 	int i, err = 0;
 
 	rtnl_lock();
@@ -167,11 +126,8 @@ static int __init dummy_init_module(void)
 
 	for (i = 0; i < numdummies && !err; i++)
 		err = dummy_init_one();
-	if (err < 0) {
-		list_for_each_entry_safe(priv, next, &dummies, list)
-			dummy_dellink(priv->dev);
+	if (err < 0)
 		__rtnl_link_unregister(&dummy_link_ops);
-	}
 	rtnl_unlock();
 
 	return err;
@@ -179,14 +135,7 @@ static int __init dummy_init_module(void)
 
 static void __exit dummy_cleanup_module(void)
 {
-	struct dummy_priv *priv, *next;
-
-	rtnl_lock();
-	list_for_each_entry_safe(priv, next, &dummies, list)
-		dummy_dellink(priv->dev);
-
-	__rtnl_link_unregister(&dummy_link_ops);
-	rtnl_unlock();
+	rtnl_link_unregister(&dummy_link_ops);
 }
 
 module_init(dummy_init_module);

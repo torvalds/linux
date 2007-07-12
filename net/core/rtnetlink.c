@@ -270,6 +270,9 @@ static LIST_HEAD(link_ops);
  */
 int __rtnl_link_register(struct rtnl_link_ops *ops)
 {
+	if (!ops->dellink)
+		ops->dellink = unregister_netdevice;
+
 	list_add_tail(&ops->list, &link_ops);
 	return 0;
 }
@@ -298,12 +301,16 @@ EXPORT_SYMBOL_GPL(rtnl_link_register);
  * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
  * @ops: struct rtnl_link_ops * to unregister
  *
- * The caller must hold the rtnl_mutex. This function should be used
- * by drivers that unregister devices during module unloading. It must
- * be called after unregistering the devices.
+ * The caller must hold the rtnl_mutex.
  */
 void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
+	struct net_device *dev, *n;
+
+	for_each_netdev_safe(dev, n) {
+		if (dev->rtnl_link_ops == ops)
+			ops->dellink(dev);
+	}
 	list_del(&ops->list);
 }
 
@@ -1067,7 +1074,10 @@ replay:
 		if (tb[IFLA_LINKMODE])
 			dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
 
-		err = ops->newlink(dev, tb, data);
+		if (ops->newlink)
+			err = ops->newlink(dev, tb, data);
+		else
+			err = register_netdevice(dev);
 err_free:
 		if (err < 0)
 			free_netdev(dev);

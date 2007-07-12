@@ -115,26 +115,6 @@ err1:
 	return err;
 }
 
-/* Cleanup all vlan devices
- * Note: devices that have been registered that but not
- * brought up will exist but have no module ref count.
- */
-static void __exit vlan_cleanup_devices(void)
-{
-	struct net_device *dev, *nxt;
-
-	rtnl_lock();
-	for_each_netdev_safe(dev, nxt) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			unregister_vlan_dev(VLAN_DEV_INFO(dev)->real_dev,
-					    VLAN_DEV_INFO(dev)->vlan_id);
-
-			unregister_netdevice(dev);
-		}
-	}
-	rtnl_unlock();
-}
-
 /*
  *     Module 'remove' entry point.
  *     o delete /proc/net/router directory and static entries.
@@ -150,7 +130,6 @@ static void __exit vlan_cleanup_module(void)
 	unregister_netdevice_notifier(&vlan_notifier_block);
 
 	dev_remove_pack(&vlan_packet_type);
-	vlan_cleanup_devices();
 
 	/* This table must be empty if there are no module
 	 * references left.

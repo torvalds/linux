@@ -33,15 +33,12 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
-#include <linux/list.h>
 #include <net/pkt_sched.h>
 
 #define TX_TIMEOUT  (2*HZ)
 
 #define TX_Q_LIMIT    32
 struct ifb_private {
-	struct list_head	list;
-	struct net_device	*dev;
 	struct net_device_stats stats;
 	struct tasklet_struct   ifb_tasklet;
 	int     tasklet_pending;
@@ -201,12 +198,6 @@ static struct net_device_stats *ifb_get_stats(struct net_device *dev)
 	return stats;
 }
 
-static LIST_HEAD(ifbs);
-
-/* Number of ifb devices to be set up by this module. */
-module_param(numifbs, int, 0);
-MODULE_PARM_DESC(numifbs, "Number of ifb devices");
-
 static int ifb_close(struct net_device *dev)
 {
 	struct ifb_private *dp = netdev_priv(dev);
@@ -230,41 +221,19 @@ static int ifb_open(struct net_device *dev)
 	return 0;
 }
 
-static int ifb_newlink(struct net_device *dev,
-		       struct nlattr *tb[], struct nlattr *data[])
-{
-	struct ifb_private *priv = netdev_priv(dev);
-	int err;
-
-	err = register_netdevice(dev);
-	if (err < 0)
-		return err;
-
-	priv->dev = dev;
-	list_add_tail(&priv->list, &ifbs);
-	return 0;
-}
-
-static void ifb_dellink(struct net_device *dev)
-{
-	struct ifb_private *priv = netdev_priv(dev);
-
-	list_del(&priv->list);
-	unregister_netdevice(dev);
-}
-
 static struct rtnl_link_ops ifb_link_ops __read_mostly = {
 	.kind		= "ifb",
 	.priv_size	= sizeof(struct ifb_private),
 	.setup		= ifb_setup,
-	.newlink	= ifb_newlink,
-	.dellink	= ifb_dellink,
 };
+
+/* Number of ifb devices to be set up by this module. */
+module_param(numifbs, int, 0);
+MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 
 static int __init ifb_init_one(int index)
 {
 	struct net_device *dev_ifb;
-	struct ifb_private *priv;
 	int err;
 
 	dev_ifb = alloc_netdev(sizeof(struct ifb_private),
@@ -281,10 +250,6 @@ static int __init ifb_init_one(int index)
 	err = register_netdevice(dev_ifb);
 	if (err < 0)
 		goto err;
-
-	priv = netdev_priv(dev_ifb);
-	priv->dev = dev_ifb;
-	list_add_tail(&priv->list, &ifbs);
 	return 0;
 
 err:
@@ -294,7 +259,6 @@ err:
 
 static int __init ifb_init_module(void)
 {
-	struct ifb_private *priv, *next;
 	int i, err;
 
 	rtnl_lock();
@@ -302,11 +266,8 @@ static int __init ifb_init_module(void)
 
 	for (i = 0; i < numifbs && !err; i++)
 		err = ifb_init_one(i);
-	if (err) {
-		list_for_each_entry_safe(priv, next, &ifbs, list)
-			ifb_dellink(priv->dev);
+	if (err)
 		__rtnl_link_unregister(&ifb_link_ops);
-	}
 	rtnl_unlock();
 
 	return err;
@@ -314,14 +275,7 @@ static int __init ifb_init_module(void)
 
 static void __exit ifb_cleanup_module(void)
 {
-	struct ifb_private *priv, *next;
-
-	rtnl_lock();
-	list_for_each_entry_safe(priv, next, &ifbs, list)
-		ifb_dellink(priv->dev);
-
-	__rtnl_link_unregister(&ifb_link_ops);
-	rtnl_unlock();
+	rtnl_link_unregister(&ifb_link_ops);
 }
 
 module_init(ifb_init_module);
