@@ -235,7 +235,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		if (!(vt596_features & FEATURE_I2CBLOCK))
 			goto exit_unsupported;
 		if (read_write == I2C_SMBUS_READ)
-			outb_p(I2C_SMBUS_BLOCK_MAX, SMBHSTDAT0);
+			outb_p(data->block[0], SMBHSTDAT0);
 		/* Fall through */
 	case I2C_SMBUS_BLOCK_DATA:
 		outb_p(command, SMBHSTCMD);

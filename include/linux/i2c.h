@@ -90,7 +90,7 @@ extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
 				      const u8 *values);
 /* Returns the number of read bytes */
 extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
-					 u8 command, u8 *values);
+					 u8 command, u8 length, u8 *values);
 extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
 					  u8 command, u8 length,
 					  const u8 *values);
@@ -524,8 +524,9 @@ union i2c_smbus_data {
 #define I2C_SMBUS_WORD_DATA	    3
 #define I2C_SMBUS_PROC_CALL	    4
 #define I2C_SMBUS_BLOCK_DATA	    5
-#define I2C_SMBUS_I2C_BLOCK_DATA    6
+#define I2C_SMBUS_I2C_BLOCK_BROKEN  6
 #define I2C_SMBUS_BLOCK_PROC_CALL   7		/* SMBus 2.0 */
+#define I2C_SMBUS_I2C_BLOCK_DATA    8
 
 
 /* ----- commands for the ioctl like i2c_command call:

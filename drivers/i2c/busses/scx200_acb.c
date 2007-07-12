@@ -310,8 +310,6 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 		break;
 
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-		if (rw == I2C_SMBUS_READ)
-			data->block[0] = I2C_SMBUS_BLOCK_MAX; /* For now */
 		len = data->block[0];
 		if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
 			return -EINVAL;

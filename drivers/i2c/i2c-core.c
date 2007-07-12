@@ -1344,10 +1344,14 @@ s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 EXPORT_SYMBOL(i2c_smbus_write_block_data);
 
 /* Returns the number of read bytes */
-s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command, u8 *values)
+s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command,
+				  u8 length, u8 *values)
 {
 	union i2c_smbus_data data;
 
+	if (length > I2C_SMBUS_BLOCK_MAX)
+		length = I2C_SMBUS_BLOCK_MAX;
+	data.block[0] = length;
 	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 	                      I2C_SMBUS_READ,command,
 	                      I2C_SMBUS_I2C_BLOCK_DATA,&data))
@@ -1468,7 +1472,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
-			msg[1].len = I2C_SMBUS_BLOCK_MAX;
+			msg[1].len = data->block[0];
 		} else {
 			msg[0].len = data->block[0] + 1;
 			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 1) {
@@ -1524,9 +1528,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 				data->word = msgbuf1[0] | (msgbuf1[1] << 8);
 				break;
 			case I2C_SMBUS_I2C_BLOCK_DATA:
-				/* fixed at 32 for now */
-				data->block[0] = I2C_SMBUS_BLOCK_MAX;
-				for (i = 0; i < I2C_SMBUS_BLOCK_MAX; i++)
+				for (i = 0; i < data->block[0]; i++)
 					data->block[i+1] = msgbuf1[i];
 				break;
 			case I2C_SMBUS_BLOCK_DATA:
