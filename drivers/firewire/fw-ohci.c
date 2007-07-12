@@ -587,7 +587,7 @@ static void context_stop(struct context *ctx)
 			break;
 
 		fw_notify("context_stop: still active (0x%08x)\n", reg);
-		msleep(1);
+		mdelay(1);
 	}
 }
 
