@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <asm/ldc.h>
 #include <asm/vio.h>
@@ -171,7 +172,7 @@ static void md_update_data(struct ldc_channel *lp,
 
 	rp = (struct ds_md_update_req *) (dpkt + 1);
 
-	printk(KERN_ERR PFX "Machine description update.\n");
+	printk(KERN_INFO PFX "Machine description update.\n");
 
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.data.tag.type = DS_DATA;
@@ -248,8 +249,8 @@ static void domain_panic_data(struct ldc_channel *lp,
 
 	rp = (struct ds_panic_req *) (dpkt + 1);
 
-	printk(KERN_ERR PFX "Panic REQ [%lx], len=%d\n",
-	       rp->req_num, len);
+	printk(KERN_ALERT PFX "Panic request from "
+	       "LDOM manager received.\n");
 
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.data.tag.type = DS_DATA;
@@ -313,8 +314,58 @@ static void ds_pri_data(struct ldc_channel *lp,
 
 	rp = (struct ds_pri_msg *) (dpkt + 1);
 
-	printk(KERN_ERR PFX "PRI REQ [%lx:%lx], len=%d\n",
+	printk(KERN_INFO PFX "PRI REQ [%lx:%lx], len=%d\n",
 	       rp->req_num, rp->type, len);
+}
+
+struct ds_var_hdr {
+	__u32				type;
+#define DS_VAR_SET_REQ			0x00
+#define DS_VAR_DELETE_REQ		0x01
+#define DS_VAR_SET_RESP			0x02
+#define DS_VAR_DELETE_RESP		0x03
+};
+
+struct ds_var_set_msg {
+	struct ds_var_hdr		hdr;
+	char				name_and_value[0];
+};
+
+struct ds_var_delete_msg {
+	struct ds_var_hdr		hdr;
+	char				name[0];
+};
+
+struct ds_var_resp {
+	struct ds_var_hdr		hdr;
+	__u32				result;
+#define DS_VAR_SUCCESS			0x00
+#define DS_VAR_NO_SPACE			0x01
+#define DS_VAR_INVALID_VAR		0x02
+#define DS_VAR_INVALID_VAL		0x03
+#define DS_VAR_NOT_PRESENT		0x04
+};
+
+static DEFINE_MUTEX(ds_var_mutex);
+static int ds_var_doorbell;
+static int ds_var_response;
+
+static void ds_var_data(struct ldc_channel *lp,
+			struct ds_cap_state *dp,
+			void *buf, int len)
+{
+	struct ds_data *dpkt = buf;
+	struct ds_var_resp *rp;
+
+	rp = (struct ds_var_resp *) (dpkt + 1);
+
+	if (rp->hdr.type != DS_VAR_SET_RESP &&
+	    rp->hdr.type != DS_VAR_DELETE_RESP)
+		return;
+
+	ds_var_response = rp->result;
+	wmb();
+	ds_var_doorbell = 1;
 }
 
 struct ds_cap_state ds_states[] = {
@@ -338,16 +389,15 @@ struct ds_cap_state ds_states[] = {
 		.service_id	= "pri",
 		.data		= ds_pri_data,
 	},
+	{
+		.service_id	= "var-config",
+		.data		= ds_var_data,
+	},
+	{
+		.service_id	= "var-config-backup",
+		.data		= ds_var_data,
+	},
 };
-
-static struct ds_cap_state *find_cap(u64 handle)
-{
-	unsigned int index = handle >> 32;
-
-	if (index >= ARRAY_SIZE(ds_states))
-		return NULL;
-	return &ds_states[index];
-}
 
 static DEFINE_SPINLOCK(ds_lock);
 
@@ -360,6 +410,115 @@ struct ds_info {
 	void			*rcv_buf;
 	int			rcv_buf_len;
 };
+
+static struct ds_info *ds_info;
+
+static struct ds_cap_state *find_cap(u64 handle)
+{
+	unsigned int index = handle >> 32;
+
+	if (index >= ARRAY_SIZE(ds_states))
+		return NULL;
+	return &ds_states[index];
+}
+
+static struct ds_cap_state *find_cap_by_string(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ds_states); i++) {
+		if (strcmp(ds_states[i].service_id, name))
+			continue;
+
+		return &ds_states[i];
+	}
+	return NULL;
+}
+
+void ldom_set_var(const char *var, const char *value)
+{
+	struct ds_info *dp = ds_info;
+	struct ds_cap_state *cp;
+
+	cp = find_cap_by_string("var-config");
+	if (cp->state != CAP_STATE_REGISTERED)
+		cp = find_cap_by_string("var-config-backup");
+
+	if (cp->state == CAP_STATE_REGISTERED) {
+		union {
+			struct {
+				struct ds_data		data;
+				struct ds_var_set_msg	msg;
+			} header;
+			char			all[512];
+		} pkt;
+		unsigned long flags;
+		char  *base, *p;
+		int msg_len, loops;
+
+		memset(&pkt, 0, sizeof(pkt));
+		pkt.header.data.tag.type = DS_DATA;
+		pkt.header.data.handle = cp->handle;
+		pkt.header.msg.hdr.type = DS_VAR_SET_REQ;
+		base = p = &pkt.header.msg.name_and_value[0];
+		strcpy(p, var);
+		p += strlen(var) + 1;
+		strcpy(p, value);
+		p += strlen(value) + 1;
+
+		msg_len = (sizeof(struct ds_data) +
+			       sizeof(struct ds_var_set_msg) +
+			       (p - base));
+		msg_len = (msg_len + 3) & ~3;
+		pkt.header.data.tag.len = msg_len - sizeof(struct ds_msg_tag);
+
+		mutex_lock(&ds_var_mutex);
+
+		spin_lock_irqsave(&ds_lock, flags);
+		ds_var_doorbell = 0;
+		ds_var_response = -1;
+
+		ds_send(dp->lp, &pkt, msg_len);
+		spin_unlock_irqrestore(&ds_lock, flags);
+
+		loops = 1000;
+		while (ds_var_doorbell == 0) {
+			if (loops-- < 0)
+				break;
+			barrier();
+			udelay(100);
+		}
+
+		mutex_unlock(&ds_var_mutex);
+
+		if (ds_var_doorbell == 0 ||
+		    ds_var_response != DS_VAR_SUCCESS)
+			printk(KERN_ERR PFX "var-config [%s:%s] "
+			       "failed, response(%d).\n",
+			       var, value,
+			       ds_var_response);
+	} else {
+		printk(KERN_ERR PFX "var-config not registered so "
+		       "could not set (%s) variable to (%s).\n",
+		       var, value);
+	}
+}
+
+void ldom_reboot(const char *boot_command)
+{
+	/* Don't bother with any of this if the boot_command
+	 * is empty.
+	 */
+	if (boot_command && strlen(boot_command)) {
+		char full_boot_str[256];
+
+		strcpy(full_boot_str, "boot ");
+		strcpy(full_boot_str + strlen("boot "), boot_command);
+
+		ldom_set_var("reboot-command", full_boot_str);
+	}
+	sun4v_mach_sir();
+}
 
 static void ds_conn_reset(struct ds_info *dp)
 {
@@ -593,6 +752,8 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 	err = ldc_bind(lp, "DS");
 	if (err)
 		goto out_free_ldc;
+
+	ds_info = dp;
 
 	start_powerd();
 

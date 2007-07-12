@@ -4,6 +4,8 @@
 #include <asm/hypervisor.h>
 
 extern int ldom_domaining_enabled;
+extern void ldom_set_var(const char *var, const char *value);
+extern void ldom_reboot(const char *boot_command);
 
 /* The event handler will be evoked when link state changes
  * or data becomes available on the receive side.
