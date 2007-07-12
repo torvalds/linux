@@ -28,7 +28,11 @@ typedef struct {
  * SOFTIRQ_MASK: 0x00ff0000
  */
 
+#if NR_IRQS > 256
+#define HARDIRQ_BITS	9
+#else
 #define HARDIRQ_BITS	8
+#endif
 
 #ifdef NR_IRQS
 # if (1 << HARDIRQ_BITS) < NR_IRQS

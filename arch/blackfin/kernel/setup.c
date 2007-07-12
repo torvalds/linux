@@ -396,11 +396,11 @@ void __init setup_arch(char **cmdline_p)
 	/* check the size of the l1 area */
 	l1_length = _etext_l1 - _stext_l1;
 	if (l1_length > L1_CODE_LENGTH)
-		panic("L1 memory overflow\n");
+		panic("L1 code memory overflow\n");
 
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
-		panic("L1 memory overflow\n");
+		panic("L1 data memory overflow\n");
 
 #ifdef BF561_FAMILY
 	_bfin_swrst = bfin_read_SICA_SWRST();

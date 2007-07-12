@@ -1,6 +1,6 @@
 /*
  * file:	include/asm-blackfin/mach-bf548/irq.h
- * based on:	include/asm-blackfin/mach-bf537/irq.h 
+ * based on:	include/asm-blackfin/mach-bf537/irq.h
  * author:	Roy Huang (roy.huang@analog.com)
  *
  * created:
@@ -190,7 +190,7 @@ Events         (highest priority)  EMU         0
 #define IRQ_PB12	BFIN_PB_IRQ(12)
 #define IRQ_PB13	BFIN_PB_IRQ(13)
 #define IRQ_PB14	BFIN_PB_IRQ(14)
-#define IRQ_PB15	BFIN_PB_IRQ(15)
+#define IRQ_PB15	BFIN_PB_IRQ(15)		/* N/A */
 
 #define BFIN_PC_IRQ(x)	((x) + IRQ_PB15 + 1)
 #define IRQ_PC0		BFIN_PC_IRQ(0)
@@ -207,8 +207,8 @@ Events         (highest priority)  EMU         0
 #define IRQ_PC11	BFIN_PC_IRQ(11)
 #define IRQ_PC12	BFIN_PC_IRQ(12)
 #define IRQ_PC13	BFIN_PC_IRQ(13)
-#define IRQ_PC14	BFIN_PC_IRQ(14)
-#define IRQ_PC15	BFIN_PC_IRQ(15)
+#define IRQ_PC14	BFIN_PC_IRQ(14)		/* N/A */
+#define IRQ_PC15	BFIN_PC_IRQ(15)		/* N/A */
 
 #define BFIN_PD_IRQ(x)	((x) + IRQ_PC15 + 1)
 #define IRQ_PD0		BFIN_PD_IRQ(0)
@@ -246,9 +246,100 @@ Events         (highest priority)  EMU         0
 #define IRQ_PE14	BFIN_PE_IRQ(14)
 #define IRQ_PE15	BFIN_PE_IRQ(15)
 
+#define BFIN_PF_IRQ(x)	((x) + IRQ_PE15 + 1)
+#define IRQ_PF0		BFIN_PF_IRQ(0)
+#define IRQ_PF1		BFIN_PF_IRQ(1)
+#define IRQ_PF2		BFIN_PF_IRQ(2)
+#define IRQ_PF3		BFIN_PF_IRQ(3)
+#define IRQ_PF4		BFIN_PF_IRQ(4)
+#define IRQ_PF5		BFIN_PF_IRQ(5)
+#define IRQ_PF6		BFIN_PF_IRQ(6)
+#define IRQ_PF7		BFIN_PF_IRQ(7)
+#define IRQ_PF8		BFIN_PF_IRQ(8)
+#define IRQ_PF9		BFIN_PF_IRQ(9)
+#define IRQ_PF10	BFIN_PF_IRQ(10)
+#define IRQ_PF11	BFIN_PF_IRQ(11)
+#define IRQ_PF12	BFIN_PF_IRQ(12)
+#define IRQ_PF13	BFIN_PF_IRQ(13)
+#define IRQ_PF14	BFIN_PF_IRQ(14)
+#define IRQ_PF15	BFIN_PF_IRQ(15)
+
+#define BFIN_PG_IRQ(x)	((x) + IRQ_PF15 + 1)
+#define IRQ_PG0		BFIN_PG_IRQ(0)
+#define IRQ_PG1		BFIN_PG_IRQ(1)
+#define IRQ_PG2		BFIN_PG_IRQ(2)
+#define IRQ_PG3		BFIN_PG_IRQ(3)
+#define IRQ_PG4		BFIN_PG_IRQ(4)
+#define IRQ_PG5		BFIN_PG_IRQ(5)
+#define IRQ_PG6		BFIN_PG_IRQ(6)
+#define IRQ_PG7		BFIN_PG_IRQ(7)
+#define IRQ_PG8		BFIN_PG_IRQ(8)
+#define IRQ_PG9		BFIN_PG_IRQ(9)
+#define IRQ_PG10	BFIN_PG_IRQ(10)
+#define IRQ_PG11	BFIN_PG_IRQ(11)
+#define IRQ_PG12	BFIN_PG_IRQ(12)
+#define IRQ_PG13	BFIN_PG_IRQ(13)
+#define IRQ_PG14	BFIN_PG_IRQ(14)
+#define IRQ_PG15	BFIN_PG_IRQ(15)
+
+#define BFIN_PH_IRQ(x)	((x) + IRQ_PG15 + 1)
+#define IRQ_PH0		BFIN_PH_IRQ(0)
+#define IRQ_PH1		BFIN_PH_IRQ(1)
+#define IRQ_PH2		BFIN_PH_IRQ(2)
+#define IRQ_PH3		BFIN_PH_IRQ(3)
+#define IRQ_PH4		BFIN_PH_IRQ(4)
+#define IRQ_PH5		BFIN_PH_IRQ(5)
+#define IRQ_PH6		BFIN_PH_IRQ(6)
+#define IRQ_PH7		BFIN_PH_IRQ(7)
+#define IRQ_PH8		BFIN_PH_IRQ(8)
+#define IRQ_PH9		BFIN_PH_IRQ(9)
+#define IRQ_PH10	BFIN_PH_IRQ(10)
+#define IRQ_PH11	BFIN_PH_IRQ(11)
+#define IRQ_PH12	BFIN_PH_IRQ(12)
+#define IRQ_PH13	BFIN_PH_IRQ(13)
+#define IRQ_PH14	BFIN_PH_IRQ(14)		/* N/A */
+#define IRQ_PH15	BFIN_PH_IRQ(15)		/* N/A */
+
+#define BFIN_PI_IRQ(x)	((x) + IRQ_PH15 + 1)
+#define IRQ_PI0		BFIN_PI_IRQ(0)
+#define IRQ_PI1		BFIN_PI_IRQ(1)
+#define IRQ_PI2		BFIN_PI_IRQ(2)
+#define IRQ_PI3		BFIN_PI_IRQ(3)
+#define IRQ_PI4		BFIN_PI_IRQ(4)
+#define IRQ_PI5		BFIN_PI_IRQ(5)
+#define IRQ_PI6		BFIN_PI_IRQ(6)
+#define IRQ_PI7		BFIN_PI_IRQ(7)
+#define IRQ_PI8		BFIN_PI_IRQ(8)
+#define IRQ_PI9		BFIN_PI_IRQ(9)
+#define IRQ_PI10	BFIN_PI_IRQ(10)
+#define IRQ_PI11	BFIN_PI_IRQ(11)
+#define IRQ_PI12	BFIN_PI_IRQ(12)
+#define IRQ_PI13	BFIN_PI_IRQ(13)
+#define IRQ_PI14	BFIN_PI_IRQ(14)
+#define IRQ_PI15	BFIN_PI_IRQ(15)
+
+#if 0
+#define BFIN_PJ_IRQ(x)	((x) + IRQ_PI15 + 1)
+#define IRQ_PJ0		BFIN_PJ_IRQ(0)
+#define IRQ_PJ1		BFIN_PJ_IRQ(1)
+#define IRQ_PJ2		BFIN_PJ_IRQ(2)
+#define IRQ_PJ3		BFIN_PJ_IRQ(3)
+#define IRQ_PJ4		BFIN_PJ_IRQ(4)
+#define IRQ_PJ5		BFIN_PJ_IRQ(5)
+#define IRQ_PJ6		BFIN_PJ_IRQ(6)
+#define IRQ_PJ7		BFIN_PJ_IRQ(7)
+#define IRQ_PJ8		BFIN_PJ_IRQ(8)
+#define IRQ_PJ9		BFIN_PJ_IRQ(9)
+#define IRQ_PJ10	BFIN_PJ_IRQ(10)
+#define IRQ_PJ11	BFIN_PJ_IRQ(11)
+#define IRQ_PJ12	BFIN_PJ_IRQ(12)
+#define IRQ_PJ13	BFIN_PJ_IRQ(13)
+#define IRQ_PJ14	BFIN_PJ_IRQ(14)		/* N/A */
+#define IRQ_PJ15	BFIN_PJ_IRQ(15)		/* N/A */
+#endif
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-#define NR_IRQS     (IRQ_PE15+1)
+#define NR_IRQS     (IRQ_PI15+1)
 #else
 #define NR_IRQS     (SYS_IRQS+1)
 #endif
