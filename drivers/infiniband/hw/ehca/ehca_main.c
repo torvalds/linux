@@ -263,22 +263,27 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 
 		ehca_gen_dbg(" ... hardware version=%x:%x", hcaaver, revid);
 
-		if ((hcaaver == 1) && (revid == 0))
-			shca->hw_level = 0x11;
-		else if ((hcaaver == 1) && (revid == 1))
-			shca->hw_level = 0x12;
-		else if ((hcaaver == 1) && (revid == 2))
-			shca->hw_level = 0x13;
-		else if ((hcaaver == 2) && (revid == 0))
-			shca->hw_level = 0x21;
-		else if ((hcaaver == 2) && (revid == 0x10))
-			shca->hw_level = 0x22;
-		else {
+		if (hcaaver == 1) {
+			if (revid <= 3)
+				shca->hw_level = 0x10 | (revid + 1);
+			else
+				shca->hw_level = 0x14;
+		} else if (hcaaver == 2) {
+			if (revid == 0)
+				shca->hw_level = 0x21;
+			else if (revid == 0x10)
+				shca->hw_level = 0x22;
+			else if (revid == 0x20 || revid == 0x21)
+				shca->hw_level = 0x23;
+		}
+
+		if (!shca->hw_level) {
 			ehca_gen_warn("unknown hardware version"
 				      " - assuming default level");
 			shca->hw_level = 0x22;
 		}
-	}
+	} else
+		shca->hw_level = ehca_hw_level;
 	ehca_gen_dbg(" ... hardware level=%x", shca->hw_level);
 
 	shca->sport[0].rate = IB_RATE_30_GBPS;
