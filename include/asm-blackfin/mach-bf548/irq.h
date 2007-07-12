@@ -318,7 +318,6 @@ Events         (highest priority)  EMU         0
 #define IRQ_PI14	BFIN_PI_IRQ(14)
 #define IRQ_PI15	BFIN_PI_IRQ(15)
 
-#if 0
 #define BFIN_PJ_IRQ(x)	((x) + IRQ_PI15 + 1)
 #define IRQ_PJ0		BFIN_PJ_IRQ(0)
 #define IRQ_PJ1		BFIN_PJ_IRQ(1)
@@ -336,10 +335,9 @@ Events         (highest priority)  EMU         0
 #define IRQ_PJ13	BFIN_PJ_IRQ(13)
 #define IRQ_PJ14	BFIN_PJ_IRQ(14)		/* N/A */
 #define IRQ_PJ15	BFIN_PJ_IRQ(15)		/* N/A */
-#endif
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-#define NR_IRQS     (IRQ_PI15+1)
+#define NR_IRQS     (IRQ_PJ15+1)
 #else
 #define NR_IRQS     (SYS_IRQS+1)
 #endif
