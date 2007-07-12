@@ -44,6 +44,10 @@ static const char *processor_modes[] = {
   "UK8_32" , "UK9_32" , "UK10_32", "UND_32" , "UK12_32", "UK13_32", "UK14_32", "SYS_32"
 };
 
+static const char *isa_modes[] = {
+  "ARM" , "Thumb" , "Jazelle", "ThumbEE"
+};
+
 extern void setup_mm_for_reboot(char mode);
 
 static volatile int hlt_counter;
@@ -230,11 +234,11 @@ void __show_regs(struct pt_regs *regs)
 	buf[3] = flags & PSR_V_BIT ? 'V' : 'v';
 	buf[4] = '\0';
 
-	printk("Flags: %s  IRQs o%s  FIQs o%s  Mode %s%s  Segment %s\n",
+	printk("Flags: %s  IRQs o%s  FIQs o%s  Mode %s  ISA %s  Segment %s\n",
 		buf, interrupts_enabled(regs) ? "n" : "ff",
 		fast_interrupts_enabled(regs) ? "n" : "ff",
 		processor_modes[processor_mode(regs)],
-		thumb_mode(regs) ? " (T)" : "",
+		isa_modes[isa_mode(regs)],
 		get_fs() == get_ds() ? "kernel" : "user");
 #ifdef CONFIG_CPU_CP15
 	{

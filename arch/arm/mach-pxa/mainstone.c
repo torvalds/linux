@@ -46,6 +46,7 @@
 #include <asm/arch/ohci.h>
 
 #include "generic.h"
+#include "devices.h"
 
 
 static unsigned long mainstone_irq_enabled;
@@ -89,7 +90,7 @@ static void __init mainstone_init_irq(void)
 {
 	int irq;
 
-	pxa_init_irq();
+	pxa27x_init_irq();
 
 	/* setup extra Mainstone irqs */
 	for(irq = MAINSTONE_IRQ(0); irq <= MAINSTONE_IRQ(15); irq++) {

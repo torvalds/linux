@@ -30,29 +30,11 @@ typedef enum {
 	DMA_PRIO_LOW = 2
 } pxa_dma_prio;
 
-#if defined(CONFIG_PXA27x)
-
-#define PXA_DMA_CHANNELS	32
-
-#define pxa_for_each_dma_prio(ch, prio)					\
-for (									\
-	ch = prio * 4;							\
-	ch != (4 << prio) + 16;						\
-	ch = (ch + 1 == (4 << prio)) ? (prio * 4 + 16) : (ch + 1)	\
-)
-
-#elif defined(CONFIG_PXA25x)
-
-#define PXA_DMA_CHANNELS	16
-
-#define pxa_for_each_dma_prio(ch, prio)					\
-	for (ch = prio * 4; ch != (4 << prio); ch++)
-
-#endif
-
 /*
  * DMA registration
  */
+
+int __init pxa_init_dma(int num_ch);
 
 int pxa_request_dma (char *name,
 			 pxa_dma_prio prio,

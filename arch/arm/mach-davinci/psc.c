@@ -25,39 +25,40 @@
 #include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/arch/psc.h>
+#include <asm/arch/mux.h>
 
-#define PTCMD	     __REG(0x01C41120)
-#define PDSTAT	     __REG(0x01C41200)
-#define PDCTL1	     __REG(0x01C41304)
-#define EPCPR	     __REG(0x01C41070)
-#define PTSTAT	     __REG(0x01C41128)
+/* PSC register offsets */
+#define EPCPR		0x070
+#define PTCMD		0x120
+#define PTSTAT		0x128
+#define PDSTAT		0x200
+#define PDCTL1		0x304
+#define MDSTAT		0x800
+#define MDCTL		0xA00
 
-#define MDSTAT	     IO_ADDRESS(0x01C41800)
-#define MDCTL	     IO_ADDRESS(0x01C41A00)
-
-#define PINMUX0	     __REG(0x01c40000)
-#define PINMUX1	     __REG(0x01c40004)
-#define VDD3P3V_PWDN __REG(0x01C40048)
+/* System control register offsets */
+#define VDD3P3V_PWDN	0x48
 
 static void davinci_psc_mux(unsigned int id)
 {
 	switch (id) {
 	case DAVINCI_LPSC_ATA:
-		PINMUX0 |= (1 << 17) | (1 << 16);
+		davinci_mux_peripheral(DAVINCI_MUX_HDIREN, 1);
+		davinci_mux_peripheral(DAVINCI_MUX_ATAEN, 1);
 		break;
 	case DAVINCI_LPSC_MMC_SD:
 		/* VDD power manupulations are done in U-Boot for CPMAC
 		 * so applies to MMC as well
 		 */
 		/*Set up the pull regiter for MMC */
-		VDD3P3V_PWDN = 0x0;
-		PINMUX1 &= (~(1 << 9));
+		davinci_writel(0, DAVINCI_SYSTEM_MODULE_BASE + VDD3P3V_PWDN);
+		davinci_mux_peripheral(DAVINCI_MUX_MSTK, 0);
 		break;
 	case DAVINCI_LPSC_I2C:
-		PINMUX1 |= (1 << 7);
+		davinci_mux_peripheral(DAVINCI_MUX_I2C, 1);
 		break;
 	case DAVINCI_LPSC_McBSP:
-		PINMUX1 |= (1 << 10);
+		davinci_mux_peripheral(DAVINCI_MUX_ASP, 1);
 		break;
 	default:
 		break;
@@ -67,33 +68,59 @@ static void davinci_psc_mux(unsigned int id)
 /* Enable or disable a PSC domain */
 void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
 {
-	volatile unsigned int *mdstat = (unsigned int *)((int)MDSTAT + 4 * id);
-	volatile unsigned int *mdctl = (unsigned int *)((int)MDCTL + 4 * id);
+	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl, mdstat_mask;
 
 	if (id < 0)
 		return;
 
+	mdctl = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
 	if (enable)
-		*mdctl |= 0x00000003;	/* Enable Module */
+		mdctl |= 0x00000003;	/* Enable Module */
 	else
-		*mdctl &= 0xFFFFFFF2;	/* Disable Module */
+		mdctl &= 0xFFFFFFF2;	/* Disable Module */
+	davinci_writel(mdctl, DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
 
-	if ((PDSTAT & 0x00000001) == 0) {
-		PDCTL1 |= 0x1;
-		PTCMD = (1 << domain);
-		while ((((EPCPR >> domain) & 1) == 0));
+	pdstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDSTAT);
+	if ((pdstat & 0x00000001) == 0) {
+		pdctl1 = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		pdctl1 |= 0x1;
+		davinci_writel(pdctl1, DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
 
-		PDCTL1 |= 0x100;
-		while (!(((PTSTAT >> domain) & 1) == 0));
+		ptcmd = 1 << domain;
+		davinci_writel(ptcmd, DAVINCI_PWR_SLEEP_CNTRL_BASE + PTCMD);
+
+		do {
+			epcpr = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
+					      EPCPR);
+		} while ((((epcpr >> domain) & 1) == 0));
+
+		pdctl1 = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		pdctl1 |= 0x100;
+		davinci_writel(pdctl1, DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+
+		do {
+			ptstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
+					       PTSTAT);
+		} while (!(((ptstat >> domain) & 1) == 0));
 	} else {
-		PTCMD = (1 << domain);
-		while (!(((PTSTAT >> domain) & 1) == 0));
+		ptcmd = 1 << domain;
+		davinci_writel(ptcmd, DAVINCI_PWR_SLEEP_CNTRL_BASE + PTCMD);
+
+		do {
+			ptstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
+					       PTSTAT);
+		} while (!(((ptstat >> domain) & 1) == 0));
 	}
 
 	if (enable)
-		while (!((*mdstat & 0x0000001F) == 0x3));
+		mdstat_mask = 0x3;
 	else
-		while (!((*mdstat & 0x0000001F) == 0x2));
+		mdstat_mask = 0x2;
+
+	do {
+		mdstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
+				       MDSTAT + 4 * id);
+	} while (!((mdstat & 0x0000001F) == mdstat_mask));
 
 	if (enable)
 		davinci_psc_mux(id);

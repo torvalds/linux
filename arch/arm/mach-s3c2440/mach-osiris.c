@@ -166,6 +166,29 @@ static struct mtd_partition osiris_default_nand_part[] = {
 	}
 };
 
+static struct mtd_partition osiris_default_nand_part_large[] = {
+	[0] = {
+		.name	= "Boot Agent",
+		.size	= SZ_128K,
+		.offset	= 0,
+	},
+	[1] = {
+		.name	= "/boot",
+		.size	= SZ_4M - SZ_128K,
+		.offset	= SZ_128K,
+	},
+	[2] = {
+		.name	= "user1",
+		.offset	= SZ_4M,
+		.size	= SZ_32M - SZ_4M,
+	},
+	[3] = {
+		.name	= "user2",
+		.offset	= SZ_32M,
+		.size	= MTDPART_SIZ_FULL,
+	}
+};
+
 /* the Osiris has 3 selectable slots for nand-flash, the two
  * on-board chip areas, as well as the external slot.
  *
@@ -322,14 +345,23 @@ static void __init osiris_map_io(void)
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
 
+	/* check for the newer revision boards with large page nand */
+
+	if ((__raw_readb(OSIRIS_VA_IDREG) & OSIRIS_ID_REVMASK) >= 4) {
+		printk(KERN_INFO "OSIRIS-B detected (revision %d)\n",
+		       __raw_readb(OSIRIS_VA_IDREG) & OSIRIS_ID_REVMASK);
+		osiris_nand_sets[0].partitions = osiris_default_nand_part_large;
+		osiris_nand_sets[0].nr_partitions = ARRAY_SIZE(osiris_default_nand_part_large);
+	} else {
+		/* write-protect line to the NAND */
+		s3c2410_gpio_setpin(S3C2410_GPA0, 1);
+	}
+
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */
 
 	local_irq_save(flags);
 	__raw_writel(__raw_readl(S3C2410_BWSCON) | S3C2410_BWSCON_ST1 | S3C2410_BWSCON_ST2 | S3C2410_BWSCON_ST3 | S3C2410_BWSCON_ST4 | S3C2410_BWSCON_ST5, S3C2410_BWSCON);
 	local_irq_restore(flags);
-
-	/* write-protect line to the NAND */
-	s3c2410_gpio_setpin(S3C2410_GPA0, 1);
 }
 
 static void __init osiris_init(void)

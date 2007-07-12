@@ -48,6 +48,7 @@
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
+#include "devices.h"
 #include "sharpsl.h"
 
 /*
@@ -560,7 +561,7 @@ MACHINE_START(SPITZ, "SHARP Spitz")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,
 	.map_io		= pxa_map_io,
-	.init_irq	= pxa_init_irq,
+	.init_irq	= pxa27x_init_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -572,7 +573,7 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,
 	.map_io		= pxa_map_io,
-	.init_irq	= pxa_init_irq,
+	.init_irq	= pxa27x_init_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -584,7 +585,7 @@ MACHINE_START(AKITA, "SHARP Akita")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,
 	.map_io		= pxa_map_io,
-	.init_irq	= pxa_init_irq,
+	.init_irq	= pxa27x_init_irq,
 	.init_machine	= akita_init,
 	.timer		= &pxa_timer,
 MACHINE_END

@@ -9,4 +9,3 @@
 
 extern int pxa_pm_prepare(suspend_state_t state);
 extern int pxa_pm_enter(suspend_state_t state);
-extern int pxa_pm_finish(suspend_state_t state);

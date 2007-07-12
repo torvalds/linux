@@ -25,12 +25,15 @@
 
 #include <asm/arch/pxa-regs.h>
 
-static struct dma_channel {
+struct dma_channel {
 	char *name;
+	pxa_dma_prio prio;
 	void (*irq_handler)(int, void *);
 	void *data;
-} dma_channels[PXA_DMA_CHANNELS];
+};
 
+static struct dma_channel *dma_channels;
+static int num_dma_channels;
 
 int pxa_request_dma (char *name, pxa_dma_prio prio,
 			 void (*irq_handler)(int, void *),
@@ -47,8 +50,9 @@ int pxa_request_dma (char *name, pxa_dma_prio prio,
 
 	do {
 		/* try grabbing a DMA channel with the requested priority */
-		pxa_for_each_dma_prio (i, prio) {
-			if (!dma_channels[i].name) {
+		for (i = 0; i < num_dma_channels; i++) {
+			if ((dma_channels[i].prio == prio) &&
+			    !dma_channels[i].name) {
 				found = 1;
 				break;
 			}
@@ -91,7 +95,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
 	int i, dint = DINT;
 
-	for (i = 0; i < PXA_DMA_CHANNELS; i++) {
+	for (i = 0; i < num_dma_channels; i++) {
 		if (dint & (1 << i)) {
 			struct dma_channel *channel = &dma_channels[i];
 			if (channel->name && channel->irq_handler) {
@@ -109,18 +113,32 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init pxa_dma_init (void)
+int __init pxa_init_dma(int num_ch)
 {
-	int ret;
+	int i, ret;
 
-	ret = request_irq (IRQ_DMA, dma_irq_handler, 0, "DMA", NULL);
-	if (ret)
+	dma_channels = kzalloc(sizeof(struct dma_channel) * num_ch, GFP_KERNEL);
+	if (dma_channels == NULL)
+		return -ENOMEM;
+
+	ret = request_irq(IRQ_DMA, dma_irq_handler, IRQF_DISABLED, "DMA", NULL);
+	if (ret) {
 		printk (KERN_CRIT "Wow!  Can't register IRQ for DMA\n");
-	return ret;
-}
+		kfree(dma_channels);
+		return ret;
+	}
 
-arch_initcall(pxa_dma_init);
+	/* dma channel priorities on pxa2xx processors:
+	 * ch 0 - 3,  16 - 19  <--> (0) DMA_PRIO_HIGH
+	 * ch 4 - 7,  20 - 23  <--> (1) DMA_PRIO_MEDIUM
+	 * ch 8 - 15, 24 - 31  <--> (2) DMA_PRIO_LOW
+	 */
+	for (i = 0; i < num_ch; i++)
+		dma_channels[i].prio = min((i & 0xf) >> 2, DMA_PRIO_LOW);
+
+	num_dma_channels = num_ch;
+	return 0;
+}
 
 EXPORT_SYMBOL(pxa_request_dma);
 EXPORT_SYMBOL(pxa_free_dma);
-
