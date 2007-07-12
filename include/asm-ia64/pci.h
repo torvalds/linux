@@ -96,10 +96,12 @@ extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 #define HAVE_PCI_LEGACY
 extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 				      struct vm_area_struct *vma);
-extern ssize_t pci_read_legacy_io(struct kobject *kobj, char *buf, loff_t off,
-				  size_t count);
-extern ssize_t pci_write_legacy_io(struct kobject *kobj, char *buf, loff_t off,
-				   size_t count);
+extern ssize_t pci_read_legacy_io(struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buf, loff_t off, size_t count);
+extern ssize_t pci_write_legacy_io(struct kobject *kobj,
+				   struct bin_attribute *bin_attr,
+				   char *buf, loff_t off, size_t count);
 extern int pci_mmap_legacy_mem(struct kobject *kobj,
 			       struct bin_attribute *attr,
 			       struct vm_area_struct *vma);
