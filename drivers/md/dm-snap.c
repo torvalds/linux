@@ -889,9 +889,6 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (!s->valid)
 		return -EIO;
 
-	if (unlikely(bio_barrier(bio)))
-		return -EOPNOTSUPP;
-
 	/* FIXME: should only take write lock if we need
 	 * to copy an exception */
 	down_write(&s->lock);
@@ -1161,9 +1158,6 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 {
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
-
-	if (unlikely(bio_barrier(bio)))
-		return -EOPNOTSUPP;
 
 	/* Only tell snapshots if this is a write */
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;

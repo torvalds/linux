@@ -798,9 +798,6 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 	struct dm_mpath_io *mpio;
 	struct multipath *m = (struct multipath *) ti->private;
 
-	if (bio_barrier(bio))
-		return -EOPNOTSUPP;
-
 	mpio = mempool_alloc(m->mpio_pool, GFP_NOIO);
 	dm_bio_record(&mpio->details, bio);
 
