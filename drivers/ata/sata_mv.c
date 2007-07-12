@@ -807,7 +807,7 @@ static int mv_stop_dma(struct ata_port *ap)
 	u32 reg;
 	int i, err = 0;
 
-	if (MV_PP_FLAG_EDMA_EN & pp->pp_flags) {
+	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
 		/* Disable EDMA if active.   The disable bit auto clears.
 		 */
 		writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
@@ -819,9 +819,9 @@ static int mv_stop_dma(struct ata_port *ap)
 	/* now properly wait for the eDMA to stop */
 	for (i = 1000; i > 0; i--) {
 		reg = readl(port_mmio + EDMA_CMD_OFS);
-		if (!(EDMA_EN & reg)) {
+		if (!(reg & EDMA_EN))
 			break;
-		}
+
 		udelay(100);
 	}
 
@@ -974,7 +974,7 @@ static void mv_edma_cfg(struct ata_port *ap, struct mv_host_priv *hpriv,
 		cfg |= (1 << 18);	/* enab early completion */
 		cfg |= (1 << 17);	/* enab cut-through (dis stor&forwrd) */
 		cfg &= ~(1 << 16);	/* dis FIS-based switching (for now) */
-		cfg &= ~(EDMA_CFG_NCQ | EDMA_CFG_NCQ_GO_ON_ERR); /* clear NCQ */
+		cfg &= ~(EDMA_CFG_NCQ);	/* clear NCQ */
 	}
 
 	writelfl(cfg, port_mmio + EDMA_CFG_OFS);
@@ -1143,6 +1143,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 		flags |= CRQB_FLAG_READ;
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
+	flags |= qc->tag << CRQB_IOID_SHIFT;	/* 50xx appears to ignore this*/
 
 	/* get current queue index from hardware */
 	in_index = (readl(mv_ap_base(ap) + EDMA_REQ_Q_IN_PTR_OFS)
@@ -1236,6 +1237,8 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
+	flags |= qc->tag << CRQB_IOID_SHIFT;    /* "I/O Id" is -really-
+						   what we use as our tag */
 
 	/* get current queue index from hardware */
 	in_index = (readl(mv_ap_base(ap) + EDMA_REQ_Q_IN_PTR_OFS)
@@ -1525,7 +1528,6 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	unsigned int hc, handled = 0, n_hcs;
 	void __iomem *mmio = host->iomap[MV_PRIMARY_BAR];
-	struct mv_host_priv *hpriv;
 	u32 irq_stat;
 
 	irq_stat = readl(mmio + HC_MAIN_IRQ_CAUSE_OFS);
@@ -1544,16 +1546,6 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 		if (relevant) {
 			mv_host_intr(host, relevant, hc);
 			handled++;
-		}
-	}
-
-	hpriv = host->private_data;
-	if (IS_60XX(hpriv)) {
-		/* deal with the interrupt coalescing bits */
-		if (irq_stat & (TRAN_LO_DONE | TRAN_HI_DONE | PORTS_0_7_COAL_DONE)) {
-			writelfl(0, mmio + MV_IRQ_COAL_CAUSE_LO);
-			writelfl(0, mmio + MV_IRQ_COAL_CAUSE_HI);
-			writelfl(0, mmio + MV_IRQ_COAL_CAUSE);
 		}
 	}
 
@@ -2474,6 +2466,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mv_print_info(host);
 
 	pci_set_master(pdev);
+	pci_set_mwi(pdev);
 	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
 				 IS_GEN_I(hpriv) ? &mv5_sht : &mv6_sht);
 }
