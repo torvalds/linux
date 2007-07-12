@@ -25,8 +25,6 @@
 /* This interfaces to the I2C bus of the Savage4 to gain access to
    the BT869 and possibly other I2C devices. The DDC bus is not
    yet supported because its register is not memory-mapped.
-   However we leave the DDC code here, commented out, to make
-   it easier to add later.
 */
 
 #include <linux/kernel.h>
@@ -37,35 +35,18 @@
 #include <linux/i2c-algo-bit.h>
 #include <asm/io.h>
 
-/* 3DFX defines */
-#define PCI_CHIP_SAVAGE3D	0x8A20
-#define PCI_CHIP_SAVAGE3D_MV	0x8A21
+/* device IDs */
 #define PCI_CHIP_SAVAGE4	0x8A22
 #define PCI_CHIP_SAVAGE2000	0x9102
-#define PCI_CHIP_PROSAVAGE_PM	0x8A25
-#define PCI_CHIP_PROSAVAGE_KM	0x8A26
-#define PCI_CHIP_SAVAGE_MX_MV	0x8c10
-#define PCI_CHIP_SAVAGE_MX	0x8c11
-#define PCI_CHIP_SAVAGE_IX_MV	0x8c12
-#define PCI_CHIP_SAVAGE_IX	0x8c13
 
 #define REG			0xff20	/* Serial Port 1 Register */
 
 /* bit locations in the register */
-#define DDC_ENAB		0x00040000
-#define DDC_SCL_OUT		0x00080000
-#define DDC_SDA_OUT		0x00100000
-#define DDC_SCL_IN		0x00200000
-#define DDC_SDA_IN		0x00400000
 #define I2C_ENAB		0x00000020
 #define I2C_SCL_OUT		0x00000001
 #define I2C_SDA_OUT		0x00000002
 #define I2C_SCL_IN		0x00000008
 #define I2C_SDA_IN		0x00000010
-
-/* initialization states */
-#define INIT2			0x20
-#define INIT3			0x04
 
 /* delays */
 #define CYCLE_DELAY		10
