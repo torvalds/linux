@@ -104,18 +104,24 @@ static ssize_t devspec_show(struct device *dev,
 	struct vio_dev *vdev = to_vio_dev(dev);
 	const char *str = "none";
 
-	if (vdev->type) {
-		if (!strcmp(vdev->type, "network"))
-			str = "vnet";
-		else if (!strcmp(vdev->type, "block"))
-			str = "vdisk";
-	}
+	if (!strcmp(vdev->type, "network"))
+		str = "vnet";
+	else if (!strcmp(vdev->type, "block"))
+		str = "vdisk";
 
 	return sprintf(buf, "%s\n", str);
 }
 
+static ssize_t type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct vio_dev *vdev = to_vio_dev(dev);
+	return sprintf(buf, "%s\n", vdev->type);
+}
+
 static struct device_attribute vio_dev_attrs[] = {
 	__ATTR_RO(devspec),
+	__ATTR_RO(type),
 	__ATTR_NULL
 };
 
@@ -201,8 +207,11 @@ static struct vio_dev *vio_create_one(struct mdesc_node *mp,
 	int err, clen;
 
 	type = md_get_property(mp, "device-type", NULL);
-	if (!type)
+	if (!type) {
 		type = md_get_property(mp, "name", NULL);
+		if (!type)
+			type = mp->name;
+	}
 	compat = md_get_property(mp, "device-type", &clen);
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
@@ -279,6 +288,8 @@ static void walk_tree(struct mdesc_node *n, struct vio_dev *parent)
 
 static void create_devices(struct mdesc_node *root)
 {
+	struct mdesc_node *mp;
+
 	root_vdev = vio_create_one(root, NULL);
 	if (!root_vdev) {
 		printk(KERN_ERR "VIO: Coult not create root device.\n");
@@ -286,6 +297,17 @@ static void create_devices(struct mdesc_node *root)
 	}
 
 	walk_tree(root, root_vdev);
+
+	/* Domain services is odd as it doesn't sit underneath the
+	 * channel-devices node, so we plug it in manually.
+	 */
+	mp = md_find_node_by_name(NULL, "domain-services");
+	if (mp) {
+		struct vio_dev *parent = vio_create_one(mp, &root_vdev->dev);
+
+		if (parent)
+			walk_tree(mp, parent);
+	}
 }
 
 const char *channel_devices_node = "channel-devices";
