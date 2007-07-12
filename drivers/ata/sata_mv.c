@@ -301,8 +301,9 @@ enum {
 	MV_HP_ERRATA_60X1B2	= (1 << 3),
 	MV_HP_ERRATA_60X1C0	= (1 << 4),
 	MV_HP_ERRATA_XX42A0	= (1 << 5),
-	MV_HP_50XX		= (1 << 6),
-	MV_HP_GEN_IIE		= (1 << 7),
+	MV_HP_GEN_I		= (1 << 6),
+	MV_HP_GEN_II		= (1 << 7),
+	MV_HP_GEN_IIE		= (1 << 8),
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),
@@ -310,10 +311,8 @@ enum {
 	MV_PP_FLAG_HAD_A_RESET	= (1 << 2),
 };
 
-#define IS_50XX(hpriv) ((hpriv)->hp_flags & MV_HP_50XX)
-#define IS_60XX(hpriv) (((hpriv)->hp_flags & MV_HP_50XX) == 0)
-#define IS_GEN_I(hpriv) IS_50XX(hpriv)
-#define IS_GEN_II(hpriv) IS_60XX(hpriv)
+#define IS_GEN_I(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_I)
+#define IS_GEN_II(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_II)
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 
 enum {
@@ -1406,7 +1405,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			", dev disconnect" : ", dev connect");
 	}
 
-	if (IS_50XX(hpriv)) {
+	if (IS_GEN_I(hpriv)) {
 		eh_freeze_mask = EDMA_EH_FREEZE_5;
 
 		if (edma_err_cause & EDMA_ERR_SELF_DIS_5) {
@@ -2100,7 +2099,7 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
 
-	if (IS_60XX(hpriv)) {
+	if (IS_GEN_II(hpriv)) {
 		u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
 		ifctl |= (1 << 7);		/* enable gen2i speed */
 		ifctl = (ifctl & 0xfff) | 0x9b1000; /* from chip spec */
@@ -2116,7 +2115,7 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 	hpriv->ops->phy_errata(hpriv, mmio, port_no);
 
-	if (IS_50XX(hpriv))
+	if (IS_GEN_I(hpriv))
 		mdelay(1);
 }
 
@@ -2163,7 +2162,7 @@ comreset_retry:
 	} while (time_before(jiffies, deadline));
 
 	/* work around errata */
-	if (IS_60XX(hpriv) &&
+	if (IS_GEN_II(hpriv) &&
 	    (sstatus != 0x0) && (sstatus != 0x113) && (sstatus != 0x123) &&
 	    (retry-- > 0))
 		goto comreset_retry;
@@ -2396,7 +2395,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	switch(board_idx) {
 	case chip_5080:
 		hpriv->ops = &mv5xxx_ops;
-		hp_flags |= MV_HP_50XX;
+		hp_flags |= MV_HP_GEN_I;
 
 		switch (rev_id) {
 		case 0x1:
@@ -2416,7 +2415,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	case chip_504x:
 	case chip_508x:
 		hpriv->ops = &mv5xxx_ops;
-		hp_flags |= MV_HP_50XX;
+		hp_flags |= MV_HP_GEN_I;
 
 		switch (rev_id) {
 		case 0x0:
@@ -2436,6 +2435,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	case chip_604x:
 	case chip_608x:
 		hpriv->ops = &mv6xxx_ops;
+		hp_flags |= MV_HP_GEN_II;
 
 		switch (rev_id) {
 		case 0x7:
@@ -2455,7 +2455,6 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	case chip_7042:
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
-
 		hp_flags |= MV_HP_GEN_IIE;
 
 		switch (rev_id) {
@@ -2522,7 +2521,7 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	hpriv->ops->enable_leds(hpriv, mmio);
 
 	for (port = 0; port < host->n_ports; port++) {
-		if (IS_60XX(hpriv)) {
+		if (IS_GEN_II(hpriv)) {
 			void __iomem *port_mmio = mv_port_base(mmio, port);
 
 			u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
@@ -2557,7 +2556,7 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	/* and unmask interrupt generation for host regs */
 	writelfl(PCI_UNMASK_ALL_IRQS, mmio + PCI_IRQ_MASK_OFS);
 
-	if (IS_50XX(hpriv))
+	if (IS_GEN_I(hpriv))
 		writelfl(~HC_MAIN_MASKED_IRQS_5, mmio + HC_MAIN_IRQ_MASK_OFS);
 	else
 		writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
