@@ -64,7 +64,7 @@ static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 	return NULL;
 }
 
-static int drm_map_handle(struct drm_device *dev, drm_hash_item_t *hash,
+static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 			  unsigned long user_token, int hashed_handle)
 {
 	int use_hashed_handle;

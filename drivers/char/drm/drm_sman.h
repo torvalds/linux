@@ -78,7 +78,7 @@ struct drm_sman_mm {
 
 struct drm_memblock_item {
 	struct list_head owner_list;
-	drm_hash_item_t user_hash;
+	struct drm_hash_item user_hash;
 	void *mm_info;
 	struct drm_sman_mm *mm;
 	struct drm_sman *sman;
@@ -87,8 +87,8 @@ struct drm_memblock_item {
 struct drm_sman {
 	struct drm_sman_mm *mm;
 	int num_managers;
-	drm_open_hash_t owner_hash_tab;
-	drm_open_hash_t user_hash_tab;
+	struct drm_open_hash owner_hash_tab;
+	struct drm_open_hash user_hash_tab;
 	struct list_head owner_items;
 };
 

@@ -49,7 +49,7 @@ static struct drm_file *drm_find_file(struct drm_device * dev, drm_magic_t magic
 {
 	struct drm_file *retval = NULL;
 	struct drm_magic_entry *pt;
-	drm_hash_item_t *hash;
+	struct drm_hash_item *hash;
 
 	mutex_lock(&dev->struct_mutex);
 	if (!drm_ht_find_item(&dev->magiclist, (unsigned long)magic, &hash)) {
@@ -105,7 +105,7 @@ static int drm_add_magic(struct drm_device * dev, struct drm_file * priv,
 static int drm_remove_magic(struct drm_device * dev, drm_magic_t magic)
 {
 	struct drm_magic_entry *pt;
-	drm_hash_item_t *hash;
+	struct drm_hash_item *hash;
 
 	DRM_DEBUG("%d\n", magic);
 

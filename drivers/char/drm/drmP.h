@@ -276,7 +276,7 @@ typedef struct drm_ioctl_desc {
 
 struct drm_magic_entry {
 	struct list_head head;
-	drm_hash_item_t hash_item;
+	struct drm_hash_item hash_item;
 	struct drm_file *priv;
 	struct drm_magic_entry *next;
 };
@@ -481,7 +481,7 @@ struct drm_sigdata {
  */
 struct drm_map_list {
 	struct list_head head;		/**< list head */
-	drm_hash_item_t hash;
+	struct drm_hash_item hash;
 	struct drm_map *map;			/**< mapping */
 	unsigned int user_token;
 };
@@ -660,7 +660,7 @@ struct drm_device {
 	/** \name Authentication */
 	/*@{ */
 	struct list_head filelist;
-	drm_open_hash_t magiclist;	/**< magic hash table */
+	struct drm_open_hash magiclist;	/**< magic hash table */
 	struct list_head magicfree;
 	/*@} */
 
@@ -668,7 +668,7 @@ struct drm_device {
 	/*@{ */
 	struct list_head maplist;	/**< Linked list of regions */
 	int map_count;			/**< Number of mappable regions */
-	drm_open_hash_t map_hash;	/**< User token hash table for maps */
+	struct drm_open_hash map_hash;	/**< User token hash table for maps */
 
 	/** \name Context handle management */
 	/*@{ */

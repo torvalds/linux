@@ -83,7 +83,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map *map = NULL;
 	struct drm_map_list *r_list;
-	drm_hash_item_t *hash;
+	struct drm_hash_item *hash;
 
 	/*
 	 * Find the right map
@@ -549,7 +549,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device *dev = priv->head->dev;
 	struct drm_map *map = NULL;
 	unsigned long offset = 0;
-	drm_hash_item_t *hash;
+	struct drm_hash_item *hash;
 
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
 		  vma->vm_start, vma->vm_end, vma->vm_pgoff);
