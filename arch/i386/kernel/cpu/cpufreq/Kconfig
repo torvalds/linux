@@ -90,10 +90,17 @@ config X86_POWERNOW_K8
 	  If in doubt, say N.
 
 config X86_POWERNOW_K8_ACPI
-	bool
-	depends on X86_POWERNOW_K8 && ACPI_PROCESSOR
-	depends on !(X86_POWERNOW_K8 = y && ACPI_PROCESSOR = m)
+	bool "ACPI Support"
+	select ACPI_PROCESSOR
+	depends on X86_POWERNOW_K8
 	default y
+	help
+	  This provides access to the K8s Processor Performance States via ACPI.
+	  This driver is probably required for CPUFreq to work with multi-socket and
+	  SMP systems.  It is not required on at least some single-socket yet
+	  multi-core systems, even if SMP is enabled.
+
+	  It is safe to say Y here.
 
 config X86_GX_SUSPMOD
 	tristate "Cyrix MediaGX/NatSemi Geode Suspend Modulation"

@@ -167,11 +167,13 @@ static void do_drv_read(struct drv_cmd *cmd)
 
 static void do_drv_write(struct drv_cmd *cmd)
 {
-	u32 h = 0;
+	u32 lo, hi;
 
 	switch (cmd->type) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
-		wrmsr(cmd->addr.msr.reg, cmd->val, h);
+		rdmsr(cmd->addr.msr.reg, lo, hi);
+		lo = (lo & ~INTEL_MSR_RANGE) | (cmd->val & INTEL_MSR_RANGE);
+		wrmsr(cmd->addr.msr.reg, lo, hi);
 		break;
 	case SYSTEM_IO_CAPABLE:
 		acpi_os_write_port((acpi_io_address)cmd->addr.io.port,
@@ -372,7 +374,6 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	cpumask_t online_policy_cpus;
 	struct drv_cmd cmd;
-	unsigned int msr;
 	unsigned int next_state = 0; /* Index into freq_table */
 	unsigned int next_perf_state = 0; /* Index into perf table */
 	unsigned int i;
@@ -417,11 +418,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
 		cmd.addr.msr.reg = MSR_IA32_PERF_CTL;
-		msr =
-		    (u32) perf->states[next_perf_state].
-		    control & INTEL_MSR_RANGE;
-		cmd.val = get_cur_val(online_policy_cpus);
-		cmd.val = (cmd.val & ~INTEL_MSR_RANGE) | msr;
+		cmd.val = (u32) perf->states[next_perf_state].control;
 		break;
 	case SYSTEM_IO_CAPABLE:
 		cmd.type = SYSTEM_IO_CAPABLE;
