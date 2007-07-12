@@ -185,7 +185,8 @@ struct i2c_client {
 
 static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 {
-	return to_i2c_client(container_of(kobj, struct device, kobj));
+	struct device * const dev = container_of(kobj, struct device, kobj);
+	return to_i2c_client(dev);
 }
 
 static inline void *i2c_get_clientdata (struct i2c_client *dev)
