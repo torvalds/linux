@@ -5,7 +5,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
-#include <linux/mipsregs.h>
 #include <linux/smp.h>
 #include <linux/timex.h>
 
