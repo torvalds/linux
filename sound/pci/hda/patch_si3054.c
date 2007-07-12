@@ -308,6 +308,8 @@ struct hda_codec_preset snd_hda_preset_si3054[] = {
 	{ .id = 0x11063288, .name = "Si3054", .patch = patch_si3054 },
 	/* Asus A8J Modem (SM56) */
 	{ .id = 0x15433155, .name = "Si3054", .patch = patch_si3054 },
+	/* LG LW20 modem */
+	{ .id = 0x18540018, .name = "Si3054", .patch = patch_si3054 },
 	{}
 };
 
