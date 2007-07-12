@@ -527,6 +527,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.class = I2C_CLASS_HWMON;
 	drv_data->adapter.timeout = pdata->timeout;
 	drv_data->adapter.retries = pdata->retries;
+	drv_data->adapter.nr = pd->id;
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 
@@ -539,7 +540,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			drv_data->irq);
 		rc = -EINVAL;
 		goto exit_unmap_regs;
-	} else if ((rc = i2c_add_adapter(&drv_data->adapter)) != 0) {
+	} else if ((rc = i2c_add_numbered_adapter(&drv_data->adapter)) != 0) {
 		dev_err(&drv_data->adapter.dev,
 			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
