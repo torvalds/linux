@@ -922,7 +922,7 @@ static int nr_node_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations nr_node_seqops = {
+static const struct seq_operations nr_node_seqops = {
 	.start = nr_node_start,
 	.next = nr_node_next,
 	.stop = nr_node_stop,
@@ -1006,7 +1006,7 @@ static int nr_neigh_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations nr_neigh_seqops = {
+static const struct seq_operations nr_neigh_seqops = {
 	.start = nr_neigh_start,
 	.next = nr_neigh_next,
 	.stop = nr_neigh_stop,

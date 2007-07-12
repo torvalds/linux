@@ -224,7 +224,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	static const char nulldevname[IFNAMSIZ];
 	unsigned int verdict = NF_DROP;
 	struct arphdr *arp;
-	int hotdrop = 0;
+	bool hotdrop = false;
 	struct arpt_entry *e, *back;
 	const char *indev, *outdev;
 	void *table_base;
@@ -1140,13 +1140,13 @@ void arpt_unregister_table(struct arpt_table *table)
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct arpt_target arpt_standard_target = {
+static struct arpt_target arpt_standard_target __read_mostly = {
 	.name		= ARPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= NF_ARP,
 };
 
-static struct arpt_target arpt_error_target = {
+static struct arpt_target arpt_error_target __read_mostly = {
 	.name		= ARPT_ERROR_TARGET,
 	.target		= arpt_error,
 	.targetsize	= ARPT_FUNCTION_MAXNAMELEN,

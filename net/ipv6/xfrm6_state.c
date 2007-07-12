@@ -65,7 +65,7 @@ __xfrm6_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n)
 		goto end;
 
 	/* Rule 2: select MIPv6 RO or inbound trigger */
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	for (i = 0; i < n; i++) {
 		if (src[i] &&
 		    (src[i]->props.mode == XFRM_MODE_ROUTEOPTIMIZATION ||
@@ -130,7 +130,7 @@ __xfrm6_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n)
 		goto end;
 
 	/* Rule 2: select MIPv6 RO or inbound trigger */
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	for (i = 0; i < n; i++) {
 		if (src[i] &&
 		    (src[i]->mode == XFRM_MODE_ROUTEOPTIMIZATION ||

@@ -262,25 +262,6 @@ Who:	Richard Purdie <rpurdie@rpsys.net>
 
 ---------------------------
 
-What:	Multipath cached routing support in ipv4
-When:	in 2.6.23
-Why:	Code was merged, then submitter immediately disappeared leaving
-	us with no maintainer and lots of bugs.  The code should not have
-	been merged in the first place, and many aspects of it's
-	implementation are blocking more critical core networking
-	development.  It's marked EXPERIMENTAL and no distribution
-	enables it because it cause obscure crashes due to unfixable bugs
-	(interfaces don't return errors so memory allocation can't be
-	handled, calling contexts of these interfaces make handling
-	errors impossible too because they get called after we've
-	totally commited to creating a route object, for example).
-	This problem has existed for years and no forward progress
-	has ever been made, and nobody steps up to try and salvage
-	this code, so we're going to finally just get rid of it.
-Who:	David S. Miller <davem@davemloft.net>
-
----------------------------
-
 What:	read_dev_chars(), read_conf_data{,_lpm}() (s390 common I/O layer)
 When:	December 2007
 Why:	These functions are a leftover from 2.4 times. They have several
@@ -337,3 +318,11 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
+What:	iptables SAME target
+When:	1.1. 2008
+Files:	net/ipv4/netfilter/ipt_SAME.c, include/linux/netfilter_ipv4/ipt_SAME.h
+Why:	Obsolete for multiple years now, NAT core provides the same behaviour.
+	Unfixable broken wrt. 32/64 bit cleanness.
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------

@@ -96,13 +96,13 @@ ip6t_ext_hdr(u8 nexthdr)
 }
 
 /* Returns whether matches rule or not. */
-static inline int
+static inline bool
 ip6_packet_match(const struct sk_buff *skb,
 		 const char *indev,
 		 const char *outdev,
 		 const struct ip6t_ip6 *ip6info,
 		 unsigned int *protoff,
-		 int *fragoff, int *hotdrop)
+		 int *fragoff, bool *hotdrop)
 {
 	size_t i;
 	unsigned long ret;
@@ -122,7 +122,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("DST: %u. Mask: %u. Target: %u.%s\n", ip->daddr,
 			ipinfo->dmsk.s_addr, ipinfo->dst.s_addr,
 			ipinfo->invflags & IP6T_INV_DSTIP ? " (INV)" : "");*/
-		return 0;
+		return false;
 	}
 
 	/* Look for ifname matches; this should unroll nicely. */
@@ -136,7 +136,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("VIA in mismatch (%s vs %s).%s\n",
 			indev, ip6info->iniface,
 			ip6info->invflags&IP6T_INV_VIA_IN ?" (INV)":"");
-		return 0;
+		return false;
 	}
 
 	for (i = 0, ret = 0; i < IFNAMSIZ/sizeof(unsigned long); i++) {
@@ -149,7 +149,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("VIA out mismatch (%s vs %s).%s\n",
 			outdev, ip6info->outiface,
 			ip6info->invflags&IP6T_INV_VIA_OUT ?" (INV)":"");
-		return 0;
+		return false;
 	}
 
 /* ... might want to do something with class and flowlabel here ... */
@@ -162,8 +162,8 @@ ip6_packet_match(const struct sk_buff *skb,
 		protohdr = ipv6_find_hdr(skb, protoff, -1, &_frag_off);
 		if (protohdr < 0) {
 			if (_frag_off == 0)
-				*hotdrop = 1;
-			return 0;
+				*hotdrop = true;
+			return false;
 		}
 		*fragoff = _frag_off;
 
@@ -174,34 +174,34 @@ ip6_packet_match(const struct sk_buff *skb,
 
 		if (ip6info->proto == protohdr) {
 			if(ip6info->invflags & IP6T_INV_PROTO) {
-				return 0;
+				return false;
 			}
-			return 1;
+			return true;
 		}
 
 		/* We need match for the '-p all', too! */
 		if ((ip6info->proto != 0) &&
 			!(ip6info->invflags & IP6T_INV_PROTO))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /* should be ip6 safe */
-static inline int
+static inline bool
 ip6_checkentry(const struct ip6t_ip6 *ipv6)
 {
 	if (ipv6->flags & ~IP6T_F_MASK) {
 		duprintf("Unknown flag bits set: %08X\n",
 			 ipv6->flags & ~IP6T_F_MASK);
-		return 0;
+		return false;
 	}
 	if (ipv6->invflags & ~IP6T_INV_MASK) {
 		duprintf("Unknown invflag bits set: %08X\n",
 			 ipv6->invflags & ~IP6T_INV_MASK);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static unsigned int
@@ -219,20 +219,20 @@ ip6t_error(struct sk_buff **pskb,
 }
 
 static inline
-int do_match(struct ip6t_entry_match *m,
-	     const struct sk_buff *skb,
-	     const struct net_device *in,
-	     const struct net_device *out,
-	     int offset,
-	     unsigned int protoff,
-	     int *hotdrop)
+bool do_match(struct ip6t_entry_match *m,
+	      const struct sk_buff *skb,
+	      const struct net_device *in,
+	      const struct net_device *out,
+	      int offset,
+	      unsigned int protoff,
+	      bool *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
 				      offset, protoff, hotdrop))
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 static inline struct ip6t_entry *
@@ -240,6 +240,113 @@ get_entry(void *base, unsigned int offset)
 {
 	return (struct ip6t_entry *)(base + offset);
 }
+
+/* All zeroes == unconditional rule. */
+static inline int
+unconditional(const struct ip6t_ip6 *ipv6)
+{
+	unsigned int i;
+
+	for (i = 0; i < sizeof(*ipv6); i++)
+		if (((char *)ipv6)[i])
+			break;
+
+	return (i == sizeof(*ipv6));
+}
+
+#if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
+    defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
+/* This cries for unification! */
+static const char *hooknames[] = {
+	[NF_IP6_PRE_ROUTING]		= "PREROUTING",
+	[NF_IP6_LOCAL_IN]		= "INPUT",
+	[NF_IP6_FORWARD]		= "FORWARD",
+	[NF_IP6_LOCAL_OUT]		= "OUTPUT",
+	[NF_IP6_POST_ROUTING]		= "POSTROUTING",
+};
+
+enum nf_ip_trace_comments {
+	NF_IP6_TRACE_COMMENT_RULE,
+	NF_IP6_TRACE_COMMENT_RETURN,
+	NF_IP6_TRACE_COMMENT_POLICY,
+};
+
+static const char *comments[] = {
+	[NF_IP6_TRACE_COMMENT_RULE]	= "rule",
+	[NF_IP6_TRACE_COMMENT_RETURN]	= "return",
+	[NF_IP6_TRACE_COMMENT_POLICY]	= "policy",
+};
+
+static struct nf_loginfo trace_loginfo = {
+	.type = NF_LOG_TYPE_LOG,
+	.u = {
+		.log = {
+			.level = 4,
+			.logflags = NF_LOG_MASK,
+		},
+	},
+};
+
+static inline int
+get_chainname_rulenum(struct ip6t_entry *s, struct ip6t_entry *e,
+		      char *hookname, char **chainname,
+		      char **comment, unsigned int *rulenum)
+{
+	struct ip6t_standard_target *t = (void *)ip6t_get_target(s);
+
+	if (strcmp(t->target.u.kernel.target->name, IP6T_ERROR_TARGET) == 0) {
+		/* Head of user chain: ERROR target with chainname */
+		*chainname = t->target.data;
+		(*rulenum) = 0;
+	} else if (s == e) {
+		(*rulenum)++;
+
+		if (s->target_offset == sizeof(struct ip6t_entry)
+		   && strcmp(t->target.u.kernel.target->name,
+			     IP6T_STANDARD_TARGET) == 0
+		   && t->verdict < 0
+		   && unconditional(&s->ipv6)) {
+			/* Tail of chains: STANDARD target (return/policy) */
+			*comment = *chainname == hookname
+				? (char *)comments[NF_IP6_TRACE_COMMENT_POLICY]
+				: (char *)comments[NF_IP6_TRACE_COMMENT_RETURN];
+		}
+		return 1;
+	} else
+		(*rulenum)++;
+
+	return 0;
+}
+
+static void trace_packet(struct sk_buff *skb,
+			 unsigned int hook,
+			 const struct net_device *in,
+			 const struct net_device *out,
+			 char *tablename,
+			 struct xt_table_info *private,
+			 struct ip6t_entry *e)
+{
+	void *table_base;
+	struct ip6t_entry *root;
+	char *hookname, *chainname, *comment;
+	unsigned int rulenum = 0;
+
+	table_base = (void *)private->entries[smp_processor_id()];
+	root = get_entry(table_base, private->hook_entry[hook]);
+
+	hookname = chainname = (char *)hooknames[hook];
+	comment = (char *)comments[NF_IP6_TRACE_COMMENT_RULE];
+
+	IP6T_ENTRY_ITERATE(root,
+			   private->size - private->hook_entry[hook],
+			   get_chainname_rulenum,
+			   e, hookname, &chainname, &comment, &rulenum);
+
+	nf_log_packet(AF_INET6, hook, skb, in, out, &trace_loginfo,
+		      "TRACE: %s:%s:%s:%u ",
+		      tablename, chainname, comment, rulenum);
+}
+#endif
 
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
@@ -252,7 +359,7 @@ ip6t_do_table(struct sk_buff **pskb,
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	int offset = 0;
 	unsigned int protoff = 0;
-	int hotdrop = 0;
+	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
 	const char *indev, *outdev;
@@ -298,6 +405,14 @@ ip6t_do_table(struct sk_buff **pskb,
 
 			t = ip6t_get_target(e);
 			IP_NF_ASSERT(t->u.kernel.target);
+
+#if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
+    defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
+			/* The packet is traced: log it */
+			if (unlikely((*pskb)->nf_trace))
+				trace_packet(*pskb, hook, in, out,
+					     table->name, private, e);
+#endif
 			/* Standard target? */
 			if (!t->u.kernel.target->target) {
 				int v;
@@ -375,19 +490,6 @@ ip6t_do_table(struct sk_buff **pskb,
 		return NF_DROP;
 	else return verdict;
 #endif
-}
-
-/* All zeroes == unconditional rule. */
-static inline int
-unconditional(const struct ip6t_ip6 *ipv6)
-{
-	unsigned int i;
-
-	for (i = 0; i < sizeof(*ipv6); i++)
-		if (((char *)ipv6)[i])
-			break;
-
-	return (i == sizeof(*ipv6));
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if
@@ -1282,16 +1384,16 @@ void ip6t_unregister_table(struct xt_table *table)
 }
 
 /* Returns 1 if the type and code is matched by the range, 0 otherwise */
-static inline int
+static inline bool
 icmp6_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 		     u_int8_t type, u_int8_t code,
-		     int invert)
+		     bool invert)
 {
 	return (type == test_type && code >= min_code && code <= max_code)
 		^ invert;
 }
 
-static int
+static bool
 icmp6_match(const struct sk_buff *skb,
 	   const struct net_device *in,
 	   const struct net_device *out,
@@ -1299,22 +1401,22 @@ icmp6_match(const struct sk_buff *skb,
 	   const void *matchinfo,
 	   int offset,
 	   unsigned int protoff,
-	   int *hotdrop)
+	   bool *hotdrop)
 {
 	struct icmp6hdr _icmp, *ic;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	ic = skb_header_pointer(skb, protoff, sizeof(_icmp), &_icmp);
 	if (ic == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil ICMP tinygram.\n");
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	return icmp6_type_code_match(icmpinfo->type,
@@ -1325,7 +1427,7 @@ icmp6_match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 icmp6_checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
@@ -1339,13 +1441,13 @@ icmp6_checkentry(const char *tablename,
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct xt_target ip6t_standard_target = {
+static struct xt_target ip6t_standard_target __read_mostly = {
 	.name		= IP6T_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= AF_INET6,
 };
 
-static struct xt_target ip6t_error_target = {
+static struct xt_target ip6t_error_target __read_mostly = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
 	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
@@ -1362,7 +1464,7 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 	.get		= do_ip6t_get_ctl,
 };
 
-static struct xt_match icmp6_matchstruct = {
+static struct xt_match icmp6_matchstruct __read_mostly = {
 	.name		= "icmp6",
 	.match		= &icmp6_match,
 	.matchsize	= sizeof(struct ip6t_icmp),

@@ -12,6 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
 
@@ -55,13 +56,6 @@ static const char *dccprotos[] = {
 
 #define MINMATCHLEN	5
 
-#if 0
-#define DEBUGP(format, args...) printk(KERN_DEBUG "%s:%s:" format, \
-				       __FILE__, __FUNCTION__ , ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* tries to get the ip_addr and port out of a dcc command
  * return value: -1 on failure, 0 on success
  *	data		pointer to first byte of DCC command data
@@ -99,6 +93,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff;
+	struct iphdr *iph;
 	struct tcphdr _tcph, *th;
 	char *data, *data_limit, *ib_ptr;
 	int dir = CTINFO2DIR(ctinfo);
@@ -148,9 +143,10 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		data += 5;
 		/* we have at least (19+MINMATCHLEN)-5 bytes valid data left */
 
-		DEBUGP("DCC found in master %u.%u.%u.%u:%u %u.%u.%u.%u:%u...\n",
-			NIPQUAD(iph->saddr), ntohs(th->source),
-			NIPQUAD(iph->daddr), ntohs(th->dest));
+		iph = ip_hdr(*pskb);
+		pr_debug("DCC found in master %u.%u.%u.%u:%u %u.%u.%u.%u:%u\n",
+			 NIPQUAD(iph->saddr), ntohs(th->source),
+			 NIPQUAD(iph->daddr), ntohs(th->dest));
 
 		for (i = 0; i < ARRAY_SIZE(dccprotos); i++) {
 			if (memcmp(data, dccprotos[i], strlen(dccprotos[i]))) {
@@ -158,18 +154,18 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 				continue;
 			}
 			data += strlen(dccprotos[i]);
-			DEBUGP("DCC %s detected\n", dccprotos[i]);
+			pr_debug("DCC %s detected\n", dccprotos[i]);
 
 			/* we have at least
 			 * (19+MINMATCHLEN)-5-dccprotos[i].matchlen bytes valid
 			 * data left (== 14/13 bytes) */
 			if (parse_dcc((char *)data, data_limit, &dcc_ip,
 				       &dcc_port, &addr_beg_p, &addr_end_p)) {
-				DEBUGP("unable to parse dcc command\n");
+				pr_debug("unable to parse dcc command\n");
 				continue;
 			}
-			DEBUGP("DCC bound ip/port: %u.%u.%u.%u:%u\n",
-				HIPQUAD(dcc_ip), dcc_port);
+			pr_debug("DCC bound ip/port: %u.%u.%u.%u:%u\n",
+				 HIPQUAD(dcc_ip), dcc_port);
 
 			/* dcc_ip can be the internal OR external (NAT'ed) IP */
 			tuple = &ct->tuplehash[dir].tuple;
@@ -184,16 +180,16 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 				continue;
 			}
 
-			exp = nf_conntrack_expect_alloc(ct);
+			exp = nf_ct_expect_alloc(ct);
 			if (exp == NULL) {
 				ret = NF_DROP;
 				goto out;
 			}
 			tuple = &ct->tuplehash[!dir].tuple;
 			port = htons(dcc_port);
-			nf_conntrack_expect_init(exp, tuple->src.l3num,
-						 NULL, &tuple->dst.u3,
-						 IPPROTO_TCP, NULL, &port);
+			nf_ct_expect_init(exp, tuple->src.l3num,
+					  NULL, &tuple->dst.u3,
+					  IPPROTO_TCP, NULL, &port);
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
@@ -201,9 +197,9 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);
-			else if (nf_conntrack_expect_related(exp) != 0)
+			else if (nf_ct_expect_related(exp) != 0)
 				ret = NF_DROP;
-			nf_conntrack_expect_put(exp);
+			nf_ct_expect_put(exp);
 			goto out;
 		}
 	}
@@ -239,9 +235,6 @@ static int __init nf_conntrack_irc_init(void)
 		irc[i].tuple.src.l3num = AF_INET;
 		irc[i].tuple.src.u.tcp.port = htons(ports[i]);
 		irc[i].tuple.dst.protonum = IPPROTO_TCP;
-		irc[i].mask.src.l3num = 0xFFFF;
-		irc[i].mask.src.u.tcp.port = htons(0xFFFF);
-		irc[i].mask.dst.protonum = 0xFF;
 		irc[i].max_expected = max_dcc_channels;
 		irc[i].timeout = dcc_timeout;
 		irc[i].me = THIS_MODULE;

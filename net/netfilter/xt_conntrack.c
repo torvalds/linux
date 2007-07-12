@@ -19,7 +19,7 @@ MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables connection tracking match module");
 MODULE_ALIAS("ipt_conntrack");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -27,14 +27,14 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_conntrack_info *sinfo = matchinfo;
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 
-	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 
 #define FWINV(bool,invflg) ((bool) ^ !!(sinfo->invflags & invflg))
 
@@ -54,53 +54,53 @@ match(const struct sk_buff *skb,
 		}
 		if (FWINV((statebit & sinfo->statemask) == 0,
 			  XT_CONNTRACK_STATE))
-			return 0;
+			return false;
 	}
 
 	if (ct == NULL) {
 		if (sinfo->flags & ~XT_CONNTRACK_STATE)
-			return 0;
-		return 1;
+			return false;
+		return true;
 	}
 
 	if (sinfo->flags & XT_CONNTRACK_PROTO &&
 	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip &
 		   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip,
 		  XT_CONNTRACK_ORIGSRC))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip &
 		   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip,
 		  XT_CONNTRACK_ORIGDST))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip &
 		   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].src.ip,
 		  XT_CONNTRACK_REPLSRC))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip &
 		   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].dst.ip,
 		  XT_CONNTRACK_REPLDST))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_STATUS &&
 	    FWINV((ct->status & sinfo->statusmask) == 0,
 		  XT_CONNTRACK_STATUS))
-		return 0;
+		return false;
 
 	if(sinfo->flags & XT_CONNTRACK_EXPIRES) {
 		unsigned long expires = timer_pending(&ct->timeout) ?
@@ -109,12 +109,12 @@ match(const struct sk_buff *skb,
 		if (FWINV(!(expires >= sinfo->expires_min &&
 			    expires <= sinfo->expires_max),
 			  XT_CONNTRACK_EXPIRES))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *ip,
 	   const struct xt_match *match,
@@ -124,9 +124,9 @@ checkentry(const char *tablename,
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", match->family);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static void destroy(const struct xt_match *match, void *matchinfo)
@@ -150,7 +150,7 @@ struct compat_xt_conntrack_info
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_xt_conntrack_info *cm = src;
+	const struct compat_xt_conntrack_info *cm = src;
 	struct xt_conntrack_info m = {
 		.statemask	= cm->statemask,
 		.statusmask	= cm->statusmask,
@@ -167,7 +167,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct xt_conntrack_info *m = src;
+	const struct xt_conntrack_info *m = src;
 	struct compat_xt_conntrack_info cm = {
 		.statemask	= m->statemask,
 		.statusmask	= m->statusmask,
@@ -183,7 +183,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match conntrack_match = {
+static struct xt_match conntrack_match __read_mostly = {
 	.name		= "conntrack",
 	.match		= match,
 	.checkentry	= checkentry,

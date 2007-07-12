@@ -21,12 +21,6 @@
 
 static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static int icmp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
@@ -125,8 +119,8 @@ static int icmp_new(struct nf_conn *conntrack,
 	if (conntrack->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
 	    || !valid_new[conntrack->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
-		DEBUGP("icmp: can't create new conn with type %u\n",
-		       conntrack->tuplehash[0].tuple.dst.u.icmp.type);
+		pr_debug("icmp: can't create new conn with type %u\n",
+			 conntrack->tuplehash[0].tuple.dst.u.icmp.type);
 		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
 		return 0;
 	}
@@ -159,8 +153,8 @@ icmp_error_message(struct sk_buff *skb,
 
 	/* Ignore ICMP's containing fragments (shouldn't happen) */
 	if (inside->ip.frag_off & htons(IP_OFFSET)) {
-		DEBUGP("icmp_error_message: fragment of proto %u\n",
-		       inside->ip.protocol);
+		pr_debug("icmp_error_message: fragment of proto %u\n",
+			 inside->ip.protocol);
 		return -NF_ACCEPT;
 	}
 
@@ -172,8 +166,8 @@ icmp_error_message(struct sk_buff *skb,
 	if (!nf_ct_get_tuple(skb, dataoff, dataoff + inside->ip.ihl*4, PF_INET,
 			     inside->ip.protocol, &origtuple,
 			     &nf_conntrack_l3proto_ipv4, innerproto)) {
-		DEBUGP("icmp_error_message: ! get_tuple p=%u",
-		       inside->ip.protocol);
+		pr_debug("icmp_error_message: ! get_tuple p=%u",
+			 inside->ip.protocol);
 		return -NF_ACCEPT;
 	}
 
@@ -181,22 +175,22 @@ icmp_error_message(struct sk_buff *skb,
 	   been preserved inside the ICMP. */
 	if (!nf_ct_invert_tuple(&innertuple, &origtuple,
 				&nf_conntrack_l3proto_ipv4, innerproto)) {
-		DEBUGP("icmp_error_message: no match\n");
+		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&innertuple, NULL);
+	h = nf_conntrack_find_get(&innertuple);
 	if (!h) {
 		/* Locally generated ICMPs will match inverted if they
 		   haven't been SNAT'ed yet */
 		/* FIXME: NAT code has to handle half-done double NAT --RR */
 		if (hooknum == NF_IP_LOCAL_OUT)
-			h = nf_conntrack_find_get(&origtuple, NULL);
+			h = nf_conntrack_find_get(&origtuple);
 
 		if (!h) {
-			DEBUGP("icmp_error_message: no match\n");
+			pr_debug("icmp_error_message: no match\n");
 			return -NF_ACCEPT;
 		}
 

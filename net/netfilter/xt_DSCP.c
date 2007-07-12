@@ -66,22 +66,22 @@ static unsigned int target6(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int checkentry(const char *tablename,
-		      const void *e_void,
-		      const struct xt_target *target,
-		      void *targinfo,
-		      unsigned int hook_mask)
+static bool checkentry(const char *tablename,
+		       const void *e_void,
+		       const struct xt_target *target,
+		       void *targinfo,
+		       unsigned int hook_mask)
 {
 	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;
 
-	if ((dscp > XT_DSCP_MAX)) {
+	if (dscp > XT_DSCP_MAX) {
 		printk(KERN_WARNING "DSCP: dscp %x out of range\n", dscp);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static struct xt_target xt_dscp_target[] = {
+static struct xt_target xt_dscp_target[] __read_mostly = {
 	{
 		.name		= "DSCP",
 		.family		= AF_INET,

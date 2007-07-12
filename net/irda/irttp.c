@@ -369,6 +369,20 @@ static int irttp_param_max_sdu_size(void *instance, irda_param_t *param,
 /* Everything is happily mixed up. Waiting for next clean up - Jean II */
 
 /*
+ * Initialization, that has to be done on new tsap
+ * instance allocation and on duplication
+ */
+static void irttp_init_tsap(struct tsap_cb *tsap)
+{
+	spin_lock_init(&tsap->lock);
+	init_timer(&tsap->todo_timer);
+
+	skb_queue_head_init(&tsap->rx_queue);
+	skb_queue_head_init(&tsap->tx_queue);
+	skb_queue_head_init(&tsap->rx_fragments);
+}
+
+/*
  * Function irttp_open_tsap (stsap, notify)
  *
  *    Create TSAP connection endpoint,
@@ -395,10 +409,11 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 		IRDA_DEBUG(0, "%s(), unable to kmalloc!\n", __FUNCTION__);
 		return NULL;
 	}
-	spin_lock_init(&self->lock);
+
+	/* Initialize internal objects */
+	irttp_init_tsap(self);
 
 	/* Initialise todo timer */
-	init_timer(&self->todo_timer);
 	self->todo_timer.data     = (unsigned long) self;
 	self->todo_timer.function = &irttp_todo_expired;
 
@@ -418,9 +433,6 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 	self->magic = TTP_TSAP_MAGIC;
 	self->connected = FALSE;
 
-	skb_queue_head_init(&self->rx_queue);
-	skb_queue_head_init(&self->tx_queue);
-	skb_queue_head_init(&self->rx_fragments);
 	/*
 	 *  Create LSAP at IrLMP layer
 	 */
@@ -1455,12 +1467,9 @@ struct tsap_cb *irttp_dup(struct tsap_cb *orig, void *instance)
 
 	/* Not everything should be copied */
 	new->notify.instance = instance;
-	spin_lock_init(&new->lock);
-	init_timer(&new->todo_timer);
 
-	skb_queue_head_init(&new->rx_queue);
-	skb_queue_head_init(&new->tx_queue);
-	skb_queue_head_init(&new->rx_fragments);
+	/* Initialize internal objects */
+	irttp_init_tsap(new);
 
 	/* This is locked */
 	hashbin_insert(irttp->tsaps, (irda_queue_t *) new, (long) new, NULL);
@@ -1866,7 +1875,7 @@ static int irttp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irttp_seq_ops = {
+static const struct seq_operations irttp_seq_ops = {
 	.start  = irttp_seq_start,
 	.next   = irttp_seq_next,
 	.stop   = irttp_seq_stop,

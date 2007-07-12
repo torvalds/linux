@@ -27,12 +27,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("iptables syslog logging module");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* Use lock to serialize, so printks don't overlap */
 static DEFINE_SPINLOCK(log_lock);
 
@@ -41,7 +35,8 @@ static void dump_packet(const struct nf_loginfo *info,
 			const struct sk_buff *skb,
 			unsigned int iphoff)
 {
-	struct iphdr _iph, *ih;
+	struct iphdr _iph;
+	const struct iphdr *ih;
 	unsigned int logflags;
 
 	if (info->type == NF_LOG_TYPE_LOG)
@@ -100,7 +95,8 @@ static void dump_packet(const struct nf_loginfo *info,
 
 	switch (ih->protocol) {
 	case IPPROTO_TCP: {
-		struct tcphdr _tcph, *th;
+		struct tcphdr _tcph;
+		const struct tcphdr *th;
 
 		/* Max length: 10 "PROTO=TCP " */
 		printk("PROTO=TCP ");
@@ -151,7 +147,7 @@ static void dump_packet(const struct nf_loginfo *info,
 		if ((logflags & IPT_LOG_TCPOPT)
 		    && th->doff * 4 > sizeof(struct tcphdr)) {
 			unsigned char _opt[4 * 15 - sizeof(struct tcphdr)];
-			unsigned char *op;
+			const unsigned char *op;
 			unsigned int i, optsize;
 
 			optsize = th->doff * 4 - sizeof(struct tcphdr);
@@ -173,7 +169,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE: {
-		struct udphdr _udph, *uh;
+		struct udphdr _udph;
+		const struct udphdr *uh;
 
 		if (ih->protocol == IPPROTO_UDP)
 			/* Max length: 10 "PROTO=UDP "     */
@@ -200,7 +197,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		break;
 	}
 	case IPPROTO_ICMP: {
-		struct icmphdr _icmph, *ich;
+		struct icmphdr _icmph;
+		const struct icmphdr *ich;
 		static const size_t required_len[NR_ICMP_TYPES+1]
 			= { [ICMP_ECHOREPLY] = 4,
 			    [ICMP_DEST_UNREACH]
@@ -285,7 +283,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 	/* Max Length */
 	case IPPROTO_AH: {
-		struct ip_auth_hdr _ahdr, *ah;
+		struct ip_auth_hdr _ahdr;
+		const struct ip_auth_hdr *ah;
 
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			break;
@@ -307,7 +306,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		break;
 	}
 	case IPPROTO_ESP: {
-		struct ip_esp_hdr _esph, *eh;
+		struct ip_esp_hdr _esph;
+		const struct ip_esp_hdr *eh;
 
 		/* Max length: 10 "PROTO=ESP " */
 		printk("PROTO=ESP ");
@@ -385,11 +385,13 @@ ipt_log_packet(unsigned int pf,
 	       out ? out->name : "");
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (skb->nf_bridge) {
-		struct net_device *physindev = skb->nf_bridge->physindev;
-		struct net_device *physoutdev = skb->nf_bridge->physoutdev;
+		const struct net_device *physindev;
+		const struct net_device *physoutdev;
 
+		physindev = skb->nf_bridge->physindev;
 		if (physindev && in != physindev)
 			printk("PHYSIN=%s ", physindev->name);
+		physoutdev = skb->nf_bridge->physoutdev;
 		if (physoutdev && out != physoutdev)
 			printk("PHYSOUT=%s ", physoutdev->name);
 	}
@@ -435,27 +437,27 @@ ipt_log_target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int ipt_log_checkentry(const char *tablename,
-			      const void *e,
-			      const struct xt_target *target,
-			      void *targinfo,
-			      unsigned int hook_mask)
+static bool ipt_log_checkentry(const char *tablename,
+			       const void *e,
+			       const struct xt_target *target,
+			       void *targinfo,
+			       unsigned int hook_mask)
 {
 	const struct ipt_log_info *loginfo = targinfo;
 
 	if (loginfo->level >= 8) {
-		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
-		return 0;
+		pr_debug("LOG: level %u >= 8\n", loginfo->level);
+		return false;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		DEBUGP("LOG: prefix term %i\n",
-		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
-		return 0;
+		pr_debug("LOG: prefix term %i\n",
+			 loginfo->prefix[sizeof(loginfo->prefix)-1]);
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static struct xt_target ipt_log_reg = {
+static struct xt_target ipt_log_reg __read_mostly = {
 	.name		= "LOG",
 	.family		= AF_INET,
 	.target		= ipt_log_target,

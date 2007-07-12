@@ -74,7 +74,7 @@ bad:
 	return 0;
 }
 
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 /**
  *	ipv6_rearrange_destopt - rearrange IPv6 destination options header
  *	@iph: IPv6 header
@@ -132,6 +132,8 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 bad:
 	return;
 }
+#else
+static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *destopt) {}
 #endif
 
 /**
@@ -189,10 +191,8 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 	while (exthdr.raw < end) {
 		switch (nexthdr) {
 		case NEXTHDR_DEST:
-#ifdef CONFIG_IPV6_MIP6
 			if (dir == XFRM_POLICY_OUT)
 				ipv6_rearrange_destopt(iph, exthdr.opth);
-#endif
 		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
 				LIMIT_NETDEBUG(
@@ -228,7 +228,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	char tmp_base[8];
 	struct {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		struct in6_addr saddr;
 #endif
 		struct in6_addr daddr;
@@ -255,7 +255,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			err = -ENOMEM;
 			goto error;
 		}
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		memcpy(tmp_ext, &top_iph->saddr, extlen);
 #else
 		memcpy(tmp_ext, &top_iph->daddr, extlen);
@@ -294,7 +294,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	memcpy(top_iph, tmp_base, sizeof(tmp_base));
 	if (tmp_ext) {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		memcpy(&top_iph->saddr, tmp_ext, extlen);
 #else
 		memcpy(&top_iph->daddr, tmp_ext, extlen);
@@ -554,3 +554,4 @@ module_init(ah6_init);
 module_exit(ah6_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_AH);

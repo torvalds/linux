@@ -39,7 +39,6 @@ struct fib_config {
 	int			fc_mx_len;
 	int			fc_mp_len;
 	u32			fc_flow;
-	u32			fc_mp_alg;
 	u32			fc_nlflags;
 	struct nl_info		fc_nlinfo;
  };
@@ -86,9 +85,6 @@ struct fib_info {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_power;
 #endif
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	u32			fib_mp_alg;
-#endif
 	struct fib_nh		fib_nh[0];
 #define fib_dev		fib_nh[0].nh_dev
 };
@@ -103,10 +99,6 @@ struct fib_result {
 	unsigned char	nh_sel;
 	unsigned char	type;
 	unsigned char	scope;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	__be32          network;
-	__be32          netmask;
-#endif
 	struct fib_info *fi;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rule	*r;
@@ -144,14 +136,6 @@ struct fib_result_nl {
 #define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
 #define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
 #define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
-
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-#define FIB_RES_NETWORK(res)		((res).network)
-#define FIB_RES_NETMASK(res)	        ((res).netmask)
-#else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
-#define FIB_RES_NETWORK(res)		(0)
-#define FIB_RES_NETMASK(res)	        (0)
-#endif /* CONFIG_IP_ROUTE_MULTIPATH_WRANDOM */
 
 struct fib_table {
 	struct hlist_node tb_hlist;

@@ -36,6 +36,7 @@
 #ifndef _DCCP_CCID3_H_
 #define _DCCP_CCID3_H_
 
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/time.h>
 #include <linux/types.h>
@@ -108,10 +109,10 @@ struct ccid3_hc_tx_sock {
 	enum ccid3_hc_tx_states		ccid3hctx_state:8;
 	u8				ccid3hctx_last_win_count;
 	u8				ccid3hctx_idle;
-	struct timeval			ccid3hctx_t_last_win_count;
+	ktime_t				ccid3hctx_t_last_win_count;
 	struct timer_list		ccid3hctx_no_feedback_timer;
 	struct timeval			ccid3hctx_t_ld;
-	struct timeval			ccid3hctx_t_nom;
+	ktime_t				ccid3hctx_t_nom;
 	u32				ccid3hctx_delta;
 	struct list_head		ccid3hctx_hist;
 	struct ccid3_options_received	ccid3hctx_options_received;

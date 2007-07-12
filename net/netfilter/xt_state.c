@@ -20,7 +20,7 @@ MODULE_DESCRIPTION("ip[6]_tables connection tracking state match module");
 MODULE_ALIAS("ipt_state");
 MODULE_ALIAS("ip6t_state");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -28,7 +28,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_state_info *sinfo = matchinfo;
 	enum ip_conntrack_info ctinfo;
@@ -44,18 +44,18 @@ match(const struct sk_buff *skb,
 	return (sinfo->statemask & statebit);
 }
 
-static int check(const char *tablename,
-		 const void *inf,
-		 const struct xt_match *match,
-		 void *matchinfo,
-		 unsigned int hook_mask)
+static bool check(const char *tablename,
+		  const void *inf,
+		  const struct xt_match *match,
+		  void *matchinfo,
+		  unsigned int hook_mask)
 {
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", match->family);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static void
@@ -64,7 +64,7 @@ destroy(const struct xt_match *match, void *matchinfo)
 	nf_ct_l3proto_module_put(match->family);
 }
 
-static struct xt_match xt_state_match[] = {
+static struct xt_match xt_state_match[] __read_mostly = {
 	{
 		.name		= "state",
 		.family		= AF_INET,

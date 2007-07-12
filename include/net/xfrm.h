@@ -19,9 +19,19 @@
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 
+#define XFRM_PROTO_ESP		50
+#define XFRM_PROTO_AH		51
+#define XFRM_PROTO_COMP		108
+#define XFRM_PROTO_IPIP		4
+#define XFRM_PROTO_IPV6		41
+#define XFRM_PROTO_ROUTING	IPPROTO_ROUTING
+#define XFRM_PROTO_DSTOPTS	IPPROTO_DSTOPTS
+
 #define XFRM_ALIGN8(len)	(((len) + 7) & ~7)
 #define MODULE_ALIAS_XFRM_MODE(family, encap) \
 	MODULE_ALIAS("xfrm-mode-" __stringify(family) "-" __stringify(encap))
+#define MODULE_ALIAS_XFRM_TYPE(family, proto) \
+	MODULE_ALIAS("xfrm-type-" __stringify(family) "-" __stringify(proto))
 
 extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
@@ -509,11 +519,9 @@ __be16 xfrm_flowi_sport(struct flowi *fl)
 	case IPPROTO_ICMPV6:
 		port = htons(fl->fl_icmp_type);
 		break;
-#ifdef CONFIG_IPV6_MIP6
 	case IPPROTO_MH:
 		port = htons(fl->fl_mh_type);
 		break;
-#endif
 	default:
 		port = 0;	/*XXX*/
 	}
@@ -920,6 +928,10 @@ extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t 
 					  struct flowi *fl, struct xfrm_tmpl *tmpl,
 					  struct xfrm_policy *pol, int *err,
 					  unsigned short family);
+extern struct xfrm_state * xfrm_stateonly_find(xfrm_address_t *daddr,
+					       xfrm_address_t *saddr,
+					       unsigned short family,
+					       u8 mode, u8 proto, u32 reqid);
 extern int xfrm_state_check_expire(struct xfrm_state *x);
 extern void xfrm_state_insert(struct xfrm_state *x);
 extern int xfrm_state_add(struct xfrm_state *x);
@@ -991,7 +1003,7 @@ extern int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 				 u8 **prevhdr);
 
 #ifdef CONFIG_XFRM
-extern int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type);
+extern int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
 extern int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen);
 extern int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsigned short family);
 #else
@@ -1000,12 +1012,13 @@ static inline int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optv
  	return -ENOPROTOOPT;
 } 
 
-static inline int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
+static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 {
  	/* should not happen */
  	kfree_skb(skb);
 	return 0;
 }
+
 static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsigned short family)
 {
 	return -EINVAL;

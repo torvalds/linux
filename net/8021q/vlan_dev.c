@@ -73,7 +73,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 {
-	if (VLAN_DEV_INFO(skb->dev)->flags & 1) {
+	if (VLAN_DEV_INFO(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		if (skb_shared(skb) || skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
 			kfree_skb(skb);
@@ -350,7 +350,8 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * header shuffling in the hard_start_xmit.  Users can turn off this
 	 * REORDER behaviour with the vconfig tool.
 	 */
-	build_vlan_header = ((VLAN_DEV_INFO(dev)->flags & 1) == 0);
+	if (!(VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR))
+		build_vlan_header = 1;
 
 	if (build_vlan_header) {
 		vhdr = (struct vlan_hdr *) skb_push(skb, VLAN_HLEN);
@@ -534,172 +535,81 @@ int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-int vlan_dev_set_ingress_priority(char *dev_name, __u32 skb_prio, short vlan_prio)
+void vlan_dev_set_ingress_priority(const struct net_device *dev,
+				   u32 skb_prio, short vlan_prio)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
 
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* see if a priority mapping exists.. */
-			VLAN_DEV_INFO(dev)->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
-			dev_put(dev);
-			return 0;
-		}
+	if (vlan->ingress_priority_map[vlan_prio & 0x7] && !skb_prio)
+		vlan->nr_ingress_mappings--;
+	else if (!vlan->ingress_priority_map[vlan_prio & 0x7] && skb_prio)
+		vlan->nr_ingress_mappings++;
 
-		dev_put(dev);
-	}
-	return -EINVAL;
+	vlan->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
 }
 
-int vlan_dev_set_egress_priority(char *dev_name, __u32 skb_prio, short vlan_prio)
+int vlan_dev_set_egress_priority(const struct net_device *dev,
+				 u32 skb_prio, short vlan_prio)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
+	u32 vlan_qos = (vlan_prio << 13) & 0xE000;
 
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* See if a priority mapping exists.. */
-			mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
-			while (mp) {
-				if (mp->priority == skb_prio) {
-					mp->vlan_qos = ((vlan_prio << 13) & 0xE000);
-					dev_put(dev);
-					return 0;
-				}
-				mp = mp->next;
-			}
-
-			/* Create a new mapping then. */
-			mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
-			np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
-			if (np) {
-				np->next = mp;
-				np->priority = skb_prio;
-				np->vlan_qos = ((vlan_prio << 13) & 0xE000);
-				VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF] = np;
-				dev_put(dev);
-				return 0;
-			} else {
-				dev_put(dev);
-				return -ENOBUFS;
-			}
+	/* See if a priority mapping exists.. */
+	mp = vlan->egress_priority_map[skb_prio & 0xF];
+	while (mp) {
+		if (mp->priority == skb_prio) {
+			if (mp->vlan_qos && !vlan_qos)
+				vlan->nr_egress_mappings--;
+			else if (!mp->vlan_qos && vlan_qos)
+				vlan->nr_egress_mappings++;
+			mp->vlan_qos = vlan_qos;
+			return 0;
 		}
-		dev_put(dev);
-	}
-	return -EINVAL;
-}
-
-/* Flags are defined in the vlan_dev_info class in include/linux/if_vlan.h file. */
-int vlan_dev_set_vlan_flag(char *dev_name, __u32 flag, short flag_val)
-{
-	struct net_device *dev = dev_get_by_name(dev_name);
-
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* verify flag is supported */
-			if (flag == 1) {
-				if (flag_val) {
-					VLAN_DEV_INFO(dev)->flags |= 1;
-				} else {
-					VLAN_DEV_INFO(dev)->flags &= ~1;
-				}
-				dev_put(dev);
-				return 0;
-			} else {
-				printk(KERN_ERR  "%s: flag %i is not valid.\n",
-					__FUNCTION__, (int)(flag));
-				dev_put(dev);
-				return -EINVAL;
-			}
-		} else {
-			printk(KERN_ERR
-			       "%s: %s is not a vlan device, priv_flags: %hX.\n",
-			       __FUNCTION__, dev->name, dev->priv_flags);
-			dev_put(dev);
-		}
-	} else {
-		printk(KERN_ERR  "%s: Could not find device: %s\n",
-			__FUNCTION__, dev_name);
+		mp = mp->next;
 	}
 
-	return -EINVAL;
-}
+	/* Create a new mapping then. */
+	mp = vlan->egress_priority_map[skb_prio & 0xF];
+	np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
+	if (!np)
+		return -ENOBUFS;
 
-
-int vlan_dev_get_realdev_name(const char *dev_name, char* result)
-{
-	struct net_device *dev = dev_get_by_name(dev_name);
-	int rv = 0;
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
-			rv = 0;
-		} else {
-			rv = -EINVAL;
-		}
-		dev_put(dev);
-	} else {
-		rv = -ENODEV;
-	}
-	return rv;
-}
-
-int vlan_dev_get_vid(const char *dev_name, unsigned short* result)
-{
-	struct net_device *dev = dev_get_by_name(dev_name);
-	int rv = 0;
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			*result = VLAN_DEV_INFO(dev)->vlan_id;
-			rv = 0;
-		} else {
-			rv = -EINVAL;
-		}
-		dev_put(dev);
-	} else {
-		rv = -ENODEV;
-	}
-	return rv;
-}
-
-
-int vlan_dev_set_mac_address(struct net_device *dev, void *addr_struct_p)
-{
-	struct sockaddr *addr = (struct sockaddr *)(addr_struct_p);
-	int i;
-
-	if (netif_running(dev))
-		return -EBUSY;
-
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-
-	printk("%s: Setting MAC address to ", dev->name);
-	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i]);
-	printk(".\n");
-
-	if (memcmp(VLAN_DEV_INFO(dev)->real_dev->dev_addr,
-		   dev->dev_addr,
-		   dev->addr_len) != 0) {
-		if (!(VLAN_DEV_INFO(dev)->real_dev->flags & IFF_PROMISC)) {
-			int flgs = VLAN_DEV_INFO(dev)->real_dev->flags;
-
-			/* Increment our in-use promiscuity counter */
-			dev_set_promiscuity(VLAN_DEV_INFO(dev)->real_dev, 1);
-
-			/* Make PROMISC visible to the user. */
-			flgs |= IFF_PROMISC;
-			printk("VLAN (%s):  Setting underlying device (%s) to promiscious mode.\n",
-			       dev->name, VLAN_DEV_INFO(dev)->real_dev->name);
-			dev_change_flags(VLAN_DEV_INFO(dev)->real_dev, flgs);
-		}
-	} else {
-		printk("VLAN (%s):  Underlying device (%s) has same MAC, not checking promiscious mode.\n",
-		       dev->name, VLAN_DEV_INFO(dev)->real_dev->name);
-	}
-
+	np->next = mp;
+	np->priority = skb_prio;
+	np->vlan_qos = vlan_qos;
+	vlan->egress_priority_map[skb_prio & 0xF] = np;
+	if (vlan_qos)
+		vlan->nr_egress_mappings++;
 	return 0;
+}
+
+/* Flags are defined in the vlan_flags enum in include/linux/if_vlan.h file. */
+int vlan_dev_set_vlan_flag(const struct net_device *dev,
+			   u32 flag, short flag_val)
+{
+	/* verify flag is supported */
+	if (flag == VLAN_FLAG_REORDER_HDR) {
+		if (flag_val) {
+			VLAN_DEV_INFO(dev)->flags |= VLAN_FLAG_REORDER_HDR;
+		} else {
+			VLAN_DEV_INFO(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
+		}
+		return 0;
+	}
+	printk(KERN_ERR "%s: flag %i is not valid.\n", __FUNCTION__, flag);
+	return -EINVAL;
+}
+
+void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
+{
+	strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
+}
+
+void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
+{
+	*result = VLAN_DEV_INFO(dev)->vlan_id;
 }
 
 static inline int vlan_dmi_equals(struct dev_mc_list *dmi1,
@@ -788,15 +698,32 @@ static void vlan_flush_mc_list(struct net_device *dev)
 
 int vlan_dev_open(struct net_device *dev)
 {
-	if (!(VLAN_DEV_INFO(dev)->real_dev->flags & IFF_UP))
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct net_device *real_dev = vlan->real_dev;
+	int err;
+
+	if (!(real_dev->flags & IFF_UP))
 		return -ENETDOWN;
+
+	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr)) {
+		err = dev_unicast_add(real_dev, dev->dev_addr, ETH_ALEN);
+		if (err < 0)
+			return err;
+	}
+	memcpy(vlan->real_dev_addr, real_dev->dev_addr, ETH_ALEN);
 
 	return 0;
 }
 
 int vlan_dev_stop(struct net_device *dev)
 {
+	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+
 	vlan_flush_mc_list(dev);
+
+	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
+		dev_unicast_delete(real_dev, dev->dev_addr, dev->addr_len);
+
 	return 0;
 }
 

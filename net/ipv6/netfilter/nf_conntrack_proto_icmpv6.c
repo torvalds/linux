@@ -27,12 +27,6 @@
 
 static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static int icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 			       unsigned int dataoff,
 			       struct nf_conntrack_tuple *tuple)
@@ -125,8 +119,8 @@ static int icmpv6_new(struct nf_conn *conntrack,
 
 	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
 		/* Can't create a new ICMPv6 `conn' with this. */
-		DEBUGP("icmpv6: can't create new conn with type %u\n",
-		       type + 128);
+		pr_debug("icmpv6: can't create new conn with type %u\n",
+			 type + 128);
 		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
 		return 0;
 	}
@@ -152,14 +146,15 @@ icmpv6_error_message(struct sk_buff *skb,
 
 	hp = skb_header_pointer(skb, icmp6off, sizeof(_hdr), &_hdr);
 	if (hp == NULL) {
-		DEBUGP("icmpv6_error: Can't get ICMPv6 hdr.\n");
+		pr_debug("icmpv6_error: Can't get ICMPv6 hdr.\n");
 		return -NF_ACCEPT;
 	}
 
 	inip6off = icmp6off + sizeof(_hdr);
 	if (skb_copy_bits(skb, inip6off+offsetof(struct ipv6hdr, nexthdr),
 			  &inprotonum, sizeof(inprotonum)) != 0) {
-		DEBUGP("icmpv6_error: Can't get nexthdr in inner IPv6 header.\n");
+		pr_debug("icmpv6_error: Can't get nexthdr in inner IPv6 "
+			 "header.\n");
 		return -NF_ACCEPT;
 	}
 	inprotoff = nf_ct_ipv6_skip_exthdr(skb,
@@ -169,7 +164,8 @@ icmpv6_error_message(struct sk_buff *skb,
 						    - sizeof(struct ipv6hdr));
 
 	if ((inprotoff > skb->len) || (inprotonum == NEXTHDR_FRAGMENT)) {
-		DEBUGP("icmpv6_error: Can't get protocol header in ICMPv6 payload.\n");
+		pr_debug("icmpv6_error: Can't get protocol header in ICMPv6 "
+			 "payload.\n");
 		return -NF_ACCEPT;
 	}
 
@@ -179,7 +175,7 @@ icmpv6_error_message(struct sk_buff *skb,
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, inip6off, inprotoff, PF_INET6, inprotonum,
 			     &origtuple, &nf_conntrack_l3proto_ipv6, inproto)) {
-		DEBUGP("icmpv6_error: Can't get tuple\n");
+		pr_debug("icmpv6_error: Can't get tuple\n");
 		return -NF_ACCEPT;
 	}
 
@@ -187,15 +183,15 @@ icmpv6_error_message(struct sk_buff *skb,
 	   been preserved inside the ICMP. */
 	if (!nf_ct_invert_tuple(&intuple, &origtuple,
 				&nf_conntrack_l3proto_ipv6, inproto)) {
-		DEBUGP("icmpv6_error: Can't invert tuple\n");
+		pr_debug("icmpv6_error: Can't invert tuple\n");
 		return -NF_ACCEPT;
 	}
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&intuple, NULL);
+	h = nf_conntrack_find_get(&intuple);
 	if (!h) {
-		DEBUGP("icmpv6_error: no match\n");
+		pr_debug("icmpv6_error: no match\n");
 		return -NF_ACCEPT;
 	} else {
 		if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)

@@ -23,7 +23,7 @@ MODULE_ALIAS("ipt_sctp");
 #define SCCHECK(cond, option, flag, invflag) (!((flag) & (option)) \
 					      || (!!((invflag) & (option)) ^ (cond)))
 
-static int
+static bool
 match_flags(const struct xt_sctp_flag_info *flag_info,
 	    const int flag_count,
 	    u_int8_t chunktype,
@@ -31,23 +31,21 @@ match_flags(const struct xt_sctp_flag_info *flag_info,
 {
 	int i;
 
-	for (i = 0; i < flag_count; i++) {
-		if (flag_info[i].chunktype == chunktype) {
+	for (i = 0; i < flag_count; i++)
+		if (flag_info[i].chunktype == chunktype)
 			return (chunkflags & flag_info[i].flag_mask) == flag_info[i].flag;
-		}
-	}
 
-	return 1;
+	return true;
 }
 
-static inline int
+static inline bool
 match_packet(const struct sk_buff *skb,
 	     unsigned int offset,
 	     const u_int32_t *chunkmap,
 	     int chunk_match_type,
 	     const struct xt_sctp_flag_info *flag_info,
 	     const int flag_count,
-	     int *hotdrop)
+	     bool *hotdrop)
 {
 	u_int32_t chunkmapcopy[256 / sizeof (u_int32_t)];
 	sctp_chunkhdr_t _sch, *sch;
@@ -56,16 +54,15 @@ match_packet(const struct sk_buff *skb,
 	int i = 0;
 #endif
 
-	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL) {
+	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL)
 		SCTP_CHUNKMAP_COPY(chunkmapcopy, chunkmap);
-	}
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
 		if (sch == NULL || sch->length == 0) {
 			duprintf("Dropping invalid SCTP packet.\n");
-			*hotdrop = 1;
-			return 0;
+			*hotdrop = true;
+			return false;
 		}
 
 		duprintf("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d\tflags: %x\n",
@@ -80,28 +77,26 @@ match_packet(const struct sk_buff *skb,
 			case SCTP_CHUNK_MATCH_ANY:
 				if (match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
-					return 1;
+					return true;
 				}
 				break;
 
 			case SCTP_CHUNK_MATCH_ALL:
 				if (match_flags(flag_info, flag_count,
-					sch->type, sch->flags)) {
+				    sch->type, sch->flags))
 					SCTP_CHUNKMAP_CLEAR(chunkmapcopy, sch->type);
-				}
 				break;
 
 			case SCTP_CHUNK_MATCH_ONLY:
 				if (!match_flags(flag_info, flag_count,
-					sch->type, sch->flags)) {
-					return 0;
-				}
+				    sch->type, sch->flags))
+					return false;
 				break;
 			}
 		} else {
 			switch (chunk_match_type) {
 			case SCTP_CHUNK_MATCH_ONLY:
-				return 0;
+				return false;
 			}
 		}
 	} while (offset < skb->len);
@@ -110,16 +105,16 @@ match_packet(const struct sk_buff *skb,
 	case SCTP_CHUNK_MATCH_ALL:
 		return SCTP_CHUNKMAP_IS_CLEAR(chunkmap);
 	case SCTP_CHUNK_MATCH_ANY:
-		return 0;
+		return false;
 	case SCTP_CHUNK_MATCH_ONLY:
-		return 1;
+		return true;
 	}
 
 	/* This will never be reached, but required to stop compiler whine */
-	return 0;
+	return false;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -127,29 +122,29 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_sctp_info *info = matchinfo;
 	sctp_sctphdr_t _sh, *sh;
 
 	if (offset) {
 		duprintf("Dropping non-first fragment.. FIXME\n");
-		return 0;
+		return false;
 	}
 
 	sh = skb_header_pointer(skb, protoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
 
-	return  SCCHECK(((ntohs(sh->source) >= info->spts[0])
-			&& (ntohs(sh->source) <= info->spts[1])),
+	return  SCCHECK(ntohs(sh->source) >= info->spts[0]
+			&& ntohs(sh->source) <= info->spts[1],
 			XT_SCTP_SRC_PORTS, info->flags, info->invflags)
-		&& SCCHECK(((ntohs(sh->dest) >= info->dpts[0])
-			&& (ntohs(sh->dest) <= info->dpts[1])),
+		&& SCCHECK(ntohs(sh->dest) >= info->dpts[0]
+			&& ntohs(sh->dest) <= info->dpts[1],
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
 		&& SCCHECK(match_packet(skb, protoff + sizeof (sctp_sctphdr_t),
 					info->chunkmap, info->chunk_match_type,
@@ -158,7 +153,7 @@ match(const struct sk_buff *skb,
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *inf,
 	   const struct xt_match *match,
@@ -177,7 +172,7 @@ checkentry(const char *tablename,
 				| SCTP_CHUNK_MATCH_ONLY)));
 }
 
-static struct xt_match xt_sctp_match[] = {
+static struct xt_match xt_sctp_match[] __read_mostly = {
 	{
 		.name		= "sctp",
 		.family		= AF_INET,

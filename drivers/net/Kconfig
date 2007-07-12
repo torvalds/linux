@@ -25,6 +25,14 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config NETDEVICES_MULTIQUEUE
+	bool "Netdevice multiple hardware queue support"
+	---help---
+	  Say Y here if you want to allow the network stack to use multiple
+	  hardware TX queues on an ethernet device.
+
+	  Most people will say N here.
+
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -2783,6 +2791,19 @@ config PPPOATM
 	  This implementation does not yet comply with section 8 of RFC2364,
 	  which can lead to bad results if the ATM peer loses state and
 	  changes its encapsulation unilaterally.
+
+config PPPOL2TP
+	tristate "PPP over L2TP (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PPP
+	help
+	  Support for PPP-over-L2TP socket family. L2TP is a protocol
+	  used by ISPs and enterprises to tunnel PPP traffic over UDP
+	  tunnels. L2TP is replacing PPTP for VPN uses.
+
+	  This kernel component handles only L2TP data packets: a
+	  userland daemon handles L2TP the control protocol (tunnel
+	  and session setup). One such daemon is OpenL2TP
+	  (http://openl2tp.sourceforge.net/).
 
 config SLIP
 	tristate "SLIP (serial line) support"

@@ -14,26 +14,16 @@
  *
  */
 
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/netlink.h>
 #include <net/netlink.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 

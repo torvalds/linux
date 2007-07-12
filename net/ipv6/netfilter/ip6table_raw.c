@@ -8,12 +8,6 @@
 
 #define RAW_VALID_HOOKS ((1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_OUT))
 
-#if 0
-#define DEBUGP(x, args...)	printk(KERN_DEBUG x, ## args)
-#else
-#define DEBUGP(x, args...)
-#endif
-
 static struct
 {
 	struct ip6t_replace repl;

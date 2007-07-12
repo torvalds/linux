@@ -1801,7 +1801,7 @@ speedo_rx(struct net_device *dev)
 
 #if 1 || USE_IP_CSUM
 				/* Packet is in one chunk -- we can copy + cksum. */
-				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb, sp->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
 				skb_copy_from_linear_data(sp->rx_skbuff[entry],

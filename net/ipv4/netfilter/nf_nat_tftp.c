@@ -30,7 +30,7 @@ static unsigned int help(struct sk_buff **pskb,
 		= ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.udp.port;
 	exp->dir = IP_CT_DIR_REPLY;
 	exp->expectfn = nf_nat_follow_master;
-	if (nf_conntrack_expect_related(exp) != 0)
+	if (nf_ct_expect_related(exp) != 0)
 		return NF_DROP;
 	return NF_ACCEPT;
 }

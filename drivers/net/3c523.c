@@ -990,7 +990,7 @@ static void elmc_rcv_int(struct net_device *dev)
 				if (skb != NULL) {
 					skb_reserve(skb, 2);	/* 16 byte alignment */
 					skb_put(skb,totlen);
-					eth_copy_and_sum(skb, (char *) p->base+(unsigned long) rbd->buffer,totlen,0);
+					skb_copy_to_linear_data(skb, (char *) p->base+(unsigned long) rbd->buffer,totlen);
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
 					dev->last_rx = jiffies;

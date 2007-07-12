@@ -21,14 +21,14 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_string");
 MODULE_ALIAS("ip6t_string");
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in,
-		 const struct net_device *out,
-		 const struct xt_match *match,
-		 const void *matchinfo,
-		 int offset,
-		 unsigned int protoff,
-		 int *hotdrop)
+static bool match(const struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  const struct xt_match *match,
+		  const void *matchinfo,
+		  int offset,
+		  unsigned int protoff,
+		  bool *hotdrop)
 {
 	const struct xt_string_info *conf = matchinfo;
 	struct ts_state state;
@@ -42,30 +42,30 @@ static int match(const struct sk_buff *skb,
 
 #define STRING_TEXT_PRIV(m) ((struct xt_string_info *) m)
 
-static int checkentry(const char *tablename,
-		      const void *ip,
-		      const struct xt_match *match,
-		      void *matchinfo,
-		      unsigned int hook_mask)
+static bool checkentry(const char *tablename,
+		       const void *ip,
+		       const struct xt_match *match,
+		       void *matchinfo,
+		       unsigned int hook_mask)
 {
 	struct xt_string_info *conf = matchinfo;
 	struct ts_config *ts_conf;
 
 	/* Damn, can't handle this case properly with iptables... */
 	if (conf->from_offset > conf->to_offset)
-		return 0;
+		return false;
 	if (conf->algo[XT_STRING_MAX_ALGO_NAME_SIZE - 1] != '\0')
-		return 0;
+		return false;
 	if (conf->patlen > XT_STRING_MAX_PATTERN_SIZE)
-		return 0;
+		return false;
 	ts_conf = textsearch_prepare(conf->algo, conf->pattern, conf->patlen,
 				     GFP_KERNEL, TS_AUTOLOAD);
 	if (IS_ERR(ts_conf))
-		return 0;
+		return false;
 
 	conf->config = ts_conf;
 
-	return 1;
+	return true;
 }
 
 static void destroy(const struct xt_match *match, void *matchinfo)
@@ -73,7 +73,7 @@ static void destroy(const struct xt_match *match, void *matchinfo)
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
 
-static struct xt_match xt_string_match[] = {
+static struct xt_match xt_string_match[] __read_mostly = {
 	{
 		.name 		= "string",
 		.family		= AF_INET,

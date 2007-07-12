@@ -19,7 +19,7 @@ MODULE_DESCRIPTION("IPv6 EUI64 address checking match");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -27,16 +27,16 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	unsigned char eui64[8];
 	int i = 0;
 
 	if (!(skb_mac_header(skb) >= skb->head &&
-	      (skb_mac_header(skb) + ETH_HLEN) <= skb->data) &&
+	      skb_mac_header(skb) + ETH_HLEN <= skb->data) &&
 	    offset != 0) {
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	memset(eui64, 0, sizeof(eui64));
@@ -50,19 +50,19 @@ match(const struct sk_buff *skb,
 			eui64[0] |= 0x02;
 
 			i = 0;
-			while ((ipv6_hdr(skb)->saddr.s6_addr[8 + i] == eui64[i])
-			       && (i < 8))
+			while (ipv6_hdr(skb)->saddr.s6_addr[8 + i] == eui64[i]
+			       && i < 8)
 				i++;
 
 			if (i == 8)
-				return 1;
+				return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
-static struct xt_match eui64_match = {
+static struct xt_match eui64_match __read_mostly = {
 	.name		= "eui64",
 	.family		= AF_INET6,
 	.match		= match,

@@ -141,22 +141,22 @@ struct xt_match
 	/* Arguments changed since 2.6.9, as this must now handle
 	   non-linear skb, using skb_header_pointer and
 	   skb_ip_make_writable. */
-	int (*match)(const struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out,
-		     const struct xt_match *match,
-		     const void *matchinfo,
-		     int offset,
-		     unsigned int protoff,
-		     int *hotdrop);
+	bool (*match)(const struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      const struct xt_match *match,
+		      const void *matchinfo,
+		      int offset,
+		      unsigned int protoff,
+		      bool *hotdrop);
 
 	/* Called when user tries to insert an entry of this type. */
 	/* Should return true or false. */
-	int (*checkentry)(const char *tablename,
-			  const void *ip,
-			  const struct xt_match *match,
-			  void *matchinfo,
-			  unsigned int hook_mask);
+	bool (*checkentry)(const char *tablename,
+			   const void *ip,
+			   const struct xt_match *match,
+			   void *matchinfo,
+			   unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_match *match, void *matchinfo);
@@ -202,11 +202,11 @@ struct xt_target
            hook_mask is a bitmask of hooks from which it can be
            called. */
 	/* Should return true or false. */
-	int (*checkentry)(const char *tablename,
-			  const void *entry,
-			  const struct xt_target *target,
-			  void *targinfo,
-			  unsigned int hook_mask);
+	bool (*checkentry)(const char *tablename,
+			   const void *entry,
+			   const struct xt_target *target,
+			   void *targinfo,
+			   unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_target *target, void *targinfo);

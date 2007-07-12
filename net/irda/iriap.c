@@ -1066,7 +1066,7 @@ static int irias_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irias_seq_ops = {
+static const struct seq_operations irias_seq_ops = {
 	.start  = irias_seq_start,
 	.next   = irias_seq_next,
 	.stop   = irias_seq_stop,

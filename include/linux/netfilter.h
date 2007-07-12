@@ -275,7 +275,8 @@ struct nf_queue_handler {
 };
 extern int nf_register_queue_handler(int pf, 
                                      struct nf_queue_handler *qh);
-extern int nf_unregister_queue_handler(int pf);
+extern int nf_unregister_queue_handler(int pf,
+				       struct nf_queue_handler *qh);
 extern void nf_unregister_queue_handlers(struct nf_queue_handler *qh);
 extern void nf_reinject(struct sk_buff *skb,
 			struct nf_info *info,

@@ -287,6 +287,7 @@ struct ucred {
 #define SOL_NETLINK	270
 #define SOL_TIPC	271
 #define SOL_RXRPC	272
+#define SOL_PPPOL2TP	273
 
 /* IPX options */
 #define IPX_TYPE	1

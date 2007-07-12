@@ -1,0 +1,111 @@
+
+		HOWTO for multiqueue network device support
+		===========================================
+
+Section 1: Base driver requirements for implementing multiqueue support
+Section 2: Qdisc support for multiqueue devices
+Section 3: Brief howto using PRIO or RR for multiqueue devices
+
+
+Intro: Kernel support for multiqueue devices
+---------------------------------------------------------
+
+Kernel support for multiqueue devices is only an API that is presented to the
+netdevice layer for base drivers to implement.  This feature is part of the
+core networking stack, and all network devices will be running on the
+multiqueue-aware stack.  If a base driver only has one queue, then these
+changes are transparent to that driver.
+
+
+Section 1: Base driver requirements for implementing multiqueue support
+-----------------------------------------------------------------------
+
+Base drivers are required to use the new alloc_etherdev_mq() or
+alloc_netdev_mq() functions to allocate the subqueues for the device.  The
+underlying kernel API will take care of the allocation and deallocation of
+the subqueue memory, as well as netdev configuration of where the queues
+exist in memory.
+
+The base driver will also need to manage the queues as it does the global
+netdev->queue_lock today.  Therefore base drivers should use the
+netif_{start|stop|wake}_subqueue() functions to manage each queue while the
+device is still operational.  netdev->queue_lock is still used when the device
+comes online or when it's completely shut down (unregister_netdev(), etc.).
+
+Finally, the base driver should indicate that it is a multiqueue device.  The
+feature flag NETIF_F_MULTI_QUEUE should be added to the netdev->features
+bitmap on device initialization.  Below is an example from e1000:
+
+#ifdef CONFIG_E1000_MQ
+	if ( (adapter->hw.mac.type == e1000_82571) ||
+	     (adapter->hw.mac.type == e1000_82572) ||
+	     (adapter->hw.mac.type == e1000_80003es2lan))
+		netdev->features |= NETIF_F_MULTI_QUEUE;
+#endif
+
+
+Section 2: Qdisc support for multiqueue devices
+-----------------------------------------------
+
+Currently two qdiscs support multiqueue devices.  A new round-robin qdisc,
+sch_rr, and sch_prio. The qdisc is responsible for classifying the skb's to
+bands and queues, and will store the queue mapping into skb->queue_mapping.
+Use this field in the base driver to determine which queue to send the skb
+to.
+
+sch_rr has been added for hardware that doesn't want scheduling policies from
+software, so it's a straight round-robin qdisc.  It uses the same syntax and
+classification priomap that sch_prio uses, so it should be intuitive to
+configure for people who've used sch_prio.
+
+The PRIO qdisc naturally plugs into a multiqueue device.  If PRIO has been
+built with NET_SCH_PRIO_MQ, then upon load, it will make sure the number of
+bands requested is equal to the number of queues on the hardware.  If they
+are equal, it sets a one-to-one mapping up between the queues and bands.  If
+they're not equal, it will not load the qdisc.  This is the same behavior
+for RR.  Once the association is made, any skb that is classified will have
+skb->queue_mapping set, which will allow the driver to properly queue skb's
+to multiple queues.
+
+
+Section 3: Brief howto using PRIO and RR for multiqueue devices
+---------------------------------------------------------------
+
+The userspace command 'tc,' part of the iproute2 package, is used to configure
+qdiscs.  To add the PRIO qdisc to your network device, assuming the device is
+called eth0, run the following command:
+
+# tc qdisc add dev eth0 root handle 1: prio bands 4 multiqueue
+
+This will create 4 bands, 0 being highest priority, and associate those bands
+to the queues on your NIC.  Assuming eth0 has 4 Tx queues, the band mapping
+would look like:
+
+band 0 => queue 0
+band 1 => queue 1
+band 2 => queue 2
+band 3 => queue 3
+
+Traffic will begin flowing through each queue if your TOS values are assigning
+traffic across the various bands.  For example, ssh traffic will always try to
+go out band 0 based on TOS -> Linux priority conversion (realtime traffic),
+so it will be sent out queue 0.  ICMP traffic (pings) fall into the "normal"
+traffic classification, which is band 1.  Therefore pings will be send out
+queue 1 on the NIC.
+
+Note the use of the multiqueue keyword.  This is only in versions of iproute2
+that support multiqueue networking devices; if this is omitted when loading
+a qdisc onto a multiqueue device, the qdisc will load and operate the same
+if it were loaded onto a single-queue device (i.e. - sends all traffic to
+queue 0).
+
+Another alternative to multiqueue band allocation can be done by using the
+multiqueue option and specify 0 bands.  If this is the case, the qdisc will
+allocate the number of bands to equal the number of queues that the device
+reports, and bring the qdisc online.
+
+The behavior of tc filters remains the same, where it will override TOS priority
+classification.
+
+
+Author: Peter P. Waskiewicz Jr. <peter.p.waskiewicz.jr@intel.com>

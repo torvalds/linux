@@ -37,14 +37,6 @@ MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("Netfilter NAT helper module for PPTP");
 MODULE_ALIAS("ip_nat_pptp");
 
-#if 0
-extern const char *pptp_msg_name[];
-#define DEBUGP(format, args...) printk(KERN_DEBUG "%s:%s: " format, __FILE__, \
-				       __FUNCTION__, ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static void pptp_nat_expected(struct nf_conn *ct,
 			      struct nf_conntrack_expect *exp)
 {
@@ -60,7 +52,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 
 	/* And here goes the grand finale of corrosion... */
 	if (exp->dir == IP_CT_DIR_ORIGINAL) {
-		DEBUGP("we are PNS->PAC\n");
+		pr_debug("we are PNS->PAC\n");
 		/* therefore, build tuple for PAC->PNS */
 		t.src.l3num = AF_INET;
 		t.src.u3.ip = master->tuplehash[!exp->dir].tuple.src.u3.ip;
@@ -69,7 +61,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		t.dst.u.gre.key = ct_pptp_info->pns_call_id;
 		t.dst.protonum = IPPROTO_GRE;
 	} else {
-		DEBUGP("we are PAC->PNS\n");
+		pr_debug("we are PAC->PNS\n");
 		/* build tuple for PNS->PAC */
 		t.src.l3num = AF_INET;
 		t.src.u3.ip = master->tuplehash[!exp->dir].tuple.src.u3.ip;
@@ -79,15 +71,15 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		t.dst.protonum = IPPROTO_GRE;
 	}
 
-	DEBUGP("trying to unexpect other dir: ");
+	pr_debug("trying to unexpect other dir: ");
 	NF_CT_DUMP_TUPLE(&t);
-	other_exp = nf_conntrack_expect_find_get(&t);
+	other_exp = nf_ct_expect_find_get(&t);
 	if (other_exp) {
-		nf_conntrack_unexpect_related(other_exp);
-		nf_conntrack_expect_put(other_exp);
-		DEBUGP("success\n");
+		nf_ct_unexpect_related(other_exp);
+		nf_ct_expect_put(other_exp);
+		pr_debug("success\n");
 	} else {
-		DEBUGP("not found!\n");
+		pr_debug("not found!\n");
 	}
 
 	/* This must be a fresh one. */
@@ -161,9 +153,9 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
 		break;
 	default:
-		DEBUGP("unknown outbound packet 0x%04x:%s\n", msg,
-		      (msg <= PPTP_MSG_MAX)?
-		      pptp_msg_name[msg]:pptp_msg_name[0]);
+		pr_debug("unknown outbound packet 0x%04x:%s\n", msg,
+			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
+					       pptp_msg_name[0]);
 		/* fall through */
 	case PPTP_SET_LINK_INFO:
 		/* only need to NAT in case PAC is behind NAT box */
@@ -179,8 +171,8 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 
 	/* only OUT_CALL_REQUEST, IN_CALL_REPLY, CALL_CLEAR_REQUEST pass
 	 * down to here */
-	DEBUGP("altering call id from 0x%04x to 0x%04x\n",
-		ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
+	pr_debug("altering call id from 0x%04x to 0x%04x\n",
+		 ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
 	if (nf_nat_mangle_tcp_packet(pskb, ct, ctinfo,
@@ -255,8 +247,9 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		pcid_off = offsetof(union pptp_ctrl_union, setlink.peersCallID);
 		break;
 	default:
-		DEBUGP("unknown inbound packet %s\n", (msg <= PPTP_MSG_MAX)?
-			pptp_msg_name[msg]:pptp_msg_name[0]);
+		pr_debug("unknown inbound packet %s\n",
+			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
+					       pptp_msg_name[0]);
 		/* fall through */
 	case PPTP_START_SESSION_REQUEST:
 	case PPTP_START_SESSION_REPLY:
@@ -272,8 +265,8 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	 * WAN_ERROR_NOTIFY, CALL_DISCONNECT_NOTIFY pass down here */
 
 	/* mangle packet */
-	DEBUGP("altering peer call id from 0x%04x to 0x%04x\n",
-		ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
+	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",
+		 ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
 	if (nf_nat_mangle_tcp_packet(pskb, ct, ctinfo,
 				     pcid_off + sizeof(struct pptp_pkt_hdr) +

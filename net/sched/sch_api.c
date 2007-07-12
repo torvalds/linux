@@ -19,29 +19,17 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
-#include <linux/bitops.h>
 #include <linux/hrtimer.h>
 
 #include <net/netlink.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
-
-#include <asm/processor.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
 
 static int qdisc_notify(struct sk_buff *oskb, struct nlmsghdr *n, u32 clid,
 			struct Qdisc *old, struct Qdisc *new);
@@ -515,7 +503,6 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS-1])) == 0) {
-#ifdef CONFIG_NET_ESTIMATOR
 		if (tca[TCA_RATE-1]) {
 			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
 						sch->stats_lock,
@@ -531,7 +518,6 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 				goto err_out3;
 			}
 		}
-#endif
 		qdisc_lock_tree(dev);
 		list_add_tail(&sch->list, &dev->qdisc_list);
 		qdisc_unlock_tree(dev);
@@ -559,11 +545,9 @@ static int qdisc_change(struct Qdisc *sch, struct rtattr **tca)
 		if (err)
 			return err;
 	}
-#ifdef CONFIG_NET_ESTIMATOR
 	if (tca[TCA_RATE-1])
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
 			sch->stats_lock, tca[TCA_RATE-1]);
-#endif
 	return 0;
 }
 
@@ -839,9 +823,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 		goto rtattr_failure;
 
 	if (gnet_stats_copy_basic(&d, &q->bstats) < 0 ||
-#ifdef CONFIG_NET_ESTIMATOR
 	    gnet_stats_copy_rate_est(&d, &q->rate_est) < 0 ||
-#endif
 	    gnet_stats_copy_queue(&d, &q->qstats) < 0)
 		goto rtattr_failure;
 

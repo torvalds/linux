@@ -177,7 +177,7 @@ static int mpc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations mpc_op = {
+static const struct seq_operations mpc_op = {
 	.start =	mpc_start,
 	.next =		mpc_next,
 	.stop =		mpc_stop,

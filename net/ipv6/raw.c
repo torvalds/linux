@@ -49,7 +49,7 @@
 #include <net/udp.h>
 #include <net/inet_common.h>
 #include <net/tcp_states.h>
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 #include <net/mip6.h>
 #endif
 
@@ -137,6 +137,28 @@ static __inline__ int icmpv6_filter(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+static int (*mh_filter)(struct sock *sock, struct sk_buff *skb);
+
+int rawv6_mh_filter_register(int (*filter)(struct sock *sock,
+					   struct sk_buff *skb))
+{
+	rcu_assign_pointer(mh_filter, filter);
+	return 0;
+}
+EXPORT_SYMBOL(rawv6_mh_filter_register);
+
+int rawv6_mh_filter_unregister(int (*filter)(struct sock *sock,
+					     struct sk_buff *skb))
+{
+	rcu_assign_pointer(mh_filter, NULL);
+	synchronize_rcu();
+	return 0;
+}
+EXPORT_SYMBOL(rawv6_mh_filter_unregister);
+
+#endif
+
 /*
  *	demultiplex raw sockets.
  *	(should consider queueing the skb in the sock receive_queue
@@ -178,16 +200,22 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 		case IPPROTO_ICMPV6:
 			filtered = icmpv6_filter(sk, skb);
 			break;
-#ifdef CONFIG_IPV6_MIP6
+
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		case IPPROTO_MH:
+		{
 			/* XXX: To validate MH only once for each packet,
 			 * this is placed here. It should be after checking
 			 * xfrm policy, however it doesn't. The checking xfrm
 			 * policy is placed in rawv6_rcv() because it is
 			 * required for each socket.
 			 */
-			filtered = mip6_mh_filter(sk, skb);
+			int (*filter)(struct sock *sock, struct sk_buff *skb);
+
+			filter = rcu_dereference(mh_filter);
+			filtered = filter ? filter(sk, skb) : 0;
 			break;
+		}
 #endif
 		default:
 			filtered = 0;
@@ -611,9 +639,7 @@ static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	struct iovec *iov;
 	u8 __user *type = NULL;
 	u8 __user *code = NULL;
-#ifdef CONFIG_IPV6_MIP6
 	u8 len = 0;
-#endif
 	int probed = 0;
 	int i;
 
@@ -646,7 +672,6 @@ static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				probed = 1;
 			}
 			break;
-#ifdef CONFIG_IPV6_MIP6
 		case IPPROTO_MH:
 			if (iov->iov_base && iov->iov_len < 1)
 				break;
@@ -660,7 +685,6 @@ static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				len += iov->iov_len;
 
 			break;
-#endif
 		default:
 			probed = 1;
 			break;
@@ -1256,7 +1280,7 @@ static int raw6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations raw6_seq_ops = {
+static const struct seq_operations raw6_seq_ops = {
 	.start =	raw6_seq_start,
 	.next =		raw6_seq_next,
 	.stop =		raw6_seq_stop,

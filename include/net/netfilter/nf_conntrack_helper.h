@@ -10,12 +10,13 @@
 #ifndef _NF_CONNTRACK_HELPER_H
 #define _NF_CONNTRACK_HELPER_H
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 struct module;
 
 struct nf_conntrack_helper
-{	
-	struct list_head list; 		/* Internal use. */
+{
+	struct hlist_node hnode;	/* Internal use. */
 
 	const char *name;		/* name of the module */
 	struct module *me;		/* pointer to self */
@@ -23,10 +24,9 @@ struct nf_conntrack_helper
 					 * expected connections */
 	unsigned int timeout;		/* timeout for expecteds */
 
-	/* Mask of things we will help (compared against server response) */
+	/* Tuple of things we will help (compared against server response) */
 	struct nf_conntrack_tuple tuple;
-	struct nf_conntrack_tuple mask;
-	
+
 	/* Function to call when data passes; return verdict, or -1 to
            invalidate. */
 	int (*help)(struct sk_buff **pskb,
@@ -52,4 +52,10 @@ extern void nf_ct_helper_put(struct nf_conntrack_helper *helper);
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);
 extern void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 
+extern struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp);
+
+static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
+{
+	return nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+}
 #endif /*_NF_CONNTRACK_HELPER_H*/

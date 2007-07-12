@@ -1994,7 +1994,7 @@ static int irlmp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irlmp_seq_ops = {
+static const struct seq_operations irlmp_seq_ops = {
 	.start  = irlmp_seq_start,
 	.next   = irlmp_seq_next,
 	.stop   = irlmp_seq_stop,

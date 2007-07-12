@@ -66,8 +66,9 @@ static void queue_process(struct work_struct *work)
 
 		local_irq_save(flags);
 		netif_tx_lock(dev);
-		if (netif_queue_stopped(dev) ||
-		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		if ((netif_queue_stopped(dev) ||
+		     netif_subqueue_stopped(dev, skb->queue_mapping)) ||
+		     dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
 			netif_tx_unlock(dev);
 			local_irq_restore(flags);
@@ -123,6 +124,13 @@ static void poll_napi(struct netpoll *np)
 	if (test_bit(__LINK_STATE_RX_SCHED, &np->dev->state) &&
 	    npinfo->poll_owner != smp_processor_id() &&
 	    spin_trylock(&npinfo->poll_lock)) {
+		/* When calling dev->poll from poll_napi, we may end up in
+		 * netif_rx_complete. However, only the CPU to which the
+		 * device was queued is allowed to remove it from poll_list.
+		 * Setting POLL_LIST_FROZEN tells netif_rx_complete
+		 * to leave the NAPI state alone.
+		 */
+		set_bit(__LINK_STATE_POLL_LIST_FROZEN, &np->dev->state);
 		npinfo->rx_flags |= NETPOLL_RX_DROP;
 		atomic_inc(&trapped);
 
@@ -130,6 +138,7 @@ static void poll_napi(struct netpoll *np)
 
 		atomic_dec(&trapped);
 		npinfo->rx_flags &= ~NETPOLL_RX_DROP;
+		clear_bit(__LINK_STATE_POLL_LIST_FROZEN, &np->dev->state);
 		spin_unlock(&npinfo->poll_lock);
 	}
 }
@@ -254,7 +263,8 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
 			if (netif_tx_trylock(dev)) {
-				if (!netif_queue_stopped(dev))
+				if (!netif_queue_stopped(dev) &&
+				    !netif_subqueue_stopped(dev, skb->queue_mapping))
 					status = dev->hard_start_xmit(skb, dev);
 				netif_tx_unlock(dev);
 
@@ -781,7 +791,6 @@ void netpoll_cleanup(struct netpoll *np)
 				spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 			}
 
-			np->dev->npinfo = NULL;
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				skb_queue_purge(&npinfo->arp_tx);
 				skb_queue_purge(&npinfo->txq);
@@ -794,6 +803,7 @@ void netpoll_cleanup(struct netpoll *np)
 					kfree_skb(skb);
 				}
 				kfree(npinfo);
+				np->dev->npinfo = NULL;
 			}
 		}
 

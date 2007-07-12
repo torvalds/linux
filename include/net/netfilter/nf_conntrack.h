@@ -82,6 +82,8 @@ struct nf_conn_help {
 
 	union nf_conntrack_help help;
 
+	struct hlist_head expectations;
+
 	/* Current number of expected connections */
 	unsigned int expecting;
 };
@@ -117,9 +119,6 @@ struct nf_conn
 	/* Unique ID that identifies this conntrack*/
 	unsigned int id;
 
-	/* features - nat, helper, ... used by allocating system */
-	u_int32_t features;
-
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
 #endif
@@ -131,8 +130,8 @@ struct nf_conn
 	/* Storage reserved for other modules: */
 	union nf_conntrack_proto proto;
 
-	/* features dynamically at the end: helper, nat (both optional) */
-	char data[0];
+	/* Extensions */
+	struct nf_ct_ext *ext;
 };
 
 static inline struct nf_conn *
@@ -175,6 +174,10 @@ static inline void nf_ct_put(struct nf_conn *ct)
 extern int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 extern void nf_ct_l3proto_module_put(unsigned short l3proto);
 
+extern struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced);
+extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
+				 int size);
+
 extern struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 		    const struct nf_conn *ignored_conntrack);
@@ -215,9 +218,6 @@ extern void nf_conntrack_tcp_update(struct sk_buff *skb,
 				    unsigned int dataoff,
 				    struct nf_conn *conntrack,
 				    int dir);
-
-/* Call me when a conntrack is destroyed. */
-extern void (*nf_conntrack_destroyed)(struct nf_conn *conntrack);
 
 /* Fake conntrack entry for untracked connections */
 extern struct nf_conn nf_conntrack_untracked;
@@ -262,60 +262,10 @@ do {							\
 	local_bh_enable();				\
 } while (0)
 
-/* no helper, no nat */
-#define	NF_CT_F_BASIC	0
-/* for helper */
-#define	NF_CT_F_HELP	1
-/* for nat. */
-#define	NF_CT_F_NAT	2
-#define NF_CT_F_NUM	4
-
 extern int
 nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);
 extern void
 nf_conntrack_unregister_cache(u_int32_t features);
 
-/* valid combinations:
- * basic: nf_conn, nf_conn .. nf_conn_help
- * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat .. nf_conn help
- */
-#ifdef CONFIG_NF_NAT_NEEDED
-static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
-{
-	unsigned int offset = sizeof(struct nf_conn);
-
-	if (!(ct->features & NF_CT_F_NAT))
-		return NULL;
-
-	offset = ALIGN(offset, __alignof__(struct nf_conn_nat));
-	return (struct nf_conn_nat *) ((void *)ct + offset);
-}
-
-static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
-{
-	unsigned int offset = sizeof(struct nf_conn);
-
-	if (!(ct->features & NF_CT_F_HELP))
-		return NULL;
-	if (ct->features & NF_CT_F_NAT) {
-		offset = ALIGN(offset, __alignof__(struct nf_conn_nat));
-		offset += sizeof(struct nf_conn_nat);
-	}
-
-	offset = ALIGN(offset, __alignof__(struct nf_conn_help));
-	return (struct nf_conn_help *) ((void *)ct + offset);
-}
-#else /* No NAT */
-static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
-{
-	unsigned int offset = sizeof(struct nf_conn);
-
-	if (!(ct->features & NF_CT_F_HELP))
-		return NULL;
-
-	offset = ALIGN(offset, __alignof__(struct nf_conn_help));
-	return (struct nf_conn_help *) ((void *)ct + offset);
-}
-#endif /* CONFIG_NF_NAT_NEEDED */
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

@@ -28,32 +28,16 @@
  * $Id: sch_htb.c,v 1.25 2003/12/07 11:08:25 devik Exp devik $
  */
 #include <linux/module.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/if_ether.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/notifier.h>
-#include <net/ip.h>
-#include <net/route.h>
 #include <linux/skbuff.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
-#include <net/netlink.h>
-#include <net/sock.h>
-#include <net/pkt_sched.h>
 #include <linux/rbtree.h>
+#include <net/netlink.h>
+#include <net/pkt_sched.h>
 
 /* HTB algorithm.
     Author: devik@cdi.cz
@@ -69,8 +53,6 @@
 */
 
 #define HTB_HSIZE 16		/* classid hash size */
-#define HTB_EWMAC 2		/* rate average over HTB_EWMAC*HTB_HSIZE sec */
-#define HTB_RATECM 1		/* whether to use rate computer */
 #define HTB_HYSTERESIS 1	/* whether to use mode hysteresis for speedup */
 #define HTB_VER 0x30011		/* major must be matched with number suplied by TC as version */
 
@@ -94,12 +76,6 @@ struct htb_class {
 	struct gnet_stats_rate_est rate_est;
 	struct tc_htb_xstats xstats;	/* our special stats */
 	int refcnt;		/* usage count of this class */
-
-#ifdef HTB_RATECM
-	/* rate measurement counters */
-	unsigned long rate_bytes, sum_bytes;
-	unsigned long rate_packets, sum_packets;
-#endif
 
 	/* topology */
 	int level;		/* our level (see above) */
@@ -153,15 +129,12 @@ struct htb_class {
 				/* of un.leaf originals should be done. */
 };
 
-/* TODO: maybe compute rate when size is too large .. or drop ? */
 static inline long L2T(struct htb_class *cl, struct qdisc_rate_table *rate,
 			   int size)
 {
 	int slot = size >> rate->rate.cell_log;
-	if (slot > 255) {
-		cl->xstats.giants++;
-		slot = 255;
-	}
+	if (slot > 255)
+		return (rate->data[255]*(slot >> 8) + rate->data[slot & 0xFF]);
 	return rate->data[slot];
 }
 
@@ -194,10 +167,6 @@ struct htb_sched {
 	int rate2quantum;	/* quant = rate / rate2quantum */
 	psched_time_t now;	/* cached dequeue time */
 	struct qdisc_watchdog watchdog;
-#ifdef HTB_RATECM
-	struct timer_list rttim;	/* rate computer timer */
-	int recmp_bucket;	/* which hash bucket to recompute next */
-#endif
 
 	/* non shaped skbs; let them go directly thru */
 	struct sk_buff_head direct_queue;
@@ -634,13 +603,14 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		cl->qstats.drops++;
 		return NET_XMIT_DROP;
 	} else {
-		cl->bstats.packets++;
+		cl->bstats.packets +=
+			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
 		cl->bstats.bytes += skb->len;
 		htb_activate(q, cl);
 	}
 
 	sch->q.qlen++;
-	sch->bstats.packets++;
+	sch->bstats.packets += skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
 	sch->bstats.bytes += skb->len;
 	return NET_XMIT_SUCCESS;
 }
@@ -677,34 +647,6 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_SUCCESS;
 }
 
-#ifdef HTB_RATECM
-#define RT_GEN(D,R) R+=D-(R/HTB_EWMAC);D=0
-static void htb_rate_timer(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc *)arg;
-	struct htb_sched *q = qdisc_priv(sch);
-	struct hlist_node *p;
-	struct htb_class *cl;
-
-
-	/* lock queue so that we can muck with it */
-	spin_lock_bh(&sch->dev->queue_lock);
-
-	q->rttim.expires = jiffies + HZ;
-	add_timer(&q->rttim);
-
-	/* scan and recompute one bucket at time */
-	if (++q->recmp_bucket >= HTB_HSIZE)
-		q->recmp_bucket = 0;
-
-	hlist_for_each_entry(cl,p, q->hash + q->recmp_bucket, hlist) {
-		RT_GEN(cl->sum_bytes, cl->rate_bytes);
-		RT_GEN(cl->sum_packets, cl->rate_packets);
-	}
-	spin_unlock_bh(&sch->dev->queue_lock);
-}
-#endif
-
 /**
  * htb_charge_class - charges amount "bytes" to leaf and ancestors
  *
@@ -717,8 +659,9 @@ static void htb_rate_timer(unsigned long arg)
  * In such case we remove class from event queue first.
  */
 static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
-			     int level, int bytes)
+			     int level, struct sk_buff *skb)
 {
+	int bytes = skb->len;
 	long toks, diff;
 	enum htb_cmode old_mode;
 
@@ -750,16 +693,12 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 			if (cl->cmode != HTB_CAN_SEND)
 				htb_add_to_wait_tree(q, cl, diff);
 		}
-#ifdef HTB_RATECM
-		/* update rate counters */
-		cl->sum_bytes += bytes;
-		cl->sum_packets++;
-#endif
 
 		/* update byte stats except for leaves which are already updated */
 		if (cl->level) {
 			cl->bstats.bytes += bytes;
-			cl->bstats.packets++;
+			cl->bstats.packets += skb_is_gso(skb)?
+					skb_shinfo(skb)->gso_segs:1;
 		}
 		cl = cl->parent;
 	}
@@ -943,7 +882,7 @@ next:
 		   gives us slightly better performance */
 		if (!cl->un.leaf.q->q.qlen)
 			htb_deactivate(q, cl);
-		htb_charge_class(q, cl, level, skb->len);
+		htb_charge_class(q, cl, level, skb);
 	}
 	return skb;
 }
@@ -1095,13 +1034,6 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 	if (q->direct_qlen < 2)	/* some devices have zero tx_queue_len */
 		q->direct_qlen = 2;
 
-#ifdef HTB_RATECM
-	init_timer(&q->rttim);
-	q->rttim.function = htb_rate_timer;
-	q->rttim.data = (unsigned long)sch;
-	q->rttim.expires = jiffies + HZ;
-	add_timer(&q->rttim);
-#endif
 	if ((q->rate2quantum = gopt->rate2quantum) < 1)
 		q->rate2quantum = 1;
 	q->defcls = gopt->defcls;
@@ -1174,11 +1106,6 @@ static int
 htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-
-#ifdef HTB_RATECM
-	cl->rate_est.bps = cl->rate_bytes / (HTB_EWMAC * HTB_HSIZE);
-	cl->rate_est.pps = cl->rate_packets / (HTB_EWMAC * HTB_HSIZE);
-#endif
 
 	if (!cl->level && cl->un.leaf.q)
 		cl->qstats.qlen = cl->un.leaf.q->q.qlen;
@@ -1277,6 +1204,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 		BUG_TRAP(cl->un.leaf.q);
 		qdisc_destroy(cl->un.leaf.q);
 	}
+	gen_kill_estimator(&cl->bstats, &cl->rate_est);
 	qdisc_put_rtab(cl->rate);
 	qdisc_put_rtab(cl->ceil);
 
@@ -1305,9 +1233,6 @@ static void htb_destroy(struct Qdisc *sch)
 	struct htb_sched *q = qdisc_priv(sch);
 
 	qdisc_watchdog_cancel(&q->watchdog);
-#ifdef HTB_RATECM
-	del_timer_sync(&q->rttim);
-#endif
 	/* This line used to be after htb_destroy_class call below
 	   and surprisingly it worked in 2.4. But it must precede it
 	   because filter need its target class alive to be able to call
@@ -1403,6 +1328,20 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	if (!cl) {		/* new class */
 		struct Qdisc *new_q;
 		int prio;
+		struct {
+			struct rtattr		rta;
+			struct gnet_estimator	opt;
+		} est = {
+			.rta = {
+				.rta_len	= RTA_LENGTH(sizeof(est.opt)),
+				.rta_type	= TCA_RATE,
+			},
+			.opt = {
+				/* 4s interval, 16s averaging constant */
+				.interval	= 2,
+				.ewma_log	= 2,
+			},
+		};
 
 		/* check for valid classid */
 		if (!classid || TC_H_MAJ(classid ^ sch->handle)
@@ -1418,6 +1357,9 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if ((cl = kzalloc(sizeof(*cl), GFP_KERNEL)) == NULL)
 			goto failure;
 
+		gen_new_estimator(&cl->bstats, &cl->rate_est,
+				  &sch->dev->queue_lock,
+				  tca[TCA_RATE-1] ? : &est.rta);
 		cl->refcnt = 1;
 		INIT_LIST_HEAD(&cl->sibling);
 		INIT_HLIST_NODE(&cl->hlist);
@@ -1469,8 +1411,13 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		hlist_add_head(&cl->hlist, q->hash + htb_hash(classid));
 		list_add_tail(&cl->sibling,
 			      parent ? &parent->children : &q->root);
-	} else
+	} else {
+		if (tca[TCA_RATE-1])
+			gen_replace_estimator(&cl->bstats, &cl->rate_est,
+					      &sch->dev->queue_lock,
+					      tca[TCA_RATE-1]);
 		sch_tree_lock(sch);
+	}
 
 	/* it used to be a nasty bug here, we have to check that node
 	   is really leaf before changing cl->un.leaf ! */

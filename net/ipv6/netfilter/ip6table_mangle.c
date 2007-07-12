@@ -21,12 +21,6 @@ MODULE_DESCRIPTION("ip6tables mangle table");
 			    (1 << NF_IP6_LOCAL_OUT) | \
 			    (1 << NF_IP6_POST_ROUTING))
 
-#if 0
-#define DEBUGP(x, args...)	printk(KERN_DEBUG x, ## args)
-#else
-#define DEBUGP(x, args...)
-#endif
-
 static struct
 {
 	struct ip6t_replace repl;

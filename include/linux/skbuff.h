@@ -65,13 +65,20 @@
  *	    is able to produce some skb->csum, it MUST use COMPLETE,
  *	    not UNNECESSARY.
  *
+ *	PARTIAL: identical to the case for output below.  This may occur
+ *	    on a packet received directly from another Linux OS, e.g.,
+ *	    a virtualised Linux kernel on the same host.  The packet can
+ *	    be treated in the same way as UNNECESSARY except that on
+ *	    output (i.e., forwarding) the checksum must be filled in
+ *	    by the OS or the hardware.
+ *
  * B. Checksumming on output.
  *
  *	NONE: skb is checksummed by protocol or csum is not required.
  *
  *	PARTIAL: device is required to csum packet as seen by hard_start_xmit
- *	from skb->transport_header to the end and to record the checksum
- *	at skb->transport_header + skb->csum.
+ *	from skb->csum_start to the end and to record the checksum
+ *	at skb->csum_start + skb->csum_offset.
  *
  *	Device must show its capabilities in dev->features, set
  *	at device setup time.
@@ -82,6 +89,7 @@
  *			  TCP/UDP over IPv4. Sigh. Vendors like this
  *			  way by an unknown reason. Though, see comment above
  *			  about CHECKSUM_UNNECESSARY. 8)
+ *	NETIF_F_IPV6_CSUM about as dumb as the last one but does IPv6 instead.
  *
  *	Any questions? No questions, good. 		--ANK
  */
@@ -147,8 +155,8 @@ struct skb_shared_info {
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
  * to the payload part of skb->data.  The lower 16 bits hold references to
- * the entire skb->data.  It is up to the users of the skb to agree on
- * where the payload starts.
+ * the entire skb->data.  A clone of a headerless skb holds the length of
+ * the header in skb->hdr_len.
  *
  * All users must obey the rule that the skb->data reference count must be
  * greater than or equal to the payload reference count.
@@ -196,7 +204,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
- *	@iif: ifindex of device we arrived on
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
@@ -206,6 +213,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
+ *	@hdr_len: writable header length of cloned skb
  *	@csum: Checksum (must include start/offset pair)
  *	@csum_start: Offset from skb->head where checksumming should start
  *	@csum_offset: Offset from csum_start where checksum should be stored
@@ -227,9 +235,12 @@ typedef unsigned char *sk_buff_data_t;
  *	@mark: Generic packet mark
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
+ *	@nf_trace: netfilter packet trace flag
  *	@nfctinfo: Relationship of this skb to the connection
  *	@nfct_reasm: netfilter conntrack re-assembly pointer
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
+ *	@iif: ifindex of device we arrived on
+ *	@queue_mapping: Queue mapping for multiqueue devices
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
  *	@dma_cookie: a cookie to one of several possible DMA operations
@@ -245,8 +256,6 @@ struct sk_buff {
 	struct sock		*sk;
 	ktime_t			tstamp;
 	struct net_device	*dev;
-	int			iif;
-	/* 4 byte hole on 64 bit*/
 
 	struct  dst_entry	*dst;
 	struct	sec_path	*sp;
@@ -260,8 +269,9 @@ struct sk_buff {
 	char			cb[48];
 
 	unsigned int		len,
-				data_len,
-				mac_len;
+				data_len;
+	__u16			mac_len,
+				hdr_len;
 	union {
 		__wsum		csum;
 		struct {
@@ -277,7 +287,8 @@ struct sk_buff {
 				nfctinfo:3;
 	__u8			pkt_type:3,
 				fclone:2,
-				ipvs_property:1;
+				ipvs_property:1,
+				nf_trace:1;
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
@@ -288,12 +299,18 @@ struct sk_buff {
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
+
+	int			iif;
+	__u16			queue_mapping;
+
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
 	__u16			tc_verd;	/* traffic control verdict */
 #endif
 #endif
+	/* 2 byte hole */
+
 #ifdef CONFIG_NET_DMA
 	dma_cookie_t		dma_cookie;
 #endif
@@ -1322,6 +1339,20 @@ static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
 }
 
 /**
+ *	skb_clone_writable - is the header of a clone writable
+ *	@skb: buffer to check
+ *	@len: length up to which to write
+ *
+ *	Returns true if modifying the header part of the cloned buffer
+ *	does not requires the data to be copied.
+ */
+static inline int skb_clone_writable(struct sk_buff *skb, int len)
+{
+	return !skb_header_cloned(skb) &&
+	       skb_headroom(skb) + len <= skb->hdr_len;
+}
+
+/**
  *	skb_cow - copy header of skb when it is required
  *	@skb: buffer to cow
  *	@headroom: needed headroom
@@ -1708,6 +1739,20 @@ static inline void skb_copy_secmark(struct sk_buff *to, const struct sk_buff *fr
 static inline void skb_init_secmark(struct sk_buff *skb)
 { }
 #endif
+
+static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 queue_mapping)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	skb->queue_mapping = queue_mapping;
+#endif
+}
+
+static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_buff *from)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	to->queue_mapping = from->queue_mapping;
+#endif
+}
 
 static inline int skb_is_gso(const struct sk_buff *skb)
 {

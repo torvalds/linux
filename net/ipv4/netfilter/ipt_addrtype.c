@@ -22,19 +22,19 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("iptables addrtype match");
 
-static inline int match_type(__be32 addr, u_int16_t mask)
+static inline bool match_type(__be32 addr, u_int16_t mask)
 {
 	return !!(mask & (1 << inet_addr_type(addr)));
 }
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in, const struct net_device *out,
-		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, int *hotdrop)
+static bool match(const struct sk_buff *skb,
+		  const struct net_device *in, const struct net_device *out,
+		  const struct xt_match *match, const void *matchinfo,
+		  int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_addrtype_info *info = matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
-	int ret = 1;
+	bool ret = true;
 
 	if (info->source)
 		ret &= match_type(iph->saddr, info->source)^info->invert_source;
@@ -44,7 +44,7 @@ static int match(const struct sk_buff *skb,
 	return ret;
 }
 
-static struct xt_match addrtype_match = {
+static struct xt_match addrtype_match __read_mostly = {
 	.name		= "addrtype",
 	.family		= AF_INET,
 	.match		= match,

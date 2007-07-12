@@ -1726,7 +1726,7 @@ static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations dn_rt_cache_seq_ops = {
+static const struct seq_operations dn_rt_cache_seq_ops = {
 	.start	= dn_rt_cache_seq_start,
 	.next	= dn_rt_cache_seq_next,
 	.stop	= dn_rt_cache_seq_stop,

@@ -27,8 +27,8 @@ struct in6_ifreq {
 	int		ifr6_ifindex; 
 };
 
-#define IPV6_SRCRT_STRICT	0x01	/* this hop must be a neighbor	*/
-#define IPV6_SRCRT_TYPE_0	0	/* IPv6 type 0 Routing Header	*/
+#define IPV6_SRCRT_STRICT	0x01	/* Deprecated; will be removed */
+#define IPV6_SRCRT_TYPE_0	0	/* Deprecated; will be removed */
 #define IPV6_SRCRT_TYPE_2	2	/* IPv6 type 2 Routing Header	*/
 
 /*
@@ -247,7 +247,7 @@ struct inet6_skb_parm {
 	__u16			lastopt;
 	__u32			nhoff;
 	__u16			flags;
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	__u16			dsthao;
 #endif
 
@@ -299,8 +299,8 @@ struct ipv6_pinfo {
 	/* pktoption flags */
 	union {
 		struct {
-			__u16	srcrt:2,
-				osrcrt:2,
+			__u16	srcrt:1,
+				osrcrt:1,
 			        rxinfo:1,
 			        rxoinfo:1,
 				rxhlim:1,

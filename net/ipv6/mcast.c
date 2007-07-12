@@ -2423,7 +2423,7 @@ static int igmp6_mc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations igmp6_mc_seq_ops = {
+static const struct seq_operations igmp6_mc_seq_ops = {
 	.start	=	igmp6_mc_seq_start,
 	.next	=	igmp6_mc_seq_next,
 	.stop	=	igmp6_mc_seq_stop,
@@ -2597,7 +2597,7 @@ static int igmp6_mcf_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations igmp6_mcf_seq_ops = {
+static const struct seq_operations igmp6_mcf_seq_ops = {
 	.start	=	igmp6_mcf_seq_start,
 	.next	=	igmp6_mcf_seq_next,
 	.stop	=	igmp6_mcf_seq_stop,

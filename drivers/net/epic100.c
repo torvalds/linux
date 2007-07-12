@@ -1201,7 +1201,7 @@ static int epic_rx(struct net_device *dev, int budget)
 							    ep->rx_ring[entry].bufaddr,
 							    ep->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
-				eth_copy_and_sum(skb, ep->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb, ep->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(ep->pci_dev,
 							       ep->rx_ring[entry].bufaddr,

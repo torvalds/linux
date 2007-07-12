@@ -42,7 +42,7 @@
 #include <net/ndisc.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 #include <net/xfrm.h>
 #endif
 
@@ -90,6 +90,7 @@ int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
  bad:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(ipv6_find_tlv);
 
 /*
  *	Parsing tlv encoded headers.
@@ -196,7 +197,7 @@ bad:
   Destination options header.
  *****************************/
 
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 {
 	struct sk_buff *skb = *skbp;
@@ -270,7 +271,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 #endif
 
 static struct tlvtype_proc tlvprocdestopt_lst[] = {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	{
 		.type	= IPV6_TLV_HAO,
 		.func	= ipv6_dest_hao,
@@ -283,7 +284,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	__u16 dstbuf;
 #endif
 	struct dst_entry *dst;
@@ -298,7 +299,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 	}
 
 	opt->lastopt = opt->dst1 = skb_network_header_len(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	dstbuf = opt->dst1;
 #endif
 
@@ -308,7 +309,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 		skb = *skbp;
 		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		opt->nhoff = dstbuf;
 #else
 		opt->nhoff = opt->dst1;
@@ -371,21 +372,12 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 	struct rt0_hdr *rthdr;
 	int accept_source_route = ipv6_devconf.accept_source_route;
 
-	if (accept_source_route < 0 ||
-	    ((idev = in6_dev_get(skb->dev)) == NULL)) {
-		kfree_skb(skb);
-		return -1;
-	}
-	if (idev->cnf.accept_source_route < 0) {
+	idev = in6_dev_get(skb->dev);
+	if (idev) {
+		if (accept_source_route > idev->cnf.accept_source_route)
+			accept_source_route = idev->cnf.accept_source_route;
 		in6_dev_put(idev);
-		kfree_skb(skb);
-		return -1;
 	}
-
-	if (accept_source_route > idev->cnf.accept_source_route)
-		accept_source_route = idev->cnf.accept_source_route;
-
-	in6_dev_put(idev);
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
@@ -398,24 +390,6 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 
 	hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb);
 
-	switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
-	case IPV6_SRCRT_TYPE_2:
-		break;
-#endif
-	case IPV6_SRCRT_TYPE_0:
-		if (accept_source_route > 0)
-			break;
-		kfree_skb(skb);
-		return -1;
-	default:
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
-				 IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
-				  (&hdr->type) - skb_network_header(skb));
-		return -1;
-	}
-
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ||
 	    skb->pkt_type != PACKET_HOST) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
@@ -427,7 +401,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 looped_back:
 	if (hdr->segments_left == 0) {
 		switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		case IPV6_SRCRT_TYPE_2:
 			/* Silently discard type 2 header unless it was
 			 * processed by own
@@ -453,18 +427,10 @@ looped_back:
 	}
 
 	switch (hdr->type) {
-	case IPV6_SRCRT_TYPE_0:
-		if (hdr->hdrlen & 0x01) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
-					 IPSTATS_MIB_INHDRERRORS);
-			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
-					  ((&hdr->hdrlen) -
-					   skb_network_header(skb)));
-			return -1;
-		}
-		break;
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	case IPV6_SRCRT_TYPE_2:
+		if (accept_source_route < 0)
+			goto unknown_rh;
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
@@ -474,6 +440,8 @@ looped_back:
 		}
 		break;
 #endif
+	default:
+		goto unknown_rh;
 	}
 
 	/*
@@ -520,7 +488,7 @@ looped_back:
 	addr += i - 1;
 
 	switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	case IPV6_SRCRT_TYPE_2:
 		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
 				     (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
@@ -577,6 +545,12 @@ looped_back:
 	skb_push(skb, skb->data - skb_network_header(skb));
 	dst_input(skb);
 	return -1;
+
+unknown_rh:
+	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
+	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
+			  (&hdr->type) - skb_network_header(skb));
+	return -1;
 }
 
 static struct inet6_protocol rthdr_protocol = {
@@ -589,72 +563,6 @@ void __init ipv6_rthdr_init(void)
 	if (inet6_add_protocol(&rthdr_protocol, IPPROTO_ROUTING) < 0)
 		printk(KERN_ERR "ipv6_rthdr_init: Could not register protocol\n");
 };
-
-/*
-   This function inverts received rthdr.
-   NOTE: specs allow to make it automatically only if
-   packet authenticated.
-
-   I will not discuss it here (though, I am really pissed off at
-   this stupid requirement making rthdr idea useless)
-
-   Actually, it creates severe problems  for us.
-   Embryonic requests has no associated sockets,
-   so that user have no control over it and
-   cannot not only to set reply options, but
-   even to know, that someone wants to connect
-   without success. :-(
-
-   For now we need to test the engine, so that I created
-   temporary (or permanent) backdoor.
-   If listening socket set IPV6_RTHDR to 2, then we invert header.
-						   --ANK (980729)
- */
-
-struct ipv6_txoptions *
-ipv6_invert_rthdr(struct sock *sk, struct ipv6_rt_hdr *hdr)
-{
-	/* Received rthdr:
-
-	   [ H1 -> H2 -> ... H_prev ]  daddr=ME
-
-	   Inverted result:
-	   [ H_prev -> ... -> H1 ] daddr =sender
-
-	   Note, that IP output engine will rewrite this rthdr
-	   by rotating it left by one addr.
-	 */
-
-	int n, i;
-	struct rt0_hdr *rthdr = (struct rt0_hdr*)hdr;
-	struct rt0_hdr *irthdr;
-	struct ipv6_txoptions *opt;
-	int hdrlen = ipv6_optlen(hdr);
-
-	if (hdr->segments_left ||
-	    hdr->type != IPV6_SRCRT_TYPE_0 ||
-	    hdr->hdrlen & 0x01)
-		return NULL;
-
-	n = hdr->hdrlen >> 1;
-	opt = sock_kmalloc(sk, sizeof(*opt) + hdrlen, GFP_ATOMIC);
-	if (opt == NULL)
-		return NULL;
-	memset(opt, 0, sizeof(*opt));
-	opt->tot_len = sizeof(*opt) + hdrlen;
-	opt->srcrt = (void*)(opt+1);
-	opt->opt_nflen = hdrlen;
-
-	memcpy(opt->srcrt, hdr, sizeof(*hdr));
-	irthdr = (struct rt0_hdr*)opt->srcrt;
-	irthdr->reserved = 0;
-	opt->srcrt->segments_left = n;
-	for (i=0; i<n; i++)
-		memcpy(irthdr->addr+i, rthdr->addr+(n-1-i), 16);
-	return opt;
-}
-
-EXPORT_SYMBOL_GPL(ipv6_invert_rthdr);
 
 /**********************************
   Hop-by-hop options.

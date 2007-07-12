@@ -25,12 +25,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
-#if 0
-#define DEBUGP(format, ...) printk(format, ## __VA_ARGS__)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* Protects conntrack->proto.sctp */
 static DEFINE_RWLOCK(sctp_lock);
 
@@ -151,9 +145,6 @@ static int sctp_pkt_to_tuple(const struct sk_buff *skb,
 {
 	sctp_sctphdr_t _hdr, *hp;
 
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
 	/* Actually only need first 8 bytes. */
 	hp = skb_header_pointer(skb, dataoff, 8, &_hdr);
 	if (hp == NULL)
@@ -167,9 +158,6 @@ static int sctp_pkt_to_tuple(const struct sk_buff *skb,
 static int sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
 			     const struct nf_conntrack_tuple *orig)
 {
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
 	tuple->src.u.sctp.port = orig->dst.u.sctp.port;
 	tuple->dst.u.sctp.port = orig->src.u.sctp.port;
 	return 1;
@@ -179,9 +167,6 @@ static int sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
 static int sctp_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
 	return seq_printf(s, "sport=%hu dport=%hu ",
 			  ntohs(tuple->src.u.sctp.port),
 			  ntohs(tuple->dst.u.sctp.port));
@@ -192,9 +177,6 @@ static int sctp_print_conntrack(struct seq_file *s,
 				const struct nf_conn *conntrack)
 {
 	enum sctp_conntrack state;
-
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
 
 	read_lock_bh(&sctp_lock);
 	state = conntrack->proto.sctp.state;
@@ -219,13 +201,10 @@ static int do_basic_checks(struct nf_conn *conntrack,
 	sctp_chunkhdr_t _sch, *sch;
 	int flag;
 
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
 	flag = 0;
 
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
-		DEBUGP("Chunk Num: %d  Type: %d\n", count, sch->type);
+		pr_debug("Chunk Num: %d  Type: %d\n", count, sch->type);
 
 		if (sch->type == SCTP_CID_INIT
 			|| sch->type == SCTP_CID_INIT_ACK
@@ -242,7 +221,7 @@ static int do_basic_checks(struct nf_conn *conntrack,
 			|| sch->type == SCTP_CID_COOKIE_ECHO
 			|| flag)
 		      && count !=0) || !sch->length) {
-			DEBUGP("Basic checks failed\n");
+			pr_debug("Basic checks failed\n");
 			return 1;
 		}
 
@@ -251,7 +230,7 @@ static int do_basic_checks(struct nf_conn *conntrack,
 		}
 	}
 
-	DEBUGP("Basic checks passed\n");
+	pr_debug("Basic checks passed\n");
 	return count == 0;
 }
 
@@ -261,50 +240,47 @@ static int new_state(enum ip_conntrack_dir dir,
 {
 	int i;
 
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
-	DEBUGP("Chunk type: %d\n", chunk_type);
+	pr_debug("Chunk type: %d\n", chunk_type);
 
 	switch (chunk_type) {
 		case SCTP_CID_INIT:
-			DEBUGP("SCTP_CID_INIT\n");
+			pr_debug("SCTP_CID_INIT\n");
 			i = 0; break;
 		case SCTP_CID_INIT_ACK:
-			DEBUGP("SCTP_CID_INIT_ACK\n");
+			pr_debug("SCTP_CID_INIT_ACK\n");
 			i = 1; break;
 		case SCTP_CID_ABORT:
-			DEBUGP("SCTP_CID_ABORT\n");
+			pr_debug("SCTP_CID_ABORT\n");
 			i = 2; break;
 		case SCTP_CID_SHUTDOWN:
-			DEBUGP("SCTP_CID_SHUTDOWN\n");
+			pr_debug("SCTP_CID_SHUTDOWN\n");
 			i = 3; break;
 		case SCTP_CID_SHUTDOWN_ACK:
-			DEBUGP("SCTP_CID_SHUTDOWN_ACK\n");
+			pr_debug("SCTP_CID_SHUTDOWN_ACK\n");
 			i = 4; break;
 		case SCTP_CID_ERROR:
-			DEBUGP("SCTP_CID_ERROR\n");
+			pr_debug("SCTP_CID_ERROR\n");
 			i = 5; break;
 		case SCTP_CID_COOKIE_ECHO:
-			DEBUGP("SCTP_CID_COOKIE_ECHO\n");
+			pr_debug("SCTP_CID_COOKIE_ECHO\n");
 			i = 6; break;
 		case SCTP_CID_COOKIE_ACK:
-			DEBUGP("SCTP_CID_COOKIE_ACK\n");
+			pr_debug("SCTP_CID_COOKIE_ACK\n");
 			i = 7; break;
 		case SCTP_CID_SHUTDOWN_COMPLETE:
-			DEBUGP("SCTP_CID_SHUTDOWN_COMPLETE\n");
+			pr_debug("SCTP_CID_SHUTDOWN_COMPLETE\n");
 			i = 8; break;
 		default:
 			/* Other chunks like DATA, SACK, HEARTBEAT and
 			its ACK do not cause a change in state */
-			DEBUGP("Unknown chunk type, Will stay in %s\n",
-						sctp_conntrack_names[cur_state]);
+			pr_debug("Unknown chunk type, Will stay in %s\n",
+				 sctp_conntrack_names[cur_state]);
 			return cur_state;
 	}
 
-	DEBUGP("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n",
-			dir, sctp_conntrack_names[cur_state], chunk_type,
-			sctp_conntrack_names[sctp_conntracks[dir][i][cur_state]]);
+	pr_debug("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n",
+		 dir, sctp_conntrack_names[cur_state], chunk_type,
+		 sctp_conntrack_names[sctp_conntracks[dir][i][cur_state]]);
 
 	return sctp_conntracks[dir][i][cur_state];
 }
@@ -323,9 +299,6 @@ static int sctp_packet(struct nf_conn *conntrack,
 	u_int32_t offset, count;
 	char map[256 / sizeof (char)] = {0};
 
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
-
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
 		return -1;
@@ -340,7 +313,7 @@ static int sctp_packet(struct nf_conn *conntrack,
 		&& !test_bit(SCTP_CID_ABORT, (void *)map)
 		&& !test_bit(SCTP_CID_SHUTDOWN_ACK, (void *)map)
 		&& (sh->vtag != conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])) {
-		DEBUGP("Verification tag check failed\n");
+		pr_debug("Verification tag check failed\n");
 		return -1;
 	}
 
@@ -385,8 +358,9 @@ static int sctp_packet(struct nf_conn *conntrack,
 
 		/* Invalid */
 		if (newconntrack == SCTP_CONNTRACK_MAX) {
-			DEBUGP("nf_conntrack_sctp: Invalid dir=%i ctype=%u conntrack=%u\n",
-			       CTINFO2DIR(ctinfo), sch->type, oldsctpstate);
+			pr_debug("nf_conntrack_sctp: Invalid dir=%i ctype=%u "
+				 "conntrack=%u\n",
+				 CTINFO2DIR(ctinfo), sch->type, oldsctpstate);
 			write_unlock_bh(&sctp_lock);
 			return -1;
 		}
@@ -402,8 +376,8 @@ static int sctp_packet(struct nf_conn *conntrack,
 					write_unlock_bh(&sctp_lock);
 					return -1;
 			}
-			DEBUGP("Setting vtag %x for dir %d\n",
-					ih->init_tag, !CTINFO2DIR(ctinfo));
+			pr_debug("Setting vtag %x for dir %d\n",
+				 ih->init_tag, !CTINFO2DIR(ctinfo));
 			conntrack->proto.sctp.vtag[!CTINFO2DIR(ctinfo)] = ih->init_tag;
 		}
 
@@ -418,7 +392,7 @@ static int sctp_packet(struct nf_conn *conntrack,
 	if (oldsctpstate == SCTP_CONNTRACK_COOKIE_ECHOED
 		&& CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY
 		&& newconntrack == SCTP_CONNTRACK_ESTABLISHED) {
-		DEBUGP("Setting assured bit\n");
+		pr_debug("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &conntrack->status);
 		nf_conntrack_event_cache(IPCT_STATUS, skb);
 	}
@@ -435,9 +409,6 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
 	char map[256 / sizeof (char)] = {0};
-
-	DEBUGP(__FUNCTION__);
-	DEBUGP("\n");
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
@@ -460,8 +431,9 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 					 SCTP_CONNTRACK_NONE, sch->type);
 
 		/* Invalid: delete conntrack */
-		if (newconntrack == SCTP_CONNTRACK_MAX) {
-			DEBUGP("nf_conntrack_sctp: invalid new deleting.\n");
+		if (newconntrack == SCTP_CONNTRACK_NONE ||
+		    newconntrack == SCTP_CONNTRACK_MAX) {
+			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
 			return 0;
 		}
 
@@ -475,8 +447,8 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 				if (ih == NULL)
 					return 0;
 
-				DEBUGP("Setting vtag %x for new conn\n",
-					ih->init_tag);
+				pr_debug("Setting vtag %x for new conn\n",
+					 ih->init_tag);
 
 				conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] =
 								ih->init_tag;
@@ -488,8 +460,8 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 		/* If it is a shutdown ack OOTB packet, we expect a return
 		   shutdown complete, otherwise an ABORT Sec 8.4 (5) and (8) */
 		else {
-			DEBUGP("Setting vtag %x for new conn OOTB\n",
-				sh->vtag);
+			pr_debug("Setting vtag %x for new conn OOTB\n",
+				 sh->vtag);
 			conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
 		}
 
@@ -688,8 +660,6 @@ int __init nf_conntrack_proto_sctp_init(void)
  cleanup_sctp4:
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
  out:
-	DEBUGP("SCTP conntrack module loading %s\n",
-					ret ? "failed": "succeeded");
 	return ret;
 }
 
@@ -697,7 +667,6 @@ void __exit nf_conntrack_proto_sctp_fini(void)
 {
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
-	DEBUGP("SCTP conntrack module unloaded\n");
 }
 
 module_init(nf_conntrack_proto_sctp_init);

@@ -8,15 +8,12 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/interrupt.h>
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
-#include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/file.h> /* for fput */
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-#include <net/sock.h>
 
 
 extern struct socket *sockfd_lookup(int fd, int *err); /* @@@ fix this */
@@ -71,7 +68,6 @@ struct atm_flow_data {
 	int			ref;		/* reference count */
 	struct gnet_stats_basic	bstats;
 	struct gnet_stats_queue	qstats;
-	spinlock_t		*stats_lock;
 	struct atm_flow_data	*next;
 	struct atm_flow_data	*excess;	/* flow for excess traffic;
 						   NULL to set CLP instead */

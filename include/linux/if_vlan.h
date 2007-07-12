@@ -99,7 +99,7 @@ static inline void vlan_group_set_device(struct vlan_group *vg, int vlan_id,
 }
 
 struct vlan_priority_tci_mapping {
-	unsigned long priority;
+	u32 priority;
 	unsigned short vlan_qos; /* This should be shifted when first set, so we only do it
 				  * at provisioning time.
 				  * ((skb->priority << 13) & 0xE000)
@@ -112,7 +112,10 @@ struct vlan_dev_info {
 	/** This will be the mapping that correlates skb->priority to
 	 * 3 bits of VLAN QOS tags...
 	 */
-	unsigned long ingress_priority_map[8];
+	unsigned int nr_ingress_mappings;
+	u32 ingress_priority_map[8];
+
+	unsigned int nr_egress_mappings;
 	struct vlan_priority_tci_mapping *egress_priority_map[16]; /* hash table */
 
 	unsigned short vlan_id;        /*  The VLAN Identifier for this interface. */
@@ -132,6 +135,7 @@ struct vlan_dev_info {
 	int old_allmulti;               /* similar to above. */
 	int old_promiscuity;            /* similar to above. */
 	struct net_device *real_dev;    /* the underlying device/interface */
+	unsigned char real_dev_addr[ETH_ALEN];
 	struct proc_dir_entry *dent;    /* Holds the proc data */
 	unsigned long cnt_inc_headroom_on_tx; /* How many times did we have to grow the skb on TX. */
 	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
@@ -393,6 +397,10 @@ enum vlan_ioctl_cmds {
 	SET_VLAN_FLAG_CMD,
 	GET_VLAN_REALDEV_NAME_CMD, /* If this works, you know it's a VLAN device, btw */
 	GET_VLAN_VID_CMD /* Get the VID of this VLAN (specified by name) */
+};
+
+enum vlan_flags {
+	VLAN_FLAG_REORDER_HDR	= 0x1,
 };
 
 enum vlan_name_types {

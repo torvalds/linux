@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.77"
-#define DRV_MODULE_RELDATE	"May 31, 2007"
+#define DRV_MODULE_VERSION	"3.78"
+#define DRV_MODULE_RELDATE	"July 11, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -721,6 +721,44 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 	return ret;
 }
 
+static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
+{
+	u32 phy;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
+	    (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES))
+		return;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 ephy;
+
+		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &ephy)) {
+			tg3_writephy(tp, MII_TG3_EPHY_TEST,
+				     ephy | MII_TG3_EPHY_SHADOW_EN);
+			if (!tg3_readphy(tp, MII_TG3_EPHYTST_MISCCTRL, &phy)) {
+				if (enable)
+					phy |= MII_TG3_EPHYTST_MISCCTRL_MDIX;
+				else
+					phy &= ~MII_TG3_EPHYTST_MISCCTRL_MDIX;
+				tg3_writephy(tp, MII_TG3_EPHYTST_MISCCTRL, phy);
+			}
+			tg3_writephy(tp, MII_TG3_EPHY_TEST, ephy);
+		}
+	} else {
+		phy = MII_TG3_AUXCTL_MISC_RDSEL_MISC |
+		      MII_TG3_AUXCTL_SHDWSEL_MISC;
+		if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, phy) &&
+		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &phy)) {
+			if (enable)
+				phy |= MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
+			else
+				phy &= ~MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
+			phy |= MII_TG3_AUXCTL_MISC_WREN;
+			tg3_writephy(tp, MII_TG3_AUX_CTRL, phy);
+		}
+	}
+}
+
 static void tg3_phy_set_wirespeed(struct tg3 *tp)
 {
 	u32 val;
@@ -1045,23 +1083,11 @@ out:
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 phy_reg;
-
 		/* adjust output voltage */
 		tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x12);
-
-		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &phy_reg)) {
-			u32 phy_reg2;
-
-			tg3_writephy(tp, MII_TG3_EPHY_TEST,
-				     phy_reg | MII_TG3_EPHY_SHADOW_EN);
-			/* Enable auto-MDIX */
-			if (!tg3_readphy(tp, 0x10, &phy_reg2))
-				tg3_writephy(tp, 0x10, phy_reg2 | 0x4000);
-			tg3_writephy(tp, MII_TG3_EPHY_TEST, phy_reg);
-		}
 	}
 
+	tg3_phy_toggle_automdix(tp, 1);
 	tg3_phy_set_wirespeed(tp);
 	return 0;
 }
@@ -1160,6 +1186,19 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 				     GRC_LCLCTRL_GPIO_OUTPUT1), 100);
 		}
 	}
+}
+
+static int tg3_5700_link_polarity(struct tg3 *tp, u32 speed)
+{
+	if (tp->led_ctrl == LED_CTRL_MODE_PHY_2)
+		return 1;
+	else if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5411) {
+		if (speed != SPEED_10)
+			return 1;
+	} else if (speed == SPEED_10)
+		return 1;
+
+	return 0;
 }
 
 static int tg3_setup_phy(struct tg3 *, int);
@@ -1320,9 +1359,17 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			else
 				mac_mode = MAC_MODE_PORT_MODE_MII;
 
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700 ||
-			    !(tp->tg3_flags & TG3_FLAG_WOL_SPEED_100MB))
-				mac_mode |= MAC_MODE_LINK_POLARITY;
+			mac_mode |= tp->mac_mode & MAC_MODE_LINK_POLARITY;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+			    ASIC_REV_5700) {
+				u32 speed = (tp->tg3_flags &
+					     TG3_FLAG_WOL_SPEED_100MB) ?
+					     SPEED_100 : SPEED_10;
+				if (tg3_5700_link_polarity(tp, speed))
+					mac_mode |= MAC_MODE_LINK_POLARITY;
+				else
+					mac_mode &= ~MAC_MODE_LINK_POLARITY;
+			}
 		} else {
 			mac_mode = MAC_MODE_PORT_MODE_TBI;
 		}
@@ -1990,15 +2037,12 @@ relink:
 	if (tp->link_config.active_duplex == DUPLEX_HALF)
 		tp->mac_mode |= MAC_MODE_HALF_DUPLEX;
 
-	tp->mac_mode &= ~MAC_MODE_LINK_POLARITY;
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700) {
-		if ((tp->led_ctrl == LED_CTRL_MODE_PHY_2) ||
-		    (current_link_up == 1 &&
-		     tp->link_config.active_speed == SPEED_10))
+		if (current_link_up == 1 &&
+		    tg3_5700_link_polarity(tp, tp->link_config.active_speed))
 			tp->mac_mode |= MAC_MODE_LINK_POLARITY;
-	} else {
-		if (current_link_up == 1)
-			tp->mac_mode |= MAC_MODE_LINK_POLARITY;
+		else
+			tp->mac_mode &= ~MAC_MODE_LINK_POLARITY;
 	}
 
 	/* ??? Without this setting Netgear GA302T PHY does not
@@ -2639,6 +2683,9 @@ static int tg3_setup_fiber_by_hand(struct tg3 *tp, u32 mac_status)
 
 		tw32_f(MAC_MODE, (tp->mac_mode | MAC_MODE_SEND_CONFIGS));
 		udelay(40);
+
+		tw32_f(MAC_MODE, tp->mac_mode);
+		udelay(40);
 	}
 
 out:
@@ -2697,10 +2744,6 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, int force_reset)
 		current_link_up = tg3_setup_fiber_hw_autoneg(tp, mac_status);
 	else
 		current_link_up = tg3_setup_fiber_by_hand(tp, mac_status);
-
-	tp->mac_mode &= ~MAC_MODE_LINK_POLARITY;
-	tw32_f(MAC_MODE, tp->mac_mode);
-	udelay(40);
 
 	tp->hw_status->status =
 		(SD_STATUS_UPDATED |
@@ -3512,9 +3555,9 @@ static inline int tg3_irq_sync(struct tg3 *tp)
  */
 static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
 {
+	spin_lock_bh(&tp->lock);
 	if (irq_sync)
 		tg3_irq_quiesce(tp);
-	spin_lock_bh(&tp->lock);
 }
 
 static inline void tg3_full_unlock(struct tg3 *tp)
@@ -6444,6 +6487,10 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	tp->mac_mode = MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
 		MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE | MAC_MODE_FHDE_ENABLE;
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
+		tp->mac_mode |= MAC_MODE_LINK_POLARITY;
 	tw32_f(MAC_MODE, tp->mac_mode | MAC_MODE_RXSTAT_CLEAR | MAC_MODE_TXSTAT_CLEAR);
 	udelay(40);
 
@@ -8805,7 +8852,9 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 			return 0;
 
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
-			   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY;
+			   MAC_MODE_PORT_INT_LPBACK;
+		if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+			mac_mode |= MAC_MODE_LINK_POLARITY;
 		if (tp->tg3_flags & TG3_FLAG_10_100_ONLY)
 			mac_mode |= MAC_MODE_PORT_MODE_MII;
 		else
@@ -8824,19 +8873,18 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 					     phytest | MII_TG3_EPHY_SHADOW_EN);
 				if (!tg3_readphy(tp, 0x1b, &phy))
 					tg3_writephy(tp, 0x1b, phy & ~0x20);
-				if (!tg3_readphy(tp, 0x10, &phy))
-					tg3_writephy(tp, 0x10, phy & ~0x4000);
 				tg3_writephy(tp, MII_TG3_EPHY_TEST, phytest);
 			}
 			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED100;
 		} else
 			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED1000;
 
+		tg3_phy_toggle_automdix(tp, 0);
+
 		tg3_writephy(tp, MII_BMCR, val);
 		udelay(40);
 
-		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
-			   MAC_MODE_LINK_POLARITY;
+		mac_mode = tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK;
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 			tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x1800);
 			mac_mode |= MAC_MODE_PORT_MODE_MII;
@@ -8849,8 +8897,11 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 			udelay(10);
 			tw32_f(MAC_RX_MODE, tp->rx_mode);
 		}
-		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
-			mac_mode &= ~MAC_MODE_LINK_POLARITY;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700) {
+			if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+				mac_mode &= ~MAC_MODE_LINK_POLARITY;
+			else if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5411)
+				mac_mode |= MAC_MODE_LINK_POLARITY;
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_LNK3_LED_MODE);
 		}
@@ -9116,10 +9167,10 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	/* Update RX_MODE_KEEP_VLAN_TAG bit in RX_MODE register. */
 	__tg3_set_rx_mode(dev);
 
-	tg3_full_unlock(tp);
-
 	if (netif_running(dev))
 		tg3_netif_start(tp);
+
+	tg3_full_unlock(tp);
 }
 #endif
 
@@ -9410,11 +9461,13 @@ static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
 		case FLASH_5755VENDOR_ATMEL_FLASH_1:
 		case FLASH_5755VENDOR_ATMEL_FLASH_2:
 		case FLASH_5755VENDOR_ATMEL_FLASH_3:
+		case FLASH_5755VENDOR_ATMEL_FLASH_5:
 			tp->nvram_jedecnum = JEDEC_ATMEL;
 			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
 			tp->tg3_flags2 |= TG3_FLG2_FLASH;
 			tp->nvram_pagesize = 264;
-			if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_1)
+			if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_1 ||
+			    nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_5)
 				tp->nvram_size = (protect ? 0x3e200 : 0x80000);
 			else if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_2)
 				tp->nvram_size = (protect ? 0x1f200 : 0x40000);
@@ -11944,12 +11997,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * checksumming.
 	 */
 	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
-			dev->features |= NETIF_F_HW_CSUM;
-		else
-			dev->features |= NETIF_F_IP_CSUM;
-		dev->features |= NETIF_F_SG;
+			dev->features |= NETIF_F_IPV6_CSUM;
+
 		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
 	} else
 		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;

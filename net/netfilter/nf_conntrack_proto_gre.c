@@ -40,12 +40,6 @@
 #define GRE_TIMEOUT		(30 * HZ)
 #define GRE_STREAM_TIMEOUT	(180 * HZ)
 
-#if 0
-#define DEBUGP(format, args...)	printk(KERN_DEBUG "%s:%s: " format, __FILE__, __FUNCTION__, ## args)
-#else
-#define DEBUGP(x, args...)
-#endif
-
 static DEFINE_RWLOCK(nf_ct_gre_lock);
 static LIST_HEAD(gre_keymap_list);
 
@@ -87,7 +81,7 @@ static __be16 gre_keymap_lookup(struct nf_conntrack_tuple *t)
 	}
 	read_unlock_bh(&nf_ct_gre_lock);
 
-	DEBUGP("lookup src key 0x%x for ", key);
+	pr_debug("lookup src key 0x%x for ", key);
 	NF_CT_DUMP_TUPLE(t);
 
 	return key;
@@ -107,8 +101,8 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 			if (gre_key_cmpfn(km, t) && km == *kmp)
 				return 0;
 		}
-		DEBUGP("trying to override keymap_%s for ct %p\n",
-			dir == IP_CT_DIR_REPLY ? "reply" : "orig", ct);
+		pr_debug("trying to override keymap_%s for ct %p\n",
+			 dir == IP_CT_DIR_REPLY ? "reply" : "orig", ct);
 		return -EEXIST;
 	}
 
@@ -118,7 +112,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	memcpy(&km->tuple, t, sizeof(*t));
 	*kmp = km;
 
-	DEBUGP("adding new entry %p: ", km);
+	pr_debug("adding new entry %p: ", km);
 	NF_CT_DUMP_TUPLE(&km->tuple);
 
 	write_lock_bh(&nf_ct_gre_lock);
@@ -135,13 +129,13 @@ void nf_ct_gre_keymap_destroy(struct nf_conn *ct)
 	struct nf_conn_help *help = nfct_help(ct);
 	enum ip_conntrack_dir dir;
 
-	DEBUGP("entering for ct %p\n", ct);
+	pr_debug("entering for ct %p\n", ct);
 
 	write_lock_bh(&nf_ct_gre_lock);
 	for (dir = IP_CT_DIR_ORIGINAL; dir < IP_CT_DIR_MAX; dir++) {
 		if (help->help.ct_pptp_info.keymap[dir]) {
-			DEBUGP("removing %p from list\n",
-				help->help.ct_pptp_info.keymap[dir]);
+			pr_debug("removing %p from list\n",
+				 help->help.ct_pptp_info.keymap[dir]);
 			list_del(&help->help.ct_pptp_info.keymap[dir]->list);
 			kfree(help->help.ct_pptp_info.keymap[dir]);
 			help->help.ct_pptp_info.keymap[dir] = NULL;
@@ -186,7 +180,7 @@ static int gre_pkt_to_tuple(const struct sk_buff *skb,
 		return 1;
 
 	if (ntohs(grehdr->protocol) != GRE_PROTOCOL_PPTP) {
-		DEBUGP("GRE_VERSION_PPTP but unknown proto\n");
+		pr_debug("GRE_VERSION_PPTP but unknown proto\n");
 		return 0;
 	}
 
@@ -242,7 +236,7 @@ static int gre_packet(struct nf_conn *ct,
 static int gre_new(struct nf_conn *ct, const struct sk_buff *skb,
 		   unsigned int dataoff)
 {
-	DEBUGP(": ");
+	pr_debug(": ");
 	NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 
 	/* initialize to sane value.  Ideally a conntrack helper
@@ -258,10 +252,10 @@ static int gre_new(struct nf_conn *ct, const struct sk_buff *skb,
 static void gre_destroy(struct nf_conn *ct)
 {
 	struct nf_conn *master = ct->master;
-	DEBUGP(" entering\n");
+	pr_debug(" entering\n");
 
 	if (!master)
-		DEBUGP("no master !?!\n");
+		pr_debug("no master !?!\n");
 	else
 		nf_ct_gre_keymap_destroy(master);
 }

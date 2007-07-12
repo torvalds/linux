@@ -942,7 +942,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	Initialize multicasting status
 		 */
-		dev_mc_upload(dev);
+		dev_set_rx_mode(dev);
 
 		/*
 		 *	Wakeup transmit queue engine
@@ -1429,7 +1429,9 @@ gso:
 			skb->next = nskb;
 			return rc;
 		}
-		if (unlikely(netif_queue_stopped(dev) && skb->next))
+		if (unlikely((netif_queue_stopped(dev) ||
+			     netif_subqueue_stopped(dev, skb->queue_mapping)) &&
+			     skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
 
@@ -1510,8 +1512,10 @@ int dev_queue_xmit(struct sk_buff *skb)
 					      skb_headroom(skb));
 
 		if (!(dev->features & NETIF_F_GEN_CSUM) &&
-		    (!(dev->features & NETIF_F_IP_CSUM) ||
-		     skb->protocol != htons(ETH_P_IP)))
+		    !((dev->features & NETIF_F_IP_CSUM) &&
+		      skb->protocol == htons(ETH_P_IP)) &&
+		    !((dev->features & NETIF_F_IPV6_CSUM) &&
+		      skb->protocol == htons(ETH_P_IPV6)))
 			if (skb_checksum_help(skb))
 				goto out_kfree_skb;
 	}
@@ -1545,6 +1549,8 @@ gso:
 		spin_lock(&dev->queue_lock);
 		q = dev->qdisc;
 		if (q->enqueue) {
+			/* reset queue_mapping to zero */
+			skb->queue_mapping = 0;
 			rc = q->enqueue(skb, q);
 			qdisc_run(dev);
 			spin_unlock(&dev->queue_lock);
@@ -1574,7 +1580,8 @@ gso:
 
 			HARD_TX_LOCK(dev, cpu);
 
-			if (!netif_queue_stopped(dev)) {
+			if (!netif_queue_stopped(dev) &&
+			    !netif_subqueue_stopped(dev, skb->queue_mapping)) {
 				rc = 0;
 				if (!dev_hard_start_xmit(skb, dev)) {
 					HARD_TX_UNLOCK(dev);
@@ -2496,6 +2503,27 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 	return 0;
 }
 
+static void __dev_set_promiscuity(struct net_device *dev, int inc)
+{
+	unsigned short old_flags = dev->flags;
+
+	if ((dev->promiscuity += inc) == 0)
+		dev->flags &= ~IFF_PROMISC;
+	else
+		dev->flags |= IFF_PROMISC;
+	if (dev->flags != old_flags) {
+		printk(KERN_INFO "device %s %s promiscuous mode\n",
+		       dev->name, (dev->flags & IFF_PROMISC) ? "entered" :
+							       "left");
+		audit_log(current->audit_context, GFP_ATOMIC,
+			AUDIT_ANOM_PROMISCUOUS,
+			"dev=%s prom=%d old_prom=%d auid=%u",
+			dev->name, (dev->flags & IFF_PROMISC),
+			(old_flags & IFF_PROMISC),
+			audit_get_loginuid(current->audit_context));
+	}
+}
+
 /**
  *	dev_set_promiscuity	- update promiscuity count on a device
  *	@dev: device
@@ -2510,22 +2538,9 @@ void dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
-	if ((dev->promiscuity += inc) == 0)
-		dev->flags &= ~IFF_PROMISC;
-	else
-		dev->flags |= IFF_PROMISC;
-	if (dev->flags != old_flags) {
-		dev_mc_upload(dev);
-		printk(KERN_INFO "device %s %s promiscuous mode\n",
-		       dev->name, (dev->flags & IFF_PROMISC) ? "entered" :
-							       "left");
-		audit_log(current->audit_context, GFP_ATOMIC,
-			AUDIT_ANOM_PROMISCUOUS,
-			"dev=%s prom=%d old_prom=%d auid=%u",
-			dev->name, (dev->flags & IFF_PROMISC),
-			(old_flags & IFF_PROMISC),
-			audit_get_loginuid(current->audit_context));
-	}
+	__dev_set_promiscuity(dev, inc);
+	if (dev->flags != old_flags)
+		dev_set_rx_mode(dev);
 }
 
 /**
@@ -2548,7 +2563,176 @@ void dev_set_allmulti(struct net_device *dev, int inc)
 	if ((dev->allmulti += inc) == 0)
 		dev->flags &= ~IFF_ALLMULTI;
 	if (dev->flags ^ old_flags)
-		dev_mc_upload(dev);
+		dev_set_rx_mode(dev);
+}
+
+/*
+ *	Upload unicast and multicast address lists to device and
+ *	configure RX filtering. When the device doesn't support unicast
+ *	filtering it is put in promiscous mode while unicast addresses
+ *	are present.
+ */
+void __dev_set_rx_mode(struct net_device *dev)
+{
+	/* dev_open will call this function so the list will stay sane. */
+	if (!(dev->flags&IFF_UP))
+		return;
+
+	if (!netif_device_present(dev))
+	        return;
+
+	if (dev->set_rx_mode)
+		dev->set_rx_mode(dev);
+	else {
+		/* Unicast addresses changes may only happen under the rtnl,
+		 * therefore calling __dev_set_promiscuity here is safe.
+		 */
+		if (dev->uc_count > 0 && !dev->uc_promisc) {
+			__dev_set_promiscuity(dev, 1);
+			dev->uc_promisc = 1;
+		} else if (dev->uc_count == 0 && dev->uc_promisc) {
+			__dev_set_promiscuity(dev, -1);
+			dev->uc_promisc = 0;
+		}
+
+		if (dev->set_multicast_list)
+			dev->set_multicast_list(dev);
+	}
+}
+
+void dev_set_rx_mode(struct net_device *dev)
+{
+	netif_tx_lock_bh(dev);
+	__dev_set_rx_mode(dev);
+	netif_tx_unlock_bh(dev);
+}
+
+int __dev_addr_delete(struct dev_addr_list **list, int *count,
+		      void *addr, int alen, int glbl)
+{
+	struct dev_addr_list *da;
+
+	for (; (da = *list) != NULL; list = &da->next) {
+		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
+		    alen == da->da_addrlen) {
+			if (glbl) {
+				int old_glbl = da->da_gusers;
+				da->da_gusers = 0;
+				if (old_glbl == 0)
+					break;
+			}
+			if (--da->da_users)
+				return 0;
+
+			*list = da->next;
+			kfree(da);
+			(*count)--;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+int __dev_addr_add(struct dev_addr_list **list, int *count,
+		   void *addr, int alen, int glbl)
+{
+	struct dev_addr_list *da;
+
+	for (da = *list; da != NULL; da = da->next) {
+		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
+		    da->da_addrlen == alen) {
+			if (glbl) {
+				int old_glbl = da->da_gusers;
+				da->da_gusers = 1;
+				if (old_glbl)
+					return 0;
+			}
+			da->da_users++;
+			return 0;
+		}
+	}
+
+	da = kmalloc(sizeof(*da), GFP_ATOMIC);
+	if (da == NULL)
+		return -ENOMEM;
+	memcpy(da->da_addr, addr, alen);
+	da->da_addrlen = alen;
+	da->da_users = 1;
+	da->da_gusers = glbl ? 1 : 0;
+	da->next = *list;
+	*list = da;
+	(*count)++;
+	return 0;
+}
+
+void __dev_addr_discard(struct dev_addr_list **list)
+{
+	struct dev_addr_list *tmp;
+
+	while (*list != NULL) {
+		tmp = *list;
+		*list = tmp->next;
+		if (tmp->da_users > tmp->da_gusers)
+			printk("__dev_addr_discard: address leakage! "
+			       "da_users=%d\n", tmp->da_users);
+		kfree(tmp);
+	}
+}
+
+/**
+ *	dev_unicast_delete	- Release secondary unicast address.
+ *	@dev: device
+ *
+ *	Release reference to a secondary unicast address and remove it
+ *	from the device if the reference count drop to zero.
+ *
+ * 	The caller must hold the rtnl_mutex.
+ */
+int dev_unicast_delete(struct net_device *dev, void *addr, int alen)
+{
+	int err;
+
+	ASSERT_RTNL();
+
+	netif_tx_lock_bh(dev);
+	err = __dev_addr_delete(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	if (!err)
+		__dev_set_rx_mode(dev);
+	netif_tx_unlock_bh(dev);
+	return err;
+}
+EXPORT_SYMBOL(dev_unicast_delete);
+
+/**
+ *	dev_unicast_add		- add a secondary unicast address
+ *	@dev: device
+ *
+ *	Add a secondary unicast address to the device or increase
+ *	the reference count if it already exists.
+ *
+ *	The caller must hold the rtnl_mutex.
+ */
+int dev_unicast_add(struct net_device *dev, void *addr, int alen)
+{
+	int err;
+
+	ASSERT_RTNL();
+
+	netif_tx_lock_bh(dev);
+	err = __dev_addr_add(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	if (!err)
+		__dev_set_rx_mode(dev);
+	netif_tx_unlock_bh(dev);
+	return err;
+}
+EXPORT_SYMBOL(dev_unicast_add);
+
+static void dev_unicast_discard(struct net_device *dev)
+{
+	netif_tx_lock_bh(dev);
+	__dev_addr_discard(&dev->uc_list);
+	dev->uc_count = 0;
+	netif_tx_unlock_bh(dev);
 }
 
 unsigned dev_get_flags(const struct net_device *dev)
@@ -2594,7 +2778,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
 
-	dev_mc_upload(dev);
+	dev_set_rx_mode(dev);
 
 	/*
 	 *	Have we downed the interface. We handle IFF_UP ourselves
@@ -2607,7 +2791,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 		ret = ((old_flags & IFF_UP) ? dev_close : dev_open)(dev);
 
 		if (!ret)
-			dev_mc_upload(dev);
+			dev_set_rx_mode(dev);
 	}
 
 	if (dev->flags & IFF_UP &&
@@ -3107,6 +3291,22 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
+	/* Fix illegal checksum combinations */
+	if ((dev->features & NETIF_F_HW_CSUM) &&
+	    (dev->features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
+		printk(KERN_NOTICE "%s: mixed HW and IP checksum settings.\n",
+		       dev->name);
+		dev->features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
+	}
+
+	if ((dev->features & NETIF_F_NO_CSUM) &&
+	    (dev->features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
+		printk(KERN_NOTICE "%s: mixed no checksumming and other settings.\n",
+		       dev->name);
+		dev->features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
+	}
+
+
 	/* Fix illegal SG+CSUM combinations. */
 	if ((dev->features & NETIF_F_SG) &&
 	    !(dev->features & NETIF_F_ALL_CSUM)) {
@@ -3343,16 +3543,18 @@ static struct net_device_stats *internal_stats(struct net_device *dev)
 }
 
 /**
- *	alloc_netdev - allocate network device
+ *	alloc_netdev_mq - allocate network device
  *	@sizeof_priv:	size of private data to allocate space for
  *	@name:		device name format string
  *	@setup:		callback to initialize device
+ *	@queue_count:	the number of subqueues to allocate
  *
  *	Allocates a struct net_device with private data area for driver use
- *	and performs basic initialization.
+ *	and performs basic initialization.  Also allocates subquue structs
+ *	for each queue on the device at the end of the netdevice.
  */
-struct net_device *alloc_netdev(int sizeof_priv, const char *name,
-		void (*setup)(struct net_device *))
+struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
+		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	void *p;
 	struct net_device *dev;
@@ -3361,7 +3563,9 @@ struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
 	/* ensure 32-byte alignment of both the device and private area */
-	alloc_size = (sizeof(*dev) + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
+	alloc_size = (sizeof(*dev) + NETDEV_ALIGN_CONST +
+		     (sizeof(struct net_device_subqueue) * queue_count)) &
+		     ~NETDEV_ALIGN_CONST;
 	alloc_size += sizeof_priv + NETDEV_ALIGN_CONST;
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
@@ -3374,15 +3578,22 @@ struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 	dev->padded = (char *)dev - (char *)p;
 
-	if (sizeof_priv)
-		dev->priv = netdev_priv(dev);
+	if (sizeof_priv) {
+		dev->priv = ((char *)dev +
+			     ((sizeof(struct net_device) +
+			       (sizeof(struct net_device_subqueue) *
+				queue_count) + NETDEV_ALIGN_CONST)
+			      & ~NETDEV_ALIGN_CONST));
+	}
+
+	dev->egress_subqueue_count = queue_count;
 
 	dev->get_stats = internal_stats;
 	setup(dev);
 	strcpy(dev->name, name);
 	return dev;
 }
-EXPORT_SYMBOL(alloc_netdev);
+EXPORT_SYMBOL(alloc_netdev_mq);
 
 /**
  *	free_netdev - free network device
@@ -3471,8 +3682,9 @@ void unregister_netdevice(struct net_device *dev)
 	raw_notifier_call_chain(&netdev_chain, NETDEV_UNREGISTER, dev);
 
 	/*
-	 *	Flush the multicast chain
+	 *	Flush the unicast and multicast chains
 	 */
+	dev_unicast_discard(dev);
 	dev_mc_discard(dev);
 
 	if (dev->uninit)

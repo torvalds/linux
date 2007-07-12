@@ -2357,8 +2357,8 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 					np->rx_dma[entry],
 					buflen,
 					PCI_DMA_FROMDEVICE);
-				eth_copy_and_sum(skb,
-					np->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb,
+					np->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pci_dev,
 					np->rx_dma[entry],

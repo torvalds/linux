@@ -14,11 +14,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 

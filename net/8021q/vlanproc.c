@@ -69,7 +69,7 @@ static const char name_conf[]	 = "config";
  *	Generic /proc/net/vlan/<file> file and inode operations
  */
 
-static struct seq_operations vlan_seq_ops = {
+static const struct seq_operations vlan_seq_ops = {
 	.start = vlan_seq_start,
 	.next = vlan_seq_next,
 	.stop = vlan_seq_stop,
@@ -342,7 +342,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "Device: %s", dev_info->real_dev->name);
 	/* now show all PRIORITY mappings relating to this VLAN */
 	seq_printf(seq,
-		       "\nINGRESS priority mappings: 0:%lu  1:%lu  2:%lu  3:%lu  4:%lu  5:%lu  6:%lu 7:%lu\n",
+		       "\nINGRESS priority mappings: 0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
 		       dev_info->ingress_priority_map[0],
 		       dev_info->ingress_priority_map[1],
 		       dev_info->ingress_priority_map[2],
@@ -357,7 +357,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 		const struct vlan_priority_tci_mapping *mp
 			= dev_info->egress_priority_map[i];
 		while (mp) {
-			seq_printf(seq, "%lu:%hu ",
+			seq_printf(seq, "%u:%hu ",
 				   mp->priority, ((mp->vlan_qos >> 13) & 0x7));
 			mp = mp->next;
 		}

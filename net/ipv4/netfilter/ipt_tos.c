@@ -18,7 +18,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("iptables TOS match module");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -26,14 +26,14 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct ipt_tos_info *info = matchinfo;
 
 	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
 }
 
-static struct xt_match tos_match = {
+static struct xt_match tos_match __read_mostly = {
 	.name		= "tos",
 	.family		= AF_INET,
 	.match		= match,

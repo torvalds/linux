@@ -1456,7 +1456,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			pci_dma_sync_single_for_cpu(np->pci_dev,
 						    np->rx_info[entry].mapping,
 						    pkt_len, PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(skb, np->rx_info[entry].skb->data, pkt_len, 0);
+			skb_copy_to_linear_data(skb, np->rx_info[entry].skb->data, pkt_len);
 			pci_dma_sync_single_for_device(np->pci_dev,
 						       np->rx_info[entry].mapping,
 						       pkt_len, PCI_DMA_FROMDEVICE);

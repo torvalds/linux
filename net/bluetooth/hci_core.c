@@ -826,7 +826,7 @@ EXPORT_SYMBOL(hci_free_dev);
 int hci_register_dev(struct hci_dev *hdev)
 {
 	struct list_head *head = &hci_dev_list, *p;
-	int id = 0;
+	int i, id = 0;
 
 	BT_DBG("%p name %s type %d owner %p", hdev, hdev->name, hdev->type, hdev->owner);
 
@@ -851,6 +851,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hdev->flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
+	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 
 	hdev->idle_timeout = 0;
@@ -864,6 +865,9 @@ int hci_register_dev(struct hci_dev *hdev)
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
+
+	for (i = 0; i < 3; i++)
+		hdev->reassembly[i] = NULL;
 
 	init_waitqueue_head(&hdev->req_wait_q);
 	init_MUTEX(&hdev->req_lock);
@@ -889,6 +893,8 @@ EXPORT_SYMBOL(hci_register_dev);
 /* Unregister HCI device */
 int hci_unregister_dev(struct hci_dev *hdev)
 {
+	int i;
+
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
 	hci_unregister_sysfs(hdev);
@@ -899,9 +905,13 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_dev_do_close(hdev);
 
+	for (i = 0; i < 3; i++)
+		kfree_skb(hdev->reassembly[i]);
+
 	hci_notify(hdev, HCI_DEV_UNREG);
 
 	__hci_dev_put(hdev);
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_unregister_dev);
@@ -921,6 +931,90 @@ int hci_resume_dev(struct hci_dev *hdev)
 	return 0;
 }
 EXPORT_SYMBOL(hci_resume_dev);
+
+/* Receive packet type fragment */
+#define __reassembly(hdev, type)  ((hdev)->reassembly[(type) - 2])
+
+int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
+{
+	if (type < HCI_ACLDATA_PKT || type > HCI_EVENT_PKT)
+		return -EILSEQ;
+
+	while (count) {
+		struct sk_buff *skb = __reassembly(hdev, type);
+		struct { int expect; } *scb;
+		int len = 0;
+
+		if (!skb) {
+			/* Start of the frame */
+
+			switch (type) {
+			case HCI_EVENT_PKT:
+				if (count >= HCI_EVENT_HDR_SIZE) {
+					struct hci_event_hdr *h = data;
+					len = HCI_EVENT_HDR_SIZE + h->plen;
+				} else
+					return -EILSEQ;
+				break;
+
+			case HCI_ACLDATA_PKT:
+				if (count >= HCI_ACL_HDR_SIZE) {
+					struct hci_acl_hdr *h = data;
+					len = HCI_ACL_HDR_SIZE + __le16_to_cpu(h->dlen);
+				} else
+					return -EILSEQ;
+				break;
+
+			case HCI_SCODATA_PKT:
+				if (count >= HCI_SCO_HDR_SIZE) {
+					struct hci_sco_hdr *h = data;
+					len = HCI_SCO_HDR_SIZE + h->dlen;
+				} else
+					return -EILSEQ;
+				break;
+			}
+
+			skb = bt_skb_alloc(len, GFP_ATOMIC);
+			if (!skb) {
+				BT_ERR("%s no memory for packet", hdev->name);
+				return -ENOMEM;
+			}
+
+			skb->dev = (void *) hdev;
+			bt_cb(skb)->pkt_type = type;
+	
+			__reassembly(hdev, type) = skb;
+
+			scb = (void *) skb->cb;
+			scb->expect = len;
+		} else {
+			/* Continuation */
+
+			scb = (void *) skb->cb;
+			len = scb->expect;
+		}
+
+		len = min(len, count);
+
+		memcpy(skb_put(skb, len), data, len);
+
+		scb->expect -= len;
+
+		if (scb->expect == 0) {
+			/* Complete frame */
+
+			__reassembly(hdev, type) = NULL;
+
+			bt_cb(skb)->pkt_type = type;
+			hci_recv_frame(skb);
+		}
+
+		count -= len; data += len;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(hci_recv_fragment);
 
 /* ---- Interface to upper protocols ---- */
 
@@ -1029,7 +1123,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *p
 
 	skb = bt_skb_alloc(len, GFP_ATOMIC);
 	if (!skb) {
-		BT_ERR("%s Can't allocate memory for HCI command", hdev->name);
+		BT_ERR("%s no memory for command", hdev->name);
 		return -ENOMEM;
 	}
 
@@ -1161,7 +1255,7 @@ EXPORT_SYMBOL(hci_send_sco);
 static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int *quote)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct hci_conn  *conn = NULL;
+	struct hci_conn *conn = NULL;
 	int num = 0, min = ~0;
 	struct list_head *p;
 
