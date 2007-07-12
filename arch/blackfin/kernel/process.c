@@ -32,9 +32,10 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
+#include <linux/uaccess.h>
 
 #include <asm/blackfin.h>
-#include <asm/uaccess.h>
+#include <asm/fixed_code.h>
 
 #define	LED_ON	0
 #define	LED_OFF	1
@@ -173,8 +174,8 @@ void show_regs(struct pt_regs *regs)
 	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
 	       regs->r4, regs->r5, regs->r6, regs->r7);
 
-	if (!(regs->ipend))
-		printk("USP: %08lx\n", rdusp());
+	if (!regs->ipend)
+		printk(KERN_NOTICE "USP: %08lx\n", rdusp());
 }
 
 /* Fill in the fpu structure for a core dump.  */
@@ -322,7 +323,7 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp)
 		goto out;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
-      out:
+ out:
 	unlock_kernel();
 	return error;
 }
@@ -350,13 +351,77 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
+void finish_atomic_sections (struct pt_regs *regs)
+{
+	if (regs->pc < ATOMIC_SEQS_START || regs->pc >= ATOMIC_SEQS_END)
+		return;
+
+	switch (regs->pc) {
+	case ATOMIC_XCHG32 + 2:
+		put_user(regs->r1, (int *)regs->p0);
+		regs->pc += 2;
+		break;
+
+	case ATOMIC_CAS32 + 2:
+	case ATOMIC_CAS32 + 4:
+		if (regs->r0 == regs->r1)
+			put_user(regs->r2, (int *)regs->p0);
+		regs->pc = ATOMIC_CAS32 + 8;
+		break;
+	case ATOMIC_CAS32 + 6:
+		put_user(regs->r2, (int *)regs->p0);
+		regs->pc += 2;
+		break;
+
+	case ATOMIC_ADD32 + 2:
+		regs->r0 = regs->r1 + regs->r0;
+		/* fall through */
+	case ATOMIC_ADD32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_ADD32 + 6;
+		break;
+
+	case ATOMIC_SUB32 + 2:
+		regs->r0 = regs->r1 - regs->r0;
+		/* fall through */
+	case ATOMIC_SUB32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_SUB32 + 6;
+		break;
+
+	case ATOMIC_IOR32 + 2:
+		regs->r0 = regs->r1 | regs->r0;
+		/* fall through */
+	case ATOMIC_IOR32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_IOR32 + 6;
+		break;
+
+	case ATOMIC_AND32 + 2:
+		regs->r0 = regs->r1 & regs->r0;
+		/* fall through */
+	case ATOMIC_AND32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_AND32 + 6;
+		break;
+
+	case ATOMIC_XOR32 + 2:
+		regs->r0 = regs->r1 ^ regs->r0;
+		/* fall through */
+	case ATOMIC_XOR32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_XOR32 + 6;
+		break;
+	}
+}
+
 #if defined(CONFIG_ACCESS_CHECK)
 int _access_ok(unsigned long addr, unsigned long size)
 {
 
 	if (addr > (addr + size))
 		return 0;
-	if (segment_eq(get_fs(),KERNEL_DS))
+	if (segment_eq(get_fs(), KERNEL_DS))
 		return 1;
 #ifdef CONFIG_MTD_UCLINUX
 	if (addr >= memory_start && (addr + size) <= memory_end)

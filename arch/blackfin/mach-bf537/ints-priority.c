@@ -28,8 +28,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/irq.h>
 #include <asm/blackfin.h>
-#include <asm/irq.h>
 
 void program_IAR(void)
 {

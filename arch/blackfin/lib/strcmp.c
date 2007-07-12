@@ -6,6 +6,5 @@
 
 int strcmp(const char *dest, const char *src)
 {
-	        return __inline_strcmp(dest, src);
+	return __inline_strcmp(dest, src);
 }
-

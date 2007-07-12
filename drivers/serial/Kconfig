@@ -556,7 +556,7 @@ choice
 
 config SERIAL_BFIN_DMA
 	bool "DMA mode"
-	depends on DMA_UNCACHED_1M
+	depends on DMA_UNCACHED_1M && !KGDB_UART
 	help
 	  This driver works under DMA mode. If this option is selected, the
 	  blackfin simple dma driver is also enabled.
@@ -599,7 +599,7 @@ config UART0_RTS_PIN
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
-	depends on SERIAL_BFIN && (BF534 || BF536 || BF537)
+	depends on SERIAL_BFIN && (BF534 || BF536 || BF537 || BF54x)
 	help
 	  Enable UART1
 
@@ -612,17 +612,57 @@ config BFIN_UART1_CTSRTS
 
 config UART1_CTS_PIN
 	int "UART1 CTS pin"
-	depends on BFIN_UART1_CTSRTS
+	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
 
 config UART1_RTS_PIN
 	int "UART1 RTS pin"
-	depends on BFIN_UART1_CTSRTS
+	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config SERIAL_BFIN_UART2
+	bool "Enable UART2"
+	depends on SERIAL_BFIN && (BF54x)
+	help
+	  Enable UART2
+
+config BFIN_UART2_CTSRTS
+	bool "Enable UART2 hardware flow control"
+	depends on SERIAL_BFIN_UART2
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
+
+config UART2_CTS_PIN
+	int "UART2 CTS pin"
+	depends on BFIN_UART2_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config UART2_RTS_PIN
+	int "UART2 RTS pin"
+	depends on BFIN_UART2_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config SERIAL_BFIN_UART3
+	bool "Enable UART3"
+	depends on SERIAL_BFIN && (BF54x)
+	help
+	  Enable UART3
+
+config BFIN_UART3_CTSRTS
+	bool "Enable UART3 hardware flow control"
+	depends on SERIAL_BFIN_UART3
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
 
 config SERIAL_IMX
 	bool "IMX serial port support"

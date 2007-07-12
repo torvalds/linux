@@ -57,8 +57,8 @@ struct cplb_tab {
 	u16 size;
 };
 
-u_long icplb_table[MAX_CPLBS+1];
-u_long dcplb_table[MAX_CPLBS+1];
+extern u_long icplb_table[MAX_CPLBS+1];
+extern u_long dcplb_table[MAX_CPLBS+1];
 
 /* Till here we are discussing about the static memory management model.
  * However, the operating envoronments commonly define more CPLB
@@ -70,134 +70,27 @@ u_long dcplb_table[MAX_CPLBS+1];
  */
 
 #ifdef CONFIG_CPLB_SWITCH_TAB_L1
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1]__attribute__((l1_data));
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1]__attribute__((l1_data));
+extern u_long ipdt_table[MAX_SWITCH_I_CPLBS+1]__attribute__((l1_data));
+extern u_long dpdt_table[MAX_SWITCH_D_CPLBS+1]__attribute__((l1_data));
 
 #ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS]__attribute__((l1_data));
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS]__attribute__((l1_data));
+extern u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS]__attribute__((l1_data));
+extern u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS]__attribute__((l1_data));
 #endif /* CONFIG_CPLB_INFO */
 
 #else
 
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1];
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1];
+extern u_long ipdt_table[MAX_SWITCH_I_CPLBS+1];
+extern u_long dpdt_table[MAX_SWITCH_D_CPLBS+1];
 
 #ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS];
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS];
+extern u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS];
+extern u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS];
 #endif /* CONFIG_CPLB_INFO */
 
 #endif /*CONFIG_CPLB_SWITCH_TAB_L1*/
 
-struct s_cplb {
-	struct cplb_tab init_i;
-	struct cplb_tab init_d;
-	struct cplb_tab switch_i;
-	struct cplb_tab switch_d;
-};
+extern unsigned long reserved_mem_dcache_on;
+extern unsigned long reserved_mem_icache_on;
 
-#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-static struct cplb_desc cplb_data[] = {
-	{
-		.start = 0,
-		.end = SIZE_4K,
-		.psize = SIZE_4K,
-		.attr = INITIAL_T | SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf = SDRAM_OOPS,
-		.d_conf = SDRAM_OOPS,
-#if defined(CONFIG_DEBUG_HUNT_FOR_ZERO)
-		.valid = 1,
-#else
-		.valid = 0,
-#endif
-		.name = "ZERO Pointer Saveguard",
-	},
-	{
-		.start = L1_CODE_START,
-		.end = L1_CODE_START + L1_CODE_LENGTH,
-		.psize = SIZE_4M,
-		.attr = INITIAL_T | SWITCH_T | I_CPLB,
-		.i_conf = L1_IMEMORY,
-		.d_conf = 0,
-		.valid = 1,
-		.name = "L1 I-Memory",
-	},
-	{
-		.start = L1_DATA_A_START,
-		.end = L1_DATA_B_START + L1_DATA_B_LENGTH,
-		.psize = SIZE_4M,
-		.attr = INITIAL_T | SWITCH_T | D_CPLB,
-		.i_conf = 0,
-		.d_conf = L1_DMEMORY,
-#if ((L1_DATA_A_LENGTH > 0) || (L1_DATA_B_LENGTH > 0))
-		.valid = 1,
-#else
-		.valid = 0,
-#endif
-		.name = "L1 D-Memory",
-	},
-	{
-		.start = 0,
-		.end = 0,  /* dynamic */
-		.psize = 0,
-		.attr = INITIAL_T | SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DGENERIC,
-		.valid = 1,
-		.name = "SDRAM Kernel",
-	},
-	{
-		.start = 0, /* dynamic */
-		.end = 0, /* dynamic */
-		.psize = 0,
-		.attr = INITIAL_T | SWITCH_T | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DNON_CHBL,
-		.valid = 1,
-		.name = "SDRAM RAM MTD",
-	},
-	{
-		.start = 0, /* dynamic */
-		.end = 0,   /* dynamic */
-		.psize = SIZE_1M,
-		.attr = INITIAL_T | SWITCH_T | D_CPLB,
-		.d_conf = SDRAM_DNON_CHBL,
-		.valid = 1,//(DMA_UNCACHED_REGION > 0),
-		.name = "SDRAM Uncached DMA ZONE",
-	},
-	{
-		.start = 0, /* dynamic */
-		.end = 0, /* dynamic */
-		.psize = 0,
-		.attr = SWITCH_T | D_CPLB,
-		.i_conf = 0, /* dynamic */
-		.d_conf = 0, /* dynamic */
-		.valid = 1,
-		.name = "SDRAM Reserved Memory",
-	},
-	{
-		.start = ASYNC_BANK0_BASE,
-		.end = ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-		.psize = 0,
-		.attr = SWITCH_T | D_CPLB,
-		.d_conf = SDRAM_EBIU,
-		.valid = 1,
-		.name = "ASYNC Memory",
-	},
-	{
-#if defined(CONFIG_BF561)
-		.start = L2_SRAM,
-		.end = L2_SRAM_END,
-		.psize = SIZE_1M,
-		.attr = SWITCH_T | D_CPLB,
-		.i_conf = L2_MEMORY,
-		.d_conf = L2_MEMORY,
-		.valid = 1,
-#else
-		.valid = 0,
-#endif
-		.name = "L2 Memory",
-	}
-};
-#endif
+extern void generate_cpl_tables(void);

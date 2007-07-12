@@ -37,7 +37,7 @@
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb_isp1362.h>
 #endif
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/bfin5xx_spi.h>
 #include <linux/usb_sl811.h>
 
@@ -58,15 +58,15 @@ static struct resource bfin_pcmcia_cf_resources[] = {
 		.start = 0x20310000, /* IO PORT */
 		.end = 0x20312000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20311000, /* Attribute Memory */
 		.end = 0x20311FFF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},{
+	}, {
 		.start = 6, /* Card Detect PF6 */
 		.end = 6,
 		.flags = IORESOURCE_IRQ,
@@ -95,7 +95,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20300300,
 		.end = 0x20300300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
@@ -116,11 +116,11 @@ static struct resource sl811_hcd_resources[] = {
 		.start = 0x20340000,
 		.end = 0x20340000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20340004,
 		.end = 0x20340004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = CONFIG_USB_SL811_BFIN_IRQ,
 		.end = CONFIG_USB_SL811_BFIN_IRQ,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -167,11 +167,11 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x20360000,
 		.end = 0x20360000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20360004,
 		.end = 0x20360004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
 		.end = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -212,7 +212,7 @@ static struct resource net2272_bfin_resources[] = {
 		.start = 0x20300000,
 		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -238,11 +238,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -293,16 +293,6 @@ static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 	.bits_per_word = 8,
 };
 #endif
-
-#if defined(CONFIG_PBX)
-static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
-	.ctl_reg	= 0x4, /* send zero */
-	.enable_dma	= 0,
-	.bits_per_word	= 8,
-	.cs_change_per_word = 1,
-};
-#endif
-
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
@@ -392,24 +382,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-#if defined(CONFIG_PBX)
-	{
-		.modalias	= "fxs-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 3,
-		.controller_data= &spi_si3xxx_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias	= "fxo-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 2,
-		.controller_data= &spi_si3xxx_chip_info,
-		.mode = SPI_MODE_3,
-	},
-#endif
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 {
 	.modalias		= "ad7877",
@@ -451,7 +423,7 @@ static struct resource bfin_uart_resources[] = {
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,

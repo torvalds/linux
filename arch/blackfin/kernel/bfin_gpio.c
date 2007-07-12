@@ -162,7 +162,7 @@ static void port_setup(unsigned short gpio, unsigned short usage)
 
 static void default_gpio(unsigned short gpio)
 {
-	unsigned short bank,bitmask;
+	unsigned short bank, bitmask;
 
 	bank = gpio_bank(gpio);
 	bitmask = gpio_bit(gpio);
@@ -183,7 +183,7 @@ static int __init bfin_gpio_init(void)
 
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE)
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE)
 		reserved_map[gpio_bank(i)] = 0;
 
 #if defined(BF537_FAMILY) && (defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
@@ -478,7 +478,7 @@ u32 gpio_pm_setup(void)
 	u32 sic_iwr = 0;
 	u16 bank, mask, i, gpio;
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE) {
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 		mask = wakeup_map[gpio_bank(i)];
 		bank = gpio_bank(i);
 
@@ -522,12 +522,11 @@ u32 gpio_pm_setup(void)
 		return IWR_ENABLE_ALL;
 }
 
-
 void gpio_pm_restore(void)
 {
 	u16 bank, mask, i;
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE) {
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 		mask = wakeup_map[gpio_bank(i)];
 		bank = gpio_bank(i);
 
@@ -591,7 +590,6 @@ int gpio_request(unsigned short gpio, const char *label)
 }
 EXPORT_SYMBOL(gpio_request);
 
-
 void gpio_free(unsigned short gpio)
 {
 	unsigned long flags;
@@ -615,7 +613,6 @@ void gpio_free(unsigned short gpio)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_free);
-
 
 void gpio_direction_input(unsigned short gpio)
 {

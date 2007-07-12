@@ -36,24 +36,22 @@ unsigned long bfin_get_addr_from_rp(unsigned long *ptr,
 	unsigned long val;
 
 	switch (type) {
-		case FLAT_BFIN_RELOC_TYPE_16_BIT:
-		case FLAT_BFIN_RELOC_TYPE_16H_BIT:
-			usptr = (unsigned short *)ptr;
-			pr_debug("*usptr = %x", get_unaligned(usptr));
-			val = get_unaligned(usptr);
-			val += *persistent;
-			break;
+	case FLAT_BFIN_RELOC_TYPE_16_BIT:
+	case FLAT_BFIN_RELOC_TYPE_16H_BIT:
+		usptr = (unsigned short *)ptr;
+		pr_debug("*usptr = %x", get_unaligned(usptr));
+		val = get_unaligned(usptr);
+		val += *persistent;
+		break;
 
-		case FLAT_BFIN_RELOC_TYPE_32_BIT:
-			pr_debug("*ptr = %lx", get_unaligned(ptr));
-			val = get_unaligned(ptr);
-			break;
+	case FLAT_BFIN_RELOC_TYPE_32_BIT:
+		pr_debug("*ptr = %lx", get_unaligned(ptr));
+		val = get_unaligned(ptr);
+		break;
 
-		default:
-			pr_debug("BINFMT_FLAT: Unknown relocation type %x\n",
-				type);
-
-			return 0;
+	default:
+		pr_debug("BINFMT_FLAT: Unknown relocation type %x\n", type);
+		return 0;
 	}
 
 	/*
@@ -81,21 +79,20 @@ void bfin_put_addr_at_rp(unsigned long *ptr, unsigned long addr,
 	int type = (relval >> 26) & 7;
 
 	switch (type) {
-		case FLAT_BFIN_RELOC_TYPE_16_BIT:
-			put_unaligned(addr, usptr);
-			pr_debug("new value %x at %p", get_unaligned(usptr),
-				usptr);
-			break;
+	case FLAT_BFIN_RELOC_TYPE_16_BIT:
+		put_unaligned(addr, usptr);
+		pr_debug("new value %x at %p", get_unaligned(usptr), usptr);
+		break;
 
-		case FLAT_BFIN_RELOC_TYPE_16H_BIT:
-			put_unaligned(addr >> 16, usptr);
-			pr_debug("new value %x", get_unaligned(usptr));
-			break;
+	case FLAT_BFIN_RELOC_TYPE_16H_BIT:
+		put_unaligned(addr >> 16, usptr);
+		pr_debug("new value %x", get_unaligned(usptr));
+		break;
 
-		case FLAT_BFIN_RELOC_TYPE_32_BIT:
-			put_unaligned(addr, ptr);
-			pr_debug("new ptr =%lx", get_unaligned(ptr));
-			break;
+	case FLAT_BFIN_RELOC_TYPE_32_BIT:
+		put_unaligned(addr, ptr);
+		pr_debug("new ptr =%lx", get_unaligned(ptr));
+		break;
 	}
 }
 EXPORT_SYMBOL(bfin_put_addr_at_rp);

@@ -34,7 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/usb_isp1362.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/bfin5xx_spi.h>
 
 /*
@@ -52,11 +52,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -186,7 +186,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x28000300,
 		.end = 0x28000300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF0,
 		.end = IRQ_PF0,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -206,11 +206,11 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x24008000,
 		.end = 0x24008000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x24008004,
 		.end = 0x24008004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF47,
 		.end = IRQ_PF47,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -241,25 +241,25 @@ static struct platform_device isp1362_hcd_device = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
-        {
-                .start = 0xFFC00400,
-                .end = 0xFFC004FF,
-                .flags = IORESOURCE_MEM,
-        },
+	{
+		.start = 0xFFC00400,
+		.end = 0xFFC004FF,
+		.flags = IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device bfin_uart_device = {
-        .name = "bfin-uart",
-        .id = 1,
-        .num_resources = ARRAY_SIZE(bfin_uart_resources),
-        .resource = bfin_uart_resources,
+	.name = "bfin-uart",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_uart_resources),
+	.resource = bfin_uart_resources,
 };
 #endif
 
 static struct platform_device *cm_bf561_devices[] __initdata = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-        &bfin_uart_device,
+	&bfin_uart_device,
 #endif
 
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)

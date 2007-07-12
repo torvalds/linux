@@ -71,6 +71,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config IRQCHIP_DEMUX_GPIO
 	bool
+	depends on (BF53x || BF561 || BF54x)
 	default y
 
 source "init/Kconfig"
@@ -114,6 +115,26 @@ config BF537
 	help
 	  BF537 Processor Support.
 
+config BF542
+	bool "BF542"
+	help
+	  BF542 Processor Support.
+
+config BF544
+	bool "BF544"
+	help
+	  BF544 Processor Support.
+
+config BF548
+	bool "BF548"
+	help
+	  BF548 Processor Support.
+
+config BF549
+	bool "BF549"
+	help
+	  BF549 Processor Support.
+
 config BF561
 	bool "BF561"
 	help
@@ -125,6 +146,11 @@ choice
 	prompt "Silicon Rev"
 	default BF_REV_0_2 if BF537
 	default BF_REV_0_3 if BF533
+	default BF_REV_0_0 if BF549
+
+config BF_REV_0_0
+	bool "0.0"
+	depends on (BF549)
 
 config BF_REV_0_2
 	bool "0.2"
@@ -149,6 +175,16 @@ config BF_REV_NONE
 	bool "none"
 
 endchoice
+
+config BF53x
+	bool
+	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
+	default y
+
+config BF54x
+	bool
+	depends on (BF542 || BF544 || BF548 || BF549)
+	default y
 
 config BFIN_DUAL_CORE
 	bool
@@ -197,6 +233,12 @@ config BFIN537_BLUETECHNIX_CM
 	depends on (BF537)
 	help
 	  CM-BF537 support for EVAL- and DEV-Board.
+
+config BFIN548_EZKIT
+	bool "BF548-EZKIT"
+	depends on (BF548 || BF549)
+	  help
+	  BFIN548-EZKIT board Support.
 
 config BFIN561_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF561"
@@ -265,6 +307,7 @@ config BFIN_SHARED_FLASH_ENET
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
+source "arch/blackfin/mach-bf548/Kconfig"
 
 menu "Board customizations"
 
@@ -497,7 +540,8 @@ config IP_CHECKSUM_L1
 
 config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
-	default y
+	default y if !BF54x
+	default n if BF54x
 	depends on !BF531
 	help
 	  If enabled cacheline_anligned data is linked
@@ -541,9 +585,17 @@ endchoice
 
 source "mm/Kconfig"
 
+config LARGE_ALLOCS
+	bool "Allow allocating large blocks (> 1MB) of memory"
+	help
+	  Allow the slab memory allocator to keep chains for very large
+	  memory sizes - upto 32MB. You may need this if your system has
+	  a lot of RAM, and you need to able to allocate very large
+	  contiguous chunks. If unsure, say N.
+
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561 || BF54x)
 	default y
 	help
 	  DMA driver for BF5xx.
@@ -686,6 +738,7 @@ config C_AMCKEN
 
 config C_CDPRIO
 	bool "DMA has priority over core for ext. accesses"
+	depends on !BF54x
 	default n
 
 config C_B0PEN
@@ -839,7 +892,7 @@ endchoice
 
 endmenu
 
-if (BF537 || BF533)
+if (BF537 || BF533 || BF54x)
 
 menu "CPU Frequency scaling"
 

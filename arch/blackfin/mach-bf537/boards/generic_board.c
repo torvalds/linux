@@ -35,9 +35,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/usb_isp1362.h>
-#include <asm/irq.h>
-#include <asm/bfin5xx_spi.h>
+#include <linux/irq.h>
 #include <linux/usb_sl811.h>
+#include <asm/bfin5xx_spi.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -54,19 +54,19 @@ static struct resource bfin_pcmcia_cf_resources[] = {
 		.start = 0x20310000, /* IO PORT */
 		.end = 0x20312000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20311000, /* Attribute Memory */
 		.end = 0x20311FFF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PROG_INTA,
 		.end = IRQ_PROG_INTA,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},{
+	}, {
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},{
+	}, {
 		.start = 6, /* Card Detect PF6 */
 		.end = 6,
 		.flags = IORESOURCE_IRQ,
@@ -95,11 +95,11 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20300300,
 		.end = 0x20300300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PROG_INTB,
 		.end = IRQ_PROG_INTB,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},{
+	}, {
 		/*
 		 *  denotes the flag pin and is used directly if
 		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
@@ -123,15 +123,15 @@ static struct resource sl811_hcd_resources[] = {
 		.start = 0x20340000,
 		.end = 0x20340000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20340004,
 		.end = 0x20340004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PROG_INTA,
 		.end = IRQ_PROG_INTA,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},{
+	}, {
 		.start = IRQ_PF0 + CONFIG_USB_SL811_BFIN_GPIO,
 		.end = IRQ_PF0 + CONFIG_USB_SL811_BFIN_GPIO,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -179,15 +179,15 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x20360000,
 		.end = 0x20360000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20360004,
 		.end = 0x20360004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PROG_INTA,
 		.end = IRQ_PROG_INTA,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},{
+	}, {
 		.start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 		.end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 		.flags = IORESOURCE_IRQ,
@@ -228,7 +228,7 @@ static struct resource net2272_bfin_resources[] = {
 		.start = 0x20300000,
 		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -253,11 +253,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -375,7 +375,7 @@ static struct resource bfin_uart_resources[] = {
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,

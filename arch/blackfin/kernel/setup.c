@@ -42,6 +42,7 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
+#include <asm/fixed_code.h>
 
 u16 _bfin_swrst;
 
@@ -62,10 +63,6 @@ EXPORT_SYMBOL(mtd_size);
 #endif
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-
-#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-static void generate_cpl_tables(void);
-#endif
 
 void __init bf53x_cache_init(void)
 {
@@ -196,6 +193,17 @@ void __init setup_arch(char **cmdline_p)
 	bfin_console_init();	/* early console registration */
 	/* this give a chance to get printk() working before crash. */
 #endif
+
+	printk(KERN_INFO "Hardware Trace ");
+	if (bfin_read_TBUFCTL() & 0x1 )
+		printk("Active ");
+	else
+		printk("Off ");
+	if (bfin_read_TBUFCTL() & 0x2)
+		printk("and Enabled\n");
+	else
+	printk("and Disabled\n");
+
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
@@ -354,15 +362,15 @@ void __init setup_arch(char **cmdline_p)
 	       , _stext, _etext,
 	       __start_rodata, __end_rodata,
 	       _sdata, _edata,
-	       (void*)&init_thread_union, (void*)((int)(&init_thread_union) + 0x2000),
+	       (void *)&init_thread_union, (void *)((int)(&init_thread_union) + 0x2000),
 	       __init_begin, __init_end,
 	       __bss_start, __bss_stop,
-	       (void*)_ramstart, (void*)memory_end
+	       (void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
-	       , (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size)
+	       , (void *)memory_mtd_start, (void *)(memory_mtd_start + mtd_size)
 #endif
 #if DMA_UNCACHED_REGION > 0
-	       , (void*)(_ramend - DMA_UNCACHED_REGION), (void*)(_ramend)
+	       , (void *)(_ramend - DMA_UNCACHED_REGION), (void *)(_ramend)
 #endif
 	       );
 
@@ -388,11 +396,11 @@ void __init setup_arch(char **cmdline_p)
 	/* check the size of the l1 area */
 	l1_length = _etext_l1 - _stext_l1;
 	if (l1_length > L1_CODE_LENGTH)
-		panic("L1 memory overflow\n");
+		panic("L1 code memory overflow\n");
 
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
-		panic("L1 memory overflow\n");
+		panic("L1 data memory overflow\n");
 
 #ifdef BF561_FAMILY
 	_bfin_swrst = bfin_read_SICA_SWRST();
@@ -400,10 +408,28 @@ void __init setup_arch(char **cmdline_p)
 	_bfin_swrst = bfin_read_SWRST();
 #endif
 
-	bf53x_cache_init();
+	/* Copy atomic sequences to their fixed location, and sanity check that
+	   these locations are the ones that we advertise to userspace.  */
+	memcpy((void *)FIXED_CODE_START, &fixed_code_start,
+	       FIXED_CODE_END - FIXED_CODE_START);
+	BUG_ON((char *)&sigreturn_stub - (char *)&fixed_code_start
+	       != SIGRETURN_STUB - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_xchg32 - (char *)&fixed_code_start
+	       != ATOMIC_XCHG32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_cas32 - (char *)&fixed_code_start
+	       != ATOMIC_CAS32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_add32 - (char *)&fixed_code_start
+	       != ATOMIC_ADD32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_sub32 - (char *)&fixed_code_start
+	       != ATOMIC_SUB32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_ior32 - (char *)&fixed_code_start
+	       != ATOMIC_IOR32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_and32 - (char *)&fixed_code_start
+	       != ATOMIC_AND32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
+	       != ATOMIC_XOR32 - FIXED_CODE_START);
 
-	printk(KERN_INFO "Hardware Trace Enabled\n");
-	bfin_write_TBUFCTL(0x03);
+	bf53x_cache_init();
 }
 
 static int __init topology_init(void)
@@ -420,286 +446,6 @@ static int __init topology_init(void)
 }
 
 subsys_initcall(topology_init);
-
-#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-static u16 __init lock_kernel_check(u32 start, u32 end)
-{
-	if ((start <= (u32) _stext && end >= (u32) _end)
-	    || (start >= (u32) _stext && end <= (u32) _end))
-		return IN_KERNEL;
-	return 0;
-}
-
-static unsigned short __init
-fill_cplbtab(struct cplb_tab *table,
-	     unsigned long start, unsigned long end,
-	     unsigned long block_size, unsigned long cplb_data)
-{
-	int i;
-
-	switch (block_size) {
-	case SIZE_4M:
-		i = 3;
-		break;
-	case SIZE_1M:
-		i = 2;
-		break;
-	case SIZE_4K:
-		i = 1;
-		break;
-	case SIZE_1K:
-	default:
-		i = 0;
-		break;
-	}
-
-	cplb_data = (cplb_data & ~(3 << 16)) | (i << 16);
-
-	while ((start < end) && (table->pos < table->size)) {
-
-		table->tab[table->pos++] = start;
-
-		if (lock_kernel_check(start, start + block_size) == IN_KERNEL)
-			table->tab[table->pos++] =
-			    cplb_data | CPLB_LOCK | CPLB_DIRTY;
-		else
-			table->tab[table->pos++] = cplb_data;
-
-		start += block_size;
-	}
-	return 0;
-}
-
-static unsigned short __init
-close_cplbtab(struct cplb_tab *table)
-{
-
-	while (table->pos < table->size) {
-
-		table->tab[table->pos++] = 0;
-		table->tab[table->pos++] = 0; /* !CPLB_VALID */
-	}
-	return 0;
-}
-
-/* helper function */
-static void __fill_code_cplbtab(struct cplb_tab *t, int i,
-				u32 a_start, u32 a_end)
-{
-	if (cplb_data[i].psize) {
-		fill_cplbtab(t,
-				cplb_data[i].start,
-				cplb_data[i].end,
-				cplb_data[i].psize,
-				cplb_data[i].i_conf);
-	} else {
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
-		if (i == SDRAM_KERN) {
-			fill_cplbtab(t,
-					cplb_data[i].start,
-					cplb_data[i].end,
-					SIZE_4M,
-					cplb_data[i].i_conf);
-		} else {
-#endif
-			fill_cplbtab(t,
-					cplb_data[i].start,
-					a_start,
-					SIZE_1M,
-					cplb_data[i].i_conf);
-			fill_cplbtab(t,
-					a_start,
-					a_end,
-					SIZE_4M,
-					cplb_data[i].i_conf);
-			fill_cplbtab(t, a_end,
-					cplb_data[i].end,
-					SIZE_1M,
-					cplb_data[i].i_conf);
-		}
-	}
-}
-
-static void __fill_data_cplbtab(struct cplb_tab *t, int i,
-				u32 a_start, u32 a_end)
-{
-	if (cplb_data[i].psize) {
-		fill_cplbtab(t,
-				cplb_data[i].start,
-				cplb_data[i].end,
-				cplb_data[i].psize,
-				cplb_data[i].d_conf);
-	} else {
-		fill_cplbtab(t,
-				cplb_data[i].start,
-				a_start, SIZE_1M,
-				cplb_data[i].d_conf);
-		fill_cplbtab(t, a_start,
-				a_end, SIZE_4M,
-				cplb_data[i].d_conf);
-		fill_cplbtab(t, a_end,
-				cplb_data[i].end,
-				SIZE_1M,
-				cplb_data[i].d_conf);
-	}
-}
-static void __init generate_cpl_tables(void)
-{
-
-	u16 i, j, process;
-	u32 a_start, a_end, as, ae, as_1m;
-
-	struct cplb_tab *t_i = NULL;
-	struct cplb_tab *t_d = NULL;
-	struct s_cplb cplb;
-
-	cplb.init_i.size = MAX_CPLBS;
-	cplb.init_d.size = MAX_CPLBS;
-	cplb.switch_i.size = MAX_SWITCH_I_CPLBS;
-	cplb.switch_d.size = MAX_SWITCH_D_CPLBS;
-
-	cplb.init_i.pos = 0;
-	cplb.init_d.pos = 0;
-	cplb.switch_i.pos = 0;
-	cplb.switch_d.pos = 0;
-
-	cplb.init_i.tab = icplb_table;
-	cplb.init_d.tab = dcplb_table;
-	cplb.switch_i.tab = ipdt_table;
-	cplb.switch_d.tab = dpdt_table;
-
-	cplb_data[SDRAM_KERN].end = memory_end;
-
-#ifdef CONFIG_MTD_UCLINUX
-	cplb_data[SDRAM_RAM_MTD].start = memory_mtd_start;
-	cplb_data[SDRAM_RAM_MTD].end = memory_mtd_start + mtd_size;
-	cplb_data[SDRAM_RAM_MTD].valid = mtd_size > 0;
-# if defined(CONFIG_ROMFS_FS)
-	cplb_data[SDRAM_RAM_MTD].attr |= I_CPLB;
-
-	/*
-	 * The ROMFS_FS size is often not multiple of 1MB.
-	 * This can cause multiple CPLB sets covering the same memory area.
-	 * This will then cause multiple CPLB hit exceptions.
-	 * Workaround: We ensure a contiguous memory area by extending the kernel
-	 * memory section over the mtd section.
-	 * For ROMFS_FS memory must be covered with ICPLBs anyways.
-	 * So there is no difference between kernel and mtd memory setup.
-	 */
-
-	cplb_data[SDRAM_KERN].end = memory_mtd_start + mtd_size;;
-	cplb_data[SDRAM_RAM_MTD].valid = 0;
-
-# endif
-#else
-	cplb_data[SDRAM_RAM_MTD].valid = 0;
-#endif
-
-	cplb_data[SDRAM_DMAZ].start = _ramend - DMA_UNCACHED_REGION;
-	cplb_data[SDRAM_DMAZ].end = _ramend;
-
-	cplb_data[RES_MEM].start = _ramend;
-	cplb_data[RES_MEM].end = physical_mem_end;
-
-	if (reserved_mem_dcache_on)
-		cplb_data[RES_MEM].d_conf = SDRAM_DGENERIC;
-	else
-		cplb_data[RES_MEM].d_conf = SDRAM_DNON_CHBL;
-
-	if (reserved_mem_icache_on)
-		cplb_data[RES_MEM].i_conf = SDRAM_IGENERIC;
-	else
-		cplb_data[RES_MEM].i_conf = SDRAM_INON_CHBL;
-
-	for (i = ZERO_P; i <= L2_MEM; i++) {
-		if (!cplb_data[i].valid)
-			continue;
-
-		as_1m = cplb_data[i].start % SIZE_1M;
-
-		/*
-		 * We need to make sure all sections are properly 1M aligned
-		 * However between Kernel Memory and the Kernel mtd section,
-		 * depending on the rootfs size, there can be overlapping
-		 * memory areas.
-		 */
-
-		if (as_1m && i != L1I_MEM && i != L1D_MEM) {
-#ifdef CONFIG_MTD_UCLINUX
-			if (i == SDRAM_RAM_MTD) {
-				if ((cplb_data[SDRAM_KERN].end + 1) >
-						cplb_data[SDRAM_RAM_MTD].start)
-					cplb_data[SDRAM_RAM_MTD].start =
-						(cplb_data[i].start &
-						 (-2*SIZE_1M)) + SIZE_1M;
-				else
-					cplb_data[SDRAM_RAM_MTD].start =
-						(cplb_data[i].start &
-						 (-2*SIZE_1M));
-			} else
-#endif
-				printk(KERN_WARNING
-					"Unaligned Start of %s at 0x%X\n",
-					cplb_data[i].name, cplb_data[i].start);
-		}
-
-		as = cplb_data[i].start % SIZE_4M;
-		ae = cplb_data[i].end % SIZE_4M;
-
-		if (as)
-			a_start = cplb_data[i].start + (SIZE_4M - (as));
-		else
-			a_start = cplb_data[i].start;
-
-		a_end = cplb_data[i].end - ae;
-
-		for (j = INITIAL_T; j <= SWITCH_T; j++) {
-
-			switch (j) {
-			case INITIAL_T:
-				if (cplb_data[i].attr & INITIAL_T) {
-					t_i = &cplb.init_i;
-					t_d = &cplb.init_d;
-					process = 1;
-				} else
-					process = 0;
-				break;
-			case SWITCH_T:
-				if (cplb_data[i].attr & SWITCH_T) {
-					t_i = &cplb.switch_i;
-					t_d = &cplb.switch_d;
-					process = 1;
-				} else
-					process = 0;
-				break;
-			default:
-					process = 0;
-				break;
-			}
-
-			if (!process)
-				continue;
-			if (cplb_data[i].attr & I_CPLB)
-				__fill_code_cplbtab(t_i, i, a_start, a_end);
-
-			if (cplb_data[i].attr & D_CPLB)
-				__fill_data_cplbtab(t_d, i, a_start, a_end);
-		}
-	}
-
-/* close tables */
-
-	close_cplbtab(&cplb.init_i);
-	close_cplbtab(&cplb.init_d);
-
-	cplb.init_i.tab[cplb.init_i.pos] = -1;
-	cplb.init_d.tab[cplb.init_d.pos] = -1;
-	cplb.switch_i.tab[cplb.switch_i.pos] = -1;
-	cplb.switch_d.tab[cplb.switch_d.pos] = -1;
-
-}
-
-#endif
 
 static u_long get_vco(void)
 {
@@ -730,7 +476,6 @@ u_long get_cclk(void)
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
-
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
@@ -749,7 +494,6 @@ u_long get_sclk(void)
 
 	return get_vco() / ssel;
 }
-
 EXPORT_SYMBOL(get_sclk);
 
 /*
@@ -804,23 +548,23 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "D-CACHE:\tOFF\n");
 
 
-	switch(bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
-		case ACACHE_BSRAM:
-			seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tSRAM\n");
-			dcache_size = 16;
-			dsup_banks = 1;
-			break;
-		case ACACHE_BCACHE:
-			seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tCACHE\n");
-			dcache_size = 32;
-			dsup_banks = 2;
-			break;
-		case ASRAM_BSRAM:
-			seq_printf(m, "DBANK-A:\tSRAM\n" "DBANK-B:\tSRAM\n");
-			dcache_size = 0;
-			dsup_banks = 0;
-			break;
-		default:
+	switch (bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
+	case ACACHE_BSRAM:
+		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tSRAM\n");
+		dcache_size = 16;
+		dsup_banks = 1;
+		break;
+	case ACACHE_BCACHE:
+		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tCACHE\n");
+		dcache_size = 32;
+		dsup_banks = 2;
+		break;
+	case ASRAM_BSRAM:
+		seq_printf(m, "DBANK-A:\tSRAM\n" "DBANK-B:\tSRAM\n");
+		dcache_size = 0;
+		dsup_banks = 0;
+		break;
+	default:
 		break;
 	}
 

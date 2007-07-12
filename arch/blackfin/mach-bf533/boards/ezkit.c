@@ -35,7 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/usb_isp1362.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/bfin5xx_spi.h>
 
 /*
@@ -61,7 +61,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20310300,
 		.end = 0x20310300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF9,
 		.end = IRQ_PF9,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -85,11 +85,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
