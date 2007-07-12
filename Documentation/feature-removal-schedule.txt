@@ -330,3 +330,10 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
+What:	Legacy RTC drivers (under drivers/i2c/chips)
+When:	November 2007
+Why:	Obsolete. We have a RTC subsystem with better drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
