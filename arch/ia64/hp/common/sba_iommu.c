@@ -34,6 +34,7 @@
 #include <linux/efi.h>
 #include <linux/nodemask.h>
 #include <linux/bitops.h>         /* hweight64() */
+#include <linux/crash_dump.h>
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>
@@ -42,6 +43,8 @@
 #include <asm/system.h>		/* wmb() */
 
 #include <asm/acpi-ext.h>
+
+extern int swiotlb_late_init_with_default_size (size_t size);
 
 #define PFX "IOC: "
 
@@ -2026,11 +2029,24 @@ sba_init(void)
 	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
 		return 0;
 
+#if defined(CONFIG_IA64_GENERIC) && defined(CONFIG_CRASH_DUMP)
+	/* If we are booting a kdump kernel, the sba_iommu will
+	 * cause devices that were not shutdown properly to MCA
+	 * as soon as they are turned back on.  Our only option for
+	 * a successful kdump kernel boot is to use the swiotlb.
+	 */
+	if (elfcorehdr_addr < ELFCORE_ADDR_MAX) {
+		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
+			panic("Unable to initialize software I/O TLB:"
+				  " Try machvec=dig boot option");
+		machvec_init("dig");
+		return 0;
+	}
+#endif
+
 	acpi_bus_register_driver(&acpi_sba_ioc_driver);
 	if (!ioc_list) {
 #ifdef CONFIG_IA64_GENERIC
-		extern int swiotlb_late_init_with_default_size (size_t size);
-
 		/*
 		 * If we didn't find something sba_iommu can claim, we
 		 * need to setup the swiotlb and switch to the dig machvec.
