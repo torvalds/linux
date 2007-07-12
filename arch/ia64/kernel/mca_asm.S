@@ -133,14 +133,6 @@ ia64_do_tlb_purge:
 //StartMain////////////////////////////////////////////////////////////////////
 
 ia64_os_mca_dispatch:
-	// Serialize all MCA processing
-	mov	r3=1;;
-	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
-ia64_os_mca_spin:
-	xchg4	r4=[r2],r3;;
-	cmp.ne	p6,p0=r4,r0
-(p6)	br ia64_os_mca_spin
-
 	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
 	LOAD_PHYSICAL(p0,r2,1f)			// return address
 	mov r19=1				// All MCA events are treated as monarch (for now)
@@ -290,10 +282,6 @@ END(ia64_os_mca_virtual_begin)
 1:
 
 	mov		b0=r12			// SAL_CHECK return address
-
-	// release lock
-	LOAD_PHYSICAL(p0,r3,ia64_mca_serialize);;
-	st4.rel		[r3]=r0
 
 	br		b0
 

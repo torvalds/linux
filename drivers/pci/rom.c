@@ -54,6 +54,49 @@ static void pci_disable_rom(struct pci_dev *pdev)
 }
 
 /**
+ * pci_get_rom_size - obtain the actual size of the ROM image
+ * @rom: kernel virtual pointer to image of ROM
+ * @size: size of PCI window
+ *  return: size of actual ROM image
+ *
+ * Determine the actual length of the ROM image.
+ * The PCI window size could be much larger than the
+ * actual image size.
+ */
+size_t pci_get_rom_size(void __iomem *rom, size_t size)
+{
+	void __iomem *image;
+	int last_image;
+
+	image = rom;
+	do {
+		void __iomem *pds;
+		/* Standard PCI ROMs start out with these bytes 55 AA */
+		if (readb(image) != 0x55)
+			break;
+		if (readb(image + 1) != 0xAA)
+			break;
+		/* get the PCI data structure and check its signature */
+		pds = image + readw(image + 24);
+		if (readb(pds) != 'P')
+			break;
+		if (readb(pds + 1) != 'C')
+			break;
+		if (readb(pds + 2) != 'I')
+			break;
+		if (readb(pds + 3) != 'R')
+			break;
+		last_image = readb(pds + 21) & 0x80;
+		/* this length is reliable */
+		image += readw(pds + 16) * 512;
+	} while (!last_image);
+
+	/* never return a size larger than the PCI resource window */
+	/* there are known ROMs that get the size wrong */
+	return min((size_t)(image - rom), size);
+}
+
+/**
  * pci_map_rom - map a PCI ROM to kernel space
  * @pdev: pointer to pci device struct
  * @size: pointer to receive size of pci window over ROM
@@ -68,8 +111,6 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 	loff_t start;
 	void __iomem *rom;
-	void __iomem *image;
-	int last_image;
 
 	/*
 	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
@@ -117,33 +158,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	 * size is much larger than the actual size of the ROM.
 	 * True size is important if the ROM is going to be copied.
 	 */
-	image = rom;
-	do {
-		void __iomem *pds;
-		/* Standard PCI ROMs start out with these bytes 55 AA */
-		if (readb(image) != 0x55)
-			break;
-		if (readb(image + 1) != 0xAA)
-			break;
-		/* get the PCI data structure and check its signature */
-		pds = image + readw(image + 24);
-		if (readb(pds) != 'P')
-			break;
-		if (readb(pds + 1) != 'C')
-			break;
-		if (readb(pds + 2) != 'I')
-			break;
-		if (readb(pds + 3) != 'R')
-			break;
-		last_image = readb(pds + 21) & 0x80;
-		/* this length is reliable */
-		image += readw(pds + 16) * 512;
-	} while (!last_image);
-
-	/* never return a size larger than the PCI resource window */
-	/* there are known ROMs that get the size wrong */
-	*size = min((size_t)(image - rom), *size);
-
+	*size = pci_get_rom_size(rom, *size);
 	return rom;
 }
 
