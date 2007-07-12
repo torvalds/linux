@@ -62,11 +62,6 @@ extern int resume_device(struct device *);
  */
 extern int suspend_device(struct device *, pm_message_t);
 
-
-/*
- * runtime.c
- */
-
 #else /* CONFIG_PM */
 
 

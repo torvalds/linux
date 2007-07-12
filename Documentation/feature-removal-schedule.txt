@@ -27,7 +27,6 @@ Who:	Hans Verkuil <hverkuil@xs4all.nl> and
 ---------------------------
 
 What:	dev->power.power_state
-	dpm_runtime_{suspend,resume)()
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing
 	driver-internal runtime power management with:  mechanisms to support
