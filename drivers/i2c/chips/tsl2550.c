@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 
 #define TSL2550_DRV_NAME	"tsl2550"
-#define DRIVER_VERSION		"1.1.0"
+#define DRIVER_VERSION		"1.1.1"
 
 /*
  * Defines
@@ -333,13 +333,30 @@ static const struct attribute_group tsl2550_attr_group = {
  * Initialization function
  */
 
-static void tsl2550_init_client(struct i2c_client *client)
+static int tsl2550_init_client(struct i2c_client *client)
 {
 	struct tsl2550_data *data = i2c_get_clientdata(client);
+	int err;
 
-	/* Power up the device and set the default operating mode */
-	tsl2550_set_power_state(client, 1);
-	tsl2550_set_operating_mode(client, data->operating_mode);
+	/*
+	 * Probe the chip. To do so we try to power up the device and then to
+	 * read back the 0x03 code
+	 */
+	err = i2c_smbus_write_byte(client, TSL2550_POWER_UP);
+	if (err < 0)
+		return err;
+	mdelay(1);
+	if (i2c_smbus_read_byte(client) != TSL2550_POWER_UP)
+		return -ENODEV;
+	data->power_state = 1;
+
+	/* Set the default operating mode */
+	err = i2c_smbus_write_byte(client,
+				   TSL2550_MODE_RANGE[data->operating_mode]);
+	if (err < 0)
+		return err;
+
+	return 0;
 }
 
 /*
@@ -381,24 +398,12 @@ static int __devinit tsl2550_probe(struct i2c_client *client)
 	dev_info(&client->dev, "%s operating mode\n",
 			data->operating_mode ? "extended" : "standard");
 
-	/*
-	 * Probe the chip. To do so we try to power up the device and then to
-	 * read back the 0x03 code
-	 */
-	err = i2c_smbus_write_byte(client, TSL2550_POWER_UP);
-	if (err < 0)
-		goto exit_kfree;
-	mdelay(1);
-	err = i2c_smbus_read_byte(client);
-	if (err != TSL2550_POWER_UP) {
-		err = -ENODEV;
-		goto exit_kfree;
-	}
-
 	mutex_init(&data->update_lock);
 
 	/* Initialize the TSL2550 chip */
-	tsl2550_init_client(client);
+	err = tsl2550_init_client(client);
+	if (err)
+		goto exit_kfree;
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &tsl2550_attr_group);
@@ -449,6 +454,7 @@ static void __exit tsl2550_exit(void)
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("TSL2550 ambient light sensor driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRIVER_VERSION);
 
 module_init(tsl2550_init);
 module_exit(tsl2550_exit);
