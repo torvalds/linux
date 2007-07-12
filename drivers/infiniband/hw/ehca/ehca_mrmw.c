@@ -111,6 +111,7 @@ struct ib_mr *ehca_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 				     &e_maxmr->ib.ib_mr.lkey,
 				     &e_maxmr->ib.ib_mr.rkey);
 		if (ret) {
+			ehca_mr_delete(e_maxmr);
 			ib_mr = ERR_PTR(ret);
 			goto get_dma_mr_exit0;
 		}
