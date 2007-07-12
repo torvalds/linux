@@ -269,7 +269,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	}
 
 	for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
-		struct pci_dev *dev = pci_dev_b(ln);
+		dev = pci_dev_b(ln);
 
 		if ((dev->class >> 8) != PCI_CLASS_BRIDGE_PCI)
 			pcibios_fixup_device_resources(dev, bus);

@@ -20,6 +20,15 @@
 #ifndef __NEC_VR41XX_GIU_H
 #define __NEC_VR41XX_GIU_H
 
+/*
+ * NEC VR4100 series GIU platform device IDs.
+ */
+enum {
+	GPIO_50PINS_PULLUPDOWN,
+	GPIO_36PINS,
+	GPIO_48PINS_EDGE_SELECT,
+};
+
 typedef enum {
 	IRQ_TRIGGER_LEVEL,
 	IRQ_TRIGGER_EDGE,

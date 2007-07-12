@@ -136,14 +136,14 @@ struct dec_serial *zs_chain;	/* list of all channels */
 struct tty_struct zs_ttys[NUM_CHANNELS];
 
 #ifdef CONFIG_SERIAL_DEC_CONSOLE
-static struct console sercons;
+static struct console zs_console;
 #endif
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
 static unsigned long break_pressed; /* break, really ... */
 #endif
 
-static unsigned char zs_init_regs[16] = {
+static unsigned char zs_init_regs[16] __initdata = {
 	0,				/* write 0 */
 	0,				/* write 1 */
 	0,				/* write 2 */
@@ -383,7 +383,7 @@ static void receive_chars(struct dec_serial *info)
 
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
-		if (break_pressed && info->line == sercons.index) {
+		if (break_pressed && info->line == zs_console.index) {
 			/* Ignore the null char got when BREAK is removed.  */
 			if (ch == 0)
 				continue;
@@ -446,7 +446,7 @@ static void status_handle(struct dec_serial *info)
 	if ((stat & BRK_ABRT) && !(info->read_reg_zero & BRK_ABRT)) {
 #if defined(CONFIG_SERIAL_DEC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ) && \
    !defined(MODULE)
-		if (info->line == sercons.index) {
+		if (info->line == zs_console.index) {
 			if (!break_pressed)
 				break_pressed = jiffies;
 		} else
@@ -1557,9 +1557,9 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	}
 
 #ifdef CONFIG_SERIAL_DEC_CONSOLE
-	if (sercons.cflag && sercons.index == line) {
-		tty->termios->c_cflag = sercons.cflag;
-		sercons.cflag = 0;
+	if (zs_console.cflag && zs_console.index == line) {
+		tty->termios->c_cflag = zs_console.cflag;
+		zs_console.cflag = 0;
 		change_speed(info);
 	}
 #endif
@@ -1581,7 +1581,7 @@ static void __init show_serial_version(void)
 /*  Initialize Z8530s zs_channels
  */
 
-static void probe_sccs(void)
+static void __init probe_sccs(void)
 {
 	struct dec_serial **pp;
 	int i, n, n_chips = 0, n_channels, chip, channel;
@@ -1923,7 +1923,7 @@ static struct tty_driver *serial_console_device(struct console *c, int *index)
  *	- initialize the serial port
  *	Return non-zero if we didn't find a serial port.
  */
-static int serial_console_setup(struct console *co, char *options)
+static int __init serial_console_setup(struct console *co, char *options)
 {
 	struct dec_serial *info;
 	int baud = 9600;
@@ -2069,7 +2069,7 @@ static int serial_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct console sercons = {
+static struct console zs_console = {
 	.name		= "ttyS",
 	.write		= serial_console_write,
 	.device		= serial_console_device,
@@ -2083,7 +2083,7 @@ static struct console sercons = {
  */
 void __init zs_serial_console_init(void)
 {
-	register_console(&sercons);
+	register_console(&zs_console);
 }
 #endif /* ifdef CONFIG_SERIAL_DEC_CONSOLE */
 

@@ -10,6 +10,7 @@
 #include <asm/mipsregs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/tlbdebug.h>
 
 static inline const char *msk2str(unsigned int mask)
 {

@@ -100,9 +100,6 @@ void __init plat_mem_setup(void)
         argptr = prom_getcmdline();
         /* default panel */
         /*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
-#ifdef CONFIG_MIPS_HYDROGEN3
-         strcat(argptr, " video=au1100fb:panel:Hydrogen_3_NEC_panel_320x240,nohwcursor");
-#endif
     }
 #endif
 
