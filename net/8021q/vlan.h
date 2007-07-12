@@ -58,7 +58,6 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_change_mtu(struct net_device *dev, int new_mtu);
-int vlan_dev_set_mac_address(struct net_device *dev, void* addr);
 int vlan_dev_open(struct net_device* dev);
 int vlan_dev_stop(struct net_device* dev);
 int vlan_dev_ioctl(struct net_device* dev, struct ifreq *ifr, int cmd);

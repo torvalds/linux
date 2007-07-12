@@ -135,6 +135,7 @@ struct vlan_dev_info {
 	int old_allmulti;               /* similar to above. */
 	int old_promiscuity;            /* similar to above. */
 	struct net_device *real_dev;    /* the underlying device/interface */
+	unsigned char real_dev_addr[ETH_ALEN];
 	struct proc_dir_entry *dent;    /* Holds the proc data */
 	unsigned long cnt_inc_headroom_on_tx; /* How many times did we have to grow the skb on TX. */
 	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
