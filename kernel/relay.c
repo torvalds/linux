@@ -1061,7 +1061,7 @@ static struct pipe_buf_operations relay_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-/**
+/*
  *	subbuf_splice_actor - splice up to one subbuf's worth of data
  */
 static int subbuf_splice_actor(struct file *in,
