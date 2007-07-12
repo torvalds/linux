@@ -161,8 +161,11 @@ static inline int ehca2ib_return_code(u64 ehca_rc)
 	switch (ehca_rc) {
 	case H_SUCCESS:
 		return 0;
+	case H_RESOURCE:             /* Resource in use */
 	case H_BUSY:
 		return -EBUSY;
+	case H_NOT_ENOUGH_RESOURCES: /* insufficient resources */
+	case H_CONSTRAINED:          /* resource constraint */
 	case H_NO_MEM:
 		return -ENOMEM;
 	default:

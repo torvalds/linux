@@ -121,20 +121,6 @@ void ehca_mrmw_set_pgsize_hipz_acl(u32 *hipz_acl);
 void ehca_mrmw_reverse_map_acl(const u32 *hipz_acl,
 			       int *ib_acl);
 
-int ehca_mrmw_map_hrc_alloc(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_rrpg_last(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_rrpg_notlast(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_query_mr(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_free_mr(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_free_mw(const u64 hipz_rc);
-
-int ehca_mrmw_map_hrc_reg_smr(const u64 hipz_rc);
-
 void ehca_mr_deletenew(struct ehca_mr *mr);
 
 #endif  /*_EHCA_MRMW_H_*/
