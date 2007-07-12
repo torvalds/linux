@@ -63,14 +63,14 @@ static void i2c_gpio_setscl_val(void *data, int state)
 	gpio_set_value(pdata->scl_pin, state);
 }
 
-int i2c_gpio_getsda(void *data)
+static int i2c_gpio_getsda(void *data)
 {
 	struct i2c_gpio_platform_data *pdata = data;
 
 	return gpio_get_value(pdata->sda_pin);
 }
 
-int i2c_gpio_getscl(void *data)
+static int i2c_gpio_getscl(void *data)
 {
 	struct i2c_gpio_platform_data *pdata = data;
 
