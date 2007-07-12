@@ -2350,7 +2350,9 @@ static int is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *
 			return 1;
 		break;
 	case USB_ID(0x0763, 0x2003): /* M-Audio Audiophile USB */
-		return 1;
+		if (device_setup[chip->index] == 0x00 ||
+		    fp->altsetting==1 || fp->altsetting==2 || fp->altsetting==3)
+			return 1;
 	}
 	return 0;
 }
@@ -3251,6 +3253,11 @@ static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
 static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 					 int iface, int altno)
 {
+	/* Reset ALL ifaces to 0 altsetting.
+	 * Call it for every possible altsetting of every interface.
+	 */
+	usb_set_interface(chip->dev, iface, 0);
+
 	if (device_setup[chip->index] & AUDIOPHILE_SET) {
 		if ((device_setup[chip->index] & AUDIOPHILE_SET_DTS)
 		    && altno != 6)
