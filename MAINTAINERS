@@ -329,6 +329,12 @@ P:	Ivan Kokshaysky
 M:	ink@jurassic.park.msu.ru
 S:	Maintained for 2.4; PCI support for 2.6.
 
+AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
+P:	Thomas Dahlmann
+M:	thomas.dahlmann@amd.com
+L:	info-linux@geode.amd.com
+S:	Supported
+
 AMD GEODE PROCESSOR/CHIPSET SUPPORT
 P:	Jordan Crouse
 M:	info-linux@geode.amd.com
