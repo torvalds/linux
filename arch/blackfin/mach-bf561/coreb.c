@@ -32,8 +32,8 @@
 #include <linux/device.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
 
 #define MODULE_VER		"v0.1"
 
@@ -202,7 +202,7 @@ static int coreb_open(struct inode *inode, struct file *file)
 	spin_unlock_irq(&coreb_lock);
 	return 0;
 
-      out_busy:
+ out_busy:
 	spin_unlock_irq(&coreb_lock);
 	return -EBUSY;
 }
@@ -365,19 +365,19 @@ int __init bf561_coreb_init(void)
 	printk(KERN_INFO "BF561 Core B driver %s initialized.\n", MODULE_VER);
 	return 0;
 
-      release_dma_src:
+ release_dma_src:
 	free_dma(CH_MEM_STREAM2_SRC);
-      release_dma_dest:
+ release_dma_dest:
 	free_dma(CH_MEM_STREAM2_DEST);
-      release_data_a_sram:
+ release_data_a_sram:
 	release_mem_region(0xff400000, 0x8000);
-      release_data_b_sram:
+ release_data_b_sram:
 	release_mem_region(0xff500000, 0x8000);
-      release_instruction_b_sram:
+ release_instruction_b_sram:
 	release_mem_region(0xff610000, 0x4000);
-      release_instruction_a_sram:
+ release_instruction_a_sram:
 	release_mem_region(0xff600000, 0x4000);
-      exit:
+ exit:
 	return -ENOMEM;
 }
 

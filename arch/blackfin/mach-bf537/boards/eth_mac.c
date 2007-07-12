@@ -20,8 +20,7 @@
 #include <linux/module.h>
 #include <asm/blackfin.h>
 
-#if	defined(CONFIG_GENERIC_BOARD) \
-	|| defined(CONFIG_BFIN537_STAMP)
+#if	defined(CONFIG_GENERIC_BOARD) || defined(CONFIG_BFIN537_STAMP)
 
 /*
  * Currently the MAC address is saved in Flash by U-Boot
@@ -43,7 +42,7 @@ void get_bf537_ether_addr(char *addr)
  */
 void get_bf537_ether_addr(char *addr)
 {
-	printk(KERN_WARNING "%s: No valid Ethernet MAC address found\n",__FILE__);
+	printk(KERN_WARNING "%s: No valid Ethernet MAC address found\n", __FILE__);
 }
 
 #endif

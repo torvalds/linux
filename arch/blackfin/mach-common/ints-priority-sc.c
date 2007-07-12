@@ -146,8 +146,8 @@ static void bfin_internal_mask_irq(unsigned int irq)
 			     ~(1 << (irq - (IRQ_CORETMR + 1))));
 #else
 	unsigned mask_bank, mask_bit;
-	mask_bank = (irq - (IRQ_CORETMR +1))/32;
-	mask_bit = (irq - (IRQ_CORETMR + 1))%32;
+	mask_bank = (irq - (IRQ_CORETMR + 1)) / 32;
+	mask_bit = (irq - (IRQ_CORETMR + 1)) % 32;
 	bfin_write_SIC_IMASK( mask_bank, bfin_read_SIC_IMASK(mask_bank) & \
 			    ~(1 << mask_bit));
 #endif
@@ -161,7 +161,7 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 			     (1 << (irq - (IRQ_CORETMR + 1))));
 #else
 	unsigned mask_bank, mask_bit;
-	mask_bank = (irq - (IRQ_CORETMR +1))/32;
+	mask_bank = (irq - (IRQ_CORETMR + 1)) / 32;
 	mask_bit = (irq - (IRQ_CORETMR + 1))%32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) | \
 			( 1 << mask_bit));
@@ -439,7 +439,7 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 {
 	u16 i;
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=16) {
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += 16) {
 		int irq = IRQ_PF0 + i;
 		int flag_d = get_gpiop_data(i);
 		int mask =
@@ -590,7 +590,7 @@ void do_irq(int vec, struct pt_regs *fp)
 		sic_status[1] = bfin_read_SIC_ISR(1) & bfin_read_SIC_IMASK(1);
 		sic_status[2] = bfin_read_SIC_ISR(2) & bfin_read_SIC_IMASK(2);
 		SSYNC();
-		for(;; ivg++) {
+		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
 				atomic_inc(&num_spurious);
 				return;

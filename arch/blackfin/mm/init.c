@@ -29,8 +29,8 @@
 
 #include <linux/swap.h>
 #include <linux/bootmem.h>
+#include <linux/uaccess.h>
 #include <asm/bfin-global.h>
-#include <asm/uaccess.h>
 #include <asm/l1layout.h>
 #include "blackfin_sram.h"
 

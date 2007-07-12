@@ -8,8 +8,8 @@
  * BF561 SMP).
  */
 #include <linux/linkage.h>
+#include <linux/unistd.h>
 #include <asm/entry.h>
-#include <asm/unistd.h>
 
 .text
 ENTRY(_fixed_code_start)

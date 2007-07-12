@@ -362,15 +362,15 @@ void __init setup_arch(char **cmdline_p)
 	       , _stext, _etext,
 	       __start_rodata, __end_rodata,
 	       _sdata, _edata,
-	       (void*)&init_thread_union, (void*)((int)(&init_thread_union) + 0x2000),
+	       (void *)&init_thread_union, (void *)((int)(&init_thread_union) + 0x2000),
 	       __init_begin, __init_end,
 	       __bss_start, __bss_stop,
-	       (void*)_ramstart, (void*)memory_end
+	       (void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
-	       , (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size)
+	       , (void *)memory_mtd_start, (void *)(memory_mtd_start + mtd_size)
 #endif
 #if DMA_UNCACHED_REGION > 0
-	       , (void*)(_ramend - DMA_UNCACHED_REGION), (void*)(_ramend)
+	       , (void *)(_ramend - DMA_UNCACHED_REGION), (void *)(_ramend)
 #endif
 	       );
 
@@ -476,7 +476,6 @@ u_long get_cclk(void)
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
-
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
@@ -495,7 +494,6 @@ u_long get_sclk(void)
 
 	return get_vco() / ssel;
 }
-
 EXPORT_SYMBOL(get_sclk);
 
 /*
@@ -550,23 +548,23 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "D-CACHE:\tOFF\n");
 
 
-	switch(bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
-		case ACACHE_BSRAM:
-			seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tSRAM\n");
-			dcache_size = 16;
-			dsup_banks = 1;
-			break;
-		case ACACHE_BCACHE:
-			seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tCACHE\n");
-			dcache_size = 32;
-			dsup_banks = 2;
-			break;
-		case ASRAM_BSRAM:
-			seq_printf(m, "DBANK-A:\tSRAM\n" "DBANK-B:\tSRAM\n");
-			dcache_size = 0;
-			dsup_banks = 0;
-			break;
-		default:
+	switch (bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
+	case ACACHE_BSRAM:
+		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tSRAM\n");
+		dcache_size = 16;
+		dsup_banks = 1;
+		break;
+	case ACACHE_BCACHE:
+		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tCACHE\n");
+		dcache_size = 32;
+		dsup_banks = 2;
+		break;
+	case ASRAM_BSRAM:
+		seq_printf(m, "DBANK-A:\tSRAM\n" "DBANK-B:\tSRAM\n");
+		dcache_size = 0;
+		dsup_banks = 0;
+		break;
+	default:
 		break;
 	}
 

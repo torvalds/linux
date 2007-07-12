@@ -87,7 +87,7 @@ void __init init_leds(void)
 static inline void do_leds(void)
 {
 	static unsigned int count = 50;
-	static int flag = 0;
+	static int flag;
 	unsigned short tmp = 0;
 
 	if (--count == 0) {
@@ -200,7 +200,7 @@ irqreturn_t timer_interrupt(int irq, void *dummy)__attribute__((l1_text));
 irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	/* last time the cmos clock got updated */
-	static long last_rtc_update = 0;
+	static long last_rtc_update;
 
 	write_seqlock(&xtime_lock);
 

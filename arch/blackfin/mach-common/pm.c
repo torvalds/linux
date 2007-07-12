@@ -35,10 +35,10 @@
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 
-#include <asm/io.h>
 #include <asm/dpmc.h>
-#include <asm/irq.h>
 #include <asm/gpio.h>
 
 #ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_H

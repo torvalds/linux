@@ -32,11 +32,10 @@
 #include <linux/kernel_stat.h>
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
-#include <asm/irq.h>
-#include <asm/thread_info.h>
+#include <linux/irq.h>
+#include <linux/thread_info.h>
 
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+#define DEFINE(sym, val) asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
 int main(void)
 {

@@ -27,16 +27,15 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <asm/uaccess.h>
-#include <asm/traps.h>
-#include <asm/cacheflush.h>
-#include <asm/blackfin.h>
-#include <asm/uaccess.h>
-#include <asm/irq_handler.h>
-#include <asm/trace.h>
+#include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <asm/traps.h>
+#include <asm/cacheflush.h>
+#include <asm/blackfin.h>
+#include <asm/irq_handler.h>
+#include <asm/trace.h>
 
 #ifdef CONFIG_KGDB
 # include <linux/debugger.h>
@@ -77,7 +76,7 @@ static int printk_address(unsigned long address)
 		if (!modname)
 			modname = delim = "";
 		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
-		              (void*)address, delim, modname, delim, symname,
+		              (void *)address, delim, modname, delim, symname,
 		              (unsigned long)offset);
 
 	}
@@ -120,7 +119,7 @@ static int printk_address(unsigned long address)
 
 				write_unlock_irq(&tasklist_lock);
 				return printk("<0x%p> [ %s + 0x%lx ]",
-				              (void*)address, name, offset);
+				              (void *)address, name, offset);
 			}
 
 			vml = vml->next;
@@ -129,7 +128,7 @@ static int printk_address(unsigned long address)
 	write_unlock_irq(&tasklist_lock);
 
 	/* we were unable to find this address anywhere */
-	return printk("[<0x%p>]", (void*)address);
+	return printk("[<0x%p>]", (void *)address);
 }
 
 asmlinkage void trap_c(struct pt_regs *fp)
@@ -538,29 +537,28 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk(KERN_EMERG "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
 		       KERN_EMERG "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
 		       KERN_EMERG "\n",
-		       (void*)current->mm->start_code,
-		       (void*)current->mm->end_code,
-		       (void*)current->mm->start_data,
-		       (void*)current->mm->end_data,
-		       (void*)current->mm->end_data,
-		       (void*)current->mm->brk,
-		       (void*)current->mm->start_stack);
+		       (void *)current->mm->start_code,
+		       (void *)current->mm->end_code,
+		       (void *)current->mm->start_data,
+		       (void *)current->mm->end_data,
+		       (void *)current->mm->end_data,
+		       (void *)current->mm->brk,
+		       (void *)current->mm->start_stack);
 	}
 
 	printk(KERN_EMERG "return address: [0x%p]; contents of:", retaddr);
-	if (retaddr != 0 && retaddr <= (void*)physical_mem_end
+	if (retaddr != 0 && retaddr <= (void *)physical_mem_end
 #if L1_CODE_LENGTH != 0
 	    /* FIXME: Copy the code out of L1 Instruction SRAM through dma
 	       memcpy.  */
-	    && !(retaddr >= (void*)L1_CODE_START
-	         && retaddr < (void*)(L1_CODE_START + L1_CODE_LENGTH))
+	    && !(retaddr >= (void *)L1_CODE_START
+	         && retaddr < (void *)(L1_CODE_START + L1_CODE_LENGTH))
 #endif
 	) {
 		int i = ((unsigned int)retaddr & 0xFFFFFFF0) - 32;
 		unsigned short x = 0;
-		for (; i < ((unsigned int)retaddr & 0xFFFFFFF0 ) + 32 ;
-			i += 2) {
-			if ( !(i & 0xF) )
+		for (; i < ((unsigned int)retaddr & 0xFFFFFFF0) + 32; i += 2) {
+			if (!(i & 0xF))
 				printk(KERN_EMERG "\n" KERN_EMERG
 					"0x%08x: ", i);
 
@@ -579,7 +577,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 					" The rest of this error"
 					" is meanless\n");
 #endif
-			if ( i == (unsigned int)retaddr )
+			if (i == (unsigned int)retaddr)
 				printk("[%04x]", x);
 			else
 				printk(" %04x ", x);
@@ -672,8 +670,8 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 		break;
 	}
 
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void *)bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void *)bfin_read_ICPLB_FAULT_ADDR());
 	dump_bfin_regs(fp, (void *)fp->retx);
 	dump_stack();
 	panic("Unrecoverable event\n");

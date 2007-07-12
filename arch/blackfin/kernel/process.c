@@ -32,9 +32,9 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
+#include <linux/uaccess.h>
 
 #include <asm/blackfin.h>
-#include <asm/uaccess.h>
 #include <asm/fixed_code.h>
 
 #define	LED_ON	0
@@ -174,8 +174,8 @@ void show_regs(struct pt_regs *regs)
 	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
 	       regs->r4, regs->r5, regs->r6, regs->r7);
 
-	if (!(regs->ipend))
-		printk("USP: %08lx\n", rdusp());
+	if (!regs->ipend)
+		printk(KERN_NOTICE "USP: %08lx\n", rdusp());
 }
 
 /* Fill in the fpu structure for a core dump.  */
@@ -323,7 +323,7 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp)
 		goto out;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
-      out:
+ out:
 	unlock_kernel();
 	return error;
 }
@@ -421,7 +421,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 
 	if (addr > (addr + size))
 		return 0;
-	if (segment_eq(get_fs(),KERNEL_DS))
+	if (segment_eq(get_fs(), KERNEL_DS))
 		return 1;
 #ifdef CONFIG_MTD_UCLINUX
 	if (addr >= memory_start && (addr + size) <= memory_end)

@@ -31,8 +31,7 @@
 #include <linux/smp.h>
 #include <linux/irq.h>
 #include <linux/oprofile.h>
-
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
 
 static void enable_sys_timer0()
 {

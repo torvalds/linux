@@ -34,7 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/usb_isp1362.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/bfin5xx_spi.h>
 
 /*
@@ -51,11 +51,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -98,7 +98,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data = &bfin_spi_flash_data,
 		.controller_data = &spi_flash_chip_info,
 		.mode = SPI_MODE_3,
-	},{
+	}, {
 		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
 		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 1,               /* Framework bus number */
@@ -145,7 +145,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20200300,
 		.end = 0x20200300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF0,
 		.end = IRQ_PF0,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -194,11 +194,11 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x20308000,
 		.end = 0x20308000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20308004,
 		.end = 0x20308004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ,

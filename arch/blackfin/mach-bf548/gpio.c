@@ -75,7 +75,7 @@ static int __init bfin_gpio_init(void)
 
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE)
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE)
 		reserved_map[gpio_bank(i)] = 0;
 
 	return 0;

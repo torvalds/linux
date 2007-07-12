@@ -28,10 +28,11 @@
  */
 
 #include <linux/module.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
+#include <linux/uaccess.h>
+
 #include <asm/checksum.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
 
 /* platform dependent support */
 

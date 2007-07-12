@@ -34,8 +34,8 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/bfin-global.h>
 
 static spinlock_t dma_page_lock;

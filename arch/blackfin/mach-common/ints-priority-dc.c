@@ -183,7 +183,7 @@ static void bf561_gpio_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
-	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+	if (gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
 		set_gpio_data(gpionr, 0);
 		SSYNC();
 	}
@@ -193,7 +193,7 @@ static void bf561_gpio_mask_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
-	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+	if (gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
 		set_gpio_data(gpionr, 0);
 		SSYNC();
 	}
@@ -222,7 +222,7 @@ static unsigned int bf561_gpio_irq_startup(unsigned int irq)
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
 		ret = gpio_request(gpionr, NULL);
-		if(ret)
+		if (ret)
 			return ret;
 
 	}
@@ -262,7 +262,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
 			ret = gpio_request(gpionr, NULL);
-			if(ret)
+			if (ret)
 				return ret;
 
 		}
