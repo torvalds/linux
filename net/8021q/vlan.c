@@ -324,8 +324,10 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	memcpy(dev->broadcast, real_dev->broadcast, real_dev->addr_len);
-	memcpy(dev->dev_addr, real_dev->dev_addr, real_dev->addr_len);
+	if (is_zero_ether_addr(dev->dev_addr))
+		memcpy(dev->dev_addr, real_dev->dev_addr, dev->addr_len);
+	if (is_zero_ether_addr(dev->broadcast))
+		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->hard_header     = real_dev->hard_header;
@@ -373,6 +375,8 @@ void vlan_setup(struct net_device *new_dev)
 	new_dev->set_multicast_list = vlan_dev_set_multicast_list;
 	new_dev->destructor = free_netdev;
 	new_dev->do_ioctl = vlan_dev_ioctl;
+
+	memset(new_dev->broadcast, 0, sizeof(ETH_ALEN));
 }
 
 static void vlan_transfer_operstate(const struct net_device *dev, struct net_device *vlandev)

@@ -84,9 +84,21 @@ static int dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static int dummy_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+	return 0;
+}
+
 static struct rtnl_link_ops dummy_link_ops __read_mostly = {
 	.kind		= "dummy",
 	.setup		= dummy_setup,
+	.validate	= dummy_validate,
 };
 
 /* Number of dummy devices to be set up by this module. */

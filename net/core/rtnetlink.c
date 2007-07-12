@@ -1032,8 +1032,7 @@ replay:
 
 		if (ifm->ifi_index || ifm->ifi_flags || ifm->ifi_change)
 			return -EOPNOTSUPP;
-		if (tb[IFLA_ADDRESS] || tb[IFLA_BROADCAST] || tb[IFLA_MAP] ||
-		    tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
+		if (tb[IFLA_MAP] || tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
 			return -EOPNOTSUPP;
 
 		if (!ops) {
@@ -1065,6 +1064,12 @@ replay:
 
 		if (tb[IFLA_MTU])
 			dev->mtu = nla_get_u32(tb[IFLA_MTU]);
+		if (tb[IFLA_ADDRESS])
+			memcpy(dev->dev_addr, nla_data(tb[IFLA_ADDRESS]),
+			       nla_len(tb[IFLA_ADDRESS]));
+		if (tb[IFLA_BROADCAST])
+			memcpy(dev->broadcast, nla_data(tb[IFLA_BROADCAST]),
+			       nla_len(tb[IFLA_BROADCAST]));
 		if (tb[IFLA_TXQLEN])
 			dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
 		if (tb[IFLA_WEIGHT])

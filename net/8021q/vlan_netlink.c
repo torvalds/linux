@@ -41,6 +41,13 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 	u16 id;
 	int err;
 
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+
 	if (!data)
 		return -EINVAL;
 
