@@ -261,6 +261,8 @@ enum netdev_state_t
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
 	__LINK_STATE_QDISC_RUNNING,
+	/* Set by the netpoll NAPI code */
+	__LINK_STATE_POLL_LIST_FROZEN,
 };
 
 
@@ -1013,6 +1015,14 @@ static inline void __netif_rx_complete(struct net_device *dev)
 static inline void netif_rx_complete(struct net_device *dev)
 {
 	unsigned long flags;
+
+#ifdef CONFIG_NETPOLL
+	/* Prevent race with netpoll - yes, this is a kludge.
+	 * But at least it doesn't penalize the non-netpoll
+	 * code path. */
+	if (test_bit(__LINK_STATE_POLL_LIST_FROZEN, &dev->state))
+		return;
+#endif
 
 	local_irq_save(flags);
 	__netif_rx_complete(dev);
