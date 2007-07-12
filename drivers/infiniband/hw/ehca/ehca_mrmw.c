@@ -48,6 +48,9 @@
 #include "hcp_if.h"
 #include "hipz_hw.h"
 
+/* max number of rpages (per hcall register_rpages) */
+#define MAX_RPAGES 512
+
 static struct kmem_cache *mr_cache;
 static struct kmem_cache *mw_cache;
 
@@ -1027,14 +1030,14 @@ int ehca_reg_mr_rpages(struct ehca_shca *shca,
 	}
 
 	/* max 512 pages per shot */
-	for (i = 0; i < ((pginfo->num_4k + 512 - 1) / 512); i++) {
+	for (i = 0; i < ((pginfo->num_4k + MAX_RPAGES - 1) / MAX_RPAGES); i++) {
 
-		if (i == ((pginfo->num_4k + 512 - 1) / 512) - 1) {
-			rnum = pginfo->num_4k % 512; /* last shot */
+		if (i == ((pginfo->num_4k + MAX_RPAGES - 1) / MAX_RPAGES) - 1) {
+			rnum = pginfo->num_4k % MAX_RPAGES; /* last shot */
 			if (rnum == 0)
-				rnum = 512;      /* last shot is full */
+				rnum = MAX_RPAGES;      /* last shot is full */
 		} else
-			rnum = 512;
+			rnum = MAX_RPAGES;
 
 		if (rnum > 1) {
 			ret = ehca_set_pagebuf(e_mr, pginfo, rnum, kpage);
@@ -1066,7 +1069,7 @@ int ehca_reg_mr_rpages(struct ehca_shca *shca,
 						 0, /* pagesize 4k */
 						 0, rpage, rnum);
 
-		if (i == ((pginfo->num_4k + 512 - 1) / 512) - 1) {
+		if (i == ((pginfo->num_4k + MAX_RPAGES - 1) / MAX_RPAGES) - 1) {
 			/*
 			 * check for 'registration complete'==H_SUCCESS
 			 * and for 'page registered'==H_PAGE_REGISTERED
@@ -1215,7 +1218,7 @@ int ehca_rereg_mr(struct ehca_shca *shca,
 	int rereg_3_hcall = 0; /* 1: use 3 hipz calls for reregistration */
 
 	/* first determine reregistration hCall(s) */
-	if ((pginfo->num_4k > 512) || (e_mr->num_4k > 512) ||
+	if ((pginfo->num_4k > MAX_RPAGES) || (e_mr->num_4k > MAX_RPAGES) ||
 	    (pginfo->num_4k > e_mr->num_4k)) {
 		ehca_dbg(&shca->ib_device, "Rereg3 case, pginfo->num_4k=%lx "
 			 "e_mr->num_4k=%x", pginfo->num_4k, e_mr->num_4k);
@@ -1306,7 +1309,7 @@ int ehca_unmap_one_fmr(struct ehca_shca *shca,
 	struct ehca_mr_hipzout_parms hipzout = {{0},0,0,0,0,0};
 
 	/* first check if reregistration hCall can be used for unmap */
-	if (e_fmr->fmr_max_pages > 512) {
+	if (e_fmr->fmr_max_pages > MAX_RPAGES) {
 		rereg_1_hcall = 0;
 		rereg_3_hcall = 1;
 	}
