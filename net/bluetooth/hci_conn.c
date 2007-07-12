@@ -123,8 +123,8 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	conn->state = BT_CONNECT;
 	conn->out = 1;
 
-	cp.pkt_type = cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
 	cp.handle   = cpu_to_le16(handle);
+	cp.pkt_type = cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
 
 	hci_send_cmd(hdev, OGF_LINK_CTL, OCF_ADD_SCO, sizeof(cp), &cp);
 }
@@ -220,19 +220,19 @@ int hci_conn_del(struct hci_conn *conn)
 
 	del_timer(&conn->disc_timer);
 
-	if (conn->type == SCO_LINK) {
-		struct hci_conn *acl = conn->link;
-		if (acl) {
-			acl->link = NULL;
-			hci_conn_put(acl);
-		}
-	} else {
+	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
 		if (sco)
 			sco->link = NULL;
 
 		/* Unacked frames */
 		hdev->acl_cnt += conn->sent;
+	} else {
+		struct hci_conn *acl = conn->link;
+		if (acl) {
+			acl->link = NULL;
+			hci_conn_put(acl);
+		}
 	}
 
 	tasklet_disable(&hdev->tx_task);
@@ -297,9 +297,10 @@ EXPORT_SYMBOL(hci_get_route);
 
 /* Create SCO or ACL connection.
  * Device _must_ be locked */
-struct hci_conn * hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
+struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
 {
 	struct hci_conn *acl;
+	struct hci_conn *sco;
 
 	BT_DBG("%s dst %s", hdev->name, batostr(dst));
 
@@ -313,28 +314,26 @@ struct hci_conn * hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (acl->state == BT_OPEN || acl->state == BT_CLOSED)
 		hci_acl_connect(acl);
 
-	if (type == SCO_LINK) {
-		struct hci_conn *sco;
-
-		if (!(sco = hci_conn_hash_lookup_ba(hdev, SCO_LINK, dst))) {
-			if (!(sco = hci_conn_add(hdev, SCO_LINK, dst))) {
-				hci_conn_put(acl);
-				return NULL;
-			}
-		}
-		acl->link = sco;
-		sco->link = acl;
-
-		hci_conn_hold(sco);
-
-		if (acl->state == BT_CONNECTED &&
-				(sco->state == BT_OPEN || sco->state == BT_CLOSED))
-			hci_add_sco(sco, acl->handle);
-
-		return sco;
-	} else {
+	if (type == ACL_LINK)
 		return acl;
+
+	if (!(sco = hci_conn_hash_lookup_ba(hdev, type, dst))) {
+		if (!(sco = hci_conn_add(hdev, type, dst))) {
+			hci_conn_put(acl);
+			return NULL;
+		}
 	}
+
+	acl->link = sco;
+	sco->link = acl;
+
+	hci_conn_hold(sco);
+
+	if (acl->state == BT_CONNECTED &&
+			(sco->state == BT_OPEN || sco->state == BT_CLOSED))
+		hci_add_sco(sco, acl->handle);
+
+	return sco;
 }
 EXPORT_SYMBOL(hci_connect);
 
