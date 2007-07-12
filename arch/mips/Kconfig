@@ -1404,6 +1404,19 @@ config MIPS_MT_SMTC_INSTANT_REPLAY
 	  it off), but ensures that IPIs are handled promptly even under
 	  heavy I/O interrupt load.
 
+config MIPS_MT_SMTC_IM_BACKSTOP
+	bool "Use per-TC register bits as backstop for inhibited IM bits"
+	depends on MIPS_MT_SMTC
+	default y
+	help
+	  To support multiple TC microthreads acting as "CPUs" within
+	  a VPE, VPE-wide interrupt mask bits must be specially manipulated
+	  during interrupt handling. To support legacy drivers and interrupt
+	  controller management code, SMTC has a "backstop" to track and
+	  if necessary restore the interrupt mask. This has some performance
+	  impact on interrupt service overhead. Disable it only if you know
+	  what you are doing.
+
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
 	depends on MIPS_VPE_LOADER
