@@ -313,7 +313,7 @@ __tagtable(ATAG_MEM, parse_tag_mem);
 
 static int __init parse_tag_rdimg(struct tag *tag)
 {
-#ifdef CONFIG_INITRD
+#ifdef CONFIG_BLK_DEV_INITRD
 	struct tag_mem_range *mem = &tag->u.mem_range;
 	int ret;
 
