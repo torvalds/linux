@@ -1288,12 +1288,12 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT("%s ", ms->mirror[m].dev->name);
 
-		DMEMIT("%llu/%llu",
+		DMEMIT("%llu/%llu 0 ",
 			(unsigned long long)ms->rh.log->type->
 				get_sync_count(ms->rh.log),
 			(unsigned long long)ms->nr_regions);
 
-		sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
+		sz += ms->rh.log->type->status(ms->rh.log, type, result+sz, maxlen-sz);
 
 		break;
 
