@@ -32,16 +32,6 @@
 
 #define SUPPORTED_REVID 0
 
-/* Masks for generic ERROR IRQ demultiplexing used in int-priority-sc.c */
-
-#define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */
-#define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORTx_STAT */
-#define PPI_ERR_MASK (0xFFFF & ~FLD)	/* PPI_STATUS */
-#define UART_ERR_MASK_STAT1 (0x4)	/* UARTx_IIR */
-#define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
-#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | \
-		RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
-
 #define OFFSET_(x) ((x) & 0x0000FFFF)
 
 /*some misc defines*/
@@ -113,13 +103,8 @@
 #else
 #define V_AMCKEN 0x0
 #endif
-#ifdef CONFIG_C_CDPRIO
-#define V_CDPRIO 0x100
-#else
-#define V_CDPRIO 0x0
-#endif
 
-#define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
+#define AMGCTLVAL	(V_AMBEN | V_AMCKEN)
 
 #define MAX_VC	650000000
 #define MIN_VC	50000000
