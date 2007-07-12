@@ -117,9 +117,9 @@ config MACH_JAZZ
 	select ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select GENERIC_ISA_DMA
-	select I8253
 	select I8259
 	select ISA
+	select PCSPEAKER
 	select SYS_HAS_CPU_R4X00
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
@@ -347,9 +347,9 @@ config QEMU
 	select DMA_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_STD_PC_SERIAL_PORT
-	select I8253
 	select I8259
 	select ISA
+	select PCSPEAKER
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -562,9 +562,9 @@ config SNI_RM
 	select HW_HAS_EISA
 	select HW_HAS_PCI
 	select IRQ_CPU
-	select I8253
 	select I8259
 	select ISA
+	select PCSPEAKER
 	select SWAP_IO_SPACE if CPU_BIG_ENDIAN
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -1864,7 +1864,7 @@ config MMU
 	bool
 	default y
 
-config I8253
+config PCSPEAKER
 	bool
 
 source "drivers/pcmcia/Kconfig"
