@@ -266,8 +266,11 @@ void eth_header_cache_update(struct hh_cache *hh, struct net_device *dev,
 static int eth_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
+
 	if (netif_running(dev))
 		return -EBUSY;
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	return 0;
 }
