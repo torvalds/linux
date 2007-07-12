@@ -106,6 +106,7 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 					    I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 			if (i2c_smbus_read_i2c_block_data(client,
 							  MAX6875_CMD_BLK_READ,
+							  SLICE_SIZE,
 							  buf) != SLICE_SIZE) {
 				goto exit_up;
 			}

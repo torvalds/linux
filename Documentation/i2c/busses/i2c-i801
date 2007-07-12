@@ -5,8 +5,8 @@ Supported adapters:
     '810' and '810E' chipsets)
   * Intel 82801BA (ICH2 - part of the '815E' chipset)
   * Intel 82801CA/CAM (ICH3)
-  * Intel 82801DB (ICH4) (HW PEC supported, 32 byte buffer not supported)
-  * Intel 82801EB/ER (ICH5) (HW PEC supported, 32 byte buffer not supported)
+  * Intel 82801DB (ICH4) (HW PEC supported)
+  * Intel 82801EB/ER (ICH5) (HW PEC supported)
   * Intel 6300ESB
   * Intel 82801FB/FR/FW/FRW (ICH6)
   * Intel 82801G (ICH7)

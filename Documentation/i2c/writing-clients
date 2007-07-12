@@ -571,7 +571,7 @@ SMBus communication
                                         u8 command, u8 length,
                                         u8 *values);
   extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
-                                           u8 command, u8 *values);
+                                           u8 command, u8 length, u8 *values);
 
 These ones were removed in Linux 2.6.10 because they had no users, but could
 be added back later if needed:

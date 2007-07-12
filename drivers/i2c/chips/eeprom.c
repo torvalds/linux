@@ -88,8 +88,10 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 		dev_dbg(&client->dev, "Starting eeprom update, slice %u\n", slice);
 
 		if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-			for (i = slice << 5; i < (slice + 1) << 5; i += I2C_SMBUS_BLOCK_MAX)
-				if (i2c_smbus_read_i2c_block_data(client, i, data->data + i) != I2C_SMBUS_BLOCK_MAX)
+			for (i = slice << 5; i < (slice + 1) << 5; i += 32)
+				if (i2c_smbus_read_i2c_block_data(client, i,
+							32, data->data + i)
+							!= 32)
 					goto exit;
 		} else {
 			if (i2c_smbus_write_byte(client, slice << 5)) {

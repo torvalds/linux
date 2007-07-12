@@ -207,6 +207,7 @@ config I2C_PIIX4
 	    ATI IXP300
 	    ATI IXP400
 	    ATI SB600
+	    ATI SB700
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -390,11 +391,6 @@ config I2C_PROSAVAGE
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-prosavage.
 
-config I2C_RPXLITE
-	tristate "Embedded Planet RPX Lite/Classic support"
-	depends on RPXLITE || RPXCLASSIC
-	select I2C_ALGO8XX
-
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
 	depends on ARCH_S3C2410
@@ -511,6 +507,22 @@ config I2C_SIS96X
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis96x.
+
+config I2C_TAOS_EVM
+	tristate "TAOS evaluation module"
+	depends on EXPERIMENTAL
+	select SERIO
+	select SERIO_SERPORT
+	default n
+	help
+	  This supports TAOS evaluation modules on serial port. In order to
+	  use this driver, you will need the inputattach tool, which is part
+	  of the input-utils package.
+
+	  If unsure, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-taos-evm.
 
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
@@ -634,5 +646,14 @@ config I2C_PNX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pnx.
+
+config I2C_PMCMSP
+	tristate "PMC MSP I2C TWI Controller"
+	depends on PMC_MSP
+	help
+	  This driver supports the PMC TWI controller on MSP devices.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-pmcmsp.
 
 endmenu

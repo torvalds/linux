@@ -2,8 +2,6 @@
 #define __MATROXFB_CRTC2_H__
 
 #include <linux/ioctl.h>
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include "matroxfb_base.h"
 
 struct matroxfb_dh_fb_info {

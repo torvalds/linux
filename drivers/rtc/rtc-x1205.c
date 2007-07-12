@@ -9,6 +9,9 @@
  *
  * based on a lot of other RTC drivers.
  *
+ * Information and datasheet:
+ * http://www.intersil.com/cda/deviceinfo/0,1477,X1205,00.html
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -26,7 +29,7 @@
  * Two bytes need to be written to read a single register,
  * while most other chips just require one and take the second
  * one as the data to be written. To prevent corrupting
- * unknown chips, the user must explicitely set the probe parameter.
+ * unknown chips, the user must explicitly set the probe parameter.
  */
 
 static unsigned short normal_i2c[] = { I2C_CLIENT_END };

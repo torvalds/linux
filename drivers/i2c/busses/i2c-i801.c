@@ -22,12 +22,12 @@
 
 /*
     SUPPORTED DEVICES	PCI ID
-    82801AA		2413           
-    82801AB		2423           
-    82801BA		2443           
-    82801CA/CAM		2483           
-    82801DB		24C3   (HW PEC supported, 32 byte buffer not supported)
-    82801EB		24D3   (HW PEC supported, 32 byte buffer not supported)
+    82801AA		2413
+    82801AB		2423
+    82801BA		2443
+    82801CA/CAM		2483
+    82801DB		24C3   (HW PEC supported)
+    82801EB		24D3   (HW PEC supported)
     6300ESB		25A4
     ICH6		266A
     ICH7		27DA
@@ -74,6 +74,13 @@
 #define SMBHSTCFG_SMB_SMI_EN	2
 #define SMBHSTCFG_I2C_EN	4
 
+/* Auxillary control register bits, ICH4+ only */
+#define SMBAUXCTL_CRC		1
+#define SMBAUXCTL_E32B		2
+
+/* kill bit for SMBHSTCNT */
+#define SMBHSTCNT_KILL		2
+
 /* Other settings */
 #define MAX_TIMEOUT		100
 #define ENABLE_INT9		0	/* set to 0x01 to enable - untested */
@@ -91,10 +98,15 @@
 #define I801_START		0x40
 #define I801_PEC_EN		0x80	/* ICH4 only */
 
-
-static int i801_transaction(void);
-static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
-				  int command, int hwpec);
+/* I801 Hosts Status register bits */
+#define SMBHSTSTS_BYTE_DONE	0x80
+#define SMBHSTSTS_INUSE_STS	0x40
+#define SMBHSTSTS_SMBALERT_STS	0x20
+#define SMBHSTSTS_FAILED	0x10
+#define SMBHSTSTS_BUS_ERR	0x08
+#define SMBHSTSTS_DEV_ERR	0x04
+#define SMBHSTSTS_INTR		0x02
+#define SMBHSTSTS_HOST_BUSY	0x01
 
 static unsigned long i801_smba;
 static unsigned char i801_original_hstcfg;
@@ -102,7 +114,7 @@ static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
 
-static int i801_transaction(void)
+static int i801_transaction(int xact)
 {
 	int temp;
 	int result = 0;
@@ -127,33 +139,40 @@ static int i801_transaction(void)
 		}
 	}
 
-	outb_p(inb(SMBHSTCNT) | I801_START, SMBHSTCNT);
+	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
+	 * INTREN, SMBSCMD are passed in xact */
+	outb_p(xact | I801_START, SMBHSTCNT);
 
 	/* We will always wait for a fraction of a second! */
 	do {
 		msleep(1);
 		temp = inb_p(SMBHSTSTS);
-	} while ((temp & 0x01) && (timeout++ < MAX_TIMEOUT));
+	} while ((temp & SMBHSTSTS_HOST_BUSY) && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&I801_dev->dev, "SMBus Timeout!\n");
 		result = -1;
+		/* try to stop the current command */
+		dev_dbg(&I801_dev->dev, "Terminating the current operation\n");
+		outb_p(inb_p(SMBHSTCNT) | SMBHSTCNT_KILL, SMBHSTCNT);
+		msleep(1);
+		outb_p(inb_p(SMBHSTCNT) & (~SMBHSTCNT_KILL), SMBHSTCNT);
 	}
 
-	if (temp & 0x10) {
+	if (temp & SMBHSTSTS_FAILED) {
 		result = -1;
 		dev_dbg(&I801_dev->dev, "Error: Failed bus transaction\n");
 	}
 
-	if (temp & 0x08) {
+	if (temp & SMBHSTSTS_BUS_ERR) {
 		result = -1;
 		dev_err(&I801_dev->dev, "Bus collision! SMBus may be locked "
 			"until next hard reset. (sorry!)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 	}
 
-	if (temp & 0x04) {
+	if (temp & SMBHSTSTS_DEV_ERR) {
 		result = -1;
 		dev_dbg(&I801_dev->dev, "Error: no response!\n");
 	}
@@ -172,44 +191,70 @@ static int i801_transaction(void)
 	return result;
 }
 
-/* All-inclusive block transaction function */
-static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
-				  int command, int hwpec)
+/* wait for INTR bit as advised by Intel */
+static void i801_wait_hwpec(void)
+{
+	int timeout = 0;
+	int temp;
+
+	do {
+		msleep(1);
+		temp = inb_p(SMBHSTSTS);
+	} while ((!(temp & SMBHSTSTS_INTR))
+		 && (timeout++ < MAX_TIMEOUT));
+
+	if (timeout >= MAX_TIMEOUT) {
+		dev_dbg(&I801_dev->dev, "PEC Timeout!\n");
+	}
+	outb_p(temp, SMBHSTSTS);
+}
+
+static int i801_block_transaction_by_block(union i2c_smbus_data *data,
+					   char read_write, int hwpec)
+{
+	int i, len;
+
+	inb_p(SMBHSTCNT); /* reset the data buffer index */
+
+	/* Use 32-byte buffer to process this transaction */
+	if (read_write == I2C_SMBUS_WRITE) {
+		len = data->block[0];
+		outb_p(len, SMBHSTDAT0);
+		for (i = 0; i < len; i++)
+			outb_p(data->block[i+1], SMBBLKDAT);
+	}
+
+	if (i801_transaction(I801_BLOCK_DATA | ENABLE_INT9 |
+			     I801_PEC_EN * hwpec))
+		return -1;
+
+	if (read_write == I2C_SMBUS_READ) {
+		len = inb_p(SMBHSTDAT0);
+		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
+			return -1;
+
+		data->block[0] = len;
+		for (i = 0; i < len; i++)
+			data->block[i + 1] = inb_p(SMBBLKDAT);
+	}
+	return 0;
+}
+
+static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
+					       char read_write, int hwpec)
 {
 	int i, len;
 	int smbcmd;
 	int temp;
 	int result = 0;
 	int timeout;
-	unsigned char hostc, errmask;
+	unsigned char errmask;
 
-	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
-		if (read_write == I2C_SMBUS_WRITE) {
-			/* set I2C_EN bit in configuration register */
-			pci_read_config_byte(I801_dev, SMBHSTCFG, &hostc);
-			pci_write_config_byte(I801_dev, SMBHSTCFG,
-					      hostc | SMBHSTCFG_I2C_EN);
-		} else {
-			dev_err(&I801_dev->dev,
-				"I2C_SMBUS_I2C_BLOCK_READ not DB!\n");
-			return -1;
-		}
-	}
+	len = data->block[0];
 
 	if (read_write == I2C_SMBUS_WRITE) {
-		len = data->block[0];
-		if (len < 1)
-			len = 1;
-		if (len > 32)
-			len = 32;
 		outb_p(len, SMBHSTDAT0);
 		outb_p(data->block[1], SMBBLKDAT);
-	} else {
-		len = 32;	/* max for reads */
-	}
-
-	if(isich4 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
-		/* set 32 byte buffer */
 	}
 
 	for (i = 1; i <= len; i++) {
@@ -227,13 +272,13 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		/* Make sure the SMBus host is ready to start transmitting */
 		temp = inb_p(SMBHSTSTS);
 		if (i == 1) {
-			/* Erronenous conditions before transaction: 
+			/* Erronenous conditions before transaction:
 			 * Byte_Done, Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
-			errmask=0x9f; 
+			errmask = 0x9f;
 		} else {
-			/* Erronenous conditions during transaction: 
+			/* Erronenous conditions during transaction:
 			 * Failed, Bus_Err, Dev_Err, Intr */
-			errmask=0x1e; 
+			errmask = 0x1e;
 		}
 		if (temp & errmask) {
 			dev_dbg(&I801_dev->dev, "SMBus busy (%02x). "
@@ -242,14 +287,11 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,
 					"Reset failed! (%02x)\n", temp);
-				result = -1;
-                                goto END;
+				return -1;
 			}
-			if (i != 1) {
+			if (i != 1)
 				/* if die in middle of block transaction, fail */
-				result = -1;
-				goto END;
-			}
+				return -1;
 		}
 
 		if (i == 1)
@@ -261,33 +303,38 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			msleep(1);
 			temp = inb_p(SMBHSTSTS);
 		}
-		    while ((!(temp & 0x80))
-			   && (timeout++ < MAX_TIMEOUT));
+		while ((!(temp & SMBHSTSTS_BYTE_DONE))
+		       && (timeout++ < MAX_TIMEOUT));
 
 		/* If the SMBus is still busy, we give up */
 		if (timeout >= MAX_TIMEOUT) {
+			/* try to stop the current command */
+			dev_dbg(&I801_dev->dev, "Terminating the current "
+						"operation\n");
+			outb_p(inb_p(SMBHSTCNT) | SMBHSTCNT_KILL, SMBHSTCNT);
+			msleep(1);
+			outb_p(inb_p(SMBHSTCNT) & (~SMBHSTCNT_KILL),
+				SMBHSTCNT);
 			result = -1;
 			dev_dbg(&I801_dev->dev, "SMBus Timeout!\n");
 		}
 
-		if (temp & 0x10) {
+		if (temp & SMBHSTSTS_FAILED) {
 			result = -1;
 			dev_dbg(&I801_dev->dev,
 				"Error: Failed bus transaction\n");
-		} else if (temp & 0x08) {
+		} else if (temp & SMBHSTSTS_BUS_ERR) {
 			result = -1;
 			dev_err(&I801_dev->dev, "Bus collision!\n");
-		} else if (temp & 0x04) {
+		} else if (temp & SMBHSTSTS_DEV_ERR) {
 			result = -1;
 			dev_dbg(&I801_dev->dev, "Error: no response!\n");
 		}
 
 		if (i == 1 && read_write == I2C_SMBUS_READ) {
 			len = inb_p(SMBHSTDAT0);
-			if (len < 1)
-				len = 1;
-			if (len > 32)
-				len = 32;
+			if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
+				return -1;
 			data->block[0] = len;
 		}
 
@@ -310,25 +357,58 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			inb_p(SMBHSTDAT0), inb_p(SMBBLKDAT));
 
 		if (result < 0)
-			goto END;
+			return result;
 	}
+	return result;
+}
 
-	if (hwpec) {
-		/* wait for INTR bit as advised by Intel */
-		timeout = 0;
-		do {
-			msleep(1);
-			temp = inb_p(SMBHSTSTS);
-		} while ((!(temp & 0x02))
-			   && (timeout++ < MAX_TIMEOUT));
+static int i801_set_block_buffer_mode(void)
+{
+	outb_p(inb_p(SMBAUXCTL) | SMBAUXCTL_E32B, SMBAUXCTL);
+	if ((inb_p(SMBAUXCTL) & SMBAUXCTL_E32B) == 0)
+		return -1;
+	return 0;
+}
 
-		if (timeout >= MAX_TIMEOUT) {
-			dev_dbg(&I801_dev->dev, "PEC Timeout!\n");
+/* Block transaction function */
+static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
+				  int command, int hwpec)
+{
+	int result = 0;
+	unsigned char hostc;
+
+	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
+		if (read_write == I2C_SMBUS_WRITE) {
+			/* set I2C_EN bit in configuration register */
+			pci_read_config_byte(I801_dev, SMBHSTCFG, &hostc);
+			pci_write_config_byte(I801_dev, SMBHSTCFG,
+					      hostc | SMBHSTCFG_I2C_EN);
+		} else {
+			dev_err(&I801_dev->dev,
+				"I2C_SMBUS_I2C_BLOCK_READ not DB!\n");
+			return -1;
 		}
-		outb_p(temp, SMBHSTSTS); 
 	}
-	result = 0;
-END:
+
+	if (read_write == I2C_SMBUS_WRITE) {
+		if (data->block[0] < 1)
+			data->block[0] = 1;
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX)
+			data->block[0] = I2C_SMBUS_BLOCK_MAX;
+	} else {
+		data->block[0] = 32;	/* max for reads */
+	}
+
+	if (isich4 && i801_set_block_buffer_mode() == 0 )
+		result = i801_block_transaction_by_block(data, read_write,
+							 hwpec);
+	else
+		result = i801_block_transaction_byte_by_byte(data, read_write,
+							     hwpec);
+
+	if (result == 0 && hwpec)
+		i801_wait_hwpec();
+
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
 		/* restore saved configuration register value */
 		pci_write_config_byte(I801_dev, SMBHSTCFG, hostc);
@@ -393,19 +473,22 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		return -1;
 	}
 
-	outb_p(hwpec, SMBAUXCTL);	/* enable/disable hardware PEC */
+	if (hwpec)	/* enable/disable hardware PEC */
+		outb_p(inb_p(SMBAUXCTL) | SMBAUXCTL_CRC, SMBAUXCTL);
+	else
+		outb_p(inb_p(SMBAUXCTL) & (~SMBAUXCTL_CRC), SMBAUXCTL);
 
 	if(block)
 		ret = i801_block_transaction(data, read_write, size, hwpec);
-	else {
-		outb_p(xact | ENABLE_INT9, SMBHSTCNT);
-		ret = i801_transaction();
-	}
+	else
+		ret = i801_transaction(xact | ENABLE_INT9);
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
-	   time, so we forcibly disable it after every transaction. */
+	   time, so we forcibly disable it after every transaction. Turn off
+	   E32B for the same reason. */
 	if (hwpec)
-		outb_p(0, SMBAUXCTL);
+		outb_p(inb_p(SMBAUXCTL) & ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B),
+		       SMBAUXCTL);
 
 	if(block)
 		return ret;
