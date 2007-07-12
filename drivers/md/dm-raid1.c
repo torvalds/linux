@@ -24,6 +24,7 @@
 #define DM_IO_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
+#define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
 
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
@@ -85,6 +86,7 @@ struct region_hash {
 	struct list_head clean_regions;
 	struct list_head quiesced_regions;
 	struct list_head recovered_regions;
+	struct list_head failed_recovered_regions;
 };
 
 enum {
@@ -204,6 +206,7 @@ static int rh_init(struct region_hash *rh, struct mirror_set *ms,
 	INIT_LIST_HEAD(&rh->clean_regions);
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
+	INIT_LIST_HEAD(&rh->failed_recovered_regions);
 
 	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
 						      sizeof(struct region));
@@ -368,6 +371,7 @@ static void rh_update_states(struct region_hash *rh)
 
 	LIST_HEAD(clean);
 	LIST_HEAD(recovered);
+	LIST_HEAD(failed_recovered);
 
 	/*
 	 * Quickly grab the lists.
@@ -389,6 +393,15 @@ static void rh_update_states(struct region_hash *rh)
 		list_for_each_entry (reg, &recovered, list)
 			list_del(&reg->hash_list);
 	}
+
+	if (!list_empty(&rh->failed_recovered_regions)) {
+		list_splice(&rh->failed_recovered_regions, &failed_recovered);
+		INIT_LIST_HEAD(&rh->failed_recovered_regions);
+
+		list_for_each_entry(reg, &failed_recovered, list)
+			list_del(&reg->hash_list);
+	}
+
 	spin_unlock(&rh->region_lock);
 	write_unlock_irq(&rh->hash_lock);
 
@@ -400,6 +413,11 @@ static void rh_update_states(struct region_hash *rh)
 	list_for_each_entry_safe (reg, next, &recovered, list) {
 		rh->log->type->clear_region(rh->log, reg->key);
 		complete_resync_work(reg, 1);
+		mempool_free(reg, rh->region_pool);
+	}
+
+	list_for_each_entry_safe(reg, next, &failed_recovered, list) {
+		complete_resync_work(reg, errors_handled(rh->ms) ? 0 : 1);
 		mempool_free(reg, rh->region_pool);
 	}
 
@@ -555,13 +573,17 @@ static struct region *rh_recovery_start(struct region_hash *rh)
 	return reg;
 }
 
-/* FIXME: success ignored for now */
 static void rh_recovery_end(struct region *reg, int success)
 {
 	struct region_hash *rh = reg->rh;
 
 	spin_lock_irq(&rh->region_lock);
-	list_add(&reg->list, &reg->rh->recovered_regions);
+	if (success)
+		list_add(&reg->list, &reg->rh->recovered_regions);
+	else {
+		reg->state = RH_NOSYNC;
+		list_add(&reg->list, &reg->rh->failed_recovered_regions);
+	}
 	spin_unlock_irq(&rh->region_lock);
 
 	wake(rh->ms);
@@ -633,7 +655,14 @@ static void recovery_complete(int read_err, unsigned int write_err,
 {
 	struct region *reg = (struct region *) context;
 
-	/* FIXME: better error handling */
+	if (read_err)
+		/* Read error means the failure of default mirror. */
+		DMERR_LIMIT("Unable to read primary mirror during recovery");
+
+	if (write_err)
+		DMERR_LIMIT("Write error during recovery (error = 0x%x)",
+			    write_err);
+
 	rh_recovery_end(reg, !(read_err || write_err));
 }
 
@@ -1144,6 +1173,15 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	argv += args_used;
 	argc -= args_used;
+
+	/*
+	 * Any read-balancing addition depends on the
+	 * DM_RAID1_HANDLE_ERRORS flag being present.
+	 * This is because the decision to balance depends
+	 * on the sync state of a region.  If the above
+	 * flag is not present, we ignore errors; and
+	 * the sync state may be inaccurate.
+	 */
 
 	if (argc) {
 		ti->error = "Too many mirror arguments";
