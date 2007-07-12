@@ -79,7 +79,8 @@ static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 	}
 
 	if (ehca_debug_level) {
-		ehca_gen_dbg("RECEIVE WQE written into ipz_rqueue=%p", ipz_rqueue);
+		ehca_gen_dbg("RECEIVE WQE written into ipz_rqueue=%p",
+			     ipz_rqueue);
 		ehca_dmp( wqe_p, 16*(6 + wqe_p->nr_of_data_seg), "recv wqe");
 	}
 
@@ -99,7 +100,7 @@ static void trace_send_wr_ud(const struct ib_send_wr *send_wr)
 		struct ib_mad_hdr *mad_hdr = send_wr->wr.ud.mad_hdr;
 		struct ib_sge *sge = send_wr->sg_list;
 		ehca_gen_dbg("send_wr#%x wr_id=%lx num_sge=%x "
-			     "send_flags=%x opcode=%x",idx, send_wr->wr_id,
+			     "send_flags=%x opcode=%x", idx, send_wr->wr_id,
 			     send_wr->num_sge, send_wr->send_flags,
 			     send_wr->opcode);
 		if (mad_hdr) {
@@ -116,7 +117,7 @@ static void trace_send_wr_ud(const struct ib_send_wr *send_wr)
 				     mad_hdr->attr_mod);
 		}
 		for (j = 0; j < send_wr->num_sge; j++) {
-			u8 *data = (u8 *) abs_to_virt(sge->addr);
+			u8 *data = (u8 *)abs_to_virt(sge->addr);
 			ehca_gen_dbg("send_wr#%x sge#%x addr=%p length=%x "
 				     "lkey=%x",
 				     idx, j, data, sge->length, sge->lkey);
@@ -534,9 +535,11 @@ poll_cq_one_read_cqe:
 
 	cqe_count++;
 	if (unlikely(cqe->status & WC_STATUS_PURGE_BIT)) {
-		struct ehca_qp *qp=ehca_cq_get_qp(my_cq, cqe->local_qp_number);
+		struct ehca_qp *qp;
 		int purgeflag;
 		unsigned long flags;
+
+		qp = ehca_cq_get_qp(my_cq, cqe->local_qp_number);
 		if (!qp) {
 			ehca_err(cq->device, "cq_num=%x qp_num=%x "
 				 "could not find qp -> ignore cqe",
@@ -551,8 +554,8 @@ poll_cq_one_read_cqe:
 		spin_unlock_irqrestore(&qp->spinlock_s, flags);
 
 		if (purgeflag) {
-			ehca_dbg(cq->device, "Got CQE with purged bit qp_num=%x "
-				 "src_qp=%x",
+			ehca_dbg(cq->device,
+				 "Got CQE with purged bit qp_num=%x src_qp=%x",
 				 cqe->local_qp_number, cqe->remote_qp_number);
 			if (ehca_debug_level)
 				ehca_dmp(cqe, 64, "qp_num=%x src_qp=%x",

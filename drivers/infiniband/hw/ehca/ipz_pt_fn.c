@@ -114,7 +114,7 @@ int ipz_queue_ctor(struct ipz_queue *queue,
 	 */
 	f = 0;
 	while (f < nr_of_pages) {
-		u8 *kpage = (u8*)get_zeroed_page(GFP_KERNEL);
+		u8 *kpage = (u8 *)get_zeroed_page(GFP_KERNEL);
 		int k;
 		if (!kpage)
 			goto ipz_queue_ctor_exit0; /*NOMEM*/

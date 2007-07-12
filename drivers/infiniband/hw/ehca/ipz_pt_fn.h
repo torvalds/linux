@@ -240,7 +240,7 @@ void *ipz_qeit_eq_get_inc(struct ipz_queue *queue);
 static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	ipz_qeit_eq_get_inc(queue); /* this is a good one */
@@ -250,7 +250,7 @@ static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 static inline void *ipz_eqit_eq_peek_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	return ret;

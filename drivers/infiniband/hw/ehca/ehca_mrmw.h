@@ -101,14 +101,9 @@ int ehca_fmr_check_page_list(struct ehca_mr *e_fmr,
 			     u64 *page_list,
 			     int list_len);
 
-int ehca_set_pagebuf(struct ehca_mr *e_mr,
-		     struct ehca_mr_pginfo *pginfo,
+int ehca_set_pagebuf(struct ehca_mr_pginfo *pginfo,
 		     u32 number,
 		     u64 *kpage);
-
-int ehca_set_pagebuf_1(struct ehca_mr *e_mr,
-		       struct ehca_mr_pginfo *pginfo,
-		       u64 *rpage);
 
 int ehca_mr_is_maxmr(u64 size,
 		     u64 *iova_start);

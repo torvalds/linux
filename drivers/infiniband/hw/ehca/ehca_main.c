@@ -107,7 +107,7 @@ static DEFINE_SPINLOCK(shca_list_lock);
 static struct timer_list poll_eqs_timer;
 
 #ifdef CONFIG_PPC_64K_PAGES
-static struct kmem_cache *ctblk_cache = NULL;
+static struct kmem_cache *ctblk_cache;
 
 void *ehca_alloc_fw_ctrlblock(gfp_t flags)
 {
@@ -200,8 +200,8 @@ static void ehca_destroy_slab_caches(void)
 #endif
 }
 
-#define EHCA_HCAAVER  EHCA_BMASK_IBM(32,39)
-#define EHCA_REVID    EHCA_BMASK_IBM(40,63)
+#define EHCA_HCAAVER  EHCA_BMASK_IBM(32, 39)
+#define EHCA_REVID    EHCA_BMASK_IBM(40, 63)
 
 static struct cap_descr {
 	u64 mask;
@@ -295,7 +295,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 		if (EHCA_BMASK_GET(hca_cap_descr[i].mask, shca->hca_cap))
 			ehca_gen_dbg("   %s", hca_cap_descr[i].descr);
 
-	port = (struct hipz_query_port *) rblock;
+	port = (struct hipz_query_port *)rblock;
 	h_ret = hipz_h_query_port(shca->ipz_hca_handle, 1, port);
 	if (h_ret != H_SUCCESS) {
 		ehca_gen_err("Cannot query port properties. h_ret=%lx",
@@ -444,7 +444,7 @@ static int ehca_create_aqp1(struct ehca_shca *shca, u32 port)
 		return -EPERM;
 	}
 
-	ibcq = ib_create_cq(&shca->ib_device, NULL, NULL, (void*)(-1), 10, 0);
+	ibcq = ib_create_cq(&shca->ib_device, NULL, NULL, (void *)(-1), 10, 0);
 	if (IS_ERR(ibcq)) {
 		ehca_err(&shca->ib_device, "Cannot create AQP1 CQ.");
 		return PTR_ERR(ibcq);
@@ -671,7 +671,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	}
 
 	/* create internal protection domain */
-	ibpd = ehca_alloc_pd(&shca->ib_device, (void*)(-1), NULL);
+	ibpd = ehca_alloc_pd(&shca->ib_device, (void *)(-1), NULL);
 	if (IS_ERR(ibpd)) {
 		ehca_err(&shca->ib_device, "Cannot create internal PD.");
 		ret = PTR_ERR(ibpd);
@@ -868,18 +868,21 @@ int __init ehca_module_init(void)
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
 	       "(Rel.: SVNEHCA_0023)\n");
 
-	if ((ret = ehca_create_comp_pool())) {
+	ret = ehca_create_comp_pool();
+	if (ret) {
 		ehca_gen_err("Cannot create comp pool.");
 		return ret;
 	}
 
-	if ((ret = ehca_create_slab_caches())) {
+	ret = ehca_create_slab_caches();
+	if (ret) {
 		ehca_gen_err("Cannot create SLAB caches");
 		ret = -ENOMEM;
 		goto module_init1;
 	}
 
-	if ((ret = ibmebus_register_driver(&ehca_driver))) {
+	ret = ibmebus_register_driver(&ehca_driver);
+	if (ret) {
 		ehca_gen_err("Cannot register eHCA device driver");
 		ret = -EINVAL;
 		goto module_init2;

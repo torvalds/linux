@@ -602,10 +602,10 @@ struct ehca_qp *internal_create_qp(struct ib_pd *pd,
 			/* UD circumvention */
 			parms.act_nr_send_sges -= 2;
 			parms.act_nr_recv_sges -= 2;
-			swqe_size = offsetof(struct ehca_wqe,
-					     u.ud_av.sg_list[parms.act_nr_send_sges]);
-			rwqe_size = offsetof(struct ehca_wqe,
-					     u.ud_av.sg_list[parms.act_nr_recv_sges]);
+			swqe_size = offsetof(struct ehca_wqe, u.ud_av.sg_list[
+						     parms.act_nr_send_sges]);
+			rwqe_size = offsetof(struct ehca_wqe, u.ud_av.sg_list[
+						     parms.act_nr_recv_sges]);
 		}
 
 		if (IB_QPT_GSI == qp_type || IB_QPT_SMI == qp_type) {
@@ -690,8 +690,8 @@ struct ehca_qp *internal_create_qp(struct ib_pd *pd,
 	if (my_qp->send_cq) {
 		ret = ehca_cq_assign_qp(my_qp->send_cq, my_qp);
 		if (ret) {
-			ehca_err(pd->device, "Couldn't assign qp to send_cq ret=%x",
-				 ret);
+			ehca_err(pd->device,
+				 "Couldn't assign qp to send_cq ret=%x", ret);
 			goto create_qp_exit4;
 		}
 	}
@@ -749,7 +749,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	struct ehca_qp *ret;
 
 	ret = internal_create_qp(pd, qp_init_attr, NULL, udata, 0);
-	return IS_ERR(ret) ? (struct ib_qp *) ret : &ret->ib_qp;
+	return IS_ERR(ret) ? (struct ib_qp *)ret : &ret->ib_qp;
 }
 
 int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
@@ -780,7 +780,7 @@ struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 
 	my_qp = internal_create_qp(pd, &qp_init_attr, srq_init_attr, udata, 1);
 	if (IS_ERR(my_qp))
-		return (struct ib_srq *) my_qp;
+		return (struct ib_srq *)my_qp;
 
 	/* copy back return values */
 	srq_init_attr->attr.max_wr = qp_init_attr.cap.max_recv_wr;
@@ -875,7 +875,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 			 my_qp, qp_num, h_ret);
 		return ehca2ib_return_code(h_ret);
 	}
-	bad_send_wqe_p = (void*)((u64)bad_send_wqe_p & (~(1L<<63)));
+	bad_send_wqe_p = (void *)((u64)bad_send_wqe_p & (~(1L << 63)));
 	ehca_dbg(&shca->ib_device, "qp_num=%x bad_send_wqe_p=%p",
 		 qp_num, bad_send_wqe_p);
 	/* convert wqe pointer to vadr */
@@ -890,7 +890,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 	}
 
 	/* loop sets wqe's purge bit */
-	wqe = (struct ehca_wqe*)ipz_qeit_calc(squeue, q_ofs);
+	wqe = (struct ehca_wqe *)ipz_qeit_calc(squeue, q_ofs);
 	*bad_wqe_cnt = 0;
 	while (wqe->optype != 0xff && wqe->wqef != 0xff) {
 		if (ehca_debug_level)
@@ -898,7 +898,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 		wqe->nr_of_data_seg = 0; /* suppress data access */
 		wqe->wqef = WQEF_PURGE; /* WQE to be purged */
 		q_ofs = ipz_queue_advance_offset(squeue, q_ofs);
-		wqe = (struct ehca_wqe*)ipz_qeit_calc(squeue, q_ofs);
+		wqe = (struct ehca_wqe *)ipz_qeit_calc(squeue, q_ofs);
 		*bad_wqe_cnt = (*bad_wqe_cnt)+1;
 	}
 	/*
@@ -1003,7 +1003,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		goto modify_qp_exit1;
 	}
 
-	ehca_dbg(ibqp->device,"ehca_qp=%p qp_num=%x current qp_state=%x "
+	ehca_dbg(ibqp->device, "ehca_qp=%p qp_num=%x current qp_state=%x "
 		 "new qp_state=%x attribute_mask=%x",
 		 my_qp, ibqp->qp_num, qp_cur_state, attr->qp_state, attr_mask);
 
@@ -1019,7 +1019,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		goto modify_qp_exit1;
 	}
 
-	if ((mqpcb->qp_state = ib2ehca_qp_state(qp_new_state)))
+	mqpcb->qp_state = ib2ehca_qp_state(qp_new_state);
+	if (mqpcb->qp_state)
 		update_mask = EHCA_BMASK_SET(MQPCB_MASK_QP_STATE, 1);
 	else {
 		ret = -EINVAL;
@@ -1077,7 +1078,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 			spin_lock_irqsave(&my_qp->spinlock_s, flags);
 			squeue_locked = 1;
 			/* mark next free wqe */
-			wqe = (struct ehca_wqe*)
+			wqe = (struct ehca_wqe *)
 				ipz_qeit_get(&my_qp->ipz_squeue);
 			wqe->optype = wqe->wqef = 0xff;
 			ehca_dbg(ibqp->device, "qp_num=%x next_free_wqe=%p",
@@ -1312,7 +1313,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	if (h_ret != H_SUCCESS) {
 		ret = ehca2ib_return_code(h_ret);
 		ehca_err(ibqp->device, "hipz_h_modify_qp() failed rc=%lx "
-			 "ehca_qp=%p qp_num=%x",h_ret, my_qp, ibqp->qp_num);
+			 "ehca_qp=%p qp_num=%x", h_ret, my_qp, ibqp->qp_num);
 		goto modify_qp_exit2;
 	}
 
@@ -1411,7 +1412,7 @@ int ehca_query_qp(struct ib_qp *qp,
 	}
 
 	if (qp_attr_mask & QP_ATTR_QUERY_NOT_SUPPORTED) {
-		ehca_err(qp->device,"Invalid attribute mask "
+		ehca_err(qp->device, "Invalid attribute mask "
 			 "ehca_qp=%p qp_num=%x qp_attr_mask=%x ",
 			 my_qp, qp->qp_num, qp_attr_mask);
 		return -EINVAL;
@@ -1419,7 +1420,7 @@ int ehca_query_qp(struct ib_qp *qp,
 
 	qpcb = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!qpcb) {
-		ehca_err(qp->device,"Out of memory for qpcb "
+		ehca_err(qp->device, "Out of memory for qpcb "
 			 "ehca_qp=%p qp_num=%x", my_qp, qp->qp_num);
 		return -ENOMEM;
 	}
@@ -1431,7 +1432,7 @@ int ehca_query_qp(struct ib_qp *qp,
 
 	if (h_ret != H_SUCCESS) {
 		ret = ehca2ib_return_code(h_ret);
-		ehca_err(qp->device,"hipz_h_query_qp() failed "
+		ehca_err(qp->device, "hipz_h_query_qp() failed "
 			 "ehca_qp=%p qp_num=%x h_ret=%lx",
 			 my_qp, qp->qp_num, h_ret);
 		goto query_qp_exit1;
@@ -1442,7 +1443,7 @@ int ehca_query_qp(struct ib_qp *qp,
 
 	if (qp_attr->cur_qp_state == -EINVAL) {
 		ret = -EINVAL;
-		ehca_err(qp->device,"Got invalid ehca_qp_state=%x "
+		ehca_err(qp->device, "Got invalid ehca_qp_state=%x "
 			 "ehca_qp=%p qp_num=%x",
 			 qpcb->qp_state, my_qp, qp->qp_num);
 		goto query_qp_exit1;

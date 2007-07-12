@@ -208,7 +208,7 @@ struct ehca_mr {
 	u32 num_hwpages;	/* number of hw pages to form MR */
 	int acl;		/* ACL (stored here for usage in reregister) */
 	u64 *start;		/* virtual start address (stored here for */
-	                        /* usage in reregister) */
+				/* usage in reregister) */
 	u64 size;		/* size (stored here for usage in reregister) */
 	u32 fmr_page_size;	/* page size for FMR */
 	u32 fmr_max_pages;	/* max pages for FMR */
@@ -391,6 +391,6 @@ struct ehca_alloc_qp_parms {
 
 int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp);
 int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int qp_num);
-struct ehca_qp* ehca_cq_get_qp(struct ehca_cq *cq, int qp_num);
+struct ehca_qp *ehca_cq_get_qp(struct ehca_cq *cq, int qp_num);
 
 #endif
