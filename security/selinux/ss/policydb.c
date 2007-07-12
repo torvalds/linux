@@ -21,6 +21,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -598,6 +599,7 @@ void policydb_destroy(struct policydb *p)
 	struct range_trans *rt, *lrt = NULL;
 
 	for (i = 0; i < SYM_NUM; i++) {
+		cond_resched();
 		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
 		hashtab_destroy(p->symtab[i].table);
 	}
@@ -612,6 +614,7 @@ void policydb_destroy(struct policydb *p)
 	avtab_destroy(&p->te_avtab);
 
 	for (i = 0; i < OCON_NUM; i++) {
+		cond_resched();
 		c = p->ocontexts[i];
 		while (c) {
 			ctmp = c;
@@ -623,6 +626,7 @@ void policydb_destroy(struct policydb *p)
 
 	g = p->genfs;
 	while (g) {
+		cond_resched();
 		kfree(g->fstype);
 		c = g->head;
 		while (c) {
@@ -639,18 +643,21 @@ void policydb_destroy(struct policydb *p)
 	cond_policydb_destroy(p);
 
 	for (tr = p->role_tr; tr; tr = tr->next) {
+		cond_resched();
 		kfree(ltr);
 		ltr = tr;
 	}
 	kfree(ltr);
 
 	for (ra = p->role_allow; ra; ra = ra -> next) {
+		cond_resched();
 		kfree(lra);
 		lra = ra;
 	}
 	kfree(lra);
 
 	for (rt = p->range_tr; rt; rt = rt -> next) {
+		cond_resched();
 		if (lrt) {
 			ebitmap_destroy(&lrt->target_range.level[0].cat);
 			ebitmap_destroy(&lrt->target_range.level[1].cat);

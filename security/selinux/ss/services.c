@@ -1587,19 +1587,18 @@ int security_get_user_sids(u32 fromsid,
 			   u32 *nel)
 {
 	struct context *fromcon, usercon;
-	u32 *mysids, *mysids2, sid;
+	u32 *mysids = NULL, *mysids2, sid;
 	u32 mynel = 0, maxnel = SIDS_NEL;
 	struct user_datum *user;
 	struct role_datum *role;
-	struct av_decision avd;
 	struct ebitmap_node *rnode, *tnode;
 	int rc = 0, i, j;
 
-	if (!ss_initialized) {
-		*sids = NULL;
-		*nel = 0;
+	*sids = NULL;
+	*nel = 0;
+
+	if (!ss_initialized)
 		goto out;
-	}
 
 	POLICY_RDLOCK;
 
@@ -1635,17 +1634,9 @@ int security_get_user_sids(u32 fromsid,
 			if (mls_setup_user_range(fromcon, user, &usercon))
 				continue;
 
-			rc = context_struct_compute_av(fromcon, &usercon,
-						       SECCLASS_PROCESS,
-						       PROCESS__TRANSITION,
-						       &avd);
-			if (rc ||  !(avd.allowed & PROCESS__TRANSITION))
-				continue;
 			rc = sidtab_context_to_sid(&sidtab, &usercon, &sid);
-			if (rc) {
-				kfree(mysids);
+			if (rc)
 				goto out_unlock;
-			}
 			if (mynel < maxnel) {
 				mysids[mynel++] = sid;
 			} else {
@@ -1653,7 +1644,6 @@ int security_get_user_sids(u32 fromsid,
 				mysids2 = kcalloc(maxnel, sizeof(*mysids2), GFP_ATOMIC);
 				if (!mysids2) {
 					rc = -ENOMEM;
-					kfree(mysids);
 					goto out_unlock;
 				}
 				memcpy(mysids2, mysids, mynel * sizeof(*mysids2));
@@ -1664,11 +1654,32 @@ int security_get_user_sids(u32 fromsid,
 		}
 	}
 
-	*sids = mysids;
-	*nel = mynel;
-
 out_unlock:
 	POLICY_RDUNLOCK;
+	if (rc || !mynel) {
+		kfree(mysids);
+		goto out;
+	}
+
+	mysids2 = kcalloc(mynel, sizeof(*mysids2), GFP_KERNEL);
+	if (!mysids2) {
+		rc = -ENOMEM;
+		kfree(mysids);
+		goto out;
+	}
+	for (i = 0, j = 0; i < mynel; i++) {
+		rc = avc_has_perm_noaudit(fromsid, mysids[i],
+					  SECCLASS_PROCESS,
+					  PROCESS__TRANSITION, AVC_STRICT,
+					  NULL);
+		if (!rc)
+			mysids2[j++] = mysids[i];
+		cond_resched();
+	}
+	rc = 0;
+	kfree(mysids);
+	*sids = mysids2;
+	*nel = j;
 out:
 	return rc;
 }
@@ -1993,6 +2004,101 @@ out_unlock:
 	POLICY_RDUNLOCK;
 	context_destroy(&newcon);
 out:
+	return rc;
+}
+
+static int get_classes_callback(void *k, void *d, void *args)
+{
+	struct class_datum *datum = d;
+	char *name = k, **classes = args;
+	int value = datum->value - 1;
+
+	classes[value] = kstrdup(name, GFP_ATOMIC);
+	if (!classes[value])
+		return -ENOMEM;
+
+	return 0;
+}
+
+int security_get_classes(char ***classes, int *nclasses)
+{
+	int rc = -ENOMEM;
+
+	POLICY_RDLOCK;
+
+	*nclasses = policydb.p_classes.nprim;
+	*classes = kcalloc(*nclasses, sizeof(*classes), GFP_ATOMIC);
+	if (!*classes)
+		goto out;
+
+	rc = hashtab_map(policydb.p_classes.table, get_classes_callback,
+			*classes);
+	if (rc < 0) {
+		int i;
+		for (i = 0; i < *nclasses; i++)
+			kfree((*classes)[i]);
+		kfree(*classes);
+	}
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+}
+
+static int get_permissions_callback(void *k, void *d, void *args)
+{
+	struct perm_datum *datum = d;
+	char *name = k, **perms = args;
+	int value = datum->value - 1;
+
+	perms[value] = kstrdup(name, GFP_ATOMIC);
+	if (!perms[value])
+		return -ENOMEM;
+
+	return 0;
+}
+
+int security_get_permissions(char *class, char ***perms, int *nperms)
+{
+	int rc = -ENOMEM, i;
+	struct class_datum *match;
+
+	POLICY_RDLOCK;
+
+	match = hashtab_search(policydb.p_classes.table, class);
+	if (!match) {
+		printk(KERN_ERR "%s:  unrecognized class %s\n",
+			__FUNCTION__, class);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*nperms = match->permissions.nprim;
+	*perms = kcalloc(*nperms, sizeof(*perms), GFP_ATOMIC);
+	if (!*perms)
+		goto out;
+
+	if (match->comdatum) {
+		rc = hashtab_map(match->comdatum->permissions.table,
+				get_permissions_callback, *perms);
+		if (rc < 0)
+			goto err;
+	}
+
+	rc = hashtab_map(match->permissions.table, get_permissions_callback,
+			*perms);
+	if (rc < 0)
+		goto err;
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+
+err:
+	POLICY_RDUNLOCK;
+	for (i = 0; i < *nperms; i++)
+		kfree((*perms)[i]);
+	kfree(*perms);
 	return rc;
 }
 
