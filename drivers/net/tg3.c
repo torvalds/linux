@@ -9461,11 +9461,13 @@ static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
 		case FLASH_5755VENDOR_ATMEL_FLASH_1:
 		case FLASH_5755VENDOR_ATMEL_FLASH_2:
 		case FLASH_5755VENDOR_ATMEL_FLASH_3:
+		case FLASH_5755VENDOR_ATMEL_FLASH_5:
 			tp->nvram_jedecnum = JEDEC_ATMEL;
 			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
 			tp->tg3_flags2 |= TG3_FLG2_FLASH;
 			tp->nvram_pagesize = 264;
-			if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_1)
+			if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_1 ||
+			    nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_5)
 				tp->nvram_size = (protect ? 0x3e200 : 0x80000);
 			else if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_2)
 				tp->nvram_size = (protect ? 0x1f200 : 0x40000);
