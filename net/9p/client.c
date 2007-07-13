@@ -127,11 +127,11 @@ void p9_client_destroy(struct p9_client *clnt)
 		clnt->trans = NULL;
 	}
 
-	if (clnt->fidpool)
-		p9_idpool_destroy(clnt->fidpool);
-
 	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist)
 		p9_fid_destroy(fid);
+
+	if (clnt->fidpool)
+		p9_idpool_destroy(clnt->fidpool);
 
 	kfree(clnt);
 }
