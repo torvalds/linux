@@ -1,4 +1,4 @@
-	Guide to using M-Audio Audiophile USB with ALSA and Jack	v1.4
+	Guide to using M-Audio Audiophile USB with ALSA and Jack	v1.5
 	========================================================
 
 	    Thibault Le Meur <Thibault.LeMeur@supelec.fr>
@@ -12,6 +12,8 @@ History
  - Added Low Endianness nature of 16bits-modes
    found by Hakan Lennestal <Hakan.Lennestal@brfsodrahamn.se>
  - Modifying document structure
+* v1.5 - Thibault Le Meur (2007-07-12)
+ - Added AC3/DTS passthru info
 
 
 1 - Audiophile USB Specs and correct usage
@@ -105,9 +107,12 @@ way (I suppose the device's index is 1):
 
 In this mode, the device uses Big Endian byte-encoding so that 
 supported audio format are S16_BE for 16-bit depth modes and S24_3BE for 
-24-bits depth mode. One exception is the hw:1,2 port which is reported 
-to be Little Endian compliant (supposedly supporting S16_LE) but processes 
-in fact only S16_BE streams.
+24-bits depth mode.
+
+One exception is the hw:1,2 port which was reported to be Little Endian 
+compliant (supposedly supporting S16_LE) but processes in fact only S16_BE streams.
+This has been fixed in kernel 2.6.23 and above and now the hw:1,2 interface 
+is reported to be big endian in this default driver mode.
 
 Examples:
  * playing a S24_3BE encoded raw file to the Ao port
@@ -116,6 +121,8 @@ Examples:
    % arecord -D hw:1,1 -c2  -t raw -r48000 -fS24_3BE test.raw
  * playing a S16_BE encoded raw file to the Do port
    % aplay -D hw:1,1 -c2 -t raw -r48000 -fS16_BE test.raw
+ * playing an ac3 sample file to the Do port
+   % aplay -D hw:1,2 --channels=6 ac3_S16_BE_encoded_file.raw
 
 If you're happy with the default Alsa driver mode and don't experience any 
 issue with this mode, then you can skip the following chapter.
@@ -205,12 +212,15 @@ mode" above for an aplay command example)
 
 3.2.1.3 - AC3 w/ DTS passthru mode
 
-This mode is untested, I have no AC3 compliant device to test it. I uses:
+Thanks to Hakan Lennestal, I now have a report saying that this mode works.
 
  * device_setup=0x03
    - 16bits 48kHz mode with only the Do port enabled 
-   - AC3 with DTS passthru (not tested)
+   - AC3 with DTS passthru
    - Caution with this setup the Do port is mapped to the pcm device hw:1,0
+
+The command line used to playback the AC3/DTS encoded .wav-files in this mode:
+   % aplay -D hw:1,0 --channels=6 ac3_S16_LE_encoded_file.raw
 
 3.2.2 - How to use the device_setup parameter
 ----------------------------------------------

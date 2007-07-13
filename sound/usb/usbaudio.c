@@ -2532,7 +2532,18 @@ static int parse_audio_format_i(struct snd_usb_audio *chip, struct audioformat *
 		 *        but we give normal PCM format to get the existing
 		 *        apps working...
 		 */
-		pcm_format = SNDRV_PCM_FORMAT_S16_LE;
+		switch (chip->usb_id) {
+
+		case USB_ID(0x0763, 0x2003): /* M-Audio Audiophile USB */
+			if (device_setup[chip->index] == 0x00 && 
+			    fp->altsetting == 6)
+				pcm_format = SNDRV_PCM_FORMAT_S16_BE;
+			else
+				pcm_format = SNDRV_PCM_FORMAT_S16_LE;
+			break;
+		default:
+			pcm_format = SNDRV_PCM_FORMAT_S16_LE;
+		}
 	} else {
 		pcm_format = parse_audio_format_i_type(chip, fp, format, fmt);
 		if (pcm_format < 0)
