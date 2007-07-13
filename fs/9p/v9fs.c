@@ -43,7 +43,7 @@
 
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid,
+	Opt_debug, Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid,
 	Opt_rfdno, Opt_wfdno,
 	/* String options */
 	Opt_uname, Opt_remotename,
@@ -56,6 +56,7 @@ enum {
 };
 
 static match_table_t tokens = {
+	{Opt_debug, "debug=%x"},
 	{Opt_port, "port=%u"},
 	{Opt_msize, "msize=%u"},
 	{Opt_uid, "uid=%u"},
@@ -128,6 +129,10 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 			}
 		}
 		switch (token) {
+		case Opt_debug:
+			v9ses->debug = option;
+			p9_debug_level = option;
+			break;
 		case Opt_port:
 			v9ses->port = option;
 			break;

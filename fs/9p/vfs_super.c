@@ -217,7 +217,7 @@ static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct v9fs_session_info *v9ses = mnt->mnt_sb->s_fs_info;
 
 	if (v9ses->debug != 0)
-		seq_printf(m, ",debug=%u", v9ses->debug);
+		seq_printf(m, ",debug=%x", v9ses->debug);
 	if (v9ses->port != V9FS_PORT)
 		seq_printf(m, ",port=%u", v9ses->port);
 	if (v9ses->maxdata != 9000)
