@@ -22,7 +22,8 @@
  */
 int __compute_return_epc(struct pt_regs *regs)
 {
-	unsigned int *addr, bit, fcr31, dspcontrol;
+	unsigned int __user *addr;
+	unsigned int bit, fcr31, dspcontrol;
 	long epc;
 	union mips_instruction insn;
 
@@ -33,7 +34,7 @@ int __compute_return_epc(struct pt_regs *regs)
 	/*
 	 * Read the instruction
 	 */
-	addr = (unsigned int *) epc;
+	addr = (unsigned int __user *) epc;
 	if (__get_user(insn.word, addr)) {
 		force_sig(SIGSEGV, current);
 		return -EFAULT;

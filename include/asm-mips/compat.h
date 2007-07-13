@@ -132,7 +132,8 @@ typedef u32		compat_uptr_t;
 
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {
-	return (void __user *)(long)uptr;
+	/* cast to a __user pointer via "unsigned long" makes sparse happy */
+	return (void __user *)(unsigned long)(long)uptr;
 }
 
 static inline compat_uptr_t ptr_to_compat(void __user *uptr)

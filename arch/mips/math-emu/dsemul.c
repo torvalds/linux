@@ -54,8 +54,7 @@ struct emuframe {
 int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 {
 	extern asmlinkage void handle_dsemulret(void);
-	mips_instruction *dsemul_insns;
-	struct emuframe *fr;
+	struct emuframe __user *fr;
 	int err;
 
 	if (ir == 0) {		/* a nop is easy */
@@ -87,8 +86,8 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	 */
 
 	/* Ensure that the two instructions are in the same cache line */
-	dsemul_insns = (mips_instruction *) ((regs->regs[29] - sizeof(struct emuframe)) & ~0x7);
-	fr = (struct emuframe *) dsemul_insns;
+	fr = (struct emuframe __user *)
+		((regs->regs[29] - sizeof(struct emuframe)) & ~0x7);
 
 	/* Verify that the stack pointer is not competely insane */
 	if (unlikely(!access_ok(VERIFY_WRITE, fr, sizeof(struct emuframe))))
@@ -113,12 +112,13 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 
 int do_dsemulret(struct pt_regs *xcp)
 {
-	struct emuframe *fr;
+	struct emuframe __user *fr;
 	unsigned long epc;
 	u32 insn, cookie;
 	int err = 0;
 
-	fr = (struct emuframe *) (xcp->cp0_epc - sizeof(mips_instruction));
+	fr = (struct emuframe __user *)
+		(xcp->cp0_epc - sizeof(mips_instruction));
 
 	/*
 	 * If we can't even access the area, something is very wrong, but we'll
