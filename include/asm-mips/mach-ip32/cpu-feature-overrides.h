@@ -39,6 +39,7 @@
 #define cpu_has_dsp		0
 #define cpu_has_4k_cache	1
 #define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 
 #define cpu_has_mips32r1	0

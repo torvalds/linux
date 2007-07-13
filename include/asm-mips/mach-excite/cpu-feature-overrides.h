@@ -29,6 +29,7 @@
 #define cpu_has_dsp		0
 #define cpu_icache_snoops_remote_store	0
 #define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
