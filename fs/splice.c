@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
+#include <linux/security.h>
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -491,7 +492,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	ret = 0;
 	spliced = 0;
-	while (len) {
+	while (len && !spliced) {
 		ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
 
 		if (ret < 0)
@@ -961,6 +962,10 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(ret < 0))
 		return ret;
 
+	ret = security_file_permission(out, MAY_WRITE);
+	if (unlikely(ret < 0))
+		return ret;
+
 	return out->f_op->splice_write(pipe, out, ppos, len, flags);
 }
 
@@ -980,6 +985,10 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 		return -EBADF;
 
 	ret = rw_verify_area(READ, in, ppos, len);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = security_file_permission(in, MAY_READ);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -1051,15 +1060,10 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	sd->flags &= ~SPLICE_F_NONBLOCK;
 
 	while (len) {
-		size_t read_len, max_read_len;
+		size_t read_len;
 
-		/*
-		 * Do at most PIPE_BUFFERS pages worth of transfer:
-		 */
-		max_read_len = min(len, (size_t)(PIPE_BUFFERS*PAGE_SIZE));
-
-		ret = do_splice_to(in, &sd->pos, pipe, max_read_len, flags);
-		if (unlikely(ret < 0))
+		ret = do_splice_to(in, &sd->pos, pipe, len, flags);
+		if (unlikely(ret <= 0))
 			goto out_release;
 
 		read_len = ret;
@@ -1071,26 +1075,17 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
-		if (unlikely(ret < 0))
+		if (unlikely(ret <= 0))
 			goto out_release;
 
 		bytes += ret;
 		len -= ret;
 
-		/*
-		 * In nonblocking mode, if we got back a short read then
-		 * that was due to either an IO error or due to the
-		 * pagecache entry not being there. In the IO error case
-		 * the _next_ splice attempt will produce a clean IO error
-		 * return value (not a short read), so in both cases it's
-		 * correct to break out of the loop here:
-		 */
-		if ((flags & SPLICE_F_NONBLOCK) && (read_len < max_read_len))
-			break;
+		if (ret < read_len)
+			goto out_release;
 	}
 
 	pipe->nrbufs = pipe->curbuf = 0;
-
 	return bytes;
 
 out_release:
@@ -1152,10 +1147,12 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		.pos		= *ppos,
 		.u.file		= out,
 	};
-	size_t ret;
+	long ret;
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
-	*ppos = sd.pos;
+	if (ret > 0)
+		*ppos += ret;
+
 	return ret;
 }
 

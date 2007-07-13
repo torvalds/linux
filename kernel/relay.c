@@ -1061,7 +1061,7 @@ static struct pipe_buf_operations relay_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-/**
+/*
  *	subbuf_splice_actor - splice up to one subbuf's worth of data
  */
 static int subbuf_splice_actor(struct file *in,
@@ -1074,7 +1074,9 @@ static int subbuf_splice_actor(struct file *in,
 	unsigned int pidx, poff, total_len, subbuf_pages, ret;
 	struct rchan_buf *rbuf = in->private_data;
 	unsigned int subbuf_size = rbuf->chan->subbuf_size;
-	size_t read_start = ((size_t)*ppos) % rbuf->chan->alloc_size;
+	uint64_t pos = (uint64_t) *ppos;
+	uint32_t alloc_size = (uint32_t) rbuf->chan->alloc_size;
+	size_t read_start = (size_t) do_div(pos, alloc_size);
 	size_t read_subbuf = read_start / subbuf_size;
 	size_t padding = rbuf->padding[read_subbuf];
 	size_t nonpad_end = read_subbuf * subbuf_size + subbuf_size - padding;
