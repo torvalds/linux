@@ -227,26 +227,26 @@ enum {
 
 	EDMA_ERR_IRQ_CAUSE_OFS	= 0x8,
 	EDMA_ERR_IRQ_MASK_OFS	= 0xc,
-	EDMA_ERR_D_PAR		= (1 << 0),
-	EDMA_ERR_PRD_PAR	= (1 << 1),
-	EDMA_ERR_DEV		= (1 << 2),
-	EDMA_ERR_DEV_DCON	= (1 << 3),
-	EDMA_ERR_DEV_CON	= (1 << 4),
-	EDMA_ERR_SERR		= (1 << 5),
+	EDMA_ERR_D_PAR		= (1 << 0),	/* UDMA data parity err */
+	EDMA_ERR_PRD_PAR	= (1 << 1),	/* UDMA PRD parity err */
+	EDMA_ERR_DEV		= (1 << 2),	/* device error */
+	EDMA_ERR_DEV_DCON	= (1 << 3),	/* device disconnect */
+	EDMA_ERR_DEV_CON	= (1 << 4),	/* device connected */
+	EDMA_ERR_SERR		= (1 << 5),	/* SError bits [WBDST] raised */
 	EDMA_ERR_SELF_DIS	= (1 << 7),	/* Gen II/IIE self-disable */
 	EDMA_ERR_SELF_DIS_5	= (1 << 8),	/* Gen I self-disable */
-	EDMA_ERR_BIST_ASYNC	= (1 << 8),
+	EDMA_ERR_BIST_ASYNC	= (1 << 8),	/* BIST FIS or Async Notify */
 	EDMA_ERR_TRANS_IRQ_7	= (1 << 8),	/* Gen IIE transprt layer irq */
-	EDMA_ERR_CRBQ_PAR	= (1 << 9),
-	EDMA_ERR_CRPB_PAR	= (1 << 10),
-	EDMA_ERR_INTRL_PAR	= (1 << 11),
-	EDMA_ERR_IORDY		= (1 << 12),
-	EDMA_ERR_LNK_CTRL_RX	= (0xf << 13),
+	EDMA_ERR_CRQB_PAR	= (1 << 9),	/* CRQB parity error */
+	EDMA_ERR_CRPB_PAR	= (1 << 10),	/* CRPB parity error */
+	EDMA_ERR_INTRL_PAR	= (1 << 11),	/* internal parity error */
+	EDMA_ERR_IORDY		= (1 << 12),	/* IORdy timeout */
+	EDMA_ERR_LNK_CTRL_RX	= (0xf << 13),	/* link ctrl rx error */
 	EDMA_ERR_LNK_CTRL_RX_2	= (1 << 15),
-	EDMA_ERR_LNK_DATA_RX	= (0xf << 17),
-	EDMA_ERR_LNK_CTRL_TX	= (0x1f << 21),
-	EDMA_ERR_LNK_DATA_TX	= (0x1f << 26),
-	EDMA_ERR_TRANS_PROTO	= (1 << 31),
+	EDMA_ERR_LNK_DATA_RX	= (0xf << 17),	/* link data rx error */
+	EDMA_ERR_LNK_CTRL_TX	= (0x1f << 21),	/* link ctrl tx error */
+	EDMA_ERR_LNK_DATA_TX	= (0x1f << 26),	/* link data tx error */
+	EDMA_ERR_TRANS_PROTO	= (1 << 31),	/* transport protocol error */
 	EDMA_ERR_OVERRUN_5	= (1 << 5),
 	EDMA_ERR_UNDERRUN_5	= (1 << 6),
 	EDMA_EH_FREEZE		= EDMA_ERR_D_PAR |
@@ -255,7 +255,7 @@ enum {
 				  EDMA_ERR_DEV_CON |
 				  EDMA_ERR_SERR |
 				  EDMA_ERR_SELF_DIS |
-				  EDMA_ERR_CRBQ_PAR |
+				  EDMA_ERR_CRQB_PAR |
 				  EDMA_ERR_CRPB_PAR |
 				  EDMA_ERR_INTRL_PAR |
 				  EDMA_ERR_IORDY |
@@ -270,7 +270,7 @@ enum {
 				  EDMA_ERR_OVERRUN_5 |
 				  EDMA_ERR_UNDERRUN_5 |
 				  EDMA_ERR_SELF_DIS_5 |
-				  EDMA_ERR_CRBQ_PAR |
+				  EDMA_ERR_CRQB_PAR |
 				  EDMA_ERR_CRPB_PAR |
 				  EDMA_ERR_INTRL_PAR |
 				  EDMA_ERR_IORDY,
@@ -1393,7 +1393,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	if (edma_err_cause & EDMA_ERR_DEV)
 		err_mask |= AC_ERR_DEV;
 	if (edma_err_cause & (EDMA_ERR_D_PAR | EDMA_ERR_PRD_PAR |
-			EDMA_ERR_CRBQ_PAR | EDMA_ERR_CRPB_PAR |
+			EDMA_ERR_CRQB_PAR | EDMA_ERR_CRPB_PAR |
 			EDMA_ERR_INTRL_PAR)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_HARDRESET;
@@ -1489,33 +1489,30 @@ static void mv_intr_edma(struct ata_port *ap)
 
 	while (1) {
 		u16 status;
+		unsigned int tag;
 
 		/* get s/w response queue last-read pointer, and compare */
 		out_index = pp->resp_idx & MV_MAX_Q_DEPTH_MASK;
 		if (in_index == out_index)
 			break;
 
-		 
 		/* 50xx: get active ATA command */
 		if (IS_GEN_I(hpriv)) 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			tag = ap->active_tag;
 
-		/* 60xx: get active ATA command via tag, to enable support
-		 * for queueing.  this works transparently for queued and
-		 * non-queued modes.
+		/* Gen II/IIE: get active ATA command via tag, to enable
+		 * support for queueing.  this works transparently for
+		 * queued and non-queued modes.
 		 */
-		else {
-			unsigned int tag;
+		else if (IS_GEN_II(hpriv))
+			tag = (le16_to_cpu(pp->crpb[out_index].id)
+				>> CRPB_IOID_SHIFT_6) & 0x3f;
 
-			if (IS_GEN_II(hpriv))
-				tag = (le16_to_cpu(pp->crpb[out_index].id)
-					>> CRPB_IOID_SHIFT_6) & 0x3f;
-			else
-				tag = (le16_to_cpu(pp->crpb[out_index].id)
-					>> CRPB_IOID_SHIFT_7) & 0x3f;
+		else /* IS_GEN_IIE */
+			tag = (le16_to_cpu(pp->crpb[out_index].id)
+				>> CRPB_IOID_SHIFT_7) & 0x3f;
 
-			qc = ata_qc_from_tag(ap, tag);
-		}
+		qc = ata_qc_from_tag(ap, tag);
 
 		/* lower 8 bits of status are EDMA_ERR_IRQ_CAUSE_OFS
 		 * bits (WARNING: might not necessarily be associated
