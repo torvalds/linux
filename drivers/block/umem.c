@@ -1092,23 +1092,18 @@ static void mm_pci_remove(struct pci_dev *dev)
 	blk_cleanup_queue(card->queue);
 }
 
-static const struct pci_device_id mm_pci_ids[] = { {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_5415CN,
-	}, {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_5425CN,
-	}, {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_6155,
-	}, {
+static const struct pci_device_id mm_pci_ids[] = {
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_5415CN)},
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_5425CN)},
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_6155)},
+    {
 	.vendor	=	0x8086,
 	.device	=	0xB555,
 	.subvendor=	0x1332,
 	.subdevice=	0x5460,
 	.class	=	0x050000,
 	.class_mask=	0,
-	}, { /* end: all zeroes */ }
+    }, { /* end: all zeroes */ }
 };
 
 MODULE_DEVICE_TABLE(pci, mm_pci_ids);
