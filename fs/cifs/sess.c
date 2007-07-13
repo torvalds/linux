@@ -191,7 +191,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		    their final Unicode string - in which case we
 		    now will not attempt to decode the byte of junk
 		    which follows it */
-		    
+
 	words_left = bleft / 2;
 
 	/* save off server operating system */
@@ -266,11 +266,11 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	char *bcc_ptr = *pbcc_area;
 
 	cFYI(1, ("decode sessetup ascii. bleft %d", bleft));
-	
+
 	len = strnlen(bcc_ptr, bleft);
 	if (len >= bleft)
 		return rc;
-	
+
 	if (ses->serverOS)
 		kfree(ses->serverOS);
 
@@ -412,7 +412,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			cpu_to_le16(CIFS_SESS_KEY_SIZE);
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
 			cpu_to_le16(CIFS_SESS_KEY_SIZE);
-	
+
 		/* calculate session key */
 		SMBNTencrypt(ses->password, ses->server->cryptKey,
 			     ntlm_session_key);
@@ -536,7 +536,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 						   ses, nls_cp);
 	else
 		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,nls_cp);
-	
+
 ssetup_exit:
 	kfree(str_area);
 	if (resp_buf_type == CIFS_SMALL_BUFFER) {

@@ -70,7 +70,7 @@ int cifs_strtoUCS(__le16 *, const char *, int, const struct nls_table *);
  *     Address of the first string
  */
 static inline wchar_t *
-UniStrcat(wchar_t * ucs1, const wchar_t * ucs2)
+UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
 {
 	wchar_t *anchor = ucs1;	/* save a pointer to start of ucs1 */
 
@@ -88,7 +88,7 @@ UniStrcat(wchar_t * ucs1, const wchar_t * ucs2)
  *     or NULL if the character is not in the string
  */
 static inline wchar_t *
-UniStrchr(const wchar_t * ucs, wchar_t uc)
+UniStrchr(const wchar_t *ucs, wchar_t uc)
 {
 	while ((*ucs != uc) && *ucs)
 		ucs++;
@@ -107,7 +107,7 @@ UniStrchr(const wchar_t * ucs, wchar_t uc)
  *     > 0:  First string is greater than second
  */
 static inline int
-UniStrcmp(const wchar_t * ucs1, const wchar_t * ucs2)
+UniStrcmp(const wchar_t *ucs1, const wchar_t *ucs2)
 {
 	while ((*ucs1 == *ucs2) && *ucs1) {
 		ucs1++;
@@ -120,7 +120,7 @@ UniStrcmp(const wchar_t * ucs1, const wchar_t * ucs2)
  * UniStrcpy:  Copy a string
  */
 static inline wchar_t *
-UniStrcpy(wchar_t * ucs1, const wchar_t * ucs2)
+UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
 {
 	wchar_t *anchor = ucs1;	/* save the start of result string */
 
@@ -132,7 +132,7 @@ UniStrcpy(wchar_t * ucs1, const wchar_t * ucs2)
  * UniStrlen:  Return the length of a string (in 16 bit Unicode chars not bytes)
  */
 static inline size_t
-UniStrlen(const wchar_t * ucs1)
+UniStrlen(const wchar_t *ucs1)
 {
 	int i = 0;
 
@@ -146,7 +146,7 @@ UniStrlen(const wchar_t * ucs1)
  *		string (length limited)
  */
 static inline size_t
-UniStrnlen(const wchar_t * ucs1, int maxlen)
+UniStrnlen(const wchar_t *ucs1, int maxlen)
 {
 	int i = 0;
 
@@ -162,7 +162,7 @@ UniStrnlen(const wchar_t * ucs1, int maxlen)
  * UniStrncat:  Concatenate length limited string
  */
 static inline wchar_t *
-UniStrncat(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
+UniStrncat(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;	/* save pointer to string 1 */
 
@@ -180,7 +180,7 @@ UniStrncat(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
  * UniStrncmp:  Compare length limited string
  */
 static inline int
-UniStrncmp(const wchar_t * ucs1, const wchar_t * ucs2, size_t n)
+UniStrncmp(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	if (!n)
 		return 0;	/* Null strings are equal */
@@ -195,7 +195,7 @@ UniStrncmp(const wchar_t * ucs1, const wchar_t * ucs2, size_t n)
  * UniStrncmp_le:  Compare length limited string - native to little-endian
  */
 static inline int
-UniStrncmp_le(const wchar_t * ucs1, const wchar_t * ucs2, size_t n)
+UniStrncmp_le(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	if (!n)
 		return 0;	/* Null strings are equal */
@@ -210,7 +210,7 @@ UniStrncmp_le(const wchar_t * ucs1, const wchar_t * ucs2, size_t n)
  * UniStrncpy:  Copy length limited string with pad
  */
 static inline wchar_t *
-UniStrncpy(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
+UniStrncpy(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;
 
@@ -227,7 +227,7 @@ UniStrncpy(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
  * UniStrncpy_le:  Copy length limited string with pad to little-endian
  */
 static inline wchar_t *
-UniStrncpy_le(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
+UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;
 
@@ -248,7 +248,7 @@ UniStrncpy_le(wchar_t * ucs1, const wchar_t * ucs2, size_t n)
  *     NULL if no matching string is found
  */
 static inline wchar_t *
-UniStrstr(const wchar_t * ucs1, const wchar_t * ucs2)
+UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 {
 	const wchar_t *anchor1 = ucs1;
 	const wchar_t *anchor2 = ucs2;
@@ -298,7 +298,7 @@ UniToupper(register wchar_t uc)
  * UniStrupr:  Upper case a unicode string
  */
 static inline wchar_t *
-UniStrupr(register wchar_t * upin)
+UniStrupr(register wchar_t *upin)
 {
 	register wchar_t *up;
 
@@ -339,7 +339,7 @@ UniTolower(wchar_t uc)
  * UniStrlwr:  Lower case a unicode string
  */
 static inline wchar_t *
-UniStrlwr(register wchar_t * upin)
+UniStrlwr(register wchar_t *upin)
 {
 	register wchar_t *up;
 

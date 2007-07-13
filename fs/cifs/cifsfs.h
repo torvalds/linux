@@ -45,7 +45,7 @@ extern void cifs_read_inode(struct inode *);
 extern const struct inode_operations cifs_dir_inode_ops;
 extern int cifs_create(struct inode *, struct dentry *, int,
 		       struct nameidata *);
-extern struct dentry * cifs_lookup(struct inode *, struct dentry *,
+extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  struct nameidata *);
 extern int cifs_unlink(struct inode *, struct dentry *);
 extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
@@ -70,9 +70,9 @@ extern int cifs_open(struct inode *inode, struct file *file);
 extern int cifs_close(struct inode *inode, struct file *file);
 extern int cifs_closedir(struct inode *inode, struct file *file);
 extern ssize_t cifs_user_read(struct file *file, char __user *read_data,
-			 size_t read_size, loff_t * poffset);
+			 size_t read_size, loff_t *poffset);
 extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
-			 size_t write_size, loff_t * poffset);
+			 size_t write_size, loff_t *poffset);
 extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, struct dentry *, int);
 extern int cifs_flush(struct file *, fl_owner_t id);

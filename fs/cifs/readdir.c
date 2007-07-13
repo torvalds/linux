@@ -51,7 +51,6 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 		if (cf->srch_inf.emptyDir) {
 			cFYI(1, ("empty dir"));
 		}
-		
 	}
 }
 #endif /* DEBUG2 */
@@ -255,7 +254,6 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
 			else
 				tmp_inode->i_fop = &cifs_file_direct_ops;
-		
 		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
@@ -644,11 +642,11 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	loff_t index_to_find = file->f_pos;
 	struct cifsFileInfo *cifsFile = file->private_data;
 	/* check if index in the buffer */
-	
+
 	if ((cifsFile == NULL) || (ppCurrentEntry == NULL) ||
 	   (num_to_ret == NULL))
 		return -ENOENT;
-	
+
 	*ppCurrentEntry = NULL;
 	first_entry_in_buffer =
 		cifsFile->srch_inf.index_of_last_entry -
@@ -712,7 +710,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		pos_in_buf = index_to_find - first_entry_in_buffer;
 		cFYI(1, ("found entry - pos_in_buf %d", pos_in_buf));
 
-		for (i=0;(i<(pos_in_buf)) && (current_entry != NULL);i++) {
+		for (i=0; (i < (pos_in_buf)) && (current_entry != NULL); i++) {
 			/* go entry by entry figuring out which is first */
 			current_entry = nxt_dir_entry(current_entry, end_of_smb,
 						cifsFile->srch_inf.info_level);
@@ -839,7 +837,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		return -EINVAL;
 
 	pCifsF = file->private_data;
-	
+
 	if ((scratch_buf == NULL) || (pfindEntry == NULL) || (pCifsF == NULL))
 		return -ENOENT;
 
@@ -892,7 +890,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		if (rc == 2)
 			d_rehash(tmp_dentry);
 	}
-	
+
 
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
 		     tmp_inode->i_ino, obj_type);
@@ -951,7 +949,7 @@ static int cifs_save_resume_key(const char *current_entry,
 		len = le32_to_cpu(pFindData->FileNameLength);
 		cifsFile->srch_inf.resume_key = pFindData->FileIndex;
 	} else if (level == SMB_FIND_FILE_BOTH_DIRECTORY_INFO) {
-		FILE_BOTH_DIRECTORY_INFO *pFindData = 
+		FILE_BOTH_DIRECTORY_INFO *pFindData =
 			(FILE_BOTH_DIRECTORY_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
@@ -982,7 +980,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	char *current_entry;
 	int num_to_fill = 0;
 	char *tmp_buf = NULL;
-	char * end_of_smb;
+	char *end_of_smb;
 	int max_len;
 
 	xid = GetXid();

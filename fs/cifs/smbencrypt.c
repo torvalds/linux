@@ -7,17 +7,17 @@
    Modified by Jeremy Allison 1995.
    Copyright (C) Andrew Bartlett <abartlet@samba.org> 2002-2003
    Modified by Steve French (sfrench@us.ibm.com) 2002-2003
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -73,7 +73,7 @@ SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 	E_P16(p14, p21);
 
 	SMBOWFencrypt(p21, c8, p24);
-	
+
 	memset(p14, 0, 15);
 	memset(p21, 0, 21);
 }
@@ -178,8 +178,8 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 		const char *domain_n, unsigned char kr_buf[16],
 		const struct nls_table *nls_codepage)
 {
-	wchar_t * user_u;
-	wchar_t * dom_u;
+	wchar_t *user_u;
+	wchar_t *dom_u;
 	int user_l, domain_l;
 	struct HMACMD5Context ctx;
 
@@ -188,7 +188,7 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 	if (user_u == NULL)
 		return;
 	dom_u = user_u + 1024;
-    
+
 	/* push_ucs2(NULL, user_u, user_n, (user_l+1)*2, STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER);
 	   push_ucs2(NULL, dom_u, domain_n, (domain_l+1)*2, STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER); */
 

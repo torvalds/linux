@@ -274,7 +274,6 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 		cERROR(1, ("SFU style symlinks not implemented yet"));
 		/* add open and read as in fs/cifs/inode.c */
-	
 	} else {
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, GENERIC_READ,
 				OPEN_REPARSE_POINT, &fid, &oplock, NULL,
@@ -315,7 +314,9 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 							num_referrals));
 						if (referrals) {
 							cFYI(1,("referral string: %s", referrals));
-							strncpy(tmpbuffer, referrals, len-1);
+							strncpy(tmpbuffer,
+								referrals,
+								len-1);
 						}
 					}
 					kfree(referrals);

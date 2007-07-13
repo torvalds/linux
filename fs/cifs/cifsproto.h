@@ -71,12 +71,12 @@ extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    fixed section (word count) in two byte units */);
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifsSesInfo *ses,
-				void ** request_buf);
+				void **request_buf);
 extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			     const int stage,
 			     const struct nls_table *nls_cp);
 extern __u16 GetNextMid(struct TCP_Server_Info *server);
-extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16,
+extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
 extern struct timespec cifs_NTtimeToUnix(u64 /* utc nanoseconds since 1601 */ );
@@ -146,7 +146,7 @@ extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			const char *old_path,
 			const struct nls_table *nls_codepage,
 			unsigned int *pnum_referrals,
-			unsigned char ** preferrals,
+			unsigned char **preferrals,
 			int remap);
 extern void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 				 struct super_block *sb, struct smb_vol *vol);
@@ -312,9 +312,9 @@ extern int CIFSSMBCopy(int xid,
 			const char *fromName,
 			const __u16 target_tid,
 			const char *toName, const int flags,
-			const struct nls_table *nls_codepage, 
+			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon, 
+extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 			const int notify_subdirs, const __u16 netfid,
 			__u32 filter, struct file *file, int multishot,
 			const struct nls_table *nls_codepage);
@@ -323,7 +323,7 @@ extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 			size_t bufsize, const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern ssize_t CIFSSMBQueryEA(const int xid, struct cifsTconInfo *tcon,
-		const unsigned char * searchName, const unsigned char *ea_name,
+		const unsigned char *searchName, const unsigned char *ea_name,
 		unsigned char *ea_value, size_t buf_size,
 		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,

@@ -816,7 +816,7 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 	cFYI(1, (" !!Mapping smb error code %d to POSIX err %d !!",
 		 smberrcode, rc));
 
-	/* generic corrective action e.g. reconnect SMB session on 
+	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
 
 	return rc;

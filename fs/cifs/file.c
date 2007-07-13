@@ -189,7 +189,7 @@ int cifs_open(struct inode *inode, struct file *file)
 
 				/* needed for writepage */
 				pCifsFile->pfile = file;
-				
+
 				file->private_data = pCifsFile;
 				break;
 			}
@@ -378,7 +378,7 @@ static int cifs_reopen_file(struct file *file, int can_flush)
 		rc = -EBADF;
 		goto reopen_error_exit;
 	}
-		
+
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
@@ -735,7 +735,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			posix_lock_type = CIFS_RDLCK;
 		else
 			posix_lock_type = CIFS_WRLCK;
-		
+
 		if (numUnlock == 1)
 			posix_lock_type = CIFS_UNLCK;
 
@@ -810,7 +810,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	if (file->private_data == NULL)
 		return -EBADF;
 	open_file = (struct cifsFileInfo *) file->private_data;
-	
+
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
@@ -909,7 +909,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	if (file->private_data == NULL)
 		return -EBADF;
 	open_file = (struct cifsFileInfo *)file->private_data;
-	
+
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
@@ -1035,7 +1035,8 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 				/* if it fails, try another handle - might be */
 				/* dangerous to hold up writepages with retry */
 				if (rc) {
-					cFYI(1, ("failed on reopen file in wp"));
+					cFYI(1,
+					      ("failed on reopen file in wp"));
 					read_lock(&GlobalSMBSeslock);
 					/* can not use this handle, no write
 					pending on this one after all */
@@ -1136,7 +1137,7 @@ static int cifs_writepages(struct address_space *mapping,
 	int xid;
 
 	cifs_sb = CIFS_SB(mapping->host->i_sb);
-	
+
 	/*
 	 * If wsize is smaller that the page cache size, default to writing
 	 * one page at a time via cifs_writepage
@@ -1419,7 +1420,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 	cFYI(1, ("Sync file - name: %s datasync: 0x%x",
 		dentry->d_name.name, datasync));
-	
+
 	rc = filemap_fdatawrite(inode->i_mapping);
 	if (rc == 0)
 		CIFS_I(inode)->write_behind_rc = 0;
@@ -1476,7 +1477,7 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	rc = filemap_fdatawrite(inode->i_mapping);
 	if (!rc) /* reset wb rc if we were able to write out dirty pages */
 		CIFS_I(inode)->write_behind_rc = 0;
-		
+
 	cFYI(1, ("Flush inode %p file %p rc %d", inode, file, rc));
 
 	return rc;
@@ -1914,7 +1915,7 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file)
 
 	if (cifsInode)
 		open_file =  find_writable_file(cifsInode);
- 
+
 	if (open_file) {
 		struct cifs_sb_info *cifs_sb;
 

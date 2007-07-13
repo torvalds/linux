@@ -145,7 +145,6 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		   (ses->serverNOS == NULL)) {
 			buf += sprintf(buf, "\nentry for %s not fully "
 					"displayed\n\t", ses->serverName);
-			
 		} else {
 			length =
 			    sprintf(buf,

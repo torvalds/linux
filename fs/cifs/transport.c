@@ -32,7 +32,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
-  
+
 extern mempool_t *cifs_mid_poolp;
 extern struct kmem_cache *cifs_oplock_cachep;
 
@@ -49,7 +49,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 		cERROR(1, ("Null TCP session in AllocMidQEntry"));
 		return NULL;
 	}
-	
+
 	temp = (struct mid_q_entry *) mempool_alloc(cifs_mid_poolp,
 						    GFP_KERNEL | GFP_NOFS);
 	if (temp == NULL)
@@ -223,7 +223,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	unsigned int total_len;
 	int first_vec = 0;
 	unsigned int smb_buf_length = smb_buffer->smb_buf_length;
-	
+
 	if (ssocket == NULL)
 		return -ENOTSOCK; /* BB eventually add reconnect code here */
 
@@ -335,7 +335,7 @@ static int wait_for_free_request(struct cifsSesInfo *ses, const int long_op)
 
 				/* can not count locking commands against total
 				   as they are allowed to block on server */
-					
+
 				/* update # of requests on the wire to server */
 				if (long_op < 3)
 					atomic_inc(&ses->server->inFlight);
@@ -426,7 +426,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	unsigned long timeout;
 	struct mid_q_entry *midQ;
 	struct smb_hdr *in_buf = iov[0].iov_base;
-	
+
 	*pRespBufType = CIFS_NO_BUFFER;  /* no response buf yet */
 
 	if ((ses == NULL) || (ses->server == NULL)) {
@@ -537,7 +537,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
-  
+
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
@@ -718,7 +718,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
-  
+
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
@@ -962,7 +962,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 		DeleteMidQEntry(midQ);
 		return rc;
 	}
-  
+
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));

@@ -39,7 +39,7 @@ extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
 extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
 		       unsigned char *p24);
-	
+
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 				    const struct mac_key *key, char *signature)
 {
@@ -69,10 +69,10 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 		return rc;
 
 	spin_lock(&GlobalMid_Lock);
-	cifs_pdu->Signature.Sequence.SequenceNumber = 
-		cpu_to_le32(server->sequence_number);
+	cifs_pdu->Signature.Sequence.SequenceNumber =
+			cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
-	
+
 	*pexpected_response_sequence_number = server->sequence_number++;
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
@@ -98,9 +98,9 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 
 	MD5Init(&context);
 	MD5Update(&context, (char *)&key->data, key->len);
-	for (i=0;i<n_vec;i++) {
+	for (i = 0; i < n_vec; i++) {
 		if (iov[i].iov_base == NULL) {
-			cERROR(1 ,("null iovec entry"));
+			cERROR(1, ("null iovec entry"));
 			return -EIO;
 		} else if (iov[i].iov_len == 0)
 			break; /* bail out if we are sent nothing to sign */
@@ -167,36 +167,38 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 		return 0;
 
 	if (cifs_pdu->Command == SMB_COM_LOCKING_ANDX) {
-		struct smb_com_lock_req * pSMB =
+		struct smb_com_lock_req *pSMB =
 			(struct smb_com_lock_req *)cifs_pdu;
 	    if (pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE)
 			return 0;
 	}
 
-	/* BB what if signatures are supposed to be on for session but server does not
-		send one? BB */
-	
+	/* BB what if signatures are supposed to be on for session but
+	   server does not send one? BB */
+
 	/* Do not need to verify session setups with signature "BSRSPYL "  */
-	if(memcmp(cifs_pdu->Signature.SecuritySignature,"BSRSPYL ",8)==0)
-		cFYI(1,("dummy signature received for smb command 0x%x",cifs_pdu->Command));
+	if (memcmp(cifs_pdu->Signature.SecuritySignature, "BSRSPYL ", 8) == 0)
+		cFYI(1, ("dummy signature received for smb command 0x%x",
+			cifs_pdu->Command));
 
 	/* save off the origiginal signature so we can modify the smb and check
 		its signature against what the server sent */
-	memcpy(server_response_sig,cifs_pdu->Signature.SecuritySignature,8);
+	memcpy(server_response_sig, cifs_pdu->Signature.SecuritySignature, 8);
 
-	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(expected_sequence_number);
+	cifs_pdu->Signature.Sequence.SequenceNumber =
+					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
 	rc = cifs_calculate_signature(cifs_pdu, mac_key,
 		what_we_think_sig_should_be);
 
-	if(rc)
+	if (rc)
 		return rc;
 
-	
-/*	cifs_dump_mem("what we think it should be: ",what_we_think_sig_should_be,16); */
+/*	cifs_dump_mem("what we think it should be: ",
+		      what_we_think_sig_should_be, 16); */
 
-	if(memcmp(server_response_sig, what_we_think_sig_should_be, 8))
+	if (memcmp(server_response_sig, what_we_think_sig_should_be, 8))
 		return -EACCES;
 	else
 		return 0;
@@ -218,30 +220,30 @@ int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
 	return 0;
 }
 
-int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, 
-				const struct nls_table * nls_info)
+int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *ses,
+			       const struct nls_table *nls_info)
 {
 	char temp_hash[16];
 	struct HMACMD5Context ctx;
-	char * ucase_buf;
-	__le16 * unicode_buf;
-	unsigned int i,user_name_len,dom_name_len;
+	char *ucase_buf;
+	__le16 *unicode_buf;
+	unsigned int i, user_name_len, dom_name_len;
 
-	if(ses == NULL)
+	if (ses == NULL)
 		return -EINVAL;
 
 	E_md4hash(ses->password, temp_hash);
 
 	hmac_md5_init_limK_to_64(temp_hash, 16, &ctx);
 	user_name_len = strlen(ses->userName);
-	if(user_name_len > MAX_USERNAME_SIZE)
+	if (user_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
-	if(ses->domainName == NULL)
+	if (ses->domainName == NULL)
 		return -EINVAL; /* BB should we use CIFS_LINUX_DOM */
 	dom_name_len = strlen(ses->domainName);
 	if (dom_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
-  
+
 	ucase_buf = kmalloc((MAX_USERNAME_SIZE+1), GFP_KERNEL);
 	if (ucase_buf == NULL)
 		return -ENOMEM;
@@ -250,18 +252,20 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses,
 		kfree(ucase_buf);
 		return -ENOMEM;
 	}
-   
-	for (i = 0;i < user_name_len; i++)
+
+	for (i = 0; i < user_name_len; i++)
 		ucase_buf[i] = nls_info->charset2upper[(int)ses->userName[i]];
 	ucase_buf[i] = 0;
-	user_name_len = cifs_strtoUCS(unicode_buf, ucase_buf, MAX_USERNAME_SIZE*2, nls_info);
+	user_name_len = cifs_strtoUCS(unicode_buf, ucase_buf,
+				      MAX_USERNAME_SIZE*2, nls_info);
 	unicode_buf[user_name_len] = 0;
 	user_name_len++;
 
 	for (i = 0; i < dom_name_len; i++)
 		ucase_buf[i] = nls_info->charset2upper[(int)ses->domainName[i]];
 	ucase_buf[i] = 0;
-	dom_name_len = cifs_strtoUCS(unicode_buf+user_name_len, ucase_buf, MAX_USERNAME_SIZE*2, nls_info);
+	dom_name_len = cifs_strtoUCS(unicode_buf+user_name_len, ucase_buf,
+				     MAX_USERNAME_SIZE*2, nls_info);
 
 	unicode_buf[user_name_len + dom_name_len] = 0;
 	hmac_md5_update((const unsigned char *) unicode_buf,
@@ -274,21 +278,22 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses,
 }
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
+void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key)
 {
 	int i;
 	char password_with_pad[CIFS_ENCPWD_SIZE];
 
-	if(ses->server == NULL)
+	if (ses->server == NULL)
 		return;
 
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
-	if(ses->password)
+	if (ses->password)
 		strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
 
-	if((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
-		if(extended_security & CIFSSEC_MAY_PLNTXT) {
-			memcpy(lnm_session_key, password_with_pad, CIFS_ENCPWD_SIZE); 
+	if ((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
+		if (extended_security & CIFSSEC_MAY_PLNTXT) {
+			memcpy(lnm_session_key, password_with_pad,
+				CIFS_ENCPWD_SIZE);
 			return;
 		}
 
@@ -303,7 +308,7 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 	utf8 and other multibyte codepages each need their own strupper
 	function since a byte at a time will ont work. */
 
-	for(i = 0; i < CIFS_ENCPWD_SIZE; i++) {
+	for (i = 0; i < CIFS_ENCPWD_SIZE; i++) {
 		password_with_pad[i] = toupper(password_with_pad[i]);
 	}
 
@@ -313,19 +318,19 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
-static int calc_ntlmv2_hash(struct cifsSesInfo *ses, 
-			    const struct nls_table * nls_cp)
+static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
+			    const struct nls_table *nls_cp)
 {
 	int rc = 0;
 	int len;
 	char nt_hash[16];
-	struct HMACMD5Context * pctxt;
-	wchar_t * user;
-	wchar_t * domain;
+	struct HMACMD5Context *pctxt;
+	wchar_t *user;
+	wchar_t *domain;
 
 	pctxt = kmalloc(sizeof(struct HMACMD5Context), GFP_KERNEL);
 
-	if(pctxt == NULL)
+	if (pctxt == NULL)
 		return -ENOMEM;
 
 	/* calculate md4 hash of password */
@@ -337,18 +342,18 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
 	/* convert ses->userName to unicode and uppercase */
 	len = strlen(ses->userName);
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
-	if(user == NULL)
+	if (user == NULL)
 		goto calc_exit_2;
 	len = cifs_strtoUCS(user, ses->userName, len, nls_cp);
 	UniStrupr(user);
 	hmac_md5_update((char *)user, 2*len, pctxt);
 
 	/* convert ses->domainName to unicode and uppercase */
-	if(ses->domainName) {
+	if (ses->domainName) {
 		len = strlen(ses->domainName);
 
-        	domain = kmalloc(2 + (len * 2), GFP_KERNEL);
-		if(domain == NULL)
+		domain = kmalloc(2 + (len * 2), GFP_KERNEL);
+		if (domain == NULL)
 			goto calc_exit_1;
 		len = cifs_strtoUCS(domain, ses->domainName, len, nls_cp);
 		/* the following line was removed since it didn't work well
@@ -357,24 +362,24 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
 		/* UniStrupr(domain); */
 
 		hmac_md5_update((char *)domain, 2*len, pctxt);
-	
+
 		kfree(domain);
 	}
 calc_exit_1:
 	kfree(user);
 calc_exit_2:
-	/* BB FIXME what about bytes 24 through 40 of the signing key? 
+	/* BB FIXME what about bytes 24 through 40 of the signing key?
 	   compare with the NTLM example */
 	hmac_md5_final(ses->server->ntlmv2_hash, pctxt);
 
 	return rc;
 }
 
-void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf, 
-		      const struct nls_table * nls_cp)
+void setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
+		      const struct nls_table *nls_cp)
 {
 	int rc;
-	struct ntlmv2_resp * buf = (struct ntlmv2_resp *)resp_buf;
+	struct ntlmv2_resp *buf = (struct ntlmv2_resp *)resp_buf;
 	struct HMACMD5Context context;
 
 	buf->blob_signature = cpu_to_le32(0x00000101);
@@ -389,8 +394,8 @@ void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf,
 
 	/* calculate buf->ntlmv2_hash */
 	rc = calc_ntlmv2_hash(ses, nls_cp);
-	if(rc)
-		cERROR(1,("could not get v2 hash rc %d",rc));
+	if (rc)
+		cERROR(1, ("could not get v2 hash rc %d", rc));
 	CalcNTLMv2_response(ses, resp_buf);
 
 	/* now calculate the MAC key for NTLMv2 */
@@ -403,16 +408,17 @@ void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf,
 	ses->server->mac_signing_key.len = 16 + sizeof(struct ntlmv2_resp);
 }
 
-void CalcNTLMv2_response(const struct cifsSesInfo * ses, char * v2_session_response)
+void CalcNTLMv2_response(const struct cifsSesInfo *ses,
+			 char *v2_session_response)
 {
 	struct HMACMD5Context context;
 	/* rest of v2 struct already generated */
-	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
+	memcpy(v2_session_response + 8, ses->server->cryptKey, 8);
 	hmac_md5_init_limK_to_64(ses->server->ntlmv2_hash, 16, &context);
 
 	hmac_md5_update(v2_session_response+8,
 			sizeof(struct ntlmv2_resp) - 8, &context);
 
-	hmac_md5_final(v2_session_response,&context);
+	hmac_md5_final(v2_session_response, &context);
 /*	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); */
 }

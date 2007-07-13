@@ -47,8 +47,10 @@ _GetXid(void)
 
 	spin_lock(&GlobalMid_Lock);
 	GlobalTotalActiveXid++;
+
+	/* keep high water mark for number of simultaneous ops in filesystem */
 	if (GlobalTotalActiveXid > GlobalMaxActiveXid)
-		GlobalMaxActiveXid = GlobalTotalActiveXid;	/* keep high water mark for number of simultaneous vfs ops in our filesystem */
+		GlobalMaxActiveXid = GlobalTotalActiveXid;
 	if (GlobalTotalActiveXid > 65000)
 		cFYI(1, ("warning: more than 65000 requests active"));
 	xid = GlobalCurrentXid++;
@@ -148,8 +150,8 @@ cifs_buf_get(void)
    but it may be more efficient to always alloc same size
    albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
-	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, GFP_KERNEL | GFP_NOFS);
+	ret_buf = (struct smb_hdr *) mempool_alloc(cifs_req_poolp,
+						   GFP_KERNEL | GFP_NOFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
@@ -187,8 +189,8 @@ cifs_small_buf_get(void)
    but it may be more efficient to always alloc same size
    albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
-	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp, GFP_KERNEL | GFP_NOFS);
+	ret_buf = (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp,
+						   GFP_KERNEL | GFP_NOFS);
 	if (ret_buf) {
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/

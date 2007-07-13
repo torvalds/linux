@@ -92,7 +92,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			} /* note ino incremented to unique num in new_inode */
 			if (sb->s_flags & MS_NOATIME)
 				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
-				
+
 			insert_inode_hash(*pinode);
 		}
 
@@ -139,7 +139,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 			cFYI(1, ("unknown type %d", type));
 		}
-		
+
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
 			inode->i_uid = cifs_sb->mnt_uid;
 		else
@@ -149,7 +149,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			inode->i_gid = cifs_sb->mnt_gid;
 		else
 			inode->i_gid = le64_to_cpu(findData.Gid);
-			
+
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
 		spin_lock(&inode->i_lock);
@@ -235,7 +235,7 @@ static int decode_sfu_inode(struct inode *inode, __u64 size,
 	} else if (size < 8) {
 		return -EINVAL;	 /* EOPNOTSUPP? */
 	}
-		
+
 	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
 			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
 			 cifs_sb->local_nls,
@@ -285,7 +285,6 @@ static int decode_sfu_inode(struct inode *inode, __u64 size,
 		CIFSSMBClose(xid, pTcon, netfid);
 	}
 	return rc;
-	
 }
 
 #define SFBITS_MASK (S_ISVTX | S_ISGID | S_ISUID)  /* SETFILEBITS valid bits */
@@ -317,8 +316,6 @@ static int get_sfu_uid_mode(struct inode *inode,
 #else
 	return -EOPNOTSUPP;
 #endif
-
-		
 }
 
 int cifs_get_inode_info(struct inode **pinode,
@@ -364,7 +361,6 @@ int cifs_get_inode_info(struct inode **pinode,
 					  CIFS_MOUNT_MAP_SPECIAL_CHR);
 			adjustTZ = TRUE;
 		}
-		
 	}
 	/* dump_mem("\nQPathInfo return data",&findData, sizeof(findData)); */
 	if (rc) {
@@ -513,7 +509,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* BB add code here -
 		   validate if device or weird share or device type? */
 		}
-		
+
 		spin_lock(&inode->i_lock);
 		if (is_size_safe_to_change(cifsInfo, le64_to_cpu(pfindData->EndOfFile))) {
 			/* can not safely shrink the file size here if the
@@ -836,7 +832,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
 			else
 				tmp_inode->i_fop = &cifs_file_direct_ops;
-		
+
 		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
@@ -898,7 +894,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
-	
+
 	if ((pTcon->ses->capabilities & CAP_UNIX) &&
 		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
@@ -909,7 +905,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			rc = -ENOMEM;
 			goto mkdir_out;
 		}
-			
+
 		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
 				mode, NULL /* netfid */, pInfo, &oplock,
 				full_path, cifs_sb->local_nls,
@@ -963,7 +959,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		kfree(pInfo);
 		goto mkdir_out;
 	}
-	
+
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
 	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1316,7 +1312,7 @@ int cifs_revalidate(struct dentry *direntry)
 		}
 	}
 /*	mutex_unlock(&direntry->d_inode->i_mutex); */
-	
+
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
@@ -1433,7 +1429,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		} else
 			rc = 0;
 	}
-		
+
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		FreeXid(xid);
@@ -1588,7 +1584,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	   stamps are changed explicitly (i.e. by utime()
 	   since we would then have a mix of client and
 	   server times */
-	   
+
 	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
 		set_time = TRUE;
 		/* Although Samba throws this field away

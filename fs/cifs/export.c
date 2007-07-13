@@ -22,7 +22,7 @@
  *   along with this library; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
- 
+
  /*
   * See Documentation/filesystems/Exporting
   * and examples in fs/exportfs
@@ -43,16 +43,16 @@
 #include "cifsglob.h"
 #include "cifs_debug.h"
 
- 
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
- 
+
 static struct dentry *cifs_get_parent(struct dentry *dentry)
 {
 	/* BB need to add code here eventually to enable export via NFSD */
 	cFYI(1, ("get parent for %p", dentry));
 	return ERR_PTR(-EACCES);
 }
- 
+
 struct export_operations cifs_export_ops = {
 	.get_parent = cifs_get_parent,
 /*	Following five export operations are unneeded so far and can default:
@@ -62,6 +62,6 @@ struct export_operations cifs_export_ops = {
 	.decode_fh =
 	.encode_fs =  */
 };
- 
+
 #endif /* EXPERIMENTAL */
- 
+
