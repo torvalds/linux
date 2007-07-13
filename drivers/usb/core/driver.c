@@ -29,13 +29,6 @@
 #include "hcd.h"
 #include "usb.h"
 
-#define VERBOSE_DEBUG	0
-
-#if VERBOSE_DEBUG
-#define dev_vdbg	dev_dbg
-#else
-#define dev_vdbg(dev, fmt, args...)	do { } while (0)
-#endif
 
 #ifdef CONFIG_HOTPLUG
 
