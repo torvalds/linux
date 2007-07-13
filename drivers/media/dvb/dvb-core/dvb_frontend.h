@@ -103,7 +103,7 @@ struct dvb_frontend_ops {
 	int (*tune)(struct dvb_frontend* fe,
 		    struct dvb_frontend_parameters* params,
 		    unsigned int mode_flags,
-		    int *delay,
+		    unsigned int *delay,
 		    fe_status_t *status);
 	/* get frontend tuning algorithm from the module */
 	int (*get_frontend_algo)(struct dvb_frontend *fe);
