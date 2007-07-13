@@ -203,11 +203,7 @@ wakeup_counter0_set(int ticks)
 /* I haven't found anyone that doesn't use a 12 MHz source clock,
  * but just in case.....
  */
-#ifdef CONFIG_AU1000_SRC_CLK
-#define AU1000_SRC_CLK	CONFIG_AU1000_SRC_CLK
-#else
 #define AU1000_SRC_CLK	12000000
-#endif
 
 /*
  * We read the real processor speed from the PLL.  This is important
