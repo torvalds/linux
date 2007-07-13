@@ -1921,17 +1921,18 @@ static void alc880_lg_unsol_event(struct hda_codec *codec, unsigned int res)
  * Pin assignment:
  *   Speaker-out: 0x14
  *   Mic-In: 0x18
- *   Built-in Mic-In: 0x19 (?)
- *   HP-Out: 0x1b
+ *   Built-in Mic-In: 0x19
+ *   Line-In: 0x1b
+ *   HP-Out: 0x1a
  *   SPDIF-Out: 0x1e
  */
 
-/* seems analog CD is not working */
 static struct hda_input_mux alc880_lg_lw_capture_source = {
-	.num_items = 2,
+	.num_items = 3,
 	.items = {
 		{ "Mic", 0x0 },
 		{ "Internal Mic", 0x1 },
+		{ "Line In", 0x2 },
 	},
 };
 
