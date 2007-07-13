@@ -599,14 +599,17 @@ static void print_basics(struct powernow_k8_data *data)
 	for (j = 0; j < data->numps; j++) {
 		if (data->powernow_table[j].frequency != CPUFREQ_ENTRY_INVALID) {
 			if (cpu_family == CPU_HW_PSTATE) {
-			printk(KERN_INFO PFX "   %d : fid 0x%x gid 0x%x (%d MHz)\n", j, (data->powernow_table[j].index & 0xff00) >> 8,
-				(data->powernow_table[j].index & 0xff0000) >> 16,
-				data->powernow_table[j].frequency/1000);
+				printk(KERN_INFO PFX "   %d : fid 0x%x did 0x%x (%d MHz)\n",
+					j,
+					(data->powernow_table[j].index & 0xff00) >> 8,
+					(data->powernow_table[j].index & 0xff0000) >> 16,
+					data->powernow_table[j].frequency/1000);
 			} else {
-			printk(KERN_INFO PFX "   %d : fid 0x%x (%d MHz), vid 0x%x\n", j,
-				data->powernow_table[j].index & 0xff,
-				data->powernow_table[j].frequency/1000,
-				data->powernow_table[j].index >> 8);
+				printk(KERN_INFO PFX "   %d : fid 0x%x (%d MHz), vid 0x%x\n",
+					j,
+					data->powernow_table[j].index & 0xff,
+					data->powernow_table[j].frequency/1000,
+					data->powernow_table[j].index >> 8);
 			}
 		}
 	}
@@ -1086,7 +1089,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 
 	if (cpu_family == CPU_HW_PSTATE)
 		dprintk("targ: curr fid 0x%x, did 0x%x\n",
-			data->currfid, data->currvid);
+			data->currfid, data->currdid);
 	else {
 		dprintk("targ: curr fid 0x%x, vid 0x%x\n",
 		data->currfid, data->currvid);
