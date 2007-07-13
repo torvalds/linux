@@ -5,6 +5,7 @@
 menuconfig USB_SUPPORT
 	bool "USB support"
 	depends on HAS_IOMEM
+	default y
 
 if USB_SUPPORT
 
