@@ -249,7 +249,7 @@ static int stv0299_get_symbolrate (struct stv0299_state* state)
 	dprintk ("%s\n", __FUNCTION__);
 
 	stv0299_readregs (state, 0x1f, sfr, 3);
-	stv0299_readregs (state, 0x1a, &rtf, 1);
+	stv0299_readregs (state, 0x1a, (u8 *)&rtf, 1);
 
 	srate = (sfr[0] << 8) | sfr[1];
 	srate *= Mclk;
