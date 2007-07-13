@@ -323,7 +323,7 @@ static int __init parse_tag_rdimg(struct tag *tag)
 		return 0;
 	}
 
-	ret = add_reserved_region(mem->start, mem->start + mem->size - 1,
+	ret = add_reserved_region(mem->addr, mem->addr + mem->size - 1,
 				  "initrd");
 	if (ret) {
 		printk(KERN_WARNING
