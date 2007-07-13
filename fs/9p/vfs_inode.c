@@ -716,6 +716,9 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	err = -EPERM;
 	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	if (v9ses->cache == CACHE_LOOSE)
+		return simple_getattr(mnt, dentry, stat);
+
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
