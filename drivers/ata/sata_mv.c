@@ -35,8 +35,6 @@
 
   6) Add port multiplier support (intermediate)
 
-  7) Test and verify 3.0 Gbps support
-
   8) Develop a low-power-consumption strategy, and implement it.
 
   9) [Experiment, low priority] See if ATAPI can be supported using
@@ -286,10 +284,10 @@ enum {
 	EDMA_RSP_Q_OUT_PTR_OFS	= 0x24,		/* also contains BASE_LO */
 	EDMA_RSP_Q_PTR_SHIFT	= 3,
 
-	EDMA_CMD_OFS		= 0x28,
-	EDMA_EN			= (1 << 0),
-	EDMA_DS			= (1 << 1),
-	ATA_RST			= (1 << 2),
+	EDMA_CMD_OFS		= 0x28,		/* EDMA command register */
+	EDMA_EN			= (1 << 0),	/* enable EDMA */
+	EDMA_DS			= (1 << 1),	/* disable EDMA; self-negated */
+	ATA_RST			= (1 << 2),	/* reset trans/link/phy */
 
 	EDMA_IORDY_TMOUT	= 0x34,
 	EDMA_ARB_CFG		= 0x38,
@@ -301,14 +299,13 @@ enum {
 	MV_HP_ERRATA_60X1B2	= (1 << 3),
 	MV_HP_ERRATA_60X1C0	= (1 << 4),
 	MV_HP_ERRATA_XX42A0	= (1 << 5),
-	MV_HP_GEN_I		= (1 << 6),
-	MV_HP_GEN_II		= (1 << 7),
-	MV_HP_GEN_IIE		= (1 << 8),
+	MV_HP_GEN_I		= (1 << 6),	/* Generation I: 50xx */
+	MV_HP_GEN_II		= (1 << 7),	/* Generation II: 60xx */
+	MV_HP_GEN_IIE		= (1 << 8),	/* Generation IIE: 6042/7042 */
 
 	/* Port private flags (pp_flags) */
-	MV_PP_FLAG_EDMA_EN	= (1 << 0),
-	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
-	MV_PP_FLAG_HAD_A_RESET	= (1 << 2),
+	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
+	MV_PP_FLAG_HAD_A_RESET	= (1 << 2),	/* 1st hard reset complete? */
 };
 
 #define IS_GEN_I(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_I)
@@ -318,8 +315,12 @@ enum {
 enum {
 	MV_DMA_BOUNDARY		= 0xffffffffU,
 
+	/* mask of register bits containing lower 32 bits
+	 * of EDMA request queue DMA address
+	 */
 	EDMA_REQ_Q_BASE_LO_MASK	= 0xfffffc00U,
 
+	/* ditto, for response queue */
 	EDMA_RSP_Q_BASE_LO_MASK	= 0xffffff00U,
 };
 
@@ -823,7 +824,7 @@ static void mv_start_dma(void __iomem *base, struct mv_host_priv *hpriv,
 }
 
 /**
- *      mv_stop_dma - Disable eDMA engine
+ *      __mv_stop_dma - Disable eDMA engine
  *      @ap: ATA channel to manipulate
  *
  *      Verify the local cache of the eDMA state is accurate with a
@@ -832,7 +833,7 @@ static void mv_start_dma(void __iomem *base, struct mv_host_priv *hpriv,
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_stop_dma(struct ata_port *ap)
+static int __mv_stop_dma(struct ata_port *ap)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct mv_port_priv *pp	= ap->private_data;
@@ -863,6 +864,18 @@ static int mv_stop_dma(struct ata_port *ap)
 	}
 
 	return err;
+}
+
+static int mv_stop_dma(struct ata_port *ap)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&ap->host->lock, flags);
+	rc = __mv_stop_dma(ap);
+	spin_unlock_irqrestore(&ap->host->lock, flags);
+
+	return rc;
 }
 
 #ifdef ATA_DEBUG
@@ -965,7 +978,7 @@ static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs)
+	if (ofs != 0xffffffffU)
 		return readl(mv_ap_base(ap) + ofs);
 	else
 		return (u32) ofs;
@@ -975,7 +988,7 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs)
+	if (ofs != 0xffffffffU)
 		writelfl(val, mv_ap_base(ap) + ofs);
 }
 
@@ -1029,6 +1042,7 @@ static int mv_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
 	dma_addr_t mem_dma;
+	unsigned long flags;
 	int rc;
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -1067,9 +1081,13 @@ static int mv_port_start(struct ata_port *ap)
 	pp->sg_tbl = mem;
 	pp->sg_tbl_dma = mem_dma;
 
+	spin_lock_irqsave(&ap->host->lock, flags);
+
 	mv_edma_cfg(ap, hpriv, port_mmio);
 
 	mv_set_edma_ptrs(port_mmio, hpriv, pp);
+
+	spin_unlock_irqrestore(&ap->host->lock, flags);
 
 	/* Don't turn on EDMA here...do it before DMA commands only.  Else
 	 * we'll be unable to send non-data, PIO, etc due to restricted access
@@ -1090,11 +1108,7 @@ static int mv_port_start(struct ata_port *ap)
  */
 static void mv_port_stop(struct ata_port *ap)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ap->host->lock, flags);
 	mv_stop_dma(ap);
-	spin_unlock_irqrestore(&ap->host->lock, flags);
 }
 
 /**
@@ -1325,7 +1339,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * port.  Turn off EDMA so there won't be problems accessing
 		 * shadow block, etc registers.
 		 */
-		mv_stop_dma(ap);
+		__mv_stop_dma(ap);
 		return ata_qc_issue_prot(qc);
 	}
 
@@ -1497,7 +1511,7 @@ static void mv_intr_edma(struct ata_port *ap)
 			break;
 
 		/* 50xx: get active ATA command */
-		if (IS_GEN_I(hpriv)) 
+		if (IS_GEN_I(hpriv))
 			tag = ap->active_tag;
 
 		/* Gen II/IIE: get active ATA command via tag, to enable
@@ -1532,7 +1546,7 @@ static void mv_intr_edma(struct ata_port *ap)
 			ata_qc_complete(qc);
 		}
 
-		/* advance software response queue pointer, to 
+		/* advance software response queue pointer, to
 		 * indicate (after the loop completes) to hardware
 		 * that we have consumed a response queue entry.
 		 */
@@ -2206,7 +2220,7 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	struct mv_port_priv *pp	= ap->private_data;
 	struct ata_eh_context *ehc = &ap->eh_context;
 	int rc;
-	
+
 	rc = mv_stop_dma(ap);
 	if (rc)
 		ehc->i.action |= ATA_EH_HARDRESET;
