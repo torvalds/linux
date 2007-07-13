@@ -374,20 +374,6 @@ config ISTALLION
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.
 
-config AU1000_UART
-	bool "Enable Au1000 UART Support"
-	depends on SERIAL_NONSTANDARD && MIPS
-	help
-	  If you have an Alchemy AU1000 processor (MIPS based) and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config AU1000_SERIAL_CONSOLE
-	bool "Enable Au1000 serial console"
-	depends on AU1000_UART
-	help
-	  If you have an Alchemy AU1000 processor (MIPS based) and you want
-	  to use a console on a serial port, say Y.  Otherwise, say N.
-
 config SERIAL_DEC
 	bool "DECstation serial support"
 	depends on MACH_DECSTATION
