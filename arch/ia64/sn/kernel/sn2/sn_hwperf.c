@@ -750,9 +750,10 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, u64 arg)
 			goto error;
 		} else
 		if ((r = sn_hwperf_enum_objects(&nobj, &objs)) == 0) {
+			int cpuobj_index = 0;
+
 			memset(p, 0, a.sz);
 			for (i = 0; i < nobj; i++) {
-				int cpuobj_index = 0;
 				if (!SN_HWPERF_IS_NODE(objs + i))
 					continue;
 				node = sn_hwperf_obj_to_cnode(objs + i);
