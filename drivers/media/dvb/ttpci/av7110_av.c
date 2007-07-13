@@ -1082,19 +1082,18 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 	case VIDEO_SET_DISPLAY_FORMAT:
 	{
 		video_displayformat_t format = (video_displayformat_t) arg;
-		u16 val = 0;
 
 		switch (format) {
 		case VIDEO_PAN_SCAN:
-			val = VID_PAN_SCAN_PREF;
+			av7110->display_panscan = VID_PAN_SCAN_PREF;
 			break;
 
 		case VIDEO_LETTER_BOX:
-			val = VID_VC_AND_PS_PREF;
+			av7110->display_panscan = VID_VC_AND_PS_PREF;
 			break;
 
 		case VIDEO_CENTER_CUT_OUT:
-			val = VID_CENTRE_CUT_PREF;
+			av7110->display_panscan = VID_CENTRE_CUT_PREF;
 			break;
 
 		default:
@@ -1104,7 +1103,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 			break;
 		av7110->videostate.display_format = format;
 		ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
-				    1, (u16) val);
+				    1, av7110->display_panscan);
 		break;
 	}
 
@@ -1466,8 +1465,9 @@ int av7110_av_register(struct av7110 *av7110)
 	av7110->videostate.play_state = VIDEO_STOPPED;
 	av7110->videostate.stream_source = VIDEO_SOURCE_DEMUX;
 	av7110->videostate.video_format = VIDEO_FORMAT_4_3;
-	av7110->videostate.display_format = VIDEO_CENTER_CUT_OUT;
+	av7110->videostate.display_format = VIDEO_LETTER_BOX;
 	av7110->display_ar = VIDEO_FORMAT_4_3;
+	av7110->display_panscan = VID_VC_AND_PS_PREF;
 
 	init_waitqueue_head(&av7110->video_events.wait_queue);
 	spin_lock_init(&av7110->video_events.lock);
