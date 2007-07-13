@@ -378,7 +378,6 @@ shutdown_callback_client(struct nfs4_client *clp)
 	if (clnt) {
 		clp->cl_callback.cb_client = NULL;
 		rpc_shutdown_client(clnt);
-		rpciod_down();
 	}
 }
 

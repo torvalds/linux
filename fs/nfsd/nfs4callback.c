@@ -394,7 +394,6 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
 		.rpc_argp       = clp,
 	};
-	char clientname[16];
 	int status;
 
 	if (atomic_read(&cb->cb_set))
@@ -417,11 +416,6 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	memset(program->stats, 0, sizeof(cb->cb_stat));
 	program->stats->program = program;
 
-	/* Just here to make some printk's more useful: */
-	snprintf(clientname, sizeof(clientname),
-		"%u.%u.%u.%u", NIPQUAD(addr.sin_addr));
-	args.servername = clientname;
-
 	/* Create RPC client */
 	cb->cb_client = rpc_create(&args);
 	if (IS_ERR(cb->cb_client)) {
@@ -429,29 +423,23 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 		goto out_err;
 	}
 
-	/* Kick rpciod, put the call on the wire. */
-	if (rpciod_up() != 0)
-		goto out_clnt;
-
 	/* the task holds a reference to the nfs4_client struct */
 	atomic_inc(&clp->cl_count);
 
 	msg.rpc_cred = nfsd4_lookupcred(clp,0);
 	if (IS_ERR(msg.rpc_cred))
-		goto out_rpciod;
+		goto out_release_clp;
 	status = rpc_call_async(cb->cb_client, &msg, RPC_TASK_ASYNC, &nfs4_cb_null_ops, NULL);
 	put_rpccred(msg.rpc_cred);
 
 	if (status != 0) {
 		dprintk("NFSD: asynchronous NFSPROC4_CB_NULL failed!\n");
-		goto out_rpciod;
+		goto out_release_clp;
 	}
 	return;
 
-out_rpciod:
+out_release_clp:
 	atomic_dec(&clp->cl_count);
-	rpciod_down();
-out_clnt:
 	rpc_shutdown_client(cb->cb_client);
 out_err:
 	cb->cb_client = NULL;

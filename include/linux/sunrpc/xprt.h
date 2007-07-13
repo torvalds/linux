@@ -17,6 +17,8 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
+#ifdef __KERNEL__
+
 extern unsigned int xprt_udp_slot_table_entries;
 extern unsigned int xprt_tcp_slot_table_entries;
 
@@ -194,7 +196,13 @@ struct rpc_xprt {
 	char *			address_strings[RPC_DISPLAY_MAX];
 };
 
-#ifdef __KERNEL__
+struct rpc_xprtsock_create {
+	int			proto;		/* IPPROTO_UDP or IPPROTO_TCP */
+	struct sockaddr *	srcaddr;	/* optional local address */
+	struct sockaddr *	dstaddr;	/* remote peer address */
+	size_t			addrlen;
+	struct rpc_timeout *	timeout;	/* optional timeout parameters */
+};
 
 /*
  * Transport operations used by ULPs
@@ -204,7 +212,7 @@ void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long
 /*
  * Generic internal transport functions
  */
-struct rpc_xprt *	xprt_create_transport(int proto, struct sockaddr *addr, size_t size, struct rpc_timeout *toparms);
+struct rpc_xprt *	xprt_create_transport(struct rpc_xprtsock_create *args);
 void			xprt_connect(struct rpc_task *task);
 void			xprt_reserve(struct rpc_task *task);
 int			xprt_reserve_xprt(struct rpc_task *task);
@@ -242,8 +250,8 @@ void			xprt_disconnect(struct rpc_xprt *xprt);
 /*
  * Socket transport setup operations
  */
-struct rpc_xprt *	xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
-struct rpc_xprt *	xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
+struct rpc_xprt *	xs_setup_udp(struct rpc_xprtsock_create *args);
+struct rpc_xprt *	xs_setup_tcp(struct rpc_xprtsock_create *args);
 int			init_socket_xprt(void);
 void			cleanup_socket_xprt(void);
 

@@ -23,9 +23,11 @@ struct rpc_inode {
 	void *private;
 	struct list_head pipe;
 	struct list_head in_upcall;
+	struct list_head in_downcall;
 	int pipelen;
 	int nreaders;
 	int nwriters;
+	int nkern_readwriters;
 	wait_queue_head_t waitq;
 #define RPC_PIPE_WAIT_FOR_OPEN	1
 	int flags;

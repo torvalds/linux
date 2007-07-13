@@ -202,7 +202,7 @@ gss_get_mic_spkm3(struct gss_ctx	*ctx,
 	return err;
 }
 
-static struct gss_api_ops gss_spkm3_ops = {
+static const struct gss_api_ops gss_spkm3_ops = {
 	.gss_import_sec_context	= gss_import_sec_context_spkm3,
 	.gss_get_mic		= gss_get_mic_spkm3,
 	.gss_verify_mic		= gss_verify_mic_spkm3,

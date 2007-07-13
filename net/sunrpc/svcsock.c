@@ -644,6 +644,7 @@ svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr, int buflen)
 	struct msghdr msg = {
 		.msg_flags	= MSG_DONTWAIT,
 	};
+	struct sockaddr *sin;
 	int len;
 
 	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
@@ -653,6 +654,19 @@ svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr, int buflen)
 	 */
 	memcpy(&rqstp->rq_addr, &svsk->sk_remote, svsk->sk_remotelen);
 	rqstp->rq_addrlen = svsk->sk_remotelen;
+
+	/* Destination address in request is needed for binding the
+	 * source address in RPC callbacks later.
+	 */
+	sin = (struct sockaddr *)&svsk->sk_local;
+	switch (sin->sa_family) {
+	case AF_INET:
+		rqstp->rq_daddr.addr = ((struct sockaddr_in *)sin)->sin_addr;
+		break;
+	case AF_INET6:
+		rqstp->rq_daddr.addr6 = ((struct sockaddr_in6 *)sin)->sin6_addr;
+		break;
+	}
 
 	dprintk("svc: socket %p recvfrom(%p, %Zu) = %d\n",
 		svsk, iov[0].iov_base, iov[0].iov_len, len);
@@ -1064,6 +1078,12 @@ svc_tcp_accept(struct svc_sock *svsk)
 		goto failed;
 	memcpy(&newsvsk->sk_remote, sin, slen);
 	newsvsk->sk_remotelen = slen;
+	err = kernel_getsockname(newsock, sin, &slen);
+	if (unlikely(err < 0)) {
+		dprintk("svc_tcp_accept: kernel_getsockname error %d\n", -err);
+		slen = offsetof(struct sockaddr, sa_data);
+	}
+	memcpy(&newsvsk->sk_local, sin, slen);
 
 	svc_sock_received(newsvsk);
 

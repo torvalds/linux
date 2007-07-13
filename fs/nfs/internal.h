@@ -183,9 +183,9 @@ unsigned long nfs_block_bits(unsigned long bsize, unsigned char *nrbitsp)
 /*
  * Calculate the number of 512byte blocks used.
  */
-static inline unsigned long nfs_calc_block_size(u64 tsize)
+static inline blkcnt_t nfs_calc_block_size(u64 tsize)
 {
-	loff_t used = (tsize + 511) >> 9;
+	blkcnt_t used = (tsize + 511) >> 9;
 	return (used > ULONG_MAX) ? ULONG_MAX : used;
 }
 

@@ -266,7 +266,7 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
 static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos)
 {
 	struct nfs_open_context *ctx = dreq->ctx;
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = ctx->path.dentry->d_inode;
 	size_t rsize = NFS_SERVER(inode)->rsize;
 	unsigned int pgbase;
 	int result;
@@ -295,9 +295,14 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 			break;
 		}
 		if ((unsigned)result < data->npages) {
-			nfs_direct_release_pages(data->pagevec, result);
-			nfs_readdata_release(data);
-			break;
+			bytes = result * PAGE_SIZE;
+			if (bytes <= pgbase) {
+				nfs_direct_release_pages(data->pagevec, result);
+				nfs_readdata_release(data);
+				break;
+			}
+			bytes -= pgbase;
+			data->npages = result;
 		}
 
 		get_dreq(dreq);
@@ -601,7 +606,7 @@ static const struct rpc_call_ops nfs_write_direct_ops = {
 static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos, int sync)
 {
 	struct nfs_open_context *ctx = dreq->ctx;
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = ctx->path.dentry->d_inode;
 	size_t wsize = NFS_SERVER(inode)->wsize;
 	unsigned int pgbase;
 	int result;
@@ -630,9 +635,14 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 			break;
 		}
 		if ((unsigned)result < data->npages) {
-			nfs_direct_release_pages(data->pagevec, result);
-			nfs_writedata_release(data);
-			break;
+			bytes = result * PAGE_SIZE;
+			if (bytes <= pgbase) {
+				nfs_direct_release_pages(data->pagevec, result);
+				nfs_writedata_release(data);
+				break;
+			}
+			bytes -= pgbase;
+			data->npages = result;
 		}
 
 		get_dreq(dreq);
@@ -763,10 +773,8 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
-		return -EINVAL;
-
-	if (count < 0)
 		goto out;
+
 	retval = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, buf, count))
 		goto out;
@@ -814,7 +822,7 @@ out:
 ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
-	ssize_t retval;
+	ssize_t retval = -EINVAL;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	/* XXX: temporary */
@@ -827,7 +835,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
-		return -EINVAL;
+		goto out;
 
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)

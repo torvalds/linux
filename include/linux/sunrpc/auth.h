@@ -16,6 +16,7 @@
 #include <linux/sunrpc/xdr.h>
 
 #include <asm/atomic.h>
+#include <linux/rcupdate.h>
 
 /* size of the nodename buffer */
 #define UNX_MAXNODENAME	32
@@ -30,22 +31,28 @@ struct auth_cred {
 /*
  * Client user credentials
  */
+struct rpc_auth;
+struct rpc_credops;
 struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
-	struct rpc_credops *	cr_ops;
-	unsigned long		cr_expire;	/* when to gc */
-	atomic_t		cr_count;	/* ref count */
-	unsigned short		cr_flags;	/* various flags */
+	struct list_head	cr_lru;		/* lru garbage collection */
+	struct rcu_head		cr_rcu;
+	struct rpc_auth *	cr_auth;
+	const struct rpc_credops *cr_ops;
 #ifdef RPC_DEBUG
 	unsigned long		cr_magic;	/* 0x0f4aa4f0 */
 #endif
+	unsigned long		cr_expire;	/* when to gc */
+	unsigned long		cr_flags;	/* various flags */
+	atomic_t		cr_count;	/* ref count */
 
 	uid_t			cr_uid;
 
 	/* per-flavor data */
 };
-#define RPCAUTH_CRED_NEW	0x0001
-#define RPCAUTH_CRED_UPTODATE	0x0002
+#define RPCAUTH_CRED_NEW	0
+#define RPCAUTH_CRED_UPTODATE	1
+#define RPCAUTH_CRED_HASHED	2
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 
@@ -56,10 +63,10 @@ struct rpc_cred {
 #define RPC_CREDCACHE_MASK	(RPC_CREDCACHE_NR - 1)
 struct rpc_cred_cache {
 	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
-	unsigned long		nextgc;		/* next garbage collection */
-	unsigned long		expire;		/* cache expiry interval */
+	spinlock_t		lock;
 };
 
+struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
 				/* guess at number of u32's auth adds before
@@ -69,7 +76,7 @@ struct rpc_auth {
 	unsigned int		au_verfsize;
 
 	unsigned int		au_flags;	/* various flags */
-	struct rpc_authops *	au_ops;		/* operations */
+	const struct rpc_authops *au_ops;		/* operations */
 	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss
@@ -115,17 +122,19 @@ struct rpc_credops {
 						void *, __be32 *, void *);
 };
 
-extern struct rpc_authops	authunix_ops;
-extern struct rpc_authops	authnull_ops;
-#ifdef CONFIG_SUNRPC_SECURE
-extern struct rpc_authops	authdes_ops;
-#endif
+extern const struct rpc_authops	authunix_ops;
+extern const struct rpc_authops	authnull_ops;
 
-int			rpcauth_register(struct rpc_authops *);
-int			rpcauth_unregister(struct rpc_authops *);
+void __init		rpc_init_authunix(void);
+void __init		rpcauth_init_module(void);
+void __exit		rpcauth_remove_module(void);
+
+int			rpcauth_register(const struct rpc_authops *);
+int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(rpc_authflavor_t, struct rpc_clnt *);
-void			rpcauth_destroy(struct rpc_auth *);
+void			rpcauth_release(struct rpc_auth *);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);
+void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
 struct rpc_cred *	rpcauth_bindcred(struct rpc_task *);
 void			rpcauth_holdcred(struct rpc_task *);
@@ -138,8 +147,9 @@ int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);
-int			rpcauth_init_credcache(struct rpc_auth *, unsigned long);
-void			rpcauth_free_credcache(struct rpc_auth *);
+int			rpcauth_init_credcache(struct rpc_auth *);
+void			rpcauth_destroy_credcache(struct rpc_auth *);
+void			rpcauth_clear_credcache(struct rpc_cred_cache *);
 
 static inline
 struct rpc_cred *	get_rpccred(struct rpc_cred *cred)

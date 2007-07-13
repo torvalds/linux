@@ -123,9 +123,6 @@ lockd(struct svc_rqst *rqstp)
 	/* Process request with signals blocked, but allow SIGKILL.  */
 	allow_signal(SIGKILL);
 
-	/* kick rpciod */
-	rpciod_up();
-
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
 	if (!nlm_timeout)
@@ -201,9 +198,6 @@ lockd(struct svc_rqst *rqstp)
 
 	/* Exit the RPC thread */
 	svc_exit_thread(rqstp);
-
-	/* release rpciod */
-	rpciod_down();
 
 	/* Release module */
 	unlock_kernel();
