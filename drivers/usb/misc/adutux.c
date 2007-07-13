@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_USB_DEBUG
@@ -80,7 +81,7 @@ MODULE_DEVICE_TABLE(usb, device_table);
 
 /* Structure to hold all of our device specific stuff */
 struct adu_device {
-	struct semaphore	sem; /* locks this structure */
+	struct mutex		mtx; /* locks this structure */
 	struct usb_device*	udev; /* save off the usb device pointer */
 	struct usb_interface*	interface;
 	unsigned char		minor; /* the starting minor number for this device */
@@ -269,8 +270,8 @@ static int adu_open(struct inode *inode, struct file *file)
 	}
 
 	/* lock this device */
-	if ((retval = down_interruptible(&dev->sem))) {
-		dbg(2, "%s : sem down failed", __FUNCTION__);
+	if ((retval = mutex_lock_interruptible(&dev->mtx))) {
+		dbg(2, "%s : mutex lock failed", __FUNCTION__);
 		goto exit_no_device;
 	}
 
@@ -299,7 +300,7 @@ static int adu_open(struct inode *inode, struct file *file)
 		if (retval)
 			--dev->open_count;
 	}
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit_no_device:
 	dbg(2,"%s : leave, return value %d ", __FUNCTION__, retval);
@@ -347,7 +348,7 @@ static int adu_release(struct inode *inode, struct file *file)
 	}
 
 	/* lock our device */
-	down(&dev->sem); /* not interruptible */
+	mutex_lock(&dev->mtx); /* not interruptible */
 
 	if (dev->open_count <= 0) {
 		dbg(1," %s : device not opened", __FUNCTION__);
@@ -357,7 +358,7 @@ static int adu_release(struct inode *inode, struct file *file)
 
 	if (dev->udev == NULL) {
 		/* the device was unplugged before the file was released */
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		adu_delete(dev);
 		dev = NULL;
 	} else {
@@ -367,7 +368,7 @@ static int adu_release(struct inode *inode, struct file *file)
 
 exit:
 	if (dev)
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
 }
@@ -390,7 +391,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	dev = file->private_data;
 	dbg(2," %s : dev=%p", __FUNCTION__, dev);
 	/* lock this object */
-	if (down_interruptible(&dev->sem))
+	if (mutex_lock_interruptible(&dev->mtx))
 		return -ERESTARTSYS;
 
 	/* verify that the device wasn't unplugged */
@@ -522,7 +523,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 
 exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
@@ -543,7 +544,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	dev = file->private_data;
 
 	/* lock this object */
-	retval = down_interruptible(&dev->sem);
+	retval = mutex_lock_interruptible(&dev->mtx);
 	if (retval)
 		goto exit_nolock;
 
@@ -571,9 +572,9 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 				retval = -EINTR;
 				goto exit;
 			}
-			up(&dev->sem);
+			mutex_unlock(&dev->mtx);
 			timeout = interruptible_sleep_on_timeout(&dev->write_wait, timeout);
-			retval = down_interruptible(&dev->sem);
+			retval = mutex_lock_interruptible(&dev->mtx);
 			if (retval) {
 				retval = bytes_written ? bytes_written : retval;
 				goto exit_nolock;
@@ -638,7 +639,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 exit_nolock:
 
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
@@ -698,7 +699,7 @@ static int adu_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
 	dev->udev = udev;
 	init_waitqueue_head(&dev->read_wait);
@@ -835,16 +836,16 @@ static void adu_disconnect(struct usb_interface *interface)
 	usb_deregister_dev(interface, &adu_class);
 	dev->minor = 0;
 
-	down(&dev->sem); /* not interruptible */
+	mutex_lock(&dev->mtx); /* not interruptible */
 
 	/* if the device is not opened, then we clean up right now */
 	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
 	if (!dev->open_count) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		adu_delete(dev);
 	} else {
 		dev->udev = NULL;
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	}
 
 	dev_info(&interface->dev, "ADU device adutux%d now disconnected",
