@@ -827,8 +827,10 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * If direction is "send", change the packet ID from SETUP (0x2D)
 	 * to OUT (0xE1).  Else change it from SETUP to IN (0x69) and
 	 * set Short Packet Detect (SPD) for all data packets.
+	 *
+	 * 0-length transfers always get treated as "send".
 	 */
-	if (usb_pipeout(urb->pipe))
+	if (usb_pipeout(urb->pipe) || len == 0)
 		destination ^= (USB_PID_SETUP ^ USB_PID_OUT);
 	else {
 		destination ^= (USB_PID_SETUP ^ USB_PID_IN);
@@ -839,7 +841,12 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * Build the DATA TDs
 	 */
 	while (len > 0) {
-		int pktsze = min(len, maxsze);
+		int pktsze = maxsze;
+
+		if (len <= pktsze) {		/* The last data packet */
+			pktsze = len;
+			status &= ~TD_CTRL_SPD;
+		}
 
 		td = uhci_alloc_td(uhci);
 		if (!td)
@@ -866,19 +873,9 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		goto nomem;
 	*plink = LINK_TO_TD(td);
 
-	/*
-	 * It's IN if the pipe is an output pipe or we're not expecting
-	 * data back.
-	 */
-	destination &= ~TD_TOKEN_PID_MASK;
-	if (usb_pipeout(urb->pipe) || !urb->transfer_buffer_length)
-		destination |= USB_PID_IN;
-	else
-		destination |= USB_PID_OUT;
-
+	/* Change direction for the status transaction */
+	destination ^= (USB_PID_IN ^ USB_PID_OUT);
 	destination |= TD_TOKEN_TOGGLE;		/* End in Data1 */
-
-	status &= ~TD_CTRL_SPD;
 
 	uhci_add_td_to_urbp(td, urbp);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
@@ -1185,10 +1182,18 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 				}
 			}
 
+		/* Did we receive a short packet? */
 		} else if (len < uhci_expected_length(td_token(td))) {
 
-			/* We received a short packet */
-			if (urb->transfer_flags & URB_SHORT_NOT_OK)
+			/* For control transfers, go to the status TD if
+			 * this isn't already the last data TD */
+			if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+				if (td->list.next != urbp->td_list.prev)
+					ret = 1;
+			}
+
+			/* For bulk and interrupt, this may be an error */
+			else if (urb->transfer_flags & URB_SHORT_NOT_OK)
 				ret = -EREMOTEIO;
 
 			/* Fixup needed only if this isn't the URB's last TD */
@@ -1208,10 +1213,6 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 err:
 	if (ret < 0) {
-		/* In case a control transfer gets an error
-		 * during the setup stage */
-		urb->actual_length = max(urb->actual_length, 0);
-
 		/* Note that the queue has stopped and save
 		 * the next toggle value */
 		qh->element = UHCI_PTR_TERM;
@@ -1489,9 +1490,25 @@ __acquires(uhci->lock)
 {
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+
+		/* urb->actual_length < 0 means the setup transaction didn't
+		 * complete successfully.  Either it failed or the URB was
+		 * unlinked first.  Regardless, don't confuse people with a
+		 * negative length. */
+		urb->actual_length = max(urb->actual_length, 0);
+
+		/* Report erroneous short transfers */
+		if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
+				urb->actual_length <
+					urb->transfer_buffer_length &&
+				urb->status == 0))
+			urb->status = -EREMOTEIO;
+	}
+
 	/* When giving back the first URB in an Isochronous queue,
 	 * reinitialize the QH's iso-related members for the next URB. */
-	if (qh->type == USB_ENDPOINT_XFER_ISOC &&
+	else if (qh->type == USB_ENDPOINT_XFER_ISOC &&
 			urbp->node.prev == &qh->queue &&
 			urbp->node.next != &qh->queue) {
 		struct urb *nurb = list_entry(urbp->node.next,
