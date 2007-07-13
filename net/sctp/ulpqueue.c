@@ -659,6 +659,46 @@ done:
 	return retval;
 }
 
+/*
+ * Flush out stale fragments from the reassembly queue when processing
+ * a Forward TSN.
+ *
+ * RFC 3758, Section 3.6
+ *
+ * After receiving and processing a FORWARD TSN, the data receiver MUST
+ * take cautions in updating its re-assembly queue.  The receiver MUST
+ * remove any partially reassembled message, which is still missing one
+ * or more TSNs earlier than or equal to the new cumulative TSN point.
+ * In the event that the receiver has invoked the partial delivery API,
+ * a notification SHOULD also be generated to inform the upper layer API
+ * that the message being partially delivered will NOT be completed.
+ */
+void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 fwd_tsn)
+{
+	struct sk_buff *pos, *tmp;
+	struct sctp_ulpevent *event;
+	__u32 tsn;
+
+	if (skb_queue_empty(&ulpq->reasm))
+		return;
+
+	skb_queue_walk_safe(&ulpq->reasm, pos, tmp) {
+		event = sctp_skb2event(pos);
+		tsn = event->tsn;
+
+		/* Since the entire message must be abandoned by the
+		 * sender (item A3 in Section 3.5, RFC 3758), we can
+		 * free all fragments on the list that are less then
+		 * or equal to ctsn_point
+		 */
+		if (TSN_lte(tsn, fwd_tsn)) {
+			__skb_unlink(pos, &ulpq->reasm);
+			sctp_ulpevent_free(event);
+		} else
+			break;
+	}
+}
+
 /* Helper function to gather skbs that have possibly become
  * ordered by an an incoming chunk.
  */
@@ -794,7 +834,7 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 /* Helper function to gather skbs that have possibly become
  * ordered by forward tsn skipping their dependencies.
  */
-static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
+static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 {
 	struct sk_buff *pos, *tmp;
 	struct sctp_ulpevent *cevent;
@@ -813,31 +853,40 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
 		csid = cevent->stream;
 		cssn = cevent->ssn;
 
-		if (cssn != sctp_ssn_peek(in, csid))
+		/* Have we gone too far?  */
+		if (csid > sid)
 			break;
 
-		/* Found it, so mark in the ssnmap. */
-		sctp_ssn_next(in, csid);
+		/* Have we not gone far enough?  */
+		if (csid < sid)
+			continue;
+
+		/* see if this ssn has been marked by skipping */
+		if (!SSN_lt(cssn, sctp_ssn_peek(in, csid)))
+			break;
 
 		__skb_unlink(pos, &ulpq->lobby);
-		if (!event) {
+		if (!event)
 			/* Create a temporary list to collect chunks on.  */
 			event = sctp_skb2event(pos);
-			__skb_queue_tail(&temp, sctp_event2skb(event));
-		} else {
-			/* Attach all gathered skbs to the event.  */
-			__skb_queue_tail(&temp, pos);
-		}
+
+		/* Attach all gathered skbs to the event.  */
+		__skb_queue_tail(&temp, pos);
 	}
 
 	/* Send event to the ULP.  'event' is the sctp_ulpevent for
 	 * very first SKB on the 'temp' list.
 	 */
-	if (event)
+	if (event) {
+		/* see if we have more ordered that we can deliver */
+		sctp_ulpq_retrieve_ordered(ulpq, event);
 		sctp_ulpq_tail_event(ulpq, event);
+	}
 }
 
-/* Skip over an SSN. */
+/* Skip over an SSN. This is used during the processing of
+ * Forwared TSN chunk to skip over the abandoned ordered data
+ */
 void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 {
 	struct sctp_stream *in;
@@ -855,7 +904,7 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	/* Go find any other chunks that were waiting for
 	 * ordering and deliver them if needed.
 	 */
-	sctp_ulpq_reap_ordered(ulpq);
+	sctp_ulpq_reap_ordered(ulpq, sid);
 	return;
 }
 

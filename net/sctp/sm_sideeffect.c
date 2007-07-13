@@ -1130,6 +1130,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			/* Move the Cumulattive TSN Ack ahead. */
 			sctp_tsnmap_skip(&asoc->peer.tsn_map, cmd->obj.u32);
 
+			/* purge the fragmentation queue */
+			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, cmd->obj.u32);
+
 			/* Abort any in progress partial delivery. */
 			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
 			break;
