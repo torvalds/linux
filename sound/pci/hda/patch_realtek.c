@@ -172,8 +172,8 @@ enum {
 	ALC883_LENOVO_101E_2ch,
 	ALC883_LENOVO_NB0763,
 	ALC888_LENOVO_MS7195_DIG,		
-	ALC888_HP_NETTLE,
-	ALC888_HP_LUCKNOW,
+	ALC888_6ST_HP,
+	ALC888_3ST_HP,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -6084,7 +6084,7 @@ static struct snd_kcontrol_new alc883_medion_md2_mixer[] = {
 	{ } /* end */
 };	
 
-static struct snd_kcontrol_new alc888_hp_nettle_mixer[] = {
+static struct snd_kcontrol_new alc888_6st_hp_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
@@ -6124,7 +6124,7 @@ static struct snd_kcontrol_new alc888_hp_nettle_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new alc888_hp_lucknow_mixer[] = {
+static struct snd_kcontrol_new alc888_3st_hp_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
@@ -6293,7 +6293,7 @@ static struct hda_verb alc888_lenovo_ms7195_verbs[] = {
 	{ } /* end */
 };
 
-static struct hda_verb alc888_hp_nettle_verbs[] = {
+static struct hda_verb alc888_6st_hp_verbs[] = {
 	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},	/* Front: output 0 (0x0c) */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x02},	/* Rear : output 2 (0x0e) */
 	{0x16, AC_VERB_SET_CONNECT_SEL, 0x01},	/* CLFE : output 1 (0x0d) */
@@ -6301,14 +6301,14 @@ static struct hda_verb alc888_hp_nettle_verbs[] = {
 	{ }
 };
 
-static struct hda_verb alc888_hp_lucknow_verbs[] = {
+static struct hda_verb alc888_3st_hp_verbs[] = {
 	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},	/* Front: output 0 (0x0c) */
 	{0x18, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Rear : output 1 (0x0d) */
 	{0x16, AC_VERB_SET_CONNECT_SEL, 0x02},	/* CLFE : output 2 (0x0e) */
 	{ }
 };
 
-static struct hda_verb alc888_hp_lucknow_2ch_init[] = {
+static struct hda_verb alc888_3st_hp_2ch_init[] = {
 	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
 	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
@@ -6316,7 +6316,7 @@ static struct hda_verb alc888_hp_lucknow_2ch_init[] = {
 	{ }
 };
 
-static struct hda_verb alc888_hp_lucknow_6ch_init[] = {
+static struct hda_verb alc888_3st_hp_6ch_init[] = {
 	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
 	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
@@ -6324,9 +6324,9 @@ static struct hda_verb alc888_hp_lucknow_6ch_init[] = {
 	{ }
 };
 
-static struct hda_channel_mode alc888_hp_lucknow_modes[2] = {
-	{ 2, alc888_hp_lucknow_2ch_init },
-	{ 6, alc888_hp_lucknow_6ch_init },
+static struct hda_channel_mode alc888_3st_hp_modes[2] = {
+	{ 2, alc888_3st_hp_2ch_init },
+	{ 6, alc888_3st_hp_6ch_init },
 };
 
 /* toggle front-jack and RCA according to the hp-jack state */
@@ -6571,8 +6571,8 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_LENOVO_101E_2ch] = "lenovo-101e",
 	[ALC883_LENOVO_NB0763]	= "lenovo-nb0763",
 	[ALC888_LENOVO_MS7195_DIG] = "lenovo-ms7195-dig",
-	[ALC888_HP_NETTLE]	= "hp-nettle",
-	[ALC888_HP_LUCKNOW]	= "hp-lucknow",
+	[ALC888_6ST_HP]		= "6stack-hp",
+	[ALC888_3ST_HP]		= "3stack-hp",
 	[ALC883_AUTO]		= "auto",
 };
 
@@ -6608,9 +6608,9 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x101e, "Lenovo 101e", ALC883_LENOVO_101E_2ch),
 	SND_PCI_QUIRK(0x17aa, 0x3bfd, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x2085, "Lenovo NB0763", ALC883_LENOVO_NB0763),
-	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC888_HP_NETTLE),
-	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_HP_LUCKNOW),
-	SND_PCI_QUIRK(0x103c, 0x2a4f, "HP Samba", ALC888_HP_LUCKNOW),
+	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC888_6ST_HP),
+	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_3ST_HP),
+	SND_PCI_QUIRK(0x103c, 0x2a4f, "HP Samba", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x17c0, 0x4071, "MEDION MD2", ALC883_MEDION_MD2),
 	{}
 };
@@ -6795,9 +6795,9 @@ static struct alc_config_preset alc883_presets[] = {
 		.unsol_event = alc883_lenovo_ms7195_unsol_event,
 		.init_hook = alc888_lenovo_ms7195_front_automute,
 	},	
-	[ALC888_HP_NETTLE] = {
-		.mixers = { alc888_hp_nettle_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc888_hp_nettle_verbs },
+	[ALC888_6ST_HP] = {
+		.mixers = { alc888_6st_hp_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc888_6st_hp_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
@@ -6808,15 +6808,15 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_sixstack_modes,
 		.input_mux = &alc883_capture_source,
 	},
-	[ALC888_HP_LUCKNOW] = {
-		.mixers = { alc888_hp_lucknow_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc888_hp_lucknow_verbs },
+	[ALC888_3ST_HP] = {
+		.mixers = { alc888_3st_hp_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc888_3st_hp_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
 		.adc_nids = alc883_adc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc888_hp_lucknow_modes),
-		.channel_mode = alc888_hp_lucknow_modes,
+		.num_channel_mode = ARRAY_SIZE(alc888_3st_hp_modes),
+		.channel_mode = alc888_3st_hp_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
 	},

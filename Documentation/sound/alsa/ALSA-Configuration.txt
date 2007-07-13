@@ -861,8 +861,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lenovo-101e	Lenovo 101E
 	  lenovo-nb0763	Lenovo NB0763
 	  lenovo-ms7195-dig Lenovo MS7195
-	  hp-nettle	HP Nettle
-	  hp-lucknow	HP Lucknow
+	  6stack-hp	HP machines with 6stack (Nettle boards)
+	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
