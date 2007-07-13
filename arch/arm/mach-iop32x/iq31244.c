@@ -298,9 +298,14 @@ static void __init iq31244_init_machine(void)
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&iq31244_flash_device);
 	platform_device_register(&iq31244_serial_device);
+	platform_device_register(&iop3xx_dma_0_channel);
+	platform_device_register(&iop3xx_dma_1_channel);
 
 	if (is_ep80219())
 		pm_power_off = ep80219_power_off;
+
+	if (!is_80219())
+		platform_device_register(&iop3xx_aau_channel);
 }
 
 static int __init force_ep80219_setup(char *str)

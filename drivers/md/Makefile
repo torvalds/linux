@@ -18,7 +18,7 @@ raid456-objs	:= raid5.o raid6algos.o raid6recov.o raid6tables.o \
 hostprogs-y	:= mktables
 
 # Note: link order is important.  All raid personalities
-# and xor.o must come before md.o, as they each initialise 
+# and must come before md.o, as they each initialise 
 # themselves, and md.o may use the personalities when it 
 # auto-initialised.
 
@@ -26,7 +26,7 @@ obj-$(CONFIG_MD_LINEAR)		+= linear.o
 obj-$(CONFIG_MD_RAID0)		+= raid0.o
 obj-$(CONFIG_MD_RAID1)		+= raid1.o
 obj-$(CONFIG_MD_RAID10)		+= raid10.o
-obj-$(CONFIG_MD_RAID456)	+= raid456.o xor.o
+obj-$(CONFIG_MD_RAID456)	+= raid456.o
 obj-$(CONFIG_MD_MULTIPATH)	+= multipath.o
 obj-$(CONFIG_MD_FAULTY)		+= faulty.o
 obj-$(CONFIG_BLK_DEV_MD)	+= md-mod.o

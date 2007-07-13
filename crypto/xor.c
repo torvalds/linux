@@ -26,32 +26,32 @@
 static struct xor_block_template *active_template;
 
 void
-xor_block(unsigned int count, unsigned int bytes, void **ptr)
+xor_blocks(unsigned int src_count, unsigned int bytes, void *dest, void **srcs)
 {
-	unsigned long *p0, *p1, *p2, *p3, *p4;
+	unsigned long *p1, *p2, *p3, *p4;
 
-	p0 = (unsigned long *) ptr[0];
-	p1 = (unsigned long *) ptr[1];
-	if (count == 2) {
-		active_template->do_2(bytes, p0, p1);
+	p1 = (unsigned long *) srcs[0];
+	if (src_count == 1) {
+		active_template->do_2(bytes, dest, p1);
 		return;
 	}
 
-	p2 = (unsigned long *) ptr[2];
-	if (count == 3) {
-		active_template->do_3(bytes, p0, p1, p2);
+	p2 = (unsigned long *) srcs[1];
+	if (src_count == 2) {
+		active_template->do_3(bytes, dest, p1, p2);
 		return;
 	}
 
-	p3 = (unsigned long *) ptr[3];
-	if (count == 4) {
-		active_template->do_4(bytes, p0, p1, p2, p3);
+	p3 = (unsigned long *) srcs[2];
+	if (src_count == 3) {
+		active_template->do_4(bytes, dest, p1, p2, p3);
 		return;
 	}
 
-	p4 = (unsigned long *) ptr[4];
-	active_template->do_5(bytes, p0, p1, p2, p3, p4);
+	p4 = (unsigned long *) srcs[3];
+	active_template->do_5(bytes, dest, p1, p2, p3, p4);
 }
+EXPORT_SYMBOL(xor_blocks);
 
 /* Set of all registered templates.  */
 static struct xor_block_template *template_list;
@@ -78,7 +78,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 		now = jiffies;
 		count = 0;
 		while (jiffies == now) {
-			mb();
+			mb(); /* prevent loop optimzation */
 			tmpl->do_2(BENCH_SIZE, b1, b2);
 			mb();
 			count++;
@@ -91,26 +91,26 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	speed = max * (HZ * BENCH_SIZE / 1024);
 	tmpl->speed = speed;
 
-	printk("   %-10s: %5d.%03d MB/sec\n", tmpl->name,
+	printk(KERN_INFO "   %-10s: %5d.%03d MB/sec\n", tmpl->name,
 	       speed / 1000, speed % 1000);
 }
 
-static int
-calibrate_xor_block(void)
+static int __init
+calibrate_xor_blocks(void)
 {
 	void *b1, *b2;
 	struct xor_block_template *f, *fastest;
 
 	b1 = (void *) __get_free_pages(GFP_KERNEL, 2);
-	if (! b1) {
-		printk("raid5: Yikes!  No memory available.\n");
+	if (!b1) {
+		printk(KERN_WARNING "xor: Yikes!  No memory available.\n");
 		return -ENOMEM;
 	}
 	b2 = b1 + 2*PAGE_SIZE + BENCH_SIZE;
 
 	/*
-	 * If this arch/cpu has a short-circuited selection, don't loop through all
-	 * the possible functions, just test the best one
+	 * If this arch/cpu has a short-circuited selection, don't loop through
+	 * all the possible functions, just test the best one
 	 */
 
 	fastest = NULL;
@@ -122,11 +122,12 @@ calibrate_xor_block(void)
 #define xor_speed(templ)	do_xor_speed((templ), b1, b2)
 
 	if (fastest) {
-		printk(KERN_INFO "raid5: automatically using best checksumming function: %s\n",
+		printk(KERN_INFO "xor: automatically using best "
+			"checksumming function: %s\n",
 			fastest->name);
 		xor_speed(fastest);
 	} else {
-		printk(KERN_INFO "raid5: measuring checksumming speed\n");
+		printk(KERN_INFO "xor: measuring software checksum speed\n");
 		XOR_TRY_TEMPLATES;
 		fastest = template_list;
 		for (f = fastest; f; f = f->next)
@@ -134,7 +135,7 @@ calibrate_xor_block(void)
 				fastest = f;
 	}
 
-	printk("raid5: using function: %s (%d.%03d MB/sec)\n",
+	printk(KERN_INFO "xor: using function: %s (%d.%03d MB/sec)\n",
 	       fastest->name, fastest->speed / 1000, fastest->speed % 1000);
 
 #undef xor_speed
@@ -147,8 +148,8 @@ calibrate_xor_block(void)
 
 static __exit void xor_exit(void) { }
 
-EXPORT_SYMBOL(xor_block);
 MODULE_LICENSE("GPL");
 
-module_init(calibrate_xor_block);
+/* when built-in xor.o must initialize before drivers/md/md.o */
+core_initcall(calibrate_xor_blocks);
 module_exit(xor_exit);

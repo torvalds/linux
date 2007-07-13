@@ -166,12 +166,22 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_INIT_I2C_1	      (1 << 1)
 #define IOP13XX_INIT_I2C_2	      (1 << 2)
 
-#define IQ81340_NUM_UART     2
-#define IQ81340_NUM_I2C      3
-#define IQ81340_NUM_PHYS_MAP_FLASH 1
-#define IQ81340_MAX_PLAT_DEVICES (IQ81340_NUM_UART +\
-				IQ81340_NUM_I2C +\
-				IQ81340_NUM_PHYS_MAP_FLASH)
+/* ADMA selection flags */
+/* INIT_ADMA_DEFAULT = Rely on CONFIG_IOP13XX_ADMA* */
+#define IOP13XX_INIT_ADMA_DEFAULT     (0)
+#define IOP13XX_INIT_ADMA_0           (1 << 0)
+#define IOP13XX_INIT_ADMA_1           (1 << 1)
+#define IOP13XX_INIT_ADMA_2           (1 << 2)
+
+/* Platform devices */
+#define IQ81340_NUM_UART     		2
+#define IQ81340_NUM_I2C      		3
+#define IQ81340_NUM_PHYS_MAP_FLASH	1
+#define IQ81340_NUM_ADMA     		3
+#define IQ81340_MAX_PLAT_DEVICES (IQ81340_NUM_UART + \
+				IQ81340_NUM_I2C + \
+				IQ81340_NUM_PHYS_MAP_FLASH + \
+				IQ81340_NUM_ADMA)
 
 /*========================== PMMR offsets for key registers ============*/
 #define IOP13XX_ATU0_PMMR_OFFSET   	0x00048000
@@ -444,22 +454,6 @@ static inline int iop13xx_cpu_id(void)
 /*==============================ADMA UNITS===============================*/
 #define IOP13XX_ADMA_PHYS_BASE(chan)	IOP13XX_REG_ADDR32_PHYS((chan << 9))
 #define IOP13XX_ADMA_UPPER_PA(chan)	(IOP13XX_ADMA_PHYS_BASE(chan) + 0xc0)
-#define IOP13XX_ADMA_OFFSET(chan, ofs)	IOP13XX_REG_ADDR32((chan << 9) + (ofs))
-
-#define IOP13XX_ADMA_ACCR(chan)      IOP13XX_ADMA_OFFSET(chan, 0x0)
-#define IOP13XX_ADMA_ACSR(chan)      IOP13XX_ADMA_OFFSET(chan, 0x4)
-#define IOP13XX_ADMA_ADAR(chan)      IOP13XX_ADMA_OFFSET(chan, 0x8)
-#define IOP13XX_ADMA_IIPCR(chan)     IOP13XX_ADMA_OFFSET(chan, 0x18)
-#define IOP13XX_ADMA_IIPAR(chan)     IOP13XX_ADMA_OFFSET(chan, 0x1c)
-#define IOP13XX_ADMA_IIPUAR(chan)    IOP13XX_ADMA_OFFSET(chan, 0x20)
-#define IOP13XX_ADMA_ANDAR(chan)     IOP13XX_ADMA_OFFSET(chan, 0x24)
-#define IOP13XX_ADMA_ADCR(chan)      IOP13XX_ADMA_OFFSET(chan, 0x28)
-#define IOP13XX_ADMA_CARMD(chan)     IOP13XX_ADMA_OFFSET(chan, 0x2c)
-#define IOP13XX_ADMA_ABCR(chan)      IOP13XX_ADMA_OFFSET(chan, 0x30)
-#define IOP13XX_ADMA_DLADR(chan)     IOP13XX_ADMA_OFFSET(chan, 0x34)
-#define IOP13XX_ADMA_DUADR(chan)     IOP13XX_ADMA_OFFSET(chan, 0x38)
-#define IOP13XX_ADMA_SLAR(src, chan) IOP13XX_ADMA_OFFSET(chan, 0x3c + (src <<3))
-#define IOP13XX_ADMA_SUAR(src, chan) IOP13XX_ADMA_OFFSET(chan, 0x40 + (src <<3))
 
 /*==============================XSI BRIDGE===============================*/
 #define IOP13XX_XBG_BECSR		IOP13XX_REG_ADDR32(0x178c)

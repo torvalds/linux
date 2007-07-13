@@ -25,6 +25,7 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+#include <asm/hardware/iop_adma.h>
 
 #define IOP13XX_UART_XTAL 33334000
 #define IOP13XX_SETUP_DEBUG 0
@@ -236,19 +237,143 @@ static unsigned long iq8134x_probe_flash_size(void)
 }
 #endif
 
+/* ADMA Channels */
+static struct resource iop13xx_adma_0_resources[] = {
+	[0] = {
+		.start = IOP13XX_ADMA_PHYS_BASE(0),
+		.end = IOP13XX_ADMA_UPPER_PA(0),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IOP13XX_ADMA0_EOT,
+		.end = IRQ_IOP13XX_ADMA0_EOT,
+		.flags = IORESOURCE_IRQ
+	},
+	[2] = {
+		.start = IRQ_IOP13XX_ADMA0_EOC,
+		.end = IRQ_IOP13XX_ADMA0_EOC,
+		.flags = IORESOURCE_IRQ
+	},
+	[3] = {
+		.start = IRQ_IOP13XX_ADMA0_ERR,
+		.end = IRQ_IOP13XX_ADMA0_ERR,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static struct resource iop13xx_adma_1_resources[] = {
+	[0] = {
+		.start = IOP13XX_ADMA_PHYS_BASE(1),
+		.end = IOP13XX_ADMA_UPPER_PA(1),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IOP13XX_ADMA1_EOT,
+		.end = IRQ_IOP13XX_ADMA1_EOT,
+		.flags = IORESOURCE_IRQ
+	},
+	[2] = {
+		.start = IRQ_IOP13XX_ADMA1_EOC,
+		.end = IRQ_IOP13XX_ADMA1_EOC,
+		.flags = IORESOURCE_IRQ
+	},
+	[3] = {
+		.start = IRQ_IOP13XX_ADMA1_ERR,
+		.end = IRQ_IOP13XX_ADMA1_ERR,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static struct resource iop13xx_adma_2_resources[] = {
+	[0] = {
+		.start = IOP13XX_ADMA_PHYS_BASE(2),
+		.end = IOP13XX_ADMA_UPPER_PA(2),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IOP13XX_ADMA2_EOT,
+		.end = IRQ_IOP13XX_ADMA2_EOT,
+		.flags = IORESOURCE_IRQ
+	},
+	[2] = {
+		.start = IRQ_IOP13XX_ADMA2_EOC,
+		.end = IRQ_IOP13XX_ADMA2_EOC,
+		.flags = IORESOURCE_IRQ
+	},
+	[3] = {
+		.start = IRQ_IOP13XX_ADMA2_ERR,
+		.end = IRQ_IOP13XX_ADMA2_ERR,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static u64 iop13xx_adma_dmamask = DMA_64BIT_MASK;
+static struct iop_adma_platform_data iop13xx_adma_0_data = {
+	.hw_id = 0,
+	.pool_size = PAGE_SIZE,
+};
+
+static struct iop_adma_platform_data iop13xx_adma_1_data = {
+	.hw_id = 1,
+	.pool_size = PAGE_SIZE,
+};
+
+static struct iop_adma_platform_data iop13xx_adma_2_data = {
+	.hw_id = 2,
+	.pool_size = PAGE_SIZE,
+};
+
+/* The ids are fixed up later in iop13xx_platform_init */
+static struct platform_device iop13xx_adma_0_channel = {
+	.name = "iop-adma",
+	.id = 0,
+	.num_resources = 4,
+	.resource = iop13xx_adma_0_resources,
+	.dev = {
+		.dma_mask = &iop13xx_adma_dmamask,
+		.coherent_dma_mask = DMA_64BIT_MASK,
+		.platform_data = (void *) &iop13xx_adma_0_data,
+	},
+};
+
+static struct platform_device iop13xx_adma_1_channel = {
+	.name = "iop-adma",
+	.id = 0,
+	.num_resources = 4,
+	.resource = iop13xx_adma_1_resources,
+	.dev = {
+		.dma_mask = &iop13xx_adma_dmamask,
+		.coherent_dma_mask = DMA_64BIT_MASK,
+		.platform_data = (void *) &iop13xx_adma_1_data,
+	},
+};
+
+static struct platform_device iop13xx_adma_2_channel = {
+	.name = "iop-adma",
+	.id = 0,
+	.num_resources = 4,
+	.resource = iop13xx_adma_2_resources,
+	.dev = {
+		.dma_mask = &iop13xx_adma_dmamask,
+		.coherent_dma_mask = DMA_64BIT_MASK,
+		.platform_data = (void *) &iop13xx_adma_2_data,
+	},
+};
+
 void __init iop13xx_map_io(void)
 {
 	/* Initialize the Static Page Table maps */
 	iotable_init(iop13xx_std_desc, ARRAY_SIZE(iop13xx_std_desc));
 }
 
-static int init_uart = 0;
-static int init_i2c = 0;
+static int init_uart;
+static int init_i2c;
+static int init_adma;
 
 void __init iop13xx_platform_init(void)
 {
 	int i;
-	u32 uart_idx, i2c_idx, plat_idx;
+	u32 uart_idx, i2c_idx, adma_idx, plat_idx;
 	struct platform_device *iop13xx_devices[IQ81340_MAX_PLAT_DEVICES];
 
 	/* set the bases so we can read the device id */
@@ -294,6 +419,12 @@ void __init iop13xx_platform_init(void)
 		}
 	}
 
+	if (init_adma == IOP13XX_INIT_ADMA_DEFAULT) {
+		init_adma |= IOP13XX_INIT_ADMA_0;
+		init_adma |= IOP13XX_INIT_ADMA_1;
+		init_adma |= IOP13XX_INIT_ADMA_2;
+	}
+
 	plat_idx = 0;
 	uart_idx = 0;
 	i2c_idx = 0;
@@ -328,6 +459,56 @@ void __init iop13xx_platform_init(void)
 			iop13xx_i2c_2_controller.id = i2c_idx++;
 			iop13xx_devices[plat_idx++] =
 				&iop13xx_i2c_2_controller;
+			break;
+		}
+	}
+
+	/* initialize adma channel ids and capabilities */
+	adma_idx = 0;
+	for (i = 0; i < IQ81340_NUM_ADMA; i++) {
+		struct iop_adma_platform_data *plat_data;
+		if ((init_adma & (1 << i)) && IOP13XX_SETUP_DEBUG)
+			printk(KERN_INFO
+				"Adding adma%d to platform device list\n", i);
+		switch (init_adma & (1 << i)) {
+		case IOP13XX_INIT_ADMA_0:
+			iop13xx_adma_0_channel.id = adma_idx++;
+			iop13xx_devices[plat_idx++] = &iop13xx_adma_0_channel;
+			plat_data = &iop13xx_adma_0_data;
+			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
+			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
+			break;
+		case IOP13XX_INIT_ADMA_1:
+			iop13xx_adma_1_channel.id = adma_idx++;
+			iop13xx_devices[plat_idx++] = &iop13xx_adma_1_channel;
+			plat_data = &iop13xx_adma_1_data;
+			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
+			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
+			break;
+		case IOP13XX_INIT_ADMA_2:
+			iop13xx_adma_2_channel.id = adma_idx++;
+			iop13xx_devices[plat_idx++] = &iop13xx_adma_2_channel;
+			plat_data = &iop13xx_adma_2_data;
+			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
+			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
+			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ_UPDATE, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ_ZERO_SUM, plat_data->cap_mask);
 			break;
 		}
 	}
@@ -399,5 +580,35 @@ static int __init iop13xx_init_i2c_setup(char *str)
 	return 1;
 }
 
+static int __init iop13xx_init_adma_setup(char *str)
+{
+	if (str)	{
+		while (*str != '\0') {
+			switch (*str) {
+			case '0':
+				init_adma |= IOP13XX_INIT_ADMA_0;
+				break;
+			case '1':
+				init_adma |= IOP13XX_INIT_ADMA_1;
+				break;
+			case '2':
+				init_adma |= IOP13XX_INIT_ADMA_2;
+				break;
+			case ',':
+			case '=':
+				break;
+			default:
+				PRINTK("\"iop13xx_init_adma\" malformed"
+					    " at character: \'%c\'", *str);
+				*(str + 1) = '\0';
+				init_adma = IOP13XX_INIT_ADMA_DEFAULT;
+			}
+			str++;
+		}
+	}
+	return 1;
+}
+
+__setup("iop13xx_init_adma", iop13xx_init_adma_setup);
 __setup("iop13xx_init_uart", iop13xx_init_uart_setup);
 __setup("iop13xx_init_i2c", iop13xx_init_i2c_setup);

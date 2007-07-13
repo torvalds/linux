@@ -1,7 +1,17 @@
 #
+# Generic algorithms support
+#
+config XOR_BLOCKS
+	tristate
+
+#
+# async_tx api: hardware offloaded memory transfer/transform support
+#
+source "crypto/async_tx/Kconfig"
+
+#
 # Cryptographic API Configuration
 #
-
 menu "Cryptographic options"
 
 config CRYPTO
