@@ -48,10 +48,6 @@ config X86_SPEEDSTEP_CENTRINO
 
 	  If in doubt, say N.
 
-config X86_SPEEDSTEP_CENTRINO_ACPI
-	bool
-	depends on X86_SPEEDSTEP_CENTRINO
-
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
 	select CPU_FREQ_TABLE
@@ -73,7 +69,7 @@ comment "shared options"
 config X86_ACPI_CPUFREQ_PROC_INTF
 	bool "/proc/acpi/processor/../performance interface (deprecated)"
 	depends on PROC_FS
-	depends on X86_ACPI_CPUFREQ || X86_SPEEDSTEP_CENTRINO_ACPI || X86_POWERNOW_K8_ACPI
+	depends on X86_ACPI_CPUFREQ || X86_POWERNOW_K8_ACPI
 	help
 	  This enables the deprecated /proc/acpi/processor/../performance
 	  interface. While it is helpful for debugging, the generic,

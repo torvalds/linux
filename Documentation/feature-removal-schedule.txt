@@ -196,28 +196,6 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	ACPI hooks (X86_SPEEDSTEP_CENTRINO_ACPI) in speedstep-centrino driver
-When:	December 2006
-Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
-	functionally very much similar. They talk to ACPI in same way. Only
-	difference between them is the way they do frequency transitions.
-	One uses MSRs and the other one uses IO ports. Functionaliy of
-	speedstep_centrino with ACPI hooks is now merged into acpi-cpufreq.
-	That means one common driver will support all Intel Enhanced Speedstep
-	capable CPUs. That means less confusion over name of
-	speedstep-centrino driver (with that driver supposed to be used on
-	non-centrino platforms). That means less duplication of code and
-	less maintenance effort and no possibility of these two drivers
-	going out of sync.
-	Current users of speedstep_centrino with ACPI hooks are requested to
-	switch over to acpi-cpufreq driver. speedstep-centrino will continue
-	to work using older non-ACPI static table based scheme even after this
-	date.
-
-Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
----------------------------
-
 What:	/sys/firmware/acpi/namespace
 When:	2.6.21
 Why:	The ACPI namespace is effectively the symbol list for
