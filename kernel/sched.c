@@ -751,7 +751,7 @@ static const u32 prio_to_wmult[40] = {
 	184467,  230589,  288233,  360285,  450347,
 	562979,  703746,  879575, 1099582, 1374389,
 	717986, 2147483, 2684354, 3355443, 4194304,
-	244160, 6557201, 8196502, 10250518, 12782640,
+	5244160, 6557201, 8196502, 10250518, 12782640,
 	16025997, 19976592, 24970740, 31350126, 39045157,
 	49367440, 61356675, 76695844, 95443717, 119304647,
 	148102320, 186737708, 238609294, 286331153,
@@ -4647,14 +4647,14 @@ static void show_task(struct task_struct *p)
 	state = p->state ? __ffs(p->state) + 1 : 0;
 	printk("%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
-#if (BITS_PER_LONG == 32)
+#if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
-		printk(" running ");
+		printk(" running  ");
 	else
-		printk(" %08lX ", thread_saved_pc(p));
+		printk(" %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk("  running task   ");
+		printk("  running task    ");
 	else
 		printk(" %016lx ", thread_saved_pc(p));
 #endif
@@ -4666,11 +4666,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d", free, p->pid, p->parent->pid);
-	if (!p->mm)
-		printk(" (L-TLB)\n");
-	else
-		printk(" (NOTLB)\n");
+	printk("%5lu %5d %6d\n", free, p->pid, p->parent->pid);
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -4680,14 +4676,12 @@ void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
 
-#if (BITS_PER_LONG == 32)
-	printk("\n"
-	       "                         free                        sibling\n");
-	printk("  task             PC    stack   pid father child younger older\n");
+#if BITS_PER_LONG == 32
+	printk(KERN_INFO
+		"  task                PC stack   pid father\n");
 #else
-	printk("\n"
-	       "                                 free                        sibling\n");
-	printk("  task                 PC        stack   pid father child younger older\n");
+	printk(KERN_INFO
+		"  task                        PC stack   pid father\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
@@ -4778,7 +4772,7 @@ cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 static inline void sched_init_granularity(void)
 {
 	unsigned int factor = 1 + ilog2(num_online_cpus());
-	const unsigned long gran_limit = 10000000;
+	const unsigned long gran_limit = 100000000;
 
 	sysctl_sched_granularity *= factor;
 	if (sysctl_sched_granularity > gran_limit)
