@@ -1330,9 +1330,8 @@ static int __cpuinit powernowk8_init(void)
 
 	if (supported_cpus == num_online_cpus()) {
 		printk(KERN_INFO PFX "Found %d %s "
-			"processors (%d cpu cores) (" VERSION ")\n",
-			supported_cpus/cpu_data[0].booted_cores,
-			boot_cpu_data.x86_model_id, supported_cpus);
+			"processors (" VERSION ")\n", supported_cpus,
+			boot_cpu_data.x86_model_id);
 		return cpufreq_register_driver(&cpufreq_amd64_driver);
 	}
 
