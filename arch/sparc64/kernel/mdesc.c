@@ -434,6 +434,22 @@ static void __init report_platform_properties(void)
 	if (v)
 		printk("PLATFORM: max-cpus [%lu]\n", *v);
 
+#ifdef CONFIG_SMP
+	{
+		int max_cpu, i;
+
+		if (v) {
+			max_cpu = *v;
+			if (max_cpu > NR_CPUS)
+				max_cpu = NR_CPUS;
+		} else {
+			max_cpu = NR_CPUS;
+		}
+		for (i = 0; i < max_cpu; i++)
+			cpu_set(i, cpu_possible_map);
+	}
+#endif
+
 	mdesc_release(hp);
 }
 
@@ -451,9 +467,9 @@ static int inline find_in_proplist(const char *list, const char *match, int len)
 	return 0;
 }
 
-static void __init fill_in_one_cache(cpuinfo_sparc *c,
-				     struct mdesc_handle *hp,
-				     u64 mp)
+static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
+					struct mdesc_handle *hp,
+					u64 mp)
 {
 	const u64 *level = mdesc_get_property(hp, mp, "level", NULL);
 	const u64 *size = mdesc_get_property(hp, mp, "size", NULL);
@@ -496,7 +512,8 @@ static void __init fill_in_one_cache(cpuinfo_sparc *c,
 	}
 }
 
-static void __init mark_core_ids(struct mdesc_handle *hp, u64 mp, int core_id)
+static void __devinit mark_core_ids(struct mdesc_handle *hp, u64 mp,
+				    int core_id)
 {
 	u64 a;
 
@@ -529,7 +546,7 @@ static void __init mark_core_ids(struct mdesc_handle *hp, u64 mp, int core_id)
 	}
 }
 
-static void __init set_core_ids(struct mdesc_handle *hp)
+static void __devinit set_core_ids(struct mdesc_handle *hp)
 {
 	int idx;
 	u64 mp;
@@ -554,7 +571,8 @@ static void __init set_core_ids(struct mdesc_handle *hp)
 	}
 }
 
-static void __init mark_proc_ids(struct mdesc_handle *hp, u64 mp, int proc_id)
+static void __devinit mark_proc_ids(struct mdesc_handle *hp, u64 mp,
+				    int proc_id)
 {
 	u64 a;
 
@@ -573,8 +591,8 @@ static void __init mark_proc_ids(struct mdesc_handle *hp, u64 mp, int proc_id)
 	}
 }
 
-static void __init __set_proc_ids(struct mdesc_handle *hp,
-				  const char *exec_unit_name)
+static void __devinit __set_proc_ids(struct mdesc_handle *hp,
+				     const char *exec_unit_name)
 {
 	int idx;
 	u64 mp;
@@ -595,13 +613,14 @@ static void __init __set_proc_ids(struct mdesc_handle *hp,
 	}
 }
 
-static void __init set_proc_ids(struct mdesc_handle *hp)
+static void __devinit set_proc_ids(struct mdesc_handle *hp)
 {
 	__set_proc_ids(hp, "exec_unit");
 	__set_proc_ids(hp, "exec-unit");
 }
 
-static void __init get_one_mondo_bits(const u64 *p, unsigned int *mask, unsigned char def)
+static void __devinit get_one_mondo_bits(const u64 *p, unsigned int *mask,
+					 unsigned char def)
 {
 	u64 val;
 
@@ -619,8 +638,8 @@ use_default:
 	*mask = ((1U << def) * 64U) - 1U;
 }
 
-static void __init get_mondo_data(struct mdesc_handle *hp, u64 mp,
-				  struct trap_per_cpu *tb)
+static void __devinit get_mondo_data(struct mdesc_handle *hp, u64 mp,
+				     struct trap_per_cpu *tb)
 {
 	const u64 *val;
 
@@ -637,7 +656,7 @@ static void __init get_mondo_data(struct mdesc_handle *hp, u64 mp,
 	get_one_mondo_bits(val, &tb->nonresum_qmask, 2);
 }
 
-static void __init mdesc_fill_in_cpu_data(void)
+void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
 {
 	struct mdesc_handle *hp = mdesc_grab();
 	u64 mp;
@@ -657,6 +676,8 @@ static void __init mdesc_fill_in_cpu_data(void)
 
 #ifdef CONFIG_SMP
 		if (cpuid >= NR_CPUS)
+			continue;
+		if (!cpu_isset(cpuid, mask))
 			continue;
 #else
 		/* On uniprocessor we only want the values for the
@@ -696,7 +717,6 @@ static void __init mdesc_fill_in_cpu_data(void)
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
-		cpu_set(cpuid, phys_cpu_present_map);
 #endif
 
 		c->core_id = 0;
@@ -719,6 +739,7 @@ void __init sun4v_mdesc_init(void)
 {
 	struct mdesc_handle *hp;
 	unsigned long len, real_len, status;
+	cpumask_t mask;
 
 	(void) sun4v_mach_desc(0UL, 0UL, &len);
 
@@ -742,5 +763,7 @@ void __init sun4v_mdesc_init(void)
 	cur_mdesc = hp;
 
 	report_platform_properties();
-	mdesc_fill_in_cpu_data();
+
+	cpus_setall(mask);
+	mdesc_fill_in_cpu_data(mask);
 }

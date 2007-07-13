@@ -41,6 +41,7 @@
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/mdesc.h>
+#include <asm/ldc.h>
 
 extern void calibrate_delay(void);
 
@@ -49,12 +50,18 @@ int sparc64_multi_core __read_mostly;
 /* Please don't make this stuff initdata!!!  --DaveM */
 unsigned char boot_cpu_id;
 
+cpumask_t cpu_possible_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
-cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
+
+EXPORT_SYMBOL(cpu_possible_map);
+EXPORT_SYMBOL(cpu_online_map);
+EXPORT_SYMBOL(cpu_sibling_map);
+EXPORT_SYMBOL(cpu_core_map);
+
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
 
@@ -84,9 +91,10 @@ extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
-void __init smp_callin(void)
+void __devinit smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
+	struct trap_per_cpu *tb = &trap_block[cpuid];;
 
 	__local_per_cpu_offset = __per_cpu_offset(cpuid);
 
@@ -116,6 +124,11 @@ void __init smp_callin(void)
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
+
+	if (tb->hdesc) {
+		kfree(tb->hdesc);
+		tb->hdesc = NULL;
+	}
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
@@ -296,14 +309,20 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 		/* Alloc the mondo queues, cpu will load them.  */
 		sun4v_init_mondo_queues(0, cpu, 1, 0);
 
-		prom_startcpu_cpuid(cpu, entry, cookie);
+#ifdef CONFIG_SUN_LDOMS
+		if (ldom_domaining_enabled)
+			ldom_startcpu_cpuid(cpu,
+					    (unsigned long) cpu_new_thread);
+		else
+#endif
+			prom_startcpu_cpuid(cpu, entry, cookie);
 	} else {
 		struct device_node *dp = of_find_node_by_cpuid(cpu);
 
 		prom_startcpu(dp->node, entry, cookie);
 	}
 
-	for (timeout = 0; timeout < 5000000; timeout++) {
+	for (timeout = 0; timeout < 50000; timeout++) {
 		if (callin_flag)
 			break;
 		udelay(100);
@@ -1163,22 +1182,8 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-/* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
-	if (num_possible_cpus() > max_cpus) {
-		for_each_possible_cpu(i) {
-			if (i != boot_cpu_id) {
-				cpu_clear(i, phys_cpu_present_map);
-				cpu_clear(i, cpu_present_map);
-				if (num_possible_cpus() <= max_cpus)
-					break;
-			}
-		}
-	}
-
 	cpu_data(boot_cpu_id).udelay_val = loops_per_jiffy;
 }
 
@@ -1241,6 +1246,20 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	}
 	return ret;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+int __cpu_disable(void)
+{
+	printk(KERN_ERR "SMP: __cpu_disable() on cpu %d\n",
+	       smp_processor_id());
+	return -ENODEV;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	printk(KERN_ERR "SMP: __cpu_die(%u)\n", cpu);
+}
+#endif
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {

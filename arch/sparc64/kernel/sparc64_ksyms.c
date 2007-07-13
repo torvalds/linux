@@ -124,10 +124,6 @@ EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
 
-/* CPU online map and active count.  */
-EXPORT_SYMBOL(cpu_online_map);
-EXPORT_SYMBOL(phys_cpu_present_map);
-
 EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
 

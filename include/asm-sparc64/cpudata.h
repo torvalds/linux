@@ -80,7 +80,8 @@ struct trap_per_cpu {
 	unsigned int		dev_mondo_qmask;
 	unsigned int		resum_qmask;
 	unsigned int		nonresum_qmask;
-	unsigned int		__pad2[3];
+	unsigned int		__pad2[1];
+	void			*hdesc;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(struct thread_info *);

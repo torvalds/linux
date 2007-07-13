@@ -29,9 +29,6 @@
 #include <asm/bitops.h>
 #include <asm/atomic.h>
 
-extern cpumask_t phys_cpu_present_map;
-#define cpu_possible_map phys_cpu_present_map
-
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
 extern int sparc64_multi_core;
@@ -45,6 +42,11 @@ extern int hard_smp_processor_id(void);
 
 extern void smp_fill_in_sib_core_maps(void);
 extern unsigned char boot_cpu_id;
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern int __cpu_disable(void);
+extern void __cpu_die(unsigned int cpu);
+#endif
 
 #endif /* !(__ASSEMBLY__) */
 

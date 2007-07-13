@@ -108,6 +108,15 @@ config SECCOMP
 
 source kernel/Kconfig.hz
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	select HOTPLUG
+	---help---
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu/cpu#.
+	  Say N if you want to disable CPU hotplug.
+
 source "init/Kconfig"
 
 config SYSVIPC_COMPAT
@@ -307,6 +316,7 @@ config SUN_IO
 
 config SUN_LDOMS
 	bool "Sun Logical Domains support"
+	select HOTPLUG_CPU
 	help
 	  Say Y here is you want to support virtual devices via
 	  Logical Domains.

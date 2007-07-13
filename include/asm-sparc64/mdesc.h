@@ -2,6 +2,7 @@
 #define _SPARC64_MDESC_H
 
 #include <linux/types.h>
+#include <linux/cpumask.h>
 #include <asm/prom.h>
 
 struct mdesc_handle;
@@ -59,6 +60,8 @@ extern u64 mdesc_next_arc(struct mdesc_handle *handle, u64 from,
 extern u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
 
 extern void mdesc_update(void);
+
+extern void mdesc_fill_in_cpu_data(cpumask_t mask);
 
 extern void sun4v_mdesc_init(void);
 
