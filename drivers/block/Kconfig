@@ -59,17 +59,6 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
-config ATARI_SLM
-	tristate "Atari SLM laser printer support"
-	depends on ATARI
-	help
-	  If you have an Atari SLM laser printer, say Y to include support for
-	  it in the kernel. Otherwise, say N. This driver is also available as
-	  a module ( = code which can be inserted in and removed from the
-	  running kernel whenever you want). The module will be called
-	  acsi_slm. Be warned: the driver needs much ST-RAM and can cause
-	  problems due to that fact!
-
 config BLK_DEV_XD
 	tristate "XT hard disk support"
 	depends on ISA && ISA_DMA_API
