@@ -1570,9 +1570,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct fc_vport *fc_vport)
 	if (error)
 		goto out_put_shost;
 
-	if (!shost->shost_classdev.kobj.dentry)
-		goto out_put_shost;
-
 	list_add_tail(&vport->listentry, &phba->port_list);
 	return vport;
 
@@ -1720,7 +1717,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct lpfc_iocbq *iocbq_entry = NULL, *iocbq_next = NULL;
 	struct Scsi_Host  *shost = NULL;
 	unsigned long bar0map_len, bar2map_len;
-	int error = -ENODEV, retval;
+	int error = -ENODEV;
 	int i;
 	uint16_t iotag;
 
