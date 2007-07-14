@@ -117,7 +117,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		raw_local_irq_restore(flags);	/* implies memory barrier  */
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return retval;
 }
@@ -165,7 +165,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		raw_local_irq_restore(flags);	/* implies memory barrier  */
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return retval;
 }
@@ -246,7 +246,7 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 		raw_local_irq_restore(flags);	/* implies memory barrier  */
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return retval;
 }
@@ -352,7 +352,7 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 		raw_local_irq_restore(flags);	/* implies memory barrier  */
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return retval;
 }

@@ -1190,7 +1190,18 @@ config SYS_HAS_CPU_RM9000
 config SYS_HAS_CPU_SB1
 	bool
 
+#
+# CPU may reorder R->R, R->W, W->R, W->W
+# Reordering beyond LL and SC is handled in WEAK_REORDERING_BEYOND_LLSC
+#
 config WEAK_ORDERING
+	bool
+
+#
+# CPU may reorder reads and writes beyond LL/SC
+# CPU may reorder R->LL, R->LL, W->LL, W->LL, R->SC, R->SC, W->SC, W->SC
+#
+config WEAK_REORDERING_BEYOND_LLSC
 	bool
 endmenu
 

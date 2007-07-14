@@ -138,7 +138,7 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -181,7 +181,7 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -190,7 +190,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -233,7 +233,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -250,7 +250,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -302,7 +302,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -519,7 +519,7 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -562,7 +562,7 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -571,7 +571,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -614,7 +614,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -631,7 +631,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {
 	unsigned long result;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -683,7 +683,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return result;
 }
@@ -791,10 +791,11 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  * atomic*_return operations are serializing but not the non-*_return
  * versions.
  */
-#define smp_mb__before_atomic_dec()	smp_mb()
-#define smp_mb__after_atomic_dec()	smp_mb()
-#define smp_mb__before_atomic_inc()	smp_mb()
-#define smp_mb__after_atomic_inc()	smp_mb()
+#define smp_mb__before_atomic_dec()	smp_llsc_mb()
+#define smp_mb__after_atomic_dec()	smp_llsc_mb()
+#define smp_mb__before_atomic_inc()	smp_llsc_mb()
+#define smp_mb__after_atomic_inc()	smp_llsc_mb()
 
 #include <asm-generic/atomic.h>
+
 #endif /* _ASM_ATOMIC_H */
