@@ -51,9 +51,13 @@
 
 #define HANA_FILENAME "emu/hana.fw"
 #define DOCK_FILENAME "emu/audio_dock.fw"
+#define EMU1010B_FILENAME "emu/emu1010b.fw"
+#define MICRO_DOCK_FILENAME "emu/micro_dock.fw"
 
 MODULE_FIRMWARE(HANA_FILENAME);
 MODULE_FIRMWARE(DOCK_FILENAME);
+MODULE_FIRMWARE(EMU1010B_FILENAME);
+MODULE_FIRMWARE(MICRO_DOCK_FILENAME);
 
 
 /*************************************************************************
@@ -660,10 +664,12 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 * emu, const char * file
 		return err;
 	}
 	snd_printk(KERN_INFO "firmware size=0x%zx\n", fw_entry->size);
+#if 0
 	if (fw_entry->size != 0x133a4) {
 		snd_printk(KERN_ERR "firmware: %s wrong size.\n",filename);
 		return -EINVAL;
 	}
+#endif
 
 	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
 	/* GPIO7 -> FPGA PGMN
@@ -758,7 +764,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	/* ID, should read & 0x7f = 0x55. (Bit 7 is the IRQ bit) */
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 	snd_printdd("reg1=0x%x\n",reg);
-	if (reg == 0x55) {
+	if ((reg & 0x1f) == 0x15) {
 		/* FPGA netlist already present so clear it */
 		/* Return to programming mode */
 
@@ -766,19 +772,26 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	}
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 	snd_printdd("reg2=0x%x\n",reg);
-	if (reg == 0x55) {
+	if ((reg & 0x1f) == 0x15) {
 		/* FPGA failed to return to programming mode */
 		return -ENODEV;
 	}
 	snd_printk(KERN_INFO "emu1010: EMU_HANA_ID=0x%x\n",reg);
-	if ((err = snd_emu1010_load_firmware(emu, HANA_FILENAME)) != 0) {
-		snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file %s failed\n", HANA_FILENAME);
-		return err;
+	if (emu->card_capabilities->emu1010 == 1) {
+		if ((err = snd_emu1010_load_firmware(emu, HANA_FILENAME)) != 0) {
+			snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file %s failed\n", HANA_FILENAME);
+			return err;
+		}
+	} else if (emu->card_capabilities->emu1010 == 2) {
+		if ((err = snd_emu1010_load_firmware(emu, EMU1010B_FILENAME)) != 0) {
+			snd_printk(KERN_INFO "emu1010: Loading Firmware file %s failed\n", EMU1010B_FILENAME);
+			return err;
+		}
 	}
 
 	/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
-	if (reg != 0x55) {
+	if ((reg & 0x1f) != 0x15) {
 		/* FPGA failed to be programmed */
 		snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file failed, reg=0x%x\n", reg);
 		return -ENODEV;
@@ -995,16 +1008,23 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		/* Return to Audio Dock programming mode */
 		snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware\n");
 		snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK );
-		if ((err = snd_emu1010_load_firmware(emu, DOCK_FILENAME)) != 0) {
-			return err;
+		if (emu->card_capabilities->emu1010 == 1) {
+			if ((err = snd_emu1010_load_firmware(emu, DOCK_FILENAME)) != 0) {
+				return err;
+			}
+		} else if (emu->card_capabilities->emu1010 == 2) {
+			if ((err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME)) != 0) {
+				return err;
+			}
 		}
+
 		snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, 0 );
 		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg );
 		snd_printk(KERN_INFO "emu1010: EMU_HANA+DOCK_IRQ_STATUS=0x%x\n",reg);
 		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 		snd_printk(KERN_INFO "emu1010: EMU_HANA+DOCK_ID=0x%x\n",reg);
-		if (reg != 0x55) {
+		if ((reg & 0x1f) != 0x15) {
 			/* FPGA failed to be programmed */
 			snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware file failed, reg=0x%x\n", reg);
 			return 0;
@@ -1282,6 +1302,13 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .spi_dac = 1,
 	 .i2c_adc = 1,
 	 .spk71 = 1} ,
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
+	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM????]", 
+	 .id = "EMU1010",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1 ,
+	 .emu1010 = 2} ,
 	{.vendor = 0x1102, .device = 0x0008, 
 	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 
 	 .id = "Audigy2",
