@@ -71,24 +71,6 @@ static void nfs_dec_sillycount(struct inode *dir)
 }
 
 /**
- * nfs_async_unlink_init - Initialize the RPC info
- * task: rpc_task of the sillydelete
- */
-static void nfs_async_unlink_init(struct rpc_task *task, void *calldata)
-{
-	struct nfs_unlinkdata *data = calldata;
-	struct inode *dir = data->dir;
-	struct rpc_message msg = {
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
-	};
-
-	NFS_PROTO(dir)->unlink_setup(&msg, dir);
-	rpc_call_setup(task, &msg, 0);
-}
-
-/**
  * nfs_async_unlink_done - Sillydelete post-processing
  * @task: rpc_task of the sillydelete
  *
@@ -120,14 +102,19 @@ static void nfs_async_unlink_release(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_unlink_ops = {
-	.rpc_call_prepare = nfs_async_unlink_init,
 	.rpc_call_done = nfs_async_unlink_done,
 	.rpc_release = nfs_async_unlink_release,
 };
 
 static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct nfs_unlinkdata *data)
 {
+	struct rpc_message msg = {
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+		.rpc_cred = data->cred,
+	};
 	struct rpc_task_setup task_setup_data = {
+		.rpc_message = &msg,
 		.callback_ops = &nfs_unlink_ops,
 		.callback_data = data,
 		.flags = RPC_TASK_ASYNC,
@@ -165,8 +152,9 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(&data->res.dir_attr);
 
-	task_setup_data.rpc_client = NFS_CLIENT(dir);
+	NFS_PROTO(dir)->unlink_setup(&msg, dir);
 
+	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);
 	if (!IS_ERR(task))
 		rpc_put_task(task);

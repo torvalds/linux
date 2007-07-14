@@ -128,19 +128,6 @@ struct rpcb_info {
 static struct rpcb_info rpcb_next_version[];
 static struct rpcb_info rpcb_next_version6[];
 
-static void rpcb_getport_prepare(struct rpc_task *task, void *calldata)
-{
-	struct rpcbind_args *map = calldata;
-	struct rpc_xprt *xprt = map->r_xprt;
-	struct rpc_message msg = {
-		.rpc_proc	= rpcb_next_version[xprt->bind_index].rpc_proc,
-		.rpc_argp	= map,
-		.rpc_resp	= &map->r_port,
-	};
-
-	rpc_call_setup(task, &msg, 0);
-}
-
 static void rpcb_map_release(void *data)
 {
 	struct rpcbind_args *map = data;
@@ -150,7 +137,6 @@ static void rpcb_map_release(void *data)
 }
 
 static const struct rpc_call_ops rpcb_getport_ops = {
-	.rpc_call_prepare	= rpcb_getport_prepare,
 	.rpc_call_done		= rpcb_getport_done,
 	.rpc_release		= rpcb_map_release,
 };
@@ -295,6 +281,24 @@ int rpcb_getport_sync(struct sockaddr_in *sin, __u32 prog,
 }
 EXPORT_SYMBOL_GPL(rpcb_getport_sync);
 
+static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbind_args *map, int version)
+{
+	struct rpc_message msg = {
+		.rpc_proc = rpcb_next_version[version].rpc_proc,
+		.rpc_argp = map,
+		.rpc_resp = &map->r_port,
+	};
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = rpcb_clnt,
+		.rpc_message = &msg,
+		.callback_ops = &rpcb_getport_ops,
+		.callback_data = map,
+		.flags = RPC_TASK_ASYNC,
+	};
+
+	return rpc_run_task(&task_setup_data);
+}
+
 /**
  * rpcb_getport_async - obtain the port for a given RPC service on a given host
  * @task: task that is waiting for portmapper request
@@ -310,10 +314,6 @@ void rpcb_getport_async(struct rpc_task *task)
 	struct rpc_clnt	*rpcb_clnt;
 	static struct rpcbind_args *map;
 	struct rpc_task	*child;
-	struct rpc_task_setup task_setup_data = {
-		.callback_ops = &rpcb_getport_ops,
-		.flags = RPC_TASK_ASYNC,
-	};
 	struct sockaddr addr;
 	int status;
 	struct rpcb_info *info;
@@ -399,9 +399,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	       sizeof(map->r_addr));
 	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
 
-	task_setup_data.rpc_client = rpcb_clnt;
-	task_setup_data.callback_data = map;
-	child = rpc_run_task(&task_setup_data);
+	child = rpcb_call_async(rpcb_clnt, map, xprt->bind_index);
 	rpc_release_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;

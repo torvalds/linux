@@ -718,19 +718,6 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 	return err;
 }
 
-static void nfs4_open_confirm_prepare(struct rpc_task *task, void *calldata)
-{
-	struct nfs4_opendata *data = calldata;
-	struct  rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_CONFIRM],
-		.rpc_argp = &data->c_arg,
-		.rpc_resp = &data->c_res,
-		.rpc_cred = data->owner->so_cred,
-	};
-	data->timestamp = jiffies;
-	rpc_call_setup(task, &msg, 0);
-}
-
 static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
@@ -767,7 +754,6 @@ out_free:
 }
 
 static const struct rpc_call_ops nfs4_open_confirm_ops = {
-	.rpc_call_prepare = nfs4_open_confirm_prepare,
 	.rpc_call_done = nfs4_open_confirm_done,
 	.rpc_release = nfs4_open_confirm_release,
 };
@@ -779,8 +765,15 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->dir->d_inode);
 	struct rpc_task *task;
+	struct  rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_CONFIRM],
+		.rpc_argp = &data->c_arg,
+		.rpc_resp = &data->c_res,
+		.rpc_cred = data->owner->so_cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = server->client,
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_open_confirm_ops,
 		.callback_data = data,
 		.flags = RPC_TASK_ASYNC,
@@ -790,6 +783,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	kref_get(&data->kref);
 	data->rpc_done = 0;
 	data->rpc_status = 0;
+	data->timestamp = jiffies;
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -807,13 +801,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state_owner *sp = data->owner;
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN],
-		.rpc_argp = &data->o_arg,
-		.rpc_resp = &data->o_res,
-		.rpc_cred = sp->so_cred,
-	};
-	
+
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
 		return;
 	/*
@@ -838,11 +826,11 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	data->o_arg.id = sp->so_owner_id.id;
 	data->o_arg.clientid = sp->so_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
-		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
 	}
 	data->timestamp = jiffies;
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_start(task);
 	return;
 out_no_action:
 	task->tk_action = NULL;
@@ -914,8 +902,15 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	struct nfs_openargs *o_arg = &data->o_arg;
 	struct nfs_openres *o_res = &data->o_res;
 	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN],
+		.rpc_argp = o_arg,
+		.rpc_resp = o_res,
+		.rpc_cred = data->owner->so_cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = server->client,
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_open_ops,
 		.callback_data = data,
 		.flags = RPC_TASK_ASYNC,
@@ -1256,12 +1251,6 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE],
-		.rpc_argp = &calldata->arg,
-		.rpc_resp = &calldata->res,
-		.rpc_cred = state->owner->so_cred,
-	};
 	int clear_rd, clear_wr, clear_rdwr;
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
@@ -1288,14 +1277,14 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	}
 	nfs_fattr_init(calldata->res.fattr);
 	if (test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0) {
-		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
 		calldata->arg.open_flags = FMODE_READ;
 	} else if (test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0) {
-		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
 		calldata->arg.open_flags = FMODE_WRITE;
 	}
 	calldata->timestamp = jiffies;
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_start(task);
 }
 
 static const struct rpc_call_ops nfs4_close_ops = {
@@ -1321,8 +1310,13 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	struct nfs4_closedata *calldata;
 	struct nfs4_state_owner *sp = state->owner;
 	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE],
+		.rpc_cred = state->owner->so_cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = server->client,
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_close_ops,
 		.flags = RPC_TASK_ASYNC,
 	};
@@ -1345,6 +1339,8 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	calldata->path.mnt = mntget(path->mnt);
 	calldata->path.dentry = dget(path->dentry);
 
+	msg.rpc_argp = &calldata->arg,
+	msg.rpc_resp = &calldata->res,
 	task_setup_data.callback_data = calldata;
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
@@ -2966,24 +2962,10 @@ struct nfs4_delegreturndata {
 	struct nfs4_delegreturnres res;
 	struct nfs_fh fh;
 	nfs4_stateid stateid;
-	struct rpc_cred *cred;
 	unsigned long timestamp;
 	struct nfs_fattr fattr;
 	int rpc_status;
 };
-
-static void nfs4_delegreturn_prepare(struct rpc_task *task, void *calldata)
-{
-	struct nfs4_delegreturndata *data = calldata;
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DELEGRETURN],
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
-	};
-	nfs_fattr_init(data->res.fattr);
-	rpc_call_setup(task, &msg, 0);
-}
 
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
@@ -2995,14 +2977,10 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 
 static void nfs4_delegreturn_release(void *calldata)
 {
-	struct nfs4_delegreturndata *data = calldata;
-
-	put_rpccred(data->cred);
 	kfree(calldata);
 }
 
 static const struct rpc_call_ops nfs4_delegreturn_ops = {
-	.rpc_call_prepare = nfs4_delegreturn_prepare,
 	.rpc_call_done = nfs4_delegreturn_done,
 	.rpc_release = nfs4_delegreturn_release,
 };
@@ -3012,8 +2990,13 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	struct nfs4_delegreturndata *data;
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DELEGRETURN],
+		.rpc_cred = cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = server->client,
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_delegreturn_ops,
 		.flags = RPC_TASK_ASYNC,
 	};
@@ -3029,11 +3012,13 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	memcpy(&data->stateid, stateid, sizeof(data->stateid));
 	data->res.fattr = &data->fattr;
 	data->res.server = server;
-	data->cred = get_rpccred(cred);
+	nfs_fattr_init(data->res.fattr);
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
 
 	task_setup_data.callback_data = data;
+	msg.rpc_argp = &data->args,
+	msg.rpc_resp = &data->res,
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -3221,12 +3206,6 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_LOCKU],
-		.rpc_argp       = &calldata->arg,
-		.rpc_resp       = &calldata->res,
-		.rpc_cred	= calldata->lsp->ls_state->owner->so_cred,
-	};
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
@@ -3236,7 +3215,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 		return;
 	}
 	calldata->timestamp = jiffies;
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_start(task);
 }
 
 static const struct rpc_call_ops nfs4_locku_ops = {
@@ -3251,8 +3230,13 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		struct nfs_seqid *seqid)
 {
 	struct nfs4_unlockdata *data;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LOCKU],
+		.rpc_cred = ctx->cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(lsp->ls_state->inode),
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_locku_ops,
 		.flags = RPC_TASK_ASYNC,
 	};
@@ -3268,6 +3252,8 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	msg.rpc_argp = &data->arg,
+	msg.rpc_resp = &data->res,
 	task_setup_data.callback_data = data;
 	return rpc_run_task(&task_setup_data);
 }
@@ -3353,13 +3339,6 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_lockdata *data = calldata;
 	struct nfs4_state *state = data->lsp->ls_state;
-	struct nfs4_state_owner *sp = state->owner;
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LOCK],
-		.rpc_argp = &data->arg,
-		.rpc_resp = &data->res,
-		.rpc_cred = sp->so_cred,
-	};
 
 	dprintk("%s: begin!\n", __FUNCTION__);
 	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
@@ -3373,7 +3352,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	} else
 		data->arg.new_lock_owner = 0;
 	data->timestamp = jiffies;
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_start(task);
 	dprintk("%s: done!, ret = %d\n", __FUNCTION__, data->rpc_status);
 }
 
@@ -3435,8 +3414,13 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 {
 	struct nfs4_lockdata *data;
 	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LOCK],
+		.rpc_cred = state->owner->so_cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(state->inode),
+		.rpc_message = &msg,
 		.callback_ops = &nfs4_lock_ops,
 		.flags = RPC_TASK_ASYNC,
 	};
@@ -3451,6 +3435,8 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		data->arg.block = 1;
 	if (reclaim != 0)
 		data->arg.reclaim = 1;
+	msg.rpc_argp = &data->arg,
+	msg.rpc_resp = &data->res,
 	task_setup_data.callback_data = data;
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
