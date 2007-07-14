@@ -245,6 +245,7 @@ int cache_check(struct cache_detail *detail,
 		cache_put(h, detail);
 	return rv;
 }
+EXPORT_SYMBOL(cache_check);
 
 /*
  * caches need to be periodically cleaned.
@@ -377,6 +378,7 @@ int cache_register(struct cache_detail *cd)
 	schedule_delayed_work(&cache_cleaner, 0);
 	return 0;
 }
+EXPORT_SYMBOL(cache_register);
 
 void cache_unregister(struct cache_detail *cd)
 {
@@ -402,6 +404,7 @@ void cache_unregister(struct cache_detail *cd)
 out:
 	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
 }
+EXPORT_SYMBOL(cache_unregister);
 
 /* clean cache tries to find something to clean
  * and cleans it.
@@ -516,6 +519,7 @@ void cache_flush(void)
 	while (cache_clean() != -1)
 		cond_resched();
 }
+EXPORT_SYMBOL(cache_flush);
 
 void cache_purge(struct cache_detail *detail)
 {
@@ -524,7 +528,7 @@ void cache_purge(struct cache_detail *detail)
 	cache_flush();
 	detail->flush_time = 1;
 }
-
+EXPORT_SYMBOL(cache_purge);
 
 
 /*
@@ -990,6 +994,7 @@ void qword_add(char **bpp, int *lp, char *str)
 	*bpp = bp;
 	*lp = len;
 }
+EXPORT_SYMBOL(qword_add);
 
 void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 {
@@ -1018,6 +1023,7 @@ void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 	*bpp = bp;
 	*lp = len;
 }
+EXPORT_SYMBOL(qword_addhex);
 
 static void warn_no_listener(struct cache_detail *detail)
 {
@@ -1140,6 +1146,7 @@ int qword_get(char **bpp, char *dest, int bufsize)
 	*dest = '\0';
 	return len;
 }
+EXPORT_SYMBOL(qword_get);
 
 
 /*

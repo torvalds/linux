@@ -433,6 +433,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 {
 	return __svc_create(prog, bufsize, /*npools*/1, shutdown);
 }
+EXPORT_SYMBOL(svc_create);
 
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
@@ -452,6 +453,7 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 
 	return serv;
 }
+EXPORT_SYMBOL(svc_create_pooled);
 
 /*
  * Destroy an RPC service.  Should be called with the BKL held
@@ -493,6 +495,7 @@ svc_destroy(struct svc_serv *serv)
 	kfree(serv->sv_pools);
 	kfree(serv);
 }
+EXPORT_SYMBOL(svc_destroy);
 
 /*
  * Allocate an RPC server's buffer space.
@@ -617,6 +620,7 @@ svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
 {
 	return __svc_create_thread(func, serv, &serv->sv_pools[0]);
 }
+EXPORT_SYMBOL(svc_create_thread);
 
 /*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
@@ -720,6 +724,7 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 	return error;
 }
+EXPORT_SYMBOL(svc_set_num_threads);
 
 /*
  * Called from a server thread as it's exiting.  Caller must hold BKL.
@@ -746,6 +751,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	if (serv)
 		svc_destroy(serv);
 }
+EXPORT_SYMBOL(svc_exit_thread);
 
 /*
  * Register an RPC service with the local portmapper.
@@ -1069,6 +1075,7 @@ err_bad:
 	svc_putnl(resv, ntohl(rpc_stat));
 	goto sendit;
 }
+EXPORT_SYMBOL(svc_process);
 
 /*
  * Return (transport-specific) limit on the rpc payload.

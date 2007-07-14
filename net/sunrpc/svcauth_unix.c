@@ -63,6 +63,7 @@ struct auth_domain *unix_domain_find(char *name)
 		rv = auth_domain_lookup(name, &new->h);
 	}
 }
+EXPORT_SYMBOL(unix_domain_find);
 
 static void svcauth_unix_domain_release(struct auth_domain *dom)
 {
@@ -340,6 +341,7 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 	else
 		return -ENOMEM;
 }
+EXPORT_SYMBOL(auth_unix_add_addr);
 
 int auth_unix_forget_old(struct auth_domain *dom)
 {
@@ -351,6 +353,7 @@ int auth_unix_forget_old(struct auth_domain *dom)
 	udom->addr_changes++;
 	return 0;
 }
+EXPORT_SYMBOL(auth_unix_forget_old);
 
 struct auth_domain *auth_unix_lookup(struct in_addr addr)
 {
@@ -375,11 +378,13 @@ struct auth_domain *auth_unix_lookup(struct in_addr addr)
 	cache_put(&ipm->h, &ip_map_cache);
 	return rv;
 }
+EXPORT_SYMBOL(auth_unix_lookup);
 
 void svcauth_unix_purge(void)
 {
 	cache_purge(&ip_map_cache);
 }
+EXPORT_SYMBOL(svcauth_unix_purge);
 
 static inline struct ip_map *
 ip_map_cached_get(struct svc_rqst *rqstp)

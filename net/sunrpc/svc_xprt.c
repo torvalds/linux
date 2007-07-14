@@ -435,6 +435,7 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 		svc_xprt_enqueue(xprt);
 	}
 }
+EXPORT_SYMBOL(svc_reserve);
 
 static void svc_xprt_release(struct svc_rqst *rqstp)
 {
@@ -492,6 +493,7 @@ void svc_wake_up(struct svc_serv *serv)
 		spin_unlock_bh(&pool->sp_lock);
 	}
 }
+EXPORT_SYMBOL(svc_wake_up);
 
 int svc_port_is_privileged(struct sockaddr *sin)
 {
@@ -702,6 +704,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		serv->sv_stats->netcnt++;
 	return len;
 }
+EXPORT_SYMBOL(svc_recv);
 
 /*
  * Drop request
@@ -711,6 +714,7 @@ void svc_drop(struct svc_rqst *rqstp)
 	dprintk("svc: xprt %p dropped request\n", rqstp->rq_xprt);
 	svc_xprt_release(rqstp);
 }
+EXPORT_SYMBOL(svc_drop);
 
 /*
  * Return reply to client.
