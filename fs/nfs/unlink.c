@@ -127,6 +127,11 @@ static const struct rpc_call_ops nfs_unlink_ops = {
 
 static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct nfs_unlinkdata *data)
 {
+	struct rpc_task_setup task_setup_data = {
+		.callback_ops = &nfs_unlink_ops,
+		.callback_data = data,
+		.flags = RPC_TASK_ASYNC,
+	};
 	struct rpc_task *task;
 	struct dentry *alias;
 
@@ -160,7 +165,9 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(&data->res.dir_attr);
 
-	task = rpc_run_task(NFS_CLIENT(dir), RPC_TASK_ASYNC, &nfs_unlink_ops, data);
+	task_setup_data.rpc_client = NFS_CLIENT(dir);
+
+	task = rpc_run_task(&task_setup_data);
 	if (!IS_ERR(task))
 		rpc_put_task(task);
 	return 1;

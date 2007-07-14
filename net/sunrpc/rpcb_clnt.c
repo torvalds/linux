@@ -310,6 +310,10 @@ void rpcb_getport_async(struct rpc_task *task)
 	struct rpc_clnt	*rpcb_clnt;
 	static struct rpcbind_args *map;
 	struct rpc_task	*child;
+	struct rpc_task_setup task_setup_data = {
+		.callback_ops = &rpcb_getport_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
 	struct sockaddr addr;
 	int status;
 	struct rpcb_info *info;
@@ -395,7 +399,9 @@ void rpcb_getport_async(struct rpc_task *task)
 	       sizeof(map->r_addr));
 	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
 
-	child = rpc_run_task(rpcb_clnt, RPC_TASK_ASYNC, &rpcb_getport_ops, map);
+	task_setup_data.rpc_client = rpcb_clnt;
+	task_setup_data.callback_data = map;
+	child = rpc_run_task(&task_setup_data);
 	rpc_release_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;

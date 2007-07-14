@@ -523,8 +523,11 @@ void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_sigunmask);
 
-static
-struct rpc_task *rpc_do_run_task(const struct rpc_task_setup *task_setup_data)
+/**
+ * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
+ * @task_setup_data: pointer to task initialisation data
+ */
+struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 {
 	struct rpc_task *task, *ret;
 	sigset_t oldset;
@@ -553,6 +556,7 @@ out:
 	rpc_restore_sigmask(&oldset);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rpc_run_task);
 
 /**
  * rpc_call_sync - Perform a synchronous RPC call
@@ -573,7 +577,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
-	task = rpc_do_run_task(&task_setup_data);
+	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	status = task->tk_status;
@@ -603,35 +607,13 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 		.flags = flags|RPC_TASK_ASYNC,
 	};
 
-	task = rpc_do_run_task(&task_setup_data);
+	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	rpc_put_task(task);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rpc_call_async);
-
-/**
- * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
- * @clnt: pointer to RPC client
- * @flags: RPC flags
- * @ops: RPC call ops
- * @data: user call data
- */
-struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
-					const struct rpc_call_ops *tk_ops,
-					void *data)
-{
-	struct rpc_task_setup task_setup_data = {
-		.rpc_client = clnt,
-		.callback_ops = tk_ops,
-		.callback_data = data,
-		.flags = flags,
-	};
-
-	return rpc_do_run_task(&task_setup_data);
-}
-EXPORT_SYMBOL_GPL(rpc_run_task);
 
 void
 rpc_call_setup(struct rpc_task *task, const struct rpc_message *msg, int flags)
@@ -1550,7 +1532,7 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 		.callback_ops = &rpc_default_ops,
 		.flags = flags,
 	};
-	return rpc_do_run_task(&task_setup_data);
+	return rpc_run_task(&task_setup_data);
 }
 EXPORT_SYMBOL_GPL(rpc_call_null);
 
