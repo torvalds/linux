@@ -272,14 +272,14 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 static int
 nfs_proc_remove(struct inode *dir, struct qstr *name)
 {
-	struct nfs_diropargs	arg = {
-		.fh		= NFS_FH(dir),
-		.name		= name->name,
-		.len		= name->len
+	struct nfs_removeargs arg = {
+		.fh = NFS_FH(dir),
+		.name.len = name->len,
+		.name.name = name->name,
 	};
-	struct rpc_message	msg = { 
-		.rpc_proc	= &nfs_procedures[NFSPROC_REMOVE],
-		.rpc_argp	= &arg,
+	struct rpc_message msg = { 
+		.rpc_proc = &nfs_procedures[NFSPROC_REMOVE],
+		.rpc_argp = &arg,
 	};
 	int			status;
 
@@ -294,14 +294,14 @@ nfs_proc_remove(struct inode *dir, struct qstr *name)
 static int
 nfs_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir, struct qstr *name)
 {
-	struct nfs_diropargs	*arg;
+	struct nfs_removeargs *arg;
 
 	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg)
 		return -ENOMEM;
 	arg->fh = NFS_FH(dir->d_inode);
-	arg->name = name->name;
-	arg->len = name->len;
+	arg->name.name = name->name;
+	arg->name.len = name->len;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 	msg->rpc_argp = arg;
 	return 0;
