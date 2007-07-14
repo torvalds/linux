@@ -2432,18 +2432,10 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
-static void nfs4_proc_read_setup(struct nfs_read_data *data)
+static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
 {
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ],
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
-	};
-
 	data->timestamp   = jiffies;
-
-	rpc_call_setup(&data->task, &msg, 0);
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
 
 static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -2461,33 +2453,15 @@ static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
-static void nfs4_proc_write_setup(struct nfs_write_data *data, int how)
+static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_WRITE],
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
-	};
-	struct inode *inode = data->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
-	int stable;
-	
-	if (how & FLUSH_STABLE) {
-		if (!NFS_I(inode)->ncommit)
-			stable = NFS_FILE_SYNC;
-		else
-			stable = NFS_DATA_SYNC;
-	} else
-		stable = NFS_UNSTABLE;
-	data->args.stable = stable;
+	struct nfs_server *server = NFS_SERVER(data->inode);
+
 	data->args.bitmask = server->attr_bitmask;
 	data->res.server = server;
-
 	data->timestamp   = jiffies;
 
-	/* Finalize the task. */
-	rpc_call_setup(&data->task, &msg, 0);
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_WRITE];
 }
 
 static int nfs4_commit_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -2502,20 +2476,13 @@ static int nfs4_commit_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
-static void nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
+static void nfs4_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COMMIT],
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
-	};	
 	struct nfs_server *server = NFS_SERVER(data->inode);
 	
 	data->args.bitmask = server->attr_bitmask;
 	data->res.server = server;
-
-	rpc_call_setup(&data->task, &msg, 0);
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COMMIT];
 }
 
 /*

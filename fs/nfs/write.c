@@ -764,6 +764,16 @@ static int flush_task_priority(int how)
 	return RPC_PRIORITY_NORMAL;
 }
 
+static void nfs_execute_write(struct nfs_write_data *data)
+{
+	struct rpc_clnt *clnt = NFS_CLIENT(data->inode);
+	sigset_t oldset;
+
+	rpc_clnt_sigmask(clnt, &oldset);
+	rpc_execute(&data->task);
+	rpc_clnt_sigunmask(clnt, &oldset);
+}
+
 /*
  * Set up the argument/result storage required for the RPC call.
  */
@@ -776,8 +786,14 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 	int priority = flush_task_priority(how);
+	struct rpc_message msg = {
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+		.rpc_cred = req->wb_context->cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
+		.rpc_message = &msg,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.flags = flags,
@@ -789,7 +805,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 
 	data->req = req;
 	data->inode = inode = req->wb_context->path.dentry->d_inode;
-	data->cred = req->wb_context->cred;
+	data->cred = msg.rpc_cred;
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -797,6 +813,12 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	data->args.pages  = data->pagevec;
 	data->args.count  = count;
 	data->args.context = req->wb_context;
+	data->args.stable  = NFS_UNSTABLE;
+	if (how & FLUSH_STABLE) {
+		data->args.stable = NFS_DATA_SYNC;
+		if (!NFS_I(inode)->ncommit)
+			data->args.stable = NFS_FILE_SYNC;
+	}
 
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
@@ -804,8 +826,8 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	nfs_fattr_init(&data->fattr);
 
 	/* Set up the initial task struct.  */
+	NFS_PROTO(inode)->write_setup(data, &msg);
 	rpc_init_task(&data->task, &task_setup_data);
-	NFS_PROTO(inode)->write_setup(data, how);
 
 	dprintk("NFS: %5u initiated write call "
 		"(req %s/%Ld, %u bytes @ offset %Lu)\n",
@@ -814,16 +836,8 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 		(long long)NFS_FILEID(inode),
 		count,
 		(unsigned long long)data->args.offset);
-}
 
-static void nfs_execute_write(struct nfs_write_data *data)
-{
-	struct rpc_clnt *clnt = NFS_CLIENT(data->inode);
-	sigset_t oldset;
-
-	rpc_clnt_sigmask(clnt, &oldset);
-	rpc_execute(&data->task);
-	rpc_clnt_sigunmask(clnt, &oldset);
+	nfs_execute_write(data);
 }
 
 /*
@@ -870,7 +884,6 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 				   wsize, offset, how);
 		offset += wsize;
 		nbytes -= wsize;
-		nfs_execute_write(data);
 	} while (nbytes != 0);
 
 	return 0;
@@ -918,7 +931,6 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	/* Set up the argument struct */
 	nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, how);
 
-	nfs_execute_write(data);
 	return 0;
  out_bad:
 	while (!list_empty(head)) {
@@ -1152,8 +1164,14 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	struct inode *inode = first->wb_context->path.dentry->d_inode;
 	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 	int priority = flush_task_priority(how);
+	struct rpc_message msg = {
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+		.rpc_cred = first->wb_context->cred,
+	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
+		.rpc_message = &msg,
 		.callback_ops = &nfs_commit_ops,
 		.callback_data = data,
 		.flags = flags,
@@ -1166,7 +1184,7 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	list_splice_init(head, &data->pages);
 
 	data->inode	  = inode;
-	data->cred	  = first->wb_context->cred;
+	data->cred	  = msg.rpc_cred;
 
 	data->args.fh     = NFS_FH(data->inode);
 	/* Note: we always request a commit of the entire inode */
@@ -1178,10 +1196,12 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	nfs_fattr_init(&data->fattr);
 
 	/* Set up the initial task struct.  */
+	NFS_PROTO(inode)->commit_setup(data, &msg);
 	rpc_init_task(&data->task, &task_setup_data);
-	NFS_PROTO(inode)->commit_setup(data, how);
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
+
+	nfs_execute_write(data);
 }
 
 /*
@@ -1201,7 +1221,6 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 	/* Set up the argument struct */
 	nfs_commit_rpcsetup(head, data, how);
 
-	nfs_execute_write(data);
 	return 0;
  out_bad:
 	while (!list_empty(head)) {
