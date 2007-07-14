@@ -40,6 +40,9 @@ obj-$(CONFIG_IOP_WATCHDOG) += iop_wdt.o
 # AVR32 Architecture
 obj-$(CONFIG_AT32AP700X_WDT) += at32ap700x_wdt.o
 
+# Blackfin Architecture
+obj-$(CONFIG_BFIN_WDT) += bfin_wdt.o
+
 # X86 (i386 + ia64 + x86_64) Architecture
 obj-$(CONFIG_ACQUIRE_WDT) += acquirewdt.o
 obj-$(CONFIG_ADVANTECH_WDT) += advantechwdt.o
