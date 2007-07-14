@@ -8,6 +8,7 @@
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
