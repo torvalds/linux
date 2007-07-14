@@ -654,7 +654,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 
 	if (IS_ROOT(dentry))
 		return 1;
-	verf = (unsigned long)dentry->d_fsdata;
+	verf = dentry->d_time;
 	if (nfs_caches_unstable(dir)
 			|| verf != NFS_I(dir)->cache_change_attribute)
 		return 0;
@@ -663,7 +663,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 {
-	dentry->d_fsdata = (void *)verf;
+	dentry->d_time = verf;
 }
 
 static void nfs_refresh_verifier(struct dentry * dentry, unsigned long verf)
