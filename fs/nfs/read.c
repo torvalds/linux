@@ -189,8 +189,6 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->read_setup(data);
 
-	data->task.tk_cookie = (unsigned long)inode;
-
 	dprintk("NFS: %5u initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 			data->task.tk_pid,
 			inode->i_sb->s_id,

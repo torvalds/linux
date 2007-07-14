@@ -331,8 +331,6 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->read_setup(data);
 
-		data->task.tk_cookie = (unsigned long) inode;
-
 		rpc_execute(&data->task);
 
 		dprintk("NFS: %5u initiated direct read call "
@@ -465,9 +463,6 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->write_setup(data, FLUSH_STABLE);
 
-		data->task.tk_priority = RPC_PRIORITY_NORMAL;
-		data->task.tk_cookie = (unsigned long) inode;
-
 		/*
 		 * We're called via an RPC callback, so BKL is already held.
 		 */
@@ -534,8 +529,6 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(data->inode)->commit_setup(data, 0);
 
-	data->task.tk_priority = RPC_PRIORITY_NORMAL;
-	data->task.tk_cookie = (unsigned long)data->inode;
 	/* Note: task.tk_ops->rpc_release will free dreq->commit_data */
 	dreq->commit_data = NULL;
 
@@ -717,9 +710,6 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		task_setup_data.callback_data = data;
 		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->write_setup(data, sync);
-
-		data->task.tk_priority = RPC_PRIORITY_NORMAL;
-		data->task.tk_cookie = (unsigned long) inode;
 
 		rpc_execute(&data->task);
 

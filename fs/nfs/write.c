@@ -753,7 +753,7 @@ static void nfs_writepage_release(struct nfs_page *req)
 	nfs_clear_page_tag_locked(req);
 }
 
-static inline int flush_task_priority(int how)
+static int flush_task_priority(int how)
 {
 	switch (how & (FLUSH_HIGHPRI|FLUSH_LOWPRI)) {
 		case FLUSH_HIGHPRI:
@@ -775,11 +775,13 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
+	int priority = flush_task_priority(how);
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.flags = flags,
+		.priority = priority,
 	};
 
 	/* Set up the RPC argument and reply structs
@@ -804,9 +806,6 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	/* Set up the initial task struct.  */
 	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->write_setup(data, how);
-
-	data->task.tk_priority = flush_task_priority(how);
-	data->task.tk_cookie = (unsigned long)inode;
 
 	dprintk("NFS: %5u initiated write call "
 		"(req %s/%Ld, %u bytes @ offset %Lu)\n",
@@ -1152,11 +1151,13 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	struct nfs_page *first = nfs_list_entry(head->next);
 	struct inode *inode = first->wb_context->path.dentry->d_inode;
 	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
+	int priority = flush_task_priority(how);
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
 		.callback_ops = &nfs_commit_ops,
 		.callback_data = data,
 		.flags = flags,
+		.priority = priority,
 	};
 
 	/* Set up the RPC argument and reply structs
@@ -1180,9 +1181,6 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->commit_setup(data, how);
 
-	data->task.tk_priority = flush_task_priority(how);
-	data->task.tk_cookie = (unsigned long)inode;
-	
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 }
 

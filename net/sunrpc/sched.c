@@ -135,7 +135,7 @@ static void __rpc_add_wait_queue_priority(struct rpc_wait_queue *queue, struct r
 	if (unlikely(task->tk_priority > queue->maxpriority))
 		q = &queue->tasks[queue->maxpriority];
 	list_for_each_entry(t, q, u.tk_wait.list) {
-		if (t->tk_cookie == task->tk_cookie) {
+		if (t->tk_owner == task->tk_owner) {
 			list_add_tail(&task->u.tk_wait.list, &t->u.tk_wait.links);
 			return;
 		}
@@ -208,26 +208,26 @@ static inline void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int 
 	queue->count = 1 << (priority * 2);
 }
 
-static inline void rpc_set_waitqueue_cookie(struct rpc_wait_queue *queue, unsigned long cookie)
+static inline void rpc_set_waitqueue_owner(struct rpc_wait_queue *queue, pid_t pid)
 {
-	queue->cookie = cookie;
+	queue->owner = pid;
 	queue->nr = RPC_BATCH_COUNT;
 }
 
 static inline void rpc_reset_waitqueue_priority(struct rpc_wait_queue *queue)
 {
 	rpc_set_waitqueue_priority(queue, queue->maxpriority);
-	rpc_set_waitqueue_cookie(queue, 0);
+	rpc_set_waitqueue_owner(queue, 0);
 }
 
-static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname, int maxprio)
+static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname, unsigned char nr_queues)
 {
 	int i;
 
 	spin_lock_init(&queue->lock);
 	for (i = 0; i < ARRAY_SIZE(queue->tasks); i++)
 		INIT_LIST_HEAD(&queue->tasks[i]);
-	queue->maxpriority = maxprio;
+	queue->maxpriority = nr_queues - 1;
 	rpc_reset_waitqueue_priority(queue);
 #ifdef RPC_DEBUG
 	queue->name = qname;
@@ -236,12 +236,12 @@ static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const c
 
 void rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 {
-	__rpc_init_priority_wait_queue(queue, qname, RPC_PRIORITY_HIGH);
+	__rpc_init_priority_wait_queue(queue, qname, RPC_NR_PRIORITY);
 }
 
 void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 {
-	__rpc_init_priority_wait_queue(queue, qname, 0);
+	__rpc_init_priority_wait_queue(queue, qname, 1);
 }
 EXPORT_SYMBOL_GPL(rpc_init_wait_queue);
 
@@ -456,12 +456,12 @@ static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queu
 	struct rpc_task *task;
 
 	/*
-	 * Service a batch of tasks from a single cookie.
+	 * Service a batch of tasks from a single owner.
 	 */
 	q = &queue->tasks[queue->priority];
 	if (!list_empty(q)) {
 		task = list_entry(q->next, struct rpc_task, u.tk_wait.list);
-		if (queue->cookie == task->tk_cookie) {
+		if (queue->owner == task->tk_owner) {
 			if (--queue->nr)
 				goto out;
 			list_move_tail(&task->u.tk_wait.list, q);
@@ -470,7 +470,7 @@ static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queu
 		 * Check if we need to switch queues.
 		 */
 		if (--queue->count)
-			goto new_cookie;
+			goto new_owner;
 	}
 
 	/*
@@ -492,8 +492,8 @@ static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queu
 
 new_queue:
 	rpc_set_waitqueue_priority(queue, (unsigned int)(q - &queue->tasks[0]));
-new_cookie:
-	rpc_set_waitqueue_cookie(queue, task->tk_cookie);
+new_owner:
+	rpc_set_waitqueue_owner(queue, task->tk_owner);
 out:
 	__rpc_wake_up_task(task);
 	return task;
@@ -830,8 +830,8 @@ void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setu
 	task->tk_garb_retry = 2;
 	task->tk_cred_retry = 2;
 
-	task->tk_priority = RPC_PRIORITY_NORMAL;
-	task->tk_cookie = (unsigned long)current;
+	task->tk_priority = task_setup_data->priority - RPC_PRIORITY_LOW;
+	task->tk_owner = current->tgid;
 
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = rpciod_workqueue;
