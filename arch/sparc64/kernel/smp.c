@@ -1,6 +1,6 @@
 /* smp.c: Sparc64 SMP support.
  *
- * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1997, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -28,6 +28,8 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/cpudata.h>
+#include <asm/hvtramp.h>
+#include <asm/io.h>
 
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
@@ -282,6 +284,14 @@ static void smp_synchronize_one_tick(int cpu)
 }
 
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
+/* XXX Put this in some common place. XXX */
+static unsigned long kimage_addr_to_ra(void *p)
+{
+	unsigned long val = (unsigned long) p;
+
+	return kern_base + (val - KERNBASE);
+}
+
 static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 {
 	extern unsigned long sparc64_ttable_tl0;
@@ -295,7 +305,7 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 
 	hdesc = kzalloc(sizeof(*hdesc), GFP_KERNEL);
 	if (!hdesc) {
-		printk(KERN_ERR PFX "ldom_startcpu_cpuid: Cannot allocate "
+		printk(KERN_ERR "ldom_startcpu_cpuid: Cannot allocate "
 		       "hvtramp_descr.\n");
 		return;
 	}

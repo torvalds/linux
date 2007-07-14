@@ -20,8 +20,6 @@
 #include <asm/power.h>
 #include <asm/mdesc.h>
 #include <asm/head.h>
-#include <asm/io.h>
-#include <asm/hvtramp.h>
 
 #define DRV_MODULE_NAME		"ds"
 #define PFX DRV_MODULE_NAME	": "
@@ -391,14 +389,6 @@ struct dr_cpu_resp_entry {
 
 	__u32				str_off;
 };
-
-/* XXX Put this in some common place. XXX */
-static unsigned long kimage_addr_to_ra(void *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
-}
 
 /* DR cpu requests get queued onto the work list by the
  * dr_cpu_data() callback.  The list is protected by
