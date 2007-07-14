@@ -992,6 +992,7 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
 	to->to_retries   = retr;
 	to->to_exponential = 0;
 }
+EXPORT_SYMBOL(xprt_set_timeout);
 
 /**
  * xprt_create_transport - create an RPC transport

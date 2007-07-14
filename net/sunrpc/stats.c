@@ -241,12 +241,14 @@ rpc_proc_register(struct rpc_stat *statp)
 {
 	return do_register(statp->program->name, statp, &rpc_proc_fops);
 }
+EXPORT_SYMBOL(rpc_proc_register);
 
 void
 rpc_proc_unregister(const char *name)
 {
 	remove_proc_entry(name, proc_net_rpc);
 }
+EXPORT_SYMBOL(rpc_proc_unregister);
 
 struct proc_dir_entry *
 svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)

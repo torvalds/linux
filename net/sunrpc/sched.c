@@ -373,6 +373,7 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	__rpc_sleep_on(q, task, action, timer);
 	spin_unlock_bh(&q->lock);
 }
+EXPORT_SYMBOL(rpc_sleep_on);
 
 /**
  * __rpc_do_wake_up_task - wake up a single rpc_task
@@ -444,6 +445,7 @@ void rpc_wake_up_task(struct rpc_task *task)
 	}
 	rcu_read_unlock_bh();
 }
+EXPORT_SYMBOL(rpc_wake_up_task);
 
 /*
  * Wake up the next task on a priority queue.
@@ -519,6 +521,7 @@ struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
 
 	return task;
 }
+EXPORT_SYMBOL(rpc_wake_up_next);
 
 /**
  * rpc_wake_up - wake up all rpc_tasks
@@ -544,6 +547,7 @@ void rpc_wake_up(struct rpc_wait_queue *queue)
 	spin_unlock(&queue->lock);
 	rcu_read_unlock_bh();
 }
+EXPORT_SYMBOL(rpc_wake_up);
 
 /**
  * rpc_wake_up_status - wake up all rpc_tasks and set their status value.
@@ -572,6 +576,7 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 	spin_unlock(&queue->lock);
 	rcu_read_unlock_bh();
 }
+EXPORT_SYMBOL(rpc_wake_up_status);
 
 static void __rpc_atrun(struct rpc_task *task)
 {
@@ -586,6 +591,7 @@ void rpc_delay(struct rpc_task *task, unsigned long delay)
 	task->tk_timeout = delay;
 	rpc_sleep_on(&delay_queue, task, NULL, __rpc_atrun);
 }
+EXPORT_SYMBOL(rpc_delay);
 
 /*
  * Helper to call task->tk_ops->rpc_call_prepare
@@ -731,6 +737,7 @@ void rpc_execute(struct rpc_task *task)
 	rpc_set_running(task);
 	__rpc_execute(task);
 }
+EXPORT_SYMBOL(rpc_execute);
 
 static void rpc_async_schedule(struct work_struct *work)
 {
@@ -848,6 +855,7 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	dprintk("RPC:       new task initialized, procpid %u\n",
 				task_pid_nr(current));
 }
+EXPORT_SYMBOL(rpc_init_task);
 
 static struct rpc_task *
 rpc_alloc_task(void)
@@ -959,6 +967,7 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	}
 	spin_unlock(&clnt->cl_lock);
 }
+EXPORT_SYMBOL(rpc_killall_tasks);
 
 int rpciod_up(void)
 {

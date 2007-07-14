@@ -23,9 +23,16 @@
  * Declare the debug flags here
  */
 unsigned int	rpc_debug;
+EXPORT_SYMBOL(rpc_debug);
+
 unsigned int	nfs_debug;
+EXPORT_SYMBOL(nfs_debug);
+
 unsigned int	nfsd_debug;
+EXPORT_SYMBOL(nfsd_debug);
+
 unsigned int	nlm_debug;
+EXPORT_SYMBOL(nlm_debug);
 
 #ifdef RPC_DEBUG
 
