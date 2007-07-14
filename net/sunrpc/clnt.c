@@ -524,25 +524,22 @@ void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
 EXPORT_SYMBOL_GPL(rpc_clnt_sigunmask);
 
 static
-struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
-		struct rpc_message *msg,
-		int flags,
-		const struct rpc_call_ops *ops,
-		void *data)
+struct rpc_task *rpc_do_run_task(const struct rpc_task_setup *task_setup_data)
 {
 	struct rpc_task *task, *ret;
 	sigset_t oldset;
 
-	task = rpc_new_task(clnt, flags, ops, data);
+	task = rpc_new_task(task_setup_data);
 	if (task == NULL) {
-		rpc_release_calldata(ops, data);
+		rpc_release_calldata(task_setup_data->callback_ops,
+				task_setup_data->callback_data);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
 	rpc_task_sigmask(task, &oldset);
-	if (msg != NULL) {
-		rpc_call_setup(task, msg, 0);
+	if (task_setup_data->rpc_message != NULL) {
+		rpc_call_setup(task, task_setup_data->rpc_message, 0);
 		if (task->tk_status != 0) {
 			ret = ERR_PTR(task->tk_status);
 			rpc_put_task(task);
@@ -566,11 +563,17 @@ out:
 int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 {
 	struct rpc_task	*task;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clnt,
+		.rpc_message = msg,
+		.callback_ops = &rpc_default_ops,
+		.flags = flags,
+	};
 	int status;
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
-	task = rpc_do_run_task(clnt, msg, flags, &rpc_default_ops, NULL);
+	task = rpc_do_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	status = task->tk_status;
@@ -592,8 +595,15 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	       const struct rpc_call_ops *tk_ops, void *data)
 {
 	struct rpc_task	*task;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clnt,
+		.rpc_message = msg,
+		.callback_ops = tk_ops,
+		.callback_data = data,
+		.flags = flags|RPC_TASK_ASYNC,
+	};
 
-	task = rpc_do_run_task(clnt, msg, flags|RPC_TASK_ASYNC, tk_ops, data);
+	task = rpc_do_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	rpc_put_task(task);
@@ -612,12 +622,19 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 					const struct rpc_call_ops *tk_ops,
 					void *data)
 {
-	return rpc_do_run_task(clnt, NULL, flags, tk_ops, data);
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clnt,
+		.callback_ops = tk_ops,
+		.callback_data = data,
+		.flags = flags,
+	};
+
+	return rpc_do_run_task(&task_setup_data);
 }
 EXPORT_SYMBOL_GPL(rpc_run_task);
 
 void
-rpc_call_setup(struct rpc_task *task, struct rpc_message *msg, int flags)
+rpc_call_setup(struct rpc_task *task, const struct rpc_message *msg, int flags)
 {
 	task->tk_msg   = *msg;
 	task->tk_flags |= flags;
@@ -1527,7 +1544,13 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 		.rpc_proc = &rpcproc_null,
 		.rpc_cred = cred,
 	};
-	return rpc_do_run_task(clnt, &msg, flags, &rpc_default_ops, NULL);
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clnt,
+		.rpc_message = &msg,
+		.callback_ops = &rpc_default_ops,
+		.flags = flags,
+	};
+	return rpc_do_run_task(&task_setup_data);
 }
 EXPORT_SYMBOL_GPL(rpc_call_null);
 

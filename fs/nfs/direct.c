@@ -272,6 +272,11 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 	unsigned long user_addr = (unsigned long)iov->iov_base;
 	size_t count = iov->iov_len;
 	size_t rsize = NFS_SERVER(inode)->rsize;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = &nfs_read_direct_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
 	unsigned int pgbase;
 	int result;
 	ssize_t started = 0;
@@ -322,8 +327,8 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		data->res.eof = 0;
 		data->res.count = bytes;
 
-		rpc_init_task(&data->task, NFS_CLIENT(inode), RPC_TASK_ASYNC,
-				&nfs_read_direct_ops, data);
+		task_setup_data.callback_data = data;
+		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->read_setup(data);
 
 		data->task.tk_cookie = (unsigned long) inode;
@@ -431,6 +436,11 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	struct inode *inode = dreq->inode;
 	struct list_head *p;
 	struct nfs_write_data *data;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = &nfs_write_direct_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
 
 	dreq->count = 0;
 	get_dreq(dreq);
@@ -451,8 +461,8 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 		 * Reuse data->task; data->args should not have changed
 		 * since the original request was sent.
 		 */
-		rpc_init_task(&data->task, NFS_CLIENT(inode), RPC_TASK_ASYNC,
-				&nfs_write_direct_ops, data);
+		task_setup_data.callback_data = data;
+		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->write_setup(data, FLUSH_STABLE);
 
 		data->task.tk_priority = RPC_PRIORITY_NORMAL;
@@ -504,6 +514,12 @@ static const struct rpc_call_ops nfs_commit_direct_ops = {
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_write_data *data = dreq->commit_data;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(dreq->inode),
+		.callback_ops = &nfs_commit_direct_ops,
+		.callback_data = data,
+		.flags = RPC_TASK_ASYNC,
+	};
 
 	data->inode = dreq->inode;
 	data->cred = dreq->ctx->cred;
@@ -515,8 +531,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->res.fattr = &data->fattr;
 	data->res.verf = &data->verf;
 
-	rpc_init_task(&data->task, NFS_CLIENT(dreq->inode), RPC_TASK_ASYNC,
-				&nfs_commit_direct_ops, data);
+	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(data->inode)->commit_setup(data, 0);
 
 	data->task.tk_priority = RPC_PRIORITY_NORMAL;
@@ -641,6 +656,11 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 	struct inode *inode = ctx->path.dentry->d_inode;
 	unsigned long user_addr = (unsigned long)iov->iov_base;
 	size_t count = iov->iov_len;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = &nfs_write_direct_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
 	size_t wsize = NFS_SERVER(inode)->wsize;
 	unsigned int pgbase;
 	int result;
@@ -694,8 +714,8 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		data->res.count = bytes;
 		data->res.verf = &data->verf;
 
-		rpc_init_task(&data->task, NFS_CLIENT(inode), RPC_TASK_ASYNC,
-				&nfs_write_direct_ops, data);
+		task_setup_data.callback_data = data;
+		rpc_init_task(&data->task, &task_setup_data);
 		NFS_PROTO(inode)->write_setup(data, sync);
 
 		data->task.tk_priority = RPC_PRIORITY_NORMAL;

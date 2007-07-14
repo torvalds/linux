@@ -160,11 +160,17 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		const struct rpc_call_ops *call_ops,
 		unsigned int count, unsigned int offset)
 {
-	struct inode		*inode;
-	int flags;
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = call_ops,
+		.callback_data = data,
+		.flags = RPC_TASK_ASYNC | swap_flags,
+	};
 
 	data->req	  = req;
-	data->inode	  = inode = req->wb_context->path.dentry->d_inode;
+	data->inode	  = inode;
 	data->cred	  = req->wb_context->cred;
 
 	data->args.fh     = NFS_FH(inode);
@@ -180,8 +186,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	nfs_fattr_init(&data->fattr);
 
 	/* Set up the initial task struct. */
-	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
-	rpc_init_task(&data->task, NFS_CLIENT(inode), flags, call_ops, data);
+	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->read_setup(data);
 
 	data->task.tk_cookie = (unsigned long)inode;

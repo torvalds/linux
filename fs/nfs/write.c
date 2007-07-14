@@ -773,8 +773,14 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 		unsigned int count, unsigned int offset,
 		int how)
 {
-	struct inode		*inode;
-	int flags;
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = call_ops,
+		.callback_data = data,
+		.flags = flags,
+	};
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
@@ -796,8 +802,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	nfs_fattr_init(&data->fattr);
 
 	/* Set up the initial task struct.  */
-	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
-	rpc_init_task(&data->task, NFS_CLIENT(inode), flags, call_ops, data);
+	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->write_setup(data, how);
 
 	data->task.tk_priority = flush_task_priority(how);
@@ -1144,16 +1149,20 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 		struct nfs_write_data *data,
 		int how)
 {
-	struct nfs_page		*first;
-	struct inode		*inode;
-	int flags;
+	struct nfs_page *first = nfs_list_entry(head->next);
+	struct inode *inode = first->wb_context->path.dentry->d_inode;
+	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = NFS_CLIENT(inode),
+		.callback_ops = &nfs_commit_ops,
+		.callback_data = data,
+		.flags = flags,
+	};
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
 
 	list_splice_init(head, &data->pages);
-	first = nfs_list_entry(data->pages.next);
-	inode = first->wb_context->path.dentry->d_inode;
 
 	data->inode	  = inode;
 	data->cred	  = first->wb_context->cred;
@@ -1168,8 +1177,7 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	nfs_fattr_init(&data->fattr);
 
 	/* Set up the initial task struct.  */
-	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
-	rpc_init_task(&data->task, NFS_CLIENT(inode), flags, &nfs_commit_ops, data);
+	rpc_init_task(&data->task, &task_setup_data);
 	NFS_PROTO(inode)->commit_setup(data, how);
 
 	data->task.tk_priority = flush_task_priority(how);

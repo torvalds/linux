@@ -815,18 +815,15 @@ EXPORT_SYMBOL_GPL(rpc_free);
 /*
  * Creation and deletion of RPC task structures
  */
-void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
+void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setup_data)
 {
 	memset(task, 0, sizeof(*task));
 	setup_timer(&task->tk_timer, (void (*)(unsigned long))rpc_run_timer,
 			(unsigned long)task);
 	atomic_set(&task->tk_count, 1);
-	task->tk_client = clnt;
-	task->tk_flags  = flags;
-	task->tk_ops = tk_ops;
-	if (tk_ops->rpc_call_prepare != NULL)
-		task->tk_action = rpc_prepare_task;
-	task->tk_calldata = calldata;
+	task->tk_flags  = task_setup_data->flags;
+	task->tk_ops = task_setup_data->callback_ops;
+	task->tk_calldata = task_setup_data->callback_data;
 	INIT_LIST_HEAD(&task->tk_task);
 
 	/* Initialize retry counters */
@@ -839,15 +836,17 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = rpciod_workqueue;
 
-	if (clnt) {
-		kref_get(&clnt->cl_kref);
-		if (clnt->cl_softrtry)
+	task->tk_client = task_setup_data->rpc_client;
+	if (task->tk_client != NULL) {
+		kref_get(&task->tk_client->cl_kref);
+		if (task->tk_client->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
-		if (!clnt->cl_intr)
+		if (!task->tk_client->cl_intr)
 			task->tk_flags |= RPC_TASK_NOINTR;
 	}
 
-	BUG_ON(task->tk_ops == NULL);
+	if (task->tk_ops->rpc_call_prepare != NULL)
+		task->tk_action = rpc_prepare_task;
 
 	/* starting timestamp */
 	task->tk_start = jiffies;
@@ -873,7 +872,7 @@ static void rpc_free_task(struct rcu_head *rcu)
 /*
  * Create a new task for the specified client.
  */
-struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
+struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 {
 	struct rpc_task	*task;
 
@@ -881,7 +880,7 @@ struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc
 	if (!task)
 		goto out;
 
-	rpc_init_task(task, clnt, flags, tk_ops, calldata);
+	rpc_init_task(task, setup_data);
 
 	dprintk("RPC:       allocated task %p\n", task);
 	task->tk_flags |= RPC_TASK_DYNAMIC;
