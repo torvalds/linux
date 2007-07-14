@@ -65,7 +65,7 @@ static void move_kernel_around(void)
 			     "popw %%ds ; "
 			     "popw %%es"
 			     : "+c" (dwords)
-			     : "rm" (dst_seg), "rm" (src_seg)
+			     : "r" (dst_seg), "r" (src_seg)
 			     : "esi", "edi");
 
 		syssize -= paras;

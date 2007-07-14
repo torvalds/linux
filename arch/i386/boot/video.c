@@ -411,7 +411,7 @@ static void restore_screen(void)
 			     "1: rep;stosl ; "
 			     "popw %%es"
 			     : "+D" (dst), "+c" (npad)
-			     : "bdSm" (video_segment),
+			     : "bdS" (video_segment),
 			       "a" (0x07200720));
 	}
 

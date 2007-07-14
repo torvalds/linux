@@ -32,7 +32,7 @@ int query_voyager(void)
 	    "setc %0 ; "
 	    "movw %%es, %1 ; "
 	    "popw %%es"
-	    : "=qm" (err), "=rm" (es), "=D" (di)
+	    : "=q" (err), "=r" (es), "=D" (di)
 	    : "a" (0xffc0));
 
 	if (err)
