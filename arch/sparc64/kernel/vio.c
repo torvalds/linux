@@ -335,6 +335,13 @@ static int __init vio_init(void)
 	int err, len;
 	u64 root;
 
+	err = bus_register(&vio_bus_type);
+	if (err) {
+		printk(KERN_ERR "VIO: Could not register bus type err=%d\n",
+		       err);
+		return err;
+	}
+
 	hp = mdesc_grab();
 	if (!hp)
 		return 0;
@@ -373,13 +380,6 @@ static int __init vio_init(void)
 	}
 
 	cdev_cfg_handle = *cfg_handle;
-
-	err = bus_register(&vio_bus_type);
-	if (err) {
-		printk(KERN_ERR "VIO: Could not register bus type err=%d\n",
-		       err);
-		return err;
-	}
 
 	create_devices(hp, root);
 
