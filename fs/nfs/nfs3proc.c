@@ -370,41 +370,21 @@ nfs3_proc_remove(struct inode *dir, struct qstr *name)
 	return status;
 }
 
-static int
-nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir, struct qstr *name)
+static void
+nfs3_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
 {
-	struct unlinkxdr {
-		struct nfs_removeargs arg;
-		struct nfs_removeres res;
-	} *ptr;
-
-	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-	ptr->arg.fh = NFS_FH(dir->d_inode);
-	ptr->arg.name.name = name->name;
-	ptr->arg.name.len = name->len;
-	nfs_fattr_init(&ptr->res.dir_attr);
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_REMOVE];
-	msg->rpc_argp = &ptr->arg;
-	msg->rpc_resp = &ptr->res;
-	return 0;
 }
 
 static int
-nfs3_proc_unlink_done(struct dentry *dir, struct rpc_task *task)
+nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 {
-	struct rpc_message *msg = &task->tk_msg;
-	struct nfs_fattr	*dir_attr;
-
-	if (nfs3_async_handle_jukebox(task, dir->d_inode))
-		return 1;
-	if (msg->rpc_argp) {
-		dir_attr = &((struct nfs_removeres*)msg->rpc_resp)->dir_attr;
-		nfs_post_op_update_inode(dir->d_inode, dir_attr);
-		kfree(msg->rpc_argp);
-	}
-	return 0;
+	struct nfs_removeres *res;
+	if (nfs3_async_handle_jukebox(task, dir))
+		return 0;
+	res = task->tk_msg.rpc_resp;
+	nfs_post_op_update_inode(dir, &res->dir_attr);
+	return 1;
 }
 
 static int

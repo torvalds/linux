@@ -407,8 +407,8 @@ extern void nfs_release_automount_timer(void);
 /*
  * linux/fs/nfs/unlink.c
  */
-extern int  nfs_async_unlink(struct dentry *);
-extern void nfs_complete_unlink(struct dentry *);
+extern int  nfs_async_unlink(struct inode *dir, struct dentry *dentry);
+extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
 
 /*
  * linux/fs/nfs/write.c

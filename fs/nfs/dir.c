@@ -869,7 +869,7 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
 		drop_nlink(inode);
-		nfs_complete_unlink(dentry);
+		nfs_complete_unlink(dentry, inode);
 		unlock_kernel();
 	}
 	/* When creating a negative dentry, we want to renew d_time */
@@ -1411,7 +1411,7 @@ static int nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		nfs_renew_times(dentry);
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		d_move(dentry, sdentry);
-		error = nfs_async_unlink(dentry);
+		error = nfs_async_unlink(dir, dentry);
  		/* If we return 0 we don't unlink */
 	}
 	dput(sdentry);
