@@ -49,9 +49,6 @@ extern void calibrate_delay(void);
 
 int sparc64_multi_core __read_mostly;
 
-/* Please don't make this stuff initdata!!!  --DaveM */
-unsigned char boot_cpu_id;
-
 cpumask_t cpu_possible_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly =
@@ -82,10 +79,7 @@ void smp_bogo(struct seq_file *m)
 	
 	for_each_online_cpu(i)
 		seq_printf(m,
-			   "Cpu%dBogo\t: %lu.%02lu\n"
 			   "Cpu%dClkTck\t: %016lx\n",
-			   i, cpu_data(i).udelay_val / (500000/HZ),
-			   (cpu_data(i).udelay_val / (5000/HZ)) % 100,
 			   i, cpu_data(i).clock_tick);
 }
 
@@ -112,8 +106,6 @@ void __devinit smp_callin(void)
 
 	local_irq_enable();
 
-	calibrate_delay();
-	cpu_data(cpuid).udelay_val = loops_per_jiffy;
 	callin_flag = 1;
 	__asm__ __volatile__("membar #Sync\n\t"
 			     "flush  %%g6" : : : "memory");
@@ -1231,11 +1223,6 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	preempt_enable();
 }
 
-void __init smp_tick_init(void)
-{
-	boot_cpu_id = hard_smp_processor_id();
-}
-
 /* /proc/profile writes can call this, don't __init it please. */
 int setup_profiling_timer(unsigned int multiplier)
 {
@@ -1244,7 +1231,6 @@ int setup_profiling_timer(unsigned int multiplier)
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	cpu_data(boot_cpu_id).udelay_val = loops_per_jiffy;
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -1323,16 +1309,6 @@ void __cpu_die(unsigned int cpu)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	unsigned long bogosum = 0;
-	int i;
-
-	for_each_online_cpu(i)
-		bogosum += cpu_data(i).udelay_val;
-	printk("Total of %ld processors activated "
-	       "(%lu.%02lu BogoMIPS).\n",
-	       (long) num_online_cpus(),
-	       bogosum/(500000/HZ),
-	       (bogosum/(5000/HZ))%100);
 }
 
 void smp_send_reschedule(int cpu)
