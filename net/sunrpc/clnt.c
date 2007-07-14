@@ -345,7 +345,7 @@ out_no_clnt:
 	dprintk("RPC:       %s: returned error %d\n", __FUNCTION__, err);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL(rpc_clone_client);
+EXPORT_SYMBOL_GPL(rpc_clone_client);
 
 /*
  * Properly shut down an RPC client, terminating all outstanding
@@ -364,7 +364,7 @@ void rpc_shutdown_client(struct rpc_clnt *clnt)
 
 	rpc_release_client(clnt);
 }
-EXPORT_SYMBOL(rpc_shutdown_client);
+EXPORT_SYMBOL_GPL(rpc_shutdown_client);
 
 /*
  * Free an RPC client
@@ -469,7 +469,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 out:
 	return clnt;
 }
-EXPORT_SYMBOL(rpc_bind_new_program);
+EXPORT_SYMBOL_GPL(rpc_bind_new_program);
 
 /*
  * Default callback for async RPC calls
@@ -515,13 +515,13 @@ void rpc_clnt_sigmask(struct rpc_clnt *clnt, sigset_t *oldset)
 {
 	rpc_save_sigmask(oldset, clnt->cl_intr);
 }
-EXPORT_SYMBOL(rpc_clnt_sigmask);
+EXPORT_SYMBOL_GPL(rpc_clnt_sigmask);
 
 void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
 {
 	rpc_restore_sigmask(oldset);
 }
-EXPORT_SYMBOL(rpc_clnt_sigunmask);
+EXPORT_SYMBOL_GPL(rpc_clnt_sigunmask);
 
 static
 struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
@@ -577,7 +577,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	rpc_put_task(task);
 	return status;
 }
-EXPORT_SYMBOL(rpc_call_sync);
+EXPORT_SYMBOL_GPL(rpc_call_sync);
 
 /**
  * rpc_call_async - Perform an asynchronous RPC call
@@ -599,7 +599,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	rpc_put_task(task);
 	return 0;
 }
-EXPORT_SYMBOL(rpc_call_async);
+EXPORT_SYMBOL_GPL(rpc_call_async);
 
 /**
  * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
@@ -614,7 +614,7 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 {
 	return rpc_do_run_task(clnt, NULL, flags, tk_ops, data);
 }
-EXPORT_SYMBOL(rpc_run_task);
+EXPORT_SYMBOL_GPL(rpc_run_task);
 
 void
 rpc_call_setup(struct rpc_task *task, struct rpc_message *msg, int flags)
@@ -632,7 +632,7 @@ rpc_call_setup(struct rpc_task *task, struct rpc_message *msg, int flags)
 	else
 		task->tk_action = rpc_exit_task;
 }
-EXPORT_SYMBOL(rpc_call_setup);
+EXPORT_SYMBOL_GPL(rpc_call_setup);
 
 /**
  * rpc_peeraddr - extract remote peer address from clnt's xprt
@@ -679,7 +679,7 @@ rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize
 	if (xprt->ops->set_buffer_size)
 		xprt->ops->set_buffer_size(xprt, sndsize, rcvsize);
 }
-EXPORT_SYMBOL(rpc_setbufsize);
+EXPORT_SYMBOL_GPL(rpc_setbufsize);
 
 /*
  * Return size of largest payload RPC client can support, in bytes
@@ -719,7 +719,7 @@ rpc_restart_call(struct rpc_task *task)
 
 	task->tk_action = call_start;
 }
-EXPORT_SYMBOL(rpc_restart_call);
+EXPORT_SYMBOL_GPL(rpc_restart_call);
 
 /*
  * 0.  Initial state
@@ -1529,7 +1529,7 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 	};
 	return rpc_do_run_task(clnt, &msg, flags, &rpc_default_ops, NULL);
 }
-EXPORT_SYMBOL(rpc_call_null);
+EXPORT_SYMBOL_GPL(rpc_call_null);
 
 #ifdef RPC_DEBUG
 void rpc_show_tasks(void)
