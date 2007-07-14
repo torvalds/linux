@@ -281,6 +281,56 @@ static void smp_synchronize_one_tick(int cpu)
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
 }
 
+#if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
+static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
+{
+	extern unsigned long sparc64_ttable_tl0;
+	extern unsigned long kern_locked_tte_data;
+	extern int bigkernel;
+	struct hvtramp_descr *hdesc;
+	unsigned long trampoline_ra;
+	struct trap_per_cpu *tb;
+	u64 tte_vaddr, tte_data;
+	unsigned long hv_err;
+
+	hdesc = kzalloc(sizeof(*hdesc), GFP_KERNEL);
+	if (!hdesc) {
+		printk(KERN_ERR PFX "ldom_startcpu_cpuid: Cannot allocate "
+		       "hvtramp_descr.\n");
+		return;
+	}
+
+	hdesc->cpu = cpu;
+	hdesc->num_mappings = (bigkernel ? 2 : 1);
+
+	tb = &trap_block[cpu];
+	tb->hdesc = hdesc;
+
+	hdesc->fault_info_va = (unsigned long) &tb->fault_info;
+	hdesc->fault_info_pa = kimage_addr_to_ra(&tb->fault_info);
+
+	hdesc->thread_reg = thread_reg;
+
+	tte_vaddr = (unsigned long) KERNBASE;
+	tte_data = kern_locked_tte_data;
+
+	hdesc->maps[0].vaddr = tte_vaddr;
+	hdesc->maps[0].tte   = tte_data;
+	if (bigkernel) {
+		tte_vaddr += 0x400000;
+		tte_data  += 0x400000;
+		hdesc->maps[1].vaddr = tte_vaddr;
+		hdesc->maps[1].tte   = tte_data;
+	}
+
+	trampoline_ra = kimage_addr_to_ra(hv_cpu_startup);
+
+	hv_err = sun4v_cpu_start(cpu, trampoline_ra,
+				 kimage_addr_to_ra(&sparc64_ttable_tl0),
+				 __pa(hdesc));
+}
+#endif
+
 extern void sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load);
 
 extern unsigned long sparc64_cpu_startup;
@@ -309,7 +359,7 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 		/* Alloc the mondo queues, cpu will load them.  */
 		sun4v_init_mondo_queues(0, cpu, 1, 0);
 
-#ifdef CONFIG_SUN_LDOMS
+#if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
 		if (ldom_domaining_enabled)
 			ldom_startcpu_cpuid(cpu,
 					    (unsigned long) cpu_new_thread);

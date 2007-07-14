@@ -148,9 +148,11 @@ static void domain_shutdown_data(struct ldc_channel *lp,
 static void domain_panic_data(struct ldc_channel *lp,
 			      struct ds_cap_state *cp,
 			      void *buf, int len);
+#ifdef CONFIG_HOTPLUG_CPU
 static void dr_cpu_data(struct ldc_channel *lp,
 			struct ds_cap_state *cp,
 			void *buf, int len);
+#endif
 static void ds_pri_data(struct ldc_channel *lp,
 			struct ds_cap_state *cp,
 			void *buf, int len);
@@ -171,10 +173,12 @@ struct ds_cap_state ds_states[] = {
 		.service_id	= "domain-panic",
 		.data		= domain_panic_data,
 	},
+#ifdef CONFIG_HOTPLUG_CPU
 	{
 		.service_id	= "dr-cpu",
 		.data		= dr_cpu_data,
 	},
+#endif
 	{
 		.service_id	= "pri",
 		.data		= ds_pri_data,
@@ -355,6 +359,7 @@ static void domain_panic_data(struct ldc_channel *lp,
 	panic("PANIC requested by LDOM manager.");
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 struct dr_cpu_tag {
 	__u64				req_num;
 	__u32				type;
@@ -393,54 +398,6 @@ static unsigned long kimage_addr_to_ra(void *p)
 	unsigned long val = (unsigned long) p;
 
 	return kern_base + (val - KERNBASE);
-}
-
-void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
-{
-	extern unsigned long sparc64_ttable_tl0;
-	extern unsigned long kern_locked_tte_data;
-	extern int bigkernel;
-	struct hvtramp_descr *hdesc;
-	unsigned long trampoline_ra;
-	struct trap_per_cpu *tb;
-	u64 tte_vaddr, tte_data;
-	unsigned long hv_err;
-
-	hdesc = kzalloc(sizeof(*hdesc), GFP_KERNEL);
-	if (!hdesc) {
-		printk(KERN_ERR PFX "ldom_startcpu_cpuid: Cannot allocate "
-		       "hvtramp_descr.\n");
-		return;
-	}
-
-	hdesc->cpu = cpu;
-	hdesc->num_mappings = (bigkernel ? 2 : 1);
-
-	tb = &trap_block[cpu];
-	tb->hdesc = hdesc;
-
-	hdesc->fault_info_va = (unsigned long) &tb->fault_info;
-	hdesc->fault_info_pa = kimage_addr_to_ra(&tb->fault_info);
-
-	hdesc->thread_reg = thread_reg;
-
-	tte_vaddr = (unsigned long) KERNBASE;
-	tte_data = kern_locked_tte_data;
-
-	hdesc->maps[0].vaddr = tte_vaddr;
-	hdesc->maps[0].tte   = tte_data;
-	if (bigkernel) {
-		tte_vaddr += 0x400000;
-		tte_data  += 0x400000;
-		hdesc->maps[1].vaddr = tte_vaddr;
-		hdesc->maps[1].tte   = tte_data;
-	}
-
-	trampoline_ra = kimage_addr_to_ra(hv_cpu_startup);
-
-	hv_err = sun4v_cpu_start(cpu, trampoline_ra,
-				 kimage_addr_to_ra(&sparc64_ttable_tl0),
-				 __pa(hdesc));
 }
 
 /* DR cpu requests get queued onto the work list by the
@@ -704,6 +661,7 @@ static void dr_cpu_data(struct ldc_channel *lp,
 		schedule_work(&dr_cpu_work);
 	}
 }
+#endif
 
 struct ds_pri_msg {
 	__u64				req_num;

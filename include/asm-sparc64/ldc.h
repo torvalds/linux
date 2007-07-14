@@ -7,7 +7,6 @@ extern int ldom_domaining_enabled;
 extern void ldom_set_var(const char *var, const char *value);
 extern void ldom_reboot(const char *boot_command);
 extern void ldom_power_off(void);
-extern void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg);
 
 /* The event handler will be evoked when link state changes
  * or data becomes available on the receive side.
