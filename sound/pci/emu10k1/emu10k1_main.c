@@ -53,11 +53,13 @@
 #define DOCK_FILENAME "emu/audio_dock.fw"
 #define EMU1010B_FILENAME "emu/emu1010b.fw"
 #define MICRO_DOCK_FILENAME "emu/micro_dock.fw"
+#define EMU1010_NOTEBOOK_FILENAME "emu/emu1010_notebook.fw"
 
 MODULE_FIRMWARE(HANA_FILENAME);
 MODULE_FIRMWARE(DOCK_FILENAME);
 MODULE_FIRMWARE(EMU1010B_FILENAME);
 MODULE_FIRMWARE(MICRO_DOCK_FILENAME);
+MODULE_FIRMWARE(EMU1010_NOTEBOOK_FILENAME);
 
 
 /*************************************************************************
@@ -764,7 +766,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	/* ID, should read & 0x7f = 0x55. (Bit 7 is the IRQ bit) */
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 	snd_printdd("reg1=0x%x\n",reg);
-	if ((reg & 0x1f) == 0x15) {
+	if ((reg & 0x3f) == 0x15) {
 		/* FPGA netlist already present so clear it */
 		/* Return to programming mode */
 
@@ -772,8 +774,9 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	}
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 	snd_printdd("reg2=0x%x\n",reg);
-	if ((reg & 0x1f) == 0x15) {
+	if ((reg & 0x3f) == 0x15) {
 		/* FPGA failed to return to programming mode */
+		snd_printk(KERN_INFO "emu1010: FPGA failed to return to programming mode\n");
 		return -ENODEV;
 	}
 	snd_printk(KERN_INFO "emu1010: EMU_HANA_ID=0x%x\n",reg);
@@ -787,11 +790,16 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 			snd_printk(KERN_INFO "emu1010: Loading Firmware file %s failed\n", EMU1010B_FILENAME);
 			return err;
 		}
+	} else if (emu->card_capabilities->emu1010 == 3) {
+		if ((err = snd_emu1010_load_firmware(emu, EMU1010_NOTEBOOK_FILENAME)) != 0) {
+			snd_printk(KERN_INFO "emu1010: Loading Firmware file %s failed\n", EMU1010_NOTEBOOK_FILENAME);
+			return err;
+		}
 	}
 
 	/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
-	if ((reg & 0x1f) != 0x15) {
+	if ((reg & 0x3f) != 0x15) {
 		/* FPGA failed to be programmed */
 		snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file failed, reg=0x%x\n", reg);
 		return -ENODEV;
@@ -1016,6 +1024,10 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 			if ((err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME)) != 0) {
 				return err;
 			}
+		} else if (emu->card_capabilities->emu1010 == 3) {
+			if ((err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME)) != 0) {
+				return err;
+			}
 		}
 
 		snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, 0 );
@@ -1024,7 +1036,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg );
 		snd_printk(KERN_INFO "emu1010: EMU_HANA+DOCK_ID=0x%x\n",reg);
-		if ((reg & 0x1f) != 0x15) {
+		if ((reg & 0x3f) != 0x15) {
 			/* FPGA failed to be programmed */
 			snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware file failed, reg=0x%x\n", reg);
 			return 0;
@@ -1299,9 +1311,8 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .ca_cardbus_chip = 1,
-	 .spi_dac = 1,
-	 .i2c_adc = 1,
-	 .spk71 = 1} ,
+	 .spk71 = 1 ,
+	 .emu1010 = 3} ,
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM????]", 
 	 .id = "EMU1010",
@@ -1742,11 +1753,12 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	emu->fx8010.extout_mask = extout_mask;
 	emu->enable_ir = enable_ir;
 
+	if (emu->card_capabilities->ca_cardbus_chip) {
+		if ((err = snd_emu10k1_cardbus_init(emu)) < 0)
+			goto error;
+	}
 	if (emu->card_capabilities->ecard) {
 		if ((err = snd_emu10k1_ecard_init(emu)) < 0)
-			goto error;
-	} else if (emu->card_capabilities->ca_cardbus_chip) {
-		if ((err = snd_emu10k1_cardbus_init(emu)) < 0)
 			goto error;
  	} else if (emu->card_capabilities->emu1010) {
  		if ((err = snd_emu10k1_emu1010_init(emu)) < 0) {
@@ -1893,10 +1905,10 @@ void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu)
 
 void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
 {
+	if (emu->card_capabilities->ca_cardbus_chip)
+		snd_emu10k1_cardbus_init(emu);
 	if (emu->card_capabilities->ecard)
 		snd_emu10k1_ecard_init(emu);
-	else if (emu->card_capabilities->ca_cardbus_chip)
-		snd_emu10k1_cardbus_init(emu);
 	else if (emu->card_capabilities->emu1010)
  		snd_emu10k1_emu1010_init(emu);
 	else
