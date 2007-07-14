@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/cpu.h>
 
 #include <asm/ldc.h>
@@ -395,6 +395,7 @@ struct dr_cpu_resp_entry {
  * ds_lock, and processed by dr_cpu_process() in order.
  */
 static LIST_HEAD(dr_cpu_work_list);
+static DECLARE_WAIT_QUEUE_HEAD(dr_cpu_wait);
 
 struct dr_cpu_queue_entry {
 	struct list_head		list;
@@ -533,10 +534,13 @@ static int dr_cpu_configure(struct ds_cap_state *cp, u64 req_num,
 
 		printk(KERN_INFO PFX "Starting cpu %d...\n", cpu);
 		err = cpu_up(cpu);
-		if (err)
+		if (err) {
+			printk(KERN_INFO PFX "CPU startup failed err=%d\n",
+			       err);
 			dr_cpu_mark(resp, cpu, ncpus,
 				    DR_CPU_RES_FAILURE,
 				    DR_CPU_STAT_UNCONFIGURED);
+		}
 	}
 
 	spin_lock_irqsave(&ds_lock, flags);
@@ -569,18 +573,16 @@ static int dr_cpu_unconfigure(struct ds_cap_state *cp, u64 req_num,
 	return -EOPNOTSUPP;
 }
 
-static void dr_cpu_process(struct work_struct *work)
+static void process_dr_cpu_list(struct ds_cap_state *cp)
 {
 	struct dr_cpu_queue_entry *qp, *tmp;
-	struct ds_cap_state *cp;
 	unsigned long flags;
 	LIST_HEAD(todo);
 	cpumask_t mask;
 
-	cp = find_cap_by_string("dr-cpu");
-
 	spin_lock_irqsave(&ds_lock, flags);
 	list_splice(&dr_cpu_work_list, &todo);
+	INIT_LIST_HEAD(&dr_cpu_work_list);
 	spin_unlock_irqrestore(&ds_lock, flags);
 
 	list_for_each_entry_safe(qp, tmp, &todo, list) {
@@ -627,7 +629,27 @@ next:
 	}
 }
 
-static DECLARE_WORK(dr_cpu_work, dr_cpu_process);
+static int dr_cpu_thread(void *__unused)
+{
+	struct ds_cap_state *cp;
+	DEFINE_WAIT(wait);
+
+	cp = find_cap_by_string("dr-cpu");
+
+	while (1) {
+		prepare_to_wait(&dr_cpu_wait, &wait, TASK_INTERRUPTIBLE);
+		if (list_empty(&dr_cpu_work_list))
+			schedule();
+		finish_wait(&dr_cpu_wait, &wait);
+
+		if (kthread_should_stop())
+			break;
+
+		process_dr_cpu_list(cp);
+	}
+
+	return 0;
+}
 
 static void dr_cpu_data(struct ldc_channel *lp,
 			struct ds_cap_state *dp,
@@ -648,7 +670,7 @@ static void dr_cpu_data(struct ldc_channel *lp,
 	} else {
 		memcpy(&qp->req, buf, len);
 		list_add_tail(&qp->list, &dr_cpu_work_list);
-		schedule_work(&dr_cpu_work);
+		wake_up(&dr_cpu_wait);
 	}
 }
 #endif
@@ -1094,6 +1116,10 @@ static int __init ds_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(ds_states); i++)
 		ds_states[i].handle = ((u64)i << 32);
+
+#ifdef CONFIG_HOTPLUG_CPU
+	kthread_run(dr_cpu_thread, NULL, "kdrcpud");
+#endif
 
 	return vio_register_driver(&ds_driver);
 }
