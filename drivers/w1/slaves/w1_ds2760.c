@@ -68,8 +68,8 @@ int w1_ds2760_write(struct device *dev, char *buf, int addr, size_t count)
 	return w1_ds2760_io(dev, buf, addr, count, 1);
 }
 
-static ssize_t w1_ds2760_read_bin(struct kobject *kobj, char *buf, loff_t off,
-				  size_t count)
+static ssize_t w1_ds2760_read_bin(struct kobject *kobj, struct bin_attribute *attr,
+				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	return w1_ds2760_read(dev, buf, off, count);
