@@ -145,9 +145,9 @@ struct thread_struct {
 	unsigned long	dabr;		/* Data address breakpoint register */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
-	vector128	vr[32] __attribute((aligned(16)));
+	vector128	vr[32] __attribute__((aligned(16)));
 	/* AltiVec status */
-	vector128	vscr __attribute((aligned(16)));
+	vector128	vscr __attribute__((aligned(16)));
 	unsigned long	vrsave;
 	int		used_vr;	/* set if process has used altivec */
 #endif /* CONFIG_ALTIVEC */
