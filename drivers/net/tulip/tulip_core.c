@@ -1274,7 +1274,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	if (pdev->vendor == 0x1282 && pdev->device == 0x9100)
 	{
 		/* Read Chip revision */
-		if (pdev->revision < 0x02000030)
+		if (pdev->revision < 0x30)
 		{
 			printk(KERN_ERR PFX "skipping early DM9100 with Crc bug (use dmfe)\n");
 			return -ENODEV;
