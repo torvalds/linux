@@ -219,6 +219,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 
 	sock_init_data(sock, sk);
 	INIT_LIST_HEAD(&iucv_sk(sk)->accept_q);
+	spin_lock_init(&iucv_sk(sk)->accept_q_lock);
 	skb_queue_head_init(&iucv_sk(sk)->send_skb_q);
 	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
 	iucv_sk(sk)->send_tag = 0;
@@ -274,15 +275,25 @@ void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *sk)
 
 void iucv_accept_enqueue(struct sock *parent, struct sock *sk)
 {
+	unsigned long flags;
+	struct iucv_sock *par = iucv_sk(parent);
+
 	sock_hold(sk);
-	list_add_tail(&iucv_sk(sk)->accept_q, &iucv_sk(parent)->accept_q);
+	spin_lock_irqsave(&par->accept_q_lock, flags);
+	list_add_tail(&iucv_sk(sk)->accept_q, &par->accept_q);
+	spin_unlock_irqrestore(&par->accept_q_lock, flags);
 	iucv_sk(sk)->parent = parent;
 	parent->sk_ack_backlog++;
 }
 
 void iucv_accept_unlink(struct sock *sk)
 {
+	unsigned long flags;
+	struct iucv_sock *par = iucv_sk(iucv_sk(sk)->parent);
+
+	spin_lock_irqsave(&par->accept_q_lock, flags);
 	list_del_init(&iucv_sk(sk)->accept_q);
+	spin_unlock_irqrestore(&par->accept_q_lock, flags);
 	iucv_sk(sk)->parent->sk_ack_backlog--;
 	iucv_sk(sk)->parent = NULL;
 	sock_put(sk);
@@ -298,8 +309,8 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 		lock_sock(sk);
 
 		if (sk->sk_state == IUCV_CLOSED) {
-			release_sock(sk);
 			iucv_accept_unlink(sk);
+			release_sock(sk);
 			continue;
 		}
 
@@ -879,6 +890,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	/* Find out if this path belongs to af_iucv. */
 	read_lock(&iucv_sk_list.lock);
 	iucv = NULL;
+	sk = NULL;
 	sk_for_each(sk, node, &iucv_sk_list.head)
 		if (sk->sk_state == IUCV_LISTEN &&
 		    !memcmp(&iucv_sk(sk)->src_name, src_name, 8)) {
