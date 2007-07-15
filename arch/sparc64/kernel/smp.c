@@ -90,7 +90,6 @@ static volatile unsigned long callin_flag = 0;
 void __devinit smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
-	struct trap_per_cpu *tb = &trap_block[cpuid];;
 
 	__local_per_cpu_offset = __per_cpu_offset(cpuid);
 
@@ -118,11 +117,6 @@ void __devinit smp_callin(void)
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
-
-	if (tb->hdesc) {
-		kfree(tb->hdesc);
-		tb->hdesc = NULL;
-	}
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
@@ -345,6 +339,7 @@ static struct thread_info *cpu_new_thread = NULL;
 
 static int __devinit smp_boot_one_cpu(unsigned int cpu)
 {
+	struct trap_per_cpu *tb = &trap_block[cpu];
 	unsigned long entry =
 		(unsigned long)(&sparc64_cpu_startup);
 	unsigned long cookie =
@@ -388,6 +383,11 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 		ret = -ENODEV;
 	}
 	cpu_new_thread = NULL;
+
+	if (tb->hdesc) {
+		kfree(tb->hdesc);
+		tb->hdesc = NULL;
+	}
 
 	return ret;
 }
