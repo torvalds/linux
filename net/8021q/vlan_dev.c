@@ -612,90 +612,6 @@ void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
 	*result = VLAN_DEV_INFO(dev)->vlan_id;
 }
 
-static inline int vlan_dmi_equals(struct dev_mc_list *dmi1,
-				  struct dev_mc_list *dmi2)
-{
-	return ((dmi1->dmi_addrlen == dmi2->dmi_addrlen) &&
-		(memcmp(dmi1->dmi_addr, dmi2->dmi_addr, dmi1->dmi_addrlen) == 0));
-}
-
-/** dmi is a single entry into a dev_mc_list, a single node.  mc_list is
- *  an entire list, and we'll iterate through it.
- */
-static int vlan_should_add_mc(struct dev_mc_list *dmi, struct dev_mc_list *mc_list)
-{
-	struct dev_mc_list *idmi;
-
-	for (idmi = mc_list; idmi != NULL; ) {
-		if (vlan_dmi_equals(dmi, idmi)) {
-			if (dmi->dmi_users > idmi->dmi_users)
-				return 1;
-			else
-				return 0;
-		} else {
-			idmi = idmi->next;
-		}
-	}
-
-	return 1;
-}
-
-static inline void vlan_destroy_mc_list(struct dev_mc_list *mc_list)
-{
-	struct dev_mc_list *dmi = mc_list;
-	struct dev_mc_list *next;
-
-	while(dmi) {
-		next = dmi->next;
-		kfree(dmi);
-		dmi = next;
-	}
-}
-
-static void vlan_copy_mc_list(struct dev_mc_list *mc_list, struct vlan_dev_info *vlan_info)
-{
-	struct dev_mc_list *dmi, *new_dmi;
-
-	vlan_destroy_mc_list(vlan_info->old_mc_list);
-	vlan_info->old_mc_list = NULL;
-
-	for (dmi = mc_list; dmi != NULL; dmi = dmi->next) {
-		new_dmi = kmalloc(sizeof(*new_dmi), GFP_ATOMIC);
-		if (new_dmi == NULL) {
-			printk(KERN_ERR "vlan: cannot allocate memory. "
-			       "Multicast may not work properly from now.\n");
-			return;
-		}
-
-		/* Copy whole structure, then make new 'next' pointer */
-		*new_dmi = *dmi;
-		new_dmi->next = vlan_info->old_mc_list;
-		vlan_info->old_mc_list = new_dmi;
-	}
-}
-
-static void vlan_flush_mc_list(struct net_device *dev)
-{
-	struct dev_mc_list *dmi = dev->mc_list;
-
-	while (dmi) {
-		printk(KERN_DEBUG "%s: del %.2x:%.2x:%.2x:%.2x:%.2x:%.2x mcast address from vlan interface\n",
-		       dev->name,
-		       dmi->dmi_addr[0],
-		       dmi->dmi_addr[1],
-		       dmi->dmi_addr[2],
-		       dmi->dmi_addr[3],
-		       dmi->dmi_addr[4],
-		       dmi->dmi_addr[5]);
-		dev_mc_delete(dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
-		dmi = dev->mc_list;
-	}
-
-	/* dev->mc_list is NULL by the time we get here. */
-	vlan_destroy_mc_list(VLAN_DEV_INFO(dev)->old_mc_list);
-	VLAN_DEV_INFO(dev)->old_mc_list = NULL;
-}
-
 int vlan_dev_open(struct net_device *dev)
 {
 	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
@@ -724,8 +640,7 @@ int vlan_dev_stop(struct net_device *dev)
 {
 	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
 
-	vlan_flush_mc_list(dev);
-
+	dev_mc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, -1);
 	if (dev->flags & IFF_PROMISC)
@@ -777,47 +692,5 @@ void vlan_change_rx_flags(struct net_device *dev, int change)
 /** Taken from Gleb + Lennert's VLAN code, and modified... */
 void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
 {
-	struct dev_mc_list *dmi;
-	struct net_device *real_dev;
-
-	if (vlan_dev && (vlan_dev->priv_flags & IFF_802_1Q_VLAN)) {
-		/* Then it's a real vlan device, as far as we can tell.. */
-		real_dev = VLAN_DEV_INFO(vlan_dev)->real_dev;
-
-		/* looking for addresses to add to master's list */
-		for (dmi = vlan_dev->mc_list; dmi != NULL; dmi = dmi->next) {
-			if (vlan_should_add_mc(dmi, VLAN_DEV_INFO(vlan_dev)->old_mc_list)) {
-				dev_mc_add(real_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
-				printk(KERN_DEBUG "%s: add %.2x:%.2x:%.2x:%.2x:%.2x:%.2x mcast address to master interface\n",
-				       vlan_dev->name,
-				       dmi->dmi_addr[0],
-				       dmi->dmi_addr[1],
-				       dmi->dmi_addr[2],
-				       dmi->dmi_addr[3],
-				       dmi->dmi_addr[4],
-				       dmi->dmi_addr[5]);
-			}
-		}
-
-		/* looking for addresses to delete from master's list */
-		for (dmi = VLAN_DEV_INFO(vlan_dev)->old_mc_list; dmi != NULL; dmi = dmi->next) {
-			if (vlan_should_add_mc(dmi, vlan_dev->mc_list)) {
-				/* if we think we should add it to the new list, then we should really
-				 * delete it from the real list on the underlying device.
-				 */
-				dev_mc_delete(real_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
-				printk(KERN_DEBUG "%s: del %.2x:%.2x:%.2x:%.2x:%.2x:%.2x mcast address from master interface\n",
-				       vlan_dev->name,
-				       dmi->dmi_addr[0],
-				       dmi->dmi_addr[1],
-				       dmi->dmi_addr[2],
-				       dmi->dmi_addr[3],
-				       dmi->dmi_addr[4],
-				       dmi->dmi_addr[5]);
-			}
-		}
-
-		/* save multicast list */
-		vlan_copy_mc_list(vlan_dev->mc_list, VLAN_DEV_INFO(vlan_dev));
-	}
+	dev_mc_sync(VLAN_DEV_INFO(vlan_dev)->real_dev, vlan_dev);
 }
