@@ -190,6 +190,7 @@ struct dev_addr_list
 	struct dev_addr_list	*next;
 	u8			da_addr[MAX_ADDR_LEN];
 	u8			da_addrlen;
+	u8			da_synced;
 	int			da_users;
 	int			da_gusers;
 };
@@ -516,6 +517,9 @@ struct net_device
 						void *saddr,
 						unsigned len);
 	int			(*rebuild_header)(struct sk_buff *skb);
+#define HAVE_CHANGE_RX_FLAGS
+	void			(*change_rx_flags)(struct net_device *dev,
+						   int flags);
 #define HAVE_SET_RX_MODE
 	void			(*set_rx_mode)(struct net_device *dev);
 #define HAVE_MULTICAST			 
@@ -560,6 +564,8 @@ struct net_device
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
+	/* macvlan */
+	struct macvlan_port	*macvlan_port;
 
 	/* class/net/name entry */
 	struct device		dev;
@@ -1100,6 +1106,8 @@ extern int		dev_unicast_delete(struct net_device *dev, void *addr, int alen);
 extern int		dev_unicast_add(struct net_device *dev, void *addr, int alen);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
 extern int		dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly);
+extern int		dev_mc_sync(struct net_device *to, struct net_device *from);
+extern void		dev_mc_unsync(struct net_device *to, struct net_device *from);
 extern void		dev_mc_discard(struct net_device *dev);
 extern int 		__dev_addr_delete(struct dev_addr_list **list, int *count, void *addr, int alen, int all);
 extern int		__dev_addr_add(struct dev_addr_list **list, int *count, void *addr, int alen, int newonly);

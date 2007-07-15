@@ -472,12 +472,12 @@ config NET_ACT_SIMP
 
 config NET_CLS_POLICE
 	bool "Traffic Policing (obsolete)"
-	depends on NET_CLS_ACT!=y
+	select NET_CLS_ACT
+	select NET_ACT_POLICE
 	---help---
 	  Say Y here if you want to do traffic policing, i.e. strict
-	  bandwidth limiting. This option is obsoleted by the traffic
-	  policer implemented as action, it stays here for compatibility
-	  reasons.
+	  bandwidth limiting. This option is obsolete and just selects
+	  the option replacing it. It will be removed in the future.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

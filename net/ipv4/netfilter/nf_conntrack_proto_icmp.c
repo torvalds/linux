@@ -136,40 +136,22 @@ icmp_error_message(struct sk_buff *skb,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
-	struct {
-		struct icmphdr icmp;
-		struct iphdr ip;
-	} _in, *inside;
 	struct nf_conntrack_l4proto *innerproto;
 	struct nf_conntrack_tuple_hash *h;
-	int dataoff;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
 
-	/* Not enough header? */
-	inside = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_in), &_in);
-	if (inside == NULL)
-		return -NF_ACCEPT;
-
-	/* Ignore ICMP's containing fragments (shouldn't happen) */
-	if (inside->ip.frag_off & htons(IP_OFFSET)) {
-		pr_debug("icmp_error_message: fragment of proto %u\n",
-			 inside->ip.protocol);
+	/* Are they talking about one of our connections? */
+	if (!nf_ct_get_tuplepr(skb,
+			       skb_network_offset(skb) + ip_hdrlen(skb)
+						       + sizeof(struct icmphdr),
+			       PF_INET, &origtuple)) {
+		pr_debug("icmp_error_message: failed to get tuple\n");
 		return -NF_ACCEPT;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_slow */
-	innerproto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
-
-	dataoff = ip_hdrlen(skb) + sizeof(inside->icmp);
-	/* Are they talking about one of our connections? */
-	if (!nf_ct_get_tuple(skb, dataoff, dataoff + inside->ip.ihl*4, PF_INET,
-			     inside->ip.protocol, &origtuple,
-			     &nf_conntrack_l3proto_ipv4, innerproto)) {
-		pr_debug("icmp_error_message: ! get_tuple p=%u",
-			 inside->ip.protocol);
-		return -NF_ACCEPT;
-	}
+	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -183,24 +165,12 @@ icmp_error_message(struct sk_buff *skb,
 
 	h = nf_conntrack_find_get(&innertuple);
 	if (!h) {
-		/* Locally generated ICMPs will match inverted if they
-		   haven't been SNAT'ed yet */
-		/* FIXME: NAT code has to handle half-done double NAT --RR */
-		if (hooknum == NF_IP_LOCAL_OUT)
-			h = nf_conntrack_find_get(&origtuple);
-
-		if (!h) {
-			pr_debug("icmp_error_message: no match\n");
-			return -NF_ACCEPT;
-		}
-
-		/* Reverse direction from that found */
-		if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
-			*ctinfo += IP_CT_IS_REPLY;
-	} else {
-		if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
-			*ctinfo += IP_CT_IS_REPLY;
+		pr_debug("icmp_error_message: no match\n");
+		return -NF_ACCEPT;
 	}
+
+	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
+		*ctinfo += IP_CT_IS_REPLY;
 
 	/* Update skb to refer to this connection */
 	skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
@@ -342,7 +312,7 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,
@@ -368,4 +338,3 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 #endif
 #endif
 };
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_icmp);

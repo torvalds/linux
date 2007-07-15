@@ -127,13 +127,6 @@ struct vlan_dev_info {
                                         *   like DHCP that use packet-filtering and don't understand
                                         *   802.1Q
                                         */
-	struct dev_mc_list *old_mc_list;  /* old multi-cast list for the VLAN interface..
-                                           * we save this so we can tell what changes were
-                                           * made, in order to feed the right changes down
-                                           * to the real hardware...
-                                           */
-	int old_allmulti;               /* similar to above. */
-	int old_promiscuity;            /* similar to above. */
 	struct net_device *real_dev;    /* the underlying device/interface */
 	unsigned char real_dev_addr[ETH_ALEN];
 	struct proc_dir_entry *dent;    /* Holds the proc data */

@@ -164,30 +164,11 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 			result = TC_ACT_OK;
 			break;
 	}
-/* backward compat */
-#else
-#ifdef	CONFIG_NET_CLS_POLICE
-	switch (result) {
-		case TC_POLICE_SHOT:
-		result = NF_DROP;
-		sch->qstats.drops++;
-		break;
-		case TC_POLICE_RECLASSIFY: /* DSCP remarking here ? */
-		case TC_POLICE_OK:
-		case TC_POLICE_UNSPEC:
-		default:
-		sch->bstats.packets++;
-		sch->bstats.bytes += skb->len;
-		result = NF_ACCEPT;
-		break;
-	}
-
 #else
 	D2PRINTK("Overriding result to ACCEPT\n");
 	result = NF_ACCEPT;
 	sch->bstats.packets++;
 	sch->bstats.bytes += skb->len;
-#endif
 #endif
 
 	return result;

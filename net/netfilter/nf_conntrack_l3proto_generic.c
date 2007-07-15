@@ -61,22 +61,21 @@ static int generic_print_conntrack(struct seq_file *s,
 	return 0;
 }
 
-static int
-generic_prepare(struct sk_buff **pskb, unsigned int hooknum,
-		unsigned int *dataoff, u_int8_t *protonum)
+static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
+			       unsigned int *dataoff, u_int8_t *protonum)
 {
 	/* Never track !!! */
 	return -NF_ACCEPT;
 }
 
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
 	.l3proto	 = PF_UNSPEC,
 	.name		 = "unknown",
 	.pkt_to_tuple	 = generic_pkt_to_tuple,
 	.invert_tuple	 = generic_invert_tuple,
 	.print_tuple	 = generic_print_tuple,
 	.print_conntrack = generic_print_conntrack,
-	.prepare	 = generic_prepare,
+	.get_l4proto	 = generic_get_l4proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);

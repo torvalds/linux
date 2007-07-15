@@ -125,7 +125,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	if (skb->len > q->max_size) {
 		sch->qstats.drops++;
-#ifdef CONFIG_NET_CLS_POLICE
+#ifdef CONFIG_NET_CLS_ACT
 		if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
 #endif
 			kfree_skb(skb);

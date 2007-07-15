@@ -12,9 +12,7 @@ source "crypto/async_tx/Kconfig"
 #
 # Cryptographic API Configuration
 #
-menu "Cryptographic options"
-
-config CRYPTO
+menuconfig CRYPTO
 	bool "Cryptographic API"
 	help
 	  This option provides the core Cryptographic API.
@@ -473,5 +471,3 @@ config CRYPTO_TEST
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
-
-endmenu

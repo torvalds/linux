@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
 #include <net/cfg80211.h>
+#include <asm/unaligned.h>
 
 #include "ieee80211_common.h"
 #include "ieee80211_i.h"
@@ -54,6 +55,17 @@ static const unsigned char bridge_tunnel_header[] =
 /* No encapsulation header if EtherType < 0x600 (=length) */
 static const unsigned char eapol_header[] =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
+
+
+/*
+ * For seeing transmitted packets on monitor interfaces
+ * we have a radiotap header too.
+ */
+struct ieee80211_tx_status_rtap_hdr {
+	struct ieee80211_radiotap_header hdr;
+	__le16 tx_flags;
+	u8 data_retries;
+} __attribute__ ((packed));
 
 
 static inline void ieee80211_include_sequence(struct ieee80211_sub_if_data *sdata,
@@ -430,7 +442,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 	if (!tx->u.tx.rate)
 		return TXRX_DROP;
 	if (tx->u.tx.mode->mode == MODE_IEEE80211G &&
-	    tx->local->cts_protect_erp_frames && tx->fragmented &&
+	    tx->sdata->use_protection && tx->fragmented &&
 	    extra.nonerp) {
 		tx->u.tx.last_frag_rate = tx->u.tx.rate;
 		tx->u.tx.probe_last_frag = extra.probe ? 1 : 0;
@@ -528,7 +540,7 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 		/* reserve enough extra head and tail room for possible
 		 * encryption */
 		frag = frags[i] =
-			dev_alloc_skb(tx->local->hw.extra_tx_headroom +
+			dev_alloc_skb(tx->local->tx_headroom +
 				      frag_threshold +
 				      IEEE80211_ENCRYPT_HEADROOM +
 				      IEEE80211_ENCRYPT_TAILROOM);
@@ -537,8 +549,8 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 		/* Make sure that all fragments use the same priority so
 		 * that they end up using the same TX queue */
 		frag->priority = first->priority;
-		skb_reserve(frag, tx->local->hw.extra_tx_headroom +
-			IEEE80211_ENCRYPT_HEADROOM);
+		skb_reserve(frag, tx->local->tx_headroom +
+				  IEEE80211_ENCRYPT_HEADROOM);
 		fhdr = (struct ieee80211_hdr *) skb_put(frag, hdrlen);
 		memcpy(fhdr, first->data, hdrlen);
 		if (i == num_fragm - 2)
@@ -856,8 +868,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	 * for the frame. */
 	if (mode->mode == MODE_IEEE80211G &&
 	    (tx->u.tx.rate->flags & IEEE80211_RATE_ERP) &&
-	    tx->u.tx.unicast &&
-	    tx->local->cts_protect_erp_frames &&
+	    tx->u.tx.unicast && tx->sdata->use_protection &&
 	    !(control->flags & IEEE80211_TXCTL_USE_RTS_CTS))
 		control->flags |= IEEE80211_TXCTL_USE_CTS_PROTECT;
 
@@ -1118,7 +1129,138 @@ ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 }
 
 
-static void inline
+/*
+ * deal with packet injection down monitor interface
+ * with Radiotap Header -- only called for monitor mode interface
+ */
+
+static ieee80211_txrx_result
+__ieee80211_parse_tx_radiotap(
+	struct ieee80211_txrx_data *tx,
+	struct sk_buff *skb, struct ieee80211_tx_control *control)
+{
+	/*
+	 * this is the moment to interpret and discard the radiotap header that
+	 * must be at the start of the packet injected in Monitor mode
+	 *
+	 * Need to take some care with endian-ness since radiotap
+	 * args are little-endian
+	 */
+
+	struct ieee80211_radiotap_iterator iterator;
+	struct ieee80211_radiotap_header *rthdr =
+		(struct ieee80211_radiotap_header *) skb->data;
+	struct ieee80211_hw_mode *mode = tx->local->hw.conf.mode;
+	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len);
+
+	/*
+	 * default control situation for all injected packets
+	 * FIXME: this does not suit all usage cases, expand to allow control
+	 */
+
+	control->retry_limit = 1; /* no retry */
+	control->key_idx = -1; /* no encryption key */
+	control->flags &= ~(IEEE80211_TXCTL_USE_RTS_CTS |
+			    IEEE80211_TXCTL_USE_CTS_PROTECT);
+	control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT |
+			  IEEE80211_TXCTL_NO_ACK;
+	control->antenna_sel_tx = 0; /* default to default antenna */
+
+	/*
+	 * for every radiotap entry that is present
+	 * (ieee80211_radiotap_iterator_next returns -ENOENT when no more
+	 * entries present, or -EINVAL on error)
+	 */
+
+	while (!ret) {
+		int i, target_rate;
+
+		ret = ieee80211_radiotap_iterator_next(&iterator);
+
+		if (ret)
+			continue;
+
+		/* see if this argument is something we can use */
+		switch (iterator.this_arg_index) {
+		/*
+		 * You must take care when dereferencing iterator.this_arg
+		 * for multibyte types... the pointer is not aligned.  Use
+		 * get_unaligned((type *)iterator.this_arg) to dereference
+		 * iterator.this_arg for type "type" safely on all arches.
+		*/
+		case IEEE80211_RADIOTAP_RATE:
+			/*
+			 * radiotap rate u8 is in 500kbps units eg, 0x02=1Mbps
+			 * ieee80211 rate int is in 100kbps units eg, 0x0a=1Mbps
+			 */
+			target_rate = (*iterator.this_arg) * 5;
+			for (i = 0; i < mode->num_rates; i++) {
+				struct ieee80211_rate *r = &mode->rates[i];
+
+				if (r->rate > target_rate)
+					continue;
+
+				control->rate = r;
+
+				if (r->flags & IEEE80211_RATE_PREAMBLE2)
+					control->tx_rate = r->val2;
+				else
+					control->tx_rate = r->val;
+
+				/* end on exact match */
+				if (r->rate == target_rate)
+					i = mode->num_rates;
+			}
+			break;
+
+		case IEEE80211_RADIOTAP_ANTENNA:
+			/*
+			 * radiotap uses 0 for 1st ant, mac80211 is 1 for
+			 * 1st ant
+			 */
+			control->antenna_sel_tx = (*iterator.this_arg) + 1;
+			break;
+
+		case IEEE80211_RADIOTAP_DBM_TX_POWER:
+			control->power_level = *iterator.this_arg;
+			break;
+
+		case IEEE80211_RADIOTAP_FLAGS:
+			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_FCS) {
+				/*
+				 * this indicates that the skb we have been
+				 * handed has the 32-bit FCS CRC at the end...
+				 * we should react to that by snipping it off
+				 * because it will be recomputed and added
+				 * on transmission
+				 */
+				if (skb->len < (iterator.max_length + FCS_LEN))
+					return TXRX_DROP;
+
+				skb_trim(skb, skb->len - FCS_LEN);
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
+		return TXRX_DROP;
+
+	/*
+	 * remove the radiotap header
+	 * iterator->max_length was sanity-checked against
+	 * skb->len by iterator init
+	 */
+	skb_pull(skb, iterator.max_length);
+
+	return TXRX_CONTINUE;
+}
+
+
+static ieee80211_txrx_result inline
 __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		       struct sk_buff *skb,
 		       struct net_device *dev,
@@ -1126,6 +1268,9 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sub_if_data *sdata;
+	ieee80211_txrx_result res = TXRX_CONTINUE;
+
 	int hdrlen;
 
 	memset(tx, 0, sizeof(*tx));
@@ -1135,7 +1280,32 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	tx->sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	tx->sta = sta_info_get(local, hdr->addr1);
 	tx->fc = le16_to_cpu(hdr->frame_control);
+
+	/*
+	 * set defaults for things that can be set by
+	 * injected radiotap headers
+	 */
 	control->power_level = local->hw.conf.power_level;
+	control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
+	if (local->sta_antenna_sel != STA_ANTENNA_SEL_AUTO && tx->sta)
+		control->antenna_sel_tx = tx->sta->antenna_sel_tx;
+
+	/* process and remove the injection radiotap header */
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (unlikely(sdata->type == IEEE80211_IF_TYPE_MNTR)) {
+		if (__ieee80211_parse_tx_radiotap(tx, skb, control) ==
+								TXRX_DROP) {
+			return TXRX_DROP;
+		}
+		/*
+		 * we removed the radiotap header after this point,
+		 * we filled control with what we could use
+		 * set to the actual ieee header now
+		 */
+		hdr = (struct ieee80211_hdr *) skb->data;
+		res = TXRX_QUEUED; /* indication it was monitor packet */
+	}
+
 	tx->u.tx.control = control;
 	tx->u.tx.unicast = !is_multicast_ether_addr(hdr->addr1);
 	if (is_multicast_ether_addr(hdr->addr1))
@@ -1152,9 +1322,6 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
 		tx->sta->clear_dst_mask = 0;
 	}
-	control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-	if (local->sta_antenna_sel != STA_ANTENNA_SEL_AUTO && tx->sta)
-		control->antenna_sel_tx = tx->sta->antenna_sel_tx;
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
 	if (skb->len > hdrlen + sizeof(rfc1042_header) + 2) {
 		u8 *pos = &skb->data[hdrlen + sizeof(rfc1042_header)];
@@ -1162,6 +1329,7 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 	control->flags |= IEEE80211_TXCTL_FIRST_FRAGMENT;
 
+	return res;
 }
 
 static int inline is_ieee80211_device(struct net_device *dev,
@@ -1274,7 +1442,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	struct sta_info *sta;
 	ieee80211_tx_handler *handler;
 	struct ieee80211_txrx_data tx;
-	ieee80211_txrx_result res = TXRX_DROP;
+	ieee80211_txrx_result res = TXRX_DROP, res_prepare;
 	int ret, i;
 
 	WARN_ON(__ieee80211_queue_pending(local, control->queue));
@@ -1284,15 +1452,26 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 	}
 
-	__ieee80211_tx_prepare(&tx, skb, dev, control);
+	res_prepare = __ieee80211_tx_prepare(&tx, skb, dev, control);
+
+	if (res_prepare == TXRX_DROP) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
+
 	sta = tx.sta;
 	tx.u.tx.mgmt_interface = mgmt;
 	tx.u.tx.mode = local->hw.conf.mode;
 
-	for (handler = local->tx_handlers; *handler != NULL; handler++) {
-		res = (*handler)(&tx);
-		if (res != TXRX_CONTINUE)
-			break;
+	if (res_prepare == TXRX_QUEUED) { /* if it was an injected packet */
+		res = TXRX_CONTINUE;
+	} else {
+		for (handler = local->tx_handlers; *handler != NULL;
+		     handler++) {
+			res = (*handler)(&tx);
+			if (res != TXRX_CONTINUE)
+				break;
+		}
 	}
 
 	skb = tx.skb; /* handlers are allowed to change skb */
@@ -1467,8 +1646,7 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
 	}
 	osdata = IEEE80211_DEV_TO_SUB_IF(odev);
 
-	headroom = osdata->local->hw.extra_tx_headroom +
-		IEEE80211_ENCRYPT_HEADROOM;
+	headroom = osdata->local->tx_headroom + IEEE80211_ENCRYPT_HEADROOM;
 	if (skb_headroom(skb) < headroom) {
 		if (pskb_expand_head(skb, headroom, 0, GFP_ATOMIC)) {
 			dev_kfree_skb(skb);
@@ -1494,6 +1672,56 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
 }
 
 
+int ieee80211_monitor_start_xmit(struct sk_buff *skb,
+				 struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_radiotap_header *prthdr =
+		(struct ieee80211_radiotap_header *)skb->data;
+	u16 len;
+
+	/*
+	 * there must be a radiotap header at the
+	 * start in this case
+	 */
+	if (unlikely(prthdr->it_version)) {
+		/* only version 0 is supported */
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	skb->dev = local->mdev;
+
+	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
+	memset(pkt_data, 0, sizeof(*pkt_data));
+	pkt_data->ifindex = dev->ifindex;
+	pkt_data->mgmt_iface = 0;
+	pkt_data->do_not_encrypt = 1;
+
+	/* above needed because we set skb device to master */
+
+	/*
+	 * fix up the pointers accounting for the radiotap
+	 * header still being in there.  We are being given
+	 * a precooked IEEE80211 header so no need for
+	 * normal processing
+	 */
+	len = le16_to_cpu(get_unaligned(&prthdr->it_len));
+	skb_set_mac_header(skb, len);
+	skb_set_network_header(skb, len + sizeof(struct ieee80211_hdr));
+	skb_set_transport_header(skb, len + sizeof(struct ieee80211_hdr));
+
+	/*
+	 * pass the radiotap header up to
+	 * the next stage intact
+	 */
+	dev_queue_xmit(skb);
+
+	return NETDEV_TX_OK;
+}
+
+
 /**
  * ieee80211_subif_start_xmit - netif start_xmit function for Ethernet-type
  * subinterfaces (wlan#, WDS, and VLAN interfaces)
@@ -1509,8 +1737,8 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
  * encapsulated packet will then be passed to master interface, wlan#.11, for
  * transmission (through low-level driver).
  */
-static int ieee80211_subif_start_xmit(struct sk_buff *skb,
-				      struct net_device *dev)
+int ieee80211_subif_start_xmit(struct sk_buff *skb,
+			       struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_tx_packet_data *pkt_data;
@@ -1619,7 +1847,7 @@ static int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * build in headroom in __dev_alloc_skb() (linux/skbuff.h) and
 	 * alloc_skb() (net/core/skbuff.c)
 	 */
-	head_need = hdrlen + encaps_len + local->hw.extra_tx_headroom;
+	head_need = hdrlen + encaps_len + local->tx_headroom;
 	head_need -= skb_headroom(skb);
 
 	/* We are going to modify skb data, so make a copy of it if happens to
@@ -1658,7 +1886,7 @@ static int ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
-	pkt_data->ifindex = sdata->dev->ifindex;
+	pkt_data->ifindex = dev->ifindex;
 	pkt_data->mgmt_iface = (sdata->type == IEEE80211_IF_TYPE_MGMT);
 	pkt_data->do_not_encrypt = no_encrypt;
 
@@ -1706,9 +1934,9 @@ ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	if (skb_headroom(skb) < sdata->local->hw.extra_tx_headroom) {
-		if (pskb_expand_head(skb,
-		    sdata->local->hw.extra_tx_headroom, 0, GFP_ATOMIC)) {
+	if (skb_headroom(skb) < sdata->local->tx_headroom) {
+		if (pskb_expand_head(skb, sdata->local->tx_headroom,
+				     0, GFP_ATOMIC)) {
 			dev_kfree_skb(skb);
 			return 0;
 		}
@@ -1847,12 +2075,12 @@ struct sk_buff * ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 	bh_len = ap->beacon_head_len;
 	bt_len = ap->beacon_tail_len;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+	skb = dev_alloc_skb(local->tx_headroom +
 		bh_len + bt_len + 256 /* maximum TIM len */);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->tx_headroom);
 	memcpy(skb_put(skb, bh_len), b_head, bh_len);
 
 	ieee80211_include_sequence(sdata, (struct ieee80211_hdr *)skb->data);
@@ -2376,8 +2604,7 @@ static void ieee80211_start_hard_monitor(struct ieee80211_local *local)
 	struct ieee80211_if_init_conf conf;
 
 	if (local->open_count && local->open_count == local->monitors &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER) &&
-	    local->ops->add_interface) {
+	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER)) {
 		conf.if_id = -1;
 		conf.type = IEEE80211_IF_TYPE_MNTR;
 		conf.mac_addr = NULL;
@@ -2420,21 +2647,14 @@ static int ieee80211_open(struct net_device *dev)
 	}
 	ieee80211_start_soft_monitor(local);
 
-	if (local->ops->add_interface) {
-		conf.if_id = dev->ifindex;
-		conf.type = sdata->type;
-		conf.mac_addr = dev->dev_addr;
-		res = local->ops->add_interface(local_to_hw(local), &conf);
-		if (res) {
-			if (sdata->type == IEEE80211_IF_TYPE_MNTR)
-				ieee80211_start_hard_monitor(local);
-			return res;
-		}
-	} else {
-		if (sdata->type != IEEE80211_IF_TYPE_STA)
-			return -EOPNOTSUPP;
-		if (local->open_count > 0)
-			return -ENOBUFS;
+	conf.if_id = dev->ifindex;
+	conf.type = sdata->type;
+	conf.mac_addr = dev->dev_addr;
+	res = local->ops->add_interface(local_to_hw(local), &conf);
+	if (res) {
+		if (sdata->type == IEEE80211_IF_TYPE_MNTR)
+			ieee80211_start_hard_monitor(local);
+		return res;
 	}
 
 	if (local->open_count == 0) {
@@ -2941,34 +3161,6 @@ int ieee80211_radar_status(struct ieee80211_hw *hw, int channel,
 }
 EXPORT_SYMBOL(ieee80211_radar_status);
 
-int ieee80211_set_aid_for_sta(struct ieee80211_hw *hw, u8 *peer_address,
-			      u16 aid)
-{
-	struct sk_buff *skb;
-	struct ieee80211_msg_set_aid_for_sta *msg;
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	/* unlikely because if this event only happens for APs,
-	 * which require an open ap device. */
-	if (unlikely(!local->apdev))
-		return 0;
-
-	skb = dev_alloc_skb(sizeof(struct ieee80211_frame_info) +
-			    sizeof(struct ieee80211_msg_set_aid_for_sta));
-
-	if (!skb)
-		return -ENOMEM;
-	skb_reserve(skb, sizeof(struct ieee80211_frame_info));
-
-	msg = (struct ieee80211_msg_set_aid_for_sta *)
-		skb_put(skb, sizeof(struct ieee80211_msg_set_aid_for_sta));
-	memcpy(msg->sta_address, peer_address, ETH_ALEN);
-	msg->aid = aid;
-
-	ieee80211_rx_mgmt(local, skb, NULL, ieee80211_msg_set_aid_for_sta);
-	return 0;
-}
-EXPORT_SYMBOL(ieee80211_set_aid_for_sta);
 
 static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 {
@@ -4284,6 +4476,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_local *local = hw_to_local(hw);
 	u16 frag, type;
 	u32 msg_type;
+	struct ieee80211_tx_status_rtap_hdr *rthdr;
+	struct ieee80211_sub_if_data *sdata;
+	int monitors;
 
 	if (!status) {
 		printk(KERN_ERR
@@ -4395,27 +4590,100 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 			local->dot11FailedCount++;
 	}
 
-	if (!(status->control.flags & IEEE80211_TXCTL_REQ_TX_STATUS)
-	    || unlikely(!local->apdev)) {
-		dev_kfree_skb(skb);
-		return;
-	}
-
 	msg_type = (status->flags & IEEE80211_TX_STATUS_ACK) ?
 		ieee80211_msg_tx_callback_ack : ieee80211_msg_tx_callback_fail;
 
-	/* skb was the original skb used for TX. Clone it and give the clone
-	 * to netif_rx(). Free original skb. */
-	skb2 = skb_copy(skb, GFP_ATOMIC);
-	if (!skb2) {
+	/* this was a transmitted frame, but now we want to reuse it */
+	skb_orphan(skb);
+
+	if ((status->control.flags & IEEE80211_TXCTL_REQ_TX_STATUS) &&
+	    local->apdev) {
+		if (local->monitors) {
+			skb2 = skb_clone(skb, GFP_ATOMIC);
+		} else {
+			skb2 = skb;
+			skb = NULL;
+		}
+
+		if (skb2)
+			/* Send frame to hostapd */
+			ieee80211_rx_mgmt(local, skb2, NULL, msg_type);
+
+		if (!skb)
+			return;
+	}
+
+	if (!local->monitors) {
 		dev_kfree_skb(skb);
 		return;
 	}
-	dev_kfree_skb(skb);
-	skb = skb2;
 
-	/* Send frame to hostapd */
-	ieee80211_rx_mgmt(local, skb, NULL, msg_type);
+	/* send frame to monitor interfaces now */
+
+	if (skb_headroom(skb) < sizeof(*rthdr)) {
+		printk(KERN_ERR "ieee80211_tx_status: headroom too small\n");
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	rthdr = (struct ieee80211_tx_status_rtap_hdr*)
+				skb_push(skb, sizeof(*rthdr));
+
+	memset(rthdr, 0, sizeof(*rthdr));
+	rthdr->hdr.it_len = cpu_to_le16(sizeof(*rthdr));
+	rthdr->hdr.it_present =
+		cpu_to_le32((1 << IEEE80211_RADIOTAP_TX_FLAGS) |
+			    (1 << IEEE80211_RADIOTAP_DATA_RETRIES));
+
+	if (!(status->flags & IEEE80211_TX_STATUS_ACK) &&
+	    !is_multicast_ether_addr(hdr->addr1))
+		rthdr->tx_flags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_FAIL);
+
+	if ((status->control.flags & IEEE80211_TXCTL_USE_RTS_CTS) &&
+	    (status->control.flags & IEEE80211_TXCTL_USE_CTS_PROTECT))
+		rthdr->tx_flags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_CTS);
+	else if (status->control.flags & IEEE80211_TXCTL_USE_RTS_CTS)
+		rthdr->tx_flags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_RTS);
+
+	rthdr->data_retries = status->retry_count;
+
+	read_lock(&local->sub_if_lock);
+	monitors = local->monitors;
+	list_for_each_entry(sdata, &local->sub_if_list, list) {
+		/*
+		 * Using the monitors counter is possibly racy, but
+		 * if the value is wrong we simply either clone the skb
+		 * once too much or forget sending it to one monitor iface
+		 * The latter case isn't nice but fixing the race is much
+		 * more complicated.
+		 */
+		if (!monitors || !skb)
+			goto out;
+
+		if (sdata->type == IEEE80211_IF_TYPE_MNTR) {
+			if (!netif_running(sdata->dev))
+				continue;
+			monitors--;
+			if (monitors)
+				skb2 = skb_clone(skb, GFP_KERNEL);
+			else
+				skb2 = NULL;
+			skb->dev = sdata->dev;
+			/* XXX: is this sufficient for BPF? */
+			skb_set_mac_header(skb, 0);
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			skb->pkt_type = PACKET_OTHERHOST;
+			skb->protocol = htons(ETH_P_802_2);
+			memset(skb->cb, 0, sizeof(skb->cb));
+			netif_rx(skb);
+			skb = skb2;
+			break;
+		}
+	}
+ out:
+	read_unlock(&local->sub_if_lock);
+	if (skb)
+		dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
 
@@ -4619,6 +4887,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			 ((sizeof(struct ieee80211_local) +
 			   NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 
+	BUG_ON(!ops->tx);
+	BUG_ON(!ops->config);
+	BUG_ON(!ops->add_interface);
 	local->ops = ops;
 
 	/* for now, mdev needs sub_if_data :/ */
@@ -4647,8 +4918,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->short_retry_limit = 7;
 	local->long_retry_limit = 4;
 	local->hw.conf.radio_enabled = 1;
-	local->rate_ctrl_num_up = RATE_CONTROL_NUM_UP;
-	local->rate_ctrl_num_down = RATE_CONTROL_NUM_DOWN;
 
 	local->enabled_modes = (unsigned int) -1;
 
@@ -4711,6 +4980,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		result = -ENOMEM;
 		goto fail_workqueue;
 	}
+
+	/*
+	 * The hardware needs headroom for sending the frame,
+	 * and we need some headroom for passing the frame to monitor
+	 * interfaces, but never both at the same time.
+	 */
+	local->tx_headroom = max(local->hw.extra_tx_headroom,
+				 sizeof(struct ieee80211_tx_status_rtap_hdr));
 
 	debugfs_hw_add(local);
 

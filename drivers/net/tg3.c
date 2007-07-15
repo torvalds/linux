@@ -8318,7 +8318,7 @@ static int tg3_set_tx_csum(struct net_device *dev, u32 data)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
-		ethtool_op_set_tx_hw_csum(dev, data);
+		ethtool_op_set_tx_ipv6_csum(dev, data);
 	else
 		ethtool_op_set_tx_csum(dev, data);
 

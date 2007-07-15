@@ -782,9 +782,6 @@ static int __init init_u32(void)
 #ifdef CONFIG_CLS_U32_PERF
 	printk("    Performance counters on\n");
 #endif
-#ifdef CONFIG_NET_CLS_POLICE
-	printk("    OLD policer on \n");
-#endif
 #ifdef CONFIG_NET_CLS_IND
 	printk("    input device check on \n");
 #endif

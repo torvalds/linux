@@ -78,21 +78,26 @@ nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 	return skb;
 }
 
-static int
-ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
-	     u_int8_t *protonum)
+static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
+			    unsigned int *dataoff, u_int8_t *protonum)
 {
+	struct iphdr _iph, *iph;
+
+	iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
+	if (iph == NULL)
+		return -NF_DROP;
+
 	/* Never happen */
-	if (ip_hdr(*pskb)->frag_off & htons(IP_OFFSET)) {
+	if (iph->frag_off & htons(IP_OFFSET)) {
 		if (net_ratelimit()) {
-			printk(KERN_ERR "ipv4_prepare: Frag of proto %u (hook=%u)\n",
-			ip_hdr(*pskb)->protocol, hooknum);
+			printk(KERN_ERR "ipv4_get_l4proto: Frag of proto %u\n",
+			iph->protocol);
 		}
 		return -NF_DROP;
 	}
 
-	*dataoff = skb_network_offset(*pskb) + ip_hdrlen(*pskb);
-	*protonum = ip_hdr(*pskb)->protocol;
+	*dataoff = nhoff + (iph->ihl << 2);
+	*protonum = iph->protocol;
 
 	return NF_ACCEPT;
 }
@@ -400,14 +405,14 @@ static struct nf_sockopt_ops so_getorigdst = {
 	.get		= &getorigdst,
 };
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.l3proto	 = PF_INET,
 	.name		 = "ipv4",
 	.pkt_to_tuple	 = ipv4_pkt_to_tuple,
 	.invert_tuple	 = ipv4_invert_tuple,
 	.print_tuple	 = ipv4_print_tuple,
 	.print_conntrack = ipv4_print_conntrack,
-	.prepare	 = ipv4_prepare,
+	.get_l4proto	 = ipv4_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr = ipv4_tuple_to_nfattr,
 	.nfattr_to_tuple = ipv4_nfattr_to_tuple,

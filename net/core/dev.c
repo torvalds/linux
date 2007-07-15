@@ -98,6 +98,7 @@
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/if_bridge.h>
+#include <linux/if_macvlan.h>
 #include <net/dst.h>
 #include <net/pkt_sched.h>
 #include <net/checksum.h>
@@ -1813,6 +1814,28 @@ static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 #define handle_bridge(skb, pt_prev, ret, orig_dev)	(skb)
 #endif
 
+#if defined(CONFIG_MACVLAN) || defined(CONFIG_MACVLAN_MODULE)
+struct sk_buff *(*macvlan_handle_frame_hook)(struct sk_buff *skb) __read_mostly;
+EXPORT_SYMBOL_GPL(macvlan_handle_frame_hook);
+
+static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
+					     struct packet_type **pt_prev,
+					     int *ret,
+					     struct net_device *orig_dev)
+{
+	if (skb->dev->macvlan_port == NULL)
+		return skb;
+
+	if (*pt_prev) {
+		*ret = deliver_skb(skb, *pt_prev, orig_dev);
+		*pt_prev = NULL;
+	}
+	return macvlan_handle_frame_hook(skb);
+}
+#else
+#define handle_macvlan(skb, pt_prev, ret, orig_dev)	(skb)
+#endif
+
 #ifdef CONFIG_NET_CLS_ACT
 /* TODO: Maybe we should just force sch_ingress to be compiled in
  * when CONFIG_NET_CLS_ACT is? otherwise some useless instructions
@@ -1918,6 +1941,9 @@ ncls:
 #endif
 
 	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
+	if (!skb)
+		goto out;
+	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
 	if (!skb)
 		goto out;
 
@@ -2521,6 +2547,8 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	if ((dev->promiscuity += inc) == 0)
 		dev->flags &= ~IFF_PROMISC;
 	else
@@ -2535,6 +2563,9 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 			dev->name, (dev->flags & IFF_PROMISC),
 			(old_flags & IFF_PROMISC),
 			audit_get_loginuid(current->audit_context));
+
+		if (dev->change_rx_flags)
+			dev->change_rx_flags(dev, IFF_PROMISC);
 	}
 }
 
@@ -2573,11 +2604,16 @@ void dev_set_allmulti(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	dev->flags |= IFF_ALLMULTI;
 	if ((dev->allmulti += inc) == 0)
 		dev->flags &= ~IFF_ALLMULTI;
-	if (dev->flags ^ old_flags)
+	if (dev->flags ^ old_flags) {
+		if (dev->change_rx_flags)
+			dev->change_rx_flags(dev, IFF_ALLMULTI);
 		dev_set_rx_mode(dev);
+	}
 }
 
 /*
@@ -2778,6 +2814,8 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	int ret, changes;
 	int old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	/*
 	 *	Set the flags on our device.
 	 */
@@ -2791,6 +2829,9 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	/*
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
+
+	if (dev->change_rx_flags && (dev->flags ^ flags) & IFF_MULTICAST)
+		dev->change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);
 

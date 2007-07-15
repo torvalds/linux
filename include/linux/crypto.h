@@ -295,28 +295,8 @@ struct blkcipher_tfm {
 };
 
 struct cipher_tfm {
-	void *cit_iv;
-	unsigned int cit_ivsize;
-	u32 cit_mode;
 	int (*cit_setkey)(struct crypto_tfm *tfm,
 	                  const u8 *key, unsigned int keylen);
-	int (*cit_encrypt)(struct crypto_tfm *tfm,
-			   struct scatterlist *dst,
-			   struct scatterlist *src,
-			   unsigned int nbytes);
-	int (*cit_encrypt_iv)(struct crypto_tfm *tfm,
-	                      struct scatterlist *dst,
-	                      struct scatterlist *src,
-	                      unsigned int nbytes, u8 *iv);
-	int (*cit_decrypt)(struct crypto_tfm *tfm,
-			   struct scatterlist *dst,
-			   struct scatterlist *src,
-			   unsigned int nbytes);
-	int (*cit_decrypt_iv)(struct crypto_tfm *tfm,
-			   struct scatterlist *dst,
-			   struct scatterlist *src,
-			   unsigned int nbytes, u8 *iv);
-	void (*cit_xor_block)(u8 *dst, const u8 *src);
 	void (*cit_encrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };

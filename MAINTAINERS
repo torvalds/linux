@@ -2330,6 +2330,12 @@ W:	http://linuxwireless.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/jbenc/mac80211.git
 S:	Maintained
 
+MACVLAN DRIVER
+P:	Patrick McHardy
+M:	kaber@trash.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 MARVELL YUKON / SYSKONNECT DRIVER
 P:	Mirko Lindner
 M: 	mlindner@syskonnect.de

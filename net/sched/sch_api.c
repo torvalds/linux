@@ -278,11 +278,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
-	if (spin_trylock(&dev->queue_lock)) {
-		qdisc_run(dev);
-		spin_unlock(&dev->queue_lock);
-	} else
-		netif_schedule(dev);
+	netif_schedule(dev);
 
 	return HRTIMER_NORESTART;
 }
@@ -1149,47 +1145,57 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
    to this qdisc, (optionally) tests for protocol and asks
    specific classifiers.
  */
+int tc_classify_compat(struct sk_buff *skb, struct tcf_proto *tp,
+		       struct tcf_result *res)
+{
+	__be16 protocol = skb->protocol;
+	int err = 0;
+
+	for (; tp; tp = tp->next) {
+		if ((tp->protocol == protocol ||
+		     tp->protocol == htons(ETH_P_ALL)) &&
+		    (err = tp->classify(skb, tp, res)) >= 0) {
+#ifdef CONFIG_NET_CLS_ACT
+			if (err != TC_ACT_RECLASSIFY && skb->tc_verd)
+				skb->tc_verd = SET_TC_VERD(skb->tc_verd, 0);
+#endif
+			return err;
+		}
+	}
+	return -1;
+}
+EXPORT_SYMBOL(tc_classify_compat);
+
 int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,
-	struct tcf_result *res)
+		struct tcf_result *res)
 {
 	int err = 0;
-	__be16 protocol = skb->protocol;
+	__be16 protocol;
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_proto *otp = tp;
 reclassify:
 #endif
 	protocol = skb->protocol;
 
-	for ( ; tp; tp = tp->next) {
-		if ((tp->protocol == protocol ||
-			tp->protocol == htons(ETH_P_ALL)) &&
-			(err = tp->classify(skb, tp, res)) >= 0) {
+	err = tc_classify_compat(skb, tp, res);
 #ifdef CONFIG_NET_CLS_ACT
-			if ( TC_ACT_RECLASSIFY == err) {
-				__u32 verd = (__u32) G_TC_VERD(skb->tc_verd);
-				tp = otp;
+	if (err == TC_ACT_RECLASSIFY) {
+		u32 verd = G_TC_VERD(skb->tc_verd);
+		tp = otp;
 
-				if (MAX_REC_LOOP < verd++) {
-					printk("rule prio %d protocol %02x reclassify is buggy packet dropped\n",
-						tp->prio&0xffff, ntohs(tp->protocol));
-					return TC_ACT_SHOT;
-				}
-				skb->tc_verd = SET_TC_VERD(skb->tc_verd,verd);
-				goto reclassify;
-			} else {
-				if (skb->tc_verd)
-					skb->tc_verd = SET_TC_VERD(skb->tc_verd,0);
-				return err;
-			}
-#else
-
-			return err;
-#endif
+		if (verd++ >= MAX_REC_LOOP) {
+			printk("rule prio %u protocol %02x reclassify loop, "
+			       "packet dropped\n",
+			       tp->prio&0xffff, ntohs(tp->protocol));
+			return TC_ACT_SHOT;
 		}
-
+		skb->tc_verd = SET_TC_VERD(skb->tc_verd, verd);
+		goto reclassify;
 	}
-	return -1;
+#endif
+	return err;
 }
+EXPORT_SYMBOL(tc_classify);
 
 void tcf_destroy(struct tcf_proto *tp)
 {
@@ -1256,4 +1262,3 @@ EXPORT_SYMBOL(qdisc_get_rtab);
 EXPORT_SYMBOL(qdisc_put_rtab);
 EXPORT_SYMBOL(register_qdisc);
 EXPORT_SYMBOL(unregister_qdisc);
-EXPORT_SYMBOL(tc_classify);

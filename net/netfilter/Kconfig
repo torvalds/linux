@@ -102,6 +102,16 @@ config NF_CT_PROTO_SCTP
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NF_CT_PROTO_UDPLITE
+	tristate 'UDP-Lite protocol connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on UDP-Lite
+	  connections.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CONNTRACK_AMANDA
 	tristate "Amanda backup protocol support"
 	depends on NF_CONNTRACK
@@ -422,6 +432,13 @@ config NETFILTER_XT_MATCH_CONNBYTES
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNLIMIT
+	tristate '"connlimit" match support"'
+	depends on NETFILTER_XTABLES
+	---help---
+	  This match allows you to match against the number of parallel
+	  connections to a server per client IP address (or address block).
 
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'

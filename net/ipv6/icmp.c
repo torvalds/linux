@@ -604,7 +604,7 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 
 	read_lock(&raw_v6_lock);
 	if ((sk = sk_head(&raw_v6_htable[hash])) != NULL) {
-		while((sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr,
+		while ((sk = __raw_v6_lookup(sk, nexthdr, saddr, daddr,
 					    IP6CB(skb)->iif))) {
 			rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
 			sk = sk_next(sk);

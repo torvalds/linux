@@ -113,6 +113,36 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_ct_get_tuple);
 
+int nf_ct_get_tuplepr(const struct sk_buff *skb,
+		      unsigned int nhoff,
+		      u_int16_t l3num,
+		      struct nf_conntrack_tuple *tuple)
+{
+	struct nf_conntrack_l3proto *l3proto;
+	struct nf_conntrack_l4proto *l4proto;
+	unsigned int protoff;
+	u_int8_t protonum;
+	int ret;
+
+	rcu_read_lock();
+
+	l3proto = __nf_ct_l3proto_find(l3num);
+	ret = l3proto->get_l4proto(skb, nhoff, &protoff, &protonum);
+	if (ret != NF_ACCEPT) {
+		rcu_read_unlock();
+		return 0;
+	}
+
+	l4proto = __nf_ct_l4proto_find(l3num, protonum);
+
+	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, tuple,
+			      l3proto, l4proto);
+
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_ct_get_tuplepr);
+
 int
 nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 		   const struct nf_conntrack_tuple *orig,
@@ -622,9 +652,12 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
-
-	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
+	ret = l3proto->get_l4proto(*pskb, skb_network_offset(*pskb),
+				   &dataoff, &protonum);
+	if (ret <= 0) {
 		pr_debug("not prepared to track yet or error occured\n");
+		NF_CT_STAT_INC_ATOMIC(error);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 

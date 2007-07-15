@@ -86,7 +86,7 @@ static int ipv6_print_conntrack(struct seq_file *s,
  *        - Note also special handling of AUTH header. Thanks to IPsec wizards.
  */
 
-int nf_ct_ipv6_skip_exthdr(struct sk_buff *skb, int start, u8 *nexthdrp,
+int nf_ct_ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 			   int len)
 {
 	u8 nexthdr = *nexthdrp;
@@ -117,22 +117,25 @@ int nf_ct_ipv6_skip_exthdr(struct sk_buff *skb, int start, u8 *nexthdrp,
 	return start;
 }
 
-static int
-ipv6_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
-	     u_int8_t *protonum)
+static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
+			    unsigned int *dataoff, u_int8_t *protonum)
 {
-	unsigned int extoff = (u8 *)(ipv6_hdr(*pskb) + 1) - (*pskb)->data;
-	unsigned char pnum = ipv6_hdr(*pskb)->nexthdr;
-	int protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
-					     (*pskb)->len - extoff);
+	unsigned int extoff = nhoff + sizeof(struct ipv6hdr);
+	unsigned char pnum;
+	int protoff;
+
+	if (skb_copy_bits(skb, nhoff + offsetof(struct ipv6hdr, nexthdr),
+			  &pnum, sizeof(pnum)) != 0) {
+		pr_debug("ip6_conntrack_core: can't get nexthdr\n");
+		return -NF_ACCEPT;
+	}
+	protoff = nf_ct_ipv6_skip_exthdr(skb, extoff, &pnum, skb->len - extoff);
 	/*
-	 * (protoff == (*pskb)->len) mean that the packet doesn't have no data
+	 * (protoff == skb->len) mean that the packet doesn't have no data
 	 * except of IPv6 & ext headers. but it's tracked anyway. - YK
 	 */
-	if ((protoff < 0) || (protoff > (*pskb)->len)) {
+	if ((protoff < 0) || (protoff > skb->len)) {
 		pr_debug("ip6_conntrack_core: can't find proto in pkt\n");
-		NF_CT_STAT_INC_ATOMIC(error);
-		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -NF_ACCEPT;
 	}
 
@@ -370,14 +373,14 @@ static int ipv6_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.name			= "ipv6",
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,
 	.print_tuple		= ipv6_print_tuple,
 	.print_conntrack	= ipv6_print_conntrack,
-	.prepare		= ipv6_prepare,
+	.get_l4proto		= ipv6_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr	= ipv6_tuple_to_nfattr,
 	.nfattr_to_tuple	= ipv6_nfattr_to_tuple,

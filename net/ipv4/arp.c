@@ -885,7 +885,7 @@ static int arp_process(struct sk_buff *skb)
 		if (n == NULL &&
 		    arp->ar_op == htons(ARPOP_REPLY) &&
 		    inet_addr_type(sip) == RTN_UNICAST)
-			n = __neigh_lookup(&arp_tbl, &sip, dev, -1);
+			n = __neigh_lookup(&arp_tbl, &sip, dev, 1);
 	}
 
 	if (n) {

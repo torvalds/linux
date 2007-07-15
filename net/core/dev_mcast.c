@@ -102,6 +102,81 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 	return err;
 }
 
+/**
+ *	dev_mc_sync	- Synchronize device's multicast list to another device
+ *	@to: destination device
+ *	@from: source device
+ *
+ * 	Add newly added addresses to the destination device and release
+ * 	addresses that have no users left. The source device must be
+ * 	locked by netif_tx_lock_bh.
+ *
+ *	This function is intended to be called from the dev->set_multicast_list
+ *	function of layered software devices.
+ */
+int dev_mc_sync(struct net_device *to, struct net_device *from)
+{
+	struct dev_addr_list *da;
+	int err = 0;
+
+	netif_tx_lock_bh(to);
+	for (da = from->mc_list; da != NULL; da = da->next) {
+		if (!da->da_synced) {
+			err = __dev_addr_add(&to->mc_list, &to->mc_count,
+					     da->da_addr, da->da_addrlen, 0);
+			if (err < 0)
+				break;
+			da->da_synced = 1;
+			da->da_users++;
+		} else if (da->da_users == 1) {
+			__dev_addr_delete(&to->mc_list, &to->mc_count,
+					  da->da_addr, da->da_addrlen, 0);
+			__dev_addr_delete(&from->mc_list, &from->mc_count,
+					  da->da_addr, da->da_addrlen, 0);
+		}
+	}
+	if (!err)
+		__dev_set_rx_mode(to);
+	netif_tx_unlock_bh(to);
+
+	return err;
+}
+EXPORT_SYMBOL(dev_mc_sync);
+
+
+/**
+ * 	dev_mc_unsync	- Remove synchronized addresses from the destination
+ * 			  device
+ *	@to: destination device
+ *	@from: source device
+ *
+ * 	Remove all addresses that were added to the destination device by
+ * 	dev_mc_sync(). This function is intended to be called from the
+ * 	dev->stop function of layered software devices.
+ */
+void dev_mc_unsync(struct net_device *to, struct net_device *from)
+{
+	struct dev_addr_list *da;
+
+	netif_tx_lock_bh(from);
+	netif_tx_lock_bh(to);
+
+	for (da = from->mc_list; da != NULL; da = da->next) {
+		if (!da->da_synced)
+			continue;
+		__dev_addr_delete(&to->mc_list, &to->mc_count,
+				  da->da_addr, da->da_addrlen, 0);
+		da->da_synced = 0;
+		__dev_addr_delete(&from->mc_list, &from->mc_count,
+				  da->da_addr, da->da_addrlen, 0);
+	}
+	__dev_set_rx_mode(to);
+
+	netif_tx_unlock_bh(to);
+	netif_tx_unlock_bh(from);
+}
+EXPORT_SYMBOL(dev_mc_unsync);
+
 /*
  *	Discard multicast list when a device is downed
  */
