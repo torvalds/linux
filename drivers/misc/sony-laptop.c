@@ -487,6 +487,14 @@ SNC_HANDLE_NAMES(audiopower_set, "AZPW");
 SNC_HANDLE_NAMES(lanpower_get, "GLNP");
 SNC_HANDLE_NAMES(lanpower_set, "LNPW");
 
+SNC_HANDLE_NAMES(lidstate_get, "GLID");
+
+SNC_HANDLE_NAMES(indicatorlamp_get, "GILS");
+SNC_HANDLE_NAMES(indicatorlamp_set, "SILS");
+
+SNC_HANDLE_NAMES(gainbass_get, "GMGB");
+SNC_HANDLE_NAMES(gainbass_set, "CMGB");
+
 SNC_HANDLE_NAMES(PID_get, "GPID");
 
 SNC_HANDLE_NAMES(CTR_get, "GCTR");
@@ -507,6 +515,12 @@ static struct sony_nc_value sony_nc_values[] = {
 			boolean_validate, 0),
 	SNC_HANDLE(lanpower, snc_lanpower_get, snc_lanpower_set,
 			boolean_validate, 1),
+	SNC_HANDLE(lidstate, snc_lidstate_get, NULL,
+			boolean_validate, 0),
+	SNC_HANDLE(indicatorlamp, snc_indicatorlamp_get, snc_indicatorlamp_set,
+			boolean_validate, 0),
+	SNC_HANDLE(gainbass, snc_gainbass_get, snc_gainbass_set,
+			boolean_validate, 0),
 	/* unknown methods */
 	SNC_HANDLE(PID, snc_PID_get, NULL, NULL, 1),
 	SNC_HANDLE(CTR, snc_CTR_get, snc_CTR_set, NULL, 1),
