@@ -377,7 +377,7 @@ void vlan_setup(struct net_device *new_dev)
 	new_dev->destructor = free_netdev;
 	new_dev->do_ioctl = vlan_dev_ioctl;
 
-	memset(new_dev->broadcast, 0, sizeof(ETH_ALEN));
+	memset(new_dev->broadcast, 0, ETH_ALEN);
 }
 
 static void vlan_transfer_operstate(const struct net_device *dev, struct net_device *vlandev)
