@@ -203,8 +203,6 @@ static void __exit pmu_bat_exit(void)
 	}
 	power_supply_unregister(&pmu_ac);
 	platform_device_unregister(bat_pdev);
-
-	return;
 }
 
 module_init(pmu_bat_init);

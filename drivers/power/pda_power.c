@@ -97,8 +97,6 @@ static void update_charger(void)
 		dev_dbg(dev, "charger off\n");
 		pdata->set_charge(0);
 	}
-
-	return;
 }
 
 static void supply_timer_func(unsigned long power_supply_ptr)
@@ -106,7 +104,6 @@ static void supply_timer_func(unsigned long power_supply_ptr)
 	void *power_supply = (void *)power_supply_ptr;
 
 	power_supply_changed(power_supply);
-	return;
 }
 
 static void charger_timer_func(unsigned long power_supply_ptr)
@@ -118,7 +115,6 @@ static void charger_timer_func(unsigned long power_supply_ptr)
 	supply_timer.data = power_supply_ptr;
 	mod_timer(&supply_timer,
 		  jiffies + msecs_to_jiffies(pdata->wait_for_charger));
-	return;
 }
 
 static irqreturn_t power_changed_isr(int irq, void *power_supply)
@@ -251,7 +247,6 @@ static int __init pda_power_init(void)
 static void __exit pda_power_exit(void)
 {
 	platform_driver_unregister(&pda_power_pdrv);
-	return;
 }
 
 module_init(pda_power_init);

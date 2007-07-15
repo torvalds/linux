@@ -40,8 +40,6 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 		led_trigger_event(psy->full_trig, LED_OFF);
 		break;
 	}
-
-	return;
 }
 
 static int power_supply_create_bat_triggers(struct power_supply *psy)
@@ -97,7 +95,6 @@ static void power_supply_remove_bat_triggers(struct power_supply *psy)
 	kfree(psy->full_trig_name);
 	kfree(psy->charging_trig_name);
 	kfree(psy->charging_full_trig_name);
-	return;
 }
 
 /* Generated power specific LEDs triggers. */
@@ -115,8 +112,6 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 		led_trigger_event(psy->online_trig, LED_FULL);
 	else
 		led_trigger_event(psy->online_trig, LED_OFF);
-
-	return;
 }
 
 static int power_supply_create_gen_triggers(struct power_supply *psy)
@@ -145,7 +140,6 @@ static void power_supply_remove_gen_triggers(struct power_supply *psy)
 {
 	led_trigger_unregister_simple(psy->online_trig);
 	kfree(psy->online_trig_name);
-	return;
 }
 
 /* Choice what triggers to create&update. */
@@ -156,7 +150,6 @@ void power_supply_update_leds(struct power_supply *psy)
 		power_supply_update_bat_leds(psy);
 	else
 		power_supply_update_gen_leds(psy);
-	return;
 }
 
 int power_supply_create_triggers(struct power_supply *psy)
@@ -172,5 +165,4 @@ void power_supply_remove_triggers(struct power_supply *psy)
 		power_supply_remove_bat_triggers(psy);
 	else
 		power_supply_remove_gen_triggers(psy);
-	return;
 }

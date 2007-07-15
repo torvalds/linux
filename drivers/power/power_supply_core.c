@@ -46,8 +46,6 @@ static void power_supply_changed_work(struct work_struct *work)
 	power_supply_update_leds(psy);
 
 	kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
-
-	return;
 }
 
 void power_supply_changed(struct power_supply *psy)
@@ -55,8 +53,6 @@ void power_supply_changed(struct power_supply *psy)
 	dev_dbg(psy->dev, "%s\n", __FUNCTION__);
 
 	schedule_work(&psy->changed_work);
-
-	return;
 }
 
 int power_supply_am_i_supplied(struct power_supply *psy)
@@ -129,7 +125,6 @@ void power_supply_unregister(struct power_supply *psy)
 	power_supply_remove_triggers(psy);
 	power_supply_remove_attrs(psy);
 	device_unregister(psy->dev);
-	return;
 }
 
 static int __init power_supply_class_init(void)
@@ -147,7 +142,6 @@ static int __init power_supply_class_init(void)
 static void __exit power_supply_class_exit(void)
 {
 	class_destroy(power_supply_class);
-	return;
 }
 
 EXPORT_SYMBOL_GPL(power_supply_changed);
