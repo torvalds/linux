@@ -347,9 +347,16 @@ enum ieee80211_if_types {
  * @mac_addr: pointer to MAC address of the interface. This pointer is valid
  *	until the interface is removed (i.e. it cannot be used after
  *	remove_interface() callback was called for this interface).
+ *	This pointer will be %NULL for monitor interfaces, be careful.
  *
  * This structure is used in add_interface() and remove_interface()
  * callbacks of &struct ieee80211_hw.
+ *
+ * When you allow multiple interfaces to be added to your PHY, take care
+ * that the hardware can actually handle multiple MAC addresses. However,
+ * also take care that when there's no interface left with mac_addr != %NULL
+ * you remove the MAC address from the device to avoid acknowledging packets
+ * in pure monitor mode.
  */
 struct ieee80211_if_init_conf {
 	int if_id;
@@ -574,10 +581,11 @@ struct ieee80211_ops {
 	 * to returning zero. By returning non-zero addition of the interface
 	 * is inhibited. Unless monitor_during_oper is set, it is guaranteed
 	 * that monitor interfaces and normal interfaces are mutually
-	 * exclusive. The open() handler is called after add_interface()
-	 * if this is the first device added. At least one of the open()
-	 * open() and add_interface() callbacks has to be assigned. If
-	 * add_interface() is NULL, one STA interface is permitted only. */
+	 * exclusive. If assigned, the open() handler is called after
+	 * add_interface() if this is the first device added. The
+	 * add_interface() callback has to be assigned because it is the only
+	 * way to obtain the requested MAC address for any interface.
+	 */
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_if_init_conf *conf);
 
@@ -920,12 +928,6 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 			  struct ieee80211_tx_control *control);
-
-/* Low level drivers that have their own MLME and MAC indicate
- * the aid for an associating station with this call */
-int ieee80211_set_aid_for_sta(struct ieee80211_hw *hw,
-			      u8 *peer_address, u16 aid);
-
 
 /* Given an sk_buff with a raw 802.11 header at the data pointer this function
  * returns the 802.11 header length in bytes (not including encryption

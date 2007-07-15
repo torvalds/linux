@@ -118,7 +118,7 @@ static ssize_t ieee80211_if_fmt_flags(
 			 sdata->u.sta.authenticated ? "AUTH\n" : "",
 			 sdata->u.sta.associated ? "ASSOC\n" : "",
 			 sdata->u.sta.probereq_poll ? "PROBEREQ POLL\n" : "",
-			 sdata->u.sta.use_protection ? "CTS prot\n" : "");
+			 sdata->use_protection ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 

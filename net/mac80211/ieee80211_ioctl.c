@@ -345,6 +345,8 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct iw_range *range = (struct iw_range *) extra;
+	struct ieee80211_hw_mode *mode = NULL;
+	int c = 0;
 
 	data->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(struct iw_range));
@@ -377,6 +379,29 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
+
+	list_for_each_entry(mode, &local->modes_list, list) {
+		int i = 0;
+
+		if (!(local->enabled_modes & (1 << mode->mode)) ||
+		    (local->hw_modes & local->enabled_modes &
+		     (1 << MODE_IEEE80211G) && mode->mode == MODE_IEEE80211B))
+			continue;
+
+		while (i < mode->num_channels && c < IW_MAX_FREQUENCIES) {
+			struct ieee80211_channel *chan = &mode->channels[i];
+
+			if (chan->flag & IEEE80211_CHAN_W_SCAN) {
+				range->freq[c].i = chan->chan;
+				range->freq[c].m = chan->freq * 100000;
+				range->freq[c].e = 1;
+				c++;
+			}
+			i++;
+		}
+	}
+	range->num_channels = c;
+	range->num_frequency = c;
 
 	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWTHRSPY);
@@ -838,6 +863,44 @@ static int ieee80211_ioctl_giwscan(struct net_device *dev,
 }
 
 
+static int ieee80211_ioctl_siwrate(struct net_device *dev,
+				  struct iw_request_info *info,
+				  struct iw_param *rate, char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_hw_mode *mode;
+	int i;
+	u32 target_rate = rate->value / 100000;
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (!sdata->bss)
+		return -ENODEV;
+	mode = local->oper_hw_mode;
+	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
+	 * target_rate = X, rate->fixed = 1 means only rate X
+	 * target_rate = X, rate->fixed = 0 means all rates <= X */
+	sdata->bss->max_ratectrl_rateidx = -1;
+	sdata->bss->force_unicast_rateidx = -1;
+	if (rate->value < 0)
+		return 0;
+	for (i=0; i< mode->num_rates; i++) {
+		struct ieee80211_rate *rates = &mode->rates[i];
+		int this_rate = rates->rate;
+
+		if (mode->mode == MODE_ATHEROS_TURBO ||
+		    mode->mode == MODE_ATHEROS_TURBOG)
+			this_rate *= 2;
+		if (target_rate == this_rate) {
+			sdata->bss->max_ratectrl_rateidx = i;
+			if (rate->fixed)
+				sdata->bss->force_unicast_rateidx = i;
+			break;
+		}
+	}
+	return 0;
+}
+
 static int ieee80211_ioctl_giwrate(struct net_device *dev,
 				  struct iw_request_info *info,
 				  struct iw_param *rate, char *extra)
@@ -993,118 +1056,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_clear_keys(struct net_device *dev)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_key_conf key;
-	int i;
-	u8 addr[ETH_ALEN];
-	struct ieee80211_key_conf *keyconf;
-	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta;
-
-	memset(addr, 0xff, ETH_ALEN);
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
-		for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-			keyconf = NULL;
-			if (sdata->keys[i] &&
-			    !sdata->keys[i]->force_sw_encrypt &&
-			    local->ops->set_key &&
-			    (keyconf = ieee80211_key_data2conf(local,
-							       sdata->keys[i])))
-				local->ops->set_key(local_to_hw(local),
-						   DISABLE_KEY, addr,
-						   keyconf, 0);
-			kfree(keyconf);
-			ieee80211_key_free(sdata->keys[i]);
-			sdata->keys[i] = NULL;
-		}
-		sdata->default_key = NULL;
-	}
-	read_unlock(&local->sub_if_lock);
-
-	spin_lock_bh(&local->sta_lock);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		keyconf = NULL;
-		if (sta->key && !sta->key->force_sw_encrypt &&
-		    local->ops->set_key &&
-		    (keyconf = ieee80211_key_data2conf(local, sta->key)))
-			local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-					   sta->addr, keyconf, sta->aid);
-		kfree(keyconf);
-		ieee80211_key_free(sta->key);
-		sta->key = NULL;
-	}
-	spin_unlock_bh(&local->sta_lock);
-
-	memset(&key, 0, sizeof(key));
-	if (local->ops->set_key &&
-		    local->ops->set_key(local_to_hw(local), REMOVE_ALL_KEYS,
-				       NULL, &key, 0))
-		printk(KERN_DEBUG "%s: failed to remove hwaccel keys\n",
-		       dev->name);
-
-	return 0;
-}
-
-
-static int
-ieee80211_ioctl_force_unicast_rate(struct net_device *dev,
-				   struct ieee80211_sub_if_data *sdata,
-				   int rate)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_hw_mode *mode;
-	int i;
-
-	if (sdata->type != IEEE80211_IF_TYPE_AP)
-		return -ENOENT;
-
-	if (rate == 0) {
-		sdata->u.ap.force_unicast_rateidx = -1;
-		return 0;
-	}
-
-	mode = local->oper_hw_mode;
-	for (i = 0; i < mode->num_rates; i++) {
-		if (mode->rates[i].rate == rate) {
-			sdata->u.ap.force_unicast_rateidx = i;
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-
-static int
-ieee80211_ioctl_max_ratectrl_rate(struct net_device *dev,
-				  struct ieee80211_sub_if_data *sdata,
-				  int rate)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_hw_mode *mode;
-	int i;
-
-	if (sdata->type != IEEE80211_IF_TYPE_AP)
-		return -ENOENT;
-
-	if (rate == 0) {
-		sdata->u.ap.max_ratectrl_rateidx = -1;
-		return 0;
-	}
-
-	mode = local->oper_hw_mode;
-	for (i = 0; i < mode->num_rates; i++) {
-		if (mode->rates[i].rate == rate) {
-			sdata->u.ap.max_ratectrl_rateidx = i;
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-
 static void ieee80211_key_enable_hwaccel(struct ieee80211_local *local,
 					 struct ieee80211_key *key)
 {
@@ -1228,24 +1179,11 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 			sdata->ieee802_1x = value;
 		break;
 
-	case PRISM2_PARAM_ANTSEL_TX:
-		local->hw.conf.antenna_sel_tx = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_ANTSEL_RX:
-		local->hw.conf.antenna_sel_rx = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		local->cts_protect_erp_frames = value;
-		break;
-
-	case PRISM2_PARAM_DROP_UNENCRYPTED:
-		sdata->drop_unencrypted = value;
+		if (sdata->type != IEEE80211_IF_TYPE_AP)
+			ret = -ENOENT;
+		else
+			sdata->use_protection = value;
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
@@ -1274,10 +1212,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		local->next_mode = value;
 		break;
 
-	case PRISM2_PARAM_CLEAR_KEYS:
-		ret = ieee80211_ioctl_clear_keys(dev);
-		break;
-
 	case PRISM2_PARAM_RADIO_ENABLED:
 		ret = ieee80211_ioctl_set_radio_enabled(dev, value);
 		break;
@@ -1290,22 +1224,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_STA_ANTENNA_SEL:
 		local->sta_antenna_sel = value;
-		break;
-
-	case PRISM2_PARAM_FORCE_UNICAST_RATE:
-		ret = ieee80211_ioctl_force_unicast_rate(dev, sdata, value);
-		break;
-
-	case PRISM2_PARAM_MAX_RATECTRL_RATE:
-		ret = ieee80211_ioctl_max_ratectrl_rate(dev, sdata, value);
-		break;
-
-	case PRISM2_PARAM_RATE_CTRL_NUM_UP:
-		local->rate_ctrl_num_up = value;
-		break;
-
-	case PRISM2_PARAM_RATE_CTRL_NUM_DOWN:
-		local->rate_ctrl_num_down = value;
 		break;
 
 	case PRISM2_PARAM_TX_POWER_REDUCTION:
@@ -1387,20 +1305,8 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		*param = sdata->ieee802_1x;
 		break;
 
-	case PRISM2_PARAM_ANTSEL_TX:
-		*param = local->hw.conf.antenna_sel_tx;
-		break;
-
-	case PRISM2_PARAM_ANTSEL_RX:
-		*param = local->hw.conf.antenna_sel_rx;
-		break;
-
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		*param = local->cts_protect_erp_frames;
-		break;
-
-	case PRISM2_PARAM_DROP_UNENCRYPTED:
-		*param = sdata->drop_unencrypted;
+		*param = sdata->use_protection;
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
@@ -1424,14 +1330,6 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_STA_ANTENNA_SEL:
 		*param = local->sta_antenna_sel;
-		break;
-
-	case PRISM2_PARAM_RATE_CTRL_NUM_UP:
-		*param = local->rate_ctrl_num_up;
-		break;
-
-	case PRISM2_PARAM_RATE_CTRL_NUM_DOWN:
-		*param = local->rate_ctrl_num_down;
 		break;
 
 	case PRISM2_PARAM_TX_POWER_REDUCTION:
@@ -1801,7 +1699,7 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWNICKN */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
-	(iw_handler) NULL,				/* SIOCSIWRATE */
+	(iw_handler) ieee80211_ioctl_siwrate,		/* SIOCSIWRATE */
 	(iw_handler) ieee80211_ioctl_giwrate,		/* SIOCGIWRATE */
 	(iw_handler) ieee80211_ioctl_siwrts,		/* SIOCSIWRTS */
 	(iw_handler) ieee80211_ioctl_giwrts,		/* SIOCGIWRTS */
