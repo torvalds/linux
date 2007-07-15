@@ -110,7 +110,7 @@ static inline void *vcc_walk(struct vcc_state *state, loff_t l)
 }
 
 static int __vcc_seq_open(struct inode *inode, struct file *file,
-	int family, struct seq_operations *ops)
+	int family, const struct seq_operations *ops)
 {
 	struct vcc_state *state;
 	struct seq_file *seq;
