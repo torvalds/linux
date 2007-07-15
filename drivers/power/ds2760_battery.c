@@ -254,8 +254,6 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 
 	if (di->charge_status != old_charge_status)
 		power_supply_changed(&di->bat);
-
-	return;
 }
 
 static void ds2760_battery_work(struct work_struct *work)
@@ -268,8 +266,6 @@ static void ds2760_battery_work(struct work_struct *work)
 
 	ds2760_battery_update_status(di);
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, interval);
-
-	return;
 }
 
 #define to_ds2760_device_info(x) container_of((x), struct ds2760_device_info, \
@@ -283,8 +279,6 @@ static void ds2760_battery_external_power_changed(struct power_supply *psy)
 
 	cancel_delayed_work(&di->monitor_work);
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ/10);
-
-	return;
 }
 
 static int ds2760_battery_get_property(struct power_supply *psy,
@@ -457,7 +451,6 @@ static int __init ds2760_battery_init(void)
 static void __exit ds2760_battery_exit(void)
 {
 	platform_driver_unregister(&ds2760_battery_driver);
-	return;
 }
 
 module_init(ds2760_battery_init);

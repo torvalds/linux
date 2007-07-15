@@ -68,7 +68,8 @@ int w1_ds2760_write(struct device *dev, char *buf, int addr, size_t count)
 	return w1_ds2760_io(dev, buf, addr, count, 1);
 }
 
-static ssize_t w1_ds2760_read_bin(struct kobject *kobj, struct bin_attribute *attr,
+static ssize_t w1_ds2760_read_bin(struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -121,8 +122,6 @@ static void release_bat_id(int id)
 	mutex_lock(&bat_idr_lock);
 	idr_remove(&bat_idr, id);
 	mutex_unlock(&bat_idr_lock);
-
-	return;
 }
 
 static int w1_ds2760_add_slave(struct w1_slave *sl)
@@ -174,8 +173,6 @@ static void w1_ds2760_remove_slave(struct w1_slave *sl)
 	platform_device_unregister(pdev);
 	release_bat_id(id);
 	sysfs_remove_bin_file(&sl->dev.kobj, &w1_ds2760_bin_attr);
-
-	return;
 }
 
 static struct w1_family_ops w1_ds2760_fops = {

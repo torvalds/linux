@@ -341,7 +341,6 @@ static void __exit olpc_bat_exit(void)
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);
 	platform_device_unregister(bat_pdev);
-	return;
 }
 
 module_init(olpc_bat_init);

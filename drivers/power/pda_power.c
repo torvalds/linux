@@ -97,36 +97,31 @@ static void update_charger(void)
 		dev_dbg(dev, "charger off\n");
 		pdata->set_charge(0);
 	}
-
-	return;
 }
 
-static void supply_timer_func(unsigned long irq)
+static void supply_timer_func(unsigned long power_supply_ptr)
 {
-	if (ac_irq && irq == ac_irq->start)
-		power_supply_changed(&pda_power_supplies[0]);
-	else if (usb_irq && irq == usb_irq->start)
-		power_supply_changed(&pda_power_supplies[1]);
-	return;
+	void *power_supply = (void *)power_supply_ptr;
+
+	power_supply_changed(power_supply);
 }
 
-static void charger_timer_func(unsigned long irq)
+static void charger_timer_func(unsigned long power_supply_ptr)
 {
 	update_charger();
 
 	/* Okay, charger set. Now wait a bit before notifying supplicants,
 	 * charge power should stabilize. */
-	supply_timer.data = irq;
+	supply_timer.data = power_supply_ptr;
 	mod_timer(&supply_timer,
 		  jiffies + msecs_to_jiffies(pdata->wait_for_charger));
-	return;
 }
 
-static irqreturn_t power_changed_isr(int irq, void *unused)
+static irqreturn_t power_changed_isr(int irq, void *power_supply)
 {
 	/* Wait a bit before reading ac/usb line status and setting charger,
 	 * because ac/usb status readings may lag from irq. */
-	charger_timer.data = irq;
+	charger_timer.data = (unsigned long)power_supply;
 	mod_timer(&charger_timer,
 		  jiffies + msecs_to_jiffies(pdata->wait_for_status));
 	return IRQ_HANDLED;
@@ -252,7 +247,6 @@ static int __init pda_power_init(void)
 static void __exit pda_power_exit(void)
 {
 	platform_driver_unregister(&pda_power_pdrv);
-	return;
 }
 
 module_init(pda_power_init);

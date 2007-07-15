@@ -2869,6 +2869,16 @@ M:	george@mvista.com
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 
+POWER SUPPLY CLASS/SUBSYSTEM and DRIVERS
+P:	Anton Vorontsov
+M:	cbou@mail.ru
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	linux-kernel@vger.kernel.org
+L:	kernel-discuss@handhelds.org
+T:	git git.infradead.org/battery-2.6.git
+S:	Maintained
+
 POWERPC 4xx EMAC DRIVER
 P:	Eugene Surovegin
 M:	ebs@ebshome.net
