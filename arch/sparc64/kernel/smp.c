@@ -1244,6 +1244,7 @@ void __devinit smp_fill_in_sib_core_maps(void)
 	for_each_possible_cpu(i) {
 		unsigned int j;
 
+		cpus_clear(cpu_core_map[i]);
 		if (cpu_data(i).core_id == 0) {
 			cpu_set(i, cpu_core_map[i]);
 			continue;
@@ -1259,6 +1260,7 @@ void __devinit smp_fill_in_sib_core_maps(void)
 	for_each_possible_cpu(i) {
 		unsigned int j;
 
+		cpus_clear(cpu_sibling_map[i]);
 		if (cpu_data(i).proc_id == -1) {
 			cpu_set(i, cpu_sibling_map[i]);
 			continue;
