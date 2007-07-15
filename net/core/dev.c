@@ -2521,6 +2521,8 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	if ((dev->promiscuity += inc) == 0)
 		dev->flags &= ~IFF_PROMISC;
 	else
@@ -2535,6 +2537,9 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 			dev->name, (dev->flags & IFF_PROMISC),
 			(old_flags & IFF_PROMISC),
 			audit_get_loginuid(current->audit_context));
+
+		if (dev->change_rx_flags)
+			dev->change_rx_flags(dev, IFF_PROMISC);
 	}
 }
 
@@ -2573,11 +2578,16 @@ void dev_set_allmulti(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	dev->flags |= IFF_ALLMULTI;
 	if ((dev->allmulti += inc) == 0)
 		dev->flags &= ~IFF_ALLMULTI;
-	if (dev->flags ^ old_flags)
+	if (dev->flags ^ old_flags) {
+		if (dev->change_rx_flags)
+			dev->change_rx_flags(dev, IFF_ALLMULTI);
 		dev_set_rx_mode(dev);
+	}
 }
 
 /*
@@ -2778,6 +2788,8 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	int ret, changes;
 	int old_flags = dev->flags;
 
+	ASSERT_RTNL();
+
 	/*
 	 *	Set the flags on our device.
 	 */
@@ -2791,6 +2803,9 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	/*
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
+
+	if (dev->change_rx_flags && (dev->flags ^ flags) & IFF_MULTICAST)
+		dev->change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);
 

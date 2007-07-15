@@ -516,6 +516,9 @@ struct net_device
 						void *saddr,
 						unsigned len);
 	int			(*rebuild_header)(struct sk_buff *skb);
+#define HAVE_CHANGE_RX_FLAGS
+	void			(*change_rx_flags)(struct net_device *dev,
+						   int flags);
 #define HAVE_SET_RX_MODE
 	void			(*set_rx_mode)(struct net_device *dev);
 #define HAVE_MULTICAST			 
