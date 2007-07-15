@@ -937,6 +937,7 @@ static void get_status(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 	*m66592->ep0_buf = status;
 	m66592->ep0_req->buf = m66592->ep0_buf;
 	m66592->ep0_req->length = 2;
+	/* AV: what happens if we get called again before that gets through? */
 	m66592_queue(m66592->gadget.ep0, m66592->ep0_req, GFP_KERNEL);
 }
 
@@ -1254,24 +1255,6 @@ static void m66592_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	kfree(req);
 }
 
-static void *m66592_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-				 dma_addr_t *dma, gfp_t gfp_flags)
-{
-	void *buf;
-
-	buf = kzalloc(bytes, gfp_flags);
-	if (dma)
-		*dma = virt_to_bus(buf);
-
-	return buf;
-}
-
-static void m66592_free_buffer(struct usb_ep *_ep, void *buf,
-			       dma_addr_t dma, unsigned bytes)
-{
-	kfree(buf);
-}
-
 static int m66592_queue(struct usb_ep *_ep, struct usb_request *_req,
 			gfp_t gfp_flags)
 {
@@ -1377,9 +1360,6 @@ static struct usb_ep_ops m66592_ep_ops = {
 
 	.alloc_request	= m66592_alloc_request,
 	.free_request	= m66592_free_request,
-
-	.alloc_buffer	= m66592_alloc_buffer,
-	.free_buffer	= m66592_free_buffer,
 
 	.queue		= m66592_queue,
 	.dequeue	= m66592_dequeue,
@@ -1603,11 +1583,12 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	the_controller = m66592;
 
+	/* AV: leaks */
 	m66592->ep0_req = m66592_alloc_request(&m66592->ep[0].ep, GFP_KERNEL);
 	if (m66592->ep0_req == NULL)
 		goto clean_up;
-	m66592->ep0_buf = m66592_alloc_buffer(&m66592->ep[0].ep, 2, NULL,
-					      GFP_KERNEL);
+	/* AV: leaks, and do we really need it separately allocated? */
+	m66592->ep0_buf = kzalloc(2, GFP_KERNEL);
 	if (m66592->ep0_buf == NULL)
 		goto clean_up;
 
