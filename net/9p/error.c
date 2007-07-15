@@ -1,12 +1,11 @@
 /*
- * linux/fs/9p/error.h
+ * linux/fs/9p/error.c
  *
- * Huge Nasty Error Table
+ * Error string handling
  *
- * Plan 9 uses error strings, Unix uses error numbers.  This table tries to
- * match UNIX strings and Plan 9 strings to unix error numbers.  It is used
- * to preload the dynamic error table which can also track user-specific error
- * strings.
+ * Plan 9 uses error strings, Unix uses error numbers.  These functions
+ * try to help manage that and provide for dynamically adding error
+ * mappings.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
@@ -28,8 +27,11 @@
  *
  */
 
+#include <linux/module.h>
+#include <linux/list.h>
+#include <linux/jhash.h>
 #include <linux/errno.h>
-#include <asm/errno.h>
+#include <net/9p/9p.h>
 
 struct errormap {
 	char *name;
@@ -174,4 +176,65 @@ static struct errormap errmap[] = {
 	{NULL, -1}
 };
 
-extern int v9fs_error_init(void);
+/**
+ * p9_error_init - preload
+ * @errstr: error string
+ *
+ */
+
+int p9_error_init(void)
+{
+	struct errormap *c;
+	int bucket;
+
+	/* initialize hash table */
+	for (bucket = 0; bucket < ERRHASHSZ; bucket++)
+		INIT_HLIST_HEAD(&hash_errmap[bucket]);
+
+	/* load initial error map into hash table */
+	for (c = errmap; c->name != NULL; c++) {
+		c->namelen = strlen(c->name);
+		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
+		INIT_HLIST_NODE(&c->list);
+		hlist_add_head(&c->list, &hash_errmap[bucket]);
+	}
+
+	return 1;
+}
+EXPORT_SYMBOL(p9_error_init);
+
+/**
+ * errstr2errno - convert error string to error number
+ * @errstr: error string
+ *
+ */
+
+int p9_errstr2errno(char *errstr, int len)
+{
+	int errno;
+	struct hlist_node *p;
+	struct errormap *c;
+	int bucket;
+
+	errno = 0;
+	p = NULL;
+	c = NULL;
+	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
+	hlist_for_each_entry(c, p, &hash_errmap[bucket], list) {
+		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
+			errno = c->val;
+			break;
+		}
+	}
+
+	if (errno == 0) {
+		/* TODO: if error isn't found, add it dynamically */
+		errstr[len] = 0;
+		printk(KERN_ERR "%s: errstr :%s: not found\n", __FUNCTION__,
+		       errstr);
+		errno = 1;
+	}
+
+	return -errno;
+}
+EXPORT_SYMBOL(p9_errstr2errno);

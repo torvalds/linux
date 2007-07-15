@@ -22,41 +22,12 @@
 
 #include <linux/list.h>
 
-#define FID_OP   0
-#define FID_WALK 1
-#define FID_CREATE 2
-
-struct v9fs_fid {
-	struct list_head list;	 /* list of fids associated with a dentry */
-	struct list_head active; /* XXX - debug */
-
-	struct semaphore lock;
-
-	u32 fid;
-	unsigned char fidopen;	  /* set when fid is opened */
-	unsigned char fidclunked; /* set when fid has already been clunked */
-
-	struct v9fs_qid qid;
-	u32 iounit;
-
-	/* readdir stuff */
-	int rdir_fpos;
-	loff_t rdir_pos;
-	struct v9fs_fcall *rdir_fcall;
-
-	/* management stuff */
-	uid_t uid;		/* user associated with this fid */
-
-	/* private data */
-	struct file *filp;	/* backpointer to File struct for open files */
-	struct v9fs_session_info *v9ses;	/* session info for this FID */
+struct v9fs_dentry {
+	spinlock_t lock; /* protect fidlist */
+	struct list_head fidlist;
 };
 
-struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry);
-struct v9fs_fid *v9fs_fid_get_created(struct dentry *);
-void v9fs_fid_destroy(struct v9fs_fid *fid);
-struct v9fs_fid *v9fs_fid_create(struct v9fs_session_info *, int fid);
-int v9fs_fid_insert(struct v9fs_fid *fid, struct dentry *dentry);
-struct v9fs_fid *v9fs_fid_clone(struct dentry *dentry);
-void v9fs_fid_clunk(struct v9fs_session_info *v9ses, struct v9fs_fid *fid);
-
+struct p9_fid *v9fs_fid_lookup(struct dentry *dentry);
+struct p9_fid *v9fs_fid_lookup_remove(struct dentry *dentry);
+struct p9_fid *v9fs_fid_clone(struct dentry *dentry);
+int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid);

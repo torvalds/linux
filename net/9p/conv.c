@@ -1,5 +1,5 @@
 /*
- * linux/fs/9p/conv.c
+ * net/9p/conv.c
  *
  * 9P protocol conversion functions
  *
@@ -29,11 +29,8 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
-#include <asm/uaccess.h>
-#include "debug.h"
-#include "v9fs.h"
-#include "9p.h"
-#include "conv.h"
+#include <linux/uaccess.h>
+#include <net/9p/9p.h>
 
 /*
  * Buffer to help with string parsing
@@ -59,8 +56,9 @@ static int buf_check_size(struct cbuf *buf, int len)
 {
 	if (buf->p + len > buf->ep) {
 		if (buf->p < buf->ep) {
-			eprintk(KERN_ERR, "buffer overflow: want %d has %d\n",
-				len, (int)(buf->ep - buf->p));
+			P9_EPRINTK(KERN_ERR,
+				"buffer overflow: want %d has %d\n", len,
+				(int)(buf->ep - buf->p));
 			dump_stack();
 			buf->p = buf->ep + 1;
 		}
@@ -183,7 +181,7 @@ static u64 buf_get_int64(struct cbuf *buf)
 	return ret;
 }
 
-static void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
+static void buf_get_str(struct cbuf *buf, struct p9_str *vstr)
 {
 	vstr->len = buf_get_int16(buf);
 	if (!buf_check_overflow(buf) && buf_check_size(buf, vstr->len)) {
@@ -195,7 +193,7 @@ static void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
 	}
 }
 
-static void buf_get_qid(struct cbuf *bufp, struct v9fs_qid *qid)
+static void buf_get_qid(struct cbuf *bufp, struct p9_qid *qid)
 {
 	qid->type = buf_get_int8(bufp);
 	qid->version = buf_get_int32(bufp);
@@ -203,18 +201,18 @@ static void buf_get_qid(struct cbuf *bufp, struct v9fs_qid *qid)
 }
 
 /**
- * v9fs_size_wstat - calculate the size of a variable length stat struct
+ * p9_size_wstat - calculate the size of a variable length stat struct
  * @stat: metadata (stat) structure
- * @extended: non-zero if 9P2000.u
+ * @dotu: non-zero if 9P2000.u
  *
  */
 
-static int v9fs_size_wstat(struct v9fs_wstat *wstat, int extended)
+static int p9_size_wstat(struct p9_wstat *wstat, int dotu)
 {
 	int size = 0;
 
 	if (wstat == NULL) {
-		eprintk(KERN_ERR, "v9fs_size_stat: got a NULL stat pointer\n");
+		P9_EPRINTK(KERN_ERR, "p9_size_stat: got a NULL stat pointer\n");
 		return 0;
 	}
 
@@ -239,7 +237,7 @@ static int v9fs_size_wstat(struct v9fs_wstat *wstat, int extended)
 	if (wstat->muid)
 		size += strlen(wstat->muid);
 
-	if (extended) {
+	if (dotu) {
 		size += 4 +	/* n_uid[4] */
 		    4 +		/* n_gid[4] */
 		    4 +		/* n_muid[4] */
@@ -255,12 +253,12 @@ static int v9fs_size_wstat(struct v9fs_wstat *wstat, int extended)
  * buf_get_stat - safely decode a recieved metadata (stat) structure
  * @bufp: buffer to deserialize
  * @stat: metadata (stat) structure
- * @extended: non-zero if 9P2000.u
+ * @dotu: non-zero if 9P2000.u
  *
  */
 
 static void
-buf_get_stat(struct cbuf *bufp, struct v9fs_stat *stat, int extended)
+buf_get_stat(struct cbuf *bufp, struct p9_stat *stat, int dotu)
 {
 	stat->size = buf_get_int16(bufp);
 	stat->type = buf_get_int16(bufp);
@@ -277,7 +275,7 @@ buf_get_stat(struct cbuf *bufp, struct v9fs_stat *stat, int extended)
 	buf_get_str(bufp, &stat->gid);
 	buf_get_str(bufp, &stat->muid);
 
-	if (extended) {
+	if (dotu) {
 		buf_get_str(bufp, &stat->extension);
 		stat->n_uid = buf_get_int32(bufp);
 		stat->n_gid = buf_get_int32(bufp);
@@ -286,18 +284,18 @@ buf_get_stat(struct cbuf *bufp, struct v9fs_stat *stat, int extended)
 }
 
 /**
- * v9fs_deserialize_stat - decode a received metadata structure
+ * p9_deserialize_stat - decode a received metadata structure
  * @buf: buffer to deserialize
  * @buflen: length of received buffer
  * @stat: metadata structure to decode into
- * @extended: non-zero if 9P2000.u
+ * @dotu: non-zero if 9P2000.u
  *
  * Note: stat will point to the buf region.
  */
 
 int
-v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
-		int extended)
+p9_deserialize_stat(void *buf, u32 buflen, struct p9_stat *stat,
+		int dotu)
 {
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
@@ -305,13 +303,14 @@ v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
 
 	buf_init(bufp, buf, buflen);
 	p = bufp->p;
-	buf_get_stat(bufp, stat, extended);
+	buf_get_stat(bufp, stat, dotu);
 
 	if (buf_check_overflow(bufp))
 		return 0;
 	else
 		return bufp->p - p;
 }
+EXPORT_SYMBOL(p9_deserialize_stat);
 
 /**
  * deserialize_fcall - unmarshal a response
@@ -319,13 +318,13 @@ v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
  * @buflen: length of received buffer
  * @rcall: fcall structure to populate
  * @rcalllen: length of fcall structure to populate
- * @extended: non-zero if 9P2000.u
+ * @dotu: non-zero if 9P2000.u
  *
  */
 
 int
-v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
-		       int extended)
+p9_deserialize_fcall(void *buf, u32 buflen, struct p9_fcall *rcall,
+		       int dotu)
 {
 
 	struct cbuf buffer;
@@ -338,102 +337,104 @@ v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
 	rcall->id = buf_get_int8(bufp);
 	rcall->tag = buf_get_int16(bufp);
 
-	dprintk(DEBUG_CONV, "size %d id %d tag %d\n", rcall->size, rcall->id,
-		rcall->tag);
+	P9_DPRINTK(P9_DEBUG_CONV, "size %d id %d tag %d\n", rcall->size,
+							rcall->id, rcall->tag);
 
 	switch (rcall->id) {
 	default:
-		eprintk(KERN_ERR, "unknown message type: %d\n", rcall->id);
+		P9_EPRINTK(KERN_ERR, "unknown message type: %d\n", rcall->id);
 		return -EPROTO;
-	case RVERSION:
+	case P9_RVERSION:
 		rcall->params.rversion.msize = buf_get_int32(bufp);
 		buf_get_str(bufp, &rcall->params.rversion.version);
 		break;
-	case RFLUSH:
+	case P9_RFLUSH:
 		break;
-	case RATTACH:
+	case P9_RATTACH:
 		rcall->params.rattach.qid.type = buf_get_int8(bufp);
 		rcall->params.rattach.qid.version = buf_get_int32(bufp);
 		rcall->params.rattach.qid.path = buf_get_int64(bufp);
 		break;
-	case RWALK:
+	case P9_RWALK:
 		rcall->params.rwalk.nwqid = buf_get_int16(bufp);
-		if (rcall->params.rwalk.nwqid > V9FS_MAXWELEM) {
-			eprintk(KERN_ERR, "Rwalk with more than %d qids: %d\n",
-				V9FS_MAXWELEM, rcall->params.rwalk.nwqid);
+		if (rcall->params.rwalk.nwqid > P9_MAXWELEM) {
+			P9_EPRINTK(KERN_ERR,
+					"Rwalk with more than %d qids: %d\n",
+					P9_MAXWELEM, rcall->params.rwalk.nwqid);
 			return -EPROTO;
 		}
 
 		for (i = 0; i < rcall->params.rwalk.nwqid; i++)
 			buf_get_qid(bufp, &rcall->params.rwalk.wqids[i]);
 		break;
-	case ROPEN:
+	case P9_ROPEN:
 		buf_get_qid(bufp, &rcall->params.ropen.qid);
 		rcall->params.ropen.iounit = buf_get_int32(bufp);
 		break;
-	case RCREATE:
+	case P9_RCREATE:
 		buf_get_qid(bufp, &rcall->params.rcreate.qid);
 		rcall->params.rcreate.iounit = buf_get_int32(bufp);
 		break;
-	case RREAD:
+	case P9_RREAD:
 		rcall->params.rread.count = buf_get_int32(bufp);
 		rcall->params.rread.data = bufp->p;
 		buf_check_size(bufp, rcall->params.rread.count);
 		break;
-	case RWRITE:
+	case P9_RWRITE:
 		rcall->params.rwrite.count = buf_get_int32(bufp);
 		break;
-	case RCLUNK:
+	case P9_RCLUNK:
 		break;
-	case RREMOVE:
+	case P9_RREMOVE:
 		break;
-	case RSTAT:
+	case P9_RSTAT:
 		buf_get_int16(bufp);
-		buf_get_stat(bufp, &rcall->params.rstat.stat, extended);
+		buf_get_stat(bufp, &rcall->params.rstat.stat, dotu);
 		break;
-	case RWSTAT:
+	case P9_RWSTAT:
 		break;
-	case RERROR:
+	case P9_RERROR:
 		buf_get_str(bufp, &rcall->params.rerror.error);
-		if (extended)
+		if (dotu)
 			rcall->params.rerror.errno = buf_get_int16(bufp);
 		break;
 	}
 
 	if (buf_check_overflow(bufp)) {
-		dprintk(DEBUG_ERROR, "buffer overflow\n");
+		P9_DPRINTK(P9_DEBUG_ERROR, "buffer overflow\n");
 		return -EIO;
 	}
 
 	return bufp->p - bufp->sp;
 }
+EXPORT_SYMBOL(p9_deserialize_fcall);
 
-static inline void v9fs_put_int8(struct cbuf *bufp, u8 val, u8 * p)
+static inline void p9_put_int8(struct cbuf *bufp, u8 val, u8 * p)
 {
 	*p = val;
 	buf_put_int8(bufp, val);
 }
 
-static inline void v9fs_put_int16(struct cbuf *bufp, u16 val, u16 * p)
+static inline void p9_put_int16(struct cbuf *bufp, u16 val, u16 * p)
 {
 	*p = val;
 	buf_put_int16(bufp, val);
 }
 
-static inline void v9fs_put_int32(struct cbuf *bufp, u32 val, u32 * p)
+static inline void p9_put_int32(struct cbuf *bufp, u32 val, u32 * p)
 {
 	*p = val;
 	buf_put_int32(bufp, val);
 }
 
-static inline void v9fs_put_int64(struct cbuf *bufp, u64 val, u64 * p)
+static inline void p9_put_int64(struct cbuf *bufp, u64 val, u64 * p)
 {
 	*p = val;
 	buf_put_int64(bufp, val);
 }
 
 static void
-v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
+p9_put_str(struct cbuf *bufp, char *data, struct p9_str *str)
 {
 	int len;
 	char *s;
@@ -451,7 +452,16 @@ v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
 }
 
 static int
-v9fs_put_user_data(struct cbuf *bufp, const char __user * data, int count,
+p9_put_data(struct cbuf *bufp, const char *data, int count,
+		   unsigned char **pdata)
+{
+	*pdata = buf_alloc(bufp, count);
+	memmove(*pdata, data, count);
+	return count;
+}
+
+static int
+p9_put_user_data(struct cbuf *bufp, const char __user *data, int count,
 		   unsigned char **pdata)
 {
 	*pdata = buf_alloc(bufp, count);
@@ -459,162 +469,167 @@ v9fs_put_user_data(struct cbuf *bufp, const char __user * data, int count,
 }
 
 static void
-v9fs_put_wstat(struct cbuf *bufp, struct v9fs_wstat *wstat,
-	       struct v9fs_stat *stat, int statsz, int extended)
+p9_put_wstat(struct cbuf *bufp, struct p9_wstat *wstat,
+	       struct p9_stat *stat, int statsz, int dotu)
 {
-	v9fs_put_int16(bufp, statsz, &stat->size);
-	v9fs_put_int16(bufp, wstat->type, &stat->type);
-	v9fs_put_int32(bufp, wstat->dev, &stat->dev);
-	v9fs_put_int8(bufp, wstat->qid.type, &stat->qid.type);
-	v9fs_put_int32(bufp, wstat->qid.version, &stat->qid.version);
-	v9fs_put_int64(bufp, wstat->qid.path, &stat->qid.path);
-	v9fs_put_int32(bufp, wstat->mode, &stat->mode);
-	v9fs_put_int32(bufp, wstat->atime, &stat->atime);
-	v9fs_put_int32(bufp, wstat->mtime, &stat->mtime);
-	v9fs_put_int64(bufp, wstat->length, &stat->length);
+	p9_put_int16(bufp, statsz, &stat->size);
+	p9_put_int16(bufp, wstat->type, &stat->type);
+	p9_put_int32(bufp, wstat->dev, &stat->dev);
+	p9_put_int8(bufp, wstat->qid.type, &stat->qid.type);
+	p9_put_int32(bufp, wstat->qid.version, &stat->qid.version);
+	p9_put_int64(bufp, wstat->qid.path, &stat->qid.path);
+	p9_put_int32(bufp, wstat->mode, &stat->mode);
+	p9_put_int32(bufp, wstat->atime, &stat->atime);
+	p9_put_int32(bufp, wstat->mtime, &stat->mtime);
+	p9_put_int64(bufp, wstat->length, &stat->length);
 
-	v9fs_put_str(bufp, wstat->name, &stat->name);
-	v9fs_put_str(bufp, wstat->uid, &stat->uid);
-	v9fs_put_str(bufp, wstat->gid, &stat->gid);
-	v9fs_put_str(bufp, wstat->muid, &stat->muid);
+	p9_put_str(bufp, wstat->name, &stat->name);
+	p9_put_str(bufp, wstat->uid, &stat->uid);
+	p9_put_str(bufp, wstat->gid, &stat->gid);
+	p9_put_str(bufp, wstat->muid, &stat->muid);
 
-	if (extended) {
-		v9fs_put_str(bufp, wstat->extension, &stat->extension);
-		v9fs_put_int32(bufp, wstat->n_uid, &stat->n_uid);
-		v9fs_put_int32(bufp, wstat->n_gid, &stat->n_gid);
-		v9fs_put_int32(bufp, wstat->n_muid, &stat->n_muid);
+	if (dotu) {
+		p9_put_str(bufp, wstat->extension, &stat->extension);
+		p9_put_int32(bufp, wstat->n_uid, &stat->n_uid);
+		p9_put_int32(bufp, wstat->n_gid, &stat->n_gid);
+		p9_put_int32(bufp, wstat->n_muid, &stat->n_muid);
 	}
 }
 
-static struct v9fs_fcall *
-v9fs_create_common(struct cbuf *bufp, u32 size, u8 id)
+static struct p9_fcall *
+p9_create_common(struct cbuf *bufp, u32 size, u8 id)
 {
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 
 	size += 4 + 1 + 2;	/* size[4] id[1] tag[2] */
-	fc = kmalloc(sizeof(struct v9fs_fcall) + size, GFP_KERNEL);
+	fc = kmalloc(sizeof(struct p9_fcall) + size, GFP_KERNEL);
 	if (!fc)
 		return ERR_PTR(-ENOMEM);
 
 	fc->sdata = (char *)fc + sizeof(*fc);
 
 	buf_init(bufp, (char *)fc->sdata, size);
-	v9fs_put_int32(bufp, size, &fc->size);
-	v9fs_put_int8(bufp, id, &fc->id);
-	v9fs_put_int16(bufp, V9FS_NOTAG, &fc->tag);
+	p9_put_int32(bufp, size, &fc->size);
+	p9_put_int8(bufp, id, &fc->id);
+	p9_put_int16(bufp, P9_NOTAG, &fc->tag);
 
 	return fc;
 }
 
-void v9fs_set_tag(struct v9fs_fcall *fc, u16 tag)
+void p9_set_tag(struct p9_fcall *fc, u16 tag)
 {
 	fc->tag = tag;
 	*(__le16 *) (fc->sdata + 5) = cpu_to_le16(tag);
 }
+EXPORT_SYMBOL(p9_set_tag);
 
-struct v9fs_fcall *v9fs_create_tversion(u32 msize, char *version)
+struct p9_fcall *p9_create_tversion(u32 msize, char *version)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 4 + 2 + strlen(version);	/* msize[4] version[s] */
-	fc = v9fs_create_common(bufp, size, TVERSION);
+	fc = p9_create_common(bufp, size, P9_TVERSION);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, msize, &fc->params.tversion.msize);
-	v9fs_put_str(bufp, version, &fc->params.tversion.version);
+	p9_put_int32(bufp, msize, &fc->params.tversion.msize);
+	p9_put_str(bufp, version, &fc->params.tversion.version);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tversion);
 
-#if 0
-struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname)
+struct p9_fcall *p9_create_tauth(u32 afid, char *uname, char *aname)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	size = 4 + 2 + strlen(uname) + 2 + strlen(aname);	/* afid[4] uname[s] aname[s] */
-	fc = v9fs_create_common(bufp, size, TAUTH);
+	/* afid[4] uname[s] aname[s] */
+	size = 4 + 2 + strlen(uname) + 2 + strlen(aname);
+	fc = p9_create_common(bufp, size, P9_TAUTH);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, afid, &fc->params.tauth.afid);
-	v9fs_put_str(bufp, uname, &fc->params.tauth.uname);
-	v9fs_put_str(bufp, aname, &fc->params.tauth.aname);
+	p9_put_int32(bufp, afid, &fc->params.tauth.afid);
+	p9_put_str(bufp, uname, &fc->params.tauth.uname);
+	p9_put_str(bufp, aname, &fc->params.tauth.aname);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
-#endif  /*  0  */
+EXPORT_SYMBOL(p9_create_tauth);
 
-struct v9fs_fcall *
-v9fs_create_tattach(u32 fid, u32 afid, char *uname, char *aname)
+struct p9_fcall *
+p9_create_tattach(u32 fid, u32 afid, char *uname, char *aname)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	size = 4 + 4 + 2 + strlen(uname) + 2 + strlen(aname);	/* fid[4] afid[4] uname[s] aname[s] */
-	fc = v9fs_create_common(bufp, size, TATTACH);
+	/* fid[4] afid[4] uname[s] aname[s] */
+	size = 4 + 4 + 2 + strlen(uname) + 2 + strlen(aname);
+	fc = p9_create_common(bufp, size, P9_TATTACH);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tattach.fid);
-	v9fs_put_int32(bufp, afid, &fc->params.tattach.afid);
-	v9fs_put_str(bufp, uname, &fc->params.tattach.uname);
-	v9fs_put_str(bufp, aname, &fc->params.tattach.aname);
+	p9_put_int32(bufp, fid, &fc->params.tattach.fid);
+	p9_put_int32(bufp, afid, &fc->params.tattach.afid);
+	p9_put_str(bufp, uname, &fc->params.tattach.uname);
+	p9_put_str(bufp, aname, &fc->params.tattach.aname);
 
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tattach);
 
-struct v9fs_fcall *v9fs_create_tflush(u16 oldtag)
+struct p9_fcall *p9_create_tflush(u16 oldtag)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 2;		/* oldtag[2] */
-	fc = v9fs_create_common(bufp, size, TFLUSH);
+	fc = p9_create_common(bufp, size, P9_TFLUSH);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int16(bufp, oldtag, &fc->params.tflush.oldtag);
+	p9_put_int16(bufp, oldtag, &fc->params.tflush.oldtag);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tflush);
 
-struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
+struct p9_fcall *p9_create_twalk(u32 fid, u32 newfid, u16 nwname,
 				     char **wnames)
 {
 	int i, size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	if (nwname > V9FS_MAXWELEM) {
-		dprintk(DEBUG_ERROR, "nwname > %d\n", V9FS_MAXWELEM);
+	if (nwname > P9_MAXWELEM) {
+		P9_DPRINTK(P9_DEBUG_ERROR, "nwname > %d\n", P9_MAXWELEM);
 		return NULL;
 	}
 
@@ -623,122 +638,128 @@ struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
 		size += 2 + strlen(wnames[i]);	/* wname[s] */
 	}
 
-	fc = v9fs_create_common(bufp, size, TWALK);
+	fc = p9_create_common(bufp, size, P9_TWALK);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.twalk.fid);
-	v9fs_put_int32(bufp, newfid, &fc->params.twalk.newfid);
-	v9fs_put_int16(bufp, nwname, &fc->params.twalk.nwname);
+	p9_put_int32(bufp, fid, &fc->params.twalk.fid);
+	p9_put_int32(bufp, newfid, &fc->params.twalk.newfid);
+	p9_put_int16(bufp, nwname, &fc->params.twalk.nwname);
 	for (i = 0; i < nwname; i++) {
-		v9fs_put_str(bufp, wnames[i], &fc->params.twalk.wnames[i]);
+		p9_put_str(bufp, wnames[i], &fc->params.twalk.wnames[i]);
 	}
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_twalk);
 
-struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode)
+struct p9_fcall *p9_create_topen(u32 fid, u8 mode)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 4 + 1;		/* fid[4] mode[1] */
-	fc = v9fs_create_common(bufp, size, TOPEN);
+	fc = p9_create_common(bufp, size, P9_TOPEN);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.topen.fid);
-	v9fs_put_int8(bufp, mode, &fc->params.topen.mode);
+	p9_put_int32(bufp, fid, &fc->params.topen.fid);
+	p9_put_int8(bufp, mode, &fc->params.topen.mode);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_topen);
 
-struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
-	char *extension, int extended)
+struct p9_fcall *p9_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
+	char *extension, int dotu)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	size = 4 + 2 + strlen(name) + 4 + 1;	/* fid[4] name[s] perm[4] mode[1] */
-	if (extended) {
+	/* fid[4] name[s] perm[4] mode[1] */
+	size = 4 + 2 + strlen(name) + 4 + 1;
+	if (dotu) {
 		size += 2 +			/* extension[s] */
 		    (extension == NULL ? 0 : strlen(extension));
 	}
 
-	fc = v9fs_create_common(bufp, size, TCREATE);
+	fc = p9_create_common(bufp, size, P9_TCREATE);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tcreate.fid);
-	v9fs_put_str(bufp, name, &fc->params.tcreate.name);
-	v9fs_put_int32(bufp, perm, &fc->params.tcreate.perm);
-	v9fs_put_int8(bufp, mode, &fc->params.tcreate.mode);
-	if (extended)
-		v9fs_put_str(bufp, extension, &fc->params.tcreate.extension);
+	p9_put_int32(bufp, fid, &fc->params.tcreate.fid);
+	p9_put_str(bufp, name, &fc->params.tcreate.name);
+	p9_put_int32(bufp, perm, &fc->params.tcreate.perm);
+	p9_put_int8(bufp, mode, &fc->params.tcreate.mode);
+	if (dotu)
+		p9_put_str(bufp, extension, &fc->params.tcreate.extension);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tcreate);
 
-struct v9fs_fcall *v9fs_create_tread(u32 fid, u64 offset, u32 count)
+struct p9_fcall *p9_create_tread(u32 fid, u64 offset, u32 count)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 4 + 8 + 4;	/* fid[4] offset[8] count[4] */
-	fc = v9fs_create_common(bufp, size, TREAD);
+	fc = p9_create_common(bufp, size, P9_TREAD);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tread.fid);
-	v9fs_put_int64(bufp, offset, &fc->params.tread.offset);
-	v9fs_put_int32(bufp, count, &fc->params.tread.count);
+	p9_put_int32(bufp, fid, &fc->params.tread.fid);
+	p9_put_int64(bufp, offset, &fc->params.tread.offset);
+	p9_put_int32(bufp, count, &fc->params.tread.count);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tread);
 
-struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
-				      const char __user * data)
+struct p9_fcall *p9_create_twrite(u32 fid, u64 offset, u32 count,
+				      const char *data)
 {
 	int size, err;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	size = 4 + 8 + 4 + count;	/* fid[4] offset[8] count[4] data[count] */
-	fc = v9fs_create_common(bufp, size, TWRITE);
+	/* fid[4] offset[8] count[4] data[count] */
+	size = 4 + 8 + 4 + count;
+	fc = p9_create_common(bufp, size, P9_TWRITE);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.twrite.fid);
-	v9fs_put_int64(bufp, offset, &fc->params.twrite.offset);
-	v9fs_put_int32(bufp, count, &fc->params.twrite.count);
-	err = v9fs_put_user_data(bufp, data, count, &fc->params.twrite.data);
+	p9_put_int32(bufp, fid, &fc->params.twrite.fid);
+	p9_put_int64(bufp, offset, &fc->params.twrite.offset);
+	p9_put_int32(bufp, count, &fc->params.twrite.count);
+	err = p9_put_data(bufp, data, count, &fc->params.twrite.data);
 	if (err) {
 		kfree(fc);
 		fc = ERR_PTR(err);
@@ -748,98 +769,135 @@ struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_twrite);
 
-struct v9fs_fcall *v9fs_create_tclunk(u32 fid)
+struct p9_fcall *p9_create_twrite_u(u32 fid, u64 offset, u32 count,
+				      const char __user *data)
 {
-	int size;
-	struct v9fs_fcall *fc;
+	int size, err;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	size = 4;		/* fid[4] */
-	fc = v9fs_create_common(bufp, size, TCLUNK);
+	/* fid[4] offset[8] count[4] data[count] */
+	size = 4 + 8 + 4 + count;
+	fc = p9_create_common(bufp, size, P9_TWRITE);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tclunk.fid);
+	p9_put_int32(bufp, fid, &fc->params.twrite.fid);
+	p9_put_int64(bufp, offset, &fc->params.twrite.offset);
+	p9_put_int32(bufp, count, &fc->params.twrite.count);
+	err = p9_put_user_data(bufp, data, count, &fc->params.twrite.data);
+	if (err) {
+		kfree(fc);
+		fc = ERR_PTR(err);
+	}
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_twrite_u);
 
-struct v9fs_fcall *v9fs_create_tremove(u32 fid)
+struct p9_fcall *p9_create_tclunk(u32 fid)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 4;		/* fid[4] */
-	fc = v9fs_create_common(bufp, size, TREMOVE);
+	fc = p9_create_common(bufp, size, P9_TCLUNK);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tremove.fid);
+	p9_put_int32(bufp, fid, &fc->params.tclunk.fid);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tclunk);
 
-struct v9fs_fcall *v9fs_create_tstat(u32 fid)
+struct p9_fcall *p9_create_tremove(u32 fid)
 {
 	int size;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
 	size = 4;		/* fid[4] */
-	fc = v9fs_create_common(bufp, size, TSTAT);
+	fc = p9_create_common(bufp, size, P9_TREMOVE);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.tstat.fid);
+	p9_put_int32(bufp, fid, &fc->params.tremove.fid);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_tremove);
 
-struct v9fs_fcall *v9fs_create_twstat(u32 fid, struct v9fs_wstat *wstat,
-				      int extended)
+struct p9_fcall *p9_create_tstat(u32 fid)
+{
+	int size;
+	struct p9_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4;		/* fid[4] */
+	fc = p9_create_common(bufp, size, P9_TSTAT);
+	if (IS_ERR(fc))
+		goto error;
+
+	p9_put_int32(bufp, fid, &fc->params.tstat.fid);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+error:
+	return fc;
+}
+EXPORT_SYMBOL(p9_create_tstat);
+
+struct p9_fcall *p9_create_twstat(u32 fid, struct p9_wstat *wstat,
+				      int dotu)
 {
 	int size, statsz;
-	struct v9fs_fcall *fc;
+	struct p9_fcall *fc;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
 
-	statsz = v9fs_size_wstat(wstat, extended);
+	statsz = p9_size_wstat(wstat, dotu);
 	size = 4 + 2 + 2 + statsz;	/* fid[4] stat[n] */
-	fc = v9fs_create_common(bufp, size, TWSTAT);
+	fc = p9_create_common(bufp, size, P9_TWSTAT);
 	if (IS_ERR(fc))
 		goto error;
 
-	v9fs_put_int32(bufp, fid, &fc->params.twstat.fid);
+	p9_put_int32(bufp, fid, &fc->params.twstat.fid);
 	buf_put_int16(bufp, statsz + 2);
-	v9fs_put_wstat(bufp, wstat, &fc->params.twstat.stat, statsz, extended);
+	p9_put_wstat(bufp, wstat, &fc->params.twstat.stat, statsz, dotu);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);
 		fc = ERR_PTR(-ENOMEM);
 	}
-      error:
+error:
 	return fc;
 }
+EXPORT_SYMBOL(p9_create_twstat);

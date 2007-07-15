@@ -33,10 +33,10 @@
 #include <linux/pagemap.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <net/9p/9p.h>
+#include <net/9p/client.h>
 
-#include "debug.h"
 #include "v9fs.h"
-#include "9p.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
 
@@ -50,55 +50,26 @@
 
 static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 {
-	char *buffer = NULL;
-	int retval = -EIO;
-	loff_t offset = page_offset(page);
-	int count = PAGE_CACHE_SIZE;
-	struct inode *inode = filp->f_path.dentry->d_inode;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	int rsize = v9ses->maxdata - V9FS_IOHDRSZ;
-	struct v9fs_fid *v9f = filp->private_data;
-	struct v9fs_fcall *fcall = NULL;
-	int fid = v9f->fid;
-	int total = 0;
-	int result = 0;
+	int retval;
+	loff_t offset;
+	char *buffer;
+	struct p9_fid *fid;
 
-	dprintk(DEBUG_VFS, "\n");
-
+	P9_DPRINTK(P9_DEBUG_VFS, "\n");
+	fid = filp->private_data;
 	buffer = kmap(page);
-	do {
-		if (count < rsize)
-			rsize = count;
+	offset = page_offset(page);
 
-		result = v9fs_t_read(v9ses, fid, offset, rsize, &fcall);
+	retval = p9_client_readn(fid, buffer, offset, PAGE_CACHE_SIZE);
+	if (retval < 0)
+		goto done;
 
-		if (result < 0) {
-			printk(KERN_ERR "v9fs_t_read returned %d\n",
-			       result);
-
-			kfree(fcall);
-			goto UnmapAndUnlock;
-		} else
-			offset += result;
-
-		memcpy(buffer, fcall->params.rread.data, result);
-
-		count -= result;
-		buffer += result;
-		total += result;
-
-		kfree(fcall);
-
-		if (result < rsize)
-			break;
-	} while (count);
-
-	memset(buffer, 0, count);
+	memset(buffer + retval, 0, PAGE_CACHE_SIZE - retval);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	retval = 0;
 
-UnmapAndUnlock:
+done:
 	kunmap(page);
 	unlock_page(page);
 	return retval;
