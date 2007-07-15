@@ -1497,7 +1497,7 @@ static int __init ip6_tables_init(void)
 	if (ret < 0)
 		goto err5;
 
-	printk("ip6_tables: (C) 2000-2006 Netfilter Core Team\n");
+	printk(KERN_INFO "ip6_tables: (C) 2000-2006 Netfilter Core Team\n");
 	return 0;
 
 err5:
