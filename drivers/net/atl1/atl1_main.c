@@ -1344,21 +1344,21 @@ static void atl1_tx_map(struct atl1_adapter *adapter,
 
 		if (first_buf_len > proto_hdr_len) {
 			len12 = first_buf_len - proto_hdr_len;
-			m = (len12 + MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;
+			m = (len12 + ATL1_MAX_TX_BUF_LEN - 1) / ATL1_MAX_TX_BUF_LEN;
 			for (i = 0; i < m; i++) {
 				buffer_info =
 				    &tpd_ring->buffer_info[tpd_next_to_use];
 				buffer_info->skb = NULL;
 				buffer_info->length =
-				    (MAX_TX_BUF_LEN >=
-				     len12) ? MAX_TX_BUF_LEN : len12;
+				    (ATL1_MAX_TX_BUF_LEN >=
+				     len12) ? ATL1_MAX_TX_BUF_LEN : len12;
 				len12 -= buffer_info->length;
 				page = virt_to_page(skb->data +
 						 (proto_hdr_len +
-						  i * MAX_TX_BUF_LEN));
+						  i * ATL1_MAX_TX_BUF_LEN));
 				offset = (unsigned long)(skb->data +
 							(proto_hdr_len +
-							i * MAX_TX_BUF_LEN)) &
+							i * ATL1_MAX_TX_BUF_LEN)) &
 							~PAGE_MASK;
 				buffer_info->dma =
 				    pci_map_page(adapter->pdev, page, offset,
@@ -1387,18 +1387,18 @@ static void atl1_tx_map(struct atl1_adapter *adapter,
 		frag = &skb_shinfo(skb)->frags[f];
 		lenf = frag->size;
 
-		m = (lenf + MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;
+		m = (lenf + ATL1_MAX_TX_BUF_LEN - 1) / ATL1_MAX_TX_BUF_LEN;
 		for (i = 0; i < m; i++) {
 			buffer_info = &tpd_ring->buffer_info[tpd_next_to_use];
 			if (unlikely(buffer_info->skb))
 				BUG();
 			buffer_info->skb = NULL;
 			buffer_info->length =
-			    (lenf > MAX_TX_BUF_LEN) ? MAX_TX_BUF_LEN : lenf;
+			    (lenf > ATL1_MAX_TX_BUF_LEN) ? ATL1_MAX_TX_BUF_LEN : lenf;
 			lenf -= buffer_info->length;
 			buffer_info->dma =
 			    pci_map_page(adapter->pdev, frag->page,
-					 frag->page_offset + i * MAX_TX_BUF_LEN,
+					 frag->page_offset + i * ATL1_MAX_TX_BUF_LEN,
 					 buffer_info->length, PCI_DMA_TODEVICE);
 
 			if (++tpd_next_to_use == tpd_ring->count)
@@ -1516,7 +1516,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		frag_size = skb_shinfo(skb)->frags[f].size;
 		if (frag_size)
 			count +=
-			    (frag_size + MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;
+			    (frag_size + ATL1_MAX_TX_BUF_LEN - 1) / ATL1_MAX_TX_BUF_LEN;
 	}
 
 	/* mss will be nonzero if we're doing segment offload (TSO/GSO) */
@@ -1532,7 +1532,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			/* need additional TPD ? */
 			if (proto_hdr_len != len)
 				count += (len - proto_hdr_len +
-					MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;
+					ATL1_MAX_TX_BUF_LEN - 1) / ATL1_MAX_TX_BUF_LEN;
 		}
 	}
 
