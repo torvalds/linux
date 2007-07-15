@@ -2155,6 +2155,12 @@ typedef struct {
 	/* struct following varies based on requested level */
 } __attribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
 
+#define SMB_POSIX_UNLINK_FILE_TARGET		0
+#define SMB_POSIX_UNLINK_DIRECTORY_TARGET	1
+
+struct unlink_psx_rq { /* level 0x20a SetPathInfo */
+	__le16 type;
+} __attribute__((packed));
 
 struct file_internal_info {
 	__u64  UniqueId; /* inode number */

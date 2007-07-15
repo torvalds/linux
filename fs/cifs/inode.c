@@ -620,9 +620,21 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
+
+	if ((pTcon->ses->capabilities & CAP_UNIX) &&
+		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
+			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
+		rc = CIFSPOSIXDelFile(xid, pTcon, full_path,
+			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cFYI(1, ("posix del rc %d", rc));
+		if ((rc == 0) || (rc == -ENOENT))
+			goto psx_del_no_retry;
+	}
+
 	rc = CIFSSMBDelFile(xid, pTcon, full_path, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-
+psx_del_no_retry:
 	if (!rc) {
 		if (direntry->d_inode)
 			drop_nlink(direntry->d_inode);

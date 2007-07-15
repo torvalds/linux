@@ -196,7 +196,10 @@ extern int CIFSSMBMkDir(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBRmDir(const int xid, struct cifsTconInfo *tcon,
 			const char *name, const struct nls_table *nls_codepage,
 			int remap_special_chars);
-
+extern int CIFSPOSIXDelFile(const int xid, struct cifsTconInfo *tcon,
+			const char *name, __u16 type,
+			const struct nls_table *nls_codepage,
+			int remap_special_chars);
 extern int CIFSSMBDelFile(const int xid, struct cifsTconInfo *tcon,
 			const char *name,
 			const struct nls_table *nls_codepage,
