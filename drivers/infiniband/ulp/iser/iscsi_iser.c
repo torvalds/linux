@@ -134,19 +134,9 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn     *iser_conn  = ctask->conn->dd_data;
 	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
-	struct scsi_cmnd  *sc = ctask->sc;
 
 	iser_ctask->command_sent = 0;
 	iser_ctask->iser_conn    = iser_conn;
-
-	if (sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(ctask->total_length == 0);
-
-		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
-			   ctask->itt, ctask->total_length, ctask->imm_count,
-			   ctask->unsol_count);
-	}
-
 	iser_ctask_rdma_init(iser_ctask);
 }
 
@@ -218,6 +208,14 @@ iscsi_iser_ctask_xmit(struct iscsi_conn *conn,
 {
 	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
 	int error = 0;
+
+	if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {
+		BUG_ON(scsi_bufflen(ctask->sc) == 0);
+
+		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
+			   ctask->itt, scsi_bufflen(ctask->sc),
+			   ctask->imm_count, ctask->unsol_count);
+	}
 
 	debug_scsi("ctask deq [cid %d itt 0x%x]\n",
 		   conn->id, ctask->itt);
@@ -375,7 +373,8 @@ static struct iscsi_transport iscsi_iser_transport;
 static struct iscsi_cls_session *
 iscsi_iser_session_create(struct iscsi_transport *iscsit,
 			 struct scsi_transport_template *scsit,
-			  uint32_t initial_cmdsn, uint32_t *hostno)
+			 uint16_t cmds_max, uint16_t qdepth,
+			 uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -386,7 +385,13 @@ iscsi_iser_session_create(struct iscsi_transport *iscsit,
 	struct iscsi_iser_cmd_task *iser_ctask;
 	struct iser_desc *desc;
 
+	/*
+	 * we do not support setting can_queue cmd_per_lun from userspace yet
+	 * because we preallocate so many resources
+	 */
 	cls_session = iscsi_session_setup(iscsit, scsit,
+					  ISCSI_DEF_XMIT_CMDS_MAX,
+					  ISCSI_MAX_CMD_PER_LUN,
 					  sizeof(struct iscsi_iser_cmd_task),
 					  sizeof(struct iser_desc),
 					  initial_cmdsn, &hn);
@@ -545,7 +550,7 @@ iscsi_iser_ep_disconnect(__u64 ep_handle)
 static struct scsi_host_template iscsi_iser_sht = {
 	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
 	.queuecommand           = iscsi_queuecommand,
-	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
+	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
 	.max_sectors		= 1024,
 	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,
@@ -574,8 +579,12 @@ static struct iscsi_transport iscsi_iser_transport = {
 				  ISCSI_EXP_STATSN |
 				  ISCSI_PERSISTENT_PORT |
 				  ISCSI_PERSISTENT_ADDRESS |
-				  ISCSI_TARGET_NAME |
-				  ISCSI_TPGT,
+				  ISCSI_TARGET_NAME | ISCSI_TPGT |
+				  ISCSI_USERNAME | ISCSI_PASSWORD |
+				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS |
+				  ISCSI_HOST_NETDEV_NAME |
+				  ISCSI_HOST_INITIATOR_NAME,
 	.host_template          = &iscsi_iser_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
 	.max_lun                = ISCSI_ISER_MAX_LUN,
@@ -592,6 +601,9 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn             = iscsi_iser_conn_start,
 	.stop_conn              = iscsi_conn_stop,
+	/* iscsi host params */
+	.get_host_param		= iscsi_host_get_param,
+	.set_host_param		= iscsi_host_set_param,
 	/* IO */
 	.send_pdu		= iscsi_conn_send_pdu,
 	.get_stats		= iscsi_iser_conn_get_stats,

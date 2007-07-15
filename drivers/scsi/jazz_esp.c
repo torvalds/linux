@@ -1,6 +1,6 @@
 /* jazz_esp.c: ESP front-end for MIPS JAZZ systems.
  *
- * Copyright (C) 2007 Thomas BogendÃ¶rfer (tsbogend@alpha.frankende)
+ * Copyright (C) 2007 Thomas Bogendörfer (tsbogend@alpha.frankende)
  */
 
 #include <linux/kernel.h>
@@ -143,7 +143,7 @@ static int __devinit esp_jazz_probe(struct platform_device *dev)
 		goto fail;
 
 	host->max_id = 8;
-	esp = host_to_esp(host);
+	esp = shost_priv(host);
 
 	esp->host = host;
 	esp->dev = dev;

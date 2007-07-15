@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -110,7 +110,6 @@ struct fcp_cmnd {
 struct lpfc_scsi_buf {
 	struct list_head list;
 	struct scsi_cmnd *pCmd;
-	struct lpfc_hba *scsi_hba;
 	struct lpfc_rport_data *rdata;
 
 	uint32_t timeout;

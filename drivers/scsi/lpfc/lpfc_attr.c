@@ -39,6 +39,7 @@
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
 #include "lpfc_crtn.h"
+#include "lpfc_vport.h"
 
 #define LPFC_DEF_DEVLOSS_TMO 30
 #define LPFC_MIN_DEVLOSS_TMO 1
@@ -76,116 +77,156 @@ static ssize_t
 lpfc_info_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",lpfc_info(host));
 }
 
 static ssize_t
 lpfc_serialnum_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->SerialNumber);
 }
 
 static ssize_t
 lpfc_modeldesc_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ModelDesc);
 }
 
 static ssize_t
 lpfc_modelname_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ModelName);
 }
 
 static ssize_t
 lpfc_programtype_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->ProgramType);
 }
 
 static ssize_t
-lpfc_portnum_show(struct class_device *cdev, char *buf)
+lpfc_vportnum_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->Port);
 }
 
 static ssize_t
 lpfc_fwrev_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	char fwrev[32];
+
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
-	return snprintf(buf, PAGE_SIZE, "%s\n",fwrev);
+	return snprintf(buf, PAGE_SIZE, "%s, sli-%d\n", fwrev, phba->sli_rev);
 }
 
 static ssize_t
 lpfc_hdw_show(struct class_device *cdev, char *buf)
 {
 	char hdw[9];
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	lpfc_vpd_t *vp = &phba->vpd;
+
 	lpfc_jedec_to_ascii(vp->rev.biuRev, hdw);
 	return snprintf(buf, PAGE_SIZE, "%s\n", hdw);
 }
 static ssize_t
 lpfc_option_rom_version_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%s\n", phba->OptionROMVersion);
 }
 static ssize_t
 lpfc_state_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-	int len = 0;
-	switch (phba->hba_state) {
-	case LPFC_STATE_UNKNOWN:
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int  len = 0;
+
+	switch (phba->link_state) {
+	case LPFC_LINK_UNKNOWN:
 	case LPFC_WARM_START:
 	case LPFC_INIT_START:
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
+	case LPFC_HBA_ERROR:
 		len += snprintf(buf + len, PAGE_SIZE-len, "Link Down\n");
 		break;
 	case LPFC_LINK_UP:
-	case LPFC_LOCAL_CFG_LINK:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up\n");
-		break;
-	case LPFC_FLOGI:
-	case LPFC_FABRIC_CFG_LINK:
-	case LPFC_NS_REG:
-	case LPFC_NS_QRY:
-	case LPFC_BUILD_DISC_LIST:
-	case LPFC_DISC_AUTH:
 	case LPFC_CLEAR_LA:
-		len += snprintf(buf + len, PAGE_SIZE-len,
-				"Link Up - Discovery\n");
-		break;
 	case LPFC_HBA_READY:
-		len += snprintf(buf + len, PAGE_SIZE-len,
-				"Link Up - Ready:\n");
+		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up - \n");
+
+		switch (vport->port_state) {
+			len += snprintf(buf + len, PAGE_SIZE-len,
+					"initializing\n");
+			break;
+		case LPFC_LOCAL_CFG_LINK:
+			len += snprintf(buf + len, PAGE_SIZE-len,
+					"Configuring Link\n");
+			break;
+		case LPFC_FDISC:
+		case LPFC_FLOGI:
+		case LPFC_FABRIC_CFG_LINK:
+		case LPFC_NS_REG:
+		case LPFC_NS_QRY:
+		case LPFC_BUILD_DISC_LIST:
+		case LPFC_DISC_AUTH:
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"Discovery\n");
+			break;
+		case LPFC_VPORT_READY:
+			len += snprintf(buf + len, PAGE_SIZE - len, "Ready\n");
+			break;
+
+		case LPFC_VPORT_FAILED:
+			len += snprintf(buf + len, PAGE_SIZE - len, "Failed\n");
+			break;
+
+		case LPFC_VPORT_UNKNOWN:
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"Unknown\n");
+			break;
+		}
+
 		if (phba->fc_topology == TOPOLOGY_LOOP) {
-			if (phba->fc_flag & FC_PUBLIC_LOOP)
+			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
 			else
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Private Loop\n");
 		} else {
-			if (phba->fc_flag & FC_FABRIC)
+			if (vport->fc_flag & FC_FABRIC)
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Fabric\n");
 			else
@@ -193,29 +234,32 @@ lpfc_state_show(struct class_device *cdev, char *buf)
 						"   Point-2-Point\n");
 		}
 	}
+
 	return len;
 }
 
 static ssize_t
 lpfc_num_discovered_ports_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-	return snprintf(buf, PAGE_SIZE, "%d\n", phba->fc_map_cnt +
-							phba->fc_unmap_cnt);
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			vport->fc_map_cnt + vport->fc_unmap_cnt);
 }
 
 
 static int
-lpfc_issue_lip(struct Scsi_Host *host)
+lpfc_issue_lip(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *) host->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	LPFC_MBOXQ_t *pmboxq;
 	int mbxstatus = MBXERR_ERROR;
 
-	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
-	    (phba->fc_flag & FC_BLOCK_MGMT_IO) ||
-	    (phba->hba_state != LPFC_HBA_READY))
+	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
+	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) ||
+	    (vport->port_state != LPFC_VPORT_READY))
 		return -EPERM;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
@@ -238,9 +282,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	}
 
 	lpfc_set_loopback_flag(phba);
-	if (mbxstatus == MBX_TIMEOUT)
-		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	else
+	if (mbxstatus != MBX_TIMEOUT)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 	if (mbxstatus == MBXERR_ERROR)
@@ -320,8 +362,10 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 static ssize_t
 lpfc_issue_reset(struct class_device *cdev, const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	int status = -EINVAL;
 
 	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
@@ -336,23 +380,26 @@ lpfc_issue_reset(struct class_device *cdev, const char *buf, size_t count)
 static ssize_t
 lpfc_nport_evt_cnt_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", phba->nport_event_cnt);
 }
 
 static ssize_t
 lpfc_board_mode_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	char  * state;
 
-	if (phba->hba_state == LPFC_HBA_ERROR)
+	if (phba->link_state == LPFC_HBA_ERROR)
 		state = "error";
-	else if (phba->hba_state == LPFC_WARM_START)
+	else if (phba->link_state == LPFC_WARM_START)
 		state = "warm start";
-	else if (phba->hba_state == LPFC_INIT_START)
+	else if (phba->link_state == LPFC_INIT_START)
 		state = "offline";
 	else
 		state = "online";
@@ -363,8 +410,9 @@ lpfc_board_mode_show(struct class_device *cdev, char *buf)
 static ssize_t
 lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
 	int status=0;
 
@@ -389,11 +437,166 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 		return -EIO;
 }
 
+int
+lpfc_get_hba_info(struct lpfc_hba *phba,
+		  uint32_t *mxri, uint32_t *axri,
+		  uint32_t *mrpi, uint32_t *arpi,
+		  uint32_t *mvpi, uint32_t *avpi)
+{
+	struct lpfc_sli   *psli = &phba->sli;
+	LPFC_MBOXQ_t *pmboxq;
+	MAILBOX_t *pmb;
+	int rc = 0;
+
+	/*
+	 * prevent udev from issuing mailbox commands until the port is
+	 * configured.
+	 */
+	if (phba->link_state < LPFC_LINK_DOWN ||
+	    !phba->mbox_mem_pool ||
+	    (phba->sli.sli_flag & LPFC_SLI2_ACTIVE) == 0)
+		return 0;
+
+	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO)
+		return 0;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq)
+		return 0;
+	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+
+	pmb = &pmboxq->mb;
+	pmb->mbxCommand = MBX_READ_CONFIG;
+	pmb->mbxOwner = OWN_HOST;
+	pmboxq->context1 = NULL;
+
+	if ((phba->pport->fc_flag & FC_OFFLINE_MODE) ||
+		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		rc = MBX_NOT_FINISHED;
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+
+	if (rc != MBX_SUCCESS) {
+		if (rc != MBX_TIMEOUT)
+			mempool_free(pmboxq, phba->mbox_mem_pool);
+		return 0;
+	}
+
+	if (mrpi)
+		*mrpi = pmb->un.varRdConfig.max_rpi;
+	if (arpi)
+		*arpi = pmb->un.varRdConfig.avail_rpi;
+	if (mxri)
+		*mxri = pmb->un.varRdConfig.max_xri;
+	if (axri)
+		*axri = pmb->un.varRdConfig.avail_xri;
+	if (mvpi)
+		*mvpi = pmb->un.varRdConfig.max_vpi;
+	if (avpi)
+		*avpi = pmb->un.varRdConfig.avail_vpi;
+
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+	return 1;
+}
+
+static ssize_t
+lpfc_max_rpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, NULL, NULL, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_used_rpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt, acnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, &acnt, NULL, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_max_xri_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt;
+
+	if (lpfc_get_hba_info(phba, &cnt, NULL, NULL, NULL, NULL, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_used_xri_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt, acnt;
+
+	if (lpfc_get_hba_info(phba, &cnt, &acnt, NULL, NULL, NULL, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_max_vpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_used_vpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt, acnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, &acnt))
+		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_npiv_info_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	if (!(phba->max_vpi))
+		return snprintf(buf, PAGE_SIZE, "NPIV Not Supported\n");
+	if (vport->port_type == LPFC_PHYSICAL_PORT)
+		return snprintf(buf, PAGE_SIZE, "NPIV Physical\n");
+	return snprintf(buf, PAGE_SIZE, "NPIV Virtual (VPI %d)\n", vport->vpi);
+}
+
 static ssize_t
 lpfc_poll_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	return snprintf(buf, PAGE_SIZE, "%#x\n", phba->cfg_poll);
 }
@@ -402,8 +605,9 @@ static ssize_t
 lpfc_poll_store(struct class_device *cdev, const char *buf,
 		size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	uint32_t creg_val;
 	uint32_t old_val;
 	int val=0;
@@ -417,7 +621,7 @@ lpfc_poll_store(struct class_device *cdev, const char *buf,
 	if ((val & 0x3) != val)
 		return -EINVAL;
 
-	spin_lock_irq(phba->host->host_lock);
+	spin_lock_irq(&phba->hbalock);
 
 	old_val = phba->cfg_poll;
 
@@ -432,16 +636,16 @@ lpfc_poll_store(struct class_device *cdev, const char *buf,
 			lpfc_poll_start_timer(phba);
 		}
 	} else if (val != 0x0) {
-		spin_unlock_irq(phba->host->host_lock);
+		spin_unlock_irq(&phba->hbalock);
 		return -EINVAL;
 	}
 
 	if (!(val & DISABLE_FCP_RING_INT) &&
 	    (old_val & DISABLE_FCP_RING_INT))
 	{
-		spin_unlock_irq(phba->host->host_lock);
+		spin_unlock_irq(&phba->hbalock);
 		del_timer(&phba->fcp_poll_timer);
-		spin_lock_irq(phba->host->host_lock);
+		spin_lock_irq(&phba->hbalock);
 		creg_val = readl(phba->HCregaddr);
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
@@ -450,7 +654,7 @@ lpfc_poll_store(struct class_device *cdev, const char *buf,
 
 	phba->cfg_poll = val;
 
-	spin_unlock_irq(phba->host->host_lock);
+	spin_unlock_irq(&phba->hbalock);
 
 	return strlen(buf);
 }
@@ -459,8 +663,9 @@ lpfc_poll_store(struct class_device *cdev, const char *buf,
 static ssize_t \
 lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 { \
-	struct Scsi_Host *host = class_to_shost(cdev);\
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;\
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	struct lpfc_hba   *phba = vport->phba;\
 	int val = 0;\
 	val = phba->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%d\n",\
@@ -471,8 +676,9 @@ lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 static ssize_t \
 lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 { \
-	struct Scsi_Host *host = class_to_shost(cdev);\
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;\
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	struct lpfc_hba   *phba = vport->phba;\
 	int val = 0;\
 	val = phba->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%#x\n",\
@@ -514,8 +720,9 @@ lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
 static ssize_t \
 lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
 { \
-	struct Scsi_Host *host = class_to_shost(cdev);\
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;\
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	struct lpfc_hba   *phba = vport->phba;\
 	int val=0;\
 	if (!isdigit(buf[0]))\
 		return -EINVAL;\
@@ -576,7 +783,7 @@ static CLASS_DEVICE_ATTR(serialnum, S_IRUGO, lpfc_serialnum_show, NULL);
 static CLASS_DEVICE_ATTR(modeldesc, S_IRUGO, lpfc_modeldesc_show, NULL);
 static CLASS_DEVICE_ATTR(modelname, S_IRUGO, lpfc_modelname_show, NULL);
 static CLASS_DEVICE_ATTR(programtype, S_IRUGO, lpfc_programtype_show, NULL);
-static CLASS_DEVICE_ATTR(portnum, S_IRUGO, lpfc_portnum_show, NULL);
+static CLASS_DEVICE_ATTR(portnum, S_IRUGO, lpfc_vportnum_show, NULL);
 static CLASS_DEVICE_ATTR(fwrev, S_IRUGO, lpfc_fwrev_show, NULL);
 static CLASS_DEVICE_ATTR(hdw, S_IRUGO, lpfc_hdw_show, NULL);
 static CLASS_DEVICE_ATTR(state, S_IRUGO, lpfc_state_show, NULL);
@@ -592,6 +799,13 @@ static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
 static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
+static CLASS_DEVICE_ATTR(max_vpi, S_IRUGO, lpfc_max_vpi_show, NULL);
+static CLASS_DEVICE_ATTR(used_vpi, S_IRUGO, lpfc_used_vpi_show, NULL);
+static CLASS_DEVICE_ATTR(max_rpi, S_IRUGO, lpfc_max_rpi_show, NULL);
+static CLASS_DEVICE_ATTR(used_rpi, S_IRUGO, lpfc_used_rpi_show, NULL);
+static CLASS_DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
+static CLASS_DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
+static CLASS_DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
 
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
@@ -600,8 +814,9 @@ static ssize_t
 lpfc_soft_wwn_enable_store(struct class_device *cdev, const char *buf,
 				size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	unsigned int cnt = count;
 
 	/*
@@ -634,8 +849,10 @@ static CLASS_DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
 static ssize_t
 lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
 			(unsigned long long)phba->cfg_soft_wwpn);
 }
@@ -644,8 +861,9 @@ lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
 static ssize_t
 lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
 	int stat1=0, stat2=0;
 	unsigned int i, j, cnt=count;
@@ -680,9 +898,9 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 		}
 	}
 	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
-	fc_host_port_name(host) = phba->cfg_soft_wwpn;
+	fc_host_port_name(shost) = phba->cfg_soft_wwpn;
 	if (phba->cfg_soft_wwnn)
-		fc_host_node_name(host) = phba->cfg_soft_wwnn;
+		fc_host_node_name(shost) = phba->cfg_soft_wwnn;
 
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
 		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
@@ -777,6 +995,15 @@ MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
 static CLASS_DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
 			 lpfc_poll_show, lpfc_poll_store);
 
+int  lpfc_sli_mode = 0;
+module_param(lpfc_sli_mode, int, 0);
+MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
+		 " 0 - auto (SLI-3 if supported),"
+		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
+		 " 3 - select SLI-3");
+
+LPFC_ATTR_R(npiv_enable, 0, 0, 1, "Enable NPIV functionality");
+
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
 # until the timer expires. Value range is [0,255]. Default value is 30.
@@ -790,8 +1017,9 @@ MODULE_PARM_DESC(lpfc_nodev_tmo,
 static ssize_t
 lpfc_nodev_tmo_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	int val = 0;
 	val = phba->cfg_devloss_tmo;
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -832,13 +1060,19 @@ lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
 static void
 lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
 {
+	struct lpfc_vport *vport;
+	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
 
-	spin_lock_irq(phba->host->host_lock);
-	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp)
-		if (ndlp->rport)
-			ndlp->rport->dev_loss_tmo = phba->cfg_devloss_tmo;
-	spin_unlock_irq(phba->host->host_lock);
+	list_for_each_entry(vport, &phba->port_list, listentry) {
+		shost = lpfc_shost_from_vport(vport);
+		spin_lock_irq(shost->host_lock);
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+			if (ndlp->rport)
+				ndlp->rport->dev_loss_tmo =
+					phba->cfg_devloss_tmo;
+		spin_unlock_irq(shost->host_lock);
+	}
 }
 
 static int
@@ -944,6 +1178,33 @@ LPFC_ATTR_R(lun_queue_depth, 30, 1, 128,
 */
 LPFC_ATTR_R(hba_queue_depth, 8192, 32, 8192,
 	    "Max number of FCP commands we can queue to a lpfc HBA");
+
+/*
+# peer_port_login:  This parameter allows/prevents logins
+# between peer ports hosted on the same physical port.
+# When this parameter is set 0 peer ports of same physical port
+# are not allowed to login to each other.
+# When this parameter is set 1 peer ports of same physical port
+# are allowed to login to each other.
+# Default value of this parameter is 0.
+*/
+LPFC_ATTR_R(peer_port_login, 0, 0, 1,
+	    "Allow peer ports on the same physical port to login to each "
+	    "other.");
+
+/*
+# vport_restrict_login:  This parameter allows/prevents logins
+# between Virtual Ports and remote initiators.
+# When this parameter is not set (0) Virtual Ports will accept PLOGIs from
+# other initiators and will attempt to PLOGI all remote ports.
+# When this parameter is set (1) Virtual Ports will reject PLOGIs from
+# remote ports and will not attempt to PLOGI to other initiators.
+# This parameter does not restrict to the physical port.
+# This parameter does not restrict logins to Fabric resident remote ports.
+# Default value of this parameter is 1.
+*/
+LPFC_ATTR_RW(vport_restrict_login, 1, 0, 1,
+	    "Restrict virtual ports login to remote initiators.");
 
 /*
 # Some disk devices have a "select ID" or "select Target" capability.
@@ -1088,7 +1349,8 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
 
 
-struct class_device_attribute *lpfc_host_attrs[] = {
+
+struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_info,
 	&class_device_attr_serialnum,
 	&class_device_attr_modeldesc,
@@ -1104,6 +1366,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_log_verbose,
 	&class_device_attr_lpfc_lun_queue_depth,
 	&class_device_attr_lpfc_hba_queue_depth,
+	&class_device_attr_lpfc_peer_port_login,
+	&class_device_attr_lpfc_vport_restrict_login,
 	&class_device_attr_lpfc_nodev_tmo,
 	&class_device_attr_lpfc_devloss_tmo,
 	&class_device_attr_lpfc_fcp_class,
@@ -1119,9 +1383,17 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
+	&class_device_attr_lpfc_npiv_enable,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
 	&class_device_attr_board_mode,
+	&class_device_attr_max_vpi,
+	&class_device_attr_used_vpi,
+	&class_device_attr_max_rpi,
+	&class_device_attr_used_rpi,
+	&class_device_attr_max_xri,
+	&class_device_attr_used_xri,
+	&class_device_attr_npiv_info,
 	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
@@ -1137,9 +1409,11 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
 	size_t buf_off;
-	struct Scsi_Host *host = class_to_shost(container_of(kobj,
-					     struct class_device, kobj));
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct class_device *cdev = container_of(kobj, struct class_device,
+						 kobj);
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	if ((off + count) > FF_REG_AREA_SIZE)
 		return -ERANGE;
@@ -1149,18 +1423,16 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (off % 4 || count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
 
-	spin_lock_irq(phba->host->host_lock);
-
-	if (!(phba->fc_flag & FC_OFFLINE_MODE)) {
-		spin_unlock_irq(phba->host->host_lock);
+	if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
 		return -EPERM;
 	}
 
+	spin_lock_irq(&phba->hbalock);
 	for (buf_off = 0; buf_off < count; buf_off += sizeof(uint32_t))
 		writel(*((uint32_t *)(buf + buf_off)),
 		       phba->ctrl_regs_memmap_p + off + buf_off);
 
-	spin_unlock_irq(phba->host->host_lock);
+	spin_unlock_irq(&phba->hbalock);
 
 	return count;
 }
@@ -1171,9 +1443,11 @@ sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 {
 	size_t buf_off;
 	uint32_t * tmp_ptr;
-	struct Scsi_Host *host = class_to_shost(container_of(kobj,
-					     struct class_device, kobj));
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct class_device *cdev = container_of(kobj, struct class_device,
+						 kobj);
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	if (off > FF_REG_AREA_SIZE)
 		return -ERANGE;
@@ -1186,14 +1460,14 @@ sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (off % 4 || count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
 
-	spin_lock_irq(phba->host->host_lock);
+	spin_lock_irq(&phba->hbalock);
 
 	for (buf_off = 0; buf_off < count; buf_off += sizeof(uint32_t)) {
 		tmp_ptr = (uint32_t *)(buf + buf_off);
 		*tmp_ptr = readl(phba->ctrl_regs_memmap_p + off + buf_off);
 	}
 
-	spin_unlock_irq(phba->host->host_lock);
+	spin_unlock_irq(&phba->hbalock);
 
 	return count;
 }
@@ -1210,7 +1484,7 @@ static struct bin_attribute sysfs_ctlreg_attr = {
 
 
 static void
-sysfs_mbox_idle (struct lpfc_hba * phba)
+sysfs_mbox_idle(struct lpfc_hba *phba)
 {
 	phba->sysfs_mbox.state = SMBOX_IDLE;
 	phba->sysfs_mbox.offset = 0;
@@ -1226,10 +1500,12 @@ static ssize_t
 sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
-	struct Scsi_Host * host =
-		class_to_shost(container_of(kobj, struct class_device, kobj));
-	struct lpfc_hba * phba = (struct lpfc_hba*)host->hostdata;
-	struct lpfcMboxq * mbox = NULL;
+	struct class_device *cdev = container_of(kobj, struct class_device,
+						 kobj);
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfcMboxq  *mbox = NULL;
 
 	if ((count + off) > MAILBOX_CMD_SIZE)
 		return -ERANGE;
@@ -1247,7 +1523,7 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		memset(mbox, 0, sizeof (LPFC_MBOXQ_t));
 	}
 
-	spin_lock_irq(host->host_lock);
+	spin_lock_irq(&phba->hbalock);
 
 	if (off == 0) {
 		if (phba->sysfs_mbox.mbox)
@@ -1258,9 +1534,9 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	} else {
 		if (phba->sysfs_mbox.state  != SMBOX_WRITING ||
 		    phba->sysfs_mbox.offset != off           ||
-		    phba->sysfs_mbox.mbox   == NULL ) {
+		    phba->sysfs_mbox.mbox   == NULL) {
 			sysfs_mbox_idle(phba);
-			spin_unlock_irq(host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			return -EAGAIN;
 		}
 	}
@@ -1270,7 +1546,7 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 	phba->sysfs_mbox.offset = off + count;
 
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&phba->hbalock);
 
 	return count;
 }
@@ -1279,10 +1555,11 @@ static ssize_t
 sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
-	struct Scsi_Host *host =
-		class_to_shost(container_of(kobj, struct class_device,
-					    kobj));
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct class_device *cdev = container_of(kobj, struct class_device,
+						 kobj);
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	int rc;
 
 	if (off > MAILBOX_CMD_SIZE)
@@ -1297,7 +1574,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (off && count == 0)
 		return 0;
 
-	spin_lock_irq(phba->host->host_lock);
+	spin_lock_irq(&phba->hbalock);
 
 	if (off == 0 &&
 	    phba->sysfs_mbox.state  == SMBOX_WRITING &&
@@ -1320,12 +1597,12 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_SET_MASK:
 		case MBX_SET_SLIM:
 		case MBX_SET_DEBUG:
-			if (!(phba->fc_flag & FC_OFFLINE_MODE)) {
+			if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
 				printk(KERN_WARNING "mbox_read:Command 0x%x "
 				       "is illegal in on-line state\n",
 				       phba->sysfs_mbox.mbox->mb.mbxCommand);
 				sysfs_mbox_idle(phba);
-				spin_unlock_irq(phba->host->host_lock);
+				spin_unlock_irq(&phba->hbalock);
 				return -EPERM;
 			}
 		case MBX_LOAD_SM:
@@ -1355,48 +1632,48 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 			printk(KERN_WARNING "mbox_read: Illegal Command 0x%x\n",
 			       phba->sysfs_mbox.mbox->mb.mbxCommand);
 			sysfs_mbox_idle(phba);
-			spin_unlock_irq(phba->host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
 		default:
 			printk(KERN_WARNING "mbox_read: Unknown Command 0x%x\n",
 			       phba->sysfs_mbox.mbox->mb.mbxCommand);
 			sysfs_mbox_idle(phba);
-			spin_unlock_irq(phba->host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
 		}
 
-		if (phba->fc_flag & FC_BLOCK_MGMT_IO) {
+		phba->sysfs_mbox.mbox->vport = vport;
+
+		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
 			sysfs_mbox_idle(phba);
-			spin_unlock_irq(host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			return  -EAGAIN;
 		}
 
-		if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+		if ((vport->fc_flag & FC_OFFLINE_MODE) ||
 		    (!(phba->sli.sli_flag & LPFC_SLI2_ACTIVE))){
 
-			spin_unlock_irq(phba->host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			rc = lpfc_sli_issue_mbox (phba,
 						  phba->sysfs_mbox.mbox,
 						  MBX_POLL);
-			spin_lock_irq(phba->host->host_lock);
+			spin_lock_irq(&phba->hbalock);
 
 		} else {
-			spin_unlock_irq(phba->host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			rc = lpfc_sli_issue_mbox_wait (phba,
 						       phba->sysfs_mbox.mbox,
 				lpfc_mbox_tmo_val(phba,
 				    phba->sysfs_mbox.mbox->mb.mbxCommand) * HZ);
-			spin_lock_irq(phba->host->host_lock);
+			spin_lock_irq(&phba->hbalock);
 		}
 
 		if (rc != MBX_SUCCESS) {
 			if (rc == MBX_TIMEOUT) {
-				phba->sysfs_mbox.mbox->mbox_cmpl =
-					lpfc_sli_def_mbox_cmpl;
 				phba->sysfs_mbox.mbox = NULL;
 			}
 			sysfs_mbox_idle(phba);
-			spin_unlock_irq(host->host_lock);
+			spin_unlock_irq(&phba->hbalock);
 			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
 		}
 		phba->sysfs_mbox.state = SMBOX_READING;
@@ -1405,7 +1682,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		 phba->sysfs_mbox.state  != SMBOX_READING) {
 		printk(KERN_WARNING  "mbox_read: Bad State\n");
 		sysfs_mbox_idle(phba);
-		spin_unlock_irq(host->host_lock);
+		spin_unlock_irq(&phba->hbalock);
 		return -EAGAIN;
 	}
 
@@ -1416,7 +1693,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (phba->sysfs_mbox.offset == MAILBOX_CMD_SIZE)
 		sysfs_mbox_idle(phba);
 
-	spin_unlock_irq(phba->host->host_lock);
+	spin_unlock_irq(&phba->hbalock);
 
 	return count;
 }
@@ -1432,35 +1709,35 @@ static struct bin_attribute sysfs_mbox_attr = {
 };
 
 int
-lpfc_alloc_sysfs_attr(struct lpfc_hba *phba)
+lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 {
-	struct Scsi_Host *host = phba->host;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	int error;
 
-	error = sysfs_create_bin_file(&host->shost_classdev.kobj,
-							&sysfs_ctlreg_attr);
+	error = sysfs_create_bin_file(&shost->shost_classdev.kobj,
+				      &sysfs_ctlreg_attr);
 	if (error)
 		goto out;
 
-	error = sysfs_create_bin_file(&host->shost_classdev.kobj,
-							&sysfs_mbox_attr);
+	error = sysfs_create_bin_file(&shost->shost_classdev.kobj,
+				      &sysfs_mbox_attr);
 	if (error)
 		goto out_remove_ctlreg_attr;
 
 	return 0;
 out_remove_ctlreg_attr:
-	sysfs_remove_bin_file(&host->shost_classdev.kobj, &sysfs_ctlreg_attr);
+	sysfs_remove_bin_file(&shost->shost_classdev.kobj, &sysfs_ctlreg_attr);
 out:
 	return error;
 }
 
 void
-lpfc_free_sysfs_attr(struct lpfc_hba *phba)
+lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 {
-	struct Scsi_Host *host = phba->host;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	sysfs_remove_bin_file(&host->shost_classdev.kobj, &sysfs_mbox_attr);
-	sysfs_remove_bin_file(&host->shost_classdev.kobj, &sysfs_ctlreg_attr);
+	sysfs_remove_bin_file(&shost->shost_classdev.kobj, &sysfs_mbox_attr);
+	sysfs_remove_bin_file(&shost->shost_classdev.kobj, &sysfs_ctlreg_attr);
 }
 
 
@@ -1471,26 +1748,30 @@ lpfc_free_sysfs_attr(struct lpfc_hba *phba)
 static void
 lpfc_get_host_port_id(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+
 	/* note: fc_myDID already in cpu endianness */
-	fc_host_port_id(shost) = phba->fc_myDID;
+	fc_host_port_id(shost) = vport->fc_myDID;
 }
 
 static void
 lpfc_get_host_port_type(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	spin_lock_irq(shost->host_lock);
 
-	if (phba->hba_state == LPFC_HBA_READY) {
+	if (vport->port_type == LPFC_NPIV_PORT) {
+		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
+	} else if (lpfc_is_link_up(phba)) {
 		if (phba->fc_topology == TOPOLOGY_LOOP) {
-			if (phba->fc_flag & FC_PUBLIC_LOOP)
+			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
 			else
 				fc_host_port_type(shost) = FC_PORTTYPE_LPORT;
 		} else {
-			if (phba->fc_flag & FC_FABRIC)
+			if (vport->fc_flag & FC_FABRIC)
 				fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
 			else
 				fc_host_port_type(shost) = FC_PORTTYPE_PTP;
@@ -1504,29 +1785,20 @@ lpfc_get_host_port_type(struct Scsi_Host *shost)
 static void
 lpfc_get_host_port_state(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	spin_lock_irq(shost->host_lock);
 
-	if (phba->fc_flag & FC_OFFLINE_MODE)
+	if (vport->fc_flag & FC_OFFLINE_MODE)
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
 	else {
-		switch (phba->hba_state) {
-		case LPFC_STATE_UNKNOWN:
-		case LPFC_WARM_START:
-		case LPFC_INIT_START:
-		case LPFC_INIT_MBX_CMDS:
+		switch (phba->link_state) {
+		case LPFC_LINK_UNKNOWN:
 		case LPFC_LINK_DOWN:
 			fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
 			break;
 		case LPFC_LINK_UP:
-		case LPFC_LOCAL_CFG_LINK:
-		case LPFC_FLOGI:
-		case LPFC_FABRIC_CFG_LINK:
-		case LPFC_NS_REG:
-		case LPFC_NS_QRY:
-		case LPFC_BUILD_DISC_LIST:
-		case LPFC_DISC_AUTH:
 		case LPFC_CLEAR_LA:
 		case LPFC_HBA_READY:
 			/* Links up, beyond this port_type reports state */
@@ -1547,11 +1819,12 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 static void
 lpfc_get_host_speed(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 
 	spin_lock_irq(shost->host_lock);
 
-	if (phba->hba_state == LPFC_HBA_READY) {
+	if (lpfc_is_link_up(phba)) {
 		switch(phba->fc_linkspeed) {
 			case LA_1GHZ_LINK:
 				fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
@@ -1577,39 +1850,31 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 static void
 lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
 	u64 node_name;
 
 	spin_lock_irq(shost->host_lock);
 
-	if ((phba->fc_flag & FC_FABRIC) ||
+	if ((vport->fc_flag & FC_FABRIC) ||
 	    ((phba->fc_topology == TOPOLOGY_LOOP) &&
-	     (phba->fc_flag & FC_PUBLIC_LOOP)))
+	     (vport->fc_flag & FC_PUBLIC_LOOP)))
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		node_name = wwn_to_u64(phba->fc_nodename.u.wwn);
+		node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
 
 	spin_unlock_irq(shost->host_lock);
 
 	fc_host_fabric_name(shost) = node_name;
 }
 
-static void
-lpfc_get_host_symbolic_name (struct Scsi_Host *shost)
-{
-	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
-
-	spin_lock_irq(shost->host_lock);
-	lpfc_get_hba_sym_node_name(phba, fc_host_symbolic_name(shost));
-	spin_unlock_irq(shost->host_lock);
-}
-
 static struct fc_host_statistics *
 lpfc_get_stats(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
-	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_sli   *psli = &phba->sli;
 	struct fc_host_statistics *hs = &phba->link_stats;
 	struct lpfc_lnk_stat * lso = &psli->lnk_stat_offsets;
 	LPFC_MBOXQ_t *pmboxq;
@@ -1617,7 +1882,16 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	unsigned long seconds;
 	int rc = 0;
 
-	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+	/*
+	 * prevent udev from issuing mailbox commands until the port is
+	 * configured.
+	 */
+	if (phba->link_state < LPFC_LINK_DOWN ||
+	    !phba->mbox_mem_pool ||
+	    (phba->sli.sli_flag & LPFC_SLI2_ACTIVE) == 0)
+		return NULL;
+
+	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO)
 		return NULL;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -1629,17 +1903,16 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
+	pmboxq->vport = vport;
 
-	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
 		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
@@ -1655,18 +1928,17 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
+	pmboxq->vport = vport;
 
-	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
 	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
-			mempool_free( pmboxq, phba->mbox_mem_pool);
+		if (rc != MBX_TIMEOUT)
+			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
 
@@ -1713,14 +1985,15 @@ lpfc_get_stats(struct Scsi_Host *shost)
 static void
 lpfc_reset_stats(struct Scsi_Host *shost)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_lnk_stat * lso = &psli->lnk_stat_offsets;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_sli   *psli = &phba->sli;
+	struct lpfc_lnk_stat *lso = &psli->lnk_stat_offsets;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
 
-	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO)
 		return;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -1733,17 +2006,16 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmb->mbxOwner = OWN_HOST;
 	pmb->un.varWords[0] = 0x1; /* reset request */
 	pmboxq->context1 = NULL;
+	pmboxq->vport = vport;
 
-	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
 		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return;
 	}
@@ -1752,17 +2024,16 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
+	pmboxq->vport = vport;
 
-	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
 	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free( pmboxq, phba->mbox_mem_pool);
 		return;
 	}
@@ -1791,13 +2062,13 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 static struct lpfc_nodelist *
 lpfc_get_node_by_target(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
+	struct Scsi_Host  *shost = dev_to_shost(starget->dev.parent);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_nodelist *ndlp;
 
 	spin_lock_irq(shost->host_lock);
 	/* Search for this, mapped, target ID */
-	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 		    starget->id == ndlp->nlp_sid) {
 			spin_unlock_irq(shost->host_lock);
@@ -1887,8 +2158,66 @@ struct fc_function_template lpfc_transport_functions = {
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
 
-	.get_host_symbolic_name = lpfc_get_host_symbolic_name,
-	.show_host_symbolic_name = 1,
+	/*
+	 * The LPFC driver treats linkdown handling as target loss events
+	 * so there are no sysfs handlers for link_down_tmo.
+	 */
+
+	.get_fc_host_stats = lpfc_get_stats,
+	.reset_fc_host_stats = lpfc_reset_stats,
+
+	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
+	.show_rport_maxframe_size = 1,
+	.show_rport_supported_classes = 1,
+
+	.set_rport_dev_loss_tmo = lpfc_set_rport_loss_tmo,
+	.show_rport_dev_loss_tmo = 1,
+
+	.get_starget_port_id  = lpfc_get_starget_port_id,
+	.show_starget_port_id = 1,
+
+	.get_starget_node_name = lpfc_get_starget_node_name,
+	.show_starget_node_name = 1,
+
+	.get_starget_port_name = lpfc_get_starget_port_name,
+	.show_starget_port_name = 1,
+
+	.issue_fc_host_lip = lpfc_issue_lip,
+	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
+	.terminate_rport_io = lpfc_terminate_rport_io,
+
+	.vport_create = lpfc_vport_create,
+	.vport_delete = lpfc_vport_delete,
+	.dd_fcvport_size = sizeof(struct lpfc_vport *),
+};
+
+struct fc_function_template lpfc_vport_transport_functions = {
+	/* fixed attributes the driver supports */
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+	.show_host_supported_fc4s = 1,
+	.show_host_supported_speeds = 1,
+	.show_host_maxframe_size = 1,
+
+	/* dynamic attributes the driver supports */
+	.get_host_port_id = lpfc_get_host_port_id,
+	.show_host_port_id = 1,
+
+	.get_host_port_type = lpfc_get_host_port_type,
+	.show_host_port_type = 1,
+
+	.get_host_port_state = lpfc_get_host_port_state,
+	.show_host_port_state = 1,
+
+	/* active_fc4s is shown but doesn't change (thus no get function) */
+	.show_host_active_fc4s = 1,
+
+	.get_host_speed = lpfc_get_host_speed,
+	.show_host_speed = 1,
+
+	.get_host_fabric_name = lpfc_get_host_fabric_name,
+	.show_host_fabric_name = 1,
 
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
@@ -1917,6 +2246,8 @@ struct fc_function_template lpfc_transport_functions = {
 	.issue_fc_host_lip = lpfc_issue_lip,
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
+
+	.vport_disable = lpfc_vport_disable,
 };
 
 void
@@ -1939,6 +2270,9 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
 	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+	lpfc_peer_port_login_init(phba, lpfc_peer_port_login);
+	lpfc_npiv_enable_init(phba, lpfc_npiv_enable);
+	lpfc_vport_restrict_login_init(phba, lpfc_vport_restrict_login);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);

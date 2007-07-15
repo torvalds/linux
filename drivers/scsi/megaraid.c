@@ -523,10 +523,8 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 	/*
 	 * filter the internal and ioctl commands
 	 */
-	if((cmd->cmnd[0] == MEGA_INTERNAL_CMD)) {
-		return cmd->request_buffer;
-	}
-
+	if((cmd->cmnd[0] == MEGA_INTERNAL_CMD))
+		return (scb_t *)cmd->host_scribble;
 
 	/*
 	 * We know what channels our logical drives are on - mega_find_card()
@@ -657,22 +655,14 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 
 		case MODE_SENSE: {
 			char *buf;
+			struct scatterlist *sg;
 
-			if (cmd->use_sg) {
-				struct scatterlist *sg;
+			sg = scsi_sglist(cmd);
+			buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
 
-				sg = (struct scatterlist *)cmd->request_buffer;
-				buf = kmap_atomic(sg->page, KM_IRQ0) +
-					sg->offset;
-			} else
-				buf = cmd->request_buffer;
 			memset(buf, 0, cmd->cmnd[4]);
-			if (cmd->use_sg) {
-				struct scatterlist *sg;
+			kunmap_atomic(buf - sg->offset, KM_IRQ0);
 
-				sg = (struct scatterlist *)cmd->request_buffer;
-				kunmap_atomic(buf - sg->offset, KM_IRQ0);
-			}
 			cmd->result = (DID_OK << 16);
 			cmd->scsi_done(cmd);
 			return NULL;
@@ -1551,23 +1541,15 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 		islogical = adapter->logdrv_chan[cmd->device->channel];
 		if( cmd->cmnd[0] == INQUIRY && !islogical ) {
 
-			if( cmd->use_sg ) {
-				sgl = (struct scatterlist *)
-					cmd->request_buffer;
-
-				if( sgl->page ) {
-					c = *(unsigned char *)
+			sgl = scsi_sglist(cmd);
+			if( sgl->page ) {
+				c = *(unsigned char *)
 					page_address((&sgl[0])->page) +
 					(&sgl[0])->offset; 
-				}
-				else {
-					printk(KERN_WARNING
-						"megaraid: invalid sg.\n");
-					c = 0;
-				}
-			}
-			else {
-				c = *(u8 *)cmd->request_buffer;
+			} else {
+				printk(KERN_WARNING
+				       "megaraid: invalid sg.\n");
+				c = 0;
 			}
 
 			if(IS_RAID_CH(adapter, cmd->device->channel) &&
@@ -1704,30 +1686,14 @@ mega_rundoneq (adapter_t *adapter)
 static void
 mega_free_scb(adapter_t *adapter, scb_t *scb)
 {
-	unsigned long length;
-
 	switch( scb->dma_type ) {
 
 	case MEGA_DMA_TYPE_NONE:
 		break;
 
-	case MEGA_BULK_DATA:
-		if (scb->cmd->use_sg == 0)
-			length = scb->cmd->request_bufflen;
-		else {
-			struct scatterlist *sgl =
-				(struct scatterlist *)scb->cmd->request_buffer;
-			length = sgl->length;
-		}
-		pci_unmap_page(adapter->dev, scb->dma_h_bulkdata,
-			       length, scb->dma_direction);
-		break;
-
 	case MEGA_SGLIST:
-		pci_unmap_sg(adapter->dev, scb->cmd->request_buffer,
-			scb->cmd->use_sg, scb->dma_direction);
+		scsi_dma_unmap(scb->cmd);
 		break;
-
 	default:
 		break;
 	}
@@ -1767,80 +1733,33 @@ __mega_busywait_mbox (adapter_t *adapter)
 static int
 mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 {
-	struct scatterlist	*sgl;
-	struct page	*page;
-	unsigned long	offset;
-	unsigned int	length;
+	struct scatterlist *sg;
 	Scsi_Cmnd	*cmd;
 	int	sgcnt;
 	int	idx;
 
 	cmd = scb->cmd;
 
-	/* Scatter-gather not used */
-	if( cmd->use_sg == 0 || (cmd->use_sg == 1 && 
-				 !adapter->has_64bit_addr)) {
-
-		if (cmd->use_sg == 0) {
-			page = virt_to_page(cmd->request_buffer);
-			offset = offset_in_page(cmd->request_buffer);
-			length = cmd->request_bufflen;
-		} else {
-			sgl = (struct scatterlist *)cmd->request_buffer;
-			page = sgl->page;
-			offset = sgl->offset;
-			length = sgl->length;
-		}
-
-		scb->dma_h_bulkdata = pci_map_page(adapter->dev,
-						  page, offset,
-						  length,
-						  scb->dma_direction);
-		scb->dma_type = MEGA_BULK_DATA;
-
-		/*
-		 * We need to handle special 64-bit commands that need a
-		 * minimum of 1 SG
-		 */
-		if( adapter->has_64bit_addr ) {
-			scb->sgl64[0].address = scb->dma_h_bulkdata;
-			scb->sgl64[0].length = length;
-			*buf = (u32)scb->sgl_dma_addr;
-			*len = (u32)length;
-			return 1;
-		}
-		else {
-			*buf = (u32)scb->dma_h_bulkdata;
-			*len = (u32)length;
-		}
-		return 0;
-	}
-
-	sgl = (struct scatterlist *)cmd->request_buffer;
-
 	/*
 	 * Copy Scatter-Gather list info into controller structure.
 	 *
 	 * The number of sg elements returned must not exceed our limit
 	 */
-	sgcnt = pci_map_sg(adapter->dev, sgl, cmd->use_sg,
-			scb->dma_direction);
+	sgcnt = scsi_dma_map(cmd);
 
 	scb->dma_type = MEGA_SGLIST;
 
-	BUG_ON(sgcnt > adapter->sglen);
+	BUG_ON(sgcnt > adapter->sglen || sgcnt < 0);
 
 	*len = 0;
 
-	for( idx = 0; idx < sgcnt; idx++, sgl++ ) {
-
-		if( adapter->has_64bit_addr ) {
-			scb->sgl64[idx].address = sg_dma_address(sgl);
-			*len += scb->sgl64[idx].length = sg_dma_len(sgl);
-		}
-		else {
-			scb->sgl[idx].address = sg_dma_address(sgl);
-			*len += scb->sgl[idx].length = sg_dma_len(sgl);
+	scsi_for_each_sg(cmd, sg, sgcnt, idx) {
+		if (adapter->has_64bit_addr) {
+			scb->sgl64[idx].address = sg_dma_address(sg);
+			*len += scb->sgl64[idx].length = sg_dma_len(sg);
+		} else {
+			scb->sgl[idx].address = sg_dma_address(sg);
+			*len += scb->sgl[idx].length = sg_dma_len(sg);
 		}
 	}
 
@@ -3571,7 +3490,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			/*
 			 * The user passthru structure
 			 */
-			upthru = (mega_passthru __user *)MBOX(uioc)->xferaddr;
+			upthru = (mega_passthru __user *)(unsigned long)MBOX(uioc)->xferaddr;
 
 			/*
 			 * Copy in the user passthru here.
@@ -3623,7 +3542,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 				/*
 				 * Get the user data
 				 */
-				if( copy_from_user(data, (char __user *)uxferaddr,
+				if( copy_from_user(data, (char __user *)(unsigned long) uxferaddr,
 							pthru->dataxferlen) ) {
 					rval = (-EFAULT);
 					goto freemem_and_return;
@@ -3649,7 +3568,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			 * Is data going up-stream
 			 */
 			if( pthru->dataxferlen && (uioc.flags & UIOC_RD) ) {
-				if( copy_to_user((char __user *)uxferaddr, data,
+				if( copy_to_user((char __user *)(unsigned long) uxferaddr, data,
 							pthru->dataxferlen) ) {
 					rval = (-EFAULT);
 				}
@@ -3702,7 +3621,7 @@ freemem_and_return:
 				/*
 				 * Get the user data
 				 */
-				if( copy_from_user(data, (char __user *)uxferaddr,
+				if( copy_from_user(data, (char __user *)(unsigned long) uxferaddr,
 							uioc.xferlen) ) {
 
 					pci_free_consistent(pdev,
@@ -3742,7 +3661,7 @@ freemem_and_return:
 			 * Is data going up-stream
 			 */
 			if( uioc.xferlen && (uioc.flags & UIOC_RD) ) {
-				if( copy_to_user((char __user *)uxferaddr, data,
+				if( copy_to_user((char __user *)(unsigned long) uxferaddr, data,
 							uioc.xferlen) ) {
 
 					rval = (-EFAULT);
@@ -4494,7 +4413,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 	scmd->device = sdev;
 
 	scmd->device->host = adapter->host;
-	scmd->request_buffer = (void *)scb;
+	scmd->host_scribble = (void *)scb;
 	scmd->cmnd[0] = MEGA_INTERNAL_CMD;
 
 	scb->state |= SCB_ACTIVE;

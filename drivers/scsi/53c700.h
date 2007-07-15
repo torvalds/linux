@@ -177,6 +177,7 @@ struct NCR_700_command_slot {
 	__u8	state;
 	#define NCR_700_FLAG_AUTOSENSE	0x01
 	__u8	flags;
+	__u8	pad1[2];	/* Needed for m68k where min alignment is 2 bytes */
 	int	tag;
 	__u32	resume_offset;
 	struct scsi_cmnd *cmnd;
@@ -196,6 +197,8 @@ struct NCR_700_Host_Parameters {
 	void __iomem	*base;		/* the base for the port (copied to host) */
 	struct device	*dev;
 	__u32	dmode_extra;	/* adjustable bus settings */
+	__u32	dcntl_extra;	/* adjustable bus settings */
+	__u32	ctest7_extra;	/* adjustable bus settings */
 	__u32	differential:1;	/* if we are differential */
 #ifdef CONFIG_53C700_LE_ON_BE
 	/* This option is for HP only.  Set it if your chip is wired for
@@ -352,6 +355,7 @@ struct NCR_700_Host_Parameters {
 #define		SEL_TIMEOUT_DISABLE	0x10 /* 710 only */
 #define         DFP                     0x08
 #define         EVP                     0x04
+#define         CTEST7_TT1              0x02
 #define		DIFF			0x01
 #define CTEST6_REG                      0x1A
 #define	TEMP_REG			0x1C
@@ -385,6 +389,7 @@ struct NCR_700_Host_Parameters {
 #define		SOFTWARE_RESET		0x01
 #define		COMPAT_700_MODE		0x01
 #define 	SCRPTS_16BITS		0x20
+#define		EA_710			0x20
 #define		ASYNC_DIV_2_0		0x00
 #define		ASYNC_DIV_1_5		0x40
 #define		ASYNC_DIV_1_0		0x80

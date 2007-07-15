@@ -1986,6 +1986,10 @@ zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *erp_action, int close)
  failed_openfcp:
 	zfcp_close_fsf(erp_action->adapter);
  failed_qdio:
+	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
+			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
+			  ZFCP_STATUS_ADAPTER_XPORT_OK,
+			  &erp_action->adapter->status);
  out:
 	return retval;
 }
@@ -2166,6 +2170,9 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		msleep(jiffies_to_msecs(sleep));
 		sleep *= 2;
 	}
+
+	atomic_clear_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+			  &adapter->status);
 
 	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
 			      &adapter->status)) {

@@ -1378,8 +1378,6 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 {
 	struct scatterlist	*sgl;
 	mbox_ccb_t		*ccb;
-	struct page		*page;
-	unsigned long		offset;
 	struct scsi_cmnd	*scp;
 	int			sgcnt;
 	int			i;
@@ -1388,48 +1386,16 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 	scp	= scb->scp;
 	ccb	= (mbox_ccb_t *)scb->ccb;
 
+	sgcnt = scsi_dma_map(scp);
+	BUG_ON(sgcnt < 0 || sgcnt > adapter->sglen);
+
 	// no mapping required if no data to be transferred
-	if (!scp->request_buffer || !scp->request_bufflen)
+	if (!sgcnt)
 		return 0;
-
-	if (!scp->use_sg) {	/* scatter-gather list not used */
-
-		page = virt_to_page(scp->request_buffer);
-
-		offset = ((unsigned long)scp->request_buffer & ~PAGE_MASK);
-
-		ccb->buf_dma_h = pci_map_page(adapter->pdev, page, offset,
-						  scp->request_bufflen,
-						  scb->dma_direction);
-		scb->dma_type = MRAID_DMA_WBUF;
-
-		/*
-		 * We need to handle special 64-bit commands that need a
-		 * minimum of 1 SG
-		 */
-		sgcnt = 1;
-		ccb->sgl64[0].address	= ccb->buf_dma_h;
-		ccb->sgl64[0].length	= scp->request_bufflen;
-
-		return sgcnt;
-	}
-
-	sgl = (struct scatterlist *)scp->request_buffer;
-
-	// The number of sg elements returned must not exceed our limit
-	sgcnt = pci_map_sg(adapter->pdev, sgl, scp->use_sg,
-			scb->dma_direction);
-
-	if (sgcnt > adapter->sglen) {
-		con_log(CL_ANN, (KERN_CRIT
-			"megaraid critical: too many sg elements:%d\n",
-			sgcnt));
-		BUG();
-	}
 
 	scb->dma_type = MRAID_DMA_WSG;
 
-	for (i = 0; i < sgcnt; i++, sgl++) {
+	scsi_for_each_sg(scp, sgl, sgcnt, i) {
 		ccb->sgl64[i].address	= sg_dma_address(sgl);
 		ccb->sgl64[i].length	= sg_dma_len(sgl);
 	}
@@ -1489,19 +1455,11 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 
 	adapter->outstanding_cmds++;
 
-	if (scb->dma_direction == PCI_DMA_TODEVICE) {
-		if (!scb->scp->use_sg) {	// sg list not used
-			pci_dma_sync_single_for_device(adapter->pdev,
-					ccb->buf_dma_h,
-					scb->scp->request_bufflen,
-					PCI_DMA_TODEVICE);
-		}
-		else {
-			pci_dma_sync_sg_for_device(adapter->pdev,
-				scb->scp->request_buffer,
-				scb->scp->use_sg, PCI_DMA_TODEVICE);
-		}
-	}
+	if (scb->dma_direction == PCI_DMA_TODEVICE)
+		pci_dma_sync_sg_for_device(adapter->pdev,
+					   scsi_sglist(scb->scp),
+					   scsi_sg_count(scb->scp),
+					   PCI_DMA_TODEVICE);
 
 	mbox->busy	= 1;	// Set busy
 	mbox->poll	= 0;
@@ -1624,29 +1582,26 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 			return scb;
 
 		case MODE_SENSE:
-			if (scp->use_sg) {
-				struct scatterlist	*sgl;
-				caddr_t			vaddr;
+		{
+			struct scatterlist	*sgl;
+			caddr_t			vaddr;
 
-				sgl = (struct scatterlist *)scp->request_buffer;
-				if (sgl->page) {
-					vaddr = (caddr_t)
-						(page_address((&sgl[0])->page)
-						+ (&sgl[0])->offset);
+			sgl = scsi_sglist(scp);
+			if (sgl->page) {
+				vaddr = (caddr_t)
+					(page_address((&sgl[0])->page)
+					 + (&sgl[0])->offset);
 
-					memset(vaddr, 0, scp->cmnd[4]);
-				}
-				else {
-					con_log(CL_ANN, (KERN_WARNING
-					"megaraid mailbox: invalid sg:%d\n",
-					__LINE__));
-				}
+				memset(vaddr, 0, scp->cmnd[4]);
 			}
 			else {
-				memset(scp->request_buffer, 0, scp->cmnd[4]);
+				con_log(CL_ANN, (KERN_WARNING
+						 "megaraid mailbox: invalid sg:%d\n",
+						 __LINE__));
 			}
-			scp->result = (DID_OK << 16);
-			return NULL;
+		}
+		scp->result = (DID_OK << 16);
+		return NULL;
 
 		case INQUIRY:
 			/*
@@ -1716,7 +1671,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 			mbox->cmd		= MBOXCMD_PASSTHRU64;
 			scb->dma_direction	= scp->sc_data_direction;
 
-			pthru->dataxferlen	= scp->request_bufflen;
+			pthru->dataxferlen	= scsi_bufflen(scp);
 			pthru->dataxferaddr	= ccb->sgl_dma_h;
 			pthru->numsge		= megaraid_mbox_mksgl(adapter,
 							scb);
@@ -2050,8 +2005,8 @@ megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
 
 	memcpy(pthru->cdb, scp->cmnd, scp->cmd_len);
 
-	if (scp->request_bufflen) {
-		pthru->dataxferlen	= scp->request_bufflen;
+	if (scsi_bufflen(scp)) {
+		pthru->dataxferlen	= scsi_bufflen(scp);
 		pthru->dataxferaddr	= ccb->sgl_dma_h;
 		pthru->numsge		= megaraid_mbox_mksgl(adapter, scb);
 	}
@@ -2099,8 +2054,8 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
 
 	memcpy(epthru->cdb, scp->cmnd, scp->cmd_len);
 
-	if (scp->request_bufflen) {
-		epthru->dataxferlen	= scp->request_bufflen;
+	if (scsi_bufflen(scp)) {
+		epthru->dataxferlen	= scsi_bufflen(scp);
 		epthru->dataxferaddr	= ccb->sgl_dma_h;
 		epthru->numsge		= megaraid_mbox_mksgl(adapter, scb);
 	}
@@ -2266,37 +2221,13 @@ megaraid_mbox_sync_scb(adapter_t *adapter, scb_t *scb)
 
 	ccb	= (mbox_ccb_t *)scb->ccb;
 
-	switch (scb->dma_type) {
-
-	case MRAID_DMA_WBUF:
-		if (scb->dma_direction == PCI_DMA_FROMDEVICE) {
-			pci_dma_sync_single_for_cpu(adapter->pdev,
-					ccb->buf_dma_h,
-					scb->scp->request_bufflen,
+	if (scb->dma_direction == PCI_DMA_FROMDEVICE)
+		pci_dma_sync_sg_for_cpu(adapter->pdev,
+					scsi_sglist(scb->scp),
+					scsi_sg_count(scb->scp),
 					PCI_DMA_FROMDEVICE);
-		}
 
-		pci_unmap_page(adapter->pdev, ccb->buf_dma_h,
-			scb->scp->request_bufflen, scb->dma_direction);
-
-		break;
-
-	case MRAID_DMA_WSG:
-		if (scb->dma_direction == PCI_DMA_FROMDEVICE) {
-			pci_dma_sync_sg_for_cpu(adapter->pdev,
-					scb->scp->request_buffer,
-					scb->scp->use_sg, PCI_DMA_FROMDEVICE);
-		}
-
-		pci_unmap_sg(adapter->pdev, scb->scp->request_buffer,
-			scb->scp->use_sg, scb->dma_direction);
-
-		break;
-
-	default:
-		break;
-	}
-
+	scsi_dma_unmap(scb->scp);
 	return;
 }
 
@@ -2399,24 +2330,16 @@ megaraid_mbox_dpc(unsigned long devp)
 		if (scp->cmnd[0] == INQUIRY && status == 0 && islogical == 0
 				&& IS_RAID_CH(raid_dev, scb->dev_channel)) {
 
-			if (scp->use_sg) {
-				sgl = (struct scatterlist *)
-					scp->request_buffer;
-
-				if (sgl->page) {
-					c = *(unsigned char *)
+			sgl = scsi_sglist(scp);
+			if (sgl->page) {
+				c = *(unsigned char *)
 					(page_address((&sgl[0])->page) +
-						(&sgl[0])->offset);
-				}
-				else {
-					con_log(CL_ANN, (KERN_WARNING
-					"megaraid mailbox: invalid sg:%d\n",
-					__LINE__));
-					c = 0;
-				}
-			}
-			else {
-				c = *(uint8_t *)scp->request_buffer;
+					 (&sgl[0])->offset);
+			} else {
+				con_log(CL_ANN, (KERN_WARNING
+						 "megaraid mailbox: invalid sg:%d\n",
+						 __LINE__));
+				c = 0;
 			}
 
 			if ((c & 0x1F ) == TYPE_DISK) {
@@ -3957,7 +3880,7 @@ megaraid_sysfs_alloc_resources(adapter_t *adapter)
 		megaraid_sysfs_free_resources(adapter);
 	}
 
-	sema_init(&raid_dev->sysfs_sem, 1);
+	mutex_init(&raid_dev->sysfs_mtx);
 
 	init_waitqueue_head(&raid_dev->sysfs_wait_q);
 
@@ -4058,7 +3981,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	/*
 	 * Allow only one read at a time to go through the sysfs attributes
 	 */
-	down(&raid_dev->sysfs_sem);
+	mutex_lock(&raid_dev->sysfs_mtx);
 
 	uioc	= raid_dev->sysfs_uioc;
 	mbox64	= raid_dev->sysfs_mbox64;
@@ -4134,7 +4057,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 	del_timer_sync(timerp);
 
-	up(&raid_dev->sysfs_sem);
+	mutex_unlock(&raid_dev->sysfs_mtx);
 
 	return rval;
 }

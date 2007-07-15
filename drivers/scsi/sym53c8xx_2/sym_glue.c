@@ -146,41 +146,17 @@ struct sym_ucmd {		/* Override the SCSI pointer structure */
 
 static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
-	int dma_dir = cmd->sc_data_direction;
+	if (SYM_UCMD_PTR(cmd)->data_mapped)
+		scsi_dma_unmap(cmd);
 
-	switch(SYM_UCMD_PTR(cmd)->data_mapped) {
-	case 2:
-		pci_unmap_sg(pdev, cmd->request_buffer, cmd->use_sg, dma_dir);
-		break;
-	case 1:
-		pci_unmap_single(pdev, SYM_UCMD_PTR(cmd)->data_mapping,
-				 cmd->request_bufflen, dma_dir);
-		break;
-	}
 	SYM_UCMD_PTR(cmd)->data_mapped = 0;
-}
-
-static dma_addr_t __map_scsi_single_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	dma_addr_t mapping;
-	int dma_dir = cmd->sc_data_direction;
-
-	mapping = pci_map_single(pdev, cmd->request_buffer,
-				 cmd->request_bufflen, dma_dir);
-	if (mapping) {
-		SYM_UCMD_PTR(cmd)->data_mapped  = 1;
-		SYM_UCMD_PTR(cmd)->data_mapping = mapping;
-	}
-
-	return mapping;
 }
 
 static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
 	int use_sg;
-	int dma_dir = cmd->sc_data_direction;
 
-	use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg, dma_dir);
+	use_sg = scsi_dma_map(cmd);
 	if (use_sg > 0) {
 		SYM_UCMD_PTR(cmd)->data_mapped  = 2;
 		SYM_UCMD_PTR(cmd)->data_mapping = use_sg;
@@ -191,8 +167,6 @@ static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 
 #define unmap_scsi_data(np, cmd)	\
 		__unmap_scsi_data(np->s.device, cmd)
-#define map_scsi_single_data(np, cmd)	\
-		__map_scsi_single_data(np->s.device, cmd)
 #define map_scsi_sg_data(np, cmd)	\
 		__map_scsi_sg_data(np->s.device, cmd)
 /*
@@ -322,55 +296,20 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 		 */
 		cam_status = sym_xerr_cam_status(DID_ERROR, cp->xerr_status);
 	}
-	cmd->resid = resid;
+	scsi_set_resid(cmd, resid);
 	cmd->result = (drv_status << 24) + (cam_status << 16) + scsi_status;
-}
-
-
-/*
- *  Build the scatter/gather array for an I/O.
- */
-
-static int sym_scatter_no_sglist(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd *cmd)
-{
-	struct sym_tblmove *data = &cp->phys.data[SYM_CONF_MAX_SG-1];
-	int segment;
-	unsigned int len = cmd->request_bufflen;
-
-	if (len) {
-		dma_addr_t baddr = map_scsi_single_data(np, cmd);
-		if (baddr) {
-			if (len & 1) {
-				struct sym_tcb *tp = &np->target[cp->target];
-				if (tp->head.wval & EWS) {
-					len++;
-					cp->odd_byte_adjustment++;
-				}
-			}
-			cp->data_len = len;
-			sym_build_sge(np, data, baddr, len);
-			segment = 1;
-		} else {
-			segment = -2;
-		}
-	} else {
-		segment = 0;
-	}
-
-	return segment;
 }
 
 static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd *cmd)
 {
 	int segment;
-	int use_sg = (int) cmd->use_sg;
+	int use_sg;
 
 	cp->data_len = 0;
 
-	if (!use_sg)
-		segment = sym_scatter_no_sglist(np, cp, cmd);
-	else if ((use_sg = map_scsi_sg_data(np, cmd)) > 0) {
-		struct scatterlist *scatter = (struct scatterlist *)cmd->request_buffer;
+	use_sg = map_scsi_sg_data(np, cmd);
+	if (use_sg > 0) {
+		struct scatterlist *sg;
 		struct sym_tcb *tp = &np->target[cp->target];
 		struct sym_tblmove *data;
 
@@ -381,9 +320,9 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 
 		data = &cp->phys.data[SYM_CONF_MAX_SG - use_sg];
 
-		for (segment = 0; segment < use_sg; segment++) {
-			dma_addr_t baddr = sg_dma_address(&scatter[segment]);
-			unsigned int len = sg_dma_len(&scatter[segment]);
+		scsi_for_each_sg(cmd, sg, use_sg, segment) {
+			dma_addr_t baddr = sg_dma_address(sg);
+			unsigned int len = sg_dma_len(sg);
 
 			if ((len & 1) && (tp->head.wval & EWS)) {
 				len++;

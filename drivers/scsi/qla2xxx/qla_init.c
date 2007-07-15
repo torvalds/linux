@@ -899,6 +899,10 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size);
 				qla2x00_resize_request_q(ha);
+				ha->flags.npiv_supported = 0;
+				if (IS_QLA24XX(ha) &&
+				    (ha->fw_attributes & BIT_2))
+					ha->flags.npiv_supported = 1;
 
 				if (ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(ha);
@@ -1101,6 +1105,8 @@ qla2x00_init_rings(scsi_qla_host_t *ha)
 	int	rval;
 	unsigned long flags = 0;
 	int cnt;
+	struct mid_init_cb_24xx *mid_init_cb =
+	    (struct mid_init_cb_24xx *) ha->init_cb;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -1132,6 +1138,10 @@ qla2x00_init_rings(scsi_qla_host_t *ha)
 	ha->isp_ops.update_fw_options(ha);
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", ha->host_no));
+
+	mid_init_cb->count = MAX_NUM_VPORT_FABRIC;
+	ha->max_npiv_vports = MAX_NUM_VPORT_FABRIC;
+
 	rval = qla2x00_init_firmware(ha, ha->init_cb_size);
 	if (rval) {
 		DEBUG2_3(printk("scsi(%ld): Init firmware **** FAILED ****.\n",
@@ -1263,6 +1273,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	int       rval;
 	uint16_t      loop_id;
 	uint16_t      topo;
+	uint16_t      sw_cap;
 	uint8_t       al_pa;
 	uint8_t       area;
 	uint8_t       domain;
@@ -1270,7 +1281,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 
 	/* Get host addresses. */
 	rval = qla2x00_get_adapter_id(ha,
-	    &loop_id, &al_pa, &area, &domain, &topo);
+	    &loop_id, &al_pa, &area, &domain, &topo, &sw_cap);
 	if (rval != QLA_SUCCESS) {
 		if (LOOP_TRANSITION(ha) || atomic_read(&ha->loop_down_timer) ||
 		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
@@ -1295,6 +1306,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	/* initialize */
 	ha->min_external_loopid = SNS_FIRST_LOOP_ID;
 	ha->operating_mode = LOOP;
+	ha->switch_cap = 0;
 
 	switch (topo) {
 	case 0:
@@ -1307,6 +1319,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	case 1:
 		DEBUG3(printk("scsi(%ld): HBA in FL topology.\n",
 		    ha->host_no));
+		ha->switch_cap = sw_cap;
 		ha->current_topology = ISP_CFG_FL;
 		strcpy(connect_type, "(FL_Port)");
 		break;
@@ -1322,6 +1335,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	case 3:
 		DEBUG3(printk("scsi(%ld): HBA in F P2P topology.\n",
 		    ha->host_no));
+		ha->switch_cap = sw_cap;
 		ha->operating_mode = P2P;
 		ha->current_topology = ISP_CFG_F;
 		strcpy(connect_type, "(F_Port)");
@@ -1743,7 +1757,6 @@ qla2x00_rport_del(void *data)
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 	if (rport)
 		fc_remote_port_delete(rport);
-
 }
 
 /**
@@ -1765,6 +1778,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	/* Setup fcport template structure. */
 	memset(fcport, 0, sizeof (fc_port_t));
 	fcport->ha = ha;
+	fcport->vp_idx = ha->vp_idx;
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
@@ -1911,6 +1925,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 	char		*id_iter;
 	uint16_t	loop_id;
 	uint8_t		domain, area, al_pa;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	found_devs = 0;
 	new_fcport = NULL;
@@ -1942,7 +1957,10 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 	/*
 	 * Mark local devices that were present with FCF_DEVICE_LOST for now.
 	 */
-	list_for_each_entry(fcport, &ha->fcports, list) {
+	list_for_each_entry(fcport, &pha->fcports, list) {
+		if (fcport->vp_idx != ha->vp_idx)
+			continue;
+
 		if (atomic_read(&fcport->state) == FCS_ONLINE &&
 		    fcport->port_type != FCT_BROADCAST &&
 		    (fcport->flags & FCF_FABRIC_DEVICE) == 0) {
@@ -1988,6 +2006,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 		new_fcport->d_id.b.area = area;
 		new_fcport->d_id.b.al_pa = al_pa;
 		new_fcport->loop_id = loop_id;
+		new_fcport->vp_idx = ha->vp_idx;
 		rval2 = qla2x00_get_port_database(ha, new_fcport, 0);
 		if (rval2 != QLA_SUCCESS) {
 			DEBUG2(printk("scsi(%ld): Failed to retrieve fcport "
@@ -2003,7 +2022,10 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 		/* Check for matching device in port list. */
 		found = 0;
 		fcport = NULL;
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
+			if (fcport->vp_idx != ha->vp_idx)
+				continue;
+
 			if (memcmp(new_fcport->port_name, fcport->port_name,
 			    WWN_SIZE))
 				continue;
@@ -2023,7 +2045,13 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 		if (!found) {
 			/* New device, add to fcports list. */
 			new_fcport->flags &= ~FCF_PERSISTENT_BOUND;
-			list_add_tail(&new_fcport->list, &ha->fcports);
+			if (ha->parent) {
+				new_fcport->ha = ha;
+				new_fcport->vp_idx = ha->vp_idx;
+				list_add_tail(&new_fcport->vp_fcport,
+				    &ha->vp_fcports);
+			}
+			list_add_tail(&new_fcport->list, &pha->fcports);
 
 			/* Allocate a new replacement fcport. */
 			fcport = new_fcport;
@@ -2199,11 +2227,13 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 void
 qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
+	scsi_qla_host_t *pha = to_qla_parent(ha);
+
 	fcport->ha = ha;
 	fcport->login_retry = 0;
-	fcport->port_login_retry_count = ha->port_down_retry_count *
+	fcport->port_login_retry_count = pha->port_down_retry_count *
 	    PORT_RETRY_TIME;
-	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
+	atomic_set(&fcport->port_down_timer, pha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
 
@@ -2234,6 +2264,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 	uint16_t	mb[MAILBOX_REGISTER_COUNT];
 	uint16_t	loop_id;
 	LIST_HEAD(new_fcports);
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	/* If FL port exists, then SNS is present */
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
@@ -2307,7 +2338,10 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		 * Logout all previous fabric devices marked lost, except
 		 * tape devices.
 		 */
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
+			if (fcport->vp_idx !=ha->vp_idx)
+				continue;
+
 			if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
 				break;
 
@@ -2332,13 +2366,16 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		}
 
 		/* Starting free loop ID. */
-		next_loopid = ha->min_external_loopid;
+		next_loopid = pha->min_external_loopid;
 
 		/*
 		 * Scan through our port list and login entries that need to be
 		 * logged in.
 		 */
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
+			if (fcport->vp_idx != ha->vp_idx)
+				continue;
+
 			if (atomic_read(&ha->loop_down_timer) ||
 			    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
 				break;
@@ -2380,11 +2417,18 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 				break;
 			}
 
-			/* Remove device from the new list and add it to DB */
-			list_move_tail(&fcport->list, &ha->fcports);
-
 			/* Login and update database */
 			qla2x00_fabric_dev_login(ha, fcport, &next_loopid);
+
+			if (ha->parent) {
+				fcport->ha = ha;
+				fcport->vp_idx = ha->vp_idx;
+				list_add_tail(&fcport->vp_fcport,
+				    &ha->vp_fcports);
+				list_move_tail(&fcport->list,
+				    &ha->parent->fcports);
+			} else
+				list_move_tail(&fcport->list, &ha->fcports);
 		}
 	} while (0);
 
@@ -2428,6 +2472,11 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	int		swl_idx;
 	int		first_dev, last_dev;
 	port_id_t	wrap, nxt_d_id;
+	int 		vp_index;
+	int		empty_vp_index;
+	int		found_vp;
+	scsi_qla_host_t *vha;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	rval = QLA_SUCCESS;
 
@@ -2461,13 +2510,13 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		return (QLA_MEMORY_ALLOC_FAILED);
 	}
 	new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
-
+	new_fcport->vp_idx = ha->vp_idx;
 	/* Set start port ID scan at adapter ID. */
 	first_dev = 1;
 	last_dev = 0;
 
 	/* Starting free loop ID. */
-	loop_id = ha->min_external_loopid;
+	loop_id = pha->min_external_loopid;
 	for (; loop_id <= ha->last_loop_id; loop_id++) {
 		if (qla2x00_is_reserved_id(ha, loop_id))
 			continue;
@@ -2521,9 +2570,41 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 			break;
 		}
 
-		/* Bypass if host adapter. */
-		if (new_fcport->d_id.b24 == ha->d_id.b24)
+		/* Bypass if same physical adapter. */
+		if (new_fcport->d_id.b24 == pha->d_id.b24)
 			continue;
+
+		/* Bypass virtual ports of the same host. */
+		if (pha->num_vhosts) {
+			vp_index = find_next_bit(
+			    (unsigned long *)pha->vp_idx_map,
+			    MAX_MULTI_ID_FABRIC + 1, 1);
+
+			for (;vp_index <= MAX_MULTI_ID_FABRIC;
+			    vp_index = find_next_bit(
+			    (unsigned long *)pha->vp_idx_map,
+			    MAX_MULTI_ID_FABRIC + 1, vp_index + 1)) {
+				empty_vp_index = 1;
+				found_vp = 0;
+				list_for_each_entry(vha, &pha->vp_list,
+				    vp_list) {
+					if (vp_index == vha->vp_idx) {
+						empty_vp_index = 0;
+						found_vp = 1;
+						break;
+					}
+				}
+
+				if (empty_vp_index)
+					continue;
+
+				if (found_vp &&
+				    new_fcport->d_id.b24 == vha->d_id.b24)
+					break;
+			}
+			if (vp_index <= MAX_MULTI_ID_FABRIC)
+				continue;
+		}
 
 		/* Bypass if same domain and area of adapter. */
 		if (((new_fcport->d_id.b24 & 0xffff00) ==
@@ -2537,7 +2618,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 
 		/* Locate matching device in database. */
 		found = 0;
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
+			if (new_fcport->vp_idx != fcport->vp_idx)
+				continue;
 			if (memcmp(new_fcport->port_name, fcport->port_name,
 			    WWN_SIZE))
 				continue;
@@ -2605,6 +2688,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		}
 		new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
 		new_fcport->d_id.b24 = nxt_d_id.b24;
+		new_fcport->vp_idx = ha->vp_idx;
 	}
 
 	kfree(swl);
@@ -2637,6 +2721,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev)
 	int	found;
 	fc_port_t *fcport;
 	uint16_t first_loop_id;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	rval = QLA_SUCCESS;
 
@@ -2663,7 +2748,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev)
 		/* Check for loop ID being already in use. */
 		found = 0;
 		fcport = NULL;
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
 			if (fcport->loop_id == dev->loop_id && fcport != dev) {
 				/* ID possibly in use */
 				found++;
@@ -2710,6 +2795,7 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 	uint8_t rscn_out_iter;
 	uint8_t format;
 	port_id_t d_id;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	rval = QLA_RSCNS_HANDLED;
 
@@ -2776,7 +2862,10 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 
 		rval = QLA_SUCCESS;
 
-		list_for_each_entry(fcport, &ha->fcports, list) {
+		list_for_each_entry(fcport, &pha->fcports, list) {
+			if (fcport->vp_idx != ha->vp_idx)
+				continue;
+
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0 ||
 			    (fcport->d_id.b24 & mask) != d_id.b24 ||
 			    fcport->port_type == FCT_BROADCAST)
@@ -3939,4 +4028,41 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
 		    "Attempting retry of stop-firmware command...\n");
 		ret = qla2x00_stop_firmware(ha);
 	}
+}
+
+int
+qla24xx_configure_vhba(scsi_qla_host_t *ha)
+{
+	int rval = QLA_SUCCESS;
+	uint16_t mb[MAILBOX_REGISTER_COUNT];
+
+	if (!ha->parent)
+		return -EINVAL;
+
+	rval = qla2x00_fw_ready(ha);
+	if (rval == QLA_SUCCESS) {
+		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
+		qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
+	}
+
+	ha->flags.management_server_logged_in = 0;
+
+	/* Login to SNS first */
+	qla24xx_login_fabric(ha, NPH_SNS, 0xff, 0xff, 0xfc,
+	    mb, BIT_1);
+	if (mb[0] != MBS_COMMAND_COMPLETE) {
+		DEBUG15(qla_printk(KERN_INFO, ha,
+		    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x "
+		    "mb[2]=%x mb[6]=%x mb[7]=%x\n", NPH_SNS,
+		    mb[0], mb[1], mb[2], mb[6], mb[7]));
+		return (QLA_FUNCTION_FAILED);
+	}
+
+	atomic_set(&ha->loop_down_timer, 0);
+	atomic_set(&ha->loop_state, LOOP_UP);
+	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
+	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
+	rval = qla2x00_loop_resync(ha);
+
+	return rval;
 }

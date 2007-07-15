@@ -10,6 +10,7 @@ config RAID_ATTRS
 config SCSI
 	tristate "SCSI device support"
 	depends on BLOCK
+	select SCSI_DMA if HAS_DMA
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -28,6 +29,10 @@ config SCSI
 
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
+
+config SCSI_DMA
+	bool
+	default n
 
 config SCSI_TGT
 	tristate "SCSI target support"
@@ -739,7 +744,7 @@ config SCSI_GENERIC_NCR53C400
 
 config SCSI_IBMMCA
 	tristate "IBMMCA SCSI support"
-	depends on MCA_LEGACY && SCSI
+	depends on MCA && SCSI
 	---help---
 	  This is support for the IBM SCSI adapter found in many of the PS/2
 	  series computers.  These machines have an MCA bus, so you need to
@@ -1006,6 +1011,11 @@ config SCSI_STEX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stex.
+
+config 53C700_BE_BUS
+	bool
+	depends on SCSI_A4000T || SCSI_ZORRO7XX || MVME16x_SCSI || BVME6000_SCSI
+	default y
 
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
@@ -1611,13 +1621,25 @@ config FASTLANE_SCSI
 	  If you have the Phase5 Fastlane Z3 SCSI controller, or plan to use
 	  one in the near future, say Y to this question. Otherwise, say N.
 
-config SCSI_AMIGA7XX
-	bool "Amiga NCR53c710 SCSI support (EXPERIMENTAL)"
-	depends on AMIGA && SCSI && EXPERIMENTAL && BROKEN
+config SCSI_A4000T
+	tristate "A4000T NCR53c710 SCSI support (EXPERIMENTAL)"
+	depends on AMIGA && SCSI && EXPERIMENTAL
+	select SCSI_SPI_ATTRS
 	help
-	  Support for various NCR53c710-based SCSI controllers on the Amiga.
+	  If you have an Amiga 4000T and have SCSI devices connected to the
+	  built-in SCSI controller, say Y. Otherwise, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called a4000t.
+
+config SCSI_ZORRO7XX
+	tristate "Zorro NCR53c710 SCSI support (EXPERIMENTAL)"
+	depends on ZORRO && SCSI && EXPERIMENTAL
+	select SCSI_SPI_ATTRS
+	help
+	  Support for various NCR53c710-based SCSI controllers on Zorro
+	  expansion boards for the Amiga.
 	  This includes:
-	    - the builtin SCSI controller on the Amiga 4000T,
 	    - the Amiga 4091 Zorro III SCSI-2 controller,
 	    - the MacroSystem Development's WarpEngine Amiga SCSI-2 controller
 	      (info at
@@ -1625,10 +1647,6 @@ config SCSI_AMIGA7XX
 	    - the SCSI controller on the Phase5 Blizzard PowerUP 603e+
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
-	  Note that all of the above SCSI controllers, except for the builtin
-	  SCSI controller on the Amiga 4000T, reside on the Zorro expansion
-	  bus, so you also have to enable Zorro bus support if you want to use
-	  them.
 
 config OKTAGON_SCSI
 	tristate "BSC Oktagon SCSI support (EXPERIMENTAL)"
@@ -1712,8 +1730,8 @@ config MVME147_SCSI
 	  single-board computer.
 
 config MVME16x_SCSI
-	bool "NCR53C710 SCSI driver for MVME16x"
-	depends on MVME16x && SCSI && BROKEN
+	tristate "NCR53C710 SCSI driver for MVME16x"
+	depends on MVME16x && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  The Motorola MVME162, 166, 167, 172 and 177 boards use the NCR53C710
@@ -1721,21 +1739,13 @@ config MVME16x_SCSI
 	  will want to say Y to this question.
 
 config BVME6000_SCSI
-	bool "NCR53C710 SCSI driver for BVME6000"
-	depends on BVME6000 && SCSI && BROKEN
+	tristate "NCR53C710 SCSI driver for BVME6000"
+	depends on BVME6000 && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  The BVME4000 and BVME6000 boards from BVM Ltd use the NCR53C710
 	  SCSI controller chip.  Almost everyone using one of these boards
 	  will want to say Y to this question.
-
-config SCSI_NCR53C7xx_FAST
-	bool "allow FAST-SCSI [10MHz]"
-	depends on SCSI_AMIGA7XX || MVME16x_SCSI || BVME6000_SCSI
-	help
-	  This will enable 10MHz FAST-SCSI transfers with your host
-	  adapter. Some systems have problems with that speed, so it's safest
-	  to say N here.
 
 config SUN3_SCSI
 	tristate "Sun3 NCR5380 SCSI"
@@ -1765,8 +1775,6 @@ config SCSI_SUNESP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called esp.
-
-#      bool 'Cyberstorm Mk III SCSI support (EXPERIMENTAL)' CONFIG_CYBERSTORMIII_SCSI
 
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"

@@ -377,12 +377,8 @@ static int i2o_scsi_reply(struct i2o_controller *c, u32 m,
 		osm_err("SCSI error %08x\n", error);
 
 	dev = &c->pdev->dev;
-	if (cmd->use_sg)
-		dma_unmap_sg(dev, cmd->request_buffer, cmd->use_sg,
-			     cmd->sc_data_direction);
-	else if (cmd->SCp.dma_handle)
-		dma_unmap_single(dev, cmd->SCp.dma_handle, cmd->request_bufflen,
-				 cmd->sc_data_direction);
+
+	scsi_dma_unmap(cmd);
 
 	cmd->scsi_done(cmd);
 
@@ -664,20 +660,14 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
 	if (sgl_offset != SGL_OFFSET_0) {
 		/* write size of data addressed by SGL */
-		*mptr++ = cpu_to_le32(SCpnt->request_bufflen);
+		*mptr++ = cpu_to_le32(scsi_bufflen(SCpnt));
 
 		/* Now fill in the SGList and command */
-		if (SCpnt->use_sg) {
-			if (!i2o_dma_map_sg(c, SCpnt->request_buffer,
-					    SCpnt->use_sg,
+
+		if (scsi_sg_count(SCpnt)) {
+			if (!i2o_dma_map_sg(c, scsi_sglist(SCpnt),
+					    scsi_sg_count(SCpnt),
 					    SCpnt->sc_data_direction, &mptr))
-				goto nomem;
-		} else {
-			SCpnt->SCp.dma_handle =
-			    i2o_dma_map_single(c, SCpnt->request_buffer,
-					       SCpnt->request_bufflen,
-					       SCpnt->sc_data_direction, &mptr);
-			if (dma_mapping_error(SCpnt->SCp.dma_handle))
 				goto nomem;
 		}
 	}

@@ -395,52 +395,33 @@ static struct req_msg *stex_alloc_req(struct st_hba *hba)
 static int stex_map_sg(struct st_hba *hba,
 	struct req_msg *req, struct st_ccb *ccb)
 {
-	struct pci_dev *pdev = hba->pdev;
 	struct scsi_cmnd *cmd;
-	dma_addr_t dma_handle;
-	struct scatterlist *src;
+	struct scatterlist *sg;
 	struct st_sgtable *dst;
-	int i;
+	int i, nseg;
 
 	cmd = ccb->cmd;
 	dst = (struct st_sgtable *)req->variable;
 	dst->max_sg_count = cpu_to_le16(ST_MAX_SG);
-	dst->sz_in_byte = cpu_to_le32(cmd->request_bufflen);
+	dst->sz_in_byte = cpu_to_le32(scsi_bufflen(cmd));
 
-	if (cmd->use_sg) {
-		int n_elem;
+	nseg = scsi_dma_map(cmd);
+	if (nseg < 0)
+		return -EIO;
+	if (nseg) {
+		ccb->sg_count = nseg;
+		dst->sg_count = cpu_to_le16((u16)nseg);
 
-		src = (struct scatterlist *) cmd->request_buffer;
-		n_elem = pci_map_sg(pdev, src,
-			cmd->use_sg, cmd->sc_data_direction);
-		if (n_elem <= 0)
-			return -EIO;
-
-		ccb->sg_count = n_elem;
-		dst->sg_count = cpu_to_le16((u16)n_elem);
-
-		for (i = 0; i < n_elem; i++, src++) {
-			dst->table[i].count = cpu_to_le32((u32)sg_dma_len(src));
+		scsi_for_each_sg(cmd, sg, nseg, i) {
+			dst->table[i].count = cpu_to_le32((u32)sg_dma_len(sg));
 			dst->table[i].addr =
-				cpu_to_le32(sg_dma_address(src) & 0xffffffff);
+				cpu_to_le32(sg_dma_address(sg) & 0xffffffff);
 			dst->table[i].addr_hi =
-				cpu_to_le32((sg_dma_address(src) >> 16) >> 16);
+				cpu_to_le32((sg_dma_address(sg) >> 16) >> 16);
 			dst->table[i].ctrl = SG_CF_64B | SG_CF_HOST;
 		}
 		dst->table[--i].ctrl |= SG_CF_EOT;
-		return 0;
 	}
-
-	dma_handle = pci_map_single(pdev, cmd->request_buffer,
-		cmd->request_bufflen, cmd->sc_data_direction);
-	cmd->SCp.dma_handle = dma_handle;
-
-	ccb->sg_count = 1;
-	dst->sg_count = cpu_to_le16(1);
-	dst->table[0].addr = cpu_to_le32(dma_handle & 0xffffffff);
-	dst->table[0].addr_hi = cpu_to_le32((dma_handle >> 16) >> 16);
-	dst->table[0].count = cpu_to_le32((u32)cmd->request_bufflen);
-	dst->table[0].ctrl = SG_CF_EOT | SG_CF_64B | SG_CF_HOST;
 
 	return 0;
 }
@@ -451,24 +432,24 @@ static void stex_internal_copy(struct scsi_cmnd *cmd,
 	size_t lcount;
 	size_t len;
 	void *s, *d, *base = NULL;
-	if (*count > cmd->request_bufflen)
-		*count = cmd->request_bufflen;
+	size_t offset;
+
+	if (*count > scsi_bufflen(cmd))
+		*count = scsi_bufflen(cmd);
 	lcount = *count;
 	while (lcount) {
 		len = lcount;
 		s = (void *)src;
-		if (cmd->use_sg) {
-			size_t offset = *count - lcount;
-			s += offset;
-			base = scsi_kmap_atomic_sg(cmd->request_buffer,
-				sg_count, &offset, &len);
-			if (base == NULL) {
-				*count -= lcount;
-				return;
-			}
-			d = base + offset;
-		} else
-			d = cmd->request_buffer;
+
+		offset = *count - lcount;
+		s += offset;
+		base = scsi_kmap_atomic_sg(scsi_sglist(cmd),
+					   sg_count, &offset, &len);
+		if (!base) {
+			*count -= lcount;
+			return;
+		}
+		d = base + offset;
 
 		if (direction == ST_TO_CMD)
 			memcpy(d, s, len);
@@ -476,30 +457,24 @@ static void stex_internal_copy(struct scsi_cmnd *cmd,
 			memcpy(s, d, len);
 
 		lcount -= len;
-		if (cmd->use_sg)
-			scsi_kunmap_atomic_sg(base);
+		scsi_kunmap_atomic_sg(base);
 	}
 }
 
 static int stex_direct_copy(struct scsi_cmnd *cmd,
 	const void *src, size_t count)
 {
-	struct st_hba *hba = (struct st_hba *) &cmd->device->host->hostdata[0];
 	size_t cp_len = count;
 	int n_elem = 0;
 
-	if (cmd->use_sg) {
-		n_elem = pci_map_sg(hba->pdev, cmd->request_buffer,
-			cmd->use_sg, cmd->sc_data_direction);
-		if (n_elem <= 0)
-			return 0;
-	}
+	n_elem = scsi_dma_map(cmd);
+	if (n_elem < 0)
+		return 0;
 
 	stex_internal_copy(cmd, src, &cp_len, n_elem, ST_TO_CMD);
 
-	if (cmd->use_sg)
-		pci_unmap_sg(hba->pdev, cmd->request_buffer,
-			cmd->use_sg, cmd->sc_data_direction);
+	scsi_dma_unmap(cmd);
+
 	return cp_len == count;
 }
 
@@ -678,18 +653,6 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 	return 0;
 }
 
-static void stex_unmap_sg(struct st_hba *hba, struct scsi_cmnd *cmd)
-{
-	if (cmd->sc_data_direction != DMA_NONE) {
-		if (cmd->use_sg)
-			pci_unmap_sg(hba->pdev, cmd->request_buffer,
-				cmd->use_sg, cmd->sc_data_direction);
-		else
-			pci_unmap_single(hba->pdev, cmd->SCp.dma_handle,
-				cmd->request_bufflen, cmd->sc_data_direction);
-	}
-}
-
 static void stex_scsi_done(struct st_ccb *ccb)
 {
 	struct scsi_cmnd *cmd = ccb->cmd;
@@ -756,8 +719,8 @@ static void stex_ys_commands(struct st_hba *hba,
 
 	if (ccb->cmd->cmnd[0] == MGT_CMD &&
 		resp->scsi_status != SAM_STAT_CHECK_CONDITION) {
-		ccb->cmd->request_bufflen =
-			le32_to_cpu(*(__le32 *)&resp->variable[0]);
+		scsi_set_resid(ccb->cmd, scsi_bufflen(ccb->cmd) -
+			le32_to_cpu(*(__le32 *)&resp->variable[0]));
 		return;
 	}
 
@@ -855,7 +818,7 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 				ccb->cmd->cmnd[1] == PASSTHRU_GET_ADAPTER))
 				stex_controller_info(hba, ccb);
 
-			stex_unmap_sg(hba, ccb->cmd);
+			scsi_dma_unmap(ccb->cmd);
 			stex_scsi_done(ccb);
 			hba->out_req_cnt--;
 		} else if (ccb->req_type & PASSTHRU_REQ_TYPE) {
@@ -1028,7 +991,7 @@ static int stex_abort(struct scsi_cmnd *cmd)
 	}
 
 fail_out:
-	stex_unmap_sg(hba, cmd);
+	scsi_dma_unmap(cmd);
 	hba->wait_ccb->req = NULL; /* nullify the req's future return */
 	hba->wait_ccb = NULL;
 	result = FAILED;

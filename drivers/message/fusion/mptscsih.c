@@ -4,7 +4,7 @@
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
  *  Copyright (c) 1999-2007 LSI Logic Corporation
- *  (mailto:mpt_linux_developer@lsi.com)
+ *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -44,7 +44,6 @@
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include "linux_compat.h"	/* linux-2.6 tweaks */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -260,30 +259,13 @@ mptscsih_AddSGE(MPT_ADAPTER *ioc, struct scsi_cmnd *SCpnt,
 	/* Map the data portion, if any.
 	 * sges_left  = 0 if no data transfer.
 	 */
-	if ( (sges_left = SCpnt->use_sg) ) {
-		sges_left = pci_map_sg(ioc->pcidev,
-			       (struct scatterlist *) SCpnt->request_buffer,
- 			       SCpnt->use_sg,
-			       SCpnt->sc_data_direction);
-		if (sges_left == 0)
-			return FAILED;
-	} else if (SCpnt->request_bufflen) {
-		SCpnt->SCp.dma_handle = pci_map_single(ioc->pcidev,
-				      SCpnt->request_buffer,
-				      SCpnt->request_bufflen,
-				      SCpnt->sc_data_direction);
-		dsgprintk((MYIOC_s_INFO_FMT "SG: non-SG for %p, len=%d\n",
-				ioc->name, SCpnt, SCpnt->request_bufflen));
-		mptscsih_add_sge((char *) &pReq->SGL,
-			0xD1000000|MPT_SGE_FLAGS_ADDRESSING|sgdir|SCpnt->request_bufflen,
-			SCpnt->SCp.dma_handle);
-
-		return SUCCESS;
-	}
+	sges_left = scsi_dma_map(SCpnt);
+	if (sges_left < 0)
+		return FAILED;
 
 	/* Handle the SG case.
 	 */
-	sg = (struct scatterlist *) SCpnt->request_buffer;
+	sg = scsi_sglist(SCpnt);
 	sg_done  = 0;
 	sgeOffset = sizeof(SCSIIORequest_t) - sizeof(SGE_IO_UNION);
 	chainSge = NULL;
@@ -465,7 +447,12 @@ mptscsih_issue_sep_command(MPT_ADAPTER *ioc, VirtTarget *vtarget,
 	MPT_FRAME_HDR *mf;
 	SEPRequest_t 	 *SEPMsg;
 
-	if (ioc->bus_type == FC)
+	if (ioc->bus_type != SAS)
+		return;
+
+	/* Not supported for hidden raid components
+	 */
+	if (vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT)
 		return;
 
 	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
@@ -662,7 +649,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		scsi_state = pScsiReply->SCSIState;
 		scsi_status = pScsiReply->SCSIStatus;
 		xfer_cnt = le32_to_cpu(pScsiReply->TransferCount);
-		sc->resid = sc->request_bufflen - xfer_cnt;
+		scsi_set_resid(sc, scsi_bufflen(sc) - xfer_cnt);
 		log_info = le32_to_cpu(pScsiReply->IOCLogInfo);
 
 		/*
@@ -767,7 +754,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			break;
 
 		case MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH:	/* 0x0049 */
-			sc->resid = sc->request_bufflen - xfer_cnt;
+			scsi_set_resid(sc, scsi_bufflen(sc) - xfer_cnt);
 			if((xfer_cnt==0)||(sc->underflow > xfer_cnt))
 				sc->result=DID_SOFT_ERROR << 16;
 			else /* Sufficient data transfer occurred */
@@ -816,7 +803,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			break;
 
 		case MPI_IOCSTATUS_SCSI_DATA_OVERRUN:		/* 0x0044 */
-			sc->resid=0;
+			scsi_set_resid(sc, 0);
 		case MPI_IOCSTATUS_SCSI_RECOVERED_ERROR:	/* 0x0040 */
 		case MPI_IOCSTATUS_SUCCESS:			/* 0x0000 */
 			sc->result = (DID_OK << 16) | scsi_status;
@@ -899,23 +886,18 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			    scsi_state, scsi_status, log_info));
 
 			dreplyprintk(("%s: [%d:%d:%d:%d] resid=%d "
-			    "bufflen=%d xfer_cnt=%d\n", __FUNCTION__,
-			    sc->device->host->host_no, sc->device->channel, sc->device->id,
-			    sc->device->lun, sc->resid, sc->request_bufflen,
-			    xfer_cnt));
+				      "bufflen=%d xfer_cnt=%d\n", __FUNCTION__,
+				      sc->device->host->host_no,
+				      sc->device->channel, sc->device->id,
+				      sc->device->lun, scsi_get_resid(sc),
+				      scsi_bufflen(sc), xfer_cnt));
 		}
 #endif
 
 	} /* end of address reply case */
 
 	/* Unmap the DMA buffers, if any. */
-	if (sc->use_sg) {
-		pci_unmap_sg(ioc->pcidev, (struct scatterlist *) sc->request_buffer,
-			    sc->use_sg, sc->sc_data_direction);
-	} else if (sc->request_bufflen) {
-		pci_unmap_single(ioc->pcidev, sc->SCp.dma_handle,
-				sc->request_bufflen, sc->sc_data_direction);
-	}
+	scsi_dma_unmap(sc);
 
 	sc->scsi_done(sc);		/* Issue the command callback */
 
@@ -970,17 +952,8 @@ mptscsih_flush_running_cmds(MPT_SCSI_HOST *hd)
 			/* Set status, free OS resources (SG DMA buffers)
 			 * Do OS callback
 			 */
-			if (SCpnt->use_sg) {
-				pci_unmap_sg(ioc->pcidev,
-					(struct scatterlist *) SCpnt->request_buffer,
-					SCpnt->use_sg,
-					SCpnt->sc_data_direction);
-			} else if (SCpnt->request_bufflen) {
-				pci_unmap_single(ioc->pcidev,
-					SCpnt->SCp.dma_handle,
-					SCpnt->request_bufflen,
-					SCpnt->sc_data_direction);
-			}
+			scsi_dma_unmap(SCpnt);
+
 			SCpnt->result = DID_RESET << 16;
 			SCpnt->host_scribble = NULL;
 
@@ -1023,14 +996,19 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			mf = (SCSIIORequest_t *)MPT_INDEX_2_MFPTR(hd->ioc, ii);
 			if (mf == NULL)
 				continue;
+			/* If the device is a hidden raid component, then its
+			 * expected that the mf->function will be RAID_SCSI_IO
+			 */
+			if (vdevice->vtarget->tflags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT && mf->Function !=
+			    MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)
+				continue;
+
 			int_to_scsilun(vdevice->lun, &lun);
 			if ((mf->Bus != vdevice->vtarget->channel) ||
 			    (mf->TargetID != vdevice->vtarget->id) ||
 			    memcmp(lun.scsi_lun, mf->LUN, 8))
 				continue;
-			dsprintk(( "search_running: found (sc=%p, mf = %p) "
-			    "channel %d id %d, lun %d \n", hd->ScsiLookup[ii],
-			    mf, mf->Bus, mf->TargetID, vdevice->lun));
 
 			/* Cleanup
 			 */
@@ -1039,19 +1017,12 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			mpt_free_msg_frame(hd->ioc, (MPT_FRAME_HDR *)mf);
 			if ((unsigned char *)mf != sc->host_scribble)
 				continue;
-			if (sc->use_sg) {
-				pci_unmap_sg(hd->ioc->pcidev,
-				(struct scatterlist *) sc->request_buffer,
-					sc->use_sg,
-					sc->sc_data_direction);
-			} else if (sc->request_bufflen) {
-				pci_unmap_single(hd->ioc->pcidev,
-					sc->SCp.dma_handle,
-					sc->request_bufflen,
-					sc->sc_data_direction);
-			}
+			scsi_dma_unmap(sc);
 			sc->host_scribble = NULL;
 			sc->result = DID_NO_CONNECT << 16;
+			dsprintk(( "search_running: found (sc=%p, mf = %p) "
+			    "channel %d id %d, lun %d \n", sc, mf,
+			    vdevice->vtarget->channel, vdevice->vtarget->id, vdevice->lun));
 			sc->scsi_done(sc);
 		}
 	}
@@ -1380,10 +1351,10 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	 *    will be no data transfer!  GRRRRR...
 	 */
 	if (SCpnt->sc_data_direction == DMA_FROM_DEVICE) {
-		datalen = SCpnt->request_bufflen;
+		datalen = scsi_bufflen(SCpnt);
 		scsidir = MPI_SCSIIO_CONTROL_READ;	/* DATA IN  (host<--ioc<--dev) */
 	} else if (SCpnt->sc_data_direction == DMA_TO_DEVICE) {
-		datalen = SCpnt->request_bufflen;
+		datalen = scsi_bufflen(SCpnt);
 		scsidir = MPI_SCSIIO_CONTROL_WRITE;	/* DATA OUT (host-->ioc-->dev) */
 	} else {
 		datalen = 0;
@@ -1768,18 +1739,43 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	u32		 ctx2abort;
 	int		 scpnt_idx;
 	int		 retval;
-	VirtDevice	 *vdev;
+	VirtDevice	 *vdevice;
 	ulong	 	 sn = SCpnt->serial_number;
+	MPT_ADAPTER	*ioc;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
 	 */
 	if ((hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata) == NULL) {
 		SCpnt->result = DID_RESET << 16;
 		SCpnt->scsi_done(SCpnt);
-		dfailprintk((KERN_INFO MYNAM ": mptscsih_abort: "
-			   "Can't locate host! (sc=%p)\n",
-			   SCpnt));
+		dfailprintk((KERN_INFO MYNAM ": mptscsih_abort: Can't locate "
+		    "host! (sc=%p)\n", SCpnt));
 		return FAILED;
+	}
+
+	ioc = hd->ioc;
+	printk(MYIOC_s_INFO_FMT "attempting task abort! (sc=%p)\n",
+	       ioc->name, SCpnt);
+	scsi_print_command(SCpnt);
+
+	vdevice = SCpnt->device->hostdata;
+	if (!vdevice || !vdevice->vtarget) {
+		dtmprintk((MYIOC_s_DEBUG_FMT "task abort: device has been "
+		    "deleted (sc=%p)\n", ioc->name, SCpnt));
+		SCpnt->result = DID_NO_CONNECT << 16;
+		SCpnt->scsi_done(SCpnt);
+		retval = 0;
+		goto out;
+	}
+
+	/* Task aborts are not supported for hidden raid components.
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
+		dtmprintk((MYIOC_s_DEBUG_FMT "task abort: hidden raid "
+		    "component (sc=%p)\n", ioc->name, SCpnt));
+		SCpnt->result = DID_RESET << 16;
+		retval = FAILED;
+		goto out;
 	}
 
 	/* Find this command
@@ -1790,20 +1786,19 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		 */
 		SCpnt->result = DID_RESET << 16;
 		dtmprintk((KERN_INFO MYNAM ": %s: mptscsih_abort: "
-			   "Command not in the active list! (sc=%p)\n",
-			   hd->ioc->name, SCpnt));
-		return SUCCESS;
+		   "Command not in the active list! (sc=%p)\n", ioc->name,
+		   SCpnt));
+		retval = 0;
+		goto out;
 	}
 
-	if (hd->resetPending)
-		return FAILED;
+	if (hd->resetPending) {
+		retval = FAILED;
+		goto out;
+	}
 
 	if (hd->timeouts < -1)
 		hd->timeouts++;
-
-	printk(KERN_WARNING MYNAM ": %s: attempting task abort! (sc=%p)\n",
-	       hd->ioc->name, SCpnt);
-	scsi_print_command(SCpnt);
 
 	/* Most important!  Set TaskMsgContext to SCpnt's MsgContext!
 	 * (the IO to be ABORT'd)
@@ -1817,18 +1812,17 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 
 	hd->abortSCpnt = SCpnt;
 
-	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
-		vdev->vtarget->channel, vdev->vtarget->id, vdev->lun,
-		ctx2abort, mptscsih_get_tm_timeout(hd->ioc));
+	    vdevice->vtarget->channel, vdevice->vtarget->id, vdevice->lun,
+	    ctx2abort, mptscsih_get_tm_timeout(ioc));
 
 	if (SCPNT_TO_LOOKUP_IDX(SCpnt) == scpnt_idx &&
 	    SCpnt->serial_number == sn)
 		retval = FAILED;
 
-	printk (KERN_WARNING MYNAM ": %s: task abort: %s (sc=%p)\n",
-		hd->ioc->name,
-		((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
+ out:
+	printk(MYIOC_s_INFO_FMT "task abort: %s (sc=%p)\n",
+	    ioc->name, ((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
 
 	if (retval == 0)
 		return SUCCESS;
@@ -1850,32 +1844,47 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
 	int		 retval;
-	VirtDevice	 *vdev;
+	VirtDevice	 *vdevice;
+	MPT_ADAPTER	*ioc;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
 	 */
 	if ((hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata) == NULL){
-		dtmprintk((KERN_INFO MYNAM ": mptscsih_dev_reset: "
-			   "Can't locate host! (sc=%p)\n",
-			   SCpnt));
+		dtmprintk((KERN_INFO MYNAM ": mptscsih_dev_reset: Can't "
+		    "locate host! (sc=%p)\n", SCpnt));
 		return FAILED;
 	}
 
-	if (hd->resetPending)
-		return FAILED;
-
-	printk(KERN_WARNING MYNAM ": %s: attempting target reset! (sc=%p)\n",
-	       hd->ioc->name, SCpnt);
+	ioc = hd->ioc;
+	printk(MYIOC_s_INFO_FMT "attempting target reset! (sc=%p)\n",
+	       ioc->name, SCpnt);
 	scsi_print_command(SCpnt);
 
-	vdev = SCpnt->device->hostdata;
-	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
-		vdev->vtarget->channel, vdev->vtarget->id,
-		0, 0, mptscsih_get_tm_timeout(hd->ioc));
+	if (hd->resetPending) {
+		retval = FAILED;
+		goto out;
+	}
 
-	printk (KERN_WARNING MYNAM ": %s: target reset: %s (sc=%p)\n",
-		hd->ioc->name,
-		((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
+	vdevice = SCpnt->device->hostdata;
+	if (!vdevice || !vdevice->vtarget) {
+		retval = 0;
+		goto out;
+	}
+
+	/* Target reset to hidden raid component is not supported
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
+		retval = FAILED;
+		goto out;
+	}
+
+	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
+	    vdevice->vtarget->channel, vdevice->vtarget->id, 0, 0,
+	    mptscsih_get_tm_timeout(ioc));
+
+ out:
+	printk (MYIOC_s_INFO_FMT "target reset: %s (sc=%p)\n",
+	    ioc->name, ((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
 
 	if (retval == 0)
 		return SUCCESS;
@@ -1899,18 +1908,19 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 	MPT_SCSI_HOST	*hd;
 	int		 retval;
 	VirtDevice	 *vdev;
+	MPT_ADAPTER	*ioc;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
 	 */
 	if ((hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata) == NULL){
-		dtmprintk((KERN_INFO MYNAM ": mptscsih_bus_reset: "
-			   "Can't locate host! (sc=%p)\n",
-			   SCpnt ) );
+		dtmprintk((KERN_INFO MYNAM ": mptscsih_bus_reset: Can't "
+		    "locate host! (sc=%p)\n", SCpnt ));
 		return FAILED;
 	}
 
-	printk(KERN_WARNING MYNAM ": %s: attempting bus reset! (sc=%p)\n",
-	       hd->ioc->name, SCpnt);
+	ioc = hd->ioc;
+	printk(MYIOC_s_INFO_FMT "attempting bus reset! (sc=%p)\n",
+	       ioc->name, SCpnt);
 	scsi_print_command(SCpnt);
 
 	if (hd->timeouts < -1)
@@ -1918,11 +1928,10 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
-		vdev->vtarget->channel, 0, 0, 0, mptscsih_get_tm_timeout(hd->ioc));
+	    vdev->vtarget->channel, 0, 0, 0, mptscsih_get_tm_timeout(ioc));
 
-	printk (KERN_WARNING MYNAM ": %s: bus reset: %s (sc=%p)\n",
-		hd->ioc->name,
-		((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
+	printk(MYIOC_s_INFO_FMT "bus reset: %s (sc=%p)\n",
+	    ioc->name, ((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
 
 	if (retval == 0)
 		return SUCCESS;
@@ -1943,37 +1952,38 @@ int
 mptscsih_host_reset(struct scsi_cmnd *SCpnt)
 {
 	MPT_SCSI_HOST *  hd;
-	int              status = SUCCESS;
+	int              retval;
+	MPT_ADAPTER	*ioc;
 
 	/*  If we can't locate the host to reset, then we failed. */
 	if ((hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata) == NULL){
-		dtmprintk( ( KERN_INFO MYNAM ": mptscsih_host_reset: "
-			     "Can't locate host! (sc=%p)\n",
-			     SCpnt ) );
+		dtmprintk( ( KERN_INFO MYNAM ": mptscsih_host_reset: Can't "
+		    "locate host! (sc=%p)\n", SCpnt));
 		return FAILED;
 	}
 
-	printk(KERN_WARNING MYNAM ": %s: Attempting host reset! (sc=%p)\n",
-	       hd->ioc->name, SCpnt);
+	ioc = hd->ioc;
+	printk(MYIOC_s_INFO_FMT "attempting host reset! (sc=%p)\n",
+	    ioc->name, SCpnt);
 
 	/*  If our attempts to reset the host failed, then return a failed
 	 *  status.  The host will be taken off line by the SCSI mid-layer.
 	 */
-	if (mpt_HardResetHandler(hd->ioc, CAN_SLEEP) < 0){
-		status = FAILED;
+	if (mpt_HardResetHandler(hd->ioc, CAN_SLEEP) < 0) {
+		retval = FAILED;
 	} else {
 		/*  Make sure TM pending is cleared and TM state is set to
 		 *  NONE.
 		 */
+		retval = 0;
 		hd->tmPending = 0;
 		hd->tmState = TM_STATE_NONE;
 	}
 
-	dtmprintk( ( KERN_INFO MYNAM ": mptscsih_host_reset: "
-		     "Status = %s\n",
-		     (status == SUCCESS) ? "SUCCESS" : "FAILED" ) );
+	printk(MYIOC_s_INFO_FMT "host reset: %s (sc=%p)\n",
+	    ioc->name, ((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
 
-	return status;
+	return retval;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -3150,6 +3160,16 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 {
 	INTERNAL_CMD		 iocmd;
 
+	/* Ignore hidden raid components, this is handled when the command
+	 * is sent to the volume
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT)
+		return;
+
+	if (vdevice->vtarget->type != TYPE_DISK || vdevice->vtarget->deleted ||
+	    !vdevice->configured_lun)
+		return;
+
 	/* Following parameters will not change
 	 * in this routine.
 	 */
@@ -3164,9 +3184,7 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 	iocmd.id = vdevice->vtarget->id;
 	iocmd.lun = vdevice->lun;
 
-	if ((vdevice->vtarget->type == TYPE_DISK) &&
-	    (vdevice->configured_lun))
-		mptscsih_do_cmd(hd, &iocmd);
+	mptscsih_do_cmd(hd, &iocmd);
 }
 
 EXPORT_SYMBOL(mptscsih_remove);

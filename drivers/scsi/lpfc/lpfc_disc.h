@@ -36,21 +36,23 @@ enum lpfc_work_type {
 	LPFC_EVT_WARM_START,
 	LPFC_EVT_KILL,
 	LPFC_EVT_ELS_RETRY,
+	LPFC_EVT_DEV_LOSS_DELAY,
+	LPFC_EVT_DEV_LOSS,
 };
 
 /* structure used to queue event to the discovery tasklet */
 struct lpfc_work_evt {
 	struct list_head      evt_listp;
-	void                * evt_arg1;
-	void                * evt_arg2;
+	void                 *evt_arg1;
+	void                 *evt_arg2;
 	enum lpfc_work_type   evt;
 };
 
 
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
-	struct lpfc_name nlp_portname;		/* port name */
-	struct lpfc_name nlp_nodename;		/* node name */
+	struct lpfc_name nlp_portname;
+	struct lpfc_name nlp_nodename;
 	uint32_t         nlp_flag;		/* entry  flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
@@ -75,8 +77,9 @@ struct lpfc_nodelist {
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
-	struct lpfc_hba      *nlp_phba;
+	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
+	struct lpfc_work_evt dev_loss_evt;
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */
 	struct kref     kref;
@@ -98,7 +101,9 @@ struct lpfc_nodelist {
 					   ACC */
 #define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
 					   NPR list */
+#define NLP_RM_DFLT_RPI    0x4000000	/* need to remove leftover dflt RPI */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
+#define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used

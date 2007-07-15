@@ -529,43 +529,20 @@ static void __unmap_scsi_data(struct device *dev, struct scsi_cmnd *cmd)
 {
 	switch(cmd->__data_mapped) {
 	case 2:
-		dma_unmap_sg(dev, cmd->request_buffer, cmd->use_sg,
-				cmd->sc_data_direction);
-		break;
-	case 1:
-		dma_unmap_single(dev, cmd->__data_mapping,
-				 cmd->request_bufflen,
-				 cmd->sc_data_direction);
+		scsi_dma_unmap(cmd);
 		break;
 	}
 	cmd->__data_mapped = 0;
-}
-
-static u_long __map_scsi_single_data(struct device *dev, struct scsi_cmnd *cmd)
-{
-	dma_addr_t mapping;
-
-	if (cmd->request_bufflen == 0)
-		return 0;
-
-	mapping = dma_map_single(dev, cmd->request_buffer,
-				 cmd->request_bufflen,
-				 cmd->sc_data_direction);
-	cmd->__data_mapped = 1;
-	cmd->__data_mapping = mapping;
-
-	return mapping;
 }
 
 static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 {
 	int use_sg;
 
-	if (cmd->use_sg == 0)
+	use_sg = scsi_dma_map(cmd);
+	if (!use_sg)
 		return 0;
 
-	use_sg = dma_map_sg(dev, cmd->request_buffer, cmd->use_sg,
-			cmd->sc_data_direction);
 	cmd->__data_mapped = 2;
 	cmd->__data_mapping = use_sg;
 
@@ -573,7 +550,6 @@ static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 }
 
 #define unmap_scsi_data(np, cmd)	__unmap_scsi_data(np->dev, cmd)
-#define map_scsi_single_data(np, cmd)	__map_scsi_single_data(np->dev, cmd)
 #define map_scsi_sg_data(np, cmd)	__map_scsi_sg_data(np->dev, cmd)
 
 /*==========================================================
@@ -7667,39 +7643,16 @@ fail:
 **	sizes to the data segment array.
 */
 
-static int ncr_scatter_no_sglist(struct ncb *np, struct ccb *cp, struct scsi_cmnd *cmd)
-{
-	struct scr_tblmove *data = &cp->phys.data[MAX_SCATTER - 1];
-	int segment;
-
-	cp->data_len = cmd->request_bufflen;
-
-	if (cmd->request_bufflen) {
-		dma_addr_t baddr = map_scsi_single_data(np, cmd);
-		if (baddr) {
-			ncr_build_sge(np, data, baddr, cmd->request_bufflen);
-			segment = 1;
-		} else {
-			segment = -2;
-		}
-	} else {
-		segment = 0;
-	}
-
-	return segment;
-}
-
 static int ncr_scatter(struct ncb *np, struct ccb *cp, struct scsi_cmnd *cmd)
 {
 	int segment	= 0;
-	int use_sg	= (int) cmd->use_sg;
+	int use_sg	= scsi_sg_count(cmd);
 
 	cp->data_len	= 0;
 
-	if (!use_sg)
-		segment = ncr_scatter_no_sglist(np, cp, cmd);
-	else if ((use_sg = map_scsi_sg_data(np, cmd)) > 0) {
-		struct scatterlist *scatter = (struct scatterlist *)cmd->request_buffer;
+	use_sg = map_scsi_sg_data(np, cmd);
+	if (use_sg > 0) {
+		struct scatterlist *sg;
 		struct scr_tblmove *data;
 
 		if (use_sg > MAX_SCATTER) {
@@ -7709,16 +7662,15 @@ static int ncr_scatter(struct ncb *np, struct ccb *cp, struct scsi_cmnd *cmd)
 
 		data = &cp->phys.data[MAX_SCATTER - use_sg];
 
-		for (segment = 0; segment < use_sg; segment++) {
-			dma_addr_t baddr = sg_dma_address(&scatter[segment]);
-			unsigned int len = sg_dma_len(&scatter[segment]);
+		scsi_for_each_sg(cmd, sg, use_sg, segment) {
+			dma_addr_t baddr = sg_dma_address(sg);
+			unsigned int len = sg_dma_len(sg);
 
 			ncr_build_sge(np, &data[segment], baddr, len);
 			cp->data_len += len;
 		}
-	} else {
+	} else
 		segment = -2;
-	}
 
 	return segment;
 }

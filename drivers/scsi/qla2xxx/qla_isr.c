@@ -9,7 +9,6 @@
 #include <scsi/scsi_tcq.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
-static void qla2x00_async_event(scsi_qla_host_t *, uint16_t *);
 static void qla2x00_process_completed_request(struct scsi_qla_host *, uint32_t);
 static void qla2x00_status_entry(scsi_qla_host_t *, void *);
 static void qla2x00_status_cont_entry(scsi_qla_host_t *, sts_cont_entry_t *);
@@ -244,7 +243,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *ha, uint16_t mb0)
  * @ha: SCSI driver HA context
  * @mb: Mailbox registers (0 - 3)
  */
-static void
+void
 qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 {
 #define LS_UNKNOWN	2
@@ -386,6 +385,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
@@ -422,6 +426,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		ha->flags.management_server_logged_in = 0;
 		ha->link_data_rate = PORT_SPEED_UNKNOWN;
 		if (ql2xfdmienable)
@@ -438,6 +447,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 			qla2x00_mark_all_devices_lost(ha, 1);
+		}
+
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
 		}
 
 		set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
@@ -465,6 +479,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		if (!(test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags))) {
 			set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		}
@@ -489,6 +508,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 				atomic_set(&ha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 			qla2x00_mark_all_devices_lost(ha, 1);
+		}
+
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
 		}
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
@@ -530,6 +554,10 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
+		/* Check if the Vport has issued a SCR */
+		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
+			break;
+
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
 		DEBUG(printk(KERN_INFO
@@ -589,6 +617,9 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		ha->host_no, mb[1], mb[2]));
 		break;
 	}
+
+	if (!ha->parent && ha->num_vhosts)
+		qla2x00_alert_all_vps(ha, mb);
 }
 
 static void
@@ -889,19 +920,19 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		}
 		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER)) {
 			resid = resid_len;
-			cp->resid = resid;
+			scsi_set_resid(cp, resid);
 			CMD_RESID_LEN(cp) = resid;
 
 			if (!lscsi_status &&
-			    ((unsigned)(cp->request_bufflen - resid) <
+			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			     cp->underflow)) {
 				qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen);
+					   "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+					   "detected (%x of %x bytes)...returning "
+					   "error status.\n", ha->host_no,
+					   cp->device->channel, cp->device->id,
+					   cp->device->lun, resid,
+					   scsi_bufflen(cp));
 
 				cp->result = DID_ERROR << 16;
 				break;
@@ -963,7 +994,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			resid = fw_resid_len;
 
 		if (scsi_status & SS_RESIDUAL_UNDER) {
-			cp->resid = resid;
+			scsi_set_resid(cp, resid);
 			CMD_RESID_LEN(cp) = resid;
 		} else {
 			DEBUG2(printk(KERN_INFO
@@ -1042,26 +1073,26 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			 */
 			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
 				DEBUG2(printk("scsi(%ld:%d:%d:%d) Dropped "
-				    "frame(s) detected (%x of %x bytes)..."
-				    "retrying command.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen));
+					      "frame(s) detected (%x of %x bytes)..."
+					      "retrying command.\n", ha->host_no,
+					      cp->device->channel, cp->device->id,
+					      cp->device->lun, resid,
+					      scsi_bufflen(cp)));
 
 				cp->result = DID_BUS_BUSY << 16;
 				break;
 			}
 
 			/* Handle mid-layer underflow */
-			if ((unsigned)(cp->request_bufflen - resid) <
+			if ((unsigned)(scsi_bufflen(cp) - resid) <
 			    cp->underflow) {
 				qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen);
+					   "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+					   "detected (%x of %x bytes)...returning "
+					   "error status.\n", ha->host_no,
+					   cp->device->channel, cp->device->id,
+					   cp->device->lun, resid,
+					   scsi_bufflen(cp));
 
 				cp->result = DID_ERROR << 16;
 				break;
@@ -1084,7 +1115,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		DEBUG2(printk(KERN_INFO
 		    "PID=0x%lx req=0x%x xtra=0x%x -- returning DID_ERROR "
 		    "status!\n",
-		    cp->serial_number, cp->request_bufflen, resid_len));
+		    cp->serial_number, scsi_bufflen(cp), resid_len));
 
 		cp->result = DID_ERROR << 16;
 		break;
@@ -1393,6 +1424,10 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
 		case MS_IOCB_TYPE:
 			qla24xx_ms_entry(ha, (struct ct_entry_24xx *)pkt);
 			break;
+		case VP_RPT_ID_IOCB_TYPE:
+			qla24xx_report_id_acquisition(ha,
+			    (struct vp_rpt_id_entry_24xx *)pkt);
+			break;
 		default:
 			/* Type Not Supported. */
 			DEBUG4(printk(KERN_WARNING
@@ -1633,7 +1668,7 @@ struct qla_init_msix_entry {
 	uint16_t entry;
 	uint16_t index;
 	const char *name;
-	irqreturn_t (*handler)(int, void *);
+	irq_handler_t handler;
 };
 
 static struct qla_init_msix_entry imsix_entries[QLA_MSIX_ENTRIES] = {

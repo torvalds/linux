@@ -339,12 +339,6 @@ struct scsi_host_template {
 	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
 
 	/*
-	 * suspend support
-	 */
-	int (*resume)(struct scsi_device *);
-	int (*suspend)(struct scsi_device *, pm_message_t state);
-
-	/*
 	 * Name of proc directory
 	 */
 	char *proc_name;
@@ -677,6 +671,10 @@ struct Scsi_Host {
 #define shost_printk(prefix, shost, fmt, a...)	\
 	dev_printk(prefix, &(shost)->shost_gendev, fmt, ##a)
 
+static inline void *shost_priv(struct Scsi_Host *shost)
+{
+	return (void *)shost->hostdata;
+}
 
 int scsi_is_host_device(const struct device *);
 

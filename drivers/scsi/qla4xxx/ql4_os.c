@@ -10,6 +10,10 @@
 #include <scsi/scsicam.h>
 
 #include "ql4_def.h"
+#include "ql4_version.h"
+#include "ql4_glbl.h"
+#include "ql4_dbg.h"
+#include "ql4_inline.h"
 
 /*
  * Driver version
@@ -50,12 +54,15 @@ static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha);
 /*
  * iSCSI template entry points
  */
-static int qla4xxx_tgt_dscvr(enum iscsi_tgt_dscvr type, uint32_t host_no,
-			     uint32_t enable, struct sockaddr *dst_addr);
+static int qla4xxx_tgt_dscvr(struct Scsi_Host *shost,
+			     enum iscsi_tgt_dscvr type, uint32_t enable,
+			     struct sockaddr *dst_addr);
 static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 				  enum iscsi_param param, char *buf);
+static int qla4xxx_host_get_param(struct Scsi_Host *shost,
+				  enum iscsi_host_param param, char *buf);
 static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag);
 static int qla4xxx_conn_start(struct iscsi_cls_conn *conn);
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
@@ -95,16 +102,20 @@ static struct scsi_host_template qla4xxx_driver_template = {
 static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.owner			= THIS_MODULE,
 	.name			= DRIVER_NAME,
-	.param_mask		= ISCSI_CONN_PORT |
-				  ISCSI_CONN_ADDRESS |
-				  ISCSI_TARGET_NAME |
-				  ISCSI_TPGT,
+	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD |
+				  CAP_DATA_PATH_OFFLOAD,
+	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
+				  ISCSI_TARGET_NAME | ISCSI_TPGT,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS |
+				  ISCSI_HOST_IPADDRESS |
+				  ISCSI_HOST_INITIATOR_NAME,
 	.sessiondata_size	= sizeof(struct ddb_entry),
 	.host_template		= &qla4xxx_driver_template,
 
 	.tgt_dscvr		= qla4xxx_tgt_dscvr,
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
+	.get_host_param		= qla4xxx_host_get_param,
 	.start_conn		= qla4xxx_conn_start,
 	.stop_conn		= qla4xxx_conn_stop,
 	.session_recovery_timedout = qla4xxx_recovery_timedout,
@@ -161,6 +172,43 @@ static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag)
 		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
 }
 
+static ssize_t format_addr(char *buf, const unsigned char *addr, int len)
+{
+	int i;
+	char *cp = buf;
+
+	for (i = 0; i < len; i++)
+		cp += sprintf(cp, "%02x%c", addr[i],
+			      i == (len - 1) ? '\n' : ':');
+	return cp - buf;
+}
+
+
+static int qla4xxx_host_get_param(struct Scsi_Host *shost,
+				  enum iscsi_host_param param, char *buf)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	int len;
+
+	switch (param) {
+	case ISCSI_HOST_PARAM_HWADDRESS:
+		len = format_addr(buf, ha->my_mac, MAC_ADDR_LEN);
+		break;
+	case ISCSI_HOST_PARAM_IPADDRESS:
+		len = sprintf(buf, "%d.%d.%d.%d\n", ha->ip_address[0],
+			      ha->ip_address[1], ha->ip_address[2],
+			      ha->ip_address[3]);
+		break;
+	case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		len = sprintf(buf, "%s\n", ha->name_string);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
+}
+
 static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 				  enum iscsi_param param, char *buf)
 {
@@ -208,20 +256,14 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 	return len;
 }
 
-static int qla4xxx_tgt_dscvr(enum iscsi_tgt_dscvr type, uint32_t host_no,
-			     uint32_t enable, struct sockaddr *dst_addr)
+static int qla4xxx_tgt_dscvr(struct Scsi_Host *shost,
+			     enum iscsi_tgt_dscvr type, uint32_t enable,
+			     struct sockaddr *dst_addr)
 {
 	struct scsi_qla_host *ha;
-	struct Scsi_Host *shost;
 	struct sockaddr_in *addr;
 	struct sockaddr_in6 *addr6;
 	int ret = 0;
-
-	shost = scsi_host_lookup(host_no);
-	if (IS_ERR(shost)) {
-		printk(KERN_ERR "Could not find host no %u\n", host_no);
-		return -ENODEV;
-	}
 
 	ha = (struct scsi_qla_host *) shost->hostdata;
 
@@ -246,8 +288,6 @@ static int qla4xxx_tgt_dscvr(enum iscsi_tgt_dscvr type, uint32_t host_no,
 	default:
 		ret = -ENOSYS;
 	}
-
-	scsi_host_put(shost);
 	return ret;
 }
 
@@ -369,14 +409,7 @@ static void qla4xxx_srb_free_dma(struct scsi_qla_host *ha, struct srb *srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 
 	if (srb->flags & SRB_DMA_VALID) {
-		if (cmd->use_sg) {
-			pci_unmap_sg(ha->pdev, cmd->request_buffer,
-				     cmd->use_sg, cmd->sc_data_direction);
-		} else if (cmd->request_bufflen) {
-			pci_unmap_single(ha->pdev, srb->dma_handle,
-					 cmd->request_bufflen,
-					 cmd->sc_data_direction);
-		}
+		scsi_dma_unmap(cmd);
 		srb->flags &= ~SRB_DMA_VALID;
 	}
 	cmd->SCp.ptr = NULL;
@@ -711,7 +744,7 @@ static int qla4xxx_cmd_wait(struct scsi_qla_host *ha)
 	return stat;
 }
 
-static void qla4xxx_hw_reset(struct scsi_qla_host *ha)
+void qla4xxx_hw_reset(struct scsi_qla_host *ha)
 {
 	uint32_t ctrl_status;
 	unsigned long flags = 0;
@@ -1081,12 +1114,12 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 	if (ha->timer_active)
 		qla4xxx_stop_timer(ha);
 
-	/* free extra memory */
-	qla4xxx_mem_free(ha);
-
 	/* Detach interrupts */
 	if (test_and_clear_bit(AF_IRQ_ATTACHED, &ha->flags))
 		free_irq(ha->pdev->irq, ha);
+
+	/* free extra memory */
+	qla4xxx_mem_free(ha);
 
 	pci_disable_device(ha->pdev);
 
@@ -1331,6 +1364,11 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 	struct scsi_qla_host *ha;
 
 	ha = pci_get_drvdata(pdev);
+
+	qla4xxx_disable_intrs(ha);
+
+	while (test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags))
+		ssleep(1);
 
 	/* remove devs from iscsi_sessions to scsi_devices */
 	qla4xxx_free_ddb_list(ha);

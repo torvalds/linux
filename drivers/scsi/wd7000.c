@@ -1091,6 +1091,7 @@ static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
 	unchar *cdb = (unchar *) SCpnt->cmnd;
 	unchar idlun;
 	short cdblen;
+	int nseg;
 	Adapter *host = (Adapter *) SCpnt->device->host->hostdata;
 
 	cdblen = SCpnt->cmd_len;
@@ -1106,28 +1107,29 @@ static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
 	SCpnt->host_scribble = (unchar *) scb;
 	scb->host = host;
 
-	if (SCpnt->use_sg) {
-		struct scatterlist *sg = (struct scatterlist *) SCpnt->request_buffer;
+	nseg = scsi_sg_count(SCpnt);
+	if (nseg) {
+		struct scatterlist *sg;
 		unsigned i;
 
 		if (SCpnt->device->host->sg_tablesize == SG_NONE) {
 			panic("wd7000_queuecommand: scatter/gather not supported.\n");
 		}
-		dprintk("Using scatter/gather with %d elements.\n", SCpnt->use_sg);
+		dprintk("Using scatter/gather with %d elements.\n", nseg);
 
 		sgb = scb->sgb;
 		scb->op = 1;
 		any2scsi(scb->dataptr, (int) sgb);
-		any2scsi(scb->maxlen, SCpnt->use_sg * sizeof(Sgb));
+		any2scsi(scb->maxlen, nseg * sizeof(Sgb));
 
-		for (i = 0; i < SCpnt->use_sg; i++) {
-			any2scsi(sgb[i].ptr, isa_page_to_bus(sg[i].page) + sg[i].offset);
-			any2scsi(sgb[i].len, sg[i].length);
+		scsi_for_each_sg(SCpnt, sg, nseg, i) {
+			any2scsi(sgb[i].ptr, isa_page_to_bus(sg->page) + sg->offset);
+			any2scsi(sgb[i].len, sg->length);
 		}
 	} else {
 		scb->op = 0;
-		any2scsi(scb->dataptr, isa_virt_to_bus(SCpnt->request_buffer));
-		any2scsi(scb->maxlen, SCpnt->request_bufflen);
+		any2scsi(scb->dataptr, isa_virt_to_bus(scsi_sglist(SCpnt)));
+		any2scsi(scb->maxlen, scsi_bufflen(SCpnt));
 	}
 
 	/* FIXME: drop lock and yield here ? */

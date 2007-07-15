@@ -675,16 +675,15 @@ static const char *ultrastor_info(struct Scsi_Host * shpnt)
 
 static inline void build_sg_list(struct mscp *mscp, struct scsi_cmnd *SCpnt)
 {
-	struct scatterlist *sl;
+	struct scatterlist *sg;
 	long transfer_length = 0;
 	int i, max;
 
-	sl = (struct scatterlist *) SCpnt->request_buffer;
-	max = SCpnt->use_sg;
-	for (i = 0; i < max; i++) {
-		mscp->sglist[i].address = isa_page_to_bus(sl[i].page) + sl[i].offset;
-		mscp->sglist[i].num_bytes = sl[i].length;
-		transfer_length += sl[i].length;
+	max = scsi_sg_count(SCpnt);
+	scsi_for_each_sg(SCpnt, sg, max, i) {
+		mscp->sglist[i].address = isa_page_to_bus(sg->page) + sg->offset;
+		mscp->sglist[i].num_bytes = sg->length;
+		transfer_length += sg->length;
 	}
 	mscp->number_of_sg_list = max;
 	mscp->transfer_data = isa_virt_to_bus(mscp->sglist);
@@ -730,15 +729,15 @@ static int ultrastor_queuecommand(struct scsi_cmnd *SCpnt,
     my_mscp->target_id = SCpnt->device->id;
     my_mscp->ch_no = 0;
     my_mscp->lun = SCpnt->device->lun;
-    if (SCpnt->use_sg) {
+    if (scsi_sg_count(SCpnt)) {
 	/* Set scatter/gather flag in SCSI command packet */
 	my_mscp->sg = TRUE;
 	build_sg_list(my_mscp, SCpnt);
     } else {
 	/* Unset scatter/gather flag in SCSI command packet */
 	my_mscp->sg = FALSE;
-	my_mscp->transfer_data = isa_virt_to_bus(SCpnt->request_buffer);
-	my_mscp->transfer_data_length = SCpnt->request_bufflen;
+	my_mscp->transfer_data = isa_virt_to_bus(scsi_sglist(SCpnt));
+	my_mscp->transfer_data_length = scsi_bufflen(SCpnt);
     }
     my_mscp->command_link = 0;		/*???*/
     my_mscp->scsi_command_link_id = 0;	/*???*/
