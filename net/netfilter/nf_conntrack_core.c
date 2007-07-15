@@ -622,8 +622,9 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
-
-	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
+	ret = l3proto->get_l4proto(*pskb, skb_network_offset(*pskb),
+				   &dataoff, &protonum);
+	if (ret <= 0) {
 		pr_debug("not prepared to track yet or error occured\n");
 		NF_CT_STAT_INC_ATOMIC(error);
 		NF_CT_STAT_INC_ATOMIC(invalid);
