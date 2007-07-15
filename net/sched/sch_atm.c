@@ -411,11 +411,21 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		if (flow->vcc)
 			ATM_SKB(skb)->atm_options = flow->vcc->atm_options;
 		/*@@@ looks good ... but it's not supposed to work :-) */
-#ifdef CONFIG_NET_CLS_POLICE
+#ifdef CONFIG_NET_CLS_ACT
+		switch (result) {
+		case TC_ACT_QUEUED:
+		case TC_ACT_STOLEN:
+			kfree_skb(skb);
+			return NET_XMIT_SUCCESS;
+		case TC_ACT_SHOT:
+			kfree_skb(skb);
+			goto drop;
+		}
+#elif defined(CONFIG_NET_CLS_POLICE)
 		switch (result) {
 		case TC_POLICE_SHOT:
 			kfree_skb(skb);
-			break;
+			goto drop;
 		case TC_POLICE_RECLASSIFY:
 			if (flow->excess)
 				flow = flow->excess;
@@ -431,11 +441,8 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 #endif
 	}
-	if (
-#ifdef CONFIG_NET_CLS_POLICE
-		   result == TC_POLICE_SHOT ||
-#endif
-		   (ret = flow->q->enqueue(skb, flow->q)) != 0) {
+	if ((ret = flow->q->enqueue(skb, flow->q)) != 0) {
+drop: __maybe_unused
 		sch->qstats.drops++;
 		if (flow)
 			flow->qstats.drops++;
