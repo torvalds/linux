@@ -29,9 +29,7 @@
 #include <linux/fs.h>
 #include <asm/div64.h>
 #include <asm/byteorder.h>
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 #include <linux/inet.h>
-#endif
 #include "cifsfs.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
