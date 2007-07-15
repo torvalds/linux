@@ -128,93 +128,69 @@ NETjet_U_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *dev_netjet __devinitdata = NULL;
-
-int __devinit
-setup_netjet_u(struct IsdnCard *card)
+static int __devinit nju_pci_probe(struct pci_dev *dev_netjet,
+				   struct IsdnCardState *cs)
 {
-	int bytecnt;
-	struct IsdnCardState *cs = card->cs;
-	char tmp[64];
-#ifdef CONFIG_PCI
-#endif
-#ifdef __BIG_ENDIAN
-#error "not running on big endian machines now"
-#endif
-	strcpy(tmp, NETjet_U_revision);
-	printk(KERN_INFO "HiSax: Traverse Tech. NETspider-U driver Rev. %s\n", HiSax_getrev(tmp));
-	if (cs->typ != ISDN_CTYPE_NETJET_U)
+	if (pci_enable_device(dev_netjet))
 		return(0);
-	test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
-
-#ifdef CONFIG_PCI
-
-	for ( ;; )
-	{
-		if ((dev_netjet = pci_find_device(PCI_VENDOR_ID_TIGERJET,
-			PCI_DEVICE_ID_TIGERJET_300,  dev_netjet))) {
-			if (pci_enable_device(dev_netjet))
-				return(0);
-			pci_set_master(dev_netjet);
-			cs->irq = dev_netjet->irq;
-			if (!cs->irq) {
-				printk(KERN_WARNING "NETspider-U: No IRQ for PCI card found\n");
-				return(0);
-			}
-			cs->hw.njet.base = pci_resource_start(dev_netjet, 0);
-			if (!cs->hw.njet.base) {
-				printk(KERN_WARNING "NETspider-U: No IO-Adr for PCI card found\n");
-				return(0);
-			}
-		} else {
-			printk(KERN_WARNING "NETspider-U: No PCI card found\n");
-			return(0);
-		}
-
-		cs->hw.njet.auxa = cs->hw.njet.base + NETJET_AUXDATA;
-		cs->hw.njet.isac = cs->hw.njet.base | NETJET_ISAC_OFF;
-		mdelay(10);
-
-		cs->hw.njet.ctrl_reg = 0xff;  /* Reset On */
-		byteout(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
-		mdelay(10);
-
-		cs->hw.njet.ctrl_reg = 0x00;  /* Reset Off and status read clear */
-		byteout(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
-		mdelay(10);
-
-		cs->hw.njet.auxd = 0xC0;
-		cs->hw.njet.dmactrl = 0;
-
-		byteout(cs->hw.njet.auxa, 0);
-		byteout(cs->hw.njet.base + NETJET_AUXCTRL, ~NETJET_ISACIRQ);
-		byteout(cs->hw.njet.base + NETJET_IRQMASK1, NETJET_ISACIRQ);
-		byteout(cs->hw.njet.auxa, cs->hw.njet.auxd);
-
-		switch ( ( ( NETjet_ReadIC( cs, ICC_RBCH ) >> 5 ) & 3 ) )
-		{
-			case 3 :
-				break;
-
-			case 0 :
-				printk( KERN_WARNING "NETspider-U: NETjet-S PCI card found\n" );
-				continue;
-
-			default :
-				printk( KERN_WARNING "NETspider-U: No PCI card found\n" );
-				return 0;
-                }
-                break;
+	pci_set_master(dev_netjet);
+	cs->irq = dev_netjet->irq;
+	if (!cs->irq) {
+		printk(KERN_WARNING "NETspider-U: No IRQ for PCI card found\n");
+		return(0);
 	}
-#else
+	cs->hw.njet.base = pci_resource_start(dev_netjet, 0);
+	if (!cs->hw.njet.base) {
+		printk(KERN_WARNING "NETspider-U: No IO-Adr for PCI card found\n");
+		return(0);
+	}
 
-	printk(KERN_WARNING "NETspider-U: NO_PCI_BIOS\n");
-	printk(KERN_WARNING "NETspider-U: unable to config NETspider-U PCI\n");
-	return (0);
+	return (1);
+}
 
-#endif /* CONFIG_PCI */
+static int __devinit nju_cs_init(struct IsdnCard *card,
+				 struct IsdnCardState *cs)
+{
+	cs->hw.njet.auxa = cs->hw.njet.base + NETJET_AUXDATA;
+	cs->hw.njet.isac = cs->hw.njet.base | NETJET_ISAC_OFF;
+	mdelay(10);
 
-	bytecnt = 256;
+	cs->hw.njet.ctrl_reg = 0xff;  /* Reset On */
+	byteout(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+	mdelay(10);
+
+	cs->hw.njet.ctrl_reg = 0x00;  /* Reset Off and status read clear */
+	byteout(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+	mdelay(10);
+
+	cs->hw.njet.auxd = 0xC0;
+	cs->hw.njet.dmactrl = 0;
+
+	byteout(cs->hw.njet.auxa, 0);
+	byteout(cs->hw.njet.base + NETJET_AUXCTRL, ~NETJET_ISACIRQ);
+	byteout(cs->hw.njet.base + NETJET_IRQMASK1, NETJET_ISACIRQ);
+	byteout(cs->hw.njet.auxa, cs->hw.njet.auxd);
+
+	switch ( ( ( NETjet_ReadIC( cs, ICC_RBCH ) >> 5 ) & 3 ) )
+	{
+		case 3 :
+			return 1;	/* end loop */
+
+		case 0 :
+			printk( KERN_WARNING "NETspider-U: NETjet-S PCI card found\n" );
+			return -1;	/* continue looping */
+
+		default :
+			printk( KERN_WARNING "NETspider-U: No PCI card found\n" );
+			return 0;	/* end loop & function */
+	}
+	return 1;			/* end loop */
+}
+
+static int __devinit nju_cs_init_rest(struct IsdnCard *card,
+				      struct IsdnCardState *cs)
+{
+	const int bytecnt = 256;
 
 	printk(KERN_INFO
 		"NETspider-U: PCI card configured at %#lx IRQ %d\n",
@@ -239,5 +215,48 @@ setup_netjet_u(struct IsdnCard *card)
 	cs->irq_func = &netjet_u_interrupt;
 	cs->irq_flags |= IRQF_SHARED;
 	ICCVersion(cs, "NETspider-U:");
+
 	return (1);
+}
+
+static struct pci_dev *dev_netjet __devinitdata = NULL;
+
+int __devinit
+setup_netjet_u(struct IsdnCard *card)
+{
+	int ret;
+	struct IsdnCardState *cs = card->cs;
+	char tmp[64];
+
+#ifdef __BIG_ENDIAN
+#error "not running on big endian machines now"
+#endif
+
+	strcpy(tmp, NETjet_U_revision);
+	printk(KERN_INFO "HiSax: Traverse Tech. NETspider-U driver Rev. %s\n", HiSax_getrev(tmp));
+	if (cs->typ != ISDN_CTYPE_NETJET_U)
+		return(0);
+	test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
+
+	for ( ;; )
+	{
+		if ((dev_netjet = pci_find_device(PCI_VENDOR_ID_TIGERJET,
+			PCI_DEVICE_ID_TIGERJET_300,  dev_netjet))) {
+			ret = nju_pci_probe(dev_netjet, cs);
+			if (!ret)
+				return(0);
+		} else {
+			printk(KERN_WARNING "NETspider-U: No PCI card found\n");
+			return(0);
+		}
+
+		ret = nju_cs_init(card, cs);
+		if (!ret)
+			return (0);
+		if (ret > 0)
+			break;
+		/* ret < 0 == continue looping */
+	}
+
+	return nju_cs_init_rest(card, cs);
 }
