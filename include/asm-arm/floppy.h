@@ -30,15 +30,21 @@
 #define fd_disable_irq()	disable_irq(IRQ_FLOPPYDISK)
 #define fd_enable_irq()		enable_irq(IRQ_FLOPPYDISK)
 
+static inline int fd_dma_setup(void *data, unsigned int length,
+			       unsigned int mode, unsigned long addr)
+{
+	set_dma_mode(DMA_FLOPPY, mode);
+	__set_dma_addr(DMA_FLOPPY, data);
+	set_dma_count(DMA_FLOPPY, length);
+	virtual_dma_port = addr;
+	enable_dma(DMA_FLOPPY);
+	return 0;
+}
+#define fd_dma_setup		fd_dma_setup
+
 #define fd_request_dma()	request_dma(DMA_FLOPPY,"floppy")
 #define fd_free_dma()		free_dma(DMA_FLOPPY)
 #define fd_disable_dma()	disable_dma(DMA_FLOPPY)
-#define fd_enable_dma()		enable_dma(DMA_FLOPPY)
-#define fd_clear_dma_ff()	clear_dma_ff(DMA_FLOPPY)
-#define fd_set_dma_mode(mode)	set_dma_mode(DMA_FLOPPY, (mode))
-#define fd_set_dma_addr(addr)	set_dma_addr(DMA_FLOPPY, virt_to_bus((addr)))
-#define fd_set_dma_count(len)	set_dma_count(DMA_FLOPPY, (len))
-#define fd_cacheflush(addr,sz)
 
 /* need to clean up dma.h */
 #define DMA_FLOPPYDISK		DMA_FLOPPY
