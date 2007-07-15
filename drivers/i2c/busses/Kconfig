@@ -560,7 +560,7 @@ config I2C_VERSATILE
 	  will be called i2c-versatile.
 
 config I2C_ACORN
-	bool "Acorn IOC/IOMD I2C bus support"
+	tristate "Acorn IOC/IOMD I2C bus support"
 	depends on ARCH_ACORN
 	default y
 	select I2C_ALGOBIT

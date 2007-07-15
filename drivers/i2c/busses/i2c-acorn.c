@@ -94,4 +94,4 @@ static int __init i2c_ioc_init(void)
 	return i2c_bit_add_bus(&ioc_ops);
 }
 
-__initcall(i2c_ioc_init);
+module_init(i2c_ioc_init);
