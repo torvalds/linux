@@ -136,14 +136,14 @@ xfs_dir2_leaf_to_node(
 	/*
 	 * Get the buffer for the new freespace block.
 	 */
-	if ((error = xfs_da_get_buf(tp, dp, XFS_DIR2_DB_TO_DA(mp, fdb), -1, &fbp,
+	if ((error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb), -1, &fbp,
 			XFS_DATA_FORK))) {
 		return error;
 	}
 	ASSERT(fbp != NULL);
 	free = fbp->data;
 	leaf = lbp->data;
-	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	/*
 	 * Initialize the freespace block header.
 	 */
@@ -155,7 +155,7 @@ xfs_dir2_leaf_to_node(
 	 * Copy freespace entries from the leaf block to the new block.
 	 * Count active entries.
 	 */
-	for (i = n = 0, from = XFS_DIR2_LEAF_BESTS_P(ltp), to = free->bests;
+	for (i = n = 0, from = xfs_dir2_leaf_bests_p(ltp), to = free->bests;
 	     i < be32_to_cpu(ltp->bestcount); i++, from++, to++) {
 		if ((off = be16_to_cpu(*from)) != NULLDATAOFF)
 			n++;
@@ -215,7 +215,7 @@ xfs_dir2_leafn_add(
 	 * a compact.
 	 */
 
-	if (be16_to_cpu(leaf->hdr.count) == XFS_DIR2_MAX_LEAF_ENTS(mp)) {
+	if (be16_to_cpu(leaf->hdr.count) == xfs_dir2_max_leaf_ents(mp)) {
 		if (!leaf->hdr.stale)
 			return XFS_ERROR(ENOSPC);
 		compact = be16_to_cpu(leaf->hdr.stale) > 1;
@@ -327,7 +327,7 @@ xfs_dir2_leafn_add(
 	 * Insert the new entry, log everything.
 	 */
 	lep->hashval = cpu_to_be32(args->hashval);
-	lep->address = cpu_to_be32(XFS_DIR2_DB_OFF_TO_DATAPTR(mp,
+	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(mp,
 				args->blkno, args->index));
 	xfs_dir2_leaf_log_header(tp, bp);
 	xfs_dir2_leaf_log_ents(tp, bp, lfloglow, lfloghigh);
@@ -352,7 +352,7 @@ xfs_dir2_leafn_check(
 	leaf = bp->data;
 	mp = dp->i_mount;
 	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
-	ASSERT(be16_to_cpu(leaf->hdr.count) <= XFS_DIR2_MAX_LEAF_ENTS(mp));
+	ASSERT(be16_to_cpu(leaf->hdr.count) <= xfs_dir2_max_leaf_ents(mp));
 	for (i = stale = 0; i < be16_to_cpu(leaf->hdr.count); i++) {
 		if (i + 1 < be16_to_cpu(leaf->hdr.count)) {
 			ASSERT(be32_to_cpu(leaf->ents[i].hashval) <=
@@ -440,7 +440,7 @@ xfs_dir2_leafn_lookup_int(
 	if (args->addname) {
 		curfdb = curbp ? state->extrablk.blkno : -1;
 		curdb = -1;
-		length = XFS_DIR2_DATA_ENTSIZE(args->namelen);
+		length = xfs_dir2_data_entsize(args->namelen);
 		if ((free = (curbp ? curbp->data : NULL)))
 			ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	}
@@ -465,7 +465,7 @@ xfs_dir2_leafn_lookup_int(
 		/*
 		 * Pull the data block number from the entry.
 		 */
-		newdb = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
+		newdb = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
 		/*
 		 * For addname, we're looking for a place to put the new entry.
 		 * We want to use a data block with an entry of equal
@@ -482,7 +482,7 @@ xfs_dir2_leafn_lookup_int(
 				 * Convert the data block to the free block
 				 * holding its freespace information.
 				 */
-				newfdb = XFS_DIR2_DB_TO_FDB(mp, newdb);
+				newfdb = xfs_dir2_db_to_fdb(mp, newdb);
 				/*
 				 * If it's not the one we have in hand,
 				 * read it in.
@@ -497,7 +497,7 @@ xfs_dir2_leafn_lookup_int(
 					 * Read the free block.
 					 */
 					if ((error = xfs_da_read_buf(tp, dp,
-							XFS_DIR2_DB_TO_DA(mp,
+							xfs_dir2_db_to_da(mp,
 								newfdb),
 							-1, &curbp,
 							XFS_DATA_FORK))) {
@@ -517,7 +517,7 @@ xfs_dir2_leafn_lookup_int(
 				/*
 				 * Get the index for our entry.
 				 */
-				fi = XFS_DIR2_DB_TO_FDINDEX(mp, curdb);
+				fi = xfs_dir2_db_to_fdindex(mp, curdb);
 				/*
 				 * If it has room, return it.
 				 */
@@ -561,7 +561,7 @@ xfs_dir2_leafn_lookup_int(
 				 */
 				if ((error =
 				    xfs_da_read_buf(tp, dp,
-					    XFS_DIR2_DB_TO_DA(mp, newdb), -1,
+					    xfs_dir2_db_to_da(mp, newdb), -1,
 					    &curbp, XFS_DATA_FORK))) {
 					return error;
 				}
@@ -573,7 +573,7 @@ xfs_dir2_leafn_lookup_int(
 			 */
 			dep = (xfs_dir2_data_entry_t *)
 			      ((char *)curbp->data +
-			       XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address)));
+			       xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
 			/*
 			 * Compare the entry, return it if it matches.
 			 */
@@ -876,9 +876,9 @@ xfs_dir2_leafn_remove(
 	/*
 	 * Extract the data block and offset from the entry.
 	 */
-	db = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
+	db = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
 	ASSERT(dblk->blkno == db);
-	off = XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address));
+	off = xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address));
 	ASSERT(dblk->index == off);
 	/*
 	 * Kill the leaf entry by marking it stale.
@@ -898,7 +898,7 @@ xfs_dir2_leafn_remove(
 	longest = be16_to_cpu(data->hdr.bestfree[0].length);
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, dbp, off,
-		XFS_DIR2_DATA_ENTSIZE(dep->namelen), &needlog, &needscan);
+		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * Rescan the data block freespaces for bestfree.
 	 * Log the data block header if needed.
@@ -924,8 +924,8 @@ xfs_dir2_leafn_remove(
 		 * Convert the data block number to a free block,
 		 * read in the free block.
 		 */
-		fdb = XFS_DIR2_DB_TO_FDB(mp, db);
-		if ((error = xfs_da_read_buf(tp, dp, XFS_DIR2_DB_TO_DA(mp, fdb),
+		fdb = xfs_dir2_db_to_fdb(mp, db);
+		if ((error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb),
 				-1, &fbp, XFS_DATA_FORK))) {
 			return error;
 		}
@@ -937,7 +937,7 @@ xfs_dir2_leafn_remove(
 		/*
 		 * Calculate which entry we need to fix.
 		 */
-		findex = XFS_DIR2_DB_TO_FDINDEX(mp, db);
+		findex = xfs_dir2_db_to_fdindex(mp, db);
 		longest = be16_to_cpu(data->hdr.bestfree[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
@@ -1073,7 +1073,7 @@ xfs_dir2_leafn_split(
 	/*
 	 * Initialize the new leaf block.
 	 */
-	error = xfs_dir2_leaf_init(args, XFS_DIR2_DA_TO_DB(mp, blkno),
+	error = xfs_dir2_leaf_init(args, xfs_dir2_da_to_db(mp, blkno),
 		&newblk->bp, XFS_DIR2_LEAFN_MAGIC);
 	if (error) {
 		return error;
@@ -1385,7 +1385,7 @@ xfs_dir2_node_addname_int(
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
-	length = XFS_DIR2_DATA_ENTSIZE(args->namelen);
+	length = xfs_dir2_data_entsize(args->namelen);
 	/*
 	 * If we came in with a freespace block that means that lookup
 	 * found an entry with our hash value.  This is the freespace
@@ -1438,7 +1438,7 @@ xfs_dir2_node_addname_int(
 
 		if ((error = xfs_bmap_last_offset(tp, dp, &fo, XFS_DATA_FORK)))
 			return error;
-		lastfbno = XFS_DIR2_DA_TO_DB(mp, (xfs_dablk_t)fo);
+		lastfbno = xfs_dir2_da_to_db(mp, (xfs_dablk_t)fo);
 		fbno = ifbno;
 	}
 	/*
@@ -1474,7 +1474,7 @@ xfs_dir2_node_addname_int(
 			 * to avoid it.
 			 */
 			if ((error = xfs_da_read_buf(tp, dp,
-					XFS_DIR2_DB_TO_DA(mp, fbno), -2, &fbp,
+					xfs_dir2_db_to_da(mp, fbno), -2, &fbp,
 					XFS_DATA_FORK))) {
 				return error;
 			}
@@ -1550,9 +1550,9 @@ xfs_dir2_node_addname_int(
 		 * Get the freespace block corresponding to the data block
 		 * that was just allocated.
 		 */
-		fbno = XFS_DIR2_DB_TO_FDB(mp, dbno);
+		fbno = xfs_dir2_db_to_fdb(mp, dbno);
 		if (unlikely(error = xfs_da_read_buf(tp, dp,
-				XFS_DIR2_DB_TO_DA(mp, fbno), -2, &fbp,
+				xfs_dir2_db_to_da(mp, fbno), -2, &fbp,
 				XFS_DATA_FORK))) {
 			xfs_da_buf_done(dbp);
 			return error;
@@ -1567,14 +1567,14 @@ xfs_dir2_node_addname_int(
 				return error;
 			}
 
-			if (unlikely(XFS_DIR2_DB_TO_FDB(mp, dbno) != fbno)) {
+			if (unlikely(xfs_dir2_db_to_fdb(mp, dbno) != fbno)) {
 				cmn_err(CE_ALERT,
 					"xfs_dir2_node_addname_int: dir ino "
 					"%llu needed freesp block %lld for\n"
 					"  data block %lld, got %lld\n"
 					"  ifbno %llu lastfbno %d\n",
 					(unsigned long long)dp->i_ino,
-					(long long)XFS_DIR2_DB_TO_FDB(mp, dbno),
+					(long long)xfs_dir2_db_to_fdb(mp, dbno),
 					(long long)dbno, (long long)fbno,
 					(unsigned long long)ifbno, lastfbno);
 				if (fblk) {
@@ -1598,7 +1598,7 @@ xfs_dir2_node_addname_int(
 			 * Get a buffer for the new block.
 			 */
 			if ((error = xfs_da_get_buf(tp, dp,
-						   XFS_DIR2_DB_TO_DA(mp, fbno),
+						   xfs_dir2_db_to_da(mp, fbno),
 						   -1, &fbp, XFS_DATA_FORK))) {
 				return error;
 			}
@@ -1623,7 +1623,7 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Set the freespace block index from the data block number.
 		 */
-		findex = XFS_DIR2_DB_TO_FDINDEX(mp, dbno);
+		findex = xfs_dir2_db_to_fdindex(mp, dbno);
 		/*
 		 * If it's after the end of the current entries in the
 		 * freespace block, extend that table.
@@ -1669,7 +1669,7 @@ xfs_dir2_node_addname_int(
 		 * Read the data block in.
 		 */
 		if (unlikely(
-		    error = xfs_da_read_buf(tp, dp, XFS_DIR2_DB_TO_DA(mp, dbno),
+		    error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, dbno),
 				-1, &dbp, XFS_DATA_FORK))) {
 			if ((fblk == NULL || fblk->bp == NULL) && fbp != NULL)
 				xfs_da_buf_done(fbp);
@@ -1698,7 +1698,7 @@ xfs_dir2_node_addname_int(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
+	tagp = xfs_dir2_data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)data);
 	xfs_dir2_data_log_entry(tp, dbp, dep);
 	/*
@@ -1904,7 +1904,7 @@ xfs_dir2_node_replace(
 		ASSERT(be32_to_cpu(data->hdr.magic) == XFS_DIR2_DATA_MAGIC);
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)data +
-		       XFS_DIR2_DATAPTR_TO_OFF(state->mp, be32_to_cpu(lep->address)));
+		       xfs_dir2_dataptr_to_off(state->mp, be32_to_cpu(lep->address)));
 		ASSERT(inum != be64_to_cpu(dep->inumber));
 		/*
 		 * Fill in the new inode number and log the entry.
@@ -1980,7 +1980,7 @@ xfs_dir2_node_trim_free(
 	 * Blow the block away.
 	 */
 	if ((error =
-	    xfs_dir2_shrink_inode(args, XFS_DIR2_DA_TO_DB(mp, (xfs_dablk_t)fo),
+	    xfs_dir2_shrink_inode(args, xfs_dir2_da_to_db(mp, (xfs_dablk_t)fo),
 		    bp))) {
 		/*
 		 * Can't fail with ENOSPC since that only happens with no

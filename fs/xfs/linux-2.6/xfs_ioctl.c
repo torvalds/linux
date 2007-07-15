@@ -1019,7 +1019,7 @@ xfs_ioc_bulkstat(
 
 	if (cmd == XFS_IOC_FSINUMBERS)
 		error = xfs_inumbers(mp, &inlast, &count,
-						bulkreq.ubuffer);
+					bulkreq.ubuffer, xfs_inumbers_fmt);
 	else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE)
 		error = xfs_bulkstat_single(mp, &inlast,
 						bulkreq.ubuffer, &done);

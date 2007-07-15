@@ -184,15 +184,6 @@ xfs_file_open(
 }
 
 STATIC int
-xfs_file_close(
-	struct file	*filp,
-	fl_owner_t	id)
-{
-	return -bhv_vop_close(vn_from_inode(filp->f_path.dentry->d_inode), 0,
-				file_count(filp) > 1 ? L_FALSE : L_TRUE, NULL);
-}
-
-STATIC int
 xfs_file_release(
 	struct inode	*inode,
 	struct file	*filp)
@@ -436,7 +427,6 @@ const struct file_operations xfs_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
-	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 #ifdef HAVE_FOP_OPEN_EXEC
@@ -458,7 +448,6 @@ const struct file_operations xfs_invis_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
-	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 };

@@ -62,10 +62,9 @@ uint		ndquot;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
-static kmem_shaker_t	xfs_qm_shaker;
+static struct shrinker *xfs_qm_shaker;
 
 static cred_t	xfs_zerocr;
-static xfs_inode_t	xfs_zeroino;
 
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
@@ -150,7 +149,7 @@ xfs_Gqm_init(void)
 	} else
 		xqm->qm_dqzone = qm_dqzone;
 
-	xfs_qm_shaker = kmem_shake_register(xfs_qm_shake);
+	xfs_qm_shaker = set_shrinker(DEFAULT_SEEKS, xfs_qm_shake);
 
 	/*
 	 * The t_dqinfo portion of transactions.
@@ -182,7 +181,7 @@ xfs_qm_destroy(
 
 	ASSERT(xqm != NULL);
 	ASSERT(xqm->qm_nrefs == 0);
-	kmem_shake_deregister(xfs_qm_shaker);
+	remove_shrinker(xfs_qm_shaker);
 	hsize = xqm->qm_dqhashmask + 1;
 	for (i = 0; i < hsize; i++) {
 		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
@@ -1415,7 +1414,7 @@ xfs_qm_qino_alloc(
 		return error;
 	}
 
-	if ((error = xfs_dir_ialloc(&tp, &xfs_zeroino, S_IFREG, 1, 0,
+	if ((error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0,
 				   &xfs_zerocr, 0, 1, ip, &committed))) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT);

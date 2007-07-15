@@ -35,7 +35,7 @@
 #include <linux/freezer.h>
 
 static kmem_zone_t *xfs_buf_zone;
-static kmem_shaker_t xfs_buf_shake;
+static struct shrinker *xfs_buf_shake;
 STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
 STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
@@ -314,7 +314,7 @@ xfs_buf_free(
 
 	ASSERT(list_empty(&bp->b_hash_list));
 
-	if (bp->b_flags & _XBF_PAGE_CACHE) {
+	if (bp->b_flags & (_XBF_PAGE_CACHE|_XBF_PAGES)) {
 		uint		i;
 
 		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
@@ -323,17 +323,10 @@ xfs_buf_free(
 		for (i = 0; i < bp->b_page_count; i++) {
 			struct page	*page = bp->b_pages[i];
 
-			ASSERT(!PagePrivate(page));
+			if (bp->b_flags & _XBF_PAGE_CACHE)
+				ASSERT(!PagePrivate(page));
 			page_cache_release(page);
 		}
-		_xfs_buf_free_pages(bp);
-	} else if (bp->b_flags & _XBF_KMEM_ALLOC) {
-		 /*
-		  * XXX(hch): bp->b_count_desired might be incorrect (see
-		  * xfs_buf_associate_memory for details), but fortunately
-		  * the Linux version of kmem_free ignores the len argument..
-		  */
-		kmem_free(bp->b_addr, bp->b_count_desired);
 		_xfs_buf_free_pages(bp);
 	}
 
@@ -764,43 +757,44 @@ xfs_buf_get_noaddr(
 	size_t			len,
 	xfs_buftarg_t		*target)
 {
-	size_t			malloc_len = len;
+	unsigned long		page_count = PAGE_ALIGN(len) >> PAGE_SHIFT;
+	int			error, i;
 	xfs_buf_t		*bp;
-	void			*data;
-	int			error;
 
 	bp = xfs_buf_allocate(0);
 	if (unlikely(bp == NULL))
 		goto fail;
 	_xfs_buf_initialize(bp, target, 0, len, 0);
 
- try_again:
-	data = kmem_alloc(malloc_len, KM_SLEEP | KM_MAYFAIL | KM_LARGE);
-	if (unlikely(data == NULL))
+	error = _xfs_buf_get_pages(bp, page_count, 0);
+	if (error)
 		goto fail_free_buf;
 
-	/* check whether alignment matches.. */
-	if ((__psunsigned_t)data !=
-	    ((__psunsigned_t)data & ~target->bt_smask)) {
-		/* .. else double the size and try again */
-		kmem_free(data, malloc_len);
-		malloc_len <<= 1;
-		goto try_again;
+	for (i = 0; i < page_count; i++) {
+		bp->b_pages[i] = alloc_page(GFP_KERNEL);
+		if (!bp->b_pages[i])
+			goto fail_free_mem;
 	}
+	bp->b_flags |= _XBF_PAGES;
 
-	error = xfs_buf_associate_memory(bp, data, len);
-	if (error)
+	error = _xfs_buf_map_pages(bp, XBF_MAPPED);
+	if (unlikely(error)) {
+		printk(KERN_WARNING "%s: failed to map pages\n",
+				__FUNCTION__);
 		goto fail_free_mem;
-	bp->b_flags |= _XBF_KMEM_ALLOC;
+	}
 
 	xfs_buf_unlock(bp);
 
-	XB_TRACE(bp, "no_daddr", data);
+	XB_TRACE(bp, "no_daddr", len);
 	return bp;
+
  fail_free_mem:
-	kmem_free(data, malloc_len);
+	while (--i >= 0)
+		__free_page(bp->b_pages[i]);
+	_xfs_buf_free_pages(bp);
  fail_free_buf:
-	xfs_buf_free(bp);
+	xfs_buf_deallocate(bp);
  fail:
 	return NULL;
 }
@@ -1453,6 +1447,7 @@ xfs_free_buftarg(
 	int			external)
 {
 	xfs_flush_buftarg(btp, 1);
+	xfs_blkdev_issue_flush(btp);
 	if (external)
 		xfs_blkdev_put(btp->bt_bdev);
 	xfs_free_bufhash(btp);
@@ -1837,7 +1832,7 @@ xfs_buf_init(void)
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	xfs_buf_shake = kmem_shake_register(xfsbufd_wakeup);
+	xfs_buf_shake = set_shrinker(DEFAULT_SEEKS, xfsbufd_wakeup);
 	if (!xfs_buf_shake)
 		goto out_destroy_xfsdatad_workqueue;
 
@@ -1859,7 +1854,7 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	kmem_shake_deregister(xfs_buf_shake);
+	remove_shrinker(xfs_buf_shake);
 	destroy_workqueue(xfsdatad_workqueue);
 	destroy_workqueue(xfslogd_workqueue);
 	kmem_zone_destroy(xfs_buf_zone);

@@ -547,7 +547,8 @@ vfs_sync_worker(
 
 	if (!(vfsp->vfs_flag & VFS_RDONLY))
 		error = bhv_vfs_sync(vfsp, SYNC_FSDATA | SYNC_BDFLUSH | \
-					SYNC_ATTR | SYNC_REFCACHE, NULL);
+					SYNC_ATTR | SYNC_REFCACHE | SYNC_SUPER,
+					NULL);
 	vfsp->vfs_sync_seq++;
 	wake_up(&vfsp->vfs_wait_single_sync_task);
 }
@@ -663,7 +664,7 @@ xfs_fs_sync_super(
 		 * occur here so don't bother flushing the buftarg (i.e
 		 * SYNC_QUIESCE) because it'll just get dirty again.
 		 */
-		flags = SYNC_FSDATA | SYNC_DELWRI | SYNC_WAIT | SYNC_IOWAIT;
+		flags = SYNC_DATA_QUIESCE;
 	} else
 		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 

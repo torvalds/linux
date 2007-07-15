@@ -123,6 +123,7 @@ xfs_ialloc_ag_alloc(
 	int		blks_per_cluster;  /* fs blocks per inode cluster */
 	xfs_btree_cur_t	*cur;		/* inode btree cursor */
 	xfs_daddr_t	d;		/* disk addr of buffer */
+	xfs_agnumber_t	agno;
 	int		error;
 	xfs_buf_t	*fbuf;		/* new free inodes' buffer */
 	xfs_dinode_t	*free;		/* new free inode structure */
@@ -302,15 +303,15 @@ xfs_ialloc_ag_alloc(
 	}
 	be32_add(&agi->agi_count, newlen);
 	be32_add(&agi->agi_freecount, newlen);
+	agno = be32_to_cpu(agi->agi_seqno);
 	down_read(&args.mp->m_peraglock);
-	args.mp->m_perag[be32_to_cpu(agi->agi_seqno)].pagi_freecount += newlen;
+	args.mp->m_perag[agno].pagi_freecount += newlen;
 	up_read(&args.mp->m_peraglock);
 	agi->agi_newino = cpu_to_be32(newino);
 	/*
 	 * Insert records describing the new inode chunk into the btree.
 	 */
-	cur = xfs_btree_init_cursor(args.mp, tp, agbp,
-			be32_to_cpu(agi->agi_seqno),
+	cur = xfs_btree_init_cursor(args.mp, tp, agbp, agno,
 			XFS_BTNUM_INO, (xfs_inode_t *)0, 0);
 	for (thisino = newino;
 	     thisino < newino + newlen;
@@ -1387,6 +1388,7 @@ xfs_ialloc_read_agi(
 	pag = &mp->m_perag[agno];
 	if (!pag->pagi_init) {
 		pag->pagi_freecount = be32_to_cpu(agi->agi_freecount);
+		pag->pagi_count = be32_to_cpu(agi->agi_count);
 		pag->pagi_init = 1;
 	} else {
 		/*
@@ -1408,5 +1410,25 @@ xfs_ialloc_read_agi(
 
 	XFS_BUF_SET_VTYPE_REF(bp, B_FS_AGI, XFS_AGI_REF);
 	*bpp = bp;
+	return 0;
+}
+
+/*
+ * Read in the agi to initialise the per-ag data in the mount structure
+ */
+int
+xfs_ialloc_pagi_init(
+	xfs_mount_t	*mp,		/* file system mount structure */
+	xfs_trans_t	*tp,		/* transaction pointer */
+	xfs_agnumber_t	agno)		/* allocation group number */
+{
+	xfs_buf_t	*bp = NULL;
+	int		error;
+
+	error = xfs_ialloc_read_agi(mp, tp, agno, &bp);
+	if (error)
+		return error;
+	if (bp)
+		xfs_trans_brelse(tp, bp);
 	return 0;
 }

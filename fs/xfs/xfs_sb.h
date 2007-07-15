@@ -74,12 +74,13 @@ struct xfs_mount;
  */
 #define XFS_SB_VERSION2_REALFBITS	0x00ffffff	/* Mask: features */
 #define XFS_SB_VERSION2_RESERVED1BIT	0x00000001
-#define XFS_SB_VERSION2_RESERVED2BIT	0x00000002
+#define XFS_SB_VERSION2_LAZYSBCOUNTBIT	0x00000002	/* Superblk counters */
 #define XFS_SB_VERSION2_RESERVED4BIT	0x00000004
 #define XFS_SB_VERSION2_ATTR2BIT	0x00000008	/* Inline attr rework */
 
 #define	XFS_SB_VERSION2_OKREALFBITS	\
-	(XFS_SB_VERSION2_ATTR2BIT)
+	(XFS_SB_VERSION2_LAZYSBCOUNTBIT	| \
+	 XFS_SB_VERSION2_ATTR2BIT)
 #define	XFS_SB_VERSION2_OKSASHFBITS	\
 	(0)
 #define XFS_SB_VERSION2_OKREALBITS	\
@@ -181,6 +182,9 @@ typedef enum {
 #define XFS_SB_SHARED_VN	XFS_SB_MVAL(SHARED_VN)
 #define XFS_SB_UNIT		XFS_SB_MVAL(UNIT)
 #define XFS_SB_WIDTH		XFS_SB_MVAL(WIDTH)
+#define XFS_SB_ICOUNT		XFS_SB_MVAL(ICOUNT)
+#define XFS_SB_IFREE		XFS_SB_MVAL(IFREE)
+#define XFS_SB_FDBLOCKS		XFS_SB_MVAL(FDBLOCKS)
 #define XFS_SB_FEATURES2	XFS_SB_MVAL(FEATURES2)
 #define	XFS_SB_NUM_BITS		((int)XFS_SBS_FIELDCOUNT)
 #define	XFS_SB_ALL_BITS		((1LL << XFS_SB_NUM_BITS) - 1)
@@ -188,7 +192,7 @@ typedef enum {
 	(XFS_SB_UUID | XFS_SB_ROOTINO | XFS_SB_RBMINO | XFS_SB_RSUMINO | \
 	 XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO | XFS_SB_GQUOTINO | \
 	 XFS_SB_QFLAGS | XFS_SB_SHARED_VN | XFS_SB_UNIT | XFS_SB_WIDTH | \
-	 XFS_SB_FEATURES2)
+	 XFS_SB_ICOUNT | XFS_SB_IFREE | XFS_SB_FDBLOCKS | XFS_SB_FEATURES2)
 
 
 /*
@@ -413,6 +417,12 @@ static inline int xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
  *	((XFS_SB_VERSION_HASMOREBITS(sbp) &&
  *	 ((sbp)->sb_features2 & XFS_SB_VERSION2_FUNBIT)
  */
+
+static inline int xfs_sb_version_haslazysbcount(xfs_sb_t *sbp)
+{
+	return (XFS_SB_VERSION_HASMOREBITS(sbp) &&	\
+		((sbp)->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT));
+}
 
 #define XFS_SB_VERSION_HASATTR2(sbp)	xfs_sb_version_hasattr2(sbp)
 static inline int xfs_sb_version_hasattr2(xfs_sb_t *sbp)

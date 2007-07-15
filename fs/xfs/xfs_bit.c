@@ -66,44 +66,6 @@ static const char xfs_highbit[256] = {
 #endif
 
 /*
- * Count of bits set in byte, 0..8.
- */
-static const char xfs_countbit[256] = {
-	0, 1, 1, 2, 1, 2, 2, 3,			/* 00 .. 07 */
-	1, 2, 2, 3, 2, 3, 3, 4,			/* 08 .. 0f */
-	1, 2, 2, 3, 2, 3, 3, 4,			/* 10 .. 17 */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 18 .. 1f */
-	1, 2, 2, 3, 2, 3, 3, 4,			/* 20 .. 27 */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 28 .. 2f */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 30 .. 37 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* 38 .. 3f */
-	1, 2, 2, 3, 2, 3, 3, 4,			/* 40 .. 47 */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 48 .. 4f */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 50 .. 57 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* 58 .. 5f */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 60 .. 67 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* 68 .. 6f */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* 70 .. 77 */
-	4, 5, 5, 6, 5, 6, 6, 7,			/* 78 .. 7f */
-	1, 2, 2, 3, 2, 3, 3, 4,			/* 80 .. 87 */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 88 .. 8f */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* 90 .. 97 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* 98 .. 9f */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* a0 .. a7 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* a8 .. af */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* b0 .. b7 */
-	4, 5, 5, 6, 5, 6, 6, 7,			/* b8 .. bf */
-	2, 3, 3, 4, 3, 4, 4, 5,			/* c0 .. c7 */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* c8 .. cf */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* d0 .. d7 */
-	4, 5, 5, 6, 5, 6, 6, 7,			/* d8 .. df */
-	3, 4, 4, 5, 4, 5, 5, 6,			/* e0 .. e7 */
-	4, 5, 5, 6, 5, 6, 6, 7,			/* e8 .. ef */
-	4, 5, 5, 6, 5, 6, 6, 7,			/* f0 .. f7 */
-	5, 6, 6, 7, 6, 7, 7, 8,			/* f8 .. ff */
-};
-
-/*
  * xfs_highbit32: get high bit set out of 32-bit argument, -1 if none set.
  */
 inline int
@@ -167,56 +129,21 @@ xfs_highbit64(
 
 
 /*
- * Count the number of bits set in the bitmap starting with bit
- * start_bit.  Size is the size of the bitmap in words.
- *
- * Do the counting by mapping a byte value to the number of set
- * bits for that value using the xfs_countbit array, i.e.
- * xfs_countbit[0] == 0, xfs_countbit[1] == 1, xfs_countbit[2] == 1,
- * xfs_countbit[3] == 2, etc.
+ * Return whether bitmap is empty.
+ * Size is number of words in the bitmap, which is padded to word boundary
+ * Returns 1 for empty, 0 for non-empty.
  */
 int
-xfs_count_bits(uint *map, uint size, uint start_bit)
+xfs_bitmap_empty(uint *map, uint size)
 {
-	register int	bits;
-	register unsigned char	*bytep;
-	register unsigned char	*end_map;
-	int		byte_bit;
+	uint i;
+	uint ret = 0;
 
-	bits = 0;
-	end_map = (char*)(map + size);
-	bytep = (char*)(map + (start_bit & ~0x7));
-	byte_bit = start_bit & 0x7;
-
-	/*
-	 * If the caller fell off the end of the map, return 0.
-	 */
-	if (bytep >= end_map) {
-		return (0);
+	for (i = 0; i < size; i++) {
+		ret |= map[i];
 	}
 
-	/*
-	 * If start_bit is not byte aligned, then process the
-	 * first byte separately.
-	 */
-	if (byte_bit != 0) {
-		/*
-		 * Shift off the bits we don't want to look at,
-		 * before indexing into xfs_countbit.
-		 */
-		bits += xfs_countbit[(*bytep >> byte_bit)];
-		bytep++;
-	}
-
-	/*
-	 * Count the bits in each byte until the end of the bitmap.
-	 */
-	while (bytep < end_map) {
-		bits += xfs_countbit[*bytep];
-		bytep++;
-	}
-
-	return (bits);
+	return (ret == 0);
 }
 
 /*

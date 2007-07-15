@@ -51,6 +51,7 @@
 #include "xfs_refcache.h"
 #include "xfs_trans_space.h"
 #include "xfs_log_priv.h"
+#include "xfs_filestream.h"
 
 STATIC int
 xfs_open(
@@ -74,36 +75,6 @@ xfs_open(
 			(void)xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
 		xfs_iunlock(ip, mode);
 	}
-	return 0;
-}
-
-STATIC int
-xfs_close(
-	bhv_desc_t	*bdp,
-	int		flags,
-	lastclose_t	lastclose,
-	cred_t		*credp)
-{
-	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
-	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return XFS_ERROR(EIO);
-
-	if (lastclose != L_TRUE || !VN_ISREG(vp))
-		return 0;
-
-	/*
-	 * If we previously truncated this file and removed old data in
-	 * the process, we want to initiate "early" writeout on the last
-	 * close.  This is an attempt to combat the notorious NULL files
-	 * problem which is particularly noticable from a truncate down,
-	 * buffered (re-)write (delalloc), followed by a crash.  What we
-	 * are effectively doing here is significantly reducing the time
-	 * window where we'd otherwise be exposed to that problem.
-	 */
-	if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
-		return bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
 	return 0;
 }
 
@@ -183,9 +154,8 @@ xfs_getattr(
 			 * realtime extent size or the realtime volume's
 			 * extent size.
 			 */
-			vap->va_blocksize = ip->i_d.di_extsize ?
-				(ip->i_d.di_extsize << mp->m_sb.sb_blocklog) :
-				(mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog);
+			vap->va_blocksize =
+				xfs_get_extsz_hint(ip) << mp->m_sb.sb_blocklog;
 		}
 		break;
 	}
@@ -814,6 +784,8 @@ xfs_setattr(
 				di_flags |= XFS_DIFLAG_PROJINHERIT;
 			if (vap->va_xflags & XFS_XFLAG_NODEFRAG)
 				di_flags |= XFS_DIFLAG_NODEFRAG;
+			if (vap->va_xflags & XFS_XFLAG_FILESTREAM)
+				di_flags |= XFS_DIFLAG_FILESTREAM;
 			if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
 				if (vap->va_xflags & XFS_XFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
@@ -1201,13 +1173,15 @@ xfs_fsync(
 }
 
 /*
- * This is called by xfs_inactive to free any blocks beyond eof,
- * when the link count isn't zero.
+ * This is called by xfs_inactive to free any blocks beyond eof
+ * when the link count isn't zero and by xfs_dm_punch_hole() when
+ * punching a hole to EOF.
  */
-STATIC int
-xfs_inactive_free_eofblocks(
+int
+xfs_free_eofblocks(
 	xfs_mount_t	*mp,
-	xfs_inode_t	*ip)
+	xfs_inode_t	*ip,
+	int		flags)
 {
 	xfs_trans_t	*tp;
 	int		error;
@@ -1216,6 +1190,7 @@ xfs_inactive_free_eofblocks(
 	xfs_filblks_t	map_len;
 	int		nimaps;
 	xfs_bmbt_irec_t	imap;
+	int		use_iolock = (flags & XFS_FREE_EOF_LOCK);
 
 	/*
 	 * Figure out if there are any blocks beyond the end
@@ -1256,11 +1231,14 @@ xfs_inactive_free_eofblocks(
 		 * cache and we can't
 		 * do that within a transaction.
 		 */
-		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		if (use_iolock)
+			xfs_ilock(ip, XFS_IOLOCK_EXCL);
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
 				    ip->i_size);
 		if (error) {
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			xfs_trans_cancel(tp, 0);
+			if (use_iolock)
+				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
 		}
 
@@ -1297,7 +1275,8 @@ xfs_inactive_free_eofblocks(
 			error = xfs_trans_commit(tp,
 						XFS_TRANS_RELEASE_LOG_RES);
 		}
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, (use_iolock ? (XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL)
+					    : XFS_ILOCK_EXCL));
 	}
 	return error;
 }
@@ -1560,6 +1539,31 @@ xfs_release(
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return 0;
 
+	if (!XFS_FORCED_SHUTDOWN(mp)) {
+		/*
+		 * If we are using filestreams, and we have an unlinked
+		 * file that we are processing the last close on, then nothing
+		 * will be able to reopen and write to this file. Purge this
+		 * inode from the filestreams cache so that it doesn't delay
+		 * teardown of the inode.
+		 */
+		if ((ip->i_d.di_nlink == 0) && xfs_inode_is_filestream(ip))
+			xfs_filestream_deassociate(ip);
+
+		/*
+		 * If we previously truncated this file and removed old data
+		 * in the process, we want to initiate "early" writeout on
+		 * the last close.  This is an attempt to combat the notorious
+		 * NULL files problem which is particularly noticable from a
+		 * truncate down, buffered (re-)write (delalloc), followed by
+		 * a crash.  What we are effectively doing here is
+		 * significantly reducing the time window where we'd otherwise
+		 * be exposed to that problem.
+		 */
+		if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
+			bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
+	}
+
 #ifdef HAVE_REFCACHE
 	/* If we are in the NFS reference cache then don't do this now */
 	if (ip->i_refcache)
@@ -1573,7 +1577,8 @@ xfs_release(
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
-			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
+			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
+			if (error)
 				return error;
 			/* Update linux inode block count after free above */
 			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
@@ -1654,7 +1659,8 @@ xfs_inactive(
 		     (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
 		      (ip->i_delayed_blks != 0)))) {
-			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
+			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
+			if (error)
 				return VN_INACTIVE_CACHE;
 			/* Update linux inode block count after free above */
 			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
@@ -1680,6 +1686,7 @@ xfs_inactive(
 
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, 0);
 		if (error) {
+			xfs_trans_cancel(tp, 0);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return VN_INACTIVE_CACHE;
 		}
@@ -2217,9 +2224,9 @@ static inline int
 xfs_lock_inumorder(int lock_mode, int subclass)
 {
 	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
-		lock_mode |= (subclass + XFS_IOLOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
+		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
 	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL))
-		lock_mode |= (subclass + XFS_ILOCK_INUMORDER) << XFS_ILOCK_SHIFT;
+		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_ILOCK_SHIFT;
 
 	return lock_mode;
 }
@@ -2545,6 +2552,15 @@ xfs_remove(
 	 * xfs_refcache_purge_ip routine (although that would be OK).
 	 */
 	xfs_refcache_purge_ip(ip);
+
+	/*
+	 * If we are using filestreams, kill the stream association.
+	 * If the file is still open it may get a new one but that
+	 * will get killed on last close in xfs_close() so we don't
+	 * have to worry about that.
+	 */
+	if (link_zero && xfs_inode_is_filestream(ip))
+		xfs_filestream_deassociate(ip);
 
 	vn_trace_exit(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
 
@@ -4047,22 +4063,16 @@ xfs_alloc_file_space(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	rt = XFS_IS_REALTIME_INODE(ip);
-	if (unlikely(rt)) {
-		if (!(extsz = ip->i_d.di_extsize))
-			extsz = mp->m_sb.sb_rextsize;
-	} else {
-		extsz = ip->i_d.di_extsize;
-	}
-
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return error;
 
 	if (len <= 0)
 		return XFS_ERROR(EINVAL);
 
+	rt = XFS_IS_REALTIME_INODE(ip);
+	extsz = xfs_get_extsz_hint(ip);
+
 	count = len;
-	error = 0;
 	imapp = &imaps[0];
 	nimaps = 1;
 	bmapi_flag = XFS_BMAPI_WRITE | (alloc_type ? XFS_BMAPI_PREALLOC : 0);
@@ -4678,7 +4688,6 @@ xfs_change_file_space(
 bhv_vnodeops_t xfs_vnodeops = {
 	BHV_IDENTITY_INIT(VN_BHV_XFS,VNODE_POSITION_XFS),
 	.vop_open		= xfs_open,
-	.vop_close		= xfs_close,
 	.vop_read		= xfs_read,
 #ifdef HAVE_SPLICE
 	.vop_splice_read	= xfs_splice_read,

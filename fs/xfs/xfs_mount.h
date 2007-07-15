@@ -66,6 +66,7 @@ struct xfs_bmbt_irec;
 struct xfs_bmap_free;
 struct xfs_extdelta;
 struct xfs_swapext;
+struct xfs_mru_cache;
 
 extern struct bhv_vfsops xfs_vfsops;
 extern struct bhv_vnodeops xfs_vnodeops;
@@ -424,17 +425,18 @@ typedef struct xfs_mount {
 	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
+	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 } xfs_mount_t;
 
 /*
  * Flags for m_flags.
  */
-#define	XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
+#define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
 						   must be synchronous except
 						   for space allocations */
-#define	XFS_MOUNT_INO64		(1ULL << 1)
+#define XFS_MOUNT_INO64		(1ULL << 1)
 			     /* (1ULL << 2)	-- currently unused */
-			     /* (1ULL << 3)	-- currently unused */
+#define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
 						   disk errors in metadata */
@@ -463,6 +465,8 @@ typedef struct xfs_mount {
 						 * I/O size in stat() */
 #define XFS_MOUNT_NO_PERCPU_SB	(1ULL << 23)	/* don't use per-cpu superblock
 						   counters */
+#define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
+						   allocator */
 
 
 /*
@@ -511,6 +515,8 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 
 #define XFS_MAXIOFFSET(mp)	((mp)->m_maxioffset)
 
+#define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
+				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)
 #define xfs_force_shutdown(m,f)	\
 	bhv_vfs_force_shutdown((XFS_MTOVFS(m)), f, __FILE__, __LINE__)
@@ -602,6 +608,7 @@ typedef struct xfs_mod_sb {
 
 extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
+extern int	xfs_log_sbcount(xfs_mount_t *, uint);
 extern void	xfs_mount_free(xfs_mount_t *mp, int remove_bhv);
 extern int	xfs_mountfs(struct bhv_vfs *, xfs_mount_t *mp, int);
 extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
@@ -618,12 +625,14 @@ extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
+extern int	xfs_fs_writable(xfs_mount_t *);
 extern void	xfs_do_force_shutdown(bhv_desc_t *, int, char *, int);
 extern int	xfs_syncsub(xfs_mount_t *, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int *);
 extern xfs_agnumber_t	xfs_initialize_perag(struct bhv_vfs *, xfs_mount_t *,
 						xfs_agnumber_t);
 extern void	xfs_xlatesb(void *, struct xfs_sb *, int, __int64_t);
+extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern struct xfs_dmops xfs_dmcore_stub;
 extern struct xfs_qmops xfs_qmcore_stub;
