@@ -712,6 +712,11 @@ int vlan_dev_open(struct net_device *dev)
 	}
 	memcpy(vlan->real_dev_addr, real_dev->dev_addr, ETH_ALEN);
 
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(real_dev, 1);
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(real_dev, 1);
+
 	return 0;
 }
 
@@ -720,6 +725,11 @@ int vlan_dev_stop(struct net_device *dev)
 	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
 
 	vlan_flush_mc_list(dev);
+
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(real_dev, -1);
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(real_dev, -1);
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
 		dev_unicast_delete(real_dev, dev->dev_addr, dev->addr_len);
@@ -754,33 +764,25 @@ int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
+void vlan_change_rx_flags(struct net_device *dev, int change)
+{
+	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+
+	if (change & IFF_ALLMULTI)
+		dev_set_allmulti(real_dev, dev->flags & IFF_ALLMULTI ? 1 : -1);
+	if (change & IFF_PROMISC)
+		dev_set_promiscuity(real_dev, dev->flags & IFF_PROMISC ? 1 : -1);
+}
+
 /** Taken from Gleb + Lennert's VLAN code, and modified... */
 void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
 {
 	struct dev_mc_list *dmi;
 	struct net_device *real_dev;
-	int inc;
 
 	if (vlan_dev && (vlan_dev->priv_flags & IFF_802_1Q_VLAN)) {
 		/* Then it's a real vlan device, as far as we can tell.. */
 		real_dev = VLAN_DEV_INFO(vlan_dev)->real_dev;
-
-		/* compare the current promiscuity to the last promisc we had.. */
-		inc = vlan_dev->promiscuity - VLAN_DEV_INFO(vlan_dev)->old_promiscuity;
-		if (inc) {
-			printk(KERN_INFO "%s: dev_set_promiscuity(master, %d)\n",
-			       vlan_dev->name, inc);
-			dev_set_promiscuity(real_dev, inc); /* found in dev.c */
-			VLAN_DEV_INFO(vlan_dev)->old_promiscuity = vlan_dev->promiscuity;
-		}
-
-		inc = vlan_dev->allmulti - VLAN_DEV_INFO(vlan_dev)->old_allmulti;
-		if (inc) {
-			printk(KERN_INFO "%s: dev_set_allmulti(master, %d)\n",
-			       vlan_dev->name, inc);
-			dev_set_allmulti(real_dev, inc); /* dev.c */
-			VLAN_DEV_INFO(vlan_dev)->old_allmulti = vlan_dev->allmulti;
-		}
 
 		/* looking for addresses to add to master's list */
 		for (dmi = vlan_dev->mc_list; dmi != NULL; dmi = dmi->next) {

@@ -69,6 +69,7 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 			   u32 flag, short flag_val);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result);
+void vlan_change_rx_flags(struct net_device *dev, int change);
 void vlan_dev_set_multicast_list(struct net_device *vlan_dev);
 
 int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id);

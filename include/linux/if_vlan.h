@@ -132,8 +132,6 @@ struct vlan_dev_info {
                                            * made, in order to feed the right changes down
                                            * to the real hardware...
                                            */
-	int old_allmulti;               /* similar to above. */
-	int old_promiscuity;            /* similar to above. */
 	struct net_device *real_dev;    /* the underlying device/interface */
 	unsigned char real_dev_addr[ETH_ALEN];
 	struct proc_dir_entry *dent;    /* Holds the proc data */
