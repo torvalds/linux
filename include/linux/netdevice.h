@@ -564,6 +564,8 @@ struct net_device
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
+	/* macvlan */
+	struct macvlan_port	*macvlan_port;
 
 	/* class/net/name entry */
 	struct device		dev;

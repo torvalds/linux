@@ -82,6 +82,16 @@ config BONDING
 	  To compile this driver as a module, choose M here: the module
 	  will be called bonding.
 
+config MACVLAN
+	tristate "MAC-VLAN support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	---help---
+	  This allows one to create virtual interfaces that map packets to
+	  or from specific MAC addresses to a particular interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macvlan.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
 	---help---
