@@ -131,8 +131,6 @@ ipv6_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	 */
 	if ((protoff < 0) || (protoff > (*pskb)->len)) {
 		pr_debug("ip6_conntrack_core: can't find proto in pkt\n");
-		NF_CT_STAT_INC_ATOMIC(error);
-		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -NF_ACCEPT;
 	}
 
