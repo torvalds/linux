@@ -15,7 +15,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -26,6 +25,7 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <net/ieee80211.h>
+#include <asm/unaligned.h>
 
 #include "zd_def.h"
 #include "zd_netdev.h"
