@@ -847,6 +847,15 @@ static struct sony_nc_event sony_C_events[] = {
 /* SNC-only model map */
 struct dmi_system_id sony_nc_ids[] = {
 		{
+			.ident = "Sony Vaio FE Series",
+			.callback = sony_nc_C_enable,
+			.driver_data = sony_C_events,
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FE"),
+			},
+		},
+		{
 			.ident = "Sony Vaio C Series",
 			.callback = sony_nc_C_enable,
 			.driver_data = sony_C_events,
