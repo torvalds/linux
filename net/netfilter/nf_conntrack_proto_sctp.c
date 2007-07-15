@@ -601,7 +601,7 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
+static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
 	.name 			= "sctp",
@@ -622,7 +622,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 #endif
 };
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
+static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_SCTP,
 	.name 			= "sctp",

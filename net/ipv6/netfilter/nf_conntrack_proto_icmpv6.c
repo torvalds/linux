@@ -276,7 +276,7 @@ static struct ctl_table icmpv6_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_ICMPV6,
@@ -297,5 +297,3 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.ctl_table		= icmpv6_sysctl_table,
 #endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_l4proto_icmpv6);

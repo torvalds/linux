@@ -12,6 +12,8 @@
 /* Returns new sk_buff, or NULL */
 struct sk_buff *nf_ct_ipv4_ct_gather_frags(struct sk_buff *skb);
 
+extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
+
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4;
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4;
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp;

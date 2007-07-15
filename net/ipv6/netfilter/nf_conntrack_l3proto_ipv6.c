@@ -373,7 +373,7 @@ static int ipv6_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.name			= "ipv6",
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
