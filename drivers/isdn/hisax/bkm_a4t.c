@@ -255,52 +255,36 @@ BKM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-static struct pci_dev *dev_a4t __devinitdata = NULL;
-
-int __devinit
-setup_bkm_a4t(struct IsdnCard *card)
+static int __devinit a4t_pci_probe(struct pci_dev *dev_a4t,
+				   struct IsdnCardState *cs,
+				   u_int *found,
+				   u_int *pci_memaddr)
 {
-	struct IsdnCardState *cs = card->cs;
-	char tmp[64];
-	u_int pci_memaddr = 0, found = 0;
+	u16 sub_sys;
+	u16 sub_vendor;
+
+	sub_vendor = dev_a4t->subsystem_vendor;
+	sub_sys = dev_a4t->subsystem_device;
+	if ((sub_sys == PCI_DEVICE_ID_BERKOM_A4T) && (sub_vendor == PCI_VENDOR_ID_BERKOM)) {
+		if (pci_enable_device(dev_a4t))
+			return (0);	/* end loop & function */
+		*found = 1;
+		*pci_memaddr = pci_resource_start(dev_a4t, 0);
+		cs->irq = dev_a4t->irq;
+		return (1);		/* end loop */
+	}
+
+	return (-1);			/* continue looping */
+}
+
+static int __devinit a4t_cs_init(struct IsdnCard *card,
+				 struct IsdnCardState *cs,
+				 u_int pci_memaddr)
+{
 	I20_REGISTER_FILE *pI20_Regs;
-#ifdef CONFIG_PCI
-#endif
 
-	strcpy(tmp, bkm_a4t_revision);
-	printk(KERN_INFO "HiSax: T-Berkom driver Rev. %s\n", HiSax_getrev(tmp));
-	if (cs->typ == ISDN_CTYPE_BKM_A4T) {
-		cs->subtyp = BKM_A4T;
-	} else
-		return (0);
-
-#ifdef CONFIG_PCI
-	while ((dev_a4t = pci_find_device(PCI_VENDOR_ID_ZORAN,
-		PCI_DEVICE_ID_ZORAN_36120, dev_a4t))) {
-		u16 sub_sys;
-		u16 sub_vendor;
-
-		sub_vendor = dev_a4t->subsystem_vendor;
-		sub_sys = dev_a4t->subsystem_device;
-		if ((sub_sys == PCI_DEVICE_ID_BERKOM_A4T) && (sub_vendor == PCI_VENDOR_ID_BERKOM)) {
-			if (pci_enable_device(dev_a4t))
-				return(0);
-			found = 1;
-			pci_memaddr = pci_resource_start(dev_a4t, 0);
-			cs->irq = dev_a4t->irq;
-			break;
-		}
-	}
-	if (!found) {
-		printk(KERN_WARNING "HiSax: %s: Card not found\n", CardType[card->typ]);
-		return (0);
-	}
 	if (!cs->irq) {		/* IRQ range check ?? */
 		printk(KERN_WARNING "HiSax: %s: No IRQ\n", CardType[card->typ]);
-		return (0);
-	}
-	if (!pci_memaddr) {
-		printk(KERN_WARNING "HiSax: %s: No Memory base address\n", CardType[card->typ]);
 		return (0);
 	}
 	cs->hw.ax.base = (long) ioremap(pci_memaddr, 4096);
@@ -317,11 +301,7 @@ setup_bkm_a4t(struct IsdnCard *card)
 	cs->hw.ax.jade_adr = cs->hw.ax.base + PO_OFFSET;
 	cs->hw.ax.isac_ale = GCS_1;
 	cs->hw.ax.jade_ale = GCS_3;
-#else
-	printk(KERN_WARNING "HiSax: %s: NO_PCI_BIOS\n", CardType[card->typ]);
-	printk(KERN_WARNING "HiSax: %s: unable to configure\n", CardType[card->typ]);
-	return (0);
-#endif				/* CONFIG_PCI */
+
 	printk(KERN_INFO "HiSax: %s: Card configured at 0x%lX IRQ %d\n",
 	       CardType[card->typ], cs->hw.ax.base, cs->irq);
 
@@ -339,5 +319,43 @@ setup_bkm_a4t(struct IsdnCard *card)
 	ISACVersion(cs, "Telekom A4T:");
 	/* Jade version */
 	JadeVersion(cs, "Telekom A4T:");
+
 	return (1);
+}
+
+static struct pci_dev *dev_a4t __devinitdata = NULL;
+
+int __devinit
+setup_bkm_a4t(struct IsdnCard *card)
+{
+	struct IsdnCardState *cs = card->cs;
+	char tmp[64];
+	u_int pci_memaddr = 0, found = 0;
+	int ret;
+
+	strcpy(tmp, bkm_a4t_revision);
+	printk(KERN_INFO "HiSax: T-Berkom driver Rev. %s\n", HiSax_getrev(tmp));
+	if (cs->typ == ISDN_CTYPE_BKM_A4T) {
+		cs->subtyp = BKM_A4T;
+	} else
+		return (0);
+
+	while ((dev_a4t = pci_find_device(PCI_VENDOR_ID_ZORAN,
+		PCI_DEVICE_ID_ZORAN_36120, dev_a4t))) {
+		ret = a4t_pci_probe(dev_a4t, cs, &found, &pci_memaddr);
+		if (!ret)
+			return (0);
+		if (ret > 0)
+			break;
+	}
+	if (!found) {
+		printk(KERN_WARNING "HiSax: %s: Card not found\n", CardType[card->typ]);
+		return (0);
+	}
+	if (!pci_memaddr) {
+		printk(KERN_WARNING "HiSax: %s: No Memory base address\n", CardType[card->typ]);
+		return (0);
+	}
+
+	return a4t_cs_init(card, cs, pci_memaddr);
 }
