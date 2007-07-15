@@ -144,7 +144,7 @@ static void crypto_larval_kill(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	list_del(&alg->cra_list);
 	up_write(&crypto_alg_sem);
-	complete(&larval->completion);
+	complete_all(&larval->completion);
 	crypto_alg_put(alg);
 }
 
