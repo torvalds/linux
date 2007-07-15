@@ -50,7 +50,6 @@ struct tc_police_compat
 
 /* Each policer is serialized by its individual spinlock */
 
-#ifdef CONFIG_NET_CLS_ACT
 static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			      int type, struct tc_action *a)
 {
@@ -96,9 +95,8 @@ rtattr_failure:
 	nlmsg_trim(skb, r);
 	goto done;
 }
-#endif
 
-void tcf_police_destroy(struct tcf_police *p)
+static void tcf_police_destroy(struct tcf_police *p)
 {
 	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
 	struct tcf_common **p1p;
@@ -121,7 +119,6 @@ void tcf_police_destroy(struct tcf_police *p)
 	BUG_TRAP(0);
 }
 
-#ifdef CONFIG_NET_CLS_ACT
 static int tcf_act_police_locate(struct rtattr *rta, struct rtattr *est,
 				 struct tc_action *a, int ovr, int bind)
 {
@@ -247,10 +244,19 @@ failure:
 static int tcf_act_police_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_police *p = a->priv;
+	int ret = 0;
 
-	if (p != NULL)
-		return tcf_police_release(p, bind);
-	return 0;
+	if (p != NULL) {
+		if (bind)
+			p->tcf_bindcnt--;
+
+		p->tcf_refcnt--;
+		if (p->tcf_refcnt <= 0 && !p->tcf_bindcnt) {
+			tcf_police_destroy(p);
+			ret = 1;
+		}
+	}
+	return ret;
 }
 
 static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
@@ -372,229 +378,3 @@ police_cleanup_module(void)
 
 module_init(police_init_module);
 module_exit(police_cleanup_module);
-
-#else /* CONFIG_NET_CLS_ACT */
-
-static struct tcf_common *tcf_police_lookup(u32 index)
-{
-	struct tcf_hashinfo *hinfo = &police_hash_info;
-	struct tcf_common *p;
-
-	read_lock(hinfo->lock);
-	for (p = hinfo->htab[tcf_hash(index, hinfo->hmask)]; p;
-	     p = p->tcfc_next) {
-		if (p->tcfc_index == index)
-			break;
-	}
-	read_unlock(hinfo->lock);
-
-	return p;
-}
-
-static u32 tcf_police_new_index(void)
-{
-	u32 *idx_gen = &police_idx_gen;
-	u32 val = *idx_gen;
-
-	do {
-		if (++val == 0)
-			val = 1;
-	} while (tcf_police_lookup(val));
-
-	return (*idx_gen = val);
-}
-
-struct tcf_police *tcf_police_locate(struct rtattr *rta, struct rtattr *est)
-{
-	unsigned int h;
-	struct tcf_police *police;
-	struct rtattr *tb[TCA_POLICE_MAX];
-	struct tc_police *parm;
-	int size;
-
-	if (rtattr_parse_nested(tb, TCA_POLICE_MAX, rta) < 0)
-		return NULL;
-
-	if (tb[TCA_POLICE_TBF-1] == NULL)
-		return NULL;
-	size = RTA_PAYLOAD(tb[TCA_POLICE_TBF-1]);
-	if (size != sizeof(*parm) && size != sizeof(struct tc_police_compat))
-		return NULL;
-
-	parm = RTA_DATA(tb[TCA_POLICE_TBF-1]);
-
-	if (parm->index) {
-		struct tcf_common *pc;
-
-		pc = tcf_police_lookup(parm->index);
-		if (pc) {
-			police = to_police(pc);
-			police->tcf_refcnt++;
-			return police;
-		}
-	}
-	police = kzalloc(sizeof(*police), GFP_KERNEL);
-	if (unlikely(!police))
-		return NULL;
-
-	police->tcf_refcnt = 1;
-	spin_lock_init(&police->tcf_lock);
-	if (parm->rate.rate) {
-		police->tcfp_R_tab =
-			qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE-1]);
-		if (police->tcfp_R_tab == NULL)
-			goto failure;
-		if (parm->peakrate.rate) {
-			police->tcfp_P_tab =
-				qdisc_get_rtab(&parm->peakrate,
-					       tb[TCA_POLICE_PEAKRATE-1]);
-			if (police->tcfp_P_tab == NULL)
-				goto failure;
-		}
-	}
-	if (tb[TCA_POLICE_RESULT-1]) {
-		if (RTA_PAYLOAD(tb[TCA_POLICE_RESULT-1]) != sizeof(u32))
-			goto failure;
-		police->tcfp_result = *(u32*)RTA_DATA(tb[TCA_POLICE_RESULT-1]);
-	}
-	if (tb[TCA_POLICE_AVRATE-1]) {
-		if (RTA_PAYLOAD(tb[TCA_POLICE_AVRATE-1]) != sizeof(u32))
-			goto failure;
-		police->tcfp_ewma_rate =
-			*(u32*)RTA_DATA(tb[TCA_POLICE_AVRATE-1]);
-	}
-	police->tcfp_toks = police->tcfp_burst = parm->burst;
-	police->tcfp_mtu = parm->mtu;
-	if (police->tcfp_mtu == 0) {
-		police->tcfp_mtu = ~0;
-		if (police->tcfp_R_tab)
-			police->tcfp_mtu = 255<<police->tcfp_R_tab->rate.cell_log;
-	}
-	if (police->tcfp_P_tab)
-		police->tcfp_ptoks = L2T_P(police, police->tcfp_mtu);
-	police->tcfp_t_c = psched_get_time();
-	police->tcf_index = parm->index ? parm->index :
-		tcf_police_new_index();
-	police->tcf_action = parm->action;
-	if (est)
-		gen_new_estimator(&police->tcf_bstats, &police->tcf_rate_est,
-				  &police->tcf_lock, est);
-	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	write_lock_bh(&police_lock);
-	police->tcf_next = tcf_police_ht[h];
-	tcf_police_ht[h] = &police->common;
-	write_unlock_bh(&police_lock);
-	return police;
-
-failure:
-	if (police->tcfp_R_tab)
-		qdisc_put_rtab(police->tcfp_R_tab);
-	kfree(police);
-	return NULL;
-}
-
-int tcf_police(struct sk_buff *skb, struct tcf_police *police)
-{
-	psched_time_t now;
-	long toks;
-	long ptoks = 0;
-
-	spin_lock(&police->tcf_lock);
-
-	police->tcf_bstats.bytes += skb->len;
-	police->tcf_bstats.packets++;
-
-	if (police->tcfp_ewma_rate &&
-	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
-		police->tcf_qstats.overlimits++;
-		spin_unlock(&police->tcf_lock);
-		return police->tcf_action;
-	}
-	if (skb->len <= police->tcfp_mtu) {
-		if (police->tcfp_R_tab == NULL) {
-			spin_unlock(&police->tcf_lock);
-			return police->tcfp_result;
-		}
-
-		now = psched_get_time();
-		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
-					    police->tcfp_burst);
-		if (police->tcfp_P_tab) {
-			ptoks = toks + police->tcfp_ptoks;
-			if (ptoks > (long)L2T_P(police, police->tcfp_mtu))
-				ptoks = (long)L2T_P(police, police->tcfp_mtu);
-			ptoks -= L2T_P(police, skb->len);
-		}
-		toks += police->tcfp_toks;
-		if (toks > (long)police->tcfp_burst)
-			toks = police->tcfp_burst;
-		toks -= L2T(police, skb->len);
-		if ((toks|ptoks) >= 0) {
-			police->tcfp_t_c = now;
-			police->tcfp_toks = toks;
-			police->tcfp_ptoks = ptoks;
-			spin_unlock(&police->tcf_lock);
-			return police->tcfp_result;
-		}
-	}
-
-	police->tcf_qstats.overlimits++;
-	spin_unlock(&police->tcf_lock);
-	return police->tcf_action;
-}
-EXPORT_SYMBOL(tcf_police);
-
-int tcf_police_dump(struct sk_buff *skb, struct tcf_police *police)
-{
-	unsigned char *b = skb_tail_pointer(skb);
-	struct tc_police opt;
-
-	opt.index = police->tcf_index;
-	opt.action = police->tcf_action;
-	opt.mtu = police->tcfp_mtu;
-	opt.burst = police->tcfp_burst;
-	if (police->tcfp_R_tab)
-		opt.rate = police->tcfp_R_tab->rate;
-	else
-		memset(&opt.rate, 0, sizeof(opt.rate));
-	if (police->tcfp_P_tab)
-		opt.peakrate = police->tcfp_P_tab->rate;
-	else
-		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
-	RTA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
-	if (police->tcfp_result)
-		RTA_PUT(skb, TCA_POLICE_RESULT, sizeof(int),
-			&police->tcfp_result);
-	if (police->tcfp_ewma_rate)
-		RTA_PUT(skb, TCA_POLICE_AVRATE, 4, &police->tcfp_ewma_rate);
-	return skb->len;
-
-rtattr_failure:
-	nlmsg_trim(skb, b);
-	return -1;
-}
-
-int tcf_police_dump_stats(struct sk_buff *skb, struct tcf_police *police)
-{
-	struct gnet_dump d;
-
-	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
-					 TCA_XSTATS, &police->tcf_lock,
-					 &d) < 0)
-		goto errout;
-
-	if (gnet_stats_copy_basic(&d, &police->tcf_bstats) < 0 ||
-	    gnet_stats_copy_rate_est(&d, &police->tcf_rate_est) < 0 ||
-	    gnet_stats_copy_queue(&d, &police->tcf_qstats) < 0)
-		goto errout;
-
-	if (gnet_stats_finish_copy(&d) < 0)
-		goto errout;
-
-	return 0;
-
-errout:
-	return -1;
-}
-
-#endif /* CONFIG_NET_CLS_ACT */

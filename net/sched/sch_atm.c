@@ -428,26 +428,9 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				ATM_SKB(skb)->atm_options |= ATM_ATMOPT_CLP;
 			break;
 		}
-#elif defined(CONFIG_NET_CLS_POLICE)
-		switch (result) {
-		case TC_POLICE_SHOT:
-			kfree_skb(skb);
-			goto drop;
-		case TC_POLICE_RECLASSIFY:
-			if (flow->excess)
-				flow = flow->excess;
-			else {
-				ATM_SKB(skb)->atm_options |= ATM_ATMOPT_CLP;
-				break;
-			}
-			/* fall through */
-		case TC_POLICE_OK:
-			/* fall through */
-		default:
-			break;
-		}
 #endif
 	}
+
 	if ((ret = flow->q->enqueue(skb, flow->q)) != 0) {
 drop: __maybe_unused
 		sch->qstats.drops++;

@@ -121,34 +121,4 @@ extern int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, in
 extern int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 extern int tcf_action_copy_stats (struct sk_buff *,struct tc_action *, int);
 #endif /* CONFIG_NET_CLS_ACT */
-
-extern int tcf_police(struct sk_buff *skb, struct tcf_police *p);
-extern void tcf_police_destroy(struct tcf_police *p);
-extern struct tcf_police * tcf_police_locate(struct rtattr *rta, struct rtattr *est);
-extern int tcf_police_dump(struct sk_buff *skb, struct tcf_police *p);
-extern int tcf_police_dump_stats(struct sk_buff *skb, struct tcf_police *p);
-
-static inline int
-tcf_police_release(struct tcf_police *p, int bind)
-{
-	int ret = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	if (p) {
-		if (bind)
-			p->tcf_bindcnt--;
-
-		p->tcf_refcnt--;
-		if (p->tcf_refcnt <= 0 && !p->tcf_bindcnt) {
-			tcf_police_destroy(p);
-			ret = 1;
-		}
-	}
-#else
-	if (p && --p->tcf_refcnt == 0)
-		tcf_police_destroy(p);
-
-#endif /* CONFIG_NET_CLS_ACT */
-	return ret;
-}
-
 #endif

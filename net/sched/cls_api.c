@@ -458,11 +458,6 @@ tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts)
 		tcf_action_destroy(exts->action, TCA_ACT_UNBIND);
 		exts->action = NULL;
 	}
-#elif defined CONFIG_NET_CLS_POLICE
-	if (exts->police) {
-		tcf_police_release(exts->police, TCA_ACT_UNBIND);
-		exts->police = NULL;
-	}
 #endif
 }
 
@@ -496,17 +491,6 @@ tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
 			exts->action = act;
 		}
 	}
-#elif defined CONFIG_NET_CLS_POLICE
-	if (map->police && tb[map->police-1]) {
-		struct tcf_police *p;
-
-		p = tcf_police_locate(tb[map->police-1], rate_tlv);
-		if (p == NULL)
-			return -EINVAL;
-
-		exts->police = p;
-	} else if (map->action && tb[map->action-1])
-		return -EOPNOTSUPP;
 #else
 	if ((map->action && tb[map->action-1]) ||
 	    (map->police && tb[map->police-1]))
@@ -528,15 +512,6 @@ tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		tcf_tree_unlock(tp);
 		if (act)
 			tcf_action_destroy(act, TCA_ACT_UNBIND);
-	}
-#elif defined CONFIG_NET_CLS_POLICE
-	if (src->police) {
-		struct tcf_police *p;
-		tcf_tree_lock(tp);
-		p = xchg(&dst->police, src->police);
-		tcf_tree_unlock(tp);
-		if (p)
-			tcf_police_release(p, TCA_ACT_UNBIND);
 	}
 #endif
 }
@@ -566,17 +541,6 @@ tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
 			p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 		}
 	}
-#elif defined CONFIG_NET_CLS_POLICE
-	if (map->police && exts->police) {
-		struct rtattr *p_rta = (struct rtattr *)skb_tail_pointer(skb);
-
-		RTA_PUT(skb, map->police, 0, NULL);
-
-		if (tcf_police_dump(skb, exts->police) < 0)
-			goto rtattr_failure;
-
-		p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
-	}
 #endif
 	return 0;
 rtattr_failure: __attribute__ ((unused))
@@ -590,10 +554,6 @@ tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->action)
 		if (tcf_action_copy_stats(skb, exts->action, 1) < 0)
-			goto rtattr_failure;
-#elif defined CONFIG_NET_CLS_POLICE
-	if (exts->police)
-		if (tcf_police_dump_stats(skb, exts->police) < 0)
 			goto rtattr_failure;
 #endif
 	return 0;

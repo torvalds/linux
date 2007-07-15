@@ -249,9 +249,6 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_SHOT:
 			return NULL;
 		}
-#elif defined(CONFIG_NET_CLS_POLICE)
-		if (result == TC_POLICE_SHOT)
-			return HTB_DIRECT;
 #endif
 		if ((cl = (void *)res.class) == NULL) {
 			if (res.classid == sch->handle)

@@ -65,8 +65,6 @@ struct tcf_exts
 {
 #ifdef CONFIG_NET_CLS_ACT
 	struct tc_action *action;
-#elif defined CONFIG_NET_CLS_POLICE
-	struct tcf_police *police;
 #endif
 };
 
@@ -91,8 +89,6 @@ tcf_exts_is_predicative(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	return !!exts->action;
-#elif defined CONFIG_NET_CLS_POLICE
-	return !!exts->police;
 #else
 	return 0;
 #endif
@@ -129,11 +125,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->action)
 		return tcf_action_exec(skb, exts->action, res);
-#elif defined CONFIG_NET_CLS_POLICE
-	if (exts->police)
-		return tcf_police(skb, exts->police);
 #endif
-
 	return 0;
 }
 

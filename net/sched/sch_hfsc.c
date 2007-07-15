@@ -1174,9 +1174,6 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		case TC_ACT_SHOT:
 			return NULL;
 		}
-#elif defined(CONFIG_NET_CLS_POLICE)
-		if (result == TC_POLICE_SHOT)
-			return NULL;
 #endif
 		if ((cl = (struct hfsc_class *)res.class) == NULL) {
 			if ((cl = hfsc_find_class(res.classid, sch)) == NULL)
