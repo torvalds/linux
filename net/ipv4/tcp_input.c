@@ -1398,7 +1398,9 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 		 * waiting for the first ACK and did not get it)...
 		 */
 		if ((tp->frto_counter == 1) && !(flag&FLAG_DATA_ACKED)) {
-			tp->retrans_out += tcp_skb_pcount(skb);
+			/* For some reason this R-bit might get cleared? */
+			if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
+				tp->retrans_out += tcp_skb_pcount(skb);
 			/* ...enter this if branch just for the first segment */
 			flag |= FLAG_DATA_ACKED;
 		} else {
