@@ -864,6 +864,15 @@ static int sony_nc_add(struct acpi_device *device)
 
 	sony_nc_acpi_handle = device->handle;
 
+	/* read device status */
+	result = acpi_bus_get_status(device);
+	/* bail IFF the above call was successful and the device is not present */
+	if (!result && !device->status.present) {
+		dprintk("Device not present\n");
+		result = -ENODEV;
+		goto outwalk;
+	}
+
 	if (debug) {
 		status = acpi_walk_namespace(ACPI_TYPE_METHOD, sony_nc_acpi_handle,
 					     1, sony_walk_callback, NULL, NULL);
@@ -872,6 +881,15 @@ static int sony_nc_add(struct acpi_device *device)
 			result = -ENODEV;
 			goto outwalk;
 		}
+	}
+
+	/* try to _INI the device if such method exists (ACPI spec 3.0-6.5.1
+	 * should be respected as we already checked for the device presence above */
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, METHOD_NAME__INI, &handle))) {
+		dprintk("Invoking _INI\n");
+		if (ACPI_FAILURE(acpi_evaluate_object(sony_nc_acpi_handle, METHOD_NAME__INI,
+						NULL, NULL)))
+			dprintk("_INI Method failed\n");
 	}
 
 	/* setup input devices and helper fifo */
@@ -886,7 +904,7 @@ static int sony_nc_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     sony_acpi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING DRV_PFX "unable to install notify handler\n");
+		printk(KERN_WARNING DRV_PFX "unable to install notify handler (%u)\n", status);
 		result = -ENODEV;
 		goto outinput;
 	}
