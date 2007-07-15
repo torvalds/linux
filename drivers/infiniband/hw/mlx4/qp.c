@@ -1498,7 +1498,7 @@ static int to_ib_qp_access_flags(int mlx4_flags)
 static void to_ib_ah_attr(struct mlx4_dev *dev, struct ib_ah_attr *ib_ah_attr,
 				struct mlx4_qp_path *path)
 {
-	memset(ib_ah_attr, 0, sizeof *path);
+	memset(ib_ah_attr, 0, sizeof *ib_ah_attr);
 	ib_ah_attr->port_num	  = path->sched_queue & 0x40 ? 2 : 1;
 
 	if (ib_ah_attr->port_num == 0 || ib_ah_attr->port_num > dev->caps.num_ports)
