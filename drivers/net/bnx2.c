@@ -6218,7 +6218,7 @@ bnx2_set_tx_csum(struct net_device *dev, u32 data)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
-		return (ethtool_op_set_tx_hw_csum(dev, data));
+		return (ethtool_op_set_tx_ipv6_csum(dev, data));
 	else
 		return (ethtool_op_set_tx_csum(dev, data));
 }
