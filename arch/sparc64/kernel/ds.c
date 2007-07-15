@@ -535,11 +535,21 @@ static int dr_cpu_configure(struct ds_cap_state *cp, u64 req_num,
 		printk(KERN_INFO PFX "Starting cpu %d...\n", cpu);
 		err = cpu_up(cpu);
 		if (err) {
+			__u32 res = DR_CPU_RES_FAILURE;
+			__u32 stat = DR_CPU_STAT_UNCONFIGURED;
+
+			if (!cpu_present(cpu)) {
+				/* CPU not present in MD */
+				res = DR_CPU_RES_NOT_IN_MD;
+				stat = DR_CPU_STAT_NOT_PRESENT;
+			} else if (err == -ENODEV) {
+				/* CPU did not call in successfully */
+				res = DR_CPU_RES_CPU_NOT_RESPONDING;
+			}
+
 			printk(KERN_INFO PFX "CPU startup failed err=%d\n",
 			       err);
-			dr_cpu_mark(resp, cpu, ncpus,
-				    DR_CPU_RES_FAILURE,
-				    DR_CPU_STAT_UNCONFIGURED);
+			dr_cpu_mark(resp, cpu, ncpus, res, stat);
 		}
 	}
 
