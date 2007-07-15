@@ -283,7 +283,7 @@ static ssize_t fw_show_##class##_##td_kv (struct device *dev, struct device_attr
 	memcpy(buf,							\
 	       CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(class->td_kv),	\
 	       len);							\
-	while ((buf + len - 1) == '\0')					\
+	while (buf[len - 1] == '\0')					\
 		len--;							\
 	buf[len++] = '\n';						\
 	buf[len] = '\0';						\
