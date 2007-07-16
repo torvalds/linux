@@ -1335,6 +1335,10 @@ int usb_new_device(struct usb_device *udev)
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
 
+	/* Increment the parent's count of unsuspended children */
+	if (udev->parent)
+		usb_autoresume_device(udev->parent);
+
 	/* Register the device.  The device driver is responsible
 	 * for adding the device files to sysfs and for configuring
 	 * the device.
@@ -1342,12 +1346,10 @@ int usb_new_device(struct usb_device *udev)
 	err = device_add(&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
+		if (udev->parent)
+			usb_autosuspend_device(udev->parent);
 		goto fail;
 	}
-
-	/* Increment the parent's count of unsuspended children */
-	if (udev->parent)
-		usb_autoresume_device(udev->parent);
 
 exit:
 	return err;
