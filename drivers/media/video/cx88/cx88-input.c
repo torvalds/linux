@@ -324,7 +324,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		input_dev->id.vendor = pci->vendor;
 		input_dev->id.product = pci->device;
 	}
-	input_dev->cdev.dev = &pci->dev;
+	input_dev->dev.parent = &pci->dev;
 	/* record handles to ourself */
 	ir->core = core;
 	core->ir = ir;
