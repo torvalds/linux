@@ -72,8 +72,6 @@
 #define UART_MCR_AFE		0x20
 #define UART_LSR_SPECIAL	0x1E
 
-#define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|\
-					  IXON|IXOFF))
 
 #define C168_ASIC_ID    1
 #define C104_ASIC_ID    2
@@ -1990,18 +1988,14 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if ((tty->termios->c_cflag != old_termios->c_cflag) ||
-			(RELEVANT_IFLAG(tty->termios->c_iflag) != RELEVANT_IFLAG(old_termios->c_iflag))) {
+	spin_lock_irqsave(&info->slock, flags);
+	mxser_change_speed(info, old_termios);
+	spin_unlock_irqrestore(&info->slock, flags);
 
-		spin_lock_irqsave(&info->slock, flags);
-		mxser_change_speed(info, old_termios);
-		spin_unlock_irqrestore(&info->slock, flags);
-
-		if ((old_termios->c_cflag & CRTSCTS) &&
-				!(tty->termios->c_cflag & CRTSCTS)) {
-			tty->hw_stopped = 0;
-			mxser_start(tty);
-		}
+	if ((old_termios->c_cflag & CRTSCTS) &&
+			!(tty->termios->c_cflag & CRTSCTS)) {
+		tty->hw_stopped = 0;
+		mxser_start(tty);
 	}
 
 	/* Handle sw stopped */

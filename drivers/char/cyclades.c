@@ -4127,10 +4127,6 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	printk(KERN_DEBUG "cyc:cy_set_termios ttyC%d\n", info->line);
 #endif
 
-	if (tty->termios->c_cflag == old_termios->c_cflag &&
-			(tty->termios->c_iflag & (IXON | IXANY)) ==
-			(old_termios->c_iflag & (IXON | IXANY)))
-		return;
 	set_line_char(info);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
