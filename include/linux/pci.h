@@ -432,6 +432,8 @@ extern struct bus_type pci_bus_type;
  * code, or pci core code. */
 extern struct list_head pci_root_buses;	/* list of all known PCI buses */
 extern struct list_head pci_devices;	/* list of all devices */
+/* Some device drivers need know if pci is initiated */
+extern int no_pci_devices(void);
 
 void pcibios_fixup_bus(struct pci_bus *);
 int __must_check pcibios_enable_device(struct pci_dev *, int mask);
@@ -724,6 +726,7 @@ static inline struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *
 { return NULL; }
 
 #define pci_dev_present(ids)	(0)
+#define no_pci_devices()	(1)
 #define pci_find_present(ids)	(NULL)
 #define pci_dev_put(dev)	do { } while (0)
 

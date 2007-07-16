@@ -22,6 +22,18 @@ EXPORT_SYMBOL(pci_root_buses);
 
 LIST_HEAD(pci_devices);
 
+/*
+ * Some device drivers need know if pci is initiated.
+ * Basically, we think pci is not initiated when there
+ * is no device in list of pci_devices.
+ */
+int no_pci_devices(void)
+{
+	return list_empty(&pci_devices);
+}
+
+EXPORT_SYMBOL(no_pci_devices);
+
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_create_legacy_files - create legacy I/O port and memory files
