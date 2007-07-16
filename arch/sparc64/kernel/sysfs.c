@@ -193,7 +193,6 @@ static ssize_t show_##NAME(struct sys_device *dev, char *buf) \
 }
 
 SHOW_CPUDATA_ULONG_NAME(clock_tick, clock_tick);
-SHOW_CPUDATA_ULONG_NAME(udelay_val, udelay_val);
 SHOW_CPUDATA_UINT_NAME(l1_dcache_size, dcache_size);
 SHOW_CPUDATA_UINT_NAME(l1_dcache_line_size, dcache_line_size);
 SHOW_CPUDATA_UINT_NAME(l1_icache_size, icache_size);
@@ -203,7 +202,6 @@ SHOW_CPUDATA_UINT_NAME(l2_cache_line_size, ecache_line_size);
 
 static struct sysdev_attribute cpu_core_attrs[] = {
 	_SYSDEV_ATTR(clock_tick,          0444, show_clock_tick, NULL),
-	_SYSDEV_ATTR(udelay_val,          0444, show_udelay_val, NULL),
 	_SYSDEV_ATTR(l1_dcache_size,      0444, show_l1_dcache_size, NULL),
 	_SYSDEV_ATTR(l1_dcache_line_size, 0444, show_l1_dcache_line_size, NULL),
 	_SYSDEV_ATTR(l1_icache_size,      0444, show_l1_icache_size, NULL),

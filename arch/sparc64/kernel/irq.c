@@ -293,6 +293,11 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 	}
 }
 
+static void sun4u_set_affinity(unsigned int virt_irq, cpumask_t mask)
+{
+	sun4u_irq_enable(virt_irq);
+}
+
 static void sun4u_irq_disable(unsigned int virt_irq)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
@@ -309,6 +314,10 @@ static void sun4u_irq_disable(unsigned int virt_irq)
 static void sun4u_irq_end(unsigned int virt_irq)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(data))
 		upa_writeq(ICLR_IDLE, data->iclr);
@@ -337,6 +346,24 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
+	}
+}
+
+static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
+{
+	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
+	unsigned int ino = bucket - &ivector_table[0];
+
+	if (likely(bucket)) {
+		unsigned long cpuid;
+		int err;
+
+		cpuid = irq_choose_cpu(virt_irq);
+
+		err = sun4v_intr_settarget(ino, cpuid);
+		if (err != HV_EOK)
+			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
+			       ino, cpuid, err);
 	}
 }
 
@@ -373,6 +400,10 @@ static void sun4v_irq_end(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	unsigned int ino = bucket - &ivector_table[0];
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(bucket)) {
 		int err;
@@ -418,6 +449,28 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 	}
 }
 
+static void sun4v_virt_set_affinity(unsigned int virt_irq, cpumask_t mask)
+{
+	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
+	unsigned int ino = bucket - &ivector_table[0];
+
+	if (likely(bucket)) {
+		unsigned long cpuid, dev_handle, dev_ino;
+		int err;
+
+		cpuid = irq_choose_cpu(virt_irq);
+
+		dev_handle = ino & IMAP_IGN;
+		dev_ino = ino & IMAP_INO;
+
+		err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
+		if (err != HV_EOK)
+			printk("sun4v_vintr_set_target(%lx,%lx,%lu): "
+			       "err(%d)\n",
+			       dev_handle, dev_ino, cpuid, err);
+	}
+}
+
 static void sun4v_virq_disable(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
@@ -443,6 +496,10 @@ static void sun4v_virq_end(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	unsigned int ino = bucket - &ivector_table[0];
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(bucket)) {
 		unsigned long dev_handle, dev_ino;
@@ -477,6 +534,7 @@ static struct irq_chip sun4u_irq = {
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
 	.end		= sun4u_irq_end,
+	.set_affinity	= sun4u_set_affinity,
 };
 
 static struct irq_chip sun4u_irq_ack = {
@@ -485,6 +543,7 @@ static struct irq_chip sun4u_irq_ack = {
 	.disable	= sun4u_irq_disable,
 	.ack		= run_pre_handler,
 	.end		= sun4u_irq_end,
+	.set_affinity	= sun4u_set_affinity,
 };
 
 static struct irq_chip sun4v_irq = {
@@ -492,6 +551,7 @@ static struct irq_chip sun4v_irq = {
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
 	.end		= sun4v_irq_end,
+	.set_affinity	= sun4v_set_affinity,
 };
 
 static struct irq_chip sun4v_irq_ack = {
@@ -500,6 +560,7 @@ static struct irq_chip sun4v_irq_ack = {
 	.disable	= sun4v_irq_disable,
 	.ack		= run_pre_handler,
 	.end		= sun4v_irq_end,
+	.set_affinity	= sun4v_set_affinity,
 };
 
 #ifdef CONFIG_PCI_MSI
@@ -511,6 +572,7 @@ static struct irq_chip sun4v_msi = {
 	.disable	= sun4v_msi_disable,
 	.ack		= run_pre_handler,
 	.end		= sun4v_irq_end,
+	.set_affinity	= sun4v_set_affinity,
 };
 #endif
 
@@ -519,6 +581,7 @@ static struct irq_chip sun4v_virq = {
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
 	.end		= sun4v_virq_end,
+	.set_affinity	= sun4v_virt_set_affinity,
 };
 
 static struct irq_chip sun4v_virq_ack = {
@@ -527,6 +590,7 @@ static struct irq_chip sun4v_virq_ack = {
 	.disable	= sun4v_virq_disable,
 	.ack		= run_pre_handler,
 	.end		= sun4v_virq_end,
+	.set_affinity	= sun4v_virt_set_affinity,
 };
 
 void irq_install_pre_handler(int virt_irq,
@@ -738,6 +802,26 @@ void handler_irq(int irq, struct pt_regs *regs)
 	irq_exit();
 	set_irq_regs(old_regs);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+void fixup_irqs(void)
+{
+	unsigned int irq;
+
+	for (irq = 0; irq < NR_IRQS; irq++) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		if (irq_desc[irq].action &&
+		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
+			if (irq_desc[irq].chip->set_affinity)
+				irq_desc[irq].chip->set_affinity(irq,
+					irq_desc[irq].affinity);
+		}
+		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+	}
+}
+#endif
 
 struct sun5_timer {
 	u64	count0;

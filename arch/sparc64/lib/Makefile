@@ -14,6 +14,6 @@ lib-y := PeeCeeI.o copy_page.o clear_page.o strlen.o strncmp.o \
 	 NGmemcpy.o NGcopy_from_user.o NGcopy_to_user.o NGpatch.o \
 	 NGpage.o NGbzero.o \
 	 copy_in_user.o user_fixup.o memmove.o \
-	 mcount.o ipcsum.o rwsem.o xor.o delay.o
+	 mcount.o ipcsum.o rwsem.o xor.o
 
 obj-y += iomap.o

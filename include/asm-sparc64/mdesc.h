@@ -2,38 +2,66 @@
 #define _SPARC64_MDESC_H
 
 #include <linux/types.h>
+#include <linux/cpumask.h>
 #include <asm/prom.h>
 
-struct mdesc_node;
-struct mdesc_arc {
-	const char		*name;
-	struct mdesc_node	*arc;
-};
+struct mdesc_handle;
 
-struct mdesc_node {
-	const char		*name;
-	u64			node;
-	unsigned int		unique_id;
-	unsigned int		num_arcs;
-	unsigned int		irqs[2];
-	struct property		*properties;
-	struct mdesc_node	*hash_next;
-	struct mdesc_node	*allnodes_next;
-	struct mdesc_arc	arcs[0];
-};
+/* Machine description operations are to be surrounded by grab and
+ * release calls.  The mdesc_handle returned from the grab is
+ * the first argument to all of the operational calls that work
+ * on mdescs.
+ */
+extern struct mdesc_handle *mdesc_grab(void);
+extern void mdesc_release(struct mdesc_handle *);
 
-extern struct mdesc_node *md_find_node_by_name(struct mdesc_node *from,
-					       const char *name);
-#define md_for_each_node_by_name(__mn, __name) \
-	for (__mn = md_find_node_by_name(NULL, __name); __mn; \
-	     __mn = md_find_node_by_name(__mn, __name))
+#define MDESC_NODE_NULL		(~(u64)0)
 
-extern struct property *md_find_property(const struct mdesc_node *mp,
-					 const char *name,
-					 int *lenp);
-extern const void *md_get_property(const struct mdesc_node *mp,
-				   const char *name,
-				   int *lenp);
+extern u64 mdesc_node_by_name(struct mdesc_handle *handle,
+			      u64 from_node, const char *name);
+#define mdesc_for_each_node_by_name(__hdl, __node, __name) \
+	for (__node = mdesc_node_by_name(__hdl, MDESC_NODE_NULL, __name); \
+	     (__node) != MDESC_NODE_NULL; \
+	     __node = mdesc_node_by_name(__hdl, __node, __name))
+
+/* Access to property values returned from mdesc_get_property() are
+ * only valid inside of a mdesc_grab()/mdesc_release() sequence.
+ * Once mdesc_release() is called, the memory backed up by these
+ * pointers may reference freed up memory.
+ *
+ * Therefore callers must make copies of any property values
+ * they need.
+ *
+ * These same rules apply to mdesc_node_name().
+ */
+extern const void *mdesc_get_property(struct mdesc_handle *handle,
+				      u64 node, const char *name, int *lenp);
+extern const char *mdesc_node_name(struct mdesc_handle *hp, u64 node);
+
+/* MD arc iteration, the standard sequence is:
+ *
+ *	unsigned long arc;
+ *	mdesc_for_each_arc(arc, handle, node, MDESC_ARC_TYPE_{FWD,BACK}) {
+ *		unsigned long target = mdesc_arc_target(handle, arc);
+ *		...
+ *	}
+ */
+
+#define MDESC_ARC_TYPE_FWD	"fwd"
+#define MDESC_ARC_TYPE_BACK	"back"
+
+extern u64 mdesc_next_arc(struct mdesc_handle *handle, u64 from,
+			  const char *arc_type);
+#define mdesc_for_each_arc(__arc, __hdl, __node, __type) \
+	for (__arc = mdesc_next_arc(__hdl, __node, __type); \
+	     (__arc) != MDESC_NODE_NULL; \
+	     __arc = mdesc_next_arc(__hdl, __arc, __type))
+
+extern u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
+
+extern void mdesc_update(void);
+
+extern void mdesc_fill_in_cpu_data(cpumask_t mask);
 
 extern void sun4v_mdesc_init(void);
 

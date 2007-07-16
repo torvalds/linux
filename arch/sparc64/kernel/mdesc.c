@@ -6,6 +6,9 @@
 #include <linux/types.h>
 #include <linux/bootmem.h>
 #include <linux/log2.h>
+#include <linux/list.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
 
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
@@ -29,7 +32,7 @@ struct mdesc_hdr {
 	u32	node_sz; /* node block size */
 	u32	name_sz; /* name block size */
 	u32	data_sz; /* data block size */
-};
+} __attribute__((aligned(16)));
 
 struct mdesc_elem {
 	u8	tag;
@@ -53,306 +56,402 @@ struct mdesc_elem {
 	} d;
 };
 
-static struct mdesc_hdr *main_mdesc;
-static struct mdesc_node *allnodes;
+struct mdesc_mem_ops {
+	struct mdesc_handle *(*alloc)(unsigned int mdesc_size);
+	void (*free)(struct mdesc_handle *handle);
+};
 
-static struct mdesc_node *allnodes_tail;
-static unsigned int unique_id;
+struct mdesc_handle {
+	struct list_head	list;
+	struct mdesc_mem_ops	*mops;
+	void			*self_base;
+	atomic_t		refcnt;
+	unsigned int		handle_size;
+	struct mdesc_hdr	mdesc;
+};
 
-static struct mdesc_node **mdesc_hash;
-static unsigned int mdesc_hash_size;
-
-static inline unsigned int node_hashfn(u64 node)
+static void mdesc_handle_init(struct mdesc_handle *hp,
+			      unsigned int handle_size,
+			      void *base)
 {
-	return ((unsigned int) (node ^ (node >> 8) ^ (node >> 16)))
-		& (mdesc_hash_size - 1);
+	BUG_ON(((unsigned long)&hp->mdesc) & (16UL - 1));
+
+	memset(hp, 0, handle_size);
+	INIT_LIST_HEAD(&hp->list);
+	hp->self_base = base;
+	atomic_set(&hp->refcnt, 1);
+	hp->handle_size = handle_size;
 }
 
-static inline void hash_node(struct mdesc_node *mp)
+static struct mdesc_handle *mdesc_bootmem_alloc(unsigned int mdesc_size)
 {
-	struct mdesc_node **head = &mdesc_hash[node_hashfn(mp->node)];
+	struct mdesc_handle *hp;
+	unsigned int handle_size, alloc_size;
 
-	mp->hash_next = *head;
-	*head = mp;
+	handle_size = (sizeof(struct mdesc_handle) -
+		       sizeof(struct mdesc_hdr) +
+		       mdesc_size);
+	alloc_size = PAGE_ALIGN(handle_size);
 
-	if (allnodes_tail) {
-		allnodes_tail->allnodes_next = mp;
-		allnodes_tail = mp;
-	} else {
-		allnodes = allnodes_tail = mp;
+	hp = __alloc_bootmem(alloc_size, PAGE_SIZE, 0UL);
+	if (hp)
+		mdesc_handle_init(hp, handle_size, hp);
+
+	return hp;
+}
+
+static void mdesc_bootmem_free(struct mdesc_handle *hp)
+{
+	unsigned int alloc_size, handle_size = hp->handle_size;
+	unsigned long start, end;
+
+	BUG_ON(atomic_read(&hp->refcnt) != 0);
+	BUG_ON(!list_empty(&hp->list));
+
+	alloc_size = PAGE_ALIGN(handle_size);
+
+	start = (unsigned long) hp;
+	end = start + alloc_size;
+
+	while (start < end) {
+		struct page *p;
+
+		p = virt_to_page(start);
+		ClearPageReserved(p);
+		__free_page(p);
+		start += PAGE_SIZE;
 	}
 }
 
-static struct mdesc_node *find_node(u64 node)
+static struct mdesc_mem_ops bootmem_mdesc_memops = {
+	.alloc = mdesc_bootmem_alloc,
+	.free  = mdesc_bootmem_free,
+};
+
+static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 {
-	struct mdesc_node *mp = mdesc_hash[node_hashfn(node)];
+	unsigned int handle_size;
+	void *base;
 
-	while (mp) {
-		if (mp->node == node)
-			return mp;
+	handle_size = (sizeof(struct mdesc_handle) -
+		       sizeof(struct mdesc_hdr) +
+		       mdesc_size);
 
-		mp = mp->hash_next;
+	base = kmalloc(handle_size + 15, GFP_KERNEL);
+	if (base) {
+		struct mdesc_handle *hp;
+		unsigned long addr;
+
+		addr = (unsigned long)base;
+		addr = (addr + 15UL) & ~15UL;
+		hp = (struct mdesc_handle *) addr;
+
+		mdesc_handle_init(hp, handle_size, base);
+		return hp;
 	}
+
 	return NULL;
 }
 
-struct property *md_find_property(const struct mdesc_node *mp,
-				  const char *name,
-				  int *lenp)
+static void mdesc_kfree(struct mdesc_handle *hp)
 {
-	struct property *pp;
+	BUG_ON(atomic_read(&hp->refcnt) != 0);
+	BUG_ON(!list_empty(&hp->list));
 
-	for (pp = mp->properties; pp != 0; pp = pp->next) {
-		if (strcasecmp(pp->name, name) == 0) {
-			if (lenp)
-				*lenp = pp->length;
-			break;
-		}
+	kfree(hp->self_base);
+}
+
+static struct mdesc_mem_ops kmalloc_mdesc_memops = {
+	.alloc = mdesc_kmalloc,
+	.free  = mdesc_kfree,
+};
+
+static struct mdesc_handle *mdesc_alloc(unsigned int mdesc_size,
+					struct mdesc_mem_ops *mops)
+{
+	struct mdesc_handle *hp = mops->alloc(mdesc_size);
+
+	if (hp)
+		hp->mops = mops;
+
+	return hp;
+}
+
+static void mdesc_free(struct mdesc_handle *hp)
+{
+	hp->mops->free(hp);
+}
+
+static struct mdesc_handle *cur_mdesc;
+static LIST_HEAD(mdesc_zombie_list);
+static DEFINE_SPINLOCK(mdesc_lock);
+
+struct mdesc_handle *mdesc_grab(void)
+{
+	struct mdesc_handle *hp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdesc_lock, flags);
+	hp = cur_mdesc;
+	if (hp)
+		atomic_inc(&hp->refcnt);
+	spin_unlock_irqrestore(&mdesc_lock, flags);
+
+	return hp;
+}
+EXPORT_SYMBOL(mdesc_grab);
+
+void mdesc_release(struct mdesc_handle *hp)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdesc_lock, flags);
+	if (atomic_dec_and_test(&hp->refcnt)) {
+		list_del_init(&hp->list);
+		hp->mops->free(hp);
 	}
-	return pp;
+	spin_unlock_irqrestore(&mdesc_lock, flags);
 }
-EXPORT_SYMBOL(md_find_property);
+EXPORT_SYMBOL(mdesc_release);
 
-/*
- * Find a property with a given name for a given node
- * and return the value.
- */
-const void *md_get_property(const struct mdesc_node *mp, const char *name,
-			    int *lenp)
+static void do_mdesc_update(struct work_struct *work)
 {
-	struct property *pp = md_find_property(mp, name, lenp);
-	return pp ? pp->value : NULL;
-}
-EXPORT_SYMBOL(md_get_property);
+	unsigned long len, real_len, status;
+	struct mdesc_handle *hp, *orig_hp;
+	unsigned long flags;
 
-struct mdesc_node *md_find_node_by_name(struct mdesc_node *from,
-					const char *name)
-{
-	struct mdesc_node *mp;
+	(void) sun4v_mach_desc(0UL, 0UL, &len);
 
-	mp = from ? from->allnodes_next : allnodes;
-	for (; mp != NULL; mp = mp->allnodes_next) {
-		if (strcmp(mp->name, name) == 0)
-			break;
-	}
-	return mp;
-}
-EXPORT_SYMBOL(md_find_node_by_name);
-
-static unsigned int mdesc_early_allocated;
-
-static void * __init mdesc_early_alloc(unsigned long size)
-{
-	void *ret;
-
-	ret = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
-	if (ret == NULL) {
-		prom_printf("MDESC: alloc of %lu bytes failed.\n", size);
-		prom_halt();
+	hp = mdesc_alloc(len, &kmalloc_mdesc_memops);
+	if (!hp) {
+		printk(KERN_ERR "MD: mdesc alloc fails\n");
+		return;
 	}
 
-	memset(ret, 0, size);
-
-	mdesc_early_allocated += size;
-
-	return ret;
-}
-
-static unsigned int __init count_arcs(struct mdesc_elem *ep)
-{
-	unsigned int ret = 0;
-
-	ep++;
-	while (ep->tag != MD_NODE_END) {
-		if (ep->tag == MD_PROP_ARC)
-			ret++;
-		ep++;
+	status = sun4v_mach_desc(__pa(&hp->mdesc), len, &real_len);
+	if (status != HV_EOK || real_len > len) {
+		printk(KERN_ERR "MD: mdesc reread fails with %lu\n",
+		       status);
+		atomic_dec(&hp->refcnt);
+		mdesc_free(hp);
+		return;
 	}
-	return ret;
+
+	spin_lock_irqsave(&mdesc_lock, flags);
+	orig_hp = cur_mdesc;
+	cur_mdesc = hp;
+
+	if (atomic_dec_and_test(&orig_hp->refcnt))
+		mdesc_free(orig_hp);
+	else
+		list_add(&orig_hp->list, &mdesc_zombie_list);
+	spin_unlock_irqrestore(&mdesc_lock, flags);
 }
 
-static void __init mdesc_node_alloc(u64 node, struct mdesc_elem *ep, const char *names)
+static DECLARE_WORK(mdesc_update_work, do_mdesc_update);
+
+void mdesc_update(void)
 {
-	unsigned int num_arcs = count_arcs(ep);
-	struct mdesc_node *mp;
-
-	mp = mdesc_early_alloc(sizeof(*mp) +
-			       (num_arcs * sizeof(struct mdesc_arc)));
-	mp->name = names + ep->name_offset;
-	mp->node = node;
-	mp->unique_id = unique_id++;
-	mp->num_arcs = num_arcs;
-
-	hash_node(mp);
+	schedule_work(&mdesc_update_work);
 }
 
-static inline struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)
+static struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)
 {
 	return (struct mdesc_elem *) (mdesc + 1);
 }
 
-static inline void *name_block(struct mdesc_hdr *mdesc)
+static void *name_block(struct mdesc_hdr *mdesc)
 {
 	return ((void *) node_block(mdesc)) + mdesc->node_sz;
 }
 
-static inline void *data_block(struct mdesc_hdr *mdesc)
+static void *data_block(struct mdesc_hdr *mdesc)
 {
 	return ((void *) name_block(mdesc)) + mdesc->name_sz;
 }
 
-/* In order to avoid recursion (the graph can be very deep) we use a
- * two pass algorithm.  First we allocate all the nodes and hash them.
- * Then we iterate over each node, filling in the arcs and properties.
- */
-static void __init build_all_nodes(struct mdesc_hdr *mdesc)
+u64 mdesc_node_by_name(struct mdesc_handle *hp,
+		       u64 from_node, const char *name)
 {
-	struct mdesc_elem *start, *ep;
-	struct mdesc_node *mp;
-	const char *names;
-	void *data;
-	u64 last_node;
+	struct mdesc_elem *ep = node_block(&hp->mdesc);
+	const char *names = name_block(&hp->mdesc);
+	u64 last_node = hp->mdesc.node_sz / 16;
+	u64 ret;
 
-	start = ep = node_block(mdesc);
-	last_node = mdesc->node_sz / 16;
+	if (from_node == MDESC_NODE_NULL)
+		from_node = 0;
 
-	names = name_block(mdesc);
+	if (from_node >= last_node)
+		return MDESC_NODE_NULL;
 
-	while (1) {
-		u64 node = ep - start;
+	ret = ep[from_node].d.val;
+	while (ret < last_node) {
+		if (ep[ret].tag != MD_NODE)
+			return MDESC_NODE_NULL;
+		if (!strcmp(names + ep[ret].name_offset, name))
+			break;
+		ret = ep[ret].d.val;
+	}
+	if (ret >= last_node)
+		ret = MDESC_NODE_NULL;
+	return ret;
+}
+EXPORT_SYMBOL(mdesc_node_by_name);
 
-		if (ep->tag == MD_LIST_END)
+const void *mdesc_get_property(struct mdesc_handle *hp, u64 node,
+			       const char *name, int *lenp)
+{
+	const char *names = name_block(&hp->mdesc);
+	u64 last_node = hp->mdesc.node_sz / 16;
+	void *data = data_block(&hp->mdesc);
+	struct mdesc_elem *ep;
+
+	if (node == MDESC_NODE_NULL || node >= last_node)
+		return NULL;
+
+	ep = node_block(&hp->mdesc) + node;
+	ep++;
+	for (; ep->tag != MD_NODE_END; ep++) {
+		void *val = NULL;
+		int len = 0;
+
+		switch (ep->tag) {
+		case MD_PROP_VAL:
+			val = &ep->d.val;
+			len = 8;
 			break;
 
-		if (ep->tag != MD_NODE) {
-			prom_printf("MDESC: Inconsistent element list.\n");
-			prom_halt();
-		}
+		case MD_PROP_STR:
+		case MD_PROP_DATA:
+			val = data + ep->d.data.data_offset;
+			len = ep->d.data.data_len;
+			break;
 
-		mdesc_node_alloc(node, ep, names);
-
-		if (ep->d.val >= last_node) {
-			printk("MDESC: Warning, early break out of node scan.\n");
-			printk("MDESC: Next node [%lu] last_node [%lu].\n",
-			       node, last_node);
+		default:
 			break;
 		}
+		if (!val)
+			continue;
 
-		ep = start + ep->d.val;
-	}
-
-	data = data_block(mdesc);
-	for (mp = allnodes; mp; mp = mp->allnodes_next) {
-		struct mdesc_elem *ep = start + mp->node;
-		struct property **link = &mp->properties;
-		unsigned int this_arc = 0;
-
-		ep++;
-		while (ep->tag != MD_NODE_END) {
-			switch (ep->tag) {
-			case MD_PROP_ARC: {
-				struct mdesc_node *target;
-
-				if (this_arc >= mp->num_arcs) {
-					prom_printf("MDESC: ARC overrun [%u:%u]\n",
-						    this_arc, mp->num_arcs);
-					prom_halt();
-				}
-				target = find_node(ep->d.val);
-				if (!target) {
-					printk("MDESC: Warning, arc points to "
-					       "missing node, ignoring.\n");
-					break;
-				}
-				mp->arcs[this_arc].name =
-					(names + ep->name_offset);
-				mp->arcs[this_arc].arc = target;
-				this_arc++;
-				break;
-			}
-
-			case MD_PROP_VAL:
-			case MD_PROP_STR:
-			case MD_PROP_DATA: {
-				struct property *p = mdesc_early_alloc(sizeof(*p));
-
-				p->unique_id = unique_id++;
-				p->name = (char *) names + ep->name_offset;
-				if (ep->tag == MD_PROP_VAL) {
-					p->value = &ep->d.val;
-					p->length = 8;
-				} else {
-					p->value = data + ep->d.data.data_offset;
-					p->length = ep->d.data.data_len;
-				}
-				*link = p;
-				link = &p->next;
-				break;
-			}
-
-			case MD_NOOP:
-				break;
-
-			default:
-				printk("MDESC: Warning, ignoring unknown tag type %02x\n",
-				       ep->tag);
-			}
-			ep++;
+		if (!strcmp(names + ep->name_offset, name)) {
+			if (lenp)
+				*lenp = len;
+			return val;
 		}
 	}
-}
 
-static unsigned int __init count_nodes(struct mdesc_hdr *mdesc)
+	return NULL;
+}
+EXPORT_SYMBOL(mdesc_get_property);
+
+u64 mdesc_next_arc(struct mdesc_handle *hp, u64 from, const char *arc_type)
 {
-	struct mdesc_elem *ep = node_block(mdesc);
-	struct mdesc_elem *end;
-	unsigned int cnt = 0;
+	struct mdesc_elem *ep, *base = node_block(&hp->mdesc);
+	const char *names = name_block(&hp->mdesc);
+	u64 last_node = hp->mdesc.node_sz / 16;
 
-	end = ((void *)ep) + mdesc->node_sz;
-	while (ep < end) {
-		if (ep->tag == MD_NODE)
-			cnt++;
-		ep++;
+	if (from == MDESC_NODE_NULL || from >= last_node)
+		return MDESC_NODE_NULL;
+
+	ep = base + from;
+
+	ep++;
+	for (; ep->tag != MD_NODE_END; ep++) {
+		if (ep->tag != MD_PROP_ARC)
+			continue;
+
+		if (strcmp(names + ep->name_offset, arc_type))
+			continue;
+
+		return ep - base;
 	}
-	return cnt;
+
+	return MDESC_NODE_NULL;
 }
+EXPORT_SYMBOL(mdesc_next_arc);
+
+u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc)
+{
+	struct mdesc_elem *ep, *base = node_block(&hp->mdesc);
+
+	ep = base + arc;
+
+	return ep->d.val;
+}
+EXPORT_SYMBOL(mdesc_arc_target);
+
+const char *mdesc_node_name(struct mdesc_handle *hp, u64 node)
+{
+	struct mdesc_elem *ep, *base = node_block(&hp->mdesc);
+	const char *names = name_block(&hp->mdesc);
+	u64 last_node = hp->mdesc.node_sz / 16;
+
+	if (node == MDESC_NODE_NULL || node >= last_node)
+		return NULL;
+
+	ep = base + node;
+	if (ep->tag != MD_NODE)
+		return NULL;
+
+	return names + ep->name_offset;
+}
+EXPORT_SYMBOL(mdesc_node_name);
 
 static void __init report_platform_properties(void)
 {
-	struct mdesc_node *pn = md_find_node_by_name(NULL, "platform");
+	struct mdesc_handle *hp = mdesc_grab();
+	u64 pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "platform");
 	const char *s;
 	const u64 *v;
 
-	if (!pn) {
+	if (pn == MDESC_NODE_NULL) {
 		prom_printf("No platform node in machine-description.\n");
 		prom_halt();
 	}
 
-	s = md_get_property(pn, "banner-name", NULL);
+	s = mdesc_get_property(hp, pn, "banner-name", NULL);
 	printk("PLATFORM: banner-name [%s]\n", s);
-	s = md_get_property(pn, "name", NULL);
+	s = mdesc_get_property(hp, pn, "name", NULL);
 	printk("PLATFORM: name [%s]\n", s);
 
-	v = md_get_property(pn, "hostid", NULL);
+	v = mdesc_get_property(hp, pn, "hostid", NULL);
 	if (v)
 		printk("PLATFORM: hostid [%08lx]\n", *v);
-	v = md_get_property(pn, "serial#", NULL);
+	v = mdesc_get_property(hp, pn, "serial#", NULL);
 	if (v)
 		printk("PLATFORM: serial# [%08lx]\n", *v);
-	v = md_get_property(pn, "stick-frequency", NULL);
+	v = mdesc_get_property(hp, pn, "stick-frequency", NULL);
 	printk("PLATFORM: stick-frequency [%08lx]\n", *v);
-	v = md_get_property(pn, "mac-address", NULL);
+	v = mdesc_get_property(hp, pn, "mac-address", NULL);
 	if (v)
 		printk("PLATFORM: mac-address [%lx]\n", *v);
-	v = md_get_property(pn, "watchdog-resolution", NULL);
+	v = mdesc_get_property(hp, pn, "watchdog-resolution", NULL);
 	if (v)
 		printk("PLATFORM: watchdog-resolution [%lu ms]\n", *v);
-	v = md_get_property(pn, "watchdog-max-timeout", NULL);
+	v = mdesc_get_property(hp, pn, "watchdog-max-timeout", NULL);
 	if (v)
 		printk("PLATFORM: watchdog-max-timeout [%lu ms]\n", *v);
-	v = md_get_property(pn, "max-cpus", NULL);
+	v = mdesc_get_property(hp, pn, "max-cpus", NULL);
 	if (v)
 		printk("PLATFORM: max-cpus [%lu]\n", *v);
+
+#ifdef CONFIG_SMP
+	{
+		int max_cpu, i;
+
+		if (v) {
+			max_cpu = *v;
+			if (max_cpu > NR_CPUS)
+				max_cpu = NR_CPUS;
+		} else {
+			max_cpu = NR_CPUS;
+		}
+		for (i = 0; i < max_cpu; i++)
+			cpu_set(i, cpu_possible_map);
+	}
+#endif
+
+	mdesc_release(hp);
 }
 
 static int inline find_in_proplist(const char *list, const char *match, int len)
@@ -369,15 +468,17 @@ static int inline find_in_proplist(const char *list, const char *match, int len)
 	return 0;
 }
 
-static void __init fill_in_one_cache(cpuinfo_sparc *c, struct mdesc_node *mp)
+static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
+					struct mdesc_handle *hp,
+					u64 mp)
 {
-	const u64 *level = md_get_property(mp, "level", NULL);
-	const u64 *size = md_get_property(mp, "size", NULL);
-	const u64 *line_size = md_get_property(mp, "line-size", NULL);
+	const u64 *level = mdesc_get_property(hp, mp, "level", NULL);
+	const u64 *size = mdesc_get_property(hp, mp, "size", NULL);
+	const u64 *line_size = mdesc_get_property(hp, mp, "line-size", NULL);
 	const char *type;
 	int type_len;
 
-	type = md_get_property(mp, "type", &type_len);
+	type = mdesc_get_property(hp, mp, "type", &type_len);
 
 	switch (*level) {
 	case 1:
@@ -400,48 +501,45 @@ static void __init fill_in_one_cache(cpuinfo_sparc *c, struct mdesc_node *mp)
 	}
 
 	if (*level == 1) {
-		unsigned int i;
+		u64 a;
 
-		for (i = 0; i < mp->num_arcs; i++) {
-			struct mdesc_node *t = mp->arcs[i].arc;
+		mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
+			u64 target = mdesc_arc_target(hp, a);
+			const char *name = mdesc_node_name(hp, target);
 
-			if (strcmp(mp->arcs[i].name, "fwd"))
-				continue;
-
-			if (!strcmp(t->name, "cache"))
-				fill_in_one_cache(c, t);
+			if (!strcmp(name, "cache"))
+				fill_in_one_cache(c, hp, target);
 		}
 	}
 }
 
-static void __init mark_core_ids(struct mdesc_node *mp, int core_id)
+static void __devinit mark_core_ids(struct mdesc_handle *hp, u64 mp,
+				    int core_id)
 {
-	unsigned int i;
+	u64 a;
 
-	for (i = 0; i < mp->num_arcs; i++) {
-		struct mdesc_node *t = mp->arcs[i].arc;
+	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
+		u64 t = mdesc_arc_target(hp, a);
+		const char *name;
 		const u64 *id;
 
-		if (strcmp(mp->arcs[i].name, "back"))
-			continue;
-
-		if (!strcmp(t->name, "cpu")) {
-			id = md_get_property(t, "id", NULL);
+		name = mdesc_node_name(hp, t);
+		if (!strcmp(name, "cpu")) {
+			id = mdesc_get_property(hp, t, "id", NULL);
 			if (*id < NR_CPUS)
 				cpu_data(*id).core_id = core_id;
 		} else {
-			unsigned int j;
+			u64 j;
 
-			for (j = 0; j < t->num_arcs; j++) {
-				struct mdesc_node *n = t->arcs[j].arc;
+			mdesc_for_each_arc(j, hp, t, MDESC_ARC_TYPE_BACK) {
+				u64 n = mdesc_arc_target(hp, j);
+				const char *n_name;
 
-				if (strcmp(t->arcs[j].name, "back"))
+				n_name = mdesc_node_name(hp, n);
+				if (strcmp(n_name, "cpu"))
 					continue;
 
-				if (strcmp(n->name, "cpu"))
-					continue;
-
-				id = md_get_property(n, "id", NULL);
+				id = mdesc_get_property(hp, n, "id", NULL);
 				if (*id < NR_CPUS)
 					cpu_data(*id).core_id = core_id;
 			}
@@ -449,78 +547,81 @@ static void __init mark_core_ids(struct mdesc_node *mp, int core_id)
 	}
 }
 
-static void __init set_core_ids(void)
+static void __devinit set_core_ids(struct mdesc_handle *hp)
 {
-	struct mdesc_node *mp;
 	int idx;
+	u64 mp;
 
 	idx = 1;
-	md_for_each_node_by_name(mp, "cache") {
-		const u64 *level = md_get_property(mp, "level", NULL);
+	mdesc_for_each_node_by_name(hp, mp, "cache") {
+		const u64 *level;
 		const char *type;
 		int len;
 
+		level = mdesc_get_property(hp, mp, "level", NULL);
 		if (*level != 1)
 			continue;
 
-		type = md_get_property(mp, "type", &len);
+		type = mdesc_get_property(hp, mp, "type", &len);
 		if (!find_in_proplist(type, "instn", len))
 			continue;
 
-		mark_core_ids(mp, idx);
+		mark_core_ids(hp, mp, idx);
 
 		idx++;
 	}
 }
 
-static void __init mark_proc_ids(struct mdesc_node *mp, int proc_id)
+static void __devinit mark_proc_ids(struct mdesc_handle *hp, u64 mp,
+				    int proc_id)
 {
-	int i;
+	u64 a;
 
-	for (i = 0; i < mp->num_arcs; i++) {
-		struct mdesc_node *t = mp->arcs[i].arc;
+	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
+		u64 t = mdesc_arc_target(hp, a);
+		const char *name;
 		const u64 *id;
 
-		if (strcmp(mp->arcs[i].name, "back"))
+		name = mdesc_node_name(hp, t);
+		if (strcmp(name, "cpu"))
 			continue;
 
-		if (strcmp(t->name, "cpu"))
-			continue;
-
-		id = md_get_property(t, "id", NULL);
+		id = mdesc_get_property(hp, t, "id", NULL);
 		if (*id < NR_CPUS)
 			cpu_data(*id).proc_id = proc_id;
 	}
 }
 
-static void __init __set_proc_ids(const char *exec_unit_name)
+static void __devinit __set_proc_ids(struct mdesc_handle *hp,
+				     const char *exec_unit_name)
 {
-	struct mdesc_node *mp;
 	int idx;
+	u64 mp;
 
 	idx = 0;
-	md_for_each_node_by_name(mp, exec_unit_name) {
+	mdesc_for_each_node_by_name(hp, mp, exec_unit_name) {
 		const char *type;
 		int len;
 
-		type = md_get_property(mp, "type", &len);
+		type = mdesc_get_property(hp, mp, "type", &len);
 		if (!find_in_proplist(type, "int", len) &&
 		    !find_in_proplist(type, "integer", len))
 			continue;
 
-		mark_proc_ids(mp, idx);
+		mark_proc_ids(hp, mp, idx);
 
 		idx++;
 	}
 }
 
-static void __init set_proc_ids(void)
+static void __devinit set_proc_ids(struct mdesc_handle *hp)
 {
-	__set_proc_ids("exec_unit");
-	__set_proc_ids("exec-unit");
+	__set_proc_ids(hp, "exec_unit");
+	__set_proc_ids(hp, "exec-unit");
 }
 
-static void __init get_one_mondo_bits(const u64 *p, unsigned int *mask, unsigned char def)
+static void __devinit get_one_mondo_bits(const u64 *p, unsigned int *mask,
+					 unsigned char def)
 {
 	u64 val;
 
@@ -538,35 +639,37 @@ use_default:
 	*mask = ((1U << def) * 64U) - 1U;
 }
 
-static void __init get_mondo_data(struct mdesc_node *mp, struct trap_per_cpu *tb)
+static void __devinit get_mondo_data(struct mdesc_handle *hp, u64 mp,
+				     struct trap_per_cpu *tb)
 {
 	const u64 *val;
 
-	val = md_get_property(mp, "q-cpu-mondo-#bits", NULL);
+	val = mdesc_get_property(hp, mp, "q-cpu-mondo-#bits", NULL);
 	get_one_mondo_bits(val, &tb->cpu_mondo_qmask, 7);
 
-	val = md_get_property(mp, "q-dev-mondo-#bits", NULL);
+	val = mdesc_get_property(hp, mp, "q-dev-mondo-#bits", NULL);
 	get_one_mondo_bits(val, &tb->dev_mondo_qmask, 7);
 
-	val = md_get_property(mp, "q-resumable-#bits", NULL);
+	val = mdesc_get_property(hp, mp, "q-resumable-#bits", NULL);
 	get_one_mondo_bits(val, &tb->resum_qmask, 6);
 
-	val = md_get_property(mp, "q-nonresumable-#bits", NULL);
+	val = mdesc_get_property(hp, mp, "q-nonresumable-#bits", NULL);
 	get_one_mondo_bits(val, &tb->nonresum_qmask, 2);
 }
 
-static void __init mdesc_fill_in_cpu_data(void)
+void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
 {
-	struct mdesc_node *mp;
+	struct mdesc_handle *hp = mdesc_grab();
+	u64 mp;
 
 	ncpus_probed = 0;
-	md_for_each_node_by_name(mp, "cpu") {
-		const u64 *id = md_get_property(mp, "id", NULL);
-		const u64 *cfreq = md_get_property(mp, "clock-frequency", NULL);
+	mdesc_for_each_node_by_name(hp, mp, "cpu") {
+		const u64 *id = mdesc_get_property(hp, mp, "id", NULL);
+		const u64 *cfreq = mdesc_get_property(hp, mp, "clock-frequency", NULL);
 		struct trap_per_cpu *tb;
 		cpuinfo_sparc *c;
-		unsigned int i;
 		int cpuid;
+		u64 a;
 
 		ncpus_probed++;
 
@@ -574,6 +677,8 @@ static void __init mdesc_fill_in_cpu_data(void)
 
 #ifdef CONFIG_SMP
 		if (cpuid >= NR_CPUS)
+			continue;
+		if (!cpu_isset(cpuid, mask))
 			continue;
 #else
 		/* On uniprocessor we only want the values for the
@@ -589,35 +694,30 @@ static void __init mdesc_fill_in_cpu_data(void)
 		c->clock_tick = *cfreq;
 
 		tb = &trap_block[cpuid];
-		get_mondo_data(mp, tb);
+		get_mondo_data(hp, mp, tb);
 
-		for (i = 0; i < mp->num_arcs; i++) {
-			struct mdesc_node *t = mp->arcs[i].arc;
-			unsigned int j;
+		mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
+			u64 j, t = mdesc_arc_target(hp, a);
+			const char *t_name;
 
-			if (strcmp(mp->arcs[i].name, "fwd"))
-				continue;
-
-			if (!strcmp(t->name, "cache")) {
-				fill_in_one_cache(c, t);
+			t_name = mdesc_node_name(hp, t);
+			if (!strcmp(t_name, "cache")) {
+				fill_in_one_cache(c, hp, t);
 				continue;
 			}
 
-			for (j = 0; j < t->num_arcs; j++) {
-				struct mdesc_node *n;
+			mdesc_for_each_arc(j, hp, t, MDESC_ARC_TYPE_FWD) {
+				u64 n = mdesc_arc_target(hp, j);
+				const char *n_name;
 
-				n = t->arcs[j].arc;
-				if (strcmp(t->arcs[j].name, "fwd"))
-					continue;
-
-				if (!strcmp(n->name, "cache"))
-					fill_in_one_cache(c, n);
+				n_name = mdesc_node_name(hp, n);
+				if (!strcmp(n_name, "cache"))
+					fill_in_one_cache(c, hp, n);
 			}
 		}
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
-		cpu_set(cpuid, phys_cpu_present_map);
 #endif
 
 		c->core_id = 0;
@@ -628,45 +728,43 @@ static void __init mdesc_fill_in_cpu_data(void)
 	sparc64_multi_core = 1;
 #endif
 
-	set_core_ids();
-	set_proc_ids();
+	set_core_ids(hp);
+	set_proc_ids(hp);
 
 	smp_fill_in_sib_core_maps();
+
+	mdesc_release(hp);
 }
 
 void __init sun4v_mdesc_init(void)
 {
+	struct mdesc_handle *hp;
 	unsigned long len, real_len, status;
+	cpumask_t mask;
 
 	(void) sun4v_mach_desc(0UL, 0UL, &len);
 
 	printk("MDESC: Size is %lu bytes.\n", len);
 
-	main_mdesc = mdesc_early_alloc(len);
+	hp = mdesc_alloc(len, &bootmem_mdesc_memops);
+	if (hp == NULL) {
+		prom_printf("MDESC: alloc of %lu bytes failed.\n", len);
+		prom_halt();
+	}
 
-	status = sun4v_mach_desc(__pa(main_mdesc), len, &real_len);
+	status = sun4v_mach_desc(__pa(&hp->mdesc), len, &real_len);
 	if (status != HV_EOK || real_len > len) {
 		prom_printf("sun4v_mach_desc fails, err(%lu), "
 			    "len(%lu), real_len(%lu)\n",
 			    status, len, real_len);
+		mdesc_free(hp);
 		prom_halt();
 	}
 
-	len = count_nodes(main_mdesc);
-	printk("MDESC: %lu nodes.\n", len);
-
-	len = roundup_pow_of_two(len);
-
-	mdesc_hash = mdesc_early_alloc(len * sizeof(struct mdesc_node *));
-	mdesc_hash_size = len;
-
-	printk("MDESC: Hash size %lu entries.\n", len);
-
-	build_all_nodes(main_mdesc);
-
-	printk("MDESC: Built graph with %u bytes of memory.\n",
-	       mdesc_early_allocated);
+	cur_mdesc = hp;
 
 	report_platform_properties();
-	mdesc_fill_in_cpu_data();
+
+	cpus_setall(mask);
+	mdesc_fill_in_cpu_data(mask);
 }

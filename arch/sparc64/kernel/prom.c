@@ -1808,7 +1808,7 @@ static void __init of_fill_in_cpu_data(void)
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
-		cpu_set(cpuid, phys_cpu_present_map);
+		cpu_set(cpuid, cpu_possible_map);
 #endif
 	}
 

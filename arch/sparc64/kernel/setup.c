@@ -442,7 +442,6 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "D$ parity tl1\t: %u\n"
 		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
-		   "Cpu0Bogo\t: %lu.%02lu\n"
 		   "Cpu0ClkTck\t: %016lx\n"
 #endif
 		   ,
@@ -455,10 +454,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   ncpus_probed,
 		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,
-		   icache_parity_tl1_occurred
+		   icache_parity_tl1_occurred,
 #ifndef CONFIG_SMP
-		   , cpu_data(0).udelay_val/(500000/HZ),
-		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,
 		   cpu_data(0).clock_tick
 #endif
 		);

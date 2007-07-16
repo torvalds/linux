@@ -1,6 +1,6 @@
 /* smp.c: Sparc64 SMP support.
  *
- * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1997, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -28,6 +28,8 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/cpudata.h>
+#include <asm/hvtramp.h>
+#include <asm/io.h>
 
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
@@ -41,22 +43,26 @@
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/mdesc.h>
+#include <asm/ldc.h>
+#include <asm/hypervisor.h>
 
 extern void calibrate_delay(void);
 
 int sparc64_multi_core __read_mostly;
 
-/* Please don't make this stuff initdata!!!  --DaveM */
-unsigned char boot_cpu_id;
-
+cpumask_t cpu_possible_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
-cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
+
+EXPORT_SYMBOL(cpu_possible_map);
+EXPORT_SYMBOL(cpu_online_map);
+EXPORT_SYMBOL(cpu_sibling_map);
+EXPORT_SYMBOL(cpu_core_map);
+
 static cpumask_t smp_commenced_mask;
-static cpumask_t cpu_callout_map;
 
 void smp_info(struct seq_file *m)
 {
@@ -73,18 +79,17 @@ void smp_bogo(struct seq_file *m)
 	
 	for_each_online_cpu(i)
 		seq_printf(m,
-			   "Cpu%dBogo\t: %lu.%02lu\n"
 			   "Cpu%dClkTck\t: %016lx\n",
-			   i, cpu_data(i).udelay_val / (500000/HZ),
-			   (cpu_data(i).udelay_val / (5000/HZ)) % 100,
 			   i, cpu_data(i).clock_tick);
 }
+
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
 
 extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
-void __init smp_callin(void)
+void __devinit smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
 
@@ -102,8 +107,6 @@ void __init smp_callin(void)
 
 	local_irq_enable();
 
-	calibrate_delay();
-	cpu_data(cpuid).udelay_val = loops_per_jiffy;
 	callin_flag = 1;
 	__asm__ __volatile__("membar #Sync\n\t"
 			     "flush  %%g6" : : : "memory");
@@ -120,7 +123,9 @@ void __init smp_callin(void)
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
 
+	spin_lock(&call_lock);
 	cpu_set(cpuid, cpu_online_map);
+	spin_unlock(&call_lock);
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
@@ -268,6 +273,67 @@ static void smp_synchronize_one_tick(int cpu)
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
 }
 
+#if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
+/* XXX Put this in some common place. XXX */
+static unsigned long kimage_addr_to_ra(void *p)
+{
+	unsigned long val = (unsigned long) p;
+
+	return kern_base + (val - KERNBASE);
+}
+
+static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
+{
+	extern unsigned long sparc64_ttable_tl0;
+	extern unsigned long kern_locked_tte_data;
+	extern int bigkernel;
+	struct hvtramp_descr *hdesc;
+	unsigned long trampoline_ra;
+	struct trap_per_cpu *tb;
+	u64 tte_vaddr, tte_data;
+	unsigned long hv_err;
+
+	hdesc = kzalloc(sizeof(*hdesc), GFP_KERNEL);
+	if (!hdesc) {
+		printk(KERN_ERR "ldom_startcpu_cpuid: Cannot allocate "
+		       "hvtramp_descr.\n");
+		return;
+	}
+
+	hdesc->cpu = cpu;
+	hdesc->num_mappings = (bigkernel ? 2 : 1);
+
+	tb = &trap_block[cpu];
+	tb->hdesc = hdesc;
+
+	hdesc->fault_info_va = (unsigned long) &tb->fault_info;
+	hdesc->fault_info_pa = kimage_addr_to_ra(&tb->fault_info);
+
+	hdesc->thread_reg = thread_reg;
+
+	tte_vaddr = (unsigned long) KERNBASE;
+	tte_data = kern_locked_tte_data;
+
+	hdesc->maps[0].vaddr = tte_vaddr;
+	hdesc->maps[0].tte   = tte_data;
+	if (bigkernel) {
+		tte_vaddr += 0x400000;
+		tte_data  += 0x400000;
+		hdesc->maps[1].vaddr = tte_vaddr;
+		hdesc->maps[1].tte   = tte_data;
+	}
+
+	trampoline_ra = kimage_addr_to_ra(hv_cpu_startup);
+
+	hv_err = sun4v_cpu_start(cpu, trampoline_ra,
+				 kimage_addr_to_ra(&sparc64_ttable_tl0),
+				 __pa(hdesc));
+	if (hv_err)
+		printk(KERN_ERR "ldom_startcpu_cpuid: sun4v_cpu_start() "
+		       "gives error %lu\n", hv_err);
+}
+#endif
+
 extern void sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load);
 
 extern unsigned long sparc64_cpu_startup;
@@ -280,6 +346,7 @@ static struct thread_info *cpu_new_thread = NULL;
 
 static int __devinit smp_boot_one_cpu(unsigned int cpu)
 {
+	struct trap_per_cpu *tb = &trap_block[cpu];
 	unsigned long entry =
 		(unsigned long)(&sparc64_cpu_startup);
 	unsigned long cookie =
@@ -290,20 +357,25 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	p = fork_idle(cpu);
 	callin_flag = 0;
 	cpu_new_thread = task_thread_info(p);
-	cpu_set(cpu, cpu_callout_map);
 
 	if (tlb_type == hypervisor) {
 		/* Alloc the mondo queues, cpu will load them.  */
 		sun4v_init_mondo_queues(0, cpu, 1, 0);
 
-		prom_startcpu_cpuid(cpu, entry, cookie);
+#if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
+		if (ldom_domaining_enabled)
+			ldom_startcpu_cpuid(cpu,
+					    (unsigned long) cpu_new_thread);
+		else
+#endif
+			prom_startcpu_cpuid(cpu, entry, cookie);
 	} else {
 		struct device_node *dp = of_find_node_by_cpuid(cpu);
 
 		prom_startcpu(dp->node, entry, cookie);
 	}
 
-	for (timeout = 0; timeout < 5000000; timeout++) {
+	for (timeout = 0; timeout < 50000; timeout++) {
 		if (callin_flag)
 			break;
 		udelay(100);
@@ -313,10 +385,14 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 		ret = 0;
 	} else {
 		printk("Processor %d is stuck.\n", cpu);
-		cpu_clear(cpu, cpu_callout_map);
 		ret = -ENODEV;
 	}
 	cpu_new_thread = NULL;
+
+	if (tb->hdesc) {
+		kfree(tb->hdesc);
+		tb->hdesc = NULL;
+	}
 
 	return ret;
 }
@@ -720,7 +796,6 @@ struct call_data_struct {
 	int wait;
 };
 
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
 static struct call_data_struct *call_data;
 
 extern unsigned long xcall_call_function;
@@ -1152,34 +1227,14 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	preempt_enable();
 }
 
-void __init smp_tick_init(void)
-{
-	boot_cpu_id = hard_smp_processor_id();
-}
-
 /* /proc/profile writes can call this, don't __init it please. */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
 }
 
-/* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
-	if (num_possible_cpus() > max_cpus) {
-		for_each_possible_cpu(i) {
-			if (i != boot_cpu_id) {
-				cpu_clear(i, phys_cpu_present_map);
-				cpu_clear(i, cpu_present_map);
-				if (num_possible_cpus() <= max_cpus)
-					break;
-			}
-		}
-	}
-
-	cpu_data(boot_cpu_id).udelay_val = loops_per_jiffy;
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -1190,30 +1245,32 @@ void __devinit smp_fill_in_sib_core_maps(void)
 {
 	unsigned int i;
 
-	for_each_possible_cpu(i) {
+	for_each_present_cpu(i) {
 		unsigned int j;
 
+		cpus_clear(cpu_core_map[i]);
 		if (cpu_data(i).core_id == 0) {
 			cpu_set(i, cpu_core_map[i]);
 			continue;
 		}
 
-		for_each_possible_cpu(j) {
+		for_each_present_cpu(j) {
 			if (cpu_data(i).core_id ==
 			    cpu_data(j).core_id)
 				cpu_set(j, cpu_core_map[i]);
 		}
 	}
 
-	for_each_possible_cpu(i) {
+	for_each_present_cpu(i) {
 		unsigned int j;
 
+		cpus_clear(cpu_sibling_map[i]);
 		if (cpu_data(i).proc_id == -1) {
 			cpu_set(i, cpu_sibling_map[i]);
 			continue;
 		}
 
-		for_each_possible_cpu(j) {
+		for_each_present_cpu(j) {
 			if (cpu_data(i).proc_id ==
 			    cpu_data(j).proc_id)
 				cpu_set(j, cpu_sibling_map[i]);
@@ -1242,18 +1299,112 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	return ret;
 }
 
-void __init smp_cpus_done(unsigned int max_cpus)
+#ifdef CONFIG_HOTPLUG_CPU
+void cpu_play_dead(void)
 {
-	unsigned long bogosum = 0;
+	int cpu = smp_processor_id();
+	unsigned long pstate;
+
+	idle_task_exit();
+
+	if (tlb_type == hypervisor) {
+		struct trap_per_cpu *tb = &trap_block[cpu];
+
+		sun4v_cpu_qconf(HV_CPU_QUEUE_CPU_MONDO,
+				tb->cpu_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_DEVICE_MONDO,
+				tb->dev_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_RES_ERROR,
+				tb->resum_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_NONRES_ERROR,
+				tb->nonresum_mondo_pa, 0);
+	}
+
+	cpu_clear(cpu, smp_commenced_mask);
+	membar_safe("#Sync");
+
+	local_irq_disable();
+
+	__asm__ __volatile__(
+		"rdpr	%%pstate, %0\n\t"
+		"wrpr	%0, %1, %%pstate"
+		: "=r" (pstate)
+		: "i" (PSTATE_IE));
+
+	while (1)
+		barrier();
+}
+
+int __cpu_disable(void)
+{
+	int cpu = smp_processor_id();
+	cpuinfo_sparc *c;
 	int i;
 
-	for_each_online_cpu(i)
-		bogosum += cpu_data(i).udelay_val;
-	printk("Total of %ld processors activated "
-	       "(%lu.%02lu BogoMIPS).\n",
-	       (long) num_online_cpus(),
-	       bogosum/(500000/HZ),
-	       (bogosum/(5000/HZ))%100);
+	for_each_cpu_mask(i, cpu_core_map[cpu])
+		cpu_clear(cpu, cpu_core_map[i]);
+	cpus_clear(cpu_core_map[cpu]);
+
+	for_each_cpu_mask(i, cpu_sibling_map[cpu])
+		cpu_clear(cpu, cpu_sibling_map[i]);
+	cpus_clear(cpu_sibling_map[cpu]);
+
+	c = &cpu_data(cpu);
+
+	c->core_id = 0;
+	c->proc_id = -1;
+
+	spin_lock(&call_lock);
+	cpu_clear(cpu, cpu_online_map);
+	spin_unlock(&call_lock);
+
+	smp_wmb();
+
+	/* Make sure no interrupts point to this cpu.  */
+	fixup_irqs();
+
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+
+	return 0;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		smp_rmb();
+		if (!cpu_isset(cpu, smp_commenced_mask))
+			break;
+		msleep(100);
+	}
+	if (cpu_isset(cpu, smp_commenced_mask)) {
+		printk(KERN_ERR "CPU %u didn't die...\n", cpu);
+	} else {
+#if defined(CONFIG_SUN_LDOMS)
+		unsigned long hv_err;
+		int limit = 100;
+
+		do {
+			hv_err = sun4v_cpu_stop(cpu);
+			if (hv_err == HV_EOK) {
+				cpu_clear(cpu, cpu_present_map);
+				break;
+			}
+		} while (--limit > 0);
+		if (limit <= 0) {
+			printk(KERN_ERR "sun4v_cpu_stop() fails err=%lu\n",
+			       hv_err);
+		}
+#endif
+	}
+}
+#endif
+
+void __init smp_cpus_done(unsigned int max_cpus)
+{
 }
 
 void smp_send_reschedule(int cpu)
