@@ -1597,6 +1597,10 @@ void mpol_free_shared_policy(struct shared_policy *p)
 /* assumes fs == KERNEL_DS */
 void __init numa_policy_init(void)
 {
+	nodemask_t interleave_nodes;
+	unsigned long largest = 0;
+	int nid, prefer = 0;
+
 	policy_cache = kmem_cache_create("numa_policy",
 					 sizeof(struct mempolicy),
 					 0, SLAB_PANIC, NULL, NULL);
@@ -1605,10 +1609,31 @@ void __init numa_policy_init(void)
 				     sizeof(struct sp_node),
 				     0, SLAB_PANIC, NULL, NULL);
 
-	/* Set interleaving policy for system init. This way not all
-	   the data structures allocated at system boot end up in node zero. */
+	/*
+	 * Set interleaving policy for system init. Interleaving is only
+	 * enabled across suitably sized nodes (default is >= 16MB), or
+	 * fall back to the largest node if they're all smaller.
+	 */
+	nodes_clear(interleave_nodes);
+	for_each_online_node(nid) {
+		unsigned long total_pages = node_present_pages(nid);
 
-	if (do_set_mempolicy(MPOL_INTERLEAVE, &node_online_map))
+		/* Preserve the largest node */
+		if (largest < total_pages) {
+			largest = total_pages;
+			prefer = nid;
+		}
+
+		/* Interleave this node? */
+		if ((total_pages << PAGE_SHIFT) >= (16 << 20))
+			node_set(nid, interleave_nodes);
+	}
+
+	/* All too small, use the largest */
+	if (unlikely(nodes_empty(interleave_nodes)))
+		node_set(prefer, interleave_nodes);
+
+	if (do_set_mempolicy(MPOL_INTERLEAVE, &interleave_nodes))
 		printk("numa_policy_init: interleaving failed\n");
 }
 
