@@ -531,16 +531,60 @@ static int sil24_init_port(struct ata_port *ap)
 	return 0;
 }
 
-static int sil24_softreset(struct ata_port *ap, unsigned int *class,
-			   unsigned long deadline)
+static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
+				 const struct ata_taskfile *tf,
+				 int is_cmd, u32 ctrl,
+				 unsigned long timeout_msec)
 {
 	void __iomem *port = ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
 	struct sil24_prb *prb = &pp->cmd_block[0].ata.prb;
 	dma_addr_t paddr = pp->cmd_block_dma;
+	u32 irq_enabled, irq_mask, irq_stat;
+	int rc;
+
+	prb->ctrl = cpu_to_le16(ctrl);
+	ata_tf_to_fis(tf, pmp, is_cmd, prb->fis);
+
+	/* temporarily plug completion and error interrupts */
+	irq_enabled = readl(port + PORT_IRQ_ENABLE_SET);
+	writel(PORT_IRQ_COMPLETE | PORT_IRQ_ERROR, port + PORT_IRQ_ENABLE_CLR);
+
+	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
+	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
+
+	irq_mask = (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR) << PORT_IRQ_RAW_SHIFT;
+	irq_stat = ata_wait_register(port + PORT_IRQ_STAT, irq_mask, 0x0,
+				     10, timeout_msec);
+
+	writel(irq_mask, port + PORT_IRQ_STAT); /* clear IRQs */
+	irq_stat >>= PORT_IRQ_RAW_SHIFT;
+
+	if (irq_stat & PORT_IRQ_COMPLETE)
+		rc = 0;
+	else {
+		/* force port into known state */
+		sil24_init_port(ap);
+
+		if (irq_stat & PORT_IRQ_ERROR)
+			rc = -EIO;
+		else
+			rc = -EBUSY;
+	}
+
+	/* restore IRQ enabled */
+	writel(irq_enabled, port + PORT_IRQ_ENABLE_SET);
+
+	return rc;
+}
+
+static int sil24_softreset(struct ata_port *ap, unsigned int *class,
+			   unsigned long deadline)
+{
+	unsigned long timeout_msec = 0;
 	struct ata_taskfile tf;
-	u32 mask, irq_stat;
 	const char *reason;
+	int rc;
 
 	DPRINTK("ENTER\n");
 
@@ -557,24 +601,16 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class,
 	}
 
 	/* do SRST */
-	prb->ctrl = cpu_to_le16(PRB_CTRL_SRST);
-	prb->fis[1] = 0; /* no PMP yet */
+	if (time_after(deadline, jiffies))
+		timeout_msec = jiffies_to_msecs(deadline - jiffies);
 
-	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
-	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
-
-	mask = (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR) << PORT_IRQ_RAW_SHIFT;
-	irq_stat = ata_wait_register(port + PORT_IRQ_STAT, mask, 0x0,
-				     100, jiffies_to_msecs(deadline - jiffies));
-
-	writel(irq_stat, port + PORT_IRQ_STAT); /* clear IRQs */
-	irq_stat >>= PORT_IRQ_RAW_SHIFT;
-
-	if (!(irq_stat & PORT_IRQ_COMPLETE)) {
-		if (irq_stat & PORT_IRQ_ERROR)
-			reason = "SRST command error";
-		else
-			reason = "timeout";
+	ata_tf_init(ap->device, &tf);	/* doesn't really matter */
+	rc = sil24_exec_polled_cmd(ap, 0, &tf, 0, PRB_CTRL_SRST, timeout_msec);
+	if (rc == -EBUSY) {
+		reason = "timeout";
+		goto err;
+	} else if (rc) {
+		reason = "SRST command error";
 		goto err;
 	}
 
