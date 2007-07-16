@@ -466,7 +466,7 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
-	priv->hwaddr = conf->mac_addr;
+	priv->hwaddr = conf->mac_addr ? conf->mac_addr : dev->wiphy->perm_addr;
 
 	return 0;
 }
