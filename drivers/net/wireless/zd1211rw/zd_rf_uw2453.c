@@ -486,7 +486,7 @@ static int uw2453_switch_radio_on(struct zd_rf *rf)
 	if (r)
 		return r;
 
-	if (chip->is_zd1211b)
+	if (zd_chip_is_zd1211b(chip))
 		ioreqs[1].value = 0x7f;
 
 	return zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));

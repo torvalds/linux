@@ -704,7 +704,6 @@ struct zd_chip {
 	struct mutex mutex;
 	/* Base address of FW_REG_ registers */
 	zd_addr_t fw_regs_base;
-	u8 e2p_mac[ETH_ALEN];
 	/* EepSetPoint in the vendor driver */
 	u8 pwr_cal_values[E2P_CHANNEL_COUNT];
 	/* integration values in the vendor driver */
@@ -715,7 +714,7 @@ struct zd_chip {
 	unsigned int pa_type:4,
 		patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
 		new_phy_layout:1, al2230s_bit:1,
-		is_zd1211b:1, supports_tx_led:1;
+		supports_tx_led:1;
 };
 
 static inline struct zd_chip *zd_usb_to_chip(struct zd_usb *usb)
@@ -734,8 +733,14 @@ void zd_chip_init(struct zd_chip *chip,
 	         struct net_device *netdev,
 	         struct usb_interface *intf);
 void zd_chip_clear(struct zd_chip *chip);
-int zd_chip_init_hw(struct zd_chip *chip, u8 device_type);
+int zd_chip_read_mac_addr_fw(struct zd_chip *chip, u8 *addr);
+int zd_chip_init_hw(struct zd_chip *chip);
 int zd_chip_reset(struct zd_chip *chip);
+
+static inline int zd_chip_is_zd1211b(struct zd_chip *chip)
+{
+	return chip->usb.is_zd1211b;
+}
 
 static inline int zd_ioread16v_locked(struct zd_chip *chip, u16 *values,
 	                              const zd_addr_t *addresses,
@@ -825,8 +830,6 @@ static inline u8 _zd_chip_get_channel(struct zd_chip *chip)
 }
 u8  zd_chip_get_channel(struct zd_chip *chip);
 int zd_read_regdomain(struct zd_chip *chip, u8 *regdomain);
-void zd_get_e2p_mac_addr(struct zd_chip *chip, u8 *mac_addr);
-int zd_read_mac_addr(struct zd_chip *chip, u8 *mac_addr);
 int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr);
 int zd_chip_switch_radio_on(struct zd_chip *chip);
 int zd_chip_switch_radio_off(struct zd_chip *chip);

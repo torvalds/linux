@@ -1719,9 +1719,6 @@ static int wlan_set_encodeext(struct net_device *dev,
 			pkey->type = KEY_TYPE_ID_TKIP;
 		} else if (alg == IW_ENCODE_ALG_CCMP) {
 			pkey->type = KEY_TYPE_ID_AES;
-		} else {
-			ret = -EINVAL;
-			goto out;
 		}
 
 		/* If WPA isn't enabled yet, do that now */
