@@ -1790,7 +1790,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			schedule_timeout_uninterruptible(delta);
 		}
 
-		if (reset == hardreset &&
+		if (rc == -EPIPE ||
 		    try == ARRAY_SIZE(ata_eh_reset_timeouts) - 1)
 			sata_down_spd_limit(ap);
 		if (hardreset)
