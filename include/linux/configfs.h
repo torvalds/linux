@@ -40,9 +40,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #define CONFIGFS_ITEM_NAME_LEN	20
 
@@ -75,7 +75,6 @@ extern void config_item_init(struct config_item *);
 extern void config_item_init_type_name(struct config_item *item,
 				       const char *name,
 				       struct config_item_type *type);
-extern void config_item_cleanup(struct config_item *);
 
 extern struct config_item * config_item_get(struct config_item *);
 extern void config_item_put(struct config_item *);
@@ -87,12 +86,10 @@ struct config_item_type {
 	struct configfs_attribute		**ct_attrs;
 };
 
-
 /**
  *	group - a group of config_items of a specific type, belonging
  *	to a specific subsystem.
  */
-
 struct config_group {
 	struct config_item		cg_item;
 	struct list_head		cg_children;
@@ -100,12 +97,10 @@ struct config_group {
 	struct config_group		**default_groups;
 };
 
-
 extern void config_group_init(struct config_group *group);
 extern void config_group_init_type_name(struct config_group *group,
 					const char *name,
 					struct config_item_type *type);
-
 
 static inline struct config_group *to_config_group(struct config_item *item)
 {
@@ -122,7 +117,8 @@ static inline void config_group_put(struct config_group *group)
 	config_item_put(&group->cg_item);
 }
 
-extern struct config_item *config_group_find_obj(struct config_group *, const char *);
+extern struct config_item *config_group_find_item(struct config_group *,
+						  const char *);
 
 
 struct configfs_attribute {
@@ -131,6 +127,22 @@ struct configfs_attribute {
 	mode_t			ca_mode;
 };
 
+/*
+ * Users often need to create attribute structures for their configurable
+ * attributes, containing a configfs_attribute member and function pointers
+ * for the show() and store() operations on that attribute. They can use
+ * this macro (similar to sysfs' __ATTR) to make defining attributes easier.
+ */
+#define __CONFIGFS_ATTR(_name, _mode, _show, _store)			\
+{									\
+	.attr	= {							\
+			.ca_name = __stringify(_name),			\
+			.ca_mode = _mode,				\
+			.ca_owner = THIS_MODULE,			\
+	},								\
+	.show	= _show,						\
+	.store	= _store,						\
+}
 
 /*
  * If allow_link() exists, the item can symlink(2) out to other
@@ -157,12 +169,13 @@ struct configfs_group_operations {
 	struct config_item *(*make_item)(struct config_group *group, const char *name);
 	struct config_group *(*make_group)(struct config_group *group, const char *name);
 	int (*commit_item)(struct config_item *item);
+	void (*disconnect_notify)(struct config_group *group, struct config_item *item);
 	void (*drop_item)(struct config_group *group, struct config_item *item);
 };
 
 struct configfs_subsystem {
 	struct config_group	su_group;
-	struct semaphore	su_sem;
+	struct mutex		su_mutex;
 };
 
 static inline struct configfs_subsystem *to_configfs_subsystem(struct config_group *group)
@@ -174,6 +187,11 @@ static inline struct configfs_subsystem *to_configfs_subsystem(struct config_gro
 
 int configfs_register_subsystem(struct configfs_subsystem *subsys);
 void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
+
+/* These functions can sleep and can alloc with GFP_KERNEL */
+/* WARNING: These cannot be called underneath configfs callbacks!! */
+int configfs_depend_item(struct configfs_subsystem *subsys, struct config_item *target);
+void configfs_undepend_item(struct configfs_subsystem *subsys, struct config_item *target);
 
 #endif  /* __KERNEL__ */
 

@@ -900,6 +900,46 @@ static struct o2nm_cluster_group o2nm_cluster_group = {
 	},
 };
 
+int o2nm_depend_item(struct config_item *item)
+{
+	return configfs_depend_item(&o2nm_cluster_group.cs_subsys, item);
+}
+
+void o2nm_undepend_item(struct config_item *item)
+{
+	configfs_undepend_item(&o2nm_cluster_group.cs_subsys, item);
+}
+
+int o2nm_depend_this_node(void)
+{
+	int ret = 0;
+	struct o2nm_node *local_node;
+
+	local_node = o2nm_get_node_by_num(o2nm_this_node());
+	if (!local_node) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = o2nm_depend_item(&local_node->nd_item);
+	o2nm_node_put(local_node);
+
+out:
+	return ret;
+}
+
+void o2nm_undepend_this_node(void)
+{
+	struct o2nm_node *local_node;
+
+	local_node = o2nm_get_node_by_num(o2nm_this_node());
+	BUG_ON(!local_node);
+
+	o2nm_undepend_item(&local_node->nd_item);
+	o2nm_node_put(local_node);
+}
+
+
 static void __exit exit_o2nm(void)
 {
 	if (ocfs2_table_header)
@@ -934,7 +974,7 @@ static int __init init_o2nm(void)
 		goto out_sysctl;
 
 	config_group_init(&o2nm_cluster_group.cs_subsys.su_group);
-	init_MUTEX(&o2nm_cluster_group.cs_subsys.su_sem);
+	mutex_init(&o2nm_cluster_group.cs_subsys.su_mutex);
 	ret = configfs_register_subsystem(&o2nm_cluster_group.cs_subsys);
 	if (ret) {
 		printk(KERN_ERR "nodemanager: Registration returned %d\n", ret);

@@ -86,19 +86,28 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
 			 u32 *cluster_start,
 			 u32 *num_clusters);
 
+int ocfs2_free_suballoc_bits(handle_t *handle,
+			     struct inode *alloc_inode,
+			     struct buffer_head *alloc_bh,
+			     unsigned int start_bit,
+			     u64 bg_blkno,
+			     unsigned int count);
 int ocfs2_free_dinode(handle_t *handle,
 		      struct inode *inode_alloc_inode,
 		      struct buffer_head *inode_alloc_bh,
 		      struct ocfs2_dinode *di);
-int ocfs2_free_extent_block(handle_t *handle,
-			    struct inode *eb_alloc_inode,
-			    struct buffer_head *eb_alloc_bh,
-			    struct ocfs2_extent_block *eb);
 int ocfs2_free_clusters(handle_t *handle,
 			struct inode *bitmap_inode,
 			struct buffer_head *bitmap_bh,
 			u64 start_blk,
 			unsigned int num_clusters);
+
+static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
+{
+	u64 group = block - (u64) bit;
+
+	return group;
+}
 
 static inline u32 ocfs2_cluster_from_desc(struct ocfs2_super *osb,
 					  u64 bg_blkno)

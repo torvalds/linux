@@ -192,25 +192,20 @@ static void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 static void dlm_dump_mles(struct dlm_ctxt *dlm)
 {
 	struct dlm_master_list_entry *mle;
-	struct list_head *iter;
 	
 	mlog(ML_NOTICE, "dumping all mles for domain %s:\n", dlm->name);
 	spin_lock(&dlm->master_lock);
-	list_for_each(iter, &dlm->master_list) {
-		mle = list_entry(iter, struct dlm_master_list_entry, list);
+	list_for_each_entry(mle, &dlm->master_list, list)
 		dlm_print_one_mle(mle);
-	}
 	spin_unlock(&dlm->master_lock);
 }
 
 int dlm_dump_all_mles(const char __user *data, unsigned int len)
 {
-	struct list_head *iter;
 	struct dlm_ctxt *dlm;
 
 	spin_lock(&dlm_domain_lock);
-	list_for_each(iter, &dlm_domains) {
-		dlm = list_entry (iter, struct dlm_ctxt, list);
+	list_for_each_entry(dlm, &dlm_domains, list) {
 		mlog(ML_NOTICE, "found dlm: %p, name=%s\n", dlm, dlm->name);
 		dlm_dump_mles(dlm);
 	}
@@ -454,12 +449,10 @@ static int dlm_find_mle(struct dlm_ctxt *dlm,
 			char *name, unsigned int namelen)
 {
 	struct dlm_master_list_entry *tmpmle;
-	struct list_head *iter;
 
 	assert_spin_locked(&dlm->master_lock);
 
-	list_for_each(iter, &dlm->master_list) {
-		tmpmle = list_entry(iter, struct dlm_master_list_entry, list);
+	list_for_each_entry(tmpmle, &dlm->master_list, list) {
 		if (!dlm_mle_equal(dlm, tmpmle, name, namelen))
 			continue;
 		dlm_get_mle(tmpmle);
@@ -472,13 +465,10 @@ static int dlm_find_mle(struct dlm_ctxt *dlm,
 void dlm_hb_event_notify_attached(struct dlm_ctxt *dlm, int idx, int node_up)
 {
 	struct dlm_master_list_entry *mle;
-	struct list_head *iter;
 
 	assert_spin_locked(&dlm->spinlock);
 	
-	list_for_each(iter, &dlm->mle_hb_events) {
-		mle = list_entry(iter, struct dlm_master_list_entry, 
-				 hb_events);
+	list_for_each_entry(mle, &dlm->mle_hb_events, hb_events) {
 		if (node_up)
 			dlm_mle_node_up(dlm, mle, NULL, idx);
 		else
@@ -2434,7 +2424,7 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 	int ret;
 	int i;
 	int count = 0;
-	struct list_head *queue, *iter;
+	struct list_head *queue;
 	struct dlm_lock *lock;
 
 	assert_spin_locked(&res->spinlock);
@@ -2453,8 +2443,7 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 	ret = 0;
 	queue = &res->granted;
 	for (i = 0; i < 3; i++) {
-		list_for_each(iter, queue) {
-			lock = list_entry(iter, struct dlm_lock, list);
+		list_for_each_entry(lock, queue, list) {
 			++count;
 			if (lock->ml.node == dlm->node_num) {
 				mlog(0, "found a lock owned by this node still "
@@ -2923,18 +2912,16 @@ again:
 static void dlm_remove_nonlocal_locks(struct dlm_ctxt *dlm,
 				      struct dlm_lock_resource *res)
 {
-	struct list_head *iter, *iter2;
 	struct list_head *queue = &res->granted;
 	int i, bit;
-	struct dlm_lock *lock;
+	struct dlm_lock *lock, *next;
 
 	assert_spin_locked(&res->spinlock);
 
 	BUG_ON(res->owner == dlm->node_num);
 
 	for (i=0; i<3; i++) {
-		list_for_each_safe(iter, iter2, queue) {
-			lock = list_entry (iter, struct dlm_lock, list);
+		list_for_each_entry_safe(lock, next, queue, list) {
 			if (lock->ml.node != dlm->node_num) {
 				mlog(0, "putting lock for node %u\n",
 				     lock->ml.node);
@@ -2976,7 +2963,6 @@ static u8 dlm_pick_migration_target(struct dlm_ctxt *dlm,
 {
 	int i;
 	struct list_head *queue = &res->granted;
-	struct list_head *iter;
 	struct dlm_lock *lock;
 	int nodenum;
 
@@ -2984,10 +2970,9 @@ static u8 dlm_pick_migration_target(struct dlm_ctxt *dlm,
 
 	spin_lock(&res->spinlock);
 	for (i=0; i<3; i++) {
-		list_for_each(iter, queue) {
+		list_for_each_entry(lock, queue, list) {
 			/* up to the caller to make sure this node
 			 * is alive */
-			lock = list_entry (iter, struct dlm_lock, list);
 			if (lock->ml.node != dlm->node_num) {
 				spin_unlock(&res->spinlock);
 				return lock->ml.node;
@@ -3234,8 +3219,7 @@ static int dlm_add_migration_mle(struct dlm_ctxt *dlm,
 
 void dlm_clean_master_list(struct dlm_ctxt *dlm, u8 dead_node)
 {
-	struct list_head *iter, *iter2;
-	struct dlm_master_list_entry *mle;
+	struct dlm_master_list_entry *mle, *next;
 	struct dlm_lock_resource *res;
 	unsigned int hash;
 
@@ -3245,9 +3229,7 @@ top:
 
 	/* clean the master list */
 	spin_lock(&dlm->master_lock);
-	list_for_each_safe(iter, iter2, &dlm->master_list) {
-		mle = list_entry(iter, struct dlm_master_list_entry, list);
-
+	list_for_each_entry_safe(mle, next, &dlm->master_list, list) {
 		BUG_ON(mle->type != DLM_MLE_BLOCK &&
 		       mle->type != DLM_MLE_MASTER &&
 		       mle->type != DLM_MLE_MIGRATION);

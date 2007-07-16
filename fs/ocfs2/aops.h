@@ -42,57 +42,22 @@ int walk_page_buffers(	handle_t *handle,
 			int (*fn)(	handle_t *handle,
 					struct buffer_head *bh));
 
-struct ocfs2_write_ctxt;
-typedef int (ocfs2_page_writer)(struct inode *, struct ocfs2_write_ctxt *,
-				u64 *, unsigned int *, unsigned int *);
+int ocfs2_write_begin(struct file *file, struct address_space *mapping,
+		      loff_t pos, unsigned len, unsigned flags,
+		      struct page **pagep, void **fsdata);
 
-ssize_t ocfs2_buffered_write_cluster(struct file *file, loff_t pos,
-				     size_t count, ocfs2_page_writer *actor,
-				     void *priv);
+int ocfs2_write_end(struct file *file, struct address_space *mapping,
+		    loff_t pos, unsigned len, unsigned copied,
+		    struct page *page, void *fsdata);
 
-struct ocfs2_write_ctxt {
-	size_t				w_count;
-	loff_t				w_pos;
-	u32				w_cpos;
-	unsigned int			w_finished_copy;
+int ocfs2_write_end_nolock(struct address_space *mapping,
+			   loff_t pos, unsigned len, unsigned copied,
+			   struct page *page, void *fsdata);
 
-	/* This is true if page_size > cluster_size */
-	unsigned int			w_large_pages;
-
-	/* Filler callback and private data */
-	ocfs2_page_writer		*w_write_data_page;
-	void				*w_private;
-
-	/* Only valid for the filler callback */
-	struct page			*w_this_page;
-	unsigned int			w_this_page_new;
-};
-
-struct ocfs2_buffered_write_priv {
-	char				*b_src_buf;
-	const struct iovec		*b_cur_iov; /* Current iovec */
-	size_t				b_cur_off; /* Offset in the
-						    * current iovec */
-};
-int ocfs2_map_and_write_user_data(struct inode *inode,
-				  struct ocfs2_write_ctxt *wc,
-				  u64 *p_blkno,
-				  unsigned int *ret_from,
-				  unsigned int *ret_to);
-
-struct ocfs2_splice_write_priv {
-	struct splice_desc		*s_sd;
-	struct pipe_buffer		*s_buf;
-	struct pipe_inode_info		*s_pipe;
-	/* Neither offset value is ever larger than one page */
-	unsigned int			s_offset;
-	unsigned int			s_buf_offset;
-};
-int ocfs2_map_and_write_splice_data(struct inode *inode,
-				    struct ocfs2_write_ctxt *wc,
-				    u64 *p_blkno,
-				    unsigned int *ret_from,
-				    unsigned int *ret_to);
+int ocfs2_write_begin_nolock(struct address_space *mapping,
+			     loff_t pos, unsigned len, unsigned flags,
+			     struct page **pagep, void **fsdata,
+			     struct buffer_head *di_bh, struct page *mmap_page);
 
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \
