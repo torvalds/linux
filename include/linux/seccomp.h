@@ -4,8 +4,6 @@
 
 #ifdef CONFIG_SECCOMP
 
-#define NR_SECCOMP_MODES 1
-
 #include <linux/thread_info.h>
 #include <asm/seccomp.h>
 
@@ -23,6 +21,9 @@ static inline int has_secure_computing(struct thread_info *ti)
 	return unlikely(test_ti_thread_flag(ti, TIF_SECCOMP));
 }
 
+extern long prctl_get_seccomp(void);
+extern long prctl_set_seccomp(unsigned long);
+
 #else /* CONFIG_SECCOMP */
 
 typedef struct { } seccomp_t;
@@ -32,6 +33,16 @@ typedef struct { } seccomp_t;
 static inline int has_secure_computing(struct thread_info *ti)
 {
 	return 0;
+}
+
+static inline long prctl_get_seccomp(void)
+{
+	return -EINVAL;
+}
+
+static inline long prctl_set_seccomp(unsigned long arg2)
+{
+	return -EINVAL;
 }
 
 #endif /* CONFIG_SECCOMP */

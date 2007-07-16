@@ -31,6 +31,7 @@
 #include <linux/cn_proc.h>
 #include <linux/getcpu.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/seccomp.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -2240,6 +2241,13 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			break;
 		case PR_SET_ENDIAN:
 			error = SET_ENDIAN(current, arg2);
+			break;
+
+		case PR_GET_SECCOMP:
+			error = prctl_get_seccomp();
+			break;
+		case PR_SET_SECCOMP:
+			error = prctl_set_seccomp(arg2);
 			break;
 
 		default:
