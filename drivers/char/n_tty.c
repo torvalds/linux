@@ -1538,7 +1538,8 @@ static unsigned int normal_poll(struct tty_struct * tty, struct file * file, pol
 		else
 			tty->minimum_to_wake = 1;
 	}
-	if (tty->driver->chars_in_buffer(tty) < WAKEUP_CHARS &&
+	if (!tty_is_writelocked(tty) &&
+			tty->driver->chars_in_buffer(tty) < WAKEUP_CHARS &&
 			tty->driver->write_room(tty) > 0)
 		mask |= POLLOUT | POLLWRNORM;
 	return mask;

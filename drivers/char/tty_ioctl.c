@@ -667,7 +667,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 		return 0;
 	}
 
-	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+	if (tty_write_lock(tty, 0) < 0)
 		return -ERESTARTSYS;
 
 	if (was_stopped)
@@ -675,7 +675,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 	tty->driver->write(tty, &ch, 1);
 	if (was_stopped)
 		stop_tty(tty);
-	mutex_unlock(&tty->atomic_write_lock);
+	tty_write_unlock(tty);
 	return 0;
 }
 

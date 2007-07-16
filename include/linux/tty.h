@@ -338,6 +338,12 @@ extern struct tty_struct *get_current_tty(void);
 
 extern struct mutex tty_mutex;
 
+extern void tty_write_unlock(struct tty_struct *tty);
+extern int tty_write_lock(struct tty_struct *tty, int ndelay);
+#define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
+
+
+
 /* n_tty.c */
 extern struct tty_ldisc tty_ldisc_N_TTY;
 
