@@ -985,12 +985,15 @@ void register_console(struct console *console)
 	if (!(console->flags & CON_ENABLED))
 		return;
 
-	if (bootconsole) {
+	if (bootconsole && (console->flags & CON_CONSDEV)) {
 		printk(KERN_INFO "console handover: boot [%s%d] -> real [%s%d]\n",
 		       bootconsole->name, bootconsole->index,
 		       console->name, console->index);
 		unregister_console(bootconsole);
 		console->flags &= ~CON_PRINTBUFFER;
+	} else {
+		printk(KERN_INFO "console [%s%d] enabled\n",
+		       console->name, console->index);
 	}
 
 	/*
