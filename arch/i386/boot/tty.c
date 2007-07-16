@@ -31,7 +31,7 @@ void __attribute__((section(".inittext"))) putchar(int ch)
 
 	/* int $0x10 is known to have bugs involving touching registers
 	   it shouldn't.  Be extra conservative... */
-	asm volatile("pushal; int $0x10; popal"
+	asm volatile("pushal; pushw %%ds; int $0x10; popw %%ds; popal"
 		     : : "b" (0x0007), "c" (0x0001), "a" (0x0e00|ch));
 }
 
