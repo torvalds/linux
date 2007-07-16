@@ -1504,6 +1504,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	rootfstype=	[KNL] Set root filesystem type
 
+	rootwait	[KNL] Wait (indefinitely) for root device to show up.
+			Useful for devices that are detected asynchronously
+			(e.g. USB and MMC devices).
+
 	rw		[KNL] Mount root device read-write on boot
 
 	S		[KNL] Run init in single mode
