@@ -21,7 +21,7 @@
 
 /*
  * swapper_space is a fiction, retained to simplify the path through
- * vmscan's shrink_list, to make sync_page look nicer, and to allow
+ * vmscan's shrink_page_list, to make sync_page look nicer, and to allow
  * future use of radix_tree tags in the swap cache.
  */
 static const struct address_space_operations swap_aops = {

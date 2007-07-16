@@ -317,8 +317,8 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
  * This is like invalidate_complete_page(), except it ignores the page's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
  * invalidation guarantees, and cannot afford to leave pages behind because
- * shrink_list() has a temp ref on them, or because they're transiently sitting
- * in the lru_cache_add() pagevecs.
+ * shrink_page_list() has a temp ref on them, or because they're transiently
+ * sitting in the lru_cache_add() pagevecs.
  */
 static int
 invalidate_complete_page2(struct address_space *mapping, struct page *page)

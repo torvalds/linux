@@ -885,7 +885,7 @@ static int try_to_unuse(unsigned int type)
 		/*
 		 * So we could skip searching mms once swap count went
 		 * to 1, we did not mark any present ptes as dirty: must
-		 * mark page dirty so shrink_list will preserve it.
+		 * mark page dirty so shrink_page_list will preserve it.
 		 */
 		SetPageDirty(page);
 		unlock_page(page);
