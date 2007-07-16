@@ -73,6 +73,7 @@ extern struct file * FASTCALL(fget_light(unsigned int fd, int *fput_needed));
 extern void FASTCALL(set_close_on_exec(unsigned int fd, int flag));
 extern void put_filp(struct file *);
 extern int get_unused_fd(void);
+extern int get_unused_fd_flags(int flags);
 extern void FASTCALL(put_unused_fd(unsigned int fd));
 struct kmem_cache;
 
