@@ -29,6 +29,7 @@
 #include <linux/compat.h>
 #include <linux/tick.h>
 #include <linux/init.h>
+#include <linux/cpu.h>
 
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
@@ -49,7 +50,7 @@
 
 /* #define VERBOSE_SHOWREGS */
 
-static void sparc64_yield(void)
+static void sparc64_yield(int cpu)
 {
 	if (tlb_type != hypervisor)
 		return;
@@ -57,7 +58,7 @@ static void sparc64_yield(void)
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 	smp_mb__after_clear_bit();
 
-	while (!need_resched()) {
+	while (!need_resched() && !cpu_is_offline(cpu)) {
 		unsigned long pstate;
 
 		/* Disable interrupts. */
@@ -68,7 +69,7 @@ static void sparc64_yield(void)
 			: "=&r" (pstate)
 			: "i" (PSTATE_IE));
 
-		if (!need_resched())
+		if (!need_resched() && !cpu_is_offline(cpu))
 			sun4v_cpu_yield();
 
 		/* Re-enable interrupts. */
@@ -86,15 +87,25 @@ static void sparc64_yield(void)
 /* The idle loop on sparc64. */
 void cpu_idle(void)
 {
+	int cpu = smp_processor_id();
+
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
 		tick_nohz_stop_sched_tick();
-		while (!need_resched())
-			sparc64_yield();
+
+		while (!need_resched() && !cpu_is_offline(cpu))
+			sparc64_yield(cpu);
+
 		tick_nohz_restart_sched_tick();
 
 		preempt_enable_no_resched();
+
+#ifdef CONFIG_HOTPLUG_CPU
+		if (cpu_is_offline(cpu))
+			cpu_play_dead();
+#endif
+
 		schedule();
 		preempt_disable();
 	}

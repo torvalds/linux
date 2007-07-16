@@ -44,6 +44,7 @@
 #include <asm/prom.h>
 #include <asm/mdesc.h>
 #include <asm/ldc.h>
+#include <asm/hypervisor.h>
 
 extern void calibrate_delay(void);
 
@@ -62,7 +63,6 @@ EXPORT_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
 
 static cpumask_t smp_commenced_mask;
-static cpumask_t cpu_callout_map;
 
 void smp_info(struct seq_file *m)
 {
@@ -82,6 +82,8 @@ void smp_bogo(struct seq_file *m)
 			   "Cpu%dClkTck\t: %016lx\n",
 			   i, cpu_data(i).clock_tick);
 }
+
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
 
 extern void setup_sparc64_timer(void);
 
@@ -121,7 +123,9 @@ void __devinit smp_callin(void)
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
 
+	spin_lock(&call_lock);
 	cpu_set(cpuid, cpu_online_map);
+	spin_unlock(&call_lock);
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
@@ -324,6 +328,9 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 	hv_err = sun4v_cpu_start(cpu, trampoline_ra,
 				 kimage_addr_to_ra(&sparc64_ttable_tl0),
 				 __pa(hdesc));
+	if (hv_err)
+		printk(KERN_ERR "ldom_startcpu_cpuid: sun4v_cpu_start() "
+		       "gives error %lu\n", hv_err);
 }
 #endif
 
@@ -350,7 +357,6 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	p = fork_idle(cpu);
 	callin_flag = 0;
 	cpu_new_thread = task_thread_info(p);
-	cpu_set(cpu, cpu_callout_map);
 
 	if (tlb_type == hypervisor) {
 		/* Alloc the mondo queues, cpu will load them.  */
@@ -379,7 +385,6 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 		ret = 0;
 	} else {
 		printk("Processor %d is stuck.\n", cpu);
-		cpu_clear(cpu, cpu_callout_map);
 		ret = -ENODEV;
 	}
 	cpu_new_thread = NULL;
@@ -791,7 +796,6 @@ struct call_data_struct {
 	int wait;
 };
 
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
 static struct call_data_struct *call_data;
 
 extern unsigned long xcall_call_function;
@@ -1241,7 +1245,7 @@ void __devinit smp_fill_in_sib_core_maps(void)
 {
 	unsigned int i;
 
-	for_each_possible_cpu(i) {
+	for_each_present_cpu(i) {
 		unsigned int j;
 
 		cpus_clear(cpu_core_map[i]);
@@ -1250,14 +1254,14 @@ void __devinit smp_fill_in_sib_core_maps(void)
 			continue;
 		}
 
-		for_each_possible_cpu(j) {
+		for_each_present_cpu(j) {
 			if (cpu_data(i).core_id ==
 			    cpu_data(j).core_id)
 				cpu_set(j, cpu_core_map[i]);
 		}
 	}
 
-	for_each_possible_cpu(i) {
+	for_each_present_cpu(i) {
 		unsigned int j;
 
 		cpus_clear(cpu_sibling_map[i]);
@@ -1266,7 +1270,7 @@ void __devinit smp_fill_in_sib_core_maps(void)
 			continue;
 		}
 
-		for_each_possible_cpu(j) {
+		for_each_present_cpu(j) {
 			if (cpu_data(i).proc_id ==
 			    cpu_data(j).proc_id)
 				cpu_set(j, cpu_sibling_map[i]);
@@ -1296,16 +1300,106 @@ int __cpuinit __cpu_up(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+void cpu_play_dead(void)
+{
+	int cpu = smp_processor_id();
+	unsigned long pstate;
+
+	idle_task_exit();
+
+	if (tlb_type == hypervisor) {
+		struct trap_per_cpu *tb = &trap_block[cpu];
+
+		sun4v_cpu_qconf(HV_CPU_QUEUE_CPU_MONDO,
+				tb->cpu_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_DEVICE_MONDO,
+				tb->dev_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_RES_ERROR,
+				tb->resum_mondo_pa, 0);
+		sun4v_cpu_qconf(HV_CPU_QUEUE_NONRES_ERROR,
+				tb->nonresum_mondo_pa, 0);
+	}
+
+	cpu_clear(cpu, smp_commenced_mask);
+	membar_safe("#Sync");
+
+	local_irq_disable();
+
+	__asm__ __volatile__(
+		"rdpr	%%pstate, %0\n\t"
+		"wrpr	%0, %1, %%pstate"
+		: "=r" (pstate)
+		: "i" (PSTATE_IE));
+
+	while (1)
+		barrier();
+}
+
 int __cpu_disable(void)
 {
-	printk(KERN_ERR "SMP: __cpu_disable() on cpu %d\n",
-	       smp_processor_id());
-	return -ENODEV;
+	int cpu = smp_processor_id();
+	cpuinfo_sparc *c;
+	int i;
+
+	for_each_cpu_mask(i, cpu_core_map[cpu])
+		cpu_clear(cpu, cpu_core_map[i]);
+	cpus_clear(cpu_core_map[cpu]);
+
+	for_each_cpu_mask(i, cpu_sibling_map[cpu])
+		cpu_clear(cpu, cpu_sibling_map[i]);
+	cpus_clear(cpu_sibling_map[cpu]);
+
+	c = &cpu_data(cpu);
+
+	c->core_id = 0;
+	c->proc_id = -1;
+
+	spin_lock(&call_lock);
+	cpu_clear(cpu, cpu_online_map);
+	spin_unlock(&call_lock);
+
+	smp_wmb();
+
+	/* Make sure no interrupts point to this cpu.  */
+	fixup_irqs();
+
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+
+	return 0;
 }
 
 void __cpu_die(unsigned int cpu)
 {
-	printk(KERN_ERR "SMP: __cpu_die(%u)\n", cpu);
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		smp_rmb();
+		if (!cpu_isset(cpu, smp_commenced_mask))
+			break;
+		msleep(100);
+	}
+	if (cpu_isset(cpu, smp_commenced_mask)) {
+		printk(KERN_ERR "CPU %u didn't die...\n", cpu);
+	} else {
+#if defined(CONFIG_SUN_LDOMS)
+		unsigned long hv_err;
+		int limit = 100;
+
+		do {
+			hv_err = sun4v_cpu_stop(cpu);
+			if (hv_err == HV_EOK) {
+				cpu_clear(cpu, cpu_present_map);
+				break;
+			}
+		} while (--limit > 0);
+		if (limit <= 0) {
+			printk(KERN_ERR "sun4v_cpu_stop() fails err=%lu\n",
+			       hv_err);
+		}
+#endif
+	}
 }
 #endif
 

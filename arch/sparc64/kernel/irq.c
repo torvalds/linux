@@ -803,6 +803,26 @@ void handler_irq(int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+void fixup_irqs(void)
+{
+	unsigned int irq;
+
+	for (irq = 0; irq < NR_IRQS; irq++) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		if (irq_desc[irq].action &&
+		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
+			if (irq_desc[irq].chip->set_affinity)
+				irq_desc[irq].chip->set_affinity(irq,
+					irq_desc[irq].affinity);
+		}
+		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+	}
+}
+#endif
+
 struct sun5_timer {
 	u64	count0;
 	u64	limit0;

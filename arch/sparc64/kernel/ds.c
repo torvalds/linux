@@ -20,6 +20,7 @@
 #include <asm/power.h>
 #include <asm/mdesc.h>
 #include <asm/head.h>
+#include <asm/irq.h>
 
 #define DRV_MODULE_NAME		"ds"
 #define PFX DRV_MODULE_NAME	": "
@@ -559,6 +560,9 @@ static int dr_cpu_configure(struct ds_cap_state *cp, u64 req_num,
 
 	kfree(resp);
 
+	/* Redistribute IRQs, taking into account the new cpus.  */
+	fixup_irqs();
+
 	return 0;
 }
 
@@ -566,7 +570,8 @@ static int dr_cpu_unconfigure(struct ds_cap_state *cp, u64 req_num,
 			      cpumask_t *mask)
 {
 	struct ds_data *resp;
-	int resp_len, ncpus;
+	int resp_len, ncpus, cpu;
+	unsigned long flags;
 
 	ncpus = cpus_weight(*mask);
 	resp_len = dr_cpu_size_response(ncpus);
@@ -578,9 +583,25 @@ static int dr_cpu_unconfigure(struct ds_cap_state *cp, u64 req_num,
 			     resp_len, ncpus, mask,
 			     DR_CPU_STAT_UNCONFIGURED);
 
+	for_each_cpu_mask(cpu, *mask) {
+		int err;
+
+		printk(KERN_INFO PFX "CPU[%d]: Shutting down cpu %d...\n",
+		       smp_processor_id(), cpu);
+		err = cpu_down(cpu);
+		if (err)
+			dr_cpu_mark(resp, cpu, ncpus,
+				    DR_CPU_RES_FAILURE,
+				    DR_CPU_STAT_CONFIGURED);
+	}
+
+	spin_lock_irqsave(&ds_lock, flags);
+	ds_send(ds_info->lp, resp, resp_len);
+	spin_unlock_irqrestore(&ds_lock, flags);
+
 	kfree(resp);
 
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 static void process_dr_cpu_list(struct ds_cap_state *cp)
