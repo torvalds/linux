@@ -58,30 +58,41 @@ static struct nsproxy *create_new_namespaces(int flags, struct task_struct *tsk,
 			struct fs_struct *new_fs)
 {
 	struct nsproxy *new_nsp;
+	int err;
 
 	new_nsp = clone_nsproxy(tsk->nsproxy);
 	if (!new_nsp)
 		return ERR_PTR(-ENOMEM);
 
 	new_nsp->mnt_ns = copy_mnt_ns(flags, tsk->nsproxy->mnt_ns, new_fs);
-	if (IS_ERR(new_nsp->mnt_ns))
+	if (IS_ERR(new_nsp->mnt_ns)) {
+		err = PTR_ERR(new_nsp->mnt_ns);
 		goto out_ns;
+	}
 
 	new_nsp->uts_ns = copy_utsname(flags, tsk->nsproxy->uts_ns);
-	if (IS_ERR(new_nsp->uts_ns))
+	if (IS_ERR(new_nsp->uts_ns)) {
+		err = PTR_ERR(new_nsp->uts_ns);
 		goto out_uts;
+	}
 
 	new_nsp->ipc_ns = copy_ipcs(flags, tsk->nsproxy->ipc_ns);
-	if (IS_ERR(new_nsp->ipc_ns))
+	if (IS_ERR(new_nsp->ipc_ns)) {
+		err = PTR_ERR(new_nsp->ipc_ns);
 		goto out_ipc;
+	}
 
 	new_nsp->pid_ns = copy_pid_ns(flags, tsk->nsproxy->pid_ns);
-	if (IS_ERR(new_nsp->pid_ns))
+	if (IS_ERR(new_nsp->pid_ns)) {
+		err = PTR_ERR(new_nsp->pid_ns);
 		goto out_pid;
+	}
 
 	new_nsp->user_ns = copy_user_ns(flags, tsk->nsproxy->user_ns);
-	if (IS_ERR(new_nsp->user_ns))
+	if (IS_ERR(new_nsp->user_ns)) {
+		err = PTR_ERR(new_nsp->user_ns);
 		goto out_user;
+	}
 
 	return new_nsp;
 
@@ -99,7 +110,7 @@ out_uts:
 		put_mnt_ns(new_nsp->mnt_ns);
 out_ns:
 	kfree(new_nsp);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(err);
 }
 
 /*

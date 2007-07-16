@@ -34,7 +34,7 @@ static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
 
 	ns = kmalloc(sizeof(struct user_namespace), GFP_KERNEL);
 	if (!ns)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ns->kref);
 
@@ -45,7 +45,7 @@ static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
 	ns->root_user = alloc_uid(ns, 0);
 	if (!ns->root_user) {
 		kfree(ns);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* Reset current->user with a new one */
@@ -53,7 +53,7 @@ static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
 	if (!new_user) {
 		free_uid(ns->root_user);
 		kfree(ns);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	switch_uid(new_user);
