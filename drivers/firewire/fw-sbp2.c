@@ -840,7 +840,6 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 		container_of(base_orb, struct sbp2_command_orb, base);
 	struct fw_unit *unit = orb->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
-	struct scatterlist *sg;
 	int result;
 
 	if (status != NULL) {
@@ -876,11 +875,10 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	dma_unmap_single(device->card->device, orb->base.request_bus,
 			 sizeof(orb->request), DMA_TO_DEVICE);
 
-	if (orb->cmd->use_sg > 0) {
-		sg = (struct scatterlist *)orb->cmd->request_buffer;
-		dma_unmap_sg(device->card->device, sg, orb->cmd->use_sg,
+	if (scsi_sg_count(orb->cmd) > 0)
+		dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
+			     scsi_sg_count(orb->cmd),
 			     orb->cmd->sc_data_direction);
-	}
 
 	if (orb->page_table_bus != 0)
 		dma_unmap_single(device->card->device, orb->page_table_bus,
@@ -901,8 +899,8 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	int sg_len, l, i, j, count;
 	dma_addr_t sg_addr;
 
-	sg = (struct scatterlist *)orb->cmd->request_buffer;
-	count = dma_map_sg(device->card->device, sg, orb->cmd->use_sg,
+	sg = scsi_sglist(orb->cmd);
+	count = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
 			   orb->cmd->sc_data_direction);
 	if (count == 0)
 		goto fail;
@@ -971,7 +969,7 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	return 0;
 
  fail_page_table:
-	dma_unmap_sg(device->card->device, sg, orb->cmd->use_sg,
+	dma_unmap_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
 		     orb->cmd->sc_data_direction);
  fail:
 	return -ENOMEM;
@@ -1031,7 +1029,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		orb->request.misc |=
 			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA);
 
-	if (cmd->use_sg && sbp2_command_orb_map_scatterlist(orb) < 0)
+	if (scsi_sg_count(cmd) && sbp2_command_orb_map_scatterlist(orb) < 0)
 		goto fail_mapping;
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
