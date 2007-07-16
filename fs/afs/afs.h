@@ -37,6 +37,13 @@ typedef enum {
 	AFS_FTYPE_SYMLINK	= 3,
 } afs_file_type_t;
 
+typedef enum {
+	AFS_LOCK_READ		= 0,	/* read lock request */
+	AFS_LOCK_WRITE		= 1,	/* write lock request */
+} afs_lock_type_t;
+
+#define AFS_LOCKWAIT		(5 * 60) /* time until a lock times out (seconds) */
+
 /*
  * AFS file identifier
  */
@@ -120,6 +127,7 @@ struct afs_file_status {
 	struct afs_fid		parent;		/* parent dir ID for non-dirs only */
 	time_t			mtime_client;	/* last time client changed data */
 	time_t			mtime_server;	/* last time server changed data */
+	s32			lock_count;	/* file lock count (0=UNLK -1=WRLCK +ve=#RDLCK */
 };
 
 /*

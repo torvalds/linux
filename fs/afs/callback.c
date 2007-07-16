@@ -125,6 +125,9 @@ static void afs_break_callback(struct afs_server *server,
 		spin_unlock(&server->cb_lock);
 
 		queue_work(afs_callback_update_worker, &vnode->cb_broken_work);
+		if (list_empty(&vnode->granted_locks) &&
+		    !list_empty(&vnode->pending_locks))
+			afs_lock_may_be_available(vnode);
 		spin_unlock(&vnode->lock);
 	}
 }

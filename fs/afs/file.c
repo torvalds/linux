@@ -34,6 +34,8 @@ const struct file_operations afs_file_operations = {
 	.mmap		= generic_file_readonly_mmap,
 	.splice_read	= generic_file_splice_read,
 	.fsync		= afs_fsync,
+	.lock		= afs_lock,
+	.flock		= afs_flock,
 };
 
 const struct inode_operations afs_file_inode_operations = {

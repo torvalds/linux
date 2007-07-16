@@ -8,6 +8,7 @@ kafs-objs := \
 	cmservice.o \
 	dir.o \
 	file.o \
+	flock.o \
 	fsclient.o \
 	inode.o \
 	main.o \
