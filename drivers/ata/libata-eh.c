@@ -1799,11 +1799,17 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	}
 
 	if (rc == 0) {
+		u32 sstatus;
+
 		/* After the reset, the device state is PIO 0 and the
 		 * controller state is undefined.  Record the mode.
 		 */
 		for (i = 0; i < ATA_MAX_DEVICES; i++)
 			ap->device[i].pio_mode = XFER_PIO_0;
+
+		/* record current link speed */
+		if (sata_scr_read(ap, SCR_STATUS, &sstatus) == 0)
+			ap->sata_spd = (sstatus >> 4) & 0xf;
 
 		if (postreset)
 			postreset(ap, classes);
