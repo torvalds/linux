@@ -405,22 +405,6 @@ config ATARILANCE
 	  on the AMD Lance chipset: RieblCard (with or without battery), or
 	  PAMCard VME (also the version by Rhotron, with different addresses).
 
-config ATARI_BIONET
-	tristate "BioNet-100 support"
-	depends on ATARI && ATARI_ACSI && BROKEN
-	help
-	  Say Y to include support for BioData's BioNet-100 Ethernet adapter
-	  for the ACSI port. The driver works (has to work...) with a polled
-	  I/O scheme, so it's rather slow :-(
-
-config ATARI_PAMSNET
-	tristate "PAMsNet support"
-	depends on ATARI && ATARI_ACSI && BROKEN
-	help
-	  Say Y to include support for the PAMsNet Ethernet adapter for the
-	  ACSI port ("ACSI node"). The driver works (has to work...) with a
-	  polled I/O scheme, so it's rather slow :-(
-
 config SUN3LANCE
 	tristate "Sun3/Sun3x on-board LANCE support"
 	depends on SUN3 || SUN3X

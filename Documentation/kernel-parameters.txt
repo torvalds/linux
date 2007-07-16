@@ -34,7 +34,6 @@ parameter is applicable:
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
-	CD	Appropriate CD support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -319,9 +318,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	autotest	[IA64]
 
-	aztcd=		[HW,CD] Aztech CD268 CDROM driver
-			Format: <io>,0x79 (?)
-
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
 
@@ -363,10 +359,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			to fix known problems, but for some CPUs it is not
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
-
-	cdu31a=		[HW,CD]
-			Format: <io>,<irq>[,PAS]
-			See header of drivers/cdrom/cdu31a.c.
 
 	chandev=	[HW,NET] Generic channel device initialisation
 
@@ -420,9 +412,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hpet=		[IA-32,HPET] option to disable HPET and use PIT.
 			Format: disable
-
-	cm206=		[HW,CD]
-			Format: { auto | [<io>,][<irq>] }
 
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
@@ -660,9 +649,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT.
 
-	gscd=		[HW,CD]
-			Format: <io>
-
 	gvp11=		[HW,SCSI]
 
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
@@ -826,9 +812,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			tasks in the system -- can cause problems and
 			suboptimal load balancer performance.
 
-	isp16=		[HW,CD]
-			Format: <io>,<irq>,<dma>,<setup>
-
 	iucv=		[HW,NET]
 
 	js=		[HW,JOY] Analog joystick
@@ -966,11 +949,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	mca-pentium	[BUGS=IA-32]
 
 	mcatest=	[IA-64]
-
-	mcd=		[HW,CD]
-			Format: <port>,<irq>,<mitsumi_bug_93_wait>
-
-	mcdx=		[HW,CD]
 
 	mce		[IA-32] Machine Check Exception
 
@@ -1203,9 +1181,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	oprofile.timer=	[HW]
 			Use timer interrupt instead of performance counters
-
-	optcd=		[HW,CD]
-			Format: <io>
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
@@ -1522,11 +1497,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
-	sbpcd=		[HW,CD] Soundblaster CD adapter
-			Format: <io>,<type>
-			See a comment before function sbpcd_setup() in
-			drivers/cdrom/sbpcd.c.
-
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
 			Format: <io>[,<timeout>[,<isapnp>]]
 
@@ -1578,10 +1548,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	simeth=		[IA-64]
 	simscsi=
-
-	sjcd=		[HW,CD]
-			Format: <io>,<irq>,<dma>
-			See header of drivers/cdrom/sjcd.c.
 
 	slram=		[HW,MTD]
 
@@ -1758,9 +1724,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	snd-wavefront=	[HW,ALSA]
 
 	snd-ymfpci=	[HW,ALSA]
-
-	sonycd535=	[HW,CD]
-			Format: <io>[,<irq>]
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt

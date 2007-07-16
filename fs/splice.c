@@ -1061,8 +1061,9 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 	while (len) {
 		size_t read_len;
+		loff_t pos = sd->pos;
 
-		ret = do_splice_to(in, &sd->pos, pipe, len, flags);
+		ret = do_splice_to(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
 			goto out_release;
 
@@ -1080,6 +1081,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 		bytes += ret;
 		len -= ret;
+		sd->pos = pos;
 
 		if (ret < read_len)
 			goto out_release;

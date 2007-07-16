@@ -2613,12 +2613,6 @@ M:	yokota@netlab.is.tsukuba.ac.jp
 W:	http://www.netlab.is.tsukuba.ac.jp/~yokota/izumi/ninja/
 S:	Maintained
 
-NON-IDE/NON-SCSI CDROM DRIVERS [GENERAL] (come on, crew - mark your responsibility)
-P:	Eberhard Moenkeberg
-M:	emoenke@gwdg.de
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 NTFS FILESYSTEM
 P:	Anton Altaparmakov
 M:	aia21@cantab.net
@@ -3103,12 +3097,6 @@ SAA7146 VIDEO4LINUX-2 DRIVER
 P:	Michael Hunold
 M:	michael@mihu.de
 W:	http://www.mihu.de/linux/saa7146
-S:	Maintained
-
-SBPCD CDROM DRIVER
-P:	Eberhard Moenkeberg
-M:	emoenke@gwdg.de
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 SC1200 WDT DRIVER

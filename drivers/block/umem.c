@@ -105,12 +105,6 @@ struct cardinfo {
 	unsigned long	csr_base;
 	unsigned char	__iomem *csr_remap;
 	unsigned long	csr_len;
-#ifdef CONFIG_MM_MAP_MEMORY
-	unsigned long	mem_base;
-	unsigned char	__iomem *mem_remap;
-	unsigned long	mem_len;
-#endif
-
 	unsigned int	win_size; /* PCI window size */
 	unsigned int	mm_size;  /* size in kbytes */
 
@@ -872,10 +866,6 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 
 	card->csr_base = pci_resource_start(dev, 0);
 	card->csr_len  = pci_resource_len(dev, 0);
-#ifdef CONFIG_MM_MAP_MEMORY
-	card->mem_base = pci_resource_start(dev, 1);
-	card->mem_len  = pci_resource_len(dev, 1);
-#endif
 
 	printk(KERN_INFO "Micro Memory(tm) controller #%d found at %02x:%02x (PCI Mem Module (Battery Backup))\n",
 	       card->card_number, dev->bus->number, dev->devfn);
@@ -903,27 +893,6 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	printk(KERN_INFO "MM%d: CSR 0x%08lx -> 0x%p (0x%lx)\n", card->card_number,
 	       card->csr_base, card->csr_remap, card->csr_len);
 
-#ifdef CONFIG_MM_MAP_MEMORY
-	if (!request_mem_region(card->mem_base, card->mem_len, "Micro Memory")) {
-		printk(KERN_ERR "MM%d: Unable to request memory region\n", card->card_number);
-		ret = -ENOMEM;
-
-		goto failed_req_mem;
-	}
-
-	if (!(card->mem_remap = ioremap(card->mem_base, cards->mem_len))) {
-		printk(KERN_ERR "MM%d: Unable to remap memory region\n", card->card_number);
-		ret = -ENOMEM;
-
-		goto failed_remap_mem;
-	}
-
-	printk(KERN_INFO "MM%d: MEM 0x%8lx -> 0x%8lx (0x%lx)\n", card->card_number,
-	       card->mem_base, card->mem_remap, card->mem_len);
-#else
-	printk(KERN_INFO "MM%d: MEM area not remapped (CONFIG_MM_MAP_MEMORY not set)\n",
-	       card->card_number);
-#endif
 	switch(card->dev->device) {
 	case 0x5415:
 		card->flags |= UM_FLAG_NO_BYTE_STATUS | UM_FLAG_NO_BATTREG;
@@ -1091,12 +1060,6 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 				    card->mm_pages[1].desc,
 				    card->mm_pages[1].page_dma);
  failed_magic:
-#ifdef CONFIG_MM_MAP_MEMORY
-	iounmap(card->mem_remap);
- failed_remap_mem:
-	release_mem_region(card->mem_base, card->mem_len);
- failed_req_mem:
-#endif
 	iounmap(card->csr_remap);
  failed_remap_csr:
 	release_mem_region(card->csr_base, card->csr_len);
@@ -1116,10 +1079,6 @@ static void mm_pci_remove(struct pci_dev *dev)
 	tasklet_kill(&card->tasklet);
 	iounmap(card->csr_remap);
 	release_mem_region(card->csr_base, card->csr_len);
-#ifdef CONFIG_MM_MAP_MEMORY
-	iounmap(card->mem_remap);
-	release_mem_region(card->mem_base, card->mem_len);
-#endif
 	free_irq(card->irq, card);
 
 	if (card->mm_pages[0].desc)
@@ -1133,23 +1092,18 @@ static void mm_pci_remove(struct pci_dev *dev)
 	blk_cleanup_queue(card->queue);
 }
 
-static const struct pci_device_id mm_pci_ids[] = { {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_5415CN,
-	}, {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_5425CN,
-	}, {
-	.vendor =	PCI_VENDOR_ID_MICRO_MEMORY,
-	.device =	PCI_DEVICE_ID_MICRO_MEMORY_6155,
-	}, {
+static const struct pci_device_id mm_pci_ids[] = {
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_5415CN)},
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_5425CN)},
+    {PCI_DEVICE(PCI_VENDOR_ID_MICRO_MEMORY,PCI_DEVICE_ID_MICRO_MEMORY_6155)},
+    {
 	.vendor	=	0x8086,
 	.device	=	0xB555,
 	.subvendor=	0x1332,
 	.subdevice=	0x5460,
 	.class	=	0x050000,
 	.class_mask=	0,
-	}, { /* end: all zeroes */ }
+    }, { /* end: all zeroes */ }
 };
 
 MODULE_DEVICE_TABLE(pci, mm_pci_ids);

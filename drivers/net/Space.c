@@ -75,8 +75,6 @@ extern struct net_device *atarilance_probe(int unit);
 extern struct net_device *sun3lance_probe(int unit);
 extern struct net_device *sun3_82586_probe(int unit);
 extern struct net_device *apne_probe(int unit);
-extern struct net_device *bionet_probe(int unit);
-extern struct net_device *pamsnet_probe(int unit);
 extern struct net_device *cs89x0_probe(int unit);
 extern struct net_device *hplance_probe(int unit);
 extern struct net_device *bagetlance_probe(int unit);
@@ -263,12 +261,6 @@ static struct devprobe2 m68k_probes[] __initdata = {
 #endif
 #ifdef CONFIG_APNE		/* A1200 PCMCIA NE2000 */
 	{apne_probe, 0},
-#endif
-#ifdef CONFIG_ATARI_BIONET	/* Atari Bionet Ethernet board */
-	{bionet_probe, 0},
-#endif
-#ifdef CONFIG_ATARI_PAMSNET	/* Atari PAMsNet Ethernet board */
-	{pamsnet_probe, 0},
 #endif
 #ifdef CONFIG_MVME147_NET	/* MVME147 internal Ethernet */
 	{mvme147lance_probe, 0},
