@@ -168,6 +168,12 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 .section .init.text,"ax",@progbits
 #endif
 
+	/* Do an early initialization of the fixmap area */
+	movl $(swapper_pg_dir - __PAGE_OFFSET), %edx
+	movl $(swapper_pg_pmd - __PAGE_OFFSET), %eax
+	addl $0x007, %eax			/* 0x007 = PRESENT+RW+USER */
+	movl %eax, 4092(%edx)
+
 #ifdef CONFIG_SMP
 ENTRY(startup_32_smp)
 	cld
@@ -506,6 +512,8 @@ ENTRY(_stext)
  */
 .section ".bss.page_aligned","w"
 ENTRY(swapper_pg_dir)
+	.fill 1024,4,0
+ENTRY(swapper_pg_pmd)
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
