@@ -1003,7 +1003,8 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 		}
 		if (!devc->shared_irq)
 		{
-			if (request_irq(devc->irq, mpuintr, 0, "mpu401", (void *)m) < 0)
+			if (request_irq(devc->irq, mpuintr, 0, "mpu401",
+					hw_config) < 0)
 			{
 				printk(KERN_WARNING "mpu401: Failed to allocate IRQ%d\n", devc->irq);
 				ret = -ENOMEM;
@@ -1112,7 +1113,7 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 	return 0;
 
 out_irq:
-	free_irq(devc->irq, (void *)m);
+	free_irq(devc->irq, hw_config);
 out_mididev:
 	sound_unload_mididev(m);
 out_err:
@@ -1227,7 +1228,7 @@ void unload_mpu401(struct address_info *hw_config)
 	if (n != -1) {
 		release_region(hw_config->io_base, 2);
 		if (hw_config->always_detect == 0 && hw_config->irq > 0)
-			free_irq(hw_config->irq, (void *)n);
+			free_irq(hw_config->irq, hw_config);
 		p=mpu401_synth_operations[n];
 		sound_unload_mididev(n);
 		sound_unload_timerdev(hw_config->slots[2]);
