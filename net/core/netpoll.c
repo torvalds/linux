@@ -124,13 +124,6 @@ static void poll_napi(struct netpoll *np)
 	if (test_bit(__LINK_STATE_RX_SCHED, &np->dev->state) &&
 	    npinfo->poll_owner != smp_processor_id() &&
 	    spin_trylock(&npinfo->poll_lock)) {
-		/* When calling dev->poll from poll_napi, we may end up in
-		 * netif_rx_complete. However, only the CPU to which the
-		 * device was queued is allowed to remove it from poll_list.
-		 * Setting POLL_LIST_FROZEN tells netif_rx_complete
-		 * to leave the NAPI state alone.
-		 */
-		set_bit(__LINK_STATE_POLL_LIST_FROZEN, &np->dev->state);
 		npinfo->rx_flags |= NETPOLL_RX_DROP;
 		atomic_inc(&trapped);
 
@@ -138,7 +131,6 @@ static void poll_napi(struct netpoll *np)
 
 		atomic_dec(&trapped);
 		npinfo->rx_flags &= ~NETPOLL_RX_DROP;
-		clear_bit(__LINK_STATE_POLL_LIST_FROZEN, &np->dev->state);
 		spin_unlock(&npinfo->poll_lock);
 	}
 }
