@@ -304,9 +304,9 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	port->disc.max_level = 0;
 
 	dev->rphy = rphy;
-	spin_lock(&port->dev_list_lock);
+	spin_lock_irq(&port->dev_list_lock);
 	list_add_tail(&dev->dev_list_node, &port->dev_list);
-	spin_unlock(&port->dev_list_lock);
+	spin_unlock_irq(&port->dev_list_lock);
 
 	return 0;
 }
@@ -703,9 +703,9 @@ static void sas_discover_domain(struct work_struct *work)
 		sas_rphy_free(dev->rphy);
 		dev->rphy = NULL;
 
-		spin_lock(&port->dev_list_lock);
+		spin_lock_irq(&port->dev_list_lock);
 		list_del_init(&dev->dev_list_node);
-		spin_unlock(&port->dev_list_lock);
+		spin_unlock_irq(&port->dev_list_lock);
 
 		kfree(dev); /* not kobject_register-ed yet */
 		port->port_dev = NULL;

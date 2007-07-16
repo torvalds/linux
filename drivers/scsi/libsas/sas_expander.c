@@ -677,9 +677,9 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 		child->rphy = rphy;
 
-		spin_lock(&parent->port->dev_list_lock);
+		spin_lock_irq(&parent->port->dev_list_lock);
 		list_add_tail(&child->dev_list_node, &parent->port->dev_list);
-		spin_unlock(&parent->port->dev_list_lock);
+		spin_unlock_irq(&parent->port->dev_list_lock);
 
 		res = sas_discover_sata(child);
 		if (res) {
@@ -701,9 +701,9 @@ static struct domain_device *sas_ex_discover_end_dev(
 		child->rphy = rphy;
 		sas_fill_in_rphy(child, rphy);
 
-		spin_lock(&parent->port->dev_list_lock);
+		spin_lock_irq(&parent->port->dev_list_lock);
 		list_add_tail(&child->dev_list_node, &parent->port->dev_list);
-		spin_unlock(&parent->port->dev_list_lock);
+		spin_unlock_irq(&parent->port->dev_list_lock);
 
 		res = sas_discover_end_dev(child);
 		if (res) {
@@ -816,9 +816,9 @@ static struct domain_device *sas_ex_discover_expander(
 	sas_fill_in_rphy(child, rphy);
 	sas_rphy_add(rphy);
 
-	spin_lock(&parent->port->dev_list_lock);
+	spin_lock_irq(&parent->port->dev_list_lock);
 	list_add_tail(&child->dev_list_node, &parent->port->dev_list);
-	spin_unlock(&parent->port->dev_list_lock);
+	spin_unlock_irq(&parent->port->dev_list_lock);
 
 	res = sas_discover_expander(child);
 	if (res) {
