@@ -2,7 +2,11 @@
 # Misc strange devices
 #
 
-menu "Misc devices"
+menuconfig MISC_STRANGE_DEV
+	bool "Misc devices"
+	default y
+
+if MISC_STRANGE_DEV
 
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
@@ -192,4 +196,4 @@ config THINKPAD_ACPI_BAY
 
 	  If you are not sure, say Y here.
 
-endmenu
+endif # MISC_STRANGE_DEV
