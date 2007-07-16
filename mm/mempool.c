@@ -263,6 +263,9 @@ void mempool_free(void *element, mempool_t *pool)
 {
 	unsigned long flags;
 
+	if (unlikely(element == NULL))
+		return;
+
 	smp_mb();
 	if (pool->curr_nr < pool->min_nr) {
 		spin_lock_irqsave(&pool->lock, flags);
