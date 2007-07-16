@@ -561,7 +561,7 @@ no_server:
 /*
  * create a hard link
  */
-extern int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
+int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 			  struct key *key, const char *name)
 {
 	struct afs_server *server;
