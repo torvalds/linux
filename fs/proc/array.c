@@ -332,7 +332,7 @@ static clock_t task_utime(struct task_struct *p)
 
 static clock_t task_stime(struct task_struct *p)
 {
-	clock_t stime = cputime_to_clock_t(p->stime);
+	clock_t stime;
 
 	/*
 	 * Use CFS's precise accounting. (we subtract utime from
