@@ -1,4 +1,9 @@
-menu "Hardware crypto devices"
+
+menuconfig CRYPTO_HW
+	bool "Hardware crypto devices"
+	default y
+
+if CRYPTO_HW
 
 config CRYPTO_DEV_PADLOCK
 	tristate "Support for VIA PadLock ACE"
@@ -78,4 +83,4 @@ config ZCRYPT_MONOLITHIC
 	  that contains all parts of the crypto device driver (ap bus,
 	  request router and all the card drivers).
 
-endmenu
+endif # CRYPTO_HW
