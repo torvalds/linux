@@ -1247,5 +1247,14 @@ enum cpm_clk {
 extern int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
 extern int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock);
 
+#define CPM_PIN_INPUT     0
+#define CPM_PIN_OUTPUT    1
+#define CPM_PIN_PRIMARY   0
+#define CPM_PIN_SECONDARY 2
+#define CPM_PIN_GPIO      4
+#define CPM_PIN_OPENDRAIN 8
+
+void cpm2_set_pin(int port, int pin, int flags);
+
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

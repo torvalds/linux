@@ -422,3 +422,36 @@ void *cpm_dpram_addr(unsigned long offset)
 	return (void *)(im_dprambase + offset);
 }
 EXPORT_SYMBOL(cpm_dpram_addr);
+
+struct cpm2_ioports {
+	u32 dir, par, sor, odr, dat;
+	u32 res[3];
+};
+
+void cpm2_set_pin(int port, int pin, int flags)
+{
+	struct cpm2_ioports __iomem *iop =
+		(struct cpm2_ioports __iomem *)&cpm2_immr->im_ioport;
+
+	pin = 1 << (31 - pin);
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits32(&iop[port].dir, pin);
+	else
+		clrbits32(&iop[port].dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits32(&iop[port].par, pin);
+	else
+		clrbits32(&iop[port].par, pin);
+
+	if (flags & CPM_PIN_SECONDARY)
+		setbits32(&iop[port].sor, pin);
+	else
+		clrbits32(&iop[port].sor, pin);
+
+	if (flags & CPM_PIN_OPENDRAIN)
+		setbits32(&iop[port].odr, pin);
+	else
+		clrbits32(&iop[port].odr, pin);
+}
