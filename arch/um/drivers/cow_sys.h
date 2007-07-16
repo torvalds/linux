@@ -8,7 +8,7 @@
 
 static inline void *cow_malloc(int size)
 {
-	return um_kmalloc(size);
+	return kmalloc(size, UM_GFP_KERNEL);
 }
 
 static inline void cow_free(void *ptr)

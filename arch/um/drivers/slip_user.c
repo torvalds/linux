@@ -91,7 +91,7 @@ static int slip_tramp(char **argv, int fd)
 	pid = err;
 
 	output_len = UM_KERN_PAGE_SIZE;
-	output = um_kmalloc(output_len);
+	output = kmalloc(output_len, UM_GFP_KERNEL);
 	if(output == NULL){
 		printk("slip_tramp : failed to allocate output buffer\n");
 		os_kill_process(pid, 1);

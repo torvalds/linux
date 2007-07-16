@@ -30,7 +30,6 @@
 #include "irq_kern.h"
 #include "os.h"
 #include "sigio.h"
-#include "um_malloc.h"
 #include "misc_constants.h"
 #include "as-layout.h"
 

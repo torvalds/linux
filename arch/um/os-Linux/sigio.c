@@ -105,7 +105,7 @@ static int need_poll(struct pollfds *polls, int n)
 	if(n <= polls->size)
 		return 0;
 
-	new = um_kmalloc_atomic(n * sizeof(struct pollfd));
+	new = kmalloc(n * sizeof(struct pollfd), UM_GFP_ATOMIC);
 	if(new == NULL){
 		printk("need_poll : failed to allocate new pollfds\n");
 		return -ENOMEM;
@@ -233,7 +233,7 @@ static struct pollfd *setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
-	p = um_kmalloc(sizeof(struct pollfd));
+	p = kmalloc(sizeof(struct pollfd), UM_GFP_KERNEL);
 	if (p == NULL) {
 		printk("setup_initial_poll : failed to allocate poll\n");
 		return NULL;

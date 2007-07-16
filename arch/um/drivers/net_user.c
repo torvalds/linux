@@ -217,7 +217,7 @@ static void change(char *dev, char *what, unsigned char *addr,
 		netmask[2], netmask[3]);
 
 	output_len = UM_KERN_PAGE_SIZE;
-	output = um_kmalloc(output_len);
+	output = kmalloc(output_len, UM_GFP_KERNEL);
 	if(output == NULL)
 		printk("change : failed to allocate output buffer\n");
 
