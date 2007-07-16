@@ -15,10 +15,10 @@ OBJECTS = $(obj)/head.o $(obj)/misc.o
 # in order to suppress error message.
 #
 CONFIG_MEMORY_START     ?= 0x00400000
-CONFIG_BOOT_LINK_OFFSET ?= 0x00400000
+CONFIG_BOOT_LINK_OFFSET ?= 0x00140000
 IMAGE_OFFSET := $(shell printf "0x%08x" $$[$(CONFIG_MEMORY_START)+$(CONFIG_BOOT_LINK_OFFSET)])
 
-LDFLAGS_vmlinux := -T $(obj)/vmlinux.lds
+LDFLAGS_vmlinux := -Ttext $(IMAGE_OFFSET) -estartup $(obj)/vmlinux.lds
 
 $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o FORCE
 	$(call if_changed,ld)

@@ -4,7 +4,7 @@
  *  Copyright (C) 2006 Yoshinori Sato
  */
 
-.h8300h
+	.h8300h
 #include <linux/linkage.h>
 
 #define SRAM_START 0xff4000
