@@ -348,7 +348,7 @@ config MSND_FIFOSIZE
 
 config SOUND_VIA82CXXX
 	tristate "VIA 82C686 Audio Codec"
-	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE && VIRT_TO_BUS
 	help
 	  Say Y here to include support for the audio codec found on VIA
 	  82Cxxx-based chips. Typically these are built into a motherboard.
@@ -368,7 +368,7 @@ config MIDI_VIA82CXXX
 
 config SOUND_OSS
 	tristate "OSS sound modules"
-	depends on SOUND_PRIME && ISA_DMA_API
+	depends on SOUND_PRIME && ISA_DMA_API && VIRT_TO_BUS
 	help
 	  OSS is the Open Sound System suite of sound card drivers.  They make
 	  sound programming easier since they provide a common API.  Say Y or
@@ -417,6 +417,7 @@ config SOUND_CS4232
 config SOUND_SSCAPE
 	tristate "Ensoniq SoundScape support"
 	depends on SOUND_OSS
+	depends on VIRT_TO_BUS
 	help
 	  Answer Y if you have a sound card based on the Ensoniq SoundScape
 	  chipset. Such cards are being manufactured at least by Ensoniq, Spea

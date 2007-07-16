@@ -168,3 +168,7 @@ config NR_QUICK
 	depends on QUICKLIST
 	default "2" if (SUPERH && !SUPERH64)
 	default "1"
+
+config VIRT_TO_BUS
+	def_bool y
+	depends on !ARCH_NO_VIRT_TO_BUS

@@ -66,6 +66,9 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool PPC64
+
 config PPC
 	bool
 	default y
