@@ -215,7 +215,7 @@ int kthread_stop(struct task_struct *k)
 EXPORT_SYMBOL(kthread_stop);
 
 
-static __init void kthreadd_setup(void)
+static noinline __init_refok void kthreadd_setup(void)
 {
 	struct task_struct *tsk = current;
 
