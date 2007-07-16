@@ -15,7 +15,6 @@
 #define _LINUX_CONSOLE_H_ 1
 
 #include <linux/types.h>
-#include <linux/spinlock.h>
 
 struct vc_data;
 struct console_font_op;

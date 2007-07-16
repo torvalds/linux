@@ -3,7 +3,6 @@
 
 #ifdef CONFIG_LOCK_KERNEL
 #include <linux/sched.h>
-#include <linux/spinlock.h>
 
 #define kernel_locked()		(current->lock_depth >= 0)
 

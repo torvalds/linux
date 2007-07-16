@@ -3,7 +3,6 @@
 
 #include <linux/list.h>
 #include <linux/ktime.h>
-#include <linux/spinlock.h>
 #include <linux/stddef.h>
 
 struct tvec_t_base_s;

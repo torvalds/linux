@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/klist.h>
-#include <linux/spinlock.h>
 
 struct attribute_container {
 	struct list_head	node;
