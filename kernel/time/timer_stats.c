@@ -68,6 +68,7 @@ struct entry {
 	 * Number of timeout events:
 	 */
 	unsigned long		count;
+	unsigned int		timer_flag;
 
 	/*
 	 * We save the command-line string to preserve
@@ -231,7 +232,8 @@ static struct entry *tstat_lookup(struct entry *entry, char *comm)
  * incremented. Otherwise the timer is registered in a free slot.
  */
 void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-			      void *timerf, char * comm)
+			      void *timerf, char *comm,
+			      unsigned int timer_flag)
 {
 	/*
 	 * It doesnt matter which lock we take:
@@ -249,6 +251,7 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 	input.start_func = startf;
 	input.expire_func = timerf;
 	input.pid = pid;
+	input.timer_flag = timer_flag;
 
 	spin_lock_irqsave(lock, flags);
 	if (!active)
@@ -295,7 +298,7 @@ static int tstats_show(struct seq_file *m, void *v)
 	period = ktime_to_timespec(time);
 	ms = period.tv_nsec / 1000000;
 
-	seq_puts(m, "Timer Stats Version: v0.1\n");
+	seq_puts(m, "Timer Stats Version: v0.2\n");
 	seq_printf(m, "Sample period: %ld.%03ld s\n", period.tv_sec, ms);
 	if (atomic_read(&overflow_count))
 		seq_printf(m, "Overflow: %d entries\n",
@@ -303,8 +306,13 @@ static int tstats_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < nr_entries; i++) {
 		entry = entries + i;
-		seq_printf(m, "%4lu, %5d %-16s ",
+ 		if (entry->timer_flag & TIMER_STATS_FLAG_DEFERRABLE) {
+			seq_printf(m, "%4luD, %5d %-16s ",
 				entry->count, entry->pid, entry->comm);
+		} else {
+			seq_printf(m, " %4lu, %5d %-16s ",
+				entry->count, entry->pid, entry->comm);
+		}
 
 		print_name_offset(m, (unsigned long)entry->start_func);
 		seq_puts(m, " (");

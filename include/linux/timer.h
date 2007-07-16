@@ -90,16 +90,13 @@ extern unsigned long get_next_timer_interrupt(unsigned long now);
  */
 #ifdef CONFIG_TIMER_STATS
 
+#define TIMER_STATS_FLAG_DEFERRABLE	0x1
+
 extern void init_timer_stats(void);
 
 extern void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-				     void *timerf, char * comm);
-
-static inline void timer_stats_account_timer(struct timer_list *timer)
-{
-	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
-				 timer->function, timer->start_comm);
-}
+				     void *timerf, char *comm,
+				     unsigned int timer_flag);
 
 extern void __timer_stats_timer_set_start_info(struct timer_list *timer,
 					       void *addr);
@@ -115,10 +112,6 @@ static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
 }
 #else
 static inline void init_timer_stats(void)
-{
-}
-
-static inline void timer_stats_account_timer(struct timer_list *timer)
 {
 }
 
