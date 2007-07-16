@@ -2,11 +2,9 @@
 # Telephony device configuration
 #
 
-menu "Telephony Support"
+menuconfig PHONE
+	tristate "Telephony support"
 	depends on HAS_IOMEM
-
-config PHONE
-	tristate "Linux telephony support"
 	---help---
 	  Say Y here if you have a telephony card, which for example allows
 	  you to use a regular phone for voice-over-IP applications.
@@ -17,9 +15,10 @@ config PHONE
 	  To compile this driver as a module, choose M here: the
 	  module will be called phonedev.
 
+if PHONE
+
 config PHONE_IXJ
 	tristate "QuickNet Internet LineJack/PhoneJack support"
-	depends on PHONE
 	---help---
 	  Say M if you have a telephony card manufactured by Quicknet
 	  Technologies, Inc.  These include the Internet PhoneJACK and
@@ -44,5 +43,4 @@ config PHONE_IXJ_PCMCIA
 	  cards manufactured by Quicknet Technologies, Inc.  This changes the
 	  card initialization code to work with the card manager daemon.
 
-endmenu
-
+endif # PHONE
