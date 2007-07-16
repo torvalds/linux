@@ -6,18 +6,18 @@ choice
 
 config SH_R7780RP
 	bool "R7780RP-1 board support"
-	select CPU_SUBTYPE_SH7780
+	depends on CPU_SUBTYPE_SH7780
 
 config SH_R7780MP
 	bool "R7780MP board support"
-	select CPU_SUBTYPE_SH7780
+	depends on CPU_SUBTYPE_SH7780
 	help
 	  Selecting this option will enable support for the mass-production
 	  version of the R7780RP. If in doubt, say Y.
 
 config SH_R7785RP
 	bool "R7785RP board support"
-	select CPU_SUBTYPE_SH7785
+	depends on CPU_SUBTYPE_SH7785
 
 endchoice
 

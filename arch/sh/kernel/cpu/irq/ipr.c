@@ -22,58 +22,57 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 
+static inline struct ipr_desc *get_ipr_desc(unsigned int irq)
+{
+	struct irq_chip *chip = get_irq_chip(irq);
+	return (void *)((char *)chip - offsetof(struct ipr_desc, chip));
+}
+
 static void disable_ipr_irq(unsigned int irq)
 {
 	struct ipr_data *p = get_irq_chip_data(irq);
+	unsigned long addr = get_ipr_desc(irq)->ipr_offsets[p->ipr_idx];
 	/* Set the priority in IPR to 0 */
-	ctrl_outw(ctrl_inw(p->addr) & (0xffff ^ (0xf << p->shift)), p->addr);
+	ctrl_outw(ctrl_inw(addr) & (0xffff ^ (0xf << p->shift)), addr);
 }
 
 static void enable_ipr_irq(unsigned int irq)
 {
 	struct ipr_data *p = get_irq_chip_data(irq);
+	unsigned long addr = get_ipr_desc(irq)->ipr_offsets[p->ipr_idx];
 	/* Set priority in IPR back to original value */
-	ctrl_outw(ctrl_inw(p->addr) | (p->priority << p->shift), p->addr);
+	ctrl_outw(ctrl_inw(addr) | (p->priority << p->shift), addr);
 }
 
-static struct irq_chip ipr_irq_chip = {
-	.name		= "IPR",
-	.mask		= disable_ipr_irq,
-	.unmask		= enable_ipr_irq,
-	.mask_ack	= disable_ipr_irq,
-};
+/*
+ * The shift value is now the number of bits to shift, not the number of
+ * bits/4. This is to make it easier to read the value directly from the
+ * datasheets. The IPR address is calculated using the ipr_offset table.
+ */
 
-unsigned int map_ipridx_to_addr(int idx) __attribute__ ((weak));
-unsigned int map_ipridx_to_addr(int idx)
-{
-	return 0;
-}
-
-void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs)
+void register_ipr_controller(struct ipr_desc *desc)
 {
 	int i;
 
-	for (i = 0; i < nr_irqs; i++) {
-		unsigned int irq = table[i].irq;
+	desc->chip.mask = disable_ipr_irq;
+	desc->chip.unmask = enable_ipr_irq;
+	desc->chip.mask_ack = disable_ipr_irq;
 
-		if (!irq)
-			irq = table[i].irq = i;
+	for (i = 0; i < desc->nr_irqs; i++) {
+		struct ipr_data *p = desc->ipr_data + i;
 
-		/* could the IPR index be mapped, if not we ignore this */
-		if (!table[i].addr) {
-			table[i].addr = map_ipridx_to_addr(table[i].ipr_idx);
-			if (!table[i].addr)
-				continue;
-		}
+		BUG_ON(p->ipr_idx >= desc->nr_offsets);
+		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
 
-		disable_irq_nosync(irq);
-		set_irq_chip_and_handler_name(irq, &ipr_irq_chip,
+		disable_irq_nosync(p->irq);
+		set_irq_chip_and_handler_name(p->irq, &desc->chip,
 				      handle_level_irq, "level");
-		set_irq_chip_data(irq, &table[i]);
-		enable_ipr_irq(irq);
+		set_irq_chip_data(p->irq, p);
+		disable_ipr_irq(p->irq);
 	}
 }
-EXPORT_SYMBOL(make_ipr_irq);
+
+EXPORT_SYMBOL(register_ipr_controller);
 
 #if !defined(CONFIG_CPU_HAS_PINT_IRQ)
 int ipr_irq_demux(int irq)

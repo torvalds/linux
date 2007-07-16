@@ -60,6 +60,7 @@ extern void (*copy_page)(void *to, void *from);
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
+extern unsigned long memory_start, memory_end;
 
 #ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
@@ -134,7 +135,9 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
 #define ARCH_PFN_OFFSET		(PFN_START)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) >= min_low_pfn && (pfn) < max_low_pfn)
+#endif
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
@@ -147,6 +150,13 @@ typedef struct { unsigned long pgd; } pgd_t;
 #ifdef CONFIG_VSYSCALL
 #define __HAVE_ARCH_GATE_AREA
 #endif
+
+/*
+ * Slub defaults to 8-byte alignment, we're only interested in 4.
+ * Slab defaults to BYTES_PER_WORD, which ends up being the same anyways.
+ */
+#define ARCH_KMALLOC_MINALIGN	4
+#define ARCH_SLAB_MINALIGN	4
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */

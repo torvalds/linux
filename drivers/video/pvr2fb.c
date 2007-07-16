@@ -115,11 +115,11 @@ enum { VO_PAL, VO_NTSC, VO_VGA };
 enum { PAL_ARGB1555, PAL_RGB565, PAL_ARGB4444, PAL_ARGB8888 };
 
 struct pvr2_params { unsigned int val; char *name; };
-static struct pvr2_params cables[] __initdata = {
+static struct pvr2_params cables[] __devinitdata = {
 	{ CT_VGA, "VGA" }, { CT_RGB, "RGB" }, { CT_COMPOSITE, "COMPOSITE" },
 };
 
-static struct pvr2_params outputs[] __initdata = {
+static struct pvr2_params outputs[] __devinitdata = {
 	{ VO_PAL, "PAL" }, { VO_NTSC, "NTSC" }, { VO_VGA, "VGA" },
 };
 
@@ -147,16 +147,16 @@ static struct pvr2fb_par {
 
 static struct fb_info *fb_info;
 
-static struct fb_fix_screeninfo pvr2_fix __initdata = {
+static struct fb_fix_screeninfo pvr2_fix __devinitdata = {
 	.id =		"NEC PowerVR2",
-	.type = 	FB_TYPE_PACKED_PIXELS,
-	.visual = 	FB_VISUAL_TRUECOLOR,
+	.type =		FB_TYPE_PACKED_PIXELS,
+	.visual =	FB_VISUAL_TRUECOLOR,
 	.ypanstep =	1,
 	.ywrapstep =	1,
-	.accel = 	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo pvr2_var __initdata = {
+static struct fb_var_screeninfo pvr2_var __devinitdata = {
 	.xres =		640,
 	.yres =		480,
 	.xres_virtual =	640,
@@ -195,10 +195,6 @@ static unsigned int shdma = PVR2_CASCADE_CHAN;
 static unsigned int pvr2dma = ONCHIP_NR_DMA_CHANNELS;
 #endif
 
-/* Interface used by the world */
-
-int pvr2fb_setup(char*);
-
 static int pvr2fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green, unsigned int blue,
                             unsigned int transp, struct fb_info *info);
 static int pvr2fb_blank(int blank, struct fb_info *info);
@@ -227,12 +223,12 @@ static struct fb_ops pvr2fb_ops = {
 #ifdef CONFIG_SH_DMA
 	.fb_write	= pvr2fb_write,
 #endif
-	.fb_fillrect 	= cfb_fillrect,
+	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static struct fb_videomode pvr2_modedb[] __initdata = {
+static struct fb_videomode pvr2_modedb[] __devinitdata = {
     /*
      * Broadcast video modes (PAL and NTSC).  I'm unfamiliar with
      * PAL-M and PAL-N, but from what I've read both modes parallel PAL and
@@ -252,7 +248,7 @@ static struct fb_videomode pvr2_modedb[] __initdata = {
 	/* 640x480 @ 60hz (VGA) */
 	"vga_640x480", 60, 640, 480, VGA_CLK, 38, 33, 0, 18, 146, 26,
 	0, FB_VMODE_YWRAP
-    }, 
+    },
 };
 
 #define NUM_TOTAL_MODES  ARRAY_SIZE(pvr2_modedb)
@@ -262,7 +258,7 @@ static struct fb_videomode pvr2_modedb[] __initdata = {
 #define DEFMODE_VGA	2
 
 static int defmode = DEFMODE_NTSC;
-static char *mode_option __initdata = NULL;
+static char *mode_option __devinitdata = NULL;
 
 static inline void pvr2fb_set_pal_type(unsigned int type)
 {
@@ -293,7 +289,7 @@ static void set_color_bitfields(struct fb_var_screeninfo *var)
 {
 	switch (var->bits_per_pixel) {
 	    case 16:        /* RGB 565 */
-	    	pvr2fb_set_pal_type(PAL_RGB565);
+		pvr2fb_set_pal_type(PAL_RGB565);
 		var->red.offset = 11;    var->red.length = 5;
 		var->green.offset = 5;   var->green.length = 6;
 		var->blue.offset = 0;    var->blue.length = 5;
@@ -306,7 +302,7 @@ static void set_color_bitfields(struct fb_var_screeninfo *var)
 		var->transp.offset = 0;  var->transp.length = 0;
 		break;
 	    case 32:        /* ARGB 8888 */
-	    	pvr2fb_set_pal_type(PAL_ARGB8888);
+		pvr2fb_set_pal_type(PAL_ARGB8888);
 		var->red.offset = 16;    var->red.length = 8;
 		var->green.offset = 8;   var->green.length = 8;
 		var->blue.offset = 0;    var->blue.length = 8;
@@ -379,13 +375,13 @@ static int pvr2fb_set_par(struct fb_info *info)
 	var->vmode &= FB_VMODE_MASK;
 	if (var->vmode & FB_VMODE_INTERLACED && video_output != VO_VGA)
 		par->is_interlaced = 1;
-	/* 
+	/*
 	 * XXX: Need to be more creative with this (i.e. allow doublecan for
 	 * PAL/NTSC output).
 	 */
 	if (var->vmode & FB_VMODE_DOUBLE && video_output == VO_VGA)
 		par->is_doublescan = 1;
-	
+
 	par->hsync_total = var->left_margin + var->xres + var->right_margin +
 	                   var->hsync_len;
 	par->vsync_total = var->upper_margin + var->yres + var->lower_margin +
@@ -408,7 +404,7 @@ static int pvr2fb_set_par(struct fb_info *info)
 	} else {
 		/* VGA mode */
 		/* XXX: What else needs to be checked? */
-		/* 
+		/*
 		 * XXX: We have a little freedom in VGA modes, what ranges
 		 * should be here (i.e. hsync/vsync totals, etc.)?
 		 */
@@ -419,8 +415,8 @@ static int pvr2fb_set_par(struct fb_info *info)
 	/* Calculate the remainding offsets */
 	par->diwstart_h = par->borderstart_h + var->left_margin;
 	par->diwstart_v = par->borderstart_v + var->upper_margin;
-	par->borderstop_h = par->diwstart_h + var->xres + 
-			    var->right_margin;    
+	par->borderstop_h = par->diwstart_h + var->xres +
+			    var->right_margin;
 	par->borderstop_v = par->diwstart_v + var->yres +
 			    var->lower_margin;
 
@@ -465,12 +461,12 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	set_color_bitfields(var);
 
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->xoffset || var->yoffset < 0 || 
+		if (var->xoffset || var->yoffset < 0 ||
 		    var->yoffset >= var->yres_virtual) {
 			var->xoffset = var->yoffset = 0;
 		} else {
 			if (var->xoffset > var->xres_virtual - var->xres ||
-		    	    var->yoffset > var->yres_virtual - var->yres || 
+			    var->yoffset > var->yres_virtual - var->yres ||
 			    var->xoffset < 0 || var->yoffset < 0)
 				var->xoffset = var->yoffset = 0;
 		}
@@ -478,7 +474,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->xoffset = var->yoffset = 0;
 	}
 
-	/* 
+	/*
 	 * XXX: Need to be more creative with this (i.e. allow doublecan for
 	 * PAL/NTSC output).
 	 */
@@ -507,7 +503,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->vsync_len    = par->borderstop_v +
 				   (par->vsync_total - par->borderstop_v);
 	}
-		
+
 	hsync_total = var->left_margin + var->xres + var->right_margin +
 		      var->hsync_len;
 	vtotal = var->upper_margin + var->yres + var->lower_margin +
@@ -531,7 +527,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			}
 		}
 	}
-	
+
 	/* Check memory sizes */
 	line_length = get_line_length(var->xres_virtual, var->bits_per_pixel);
 	if (line_length * var->yres_virtual > info->fix.smem_len)
@@ -552,7 +548,7 @@ static void pvr2_update_display(struct fb_info *info)
 	          DISP_DIWADDRS);
 }
 
-/* 
+/*
  * Initialize the video mode.  Currently, the 16bpp and 24bpp modes aren't
  * very stable.  It's probably due to the fact that a lot of the 2D video
  * registers are still undocumented.
@@ -592,18 +588,18 @@ static void pvr2_init_display(struct fb_info *info)
 	/* display window start position */
 	fb_writel(par->diwstart_h, DISP_DIWHSTRT);
 	fb_writel((par->diwstart_v << 16) | par->diwstart_v, DISP_DIWVSTRT);
-	
+
 	/* misc. settings */
 	fb_writel((0x16 << 16) | par->is_lowres, DISP_DIWCONF);
 
 	/* clock doubler (for VGA), scan doubler, display enable */
-	fb_writel(((video_output == VO_VGA) << 23) | 
+	fb_writel(((video_output == VO_VGA) << 23) |
 	          (par->is_doublescan << 1) | 1, DISP_DIWMODE);
 
 	/* bits per pixel */
 	fb_writel(fb_readl(DISP_DIWMODE) | (--bytesperpixel << 2), DISP_DIWMODE);
 
-	/* video enable, color sync, interlace, 
+	/* video enable, color sync, interlace,
 	 * hsync and vsync polarity (currently unused) */
 	fb_writel(0x100 | ((par->is_interlaced /*|4*/) << 4), DISP_SYNCCONF);
 }
@@ -657,7 +653,7 @@ static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id)
 static int pvr2_init_cable(void)
 {
 	if (cable_type < 0) {
-		fb_writel((fb_readl(PCTRA) & 0xfff0ffff) | 0x000a0000, 
+		fb_writel((fb_readl(PCTRA) & 0xfff0ffff) | 0x000a0000,
 	                  PCTRA);
 		cable_type = (fb_readw(PDTRA) >> 8) & 3;
 	}
@@ -687,7 +683,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
-	
+
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm, (unsigned long)buf,
 			     nr_pages, WRITE, 0, pages, NULL);
@@ -700,7 +696,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	}
 
 	dma_configure_channel(shdma, 0x12c1);
-	
+
 	dst   = (unsigned long)fb_info->screen_base + *ppos;
 	start = (unsigned long)page_address(pages[0]);
 	end   = (unsigned long)page_address(pages[nr_pages]);
@@ -744,7 +740,7 @@ out_unmap:
 	kfree(pages);
 
 	return ret;
-} 
+}
 #endif /* CONFIG_SH_DMA */
 
 /**
@@ -765,21 +761,21 @@ out_unmap:
  * in for flexibility anyways. Who knows, maybe someone has tv-out on a
  * PCI-based version of these things ;-)
  */
-static int __init pvr2fb_common_init(void)
+static int __devinit pvr2fb_common_init(void)
 {
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
 
 	fb_info->screen_base = ioremap_nocache(pvr2_fix.smem_start,
 					       pvr2_fix.smem_len);
-	
+
 	if (!fb_info->screen_base) {
 		printk(KERN_ERR "pvr2fb: Failed to remap smem space\n");
 		goto out_err;
 	}
 
 	par->mmio_base = (unsigned long)ioremap_nocache(pvr2_fix.mmio_start,
-					 		pvr2_fix.mmio_len);
+							pvr2_fix.mmio_len);
 	if (!par->mmio_base) {
 		printk(KERN_ERR "pvr2fb: Failed to remap mmio space\n");
 		goto out_err;
@@ -820,7 +816,7 @@ static int __init pvr2fb_common_init(void)
 	printk("fb%d: %s (rev %ld.%ld) frame buffer device, using %ldk/%ldk of video memory\n",
 	       fb_info->node, fb_info->fix.id, (rev >> 4) & 0x0f, rev & 0x0f,
 	       modememused >> 10, (unsigned long)(fb_info->fix.smem_len >> 10));
-	printk("fb%d: Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n", 
+	printk("fb%d: Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n",
 	       fb_info->node, fb_info->var.xres, fb_info->var.yres,
 	       fb_info->var.bits_per_pixel,
 	       get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
@@ -878,8 +874,8 @@ static int __init pvr2fb_dc_init(void)
 			video_output = VO_NTSC;
 		}
 	}
-	
-	/* 
+
+	/*
 	 * Nothing exciting about the DC PVR2 .. only a measly 8MiB.
 	 */
 	pvr2_fix.smem_start	= 0xa5000000;	/* RAM starts here */
@@ -903,7 +899,7 @@ static int __init pvr2fb_dc_init(void)
 	return pvr2fb_common_init();
 }
 
-static void pvr2fb_dc_exit(void)
+static void __exit pvr2fb_dc_exit(void)
 {
 	if (fb_info->screen_base) {
 		iounmap(fb_info->screen_base);
@@ -987,13 +983,13 @@ static int __init pvr2fb_pci_init(void)
 	return pci_register_driver(&pvr2fb_pci_driver);
 }
 
-static void pvr2fb_pci_exit(void)
+static void __exit pvr2fb_pci_exit(void)
 {
 	pci_unregister_driver(&pvr2fb_pci_driver);
 }
 #endif /* CONFIG_PCI */
 
-static int __init pvr2_get_param(const struct pvr2_params *p, const char *s,
+static int __devinit pvr2_get_param(const struct pvr2_params *p, const char *s,
                                    int val, int size)
 {
 	int i;
@@ -1021,7 +1017,7 @@ static int __init pvr2_get_param(const struct pvr2_params *p, const char *s,
  */
 
 #ifndef MODULE
-int __init pvr2fb_setup(char *options)
+static int __init pvr2fb_setup(char *options)
 {
 	char *this_opt;
 	char cable_arg[80];
@@ -1061,7 +1057,7 @@ static struct pvr2_board {
 	int (*init)(void);
 	void (*exit)(void);
 	char name[16];
-} board_list[] = {
+} board_driver[] = {
 #ifdef CONFIG_SH_DREAMCAST
 	{ pvr2fb_dc_init, pvr2fb_dc_exit, "Sega DC PVR2" },
 #endif
@@ -1071,7 +1067,7 @@ static struct pvr2_board {
 	{ 0, },
 };
 
-int __init pvr2fb_init(void)
+static int __init pvr2fb_init(void)
 {
 	int i, ret = -ENODEV;
 	int size;
@@ -1095,8 +1091,8 @@ int __init pvr2fb_init(void)
 
 	currentpar = (struct pvr2fb_par *)(fb_info + 1);
 
-	for (i = 0; i < ARRAY_SIZE(board_list); i++) {
-		struct pvr2_board *pvr_board = board_list + i;
+	for (i = 0; i < ARRAY_SIZE(board_driver); i++) {
+		struct pvr2_board *pvr_board = board_driver + i;
 
 		if (!pvr_board->init)
 			continue;
@@ -1118,13 +1114,13 @@ static void __exit pvr2fb_exit(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(board_list); i++) {
-		struct pvr2_board *pvr_board = board_list + i;
+	for (i = 0; i < ARRAY_SIZE(board_driver); i++) {
+		struct pvr2_board *pvr_board = board_driver + i;
 
 		if (pvr_board->exit)
 			pvr_board->exit();
 	}
-		
+
 #ifdef CONFIG_SH_STORE_QUEUES
 	sq_unmap(pvr2fb_map);
 #endif
@@ -1139,4 +1135,3 @@ module_exit(pvr2fb_exit);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, M. R. Brown <mrbrown@0xd6.org>");
 MODULE_DESCRIPTION("Framebuffer driver for NEC PowerVR 2 based graphics boards");
 MODULE_LICENSE("GPL");
-

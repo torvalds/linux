@@ -1,7 +1,7 @@
 /*
  * SH7722 Setup
  *
- *  Copyright (C) 2006  Paul Mundt
+ *  Copyright (C) 2006 - 2007  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -10,6 +10,8 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/mm.h>
+#include <asm/mmzone.h>
 #include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -42,7 +44,7 @@ static int __init sh7722_devices_setup(void)
 }
 __initcall(sh7722_devices_setup);
 
-static struct ipr_data sh7722_ipr_map[] = {
+static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, prio */
 	{ 16, 0, 12, 2 }, /* TMU0 */
 	{ 17, 0,  8, 2 }, /* TMU1 */
@@ -67,14 +69,25 @@ static unsigned long ipr_offsets[] = {
 	0xa408002c, /* 11: IPRL */
 };
 
-unsigned int map_ipridx_to_addr(int idx)
-{
-	if (unlikely(idx >= ARRAY_SIZE(ipr_offsets)))
-		return 0;
-	return ipr_offsets[idx];
-}
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
+
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+
+	.chip = {
+		.name	= "IPR-sh7722",
+	},
+};
 
 void __init init_IRQ_ipr(void)
 {
-	make_ipr_irq(sh7722_ipr_map, ARRAY_SIZE(sh7722_ipr_map));
+	register_ipr_controller(&ipr_irq_desc);
+}
+
+void __init plat_mem_setup(void)
+{
+	/* Register the URAM space as Node 1 */
+	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }

@@ -22,6 +22,8 @@
 #define FRQCR0			0xffc80000
 #define FRQCR1			0xffc80004
 #define FRQMR1			0xffc80014
+#elif defined(CONFIG_CPU_SUBTYPE_SHX3)
+#define FRQCR			0xffc00014
 #else
 #define FRQCR			0xffc00000
 #define FRQCR_PSTBY		0x0200

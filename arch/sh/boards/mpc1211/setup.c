@@ -338,11 +338,10 @@ static void __init mpc1211_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_mpc1211 __initmv = {
+static struct sh_machine_vector mv_mpc1211 __initmv = {
 	.mv_name		= "Interface MPC-1211(CTP/PCI/MPC-SH02)",
 	.mv_setup		= mpc1211_setup,
 	.mv_nr_irqs		= 48,
 	.mv_irq_demux		= mpc1211_irq_demux,
 	.mv_init_irq		= init_mpc1211_IRQ,
 };
-ALIAS_MV(mpc1211)

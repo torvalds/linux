@@ -28,7 +28,7 @@ static void __init sh7751systemh_init_irq(void)
 	make_systemh_irq(0xb);	/* Ethernet interrupt */
 }
 
-struct sh_machine_vector mv_7751systemh __initmv = {
+static struct sh_machine_vector mv_7751systemh __initmv = {
 	.mv_name		= "7751 SystemH",
 	.mv_nr_irqs		= 72,
 
@@ -55,4 +55,3 @@ struct sh_machine_vector mv_7751systemh __initmv = {
 
 	.mv_init_irq		= sh7751systemh_init_irq,
 };
-ALIAS_MV(7751systemh)

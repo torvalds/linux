@@ -29,7 +29,7 @@
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7710)
-#define TMU_TSTR	0xa412fe92	/* Byte access */
+#define TMU_012_TSTR	0xa412fe92	/* Byte access */
 
 #define TMU0_TCOR	0xa412fe94	/* Long access */
 #define TMU0_TCNT	0xa412fe98	/* Long access */
@@ -44,7 +44,7 @@
 #define TMU2_TCR	0xa412feb4	/* Word access */
 
 #else
-#define TMU_TSTR	0xfffffe92	/* Byte access */
+#define TMU_012_TSTR	0xfffffe92	/* Byte access */
 
 #define TMU0_TCOR	0xfffffe94	/* Long access */
 #define TMU0_TCNT	0xfffffe98	/* Long access */

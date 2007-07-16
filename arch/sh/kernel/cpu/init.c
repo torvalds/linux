@@ -21,8 +21,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
 #include <asm/io.h>
-
-extern void detect_cpu_and_cache_system(void);
+#include <asm/ubc.h>
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
@@ -152,15 +151,6 @@ static void __init cache_init(void)
 	flags |= CCR_CACHE_CB;
 #endif
 
-#ifdef CONFIG_SH_OCRAM
-	/* Turn on OCRAM -- halve the OC */
-	flags |= CCR_CACHE_ORA;
-	current_cpu_data.dcache.sets >>= 1;
-
-	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
-				    current_cpu_data.dcache.linesz;
-#endif
-
 	ctrl_outl(flags, CCR);
 	back_to_P1();
 }
@@ -269,7 +259,6 @@ asmlinkage void __init sh_cpu_init(void)
 	}
 #endif
 
-#ifdef CONFIG_UBC_WAKEUP
 	/*
 	 * Some brain-damaged loaders decided it would be a good idea to put
 	 * the UBC to sleep. This causes some issues when it comes to things
@@ -277,7 +266,5 @@ asmlinkage void __init sh_cpu_init(void)
 	 * we wake it up and hope that all is well.
 	 */
 	ubc_wakeup();
-#endif
-
 	speculative_execution_init();
 }

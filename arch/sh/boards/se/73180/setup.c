@@ -46,7 +46,7 @@ __initcall(se73180_devices_setup);
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_73180se __initmv = {
+static struct sh_machine_vector mv_73180se __initmv = {
 	.mv_name = "SolutionEngine 73180",
 	.mv_nr_irqs = 108,
 	.mv_inb = sh73180se_inb,
@@ -73,4 +73,3 @@ struct sh_machine_vector mv_73180se __initmv = {
 	.mv_init_irq = init_73180se_IRQ,
 	.mv_irq_demux = shmse_irq_demux,
 };
-ALIAS_MV(73180se)

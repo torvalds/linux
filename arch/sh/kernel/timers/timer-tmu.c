@@ -30,7 +30,7 @@
 
 static int tmu_timer_start(void)
 {
-	ctrl_outb(ctrl_inb(TMU_TSTR) | 0x3, TMU_TSTR);
+	ctrl_outb(ctrl_inb(TMU_012_TSTR) | 0x3, TMU_012_TSTR);
 	return 0;
 }
 
@@ -52,7 +52,7 @@ static void tmu0_timer_set_interval(unsigned long interval, unsigned int reload)
 
 static int tmu_timer_stop(void)
 {
-	ctrl_outb(ctrl_inb(TMU_TSTR) & ~0x3, TMU_TSTR);
+	ctrl_outb(ctrl_inb(TMU_012_TSTR) & ~0x3, TMU_012_TSTR);
 	return 0;
 }
 
@@ -174,7 +174,8 @@ static int tmu_timer_init(void)
 
 #if !defined(CONFIG_CPU_SUBTYPE_SH7300) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
-    !defined(CONFIG_CPU_SUBTYPE_SH7785)
+    !defined(CONFIG_CPU_SUBTYPE_SH7785) && \
+    !defined(CONFIG_CPU_SUBTYPE_SHX3)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 #endif
 

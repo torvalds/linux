@@ -176,7 +176,7 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_rts7751r2d __initmv = {
+static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_name		= "RTS7751R2D",
 	.mv_setup		= rts7751r2d_setup,
 	.mv_nr_irqs		= 72,
@@ -189,4 +189,3 @@ struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_consistent_free	= voyagergx_consistent_free,
 #endif
 };
-ALIAS_MV(rts7751r2d)

@@ -1,5 +1,3 @@
-menu "Processor selection"
-
 #
 # Processor families
 #
@@ -38,27 +36,31 @@ config CPU_SUBTYPE_ST40
 config CPU_SHX2
 	bool
 
+config CPU_SHX3
+	bool
+
+choice
+	prompt "Processor sub-type selection"
+
 #
 # Processor subtypes
 #
 
-comment "SH-2 Processor Support"
-
-config CPU_SUBTYPE_SH7604
-	bool "Support SH7604 processor"
-	select CPU_SH2
+# SH-2 Processor Support
 
 config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
+	select CPU_HAS_IPR_IRQ
 
-comment "SH-2A Processor Support"
+# SH-2A Processor Support
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
+	select CPU_HAS_IPR_IRQ
 
-comment "SH-3 Processor Support"
+# SH-3 Processor Support
 
 config CPU_SUBTYPE_SH7300
 	bool "Support SH7300 processor"
@@ -113,7 +115,7 @@ config CPU_SUBTYPE_SH7712
 	help
 	  Select SH7712 if you have a SH3-DSP SH7712 CPU.
 
-comment "SH-4 Processor Support"
+# SH-4 Processor Support
 
 config CPU_SUBTYPE_SH7750
 	bool "Support SH7750 processor"
@@ -125,7 +127,7 @@ config CPU_SUBTYPE_SH7750
 config CPU_SUBTYPE_SH7091
 	bool "Support SH7091 processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
+	select CPU_HAS_IPR_IRQ
 	help
 	  Select SH7091 if you have an SH-4 based Sega device (such as
 	  the Dreamcast, Naomi, and Naomi 2).
@@ -133,13 +135,11 @@ config CPU_SUBTYPE_SH7091
 config CPU_SUBTYPE_SH7750R
 	bool "Support SH7750R processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7750S
 	bool "Support SH7750S processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7751
@@ -153,7 +153,6 @@ config CPU_SUBTYPE_SH7751
 config CPU_SUBTYPE_SH7751R
 	bool "Support SH7751R processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7751
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7760
@@ -166,7 +165,7 @@ config CPU_SUBTYPE_SH4_202
 	bool "Support SH4-202 processor"
 	select CPU_SH4
 
-comment "ST40 Processor Support"
+# ST40 Processor Support
 
 config CPU_SUBTYPE_ST40STB1
 	bool "Support ST40STB1/ST40RA processors"
@@ -181,7 +180,7 @@ config CPU_SUBTYPE_ST40GX1
 	help
 	  Select ST40GX1 if you have a ST40GX1 CPU.
 
-comment "SH-4A Processor Support"
+# SH-4A Processor Support
 
 config CPU_SUBTYPE_SH7770
 	bool "Support SH7770 processor"
@@ -198,7 +197,13 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select CPU_HAS_INTC2_IRQ
 
-comment "SH4AL-DSP Processor Support"
+config CPU_SUBTYPE_SHX3
+	bool "Support SH-X3 processor"
+	select CPU_SH4A
+	select CPU_SHX3
+	select CPU_HAS_INTC2_IRQ
+
+# SH4AL-DSP Processor Support
 
 config CPU_SUBTYPE_SH73180
 	bool "Support SH73180 processor"
@@ -213,8 +218,10 @@ config CPU_SUBTYPE_SH7722
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
 	select CPU_HAS_IPR_IRQ
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
 
-endmenu
+endchoice
 
 menu "Memory management options"
 
@@ -266,7 +273,7 @@ config MEMORY_SIZE
 
 config 32BIT
 	bool "Support 32-bit physical addressing through PMB"
-	depends on CPU_SH4A && MMU && (!X2TLB || BROKEN)
+	depends on MMU && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
 	default y
 	help
 	  If you say Y here, physical addressing will be extended to
@@ -295,6 +302,17 @@ config VSYSCALL
 	  For systems with an MMU that can afford to give up a page,
 	  (the default value) say Y.
 
+config NUMA
+	bool "Non Uniform Memory Access (NUMA) Support"
+	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
+	default n
+	help
+	  Some SH systems have many various memories scattered around
+	  the address space, each with varying latencies. This enables
+	  support for these blocks by binding them to nodes and allowing
+	  memory policies to be used for prioritizing and controlling
+	  allocation behaviour.
+
 config NODES_SHIFT
 	int
 	default "1"
@@ -302,13 +320,33 @@ config NODES_SHIFT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
+	depends on !NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	select SPARSEMEM_STATIC
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
 
 config MAX_ACTIVE_REGIONS
 	int
+	default "2" if (CPU_SUBTYPE_SH7722 && SPARSEMEM)
 	default "1"
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on SPARSEMEM
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 choice
 	prompt "Kernel page size"
@@ -391,17 +429,6 @@ config SH_WRITETHROUGH
 	  Since there's sill some aliasing issues on SH-4, this option will
 	  unfortunately still require the majority of flushing functions to
 	  be implemented to deal with aliasing.
-
-	  If unsure, say N.
-
-config SH_OCRAM
-	bool "Operand Cache RAM (OCRAM) support"
-	help
-	  Selecting this option will automatically tear down the number of
-	  sets in the dcache by half, which in turn exposes a memory range.
-
-	  The addresses for the OC RAM base will vary according to the
-	  processor version. Consult vendor documentation for specifics.
 
 	  If unsure, say N.
 
