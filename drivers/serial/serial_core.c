@@ -1910,6 +1910,12 @@ uart_set_options(struct uart_port *port, struct console *co,
 	if (flow == 'r')
 		termios.c_cflag |= CRTSCTS;
 
+	/*
+	 * some uarts on other side don't support no flow control.
+	 * So we set * DTR in host uart to make them happy
+	 */
+	port->mctrl |= TIOCM_DTR;
+
 	port->ops->set_termios(port, &termios, NULL);
 	co->cflag = termios.c_cflag;
 
