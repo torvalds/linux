@@ -993,17 +993,42 @@ static int ahci_kick_engine(struct ata_port *ap, int force_restart)
 	return rc;
 }
 
+static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
+				struct ata_taskfile *tf, int is_cmd, u16 flags,
+				unsigned long timeout_msec)
+{
+	const u32 cmd_fis_len = 5; /* five dwords */
+	struct ahci_port_priv *pp = ap->private_data;
+	void __iomem *port_mmio = ahci_port_base(ap);
+	u8 *fis = pp->cmd_tbl;
+	u32 tmp;
+
+	/* prep the command */
+	ata_tf_to_fis(tf, pmp, is_cmd, fis);
+	ahci_fill_cmd_slot(pp, 0, cmd_fis_len | flags | (pmp << 12));
+
+	/* issue & wait */
+	writel(1, port_mmio + PORT_CMD_ISSUE);
+
+	if (timeout_msec) {
+		tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1,
+					1, timeout_msec);
+		if (tmp & 0x1) {
+			ahci_kick_engine(ap, 1);
+			return -EBUSY;
+		}
+	} else
+		readl(port_mmio + PORT_CMD_ISSUE);	/* flush */
+
+	return 0;
+}
+
 static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 			  unsigned long deadline)
 {
-	struct ahci_port_priv *pp = ap->private_data;
-	void __iomem *port_mmio = ahci_port_base(ap);
-	const u32 cmd_fis_len = 5; /* five dwords */
 	const char *reason = NULL;
 	unsigned long now, msecs;
 	struct ata_taskfile tf;
-	u32 tmp;
-	u8 *fis;
 	int rc;
 
 	DPRINTK("ENTER\n");
@@ -1021,7 +1046,6 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 				"failed to reset engine (errno=%d)", rc);
 
 	ata_tf_init(ap->device, &tf);
-	fis = pp->cmd_tbl;
 
 	/* issue the first D2H Register FIS */
 	msecs = 0;
@@ -1029,16 +1053,9 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 	if (time_after(now, deadline))
 		msecs = jiffies_to_msecs(deadline - now);
 
-	ahci_fill_cmd_slot(pp, 0,
-			   cmd_fis_len | AHCI_CMD_RESET | AHCI_CMD_CLR_BUSY);
-
 	tf.ctl |= ATA_SRST;
-	ata_tf_to_fis(&tf, 0, 0, fis);
-
-	writel(1, port_mmio + PORT_CMD_ISSUE);
-
-	tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1, 1, msecs);
-	if (tmp & 0x1) {
+	if (ahci_exec_polled_cmd(ap, 0, &tf, 0,
+				 AHCI_CMD_RESET | AHCI_CMD_CLR_BUSY, msecs)) {
 		rc = -EIO;
 		reason = "1st FIS failed";
 		goto fail;
@@ -1048,13 +1065,8 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 	msleep(1);
 
 	/* issue the second D2H Register FIS */
-	ahci_fill_cmd_slot(pp, 0, cmd_fis_len);
-
 	tf.ctl &= ~ATA_SRST;
-	ata_tf_to_fis(&tf, 0, 0, fis);
-
-	writel(1, port_mmio + PORT_CMD_ISSUE);
-	readl(port_mmio + PORT_CMD_ISSUE);	/* flush */
+	ahci_exec_polled_cmd(ap, 0, &tf, 0, 0, 0);
 
 	/* spec mandates ">= 2ms" before checking status.
 	 * We wait 150ms, because that was the magic delay used for
