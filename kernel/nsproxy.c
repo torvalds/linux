@@ -21,6 +21,8 @@
 #include <linux/utsname.h>
 #include <linux/pid_namespace.h>
 
+static struct kmem_cache *nsproxy_cachep;
+
 struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
 
 static inline void get_nsproxy(struct nsproxy *ns)
@@ -43,9 +45,11 @@ static inline struct nsproxy *clone_nsproxy(struct nsproxy *orig)
 {
 	struct nsproxy *ns;
 
-	ns = kmemdup(orig, sizeof(struct nsproxy), GFP_KERNEL);
-	if (ns)
+	ns = kmem_cache_alloc(nsproxy_cachep, GFP_KERNEL);
+	if (ns) {
+		memcpy(ns, orig, sizeof(struct nsproxy));
 		atomic_set(&ns->count, 1);
+	}
 	return ns;
 }
 
@@ -109,7 +113,7 @@ out_uts:
 	if (new_nsp->mnt_ns)
 		put_mnt_ns(new_nsp->mnt_ns);
 out_ns:
-	kfree(new_nsp);
+	kmem_cache_free(nsproxy_cachep, new_nsp);
 	return ERR_PTR(err);
 }
 
@@ -160,7 +164,7 @@ void free_nsproxy(struct nsproxy *ns)
 		put_pid_ns(ns->pid_ns);
 	if (ns->user_ns)
 		put_user_ns(ns->user_ns);
-	kfree(ns);
+	kmem_cache_free(nsproxy_cachep, ns);
 }
 
 /*
@@ -185,3 +189,12 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 		err = PTR_ERR(*new_nsp);
 	return err;
 }
+
+static int __init nsproxy_cache_init(void)
+{
+	nsproxy_cachep = kmem_cache_create("nsproxy", sizeof(struct nsproxy),
+					   0, SLAB_PANIC, NULL, NULL);
+	return 0;
+}
+
+module_init(nsproxy_cache_init);
