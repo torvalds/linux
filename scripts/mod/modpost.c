@@ -929,6 +929,26 @@ static int addend_386_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
 	return 0;
 }
 
+static int addend_arm_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
+{
+	unsigned int r_typ = ELF_R_TYPE(r->r_info);
+
+	switch (r_typ) {
+	case R_ARM_ABS32:
+		/* From ARM ABI: (S + A) | T */
+		r->r_addend = (int)(long)(elf->symtab_start + ELF_R_SYM(r->r_info));
+		break;
+	case R_ARM_PC24:
+		/* From ARM ABI: ((S + A) | T) - P */
+		r->r_addend = (int)(long)(elf->hdr + elf->sechdrs[rsection].sh_offset +
+		                          (r->r_offset - elf->sechdrs[rsection].sh_addr));
+		break;
+	default:
+		return 1;
+	}
+	return 0;
+}
+
 static int addend_mips_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
@@ -1049,6 +1069,10 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				switch (hdr->e_machine) {
 				case EM_386:
 					if (addend_386_rel(elf, i, &r))
+						continue;
+					break;
+				case EM_ARM:
+					if(addend_arm_rel(elf, i, &r))
 						continue;
 					break;
 				case EM_MIPS:
