@@ -414,8 +414,8 @@ struct cdrom_generic_command
 #define CDO_CHECK_TYPE		0x10    /* check type on open for data */
 
 /* Special codes used when specifying changer slots. */
-#define CDSL_NONE       	((int) (~0U>>1)-1)
-#define CDSL_CURRENT    	((int) (~0U>>1))
+#define CDSL_NONE       	(INT_MAX-1)
+#define CDSL_CURRENT    	INT_MAX
 
 /* For partition based multisession access. IDE can handle 64 partitions
  * per drive - SCSI CD-ROM's use minors to differentiate between the
