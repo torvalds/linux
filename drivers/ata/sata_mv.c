@@ -1411,12 +1411,12 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			EDMA_ERR_INTRL_PAR)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_HARDRESET;
-		ata_ehi_push_desc(ehi, ", parity error");
+		ata_ehi_push_desc(ehi, "parity error");
 	}
 	if (edma_err_cause & (EDMA_ERR_DEV_DCON | EDMA_ERR_DEV_CON)) {
 		ata_ehi_hotplugged(ehi);
 		ata_ehi_push_desc(ehi, edma_err_cause & EDMA_ERR_DEV_DCON ?
-			", dev disconnect" : ", dev connect");
+			"dev disconnect" : "dev connect");
 	}
 
 	if (IS_GEN_I(hpriv)) {
@@ -1425,7 +1425,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		if (edma_err_cause & EDMA_ERR_SELF_DIS_5) {
 			struct mv_port_priv *pp	= ap->private_data;
 			pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
-			ata_ehi_push_desc(ehi, ", EDMA self-disable");
+			ata_ehi_push_desc(ehi, "EDMA self-disable");
 		}
 	} else {
 		eh_freeze_mask = EDMA_EH_FREEZE;
@@ -1433,7 +1433,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		if (edma_err_cause & EDMA_ERR_SELF_DIS) {
 			struct mv_port_priv *pp	= ap->private_data;
 			pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
-			ata_ehi_push_desc(ehi, ", EDMA self-disable");
+			ata_ehi_push_desc(ehi, "EDMA self-disable");
 		}
 
 		if (edma_err_cause & EDMA_ERR_SERR) {

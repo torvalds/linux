@@ -814,16 +814,16 @@ static void sil24_error_intr(struct ata_port *ap)
 
 	if (irq_stat & (PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG)) {
 		ata_ehi_hotplugged(ehi);
-		ata_ehi_push_desc(ehi, ", %s",
-			       irq_stat & PORT_IRQ_PHYRDY_CHG ?
-			       "PHY RDY changed" : "device exchanged");
+		ata_ehi_push_desc(ehi, "%s",
+				  irq_stat & PORT_IRQ_PHYRDY_CHG ?
+				  "PHY RDY changed" : "device exchanged");
 		freeze = 1;
 	}
 
 	if (irq_stat & PORT_IRQ_UNK_FIS) {
 		ehi->err_mask |= AC_ERR_HSM;
 		ehi->action |= ATA_EH_SOFTRESET;
-		ata_ehi_push_desc(ehi , ", unknown FIS");
+		ata_ehi_push_desc(ehi, "unknown FIS");
 		freeze = 1;
 	}
 
@@ -842,11 +842,11 @@ static void sil24_error_intr(struct ata_port *ap)
 		if (ci && ci->desc) {
 			err_mask |= ci->err_mask;
 			action |= ci->action;
-			ata_ehi_push_desc(ehi, ", %s", ci->desc);
+			ata_ehi_push_desc(ehi, "%s", ci->desc);
 		} else {
 			err_mask |= AC_ERR_OTHER;
 			action |= ATA_EH_SOFTRESET;
-			ata_ehi_push_desc(ehi, ", unknown command error %d",
+			ata_ehi_push_desc(ehi, "unknown command error %d",
 					  cerr);
 		}
 

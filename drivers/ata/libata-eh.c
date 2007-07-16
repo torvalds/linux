@@ -85,6 +85,71 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 { }
 #endif /* CONFIG_PM */
 
+static void __ata_ehi_pushv_desc(struct ata_eh_info *ehi, const char *fmt,
+				 va_list args)
+{
+	ehi->desc_len += vscnprintf(ehi->desc + ehi->desc_len,
+				     ATA_EH_DESC_LEN - ehi->desc_len,
+				     fmt, args);
+}
+
+/**
+ *	__ata_ehi_push_desc - push error description without adding separator
+ *	@ehi: target EHI
+ *	@fmt: printf format string
+ *
+ *	Format string according to @fmt and append it to @ehi->desc.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	__ata_ehi_pushv_desc(ehi, fmt, args);
+	va_end(args);
+}
+
+/**
+ *	ata_ehi_push_desc - push error description with separator
+ *	@ehi: target EHI
+ *	@fmt: printf format string
+ *
+ *	Format string according to @fmt and append it to @ehi->desc.
+ *	If @ehi->desc is not empty, ", " is added in-between.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
+{
+	va_list args;
+
+	if (ehi->desc_len)
+		__ata_ehi_push_desc(ehi, ", ");
+
+	va_start(args, fmt);
+	__ata_ehi_pushv_desc(ehi, fmt, args);
+	va_end(args);
+}
+
+/**
+ *	ata_ehi_clear_desc - clean error description
+ *	@ehi: target EHI
+ *
+ *	Clear @ehi->desc.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_ehi_clear_desc(struct ata_eh_info *ehi)
+{
+	ehi->desc[0] = '\0';
+	ehi->desc_len = 0;
+}
+
 static void ata_ering_record(struct ata_ering *ering, int is_io,
 			     unsigned int err_mask)
 {
@@ -1524,14 +1589,14 @@ static void ata_eh_report(struct ata_port *ap)
 			       ehc->i.err_mask, ap->sactive, ehc->i.serror,
 			       ehc->i.action, frozen);
 		if (desc)
-			ata_dev_printk(ehc->i.dev, KERN_ERR, "(%s)\n", desc);
+			ata_dev_printk(ehc->i.dev, KERN_ERR, "%s\n", desc);
 	} else {
 		ata_port_printk(ap, KERN_ERR, "exception Emask 0x%x "
 				"SAct 0x%x SErr 0x%x action 0x%x%s\n",
 				ehc->i.err_mask, ap->sactive, ehc->i.serror,
 				ehc->i.action, frozen);
 		if (desc)
-			ata_port_printk(ap, KERN_ERR, "(%s)\n", desc);
+			ata_port_printk(ap, KERN_ERR, "%s\n", desc);
 	}
 
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {

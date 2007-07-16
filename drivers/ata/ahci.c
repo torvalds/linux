@@ -1289,12 +1289,12 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	if (irq_stat & PORT_IRQ_IF_ERR) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_SOFTRESET;
-		ata_ehi_push_desc(ehi, ", interface fatal error");
+		ata_ehi_push_desc(ehi, "interface fatal error");
 	}
 
 	if (irq_stat & (PORT_IRQ_CONNECT | PORT_IRQ_PHYRDY)) {
 		ata_ehi_hotplugged(ehi);
-		ata_ehi_push_desc(ehi, ", %s", irq_stat & PORT_IRQ_CONNECT ?
+		ata_ehi_push_desc(ehi, "%s", irq_stat & PORT_IRQ_CONNECT ?
 			"connection status changed" : "PHY RDY changed");
 	}
 
@@ -1303,7 +1303,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 
 		err_mask |= AC_ERR_HSM;
 		action |= ATA_EH_SOFTRESET;
-		ata_ehi_push_desc(ehi, ", unknown FIS %08x %08x %08x %08x",
+		ata_ehi_push_desc(ehi, "unknown FIS %08x %08x %08x %08x",
 				  unk[0], unk[1], unk[2], unk[3]);
 	}
 
