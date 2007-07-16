@@ -171,9 +171,6 @@ struct obs_kernel_param {
 #define __setup(str, fn)					\
 	__setup_param(str, fn, fn, 0)
 
-#define __obsolete_setup(str)					\
-	__setup_null_param(str, __LINE__)
-
 /* NOTE: fn is as per module_param, not __setup!  Emits warning if fn
  * returns non-zero. */
 #define early_param(str, fn)					\
@@ -239,7 +236,6 @@ void __init parse_early_param(void);
 #define __setup_param(str, unique_id, fn)	/* nothing */
 #define __setup_null_param(str, unique_id) 	/* nothing */
 #define __setup(str, func) 			/* nothing */
-#define __obsolete_setup(str) 			/* nothing */
 #endif
 
 /* Data marked not to be saved by software suspend */
