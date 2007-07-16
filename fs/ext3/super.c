@@ -2084,6 +2084,7 @@ static int ext3_create_journal(struct super_block * sb,
 			       unsigned int journal_inum)
 {
 	journal_t *journal;
+	int err;
 
 	if (sb->s_flags & MS_RDONLY) {
 		printk(KERN_ERR "EXT3-fs: readonly filesystem when trying to "
@@ -2091,13 +2092,15 @@ static int ext3_create_journal(struct super_block * sb,
 		return -EROFS;
 	}
 
-	if (!(journal = ext3_get_journal(sb, journal_inum)))
+	journal = ext3_get_journal(sb, journal_inum);
+	if (!journal)
 		return -EINVAL;
 
 	printk(KERN_INFO "EXT3-fs: creating new journal on inode %u\n",
 	       journal_inum);
 
-	if (journal_create(journal)) {
+	err = journal_create(journal);
+	if (err) {
 		printk(KERN_ERR "EXT3-fs: error creating journal.\n");
 		journal_destroy(journal);
 		return -EIO;
