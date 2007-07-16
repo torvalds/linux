@@ -273,6 +273,7 @@ config QUICC_ENGINE
 config CPM2
 	bool
 	default n
+	select CPM
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -308,5 +309,8 @@ config FSL_ULI1575
 	  Supports for the ULI1575 PCIe south bridge that exists on some
 	  Freescale reference boards. The boards all use the ULI in pretty
 	  much the same way.
+
+config CPM
+	bool
 
 endmenu

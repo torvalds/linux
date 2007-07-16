@@ -3,6 +3,7 @@ config FADS
 
 config CPM1
 	bool
+	select CPM
 
 choice
 	prompt "8xx Machine Type"

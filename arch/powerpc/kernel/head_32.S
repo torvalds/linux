@@ -149,6 +149,9 @@ __after_mmu_off:
 #if defined(CONFIG_BOOTX_TEXT)
 	bl	setup_disp_bat
 #endif
+#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
+	bl	setup_cpm_bat
+#endif
 
 /*
  * Call setup_cpu for CPU 0 and initialize 6xx Idle
@@ -1244,6 +1247,19 @@ setup_disp_bat:
 	mtspr	SPRN_IBAT3U,r11
 	blr
 #endif /* CONFIG_BOOTX_TEXT */
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
+setup_cpm_bat:
+	lis	r8, 0xf000
+	ori	r8, r8,	0x002a
+	mtspr	SPRN_DBAT1L, r8
+
+	lis	r11, 0xf000
+	ori	r11, r11, (BL_1M << 2) | 2
+	mtspr	SPRN_DBAT1U, r11
+
+	blr
+#endif
 
 #ifdef CONFIG_8260
 /* Jump into the system reset for the rom.
