@@ -1478,8 +1478,12 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	if (rc == 0) {
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(ap);
-	} else if (rc != -EOPNOTSUPP)
+	} else if (rc != -EOPNOTSUPP) {
+		/* SError read failed, force hardreset and probing */
+		ata_ehi_schedule_probe(&ehc->i);
 		ehc->i.action |= ATA_EH_HARDRESET;
+		ehc->i.err_mask |= AC_ERR_OTHER;
+	}
 
 	/* analyze NCQ failure */
 	ata_eh_analyze_ncq_error(ap);
