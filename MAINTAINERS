@@ -2309,6 +2309,14 @@ M:	matthew@wil.cx
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+M32R ARCHITECTURE
+P:	Hirokazu Takata
+M:	takata@linux-m32r.org
+L:	linux-m32r@ml.linux-m32r.org
+L:	linux-m32r-ja@ml.linux-m32r.org (in Japanese)
+W:	http://www.linux-m32r.org/
+S:	Maintained
+
 M68K ARCHITECTURE
 P:	Geert Uytterhoeven
 M:	geert@linux-m68k.org
