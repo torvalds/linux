@@ -1378,6 +1378,7 @@ int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 	switch (nr) {
 	default:
+		run->hypercall.nr = nr;
 		run->hypercall.args[0] = a0;
 		run->hypercall.args[1] = a1;
 		run->hypercall.args[2] = a2;

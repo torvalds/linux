@@ -99,6 +99,7 @@ struct kvm_run {
 		} mmio;
 		/* KVM_EXIT_HYPERCALL */
 		struct {
+			__u64 nr;
 			__u64 args[6];
 			__u64 ret;
 			__u32 longmode;
