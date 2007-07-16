@@ -127,7 +127,7 @@ dma_pool_create (const char *name, struct device *dev,
 	} else if (allocation < size)
 		return NULL;
 
-	if (!(retval = kmalloc (sizeof *retval, GFP_KERNEL)))
+	if (!(retval = kmalloc_node (sizeof *retval, GFP_KERNEL, dev_to_node(dev))))
 		return retval;
 
 	strlcpy (retval->name, name, sizeof retval->name);
