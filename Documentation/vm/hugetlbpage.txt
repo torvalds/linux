@@ -77,8 +77,9 @@ If the user applications are going to request hugepages using mmap system
 call, then it is required that system administrator mount a file system of
 type hugetlbfs:
 
-	mount none /mnt/huge -t hugetlbfs <uid=value> <gid=value> <mode=value>
-		 <size=value> <nr_inodes=value>
+  mount -t hugetlbfs \
+	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
+	none /mnt/huge
 
 This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
 /mnt/huge.  Any files created on /mnt/huge uses hugepages.  The uid and gid
@@ -88,11 +89,10 @@ mode of root of file system to value & 0777.  This value is given in octal.
 By default the value 0755 is picked. The size option sets the maximum value of
 memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
 rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
-inodes that /mnt/huge can use.  If the size or nr_inodes options are not
+inodes that /mnt/huge can use.  If the size or nr_inodes option is not
 provided on command line then no limits are set.  For size and nr_inodes
 options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
-example, size=2K has the same meaning as size=2048. An example is given at
-the end of this document.
+example, size=2K has the same meaning as size=2048.
 
 read and write system calls are not supported on files that reside on hugetlb
 file systems.
