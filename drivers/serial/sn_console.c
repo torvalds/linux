@@ -759,7 +759,7 @@ static void __init sn_sal_switch_to_interrupts(struct sn_cons_port *port)
  */
 
 static void sn_sal_console_write(struct console *, const char *, unsigned);
-static int __init sn_sal_console_setup(struct console *, char *);
+static int sn_sal_console_setup(struct console *, char *);
 static struct uart_driver sal_console_uart;
 extern struct tty_driver *uart_console_device(struct console *, int *);
 
@@ -1006,7 +1006,7 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
  * here so providing it is easier.
  *
  */
-static int __init sn_sal_console_setup(struct console *co, char *options)
+static int sn_sal_console_setup(struct console *co, char *options)
 {
 	return 0;
 }
