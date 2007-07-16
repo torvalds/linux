@@ -748,6 +748,13 @@ static const int prio_to_weight[40] = {
 /*  10 */   110,    87,    70,    56,    45,    36,    29,    23,    18,    15,
 };
 
+/*
+ * Inverse (2^32/x) values of the prio_to_weight[] array, precalculated.
+ *
+ * In cases where the weight does not change often, we can use the
+ * precalculated inverse to speed up arithmetics by turning divisions
+ * into multiplications:
+ */
 static const u32 prio_to_wmult[40] = {
 	48356,   60446,   75558,   94446,  118058,  147573,
 	184467,  230589,  288233,  360285,  450347,
