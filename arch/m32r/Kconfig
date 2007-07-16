@@ -31,6 +31,9 @@ config GENERIC_IRQ_PROBE
 config NO_IOPORT
 	def_bool y
 
+config NO_DMA
+	def_bool y
+
 source "init/Kconfig"
 
 
