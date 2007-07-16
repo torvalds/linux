@@ -127,7 +127,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 
 	drm_via_mem_t mem;
 	int retval = 0;
-	drm_memblock_item_t *item;
+	struct drm_memblock_item *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	unsigned long tmpSize;
 
@@ -188,10 +188,10 @@ int via_mem_free(DRM_IOCTL_ARGS)
 }
 
 
-void via_reclaim_buffers_locked(drm_device_t * dev, struct file *filp)
+void via_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
-	drm_file_t *priv = filp->private_data;
+	struct drm_file *priv = filp->private_data;
 
 	mutex_lock(&dev->struct_mutex);
 	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)priv)) {

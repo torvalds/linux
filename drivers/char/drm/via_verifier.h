@@ -47,7 +47,7 @@ typedef struct {
 	drm_via_sequence_t unfinished;
 	int agp_texture;
 	int multitex;
-	drm_device_t *dev;
+	struct drm_device *dev;
 	drm_local_map_t *map_cache;
 	uint32_t vertex_count;
 	int agp;
@@ -55,8 +55,8 @@ typedef struct {
 } drm_via_state_t;
 
 extern int via_verify_command_stream(const uint32_t * buf, unsigned int size,
-				     drm_device_t * dev, int agp);
-extern int via_parse_command_stream(drm_device_t *dev, const uint32_t *buf,
+				     struct drm_device * dev, int agp);
+extern int via_parse_command_stream(struct drm_device *dev, const uint32_t *buf,
 				    unsigned int size);
 
 #endif

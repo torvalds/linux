@@ -64,7 +64,7 @@ typedef struct _drm_i915_init {
 } drm_i915_init_t;
 
 typedef struct _drm_i915_sarea {
-	drm_tex_region_t texList[I915_NR_TEX_REGIONS + 1];
+	struct drm_tex_region texList[I915_NR_TEX_REGIONS + 1];
 	int last_upload;	/* last time texture was uploaded */
 	int last_enqueue;	/* last time a buffer was enqueued */
 	int last_dispatch;	/* age of the most recently dispatched buffer */
@@ -170,7 +170,7 @@ typedef struct _drm_i915_batchbuffer {
 	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
 	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
 	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	drm_clip_rect_t __user *cliprects;	/* pointer to userspace cliprects */
+	struct drm_clip_rect __user *cliprects;	/* pointer to userspace cliprects */
 } drm_i915_batchbuffer_t;
 
 /* As above, but pass a pointer to userspace buffer which can be
@@ -182,7 +182,7 @@ typedef struct _drm_i915_cmdbuffer {
 	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
 	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
 	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	drm_clip_rect_t __user *cliprects;	/* pointer to userspace cliprects */
+	struct drm_clip_rect __user *cliprects;	/* pointer to userspace cliprects */
 } drm_i915_cmdbuffer_t;
 
 /* Userspace can request & wait on irq's:
@@ -259,7 +259,7 @@ typedef struct drm_i915_vblank_pipe {
  */
 typedef struct drm_i915_vblank_swap {
 	drm_drawable_t drawable;
-	drm_vblank_seq_type_t seqtype;
+	enum drm_vblank_seq_type seqtype;
 	unsigned int sequence;
 } drm_i915_vblank_swap_t;
 

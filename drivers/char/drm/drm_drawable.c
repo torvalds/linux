@@ -47,9 +47,9 @@ int drm_adddraw(DRM_IOCTL_ARGS)
 	int i, j;
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned int bitfield_length = dev->drw_bitfield_length;
-	drm_drawable_info_t **info = dev->drw_info;
+	struct drm_drawable_info **info = dev->drw_info;
 	unsigned int info_length = dev->drw_info_length;
-	drm_draw_t draw;
+	struct drm_draw draw;
 
 	for (i = 0, j = 0; i < bitfield_length; i++) {
 		if (bitfield[i] == ~0)
@@ -120,7 +120,7 @@ done:
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
-	DRM_COPY_TO_USER_IOCTL((drm_draw_t __user *)data, draw, sizeof(draw));
+	DRM_COPY_TO_USER_IOCTL((struct drm_draw __user *)data, draw, sizeof(draw));
 
 	return 0;
 }
@@ -131,16 +131,16 @@ done:
 int drm_rmdraw(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_draw_t draw;
+	struct drm_draw draw;
  	int id, idx;
  	unsigned int shift;
 	unsigned long irqflags;
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned int bitfield_length = dev->drw_bitfield_length;
-	drm_drawable_info_t **info = dev->drw_info;
+	struct drm_drawable_info **info = dev->drw_info;
 	unsigned int info_length = dev->drw_info_length;
 
-	DRM_COPY_FROM_USER_IOCTL(draw, (drm_draw_t __user *) data,
+	DRM_COPY_FROM_USER_IOCTL(draw, (struct drm_draw __user *) data,
 				 sizeof(draw));
 
 	id = draw.handle - 1;
@@ -161,7 +161,7 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 
 	if (info[id]) {
 		drm_free(info[id]->rects, info[id]->num_rects *
-			 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+			 sizeof(struct drm_clip_rect), DRM_MEM_BUFS);
 		drm_free(info[id], sizeof(**info), DRM_MEM_BUFS);
 	}
 
@@ -230,15 +230,15 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 
 int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 	DRM_DEVICE;
-	drm_update_draw_t update;
+	struct drm_update_draw update;
 	unsigned int id, idx, shift;
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned long irqflags, bitfield_length = dev->drw_bitfield_length;
-	drm_drawable_info_t *info;
-	drm_clip_rect_t *rects;
+	struct drm_drawable_info *info;
+	struct drm_clip_rect *rects;
 	int err;
 
-	DRM_COPY_FROM_USER_IOCTL(update, (drm_update_draw_t __user *) data,
+	DRM_COPY_FROM_USER_IOCTL(update, (struct drm_update_draw __user *) data,
 				 sizeof(update));
 
 	id = update.handle - 1;
@@ -254,7 +254,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 	info = dev->drw_info[id];
 
 	if (!info) {
-		info = drm_calloc(1, sizeof(drm_drawable_info_t), DRM_MEM_BUFS);
+		info = drm_calloc(1, sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
 
 		if (!info) {
 			DRM_ERROR("Failed to allocate drawable info memory\n");
@@ -265,7 +265,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 	switch (update.type) {
 	case DRM_DRAWABLE_CLIPRECTS:
 		if (update.num != info->num_rects) {
-			rects = drm_alloc(update.num * sizeof(drm_clip_rect_t),
+			rects = drm_alloc(update.num * sizeof(struct drm_clip_rect),
 					 DRM_MEM_BUFS);
 		} else
 			rects = info->rects;
@@ -277,7 +277,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 		}
 
 		if (update.num && DRM_COPY_FROM_USER(rects,
-						     (drm_clip_rect_t __user *)
+						     (struct drm_clip_rect __user *)
 						     (unsigned long)update.data,
 						     update.num *
 						     sizeof(*rects))) {
@@ -290,7 +290,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 
 		if (rects != info->rects) {
 			drm_free(info->rects, info->num_rects *
-				 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+				 sizeof(struct drm_clip_rect), DRM_MEM_BUFS);
 		}
 
 		info->rects = rects;
@@ -314,7 +314,7 @@ error:
 		drm_free(info, sizeof(*info), DRM_MEM_BUFS);
 	else if (rects != dev->drw_info[id]->rects)
 		drm_free(rects, update.num *
-			 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+			 sizeof(struct drm_clip_rect), DRM_MEM_BUFS);
 
 	return err;
 }
@@ -322,7 +322,7 @@ error:
 /**
  * Caller must hold the drawable spinlock!
  */
-drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev, drm_drawable_t id) {
+struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev, drm_drawable_t id) {
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned int idx, shift;
 

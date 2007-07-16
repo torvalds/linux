@@ -87,7 +87,7 @@ static struct drm_proc_list {
  * "/proc/dri/%minor%/", and each entry in proc_list as
  * "/proc/dri/%minor%/%name%".
  */
-int drm_proc_init(drm_device_t * dev, int minor,
+int drm_proc_init(struct drm_device * dev, int minor,
 		  struct proc_dir_entry *root, struct proc_dir_entry **dev_root)
 {
 	struct proc_dir_entry *ent;
@@ -163,7 +163,7 @@ int drm_proc_cleanup(int minor, struct proc_dir_entry *root,
 static int drm_name_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 
 	if (offset > DRM_PROC_LIMIT) {
@@ -205,11 +205,10 @@ static int drm_name_info(char *buf, char **start, off_t offset, int request,
 static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_map_t *map;
-	drm_map_list_t *r_list;
-	struct list_head *list;
+	struct drm_map *map;
+	struct drm_map_list *r_list;
 
 	/* Hardcoded from _DRM_FRAME_BUFFER,
 	   _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and
@@ -229,9 +228,7 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	DRM_PROC_PRINT("slot	 offset	      size type flags	 "
 		       "address mtrr\n\n");
 	i = 0;
-	if (dev->maplist != NULL)
-		list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
+	list_for_each_entry(r_list, &dev->maplist, head) {
 		map = r_list->map;
 		if (!map)
 			continue;
@@ -242,14 +239,15 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08x ",
 			       i,
 			       map->offset,
-			       map->size, type, map->flags, r_list->user_token);
+			       map->size, type, map->flags,
+			       r_list->user_token);
 		if (map->mtrr < 0) {
 			DRM_PROC_PRINT("none\n");
 		} else {
 			DRM_PROC_PRINT("%4d\n", map->mtrr);
 		}
 		i++;
-		}
+	}
 
 	if (len > request + offset)
 		return request;
@@ -263,7 +261,7 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 static int drm_vm_info(char *buf, char **start, off_t offset, int request,
 		       int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -286,10 +284,10 @@ static int drm_vm_info(char *buf, char **start, off_t offset, int request,
 static int drm__queues_info(char *buf, char **start, off_t offset,
 			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
 	int i;
-	drm_queue_t *q;
+	struct drm_queue *q;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -336,7 +334,7 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
 static int drm_queues_info(char *buf, char **start, off_t offset, int request,
 			   int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -359,9 +357,9 @@ static int drm_queues_info(char *buf, char **start, off_t offset, int request,
 static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 			  int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	if (!dma || offset > DRM_PROC_LIMIT) {
@@ -408,7 +406,7 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -431,9 +429,9 @@ static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 static int drm__clients_info(char *buf, char **start, off_t offset,
 			     int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_file_t *priv;
+	struct drm_file *priv;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -444,7 +442,7 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 	*eof = 0;
 
 	DRM_PROC_PRINT("a dev	pid    uid	magic	  ioctls\n\n");
-	for (priv = dev->file_first; priv; priv = priv->next) {
+	list_for_each_entry(priv, &dev->filelist, lhead) {
 		DRM_PROC_PRINT("%c %3d %5d %5d %10u %10lu\n",
 			       priv->authenticated ? 'y' : 'n',
 			       priv->minor,
@@ -464,7 +462,7 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 static int drm_clients_info(char *buf, char **start, off_t offset,
 			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -478,9 +476,9 @@ static int drm_clients_info(char *buf, char **start, off_t offset,
 static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int len = 0;
-	drm_vma_entry_t *pt;
+	struct drm_vma_entry *pt;
 	struct vm_area_struct *vma;
 #if defined(__i386__)
 	unsigned int pgprot;
@@ -497,7 +495,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 	DRM_PROC_PRINT("vma use count: %d, high_memory = %p, 0x%08lx\n",
 		       atomic_read(&dev->vma_count),
 		       high_memory, virt_to_phys(high_memory));
-	for (pt = dev->vmalist; pt; pt = pt->next) {
+	list_for_each_entry(pt, &dev->vmalist, head) {
 		if (!(vma = pt->vma))
 			continue;
 		DRM_PROC_PRINT("\n%5d 0x%08lx-0x%08lx %c%c%c%c%c%c 0x%08lx000",
@@ -537,7 +535,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 static int drm_vma_info(char *buf, char **start, off_t offset, int request,
 			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *) data;
+	struct drm_device *dev = (struct drm_device *) data;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);

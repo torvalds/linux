@@ -43,11 +43,11 @@
  * block to allocate, and the ring is drained prior to allocations --
  * in other words allocation is expensive.
  */
-static void mark_block(drm_device_t * dev, struct mem_block *p, int in_use)
+static void mark_block(struct drm_device * dev, struct mem_block *p, int in_use)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	drm_tex_region_t *list;
+	struct drm_tex_region *list;
 	unsigned shift, nr;
 	unsigned start;
 	unsigned end;
@@ -208,7 +208,7 @@ static int init_heap(struct mem_block **heap, int start, int size)
 
 /* Free all blocks associated with the releasing file.
  */
-void i915_mem_release(drm_device_t * dev, DRMFILE filp, struct mem_block *heap)
+void i915_mem_release(struct drm_device * dev, DRMFILE filp, struct mem_block *heap)
 {
 	struct mem_block *p;
 

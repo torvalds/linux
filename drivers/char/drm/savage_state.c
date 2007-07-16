@@ -27,7 +27,7 @@
 #include "savage_drv.h"
 
 void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,
-			       const drm_clip_rect_t * pbox)
+			       const struct drm_clip_rect * pbox)
 {
 	uint32_t scstart = dev_priv->state.s3d.new_scstart;
 	uint32_t scend = dev_priv->state.s3d.new_scend;
@@ -53,7 +53,7 @@ void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,
 }
 
 void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
-			      const drm_clip_rect_t * pbox)
+			      const struct drm_clip_rect * pbox)
 {
 	uint32_t drawctrl0 = dev_priv->state.s4.new_drawctrl0;
 	uint32_t drawctrl1 = dev_priv->state.s4.new_drawctrl1;
@@ -277,7 +277,7 @@ static int savage_dispatch_state(drm_savage_private_t * dev_priv,
 
 static int savage_dispatch_dma_prim(drm_savage_private_t * dev_priv,
 				    const drm_savage_cmd_header_t * cmd_header,
-				    const drm_buf_t * dmabuf)
+				    const struct drm_buf * dmabuf)
 {
 	unsigned char reorder = 0;
 	unsigned int prim = cmd_header->prim.prim;
@@ -536,7 +536,7 @@ static int savage_dispatch_vb_prim(drm_savage_private_t * dev_priv,
 static int savage_dispatch_dma_idx(drm_savage_private_t * dev_priv,
 				   const drm_savage_cmd_header_t * cmd_header,
 				   const uint16_t *idx,
-				   const drm_buf_t * dmabuf)
+				   const struct drm_buf * dmabuf)
 {
 	unsigned char reorder = 0;
 	unsigned int prim = cmd_header->idx.prim;
@@ -792,7 +792,7 @@ static int savage_dispatch_clear(drm_savage_private_t * dev_priv,
 				 const drm_savage_cmd_header_t * cmd_header,
 				 const drm_savage_cmd_header_t *data,
 				 unsigned int nbox,
-				 const drm_clip_rect_t *boxes)
+				 const struct drm_clip_rect *boxes)
 {
 	unsigned int flags = cmd_header->clear0.flags;
 	unsigned int clear_cmd;
@@ -861,7 +861,7 @@ static int savage_dispatch_clear(drm_savage_private_t * dev_priv,
 }
 
 static int savage_dispatch_swap(drm_savage_private_t * dev_priv,
-				unsigned int nbox, const drm_clip_rect_t *boxes)
+				unsigned int nbox, const struct drm_clip_rect *boxes)
 {
 	unsigned int swap_cmd;
 	unsigned int i;
@@ -892,11 +892,11 @@ static int savage_dispatch_swap(drm_savage_private_t * dev_priv,
 static int savage_dispatch_draw(drm_savage_private_t * dev_priv,
 				const drm_savage_cmd_header_t *start,
 				const drm_savage_cmd_header_t *end,
-				const drm_buf_t * dmabuf,
+				const struct drm_buf * dmabuf,
 				const unsigned int *vtxbuf,
 				unsigned int vb_size, unsigned int vb_stride,
 				unsigned int nbox,
-				const drm_clip_rect_t *boxes)
+				const struct drm_clip_rect *boxes)
 {
 	unsigned int i, j;
 	int ret;
@@ -957,13 +957,13 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_savage_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *dmabuf;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *dmabuf;
 	drm_savage_cmdbuf_t cmdbuf;
 	drm_savage_cmd_header_t *kcmd_addr = NULL;
 	drm_savage_cmd_header_t *first_draw_cmd;
 	unsigned int *kvb_addr = NULL;
-	drm_clip_rect_t *kbox_addr = NULL;
+	struct drm_clip_rect *kbox_addr = NULL;
 	unsigned int i, j;
 	int ret = 0;
 
@@ -1019,7 +1019,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 		cmdbuf.vb_addr = kvb_addr;
 	}
 	if (cmdbuf.nbox) {
-		kbox_addr = drm_alloc(cmdbuf.nbox * sizeof(drm_clip_rect_t),
+		kbox_addr = drm_alloc(cmdbuf.nbox * sizeof(struct drm_clip_rect),
 				       DRM_MEM_DRIVER);
 		if (kbox_addr == NULL) {
 			ret = DRM_ERR(ENOMEM);
@@ -1027,7 +1027,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 		}
 
 		if (DRM_COPY_FROM_USER(kbox_addr, cmdbuf.box_addr,
-				       cmdbuf.nbox * sizeof(drm_clip_rect_t))) {
+				       cmdbuf.nbox * sizeof(struct drm_clip_rect))) {
 			ret = DRM_ERR(EFAULT);
 			goto done;
 		}
@@ -1158,7 +1158,7 @@ done:
 	/* If we didn't need to allocate them, these'll be NULL */
 	drm_free(kcmd_addr, cmdbuf.size * 8, DRM_MEM_DRIVER);
 	drm_free(kvb_addr, cmdbuf.vb_size, DRM_MEM_DRIVER);
-	drm_free(kbox_addr, cmdbuf.nbox * sizeof(drm_clip_rect_t),
+	drm_free(kbox_addr, cmdbuf.nbox * sizeof(struct drm_clip_rect),
 		 DRM_MEM_DRIVER);
 
 	return ret;

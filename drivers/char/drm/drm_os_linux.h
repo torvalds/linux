@@ -34,8 +34,8 @@
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
 /** DRM device local declaration */
-#define DRM_DEVICE	drm_file_t	*priv	= filp->private_data; \
-			drm_device_t	*dev	= priv->head->dev
+#define DRM_DEVICE	struct drm_file	*priv	= filp->private_data; \
+			struct drm_device *dev	= priv->head->dev
 
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg
@@ -95,24 +95,6 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 	__get_user(val, uaddr)
 
 #define DRM_GET_PRIV_WITH_RETURN(_priv, _filp) _priv = _filp->private_data
-
-/**
- * Get the pointer to the SAREA.
- *
- * Searches the SAREA on the mapping lists and points drm_device::sarea to it.
- */
-#define DRM_GETSAREA()							 \
-do { 									 \
-	drm_map_list_t *entry;						 \
-	list_for_each_entry( entry, &dev->maplist->head, head ) {	 \
-		if ( entry->map &&					 \
-		     entry->map->type == _DRM_SHM &&			 \
-		     (entry->map->flags & _DRM_CONTAINS_LOCK) ) {	 \
-			dev_priv->sarea = entry->map;			 \
- 			break;						 \
- 		}							 \
- 	}								 \
-} while (0)
 
 #define DRM_HZ HZ
 

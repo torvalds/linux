@@ -58,7 +58,7 @@ typedef struct drm_savage_buf_priv {
 	struct drm_savage_buf_priv *next;
 	struct drm_savage_buf_priv *prev;
 	drm_savage_age_t age;
-	drm_buf_t *buf;
+	struct drm_buf *buf;
 } drm_savage_buf_priv_t;
 
 typedef struct drm_savage_dma_page {
@@ -192,7 +192,7 @@ typedef struct drm_savage_private {
 	/* Err, there is a macro wait_event in include/linux/wait.h.
 	 * Avoid unwanted macro expansion. */
 	void (*emit_clip_rect) (struct drm_savage_private * dev_priv,
-				const drm_clip_rect_t * pbox);
+				const struct drm_clip_rect * pbox);
 	void (*dma_flush) (struct drm_savage_private * dev_priv);
 } drm_savage_private_t;
 
@@ -203,22 +203,22 @@ extern int savage_bci_buffers(DRM_IOCTL_ARGS);
 /* BCI functions */
 extern uint16_t savage_bci_emit_event(drm_savage_private_t * dev_priv,
 				      unsigned int flags);
-extern void savage_freelist_put(drm_device_t * dev, drm_buf_t * buf);
+extern void savage_freelist_put(struct drm_device * dev, struct drm_buf * buf);
 extern void savage_dma_reset(drm_savage_private_t * dev_priv);
 extern void savage_dma_wait(drm_savage_private_t * dev_priv, unsigned int page);
 extern uint32_t *savage_dma_alloc(drm_savage_private_t * dev_priv,
 				  unsigned int n);
-extern int savage_driver_load(drm_device_t *dev, unsigned long chipset);
-extern int savage_driver_firstopen(drm_device_t *dev);
-extern void savage_driver_lastclose(drm_device_t *dev);
-extern int savage_driver_unload(drm_device_t *dev);
-extern void savage_reclaim_buffers(drm_device_t * dev, DRMFILE filp);
+extern int savage_driver_load(struct drm_device *dev, unsigned long chipset);
+extern int savage_driver_firstopen(struct drm_device *dev);
+extern void savage_driver_lastclose(struct drm_device *dev);
+extern int savage_driver_unload(struct drm_device *dev);
+extern void savage_reclaim_buffers(struct drm_device * dev, DRMFILE filp);
 
 /* state functions */
 extern void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,
-				      const drm_clip_rect_t * pbox);
+				      const struct drm_clip_rect * pbox);
 extern void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
-				     const drm_clip_rect_t * pbox);
+				     const struct drm_clip_rect * pbox);
 
 #define SAVAGE_FB_SIZE_S3	0x01000000	/*  16MB */
 #define SAVAGE_FB_SIZE_S4	0x02000000	/*  32MB */
