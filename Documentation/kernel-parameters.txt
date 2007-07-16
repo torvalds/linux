@@ -1181,6 +1181,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel.
 
+	nosoftlockup	[KNL] Disable the soft-lockup detector.
+
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
 	notsc		[BUGS=IA-32] Disable Time Stamp Counter
