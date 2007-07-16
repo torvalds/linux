@@ -6,11 +6,9 @@
 # $Id: Kconfig,v 1.4.2.7 2005/07/08 22:05:38 dsp_llnl Exp $
 #
 
-menu 'EDAC - error detection and reporting (RAS) (EXPERIMENTAL)'
+menuconfig EDAC
+	tristate "EDAC - error detection and reporting (EXPERIMENTAL)"
 	depends on HAS_IOMEM
-
-config EDAC
-	tristate "EDAC core system error reporting (EXPERIMENTAL)"
 	depends on X86 && EXPERIMENTAL
 	help
 	  EDAC is designed to report errors in the core system.
@@ -30,13 +28,12 @@ config EDAC
 	  There is also a mailing list for the EDAC project, which can
 	  be found via the sourceforge page.
 
+if EDAC
 
 comment "Reporting subsystems"
-	depends on EDAC
 
 config EDAC_DEBUG
 	bool "Debugging"
-	depends on EDAC
 	help
 	  This turns on debugging information for the entire EDAC
 	  sub-system. You can insert module with "debug_level=x", current
@@ -45,7 +42,6 @@ config EDAC_DEBUG
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
-	depends on EDAC
 	default y
 	help
 	  Some systems are able to detect and correct errors in main
@@ -100,15 +96,13 @@ config EDAC_R82600
 
 choice
 	prompt "Error detecting method"
-	depends on EDAC
 	default EDAC_POLL
 
 config EDAC_POLL
 	bool "Poll for errors"
-	depends on EDAC
 	help
 	  Poll the chipset periodically to detect errors.
 
 endchoice
 
-endmenu
+endif # EDAC
