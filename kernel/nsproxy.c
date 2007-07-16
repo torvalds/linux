@@ -58,8 +58,8 @@ static inline struct nsproxy *clone_nsproxy(struct nsproxy *orig)
  * Return the newly created nsproxy.  Do not attach this to the task,
  * leave it to the caller to do proper locking and attach it to task.
  */
-static struct nsproxy *create_new_namespaces(int flags, struct task_struct *tsk,
-			struct fs_struct *new_fs)
+static struct nsproxy *create_new_namespaces(unsigned long flags,
+			struct task_struct *tsk, struct fs_struct *new_fs)
 {
 	struct nsproxy *new_nsp;
 	int err;
@@ -121,7 +121,7 @@ out_ns:
  * called from clone.  This now handles copy for nsproxy and all
  * namespaces therein.
  */
-int copy_namespaces(int flags, struct task_struct *tsk)
+int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 {
 	struct nsproxy *old_ns = tsk->nsproxy;
 	struct nsproxy *new_ns;
