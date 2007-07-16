@@ -397,3 +397,204 @@ uint cpm_dpram_phys(u8 *addr)
 	return (dpram_pbase + (uint)(addr - dpram_vbase));
 }
 EXPORT_SYMBOL(cpm_dpram_phys);
+
+struct cpm_ioport16 {
+	__be16 dir, par, sor, dat, intr;
+	__be16 res[3];
+};
+
+struct cpm_ioport32 {
+	__be32 dir, par, sor;
+};
+
+static void cpm1_set_pin32(int port, int pin, int flags)
+{
+	struct cpm_ioport32 __iomem *iop;
+	pin = 1 << (31 - pin);
+
+	if (port == CPM_PORTB)
+		iop = (struct cpm_ioport32 __iomem *)
+		      &mpc8xx_immr->im_cpm.cp_pbdir;
+	else
+		iop = (struct cpm_ioport32 __iomem *)
+		      &mpc8xx_immr->im_cpm.cp_pedir;
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits32(&iop->dir, pin);
+	else
+		clrbits32(&iop->dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits32(&iop->par, pin);
+	else
+		clrbits32(&iop->par, pin);
+
+	if (port == CPM_PORTE) {
+		if (flags & CPM_PIN_SECONDARY)
+			setbits32(&iop->sor, pin);
+		else
+			clrbits32(&iop->sor, pin);
+
+		if (flags & CPM_PIN_OPENDRAIN)
+			setbits32(&mpc8xx_immr->im_cpm.cp_peodr, pin);
+		else
+			clrbits32(&mpc8xx_immr->im_cpm.cp_peodr, pin);
+	}
+}
+
+static void cpm1_set_pin16(int port, int pin, int flags)
+{
+	struct cpm_ioport16 __iomem *iop =
+		(struct cpm_ioport16 __iomem *)&mpc8xx_immr->im_ioport;
+
+	pin = 1 << (15 - pin);
+
+	if (port != 0)
+		iop += port - 1;
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits16(&iop->dir, pin);
+	else
+		clrbits16(&iop->dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits16(&iop->par, pin);
+	else
+		clrbits16(&iop->par, pin);
+
+	if (port == CPM_PORTC) {
+		if (flags & CPM_PIN_SECONDARY)
+			setbits16(&iop->sor, pin);
+		else
+			clrbits16(&iop->sor, pin);
+	}
+}
+
+void cpm1_set_pin(enum cpm_port port, int pin, int flags)
+{
+	if (port == CPM_PORTB || port == CPM_PORTE)
+		cpm1_set_pin32(port, pin, flags);
+	else
+		cpm1_set_pin16(port, pin, flags);
+}
+
+int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
+{
+	int shift;
+	int i, bits = 0;
+	u32 __iomem *reg;
+	u32 mask = 7;
+
+	u8 clk_map[][3] = {
+		{CPM_CLK_SCC1, CPM_BRG1, 0},
+		{CPM_CLK_SCC1, CPM_BRG2, 1},
+		{CPM_CLK_SCC1, CPM_BRG3, 2},
+		{CPM_CLK_SCC1, CPM_BRG4, 3},
+		{CPM_CLK_SCC1, CPM_CLK1, 4},
+		{CPM_CLK_SCC1, CPM_CLK2, 5},
+		{CPM_CLK_SCC1, CPM_CLK3, 6},
+		{CPM_CLK_SCC1, CPM_CLK4, 7},
+
+		{CPM_CLK_SCC2, CPM_BRG1, 0},
+		{CPM_CLK_SCC2, CPM_BRG2, 1},
+		{CPM_CLK_SCC2, CPM_BRG3, 2},
+		{CPM_CLK_SCC2, CPM_BRG4, 3},
+		{CPM_CLK_SCC2, CPM_CLK1, 4},
+		{CPM_CLK_SCC2, CPM_CLK2, 5},
+		{CPM_CLK_SCC2, CPM_CLK3, 6},
+		{CPM_CLK_SCC2, CPM_CLK4, 7},
+
+		{CPM_CLK_SCC3, CPM_BRG1, 0},
+		{CPM_CLK_SCC3, CPM_BRG2, 1},
+		{CPM_CLK_SCC3, CPM_BRG3, 2},
+		{CPM_CLK_SCC3, CPM_BRG4, 3},
+		{CPM_CLK_SCC3, CPM_CLK5, 4},
+		{CPM_CLK_SCC3, CPM_CLK6, 5},
+		{CPM_CLK_SCC3, CPM_CLK7, 6},
+		{CPM_CLK_SCC3, CPM_CLK8, 7},
+
+		{CPM_CLK_SCC4, CPM_BRG1, 0},
+		{CPM_CLK_SCC4, CPM_BRG2, 1},
+		{CPM_CLK_SCC4, CPM_BRG3, 2},
+		{CPM_CLK_SCC4, CPM_BRG4, 3},
+		{CPM_CLK_SCC4, CPM_CLK5, 4},
+		{CPM_CLK_SCC4, CPM_CLK6, 5},
+		{CPM_CLK_SCC4, CPM_CLK7, 6},
+		{CPM_CLK_SCC4, CPM_CLK8, 7},
+
+		{CPM_CLK_SMC1, CPM_BRG1, 0},
+		{CPM_CLK_SMC1, CPM_BRG2, 1},
+		{CPM_CLK_SMC1, CPM_BRG3, 2},
+		{CPM_CLK_SMC1, CPM_BRG4, 3},
+		{CPM_CLK_SMC1, CPM_CLK1, 4},
+		{CPM_CLK_SMC1, CPM_CLK2, 5},
+		{CPM_CLK_SMC1, CPM_CLK3, 6},
+		{CPM_CLK_SMC1, CPM_CLK4, 7},
+
+		{CPM_CLK_SMC2, CPM_BRG1, 0},
+		{CPM_CLK_SMC2, CPM_BRG2, 1},
+		{CPM_CLK_SMC2, CPM_BRG3, 2},
+		{CPM_CLK_SMC2, CPM_BRG4, 3},
+		{CPM_CLK_SMC2, CPM_CLK5, 4},
+		{CPM_CLK_SMC2, CPM_CLK6, 5},
+		{CPM_CLK_SMC2, CPM_CLK7, 6},
+		{CPM_CLK_SMC2, CPM_CLK8, 7},
+	};
+
+	switch (target) {
+	case CPM_CLK_SCC1:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 0;
+		break;
+
+	case CPM_CLK_SCC2:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 8;
+		break;
+
+	case CPM_CLK_SCC3:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 16;
+		break;
+
+	case CPM_CLK_SCC4:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 24;
+		break;
+
+	case CPM_CLK_SMC1:
+		reg = &mpc8xx_immr->im_cpm.cp_simode;
+		shift = 12;
+		break;
+
+	case CPM_CLK_SMC2:
+		reg = &mpc8xx_immr->im_cpm.cp_simode;
+		shift = 28;
+		break;
+
+	default:
+		printk(KERN_ERR "cpm1_clock_setup: invalid clock target\n");
+		return -EINVAL;
+	}
+
+	if (reg == &mpc8xx_immr->im_cpm.cp_sicr && mode == CPM_CLK_RX)
+		shift += 3;
+
+	for (i = 0; i < ARRAY_SIZE(clk_map); i++) {
+		if (clk_map[i][0] == target && clk_map[i][1] == clock) {
+			bits = clk_map[i][2];
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(clk_map)) {
+		printk(KERN_ERR "cpm1_clock_setup: invalid clock combination\n");
+		return -EINVAL;
+	}
+
+	bits <<= shift;
+	mask <<= shift;
+	out_be32(reg, (in_be32(reg) & ~mask) | bits);
+
+	return 0;
+}

@@ -691,4 +691,53 @@ extern void cpm_free_handler(int vec);
 
 #define IMAP_ADDR		(get_immrbase())
 
+#define CPM_PIN_INPUT     0
+#define CPM_PIN_OUTPUT    1
+#define CPM_PIN_PRIMARY   0
+#define CPM_PIN_SECONDARY 2
+#define CPM_PIN_GPIO      4
+#define CPM_PIN_OPENDRAIN 8
+
+enum cpm_port {
+	CPM_PORTA,
+	CPM_PORTB,
+	CPM_PORTC,
+	CPM_PORTD,
+	CPM_PORTE,
+};
+
+void cpm1_set_pin(enum cpm_port port, int pin, int flags);
+
+enum cpm_clk_dir {
+	CPM_CLK_RX,
+	CPM_CLK_TX,
+	CPM_CLK_RTX
+};
+
+enum cpm_clk_target {
+	CPM_CLK_SCC1,
+	CPM_CLK_SCC2,
+	CPM_CLK_SCC3,
+	CPM_CLK_SCC4,
+	CPM_CLK_SMC1,
+	CPM_CLK_SMC2,
+};
+
+enum cpm_clk {
+	CPM_BRG1,	/* Baud Rate Generator  1 */
+	CPM_BRG2,	/* Baud Rate Generator  2 */
+	CPM_BRG3,	/* Baud Rate Generator  3 */
+	CPM_BRG4,	/* Baud Rate Generator  4 */
+	CPM_CLK1,	/* Clock  1 */
+	CPM_CLK2,	/* Clock  2 */
+	CPM_CLK3,	/* Clock  3 */
+	CPM_CLK4,	/* Clock  4 */
+	CPM_CLK5,	/* Clock  5 */
+	CPM_CLK6,	/* Clock  6 */
+	CPM_CLK7,	/* Clock  7 */
+	CPM_CLK8,	/* Clock  8 */
+};
+
+int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode);
+
 #endif /* __CPM_8XX__ */
