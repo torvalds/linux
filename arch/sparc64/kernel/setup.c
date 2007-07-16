@@ -454,9 +454,9 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   ncpus_probed,
 		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,
-		   icache_parity_tl1_occurred,
+		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
-		   cpu_data(0).clock_tick
+		   , cpu_data(0).clock_tick
 #endif
 		);
 #ifdef CONFIG_SMP
