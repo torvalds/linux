@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include "pnode.h"
+#include "internal.h"
 
 /* spinlock for vfsmount related operations, inplace of dcache_lock */
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
