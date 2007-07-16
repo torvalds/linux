@@ -144,7 +144,7 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-void
+void __init
 common_init_rtc(void)
 {
 	unsigned char x;

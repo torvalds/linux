@@ -420,7 +420,7 @@ marvel_init_pci(void)
 		io7_clear_errors(io7);
 }
 
-static void
+static void __init
 marvel_init_rtc(void)
 {
 	init_rtc_irq();

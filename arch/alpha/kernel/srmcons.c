@@ -289,7 +289,7 @@ srm_console_device(struct console *co, int *index)
 	return srmcons_driver;
 }
 
-static int __init
+static int
 srm_console_setup(struct console *co, char *options)
 {
 	return 0;
