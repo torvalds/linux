@@ -1219,6 +1219,8 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 				retval = retval ?: desc.error;
 				break;
 			}
+			if (desc.count > 0)
+				break;
 		}
 	}
 out:
