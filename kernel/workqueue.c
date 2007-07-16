@@ -486,13 +486,13 @@ void cancel_work_sync(struct work_struct *work)
 EXPORT_SYMBOL_GPL(cancel_work_sync);
 
 /**
- * cancel_rearming_delayed_work - reliably kill off a delayed work.
+ * cancel_delayed_work_sync - reliably kill off a delayed work.
  * @dwork: the delayed work struct
  *
  * It is possible to use this function if @dwork rearms itself via queue_work()
  * or queue_delayed_work(). See also the comment for cancel_work_sync().
  */
-void cancel_rearming_delayed_work(struct delayed_work *dwork)
+void cancel_delayed_work_sync(struct delayed_work *dwork)
 {
 	while (!del_timer(&dwork->timer) &&
 	       !try_to_grab_pending(&dwork->work))
@@ -500,7 +500,7 @@ void cancel_rearming_delayed_work(struct delayed_work *dwork)
 	wait_on_work(&dwork->work);
 	work_clear_pending(&dwork->work);
 }
-EXPORT_SYMBOL(cancel_rearming_delayed_work);
+EXPORT_SYMBOL(cancel_delayed_work_sync);
 
 static struct workqueue_struct *keventd_wq __read_mostly;
 

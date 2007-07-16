@@ -166,14 +166,21 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 	return ret;
 }
 
-extern void cancel_rearming_delayed_work(struct delayed_work *work);
+extern void cancel_delayed_work_sync(struct delayed_work *work);
 
-/* Obsolete. use cancel_rearming_delayed_work() */
+/* Obsolete. use cancel_delayed_work_sync() */
 static inline
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 					struct delayed_work *work)
 {
-	cancel_rearming_delayed_work(work);
+	cancel_delayed_work_sync(work);
+}
+
+/* Obsolete. use cancel_delayed_work_sync() */
+static inline
+void cancel_rearming_delayed_work(struct delayed_work *work)
+{
+	cancel_delayed_work_sync(work);
 }
 
 #endif
