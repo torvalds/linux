@@ -53,7 +53,7 @@ endif # BLOCK
 
 config BLK_DEV_BSG
 	bool "Block layer SG support"
-	depends on SCSI && EXPERIMENTAL
+	depends on (SCSI=y) && EXPERIMENTAL
 	default y
 	---help---
 	Saying Y here will enable generic SG (SCSI generic) v4
