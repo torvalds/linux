@@ -51,10 +51,10 @@ int pcf8563_open(struct inode *, struct file *);
 int pcf8563_release(struct inode *, struct file *);
 
 static const struct file_operations pcf8563_fops = {
-	owner: THIS_MODULE,
-	ioctl: pcf8563_ioctl,
-	open: pcf8563_open,
-	release: pcf8563_release,
+	.owner =	THIS_MODULE,
+	.ioctl =	pcf8563_ioctl,
+	.open =		pcf8563_open,
+	.release =	pcf8563_release,
 };
 
 unsigned char
