@@ -144,8 +144,6 @@ MODULE_PARM_DESC(dosyncppp, "Enable synchronous net device, 0=disable 1=enable")
 /*
  * tty support and callbacks
  */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 static struct tty_driver *serial_driver;
 
 static int  open(struct tty_struct *tty, struct file * filp);
@@ -822,12 +820,6 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	unsigned long flags;
 
 	DBGINFO(("%s set_termios\n", tty->driver->name));
-
-	/* just return if nothing has changed */
-	if ((tty->termios->c_cflag == old_termios->c_cflag)
-	    && (RELEVANT_IFLAG(tty->termios->c_iflag)
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-		return;
 
 	change_params(info);
 
