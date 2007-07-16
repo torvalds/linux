@@ -1,6 +1,12 @@
 #ifndef BSG_H
 #define BSG_H
 
+#define BSG_PROTOCOL_SCSI		0
+
+#define BSG_SUB_PROTOCOL_SCSI_CMD	0
+#define BSG_SUB_PROTOCOL_SCSI_TMF	1
+#define BSG_SUB_PROTOCOL_SCSI_TRANSPORT	2
+
 struct sg_io_v4 {
 	__s32 guard;		/* [i] 'Q' to differentiate from v3 */
 	__u32 protocol;		/* [i] 0 -> SCSI , .... */

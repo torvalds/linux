@@ -208,7 +208,11 @@ static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
 	if (copy_from_user(rq->cmd, (void *)(unsigned long)hdr->request,
 			   hdr->request_len))
 		return -EFAULT;
-	if (blk_verify_command(rq->cmd, has_write_perm))
+
+	if (hdr->subprotocol == BSG_SUB_PROTOCOL_SCSI_CMD) {
+		if (blk_verify_command(rq->cmd, has_write_perm))
+			return -EPERM;
+	} else if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	/*
@@ -232,6 +236,8 @@ static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
 static int
 bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
 {
+	int ret = 0;
+
 	if (hdr->guard != 'Q')
 		return -EINVAL;
 	if (hdr->request_len > BLK_MAX_CDB)
@@ -240,13 +246,22 @@ bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
 	    hdr->din_xfer_len > (q->max_sectors << 9))
 		return -EIO;
 
-	/* not supported currently */
-	if (hdr->protocol || hdr->subprotocol)
-		return -EINVAL;
+	switch (hdr->protocol) {
+	case BSG_PROTOCOL_SCSI:
+		switch (hdr->subprotocol) {
+		case BSG_SUB_PROTOCOL_SCSI_CMD:
+		case BSG_SUB_PROTOCOL_SCSI_TRANSPORT:
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
 	*rw = hdr->dout_xfer_len ? WRITE : READ;
-
-	return 0;
+	return ret;
 }
 
 /*
