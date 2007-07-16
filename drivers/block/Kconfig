@@ -423,6 +423,13 @@ config ATA_OVER_ETH
 	This driver provides Support for ATA over Ethernet block
 	devices like the Coraid EtherDrive (R) Storage Blade.
 
+config SUNVDC
+	tristate "Sun Virtual Disk Client support"
+	depends on SUN_LDOMS
+	help
+	  Support for virtual disk devices as a client under Sun
+	  Logical Domains.
+
 source "drivers/s390/block/Kconfig"
 
 endif # BLK_DEV
