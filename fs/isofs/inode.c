@@ -197,7 +197,7 @@ isofs_hashi_common(struct dentry *dentry, struct qstr *qstr, int ms)
 	hash = init_name_hash();
 	while (len--) {
 		c = tolower(*name++);
-		hash = partial_name_hash(tolower(c), hash);
+		hash = partial_name_hash(c, hash);
 	}
 	qstr->hash = end_name_hash(hash);
 
