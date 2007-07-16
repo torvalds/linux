@@ -2424,7 +2424,6 @@ static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
 	u32 ite8872set;
 	u32 ite8872_lpt, ite8872_lpthi;
 	u8 ite8872_irq, type;
-	char *fake_name = "parport probe";
 	int irq;
 	int i;
 
@@ -2432,11 +2431,11 @@ static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
 	
 	// make sure which one chip
 	for(i = 0; i < 5; i++) {
-		base_res = request_region(inta_addr[i], 0x8, fake_name);
+		base_res = request_region(inta_addr[i], 32, "it887x");
 		if (base_res) {
 			int test;
 			pci_write_config_dword (pdev, 0x60,
-						0xe7000000 | inta_addr[i]);
+						0xe5000000 | inta_addr[i]);
 			pci_write_config_dword (pdev, 0x78,
 						0x00000000 | inta_addr[i]);
 			test = inb (inta_addr[i]);
