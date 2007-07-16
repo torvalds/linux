@@ -66,7 +66,7 @@ static void enqueue_huge_page(struct page *page)
 static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 				unsigned long address)
 {
-	int nid = numa_node_id();
+	int nid;
 	struct page *page = NULL;
 	struct zonelist *zonelist = huge_zonelist(vma, address);
 	struct zone **z;
