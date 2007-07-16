@@ -736,7 +736,9 @@ static void update_curr_load(struct rq *rq, u64 now)
  *
  * The "10% effect" is relative and cumulative: from _any_ nice level,
  * if you go up 1 level, it's -10% CPU usage, if you go down 1 level
- * it's +10% CPU usage.
+ * it's +10% CPU usage. (to achieve that we use a multiplier of 1.25.
+ * If a task goes up by ~10% and another task goes down by ~10% then
+ * the relative distance between them is ~25%.)
  */
 static const int prio_to_weight[40] = {
 /* -20 */ 88818, 71054, 56843, 45475, 36380, 29104, 23283, 18626, 14901, 11921,
