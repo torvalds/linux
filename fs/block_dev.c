@@ -872,7 +872,7 @@ static struct bd_holder *find_bd_holder(struct block_device *bdev,
  */
 static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 {
-	int ret;
+	int err;
 
 	if (!bo)
 		return -EINVAL;
@@ -880,15 +880,18 @@ static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 	if (!bd_holder_grab_dirs(bdev, bo))
 		return -EBUSY;
 
-	ret = add_symlink(bo->sdir, bo->sdev);
-	if (ret == 0) {
-		ret = add_symlink(bo->hdir, bo->hdev);
-		if (ret)
-			del_symlink(bo->sdir, bo->sdev);
+	err = add_symlink(bo->sdir, bo->sdev);
+	if (err)
+		return err;
+
+	err = add_symlink(bo->hdir, bo->hdev);
+	if (err) {
+		del_symlink(bo->sdir, bo->sdev);
+		return err;
 	}
-	if (ret == 0)
-		list_add_tail(&bo->list, &bdev->bd_holder_list);
-	return ret;
+
+	list_add_tail(&bo->list, &bdev->bd_holder_list);
+	return 0;
 }
 
 /**
@@ -946,7 +949,7 @@ static struct bd_holder *del_bd_holder(struct block_device *bdev,
 static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 				struct kobject *kobj)
 {
-	int res;
+	int err;
 	struct bd_holder *bo, *found;
 
 	if (!kobj)
@@ -957,21 +960,24 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 		return -ENOMEM;
 
 	mutex_lock(&bdev->bd_mutex);
-	res = bd_claim(bdev, holder);
-	if (res == 0) {
-		found = find_bd_holder(bdev, bo);
-		if (found == NULL) {
-			res = add_bd_holder(bdev, bo);
-			if (res)
-				bd_release(bdev);
-		}
-	}
 
-	if (res || found)
+	err = bd_claim(bdev, holder);
+	if (err)
+		goto out;
+
+	found = find_bd_holder(bdev, bo);
+	if (found)
+		goto out;
+
+	err = add_bd_holder(bdev, bo);
+	if (err)
+		bd_release(bdev);
+
+out:
+	if (err || found)
 		free_bd_holder(bo);
 	mutex_unlock(&bdev->bd_mutex);
-
-	return res;
+	return err;
 }
 
 /**
