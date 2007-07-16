@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/at73c213.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -49,7 +50,26 @@ static struct eth_platform_data __initdata eth_data[2] = {
 };
 
 #ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+static struct at73c213_board_info at73c213_data = {
+	.ssc_id		= 0,
+	.shortname	= "AVR32 STK1000 external DAC",
+};
+#endif
+#endif
+
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 static struct spi_board_info spi0_board_info[] __initdata = {
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+	{
+		/* AT73C213 */
+		.modalias	= "at73c213",
+		.max_speed_hz	= 200000,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_1,
+		.platform_data	= &at73c213_data,
+	},
+#endif
 	{
 		/* QVGA display */
 		.modalias	= "ltv350qv",
@@ -180,6 +200,38 @@ static void setup_j2_leds(void)
 }
 #endif
 
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+static void __init at73c213_set_clk(struct at73c213_board_info *info)
+{
+	struct clk *gclk;
+	struct clk *pll;
+
+	gclk = clk_get(NULL, "gclk0");
+	if (IS_ERR(gclk))
+		goto err_gclk;
+	pll = clk_get(NULL, "pll0");
+	if (IS_ERR(pll))
+		goto err_pll;
+
+	if (clk_set_parent(gclk, pll)) {
+		pr_debug("STK1000: failed to set pll0 as parent for DAC clock\n");
+		goto err_set_clk;
+	}
+
+	at32_select_periph(GPIO_PIN_PA(30), GPIO_PERIPH_A, 0);
+	info->dac_clk = gclk;
+
+err_set_clk:
+	clk_put(pll);
+err_pll:
+	clk_put(gclk);
+err_gclk:
+	return;
+}
+#endif
+#endif
+
 void __init setup_board(void)
 {
 #ifdef	CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
@@ -247,6 +299,12 @@ static int __init atstk1002_init(void)
 #endif
 
 	setup_j2_leds();
+
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
+	at73c213_set_clk(&at73c213_data);
+#endif
+#endif
 
 	return 0;
 }
