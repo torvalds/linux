@@ -1305,7 +1305,6 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (get_inode_item_key_version (inode) == KEY_FORMAT_3_5 &&
 	    *ppos + count > MAX_NON_LFS) {
 		if (*ppos >= MAX_NON_LFS) {
-			send_sig(SIGXFSZ, current, 0);
 			return -EFBIG;
 		}
 		if (count > MAX_NON_LFS - (unsigned long)*ppos)
