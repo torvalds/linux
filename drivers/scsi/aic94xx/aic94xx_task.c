@@ -76,7 +76,7 @@ static inline int asd_map_scatterlist(struct sas_task *task,
 
 	/* STP tasks come from libata which has already mapped
 	 * the SG list */
-	if (task->task_proto == SAS_PROTOCOL_STP)
+	if (sas_protocol_ata(task->task_proto))
 		num_sg = task->num_scatter;
 	else
 		num_sg = pci_map_sg(asd_ha->pcidev, task->scatter,
@@ -125,7 +125,7 @@ static inline int asd_map_scatterlist(struct sas_task *task,
 
 	return 0;
 err_unmap:
-	if (task->task_proto != SAS_PROTOCOL_STP)
+	if (sas_protocol_ata(task->task_proto))
 		pci_unmap_sg(asd_ha->pcidev, task->scatter, task->num_scatter,
 			     task->data_dir);
 	return res;

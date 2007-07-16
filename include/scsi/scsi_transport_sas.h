@@ -23,6 +23,12 @@ enum sas_protocol {
 	SAS_PROTOCOL_SSP		= 0x08,
 };
 
+static inline int sas_protocol_ata(enum sas_protocol proto)
+{
+	return ((proto & SAS_PROTOCOL_SATA) ||
+		(proto & SAS_PROTOCOL_STP))? 1 : 0;
+}
+
 enum sas_linkrate {
 	/* These Values are defined in the SAS standard */
 	SAS_LINK_RATE_UNKNOWN = 0,

@@ -110,6 +110,13 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 	task->total_xfer_len = size;
 	task->data_dir = pci_dma_dir;
 	task->task_done = sas_disc_task_done;
+	if (pci_dma_dir != PCI_DMA_NONE &&
+	    sas_protocol_ata(task->task_proto)) {
+		task->num_scatter = pci_map_sg(task->dev->port->ha->pcidev,
+					       task->scatter,
+					       task->num_scatter,
+					       task->data_dir);
+	}
 
 	for (retries = 0; retries < 5; retries++) {
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
@@ -192,8 +199,13 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 		}
 	}
 ex_err:
-	if (pci_dma_dir != PCI_DMA_NONE)
+	if (pci_dma_dir != PCI_DMA_NONE) {
+		if (sas_protocol_ata(task->task_proto))
+			pci_unmap_sg(task->dev->port->ha->pcidev,
+				     task->scatter, task->num_scatter,
+				     task->data_dir);
 		kfree(scatter);
+	}
 out:
 	return res;
 }
