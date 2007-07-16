@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/smp_lock.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>
 #include <asm/oplib.h>
