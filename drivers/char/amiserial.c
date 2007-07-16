@@ -738,6 +738,7 @@ static void change_speed(struct async_struct *info,
 	}
 	/* If the quotient is zero refuse the change */
 	if (!quot && old_termios) {
+		/* FIXME: Will need updating for new tty in the end */
 		info->tty->termios->c_cflag &= ~CBAUD;
 		info->tty->termios->c_cflag |= (old_termios->c_cflag & CBAUD);
 		baud = tty_get_baud_rate(info->tty);
@@ -783,7 +784,6 @@ static void change_speed(struct async_struct *info,
 	/*
 	 * Set up parity check flag
 	 */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 	info->read_status_mask = UART_LSR_OE | UART_LSR_DR;
 	if (I_INPCK(info->tty))
@@ -1366,11 +1366,6 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	struct async_struct *info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;
 	unsigned int cflag = tty->termios->c_cflag;
-
-	if (   (cflag == old_termios->c_cflag)
-	    && (   RELEVANT_IFLAG(tty->termios->c_iflag) 
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-	  return;
 
 	change_speed(info, old_termios);
 
