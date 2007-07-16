@@ -1026,11 +1026,6 @@ failed:
 /*
  * Create buffers for the specified block device block's page.  If
  * that page was dirty, the buffers are set dirty also.
- *
- * Except that's a bug.  Attaching dirty buffers to a dirty
- * blockdev's page can result in filesystem corruption, because
- * some of those buffers may be aliases of filesystem data.
- * grow_dev_page() will go BUG() if this happens.
  */
 static int
 grow_buffers(struct block_device *bdev, sector_t block, int size)
