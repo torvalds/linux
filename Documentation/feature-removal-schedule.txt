@@ -257,6 +257,14 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
+What:	'time' kernel boot parameter
+When:	January 2008
+Why:	replaced by 'printk.time=<value>' so that printk timestamps can be
+	enabled or disabled as needed
+Who:	Randy Dunlap <randy.dunlap@oracle.com>
+
+---------------------------
+
 What:  drivers depending on OSS_OBSOLETE
 When:  options in 2.6.23, code in 2.6.25
 Why:   obsolete OSS drivers

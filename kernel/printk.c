@@ -449,13 +449,16 @@ static int printk_time = 1;
 #else
 static int printk_time = 0;
 #endif
-module_param(printk_time, int, S_IRUGO | S_IWUSR);
+module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
 static int __init printk_time_setup(char *str)
 {
 	if (*str)
 		return 0;
 	printk_time = 1;
+	printk(KERN_NOTICE "The 'time' option is deprecated and "
+		"is scheduled for removal in early 2008\n");
+	printk(KERN_NOTICE "Use 'printk.time=<value>' instead\n");
 	return 1;
 }
 

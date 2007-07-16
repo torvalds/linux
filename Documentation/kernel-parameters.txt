@@ -1389,6 +1389,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			the kernel console.
 			default: off.
 
+	printk.time=	Show timing data prefixed to each printk message line
+			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
+
 	profile=	[KNL] Enable kernel profiling via /proc/profile
 			Format: [schedule,]<number>
 			Param: "schedule" - profile schedule points.
@@ -1824,6 +1827,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Set number of hash buckets for TCP connection
 
 	time		Show timing data prefixed to each printk message line
+			[deprecated, see 'printk.time']
 
 	tipar.timeout=	[HW,PPT]
 			Set communications timeout in tenths of a second
