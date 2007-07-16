@@ -565,6 +565,9 @@ struct ata_port {
 	pm_message_t		pm_mesg;
 	int			*pm_result;
 
+	struct timer_list	fastdrain_timer;
+	unsigned long		fastdrain_cnt;
+
 	void			*private_data;
 
 #ifdef CONFIG_ATA_ACPI

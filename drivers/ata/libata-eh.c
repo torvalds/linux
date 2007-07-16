@@ -56,6 +56,7 @@ enum {
  */
 enum {
 	ATA_EH_PRERESET_TIMEOUT		= 10 * HZ,
+	ATA_EH_FASTDRAIN_INTERVAL	= 3 * HZ,
 };
 
 /* The following table determines how we sequence resets.  Each entry
@@ -361,6 +362,9 @@ void ata_scsi_error(struct Scsi_Host *host)
  repeat:
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
+		/* kill fast drain timer */
+		del_timer_sync(&ap->fastdrain_timer);
+
 		/* process port resume request */
 		ata_eh_handle_port_resume(ap);
 
@@ -576,6 +580,94 @@ void ata_eng_timeout(struct ata_port *ap)
 	DPRINTK("EXIT\n");
 }
 
+static int ata_eh_nr_in_flight(struct ata_port *ap)
+{
+	unsigned int tag;
+	int nr = 0;
+
+	/* count only non-internal commands */
+	for (tag = 0; tag < ATA_MAX_QUEUE - 1; tag++)
+		if (ata_qc_from_tag(ap, tag))
+			nr++;
+
+	return nr;
+}
+
+void ata_eh_fastdrain_timerfn(unsigned long arg)
+{
+	struct ata_port *ap = (void *)arg;
+	unsigned long flags;
+	int cnt;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	cnt = ata_eh_nr_in_flight(ap);
+
+	/* are we done? */
+	if (!cnt)
+		goto out_unlock;
+
+	if (cnt == ap->fastdrain_cnt) {
+		unsigned int tag;
+
+		/* No progress during the last interval, tag all
+		 * in-flight qcs as timed out and freeze the port.
+		 */
+		for (tag = 0; tag < ATA_MAX_QUEUE - 1; tag++) {
+			struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
+			if (qc)
+				qc->err_mask |= AC_ERR_TIMEOUT;
+		}
+
+		ata_port_freeze(ap);
+	} else {
+		/* some qcs have finished, give it another chance */
+		ap->fastdrain_cnt = cnt;
+		ap->fastdrain_timer.expires =
+			jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+		add_timer(&ap->fastdrain_timer);
+	}
+
+ out_unlock:
+	spin_unlock_irqrestore(ap->lock, flags);
+}
+
+/**
+ *	ata_eh_set_pending - set ATA_PFLAG_EH_PENDING and activate fast drain
+ *	@ap: target ATA port
+ *	@fastdrain: activate fast drain
+ *
+ *	Set ATA_PFLAG_EH_PENDING and activate fast drain if @fastdrain
+ *	is non-zero and EH wasn't pending before.  Fast drain ensures
+ *	that EH kicks in in timely manner.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
+{
+	int cnt;
+
+	/* already scheduled? */
+	if (ap->pflags & ATA_PFLAG_EH_PENDING)
+		return;
+
+	ap->pflags |= ATA_PFLAG_EH_PENDING;
+
+	if (!fastdrain)
+		return;
+
+	/* do we have in-flight qcs? */
+	cnt = ata_eh_nr_in_flight(ap);
+	if (!cnt)
+		return;
+
+	/* activate fast drain */
+	ap->fastdrain_cnt = cnt;
+	ap->fastdrain_timer.expires = jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+	add_timer(&ap->fastdrain_timer);
+}
+
 /**
  *	ata_qc_schedule_eh - schedule qc for error handling
  *	@qc: command to schedule error handling for
@@ -593,7 +685,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	WARN_ON(!ap->ops->error_handler);
 
 	qc->flags |= ATA_QCFLAG_FAILED;
-	qc->ap->pflags |= ATA_PFLAG_EH_PENDING;
+	ata_eh_set_pending(ap, 1);
 
 	/* The following will fail if timeout has already expired.
 	 * ata_scsi_error() takes care of such scmds on EH entry.
@@ -620,7 +712,7 @@ void ata_port_schedule_eh(struct ata_port *ap)
 	if (ap->pflags & ATA_PFLAG_INITIALIZING)
 		return;
 
-	ap->pflags |= ATA_PFLAG_EH_PENDING;
+	ata_eh_set_pending(ap, 1);
 	scsi_schedule_eh(ap->scsi_host);
 
 	DPRINTK("port EH scheduled\n");
@@ -643,6 +735,9 @@ int ata_port_abort(struct ata_port *ap)
 	int tag, nr_aborted = 0;
 
 	WARN_ON(!ap->ops->error_handler);
+
+	/* we're gonna abort all commands, no need for fast drain */
+	ata_eh_set_pending(ap, 0);
 
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
