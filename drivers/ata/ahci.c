@@ -976,6 +976,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 	void __iomem *port_mmio = ahci_port_base(ap);
 	const u32 cmd_fis_len = 5; /* five dwords */
 	const char *reason = NULL;
+	unsigned long now, msecs;
 	struct ata_taskfile tf;
 	u32 tmp;
 	u8 *fis;
@@ -1016,6 +1017,11 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 	fis = pp->cmd_tbl;
 
 	/* issue the first D2H Register FIS */
+	msecs = 0;
+	now = jiffies;
+	if (time_after(now, deadline))
+		msecs = jiffies_to_msecs(deadline - now);
+
 	ahci_fill_cmd_slot(pp, 0,
 			   cmd_fis_len | AHCI_CMD_RESET | AHCI_CMD_CLR_BUSY);
 
@@ -1024,7 +1030,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 
 	writel(1, port_mmio + PORT_CMD_ISSUE);
 
-	tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1, 1, 500);
+	tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1, 1, msecs);
 	if (tmp & 0x1) {
 		rc = -EIO;
 		reason = "1st FIS failed";
