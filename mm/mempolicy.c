@@ -101,8 +101,6 @@
 static struct kmem_cache *policy_cache;
 static struct kmem_cache *sn_cache;
 
-#define PDprintk(fmt...)
-
 /* Highest zone. An specific allocation for a zone below that is not
    policied. */
 enum zone_type policy_zone = 0;
@@ -175,7 +173,9 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 {
 	struct mempolicy *policy;
 
-	PDprintk("setting mode %d nodes[0] %lx\n", mode, nodes_addr(*nodes)[0]);
+	pr_debug("setting mode %d nodes[0] %lx\n",
+		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
+
 	if (mode == MPOL_DEFAULT)
 		return NULL;
 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
@@ -379,7 +379,7 @@ static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
 	int err = 0;
 	struct mempolicy *old = vma->vm_policy;
 
-	PDprintk("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
+	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
 		 vma->vm_ops, vma->vm_file,
 		 vma->vm_ops ? vma->vm_ops->set_policy : NULL);
@@ -776,8 +776,8 @@ long do_mbind(unsigned long start, unsigned long len,
 	if (!new)
 		flags |= MPOL_MF_DISCONTIG_OK;
 
-	PDprintk("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
-			mode,nodes_addr(nodes)[0]);
+	pr_debug("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
+		 mode, nmask ? nodes_addr(*nmask)[0] : -1);
 
 	down_write(&mm->mmap_sem);
 	vma = check_range(mm, start, end, nmask,
@@ -1434,7 +1434,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
 	}
 	rb_link_node(&new->nd, parent, p);
 	rb_insert_color(&new->nd, &sp->root);
-	PDprintk("inserting %lx-%lx: %d\n", new->start, new->end,
+	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
 		 new->policy ? new->policy->policy : 0);
 }
 
@@ -1459,7 +1459,7 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
 
 static void sp_delete(struct shared_policy *sp, struct sp_node *n)
 {
-	PDprintk("deleting %lx-l%x\n", n->start, n->end);
+	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
 	rb_erase(&n->nd, &sp->root);
 	mpol_free(n->policy);
 	kmem_cache_free(sn_cache, n);
@@ -1558,10 +1558,10 @@ int mpol_set_shared_policy(struct shared_policy *info,
 	struct sp_node *new = NULL;
 	unsigned long sz = vma_pages(vma);
 
-	PDprintk("set_shared_policy %lx sz %lu %d %lx\n",
+	pr_debug("set_shared_policy %lx sz %lu %d %lx\n",
 		 vma->vm_pgoff,
 		 sz, npol? npol->policy : -1,
-		npol ? nodes_addr(npol->v.nodes)[0] : -1);
+		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
 
 	if (npol) {
 		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);
