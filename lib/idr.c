@@ -391,6 +391,53 @@ void idr_remove(struct idr *idp, int id)
 EXPORT_SYMBOL(idr_remove);
 
 /**
+ * idr_remove_all - remove all ids from the given idr tree
+ * @idp: idr handle
+ *
+ * idr_destroy() only frees up unused, cached idp_layers, but this
+ * function will remove all id mappings and leave all idp_layers
+ * unused.
+ *
+ * A typical clean-up sequence for objects stored in an idr tree, will
+ * use idr_for_each() to free all objects, if necessay, then
+ * idr_remove_all() to remove all ids, and idr_destroy() to free
+ * up the cached idr_layers.
+ */
+void idr_remove_all(struct idr *idp)
+{
+	int n, id, max, error = 0;
+	struct idr_layer *p;
+	struct idr_layer *pa[MAX_LEVEL];
+	struct idr_layer **paa = &pa[0];
+
+	n = idp->layers * IDR_BITS;
+	p = idp->top;
+	max = 1 << n;
+
+	id = 0;
+	while (id < max && !error) {
+		while (n > IDR_BITS && p) {
+			n -= IDR_BITS;
+			*paa++ = p;
+			p = p->ary[(id >> n) & IDR_MASK];
+		}
+
+		id += 1 << n;
+		while (n < fls(id)) {
+			if (p) {
+				memset(p, 0, sizeof *p);
+				free_layer(idp, p);
+			}
+			n += IDR_BITS;
+			p = *--paa;
+		}
+	}
+	idp->top = NULL;
+	idp->layers = 0;
+}
+EXPORT_SYMBOL(idr_remove_all);
+
+/**
  * idr_destroy - release all cached layers within an idr tree
  * idp: idr handle
  */
