@@ -143,12 +143,14 @@ static int skip_atoi(const char **s)
 #define SPECIAL	32		/* 0x */
 #define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
 
-static char * number(char * buf, char * end, unsigned long long num, int base, int size, int precision, int type)
+static char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type)
 {
-	char c,sign,tmp[66];
+	char sign,tmp[66];
 	const char *digits;
-	static const char small_digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	static const char large_digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	/* we are called with base 8, 10 or 16, only, thus don't need "g..."  */
+	static const char small_digits[] = "0123456789abcdefx"; /* "ghijklmnopqrstuvwxyz"; */
+	static const char large_digits[] = "0123456789ABCDEFX"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	int need_pfx = ((type & SPECIAL) && base != 10);
 	int i;
 
 	digits = (type & LARGE) ? large_digits : small_digits;
@@ -156,7 +158,6 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 		type &= ~ZEROPAD;
 	if (base < 2 || base > 36)
 		return NULL;
-	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
 		if ((signed long long) num < 0) {
@@ -171,64 +172,80 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 			size--;
 		}
 	}
-	if (type & SPECIAL) {
+	if (need_pfx) {
+		size--;
 		if (base == 16)
-			size -= 2;
-		else if (base == 8)
 			size--;
 	}
+
+	/* generate full string in tmp[], in reverse order */
 	i = 0;
 	if (num == 0)
-		tmp[i++]='0';
-	else while (num != 0)
-		tmp[i++] = digits[do_div(num,base)];
+		tmp[i++] = '0';
+	else if (base != 10) { /* 8 or 16 */
+		int mask = base - 1;
+		int shift = 3;
+		if (base == 16) shift = 4;
+		do {
+			tmp[i++] = digits[((unsigned char)num) & mask];
+			num >>= shift;
+		} while (num);
+	} else do { /* generic code, works for any base */
+		tmp[i++] = digits[do_div(num,10 /*base*/)];
+	} while (num);
+
+	/* printing 100 using %2d gives "100", not "00" */
 	if (i > precision)
 		precision = i;
+	/* leading space padding */
 	size -= precision;
-	if (!(type&(ZEROPAD+LEFT))) {
-		while(size-->0) {
+	if (!(type & (ZEROPAD+LEFT))) {
+		while(--size >= 0) {
 			if (buf < end)
 				*buf = ' ';
 			++buf;
 		}
 	}
+	/* sign */
 	if (sign) {
 		if (buf < end)
 			*buf = sign;
 		++buf;
 	}
-	if (type & SPECIAL) {
-		if (base==8) {
+	/* "0x" / "0" prefix */
+	if (need_pfx) {
+		if (buf < end)
+			*buf = '0';
+		++buf;
+		if (base == 16) {
 			if (buf < end)
-				*buf = '0';
-			++buf;
-		} else if (base==16) {
-			if (buf < end)
-				*buf = '0';
-			++buf;
-			if (buf < end)
-				*buf = digits[33];
+				*buf = digits[16]; /* for arbitrary base: digits[33]; */
 			++buf;
 		}
 	}
+	/* zero or space padding */
 	if (!(type & LEFT)) {
-		while (size-- > 0) {
+		char c = (type & ZEROPAD) ? '0' : ' ';
+		while (--size >= 0) {
 			if (buf < end)
 				*buf = c;
 			++buf;
 		}
 	}
-	while (i < precision--) {
+	/* hmm even more zero padding? */
+	while (i <= --precision) {
 		if (buf < end)
 			*buf = '0';
 		++buf;
 	}
-	while (i-- > 0) {
+	/* actual digits of result */
+	while (--i >= 0) {
 		if (buf < end)
 			*buf = tmp[i];
 		++buf;
 	}
-	while (size-- > 0) {
+	/* trailing space padding */
+	while (--size >= 0) {
 		if (buf < end)
 			*buf = ' ';
 		++buf;
@@ -276,7 +293,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	   used for unknown buffer sizes. */
 	if (unlikely((int) size < 0)) {
 		/* There can be only one.. */
-		static int warn = 1;
+		static char warn = 1;
 		WARN_ON(warn);
 		warn = 0;
 		return 0;
