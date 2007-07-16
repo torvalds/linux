@@ -602,9 +602,7 @@ config BASE_SMALL
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
 
-menu "Loadable module support"
-
-config MODULES
+menuconfig MODULES
 	bool "Enable loadable module support"
 	help
 	  Kernel modules are small pieces of compiled code which can
@@ -684,6 +682,5 @@ config STOP_MACHINE
 	depends on (SMP && MODULE_UNLOAD) || HOTPLUG_CPU
 	help
 	  Need stop_machine() primitive.
-endmenu
 
 source "block/Kconfig"
