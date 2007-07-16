@@ -654,7 +654,7 @@ static void call_console_drivers(unsigned long start, unsigned long end)
  */
 static int __init console_setup(char *str)
 {
-	char name[sizeof(console_cmdline[0].name)];
+	char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for index */
 	char *s, *options;
 	int idx;
 
@@ -662,27 +662,27 @@ static int __init console_setup(char *str)
 	 * Decode str into name, index, options.
 	 */
 	if (str[0] >= '0' && str[0] <= '9') {
-		strcpy(name, "ttyS");
-		strncpy(name + 4, str, sizeof(name) - 5);
+		strcpy(buf, "ttyS");
+		strncpy(buf + 4, str, sizeof(buf) - 5);
 	} else {
-		strncpy(name, str, sizeof(name) - 1);
+		strncpy(buf, str, sizeof(buf) - 1);
 	}
-	name[sizeof(name) - 1] = 0;
+	buf[sizeof(buf) - 1] = 0;
 	if ((options = strchr(str, ',')) != NULL)
 		*(options++) = 0;
 #ifdef __sparc__
 	if (!strcmp(str, "ttya"))
-		strcpy(name, "ttyS0");
+		strcpy(buf, "ttyS0");
 	if (!strcmp(str, "ttyb"))
-		strcpy(name, "ttyS1");
+		strcpy(buf, "ttyS1");
 #endif
-	for (s = name; *s; s++)
+	for (s = buf; *s; s++)
 		if ((*s >= '0' && *s <= '9') || *s == ',')
 			break;
 	idx = simple_strtoul(s, NULL, 10);
 	*s = 0;
 
-	add_preferred_console(name, idx, options);
+	add_preferred_console(buf, idx, options);
 	return 1;
 }
 __setup("console=", console_setup);
@@ -709,7 +709,7 @@ int __init add_preferred_console(char *name, int idx, char *options)
 	 *	See if this tty is not yet registered, and
 	 *	if we have a slot free.
 	 */
-	for(i = 0; i < MAX_CMDLINECONSOLES && console_cmdline[i].name[0]; i++)
+	for (i = 0; i < MAX_CMDLINECONSOLES && console_cmdline[i].name[0]; i++)
 		if (strcmp(console_cmdline[i].name, name) == 0 &&
 			  console_cmdline[i].index == idx) {
 				selected_console = i;
