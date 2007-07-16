@@ -1,4 +1,4 @@
-Linux Kernel patch sumbittal checklist
+Linux Kernel patch submission checklist
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Here are some basic things that developers should do if they want to see their
@@ -7,7 +7,6 @@ kernel patch submissions accepted more quickly.
 These are all above and beyond the documentation that is provided in
 Documentation/SubmittingPatches and elsewhere regarding submitting Linux
 kernel patches.
-
 
 
 1: Builds cleanly with applicable or modified CONFIG options =y, =m, and
