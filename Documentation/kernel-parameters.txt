@@ -1580,35 +1580,39 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	slram=		[HW,MTD]
 
-	slub_debug	[MM, SLUB]
-			Enabling slub_debug allows one to determine the culprit
-			if slab objects become corrupted. Enabling slub_debug
-			creates guard zones around objects and poisons objects
-			when not in use. Also tracks the last alloc / free.
-			For more information see Documentation/vm/slub.txt.
+	slub_debug[=options[,slabs]]	[MM, SLUB]
+			Enabling slub_debug allows one to determine the
+			culprit if slab objects become corrupted. Enabling
+			slub_debug can create guard zones around objects and
+			may poison objects when not in use. Also tracks the
+			last alloc / free. For more information see
+			Documentation/vm/slub.txt.
 
 	slub_max_order= [MM, SLUB]
-			Determines the maximum allowed order for slabs. Setting
-			this too high may cause fragmentation.
-			For more information see Documentation/vm/slub.txt.
+			Determines the maximum allowed order for slabs.
+			A high setting may cause OOMs due to memory
+			fragmentation. For more information see
+			Documentation/vm/slub.txt.
 
 	slub_min_objects=	[MM, SLUB]
-			The minimum objects per slab. SLUB will increase the
-			slab order up to slub_max_order to generate a
-			sufficiently big slab to satisfy the number of objects.
-			The higher the number of objects the smaller the overhead
-			of tracking slabs.
+			The minimum number of objects per slab. SLUB will
+			increase the slab order up to slub_max_order to
+			generate a sufficiently large slab able to contain
+			the number of objects indicated. The higher the number
+			of objects the smaller the overhead of tracking slabs
+			and the less frequently locks need to be acquired.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_min_order=	[MM, SLUB]
 			Determines the mininum page order for slabs. Must be
-			lower than slub_max_order
+			lower than slub_max_order.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_nomerge	[MM, SLUB]
-			Disable merging of slabs of similar size. May be
+			Disable merging of slabs with similar size. May be
 			necessary if there is some reason to distinguish
-			allocs to different slabs.
+			allocs to different slabs. Debug options disable
+			merging on their own.
 			For more information see Documentation/vm/slub.txt.
 
 	smart2=		[HW]

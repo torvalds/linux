@@ -41,6 +41,8 @@ Possible debug options are
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
 	T		Trace (please only use on single slabs)
+	-		Switch all debugging off (useful if the kernel is
+			configured with CONFIG_SLUB_DEBUG_ON)
 
 F.e. in order to boot just with sanity checks and red zoning one would specify:
 
