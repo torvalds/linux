@@ -61,6 +61,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 
 /* External variables not in a header file. */
 extern int C_A_D;
+extern int print_fatal_signals;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern int sysctl_panic_on_oom;
@@ -340,6 +341,14 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "print-fatal-signals",
+		.data		= &print_fatal_signals,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #ifdef __sparc__
 	{
 		.ctl_name	= KERN_SPARC_REBOOT,
