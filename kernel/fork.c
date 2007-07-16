@@ -1059,6 +1059,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->lock_depth = -1;		/* -1 = no lock */
 	do_posix_clock_monotonic_gettime(&p->start_time);
+	p->real_start_time = p->start_time;
+	monotonic_to_bootbased(&p->real_start_time);
 	p->security = NULL;
 	p->io_context = NULL;
 	p->io_wait = NULL;
