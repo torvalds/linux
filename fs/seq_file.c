@@ -260,8 +260,8 @@ loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 				}
 			}
 	}
-	mutex_unlock(&m->lock);
 	file->f_version = m->version;
+	mutex_unlock(&m->lock);
 	return retval;
 }
 EXPORT_SYMBOL(seq_lseek);
