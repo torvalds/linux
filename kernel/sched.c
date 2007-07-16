@@ -736,7 +736,9 @@ static void update_curr_load(struct rq *rq, u64 now)
  *
  * The "10% effect" is relative and cumulative: from _any_ nice level,
  * if you go up 1 level, it's -10% CPU usage, if you go down 1 level
- * it's +10% CPU usage.
+ * it's +10% CPU usage. (to achieve that we use a multiplier of 1.25.
+ * If a task goes up by ~10% and another task goes down by ~10% then
+ * the relative distance between them is ~25%.)
  */
 static const int prio_to_weight[40] = {
 /* -20 */ 88818, 71054, 56843, 45475, 36380, 29104, 23283, 18626, 14901, 11921,
@@ -746,15 +748,22 @@ static const int prio_to_weight[40] = {
 /*  10 */   110,    87,    70,    56,    45,    36,    29,    23,    18,    15,
 };
 
+/*
+ * Inverse (2^32/x) values of the prio_to_weight[] array, precalculated.
+ *
+ * In cases where the weight does not change often, we can use the
+ * precalculated inverse to speed up arithmetics by turning divisions
+ * into multiplications:
+ */
 static const u32 prio_to_wmult[40] = {
-	48356,   60446,   75558,   94446,  118058,  147573,
-	184467,  230589,  288233,  360285,  450347,
-	562979,  703746,  879575, 1099582, 1374389,
-	1717986, 2147483, 2684354, 3355443, 4194304,
-	5244160, 6557201, 8196502, 10250518, 12782640,
-	16025997, 19976592, 24970740, 31350126, 39045157,
-	49367440, 61356675, 76695844, 95443717, 119304647,
-	148102320, 186737708, 238609294, 286331153,
+/* -20 */     48356,     60446,     75558,     94446,    118058,
+/* -15 */    147573,    184467,    230589,    288233,    360285,
+/* -10 */    450347,    562979,    703746,    879575,   1099582,
+/*  -5 */   1374389,   1717986,   2147483,   2684354,   3355443,
+/*   0 */   4194304,   5244160,   6557201,   8196502,  10250518,
+/*   5 */  12782640,  16025997,  19976592,  24970740,  31350126,
+/*  10 */  39045157,  49367440,  61356675,  76695844,  95443717,
+/*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
 static inline void
