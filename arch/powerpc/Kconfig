@@ -600,6 +600,7 @@ config CONSISTENT_START_BOOL
 
 config CONSISTENT_START
 	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
+	default "0xfd000000" if (NOT_COHERENT_CACHE && 8xx)
 	default "0xff100000" if NOT_COHERENT_CACHE
 
 config CONSISTENT_SIZE_BOOL
