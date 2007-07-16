@@ -42,7 +42,6 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			void (*)(void *, struct kmem_cache *, unsigned long));
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
-void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
 void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
 void kmem_cache_free(struct kmem_cache *, void *);
 unsigned int kmem_cache_size(struct kmem_cache *);
@@ -60,16 +59,6 @@ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
 #define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
 		sizeof(struct __struct), __alignof__(struct __struct),\
 		(__flags), NULL, NULL)
-
-#ifdef CONFIG_NUMA
-extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-#else
-static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
-					gfp_t flags, int node)
-{
-	return kmem_cache_alloc(cachep, flags);
-}
-#endif
 
 /*
  * The largest kmalloc size supported by the slab allocators is
@@ -89,7 +78,6 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
 /*
  * Common kmalloc functions provided by all allocators
  */
-void *__kmalloc(size_t, gfp_t);
 void *__kzalloc(size_t, gfp_t);
 void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
@@ -100,40 +88,6 @@ size_t ksize(const void *);
  * @n: number of elements.
  * @size: element size.
  * @flags: the type of memory to allocate.
- */
-static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
-{
-	if (n != 0 && size > ULONG_MAX / n)
-		return NULL;
-	return __kzalloc(n * size, flags);
-}
-
-/*
- * Allocator specific definitions. These are mainly used to establish optimized
- * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by selecting
- * the appropriate general cache at compile time.
- */
-
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
-#ifdef CONFIG_SLUB
-#include <linux/slub_def.h>
-#else
-#include <linux/slab_def.h>
-#endif /* !CONFIG_SLUB */
-#else
-
-/*
- * Fallback definitions for an allocator not wanting to provide
- * its own optimized kmalloc definitions (like SLOB).
- */
-
-/**
- * kmalloc - allocate memory
- * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * kmalloc is the normal method of allocating memory
- * in the kernel.
  *
  * The @flags argument may be one of:
  *
@@ -141,7 +95,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
  *
  * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
  *
- * %GFP_ATOMIC - Allocation will not sleep.
+ * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
  *   For example, use this inside interrupt handlers.
  *
  * %GFP_HIGHUSER - Allocate pages from high memory.
@@ -150,17 +104,21 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
  *
  * %GFP_NOFS - Do not make any fs calls while trying to get memory.
  *
+ * %GFP_NOWAIT - Allocation will not sleep.
+ *
+ * %GFP_THISNODE - Allocate node-local memory only.
+ *
+ * %GFP_DMA - Allocation suitable for DMA.
+ *   Should only be used for kmalloc() caches. Otherwise, use a
+ *   slab created with SLAB_DMA.
+ *
  * Also it is possible to set different flags by OR'ing
  * in one or more of the following additional @flags:
  *
  * %__GFP_COLD - Request cache-cold pages instead of
  *   trying to return cache-warm pages.
  *
- * %__GFP_DMA - Request memory from the DMA-capable zone.
- *
  * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
- *
- * %__GFP_HIGHMEM - Allocated memory may be from highmem.
  *
  * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
  *   (think twice before using).
@@ -171,24 +129,57 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
  * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
  *
  * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+ *
+ * There are other flags available as well, but these are not intended
+ * for general use, and so are not documented here. For a full list of
+ * potential flags, always refer to linux/gfp.h.
  */
-static inline void *kmalloc(size_t size, gfp_t flags)
+static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
-	return __kmalloc(size, flags);
+	if (n != 0 && size > ULONG_MAX / n)
+		return NULL;
+	return __kzalloc(n * size, flags);
 }
 
-/**
- * kzalloc - allocate memory. The memory is set to zero.
- * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate (see kmalloc).
+/*
+ * Allocator specific definitions. These are mainly used to establish optimized
+ * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
+ * selecting the appropriate general cache at compile time.
+ *
+ * Allocators must define at least:
+ *
+ *	kmem_cache_alloc()
+ *	__kmalloc()
+ *	kmalloc()
+ *	kzalloc()
+ *
+ * Those wishing to support NUMA must also define:
+ *
+ *	kmem_cache_alloc_node()
+ *	kmalloc_node()
+ *
+ * See each allocator definition file for additional comments and
+ * implementation notes.
  */
-static inline void *kzalloc(size_t size, gfp_t flags)
-{
-	return __kzalloc(size, flags);
-}
+#ifdef CONFIG_SLUB
+#include <linux/slub_def.h>
+#elif defined(CONFIG_SLOB)
+#include <linux/slob_def.h>
+#else
+#include <linux/slab_def.h>
 #endif
 
-#ifndef CONFIG_NUMA
+#if !defined(CONFIG_NUMA) && !defined(CONFIG_SLOB)
+/**
+ * kmalloc_node - allocate memory from a specific node
+ * @size: how many bytes of memory are required.
+ * @flags: the type of memory to allocate (see kcalloc).
+ * @node: node to allocate from.
+ *
+ * kmalloc() for non-local nodes, used to allocate from a specific node
+ * if available. Equivalent to kmalloc() in the non-NUMA single-node
+ * case.
+ */
 static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	return kmalloc(size, flags);
@@ -198,7 +189,15 @@ static inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	return __kmalloc(size, flags);
 }
-#endif /* !CONFIG_NUMA */
+
+void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+
+static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+					gfp_t flags, int node)
+{
+	return kmem_cache_alloc(cachep, flags);
+}
+#endif /* !CONFIG_NUMA && !CONFIG_SLOB */
 
 /*
  * kmalloc_track_caller is a special version of kmalloc that records the
@@ -245,4 +244,3 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */
-
