@@ -106,7 +106,7 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
                 if (IS_IMMUTABLE(inode))
                         goto dput_and_out;
 
-		if (current->fsuid != inode->i_uid) {
+		if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER)) {
 			if (f) {
 				if (!(f->f_mode & FMODE_WRITE))
 					goto dput_and_out;
