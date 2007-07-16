@@ -1011,7 +1011,7 @@ retry:
 	}
 	bcd->class_dev = class_dev;
 
-	if (q->kobj.dentry) {
+	if (q->kobj.sd) {
 		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
 		if (ret)
 			goto err;
