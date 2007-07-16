@@ -390,10 +390,6 @@ early_console_setup (char *cmdline)
 	if (!efi_setup_pcdp_console(cmdline))
 		earlycons++;
 #endif
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	if (!early_serial_console_init(cmdline))
-		earlycons++;
-#endif
 
 	return (earlycons) ? 0 : -1;
 }

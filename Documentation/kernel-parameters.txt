@@ -462,12 +462,19 @@ and is between 256 and 4096 characters. It is defined in the file
 			Documentation/networking/netconsole.txt for an
 			alternative.
 
-		uart,io,<addr>[,options]
-		uart,mmio,<addr>[,options]
+		uart[8250],io,<addr>[,options]
+		uart[8250],mmio,<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
+
+	earlycon=	[KNL] Output early console device and options.
+		uart[8250],io,<addr>[,options]
+		uart[8250],mmio,<addr>[,options]
+			Start an early, polled-mode console on the 8250/16550
+			UART at the specified I/O port or MMIO address.
+			The options are the same as for ttyS, above.
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:

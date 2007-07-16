@@ -2514,12 +2514,18 @@ static int __init serial8250_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
+static int __init serial8250_console_early_setup(void)
+{
+	return serial8250_find_port_for_earlycon();
+}
+
 static struct uart_driver serial8250_reg;
 static struct console serial8250_console = {
 	.name		= "ttyS",
 	.write		= serial8250_console_write,
 	.device		= uart_console_device,
 	.setup		= serial8250_console_setup,
+	.early_setup	= serial8250_console_early_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &serial8250_reg,
@@ -2533,7 +2539,7 @@ static int __init serial8250_console_init(void)
 }
 console_initcall(serial8250_console_init);
 
-static int __init find_port(struct uart_port *p)
+int serial8250_find_port(struct uart_port *p)
 {
 	int line;
 	struct uart_port *port;
@@ -2544,26 +2550,6 @@ static int __init find_port(struct uart_port *p)
 			return line;
 	}
 	return -ENODEV;
-}
-
-int __init serial8250_start_console(struct uart_port *port, char *options)
-{
-	int line;
-
-	line = find_port(port);
-	if (line < 0)
-		return -ENODEV;
-
-	add_preferred_console("ttyS", line, options);
-	printk("Adding console on ttyS%d at %s 0x%lx (options '%s')\n",
-		line, port->iotype == UPIO_MEM ? "MMIO" : "I/O port",
-		port->iotype == UPIO_MEM ? (unsigned long) port->mapbase :
-		    (unsigned long) port->iobase, options);
-	if (!(serial8250_console.flags & CON_ENABLED)) {
-		serial8250_console.flags &= ~CON_PRINTBUFFER;
-		register_console(&serial8250_console);
-	}
-	return line;
 }
 
 #define SERIAL8250_CONSOLE	&serial8250_console

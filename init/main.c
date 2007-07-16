@@ -453,7 +453,10 @@ static int __init do_early_param(char *param, char *val)
 	struct obs_kernel_param *p;
 
 	for (p = __setup_start; p < __setup_end; p++) {
-		if (p->early && strcmp(param, p->str) == 0) {
+		if ((p->early && strcmp(param, p->str) == 0) ||
+		    (strcmp(param, "console") == 0 &&
+		     strcmp(p->str, "earlycon") == 0)
+		) {
 			if (p->setup_func(val) != 0)
 				printk(KERN_WARNING
 				       "Malformed early option '%s'\n", param);

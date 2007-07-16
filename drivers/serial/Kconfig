@@ -62,7 +62,21 @@ config SERIAL_8250_CONSOLE
 	  kernel will automatically use the first serial line, /dev/ttyS0, as
 	  system console.
 
+	  you can set that using a kernel command line option such as
+	  "console=uart8250,io,0x3f8,9600n8"
+	  "console=uart8250,mmio,0xff5e0000,115200n8".
+	  and it will switch to normal serial console when correponding port is
+	  ready.
+	  "earlycon=uart8250,io,0x3f8,9600n8"
+	  "earlycon=uart8250,mmio,0xff5e0000,115200n8".
+	  it will not only setup early console.
+
 	  If unsure, say N.
+
+config FIX_EARLYCON_MEM
+	bool
+	depends on X86
+	default y
 
 config SERIAL_8250_GSC
 	tristate
