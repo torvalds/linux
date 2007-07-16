@@ -287,9 +287,11 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
 	struct vm_area_struct * vma, *prev;
 	int unmapped_error = 0;
 	int error = -EINVAL;
+	int write;
 	size_t len;
 
-	if (madvise_need_mmap_write(behavior))
+	write = madvise_need_mmap_write(behavior);
+	if (write)
 		down_write(&current->mm->mmap_sem);
 	else
 		down_read(&current->mm->mmap_sem);
@@ -354,7 +356,7 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
 			vma = find_vma(current->mm, start);
 	}
 out:
-	if (madvise_need_mmap_write(behavior))
+	if (write)
 		up_write(&current->mm->mmap_sem);
 	else
 		up_read(&current->mm->mmap_sem);
