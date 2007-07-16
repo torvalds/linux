@@ -17,6 +17,8 @@ struct fatent_operations {
 	int (*ent_next)(struct fat_entry *);
 };
 
+static DEFINE_SPINLOCK(fat12_entry_lock);
+
 static void fat12_ent_blocknr(struct super_block *sb, int entry,
 			      int *offset, sector_t *blocknr)
 {
@@ -116,10 +118,13 @@ static int fat12_ent_get(struct fat_entry *fatent)
 	u8 **ent12_p = fatent->u.ent12_p;
 	int next;
 
+	spin_lock(&fat12_entry_lock);
 	if (fatent->entry & 1)
 		next = (*ent12_p[0] >> 4) | (*ent12_p[1] << 4);
 	else
 		next = (*ent12_p[1] << 8) | *ent12_p[0];
+	spin_unlock(&fat12_entry_lock);
+
 	next &= 0x0fff;
 	if (next >= BAD_FAT12)
 		next = FAT_ENT_EOF;
@@ -151,6 +156,7 @@ static void fat12_ent_put(struct fat_entry *fatent, int new)
 	if (new == FAT_ENT_EOF)
 		new = EOF_FAT12;
 
+	spin_lock(&fat12_entry_lock);
 	if (fatent->entry & 1) {
 		*ent12_p[0] = (new << 4) | (*ent12_p[0] & 0x0f);
 		*ent12_p[1] = new >> 4;
@@ -158,6 +164,7 @@ static void fat12_ent_put(struct fat_entry *fatent, int new)
 		*ent12_p[0] = new & 0xff;
 		*ent12_p[1] = (*ent12_p[1] & 0xf0) | (new >> 8);
 	}
+	spin_unlock(&fat12_entry_lock);
 
 	mark_buffer_dirty(fatent->bhs[0]);
 	if (fatent->nr_bhs == 2)
