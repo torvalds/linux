@@ -1206,7 +1206,9 @@ enum cpm_clk_target {
 	CPM_CLK_SCC4,
 	CPM_CLK_FCC1,
 	CPM_CLK_FCC2,
-	CPM_CLK_FCC3
+	CPM_CLK_FCC3,
+	CPM_CLK_SMC1,
+	CPM_CLK_SMC2,
 };
 
 enum cpm_clk {
@@ -1243,6 +1245,7 @@ enum cpm_clk {
 };
 
 extern int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
+extern int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock);
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */
