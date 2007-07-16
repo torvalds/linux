@@ -119,13 +119,6 @@ Who:    Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:  drivers depending on OSS_OBSOLETE_DRIVER
-When:  options in 2.6.20, code in 2.6.22
-Why:   OSS drivers with ALSA replacements
-Who:   Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.

@@ -238,15 +238,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
-	ad1816=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>
-			See also Documentation/sound/oss/AD1816.
-
 	ad1848=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>,<type>
-
-	adlib=		[HW,OSS]
-			Format: <io>
 
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
@@ -1205,9 +1198,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	opl3=		[HW,OSS]
 			Format: <io>
-
-	opl3sa2=	[HW,OSS] Format:
-			<io>,<irq>,<dma>,<dma2>,<mss_io>,<mpu_io>,<ymode>,<loopback>[,<isapnp>,<multiple]
 
 	oprofile.timer=	[HW]
 			Use timer interrupt instead of performance counters

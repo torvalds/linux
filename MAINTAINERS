@@ -194,13 +194,6 @@ M:	jes@trained-monkey.org
 L:	linux-acenic@sunsite.dk
 S:	Maintained
 
-ACI MIXER DRIVER
-P:	Robert Siemer
-M:	Robert.Siemer@gmx.de
-L:	linux-sound@vger.kernel.org
-W:	http://www.stud.uni-karlsruhe.de/~uh1b/
-S:	Maintained
-
 IPS SCSI RAID DRIVER
 P:	Adaptec OEM Raid Solutions
 M:	aacraid@adaptec.com
@@ -271,21 +264,6 @@ M:	luming.yu@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 S:	Supported
-
-AD1816 SOUND DRIVER
-P:	Thorsten Knabe
-M:	Thorsten Knabe <linux@thorsten-knabe.de>
-W:	http://linux.thorsten-knabe.de
-S:	Maintained
-
-AD1889 SOUND DRIVER
-P:	Kyle McMartin
-M:	kyle@parisc-linux.org
-P:	Thibaut Varene
-M:	T-Bone@parisc-linux.org
-W:	http://wiki.parisc-linux.org/AD1889
-L:	parisc-linux@lists.parisc-linux.org
-S:	Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
@@ -1403,13 +1381,6 @@ P:	Christoph Raisch
 M:	raisch@de.ibm.com
 L:	general@lists.openfabrics.org
 S:	Supported
-
-EMU10K1 SOUND DRIVER
-P:	James Courtier-Dutton
-M:	James@superbug.demon.co.uk
-L:	emu10k1-devel@lists.sourceforge.net
-W:	http://sourceforge.net/projects/emu10k1/
-S:	Maintained
 
 EMULEX LPFC FC SCSI DRIVER
 P:	James Smart
@@ -2728,12 +2699,6 @@ P:	Willem Riede
 M:	osst@riede.org
 L:	osst-users@lists.sourceforge.net
 L:	linux-scsi@vger.kernel.org
-S:	Maintained
-
-OPL3-SA2, SA3, and SAx DRIVER
-P:	Zwane Mwaikambo
-M:	zwane@arm.linux.org.uk
-L:	linux-sound@vger.kernel.org
 S:	Maintained
 
 OPROFILE
