@@ -79,8 +79,15 @@ static struct nsproxy *create_new_namespaces(int flags, struct task_struct *tsk,
 	if (IS_ERR(new_nsp->pid_ns))
 		goto out_pid;
 
+	new_nsp->user_ns = copy_user_ns(flags, tsk->nsproxy->user_ns);
+	if (IS_ERR(new_nsp->user_ns))
+		goto out_user;
+
 	return new_nsp;
 
+out_user:
+	if (new_nsp->pid_ns)
+		put_pid_ns(new_nsp->pid_ns);
 out_pid:
 	if (new_nsp->ipc_ns)
 		put_ipc_ns(new_nsp->ipc_ns);
@@ -140,6 +147,8 @@ void free_nsproxy(struct nsproxy *ns)
 		put_ipc_ns(ns->ipc_ns);
 	if (ns->pid_ns)
 		put_pid_ns(ns->pid_ns);
+	if (ns->user_ns)
+		put_user_ns(ns->user_ns);
 	kfree(ns);
 }
 

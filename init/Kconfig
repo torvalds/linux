@@ -209,6 +209,15 @@ config TASK_IO_ACCOUNTING
 
 	  Say N if unsure.
 
+config USER_NS
+	bool "User Namespaces (EXPERIMENTAL)"
+	default n
+	depends on EXPERIMENTAL
+	help
+	  Support user namespaces.  This allows containers, i.e.
+	  vservers, to use user namespaces to provide different
+	  user info for different servers.  If unsure, say N.
+
 config AUDIT
 	bool "Auditing support"
 	depends on NET
