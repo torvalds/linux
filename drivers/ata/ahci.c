@@ -216,8 +216,8 @@ struct ahci_port_priv {
 	unsigned int		ncq_saw_sdb:1;
 };
 
-static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
 static void ahci_irq_clear(struct ata_port *ap);
@@ -625,7 +625,7 @@ static void ahci_restore_initial_config(struct ata_host *host)
 	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
 }
 
-static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg_in)
+static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
 {
 	unsigned int sc_reg;
 
@@ -635,15 +635,15 @@ static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg_in)
 	case SCR_ERROR:		sc_reg = 2; break;
 	case SCR_ACTIVE:	sc_reg = 3; break;
 	default:
-		return 0xffffffffU;
+		return -EINVAL;
 	}
 
-	return readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 
-static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
-			       u32 val)
+static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int sc_reg;
 
@@ -653,10 +653,11 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
 	case SCR_ERROR:		sc_reg = 2; break;
 	case SCR_ACTIVE:	sc_reg = 3; break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 static void ahci_start_engine(struct ata_port *ap)
@@ -1133,6 +1134,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
 static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
 				 unsigned long deadline)
 {
+	u32 serror;
 	int rc;
 
 	DPRINTK("ENTER\n");
@@ -1143,7 +1145,8 @@ static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
 				 deadline);
 
 	/* vt8251 needs SError cleared for the port to operate */
-	ahci_scr_write(ap, SCR_ERROR, ahci_scr_read(ap, SCR_ERROR));
+	ahci_scr_read(ap, SCR_ERROR, &serror);
+	ahci_scr_write(ap, SCR_ERROR, serror);
 
 	ahci_start_engine(ap);
 
@@ -1265,7 +1268,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	ata_ehi_clear_desc(ehi);
 
 	/* AHCI needs SError cleared; otherwise, it might lock up */
-	serror = ahci_scr_read(ap, SCR_ERROR);
+	ahci_scr_read(ap, SCR_ERROR, &serror);
 	ahci_scr_write(ap, SCR_ERROR, serror);
 
 	/* analyze @irq_stat */

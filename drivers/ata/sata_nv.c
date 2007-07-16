@@ -236,8 +236,8 @@ static void nv_ck804_host_stop(struct ata_host *host);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance);
-static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int nv_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
@@ -1393,20 +1393,22 @@ static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance)
 	return ret;
 }
 
-static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int nv_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return 0xffffffffU;
+		return -EINVAL;
 
-	return ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
+	*val = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
-static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int nv_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return;
+		return -EINVAL;
 
 	iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 static void nv_nf2_freeze(struct ata_port *ap)

@@ -57,8 +57,8 @@ struct uli_priv {
 };
 
 static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static u32 uli_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int uli_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id uli_pci_tbl[] = {
 	{ PCI_VDEVICE(AL, 0x5289), uli_5289 },
@@ -164,20 +164,22 @@ static void uli_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
 	pci_write_config_dword(pdev, cfg_addr, val);
 }
 
-static u32 uli_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int uli_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return 0xffffffffU;
+		return -EINVAL;
 
-	return uli_scr_cfg_read(ap, sc_reg);
+	*val = uli_scr_cfg_read(ap, sc_reg);
+	return 0;
 }
 
-static void uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)	//SCR_CONTROL=2, SCR_ERROR=1, SCR_STATUS=0
-		return;
+		return -EINVAL;
 
 	uli_scr_cfg_write(ap, sc_reg, val);
+	return 0;
 }
 
 static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

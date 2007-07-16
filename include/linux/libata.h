@@ -620,9 +620,8 @@ struct ata_port_operations {
 	u8 (*irq_on) (struct ata_port *);
 	u8 (*irq_ack) (struct ata_port *ap, unsigned int chk_drq);
 
-	u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
-	void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
-			   u32 val);
+	int (*scr_read) (struct ata_port *ap, unsigned int sc_reg, u32 *val);
+	int (*scr_write) (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 	int (*port_suspend) (struct ata_port *ap, pm_message_t mesg);
 	int (*port_resume) (struct ata_port *ap);

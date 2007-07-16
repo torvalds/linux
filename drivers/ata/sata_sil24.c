@@ -326,8 +326,8 @@ struct sil24_port_priv {
 
 static void sil24_dev_config(struct ata_device *dev);
 static u8 sil24_check_status(struct ata_port *ap);
-static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
-static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
+static int sil24_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val);
+static int sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
 static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
@@ -488,25 +488,30 @@ static int sil24_scr_map[] = {
 	[SCR_ACTIVE]	= 3,
 };
 
-static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg)
+static int sil24_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
 {
 	void __iomem *scr_addr = ap->ioaddr.scr_addr;
+
 	if (sc_reg < ARRAY_SIZE(sil24_scr_map)) {
 		void __iomem *addr;
 		addr = scr_addr + sil24_scr_map[sc_reg] * 4;
-		return readl(scr_addr + sil24_scr_map[sc_reg] * 4);
+		*val = readl(scr_addr + sil24_scr_map[sc_reg] * 4);
+		return 0;
 	}
-	return 0xffffffffU;
+	return -EINVAL;
 }
 
-static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
+static int sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 {
 	void __iomem *scr_addr = ap->ioaddr.scr_addr;
+
 	if (sc_reg < ARRAY_SIZE(sil24_scr_map)) {
 		void __iomem *addr;
 		addr = scr_addr + sil24_scr_map[sc_reg] * 4;
 		writel(val, scr_addr + sil24_scr_map[sc_reg] * 4);
+		return 0;
 	}
+	return -EINVAL;
 }
 
 static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)

@@ -404,10 +404,10 @@ struct mv_host_priv {
 };
 
 static void mv_irq_clear(struct ata_port *ap);
-static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
-static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
-static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
-static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
+static int mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
+static int mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
+static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
+static int mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
@@ -974,22 +974,26 @@ static unsigned int mv_scr_offset(unsigned int sc_reg_in)
 	return ofs;
 }
 
-static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
+static int mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (ofs != 0xffffffffU)
-		return readl(mv_ap_base(ap) + ofs);
-	else
-		return (u32) ofs;
+	if (ofs != 0xffffffffU) {
+		*val = readl(mv_ap_base(ap) + ofs);
+		return 0;
+	} else
+		return -EINVAL;
 }
 
-static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+static int mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (ofs != 0xffffffffU)
+	if (ofs != 0xffffffffU) {
 		writelfl(val, mv_ap_base(ap) + ofs);
+		return 0;
+	} else
+		return -EINVAL;
 }
 
 static void mv_edma_cfg(struct ata_port *ap, struct mv_host_priv *hpriv,
@@ -1752,26 +1756,30 @@ static unsigned int mv5_scr_offset(unsigned int sc_reg_in)
 	return ofs;
 }
 
-static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
+static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
 {
 	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
-	if (ofs != 0xffffffffU)
-		return readl(addr + ofs);
-	else
-		return (u32) ofs;
+	if (ofs != 0xffffffffU) {
+		*val = readl(addr + ofs);
+		return 0;
+	} else
+		return -EINVAL;
 }
 
-static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+static int mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
-	if (ofs != 0xffffffffU)
+	if (ofs != 0xffffffffU) {
 		writelfl(val, addr + ofs);
+		return 0;
+	} else
+		return -EINVAL;
 }
 
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio)
@@ -2149,9 +2157,17 @@ static void mv_phy_reset(struct ata_port *ap, unsigned int *class,
 
 	VPRINTK("ENTER, port %u, mmio 0x%p\n", ap->port_no, port_mmio);
 
-	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
-		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
-		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
+#ifdef DEBUG
+	{
+		u32 sstatus, serror, scontrol;
+
+		mv_scr_read(ap, SCR_STATUS, &sstatus);
+		mv_scr_read(ap, SCR_ERROR, &serror);
+		mv_scr_read(ap, SCR_CONTROL, &scontrol);
+		DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
+			"SCtrl 0x%08x\n", status, serror, scontrol);
+	}
+#endif
 
 	/* Issue COMRESET via SControl */
 comreset_retry:
@@ -2175,9 +2191,17 @@ comreset_retry:
 	    (retry-- > 0))
 		goto comreset_retry;
 
-	DPRINTK("S-regs after PHY wake: SStat 0x%08x SErr 0x%08x "
-		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
-		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
+#ifdef DEBUG
+	{
+		u32 sstatus, serror, scontrol;
+
+		mv_scr_read(ap, SCR_STATUS, &sstatus);
+		mv_scr_read(ap, SCR_ERROR, &serror);
+		mv_scr_read(ap, SCR_CONTROL, &scontrol);
+		DPRINTK("S-regs after PHY wake: SStat 0x%08x SErr 0x%08x "
+			"SCtrl 0x%08x\n", sstatus, serror, scontrol);
+	}
+#endif
 
 	if (ata_port_offline(ap)) {
 		*class = ATA_DEV_NONE;
