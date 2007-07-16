@@ -2794,16 +2794,14 @@ static void edge_shutdown (struct usb_serial *serial)
 
 	dbg ("%s", __FUNCTION__);
 
-	for (i=0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i) {
 		edge_port = usb_get_serial_port_data(serial->port[i]);
 		edge_remove_sysfs_attrs(edge_port->port);
-		if (edge_port) {
-			edge_buf_free(edge_port->ep_out_buf);
-			kfree(edge_port);
-		}
+		edge_buf_free(edge_port->ep_out_buf);
+		kfree(edge_port);
 		usb_set_serial_port_data(serial->port[i], NULL);
 	}
-	kfree (usb_get_serial_data(serial));
+	kfree(usb_get_serial_data(serial));
 	usb_set_serial_data(serial, NULL);
 }
 
