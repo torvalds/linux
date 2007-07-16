@@ -45,7 +45,7 @@ s64 percpu_counter_sum(struct percpu_counter *fbc)
 
 	spin_lock(&fbc->lock);
 	ret = fbc->count;
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
 		ret += *pcount;
 	}
