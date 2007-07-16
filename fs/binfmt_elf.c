@@ -999,7 +999,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			elf_entry = load_aout_interp(&loc->interp_ex,
 						     interpreter);
 		} else {
-			unsigned long interp_map_addr;	/* unused */
+			unsigned long uninitialized_var(interp_map_addr);
 
 			elf_entry = load_elf_interp(&loc->interp_elf_ex,
 						    interpreter,
