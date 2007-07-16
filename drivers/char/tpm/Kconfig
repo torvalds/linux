@@ -2,11 +2,9 @@
 # TPM device configuration
 #
 
-menu "TPM devices"
-	depends on HAS_IOMEM
-
-config TCG_TPM
+menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
+	depends on HAS_IOMEM
 	depends on EXPERIMENTAL
 	---help---
 	  If you have a TPM security chip in your system, which
@@ -21,9 +19,11 @@ config TCG_TPM
 	  Note: For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI
 	  and CONFIG_PNPACPI.
 
+if TCG_TPM
+
 config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface"
-	depends on TCG_TPM && PNPACPI
+	depends on PNPACPI
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG TIS 1.2 TPM specification say Yes and it will be accessible
@@ -32,7 +32,7 @@ config TCG_TIS
 
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
-	depends on TCG_TPM && PNPACPI
+	depends on PNPACPI
 	---help---
 	  If you have a TPM security chip from National Semiconductor 
 	  say Yes and it will be accessible from within Linux.  To 
@@ -41,7 +41,6 @@ config TCG_NSC
 
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
-	depends on TCG_TPM
 	---help---
 	  If you have a TPM security chip from Atmel say Yes and it 
 	  will be accessible from within Linux.  To compile this driver 
@@ -49,7 +48,7 @@ config TCG_ATMEL
 
 config TCG_INFINEON
 	tristate "Infineon Technologies TPM Interface"
-	depends on TCG_TPM && PNPACPI
+	depends on PNPACPI
 	---help---
 	  If you have a TPM security chip from Infineon Technologies
 	  (either SLD 9630 TT 1.1 or SLB 9635 TT 1.2) say Yes and it
@@ -59,5 +58,4 @@ config TCG_INFINEON
 	  Further information on this driver and the supported hardware
 	  can be found at http://www.prosec.rub.de/tpm
 
-endmenu
-
+endif # TCG_TPM
