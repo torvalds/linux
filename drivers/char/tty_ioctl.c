@@ -52,8 +52,6 @@
 
 void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
-
 #ifdef TTY_DEBUG_WAIT_UNTIL_SENT
 	char buf[64];
 	
@@ -61,26 +59,13 @@ void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 #endif
 	if (!tty->driver->chars_in_buffer)
 		return;
-	add_wait_queue(&tty->write_wait, &wait);
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
-	do {
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-		printk(KERN_DEBUG "waiting %s...(%d)\n", tty_name(tty, buf),
-		       tty->driver->chars_in_buffer(tty));
-#endif
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			goto stop_waiting;
-		if (!tty->driver->chars_in_buffer(tty))
-			break;
-		timeout = schedule_timeout(timeout);
-	} while (timeout);
+	if (wait_event_interruptible_timeout(tty->write_wait,
+			!tty->driver->chars_in_buffer(tty), timeout))
+		return;
 	if (tty->driver->wait_until_sent)
 		tty->driver->wait_until_sent(tty, timeout);
-stop_waiting:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tty->write_wait, &wait);
 }
 
 EXPORT_SYMBOL(tty_wait_until_sent);
