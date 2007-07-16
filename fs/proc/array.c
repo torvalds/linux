@@ -289,6 +289,15 @@ static inline char *task_cap(struct task_struct *p, char *buffer)
 			    cap_t(p->cap_effective));
 }
 
+static inline char *task_context_switch_counts(struct task_struct *p,
+						char *buffer)
+{
+	return buffer + sprintf(buffer, "voluntary_ctxt_switches:\t%lu\n"
+			    "nonvoluntary_ctxt_switches:\t%lu\n",
+			    p->nvcsw,
+			    p->nivcsw);
+}
+
 int proc_pid_status(struct task_struct *task, char * buffer)
 {
 	char * orig = buffer;
@@ -307,6 +316,7 @@ int proc_pid_status(struct task_struct *task, char * buffer)
 #if defined(CONFIG_S390)
 	buffer = task_show_regs(task, buffer);
 #endif
+	buffer = task_context_switch_counts(task, buffer);
 	return buffer - orig;
 }
 
