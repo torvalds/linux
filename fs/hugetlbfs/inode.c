@@ -621,6 +621,8 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+		if (!*p)
+			continue;
 
 		token = match_token(p, tokens, args);
 		switch (token) {
@@ -665,8 +667,9 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 			break;
 
 		default:
-			printk(KERN_ERR "hugetlbfs: Bad mount option: %s\n", p);
- 			return 1;
+			printk(KERN_ERR "hugetlbfs: Bad mount option: \"%s\"\n",
+				 p);
+			return -EINVAL;
 			break;
 		}
 	}
@@ -693,7 +696,6 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 	config.gid = current->fsgid;
 	config.mode = 0755;
 	ret = hugetlbfs_parse_options(data, &config);
-
 	if (ret)
 		return ret;
 
