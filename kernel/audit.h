@@ -115,7 +115,6 @@ extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
 extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
-extern void		    audit_log_lost(const char *message);
 extern void		    audit_panic(const char *message);
 
 struct audit_netlink_list {

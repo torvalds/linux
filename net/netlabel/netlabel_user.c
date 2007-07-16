@@ -46,10 +46,6 @@
 #include "netlabel_cipso_v4.h"
 #include "netlabel_user.h"
 
-/* do not do any auditing if audit_enabled == 0, see kernel/audit.c for
- * details */
-extern int audit_enabled;
-
 /*
  * NetLabel NETLINK Setup Functions
  */

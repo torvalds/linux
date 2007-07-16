@@ -45,6 +45,8 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/bitops.h>
+#include <linux/audit.h>
+#include <linux/file.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -76,6 +78,13 @@ static inline void free_buf(unsigned char *buf)
 		kfree(buf);
 	else
 		free_page((unsigned long) buf);
+}
+
+static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
+			       unsigned char __user *ptr)
+{
+	tty_audit_add_data(tty, &x, 1);
+	return put_user(x, ptr);
 }
 
 /**
@@ -1153,6 +1162,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	if (n) {
 		retval = copy_to_user(*b, &tty->read_buf[tty->read_tail], n);
 		n -= retval;
+		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n);
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt -= n;
@@ -1279,7 +1289,7 @@ do_it_again:
 				break;
 			cs = tty->link->ctrl_status;
 			tty->link->ctrl_status = 0;
-			if (put_user(cs, b++)) {
+			if (tty_put_user(tty, cs, b++)) {
 				retval = -EFAULT;
 				b--;
 				break;
@@ -1321,7 +1331,7 @@ do_it_again:
 
 		/* Deal with packet mode. */
 		if (tty->packet && b == buf) {
-			if (put_user(TIOCPKT_DATA, b++)) {
+			if (tty_put_user(tty, TIOCPKT_DATA, b++)) {
 				retval = -EFAULT;
 				b--;
 				break;
@@ -1352,15 +1362,17 @@ do_it_again:
 				spin_unlock_irqrestore(&tty->read_lock, flags);
 
 				if (!eol || (c != __DISABLED_CHAR)) {
-					if (put_user(c, b++)) {
+					if (tty_put_user(tty, c, b++)) {
 						retval = -EFAULT;
 						b--;
 						break;
 					}
 					nr--;
 				}
-				if (eol)
+				if (eol) {
+					tty_audit_push(tty);
 					break;
+				}
 			}
 			if (retval)
 				break;

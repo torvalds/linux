@@ -178,6 +178,7 @@ struct tty_bufhead {
 #define L_IEXTEN(tty)	_L_FLAG((tty),IEXTEN)
 
 struct device;
+struct signal_struct;
 /*
  * Where all of the state associated with a tty is kept while the tty
  * is open.  Since the termios state should be kept even if the tty
@@ -310,6 +311,7 @@ extern void tty_hangup(struct tty_struct * tty);
 extern void tty_vhangup(struct tty_struct * tty);
 extern void tty_unhangup(struct file *filp);
 extern int tty_hung_up_p(struct file * filp);
+extern int is_tty(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
 extern void disassociate_ctty(int priv);
@@ -346,6 +348,37 @@ extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 
 /* n_tty.c */
 extern struct tty_ldisc tty_ldisc_N_TTY;
+
+/* tty_audit.c */
+#ifdef CONFIG_AUDIT
+extern void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
+			       size_t size);
+extern void tty_audit_exit(void);
+extern void tty_audit_fork(struct signal_struct *sig);
+extern void tty_audit_push(struct tty_struct *tty);
+extern void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid);
+extern void tty_audit_opening(void);
+#else
+static inline void tty_audit_add_data(struct tty_struct *tty,
+				      unsigned char *data, size_t size)
+{
+}
+static inline void tty_audit_exit(void)
+{
+}
+static inline void tty_audit_fork(struct signal_struct *sig)
+{
+}
+static inline void tty_audit_push(struct tty_struct *tty)
+{
+}
+static inline void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
+{
+}
+static inline void tty_audit_opening(void)
+{
+}
+#endif
 
 /* tty_ioctl.c */
 extern int n_tty_ioctl(struct tty_struct * tty, struct file * file,

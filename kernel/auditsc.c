@@ -71,9 +71,6 @@
 
 extern struct list_head audit_filter_list[];
 
-/* No syscall auditing will take place unless audit_enabled != 0. */
-extern int audit_enabled;
-
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname(). */
 #define AUDIT_NAMES    20
