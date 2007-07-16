@@ -1,0 +1,51 @@
+#!/bin/sh
+# Disassemble the Code: line in Linux oopses
+# usage: decodecode < oops.file
+#
+# options: set env. variable AFLAGS=options to pass options to "as";
+# e.g., to decode an i386 oops on an x86_64 system, use:
+# AFLAGS=--32 decodecode < 386.oops
+
+T=`mktemp`
+code=
+
+while read i ; do
+
+case "$i" in
+*Code:*)
+	code=$i
+	;;
+esac
+
+done
+
+if [ -z "$code" ]; then
+	exit
+fi
+
+echo $code
+code=`echo $code | sed -e 's/.*Code: //'`
+
+marker=`expr index "$code" "\<"`
+if [ $marker -eq 0 ]; then
+	marker=`expr index "$code" "\("`
+fi
+
+if [ $marker -ne 0 ]; then
+	beforemark=`echo "$code" | cut -c-$((${marker} - 1))`
+	echo -n "	.byte 0x" > $T.s
+	echo $beforemark | sed -e 's/ /,0x/g' >> $T.s
+	as $AFLAGS -o $T.o $T.s
+	objdump -S $T.o
+	rm $T.o $T.s
+
+# and fix code at-and-after marker
+	code=`echo "$code" | cut -c$((${marker} + 1))-`
+fi
+
+code=`echo $code | sed -e 's/ [<(]/ /;s/[>)] / /;s/ /,0x/g'`
+echo -n "	.byte 0x" > $T.s
+echo $code >> $T.s
+as $AFLAGS -o $T.o $T.s
+objdump -S $T.o
+rm $T.o $T.s
