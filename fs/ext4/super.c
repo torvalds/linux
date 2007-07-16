@@ -2158,6 +2158,7 @@ static int ext4_create_journal(struct super_block * sb,
 			       unsigned int journal_inum)
 {
 	journal_t *journal;
+	int err;
 
 	if (sb->s_flags & MS_RDONLY) {
 		printk(KERN_ERR "EXT4-fs: readonly filesystem when trying to "
@@ -2165,13 +2166,15 @@ static int ext4_create_journal(struct super_block * sb,
 		return -EROFS;
 	}
 
-	if (!(journal = ext4_get_journal(sb, journal_inum)))
+	journal = ext4_get_journal(sb, journal_inum);
+	if (!journal)
 		return -EINVAL;
 
 	printk(KERN_INFO "EXT4-fs: creating new journal on inode %u\n",
 	       journal_inum);
 
-	if (jbd2_journal_create(journal)) {
+	err = jbd2_journal_create(journal);
+	if (err) {
 		printk(KERN_ERR "EXT4-fs: error creating journal.\n");
 		jbd2_journal_destroy(journal);
 		return -EIO;
