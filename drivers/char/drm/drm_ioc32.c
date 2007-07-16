@@ -82,7 +82,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_version32_t v32;
-	drm_version_t __user *version;
+	struct drm_version __user *version;
 	int err;
 
 	if (copy_from_user(&v32, (void __user *)arg, sizeof(v32)))
@@ -129,7 +129,7 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	drm_unique32_t uq32;
-	drm_unique_t __user *u;
+	struct drm_unique __user *u;
 	int err;
 
 	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
@@ -159,7 +159,7 @@ static int compat_drm_setunique(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	drm_unique32_t uq32;
-	drm_unique_t __user *u;
+	struct drm_unique __user *u;
 
 	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
 		return -EFAULT;
@@ -179,8 +179,8 @@ static int compat_drm_setunique(struct file *file, unsigned int cmd,
 typedef struct drm_map32 {
 	u32 offset;		/**< Requested physical address (0 for SAREA)*/
 	u32 size;		/**< Requested physical size (bytes) */
-	drm_map_type_t type;	/**< Type of memory to map */
-	drm_map_flags_t flags;	/**< Flags */
+	enum drm_map_type type;	/**< Type of memory to map */
+	enum drm_map_flags flags;	/**< Flags */
 	u32 handle;		/**< User-space: "Handle" to pass to mmap() */
 	int mtrr;		/**< MTRR slot used */
 } drm_map32_t;
@@ -190,7 +190,7 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 {
 	drm_map32_t __user *argp = (void __user *)arg;
 	drm_map32_t m32;
-	drm_map_t __user *map;
+	struct drm_map __user *map;
 	int idx, err;
 	void *handle;
 
@@ -228,7 +228,7 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 {
 	drm_map32_t __user *argp = (void __user *)arg;
 	drm_map32_t m32;
-	drm_map_t __user *map;
+	struct drm_map __user *map;
 	int err;
 	void *handle;
 
@@ -270,7 +270,7 @@ static int compat_drm_rmmap(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	drm_map32_t __user *argp = (void __user *)arg;
-	drm_map_t __user *map;
+	struct drm_map __user *map;
 	u32 handle;
 
 	if (get_user(handle, &argp->handle))
@@ -300,7 +300,7 @@ static int compat_drm_getclient(struct file *file, unsigned int cmd,
 {
 	drm_client32_t c32;
 	drm_client32_t __user *argp = (void __user *)arg;
-	drm_client_t __user *client;
+	struct drm_client __user *client;
 	int idx, err;
 
 	if (get_user(idx, &argp->idx))
@@ -333,7 +333,7 @@ typedef struct drm_stats32 {
 	u32 count;
 	struct {
 		u32 value;
-		drm_stat_type_t type;
+		enum drm_stat_type type;
 	} data[15];
 } drm_stats32_t;
 
@@ -342,7 +342,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 {
 	drm_stats32_t s32;
 	drm_stats32_t __user *argp = (void __user *)arg;
-	drm_stats_t __user *stats;
+	struct drm_stats __user *stats;
 	int i, err;
 
 	stats = compat_alloc_user_space(sizeof(*stats));
@@ -379,7 +379,7 @@ static int compat_drm_addbufs(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_buf_desc32_t __user *argp = (void __user *)arg;
-	drm_buf_desc_t __user *buf;
+	struct drm_buf_desc __user *buf;
 	int err;
 	unsigned long agp_start;
 
@@ -411,7 +411,7 @@ static int compat_drm_markbufs(struct file *file, unsigned int cmd,
 {
 	drm_buf_desc32_t b32;
 	drm_buf_desc32_t __user *argp = (void __user *)arg;
-	drm_buf_desc_t __user *buf;
+	struct drm_buf_desc __user *buf;
 
 	if (copy_from_user(&b32, argp, sizeof(b32)))
 		return -EFAULT;
@@ -440,8 +440,8 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 	drm_buf_info32_t req32;
 	drm_buf_info32_t __user *argp = (void __user *)arg;
 	drm_buf_desc32_t __user *to;
-	drm_buf_info_t __user *request;
-	drm_buf_desc_t __user *list;
+	struct drm_buf_info __user *request;
+	struct drm_buf_desc __user *list;
 	size_t nbytes;
 	int i, err;
 	int count, actual;
@@ -457,11 +457,11 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 	    && !access_ok(VERIFY_WRITE, to, count * sizeof(drm_buf_desc32_t)))
 		return -EFAULT;
 
-	nbytes = sizeof(*request) + count * sizeof(drm_buf_desc_t);
+	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_desc);
 	request = compat_alloc_user_space(nbytes);
 	if (!access_ok(VERIFY_WRITE, request, nbytes))
 		return -EFAULT;
-	list = (drm_buf_desc_t *) (request + 1);
+	list = (struct drm_buf_desc *) (request + 1);
 
 	if (__put_user(count, &request->count)
 	    || __put_user(list, &request->list))
@@ -477,7 +477,7 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 	if (count >= actual)
 		for (i = 0; i < actual; ++i)
 			if (__copy_in_user(&to[i], &list[i],
-					   offsetof(drm_buf_desc_t, flags)))
+					   offsetof(struct drm_buf_desc, flags)))
 				return -EFAULT;
 
 	if (__put_user(actual, &argp->count))
@@ -505,8 +505,8 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 	drm_buf_map32_t __user *argp = (void __user *)arg;
 	drm_buf_map32_t req32;
 	drm_buf_pub32_t __user *list32;
-	drm_buf_map_t __user *request;
-	drm_buf_pub_t __user *list;
+	struct drm_buf_map __user *request;
+	struct drm_buf_pub __user *list;
 	int i, err;
 	int count, actual;
 	size_t nbytes;
@@ -519,11 +519,11 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 
 	if (count < 0)
 		return -EINVAL;
-	nbytes = sizeof(*request) + count * sizeof(drm_buf_pub_t);
+	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_pub);
 	request = compat_alloc_user_space(nbytes);
 	if (!access_ok(VERIFY_WRITE, request, nbytes))
 		return -EFAULT;
-	list = (drm_buf_pub_t *) (request + 1);
+	list = (struct drm_buf_pub *) (request + 1);
 
 	if (__put_user(count, &request->count)
 	    || __put_user(list, &request->list))
@@ -539,7 +539,7 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 	if (count >= actual)
 		for (i = 0; i < actual; ++i)
 			if (__copy_in_user(&list32[i], &list[i],
-					   offsetof(drm_buf_pub_t, address))
+					   offsetof(struct drm_buf_pub, address))
 			    || __get_user(addr, &list[i].address)
 			    || __put_user((unsigned long)addr,
 					  &list32[i].address))
@@ -562,7 +562,7 @@ static int compat_drm_freebufs(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_buf_free32_t req32;
-	drm_buf_free_t __user *request;
+	struct drm_buf_free __user *request;
 	drm_buf_free32_t __user *argp = (void __user *)arg;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
@@ -589,7 +589,7 @@ static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	drm_ctx_priv_map32_t req32;
-	drm_ctx_priv_map_t __user *request;
+	struct drm_ctx_priv_map __user *request;
 	drm_ctx_priv_map32_t __user *argp = (void __user *)arg;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
@@ -610,7 +610,7 @@ static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
 static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-	drm_ctx_priv_map_t __user *request;
+	struct drm_ctx_priv_map __user *request;
 	drm_ctx_priv_map32_t __user *argp = (void __user *)arg;
 	int err;
 	unsigned int ctx_id;
@@ -648,7 +648,7 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 {
 	drm_ctx_res32_t __user *argp = (void __user *)arg;
 	drm_ctx_res32_t res32;
-	drm_ctx_res_t __user *res;
+	struct drm_ctx_res __user *res;
 	int err;
 
 	if (copy_from_user(&res32, argp, sizeof(res32)))
@@ -658,7 +658,7 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 	if (!access_ok(VERIFY_WRITE, res, sizeof(*res)))
 		return -EFAULT;
 	if (__put_user(res32.count, &res->count)
-	    || __put_user((drm_ctx_t __user *) (unsigned long)res32.contexts,
+	    || __put_user((struct drm_ctx __user *) (unsigned long)res32.contexts,
 			  &res->contexts))
 		return -EFAULT;
 
@@ -679,7 +679,7 @@ typedef struct drm_dma32 {
 	int send_count;		  /**< Number of buffers to send */
 	u32 send_indices;	  /**< List of handles to buffers */
 	u32 send_sizes;		  /**< Lengths of data to send */
-	drm_dma_flags_t flags;		  /**< Flags */
+	enum drm_dma_flags flags;		  /**< Flags */
 	int request_count;	  /**< Number of buffers requested */
 	int request_size;	  /**< Desired size for buffers */
 	u32 request_indices;	  /**< Buffer information */
@@ -692,7 +692,7 @@ static int compat_drm_dma(struct file *file, unsigned int cmd,
 {
 	drm_dma32_t d32;
 	drm_dma32_t __user *argp = (void __user *)arg;
-	drm_dma_t __user *d;
+	struct drm_dma __user *d;
 	int err;
 
 	if (copy_from_user(&d32, argp, sizeof(d32)))
@@ -740,7 +740,7 @@ static int compat_drm_agp_enable(struct file *file, unsigned int cmd,
 {
 	drm_agp_mode32_t __user *argp = (void __user *)arg;
 	drm_agp_mode32_t m32;
-	drm_agp_mode_t __user *mode;
+	struct drm_agp_mode __user *mode;
 
 	if (get_user(m32.mode, &argp->mode))
 		return -EFAULT;
@@ -772,7 +772,7 @@ static int compat_drm_agp_info(struct file *file, unsigned int cmd,
 {
 	drm_agp_info32_t __user *argp = (void __user *)arg;
 	drm_agp_info32_t i32;
-	drm_agp_info_t __user *info;
+	struct drm_agp_info __user *info;
 	int err;
 
 	info = compat_alloc_user_space(sizeof(*info));
@@ -813,7 +813,7 @@ static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
 {
 	drm_agp_buffer32_t __user *argp = (void __user *)arg;
 	drm_agp_buffer32_t req32;
-	drm_agp_buffer_t __user *request;
+	struct drm_agp_buffer __user *request;
 	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
@@ -845,7 +845,7 @@ static int compat_drm_agp_free(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_agp_buffer32_t __user *argp = (void __user *)arg;
-	drm_agp_buffer_t __user *request;
+	struct drm_agp_buffer __user *request;
 	u32 handle;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -868,7 +868,7 @@ static int compat_drm_agp_bind(struct file *file, unsigned int cmd,
 {
 	drm_agp_binding32_t __user *argp = (void __user *)arg;
 	drm_agp_binding32_t req32;
-	drm_agp_binding_t __user *request;
+	struct drm_agp_binding __user *request;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
@@ -887,7 +887,7 @@ static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
 				 unsigned long arg)
 {
 	drm_agp_binding32_t __user *argp = (void __user *)arg;
-	drm_agp_binding_t __user *request;
+	struct drm_agp_binding __user *request;
 	u32 handle;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -910,7 +910,7 @@ static int compat_drm_sg_alloc(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_scatter_gather32_t __user *argp = (void __user *)arg;
-	drm_scatter_gather_t __user *request;
+	struct drm_scatter_gather __user *request;
 	int err;
 	unsigned long x;
 
@@ -938,7 +938,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_scatter_gather32_t __user *argp = (void __user *)arg;
-	drm_scatter_gather_t __user *request;
+	struct drm_scatter_gather __user *request;
 	unsigned long x;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -953,13 +953,13 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 }
 
 struct drm_wait_vblank_request32 {
-	drm_vblank_seq_type_t type;
+	enum drm_vblank_seq_type type;
 	unsigned int sequence;
 	u32 signal;
 };
 
 struct drm_wait_vblank_reply32 {
-	drm_vblank_seq_type_t type;
+	enum drm_vblank_seq_type type;
 	unsigned int sequence;
 	s32 tval_sec;
 	s32 tval_usec;
@@ -975,7 +975,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 {
 	drm_wait_vblank32_t __user *argp = (void __user *)arg;
 	drm_wait_vblank32_t req32;
-	drm_wait_vblank_t __user *request;
+	union drm_wait_vblank __user *request;
 	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
