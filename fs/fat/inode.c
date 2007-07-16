@@ -354,8 +354,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	} else { /* not a directory */
 		inode->i_generation |= 1;
 		inode->i_mode = MSDOS_MKMODE(de->attr,
-		    ((sbi->options.showexec &&
-			!is_exec(de->ext))
+		    ((sbi->options.showexec && !is_exec(de->name + 8))
 			? S_IRUGO|S_IWUGO : S_IRWXUGO)
 		    & ~sbi->options.fs_fmask) | S_IFREG;
 		MSDOS_I(inode)->i_start = le16_to_cpu(de->start);
