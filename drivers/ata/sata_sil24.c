@@ -578,8 +578,8 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return rc;
 }
 
-static int sil24_softreset(struct ata_port *ap, unsigned int *class,
-			   unsigned long deadline)
+static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
+			      int pmp, unsigned long deadline)
 {
 	unsigned long timeout_msec = 0;
 	struct ata_taskfile tf;
@@ -605,7 +605,8 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class,
 		timeout_msec = jiffies_to_msecs(deadline - jiffies);
 
 	ata_tf_init(ap->device, &tf);	/* doesn't really matter */
-	rc = sil24_exec_polled_cmd(ap, 0, &tf, 0, PRB_CTRL_SRST, timeout_msec);
+	rc = sil24_exec_polled_cmd(ap, pmp, &tf, 0, PRB_CTRL_SRST,
+				   timeout_msec);
 	if (rc == -EBUSY) {
 		reason = "timeout";
 		goto err;
@@ -627,6 +628,12 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class,
  err:
 	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
 	return -EIO;
+}
+
+static int sil24_softreset(struct ata_port *ap, unsigned int *class,
+			   unsigned long deadline)
+{
+	return sil24_do_softreset(ap, class, 0, deadline);
 }
 
 static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
