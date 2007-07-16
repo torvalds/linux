@@ -1049,8 +1049,12 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	unsigned long flags;
 	ide_driver_t *drv;
 	void __user *p = (void __user *)arg;
-	int err = 0, (*setfunc)(ide_drive_t *, int);
+	int err, (*setfunc)(ide_drive_t *, int);
 	u8 *val;
+
+	err = scsi_cmd_ioctl(file, bdev->bd_disk->queue, bdev->bd_disk, cmd, p);
+	if (err != -ENOTTY)
+		return err;
 
 	switch (cmd) {
 	case HDIO_GET_32BIT:	    val = &drive->io_32bit;	 goto read_val;
@@ -1170,10 +1174,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 
 			return 0;
 		}
-
-		case CDROMEJECT:
-		case CDROMCLOSETRAY:
-			return scsi_cmd_ioctl(file, bdev->bd_disk, cmd, p);
 
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))

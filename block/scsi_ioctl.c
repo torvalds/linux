@@ -41,8 +41,6 @@ const unsigned char scsi_command_size[8] =
 
 EXPORT_SYMBOL(scsi_command_size);
 
-#define BLK_DEFAULT_TIMEOUT	(60 * HZ)
-
 #include <scsi/sg.h>
 
 static int sg_get_version(int __user *p)
@@ -114,7 +112,7 @@ static int sg_emulated_host(request_queue_t *q, int __user *p)
 #define safe_for_read(cmd)	[cmd] = CMD_READ_SAFE
 #define safe_for_write(cmd)	[cmd] = CMD_WRITE_SAFE
 
-static int verify_command(struct file *file, unsigned char *cmd)
+int blk_verify_command(unsigned char *cmd, int has_write_perm)
 {
 	static unsigned char cmd_type[256] = {
 
@@ -193,17 +191,10 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_write(GPCMD_SET_STREAMING),
 	};
 	unsigned char type = cmd_type[cmd[0]];
-	int has_write_perm = 0;
 
 	/* Anybody who can open the device can do a read-safe command */
 	if (type & CMD_READ_SAFE)
 		return 0;
-
-	/*
-	 * file can be NULL from ioctl_by_bdev()...
-	 */
-	if (file)
-		has_write_perm = file->f_mode & FMODE_WRITE;
 
 	/* Write-safe commands just require a writable open.. */
 	if ((type & CMD_WRITE_SAFE) && has_write_perm)
@@ -221,25 +212,96 @@ static int verify_command(struct file *file, unsigned char *cmd)
 	/* Otherwise fail it with an "Operation not permitted" */
 	return -EPERM;
 }
+EXPORT_SYMBOL_GPL(blk_verify_command);
+
+int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
+		      struct sg_io_hdr *hdr, int has_write_perm)
+{
+	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
+
+	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
+		return -EFAULT;
+	if (blk_verify_command(rq->cmd, has_write_perm))
+		return -EPERM;
+
+	/*
+	 * fill in request structure
+	 */
+	rq->cmd_len = hdr->cmd_len;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+
+	rq->timeout = (hdr->timeout * HZ) / 1000;
+	if (!rq->timeout)
+		rq->timeout = q->sg_timeout;
+	if (!rq->timeout)
+		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_fill_sghdr_rq);
+
+/*
+ * unmap a request that was previously mapped to this sg_io_hdr. handles
+ * both sg and non-sg sg_io_hdr.
+ */
+int blk_unmap_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr)
+{
+	blk_rq_unmap_user(rq->bio);
+	blk_put_request(rq);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_unmap_sghdr_rq);
+
+int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
+			  struct bio *bio)
+{
+	int r, ret = 0;
+
+	/*
+	 * fill in all the output members
+	 */
+	hdr->status = rq->errors & 0xff;
+	hdr->masked_status = status_byte(rq->errors);
+	hdr->msg_status = msg_byte(rq->errors);
+	hdr->host_status = host_byte(rq->errors);
+	hdr->driver_status = driver_byte(rq->errors);
+	hdr->info = 0;
+	if (hdr->masked_status || hdr->host_status || hdr->driver_status)
+		hdr->info |= SG_INFO_CHECK;
+	hdr->resid = rq->data_len;
+	hdr->sb_len_wr = 0;
+
+	if (rq->sense_len && hdr->sbp) {
+		int len = min((unsigned int) hdr->mx_sb_len, rq->sense_len);
+
+		if (!copy_to_user(hdr->sbp, rq->sense, len))
+			hdr->sb_len_wr = len;
+		else
+			ret = -EFAULT;
+	}
+
+	rq->bio = bio;
+	r = blk_unmap_sghdr_rq(rq, hdr);
+	if (ret)
+		r = ret;
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(blk_complete_sghdr_rq);
 
 static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
-	unsigned long start_time, timeout;
-	int writing = 0, ret = 0;
+	unsigned long start_time;
+	int writing = 0, ret = 0, has_write_perm = 0;
 	struct request *rq;
 	char sense[SCSI_SENSE_BUFFERSIZE];
-	unsigned char cmd[BLK_MAX_CDB];
 	struct bio *bio;
 
 	if (hdr->interface_id != 'S')
 		return -EINVAL;
 	if (hdr->cmd_len > BLK_MAX_CDB)
 		return -EINVAL;
-	if (copy_from_user(cmd, hdr->cmdp, hdr->cmd_len))
-		return -EFAULT;
-	if (verify_command(file, cmd))
-		return -EPERM;
 
 	if (hdr->dxfer_len > (q->max_hw_sectors << 9))
 		return -EIO;
@@ -260,25 +322,13 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (!rq)
 		return -ENOMEM;
 
-	/*
-	 * fill in request structure
-	 */
-	rq->cmd_len = hdr->cmd_len;
-	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
-	memcpy(rq->cmd, cmd, hdr->cmd_len);
+	if (file)
+		has_write_perm = file->f_mode & FMODE_WRITE;
 
-	memset(sense, 0, sizeof(sense));
-	rq->sense = sense;
-	rq->sense_len = 0;
-
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-
-	timeout = msecs_to_jiffies(hdr->timeout);
-	rq->timeout = (timeout < INT_MAX) ? timeout : INT_MAX;
-	if (!rq->timeout)
-		rq->timeout = q->sg_timeout;
-	if (!rq->timeout)
-		rq->timeout = BLK_DEFAULT_TIMEOUT;
+	if (blk_fill_sghdr_rq(q, rq, hdr, has_write_perm)) {
+		blk_put_request(rq);
+		return -EFAULT;
+	}
 
 	if (hdr->iovec_count) {
 		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
@@ -306,6 +356,9 @@ static int sg_io(struct file *file, request_queue_t *q,
 		goto out;
 
 	bio = rq->bio;
+	memset(sense, 0, sizeof(sense));
+	rq->sense = sense;
+	rq->sense_len = 0;
 	rq->retries = 0;
 
 	start_time = jiffies;
@@ -316,31 +369,9 @@ static int sg_io(struct file *file, request_queue_t *q,
 	 */
 	blk_execute_rq(q, bd_disk, rq, 0);
 
-	/* write to all output members */
-	hdr->status = 0xff & rq->errors;
-	hdr->masked_status = status_byte(rq->errors);
-	hdr->msg_status = msg_byte(rq->errors);
-	hdr->host_status = host_byte(rq->errors);
-	hdr->driver_status = driver_byte(rq->errors);
-	hdr->info = 0;
-	if (hdr->masked_status || hdr->host_status || hdr->driver_status)
-		hdr->info |= SG_INFO_CHECK;
-	hdr->resid = rq->data_len;
 	hdr->duration = ((jiffies - start_time) * 1000) / HZ;
-	hdr->sb_len_wr = 0;
 
-	if (rq->sense_len && hdr->sbp) {
-		int len = min((unsigned int) hdr->mx_sb_len, rq->sense_len);
-
-		if (!copy_to_user(hdr->sbp, rq->sense, len))
-			hdr->sb_len_wr = len;
-	}
-
-	if (blk_rq_unmap_user(bio))
-		ret = -EFAULT;
-
-	/* may not have succeeded, but output values written to control
-	 * structure (struct sg_io_hdr).  */
+	return blk_complete_sghdr_rq(rq, hdr, bio);
 out:
 	blk_put_request(rq);
 	return ret;
@@ -427,7 +458,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	err = verify_command(file, rq->cmd);
+	err = blk_verify_command(rq->cmd, file->f_mode & FMODE_WRITE);
 	if (err)
 		goto error;
 
@@ -454,7 +485,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 		rq->retries = 1;
 		break;
 	default:
-		rq->timeout = BLK_DEFAULT_TIMEOUT;
+		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 		break;
 	}
 
@@ -501,7 +532,7 @@ static int __blk_send_generic(request_queue_t *q, struct gendisk *bd_disk, int c
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->data = NULL;
 	rq->data_len = 0;
-	rq->timeout = BLK_DEFAULT_TIMEOUT;
+	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->cmd[0] = cmd;
 	rq->cmd[4] = data;
@@ -517,16 +548,12 @@ static inline int blk_send_start_stop(request_queue_t *q, struct gendisk *bd_dis
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }
 
-int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
+int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
+		   struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
 {
-	request_queue_t *q;
 	int err;
 
-	q = bd_disk->queue;
-	if (!q)
-		return -ENXIO;
-
-	if (blk_get_queue(q))
+	if (!q || blk_get_queue(q))
 		return -ENXIO;
 
 	switch (cmd) {

@@ -14,6 +14,7 @@
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
+#include <linux/bsg.h>
 
 #include <asm/scatterlist.h>
 
@@ -41,6 +42,8 @@ struct elevator_queue;
 typedef struct elevator_queue elevator_t;
 struct request_pm_state;
 struct blk_trace;
+struct request;
+struct sg_io_hdr;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -314,6 +317,9 @@ struct request {
 	 */
 	rq_end_io_fn *end_io;
 	void *end_io_data;
+
+	/* for bidi */
+	struct request *next_rq;
 };
 
 /*
@@ -468,6 +474,10 @@ struct request_queue
 	unsigned int		bi_size;
 
 	struct mutex		sysfs_lock;
+
+#if defined(CONFIG_BLK_DEV_BSG)
+	struct bsg_class_device bsg_dev;
+#endif
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
@@ -479,6 +489,7 @@ struct request_queue
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
 #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
+#define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
 
 enum {
 	/*
@@ -543,6 +554,7 @@ enum {
 #define blk_sorted_rq(rq)	((rq)->cmd_flags & REQ_SORTED)
 #define blk_barrier_rq(rq)	((rq)->cmd_flags & REQ_HARDBARRIER)
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
+#define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -607,6 +619,11 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_BOUNCE_ANY		((u64)blk_max_pfn << PAGE_SHIFT)
 #define BLK_BOUNCE_ISA		(ISA_DMA_THRESHOLD)
 
+/*
+ * default timeout for SG_IO if none specified
+ */
+#define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
+
 #ifdef CONFIG_MMU
 extern int init_emergency_isa_pool(void);
 extern void blk_queue_bounce(request_queue_t *q, struct bio **bio);
@@ -637,7 +654,8 @@ extern void blk_requeue_request(request_queue_t *, struct request *);
 extern void blk_plug_device(request_queue_t *);
 extern int blk_remove_plug(request_queue_t *);
 extern void blk_recount_segments(request_queue_t *, struct bio *);
-extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
+extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
+			  struct gendisk *, unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 		struct gendisk *, struct scsi_ioctl_command __user *);
 
@@ -680,6 +698,12 @@ extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(request_queue_t *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
+extern int blk_fill_sghdr_rq(request_queue_t *, struct request *,
+		      struct sg_io_hdr *, int);
+extern int blk_unmap_sghdr_rq(struct request *, struct sg_io_hdr *);
+extern int blk_complete_sghdr_rq(struct request *, struct sg_io_hdr *,
+			  struct bio *);
+extern int blk_verify_command(unsigned char *, int);
 
 static inline request_queue_t *bdev_get_queue(struct block_device *bdev)
 {

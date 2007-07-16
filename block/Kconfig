@@ -51,4 +51,12 @@ config LSF
 
 endif # BLOCK
 
+config BLK_DEV_BSG
+	bool "Block layer SG support"
+	depends on SCSI && EXPERIMENTAL
+	default y
+	---help---
+	Saying Y here will enable generic SG (SCSI generic) v4
+	support for any block device.
+
 source block/Kconfig.iosched
