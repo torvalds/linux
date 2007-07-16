@@ -247,7 +247,6 @@ unifdef-y += isdn.h
 unifdef-y += isdnif.h
 unifdef-y += isdn_divertif.h
 unifdef-y += isdn_ppp.h
-unifdef-y += isicom.h
 unifdef-y += jbd.h
 unifdef-y += joystick.h
 unifdef-y += kdev_t.h
