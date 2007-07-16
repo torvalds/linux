@@ -46,8 +46,6 @@ static struct chan_opts opts = {
 	.announce 	= stdio_announce,
 	.xterm_title	= "Virtual Console #%d",
 	.raw		= 1,
-	.tramp_stack 	= 0,
-	.in_kernel 	= 1,
 };
 
 static int con_config(char *str, char **error_out);

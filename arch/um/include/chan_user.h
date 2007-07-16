@@ -12,8 +12,6 @@ struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);
 	char *xterm_title;
 	const int raw;
-	const unsigned long tramp_stack;
-	const int in_kernel;
 };
 
 enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };

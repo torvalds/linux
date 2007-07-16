@@ -42,8 +42,6 @@ static struct chan_opts opts = {
 	.announce 	= ssl_announce,
 	.xterm_title	= "Serial Line #%d",
 	.raw		= 1,
-	.tramp_stack 	= 0,
-	.in_kernel 	= 1,
 };
 
 static int ssl_config(char *str, char **error_out);
