@@ -261,13 +261,12 @@ void tty_termios_encode_baud_rate(struct ktermios *termios, speed_t ibaud, speed
 				termios->c_cflag |= (baud_bits[i] << IBSHIFT);
 			ifound = i;
 		}
-	}
-	while(++i < n_baud_table);
+	} while (++i < n_baud_table);
 	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
 	/* Set exact input bits only if the input and output differ or the
 	   user already did */
-	if (ifound == -1 && (ibaud != obaud  || ibinput))
+	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 }
 
@@ -560,7 +559,7 @@ static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 		return -EFAULT;
 
 	mutex_lock(&tty->termios_mutex);
-	termios =  *tty->termios;
+	termios = *tty->termios;
 	termios.c_cc[VERASE] = tmp.sg_erase;
 	termios.c_cc[VKILL] = tmp.sg_kill;
 	set_sgflags(&termios, tmp.sg_flags);
