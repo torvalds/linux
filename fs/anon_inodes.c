@@ -53,7 +53,7 @@ static struct dentry_operations anon_inodefs_dentry_operations = {
 };
 
 /**
- * anon_inode_getfd - creates a new file instance by hooking it up to and
+ * anon_inode_getfd - creates a new file instance by hooking it up to an
  *                    anonymous inode, and a dentry that describe the "class"
  *                    of the file
  *
@@ -66,7 +66,7 @@ static struct dentry_operations anon_inodefs_dentry_operations = {
  *
  * Creates a new file by hooking it on a single inode. This is useful for files
  * that do not need to have a full-fledged inode in order to operate correctly.
- * All the files created with anon_inode_getfd() will share a single inode, by
+ * All the files created with anon_inode_getfd() will share a single inode,
  * hence saving memory and avoiding code duplication for the file/inode/dentry
  * setup.
  */
@@ -141,9 +141,9 @@ err_put_filp:
 }
 
 /*
- * A single inode exist for all anon_inode files. Contrary to pipes,
- * anon_inode inodes has no per-instance data associated, so we can avoid
- * the allocation of multiple of them.
+ * A single inode exists for all anon_inode files. Contrary to pipes,
+ * anon_inode inodes have no associated per-instance data, so we need
+ * only allocate one of them.
  */
 static struct inode *anon_inode_mkinode(void)
 {
