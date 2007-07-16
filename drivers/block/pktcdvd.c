@@ -1652,9 +1652,6 @@ static int kcdrwd(void *foobar)
 				}
 			}
 
-			if (signal_pending(current)) {
-				flush_signals(current);
-			}
 			if (kthread_should_stop())
 				break;
 		}
