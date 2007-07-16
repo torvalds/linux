@@ -530,12 +530,6 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 		return -EAGAIN;
 	dp->low_ino = i;
 
-	spin_lock(&proc_subdir_lock);
-	dp->next = dir->subdir;
-	dp->parent = dir;
-	dir->subdir = dp;
-	spin_unlock(&proc_subdir_lock);
-
 	if (S_ISDIR(dp->mode)) {
 		if (dp->proc_iops == NULL) {
 			dp->proc_fops = &proc_dir_operations;
@@ -551,6 +545,13 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 		if (dp->proc_iops == NULL)
 			dp->proc_iops = &proc_file_inode_operations;
 	}
+
+	spin_lock(&proc_subdir_lock);
+	dp->next = dir->subdir;
+	dp->parent = dir;
+	dir->subdir = dp;
+	spin_unlock(&proc_subdir_lock);
+
 	return 0;
 }
 
@@ -653,9 +654,6 @@ struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 
 	ent = proc_create(&parent, name, S_IFDIR | mode, 2);
 	if (ent) {
-		ent->proc_fops = &proc_dir_operations;
-		ent->proc_iops = &proc_dir_inode_operations;
-
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			ent = NULL;
@@ -690,10 +688,6 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 
 	ent = proc_create(&parent,name,mode,nlink);
 	if (ent) {
-		if (S_ISDIR(mode)) {
-			ent->proc_fops = &proc_dir_operations;
-			ent->proc_iops = &proc_dir_inode_operations;
-		}
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			ent = NULL;
