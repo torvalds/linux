@@ -3605,7 +3605,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 	if (!table)
 		panic("Failed to allocate %s hash table\n", tablename);
 
-	printk("%s hash table entries: %d (order: %d, %lu bytes)\n",
+	printk(KERN_INFO "%s hash table entries: %d (order: %d, %lu bytes)\n",
 	       tablename,
 	       (1U << log2qty),
 	       ilog2(size) - PAGE_SHIFT,
