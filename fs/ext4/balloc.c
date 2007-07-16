@@ -1585,7 +1585,7 @@ allocated:
 	ret_block = grp_alloc_blk + ext4_group_first_block_no(sb, group_no);
 
 	if (in_range(ext4_block_bitmap(sb, gdp), ret_block, num) ||
-	    in_range(ext4_block_bitmap(sb, gdp), ret_block, num) ||
+	    in_range(ext4_inode_bitmap(sb, gdp), ret_block, num) ||
 	    in_range(ret_block, ext4_inode_table(sb, gdp),
 		     EXT4_SB(sb)->s_itb_per_group) ||
 	    in_range(ret_block + num - 1, ext4_inode_table(sb, gdp),
