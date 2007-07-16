@@ -1966,14 +1966,7 @@ static int cifs_prepare_write(struct file *file, struct page *page,
 		 * We don't need to read data beyond the end of the file.
 		 * zero it, and set the page uptodate
 		 */
-		void *kaddr = kmap_atomic(page, KM_USER0);
-
-		if (from)
-			memset(kaddr, 0, from);
-		if (to < PAGE_CACHE_SIZE)
-			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		simple_prepare_write(file, page, from, to);
 		SetPageUptodate(page);
 	} else if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
 		/* might as well read a page, it is fast enough */
