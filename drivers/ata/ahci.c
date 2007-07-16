@@ -1023,8 +1023,8 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return 0;
 }
 
-static int ahci_softreset(struct ata_port *ap, unsigned int *class,
-			  unsigned long deadline)
+static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
+			     int pmp, unsigned long deadline)
 {
 	const char *reason = NULL;
 	unsigned long now, msecs;
@@ -1054,7 +1054,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 		msecs = jiffies_to_msecs(deadline - now);
 
 	tf.ctl |= ATA_SRST;
-	if (ahci_exec_polled_cmd(ap, 0, &tf, 0,
+	if (ahci_exec_polled_cmd(ap, pmp, &tf, 0,
 				 AHCI_CMD_RESET | AHCI_CMD_CLR_BUSY, msecs)) {
 		rc = -EIO;
 		reason = "1st FIS failed";
@@ -1066,7 +1066,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 
 	/* issue the second D2H Register FIS */
 	tf.ctl &= ~ATA_SRST;
-	ahci_exec_polled_cmd(ap, 0, &tf, 0, 0, 0);
+	ahci_exec_polled_cmd(ap, pmp, &tf, 0, 0, 0);
 
 	/* spec mandates ">= 2ms" before checking status.
 	 * We wait 150ms, because that was the magic delay used for
@@ -1092,6 +1092,12 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
  fail:
 	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
 	return rc;
+}
+
+static int ahci_softreset(struct ata_port *ap, unsigned int *class,
+			  unsigned long deadline)
+{
+	return ahci_do_softreset(ap, class, 0, deadline);
 }
 
 static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
