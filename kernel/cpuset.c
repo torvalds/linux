@@ -981,10 +981,10 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 		mmarray = kmalloc(ntasks * sizeof(*mmarray), GFP_KERNEL);
 		if (!mmarray)
 			goto done;
-		write_lock_irq(&tasklist_lock);		/* block fork */
+		read_lock(&tasklist_lock);		/* block fork */
 		if (atomic_read(&cs->count) <= ntasks)
 			break;				/* got enough */
-		write_unlock_irq(&tasklist_lock);	/* try again */
+		read_unlock(&tasklist_lock);		/* try again */
 		kfree(mmarray);
 	}
 
@@ -1006,7 +1006,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 			continue;
 		mmarray[n++] = mm;
 	} while_each_thread(g, p);
-	write_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 
 	/*
 	 * Now that we've dropped the tasklist spinlock, we can
