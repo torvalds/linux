@@ -1560,7 +1560,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 			return -EFAULT;
 		return 0;
 	case MOXA_ASPP_MON_EXT: {
-		int status, p, shiftbit;
+		int p, shiftbit;
 		unsigned long opmode;
 		unsigned cflag, iflag;
 
