@@ -24,9 +24,9 @@
 #include "acl.h"
 
 /*
- * Called when an inode is released. Note that this is different
- * from ext2_open_file: open gets called at every open, but release
- * gets called only when /all/ the files are closed.
+ * Called when filp is released. This happens when all file descriptors
+ * for a single struct file are closed. Note that different open() calls
+ * for the same file yield different struct file structures.
  */
 static int ext2_release_file (struct inode * inode, struct file * filp)
 {
