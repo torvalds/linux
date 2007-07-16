@@ -1017,6 +1017,11 @@ static struct dentry *ext4_lookup(struct inode * dir, struct dentry *dentry, str
 
 		if (!inode)
 			return ERR_PTR(-EACCES);
+
+		if (is_bad_inode(inode)) {
+			iput(inode);
+			return ERR_PTR(-ENOENT);
+		}
 	}
 	return d_splice_alias(inode, dentry);
 }
@@ -1051,6 +1056,11 @@ struct dentry *ext4_get_parent(struct dentry *child)
 
 	if (!inode)
 		return ERR_PTR(-EACCES);
+
+	if (is_bad_inode(inode)) {
+		iput(inode);
+		return ERR_PTR(-ENOENT);
+	}
 
 	parent = d_alloc_anon(inode);
 	if (!parent) {
