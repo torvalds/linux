@@ -12,6 +12,26 @@
 #include <linux/serial.h>
 #include <asm/sci.h>
 
+static struct resource rtc_resources[] = {
+	[0] =	{
+		.start	= 0xfffffec0,
+		.end	= 0xfffffec0 + 0x1e,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] =	{
+		.start  = 20,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] =	{
+		.start	= 21,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] =	{
+		.start	= 22,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xfffffe80,
@@ -41,8 +61,16 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct platform_device rtc_device = {
+	.name		= "sh-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+	.resource	= rtc_resources,
+};
+
 static struct platform_device *sh7709_devices[] __initdata = {
 	&sci_device,
+	&rtc_device,
 };
 
 static int __init sh7709_devices_setup(void)
