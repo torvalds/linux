@@ -4,6 +4,7 @@
 #include <linux/kref.h>
 #include <linux/nsproxy.h>
 #include <linux/sched.h>
+#include <linux/err.h>
 
 #define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 8)
 #define UIDHASH_SZ	(1 << UIDHASH_BITS)
@@ -45,6 +46,9 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 static inline struct user_namespace *copy_user_ns(int flags,
 						  struct user_namespace *old_ns)
 {
+	if (flags & CLONE_NEWUSER)
+		return ERR_PTR(-EINVAL);
+
 	return NULL;
 }
 

@@ -117,7 +117,7 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 
 	get_nsproxy(old_ns);
 
-	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
+	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWUSER)))
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -161,7 +161,8 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 {
 	int err = 0;
 
-	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
+	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
+			       CLONE_NEWUSER)))
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN))
