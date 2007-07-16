@@ -317,13 +317,12 @@ int sprint_symbol(char *buffer, unsigned long address)
 	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
 	if (!name)
 		return sprintf(buffer, "0x%lx", address);
-	else {
-		if (modname)
-			return sprintf(buffer, "%s+%#lx/%#lx [%s]", name, offset,
+
+	if (modname)
+		return sprintf(buffer, "%s+%#lx/%#lx [%s]", name, offset,
 				size, modname);
-		else
-			return sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
-	}
+	else
+		return sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
 }
 
 /* Look up a kernel symbol and print it to the kernel messages. */
