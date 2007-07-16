@@ -14,8 +14,6 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 
-typedef struct kmem_cache kmem_cache_t __deprecated;
-
 /*
  * Flags to pass to kmem_cache_create().
  * The ones marked DEBUG are only valid if CONFIG_SLAB_DEBUG is set.
