@@ -148,7 +148,7 @@ extern int keventd_up(void);
 extern void init_workqueues(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
-extern void cancel_work_sync(struct work_struct *work);
+extern int cancel_work_sync(struct work_struct *work);
 
 /*
  * Kill off a pending schedule_delayed_work().  Note that the work callback
@@ -166,7 +166,7 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 	return ret;
 }
 
-extern void cancel_delayed_work_sync(struct delayed_work *work);
+extern int cancel_delayed_work_sync(struct delayed_work *work);
 
 /* Obsolete. use cancel_delayed_work_sync() */
 static inline
