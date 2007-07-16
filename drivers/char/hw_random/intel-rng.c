@@ -296,12 +296,10 @@ static int __init intel_init_hw_struct(struct intel_rng_hw *intel_rng_hw,
 	     (BIOS_CNTL_LOCK_ENABLE_MASK|BIOS_CNTL_WRITE_ENABLE_MASK))
 	    == BIOS_CNTL_LOCK_ENABLE_MASK) {
 		static __initdata /*const*/ char warning[] =
-			KERN_WARNING PFX "Firmware space is locked read-only. "
-			KERN_WARNING PFX "If you can't or\n don't want to "
-			KERN_WARNING PFX "disable this in firmware setup, and "
-			KERN_WARNING PFX "if\n you are certain that your "
-			KERN_WARNING PFX "system has a functional\n RNG, try"
-			KERN_WARNING PFX "using the 'no_fwh_detect' option.\n";
+			KERN_WARNING PFX "Firmware space is locked read-only. If you can't or\n"
+			KERN_WARNING PFX "don't want to disable this in firmware setup, and if\n"
+			KERN_WARNING PFX "you are certain that your system has a functional\n"
+			KERN_WARNING PFX "RNG, try using the 'no_fwh_detect' option.\n";
 
 		if (no_fwh_detect)
 			return -ENODEV;
