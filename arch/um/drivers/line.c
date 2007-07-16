@@ -454,7 +454,10 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	tty->driver_data = line;
 	line->tty = tty;
 
-	enable_chan(line);
+	err = enable_chan(line);
+	if (err)
+		return err;
+
 	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 	if(!line->sigio){

@@ -97,7 +97,13 @@ static int ssl_remove(int n, char **error_out)
 
 static int ssl_open(struct tty_struct *tty, struct file *filp)
 {
-	return line_open(serial_lines, tty);
+	int err = line_open(serial_lines, tty);
+
+	if (err)
+		printk(KERN_ERR "Failed to open serial line %d, err = %d\n",
+		       tty->index, err);
+
+	return err;
 }
 
 #if 0
