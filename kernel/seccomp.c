@@ -74,6 +74,9 @@ long prctl_set_seccomp(unsigned long seccomp_mode)
 	if (seccomp_mode && seccomp_mode <= NR_SECCOMP_MODES) {
 		current->seccomp.mode = seccomp_mode;
 		set_thread_flag(TIF_SECCOMP);
+#ifdef TIF_NOTSC
+		disable_TSC();
+#endif
 		ret = 0;
 	}
 
