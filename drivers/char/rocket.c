@@ -1702,7 +1702,8 @@ static int rp_write(struct tty_struct *tty,
 	if (count <= 0 || rocket_paranoia_check(info, "rp_write"))
 		return 0;
 
-	mutex_lock_interruptible(&info->write_mtx);
+	if (mutex_lock_interruptible(&info->write_mtx))
+		return -ERESTARTSYS;
 
 #ifdef ROCKET_DEBUG_WRITE
 	printk(KERN_INFO "rp_write %d chars...", count);
