@@ -531,7 +531,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	unsigned long flags = oops_begin();
 
 	if (!user_mode(regs))
-		report_bug(regs->rip);
+		report_bug(regs->rip, regs);
 
 	__die(str, regs, err);
 	oops_end(flags);
