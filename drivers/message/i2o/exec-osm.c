@@ -537,7 +537,7 @@ static int i2o_exec_lct_notify(struct i2o_controller *c, u32 change_ind)
 	struct device *dev;
 	struct i2o_message *msg;
 
-	down(&c->lct_lock);
+	mutex_lock(&c->lct_lock);
 
 	dev = &c->pdev->dev;
 
@@ -561,7 +561,7 @@ static int i2o_exec_lct_notify(struct i2o_controller *c, u32 change_ind)
 
 	i2o_msg_post(c, msg);
 
-	up(&c->lct_lock);
+	mutex_unlock(&c->lct_lock);
 
 	return 0;
 };
