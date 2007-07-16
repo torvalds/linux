@@ -283,11 +283,10 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	struct nls_table *nls = NULL;
 	int err = -EINVAL;
 
-	sbi = kmalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
-	memset(sbi, 0, sizeof(HFSPLUS_SB(sb)));
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 	hfsplus_fill_defaults(sbi);
