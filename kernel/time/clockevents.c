@@ -205,47 +205,6 @@ void clockevents_exchange_device(struct clock_event_device *old,
 }
 
 /**
- * clockevents_request_device
- */
-struct clock_event_device *clockevents_request_device(unsigned int features,
-						      cpumask_t cpumask)
-{
-	struct clock_event_device *cur, *dev = NULL;
-	struct list_head *tmp;
-
-	spin_lock(&clockevents_lock);
-
-	list_for_each(tmp, &clockevent_devices) {
-		cur = list_entry(tmp, struct clock_event_device, list);
-
-		if ((cur->features & features) == features &&
-		    cpus_equal(cpumask, cur->cpumask)) {
-			if (!dev || dev->rating < cur->rating)
-				dev = cur;
-		}
-	}
-
-	clockevents_exchange_device(NULL, dev);
-
-	spin_unlock(&clockevents_lock);
-
-	return dev;
-}
-
-/**
- * clockevents_release_device
- */
-void clockevents_release_device(struct clock_event_device *dev)
-{
-	spin_lock(&clockevents_lock);
-
-	clockevents_exchange_device(dev, NULL);
-	clockevents_notify_released();
-
-	spin_unlock(&clockevents_lock);
-}
-
-/**
  * clockevents_notify - notification about relevant events
  */
 void clockevents_notify(unsigned long reason, void *arg)
