@@ -963,20 +963,20 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 
 	err = bd_claim(bdev, holder);
 	if (err)
-		goto out;
+		goto fail;
 
 	found = find_bd_holder(bdev, bo);
 	if (found)
-		goto out;
+		goto fail;
 
 	err = add_bd_holder(bdev, bo);
 	if (err)
 		bd_release(bdev);
-
-out:
-	if (err || found)
-		free_bd_holder(bo);
+	else
+		bo = NULL;
+fail:
 	mutex_unlock(&bdev->bd_mutex);
+	free_bd_holder(bo);
 	return err;
 }
 
@@ -991,15 +991,12 @@ out:
 static void bd_release_from_kobject(struct block_device *bdev,
 					struct kobject *kobj)
 {
-	struct bd_holder *bo;
-
 	if (!kobj)
 		return;
 
 	mutex_lock(&bdev->bd_mutex);
 	bd_release(bdev);
-	if ((bo = del_bd_holder(bdev, kobj)))
-		free_bd_holder(bo);
+	free_bd_holder(del_bd_holder(bdev, kobj));
 	mutex_unlock(&bdev->bd_mutex);
 }
 
