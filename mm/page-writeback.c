@@ -476,15 +476,13 @@ static void wb_kupdate(unsigned long arg)
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
 int dirty_writeback_centisecs_handler(ctl_table *table, int write,
-		struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
 {
 	proc_dointvec_userhz_jiffies(table, write, file, buffer, length, ppos);
-	if (dirty_writeback_interval) {
-		mod_timer(&wb_timer,
-			jiffies + dirty_writeback_interval);
-		} else {
+	if (dirty_writeback_interval)
+		mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
+	else
 		del_timer(&wb_timer);
-	}
 	return 0;
 }
 
