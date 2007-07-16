@@ -13,7 +13,7 @@
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/hrtimer.h>
-
+#include <linux/capability.h>
 #include <asm/div64.h>
 #include <asm/timex.h>
 

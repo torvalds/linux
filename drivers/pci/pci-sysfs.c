@@ -20,7 +20,7 @@
 #include <linux/stat.h>
 #include <linux/topology.h>
 #include <linux/mm.h>
-
+#include <linux/capability.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */

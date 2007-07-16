@@ -2,7 +2,6 @@
 #define _LINUX_MM_H
 
 #include <linux/errno.h>
-#include <linux/capability.h>
 
 #ifdef __KERNEL__
 

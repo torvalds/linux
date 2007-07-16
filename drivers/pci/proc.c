@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
+#include <linux/capability.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include "pci.h"
