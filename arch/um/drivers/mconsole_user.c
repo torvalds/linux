@@ -86,8 +86,9 @@ int mconsole_get_request(int fd, struct mc_request *req)
 	int len;
 
 	req->originlen = sizeof(req->origin);
-	req->len = recvfrom(fd, &req->request, sizeof(req->request), 0,
-			    (struct sockaddr *) req->origin, &req->originlen);
+	req->len = recvfrom(fd, &req->request, sizeof(req->request),
+			    MSG_DONTWAIT, (struct sockaddr *) req->origin,
+			    &req->originlen);
 	if (req->len < 0)
 		return 0;
 

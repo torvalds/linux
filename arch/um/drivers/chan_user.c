@@ -170,7 +170,13 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
                 err = -EINVAL;
 		goto out_close;
 	}
-	return err ;
+
+	if (os_set_fd_block(*fd_out, 0)) {
+		printk("winch_tramp: failed to set thread_fd non-blocking.\n");
+		goto out_close;
+	}
+
+	return err;
 
  out_close:
 	os_close_file(fds[1]);

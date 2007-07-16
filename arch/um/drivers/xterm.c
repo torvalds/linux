@@ -151,6 +151,13 @@ int xterm_open(int input, int output, int primary, void *d,
 		goto out;
 	}
 
+	err = os_set_fd_block(new, 0);
+	if (err) {
+		printk("xterm_open : failed to set xterm descriptor "
+		       "non-blocking, err = %d\n", -err);
+		goto out;
+	}
+
 	CATCH_EINTR(err = tcgetattr(new, &data->tt));
 	if(err){
 		new = err;
