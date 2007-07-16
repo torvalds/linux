@@ -1346,14 +1346,13 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
 	struct page *page;
-	char *kaddr;
 	int rc = 0;
 
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return -ENOMEM;
 
-	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset), KM_USER0);
+	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset, KM_USER0);
 	unlock_page(page);
 	page_cache_release(page);
 	return rc;
