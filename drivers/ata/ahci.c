@@ -99,6 +99,7 @@ enum {
 	HOST_CAP_SSC		= (1 << 14), /* Slumber capable */
 	HOST_CAP_CLO		= (1 << 24), /* Command List Override support */
 	HOST_CAP_SSS		= (1 << 27), /* Staggered Spin-up */
+	HOST_CAP_SNTF		= (1 << 29), /* SNotification register */
 	HOST_CAP_NCQ		= (1 << 30), /* Native Command Queueing */
 	HOST_CAP_64		= (1 << 31), /* PCI DAC (64-bit DMA) support */
 
@@ -113,11 +114,11 @@ enum {
 	PORT_TFDATA		= 0x20,	/* taskfile data */
 	PORT_SIG		= 0x24,	/* device TF signature */
 	PORT_CMD_ISSUE		= 0x38, /* command issue */
-	PORT_SCR		= 0x28, /* SATA phy register block */
 	PORT_SCR_STAT		= 0x28, /* SATA phy register: SStatus */
 	PORT_SCR_CTL		= 0x2c, /* SATA phy register: SControl */
 	PORT_SCR_ERR		= 0x30, /* SATA phy register: SError */
 	PORT_SCR_ACT		= 0x34, /* SATA phy register: SActive */
+	PORT_SCR_NTF		= 0x3c, /* SATA phy register: SNotification */
 
 	/* PORT_IRQ_{STAT,MASK} bits */
 	PORT_IRQ_COLD_PRES	= (1 << 31), /* cold presence detect */
@@ -631,39 +632,45 @@ static void ahci_restore_initial_config(struct ata_host *host)
 	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
 }
 
-static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
+static unsigned ahci_scr_offset(struct ata_port *ap, unsigned int sc_reg)
 {
-	unsigned int sc_reg;
+	static const int offset[] = {
+		[SCR_STATUS]		= PORT_SCR_STAT,
+		[SCR_CONTROL]		= PORT_SCR_CTL,
+		[SCR_ERROR]		= PORT_SCR_ERR,
+		[SCR_ACTIVE]		= PORT_SCR_ACT,
+		[SCR_NOTIFICATION]	= PORT_SCR_NTF,
+	};
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 
-	switch (sc_reg_in) {
-	case SCR_STATUS:	sc_reg = 0; break;
-	case SCR_CONTROL:	sc_reg = 1; break;
-	case SCR_ERROR:		sc_reg = 2; break;
-	case SCR_ACTIVE:	sc_reg = 3; break;
-	default:
-		return -EINVAL;
-	}
-
-	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	if (sc_reg < ARRAY_SIZE(offset) &&
+	    (sc_reg != SCR_NOTIFICATION || (hpriv->cap & HOST_CAP_SNTF)))
+		return offset[sc_reg];
 	return 0;
 }
 
-
-static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
-	unsigned int sc_reg;
+	void __iomem *port_mmio = ahci_port_base(ap);
+	int offset = ahci_scr_offset(ap, sc_reg);
 
-	switch (sc_reg_in) {
-	case SCR_STATUS:	sc_reg = 0; break;
-	case SCR_CONTROL:	sc_reg = 1; break;
-	case SCR_ERROR:		sc_reg = 2; break;
-	case SCR_ACTIVE:	sc_reg = 3; break;
-	default:
-		return -EINVAL;
+	if (offset) {
+		*val = readl(port_mmio + offset);
+		return 0;
 	}
+	return -EINVAL;
+}
 
-	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
-	return 0;
+static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+{
+	void __iomem *port_mmio = ahci_port_base(ap);
+	int offset = ahci_scr_offset(ap, sc_reg);
+
+	if (offset) {
+		writel(val, port_mmio + offset);
+		return 0;
+	}
+	return -EINVAL;
 }
 
 static void ahci_start_engine(struct ata_port *ap)
@@ -1768,12 +1775,13 @@ static void ahci_print_info(struct ata_host *host)
 
 	dev_printk(KERN_INFO, &pdev->dev,
 		"flags: "
-	       	"%s%s%s%s%s%s"
-	       	"%s%s%s%s%s%s%s\n"
+		"%s%s%s%s%s%s%s"
+		"%s%s%s%s%s%s%s\n"
 	       	,
 
 		cap & (1 << 31) ? "64bit " : "",
 		cap & (1 << 30) ? "ncq " : "",
+		cap & (1 << 29) ? "sntf " : "",
 		cap & (1 << 28) ? "ilck " : "",
 		cap & (1 << 27) ? "stag " : "",
 		cap & (1 << 26) ? "pm " : "",
@@ -1842,10 +1850,8 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		void __iomem *port_mmio = ahci_port_base(ap);
 
 		/* standard SATA port setup */
-		if (hpriv->port_map & (1 << i)) {
+		if (hpriv->port_map & (1 << i))
 			ap->ioaddr.cmd_addr = port_mmio;
-			ap->ioaddr.scr_addr = port_mmio + PORT_SCR;
-		}
 
 		/* disabled/not-implemented port */
 		else
