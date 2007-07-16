@@ -885,53 +885,6 @@ found:
 	return IRQ_HANDLED;
 }
 
-/* External camera command (exported to the motion eye v4l driver) */
-int sonypi_camera_command(int command, u8 value)
-{
-	if (!camera)
-		return -EIO;
-
-	mutex_lock(&sonypi_device.lock);
-
-	switch (command) {
-	case SONYPI_COMMAND_SETCAMERA:
-		if (value)
-			sonypi_camera_on();
-		else
-			sonypi_camera_off();
-		break;
-	case SONYPI_COMMAND_SETCAMERABRIGHTNESS:
-		sonypi_set(SONYPI_CAMERA_BRIGHTNESS, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERACONTRAST:
-		sonypi_set(SONYPI_CAMERA_CONTRAST, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERAHUE:
-		sonypi_set(SONYPI_CAMERA_HUE, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERACOLOR:
-		sonypi_set(SONYPI_CAMERA_COLOR, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERASHARPNESS:
-		sonypi_set(SONYPI_CAMERA_SHARPNESS, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERAPICTURE:
-		sonypi_set(SONYPI_CAMERA_PICTURE, value);
-		break;
-	case SONYPI_COMMAND_SETCAMERAAGC:
-		sonypi_set(SONYPI_CAMERA_AGC, value);
-		break;
-	default:
-		printk(KERN_ERR "sonypi: sonypi_camera_command invalid: %d\n",
-		       command);
-		break;
-	}
-	mutex_unlock(&sonypi_device.lock);
-	return 0;
-}
-
-EXPORT_SYMBOL(sonypi_camera_command);
-
 static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 {
 	int retval;
