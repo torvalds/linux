@@ -44,17 +44,13 @@ static int helper_child(void *arg)
 /* Returns either the pid of the child process we run or -E* on failure.
  * XXX The alloc_stack here breaks if this is called in the tracing thread, so
  * we need to receive a preallocated stack (a local buffer is ok). */
-int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
-	       unsigned long *stack_out)
+int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 {
 	struct helper_data data;
 	unsigned long stack, sp;
 	int pid, fds[2], ret, n;
 
-	if ((stack_out != NULL) && (*stack_out != 0))
-		stack = *stack_out;
-	else
-		stack = alloc_stack(0, __cant_sleep());
+	stack = alloc_stack(0, __cant_sleep());
 	if (stack == 0)
 		return -ENOMEM;
 
@@ -113,22 +109,21 @@ out_close:
 		close(fds[1]);
 	close(fds[0]);
 out_free:
-	if ((stack_out == NULL) || (*stack_out == 0))
-		free_stack(stack, 0);
+	free_stack(stack, 0);
 	return ret;
 }
 
 int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
-		      unsigned long *stack_out, int stack_order)
+		      unsigned long *stack_out)
 {
 	unsigned long stack, sp;
 	int pid, status, err;
 
-	stack = alloc_stack(stack_order, __cant_sleep());
+	stack = alloc_stack(0, __cant_sleep());
 	if (stack == 0)
 		return -ENOMEM;
 
-	sp = stack + (UM_KERN_PAGE_SIZE << stack_order) - sizeof(void *);
+	sp = stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 	pid = clone(proc, (void *) sp, flags | SIGCHLD, arg);
 	if (pid < 0) {
 		err = -errno;
@@ -147,7 +142,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 		if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0))
 			printk("run_helper_thread - thread returned status "
 			       "0x%x\n", status);
-		free_stack(stack, stack_order);
+		free_stack(stack, 0);
 	} else
 		*stack_out = stack;
 	return pid;

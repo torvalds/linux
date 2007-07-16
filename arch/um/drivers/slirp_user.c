@@ -42,7 +42,7 @@ static int slirp_tramp(char **argv, int fd)
 
 	pe_data.stdin = fd;
 	pe_data.stdout = fd;
-	pid = run_helper(slirp_pre_exec, &pe_data, argv, NULL);
+	pid = run_helper(slirp_pre_exec, &pe_data, argv);
 
 	return(pid);
 }

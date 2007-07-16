@@ -117,7 +117,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	pe_data.control_remote = control_remote;
 	pe_data.control_me = control_me;
 	pe_data.data_me = data_me;
-	pid = run_helper(etap_pre_exec, &pe_data, args, NULL);
+	pid = run_helper(etap_pre_exec, &pe_data, args);
 
 	if(pid < 0)
 		err = pid;

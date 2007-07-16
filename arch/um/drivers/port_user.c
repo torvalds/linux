@@ -188,7 +188,7 @@ int port_connection(int fd, int *socket, int *pid_out)
 		{ .sock_fd  		= new,
 		  .pipe_fd 		= socket[1] });
 
-	err = run_helper(port_pre_exec, &data, argv, NULL);
+	err = run_helper(port_pre_exec, &data, argv);
 	if(err < 0)
 		goto out_shutdown;
 

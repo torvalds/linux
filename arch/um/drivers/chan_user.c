@@ -161,7 +161,7 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out,
 	 * problem with /dev/net/tun, which if held open by this
 	 * thread, prevents the TUN/TAP device from being reused.
 	 */
-	err = run_helper_thread(winch_thread, &data, CLONE_FILES, stack_out, 0);
+	err = run_helper_thread(winch_thread, &data, CLONE_FILES, stack_out);
 	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", -err);
 		goto out_close;

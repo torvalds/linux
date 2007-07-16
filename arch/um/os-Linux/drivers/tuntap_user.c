@@ -83,7 +83,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	data.stdout = remote;
 	data.close_me = me;
 
-	pid = run_helper(tuntap_pre_exec, &data, argv, NULL);
+	pid = run_helper(tuntap_pre_exec, &data, argv);
 
 	if(pid < 0)
 		return -pid;

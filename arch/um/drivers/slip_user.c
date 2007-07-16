@@ -85,7 +85,7 @@ static int slip_tramp(char **argv, int fd)
 	pe_data.stdin = fd;
 	pe_data.stdout = fds[1];
 	pe_data.close_me = fds[0];
-	err = run_helper(slip_pre_exec, &pe_data, argv, NULL);
+	err = run_helper(slip_pre_exec, &pe_data, argv);
 	if(err < 0)
 		goto out_close;
 	pid = err;

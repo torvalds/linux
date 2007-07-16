@@ -132,7 +132,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 	}
 
 	sprintf(title, data->title, data->device);
-	pid = run_helper(NULL, NULL, argv, NULL);
+	pid = run_helper(NULL, NULL, argv);
 	if (pid < 0) {
 		err = pid;
 		printk(UM_KERN_ERR "xterm_open : run_helper failed, "

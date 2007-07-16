@@ -177,6 +177,7 @@ static int do_not_aio(struct aio_thread_req *req)
 static int aio_req_fd_r = -1;
 static int aio_req_fd_w = -1;
 static int aio_pid = -1;
+static unsigned long aio_stack;
 
 static int not_aio_thread(void *arg)
 {
@@ -212,7 +213,6 @@ static int not_aio_thread(void *arg)
 
 static int init_aio_24(void)
 {
-	unsigned long stack;
 	int fds[2], err;
 
 	err = os_pipe(fds, 1, 1);
@@ -227,7 +227,7 @@ static int init_aio_24(void)
 		goto out_close_pipe;
 
 	err = run_helper_thread(not_aio_thread, NULL,
-				CLONE_FILES | CLONE_VM | SIGCHLD, &stack, 0);
+				CLONE_FILES | CLONE_VM | SIGCHLD, &aio_stack);
 	if(err < 0)
 		goto out_close_pipe;
 
@@ -252,7 +252,6 @@ out:
 #define DEFAULT_24_AIO 0
 static int init_aio_26(void)
 {
-	unsigned long stack;
 	int err;
 
 	if(io_setup(256, &ctx)){
@@ -263,7 +262,7 @@ static int init_aio_26(void)
 	}
 
 	err = run_helper_thread(aio_thread, NULL,
-				CLONE_FILES | CLONE_VM | SIGCHLD, &stack, 0);
+				CLONE_FILES | CLONE_VM | SIGCHLD, &aio_stack);
 	if(err < 0)
 		return err;
 
@@ -365,8 +364,10 @@ __initcall(init_aio);
 
 static void exit_aio(void)
 {
-	if(aio_pid != -1)
+	if (aio_pid != -1) {
 		os_kill_process(aio_pid, 1);
+		free_stack(aio_stack, 0);
+	}
 }
 
 __uml_exitcall(exit_aio);
