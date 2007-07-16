@@ -400,7 +400,12 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 		/* Send the next block of data to device */
 		tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
 		actual = tty->driver->write(tty, tbuf->buf, tbuf->count);
-		    
+
+		/* rollback was possible and has been done */
+		if (actual == -ERESTARTSYS) {
+			n_hdlc->tbuf = tbuf;
+			break;
+		}
 		/* if transmit error, throw frame away by */
 		/* pretending it was accepted by driver */
 		if (actual < 0)
