@@ -228,7 +228,7 @@ static struct ds_cap_state *find_cap_by_string(const char *name)
 	return NULL;
 }
 
-static int ds_send(struct ldc_channel *lp, void *data, int len)
+static int __ds_send(struct ldc_channel *lp, void *data, int len)
 {
 	int err, limit = 1000;
 
@@ -239,6 +239,18 @@ static int ds_send(struct ldc_channel *lp, void *data, int len)
 			break;
 		udelay(1);
 	}
+
+	return err;
+}
+
+static int ds_send(struct ldc_channel *lp, void *data, int len)
+{
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&ds_lock, flags);
+	err = __ds_send(lp, data, len);
+	spin_unlock_irqrestore(&ds_lock, flags);
 
 	return err;
 }
@@ -267,6 +279,8 @@ static void md_update_data(struct ldc_channel *lp,
 
 	printk(KERN_INFO PFX "Machine description update.\n");
 
+	mdesc_update();
+
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.data.tag.type = DS_DATA;
 	pkt.data.tag.len = sizeof(pkt) - sizeof(struct ds_msg_tag);
@@ -275,8 +289,6 @@ static void md_update_data(struct ldc_channel *lp,
 	pkt.res.result = DS_OK;
 
 	ds_send(lp, &pkt, sizeof(pkt));
-
-	mdesc_update();
 }
 
 struct ds_shutdown_req {
@@ -391,18 +403,6 @@ struct dr_cpu_resp_entry {
 	__u32				str_off;
 };
 
-/* DR cpu requests get queued onto the work list by the
- * dr_cpu_data() callback.  The list is protected by
- * ds_lock, and processed by dr_cpu_process() in order.
- */
-static LIST_HEAD(dr_cpu_work_list);
-static DECLARE_WAIT_QUEUE_HEAD(dr_cpu_wait);
-
-struct dr_cpu_queue_entry {
-	struct list_head		list;
-	char				req[0];
-};
-
 static void __dr_cpu_send_error(struct ds_cap_state *cp, struct ds_data *data)
 {
 	struct dr_cpu_tag *tag = (struct dr_cpu_tag *) (data + 1);
@@ -425,7 +425,7 @@ static void __dr_cpu_send_error(struct ds_cap_state *cp, struct ds_data *data)
 
 	pkt.data.tag.len = msg_len - sizeof(struct ds_msg_tag);
 
-	ds_send(dp->lp, &pkt, msg_len);
+	__ds_send(dp->lp, &pkt, msg_len);
 }
 
 static void dr_cpu_send_error(struct ds_cap_state *cp, struct ds_data *data)
@@ -555,7 +555,7 @@ static int dr_cpu_configure(struct ds_cap_state *cp, u64 req_num,
 	}
 
 	spin_lock_irqsave(&ds_lock, flags);
-	ds_send(ds_info->lp, resp, resp_len);
+	__ds_send(ds_info->lp, resp, resp_len);
 	spin_unlock_irqrestore(&ds_lock, flags);
 
 	kfree(resp);
@@ -596,7 +596,7 @@ static int dr_cpu_unconfigure(struct ds_cap_state *cp, u64 req_num,
 	}
 
 	spin_lock_irqsave(&ds_lock, flags);
-	ds_send(ds_info->lp, resp, resp_len);
+	__ds_send(ds_info->lp, resp, resp_len);
 	spin_unlock_irqrestore(&ds_lock, flags);
 
 	kfree(resp);
@@ -604,107 +604,49 @@ static int dr_cpu_unconfigure(struct ds_cap_state *cp, u64 req_num,
 	return 0;
 }
 
-static void process_dr_cpu_list(struct ds_cap_state *cp)
-{
-	struct dr_cpu_queue_entry *qp, *tmp;
-	unsigned long flags;
-	LIST_HEAD(todo);
-	cpumask_t mask;
-
-	spin_lock_irqsave(&ds_lock, flags);
-	list_splice(&dr_cpu_work_list, &todo);
-	INIT_LIST_HEAD(&dr_cpu_work_list);
-	spin_unlock_irqrestore(&ds_lock, flags);
-
-	list_for_each_entry_safe(qp, tmp, &todo, list) {
-		struct ds_data *data = (struct ds_data *) qp->req;
-		struct dr_cpu_tag *tag = (struct dr_cpu_tag *) (data + 1);
-		u32 *cpu_list = (u32 *) (tag + 1);
-		u64 req_num = tag->req_num;
-		unsigned int i;
-		int err;
-
-		switch (tag->type) {
-		case DR_CPU_CONFIGURE:
-		case DR_CPU_UNCONFIGURE:
-		case DR_CPU_FORCE_UNCONFIGURE:
-			break;
-
-		default:
-			dr_cpu_send_error(cp, data);
-			goto next;
-		}
-
-		purge_dups(cpu_list, tag->num_records);
-
-		cpus_clear(mask);
-		for (i = 0; i < tag->num_records; i++) {
-			if (cpu_list[i] == CPU_SENTINEL)
-				continue;
-
-			if (cpu_list[i] < NR_CPUS)
-				cpu_set(cpu_list[i], mask);
-		}
-
-		if (tag->type == DR_CPU_CONFIGURE)
-			err = dr_cpu_configure(cp, req_num, &mask);
-		else
-			err = dr_cpu_unconfigure(cp, req_num, &mask);
-
-		if (err)
-			dr_cpu_send_error(cp, data);
-
-next:
-		list_del(&qp->list);
-		kfree(qp);
-	}
-}
-
-static int dr_cpu_thread(void *__unused)
-{
-	struct ds_cap_state *cp;
-	DEFINE_WAIT(wait);
-
-	cp = find_cap_by_string("dr-cpu");
-
-	while (1) {
-		prepare_to_wait(&dr_cpu_wait, &wait, TASK_INTERRUPTIBLE);
-		if (list_empty(&dr_cpu_work_list))
-			schedule();
-		finish_wait(&dr_cpu_wait, &wait);
-
-		if (kthread_should_stop())
-			break;
-
-		process_dr_cpu_list(cp);
-	}
-
-	return 0;
-}
-
 static void dr_cpu_data(struct ldc_channel *lp,
-			struct ds_cap_state *dp,
+			struct ds_cap_state *cp,
 			void *buf, int len)
 {
-	struct dr_cpu_queue_entry *qp;
-	struct ds_data *dpkt = buf;
-	struct dr_cpu_tag *rp;
+	struct ds_data *data = buf;
+	struct dr_cpu_tag *tag = (struct dr_cpu_tag *) (data + 1);
+	u32 *cpu_list = (u32 *) (tag + 1);
+	u64 req_num = tag->req_num;
+	cpumask_t mask;
+	unsigned int i;
+	int err;
 
-	rp = (struct dr_cpu_tag *) (dpkt + 1);
+	switch (tag->type) {
+	case DR_CPU_CONFIGURE:
+	case DR_CPU_UNCONFIGURE:
+	case DR_CPU_FORCE_UNCONFIGURE:
+		break;
 
-	qp = kmalloc(sizeof(struct dr_cpu_queue_entry) + len, GFP_ATOMIC);
-	if (!qp) {
-		struct ds_cap_state *cp;
-
-		cp = find_cap_by_string("dr-cpu");
-		__dr_cpu_send_error(cp, dpkt);
-	} else {
-		memcpy(&qp->req, buf, len);
-		list_add_tail(&qp->list, &dr_cpu_work_list);
-		wake_up(&dr_cpu_wait);
+	default:
+		dr_cpu_send_error(cp, data);
+		return;
 	}
+
+	purge_dups(cpu_list, tag->num_records);
+
+	cpus_clear(mask);
+	for (i = 0; i < tag->num_records; i++) {
+		if (cpu_list[i] == CPU_SENTINEL)
+			continue;
+
+		if (cpu_list[i] < NR_CPUS)
+			cpu_set(cpu_list[i], mask);
+	}
+
+	if (tag->type == DR_CPU_CONFIGURE)
+		err = dr_cpu_configure(cp, req_num, &mask);
+	else
+		err = dr_cpu_unconfigure(cp, req_num, &mask);
+
+	if (err)
+		dr_cpu_send_error(cp, data);
 }
-#endif
+#endif /* CONFIG_HOTPLUG_CPU */
 
 struct ds_pri_msg {
 	__u64				req_num;
@@ -820,7 +762,7 @@ void ldom_set_var(const char *var, const char *value)
 		ds_var_doorbell = 0;
 		ds_var_response = -1;
 
-		ds_send(dp->lp, &pkt, msg_len);
+		__ds_send(dp->lp, &pkt, msg_len);
 		spin_unlock_irqrestore(&ds_lock, flags);
 
 		loops = 1000;
@@ -904,7 +846,7 @@ static int register_services(struct ds_info *dp)
 		pbuf.req.minor = 0;
 		strcpy(pbuf.req.svc_id, cp->service_id);
 
-		err = ds_send(lp, &pbuf, msg_len);
+		err = __ds_send(lp, &pbuf, msg_len);
 		if (err > 0)
 			cp->state = CAP_STATE_REG_SENT;
 	}
@@ -960,27 +902,97 @@ conn_reset:
 	return -ECONNRESET;
 }
 
+static void __send_ds_nack(struct ds_info *dp, u64 handle)
+{
+	struct ds_data_nack nack = {
+		.tag = {
+			.type = DS_NACK,
+			.len = (sizeof(struct ds_data_nack) -
+				sizeof(struct ds_msg_tag)),
+		},
+		.handle = handle,
+		.result = DS_INV_HDL,
+	};
+
+	__ds_send(dp->lp, &nack, sizeof(nack));
+}
+
+static LIST_HEAD(ds_work_list);
+static DECLARE_WAIT_QUEUE_HEAD(ds_wait);
+
+struct ds_queue_entry {
+	struct list_head		list;
+	int				req_len;
+	int				__pad;
+	u64				req[0];
+};
+
+static void process_ds_work(void)
+{
+	struct ds_queue_entry *qp, *tmp;
+	static struct ds_info *dp;
+	unsigned long flags;
+	LIST_HEAD(todo);
+
+	spin_lock_irqsave(&ds_lock, flags);
+	list_splice(&ds_work_list, &todo);
+	INIT_LIST_HEAD(&ds_work_list);
+	spin_unlock_irqrestore(&ds_lock, flags);
+
+	dp = ds_info;
+
+	list_for_each_entry_safe(qp, tmp, &todo, list) {
+		struct ds_data *dpkt = (struct ds_data *) qp->req;
+		struct ds_cap_state *cp = find_cap(dpkt->handle);
+		int req_len = qp->req_len;
+
+		if (!cp) {
+			printk(KERN_ERR PFX "Data for unknown handle %lu\n",
+			       dpkt->handle);
+
+			spin_lock_irqsave(&ds_lock, flags);
+			__send_ds_nack(dp, dpkt->handle);
+			spin_unlock_irqrestore(&ds_lock, flags);
+		} else {
+			cp->data(dp->lp, cp, dpkt, req_len);
+		}
+
+		list_del(&qp->list);
+		kfree(qp);
+	}
+}
+
+static int ds_thread(void *__unused)
+{
+	DEFINE_WAIT(wait);
+
+	while (1) {
+		prepare_to_wait(&ds_wait, &wait, TASK_INTERRUPTIBLE);
+		if (list_empty(&ds_work_list))
+			schedule();
+		finish_wait(&ds_wait, &wait);
+
+		if (kthread_should_stop())
+			break;
+
+		process_ds_work();
+	}
+
+	return 0;
+}
+
 static int ds_data(struct ds_info *dp, struct ds_msg_tag *pkt, int len)
 {
 	struct ds_data *dpkt = (struct ds_data *) pkt;
-	struct ds_cap_state *cp = find_cap(dpkt->handle);
+	struct ds_queue_entry *qp;
 
-	if (!cp) {
-		struct ds_data_nack nack = {
-			.tag = {
-				.type = DS_NACK,
-				.len = (sizeof(struct ds_data_nack) -
-					sizeof(struct ds_msg_tag)),
-			},
-			.handle = dpkt->handle,
-			.result = DS_INV_HDL,
-		};
-
-		printk(KERN_ERR PFX "Data for unknown handle %lu\n",
-		       dpkt->handle);
-		ds_send(dp->lp, &nack, sizeof(nack));
+	qp = kmalloc(sizeof(struct ds_queue_entry) + len, GFP_ATOMIC);
+	if (!qp) {
+		__send_ds_nack(dp, dpkt->handle);
 	} else {
-		cp->data(dp->lp, cp, dpkt, len);
+		memcpy(&qp->req, pkt, len);
+		list_add_tail(&qp->list, &ds_work_list);
+		wake_up(&ds_wait);
 	}
 	return 0;
 }
@@ -996,7 +1008,7 @@ static void ds_up(struct ds_info *dp)
 	req.ver.major = 1;
 	req.ver.minor = 0;
 
-	err = ds_send(lp, &req, sizeof(req));
+	err = __ds_send(lp, &req, sizeof(req));
 	if (err > 0)
 		dp->hs_state = DS_HS_START;
 }
@@ -1148,9 +1160,7 @@ static int __init ds_init(void)
 	for (i = 0; i < ARRAY_SIZE(ds_states); i++)
 		ds_states[i].handle = ((u64)i << 32);
 
-#ifdef CONFIG_HOTPLUG_CPU
-	kthread_run(dr_cpu_thread, NULL, "kdrcpud");
-#endif
+	kthread_run(ds_thread, NULL, "kldomd");
 
 	return vio_register_driver(&ds_driver);
 }
