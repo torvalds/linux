@@ -161,6 +161,7 @@ int ptrace_may_attach(struct task_struct *task)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
+	unsigned long flags;
 
 	audit_ptrace(task);
 
@@ -181,9 +182,7 @@ repeat:
 	 * cpu's that may have task_lock).
 	 */
 	task_lock(task);
-	local_irq_disable();
-	if (!write_trylock(&tasklist_lock)) {
-		local_irq_enable();
+	if (!write_trylock_irqsave(&tasklist_lock, flags)) {
 		task_unlock(task);
 		do {
 			cpu_relax();
@@ -211,7 +210,7 @@ repeat:
 	force_sig_specific(SIGSTOP, task);
 
 bad:
-	write_unlock_irq(&tasklist_lock);
+	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
 out:
 	return retval;
