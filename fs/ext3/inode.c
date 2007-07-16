@@ -3195,7 +3195,7 @@ int ext3_change_inode_journal_flag(struct inode *inode, int val)
 	 */
 
 	journal = EXT3_JOURNAL(inode);
-	if (is_journal_aborted(journal) || IS_RDONLY(inode))
+	if (is_journal_aborted(journal))
 		return -EROFS;
 
 	journal_lock_updates(journal);
