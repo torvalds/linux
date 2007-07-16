@@ -155,16 +155,6 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
 		return 0;
 
-#ifndef CONFIG_IPC_NS
-	if (unshare_flags & CLONE_NEWIPC)
-		return -EINVAL;
-#endif
-
-#ifndef CONFIG_UTS_NS
-	if (unshare_flags & CLONE_NEWUTS)
-		return -EINVAL;
-#endif
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 

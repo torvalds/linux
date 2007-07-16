@@ -93,6 +93,7 @@ extern struct ipc_namespace init_ipc_ns;
 
 #ifdef CONFIG_SYSVIPC
 #define INIT_IPC_NS(ns)		.ns		= &init_ipc_ns,
+extern void free_ipc_ns(struct kref *kref);
 extern struct ipc_namespace *copy_ipcs(unsigned long flags,
 						struct ipc_namespace *ns);
 #else
@@ -104,13 +105,9 @@ static inline struct ipc_namespace *copy_ipcs(unsigned long flags,
 }
 #endif
 
-#ifdef CONFIG_IPC_NS
-extern void free_ipc_ns(struct kref *kref);
-#endif
-
 static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 {
-#ifdef CONFIG_IPC_NS
+#ifdef CONFIG_SYSVIPC
 	if (ns)
 		kref_get(&ns->kref);
 #endif
@@ -119,7 +116,7 @@ static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 
 static inline void put_ipc_ns(struct ipc_namespace *ns)
 {
-#ifdef CONFIG_IPC_NS
+#ifdef CONFIG_SYSVIPC
 	kref_put(&ns->kref, free_ipc_ns);
 #endif
 }
@@ -127,5 +124,3 @@ static inline void put_ipc_ns(struct ipc_namespace *ns)
 #endif /* __KERNEL__ */
 
 #endif /* _LINUX_IPC_H */
-
-

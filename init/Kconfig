@@ -120,15 +120,6 @@ config SYSVIPC
 	  section 6.4 of the Linux Programmer's Guide, available from
 	  <http://www.tldp.org/guides.html>.
 
-config IPC_NS
-	bool "IPC Namespaces"
-	depends on SYSVIPC
-	default n
-	help
-	  Support ipc namespaces.  This allows containers, i.e. virtual
-	  environments, to use ipc namespaces to provide different ipc
-	  objects for different servers.  If unsure, say N.
-
 config SYSVIPC_SYSCTL
 	bool
 	depends on SYSVIPC
@@ -217,14 +208,6 @@ config TASK_IO_ACCOUNTING
 	  task has caused.
 
 	  Say N if unsure.
-
-config UTS_NS
-	bool "UTS Namespaces"
-	default n
-	help
-	  Support uts namespaces.  This allows containers, i.e.
-	  vservers, to use uts namespaces to provide different
-	  uts info for different servers.  If unsure, say N.
 
 config AUDIT
 	bool "Auditing support"

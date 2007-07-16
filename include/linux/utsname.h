@@ -48,7 +48,6 @@ static inline void get_uts_ns(struct uts_namespace *ns)
 	kref_get(&ns->kref);
 }
 
-#ifdef CONFIG_UTS_NS
 extern struct uts_namespace *copy_utsname(int flags, struct uts_namespace *ns);
 extern void free_uts_ns(struct kref *kref);
 
@@ -56,18 +55,6 @@ static inline void put_uts_ns(struct uts_namespace *ns)
 {
 	kref_put(&ns->kref, free_uts_ns);
 }
-#else
-static inline struct uts_namespace *copy_utsname(int flags,
-						struct uts_namespace *ns)
-{
-	return ns;
-}
-
-static inline void put_uts_ns(struct uts_namespace *ns)
-{
-}
-#endif
-
 static inline struct new_utsname *utsname(void)
 {
 	return &current->nsproxy->uts_ns->name;
