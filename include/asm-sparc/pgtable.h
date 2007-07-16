@@ -151,7 +151,6 @@ BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
 BTFIXUPDEF_SETHI(none_mask)
 BTFIXUPDEF_CALL_CONST(int, pte_present, pte_t)
 BTFIXUPDEF_CALL(void, pte_clear, pte_t *)
-BTFIXUPDEF_CALL(int, pte_read, pte_t)
 
 static inline int pte_none(pte_t pte)
 {
@@ -160,7 +159,6 @@ static inline int pte_none(pte_t pte)
 
 #define pte_present(pte) BTFIXUP_CALL(pte_present)(pte)
 #define pte_clear(mm,addr,pte) BTFIXUP_CALL(pte_clear)(pte)
-#define pte_read(pte) BTFIXUP_CALL(pte_read)(pte)
 
 BTFIXUPDEF_CALL_CONST(int, pmd_bad, pmd_t)
 BTFIXUPDEF_CALL_CONST(int, pmd_present, pmd_t)

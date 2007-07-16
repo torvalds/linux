@@ -257,9 +257,7 @@ extern struct page *empty_zero_page;
  * Undefined behaviour if not..
  */
 #define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
-#define pte_read(pte)		(pte_val(pte) & L_PTE_USER)
 #define pte_write(pte)		(pte_val(pte) & L_PTE_WRITE)
-#define pte_exec(pte)		(pte_val(pte) & L_PTE_EXEC)
 #define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 
@@ -275,12 +273,8 @@ extern struct page *empty_zero_page;
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
-/*PTE_BIT_FUNC(rdprotect, &= ~L_PTE_USER);*/
-/*PTE_BIT_FUNC(mkread,    |= L_PTE_USER);*/
 PTE_BIT_FUNC(wrprotect, &= ~L_PTE_WRITE);
 PTE_BIT_FUNC(mkwrite,   |= L_PTE_WRITE);
-PTE_BIT_FUNC(exprotect, &= ~L_PTE_EXEC);
-PTE_BIT_FUNC(mkexec,    |= L_PTE_EXEC);
 PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
 PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
 PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);

@@ -160,9 +160,6 @@ static inline int srmmu_pte_none(pte_t pte)
 static inline int srmmu_pte_present(pte_t pte)
 { return ((pte_val(pte) & SRMMU_ET_MASK) == SRMMU_ET_PTE); }
 
-static inline int srmmu_pte_read(pte_t pte)
-{ return !(pte_val(pte) & SRMMU_NOREAD); }
-
 static inline void srmmu_pte_clear(pte_t *ptep)
 { srmmu_set_pte(ptep, __pte(0)); }
 
@@ -2181,7 +2178,6 @@ void __init ld_mmu_srmmu(void)
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_SWAPO0G0);
-	BTFIXUPSET_CALL(pte_read, srmmu_pte_read, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pmd_bad, srmmu_pmd_bad, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_present, srmmu_pmd_present, BTFIXUPCALL_NORM);

@@ -232,9 +232,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_USER;}
 static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_RW;}
-static inline int pte_exec(pte_t pte)  { return pte_val(pte) & _PAGE_EXEC;}
 static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY;}
 static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED;}
 static inline int pte_file(pte_t pte) { return pte_val(pte) & _PAGE_FILE;}
@@ -242,20 +240,12 @@ static inline int pte_file(pte_t pte) { return pte_val(pte) & _PAGE_FILE;}
 static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_NO_CACHE; }
 static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_NO_CACHE; }
 
-static inline pte_t pte_rdprotect(pte_t pte) {
-	pte_val(pte) &= ~_PAGE_USER; return pte; }
-static inline pte_t pte_exprotect(pte_t pte) {
-	pte_val(pte) &= ~_PAGE_EXEC; return pte; }
 static inline pte_t pte_wrprotect(pte_t pte) {
 	pte_val(pte) &= ~(_PAGE_RW); return pte; }
 static inline pte_t pte_mkclean(pte_t pte) {
 	pte_val(pte) &= ~(_PAGE_DIRTY); return pte; }
 static inline pte_t pte_mkold(pte_t pte) {
 	pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkread(pte_t pte) {
-	pte_val(pte) |= _PAGE_USER; return pte; }
-static inline pte_t pte_mkexec(pte_t pte) {
-	pte_val(pte) |= _PAGE_USER | _PAGE_EXEC; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte) {
 	pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte) {

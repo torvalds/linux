@@ -20,26 +20,11 @@
 #define pud_present(pud)			1
 
 /*
- * Is the pte executable?
- */
-static inline int pte_x(pte_t pte)
-{
-	return !(pte_val(pte) & _PAGE_NX);
-}
-
-/*
- * All present user-pages with !NX bit are user-executable:
- */
-static inline int pte_exec(pte_t pte)
-{
-	return pte_user(pte) && pte_x(pte);
-}
-/*
  * All present pages with !NX bit are kernel-executable:
  */
 static inline int pte_exec_kernel(pte_t pte)
 {
-	return pte_x(pte);
+	return !(pte_val(pte) & _PAGE_NX);
 }
 
 /* Rules for using set_pte: the pte being assigned *must* be

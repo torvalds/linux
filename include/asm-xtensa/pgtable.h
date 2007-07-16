@@ -197,16 +197,13 @@ extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
 
 /* Note: We use the _PAGE_USER bit to indicate write-protect kernel memory */
 
-static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_USER; }
 static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_RW; }
 static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)  { return pte_val(pte) & _PAGE_FILE; }
 static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~(_PAGE_RW | _PAGE_WRENABLE); return pte; }
-static inline pte_t pte_rdprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_USER; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkread(pte_t pte)	{ pte_val(pte) |= _PAGE_USER; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_RW; return pte; }

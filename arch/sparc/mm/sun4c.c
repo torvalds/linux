@@ -1748,11 +1748,6 @@ static int sun4c_pte_present(pte_t pte)
 }
 static void sun4c_pte_clear(pte_t *ptep)	{ *ptep = __pte(0); }
 
-static int sun4c_pte_read(pte_t pte)
-{
-	return (pte_val(pte) & _SUN4C_PAGE_READ);
-}
-
 static int sun4c_pmd_bad(pmd_t pmd)
 {
 	return (((pmd_val(pmd) & ~PAGE_MASK) != PGD_TABLE) ||
@@ -2212,7 +2207,6 @@ void __init ld_mmu_sun4c(void)
 
 	BTFIXUPSET_CALL(pte_present, sun4c_pte_present, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pte_clear, sun4c_pte_clear, BTFIXUPCALL_STG0O0);
-	BTFIXUPSET_CALL(pte_read, sun4c_pte_read, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pmd_bad, sun4c_pmd_bad, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_present, sun4c_pmd_present, BTFIXUPCALL_NORM);

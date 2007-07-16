@@ -297,8 +297,6 @@ ia64_phys_addr_valid (unsigned long addr)
 /*
  * The following have defined behavior only work if pte_present() is true.
  */
-#define pte_user(pte)		((pte_val(pte) & _PAGE_PL_MASK) == _PAGE_PL_3)
-#define pte_read(pte)		(((pte_val(pte) & _PAGE_AR_MASK) >> _PAGE_AR_SHIFT) < 6)
 #define pte_write(pte)	((unsigned) (((pte_val(pte) & _PAGE_AR_MASK) >> _PAGE_AR_SHIFT) - 2) <= 4)
 #define pte_exec(pte)		((pte_val(pte) & _PAGE_AR_RX) != 0)
 #define pte_dirty(pte)		((pte_val(pte) & _PAGE_D) != 0)
@@ -310,7 +308,6 @@ ia64_phys_addr_valid (unsigned long addr)
  */
 #define pte_wrprotect(pte)	(__pte(pte_val(pte) & ~_PAGE_AR_RW))
 #define pte_mkwrite(pte)	(__pte(pte_val(pte) | _PAGE_AR_RW))
-#define pte_mkexec(pte)		(__pte(pte_val(pte) | _PAGE_AR_RX))
 #define pte_mkold(pte)		(__pte(pte_val(pte) & ~_PAGE_A))
 #define pte_mkyoung(pte)	(__pte(pte_val(pte) | _PAGE_A))
 #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))

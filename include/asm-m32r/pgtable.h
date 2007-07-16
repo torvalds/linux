@@ -191,16 +191,6 @@ extern unsigned long empty_zero_page[1024];
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_read(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_READ;
-}
-
-static inline int pte_exec(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_EXEC;
-}
-
 static inline int pte_dirty(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_DIRTY;
@@ -224,18 +214,6 @@ static inline int pte_file(pte_t pte)
 	return pte_val(pte) & _PAGE_FILE;
 }
 
-static inline pte_t pte_rdprotect(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_READ;
-	return pte;
-}
-
-static inline pte_t pte_exprotect(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_EXEC;
-	return pte;
-}
-
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_DIRTY;
@@ -251,18 +229,6 @@ static inline pte_t pte_mkold(pte_t pte)
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_WRITE;
-	return pte;
-}
-
-static inline pte_t pte_mkread(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_READ;
-	return pte;
-}
-
-static inline pte_t pte_mkexec(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_EXEC;
 	return pte;
 }
 
