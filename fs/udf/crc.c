@@ -106,8 +106,8 @@ int main(void)
 {
 	unsigned short x;
 
-	x = udf_crc16(bytes, sizeof bytes);
-	printf("udf_crc16: calculated = %4.4x, correct = %4.4x\n", x, 0x3299U);
+	x = udf_crc(bytes, sizeof bytes);
+	printf("udf_crc: calculated = %4.4x, correct = %4.4x\n", x, 0x3299U);
 
 	return 0;
 }
