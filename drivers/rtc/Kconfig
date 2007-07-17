@@ -310,6 +310,16 @@ config RTC_DRV_M48T86
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m48t86.
 
+config RTC_DRV_M48T59
+	tristate "ST M48T59"
+	depends on RTC_CLASS
+	help
+	  If you say Y here you will get support for the
+	  ST M48T59 RTC chip.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-m48t59".
+
 config RTC_DRV_V3020
 	tristate "EM Microelectronic V3020"
 	depends on RTC_CLASS
