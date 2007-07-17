@@ -421,4 +421,10 @@ config SUNVDC
 
 source "drivers/s390/block/Kconfig"
 
+config XILINX_SYSACE
+	tristate "Xilinx SystemACE support"
+	depends on 4xx
+	help
+	  Include support for the Xilinx SystemACE CompactFlash interface
+
 endif # BLK_DEV
