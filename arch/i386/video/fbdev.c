@@ -13,12 +13,10 @@
 
 int fb_is_primary_device(struct fb_info *info)
 {
-	struct device *device;
+	struct device *device = info->device;
 	struct pci_dev *pci_dev = NULL;
 	struct resource *res = NULL;
 	int retval = 0;
-
-	device = info->device;
 
 	if (device)
 		pci_dev = to_pci_dev(device);

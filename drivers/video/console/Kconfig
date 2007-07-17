@@ -118,6 +118,26 @@ config FRAMEBUFFER_CONSOLE
 	help
 	  Low-level framebuffer-based console driver.
 
+config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
+       bool "Map the console to the primary display device"
+       depends on FRAMEBUFFER_CONSOLE && VT_HW_CONSOLE_BINDING
+       default n
+       ---help---
+         If this option is selected, the framebuffer console will
+         automatically select the primary display device (if the architecture
+	 supports this feature).  Otherwise, the framebuffer console will
+         always select the first framebuffer driver that is loaded. The latter
+         is the default behavior.
+
+	 You can always override the automatic selection of the primary device
+	 by using the fbcon=map: boot option.
+
+	 To select this feature, "Support for binding and unbinding console
+         drivers", under "Device Drivers"->"Character Devices" must be set to
+	 y.
+
+	 If unsure, select n.
+
 config FRAMEBUFFER_CONSOLE_ROTATION
        bool "Framebuffer Console Rotation"
        depends on FRAMEBUFFER_CONSOLE

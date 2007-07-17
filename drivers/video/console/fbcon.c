@@ -75,6 +75,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/crc32.h> /* For counting font checksums */
+#include <asm/fb.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -125,6 +126,8 @@ static int first_fb_vc;
 static int last_fb_vc = MAX_NR_CONSOLES - 1;
 static int fbcon_is_default = 1; 
 static int fbcon_has_exited;
+static int primary_device = -1;
+static int map_override;
 
 /* font data */
 static char fontname[40];
@@ -497,13 +500,17 @@ static int __init fb_console_setup(char *this_opt)
 		
 		if (!strncmp(options, "map:", 4)) {
 			options += 4;
-			if (*options)
+			if (*options) {
 				for (i = 0, j = 0; i < MAX_NR_CONSOLES; i++) {
 					if (!options[j])
 						j = 0;
 					con2fb_map_boot[i] =
 						(options[j++]-'0') % FB_MAX;
 				}
+
+				map_override = 1;
+			}
+
 			return 1;
 		}
 
@@ -3004,9 +3011,9 @@ static int fbcon_mode_deleted(struct fb_info *info,
 	return found;
 }
 
-static int fbcon_fb_unregistered(int idx)
+static int fbcon_fb_unregistered(struct fb_info *info)
 {
-	int i;
+	int i, idx = info->node;
 
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] == idx)
@@ -3034,12 +3041,70 @@ static int fbcon_fb_unregistered(int idx)
 	if (!num_registered_fb)
 		unregister_con_driver(&fb_con);
 
+
+	if (primary_device == idx)
+		primary_device = -1;
+
 	return 0;
 }
 
-static int fbcon_fb_registered(int idx)
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
+static int fbcon_select_primary(struct fb_info *info)
 {
-	int ret = 0, i;
+	int ret = 0;
+
+	if (!map_override && primary_device == -1 &&
+	    fb_is_primary_device(info)) {
+		int i, err;
+
+		printk(KERN_INFO "fbcon: %s is primary device\n",
+		       info->fix.id);
+		primary_device = info->node;
+
+		if (!con_is_bound(&fb_con))
+			goto done;
+
+		printk(KERN_INFO "fbcon: Unbinding old driver\n");
+		unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
+				  fbcon_is_default);
+		info_idx = primary_device;
+
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+			con2fb_map_boot[i] = primary_device;
+			con2fb_map[i] = primary_device;
+		}
+
+		printk(KERN_INFO "fbcon: Selecting new driver\n");
+		err = bind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
+				      fbcon_is_default);
+
+		if (err) {
+			for (i = first_fb_vc; i <= last_fb_vc; i++)
+				con2fb_map[i] = -1;
+
+			info_idx = -1;
+		}
+
+		ret = 1;
+	}
+
+done:
+	return ret;
+}
+#else
+static inline int fbcon_select_primary(struct fb_info *info)
+{
+	return 0;
+}
+#endif /* CONFIG_FRAMEBUFFER_DETECT_PRIMARY */
+
+static int fbcon_fb_registered(struct fb_info *info)
+{
+	int ret = 0, i, idx = info->node;
+
+	if (fbcon_select_primary(info))
+		goto done;
+
 
 	if (info_idx == -1) {
 		for (i = first_fb_vc; i <= last_fb_vc; i++) {
@@ -3059,6 +3124,7 @@ static int fbcon_fb_registered(int idx)
 		}
 	}
 
+done:
 	return ret;
 }
 
@@ -3182,10 +3248,10 @@ static int fbcon_event_notify(struct notifier_block *self,
 		ret = fbcon_mode_deleted(info, mode);
 		break;
 	case FB_EVENT_FB_REGISTERED:
-		ret = fbcon_fb_registered(info->node);
+		ret = fbcon_fb_registered(info);
 		break;
 	case FB_EVENT_FB_UNREGISTERED:
-		ret = fbcon_fb_unregistered(info->node);
+		ret = fbcon_fb_unregistered(info);
 		break;
 	case FB_EVENT_SET_CONSOLE_MAP:
 		con2fb = event->data;
