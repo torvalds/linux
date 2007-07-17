@@ -14,7 +14,6 @@ config CRYPTO_DEV_PADLOCK
 	tristate "Support for VIA PadLock ACE"
 	depends on X86_32
 	select CRYPTO_ALGAPI
-	default m
 	help
 	  Some VIA processors come with an integrated crypto engine
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
@@ -28,7 +27,6 @@ config CRYPTO_DEV_PADLOCK_AES
 	tristate "PadLock driver for AES algorithm"
 	depends on CRYPTO_DEV_PADLOCK
 	select CRYPTO_BLKCIPHER
-	default m
 	help
 	  Use VIA PadLock for AES algorithm.
 
@@ -42,7 +40,6 @@ config CRYPTO_DEV_PADLOCK_SHA
 	depends on CRYPTO_DEV_PADLOCK
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
-	default m
 	help
 	  Use VIA PadLock for SHA1/SHA256 algorithms.
 
@@ -58,7 +55,6 @@ config CRYPTO_DEV_GEODE
 	depends on X86_32 && PCI
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	default m
 	help
 	  Say 'Y' here to use the AMD Geode LX processor on-board AES
 	  engine for the CryptoAPI AES algorithm.
@@ -70,7 +66,6 @@ config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
 	depends on S390
 	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
-	default "m"
 	help
 	  Select this option if you want to use a PCI-attached cryptographic
 	  adapter like:
