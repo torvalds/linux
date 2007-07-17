@@ -95,7 +95,7 @@ static int __init q40fb_probe(struct platform_device *dev)
 	/* mapped in q40/config.c */
 	q40fb_fix.smem_start = Q40_PHYS_SCREEN_ADDR;
 
-	info = framebuffer_alloc(sizeof(u32) * 256, &dev->dev);
+	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info)
 		return -ENOMEM;
 
