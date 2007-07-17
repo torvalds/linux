@@ -33,7 +33,8 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/sg.h>
 
-const static char bsg_version[] = "block layer sg (bsg) 0.4";
+#define BSG_DESCRIPTION	"Block layer SCSI generic (bsg) driver"
+#define BSG_VERSION	"0.4"
 
 struct bsg_device {
 	request_queue_t *queue;
@@ -1072,7 +1073,8 @@ static int __init bsg_init(void)
 	if (ret)
 		goto remove_cdev;
 
-	printk(KERN_INFO "%s loaded (major %d)\n", bsg_version, bsg_major);
+	printk(KERN_INFO BSG_DESCRIPTION "version " BSG_VERSION
+	       " loaded (major %d)\n", bsg_major);
 	return 0;
 remove_cdev:
 	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
@@ -1087,7 +1089,7 @@ destroy_kmemcache:
 }
 
 MODULE_AUTHOR("Jens Axboe");
-MODULE_DESCRIPTION("Block layer SGSI generic (sg) driver");
+MODULE_DESCRIPTION(BSG_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
 device_initcall(bsg_init);
