@@ -1068,15 +1068,18 @@ static int cyblafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		out8(0x3C9, green >> 10);
 		out8(0x3C9, blue >> 10);
 
-	} else if (bpp == 16)	// RGB 565
-		((u32 *) info->pseudo_palette)[regno] =
-		    (red & 0xF800) |
-		    ((green & 0xFC00) >> 5) | ((blue & 0xF800) >> 11);
-	else if (bpp == 32)	// ARGB 8888
-		((u32 *) info->pseudo_palette)[regno] =
-		    ((transp & 0xFF00) << 16) |
-		    ((red & 0xFF00) << 8) |
-		    ((green & 0xFF00)) | ((blue & 0xFF00) >> 8);
+	} else if (regno < 16) {
+		if (bpp == 16)	// RGB 565
+			((u32 *) info->pseudo_palette)[regno] =
+				(red & 0xF800) |
+				((green & 0xFC00) >> 5) |
+				((blue & 0xF800) >> 11);
+		else if (bpp == 32)	// ARGB 8888
+			((u32 *) info->pseudo_palette)[regno] =
+				((transp & 0xFF00) << 16) |
+				((red & 0xFF00) << 8) |
+				((green & 0xFF00)) | ((blue & 0xFF00) >> 8);
+	}
 
 	return 0;
 }
