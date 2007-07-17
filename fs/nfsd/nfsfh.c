@@ -249,10 +249,16 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	if (error)
 		goto out;
 
-	/* Check security flavor */
-	error = check_nfsd_access(exp, rqstp);
-	if (error)
-		goto out;
+	if (!(access & MAY_LOCK)) {
+		/*
+		 * pseudoflavor restrictions are not enforced on NLM,
+		 * which clients virtually always use auth_sys for,
+		 * even while using RPCSEC_GSS for NFS.
+		 */
+		error = check_nfsd_access(exp, rqstp);
+		if (error)
+			goto out;
+	}
 
 	/* Finally, check access permissions. */
 	error = nfsd_permission(rqstp, exp, dentry, access);
