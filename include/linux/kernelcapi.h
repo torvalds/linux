@@ -64,7 +64,7 @@ struct capi20_appl {
 	unsigned long nrecvdatapkt;
 	unsigned long nsentctlpkt;
 	unsigned long nsentdatapkt;
-	struct semaphore recv_sem;
+	struct mutex recv_mtx;
 	struct sk_buff_head recv_queue;
 	struct work_struct recv_work;
 	int release_in_progress;
