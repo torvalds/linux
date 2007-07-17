@@ -353,7 +353,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		/*      with userid/password pairs found on the smb session   */
 		/*	for other target tcp/ip addresses 		BB    */
 				if (current->fsuid != treeCon->ses->linux_uid) {
-					cFYI(1,("Multiuser mode and UID did not match tcon uid"));
+					cFYI(1, ("Multiuser mode and UID "
+						 "did not match tcon uid"));
 					read_lock(&GlobalSMBSeslock);
 					list_for_each(temp_item, &GlobalSMBSessionList) {
 						ses = list_entry(temp_item, struct cifsSesInfo, cifsSessionList);
@@ -461,7 +462,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 	clc_len = smbCalcSize_LE(smb);
 
 	if (4 + len != length) {
-		cERROR(1, ("Length read does not match RFC1001 length %d",len));
+		cERROR(1, ("Length read does not match RFC1001 length %d",
+			   len));
 		return 1;
 	}
 
@@ -516,7 +518,8 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cFYI(1,("dnotify on %s Action: 0x%x", pnotify->FileName,
+			cFYI(1, ("dnotify on %s Action: 0x%x",
+				 pnotify->FileName,
 				pnotify->Action));  /* BB removeme BB */
 			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
@@ -567,7 +570,8 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				if (pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
 					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,("file id match, oplock break"));
+					cFYI(1,
+					    ("file id match, oplock break"));
 					pCifsInode =
 						CIFS_I(netfile->pInode);
 					pCifsInode->clientCanCacheAll = FALSE;
@@ -578,7 +582,8 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 					AllocOplockQEntry(netfile->pInode,
 							  netfile->netfid,
 							  tcon);
-					cFYI(1,("about to wake up oplock thd"));
+					cFYI(1,
+					    ("about to wake up oplock thread"));
 					if (oplockThread)
 					    wake_up_process(oplockThread);
 					return TRUE;

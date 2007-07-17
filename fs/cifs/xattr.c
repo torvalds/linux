@@ -184,7 +184,8 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 			cFYI(1, ("set default POSIX ACL not supported"));
 #endif
 		} else {
-			cFYI(1, ("illegal xattr request %s (only user namespace supported)", ea_name));
+			cFYI(1, ("illegal xattr request %s (only user namespace"
+				 " supported)", ea_name));
 		  /* BB what if no namespace prefix? */
 		  /* Should we just pass them to server, except for
 		  system and perhaps security prefixes? */

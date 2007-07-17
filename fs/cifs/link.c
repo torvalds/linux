@@ -287,7 +287,8 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 				fid,
 				cifs_sb->local_nls);
 			if (CIFSSMBClose(xid, pTcon, fid)) {
-				cFYI(1,("Error closing junction point (open for ioctl)"));
+				cFYI(1, ("Error closing junction point "
+					 "(open for ioctl)"));
 			}
 			if (rc == -EIO) {
 				/* Query if DFS Junction */

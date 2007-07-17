@@ -132,10 +132,13 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				/* Give Demultiplex thread up to 10 seconds to
 				   reconnect, should be greater than cifs socket
 				   timeout which is 7 seconds */
-			while(tcon->ses->server->tcpStatus == CifsNeedReconnect) {
+			while(tcon->ses->server->tcpStatus ==
+							 CifsNeedReconnect) {
 				wait_event_interruptible_timeout(tcon->ses->server->response_q,
-					(tcon->ses->server->tcpStatus == CifsGood), 10 * HZ);
-				if (tcon->ses->server->tcpStatus == CifsNeedReconnect) {
+					(tcon->ses->server->tcpStatus == 
+							CifsGood), 10 * HZ);
+				if (tcon->ses->server->tcpStatus ==
+							CifsNeedReconnect) {
 					/* on "soft" mounts we wait once */
 					if ((tcon->retry == FALSE) ||
 					   (tcon->ses->status == CifsExiting)) {
@@ -209,7 +212,8 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		return -ENOMEM;
 	}
 
-	header_assemble((struct smb_hdr *) *request_buf, smb_command, tcon,wct);
+	header_assemble((struct smb_hdr *) *request_buf, smb_command,
+			tcon,wct);
 
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
@@ -274,9 +278,11 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				/* Give Demultiplex thread up to 10 seconds to
 				   reconnect, should be greater than cifs socket
 				   timeout which is 7 seconds */
-			while(tcon->ses->server->tcpStatus == CifsNeedReconnect) {
+			while (tcon->ses->server->tcpStatus ==
+							CifsNeedReconnect) {
 				wait_event_interruptible_timeout(tcon->ses->server->response_q,
-					(tcon->ses->server->tcpStatus == CifsGood), 10 * HZ);
+					(tcon->ses->server->tcpStatus ==
+							CifsGood), 10 * HZ);
 				if (tcon->ses->server->tcpStatus ==
 						CifsNeedReconnect) {
 					/* on "soft" mounts we wait once */
@@ -381,7 +387,8 @@ static int validate_t2(struct smb_t2_rsp *pSMB)
 			/* check that bcc is less than negotiated smb buffer */
 			total_size = le16_to_cpu(pSMB->t2_rsp.ParameterCount);
 			if (total_size < 512) {
-				total_size+=le16_to_cpu(pSMB->t2_rsp.DataCount);
+				total_size += 
+					le16_to_cpu(pSMB->t2_rsp.DataCount);
 				/* BCC le converted in SendReceive */
 				pBCC = (pSMB->hdr.WordCount * 2) +
 					sizeof(struct smb_hdr) +
@@ -2608,7 +2615,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 					reparse_buf->TargetNameOffset +
 					reparse_buf->TargetNameLen) >
 						end_of_smb) {
-					cFYI(1,("reparse buf extended beyond SMB"));
+					cFYI(1,("reparse buf goes beyond SMB"));
 					rc = -EIO;
 					goto qreparse_out;
 				}
@@ -2632,7 +2639,8 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 				}
 			} else {
 				rc = -EIO;
-				cFYI(1,("Invalid return data count on get reparse info ioctl"));
+				cFYI(1, ("Invalid return data count on "
+					 "get reparse info ioctl"));
 			}
 			symlinkinfo[buflen] = 0; /* just in case so the caller
 					does not go off the end of the buffer */
@@ -2750,7 +2758,8 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 		return 0;
 
 	count = posix_acl_xattr_count((size_t)buflen);
-	cFYI(1,("setting acl with %d entries from buf of length %d and version of %d",
+	cFYI(1,("setting acl with %d entries from buf of length %d and "
+		"version of %d",
 		count, buflen, le32_to_cpu(local_acl->a_version)));
 	if (le32_to_cpu(local_acl->a_version) != 2) {
 		cFYI(1, ("unknown POSIX ACL version %d",
@@ -3957,7 +3966,9 @@ getDFSRetry:
 					(8 /* sizeof start of data block */ +
 					data_offset +
 					(char *) &pSMBr->hdr.Protocol);
-			cFYI(1,("num_referrals: %d dfs flags: 0x%x ... \nfor referral one refer size: 0x%x srv type: 0x%x refer flags: 0x%x ttl: 0x%x",
+			cFYI(1,("num_referrals: %d dfs flags: 0x%x ... \n"
+				"for referral one refer size: 0x%x srv "
+				"type: 0x%x refer flags: 0x%x ttl: 0x%x",
 				le16_to_cpu(pSMBr->NumberOfReferrals),
 				le16_to_cpu(pSMBr->DFSFlags),
 				le16_to_cpu(referrals->ReferralSize),

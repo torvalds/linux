@@ -789,7 +789,8 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 		     sizeof (struct smb_to_posix_error); i++) {
 			if (mapping_table_ERRDOS[i].smb_err == 0)
 				break;
-			else if (mapping_table_ERRDOS[i].smb_err == smberrcode) {
+			else if (mapping_table_ERRDOS[i].smb_err ==
+								smberrcode) {
 				rc = mapping_table_ERRDOS[i].posix_code;
 				break;
 			}
@@ -802,7 +803,8 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 		     sizeof (struct smb_to_posix_error); i++) {
 			if (mapping_table_ERRSRV[i].smb_err == 0)
 				break;
-			else if (mapping_table_ERRSRV[i].smb_err == smberrcode) {
+			else if (mapping_table_ERRSRV[i].smb_err ==
+								smberrcode) {
 				rc = mapping_table_ERRSRV[i].posix_code;
 				break;
 			}

@@ -535,7 +535,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		rc = decode_unicode_ssetup(&bcc_ptr, bytes_remaining,
 						   ses, nls_cp);
 	else
-		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,nls_cp);
+		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining,
+					 ses, nls_cp);
 
 ssetup_exit:
 	kfree(str_area);

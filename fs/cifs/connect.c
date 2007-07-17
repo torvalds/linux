@@ -278,7 +278,7 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	total_data_size = le16_to_cpu(pSMBt->t2_rsp.TotalDataCount);
 
 	if (total_data_size != le16_to_cpu(pSMB2->t2_rsp.TotalDataCount)) {
-		cFYI(1, ("total data sizes of primary and secondary t2 differ"));
+		cFYI(1, ("total data size of primary and secondary t2 differ"));
 	}
 
 	total_in_buf = le16_to_cpu(pSMBt->t2_rsp.DataCount);
@@ -1036,7 +1036,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			}
 		} else if (strnicmp(data, "iocharset", 9) == 0) {
 			if (!value || !*value) {
-				printk(KERN_WARNING "CIFS: invalid iocharset specified\n");
+				printk(KERN_WARNING "CIFS: invalid iocharset "
+						    "specified\n");
 				return 1;	/* needs_arg; */
 			}
 			if (strnlen(value, 65) < 65) {
@@ -1046,7 +1047,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 				   is used by caller */
 				cFYI(1, ("iocharset set to %s", value));
 			} else {
-				printk(KERN_WARNING "CIFS: iocharset name too long.\n");
+				printk(KERN_WARNING "CIFS: iocharset name "
+						    "too long.\n");
 				return 1;
 			}
 		} else if (strnicmp(data, "uid", 3) == 0) {
@@ -1098,7 +1100,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 			}
 		} else if (strnicmp(data, "netbiosname", 4) == 0) {
 			if (!value || !*value || (*value == ' ')) {
-				cFYI(1, ("invalid (empty) netbiosname specified"));
+				cFYI(1, ("invalid (empty) netbiosname"));
 			} else {
 				memset(vol->source_rfc1001_name, 0x20, 15);
 				for (i = 0; i < 15; i++) {
@@ -2827,7 +2829,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						bcc_ptr++;
 					} else
 						cFYI(1,
-						     ("Variable field of length %d extends beyond end of smb",
+						     ("field of length %d "
+						    "extends beyond end of smb",
 						      len));
 				}
 			} else {
@@ -2990,13 +2993,17 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			    cpu_to_le16(len);
 		}
 
-		/* SecurityBlob->WorkstationName.Length = cifs_strtoUCS((__le16 *) bcc_ptr, "AMACHINE",64, nls_codepage);
+		/* SecurityBlob->WorkstationName.Length =
+		 cifs_strtoUCS((__le16 *) bcc_ptr, "AMACHINE",64, nls_codepage);
 		   SecurityBlob->WorkstationName.Length *= 2;
-		   SecurityBlob->WorkstationName.MaximumLength = cpu_to_le16(SecurityBlob->WorkstationName.Length);
-		   SecurityBlob->WorkstationName.Buffer = cpu_to_le32(SecurityBlobLength);
+		   SecurityBlob->WorkstationName.MaximumLength =
+			cpu_to_le16(SecurityBlob->WorkstationName.Length);
+		   SecurityBlob->WorkstationName.Buffer =
+				 cpu_to_le32(SecurityBlobLength);
 		   bcc_ptr += SecurityBlob->WorkstationName.Length;
 		   SecurityBlobLength += SecurityBlob->WorkstationName.Length;
-		   SecurityBlob->WorkstationName.Length = cpu_to_le16(SecurityBlob->WorkstationName.Length);  */
+		   SecurityBlob->WorkstationName.Length =
+			cpu_to_le16(SecurityBlob->WorkstationName.Length);  */
 
 		if ((long) bcc_ptr % 2) {
 			*bcc_ptr = 0;
@@ -3202,7 +3209,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					len = strnlen(bcc_ptr, 1024);
 					if (((long) bcc_ptr + len) -
 					   (long) pByteArea(smb_buffer_response)
-                            <= BCC(smb_buffer_response)) {
+						<= BCC(smb_buffer_response)) {
 						if (ses->serverOS)
 							kfree(ses->serverOS);
 						ses->serverOS = kzalloc(len + 1,GFP_KERNEL);
@@ -3216,7 +3223,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						kfree(ses->serverNOS);
 						ses->serverNOS = kzalloc(len+1,
 								    GFP_KERNEL);
-						strncpy(ses->serverNOS, bcc_ptr, len);
+						strncpy(ses->serverNOS,
+							bcc_ptr, len);
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
@@ -3224,19 +3232,24 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						len = strnlen(bcc_ptr, 1024);
 						if (ses->serverDomain)
 							kfree(ses->serverDomain);
-						ses->serverDomain = kzalloc(len+1,GFP_KERNEL);
-						strncpy(ses->serverDomain, bcc_ptr, len);
+						ses->serverDomain =
+								kzalloc(len+1,
+								    GFP_KERNEL);
+						strncpy(ses->serverDomain,
+							bcc_ptr, len);
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
 					} else
 						cFYI(1,
-						     ("Variable field of length %d extends beyond end of smb ",
+						     ("field of length %d "
+						   "extends beyond end of smb ",
 						      len));
 				}
 			} else {
 				cERROR(1,
-				       (" Security Blob Length extends beyond end of SMB"));
+				       (" Security Blob extends beyond end "
+					"of SMB"));
 			}
 		} else {
 			cERROR(1, ("No session structure passed in."));

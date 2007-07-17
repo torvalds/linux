@@ -71,16 +71,20 @@ static struct task_struct *dnotifyThread = NULL;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
-MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
+MODULE_PARM_DESC(CIFSMaxBufSize, "Network buffer size (not including header). "
+				 "Default: 16384 Range: 8192 to 130048");
 unsigned int cifs_min_rcv = CIFS_MIN_RCV_POOL;
 module_param(cifs_min_rcv, int, 0);
-MODULE_PARM_DESC(cifs_min_rcv,"Network buffers in pool. Default: 4 Range: 1 to 64");
+MODULE_PARM_DESC(cifs_min_rcv, "Network buffers in pool. Default: 4 Range: "
+				"1 to 64");
 unsigned int cifs_min_small = 30;
 module_param(cifs_min_small, int, 0);
-MODULE_PARM_DESC(cifs_min_small,"Small network buffers in pool. Default: 30 Range: 2 to 256");
+MODULE_PARM_DESC(cifs_min_small, "Small network buffers in pool. Default: 30 "
+				 "Range: 2 to 256");
 unsigned int cifs_max_pending = CIFS_MAX_REQ;
 module_param(cifs_max_pending, int, 0);
-MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
+MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server. "
+				   "Default: 50 Range: 2 to 256");
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -902,7 +906,8 @@ static int cifs_oplock_thread(void *dummyarg)
 					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
 					    0 /* wait flag */);
-					cFYI(1,("Oplock release rc = %d ", rc));
+					cFYI(1, 
+					      ("Oplock release rc = %d ", rc));
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
@@ -1040,7 +1045,7 @@ init_cifs(void)
 static void __exit
 exit_cifs(void)
 {
-	cFYI(0, ("In unregister ie exit_cifs"));
+	cFYI(0, ("exit_cifs"));
 #ifdef CONFIG_PROC_FS
 	cifs_proc_clean();
 #endif
@@ -1055,7 +1060,8 @@ exit_cifs(void)
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");
 MODULE_LICENSE("GPL");	/* combination of LGPL + GPL source behaves as GPL */
 MODULE_DESCRIPTION
-    ("VFS to access servers complying with the SNIA CIFS Specification e.g. Samba and Windows");
+    ("VFS to access servers complying with the SNIA CIFS Specification "
+     "e.g. Samba and Windows");
 MODULE_VERSION(CIFS_VERSION);
 module_init(init_cifs)
 module_exit(exit_cifs)

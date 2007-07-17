@@ -502,7 +502,8 @@ int cifs_close(struct inode *inode, struct file *file)
 					timeout *= 4;
 				}
 				if (atomic_read(&pSMBFile->wrtPending))
-					cERROR(1,("close with pending writes"));
+					cERROR(1,
+						("close with pending writes"));
 				rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
 			}
@@ -1285,7 +1286,7 @@ retry:
 						   1);
 				atomic_dec(&open_file->wrtPending);
 				if (rc || bytes_written < bytes_to_write) {
-					cERROR(1,("Write2 ret %d, written = %d",
+					cERROR(1, ("Write2 ret %d, wrote %d",
 						  rc, bytes_written));
 					/* BB what if continued retry is
 					   requested via mount flags? */
