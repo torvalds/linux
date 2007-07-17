@@ -255,7 +255,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		goto out;
 
 	/* Finally, check access permissions. */
-	error = nfsd_permission(exp, dentry, access);
+	error = nfsd_permission(rqstp, exp, dentry, access);
 
 	if (error) {
 		dprintk("fh_verify: %s/%s permission failure, "
