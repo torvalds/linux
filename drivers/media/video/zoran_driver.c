@@ -4213,8 +4213,8 @@ zoran_poll (struct file *file,
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	wait_queue_head_t *queue = NULL;
 	int res = 0, frame;
+	unsigned long flags;
 
 	/* we should check whether buffers are ready to be synced on
 	 * (w/o waits - O_NONBLOCK) here
@@ -4228,51 +4228,58 @@ zoran_poll (struct file *file,
 
 	switch (fh->map_mode) {
 	case ZORAN_MAP_MODE_RAW:
-		if (fh->v4l_buffers.active == ZORAN_FREE ||
-		    zr->v4l_pend_head == zr->v4l_pend_tail) {
-			dprintk(1,
-				"%s: zoran_poll() - no buffers queued\n",
-				ZR_DEVNAME(zr));
-			res = POLLNVAL;
-			goto poll_unlock_and_return;
-		}
-		queue = &zr->v4l_capq;
-		frame = zr->v4l_pend[zr->v4l_pend_tail & V4L_MASK_FRAME];
-		poll_wait(file, queue, wait);
-		if (fh->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
+		poll_wait(file, &zr->v4l_capq, wait);
+		frame = zr->v4l_pend[zr->v4l_sync_tail & V4L_MASK_FRAME];
+
+		spin_lock_irqsave(&zr->spinlock, flags);
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() raw - active=%c, sync_tail=%lu/%c, pend_tail=%lu, pend_head=%lu\n",
+			ZR_DEVNAME(zr), __FUNCTION__,
+			"FAL"[fh->v4l_buffers.active], zr->v4l_sync_tail,
+			"UPMD"[zr->v4l_buffers.buffer[frame].state],
+			zr->v4l_pend_tail, zr->v4l_pend_head);
+		/* Process is the one capturing? */
+		if (fh->v4l_buffers.active != ZORAN_FREE &&
+		    /* Buffer ready to DQBUF? */
+		    zr->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
 			res = POLLIN | POLLRDNORM;
+		spin_unlock_irqrestore(&zr->spinlock, flags);
+
 		break;
 
 	case ZORAN_MAP_MODE_JPG_REC:
 	case ZORAN_MAP_MODE_JPG_PLAY:
-		if (fh->jpg_buffers.active == ZORAN_FREE ||
-		    zr->jpg_que_head == zr->jpg_que_tail) {
-			dprintk(1,
-				"%s: zoran_poll() - no buffers queued\n",
-				ZR_DEVNAME(zr));
-			res = POLLNVAL;
-			goto poll_unlock_and_return;
-		}
-		queue = &zr->jpg_capq;
+		poll_wait(file, &zr->jpg_capq, wait);
 		frame = zr->jpg_pend[zr->jpg_que_tail & BUZ_MASK_FRAME];
-		poll_wait(file, queue, wait);
-		if (fh->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
+
+		spin_lock_irqsave(&zr->spinlock, flags);
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() jpg - active=%c, que_tail=%lu/%c, que_head=%lu, dma=%lu/%lu\n",
+			ZR_DEVNAME(zr), __FUNCTION__,
+			"FAL"[fh->jpg_buffers.active], zr->jpg_que_tail,
+			"UPMD"[zr->jpg_buffers.buffer[frame].state],
+			zr->jpg_que_head, zr->jpg_dma_tail, zr->jpg_dma_head);
+		if (fh->jpg_buffers.active != ZORAN_FREE &&
+		    zr->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
 			if (fh->map_mode == ZORAN_MAP_MODE_JPG_REC)
 				res = POLLIN | POLLRDNORM;
 			else
 				res = POLLOUT | POLLWRNORM;
 		}
+		spin_unlock_irqrestore(&zr->spinlock, flags);
+
 		break;
 
 	default:
 		dprintk(1,
+			KERN_ERR
 			"%s: zoran_poll() - internal error, unknown map_mode=%d\n",
 			ZR_DEVNAME(zr), fh->map_mode);
 		res = POLLNVAL;
-		goto poll_unlock_and_return;
 	}
 
-poll_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 
 	return res;
