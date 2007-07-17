@@ -153,4 +153,14 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
+config MENELAUS
+	bool "TWL92330/Menelaus PM chip"
+	depends on I2C=y && ARCH_OMAP24XX
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TWL92330/Menelaus Power Management chip. This include voltage
+	  regulators, Dual slot memory card tranceivers, real-time clock
+	  and other features that are often used in portable devices like
+	  cell phones and PDAs.
+
 endmenu
