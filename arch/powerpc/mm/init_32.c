@@ -132,6 +132,9 @@ void __init MMU_init(void)
 	/* 601 can only access 16MB at the moment */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
 		__initial_memory_limit = 0x01000000;
+	/* 8xx can only access 8MB at the moment */
+	if (PVR_VER(mfspr(SPRN_PVR)) == 0x50)
+		__initial_memory_limit = 0x00800000;
 
 	/* parse args from command line */
 	MMU_setup();
