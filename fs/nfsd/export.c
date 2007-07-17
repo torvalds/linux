@@ -1228,6 +1228,32 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	return exp;
 }
 
+/*
+ * Called from functions that handle requests; functions that do work on
+ * behalf of mountd are passed a single client name to use, and should
+ * use exp_get_by_name() or exp_find().
+ */
+struct svc_export *
+rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
+		struct dentry *dentry)
+{
+	return exp_get_by_name(rqstp->rq_client, mnt, dentry,
+						&rqstp->rq_chandle);
+}
+
+struct svc_export *
+rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
+{
+	return exp_find(rqstp->rq_client, fsid_type, fsidv,
+						&rqstp->rq_chandle);
+}
+
+struct svc_export *
+rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
+		struct dentry *dentry)
+{
+	return exp_parent(rqstp->rq_client, mnt, dentry, &rqstp->rq_chandle);
+}
 
 /*
  * Called when we need the filehandle for the root of the pseudofs,
@@ -1243,7 +1269,7 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	exp = exp_find(rqstp->rq_client, FSID_NUM, fsidv, rqstp->rq_chandle);
+	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
 	if (PTR_ERR(exp) == -ENOENT)
 		return nfserr_perm;
 	if (IS_ERR(exp))

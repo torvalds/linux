@@ -129,10 +129,16 @@ struct svc_export *	exp_get_by_name(struct auth_domain *clp,
 					struct vfsmount *mnt,
 					struct dentry *dentry,
 					struct cache_req *reqp);
+struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
+					     struct vfsmount *,
+					     struct dentry *);
 struct svc_export *	exp_parent(struct auth_domain *clp,
 				   struct vfsmount *mnt,
 				   struct dentry *dentry,
 				   struct cache_req *reqp);
+struct svc_export *	rqst_exp_parent(struct svc_rqst *,
+					struct vfsmount *mnt,
+					struct dentry *dentry);
 int			exp_rootfh(struct auth_domain *, 
 					char *path, struct knfsd_fh *, int maxsize);
 __be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);
@@ -152,6 +158,7 @@ static inline void exp_get(struct svc_export *exp)
 extern struct svc_export *
 exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	 struct cache_req *reqp);
+struct svc_export * rqst_exp_find(struct svc_rqst *, int, u32 *);
 
 #endif /* __KERNEL__ */
 

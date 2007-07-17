@@ -145,7 +145,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 				fh->fh_fsid[1] = fh->fh_fsid[2];
 			}
 			if ((data_left -= len)<0) goto out;
-			exp = exp_find(rqstp->rq_client, fh->fh_fsid_type, datap, &rqstp->rq_chandle);
+			exp = rqst_exp_find(rqstp, fh->fh_fsid_type, datap);
 			datap += len;
 		} else {
 			dev_t xdev;
@@ -156,8 +156,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			xdev = old_decode_dev(fh->ofh_xdev);
 			xino = u32_to_ino_t(fh->ofh_xino);
 			mk_fsid(FSID_DEV, tfh, xdev, xino, 0, NULL);
-			exp = exp_find(rqstp->rq_client, FSID_DEV, tfh,
-				       &rqstp->rq_chandle);
+			exp = rqst_exp_find(rqstp, FSID_DEV, tfh);
 		}
 
 		error = nfserr_stale;

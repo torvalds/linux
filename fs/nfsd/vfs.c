@@ -113,7 +113,7 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 
 	while (follow_down(&mnt,&mounts)&&d_mountpoint(mounts));
 
-	exp2 = exp_get_by_name(exp->ex_client, mnt, mounts, &rqstp->rq_chandle);
+	exp2 = rqst_exp_get_by_name(rqstp, mnt, mounts);
 	if (IS_ERR(exp2)) {
 		err = PTR_ERR(exp2);
 		dput(mounts);
@@ -188,8 +188,7 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 			dput(dentry);
 			dentry = dp;
 
-			exp2 = exp_parent(exp->ex_client, mnt, dentry,
-					  &rqstp->rq_chandle);
+			exp2 = rqst_exp_parent(rqstp, mnt, dentry);
 			if (PTR_ERR(exp2) == -ENOENT) {
 				dput(dentry);
 				dentry = dget(dparent);
