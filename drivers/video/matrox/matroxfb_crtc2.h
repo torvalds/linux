@@ -28,7 +28,7 @@ struct matroxfb_dh_fb_info {
 
 	unsigned int		interlaced:1;
 
-	u_int32_t cmap[17];
+	u_int32_t cmap[16];
 };
 
 #endif /* __MATROXFB_CRTC2_H__ */

@@ -679,6 +679,8 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		mga_outb(M_DAC_VAL, blue);
 		break;
 	case 16:
+		if (regno >= 16)
+			break;
 		{
 			u_int16_t col =
 				(red << ACCESS_FBINFO(fbcon).var.red.offset)     |
@@ -690,6 +692,8 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		break;
 	case 24:
 	case 32:
+		if (regno >= 16)
+			break;
 		ACCESS_FBINFO(cmap[regno]) =
 			(red   << ACCESS_FBINFO(fbcon).var.red.offset)   |
 			(green << ACCESS_FBINFO(fbcon).var.green.offset) |

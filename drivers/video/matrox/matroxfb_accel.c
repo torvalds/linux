@@ -145,13 +145,10 @@ void matrox_cfbX_init(WPMINFO2) {
 					ACCESS_FBINFO(fbops).fb_imageblit = matroxfb_imageblit;
 				}
 				break;
-		case 16:	if (ACCESS_FBINFO(fbcon).var.green.length == 5) {
+		case 16:	if (ACCESS_FBINFO(fbcon).var.green.length == 5)
 					maccess = 0xC0000001;
-					ACCESS_FBINFO(cmap[16]) = 0x7FFF7FFF;
-				} else {
+				else
 					maccess = 0x40000001;
-					ACCESS_FBINFO(cmap[16]) = 0xFFFFFFFF;
-				}
 				mopmode = M_OPMODE_16BPP;
 				if (accel) {
 					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
@@ -161,7 +158,6 @@ void matrox_cfbX_init(WPMINFO2) {
 				break;
 		case 24:	maccess = 0x00000003;
 				mopmode = M_OPMODE_24BPP;
-				ACCESS_FBINFO(cmap[16]) = 0xFFFFFFFF;
 				if (accel) {
 					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
 					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;
@@ -170,7 +166,6 @@ void matrox_cfbX_init(WPMINFO2) {
 				break;
 		case 32:	maccess = 0x00000002;
 				mopmode = M_OPMODE_32BPP;
-				ACCESS_FBINFO(cmap[16]) = 0xFFFFFFFF;
 				if (accel) {
 					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
 					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;

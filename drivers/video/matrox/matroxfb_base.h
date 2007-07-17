@@ -518,7 +518,7 @@ struct matrox_fb_info {
 					dll:1;
 				      } memory;
 			      } values;
-	u_int32_t cmap[17];
+	u_int32_t cmap[16];
 };
 
 #define info2minfo(info) container_of(info, struct matrox_fb_info, fbcon)
