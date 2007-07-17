@@ -217,6 +217,9 @@ source "drivers/pci/Kconfig"
 
 endif
 
+config NO_DMA
+	def_bool !PCI
+
 config SUN_OPENPROMFS
 	tristate "Openprom tree appears in /proc/openprom"
 	help
