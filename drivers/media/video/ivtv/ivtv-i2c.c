@@ -236,7 +236,7 @@ static int ivtv_ack(struct ivtv *itv)
 	int ret = 0;
 
 	if (ivtv_getscl(itv) == 1) {
-		IVTV_DEBUG_I2C("SCL was high starting an ack\n");
+		IVTV_DEBUG_HI_I2C("SCL was high starting an ack\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
 			IVTV_DEBUG_I2C("Could not set SCL low starting an ack\n");
@@ -263,7 +263,7 @@ static int ivtv_sendbyte(struct ivtv *itv, unsigned char byte)
 {
 	int i, bit;
 
-	IVTV_DEBUG_I2C("write %x\n",byte);
+	IVTV_DEBUG_HI_I2C("write %x\n",byte);
 	for (i = 0; i < 8; ++i, byte<<=1) {
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
@@ -318,7 +318,7 @@ static int ivtv_readbyte(struct ivtv *itv, unsigned char *byte, int nack)
 	ivtv_scldelay(itv);
 	ivtv_setscl(itv, 0);
 	ivtv_scldelay(itv);
-	IVTV_DEBUG_I2C("read %x\n",*byte);
+	IVTV_DEBUG_HI_I2C("read %x\n",*byte);
 	return 0;
 }
 
@@ -330,7 +330,7 @@ static int ivtv_start(struct ivtv *itv)
 
 	sda = ivtv_getsda(itv);
 	if (sda != 1) {
-		IVTV_DEBUG_I2C("SDA was low at start\n");
+		IVTV_DEBUG_HI_I2C("SDA was low at start\n");
 		ivtv_setsda(itv, 1);
 		if (!ivtv_waitsda(itv, 1)) {
 			IVTV_DEBUG_I2C("SDA stuck low\n");
@@ -355,7 +355,7 @@ static int ivtv_stop(struct ivtv *itv)
 	int i;
 
 	if (ivtv_getscl(itv) != 0) {
-		IVTV_DEBUG_I2C("SCL not low when stopping\n");
+		IVTV_DEBUG_HI_I2C("SCL not low when stopping\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
 			IVTV_DEBUG_I2C("SCL could not be set low\n");
