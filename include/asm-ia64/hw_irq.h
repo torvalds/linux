@@ -90,13 +90,24 @@ enum {
 extern __u8 isa_irq_to_vector_map[16];
 #define isa_irq_to_vector(x)	isa_irq_to_vector_map[(x)]
 
+struct irq_cfg {
+	ia64_vector vector;
+};
+extern spinlock_t vector_lock;
+extern struct irq_cfg irq_cfg[NR_IRQS];
+DECLARE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq);
+
 extern struct hw_interrupt_type irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
 
+extern int bind_irq_vector(int irq, int vector);
 extern int assign_irq_vector (int irq);	/* allocate a free vector */
 extern void free_irq_vector (int vector);
 extern int reserve_irq_vector (int vector);
+extern void __setup_vector_irq(int cpu);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
 extern void register_percpu_irq (ia64_vector vec, struct irqaction *action);
+extern int check_irq_used (int irq);
+extern void destroy_and_reserve_irq (unsigned int irq);
 
 static inline void ia64_resend_irq(unsigned int vector)
 {
@@ -113,7 +124,7 @@ extern irq_desc_t irq_desc[NR_IRQS];
 static inline unsigned int
 __ia64_local_vector_to_irq (ia64_vector vec)
 {
-	return (unsigned int) vec;
+	return __get_cpu_var(vector_irq)[vec];
 }
 #endif
 
@@ -131,7 +142,7 @@ __ia64_local_vector_to_irq (ia64_vector vec)
 static inline ia64_vector
 irq_to_vector (int irq)
 {
-	return (ia64_vector) irq;
+	return irq_cfg[irq].vector;
 }
 
 /*

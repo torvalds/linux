@@ -117,6 +117,9 @@ static DEFINE_SPINLOCK(iosapic_lock);
  * These tables map IA-64 vectors to the IOSAPIC pin that generates this
  * vector.
  */
+
+#define NO_REF_RTE	0
+
 static struct iosapic {
 	char __iomem	*addr;		/* base address of IOSAPIC */
 	unsigned int	gsi_base;	/* GSI base */
@@ -204,7 +207,7 @@ inline int
 gsi_to_vector (unsigned int gsi)
 {
 	int irq = __gsi_to_irq(gsi);
-	if (irq < 0)
+	if (check_irq_used(irq) < 0)
 		return -1;
 	return irq_to_vector(irq);
 }
@@ -619,14 +622,18 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 		iosapic_intr_info[irq].count++;
 		iosapic_lists[index].rtes_inuse++;
 	}
-	else if (irq_is_shared(irq)) {
+	else if (rte->refcnt == NO_REF_RTE) {
 		struct iosapic_intr_info *info = &iosapic_intr_info[irq];
-		if (info->trigger != trigger || info->polarity != polarity) {
+		if (info->count > 0 &&
+		    (info->trigger != trigger || info->polarity != polarity)){
 			printk (KERN_WARNING
 				"%s: cannot override the interrupt\n",
 				__FUNCTION__);
 			return -EINVAL;
 		}
+		rte->refcnt++;
+		iosapic_intr_info[irq].count++;
+		iosapic_lists[index].rtes_inuse++;
 	}
 
 	iosapic_intr_info[irq].polarity = polarity;
@@ -756,12 +763,17 @@ iosapic_register_intr (unsigned int gsi,
 	irq = __gsi_to_irq(gsi);
 	if (irq > 0) {
 		rte = find_rte(irq, gsi);
-		rte->refcnt++;
-		goto unlock_iosapic_lock;
-	}
+		if(iosapic_intr_info[irq].count == 0) {
+			assign_irq_vector(irq);
+			dynamic_irq_init(irq);
+		} else if (rte->refcnt != NO_REF_RTE) {
+			rte->refcnt++;
+			goto unlock_iosapic_lock;
+		}
+	} else
+		irq = create_irq();
 
 	/* If vector is running out, we try to find a sharable vector */
-	irq = create_irq();
 	if (irq < 0) {
 		irq = iosapic_find_sharable_irq(trigger, polarity);
 		if (irq < 0)
@@ -832,18 +844,14 @@ iosapic_unregister_intr (unsigned int gsi)
 	if (--rte->refcnt > 0)
 		goto out;
 
-	/* Remove the rte entry from the list */
 	idesc = irq_desc + irq;
-	spin_lock(&idesc->lock);
-	list_del(&rte->rte_list);
-	spin_unlock(&idesc->lock);
+	rte->refcnt = NO_REF_RTE;
 
 	/* Mask the interrupt */
 	low32 = iosapic_intr_info[irq].low32 | IOSAPIC_MASK;
 	iosapic_write(rte->iosapic, IOSAPIC_RTE_LOW(rte->rte_index), low32);
 
 	iosapic_intr_info[irq].count--;
-	iosapic_free_rte(rte);
 	index = find_iosapic(gsi);
 	iosapic_lists[index].rtes_inuse--;
 	WARN_ON(iosapic_lists[index].rtes_inuse < 0);
@@ -857,21 +865,20 @@ iosapic_unregister_intr (unsigned int gsi)
 	       (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
 	       cpu_logical_id(dest), dest, irq_to_vector(irq));
 
-	if (list_empty(&iosapic_intr_info[irq].rtes)) {
-		/* Sanity check */
-		BUG_ON(iosapic_intr_info[irq].count);
+	if (iosapic_intr_info[irq].count == 0) {
 #ifdef CONFIG_SMP
 		/* Clear affinity */
 		cpus_setall(idesc->affinity);
 #endif
 		/* Clear the interrupt information */
-		memset(&iosapic_intr_info[irq], 0,
-		       sizeof(struct iosapic_intr_info));
+		iosapic_intr_info[irq].dest = 0;
+		iosapic_intr_info[irq].dmode = 0;
+		iosapic_intr_info[irq].polarity = 0;
+		iosapic_intr_info[irq].trigger = 0;
 		iosapic_intr_info[irq].low32 |= IOSAPIC_MASK;
-		INIT_LIST_HEAD(&iosapic_intr_info[irq].rtes);
 
-		/* Destroy IRQ */
-		destroy_irq(irq);
+		/* Destroy and reserve IRQ */
+		destroy_and_reserve_irq(irq);
 	}
  out:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
@@ -892,8 +899,8 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 
 	switch (int_type) {
 	      case ACPI_INTERRUPT_PMI:
-		vector = iosapic_vector;
-		irq = vector;		/* FIXME */
+		irq = vector = iosapic_vector;
+		bind_irq_vector(irq, vector);
 		/*
 		 * since PMI vector is alloc'd by FW(ACPI) not by kernel,
 		 * we need to make sure the vector is available
@@ -909,8 +916,8 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		delivery = IOSAPIC_INIT;
 		break;
 	      case ACPI_INTERRUPT_CPEI:
-		vector = IA64_CPE_VECTOR;
-		irq = vector;		/* FIXME */
+		irq = vector = IA64_CPE_VECTOR;
+		BUG_ON(bind_irq_vector(irq, vector));
 		delivery = IOSAPIC_LOWEST_PRIORITY;
 		mask = 1;
 		break;
@@ -945,8 +952,8 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 	int vector, irq;
 	unsigned int dest = cpu_physical_id(smp_processor_id());
 
-	vector = isa_irq_to_vector(isa_irq);
-	irq = vector;	/* FIXME */
+	irq = vector = isa_irq_to_vector(isa_irq);
+	BUG_ON(bind_irq_vector(irq, vector));
 	register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY, polarity, trigger);
 
 	DBG("ISA: IRQ %u -> GSI %u (%s,%s) -> CPU %d (0x%04x) vector %d\n",
@@ -966,6 +973,8 @@ iosapic_system_init (int system_pcat_compat)
 		iosapic_intr_info[irq].low32 = IOSAPIC_MASK;
 		/* mark as unused */
 		INIT_LIST_HEAD(&iosapic_intr_info[irq].rtes);
+
+		iosapic_intr_info[irq].count = 0;
 	}
 
 	pcat_compat = system_pcat_compat;
