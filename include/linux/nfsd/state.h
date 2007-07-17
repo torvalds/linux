@@ -67,7 +67,7 @@ struct nfs4_cb_recall {
 	int			cbr_trunc;
 	stateid_t		cbr_stateid;
 	u32			cbr_fhlen;
-	u32			cbr_fhval[NFS4_FHSIZE];
+	char			cbr_fhval[NFS4_FHSIZE];
 	struct nfs4_delegation	*cbr_dp;
 };
 
