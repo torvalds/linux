@@ -291,7 +291,7 @@ int __init tx3912fb_init(void)
 	fb_info.fbops = &tx3912fb_ops;
 	fb_info.var = tx3912fb_var;
 	fb_info.fix = tx3912fb_fix;
-	fb_info.pseudo_palette = pseudo_palette;
+	fb_info.pseudo_palette = cfb8;
 	fb_info.flags = FBINFO_DEFAULT;
 
 	/* Clear the framebuffer */
