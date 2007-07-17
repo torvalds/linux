@@ -6,7 +6,7 @@
  * Copyright (c) 2005 Keir Fraser
  *
  * Linux coding style, mod r/m decoder, segment base fixes, real-mode
- * privieged instructions:
+ * privileged instructions:
  *
  * Copyright (C) 2006 Qumranet
  *
