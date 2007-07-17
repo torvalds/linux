@@ -163,7 +163,7 @@ static u16 twobyte_table[256] = {
 	ModRM | ImplicitOps, ModRM, ModRM | ImplicitOps, ModRM, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x30 - 0x3F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, 0, ImplicitOps, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x40 - 0x47 */
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
@@ -486,6 +486,7 @@ x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	unsigned long modrm_ea;
 	int use_modrm_ea, index_reg = 0, base_reg = 0, scale, rip_relative = 0;
 	int no_wb = 0;
+	u64 msr_data;
 
 	/* Shadow copy of register state. Committed on successful emulation. */
 	unsigned long _regs[NR_VCPU_REGS];
@@ -1343,6 +1344,29 @@ twobyte_special_insn:
 		if (modrm_mod != 3)
 			goto cannot_emulate;
 		realmode_set_cr(ctxt->vcpu, modrm_reg, modrm_val, &_eflags);
+		break;
+	case 0x30:
+		/* wrmsr */
+		msr_data = (u32)_regs[VCPU_REGS_RAX]
+			| ((u64)_regs[VCPU_REGS_RDX] << 32);
+		rc = kvm_set_msr(ctxt->vcpu, _regs[VCPU_REGS_RCX], msr_data);
+		if (rc) {
+			kvm_arch_ops->inject_gp(ctxt->vcpu, 0);
+			_eip = ctxt->vcpu->rip;
+		}
+		rc = X86EMUL_CONTINUE;
+		break;
+	case 0x32:
+		/* rdmsr */
+		rc = kvm_get_msr(ctxt->vcpu, _regs[VCPU_REGS_RCX], &msr_data);
+		if (rc) {
+			kvm_arch_ops->inject_gp(ctxt->vcpu, 0);
+			_eip = ctxt->vcpu->rip;
+		} else {
+			_regs[VCPU_REGS_RAX] = (u32)msr_data;
+			_regs[VCPU_REGS_RDX] = msr_data >> 32;
+		}
+		rc = X86EMUL_CONTINUE;
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		{
