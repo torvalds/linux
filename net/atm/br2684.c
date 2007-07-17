@@ -460,11 +460,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	skb_pull(skb, plen);
 	skb_set_mac_header(skb, -ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
-#ifdef CONFIG_BR2684_FAST_TRANS
-	skb->protocol = ((u16 *) skb->data)[-1];
-#else				/* some protocols might require this: */
 	skb->protocol = br_type_trans(skb, net_dev);
-#endif /* CONFIG_BR2684_FAST_TRANS */
 #else
 	skb_pull(skb, plen - ETH_HLEN);
 	skb->protocol = eth_type_trans(skb, net_dev);
