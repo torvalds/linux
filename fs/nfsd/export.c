@@ -1237,21 +1237,28 @@ struct svc_export *
 rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
-	return exp_get_by_name(rqstp->rq_client, mnt, dentry,
-						&rqstp->rq_chandle);
+	struct auth_domain *clp;
+
+	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
+	return exp_get_by_name(clp, mnt, dentry, &rqstp->rq_chandle);
 }
 
 struct svc_export *
 rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 {
-	return exp_find(rqstp->rq_client, fsid_type, fsidv,
-						&rqstp->rq_chandle);
+	struct auth_domain *clp;
+
+	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
+	return exp_find(clp, fsid_type, fsidv, &rqstp->rq_chandle);
 }
 
 struct svc_export *
 rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
+	struct auth_domain *clp;
+
+	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
 	return exp_parent(rqstp->rq_client, mnt, dentry, &rqstp->rq_chandle);
 }
 

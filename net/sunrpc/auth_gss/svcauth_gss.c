@@ -913,10 +913,23 @@ svcauth_gss_set_client(struct svc_rqst *rqstp)
 	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
 	struct rsc *rsci = svcdata->rsci;
 	struct rpc_gss_wire_cred *gc = &svcdata->clcred;
+	int stat;
 
-	rqstp->rq_client = find_gss_auth_domain(rsci->mechctx, gc->gc_svc);
-	if (rqstp->rq_client == NULL)
+	/*
+	 * A gss export can be specified either by:
+	 * 	export	*(sec=krb5,rw)
+	 * or by
+	 * 	export gss/krb5(rw)
+	 * The latter is deprecated; but for backwards compatibility reasons
+	 * the nfsd code will still fall back on trying it if the former
+	 * doesn't work; so we try to make both available to nfsd, below.
+	 */
+	rqstp->rq_gssclient = find_gss_auth_domain(rsci->mechctx, gc->gc_svc);
+	if (rqstp->rq_gssclient == NULL)
 		return SVC_DENIED;
+	stat = svcauth_unix_set_client(rqstp);
+	if (stat == SVC_DROP)
+		return stat;
 	return SVC_OK;
 }
 
@@ -1088,7 +1101,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			svc_putnl(resv, GSS_SEQ_WIN);
 			if (svc_safe_putnetobj(resv, &rsip->out_token))
 				goto drop;
-			rqstp->rq_client = NULL;
 		}
 		goto complete;
 	case RPC_GSS_PROC_DESTROY:
@@ -1319,6 +1331,9 @@ out_err:
 	if (rqstp->rq_client)
 		auth_domain_put(rqstp->rq_client);
 	rqstp->rq_client = NULL;
+	if (rqstp->rq_gssclient)
+		auth_domain_put(rqstp->rq_gssclient);
+	rqstp->rq_gssclient = NULL;
 	if (rqstp->rq_cred.cr_group_info)
 		put_group_info(rqstp->rq_cred.cr_group_info);
 	rqstp->rq_cred.cr_group_info = NULL;

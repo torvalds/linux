@@ -638,7 +638,7 @@ static int unix_gid_find(uid_t uid, struct group_info **gip,
 	}
 }
 
-static int
+int
 svcauth_unix_set_client(struct svc_rqst *rqstp)
 {
 	struct sockaddr_in *sin = svc_addr_in(rqstp);
@@ -672,6 +672,8 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	}
 	return SVC_OK;
 }
+
+EXPORT_SYMBOL(svcauth_unix_set_client);
 
 static int
 svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
