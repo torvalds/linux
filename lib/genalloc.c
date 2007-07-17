@@ -54,11 +54,10 @@ int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
 	int nbytes = sizeof(struct gen_pool_chunk) +
 				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
 
-	chunk = kmalloc_node(nbytes, GFP_KERNEL, nid);
+	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
 	if (unlikely(chunk == NULL))
 		return -1;
 
-	memset(chunk, 0, nbytes);
 	spin_lock_init(&chunk->lock);
 	chunk->start_addr = addr;
 	chunk->end_addr = addr + size;

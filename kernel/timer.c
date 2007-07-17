@@ -1221,7 +1221,8 @@ static int __devinit init_timers_cpu(int cpu)
 			/*
 			 * The APs use this path later in boot
 			 */
-			base = kmalloc_node(sizeof(*base), GFP_KERNEL,
+			base = kmalloc_node(sizeof(*base),
+						GFP_KERNEL | __GFP_ZERO,
 						cpu_to_node(cpu));
 			if (!base)
 				return -ENOMEM;
@@ -1232,7 +1233,6 @@ static int __devinit init_timers_cpu(int cpu)
 				kfree(base);
 				return -ENOMEM;
 			}
-			memset(base, 0, sizeof(*base));
 			per_cpu(tvec_bases, cpu) = base;
 		} else {
 			/*

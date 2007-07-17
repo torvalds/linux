@@ -360,10 +360,9 @@ static void *deadline_init_queue(request_queue_t *q)
 {
 	struct deadline_data *dd;
 
-	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
+	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (!dd)
 		return NULL;
-	memset(dd, 0, sizeof(*dd));
 
 	INIT_LIST_HEAD(&dd->fifo_list[READ]);
 	INIT_LIST_HEAD(&dd->fifo_list[WRITE]);
