@@ -137,6 +137,7 @@ static unsigned long __meminitdata dma_reserve;
   static unsigned long __meminitdata node_boundary_end_pfn[MAX_NUMNODES];
 #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
   unsigned long __initdata required_kernelcore;
+  unsigned long __initdata required_movablecore;
   unsigned long __initdata zone_movable_pfn[MAX_NUMNODES];
 
   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
@@ -3219,6 +3220,18 @@ unsigned long __init find_max_pfn_with_active_regions(void)
 	return max_pfn;
 }
 
+unsigned long __init early_calculate_totalpages(void)
+{
+	int i;
+	unsigned long totalpages = 0;
+
+	for (i = 0; i < nr_nodemap_entries; i++)
+		totalpages += early_node_map[i].end_pfn -
+						early_node_map[i].start_pfn;
+
+	return totalpages;
+}
+
 /*
  * Find the PFN the Movable zone begins in each node. Kernel memory
  * is spread evenly between nodes as long as the nodes have enough
@@ -3231,6 +3244,29 @@ void __init find_zone_movable_pfns_for_nodes(unsigned long *movable_pfn)
 	unsigned long usable_startpfn;
 	unsigned long kernelcore_node, kernelcore_remaining;
 	int usable_nodes = num_online_nodes();
+
+	/*
+	 * If movablecore was specified, calculate what size of
+	 * kernelcore that corresponds so that memory usable for
+	 * any allocation type is evenly spread. If both kernelcore
+	 * and movablecore are specified, then the value of kernelcore
+	 * will be used for required_kernelcore if it's greater than
+	 * what movablecore would have allowed.
+	 */
+	if (required_movablecore) {
+		unsigned long totalpages = early_calculate_totalpages();
+		unsigned long corepages;
+
+		/*
+		 * Round-up so that ZONE_MOVABLE is at least as large as what
+		 * was requested by the user
+		 */
+		required_movablecore =
+			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+		corepages = totalpages - required_movablecore;
+
+		required_kernelcore = max(required_kernelcore, corepages);
+	}
 
 	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
 	if (!required_kernelcore)
@@ -3412,26 +3448,41 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	}
 }
 
-/*
- * kernelcore=size sets the amount of memory for use for allocations that
- * cannot be reclaimed or migrated.
- */
-static int __init cmdline_parse_kernelcore(char *p)
+static int __init cmdline_parse_core(char *p, unsigned long *core)
 {
 	unsigned long long coremem;
 	if (!p)
 		return -EINVAL;
 
 	coremem = memparse(p, &p);
-	required_kernelcore = coremem >> PAGE_SHIFT;
+	*core = coremem >> PAGE_SHIFT;
 
-	/* Paranoid check that UL is enough for required_kernelcore */
+	/* Paranoid check that UL is enough for the coremem value */
 	WARN_ON((coremem >> PAGE_SHIFT) > ULONG_MAX);
 
 	return 0;
 }
 
+/*
+ * kernelcore=size sets the amount of memory for use for allocations that
+ * cannot be reclaimed or migrated.
+ */
+static int __init cmdline_parse_kernelcore(char *p)
+{
+	return cmdline_parse_core(p, &required_kernelcore);
+}
+
+/*
+ * movablecore=size sets the amount of memory for use for allocations that
+ * can be reclaimed or migrated.
+ */
+static int __init cmdline_parse_movablecore(char *p)
+{
+	return cmdline_parse_core(p, &required_movablecore);
+}
+
 early_param("kernelcore", cmdline_parse_kernelcore);
+early_param("movablecore", cmdline_parse_movablecore);
 
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
