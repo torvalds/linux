@@ -17,6 +17,7 @@ objs-y$(CONFIG_FB_OMAP_LCDC_BLIZZARD) += blizzard.o
 
 objs-y$(CONFIG_MACH_OMAP_H4) += lcd_h4.o
 objs-y$(CONFIG_MACH_OMAP_H3) += lcd_h3.o
+objs-y$(CONFIG_MACH_OMAP_PALMTE) += lcd_palmte.o
 
 omapfb-objs := $(objs-yy)
 
