@@ -1990,8 +1990,7 @@ static int is_double_width(uint32_t ucs)
 		{ 0xFE10, 0xFE19 }, { 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 },
 		{ 0xFFE0, 0xFFE6 }, { 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
 	};
-	return bisearch(ucs, double_width,
-		sizeof(double_width) / sizeof(*double_width) - 1);
+	return bisearch(ucs, double_width, ARRAY_SIZE(double_width) - 1);
 }
 
 /* acquires console_sem */
