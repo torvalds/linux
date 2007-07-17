@@ -33,6 +33,8 @@
 #include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/bind.h>
+#include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/gss_api.h>
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -452,8 +454,48 @@ out_free_all:
 	return err;
 }
 
+static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
+{
+	int listsize, err;
+	struct exp_flavor_info *f;
+
+	err = get_int(mesg, &listsize);
+	if (err)
+		return err;
+	if (listsize < 0 || listsize > MAX_SECINFO_LIST)
+		return -EINVAL;
+
+	for (f = exp->ex_flavors; f < exp->ex_flavors + listsize; f++) {
+		err = get_int(mesg, &f->pseudoflavor);
+		if (err)
+			return err;
+		/*
+		 * Just a quick sanity check; we could also try to check
+		 * whether this pseudoflavor is supported, but at worst
+		 * an unsupported pseudoflavor on the export would just
+		 * be a pseudoflavor that won't match the flavor of any
+		 * authenticated request.  The administrator will
+		 * probably discover the problem when someone fails to
+		 * authenticate.
+		 */
+		if (f->pseudoflavor < 0)
+			return -EINVAL;
+		err = get_int(mesg, &f->flags);
+		if (err)
+			return err;
+		/* Only some flags are allowed to differ between flavors: */
+		if (~NFSEXP_SECINFO_FLAGS & (f->flags ^ exp->ex_flags))
+			return -EINVAL;
+	}
+	exp->ex_nflavors = listsize;
+	return 0;
+}
+
 #else /* CONFIG_NFSD_V4 */
-static inline int fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc) { return 0; }
+static inline int
+fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc){return 0;}
+static inline int
+secinfo_parse(char **mesg, char *buf, struct svc_export *exp) { return 0; }
 #endif
 
 static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
@@ -476,6 +518,9 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	exp.ex_fslocs.migrated = 0;
 
 	exp.ex_uuid = NULL;
+
+	/* secinfo */
+	exp.ex_nflavors = 0;
 
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
@@ -554,7 +599,9 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 					if (exp.ex_uuid == NULL)
 						err = -ENOMEM;
 				}
-			} else
+			} else if (strcmp(buf, "secinfo") == 0)
+				err = secinfo_parse(&mesg, buf, &exp);
+			else
 				/* quietly ignore unknown words and anything
 				 * following. Newer user-space can try to set
 				 * new values, then see what the result was.
@@ -655,6 +702,7 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 {
 	struct svc_export *new = container_of(cnew, struct svc_export, h);
 	struct svc_export *item = container_of(citem, struct svc_export, h);
+	int i;
 
 	new->ex_flags = item->ex_flags;
 	new->ex_anon_uid = item->ex_anon_uid;
@@ -670,6 +718,10 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	item->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = item->ex_fslocs.migrated;
 	item->ex_fslocs.migrated = 0;
+	new->ex_nflavors = item->ex_nflavors;
+	for (i = 0; i < MAX_SECINFO_LIST; i++) {
+		new->ex_flavors[i] = item->ex_flavors[i];
+	}
 }
 
 static struct cache_head *svc_export_alloc(void)

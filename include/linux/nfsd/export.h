@@ -42,6 +42,8 @@
 #define	NFSEXP_NOACL		0x8000	/* reserved for possible ACL related use */
 #define NFSEXP_ALLFLAGS		0xFE3F
 
+/* The flags that may vary depending on security flavor: */
+#define NFSEXP_SECINFO_FLAGS	0
 
 #ifdef __KERNEL__
 
@@ -64,6 +66,19 @@ struct nfsd4_fs_locations {
 	int migrated;
 };
 
+/*
+ * We keep an array of pseudoflavors with the export, in order from most
+ * to least preferred.  For the forseeable future, we don't expect more
+ * than the eight pseudoflavors null, unix, krb5, krb5i, krb5p, skpm3,
+ * spkm3i, and spkm3p (and using all 8 at once should be rare).
+ */
+#define MAX_SECINFO_LIST	8
+
+struct exp_flavor_info {
+	u32	pseudoflavor;
+	u32	flags;
+};
+
 struct svc_export {
 	struct cache_head	h;
 	struct auth_domain *	ex_client;
@@ -76,6 +91,8 @@ struct svc_export {
 	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
+	int			ex_nflavors;
+	struct exp_flavor_info	ex_flavors[MAX_SECINFO_LIST];
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an
