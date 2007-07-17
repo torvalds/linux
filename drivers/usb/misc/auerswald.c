@@ -664,7 +664,7 @@ static int auerchain_control_msg (pauerchain_t acp, struct usb_device *dev, unsi
 	int ret;
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
-        int length;
+        int uninitialized_var(length);
 
         dbg ("auerchain_control_msg");
         dr = kmalloc (sizeof (struct usb_ctrlrequest), GFP_KERNEL);

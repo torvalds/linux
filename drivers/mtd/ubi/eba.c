@@ -368,7 +368,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 	int err, pnum, scrub = 0, idx = vol_id2idx(ubi, vol_id);
 	struct ubi_vid_hdr *vid_hdr;
 	struct ubi_volume *vol = ubi->volumes[idx];
-	uint32_t crc;
+	uint32_t uninitialized_var(crc);
 
 	err = leb_read_lock(ubi, vol_id, lnum);
 	if (err)

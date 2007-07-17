@@ -385,7 +385,7 @@ copy_msqid_from_user(struct msq_setbuf *out, void __user *buf, int version)
 asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 {
 	struct kern_ipc_perm *ipcp;
-	struct msq_setbuf setbuf;
+	struct msq_setbuf uninitialized_var(setbuf);
 	struct msg_queue *msq;
 	int err, version;
 	struct ipc_namespace *ns;
@@ -509,7 +509,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 	err = audit_ipc_obj(ipcp);
 	if (err)
 		goto out_unlock_up;
-	if (cmd==IPC_SET) {
+	if (cmd == IPC_SET) {
 		err = audit_ipc_set_perm(setbuf.qbytes, setbuf.uid, setbuf.gid,
 					 setbuf.mode);
 		if (err)

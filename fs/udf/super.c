@@ -1356,7 +1356,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 			case UDF_VIRTUAL_MAP15:
 			case UDF_VIRTUAL_MAP20:
 			{
-				kernel_lb_addr ino;
+				kernel_lb_addr uninitialized_var(ino);
 
 				if (!UDF_SB_LASTBLOCK(sb))
 				{

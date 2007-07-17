@@ -4466,10 +4466,10 @@ static void cy_hangup(struct tty_struct *tty)
 static int __devinit cy_init_card(struct cyclades_card *cinfo)
 {
 	struct cyclades_port *info;
-	u32 mailbox;
+	u32 uninitialized_var(mailbox);
 	unsigned int nports;
 	unsigned short chip_number;
-	int index, port;
+	int uninitialized_var(index), port;
 
 	spin_lock_init(&cinfo->card_lock);
 

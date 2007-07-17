@@ -915,7 +915,7 @@ static int open_tx_first(struct atm_vcc *vcc)
 	unsigned long flags;
 	u32 *loop;
 	unsigned short chan;
-	int pcr,unlimited;
+	int unlimited;
 
 	DPRINTK("open_tx_first\n");
 	zatm_dev = ZATM_DEV(vcc->dev);
@@ -936,6 +936,8 @@ static int open_tx_first(struct atm_vcc *vcc)
 	    vcc->qos.txtp.max_pcr >= ATM_OC3_PCR);
 	if (unlimited && zatm_dev->ubr != -1) zatm_vcc->shaper = zatm_dev->ubr;
 	else {
+		int uninitialized_var(pcr);
+
 		if (unlimited) vcc->qos.txtp.max_sdu = ATM_MAX_AAL5_PDU;
 		if ((zatm_vcc->shaper = alloc_shaper(vcc->dev,&pcr,
 		    vcc->qos.txtp.min_pcr,vcc->qos.txtp.max_pcr,unlimited))
