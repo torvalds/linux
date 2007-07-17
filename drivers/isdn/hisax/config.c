@@ -361,11 +361,11 @@ module_param_array(io1, int, NULL, 0);
 
 int nrcards;
 
-extern char *l1_revision;
-extern char *l2_revision;
-extern char *l3_revision;
-extern char *lli_revision;
-extern char *tei_revision;
+extern const char *l1_revision;
+extern const char *l2_revision;
+extern const char *l3_revision;
+extern const char *lli_revision;
+extern const char *tei_revision;
 
 char *HiSax_getrev(const char *revision)
 {
