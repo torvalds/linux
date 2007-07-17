@@ -28,11 +28,6 @@
 #define DBG(fmt...)
 #endif
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-#endif
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -49,10 +44,11 @@ static void __init mpc8313_rdb_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc83xx_add_bridge(np);
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
+	mpc831x_usb_cfg();
 }
 
 void __init mpc8313_rdb_init_IRQ(void)

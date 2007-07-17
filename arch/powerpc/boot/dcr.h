@@ -26,6 +26,43 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2C
 #define			SDRAM_CONFIG_BANK_SIZE(reg)	\
 	(0x00400000 << ((reg & SDRAM_CONFIG_SIZE_MASK) >> 17))
 
+/* 440GP External Bus Controller (EBC) */
+#define DCRN_EBC0_CFGADDR				0x012
+#define DCRN_EBC0_CFGDATA				0x013
+#define   EBC_NUM_BANKS					  8
+#define   EBC_B0CR					  0x00
+#define   EBC_B1CR					  0x01
+#define   EBC_B2CR					  0x02
+#define   EBC_B3CR					  0x03
+#define   EBC_B4CR					  0x04
+#define   EBC_B5CR					  0x05
+#define   EBC_B6CR					  0x06
+#define   EBC_B7CR					  0x07
+#define   EBC_BXCR(n)					  (n)
+#define	    EBC_BXCR_BAS				    0xfff00000
+#define	    EBC_BXCR_BS				  	    0x000e0000
+#define	    EBC_BXCR_BANK_SIZE(reg) \
+	(0x100000 << (((reg) & EBC_BXCR_BS) >> 17))
+#define	    EBC_BXCR_BU				  	    0x00018000
+#define	      EBC_BXCR_BU_OFF			  	      0x00000000
+#define	      EBC_BXCR_BU_RO			  	      0x00008000
+#define	      EBC_BXCR_BU_WO			  	      0x00010000
+#define	      EBC_BXCR_BU_RW			  	      0x00018000
+#define	    EBC_BXCR_BW				  	    0x00006000
+#define   EBC_B0AP					  0x10
+#define   EBC_B1AP					  0x11
+#define   EBC_B2AP					  0x12
+#define   EBC_B3AP					  0x13
+#define   EBC_B4AP					  0x14
+#define   EBC_B5AP					  0x15
+#define   EBC_B6AP					  0x16
+#define   EBC_B7AP					  0x17
+#define   EBC_BXAP(n)					  (0x10+(n))
+#define   EBC_BEAR					  0x20
+#define   EBC_BESR					  0x21
+#define   EBC_CFG					  0x23
+#define   EBC_CID					  0x24
+
 /* 440GP Clock, PM, chip control */
 #define DCRN_CPC0_SR					0x0b0
 #define DCRN_CPC0_ER					0x0b1

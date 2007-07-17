@@ -55,8 +55,7 @@ static u8* pci_to_OF_bus_map;
  */
 int pci_assign_all_buses;
 
-struct pci_controller* hose_head;
-struct pci_controller** hose_tail = &hose_head;
+LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
@@ -573,58 +572,6 @@ pcibios_assign_resources(void)
 	}
 }
 
-
-int
-pcibios_enable_resources(struct pci_dev *dev, int mask)
-{
-	u16 cmd, old_cmd;
-	int idx;
-	struct resource *r;
-
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	old_cmd = cmd;
-	for (idx=0; idx<6; idx++) {
-		/* Only set up the requested stuff */
-		if (!(mask & (1<<idx)))
-			continue;
-	
-		r = &dev->resource[idx];
-		if (r->flags & IORESOURCE_UNSET) {
-			printk(KERN_ERR "PCI: Device %s not available because of resource collisions\n", pci_name(dev));
-			return -EINVAL;
-		}
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-	if (dev->resource[PCI_ROM_RESOURCE].start)
-		cmd |= PCI_COMMAND_MEMORY;
-	if (cmd != old_cmd) {
-		printk("PCI: Enabling device %s (%04x -> %04x)\n", pci_name(dev), old_cmd, cmd);
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
-	}
-	return 0;
-}
-
-static int next_controller_index;
-
-struct pci_controller * __init
-pcibios_alloc_controller(void)
-{
-	struct pci_controller *hose;
-
-	hose = (struct pci_controller *)alloc_bootmem(sizeof(*hose));
-	memset(hose, 0, sizeof(struct pci_controller));
-
-	*hose_tail = hose;
-	hose_tail = &hose->next;
-
-	hose->index = next_controller_index++;
-
-	return hose;
-}
-
 #ifdef CONFIG_PPC_OF
 /*
  * Functions below are used on OpenFirmware machines.
@@ -670,7 +617,7 @@ void
 pcibios_make_OF_bus_map(void)
 {
 	int i;
-	struct pci_controller* hose;
+	struct pci_controller *hose, *tmp;
 	struct property *map_prop;
 	struct device_node *dn;
 
@@ -687,7 +634,7 @@ pcibios_make_OF_bus_map(void)
 		pci_to_OF_bus_map[i] = 0xff;
 
 	/* For each hose, we begin searching bridges */
-	for(hose=hose_head; hose; hose=hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		struct device_node* node;	
 		node = (struct device_node *)hose->arch_data;
 		if (!node)
@@ -765,7 +712,7 @@ static struct device_node *scan_OF_for_pci_bus(struct pci_bus *bus)
 
 	/* Are we a root bus ? */
 	if (bus->self == NULL || bus->parent == NULL) {
-		struct pci_controller *hose = pci_bus_to_hose(bus->number);
+		struct pci_controller *hose = pci_bus_to_host(bus);
 		if (hose == NULL)
 			return NULL;
 		return of_node_get(hose->arch_data);
@@ -817,27 +764,6 @@ pci_device_to_OF_node(struct pci_dev *dev)
 	return pci_busdev_to_OF_node(dev->bus, dev->devfn);
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
-
-/* This routine is meant to be used early during boot, when the
- * PCI bus numbers have not yet been assigned, and you need to
- * issue PCI config cycles to an OF device.
- * It could also be used to "fix" RTAS config cycles if you want
- * to set pci_assign_all_buses to 1 and still use RTAS for PCI
- * config cycles.
- */
-struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
-{
-	if (!have_of)
-		return NULL;
-	while(node) {
-		struct pci_controller* hose;
-		for (hose=hose_head;hose;hose=hose->next)
-			if (hose->arch_data == node)
-				return hose;
-		node=node->parent;
-	}
-	return NULL;
-}
 
 static int
 find_OF_pci_device_filter(struct device_node* node, void* data)
@@ -1027,33 +953,11 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pdev;
-	struct device_node *np;
-
-	pdev = to_pci_dev (dev);
-	np = pci_device_to_OF_node(pdev);
-	if (np == NULL || np->full_name == NULL)
-		return 0;
-	return sprintf(buf, "%s", np->full_name);
-}
-static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-
 #else /* CONFIG_PPC_OF */
 void pcibios_make_OF_bus_map(void)
 {
 }
 #endif /* CONFIG_PPC_OF */
-
-/* Add sysfs properties */
-int pcibios_add_platform_entries(struct pci_dev *pdev)
-{
-#ifdef CONFIG_PPC_OF
-	return device_create_file(&pdev->dev, &dev_attr_devspec);
-#endif /* CONFIG_PPC_OF */
-}
-
 
 #ifdef CONFIG_PPC_PMAC
 /*
@@ -1269,14 +1173,14 @@ pcibios_fixup_p2p_bridges(void)
 static int __init
 pcibios_init(void)
 {
-	struct pci_controller *hose;
+	struct pci_controller *hose, *tmp;
 	struct pci_bus *bus;
-	int next_busno;
+	int next_busno = 0;
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
-	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
@@ -1319,12 +1223,6 @@ pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-unsigned long resource_fixup(struct pci_dev * dev, struct resource * res,
-			     unsigned long start, unsigned long size)
-{
-	return start;
-}
-
 void __init pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
@@ -1342,7 +1240,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		if (!res->flags) {
 			if (io_offset)
 				printk(KERN_ERR "I/O resource not set for host"
-				       " bridge %d\n", hose->index);
+				       " bridge %d\n", hose->global_number);
 			res->start = 0;
 			res->end = IO_SPACE_LIMIT;
 			res->flags = IORESOURCE_IO;
@@ -1356,7 +1254,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 				if (i > 0)
 					continue;
 				printk(KERN_ERR "Memory resource not set for "
-				       "host bridge %d\n", hose->index);
+				       "host bridge %d\n", hose->global_number);
 				res->start = hose->pci_mem_offset;
 				res->end = ~0U;
 				res->flags = IORESOURCE_MEM;
@@ -1370,7 +1268,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		for (i = 0; i < 4; ++i) {
 			if ((res = bus->resource[i]) == NULL)
 				continue;
-			if (!res->flags)
+			if (!res->flags || bus->self->transparent)
 				continue;
 			if (io_offset && (res->flags & IORESOURCE_IO)) {
 				res->start += io_offset;
@@ -1395,11 +1293,6 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-char __init *pcibios_setup(char *str)
-{
-	return str;
-}
-
 /* the next one is stolen from the alpha port... */
 void __init
 pcibios_update_irq(struct pci_dev *dev, int irq)
@@ -1407,64 +1300,6 @@ pcibios_update_irq(struct pci_dev *dev, int irq)
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 	/* XXX FIXME - update OF device tree node interrupt property */
 }
-
-#ifdef CONFIG_PPC_MERGE
-/* XXX This is a copy of the ppc64 version. This is temporary until we start
- * merging the 2 PCI layers
- */
-/*
- * Reads the interrupt pin to determine if interrupt is use by card.
- * If the interrupt is used, then gets the interrupt line from the
- * openfirmware and sets it in the pci_dev and pci_config line.
- */
-int pci_read_irq_line(struct pci_dev *pci_dev)
-{
-	struct of_irq oirq;
-	unsigned int virq;
-
-	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
-
-	/* Try to get a mapping from the device-tree */
-	if (of_irq_map_pci(pci_dev, &oirq)) {
-		u8 line, pin;
-
-		/* If that fails, lets fallback to what is in the config
-		 * space and map that through the default controller. We
-		 * also set the type to level low since that's what PCI
-		 * interrupts are. If your platform does differently, then
-		 * either provide a proper interrupt tree or don't use this
-		 * function.
-		 */
-		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &pin))
-			return -1;
-		if (pin == 0)
-			return -1;
-		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
-		    line == 0xff) {
-			return -1;
-		}
-		DBG(" -> no map ! Using irq line %d from PCI config\n", line);
-
-		virq = irq_create_mapping(NULL, line);
-		if (virq != NO_IRQ)
-			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
-	} else {
-		DBG(" -> got one, spec %d cells (0x%08x...) on %s\n",
-		    oirq.size, oirq.specifier[0], oirq.controller->full_name);
-
-		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-					     oirq.size);
-	}
-	if(virq == NO_IRQ) {
-		DBG(" -> failed to map !\n");
-		return -1;
-	}
-	pci_dev->irq = virq;
-
-	return 0;
-}
-EXPORT_SYMBOL(pci_read_irq_line);
-#endif /* CONFIG_PPC_MERGE */
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
@@ -1497,279 +1332,15 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-struct pci_controller*
+static struct pci_controller*
 pci_bus_to_hose(int bus)
 {
-	struct pci_controller* hose = hose_head;
+	struct pci_controller *hose, *tmp;
 
-	for (; hose; hose = hose->next)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
 		if (bus >= hose->first_busno && bus <= hose->last_busno)
 			return hose;
 	return NULL;
-}
-
-void __iomem *
-pci_bus_io_base(unsigned int bus)
-{
-	struct pci_controller *hose;
-
-	hose = pci_bus_to_hose(bus);
-	if (!hose)
-		return NULL;
-	return hose->io_base_virt;
-}
-
-unsigned long
-pci_bus_io_base_phys(unsigned int bus)
-{
-	struct pci_controller *hose;
-
-	hose = pci_bus_to_hose(bus);
-	if (!hose)
-		return 0;
-	return hose->io_base_phys;
-}
-
-unsigned long
-pci_bus_mem_base_phys(unsigned int bus)
-{
-	struct pci_controller *hose;
-
-	hose = pci_bus_to_hose(bus);
-	if (!hose)
-		return 0;
-	return hose->pci_mem_offset;
-}
-
-unsigned long
-pci_resource_to_bus(struct pci_dev *pdev, struct resource *res)
-{
-	/* Hack alert again ! See comments in chrp_pci.c
-	 */
-	struct pci_controller* hose =
-		(struct pci_controller *)pdev->sysdata;
-	if (hose && res->flags & IORESOURCE_MEM)
-		return res->start - hose->pci_mem_offset;
-	/* We may want to do something with IOs here... */
-	return res->start;
-}
-
-
-static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
-					       resource_size_t *offset,
-					       enum pci_mmap_state mmap_state)
-{
-	struct pci_controller *hose = pci_bus_to_hose(dev->bus->number);
-	unsigned long io_offset = 0;
-	int i, res_bit;
-
-	if (hose == 0)
-		return NULL;		/* should never happen */
-
-	/* If memory, add on the PCI bridge address offset */
-	if (mmap_state == pci_mmap_mem) {
-#if 0 /* See comment in pci_resource_to_user() for why this is disabled */
-		*offset += hose->pci_mem_offset;
-#endif
-		res_bit = IORESOURCE_MEM;
-	} else {
-		io_offset = hose->io_base_virt - (void __iomem *)_IO_BASE;
-		*offset += io_offset;
-		res_bit = IORESOURCE_IO;
-	}
-
-	/*
-	 * Check that the offset requested corresponds to one of the
-	 * resources of the device.
-	 */
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		struct resource *rp = &dev->resource[i];
-		int flags = rp->flags;
-
-		/* treat ROM as memory (should be already) */
-		if (i == PCI_ROM_RESOURCE)
-			flags |= IORESOURCE_MEM;
-
-		/* Active and same type? */
-		if ((flags & res_bit) == 0)
-			continue;
-
-		/* In the range of this resource? */
-		if (*offset < (rp->start & PAGE_MASK) || *offset > rp->end)
-			continue;
-
-		/* found it! construct the final physical address */
-		if (mmap_state == pci_mmap_io)
-			*offset += hose->io_base_phys - io_offset;
-		return rp;
-	}
-
-	return NULL;
-}
-
-/*
- * Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
- * device mapping.
- */
-static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
-				      pgprot_t protection,
-				      enum pci_mmap_state mmap_state,
-				      int write_combine)
-{
-	unsigned long prot = pgprot_val(protection);
-
-	/* Write combine is always 0 on non-memory space mappings. On
-	 * memory space, if the user didn't pass 1, we check for a
-	 * "prefetchable" resource. This is a bit hackish, but we use
-	 * this to workaround the inability of /sysfs to provide a write
-	 * combine bit
-	 */
-	if (mmap_state != pci_mmap_mem)
-		write_combine = 0;
-	else if (write_combine == 0) {
-		if (rp->flags & IORESOURCE_PREFETCH)
-			write_combine = 1;
-	}
-
-	/* XXX would be nice to have a way to ask for write-through */
-	prot |= _PAGE_NO_CACHE;
-	if (write_combine)
-		prot &= ~_PAGE_GUARDED;
-	else
-		prot |= _PAGE_GUARDED;
-
-	return __pgprot(prot);
-}
-
-/*
- * This one is used by /dev/mem and fbdev who have no clue about the
- * PCI device, it tries to find the PCI device first and calls the
- * above routine
- */
-pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long pfn,
-				  unsigned long size,
-				  pgprot_t protection)
-{
-	struct pci_dev *pdev = NULL;
-	struct resource *found = NULL;
-	unsigned long prot = pgprot_val(protection);
-	unsigned long offset = pfn << PAGE_SHIFT;
-	int i;
-
-	if (page_is_ram(pfn))
-		return __pgprot(prot);
-
-	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;
-
-	for_each_pci_dev(pdev) {
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-			struct resource *rp = &pdev->resource[i];
-			int flags = rp->flags;
-
-			/* Active and same type? */
-			if ((flags & IORESOURCE_MEM) == 0)
-				continue;
-			/* In the range of this resource? */
-			if (offset < (rp->start & PAGE_MASK) ||
-			    offset > rp->end)
-				continue;
-			found = rp;
-			break;
-		}
-		if (found)
-			break;
-	}
-	if (found) {
-		if (found->flags & IORESOURCE_PREFETCH)
-			prot &= ~_PAGE_GUARDED;
-		pci_dev_put(pdev);
-	}
-
-	DBG("non-PCI map for %lx, prot: %lx\n", offset, prot);
-
-	return __pgprot(prot);
-}
-
-
-/*
- * Perform the actual remap of the pages for a PCI device mapping, as
- * appropriate for this architecture.  The region in the process to map
- * is described by vm_start and vm_end members of VMA, the base physical
- * address is found in vm_pgoff.
- * The pci device structure is provided so that architectures may make mapping
- * decisions on a per-device or per-bus basis.
- *
- * Returns a negative error code on failure, zero on success.
- */
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state,
-			int write_combine)
-{
-	resource_size_t offset = vma->vm_pgoff << PAGE_SHIFT;
-	struct resource *rp;
-	int ret;
-
-	rp = __pci_mmap_make_offset(dev, &offset, mmap_state);
-	if (rp == NULL)
-		return -EINVAL;
-
-	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
-						  vma->vm_page_prot,
-						  mmap_state, write_combine);
-
-	ret = remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
-
-	return ret;
-}
-
-/* Obsolete functions. Should be removed once the symbios driver
- * is fixed
- */
-unsigned long
-phys_to_bus(unsigned long pa)
-{
-	struct pci_controller *hose;
-	int i;
-
-	for (hose = hose_head; hose; hose = hose->next) {
-		for (i = 0; i < 3; ++i) {
-			if (pa >= hose->mem_resources[i].start
-			    && pa <= hose->mem_resources[i].end) {
-				/*
-				 * XXX the hose->pci_mem_offset really
-				 * only applies to mem_resources[0].
-				 * We need a way to store an offset for
-				 * the others.  -- paulus
-				 */
-				if (i == 0)
-					pa -= hose->pci_mem_offset;
-				return pa;
-			}
-		}
-	}
-	/* hmmm, didn't find it */
-	return 0;
-}
-
-unsigned long
-pci_phys_to_bus(unsigned long pa, int busnr)
-{
-	struct pci_controller* hose = pci_bus_to_hose(busnr);
-	if (!hose)
-		return pa;
-	return pa - hose->pci_mem_offset;
-}
-
-unsigned long
-pci_bus_to_phys(unsigned int ba, int busnr)
-{
-	struct pci_controller* hose = pci_bus_to_hose(busnr);
-	if (!hose)
-		return ba;
-	return ba + hose->pci_mem_offset;
 }
 
 /* Provide information on locations of various I/O regions in physical
@@ -1814,62 +1385,11 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 	return result;
 }
 
-void pci_resource_to_user(const struct pci_dev *dev, int bar,
-			  const struct resource *rsrc,
-			  resource_size_t *start, resource_size_t *end)
-{
-	struct pci_controller *hose = pci_bus_to_hose(dev->bus->number);
-	resource_size_t offset = 0;
-
-	if (hose == NULL)
-		return;
-
-	if (rsrc->flags & IORESOURCE_IO)
-		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
-
-	/* We pass a fully fixed up address to userland for MMIO instead of
-	 * a BAR value because X is lame and expects to be able to use that
-	 * to pass to /dev/mem !
-	 *
-	 * That means that we'll have potentially 64 bits values where some
-	 * userland apps only expect 32 (like X itself since it thinks only
-	 * Sparc has 64 bits MMIO) but if we don't do that, we break it on
-	 * 32 bits CHRPs :-(
-	 *
-	 * Hopefully, the sysfs insterface is immune to that gunk. Once X
-	 * has been fixed (and the fix spread enough), we can re-enable the
-	 * 2 lines below and pass down a BAR value to userland. In that case
-	 * we'll also have to re-enable the matching code in
-	 * __pci_mmap_make_offset().
-	 *
-	 * BenH.
-	 */
-#if 0
-	else if (rsrc->flags & IORESOURCE_MEM)
-		offset = hose->pci_mem_offset;
-#endif
-
-	*start = rsrc->start - offset;
-	*end = rsrc->end - offset;
-}
-
-void __init pci_init_resource(struct resource *res, resource_size_t start,
-			      resource_size_t end, int flags, char *name)
-{
-	res->start = start;
-	res->end = end;
-	res->flags = flags;
-	res->name = name;
-	res->parent = NULL;
-	res->sibling = NULL;
-	res->child = NULL;
-}
-
 unsigned long pci_address_to_pio(phys_addr_t address)
 {
-	struct pci_controller* hose = hose_head;
+	struct pci_controller *hose, *tmp;
 
-	for (; hose; hose = hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		unsigned int size = hose->io_resource.end -
 			hose->io_resource.start + 1;
 		if (address >= hose->io_base_phys &&

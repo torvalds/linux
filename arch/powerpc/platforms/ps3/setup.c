@@ -37,27 +37,35 @@
 #include "platform.h"
 
 #if defined(DEBUG)
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG udbg_printf
 #else
-#define DBG(fmt...) do{if(0)printk(fmt);}while(0)
+#define DBG pr_debug
 #endif
 
 #if !defined(CONFIG_SMP)
 static void smp_send_stop(void) {}
 #endif
 
-int ps3_get_firmware_version(union ps3_firmware_version *v)
+static union ps3_firmware_version ps3_firmware_version;
+
+void ps3_get_firmware_version(union ps3_firmware_version *v)
 {
-	int result = lv1_get_version_info(&v->raw);
-
-	if (result) {
-		v->raw = 0;
-		return -1;
-	}
-
-	return result;
+	*v = ps3_firmware_version;
 }
 EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
+
+int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev)
+{
+	union ps3_firmware_version x;
+
+	x.pad = 0;
+	x.major = major;
+	x.minor = minor;
+	x.rev = rev;
+
+	return (ps3_firmware_version.raw - x.raw);
+}
+EXPORT_SYMBOL_GPL(ps3_compare_firmware_version);
 
 static void ps3_power_save(void)
 {
@@ -99,7 +107,8 @@ static void ps3_panic(char *str)
 	while(1);
 }
 
-#ifdef CONFIG_FB_PS3
+#if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE) || \
+    defined(CONFIG_PS3_FLASH) || defined(CONFIG_PS3_FLASH_MODULE)
 static void prealloc(struct ps3_prealloc *p)
 {
 	if (!p->size)
@@ -115,12 +124,15 @@ static void prealloc(struct ps3_prealloc *p)
 	printk(KERN_INFO "%s: %lu bytes at %p\n", p->name, p->size,
 	       p->address);
 }
+#endif
 
+#if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE)
 struct ps3_prealloc ps3fb_videomemory = {
-    .name = "ps3fb videomemory",
-    .size = CONFIG_FB_PS3_DEFAULT_SIZE_M*1024*1024,
-    .align = 1024*1024			/* the GPU requires 1 MiB alignment */
+	.name = "ps3fb videomemory",
+	.size = CONFIG_FB_PS3_DEFAULT_SIZE_M*1024*1024,
+	.align = 1024*1024		/* the GPU requires 1 MiB alignment */
 };
+EXPORT_SYMBOL_GPL(ps3fb_videomemory);
 #define prealloc_ps3fb_videomemory()	prealloc(&ps3fb_videomemory)
 
 static int __init early_parse_ps3fb(char *p)
@@ -137,6 +149,30 @@ early_param("ps3fb", early_parse_ps3fb);
 #define prealloc_ps3fb_videomemory()	do { } while (0)
 #endif
 
+#if defined(CONFIG_PS3_FLASH) || defined(CONFIG_PS3_FLASH_MODULE)
+struct ps3_prealloc ps3flash_bounce_buffer = {
+	.name = "ps3flash bounce buffer",
+	.size = 256*1024,
+	.align = 256*1024
+};
+EXPORT_SYMBOL_GPL(ps3flash_bounce_buffer);
+#define prealloc_ps3flash_bounce_buffer()	prealloc(&ps3flash_bounce_buffer)
+
+static int __init early_parse_ps3flash(char *p)
+{
+	if (!p)
+		return 1;
+
+	if (!strcmp(p, "off"))
+		ps3flash_bounce_buffer.size = 0;
+
+	return 0;
+}
+early_param("ps3flash", early_parse_ps3flash);
+#else
+#define prealloc_ps3flash_bounce_buffer()	do { } while (0)
+#endif
+
 static int ps3_set_dabr(u64 dabr)
 {
 	enum {DABR_USER = 1, DABR_KERNEL = 2,};
@@ -146,13 +182,13 @@ static int ps3_set_dabr(u64 dabr)
 
 static void __init ps3_setup_arch(void)
 {
-	union ps3_firmware_version v;
 
 	DBG(" -> %s:%d\n", __func__, __LINE__);
 
-	ps3_get_firmware_version(&v);
-	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n", v.major, v.minor,
-		v.rev);
+	lv1_get_version_info(&ps3_firmware_version.raw);
+	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n",
+	       ps3_firmware_version.major, ps3_firmware_version.minor,
+	       ps3_firmware_version.rev);
 
 	ps3_spu_set_platform();
 	ps3_map_htab();
@@ -166,6 +202,8 @@ static void __init ps3_setup_arch(void)
 #endif
 
 	prealloc_ps3fb_videomemory();
+	prealloc_ps3flash_bounce_buffer();
+
 	ppc_md.power_save = ps3_power_save;
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
@@ -184,7 +222,7 @@ static int __init ps3_probe(void)
 	DBG(" -> %s:%d\n", __func__, __LINE__);
 
 	dt_root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(dt_root, "PS3"))
+	if (!of_flat_dt_is_compatible(dt_root, "sony,ps3"))
 		return 0;
 
 	powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
@@ -201,31 +239,12 @@ static int __init ps3_probe(void)
 #if defined(CONFIG_KEXEC)
 static void ps3_kexec_cpu_down(int crash_shutdown, int secondary)
 {
-	DBG(" -> %s:%d\n", __func__, __LINE__);
+	int cpu = smp_processor_id();
 
-	if (secondary) {
-		int cpu;
-		for_each_online_cpu(cpu)
-			if (cpu)
-				ps3_smp_cleanup_cpu(cpu);
-	} else
-		ps3_smp_cleanup_cpu(0);
+	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
 
-	DBG(" <- %s:%d\n", __func__, __LINE__);
-}
-
-static void ps3_machine_kexec(struct kimage *image)
-{
-	unsigned long ppe_id;
-
-	DBG(" -> %s:%d\n", __func__, __LINE__);
-
-	lv1_get_logical_ppe_id(&ppe_id);
-	lv1_configure_irq_state_bitmap(ppe_id, 0, 0);
-	ps3_mm_shutdown();
-	ps3_mm_vas_destroy();
-
-	default_machine_kexec(image);
+	ps3_smp_cleanup_cpu(cpu);
+	ps3_shutdown_IRQ(cpu);
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -247,7 +266,7 @@ define_machine(ps3) {
 	.power_off			= ps3_power_off,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
-	.machine_kexec			= ps3_machine_kexec,
+	.machine_kexec			= default_machine_kexec,
 	.machine_kexec_prepare		= default_machine_kexec_prepare,
 	.machine_crash_shutdown		= default_machine_crash_shutdown,
 #endif

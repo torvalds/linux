@@ -47,11 +47,6 @@
 #include <sysdev/fsl_soc.h>
 #include "mpc85xx.h"
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-#endif
-
 static int cds_pci_slot = 2;
 static volatile u8 *cadmus;
 
@@ -60,15 +55,11 @@ static volatile u8 *cadmus;
 #define ARCADIA_HOST_BRIDGE_IDSEL	17
 #define ARCADIA_2ND_BRIDGE_IDSEL	3
 
-extern int mpc85xx_pci2_busno;
-
-static int mpc85xx_exclude_device(u_char bus, u_char devfn)
+static int mpc85xx_exclude_device(struct pci_controller *hose,
+				  u_char bus, u_char devfn)
 {
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
+	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (mpc85xx_pci2_busno)
-		if (bus == (mpc85xx_pci2_busno) && PCI_SLOT(devfn) == 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
 	/* We explicitly do not go past the Tundra 320 Bridge */
 	if ((bus == 1) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -78,52 +69,44 @@ static int mpc85xx_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void __init mpc85xx_cds_pcibios_fixup(void)
+static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 {
-	struct pci_dev *dev;
-	u_char		c;
+	u_char c;
+	if (dev->vendor == PCI_VENDOR_ID_VIA) {
+		switch (dev->device) {
+		case PCI_DEVICE_ID_VIA_82C586_1:
+			/*
+			 * U-Boot does not set the enable bits
+			 * for the IDE device. Force them on here.
+			 */
+			pci_read_config_byte(dev, 0x40, &c);
+			c |= 0x03; /* IDE: Chip Enable Bits */
+			pci_write_config_byte(dev, 0x40, c);
 
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
+			/*
+			 * Since only primary interface works, force the
+			 * IDE function to standard primary IDE interrupt
+			 * w/ 8259 offset
+			 */
+			dev->irq = 14;
+			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+			break;
 		/*
-		 * U-Boot does not set the enable bits
-		 * for the IDE device. Force them on here.
+		 * Force legacy USB interrupt routing
 		 */
-		pci_read_config_byte(dev, 0x40, &c);
-		c |= 0x03; /* IDE: Chip Enable Bits */
-		pci_write_config_byte(dev, 0x40, c);
-
-		/*
-		 * Since only primary interface works, force the
-		 * IDE function to standard primary IDE interrupt
-		 * w/ 8259 offset
+		case PCI_DEVICE_ID_VIA_82C586_2:
+		/* There are two USB controllers.
+		 * Identify them by functon number
 		 */
-		dev->irq = 14;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-		pci_dev_put(dev);
+			if (PCI_FUNC(dev->devfn))
+				dev->irq = 11;
+			else
+				dev->irq = 10;
+			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+		default:
+			break;
+		}
 	}
-
-	/*
-	 * Force legacy USB interrupt routing
-	 */
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
-		dev->irq = 10;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
-		pci_dev_put(dev);
-	}
-
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_2, dev))) {
-		dev->irq = 11;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
-		pci_dev_put(dev);
-	}
-
-	/* Now map all the PCI irqs */
-	dev = NULL;
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
 }
 
 #ifdef CONFIG_PPC_I8259
@@ -165,32 +148,11 @@ static void __init mpc85xx_cds_pic_init(void)
 
 	mpic = mpic_alloc(np, r.start,
 			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			4, 0, " OpenPIC  ");
+			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 
 	/* Return the mpic node */
 	of_node_put(np);
-
-	mpic_assign_isu(mpic, 0, r.start + 0x10200);
-	mpic_assign_isu(mpic, 1, r.start + 0x10280);
-	mpic_assign_isu(mpic, 2, r.start + 0x10300);
-	mpic_assign_isu(mpic, 3, r.start + 0x10380);
-	mpic_assign_isu(mpic, 4, r.start + 0x10400);
-	mpic_assign_isu(mpic, 5, r.start + 0x10480);
-	mpic_assign_isu(mpic, 6, r.start + 0x10500);
-	mpic_assign_isu(mpic, 7, r.start + 0x10580);
-
-	/* Used only for 8548 so far, but no harm in
-	 * allocating them for everyone */
-	mpic_assign_isu(mpic, 8, r.start + 0x10600);
-	mpic_assign_isu(mpic, 9, r.start + 0x10680);
-	mpic_assign_isu(mpic, 10, r.start + 0x10700);
-	mpic_assign_isu(mpic, 11, r.start + 0x10780);
-
-	/* External Interrupts */
-	mpic_assign_isu(mpic, 12, r.start + 0x10000);
-	mpic_assign_isu(mpic, 13, r.start + 0x10080);
-	mpic_assign_isu(mpic, 14, r.start + 0x10100);
 
 	mpic_init(mpic);
 
@@ -257,9 +219,9 @@ static void __init mpc85xx_cds_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc85xx_add_bridge(np);
 
-	ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
+	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 }

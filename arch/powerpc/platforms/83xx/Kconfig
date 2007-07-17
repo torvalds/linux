@@ -1,5 +1,5 @@
 choice
-	prompt "Machine Type"
+	prompt "83xx Board Type"
 	depends on PPC_83xx
 	default MPC834x_MDS
 

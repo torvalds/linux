@@ -6,11 +6,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/threads.h>
-#include <asm/processor.h>		/* For TASK_SIZE */
-#include <asm/mmu.h>
-#include <asm/page.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
-struct mm_struct;
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);
@@ -488,14 +484,6 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 #define pfn_pte(pfn, prot)	__pte(((pte_basic_t)(pfn) << PFN_SHIFT_OFFSET) |\
 					pgprot_val(prot))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
-
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-extern unsigned long empty_zero_page[1024];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
 #endif /* __ASSEMBLY__ */
 
 #define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
@@ -724,10 +712,6 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #define pte_unmap(pte)		kunmap_atomic(pte, KM_PTE0)
 #define pte_unmap_nested(pte)	kunmap_atomic(pte, KM_PTE1)
 
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-
-extern void paging_init(void);
-
 /*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
@@ -744,40 +728,6 @@ extern void paging_init(void);
 #define PTE_FILE_MAX_BITS	29
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 3)
 #define pgoff_to_pte(off)	((pte_t) { ((off) << 3) | _PAGE_FILE })
-
-/* CONFIG_APUS */
-/* For virtual address to physical address conversion */
-extern void cache_clear(__u32 addr, int length);
-extern void cache_push(__u32 addr, int length);
-extern int mm_end_of_chunk (unsigned long addr, int len);
-extern unsigned long iopa(unsigned long addr);
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
-
-/* Values for nocacheflag and cmode */
-/* These are not used by the APUS kernel_map, but prevents
-   compilation errors. */
-#define	KERNELMAP_FULL_CACHING		0
-#define	KERNELMAP_NOCACHE_SER		1
-#define	KERNELMAP_NOCACHE_NONSER	2
-#define	KERNELMAP_NO_COPYBACK		3
-
-/*
- * Map some physical address range into the kernel address space.
- */
-extern unsigned long kernel_map(unsigned long paddr, unsigned long size,
-				int nocacheflag, unsigned long *memavailp );
-
-/*
- * Set cache mode of (kernel space) address range.
- */
-extern void kernel_set_cachemode (unsigned long address, unsigned long size,
-                                 unsigned int cmode);
-
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-#define kern_addr_valid(addr)	(1)
-
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 /*
  * No page table caches to initialise

@@ -95,8 +95,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #define get_pci_dma_ops()	NULL
 #endif
 
-extern int pci_domain_nr(struct pci_bus *bus);
-
 /* Decide whether to display the domain number in /proc */
 extern int pci_proc_domain(struct pci_bus *bus);
 
@@ -112,9 +110,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-/* Return the index of the PCI controller for device PDEV. */
-#define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
-
 /* Set the name of the bus as it appears in /proc/bus/pci */
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
@@ -122,6 +117,8 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 
 #endif /* CONFIG_PPC64 */
+
+extern int pci_domain_nr(struct pci_bus *bus);
 
 struct vm_area_struct;
 /* Map a range of PCI memory or I/O space for a device into user space */
@@ -201,10 +198,6 @@ static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 
 	return root;
 }
-
-extern int unmap_bus_range(struct pci_bus *bus);
-
-extern int remap_bus_range(struct pci_bus *bus);
 
 extern void pcibios_fixup_device_resources(struct pci_dev *dev,
 			struct pci_bus *bus);

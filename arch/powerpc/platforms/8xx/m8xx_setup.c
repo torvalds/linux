@@ -32,6 +32,7 @@
 #include <linux/root_dev.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
+#include <linux/fsl_devices.h>
 
 #include <asm/mmu.h>
 #include <asm/reg.h>
@@ -48,6 +49,10 @@
 #include <mm/mmu_decl.h>
 
 #include "sysdev/mpc8xx_pic.h"
+
+#ifdef CONFIG_PCMCIA_M8XX
+struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
+#endif
 
 void m8xx_calibrate_decr(void);
 extern void m8xx_wdt_handler_install(bd_t *bp);

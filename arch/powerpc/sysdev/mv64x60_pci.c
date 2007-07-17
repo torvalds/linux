@@ -137,18 +137,15 @@ static int __init mv64x60_add_bridge(struct device_node *dev)
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(dev);
 	if (!hose)
 		return -ENOMEM;
-
-	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 4);
-	hose->bus_offset = hose->first_busno;
+	hose->self_busno = hose->first_busno;
 
 	printk(KERN_INFO "Found MV64x60 PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",

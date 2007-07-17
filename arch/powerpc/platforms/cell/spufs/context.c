@@ -23,9 +23,13 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <asm/atomic.h>
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
 #include "spufs.h"
+
+
+atomic_t nr_spu_contexts = ATOMIC_INIT(0);
 
 struct spu_context *alloc_spu_context(struct spu_gang *gang)
 {
@@ -53,10 +57,12 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	INIT_LIST_HEAD(&ctx->rq);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
-	ctx->rt_priority = current->rt_priority;
-	ctx->policy = current->policy;
-	ctx->prio = current->prio;
-	INIT_DELAYED_WORK(&ctx->sched_work, spu_sched_tick);
+	ctx->cpus_allowed = current->cpus_allowed;
+	spu_set_timeslice(ctx);
+	ctx->stats.execution_state = SPUCTX_UTIL_USER;
+	ctx->stats.tstamp = jiffies;
+
+	atomic_inc(&nr_spu_contexts);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -76,6 +82,7 @@ void destroy_spu_context(struct kref *kref)
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
 	BUG_ON(!list_empty(&ctx->rq));
+	atomic_dec(&nr_spu_contexts);
 	kfree(ctx);
 }
 

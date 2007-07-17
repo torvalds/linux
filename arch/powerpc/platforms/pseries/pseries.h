@@ -33,6 +33,8 @@ static inline void setup_kexec_cpu_down_xics(void) { }
 static inline void setup_kexec_cpu_down_mpic(void) { }
 #endif
 
+extern void pSeries_final_fixup(void);
+
 /* Poweron flag used for enabling auto ups restart */
 extern unsigned long rtas_poweron_auto;
 

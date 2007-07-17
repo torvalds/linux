@@ -43,7 +43,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
+#define smp_wmb()	eieio()
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
@@ -558,6 +558,8 @@ static inline void create_function_call(unsigned long addr, void * func)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_system_vtime(struct task_struct *);
 #endif
+
+extern struct dentry *powerpc_debugfs_root;
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

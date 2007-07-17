@@ -52,6 +52,7 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
 #include <asm/kexec.h>
+#include <asm/system.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -1005,7 +1006,7 @@ static void __init early_reserve_mem(void)
 
 void __init early_init_devtree(void *params)
 {
-	DBG(" -> early_init_devtree()\n");
+	DBG(" -> early_init_devtree(%p)\n", params);
 
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
@@ -1054,8 +1055,6 @@ void __init early_init_devtree(void *params)
 
 	DBG(" <- early_init_devtree()\n");
 }
-
-#undef printk
 
 int of_n_addr_cells(struct device_node* np)
 {
@@ -1375,8 +1374,17 @@ static void of_node_release(struct kref *kref)
 	struct device_node *node = kref_to_device_node(kref);
 	struct property *prop = node->properties;
 
-	if (!OF_IS_DYNAMIC(node))
+	/* We should never be releasing nodes that haven't been detached. */
+	if (!of_node_check_flag(node, OF_DETACHED)) {
+		printk("WARNING: Bad of_node_put() on %s\n", node->full_name);
+		dump_stack();
+		kref_init(&node->kref);
 		return;
+	}
+
+	if (!of_node_check_flag(node, OF_DYNAMIC))
+		return;
+
 	while (prop) {
 		struct property *next = prop->next;
 		kfree(prop->name);
@@ -1432,6 +1440,8 @@ void of_detach_node(const struct device_node *np)
 	write_lock(&devtree_lock);
 
 	parent = np->parent;
+	if (!parent)
+		goto out_unlock;
 
 	if (allnodes == np)
 		allnodes = np->allnext;
@@ -1455,6 +1465,9 @@ void of_detach_node(const struct device_node *np)
 		prevsib->sibling = np->sibling;
 	}
 
+	of_node_set_flag(np, OF_DETACHED);
+
+out_unlock:
 	write_unlock(&devtree_lock);
 }
 
@@ -1716,22 +1729,18 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 }
 EXPORT_SYMBOL(of_get_cpu_node);
 
-#ifdef DEBUG
+#if defined(CONFIG_DEBUG_FS) && defined(DEBUG)
 static struct debugfs_blob_wrapper flat_dt_blob;
 
 static int __init export_flat_device_tree(void)
 {
 	struct dentry *d;
 
-	d = debugfs_create_dir("powerpc", NULL);
-	if (!d)
-		return 1;
-
 	flat_dt_blob.data = initial_boot_params;
 	flat_dt_blob.size = initial_boot_params->totalsize;
 
 	d = debugfs_create_blob("flat-device-tree", S_IFREG | S_IRUSR,
-				d, &flat_dt_blob);
+				powerpc_debugfs_root, &flat_dt_blob);
 	if (!d)
 		return 1;
 

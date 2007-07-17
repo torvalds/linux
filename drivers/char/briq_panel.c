@@ -91,11 +91,6 @@ static ssize_t briq_panel_read(struct file *file, char __user *buf, size_t count
 	unsigned short c;
 	unsigned char cp;
 
-#if 0	/*  Can't seek (pread) on this device  */
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-#endif
-
 	if (!vfd_is_open)
 		return -ENODEV;
 
@@ -138,11 +133,6 @@ static ssize_t briq_panel_write(struct file *file, const char __user *buf, size_
 {
 	size_t indx = len;
 	int i, esc = 0;
-
-#if 0	/*  Can't seek (pwrite) on this device  */
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-#endif
 
 	if (!vfd_is_open)
 		return -EBUSY;

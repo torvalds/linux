@@ -23,6 +23,10 @@
 #include <platforms/8xx/mpc885ads.h>
 #endif
 
+#ifdef CONFIG_PCMCIA_M8XX
+extern struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
+#endif
+
 #endif /* CONFIG_8xx */
 #endif /* __CONFIG_8xx_DEFS */
 #endif /* __KERNEL__ */

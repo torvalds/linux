@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
+#include <linux/cpumask.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
@@ -39,9 +40,17 @@ enum {
 struct spu_context_ops;
 struct spu_gang;
 
-/* ctx->sched_flags */
-enum {
-	SPU_SCHED_EXITING = 0,
+/*
+ * This is the state for spu utilization reporting to userspace.
+ * Because this state is visible to userspace it must never change and needs
+ * to be kept strictly separate from any internal state kept by the kernel.
+ */
+enum spuctx_execution_state {
+	SPUCTX_UTIL_USER = 0,
+	SPUCTX_UTIL_SYSTEM,
+	SPUCTX_UTIL_IOWAIT,
+	SPUCTX_UTIL_LOADED,
+	SPUCTX_UTIL_MAX
 };
 
 struct spu_context {
@@ -81,13 +90,34 @@ struct spu_context {
 	struct list_head gang_list;
 	struct spu_gang *gang;
 
+	/* owner thread */
+	pid_t tid;
+
 	/* scheduler fields */
- 	struct list_head rq;
-	struct delayed_work sched_work;
+	struct list_head rq;
+	unsigned int time_slice;
 	unsigned long sched_flags;
-	unsigned long rt_priority;
+	cpumask_t cpus_allowed;
 	int policy;
 	int prio;
+
+	/* statistics */
+	struct {
+		/* updates protected by ctx->state_mutex */
+		enum spuctx_execution_state execution_state;
+		unsigned long tstamp;		/* time of last ctx switch */
+		unsigned long times[SPUCTX_UTIL_MAX];
+		unsigned long long vol_ctx_switch;
+		unsigned long long invol_ctx_switch;
+		unsigned long long min_flt;
+		unsigned long long maj_flt;
+		unsigned long long hash_flt;
+		unsigned long long slb_flt;
+		unsigned long long slb_flt_base; /* # at last ctx switch */
+		unsigned long long class2_intr;
+		unsigned long long class2_intr_base; /* # at last ctx switch */
+		unsigned long long libassist;
+	} stats;
 };
 
 struct spu_gang {
@@ -177,6 +207,7 @@ void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 int spufs_handle_class1(struct spu_context *ctx);
 
 /* context management */
+extern atomic_t nr_spu_contexts;
 static inline void spu_acquire(struct spu_context *ctx)
 {
 	mutex_lock(&ctx->state_mutex);
@@ -200,9 +231,9 @@ void spu_acquire_saved(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
-void spu_start_tick(struct spu_context *ctx);
-void spu_stop_tick(struct spu_context *ctx);
-void spu_sched_tick(struct work_struct *work);
+void spu_set_timeslice(struct spu_context *ctx);
+void spu_update_sched_info(struct spu_context *ctx);
+void __spu_update_sched_info(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
@@ -210,7 +241,7 @@ extern char *isolated_loader;
 
 /*
  * spufs_wait
- * 	Same as wait_event_interruptible(), except that here
+ *	Same as wait_event_interruptible(), except that here
  *	we need to call spu_release(ctx) before sleeping, and
  *	then spu_acquire(ctx) when awoken.
  */
@@ -255,5 +286,38 @@ struct spufs_coredump_reader {
 };
 extern struct spufs_coredump_reader spufs_coredump_read[];
 extern int spufs_coredump_num_notes;
+
+/*
+ * This function is a little bit too large for an inline, but
+ * as fault.c is built into the kernel we can't move it out of
+ * line.
+ */
+static inline void spuctx_switch_state(struct spu_context *ctx,
+		enum spuctx_execution_state new_state)
+{
+	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
+
+	if (ctx->stats.execution_state != new_state) {
+		unsigned long curtime = jiffies;
+
+		ctx->stats.times[ctx->stats.execution_state] +=
+				 curtime - ctx->stats.tstamp;
+		ctx->stats.tstamp = curtime;
+		ctx->stats.execution_state = new_state;
+	}
+}
+
+static inline void spu_switch_state(struct spu *spu,
+		enum spuctx_execution_state new_state)
+{
+	if (spu->stats.utilization_state != new_state) {
+		unsigned long curtime = jiffies;
+
+		spu->stats.times[spu->stats.utilization_state] +=
+				 curtime - spu->stats.tstamp;
+		spu->stats.tstamp = curtime;
+		spu->stats.utilization_state = new_state;
+	}
+}
 
 #endif

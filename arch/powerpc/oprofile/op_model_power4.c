@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM
+ * Added mmcra[slot] support:
+ * Copyright (C) 2006-2007 Will Schmidt <willschm@us.ibm.com>, IBM
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -181,17 +183,29 @@ static void __attribute_used__ kernel_unknown_bucket(void)
  * On GQ and newer the MMCRA stores the HV and PR bits at the time
  * the SIAR was sampled. We use that to work out if the SIAR was sampled in
  * the hypervisor, our exception vectors or RTAS.
+ * If the MMCRA_SAMPLE_ENABLE bit is set, we can use the MMCRA[slot] bits
+ * to more accurately identify the address of the sampled instruction. The
+ * mmcra[slot] bits represent the slot number of a sampled instruction
+ * within an instruction group.  The slot will contain a value between 1
+ * and 5 if MMCRA_SAMPLE_ENABLE is set, otherwise 0.
  */
 static unsigned long get_pc(struct pt_regs *regs)
 {
 	unsigned long pc = mfspr(SPRN_SIAR);
 	unsigned long mmcra;
+	unsigned long slot;
 
 	/* Cant do much about it */
 	if (!cur_cpu_spec->oprofile_mmcra_sihv)
 		return pc;
 
 	mmcra = mfspr(SPRN_MMCRA);
+
+	if (mmcra & MMCRA_SAMPLE_ENABLE) {
+		slot = ((mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT);
+		if (slot > 1)
+			pc += 4 * (slot - 1);
+	}
 
 	/* Were we in the hypervisor? */
 	if (firmware_has_feature(FW_FEATURE_LPAR) &&

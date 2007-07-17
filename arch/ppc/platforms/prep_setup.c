@@ -69,9 +69,6 @@
 
 TODC_ALLOC();
 
-unsigned char ucBoardRev;
-unsigned char ucBoardRevMaj, ucBoardRevMin;
-
 extern unsigned char prep_nvram_read_val(int addr);
 extern void prep_nvram_write_val(int addr,
 				 unsigned char val);

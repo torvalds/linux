@@ -33,19 +33,14 @@
 #define DBG(x...)
 #endif
 
-int mpc83xx_pci2_busno;
-
-int mpc83xx_exclude_device(u_char bus, u_char devfn)
+int mpc83xx_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
 {
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
+	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (mpc83xx_pci2_busno)
-		if (bus == (mpc83xx_pci2_busno) && PCI_SLOT(devfn) == 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
 	return PCIBIOS_SUCCESSFUL;
 }
 
-int __init add_bridge(struct device_node *dev)
+int __init mpc83xx_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -66,11 +61,10 @@ int __init add_bridge(struct device_node *dev)
 		       " bus 0\n", dev->full_name);
 	}
 
-	hose = pcibios_alloc_controller();
+	pci_assign_all_buses = 1;
+	hose = pcibios_alloc_controller(dev);
 	if (!hose)
 		return -ENOMEM;
-	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
@@ -86,8 +80,6 @@ int __init add_bridge(struct device_node *dev)
 	if ((rsrc.start & 0xfffff) == 0x8600) {
 		setup_indirect_pci(hose, immr + 0x8380, immr + 0x8384);
 		primary = 0;
-		hose->bus_offset = hose->first_busno;
-		mpc83xx_pci2_busno = hose->first_busno;
 	}
 
 	printk(KERN_INFO "Found MPC83xx PCI host bridge at 0x%016llx. "

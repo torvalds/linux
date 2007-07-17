@@ -123,7 +123,7 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	strcpy(np->full_name, path);
 
 	np->properties = proplist;
-	OF_MARK_DYNAMIC(np);
+	of_node_set_flag(np, OF_DYNAMIC);
 	kref_init(&np->kref);
 
 	np->parent = derive_parent(path);

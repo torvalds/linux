@@ -43,16 +43,9 @@ asmlinkage long ppc_newuname(struct new_utsname __user * name);
 
 asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset,
 		size_t sigsetsize);
-
-#ifndef __powerpc64__
-asmlinkage long sys_sigaltstack(const stack_t __user *uss,
-		stack_t __user *uoss, int r5, int r6, int r7, int r8,
-		struct pt_regs *regs);
-#else /* __powerpc64__ */
 asmlinkage long sys_sigaltstack(const stack_t __user *uss,
 		stack_t __user *uoss, unsigned long r5, unsigned long r6,
 		unsigned long r7, unsigned long r8, struct pt_regs *regs);
-#endif /* __powerpc64__ */
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_SYSCALLS_H */
