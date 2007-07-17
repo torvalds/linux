@@ -75,6 +75,8 @@
 #include <asm/pgalloc.h>
 #include "drm.h"
 
+#include <linux/idr.h>
+
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
 
@@ -676,8 +678,7 @@ struct drm_device {
 	int ctx_count;			/**< Number of context handles */
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
-	struct drm_map **context_sareas;	    /**< per-context SAREA's */
-	int max_context;
+	struct idr ctx_idr;
 
 	struct list_head vmalist;	/**< List of vmas (for debugging) */
 	struct drm_lock_data lock;	/**< Information on hardware lock */
