@@ -142,6 +142,9 @@
 /* Micrel KS8695 */
 #define PORT_KS8695	76
 
+/* Broadcom SB1250, etc. SOC */
+#define PORT_SB1250_DUART	77
+
 
 #ifdef __KERNEL__
 

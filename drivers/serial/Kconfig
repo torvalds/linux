@@ -338,6 +338,34 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_SB1250_DUART
+	tristate "BCM1xxx on-chip DUART serial support"
+	depends on SIBYTE_SB1xxx_SOC=y
+	select SERIAL_CORE
+	default y
+	---help---
+	  Support for the asynchronous serial interface (DUART) included in
+	  the BCM1250 and derived System-On-a-Chip (SOC) devices.  Note that
+	  the letter D in DUART stands for "dual", which is how the device
+	  is implemented.  Depending on the SOC configuration there may be
+	  one or more DUARTs available of which all are handled.
+
+	  If unsure, say Y.  To compile this driver as a module, choose M here:
+	  the module will be called sb1250-duart.
+
+config SERIAL_SB1250_DUART_CONSOLE
+	bool "Support for console on a BCM1xxx DUART serial port"
+	depends on SERIAL_SB1250_DUART=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  If unsure, say Y.
+
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
 	depends on (ARM && ARCH_AT91) || AVR32
