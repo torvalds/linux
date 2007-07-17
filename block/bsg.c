@@ -33,7 +33,8 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/sg.h>
 
-static char bsg_version[] = "block layer sg (bsg) 0.4";
+#define BSG_DESCRIPTION	"Block layer SCSI generic (bsg) driver"
+#define BSG_VERSION	"0.4"
 
 struct bsg_device {
 	request_queue_t *queue;
@@ -68,22 +69,15 @@ enum {
 #define dprintk(fmt, args...)
 #endif
 
-#define list_entry_bc(entry)	list_entry((entry), struct bsg_command, list)
-
-/*
- * just for testing
- */
-#define BSG_MAJOR	(240)
-
 static DEFINE_MUTEX(bsg_mutex);
 static int bsg_device_nr, bsg_minor_idx;
 
-#define BSG_LIST_SIZE	(8)
-#define bsg_list_idx(minor)	((minor) & (BSG_LIST_SIZE - 1))
-static struct hlist_head bsg_device_list[BSG_LIST_SIZE];
+#define BSG_LIST_ARRAY_SIZE	8
+static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
 
 static struct class *bsg_class;
 static LIST_HEAD(bsg_class_list);
+static int bsg_major;
 
 static struct kmem_cache *bsg_cmd_cachep;
 
@@ -128,7 +122,7 @@ static struct bsg_command *bsg_alloc_command(struct bsg_device *bd)
 	bd->queued_cmds++;
 	spin_unlock_irq(&bd->lock);
 
-	bc = kmem_cache_alloc(bsg_cmd_cachep, GFP_USER);
+	bc = kmem_cache_zalloc(bsg_cmd_cachep, GFP_KERNEL);
 	if (unlikely(!bc)) {
 		spin_lock_irq(&bd->lock);
 		bd->queued_cmds--;
@@ -136,7 +130,6 @@ static struct bsg_command *bsg_alloc_command(struct bsg_device *bd)
 		goto out;
 	}
 
-	memset(bc, 0, sizeof(*bc));
 	bc->bd = bd;
 	INIT_LIST_HEAD(&bc->list);
 	dprintk("%s: returning free cmd %p\n", bd->name, bc);
@@ -146,22 +139,12 @@ out:
 	return bc;
 }
 
-static inline void
-bsg_del_done_cmd(struct bsg_device *bd, struct bsg_command *bc)
+static inline struct hlist_head *bsg_dev_idx_hash(int index)
 {
-	bd->done_cmds--;
-	list_del(&bc->list);
+	return &bsg_device_list[index & (BSG_LIST_ARRAY_SIZE - 1)];
 }
 
-static inline void
-bsg_add_done_cmd(struct bsg_device *bd, struct bsg_command *bc)
-{
-	bd->done_cmds++;
-	list_add_tail(&bc->list, &bd->done_list);
-	wake_up(&bd->wq_done);
-}
-
-static inline int bsg_io_schedule(struct bsg_device *bd, int state)
+static int bsg_io_schedule(struct bsg_device *bd)
 {
 	DEFINE_WAIT(wait);
 	int ret = 0;
@@ -186,13 +169,10 @@ static inline int bsg_io_schedule(struct bsg_device *bd, int state)
 		goto unlock;
 	}
 
-	prepare_to_wait(&bd->wq_done, &wait, state);
+	prepare_to_wait(&bd->wq_done, &wait, TASK_UNINTERRUPTIBLE);
 	spin_unlock_irq(&bd->lock);
 	io_schedule();
 	finish_wait(&bd->wq_done, &wait);
-
-	if ((state == TASK_INTERRUPTIBLE) && signal_pending(current))
-		ret = -ERESTARTSYS;
 
 	return ret;
 unlock:
@@ -272,7 +252,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 {
 	request_queue_t *q = bd->queue;
 	struct request *rq, *next_rq = NULL;
-	int ret, rw = 0; /* shut up gcc */
+	int ret, rw;
 	unsigned int dxfer_len;
 	void *dxferp = NULL;
 
@@ -354,9 +334,11 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
 	bc->hdr.duration = jiffies_to_msecs(jiffies - bc->hdr.duration);
 
 	spin_lock_irqsave(&bd->lock, flags);
-	list_del(&bc->list);
-	bsg_add_done_cmd(bd, bc);
+	list_move_tail(&bc->list, &bd->done_list);
+	bd->done_cmds++;
 	spin_unlock_irqrestore(&bd->lock, flags);
+
+	wake_up(&bd->wq_done);
 }
 
 /*
@@ -387,14 +369,15 @@ static void bsg_add_command(struct bsg_device *bd, request_queue_t *q,
 	blk_execute_rq_nowait(q, NULL, rq, 1, bsg_rq_end_io);
 }
 
-static inline struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
+static struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
 {
 	struct bsg_command *bc = NULL;
 
 	spin_lock_irq(&bd->lock);
 	if (bd->done_cmds) {
-		bc = list_entry_bc(bd->done_list.next);
-		bsg_del_done_cmd(bd, bc);
+		bc = list_entry(bd->done_list.next, struct bsg_command, list);
+		list_del(&bc->list);
+		bd->done_cmds--;
 	}
 	spin_unlock_irq(&bd->lock);
 
@@ -450,8 +433,8 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	hdr->response_len = 0;
 
 	if (rq->sense_len && hdr->response) {
-		int len = min((unsigned int) hdr->max_response_len,
-			      rq->sense_len);
+		int len = min_t(unsigned int, hdr->max_response_len,
+					rq->sense_len);
 
 		ret = copy_to_user((void*)(unsigned long)hdr->response,
 				   rq->sense, len);
@@ -486,7 +469,7 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 	 */
 	ret = 0;
 	do {
-		ret = bsg_io_schedule(bd, TASK_UNINTERRUPTIBLE);
+		ret = bsg_io_schedule(bd);
 		/*
 		 * look for -ENODATA specifically -- we'll sometimes get
 		 * -ERESTARTSYS when we've taken a signal, but we can't
@@ -523,7 +506,7 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 	return ret;
 }
 
-static ssize_t
+static int
 __bsg_read(char __user *buf, size_t count, struct bsg_device *bd,
 	   const struct iovec *iov, ssize_t *bytes_read)
 {
@@ -550,7 +533,7 @@ __bsg_read(char __user *buf, size_t count, struct bsg_device *bd,
 		ret = blk_complete_sgv4_hdr_rq(bc->rq, &bc->hdr, bc->bio,
 					       bc->bidi_bio);
 
-		if (copy_to_user(buf, (char *) &bc->hdr, sizeof(bc->hdr)))
+		if (copy_to_user(buf, &bc->hdr, sizeof(bc->hdr)))
 			ret = -EFAULT;
 
 		bsg_free_command(bc);
@@ -582,6 +565,9 @@ static inline void bsg_set_write_perm(struct bsg_device *bd, struct file *file)
 		clear_bit(BSG_F_WRITE_PERM, &bd->flags);
 }
 
+/*
+ * Check if the error is a "real" error that we should return.
+ */
 static inline int err_block_err(int ret)
 {
 	if (ret && ret != -ENOSPC && ret != -ENODATA && ret != -EAGAIN)
@@ -610,8 +596,8 @@ bsg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return bytes_read;
 }
 
-static ssize_t __bsg_write(struct bsg_device *bd, const char __user *buf,
-			   size_t count, ssize_t *bytes_read)
+static int __bsg_write(struct bsg_device *bd, const char __user *buf,
+		       size_t count, ssize_t *bytes_written)
 {
 	struct bsg_command *bc;
 	struct request *rq;
@@ -655,7 +641,7 @@ static ssize_t __bsg_write(struct bsg_device *bd, const char __user *buf,
 		rq = NULL;
 		nr_commands--;
 		buf += sizeof(struct sg_io_v4);
-		*bytes_read += sizeof(struct sg_io_v4);
+		*bytes_written += sizeof(struct sg_io_v4);
 	}
 
 	if (bc)
@@ -668,7 +654,7 @@ static ssize_t
 bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct bsg_device *bd = file->private_data;
-	ssize_t bytes_read;
+	ssize_t bytes_written;
 	int ret;
 
 	dprintk("%s: write %Zd bytes\n", bd->name, count);
@@ -676,18 +662,18 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	bsg_set_block(bd, file);
 	bsg_set_write_perm(bd, file);
 
-	bytes_read = 0;
-	ret = __bsg_write(bd, buf, count, &bytes_read);
-	*ppos = bytes_read;
+	bytes_written = 0;
+	ret = __bsg_write(bd, buf, count, &bytes_written);
+	*ppos = bytes_written;
 
 	/*
 	 * return bytes written on non-fatal errors
 	 */
-	if (!bytes_read || (bytes_read && err_block_err(ret)))
-		bytes_read = ret;
+	if (!bytes_written || (bytes_written && err_block_err(ret)))
+		bytes_written = ret;
 
-	dprintk("%s: returning %Zd\n", bd->name, bytes_read);
-	return bytes_read;
+	dprintk("%s: returning %Zd\n", bd->name, bytes_written);
+	return bytes_written;
 }
 
 static struct bsg_device *bsg_alloc_device(void)
@@ -746,7 +732,7 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 					 struct request_queue *rq,
 					 struct file *file)
 {
-	struct bsg_device *bd = NULL;
+	struct bsg_device *bd;
 #ifdef BSG_DEBUG
 	unsigned char buf[32];
 #endif
@@ -762,7 +748,7 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	atomic_set(&bd->ref_count, 1);
 	bd->minor = iminor(inode);
 	mutex_lock(&bsg_mutex);
-	hlist_add_head(&bd->dev_list, &bsg_device_list[bsg_list_idx(bd->minor)]);
+	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(bd->minor));
 
 	strncpy(bd->name, rq->bsg_dev.class_dev->class_id, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
@@ -774,13 +760,12 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 
 static struct bsg_device *__bsg_get_device(int minor)
 {
-	struct hlist_head *list = &bsg_device_list[bsg_list_idx(minor)];
 	struct bsg_device *bd = NULL;
 	struct hlist_node *entry;
 
 	mutex_lock(&bsg_mutex);
 
-	hlist_for_each(entry, list) {
+	hlist_for_each(entry, bsg_dev_idx_hash(minor)) {
 		bd = hlist_entry(entry, struct bsg_device, dev_list);
 		if (bd->minor == minor) {
 			atomic_inc(&bd->ref_count);
@@ -858,15 +843,10 @@ static unsigned int bsg_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int
-bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	  unsigned long arg)
+static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct bsg_device *bd = file->private_data;
 	int __user *uarg = (int __user *) arg;
-
-	if (!bd)
-		return -ENXIO;
 
 	switch (cmd) {
 		/*
@@ -944,7 +924,7 @@ static struct file_operations bsg_fops = {
 	.poll		=	bsg_poll,
 	.open		=	bsg_open,
 	.release	=	bsg_release,
-	.ioctl		=	bsg_ioctl,
+	.unlocked_ioctl	=	bsg_ioctl,
 	.owner		=	THIS_MODULE,
 };
 
@@ -952,12 +932,11 @@ void bsg_unregister_queue(struct request_queue *q)
 {
 	struct bsg_class_device *bcd = &q->bsg_dev;
 
-	if (!bcd->class_dev)
-		return;
+	WARN_ON(!bcd->class_dev);
 
 	mutex_lock(&bsg_mutex);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
+	class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	bcd->class_dev = NULL;
 	list_del_init(&bcd->list);
 	bsg_device_nr--;
@@ -1003,7 +982,7 @@ retry:
 		bsg_minor_idx = 0;
 
 	bcd->queue = q;
-	dev = MKDEV(BSG_MAJOR, bcd->minor);
+	dev = MKDEV(bsg_major, bcd->minor);
 	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
@@ -1024,7 +1003,7 @@ retry:
 	return 0;
 err:
 	if (class_dev)
-		class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
+		class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
@@ -1061,6 +1040,7 @@ static struct cdev bsg_cdev = {
 static int __init bsg_init(void)
 {
 	int ret, i;
+	dev_t devid;
 
 	bsg_cmd_cachep = kmem_cache_create("bsg_cmd",
 				sizeof(struct bsg_command), 0, 0, NULL, NULL);
@@ -1069,46 +1049,47 @@ static int __init bsg_init(void)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < BSG_LIST_SIZE; i++)
+	for (i = 0; i < BSG_LIST_ARRAY_SIZE; i++)
 		INIT_HLIST_HEAD(&bsg_device_list[i]);
 
 	bsg_class = class_create(THIS_MODULE, "bsg");
 	if (IS_ERR(bsg_class)) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		return PTR_ERR(bsg_class);
+		ret = PTR_ERR(bsg_class);
+		goto destroy_kmemcache;
 	}
 
-	ret = register_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS, "bsg");
-	if (ret) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		return ret;
-	}
+	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
+	if (ret)
+		goto destroy_bsg_class;
+
+	bsg_major = MAJOR(devid);
 
 	cdev_init(&bsg_cdev, &bsg_fops);
-	ret = cdev_add(&bsg_cdev, MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
-	if (ret) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		unregister_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
-		return ret;
-	}
+	ret = cdev_add(&bsg_cdev, MKDEV(bsg_major, 0), BSG_MAX_DEVS);
+	if (ret)
+		goto unregister_chrdev;
 
 	ret = scsi_register_interface(&bsg_intf);
-	if (ret) {
-		printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		unregister_chrdev(BSG_MAJOR, "bsg");
-		return ret;
-	}
+	if (ret)
+		goto remove_cdev;
 
-	printk(KERN_INFO "%s loaded\n", bsg_version);
+	printk(KERN_INFO BSG_DESCRIPTION " version " BSG_VERSION
+	       " loaded (major %d)\n", bsg_major);
 	return 0;
+remove_cdev:
+	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
+	cdev_del(&bsg_cdev);
+unregister_chrdev:
+	unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
+destroy_bsg_class:
+	class_destroy(bsg_class);
+destroy_kmemcache:
+	kmem_cache_destroy(bsg_cmd_cachep);
+	return ret;
 }
 
 MODULE_AUTHOR("Jens Axboe");
-MODULE_DESCRIPTION("Block layer SGSI generic (sg) driver");
+MODULE_DESCRIPTION(BSG_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
 device_initcall(bsg_init);

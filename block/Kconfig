@@ -52,11 +52,16 @@ config LSF
 endif # BLOCK
 
 config BLK_DEV_BSG
-	bool "Block layer SG support"
+	bool "Block layer SG support v4 (EXPERIMENTAL)"
 	depends on (SCSI=y) && EXPERIMENTAL
-	default y
 	---help---
-	Saying Y here will enable generic SG (SCSI generic) v4
-	support for any block device.
+	Saying Y here will enable generic SG (SCSI generic) v4 support
+	for any block device.
+
+	Unlike SG v3 (aka block/scsi_ioctl.c drivers/scsi/sg.c), SG v4
+	can handle complicated SCSI commands: tagged variable length cdbs
+	with bidirectional data transfers and generic request/response
+	protocols (e.g. Task Management Functions and SMP in Serial
+	Attached SCSI).
 
 source block/Kconfig.iosched
