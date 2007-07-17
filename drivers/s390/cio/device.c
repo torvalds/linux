@@ -272,7 +272,7 @@ modalias_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device_id *id = &(cdev->id);
 	int len;
 
-	len = snprint_alias(buf, PAGE_SIZE, id, "\n") + 1;
+	len = snprint_alias(buf, PAGE_SIZE, id, "\n");
 
 	return len > PAGE_SIZE ? PAGE_SIZE : len;
 }
