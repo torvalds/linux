@@ -501,3 +501,11 @@ int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data)
 		return -EIO;
 	return put_user(tmp, (unsigned long __user *)data);
 }
+
+int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
+{
+	int copied;
+
+	copied = access_process_vm(tsk, addr, &data, sizeof(data), 1);
+	return (copied == sizeof(data)) ? 0 : -EIO;
+}

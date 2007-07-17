@@ -111,6 +111,7 @@ static inline void ptrace_unlink(struct task_struct *child)
 }
 
 int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data);
+int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data);
 
 #ifndef force_successful_syscall_return
 /*

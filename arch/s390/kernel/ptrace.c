@@ -314,10 +314,7 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 		/* Remove high order bit from address (only for 31 bit). */
 		addr &= PSW_ADDR_INSN;
 		/* write the word at location addr. */
-		copied = access_process_vm(child, addr, &data, sizeof(data),1);
-		if (copied != sizeof(data))
-			return -EIO;
-		return 0;
+		return generic_ptrace_pokedata(child, addr, data);
 
 	case PTRACE_POKEUSR:
 		/* write the word at location addr in the USER area */

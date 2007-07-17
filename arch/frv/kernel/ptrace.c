@@ -168,9 +168,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = -EIO;
 		if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
 			break;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1) != sizeof(data))
-			break;
-		ret = 0;
+		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */

@@ -64,11 +64,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
 	case PTRACE_POKEDATA:
-		ret = -EIO;
-		if (access_process_vm(child, addr, &data, sizeof(data), 
-				      1) != sizeof(data))
-			break;
-		ret = 0;
+		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */

@@ -128,10 +128,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKETEXT: /* write the word at location addr. */
 	case PTRACE_POKEDATA:
-		if (access_process_vm(child, addr, &data, sizeof(data), 1)
-		    == sizeof(data))
-			break;
-		ret = -EIO;
+		ret = generic_ptrace_pokedata(child, addr, data);
 		goto out;
 
 	case PTRACE_POKEUSR:
