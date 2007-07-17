@@ -2737,7 +2737,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.height =
 				    fh->v4l_settings.height;
 				fmt->fmt.pix.sizeimage =
-				    fh->v4l_buffers.buffer_size;
+				    fh->v4l_settings.bytesperline *
+				    fh->v4l_settings.height;
 				fmt->fmt.pix.pixelformat =
 				    fh->v4l_settings.format->fourcc;
 				fmt->fmt.pix.colorspace =
@@ -2984,8 +2985,9 @@ zoran_do_ioctl (struct inode *inode,
 
 				/* tell the user the
 				 * results/missing stuff */
-				fmt->fmt.pix.sizeimage = fh->v4l_buffers.buffer_size	/*zr->gbpl * zr->gheight */
-				    ;
+				fmt->fmt.pix.sizeimage =
+					fh->v4l_settings.height *
+					fh->v4l_settings.bytesperline;
 				if (BUZ_MAX_HEIGHT <
 				    (fh->v4l_settings.height * 2))
 					fmt->fmt.pix.field =
