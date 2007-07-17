@@ -1229,6 +1229,10 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 }
 
 /*
+ * Uses rq_client and rq_gssclient to find an export; uses rq_client (an
+ * auth_unix client) if it's available and has secinfo information;
+ * otherwise, will try to use rq_gssclient.
+ *
  * Called from functions that handle requests; functions that do work on
  * behalf of mountd are passed a single client name to use, and should
  * use exp_get_by_name() or exp_find().
@@ -1237,29 +1241,83 @@ struct svc_export *
 rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
-	struct auth_domain *clp;
+	struct svc_export *gssexp, *exp = NULL;
 
-	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
-	return exp_get_by_name(clp, mnt, dentry, &rqstp->rq_chandle);
+	if (rqstp->rq_client == NULL)
+		goto gss;
+
+	/* First try the auth_unix client: */
+	exp = exp_get_by_name(rqstp->rq_client, mnt, dentry,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(exp) == -ENOENT)
+		goto gss;
+	if (IS_ERR(exp))
+		return exp;
+	/* If it has secinfo, assume there are no gss/... clients */
+	if (exp->ex_nflavors > 0)
+		return exp;
+gss:
+	/* Otherwise, try falling back on gss client */
+	if (rqstp->rq_gssclient == NULL)
+		return exp;
+	gssexp = exp_get_by_name(rqstp->rq_gssclient, mnt, dentry,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(gssexp) == -ENOENT)
+		return exp;
+	if (exp && !IS_ERR(exp))
+		exp_put(exp);
+	return gssexp;
 }
 
 struct svc_export *
 rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 {
-	struct auth_domain *clp;
+	struct svc_export *gssexp, *exp = NULL;
 
-	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
-	return exp_find(clp, fsid_type, fsidv, &rqstp->rq_chandle);
+	if (rqstp->rq_client == NULL)
+		goto gss;
+
+	/* First try the auth_unix client: */
+	exp = exp_find(rqstp->rq_client, fsid_type, fsidv, &rqstp->rq_chandle);
+	if (PTR_ERR(exp) == -ENOENT)
+		goto gss;
+	if (IS_ERR(exp))
+		return exp;
+	/* If it has secinfo, assume there are no gss/... clients */
+	if (exp->ex_nflavors > 0)
+		return exp;
+gss:
+	/* Otherwise, try falling back on gss client */
+	if (rqstp->rq_gssclient == NULL)
+		return exp;
+	gssexp = exp_find(rqstp->rq_gssclient, fsid_type, fsidv,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(gssexp) == -ENOENT)
+		return exp;
+	if (exp && !IS_ERR(exp))
+		exp_put(exp);
+	return gssexp;
 }
 
 struct svc_export *
 rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
-	struct auth_domain *clp;
+	struct svc_export *exp;
 
-	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
-	return exp_parent(rqstp->rq_client, mnt, dentry, &rqstp->rq_chandle);
+	dget(dentry);
+	exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
+		struct dentry *parent;
+
+		parent = dget_parent(dentry);
+		dput(dentry);
+		dentry = parent;
+		exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+	}
+	dput(dentry);
+	return exp;
 }
 
 /*
