@@ -120,9 +120,10 @@ int unregister_blkdev(unsigned int major, const char *name)
 	for (n = &major_names[index]; *n; n = &(*n)->next)
 		if ((*n)->major == major)
 			break;
-	if (!*n || strcmp((*n)->name, name))
+	if (!*n || strcmp((*n)->name, name)) {
+		WARN_ON(1);
 		ret = -EINVAL;
-	else {
+	} else {
 		p = *n;
 		*n = p->next;
 	}
