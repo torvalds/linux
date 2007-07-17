@@ -139,6 +139,7 @@ err_put_filp:
 	put_filp(file);
 	return error;
 }
+EXPORT_SYMBOL_GPL(anon_inode_getfd);
 
 /*
  * A single inode exists for all anon_inode files. Contrary to pipes,

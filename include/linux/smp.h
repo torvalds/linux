@@ -7,6 +7,7 @@
  */
 
 #include <linux/errno.h>
+#include <asm/system.h>
 
 extern void cpu_idle(void);
 
@@ -102,7 +103,11 @@ static inline void smp_send_reschedule(int cpu) { }
 static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
 					   void *info, int retry, int wait)
 {
-	return -EBUSY;
+	WARN_ON(cpuid != 0);
+	local_irq_disable();
+	func(info);
+	local_irq_enable();
+	return 0;
 }
 
 #endif /* !SMP */
