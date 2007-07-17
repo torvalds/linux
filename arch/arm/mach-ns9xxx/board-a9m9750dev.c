@@ -77,7 +77,7 @@ static void a9m9750dev_fpga_demux_handler(unsigned int irq,
 
 		desc = irq_desc + FPGA_IRQ(irqno);
 
-		desc_handle_irq(irqno, desc);
+		desc_handle_irq(FPGA_IRQ(irqno), desc);
 	}
 }
 
