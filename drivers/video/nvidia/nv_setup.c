@@ -166,11 +166,13 @@ u8 NVReadDacData(struct nvidia_par *par)
 static int NVIsConnected(struct nvidia_par *par, int output)
 {
 	volatile u32 __iomem *PRAMDAC = par->PRAMDAC0;
-	u32 reg52C, reg608;
+	u32 reg52C, reg608, dac0_reg608 = 0;
 	int present;
 
-	if (output)
-		PRAMDAC += 0x800;
+	if (output) {
+	    dac0_reg608 = NV_RD32(PRAMDAC, 0x0608);
+	    PRAMDAC += 0x800;
+	}
 
 	reg52C = NV_RD32(PRAMDAC, 0x052C);
 	reg608 = NV_RD32(PRAMDAC, 0x0608);
@@ -194,8 +196,8 @@ static int NVIsConnected(struct nvidia_par *par, int output)
 	else
 		printk("nvidiafb: CRTC%i analog not found\n", output);
 
-	NV_WR32(par->PRAMDAC0, 0x0608, NV_RD32(par->PRAMDAC0, 0x0608) &
-		0x0000EFFF);
+	if (output)
+	    NV_WR32(par->PRAMDAC0, 0x0608, dac0_reg608);
 
 	NV_WR32(PRAMDAC, 0x052C, reg52C);
 	NV_WR32(PRAMDAC, 0x0608, reg608);
