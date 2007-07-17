@@ -178,7 +178,7 @@ void __init board_a9m9750dev_init_machine(void)
 
 	/* setup static CS0: memory configuration */
 	reg = MEM_SMC(0);
-	REGSET(reg, MEM_SMC, WSMC, OFF);
+	REGSET(reg, MEM_SMC, PSMC, OFF);
 	REGSET(reg, MEM_SMC, BSMC, OFF);
 	REGSET(reg, MEM_SMC, EW, OFF);
 	REGSET(reg, MEM_SMC, PB, 1);
