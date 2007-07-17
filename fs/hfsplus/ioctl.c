@@ -38,7 +38,7 @@ int hfsplus_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		if (IS_RDONLY(inode))
 			return -EROFS;
 
-		if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+		if (!is_owner_or_cap(inode))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *)arg))

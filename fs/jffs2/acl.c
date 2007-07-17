@@ -435,7 +435,7 @@ static int jffs2_acl_setxattr(struct inode *inode, int type, const void *value, 
 	struct posix_acl *acl;
 	int rc;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(inode))
 		return -EPERM;
 
 	if (value) {

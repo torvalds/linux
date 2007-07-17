@@ -284,6 +284,7 @@ extern int dir_notify_enable;
 #include <linux/pid.h>
 #include <linux/mutex.h>
 #include <linux/sysctl.h>
+#include <linux/capability.h>
 
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
@@ -989,6 +990,9 @@ enum {
 #define get_fs_excl() atomic_inc(&current->fs_excl)
 #define put_fs_excl() atomic_dec(&current->fs_excl)
 #define has_fs_excl() atomic_read(&current->fs_excl)
+
+#define is_owner_or_cap(inode)	\
+	((current->fsuid == (inode)->i_uid) || capable(CAP_FOWNER))
 
 /* not quite ready to be deprecated, but... */
 extern void lock_super(struct super_block *);
