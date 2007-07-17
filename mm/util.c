@@ -76,7 +76,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 
 	if (unlikely(!new_size)) {
 		kfree(p);
-		return NULL;
+		return ZERO_SIZE_PTR;
 	}
 
 	ks = ksize(p);

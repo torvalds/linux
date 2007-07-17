@@ -31,6 +31,19 @@
 #define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
 
 /*
+ * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+ *
+ * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
+ *
+ * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
+ * Both make kfree a no-op.
+ */
+#define ZERO_SIZE_PTR ((void *)16)
+
+#define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) < \
+				(unsigned long)ZERO_SIZE_PTR)
+
+/*
  * struct kmem_cache related prototypes
  */
 void __init kmem_cache_init(void);

@@ -347,7 +347,7 @@ static void slob_free(void *block, int size)
 	slobidx_t units;
 	unsigned long flags;
 
-	if (!block)
+	if (ZERO_OR_NULL_PTR(block))
 		return;
 	BUG_ON(!size);
 
@@ -424,10 +424,13 @@ out:
 
 void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 {
+	unsigned int *m;
 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
 
 	if (size < PAGE_SIZE - align) {
-		unsigned int *m;
+		if (!size)
+			return ZERO_SIZE_PTR;
+
 		m = slob_alloc(size + align, gfp, align, node);
 		if (m)
 			*m = size;
@@ -450,7 +453,7 @@ void kfree(const void *block)
 {
 	struct slob_page *sp;
 
-	if (!block)
+	if (ZERO_OR_NULL_PTR(block))
 		return;
 
 	sp = (struct slob_page *)virt_to_page(block);
@@ -468,7 +471,7 @@ size_t ksize(const void *block)
 {
 	struct slob_page *sp;
 
-	if (!block)
+	if (ZERO_OR_NULL_PTR(block))
 		return 0;
 
 	sp = (struct slob_page *)virt_to_page(block);

@@ -32,6 +32,10 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
+
+		if (!size)
+			return ZERO_SIZE_PTR;
+
 #define CACHE(x) \
 		if (size <= x) \
 			goto found; \
@@ -58,6 +62,10 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
+
+		if (!size)
+			return ZERO_SIZE_PTR;
+
 #define CACHE(x) \
 		if (size <= x) \
 			goto found; \
@@ -88,6 +96,10 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
+
+		if (!size)
+			return ZERO_SIZE_PTR;
+
 #define CACHE(x) \
 		if (size <= x) \
 			goto found; \
