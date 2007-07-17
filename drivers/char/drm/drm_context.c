@@ -53,26 +53,14 @@
  * \param ctx_handle context handle.
  *
  * Clears the bit specified by \p ctx_handle in drm_device::ctx_bitmap and the entry
- * in drm_device::context_sareas, while holding the drm_device::struct_mutex
+ * in drm_device::ctx_idr, while holding the drm_device::struct_mutex
  * lock.
  */
 void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
 {
-	if (ctx_handle < 0)
-		goto failed;
-	if (!dev->ctx_bitmap)
-		goto failed;
-
-	if (ctx_handle < DRM_MAX_CTXBITMAP) {
-		mutex_lock(&dev->struct_mutex);
-		clear_bit(ctx_handle, dev->ctx_bitmap);
-		dev->context_sareas[ctx_handle] = NULL;
-		mutex_unlock(&dev->struct_mutex);
-		return;
-	}
-      failed:
-	DRM_ERROR("Attempt to free invalid context handle: %d\n", ctx_handle);
-	return;
+	mutex_lock(&dev->struct_mutex);
+	idr_remove(&dev->ctx_idr, ctx_handle);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -81,62 +69,28 @@ void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
  * \param dev DRM device.
  * \return (non-negative) context handle on success or a negative number on failure.
  *
- * Find the first zero bit in drm_device::ctx_bitmap and (re)allocates
- * drm_device::context_sareas to accommodate the new entry while holding the
+ * Allocate a new idr from drm_device::ctx_idr while holding the
  * drm_device::struct_mutex lock.
  */
 static int drm_ctxbitmap_next(struct drm_device * dev)
 {
-	int bit;
+	int new_id;
+	int ret;
 
-	if (!dev->ctx_bitmap)
-		return -1;
-
+again:
+	if (idr_pre_get(&dev->ctx_idr, GFP_KERNEL) == 0) {
+		DRM_ERROR("Out of memory expanding drawable idr\n");
+		return -ENOMEM;
+	}
 	mutex_lock(&dev->struct_mutex);
-	bit = find_first_zero_bit(dev->ctx_bitmap, DRM_MAX_CTXBITMAP);
-	if (bit < DRM_MAX_CTXBITMAP) {
-		set_bit(bit, dev->ctx_bitmap);
-		DRM_DEBUG("drm_ctxbitmap_next bit : %d\n", bit);
-		if ((bit + 1) > dev->max_context) {
-			dev->max_context = (bit + 1);
-			if (dev->context_sareas) {
-				struct drm_map **ctx_sareas;
-
-				ctx_sareas = drm_realloc(dev->context_sareas,
-							 (dev->max_context -
-							  1) *
-							 sizeof(*dev->
-								context_sareas),
-							 dev->max_context *
-							 sizeof(*dev->
-								context_sareas),
-							 DRM_MEM_MAPS);
-				if (!ctx_sareas) {
-					clear_bit(bit, dev->ctx_bitmap);
-					mutex_unlock(&dev->struct_mutex);
-					return -1;
-				}
-				dev->context_sareas = ctx_sareas;
-				dev->context_sareas[bit] = NULL;
-			} else {
-				/* max_context == 1 at this point */
-				dev->context_sareas =
-				    drm_alloc(dev->max_context *
-					      sizeof(*dev->context_sareas),
-					      DRM_MEM_MAPS);
-				if (!dev->context_sareas) {
-					clear_bit(bit, dev->ctx_bitmap);
-					mutex_unlock(&dev->struct_mutex);
-					return -1;
-				}
-				dev->context_sareas[bit] = NULL;
-			}
-		}
+	ret = idr_get_new_above(&dev->ctx_idr, NULL,
+				DRM_RESERVED_CONTEXTS, &new_id);
+	if (ret == -EAGAIN) {
 		mutex_unlock(&dev->struct_mutex);
-		return bit;
+		goto again;
 	}
 	mutex_unlock(&dev->struct_mutex);
-	return -1;
+	return new_id;
 }
 
 /**
@@ -144,31 +98,11 @@ static int drm_ctxbitmap_next(struct drm_device * dev)
  *
  * \param dev DRM device.
  *
- * Allocates and initialize drm_device::ctx_bitmap and drm_device::context_sareas, while holding
- * the drm_device::struct_mutex lock.
+ * Initialise the drm_device::ctx_idr
  */
 int drm_ctxbitmap_init(struct drm_device * dev)
 {
-	int i;
-	int temp;
-
-	mutex_lock(&dev->struct_mutex);
-	dev->ctx_bitmap = (unsigned long *)drm_alloc(PAGE_SIZE,
-						     DRM_MEM_CTXBITMAP);
-	if (dev->ctx_bitmap == NULL) {
-		mutex_unlock(&dev->struct_mutex);
-		return -ENOMEM;
-	}
-	memset((void *)dev->ctx_bitmap, 0, PAGE_SIZE);
-	dev->context_sareas = NULL;
-	dev->max_context = -1;
-	mutex_unlock(&dev->struct_mutex);
-
-	for (i = 0; i < DRM_RESERVED_CONTEXTS; i++) {
-		temp = drm_ctxbitmap_next(dev);
-		DRM_DEBUG("drm_ctxbitmap_init : %d\n", temp);
-	}
-
+	idr_init(&dev->ctx_idr);
 	return 0;
 }
 
@@ -177,17 +111,13 @@ int drm_ctxbitmap_init(struct drm_device * dev)
  *
  * \param dev DRM device.
  *
- * Frees drm_device::ctx_bitmap and drm_device::context_sareas, while holding
- * the drm_device::struct_mutex lock.
+ * Free all idr members using drm_ctx_sarea_free helper function
+ * while holding the drm_device::struct_mutex lock.
  */
 void drm_ctxbitmap_cleanup(struct drm_device * dev)
 {
 	mutex_lock(&dev->struct_mutex);
-	if (dev->context_sareas)
-		drm_free(dev->context_sareas,
-			 sizeof(*dev->context_sareas) *
-			 dev->max_context, DRM_MEM_MAPS);
-	drm_free((void *)dev->ctx_bitmap, PAGE_SIZE, DRM_MEM_CTXBITMAP);
+	idr_remove_all(&dev->ctx_idr);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -206,7 +136,7 @@ void drm_ctxbitmap_cleanup(struct drm_device * dev)
  * \param arg user argument pointing to a drm_ctx_priv_map structure.
  * \return zero on success or a negative number on failure.
  *
- * Gets the map from drm_device::context_sareas with the handle specified and
+ * Gets the map from drm_device::ctx_idr with the handle specified and
  * returns its handle.
  */
 int drm_getsareactx(struct inode *inode, struct file *filp,
@@ -223,13 +153,13 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 		return -EFAULT;
 
 	mutex_lock(&dev->struct_mutex);
-	if (dev->max_context < 0
-	    || request.ctx_id >= (unsigned)dev->max_context) {
+
+	map = idr_find(&dev->ctx_idr, request.ctx_id);
+	if (!map) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
-	map = dev->context_sareas[request.ctx_id];
 	mutex_unlock(&dev->struct_mutex);
 
 	request.handle = NULL;
@@ -258,7 +188,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
  * \return zero on success or a negative number on failure.
  *
  * Searches the mapping specified in \p arg and update the entry in
- * drm_device::context_sareas with it.
+ * drm_device::ctx_idr with it.
  */
 int drm_setsareactx(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg)
@@ -288,11 +218,10 @@ int drm_setsareactx(struct inode *inode, struct file *filp,
 	map = r_list->map;
 	if (!map)
 		goto bad;
-	if (dev->max_context < 0)
+
+	if (IS_ERR(idr_replace(&dev->ctx_idr, map, request.ctx_id)))
 		goto bad;
-	if (request.ctx_id >= (unsigned)dev->max_context)
-		goto bad;
-	dev->context_sareas[request.ctx_id] = map;
+
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }

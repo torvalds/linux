@@ -75,6 +75,8 @@
 #include <asm/pgalloc.h>
 #include "drm.h"
 
+#include <linux/idr.h>
+
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
 
@@ -676,8 +678,7 @@ struct drm_device {
 	int ctx_count;			/**< Number of context handles */
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
-	struct drm_map **context_sareas;	    /**< per-context SAREA's */
-	int max_context;
+	struct idr ctx_idr;
 
 	struct list_head vmalist;	/**< List of vmas (for debugging) */
 	struct drm_lock_data lock;	/**< Information on hardware lock */
@@ -750,10 +751,7 @@ struct drm_device {
 	/** \name Drawable information */
 	/*@{ */
 	spinlock_t drw_lock;
-	unsigned int drw_bitfield_length;
-	u32 *drw_bitfield;
-	unsigned int drw_info_length;
-	struct drm_drawable_info **drw_info;
+	struct idr drw_idr;
 	/*@} */
 };
 
@@ -903,6 +901,7 @@ extern int drm_update_drawable_info(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg);
 extern struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev,
 						  drm_drawable_t id);
+extern void drm_drawable_free_all(struct drm_device *dev);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct inode *inode, struct file *filp,
