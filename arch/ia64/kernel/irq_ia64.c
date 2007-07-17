@@ -172,15 +172,13 @@ int bind_irq_vector(int irq, int vector, cpumask_t domain)
 	return ret;
 }
 
-static void clear_irq_vector(int irq)
+static void __clear_irq_vector(int irq)
 {
-	unsigned long flags;
 	int vector, cpu, pos;
 	cpumask_t mask;
 	cpumask_t domain;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
-	spin_lock_irqsave(&vector_lock, flags);
 	BUG_ON((unsigned)irq >= NR_IRQS);
 	BUG_ON(cfg->vector == IRQ_VECTOR_UNASSIGNED);
 	vector = cfg->vector;
@@ -193,6 +191,14 @@ static void clear_irq_vector(int irq)
 	irq_status[irq] = IRQ_UNUSED;
 	pos = vector - IA64_FIRST_DEVICE_VECTOR;
 	cpus_andnot(vector_table[pos], vector_table[pos], domain);
+}
+
+static void clear_irq_vector(int irq)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	__clear_irq_vector(irq);
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
@@ -273,6 +279,36 @@ void destroy_and_reserve_irq(unsigned int irq)
 
 	clear_irq_vector(irq);
 	reserve_irq(irq);
+}
+
+static int __reassign_irq_vector(int irq, int cpu)
+{
+	struct irq_cfg *cfg = &irq_cfg[irq];
+	int vector;
+	cpumask_t domain;
+
+	if (cfg->vector == IRQ_VECTOR_UNASSIGNED || !cpu_online(cpu))
+		return -EINVAL;
+	if (cpu_isset(cpu, cfg->domain))
+		return 0;
+	domain = vector_allocation_domain(cpu);
+	vector = find_unassigned_vector(domain);
+	if (vector < 0)
+		return -ENOSPC;
+	__clear_irq_vector(irq);
+	BUG_ON(__bind_irq_vector(irq, vector, domain));
+	return 0;
+}
+
+int reassign_irq_vector(int irq, int cpu)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	ret = __reassign_irq_vector(irq, cpu);
+	spin_unlock_irqrestore(&vector_lock, flags);
+	return ret;
 }
 
 /*

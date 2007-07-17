@@ -47,6 +47,8 @@
 #define	IOSAPIC_MASK_SHIFT		16
 #define	IOSAPIC_MASK			(1<<IOSAPIC_MASK_SHIFT)
 
+#define IOSAPIC_VECTOR_MASK		0xffffff00
+
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_IOSAPIC

@@ -354,9 +354,11 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 
 	irq &= (~IA64_IRQ_REDIRECTED);
 
-	/* IRQ migration across domain is not supported yet */
-	cpus_and(mask, mask, irq_to_domain(irq));
+	cpus_and(mask, mask, cpu_online_map);
 	if (cpus_empty(mask))
+		return;
+
+	if (reassign_irq_vector(irq, first_cpu(mask)))
 		return;
 
 	dest = cpu_physical_id(first_cpu(mask));
@@ -376,6 +378,8 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 	else
 		/* change delivery mode to fixed */
 		low32 |= (IOSAPIC_FIXED << IOSAPIC_DELIVERY_SHIFT);
+	low32 &= IOSAPIC_VECTOR_MASK;
+	low32 |= irq_to_vector(irq);
 
 	iosapic_intr_info[irq].low32 = low32;
 	iosapic_intr_info[irq].dest = dest;
@@ -404,10 +408,20 @@ iosapic_end_level_irq (unsigned int irq)
 {
 	ia64_vector vec = irq_to_vector(irq);
 	struct iosapic_rte_info *rte;
+	int do_unmask_irq = 0;
 
-	move_native_irq(irq);
+	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
+		do_unmask_irq = 1;
+		mask_irq(irq);
+	}
+
 	list_for_each_entry(rte, &iosapic_intr_info[irq].rtes, rte_list)
 		iosapic_eoi(rte->iosapic->addr, vec);
+
+	if (unlikely(do_unmask_irq)) {
+		move_masked_irq(irq);
+		unmask_irq(irq);
+	}
 }
 
 #define iosapic_shutdown_level_irq	mask_irq
