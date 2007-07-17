@@ -913,6 +913,12 @@ M:	mchan@broadcom.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
+BSG (block layer generic sg v4 driver)
+P:	FUJITA Tomonori
+M:	fujita.tomonori@lab.ntt.co.jp
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
