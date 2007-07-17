@@ -167,6 +167,17 @@ config SPI_S3C24XX_GPIO
 	  GPIO lines to provide the SPI bus. This can be used where
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
+
+config SPI_XILINX
+	tristate "Xilinx SPI controller"
+	depends on SPI_MASTER && XILINX_VIRTEX && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This exposes the SPI controller IP from the Xilinx EDK.
+
+	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
+	  Product Specification document (DS464) for hardware details.
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
