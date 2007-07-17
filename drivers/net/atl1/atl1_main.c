@@ -75,6 +75,7 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/mii.h>
+#include <linux/interrupt.h>
 #include <net/checksum.h>
 
 #include <asm/atomic.h>
