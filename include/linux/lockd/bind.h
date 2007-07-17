@@ -27,6 +27,7 @@ struct nlmsvc_binding {
 						struct nfs_fh *,
 						struct file **);
 	void			(*fclose)(struct file *);
+	unsigned long		(*get_grace_period)(void);
 };
 
 extern struct nlmsvc_binding *	nlmsvc_ops;
@@ -37,5 +38,13 @@ extern struct nlmsvc_binding *	nlmsvc_ops;
 extern int	nlmclnt_proc(struct inode *, int, struct file_lock *);
 extern int	lockd_up(int proto);
 extern void	lockd_down(void);
+
+unsigned long get_nfs_grace_period(void);
+
+#ifdef CONFIG_NFSD_V4
+unsigned long get_nfs4_grace_period(void);
+#else
+static inline unsigned long get_nfs4_grace_period(void) {return 0;}
+#endif
 
 #endif /* LINUX_LOCKD_BIND_H */

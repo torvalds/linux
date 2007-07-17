@@ -51,6 +51,7 @@
 #include <linux/namei.h>
 #include <linux/mutex.h>
 #include <linux/lockd/bind.h>
+#include <linux/module.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -3190,20 +3191,27 @@ nfsd4_load_reboot_recovery_data(void)
 		printk("NFSD: Failure reading reboot recovery data\n");
 }
 
+unsigned long
+get_nfs4_grace_period(void)
+{
+	return max(user_lease_time, lease_time) * HZ;
+}
+
 /* initialization to perform when the nfsd service is started: */
 
 static void
 __nfs4_state_start(void)
 {
-	time_t grace_time;
+	unsigned long grace_time;
 
 	boot_time = get_seconds();
-	grace_time = max(user_lease_time, lease_time);
+	grace_time = get_nfs_grace_period();
 	lease_time = user_lease_time;
 	in_grace = 1;
-	printk("NFSD: starting %ld-second grace period\n", grace_time);
+	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
+	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
-	queue_delayed_work(laundry_wq, &laundromat_work, grace_time*HZ);
+	queue_delayed_work(laundry_wq, &laundromat_work, grace_time);
 }
 
 int
