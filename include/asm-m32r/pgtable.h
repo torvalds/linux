@@ -250,11 +250,6 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	return pte;
 }
 
-static inline  int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
-{
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, ptep);
-}
-
 static inline  int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	return test_and_clear_bit(_PAGE_BIT_ACCESSED, ptep);
@@ -348,7 +343,6 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME

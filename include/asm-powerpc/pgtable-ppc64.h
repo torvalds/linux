@@ -292,29 +292,6 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 	__r;								   \
 })
 
-/*
- * On RW/DIRTY bit transitions we can avoid flushing the hpte. For the
- * moment we always flush but we need to fix hpte_update and test if the
- * optimisation is worth it.
- */
-static inline int __ptep_test_and_clear_dirty(struct mm_struct *mm,
-					      unsigned long addr, pte_t *ptep)
-{
-	unsigned long old;
-
-       	if ((pte_val(*ptep) & _PAGE_DIRTY) == 0)
-		return 0;
-	old = pte_update(mm, addr, ptep, _PAGE_DIRTY, 0);
-	return (old & _PAGE_DIRTY) != 0;
-}
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define ptep_test_and_clear_dirty(__vma, __addr, __ptep)		   \
-({									   \
-	int __r;							   \
-	__r = __ptep_test_and_clear_dirty((__vma)->vm_mm, __addr, __ptep); \
-	__r;								   \
-})
-
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
@@ -340,14 +317,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	int __young = __ptep_test_and_clear_young((__vma)->vm_mm, __address, \
 						  __ptep);		\
 	__young;							\
-})
-
-#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
-#define ptep_clear_flush_dirty(__vma, __address, __ptep)		\
-({									\
-	int __dirty = __ptep_test_and_clear_dirty((__vma)->vm_mm, __address, \
-						  __ptep); 		\
-	__dirty;							\
 })
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR

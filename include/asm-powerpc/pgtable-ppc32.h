@@ -621,13 +621,6 @@ static inline int __ptep_test_and_clear_young(unsigned int context, unsigned lon
 #define ptep_test_and_clear_young(__vma, __addr, __ptep) \
 	__ptep_test_and_clear_young((__vma)->vm_mm->context.id, __addr, __ptep)
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma,
-					    unsigned long addr, pte_t *ptep)
-{
-	return (pte_update(ptep, (_PAGE_DIRTY | _PAGE_HWWRITE), 0) & _PAGE_DIRTY) != 0;
-}
-
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 				       pte_t *ptep)

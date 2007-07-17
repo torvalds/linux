@@ -289,17 +289,6 @@ static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
 	__changed;							\
 })
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\
-	int __ret = 0;							\
-	if (pte_dirty(*(ptep)))						\
-		__ret = test_and_clear_bit(_PAGE_BIT_DIRTY,		\
-						&(ptep)->pte_low);	\
-	if (__ret)							\
-		pte_update((vma)->vm_mm, addr, ptep);			\
-	__ret;								\
-})
-
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define ptep_test_and_clear_young(vma, addr, ptep) ({			\
 	int __ret = 0;							\
@@ -309,16 +298,6 @@ static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
 	if (__ret)							\
 		pte_update((vma)->vm_mm, addr, ptep);			\
 	__ret;								\
-})
-
-#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
-#define ptep_clear_flush_dirty(vma, address, ptep)			\
-({									\
-	int __dirty;							\
-	__dirty = ptep_test_and_clear_dirty((vma), (address), (ptep));	\
-	if (__dirty)							\
-		flush_tlb_page(vma, address);				\
-	__dirty;							\
 })
 
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH

@@ -267,17 +267,6 @@ ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr,
 	return 1;
 }
 
-static inline int
-ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr,
-   			  pte_t *ptep)
-{
-	pte_t pte = *ptep;
-	if (!pte_dirty(pte))
-		return 0;
-	update_pte(ptep, pte_mkclean(pte));
-	return 1;
-}
-
 static inline pte_t
 ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -418,7 +407,6 @@ typedef pte_t *pte_addr_t;
 #endif /* !defined (__ASSEMBLY__) */
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTEP_MKDIRTY
