@@ -11,6 +11,7 @@
  */
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 
 #include <linux/mmc/card.h>
@@ -44,11 +45,7 @@ static int mmc_queue_thread(void *d)
 	struct mmc_queue *mq = d;
 	struct request_queue *q = mq->queue;
 
-	/*
-	 * Set iothread to ensure that we aren't put to sleep by
-	 * the process freezing.  We handle suspension ourselves.
-	 */
-	current->flags |= PF_MEMALLOC|PF_NOFREEZE;
+	current->flags |= PF_MEMALLOC;
 
 	down(&mq->thread_sem);
 	do {

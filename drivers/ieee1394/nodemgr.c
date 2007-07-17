@@ -1699,6 +1699,7 @@ static int nodemgr_host_thread(void *__hi)
 	unsigned int g, generation = 0;
 	int i, reset_cycles = 0;
 
+	set_freezable();
 	/* Setup our device-model entries */
 	nodemgr_create_host_dev_files(host);
 

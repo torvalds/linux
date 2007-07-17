@@ -562,6 +562,7 @@ xfssyncd(
 	bhv_vfs_sync_work_t	*work, *n;
 	LIST_HEAD		(tmp);
 
+	set_freezable();
 	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
 	for (;;) {
 		timeleft = schedule_timeout_interruptible(timeleft);

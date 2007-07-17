@@ -10,6 +10,7 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/notifier.h>
 #include <linux/module.h>
@@ -116,7 +117,6 @@ static int watchdog(void * __bind_cpu)
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
-	current->flags |= PF_NOFREEZE;
 
 	/* initialize timestamp */
 	touch_softlockup_watchdog();

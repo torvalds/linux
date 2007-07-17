@@ -3465,6 +3465,8 @@ static int pktgen_thread_worker(void *arg)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 
+	set_freezable();
+
 	while (!kthread_should_stop()) {
 		pkt_dev = next_to_run(t);
 

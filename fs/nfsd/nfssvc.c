@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/freezer.h>
 #include <linux/fs_struct.h>
 
 #include <linux/sunrpc/types.h>
@@ -432,6 +433,7 @@ nfsd(struct svc_rqst *rqstp)
 	 * dirty pages.
 	 */
 	current->flags |= PF_LESS_THROTTLE;
+	set_freezable();
 
 	/*
 	 * The main request loop

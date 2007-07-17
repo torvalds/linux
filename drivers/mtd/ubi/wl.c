@@ -1346,6 +1346,7 @@ static int ubi_thread(void *u)
 	ubi_msg("background thread \"%s\" started, PID %d",
 		ubi->bgt_name, current->pid);
 
+	set_freezable();
 	for (;;) {
 		int err;
 

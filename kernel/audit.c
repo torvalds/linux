@@ -392,6 +392,7 @@ static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 
+	set_freezable();
 	while (!kthread_should_stop()) {
 		skb = skb_dequeue(&audit_skb_queue);
 		wake_up(&audit_backlog_wait);

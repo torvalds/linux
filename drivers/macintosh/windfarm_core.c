@@ -92,6 +92,7 @@ static int wf_thread_func(void *data)
 
 	DBG("wf: thread started\n");
 
+	set_freezable();
 	while(!kthread_should_stop()) {
 		if (time_after_eq(jiffies, next)) {
 			wf_notify(WF_EVENT_TICK, NULL);

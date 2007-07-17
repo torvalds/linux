@@ -14,6 +14,7 @@
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 #include <net/inet_sock.h>
 
@@ -67,6 +68,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 	daemonize("nfsv4-svc");
 	/* Process request with signals blocked, but allow SIGKILL.  */
 	allow_signal(SIGKILL);
+	set_freezable();
 
 	complete(&nfs_callback_info.started);
 

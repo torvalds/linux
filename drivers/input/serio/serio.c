@@ -384,6 +384,7 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 
 static int serio_thread(void *nothing)
 {
+	set_freezable();
 	do {
 		serio_handle_event();
 		wait_event_interruptible(serio_wait,

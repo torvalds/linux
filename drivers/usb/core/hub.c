@@ -2728,6 +2728,7 @@ loop:
 
 static int hub_thread(void *__unused)
 {
+	set_freezable();
 	do {
 		hub_events();
 		wait_event_interruptible(khubd_wait,

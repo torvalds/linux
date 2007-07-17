@@ -40,6 +40,7 @@
 
 #include <linux/err.h>
 #include <linux/blkdev.h>
+#include <linux/freezer.h>
 #include <linux/scatterlist.h>
 
 /* ---------- SCSI Host glue ---------- */
@@ -867,8 +868,6 @@ static void sas_queue(struct sas_ha_struct *sas_ha)
 static int sas_queue_thread(void *_sas_ha)
 {
 	struct sas_ha_struct *sas_ha = _sas_ha;
-
-	current->flags |= PF_NOFREEZE;
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);

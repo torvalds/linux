@@ -311,8 +311,6 @@ static int usb_stor_control_thread(void * __us)
 	struct Scsi_Host *host = us_to_host(us);
 	int autopm_rc;
 
-	current->flags |= PF_NOFREEZE;
-
 	for(;;) {
 		US_DEBUGP("*** thread sleeping.\n");
 		if(down_interruptible(&us->sema))
@@ -920,6 +918,7 @@ static int usb_stor_scan_thread(void * __us)
 	printk(KERN_DEBUG
 		"usb-storage: device found at %d\n", us->pusb_dev->devnum);
 
+	set_freezable();
 	/* Wait for the timeout to expire or for a disconnect */
 	if (delay_use > 0) {
 		printk(KERN_DEBUG "usb-storage: waiting for device "

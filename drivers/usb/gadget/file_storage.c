@@ -3434,6 +3434,9 @@ static int fsg_main_thread(void *fsg_)
 	allow_signal(SIGKILL);
 	allow_signal(SIGUSR1);
 
+	/* Allow the thread to be frozen */
+	set_freezable();
+
 	/* Arrange for userspace references to be interpreted as kernel
 	 * pointers.  That way we can pass a kernel pointer to a routine
 	 * that expects a __user pointer and it will work okay. */

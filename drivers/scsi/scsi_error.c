@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
@@ -1515,8 +1516,6 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 int scsi_error_handler(void *data)
 {
 	struct Scsi_Host *shost = data;
-
-	current->flags |= PF_NOFREEZE;
 
 	/*
 	 * We use TASK_INTERRUPTIBLE so that the thread is not

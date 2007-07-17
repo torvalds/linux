@@ -573,6 +573,7 @@ static int vivi_thread(void *data)
 	dprintk(1,"thread started\n");
 
 	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+	set_freezable();
 
 	for (;;) {
 		vivi_sleep(dma_q);

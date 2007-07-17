@@ -363,6 +363,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			GFP_KERNEL);
 	}
 
+	set_freezable();
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
 			continue;

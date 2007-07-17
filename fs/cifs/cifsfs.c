@@ -849,6 +849,7 @@ static int cifs_oplock_thread(void * dummyarg)
 	__u16  netfid;
 	int rc;
 
+	set_freezable();
 	do {
 		if (try_to_freeze()) 
 			continue;

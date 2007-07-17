@@ -613,6 +613,7 @@ static int wlan_service_main_thread(void *data)
 
 	init_waitqueue_entry(&wait, current);
 
+	set_freezable();
 	for (;;) {
 		lbs_deb_thread( "main-thread 111: intcounter=%d "
 		       "currenttxskb=%p dnld_sent=%d\n",

@@ -3086,7 +3086,8 @@ static int airo_thread(void *data) {
 	struct net_device *dev = data;
 	struct airo_info *ai = dev->priv;
 	int locked;
-	
+
+	set_freezable();
 	while(1) {
 		/* make swsusp happy with our thread */
 		try_to_freeze();

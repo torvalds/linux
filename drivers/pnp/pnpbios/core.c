@@ -160,6 +160,7 @@ static int pnp_dock_thread(void * unused)
 {
 	static struct pnp_docking_station_info now;
 	int docked = -1, d = 0;
+	set_freezable();
 	while (!unloading)
 	{
 		int status;

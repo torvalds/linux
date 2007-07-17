@@ -33,6 +33,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/init.h>
+#include <linux/freezer.h>
 #include <linux/wait.h>
 #include <linux/device.h>
 #include <linux/net.h>
@@ -1940,7 +1941,6 @@ static int rfcomm_run(void *unused)
 
 	daemonize("krfcommd");
 	set_user_nice(current, -10);
-	current->flags |= PF_NOFREEZE;
 
 	BT_DBG("");
 
