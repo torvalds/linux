@@ -164,3 +164,9 @@ config MONWRITER
 	help
 	  Character device driver for writing z/VM monitor service records
 
+config S390_VMUR
+	tristate "z/VM unit record device driver"
+	default "m"
+	help
+	  Character device driver for z/VM reader, puncher and printer.
+
