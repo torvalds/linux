@@ -72,7 +72,6 @@ static DEFINE_MUTEX(bsg_mutex);
 static int bsg_device_nr, bsg_minor_idx;
 
 #define BSG_LIST_ARRAY_SIZE	8
-#define bsg_list_idx(minor)	((minor) & (BSG_LIST_ARRAY_SIZE - 1))
 static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
 
 static struct class *bsg_class;
@@ -139,9 +138,9 @@ out:
 	return bc;
 }
 
-static inline void
-bsg_add_done_cmd(struct bsg_device *bd, struct bsg_command *bc)
+static inline struct hlist_head *bsg_dev_idx_hash(int index)
 {
+	return &bsg_device_list[index & (BSG_LIST_ARRAY_SIZE - 1)];
 }
 
 static int bsg_io_schedule(struct bsg_device *bd)
@@ -748,8 +747,7 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	atomic_set(&bd->ref_count, 1);
 	bd->minor = iminor(inode);
 	mutex_lock(&bsg_mutex);
-	hlist_add_head(&bd->dev_list,
-		&bsg_device_list[bd->minor & (BSG_LIST_ARRAY_SIZE - 1)]);
+	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(bd->minor));
 
 	strncpy(bd->name, rq->bsg_dev.class_dev->class_id, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
@@ -761,14 +759,12 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 
 static struct bsg_device *__bsg_get_device(int minor)
 {
-	struct hlist_head *list;
 	struct bsg_device *bd = NULL;
 	struct hlist_node *entry;
 
 	mutex_lock(&bsg_mutex);
 
-	list = &bsg_device_list[minor & (BSG_LIST_ARRAY_SIZE - 1)];
-	hlist_for_each(entry, list) {
+	hlist_for_each(entry, bsg_dev_idx_hash(minor)) {
 		bd = hlist_entry(entry, struct bsg_device, dev_list);
 		if (bd->minor == minor) {
 			atomic_inc(&bd->ref_count);
