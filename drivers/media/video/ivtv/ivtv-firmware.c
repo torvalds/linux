@@ -61,7 +61,7 @@ retry:
 			   the wrong file was sometimes loaded. So we check filesizes to
 			   see if at least the right-sized file was loaded. If not, then we
 			   retry. */
-			IVTV_INFO("retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
+			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
 			release_firmware(fw);
 			retries--;
 			goto retry;
@@ -73,11 +73,11 @@ retry:
 			src++;
 		}
 		release_firmware(fw);
-		IVTV_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		IVTV_INFO("Loaded %s firmware (%zd bytes)\n", fn, fw->size);
 		return size;
 	}
-	IVTV_ERR("unable to open firmware %s (must be %ld bytes)\n", fn, size);
-	IVTV_ERR("did you put the firmware in the hotplug firmware directory?\n");
+	IVTV_ERR("Unable to open firmware %s (must be %ld bytes)\n", fn, size);
+	IVTV_ERR("Did you put the firmware in the hotplug firmware directory?\n");
 	return -ENOMEM;
 }
 

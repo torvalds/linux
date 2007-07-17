@@ -130,7 +130,7 @@ int ivtv_reset_tuner_gpio(enum v4l2_tuner_type mode, void *priv, int ptr)
 
 	if (itv->card->type != IVTV_CARD_PG600V2 || itv->options.tuner != TUNER_XCEIVE_XC3028)
 		return -EINVAL;
-	IVTV_INFO("Resetting tuner.\n");
+	IVTV_INFO("Resetting tuner\n");
 	curout = read_reg(IVTV_REG_GPIO_OUT);
 	curdir = read_reg(IVTV_REG_GPIO_DIR);
 	curdir |= (1 << 12);  /* GPIO bit 12 */

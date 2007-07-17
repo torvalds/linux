@@ -832,7 +832,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	if (itv == NULL) {
 		/* Couldn't find a device registered
 		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "ivtv: no ivtv device found on minor %d\n", minor);
+		printk(KERN_WARNING "ivtv:  No ivtv device found on minor %d\n", minor);
 		return -ENXIO;
 	}
 

@@ -144,7 +144,7 @@ static int attach_inform(struct i2c_client *client)
 		}
 	}
 	if (i == I2C_CLIENTS_MAX) {
-		IVTV_ERR("insufficient room for new I2C client!\n");
+		IVTV_ERR("Insufficient room for new I2C client\n");
 	}
 	return 0;
 }
@@ -569,7 +569,7 @@ int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg
 		}
 	}
 	if (cmd != VIDIOC_G_CHIP_IDENT)
-		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x!\n", addr, cmd);
+		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x\n", addr, cmd);
 	return -ENODEV;
 }
 
@@ -640,7 +640,7 @@ int ivtv_i2c_hw(struct ivtv *itv, u32 hw, unsigned int cmd, void *arg)
 
 	addr = ivtv_i2c_hw_addr(itv, hw);
 	if (addr < 0) {
-		IVTV_ERR("i2c hardware 0x%08x (%s) not found for command 0x%x!\n",
+		IVTV_ERR("i2c hardware 0x%08x (%s) not found for command 0x%x\n",
 			       hw, ivtv_i2c_hw_name(hw), cmd);
 		return addr;
 	}
@@ -655,7 +655,7 @@ int ivtv_i2c_id(struct ivtv *itv, u32 id, unsigned int cmd, void *arg)
 	addr = ivtv_i2c_id_addr(itv, id);
 	if (addr < 0) {
 		if (cmd != VIDIOC_G_CHIP_IDENT)
-			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x!\n",
+			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x\n",
 				id, ivtv_i2c_id_name(id), cmd);
 		return addr;
 	}
@@ -696,7 +696,7 @@ int ivtv_upd64083(struct ivtv *itv, unsigned int cmd, void *arg)
 void ivtv_call_i2c_clients(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	if (itv->i2c_adap.algo == NULL) {
-		IVTV_ERR("adapter is not set");
+		IVTV_ERR("Adapter is not set");
 		return;
 	}
 	i2c_clients_command(&itv->i2c_adap, cmd, arg);
