@@ -3704,11 +3704,11 @@ zoran_do_ioctl (struct inode *inode,
 		dprintk(3, KERN_DEBUG "%s: VIDIOC_S_STD - norm=0x%llx\n",
 			ZR_DEVNAME(zr), (unsigned long long)*std);
 
-		if (*std == V4L2_STD_PAL)
+		if ((*std & V4L2_STD_PAL) && !(*std & ~V4L2_STD_PAL))
 			norm = VIDEO_MODE_PAL;
-		else if (*std == V4L2_STD_NTSC)
+		else if ((*std & V4L2_STD_NTSC) && !(*std & ~V4L2_STD_NTSC))
 			norm = VIDEO_MODE_NTSC;
-		else if (*std == V4L2_STD_SECAM)
+		else if ((*std & V4L2_STD_SECAM) && !(*std & ~V4L2_STD_SECAM))
 			norm = VIDEO_MODE_SECAM;
 		else if (*std == V4L2_STD_ALL)
 			norm = VIDEO_MODE_AUTO;
