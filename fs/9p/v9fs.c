@@ -131,7 +131,9 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		switch (token) {
 		case Opt_debug:
 			v9ses->debug = option;
+#ifdef CONFIG_NET_9P_DEBUG
 			p9_debug_level = option;
+#endif
 			break;
 		case Opt_port:
 			v9ses->port = option;
