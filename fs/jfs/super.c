@@ -738,6 +738,7 @@ static const struct super_operations jfs_super_operations = {
 };
 
 static struct export_operations jfs_export_operations = {
+	.get_dentry	= jfs_get_dentry,
 	.get_parent	= jfs_get_parent,
 };
 

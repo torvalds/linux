@@ -1477,6 +1477,38 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	return dentry;
 }
 
+struct dentry *jfs_get_dentry(struct super_block *sb, void *vobjp)
+{
+	__u32 *objp = vobjp;
+	unsigned long ino = objp[0];
+	__u32 generation = objp[1];
+	struct inode *inode;
+	struct dentry *result;
+
+	if (ino == 0)
+		return ERR_PTR(-ESTALE);
+	inode = iget(sb, ino);
+	if (inode == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	if (is_bad_inode(inode) ||
+	    (generation && inode->i_generation != generation)) {
+	    	result = ERR_PTR(-ESTALE);
+		goto out_iput;
+	}
+
+	result = d_alloc_anon(inode);
+	if (!result) {
+		result = ERR_PTR(-ENOMEM);
+		goto out_iput;
+	}
+	return result;
+
+ out_iput:
+	iput(inode);
+	return result;
+}
+
 struct dentry *jfs_get_parent(struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_inode->i_sb;

@@ -114,6 +114,7 @@ static const struct super_operations efs_superblock_operations = {
 };
 
 static struct export_operations efs_export_ops = {
+	.get_dentry	= efs_get_dentry,
 	.get_parent	= efs_get_parent,
 };
 
