@@ -213,14 +213,6 @@ static inline void rc_release_io_range(struct riscom_board * const bp)
 		release_region(RC_TO_ISA(rc_ioport[i]) + bp->base, 1);
 }
 	
-/* Must be called with enabled interrupts */
-static inline void rc_long_delay(unsigned long delay)
-{
-	unsigned long i;
-	
-	for (i = jiffies + delay; time_after(i,jiffies); ) ;
-}
-
 /* Reset and setup CD180 chip */
 static void __init rc_init_CD180(struct riscom_board const * bp)
 {
@@ -231,7 +223,7 @@ static void __init rc_init_CD180(struct riscom_board const * bp)
 	rc_wait_CCR(bp);			   /* Wait for CCR ready        */
 	rc_out(bp, CD180_CCR, CCR_HARDRESET);      /* Reset CD180 chip          */
 	sti();
-	rc_long_delay(HZ/20);                      /* Delay 0.05 sec            */
+	msleep(50);				   /* Delay 0.05 sec            */
 	cli();
 	rc_out(bp, CD180_GIVR, RC_ID);             /* Set ID for this chip      */
 	rc_out(bp, CD180_GICR, 0);                 /* Clear all bits            */
@@ -280,7 +272,7 @@ static int __init rc_probe(struct riscom_board *bp)
 		rc_wait_CCR(bp);
 		rc_out(bp, CD180_CCR, CCR_TXEN);        /* Enable transmitter     */
 		rc_out(bp, CD180_IER, IER_TXRDY);       /* Enable tx empty intr   */
-		rc_long_delay(HZ/20);	       		
+		msleep(50);
 		irqs = probe_irq_off(irqs);
 		val1 = rc_in(bp, RC_BSR);		/* Get Board Status reg   */
 		val2 = rc_in(bp, RC_ACK_TINT);          /* ACK interrupt          */
