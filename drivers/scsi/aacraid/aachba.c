@@ -2070,7 +2070,7 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 	}
 	else return -EINVAL;
 
-	qd.valid = fsa_dev_ptr[qd.cnum].valid;
+	qd.valid = fsa_dev_ptr[qd.cnum].valid != 0;
 	qd.locked = fsa_dev_ptr[qd.cnum].locked;
 	qd.deleted = fsa_dev_ptr[qd.cnum].deleted;
 
