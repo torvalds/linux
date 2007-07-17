@@ -213,3 +213,4 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 
 	return (__wsum)result;
 }
+EXPORT_SYMBOL(csum_tcpudp_nofold);
