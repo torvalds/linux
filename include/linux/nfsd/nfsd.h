@@ -22,7 +22,6 @@
 #include <linux/nfsd/export.h>
 #include <linux/nfsd/auth.h>
 #include <linux/nfsd/stats.h>
-#include <linux/nfsd/interface.h>
 /*
  * nfsd version
  */

@@ -35,7 +35,6 @@
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
-#include <linux/nfsd/interface.h>
 
 #include <asm/uaccess.h>
 
