@@ -1591,7 +1591,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0;
+	u32 f0 = 0;
 	int ind;
 	u8 op0 = 0;
 
@@ -1946,7 +1946,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0;
+	u32 f0 = 0;
 	int ind;
 	u8 op0 = 0;
 
