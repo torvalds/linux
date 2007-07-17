@@ -19,6 +19,7 @@ if PHONE
 
 config PHONE_IXJ
 	tristate "QuickNet Internet LineJack/PhoneJack support"
+	depends ISA || PCI
 	---help---
 	  Say M if you have a telephony card manufactured by Quicknet
 	  Technologies, Inc.  These include the Internet PhoneJACK and

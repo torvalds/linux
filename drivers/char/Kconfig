@@ -114,7 +114,7 @@ config COMPUTONE
 
 config ROCKETPORT
 	tristate "Comtrol RocketPort support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	help
 	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
           These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
@@ -157,7 +157,7 @@ config CYZ_INTR
 
 config DIGIEPCA
 	tristate "Digiboard Intelligent Async Support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	---help---
 	  This is a driver for Digi International's Xx, Xeve, and Xem series
 	  of cards which provide multiple serial ports. You would need
@@ -352,7 +352,7 @@ config STALDRV
 
 config STALLION
 	tristate "Stallion EasyIO or EC8/32 support"
-	depends on STALDRV && BROKEN_ON_SMP
+	depends on STALDRV && BROKEN_ON_SMP && (ISA || EISA || PCI)
 	help
 	  If you have an EasyIO or EasyConnection 8/32 multiport Stallion
 	  card, then this is for you; say Y.  Make sure to read
@@ -363,7 +363,7 @@ config STALLION
 
 config ISTALLION
 	tristate "Stallion EC8/64, ONboard, Brumby support"
-	depends on STALDRV && BROKEN_ON_SMP
+	depends on STALDRV && BROKEN_ON_SMP && (ISA || EISA || PCI)
 	help
 	  If you have an EasyConnection 8/64, ONboard, Brumby or Stallion
 	  serial multiport card, say Y here. Make sure to read
