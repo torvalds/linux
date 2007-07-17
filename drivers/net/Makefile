@@ -200,6 +200,7 @@ obj-$(CONFIG_S2IO) += s2io.o
 obj-$(CONFIG_MYRI10GE) += myri10ge/
 obj-$(CONFIG_SMC91X) += smc91x.o
 obj-$(CONFIG_SMC911X) += smc911x.o
+obj-$(CONFIG_BFIN_MAC) += bfin_mac.o
 obj-$(CONFIG_DM9000) += dm9000.o
 obj-$(CONFIG_FEC_8XX) += fec_8xx/
 obj-$(CONFIG_PASEMI_MAC) += pasemi_mac.o

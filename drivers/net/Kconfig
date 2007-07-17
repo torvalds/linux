@@ -838,6 +838,50 @@ config ULTRA32
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc-ultra32.
 
+config BFIN_MAC
+	tristate "Blackfin 536/537 on-chip mac support"
+	depends on NET_ETHERNET && (BF537 || BF536) && (!BF537_PORT_H)
+	select CRC32
+	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
+	help
+	  This is the driver for blackfin on-chip mac device. Say Y if you want it
+	  compiled into the kernel. This driver is also available as a module
+	  ( = code which can be inserted in and removed from the running kernel
+	  whenever you want). The module will be called bfin_mac.
+
+config BFIN_MAC_USE_L1
+	bool "Use L1 memory for rx/tx packets"
+	depends on BFIN_MAC && BF537
+	default y
+	help
+	  To get maximum network performace, you should use L1 memory as rx/tx buffers.
+	  Say N here if you want to reserve L1 memory for other uses.
+
+config BFIN_TX_DESC_NUM
+	int "Number of transmit buffer packets"
+	depends on BFIN_MAC
+	range 6 10 if BFIN_MAC_USE_L1
+	range 10 100
+	default "10"
+	help
+	  Set the number of buffer packets used in driver.
+
+config BFIN_RX_DESC_NUM
+	int "Number of receive buffer packets"
+	depends on BFIN_MAC
+	range 20 100 if BFIN_MAC_USE_L1
+	range 20 800
+	default "20"
+	help
+	  Set the number of buffer packets used in driver.
+
+config BFIN_MAC_RMII
+	bool "RMII PHY Interface (EXPERIMENTAL)"
+	depends on BFIN_MAC && EXPERIMENTAL
+	default n
+	help
+	  Use Reduced PHY MII Interface
+
 config SMC9194
 	tristate "SMC 9194 support"
 	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN)
