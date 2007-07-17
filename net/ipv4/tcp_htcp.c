@@ -225,7 +225,7 @@ static u32 htcp_recalc_ssthresh(struct sock *sk)
 	return max((tp->snd_cwnd * ca->beta) >> 7, 2U);
 }
 
-static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
+static void htcp_cong_avoid(struct sock *sk, u32 ack, s32 rtt,
 			    u32 in_flight, int data_acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
