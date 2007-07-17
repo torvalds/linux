@@ -333,23 +333,24 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		      ((blue  & 0xf800) >> 11);
 
 		pvr2fb_set_pal_entry(par, regno, tmp);
-		((u16*)(info->pseudo_palette))[regno] = tmp;
 		break;
 	    case 24: /* RGB 888 */
 		red >>= 8; green >>= 8; blue >>= 8;
-		((u32*)(info->pseudo_palette))[regno] = (red << 16) | (green << 8) | blue;
+		tmp = (red << 16) | (green << 8) | blue;
 		break;
 	    case 32: /* ARGB 8888 */
 		red >>= 8; green >>= 8; blue >>= 8;
 		tmp = (transp << 24) | (red << 16) | (green << 8) | blue;
 
 		pvr2fb_set_pal_entry(par, regno, tmp);
-		((u32*)(info->pseudo_palette))[regno] = tmp;
 		break;
 	    default:
 		pr_debug("Invalid bit depth %d?!?\n", info->var.bits_per_pixel);
 		return 1;
 	}
+
+	if (regno < 16)
+		((u32*)(info->pseudo_palette))[regno] = tmp;
 
 	return 0;
 }
