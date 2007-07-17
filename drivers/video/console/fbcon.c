@@ -1704,6 +1704,56 @@ static void fbcon_redraw_move(struct vc_data *vc, struct display *p,
 	}
 }
 
+static void fbcon_redraw_blit(struct vc_data *vc, struct fb_info *info,
+			struct display *p, int line, int count, int ycount)
+{
+	int offset = ycount * vc->vc_cols;
+	unsigned short *d = (unsigned short *)
+	    (vc->vc_origin + vc->vc_size_row * line);
+	unsigned short *s = d + offset;
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	while (count--) {
+		unsigned short *start = s;
+		unsigned short *le = advance_row(s, 1);
+		unsigned short c;
+		int x = 0;
+
+		do {
+			c = scr_readw(s);
+
+			if (c == scr_readw(d)) {
+				if (s > start) {
+					ops->bmove(vc, info, line + ycount, x,
+						   line, x, 1, s-start);
+					x += s - start + 1;
+					start = s + 1;
+				} else {
+					x++;
+					start++;
+				}
+			}
+
+			scr_writew(c, d);
+			console_conditional_schedule();
+			s++;
+			d++;
+		} while (s < le);
+		if (s > start)
+			ops->bmove(vc, info, line + ycount, x, line, x, 1,
+				   s-start);
+		console_conditional_schedule();
+		if (ycount > 0)
+			line++;
+		else {
+			line--;
+			/* NOTE: We subtract two lines from these pointers */
+			s -= vc->vc_size_row;
+			d -= vc->vc_size_row;
+		}
+	}
+}
+
 static void fbcon_redraw(struct vc_data *vc, struct display *p,
 			 int line, int count, int offset)
 {
@@ -1789,7 +1839,6 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct display *p = &fb_display[vc->vc_num];
-	struct fbcon_ops *ops = info->fbcon_par;
 	int scroll_partial = info->flags & FBINFO_PARTIAL_PAN_OK;
 
 	if (fbcon_is_inactive(vc, info))
@@ -1813,10 +1862,15 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			goto redraw_up;
 		switch (p->scrollmode) {
 		case SCROLL_MOVE:
-			ops->bmove(vc, info, t + count, 0, t, 0,
-				    b - t - count, vc->vc_cols);
-			ops->clear(vc, info, b - count, 0, count,
-				  vc->vc_cols);
+			fbcon_redraw_blit(vc, info, p, t, b - t - count,
+				     count);
+			fbcon_clear(vc, b - count, 0, count, vc->vc_cols);
+			scr_memsetw((unsigned short *) (vc->vc_origin +
+							vc->vc_size_row *
+							(b - count)),
+				    vc->vc_video_erase_char,
+				    vc->vc_size_row * count);
+			return 1;
 			break;
 
 		case SCROLL_WRAP_MOVE:
@@ -1899,9 +1953,15 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			goto redraw_down;
 		switch (p->scrollmode) {
 		case SCROLL_MOVE:
-			ops->bmove(vc, info, t, 0, t + count, 0,
-				    b - t - count, vc->vc_cols);
-			ops->clear(vc, info, t, 0, count, vc->vc_cols);
+			fbcon_redraw_blit(vc, info, p, b - 1, b - t - count,
+				     -count);
+			fbcon_clear(vc, t, 0, count, vc->vc_cols);
+			scr_memsetw((unsigned short *) (vc->vc_origin +
+							vc->vc_size_row *
+							t),
+				    vc->vc_video_erase_char,
+				    vc->vc_size_row * count);
+			return 1;
 			break;
 
 		case SCROLL_WRAP_MOVE:
