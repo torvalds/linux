@@ -436,9 +436,9 @@ static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
 	if (vcpu->fpu_active)
 		return;
 	vcpu->fpu_active = 1;
-	vmcs_clear_bits(GUEST_CR0, CR0_TS_MASK);
-	if (vcpu->cr0 & CR0_TS_MASK)
-		vmcs_set_bits(GUEST_CR0, CR0_TS_MASK);
+	vmcs_clear_bits(GUEST_CR0, X86_CR0_TS);
+	if (vcpu->cr0 & X86_CR0_TS)
+		vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
 }
 
@@ -447,7 +447,7 @@ static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 	if (!vcpu->fpu_active)
 		return;
 	vcpu->fpu_active = 0;
-	vmcs_set_bits(GUEST_CR0, CR0_TS_MASK);
+	vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
 }
 
@@ -1002,17 +1002,17 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	vmx_fpu_deactivate(vcpu);
 
-	if (vcpu->rmode.active && (cr0 & CR0_PE_MASK))
+	if (vcpu->rmode.active && (cr0 & X86_CR0_PE))
 		enter_pmode(vcpu);
 
-	if (!vcpu->rmode.active && !(cr0 & CR0_PE_MASK))
+	if (!vcpu->rmode.active && !(cr0 & X86_CR0_PE))
 		enter_rmode(vcpu);
 
 #ifdef CONFIG_X86_64
 	if (vcpu->shadow_efer & EFER_LME) {
-		if (!is_paging(vcpu) && (cr0 & CR0_PG_MASK))
+		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG))
 			enter_lmode(vcpu);
-		if (is_paging(vcpu) && !(cr0 & CR0_PG_MASK))
+		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG))
 			exit_lmode(vcpu);
 	}
 #endif
@@ -1022,14 +1022,14 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		    (cr0 & ~KVM_GUEST_CR0_MASK) | KVM_VM_CR0_ALWAYS_ON);
 	vcpu->cr0 = cr0;
 
-	if (!(cr0 & CR0_TS_MASK) || !(cr0 & CR0_PE_MASK))
+	if (!(cr0 & X86_CR0_TS) || !(cr0 & X86_CR0_PE))
 		vmx_fpu_activate(vcpu);
 }
 
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	vmcs_writel(GUEST_CR3, cr3);
-	if (vcpu->cr0 & CR0_PE_MASK)
+	if (vcpu->cr0 & X86_CR0_PE)
 		vmx_fpu_deactivate(vcpu);
 }
 
@@ -1778,7 +1778,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	case 2: /* clts */
 		vcpu_load_rsp_rip(vcpu);
 		vmx_fpu_deactivate(vcpu);
-		vcpu->cr0 &= ~CR0_TS_MASK;
+		vcpu->cr0 &= ~X86_CR0_TS;
 		vmcs_writel(CR0_READ_SHADOW, vcpu->cr0);
 		vmx_fpu_activate(vcpu);
 		skip_emulated_instruction(vcpu);

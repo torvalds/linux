@@ -99,7 +99,7 @@ static unsigned get_addr_size(struct kvm_vcpu *vcpu)
 	struct vmcb_save_area *sa = &vcpu->svm->vmcb->save;
 	u16 cs_attrib;
 
-	if (!(sa->cr0 & CR0_PE_MASK) || (sa->rflags & X86_EFLAGS_VM))
+	if (!(sa->cr0 & X86_CR0_PE) || (sa->rflags & X86_EFLAGS_VM))
 		return 2;
 
 	cs_attrib = sa->cs.attrib;
@@ -563,7 +563,7 @@ static void init_vmcb(struct vmcb *vmcb)
 	 * cr0 val on cpu init should be 0x60000010, we enable cpu
 	 * cache by default. the orderly way is to enable cache in bios.
 	 */
-	save->cr0 = 0x00000010 | CR0_PG_MASK | CR0_WP_MASK;
+	save->cr0 = 0x00000010 | X86_CR0_PG | X86_CR0_WP;
 	save->cr4 = CR4_PAE_MASK;
 	/* rdx = ?? */
 }
@@ -756,25 +756,25 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 #ifdef CONFIG_X86_64
 	if (vcpu->shadow_efer & KVM_EFER_LME) {
-		if (!is_paging(vcpu) && (cr0 & CR0_PG_MASK)) {
+		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
 			vcpu->shadow_efer |= KVM_EFER_LMA;
 			vcpu->svm->vmcb->save.efer |= KVM_EFER_LMA | KVM_EFER_LME;
 		}
 
-		if (is_paging(vcpu) && !(cr0 & CR0_PG_MASK) ) {
+		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG) ) {
 			vcpu->shadow_efer &= ~KVM_EFER_LMA;
 			vcpu->svm->vmcb->save.efer &= ~(KVM_EFER_LMA | KVM_EFER_LME);
 		}
 	}
 #endif
-	if ((vcpu->cr0 & CR0_TS_MASK) && !(cr0 & CR0_TS_MASK)) {
+	if ((vcpu->cr0 & X86_CR0_TS) && !(cr0 & X86_CR0_TS)) {
 		vcpu->svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
 		vcpu->fpu_active = 1;
 	}
 
 	vcpu->cr0 = cr0;
-	cr0 |= CR0_PG_MASK | CR0_WP_MASK;
-	cr0 &= ~(CR0_CD_MASK | CR0_NW_MASK);
+	cr0 |= X86_CR0_PG | X86_CR0_WP;
+	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
 	vcpu->svm->vmcb->save.cr0 = cr0;
 }
 
@@ -945,8 +945,8 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static int nm_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
        vcpu->svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
-       if (!(vcpu->cr0 & CR0_TS_MASK))
-               vcpu->svm->vmcb->save.cr0 &= ~CR0_TS_MASK;
+       if (!(vcpu->cr0 & X86_CR0_TS))
+               vcpu->svm->vmcb->save.cr0 &= ~X86_CR0_TS;
        vcpu->fpu_active = 1;
 
        return 1;
@@ -1702,7 +1702,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	if (vcpu->fpu_active) {
 		vcpu->svm->vmcb->control.intercept_exceptions |= (1 << NM_VECTOR);
-		vcpu->svm->vmcb->save.cr0 |= CR0_TS_MASK;
+		vcpu->svm->vmcb->save.cr0 |= X86_CR0_TS;
 		vcpu->fpu_active = 0;
 	}
 }

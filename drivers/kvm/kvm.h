@@ -19,15 +19,6 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
-#define CR0_PE_MASK (1ULL << 0)
-#define CR0_MP_MASK (1ULL << 1)
-#define CR0_TS_MASK (1ULL << 3)
-#define CR0_NE_MASK (1ULL << 5)
-#define CR0_WP_MASK (1ULL << 16)
-#define CR0_NW_MASK (1ULL << 29)
-#define CR0_CD_MASK (1ULL << 30)
-#define CR0_PG_MASK (1ULL << 31)
-
 #define CR3_WPT_MASK (1ULL << 3)
 #define CR3_PCD_MASK (1ULL << 4)
 
@@ -42,11 +33,11 @@
 #define CR4_VMXE_MASK (1ULL << 13)
 
 #define KVM_GUEST_CR0_MASK \
-	(CR0_PG_MASK | CR0_PE_MASK | CR0_WP_MASK | CR0_NE_MASK \
-	 | CR0_NW_MASK | CR0_CD_MASK)
+	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE \
+	 | X86_CR0_NW | X86_CR0_CD)
 #define KVM_VM_CR0_ALWAYS_ON \
-	(CR0_PG_MASK | CR0_PE_MASK | CR0_WP_MASK | CR0_NE_MASK | CR0_TS_MASK \
-	 | CR0_MP_MASK)
+	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE | X86_CR0_TS \
+	 | X86_CR0_MP)
 #define KVM_GUEST_CR4_MASK \
 	(CR4_PSE_MASK | CR4_PAE_MASK | CR4_PGE_MASK | CR4_VMXE_MASK | CR4_VME_MASK)
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (CR4_VMXE_MASK | CR4_PAE_MASK)
@@ -667,7 +658,7 @@ static inline int is_pse(struct kvm_vcpu *vcpu)
 
 static inline int is_paging(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr0 & CR0_PG_MASK;
+	return vcpu->cr0 & X86_CR0_PG;
 }
 
 static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)

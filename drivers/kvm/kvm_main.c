@@ -82,7 +82,10 @@ static struct dentry *debugfs_dir;
 
 #define MAX_IO_MSRS 256
 
-#define CR0_RESEVED_BITS 0xffffffff1ffaffc0ULL
+#define CR0_RESERVED_BITS						\
+	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
+			  | X86_CR0_ET | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM \
+			  | X86_CR0_NW | X86_CR0_CD | X86_CR0_PG))
 #define LMSW_GUEST_MASK 0x0eULL
 #define CR4_RESEVED_BITS (~((1ULL << 11) - 1))
 #define CR8_RESEVED_BITS (~0x0fULL)
@@ -466,27 +469,27 @@ out:
 
 void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
-	if (cr0 & CR0_RESEVED_BITS) {
+	if (cr0 & CR0_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr0: 0x%lx #GP, reserved bits 0x%lx\n",
 		       cr0, vcpu->cr0);
 		inject_gp(vcpu);
 		return;
 	}
 
-	if ((cr0 & CR0_NW_MASK) && !(cr0 & CR0_CD_MASK)) {
+	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
 		printk(KERN_DEBUG "set_cr0: #GP, CD == 0 && NW == 1\n");
 		inject_gp(vcpu);
 		return;
 	}
 
-	if ((cr0 & CR0_PG_MASK) && !(cr0 & CR0_PE_MASK)) {
+	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE)) {
 		printk(KERN_DEBUG "set_cr0: #GP, set PG flag "
 		       "and a clear PE flag\n");
 		inject_gp(vcpu);
 		return;
 	}
 
-	if (!is_paging(vcpu) && (cr0 & CR0_PG_MASK)) {
+	if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
 #ifdef CONFIG_X86_64
 		if ((vcpu->shadow_efer & EFER_LME)) {
 			int cs_db, cs_l;
@@ -1158,7 +1161,7 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 {
 	unsigned long cr0;
 
-	cr0 = vcpu->cr0 & ~CR0_TS_MASK;
+	cr0 = vcpu->cr0 & ~X86_CR0_TS;
 	kvm_arch_ops->set_cr0(vcpu, cr0);
 	return X86EMUL_CONTINUE;
 }

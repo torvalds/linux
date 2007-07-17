@@ -158,7 +158,7 @@ static struct kmem_cache *mmu_page_header_cache;
 
 static int is_write_protection(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr0 & CR0_WP_MASK;
+	return vcpu->cr0 & X86_CR0_WP;
 }
 
 static int is_cpuid_PSE36(void)
