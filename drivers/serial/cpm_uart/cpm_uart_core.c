@@ -1325,6 +1325,8 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	udbg_putc = NULL;
 #endif
 
+	cpm_line_cr_cmd(pinfo, CPM_CR_STOP_TX);
+
 	if (IS_SMC(pinfo)) {
 		clrbits8(&pinfo->smcp->smc_smcm, SMCM_RX | SMCM_TX);
 		clrbits16(&pinfo->smcp->smc_smcmr, SMCMR_REN | SMCMR_TEN);
@@ -1346,6 +1348,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		cpm_uart_init_scc(pinfo);
 
 	uart_set_options(port, co, baud, parity, bits, flow);
+	cpm_line_cr_cmd(pinfo, CPM_CR_RESTART_TX);
 
 	return 0;
 }
