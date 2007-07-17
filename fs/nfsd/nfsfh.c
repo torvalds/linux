@@ -28,10 +28,6 @@
 static int nfsd_nr_verified;
 static int nfsd_nr_put;
 
-extern struct export_operations export_op_default;
-
-#define	CALL(ops,fun) ((ops->fun)?(ops->fun):export_op_default.fun)
-
 /*
  * our acceptability function.
  * if NOSUBTREECHECK, accept anything
@@ -212,11 +208,9 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		if (fileid_type == 0)
 			dentry = dget(exp->ex_dentry);
 		else {
-			struct export_operations *nop = exp->ex_mnt->mnt_sb->s_export_op;
-			dentry = CALL(nop,decode_fh)(exp->ex_mnt->mnt_sb,
-						     datap, data_left,
-						     fileid_type,
-						     nfsd_acceptable, exp);
+			dentry = exportfs_decode_fh(exp->ex_mnt, datap,
+					data_left, fileid_type,
+					nfsd_acceptable, exp);
 		}
 		if (dentry == NULL)
 			goto out;
@@ -287,15 +281,13 @@ out:
 static inline int _fh_update(struct dentry *dentry, struct svc_export *exp,
 			     __u32 *datap, int *maxsize)
 {
-	struct export_operations *nop = exp->ex_mnt->mnt_sb->s_export_op;
-
 	if (dentry == exp->ex_dentry) {
 		*maxsize = 0;
 		return 0;
 	}
 
-	return CALL(nop,encode_fh)(dentry, datap, maxsize,
-			  !(exp->ex_flags&NFSEXP_NOSUBTREECHECK));
+	return exportfs_encode_fh(dentry, datap, maxsize,
+			  !(exp->ex_flags & NFSEXP_NOSUBTREECHECK));
 }
 
 /*

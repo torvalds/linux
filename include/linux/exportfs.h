@@ -5,6 +5,7 @@
 
 struct dentry;
 struct super_block;
+struct vfsmount;
 
 
 /**
@@ -114,6 +115,12 @@ struct export_operations {
 
 extern struct dentry *find_exported_dentry(struct super_block *sb, void *obj,
 	void *parent, int (*acceptable)(void *context, struct dentry *de),
+	void *context);
+
+extern int exportfs_encode_fh(struct dentry *dentry, __u32 *fh, int *max_len,
+	int connectable);
+extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, __u32 *fh,
+	int fh_len, int fileid_type, int (*acceptable)(void *, struct dentry *),
 	void *context);
 
 #endif /* LINUX_EXPORTFS_H */

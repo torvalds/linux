@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 
 struct export_operations export_op_default;
@@ -468,6 +469,26 @@ static struct dentry *export_decode_fh(struct super_block *sb, __u32 *fh, int fh
 				   acceptable, context);
 }
 
+int exportfs_encode_fh(struct dentry *dentry, __u32 *fh, int *max_len,
+		int connectable)
+{
+	struct export_operations *nop = dentry->d_sb->s_export_op;
+
+	return CALL(nop, encode_fh)(dentry, fh, max_len, connectable);
+}
+EXPORT_SYMBOL_GPL(exportfs_encode_fh);
+
+struct dentry *exportfs_decode_fh(struct vfsmount *mnt, __u32 *fh, int fh_len,
+		int fileid_type, int (*acceptable)(void *, struct dentry *),
+		void *context)
+{
+	struct export_operations *nop = mnt->mnt_sb->s_export_op;
+
+	return CALL(nop, decode_fh)(mnt->mnt_sb, fh, fh_len, fileid_type,
+			acceptable, context);
+}
+EXPORT_SYMBOL_GPL(exportfs_decode_fh);
+
 struct export_operations export_op_default = {
 	.decode_fh	= export_decode_fh,
 	.encode_fh	= export_encode_fh,
@@ -477,7 +498,6 @@ struct export_operations export_op_default = {
 	.get_dentry	= get_dentry,
 };
 
-EXPORT_SYMBOL(export_op_default);
 EXPORT_SYMBOL(find_exported_dentry);
 
 MODULE_LICENSE("GPL");
