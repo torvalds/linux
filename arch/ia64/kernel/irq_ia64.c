@@ -267,10 +267,36 @@ void __setup_vector_irq(int cpu)
 	}
 }
 
+#if defined(CONFIG_IA64_GENERIC)
+static enum vector_domain_type {
+	VECTOR_DOMAIN_NONE,
+	VECTOR_DOMAIN_PERCPU
+} vector_domain_type = VECTOR_DOMAIN_NONE;
+
+static cpumask_t vector_allocation_domain(int cpu)
+{
+	if (vector_domain_type == VECTOR_DOMAIN_PERCPU)
+		return cpumask_of_cpu(cpu);
+	return CPU_MASK_ALL;
+}
+
+static int __init parse_vector_domain(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+	if (!strcmp(arg, "percpu")) {
+		vector_domain_type = VECTOR_DOMAIN_PERCPU;
+		no_int_routing = 1;
+	}
+	return 1;
+}
+early_param("vector", parse_vector_domain);
+#else
 static cpumask_t vector_allocation_domain(int cpu)
 {
 	return CPU_MASK_ALL;
 }
+#endif
 
 
 void destroy_and_reserve_irq(unsigned int irq)
