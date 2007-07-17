@@ -429,8 +429,6 @@ zr36057_set_vfe (struct zoran              *zr,
 	reg |= (HorDcm << ZR36057_VFESPFR_HorDcm);
 	reg |= (VerDcm << ZR36057_VFESPFR_VerDcm);
 	reg |= (DispMode << ZR36057_VFESPFR_DispMode);
-	if (format->palette != VIDEO_PALETTE_YUV422 && format->palette != VIDEO_PALETTE_YUYV)
-		reg |= ZR36057_VFESPFR_LittleEndian;
 	/* RJ: I don't know, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
 	 * we get the correct colors when uncompressing to the screen  */
@@ -439,36 +437,6 @@ zr36057_set_vfe (struct zoran              *zr,
 	if (zr->norm != VIDEO_MODE_NTSC)
 		reg |= ZR36057_VFESPFR_ExtFl;	// NEEDED!!!!!!! Wolfgang
 	reg |= ZR36057_VFESPFR_TopField;
-	switch (format->palette) {
-
-	case VIDEO_PALETTE_YUYV:
-	case VIDEO_PALETTE_YUV422:
-		reg |= ZR36057_VFESPFR_YUV422;
-		break;
-
-	case VIDEO_PALETTE_RGB555:
-		reg |= ZR36057_VFESPFR_RGB555 | ZR36057_VFESPFR_ErrDif;
-		break;
-
-	case VIDEO_PALETTE_RGB565:
-		reg |= ZR36057_VFESPFR_RGB565 | ZR36057_VFESPFR_ErrDif;
-		break;
-
-	case VIDEO_PALETTE_RGB24:
-		reg |= ZR36057_VFESPFR_RGB888 | ZR36057_VFESPFR_Pack24;
-		break;
-
-	case VIDEO_PALETTE_RGB32:
-		reg |= ZR36057_VFESPFR_RGB888;
-		break;
-
-	default:
-		dprintk(1,
-			KERN_INFO "%s: set_vfe() - unknown color_fmt=%x\n",
-			ZR_DEVNAME(zr), format->palette);
-		return;
-
-	}
 	if (HorDcm >= 48) {
 		reg |= 3 << ZR36057_VFESPFR_HFilter;	/* 5 tap filter */
 	} else if (HorDcm >= 32) {
@@ -476,6 +444,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	} else if (HorDcm >= 16) {
 		reg |= 1 << ZR36057_VFESPFR_HFilter;	/* 3 tap filter */
 	}
+	reg |= format->vfespfr;
 	btwrite(reg, ZR36057_VFESPFR);
 
 	/* display configuration */
