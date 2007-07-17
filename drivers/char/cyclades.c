@@ -1890,11 +1890,11 @@ static void cyz_poll(unsigned long arg)
 	struct cyclades_card *cinfo;
 	struct cyclades_port *info;
 	struct tty_struct *tty;
-	static struct FIRM_ID *firm_id;
-	static struct ZFW_CTRL *zfw_ctrl;
-	static struct BOARD_CTRL *board_ctrl;
-	static struct CH_CTRL *ch_ctrl;
-	static struct BUF_CTRL *buf_ctrl;
+	struct FIRM_ID __iomem *firm_id;
+	struct ZFW_CTRL __iomem *zfw_ctrl;
+	struct BOARD_CTRL __iomem *board_ctrl;
+	struct CH_CTRL __iomem *ch_ctrl;
+	struct BUF_CTRL __iomem *buf_ctrl;
 	unsigned long expires = jiffies + HZ;
 	int card, port;
 
@@ -2038,7 +2038,6 @@ static int startup(struct cyclades_port *info)
 		struct ZFW_CTRL __iomem *zfw_ctrl;
 		struct BOARD_CTRL __iomem *board_ctrl;
 		struct CH_CTRL __iomem *ch_ctrl;
-		int retval;
 
 		base_addr = card->base_addr;
 
@@ -2410,7 +2409,6 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 		struct ZFW_CTRL __iomem *zfw_ctrl;
 		struct BOARD_CTRL __iomem *board_ctrl;
 		struct CH_CTRL __iomem *ch_ctrl;
-		int retval;
 
 		base_addr = cinfo->base_addr;
 		firm_id = base_addr + ID_ADDRESS;
@@ -4902,7 +4900,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 	struct FIRM_ID __iomem *fid = base_addr + ID_ADDRESS;
 	struct CUSTOM_REG __iomem *cust = base_addr;
 	struct ZFW_CTRL __iomem *pt_zfwctrl;
-	u8 *tmp;
+	void __iomem *tmp;
 	u32 mailbox, status;
 	unsigned int i;
 	int retval;
@@ -4964,13 +4962,13 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 	udelay(100);
 
 	/* clear memory */
-	for (tmp = base_addr; (void *)tmp < base_addr + RAM_SIZE; tmp++)
+	for (tmp = base_addr; tmp < base_addr + RAM_SIZE; tmp++)
 		cy_writeb(tmp, 255);
 	if (mailbox != 0) {
 		/* set window to last 512K of RAM */
 		cy_writel(&ctl_addr->loc_addr_base, WIN_RAM + RAM_SIZE);
 		//sleep(1);
-		for (tmp = base_addr; (void *)tmp < base_addr + RAM_SIZE; tmp++)
+		for (tmp = base_addr; tmp < base_addr + RAM_SIZE; tmp++)
 			cy_writeb(tmp, 255);
 		/* set window to beginning of RAM */
 		cy_writel(&ctl_addr->loc_addr_base, WIN_RAM);
