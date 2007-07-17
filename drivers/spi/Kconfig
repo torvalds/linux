@@ -174,6 +174,12 @@ config SPI_S3C24XX_GPIO
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
 
+config SPI_TXX9
+	tristate "Toshiba TXx9 SPI controller"
+	depends on SPI_MASTER && GENERIC_GPIO && CPU_TX49XX
+	help
+	  SPI driver for Toshiba TXx9 MIPS SoCs
+
 config SPI_XILINX
 	tristate "Xilinx SPI controller"
 	depends on SPI_MASTER && XILINX_VIRTEX && EXPERIMENTAL
