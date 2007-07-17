@@ -2301,8 +2301,15 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
 			(unsigned int)realsize);
 	s = create_kmalloc_cache(x, text, realsize, flags);
-	kmalloc_caches_dma[index] = s;
-	return s;
+	down_write(&slub_lock);
+	if (!kmalloc_caches_dma[index]) {
+		kmalloc_caches_dma[index] = s;
+		up_write(&slub_lock);
+		return s;
+	}
+	up_write(&slub_lock);
+	kmem_cache_destroy(s);
+	return kmalloc_caches_dma[index];
 }
 #endif
 
