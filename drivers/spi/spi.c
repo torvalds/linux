@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/cache.h>
+#include <linux/mutex.h>
 #include <linux/spi/spi.h>
 
 
@@ -185,7 +186,7 @@ struct boardinfo {
 };
 
 static LIST_HEAD(board_list);
-static DECLARE_MUTEX(board_lock);
+static DEFINE_MUTEX(board_lock);
 
 
 /**
@@ -292,9 +293,9 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	bi->n_board_info = n;
 	memcpy(bi->board_info, info, n * sizeof *info);
 
-	down(&board_lock);
+	mutex_lock(&board_lock);
 	list_add_tail(&bi->list, &board_list);
-	up(&board_lock);
+	mutex_unlock(&board_lock);
 	return 0;
 }
 
@@ -308,7 +309,7 @@ scan_boardinfo(struct spi_master *master)
 	struct boardinfo	*bi;
 	struct device		*dev = master->cdev.dev;
 
-	down(&board_lock);
+	mutex_lock(&board_lock);
 	list_for_each_entry(bi, &board_list, list) {
 		struct spi_board_info	*chip = bi->board_info;
 		unsigned		n;
@@ -330,7 +331,7 @@ scan_boardinfo(struct spi_master *master)
 			(void) spi_new_device(master, chip);
 		}
 	}
-	up(&board_lock);
+	mutex_unlock(&board_lock);
 }
 
 /*-------------------------------------------------------------------------*/
