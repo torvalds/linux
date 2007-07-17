@@ -3416,7 +3416,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
  * kernelcore=size sets the amount of memory for use for allocations that
  * cannot be reclaimed or migrated.
  */
-int __init cmdline_parse_kernelcore(char *p)
+static int __init cmdline_parse_kernelcore(char *p)
 {
 	unsigned long long coremem;
 	if (!p)
@@ -3430,6 +3430,9 @@ int __init cmdline_parse_kernelcore(char *p)
 
 	return 0;
 }
+
+early_param("kernelcore", cmdline_parse_kernelcore);
+
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
 /**
