@@ -6433,6 +6433,11 @@ struct sw_bd {
 #define ST_MICRO_FLASH_PAGE_SIZE		256
 #define ST_MICRO_FLASH_BASE_TOTAL_SIZE		65536
 
+#define BCM5709_FLASH_PAGE_BITS			8
+#define BCM5709_FLASH_PHY_PAGE_SIZE		(1 << BCM5709_FLASH_PAGE_BITS)
+#define BCM5709_FLASH_BYTE_ADDR_MASK		(BCM5709_FLASH_PHY_PAGE_SIZE-1)
+#define BCM5709_FLASH_PAGE_SIZE			256
+
 #define NVRAM_TIMEOUT_COUNT			30000
 
 
@@ -6449,7 +6454,10 @@ struct flash_spec {
 	u32 config2;
 	u32 config3;
 	u32 write1;
-	u32 buffered;
+	u32 flags;
+#define BNX2_NV_BUFFERED	0x00000001
+#define BNX2_NV_TRANSLATE	0x00000002
+#define BNX2_NV_WREN		0x00000004
 	u32 page_bits;
 	u32 page_size;
 	u32 addr_mask;
