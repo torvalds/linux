@@ -158,6 +158,12 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 
 		if ((mpc83xx_spi->sysclk / spi->max_speed_hz) >= 64) {
 			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 64);
+			if (pm > 0x0f) {
+				printk(KERN_WARNING "MPC83xx SPI: SPICLK can't be less then a SYSCLK/1024!\n"
+						"Requested SPICLK is %d Hz. Will use %d Hz instead.\n",
+						spi->max_speed_hz, mpc83xx_spi->sysclk / 1024);
+				pm = 0x0f;
+			}
 			regval |= SPMODE_PM(pm) | SPMODE_DIV16;
 		} else {
 			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 4);
