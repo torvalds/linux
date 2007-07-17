@@ -1760,18 +1760,35 @@ static int complete_pio(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-void kernel_pio(struct kvm_io_device *pio_dev, struct kvm_vcpu *vcpu)
+static void kernel_pio(struct kvm_io_device *pio_dev,
+		       struct kvm_vcpu *vcpu,
+		       void *pd)
 {
 	/* TODO: String I/O for in kernel device */
 
 	if (vcpu->pio.in)
 		kvm_iodevice_read(pio_dev, vcpu->pio.port,
 				  vcpu->pio.size,
-				  vcpu->pio_data);
+				  pd);
 	else
 		kvm_iodevice_write(pio_dev, vcpu->pio.port,
 				   vcpu->pio.size,
-				   vcpu->pio_data);
+				   pd);
+}
+
+static void pio_string_write(struct kvm_io_device *pio_dev,
+			     struct kvm_vcpu *vcpu)
+{
+	struct kvm_pio_request *io = &vcpu->pio;
+	void *pd = vcpu->pio_data;
+	int i;
+
+	for (i = 0; i < io->cur_count; i++) {
+		kvm_iodevice_write(pio_dev, io->port,
+				   io->size,
+				   pd);
+		pd += io->size;
+	}
 }
 
 int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
@@ -1779,7 +1796,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		  gva_t address, int rep, unsigned port)
 {
 	unsigned now, in_page;
-	int i;
+	int i, ret = 0;
 	int nr_pages = 1;
 	struct page *page;
 	struct kvm_io_device *pio_dev;
@@ -1806,15 +1823,12 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
 		kvm_arch_ops->decache_regs(vcpu);
 		if (pio_dev) {
-			kernel_pio(pio_dev, vcpu);
+			kernel_pio(pio_dev, vcpu, vcpu->pio_data);
 			complete_pio(vcpu);
 			return 1;
 		}
 		return 0;
 	}
-	/* TODO: String I/O for in kernel device */
-	if (pio_dev)
-		printk(KERN_ERR "kvm_setup_pio: no string io support\n");
 
 	if (!count) {
 		kvm_arch_ops->skip_emulated_instruction(vcpu);
@@ -1862,9 +1876,21 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		}
 	}
 
-	if (!vcpu->pio.in)
-		return pio_copy_data(vcpu);
-	return 0;
+	if (!vcpu->pio.in) {
+		/* string PIO write */
+		ret = pio_copy_data(vcpu);
+		if (ret >= 0 && pio_dev) {
+			pio_string_write(pio_dev, vcpu);
+			complete_pio(vcpu);
+			if (vcpu->pio.count == 0)
+				ret = 1;
+		}
+	} else if (pio_dev)
+		printk(KERN_ERR "no string pio read support yet, "
+		       "port %x size %d count %ld\n",
+			port, size, count);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_setup_pio);
 
