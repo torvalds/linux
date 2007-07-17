@@ -1157,9 +1157,7 @@ static void __exit ace_exit(void)
 {
 	pr_debug("Unregistering Xilinx SystemACE driver\n");
 	driver_unregister(&ace_driver);
-	if (unregister_blkdev(ace_major, "xsysace"))
-		printk(KERN_WARNING "systemace unregister_blkdev(%i) failed\n",
-		       ace_major);
+	unregister_blkdev(ace_major, "xsysace");
 }
 
 module_init(ace_init);
