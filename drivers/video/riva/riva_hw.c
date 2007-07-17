@@ -1223,6 +1223,8 @@ static int CalcVClock
         }
     }
     }
+
+    /* non-zero: M/N/P/clock values assigned.  zero: error (not set) */
     return (DeltaOld != 0xFFFFFFFF);
 }
 /*
@@ -1240,7 +1242,10 @@ int CalcStateExt
     int            dotClock
 )
 {
-    int pixelDepth, VClk, m, n, p;
+    int pixelDepth;
+    int uninitialized_var(VClk),uninitialized_var(m),
+        uninitialized_var(n),	uninitialized_var(p);
+
     /*
      * Save mode parameters.
      */
