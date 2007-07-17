@@ -5,6 +5,7 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/svcauth.h>
+#include <linux/sunrpc/gss_api.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/hash.h>
@@ -707,6 +708,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
+	rqstp->rq_flavor = RPC_AUTH_NULL;
 	return SVC_OK;
 }
 
@@ -784,6 +786,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
+	rqstp->rq_flavor = RPC_AUTH_UNIX;
 	return SVC_OK;
 
 badcred:
