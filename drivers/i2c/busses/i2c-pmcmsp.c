@@ -630,7 +630,7 @@ static struct i2c_adapter pmcmsptwi_adapter = {
 static struct platform_driver pmcmsptwi_driver = {
 	.probe  = pmcmsptwi_probe,
 	.remove	= __devexit_p(pmcmsptwi_remove),
-	.driver {
+	.driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
