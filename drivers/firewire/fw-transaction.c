@@ -628,11 +628,6 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 	unsigned long flags;
 	int tcode, destination, source;
 
-	if (p->payload_length > 2048) {
-		/* FIXME: send error response. */
-		return;
-	}
-
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
