@@ -498,7 +498,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	return VM_FAULT_MINOR;
 }
 
-int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, int write_access)
 {
 	int ret = VM_FAULT_SIGBUS;
