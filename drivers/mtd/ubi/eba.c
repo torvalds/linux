@@ -368,7 +368,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 	int err, pnum, scrub = 0, idx = vol_id2idx(ubi, vol_id);
 	struct ubi_vid_hdr *vid_hdr;
 	struct ubi_volume *vol = ubi->volumes[idx];
-	uint32_t crc, crc1;
+	uint32_t crc;
 
 	err = leb_read_lock(ubi, vol_id, lnum);
 	if (err)
@@ -451,7 +451,7 @@ retry:
 	}
 
 	if (check) {
-		crc1 = crc32(UBI_CRC32_INIT, buf, len);
+		uint32_t crc1 = crc32(UBI_CRC32_INIT, buf, len);
 		if (crc1 != crc) {
 			ubi_warn("CRC error: calculated %#08x, must be %#08x",
 				 crc1, crc);
