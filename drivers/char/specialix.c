@@ -345,18 +345,6 @@ static inline void sx_release_io_range(struct specialix_board * bp)
 }
 
 
-/* Must be called with enabled interrupts */
-/* Ugly. Very ugly. Don't use this for anything else than initialization
-   code */
-static inline void sx_long_delay(unsigned long delay)
-{
-	unsigned long i;
-
-	for (i = jiffies + delay; time_after(i, jiffies); ) ;
-}
-
-
-
 /* Set the IRQ using the RTS lines that run to the PAL on the board.... */
 static int sx_set_irq ( struct specialix_board *bp)
 {
@@ -397,7 +385,7 @@ static int sx_init_CD186x(struct specialix_board  * bp)
 	spin_lock_irqsave(&bp->lock, flags);
 	sx_out_off(bp, CD186x_CCR, CCR_HARDRESET);      /* Reset CD186x chip          */
 	spin_unlock_irqrestore(&bp->lock, flags);
-	sx_long_delay(HZ/20);                      /* Delay 0.05 sec            */
+	msleep(50);					/* Delay 0.05 sec            */
 	spin_lock_irqsave(&bp->lock, flags);
 	sx_out_off(bp, CD186x_GIVR, SX_ID);             /* Set ID for this chip      */
 	sx_out_off(bp, CD186x_GICR, 0);                 /* Clear all bits            */
@@ -533,7 +521,7 @@ static int sx_probe(struct specialix_board *bp)
 		sx_wait_CCR(bp);
 		sx_out(bp, CD186x_CCR, CCR_TXEN);        /* Enable transmitter     */
 		sx_out(bp, CD186x_IER, IER_TXRDY);       /* Enable tx empty intr   */
-		sx_long_delay(HZ/20);
+		msleep(50);
 		irqs = probe_irq_off(irqs);
 
 		dprintk (SX_DEBUG_INIT, "SRSR = %02x, ", sx_in(bp, CD186x_SRSR));
