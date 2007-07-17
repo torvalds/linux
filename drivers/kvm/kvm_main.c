@@ -92,7 +92,7 @@ static struct dentry *debugfs_dir;
 			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR	\
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
 
-#define CR8_RESEVED_BITS (~0x0fULL)
+#define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
 #define EFER_RESERVED_BITS 0xfffffffffffff2fe
 
 #ifdef CONFIG_X86_64
@@ -625,7 +625,7 @@ EXPORT_SYMBOL_GPL(set_cr3);
 
 void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
-	if ( cr8 & CR8_RESEVED_BITS) {
+	if (cr8 & CR8_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr8: #GP, reserved bits 0x%lx\n", cr8);
 		inject_gp(vcpu);
 		return;
