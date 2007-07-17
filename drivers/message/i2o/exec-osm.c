@@ -131,8 +131,10 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, struct i2o_message *msg,
 	int rc = 0;
 
 	wait = i2o_exec_wait_alloc();
-	if (!wait)
+	if (!wait) {
+		i2o_msg_nop(c, msg);
 		return -ENOMEM;
+	}
 
 	if (tcntxt == 0xffffffff)
 		tcntxt = 0x80000000;
