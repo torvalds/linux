@@ -502,8 +502,9 @@ static int iosapic_find_sharable_irq(unsigned long trigger, unsigned long pol)
 	for (i = 0; i <= NR_IRQS; i++) {
 		info = &iosapic_intr_info[i];
 		if (info->trigger == trigger && info->polarity == pol &&
-		    (info->dmode == IOSAPIC_FIXED || info->dmode ==
-		     IOSAPIC_LOWEST_PRIORITY)) {
+		    (info->dmode == IOSAPIC_FIXED ||
+		     info->dmode == IOSAPIC_LOWEST_PRIORITY) &&
+		    can_request_irq(i, IRQF_SHARED)) {
 			if (min_count == -1 || info->count < min_count) {
 				irq = i;
 				min_count = info->count;
