@@ -5,35 +5,6 @@
 #
 # Prompt user for primary drivers.
 
-config OSS_OBSOLETE
-	bool "Obsolete OSS drivers"
-	depends on SOUND_PRIME
-	help
-	  This option enables support for obsolete OSS drivers that
-	  are scheduled for removal in the near future.
-
-	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
-	  say Y here because your hardware is not properly supported
-	  by ALSA.
-
-	  If unsure, say N.
-
-config SOUND_BT878
-	tristate "BT878 audio dma"
-	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
-	---help---
-	  Audio DMA support for bt878 based grabber boards.  As you might have
-	  already noticed, bt878 is listed with two functions in /proc/pci.
-	  Function 0 does the video stuff (bt848 compatible), function 1 does
-	  the same for audio data.  This is a driver for the audio part of
-	  the chip.  If you say 'Y' here you get a oss-compatible dsp device
-	  where you can record from.  If you want just watch TV you probably
-	  don't need this driver as most TV cards handle sound with a short
-	  cable from the TV card to your sound card's line-in.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called btaudio.
-
 config SOUND_BCM_CS4297A
 	tristate "Crystal Sound CS4297a (for Swarm)"
 	depends on SOUND_PRIME && SIBYTE_SWARM
@@ -43,13 +14,6 @@ config SOUND_BCM_CS4297A
 	  here to enable the sound chip instead of the UART.  Also
 	  note that CONFIG_KGDB should not be enabled at the same
 	  time, since it also attempts to use this UART port.
-
-config SOUND_ICH
-	tristate "Intel ICH (i8xx) audio support"
-	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
-	help
-	  Support for integral audio in Intel's I/O Controller Hub (ICH)
-	  chipset, as used on the 810/820/840 motherboards.
 
 config SOUND_VWSND
 	tristate "SGI Visual Workstation Sound"
@@ -346,26 +310,6 @@ config MSND_FIFOSIZE
 	  and Pinnacle). Larger values reduce the chance of data overruns at
 	  the expense of overall latency. If unsure, use the default.
 
-config SOUND_VIA82CXXX
-	tristate "VIA 82C686 Audio Codec"
-	depends on SOUND_PRIME && PCI && OSS_OBSOLETE && VIRT_TO_BUS
-	help
-	  Say Y here to include support for the audio codec found on VIA
-	  82Cxxx-based chips. Typically these are built into a motherboard.
-
-	  DO NOT select Sound Blaster or Adlib with this driver, unless
-	  you have a Sound Blaster or Adlib card in addition to your VIA
-	  audio chip.
-
-config MIDI_VIA82CXXX
-	bool "VIA 82C686 MIDI"
-	depends on SOUND_VIA82CXXX && ISA_DMA_API
-	help
-	  Answer Y to use the MIDI interface of the Via686. You may need to
-	  enable this in the BIOS before it will work. This is for connection
-	  to external MIDI hardware, and is not required for software playback
-	  of MIDI files.
-
 config SOUND_OSS
 	tristate "OSS sound modules"
 	depends on SOUND_PRIME && ISA_DMA_API && VIRT_TO_BUS
@@ -399,20 +343,6 @@ config SOUND_DMAP
 	  the command-line argument "dmabuf=1" to the sound module.
 
 	  Say Y unless you have 16MB or more RAM or a PCI sound card.
-
-config SOUND_CS4232
-	tristate "Crystal CS4232 based (PnP) cards"
-	depends on SOUND_OSS && OSS_OBSOLETE
-	help
-	  Say Y here if you have a card based on the Crystal CS4232 chip set,
-	  which uses its own Plug and Play protocol.
-
-	  If you compile the driver into the kernel, you have to add
-	  "cs4232=<io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>" to the kernel
-	  command line.
-
-	  See <file:Documentation/sound/oss/CS4232> for more information on
-	  configuring this card.
 
 config SOUND_SSCAPE
 	tristate "Ensoniq SoundScape support"
@@ -719,13 +649,6 @@ config SOUND_WAVEARTIST
 	help
 	  Say Y here to include support for the Rockwell WaveArtist sound
 	  system.  This driver is mainly for the NetWinder.
-
-config SOUND_TVMIXER
-	tristate "TV card (bt848) mixer support"
-	depends on SOUND_PRIME && I2C && VIDEO_V4L1 && OSS_OBSOLETE
-	help
-	  Support for audio mixer facilities on the BT848 TV frame-grabber
-	  card.
 
 config SOUND_KAHLUA
 	tristate "XpressAudio Sound Blaster emulation"
