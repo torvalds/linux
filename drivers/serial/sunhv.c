@@ -258,17 +258,7 @@ static void sunhv_stop_tx(struct uart_port *port)
 /* port->lock held by caller.  */
 static void sunhv_start_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
-
-	while (!uart_circ_empty(xmit)) {
-		long status = sun4v_con_putchar(xmit->buf[xmit->tail]);
-
-		if (status != HV_EOK)
-			break;
-
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-	}
+	transmit_chars(port);
 }
 
 /* port->lock is not held.  */

@@ -214,7 +214,7 @@ void mdesc_release(struct mdesc_handle *hp)
 }
 EXPORT_SYMBOL(mdesc_release);
 
-static void do_mdesc_update(struct work_struct *work)
+void mdesc_update(void)
 {
 	unsigned long len, real_len, status;
 	struct mdesc_handle *hp, *orig_hp;
@@ -248,13 +248,6 @@ static void do_mdesc_update(struct work_struct *work)
 	spin_unlock_irqrestore(&mdesc_lock, flags);
 }
 
-static DECLARE_WORK(mdesc_update_work, do_mdesc_update);
-
-void mdesc_update(void)
-{
-	schedule_work(&mdesc_update_work);
-}
-
 static struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)
 {
 	return (struct mdesc_elem *) (mdesc + 1);
@@ -278,13 +271,14 @@ u64 mdesc_node_by_name(struct mdesc_handle *hp,
 	u64 last_node = hp->mdesc.node_sz / 16;
 	u64 ret;
 
-	if (from_node == MDESC_NODE_NULL)
-		from_node = 0;
-
-	if (from_node >= last_node)
+	if (from_node == MDESC_NODE_NULL) {
+		ret = from_node = 0;
+	} else if (from_node >= last_node) {
 		return MDESC_NODE_NULL;
+	} else {
+		ret = ep[from_node].d.val;
+	}
 
-	ret = ep[from_node].d.val;
 	while (ret < last_node) {
 		if (ep[ret].tag != MD_NODE)
 			return MDESC_NODE_NULL;
