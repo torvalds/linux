@@ -130,6 +130,7 @@ static struct scsi_host_template mptfc_driver_template = {
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.shost_attrs			= mptscsih_host_attrs,
 };
 
 /****************************************************************************

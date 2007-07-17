@@ -161,6 +161,7 @@ static int	mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum);
 static void 	mpt_read_ioc_pg_1(MPT_ADAPTER *ioc);
 static void 	mpt_read_ioc_pg_4(MPT_ADAPTER *ioc);
 static void	mpt_timer_expired(unsigned long data);
+static void	mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc);
 static int	SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch);
 static int	SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp);
 static int	mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_value, int sleepFlag);
@@ -1880,6 +1881,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		}
 
 		GetIoUnitPage2(ioc);
+		mpt_get_manufacturing_pg_0(ioc);
 	}
 
 	/*
@@ -5188,6 +5190,49 @@ mpt_read_ioc_pg_1(MPT_ADAPTER *ioc)
 	pci_free_consistent(ioc->pcidev, iocpage1sz, pIoc1, ioc1_dma);
 
 	return;
+}
+
+static void
+mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc)
+{
+	CONFIGPARMS		cfg;
+	ConfigPageHeader_t	hdr;
+	dma_addr_t		buf_dma;
+	ManufacturingPage0_t	*pbuf = NULL;
+
+	memset(&cfg, 0 , sizeof(CONFIGPARMS));
+	memset(&hdr, 0 , sizeof(ConfigPageHeader_t));
+
+	hdr.PageType = MPI_CONFIG_PAGETYPE_MANUFACTURING;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.timeout = 10;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!cfg.cfghdr.hdr->PageLength)
+		goto out;
+
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+	pbuf = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4, &buf_dma);
+	if (!pbuf)
+		goto out;
+
+	cfg.physAddr = buf_dma;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	memcpy(ioc->board_name, pbuf->BoardName, sizeof(ioc->board_name));
+	memcpy(ioc->board_assembly, pbuf->BoardAssembly, sizeof(ioc->board_assembly));
+	memcpy(ioc->board_tracer, pbuf->BoardTracerNumber, sizeof(ioc->board_tracer));
+
+	out:
+
+	if (pbuf)
+		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, pbuf, buf_dma);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
