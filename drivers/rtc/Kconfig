@@ -379,6 +379,13 @@ config RTC_DRV_PL031
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pl031.
 
+config RTC_DRV_AT32AP700X
+	tristate "AT32AP700X series RTC"
+	depends on RTC_CLASS && PLATFORM_AT32AP
+	help
+	  Driver for the internal RTC (Realtime Clock) on Atmel AVR32
+	  AT32AP700x family processors.
+
 config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200"
 	depends on RTC_CLASS && ARCH_AT91RM9200
