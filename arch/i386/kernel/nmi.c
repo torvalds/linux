@@ -295,7 +295,7 @@ static unsigned int
 	last_irq_sums [NR_CPUS],
 	alert_counter [NR_CPUS];
 
-void touch_nmi_watchdog (void)
+void touch_nmi_watchdog(void)
 {
 	if (nmi_watchdog > 0) {
 		unsigned cpu;
@@ -304,8 +304,10 @@ void touch_nmi_watchdog (void)
 		 * Just reset the alert counters, (other CPUs might be
 		 * spinning on locks we hold):
 		 */
-		for_each_present_cpu (cpu)
-			alert_counter[cpu] = 0;
+		for_each_present_cpu(cpu) {
+			if (alert_counter[cpu])
+				alert_counter[cpu] = 0;
+		}
 	}
 
 	/*
