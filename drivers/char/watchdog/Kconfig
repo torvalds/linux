@@ -187,6 +187,15 @@ config PNX4008_WATCHDOG
 
 	  Say N if you are unsure.
 
+# AVR32 Architecture
+
+config AT32AP700X_WDT
+	tristate "AT32AP700x watchdog"
+	depends on WATCHDOG && CPU_AT32AP7000
+	help
+	  Watchdog timer embedded into AT32AP700x devices. This will reboot
+	  your system when the timeout is reached.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
