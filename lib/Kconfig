@@ -41,6 +41,14 @@ config CRC32
 	  kernel tree does. Such modules that use library CRC32 functions
 	  require M here.
 
+config CRC7
+	tristate "CRC7 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC7 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC7
+	  functions require M here.
+
 config LIBCRC32C
 	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
 	help
