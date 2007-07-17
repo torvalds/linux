@@ -91,7 +91,6 @@ static inline void matrox_cfb4_pal(u_int32_t* pal) {
 	for (i = 0; i < 16; i++) {
 		pal[i] = i * 0x11111111U;
 	}
-	pal[i] = 0xFFFFFFFF;
 }
 
 static inline void matrox_cfb8_pal(u_int32_t* pal) {
@@ -100,7 +99,6 @@ static inline void matrox_cfb8_pal(u_int32_t* pal) {
 	for (i = 0; i < 16; i++) {
 		pal[i] = i * 0x01010101U;
 	}
-	pal[i] = 0x0F0F0F0F;
 }
 
 static void matroxfb_copyarea(struct fb_info* info, const struct fb_copyarea* area);
