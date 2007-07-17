@@ -60,6 +60,8 @@ int ia64_last_device_vector = IA64_DEF_LAST_DEVICE_VECTOR;
 void __iomem *ipi_base_addr = ((void __iomem *)
 			       (__IA64_UNCACHED_OFFSET | IA64_IPI_DEFAULT_BASE_ADDR));
 
+static cpumask_t vector_allocation_domain(int cpu);
+
 /*
  * Legacy IRQ to IA-64 vector translation table.
  */
@@ -73,11 +75,18 @@ EXPORT_SYMBOL(isa_irq_to_vector_map);
 DEFINE_SPINLOCK(vector_lock);
 
 struct irq_cfg irq_cfg[NR_IRQS] __read_mostly = {
-	[0 ... NR_IRQS - 1] = { .vector = IRQ_VECTOR_UNASSIGNED }
+	[0 ... NR_IRQS - 1] = {
+		.vector = IRQ_VECTOR_UNASSIGNED,
+		.domain = CPU_MASK_NONE
+	}
 };
 
 DEFINE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq) = {
 	[0 ... IA64_NUM_VECTORS - 1] = IA64_SPURIOUS_INT_VECTOR
+};
+
+static cpumask_t vector_table[IA64_MAX_DEVICE_VECTORS] = {
+	[0 ... IA64_MAX_DEVICE_VECTORS - 1] = CPU_MASK_NONE
 };
 
 static int irq_status[NR_IRQS] = {
@@ -111,39 +120,54 @@ static inline int find_unassigned_irq(void)
 	return -ENOSPC;
 }
 
-static inline int find_unassigned_vector(void)
+static inline int find_unassigned_vector(cpumask_t domain)
 {
-	int vector;
+	cpumask_t mask;
+	int pos;
 
-	for (vector = IA64_FIRST_DEVICE_VECTOR;
-	     vector <= IA64_LAST_DEVICE_VECTOR; vector++)
-		if (__get_cpu_var(vector_irq[vector]) == IA64_SPURIOUS_INT_VECTOR)
-			return vector;
+	cpus_and(mask, domain, cpu_online_map);
+	if (cpus_empty(mask))
+		return -EINVAL;
+
+	for (pos = 0; pos < IA64_NUM_DEVICE_VECTORS; pos++) {
+		cpus_and(mask, domain, vector_table[pos]);
+		if (!cpus_empty(mask))
+			continue;
+		return IA64_FIRST_DEVICE_VECTOR + pos;
+	}
 	return -ENOSPC;
 }
 
-static int __bind_irq_vector(int irq, int vector)
+static int __bind_irq_vector(int irq, int vector, cpumask_t domain)
 {
-	int cpu;
+	cpumask_t mask;
+	int cpu, pos;
+	struct irq_cfg *cfg = &irq_cfg[irq];
 
-	if (irq_to_vector(irq) == vector)
+	cpus_and(mask, domain, cpu_online_map);
+	if (cpus_empty(mask))
+		return -EINVAL;
+	if ((cfg->vector == vector) && cpus_equal(cfg->domain, domain))
 		return 0;
-	if (irq_to_vector(irq) != IRQ_VECTOR_UNASSIGNED)
+	if (cfg->vector != IRQ_VECTOR_UNASSIGNED)
 		return -EBUSY;
-	for_each_online_cpu(cpu)
+	for_each_cpu_mask(cpu, mask)
 		per_cpu(vector_irq, cpu)[vector] = irq;
-	irq_cfg[irq].vector = vector;
+	cfg->vector = vector;
+	cfg->domain = domain;
 	irq_status[irq] = IRQ_USED;
+	pos = vector - IA64_FIRST_DEVICE_VECTOR;
+	cpus_or(vector_table[pos], vector_table[pos], domain);
 	return 0;
 }
 
-int bind_irq_vector(int irq, int vector)
+int bind_irq_vector(int irq, int vector, cpumask_t domain)
 {
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	ret = __bind_irq_vector(irq, vector);
+	ret = __bind_irq_vector(irq, vector, domain);
 	spin_unlock_irqrestore(&vector_lock, flags);
 	return ret;
 }
@@ -151,16 +175,24 @@ int bind_irq_vector(int irq, int vector)
 static void clear_irq_vector(int irq)
 {
 	unsigned long flags;
-	int vector, cpu;
+	int vector, cpu, pos;
+	cpumask_t mask;
+	cpumask_t domain;
+	struct irq_cfg *cfg = &irq_cfg[irq];
 
 	spin_lock_irqsave(&vector_lock, flags);
 	BUG_ON((unsigned)irq >= NR_IRQS);
-	BUG_ON(irq_cfg[irq].vector == IRQ_VECTOR_UNASSIGNED);
-	vector = irq_cfg[irq].vector;
-	for_each_online_cpu(cpu)
+	BUG_ON(cfg->vector == IRQ_VECTOR_UNASSIGNED);
+	vector = cfg->vector;
+	domain = cfg->domain;
+	cpus_and(mask, cfg->domain, cpu_online_map);
+	for_each_cpu_mask(cpu, mask)
 		per_cpu(vector_irq, cpu)[vector] = IA64_SPURIOUS_INT_VECTOR;
-	irq_cfg[irq].vector = IRQ_VECTOR_UNASSIGNED;
+	cfg->vector = IRQ_VECTOR_UNASSIGNED;
+	cfg->domain = CPU_MASK_NONE;
 	irq_status[irq] = IRQ_UNUSED;
+	pos = vector - IA64_FIRST_DEVICE_VECTOR;
+	cpus_andnot(vector_table[pos], vector_table[pos], domain);
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
@@ -168,18 +200,26 @@ int
 assign_irq_vector (int irq)
 {
 	unsigned long flags;
-	int vector = -ENOSPC;
+	int vector, cpu;
+	cpumask_t domain;
 
+	vector = -ENOSPC;
+
+	spin_lock_irqsave(&vector_lock, flags);
 	if (irq < 0) {
 		goto out;
 	}
-	spin_lock_irqsave(&vector_lock, flags);
-	vector = find_unassigned_vector();
+	for_each_online_cpu(cpu) {
+		domain = vector_allocation_domain(cpu);
+		vector = find_unassigned_vector(domain);
+		if (vector >= 0)
+			break;
+	}
 	if (vector < 0)
 		goto out;
-	BUG_ON(__bind_irq_vector(irq, vector));
-	spin_unlock_irqrestore(&vector_lock, flags);
+	BUG_ON(__bind_irq_vector(irq, vector, domain));
  out:
+	spin_unlock_irqrestore(&vector_lock, flags);
 	return vector;
 }
 
@@ -198,7 +238,7 @@ reserve_irq_vector (int vector)
 	if (vector < IA64_FIRST_DEVICE_VECTOR ||
 	    vector > IA64_LAST_DEVICE_VECTOR)
 		return -EINVAL;
-	return !!bind_irq_vector(vector, vector);
+	return !!bind_irq_vector(vector, vector, CPU_MASK_ALL);
 }
 
 /*
@@ -214,10 +254,18 @@ void __setup_vector_irq(int cpu)
 		per_cpu(vector_irq, cpu)[vector] = IA64_SPURIOUS_INT_VECTOR;
 	/* Mark the inuse vectors */
 	for (irq = 0; irq < NR_IRQS; ++irq) {
-		if ((vector = irq_to_vector(irq)) != IRQ_VECTOR_UNASSIGNED)
-			per_cpu(vector_irq, cpu)[vector] = irq;
+		if (!cpu_isset(cpu, irq_cfg[irq].domain))
+			continue;
+		vector = irq_to_vector(irq);
+		per_cpu(vector_irq, cpu)[vector] = irq;
 	}
 }
+
+static cpumask_t vector_allocation_domain(int cpu)
+{
+	return CPU_MASK_ALL;
+}
+
 
 void destroy_and_reserve_irq(unsigned int irq)
 {
@@ -233,17 +281,23 @@ void destroy_and_reserve_irq(unsigned int irq)
 int create_irq(void)
 {
 	unsigned long flags;
-	int irq, vector;
+	int irq, vector, cpu;
+	cpumask_t domain;
 
-	irq = -ENOSPC;
+	irq = vector = -ENOSPC;
 	spin_lock_irqsave(&vector_lock, flags);
-	vector = find_unassigned_vector();
+	for_each_online_cpu(cpu) {
+		domain = vector_allocation_domain(cpu);
+		vector = find_unassigned_vector(domain);
+		if (vector >= 0)
+			break;
+	}
 	if (vector < 0)
 		goto out;
 	irq = find_unassigned_irq();
 	if (irq < 0)
 		goto out;
-	BUG_ON(__bind_irq_vector(irq, vector));
+	BUG_ON(__bind_irq_vector(irq, vector, domain));
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
 	if (irq >= 0)
@@ -434,7 +488,7 @@ register_percpu_irq (ia64_vector vec, struct irqaction *action)
 	unsigned int irq;
 
 	irq = vec;
-	BUG_ON(bind_irq_vector(irq, vec));
+	BUG_ON(bind_irq_vector(irq, vec, CPU_MASK_ALL));
 	desc = irq_desc + irq;
 	desc->status |= IRQ_PER_CPU;
 	desc->chip = &irq_type_ia64_lsapic;

@@ -354,6 +354,8 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 
 	irq &= (~IA64_IRQ_REDIRECTED);
 
+	/* IRQ migration across domain is not supported yet */
+	cpus_and(mask, mask, irq_to_domain(irq));
 	if (cpus_empty(mask))
 		return;
 
@@ -663,6 +665,7 @@ get_target_cpu (unsigned int gsi, int irq)
 #ifdef CONFIG_SMP
 	static int cpu = -1;
 	extern int cpe_vector;
+	cpumask_t domain = irq_to_domain(irq);
 
 	/*
 	 * In case of vector shared by multiple RTEs, all RTEs that
@@ -701,7 +704,7 @@ get_target_cpu (unsigned int gsi, int irq)
 			goto skip_numa_setup;
 
 		cpu_mask = node_to_cpumask(iosapic_lists[iosapic_index].node);
-
+		cpus_and(cpu_mask, cpu_mask, domain);
 		for_each_cpu_mask(numa_cpu, cpu_mask) {
 			if (!cpu_online(numa_cpu))
 				cpu_clear(numa_cpu, cpu_mask);
@@ -731,7 +734,7 @@ skip_numa_setup:
 	do {
 		if (++cpu >= NR_CPUS)
 			cpu = 0;
-	} while (!cpu_online(cpu));
+	} while (!cpu_online(cpu) || !cpu_isset(cpu, domain));
 
 	return cpu_physical_id(cpu);
 #else  /* CONFIG_SMP */
@@ -900,7 +903,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 	switch (int_type) {
 	      case ACPI_INTERRUPT_PMI:
 		irq = vector = iosapic_vector;
-		bind_irq_vector(irq, vector);
+		bind_irq_vector(irq, vector, CPU_MASK_ALL);
 		/*
 		 * since PMI vector is alloc'd by FW(ACPI) not by kernel,
 		 * we need to make sure the vector is available
@@ -917,7 +920,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		break;
 	      case ACPI_INTERRUPT_CPEI:
 		irq = vector = IA64_CPE_VECTOR;
-		BUG_ON(bind_irq_vector(irq, vector));
+		BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
 		delivery = IOSAPIC_LOWEST_PRIORITY;
 		mask = 1;
 		break;
@@ -953,7 +956,7 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 	unsigned int dest = cpu_physical_id(smp_processor_id());
 
 	irq = vector = isa_irq_to_vector(isa_irq);
-	BUG_ON(bind_irq_vector(irq, vector));
+	BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
 	register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY, polarity, trigger);
 
 	DBG("ISA: IRQ %u -> GSI %u (%s,%s) -> CPU %d (0x%04x) vector %d\n",

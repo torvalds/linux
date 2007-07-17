@@ -52,6 +52,11 @@ static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	struct msi_msg msg;
 	u32 addr;
 
+	/* IRQ migration across domain is not supported yet */
+	cpus_and(cpu_mask, cpu_mask, irq_to_domain(irq));
+	if (cpus_empty(cpu_mask))
+		return;
+
 	read_msi_msg(irq, &msg);
 
 	addr = msg.address_lo;
@@ -69,13 +74,15 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
 	int	irq, vector;
+	cpumask_t mask;
 
 	irq = create_irq();
 	if (irq < 0)
 		return irq;
 
 	set_irq_msi(irq, desc);
-	dest_phys_id = cpu_physical_id(first_cpu(cpu_online_map));
+	cpus_and(mask, irq_to_domain(irq), cpu_online_map);
+	dest_phys_id = cpu_physical_id(first_cpu(mask));
 	vector = irq_to_vector(irq);
 
 	msg.address_hi = 0;
