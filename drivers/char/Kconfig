@@ -213,8 +213,6 @@ config MOXA_SMARTIO_NEW
 	  This is upgraded (1.9.1) driver from original Moxa drivers with
 	  changes finally resulting in PCI probing.
 
-	  Use at your own risk.
-
 	  This driver can also be built as a module. The module will be called
 	  mxser_new. If you want to do that, say M here.
 
