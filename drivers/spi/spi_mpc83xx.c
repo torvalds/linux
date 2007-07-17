@@ -232,11 +232,20 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	return 0;
 }
 
+/* the spi->mode bits understood by this driver: */
+#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
+
 static int mpc83xx_spi_setup(struct spi_device *spi)
 {
 	struct spi_bitbang *bitbang;
 	struct mpc83xx_spi *mpc83xx_spi;
 	int retval;
+
+	if (spi->mode & ~MODEBITS) {
+		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+			spi->mode & ~MODEBITS);
+		return -EINVAL;
+	}
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;

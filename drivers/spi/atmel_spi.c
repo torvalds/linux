@@ -350,6 +350,7 @@ atmel_spi_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
+/* the spi->mode bits understood by this driver: */
 #define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
 
 static int atmel_spi_setup(struct spi_device *spi)
