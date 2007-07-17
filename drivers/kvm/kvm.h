@@ -19,12 +19,9 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
-#define CR3_WPT_MASK (1ULL << 3)
-#define CR3_PCD_MASK (1ULL << 4)
-
-#define CR3_RESEVED_BITS 0x07ULL
-#define CR3_L_MODE_RESEVED_BITS (~((1ULL << 40) - 1) | 0x0fe7ULL)
-#define CR3_FLAGS_MASK ((1ULL << 5) - 1)
+#define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
+#define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
+#define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS|0xFFFFFF0000000000ULL)
 
 #define CR4_VME_MASK (1ULL << 0)
 #define CR4_PSE_MASK (1ULL << 4)

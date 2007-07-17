@@ -571,23 +571,32 @@ EXPORT_SYMBOL_GPL(set_cr4);
 void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (is_long_mode(vcpu)) {
-		if (cr3 & CR3_L_MODE_RESEVED_BITS) {
+		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
 			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
 			inject_gp(vcpu);
 			return;
 		}
 	} else {
-		if (cr3 & CR3_RESEVED_BITS) {
-			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
-			inject_gp(vcpu);
-			return;
-		}
-		if (is_paging(vcpu) && is_pae(vcpu) &&
-		    !load_pdptrs(vcpu, cr3)) {
-			printk(KERN_DEBUG "set_cr3: #GP, pdptrs "
-			       "reserved bits\n");
-			inject_gp(vcpu);
-			return;
+		if (is_pae(vcpu)) {
+			if (cr3 & CR3_PAE_RESERVED_BITS) {
+				printk(KERN_DEBUG
+				       "set_cr3: #GP, reserved bits\n");
+				inject_gp(vcpu);
+				return;
+			}
+			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3)) {
+				printk(KERN_DEBUG "set_cr3: #GP, pdptrs "
+				       "reserved bits\n");
+				inject_gp(vcpu);
+				return;
+			}
+		} else {
+			if (cr3 & CR3_NONPAE_RESERVED_BITS) {
+				printk(KERN_DEBUG
+				       "set_cr3: #GP, reserved bits\n");
+				inject_gp(vcpu);
+				return;
+			}
 		}
 	}
 

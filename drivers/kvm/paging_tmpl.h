@@ -99,7 +99,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	walker->table = kmap_atomic(pfn_to_page(hpa >> PAGE_SHIFT), KM_USER0);
 
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
-	       (vcpu->cr3 & ~(PAGE_MASK | CR3_FLAGS_MASK)) == 0);
+	       (vcpu->cr3 & CR3_NONPAE_RESERVED_BITS) == 0);
 
 	walker->inherited_ar = PT_USER_MASK | PT_WRITABLE_MASK;
 
