@@ -2869,7 +2869,8 @@ int __init vty_init(void)
 
 static struct class *vtconsole_class;
 
-int bind_con_driver(const struct consw *csw, int first, int last, int deflt)
+static int bind_con_driver(const struct consw *csw, int first, int last,
+			   int deflt)
 {
 	struct module *owner = csw->owner;
 	const char *desc = NULL;
@@ -2968,7 +2969,6 @@ err:
 	module_put(owner);
 	return retval;
 };
-EXPORT_SYMBOL(bind_con_driver);
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
 static int con_is_graphics(const struct consw *csw, int first, int last)
@@ -2987,6 +2987,23 @@ static int con_is_graphics(const struct consw *csw, int first, int last)
 	return retval;
 }
 
+/**
+ * unbind_con_driver - unbind a console driver
+ * @csw: pointer to console driver to unregister
+ * @first: first in range of consoles that @csw should be unbound from
+ * @last: last in range of consoles that @csw should be unbound from
+ * @deflt: should next bound console driver be default after @csw is unbound?
+ *
+ * To unbind a driver from all possible consoles, pass 0 as @first and
+ * %MAX_NR_CONSOLES as @last.
+ *
+ * @deflt controls whether the console that ends up replacing @csw should be
+ * the default console.
+ *
+ * RETURNS:
+ * -ENODEV if @csw isn't a registered console driver or can't be unregistered
+ * or 0 on success.
+ */
 int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
 	struct module *owner = csw->owner;
