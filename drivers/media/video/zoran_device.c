@@ -69,7 +69,7 @@ static int lml33dpath = 0;	/* 1 will use digital path in capture
 				 * load on Bt819 input, there will be
 				 * some image imperfections */
 
-module_param(lml33dpath, bool, 0);
+module_param(lml33dpath, bool, 0644);
 MODULE_PARM_DESC(lml33dpath,
 		 "Use digital path capture mode (on LML33 cards)");
 

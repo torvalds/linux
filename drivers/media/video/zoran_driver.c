@@ -207,8 +207,8 @@ extern int jpg_bufsize;
 extern int pass_through;
 
 static int lock_norm = 0;	/* 1=Don't change TV standard (norm) */
-module_param(lock_norm, int, 0);
-MODULE_PARM_DESC(lock_norm, "Users can't change norm");
+module_param(lock_norm, int, 0644);
+MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
 
 #ifdef CONFIG_VIDEO_V4L2
 	/* small helper function for calculating buffersizes for v4l2
