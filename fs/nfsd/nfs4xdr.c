@@ -1296,7 +1296,7 @@ static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, __be32 *
 	char *path, *rootpath;
 
 	fh_init(&tmp_fh, NFS4_FHSIZE);
-	*stat = exp_pseudoroot(rqstp->rq_client, &tmp_fh, &rqstp->rq_chandle);
+	*stat = exp_pseudoroot(rqstp, &tmp_fh);
 	if (*stat)
 		return NULL;
 	rootpath = tmp_fh.fh_export->ex_path;

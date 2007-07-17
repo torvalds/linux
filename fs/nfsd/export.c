@@ -1235,8 +1235,7 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
  * export point with fsid==0
  */
 __be32
-exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
-	       struct cache_req *creq)
+exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 {
 	struct svc_export *exp;
 	__be32 rv;
@@ -1244,7 +1243,7 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	exp = exp_find(clp, FSID_NUM, fsidv, creq);
+	exp = exp_find(rqstp->rq_client, FSID_NUM, fsidv, rqstp->rq_chandle);
 	if (PTR_ERR(exp) == -ENOENT)
 		return nfserr_perm;
 	if (IS_ERR(exp))

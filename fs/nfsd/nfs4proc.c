@@ -286,8 +286,7 @@ nfsd4_putrootfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 
 	fh_put(&cstate->current_fh);
-	status = exp_pseudoroot(rqstp->rq_client, &cstate->current_fh,
-			      &rqstp->rq_chandle);
+	status = exp_pseudoroot(rqstp, &cstate->current_fh);
 	return status;
 }
 
@@ -474,8 +473,8 @@ nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 ret;
 
 	fh_init(&tmp_fh, NFS4_FHSIZE);
-	if((ret = exp_pseudoroot(rqstp->rq_client, &tmp_fh,
-			      &rqstp->rq_chandle)) != 0)
+	ret = exp_pseudoroot(rqstp, &tmp_fh);
+	if (ret)
 		return ret;
 	if (tmp_fh.fh_dentry == cstate->current_fh.fh_dentry) {
 		fh_put(&tmp_fh);
