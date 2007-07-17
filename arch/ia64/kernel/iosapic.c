@@ -533,12 +533,13 @@ static int iosapic_find_sharable_vector (unsigned long trigger,
 static void __init
 iosapic_reassign_vector (int vector)
 {
-	int new_vector;
+	int irq, new_vector;
 
 	if (!list_empty(&iosapic_intr_info[vector].rtes)) {
-		new_vector = assign_irq_vector(AUTO_ASSIGN);
-		if (new_vector < 0)
+		irq = create_irq();
+		if (irq < 0)
 			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+		new_vector = irq_to_vector(irq);
 		printk(KERN_INFO "Reassigning vector %d to %d\n",
 		       vector, new_vector);
 		memcpy(&iosapic_intr_info[new_vector], &iosapic_intr_info[vector],
@@ -753,7 +754,7 @@ int
 iosapic_register_intr (unsigned int gsi,
 		       unsigned long polarity, unsigned long trigger)
 {
-	int vector, mask = 1, err;
+	int irq, vector, mask = 1, err;
 	unsigned int dest;
 	unsigned long flags;
 	struct iosapic_rte_info *rte;
@@ -773,12 +774,13 @@ iosapic_register_intr (unsigned int gsi,
 	}
 
 	/* If vector is running out, we try to find a sharable vector */
-	vector = assign_irq_vector(AUTO_ASSIGN);
-	if (vector < 0) {
+	irq = create_irq();
+	if (irq < 0) {
 		vector = iosapic_find_sharable_vector(trigger, polarity);
   		if (vector < 0)
 			goto unlock_iosapic_lock;
-	}
+	} else
+		vector = irq_to_vector(irq);
 
 	spin_lock(&irq_desc[vector].lock);
 	dest = get_target_cpu(gsi, vector);
@@ -873,30 +875,18 @@ iosapic_unregister_intr (unsigned int gsi)
 	if (list_empty(&iosapic_intr_info[vector].rtes)) {
 		/* Sanity check */
 		BUG_ON(iosapic_intr_info[vector].count);
-
-		/* Clear the interrupt controller descriptor */
-		idesc->chip = &no_irq_type;
-
 #ifdef CONFIG_SMP
 		/* Clear affinity */
 		cpus_setall(idesc->affinity);
 #endif
-
 		/* Clear the interrupt information */
 		memset(&iosapic_intr_info[vector], 0,
 		       sizeof(struct iosapic_intr_info));
 		iosapic_intr_info[vector].low32 |= IOSAPIC_MASK;
 		INIT_LIST_HEAD(&iosapic_intr_info[vector].rtes);
 
-		if (idesc->action) {
-			printk(KERN_ERR
-			       "interrupt handlers still exist on IRQ %u\n",
-			       irq);
-			WARN_ON(1);
-		}
-
-		/* Free the interrupt vector */
-		free_irq_vector(vector);
+		/* Destroy IRQ */
+		destroy_irq(irq);
 	}
  out:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
@@ -912,7 +902,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 {
 	static const char * const name[] = {"unknown", "PMI", "INIT", "CPEI"};
 	unsigned char delivery;
-	int vector, mask = 0;
+	int irq, vector, mask = 0;
 	unsigned int dest = ((id << 8) | eid) & 0xffff;
 
 	switch (int_type) {
@@ -926,9 +916,10 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		delivery = IOSAPIC_PMI;
 		break;
 	      case ACPI_INTERRUPT_INIT:
-		vector = assign_irq_vector(AUTO_ASSIGN);
-		if (vector < 0)
+		irq = create_irq();
+		if (irq < 0)
 			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+		vector = irq_to_vector(irq);
 		delivery = IOSAPIC_INIT;
 		break;
 	      case ACPI_INTERRUPT_CPEI:
