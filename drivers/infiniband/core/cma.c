@@ -573,7 +573,7 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		break;
 	case RDMA_TRANSPORT_IWARP:
 		if (!id_priv->cm_id.iw) {
-			qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+			qp_attr->qp_access_flags = 0;
 			*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS;
 		} else
 			ret = iw_cm_init_qp_attr(id_priv->cm_id.iw, qp_attr,
