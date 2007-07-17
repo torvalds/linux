@@ -107,6 +107,15 @@ config SPI_IMX
 	  This enables using the Freescale iMX SPI controller in master
 	  mode.
 
+config SPI_LM70_LLP
+	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
+	depends on SPI_MASTER && PARPORT && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This driver supports the NS LM70 LLP Evaluation Board,
+	  which interfaces to an LM70 temperature sensor using
+	  a parallel port.
+
 config SPI_MPC52xx_PSC
 	tristate "Freescale MPC52xx PSC SPI controller"
 	depends on SPI_MASTER && PPC_MPC52xx && EXPERIMENTAL
