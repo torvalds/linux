@@ -170,7 +170,7 @@ static struct fb_fix_screeninfo macfb_fix = {
 };
 
 static struct fb_info fb_info;
-static u32 pseudo_palette[17];
+static u32 pseudo_palette[16];
 static int inverse   = 0;
 static int vidtest   = 0;
 
@@ -529,56 +529,63 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (regno >= fb_info->cmap.len)
 		return 1;
 
-	switch (fb_info->var.bits_per_pixel) {
-	case 1:
-		/* We shouldn't get here */
-		break;
-	case 2:
-	case 4:
-	case 8:
-		if (macfb_setpalette)
-			macfb_setpalette(regno, red, green, blue, fb_info);
-		else
-			return 1;
-		break;
-	case 16:
-		if (fb_info->var.red.offset == 10) {
-			/* 1:5:5:5 */
-			((u32*) (fb_info->pseudo_palette))[regno] =
+	if (fb_info->var.bits_per_pixel <= 8) {
+		switch (fb_info->var.bits_per_pixel) {
+		case 1:
+			/* We shouldn't get here */
+			break;
+		case 2:
+		case 4:
+		case 8:
+			if (macfb_setpalette)
+				macfb_setpalette(regno, red, green, blue,
+						 fb_info);
+			else
+				return 1;
+			break;
+		}
+	} else if (regno < 16) {
+		switch (fb_info->var.bits_per_pixel) {
+		case 16:
+			if (fb_info->var.red.offset == 10) {
+				/* 1:5:5:5 */
+				((u32*) (fb_info->pseudo_palette))[regno] =
 					((red   & 0xf800) >>  1) |
 					((green & 0xf800) >>  6) |
 					((blue  & 0xf800) >> 11) |
 					((transp != 0) << 15);
-		} else {
-			/* 0:5:6:5 */
-			((u32*) (fb_info->pseudo_palette))[regno] =
+			} else {
+				/* 0:5:6:5 */
+				((u32*) (fb_info->pseudo_palette))[regno] =
 					((red   & 0xf800)      ) |
 					((green & 0xfc00) >>  5) |
 					((blue  & 0xf800) >> 11);
+			}
+			break;
+			/* I'm pretty sure that one or the other of these
+			   doesn't exist on 68k Macs */
+		case 24:
+			red   >>= 8;
+			green >>= 8;
+			blue  >>= 8;
+			((u32 *)(fb_info->pseudo_palette))[regno] =
+				(red   << fb_info->var.red.offset)   |
+				(green << fb_info->var.green.offset) |
+				(blue  << fb_info->var.blue.offset);
+			break;
+		case 32:
+			red   >>= 8;
+			green >>= 8;
+			blue  >>= 8;
+			((u32 *)(fb_info->pseudo_palette))[regno] =
+				(red   << fb_info->var.red.offset)   |
+				(green << fb_info->var.green.offset) |
+				(blue  << fb_info->var.blue.offset);
+			break;
 		}
-		break;	
-		/* I'm pretty sure that one or the other of these
-		   doesn't exist on 68k Macs */
-	case 24:
-		red   >>= 8;
-		green >>= 8;
-		blue  >>= 8;
-		((u32 *)(fb_info->pseudo_palette))[regno] =
-			(red   << fb_info->var.red.offset)   |
-			(green << fb_info->var.green.offset) |
-			(blue  << fb_info->var.blue.offset);
-		break;
-	case 32:
-		red   >>= 8;
-		green >>= 8;
-		blue  >>= 8;
-		((u32 *)(fb_info->pseudo_palette))[regno] =
-			(red   << fb_info->var.red.offset)   |
-			(green << fb_info->var.green.offset) |
-			(blue  << fb_info->var.blue.offset);
-		break;
-    }
-    return 0;
+	}
+
+	return 0;
 }
 
 static struct fb_ops macfb_ops = {
