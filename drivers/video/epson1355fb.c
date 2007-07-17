@@ -63,6 +63,7 @@
 
 struct epson1355_par {
 	unsigned long reg_addr;
+	u32 pseudo_palette[16];
 };
 
 /* ------------------------------------------------------------------------- */
@@ -635,7 +636,7 @@ int __init epson1355fb_probe(struct platform_device *dev)
 		goto bail;
 	}
 
-	info = framebuffer_alloc(sizeof(struct epson1355_par) + sizeof(u32) * 256, &dev->dev);
+	info = framebuffer_alloc(sizeof(struct epson1355_par), &dev->dev);
 	if (!info) {
 		rc = -ENOMEM;
 		goto bail;
@@ -648,7 +649,7 @@ int __init epson1355fb_probe(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto bail;
 	}
-	info->pseudo_palette = (void *)(default_par + 1);
+	info->pseudo_palette = default_par->pseudo_palette;
 
 	info->screen_base = ioremap(EPSON1355FB_FB_PHYS, EPSON1355FB_FB_LEN);
 	if (!info->screen_base) {
