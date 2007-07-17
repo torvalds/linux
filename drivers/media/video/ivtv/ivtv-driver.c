@@ -56,7 +56,6 @@
 #include "ivtv-gpio.h"
 #include "ivtv-yuv.h"
 
-#include <linux/vermagic.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-chip-ident.h>
 
@@ -1314,7 +1313,7 @@ static struct pci_driver ivtv_pci_driver = {
 static int module_start(void)
 {
 	printk(KERN_INFO "ivtv:  ==================== START INIT IVTV ====================\n");
-	printk(KERN_INFO "ivtv:  version %s (" VERMAGIC_STRING ") loading\n", IVTV_VERSION);
+	printk(KERN_INFO "ivtv:  version %s loading\n", IVTV_VERSION);
 
 	memset(ivtv_cards, 0, sizeof(ivtv_cards));
 
