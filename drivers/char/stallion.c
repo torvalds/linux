@@ -1788,7 +1788,6 @@ static void stl_offintr(struct work_struct *work)
 	if (tty == NULL)
 		return;
 
-	lock_kernel();
 	if (test_bit(ASYI_TXLOW, &portp->istate))
 		tty_wakeup(tty);
 
@@ -1802,7 +1801,6 @@ static void stl_offintr(struct work_struct *work)
 			if (portp->flags & ASYNC_CHECK_CD)
 				tty_hangup(tty);	/* FIXME: module removal race here - AKPM */
 	}
-	unlock_kernel();
 }
 
 /*****************************************************************************/
