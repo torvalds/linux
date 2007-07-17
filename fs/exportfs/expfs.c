@@ -91,6 +91,129 @@ find_disconnected_root(struct dentry *dentry)
 	return dentry;
 }
 
+
+/*
+ * Make sure target_dir is fully connected to the dentry tree.
+ *
+ * It may already be, as the flag isn't always updated when connection happens.
+ */
+static int
+reconnect_path(struct super_block *sb, struct dentry *target_dir)
+{
+	char nbuf[NAME_MAX+1];
+	int noprogress = 0;
+	int err = -ESTALE;
+
+	/*
+	 * It is possible that a confused file system might not let us complete
+	 * the path to the root.  For example, if get_parent returns a directory
+	 * in which we cannot find a name for the child.  While this implies a
+	 * very sick filesystem we don't want it to cause knfsd to spin.  Hence
+	 * the noprogress counter.  If we go through the loop 10 times (2 is
+	 * probably enough) without getting anywhere, we just give up
+	 */
+	while (target_dir->d_flags & DCACHE_DISCONNECTED && noprogress++ < 10) {
+		struct dentry *pd = find_disconnected_root(target_dir);
+
+		if (!IS_ROOT(pd)) {
+			/* must have found a connected parent - great */
+			spin_lock(&pd->d_lock);
+			pd->d_flags &= ~DCACHE_DISCONNECTED;
+			spin_unlock(&pd->d_lock);
+			noprogress = 0;
+		} else if (pd == sb->s_root) {
+			printk(KERN_ERR "export: Eeek filesystem root is not connected, impossible\n");
+			spin_lock(&pd->d_lock);
+			pd->d_flags &= ~DCACHE_DISCONNECTED;
+			spin_unlock(&pd->d_lock);
+			noprogress = 0;
+		} else {
+			/*
+			 * We have hit the top of a disconnected path, try to
+			 * find parent and connect.
+			 *
+			 * Racing with some other process renaming a directory
+			 * isn't much of a problem here.  If someone renames
+			 * the directory, it will end up properly connected,
+			 * which is what we want
+			 *
+			 * Getting the parent can't be supported generically,
+			 * the locking is too icky.
+			 *
+			 * Instead we just return EACCES.  If server reboots
+			 * or inodes get flushed, you lose
+			 */
+			struct dentry *ppd = ERR_PTR(-EACCES);
+			struct dentry *npd;
+
+			mutex_lock(&pd->d_inode->i_mutex);
+			if (sb->s_export_op->get_parent)
+				ppd = sb->s_export_op->get_parent(pd);
+			mutex_unlock(&pd->d_inode->i_mutex);
+
+			if (IS_ERR(ppd)) {
+				err = PTR_ERR(ppd);
+				dprintk("%s: get_parent of %ld failed, err %d\n",
+					__FUNCTION__, pd->d_inode->i_ino, err);
+				dput(pd);
+				break;
+			}
+
+			dprintk("%s: find name of %lu in %lu\n", __FUNCTION__,
+				pd->d_inode->i_ino, ppd->d_inode->i_ino);
+			err = exportfs_get_name(ppd, nbuf, pd);
+			if (err) {
+				dput(ppd);
+				dput(pd);
+				if (err == -ENOENT)
+					/* some race between get_parent and
+					 * get_name?  just try again
+					 */
+					continue;
+				break;
+			}
+			dprintk("%s: found name: %s\n", __FUNCTION__, nbuf);
+			mutex_lock(&ppd->d_inode->i_mutex);
+			npd = lookup_one_len(nbuf, ppd, strlen(nbuf));
+			mutex_unlock(&ppd->d_inode->i_mutex);
+			if (IS_ERR(npd)) {
+				err = PTR_ERR(npd);
+				dprintk("%s: lookup failed: %d\n",
+					__FUNCTION__, err);
+				dput(ppd);
+				dput(pd);
+				break;
+			}
+			/* we didn't really want npd, we really wanted
+			 * a side-effect of the lookup.
+			 * hopefully, npd == pd, though it isn't really
+			 * a problem if it isn't
+			 */
+			if (npd == pd)
+				noprogress = 0;
+			else
+				printk("%s: npd != pd\n", __FUNCTION__);
+			dput(npd);
+			dput(ppd);
+			if (IS_ROOT(pd)) {
+				/* something went wrong, we have to give up */
+				dput(pd);
+				break;
+			}
+		}
+		dput(pd);
+	}
+
+	if (target_dir->d_flags & DCACHE_DISCONNECTED) {
+		/* something went wrong - oh-well */
+		if (!err)
+			err = -ESTALE;
+		return err;
+	}
+
+	return 0;
+}
+
 /**
  * find_exported_dentry - helper routine to implement export_operations->decode_fh
  * @sb:		The &super_block identifying the filesystem
@@ -128,13 +251,8 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 		     int (*acceptable)(void *context, struct dentry *de),
 		     void *context)
 {
-	struct dentry *result = NULL;
-	struct dentry *target_dir;
+	struct dentry *result, *alias;
 	int err = -ESTALE;
-	struct export_operations *nops = sb->s_export_op;
-	struct dentry *alias;
-	int noprogress;
-	char nbuf[NAME_MAX+1];
 
 	/*
 	 * Attempt to find the inode.
@@ -151,8 +269,13 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			goto err_result;
 		}
 
-		target_dir = dget(result);
+		err = reconnect_path(sb, result);
+		if (err)
+			goto err_result;
 	} else {
+		struct dentry *target_dir, *nresult;
+		char nbuf[NAME_MAX+1];
+
 		alias = find_acceptable_alias(result, acceptable, context);
 		if (alias)
 			return alias;
@@ -165,129 +288,21 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			err = PTR_ERR(target_dir);
 			goto err_result;
 		}
-	}
 
-	/*
-	 * Now we need to make sure that target_dir is properly connected.
-	 * It may already be, as the flag isn't always updated when connection
-	 * happens.
-	 * So, we walk up parent links until we find a connected directory,
-	 * or we run out of directories.  Then we find the parent, find
-	 * the name of the child in that parent, and do a lookup.
-	 * This should connect the child into the parent
-	 * We then repeat.
-	 */
-
-	/* it is possible that a confused file system might not let us complete 
-	 * the path to the root.  For example, if get_parent returns a directory
-	 * in which we cannot find a name for the child.  While this implies a
-	 * very sick filesystem we don't want it to cause knfsd to spin.  Hence
-	 * the noprogress counter.  If we go through the loop 10 times (2 is
-	 * probably enough) without getting anywhere, we just give up
-	 */
-	noprogress = 0;
-	while (target_dir->d_flags & DCACHE_DISCONNECTED && noprogress++ < 10) {
-		struct dentry *pd = find_disconnected_root(target_dir);
-
-		if (!IS_ROOT(pd)) {
-			/* must have found a connected parent - great */
-			spin_lock(&pd->d_lock);
-			pd->d_flags &= ~DCACHE_DISCONNECTED;
-			spin_unlock(&pd->d_lock);
-			noprogress = 0;
-		} else if (pd == sb->s_root) {
-			printk(KERN_ERR "export: Eeek filesystem root is not connected, impossible\n");
-			spin_lock(&pd->d_lock);
-			pd->d_flags &= ~DCACHE_DISCONNECTED;
-			spin_unlock(&pd->d_lock);
-			noprogress = 0;
-		} else {
-			/*
-			 * We have hit the top of a disconnected path, try to
-			 * find parent and connect.
-			 *
-			 * Racing with some other process renaming a directory
-			 * isn't much of a problem here.  If someone renames
-			 * the directory, it will end up properly connected,
-			 * which is what we want
-			 *
-			 * Getting the parent can't be supported generically,
-			 * the locking is too icky.
-			 *
-			 * Instead we just return EACCES.  If server reboots
-			 * or inodes get flushed, you lose
-			 */
-			struct dentry *ppd = ERR_PTR(-EACCES);
-			struct dentry *npd;
-
-			mutex_lock(&pd->d_inode->i_mutex);
-			if (nops->get_parent)
-				ppd = nops->get_parent(pd);
-			mutex_unlock(&pd->d_inode->i_mutex);
-
-			if (IS_ERR(ppd)) {
-				err = PTR_ERR(ppd);
-				dprintk("find_exported_dentry: get_parent of %ld failed, err %d\n",
-					pd->d_inode->i_ino, err);
-				dput(pd);
-				break;
-			}
-			dprintk("find_exported_dentry: find name of %lu in %lu\n", pd->d_inode->i_ino, ppd->d_inode->i_ino);
-			err = exportfs_get_name(ppd, nbuf, pd);
-			if (err) {
-				dput(ppd);
-				dput(pd);
-				if (err == -ENOENT)
-					/* some race between get_parent and
-					 * get_name?  just try again
-					 */
-					continue;
-				break;
-			}
-			dprintk("find_exported_dentry: found name: %s\n", nbuf);
-			mutex_lock(&ppd->d_inode->i_mutex);
-			npd = lookup_one_len(nbuf, ppd, strlen(nbuf));
-			mutex_unlock(&ppd->d_inode->i_mutex);
-			if (IS_ERR(npd)) {
-				err = PTR_ERR(npd);
-				dprintk("find_exported_dentry: lookup failed: %d\n", err);
-				dput(ppd);
-				dput(pd);
-				break;
-			}
-			/* we didn't really want npd, we really wanted
-			 * a side-effect of the lookup.
-			 * hopefully, npd == pd, though it isn't really
-			 * a problem if it isn't
-			 */
-			if (npd == pd)
-				noprogress = 0;
-			else
-				printk("find_exported_dentry: npd != pd\n");
-			dput(npd);
-			dput(ppd);
-			if (IS_ROOT(pd)) {
-				/* something went wrong, we have to give up */
-				dput(pd);
-				break;
-			}
+		err = reconnect_path(sb, target_dir);
+		if (err) {
+			dput(target_dir);
+			goto err_result;
 		}
-		dput(pd);
-	}
 
-	if (target_dir->d_flags & DCACHE_DISCONNECTED) {
-		/* something went wrong - oh-well */
-		if (!err)
-			err = -ESTALE;
-		goto err_target;
-	}
-	/* if we weren't after a directory, have one more step to go */
-	if (result != target_dir) {
-		struct dentry *nresult;
+		/*
+		 * As we weren't after a directory, have one more step to go.
+		 */
 		err = exportfs_get_name(target_dir, nbuf, result);
 		if (!err) {
 			mutex_lock(&target_dir->d_inode->i_mutex);
-			nresult = lookup_one_len(nbuf, target_dir, strlen(nbuf));
+			nresult = lookup_one_len(nbuf, target_dir,
+						 strlen(nbuf));
 			mutex_unlock(&target_dir->d_inode->i_mutex);
 			if (!IS_ERR(nresult)) {
 				if (nresult->d_inode) {
@@ -297,8 +312,8 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 					dput(nresult);
 			}
 		}
+		dput(target_dir);
 	}
-	dput(target_dir);
 
 	alias = find_acceptable_alias(result, acceptable, context);
 	if (alias)
@@ -308,13 +323,11 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 	dput(result);
 	/* It might be justifiable to return ESTALE here,
 	 * but the filehandle at-least looks reasonable good
-	 * and it just be a permission problem, so returning
+	 * and it may just be a permission problem, so returning
 	 * -EACCESS is safer
 	 */
 	return ERR_PTR(-EACCES);
 
- err_target:
-	dput(target_dir);
  err_result:
 	dput(result);
 	return ERR_PTR(err);
