@@ -537,7 +537,7 @@ typedef struct _MPT_ADAPTER
 	int			 id;		/* Unique adapter id N {0,1,2,...} */
 	int			 pci_irq;	/* This irq           */
 	char			 name[MPT_NAME_LENGTH];	/* "iocN"             */
-	char			*prod_name;	/* "LSIFC9x9"         */
+	char			 prod_name[MPT_NAME_LENGTH];	/* "LSIFC9x9"         */
 	char			 board_name[16];
 	char			 board_assembly[16];
 	char			 board_tracer[16];
