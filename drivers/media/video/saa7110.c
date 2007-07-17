@@ -208,7 +208,7 @@ determine_norm (struct i2c_client *client)
 	saa7110_write_block(client, initseq, sizeof(initseq));
 	saa7110_selmux(client, decoder->input);
 	prepare_to_wait(&decoder->wq, &wait, TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/4);
+	schedule_timeout(msecs_to_jiffies(250));
 	finish_wait(&decoder->wq, &wait);
 	status = saa7110_read(client);
 	if (status & 0x40) {
@@ -249,7 +249,7 @@ determine_norm (struct i2c_client *client)
 	//saa7110_write(client,0x2E,0x9A);
 
 	prepare_to_wait(&decoder->wq, &wait, TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/4);
+	schedule_timeout(msecs_to_jiffies(250));
 	finish_wait(&decoder->wq, &wait);
 
 	status = saa7110_read(client);

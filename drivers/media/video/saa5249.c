@@ -86,9 +86,9 @@ static const int disp_modes[8][3] =
 
 
 
-#define PAGE_WAIT (300*HZ/1000)			/* Time between requesting page and */
+#define PAGE_WAIT    msecs_to_jiffies(300)	/* Time between requesting page and */
 						/* checking status bits */
-#define PGBUF_EXPIRE (15*HZ)			/* Time to wait before retransmitting */
+#define PGBUF_EXPIRE msecs_to_jiffies(15000)	/* Time to wait before retransmitting */
 						/* page regardless of infobits */
 typedef struct {
 	u8 pgbuf[VTX_VIRTUALSIZE];		/* Page-buffer */
@@ -115,8 +115,8 @@ struct saa5249_device
 #define CCTWR 34		/* I²C write/read-address of vtx-chip */
 #define CCTRD 35
 #define NOACK_REPEAT 10		/* Retry access this many times on failure */
-#define CLEAR_DELAY (HZ/20)	/* Time required to clear a page */
-#define READY_TIMEOUT (30*HZ/1000)	/* Time to wait for ready signal of I²C-bus interface */
+#define CLEAR_DELAY   msecs_to_jiffies(50)	/* Time required to clear a page */
+#define READY_TIMEOUT msecs_to_jiffies(30)	/* Time to wait for ready signal of I2C-bus interface */
 #define INIT_DELAY 500		/* Time in usec to wait at initialization of CEA interface */
 #define START_DELAY 10		/* Time in usec to wait before starting write-cycle (CEA) */
 
