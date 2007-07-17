@@ -3003,6 +3003,45 @@ static int fbcon_mode_deleted(struct fb_info *info,
 	return found;
 }
 
+#ifdef CONFIG_VT_HW_CONSOLE_BINDING
+static int fbcon_unbind(void)
+{
+	int ret;
+
+	ret = unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
+				fbcon_is_default);
+	return ret;
+}
+#else
+static inline int fbcon_unbind(void)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_VT_HW_CONSOLE_BINDING */
+
+static int fbcon_fb_unbind(int idx)
+{
+	int i, new_idx = -1, ret = 0;
+
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
+		if (con2fb_map[i] != idx &&
+		    con2fb_map[i] != -1) {
+			new_idx = i;
+			break;
+		}
+	}
+
+	if (new_idx != -1) {
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+			if (con2fb_map[i] == idx)
+				set_con2fb_map(i, new_idx, 0);
+		}
+	} else
+		ret = fbcon_unbind();
+
+	return ret;
+}
+
 static int fbcon_fb_unregistered(struct fb_info *info)
 {
 	int i, idx = info->node;
@@ -3209,6 +3248,9 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_MODE_DELETE:
 		mode = event->data;
 		ret = fbcon_mode_deleted(info, mode);
+		break;
+	case FB_EVENT_FB_UNBIND:
+		ret = fbcon_fb_unbind(info->node);
 		break;
 	case FB_EVENT_FB_REGISTERED:
 		ret = fbcon_fb_registered(info);

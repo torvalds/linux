@@ -1334,17 +1334,34 @@ register_framebuffer(struct fb_info *fb_info)
  *
  *	Returns negative errno on error, or zero for success.
  *
+ *      This function will also notify the framebuffer console
+ *      to release the driver.
+ *
+ *      This is meant to be called within a driver's module_exit()
+ *      function. If this is called outside module_exit(), ensure
+ *      that the driver implements fb_open() and fb_release() to
+ *      check that no processes are using the device.
  */
 
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
 	struct fb_event event;
-	int i;
+	int i, ret = 0;
 
 	i = fb_info->node;
-	if (!registered_fb[i])
-		return -EINVAL;
+	if (!registered_fb[i]) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	event.info = fb_info;
+	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+
+	if (ret) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
@@ -1356,7 +1373,8 @@ unregister_framebuffer(struct fb_info *fb_info)
 	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
-	return 0;
+done:
+	return ret;
 }
 
 /**

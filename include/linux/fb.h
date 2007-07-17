@@ -529,6 +529,8 @@ struct fb_cursor_user {
 #define FB_EVENT_CONBLANK               0x0C
 /*      Get drawing requirements        */
 #define FB_EVENT_GET_REQ                0x0D
+/*      Unbind from the console if possible */
+#define FB_EVENT_FB_UNBIND              0x0E
 
 struct fb_event {
 	struct fb_info *info;
