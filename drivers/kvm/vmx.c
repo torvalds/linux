@@ -1610,7 +1610,6 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			return 1;
 		case EMULATE_DO_MMIO:
 			++vcpu->stat.mmio_exits;
-			kvm_run->exit_reason = KVM_EXIT_MMIO;
 			return 0;
 		 case EMULATE_FAIL:
 			vcpu_printf(vcpu, "%s: emulate fail\n", __FUNCTION__);

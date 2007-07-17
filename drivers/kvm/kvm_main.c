@@ -1276,6 +1276,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	r = x86_emulate_memop(&emulate_ctxt, &emulate_ops);
 
 	if ((r || vcpu->mmio_is_write) && run) {
+		run->exit_reason = KVM_EXIT_MMIO;
 		run->mmio.phys_addr = vcpu->mmio_phys_addr;
 		memcpy(run->mmio.data, vcpu->mmio_data, 8);
 		run->mmio.len = vcpu->mmio_size;
@@ -1937,7 +1938,6 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			/*
 			 * Read-modify-write.  Back to userspace.
 			 */
-			kvm_run->exit_reason = KVM_EXIT_MMIO;
 			r = 0;
 			goto out;
 		}
