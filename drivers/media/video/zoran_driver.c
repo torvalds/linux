@@ -200,14 +200,6 @@ const struct zoran_format zoran_formats[] = {
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
 
 
-extern int *zr_debug;
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args);	\
-	} while (0)
-
 extern int v4l_nbufs;
 extern int v4l_bufsize;
 extern int jpg_nbufs;
@@ -1106,12 +1098,10 @@ jpg_sync (struct file       *file,
 		frame = zr->jpg_pend[zr->jpg_que_tail & BUZ_MASK_FRAME];
 
 	/* buffer should now be in BUZ_STATE_DONE */
-	if (*zr_debug > 0)
-		if (zr->jpg_buffers.buffer[frame].state != BUZ_STATE_DONE)
-			dprintk(2,
-				KERN_ERR
-				"%s: jpg_sync() - internal state error\n",
-				ZR_DEVNAME(zr));
+	if (zr->jpg_buffers.buffer[frame].state != BUZ_STATE_DONE)
+		dprintk(2,
+			KERN_ERR "%s: jpg_sync() - internal state error\n",
+			ZR_DEVNAME(zr));
 
 	*bs = zr->jpg_buffers.buffer[frame].bs;
 	bs->frame = frame;
@@ -1389,7 +1379,7 @@ zoran_close (struct inode *inode,
 		/* disable interrupts */
 		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
 
-		if (*zr_debug > 1)
+		if (zr36067_debug > 1)
 			print_interrupts(zr);
 
 		/* Overlay off */

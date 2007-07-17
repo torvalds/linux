@@ -145,10 +145,9 @@ module_param(pass_through, int, 0);
 MODULE_PARM_DESC(pass_through,
 		 "Pass TV signal through to TV-out when idling");
 
-static int debug = 1;
-int *zr_debug = &debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-4)");
+int zr36067_debug = 1;
+module_param_named(debug, zr36067_debug, int, 0644);
+MODULE_PARM_DESC(debug, "Debug level (0-5)");
 
 MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
@@ -160,12 +159,6 @@ static struct pci_device_id zr36067_pci_tbl[] = {
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args); \
-	} while (0)
 
 int zoran_num;			/* number of Buzs in use */
 struct zoran zoran[BUZ_MAX];
@@ -1075,7 +1068,7 @@ test_interrupts (struct zoran *zr)
 	if (timeout) {
 		dprintk(1, ": time spent: %d\n", 1 * HZ - timeout);
 	}
-	if (*zr_debug > 1)
+	if (zr36067_debug > 1)
 		print_interrupts(zr);
 	btwrite(icr, ZR36057_ICR);
 }
@@ -1158,7 +1151,7 @@ zr36057_init (struct zoran *zr)
 		goto exit_unregister;
 
 	zoran_init_hardware(zr);
-	if (*zr_debug > 2)
+	if (zr36067_debug > 2)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
@@ -1620,7 +1613,7 @@ init_dc10_cards (void)
 	}
 
 	/* random nonsense */
-	dprintk(5, KERN_DEBUG "Jotti is een held!\n");
+	dprintk(6, KERN_DEBUG "Jotti is een held!\n");
 
 	/* some mainboards might not do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {
