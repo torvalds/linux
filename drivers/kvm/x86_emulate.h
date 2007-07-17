@@ -112,8 +112,6 @@ struct x86_emulate_ops {
 
 };
 
-struct cpu_user_regs;
-
 struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
