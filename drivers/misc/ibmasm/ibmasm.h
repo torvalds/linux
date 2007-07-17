@@ -18,7 +18,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -58,8 +58,8 @@ static inline char *get_timestamp(char *buf)
 	return buf;
 }
 
-#define IBMASM_CMD_PENDING	0	
-#define IBMASM_CMD_COMPLETE	1	
+#define IBMASM_CMD_PENDING	0
+#define IBMASM_CMD_COMPLETE	1
 #define IBMASM_CMD_FAILED	2
 
 #define IBMASM_CMD_TIMEOUT_NORMAL	45
