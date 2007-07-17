@@ -329,7 +329,7 @@ cadet_handler(unsigned long data)
 	init_timer(&readtimer);
 	readtimer.function=cadet_handler;
 	readtimer.data=(unsigned long)0;
-	readtimer.expires=jiffies+(HZ/20);
+	readtimer.expires=jiffies+msecs_to_jiffies(50);
 	add_timer(&readtimer);
 }
 
@@ -349,7 +349,7 @@ cadet_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 		init_timer(&readtimer);
 		readtimer.function=cadet_handler;
 		readtimer.data=(unsigned long)0;
-		readtimer.expires=jiffies+(HZ/20);
+		readtimer.expires=jiffies+msecs_to_jiffies(50);
 		add_timer(&readtimer);
 	}
 	if(rdsin==rdsout) {
