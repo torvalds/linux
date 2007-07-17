@@ -605,8 +605,10 @@ fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 	 * check is sufficient to ensure we don't send response to
 	 * broadcast packets or posted writes.
 	 */
-	if (request->ack != ACK_PENDING)
+	if (request->ack != ACK_PENDING) {
+		kfree(request);
 		return;
+	}
 
 	if (rcode == RCODE_COMPLETE)
 		fw_fill_response(&request->response, request->request_header,
