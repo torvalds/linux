@@ -620,11 +620,17 @@ zr36057_set_memgrab (struct zoran *zr,
 		     int           mode)
 {
 	if (mode) {
-		if (btread(ZR36057_VSSFGR) &
-		    (ZR36057_VSSFGR_SnapShot | ZR36057_VSSFGR_FrameGrab))
+		/* We only check SnapShot and not FrameGrab here.  SnapShot==1
+		 * means a capture is already in progress, but FrameGrab==1
+		 * doesn't necessary mean that.  It's more correct to say a 1
+		 * to 0 transition indicates a capture completed.  If a
+		 * capture is pending when capturing is tuned off, FrameGrab
+		 * will be stuck at 1 until capturing is turned back on.
+		 */
+		if (btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_SnapShot)
 			dprintk(1,
 				KERN_WARNING
-				"%s: zr36057_set_memgrab(1) with SnapShot or FrameGrab on!?\n",
+				"%s: zr36057_set_memgrab(1) with SnapShot on!?\n",
 				ZR_DEVNAME(zr));
 
 		/* switch on VSync interrupts */
@@ -641,10 +647,11 @@ zr36057_set_memgrab (struct zoran *zr,
 
 		zr->v4l_memgrab_active = 1;
 	} else {
-		zr->v4l_memgrab_active = 0;
-
 		/* switch off VSync interrupts */
 		btand(~zr->card.vsync_int, ZR36057_ICR);	// SW
+
+		zr->v4l_memgrab_active = 0;
+		zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 
 		/* reenable grabbing to screen if it was running */
 		if (zr->v4l_overlay_active) {

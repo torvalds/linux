@@ -1188,10 +1188,14 @@ zoran_close_end_session (struct file *file)
 
 	/* v4l capture */
 	if (fh->v4l_buffers.active != ZORAN_FREE) {
+		long flags;
+
+		spin_lock_irqsave(&zr->spinlock, flags);
 		zr36057_set_memgrab(zr, 0);
 		zr->v4l_buffers.allocated = 0;
 		zr->v4l_buffers.active = fh->v4l_buffers.active =
 		    ZORAN_FREE;
+		spin_unlock_irqrestore(&zr->spinlock, flags);
 	}
 
 	/* v4l buffers */
@@ -3456,8 +3460,13 @@ zoran_do_ioctl (struct inode *inode,
 				goto strmoff_unlock_and_return;
 
 			/* unload capture */
-			if (zr->v4l_memgrab_active)
+			if (zr->v4l_memgrab_active) {
+				long flags;
+
+				spin_lock_irqsave(&zr->spinlock, flags);
 				zr36057_set_memgrab(zr, 0);
+				spin_unlock_irqrestore(&zr->spinlock, flags);
+			}
 
 			for (i = 0; i < fh->v4l_buffers.num_buffers; i++)
 				zr->v4l_buffers.buffer[i].state =
@@ -4392,11 +4401,15 @@ zoran_vm_close (struct vm_area_struct *vma)
 				mutex_lock(&zr->resource_lock);
 
 				if (fh->v4l_buffers.active != ZORAN_FREE) {
+					long flags;
+
+					spin_lock_irqsave(&zr->spinlock, flags);
 					zr36057_set_memgrab(zr, 0);
 					zr->v4l_buffers.allocated = 0;
 					zr->v4l_buffers.active =
 					    fh->v4l_buffers.active =
 					    ZORAN_FREE;
+					spin_unlock_irqrestore(&zr->spinlock, flags);
 				}
 				//v4l_fbuffer_free(file);
 				fh->v4l_buffers.allocated = 0;
