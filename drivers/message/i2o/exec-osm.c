@@ -339,6 +339,8 @@ static int i2o_exec_probe(struct device *dev)
 	rc = device_create_file(dev, &dev_attr_product_id);
 	if (rc) goto err_vid;
 
+	i2o_dev->iop->exec = i2o_dev;
+
 	return 0;
 
 err_vid:
