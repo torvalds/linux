@@ -1057,39 +1057,37 @@ static int __init bsg_init(void)
 
 	bsg_class = class_create(THIS_MODULE, "bsg");
 	if (IS_ERR(bsg_class)) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		return PTR_ERR(bsg_class);
+		ret = PTR_ERR(bsg_class);
+		goto destroy_kmemcache;
 	}
 
 	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
-	if (ret) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		return ret;
-	}
+	if (ret)
+		goto destroy_bsg_class;
 
 	bsg_major = MAJOR(devid);
 
 	cdev_init(&bsg_cdev, &bsg_fops);
 	ret = cdev_add(&bsg_cdev, MKDEV(bsg_major, 0), BSG_MAX_DEVS);
-	if (ret) {
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
-		return ret;
-	}
+	if (ret)
+		goto unregister_chrdev;
 
 	ret = scsi_register_interface(&bsg_intf);
-	if (ret) {
-		printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
-		kmem_cache_destroy(bsg_cmd_cachep);
-		class_destroy(bsg_class);
-		unregister_chrdev(bsg_major, "bsg");
-		return ret;
-	}
+	if (ret)
+		goto remove_cdev;
 
 	printk(KERN_INFO "%s loaded (major %d)\n", bsg_version, bsg_major);
 	return 0;
+remove_cdev:
+	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
+	cdev_del(&bsg_cdev);
+unregister_chrdev:
+	unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
+destroy_bsg_class:
+	class_destroy(bsg_class);
+destroy_kmemcache:
+	kmem_cache_destroy(bsg_cmd_cachep);
+	return ret;
 }
 
 MODULE_AUTHOR("Jens Axboe");
