@@ -1016,11 +1016,13 @@ static int hisax_cs_setup_card(struct IsdnCard *card)
 	return ret;
 }
 
-static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockowner)
+static int hisax_cs_new(int cardnr, char *id, struct IsdnCard *card,
+			struct IsdnCardState **cs_out, int *busy_flag,
+			struct module *lockowner)
 {
-	int ret = 0;
-	struct IsdnCard *card = cards + cardnr;
 	struct IsdnCardState *cs;
+
+	*cs_out = NULL;
 
 	cs = kzalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
 	if (!cs) {
@@ -1098,19 +1100,23 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	cs->iif.readstat = HiSax_readstatus;
 	register_isdn(&cs->iif);
 	cs->myid = cs->iif.channels;
-	printk(KERN_INFO
-	       "HiSax: Card %d Protocol %s Id=%s (%d)\n", cardnr + 1,
-	       (card->protocol == ISDN_PTYPE_1TR6) ? "1TR6" :
-	       (card->protocol == ISDN_PTYPE_EURO) ? "EDSS1" :
-	       (card->protocol == ISDN_PTYPE_LEASED) ? "LEASED" :
-	       (card->protocol == ISDN_PTYPE_NI1) ? "NI1" :
-	       "NONE", cs->iif.id, cs->myid);
 
-	ret = hisax_cs_setup_card(card);
-	if (!ret) {
-		ll_unload(cs);
-		goto outf_cs;
-	}
+	*cs_out = cs;
+	return 1;	/* success */
+
+outf_dlog:
+	kfree(cs->dlog);
+outf_cs:
+	kfree(cs);
+	card->cs = NULL;
+out:
+	return 0;	/* error */
+}
+
+static int hisax_cs_setup(int cardnr, struct IsdnCard *card,
+			  struct IsdnCardState *cs)
+{
+	int ret;
 
 	if (!(cs->rcvbuf = kmalloc(MAX_DFRAME_LEN_L1, GFP_ATOMIC))) {
 		printk(KERN_WARNING "HiSax: No memory for isac rcvbuf\n");
@@ -1154,11 +1160,41 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	if (!test_bit(HW_ISAR, &cs->HW_Flags))
 		ll_run(cs, 0);
 
-	ret = 1;
+	return 1;
+
+outf_cs:
+	kfree(cs);
+	card->cs = NULL;
+	return ret;
+}
+
+static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockowner)
+{
+	int ret;
+	struct IsdnCard *card = cards + cardnr;
+	struct IsdnCardState *cs;
+
+	ret = hisax_cs_new(cardnr, id, card, &cs, busy_flag, lockowner);
+	if (!ret)
+		return 0;
+
+	printk(KERN_INFO
+	       "HiSax: Card %d Protocol %s Id=%s (%d)\n", cardnr + 1,
+	       (card->protocol == ISDN_PTYPE_1TR6) ? "1TR6" :
+	       (card->protocol == ISDN_PTYPE_EURO) ? "EDSS1" :
+	       (card->protocol == ISDN_PTYPE_LEASED) ? "LEASED" :
+	       (card->protocol == ISDN_PTYPE_NI1) ? "NI1" :
+	       "NONE", cs->iif.id, cs->myid);
+
+	ret = hisax_cs_setup_card(card);
+	if (!ret) {
+		ll_unload(cs);
+		goto outf_cs;
+	}
+
+	ret = hisax_cs_setup(cardnr, card, cs);
 	goto out;
 
- outf_dlog:
-	kfree(cs->dlog);
  outf_cs:
 	kfree(cs);
 	card->cs = NULL;
