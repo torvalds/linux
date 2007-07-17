@@ -296,7 +296,7 @@ static DEFINE_PER_CPU(unsigned, last_irq_sum);
 static DEFINE_PER_CPU(local_t, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
-void touch_nmi_watchdog (void)
+void touch_nmi_watchdog(void)
 {
 	if (nmi_watchdog > 0) {
 		unsigned cpu;
@@ -306,8 +306,10 @@ void touch_nmi_watchdog (void)
 		 * do it ourselves because the alert count increase is not
 		 * atomic.
 		 */
-		for_each_present_cpu (cpu)
-			per_cpu(nmi_touch, cpu) = 1;
+		for_each_present_cpu(cpu) {
+			if (per_cpu(nmi_touch, cpu) != 1)
+				per_cpu(nmi_touch, cpu) = 1;
+		}
 	}
 
  	touch_softlockup_watchdog();
