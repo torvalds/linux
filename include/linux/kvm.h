@@ -4,8 +4,7 @@
 /*
  * Userspace interface for /dev/kvm - kernel based virtual machine
  *
- * Note: this interface is considered experimental and may change without
- *       notice.
+ * Note: you must update KVM_API_VERSION if you change this interface.
  */
 
 #include <asm/types.h>
