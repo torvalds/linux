@@ -4454,9 +4454,9 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 
 		/* Add H/W Volume Control By Matt Wu Jul. 06, 2001 */
 		card->hwvolctl = 0;
-		pci_dev_m1533 = pci_find_device(PCI_VENDOR_ID_AL,
-						PCI_DEVICE_ID_AL_M1533,
-						pci_dev_m1533);
+		pci_dev_m1533 = pci_get_device(PCI_VENDOR_ID_AL,
+					       PCI_DEVICE_ID_AL_M1533,
+					       pci_dev_m1533);
 		rc = -ENODEV;
 		if (pci_dev_m1533 == NULL)
 			goto out_proc_fs;
@@ -4470,6 +4470,8 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 			bits &= 0xbf;	/*clear bit 6 */
 			pci_write_config_byte(pci_dev_m1533, 0x7b, bits);
 		}
+		pci_dev_put(pci_dev_m1533);
+
 	} else if (card->pci_id == PCI_DEVICE_ID_INTERG_5050) {
 		card->alloc_pcm_channel = cyber_alloc_pcm_channel;
 		card->alloc_rec_pcm_channel = cyber_alloc_pcm_channel;
