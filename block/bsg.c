@@ -1073,7 +1073,7 @@ static int __init bsg_init(void)
 	if (ret)
 		goto remove_cdev;
 
-	printk(KERN_INFO BSG_DESCRIPTION "version " BSG_VERSION
+	printk(KERN_INFO BSG_DESCRIPTION " version " BSG_VERSION
 	       " loaded (major %d)\n", bsg_major);
 	return 0;
 remove_cdev:
