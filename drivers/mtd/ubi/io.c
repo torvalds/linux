@@ -125,9 +125,9 @@ static int paranoid_check_all_ff(const struct ubi_device *ubi, int pnum,
  * o %UBI_IO_BITFLIPS if all the requested data were successfully read, but
  *   correctable bit-flips were detected; this is harmless but may indicate
  *   that this eraseblock may become bad soon (but do not have to);
- * o %-EBADMSG if the MTD subsystem reported about data data integrity
- *   problems, for example it can me an ECC error in case of NAND; this most
- *   probably means that the data is corrupted;
+ * o %-EBADMSG if the MTD subsystem reported about data integrity problems, for
+ *   example it can be an ECC error in case of NAND; this most probably means
+ *   that the data is corrupted;
  * o %-EIO if some I/O error occurred;
  * o other negative error codes in case of other errors.
  */
