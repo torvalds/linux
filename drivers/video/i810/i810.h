@@ -266,7 +266,7 @@ struct i810fb_par {
 	struct i810fb_i2c_chan   chan[3];
 	struct mutex		 open_lock;
 	unsigned int		 use_count;
-	u32 pseudo_palette[17];
+	u32 pseudo_palette[16];
 	unsigned long mmio_start_phys;
 	u8 __iomem *mmio_start_virtual;
 	u8 *edid;
