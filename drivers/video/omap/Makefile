@@ -22,6 +22,7 @@ objs-y$(CONFIG_MACH_OMAP_PALMTT) += lcd_palmtt.o
 objs-y$(CONFIG_MACH_OMAP_PALMZ71) += lcd_palmz71.o
 objs-$(CONFIG_ARCH_OMAP16XX)$(CONFIG_MACH_OMAP_INNOVATOR) += lcd_inn1610.o
 objs-$(CONFIG_ARCH_OMAP15XX)$(CONFIG_MACH_OMAP_INNOVATOR) += lcd_inn1510.o
+objs-y$(CONFIG_MACH_OMAP_OSK) += lcd_osk.o
 
 omapfb-objs := $(objs-yy)
 
