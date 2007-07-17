@@ -13,13 +13,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 
-#define DRV_VERSION "0.4"
-
-/* Addresses to scan */
-static unsigned short normal_i2c[] = { /* 0x32,*/ I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD;
+#define DRV_VERSION "0.5"
 
 
 /*
@@ -88,9 +82,6 @@ struct rs5c372 {
 	unsigned		has_irq:1;
 	char			buf[17];
 	char			*regs;
-
-	/* on conversion to a "new style" i2c driver, this vanishes */
-	struct i2c_client	dev;
 };
 
 static int rs5c_get_regs(struct rs5c372 *rs5c)
@@ -483,25 +474,35 @@ static int rs5c_sysfs_register(struct device *dev)
 	return err;
 }
 
+static void rs5c_sysfs_unregister(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_trim);
+	device_remove_file(dev, &dev_attr_osc);
+}
+
 #else
 static int rs5c_sysfs_register(struct device *dev)
 {
 	return 0;
 }
+
+static void rs5c_sysfs_unregister(struct device *dev)
+{
+	/* nothing */
+}
 #endif	/* SYSFS */
 
 static struct i2c_driver rs5c372_driver;
 
-static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
+static int rs5c372_probe(struct i2c_client *client)
 {
 	int err = 0;
-	struct i2c_client *client;
 	struct rs5c372 *rs5c372;
 	struct rtc_time tm;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto exit;
 	}
@@ -514,35 +515,22 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
 	rs5c372->regs=&rs5c372->buf[1];
 
-	/* On conversion to a "new style" i2c driver, we'll be handed
-	 * the i2c_client (we won't create it)
-	 */
-	client = &rs5c372->dev;
 	rs5c372->client = client;
-
-	/* I2C client */
-	client->addr = address;
-	client->driver = &rs5c372_driver;
-	client->adapter = adapter;
-
-	strlcpy(client->name, rs5c372_driver.driver.name, I2C_NAME_SIZE);
-
 	i2c_set_clientdata(client, rs5c372);
-
-	/* Inform the i2c layer */
-	if ((err = i2c_attach_client(client)))
-		goto exit_kfree;
 
 	err = rs5c_get_regs(rs5c372);
 	if (err < 0)
-		goto exit_detach;
+		goto exit_kfree;
 
-	/* For "new style" drivers, irq is in i2c_client and chip type
-	 * info comes from i2c_client.dev.platform_data.  Meanwhile:
-	 *
-	 * STICK BOARD-SPECIFIC SETUP CODE RIGHT HERE
-	 */
-	if (rs5c372->type == rtc_undef) {
+	if (strcmp(client->name, "rs5c372a") == 0)
+		rs5c372->type = rtc_rs5c372a;
+	else if (strcmp(client->name, "rs5c372b") == 0)
+		rs5c372->type = rtc_rs5c372b;
+	else if (strcmp(client->name, "rv5c386") == 0)
+		rs5c372->type = rtc_rv5c386;
+	else if (strcmp(client->name, "rv5c387a") == 0)
+		rs5c372->type = rtc_rv5c387a;
+	else {
 		rs5c372->type = rtc_rs5c372b;
 		dev_warn(&client->dev, "assuming rs5c372b\n");
 	}
@@ -567,7 +555,7 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 		break;
 	default:
 		dev_err(&client->dev, "unknown RTC type\n");
-		goto exit_detach;
+		goto exit_kfree;
 	}
 
 	/* if the oscillator lost power and no other software (like
@@ -601,7 +589,7 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 
 		if ((i2c_master_send(client, buf, 3)) != 3) {
 			dev_err(&client->dev, "setup error\n");
-			goto exit_detach;
+			goto exit_kfree;
 		}
 		rs5c372->regs[RS5C_REG_CTRL1] = buf[1];
 		rs5c372->regs[RS5C_REG_CTRL2] = buf[2];
@@ -621,14 +609,14 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 			rs5c372->time24 ? "24hr" : "am/pm"
 			);
 
-	/* FIXME when client->irq exists, use it to register alarm irq */
+	/* REVISIT use client->irq to register alarm irq ... */
 
 	rs5c372->rtc = rtc_device_register(rs5c372_driver.driver.name,
 				&client->dev, &rs5c372_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rs5c372->rtc)) {
 		err = PTR_ERR(rs5c372->rtc);
-		goto exit_detach;
+		goto exit_kfree;
 	}
 
 	err = rs5c_sysfs_register(&client->dev);
@@ -640,9 +628,6 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 exit_devreg:
 	rtc_device_unregister(rs5c372->rtc);
 
-exit_detach:
-	i2c_detach_client(client);
-
 exit_kfree:
 	kfree(rs5c372);
 
@@ -650,24 +635,12 @@ exit:
 	return err;
 }
 
-static int rs5c372_attach(struct i2c_adapter *adapter)
+static int rs5c372_remove(struct i2c_client *client)
 {
-	return i2c_probe(adapter, &addr_data, rs5c372_probe);
-}
-
-static int rs5c372_detach(struct i2c_client *client)
-{
-	int err;
 	struct rs5c372 *rs5c372 = i2c_get_clientdata(client);
 
-	if (rs5c372->rtc)
-		rtc_device_unregister(rs5c372->rtc);
-
-	/* REVISIT properly destroy the sysfs files ... */
-
-	if ((err = i2c_detach_client(client)))
-		return err;
-
+	rtc_device_unregister(rs5c372->rtc);
+	rs5c_sysfs_unregister(&client->dev);
 	kfree(rs5c372);
 	return 0;
 }
@@ -676,8 +649,8 @@ static struct i2c_driver rs5c372_driver = {
 	.driver		= {
 		.name	= "rtc-rs5c372",
 	},
-	.attach_adapter	= &rs5c372_attach,
-	.detach_client	= &rs5c372_detach,
+	.probe		= rs5c372_probe,
+	.remove		= rs5c372_remove,
 };
 
 static __init int rs5c372_init(void)

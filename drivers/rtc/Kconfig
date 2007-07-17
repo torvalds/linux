@@ -160,11 +160,11 @@ config RTC_DRV_MAX6900
 	  will be called rtc-max6900.
 
 config RTC_DRV_RS5C372
-	tristate "Ricoh RS5C372A/B"
+	tristate "Ricoh RS5C372A/B, RV5C386, RV5C387A"
 	depends on RTC_CLASS && I2C
 	help
 	  If you say yes here you get support for the
-	  Ricoh RS5C372A and RS5C372B RTC chips.
+	  Ricoh RS5C372A, RS5C372B, RV5C386, and RV5C387A RTC chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c372.
