@@ -54,8 +54,6 @@ static cpumask_t cpus_hardware_enabled;
 
 struct kvm_arch_ops *kvm_arch_ops;
 
-static void hardware_disable(void *ignored);
-
 #define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
 
 static struct kvm_stats_debugfs_item {
@@ -2924,25 +2922,6 @@ static struct miscdevice kvm_dev = {
 	&kvm_chardev_ops,
 };
 
-static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
-                       void *v)
-{
-	if (val == SYS_RESTART) {
-		/*
-		 * Some (well, at least mine) BIOSes hang on reboot if
-		 * in vmx root mode.
-		 */
-		printk(KERN_INFO "kvm: exiting hardware virtualization\n");
-		on_each_cpu(hardware_disable, NULL, 0, 1);
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block kvm_reboot_notifier = {
-	.notifier_call = kvm_reboot,
-	.priority = 0,
-};
-
 /*
  * Make sure that a cpu that is being hot-unplugged does not have any vcpus
  * cached on it.
@@ -3024,6 +3003,25 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	}
 	return NOTIFY_OK;
 }
+
+static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
+                       void *v)
+{
+	if (val == SYS_RESTART) {
+		/*
+		 * Some (well, at least mine) BIOSes hang on reboot if
+		 * in vmx root mode.
+		 */
+		printk(KERN_INFO "kvm: exiting hardware virtualization\n");
+		on_each_cpu(hardware_disable, NULL, 0, 1);
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block kvm_reboot_notifier = {
+	.notifier_call = kvm_reboot,
+	.priority = 0,
+};
 
 void kvm_io_bus_init(struct kvm_io_bus *bus)
 {
