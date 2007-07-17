@@ -154,12 +154,14 @@ config SPI_PXA2XX
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
 	depends on SPI_MASTER && ARCH_S3C2410 && EXPERIMENTAL
+	select SPI_BITBANG
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
 
 config SPI_S3C24XX_GPIO
 	tristate "Samsung S3C24XX series SPI by GPIO"
-	depends on SPI_MASTER && ARCH_S3C2410 && SPI_BITBANG && EXPERIMENTAL
+	depends on SPI_MASTER && ARCH_S3C2410 && EXPERIMENTAL
+	select SPI_BITBANG
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs using
 	  GPIO lines to provide the SPI bus. This can be used where
