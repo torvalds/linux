@@ -543,17 +543,18 @@ rpcauth_uptodatecred(struct rpc_task *task)
 		test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0;
 }
 
-
-static struct shrinker *rpc_cred_shrinker;
+static struct shrinker rpc_cred_shrinker = {
+	.shrink = rpcauth_cache_shrinker,
+	.seeks = DEFAULT_SEEKS,
+};
 
 void __init rpcauth_init_module(void)
 {
 	rpc_init_authunix();
-	rpc_cred_shrinker = set_shrinker(DEFAULT_SEEKS, rpcauth_cache_shrinker);
+	register_shrinker(&rpc_cred_shrinker);
 }
 
 void __exit rpcauth_remove_module(void)
 {
-	if (rpc_cred_shrinker != NULL)
-		remove_shrinker(rpc_cred_shrinker);
+	unregister_shrinker(&rpc_cred_shrinker);
 }

@@ -35,10 +35,13 @@
 #include <linux/freezer.h>
 
 static kmem_zone_t *xfs_buf_zone;
-static struct shrinker *xfs_buf_shake;
 STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
 STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
+static struct shrinker xfs_buf_shake = {
+	.shrink = xfsbufd_wakeup,
+	.seeks = DEFAULT_SEEKS,
+};
 
 static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
@@ -1832,14 +1835,9 @@ xfs_buf_init(void)
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	xfs_buf_shake = set_shrinker(DEFAULT_SEEKS, xfsbufd_wakeup);
-	if (!xfs_buf_shake)
-		goto out_destroy_xfsdatad_workqueue;
-
+	register_shrinker(&xfs_buf_shake);
 	return 0;
 
- out_destroy_xfsdatad_workqueue:
-	destroy_workqueue(xfsdatad_workqueue);
  out_destroy_xfslogd_workqueue:
 	destroy_workqueue(xfslogd_workqueue);
  out_free_buf_zone:
@@ -1854,7 +1852,7 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	remove_shrinker(xfs_buf_shake);
+	unregister_shrinker(&xfs_buf_shake);
 	destroy_workqueue(xfsdatad_workqueue);
 	destroy_workqueue(xfslogd_workqueue);
 	kmem_zone_destroy(xfs_buf_zone);
