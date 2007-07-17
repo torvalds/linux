@@ -91,7 +91,7 @@ void __init board_a9m9750dev_init_irq(void)
 	 * use GPIO 11, because GPIO 32 is used for the LCD
 	 */
 	/* XXX: proper GPIO handling */
-	BBU_GC(2) &= ~0x2000;
+	BBU_GCONFb1(1) &= ~0x2000;
 
 	for (i = FPGA_IRQ(0); i <= FPGA_IRQ(7); ++i) {
 		set_irq_chip(i, &a9m9750dev_fpga_chip);
@@ -196,4 +196,3 @@ void __init board_a9m9750dev_init_machine(void)
 	platform_add_devices(board_a9m9750dev_devices,
 			ARRAY_SIZE(board_a9m9750dev_devices));
 }
-
