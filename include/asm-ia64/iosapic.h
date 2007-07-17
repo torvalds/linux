@@ -53,13 +53,13 @@
 
 #define NR_IOSAPICS			256
 
-static inline unsigned int iosapic_read(char __iomem *iosapic, unsigned int reg)
+static inline unsigned int __iosapic_read(char __iomem *iosapic, unsigned int reg)
 {
 	writel(reg, iosapic + IOSAPIC_REG_SELECT);
 	return readl(iosapic + IOSAPIC_WINDOW);
 }
 
-static inline void iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
+static inline void __iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 {
 	writel(reg, iosapic + IOSAPIC_REG_SELECT);
 	writel(val, iosapic + IOSAPIC_WINDOW);
