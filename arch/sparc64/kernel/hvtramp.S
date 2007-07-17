@@ -10,6 +10,7 @@
 #include <asm/hvtramp.h>
 #include <asm/pstate.h>
 #include <asm/ptrace.h>
+#include <asm/head.h>
 #include <asm/asi.h>
 
 	.text
@@ -28,7 +29,7 @@
 	 * First setup basic privileged cpu state.
 	 */
 hv_cpu_startup:
-	wrpr		%g0, 0, %gl
+	SET_GL(0)
 	wrpr		%g0, 15, %pil
 	wrpr		%g0, 0, %canrestore
 	wrpr		%g0, 0, %otherwin
