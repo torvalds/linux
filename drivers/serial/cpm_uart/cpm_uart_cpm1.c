@@ -49,9 +49,20 @@
 
 /**************************************************************/
 
-void cpm_line_cr_cmd(int line, int cmd)
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
+{
+	u16 __iomem *cpcr = &cpmp->cp_cpcr;
+
+	out_be16(cpcr, port->command | (cmd << 8) | CPM_CR_FLG);
+	while (in_be16(cpcr) & CPM_CR_FLG)
+		;
+}
+#else
+void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {
 	ushort val;
+	int line = port - cpm_uart_ports;
 	volatile cpm8xx_t *cp = cpmp;
 
 	switch (line) {
@@ -114,6 +125,7 @@ void scc4_lineif(struct uart_cpm_port *pinfo)
 	/* XXX SCC4: insert port configuration here */
 	pinfo->brg = 4;
 }
+#endif
 
 /*
  * Allocate DP-Ram and memory buffers. We need to allocate a transmit and
@@ -184,6 +196,7 @@ void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
 	cpm_dpfree(pinfo->dp_addr);
 }
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /* Setup any dynamic params in the uart desc */
 int cpm_uart_init_portdesc(void)
 {
@@ -279,3 +292,4 @@ int cpm_uart_init_portdesc(void)
 #endif
 	return 0;
 }
+#endif
