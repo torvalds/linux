@@ -1,5 +1,6 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
+#include <linux/exportfs.h>
 #include <linux/iso_fs.h>
 #include <asm/unaligned.h>
 

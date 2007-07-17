@@ -26,6 +26,7 @@
 #include <linux/mount.h>
 #include <linux/hash.h>
 #include <linux/module.h>
+#include <linux/exportfs.h>
 
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>

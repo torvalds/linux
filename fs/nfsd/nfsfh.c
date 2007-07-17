@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/stat.h>
 #include <linux/dcache.h>
+#include <linux/exportfs.h>
 #include <linux/mount.h>
 
 #include <linux/sunrpc/clnt.h>

@@ -1,4 +1,5 @@
 
+#include <linux/exportfs.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/module.h>
