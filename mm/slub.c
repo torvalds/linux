@@ -1077,7 +1077,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	void *last;
 	void *p;
 
-	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK));
+	BUG_ON(flags & ~(GFP_DMA | __GFP_ZERO | GFP_LEVEL_MASK));
 
 	if (flags & __GFP_WAIT)
 		local_irq_enable();
@@ -1540,7 +1540,7 @@ debug:
  * Otherwise we can simply pick the next object from the lockless free list.
  */
 static void __always_inline *slab_alloc(struct kmem_cache *s,
-				gfp_t gfpflags, int node, void *addr)
+		gfp_t gfpflags, int node, void *addr, int length)
 {
 	struct page *page;
 	void **object;
@@ -1558,19 +1558,25 @@ static void __always_inline *slab_alloc(struct kmem_cache *s,
 		page->lockless_freelist = object[page->offset];
 	}
 	local_irq_restore(flags);
+
+	if (unlikely((gfpflags & __GFP_ZERO) && object))
+		memset(object, 0, length);
+
 	return object;
 }
 
 void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 {
-	return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
+	return slab_alloc(s, gfpflags, -1,
+			__builtin_return_address(0), s->objsize);
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_NUMA
 void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
 {
-	return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
+	return slab_alloc(s, gfpflags, node,
+		__builtin_return_address(0), s->objsize);
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 #endif
@@ -2318,7 +2324,7 @@ void *__kmalloc(size_t size, gfp_t flags)
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
 
-	return slab_alloc(s, flags, -1, __builtin_return_address(0));
+	return slab_alloc(s, flags, -1, __builtin_return_address(0), size);
 }
 EXPORT_SYMBOL(__kmalloc);
 
@@ -2330,7 +2336,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
 
-	return slab_alloc(s, flags, node, __builtin_return_address(0));
+	return slab_alloc(s, flags, node, __builtin_return_address(0), size);
 }
 EXPORT_SYMBOL(__kmalloc_node);
 #endif
@@ -2643,7 +2649,7 @@ void *kmem_cache_zalloc(struct kmem_cache *s, gfp_t flags)
 {
 	void *x;
 
-	x = slab_alloc(s, flags, -1, __builtin_return_address(0));
+	x = slab_alloc(s, flags, -1, __builtin_return_address(0), 0);
 	if (x)
 		memset(x, 0, s->objsize);
 	return x;
@@ -2693,7 +2699,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
 
-	return slab_alloc(s, gfpflags, -1, caller);
+	return slab_alloc(s, gfpflags, -1, caller, size);
 }
 
 void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
@@ -2704,7 +2710,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
 
-	return slab_alloc(s, gfpflags, node, caller);
+	return slab_alloc(s, gfpflags, node, caller, size);
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)

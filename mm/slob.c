@@ -334,6 +334,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		BUG_ON(!b);
 		spin_unlock_irqrestore(&slob_lock, flags);
 	}
+	if (unlikely((gfp & __GFP_ZERO) && b))
+		memset(b, 0, size);
 	return b;
 }
 
