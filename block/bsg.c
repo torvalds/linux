@@ -68,11 +68,6 @@ enum {
 #define dprintk(fmt, args...)
 #endif
 
-/*
- * just for testing
- */
-#define BSG_MAJOR	(240)
-
 static DEFINE_MUTEX(bsg_mutex);
 static int bsg_device_nr, bsg_minor_idx;
 
@@ -82,6 +77,7 @@ static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
 
 static struct class *bsg_class;
 static LIST_HEAD(bsg_class_list);
+static int bsg_major;
 
 static struct kmem_cache *bsg_cmd_cachep;
 
@@ -943,7 +939,7 @@ void bsg_unregister_queue(struct request_queue *q)
 
 	mutex_lock(&bsg_mutex);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
+	class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	bcd->class_dev = NULL;
 	list_del_init(&bcd->list);
 	bsg_device_nr--;
@@ -989,7 +985,7 @@ retry:
 		bsg_minor_idx = 0;
 
 	bcd->queue = q;
-	dev = MKDEV(BSG_MAJOR, bcd->minor);
+	dev = MKDEV(bsg_major, bcd->minor);
 	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
@@ -1010,7 +1006,7 @@ retry:
 	return 0;
 err:
 	if (class_dev)
-		class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
+		class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
@@ -1047,6 +1043,7 @@ static struct cdev bsg_cdev = {
 static int __init bsg_init(void)
 {
 	int ret, i;
+	dev_t devid;
 
 	bsg_cmd_cachep = kmem_cache_create("bsg_cmd",
 				sizeof(struct bsg_command), 0, 0, NULL, NULL);
@@ -1064,19 +1061,21 @@ static int __init bsg_init(void)
 		return PTR_ERR(bsg_class);
 	}
 
-	ret = register_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS, "bsg");
+	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
 	if (ret) {
 		kmem_cache_destroy(bsg_cmd_cachep);
 		class_destroy(bsg_class);
 		return ret;
 	}
 
+	bsg_major = MAJOR(devid);
+
 	cdev_init(&bsg_cdev, &bsg_fops);
-	ret = cdev_add(&bsg_cdev, MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
+	ret = cdev_add(&bsg_cdev, MKDEV(bsg_major, 0), BSG_MAX_DEVS);
 	if (ret) {
 		kmem_cache_destroy(bsg_cmd_cachep);
 		class_destroy(bsg_class);
-		unregister_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
+		unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
 		return ret;
 	}
 
@@ -1085,11 +1084,11 @@ static int __init bsg_init(void)
 		printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
 		kmem_cache_destroy(bsg_cmd_cachep);
 		class_destroy(bsg_class);
-		unregister_chrdev(BSG_MAJOR, "bsg");
+		unregister_chrdev(bsg_major, "bsg");
 		return ret;
 	}
 
-	printk(KERN_INFO "%s loaded\n", bsg_version);
+	printk(KERN_INFO "%s loaded (major %d)\n", bsg_version, bsg_major);
 	return 0;
 }
 
