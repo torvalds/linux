@@ -4143,10 +4143,6 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	REG_WR(bp, BNX2_HC_ATTN_BITS_ENABLE, STATUS_ATTN_EVENTS);
 
-	if (REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_FEATURE) &
-	    BNX2_PORT_FEATURE_ASF_ENABLED)
-		bp->flags |= ASF_ENABLE_FLAG;
-
 	/* Initialize the receive filter. */
 	bnx2_set_rx_mode(bp->dev);
 
@@ -6644,6 +6640,18 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		}
 		if (i != 2)
 			bp->fw_version[j++] = '.';
+	}
+	if (REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_FEATURE) &
+	    BNX2_PORT_FEATURE_ASF_ENABLED) {
+		bp->flags |= ASF_ENABLE_FLAG;
+
+		for (i = 0; i < 30; i++) {
+			reg = REG_RD_IND(bp, bp->shmem_base +
+					     BNX2_BC_STATE_CONDITION);
+			if (reg & BNX2_CONDITION_MFW_RUN_MASK)
+				break;
+			msleep(10);
+		}
 	}
 	reg = REG_RD_IND(bp, bp->shmem_base + BNX2_BC_STATE_CONDITION);
 	reg &= BNX2_CONDITION_MFW_RUN_MASK;
