@@ -2073,9 +2073,11 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 		err = super_types[super_format].
 			load_super(rdev, NULL, super_minor);
 		if (err == -EINVAL) {
-			printk(KERN_WARNING 
-				"md: %s has invalid sb, not importing!\n",
-				bdevname(rdev->bdev,b));
+			printk(KERN_WARNING
+				"md: %s does not have a valid v%d.%d "
+			       "superblock, not importing!\n",
+				bdevname(rdev->bdev,b),
+			       super_format, super_minor);
 			goto abort_free;
 		}
 		if (err < 0) {
@@ -5771,7 +5773,7 @@ static void autostart_arrays(int part)
 	for (i = 0; i < dev_cnt; i++) {
 		dev_t dev = detected_devices[i];
 
-		rdev = md_import_device(dev,0, 0);
+		rdev = md_import_device(dev,0, 90);
 		if (IS_ERR(rdev))
 			continue;
 
