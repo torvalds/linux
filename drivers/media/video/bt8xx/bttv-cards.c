@@ -4209,7 +4209,7 @@ static int tea5757_read(struct bttv *btv)
 	bus_low(btv,btv->mbox_clk);
 
 	udelay(10);
-	timeout= jiffies + HZ;
+	timeout= jiffies + msecs_to_jiffies(1000);
 
 	/* wait for DATA line to go low; error if it doesn't */
 	while (bus_in(btv,btv->mbox_data) && time_before(jiffies, timeout))
