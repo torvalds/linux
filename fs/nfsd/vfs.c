@@ -168,8 +168,6 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 	exp  = fhp->fh_export;
 	exp_get(exp);
 
-	err = nfserr_acces;
-
 	/* Lookup the name, but don't follow links */
 	if (isdotent(name, len)) {
 		if (len==1)
