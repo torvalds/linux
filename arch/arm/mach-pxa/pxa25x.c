@@ -139,16 +139,16 @@ void __init pxa25x_init_irq(void)
 }
 
 static struct platform_device *pxa25x_devices[] __initdata = {
-	&pxamci_device,
-	&pxaudc_device,
-	&pxafb_device,
-	&ffuart_device,
-	&btuart_device,
-	&stuart_device,
-	&pxai2c_device,
-	&pxai2s_device,
-	&pxaficp_device,
-	&pxartc_device,
+	&pxa_device_mci,
+	&pxa_device_udc,
+	&pxa_device_fb,
+	&pxa_device_ffuart,
+	&pxa_device_btuart,
+	&pxa_device_stuart,
+	&pxa_device_i2c,
+	&pxa_device_i2s,
+	&pxa_device_ficp,
+	&pxa_device_rtc,
 };
 
 static int __init pxa25x_init(void)
@@ -166,7 +166,7 @@ static int __init pxa25x_init(void)
 	}
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
 	if (cpu_is_pxa25x())
-		ret = platform_device_register(&hwuart_device);
+		ret = platform_device_register(&pxa_device_hwuart);
 
 	return ret;
 }

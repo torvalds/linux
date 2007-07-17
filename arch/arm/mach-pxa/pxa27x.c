@@ -185,7 +185,7 @@ static struct resource pxa27x_ohci_resources[] = {
 	},
 };
 
-static struct platform_device pxaohci_device = {
+static struct platform_device pxa27x_device_ohci = {
 	.name		= "pxa27x-ohci",
 	.id		= -1,
 	.dev		= {
@@ -198,7 +198,7 @@ static struct platform_device pxaohci_device = {
 
 void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 {
-	pxaohci_device.dev.platform_data = info;
+	pxa27x_device_ohci.dev.platform_data = info;
 }
 
 static struct resource i2c_power_resources[] = {
@@ -213,7 +213,7 @@ static struct resource i2c_power_resources[] = {
 	},
 };
 
-static struct platform_device pxai2c_power_device = {
+static struct platform_device pxa27x_device_i2c_power = {
 	.name		= "pxa2xx-i2c",
 	.id		= 1,
 	.resource	= i2c_power_resources,
@@ -221,18 +221,18 @@ static struct platform_device pxai2c_power_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&pxamci_device,
-	&pxaudc_device,
-	&pxafb_device,
-	&ffuart_device,
-	&btuart_device,
-	&stuart_device,
-	&pxai2c_device,
-	&pxai2c_power_device,
-	&pxai2s_device,
-	&pxaficp_device,
-	&pxartc_device,
-	&pxaohci_device,
+	&pxa_device_mci,
+	&pxa_device_udc,
+	&pxa_device_fb,
+	&pxa_device_ffuart,
+	&pxa_device_btuart,
+	&pxa_device_stuart,
+	&pxa_device_i2c,
+	&pxa_device_i2s,
+	&pxa_device_ficp,
+	&pxa_device_rtc,
+	&pxa27x_device_i2c_power,
+	&pxa27x_device_ohci,
 };
 
 void __init pxa27x_init_irq(void)
