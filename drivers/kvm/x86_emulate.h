@@ -152,12 +152,4 @@ struct x86_emulate_ctxt {
 int x86_emulate_memop(struct x86_emulate_ctxt *ctxt,
 		      struct x86_emulate_ops *ops);
 
-/*
- * Given the 'reg' portion of a ModRM byte, and a register block, return a
- * pointer into the block that addresses the relevant register.
- * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
- */
-void *decode_register(u8 modrm_reg, unsigned long *regs,
-		      int highbyte_regs);
-
 #endif				/* __X86_EMULATE_H__ */

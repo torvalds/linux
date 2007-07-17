@@ -443,8 +443,13 @@ struct operand {
 			   (((reg) + _inc) & ((1UL << (ad_bytes << 3)) - 1)); \
 	} while (0)
 
-void *decode_register(u8 modrm_reg, unsigned long *regs,
-		      int highbyte_regs)
+/*
+ * Given the 'reg' portion of a ModRM byte, and a register block, return a
+ * pointer into the block that addresses the relevant register.
+ * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
+ */
+static void *decode_register(u8 modrm_reg, unsigned long *regs,
+			     int highbyte_regs)
 {
 	void *p;
 
