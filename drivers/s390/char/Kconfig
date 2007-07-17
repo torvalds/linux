@@ -166,6 +166,7 @@ config MONWRITER
 
 config S390_VMUR
 	tristate "z/VM unit record device driver"
+	depends on S390
 	default "m"
 	help
 	  Character device driver for z/VM reader, puncher and printer.
