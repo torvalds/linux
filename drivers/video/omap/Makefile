@@ -16,6 +16,7 @@ objs-y$(CONFIG_FB_OMAP_LCDC_HWA742) += hwa742.o
 objs-y$(CONFIG_FB_OMAP_LCDC_BLIZZARD) += blizzard.o
 
 objs-y$(CONFIG_MACH_OMAP_H4) += lcd_h4.o
+objs-y$(CONFIG_MACH_OMAP_H3) += lcd_h3.o
 
 omapfb-objs := $(objs-yy)
 
