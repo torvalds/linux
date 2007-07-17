@@ -264,6 +264,7 @@ KERN_CRIT "                     ||     ||\n");
 
 	show_regs(regs);
 	dump_stack();
+	add_taint(TAINT_DIE);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

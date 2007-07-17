@@ -251,6 +251,8 @@ characters, each representing a particular tainted value.
   7: 'U' if a user or user application specifically requested that the
      Tainted flag be set, ' ' otherwise.
 
+  8: 'D' if the kernel has died recently, i.e. there was an OOPS or BUG.
+
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
 occurred.  Tainting is permanent: even if an offending module is

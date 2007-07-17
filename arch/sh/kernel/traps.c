@@ -103,6 +103,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 			 (unsigned long)task_stack_page(current));
 
 	bust_spinlocks(0);
+	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
 
 	if (kexec_should_crash(current))
