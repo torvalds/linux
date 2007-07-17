@@ -211,6 +211,6 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 	else if (gadget_is_amd5536udc(gadget))
 		return 0x20;
 	else if (gadget_is_m66592(gadget))
-		return 0x20;
+		return 0x21;
 	return -ENOENT;
 }
