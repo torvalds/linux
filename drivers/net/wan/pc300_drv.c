@@ -2833,6 +2833,8 @@ static int clock_rate_calc(uclong rate, uclong clock, int *br_io)
 	int br, tc;
 	int br_pwr, error;
 
+	*br_io = 0;
+
 	if (rate == 0)
 		return (0);
 
