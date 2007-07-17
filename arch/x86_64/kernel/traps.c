@@ -330,6 +330,7 @@ static int print_trace_stack(void *data, char *name)
 
 static void print_trace_address(void *data, unsigned long addr)
 {
+	touch_nmi_watchdog();
 	printk_address(addr);
 }
 
