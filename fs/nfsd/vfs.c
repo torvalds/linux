@@ -192,15 +192,14 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 
 			exp2 = exp_parent(exp->ex_client, mnt, dentry,
 					  &rqstp->rq_chandle);
-			if (IS_ERR(exp2)) {
+			if (PTR_ERR(exp2) == -ENOENT) {
+				dput(dentry);
+				dentry = dget(dparent);
+			} else if (IS_ERR(exp2)) {
 				host_err = PTR_ERR(exp2);
 				dput(dentry);
 				mntput(mnt);
 				goto out_nfserr;
-			}
-			if (!exp2) {
-				dput(dentry);
-				dentry = dget(dparent);
 			} else {
 				exp_put(exp);
 				exp = exp2;

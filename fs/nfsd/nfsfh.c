@@ -160,15 +160,14 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 				       &rqstp->rq_chandle);
 		}
 
-		if (IS_ERR(exp) && (PTR_ERR(exp) == -EAGAIN
-				|| PTR_ERR(exp) == -ETIMEDOUT)) {
+		error = nfserr_stale;
+		if (PTR_ERR(exp) == -ENOENT)
+			goto out;
+
+		if (IS_ERR(exp)) {
 			error = nfserrno(PTR_ERR(exp));
 			goto out;
 		}
-
-		error = nfserr_stale; 
-		if (!exp || IS_ERR(exp))
-			goto out;
 
 		/* Check if the request originated from a secure port. */
 		error = nfserr_perm;
