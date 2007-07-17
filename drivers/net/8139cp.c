@@ -26,7 +26,6 @@
 
 	TODO:
 	* Test Tx checksumming thoroughly
-	* Implement dev->tx_timeout
 
 	Low priority TODO:
 	* Complete reset on PciErr
@@ -1218,6 +1217,30 @@ static int cp_close (struct net_device *dev)
 	return 0;
 }
 
+static void cp_tx_timeout(struct net_device *dev)
+{
+	struct cp_private *cp = netdev_priv(dev);
+	unsigned long flags;
+	int rc;
+
+	printk(KERN_WARNING "%s: Transmit timeout, status %2x %4x %4x %4x\n",
+	       dev->name, cpr8(Cmd), cpr16(CpCmd),
+	       cpr16(IntrStatus), cpr16(IntrMask));
+
+	spin_lock_irqsave(&cp->lock, flags);
+
+	cp_stop_hw(cp);
+	cp_clean_rings(cp);
+	rc = cp_init_rings(cp);
+	cp_start_hw(cp);
+
+	netif_wake_queue(dev);
+
+	spin_unlock_irqrestore(&cp->lock, flags);
+
+	return;
+}
+
 #ifdef BROKEN
 static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -1920,10 +1943,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->change_mtu = cp_change_mtu;
 #endif
 	dev->ethtool_ops = &cp_ethtool_ops;
-#if 0
 	dev->tx_timeout = cp_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#endif
 
 #if CP_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;

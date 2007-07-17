@@ -240,7 +240,7 @@ static int wlan_cmd_802_11_enable_rsn(wlan_private * priv,
 		if (*enable)
 			penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
 		else
-			penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
+			penableRSN->enable = cpu_to_le16(cmd_disable_rsn);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);

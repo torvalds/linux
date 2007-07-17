@@ -39,13 +39,13 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0067"
+#define DRV_VERSION	"EHEA_0070"
 
-/* EHEA capability flags */
+/* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1
-#define DLPAR_MEM_ADD 2
-#define DLPAR_MEM_REM 4
-#define EHEA_CAPABILITIES (DLPAR_PORT_ADD_REM)
+#define DLPAR_MEM_ADD      2
+#define DLPAR_MEM_REM      4
+#define EHEA_CAPABILITIES  (DLPAR_PORT_ADD_REM)
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -112,6 +112,8 @@
 
 /* Memory Regions */
 #define EHEA_MR_ACC_CTRL       0x00800000
+
+#define EHEA_BUSMAP_START      0x8000000000000000ULL
 
 #define EHEA_WATCH_DOG_TIMEOUT 10*HZ
 
@@ -184,6 +186,12 @@ struct h_epas {
 				   set to 0 if unused */
 	struct h_epa_user user;	/* user space accessible resource
 				   set to 0 if unused */
+};
+
+struct ehea_busmap {
+	unsigned int entries;		/* total number of entries */
+	unsigned int valid_sections;	/* number of valid sections */
+	u64 *vaddr;
 };
 
 struct ehea_qp;
@@ -382,6 +390,8 @@ struct ehea_adapter {
 	struct ehea_mr mr;
 	u32 pd;                    /* protection domain */
 	u64 max_mc_mac;            /* max number of multicast mac addresses */
+	int active_ports;
+	struct list_head list;
 };
 
 
@@ -431,6 +441,9 @@ struct port_res_cfg {
 	int max_entries_rq3;
 };
 
+enum ehea_flag_bits {
+	__EHEA_STOP_XFER
+};
 
 void ehea_set_ethtool_ops(struct net_device *netdev);
 int ehea_sense_port_attr(struct ehea_port *port);

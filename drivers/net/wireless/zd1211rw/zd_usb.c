@@ -71,6 +71,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x0586, 0x3412), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x3413), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0053, 0x5301), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0411, 0x00da), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{ USB_DEVICE(0x0ace, 0x20ff), .driver_info = DEVICE_INSTALLER },
@@ -195,26 +196,27 @@ static u16 get_word(const void *data, u16 offset)
 	return le16_to_cpu(p[offset]);
 }
 
-static char *get_fw_name(char *buffer, size_t size, u8 device_type,
+static char *get_fw_name(struct zd_usb *usb, char *buffer, size_t size,
 	               const char* postfix)
 {
 	scnprintf(buffer, size, "%s%s",
-		device_type == DEVICE_ZD1211B ?
+		usb->is_zd1211b ?
 			FW_ZD1211B_PREFIX : FW_ZD1211_PREFIX,
 		postfix);
 	return buffer;
 }
 
-static int handle_version_mismatch(struct usb_device *udev, u8 device_type,
+static int handle_version_mismatch(struct zd_usb *usb,
 	const struct firmware *ub_fw)
 {
+	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	const struct firmware *ur_fw = NULL;
 	int offset;
 	int r = 0;
 	char fw_name[128];
 
 	r = request_fw_file(&ur_fw,
-		get_fw_name(fw_name, sizeof(fw_name), device_type, "ur"),
+		get_fw_name(usb, fw_name, sizeof(fw_name), "ur"),
 		&udev->dev);
 	if (r)
 		goto error;
@@ -237,11 +239,12 @@ error:
 	return r;
 }
 
-static int upload_firmware(struct usb_device *udev, u8 device_type)
+static int upload_firmware(struct zd_usb *usb)
 {
 	int r;
 	u16 fw_bcdDevice;
 	u16 bcdDevice;
+	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	const struct firmware *ub_fw = NULL;
 	const struct firmware *uph_fw = NULL;
 	char fw_name[128];
@@ -249,7 +252,7 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 	bcdDevice = get_bcdDevice(udev);
 
 	r = request_fw_file(&ub_fw,
-		get_fw_name(fw_name, sizeof(fw_name), device_type,  "ub"),
+		get_fw_name(usb, fw_name, sizeof(fw_name), "ub"),
 		&udev->dev);
 	if (r)
 		goto error;
@@ -264,7 +267,7 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 			dev_warn(&udev->dev, "device has old bootcode, please "
 				"report success or failure\n");
 
-		r = handle_version_mismatch(udev, device_type, ub_fw);
+		r = handle_version_mismatch(usb, ub_fw);
 		if (r)
 			goto error;
 	} else {
@@ -275,7 +278,7 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 
 
 	r = request_fw_file(&uph_fw,
-		get_fw_name(fw_name, sizeof(fw_name), device_type, "uphr"),
+		get_fw_name(usb, fw_name, sizeof(fw_name), "uphr"),
 		&udev->dev);
 	if (r)
 		goto error;
@@ -292,6 +295,30 @@ error:
 	release_firmware(ub_fw);
 	release_firmware(uph_fw);
 	return r;
+}
+
+/* Read data from device address space using "firmware interface" which does
+ * not require firmware to be loaded. */
+int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len)
+{
+	int r;
+	struct usb_device *udev = zd_usb_to_usbdev(usb);
+
+	r = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+		USB_REQ_FIRMWARE_READ_DATA, USB_DIR_IN | 0x40, addr, 0,
+		data, len, 5000);
+	if (r < 0) {
+		dev_err(&udev->dev,
+			"read over firmware interface failed: %d\n", r);
+		return r;
+	} else if (r != len) {
+		dev_err(&udev->dev,
+			"incomplete read over firmware interface: %d/%d\n",
+			r, len);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 #define urb_dev(urb) (&(urb)->dev->dev)
@@ -920,9 +947,42 @@ static int eject_installer(struct usb_interface *intf)
 	return 0;
 }
 
+int zd_usb_init_hw(struct zd_usb *usb)
+{
+	int r;
+	struct zd_mac *mac = zd_usb_to_mac(usb);
+
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	r = upload_firmware(usb);
+	if (r) {
+		dev_err(zd_usb_dev(usb),
+		       "couldn't load firmware. Error number %d\n", r);
+		return r;
+	}
+
+	r = usb_reset_configuration(zd_usb_to_usbdev(usb));
+	if (r) {
+		dev_dbg_f(zd_usb_dev(usb),
+			"couldn't reset configuration. Error number %d\n", r);
+		return r;
+	}
+
+	r = zd_mac_init_hw(mac);
+	if (r) {
+		dev_dbg_f(zd_usb_dev(usb),
+		         "couldn't initialize mac. Error number %d\n", r);
+		return r;
+	}
+
+	usb->initialized = 1;
+	return 0;
+}
+
 static int probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	int r;
+	struct zd_usb *usb;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct net_device *netdev = NULL;
 
@@ -950,26 +1010,10 @@ static int probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto error;
 	}
 
-	r = upload_firmware(udev, id->driver_info);
-	if (r) {
-		dev_err(&intf->dev,
-		       "couldn't load firmware. Error number %d\n", r);
-		goto error;
-	}
+	usb = &zd_netdev_mac(netdev)->chip.usb;
+	usb->is_zd1211b = (id->driver_info == DEVICE_ZD1211B) != 0;
 
-	r = usb_reset_configuration(udev);
-	if (r) {
-		dev_dbg_f(&intf->dev,
-			"couldn't reset configuration. Error number %d\n", r);
-		goto error;
-	}
-
-	/* At this point the interrupt endpoint is not generally enabled. We
-	 * save the USB bandwidth until the network device is opened. But
-	 * notify that the initialization of the MAC will require the
-	 * interrupts to be temporary enabled.
-	 */
-	r = zd_mac_init_hw(zd_netdev_mac(netdev), id->driver_info);
+	r = zd_mac_preinit_hw(zd_netdev_mac(netdev));
 	if (r) {
 		dev_dbg_f(&intf->dev,
 		         "couldn't initialize mac. Error number %d\n", r);

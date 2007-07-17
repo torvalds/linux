@@ -305,6 +305,9 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x8086, 0x07d3),	// "blob" bootloader
 	.driver_info =	(unsigned long) &blob_info,
 }, {
+	USB_DEVICE (0x1286, 0x8001),    // "blob" bootloader
+	.driver_info =  (unsigned long) &blob_info,
+}, {
 	// Linux Ethernet/RNDIS gadget on pxa210/25x/26x, second config
 	// e.g. Gumstix, current OpenZaurus, ...
 	USB_DEVICE_VER (0x0525, 0xa4a2, 0x0203, 0x0203),

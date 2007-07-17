@@ -1060,7 +1060,6 @@ static inline void myri10ge_tx_done(struct myri10ge_priv *mgp, int mcp_index)
 	struct myri10ge_tx_buf *tx = &mgp->tx;
 	struct sk_buff *skb;
 	int idx, len;
-	int limit = 0;
 
 	while (tx->pkt_done != mcp_index) {
 		idx = tx->done & tx->mask;
@@ -1091,11 +1090,6 @@ static inline void myri10ge_tx_done(struct myri10ge_priv *mgp, int mcp_index)
 							      bus), len,
 					       PCI_DMA_TODEVICE);
 		}
-
-		/* limit potential for livelock by only handling
-		 * 2 full tx rings per call */
-		if (unlikely(++limit > 2 * tx->mask))
-			break;
 	}
 	/* start the queue if we've stopped it */
 	if (netif_queue_stopped(mgp->dev)
