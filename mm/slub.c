@@ -344,7 +344,7 @@ static void print_section(char *text, u8 *addr, unsigned int length)
 
 	for (i = 0; i < length; i++) {
 		if (newline) {
-			printk(KERN_ERR "%10s 0x%p: ", text, addr + i);
+			printk(KERN_ERR "%8s 0x%p: ", text, addr + i);
 			newline = 0;
 		}
 		printk(" %02x", addr[i]);
@@ -401,10 +401,11 @@ static void set_track(struct kmem_cache *s, void *object,
 
 static void init_tracking(struct kmem_cache *s, void *object)
 {
-	if (s->flags & SLAB_STORE_USER) {
-		set_track(s, object, TRACK_FREE, NULL);
-		set_track(s, object, TRACK_ALLOC, NULL);
-	}
+	if (!(s->flags & SLAB_STORE_USER))
+		return;
+
+	set_track(s, object, TRACK_FREE, NULL);
+	set_track(s, object, TRACK_ALLOC, NULL);
 }
 
 static void print_track(const char *s, struct track *t)
@@ -412,65 +413,106 @@ static void print_track(const char *s, struct track *t)
 	if (!t->addr)
 		return;
 
-	printk(KERN_ERR "%s: ", s);
+	printk(KERN_ERR "INFO: %s in ", s);
 	__print_symbol("%s", (unsigned long)t->addr);
-	printk(" jiffies_ago=%lu cpu=%u pid=%d\n", jiffies - t->when, t->cpu, t->pid);
+	printk(" age=%lu cpu=%u pid=%d\n", jiffies - t->when, t->cpu, t->pid);
 }
 
-static void print_trailer(struct kmem_cache *s, u8 *p)
+static void print_tracking(struct kmem_cache *s, void *object)
+{
+	if (!(s->flags & SLAB_STORE_USER))
+		return;
+
+	print_track("Allocated", get_track(s, object, TRACK_ALLOC));
+	print_track("Freed", get_track(s, object, TRACK_FREE));
+}
+
+static void print_page_info(struct page *page)
+{
+	printk(KERN_ERR "INFO: Slab 0x%p used=%u fp=0x%p flags=0x%04lx\n",
+		page, page->inuse, page->freelist, page->flags);
+
+}
+
+static void slab_bug(struct kmem_cache *s, char *fmt, ...)
+{
+	va_list args;
+	char buf[100];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+	printk(KERN_ERR "========================================"
+			"=====================================\n");
+	printk(KERN_ERR "BUG %s: %s\n", s->name, buf);
+	printk(KERN_ERR "----------------------------------------"
+			"-------------------------------------\n\n");
+}
+
+static void slab_fix(struct kmem_cache *s, char *fmt, ...)
+{
+	va_list args;
+	char buf[100];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+	printk(KERN_ERR "FIX %s: %s\n", s->name, buf);
+}
+
+static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 {
 	unsigned int off;	/* Offset of last byte */
+	u8 *addr = page_address(page);
+
+	print_tracking(s, p);
+
+	print_page_info(page);
+
+	printk(KERN_ERR "INFO: Object 0x%p @offset=%tu fp=0x%p\n\n",
+			p, p - addr, get_freepointer(s, p));
+
+	if (p > addr + 16)
+		print_section("Bytes b4", p - 16, 16);
+
+	print_section("Object", p, min(s->objsize, 128));
 
 	if (s->flags & SLAB_RED_ZONE)
 		print_section("Redzone", p + s->objsize,
 			s->inuse - s->objsize);
-
-	printk(KERN_ERR "FreePointer 0x%p -> 0x%p\n",
-			p + s->offset,
-			get_freepointer(s, p));
 
 	if (s->offset)
 		off = s->offset + sizeof(void *);
 	else
 		off = s->inuse;
 
-	if (s->flags & SLAB_STORE_USER) {
-		print_track("Last alloc", get_track(s, p, TRACK_ALLOC));
-		print_track("Last free ", get_track(s, p, TRACK_FREE));
+	if (s->flags & SLAB_STORE_USER)
 		off += 2 * sizeof(struct track);
-	}
 
 	if (off != s->size)
 		/* Beginning of the filler is the free pointer */
-		print_section("Filler", p + off, s->size - off);
+		print_section("Padding", p + off, s->size - off);
+
+	dump_stack();
 }
 
 static void object_err(struct kmem_cache *s, struct page *page,
 			u8 *object, char *reason)
 {
-	u8 *addr = page_address(page);
-
-	printk(KERN_ERR "*** SLUB %s: %s@0x%p slab 0x%p\n",
-			s->name, reason, object, page);
-	printk(KERN_ERR "    offset=%tu flags=0x%04lx inuse=%u freelist=0x%p\n",
-		object - addr, page->flags, page->inuse, page->freelist);
-	if (object > addr + 16)
-		print_section("Bytes b4", object - 16, 16);
-	print_section("Object", object, min(s->objsize, 128));
-	print_trailer(s, object);
-	dump_stack();
+	slab_bug(s, reason);
+	print_trailer(s, page, object);
 }
 
-static void slab_err(struct kmem_cache *s, struct page *page, char *reason, ...)
+static void slab_err(struct kmem_cache *s, struct page *page, char *fmt, ...)
 {
 	va_list args;
 	char buf[100];
 
-	va_start(args, reason);
-	vsnprintf(buf, sizeof(buf), reason, args);
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	printk(KERN_ERR "*** SLUB %s: %s in slab @0x%p\n", s->name, buf,
-		page);
+	slab_bug(s, fmt);
+	print_page_info(page);
 	dump_stack();
 }
 
@@ -489,15 +531,46 @@ static void init_object(struct kmem_cache *s, void *object, int active)
 			s->inuse - s->objsize);
 }
 
-static int check_bytes(u8 *start, unsigned int value, unsigned int bytes)
+static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
 {
 	while (bytes) {
 		if (*start != (u8)value)
-			return 0;
+			return start;
 		start++;
 		bytes--;
 	}
-	return 1;
+	return NULL;
+}
+
+static void restore_bytes(struct kmem_cache *s, char *message, u8 data,
+						void *from, void *to)
+{
+	slab_fix(s, "Restoring 0x%p-0x%p=0x%x\n", from, to - 1, data);
+	memset(from, data, to - from);
+}
+
+static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
+			u8 *object, char *what,
+			u8* start, unsigned int value, unsigned int bytes)
+{
+	u8 *fault;
+	u8 *end;
+
+	fault = check_bytes(start, value, bytes);
+	if (!fault)
+		return 1;
+
+	end = start + bytes;
+	while (end > fault && end[-1] == value)
+		end--;
+
+	slab_bug(s, "%s overwritten", what);
+	printk(KERN_ERR "INFO: 0x%p-0x%p. First byte 0x%x instead of 0x%x\n",
+					fault, end - 1, fault[0], value);
+	print_trailer(s, page, object);
+
+	restore_bytes(s, what, value, fault, end);
+	return 0;
 }
 
 /*
@@ -538,14 +611,6 @@ static int check_bytes(u8 *start, unsigned int value, unsigned int bytes)
  * may be used with merged slabcaches.
  */
 
-static void restore_bytes(struct kmem_cache *s, char *message, u8 data,
-						void *from, void *to)
-{
-	printk(KERN_ERR "@@@ SLUB %s: Restoring %s (0x%x) from 0x%p-0x%p\n",
-		s->name, message, data, from, to - 1);
-	memset(from, data, to - from);
-}
-
 static int check_pad_bytes(struct kmem_cache *s, struct page *page, u8 *p)
 {
 	unsigned long off = s->inuse;	/* The end of info */
@@ -561,39 +626,39 @@ static int check_pad_bytes(struct kmem_cache *s, struct page *page, u8 *p)
 	if (s->size == off)
 		return 1;
 
-	if (check_bytes(p + off, POISON_INUSE, s->size - off))
-		return 1;
-
-	object_err(s, page, p, "Object padding check fails");
-
-	/*
-	 * Restore padding
-	 */
-	restore_bytes(s, "object padding", POISON_INUSE, p + off, p + s->size);
-	return 0;
+	return check_bytes_and_report(s, page, p, "Object padding",
+				p + off, POISON_INUSE, s->size - off);
 }
 
 static int slab_pad_check(struct kmem_cache *s, struct page *page)
 {
-	u8 *p;
-	int length, remainder;
+	u8 *start;
+	u8 *fault;
+	u8 *end;
+	int length;
+	int remainder;
 
 	if (!(s->flags & SLAB_POISON))
 		return 1;
 
-	p = page_address(page);
+	start = page_address(page);
+	end = start + (PAGE_SIZE << s->order);
 	length = s->objects * s->size;
-	remainder = (PAGE_SIZE << s->order) - length;
+	remainder = end - (start + length);
 	if (!remainder)
 		return 1;
 
-	if (!check_bytes(p + length, POISON_INUSE, remainder)) {
-		slab_err(s, page, "Padding check failed");
-		restore_bytes(s, "slab padding", POISON_INUSE, p + length,
-			p + length + remainder);
-		return 0;
-	}
-	return 1;
+	fault = check_bytes(start + length, POISON_INUSE, remainder);
+	if (!fault)
+		return 1;
+	while (end > fault && end[-1] == POISON_INUSE)
+		end--;
+
+	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
+	print_section("Padding", start, length);
+
+	restore_bytes(s, "slab padding", POISON_INUSE, start, end);
+	return 0;
 }
 
 static int check_object(struct kmem_cache *s, struct page *page,
@@ -606,41 +671,22 @@ static int check_object(struct kmem_cache *s, struct page *page,
 		unsigned int red =
 			active ? SLUB_RED_ACTIVE : SLUB_RED_INACTIVE;
 
-		if (!check_bytes(endobject, red, s->inuse - s->objsize)) {
-			object_err(s, page, object,
-			active ? "Redzone Active" : "Redzone Inactive");
-			restore_bytes(s, "redzone", red,
-				endobject, object + s->inuse);
+		if (!check_bytes_and_report(s, page, object, "Redzone",
+			endobject, red, s->inuse - s->objsize))
 			return 0;
-		}
 	} else {
-		if ((s->flags & SLAB_POISON) && s->objsize < s->inuse &&
-			!check_bytes(endobject, POISON_INUSE,
-					s->inuse - s->objsize)) {
-		object_err(s, page, p, "Alignment padding check fails");
-		/*
-		 * Fix it so that there will not be another report.
-		 *
-		 * Hmmm... We may be corrupting an object that now expects
-		 * to be longer than allowed.
-		 */
-		restore_bytes(s, "alignment padding", POISON_INUSE,
-			endobject, object + s->inuse);
-		}
+		if ((s->flags & SLAB_POISON) && s->objsize < s->inuse)
+			check_bytes_and_report(s, page, p, "Alignment padding", endobject,
+				POISON_INUSE, s->inuse - s->objsize);
 	}
 
 	if (s->flags & SLAB_POISON) {
 		if (!active && (s->flags & __OBJECT_POISON) &&
-			(!check_bytes(p, POISON_FREE, s->objsize - 1) ||
-				p[s->objsize - 1] != POISON_END)) {
-
-			object_err(s, page, p, "Poison check failed");
-			restore_bytes(s, "Poison", POISON_FREE,
-						p, p + s->objsize -1);
-			restore_bytes(s, "Poison", POISON_END,
-					p + s->objsize - 1, p + s->objsize);
+			(!check_bytes_and_report(s, page, p, "Poison", p,
+					POISON_FREE, s->objsize - 1) ||
+			 !check_bytes_and_report(s, page, p, "Poison",
+			 	p + s->objsize -1, POISON_END, 1)))
 			return 0;
-		}
 		/*
 		 * check_pad_bytes cleans up on its own.
 		 */
@@ -673,25 +719,17 @@ static int check_slab(struct kmem_cache *s, struct page *page)
 	VM_BUG_ON(!irqs_disabled());
 
 	if (!PageSlab(page)) {
-		slab_err(s, page, "Not a valid slab page flags=%lx "
-			"mapping=0x%p count=%d", page->flags, page->mapping,
-			page_count(page));
+		slab_err(s, page, "Not a valid slab page");
 		return 0;
 	}
 	if (page->offset * sizeof(void *) != s->offset) {
-		slab_err(s, page, "Corrupted offset %lu flags=0x%lx "
-			"mapping=0x%p count=%d",
-			(unsigned long)(page->offset * sizeof(void *)),
-			page->flags,
-			page->mapping,
-			page_count(page));
+		slab_err(s, page, "Corrupted offset %lu",
+			(unsigned long)(page->offset * sizeof(void *)));
 		return 0;
 	}
 	if (page->inuse > s->objects) {
-		slab_err(s, page, "inuse %u > max %u @0x%p flags=%lx "
-			"mapping=0x%p count=%d",
-			s->name, page->inuse, s->objects, page->flags,
-			page->mapping, page_count(page));
+		slab_err(s, page, "inuse %u > max %u",
+			s->name, page->inuse, s->objects);
 		return 0;
 	}
 	/* Slab_pad_check fixes things up after itself */
@@ -719,13 +757,10 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 				set_freepointer(s, object, NULL);
 				break;
 			} else {
-				slab_err(s, page, "Freepointer 0x%p corrupt",
-									fp);
+				slab_err(s, page, "Freepointer corrupt");
 				page->freelist = NULL;
 				page->inuse = s->objects;
-				printk(KERN_ERR "@@@ SLUB %s: Freelist "
-					"cleared. Slab 0x%p\n",
-					s->name, page);
+				slab_fix(s, "Freelist cleared");
 				return 0;
 			}
 			break;
@@ -737,11 +772,9 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 
 	if (page->inuse != s->objects - nr) {
 		slab_err(s, page, "Wrong object count. Counter is %d but "
-			"counted were %d", s, page, page->inuse,
-							s->objects - nr);
+			"counted were %d", page->inuse, s->objects - nr);
 		page->inuse = s->objects - nr;
-		printk(KERN_ERR "@@@ SLUB %s: Object count adjusted. "
-			"Slab @0x%p\n", s->name, page);
+		slab_fix(s, "Object count adjusted.");
 	}
 	return search == NULL;
 }
@@ -803,7 +836,7 @@ static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
 		goto bad;
 
 	if (object && !on_freelist(s, page, object)) {
-		slab_err(s, page, "Object 0x%p already allocated", object);
+		object_err(s, page, object, "Object already allocated");
 		goto bad;
 	}
 
@@ -829,8 +862,7 @@ bad:
 		 * to avoid issues in the future. Marking all objects
 		 * as used avoids touching the remaining objects.
 		 */
-		printk(KERN_ERR "@@@ SLUB: %s slab 0x%p. Marking all objects used.\n",
-			s->name, page);
+		slab_fix(s, "Marking all objects used");
 		page->inuse = s->objects;
 		page->freelist = NULL;
 		/* Fix up fields that may be corrupted */
@@ -851,7 +883,7 @@ static int free_debug_processing(struct kmem_cache *s, struct page *page,
 	}
 
 	if (on_freelist(s, page, object)) {
-		slab_err(s, page, "Object 0x%p already free", object);
+		object_err(s, page, object, "Object already free");
 		goto fail;
 	}
 
@@ -870,8 +902,8 @@ static int free_debug_processing(struct kmem_cache *s, struct page *page,
 			dump_stack();
 		}
 		else
-			slab_err(s, page, "object at 0x%p belongs "
-				"to slab %s", object, page->slab->name);
+			object_err(s, page, object,
+					"page slab pointer corrupt.");
 		goto fail;
 	}
 
@@ -885,8 +917,7 @@ static int free_debug_processing(struct kmem_cache *s, struct page *page,
 	return 1;
 
 fail:
-	printk(KERN_ERR "@@@ SLUB: %s slab 0x%p object at 0x%p not freed.\n",
-		s->name, page, object);
+	slab_fix(s, "Object at 0x%p not freed", object);
 	return 0;
 }
 
