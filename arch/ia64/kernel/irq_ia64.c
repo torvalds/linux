@@ -267,7 +267,7 @@ void __setup_vector_irq(int cpu)
 	}
 }
 
-#if defined(CONFIG_IA64_GENERIC)
+#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
 static enum vector_domain_type {
 	VECTOR_DOMAIN_NONE,
 	VECTOR_DOMAIN_PERCPU
