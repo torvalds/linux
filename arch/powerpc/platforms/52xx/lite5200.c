@@ -85,7 +85,6 @@ error:
 }
 
 #ifdef CONFIG_PM
-static u32 descr_a;
 static void lite5200_suspend_prepare(void __iomem *mbar)
 {
 	u8 pin = 1;	/* GPIO_WKUP_1 (GPIO_PSC2_4) */
@@ -96,13 +95,18 @@ static void lite5200_suspend_prepare(void __iomem *mbar)
 	 * power down usb port
 	 * this needs to be called before of-ohci suspend code
 	 */
-	descr_a = in_be32(mbar + 0x1048);
-	out_be32(mbar + 0x1048, (descr_a & ~0x200) | 0x100);
+
+	/* set ports to "power switched" and "powered at the same time"
+	 * USB Rh descriptor A: NPS = 0, PSM = 0 */
+	out_be32(mbar + 0x1048, in_be32(mbar + 0x1048) & ~0x300);
+	/* USB Rh status: LPS = 1 - turn off power */
+	out_be32(mbar + 0x1050, 0x00000001);
 }
 
 static void lite5200_resume_finish(void __iomem *mbar)
 {
-	out_be32(mbar + 0x1048, descr_a);
+	/* USB Rh status: LPSC = 1 - turn on power */
+	out_be32(mbar + 0x1050, 0x00010000);
 }
 #endif
 
@@ -122,7 +126,7 @@ static void __init lite5200_setup_arch(void)
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;
 	mpc52xx_suspend.board_resume_finish = lite5200_resume_finish;
-	mpc52xx_pm_init();
+	lite5200_pm_init();
 #endif
 
 #ifdef CONFIG_PCI
