@@ -19,8 +19,21 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xffe00000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		= { 80, 81, 83, 82 },
-	}, {
+		.irqs		= { 80, 80, 80, 80 },
+	},
+	{
+		.mapbase	= 0xffe10000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 81, 81, 81, 81 },
+	},
+	{
+		.mapbase	= 0xffe20000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 82, 82, 82, 82 },
+	},
+	{
 		.flags = 0,
 	}
 };
@@ -48,10 +61,9 @@ static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, prio */
 	{ 16, 0, 12, 2 }, /* TMU0 */
 	{ 17, 0,  8, 2 }, /* TMU1 */
-	{ 80, 6, 12, 3 }, /* SCIF ERI */
-	{ 81, 6, 12, 3 }, /* SCIF RXI */
-	{ 82, 6, 12, 3 }, /* SCIF BRI */
-	{ 83, 6, 12, 3 }, /* SCIF TXI */
+	{ 80, 6, 12, 3 }, /* SCIF0 */
+	{ 81, 6, 8, 3 },  /* SCIF1 */
+	{ 82, 6, 4, 3 },  /* SCIF2 */
 };
 
 static unsigned long ipr_offsets[] = {
