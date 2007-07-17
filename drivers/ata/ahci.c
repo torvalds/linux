@@ -1519,6 +1519,14 @@ static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 	}
 }
 
+static int ahci_port_resume(struct ata_port *ap)
+{
+	ahci_power_up(ap);
+	ahci_start_port(ap);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 {
@@ -1534,14 +1542,6 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 	}
 
 	return rc;
-}
-
-static int ahci_port_resume(struct ata_port *ap)
-{
-	ahci_power_up(ap);
-	ahci_start_port(ap);
-
-	return 0;
 }
 
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
