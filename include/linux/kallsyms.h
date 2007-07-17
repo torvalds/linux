@@ -7,9 +7,9 @@
 
 #include <linux/errno.h>
 
-#define KSYM_NAME_LEN 127
-#define KSYM_SYMBOL_LEN (sizeof("%s+%#lx/%#lx [%s]") + KSYM_NAME_LEN +	\
-			 2*(BITS_PER_LONG*3/10) + MODULE_NAME_LEN + 1)
+#define KSYM_NAME_LEN 128
+#define KSYM_SYMBOL_LEN (sizeof("%s+%#lx/%#lx [%s]") + (KSYM_NAME_LEN - 1) + \
+			 2*(BITS_PER_LONG*3/10) + (MODULE_NAME_LEN - 1) + 1)
 
 #ifdef CONFIG_KALLSYMS
 /* Lookup the address for a symbol. Returns 0 if not found. */

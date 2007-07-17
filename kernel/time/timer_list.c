@@ -38,7 +38,7 @@ DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
 
 static void print_name_offset(struct seq_file *m, void *sym)
 {
-	char symname[KSYM_NAME_LEN+1];
+	char symname[KSYM_NAME_LEN];
 
 	if (lookup_symbol_name((unsigned long)sym, symname) < 0)
 		SEQ_printf(m, "<%p>", sym);

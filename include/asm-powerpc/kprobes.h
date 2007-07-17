@@ -65,10 +65,10 @@ typedef unsigned int kprobe_opcode_t;
 		} else if (name[0] != '.')				\
 			addr = *(kprobe_opcode_t **)addr;		\
 	} else {							\
-		char dot_name[KSYM_NAME_LEN+1];				\
+		char dot_name[KSYM_NAME_LEN];				\
 		dot_name[0] = '.';					\
 		dot_name[1] = '\0';					\
-		strncat(dot_name, name, KSYM_NAME_LEN);			\
+		strncat(dot_name, name, KSYM_NAME_LEN - 2);		\
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name); \
 	}								\
 }

@@ -2133,7 +2133,7 @@ int lookup_module_symbol_name(unsigned long addr, char *symname)
 			sym = get_ksymbol(mod, addr, NULL, NULL);
 			if (!sym)
 				goto out;
-			strlcpy(symname, sym, KSYM_NAME_LEN + 1);
+			strlcpy(symname, sym, KSYM_NAME_LEN);
 			mutex_unlock(&module_mutex);
 			return 0;
 		}
@@ -2158,9 +2158,9 @@ int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size,
 			if (!sym)
 				goto out;
 			if (modname)
-				strlcpy(modname, mod->name, MODULE_NAME_LEN + 1);
+				strlcpy(modname, mod->name, MODULE_NAME_LEN);
 			if (name)
-				strlcpy(name, sym, KSYM_NAME_LEN + 1);
+				strlcpy(name, sym, KSYM_NAME_LEN);
 			mutex_unlock(&module_mutex);
 			return 0;
 		}
@@ -2181,8 +2181,8 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 			*value = mod->symtab[symnum].st_value;
 			*type = mod->symtab[symnum].st_info;
 			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
-				KSYM_NAME_LEN + 1);
-			strlcpy(module_name, mod->name, MODULE_NAME_LEN + 1);
+				KSYM_NAME_LEN);
+			strlcpy(module_name, mod->name, MODULE_NAME_LEN);
 			*exported = is_exported(name, mod);
 			mutex_unlock(&module_mutex);
 			return 0;

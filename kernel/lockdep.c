@@ -379,7 +379,7 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4
 
 static void print_lock_name(struct lock_class *class)
 {
-	char str[KSYM_NAME_LEN + 1], c1, c2, c3, c4;
+	char str[KSYM_NAME_LEN], c1, c2, c3, c4;
 	const char *name;
 
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
@@ -401,7 +401,7 @@ static void print_lock_name(struct lock_class *class)
 static void print_lockdep_cache(struct lockdep_map *lock)
 {
 	const char *name;
-	char str[KSYM_NAME_LEN + 1];
+	char str[KSYM_NAME_LEN];
 
 	name = lock->name;
 	if (!name)
