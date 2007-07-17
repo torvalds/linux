@@ -2702,6 +2702,7 @@ trident_open(struct inode *inode, struct file *file)
 	struct trident_card *card = devs;
 	struct trident_state *state = NULL;
 	struct dmabuf *dmabuf = NULL;
+	unsigned long flags;
 
 	/* Added by Matt Wu 01-05-2001 */
 	/* TODO: there's some redundacy here wrt the check below */
@@ -2779,7 +2780,9 @@ trident_open(struct inode *inode, struct file *file)
 			/* set default channel attribute to normal playback */
 			dmabuf->channel->attribute = CHANNEL_PB;
 		}
+		spin_lock_irqsave(&card->lock, flags);
 		trident_set_dac_rate(state, 8000);
+		spin_unlock_irqrestore(&card->lock, flags);
 	}
 
 	if (file->f_mode & FMODE_READ) {
@@ -2797,7 +2800,9 @@ trident_open(struct inode *inode, struct file *file)
 			dmabuf->channel->attribute = (CHANNEL_REC | PCM_LR |
 						      MONO_MIX);
 		}
+		spin_lock_irqsave(&card->lock, flags);
 		trident_set_adc_rate(state, 8000);
+		spin_unlock_irqrestore(&card->lock, flags);
 
 		/* Added by Matt Wu 01-05-2001 */
 		if (card->pci_id == PCI_DEVICE_ID_ALI_5451)
