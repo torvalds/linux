@@ -2764,11 +2764,11 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
-static int validate_slab(struct kmem_cache *s, struct page *page)
+static int validate_slab(struct kmem_cache *s, struct page *page,
+						unsigned long *map)
 {
 	void *p;
 	void *addr = page_address(page);
-	DECLARE_BITMAP(map, s->objects);
 
 	if (!check_slab(s, page) ||
 			!on_freelist(s, page, NULL))
@@ -2790,10 +2790,11 @@ static int validate_slab(struct kmem_cache *s, struct page *page)
 	return 1;
 }
 
-static void validate_slab_slab(struct kmem_cache *s, struct page *page)
+static void validate_slab_slab(struct kmem_cache *s, struct page *page,
+						unsigned long *map)
 {
 	if (slab_trylock(page)) {
-		validate_slab(s, page);
+		validate_slab(s, page, map);
 		slab_unlock(page);
 	} else
 		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
@@ -2810,7 +2811,8 @@ static void validate_slab_slab(struct kmem_cache *s, struct page *page)
 	}
 }
 
-static int validate_slab_node(struct kmem_cache *s, struct kmem_cache_node *n)
+static int validate_slab_node(struct kmem_cache *s,
+		struct kmem_cache_node *n, unsigned long *map)
 {
 	unsigned long count = 0;
 	struct page *page;
@@ -2819,7 +2821,7 @@ static int validate_slab_node(struct kmem_cache *s, struct kmem_cache_node *n)
 	spin_lock_irqsave(&n->list_lock, flags);
 
 	list_for_each_entry(page, &n->partial, lru) {
-		validate_slab_slab(s, page);
+		validate_slab_slab(s, page, map);
 		count++;
 	}
 	if (count != n->nr_partial)
@@ -2830,7 +2832,7 @@ static int validate_slab_node(struct kmem_cache *s, struct kmem_cache_node *n)
 		goto out;
 
 	list_for_each_entry(page, &n->full, lru) {
-		validate_slab_slab(s, page);
+		validate_slab_slab(s, page, map);
 		count++;
 	}
 	if (count != atomic_long_read(&n->nr_slabs))
@@ -2843,17 +2845,23 @@ out:
 	return count;
 }
 
-static unsigned long validate_slab_cache(struct kmem_cache *s)
+static long validate_slab_cache(struct kmem_cache *s)
 {
 	int node;
 	unsigned long count = 0;
+	unsigned long *map = kmalloc(BITS_TO_LONGS(s->objects) *
+				sizeof(unsigned long), GFP_KERNEL);
+
+	if (!map)
+		return -ENOMEM;
 
 	flush_all(s);
 	for_each_online_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
 
-		count += validate_slab_node(s, n);
+		count += validate_slab_node(s, n, map);
 	}
+	kfree(map);
 	return count;
 }
 
@@ -3467,11 +3475,14 @@ static ssize_t validate_show(struct kmem_cache *s, char *buf)
 static ssize_t validate_store(struct kmem_cache *s,
 			const char *buf, size_t length)
 {
-	if (buf[0] == '1')
-		validate_slab_cache(s);
-	else
-		return -EINVAL;
-	return length;
+	int ret = -EINVAL;
+
+	if (buf[0] == '1') {
+		ret = validate_slab_cache(s);
+		if (ret >= 0)
+			ret = length;
+	}
+	return ret;
 }
 SLAB_ATTR(validate);
 
