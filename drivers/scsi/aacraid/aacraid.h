@@ -1567,6 +1567,20 @@ struct aac_get_name_resp {
 	u8		data[16];
 };
 
+#define CT_CID_TO_32BITS_UID 165
+struct aac_get_serial {
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_CID_TO_32BITS_UID */
+	__le32		cid;
+};
+
+struct aac_get_serial_resp {
+	__le32		dummy0;
+	__le32		dummy1;
+	__le32		status;	/* CT_OK */
+	__le32		uid;
+};
+
 /*
  * The following command is sent to shut down each container.
  */
