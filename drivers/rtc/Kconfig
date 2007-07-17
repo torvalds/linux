@@ -224,6 +224,13 @@ config RTC_DRV_M41T80
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m41t80.
 
+config RTC_DRV_M41T80_WDT
+	bool "ST M41T80 series RTC watchdog timer"
+	depends on RTC_DRV_M41T80
+	help
+	  If you say Y here you will get support for the
+	  watchdog timer in ST M41T80 RTC chips series.
+
 comment "SPI RTC drivers"
 	depends on RTC_CLASS && SPI_MASTER
 
