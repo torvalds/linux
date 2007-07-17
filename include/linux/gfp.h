@@ -106,6 +106,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	if (flags & __GFP_DMA32)
 		return ZONE_DMA32;
 #endif
+	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
+			(__GFP_HIGHMEM | __GFP_MOVABLE))
+		return ZONE_MOVABLE;
 #ifdef CONFIG_HIGHMEM
 	if (flags & __GFP_HIGHMEM)
 		return ZONE_HIGHMEM;

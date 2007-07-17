@@ -146,6 +146,7 @@ enum zone_type {
 	 */
 	ZONE_HIGHMEM,
 #endif
+	ZONE_MOVABLE,
 	MAX_NR_ZONES
 };
 
@@ -167,6 +168,7 @@ enum zone_type {
 	+ defined(CONFIG_ZONE_DMA32)	\
 	+ 1				\
 	+ defined(CONFIG_HIGHMEM)	\
+	+ 1				\
 )
 #if __ZONE_COUNT < 2
 #define ZONES_SHIFT 0
@@ -499,10 +501,22 @@ static inline int populated_zone(struct zone *zone)
 	return (!!zone->present_pages);
 }
 
+extern int movable_zone;
+
+static inline int zone_movable_is_highmem(void)
+{
+#if defined(CONFIG_HIGHMEM) && defined(CONFIG_ARCH_POPULATES_NODE_MAP)
+	return movable_zone == ZONE_HIGHMEM;
+#else
+	return 0;
+#endif
+}
+
 static inline int is_highmem_idx(enum zone_type idx)
 {
 #ifdef CONFIG_HIGHMEM
-	return (idx == ZONE_HIGHMEM);
+	return (idx == ZONE_HIGHMEM ||
+		(idx == ZONE_MOVABLE && zone_movable_is_highmem()));
 #else
 	return 0;
 #endif
@@ -522,7 +536,9 @@ static inline int is_normal_idx(enum zone_type idx)
 static inline int is_highmem(struct zone *zone)
 {
 #ifdef CONFIG_HIGHMEM
-	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
+	int zone_idx = zone - zone->zone_pgdat->node_zones;
+	return zone_idx == ZONE_HIGHMEM ||
+		(zone_idx == ZONE_MOVABLE && zone_movable_is_highmem());
 #else
 	return 0;
 #endif
