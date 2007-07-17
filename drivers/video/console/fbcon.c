@@ -152,6 +152,7 @@ static int fbcon_set_origin(struct vc_data *);
 #define DEFAULT_CURSOR_BLINK_RATE	(20)
 
 static int vbl_cursor_cnt;
+static int fbcon_cursor_noblink;
 
 #define divides(a, b)	((!(a) || (b)%(a)) ? 0 : 1)
 
@@ -441,7 +442,8 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	if ((!info->queue.func || info->queue.func == fb_flashcursor) &&
-	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER)) {
+	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER) &&
+	    !fbcon_cursor_noblink) {
 		if (!info->queue.func)
 			INIT_WORK(&info->queue, fb_flashcursor);
 
@@ -1348,6 +1350,11 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 
 	if (fbcon_is_inactive(vc, info) || vc->vc_deccm != 1)
 		return;
+
+	if (vc->vc_cursor_type & 0x10)
+		fbcon_del_cursor_timer(info);
+	else
+		fbcon_add_cursor_timer(info);
 
 	ops->cursor_flash = (mode == CM_ERASE) ? 0 : 1;
 	if (mode & CM_SOFTBACK) {
@@ -3308,9 +3315,74 @@ err:
 	return snprintf(buf, PAGE_SIZE, "%d\n", rotate);
 }
 
+static ssize_t show_cursor_blink(struct class_device *class_device, char *buf)
+{
+	struct fb_info *info;
+	struct fbcon_ops *ops;
+	int idx, blink = -1;
+
+	if (fbcon_has_exited)
+		return 0;
+
+	acquire_console_sem();
+	idx = con2fb_map[fg_console];
+
+	if (idx == -1 || registered_fb[idx] == NULL)
+		goto err;
+
+	info = registered_fb[idx];
+	ops = info->fbcon_par;
+
+	if (!ops)
+		goto err;
+
+	blink = (ops->flags & FBCON_FLAGS_CURSOR_TIMER) ? 1 : 0;
+err:
+	release_console_sem();
+	return snprintf(buf, PAGE_SIZE, "%d\n", blink);
+}
+
+static ssize_t store_cursor_blink(struct class_device *clas_device,
+				  const char *buf, size_t count)
+{
+	struct fb_info *info;
+	int blink, idx;
+	char **last = NULL;
+
+	if (fbcon_has_exited)
+		return count;
+
+	acquire_console_sem();
+	idx = con2fb_map[fg_console];
+
+	if (idx == -1 || registered_fb[idx] == NULL)
+		goto err;
+
+	info = registered_fb[idx];
+
+	if (!info->fbcon_par)
+		goto err;
+
+	blink = simple_strtoul(buf, last, 0);
+
+	if (blink) {
+		fbcon_cursor_noblink = 0;
+		fbcon_add_cursor_timer(info);
+	} else {
+		fbcon_cursor_noblink = 1;
+		fbcon_del_cursor_timer(info);
+	}
+
+err:
+	release_console_sem();
+	return count;
+}
+
 static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(rotate, S_IRUGO|S_IWUSR, show_rotate, store_rotate),
 	__ATTR(rotate_all, S_IWUSR, NULL, store_rotate_all),
+	__ATTR(cursor_blink, S_IRUGO|S_IWUSR, show_cursor_blink,
+	       store_cursor_blink),
 };
 
 static int fbcon_init_class_device(void)
