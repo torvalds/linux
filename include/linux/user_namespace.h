@@ -49,7 +49,7 @@ static inline struct user_namespace *copy_user_ns(int flags,
 	if (flags & CLONE_NEWUSER)
 		return ERR_PTR(-EINVAL);
 
-	return NULL;
+	return old_ns;
 }
 
 static inline void put_user_ns(struct user_namespace *ns)
