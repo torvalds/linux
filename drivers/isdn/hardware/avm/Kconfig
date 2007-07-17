@@ -3,7 +3,7 @@
 #
 
 menu "Active AVM cards"
-	depends on NET && ISDN && ISDN_CAPI!=n
+	depends on ISDN_CAPI!=n
 
 config CAPI_AVM
 	bool "Support AVM cards"
