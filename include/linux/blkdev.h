@@ -624,7 +624,7 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  */
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
 
-#ifdef CONFIG_MMU
+#ifdef CONFIG_BOUNCE
 extern int init_emergency_isa_pool(void);
 extern void blk_queue_bounce(request_queue_t *q, struct bio **bio);
 #else
