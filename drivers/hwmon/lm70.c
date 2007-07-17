@@ -96,6 +96,10 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	struct lm70 *p_lm70;
 	int status;
 
+	/* signaling is SPI_MODE_0 on a 3-wire link (shared SI/SO) */
+	if ((spi->mode & (SPI_CPOL|SPI_CPHA)) || !(spi->mode & SPI_3WIRE))
+		return -EINVAL;
+
 	p_lm70 = kzalloc(sizeof *p_lm70, GFP_KERNEL);
 	if (!p_lm70)
 		return -ENOMEM;
