@@ -37,12 +37,18 @@ static int exportfs_get_name(struct dentry *dir, char *name,
 		return get_name(dir, name, child);
 }
 
+/*
+ * Check if the dentry or any of it's aliases is acceptable.
+ */
 static struct dentry *
 find_acceptable_alias(struct dentry *result,
 		int (*acceptable)(void *context, struct dentry *dentry),
 		void *context)
 {
 	struct dentry *dentry, *toput = NULL;
+
+	if (acceptable(context, result))
+		return result;
 
 	spin_lock(&dcache_lock);
 	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
@@ -126,9 +132,6 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 
 		target_dir = dget(result);
 	} else {
-		if (acceptable(context, result))
-			return result;
-
 		alias = find_acceptable_alias(result, acceptable, context);
 		if (alias)
 			return alias;
@@ -289,9 +292,6 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 		}
 	}
 	dput(target_dir);
-	/* now result is properly connected, it is our best bet */
-	if (acceptable(context, result))
-		return result;
 
 	alias = find_acceptable_alias(result, acceptable, context);
 	if (alias)
