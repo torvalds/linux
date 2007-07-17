@@ -2,7 +2,6 @@
 # ISDN hardware drivers
 #
 comment "CAPI hardware drivers"
-	depends on ISDN_CAPI
 
 source "drivers/isdn/hardware/avm/Kconfig"
 

@@ -57,8 +57,12 @@ config ISDN_CAPI
 	  hardware, see <http://www.capi.org/>.  This is needed for AVM's set
 	  of active ISDN controllers like B1, T1, M1.
 
+if ISDN_CAPI
+
 source "drivers/isdn/capi/Kconfig"
 
 source "drivers/isdn/hardware/Kconfig"
+
+endif # ISDN_CAPI
 
 endif # ISDN
