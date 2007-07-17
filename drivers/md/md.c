@@ -1640,7 +1640,6 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 
 static void md_update_sb(mddev_t * mddev, int force_change)
 {
-	int err;
 	struct list_head *tmp;
 	mdk_rdev_t *rdev;
 	int sync_req;
@@ -1727,7 +1726,7 @@ repeat:
 		"md: updating %s RAID superblock on device (in sync %d)\n",
 		mdname(mddev),mddev->in_sync);
 
-	err = bitmap_update_sb(mddev->bitmap);
+	bitmap_update_sb(mddev->bitmap);
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		char b[BDEVNAME_SIZE];
 		dprintk(KERN_INFO "md: ");
