@@ -94,7 +94,7 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 	mutex_lock(&dev->struct_mutex);
 #if defined(CONFIG_FB_SIS)
 	{
-		drm_sman_mm_t sman_mm;
+		struct drm_sman_mm sman_mm;
 		sman_mm.private = (void *)0xFFFFFFFF;
 		sman_mm.allocate = sis_sman_mm_allocate;
 		sman_mm.free = sis_sman_mm_free;
