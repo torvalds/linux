@@ -612,8 +612,6 @@ static void pm3fb_write_mode(struct fb_info *info)
 /*
  * hardware independent functions
  */
-int pm3fb_init(void);
-
 static int pm3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	u32 lpitch;
@@ -1170,35 +1168,12 @@ static struct pci_driver pm3fb_driver = {
 
 MODULE_DEVICE_TABLE(pci, pm3fb_id_table);
 
-#ifndef MODULE
-	/*
-	 *  Setup
-	 */
-
-/*
- * Only necessary if your driver takes special options,
- * otherwise we fall back on the generic fb_setup().
- */
-static int __init pm3fb_setup(char *options)
+static int __init pm3fb_init(void)
 {
-	/* Parse user speficied options (`video=pm3fb:') */
-	return 0;
-}
-#endif /* MODULE */
-
-int __init pm3fb_init(void)
-{
-	/*
-	 *  For kernel boot options (in 'video=pm3fb:<options>' format)
-	 */
 #ifndef MODULE
-	char *option = NULL;
-
-	if (fb_get_options("pm3fb", &option))
+	if (fb_get_options("pm3fb", NULL))
 		return -ENODEV;
-	pm3fb_setup(option);
 #endif
-
 	return pci_register_driver(&pm3fb_driver);
 }
 
