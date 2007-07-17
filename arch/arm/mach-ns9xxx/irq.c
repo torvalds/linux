@@ -28,7 +28,7 @@ static void ns9xxx_ack_irq_timer(unsigned int irq)
 	SYS_TC(irq - IRQ_TIMER0) = tc;
 }
 
-void (*ns9xxx_ack_irq_functions[NR_IRQS])(unsigned int) = {
+static void (*ns9xxx_ack_irq_functions[NR_IRQS])(unsigned int) = {
 	[IRQ_TIMER0] = ns9xxx_ack_irq_timer,
 	[IRQ_TIMER1] = ns9xxx_ack_irq_timer,
 	[IRQ_TIMER2] = ns9xxx_ack_irq_timer,
