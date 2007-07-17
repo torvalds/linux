@@ -1867,7 +1867,8 @@ static ssize_t ocfs2_file_buffered_write(struct file *file, loff_t *ppos,
 	loff_t pos;
 	const struct iovec *cur_iov = iov;
 	struct page *user_page, *page;
-	char *buf, *dst;
+	char * uninitialized_var(buf);
+	char *dst;
 	void *fsdata;
 
 	/*

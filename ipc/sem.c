@@ -856,7 +856,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid, int semnum,
 {
 	struct sem_array *sma;
 	int err;
-	struct sem_setbuf setbuf;
+	struct sem_setbuf uninitialized_var(setbuf);
 	struct kern_ipc_perm *ipcp;
 
 	if(cmd == IPC_SET) {
