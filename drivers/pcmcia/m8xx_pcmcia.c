@@ -113,7 +113,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 #define CONFIG_PCMCIA_SLOT_B
 #endif
 
-#endif /* !defined(CONFIG_PCMCIA_SLOT_A) && !defined(CONFIG_PCMCIA_SLOT_B) */
+#endif				/* !defined(CONFIG_PCMCIA_SLOT_A) && !defined(CONFIG_PCMCIA_SLOT_B) */
 
 #if defined(CONFIG_PCMCIA_SLOT_A) && defined(CONFIG_PCMCIA_SLOT_B)
 
@@ -146,9 +146,9 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 /* ------------------------------------------------------------------------- */
 
-#define PCMCIA_MEM_WIN_BASE 0xe0000000 /* base address for memory window 0   */
-#define PCMCIA_MEM_WIN_SIZE 0x04000000 /* each memory window is 64 MByte     */
-#define PCMCIA_IO_WIN_BASE  _IO_BASE   /* base address for io window 0       */
+#define PCMCIA_MEM_WIN_BASE 0xe0000000	/* base address for memory window 0   */
+#define PCMCIA_MEM_WIN_SIZE 0x04000000	/* each memory window is 64 MByte     */
+#define PCMCIA_IO_WIN_BASE  _IO_BASE	/* base address for io window 0       */
 /* ------------------------------------------------------------------------- */
 
 static int pcmcia_schlvl;
@@ -169,8 +169,8 @@ static u32 *m8xx_pgcrx[2];
  */
 
 struct pcmcia_win {
-	u32	br;
-	u32	or;
+	u32 br;
+	u32 or;
 };
 
 /*
@@ -214,7 +214,7 @@ struct pcmcia_win {
 
 /* we keep one lookup table per socket to check flags */
 
-#define PCMCIA_EVENTS_MAX 5  /* 4 max at a time + termination */
+#define PCMCIA_EVENTS_MAX 5	/* 4 max at a time + termination */
 
 struct event_table {
 	u32 regbit;
@@ -224,8 +224,8 @@ struct event_table {
 static const char driver_name[] = "m8xx-pcmcia";
 
 struct socket_info {
-	void	(*handler)(void *info, u32 events);
-	void	*info;
+	void (*handler) (void *info, u32 events);
+	void *info;
 
 	u32 slot;
 	pcmconf8xx_t *pcmcia;
@@ -234,7 +234,7 @@ struct socket_info {
 
 	socket_state_t state;
 	struct pccard_mem_map mem_win[PCMCIA_MEM_WIN_NO];
-	struct pccard_io_map  io_win[PCMCIA_IO_WIN_NO];
+	struct pccard_io_map io_win[PCMCIA_IO_WIN_NO];
 	struct event_table events[PCMCIA_EVENTS_MAX];
 	struct pcmcia_socket socket;
 };
@@ -248,8 +248,7 @@ static struct socket_info socket[PCMCIA_SOCKETS_NO];
 
 #define M8XX_SIZES_NO 32
 
-static const u32 m8xx_size_to_gray[M8XX_SIZES_NO] =
-{
+static const u32 m8xx_size_to_gray[M8XX_SIZES_NO] = {
 	0x00000001, 0x00000002, 0x00000008, 0x00000004,
 	0x00000080, 0x00000040, 0x00000010, 0x00000020,
 	0x00008000, 0x00004000, 0x00001000, 0x00002000,
@@ -265,7 +264,7 @@ static const u32 m8xx_size_to_gray[M8XX_SIZES_NO] =
 
 static irqreturn_t m8xx_interrupt(int irq, void *dev);
 
-#define PCMCIA_BMT_LIMIT (15*4)  /* Bus Monitor Timeout value */
+#define PCMCIA_BMT_LIMIT (15*4)	/* Bus Monitor Timeout value */
 
 /* ------------------------------------------------------------------------- */
 /* board specific stuff:                                                     */
@@ -289,8 +288,9 @@ static int voltage_set(int slot, int vcc, int vpp)
 {
 	u32 reg = 0;
 
-	switch(vcc) {
-	case 0: break;
+	switch (vcc) {
+	case 0:
+		break;
 	case 33:
 		reg |= BCSR1_PCVCTL4;
 		break;
@@ -301,11 +301,12 @@ static int voltage_set(int slot, int vcc, int vpp)
 		return 1;
 	}
 
-	switch(vpp) {
-	case 0: break;
+	switch (vpp) {
+	case 0:
+		break;
 	case 33:
 	case 50:
-		if(vcc == vpp)
+		if (vcc == vpp)
 			reg |= BCSR1_PCVCTL6;
 		else
 			return 1;
@@ -316,25 +317,29 @@ static int voltage_set(int slot, int vcc, int vpp)
 		return 1;
 	}
 
-	if(!((vcc == 50) || (vcc == 0)))
+	if (!((vcc == 50) || (vcc == 0)))
 		return 1;
 
 	/* first, turn off all power */
 
-	out_be32(((u32 *)RPX_CSR_ADDR), in_be32(((u32 *)RPX_CSR_ADDR)) & ~(BCSR1_PCVCTL4 | BCSR1_PCVCTL5 | BCSR1_PCVCTL6 | BCSR1_PCVCTL7));
+	out_be32(((u32 *) RPX_CSR_ADDR),
+		 in_be32(((u32 *) RPX_CSR_ADDR)) & ~(BCSR1_PCVCTL4 |
+						     BCSR1_PCVCTL5 |
+						     BCSR1_PCVCTL6 |
+						     BCSR1_PCVCTL7));
 
 	/* enable new powersettings */
 
-	out_be32(((u32 *)RPX_CSR_ADDR), in_be32(((u32 *)RPX_CSR_ADDR)) | reg);
+	out_be32(((u32 *) RPX_CSR_ADDR), in_be32(((u32 *) RPX_CSR_ADDR)) | reg);
 
 	return 0;
 }
 
 #define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
-#define hardware_enable(_slot_)  /* No hardware to enable */
-#define hardware_disable(_slot_) /* No hardware to disable */
+#define hardware_enable(_slot_)	/* No hardware to enable */
+#define hardware_disable(_slot_)	/* No hardware to disable */
 
-#endif /* CONFIG_RPXCLASSIC */
+#endif				/* CONFIG_RPXCLASSIC */
 
 /* FADS Boards from Motorola                                               */
 
@@ -346,43 +351,45 @@ static int voltage_set(int slot, int vcc, int vpp)
 {
 	u32 reg = 0;
 
-	switch(vcc) {
-		case 0:
-			break;
-		case 33:
-			reg |= BCSR1_PCCVCC0;
-			break;
-		case 50:
-			reg |= BCSR1_PCCVCC1;
-			break;
-		default:
-			return 1;
+	switch (vcc) {
+	case 0:
+		break;
+	case 33:
+		reg |= BCSR1_PCCVCC0;
+		break;
+	case 50:
+		reg |= BCSR1_PCCVCC1;
+		break;
+	default:
+		return 1;
 	}
 
-	switch(vpp) {
-		case 0:
-			break;
-		case 33:
-		case 50:
-			if(vcc == vpp)
-				reg |= BCSR1_PCCVPP1;
-			else
-				return 1;
-			break;
-		case 120:
-			if ((vcc == 33) || (vcc == 50))
-				reg |= BCSR1_PCCVPP0;
-			else
-				return 1;
-		default:
+	switch (vpp) {
+	case 0:
+		break;
+	case 33:
+	case 50:
+		if (vcc == vpp)
+			reg |= BCSR1_PCCVPP1;
+		else
 			return 1;
+		break;
+	case 120:
+		if ((vcc == 33) || (vcc == 50))
+			reg |= BCSR1_PCCVPP0;
+		else
+			return 1;
+	default:
+		return 1;
 	}
 
 	/* first, turn off all power */
-	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) & ~(BCSR1_PCCVCC_MASK | BCSR1_PCCVPP_MASK));
+	out_be32((u32 *) BCSR1,
+		 in_be32((u32 *) BCSR1) & ~(BCSR1_PCCVCC_MASK |
+					    BCSR1_PCCVPP_MASK));
 
 	/* enable new powersettings */
-	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) | reg);
+	out_be32((u32 *) BCSR1, in_be32((u32 *) BCSR1) | reg);
 
 	return 0;
 }
@@ -391,12 +398,12 @@ static int voltage_set(int slot, int vcc, int vpp)
 
 static void hardware_enable(int slot)
 {
-	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) & ~BCSR1_PCCEN);
+	out_be32((u32 *) BCSR1, in_be32((u32 *) BCSR1) & ~BCSR1_PCCEN);
 }
 
 static void hardware_disable(int slot)
 {
-	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) |  BCSR1_PCCEN);
+	out_be32((u32 *) BCSR1, in_be32((u32 *) BCSR1) | BCSR1_PCCEN);
 }
 
 #endif
@@ -410,7 +417,7 @@ static void hardware_disable(int slot)
 
 static inline void hardware_enable(int slot)
 {
-	 m8xx_pcmcia_ops.hw_ctrl(slot, 1);
+	m8xx_pcmcia_ops.hw_ctrl(slot, 1);
 }
 
 static inline void hardware_disable(int slot)
@@ -436,52 +443,53 @@ static int voltage_set(int slot, int vcc, int vpp)
 {
 	u8 reg = 0;
 
-	switch(vcc) {
-		case 0:
-			break;
-		case 33:
-			reg |= CSR2_VCC_33;
-			break;
-		case 50:
-			reg |= CSR2_VCC_50;
-			break;
-		default:
-			return 1;
+	switch (vcc) {
+	case 0:
+		break;
+	case 33:
+		reg |= CSR2_VCC_33;
+		break;
+	case 50:
+		reg |= CSR2_VCC_50;
+		break;
+	default:
+		return 1;
 	}
 
-	switch(vpp) {
-		case 0:
-			break;
-		case 33:
-		case 50:
-			if(vcc == vpp)
-				reg |= CSR2_VPP_VCC;
-			else
-				return 1;
-			break;
-		case 120:
-			if ((vcc == 33) || (vcc == 50))
-				reg |= CSR2_VPP_12;
-			else
-				return 1;
-		default:
+	switch (vpp) {
+	case 0:
+		break;
+	case 33:
+	case 50:
+		if (vcc == vpp)
+			reg |= CSR2_VPP_VCC;
+		else
 			return 1;
+		break;
+	case 120:
+		if ((vcc == 33) || (vcc == 50))
+			reg |= CSR2_VPP_12;
+		else
+			return 1;
+	default:
+		return 1;
 	}
 
 	/* first, turn off all power */
-	out_8((u8 *)MBX_CSR2_ADDR, in_8((u8 *)MBX_CSR2_ADDR) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
+	out_8((u8 *) MBX_CSR2_ADDR,
+	      in_8((u8 *) MBX_CSR2_ADDR) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
 
 	/* enable new powersettings */
-	out_8((u8 *)MBX_CSR2_ADDR, in_8((u8 *)MBX_CSR2_ADDR) | reg);
+	out_8((u8 *) MBX_CSR2_ADDR, in_8((u8 *) MBX_CSR2_ADDR) | reg);
 
 	return 0;
 }
 
 #define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
-#define hardware_enable(_slot_)  /* No hardware to enable */
-#define hardware_disable(_slot_) /* No hardware to disable */
+#define hardware_enable(_slot_)	/* No hardware to enable */
+#define hardware_disable(_slot_)	/* No hardware to disable */
 
-#endif /* CONFIG_MBX */
+#endif				/* CONFIG_MBX */
 
 #if defined(CONFIG_PRxK)
 #include <asm/cpld.h>
@@ -495,43 +503,46 @@ static int voltage_set(int slot, int vcc, int vpp)
 	u8 regread;
 	cpld_regs *ccpld = get_cpld();
 
-	switch(vcc) {
-		case 0:
-			break;
-		case 33:
-			reg |= PCMCIA_VCC_33;
-			break;
-		case 50:
-			reg |= PCMCIA_VCC_50;
-			break;
-		default:
-			return 1;
+	switch (vcc) {
+	case 0:
+		break;
+	case 33:
+		reg |= PCMCIA_VCC_33;
+		break;
+	case 50:
+		reg |= PCMCIA_VCC_50;
+		break;
+	default:
+		return 1;
 	}
 
-	switch(vpp) {
-		case 0:
-			break;
-		case 33:
-		case 50:
-			if(vcc == vpp)
-				reg |= PCMCIA_VPP_VCC;
-			else
-				return 1;
-			break;
-		case 120:
-			if ((vcc == 33) || (vcc == 50))
-				reg |= PCMCIA_VPP_12;
-			else
-				return 1;
-		default:
+	switch (vpp) {
+	case 0:
+		break;
+	case 33:
+	case 50:
+		if (vcc == vpp)
+			reg |= PCMCIA_VPP_VCC;
+		else
 			return 1;
+		break;
+	case 120:
+		if ((vcc == 33) || (vcc == 50))
+			reg |= PCMCIA_VPP_12;
+		else
+			return 1;
+	default:
+		return 1;
 	}
 
 	reg = reg >> (slot << 2);
 	regread = in_8(&ccpld->fpga_pc_ctl);
-	if (reg != (regread & ((PCMCIA_VCC_MASK | PCMCIA_VPP_MASK) >> (slot << 2)))) {
+	if (reg !=
+	    (regread & ((PCMCIA_VCC_MASK | PCMCIA_VPP_MASK) >> (slot << 2)))) {
 		/* enable new powersettings */
-		regread = regread & ~((PCMCIA_VCC_MASK | PCMCIA_VPP_MASK) >> (slot << 2));
+		regread =
+		    regread & ~((PCMCIA_VCC_MASK | PCMCIA_VPP_MASK) >>
+				(slot << 2));
 		out_8(&ccpld->fpga_pc_ctl, reg | regread);
 		msleep(100);
 	}
@@ -540,10 +551,10 @@ static int voltage_set(int slot, int vcc, int vpp)
 }
 
 #define socket_get(_slot_) PCMCIA_SOCKET_KEY_LV
-#define hardware_enable(_slot_)  /* No hardware to enable */
-#define hardware_disable(_slot_) /* No hardware to disable */
+#define hardware_enable(_slot_)	/* No hardware to enable */
+#define hardware_disable(_slot_)	/* No hardware to disable */
 
-#endif /* CONFIG_PRxK */
+#endif				/* CONFIG_PRxK */
 
 static u32 pending_events[PCMCIA_SOCKETS_NO];
 static DEFINE_SPINLOCK(pending_event_lock);
@@ -553,7 +564,7 @@ static irqreturn_t m8xx_interrupt(int irq, void *dev)
 	struct socket_info *s;
 	struct event_table *e;
 	unsigned int i, events, pscr, pipr, per;
-	pcmconf8xx_t	*pcmcia = socket[0].pcmcia;
+	pcmconf8xx_t *pcmcia = socket[0].pcmcia;
 
 	dprintk("Interrupt!\n");
 	/* get interrupt sources */
@@ -562,16 +573,16 @@ static irqreturn_t m8xx_interrupt(int irq, void *dev)
 	pipr = in_be32(&pcmcia->pcmc_pipr);
 	per = in_be32(&pcmcia->pcmc_per);
 
-	for(i = 0; i < PCMCIA_SOCKETS_NO; i++) {
+	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
 		s = &socket[i];
 		e = &s->events[0];
 		events = 0;
 
-		while(e->regbit) {
-			if(pscr & e->regbit)
+		while (e->regbit) {
+			if (pscr & e->regbit)
 				events |= e->eventbit;
 
-				e++;
+			e++;
 		}
 
 		/*
@@ -579,13 +590,11 @@ static irqreturn_t m8xx_interrupt(int irq, void *dev)
 		 * not too nice done,
 		 * we depend on that CD2 is the bit to the left of CD1...
 		 */
-		if(events & SS_DETECT)
-			if(((pipr & M8XX_PCMCIA_CD2(i)) >> 1) ^
-				(pipr & M8XX_PCMCIA_CD1(i)))
-			{
+		if (events & SS_DETECT)
+			if (((pipr & M8XX_PCMCIA_CD2(i)) >> 1) ^
+			    (pipr & M8XX_PCMCIA_CD1(i))) {
 				events &= ~SS_DETECT;
 			}
-
 #ifdef PCMCIA_GLITCHY_CD
 		/*
 		 * I've experienced CD problems with my ADS board.
@@ -593,24 +602,23 @@ static irqreturn_t m8xx_interrupt(int irq, void *dev)
 		 * real change of Card detection.
 		 */
 
-		if((events & SS_DETECT) &&
-		   ((pipr &
-		     (M8XX_PCMCIA_CD2(i) | M8XX_PCMCIA_CD1(i))) == 0) &&
-		   (s->state.Vcc | s->state.Vpp)) {
+		if ((events & SS_DETECT) &&
+		    ((pipr &
+		      (M8XX_PCMCIA_CD2(i) | M8XX_PCMCIA_CD1(i))) == 0) &&
+		    (s->state.Vcc | s->state.Vpp)) {
 			events &= ~SS_DETECT;
 			/*printk( "CD glitch workaround - CD = 0x%08x!\n",
-				(pipr & (M8XX_PCMCIA_CD2(i)
-					 | M8XX_PCMCIA_CD1(i))));*/
+			   (pipr & (M8XX_PCMCIA_CD2(i)
+			   | M8XX_PCMCIA_CD1(i)))); */
 		}
 #endif
 
 		/* call the handler */
 
 		dprintk("slot %u: events = 0x%02x, pscr = 0x%08x, "
-			"pipr = 0x%08x\n",
-			i, events, pscr, pipr);
+			"pipr = 0x%08x\n", i, events, pscr, pipr);
 
-		if(events) {
+		if (events) {
 			spin_lock(&pending_event_lock);
 			pending_events[i] |= events;
 			spin_unlock(&pending_event_lock);
@@ -643,11 +651,11 @@ static u32 m8xx_get_graycode(u32 size)
 {
 	u32 k;
 
-	for(k = 0; k < M8XX_SIZES_NO; k++)
-		if(m8xx_size_to_gray[k] == size)
+	for (k = 0; k < M8XX_SIZES_NO; k++)
+		if (m8xx_size_to_gray[k] == size)
 			break;
 
-	if((k == M8XX_SIZES_NO) || (m8xx_size_to_gray[k] == -1))
+	if ((k == M8XX_SIZES_NO) || (m8xx_size_to_gray[k] == -1))
 		k = -1;
 
 	return k;
@@ -657,7 +665,7 @@ static u32 m8xx_get_speed(u32 ns, u32 is_io, u32 bus_freq)
 {
 	u32 reg, clocks, psst, psl, psht;
 
-	if(!ns) {
+	if (!ns) {
 
 		/*
 		 * We get called with IO maps setup to 0ns
@@ -665,10 +673,10 @@ static u32 m8xx_get_speed(u32 ns, u32 is_io, u32 bus_freq)
 		 * They should be 255ns.
 		 */
 
-		if(is_io)
+		if (is_io)
 			ns = 255;
 		else
-			ns = 100;  /* fast memory if 0 */
+			ns = 100;	/* fast memory if 0 */
 	}
 
 	/*
@@ -679,23 +687,23 @@ static u32 m8xx_get_speed(u32 ns, u32 is_io, u32 bus_freq)
 
 /* how we want to adjust the timing - in percent */
 
-#define ADJ 180 /* 80 % longer accesstime - to be sure */
+#define ADJ 180			/* 80 % longer accesstime - to be sure */
 
 	clocks = ((bus_freq / 1000) * ns) / 1000;
-	clocks = (clocks * ADJ) / (100*1000);
-	if(clocks >= PCMCIA_BMT_LIMIT) {
-		printk( "Max access time limit reached\n");
-		clocks = PCMCIA_BMT_LIMIT-1;
+	clocks = (clocks * ADJ) / (100 * 1000);
+	if (clocks >= PCMCIA_BMT_LIMIT) {
+		printk("Max access time limit reached\n");
+		clocks = PCMCIA_BMT_LIMIT - 1;
 	}
 
-	psst = clocks / 7;          /* setup time */
-	psht = clocks / 7;          /* hold time */
-	psl  = (clocks * 5) / 7;    /* strobe length */
+	psst = clocks / 7;	/* setup time */
+	psht = clocks / 7;	/* hold time */
+	psl = (clocks * 5) / 7;	/* strobe length */
 
 	psst += clocks - (psst + psht + psl);
 
-	reg =  psst << 12;
-	reg |= psl  << 7;
+	reg = psst << 12;
+	reg |= psl << 7;
 	reg |= psht << 16;
 
 	return reg;
@@ -710,8 +718,8 @@ static int m8xx_get_status(struct pcmcia_socket *sock, unsigned int *value)
 
 	pipr = in_be32(&pcmcia->pcmc_pipr);
 
-	*value  = ((pipr & (M8XX_PCMCIA_CD1(lsock)
-			    | M8XX_PCMCIA_CD2(lsock))) == 0) ? SS_DETECT : 0;
+	*value = ((pipr & (M8XX_PCMCIA_CD1(lsock)
+			   | M8XX_PCMCIA_CD2(lsock))) == 0) ? SS_DETECT : 0;
 	*value |= (pipr & M8XX_PCMCIA_WP(lsock)) ? SS_WRPROT : 0;
 
 	if (s->state.flags & SS_IOCARD)
@@ -795,16 +803,16 @@ static int m8xx_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	/* read out VS1 and VS2 */
 
 	reg = (pipr & M8XX_PCMCIA_VS_MASK(lsock))
-		>> M8XX_PCMCIA_VS_SHIFT(lsock);
+	    >> M8XX_PCMCIA_VS_SHIFT(lsock);
 
-	if(socket_get(lsock) == PCMCIA_SOCKET_KEY_LV) {
-		switch(reg) {
+	if (socket_get(lsock) == PCMCIA_SOCKET_KEY_LV) {
+		switch (reg) {
 		case 1:
 			*value |= SS_3VCARD;
-			break; /* GND, NC - 3.3V only */
+			break;	/* GND, NC - 3.3V only */
 		case 2:
 			*value |= SS_XVCARD;
-			break; /* NC. GND - x.xV only */
+			break;	/* NC. GND - x.xV only */
 		};
 	}
 
@@ -812,7 +820,7 @@ static int m8xx_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
+static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t * state)
 {
 	int lsock = container_of(sock, struct socket_info, socket)->slot;
 	struct socket_info *s = &socket[lsock];
@@ -821,20 +829,20 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	unsigned long flags;
 	pcmconf8xx_t *pcmcia = socket[0].pcmcia;
 
-	dprintk( "SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x)\n", lsock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
+	dprintk("SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+		"io_irq %d, csc_mask %#2.2x)\n", lsock, state->flags,
+		state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
 
 	/* First, set voltage - bail out if invalid */
-	if(voltage_set(lsock, state->Vcc, state->Vpp))
+	if (voltage_set(lsock, state->Vcc, state->Vpp))
 		return -EINVAL;
 
-
 	/* Take care of reset... */
-	if(state->flags & SS_RESET)
-		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) |  M8XX_PGCRX_CXRESET); /* active high */
+	if (state->flags & SS_RESET)
+		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) | M8XX_PGCRX_CXRESET);	/* active high */
 	else
-		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) & ~M8XX_PGCRX_CXRESET);
+		out_be32(M8XX_PGCRX(lsock),
+			 in_be32(M8XX_PGCRX(lsock)) & ~M8XX_PGCRX_CXRESET);
 
 	/* ... and output enable. */
 
@@ -846,10 +854,11 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	   no pullups are present -> the cards act wierd.
 	   So right now the buffers are enabled if the power is on. */
 
-	if(state->Vcc || state->Vpp)
-		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) & ~M8XX_PGCRX_CXOE); /* active low */
+	if (state->Vcc || state->Vpp)
+		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) & ~M8XX_PGCRX_CXOE);	/* active low */
 	else
-		out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) | M8XX_PGCRX_CXOE);
+		out_be32(M8XX_PGCRX(lsock),
+			 in_be32(M8XX_PGCRX(lsock)) | M8XX_PGCRX_CXOE);
 
 	/*
 	 * We'd better turn off interrupts before
@@ -866,17 +875,17 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	e = &s->events[0];
 	reg = 0;
 
-	if(state->csc_mask & SS_DETECT) {
+	if (state->csc_mask & SS_DETECT) {
 		e->eventbit = SS_DETECT;
 		reg |= e->regbit = (M8XX_PCMCIA_CD2(lsock)
 				    | M8XX_PCMCIA_CD1(lsock));
 		e++;
 	}
-	if(state->flags & SS_IOCARD) {
+	if (state->flags & SS_IOCARD) {
 		/*
 		 * I/O card
 		 */
-		if(state->csc_mask & SS_STSCHG) {
+		if (state->csc_mask & SS_STSCHG) {
 			e->eventbit = SS_STSCHG;
 			reg |= e->regbit = M8XX_PCMCIA_BVD1(lsock);
 			e++;
@@ -884,9 +893,10 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		/*
 		 * If io_irq is non-zero we should enable irq.
 		 */
-		if(state->io_irq) {
+		if (state->io_irq) {
 			out_be32(M8XX_PGCRX(lsock),
-				 in_be32(M8XX_PGCRX(lsock)) | mk_int_int_mask(s->hwirq) << 24);
+				 in_be32(M8XX_PGCRX(lsock)) |
+				 mk_int_int_mask(s->hwirq) << 24);
 			/*
 			 * Strange thing here:
 			 * The manual does not tell us which interrupt
@@ -897,33 +907,32 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 			 * have to be cleared in PSCR in the interrupt handler.
 			 */
 			reg |= M8XX_PCMCIA_RDY_L(lsock);
-		}
-		else
-			out_be32(M8XX_PGCRX(lsock), in_be32(M8XX_PGCRX(lsock)) & 0x00ffffff);
-	}
-	else {
+		} else
+			out_be32(M8XX_PGCRX(lsock),
+				 in_be32(M8XX_PGCRX(lsock)) & 0x00ffffff);
+	} else {
 		/*
 		 * Memory card
 		 */
-		if(state->csc_mask & SS_BATDEAD) {
+		if (state->csc_mask & SS_BATDEAD) {
 			e->eventbit = SS_BATDEAD;
 			reg |= e->regbit = M8XX_PCMCIA_BVD1(lsock);
 			e++;
 		}
-		if(state->csc_mask & SS_BATWARN) {
+		if (state->csc_mask & SS_BATWARN) {
 			e->eventbit = SS_BATWARN;
 			reg |= e->regbit = M8XX_PCMCIA_BVD2(lsock);
 			e++;
 		}
 		/* What should I trigger on - low/high,raise,fall? */
-		if(state->csc_mask & SS_READY) {
+		if (state->csc_mask & SS_READY) {
 			e->eventbit = SS_READY;
-			reg |= e->regbit = 0; //??
+			reg |= e->regbit = 0;	//??
 			e++;
 		}
 	}
 
-	e->regbit = 0;  /* terminate list */
+	e->regbit = 0;		/* terminate list */
 
 	/*
 	 * Clear the status changed .
@@ -940,7 +949,9 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	 * Ones will enable the interrupt.
 	 */
 
-	reg |= in_be32(&pcmcia->pcmc_per) & (M8XX_PCMCIA_MASK(0) | M8XX_PCMCIA_MASK(1));
+	reg |=
+	    in_be32(&pcmcia->
+		    pcmc_per) & (M8XX_PCMCIA_MASK(0) | M8XX_PCMCIA_MASK(1));
 	out_be32(&pcmcia->pcmc_per, reg);
 
 	spin_unlock_irqrestore(&events_lock, flags);
@@ -961,67 +972,66 @@ static int m8xx_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
 	unsigned int reg, winnr;
 	pcmconf8xx_t *pcmcia = s->pcmcia;
 
-
 #define M8XX_SIZE (io->stop - io->start + 1)
 #define M8XX_BASE (PCMCIA_IO_WIN_BASE + io->start)
 
-	dprintk( "SetIOMap(%d, %d, %#2.2x, %d ns, "
-	      "%#4.4x-%#4.4x)\n", lsock, io->map, io->flags,
-	      io->speed, io->start, io->stop);
+	dprintk("SetIOMap(%d, %d, %#2.2x, %d ns, "
+		"%#4.4x-%#4.4x)\n", lsock, io->map, io->flags,
+		io->speed, io->start, io->stop);
 
 	if ((io->map >= PCMCIA_IO_WIN_NO) || (io->start > 0xffff)
 	    || (io->stop > 0xffff) || (io->stop < io->start))
 		return -EINVAL;
 
-	if((reg = m8xx_get_graycode(M8XX_SIZE)) == -1)
+	if ((reg = m8xx_get_graycode(M8XX_SIZE)) == -1)
 		return -EINVAL;
 
-	if(io->flags & MAP_ACTIVE) {
+	if (io->flags & MAP_ACTIVE) {
 
-		dprintk( "io->flags & MAP_ACTIVE\n");
+		dprintk("io->flags & MAP_ACTIVE\n");
 
 		winnr = (PCMCIA_MEM_WIN_NO * PCMCIA_SOCKETS_NO)
-			+ (lsock * PCMCIA_IO_WIN_NO) + io->map;
+		    + (lsock * PCMCIA_IO_WIN_NO) + io->map;
 
 		/* setup registers */
 
-		w = (void *) &pcmcia->pcmc_pbr0;
+		w = (void *)&pcmcia->pcmc_pbr0;
 		w += winnr;
 
-		out_be32(&w->or, 0); /* turn off window first */
+		out_be32(&w->or, 0);	/* turn off window first */
 		out_be32(&w->br, M8XX_BASE);
 
 		reg <<= 27;
-  		reg |= M8XX_PCMCIA_POR_IO |(lsock << 2);
+		reg |= M8XX_PCMCIA_POR_IO | (lsock << 2);
 
 		reg |= m8xx_get_speed(io->speed, 1, s->bus_freq);
 
-		if(io->flags & MAP_WRPROT)
+		if (io->flags & MAP_WRPROT)
 			reg |= M8XX_PCMCIA_POR_WRPROT;
 
-		/*if(io->flags & (MAP_16BIT | MAP_AUTOSZ))*/
-		if(io->flags & MAP_16BIT)
+		/*if(io->flags & (MAP_16BIT | MAP_AUTOSZ)) */
+		if (io->flags & MAP_16BIT)
 			reg |= M8XX_PCMCIA_POR_16BIT;
 
-		if(io->flags & MAP_ACTIVE)
+		if (io->flags & MAP_ACTIVE)
 			reg |= M8XX_PCMCIA_POR_VALID;
 
 		out_be32(&w->or, reg);
 
 		dprintk("Socket %u: Mapped io window %u at %#8.8x, "
-		      "OR = %#8.8x.\n", lsock, io->map, w->br, w->or);
+			"OR = %#8.8x.\n", lsock, io->map, w->br, w->or);
 	} else {
 		/* shutdown IO window */
 		winnr = (PCMCIA_MEM_WIN_NO * PCMCIA_SOCKETS_NO)
-			+ (lsock * PCMCIA_IO_WIN_NO) + io->map;
+		    + (lsock * PCMCIA_IO_WIN_NO) + io->map;
 
 		/* setup registers */
 
-		w = (void *) &pcmcia->pcmc_pbr0;
+		w = (void *)&pcmcia->pcmc_pbr0;
 		w += winnr;
 
-		out_be32(&w->or, 0); /* turn off window */
-		out_be32(&w->br, 0); /* turn off base address */
+		out_be32(&w->or, 0);	/* turn off window */
+		out_be32(&w->br, 0);	/* turn off base address */
 
 		dprintk("Socket %u: Unmapped io window %u at %#8.8x, "
 			"OR = %#8.8x.\n", lsock, io->map, w->br, w->or);
@@ -1029,15 +1039,14 @@ static int m8xx_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
 
 	/* copy the struct and modify the copy */
 	s->io_win[io->map] = *io;
-	s->io_win[io->map].flags &= (MAP_WRPROT
-				     | MAP_16BIT
-				     | MAP_ACTIVE);
+	s->io_win[io->map].flags &= (MAP_WRPROT | MAP_16BIT | MAP_ACTIVE);
 	dprintk("SetIOMap exit\n");
 
 	return 0;
 }
 
-static int m8xx_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *mem)
+static int m8xx_set_mem_map(struct pcmcia_socket *sock,
+			    struct pccard_mem_map *mem)
 {
 	int lsock = container_of(sock, struct socket_info, socket)->slot;
 	struct socket_info *s = &socket[lsock];
@@ -1046,19 +1055,19 @@ static int m8xx_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
 	unsigned int reg, winnr;
 	pcmconf8xx_t *pcmcia = s->pcmcia;
 
-	dprintk( "SetMemMap(%d, %d, %#2.2x, %d ns, "
-	      "%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
-	      mem->speed, mem->static_start, mem->card_start);
+	dprintk("SetMemMap(%d, %d, %#2.2x, %d ns, "
+		"%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
+		mem->speed, mem->static_start, mem->card_start);
 
 	if ((mem->map >= PCMCIA_MEM_WIN_NO)
-//	    || ((mem->s) >= PCMCIA_MEM_WIN_SIZE)
+//          || ((mem->s) >= PCMCIA_MEM_WIN_SIZE)
 	    || (mem->card_start >= 0x04000000)
-	    || (mem->static_start & 0xfff)                /* 4KByte resolution */
-	    || (mem->card_start & 0xfff))
+	    || (mem->static_start & 0xfff)	/* 4KByte resolution */
+	    ||(mem->card_start & 0xfff))
 		return -EINVAL;
 
-	if((reg = m8xx_get_graycode(PCMCIA_MEM_WIN_SIZE)) == -1) {
-		printk( "Cannot set size to 0x%08x.\n", PCMCIA_MEM_WIN_SIZE);
+	if ((reg = m8xx_get_graycode(PCMCIA_MEM_WIN_SIZE)) == -1) {
+		printk("Cannot set size to 0x%08x.\n", PCMCIA_MEM_WIN_SIZE);
 		return -EINVAL;
 	}
 	reg <<= 27;
@@ -1067,50 +1076,47 @@ static int m8xx_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
 
 	/* Setup the window in the pcmcia controller */
 
-	w = (void *) &pcmcia->pcmc_pbr0;
+	w = (void *)&pcmcia->pcmc_pbr0;
 	w += winnr;
 
 	reg |= lsock << 2;
 
 	reg |= m8xx_get_speed(mem->speed, 0, s->bus_freq);
 
-	if(mem->flags & MAP_ATTRIB)
-		reg |=  M8XX_PCMCIA_POR_ATTRMEM;
+	if (mem->flags & MAP_ATTRIB)
+		reg |= M8XX_PCMCIA_POR_ATTRMEM;
 
-	if(mem->flags & MAP_WRPROT)
+	if (mem->flags & MAP_WRPROT)
 		reg |= M8XX_PCMCIA_POR_WRPROT;
 
-	if(mem->flags & MAP_16BIT)
+	if (mem->flags & MAP_16BIT)
 		reg |= M8XX_PCMCIA_POR_16BIT;
 
-	if(mem->flags & MAP_ACTIVE)
+	if (mem->flags & MAP_ACTIVE)
 		reg |= M8XX_PCMCIA_POR_VALID;
 
 	out_be32(&w->or, reg);
 
 	dprintk("Socket %u: Mapped memory window %u at %#8.8x, "
-	      "OR = %#8.8x.\n", lsock, mem->map, w->br, w->or);
+		"OR = %#8.8x.\n", lsock, mem->map, w->br, w->or);
 
-	if(mem->flags & MAP_ACTIVE) {
+	if (mem->flags & MAP_ACTIVE) {
 		/* get the new base address */
 		mem->static_start = PCMCIA_MEM_WIN_BASE +
-			(PCMCIA_MEM_WIN_SIZE * winnr)
-			+ mem->card_start;
+		    (PCMCIA_MEM_WIN_SIZE * winnr)
+		    + mem->card_start;
 	}
 
 	dprintk("SetMemMap(%d, %d, %#2.2x, %d ns, "
-	      "%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
-	      mem->speed, mem->static_start, mem->card_start);
+		"%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
+		mem->speed, mem->static_start, mem->card_start);
 
 	/* copy the struct and modify the copy */
 
 	old = &s->mem_win[mem->map];
 
 	*old = *mem;
-	old->flags &= (MAP_ATTRIB
-		       | MAP_WRPROT
-		       | MAP_16BIT
-		       | MAP_ACTIVE);
+	old->flags &= (MAP_ATTRIB | MAP_WRPROT | MAP_16BIT | MAP_ACTIVE);
 
 	return 0;
 }
@@ -1121,7 +1127,7 @@ static int m8xx_sock_init(struct pcmcia_socket *sock)
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
 	pccard_mem_map mem = { 0, 0, 0, 0, 0, 0 };
 
-	dprintk( "sock_init(%d)\n", s);
+	dprintk("sock_init(%d)\n", s);
 
 	m8xx_set_socket(sock, &dead_socket);
 	for (i = 0; i < PCMCIA_IO_WIN_NO; i++) {
@@ -1143,7 +1149,7 @@ static int m8xx_sock_suspend(struct pcmcia_socket *sock)
 }
 
 static struct pccard_operations m8xx_services = {
-	.init	= m8xx_sock_init,
+	.init = m8xx_sock_init,
 	.suspend = m8xx_sock_suspend,
 	.get_status = m8xx_get_status,
 	.set_socket = m8xx_set_socket,
@@ -1151,7 +1157,8 @@ static struct pccard_operations m8xx_services = {
 	.set_mem_map = m8xx_set_mem_map,
 };
 
-static int __init m8xx_probe(struct of_device *ofdev, const struct of_device_id *match)
+static int __init m8xx_probe(struct of_device *ofdev,
+			     const struct of_device_id *match)
 {
 	struct pcmcia_win *w;
 	unsigned int i, m, hwirq;
@@ -1162,49 +1169,50 @@ static int __init m8xx_probe(struct of_device *ofdev, const struct of_device_id 
 	pcmcia_info("%s\n", version);
 
 	pcmcia = of_iomap(np, 0);
-	if(pcmcia == NULL)
+	if (pcmcia == NULL)
 		return -EINVAL;
 
 	pcmcia_schlvl = irq_of_parse_and_map(np, 0);
-	hwirq  = irq_map[pcmcia_schlvl].hwirq;
+	hwirq = irq_map[pcmcia_schlvl].hwirq;
 	if (pcmcia_schlvl < 0)
 		return -EINVAL;
 
 	m8xx_pgcrx[0] = &pcmcia->pcmc_pgcra;
 	m8xx_pgcrx[1] = &pcmcia->pcmc_pgcrb;
 
-
 	pcmcia_info(PCMCIA_BOARD_MSG " using " PCMCIA_SLOT_MSG
 		    " with IRQ %u  (%d). \n", pcmcia_schlvl, hwirq);
 
 	/* Configure Status change interrupt */
 
-	if(request_irq(pcmcia_schlvl, m8xx_interrupt, IRQF_SHARED,
-			  driver_name, socket)) {
+	if (request_irq(pcmcia_schlvl, m8xx_interrupt, IRQF_SHARED,
+			driver_name, socket)) {
 		pcmcia_error("Cannot allocate IRQ %u for SCHLVL!\n",
 			     pcmcia_schlvl);
 		return -1;
 	}
 
-	w = (void *) &pcmcia->pcmc_pbr0;
+	w = (void *)&pcmcia->pcmc_pbr0;
 
-	out_be32(&pcmcia->pcmc_pscr, M8XX_PCMCIA_MASK(0)| M8XX_PCMCIA_MASK(1));
+	out_be32(&pcmcia->pcmc_pscr, M8XX_PCMCIA_MASK(0) | M8XX_PCMCIA_MASK(1));
 	clrbits32(&pcmcia->pcmc_per, M8XX_PCMCIA_MASK(0) | M8XX_PCMCIA_MASK(1));
 
 	/* connect interrupt and disable CxOE */
 
-	out_be32(M8XX_PGCRX(0), M8XX_PGCRX_CXOE | (mk_int_int_mask(hwirq) << 16));
-	out_be32(M8XX_PGCRX(1), M8XX_PGCRX_CXOE | (mk_int_int_mask(hwirq) << 16));
+	out_be32(M8XX_PGCRX(0),
+		 M8XX_PGCRX_CXOE | (mk_int_int_mask(hwirq) << 16));
+	out_be32(M8XX_PGCRX(1),
+		 M8XX_PGCRX_CXOE | (mk_int_int_mask(hwirq) << 16));
 
 	/* intialize the fixed memory windows */
 
-	for(i = 0; i < PCMCIA_SOCKETS_NO; i++){
+	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
 		for (m = 0; m < PCMCIA_MEM_WIN_NO; m++) {
 			out_be32(&w->br, PCMCIA_MEM_WIN_BASE +
-				(PCMCIA_MEM_WIN_SIZE
-				 * (m + i * PCMCIA_MEM_WIN_NO)));
+				 (PCMCIA_MEM_WIN_SIZE
+				  * (m + i * PCMCIA_MEM_WIN_NO)));
 
-			out_be32(&w->or, 0);  /* set to not valid */
+			out_be32(&w->or, 0);	/* set to not valid */
 
 			w++;
 		}
@@ -1218,10 +1226,11 @@ static int __init m8xx_probe(struct of_device *ofdev, const struct of_device_id 
 	hardware_enable(0);
 	hardware_enable(1);
 
-	for (i = 0 ; i < PCMCIA_SOCKETS_NO; i++) {
+	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
 		socket[i].slot = i;
 		socket[i].socket.owner = THIS_MODULE;
-		socket[i].socket.features = SS_CAP_PCCARD | SS_CAP_MEM_ALIGN | SS_CAP_STATIC_MAP;
+		socket[i].socket.features =
+		    SS_CAP_PCCARD | SS_CAP_MEM_ALIGN | SS_CAP_STATIC_MAP;
 		socket[i].socket.irq_mask = 0x000;
 		socket[i].socket.map_size = 0x1000;
 		socket[i].socket.io_offset = 0;
@@ -1234,7 +1243,6 @@ static int __init m8xx_probe(struct of_device *ofdev, const struct of_device_id 
 		socket[i].bus_freq = ppc_proc_freq;
 		socket[i].hwirq = hwirq;
 
-
 	}
 
 	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
@@ -1246,25 +1254,25 @@ static int __init m8xx_probe(struct of_device *ofdev, const struct of_device_id 
 	return 0;
 }
 
-static int m8xx_remove(struct of_device* ofdev)
+static int m8xx_remove(struct of_device *ofdev)
 {
 	u32 m, i;
 	struct pcmcia_win *w;
 	pcmconf8xx_t *pcmcia = socket[0].pcmcia;
 
 	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
-		w = (void *) &pcmcia->pcmc_pbr0;
+		w = (void *)&pcmcia->pcmc_pbr0;
 
 		out_be32(&pcmcia->pcmc_pscr, M8XX_PCMCIA_MASK(i));
 		out_be32(&pcmcia->pcmc_per,
-			in_be32(&pcmcia->pcmc_per) & ~M8XX_PCMCIA_MASK(i));
+			 in_be32(&pcmcia->pcmc_per) & ~M8XX_PCMCIA_MASK(i));
 
 		/* turn off interrupt and disable CxOE */
 		out_be32(M8XX_PGCRX(i), M8XX_PGCRX_CXOE);
 
 		/* turn off memory windows */
 		for (m = 0; m < PCMCIA_MEM_WIN_NO; m++) {
-			out_be32(&w->or, 0); /* set to not valid */
+			out_be32(&w->or, 0);	/* set to not valid */
 			w++;
 		}
 
@@ -1299,21 +1307,21 @@ static int m8xx_resume(struct platform_device *pdev)
 
 static struct of_device_id m8xx_pcmcia_match[] = {
 	{
-		.type = "pcmcia",
-		.compatible = "fsl,pq-pcmcia",
-	},
+	 .type = "pcmcia",
+	 .compatible = "fsl,pq-pcmcia",
+	 },
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, m8xx_pcmcia_match);
 
 static struct of_platform_driver m8xx_pcmcia_driver = {
-	.name		= (char *) driver_name,
-	.match_table	= m8xx_pcmcia_match,
-	.probe		= m8xx_probe,
-	.remove		= m8xx_remove,
-	.suspend	= m8xx_suspend,
-	.resume		= m8xx_resume,
+	.name = (char *)driver_name,
+	.match_table = m8xx_pcmcia_match,
+	.probe = m8xx_probe,
+	.remove = m8xx_remove,
+	.suspend = m8xx_suspend,
+	.resume = m8xx_resume,
 };
 
 static int __init m8xx_init(void)

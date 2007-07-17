@@ -40,7 +40,7 @@
 #include <asm/prom.h>
 
 extern void cpm_reset(void);
-extern void mpc8xx_show_cpuinfo(struct seq_file*);
+extern void mpc8xx_show_cpuinfo(struct seq_file *);
 extern void mpc8xx_restart(char *cmd);
 extern void mpc8xx_calibrate_decr(void);
 extern int mpc8xx_set_rtc_time(struct rtc_time *tm);
@@ -48,9 +48,9 @@ extern void mpc8xx_get_rtc_time(struct rtc_time *tm);
 extern void m8xx_pic_init(void);
 extern unsigned int mpc8xx_get_irq(void);
 
-static void init_smc1_uart_ioports(struct fs_uart_platform_info* fpi);
-static void init_smc2_uart_ioports(struct fs_uart_platform_info* fpi);
-static void init_scc3_ioports(struct fs_platform_info* ptr);
+static void init_smc1_uart_ioports(struct fs_uart_platform_info *fpi);
+static void init_smc2_uart_ioports(struct fs_uart_platform_info *fpi);
+static void init_scc3_ioports(struct fs_platform_info *ptr);
 
 #ifdef CONFIG_PCMCIA_M8XX
 static void pcmcia_hw_setup(int slot, int enable)
@@ -73,7 +73,7 @@ static int pcmcia_set_voltage(int slot, int vcc, int vpp)
 
 	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
 
-	switch(vcc) {
+	switch (vcc) {
 	case 0:
 		break;
 	case 33:
@@ -86,12 +86,12 @@ static int pcmcia_set_voltage(int slot, int vcc, int vpp)
 		return 1;
 	}
 
-	switch(vpp) {
+	switch (vpp) {
 	case 0:
 		break;
 	case 33:
 	case 50:
-		if(vcc == vpp)
+		if (vcc == vpp)
 			reg |= BCSR1_PCCVPP1;
 		else
 			return 1;
@@ -127,7 +127,7 @@ void __init mpc885ads_board_setup(void)
 #endif
 
 	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
-	cp = (cpm8xx_t *)immr_map(im_cpm);
+	cp = (cpm8xx_t *) immr_map(im_cpm);
 
 	if (bcsr_io == NULL) {
 		printk(KERN_CRIT "Could not remap BCSR\n");
@@ -140,13 +140,13 @@ void __init mpc885ads_board_setup(void)
 	out_8(&(cp->cp_smc[0].smc_smcm), tmpval8);
 	clrbits16(&cp->cp_smc[0].smc_smcmr, SMCMR_REN | SMCMR_TEN);	/* brg1 */
 #else
-	setbits32(bcsr_io,BCSR1_RS232EN_1);
+	setbits32(bcsr_io, BCSR1_RS232EN_1);
 	out_be16(&cp->cp_smc[0].smc_smcmr, 0);
 	out_8(&cp->cp_smc[0].smc_smce, 0);
 #endif
 
 #ifdef CONFIG_SERIAL_CPM_SMC2
-	clrbits32(bcsr_io,BCSR1_RS232EN_2);
+	clrbits32(bcsr_io, BCSR1_RS232EN_2);
 	clrbits32(&cp->cp_simode, 0xe0000000 >> 1);
 	setbits32(&cp->cp_simode, 0x20000000 >> 1);	/* brg2 */
 	tmpval8 = in_8(&(cp->cp_smc[1].smc_smcm)) | (SMCM_RX | SMCM_TX);
@@ -155,7 +155,7 @@ void __init mpc885ads_board_setup(void)
 
 	init_smc2_uart_ioports(0);
 #else
-	setbits32(bcsr_io,BCSR1_RS232EN_2);
+	setbits32(bcsr_io, BCSR1_RS232EN_2);
 	out_be16(&cp->cp_smc[1].smc_smcmr, 0);
 	out_8(&cp->cp_smc[1].smc_smce, 0);
 #endif
@@ -164,16 +164,16 @@ void __init mpc885ads_board_setup(void)
 
 #ifdef CONFIG_FS_ENET
 	/* use MDC for MII (common) */
-	io_port = (iop8xx_t*)immr_map(im_ioport);
+	io_port = (iop8xx_t *) immr_map(im_ioport);
 	setbits16(&io_port->iop_pdpar, 0x0080);
 	clrbits16(&io_port->iop_pddir, 0x0080);
 
 	bcsr_io = ioremap(BCSR5, sizeof(unsigned long));
-	clrbits32(bcsr_io,BCSR5_MII1_EN);
-	clrbits32(bcsr_io,BCSR5_MII1_RST);
+	clrbits32(bcsr_io, BCSR5_MII1_EN);
+	clrbits32(bcsr_io, BCSR5_MII1_RST);
 #ifndef CONFIG_FC_ENET_HAS_SCC
-	clrbits32(bcsr_io,BCSR5_MII2_EN);
-	clrbits32(bcsr_io,BCSR5_MII2_RST);
+	clrbits32(bcsr_io, BCSR5_MII2_EN);
+	clrbits32(bcsr_io, BCSR5_MII2_RST);
 
 #endif
 	iounmap(bcsr_io);
@@ -182,17 +182,16 @@ void __init mpc885ads_board_setup(void)
 #endif
 
 #ifdef CONFIG_PCMCIA_M8XX
-	/*Set up board specific hook-ups*/
+	/*Set up board specific hook-ups */
 	m8xx_pcmcia_ops.hw_ctrl = pcmcia_hw_setup;
 	m8xx_pcmcia_ops.voltage_set = pcmcia_set_voltage;
 #endif
 }
 
-
-static void init_fec1_ioports(struct fs_platform_info* ptr)
+static void init_fec1_ioports(struct fs_platform_info *ptr)
 {
-	cpm8xx_t *cp = (cpm8xx_t *)immr_map(im_cpm);
-	iop8xx_t *io_port = (iop8xx_t *)immr_map(im_ioport);
+	cpm8xx_t *cp = (cpm8xx_t *) immr_map(im_cpm);
+	iop8xx_t *io_port = (iop8xx_t *) immr_map(im_ioport);
 
 	/* configure FEC1 pins  */
 	setbits16(&io_port->iop_papar, 0xf830);
@@ -214,11 +213,10 @@ static void init_fec1_ioports(struct fs_platform_info* ptr)
 	immr_unmap(cp);
 }
 
-
-static void init_fec2_ioports(struct fs_platform_info* ptr)
+static void init_fec2_ioports(struct fs_platform_info *ptr)
 {
-	cpm8xx_t *cp = (cpm8xx_t *)immr_map(im_cpm);
-	iop8xx_t *io_port = (iop8xx_t *)immr_map(im_ioport);
+	cpm8xx_t *cp = (cpm8xx_t *) immr_map(im_cpm);
+	iop8xx_t *io_port = (iop8xx_t *) immr_map(im_ioport);
 
 	/* configure FEC2 pins */
 	setbits32(&cp->cp_pepar, 0x0003fffc);
@@ -248,15 +246,15 @@ void init_fec_ioports(struct fs_platform_info *fpi)
 	}
 }
 
-static void init_scc3_ioports(struct fs_platform_info* fpi)
+static void init_scc3_ioports(struct fs_platform_info *fpi)
 {
 	unsigned *bcsr_io;
 	iop8xx_t *io_port;
 	cpm8xx_t *cp;
 
 	bcsr_io = ioremap(BCSR_ADDR, BCSR_SIZE);
-	io_port = (iop8xx_t *)immr_map(im_ioport);
-	cp = (cpm8xx_t *)immr_map(im_cpm);
+	io_port = (iop8xx_t *) immr_map(im_ioport);
+	cp = (cpm8xx_t *) immr_map(im_cpm);
 
 	if (bcsr_io == NULL) {
 		printk(KERN_CRIT "Could not remap BCSR\n");
@@ -265,9 +263,9 @@ static void init_scc3_ioports(struct fs_platform_info* fpi)
 
 	/* Enable the PHY.
 	 */
-	clrbits32(bcsr_io+4, BCSR4_ETH10_RST);
+	clrbits32(bcsr_io + 4, BCSR4_ETH10_RST);
 	udelay(1000);
-	setbits32(bcsr_io+4, BCSR4_ETH10_RST);
+	setbits32(bcsr_io + 4, BCSR4_ETH10_RST);
 	/* Configure port A pins for Txd and Rxd.
 	 */
 	setbits16(&io_port->iop_papar, PA_ENET_RXD | PA_ENET_TXD);
@@ -283,8 +281,7 @@ static void init_scc3_ioports(struct fs_platform_info* fpi)
 	 */
 	setbits32(&cp->cp_pepar, PE_ENET_TCLK | PE_ENET_RCLK);
 	clrbits32(&cp->cp_pepar, PE_ENET_TENA);
-	clrbits32(&cp->cp_pedir,
-		  PE_ENET_TCLK | PE_ENET_RCLK | PE_ENET_TENA);
+	clrbits32(&cp->cp_pedir, PE_ENET_TCLK | PE_ENET_RCLK | PE_ENET_TENA);
 	clrbits32(&cp->cp_peso, PE_ENET_TCLK | PE_ENET_RCLK);
 	setbits32(&cp->cp_peso, PE_ENET_TENA);
 
@@ -308,7 +305,7 @@ static void init_scc3_ioports(struct fs_platform_info* fpi)
 	clrbits32(&cp->cp_pedir, PE_ENET_TENA);
 	setbits32(&cp->cp_peso, PE_ENET_TENA);
 
-	setbits32(bcsr_io+4, BCSR1_ETHEN);
+	setbits32(bcsr_io + 4, BCSR1_ETHEN);
 	iounmap(bcsr_io);
 	immr_unmap(io_port);
 	immr_unmap(cp);
@@ -328,50 +325,48 @@ void init_scc_ioports(struct fs_platform_info *fpi)
 	}
 }
 
-
-
-static void init_smc1_uart_ioports(struct fs_uart_platform_info* ptr)
+static void init_smc1_uart_ioports(struct fs_uart_platform_info *ptr)
 {
-        unsigned *bcsr_io;
+	unsigned *bcsr_io;
 	cpm8xx_t *cp;
 
-	cp = (cpm8xx_t *)immr_map(im_cpm);
+	cp = (cpm8xx_t *) immr_map(im_cpm);
 	setbits32(&cp->cp_pepar, 0x000000c0);
 	clrbits32(&cp->cp_pedir, 0x000000c0);
 	clrbits32(&cp->cp_peso, 0x00000040);
 	setbits32(&cp->cp_peso, 0x00000080);
 	immr_unmap(cp);
 
-        bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
 
-        if (bcsr_io == NULL) {
-                printk(KERN_CRIT "Could not remap BCSR1\n");
-                return;
-        }
-        clrbits32(bcsr_io,BCSR1_RS232EN_1);
-        iounmap(bcsr_io);
+	if (bcsr_io == NULL) {
+		printk(KERN_CRIT "Could not remap BCSR1\n");
+		return;
+	}
+	clrbits32(bcsr_io, BCSR1_RS232EN_1);
+	iounmap(bcsr_io);
 }
 
-static void init_smc2_uart_ioports(struct fs_uart_platform_info* fpi)
+static void init_smc2_uart_ioports(struct fs_uart_platform_info *fpi)
 {
-        unsigned *bcsr_io;
+	unsigned *bcsr_io;
 	cpm8xx_t *cp;
 
-	cp = (cpm8xx_t *)immr_map(im_cpm);
+	cp = (cpm8xx_t *) immr_map(im_cpm);
 	setbits32(&cp->cp_pepar, 0x00000c00);
 	clrbits32(&cp->cp_pedir, 0x00000c00);
 	clrbits32(&cp->cp_peso, 0x00000400);
 	setbits32(&cp->cp_peso, 0x00000800);
 	immr_unmap(cp);
 
-        bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
 
-        if (bcsr_io == NULL) {
-                printk(KERN_CRIT "Could not remap BCSR1\n");
-                return;
-        }
-        clrbits32(bcsr_io,BCSR1_RS232EN_2);
-        iounmap(bcsr_io);
+	if (bcsr_io == NULL) {
+		printk(KERN_CRIT "Could not remap BCSR1\n");
+		return;
+	}
+	clrbits32(bcsr_io, BCSR1_RS232EN_2);
+	iounmap(bcsr_io);
 }
 
 void init_smc_ioports(struct fs_uart_platform_info *data)
@@ -444,15 +439,11 @@ static int __init mpc885ads_probe(void)
 	return 1;
 }
 
-define_machine(mpc885_ads) {
-	.name			= "MPC885 ADS",
-	.probe			= mpc885ads_probe,
-	.setup_arch		= mpc885ads_setup_arch,
-	.init_IRQ		= m8xx_pic_init,
-	.show_cpuinfo		= mpc8xx_show_cpuinfo,
-	.get_irq		= mpc8xx_get_irq,
-	.restart		= mpc8xx_restart,
-	.calibrate_decr		= mpc8xx_calibrate_decr,
-	.set_rtc_time		= mpc8xx_set_rtc_time,
-	.get_rtc_time		= mpc8xx_get_rtc_time,
-};
+define_machine(mpc885_ads)
+{
+.name = "MPC885 ADS",.probe = mpc885ads_probe,.setup_arch =
+	    mpc885ads_setup_arch,.init_IRQ =
+	    m8xx_pic_init,.show_cpuinfo = mpc8xx_show_cpuinfo,.get_irq =
+	    mpc8xx_get_irq,.restart = mpc8xx_restart,.calibrate_decr =
+	    mpc8xx_calibrate_decr,.set_rtc_time =
+	    mpc8xx_set_rtc_time,.get_rtc_time = mpc8xx_get_rtc_time,};
