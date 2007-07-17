@@ -2289,15 +2289,7 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	if (!x)
 		panic("Unable to allocate memory for dma cache\n");
 
-	if (index <= KMALLOC_SHIFT_HIGH)
-		realsize = 1 << index;
-	else {
-		if (index == 1)
-			realsize = 96;
-		else
-			realsize = 192;
-	}
-
+	realsize = kmalloc_caches[index].objsize;
 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
 			(unsigned int)realsize);
 	s = create_kmalloc_cache(x, text, realsize, flags);
