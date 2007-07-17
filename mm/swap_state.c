@@ -334,7 +334,8 @@ struct page *read_swap_cache_async(swp_entry_t entry,
 		 * Get a new page to read into from swap.
 		 */
 		if (!new_page) {
-			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+			new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+								vma, addr);
 			if (!new_page)
 				break;		/* Out of memory */
 		}

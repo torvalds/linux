@@ -982,7 +982,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	struct buffer_head *bh;
 
 	page = find_or_create_page(inode->i_mapping, index,
-		mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
 	if (!page)
 		return NULL;
 
