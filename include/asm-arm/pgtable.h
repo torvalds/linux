@@ -83,14 +83,14 @@
  * means that a write to a clean page will cause a permission fault, and
  * the Linux MM layer will mark the page dirty via handle_pte_fault().
  * For the hardware to notice the permission change, the TLB entry must
- * be flushed, and ptep_establish() does that for us.
+ * be flushed, and ptep_set_access_flags() does that for us.
  *
  * The "accessed" or "young" bit is emulated by a similar method; we only
  * allow accesses to the page if the "young" bit is set.  Accesses to the
  * page will cause a fault, and handle_pte_fault() will set the young bit
  * for us as long as the page is marked present in the corresponding Linux
- * PTE entry.  Again, ptep_establish() will ensure that the TLB is up to
- * date.
+ * PTE entry.  Again, ptep_set_access_flags() will ensure that the TLB is
+ * up to date.
  *
  * However, when the "young" bit is cleared, we deny access to the page
  * by clearing the hardware PTE.  Currently Linux does not flush the TLB
