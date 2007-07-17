@@ -111,6 +111,8 @@ struct kvm_run {
 			__u32 longmode;
 			__u32 pad;
 		} hypercall;
+		/* Fix the size of the union. */
+		char padding[256];
 	};
 };
 
