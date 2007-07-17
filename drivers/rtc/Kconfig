@@ -10,7 +10,6 @@ config RTC_LIB
 
 config RTC_CLASS
 	tristate "RTC class"
-	depends on EXPERIMENTAL
 	default n
 	select RTC_LIB
 	help
