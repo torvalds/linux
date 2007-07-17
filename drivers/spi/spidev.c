@@ -181,7 +181,8 @@ static int spidev_message(struct spidev_data *spidev,
 		}
 		if (u_tmp->tx_buf) {
 			k_tmp->tx_buf = buf;
-			if (copy_from_user(buf, (const u8 __user *)u_tmp->tx_buf,
+			if (copy_from_user(buf, (const u8 __user *)
+						(ptrdiff_t) u_tmp->tx_buf,
 					u_tmp->len))
 				goto done;
 		}
@@ -213,7 +214,8 @@ static int spidev_message(struct spidev_data *spidev,
 	buf = spidev->buffer;
 	for (n = n_xfers, u_tmp = u_xfers; n; n--, u_tmp++) {
 		if (u_tmp->rx_buf) {
-			if (__copy_to_user((u8 __user *)u_tmp->rx_buf, buf,
+			if (__copy_to_user((u8 __user *)
+					(ptrdiff_t) u_tmp->rx_buf, buf,
 					u_tmp->len)) {
 				status = -EFAULT;
 				goto done;
