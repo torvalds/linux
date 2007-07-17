@@ -20,6 +20,7 @@
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svcauth_gss.h>
 #include <linux/nfsd/nfsd.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
@@ -245,6 +246,11 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 
 
 	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
+	if (error)
+		goto out;
+
+	/* Check security flavor */
+	error = check_nfsd_access(exp, rqstp);
 	if (error)
 		goto out;
 

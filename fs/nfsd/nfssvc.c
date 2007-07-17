@@ -494,6 +494,15 @@ out:
 	module_put_and_exit(0);
 }
 
+static __be32 map_new_errors(u32 vers, __be32 nfserr)
+{
+	if (nfserr == nfserr_jukebox && vers == 2)
+		return nfserr_dropit;
+	if (nfserr == nfserr_wrongsec && vers < 4)
+		return nfserr_acces;
+	return nfserr;
+}
+
 int
 nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
@@ -536,6 +545,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
+	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
 	if (nfserr == nfserr_jukebox && rqstp->rq_vers == 2)
 		nfserr = nfserr_dropit;
 	if (nfserr == nfserr_dropit) {

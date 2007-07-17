@@ -1228,6 +1228,28 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	return exp;
 }
 
+__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
+{
+	struct exp_flavor_info *f;
+	struct exp_flavor_info *end = exp->ex_flavors + exp->ex_nflavors;
+
+	/* legacy gss-only clients are always OK: */
+	if (exp->ex_client == rqstp->rq_gssclient)
+		return 0;
+	/* ip-address based client; check sec= export option: */
+	for (f = exp->ex_flavors; f < end; f++) {
+		if (f->pseudoflavor == rqstp->rq_flavor)
+			return 0;
+	}
+	/* defaults in absence of sec= options: */
+	if (exp->ex_nflavors == 0) {
+		if (rqstp->rq_flavor == RPC_AUTH_NULL ||
+		    rqstp->rq_flavor == RPC_AUTH_UNIX)
+			return 0;
+	}
+	return nfserr_wrongsec;
+}
+
 /*
  * Uses rq_client and rq_gssclient to find an export; uses rq_client (an
  * auth_unix client) if it's available and has secinfo information;
@@ -1340,6 +1362,10 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_dentry, NULL);
+	if (rv)
+		goto out;
+	rv = check_nfsd_access(exp, rqstp);
+out:
 	exp_put(exp);
 	return rv;
 }
