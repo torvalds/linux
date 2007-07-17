@@ -3506,9 +3506,6 @@ void do_blank_screen(int entering_gfx)
 		}
 		return;
 	}
-	if (blank_state != blank_normal_wait)
-		return;
-	blank_state = blank_off;
 
 	/* entering graphics mode? */
 	if (entering_gfx) {
@@ -3516,9 +3513,14 @@ void do_blank_screen(int entering_gfx)
 		save_screen(vc);
 		vc->vc_sw->con_blank(vc, -1, 1);
 		console_blanked = fg_console + 1;
+		blank_state = blank_off;
 		set_origin(vc);
 		return;
 	}
+
+	if (blank_state != blank_normal_wait)
+		return;
+	blank_state = blank_off;
 
 	/* don't blank graphics */
 	if (vc->vc_mode != KD_TEXT) {
