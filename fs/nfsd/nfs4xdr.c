@@ -57,6 +57,7 @@
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
 #include <linux/sunrpc/gss_api.h>
+#include <linux/sunrpc/svcauth_gss.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
@@ -2454,15 +2455,38 @@ nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, int nfserr,
 {
 	int i = 0;
 	struct svc_export *exp = secinfo->si_exp;
+	u32 nflavs;
+	struct exp_flavor_info *flavs;
+	struct exp_flavor_info def_flavs[2];
 	ENCODE_HEAD;
 
 	if (nfserr)
 		goto out;
+	if (exp->ex_nflavors) {
+		flavs = exp->ex_flavors;
+		nflavs = exp->ex_nflavors;
+	} else { /* Handling of some defaults in absence of real secinfo: */
+		flavs = def_flavs;
+		if (exp->ex_client->flavour->flavour == RPC_AUTH_UNIX) {
+			nflavs = 2;
+			flavs[0].pseudoflavor = RPC_AUTH_UNIX;
+			flavs[1].pseudoflavor = RPC_AUTH_NULL;
+		} else if (exp->ex_client->flavour->flavour == RPC_AUTH_GSS) {
+			nflavs = 1;
+			flavs[0].pseudoflavor
+					= svcauth_gss_flavor(exp->ex_client);
+		} else {
+			nflavs = 1;
+			flavs[0].pseudoflavor
+					= exp->ex_client->flavour->flavour;
+		}
+	}
+
 	RESERVE_SPACE(4);
-	WRITE32(exp->ex_nflavors);
+	WRITE32(nflavs);
 	ADJUST_ARGS();
-	for (i = 0; i < exp->ex_nflavors; i++) {
-		u32 flav = exp->ex_flavors[i].pseudoflavor;
+	for (i = 0; i < nflavs; i++) {
+		u32 flav = flavs[i].pseudoflavor;
 		struct gss_api_mech *gm = gss_mech_get_by_pseudoflavor(flav);
 
 		if (gm) {
