@@ -260,6 +260,81 @@ static struct hibernation_ops acpi_hibernation_ops = {
 };
 #endif				/* CONFIG_SOFTWARE_SUSPEND */
 
+/**
+ *	acpi_pm_device_sleep_state - return preferred power state of ACPI device
+ *		in the system sleep state given by %acpi_target_sleep_state
+ *	@dev: device to examine
+ *	@wake: if set, the device should be able to wake up the system
+ *	@d_min_p: used to store the upper limit of allowed states range
+ *	Return value: preferred power state of the device on success, -ENODEV on
+ *		failure (ie. if there's no 'struct acpi_device' for @dev)
+ *
+ *	Find the lowest power (highest number) ACPI device power state that
+ *	device @dev can be in while the system is in the sleep state represented
+ *	by %acpi_target_sleep_state.  If @wake is nonzero, the device should be
+ *	able to wake up the system from this sleep state.  If @d_min_p is set,
+ *	the highest power (lowest number) device power state of @dev allowed
+ *	in this system sleep state is stored at the location pointed to by it.
+ *
+ *	The caller must ensure that @dev is valid before using this function.
+ *	The caller is also responsible for figuring out if the device is
+ *	supposed to be able to wake up the system and passing this information
+ *	via @wake.
+ */
+
+int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+	char acpi_method[] = "_SxD";
+	unsigned long d_min, d_max;
+
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+		printk(KERN_ERR "ACPI handle has no context!\n");
+		return -ENODEV;
+	}
+
+	acpi_method[2] = '0' + acpi_target_sleep_state;
+	/*
+	 * If the sleep state is S0, we will return D3, but if the device has
+	 * _S0W, we will use the value from _S0W
+	 */
+	d_min = ACPI_STATE_D0;
+	d_max = ACPI_STATE_D3;
+
+	/*
+	 * If present, _SxD methods return the minimum D-state (highest power
+	 * state) we can use for the corresponding S-states.  Otherwise, the
+	 * minimum D-state is D0 (ACPI 3.x).
+	 *
+	 * NOTE: We rely on acpi_evaluate_integer() not clobbering the integer
+	 * provided -- that's our fault recovery, we ignore retval.
+	 */
+	if (acpi_target_sleep_state > ACPI_STATE_S0)
+		acpi_evaluate_integer(handle, acpi_method, NULL, &d_min);
+
+	/*
+	 * If _PRW says we can wake up the system from the target sleep state,
+	 * the D-state returned by _SxD is sufficient for that (we assume a
+	 * wakeup-aware driver if wake is set).  Still, if _SxW exists
+	 * (ACPI 3.x), it should return the maximum (lowest power) D-state that
+	 * can wake the system.  _S0W may be valid, too.
+	 */
+	if (acpi_target_sleep_state == ACPI_STATE_S0 ||
+	    (wake && adev->wakeup.state.enabled &&
+	     adev->wakeup.sleep_state <= acpi_target_sleep_state)) {
+		acpi_method[3] = 'W';
+		acpi_evaluate_integer(handle, acpi_method, NULL, &d_max);
+		/* Sanity check */
+		if (d_max < d_min)
+			d_min = d_max;
+	}
+
+	if (d_min_p)
+		*d_min_p = d_min;
+	return d_max;
+}
+
 /*
  * Toshiba fails to preserve interrupts over S1, reinitialization
  * of 8259 is needed after S1 resume.
