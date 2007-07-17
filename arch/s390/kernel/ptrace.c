@@ -294,7 +294,6 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 static int
 do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 {
-	unsigned long tmp;
 	ptrace_area parea; 
 	int copied, ret;
 
@@ -304,10 +303,7 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 		/* Remove high order bit from address (only for 31 bit). */
 		addr &= PSW_ADDR_INSN;
 		/* read word at location addr. */
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		if (copied != sizeof(tmp))
-			return -EIO;
-		return put_user(tmp, (unsigned long __force __user *) data);
+		return generic_ptrace_peekdata(child, addr, data);
 
 	case PTRACE_PEEKUSR:
 		/* read the word at location addr in the USER area. */

@@ -117,15 +117,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int rval;
 
 	switch (request) {
-		unsigned long val, copied;
+		unsigned long val;
 
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA:
-		copied = access_process_vm(child, addr, &val, sizeof(val), 0);
-		rval = -EIO;
-		if (copied != sizeof(val))
-			break;
-		rval = put_user(val, (unsigned long *)data);
+		rval = generic_ptrace_peekdata(child, addr, data);
 		goto out;
 
 	case PTRACE_POKETEXT: /* write the word at location addr. */

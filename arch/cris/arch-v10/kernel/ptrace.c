@@ -83,19 +83,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	switch (request) {
 		/* Read word at location address. */ 
 		case PTRACE_PEEKTEXT:
-		case PTRACE_PEEKDATA: {
-			unsigned long tmp;
-			int copied;
-
-			copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-			ret = -EIO;
-			
-			if (copied != sizeof(tmp))
-				break;
-			
-			ret = put_user(tmp,datap);
+		case PTRACE_PEEKDATA:
+			ret = generic_ptrace_peekdata(child, addr, data);
 			break;
-		}
 
 		/* Read the word at location address in the USER area. */
 		case PTRACE_PEEKUSR: {
