@@ -38,7 +38,6 @@ MODULE_LICENSE("GPL");
 
 #define DR7_GD_MASK (1 << 13)
 #define DR6_BD_MASK (1 << 13)
-#define CR4_DE_MASK (1UL << 3)
 
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
@@ -564,7 +563,7 @@ static void init_vmcb(struct vmcb *vmcb)
 	 * cache by default. the orderly way is to enable cache in bios.
 	 */
 	save->cr0 = 0x00000010 | X86_CR0_PG | X86_CR0_WP;
-	save->cr4 = CR4_PAE_MASK;
+	save->cr4 = X86_CR4_PAE;
 	/* rdx = ?? */
 }
 
@@ -781,7 +780,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
        vcpu->cr4 = cr4;
-       vcpu->svm->vmcb->save.cr4 = cr4 | CR4_PAE_MASK;
+       vcpu->svm->vmcb->save.cr4 = cr4 | X86_CR4_PAE;
 }
 
 static void svm_set_segment(struct kvm_vcpu *vcpu,
@@ -877,7 +876,7 @@ static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 		vcpu->svm->db_regs[dr] = value;
 		return;
 	case 4 ... 5:
-		if (vcpu->cr4 & CR4_DE_MASK) {
+		if (vcpu->cr4 & X86_CR4_DE) {
 			*exception = UD_VECTOR;
 			return;
 		}

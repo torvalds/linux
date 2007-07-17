@@ -86,8 +86,12 @@ static struct dentry *debugfs_dir;
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
 			  | X86_CR0_ET | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM \
 			  | X86_CR0_NW | X86_CR0_CD | X86_CR0_PG))
-#define LMSW_GUEST_MASK 0x0eULL
-#define CR4_RESEVED_BITS (~((1ULL << 11) - 1))
+#define CR4_RESERVED_BITS						\
+	(~(unsigned long)(X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE\
+			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE	\
+			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR	\
+			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
+
 #define CR8_RESEVED_BITS (~0x0fULL)
 #define EFER_RESERVED_BITS 0xfffffffffffff2fe
 
@@ -537,26 +541,26 @@ EXPORT_SYMBOL_GPL(lmsw);
 
 void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	if (cr4 & CR4_RESEVED_BITS) {
+	if (cr4 & CR4_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr4: #GP, reserved bits\n");
 		inject_gp(vcpu);
 		return;
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (!(cr4 & CR4_PAE_MASK)) {
+		if (!(cr4 & X86_CR4_PAE)) {
 			printk(KERN_DEBUG "set_cr4: #GP, clearing PAE while "
 			       "in long mode\n");
 			inject_gp(vcpu);
 			return;
 		}
-	} else if (is_paging(vcpu) && !is_pae(vcpu) && (cr4 & CR4_PAE_MASK)
+	} else if (is_paging(vcpu) && !is_pae(vcpu) && (cr4 & X86_CR4_PAE)
 		   && !load_pdptrs(vcpu, vcpu->cr3)) {
 		printk(KERN_DEBUG "set_cr4: #GP, pdptrs reserved bits\n");
 		inject_gp(vcpu);
 	}
 
-	if (cr4 & CR4_VMXE_MASK) {
+	if (cr4 & X86_CR4_VMXE) {
 		printk(KERN_DEBUG "set_cr4: #GP, setting VMXE\n");
 		inject_gp(vcpu);
 		return;
