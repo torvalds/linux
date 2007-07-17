@@ -120,7 +120,7 @@ config FRAMEBUFFER_CONSOLE
 
 config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
        bool "Map the console to the primary display device"
-       depends on FRAMEBUFFER_CONSOLE && VT_HW_CONSOLE_BINDING
+       depends on FRAMEBUFFER_CONSOLE
        default n
        ---help---
          If this option is selected, the framebuffer console will
@@ -131,10 +131,6 @@ config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
 
 	 You can always override the automatic selection of the primary device
 	 by using the fbcon=map: boot option.
-
-	 To select this feature, "Support for binding and unbinding console
-         drivers", under "Device Drivers"->"Character Devices" must be set to
-	 y.
 
 	 If unsure, select n.
 

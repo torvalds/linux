@@ -3041,52 +3041,32 @@ static int fbcon_fb_unregistered(struct fb_info *info)
 }
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
-static int fbcon_select_primary(struct fb_info *info)
+static void fbcon_select_primary(struct fb_info *info)
 {
-	int ret = 0;
-
 	if (!map_override && primary_device == -1 &&
 	    fb_is_primary_device(info)) {
-		int i, err;
+		int i;
 
-		printk(KERN_INFO "fbcon: %s is primary device\n",
-		       info->fix.id);
+		printk(KERN_INFO "fbcon: %s (fb%i) is primary device\n",
+		       info->fix.id, info->node);
 		primary_device = info->node;
 
-		if (!con_is_bound(&fb_con))
-			goto done;
-
-		printk(KERN_INFO "fbcon: Unbinding old driver\n");
-		unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
-				  fbcon_is_default);
-		info_idx = primary_device;
-
-		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+		for (i = first_fb_vc; i <= last_fb_vc; i++)
 			con2fb_map_boot[i] = primary_device;
-			con2fb_map[i] = primary_device;
+
+		if (con_is_bound(&fb_con)) {
+			printk(KERN_INFO "fbcon: Remapping primary device, "
+			       "fb%i, to tty %i-%i\n", info->node,
+			       first_fb_vc + 1, last_fb_vc + 1);
+			info_idx = primary_device;
 		}
-
-		printk(KERN_INFO "fbcon: Selecting new driver\n");
-		err = bind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
-				      fbcon_is_default);
-
-		if (err) {
-			for (i = first_fb_vc; i <= last_fb_vc; i++)
-				con2fb_map[i] = -1;
-
-			info_idx = -1;
-		}
-
-		ret = 1;
 	}
 
-done:
-	return ret;
 }
 #else
-static inline int fbcon_select_primary(struct fb_info *info)
+static inline void fbcon_select_primary(struct fb_info *info)
 {
-	return 0;
+	return;
 }
 #endif /* CONFIG_FRAMEBUFFER_DETECT_PRIMARY */
 
@@ -3094,9 +3074,7 @@ static int fbcon_fb_registered(struct fb_info *info)
 {
 	int ret = 0, i, idx = info->node;
 
-	if (fbcon_select_primary(info))
-		goto done;
-
+	fbcon_select_primary(info);
 
 	if (info_idx == -1) {
 		for (i = first_fb_vc; i <= last_fb_vc; i++) {
@@ -3115,7 +3093,6 @@ static int fbcon_fb_registered(struct fb_info *info)
 		}
 	}
 
-done:
 	return ret;
 }
 
