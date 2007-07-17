@@ -4123,7 +4123,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	if (CHIP_NUM(bp) == CHIP_NUM_5708)
 		REG_WR(bp, BNX2_HC_STATS_TICKS, 0);
 	else
-		REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks & 0xffff00);
+		REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks);
 	REG_WR(bp, BNX2_HC_STAT_COLLECT_TICKS, 0xbb8);  /* 3ms */
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A1)
@@ -5798,8 +5798,9 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 		if (bp->stats_ticks != 0 && bp->stats_ticks != USEC_PER_SEC)
 			bp->stats_ticks = USEC_PER_SEC;
 	}
-	if (bp->stats_ticks > 0xffff00) bp->stats_ticks = 0xffff00;
-	bp->stats_ticks &= 0xffff00;
+	if (bp->stats_ticks > BNX2_HC_STATS_TICKS_HC_STAT_TICKS)
+		bp->stats_ticks = BNX2_HC_STATS_TICKS_HC_STAT_TICKS;
+	bp->stats_ticks &= BNX2_HC_STATS_TICKS_HC_STAT_TICKS;
 
 	if (netif_running(bp->dev)) {
 		bnx2_netif_stop(bp);
@@ -6696,7 +6697,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->rx_ticks_int = 18;
 	bp->rx_ticks = 18;
 
-	bp->stats_ticks = 1000000 & 0xffff00;
+	bp->stats_ticks = USEC_PER_SEC & BNX2_HC_STATS_TICKS_HC_STAT_TICKS;
 
 	bp->timer_interval =  HZ;
 	bp->current_interval =  HZ;
