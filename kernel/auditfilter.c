@@ -1210,8 +1210,8 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	struct audit_entry *e;
 	struct audit_field *inode_f = entry->rule.inode_f;
 	struct audit_watch *watch = entry->rule.watch;
-	struct nameidata *ndp, *ndw;
-	int h, err, putnd_needed = 0;
+	struct nameidata *ndp = NULL, *ndw = NULL;
+	int h, err;
 #ifdef CONFIG_AUDITSYSCALL
 	int dont_count = 0;
 
@@ -1239,7 +1239,6 @@ static inline int audit_add_rule(struct audit_entry *entry,
 		err = audit_get_nd(watch->path, &ndp, &ndw);
 		if (err)
 			goto error;
-		putnd_needed = 1;
 	}
 
 	mutex_lock(&audit_filter_mutex);
@@ -1269,14 +1268,11 @@ static inline int audit_add_rule(struct audit_entry *entry,
 #endif
 	mutex_unlock(&audit_filter_mutex);
 
-	if (putnd_needed)
-		audit_put_nd(ndp, ndw);
-
+	audit_put_nd(ndp, ndw);		/* NULL args OK */
  	return 0;
 
 error:
-	if (putnd_needed)
-		audit_put_nd(ndp, ndw);
+	audit_put_nd(ndp, ndw);		/* NULL args OK */
 	if (watch)
 		audit_put_watch(watch); /* tmp watch, matches initial get */
 	return err;

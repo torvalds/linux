@@ -2666,7 +2666,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mv_print_info(host);
 
 	pci_set_master(pdev);
-	pci_set_mwi(pdev);
+	pci_try_set_mwi(pdev);
 	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
 				 IS_GEN_I(hpriv) ? &mv5_sht : &mv6_sht);
 }

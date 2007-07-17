@@ -671,7 +671,7 @@ static ssize_t natsemi_show_##_name(struct device *dev, \
 #define NATSEMI_CREATE_FILE(_dev, _name) \
          device_create_file(&_dev->dev, &dev_attr_##_name)
 #define NATSEMI_REMOVE_FILE(_dev, _name) \
-         device_create_file(&_dev->dev, &dev_attr_##_name)
+         device_remove_file(&_dev->dev, &dev_attr_##_name)
 
 NATSEMI_ATTR(dspcfg_workaround);
 
