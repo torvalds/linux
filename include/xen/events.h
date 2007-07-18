@@ -13,6 +13,7 @@ enum ipi_vector {
 	XEN_NR_IPIS,
 };
 
+int bind_evtchn_to_irq(unsigned int evtchn);
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      irq_handler_t handler,
 			      unsigned long irqflags, const char *devname,
