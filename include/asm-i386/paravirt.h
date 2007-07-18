@@ -52,6 +52,8 @@ struct paravirt_ops
 	/* Basic arch-specific setup */
 	void (*arch_setup)(void);
 	char *(*memory_setup)(void);
+	void (*post_allocator_init)(void);
+
 	void (*init_IRQ)(void);
 	void (*time_init)(void);
 
@@ -668,6 +670,12 @@ static inline void setup_secondary_clock(void)
 	PVOP_VCALL0(setup_secondary_clock);
 }
 #endif
+
+static inline void paravirt_post_allocator_init(void)
+{
+	if (paravirt_ops.post_allocator_init)
+		(*paravirt_ops.post_allocator_init)();
+}
 
 static inline void paravirt_pagetable_setup_start(pgd_t *base)
 {
