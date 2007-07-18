@@ -210,5 +210,6 @@ static inline void serio_unpin_driver(struct serio *serio)
 #define SERIO_TOUCHRIGHT	0x32
 #define SERIO_TOUCHWIN	0x33
 #define SERIO_TAOSEVM	0x34
+#define SERIO_FUJITSU	0x35
 
 #endif
