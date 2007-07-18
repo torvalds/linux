@@ -699,17 +699,19 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 
 	/* link in */
 	sysfs_addrm_start(&acxt, parent_sd);
+
 	if (!sysfs_find_dirent(parent_sd, name)) {
 		sysfs_add_one(&acxt, sd);
 		sysfs_link_sibling(sd);
 	}
-	if (sysfs_addrm_finish(&acxt)) {
-		*p_sd = sd;
-		return 0;
+
+	if (!sysfs_addrm_finish(&acxt)) {
+		sysfs_put(sd);
+		return -EEXIST;
 	}
 
-	sysfs_put(sd);
-	return -EEXIST;
+	*p_sd = sd;
+	return 0;
 }
 
 int sysfs_create_subdir(struct kobject *kobj, const char *name,

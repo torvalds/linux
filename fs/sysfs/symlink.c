@@ -97,11 +97,13 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 		sysfs_link_sibling(sd);
 	}
 
-	if (sysfs_addrm_finish(&acxt))
-		return 0;
+	if (!sysfs_addrm_finish(&acxt)) {
+		error = -EEXIST;
+		goto out_put;
+	}
 
-	error = -EEXIST;
-	/* fall through */
+	return 0;
+
  out_put:
 	sysfs_put(target_sd);
 	sysfs_put(sd);
