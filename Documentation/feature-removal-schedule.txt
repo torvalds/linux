@@ -228,9 +228,10 @@ Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
 ---------------------------
 
 What:	ACPI procfs interface
-When:	July 2007
-Why:	After ACPI sysfs conversion, ACPI attributes will be duplicated
-	in sysfs and the ACPI procfs interface should be removed.
+When:	July 2008
+Why:	ACPI sysfs conversion should be finished by January 2008.
+	ACPI procfs interface will be removed in July 2008 so that
+	there is enough time for the user space to catch up.
 Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
