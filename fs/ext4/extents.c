@@ -1107,7 +1107,7 @@ static int
 ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 				struct ext4_extent *ex2)
 {
-	unsigned short ext1_ee_len, ext2_ee_len;
+	unsigned short ext1_ee_len, ext2_ee_len, max_len;
 
 	/*
 	 * Make sure that either both extents are uninitialized, or
@@ -1115,6 +1115,11 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 */
 	if (ext4_ext_is_uninitialized(ex1) ^ ext4_ext_is_uninitialized(ex2))
 		return 0;
+
+	if (ext4_ext_is_uninitialized(ex1))
+		max_len = EXT_UNINIT_MAX_LEN;
+	else
+		max_len = EXT_INIT_MAX_LEN;
 
 	ext1_ee_len = ext4_ext_get_actual_len(ex1);
 	ext2_ee_len = ext4_ext_get_actual_len(ex2);
@@ -1128,7 +1133,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 * as an RO_COMPAT feature, refuse to merge to extents if
 	 * this can result in the top bit of ee_len being set.
 	 */
-	if (ext1_ee_len + ext2_ee_len > EXT_MAX_LEN)
+	if (ext1_ee_len + ext2_ee_len > max_len)
 		return 0;
 #ifdef AGGRESSIVE_TEST
 	if (le16_to_cpu(ex1->ee_len) >= 4)
@@ -1815,7 +1820,11 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 
 		ex->ee_block = cpu_to_le32(block);
 		ex->ee_len = cpu_to_le16(num);
-		if (uninitialized)
+		/*
+		 * Do not mark uninitialized if all the blocks in the
+		 * extent have been removed.
+		 */
+		if (uninitialized && num)
 			ext4_ext_mark_uninitialized(ex);
 
 		err = ext4_ext_dirty(handle, inode, path + depth);
@@ -2307,6 +2316,19 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 	/* allocate new block */
 	goal = ext4_ext_find_goal(inode, path, iblock);
+
+	/*
+	 * See if request is beyond maximum number of blocks we can have in
+	 * a single extent. For an initialized extent this limit is
+	 * EXT_INIT_MAX_LEN and for an uninitialized extent this limit is
+	 * EXT_UNINIT_MAX_LEN.
+	 */
+	if (max_blocks > EXT_INIT_MAX_LEN &&
+	    create != EXT4_CREATE_UNINITIALIZED_EXT)
+		max_blocks = EXT_INIT_MAX_LEN;
+	else if (max_blocks > EXT_UNINIT_MAX_LEN &&
+		 create == EXT4_CREATE_UNINITIALIZED_EXT)
+		max_blocks = EXT_UNINIT_MAX_LEN;
 
 	/* Check if we can really insert (iblock)::(iblock+max_blocks) extent */
 	newex.ee_block = cpu_to_le32(iblock);
