@@ -129,6 +129,8 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern unsigned int num_processors;
 
+void __cpuinit smp_store_cpu_info(int id);
+
 #endif /* !__ASSEMBLY__ */
 
 #else /* CONFIG_SMP */
