@@ -22,6 +22,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 #include <asm/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -44,6 +45,15 @@ static struct sys_timer em7210_timer = {
 	.offset		= iop_gettimeoffset,
 };
 
+/*
+ * EM7210 RTC
+ */
+static struct i2c_board_info __initdata em7210_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
+		.type = "rs5c372a",
+	},
+};
 
 /*
  * EM7210 I/O
@@ -186,6 +196,9 @@ static void __init em7210_init_machine(void)
 	platform_device_register(&em7210_flash_device);
 	platform_device_register(&iop3xx_dma_0_channel);
 	platform_device_register(&iop3xx_dma_1_channel);
+
+	i2c_register_board_info(0, em7210_i2c_devices,
+		ARRAY_SIZE(em7210_i2c_devices));
 
 
 	pm_power_off = em7210_power_off;
