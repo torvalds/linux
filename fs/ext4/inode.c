@@ -3275,7 +3275,7 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	 */
 
 	journal = EXT4_JOURNAL(inode);
-	if (is_journal_aborted(journal) || IS_RDONLY(inode))
+	if (is_journal_aborted(journal))
 		return -EROFS;
 
 	jbd2_journal_lock_updates(journal);
