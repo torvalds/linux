@@ -602,6 +602,24 @@ void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 }
 EXPORT_SYMBOL_GPL(set_cr8);
 
+unsigned long get_cr8(struct kvm_vcpu *vcpu)
+{
+	return vcpu->cr8;
+}
+EXPORT_SYMBOL_GPL(get_cr8);
+
+u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
+{
+	return vcpu->apic_base;
+}
+EXPORT_SYMBOL_GPL(kvm_get_apic_base);
+
+void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
+{
+	vcpu->apic_base = data;
+}
+EXPORT_SYMBOL_GPL(kvm_set_apic_base);
+
 void fx_init(struct kvm_vcpu *vcpu)
 {
 	unsigned after_mxcsr_mask;
@@ -1481,7 +1499,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		data = 3;
 		break;
 	case MSR_IA32_APICBASE:
-		data = vcpu->apic_base;
+		data = kvm_get_apic_base(vcpu);
 		break;
 	case MSR_IA32_MISC_ENABLE:
 		data = vcpu->ia32_misc_enable_msr;
@@ -1559,7 +1577,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case 0x200 ... 0x2ff: /* MTRRs */
 		break;
 	case MSR_IA32_APICBASE:
-		vcpu->apic_base = data;
+		kvm_set_apic_base(vcpu, data);
 		break;
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->ia32_misc_enable_msr = data;
@@ -1865,7 +1883,7 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
 	/* re-sync apic's tpr */
-	vcpu->cr8 = kvm_run->cr8;
+	set_cr8(vcpu, kvm_run->cr8);
 
 	if (vcpu->pio.cur_count) {
 		r = complete_pio(vcpu);
@@ -2013,9 +2031,9 @@ static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->cr2 = vcpu->cr2;
 	sregs->cr3 = vcpu->cr3;
 	sregs->cr4 = vcpu->cr4;
-	sregs->cr8 = vcpu->cr8;
+	sregs->cr8 = get_cr8(vcpu);
 	sregs->efer = vcpu->shadow_efer;
-	sregs->apic_base = vcpu->apic_base;
+	sregs->apic_base = kvm_get_apic_base(vcpu);
 
 	memcpy(sregs->interrupt_bitmap, vcpu->irq_pending,
 	       sizeof sregs->interrupt_bitmap);
@@ -2051,13 +2069,13 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	mmu_reset_needed |= vcpu->cr3 != sregs->cr3;
 	vcpu->cr3 = sregs->cr3;
 
-	vcpu->cr8 = sregs->cr8;
+	set_cr8(vcpu, sregs->cr8);
 
 	mmu_reset_needed |= vcpu->shadow_efer != sregs->efer;
 #ifdef CONFIG_X86_64
 	kvm_arch_ops->set_efer(vcpu, sregs->efer);
 #endif
-	vcpu->apic_base = sregs->apic_base;
+	kvm_set_apic_base(vcpu, sregs->apic_base);
 
 	kvm_arch_ops->decache_cr4_guest_bits(vcpu);
 

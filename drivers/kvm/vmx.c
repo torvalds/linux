@@ -1369,6 +1369,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	int i;
 	int ret = 0;
 	unsigned long kvm_vmx_return;
+	u64 msr;
 
 	if (!init_rmode_tss(vmx->vcpu.kvm)) {
 		ret = -ENOMEM;
@@ -1376,10 +1377,11 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	}
 
 	vmx->vcpu.regs[VCPU_REGS_RDX] = get_rdx_init_val();
-	vmx->vcpu.cr8 = 0;
-	vmx->vcpu.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	set_cr8(&vmx->vcpu, 0);
+	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (vmx->vcpu.vcpu_id == 0)
-		vmx->vcpu.apic_base |= MSR_IA32_APICBASE_BSP;
+		msr |= MSR_IA32_APICBASE_BSP;
+	kvm_set_apic_base(&vmx->vcpu, msr);
 
 	fx_init(&vmx->vcpu);
 
@@ -1860,7 +1862,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
-			vcpu->regs[reg] = vcpu->cr8;
+			vcpu->regs[reg] = get_cr8(vcpu);
 			vcpu_put_rsp_rip(vcpu);
 			skip_emulated_instruction(vcpu);
 			return 1;
@@ -1957,8 +1959,8 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 			      struct kvm_run *kvm_run)
 {
 	kvm_run->if_flag = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) != 0;
-	kvm_run->cr8 = vcpu->cr8;
-	kvm_run->apic_base = vcpu->apic_base;
+	kvm_run->cr8 = get_cr8(vcpu);
+	kvm_run->apic_base = kvm_get_apic_base(vcpu);
 	kvm_run->ready_for_interrupt_injection = (vcpu->interrupt_window_open &&
 						  vcpu->irq_summary == 0);
 }

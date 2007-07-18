@@ -1339,10 +1339,10 @@ static void svm_intr_assist(struct vcpu_svm *svm)
 
 static void kvm_reput_irq(struct vcpu_svm *svm)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct vmcb_control_area *control = &svm->vmcb->control;
 
-	if ((control->int_ctl & V_IRQ_MASK) && !irqchip_in_kernel(vcpu->kvm)) {
+	if ((control->int_ctl & V_IRQ_MASK)
+	    && !irqchip_in_kernel(svm->vcpu.kvm)) {
 		control->int_ctl &= ~V_IRQ_MASK;
 		push_irq(&svm->vcpu, control->int_vector);
 	}
@@ -1396,8 +1396,8 @@ static void post_kvm_run_save(struct vcpu_svm *svm,
 		= (svm->vcpu.interrupt_window_open &&
 		   svm->vcpu.irq_summary == 0);
 	kvm_run->if_flag = (svm->vmcb->save.rflags & X86_EFLAGS_IF) != 0;
-	kvm_run->cr8 = svm->vcpu.cr8;
-	kvm_run->apic_base = svm->vcpu.apic_base;
+	kvm_run->cr8 = get_cr8(&svm->vcpu);
+	kvm_run->apic_base = kvm_get_apic_base(&svm->vcpu);
 }
 
 /*
