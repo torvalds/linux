@@ -93,6 +93,9 @@ mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-i386/mach-es7000
 mcore-$(CONFIG_X86_ES7000)	:= mach-default
 core-$(CONFIG_X86_ES7000)	:= arch/i386/mach-es7000/
 
+# Xen paravirtualization support
+core-$(CONFIG_XEN)		+= arch/i386/xen/
+
 # default subarch .h files
 mflags-y += -Iinclude/asm-i386/mach-default
 

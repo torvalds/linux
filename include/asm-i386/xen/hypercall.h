@@ -392,4 +392,22 @@ MULTI_mmuext_op(struct multicall_entry *mcl, struct mmuext_op *op, int count,
 	mcl->args[2] = (unsigned long)success_count;
 	mcl->args[3] = domid;
 }
+
+static inline void
+MULTI_set_gdt(struct multicall_entry *mcl, unsigned long *frames, int entries)
+{
+	mcl->op = __HYPERVISOR_set_gdt;
+	mcl->args[0] = (unsigned long)frames;
+	mcl->args[1] = entries;
+}
+
+static inline void
+MULTI_stack_switch(struct multicall_entry *mcl,
+		   unsigned long ss, unsigned long esp)
+{
+	mcl->op = __HYPERVISOR_stack_switch;
+	mcl->args[0] = ss;
+	mcl->args[1] = esp;
+}
+
 #endif /* __HYPERCALL_H__ */

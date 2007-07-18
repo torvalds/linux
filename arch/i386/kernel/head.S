@@ -510,7 +510,8 @@ ENTRY(_stext)
 /*
  * BSS section
  */
-.section ".bss.page_aligned","w"
+.section ".bss.page_aligned","wa"
+	.align PAGE_SIZE_asm
 ENTRY(swapper_pg_dir)
 	.fill 1024,4,0
 ENTRY(swapper_pg_pmd)
@@ -537,6 +538,8 @@ int_msg:
 fault_msg:
 	.ascii "Int %d: CR2 %p  err %p  EIP %p  CS %p  flags %p\n"
 	.asciz "Stack: %p %p %p %p %p %p %p %p\n"
+
+#include "../xen/xen-head.S"
 
 /*
  * The IDT and GDT 'descriptors' are a strange 48-bit object
