@@ -517,7 +517,7 @@ do_more:
 		/*
 		 * An HJ special.  This is expensive...
 		 */
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 		jbd_unlock_bh_state(bitmap_bh);
 		{
 			struct buffer_head *debug_bh;
@@ -1597,7 +1597,7 @@ allocated:
 
 	performed_allocation = 1;
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	{
 		struct buffer_head *debug_bh;
 

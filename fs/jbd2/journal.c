@@ -35,6 +35,7 @@
 #include <linux/kthread.h>
 #include <linux/poison.h>
 #include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -528,7 +529,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 {
 	int err = 0;
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	spin_lock(&journal->j_state_lock);
 	if (!tid_geq(journal->j_commit_request, tid)) {
 		printk(KERN_EMERG
@@ -1709,7 +1710,7 @@ void jbd2_slab_free(void *ptr,  size_t size)
  * Journal_head storage management
  */
 static struct kmem_cache *jbd2_journal_head_cache;
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 static atomic_t nr_journal_heads = ATOMIC_INIT(0);
 #endif
 
@@ -1747,7 +1748,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 	struct journal_head *ret;
 	static unsigned long last_warning;
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	atomic_inc(&nr_journal_heads);
 #endif
 	ret = kmem_cache_alloc(jbd2_journal_head_cache, GFP_NOFS);
@@ -1768,7 +1769,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 
 static void journal_free_journal_head(struct journal_head *jh)
 {
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	atomic_dec(&nr_journal_heads);
 	memset(jh, JBD_POISON_FREE, sizeof(*jh));
 #endif
@@ -1951,63 +1952,49 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 }
 
 /*
- * /proc tunables
+ * debugfs tunables
  */
-#if defined(CONFIG_JBD_DEBUG)
-int jbd2_journal_enable_debug;
+#if defined(CONFIG_JBD2_DEBUG)
+u8 jbd2_journal_enable_debug;
 EXPORT_SYMBOL(jbd2_journal_enable_debug);
 #endif
 
-#if defined(CONFIG_JBD_DEBUG) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_JBD2_DEBUG) && defined(CONFIG_DEBUG_FS)
 
-static struct proc_dir_entry *proc_jbd_debug;
+#define JBD2_DEBUG_NAME "jbd2-debug"
 
-static int read_jbd_debug(char *page, char **start, off_t off,
-			  int count, int *eof, void *data)
+struct dentry *jbd2_debugfs_dir, *jbd2_debug;
+
+static void __init jbd2_create_debugfs_entry(void)
 {
-	int ret;
-
-	ret = sprintf(page + off, "%d\n", jbd2_journal_enable_debug);
-	*eof = 1;
-	return ret;
+	jbd2_debugfs_dir = debugfs_create_dir("jbd2", NULL);
+	if (jbd2_debugfs_dir)
+		jbd2_debug = debugfs_create_u8(JBD2_DEBUG_NAME, S_IRUGO,
+					       jbd2_debugfs_dir,
+					       &jbd2_journal_enable_debug);
 }
 
-static int write_jbd_debug(struct file *file, const char __user *buffer,
-			   unsigned long count, void *data)
+static void __exit jbd2_remove_debugfs_entry(void)
 {
-	char buf[32];
-
-	if (count > ARRAY_SIZE(buf) - 1)
-		count = ARRAY_SIZE(buf) - 1;
-	if (copy_from_user(buf, buffer, count))
-		return -EFAULT;
-	buf[ARRAY_SIZE(buf) - 1] = '\0';
-	jbd2_journal_enable_debug = simple_strtoul(buf, NULL, 10);
-	return count;
-}
-
-#define JBD_PROC_NAME "sys/fs/jbd2-debug"
-
-static void __init create_jbd_proc_entry(void)
-{
-	proc_jbd_debug = create_proc_entry(JBD_PROC_NAME, 0644, NULL);
-	if (proc_jbd_debug) {
-		/* Why is this so hard? */
-		proc_jbd_debug->read_proc = read_jbd_debug;
-		proc_jbd_debug->write_proc = write_jbd_debug;
-	}
-}
-
-static void __exit jbd2_remove_jbd_proc_entry(void)
-{
-	if (proc_jbd_debug)
-		remove_proc_entry(JBD_PROC_NAME, NULL);
+	if (jbd2_debug)
+		debugfs_remove(jbd2_debug);
+	if (jbd2_debugfs_dir)
+		debugfs_remove(jbd2_debugfs_dir);
 }
 
 #else
 
-#define create_jbd_proc_entry() do {} while (0)
-#define jbd2_remove_jbd_proc_entry() do {} while (0)
+static void __init jbd2_create_debugfs_entry(void)
+{
+	do {
+	} while (0);
+}
+
+static void __exit jbd2_remove_debugfs_entry(void)
+{
+	do {
+	} while (0);
+}
 
 #endif
 
@@ -2067,18 +2054,18 @@ static int __init journal_init(void)
 	ret = journal_init_caches();
 	if (ret != 0)
 		jbd2_journal_destroy_caches();
-	create_jbd_proc_entry();
+	jbd2_create_debugfs_entry();
 	return ret;
 }
 
 static void __exit journal_exit(void)
 {
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
 		printk(KERN_EMERG "JBD: leaked %d journal_heads!\n", n);
 #endif
-	jbd2_remove_jbd_proc_entry();
+	jbd2_remove_debugfs_entry();
 	jbd2_journal_destroy_caches();
 }
 

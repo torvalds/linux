@@ -56,6 +56,13 @@ struct ext4_xattr_entry {
 #define EXT4_XATTR_SIZE(size) \
 	(((size) + EXT4_XATTR_ROUND) & ~EXT4_XATTR_ROUND)
 
+#define IHDR(inode, raw_inode) \
+	((struct ext4_xattr_ibody_header *) \
+		((void *)raw_inode + \
+		EXT4_GOOD_OLD_INODE_SIZE + \
+		EXT4_I(inode)->i_extra_isize))
+#define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
+
 # ifdef CONFIG_EXT4DEV_FS_XATTR
 
 extern struct xattr_handler ext4_xattr_user_handler;
@@ -73,6 +80,9 @@ extern int ext4_xattr_set_handle(handle_t *, struct inode *, int, const char *, 
 
 extern void ext4_xattr_delete_inode(handle_t *, struct inode *);
 extern void ext4_xattr_put_super(struct super_block *);
+
+extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
+			    struct ext4_inode *raw_inode, handle_t *handle);
 
 extern int init_ext4_xattr(void);
 extern void exit_ext4_xattr(void);
@@ -127,6 +137,13 @@ init_ext4_xattr(void)
 static inline void
 exit_ext4_xattr(void)
 {
+}
+
+static inline int
+ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
+			    struct ext4_inode *raw_inode, handle_t *handle)
+{
+	return -EOPNOTSUPP;
 }
 
 #define ext4_xattr_handlers	NULL

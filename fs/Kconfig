@@ -251,7 +251,7 @@ config JBD2
 
 config JBD2_DEBUG
 	bool "JBD2 (ext4dev/ext4) debugging support"
-	depends on JBD2
+	depends on JBD2 && DEBUG_FS
 	help
 	  If you are using the ext4dev/ext4 journaled file system (or
 	  potentially any other filesystem/device using JBD2), this option
@@ -260,10 +260,10 @@ config JBD2_DEBUG
 	  By default, the debugging output will be turned off.
 
 	  If you select Y here, then you will be able to turn on debugging
-	  with "echo N > /proc/sys/fs/jbd2-debug", where N is a number between
-	  1 and 5. The higher the number, the more debugging output is
-	  generated.  To turn debugging off again, do
-	  "echo 0 > /proc/sys/fs/jbd2-debug".
+	  with "echo N > /sys/kernel/debug/jbd2/jbd2-debug", where N is a
+	  number between 1 and 5. The higher the number, the more debugging
+	  output is generated.  To turn debugging off again, do
+	  "echo 0 > /sys/kernel/debug/jbd2/jbd2-debug".
 
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)

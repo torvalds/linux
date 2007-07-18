@@ -726,7 +726,7 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 
 	/* had we spliced it onto indirect block? */
@@ -1766,7 +1766,6 @@ int ext4_block_truncate_page(handle_t *handle, struct page *page,
 	struct inode *inode = mapping->host;
 	struct buffer_head *bh;
 	int err = 0;
-	void *kaddr;
 
 	blocksize = inode->i_sb->s_blocksize;
 	length = blocksize - (offset & (blocksize - 1));
@@ -1778,10 +1777,7 @@ int ext4_block_truncate_page(handle_t *handle, struct page *page,
 	 */
 	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH) &&
 	     ext4_should_writeback_data(inode) && PageUptodate(page)) {
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr + offset, 0, length);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		zero_user_page(page, offset, length, KM_USER0);
 		set_page_dirty(page);
 		goto unlock;
 	}
@@ -1834,10 +1830,7 @@ int ext4_block_truncate_page(handle_t *handle, struct page *page,
 			goto unlock;
 	}
 
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr + offset, 0, length);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	zero_user_page(page, offset, length, KM_USER0);
 
 	BUFFER_TRACE(bh, "zeroed end of block");
 
@@ -2375,7 +2368,7 @@ do_indirects:
 	ext4_discard_reservation(inode);
 
 	mutex_unlock(&ei->truncate_mutex);
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 
 	/*
@@ -2583,6 +2576,25 @@ void ext4_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_DIRSYNC;
 }
 
+/* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
+void ext4_get_inode_flags(struct ext4_inode_info *ei)
+{
+	unsigned int flags = ei->vfs_inode.i_flags;
+
+	ei->i_flags &= ~(EXT4_SYNC_FL|EXT4_APPEND_FL|
+			EXT4_IMMUTABLE_FL|EXT4_NOATIME_FL|EXT4_DIRSYNC_FL);
+	if (flags & S_SYNC)
+		ei->i_flags |= EXT4_SYNC_FL;
+	if (flags & S_APPEND)
+		ei->i_flags |= EXT4_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		ei->i_flags |= EXT4_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		ei->i_flags |= EXT4_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		ei->i_flags |= EXT4_DIRSYNC_FL;
+}
+
 void ext4_read_inode(struct inode * inode)
 {
 	struct ext4_iloc iloc;
@@ -2610,10 +2622,6 @@ void ext4_read_inode(struct inode * inode)
 	}
 	inode->i_nlink = le16_to_cpu(raw_inode->i_links_count);
 	inode->i_size = le32_to_cpu(raw_inode->i_size);
-	inode->i_atime.tv_sec = (signed)le32_to_cpu(raw_inode->i_atime);
-	inode->i_ctime.tv_sec = (signed)le32_to_cpu(raw_inode->i_ctime);
-	inode->i_mtime.tv_sec = (signed)le32_to_cpu(raw_inode->i_mtime);
-	inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec = 0;
 
 	ei->i_state = 0;
 	ei->i_dir_start_lookup = 0;
@@ -2691,6 +2699,11 @@ void ext4_read_inode(struct inode * inode)
 	} else
 		ei->i_extra_isize = 0;
 
+	EXT4_INODE_GET_XTIME(i_ctime, inode, raw_inode);
+	EXT4_INODE_GET_XTIME(i_mtime, inode, raw_inode);
+	EXT4_INODE_GET_XTIME(i_atime, inode, raw_inode);
+	EXT4_EINODE_GET_XTIME(i_crtime, ei, raw_inode);
+
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
@@ -2744,6 +2757,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	if (ei->i_state & EXT4_STATE_NEW)
 		memset(raw_inode, 0, EXT4_SB(inode->i_sb)->s_inode_size);
 
+	ext4_get_inode_flags(ei);
 	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
 	if(!(test_opt(inode->i_sb, NO_UID32))) {
 		raw_inode->i_uid_low = cpu_to_le16(low_16_bits(inode->i_uid));
@@ -2771,9 +2785,12 @@ static int ext4_do_update_inode(handle_t *handle,
 	}
 	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
 	raw_inode->i_size = cpu_to_le32(ei->i_disksize);
-	raw_inode->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
-	raw_inode->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
-	raw_inode->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
+
+	EXT4_INODE_SET_XTIME(i_ctime, inode, raw_inode);
+	EXT4_INODE_SET_XTIME(i_mtime, inode, raw_inode);
+	EXT4_INODE_SET_XTIME(i_atime, inode, raw_inode);
+	EXT4_EINODE_SET_XTIME(i_crtime, ei, raw_inode);
+
 	raw_inode->i_blocks = cpu_to_le32(inode->i_blocks);
 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
 	raw_inode->i_flags = cpu_to_le32(ei->i_flags);
@@ -3082,6 +3099,39 @@ ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 }
 
 /*
+ * Expand an inode by new_extra_isize bytes.
+ * Returns 0 on success or negative error number on failure.
+ */
+int ext4_expand_extra_isize(struct inode *inode, unsigned int new_extra_isize,
+			struct ext4_iloc iloc, handle_t *handle)
+{
+	struct ext4_inode *raw_inode;
+	struct ext4_xattr_ibody_header *header;
+	struct ext4_xattr_entry *entry;
+
+	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize)
+		return 0;
+
+	raw_inode = ext4_raw_inode(&iloc);
+
+	header = IHDR(inode, raw_inode);
+	entry = IFIRST(header);
+
+	/* No extended attributes present */
+	if (!(EXT4_I(inode)->i_state & EXT4_STATE_XATTR) ||
+		header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)) {
+		memset((void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE, 0,
+			new_extra_isize);
+		EXT4_I(inode)->i_extra_isize = new_extra_isize;
+		return 0;
+	}
+
+	/* try to expand with EAs present */
+	return ext4_expand_extra_isize_ea(inode, new_extra_isize,
+					  raw_inode, handle);
+}
+
+/*
  * What we do here is to mark the in-core inode as clean with respect to inode
  * dirtiness (it may still be data-dirty).
  * This means that the in-core inode may be reaped by prune_icache
@@ -3105,10 +3155,38 @@ ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
 {
 	struct ext4_iloc iloc;
-	int err;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	static unsigned int mnt_count;
+	int err, ret;
 
 	might_sleep();
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
+	if (EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&
+	    !(EXT4_I(inode)->i_state & EXT4_STATE_NO_EXPAND)) {
+		/*
+		 * We need extra buffer credits since we may write into EA block
+		 * with this same handle. If journal_extend fails, then it will
+		 * only result in a minor loss of functionality for that inode.
+		 * If this is felt to be critical, then e2fsck should be run to
+		 * force a large enough s_min_extra_isize.
+		 */
+		if ((jbd2_journal_extend(handle,
+			     EXT4_DATA_TRANS_BLOCKS(inode->i_sb))) == 0) {
+			ret = ext4_expand_extra_isize(inode,
+						      sbi->s_want_extra_isize,
+						      iloc, handle);
+			if (ret) {
+				EXT4_I(inode)->i_state |= EXT4_STATE_NO_EXPAND;
+				if (mnt_count != sbi->s_es->s_mnt_count) {
+					ext4_warning(inode->i_sb, __FUNCTION__,
+					"Unable to expand inode %lu. Delete"
+					" some EAs or run e2fsck.",
+					inode->i_ino);
+					mnt_count = sbi->s_es->s_mnt_count;
+				}
+			}
+		}
+	}
 	if (!err)
 		err = ext4_mark_iloc_dirty(handle, inode, &iloc);
 	return err;
@@ -3197,7 +3275,7 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	 */
 
 	journal = EXT4_JOURNAL(inode);
-	if (is_journal_aborted(journal) || IS_RDONLY(inode))
+	if (is_journal_aborted(journal))
 		return -EROFS;
 
 	jbd2_journal_lock_updates(journal);

@@ -36,6 +36,7 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
+#include <linux/log2.h>
 
 #include <asm/uaccess.h>
 
@@ -734,7 +735,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota, Opt_extents,
+	Opt_grpquota, Opt_extents, Opt_noextents,
 };
 
 static match_table_t tokens = {
@@ -785,6 +786,7 @@ static match_table_t tokens = {
 	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
 	{Opt_extents, "extents"},
+	{Opt_noextents, "noextents"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
 };
@@ -1119,6 +1121,9 @@ clear_qf_name:
 			break;
 		case Opt_extents:
 			set_opt (sbi->s_mount_opt, EXTENTS);
+			break;
+		case Opt_noextents:
+			clear_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		default:
 			printk (KERN_ERR
@@ -1551,6 +1556,12 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 
 	set_opt(sbi->s_mount_opt, RESERVATION);
 
+	/*
+	 * turn on extents feature by default in ext4 filesystem
+	 * User -o noextents to turn it off
+	 */
+	set_opt(sbi->s_mount_opt, EXTENTS);
+
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
 			    NULL, 0))
 		goto failed_mount;
@@ -1634,13 +1645,15 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		sbi->s_inode_size = le16_to_cpu(es->s_inode_size);
 		sbi->s_first_ino = le32_to_cpu(es->s_first_ino);
 		if ((sbi->s_inode_size < EXT4_GOOD_OLD_INODE_SIZE) ||
-		    (sbi->s_inode_size & (sbi->s_inode_size - 1)) ||
+		    (!is_power_of_2(sbi->s_inode_size)) ||
 		    (sbi->s_inode_size > blocksize)) {
 			printk (KERN_ERR
 				"EXT4-fs: unsupported inode size: %d\n",
 				sbi->s_inode_size);
 			goto failed_mount;
 		}
+		if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE)
+			sb->s_time_gran = 1 << (EXT4_EPOCH_BITS - 2);
 	}
 	sbi->s_frag_size = EXT4_MIN_FRAG_SIZE <<
 				   le32_to_cpu(es->s_log_frag_size);
@@ -1803,6 +1816,13 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount3;
 	}
 
+	if (ext4_blocks_count(es) > 0xffffffffULL &&
+	    !jbd2_journal_set_features(EXT4_SB(sb)->s_journal, 0, 0,
+				       JBD2_FEATURE_INCOMPAT_64BIT)) {
+		printk(KERN_ERR "ext4: Failed to set 64-bit journal feature\n");
+		goto failed_mount4;
+	}
+
 	/* We have now updated the journal if required, so we can
 	 * validate the data journaling mode. */
 	switch (test_opt(sb, DATA_FLAGS)) {
@@ -1857,6 +1877,32 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	}
 
 	ext4_setup_super (sb, es, sb->s_flags & MS_RDONLY);
+
+	/* determine the minimum size of new large inodes, if present */
+	if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE) {
+		sbi->s_want_extra_isize = sizeof(struct ext4_inode) -
+						     EXT4_GOOD_OLD_INODE_SIZE;
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				       EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE)) {
+			if (sbi->s_want_extra_isize <
+			    le16_to_cpu(es->s_want_extra_isize))
+				sbi->s_want_extra_isize =
+					le16_to_cpu(es->s_want_extra_isize);
+			if (sbi->s_want_extra_isize <
+			    le16_to_cpu(es->s_min_extra_isize))
+				sbi->s_want_extra_isize =
+					le16_to_cpu(es->s_min_extra_isize);
+		}
+	}
+	/* Check if enough inode space is available */
+	if (EXT4_GOOD_OLD_INODE_SIZE + sbi->s_want_extra_isize >
+							sbi->s_inode_size) {
+		sbi->s_want_extra_isize = sizeof(struct ext4_inode) -
+						       EXT4_GOOD_OLD_INODE_SIZE;
+		printk(KERN_INFO "EXT4-fs: required extra inode space not"
+			"available.\n");
+	}
+
 	/*
 	 * akpm: core read_super() calls in here with the superblock locked.
 	 * That deadlocks, because orphan cleanup needs to lock the superblock

@@ -295,7 +295,7 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 		printk(KERN_ERR "JBD: error %d scanning journal\n", err);
 		++journal->j_transaction_sequence;
 	} else {
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 		int dropped = info.end_transaction - be32_to_cpu(sb->s_sequence);
 #endif
 		jbd_debug(0,
