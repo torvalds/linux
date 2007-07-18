@@ -396,12 +396,11 @@ static void handle_dock(struct dock_station *ds, int dock)
 	union acpi_object arg;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer name_buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
 
 	acpi_get_name(ds->handle, ACPI_FULL_PATHNAME, &name_buffer);
-	obj = name_buffer.pointer;
 
-	printk(KERN_INFO PREFIX "%s\n", dock ? "docking" : "undocking");
+	printk(KERN_INFO PREFIX "%s - %s\n",
+		(char *)name_buffer.pointer, dock ? "docking" : "undocking");
 
 	/* _DCK method has one argument */
 	arg_list.count = 1;
@@ -410,7 +409,8 @@ static void handle_dock(struct dock_station *ds, int dock)
 	arg.integer.value = dock;
 	status = acpi_evaluate_object(ds->handle, "_DCK", &arg_list, &buffer);
 	if (ACPI_FAILURE(status))
-		pr_debug("%s: failed to execute _DCK\n", obj->string.pointer);
+		printk(KERN_ERR PREFIX "%s - failed to execute _DCK\n",
+			 (char *)name_buffer.pointer);
 	kfree(buffer.pointer);
 	kfree(name_buffer.pointer);
 }
