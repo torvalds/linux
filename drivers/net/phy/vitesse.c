@@ -109,7 +109,7 @@ static int vsc824x_config_intr(struct phy_device *phydev)
 		 */
 		err = phy_read(phydev, MII_VSC8244_ISTAT);
 
-		if (err)
+		if (err < 0)
 			return err;
 
 		err = phy_write(phydev, MII_VSC8244_IMASK, 0);
