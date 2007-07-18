@@ -1560,7 +1560,10 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	}
 
 	qp_attr->pkey_index = context.pri_path.pkey_index & 0x7f;
-	qp_attr->port_num   = context.pri_path.sched_queue & 0x40 ? 2 : 1;
+	if (qp_attr->qp_state == IB_QPS_INIT)
+		qp_attr->port_num = qp->port;
+	else
+		qp_attr->port_num = context.pri_path.sched_queue & 0x40 ? 2 : 1;
 
 	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
 	qp_attr->sq_draining = mlx4_state == MLX4_QP_STATE_SQ_DRAINING;
