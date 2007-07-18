@@ -217,7 +217,7 @@ config CPU_SUBTYPE_SH7722
 	bool "Support SH7722 processor"
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
-	select CPU_HAS_IPR_IRQ
+	select CPU_HAS_INTC_IRQ
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 

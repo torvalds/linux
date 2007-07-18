@@ -105,7 +105,7 @@ struct intc_desc {
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
 #define DECLARE_INTC_DESC(symbol, chipname, vectors, groups,		\
 	priorities, mask_regs, prio_regs, sense_regs)			\
-static struct intc_desc symbol = {					\
+struct intc_desc symbol = {						\
 	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),			\
 	_INTC_ARRAY(priorities),					\
 	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\
