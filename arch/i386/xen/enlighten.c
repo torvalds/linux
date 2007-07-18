@@ -115,6 +115,7 @@ static void __init xen_vcpu_setup(int cpu)
 		/* This cpu is using the registered vcpu info, even if
 		   later ones fail to. */
 		per_cpu(xen_vcpu, cpu) = vcpup;
+
 		printk(KERN_DEBUG "cpu %d using vcpu_info at %p\n",
 		       cpu, vcpup);
 	}
@@ -177,20 +178,6 @@ static unsigned long xen_save_fl(void)
 	return (-flags) & X86_EFLAGS_IF;
 }
 
-static unsigned long xen_save_fl_direct(void)
-{
-	unsigned long flags;
-
-	/* flag has opposite sense of mask */
-	flags = !x86_read_percpu(xen_vcpu_info.evtchn_upcall_mask);
-
-	/* convert to IF type flag
-	   -0 -> 0x00000000
-	   -1 -> 0xffffffff
-	*/
-	return (-flags) & X86_EFLAGS_IF;
-}
-
 static void xen_restore_fl(unsigned long flags)
 {
 	struct vcpu_info *vcpu;
@@ -217,25 +204,6 @@ static void xen_restore_fl(unsigned long flags)
 	}
 }
 
-static void xen_restore_fl_direct(unsigned long flags)
-{
-	/* convert from IF type flag */
-	flags = !(flags & X86_EFLAGS_IF);
-
-	/* This is an atomic update, so no need to worry about
-	   preemption. */
-	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, flags);
-
-	/* If we get preempted here, then any pending event will be
-	   handled anyway. */
-
-	if (flags == 0) {
-		barrier(); /* unmask then check (avoid races) */
-		if (unlikely(x86_read_percpu(xen_vcpu_info.evtchn_upcall_pending)))
-			force_evtchn_callback();
-	}
-}
-
 static void xen_irq_disable(void)
 {
 	/* There's a one instruction preempt window here.  We need to
@@ -244,12 +212,6 @@ static void xen_irq_disable(void)
 	preempt_disable();
 	x86_read_percpu(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
-}
-
-static void xen_irq_disable_direct(void)
-{
-	/* Atomic update, so preemption not a concern. */
-	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, 1);
 }
 
 static void xen_irq_enable(void)
@@ -269,19 +231,6 @@ static void xen_irq_enable(void)
 
 	barrier(); /* unmask then check (avoid races) */
 	if (unlikely(vcpu->evtchn_upcall_pending))
-		force_evtchn_callback();
-}
-
-static void xen_irq_enable_direct(void)
-{
-	/* Atomic update, so preemption not a concern. */
-	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, 0);
-
-	/* Doesn't matter if we get preempted here, because any
-	   pending event will get dealt with anyway. */
-
-	barrier(); /* unmask then check (avoid races) */
-	if (unlikely(x86_read_percpu(xen_vcpu_info.evtchn_upcall_pending)))
 		force_evtchn_callback();
 }
 
@@ -892,6 +841,57 @@ void __init xen_setup_vcpu_info_placement(void)
 	}
 }
 
+static unsigned xen_patch(u8 type, u16 clobbers, void *insns, unsigned len)
+{
+	char *start, *end, *reloc;
+	unsigned ret;
+
+	start = end = reloc = NULL;
+
+#define SITE(x)								\
+	case PARAVIRT_PATCH(x):						\
+	if (have_vcpu_info_placement) {					\
+		start = (char *)xen_##x##_direct;			\
+		end = xen_##x##_direct_end;				\
+		reloc = xen_##x##_direct_reloc;				\
+	}								\
+	goto patch_site
+
+	switch (type) {
+		SITE(irq_enable);
+		SITE(irq_disable);
+		SITE(save_fl);
+		SITE(restore_fl);
+#undef SITE
+
+	patch_site:
+		if (start == NULL || (end-start) > len)
+			goto default_patch;
+
+		ret = paravirt_patch_insns(insns, len, start, end);
+
+		/* Note: because reloc is assigned from something that
+		   appears to be an array, gcc assumes it's non-null,
+		   but doesn't know its relationship with start and
+		   end. */
+		if (reloc > start && reloc < end) {
+			int reloc_off = reloc - start;
+			long *relocp = (long *)(insns + reloc_off);
+			long delta = start - (char *)insns;
+
+			*relocp += delta;
+		}
+		break;
+
+	default_patch:
+	default:
+		ret = paravirt_patch_default(type, clobbers, insns, len);
+		break;
+	}
+
+	return ret;
+}
+
 static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.paravirt_enabled = 1,
 	.shared_kernel_pmd = 0,
@@ -899,7 +899,7 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.name = "Xen",
 	.banner = xen_banner,
 
-	.patch = paravirt_patch_default,
+	.patch = xen_patch,
 
 	.memory_setup = xen_memory_setup,
 	.arch_setup = xen_arch_setup,
@@ -1075,6 +1075,7 @@ static const struct machine_ops __initdata xen_machine_ops = {
 	.crash_shutdown = xen_crash_shutdown,
 	.emergency_restart = xen_emergency_restart,
 };
+
 
 /* First C function to be called on Xen boot */
 asmlinkage void __init xen_start_kernel(void)

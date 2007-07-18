@@ -54,4 +54,17 @@ int xen_smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 			       void *info, int wait);
 
+
+/* Declare an asm function, along with symbols needed to make it
+   inlineable */
+#define DECL_ASM(ret, name, ...)		\
+	ret name(__VA_ARGS__);			\
+	extern char name##_end[];		\
+	extern char name##_reloc[]		\
+
+DECL_ASM(void, xen_irq_enable_direct, void);
+DECL_ASM(void, xen_irq_disable_direct, void);
+DECL_ASM(unsigned long, xen_save_fl_direct, void);
+DECL_ASM(void, xen_restore_fl_direct, unsigned long);
+
 #endif /* XEN_OPS_H */
