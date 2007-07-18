@@ -1591,7 +1591,13 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	/*
+	 * f0 is only used if nreq != 0, and f0 will be initialized
+	 * the first time through the main loop, since size0 == 0 the
+	 * first time through.  So nreq cannot become non-zero without
+	 * initializing f0, and f0 is in fact never used uninitialized.
+	 */
+	u32 uninitialized_var(f0);
 	int ind;
 	u8 op0 = 0;
 
@@ -1946,7 +1952,13 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	/*
+	 * f0 is only used if nreq != 0, and f0 will be initialized
+	 * the first time through the main loop, since size0 == 0 the
+	 * first time through.  So nreq cannot become non-zero without
+	 * initializing f0, and f0 is in fact never used uninitialized.
+	 */
+	u32 uninitialized_var(f0);
 	int ind;
 	u8 op0 = 0;
 
