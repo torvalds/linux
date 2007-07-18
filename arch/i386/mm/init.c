@@ -473,6 +473,7 @@ void zap_low_mappings (void)
 
 static int disable_nx __initdata = 0;
 u64 __supported_pte_mask __read_mostly = ~_PAGE_NX;
+EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 /*
  * noexec = on|off
