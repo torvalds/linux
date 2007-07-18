@@ -1013,6 +1013,19 @@ static void ds_up(struct ds_info *dp)
 		dp->hs_state = DS_HS_START;
 }
 
+static void ds_reset(struct ds_info *dp)
+{
+	int i;
+
+	dp->hs_state = 0;
+
+	for (i = 0; i < ARRAY_SIZE(ds_states); i++) {
+		struct ds_cap_state *cp = &ds_states[i];
+
+		cp->state = CAP_STATE_UNKNOWN;
+	}
+}
+
 static void ds_event(void *arg, int event)
 {
 	struct ds_info *dp = arg;
@@ -1024,6 +1037,12 @@ static void ds_event(void *arg, int event)
 
 	if (event == LDC_EVENT_UP) {
 		ds_up(dp);
+		spin_unlock_irqrestore(&ds_lock, flags);
+		return;
+	}
+
+	if (event == LDC_EVENT_RESET) {
+		ds_reset(dp);
 		spin_unlock_irqrestore(&ds_lock, flags);
 		return;
 	}
