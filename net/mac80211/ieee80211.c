@@ -4986,8 +4986,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * and we need some headroom for passing the frame to monitor
 	 * interfaces, but never both at the same time.
 	 */
-	local->tx_headroom = max(local->hw.extra_tx_headroom,
-				 sizeof(struct ieee80211_tx_status_rtap_hdr));
+	local->tx_headroom = max_t(unsigned int , local->hw.extra_tx_headroom,
+				   sizeof(struct ieee80211_tx_status_rtap_hdr));
 
 	debugfs_hw_add(local);
 
