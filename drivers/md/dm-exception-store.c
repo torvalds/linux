@@ -623,6 +623,7 @@ int dm_create_persistent(struct exception_store *store)
 
 	ps->metadata_wq = create_singlethread_workqueue("ksnaphd");
 	if (!ps->metadata_wq) {
+		kfree(ps);
 		DMERR("couldn't start header metadata update thread");
 		return -ENOMEM;
 	}
