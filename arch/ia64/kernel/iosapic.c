@@ -593,14 +593,6 @@ static struct iosapic_rte_info *iosapic_alloc_rte (void)
 	return rte;
 }
 
-static void iosapic_free_rte (struct iosapic_rte_info *rte)
-{
-	if (rte->flags & RTE_PREALLOCATED)
-		list_add_tail(&rte->rte_list, &free_rte_list);
-	else
-		kfree(rte);
-}
-
 static inline int irq_is_shared (int irq)
 {
 	return (iosapic_intr_info[irq].count > 1);
