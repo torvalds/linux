@@ -95,7 +95,7 @@ int __init irlap_init(void)
 	return 0;
 }
 
-void __exit irlap_cleanup(void)
+void irlap_cleanup(void)
 {
 	IRDA_ASSERT(irlap != NULL, return;);
 

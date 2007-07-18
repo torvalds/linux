@@ -287,7 +287,7 @@ int __init irda_sysctl_register(void)
  *    Unregister our sysctl interface
  *
  */
-void __exit irda_sysctl_unregister(void)
+void irda_sysctl_unregister(void)
 {
 	unregister_sysctl_table(irda_table_header);
 }
