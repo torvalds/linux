@@ -1,6 +1,8 @@
 /* tuner-xc2028
  *
  * Copyright (c) 2007 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
+ *       - frontend interface
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -9,19 +11,38 @@
 #include <linux/firmware.h>
 #include <linux/videodev.h>
 #include <linux/delay.h>
+#include <media/tuner.h>
 #include "tuner-driver.h"
 #include "tuner-xc2028.h"
 
+#include <linux/dvb/frontend.h>
+#include "dvb_frontend.h"
+
+/* digital TV standards */
+#define V4L2_STD_DTV_6MHZ       ((v4l2_std_id)0x04000000)
+#define V4L2_STD_DTV_7MHZ       ((v4l2_std_id)0x08000000)
+#define V4L2_STD_DTV_8MHZ       ((v4l2_std_id)0x10000000)
+
 /* Firmwares used on tm5600/tm6000 + xc2028/xc3028 */
 static const char *firmware_6M = "tm6000_xc3028_DTV_6M.fw";
-static const char *firmware_8M = "tm6000_xc3028_78M.fw";
+// static const char *firmware_78M = "tm6000_xc3028_78M.fw";
+static const char *firmware_7M = "tm6000_xc3028_7M.fw";
+static const char *firmware_8M = "tm6000_xc3028_8M.fw";
+static const char *firmware_B = "tm6000_xc3028_B_PAL.fw";
 static const char *firmware_DK = "tm6000_xc3028_DK_PAL_MTS.fw";
 static const char *firmware_MN = "tm6000_xc3028_MN_BTSC.fw";
+static const char *firmware_INIT0 = "tm6000_xc3028_INIT0.fw";
+static const char *firmware_8MHZ_INIT0 = "tm6000_xc3028_8MHZ_INIT0.fw";
 
 struct xc2028_data {
-	v4l2_std_id	firm_type;	/* video stds supported by current firmware */
-	int		bandwidth;	/* Firmware bandwidth: 6M, 7M or 8M */
-	int		need_load_generic; /* The generic firmware were loaded? */
+	v4l2_std_id		firm_type;	   /* video stds supported
+							by current firmware */
+	fe_bandwidth_t		bandwidth;	   /* Firmware bandwidth:
+							      6M, 7M or 8M */
+	int			need_load_generic; /* The generic firmware
+							      were loaded? */
+	enum tuner_mode	mode;
+	struct i2c_client	*i2c_client;
 };
 
 #define i2c_send(rc,c,buf,size)						\
@@ -80,7 +101,7 @@ static int load_firmware (struct i2c_client *c, const char *name)
 	int                   len=0, rc=0;
 	static const char     firmware_ver[] = "tm6000/xcv v1";
 
-	tuner_info("Loading firmware %s\n", name);
+	tuner_info("xc2028: Loading firmware %s\n", name);
 	rc = request_firmware(&fw, name, &c->dev);
 	if (rc < 0) {
 		tuner_info("Error %d while requesting firmware\n", rc);
@@ -154,24 +175,39 @@ err:
 	return rc;
 }
 
-static int check_firmware(struct i2c_client *c)
+static int check_firmware(struct i2c_client *c, enum tuner_mode new_mode,
+						fe_bandwidth_t bandwidth)
 {
 	int			rc, version;
 	struct tuner		*t = i2c_get_clientdata(c);
 	struct xc2028_data	*xc2028 = t->priv;
 	const char		*name;
+	int change_digital_bandwidth;
 
 	if (!t->tuner_callback) {
 		printk(KERN_ERR "xc2028: need tuner_callback to load firmware\n");
 		return -EINVAL;
 	}
 
+	printk(KERN_INFO "xc2028: I am in mode %u and I should switch to mode %i\n",
+							    xc2028->mode, new_mode);
+
+	/* first of all, determine whether we have switched the mode */
+	if(new_mode != xc2028->mode) {
+		xc2028->mode = new_mode;
+		xc2028->need_load_generic = 1;
+	}
+
+	change_digital_bandwidth = (xc2028->mode == T_DIGITAL_TV
+				 && bandwidth != xc2028->bandwidth) ? 1 : 0;
+	tuner_info("xc2028: old bandwidth %u, new bandwidth %u\n", xc2028->bandwidth,
+								   bandwidth);
+
 	if (xc2028->need_load_generic) {
 		if (xc2028->bandwidth==6)
-			name = firmware_6M;
+			name = firmware_INIT0;
 		else
-			name = firmware_8M;
-
+			name = firmware_8MHZ_INIT0;
 		/* Reset is needed before loading firmware */
 		rc = t->tuner_callback(c->adapter->algo_data,
 				     XC2028_TUNER_RESET, 0);
@@ -184,37 +220,54 @@ static int check_firmware(struct i2c_client *c)
 
 		xc2028->need_load_generic=0;
 		xc2028->firm_type=0;
+		if(xc2028->mode == T_DIGITAL_TV) {
+			change_digital_bandwidth=1;
+		}
+	}
+
+	tuner_info("xc2028: I should change bandwidth %u\n",
+						   change_digital_bandwidth);
+
+	if (change_digital_bandwidth) {
+		switch(bandwidth) {
+			case BANDWIDTH_8_MHZ:
+				t->std = V4L2_STD_DTV_8MHZ;
+			break;
+
+			case BANDWIDTH_7_MHZ:
+				t->std = V4L2_STD_DTV_7MHZ;
+			break;
+
+			case BANDWIDTH_6_MHZ:
+				t->std = V4L2_STD_DTV_6MHZ;
+			break;
+
+			default:
+				tuner_info("error: bandwidth not supported.\n");
+		};
+		xc2028->bandwidth = bandwidth;
 	}
 
 	if (xc2028->firm_type & t->std)
 		return 0;
 
-	send_seq (c, {0x12, 0x39});
-	send_seq (c, {0x0c, 0x80, 0xf0, 0xf7, 0x3e, 0x75, 0xc1, 0x8a, 0xe4});
-	send_seq (c, {0x0c, 0x02, 0x00});
-	send_seq (c, {0x05, 0x0f, 0xee, 0xaa, 0x5f, 0xea, 0x90});
-	send_seq (c, {0x06, 0x00, 0x0a, 0x4d, 0x8c, 0xf2, 0xd8, 0xcf, 0x30});
-	send_seq (c, {0x06, 0x79, 0x9f});
-	send_seq (c, {0x0b, 0x0d, 0xa4, 0x6c});
-	send_seq (c, {0x0a, 0x01, 0x67, 0x24, 0x40, 0x08, 0xc3, 0x20, 0x10});
-	send_seq (c, {0x0a, 0x64, 0x3c, 0xfa, 0xf7, 0xe1, 0x0c, 0x2c});
-	send_seq (c, {0x09, 0x0b});
-	send_seq (c, {0x10, 0x13});
-	send_seq (c, {0x16, 0x12});
-	send_seq (c, {0x1f, 0x02});
-	send_seq (c, {0x21, 0x02});
-	send_seq (c, {0x01, 0x02});
-	send_seq (c, {0x2b, 0x10});
-	send_seq (c, {0x02, 0x02});
-	send_seq (c, {0x02, 0x03});
-	send_seq (c, {0x00, 0x8c});
 
 	if (t->std & V4L2_STD_MN)
 		name=firmware_MN;
+	else if (t->std & V4L2_STD_DTV_6MHZ)
+		name=firmware_6M;
+	else if (t->std & V4L2_STD_DTV_7MHZ)
+		name=firmware_7M;
+	else if (t->std & V4L2_STD_DTV_8MHZ)
+		name=firmware_8M;
+	else if (t->std & V4L2_STD_PAL_B)
+		name=firmware_B;
 	else
 		name=firmware_DK;
 
-	rc = load_firmware(c,name);
+	tuner_info("xc2028: loading firmware named %s.\n", name);
+
+	rc = load_firmware(c, name);
 	if (rc<0)
 		return rc;
 
@@ -231,8 +284,7 @@ static int xc2028_signal(struct i2c_client *c)
 {
 	int lock, signal;
 
-	if (check_firmware(c)<0)
-		return 0;
+	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
 
 	lock = xc2028_get_reg(c, 0x2);
 	if (lock<=0)
@@ -250,15 +302,36 @@ static int xc2028_signal(struct i2c_client *c)
 
 #define DIV 15625
 
-static void set_tv_freq(struct i2c_client *c, unsigned int freq)
+static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
+				enum tuner_mode new_mode, fe_bandwidth_t bandwidth)
 {
 	int           rc;
 	unsigned char buf[5];
 	struct tuner  *t  = i2c_get_clientdata(c);
-	unsigned long div = (freq*62500l+DIV/2)/DIV;
+	u32 div, offset = 0;
 
-	if (check_firmware(c)<0)
+	printk("xc3028: should set frequency %d kHz)\n", freq / 1000);
+
+	if (check_firmware(c, new_mode, bandwidth)<0)
 		return;
+
+	if(new_mode == T_DIGITAL_TV) {
+		switch(bandwidth) {
+			case BANDWIDTH_8_MHZ:
+				offset = 2750000;
+			break;
+
+			case BANDWIDTH_7_MHZ:
+				offset = 2750000;
+			break;
+
+			case BANDWIDTH_6_MHZ:
+			default:
+				printk(KERN_ERR "xc2028: bandwidth not implemented!\n");
+		}
+	}
+
+	div = (freq - offset + DIV/2)/DIV;
 
 	/* Reset GPIO 1 */
 	if (t->tuner_callback) {
@@ -281,6 +354,7 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 	msleep(10);
 //	send_seq(c, {0x00, 0x00, 0x10, 0xd0, 0x00});
 //	msleep(100);
+
 	buf[0]= 0xff & (div>>24);
 	buf[1]= 0xff & (div>>16);
 	buf[2]= 0xff & (div>>8);
@@ -298,6 +372,14 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 //	printk("signal=%d\n",xc2028_signal(c));
 }
 
+
+static void set_tv_freq(struct i2c_client *c, unsigned int freq)
+{
+	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
+
+	generic_set_tv_freq(c, freq * 62500l, T_ANALOG_TV,
+					      BANDWIDTH_8_MHZ /* unimportant */);
+}
 
 static void xc2028_release(struct i2c_client *c)
 {
@@ -324,6 +406,8 @@ int xc2028_tuner_init(struct i2c_client *c)
 	int prd_id = xc2028_get_reg(c, 0x8);
 	struct xc2028_data *xc2028;
 
+	tuner_info("Xcv2028/3028 init called!\n");
+
 	if (init) {
 		printk (KERN_ERR "Module already initialized!\n");
 		return 0;
@@ -335,12 +419,9 @@ int xc2028_tuner_init(struct i2c_client *c)
 		return -ENOMEM;
 	t->priv = xc2028;
 
-#ifdef HACK
-	xc2028->firm_type=1;
-	xc2028->bandwidth=6;
-#endif
-	xc2028->bandwidth=6;
+	xc2028->bandwidth=BANDWIDTH_6_MHZ;
 	xc2028->need_load_generic=1;
+	xc2028->mode = T_UNINITIALIZED;
 
 	/* FIXME: Check where t->priv will be freed */
 
@@ -360,3 +441,69 @@ int xc2028_tuner_init(struct i2c_client *c)
 
 	return 0;
 }
+
+static int xc3028_set_params(struct dvb_frontend *fe,
+			     struct dvb_frontend_parameters *p)
+{
+	struct i2c_client *c = fe->tuner_priv;
+
+	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
+
+	generic_set_tv_freq(c, p->frequency, T_DIGITAL_TV,
+					     p->u.ofdm.bandwidth);
+
+	return 0;
+}
+
+static int xc3028_dvb_release(struct dvb_frontend *fe)
+{
+	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
+
+	fe->tuner_priv = NULL;
+
+	return 0;
+}
+
+static int xc3028_dvb_init(struct dvb_frontend *fe)
+{
+	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
+
+	return 0;
+}
+
+static const struct dvb_tuner_ops xc3028_dvb_tuner_ops = {
+	.info = {
+			.name           = "Xceive XC3028",
+			.frequency_min  =  42000000,
+			.frequency_max  = 864000000,
+			.frequency_step =     50000,
+		},
+
+	.release = xc3028_dvb_release,
+	.init = xc3028_dvb_init,
+
+// 	int (*sleep)(struct dvb_frontend *fe);
+
+	/** This is for simple PLLs - set all parameters in one go. */
+	.set_params = xc3028_set_params,
+
+	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */
+// 	int (*calc_regs)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p, u8 *buf, int buf_len);
+
+// 	int (*get_frequency)(struct dvb_frontend *fe, u32 *frequency);
+// 	int (*get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
+
+// 	int (*get_status)(struct dvb_frontend *fe, u32 *status);
+};
+
+int xc2028_attach(struct i2c_client *c, struct dvb_frontend *fe)
+{
+	fe->tuner_priv = c;
+
+	memcpy(&fe->ops.tuner_ops, &xc3028_dvb_tuner_ops, sizeof(fe->ops.tuner_ops));
+
+	return 0;
+}
+
+EXPORT_SYMBOL(xc2028_attach);
+

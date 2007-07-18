@@ -7,3 +7,8 @@
 /* xc2028 commands for callback */
 #define XC2028_TUNER_RESET	0
 #define XC2028_RESET_CLK	1
+
+struct dvb_frontend;
+struct i2c_client;
+
+int xc2028_attach(struct i2c_client *c, struct dvb_frontend *fe);
