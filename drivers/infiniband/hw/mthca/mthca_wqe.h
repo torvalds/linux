@@ -113,4 +113,19 @@ struct mthca_mlx_seg {
 	__be16 vcrc;
 };
 
+static __always_inline void mthca_set_data_seg(struct mthca_data_seg *dseg,
+					       struct ib_sge *sg)
+{
+	dseg->byte_count = cpu_to_be32(sg->length);
+	dseg->lkey       = cpu_to_be32(sg->lkey);
+	dseg->addr       = cpu_to_be64(sg->addr);
+}
+
+static __always_inline void mthca_set_data_seg_inval(struct mthca_data_seg *dseg)
+{
+	dseg->byte_count = 0;
+	dseg->lkey       = cpu_to_be32(MTHCA_INVAL_LKEY);
+	dseg->addr       = 0;
+}
+
 #endif /* MTHCA_WQE_H */
