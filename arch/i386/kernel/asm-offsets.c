@@ -61,6 +61,7 @@ void foo(void)
 	OFFSET(TI_addr_limit, thread_info, addr_limit);
 	OFFSET(TI_restart_block, thread_info, restart_block);
 	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
+	OFFSET(TI_cpu, thread_info, cpu);
 	BLANK();
 
 	OFFSET(GDS_size, Xgt_desc_struct, size);

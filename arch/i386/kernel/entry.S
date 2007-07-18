@@ -1030,7 +1030,21 @@ ENTRY(xen_hypervisor_callback)
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	TRACE_IRQS_OFF
-	mov %esp, %eax
+
+	/* Check to see if we got the event in the critical
+	   region in xen_iret_direct, after we've reenabled
+	   events and checked for pending events.  This simulates
+	   iret instruction's behaviour where it delivers a
+	   pending interrupt when enabling interrupts. */
+	movl PT_EIP(%esp),%eax
+	cmpl $xen_iret_start_crit,%eax
+	jb   1f
+	cmpl $xen_iret_end_crit,%eax
+	jae  1f
+
+	call xen_iret_crit_fixup
+
+1:	mov %esp, %eax
 	call xen_evtchn_do_upcall
 	jmp  ret_from_intr
 	CFI_ENDPROC

@@ -838,6 +838,7 @@ void __init xen_setup_vcpu_info_placement(void)
 		paravirt_ops.irq_disable = xen_irq_disable_direct;
 		paravirt_ops.irq_enable = xen_irq_enable_direct;
 		paravirt_ops.read_cr2 = xen_read_cr2_direct;
+		paravirt_ops.iret = xen_iret_direct;
 	}
 }
 
