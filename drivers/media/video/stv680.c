@@ -715,8 +715,11 @@ static int stv680_start_stream (struct usb_stv *stv680)
 				   stv680_video_irq, stv680);
 		stv680->urb[i] = urb;
 		err = usb_submit_urb (stv680->urb[i], GFP_KERNEL);
-		if (err)
-			PDEBUG (0, "STV(e): urb burned down in start stream");
+		if (err) {
+			PDEBUG (0, "STV(e): urb burned down with err "
+				   "%d in start stream %d", err, i);
+			goto nomem_err;
+		}
 	}			/* i STV680_NUMSBUF */
 
 	stv680->framecount = 0;

@@ -33,12 +33,12 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/videodev.h>
-#include <media/v4l2-common.h>
 #include <linux/pci.h>
 #include <linux/input.h>
 #include <linux/mutex.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>
+#include <media/v4l2-common.h>
 
 #include <linux/device.h>
 #include <media/video-buf.h>

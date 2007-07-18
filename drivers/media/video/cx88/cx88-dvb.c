@@ -35,9 +35,7 @@
 
 #include "mt352.h"
 #include "mt352_priv.h"
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
-# include "cx88-vp3054-i2c.h"
-#endif
+#include "cx88-vp3054-i2c.h"
 #include "zl10353.h"
 #include "cx22702.h"
 #include "or51132.h"
@@ -199,7 +197,7 @@ static struct mt352_config dvico_fusionhdtv_dual = {
 	.demod_init    = dvico_dual_demod_init,
 };
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
 static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { 0x89, 0x38, 0x38 };
@@ -219,64 +217,6 @@ static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 	udelay(2000);
 	mt352_write(fe, dntv_extra,     sizeof(dntv_extra));
 	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
-
-	return 0;
-}
-
-static int philips_fmd1216_pll_init(struct dvb_frontend *fe)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-
-	/* this message is to set up ATC and ALC */
-	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0xa0 };
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0,
-		  .buf = fmd1216_init, .len = sizeof(fmd1216_init) };
-	int err;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
-}
-
-static int dntv_live_dvbt_pro_tuner_set_params(struct dvb_frontend* fe,
-					       struct dvb_frontend_parameters* params)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0,
-		  .buf = buf, .len = 4 };
-	int err;
-
-	/* Switch PLL to DVB mode */
-	err = philips_fmd1216_pll_init(fe);
-	if (err)
-		return err;
-
-	/* Tune PLL */
-	dvb_pll_configure(dev->core->pll_desc, buf,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
-
-		printk(KERN_WARNING "cx88-dvb: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, dev->core->pll_addr, buf[0], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
 
 	return 0;
 }
@@ -370,18 +310,8 @@ static int nxt200x_set_ts_param(struct dvb_frontend* fe, int is_punctured)
 	return 0;
 }
 
-static int nxt200x_set_pll_input(u8* buf, int input)
-{
-	if (input)
-		buf[3] |= 0x08;
-	else
-		buf[3] &= ~0x08;
-	return 0;
-}
-
 static struct nxt200x_config ati_hdtvwonder = {
 	.demod_address = 0x0a,
-	.set_pll_input = nxt200x_set_pll_input,
 	.set_ts_params = nxt200x_set_ts_param,
 };
 
@@ -456,7 +386,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_thomson_dtt759x);
+				   DVB_PLL_THOMSON_DTT759X);
 		}
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
@@ -469,7 +399,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_thomson_dtt7579);
+				   DVB_PLL_THOMSON_DTT7579);
 		}
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
@@ -482,7 +412,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
+				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
@@ -491,7 +421,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				   NULL, &dvb_pll_thomson_dtt7579);
+				   NULL, DVB_PLL_THOMSON_DTT7579);
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
@@ -500,7 +430,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				   NULL, &dvb_pll_thomson_dtt7579);
+				   NULL, DVB_PLL_THOMSON_DTT7579);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
@@ -511,7 +441,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_thomson_dtt7579);
+				   NULL, DVB_PLL_THOMSON_DTT7579);
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
@@ -520,7 +450,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_thomson_dtt7579);
+				   NULL, DVB_PLL_THOMSON_DTT7579);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
@@ -529,7 +459,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_lg_z201);
+				   NULL, DVB_PLL_LG_Z201);
 		}
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
@@ -540,17 +470,16 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_unknown_1);
+				   NULL, DVB_PLL_UNKNOWN_1);
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_fmd1216me;
+#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
 			&((struct vp3054_i2c_state *)dev->card_priv)->adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = dntv_live_dvbt_pro_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 #else
 		printk("%s: built without vp3054 support\n", dev->core->name);
@@ -563,7 +492,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_thomson_fe6600);
+				   DVB_PLL_THOMSON_FE6600);
 		}
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
@@ -572,7 +501,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_thomson_dtt761x);
+				   DVB_PLL_THOMSON_DTT761X);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
@@ -594,7 +523,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_microtune_4042);
+				   DVB_PLL_MICROTUNE_4042);
 		}
 		}
 		break;
@@ -614,7 +543,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_thomson_dtt761x);
+				   DVB_PLL_THOMSON_DTT761X);
 		}
 		}
 		break;
@@ -634,7 +563,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_lg_tdvs_h06xf);
+				   DVB_PLL_LG_TDVS_H06XF);
 		}
 		}
 		break;
@@ -654,7 +583,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap,
-				   &dvb_pll_lg_tdvs_h06xf);
+				   DVB_PLL_LG_TDVS_H06XF);
 		}
 		}
 		break;
@@ -664,7 +593,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_tuv1236d);
+				   NULL, DVB_PLL_TUV1236D);
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
@@ -705,10 +634,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		return -1;
 	}
 
-	if (dev->core->pll_desc) {
-		dev->dvb.frontend->ops.info.frequency_min = dev->core->pll_desc->min;
-		dev->dvb.frontend->ops.info.frequency_max = dev->core->pll_desc->max;
-	}
 	/* Ensure all frontends negotiate bus access */
 	dev->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;
 
@@ -778,11 +703,10 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+	/* If vp3054 isn't enabled, a stub will just return 0 */
 	err = vp3054_i2c_probe(dev);
 	if (0 != err)
 		goto fail_core;
-#endif
 
 	/* dvb stuff */
 	printk("%s/2: cx2388x based dvb card\n", core->name);
@@ -807,9 +731,7 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 	vp3054_i2c_remove(dev);
-#endif
 
 	return 0;
 }

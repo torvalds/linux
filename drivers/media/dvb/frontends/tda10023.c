@@ -478,7 +478,7 @@ struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
 	state->i2c = i2c;
 	memcpy(&state->frontend.ops, &tda10023_ops, sizeof(struct dvb_frontend_ops));
 	state->pwm = pwm;
-	for (i=0; i < sizeof(tda10023_inittab)/sizeof(*tda10023_inittab);i+=3) {
+	for (i=0; i < ARRAY_SIZE(tda10023_inittab);i+=3) {
 		if (tda10023_inittab[i] == 0x00) {
 			state->reg0 = tda10023_inittab[i+2];
 			break;

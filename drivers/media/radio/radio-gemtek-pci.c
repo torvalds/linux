@@ -377,7 +377,6 @@ static struct video_device vdev_template = {
 	.owner         = THIS_MODULE,
 	.name          = "Gemtek PCI Radio",
 	.type          = VID_TYPE_TUNER,
-	.hardware      = 0,
 	.fops          = &gemtek_pci_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

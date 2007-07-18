@@ -23,8 +23,6 @@
 #define _TUNER_H
 
 #include <linux/videodev2.h>
-#include <linux/i2c.h>
-#include <media/tuner-types.h>
 
 extern int tuner_debug;
 
@@ -124,6 +122,7 @@ extern int tuner_debug;
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
+#define TUNER_TEA5761			75	/* Only FM Radio Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -181,74 +180,6 @@ struct tuner_setup {
 	unsigned int	config; /* configuraion for more complex tuners */
 	int (*tuner_callback) (void *dev, int command,int arg);
 };
-
-struct tuner {
-	/* device */
-	struct i2c_client i2c;
-
-	unsigned int type;	/* chip type */
-
-	unsigned int mode;
-	unsigned int mode_mask;	/* Combination of allowable modes */
-
-	unsigned int tv_freq;	/* keep track of the current settings */
-	unsigned int radio_freq;
-	u16 	     last_div;
-	unsigned int audmode;
-	v4l2_std_id  std;
-
-	int          using_v4l2;
-
-	/* used by tda9887 */
-	unsigned int       tda9887_config;
-	unsigned char 	   tda9887_data[4];
-
-	/* used by MT2032 */
-	unsigned int xogc;
-	unsigned int radio_if2;
-
-	/* used by tda8290 */
-	unsigned char tda8290_easy_mode;
-	unsigned char tda827x_lpsel;
-	unsigned char tda827x_addr;
-	unsigned char tda827x_ver;
-	unsigned int sgIF;
-
-	unsigned int config;
-	int (*tuner_callback) (void *dev, int command,int arg);
-
-	/* function ptrs */
-	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);
-	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
-	int  (*has_signal)(struct i2c_client *c);
-	int  (*is_stereo)(struct i2c_client *c);
-	int  (*get_afc)(struct i2c_client *c);
-	void (*tuner_status)(struct i2c_client *c);
-	void (*standby)(struct i2c_client *c);
-};
-
-extern unsigned const int tuner_count;
-
-extern int microtune_init(struct i2c_client *c);
-extern int xc3028_init(struct i2c_client *c);
-extern int tda8290_init(struct i2c_client *c);
-extern int tda8290_probe(struct i2c_client *c);
-extern int tea5767_tuner_init(struct i2c_client *c);
-extern int default_tuner_init(struct i2c_client *c);
-extern int tea5767_autodetection(struct i2c_client *c);
-extern int tda9887_tuner_init(struct i2c_client *c);
-
-#define tuner_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
-			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
-#define tuner_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
-			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
-#define tuner_dbg(fmt, arg...) do {\
-	extern int tuner_debug; \
-	if (tuner_debug) \
-		printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
-			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
 #endif /* __KERNEL__ */
 

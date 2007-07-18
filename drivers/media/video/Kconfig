@@ -489,6 +489,15 @@ config TUNER_3036
 	  Say Y here to include support for Philips SAB3036 compatible tuners.
 	  If in doubt, say N.
 
+config TUNER_TEA5761
+	bool "TEA 5761 radio tuner (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on I2C
+	select VIDEO_TUNER
+	help
+	  Say Y here to include support for Philips TEA5761 radio tuner.
+	  If in doubt, say N.
+
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
 	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2

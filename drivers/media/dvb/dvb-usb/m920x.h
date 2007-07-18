@@ -18,6 +18,7 @@
 #define M9206_FW	0x30
 
 #define M9206_MAX_FILTERS 8
+#define M9206_MAX_ADAPTERS 2
 
 /*
 sequences found in logs:
@@ -60,8 +61,8 @@ response to a write, is unknown.
 */
 
 struct m920x_state {
-	u16 filters[M9206_MAX_FILTERS];
-	int filtering_enabled;
+	u16 filters[M9206_MAX_ADAPTERS][M9206_MAX_FILTERS];
+	int filtering_enabled[M9206_MAX_ADAPTERS];
 	int rep_count;
 };
 

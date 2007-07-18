@@ -37,6 +37,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/i2c-id.h>
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
 
@@ -60,21 +61,22 @@ MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults
 
 /* ----------------------------------------------------------------------- */
 
-static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
+			       int size, int offset)
 {
-	unsigned char buf[3];
+	unsigned char buf[6];
 	int start, range, toggle, dev, code;
 
 	/* poll IR chip */
-	if (3 != i2c_master_recv(&ir->c,buf,3))
+	if (size != i2c_master_recv(&ir->c,buf,size))
 		return -EIO;
 
 	/* split rc5 data block ... */
-	start  = (buf[0] >> 7) &    1;
-	range  = (buf[0] >> 6) &    1;
-	toggle = (buf[0] >> 5) &    1;
-	dev    =  buf[0]       & 0x1f;
-	code   = (buf[1] >> 2) & 0x3f;
+	start  = (buf[offset] >> 7) &    1;
+	range  = (buf[offset] >> 6) &    1;
+	toggle = (buf[offset] >> 5) &    1;
+	dev    =  buf[offset]       & 0x1f;
+	code   = (buf[offset+1] >> 2) & 0x3f;
 
 	/* rc5 has two start bits
 	 * the first bit must be one
@@ -94,6 +96,16 @@ static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_key = code;
 	*ir_raw = (start << 12) | (toggle << 11) | (dev << 6) | code;
 	return 1;
+}
+
+static inline int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	return get_key_haup_common (ir, ir_key, ir_raw, 3, 0);
+}
+
+static inline int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
 }
 
 static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
@@ -270,8 +282,9 @@ static void ir_timer(unsigned long data)
 static void ir_work(struct work_struct *work)
 {
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
+
 	ir_key_poll(ir);
-	mod_timer(&ir->timer, jiffies+HZ/10);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(100));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -354,9 +367,21 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	case 0x7a:
 	case 0x47:
 	case 0x71:
-		/* Handled by saa7134-input */
-		name        = "SAA713x remote";
-		ir_type     = IR_TYPE_OTHER;
+		if (adap->id == I2C_HW_B_CX2388x) {
+			/* Handled by cx88-input */
+			name        = "CX2388x remote";
+			ir_type     = IR_TYPE_RC5;
+			ir->get_key = get_key_haup_xvr;
+			if (hauppauge == 1) {
+				ir_codes    = ir_codes_hauppauge_new;
+			} else {
+				ir_codes    = ir_codes_rc5_tv;
+			}
+		} else {
+			/* Handled by saa7134-input */
+			name        = "SAA713x remote";
+			ir_type     = IR_TYPE_OTHER;
+		}
 		break;
 	default:
 		/* shouldn't happen */
@@ -450,6 +475,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
 	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
+	static const int probe_cx88[] = { 0x18, 0x71, -1 };
 	const int *probe = NULL;
 	struct i2c_client c;
 	unsigned char buf;
@@ -467,6 +493,9 @@ static int ir_probe(struct i2c_adapter *adap)
 		break;
 	case I2C_HW_B_EM28XX:
 		probe = probe_em28XX;
+		break;
+	case I2C_HW_B_CX2388x:
+		probe = probe_cx88;
 		break;
 	}
 	if (NULL == probe)

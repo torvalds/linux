@@ -80,8 +80,12 @@ config VIDEO_BUF_DVB
 config VIDEO_BTCX
 	tristate
 
+config VIDEO_IR_I2C
+	tristate
+
 config VIDEO_IR
 	tristate
+	select VIDEO_IR_I2C if I2C
 
 config VIDEO_TVEEPROM
 	tristate

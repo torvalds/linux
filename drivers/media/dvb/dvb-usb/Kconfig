@@ -2,7 +2,6 @@ config DVB_USB
 	tristate "Support for various USB DVB devices"
 	depends on DVB_CORE && USB && I2C
 	select FW_LOADER
-	select DVB_PLL
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
@@ -27,13 +26,14 @@ config DVB_USB_A800
 	depends on DVB_USB
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AVerMedia AverTV DVB-T USB 2.0 (A800) receiver.
 
 config DVB_USB_DIBUSB_MB
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-B) (see help for device list)"
 	depends on DVB_USB
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MB
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
@@ -89,7 +89,7 @@ config DVB_USB_DIB0700
 config DVB_USB_UMT_010
 	tristate "HanfTek UMT-010 DVB-T USB2.0 support"
 	depends on DVB_USB
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
@@ -98,7 +98,7 @@ config DVB_USB_UMT_010
 config DVB_USB_CXUSB
 	tristate "Conexant USB2.0 hybrid reference design support"
 	depends on DVB_USB
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_CX22702 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
@@ -142,7 +142,7 @@ config DVB_USB_AU6610
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
 	depends on DVB_USB
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_NXT6000 if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	help
@@ -188,6 +188,7 @@ config DVB_USB_NOVA_T_USB2
 	depends on DVB_USB
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 
@@ -216,5 +217,23 @@ config DVB_USB_OPERA1
 	tristate "Opera1 DVB-S USB2.0 receiver"
 	depends on DVB_USB
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Opera DVB-S USB2.0 receiver.
+
+config DVB_USB_AF9005
+	tristate "Afatech AF9005 DVB-T USB1.1 support"
+	depends on DVB_USB && EXPERIMENTAL
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Afatech AF9005 based DVB-T USB1.1 receiver
+	  and the TerraTec Cinergy T USB XE (Rev.1)
+
+config DVB_USB_AF9005_REMOTE
+	tristate "Afatech AF9005 default remote control support"
+	depends on DVB_USB_AF9005
+	help
+	  Say Y here to support the default remote control decoding for the
+	  Afatech AF9005 based receiver.
+

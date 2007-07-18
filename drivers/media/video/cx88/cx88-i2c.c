@@ -160,7 +160,7 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 }
 
-static struct i2c_algo_bit_data cx8800_i2c_algo_template = {
+static const struct i2c_algo_bit_data cx8800_i2c_algo_template = {
 	.setsda  = cx8800_bit_setsda,
 	.setscl  = cx8800_bit_setscl,
 	.getsda  = cx8800_bit_getsda,
@@ -170,18 +170,6 @@ static struct i2c_algo_bit_data cx8800_i2c_algo_template = {
 };
 
 /* ----------------------------------------------------------------------- */
-
-static struct i2c_adapter cx8800_i2c_adap_template = {
-	.name              = "cx2388x",
-	.owner             = THIS_MODULE,
-	.id                = I2C_HW_B_CX2388x,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
-};
-
-static struct i2c_client cx8800_i2c_client_template = {
-	.name	= "cx88xx internal",
-};
 
 static char *i2c_devs[128] = {
 	[ 0x1c >> 1 ] = "lgdt330x",
@@ -212,14 +200,9 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 	/* Prevents usage of invalid delay values */
 	if (i2c_udelay<5)
 		i2c_udelay=5;
-	cx8800_i2c_algo_template.udelay=i2c_udelay;
 
-	memcpy(&core->i2c_adap, &cx8800_i2c_adap_template,
-	       sizeof(core->i2c_adap));
 	memcpy(&core->i2c_algo, &cx8800_i2c_algo_template,
 	       sizeof(core->i2c_algo));
-	memcpy(&core->i2c_client, &cx8800_i2c_client_template,
-	       sizeof(core->i2c_client));
 
 	if (core->tuner_type != TUNER_ABSENT)
 		core->i2c_adap.class |= I2C_CLASS_TV_ANALOG;
@@ -228,10 +211,16 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	core->i2c_adap.dev.parent = &pci->dev;
 	strlcpy(core->i2c_adap.name,core->name,sizeof(core->i2c_adap.name));
+	core->i2c_adap.owner = THIS_MODULE;
+	core->i2c_adap.id = I2C_HW_B_CX2388x;
+	core->i2c_adap.client_register = attach_inform;
+	core->i2c_adap.client_unregister = detach_inform;
+	core->i2c_algo.udelay = i2c_udelay;
 	core->i2c_algo.data = core;
 	i2c_set_adapdata(&core->i2c_adap,core);
 	core->i2c_adap.algo_data = &core->i2c_algo;
 	core->i2c_client.adapter = &core->i2c_adap;
+	strlcpy(core->i2c_client.name, "cx88xx internal", I2C_NAME_SIZE);
 
 	cx8800_bit_setscl(core,1);
 	cx8800_bit_setsda(core,1);

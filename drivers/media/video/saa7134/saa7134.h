@@ -238,6 +238,7 @@ struct saa7134_format {
 #define SAA7134_BOARD_ECS_TVP3XP_4CB6  113
 #define SAA7134_BOARD_KWORLD_DVBT_210 114
 #define SAA7134_BOARD_SABRENT_TV_PCB05     115
+#define SAA7134_BOARD_10MOONSTVMASTER3     116
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -327,10 +328,7 @@ struct saa7134_pgtable {
 
 /* tvaudio thread status */
 struct saa7134_thread {
-	pid_t                      pid;
-	struct completion          exit;
-	wait_queue_head_t          wq;
-	unsigned int               shutdown;
+	struct task_struct         *thread;
 	unsigned int               scan1;
 	unsigned int               scan2;
 	unsigned int               mode;

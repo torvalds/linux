@@ -219,31 +219,23 @@ ssize_t ivtv_write_vbi(struct ivtv *itv, const char __user *ubuf, size_t count)
 	int found_cc = 0;
 	int cc_pos = itv->vbi.cc_pos;
 
-	if (itv->vbi.service_set_out == 0)
-		return -EPERM;
-
 	while (count >= sizeof(struct v4l2_sliced_vbi_data)) {
 		switch (p->id) {
 		case V4L2_SLICED_CAPTION_525:
-			if (p->id == V4L2_SLICED_CAPTION_525 &&
-			    p->line == 21 &&
-			    (itv->vbi.service_set_out &
-				V4L2_SLICED_CAPTION_525) == 0) {
-				break;
-			}
-			found_cc = 1;
-			if (p->field) {
-				cc[2] = p->data[0];
-				cc[3] = p->data[1];
-			} else {
-				cc[0] = p->data[0];
-				cc[1] = p->data[1];
+			if (p->line == 21) {
+				found_cc = 1;
+				if (p->field) {
+					cc[2] = p->data[0];
+					cc[3] = p->data[1];
+				} else {
+					cc[0] = p->data[0];
+					cc[1] = p->data[1];
+				}
 			}
 			break;
 
 		case V4L2_SLICED_VPS:
-			if (p->line == 16 && p->field == 0 &&
-			    (itv->vbi.service_set_out & V4L2_SLICED_VPS)) {
+			if (p->line == 16 && p->field == 0) {
 				itv->vbi.vps[0] = p->data[2];
 				itv->vbi.vps[1] = p->data[8];
 				itv->vbi.vps[2] = p->data[9];
@@ -255,8 +247,7 @@ ssize_t ivtv_write_vbi(struct ivtv *itv, const char __user *ubuf, size_t count)
 			break;
 
 		case V4L2_SLICED_WSS_625:
-			if (p->line == 23 && p->field == 0 &&
-			    (itv->vbi.service_set_out & V4L2_SLICED_WSS_625)) {
+			if (p->line == 23 && p->field == 0) {
 				/* No lock needed for WSS */
 				itv->vbi.wss = p->data[0] | (p->data[1] << 8);
 				itv->vbi.wss_found = 1;

@@ -66,7 +66,7 @@
  65 -> Lifeview FlyVideo 2000S LR90
  66 -> Terratec TValueRadio                                [153b:1135,153b:ff3b]
  67 -> IODATA GV-BCTV4/PCI                                 [10fc:4050]
- 68 -> 3Dfx VoodooTV FM (Euro), VoodooTV 200 (USA)         [121a:3000,10b4:2637]
+ 68 -> 3Dfx VoodooTV FM (Euro)                             [10b4:2637]
  69 -> Active Imaging AIMMS
  70 -> Prolink Pixelview PV-BT878P+ (Rev.4C,8E)
  71 -> Lifeview FlyVideo 98EZ (capture only) LR51          [1851:1851]
@@ -145,3 +145,5 @@
 144 -> MagicTV
 145 -> SSAI Security Video Interface                       [4149:5353]
 146 -> SSAI Ultrasound Video Interface                     [414a:5353]
+147 -> VoodooTV 200 (USA)                                  [121a:3000]
+148 -> DViCO FusionHDTV 2                                  [dbc0:d200]

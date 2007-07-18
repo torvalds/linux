@@ -157,8 +157,7 @@ static int msp_read(struct i2c_client *client, int dev, int addr)
 			break;
 		v4l_warn(client, "I/O error #%d (read 0x%02x/0x%02x)\n", err,
 		       dev, addr);
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(msecs_to_jiffies(10));
+		schedule_timeout_interruptible(msecs_to_jiffies(10));
 	}
 	if (err == 3) {
 		v4l_warn(client, "giving up, resetting chip. Sound will go off, sorry folks :-|\n");
@@ -197,8 +196,7 @@ static int msp_write(struct i2c_client *client, int dev, int addr, int val)
 			break;
 		v4l_warn(client, "I/O error #%d (write 0x%02x/0x%02x)\n", err,
 		       dev, addr);
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(msecs_to_jiffies(10));
+		schedule_timeout_interruptible(msecs_to_jiffies(10));
 	}
 	if (err == 3) {
 		v4l_warn(client, "giving up, resetting chip. Sound will go off, sorry folks :-|\n");

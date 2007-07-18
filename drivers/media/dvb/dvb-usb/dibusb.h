@@ -99,6 +99,7 @@
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
 	int mt2060_present;
+	u8 tuner_addr;
 };
 
 struct dibusb_device_state {

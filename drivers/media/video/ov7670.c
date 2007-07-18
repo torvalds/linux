@@ -617,7 +617,7 @@ static struct ov7670_win_size {
 	},
 };
 
-#define N_WIN_SIZES (sizeof(ov7670_win_sizes)/sizeof(ov7670_win_sizes[0]))
+#define N_WIN_SIZES (ARRAY_SIZE(ov7670_win_sizes))
 
 
 /*
@@ -1183,7 +1183,7 @@ static struct ov7670_control {
 		.query = ov7670_q_hflip,
 	},
 };
-#define N_CONTROLS (sizeof(ov7670_controls)/sizeof(ov7670_controls[0]))
+#define N_CONTROLS (ARRAY_SIZE(ov7670_controls))
 
 static struct ov7670_control *ov7670_find_control(__u32 id)
 {

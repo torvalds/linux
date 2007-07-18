@@ -356,7 +356,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 		input_dev->id.vendor = av7110->dev->pci->vendor;
 		input_dev->id.product = av7110->dev->pci->device;
 	}
-	input_dev->cdev.dev = &av7110->dev->pci->dev;
+	input_dev->dev.parent = &av7110->dev->pci->dev;
 	/* initial keymap */
 	memcpy(av7110->ir.key_map, default_key_map, sizeof av7110->ir.key_map);
 	input_register_keys(&av7110->ir);

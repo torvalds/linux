@@ -1335,6 +1335,26 @@ struct cx88_board cx88_boards[] = {
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 	},
+	[CX88_BOARD_ADSTECH_PTV_390] = {
+		.name           = "ADS Tech Instant Video PCI",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DEBUG,
+			.vmux   = 3,
+			.gpio0  = 0x04ff,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x07fa,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x07fa,
+		}},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1641,6 +1661,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1421,
 		.subdevice = 0x0341, /* ADS Tech InstantTV DVB-S */
 		.card      = CX88_BOARD_KWORLD_DVBS_100,
+	},{
+		.subvendor = 0x1421,
+		.subdevice = 0x0390,
+		.card      = CX88_BOARD_ADSTECH_PTV_390,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);

@@ -268,6 +268,8 @@ extern const u32 yuv_offset[4];
 #define IVTV_DBGFLG_IRQ   (1 << 6)
 #define IVTV_DBGFLG_DEC   (1 << 7)
 #define IVTV_DBGFLG_YUV   (1 << 8)
+/* Flag to turn on high volume debugging */
+#define IVTV_DBGFLG_HIGHVOL (1 << 9)
 
 /* NOTE: extra space before comma in 'itv->num , ## args' is required for
    gcc-2.95, otherwise it won't compile. */
@@ -285,6 +287,21 @@ extern const u32 yuv_offset[4];
 #define IVTV_DEBUG_IRQ(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_IRQ, "irq", fmt , ## args)
 #define IVTV_DEBUG_DEC(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
 #define IVTV_DEBUG_YUV(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
+
+#define IVTV_DEBUG_HIGH_VOL(x, type, fmt, args...) \
+	do { \
+		if (((x) & ivtv_debug) && (ivtv_debug & IVTV_DBGFLG_HIGHVOL)) \
+			printk(KERN_INFO "ivtv%d " type ": " fmt, itv->num , ## args); \
+	} while (0)
+#define IVTV_DEBUG_HI_WARN(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_WARN, "warning", fmt , ## args)
+#define IVTV_DEBUG_HI_INFO(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_INFO, "info",fmt , ## args)
+#define IVTV_DEBUG_HI_API(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_API, "api", fmt , ## args)
+#define IVTV_DEBUG_HI_DMA(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DMA, "dma", fmt , ## args)
+#define IVTV_DEBUG_HI_IOCTL(fmt, args...) IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_IOCTL, "ioctl", fmt , ## args)
+#define IVTV_DEBUG_HI_I2C(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_I2C, "i2c", fmt , ## args)
+#define IVTV_DEBUG_HI_IRQ(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_IRQ, "irq", fmt , ## args)
+#define IVTV_DEBUG_HI_DEC(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
+#define IVTV_DEBUG_HI_YUV(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
 
 #define IVTV_FB_DEBUG(x, type, fmt, args...) \
 	do { \
@@ -650,7 +667,6 @@ struct vbi_info {
 	/* convenience pointer to sliced struct in vbi_in union */
 	struct v4l2_sliced_vbi_format *sliced_in;
 	u32 service_set_in;
-	u32 service_set_out;
 	int insert_mpeg;
 
 	/* Buffer for the maximum of 2 * 18 * packet_size sliced VBI lines.
@@ -723,6 +739,7 @@ struct ivtv {
 	int search_pack_header;
 
 	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
+	struct mutex serialize_lock;  /* lock used to serialize starting streams */
 
 	/* User based DMA for OSD */
 	struct ivtv_user_dma udma;

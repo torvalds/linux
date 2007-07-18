@@ -263,7 +263,7 @@ static int opera1_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(
 		dvb_pll_attach, adap->fe, 0xc0>>1,
-		&adap->dev->i2c_adap, &dvb_pll_opera1
+		&adap->dev->i2c_adap, DVB_PLL_OPERA1
 	);
 	return 0;
 }
@@ -435,9 +435,9 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 {
 	const struct firmware *fw = NULL;
 	u8 *b, *p;
-	int ret = 0, i;
+	int ret = 0, i,fpgasize=40;
 	u8 testval;
-	info("start downloading fpga firmware");
+	info("start downloading fpga firmware %s",filename);
 
 	if ((ret = request_firmware(&fw, filename, &dev->dev)) != 0) {
 		err("did not find the firmware file. (%s) "
@@ -454,17 +454,20 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 			/* clear fpga ? */
 			opera1_xilinx_rw(dev, 0xbc, 0xaa, &fpga_command, 1,
 					 OPERA_WRITE_MSG);
-			for (i = 0; p[i] != 0 && i < fw->size;) {
+			for (i = 0; i < fw->size;) {
+				if ( (fw->size - i) <fpgasize){
+				    fpgasize=fw->size-i;
+				}
 				b = (u8 *) p + i;
 				if (opera1_xilinx_rw
-					(dev, OPERA_WRITE_FX2, 0x0, b + 1, b[0],
-						OPERA_WRITE_MSG) != b[0]
+					(dev, OPERA_WRITE_FX2, 0x0, b , fpgasize,
+						OPERA_WRITE_MSG) != fpgasize
 					) {
 					err("error while transferring firmware");
 					ret = -EINVAL;
 					break;
 				}
-				i = i + 1 + b[0];
+				i = i + fpgasize;
 			}
 			/* restart the CPU */
 			if (ret || opera1_xilinx_rw
@@ -534,18 +537,16 @@ static struct dvb_usb_device_properties opera1_properties = {
 static int opera1_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
 	struct usb_device *udev = interface_to_usbdev(intf);
 
 	if (udev->descriptor.idProduct == USB_PID_OPERA1_WARM &&
 		udev->descriptor.idVendor == USB_VID_OPERA1 &&
-		(d == NULL
-			|| opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga.fw") != 0)
-		) {
+		opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga-01.fw") != 0
+	    ) {
 		return -EINVAL;
 	}
 
-	if (dvb_usb_device_init(intf, &opera1_properties, THIS_MODULE, &d) != 0)
+	if (dvb_usb_device_init(intf, &opera1_properties, THIS_MODULE, NULL) != 0)
 		return -EINVAL;
 	return 0;
 }

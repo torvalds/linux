@@ -56,8 +56,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
 /* ------------------------------------------------------------------ */
 
-#define OLD_BLACKBIRD_FIRM_IMAGE_SIZE 262144
-#define     BLACKBIRD_FIRM_IMAGE_SIZE 376836
+#define BLACKBIRD_FIRM_IMAGE_SIZE 376836
 
 /* defines below are from ivtv-driver.h */
 
@@ -405,7 +404,7 @@ static int blackbird_find_mailbox(struct cx8802_dev *dev)
 	u32 value;
 	int i;
 
-	for (i = 0; i < dev->fw_size; i++) {
+	for (i = 0; i < BLACKBIRD_FIRM_IMAGE_SIZE; i++) {
 		memory_read(dev->core, i, &value);
 		if (value == signature[signaturecnt])
 			signaturecnt++;
@@ -453,15 +452,12 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 		return -1;
 	}
 
-	if ((firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) &&
-	    (firmware->size != OLD_BLACKBIRD_FIRM_IMAGE_SIZE)) {
-		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d or %d)\n",
-			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE,
-			OLD_BLACKBIRD_FIRM_IMAGE_SIZE);
+	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
+		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d)\n",
+			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
 	}
-	dev->fw_size = firmware->size;
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
 		dprintk(0, "ERROR: Firmware magic mismatch, wrong file?\n");

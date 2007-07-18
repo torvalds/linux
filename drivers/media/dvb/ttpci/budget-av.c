@@ -828,29 +828,6 @@ static u8 philips_sd1878_inittab[] = {
 	0xff, 0xff
 };
 
-static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
-						   struct dvb_frontend_parameters *params)
-{
-	u8              buf[4];
-	int             rc;
-	struct i2c_msg  tuner_msg = {.addr=0x60,.flags=0,.buf=buf,.len=sizeof(buf)};
-	struct budget *budget = (struct budget *) fe->dvb->priv;
-
-	if((params->frequency < 950000) || (params->frequency > 2150000))
-		return -EINVAL;
-
-	rc=dvb_pll_configure(&dvb_pll_philips_sd1878_tda8261, buf,
-			     params->frequency, 0);
-	if(rc < 0) return rc;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if(i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
-		return -EIO;
-
-    return 0;
-}
-
 static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
 		u32 srate, u32 ratio)
 {
@@ -921,6 +898,7 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_TV_STAR		0x0014
 #define SUBID_DVBS_TV_STAR_CI		0x0016
 #define SUBID_DVBS_EASYWATCH_1  	0x001a
+#define SUBID_DVBS_EASYWATCH_2  	0x001b
 #define SUBID_DVBS_EASYWATCH		0x001e
 
 #define SUBID_DVBC_EASYWATCH		0x002a
@@ -982,10 +960,13 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_TV_STAR_CI:
 	case SUBID_DVBS_CYNERGY1200N:
 	case SUBID_DVBS_EASYWATCH:
+	case SUBID_DVBS_EASYWATCH_2:
 		fe = dvb_attach(stv0299_attach, &philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops.tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
+			dvb_attach(dvb_pll_attach, fe, 0x60,
+				   &budget_av->budget.i2c_adap,
+				   DVB_PLL_PHILIPS_SD1878_TDA8261);
 		}
 		break;
 
@@ -1264,6 +1245,7 @@ MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls, "Satelco EasyWatch DVB-S light", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls1, "Satelco EasyWatch DVB-S light", BUDGET_KNC1S);
+MAKE_BUDGET_INFO(satewps, "Satelco EasyWatch DVB-S", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(satewplc, "Satelco EasyWatch DVB-C", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(satewcmk3, "Satelco EasyWatch DVB-C MK3", BUDGET_KNC1C_MK3);
 MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
@@ -1287,6 +1269,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
 	MAKE_EXTENSION_PCI(satewpls1, 0x1894, 0x001a),
+	MAKE_EXTENSION_PCI(satewps, 0x1894, 0x001b),
 	MAKE_EXTENSION_PCI(satewplc, 0x1894, 0x002a),
 	MAKE_EXTENSION_PCI(satewcmk3, 0x1894, 0x002c),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),

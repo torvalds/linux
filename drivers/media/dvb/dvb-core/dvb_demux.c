@@ -1068,7 +1068,7 @@ static int dvbdmx_write(struct dmx_demux *demux, const char *buf, size_t count)
 
 	if (mutex_lock_interruptible(&dvbdemux->mutex))
 		return -ERESTARTSYS;
-	dvb_dmx_swfilter(dvbdemux, buf, count);
+	dvb_dmx_swfilter(dvbdemux, (u8 *)buf, count);
 	mutex_unlock(&dvbdemux->mutex);
 
 	if (signal_pending(current))

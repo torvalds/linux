@@ -829,7 +829,7 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 	input_dev->id.vendor = cinergyt2->udev->descriptor.idVendor;
 	input_dev->id.product = cinergyt2->udev->descriptor.idProduct;
 	input_dev->id.version = 1;
-	input_dev->cdev.dev = &cinergyt2->udev->dev;
+	input_dev->dev.parent = &cinergyt2->udev->dev;
 
 	err = input_register_device(input_dev);
 	if (err) {
@@ -1000,18 +1000,15 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (cinergyt2->disconnect_pending || mutex_lock_interruptible(&cinergyt2->wq_sem))
 		return -ERESTARTSYS;
 
-	if (1) {
-		cinergyt2_suspend_rc(cinergyt2);
-		cancel_rearming_delayed_work(&cinergyt2->query_work);
+	cinergyt2_suspend_rc(cinergyt2);
+	cancel_rearming_delayed_work(&cinergyt2->query_work);
 
-		mutex_lock(&cinergyt2->sem);
-		if (cinergyt2->streaming)
-			cinergyt2_stop_stream_xfer(cinergyt2);
-		cinergyt2_sleep(cinergyt2, 1);
-		mutex_unlock(&cinergyt2->sem);
-	}
+	mutex_lock(&cinergyt2->sem);
+	if (cinergyt2->streaming)
+		cinergyt2_stop_stream_xfer(cinergyt2);
+	cinergyt2_sleep(cinergyt2, 1);
+	mutex_unlock(&cinergyt2->sem);
 
-	mutex_unlock(&cinergyt2->wq_sem);
 	return 0;
 }
 

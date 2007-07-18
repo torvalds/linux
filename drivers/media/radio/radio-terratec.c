@@ -369,7 +369,6 @@ static struct video_device terratec_radio=
 	.owner		= THIS_MODULE,
 	.name		= "TerraTec ActiveRadio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &terratec_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
