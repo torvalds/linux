@@ -2777,23 +2777,16 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 }
 EXPORT_SYMBOL(dev_unicast_add);
 
-static void dev_unicast_discard(struct net_device *dev)
+static void dev_addr_discard(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
+
 	__dev_addr_discard(&dev->uc_list);
 	dev->uc_count = 0;
-	netif_tx_unlock_bh(dev);
-}
 
-/*
- *	Discard multicast list when a device is downed
- */
-
-static void dev_mc_discard(struct net_device *dev)
-{
-	netif_tx_lock_bh(dev);
 	__dev_addr_discard(&dev->mc_list);
 	dev->mc_count = 0;
+
 	netif_tx_unlock_bh(dev);
 }
 
@@ -3751,8 +3744,7 @@ void unregister_netdevice(struct net_device *dev)
 	/*
 	 *	Flush the unicast and multicast chains
 	 */
-	dev_unicast_discard(dev);
-	dev_mc_discard(dev);
+	dev_addr_discard(dev);
 
 	if (dev->uninit)
 		dev->uninit(dev);
