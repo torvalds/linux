@@ -1629,13 +1629,14 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int nreq;
 	int i;
 	int size;
-	int size0 = 0;
 	/*
-	 * f0 is only used if nreq != 0, and f0 will be initialized
-	 * the first time through the main loop, since size0 == 0 the
-	 * first time through.  So nreq cannot become non-zero without
-	 * initializing f0, and f0 is in fact never used uninitialized.
+	 * f0 and size0 are only used if nreq != 0, and they will
+	 * always be initialized the first time through the main loop
+	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * without initializing f0 and size0, and they are in fact
+	 * never used uninitialized.
 	 */
+	int uninitialized_var(size0);
 	u32 uninitialized_var(f0);
 	int ind;
 	u8 op0 = 0;
@@ -1780,11 +1781,11 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				    mthca_opcode[wr->opcode]);
 		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
-			cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size |
+			cpu_to_be32((nreq ? 0 : MTHCA_NEXT_DBD) | size |
 				    ((wr->send_flags & IB_SEND_FENCE) ?
 				    MTHCA_NEXT_FENCE : 0));
 
-		if (!size0) {
+		if (!nreq) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
 			f0    = wr->send_flags & IB_SEND_FENCE ?
@@ -1834,7 +1835,14 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	int nreq;
 	int i;
 	int size;
-	int size0 = 0;
+	/*
+	 * size0 is only used if nreq != 0, and it will always be
+	 * initialized the first time through the main loop before
+	 * nreq is incremented.  So nreq cannot become non-zero
+	 * without initializing size0, and it is in fact never used
+	 * uninitialized.
+	 */
+	int uninitialized_var(size0);
 	int ind;
 	void *wqe;
 	void *prev_wqe;
@@ -1888,7 +1896,7 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
 			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
-		if (!size0)
+		if (!nreq)
 			size0 = size;
 
 		++ind;
@@ -1910,7 +1918,6 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 			qp->rq.next_ind = ind;
 			qp->rq.head += MTHCA_TAVOR_MAX_WQES_PER_RECV_DB;
-			size0 = 0;
 		}
 	}
 
@@ -1952,13 +1959,14 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int nreq;
 	int i;
 	int size;
-	int size0 = 0;
 	/*
-	 * f0 is only used if nreq != 0, and f0 will be initialized
-	 * the first time through the main loop, since size0 == 0 the
-	 * first time through.  So nreq cannot become non-zero without
-	 * initializing f0, and f0 is in fact never used uninitialized.
+	 * f0 and size0 are only used if nreq != 0, and they will
+	 * always be initialized the first time through the main loop
+	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * without initializing f0 and size0, and they are in fact
+	 * never used uninitialized.
 	 */
+	int uninitialized_var(size0);
 	u32 uninitialized_var(f0);
 	int ind;
 	u8 op0 = 0;
@@ -1979,7 +1987,6 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			doorbell[1] = cpu_to_be32((qp->qpn << 8) | size0);
 
 			qp->sq.head += MTHCA_ARBEL_MAX_WQES_PER_SEND_DB;
-			size0 = 0;
 
 			/*
 			 * Make sure that descriptors are written before
@@ -2133,7 +2140,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				    ((wr->send_flags & IB_SEND_FENCE) ?
 				     MTHCA_NEXT_FENCE : 0));
 
-		if (!size0) {
+		if (!nreq) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
 			f0    = wr->send_flags & IB_SEND_FENCE ?
