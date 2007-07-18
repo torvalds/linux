@@ -193,7 +193,7 @@ static struct intc_sense_reg sense_registers[] = {
 static DECLARE_INTC_DESC(intc_desc, "sh7722", vectors, groups, priorities,
 			 mask_registers, prio_registers, sense_registers);
 
-void __init init_IRQ_ipr(void)
+void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
 }

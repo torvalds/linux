@@ -109,11 +109,6 @@ static struct intc2_desc intc2_irq_desc __read_mostly = {
 	},
 };
 
-void __init init_IRQ_intc2(void)
-{
-	register_intc2_controller(&intc2_irq_desc);
-}
-
 static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, priority */
 	{ 16, 0, 12, 2 }, /* TMU0 TUNI*/
@@ -163,7 +158,8 @@ static struct ipr_desc ipr_irq_desc = {
 	},
 };
 
-void __init init_IRQ_ipr(void)
+void __init plat_irq_setup(void)
 {
+	register_intc2_controller(&intc2_irq_desc);
 	register_ipr_controller(&ipr_irq_desc);
 }

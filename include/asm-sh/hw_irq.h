@@ -23,7 +23,6 @@ struct intc2_desc {
 };
 
 void register_intc2_controller(struct intc2_desc *);
-void init_IRQ_intc2(void);
 
 struct ipr_data {
 	unsigned char irq;
@@ -41,7 +40,6 @@ struct ipr_desc {
 };
 
 void register_ipr_controller(struct ipr_desc *);
-void init_IRQ_ipr(void);
 
 /*
  * Enable individual interrupt mode for external IPR IRQs.
@@ -114,5 +112,7 @@ struct intc_desc symbol = {						\
 }
 
 void __init register_intc_controller(struct intc_desc *desc);
+
+void __init plat_irq_setup(void);
 
 #endif /* __ASM_SH_HW_IRQ_H */
