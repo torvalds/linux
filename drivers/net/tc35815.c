@@ -626,7 +626,7 @@ static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
 	return -ENODEV;
 }
 #else
-static int __devinit tc35815_read_plat_dev_addr(struct device *dev)
+static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
 {
 	return -ENODEV;
 }
