@@ -20,6 +20,8 @@ unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
 cycle_t xen_clocksource_read(void);
 
+void xen_mark_init_mm_pinned(void);
+
 DECLARE_PER_CPU(enum paravirt_lazy_mode, xen_lazy_mode);
 
 static inline unsigned xen_get_lazy_mode(void)

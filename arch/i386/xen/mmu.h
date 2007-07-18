@@ -15,7 +15,7 @@ void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
 void xen_exit_mmap(struct mm_struct *mm);
 
 void xen_pgd_pin(pgd_t *pgd);
-void xen_pgd_unpin(pgd_t *pgd);
+//void xen_pgd_unpin(pgd_t *pgd);
 
 #ifdef CONFIG_X86_PAE
 unsigned long long xen_pte_val(pte_t);

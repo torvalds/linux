@@ -38,19 +38,22 @@
  *
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
+#include <linux/highmem.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
+#include <asm/paravirt.h>
 
 #include <asm/xen/hypercall.h>
-#include <asm/paravirt.h>
+#include <asm/xen/hypervisor.h>
 
 #include <xen/page.h>
 #include <xen/interface/xen.h>
 
+#include "multicalls.h"
 #include "mmu.h"
 
 xmaddr_t arbitrary_virt_to_machine(unsigned long address)
@@ -92,16 +95,6 @@ void make_lowmem_page_readwrite(void *vaddr)
 }
 
 
-void xen_set_pte(pte_t *ptep, pte_t pte)
-{
-	struct mmu_update u;
-
-	u.ptr = virt_to_machine(ptep).maddr;
-	u.val = pte_val_ma(pte);
-	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
-		BUG();
-}
-
 void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
 	struct mmu_update u;
@@ -111,18 +104,6 @@ void xen_set_pmd(pmd_t *ptr, pmd_t val)
 	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
 		BUG();
 }
-
-#ifdef CONFIG_X86_PAE
-void xen_set_pud(pud_t *ptr, pud_t val)
-{
-	struct mmu_update u;
-
-	u.ptr = virt_to_machine(ptr).maddr;
-	u.val = pud_val_ma(val);
-	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
-		BUG();
-}
-#endif
 
 /*
  * Associate a virtual page frame with a given physical page frame
@@ -170,6 +151,23 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 }
 
 #ifdef CONFIG_X86_PAE
+void xen_set_pud(pud_t *ptr, pud_t val)
+{
+	struct mmu_update u;
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pud_val_ma(val);
+	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
+		BUG();
+}
+
+void xen_set_pte(pte_t *ptep, pte_t pte)
+{
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	set_64bit((u64 *)ptep, pte_val_ma(pte));
@@ -239,6 +237,11 @@ pgd_t xen_make_pgd(unsigned long long pgd)
 	return (pgd_t){ pgd };
 }
 #else  /* !PAE */
+void xen_set_pte(pte_t *ptep, pte_t pte)
+{
+	*ptep = pte;
+}
+
 unsigned long xen_pte_val(pte_t pte)
 {
 	unsigned long ret = pte.pte_low;
@@ -247,13 +250,6 @@ unsigned long xen_pte_val(pte_t pte)
 		ret = machine_to_phys(XMADDR(ret)).paddr;
 
 	return ret;
-}
-
-unsigned long xen_pmd_val(pmd_t pmd)
-{
-	/* a BUG here is a lot easier to track down than a NULL eip */
-	BUG();
-	return 0;
 }
 
 unsigned long xen_pgd_val(pgd_t pgd)
@@ -272,13 +268,6 @@ pte_t xen_make_pte(unsigned long pte)
 	return (pte_t){ pte };
 }
 
-pmd_t xen_make_pmd(unsigned long pmd)
-{
-	/* a BUG here is a lot easier to track down than a NULL eip */
-	BUG();
-	return __pmd(0);
-}
-
 pgd_t xen_make_pgd(unsigned long pgd)
 {
 	if (pgd & _PAGE_PRESENT)
@@ -290,108 +279,199 @@ pgd_t xen_make_pgd(unsigned long pgd)
 
 
 
-static void pgd_walk_set_prot(void *pt, pgprot_t flags)
-{
-	unsigned long pfn = PFN_DOWN(__pa(pt));
-
-	if (HYPERVISOR_update_va_mapping((unsigned long)pt,
-					 pfn_pte(pfn, flags), 0) < 0)
-		BUG();
-}
-
-static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
+/*
+  (Yet another) pagetable walker.  This one is intended for pinning a
+  pagetable.  This means that it walks a pagetable and calls the
+  callback function on each page it finds making up the page table,
+  at every level.  It walks the entire pagetable, but it only bothers
+  pinning pte pages which are below pte_limit.  In the normal case
+  this will be TASK_SIZE, but at boot we need to pin up to
+  FIXADDR_TOP.  But the important bit is that we don't pin beyond
+  there, because then we start getting into Xen's ptes.
+*/
+static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, unsigned),
+		    unsigned long limit)
 {
 	pgd_t *pgd = pgd_base;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int    g, u, m;
+	int flush = 0;
+	unsigned long addr = 0;
+	unsigned long pgd_next;
+
+	BUG_ON(limit > FIXADDR_TOP);
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
+		return 0;
 
-	for (g = 0; g < USER_PTRS_PER_PGD; g++, pgd++) {
-		if (pgd_none(*pgd))
+	for (; addr != FIXADDR_TOP; pgd++, addr = pgd_next) {
+		pud_t *pud;
+		unsigned long pud_limit, pud_next;
+
+		pgd_next = pud_limit = pgd_addr_end(addr, FIXADDR_TOP);
+
+		if (!pgd_val(*pgd))
 			continue;
+
 		pud = pud_offset(pgd, 0);
 
 		if (PTRS_PER_PUD > 1) /* not folded */
-			pgd_walk_set_prot(pud, flags);
+			flush |= (*func)(virt_to_page(pud), 0);
 
-		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
+		for (; addr != pud_limit; pud++, addr = pud_next) {
+			pmd_t *pmd;
+			unsigned long pmd_limit;
+
+			pud_next = pud_addr_end(addr, pud_limit);
+
+			if (pud_next < limit)
+				pmd_limit = pud_next;
+			else
+				pmd_limit = limit;
+
 			if (pud_none(*pud))
 				continue;
+
 			pmd = pmd_offset(pud, 0);
 
 			if (PTRS_PER_PMD > 1) /* not folded */
-				pgd_walk_set_prot(pmd, flags);
+				flush |= (*func)(virt_to_page(pmd), 0);
 
-			for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
+			for (; addr != pmd_limit; pmd++) {
+				addr += (PAGE_SIZE * PTRS_PER_PTE);
+				if ((pmd_limit-1) < (addr-1)) {
+					addr = pmd_limit;
+					break;
+				}
+
 				if (pmd_none(*pmd))
 					continue;
 
-				/* This can get called before mem_map
-				   is set up, so we assume nothing is
-				   highmem at that point. */
-				if (mem_map == NULL ||
-				    !PageHighMem(pmd_page(*pmd))) {
-					pte = pte_offset_kernel(pmd, 0);
-					pgd_walk_set_prot(pte, flags);
-				}
+				flush |= (*func)(pmd_page(*pmd), 0);
 			}
 		}
 	}
 
-	if (HYPERVISOR_update_va_mapping((unsigned long)pgd_base,
-					 pfn_pte(PFN_DOWN(__pa(pgd_base)),
-						 flags),
-					 UVMF_TLB_FLUSH) < 0)
-		BUG();
+	flush |= (*func)(virt_to_page(pgd_base), UVMF_TLB_FLUSH);
+
+	return flush;
 }
 
+static int pin_page(struct page *page, unsigned flags)
+{
+	unsigned pgfl = test_and_set_bit(PG_pinned, &page->flags);
+	int flush;
 
-/* This is called just after a mm has been duplicated from its parent,
-   but it has not been used yet.  We need to make sure that its
-   pagetable is all read-only, and can be pinned. */
+	if (pgfl)
+		flush = 0;		/* already pinned */
+	else if (PageHighMem(page))
+		/* kmaps need flushing if we found an unpinned
+		   highpage */
+		flush = 1;
+	else {
+		void *pt = lowmem_page_address(page);
+		unsigned long pfn = page_to_pfn(page);
+		struct multicall_space mcs = __xen_mc_entry(0);
+
+		flush = 0;
+
+		MULTI_update_va_mapping(mcs.mc, (unsigned long)pt,
+					pfn_pte(pfn, PAGE_KERNEL_RO),
+					flags);
+	}
+
+	return flush;
+}
+
+/* This is called just after a mm has been created, but it has not
+   been used yet.  We need to make sure that its pagetable is all
+   read-only, and can be pinned. */
 void xen_pgd_pin(pgd_t *pgd)
 {
-	struct mmuext_op op;
+	struct multicall_space mcs;
+	struct mmuext_op *op;
 
-	pgd_walk(pgd, PAGE_KERNEL_RO);
+	xen_mc_batch();
 
-#if defined(CONFIG_X86_PAE)
-	op.cmd = MMUEXT_PIN_L3_TABLE;
+	if (pgd_walk(pgd, pin_page, TASK_SIZE))
+		kmap_flush_unused();
+
+	mcs = __xen_mc_entry(sizeof(*op));
+	op = mcs.args;
+
+#ifdef CONFIG_X86_PAE
+	op->cmd = MMUEXT_PIN_L3_TABLE;
 #else
-	op.cmd = MMUEXT_PIN_L2_TABLE;
+	op->cmd = MMUEXT_PIN_L2_TABLE;
 #endif
-	op.arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0)
-		BUG();
+	op->arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(0);
+}
+
+/* The init_mm pagetable is really pinned as soon as its created, but
+   that's before we have page structures to store the bits.  So do all
+   the book-keeping now. */
+static __init int mark_pinned(struct page *page, unsigned flags)
+{
+	SetPagePinned(page);
+	return 0;
+}
+
+void __init xen_mark_init_mm_pinned(void)
+{
+	pgd_walk(init_mm.pgd, mark_pinned, FIXADDR_TOP);
+}
+
+static int unpin_page(struct page *page, unsigned flags)
+{
+	unsigned pgfl = test_and_clear_bit(PG_pinned, &page->flags);
+
+	if (pgfl && !PageHighMem(page)) {
+		void *pt = lowmem_page_address(page);
+		unsigned long pfn = page_to_pfn(page);
+		struct multicall_space mcs = __xen_mc_entry(0);
+
+		MULTI_update_va_mapping(mcs.mc, (unsigned long)pt,
+					pfn_pte(pfn, PAGE_KERNEL),
+					flags);
+	}
+
+	return 0;		/* never need to flush on unpin */
 }
 
 /* Release a pagetables pages back as normal RW */
-void xen_pgd_unpin(pgd_t *pgd)
+static void xen_pgd_unpin(pgd_t *pgd)
 {
-	struct mmuext_op op;
+	struct mmuext_op *op;
+	struct multicall_space mcs;
 
-	op.cmd = MMUEXT_UNPIN_TABLE;
-	op.arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
+	xen_mc_batch();
 
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0)
-		BUG();
+	mcs = __xen_mc_entry(sizeof(*op));
 
-	pgd_walk(pgd, PAGE_KERNEL);
+	op = mcs.args;
+	op->cmd = MMUEXT_UNPIN_TABLE;
+	op->arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
+
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	pgd_walk(pgd, unpin_page, TASK_SIZE);
+
+	xen_mc_issue(0);
 }
-
 
 void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
+	spin_lock(&next->page_table_lock);
 	xen_pgd_pin(next->pgd);
+	spin_unlock(&next->page_table_lock);
 }
 
 void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
+	spin_lock(&mm->page_table_lock);
 	xen_pgd_pin(mm->pgd);
+	spin_unlock(&mm->page_table_lock);
 }
 
 void xen_exit_mmap(struct mm_struct *mm)

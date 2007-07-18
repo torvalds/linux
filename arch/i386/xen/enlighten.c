@@ -21,6 +21,9 @@
 #include <linux/sched.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/page-flags.h>
+#include <linux/highmem.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/physdev.h>
@@ -500,32 +503,59 @@ static void xen_write_cr3(unsigned long cr3)
 	}
 }
 
+/* Early in boot, while setting up the initial pagetable, assume
+   everything is pinned. */
+static void xen_alloc_pt_init(struct mm_struct *mm, u32 pfn)
+{
+	BUG_ON(mem_map);	/* should only be used early */
+	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
+}
+
+/* This needs to make sure the new pte page is pinned iff its being
+   attached to a pinned pagetable. */
 static void xen_alloc_pt(struct mm_struct *mm, u32 pfn)
 {
-	/* XXX pfn isn't necessarily a lowmem page */
-	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
+	struct page *page = pfn_to_page(pfn);
+
+	if (PagePinned(virt_to_page(mm->pgd))) {
+		SetPagePinned(page);
+
+		if (!PageHighMem(page))
+			make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
+		else
+			/* make sure there are no stray mappings of
+			   this page */
+			kmap_flush_unused();
+	}
 }
 
-static void xen_alloc_pd(u32 pfn)
-{
-	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
-}
-
-static void xen_release_pd(u32 pfn)
-{
-	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
-}
-
+/* This should never happen until we're OK to use struct page */
 static void xen_release_pt(u32 pfn)
 {
-	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
+	struct page *page = pfn_to_page(pfn);
+
+	if (PagePinned(page)) {
+		if (!PageHighMem(page))
+			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
+	}
 }
 
-static void xen_alloc_pd_clone(u32 pfn, u32 clonepfn,
-					u32 start, u32 count)
+#ifdef CONFIG_HIGHPTE
+static void *xen_kmap_atomic_pte(struct page *page, enum km_type type)
 {
-	xen_alloc_pd(pfn);
+	pgprot_t prot = PAGE_KERNEL;
+
+	if (PagePinned(page))
+		prot = PAGE_KERNEL_RO;
+
+	if (0 && PageHighMem(page))
+		printk("mapping highpte %lx type %d prot %s\n",
+		       page_to_pfn(page), type,
+		       (unsigned long)pgprot_val(prot) & _PAGE_RW ? "WRITE" : "READ");
+
+	return kmap_atomic_prot(page, type, prot);
 }
+#endif
 
 static __init void xen_pagetable_setup_start(pgd_t *base)
 {
@@ -553,7 +583,7 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 				memcpy(pmd, (void *)pgd_page_vaddr(xen_pgd[i]),
 				       PAGE_SIZE);
 
-				xen_alloc_pd(PFN_DOWN(__pa(pmd)));
+				make_lowmem_page_readonly(pmd);
 
 				set_pgd(&base[i], __pgd(1 + __pa(pmd)));
 			} else
@@ -574,6 +604,10 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 
 static __init void xen_pagetable_setup_done(pgd_t *base)
 {
+	/* This will work as long as patching hasn't happened yet
+	   (which it hasn't) */
+	paravirt_ops.alloc_pt = xen_alloc_pt;
+
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 		/*
 		 * Create a mapping for the shared info page.
@@ -591,7 +625,19 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 		HYPERVISOR_shared_info =
 			(struct shared_info *)__va(xen_start_info->shared_info);
 
-	xen_pgd_pin(base);
+	/* Actually pin the pagetable down, but we can't set PG_pinned
+	   yet because the page structures don't exist yet. */
+	{
+		struct mmuext_op op;
+#ifdef CONFIG_X86_PAE
+		op.cmd = MMUEXT_PIN_L3_TABLE;
+#else
+		op.cmd = MMUEXT_PIN_L3_TABLE;
+#endif
+		op.arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(base)));
+		if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
+			BUG();
+	}
 
 	xen_vcpu_setup(smp_processor_id());
 }
@@ -608,6 +654,7 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.memory_setup = xen_memory_setup,
 	.arch_setup = xen_arch_setup,
 	.init_IRQ = xen_init_IRQ,
+	.post_allocator_init = xen_mark_init_mm_pinned,
 
 	.time_init = xen_time_init,
 	.set_wallclock = xen_set_wallclock,
@@ -688,11 +735,15 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.pagetable_setup_start = xen_pagetable_setup_start,
 	.pagetable_setup_done = xen_pagetable_setup_done,
 
-	.alloc_pt = xen_alloc_pt,
-	.alloc_pd = xen_alloc_pd,
-	.alloc_pd_clone = xen_alloc_pd_clone,
-	.release_pd = xen_release_pd,
+	.alloc_pt = xen_alloc_pt_init,
 	.release_pt = xen_release_pt,
+	.alloc_pd = paravirt_nop,
+	.alloc_pd_clone = paravirt_nop,
+	.release_pd = paravirt_nop,
+
+#ifdef CONFIG_HIGHPTE
+	.kmap_atomic_pte = xen_kmap_atomic_pte,
+#endif
 
 	.set_pte = xen_set_pte,
 	.set_pte_at = xen_set_pte_at,
