@@ -1049,7 +1049,13 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		printk("\n");
 	}
 
+	memset(&(IPCB(skb2)->opt), 0, sizeof(IPCB(skb2)->opt));
+	IPCB(skb2)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
+			       IPSKB_REROUTED);
+	nf_reset(skb2);
+
 	/* Get routing info from the tunnel socket */
+	dst_release(skb2->dst);
 	skb2->dst = sk_dst_get(sk_tun);
 
 	/* Queue the packet to IP for output */
