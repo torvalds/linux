@@ -747,10 +747,12 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
 static void ftdi_elan_write_bulk_callback(struct urb *urb)
 {
         struct usb_ftdi *ftdi = (struct usb_ftdi *)urb->context;
-        if (urb->status && !(urb->status == -ENOENT || urb->status ==
-                -ECONNRESET || urb->status == -ESHUTDOWN)) {
+	int status = urb->status;
+
+	if (status && !(status == -ENOENT || status == -ECONNRESET ||
+	    status == -ESHUTDOWN)) {
                 dev_err(&ftdi->udev->dev, "urb=%p write bulk status received: %"
-                        "d\n", urb, urb->status);
+                        "d\n", urb, status);
         }
         usb_buffer_free(urb->dev, urb->transfer_buffer_length,
                 urb->transfer_buffer, urb->transfer_dma);
