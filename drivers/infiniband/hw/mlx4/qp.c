@@ -1515,7 +1515,7 @@ static void to_ib_ah_attr(struct mlx4_dev *dev, struct ib_ah_attr *ib_ah_attr,
 		ib_ah_attr->grh.traffic_class =
 			(be32_to_cpu(path->tclass_flowlabel) >> 20) & 0xff;
 		ib_ah_attr->grh.flow_label =
-			be32_to_cpu(path->tclass_flowlabel) & 0xffffff;
+			be32_to_cpu(path->tclass_flowlabel) & 0xfffff;
 		memcpy(ib_ah_attr->grh.dgid.raw,
 			path->rgid, sizeof ib_ah_attr->grh.dgid.raw);
 	}
