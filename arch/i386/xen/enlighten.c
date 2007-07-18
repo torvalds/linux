@@ -291,6 +291,18 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	load_TLS_descriptor(t, cpu, 2);
 
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
+
+	/*
+	 * XXX sleazy hack: If we're being called in a lazy-cpu zone,
+	 * it means we're in a context switch, and %gs has just been
+	 * saved.  This means we can zero it out to prevent faults on
+	 * exit from the hypervisor if the next process has no %gs.
+	 * Either way, it has been saved, and the new value will get
+	 * loaded properly.  This will go away as soon as Xen has been
+	 * modified to not save/restore %gs for normal hypercalls.
+	 */
+	if (xen_get_lazy_mode() == PARAVIRT_LAZY_CPU)
+		loadsegment(gs, 0);
 }
 
 static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
