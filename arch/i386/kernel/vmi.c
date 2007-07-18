@@ -891,7 +891,7 @@ static inline int __init activate_vmi(void)
 		paravirt_ops.setup_boot_clock = vmi_time_bsp_init;
 		paravirt_ops.setup_secondary_clock = vmi_time_ap_init;
 #endif
-		paravirt_ops.get_scheduled_cycles = vmi_get_sched_cycles;
+		paravirt_ops.sched_clock = vmi_sched_clock;
  		paravirt_ops.get_cpu_khz = vmi_cpu_khz;
 
 		/* We have true wallclock functions; disable CMOS clock sync */

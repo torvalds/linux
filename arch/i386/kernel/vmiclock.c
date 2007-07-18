@@ -64,10 +64,10 @@ int vmi_set_wallclock(unsigned long now)
 	return 0;
 }
 
-/* paravirt_ops.get_scheduled_cycles = vmi_get_sched_cycles */
-unsigned long long vmi_get_sched_cycles(void)
+/* paravirt_ops.sched_clock = vmi_sched_clock */
+unsigned long long vmi_sched_clock(void)
 {
-	return vmi_timer_ops.get_cycle_counter(VMI_CYCLES_AVAILABLE);
+	return cycles_2_ns(vmi_timer_ops.get_cycle_counter(VMI_CYCLES_AVAILABLE));
 }
 
 /* paravirt_ops.get_cpu_khz = vmi_cpu_khz */
