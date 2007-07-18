@@ -719,4 +719,5 @@ ia32_sys_call_table:
 	.quad compat_sys_signalfd
 	.quad compat_sys_timerfd
 	.quad sys_eventfd
+	.quad sys32_fallocate
 ia32_syscall_end:
