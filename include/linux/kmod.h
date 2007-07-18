@@ -36,13 +36,51 @@ static inline int request_module(const char * name, ...) { return -ENOSYS; }
 #define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
 
 struct key;
-extern int call_usermodehelper_keys(char *path, char *argv[], char *envp[],
-				    struct key *session_keyring, int wait);
+struct file;
+struct subprocess_info;
+
+/* Allocate a subprocess_info structure */
+struct subprocess_info *call_usermodehelper_setup(char *path,
+						  char **argv, char **envp);
+
+/* Set various pieces of state into the subprocess_info structure */
+void call_usermodehelper_setkeys(struct subprocess_info *info,
+				 struct key *session_keyring);
+int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
+				  struct file **filp);
+void call_usermodehelper_setcleanup(struct subprocess_info *info,
+				    void (*cleanup)(char **argv, char **envp));
+
+/* Actually execute the sub-process */
+int call_usermodehelper_exec(struct subprocess_info *info, int wait);
+
+/* Free the subprocess_info. This is only needed if you're not going
+   to call call_usermodehelper_exec */
+void call_usermodehelper_freeinfo(struct subprocess_info *info);
 
 static inline int
 call_usermodehelper(char *path, char **argv, char **envp, int wait)
 {
-	return call_usermodehelper_keys(path, argv, envp, NULL, wait);
+	struct subprocess_info *info;
+
+	info = call_usermodehelper_setup(path, argv, envp);
+	if (info == NULL)
+		return -ENOMEM;
+	return call_usermodehelper_exec(info, wait);
+}
+
+static inline int
+call_usermodehelper_keys(char *path, char **argv, char **envp,
+			 struct key *session_keyring, int wait)
+{
+	struct subprocess_info *info;
+
+	info = call_usermodehelper_setup(path, argv, envp);
+	if (info == NULL)
+		return -ENOMEM;
+
+	call_usermodehelper_setkeys(info, session_keyring);
+	return call_usermodehelper_exec(info, wait);
 }
 
 extern void usermodehelper_init(void);
