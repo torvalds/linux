@@ -27,10 +27,10 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/rwsem.h>
 
 #include <asm/mmu.h>
 #include <asm/ocp_ids.h>
-#include <asm/rwsem.h>
 #include <asm/semaphore.h>
 
 #ifdef CONFIG_PPC_OCP
