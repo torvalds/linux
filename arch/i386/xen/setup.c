@@ -91,4 +91,6 @@ void __init xen_arch_setup(void)
 	/* fill cpus_possible with all available cpus */
 	xen_fill_possible_map();
 #endif
+
+	paravirt_disable_iospace();
 }
