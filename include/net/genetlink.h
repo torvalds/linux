@@ -5,6 +5,22 @@
 #include <net/netlink.h>
 
 /**
+ * struct genl_multicast_group - generic netlink multicast group
+ * @name: name of the multicast group, names are per-family
+ * @id: multicast group ID, assigned by the core, to use with
+ *      genlmsg_multicast().
+ * @list: list entry for linking
+ * @family: pointer to family, need not be set before registering
+ */
+struct genl_multicast_group
+{
+	struct genl_family	*family;	/* private */
+	struct list_head	list;		/* private */
+	char			name[GENL_NAMSIZ];
+	u32			id;
+};
+
+/**
  * struct genl_family - generic netlink family
  * @id: protocol family idenfitier
  * @hdrsize: length of user specific header in bytes
@@ -14,6 +30,7 @@
  * @attrbuf: buffer to store parsed attributes
  * @ops_list: list of all assigned operations
  * @family_list: family list
+ * @mcast_groups: multicast groups list
  */
 struct genl_family
 {
@@ -25,6 +42,7 @@ struct genl_family
 	struct nlattr **	attrbuf;	/* private */
 	struct list_head	ops_list;	/* private */
 	struct list_head	family_list;	/* private */
+	struct list_head	mcast_groups;	/* private */
 };
 
 /**
@@ -73,6 +91,10 @@ extern int genl_register_family(struct genl_family *family);
 extern int genl_unregister_family(struct genl_family *family);
 extern int genl_register_ops(struct genl_family *, struct genl_ops *ops);
 extern int genl_unregister_ops(struct genl_family *, struct genl_ops *ops);
+extern int genl_register_mc_group(struct genl_family *family,
+				  struct genl_multicast_group *grp);
+extern void genl_unregister_mc_group(struct genl_family *family,
+				     struct genl_multicast_group *grp);
 
 extern struct sock *genl_sock;
 
