@@ -33,7 +33,19 @@ struct eth_addr {
 };
 
 static struct eth_addr __initdata hw_addr[2];
-static struct eth_platform_data __initdata eth_data[2];
+static struct eth_platform_data __initdata eth_data[2] = {
+	{
+		/*
+		 * The MDIO pullups on STK1000 are a bit too weak for
+		 * the autodetection to work properly, so we have to
+		 * mask out everything but the correct address.
+		 */
+		.phy_mask	= ~(1U << 16),
+	},
+	{
+		.phy_mask	= ~(1U << 17),
+	},
+};
 
 #ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 static struct spi_board_info spi0_board_info[] __initdata = {
