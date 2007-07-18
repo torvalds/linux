@@ -26,8 +26,8 @@
 
 #include "multicalls.h"
 
-#define MC_BATCH	8
-#define MC_ARGS		(MC_BATCH * 32 / sizeof(u64))
+#define MC_BATCH	32
+#define MC_ARGS		(MC_BATCH * 16 / sizeof(u64))
 
 struct mc_buffer {
 	struct multicall_entry entries[MC_BATCH];

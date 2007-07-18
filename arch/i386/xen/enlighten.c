@@ -472,28 +472,38 @@ static void xen_apic_write(unsigned long reg, unsigned long val)
 
 static void xen_flush_tlb(void)
 {
-	struct mmuext_op op;
+	struct mmuext_op *op;
+	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
 
-	op.cmd = MMUEXT_TLB_FLUSH_LOCAL;
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+	op = mcs.args;
+	op->cmd = MMUEXT_TLB_FLUSH_LOCAL;
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
 static void xen_flush_tlb_single(unsigned long addr)
 {
-	struct mmuext_op op;
+	struct mmuext_op *op;
+	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
 
-	op.cmd = MMUEXT_INVLPG_LOCAL;
-	op.arg1.linear_addr = addr & PAGE_MASK;
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+	op = mcs.args;
+	op->cmd = MMUEXT_INVLPG_LOCAL;
+	op->arg1.linear_addr = addr & PAGE_MASK;
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
 static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 				 unsigned long va)
 {
-	struct mmuext_op op;
+	struct {
+		struct mmuext_op op;
+		cpumask_t mask;
+	} *args;
 	cpumask_t cpumask = *cpus;
+	struct multicall_space mcs;
 
 	/*
 	 * A couple of (to be removed) sanity checks:
@@ -510,17 +520,21 @@ static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 	if (cpus_empty(cpumask))
 		return;
 
+	mcs = xen_mc_entry(sizeof(*args));
+	args = mcs.args;
+	args->mask = cpumask;
+	args->op.arg2.vcpumask = &args->mask;
+
 	if (va == TLB_FLUSH_ALL) {
-		op.cmd = MMUEXT_TLB_FLUSH_MULTI;
-		op.arg2.vcpumask = (void *)cpus;
+		args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
 	} else {
-		op.cmd = MMUEXT_INVLPG_MULTI;
-		op.arg1.linear_addr = va;
-		op.arg2.vcpumask = (void *)cpus;
+		args->op.cmd = MMUEXT_INVLPG_MULTI;
+		args->op.arg1.linear_addr = va;
 	}
 
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
 static unsigned long xen_read_cr2(void)

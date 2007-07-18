@@ -98,12 +98,20 @@ void make_lowmem_page_readwrite(void *vaddr)
 
 void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
-	struct mmu_update u;
+	struct multicall_space mcs;
+	struct mmu_update *u;
 
-	u.ptr = virt_to_machine(ptr).maddr;
-	u.val = pmd_val_ma(val);
-	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
-		BUG();
+	preempt_disable();
+
+	mcs = xen_mc_entry(sizeof(*u));
+	u = mcs.args;
+	u->ptr = virt_to_machine(ptr).maddr;
+	u->val = pmd_val_ma(val);
+	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	preempt_enable();
 }
 
 /*
@@ -146,20 +154,38 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
-	if ((mm != current->mm && mm != &init_mm) ||
-	    HYPERVISOR_update_va_mapping(addr, pteval, 0) != 0)
-		xen_set_pte(ptep, pteval);
+	if (mm == current->mm || mm == &init_mm) {
+		if (xen_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
+			struct multicall_space mcs;
+			mcs = xen_mc_entry(0);
+
+			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
+			xen_mc_issue(PARAVIRT_LAZY_MMU);
+			return;
+		} else
+			if (HYPERVISOR_update_va_mapping(addr, pteval, 0) == 0)
+				return;
+	}
+	xen_set_pte(ptep, pteval);
 }
 
 #ifdef CONFIG_X86_PAE
 void xen_set_pud(pud_t *ptr, pud_t val)
 {
-	struct mmu_update u;
+	struct multicall_space mcs;
+	struct mmu_update *u;
 
-	u.ptr = virt_to_machine(ptr).maddr;
-	u.val = pud_val_ma(val);
-	if (HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0)
-		BUG();
+	preempt_disable();
+
+	mcs = xen_mc_entry(sizeof(*u));
+	u = mcs.args;
+	u->ptr = virt_to_machine(ptr).maddr;
+	u->val = pud_val_ma(val);
+	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	preempt_enable();
 }
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
