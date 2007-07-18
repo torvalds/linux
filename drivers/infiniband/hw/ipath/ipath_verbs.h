@@ -782,8 +782,6 @@ void ipath_update_mmap_info(struct ipath_ibdev *dev,
 
 int ipath_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
-void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev);
-
 void ipath_insert_rnr_queue(struct ipath_qp *qp);
 
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only);
@@ -806,8 +804,6 @@ void ipath_unregister_ib_device(struct ipath_ibdev *);
 void ipath_ib_rcv(struct ipath_ibdev *, void *, void *, u32);
 
 int ipath_ib_piobufavail(struct ipath_ibdev *);
-
-void ipath_ib_timer(struct ipath_ibdev *);
 
 unsigned ipath_get_npkeys(struct ipath_devdata *);
 

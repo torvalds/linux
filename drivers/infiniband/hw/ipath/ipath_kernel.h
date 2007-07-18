@@ -776,7 +776,6 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
-void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but

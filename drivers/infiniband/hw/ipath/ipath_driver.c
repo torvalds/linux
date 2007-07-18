@@ -1889,7 +1889,7 @@ void ipath_write_kreg_port(const struct ipath_devdata *dd, ipath_kreg regno,
 /* Below is "non-zero" to force override, but both actual LEDs are off */
 #define LED_OVER_BOTH_OFF (8)
 
-void ipath_run_led_override(unsigned long opaque)
+static void ipath_run_led_override(unsigned long opaque)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *)opaque;
 	int timeoff;

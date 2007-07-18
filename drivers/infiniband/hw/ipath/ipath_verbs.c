@@ -488,7 +488,7 @@ bail:;
  * This is called from ipath_do_rcv_timer() at interrupt level to check for
  * QPs which need retransmits and to collect performance numbers.
  */
-void ipath_ib_timer(struct ipath_ibdev *dev)
+static void ipath_ib_timer(struct ipath_ibdev *dev)
 {
 	struct ipath_qp *resend = NULL;
 	struct list_head *last;
