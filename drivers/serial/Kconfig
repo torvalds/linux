@@ -486,6 +486,36 @@ config SERIAL_DZ_CONSOLE
 
 	  If unsure, say Y.
 
+config SERIAL_ZS
+	tristate "DECstation Z85C30 serial support"
+	depends on MACH_DECSTATION
+	select SERIAL_CORE
+	default y
+	---help---
+	  Support for the Zilog 85C350 serial communications controller used
+	  for serial ports in newer DECstation systems.  These include the
+	  DECsystem 5900 and all models of the DECstation and DECsystem 5000
+	  systems except from model 200.
+
+	  If unsure, say Y.  To compile this driver as a module, choose M here:
+	  the module will be called zs.
+
+config SERIAL_ZS_CONSOLE
+	bool "Support for console on a DECstation Z85C30 serial port"
+	depends on SERIAL_ZS=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  Note that the firmware uses ttyS1 as the serial console on the
+	  Maxine and ttyS3 on the others using this driver.
+
+	  If unsure, say Y.
+
 config SERIAL_21285
 	tristate "DC21285 serial port support"
 	depends on ARM && FOOTBRIDGE

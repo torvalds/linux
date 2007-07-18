@@ -4110,6 +4110,11 @@ W:	http://www.polyware.nl/~middelin/En/hobbies.html
 W:	http://www.polyware.nl/~middelin/hobbies.html
 S:	Maintained
 
+ZS DECSTATION Z85C30 SERIAL DRIVER
+P:	Maciej W. Rozycki
+M:	macro@linux-mips.org
+S:	Maintained
+
 THE REST
 P:	Linus Torvalds
 S:	Buried alive in reporters
