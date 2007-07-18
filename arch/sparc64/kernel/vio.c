@@ -103,9 +103,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct vio_dev *vdev = to_vio_dev(dev);
 	const char *str = "none";
 
-	if (!strcmp(vdev->type, "network"))
+	if (!strcmp(vdev->type, "vnet-port"))
 		str = "vnet";
-	else if (!strcmp(vdev->type, "block"))
+	else if (!strcmp(vdev->type, "vdc-port"))
 		str = "vdisk";
 
 	return sprintf(buf, "%s\n", str);
