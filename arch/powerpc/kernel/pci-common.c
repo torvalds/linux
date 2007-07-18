@@ -156,11 +156,14 @@ static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
 #endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */
-void pcibios_add_platform_entries(struct pci_dev *pdev)
+int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PPC_OF
-	device_create_file(&pdev->dev, &dev_attr_devspec);
+	return device_create_file(&pdev->dev, &dev_attr_devspec);
+#else
+	return 0;
 #endif /* CONFIG_PPC_OF */
+
 }
 
 char __init *pcibios_setup(char *str)
