@@ -43,19 +43,19 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sysfs_sb = sb;
 
-	inode = new_inode(sysfs_sb);
+	/* get root inode, initialize and unlock it */
+	inode = sysfs_get_inode(&sysfs_root);
 	if (!inode) {
 		pr_debug("sysfs: could not get root inode\n");
 		return -ENOMEM;
 	}
 
-	sysfs_init_inode(&sysfs_root, inode);
-
 	inode->i_op = &sysfs_dir_inode_operations;
 	inode->i_fop = &sysfs_dir_operations;
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
+	inc_nlink(inode); /* directory, account for "." */
+	unlock_new_inode(inode);
 
+	/* instantiate and link root dentry */
 	root = d_alloc_root(inode);
 	if (!root) {
 		pr_debug("%s: could not get root dentry!\n",__FUNCTION__);
