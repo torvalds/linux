@@ -528,7 +528,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 {
 	int err = 0;
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	spin_lock(&journal->j_state_lock);
 	if (!tid_geq(journal->j_commit_request, tid)) {
 		printk(KERN_EMERG
@@ -1709,7 +1709,7 @@ void jbd2_slab_free(void *ptr,  size_t size)
  * Journal_head storage management
  */
 static struct kmem_cache *jbd2_journal_head_cache;
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 static atomic_t nr_journal_heads = ATOMIC_INIT(0);
 #endif
 
@@ -1747,7 +1747,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 	struct journal_head *ret;
 	static unsigned long last_warning;
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	atomic_inc(&nr_journal_heads);
 #endif
 	ret = kmem_cache_alloc(jbd2_journal_head_cache, GFP_NOFS);
@@ -1768,7 +1768,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 
 static void journal_free_journal_head(struct journal_head *jh)
 {
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	atomic_dec(&nr_journal_heads);
 	memset(jh, JBD_POISON_FREE, sizeof(*jh));
 #endif
@@ -1953,12 +1953,12 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 /*
  * /proc tunables
  */
-#if defined(CONFIG_JBD_DEBUG)
+#if defined(CONFIG_JBD2_DEBUG)
 int jbd2_journal_enable_debug;
 EXPORT_SYMBOL(jbd2_journal_enable_debug);
 #endif
 
-#if defined(CONFIG_JBD_DEBUG) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_JBD2_DEBUG) && defined(CONFIG_PROC_FS)
 
 static struct proc_dir_entry *proc_jbd_debug;
 
@@ -2073,7 +2073,7 @@ static int __init journal_init(void)
 
 static void __exit journal_exit(void)
 {
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
 		printk(KERN_EMERG "JBD: leaked %d journal_heads!\n", n);

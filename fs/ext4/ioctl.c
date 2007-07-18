@@ -141,7 +141,7 @@ flags_err:
 		ext4_journal_stop(handle);
 		return err;
 	}
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	case EXT4_IOC_WAIT_FOR_READONLY:
 		/*
 		 * This is racy - by the time we're woken up and running,
@@ -283,7 +283,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC32_SETVERSION_OLD:
 		cmd = EXT4_IOC_SETVERSION_OLD;
 		break;
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 	case EXT4_IOC32_WAIT_FOR_READONLY:
 		cmd = EXT4_IOC_WAIT_FOR_READONLY;
 		break;

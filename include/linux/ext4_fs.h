@@ -243,7 +243,7 @@ struct ext4_new_group_data {
 #define EXT4_IOC_GROUP_ADD		_IOW('f', 8,struct ext4_new_group_input)
 #define	EXT4_IOC_GETVERSION_OLD		FS_IOC_GETVERSION
 #define	EXT4_IOC_SETVERSION_OLD		FS_IOC_SETVERSION
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 #define EXT4_IOC_WAIT_FOR_READONLY	_IOR('f', 99, long)
 #endif
 #define EXT4_IOC_GETRSVSZ		_IOR('f', 5, long)
@@ -259,7 +259,7 @@ struct ext4_new_group_data {
 #define EXT4_IOC32_GETRSVSZ		_IOR('f', 5, int)
 #define EXT4_IOC32_SETRSVSZ		_IOW('f', 6, int)
 #define EXT4_IOC32_GROUP_EXTEND		_IOW('f', 7, unsigned int)
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 #define EXT4_IOC32_WAIT_FOR_READONLY	_IOR('f', 99, int)
 #endif
 #define EXT4_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
