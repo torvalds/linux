@@ -71,7 +71,7 @@
 /*
  * Maximal count of links to a file
  */
-#define EXT4_LINK_MAX		32000
+#define EXT4_LINK_MAX		65000
 
 /*
  * Macro-instructions used to manage several block sizes
@@ -692,6 +692,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE	0x0002
 #define EXT4_FEATURE_RO_COMPAT_BTREE_DIR	0x0004
+#define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
 
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION	0x0001
@@ -710,6 +711,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 					 EXT4_FEATURE_INCOMPAT_64BIT)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
+					 EXT4_FEATURE_RO_COMPAT_DIR_NLINK | \
 					 EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE | \
 					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
 
