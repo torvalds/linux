@@ -57,7 +57,7 @@
  * CONFIG_JBD2_DEBUG is on.
  */
 #define JBD_EXPENSIVE_CHECKING
-extern int jbd2_journal_enable_debug;
+extern u8 jbd2_journal_enable_debug;
 
 #define jbd_debug(n, f, a...)						\
 	do {								\
