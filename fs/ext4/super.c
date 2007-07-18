@@ -734,7 +734,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota, Opt_extents,
+	Opt_grpquota, Opt_extents, Opt_noextents,
 };
 
 static match_table_t tokens = {
@@ -785,6 +785,7 @@ static match_table_t tokens = {
 	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
 	{Opt_extents, "extents"},
+	{Opt_noextents, "noextents"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
 };
@@ -1119,6 +1120,9 @@ clear_qf_name:
 			break;
 		case Opt_extents:
 			set_opt (sbi->s_mount_opt, EXTENTS);
+			break;
+		case Opt_noextents:
+			clear_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		default:
 			printk (KERN_ERR
@@ -1550,6 +1554,12 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
 
 	set_opt(sbi->s_mount_opt, RESERVATION);
+
+	/*
+	 * turn on extents feature by default in ext4 filesystem
+	 * User -o noextents to turn it off
+	 */
+	set_opt(sbi->s_mount_opt, EXTENTS);
 
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
 			    NULL, 0))
