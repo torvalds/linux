@@ -2583,6 +2583,25 @@ void ext4_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_DIRSYNC;
 }
 
+/* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
+void ext4_get_inode_flags(struct ext4_inode_info *ei)
+{
+	unsigned int flags = ei->vfs_inode.i_flags;
+
+	ei->i_flags &= ~(EXT4_SYNC_FL|EXT4_APPEND_FL|
+			EXT4_IMMUTABLE_FL|EXT4_NOATIME_FL|EXT4_DIRSYNC_FL);
+	if (flags & S_SYNC)
+		ei->i_flags |= EXT4_SYNC_FL;
+	if (flags & S_APPEND)
+		ei->i_flags |= EXT4_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		ei->i_flags |= EXT4_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		ei->i_flags |= EXT4_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		ei->i_flags |= EXT4_DIRSYNC_FL;
+}
+
 void ext4_read_inode(struct inode * inode)
 {
 	struct ext4_iloc iloc;
@@ -2744,6 +2763,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	if (ei->i_state & EXT4_STATE_NEW)
 		memset(raw_inode, 0, EXT4_SB(inode->i_sb)->s_inode_size);
 
+	ext4_get_inode_flags(ei);
 	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
 	if(!(test_opt(inode->i_sb, NO_UID32))) {
 		raw_inode->i_uid_low = cpu_to_le16(low_16_bits(inode->i_uid));
