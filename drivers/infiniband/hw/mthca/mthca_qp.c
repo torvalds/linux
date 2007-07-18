@@ -1599,6 +1599,24 @@ static __always_inline void set_atomic_seg(struct mthca_atomic_seg *aseg,
 
 }
 
+static void set_tavor_ud_seg(struct mthca_tavor_ud_seg *useg,
+			     struct ib_send_wr *wr)
+{
+	useg->lkey    = cpu_to_be32(to_mah(wr->wr.ud.ah)->key);
+	useg->av_addr =	cpu_to_be64(to_mah(wr->wr.ud.ah)->avdma);
+	useg->dqpn    =	cpu_to_be32(wr->wr.ud.remote_qpn);
+	useg->qkey    =	cpu_to_be32(wr->wr.ud.remote_qkey);
+
+}
+
+static void set_arbel_ud_seg(struct mthca_arbel_ud_seg *useg,
+			     struct ib_send_wr *wr)
+{
+	memcpy(useg->av, to_mah(wr->wr.ud.ah)->av, MTHCA_AV_SIZE);
+	useg->dqpn = cpu_to_be32(wr->wr.ud.remote_qpn);
+	useg->qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
+}
+
 int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr)
 {
@@ -1707,16 +1725,8 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case UD:
-			((struct mthca_tavor_ud_seg *) wqe)->lkey =
-				cpu_to_be32(to_mah(wr->wr.ud.ah)->key);
-			((struct mthca_tavor_ud_seg *) wqe)->av_addr =
-				cpu_to_be64(to_mah(wr->wr.ud.ah)->avdma);
-			((struct mthca_tavor_ud_seg *) wqe)->dqpn =
-				cpu_to_be32(wr->wr.ud.remote_qpn);
-			((struct mthca_tavor_ud_seg *) wqe)->qkey =
-				cpu_to_be32(wr->wr.ud.remote_qkey);
-
-			wqe += sizeof (struct mthca_tavor_ud_seg);
+			set_tavor_ud_seg(wqe, wr);
+			wqe  += sizeof (struct mthca_tavor_ud_seg);
 			size += sizeof (struct mthca_tavor_ud_seg) / 16;
 			break;
 
@@ -2064,14 +2074,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case UD:
-			memcpy(((struct mthca_arbel_ud_seg *) wqe)->av,
-			       to_mah(wr->wr.ud.ah)->av, MTHCA_AV_SIZE);
-			((struct mthca_arbel_ud_seg *) wqe)->dqpn =
-				cpu_to_be32(wr->wr.ud.remote_qpn);
-			((struct mthca_arbel_ud_seg *) wqe)->qkey =
-				cpu_to_be32(wr->wr.ud.remote_qkey);
-
-			wqe += sizeof (struct mthca_arbel_ud_seg);
+			set_arbel_ud_seg(wqe, wr);
+			wqe  += sizeof (struct mthca_arbel_ud_seg);
 			size += sizeof (struct mthca_arbel_ud_seg) / 16;
 			break;
 
