@@ -47,103 +47,56 @@ static int zfcp_qdio_handler_error_check(struct zfcp_adapter *,
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_QDIO
 
 /*
- * Allocates BUFFER memory to each of the pointers of the qdio_buffer_t 
- * array in the adapter struct.
- * Cur_buf is the pointer array and count can be any number of required 
- * buffers, the page-fitting arithmetic is done entirely within this funciton.
- *
- * returns:	number of buffers allocated
- * locks:       must only be called with zfcp_data.config_sema taken
- */
-static int
-zfcp_qdio_buffers_enqueue(struct qdio_buffer **cur_buf, int count)
-{
-	int buf_pos;
-	int qdio_buffers_per_page;
-	int page_pos = 0;
-	struct qdio_buffer *first_in_page = NULL;
-
-	qdio_buffers_per_page = PAGE_SIZE / sizeof (struct qdio_buffer);
-	ZFCP_LOG_TRACE("buffers_per_page=%d\n", qdio_buffers_per_page);
-
-	for (buf_pos = 0; buf_pos < count; buf_pos++) {
-		if (page_pos == 0) {
-			cur_buf[buf_pos] = (struct qdio_buffer *)
-			    get_zeroed_page(GFP_KERNEL);
-			if (cur_buf[buf_pos] == NULL) {
-				ZFCP_LOG_INFO("error: allocation of "
-					      "QDIO buffer failed \n");
-				goto out;
-			}
-			first_in_page = cur_buf[buf_pos];
-		} else {
-			cur_buf[buf_pos] = first_in_page + page_pos;
-
-		}
-		/* was initialised to zero */
-		page_pos++;
-		page_pos %= qdio_buffers_per_page;
-	}
- out:
-	return buf_pos;
-}
-
-/*
  * Frees BUFFER memory for each of the pointers of the struct qdio_buffer array
- * in the adapter struct cur_buf is the pointer array and count can be any
- * number of buffers in the array that should be freed starting from buffer 0
+ * in the adapter struct sbuf is the pointer array.
  *
  * locks:       must only be called with zfcp_data.config_sema taken
  */
 static void
-zfcp_qdio_buffers_dequeue(struct qdio_buffer **cur_buf, int count)
+zfcp_qdio_buffers_dequeue(struct qdio_buffer **sbuf)
 {
-	int buf_pos;
-	int qdio_buffers_per_page;
+	int pos;
 
-	qdio_buffers_per_page = PAGE_SIZE / sizeof (struct qdio_buffer);
-	ZFCP_LOG_TRACE("buffers_per_page=%d\n", qdio_buffers_per_page);
+	for (pos = 0; pos < QDIO_MAX_BUFFERS_PER_Q; pos += QBUFF_PER_PAGE)
+		free_page((unsigned long) sbuf[pos]);
+}
 
-	for (buf_pos = 0; buf_pos < count; buf_pos += qdio_buffers_per_page)
-		free_page((unsigned long) cur_buf[buf_pos]);
-	return;
+/*
+ * Allocates BUFFER memory to each of the pointers of the qdio_buffer_t
+ * array in the adapter struct.
+ * Cur_buf is the pointer array
+ *
+ * returns:	zero on success else -ENOMEM
+ * locks:       must only be called with zfcp_data.config_sema taken
+ */
+static int
+zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbuf)
+{
+	int pos;
+
+	for (pos = 0; pos < QDIO_MAX_BUFFERS_PER_Q; pos += QBUFF_PER_PAGE) {
+		sbuf[pos] = (struct qdio_buffer *) get_zeroed_page(GFP_KERNEL);
+		if (!sbuf[pos]) {
+			zfcp_qdio_buffers_dequeue(sbuf);
+			return -ENOMEM;
+		}
+	}
+	for (pos = 0; pos < QDIO_MAX_BUFFERS_PER_Q; pos++)
+		if (pos % QBUFF_PER_PAGE)
+			sbuf[pos] = sbuf[pos - 1] + 1;
+	return 0;
 }
 
 /* locks:       must only be called with zfcp_data.config_sema taken */
 int
 zfcp_qdio_allocate_queues(struct zfcp_adapter *adapter)
 {
-	int buffer_count;
-	int retval = 0;
+	int ret;
 
-	buffer_count =
-	    zfcp_qdio_buffers_enqueue(&(adapter->request_queue.buffer[0]),
-				      QDIO_MAX_BUFFERS_PER_Q);
-	if (buffer_count < QDIO_MAX_BUFFERS_PER_Q) {
-		ZFCP_LOG_DEBUG("only %d QDIO buffers allocated for request "
-			       "queue\n", buffer_count);
-		zfcp_qdio_buffers_dequeue(&(adapter->request_queue.buffer[0]),
-					  buffer_count);
-		retval = -ENOMEM;
-		goto out;
-	}
-
-	buffer_count =
-	    zfcp_qdio_buffers_enqueue(&(adapter->response_queue.buffer[0]),
-				      QDIO_MAX_BUFFERS_PER_Q);
-	if (buffer_count < QDIO_MAX_BUFFERS_PER_Q) {
-		ZFCP_LOG_DEBUG("only %d QDIO buffers allocated for response "
-			       "queue", buffer_count);
-		zfcp_qdio_buffers_dequeue(&(adapter->response_queue.buffer[0]),
-					  buffer_count);
-		ZFCP_LOG_TRACE("freeing request_queue buffers\n");
-		zfcp_qdio_buffers_dequeue(&(adapter->request_queue.buffer[0]),
-					  QDIO_MAX_BUFFERS_PER_Q);
-		retval = -ENOMEM;
-		goto out;
-	}
- out:
-	return retval;
+	ret = zfcp_qdio_buffers_enqueue(adapter->request_queue.buffer);
+	if (ret)
+		return ret;
+	return zfcp_qdio_buffers_enqueue(adapter->response_queue.buffer);
 }
 
 /* locks:       must only be called with zfcp_data.config_sema taken */
@@ -151,12 +104,10 @@ void
 zfcp_qdio_free_queues(struct zfcp_adapter *adapter)
 {
 	ZFCP_LOG_TRACE("freeing request_queue buffers\n");
-	zfcp_qdio_buffers_dequeue(&(adapter->request_queue.buffer[0]),
-				  QDIO_MAX_BUFFERS_PER_Q);
+	zfcp_qdio_buffers_dequeue(adapter->request_queue.buffer);
 
 	ZFCP_LOG_TRACE("freeing response_queue buffers\n");
-	zfcp_qdio_buffers_dequeue(&(adapter->response_queue.buffer[0]),
-				  QDIO_MAX_BUFFERS_PER_Q);
+	zfcp_qdio_buffers_dequeue(adapter->response_queue.buffer);
 }
 
 int
