@@ -1,1 +1,2 @@
-obj-y		:= enlighten.o setup.o features.o multicalls.o mmu.o
+obj-y		:= enlighten.o setup.o features.o multicalls.o mmu.o \
+			events.o

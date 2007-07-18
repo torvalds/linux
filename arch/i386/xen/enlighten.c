@@ -607,6 +607,7 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 
 	.memory_setup = xen_memory_setup,
 	.arch_setup = xen_arch_setup,
+	.init_IRQ = xen_init_IRQ,
 
 	.cpuid = xen_cpuid,
 
