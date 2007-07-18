@@ -2327,7 +2327,7 @@ int orderly_poweroff(bool force)
 
 	call_usermodehelper_setcleanup(info, argv_cleanup);
 
-	ret = call_usermodehelper_exec(info, -1);
+	ret = call_usermodehelper_exec(info, UMH_NO_WAIT);
 
   out:
 	if (ret && force) {

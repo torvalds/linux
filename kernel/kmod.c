@@ -119,7 +119,7 @@ struct subprocess_info {
 	char **argv;
 	char **envp;
 	struct key *ring;
-	int wait;
+	enum umh_wait wait;
 	int retval;
 	struct file *stdin;
 	void (*cleanup)(char **argv, char **envp);
@@ -225,7 +225,7 @@ static int wait_for_helper(void *data)
 			sub_info->retval = ret;
 	}
 
-	if (sub_info->wait < 0)
+	if (sub_info->wait == UMH_NO_WAIT)
 		call_usermodehelper_freeinfo(sub_info);
 	else
 		complete(sub_info->complete);
@@ -238,26 +238,31 @@ static void __call_usermodehelper(struct work_struct *work)
 	struct subprocess_info *sub_info =
 		container_of(work, struct subprocess_info, work);
 	pid_t pid;
-	int wait = sub_info->wait;
+	enum umh_wait wait = sub_info->wait;
 
 	/* CLONE_VFORK: wait until the usermode helper has execve'd
 	 * successfully We need the data structures to stay around
 	 * until that is done.  */
-	if (wait)
+	if (wait == UMH_WAIT_PROC || wait == UMH_NO_WAIT)
 		pid = kernel_thread(wait_for_helper, sub_info,
 				    CLONE_FS | CLONE_FILES | SIGCHLD);
 	else
 		pid = kernel_thread(____call_usermodehelper, sub_info,
 				    CLONE_VFORK | SIGCHLD);
 
-	if (wait < 0)
-		return;
+	switch (wait) {
+	case UMH_NO_WAIT:
+		break;
 
-	if (pid < 0) {
+	case UMH_WAIT_PROC:
+		if (pid > 0)
+			break;
 		sub_info->retval = pid;
+		/* FALLTHROUGH */
+
+	case UMH_WAIT_EXEC:
 		complete(sub_info->complete);
-	} else if (!wait)
-		complete(sub_info->complete);
+	}
 }
 
 /**
@@ -359,7 +364,7 @@ EXPORT_SYMBOL(call_usermodehelper_stdinpipe);
  * (ie. it runs with full root capabilities).
  */
 int call_usermodehelper_exec(struct subprocess_info *sub_info,
-			     int wait)
+			     enum umh_wait wait)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	int retval;
@@ -378,7 +383,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	sub_info->wait = wait;
 
 	queue_work(khelper_wq, &sub_info->work);
-	if (wait < 0) /* task has freed sub_info */
+	if (wait == UMH_NO_WAIT) /* task has freed sub_info */
 		return 0;
 	wait_for_completion(&done);
 	retval = sub_info->retval;

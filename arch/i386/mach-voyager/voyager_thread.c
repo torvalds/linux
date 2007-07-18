@@ -52,7 +52,7 @@ execute(const char *string)
 		NULL,
 	};
 
-	if ((ret = call_usermodehelper(argv[0], argv, envp, 1)) != 0) {
+	if ((ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC)) != 0) {
 		printk(KERN_ERR "Voyager failed to run \"%s\": %i\n",
 		       string, ret);
 	}

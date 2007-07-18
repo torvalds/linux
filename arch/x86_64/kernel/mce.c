@@ -174,7 +174,7 @@ static void do_mce_trigger(void)
 	if (events != atomic_read(&mce_logged) && trigger[0]) {
 		/* Small race window, but should be harmless.  */
 		atomic_set(&mce_logged, events);
-		call_usermodehelper(trigger, trigger_argv, NULL, -1);
+		call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
 	}
 }
 
