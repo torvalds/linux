@@ -324,8 +324,7 @@ struct kvm_vcpu {
 	int guest_mode;
 	unsigned long requests;
 	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
-#define NR_IRQ_WORDS KVM_IRQ_BITMAP_SIZE(unsigned long)
-	unsigned long irq_pending[NR_IRQ_WORDS];
+	DECLARE_BITMAP(irq_pending, KVM_NR_INTERRUPTS);
 	unsigned long regs[NR_VCPU_REGS]; /* for rsp: vcpu_load_rsp_rip() */
 	unsigned long rip;      /* needs vcpu_load_rsp_rip() */
 

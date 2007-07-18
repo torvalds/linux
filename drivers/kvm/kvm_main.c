@@ -2130,7 +2130,7 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	memcpy(vcpu->irq_pending, sregs->interrupt_bitmap,
 	       sizeof vcpu->irq_pending);
 	vcpu->irq_summary = 0;
-	for (i = 0; i < NR_IRQ_WORDS; ++i)
+	for (i = 0; i < ARRAY_SIZE(vcpu->irq_pending); ++i)
 		if (vcpu->irq_pending[i])
 			__set_bit(i, &vcpu->irq_summary);
 

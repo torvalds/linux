@@ -12,14 +12,8 @@
 
 #define KVM_API_VERSION 12
 
-/*
- * Architectural interrupt line count, and the size of the bitmap needed
- * to hold them.
- */
+/* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
-#define KVM_IRQ_BITMAP_SIZE_BYTES    ((KVM_NR_INTERRUPTS + 7) / 8)
-#define KVM_IRQ_BITMAP_SIZE(type)    (KVM_IRQ_BITMAP_SIZE_BYTES / sizeof(type))
-
 
 /* for KVM_CREATE_MEMORY_REGION */
 struct kvm_memory_region {
@@ -165,7 +159,7 @@ struct kvm_sregs {
 	__u64 cr0, cr2, cr3, cr4, cr8;
 	__u64 efer;
 	__u64 apic_base;
-	__u64 interrupt_bitmap[KVM_IRQ_BITMAP_SIZE(__u64)];
+	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
 };
 
 struct kvm_msr_entry {
