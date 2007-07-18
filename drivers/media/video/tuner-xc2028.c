@@ -24,15 +24,19 @@
 #define V4L2_STD_DTV_8MHZ       ((v4l2_std_id)0x10000000)
 
 /* Firmwares used on tm5600/tm6000 + xc2028/xc3028 */
-static const char *firmware_6M = "tm6000_xc3028_DTV_6M.fw";
-// static const char *firmware_78M = "tm6000_xc3028_78M.fw";
-static const char *firmware_7M = "tm6000_xc3028_7M.fw";
-static const char *firmware_8M = "tm6000_xc3028_8M.fw";
-static const char *firmware_B = "tm6000_xc3028_B_PAL.fw";
-static const char *firmware_DK = "tm6000_xc3028_DK_PAL_MTS.fw";
-static const char *firmware_MN = "tm6000_xc3028_MN_BTSC.fw";
-static const char *firmware_INIT0 = "tm6000_xc3028_INIT0.fw";
-static const char *firmware_8MHZ_INIT0 = "tm6000_xc3028_8MHZ_INIT0.fw";
+
+/* Generic firmwares */
+static const char *firmware_INIT0      = "tm_xc3028_MTS_init0.fw";
+static const char *firmware_8MHZ_INIT0 = "tm_xc3028_8M_MTS_init0.fw";
+static const char *firmware_INIT1      = "tm_xc3028_68M_MTS_init1.fw";
+
+/* Standard-specific firmwares */
+static const char *firmware_6M         = "tm_xc3028_DTV_6M.fw";
+static const char *firmware_7M         = "tm_xc3028_7M.fw";
+static const char *firmware_8M         = "tm_xc3028_8M.fw";
+static const char *firmware_B          = "tm_xc3028_B_PAL.fw";
+static const char *firmware_DK         = "tm_xc3028_DK_PAL_MTS.fw";
+static const char *firmware_MN         = "tm_xc3028_MN_BTSC.fw";
 
 struct xc2028_data {
 	v4l2_std_id		firm_type;	   /* video stds supported
@@ -79,13 +83,6 @@ static int xc2028_get_reg(struct i2c_client *c, u16 reg)
 	if (rc<0)
 		return rc;
 
-	if (t->tuner_callback) {
-		rc = t->tuner_callback( c->adapter->algo_data,
-					XC2028_RESET_CLK, 0);
-		if (rc<0)
-			return rc;
-	}
-
 	i2c_rcv(rc, c, buf, 2);
 	if (rc<0)
 		return rc;
@@ -104,7 +101,11 @@ static int load_firmware (struct i2c_client *c, const char *name)
 	tuner_info("xc2028: Loading firmware %s\n", name);
 	rc = request_firmware(&fw, name, &c->dev);
 	if (rc < 0) {
-		tuner_info("Error %d while requesting firmware\n", rc);
+		if (rc==-ENOENT)
+			tuner_info("Error: firmware %s not found.\n", name);
+		else
+			tuner_info("Error %d while requesting firmware %s \n", rc, name);
+
 		return rc;
 	}
 	p=fw->data;
@@ -204,10 +205,11 @@ static int check_firmware(struct i2c_client *c, enum tuner_mode new_mode,
 								   bandwidth);
 
 	if (xc2028->need_load_generic) {
-		if (xc2028->bandwidth==6)
-			name = firmware_INIT0;
-		else
+		if (xc2028->bandwidth==8)
 			name = firmware_8MHZ_INIT0;
+		else
+			name = firmware_INIT0;
+
 		/* Reset is needed before loading firmware */
 		rc = t->tuner_callback(c->adapter->algo_data,
 				     XC2028_TUNER_RESET, 0);
@@ -248,9 +250,12 @@ static int check_firmware(struct i2c_client *c, enum tuner_mode new_mode,
 		xc2028->bandwidth = bandwidth;
 	}
 
-	if (xc2028->firm_type & t->std)
+	if (xc2028->firm_type & t->std) {
+		tuner_info("xc3028: no need to load a std-specific firmware.\n");
 		return 0;
+	}
 
+	rc = load_firmware(c,firmware_INIT1);
 
 	if (t->std & V4L2_STD_MN)
 		name=firmware_MN;
@@ -266,7 +271,6 @@ static int check_firmware(struct i2c_client *c, enum tuner_mode new_mode,
 		name=firmware_DK;
 
 	tuner_info("xc2028: loading firmware named %s.\n", name);
-
 	rc = load_firmware(c, name);
 	if (rc<0)
 		return rc;
@@ -342,6 +346,16 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 	}
 	msleep(10);
 
+	char *name;
+
+	rc = load_firmware(c,firmware_INIT1);
+
+	if (t->std & V4L2_STD_MN)
+		name=firmware_MN;
+	else
+		name=firmware_DK;
+
+	rc = load_firmware(c,name);
 	/* CMD= Set frequency */
 	send_seq(c, {0x00, 0x02, 0x00, 0x00});
 	if (t->tuner_callback) {
