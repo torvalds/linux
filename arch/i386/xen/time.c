@@ -28,6 +28,8 @@
 #define TIMER_SLOP	100000
 #define NS_PER_TICK	(1000000000LL / HZ)
 
+static cycle_t xen_clocksource_read(void);
+
 /* These are perodically updated in shared_info, and then copied here. */
 struct shadow_time_info {
 	u64 tsc_timestamp;     /* TSC at last update of time vals.  */
@@ -169,6 +171,29 @@ static void do_stolen_accounting(void)
 	account_steal_time(idle_task(smp_processor_id()), ticks);
 }
 
+/*
+ * Xen sched_clock implementation.  Returns the number of unstolen
+ * nanoseconds, which is nanoseconds the VCPU spent in RUNNING+BLOCKED
+ * states.
+ */
+unsigned long long xen_sched_clock(void)
+{
+	struct vcpu_runstate_info state;
+	cycle_t now = xen_clocksource_read();
+	s64 offset;
+
+	get_runstate_snapshot(&state);
+
+	WARN_ON(state.state != RUNSTATE_running);
+
+	offset = now - state.state_entry_time;
+	if (offset < 0)
+		offset = 0;
+
+	return state.time[RUNSTATE_blocked] +
+		state.time[RUNSTATE_running] +
+		offset;
+}
 
 
 /* Get the CPU speed from Xen */
@@ -261,7 +286,7 @@ static u64 get_nsec_offset(struct shadow_time_info *shadow)
 	return scale_delta(delta, shadow->tsc_to_nsec_mul, shadow->tsc_shift);
 }
 
-cycle_t xen_clocksource_read(void)
+static cycle_t xen_clocksource_read(void)
 {
 	struct shadow_time_info *shadow = &get_cpu_var(shadow_time);
 	cycle_t ret;

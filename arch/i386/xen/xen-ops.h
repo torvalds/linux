@@ -2,7 +2,6 @@
 #define XEN_OPS_H
 
 #include <linux/init.h>
-#include <linux/clocksource.h>
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
@@ -18,7 +17,7 @@ unsigned long xen_cpu_khz(void);
 void __init xen_time_init(void);
 unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
-cycle_t xen_clocksource_read(void);
+unsigned long long xen_sched_clock(void);
 
 void xen_mark_init_mm_pinned(void);
 
