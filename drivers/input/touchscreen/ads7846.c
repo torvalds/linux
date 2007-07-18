@@ -107,6 +107,8 @@ struct ads7846 {
 	u16			debounce_tol;
 	u16			debounce_rep;
 
+	u16			penirq_recheck_delay_usecs;
+
 	spinlock_t		lock;
 	struct hrtimer		timer;
 	unsigned		pendown:1;	/* P: lock */
@@ -553,6 +555,15 @@ static void ads7846_rx(void *ads)
 		return;
 	}
 
+	/* Maybe check the pendown state before reporting. This discards
+	 * false readings when the pen is lifted.
+	 */
+	if (ts->penirq_recheck_delay_usecs) {
+		udelay(ts->penirq_recheck_delay_usecs);
+		if (!ts->get_pendown_state())
+			Rt = 0;
+	}
+
 	/* NOTE: We can't rely on the pressure to determine the pen down
 	 * state, even this controller has a pressure sensor.  The pressure
 	 * value can fluctuate for quite a while after lifting the pen and
@@ -895,6 +906,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	} else
 		ts->filter = ads7846_no_filter;
 	ts->get_pendown_state = pdata->get_pendown_state;
+
+	if (pdata->penirq_recheck_delay_usecs)
+		ts->penirq_recheck_delay_usecs =
+				pdata->penirq_recheck_delay_usecs;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
 

@@ -24,6 +24,12 @@ struct ads7846_platform_data {
 	 */
 	u16	settle_delay_usecs;
 
+	/* If set to non-zero, after samples are taken this delay is applied
+	 * and penirq is rechecked, to help avoid false events.  This value
+	 * is affected by the material used to build the touch layer.
+	 */
+	u16	penirq_recheck_delay_usecs;
+
 	u16	x_plate_ohms;
 	u16	y_plate_ohms;
 
