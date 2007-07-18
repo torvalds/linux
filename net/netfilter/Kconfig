@@ -436,6 +436,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNLIMIT
 	tristate '"connlimit" match support"'
 	depends on NETFILTER_XTABLES
+	depends on NF_CONNTRACK
 	---help---
 	  This match allows you to match against the number of parallel
 	  connections to a server per client IP address (or address block).
