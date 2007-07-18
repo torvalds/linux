@@ -92,36 +92,6 @@ static void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
 	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
 }
 
-static int ext4_ext_check_header(const char *function, struct inode *inode,
-				struct ext4_extent_header *eh)
-{
-	const char *error_msg = NULL;
-
-	if (unlikely(eh->eh_magic != EXT4_EXT_MAGIC)) {
-		error_msg = "invalid magic";
-		goto corrupted;
-	}
-	if (unlikely(eh->eh_max == 0)) {
-		error_msg = "invalid eh_max";
-		goto corrupted;
-	}
-	if (unlikely(le16_to_cpu(eh->eh_entries) > le16_to_cpu(eh->eh_max))) {
-		error_msg = "invalid eh_entries";
-		goto corrupted;
-	}
-	return 0;
-
-corrupted:
-	ext4_error(inode->i_sb, function,
-			"bad header in inode #%lu: %s - magic %x, "
-			"entries %u, max %u, depth %u",
-			inode->i_ino, error_msg, le16_to_cpu(eh->eh_magic),
-			le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max),
-			le16_to_cpu(eh->eh_depth));
-
-	return -EIO;
-}
-
 static handle_t *ext4_ext_journal_restart(handle_t *handle, int needed)
 {
 	int err;
@@ -270,6 +240,70 @@ static int ext4_ext_space_root_idx(struct inode *inode)
 	return size;
 }
 
+static int
+ext4_ext_max_entries(struct inode *inode, int depth)
+{
+	int max;
+
+	if (depth == ext_depth(inode)) {
+		if (depth == 0)
+			max = ext4_ext_space_root(inode);
+		else
+			max = ext4_ext_space_root_idx(inode);
+	} else {
+		if (depth == 0)
+			max = ext4_ext_space_block(inode);
+		else
+			max = ext4_ext_space_block_idx(inode);
+	}
+
+	return max;
+}
+
+static int __ext4_ext_check_header(const char *function, struct inode *inode,
+					struct ext4_extent_header *eh,
+					int depth)
+{
+	const char *error_msg;
+	int max = 0;
+
+	if (unlikely(eh->eh_magic != EXT4_EXT_MAGIC)) {
+		error_msg = "invalid magic";
+		goto corrupted;
+	}
+	if (unlikely(le16_to_cpu(eh->eh_depth) != depth)) {
+		error_msg = "unexpected eh_depth";
+		goto corrupted;
+	}
+	if (unlikely(eh->eh_max == 0)) {
+		error_msg = "invalid eh_max";
+		goto corrupted;
+	}
+	max = ext4_ext_max_entries(inode, depth);
+	if (unlikely(le16_to_cpu(eh->eh_max) > max)) {
+		error_msg = "too large eh_max";
+		goto corrupted;
+	}
+	if (unlikely(le16_to_cpu(eh->eh_entries) > le16_to_cpu(eh->eh_max))) {
+		error_msg = "invalid eh_entries";
+		goto corrupted;
+	}
+	return 0;
+
+corrupted:
+	ext4_error(inode->i_sb, function,
+			"bad header in inode #%lu: %s - magic %x, "
+			"entries %u, max %u(%u), depth %u(%u)",
+			inode->i_ino, error_msg, le16_to_cpu(eh->eh_magic),
+			le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max),
+			max, le16_to_cpu(eh->eh_depth), depth);
+
+	return -EIO;
+}
+
+#define ext4_ext_check_header(inode, eh, depth)	\
+	__ext4_ext_check_header(__FUNCTION__, inode, eh, depth)
+
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
 {
@@ -330,6 +364,7 @@ static void ext4_ext_drop_refs(struct ext4_ext_path *path)
 /*
  * ext4_ext_binsearch_idx:
  * binary search for the closest index of the given block
+ * the header must be checked before calling this
  */
 static void
 ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int block)
@@ -337,9 +372,6 @@ ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int bloc
 	struct ext4_extent_header *eh = path->p_hdr;
 	struct ext4_extent_idx *r, *l, *m;
 
-	BUG_ON(eh->eh_magic != EXT4_EXT_MAGIC);
-	BUG_ON(le16_to_cpu(eh->eh_entries) > le16_to_cpu(eh->eh_max));
-	BUG_ON(le16_to_cpu(eh->eh_entries) <= 0);
 
 	ext_debug("binsearch for %d(idx):  ", block);
 
@@ -389,15 +421,13 @@ ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int bloc
 /*
  * ext4_ext_binsearch:
  * binary search for closest extent of the given block
+ * the header must be checked before calling this
  */
 static void
 ext4_ext_binsearch(struct inode *inode, struct ext4_ext_path *path, int block)
 {
 	struct ext4_extent_header *eh = path->p_hdr;
 	struct ext4_extent *r, *l, *m;
-
-	BUG_ON(eh->eh_magic != EXT4_EXT_MAGIC);
-	BUG_ON(le16_to_cpu(eh->eh_entries) > le16_to_cpu(eh->eh_max));
 
 	if (eh->eh_entries == 0) {
 		/*
@@ -469,11 +499,10 @@ ext4_ext_find_extent(struct inode *inode, int block, struct ext4_ext_path *path)
 	short int depth, i, ppos = 0, alloc = 0;
 
 	eh = ext_inode_hdr(inode);
-	BUG_ON(eh == NULL);
-	if (ext4_ext_check_header(__FUNCTION__, inode, eh))
+	depth = ext_depth(inode);
+	if (ext4_ext_check_header(inode, eh, depth))
 		return ERR_PTR(-EIO);
 
-	i = depth = ext_depth(inode);
 
 	/* account possible depth increase */
 	if (!path) {
@@ -485,10 +514,12 @@ ext4_ext_find_extent(struct inode *inode, int block, struct ext4_ext_path *path)
 	}
 	path[0].p_hdr = eh;
 
+	i = depth;
 	/* walk through the tree */
 	while (i) {
 		ext_debug("depth %d: num %d, max %d\n",
 			  ppos, le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max));
+
 		ext4_ext_binsearch_idx(inode, path + ppos, block);
 		path[ppos].p_block = idx_pblock(path[ppos].p_idx);
 		path[ppos].p_depth = i;
@@ -505,7 +536,7 @@ ext4_ext_find_extent(struct inode *inode, int block, struct ext4_ext_path *path)
 		path[ppos].p_hdr = eh;
 		i--;
 
-		if (ext4_ext_check_header(__FUNCTION__, inode, eh))
+		if (ext4_ext_check_header(inode, eh, i))
 			goto err;
 	}
 
@@ -513,9 +544,6 @@ ext4_ext_find_extent(struct inode *inode, int block, struct ext4_ext_path *path)
 	path[ppos].p_hdr = eh;
 	path[ppos].p_ext = NULL;
 	path[ppos].p_idx = NULL;
-
-	if (ext4_ext_check_header(__FUNCTION__, inode, eh))
-		goto err;
 
 	/* find extent */
 	ext4_ext_binsearch(inode, path + ppos, block);
@@ -1738,13 +1766,12 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 	unsigned uninitialized = 0;
 	struct ext4_extent *ex;
 
+	/* the header must be checked already in ext4_ext_remove_space() */
 	ext_debug("truncate since %lu in leaf\n", start);
 	if (!path[depth].p_hdr)
 		path[depth].p_hdr = ext_block_hdr(path[depth].p_bh);
 	eh = path[depth].p_hdr;
 	BUG_ON(eh == NULL);
-	BUG_ON(le16_to_cpu(eh->eh_entries) > le16_to_cpu(eh->eh_max));
-	BUG_ON(eh->eh_magic != EXT4_EXT_MAGIC);
 
 	/* find where to start removing */
 	ex = EXT_LAST_EXTENT(eh);
@@ -1898,7 +1925,7 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 		return -ENOMEM;
 	}
 	path[0].p_hdr = ext_inode_hdr(inode);
-	if (ext4_ext_check_header(__FUNCTION__, inode, path[0].p_hdr)) {
+	if (ext4_ext_check_header(inode, path[0].p_hdr, depth)) {
 		err = -EIO;
 		goto out;
 	}
@@ -1919,16 +1946,7 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 		if (!path[i].p_hdr) {
 			ext_debug("initialize header\n");
 			path[i].p_hdr = ext_block_hdr(path[i].p_bh);
-			if (ext4_ext_check_header(__FUNCTION__, inode,
-							path[i].p_hdr)) {
-				err = -EIO;
-				goto out;
-			}
 		}
-
-		BUG_ON(le16_to_cpu(path[i].p_hdr->eh_entries)
-			   > le16_to_cpu(path[i].p_hdr->eh_max));
-		BUG_ON(path[i].p_hdr->eh_magic != EXT4_EXT_MAGIC);
 
 		if (!path[i].p_idx) {
 			/* this level hasn't been touched yet */
@@ -1946,17 +1964,27 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 				i, EXT_FIRST_INDEX(path[i].p_hdr),
 				path[i].p_idx);
 		if (ext4_ext_more_to_rm(path + i)) {
+			struct buffer_head *bh;
 			/* go to the next level */
 			ext_debug("move to level %d (block %llu)\n",
 				  i + 1, idx_pblock(path[i].p_idx));
 			memset(path + i + 1, 0, sizeof(*path));
-			path[i+1].p_bh =
-				sb_bread(sb, idx_pblock(path[i].p_idx));
-			if (!path[i+1].p_bh) {
+			bh = sb_bread(sb, idx_pblock(path[i].p_idx));
+			if (!bh) {
 				/* should we reset i_size? */
 				err = -EIO;
 				break;
 			}
+			if (WARN_ON(i + 1 > depth)) {
+				err = -EIO;
+				break;
+			}
+			if (ext4_ext_check_header(inode, ext_block_hdr(bh),
+							depth - i - 1)) {
+				err = -EIO;
+				break;
+			}
+			path[i + 1].p_bh = bh;
 
 			/* save actual number of indexes since this
 			 * number is changed at the next iteration */
