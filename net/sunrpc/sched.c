@@ -45,7 +45,7 @@ static void			 rpc_release_task(struct rpc_task *task);
 /*
  * RPC tasks sit here while waiting for conditions to improve.
  */
-static RPC_WAITQ(delay_queue, "delayq");
+static struct rpc_wait_queue delay_queue;
 
 /*
  * rpciod-related stuff
@@ -1059,6 +1059,11 @@ rpc_init_mempool(void)
 		goto err_nomem;
 	if (!rpciod_start())
 		goto err_nomem;
+	/*
+	 * The following is not strictly a mempool initialisation,
+	 * but there is no harm in doing it here
+	 */
+	rpc_init_wait_queue(&delay_queue, "delayq");
 	return 0;
 err_nomem:
 	rpc_destroy_mempool();
