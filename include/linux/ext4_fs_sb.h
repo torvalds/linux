@@ -81,6 +81,7 @@ struct ext4_sb_info {
 	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
+	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
 
 #ifdef EXTENTS_STATS
 	/* ext4 extents stats */
