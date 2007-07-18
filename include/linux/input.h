@@ -1125,10 +1125,10 @@ static inline void input_set_drvdata(struct input_dev *dev, void *data)
 	dev->private = data;
 }
 
-int input_register_device(struct input_dev *);
+int __must_check input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
-int input_register_handler(struct input_handler *);
+int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
 int input_register_handle(struct input_handle *);
