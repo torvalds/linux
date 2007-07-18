@@ -498,6 +498,8 @@ static void vnet_event(void *arg, int event)
 		vio_link_state_change(vio, event);
 		spin_unlock_irqrestore(&vio->lock, flags);
 
+		if (event == LDC_EVENT_RESET)
+			vio_port_up(vio);
 		return;
 	}
 
