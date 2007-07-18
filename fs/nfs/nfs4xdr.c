@@ -4035,7 +4035,7 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, __be32 *p, struct nfs_openr
 		goto out;
 	if (decode_getfattr(&xdr, res->f_attr, res->server) != 0)
 		goto out;
-	if ((status = decode_restorefh(&xdr)) != 0)
+	if (decode_restorefh(&xdr) != 0)
 		goto out;
 	decode_getfattr(&xdr, res->dir_attr, res->server);
 out:
