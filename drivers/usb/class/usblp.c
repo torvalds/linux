@@ -289,16 +289,17 @@ static int proto_bias = -1;
 static void usblp_bulk_read(struct urb *urb)
 {
 	struct usblp *usblp = urb->context;
+	int status = urb->status;
 
 	if (usblp->present && usblp->used) {
-		if (urb->status)
+		if (status)
 			printk(KERN_WARNING "usblp%d: "
 			    "nonzero read bulk status received: %d\n",
-			    usblp->minor, urb->status);
+			    usblp->minor, status);
 	}
 	spin_lock(&usblp->lock);
-	if (urb->status < 0)
-		usblp->rstatus = urb->status;
+	if (status < 0)
+		usblp->rstatus = status;
 	else
 		usblp->rstatus = urb->actual_length;
 	usblp->rcomplete = 1;
@@ -311,16 +312,17 @@ static void usblp_bulk_read(struct urb *urb)
 static void usblp_bulk_write(struct urb *urb)
 {
 	struct usblp *usblp = urb->context;
+	int status = urb->status;
 
 	if (usblp->present && usblp->used) {
-		if (urb->status)
+		if (status)
 			printk(KERN_WARNING "usblp%d: "
 			    "nonzero write bulk status received: %d\n",
-			    usblp->minor, urb->status);
+			    usblp->minor, status);
 	}
 	spin_lock(&usblp->lock);
-	if (urb->status < 0)
-		usblp->wstatus = urb->status;
+	if (status < 0)
+		usblp->wstatus = status;
 	else
 		usblp->wstatus = urb->actual_length;
 	usblp->wcomplete = 1;
