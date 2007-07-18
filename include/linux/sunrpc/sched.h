@@ -33,6 +33,8 @@ struct rpc_wait_queue;
 struct rpc_wait {
 	struct list_head	list;		/* wait queue links */
 	struct list_head	links;		/* Links to related tasks */
+	struct list_head	timer_list;	/* Timer list */
+	unsigned long		expires;
 };
 
 /*
@@ -191,6 +193,12 @@ struct rpc_task_setup {
 #define RPC_PRIORITY_HIGH	(1)
 #define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_HIGH - RPC_PRIORITY_LOW)
 
+struct rpc_timer {
+	struct timer_list timer;
+	struct list_head list;
+	unsigned long expires;
+};
+
 /*
  * RPC synchronization objects
  */
@@ -203,6 +211,7 @@ struct rpc_wait_queue {
 	unsigned char		count;			/* # task groups remaining serviced so far */
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
+	struct rpc_timer	timer_list;
 #ifdef RPC_DEBUG
 	const char *		name;
 #endif
