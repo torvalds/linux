@@ -381,6 +381,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
 	kfree(kvm->vpic);
+	kfree(kvm->vioapic);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
@@ -2771,8 +2772,14 @@ static long kvm_vm_ioctl(struct file *filp,
 	case KVM_CREATE_IRQCHIP:
 		r = -ENOMEM;
 		kvm->vpic = kvm_create_pic(kvm);
-		if (kvm->vpic)
-			r = 0;
+		if (kvm->vpic) {
+			r = kvm_ioapic_init(kvm);
+			if (r) {
+				kfree(kvm->vpic);
+				kvm->vpic = NULL;
+				goto out;
+			}
+		}
 		else
 			goto out;
 		break;
@@ -2787,7 +2794,9 @@ static long kvm_vm_ioctl(struct file *filp,
 				kvm_pic_set_irq(pic_irqchip(kvm),
 					irq_event.irq,
 					irq_event.level);
-			/* TODO: IOAPIC */
+			kvm_ioapic_set_irq(kvm->vioapic,
+					irq_event.irq,
+					irq_event.level);
 			r = 0;
 		}
 		break;

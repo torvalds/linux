@@ -74,7 +74,3 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
 }
 
-void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
-{
-	/* TODO: for kernel IOAPIC */
-}
