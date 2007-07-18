@@ -1183,6 +1183,35 @@ static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq
 	return cur + nreq >= wq->max_post;
 }
 
+static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
+					  u64 remote_addr, u32 rkey)
+{
+	rseg->raddr    = cpu_to_be64(remote_addr);
+	rseg->rkey     = cpu_to_be32(rkey);
+	rseg->reserved = 0;
+}
+
+static void set_atomic_seg(struct mlx4_wqe_atomic_seg *aseg, struct ib_send_wr *wr)
+{
+	if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
+		aseg->swap_add = cpu_to_be64(wr->wr.atomic.swap);
+		aseg->compare  = cpu_to_be64(wr->wr.atomic.compare_add);
+	} else {
+		aseg->swap_add = cpu_to_be64(wr->wr.atomic.compare_add);
+		aseg->compare  = 0;
+	}
+
+}
+
+static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
+			     struct ib_send_wr *wr)
+{
+	memcpy(dseg->av, &to_mah(wr->wr.ud.ah)->av, sizeof (struct mlx4_av));
+	dseg->dqpn = cpu_to_be32(wr->wr.ud.remote_qpn);
+	dseg->qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
+
+}
+
 static void set_data_seg(struct mlx4_wqe_data_seg *dseg,
 			 struct ib_sge *sg)
 {
@@ -1246,26 +1275,13 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			switch (wr->opcode) {
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
-				((struct mlx4_wqe_raddr_seg *) wqe)->raddr =
-					cpu_to_be64(wr->wr.atomic.remote_addr);
-				((struct mlx4_wqe_raddr_seg *) wqe)->rkey =
-					cpu_to_be32(wr->wr.atomic.rkey);
-				((struct mlx4_wqe_raddr_seg *) wqe)->reserved = 0;
-
+				set_raddr_seg(wqe, wr->wr.atomic.remote_addr,
+					      wr->wr.atomic.rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 
-				if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
-					((struct mlx4_wqe_atomic_seg *) wqe)->swap_add =
-						cpu_to_be64(wr->wr.atomic.swap);
-					((struct mlx4_wqe_atomic_seg *) wqe)->compare =
-						cpu_to_be64(wr->wr.atomic.compare_add);
-				} else {
-					((struct mlx4_wqe_atomic_seg *) wqe)->swap_add =
-						cpu_to_be64(wr->wr.atomic.compare_add);
-					((struct mlx4_wqe_atomic_seg *) wqe)->compare = 0;
-				}
-
+				set_atomic_seg(wqe, wr);
 				wqe  += sizeof (struct mlx4_wqe_atomic_seg);
+
 				size += (sizeof (struct mlx4_wqe_raddr_seg) +
 					 sizeof (struct mlx4_wqe_atomic_seg)) / 16;
 
@@ -1274,15 +1290,10 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_RDMA_READ:
 			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_WRITE_WITH_IMM:
-				((struct mlx4_wqe_raddr_seg *) wqe)->raddr =
-					cpu_to_be64(wr->wr.rdma.remote_addr);
-				((struct mlx4_wqe_raddr_seg *) wqe)->rkey =
-					cpu_to_be32(wr->wr.rdma.rkey);
-				((struct mlx4_wqe_raddr_seg *) wqe)->reserved = 0;
-
+				set_raddr_seg(wqe, wr->wr.rdma.remote_addr,
+					      wr->wr.rdma.rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 				size += sizeof (struct mlx4_wqe_raddr_seg) / 16;
-
 				break;
 
 			default:
@@ -1292,13 +1303,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case IB_QPT_UD:
-			memcpy(((struct mlx4_wqe_datagram_seg *) wqe)->av,
-			       &to_mah(wr->wr.ud.ah)->av, sizeof (struct mlx4_av));
-			((struct mlx4_wqe_datagram_seg *) wqe)->dqpn =
-				cpu_to_be32(wr->wr.ud.remote_qpn);
-			((struct mlx4_wqe_datagram_seg *) wqe)->qkey =
-				cpu_to_be32(wr->wr.ud.remote_qkey);
-
+			set_datagram_seg(wqe, wr);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 			break;
