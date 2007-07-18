@@ -793,7 +793,7 @@ release_tpsram:
  */
 static int cxgb_up(struct adapter *adap)
 {
-	int err = 0;
+	int err;
 	int must_load;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
@@ -907,7 +907,7 @@ static int offload_open(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 	struct t3cdev *tdev = dev2t3cdev(dev);
 	int adap_up = adapter->open_device_map & PORT_MASK;
-	int err = 0;
+	int err;
 
 	if (test_and_set_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		return 0;
@@ -1566,7 +1566,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct adapter *adapter = pi->adapter;
 	u32 aligned_offset, aligned_len, *p;
 	u8 *buf;
-	int err = 0;
+	int err;
 
 	if (eeprom->magic != EEPROM_MAGIC)
 		return -EINVAL;
