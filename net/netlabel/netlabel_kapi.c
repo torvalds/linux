@@ -38,6 +38,7 @@
 #include "netlabel_domainhash.h"
 #include "netlabel_unlabeled.h"
 #include "netlabel_user.h"
+#include "netlabel_mgmt.h"
 
 /*
  * Security Attribute Functions
@@ -243,6 +244,26 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 /*
  * LSM Functions
  */
+
+/**
+ * netlbl_enabled - Determine if the NetLabel subsystem is enabled
+ *
+ * Description:
+ * The LSM can use this function to determine if it should use NetLabel
+ * security attributes in it's enforcement mechanism.  Currently, NetLabel is
+ * considered to be enabled when it's configuration contains a valid setup for
+ * at least one labeled protocol (i.e. NetLabel can understand incoming
+ * labeled packets of at least one type); otherwise NetLabel is considered to
+ * be disabled.
+ *
+ */
+int netlbl_enabled(void)
+{
+	/* At some point we probably want to expose this mechanism to the user
+	 * as well so that admins can toggle NetLabel regardless of the
+	 * configuration */
+	return (netlbl_mgmt_protocount_value() > 0 ? 1 : 0);
+}
 
 /**
  * netlbl_socket_setattr - Label a socket using the correct protocol

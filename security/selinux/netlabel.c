@@ -155,6 +155,11 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid)
 	int rc;
 	struct netlbl_lsm_secattr secattr;
 
+	if (!netlbl_enabled()) {
+		*sid = SECSID_NULL;
+		return 0;
+	}
+
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, &secattr);
 	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
@@ -297,6 +302,9 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 	int rc;
 	u32 netlbl_sid;
 	u32 recv_perm;
+
+	if (!netlbl_enabled())
+		return 0;
 
 	rc = selinux_netlbl_skbuff_getsid(skb,
 					  SECINITSID_UNLABELED,
