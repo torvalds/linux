@@ -34,13 +34,14 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 { 
 	struct completion done;
 	unsigned long expire;
-	int status;
+	int retval;
+	int status = urb->status;
 
 	init_completion(&done); 	
 	urb->context = &done;
 	urb->actual_length = 0;
-	status = usb_submit_urb(urb, GFP_NOIO);
-	if (unlikely(status))
+	retval = usb_submit_urb(urb, GFP_NOIO);
+	if (unlikely(retval))
 		goto out;
 
 	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
@@ -55,15 +56,15 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 			urb->transfer_buffer_length);
 
 		usb_kill_urb(urb);
-		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
+		retval = status == -ENOENT ? -ETIMEDOUT : status;
 	} else
-		status = urb->status;
+		retval = status;
 out:
 	if (actual_length)
 		*actual_length = urb->actual_length;
 
 	usb_free_urb(urb);
-	return status;
+	return retval;
 }
 
 /*-------------------------------------------------------------------*/
@@ -250,6 +251,7 @@ static void sg_clean (struct usb_sg_request *io)
 static void sg_complete (struct urb *urb)
 {
 	struct usb_sg_request	*io = urb->context;
+	int status = urb->status;
 
 	spin_lock (&io->lock);
 
@@ -265,21 +267,21 @@ static void sg_complete (struct urb *urb)
 	 */
 	if (io->status
 			&& (io->status != -ECONNRESET
-				|| urb->status != -ECONNRESET)
+				|| status != -ECONNRESET)
 			&& urb->actual_length) {
 		dev_err (io->dev->bus->controller,
 			"dev %s ep%d%s scatterlist error %d/%d\n",
 			io->dev->devpath,
 			usb_pipeendpoint (urb->pipe),
 			usb_pipein (urb->pipe) ? "in" : "out",
-			urb->status, io->status);
+			status, io->status);
 		// BUG ();
 	}
 
-	if (io->status == 0 && urb->status && urb->status != -ECONNRESET) {
-		int		i, found, status;
+	if (io->status == 0 && status && status != -ECONNRESET) {
+		int i, found, retval;
 
-		io->status = urb->status;
+		io->status = status;
 
 		/* the previous urbs, and this one, completed already.
 		 * unlink pending urbs so they won't rx/tx bad data.
@@ -290,13 +292,13 @@ static void sg_complete (struct urb *urb)
 			if (!io->urbs [i] || !io->urbs [i]->dev)
 				continue;
 			if (found) {
-				status = usb_unlink_urb (io->urbs [i]);
-				if (status != -EINPROGRESS
-						&& status != -ENODEV
-						&& status != -EBUSY)
+				retval = usb_unlink_urb (io->urbs [i]);
+				if (retval != -EINPROGRESS &&
+				    retval != -ENODEV &&
+				    retval != -EBUSY)
 					dev_err (&io->dev->dev,
 						"%s, unlink --> %d\n",
-						__FUNCTION__, status);
+						__FUNCTION__, retval);
 			} else if (urb == io->urbs [i])
 				found = 1;
 		}
