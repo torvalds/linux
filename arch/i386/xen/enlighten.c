@@ -39,6 +39,7 @@
 #include <asm/pgtable.h>
 
 #include "xen-ops.h"
+#include "mmu.h"
 #include "multicalls.h"
 
 EXPORT_SYMBOL_GPL(hypercall_page);
@@ -579,11 +580,9 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 		 * Should be set_fixmap(), but shared_info is a machine
 		 * address with no corresponding pseudo-phys address.
 		 */
-#if 0
 		set_pte_mfn(fix_to_virt(FIX_PARAVIRT_BOOTMAP),
 			    PFN_DOWN(xen_start_info->shared_info),
 			    PAGE_KERNEL);
-#endif
 
 		HYPERVISOR_shared_info =
 			(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
@@ -592,9 +591,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 		HYPERVISOR_shared_info =
 			(struct shared_info *)__va(xen_start_info->shared_info);
 
-#if 0
 	xen_pgd_pin(base);
-#endif
 
 	xen_vcpu_setup(smp_processor_id());
 }
@@ -689,6 +686,31 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.alloc_pd_clone = xen_alloc_pd_clone,
 	.release_pd = xen_release_pd,
 	.release_pt = xen_release_pt,
+
+	.set_pte = xen_set_pte,
+	.set_pte_at = xen_set_pte_at,
+	.set_pmd = xen_set_pmd,
+
+	.pte_val = xen_pte_val,
+	.pgd_val = xen_pgd_val,
+
+	.make_pte = xen_make_pte,
+	.make_pgd = xen_make_pgd,
+
+#ifdef CONFIG_X86_PAE
+	.set_pte_atomic = xen_set_pte_atomic,
+	.set_pte_present = xen_set_pte_at,
+	.set_pud = xen_set_pud,
+	.pte_clear = xen_pte_clear,
+	.pmd_clear = xen_pmd_clear,
+
+	.make_pmd = xen_make_pmd,
+	.pmd_val = xen_pmd_val,
+#endif	/* PAE */
+
+	.activate_mm = xen_activate_mm,
+	.dup_mmap = xen_dup_mmap,
+	.exit_mmap = xen_exit_mmap,
 
 	.set_lazy_mode = xen_set_lazy_mode,
 };
