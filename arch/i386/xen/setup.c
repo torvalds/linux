@@ -24,14 +24,6 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
-static __initdata struct shared_info init_shared;
-
-/*
- * Point at some empty memory to start with. We map the real shared_info
- * page as soon as fixmap is up and running.
- */
-struct shared_info *HYPERVISOR_shared_info = &init_shared;
-
 unsigned long *phys_to_machine_mapping;
 EXPORT_SYMBOL(phys_to_machine_mapping);
 

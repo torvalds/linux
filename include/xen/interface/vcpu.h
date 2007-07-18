@@ -151,4 +151,17 @@ struct vcpu_set_singleshot_timer {
 #define _VCPU_SSHOTTMR_future (0)
 #define VCPU_SSHOTTMR_future  (1U << _VCPU_SSHOTTMR_future)
 
+/*
+ * Register a memory location in the guest address space for the
+ * vcpu_info structure.  This allows the guest to place the vcpu_info
+ * structure in a convenient place, such as in a per-cpu data area.
+ * The pointer need not be page aligned, but the structure must not
+ * cross a page boundary.
+ */
+#define VCPUOP_register_vcpu_info   10  /* arg == struct vcpu_info */
+struct vcpu_register_vcpu_info {
+    uint32_t mfn;               /* mfn of page to place vcpu_info */
+    uint32_t offset;            /* offset within page */
+};
+
 #endif /* __XEN_PUBLIC_VCPU_H__ */

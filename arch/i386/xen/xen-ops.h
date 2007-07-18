@@ -38,7 +38,7 @@ static inline unsigned xen_get_lazy_mode(void)
 
 void __init xen_fill_possible_map(void);
 
-void xen_vcpu_setup(int cpu);
+void __init xen_setup_vcpu_info_placement(void);
 void xen_smp_prepare_boot_cpu(void);
 void xen_smp_prepare_cpus(unsigned int max_cpus);
 int xen_cpu_up(unsigned int cpu);

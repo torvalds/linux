@@ -142,8 +142,6 @@ void __init xen_smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
-	xen_vcpu_setup(0);
-
 	/* We've switched to the "real" per-cpu gdt, so make sure the
 	   old memory can be recycled */
 	make_lowmem_page_readwrite(&per_cpu__gdt_page);
@@ -152,6 +150,8 @@ void __init xen_smp_prepare_boot_cpu(void)
 		cpus_clear(cpu_sibling_map[cpu]);
 		cpus_clear(cpu_core_map[cpu]);
 	}
+
+	xen_setup_vcpu_info_placement();
 }
 
 void __init xen_smp_prepare_cpus(unsigned int max_cpus)
@@ -262,7 +262,6 @@ int __cpuinit xen_cpu_up(unsigned int cpu)
 
 	init_gdt(cpu);
 	per_cpu(current_task, cpu) = idle;
-	xen_vcpu_setup(cpu);
 	irq_ctx_init(cpu);
 	xen_setup_timer(cpu);
 

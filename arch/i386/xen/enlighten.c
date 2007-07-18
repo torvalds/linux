@@ -61,9 +61,63 @@ DEFINE_PER_CPU(unsigned long, xen_cr3);
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
 
-void xen_vcpu_setup(int cpu)
+static /* __initdata */ struct shared_info dummy_shared_info;
+
+/*
+ * Point at some empty memory to start with. We map the real shared_info
+ * page as soon as fixmap is up and running.
+ */
+struct shared_info *HYPERVISOR_shared_info = (void *)&dummy_shared_info;
+
+/*
+ * Flag to determine whether vcpu info placement is available on all
+ * VCPUs.  We assume it is to start with, and then set it to zero on
+ * the first failure.  This is because it can succeed on some VCPUs
+ * and not others, since it can involve hypervisor memory allocation,
+ * or because the guest failed to guarantee all the appropriate
+ * constraints on all VCPUs (ie buffer can't cross a page boundary).
+ *
+ * Note that any particular CPU may be using a placed vcpu structure,
+ * but we can only optimise if the all are.
+ *
+ * 0: not available, 1: available
+ */
+static int have_vcpu_info_placement = 1;
+
+static void __init xen_vcpu_setup(int cpu)
 {
+	struct vcpu_register_vcpu_info info;
+	int err;
+	struct vcpu_info *vcpup;
+
 	per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+
+	if (!have_vcpu_info_placement)
+		return;		/* already tested, not available */
+
+	vcpup = &per_cpu(xen_vcpu_info, cpu);
+
+	info.mfn = virt_to_mfn(vcpup);
+	info.offset = offset_in_page(vcpup);
+
+	printk(KERN_DEBUG "trying to map vcpu_info %d at %p, mfn %x, offset %d\n",
+	       cpu, vcpup, info.mfn, info.offset);
+
+	/* Check to see if the hypervisor will put the vcpu_info
+	   structure where we want it, which allows direct access via
+	   a percpu-variable. */
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+
+	if (err) {
+		printk(KERN_DEBUG "register_vcpu_info failed: err=%d\n", err);
+		have_vcpu_info_placement = 0;
+	} else {
+		/* This cpu is using the registered vcpu info, even if
+		   later ones fail to. */
+		per_cpu(xen_vcpu, cpu) = vcpup;
+		printk(KERN_DEBUG "cpu %d using vcpu_info at %p\n",
+		       cpu, vcpup);
+	}
 }
 
 static void __init xen_banner(void)
@@ -123,6 +177,20 @@ static unsigned long xen_save_fl(void)
 	return (-flags) & X86_EFLAGS_IF;
 }
 
+static unsigned long xen_save_fl_direct(void)
+{
+	unsigned long flags;
+
+	/* flag has opposite sense of mask */
+	flags = !x86_read_percpu(xen_vcpu_info.evtchn_upcall_mask);
+
+	/* convert to IF type flag
+	   -0 -> 0x00000000
+	   -1 -> 0xffffffff
+	*/
+	return (-flags) & X86_EFLAGS_IF;
+}
+
 static void xen_restore_fl(unsigned long flags)
 {
 	struct vcpu_info *vcpu;
@@ -149,6 +217,25 @@ static void xen_restore_fl(unsigned long flags)
 	}
 }
 
+static void xen_restore_fl_direct(unsigned long flags)
+{
+	/* convert from IF type flag */
+	flags = !(flags & X86_EFLAGS_IF);
+
+	/* This is an atomic update, so no need to worry about
+	   preemption. */
+	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, flags);
+
+	/* If we get preempted here, then any pending event will be
+	   handled anyway. */
+
+	if (flags == 0) {
+		barrier(); /* unmask then check (avoid races) */
+		if (unlikely(x86_read_percpu(xen_vcpu_info.evtchn_upcall_pending)))
+			force_evtchn_callback();
+	}
+}
+
 static void xen_irq_disable(void)
 {
 	/* There's a one instruction preempt window here.  We need to
@@ -157,6 +244,12 @@ static void xen_irq_disable(void)
 	preempt_disable();
 	x86_read_percpu(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
+}
+
+static void xen_irq_disable_direct(void)
+{
+	/* Atomic update, so preemption not a concern. */
+	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, 1);
 }
 
 static void xen_irq_enable(void)
@@ -176,6 +269,19 @@ static void xen_irq_enable(void)
 
 	barrier(); /* unmask then check (avoid races) */
 	if (unlikely(vcpu->evtchn_upcall_pending))
+		force_evtchn_callback();
+}
+
+static void xen_irq_enable_direct(void)
+{
+	/* Atomic update, so preemption not a concern. */
+	x86_write_percpu(xen_vcpu_info.evtchn_upcall_mask, 0);
+
+	/* Doesn't matter if we get preempted here, because any
+	   pending event will get dealt with anyway. */
+
+	barrier(); /* unmask then check (avoid races) */
+	if (unlikely(x86_read_percpu(xen_vcpu_info.evtchn_upcall_pending)))
 		force_evtchn_callback();
 }
 
@@ -551,9 +657,19 @@ static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
+static void xen_write_cr2(unsigned long cr2)
+{
+	x86_read_percpu(xen_vcpu)->arch.cr2 = cr2;
+}
+
 static unsigned long xen_read_cr2(void)
 {
 	return x86_read_percpu(xen_vcpu)->arch.cr2;
+}
+
+static unsigned long xen_read_cr2_direct(void)
+{
+	return x86_read_percpu(xen_vcpu_info.arch.cr2);
 }
 
 static void xen_write_cr4(unsigned long cr4)
@@ -753,8 +869,27 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 		if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
 			BUG();
 	}
+}
 
-	xen_vcpu_setup(smp_processor_id());
+/* This is called once we have the cpu_possible_map */
+void __init xen_setup_vcpu_info_placement(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		xen_vcpu_setup(cpu);
+
+	/* xen_vcpu_setup managed to place the vcpu_info within the
+	   percpu area for all cpus, so make use of it */
+	if (have_vcpu_info_placement) {
+		printk(KERN_INFO "Xen: using vcpu_info placement\n");
+
+		paravirt_ops.save_fl = xen_save_fl_direct;
+		paravirt_ops.restore_fl = xen_restore_fl_direct;
+		paravirt_ops.irq_disable = xen_irq_disable_direct;
+		paravirt_ops.irq_enable = xen_irq_enable_direct;
+		paravirt_ops.read_cr2 = xen_read_cr2_direct;
+	}
 }
 
 static const struct paravirt_ops xen_paravirt_ops __initdata = {
@@ -788,7 +923,7 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.write_cr0 = native_write_cr0,
 
 	.read_cr2 = xen_read_cr2,
-	.write_cr2 = native_write_cr2,
+	.write_cr2 = xen_write_cr2,
 
 	.read_cr3 = xen_read_cr3,
 	.write_cr3 = xen_write_cr3,
@@ -974,7 +1109,16 @@ asmlinkage void __init xen_start_kernel(void)
 	/* keep using Xen gdt for now; no urgent need to change it */
 
 	x86_write_percpu(xen_cr3, __pa(pgd));
-	xen_vcpu_setup(0);
+
+#ifdef CONFIG_SMP
+	/* Don't do the full vcpu_info placement stuff until we have a
+	   possible map. */
+	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+#else
+	/* May as well do it now, since there's no good time to call
+	   it later on UP. */
+	xen_setup_vcpu_info_placement();
+#endif
 
 	paravirt_ops.kernel_rpl = 1;
 	if (xen_feature(XENFEAT_supervisor_mode_kernel))
