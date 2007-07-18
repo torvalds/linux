@@ -177,18 +177,6 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 }
 EXPORT_SYMBOL(dev_mc_unsync);
 
-/*
- *	Discard multicast list when a device is downed
- */
-
-void dev_mc_discard(struct net_device *dev)
-{
-	netif_tx_lock_bh(dev);
-	__dev_addr_discard(&dev->mc_list);
-	dev->mc_count = 0;
-	netif_tx_unlock_bh(dev);
-}
-
 #ifdef CONFIG_PROC_FS
 static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
 {

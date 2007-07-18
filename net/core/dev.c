@@ -2715,7 +2715,7 @@ int __dev_addr_add(struct dev_addr_list **list, int *count,
 	return 0;
 }
 
-void __dev_addr_discard(struct dev_addr_list **list)
+static void __dev_addr_discard(struct dev_addr_list **list)
 {
 	struct dev_addr_list *tmp;
 
@@ -2782,6 +2782,18 @@ static void dev_unicast_discard(struct net_device *dev)
 	netif_tx_lock_bh(dev);
 	__dev_addr_discard(&dev->uc_list);
 	dev->uc_count = 0;
+	netif_tx_unlock_bh(dev);
+}
+
+/*
+ *	Discard multicast list when a device is downed
+ */
+
+static void dev_mc_discard(struct net_device *dev)
+{
+	netif_tx_lock_bh(dev);
+	__dev_addr_discard(&dev->mc_list);
+	dev->mc_count = 0;
 	netif_tx_unlock_bh(dev);
 }
 
