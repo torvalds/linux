@@ -3161,11 +3161,12 @@ static int decode_getfh(struct xdr_stream *xdr, struct nfs_fh *fh)
 	uint32_t len;
 	int status;
 
+	/* Zero handle first to allow comparisons */
+	memset(fh, 0, sizeof(*fh));
+
 	status = decode_op_hdr(xdr, OP_GETFH);
 	if (status)
 		return status;
-	/* Zero handle first to allow comparisons */
-	memset(fh, 0, sizeof(*fh));
 
 	READ_BUF(4);
 	READ32(len);
@@ -4030,8 +4031,7 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, __be32 *p, struct nfs_openr
         status = decode_open(&xdr, res);
         if (status)
                 goto out;
-	status = decode_getfh(&xdr, &res->fh);
-        if (status)
+	if (decode_getfh(&xdr, &res->fh) != 0)
 		goto out;
 	if (decode_getfattr(&xdr, res->f_attr, res->server) != 0)
 		goto out;
