@@ -191,13 +191,18 @@ struct usb_xpad {
 	unsigned char *idata;		/* input data */
 	dma_addr_t idata_dma;
 
-#ifdef CONFIG_JOYSTICK_XPAD_FF
+#if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 	struct urb *irq_out;		/* urb for interrupt out report */
 	unsigned char *odata;		/* output data */
 	dma_addr_t odata_dma;
+	struct mutex odata_mutex;
 #endif
 
-	char phys[65];			/* physical device path */
+#if defined(CONFIG_JOYSTICK_XPAD_LEDS)
+	struct xpad_led *led;
+#endif
+
+	char phys[64];			/* physical device path */
 
 	int dpad_mapping;		/* map d-pad to buttons or to axes */
 	int xtype;			/* type of xbox device */
@@ -349,7 +354,7 @@ exit:
 		     __FUNCTION__, retval);
 }
 
-#ifdef CONFIG_JOYSTICK_XPAD_FF
+#if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 static void xpad_irq_out(struct urb *urb)
 {
 	int retval;
@@ -376,6 +381,60 @@ exit:
 		   __FUNCTION__, retval);
 }
 
+static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
+{
+	struct usb_endpoint_descriptor *ep_irq_out;
+	int error = -ENOMEM;
+
+	if (xpad->xtype != XTYPE_XBOX360)
+		return 0;
+
+	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
+				       GFP_ATOMIC, &xpad->odata_dma );
+	if (!xpad->odata)
+		goto fail1;
+
+	mutex_init(&xpad->odata_mutex);
+
+	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
+	if (!xpad->irq_out)
+		goto fail2;
+
+	ep_irq_out = &intf->cur_altsetting->endpoint[1].desc;
+	usb_fill_int_urb(xpad->irq_out, xpad->udev,
+			 usb_sndintpipe(xpad->udev, ep_irq_out->bEndpointAddress),
+			 xpad->odata, XPAD_PKT_LEN,
+			 xpad_irq_out, xpad, ep_irq_out->bInterval);
+	xpad->irq_out->transfer_dma = xpad->odata_dma;
+	xpad->irq_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	return 0;
+
+ fail2:	usb_buffer_free(xpad->udev, XPAD_PKT_LEN, xpad->odata, xpad->odata_dma);
+ fail1:	return error;
+}
+
+static void xpad_stop_output(struct usb_xpad *xpad)
+{
+	if (xpad->xtype == XTYPE_XBOX360)
+		usb_kill_urb(xpad->irq_out);
+}
+
+static void xpad_deinit_output(struct usb_xpad *xpad)
+{
+	if (xpad->xtype == XTYPE_XBOX360) {
+		usb_free_urb(xpad->irq_out);
+		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
+				xpad->odata, xpad->odata_dma);
+	}
+}
+#else
+static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad) { return 0; }
+static void xpad_deinit_output(struct usb_xpad *xpad) {}
+static void xpad_stop_output(struct usb_xpad *xpad) {}
+#endif
+
+#ifdef CONFIG_JOYSTICK_XPAD_FF
 static int xpad_play_effect(struct input_dev *dev, void *data,
 			    struct ff_effect *effect)
 {
@@ -398,63 +457,100 @@ static int xpad_play_effect(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int xpad_init_ff(struct usb_interface *intf, struct usb_xpad *xpad)
+static int xpad_init_ff(struct usb_xpad *xpad)
 {
-	struct usb_endpoint_descriptor *ep_irq_out;
-	int error = -ENOMEM;
+	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
+
+	return input_ff_create_memless(xpad->dev, NULL, xpad_play_effect);
+}
+
+#else
+static int xpad_init_ff(struct usb_xpad *xpad) { return 0; }
+#endif
+
+#if defined(CONFIG_JOYSTICK_XPAD_LEDS)
+#include <linux/leds.h>
+
+struct xpad_led {
+	char name[16];
+	struct led_classdev led_cdev;
+	struct usb_xpad *xpad;
+};
+
+static void xpad_send_led_command(struct usb_xpad *xpad, int command)
+{
+	if (command >= 0 && command < 14) {
+		mutex_lock(&xpad->odata_mutex);
+		xpad->odata[0] = 0x01;
+		xpad->odata[1] = 0x03;
+		xpad->odata[2] = command;
+		usb_submit_urb(xpad->irq_out, GFP_KERNEL);
+		mutex_unlock(&xpad->odata_mutex);
+	}
+}
+
+static void xpad_led_set(struct led_classdev *led_cdev,
+			 enum led_brightness value)
+{
+	struct xpad_led *xpad_led = container_of(led_cdev,
+						 struct xpad_led, led_cdev);
+
+	xpad_send_led_command(xpad_led->xpad, value);
+}
+
+static int xpad_led_probe(struct usb_xpad *xpad)
+{
+	static atomic_t led_seq	= ATOMIC_INIT(0);
+	long led_no;
+	struct xpad_led *led;
+	struct led_classdev *led_cdev;
+	int error;
 
 	if (xpad->xtype != XTYPE_XBOX360)
 		return 0;
 
-	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
-				       GFP_ATOMIC, &xpad->odata_dma );
-	if (!xpad->odata)
-		goto fail1;
+	xpad->led = led = kzalloc(sizeof(struct xpad_led), GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
 
-	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
-	if (!xpad->irq_out)
-		goto fail2;
+	led_no = (long)atomic_inc_return(&led_seq) - 1;
 
-	ep_irq_out = &intf->cur_altsetting->endpoint[1].desc;
-	usb_fill_int_urb(xpad->irq_out, xpad->udev,
-			 usb_sndintpipe(xpad->udev, ep_irq_out->bEndpointAddress),
-			 xpad->odata, XPAD_PKT_LEN,
-			 xpad_irq_out, xpad, ep_irq_out->bInterval);
-	xpad->irq_out->transfer_dma = xpad->odata_dma;
-	xpad->irq_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	snprintf(led->name, sizeof(led->name), "xpad%ld", led_no);
+	led->xpad = xpad;
 
-	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
+	led_cdev = &led->led_cdev;
+	led_cdev->name = led->name;
+	led_cdev->brightness_set = xpad_led_set;
 
-	error = input_ff_create_memless(xpad->dev, NULL, xpad_play_effect);
-	if (error)
-		goto fail2;
+	error = led_classdev_register(&xpad->udev->dev, led_cdev);
+	if (error) {
+		kfree(led);
+		xpad->led = NULL;
+		return error;
+	}
+
+	/*
+	 * Light up the segment corresponding to controller number
+	 */
+	xpad_send_led_command(xpad, (led_no % 4) + 2);
 
 	return 0;
-
- fail2:	usb_buffer_free(xpad->udev, XPAD_PKT_LEN, xpad->odata, xpad->odata_dma);
- fail1:	return error;
 }
 
-static void xpad_stop_ff(struct usb_xpad *xpad)
+static void xpad_led_disconnect(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_XBOX360)
-		usb_kill_urb(xpad->irq_out);
-}
+	struct xpad_led *xpad_led = xpad->led;
 
-static void xpad_deinit_ff(struct usb_xpad *xpad)
-{
-	if (xpad->xtype == XTYPE_XBOX360) {
-		usb_free_urb(xpad->irq_out);
-		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
-				xpad->odata, xpad->odata_dma);
+	if (xpad_led) {
+		led_classdev_unregister(&xpad_led->led_cdev);
+		kfree(xpad_led->name);
 	}
 }
-
 #else
-static int xpad_init_ff(struct usb_interface *intf, struct usb_xpad *xpad) { return 0; }
-static void xpad_stop_ff(struct usb_xpad *xpad) { }
-static void xpad_deinit_ff(struct usb_xpad *xpad) { }
+static int xpad_led_probe(struct usb_xpad *xpad) { return 0; }
+static void xpad_led_disconnect(struct usb_xpad *xpad) { }
 #endif
+
 
 static int xpad_open(struct input_dev *dev)
 {
@@ -472,7 +568,7 @@ static void xpad_close(struct input_dev *dev)
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	usb_kill_urb(xpad->irq_in);
-	xpad_stop_ff(xpad);
+	xpad_stop_output(xpad);
 }
 
 static void xpad_set_up_abs(struct input_dev *input_dev, signed short abs)
@@ -564,9 +660,17 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		for (i = 0; xpad_abs_pad[i] >= 0; i++)
 		    xpad_set_up_abs(input_dev, xpad_abs_pad[i]);
 
-	error = xpad_init_ff(intf, xpad);
+	error = xpad_init_output(intf, xpad);
 	if (error)
 		goto fail2;
+
+	error = xpad_init_ff(xpad);
+	if (error)
+		goto fail3;
+
+	error = xpad_led_probe(xpad);
+	if (error)
+		goto fail3;
 
 	ep_irq_in = &intf->cur_altsetting->endpoint[0].desc;
 	usb_fill_int_urb(xpad->irq_in, udev,
@@ -578,12 +682,13 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	error = input_register_device(xpad->dev);
 	if (error)
-		goto fail3;
+		goto fail4;
 
 	usb_set_intfdata(intf, xpad);
 	return 0;
 
- fail3:	usb_free_urb(xpad->irq_in);
+ fail4:	usb_free_urb(xpad->irq_in);
+ fail3:	xpad_deinit_output(xpad);
  fail2:	usb_buffer_free(udev, XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
  fail1:	input_free_device(input_dev);
 	kfree(xpad);
@@ -597,8 +702,9 @@ static void xpad_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (xpad) {
+		xpad_led_disconnect(xpad);
 		input_unregister_device(xpad->dev);
-		xpad_deinit_ff(xpad);
+		xpad_deinit_output(xpad);
 		usb_free_urb(xpad->irq_in);
 		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
 				xpad->idata, xpad->idata_dma);
