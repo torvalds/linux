@@ -26,7 +26,7 @@ int query_mca(void)
 	    "setc %0 ; "
 	    "movw %%es, %1 ; "
 	    "popw %%es"
-	    : "=acdSDm" (err), "=acdSDm" (es), "=b" (bx)
+	    : "=acd" (err), "=acdSD" (es), "=b" (bx)
 	    : "a" (0xc000));
 
 	if (err)

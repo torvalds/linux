@@ -5,7 +5,7 @@
  */
 
 /*
- * This file builds a disk-image from three different files:
+ * This file builds a disk-image from two different files:
  *
  * - setup: 8086 machine code, sets up system parm
  * - system: 80386 code for actual system

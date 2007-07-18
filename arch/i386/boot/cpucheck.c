@@ -115,8 +115,8 @@ static int has_eflag(u32 mask)
 	    "pushfl ; "
 	    "popl %1 ; "
 	    "popfl"
-	    : "=r" (f0), "=r" (f1)
-	    : "g" (mask));
+	    : "=&r" (f0), "=&r" (f1)
+	    : "ri" (mask));
 
 	return !!((f0^f1) & mask);
 }

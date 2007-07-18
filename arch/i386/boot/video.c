@@ -195,7 +195,7 @@ static void vga_recalc_vertical(void)
 {
 	unsigned int font_size, rows;
 	u16 crtc;
-	u8 ov;
+	u8 pt, ov;
 
 	set_fs(0);
 	font_size = rdfs8(0x485); /* BIOS: font size (pixels) */
@@ -206,7 +206,12 @@ static void vga_recalc_vertical(void)
 
 	crtc = vga_crtc();
 
+	pt = in_idx(crtc, 0x11);
+	pt &= ~0x80;		/* Unlock CR0-7 */
+	out_idx(pt, crtc, 0x11);
+
 	out_idx((u8)rows, crtc, 0x12); /* Lower height register */
+
 	ov = in_idx(crtc, 0x07); /* Overflow register */
 	ov &= 0xbd;
 	ov |= (rows >> (8-1)) & 0x02;
@@ -411,7 +416,7 @@ static void restore_screen(void)
 			     "1: rep;stosl ; "
 			     "popw %%es"
 			     : "+D" (dst), "+c" (npad)
-			     : "bdSm" (video_segment),
+			     : "bdS" (video_segment),
 			       "a" (0x07200720));
 	}
 
