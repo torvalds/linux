@@ -343,6 +343,14 @@ static int tm6000_tuner_callback(void *ptr, int command, int arg)
 			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
 						TM6000_GPIO_CLK, 1);
 			break;
+		case 4:
+			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+						TM6000_GPIO_4, 0x00);
+			msleep(10);
+			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+						TM6000_GPIO_4, 0x01);
+			break;
+
 		}
 	}
 	return (rc);
