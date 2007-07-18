@@ -350,11 +350,13 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-	/* Apply CPUs-specific fixups to kernel text (nop out sections
-	 * not relevant to this CPU)
+	/* Apply the CPUs-specific and firmware specific fixups to kernel
+	 * text (nop out sections not relevant to this CPU or this firmware)
 	 */
 	do_feature_fixups(cur_cpu_spec->cpu_features,
 			  &__start___ftr_fixup, &__stop___ftr_fixup);
+	do_feature_fixups(powerpc_firmware_features,
+			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
@@ -391,12 +393,6 @@ void __init setup_system(void)
 	 */
 	if (ppc_md.init_early)
 		ppc_md.init_early();
-
-	/* Apply firmware specific fixups to kernel text (nop out
-	 * sections not relevant to this firmware)
-	 */
-	do_feature_fixups(powerpc_firmware_features,
-			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 
  	/*
 	 * We can discover serial ports now since the above did setup the
