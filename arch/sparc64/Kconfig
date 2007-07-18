@@ -62,6 +62,9 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
