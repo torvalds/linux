@@ -1,9 +1,7 @@
-/******************************************************************************
- * hypervisor.h
+/*
+ * Private include for xenbus communications.
  *
- * Linux-specific hypervisor handling.
- *
- * Copyright (c) 2002-2004, K A Fraser
+ * Copyright (C) 2005 Rusty Russell, IBM Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -30,44 +28,19 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef _XENBUS_COMMS_H
+#define _XENBUS_COMMS_H
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/version.h>
+int xs_init(void);
+int xb_init_comms(void);
 
-#include <xen/interface/xen.h>
-#include <xen/interface/version.h>
+/* Low level routines. */
+int xb_write(const void *data, unsigned len);
+int xb_read(void *data, unsigned len);
+int xb_data_to_read(void);
+int xb_wait_for_data_to_read(void);
+int xs_input_avail(void);
+extern struct xenstore_domain_interface *xen_store_interface;
+extern int xen_store_evtchn;
 
-#include <asm/ptrace.h>
-#include <asm/page.h>
-#include <asm/desc.h>
-#if defined(__i386__)
-#  ifdef CONFIG_X86_PAE
-#   include <asm-generic/pgtable-nopud.h>
-#  else
-#   include <asm-generic/pgtable-nopmd.h>
-#  endif
-#endif
-#include <asm/xen/hypercall.h>
-
-/* arch/i386/kernel/setup.c */
-extern struct shared_info *HYPERVISOR_shared_info;
-extern struct start_info *xen_start_info;
-#define is_initial_xendomain() (xen_start_info->flags & SIF_INITDOMAIN)
-
-/* arch/i386/mach-xen/evtchn.c */
-/* Force a proper event-channel callback from Xen. */
-extern void force_evtchn_callback(void);
-
-/* Turn jiffies into Xen system time. */
-u64 jiffies_to_st(unsigned long jiffies);
-
-
-#define MULTI_UVMFLAGS_INDEX 3
-#define MULTI_UVMDOMID_INDEX 4
-
-#define is_running_on_xen()	(xen_start_info ? 1 : 0)
-
-#endif /* __HYPERVISOR_H__ */
+#endif /* _XENBUS_COMMS_H */
