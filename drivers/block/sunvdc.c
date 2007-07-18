@@ -849,7 +849,7 @@ static struct vio_device_id vdc_port_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(vio, vdc_match);
+MODULE_DEVICE_TABLE(vio, vdc_port_match);
 
 static struct vio_driver vdc_port_driver = {
 	.id_table	= vdc_port_match,

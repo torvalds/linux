@@ -1136,7 +1136,7 @@ static struct vio_device_id vnet_port_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(vio, vnet_match);
+MODULE_DEVICE_TABLE(vio, vnet_port_match);
 
 static struct vio_driver vnet_port_driver = {
 	.id_table	= vnet_port_match,
