@@ -427,4 +427,13 @@ config XILINX_SYSACE
 	help
 	  Include support for the Xilinx SystemACE CompactFlash interface
 
+config XEN_BLKDEV_FRONTEND
+	tristate "Xen virtual block device support"
+	depends on XEN
+	default y
+	help
+	  This driver implements the front-end of the Xen virtual
+	  block device driver.  It communicates with a back-end driver
+	  in another domain which drives the actual block device.
+
 endif # BLK_DEV
