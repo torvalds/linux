@@ -11,7 +11,8 @@ tuner-$(CONFIG_TUNER_TEA5761)	+= tea5761.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o
+obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
+			   v4l2-int-device.o
 
 ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
   obj-$(CONFIG_VIDEO_DEV) += v4l1-compat.o

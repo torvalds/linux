@@ -1,0 +1,154 @@
+/*
+ * drivers/media/video/v4l2-int-device.c
+ *
+ * V4L2 internal ioctl interface.
+ *
+ * Copyright (C) 2007 Nokia Corporation.
+ *
+ * Contact: Sakari Ailus <sakari.ailus@nokia.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/sort.h>
+#include <linux/string.h>
+
+#include <media/v4l2-int-device.h>
+
+static DEFINE_MUTEX(mutex);
+static LIST_HEAD(int_list);
+
+static void v4l2_int_device_try_attach_all(void)
+{
+	struct list_head *head_master;
+
+	list_for_each(head_master, &int_list) {
+		struct list_head *head_slave;
+		struct v4l2_int_device *m =
+			list_entry(head_master, struct v4l2_int_device, head);
+
+		if (m->type != v4l2_int_type_master)
+			continue;
+
+		list_for_each(head_slave, &int_list) {
+			struct v4l2_int_device *s =
+				list_entry(head_slave,
+					   struct v4l2_int_device, head);
+
+			if (s->type != v4l2_int_type_slave)
+				continue;
+
+			/* Slave is connected? */
+			if (s->u.slave->master)
+				continue;
+
+			/* Slave wants to attach to master? */
+			if (s->u.slave->attach_to[0] != 0
+			    && strncmp(m->name, s->u.slave->attach_to,
+				       V4L2NAMESIZE))
+				continue;
+
+			if (!try_module_get(m->module))
+				continue;
+
+			if (m->u.master->attach(m, s)) {
+				module_put(m->module);
+				continue;
+			}
+
+			s->u.slave->master = m;
+		}
+	}
+}
+
+static int ioctl_sort_cmp(const void *a, const void *b)
+{
+	const struct v4l2_int_ioctl_desc *d1 = a, *d2 = b;
+
+	if (d1->num > d2->num)
+		return 1;
+
+	if (d1->num < d2->num)
+		return -1;
+
+	return 0;
+}
+
+int v4l2_int_device_register(struct v4l2_int_device *d)
+{
+	if (d->type == v4l2_int_type_slave)
+		sort(d->u.slave->ioctls, d->u.slave->num_ioctls,
+		     sizeof(struct v4l2_int_ioctl_desc),
+		     &ioctl_sort_cmp, NULL);
+	mutex_lock(&mutex);
+	list_add(&d->head, &int_list);
+	v4l2_int_device_try_attach_all();
+	mutex_unlock(&mutex);
+
+	return 0;
+}
+
+void v4l2_int_device_unregister(struct v4l2_int_device *d)
+{
+	mutex_lock(&mutex);
+	list_del(&d->head);
+	if (d->type == v4l2_int_type_slave
+	    && d->u.slave->master != NULL) {
+		d->u.slave->master->u.master->detach(d);
+		module_put(d->u.slave->master->module);
+		d->u.slave->master = NULL;
+	}
+	mutex_unlock(&mutex);
+}
+
+static int no_such_ioctl(struct v4l2_int_device *d)
+{
+	return -EINVAL;
+}
+
+/* Adapted from search_extable in extable.c. */
+static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd)
+{
+	const struct v4l2_int_ioctl_desc *first = slave->ioctls;
+	const struct v4l2_int_ioctl_desc *last =
+		first + slave->num_ioctls - 1;
+
+	while (first <= last) {
+		const struct v4l2_int_ioctl_desc *mid;
+
+		mid = (last - first) / 2 + first;
+
+		if (mid->num < cmd)
+			first = mid + 1;
+		else if (mid->num > cmd)
+			last = mid - 1;
+		else
+			return mid->func;
+	}
+
+	return &no_such_ioctl;
+}
+
+int v4l2_int_ioctl_0(struct v4l2_int_device *d, int cmd)
+{
+	return ((v4l2_int_ioctl_func_0 *)find_ioctl(d->u.slave, cmd))(d);
+}
+
+int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg)
+{
+	return ((v4l2_int_ioctl_func_1 *)find_ioctl(d->u.slave, cmd))(d, arg);
+}
