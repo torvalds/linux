@@ -552,6 +552,18 @@ static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *
 	return ERR_PTR(-ENOENT);
 }
 
+static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context *ctx, struct nfs4_state *state)
+{
+	struct nfs4_opendata *opendata;
+
+	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, NULL);
+	if (opendata == NULL)
+		return ERR_PTR(-ENOMEM);
+	opendata->state = state;
+	atomic_inc(&state->count);
+	return opendata;
+}
+
 static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openflags, struct nfs4_state **res)
 {
 	struct nfs4_state *newstate;
@@ -626,12 +638,11 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	int delegation_type = 0;
 	int status;
 
-	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, NULL);
-	if (opendata == NULL)
-		return -ENOMEM;
+	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	if (IS_ERR(opendata))
+		return PTR_ERR(opendata);
 	opendata->o_arg.claim = NFS4_OPEN_CLAIM_PREVIOUS;
 	opendata->o_arg.fh = NFS_FH(state->inode);
-	nfs_copy_fh(&opendata->o_res.fh, opendata->o_arg.fh);
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
 	if (delegation != NULL && (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) != 0)
@@ -672,13 +683,12 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 
 static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
-	struct nfs4_state_owner  *sp  = state->owner;
 	struct nfs4_opendata *opendata;
 	int ret;
 
-	opendata = nfs4_opendata_alloc(&ctx->path, sp, 0, NULL);
-	if (opendata == NULL)
-		return -ENOMEM;
+	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	if (IS_ERR(opendata))
+		return PTR_ERR(opendata);
 	opendata->o_arg.claim = NFS4_OPEN_CLAIM_DELEGATE_CUR;
 	memcpy(opendata->o_arg.u.delegation.data, stateid->data,
 			sizeof(opendata->o_arg.u.delegation.data));
@@ -823,8 +833,10 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	/* Update sequence id. */
 	data->o_arg.id = sp->so_owner_id.id;
 	data->o_arg.clientid = sp->so_client->cl_clientid;
-	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS)
+	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
+	}
 	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 	return;
@@ -989,9 +1001,9 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 	struct nfs4_opendata *opendata;
 	int ret;
 
-	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, NULL);
-	if (opendata == NULL)
-		return -ENOMEM;
+	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	if (IS_ERR(opendata))
+		return PTR_ERR(opendata);
 	ret = nfs4_open_recover(opendata, state);
 	if (ret == -ESTALE) {
 		/* Invalidate the state owner so we don't ever use it again */
