@@ -609,6 +609,12 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.arch_setup = xen_arch_setup,
 	.init_IRQ = xen_init_IRQ,
 
+	.time_init = xen_time_init,
+	.set_wallclock = xen_set_wallclock,
+	.get_wallclock = xen_get_wallclock,
+	.get_cpu_khz = xen_cpu_khz,
+	.sched_clock = xen_clocksource_read,
+
 	.cpuid = xen_cpuid,
 
 	.set_debugreg = xen_set_debugreg,
