@@ -466,10 +466,6 @@ void update_wall_time(void)
 			second_overflow();
 		}
 
-		/* interpolator bits */
-		time_interpolator_update(clock->xtime_interval
-						>> clock->shift);
-
 		/* accumulate error between NTP and clock interval */
 		clock->error += current_tick_length();
 		clock->error -= clock->xtime_interval << (TICK_LENGTH_SHIFT - clock->shift);

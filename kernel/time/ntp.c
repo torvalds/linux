@@ -116,11 +116,6 @@ void second_overflow(void)
 		if (xtime.tv_sec % 86400 == 0) {
 			xtime.tv_sec--;
 			wall_to_monotonic.tv_sec++;
-			/*
-			 * The timer interpolator will make time change
-			 * gradually instead of an immediate jump by one second
-			 */
-			time_interpolator_update(-NSEC_PER_SEC);
 			time_state = TIME_OOP;
 			printk(KERN_NOTICE "Clock: inserting leap second "
 					"23:59:60 UTC\n");
@@ -130,11 +125,6 @@ void second_overflow(void)
 		if ((xtime.tv_sec + 1) % 86400 == 0) {
 			xtime.tv_sec++;
 			wall_to_monotonic.tv_sec--;
-			/*
-			 * Use of time interpolator for a gradual change of
-			 * time
-			 */
-			time_interpolator_update(NSEC_PER_SEC);
 			time_state = TIME_WAIT;
 			printk(KERN_NOTICE "Clock: deleting leap second "
 					"23:59:59 UTC\n");
