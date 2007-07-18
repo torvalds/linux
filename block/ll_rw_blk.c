@@ -377,10 +377,12 @@ void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	/*
 	 * Okay, sequence complete.
 	 */
-	rq = q->orig_bar_rq;
-	uptodate = q->orderr ? q->orderr : 1;
+	uptodate = 1;
+	if (q->orderr)
+		uptodate = q->orderr;
 
 	q->ordseq = 0;
+	rq = q->orig_bar_rq;
 
 	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
 	end_that_request_last(rq, uptodate);
@@ -445,7 +447,8 @@ static inline struct request *start_ordered(struct request_queue *q,
 	rq_init(q, rq);
 	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
 		rq->cmd_flags |= REQ_RW;
-	rq->cmd_flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
+	if (q->ordered & QUEUE_ORDERED_FUA)
+		rq->cmd_flags |= REQ_FUA;
 	rq->elevator_private = NULL;
 	rq->elevator_private2 = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
@@ -3191,7 +3194,7 @@ end_io:
 			break;
 		}
 
-		if (unlikely(bio_sectors(bio) > q->max_hw_sectors)) {
+		if (unlikely(nr_sectors > q->max_hw_sectors)) {
 			printk("bio too big device %s (%u > %u)\n", 
 				bdevname(bio->bi_bdev, b),
 				bio_sectors(bio),
@@ -3212,7 +3215,7 @@ end_io:
 		blk_partition_remap(bio);
 
 		if (old_sector != -1)
-			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
+			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector,
 					    old_sector);
 
 		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
@@ -3564,7 +3567,7 @@ static struct notifier_block blk_cpu_notifier __cpuinitdata = {
  * Description:
  *     Ends all I/O on a request. It does not handle partial completions,
  *     unless the driver actually implements this in its completion callback
- *     through requeueing. Theh actual completion happens out-of-order,
+ *     through requeueing. The actual completion happens out-of-order,
  *     through a softirq handler. The user must have registered a completion
  *     callback through blk_queue_softirq_done().
  **/
