@@ -311,6 +311,29 @@ static int iser_conn_state_comp_exch(struct iser_conn *ib_conn,
 }
 
 /**
+ * Frees all conn objects and deallocs conn descriptor
+ */
+static void iser_conn_release(struct iser_conn *ib_conn)
+{
+	struct iser_device  *device = ib_conn->device;
+
+	BUG_ON(ib_conn->state != ISER_CONN_DOWN);
+
+	mutex_lock(&ig.connlist_mutex);
+	list_del(&ib_conn->conn_list);
+	mutex_unlock(&ig.connlist_mutex);
+
+	iser_free_ib_conn_res(ib_conn);
+	ib_conn->device = NULL;
+	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
+	if (device != NULL)
+		iser_device_try_release(device);
+	if (ib_conn->iser_conn)
+		ib_conn->iser_conn->ib_conn = NULL;
+	kfree(ib_conn);
+}
+
+/**
  * triggers start of the disconnect procedures and wait for them to be done
  */
 void iser_conn_terminate(struct iser_conn *ib_conn)
@@ -548,30 +571,6 @@ connect_failure:
 	iser_conn_release(ib_conn);
 	return err;
 }
-
-/**
- * Frees all conn objects and deallocs conn descriptor
- */
-void iser_conn_release(struct iser_conn *ib_conn)
-{
-	struct iser_device  *device = ib_conn->device;
-
-	BUG_ON(ib_conn->state != ISER_CONN_DOWN);
-
-	mutex_lock(&ig.connlist_mutex);
-	list_del(&ib_conn->conn_list);
-	mutex_unlock(&ig.connlist_mutex);
-
-	iser_free_ib_conn_res(ib_conn);
-	ib_conn->device = NULL;
-	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
-	if (device != NULL)
-		iser_device_try_release(device);
-	if (ib_conn->iser_conn)
-		ib_conn->iser_conn->ib_conn = NULL;
-	kfree(ib_conn);
-}
-
 
 /**
  * iser_reg_page_vec - Register physical memory
