@@ -36,39 +36,6 @@ hashbin_t *irias_objects;
  */
 struct ias_value irias_missing = { IAS_MISSING, 0, 0, 0, {0}};
 
-/*
- * Function strndup (str, max)
- *
- *    My own kernel version of strndup!
- *
- * Faster, check boundary... Jean II
- */
-static char *strndup(char *str, size_t max)
-{
-	char *new_str;
-	int len;
-
-	/* Check string */
-	if (str == NULL)
-		return NULL;
-	/* Check length, truncate */
-	len = strlen(str);
-	if(len > max)
-		len = max;
-
-	/* Allocate new string */
-	new_str = kmalloc(len + 1, GFP_ATOMIC);
-	if (new_str == NULL) {
-		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
-		return NULL;
-	}
-
-	/* Copy and truncate */
-	memcpy(new_str, str, len);
-	new_str[len] = '\0';
-
-	return new_str;
-}
 
 /*
  * Function ias_new_object (name, id)
@@ -90,7 +57,7 @@ struct ias_object *irias_new_object( char *name, int id)
 	}
 
 	obj->magic = IAS_OBJECT_MAGIC;
-	obj->name = strndup(name, IAS_MAX_CLASSNAME);
+	obj->name = kstrndup(name, IAS_MAX_CLASSNAME, GFP_ATOMIC);
 	if (!obj->name) {
 		IRDA_WARNING("%s(), Unable to allocate name!\n",
 			     __FUNCTION__);
@@ -360,7 +327,7 @@ void irias_add_integer_attrib(struct ias_object *obj, char *name, int value,
 	}
 
 	attrib->magic = IAS_ATTRIB_MAGIC;
-	attrib->name = strndup(name, IAS_MAX_ATTRIBNAME);
+	attrib->name = kstrndup(name, IAS_MAX_ATTRIBNAME, GFP_ATOMIC);
 
 	/* Insert value */
 	attrib->value = irias_new_integer_value(value);
@@ -404,7 +371,7 @@ void irias_add_octseq_attrib(struct ias_object *obj, char *name, __u8 *octets,
 	}
 
 	attrib->magic = IAS_ATTRIB_MAGIC;
-	attrib->name = strndup(name, IAS_MAX_ATTRIBNAME);
+	attrib->name = kstrndup(name, IAS_MAX_ATTRIBNAME, GFP_ATOMIC);
 
 	attrib->value = irias_new_octseq_value( octets, len);
 	if (!attrib->name || !attrib->value) {
@@ -446,7 +413,7 @@ void irias_add_string_attrib(struct ias_object *obj, char *name, char *value,
 	}
 
 	attrib->magic = IAS_ATTRIB_MAGIC;
-	attrib->name = strndup(name, IAS_MAX_ATTRIBNAME);
+	attrib->name = kstrndup(name, IAS_MAX_ATTRIBNAME, GFP_ATOMIC);
 
 	attrib->value = irias_new_string_value(value);
 	if (!attrib->name || !attrib->value) {
@@ -506,7 +473,7 @@ struct ias_value *irias_new_string_value(char *string)
 
 	value->type = IAS_STRING;
 	value->charset = CS_ASCII;
-	value->t.string = strndup(string, IAS_MAX_STRING);
+	value->t.string = kstrndup(string, IAS_MAX_STRING, GFP_ATOMIC);
 	if (!value->t.string) {
 		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
 		kfree(value);
