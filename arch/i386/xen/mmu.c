@@ -38,6 +38,7 @@
  *
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
+#include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
@@ -531,5 +532,7 @@ void xen_exit_mmap(struct mm_struct *mm)
 	drop_mm_ref(mm);
 	put_cpu();
 
+	spin_lock(&mm->page_table_lock);
 	xen_pgd_unpin(mm->pgd);
+	spin_unlock(&mm->page_table_lock);
 }

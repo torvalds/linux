@@ -88,7 +88,7 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 	u64 state_time;
 	struct vcpu_runstate_info *state;
 
-	preempt_disable();
+	BUG_ON(preemptible());
 
 	state = &__get_cpu_var(runstate);
 
@@ -103,8 +103,6 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 		*res = *state;
 		barrier();
 	} while (get64(&state->state_entry_time) != state_time);
-
-	preempt_enable();
 }
 
 static void setup_runstate_info(int cpu)
@@ -179,8 +177,18 @@ static void do_stolen_accounting(void)
 unsigned long long xen_sched_clock(void)
 {
 	struct vcpu_runstate_info state;
-	cycle_t now = xen_clocksource_read();
+	cycle_t now;
+	u64 ret;
 	s64 offset;
+
+	/*
+	 * Ideally sched_clock should be called on a per-cpu basis
+	 * anyway, so preempt should already be disabled, but that's
+	 * not current practice at the moment.
+	 */
+	preempt_disable();
+
+	now = xen_clocksource_read();
 
 	get_runstate_snapshot(&state);
 
@@ -190,9 +198,13 @@ unsigned long long xen_sched_clock(void)
 	if (offset < 0)
 		offset = 0;
 
-	return state.time[RUNSTATE_blocked] +
+	ret = state.time[RUNSTATE_blocked] +
 		state.time[RUNSTATE_running] +
 		offset;
+
+	preempt_enable();
+
+	return ret;
 }
 
 

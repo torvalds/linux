@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/preempt.h>
+#include <linux/hardirq.h>
 #include <linux/percpu.h>
 #include <linux/delay.h>
 #include <linux/start_kernel.h>
@@ -108,11 +109,10 @@ static unsigned long xen_save_fl(void)
 	struct vcpu_info *vcpu;
 	unsigned long flags;
 
-	preempt_disable();
 	vcpu = x86_read_percpu(xen_vcpu);
+
 	/* flag has opposite sense of mask */
 	flags = !vcpu->evtchn_upcall_mask;
-	preempt_enable();
 
 	/* convert to IF type flag
 	   -0 -> 0x00000000
@@ -125,32 +125,35 @@ static void xen_restore_fl(unsigned long flags)
 {
 	struct vcpu_info *vcpu;
 
-	preempt_disable();
-
 	/* convert from IF type flag */
 	flags = !(flags & X86_EFLAGS_IF);
+
+	/* There's a one instruction preempt window here.  We need to
+	   make sure we're don't switch CPUs between getting the vcpu
+	   pointer and updating the mask. */
+	preempt_disable();
 	vcpu = x86_read_percpu(xen_vcpu);
 	vcpu->evtchn_upcall_mask = flags;
+	preempt_enable_no_resched();
+
+	/* Doesn't matter if we get preempted here, because any
+	   pending event will get dealt with anyway. */
 
 	if (flags == 0) {
-		/* Unmask then check (avoid races).  We're only protecting
-		   against updates by this CPU, so there's no need for
-		   anything stronger. */
-		barrier();
-
+		preempt_check_resched();
+		barrier(); /* unmask then check (avoid races) */
 		if (unlikely(vcpu->evtchn_upcall_pending))
 			force_evtchn_callback();
-		preempt_enable();
-	} else
-		preempt_enable_no_resched();
+	}
 }
 
 static void xen_irq_disable(void)
 {
-	struct vcpu_info *vcpu;
+	/* There's a one instruction preempt window here.  We need to
+	   make sure we're don't switch CPUs between getting the vcpu
+	   pointer and updating the mask. */
 	preempt_disable();
-	vcpu = x86_read_percpu(xen_vcpu);
-	vcpu->evtchn_upcall_mask = 1;
+	x86_read_percpu(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
 }
 
@@ -158,18 +161,20 @@ static void xen_irq_enable(void)
 {
 	struct vcpu_info *vcpu;
 
+	/* There's a one instruction preempt window here.  We need to
+	   make sure we're don't switch CPUs between getting the vcpu
+	   pointer and updating the mask. */
 	preempt_disable();
 	vcpu = x86_read_percpu(xen_vcpu);
 	vcpu->evtchn_upcall_mask = 0;
+	preempt_enable_no_resched();
 
-	/* Unmask then check (avoid races).  We're only protecting
-	   against updates by this CPU, so there's no need for
-	   anything stronger. */
-	barrier();
+	/* Doesn't matter if we get preempted here, because any
+	   pending event will get dealt with anyway. */
 
+	barrier(); /* unmask then check (avoid races) */
 	if (unlikely(vcpu->evtchn_upcall_pending))
 		force_evtchn_callback();
-	preempt_enable();
 }
 
 static void xen_safe_halt(void)
@@ -189,6 +194,8 @@ static void xen_halt(void)
 
 static void xen_set_lazy_mode(enum paravirt_lazy_mode mode)
 {
+	BUG_ON(preemptible());
+
 	switch (mode) {
 	case PARAVIRT_LAZY_NONE:
 		BUG_ON(x86_read_percpu(xen_lazy_mode) == PARAVIRT_LAZY_NONE);
@@ -293,9 +300,13 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 	xmaddr_t mach_lp = virt_to_machine(lp);
 	u64 entry = (u64)high << 32 | low;
 
+	preempt_disable();
+
 	xen_mc_flush();
 	if (HYPERVISOR_update_descriptor(mach_lp.maddr, entry))
 		BUG();
+
+	preempt_enable();
 }
 
 static int cvt_gate_to_trap(int vector, u32 low, u32 high,
@@ -328,11 +339,13 @@ static DEFINE_PER_CPU(struct Xgt_desc_struct, idt_desc);
 static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
 				u32 low, u32 high)
 {
-
-	int cpu = smp_processor_id();
 	unsigned long p = (unsigned long)&dt[entrynum];
-	unsigned long start = per_cpu(idt_desc, cpu).address;
-	unsigned long end = start + per_cpu(idt_desc, cpu).size + 1;
+	unsigned long start, end;
+
+	preempt_disable();
+
+	start = __get_cpu_var(idt_desc).address;
+	end = start + __get_cpu_var(idt_desc).size + 1;
 
 	xen_mc_flush();
 
@@ -347,6 +360,8 @@ static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
 			if (HYPERVISOR_set_trap_table(info))
 				BUG();
 	}
+
+	preempt_enable();
 }
 
 static void xen_convert_trap_info(const struct Xgt_desc_struct *desc,
@@ -368,11 +383,9 @@ static void xen_convert_trap_info(const struct Xgt_desc_struct *desc,
 
 void xen_copy_trap_info(struct trap_info *traps)
 {
-	const struct Xgt_desc_struct *desc = &get_cpu_var(idt_desc);
+	const struct Xgt_desc_struct *desc = &__get_cpu_var(idt_desc);
 
 	xen_convert_trap_info(desc, traps);
-
-	put_cpu_var(idt_desc);
 }
 
 /* Load a new IDT into Xen.  In principle this can be per-CPU, so we
@@ -382,11 +395,10 @@ static void xen_load_idt(const struct Xgt_desc_struct *desc)
 {
 	static DEFINE_SPINLOCK(lock);
 	static struct trap_info traps[257];
-	int cpu = smp_processor_id();
-
-	per_cpu(idt_desc, cpu) = *desc;
 
 	spin_lock(&lock);
+
+	__get_cpu_var(idt_desc) = *desc;
 
 	xen_convert_trap_info(desc, traps);
 
@@ -402,6 +414,8 @@ static void xen_load_idt(const struct Xgt_desc_struct *desc)
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 				u32 low, u32 high)
 {
+	preempt_disable();
+
 	switch ((high >> 8) & 0xff) {
 	case DESCTYPE_LDT:
 	case DESCTYPE_TSS:
@@ -418,10 +432,12 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 	}
 
 	}
+
+	preempt_enable();
 }
 
 static void xen_load_esp0(struct tss_struct *tss,
-				   struct thread_struct *thread)
+			  struct thread_struct *thread)
 {
 	struct multicall_space mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->esp0);
@@ -525,6 +541,8 @@ static unsigned long xen_read_cr3(void)
 
 static void xen_write_cr3(unsigned long cr3)
 {
+	BUG_ON(preemptible());
+
 	if (cr3 == x86_read_percpu(xen_cr3)) {
 		/* just a simple tlb flush */
 		xen_flush_tlb();

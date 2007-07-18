@@ -20,6 +20,7 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 #include <linux/percpu.h>
+#include <linux/hardirq.h>
 
 #include <asm/xen/hypercall.h>
 
@@ -39,9 +40,11 @@ DEFINE_PER_CPU(unsigned long, xen_mc_irq_flags);
 
 void xen_mc_flush(void)
 {
-	struct mc_buffer *b = &get_cpu_var(mc_buffer);
+	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
 	int ret = 0;
 	unsigned long flags;
+
+	BUG_ON(preemptible());
 
 	/* Disable interrupts in case someone comes in and queues
 	   something in the middle */
@@ -60,7 +63,6 @@ void xen_mc_flush(void)
 	} else
 		BUG_ON(b->argidx != 0);
 
-	put_cpu_var(mc_buffer);
 	local_irq_restore(flags);
 
 	BUG_ON(ret);
@@ -68,10 +70,11 @@ void xen_mc_flush(void)
 
 struct multicall_space __xen_mc_entry(size_t args)
 {
-	struct mc_buffer *b = &get_cpu_var(mc_buffer);
+	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
 	struct multicall_space ret;
 	unsigned argspace = (args + sizeof(u64) - 1) / sizeof(u64);
 
+	BUG_ON(preemptible());
 	BUG_ON(argspace > MC_ARGS);
 
 	if (b->mcidx == MC_BATCH ||
@@ -82,8 +85,6 @@ struct multicall_space __xen_mc_entry(size_t args)
 	b->mcidx++;
 	ret.args = &b->args[b->argidx];
 	b->argidx += argspace;
-
-	put_cpu_var(mc_buffer);
 
 	return ret;
 }
