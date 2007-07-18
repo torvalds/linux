@@ -133,7 +133,7 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
  */
 static struct lock_class_key sysfs_inode_imutex_key;
 
-void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
+static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
 	inode->i_blocks = 0;
 	inode->i_mapping->a_ops = &sysfs_aops;
