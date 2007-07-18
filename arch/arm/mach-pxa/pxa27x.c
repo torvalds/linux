@@ -223,8 +223,6 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
-	extern void pxa_cpu_suspend(unsigned int);
-	extern void pxa_cpu_resume(void);
 
 	if (state == PM_SUSPEND_STANDBY)
 		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER) |
@@ -245,7 +243,7 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
 		PSPR = virt_to_phys(pxa_cpu_resume);
-		pxa_cpu_suspend(PWRMODE_SLEEP);
+		pxa27x_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
 }
