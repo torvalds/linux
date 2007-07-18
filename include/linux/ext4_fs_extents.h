@@ -188,6 +188,21 @@ ext4_ext_invalidate_cache(struct inode *inode)
 	EXT4_I(inode)->i_cached_extent.ec_type = EXT4_EXT_CACHE_NO;
 }
 
+static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)
+{
+	ext->ee_len |= cpu_to_le16(0x8000);
+}
+
+static inline int ext4_ext_is_uninitialized(struct ext4_extent *ext)
+{
+	return (int)(le16_to_cpu((ext)->ee_len) & 0x8000);
+}
+
+static inline int ext4_ext_get_actual_len(struct ext4_extent *ext)
+{
+	return (int)(le16_to_cpu((ext)->ee_len) & 0x7FFF);
+}
+
 extern int ext4_extent_tree_init(handle_t *, struct inode *);
 extern int ext4_ext_calc_credits_for_insert(struct inode *, struct ext4_ext_path *);
 extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *, struct ext4_ext_path *);

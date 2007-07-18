@@ -102,6 +102,7 @@
 				 EXT4_GOOD_OLD_FIRST_INO : \
 				 (s)->s_first_ino)
 #endif
+#define EXT4_BLOCK_ALIGN(size, blkbits)		ALIGN((size), (1 << (blkbits)))
 
 /*
  * Macro-instructions used to manage fragments
@@ -225,6 +226,11 @@ struct ext4_new_group_data {
 	__u32 free_blocks_count;
 };
 
+/*
+ * Following is used by preallocation code to tell get_blocks() that we
+ * want uninitialzed extents.
+ */
+#define EXT4_CREATE_UNINITIALIZED_EXT		2
 
 /*
  * ioctl commands
@@ -983,6 +989,8 @@ extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 extern void ext4_ext_truncate(struct inode *, struct page *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
+extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
+			  loff_t len);
 static inline int
 ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			unsigned long max_blocks, struct buffer_head *bh,
