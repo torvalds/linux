@@ -1581,16 +1581,24 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 
 done:
 	qp_attr->cur_qp_state	     = qp_attr->qp_state;
+	qp_attr->cap.max_recv_wr     = qp->rq.wqe_cnt;
+	qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
+
 	if (!ibqp->uobject) {
-		qp_attr->cap.max_send_wr     = qp->sq.wqe_cnt;
-		qp_attr->cap.max_recv_wr     = qp->rq.wqe_cnt;
-		qp_attr->cap.max_send_sge    = qp->sq.max_gs;
-		qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
-		qp_attr->cap.max_inline_data = (1 << qp->sq.wqe_shift) -
-			send_wqe_overhead(qp->ibqp.qp_type) -
-			sizeof (struct mlx4_wqe_inline_seg);
-		qp_init_attr->cap	     = qp_attr->cap;
+		qp_attr->cap.max_send_wr  = qp->sq.wqe_cnt;
+		qp_attr->cap.max_send_sge = qp->sq.max_gs;
+	} else {
+		qp_attr->cap.max_send_wr  = 0;
+		qp_attr->cap.max_send_sge = 0;
 	}
+
+	/*
+	 * We don't support inline sends for kernel QPs (yet), and we
+	 * don't know what userspace's value should be.
+	 */
+	qp_attr->cap.max_inline_data = 0;
+
+	qp_init_attr->cap	     = qp_attr->cap;
 
 	return 0;
 }
