@@ -219,16 +219,17 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 	struct ld_usb *dev = urb->context;
 	size_t *actual_buffer;
 	unsigned int next_ring_head;
+	int status = urb->status;
 	int retval;
 
-	if (urb->status) {
-		if (urb->status == -ENOENT ||
-		    urb->status == -ECONNRESET ||
-		    urb->status == -ESHUTDOWN) {
+	if (status) {
+		if (status == -ENOENT ||
+		    status == -ECONNRESET ||
+		    status == -ESHUTDOWN) {
 			goto exit;
 		} else {
 			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
-				 __FUNCTION__, urb->status);
+				 __FUNCTION__, status);
 			spin_lock(&dev->rbsl);
 			goto resubmit; /* maybe we can recover */
 		}
@@ -275,14 +276,15 @@ exit:
 static void ld_usb_interrupt_out_callback(struct urb *urb)
 {
 	struct ld_usb *dev = urb->context;
+	int status = urb->status;
 
 	/* sync/async unlink faults aren't errors */
-	if (urb->status && !(urb->status == -ENOENT ||
-			     urb->status == -ECONNRESET ||
-			     urb->status == -ESHUTDOWN))
+	if (status && !(status == -ENOENT ||
+			status == -ECONNRESET ||
+			status == -ESHUTDOWN))
 		dbg_info(&dev->intf->dev,
 			 "%s - nonzero write interrupt status received: %d\n",
-			 __FUNCTION__, urb->status);
+			 __FUNCTION__, status);
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
