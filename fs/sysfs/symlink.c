@@ -86,7 +86,9 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
 	if (!sd)
 		goto out_put;
+
 	sd->s_elem.symlink.target_sd = target_sd;
+	target_sd = NULL;	/* reference is now owned by the symlink */
 
 	sysfs_addrm_start(&acxt, parent_sd);
 
