@@ -231,6 +231,7 @@ struct kvm_stat {
 	u32 signal_exits;
 	u32 irq_window_exits;
 	u32 halt_exits;
+	u32 halt_wakeup;
 	u32 request_irq_exits;
 	u32 irq_exits;
 	u32 light_exits;
@@ -353,6 +354,7 @@ struct kvm_vcpu {
 	gva_t mmio_fault_cr2;
 	struct kvm_pio_request pio;
 	void *pio_data;
+	wait_queue_head_t wq;
 
 	int sigset_active;
 	sigset_t sigset;

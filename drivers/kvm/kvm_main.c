@@ -76,6 +76,7 @@ static struct kvm_stats_debugfs_item {
 	{ "signal_exits", STAT_OFFSET(signal_exits) },
 	{ "irq_window", STAT_OFFSET(irq_window_exits) },
 	{ "halt_exits", STAT_OFFSET(halt_exits) },
+	{ "halt_wakeup", STAT_OFFSET(halt_wakeup) },
 	{ "request_irq", STAT_OFFSET(request_irq_exits) },
 	{ "irq_exits", STAT_OFFSET(irq_exits) },
 	{ "light_exits", STAT_OFFSET(light_exits) },
@@ -248,6 +249,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->mmu.root_hpa = INVALID_PAGE;
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
+	init_waitqueue_head(&vcpu->wq);
 
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page) {
@@ -1307,15 +1309,41 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
+/*
+ * The vCPU has executed a HLT instruction with in-kernel mode enabled.
+ */
+static void kvm_vcpu_kernel_halt(struct kvm_vcpu *vcpu)
+{
+	DECLARE_WAITQUEUE(wait, current);
+
+	add_wait_queue(&vcpu->wq, &wait);
+
+	/*
+	 * We will block until either an interrupt or a signal wakes us up
+	 */
+	while(!(irqchip_in_kernel(vcpu->kvm) && kvm_cpu_has_interrupt(vcpu))
+	      && !vcpu->irq_summary
+	      && !signal_pending(current)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		vcpu_put(vcpu);
+		schedule();
+		vcpu_load(vcpu);
+	}
+
+	remove_wait_queue(&vcpu->wq, &wait);
+	set_current_state(TASK_RUNNING);
+}
+
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->irq_summary ||
-		(irqchip_in_kernel(vcpu->kvm) && kvm_cpu_has_interrupt(vcpu)))
-		return 1;
-
-	vcpu->run->exit_reason = KVM_EXIT_HLT;
 	++vcpu->stat.halt_exits;
-	return 0;
+	if (irqchip_in_kernel(vcpu->kvm)) {
+		kvm_vcpu_kernel_halt(vcpu);
+		return 1;
+	} else {
+		vcpu->run->exit_reason = KVM_EXIT_HLT;
+		return 0;
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
@@ -2916,6 +2944,7 @@ static long kvm_dev_ioctl(struct file *filp,
 
 		switch (ext) {
 		case KVM_CAP_IRQCHIP:
+		case KVM_CAP_HLT:
 			r = 1;
 			break;
 		default:

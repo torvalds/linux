@@ -1398,9 +1398,12 @@ static void do_interrupt_requests(struct vcpu_svm *svm,
 static void post_kvm_run_save(struct vcpu_svm *svm,
 			      struct kvm_run *kvm_run)
 {
-	kvm_run->ready_for_interrupt_injection
-		= (svm->vcpu.interrupt_window_open &&
-		   svm->vcpu.irq_summary == 0);
+	if (irqchip_in_kernel(svm->vcpu.kvm))
+		kvm_run->ready_for_interrupt_injection = 1;
+	else
+		kvm_run->ready_for_interrupt_injection =
+					 (svm->vcpu.interrupt_window_open &&
+					  svm->vcpu.irq_summary == 0);
 	kvm_run->if_flag = (svm->vmcb->save.rflags & X86_EFLAGS_IF) != 0;
 	kvm_run->cr8 = get_cr8(&svm->vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(&svm->vcpu);

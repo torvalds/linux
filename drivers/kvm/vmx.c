@@ -1961,8 +1961,12 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 	kvm_run->if_flag = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) != 0;
 	kvm_run->cr8 = get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
-	kvm_run->ready_for_interrupt_injection = (vcpu->interrupt_window_open &&
-						  vcpu->irq_summary == 0);
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_run->ready_for_interrupt_injection = 1;
+	else
+		kvm_run->ready_for_interrupt_injection =
+					(vcpu->interrupt_window_open &&
+					 vcpu->irq_summary == 0);
 }
 
 static int handle_interrupt_window(struct kvm_vcpu *vcpu,

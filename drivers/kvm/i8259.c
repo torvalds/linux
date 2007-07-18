@@ -413,8 +413,11 @@ static void picdev_read(struct kvm_io_device *this,
 static void pic_irq_request(void *opaque, int level)
 {
 	struct kvm *kvm = opaque;
+	struct kvm_vcpu *vcpu = kvm->vcpus[0];
 
 	pic_irqchip(kvm)->output = level;
+	if (vcpu)
+		kvm_vcpu_kick(vcpu);
 }
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)

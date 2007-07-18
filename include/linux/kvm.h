@@ -283,6 +283,7 @@ struct kvm_signal_mask {
  * Extension capability list.
  */
 #define KVM_CAP_IRQCHIP	  0
+#define KVM_CAP_HLT	  1
 
 /*
  * ioctls for VM fds
