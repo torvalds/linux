@@ -209,7 +209,7 @@ void ocfs2_stop_heartbeat(struct ocfs2_super *osb)
 	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[2] = NULL;
 
-	ret = call_usermodehelper(argv[0], argv, envp, 1);
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
 	if (ret < 0)
 		mlog_errno(ret);
 }

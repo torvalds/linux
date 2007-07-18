@@ -516,7 +516,7 @@ static void cpuset_release_agent(const char *pathbuf)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[i] = NULL;
 
-	call_usermodehelper(argv[0], argv, envp, 0);
+	call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 	kfree(pathbuf);
 }
 

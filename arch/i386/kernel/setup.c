@@ -601,6 +601,8 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
 
+	paravirt_post_allocator_init();
+
 	dmi_scan_machine();
 
 #ifdef CONFIG_X86_GENERICARCH

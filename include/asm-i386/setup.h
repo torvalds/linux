@@ -81,6 +81,10 @@ void __init add_memory_region(unsigned long long start,
 
 extern unsigned long init_pg_tables_end;
 
+#ifndef CONFIG_PARAVIRT
+#define paravirt_post_allocator_init()	do {} while (0)
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif  /*  __KERNEL__  */
