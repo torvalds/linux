@@ -667,7 +667,7 @@ static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int tortur
 
 	dbg_wl("erased PEB %d, new EC %llu", e->pnum, ec);
 
-	ec_hdr->ec = cpu_to_ubi64(ec);
+	ec_hdr->ec = cpu_to_be64(ec);
 
 	err = ubi_io_write_ec_hdr(ubi, e->pnum, ec_hdr);
 	if (err)
@@ -1060,9 +1060,8 @@ out_unlock:
 static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 			int cancel)
 {
-	int err;
 	struct ubi_wl_entry *e = wl_wrk->e;
-	int pnum = e->pnum;
+	int pnum = e->pnum, err, need;
 
 	if (cancel) {
 		dbg_wl("cancel erasure of PEB %d EC %d", pnum, e->ec);
@@ -1097,62 +1096,70 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	kfree(wl_wrk);
 	kmem_cache_free(wl_entries_slab, e);
 
-	if (err != -EIO) {
+	if (err == -EINTR || err == -ENOMEM || err == -EAGAIN ||
+	    err == -EBUSY) {
+		int err1;
+
+		/* Re-schedule the LEB for erasure */
+		err1 = schedule_erase(ubi, e, 0);
+		if (err1) {
+			err = err1;
+			goto out_ro;
+		}
+		return err;
+	} else if (err != -EIO) {
 		/*
 		 * If this is not %-EIO, we have no idea what to do. Scheduling
 		 * this physical eraseblock for erasure again would cause
 		 * errors again and again. Well, lets switch to RO mode.
 		 */
-		ubi_ro_mode(ubi);
-		return err;
+		goto out_ro;
 	}
 
 	/* It is %-EIO, the PEB went bad */
 
 	if (!ubi->bad_allowed) {
 		ubi_err("bad physical eraseblock %d detected", pnum);
-		ubi_ro_mode(ubi);
-		err = -EIO;
-	} else {
-		int need;
-
-		spin_lock(&ubi->volumes_lock);
-		need = ubi->beb_rsvd_level - ubi->beb_rsvd_pebs + 1;
-		if (need > 0) {
-			need = ubi->avail_pebs >= need ? need : ubi->avail_pebs;
-			ubi->avail_pebs -= need;
-			ubi->rsvd_pebs += need;
-			ubi->beb_rsvd_pebs += need;
-			if (need > 0)
-				ubi_msg("reserve more %d PEBs", need);
-		}
-
-		if (ubi->beb_rsvd_pebs == 0) {
-			spin_unlock(&ubi->volumes_lock);
-			ubi_err("no reserved physical eraseblocks");
-			ubi_ro_mode(ubi);
-			return -EIO;
-		}
-
-		spin_unlock(&ubi->volumes_lock);
-		ubi_msg("mark PEB %d as bad", pnum);
-
-		err = ubi_io_mark_bad(ubi, pnum);
-		if (err) {
-			ubi_ro_mode(ubi);
-			return err;
-		}
-
-		spin_lock(&ubi->volumes_lock);
-		ubi->beb_rsvd_pebs -= 1;
-		ubi->bad_peb_count += 1;
-		ubi->good_peb_count -= 1;
-		ubi_calculate_reserved(ubi);
-		if (ubi->beb_rsvd_pebs == 0)
-			ubi_warn("last PEB from the reserved pool was used");
-		spin_unlock(&ubi->volumes_lock);
+		goto out_ro;
 	}
 
+	spin_lock(&ubi->volumes_lock);
+	need = ubi->beb_rsvd_level - ubi->beb_rsvd_pebs + 1;
+	if (need > 0) {
+		need = ubi->avail_pebs >= need ? need : ubi->avail_pebs;
+		ubi->avail_pebs -= need;
+		ubi->rsvd_pebs += need;
+		ubi->beb_rsvd_pebs += need;
+		if (need > 0)
+			ubi_msg("reserve more %d PEBs", need);
+	}
+
+	if (ubi->beb_rsvd_pebs == 0) {
+		spin_unlock(&ubi->volumes_lock);
+		ubi_err("no reserved physical eraseblocks");
+		goto out_ro;
+	}
+
+	spin_unlock(&ubi->volumes_lock);
+	ubi_msg("mark PEB %d as bad", pnum);
+
+	err = ubi_io_mark_bad(ubi, pnum);
+	if (err)
+		goto out_ro;
+
+	spin_lock(&ubi->volumes_lock);
+	ubi->beb_rsvd_pebs -= 1;
+	ubi->bad_peb_count += 1;
+	ubi->good_peb_count -= 1;
+	ubi_calculate_reserved(ubi);
+	if (ubi->beb_rsvd_pebs == 0)
+		ubi_warn("last PEB from the reserved pool was used");
+	spin_unlock(&ubi->volumes_lock);
+
+	return err;
+
+out_ro:
+	ubi_ro_mode(ubi);
 	return err;
 }
 
@@ -1634,7 +1641,7 @@ static int paranoid_check_ec(const struct ubi_device *ubi, int pnum, int ec)
 		goto out_free;
 	}
 
-	read_ec = ubi64_to_cpu(ec_hdr->ec);
+	read_ec = be64_to_cpu(ec_hdr->ec);
 	if (ec != read_ec) {
 		ubi_err("paranoid check failed for PEB %d", pnum);
 		ubi_err("read EC is %lld, should be %d", read_ec, ec);

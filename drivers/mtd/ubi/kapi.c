@@ -37,14 +37,9 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 {
 	const struct ubi_device *ubi;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES ||
-	    !ubi_devices[ubi_num]) {
-		module_put(THIS_MODULE);
+	    !ubi_devices[ubi_num])
 		return -ENODEV;
-	}
 
 	ubi = ubi_devices[ubi_num];
 	di->ubi_num = ubi->ubi_num;
@@ -52,7 +47,6 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 	di->min_io_size = ubi->min_io_size;
 	di->ro_mode = ubi->ro_mode;
 	di->cdev = MKDEV(ubi->major, 0);
-	module_put(THIS_MODULE);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_get_device_info);
@@ -319,9 +313,14 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	    offset + len > vol->usable_leb_size)
 		return -EINVAL;
 
-	if (vol->vol_type == UBI_STATIC_VOLUME && lnum == vol->used_ebs - 1 &&
-	    offset + len > vol->last_eb_bytes)
-		return -EINVAL;
+	if (vol->vol_type == UBI_STATIC_VOLUME) {
+		if (vol->used_ebs == 0)
+			/* Empty static UBI volume */
+			return 0;
+		if (lnum == vol->used_ebs - 1 &&
+		    offset + len > vol->last_eb_bytes)
+			return -EINVAL;
+	}
 
 	if (vol->upd_marker)
 		return -EBADF;

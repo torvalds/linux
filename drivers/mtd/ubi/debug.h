@@ -52,7 +52,6 @@ struct ubi_scan_volume;
 struct ubi_scan_leb;
 struct ubi_mkvol_req;
 
-void ubi_dbg_print(int type, const char *func, const char *fmt, ...);
 void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
 void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 void ubi_dbg_dump_vol_info(const struct ubi_volume *vol);
@@ -66,7 +65,6 @@ void ubi_dbg_hexdump(const void *buf, int size);
 
 #define dbg_msg(fmt, ...)    ({})
 #define ubi_dbg_dump_stack() ({})
-#define ubi_dbg_print(func, fmt, ...)    ({})
 #define ubi_dbg_dump_ec_hdr(ec_hdr)      ({})
 #define ubi_dbg_dump_vid_hdr(vid_hdr)    ({})
 #define ubi_dbg_dump_vol_info(vol)       ({})
