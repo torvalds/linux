@@ -137,7 +137,7 @@ static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
 
-	base = kmalloc(handle_size + 15, GFP_KERNEL);
+	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_NOFAIL);
 	if (base) {
 		struct mdesc_handle *hp;
 		unsigned long addr;
@@ -214,18 +214,83 @@ void mdesc_release(struct mdesc_handle *hp)
 }
 EXPORT_SYMBOL(mdesc_release);
 
+static DEFINE_MUTEX(mdesc_mutex);
+static struct mdesc_notifier_client *client_list;
+
+void mdesc_register_notifier(struct mdesc_notifier_client *client)
+{
+	u64 node;
+
+	mutex_lock(&mdesc_mutex);
+	client->next = client_list;
+	client_list = client;
+
+	mdesc_for_each_node_by_name(cur_mdesc, node, client->node_name)
+		client->add(cur_mdesc, node);
+
+	mutex_unlock(&mdesc_mutex);
+}
+
+/* Run 'func' on nodes which are in A but not in B.  */
+static void invoke_on_missing(const char *name,
+			      struct mdesc_handle *a,
+			      struct mdesc_handle *b,
+			      void (*func)(struct mdesc_handle *, u64))
+{
+	u64 node;
+
+	mdesc_for_each_node_by_name(a, node, name) {
+		const u64 *id = mdesc_get_property(a, node, "id", NULL);
+		int found = 0;
+		u64 fnode;
+
+		mdesc_for_each_node_by_name(b, fnode, name) {
+			const u64 *fid = mdesc_get_property(b, fnode,
+							    "id", NULL);
+
+			if (*id == *fid) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			func(a, node);
+	}
+}
+
+static void notify_one(struct mdesc_notifier_client *p,
+		       struct mdesc_handle *old_hp,
+		       struct mdesc_handle *new_hp)
+{
+	invoke_on_missing(p->node_name, old_hp, new_hp, p->remove);
+	invoke_on_missing(p->node_name, new_hp, old_hp, p->add);
+}
+
+static void mdesc_notify_clients(struct mdesc_handle *old_hp,
+				 struct mdesc_handle *new_hp)
+{
+	struct mdesc_notifier_client *p = client_list;
+
+	while (p) {
+		notify_one(p, old_hp, new_hp);
+		p = p->next;
+	}
+}
+
 void mdesc_update(void)
 {
 	unsigned long len, real_len, status;
 	struct mdesc_handle *hp, *orig_hp;
 	unsigned long flags;
 
+	mutex_lock(&mdesc_mutex);
+
 	(void) sun4v_mach_desc(0UL, 0UL, &len);
 
 	hp = mdesc_alloc(len, &kmalloc_mdesc_memops);
 	if (!hp) {
 		printk(KERN_ERR "MD: mdesc alloc fails\n");
-		return;
+		goto out;
 	}
 
 	status = sun4v_mach_desc(__pa(&hp->mdesc), len, &real_len);
@@ -234,18 +299,25 @@ void mdesc_update(void)
 		       status);
 		atomic_dec(&hp->refcnt);
 		mdesc_free(hp);
-		return;
+		goto out;
 	}
 
 	spin_lock_irqsave(&mdesc_lock, flags);
 	orig_hp = cur_mdesc;
 	cur_mdesc = hp;
+	spin_unlock_irqrestore(&mdesc_lock, flags);
 
+	mdesc_notify_clients(orig_hp, hp);
+
+	spin_lock_irqsave(&mdesc_lock, flags);
 	if (atomic_dec_and_test(&orig_hp->refcnt))
 		mdesc_free(orig_hp);
 	else
 		list_add(&orig_hp->list, &mdesc_zombie_list);
 	spin_unlock_irqrestore(&mdesc_lock, flags);
+
+out:
+	mutex_unlock(&mdesc_mutex);
 }
 
 static struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)

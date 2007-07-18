@@ -172,6 +172,36 @@ struct device_node *cdev_node;
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
 
+static void vio_add(struct mdesc_handle *hp, u64 node)
+{
+	const char *name = mdesc_get_property(hp, node, "name", NULL);
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	printk(KERN_ERR "VIO: Device add (%s) ID[%lx]\n",
+	       name, *id);
+}
+
+static void vio_remove(struct mdesc_handle *hp, u64 node)
+{
+	const char *name = mdesc_get_property(hp, node, "name", NULL);
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	printk(KERN_ERR "VIO: Device remove (%s) ID[%lx]\n",
+	       name, *id);
+}
+
+static struct mdesc_notifier_client vio_device_notifier = {
+	.add		= vio_add,
+	.remove		= vio_remove,
+	.node_name	= "virtual-device-port",
+};
+
+static struct mdesc_notifier_client vio_ds_notifier = {
+	.add		= vio_add,
+	.remove		= vio_remove,
+	.node_name	= "domain-services-port",
+};
+
 static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 				  struct vio_dev *vdev)
 {
@@ -380,6 +410,9 @@ static int __init vio_init(void)
 	}
 
 	cdev_cfg_handle = *cfg_handle;
+
+	mdesc_register_notifier(&vio_device_notifier);
+	mdesc_register_notifier(&vio_ds_notifier);
 
 	create_devices(hp, root);
 
