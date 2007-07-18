@@ -109,11 +109,14 @@ static inline struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned lon
 
 void bio_free(struct bio *bio, struct bio_set *bio_set)
 {
-	const int pool_idx = BIO_POOL_IDX(bio);
+	if (bio->bi_io_vec) {
+		const int pool_idx = BIO_POOL_IDX(bio);
 
-	BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
+		BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
 
-	mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+		mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+	}
+
 	mempool_free(bio, bio_set->bio_pool);
 }
 
