@@ -141,6 +141,13 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 					printk(" %02x", msgs[i].buf[byte]);
 			}
 
+			/* SMBus Write Byte command followed by a read command */
+			if(msgs[i].len == 1 && i+1 < num && msgs[i+1].flags & I2C_M_RD
+					    && msgs[i+1].addr == msgs[i].addr) {
+				prev_reg = msgs[i].buf[0];
+				continue;
+			}
+
 			rc = tm6000_read_write_usb (dev,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				REQ_16_SET_GET_I2CSEQ,
