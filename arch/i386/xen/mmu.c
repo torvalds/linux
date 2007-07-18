@@ -391,8 +391,12 @@ void xen_pgd_pin(pgd_t *pgd)
 
 	xen_mc_batch();
 
-	if (pgd_walk(pgd, pin_page, TASK_SIZE))
+	if (pgd_walk(pgd, pin_page, TASK_SIZE)) {
+		/* re-enable interrupts for kmap_flush_unused */
+		xen_mc_issue(0);
 		kmap_flush_unused();
+		xen_mc_batch();
+	}
 
 	mcs = __xen_mc_entry(sizeof(*op));
 	op = mcs.args;
@@ -474,27 +478,58 @@ void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 
-void xen_exit_mmap(struct mm_struct *mm)
+
+#ifdef CONFIG_SMP
+/* Another cpu may still have their %cr3 pointing at the pagetable, so
+   we need to repoint it somewhere else before we can unpin it. */
+static void drop_other_mm_ref(void *info)
 {
-	struct task_struct *tsk = current;
+	struct mm_struct *mm = info;
 
-	task_lock(tsk);
+	if (__get_cpu_var(cpu_tlbstate).active_mm == mm)
+		leave_mm(smp_processor_id());
+}
 
-	/*
-	 * We aggressively remove defunct pgd from cr3. We execute unmap_vmas()
-	 * *much* faster this way, as no tlb flushes means bigger wrpt batches.
-	 */
-	if (tsk->active_mm == mm) {
-		tsk->active_mm = &init_mm;
-		atomic_inc(&init_mm.mm_count);
-
-		switch_mm(mm, &init_mm, tsk);
-
-		atomic_dec(&mm->mm_count);
-		BUG_ON(atomic_read(&mm->mm_count) == 0);
+static void drop_mm_ref(struct mm_struct *mm)
+{
+	if (current->active_mm == mm) {
+		if (current->mm == mm)
+			load_cr3(swapper_pg_dir);
+		else
+			leave_mm(smp_processor_id());
 	}
 
-	task_unlock(tsk);
+	if (!cpus_empty(mm->cpu_vm_mask))
+		xen_smp_call_function_mask(mm->cpu_vm_mask, drop_other_mm_ref,
+					   mm, 1);
+}
+#else
+static void drop_mm_ref(struct mm_struct *mm)
+{
+	if (current->active_mm == mm)
+		load_cr3(swapper_pg_dir);
+}
+#endif
+
+/*
+ * While a process runs, Xen pins its pagetables, which means that the
+ * hypervisor forces it to be read-only, and it controls all updates
+ * to it.  This means that all pagetable updates have to go via the
+ * hypervisor, which is moderately expensive.
+ *
+ * Since we're pulling the pagetable down, we switch to use init_mm,
+ * unpin old process pagetable and mark it all read-write, which
+ * allows further operations on it to be simple memory accesses.
+ *
+ * The only subtle point is that another CPU may be still using the
+ * pagetable because of lazy tlb flushing.  This means we need need to
+ * switch all CPUs off this pagetable before we can unpin it.
+ */
+void xen_exit_mmap(struct mm_struct *mm)
+{
+	get_cpu();		/* make sure we don't move around */
+	drop_mm_ref(mm);
+	put_cpu();
 
 	xen_pgd_unpin(mm->pgd);
 }

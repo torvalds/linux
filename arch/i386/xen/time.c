@@ -519,7 +519,7 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
-static void xen_setup_timer(int cpu)
+void xen_setup_timer(int cpu)
 {
 	const char *name;
 	struct clock_event_device *evt;
@@ -535,16 +535,20 @@ static void xen_setup_timer(int cpu)
 				      IRQF_DISABLED|IRQF_PERCPU|IRQF_NOBALANCING,
 				      name, NULL);
 
-	evt = &get_cpu_var(xen_clock_events);
+	evt = &per_cpu(xen_clock_events, cpu);
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 
 	evt->cpumask = cpumask_of_cpu(cpu);
 	evt->irq = irq;
-	clockevents_register_device(evt);
 
 	setup_runstate_info(cpu);
+}
 
-	put_cpu_var(xen_clock_events);
+void xen_setup_cpu_clockevents(void)
+{
+	BUG_ON(preemptible());
+
+	clockevents_register_device(&__get_cpu_var(xen_clock_events));
 }
 
 __init void xen_time_init(void)
@@ -570,4 +574,5 @@ __init void xen_time_init(void)
 	tsc_disable = 0;
 
 	xen_setup_timer(cpu);
+	xen_setup_cpu_clockevents();
 }

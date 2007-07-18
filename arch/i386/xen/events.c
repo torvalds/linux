@@ -47,6 +47,9 @@ static DEFINE_SPINLOCK(irq_mapping_update_lock);
 /* IRQ <-> VIRQ mapping. */
 static DEFINE_PER_CPU(int, virq_to_irq[NR_VIRQS]) = {[0 ... NR_VIRQS-1] = -1};
 
+/* IRQ <-> IPI mapping */
+static DEFINE_PER_CPU(int, ipi_to_irq[XEN_NR_IPIS]) = {[0 ... XEN_NR_IPIS-1] = -1};
+
 /* Packed IRQ information: binding type, sub-type index, and event channel. */
 struct packed_irq
 {
@@ -58,7 +61,13 @@ struct packed_irq
 static struct packed_irq irq_info[NR_IRQS];
 
 /* Binding types. */
-enum { IRQT_UNBOUND, IRQT_PIRQ, IRQT_VIRQ, IRQT_IPI, IRQT_EVTCHN };
+enum {
+	IRQT_UNBOUND,
+	IRQT_PIRQ,
+	IRQT_VIRQ,
+	IRQT_IPI,
+	IRQT_EVTCHN
+};
 
 /* Convenient shorthand for packed representation of an unbound IRQ. */
 #define IRQ_UNBOUND	mk_irq_info(IRQT_UNBOUND, 0, 0)
@@ -261,6 +270,45 @@ static int bind_evtchn_to_irq(unsigned int evtchn)
 	return irq;
 }
 
+static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
+{
+	struct evtchn_bind_ipi bind_ipi;
+	int evtchn, irq;
+
+	spin_lock(&irq_mapping_update_lock);
+
+	irq = per_cpu(ipi_to_irq, cpu)[ipi];
+	if (irq == -1) {
+		irq = find_unbound_irq();
+		if (irq < 0)
+			goto out;
+
+		dynamic_irq_init(irq);
+		set_irq_chip_and_handler_name(irq, &xen_dynamic_chip,
+					      handle_level_irq, "ipi");
+
+		bind_ipi.vcpu = cpu;
+		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi,
+						&bind_ipi) != 0)
+			BUG();
+		evtchn = bind_ipi.port;
+
+		evtchn_to_irq[evtchn] = irq;
+		irq_info[irq] = mk_irq_info(IRQT_IPI, ipi, evtchn);
+
+		per_cpu(ipi_to_irq, cpu)[ipi] = irq;
+
+		bind_evtchn_to_cpu(evtchn, cpu);
+	}
+
+	irq_bindcount[irq]++;
+
+ out:
+	spin_unlock(&irq_mapping_update_lock);
+	return irq;
+}
+
+
 static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
@@ -369,12 +417,42 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 }
 EXPORT_SYMBOL_GPL(bind_virq_to_irqhandler);
 
+int bind_ipi_to_irqhandler(enum ipi_vector ipi,
+			   unsigned int cpu,
+			   irq_handler_t handler,
+			   unsigned long irqflags,
+			   const char *devname,
+			   void *dev_id)
+{
+	int irq, retval;
+
+	irq = bind_ipi_to_irq(ipi, cpu);
+	if (irq < 0)
+		return irq;
+
+	retval = request_irq(irq, handler, irqflags, devname, dev_id);
+	if (retval != 0) {
+		unbind_from_irq(irq);
+		return retval;
+	}
+
+	return irq;
+}
+
 void unbind_from_irqhandler(unsigned int irq, void *dev_id)
 {
 	free_irq(irq, dev_id);
 	unbind_from_irq(irq);
 }
 EXPORT_SYMBOL_GPL(unbind_from_irqhandler);
+
+void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
+{
+	int irq = per_cpu(ipi_to_irq, cpu)[vector];
+	BUG_ON(irq < 0);
+	notify_remote_via_irq(irq);
+}
+
 
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map

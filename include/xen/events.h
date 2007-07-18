@@ -1,15 +1,32 @@
 #ifndef _XEN_EVENTS_H
 #define _XEN_EVENTS_H
 
-#include <linux/irq.h>
+#include <linux/interrupt.h>
+
+#include <xen/interface/event_channel.h>
+#include <asm/xen/hypercall.h>
+
+enum ipi_vector {
+	XEN_RESCHEDULE_VECTOR,
+	XEN_CALL_FUNCTION_VECTOR,
+
+	XEN_NR_IPIS,
+};
 
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
-			      irqreturn_t (*handler)(int, void *),
+			      irq_handler_t handler,
 			      unsigned long irqflags, const char *devname,
 			      void *dev_id);
 int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
-			    irqreturn_t (*handler)(int, void *),
-			    unsigned long irqflags, const char *devname, void *dev_id);
+			    irq_handler_t handler,
+			    unsigned long irqflags, const char *devname,
+			    void *dev_id);
+int bind_ipi_to_irqhandler(enum ipi_vector ipi,
+			   unsigned int cpu,
+			   irq_handler_t handler,
+			   unsigned long irqflags,
+			   const char *devname,
+			   void *dev_id);
 
 /*
  * Common unbind function for all event sources. Takes IRQ to unbind from.
@@ -17,6 +34,8 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
  * made with bind_evtchn_to_irqhandler()).
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
+
+void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 
 static inline void notify_remote_via_evtchn(int port)
 {

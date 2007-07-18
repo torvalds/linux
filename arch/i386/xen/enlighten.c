@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/highmem.h>
+#include <linux/smp.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/physdev.h>
@@ -40,6 +41,7 @@
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
+#include <asm/tlbflush.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -56,7 +58,7 @@ DEFINE_PER_CPU(unsigned long, xen_cr3);
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
 
-static void xen_vcpu_setup(int cpu)
+void xen_vcpu_setup(int cpu)
 {
 	per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 }
@@ -347,23 +349,14 @@ static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
 	}
 }
 
-/* Load a new IDT into Xen.  In principle this can be per-CPU, so we
-   hold a spinlock to protect the static traps[] array (static because
-   it avoids allocation, and saves stack space). */
-static void xen_load_idt(const struct Xgt_desc_struct *desc)
+static void xen_convert_trap_info(const struct Xgt_desc_struct *desc,
+				  struct trap_info *traps)
 {
-	static DEFINE_SPINLOCK(lock);
-	static struct trap_info traps[257];
-
-	int cpu = smp_processor_id();
 	unsigned in, out, count;
-
-	per_cpu(idt_desc, cpu) = *desc;
 
 	count = (desc->size+1) / 8;
 	BUG_ON(count > 256);
 
-	spin_lock(&lock);
 	for (in = out = 0; in < count; in++) {
 		const u32 *entry = (u32 *)(desc->address + in * 8);
 
@@ -371,6 +364,31 @@ static void xen_load_idt(const struct Xgt_desc_struct *desc)
 			out++;
 	}
 	traps[out].address = 0;
+}
+
+void xen_copy_trap_info(struct trap_info *traps)
+{
+	const struct Xgt_desc_struct *desc = &get_cpu_var(idt_desc);
+
+	xen_convert_trap_info(desc, traps);
+
+	put_cpu_var(idt_desc);
+}
+
+/* Load a new IDT into Xen.  In principle this can be per-CPU, so we
+   hold a spinlock to protect the static traps[] array (static because
+   it avoids allocation, and saves stack space). */
+static void xen_load_idt(const struct Xgt_desc_struct *desc)
+{
+	static DEFINE_SPINLOCK(lock);
+	static struct trap_info traps[257];
+	int cpu = smp_processor_id();
+
+	per_cpu(idt_desc, cpu) = *desc;
+
+	spin_lock(&lock);
+
+	xen_convert_trap_info(desc, traps);
 
 	xen_mc_flush();
 	if (HYPERVISOR_set_trap_table(traps))
@@ -428,6 +446,12 @@ static unsigned long xen_apic_read(unsigned long reg)
 {
 	return 0;
 }
+
+static void xen_apic_write(unsigned long reg, unsigned long val)
+{
+	/* Warn to see if there's any stray references */
+	WARN_ON(1);
+}
 #endif
 
 static void xen_flush_tlb(void)
@@ -449,6 +473,40 @@ static void xen_flush_tlb_single(unsigned long addr)
 		BUG();
 }
 
+static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
+				 unsigned long va)
+{
+	struct mmuext_op op;
+	cpumask_t cpumask = *cpus;
+
+	/*
+	 * A couple of (to be removed) sanity checks:
+	 *
+	 * - current CPU must not be in mask
+	 * - mask must exist :)
+	 */
+	BUG_ON(cpus_empty(cpumask));
+	BUG_ON(cpu_isset(smp_processor_id(), cpumask));
+	BUG_ON(!mm);
+
+	/* If a CPU which we ran on has gone down, OK. */
+	cpus_and(cpumask, cpumask, cpu_online_map);
+	if (cpus_empty(cpumask))
+		return;
+
+	if (va == TLB_FLUSH_ALL) {
+		op.cmd = MMUEXT_TLB_FLUSH_MULTI;
+		op.arg2.vcpumask = (void *)cpus;
+	} else {
+		op.cmd = MMUEXT_INVLPG_MULTI;
+		op.arg1.linear_addr = va;
+		op.arg2.vcpumask = (void *)cpus;
+	}
+
+	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
+		BUG();
+}
+
 static unsigned long xen_read_cr2(void)
 {
 	return x86_read_percpu(xen_vcpu)->arch.cr2;
@@ -459,18 +517,6 @@ static void xen_write_cr4(unsigned long cr4)
 	/* never allow TSC to be disabled */
 	native_write_cr4(cr4 & ~X86_CR4_TSD);
 }
-
-/*
- * Page-directory addresses above 4GB do not fit into architectural %cr3.
- * When accessing %cr3, or equivalent field in vcpu_guest_context, guests
- * must use the following accessor macros to pack/unpack valid MFNs.
- *
- * Note that Xen is using the fact that the pagetable base is always
- * page-aligned, and putting the 12 MSB of the address into the 12 LSB
- * of cr3.
- */
-#define xen_pfn_to_cr3(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
-#define xen_cr3_to_pfn(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
 
 static unsigned long xen_read_cr3(void)
 {
@@ -740,8 +786,8 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.io_delay = xen_io_delay,
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	.apic_write = paravirt_nop,
-	.apic_write_atomic = paravirt_nop,
+	.apic_write = xen_apic_write,
+	.apic_write_atomic = xen_apic_write,
 	.apic_read = xen_apic_read,
 	.setup_boot_clock = paravirt_nop,
 	.setup_secondary_clock = paravirt_nop,
@@ -751,6 +797,7 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.flush_tlb_user = xen_flush_tlb,
 	.flush_tlb_kernel = xen_flush_tlb,
 	.flush_tlb_single = xen_flush_tlb_single,
+	.flush_tlb_others = xen_flush_tlb_others,
 
 	.pte_update = paravirt_nop,
 	.pte_update_defer = paravirt_nop,
@@ -796,6 +843,19 @@ static const struct paravirt_ops xen_paravirt_ops __initdata = {
 	.set_lazy_mode = xen_set_lazy_mode,
 };
 
+#ifdef CONFIG_SMP
+static const struct smp_ops xen_smp_ops __initdata = {
+	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
+	.smp_prepare_cpus = xen_smp_prepare_cpus,
+	.cpu_up = xen_cpu_up,
+	.smp_cpus_done = xen_smp_cpus_done,
+
+	.smp_send_stop = xen_smp_send_stop,
+	.smp_send_reschedule = xen_smp_send_reschedule,
+	.smp_call_function_mask = xen_smp_call_function_mask,
+};
+#endif	/* CONFIG_SMP */
+
 /* First C function to be called on Xen boot */
 asmlinkage void __init xen_start_kernel(void)
 {
@@ -808,6 +868,9 @@ asmlinkage void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	paravirt_ops = xen_paravirt_ops;
+#ifdef CONFIG_SMP
+	smp_ops = xen_smp_ops;
+#endif
 
 	xen_setup_features();
 

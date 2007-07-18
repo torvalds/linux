@@ -94,4 +94,9 @@ void __init xen_arch_setup(void)
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
 	pm_idle = xen_idle;
+
+#ifdef CONFIG_SMP
+	/* fill cpus_possible with all available cpus */
+	xen_fill_possible_map();
+#endif
 }
