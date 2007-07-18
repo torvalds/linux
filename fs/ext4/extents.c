@@ -376,7 +376,7 @@ ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int bloc
 	ext_debug("binsearch for %d(idx):  ", block);
 
 	l = EXT_FIRST_INDEX(eh) + 1;
-	r = EXT_FIRST_INDEX(eh) + le16_to_cpu(eh->eh_entries) - 1;
+	r = EXT_LAST_INDEX(eh);
 	while (l <= r) {
 		m = l + (r - l) / 2;
 		if (block < le32_to_cpu(m->ei_block))
@@ -441,7 +441,7 @@ ext4_ext_binsearch(struct inode *inode, struct ext4_ext_path *path, int block)
 	ext_debug("binsearch for %d:  ", block);
 
 	l = EXT_FIRST_EXTENT(eh) + 1;
-	r = EXT_FIRST_EXTENT(eh) + le16_to_cpu(eh->eh_entries) - 1;
+	r = EXT_LAST_EXTENT(eh);
 
 	while (l <= r) {
 		m = l + (r - l) / 2;
@@ -924,8 +924,13 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	curp->p_hdr->eh_max = cpu_to_le16(ext4_ext_space_root_idx(inode));
 	curp->p_hdr->eh_entries = cpu_to_le16(1);
 	curp->p_idx = EXT_FIRST_INDEX(curp->p_hdr);
-	/* FIXME: it works, but actually path[0] can be index */
-	curp->p_idx->ei_block = EXT_FIRST_EXTENT(path[0].p_hdr)->ee_block;
+
+	if (path[0].p_hdr->eh_depth)
+		curp->p_idx->ei_block =
+			EXT_FIRST_INDEX(path[0].p_hdr)->ei_block;
+	else
+		curp->p_idx->ei_block =
+			EXT_FIRST_EXTENT(path[0].p_hdr)->ee_block;
 	ext4_idx_store_pblock(curp->p_idx, newblock);
 
 	neh = ext_inode_hdr(inode);
