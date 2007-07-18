@@ -1033,18 +1033,6 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
-/* called in any context */
-int usb_hcd_get_frame_number (struct usb_device *udev)
-{
-	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
-
-	if (!HC_IS_RUNNING (hcd->state))
-		return -ESHUTDOWN;
-	return hcd->driver->get_frame_number (hcd);
-}
-
-/*-------------------------------------------------------------------------*/
-
 /* this makes the hcd giveback() the urb more quickly, by kicking it
  * off hardware queues (which may take a while) and returning it as
  * soon as practical.  we've already set up the urb's return status,
@@ -1167,6 +1155,35 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
+/**
+ * usb_hcd_giveback_urb - return URB from HCD to device driver
+ * @hcd: host controller returning the URB
+ * @urb: urb being returned to the USB device driver.
+ * Context: in_interrupt()
+ *
+ * This hands the URB from HCD to its USB device driver, using its
+ * completion function.  The HCD has freed all per-urb resources
+ * (and is done using urb->hcpriv).  It also released all HCD locks;
+ * the device driver won't cause problems if it frees, modifies,
+ * or resubmits this URB.
+ */
+void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
+{
+	urb_unlink(hcd, urb);
+	usbmon_urb_complete (&hcd->self, urb);
+	usb_unanchor_urb(urb);
+
+	/* pass ownership to the completion handler */
+	urb->complete (urb);
+	atomic_dec (&urb->use_count);
+	if (unlikely (urb->reject))
+		wake_up (&usb_kill_urb_queue);
+	usb_put_urb (urb);
+}
+EXPORT_SYMBOL (usb_hcd_giveback_urb);
+
+/*-------------------------------------------------------------------------*/
+
 /* disables the endpoint: cancels any pending urbs, then synchronizes with
  * the hcd to make sure all endpoint state is gone from hardware, and then
  * waits until the endpoint's queue is completely drained. use for
@@ -1256,6 +1273,18 @@ rescan:
 			usb_put_urb (urb);
 		}
 	}
+}
+
+/*-------------------------------------------------------------------------*/
+
+/* called in any context */
+int usb_hcd_get_frame_number (struct usb_device *udev)
+{
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
+	if (!HC_IS_RUNNING (hcd->state))
+		return -ESHUTDOWN;
+	return hcd->driver->get_frame_number (hcd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1391,35 +1420,6 @@ int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num)
 EXPORT_SYMBOL (usb_bus_start_enum);
 
 #endif
-
-/*-------------------------------------------------------------------------*/
-
-/**
- * usb_hcd_giveback_urb - return URB from HCD to device driver
- * @hcd: host controller returning the URB
- * @urb: urb being returned to the USB device driver.
- * Context: in_interrupt()
- *
- * This hands the URB from HCD to its USB device driver, using its
- * completion function.  The HCD has freed all per-urb resources
- * (and is done using urb->hcpriv).  It also released all HCD locks;
- * the device driver won't cause problems if it frees, modifies,
- * or resubmits this URB.
- */
-void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
-{
-	urb_unlink(hcd, urb);
-	usbmon_urb_complete (&hcd->self, urb);
-	usb_unanchor_urb(urb);
-
-	/* pass ownership to the completion handler */
-	urb->complete (urb);
-	atomic_dec (&urb->use_count);
-	if (unlikely (urb->reject))
-		wake_up (&usb_kill_urb_queue);
-	usb_put_urb (urb);
-}
-EXPORT_SYMBOL (usb_hcd_giveback_urb);
 
 /*-------------------------------------------------------------------------*/
 
