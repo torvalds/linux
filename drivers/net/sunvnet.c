@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
+#include <linux/mutex.h>
 
 #include <asm/vio.h>
 #include <asm/ldc.h>
@@ -497,6 +498,8 @@ static void vnet_event(void *arg, int event)
 		vio_link_state_change(vio, event);
 		spin_unlock_irqrestore(&vio->lock, flags);
 
+		if (event == LDC_EVENT_RESET)
+			vio_port_up(vio);
 		return;
 	}
 
@@ -875,6 +878,115 @@ err_out:
 	return err;
 }
 
+static LIST_HEAD(vnet_list);
+static DEFINE_MUTEX(vnet_list_mutex);
+
+static struct vnet * __devinit vnet_new(const u64 *local_mac)
+{
+	struct net_device *dev;
+	struct vnet *vp;
+	int err, i;
+
+	dev = alloc_etherdev(sizeof(*vp));
+	if (!dev) {
+		printk(KERN_ERR PFX "Etherdev alloc failed, aborting.\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (i = 0; i < ETH_ALEN; i++)
+		dev->dev_addr[i] = (*local_mac >> (5 - i) * 8) & 0xff;
+
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
+
+	vp = netdev_priv(dev);
+
+	spin_lock_init(&vp->lock);
+	vp->dev = dev;
+
+	INIT_LIST_HEAD(&vp->port_list);
+	for (i = 0; i < VNET_PORT_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&vp->port_hash[i]);
+	INIT_LIST_HEAD(&vp->list);
+	vp->local_mac = *local_mac;
+
+	dev->open = vnet_open;
+	dev->stop = vnet_close;
+	dev->set_multicast_list = vnet_set_rx_mode;
+	dev->set_mac_address = vnet_set_mac_addr;
+	dev->tx_timeout = vnet_tx_timeout;
+	dev->ethtool_ops = &vnet_ethtool_ops;
+	dev->watchdog_timeo = VNET_TX_TIMEOUT;
+	dev->change_mtu = vnet_change_mtu;
+	dev->hard_start_xmit = vnet_start_xmit;
+
+	err = register_netdev(dev);
+	if (err) {
+		printk(KERN_ERR PFX "Cannot register net device, "
+		       "aborting.\n");
+		goto err_out_free_dev;
+	}
+
+	printk(KERN_INFO "%s: Sun LDOM vnet ", dev->name);
+
+	for (i = 0; i < 6; i++)
+		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
+
+	list_add(&vp->list, &vnet_list);
+
+	return vp;
+
+err_out_free_dev:
+	free_netdev(dev);
+
+	return ERR_PTR(err);
+}
+
+static struct vnet * __devinit vnet_find_or_create(const u64 *local_mac)
+{
+	struct vnet *iter, *vp;
+
+	mutex_lock(&vnet_list_mutex);
+	vp = NULL;
+	list_for_each_entry(iter, &vnet_list, list) {
+		if (iter->local_mac == *local_mac) {
+			vp = iter;
+			break;
+		}
+	}
+	if (!vp)
+		vp = vnet_new(local_mac);
+	mutex_unlock(&vnet_list_mutex);
+
+	return vp;
+}
+
+static const char *local_mac_prop = "local-mac-address";
+
+static struct vnet * __devinit vnet_find_parent(struct mdesc_handle *hp,
+						u64 port_node)
+{
+	const u64 *local_mac = NULL;
+	u64 a;
+
+	mdesc_for_each_arc(a, hp, port_node, MDESC_ARC_TYPE_BACK) {
+		u64 target = mdesc_arc_target(hp, a);
+		const char *name;
+
+		name = mdesc_get_property(hp, target, "name", NULL);
+		if (!name || strcmp(name, "network"))
+			continue;
+
+		local_mac = mdesc_get_property(hp, target,
+					       local_mac_prop, NULL);
+		if (local_mac)
+			break;
+	}
+	if (!local_mac)
+		return ERR_PTR(-ENODEV);
+
+	return vnet_find_or_create(local_mac);
+}
+
 static struct ldc_channel_config vnet_ldc_cfg = {
 	.event		= vnet_event,
 	.mtu		= 64,
@@ -886,6 +998,14 @@ static struct vio_driver_ops vnet_vio_ops = {
 	.handle_attr		= vnet_handle_attr,
 	.handshake_complete	= vnet_handshake_complete,
 };
+
+static void print_version(void)
+{
+	static int version_printed;
+
+	if (version_printed++ == 0)
+		printk(KERN_INFO "%s", version);
+}
 
 const char *remote_macaddr_prop = "remote-mac-address";
 
@@ -899,13 +1019,16 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 	const u64 *rmac;
 	int len, i, err, switch_port;
 
-	vp = dev_get_drvdata(vdev->dev.parent);
-	if (!vp) {
-		printk(KERN_ERR PFX "Cannot find port parent vnet.\n");
-		return -ENODEV;
-	}
+	print_version();
 
 	hp = mdesc_grab();
+
+	vp = vnet_find_parent(hp, vdev->mp);
+	if (IS_ERR(vp)) {
+		printk(KERN_ERR PFX "Cannot find port parent vnet.\n");
+		err = PTR_ERR(vp);
+		goto err_out_put_mdesc;
+	}
 
 	rmac = mdesc_get_property(hp, vdev->mp, remote_macaddr_prop, &len);
 	err = -ENODEV;
@@ -1025,139 +1148,14 @@ static struct vio_driver vnet_port_driver = {
 	}
 };
 
-const char *local_mac_prop = "local-mac-address";
-
-static int __devinit vnet_probe(struct vio_dev *vdev,
-				const struct vio_device_id *id)
-{
-	static int vnet_version_printed;
-	struct mdesc_handle *hp;
-	struct net_device *dev;
-	struct vnet *vp;
-	const u64 *mac;
-	int err, i, len;
-
-	if (vnet_version_printed++ == 0)
-		printk(KERN_INFO "%s", version);
-
-	hp = mdesc_grab();
-
-	mac = mdesc_get_property(hp, vdev->mp, local_mac_prop, &len);
-	if (!mac) {
-		printk(KERN_ERR PFX "vnet lacks %s property.\n",
-		       local_mac_prop);
-		err = -ENODEV;
-		goto err_out;
-	}
-
-	dev = alloc_etherdev(sizeof(*vp));
-	if (!dev) {
-		printk(KERN_ERR PFX "Etherdev alloc failed, aborting.\n");
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = (*mac >> (5 - i) * 8) & 0xff;
-
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
-
-	SET_NETDEV_DEV(dev, &vdev->dev);
-
-	vp = netdev_priv(dev);
-
-	spin_lock_init(&vp->lock);
-	vp->dev = dev;
-	vp->vdev = vdev;
-
-	INIT_LIST_HEAD(&vp->port_list);
-	for (i = 0; i < VNET_PORT_HASH_SIZE; i++)
-		INIT_HLIST_HEAD(&vp->port_hash[i]);
-
-	dev->open = vnet_open;
-	dev->stop = vnet_close;
-	dev->set_multicast_list = vnet_set_rx_mode;
-	dev->set_mac_address = vnet_set_mac_addr;
-	dev->tx_timeout = vnet_tx_timeout;
-	dev->ethtool_ops = &vnet_ethtool_ops;
-	dev->watchdog_timeo = VNET_TX_TIMEOUT;
-	dev->change_mtu = vnet_change_mtu;
-	dev->hard_start_xmit = vnet_start_xmit;
-
-	err = register_netdev(dev);
-	if (err) {
-		printk(KERN_ERR PFX "Cannot register net device, "
-		       "aborting.\n");
-		goto err_out_free_dev;
-	}
-
-	printk(KERN_INFO "%s: Sun LDOM vnet ", dev->name);
-
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
-
-	dev_set_drvdata(&vdev->dev, vp);
-
-	mdesc_release(hp);
-
-	return 0;
-
-err_out_free_dev:
-	free_netdev(dev);
-
-err_out:
-	mdesc_release(hp);
-	return err;
-}
-
-static int vnet_remove(struct vio_dev *vdev)
-{
-
-	struct vnet *vp = dev_get_drvdata(&vdev->dev);
-
-	if (vp) {
-		/* XXX unregister port, or at least check XXX */
-		unregister_netdevice(vp->dev);
-		dev_set_drvdata(&vdev->dev, NULL);
-	}
-	return 0;
-}
-
-static struct vio_device_id vnet_match[] = {
-	{
-		.type = "network",
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(vio, vnet_match);
-
-static struct vio_driver vnet_driver = {
-	.id_table	= vnet_match,
-	.probe		= vnet_probe,
-	.remove		= vnet_remove,
-	.driver		= {
-		.name	= "vnet",
-		.owner	= THIS_MODULE,
-	}
-};
-
 static int __init vnet_init(void)
 {
-	int err = vio_register_driver(&vnet_driver);
-
-	if (!err) {
-		err = vio_register_driver(&vnet_port_driver);
-		if (err)
-			vio_unregister_driver(&vnet_driver);
-	}
-
-	return err;
+	return vio_register_driver(&vnet_port_driver);
 }
 
 static void __exit vnet_exit(void)
 {
 	vio_unregister_driver(&vnet_port_driver);
-	vio_unregister_driver(&vnet_driver);
 }
 
 module_init(vnet_init);

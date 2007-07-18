@@ -78,6 +78,24 @@ static int start_handshake(struct vio_driver_state *vio)
 	return 0;
 }
 
+static void flush_rx_dring(struct vio_driver_state *vio)
+{
+	struct vio_dring_state *dr;
+	u64 ident;
+
+	BUG_ON(!(vio->dr_state & VIO_DR_STATE_RXREG));
+
+	dr = &vio->drings[VIO_DRIVER_RX_RING];
+	ident = dr->ident;
+
+	BUG_ON(!vio->desc_buf);
+	kfree(vio->desc_buf);
+	vio->desc_buf = NULL;
+
+	memset(dr, 0, sizeof(*dr));
+	dr->ident = ident;
+}
+
 void vio_link_state_change(struct vio_driver_state *vio, int event)
 {
 	if (event == LDC_EVENT_UP) {
@@ -98,6 +116,16 @@ void vio_link_state_change(struct vio_driver_state *vio, int event)
 			break;
 		}
 		start_handshake(vio);
+	} else if (event == LDC_EVENT_RESET) {
+		vio->hs_state = VIO_HS_INVALID;
+
+		if (vio->dr_state & VIO_DR_STATE_RXREG)
+			flush_rx_dring(vio);
+
+		vio->dr_state = 0x00;
+		memset(&vio->ver, 0, sizeof(vio->ver));
+
+		ldc_disconnect(vio->lp);
 	}
 }
 EXPORT_SYMBOL(vio_link_state_change);
@@ -395,6 +423,8 @@ static int process_dreg_info(struct vio_driver_state *vio,
 
 	if (vio->dr_state & VIO_DR_STATE_RXREG)
 		goto send_nack;
+
+	BUG_ON(vio->desc_buf);
 
 	vio->desc_buf = kzalloc(pkt->descr_size, GFP_ATOMIC);
 	if (!vio->desc_buf)

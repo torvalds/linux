@@ -61,6 +61,16 @@ extern u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
 
 extern void mdesc_update(void);
 
+struct mdesc_notifier_client {
+	void (*add)(struct mdesc_handle *handle, u64 node);
+	void (*remove)(struct mdesc_handle *handle, u64 node);
+
+	const char			*node_name;
+	struct mdesc_notifier_client	*next;
+};
+
+extern void mdesc_register_notifier(struct mdesc_notifier_client *client);
+
 extern void mdesc_fill_in_cpu_data(cpumask_t mask);
 
 extern void sun4v_mdesc_init(void);

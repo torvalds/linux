@@ -60,11 +60,13 @@ struct vnet {
 	struct net_device	*dev;
 
 	u32			msg_enable;
-	struct vio_dev		*vdev;
 
 	struct list_head	port_list;
 
 	struct hlist_head	port_hash[VNET_PORT_HASH_SIZE];
+
+	struct list_head	list;
+	u64			local_mac;
 };
 
 #endif /* _SUNVNET_H */
