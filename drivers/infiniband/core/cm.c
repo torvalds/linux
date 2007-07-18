@@ -3374,7 +3374,7 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
-void cm_get_ack_delay(struct cm_device *cm_dev)
+static void cm_get_ack_delay(struct cm_device *cm_dev)
 {
 	struct ib_device_attr attr;
 
