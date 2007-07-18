@@ -173,7 +173,7 @@ struct paravirt_ops
 				 unsigned long va);
 
 	/* Hooks for allocating/releasing pagetable pages */
-	void (*alloc_pt)(u32 pfn);
+	void (*alloc_pt)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pd)(u32 pfn);
 	void (*alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
 	void (*release_pt)(u32 pfn);
@@ -725,9 +725,9 @@ static inline void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	PVOP_VCALL3(flush_tlb_others, &cpumask, mm, va);
 }
 
-static inline void paravirt_alloc_pt(unsigned pfn)
+static inline void paravirt_alloc_pt(struct mm_struct *mm, unsigned pfn)
 {
-	PVOP_VCALL1(alloc_pt, pfn);
+	PVOP_VCALL2(alloc_pt, mm, pfn);
 }
 static inline void paravirt_release_pt(unsigned pfn)
 {

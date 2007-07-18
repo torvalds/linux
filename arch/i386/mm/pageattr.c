@@ -60,7 +60,7 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
-	paravirt_alloc_pt(page_to_pfn(base));
+	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
                set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
                                           addr == address ? prot : ref_prot));

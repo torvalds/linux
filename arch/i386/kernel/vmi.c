@@ -362,7 +362,7 @@ static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
 }
 #endif
 
-static void vmi_allocate_pt(u32 pfn)
+static void vmi_allocate_pt(struct mm_struct *mm, u32 pfn)
 {
 	vmi_set_page_type(pfn, VMI_PAGE_L1);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
