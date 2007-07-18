@@ -2715,20 +2715,6 @@ int __dev_addr_add(struct dev_addr_list **list, int *count,
 	return 0;
 }
 
-static void __dev_addr_discard(struct dev_addr_list **list)
-{
-	struct dev_addr_list *tmp;
-
-	while (*list != NULL) {
-		tmp = *list;
-		*list = tmp->next;
-		if (tmp->da_users > tmp->da_gusers)
-			printk("__dev_addr_discard: address leakage! "
-			       "da_users=%d\n", tmp->da_users);
-		kfree(tmp);
-	}
-}
-
 /**
  *	dev_unicast_delete	- Release secondary unicast address.
  *	@dev: device
@@ -2776,6 +2762,20 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_add);
+
+static void __dev_addr_discard(struct dev_addr_list **list)
+{
+	struct dev_addr_list *tmp;
+
+	while (*list != NULL) {
+		tmp = *list;
+		*list = tmp->next;
+		if (tmp->da_users > tmp->da_gusers)
+			printk("__dev_addr_discard: address leakage! "
+			       "da_users=%d\n", tmp->da_users);
+		kfree(tmp);
+	}
+}
 
 static void dev_addr_discard(struct net_device *dev)
 {
