@@ -64,6 +64,7 @@ static struct ubi_device *major_to_device(int major)
 		if (ubi_devices[i] && ubi_devices[i]->major == major)
 			return ubi_devices[i];
 	BUG();
+	return NULL;
 }
 
 /**
