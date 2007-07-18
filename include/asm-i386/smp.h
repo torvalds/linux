@@ -43,9 +43,12 @@ extern u8 x86_cpu_to_apicid[];
 
 #define cpu_physical_id(cpu)	x86_cpu_to_apicid[cpu]
 
+extern void set_cpu_sibling_map(int cpu);
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
+extern void remove_siblinginfo(int cpu);
 #endif
 
 struct smp_ops
