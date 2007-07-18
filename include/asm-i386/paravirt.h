@@ -262,6 +262,7 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *site, unsigned len)
 unsigned paravirt_patch_insns(void *site, unsigned len,
 			      const char *start, const char *end);
 
+int paravirt_disable_iospace(void);
 
 /*
  * This generates an indirect call based on the operation type number.
