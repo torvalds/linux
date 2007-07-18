@@ -463,7 +463,9 @@ static int initiate_cifs_search(const int xid, struct file *file)
 
 ffirst_retry:
 	/* test for Unix extensions */
-	if (pTcon->ses->capabilities & CAP_UNIX) {
+	/* but now check for them on the share/mount not on the SMB session */
+/*	if (pTcon->ses->capabilities & CAP_UNIX) { */
+	if (pTcon->unix_ext) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX;
 	} else if ((pTcon->ses->capabilities &
 			(CAP_NT_SMBS | CAP_NT_FIND)) == 0) {

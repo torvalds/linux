@@ -583,7 +583,8 @@ void cifs_read_inode(struct inode *inode)
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	xid = GetXid();
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
+
+	if (cifs_sb->tcon->unix_ext)
 		cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
 	else
 		cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
@@ -981,7 +982,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	} else {
 mkdir_get_info:
 		inc_nlink(inode);
-		if (pTcon->ses->capabilities & CAP_UNIX)
+		if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
 		else
@@ -997,7 +998,7 @@ mkdir_get_info:
 		  * failed to get it from the server or was set bogus */
 		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
 				direntry->d_inode->i_nlink = 2;
-		if (cifs_sb->tcon->ses->capabilities & CAP_UNIX) {
+		if (pTcon->unix_ext) {
 			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
@@ -1130,7 +1131,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 		if (info_buf_source != NULL) {
 			info_buf_target = info_buf_source + 1;
-			if (pTcon->ses->capabilities & CAP_UNIX)
+			if (pTcon->unix_ext)
 				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
 					info_buf_source,
 					cifs_sb_source->local_nls,
@@ -1258,7 +1259,7 @@ int cifs_revalidate(struct dentry *direntry)
 	local_mtime = direntry->d_inode->i_mtime;
 	local_size = direntry->d_inode->i_size;
 
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX) {
+	if (cifs_sb->tcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&direntry->d_inode, full_path,
 					      direntry->d_sb, xid);
 		if (rc) {
@@ -1542,7 +1543,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		mode = attrs->ia_mode;
 	}
 
-	if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX)
+	if ((pTcon->unix_ext)
 	    && (attrs->ia_valid & (ATTR_MODE | ATTR_GID | ATTR_UID)))
 		rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode, uid, gid,
 					 0 /* dev_t */, cifs_sb->local_nls,

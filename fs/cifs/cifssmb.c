@@ -132,10 +132,10 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				/* Give Demultiplex thread up to 10 seconds to
 				   reconnect, should be greater than cifs socket
 				   timeout which is 7 seconds */
-			while(tcon->ses->server->tcpStatus ==
+			while (tcon->ses->server->tcpStatus ==
 							 CifsNeedReconnect) {
 				wait_event_interruptible_timeout(tcon->ses->server->response_q,
-					(tcon->ses->server->tcpStatus == 
+					(tcon->ses->server->tcpStatus ==
 							CifsGood), 10 * HZ);
 				if (tcon->ses->server->tcpStatus ==
 							CifsNeedReconnect) {
@@ -213,7 +213,7 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	}
 
 	header_assemble((struct smb_hdr *) *request_buf, smb_command,
-			tcon,wct);
+			tcon, wct);
 
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
@@ -387,7 +387,7 @@ static int validate_t2(struct smb_t2_rsp *pSMB)
 			/* check that bcc is less than negotiated smb buffer */
 			total_size = le16_to_cpu(pSMB->t2_rsp.ParameterCount);
 			if (total_size < 512) {
-				total_size += 
+				total_size +=
 					le16_to_cpu(pSMB->t2_rsp.DataCount);
 				/* BCC le converted in SendReceive */
 				pBCC = (pSMB->hdr.WordCount * 2) +
@@ -2758,7 +2758,7 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 		return 0;
 
 	count = posix_acl_xattr_count((size_t)buflen);
-	cFYI(1,("setting acl with %d entries from buf of length %d and "
+	cFYI(1, ("setting acl with %d entries from buf of length %d and "
 		"version of %d",
 		count, buflen, le32_to_cpu(local_acl->a_version)));
 	if (le32_to_cpu(local_acl->a_version) != 2) {
@@ -3638,15 +3638,6 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 	pSMB->SearchHandle = searchHandle;      /* always kept as le */
 	pSMB->SearchCount =
 		cpu_to_le16(CIFSMaxBufSize / sizeof (FILE_UNIX_INFO));
-	/* test for Unix extensions */
-/*	if (tcon->ses->capabilities & CAP_UNIX) {
-		pSMB->InformationLevel = cpu_to_le16(SMB_FIND_FILE_UNIX);
-		psrch_inf->info_level = SMB_FIND_FILE_UNIX;
-	} else {
-		pSMB->InformationLevel =
-		   cpu_to_le16(SMB_FIND_FILE_DIRECTORY_INFO);
-		psrch_inf->info_level = SMB_FIND_FILE_DIRECTORY_INFO;
-	} */
 	pSMB->InformationLevel = cpu_to_le16(psrch_inf->info_level);
 	pSMB->ResumeKey = psrch_inf->resume_key;
 	pSMB->SearchFlags =
@@ -3966,7 +3957,7 @@ getDFSRetry:
 					(8 /* sizeof start of data block */ +
 					data_offset +
 					(char *) &pSMBr->hdr.Protocol);
-			cFYI(1,("num_referrals: %d dfs flags: 0x%x ... \n"
+			cFYI(1, ("num_referrals: %d dfs flags: 0x%x ... \n"
 				"for referral one refer size: 0x%x srv "
 				"type: 0x%x refer flags: 0x%x ttl: 0x%x",
 				le16_to_cpu(pSMBr->NumberOfReferrals),

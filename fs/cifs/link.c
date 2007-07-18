@@ -55,7 +55,8 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		goto cifs_hl_exit;
 	}
 
-	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)
+/*	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)*/
+	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
 					    cifs_sb_target->local_nls,
 					    cifs_sb_target->mnt_cifs_flags &
@@ -129,14 +130,19 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		goto out;
 	}
 
-	/* BB add read reparse point symlink code and Unix extensions
-	   symlink code here BB */
+	/* We could change this to:
+		if (pTcon->unix_ext)
+	   but there does not seem any point in refusing to
+	   get symlink info if we can, even if unix extensions
+	   turned off for this mount */
+
 	if (pTcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
 					     target_path,
 					     PATH_MAX-1,
 					     cifs_sb->local_nls);
 	else {
+		/* BB add read reparse point symlink code here */
 		/* rc = CIFSSMBQueryReparseLinkInfo */
 		/* BB Add code to Query ReparsePoint info */
 		/* BB Add MAC style xsymlink check here if enabled */
@@ -186,7 +192,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	cFYI(1, ("symname is %s", symname));
 
 	/* BB what if DFS and this volume is on different share? BB */
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
+	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
 					   cifs_sb->local_nls);
 	/* else
@@ -194,7 +200,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 					cifs_sb_target->local_nls); */
 
 	if (rc == 0) {
-		if (pTcon->ses->capabilities & CAP_UNIX)
+		if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
 		else
@@ -266,6 +272,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 
 /* BB add read reparse point symlink code and
 	Unix extensions symlink code here BB */
+/* We could disable this based on pTcon->unix_ext flag instead ... but why? */
 	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
 				tmpbuffer,

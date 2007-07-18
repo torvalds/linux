@@ -85,6 +85,7 @@ struct smb_vol {
 	unsigned direct_io:1;
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
+	unsigned no_linux_ext:1;
 	unsigned sfu_emul:1;
 	unsigned nullauth:1; /* attempt to authenticate with null user */
 	unsigned nocase;     /* request case insensitive filenames */
@@ -1192,6 +1193,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
 			vol->posix_paths = 0;
+		} else if (strnicmp(data, "nounix", 6) == 0) {
+			vol->no_linux_ext = 1;
+		} else if (strnicmp(data, "nolinux", 7) == 0) {
+			vol->no_linux_ext = 1;
 		} else if ((strnicmp(data, "nocase", 6) == 0) ||
 			   (strnicmp(data, "ignorecase", 10)  == 0)) {
 			vol->nocase = 1;
@@ -1665,6 +1670,18 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 	 * and once without posixacls or posix paths? */
 	__u64 saved_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
 
+	if (vol_info && vol_info->no_linux_ext) {
+		tcon->fsUnixInfo.Capability = 0;
+		tcon->unix_ext = 0; /* Unix Extensions disabled */
+		cFYI(1, ("Linux protocol extensions disabled"));
+		return;
+	} else if (vol_info)
+		tcon->unix_ext = 1; /* Unix Extensions supported */
+
+	if (tcon->unix_ext == 0) {
+		cFYI(1, ("Unix extensions disabled so not set on reconnect"));
+		return;
+	}
 
 	if (!CIFSSMBQFSUnixInfo(xid, tcon)) {
 		__u64 cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
@@ -1678,10 +1695,6 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 				cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
 			if ((saved_cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0)
 				cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
-
-
-
-
 		}
 
 		cap &= CIFS_UNIX_CAP_MASK;
@@ -2176,13 +2189,17 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		/* tell server which Unix caps we support */
 		if (tcon->ses->capabilities & CAP_UNIX)
+			/* reset of caps checks mount to see if unix extensions
+			   disabled for just this mount */
 			reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
-		else if (cifs_sb->rsize > (1024 * 127)) {
+		else
+			tcon->unix_ext = 0; /* server does not support them */
+
+		if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
 			cifs_sb->rsize = 1024 * 127;
 #ifdef CONFIG_CIFS_DEBUG2
-			cFYI(1, ("no very large read support, rsize 127K"));
+			cFYI(1, ("no very large read support, rsize now 127K"));
 #endif
-
 		}
 		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
 			cifs_sb->wsize = min(cifs_sb->wsize,

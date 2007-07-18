@@ -281,7 +281,9 @@ struct cifsTconInfo {
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
 	unsigned nocase:1;
-	/* BB add field for back pointer to sb struct? */
+	unsigned unix_ext:1; /* if off disable Linux extensions to CIFS protocol
+				for this mount even if server would support */
+	/* BB add field for back pointer to sb struct(s)? */
 };
 
 /*

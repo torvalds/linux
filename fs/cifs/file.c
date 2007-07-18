@@ -138,7 +138,7 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 	}
 
 client_can_cache:
-	if (pTcon->ses->capabilities & CAP_UNIX)
+	if (pTcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&file->f_path.dentry->d_inode,
 			full_path, inode->i_sb, xid);
 	else
@@ -303,7 +303,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
 		   problems creating new read-only files */
-		if (cifs_sb->tcon->ses->capabilities & CAP_UNIX) {
+		if (pTcon->unix_ext) {
 			CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 					    inode->i_mode,
 					    (__u64)-1, (__u64)-1, 0 /* dev */,
@@ -430,7 +430,7 @@ reopen_error_exit:
 			   go to server to get inode info */
 				pCifsInode->clientCanCacheAll = FALSE;
 				pCifsInode->clientCanCacheRead = FALSE;
-				if (pTcon->ses->capabilities & CAP_UNIX)
+				if (pTcon->unix_ext)
 					rc = cifs_get_inode_info_unix(&inode,
 						full_path, inode->i_sb, xid);
 				else

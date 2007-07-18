@@ -316,10 +316,10 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
-		   !(cifs_sb->tcon->ses->capabilities & CAP_UNIX))
+		   !(cifs_sb->tcon->unix_ext))
 			seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
-		   !(cifs_sb->tcon->ses->capabilities & CAP_UNIX))
+		   !(cifs_sb->tcon->unix_ext))
 			seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
 		seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d", cifs_sb->wsize);

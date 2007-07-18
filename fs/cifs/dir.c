@@ -207,8 +207,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	} else {
 		/* If Open reported that we actually created a file
 		then we now have to set the mode if possible */
-		if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
-			(oplock & CIFS_CREATE_ACTION)) {
+		if ((pTcon->unix_ext) && (oplock & CIFS_CREATE_ACTION)) {
 			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
@@ -235,8 +234,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			/* Could set r/o dos attribute if mode & 0222 == 0 */
 		}
 
-	/* BB server might mask mode so we have to query for Unix case*/
-		if (pTcon->ses->capabilities & CAP_UNIX)
+		/* server might mask mode so we have to query for it */
+		if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						 inode->i_sb, xid);
 		else {
@@ -337,7 +336,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL)
 		rc = -ENOMEM;
-	else if (pTcon->ses->capabilities & CAP_UNIX) {
+	else if (pTcon->unix_ext) {
 		mode &= ~current->fs->umask;
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
@@ -491,7 +490,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	cFYI(1,
 	     (" Full path: %s inode = 0x%p", full_path, direntry->d_inode));
 
-	if (pTcon->ses->capabilities & CAP_UNIX)
+	if (pTcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
 					      parent_dir_inode->i_sb, xid);
 	else
