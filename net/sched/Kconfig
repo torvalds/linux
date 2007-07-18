@@ -97,7 +97,7 @@ config NET_SCH_ATM
 	  select classes of this queuing discipline.  Each class maps
 	  the flow(s) it is handling to a given virtual circuit.
 
-	  See the top of <file:net/sched/sch_atm.c>) for more details.
+	  See the top of <file:net/sched/sch_atm.c> for more details.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_atm.
@@ -137,7 +137,7 @@ config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
 	---help---
 	  Say Y here if you want to use the Stochastic Fairness Queueing (SFQ)
-	  packet scheduling algorithm .
+	  packet scheduling algorithm.
 
 	  See the top of <file:net/sched/sch_sfq.c> for more details.
 
@@ -306,7 +306,7 @@ config NET_CLS_RSVP6
 	  is important for real time data such as streaming sound or video.
 
 	  Say Y here if you want to be able to classify outgoing packets based
-	  on their RSVP requests and you are using the IPv6.
+	  on their RSVP requests and you are using the IPv6 protocol.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_rsvp6.

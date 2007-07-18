@@ -65,7 +65,7 @@ static char const rcsid[] =
 static unsigned int vpibits = 1;
 
 
-#define CONFIG_ATM_IDT77252_SEND_IDLE 1
+#define ATM_IDT77252_SEND_IDLE 1
 
 
 /*
@@ -3404,7 +3404,7 @@ init_card(struct atm_dev *dev)
 	conf =	SAR_CFG_TX_FIFO_SIZE_9 |	/* Use maximum fifo size */
 		SAR_CFG_RXSTQ_SIZE_8k |		/* Receive Status Queue is 8k */
 		SAR_CFG_IDLE_CLP |		/* Set CLP on idle cells */
-#ifndef CONFIG_ATM_IDT77252_SEND_IDLE
+#ifndef ATM_IDT77252_SEND_IDLE
 		SAR_CFG_NO_IDLE |		/* Do not send idle cells */
 #endif
 		0;
@@ -3541,7 +3541,7 @@ init_card(struct atm_dev *dev)
 	printk("%s: Linkrate on ATM line : %u bit/s, %u cell/s.\n",
 	       card->name, linkrate, card->link_pcr);
 
-#ifdef CONFIG_ATM_IDT77252_SEND_IDLE
+#ifdef ATM_IDT77252_SEND_IDLE
 	card->utopia_pcr = card->link_pcr;
 #else
 	card->utopia_pcr = (160000000 / 8 / 54);

@@ -585,7 +585,6 @@ static inline int xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_ct
 struct xfrm_dst
 {
 	union {
-		struct xfrm_dst		*next;
 		struct dst_entry	dst;
 		struct rtable		rt;
 		struct rt6_info		rt6;

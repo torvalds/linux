@@ -115,13 +115,12 @@ static void tcp_lp_init(struct sock *sk)
  * Will only call newReno CA when away from inference.
  * From TCP-LP's paper, this will be handled in additive increasement.
  */
-static void tcp_lp_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
-			      int flag)
+static void tcp_lp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight, int flag)
 {
 	struct lp *lp = inet_csk_ca(sk);
 
 	if (!(lp->flag & LP_WITHIN_INF))
-		tcp_reno_cong_avoid(sk, ack, rtt, in_flight, flag);
+		tcp_reno_cong_avoid(sk, ack, in_flight, flag);
 }
 
 /**

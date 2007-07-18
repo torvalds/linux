@@ -1012,13 +1012,14 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
-	int val = 0, err;
+	unsigned int val = 0;
+	int err;
 
 	if (level != SOL_NETLINK)
 		return -ENOPROTOOPT;
 
 	if (optlen >= sizeof(int) &&
-	    get_user(val, (int __user *)optval))
+	    get_user(val, (unsigned int __user *)optval))
 		return -EFAULT;
 
 	switch (optname) {

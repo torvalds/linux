@@ -95,14 +95,14 @@ int __init irda_device_init( void)
 	return 0;
 }
 
-static void __exit leftover_dongle(void *arg)
+static void leftover_dongle(void *arg)
 {
 	struct dongle_reg *reg = arg;
 	IRDA_WARNING("IrDA: Dongle type %x not unregistered\n",
 		     reg->type);
 }
 
-void __exit irda_device_cleanup(void)
+void irda_device_cleanup(void)
 {
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 

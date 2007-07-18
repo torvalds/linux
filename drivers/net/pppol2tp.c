@@ -824,6 +824,7 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	struct pppol2tp_session *session;
 	struct pppol2tp_tunnel *tunnel;
 	struct udphdr *uh;
+	unsigned int len;
 
 	error = -ENOTCONN;
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
@@ -912,14 +913,15 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	}
 
 	/* Queue the packet to IP for output */
+	len = skb->len;
 	error = ip_queue_xmit(skb, 1);
 
 	/* Update stats */
 	if (error >= 0) {
 		tunnel->stats.tx_packets++;
-		tunnel->stats.tx_bytes += skb->len;
+		tunnel->stats.tx_bytes += len;
 		session->stats.tx_packets++;
-		session->stats.tx_bytes += skb->len;
+		session->stats.tx_bytes += len;
 	} else {
 		tunnel->stats.tx_errors++;
 		session->stats.tx_errors++;
@@ -958,6 +960,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	__wsum csum = 0;
 	struct sk_buff *skb2 = NULL;
 	struct udphdr *uh;
+	unsigned int len;
 
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
 		goto abort;
@@ -1046,18 +1049,25 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		printk("\n");
 	}
 
+	memset(&(IPCB(skb2)->opt), 0, sizeof(IPCB(skb2)->opt));
+	IPCB(skb2)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
+			       IPSKB_REROUTED);
+	nf_reset(skb2);
+
 	/* Get routing info from the tunnel socket */
+	dst_release(skb2->dst);
 	skb2->dst = sk_dst_get(sk_tun);
 
 	/* Queue the packet to IP for output */
+	len = skb2->len;
 	rc = ip_queue_xmit(skb2, 1);
 
 	/* Update stats */
 	if (rc >= 0) {
 		tunnel->stats.tx_packets++;
-		tunnel->stats.tx_bytes += skb2->len;
+		tunnel->stats.tx_bytes += len;
 		session->stats.tx_packets++;
-		session->stats.tx_bytes += skb2->len;
+		session->stats.tx_bytes += len;
 	} else {
 		tunnel->stats.tx_errors++;
 		session->stats.tx_errors++;

@@ -2715,20 +2715,6 @@ int __dev_addr_add(struct dev_addr_list **list, int *count,
 	return 0;
 }
 
-void __dev_addr_discard(struct dev_addr_list **list)
-{
-	struct dev_addr_list *tmp;
-
-	while (*list != NULL) {
-		tmp = *list;
-		*list = tmp->next;
-		if (tmp->da_users > tmp->da_gusers)
-			printk("__dev_addr_discard: address leakage! "
-			       "da_users=%d\n", tmp->da_users);
-		kfree(tmp);
-	}
-}
-
 /**
  *	dev_unicast_delete	- Release secondary unicast address.
  *	@dev: device
@@ -2777,11 +2763,30 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 }
 EXPORT_SYMBOL(dev_unicast_add);
 
-static void dev_unicast_discard(struct net_device *dev)
+static void __dev_addr_discard(struct dev_addr_list **list)
+{
+	struct dev_addr_list *tmp;
+
+	while (*list != NULL) {
+		tmp = *list;
+		*list = tmp->next;
+		if (tmp->da_users > tmp->da_gusers)
+			printk("__dev_addr_discard: address leakage! "
+			       "da_users=%d\n", tmp->da_users);
+		kfree(tmp);
+	}
+}
+
+static void dev_addr_discard(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
+
 	__dev_addr_discard(&dev->uc_list);
 	dev->uc_count = 0;
+
+	__dev_addr_discard(&dev->mc_list);
+	dev->mc_count = 0;
+
 	netif_tx_unlock_bh(dev);
 }
 
@@ -3739,8 +3744,7 @@ void unregister_netdevice(struct net_device *dev)
 	/*
 	 *	Flush the unicast and multicast chains
 	 */
-	dev_unicast_discard(dev);
-	dev_mc_discard(dev);
+	dev_addr_discard(dev);
 
 	if (dev->uninit)
 		dev->uninit(dev);

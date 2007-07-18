@@ -2567,7 +2567,7 @@ int __init irsock_init(void)
  *    Remove IrDA protocol
  *
  */
-void __exit irsock_cleanup(void)
+void irsock_cleanup(void)
 {
 	sock_unregister(PF_IRDA);
 	proto_unregister(&irda_proto);

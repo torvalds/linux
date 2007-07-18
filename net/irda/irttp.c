@@ -109,7 +109,7 @@ int __init irttp_init(void)
  *    Called by module destruction/cleanup code
  *
  */
-void __exit irttp_cleanup(void)
+void irttp_cleanup(void)
 {
 	/* Check for main structure */
 	IRDA_ASSERT(irttp->magic == TTP_MAGIC, return;);

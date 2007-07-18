@@ -292,13 +292,12 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		}
 	}
 	DPRINTK("atm_tc_change: new id %x\n", classid);
-	flow = kmalloc(sizeof(struct atm_flow_data) + hdr_len, GFP_KERNEL);
+	flow = kzalloc(sizeof(struct atm_flow_data) + hdr_len, GFP_KERNEL);
 	DPRINTK("atm_tc_change: flow %p\n", flow);
 	if (!flow) {
 		error = -ENOBUFS;
 		goto err_out;
 	}
-	memset(flow, 0, sizeof(*flow));
 	flow->filter_list = NULL;
 	if (!(flow->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid)))
 		flow->q = &noop_qdisc;
