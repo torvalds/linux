@@ -217,29 +217,6 @@ struct rpc_wait_queue {
  * performance of NFS operations such as read/write.
  */
 #define RPC_BATCH_COUNT			16
-
-#ifndef RPC_DEBUG
-# define RPC_WAITQ_INIT(var,qname) { \
-		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
-		.tasks = { \
-			[0] = LIST_HEAD_INIT(var.tasks[0]), \
-			[1] = LIST_HEAD_INIT(var.tasks[1]), \
-			[2] = LIST_HEAD_INIT(var.tasks[2]), \
-		}, \
-	}
-#else
-# define RPC_WAITQ_INIT(var,qname) { \
-		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
-		.tasks = { \
-			[0] = LIST_HEAD_INIT(var.tasks[0]), \
-			[1] = LIST_HEAD_INIT(var.tasks[1]), \
-			[2] = LIST_HEAD_INIT(var.tasks[2]), \
-		}, \
-		.name = qname, \
-	}
-#endif
-# define RPC_WAITQ(var,qname)      struct rpc_wait_queue var = RPC_WAITQ_INIT(var,qname)
-
 #define RPC_IS_PRIORITY(q)		((q)->maxpriority > 0)
 
 /*
