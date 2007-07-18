@@ -1526,15 +1526,12 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
  * zfcp_gid_pn_buffers_free - free buffers for GID_PN nameserver request
  * @gid_pn: pointer to struct zfcp_gid_pn_data which has to be freed
  */
-static void
-zfcp_gid_pn_buffers_free(struct zfcp_gid_pn_data *gid_pn)
+static void zfcp_gid_pn_buffers_free(struct zfcp_gid_pn_data *gid_pn)
 {
-        if ((gid_pn->ct.pool != 0))
+	if (gid_pn->ct.pool)
 		mempool_free(gid_pn, gid_pn->ct.pool);
 	else
-                kfree(gid_pn);
-
-	return;
+		kfree(gid_pn);
 }
 
 /**
