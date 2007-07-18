@@ -179,17 +179,18 @@ static void adu_delete(struct adu_device *dev)
 static void adu_interrupt_in_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
+	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : enter, status %d", __FUNCTION__, status);
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
 
 	spin_lock(&dev->buflock);
 
-	if (urb->status != 0) {
-		if ((urb->status != -ENOENT) && (urb->status != -ECONNRESET)) {
+	if (status != 0) {
+		if ((status != -ENOENT) && (status != -ECONNRESET)) {
 			dbg(1," %s : nonzero status received: %d",
-			    __FUNCTION__, urb->status);
+			    __FUNCTION__, status);
 		}
 		goto exit;
 	}
@@ -217,21 +218,22 @@ exit:
 	wake_up_interruptible(&dev->read_wait);
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : leave, status %d", __FUNCTION__, status);
 }
 
 static void adu_interrupt_out_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
+	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : enter, status %d", __FUNCTION__, status);
 	adu_debug_data(5,__FUNCTION__, urb->actual_length, urb->transfer_buffer);
 
-	if (urb->status != 0) {
-		if ((urb->status != -ENOENT) &&
-		    (urb->status != -ECONNRESET)) {
+	if (status != 0) {
+		if ((status != -ENOENT) &&
+		    (status != -ECONNRESET)) {
 			dbg(1, " %s :nonzero status received: %d",
-			    __FUNCTION__, urb->status);
+			    __FUNCTION__, status);
 		}
 		goto exit;
 	}
@@ -241,7 +243,7 @@ exit:
 
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : leave, status %d", __FUNCTION__, status);
 }
 
 static int adu_open(struct inode *inode, struct file *file)
