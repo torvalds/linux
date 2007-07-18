@@ -466,6 +466,8 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 							 cqe->vlan_tag);
 			else
 				netif_receive_skb(skb);
+
+			dev->last_rx = jiffies;
 		} else {
 			pr->p_stats.poll_receive_errors++;
 			port_reset = ehea_treat_poll_error(pr, rq, cqe,
@@ -1433,7 +1435,8 @@ static int ehea_broadcast_reg_helper(struct ehea_port *port, u32 hcallid)
 				     port->logical_port_id,
 				     reg_type, port->mac_addr, 0, hcallid);
 	if (hret != H_SUCCESS) {
-		ehea_error("reg_dereg_bcmc failed (tagged)");
+		ehea_error("%sregistering bc address failed (tagged)",
+                           hcallid == H_REG_BCMC ? "" : "de");
 		ret = -EIO;
 		goto out_herr;
 	}
@@ -1444,7 +1447,8 @@ static int ehea_broadcast_reg_helper(struct ehea_port *port, u32 hcallid)
 				     port->logical_port_id,
 				     reg_type, port->mac_addr, 0, hcallid);
 	if (hret != H_SUCCESS) {
-		ehea_error("reg_dereg_bcmc failed (vlan)");
+		ehea_error("%sregistering bc address failed (vlan)",
+			   hcallid == H_REG_BCMC ? "" : "de");
 		ret = -EIO;
 	}
 out_herr:
@@ -2170,7 +2174,6 @@ static int ehea_up(struct net_device *dev)
 {
 	int ret, i;
 	struct ehea_port *port = netdev_priv(dev);
-	u64 mac_addr = 0;
 
 	if (port->state == EHEA_PORT_UP)
 		return 0;
@@ -2189,18 +2192,10 @@ static int ehea_up(struct net_device *dev)
 		goto out_clean_pr;
 	}
 
-	ret = ehea_broadcast_reg_helper(port, H_REG_BCMC);
-	if (ret) {
-		ret = -EIO;
-		ehea_error("out_clean_pr");
-		goto out_clean_pr;
-	}
-	mac_addr = (*(u64*)dev->dev_addr) >> 16;
-
 	ret = ehea_reg_interrupts(dev);
 	if (ret) {
-		ehea_error("out_dereg_bc");
-		goto out_dereg_bc;
+		ehea_error("reg_interrupts failed. ret:%d", ret);
+		goto out_clean_pr;
 	}
 
 	for(i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
@@ -2225,9 +2220,6 @@ static int ehea_up(struct net_device *dev)
 
 out_free_irqs:
 	ehea_free_interrupts(dev);
-
-out_dereg_bc:
-	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 
 out_clean_pr:
 	ehea_clean_all_portres(port);
@@ -2273,7 +2265,6 @@ static int ehea_down(struct net_device *dev)
 				&port->port_res[i].d_netdev->state))
 			msleep(1);
 
-	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 	port->state = EHEA_PORT_DOWN;
 
 	ret = ehea_clean_all_portres(port);
@@ -2655,12 +2646,18 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
 
+	ret = ehea_broadcast_reg_helper(port, H_REG_BCMC);
+	if (ret) {
+		ret = -EIO;
+		goto out_unreg_port;
+	}
+
 	ehea_set_ethtool_ops(dev);
 
 	ret = register_netdev(dev);
 	if (ret) {
 		ehea_error("register_netdev failed. ret=%d", ret);
-		goto out_unreg_port;
+		goto out_dereg_bc;
 	}
 
 	ret = ehea_get_jumboframe_status(port, &jumbo);
@@ -2674,6 +2671,9 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	adapter->active_ports++;
 
 	return port;
+
+out_dereg_bc:
+	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 
 out_unreg_port:
 	ehea_unregister_port(port);
@@ -2694,6 +2694,7 @@ static void ehea_shutdown_single_port(struct ehea_port *port)
 {
 	unregister_netdev(port->netdev);
 	ehea_unregister_port(port);
+	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 	kfree(port->mc_list);
 	free_netdev(port->netdev);
 	port->adapter->active_ports--;
