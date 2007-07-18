@@ -1183,6 +1183,14 @@ static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq
 	return cur + nreq >= wq->max_post;
 }
 
+static void set_data_seg(struct mlx4_wqe_data_seg *dseg,
+			 struct ib_sge *sg)
+{
+	dseg->byte_count = cpu_to_be32(sg->length);
+	dseg->lkey       = cpu_to_be32(sg->lkey);
+	dseg->addr       = cpu_to_be64(sg->addr);
+}
+
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr)
 {
@@ -1313,12 +1321,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
-			((struct mlx4_wqe_data_seg *) wqe)->byte_count =
-				cpu_to_be32(wr->sg_list[i].length);
-			((struct mlx4_wqe_data_seg *) wqe)->lkey =
-				cpu_to_be32(wr->sg_list[i].lkey);
-			((struct mlx4_wqe_data_seg *) wqe)->addr =
-				cpu_to_be64(wr->sg_list[i].addr);
+			set_data_seg(wqe, wr->sg_list + i);
 
 			wqe  += sizeof (struct mlx4_wqe_data_seg);
 			size += sizeof (struct mlx4_wqe_data_seg) / 16;
