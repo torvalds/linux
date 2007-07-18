@@ -4,6 +4,24 @@
  * Interface for granting foreign access to page frames, and receiving
  * page-ownership transfers.
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
  * Copyright (c) 2004, K A Fraser
  */
 
@@ -17,7 +35,7 @@
 
 /* Some rough guidelines on accessing and updating grant-table entries
  * in a concurrency-safe manner. For more information, Linux contains a
- * reference implementation for guest OSes (arch/i386/mach-xen/grant_table.c).
+ * reference implementation for guest OSes (arch/xen/kernel/grant_table.c).
  *
  * NB. WMB is a no-op on current-generation x86 processors. However, a
  *     compiler barrier will still be required.
@@ -144,9 +162,9 @@ typedef uint32_t grant_handle_t;
  * that must be presented later to destroy the mapping(s). On error, <handle>
  * is a negative status code.
  * NOTES:
- *  1. If GNTPIN_map_for_dev is specified then <dev_bus_addr> is the address
+ *  1. If GNTMAP_device_map is specified then <dev_bus_addr> is the address
  *     via which I/O devices may access the granted frame.
- *  2. If GNTPIN_map_for_host is specified then a mapping will be added at
+ *  2. If GNTMAP_host_map is specified then a mapping will be added at
  *     either a host virtual address in the current address space, or at
  *     a PTE at the specified machine address.  The type of mapping to
  *     perform is selected through the GNTMAP_contains_pte flag, and the
@@ -167,7 +185,6 @@ struct gnttab_map_grant_ref {
     grant_handle_t handle;
     uint64_t dev_bus_addr;
 };
-DEFINE_GUEST_HANDLE_STRUCT(gnttab_map_grant_ref);
 
 /*
  * GNTTABOP_unmap_grant_ref: Destroy one or more grant-reference mappings
@@ -189,7 +206,6 @@ struct gnttab_unmap_grant_ref {
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
 };
-DEFINE_GUEST_HANDLE_STRUCT(gnttab_unmap_grant_ref);
 
 /*
  * GNTTABOP_setup_table: Set up a grant table for <dom> comprising at least
@@ -207,9 +223,8 @@ struct gnttab_setup_table {
     uint32_t nr_frames;
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
-    GUEST_HANDLE(ulong) frame_list;
+    ulong *frame_list;
 };
-DEFINE_GUEST_HANDLE_STRUCT(gnttab_setup_table);
 
 /*
  * GNTTABOP_dump_table: Dump the contents of the grant table to the
@@ -222,7 +237,6 @@ struct gnttab_dump_table {
     /* OUT parameters. */
     int16_t status;               /* GNTST_* */
 };
-DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
 
 /*
  * GNTTABOP_transfer_grant_ref: Transfer <frame> to a foreign domain. The
@@ -241,7 +255,65 @@ struct gnttab_transfer {
     /* OUT parameters. */
     int16_t       status;
 };
-DEFINE_GUEST_HANDLE_STRUCT(gnttab_transfer);
+
+
+/*
+ * GNTTABOP_copy: Hypervisor based copy
+ * source and destinations can be eithers MFNs or, for foreign domains,
+ * grant references. the foreign domain has to grant read/write access
+ * in its grant table.
+ *
+ * The flags specify what type source and destinations are (either MFN
+ * or grant reference).
+ *
+ * Note that this can also be used to copy data between two domains
+ * via a third party if the source and destination domains had previously
+ * grant appropriate access to their pages to the third party.
+ *
+ * source_offset specifies an offset in the source frame, dest_offset
+ * the offset in the target frame and  len specifies the number of
+ * bytes to be copied.
+ */
+
+#define _GNTCOPY_source_gref      (0)
+#define GNTCOPY_source_gref       (1<<_GNTCOPY_source_gref)
+#define _GNTCOPY_dest_gref        (1)
+#define GNTCOPY_dest_gref         (1<<_GNTCOPY_dest_gref)
+
+#define GNTTABOP_copy                 5
+struct gnttab_copy {
+	/* IN parameters. */
+	struct {
+		union {
+			grant_ref_t ref;
+			unsigned long   gmfn;
+		} u;
+		domid_t  domid;
+		uint16_t offset;
+	} source, dest;
+	uint16_t      len;
+	uint16_t      flags;          /* GNTCOPY_* */
+	/* OUT parameters. */
+	int16_t       status;
+};
+
+/*
+ * GNTTABOP_query_size: Query the current and maximum sizes of the shared
+ * grant table.
+ * NOTES:
+ *  1. <dom> may be specified as DOMID_SELF.
+ *  2. Only a sufficiently-privileged domain may specify <dom> != DOMID_SELF.
+ */
+#define GNTTABOP_query_size           6
+struct gnttab_query_size {
+    /* IN parameters. */
+    domid_t  dom;
+    /* OUT parameters. */
+    uint32_t nr_frames;
+    uint32_t max_nr_frames;
+    int16_t  status;              /* GNTST_* */
+};
+
 
 /*
  * Bitfield values for update_pin_status.flags.
@@ -284,6 +356,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_transfer);
 #define GNTST_no_device_space  (-7) /* Out of space in I/O MMU.              */
 #define GNTST_permission_denied (-8) /* Not enough privilege for operation.  */
 #define GNTST_bad_page         (-9) /* Specified page was invalid for op.    */
+#define GNTST_bad_copy_arg    (-10) /* copy arguments cross page boundary */
 
 #define GNTTABOP_error_msgs {                   \
     "okay",                                     \
@@ -295,7 +368,8 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_transfer);
     "invalid device address",                   \
     "no spare translation slot in the I/O MMU", \
     "permission denied",                        \
-    "bad page"                                  \
+    "bad page",                                 \
+    "copy arguments cross page boundary"        \
 }
 
 #endif /* __XEN_PUBLIC_GRANT_TABLE_H__ */
