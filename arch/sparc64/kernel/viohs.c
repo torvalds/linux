@@ -90,6 +90,7 @@ static void flush_rx_dring(struct vio_driver_state *vio)
 
 	BUG_ON(!vio->desc_buf);
 	kfree(vio->desc_buf);
+	vio->desc_buf = NULL;
 
 	memset(dr, 0, sizeof(*dr));
 	dr->ident = ident;
