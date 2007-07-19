@@ -1674,7 +1674,7 @@ config NFSD_V3_ACL
 
 config NFSD_V4
 	bool "Provide NFSv4 server support (EXPERIMENTAL)"
-	depends on NFSD_V3 && EXPERIMENTAL
+	depends on NFSD && NFSD_V3 && EXPERIMENTAL
 	select RPCSEC_GSS_KRB5
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
