@@ -20,7 +20,7 @@ EXPORT_SYMBOL(edac_op_state);
 atomic_t edac_handlers = ATOMIC_INIT(0);
 EXPORT_SYMBOL(edac_handlers);
 
-atomic_t edac_err_assert = ATOMIC_INIT(0);
+int edac_err_assert = 0;
 EXPORT_SYMBOL(edac_err_assert);
 
 inline int edac_handler_set(void)
@@ -37,6 +37,6 @@ EXPORT_SYMBOL(edac_handler_set);
  */
 inline void edac_atomic_assert_error(void)
 {
-	atomic_set(&edac_err_assert, 1);
+	edac_err_assert++;
 }
 EXPORT_SYMBOL(edac_atomic_assert_error);

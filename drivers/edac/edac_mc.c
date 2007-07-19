@@ -222,18 +222,15 @@ static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
  */
 static int edac_mc_assert_error_check_and_clear(void)
 {
-	int vreg;
+	int old_state;
 
 	if(edac_op_state == EDAC_OPSTATE_POLL)
 		return 1;
 
-	vreg = atomic_read(&edac_err_assert);
-	if(vreg) {
-		atomic_set(&edac_err_assert, 0);
-		return 1;
-	}
+	old_state = edac_err_assert;
+	edac_err_assert = 0;
 
-	return 0;
+	return old_state;
 }
 
 /*
