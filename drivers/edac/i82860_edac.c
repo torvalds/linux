@@ -54,7 +54,7 @@ struct i82860_error_info {
 
 static const struct i82860_dev_info i82860_devs[] = {
 	[I82860] = {
-		    .ctl_name = "i82860"},
+		.ctl_name = "i82860"},
 };
 
 static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
@@ -63,7 +63,7 @@ static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
 static struct edac_pci_ctl_info *i82860_pci;
 
 static void i82860_get_error_info(struct mem_ctl_info *mci,
-				  struct i82860_error_info *info)
+				struct i82860_error_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -96,8 +96,8 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 }
 
 static int i82860_process_error_info(struct mem_ctl_info *mci,
-				     struct i82860_error_info *info,
-				     int handle_errors)
+				struct i82860_error_info *info,
+				int handle_errors)
 {
 	int row;
 
@@ -119,7 +119,7 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_ue(mci, info->eap, 0, row, "i82860 UE");
 	else
 		edac_mc_handle_ce(mci, info->eap, 0, info->derrsyn, row, 0,
-				  "i82860 UE");
+				"i82860 UE");
 
 	return 1;
 }
@@ -155,7 +155,7 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 		csrow = &mci->csrows[index];
 		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
 		cumul_size = (value & I82860_GBA_MASK) <<
-		    (I82860_GBA_SHIFT - PAGE_SHIFT);
+			(I82860_GBA_SHIFT - PAGE_SHIFT);
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
 			cumul_size);
 
@@ -230,14 +230,14 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 
 	return 0;
 
-      fail:
+fail:
 	edac_mc_free(mci);
 	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
 static int __devinit i82860_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -299,7 +299,7 @@ static int __init i82860_init(void)
 
 	if (!mci_pdev) {
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-					  PCI_DEVICE_ID_INTEL_82860_0, NULL);
+					PCI_DEVICE_ID_INTEL_82860_0, NULL);
 
 		if (mci_pdev == NULL) {
 			debugf0("860 pci_get_device fail\n");
@@ -318,10 +318,10 @@ static int __init i82860_init(void)
 
 	return 0;
 
-      fail1:
+fail1:
 	pci_unregister_driver(&i82860_driver);
 
-      fail0:
+fail0:
 	if (mci_pdev != NULL)
 		pci_dev_put(mci_pdev);
 
@@ -343,5 +343,5 @@ module_exit(i82860_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com) "
-	      "Ben Woodard <woodard@redhat.com>");
+		"Ben Woodard <woodard@redhat.com>");
 MODULE_DESCRIPTION("ECC support for Intel 82860 memory hub controllers");

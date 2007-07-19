@@ -114,8 +114,8 @@ struct i82443bxgx_edacmc_error_info {
 static struct edac_pci_ctl_info *i82443bxgx_pci;
 
 static void i82443bxgx_edacmc_get_error_info(struct mem_ctl_info *mci,
-					     struct i82443bxgx_edacmc_error_info
-					     *info)
+				struct i82443bxgx_edacmc_error_info
+				*info)
 {
 	struct pci_dev *pdev;
 	pdev = to_pci_dev(mci->dev);
@@ -151,17 +151,18 @@ static int i82443bxgx_edacmc_process_error_info(struct mem_ctl_info *mci,
 		error_found = 1;
 		if (handle_errors)
 			edac_mc_handle_ce(mci, page, pageoffset,
-					  /* 440BX/GX don't make syndrome information available */
-					  0, edac_mc_find_csrow_by_page(mci, page), 0,	/* channel */
-					  mci->ctl_name);
+				/* 440BX/GX don't make syndrome information
+				 * available */
+				0, edac_mc_find_csrow_by_page(mci, page), 0,
+				mci->ctl_name);
 	}
 
 	if (info->eap & I82443BXGX_EAP_OFFSET_MBE) {
 		error_found = 1;
 		if (handle_errors)
 			edac_mc_handle_ue(mci, page, pageoffset,
-					  edac_mc_find_csrow_by_page(mci, page),
-					  mci->ctl_name);
+					edac_mc_find_csrow_by_page(mci, page),
+					mci->ctl_name);
 	}
 
 	return error_found;
@@ -177,9 +178,9 @@ static void i82443bxgx_edacmc_check(struct mem_ctl_info *mci)
 }
 
 static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
-				   struct pci_dev *pdev,
-				   enum edac_type edac_mode,
-				   enum mem_type mtype)
+				struct pci_dev *pdev,
+				enum edac_type edac_mode,
+				enum mem_type mtype)
 {
 	struct csrow_info *csrow;
 	int index;
@@ -233,7 +234,8 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf0("MC: " __FILE__ ": %s()\n", __func__);
 
 	/* Something is really hosed if PCI config space reads from
-	   the MC aren't working.  */
+	 * the MC aren't working.
+	 */
 	if (pci_read_config_dword(pdev, I82443BXGX_NBXCFG, &nbxcfg))
 		return -EIO;
 
@@ -258,8 +260,8 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		mtype = MEM_RDR;
 		break;
 	default:
-		debugf0
-		    ("Unknown/reserved DRAM type value in DRAMC register!\n");
+		debugf0("Unknown/reserved DRAM type value "
+			"in DRAMC register!\n");
 		mtype = -MEM_UNKNOWN;
 	}
 
@@ -271,10 +273,10 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->scrub_cap = SCRUB_FLAG_HW_SRC;
 	pci_read_config_dword(pdev, I82443BXGX_NBXCFG, &nbxcfg);
 	ecc_mode = ((nbxcfg >> I82443BXGX_NBXCFG_OFFSET_DRAM_INTEGRITY) &
-		    (BIT(0) | BIT(1)));
+		(BIT(0) | BIT(1)));
 
 	mci->scrub_mode = (ecc_mode == I82443BXGX_NBXCFG_INTEGRITY_SCRUB)
-	    ? SCRUB_HW_SRC : SCRUB_NONE;
+		? SCRUB_HW_SRC : SCRUB_NONE;
 
 	switch (ecc_mode) {
 	case I82443BXGX_NBXCFG_INTEGRITY_NONE:
@@ -288,9 +290,8 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		edac_mode = EDAC_SECDED;
 		break;
 	default:
-		debugf0
-		    ("%s(): Unknown/reserved ECC state in NBXCFG register!\n",
-		     __func__);
+		debugf0("%s(): Unknown/reserved ECC state "
+			"in NBXCFG register!\n", __func__);
 		edac_mode = EDAC_UNKNOWN;
 		break;
 	}
@@ -301,10 +302,10 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	 * here, or we get "phantom" errors occuring at module-load
 	 * time. */
 	pci_write_bits32(pdev, I82443BXGX_EAP,
-			 (I82443BXGX_EAP_OFFSET_SBE |
-			  I82443BXGX_EAP_OFFSET_MBE),
-			 (I82443BXGX_EAP_OFFSET_SBE |
-			  I82443BXGX_EAP_OFFSET_MBE));
+			(I82443BXGX_EAP_OFFSET_SBE |
+				I82443BXGX_EAP_OFFSET_MBE),
+			(I82443BXGX_EAP_OFFSET_SBE |
+				I82443BXGX_EAP_OFFSET_MBE));
 
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = I82443_REVISION;
@@ -332,7 +333,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
 	return 0;
 
-      fail:
+fail:
 	edac_mc_free(mci);
 	return -ENODEV;
 }

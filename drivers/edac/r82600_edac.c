@@ -136,7 +136,7 @@ static unsigned int disable_hardware_scrub = 0;
 static struct edac_pci_ctl_info *r82600_pci;
 
 static void r82600_get_error_info(struct mem_ctl_info *mci,
-				  struct r82600_error_info *info)
+				struct r82600_error_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -157,8 +157,8 @@ static void r82600_get_error_info(struct mem_ctl_info *mci,
 }
 
 static int r82600_process_error_info(struct mem_ctl_info *mci,
-				     struct r82600_error_info *info,
-				     int handle_errors)
+				struct r82600_error_info *info,
+				int handle_errors)
 {
 	int error_found;
 	u32 eapaddr, page;
@@ -180,8 +180,9 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors)
 			edac_mc_handle_ce(mci, page, 0,	/* not avail */
-					  syndrome, edac_mc_find_csrow_by_page(mci, page), 0,	/* channel */
-					  mci->ctl_name);
+					syndrome,
+					edac_mc_find_csrow_by_page(mci, page),
+					0, mci->ctl_name);
 	}
 
 	if (info->eapr & BIT(1)) {	/* UE? */
@@ -190,8 +191,8 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 		if (handle_errors)
 			/* 82600 doesn't give enough info */
 			edac_mc_handle_ue(mci, page, 0,
-					  edac_mc_find_csrow_by_page(mci, page),
-					  mci->ctl_name);
+					edac_mc_find_csrow_by_page(mci, page),
+					mci->ctl_name);
 	}
 
 	return error_found;
@@ -212,7 +213,7 @@ static inline int ecc_enabled(u8 dramcr)
 }
 
 static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
-			       u8 dramcr)
+			u8 dramcr)
 {
 	struct csrow_info *csrow;
 	int index;
@@ -342,14 +343,14 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf3("%s(): success\n", __func__);
 	return 0;
 
-      fail:
+fail:
 	edac_mc_free(mci);
 	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
 static int __devinit r82600_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	debugf0("%s()\n", __func__);
 
@@ -405,7 +406,7 @@ module_exit(r82600_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD Ltd. "
-	      "on behalf of EADS Astrium");
+		"on behalf of EADS Astrium");
 MODULE_DESCRIPTION("MC support for Radisys 82600 memory controllers");
 
 module_param(disable_hardware_scrub, bool, 0644);

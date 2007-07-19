@@ -27,14 +27,14 @@
 
 /* 'log_ue' */
 static ssize_t edac_device_ctl_log_ue_show(struct edac_device_ctl_info
-					   *ctl_info, char *data)
+					*ctl_info, char *data)
 {
 	return sprintf(data, "%u\n", ctl_info->log_ue);
 }
 
 static ssize_t edac_device_ctl_log_ue_store(struct edac_device_ctl_info
-					    *ctl_info, const char *data,
-					    size_t count)
+					*ctl_info, const char *data,
+					size_t count)
 {
 	/* if parameter is zero, turn off flag, if non-zero turn on flag */
 	ctl_info->log_ue = (simple_strtoul(data, NULL, 0) != 0);
@@ -44,14 +44,14 @@ static ssize_t edac_device_ctl_log_ue_store(struct edac_device_ctl_info
 
 /* 'log_ce' */
 static ssize_t edac_device_ctl_log_ce_show(struct edac_device_ctl_info
-					   *ctl_info, char *data)
+					*ctl_info, char *data)
 {
 	return sprintf(data, "%u\n", ctl_info->log_ce);
 }
 
 static ssize_t edac_device_ctl_log_ce_store(struct edac_device_ctl_info
-					    *ctl_info, const char *data,
-					    size_t count)
+					*ctl_info, const char *data,
+					size_t count)
 {
 	/* if parameter is zero, turn off flag, if non-zero turn on flag */
 	ctl_info->log_ce = (simple_strtoul(data, NULL, 0) != 0);
@@ -78,14 +78,14 @@ static ssize_t edac_device_ctl_panic_on_ue_store(struct edac_device_ctl_info
 
 /* 'poll_msec' show and store functions*/
 static ssize_t edac_device_ctl_poll_msec_show(struct edac_device_ctl_info
-					      *ctl_info, char *data)
+					*ctl_info, char *data)
 {
 	return sprintf(data, "%u\n", ctl_info->poll_msec);
 }
 
 static ssize_t edac_device_ctl_poll_msec_store(struct edac_device_ctl_info
-					       *ctl_info, const char *data,
-					       size_t count)
+					*ctl_info, const char *data,
+					size_t count)
 {
 	unsigned long value;
 
@@ -112,7 +112,7 @@ struct ctl_info_attribute {
 
 /* Function to 'show' fields from the edac_dev 'ctl_info' structure */
 static ssize_t edac_dev_ctl_info_show(struct kobject *kobj,
-				      struct attribute *attr, char *buffer)
+				struct attribute *attr, char *buffer)
 {
 	struct edac_device_ctl_info *edac_dev = to_ctl_info(kobj);
 	struct ctl_info_attribute *ctl_info_attr = to_ctl_info_attr(attr);
@@ -124,8 +124,8 @@ static ssize_t edac_dev_ctl_info_show(struct kobject *kobj,
 
 /* Function to 'store' fields into the edac_dev 'ctl_info' structure */
 static ssize_t edac_dev_ctl_info_store(struct kobject *kobj,
-				       struct attribute *attr,
-				       const char *buffer, size_t count)
+				struct attribute *attr,
+				const char *buffer, size_t count)
 {
 	struct edac_device_ctl_info *edac_dev = to_ctl_info(kobj);
 	struct ctl_info_attribute *ctl_info_attr = to_ctl_info_attr(attr);
@@ -143,21 +143,21 @@ static struct sysfs_ops device_ctl_info_ops = {
 
 #define CTL_INFO_ATTR(_name,_mode,_show,_store)        \
 static struct ctl_info_attribute attr_ctl_info_##_name = {      \
-        .attr = {.name = __stringify(_name), .mode = _mode },   \
-        .show   = _show,                                        \
-        .store  = _store,                                       \
+	.attr = {.name = __stringify(_name), .mode = _mode },   \
+	.show   = _show,                                        \
+	.store  = _store,                                       \
 };
 
 /* Declare the various ctl_info attributes here and their respective ops */
 CTL_INFO_ATTR(log_ue, S_IRUGO | S_IWUSR,
-	      edac_device_ctl_log_ue_show, edac_device_ctl_log_ue_store);
+	edac_device_ctl_log_ue_show, edac_device_ctl_log_ue_store);
 CTL_INFO_ATTR(log_ce, S_IRUGO | S_IWUSR,
-	      edac_device_ctl_log_ce_show, edac_device_ctl_log_ce_store);
+	edac_device_ctl_log_ce_show, edac_device_ctl_log_ce_store);
 CTL_INFO_ATTR(panic_on_ue, S_IRUGO | S_IWUSR,
-	      edac_device_ctl_panic_on_ue_show,
-	      edac_device_ctl_panic_on_ue_store);
+	edac_device_ctl_panic_on_ue_show,
+	edac_device_ctl_panic_on_ue_store);
 CTL_INFO_ATTR(poll_msec, S_IRUGO | S_IWUSR,
-	      edac_device_ctl_poll_msec_show, edac_device_ctl_poll_msec_store);
+	edac_device_ctl_poll_msec_show, edac_device_ctl_poll_msec_store);
 
 /* Base Attributes of the EDAC_DEVICE ECC object */
 static struct ctl_info_attribute *device_ctrl_attr[] = {
@@ -242,7 +242,7 @@ static int edac_device_register_main_kobj(struct edac_device_ctl_info *edac_dev)
  *	the '..../edac/<name>' kobject
  */
 static void edac_device_unregister_main_kobj(struct edac_device_ctl_info
-					     *edac_dev)
+					*edac_dev)
 {
 	debugf0("%s()\n", __func__);
 	debugf1("%s() name of kobject is: %s\n",
@@ -264,13 +264,13 @@ static void edac_device_unregister_main_kobj(struct edac_device_ctl_info
  * Set of low-level instance attribute show functions
  */
 static ssize_t instance_ue_count_show(struct edac_device_instance *instance,
-				      char *data)
+				char *data)
 {
 	return sprintf(data, "%u\n", instance->counters.ue_count);
 }
 
 static ssize_t instance_ce_count_show(struct edac_device_instance *instance,
-				      char *data)
+				char *data)
 {
 	return sprintf(data, "%u\n", instance->counters.ce_count);
 }
@@ -298,7 +298,7 @@ struct instance_attribute {
 
 /* Function to 'show' fields from the edac_dev 'instance' structure */
 static ssize_t edac_dev_instance_show(struct kobject *kobj,
-				      struct attribute *attr, char *buffer)
+				struct attribute *attr, char *buffer)
 {
 	struct edac_device_instance *instance = to_instance(kobj);
 	struct instance_attribute *instance_attr = to_instance_attr(attr);
@@ -310,8 +310,8 @@ static ssize_t edac_dev_instance_show(struct kobject *kobj,
 
 /* Function to 'store' fields into the edac_dev 'instance' structure */
 static ssize_t edac_dev_instance_store(struct kobject *kobj,
-				       struct attribute *attr,
-				       const char *buffer, size_t count)
+				struct attribute *attr,
+				const char *buffer, size_t count)
 {
 	struct edac_device_instance *instance = to_instance(kobj);
 	struct instance_attribute *instance_attr = to_instance_attr(attr);
@@ -329,9 +329,9 @@ static struct sysfs_ops device_instance_ops = {
 
 #define INSTANCE_ATTR(_name,_mode,_show,_store)        \
 static struct instance_attribute attr_instance_##_name = {      \
-        .attr = {.name = __stringify(_name), .mode = _mode },   \
-        .show   = _show,                                        \
-        .store  = _store,                                       \
+	.attr = {.name = __stringify(_name), .mode = _mode },   \
+	.show   = _show,                                        \
+	.store  = _store,                                       \
 };
 
 /*
@@ -394,7 +394,7 @@ struct block_attribute {
 
 /* Function to 'show' fields from the edac_dev 'block' structure */
 static ssize_t edac_dev_block_show(struct kobject *kobj,
-				   struct attribute *attr, char *buffer)
+				struct attribute *attr, char *buffer)
 {
 	struct edac_device_block *block = to_block(kobj);
 	struct block_attribute *block_attr = to_block_attr(attr);
@@ -406,8 +406,8 @@ static ssize_t edac_dev_block_show(struct kobject *kobj,
 
 /* Function to 'store' fields into the edac_dev 'block' structure */
 static ssize_t edac_dev_block_store(struct kobject *kobj,
-				    struct attribute *attr,
-				    const char *buffer, size_t count)
+				struct attribute *attr,
+				const char *buffer, size_t count)
 {
 	struct edac_device_block *block = to_block(kobj);
 	struct block_attribute *block_attr = to_block_attr(attr);
@@ -425,9 +425,9 @@ static struct sysfs_ops device_block_ops = {
 
 #define BLOCK_ATTR(_name,_mode,_show,_store)        \
 static struct block_attribute attr_block_##_name = {                       \
-        .attr = {.name = __stringify(_name), .mode = _mode },   \
-        .show   = _show,                                        \
-        .store  = _store,                                       \
+	.attr = {.name = __stringify(_name), .mode = _mode },   \
+	.show   = _show,                                        \
+	.store  = _store,                                       \
 };
 
 BLOCK_ATTR(ce_count, S_IRUGO, block_ce_count_show, NULL);
@@ -453,8 +453,8 @@ static struct kobj_type ktype_block_ctrl = {
  * edac_device_create_block
  */
 static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
-				    struct edac_device_instance *instance,
-				    int idx)
+				struct edac_device_instance *instance,
+				int idx)
 {
 	int err;
 	struct edac_device_block *block;
@@ -487,8 +487,8 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
  * edac_device_delete_block(edac_dev,j);
  */
 static void edac_device_delete_block(struct edac_device_ctl_info *edac_dev,
-				     struct edac_device_instance *instance,
-				     int idx)
+				struct edac_device_instance *instance,
+				int idx)
 {
 	struct edac_device_block *block;
 
@@ -507,7 +507,7 @@ static void edac_device_delete_block(struct edac_device_ctl_info *edac_dev,
  *	create just one instance of an edac_device 'instance'
  */
 static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
-				       int idx)
+				int idx)
 {
 	int i, j;
 	int err;
@@ -627,22 +627,22 @@ static int edac_device_add_sysfs_attributes(
 			struct edac_device_ctl_info *edac_dev)
 {
 	int err;
-        struct edac_dev_sysfs_attribute *sysfs_attrib;
+	struct edac_dev_sysfs_attribute *sysfs_attrib;
 
-        /* point to the start of the array and iterate over it
-         * adding each attribute listed to this mci instance's kobject
-         */
-        sysfs_attrib = edac_dev->sysfs_attributes;
+	/* point to the start of the array and iterate over it
+	 * adding each attribute listed to this mci instance's kobject
+	 */
+	sysfs_attrib = edac_dev->sysfs_attributes;
 
-        while (sysfs_attrib->attr.name != NULL) {
-                err = sysfs_create_file(&edac_dev->kobj,
-                                        (struct attribute*) sysfs_attrib);
-                if (err) {
-                        return err;
-                }
+	while (sysfs_attrib->attr.name != NULL) {
+		err = sysfs_create_file(&edac_dev->kobj,
+				(struct attribute*) sysfs_attrib);
+		if (err) {
+			return err;
+		}
 
-                sysfs_attrib++;
-        }
+		sysfs_attrib++;
+	}
 
 	return 0;
 }

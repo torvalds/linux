@@ -47,7 +47,7 @@ static inline void edac_unlock_pci_list(void)
  * edac_pci it is going to control/register with the EDAC CORE.
  */
 struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
-						  const char *edac_pci_name)
+						const char *edac_pci_name)
 {
 	struct edac_pci_ctl_info *pci;
 	void *pvt;
@@ -140,18 +140,18 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 	list_add_tail_rcu(&pci->link, insert_before);
 	return 0;
 
-      fail0:
+fail0:
 	edac_printk(KERN_WARNING, EDAC_PCI,
-		    "%s (%s) %s %s already assigned %d\n",
-		    rover->dev->bus_id, dev_name(rover),
-		    rover->mod_name, rover->ctl_name, rover->pci_idx);
+		"%s (%s) %s %s already assigned %d\n",
+		rover->dev->bus_id, dev_name(rover),
+		rover->mod_name, rover->ctl_name, rover->pci_idx);
 	return 1;
 
-      fail1:
+fail1:
 	edac_printk(KERN_WARNING, EDAC_PCI,
-		    "but in low-level driver: attempt to assign\n"
-		    "\tduplicate pci_idx %d in %s()\n", rover->pci_idx,
-		    __func__);
+		"but in low-level driver: attempt to assign\n"
+		"\tduplicate pci_idx %d in %s()\n", rover->pci_idx,
+		__func__);
 	return 1;
 }
 
@@ -222,14 +222,14 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 	edac_lock_pci_list();
 
 	if ((pci->op_state == OP_RUNNING_POLL) &&
-	    (pci->edac_check != NULL) && (edac_pci_get_check_errors()))
+		(pci->edac_check != NULL) && (edac_pci_get_check_errors()))
 		pci->edac_check(pci);
 
 	edac_unlock_pci_list();
 
 	/* Reschedule */
 	queue_delayed_work(edac_workqueue, &pci->work,
-			   msecs_to_jiffies(edac_pci_get_poll_msec()));
+			msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -244,7 +244,7 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 
 	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
 	queue_delayed_work(edac_workqueue, &pci->work,
-			   msecs_to_jiffies(edac_pci_get_poll_msec()));
+			msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -326,9 +326,9 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 	edac_unlock_pci_list();
 	return 0;
 
-      fail1:
+fail1:
 	del_edac_pci_from_global_list(pci);
-      fail0:
+fail0:
 	edac_unlock_pci_list();
 	return 1;
 }
@@ -372,8 +372,8 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 	edac_unlock_pci_list();
 
 	edac_printk(KERN_INFO, EDAC_PCI,
-		    "Removed device %d for %s %s: DEV %s\n",
-		    pci->pci_idx, pci->mod_name, pci->ctl_name, dev_name(pci));
+		"Removed device %d for %s %s: DEV %s\n",
+		pci->pci_idx, pci->mod_name, pci->ctl_name, dev_name(pci));
 
 	return pci;
 }
@@ -393,7 +393,7 @@ struct edac_pci_gen_data {
 };
 
 struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
-						      const char *mod_name)
+						const char *mod_name)
 {
 	struct edac_pci_ctl_info *pci;
 	struct edac_pci_gen_data *pdata;

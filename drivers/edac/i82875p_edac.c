@@ -174,7 +174,7 @@ struct i82875p_error_info {
 
 static const struct i82875p_dev_info i82875p_devs[] = {
 	[I82875P] = {
-		     .ctl_name = "i82875p"},
+		.ctl_name = "i82875p"},
 };
 
 static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code has
@@ -186,7 +186,7 @@ static int i82875p_registered = 1;
 static struct edac_pci_ctl_info *i82875p_pci;
 
 static void i82875p_get_error_info(struct mem_ctl_info *mci,
-				   struct i82875p_error_info *info)
+				struct i82875p_error_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -222,8 +222,8 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 }
 
 static int i82875p_process_error_info(struct mem_ctl_info *mci,
-				      struct i82875p_error_info *info,
-				      int handle_errors)
+				struct i82875p_error_info *info,
+				int handle_errors)
 {
 	int row, multi_chan;
 
@@ -247,8 +247,8 @@ static int i82875p_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_ue(mci, info->eap, 0, row, "i82875p UE");
 	else
 		edac_mc_handle_ce(mci, info->eap, 0, info->derrsyn, row,
-				  multi_chan ? (info->des & 0x1) : 0,
-				  "i82875p CE");
+				multi_chan ? (info->des & 0x1) : 0,
+				"i82875p CE");
 
 	return 1;
 }
@@ -264,8 +264,8 @@ static void i82875p_check(struct mem_ctl_info *mci)
 
 /* Return 0 on success or 1 on failure. */
 static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
-				    struct pci_dev **ovrfl_pdev,
-				    void __iomem ** ovrfl_window)
+				struct pci_dev **ovrfl_pdev,
+				void __iomem **ovrfl_window)
 {
 	struct pci_dev *dev;
 	void __iomem *window;
@@ -293,7 +293,7 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 
 	if (pci_enable_device(dev)) {
 		i82875p_printk(KERN_ERR, "%s(): Failed to enable overflow "
-			       "device\n", __func__);
+			"device\n", __func__);
 		return 1;
 	}
 
@@ -309,18 +309,18 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 
 	if (window == NULL) {
 		i82875p_printk(KERN_ERR, "%s(): Failed to ioremap bar6\n",
-			       __func__);
+			__func__);
 		goto fail1;
 	}
 
 	*ovrfl_window = window;
 	return 0;
 
-      fail1:
+fail1:
 	pci_release_regions(dev);
 
 #ifdef CORRECT_BIOS
-      fail0:
+fail0:
 	pci_disable_device(dev);
 #endif
 	/* NOTE: the ovrfl proc entry and pci_dev are intentionally left */
@@ -393,7 +393,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	drc = readl(ovrfl_window + I82875P_DRC);
 	nr_chans = dual_channel_active(drc) + 1;
 	mci = edac_mc_alloc(sizeof(*pvt), I82875P_NR_CSROWS(nr_chans),
-			    nr_chans);
+			nr_chans);
 
 	if (!mci) {
 		rc = -ENOMEM;
@@ -441,10 +441,10 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf3("%s(): success\n", __func__);
 	return 0;
 
-      fail1:
+fail1:
 	edac_mc_free(mci);
 
-      fail0:
+fail0:
 	iounmap(ovrfl_window);
 	pci_release_regions(ovrfl_pdev);
 
@@ -455,7 +455,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 
 /* returns count (>= 0), or negative on error */
 static int __devinit i82875p_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -532,7 +532,7 @@ static int __init i82875p_init(void)
 
 	if (mci_pdev == NULL) {
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-					  PCI_DEVICE_ID_INTEL_82875_0, NULL);
+					PCI_DEVICE_ID_INTEL_82875_0, NULL);
 
 		if (!mci_pdev) {
 			debugf0("875p pci_get_device fail\n");
@@ -551,10 +551,10 @@ static int __init i82875p_init(void)
 
 	return 0;
 
-      fail1:
+fail1:
 	pci_unregister_driver(&i82875p_driver);
 
-      fail0:
+fail0:
 	if (mci_pdev != NULL)
 		pci_dev_put(mci_pdev);
 

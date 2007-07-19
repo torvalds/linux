@@ -183,16 +183,16 @@ static struct memctrl_dev_attribute attr_##_name = {			\
 
 /* csrow<id> control files */
 MEMCTRL_ATTR(edac_mc_panic_on_ue,
-	     S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
+	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
 
 MEMCTRL_ATTR(edac_mc_log_ue,
-	     S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
+	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
 
 MEMCTRL_ATTR(edac_mc_log_ce,
-	     S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
+	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
 
 MEMCTRL_ATTR(edac_mc_poll_msec,
-	     S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
+	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
 
 /* Base Attributes of the memory ECC object */
 static struct memctrl_dev_attribute *memctrl_attr[] = {
@@ -281,44 +281,44 @@ void edac_sysfs_memctrl_teardown(void)
 
 /* Set of more default csrow<id> attribute show/store functions */
 static ssize_t csrow_ue_count_show(struct csrow_info *csrow, char *data,
-				   int private)
+				int private)
 {
 	return sprintf(data, "%u\n", csrow->ue_count);
 }
 
 static ssize_t csrow_ce_count_show(struct csrow_info *csrow, char *data,
-				   int private)
+				int private)
 {
 	return sprintf(data, "%u\n", csrow->ce_count);
 }
 
 static ssize_t csrow_size_show(struct csrow_info *csrow, char *data,
-			       int private)
+				int private)
 {
 	return sprintf(data, "%u\n", PAGES_TO_MiB(csrow->nr_pages));
 }
 
 static ssize_t csrow_mem_type_show(struct csrow_info *csrow, char *data,
-				   int private)
+				int private)
 {
 	return sprintf(data, "%s\n", mem_types[csrow->mtype]);
 }
 
 static ssize_t csrow_dev_type_show(struct csrow_info *csrow, char *data,
-				   int private)
+				int private)
 {
 	return sprintf(data, "%s\n", dev_types[csrow->dtype]);
 }
 
 static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data,
-				    int private)
+				int private)
 {
 	return sprintf(data, "%s\n", edac_caps[csrow->edac_mode]);
 }
 
 /* show/store functions for DIMM Label attributes */
 static ssize_t channel_dimm_label_show(struct csrow_info *csrow,
-				       char *data, int channel)
+				char *data, int channel)
 {
 	return snprintf(data, EDAC_MC_LABEL_LEN, "%s",
 			csrow->channels[channel].label);
@@ -339,7 +339,7 @@ static ssize_t channel_dimm_label_store(struct csrow_info *csrow,
 
 /* show function for dynamic chX_ce_count attribute */
 static ssize_t channel_ce_count_show(struct csrow_info *csrow,
-				     char *data, int channel)
+				char *data, int channel)
 {
 	return sprintf(data, "%u\n", csrow->channels[channel].ce_count);
 }
@@ -357,27 +357,27 @@ struct csrowdev_attribute {
 
 /* Set of show/store higher level functions for default csrow attributes */
 static ssize_t csrowdev_show(struct kobject *kobj,
-			     struct attribute *attr, char *buffer)
+			struct attribute *attr, char *buffer)
 {
 	struct csrow_info *csrow = to_csrow(kobj);
 	struct csrowdev_attribute *csrowdev_attr = to_csrowdev_attr(attr);
 
 	if (csrowdev_attr->show)
 		return csrowdev_attr->show(csrow,
-					   buffer, csrowdev_attr->private);
+					buffer, csrowdev_attr->private);
 	return -EIO;
 }
 
 static ssize_t csrowdev_store(struct kobject *kobj, struct attribute *attr,
-			      const char *buffer, size_t count)
+			const char *buffer, size_t count)
 {
 	struct csrow_info *csrow = to_csrow(kobj);
 	struct csrowdev_attribute *csrowdev_attr = to_csrowdev_attr(attr);
 
 	if (csrowdev_attr->store)
 		return csrowdev_attr->store(csrow,
-					    buffer,
-					    count, csrowdev_attr->private);
+					buffer,
+					count, csrowdev_attr->private);
 	return -EIO;
 }
 
@@ -415,17 +415,17 @@ static struct csrowdev_attribute *default_csrow_attr[] = {
 
 /* possible dynamic channel DIMM Label attribute files */
 CSROWDEV_ATTR(ch0_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 0);
+	channel_dimm_label_show, channel_dimm_label_store, 0);
 CSROWDEV_ATTR(ch1_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 1);
+	channel_dimm_label_show, channel_dimm_label_store, 1);
 CSROWDEV_ATTR(ch2_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 2);
+	channel_dimm_label_show, channel_dimm_label_store, 2);
 CSROWDEV_ATTR(ch3_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 3);
+	channel_dimm_label_show, channel_dimm_label_store, 3);
 CSROWDEV_ATTR(ch4_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 4);
+	channel_dimm_label_show, channel_dimm_label_store, 4);
 CSROWDEV_ATTR(ch5_dimm_label, S_IRUGO | S_IWUSR,
-	      channel_dimm_label_show, channel_dimm_label_store, 5);
+	channel_dimm_label_show, channel_dimm_label_store, 5);
 
 /* Total possible dynamic DIMM Label attribute file table */
 static struct csrowdev_attribute *dynamic_csrow_dimm_attr[] = {
@@ -501,7 +501,7 @@ static struct kobj_type ktype_csrow = {
 
 /* Create a CSROW object under specifed edac_mc_device */
 static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
-				    struct csrow_info *csrow, int index)
+				struct csrow_info *csrow, int index)
 {
 	int err = 0;
 	int chan;
@@ -531,7 +531,7 @@ static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
 		}
 	}
 
-      error_exit:
+error_exit:
 	return err;
 }
 
@@ -563,7 +563,7 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
 
 /* memory scrubbing */
 static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
-					  const char *data, size_t count)
+					const char *data, size_t count)
 {
 	u32 bandwidth = -1;
 
@@ -573,18 +573,18 @@ static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
 
 		if (!(*mci->set_sdram_scrub_rate) (mci, &bandwidth)) {
 			edac_printk(KERN_DEBUG, EDAC_MC,
-				    "Scrub rate set successfully, applied: %d\n",
-				    bandwidth);
+				"Scrub rate set successfully, applied: %d\n",
+				bandwidth);
 		} else {
 			/* FIXME: error codes maybe? */
 			edac_printk(KERN_DEBUG, EDAC_MC,
-				    "Scrub rate set FAILED, could not apply: %d\n",
-				    bandwidth);
+				"Scrub rate set FAILED, could not apply: %d\n",
+				bandwidth);
 		}
 	} else {
 		/* FIXME: produce "not implemented" ERROR for user-side. */
 		edac_printk(KERN_WARNING, EDAC_MC,
-			    "Memory scrubbing 'set'control is not implemented!\n");
+			"Memory scrubbing 'set'control is not implemented!\n");
 	}
 	return count;
 }
@@ -596,18 +596,18 @@ static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 	if (mci->get_sdram_scrub_rate) {
 		if (!(*mci->get_sdram_scrub_rate) (mci, &bandwidth)) {
 			edac_printk(KERN_DEBUG, EDAC_MC,
-				    "Scrub rate successfully, fetched: %d\n",
-				    bandwidth);
+				"Scrub rate successfully, fetched: %d\n",
+				bandwidth);
 		} else {
 			/* FIXME: error codes maybe? */
 			edac_printk(KERN_DEBUG, EDAC_MC,
-				    "Scrub rate fetch FAILED, got: %d\n",
-				    bandwidth);
+				"Scrub rate fetch FAILED, got: %d\n",
+				bandwidth);
 		}
 	} else {
 		/* FIXME: produce "not implemented" ERROR for user-side.  */
 		edac_printk(KERN_WARNING, EDAC_MC,
-			    "Memory scrubbing 'get' control is not implemented\n");
+			"Memory scrubbing 'get' control is not implemented\n");
 	}
 	return sprintf(data, "%d\n", bandwidth);
 }
@@ -648,7 +648,7 @@ static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 	int total_pages, csrow_idx;
 
 	for (total_pages = csrow_idx = 0; csrow_idx < mci->nr_csrows;
-	     csrow_idx++) {
+		csrow_idx++) {
 		struct csrow_info *csrow = &mci->csrows[csrow_idx];
 
 		if (!csrow->nr_pages)
@@ -665,7 +665,7 @@ static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 
 /* MCI show/store functions for top most object */
 static ssize_t mcidev_show(struct kobject *kobj, struct attribute *attr,
-			   char *buffer)
+			char *buffer)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
 	struct mcidev_sysfs_attribute *mcidev_attr = to_mcidev_attr(attr);
@@ -677,7 +677,7 @@ static ssize_t mcidev_show(struct kobject *kobj, struct attribute *attr,
 }
 
 static ssize_t mcidev_store(struct kobject *kobj, struct attribute *attr,
-			    const char *buffer, size_t count)
+			const char *buffer, size_t count)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
 	struct mcidev_sysfs_attribute *mcidev_attr = to_mcidev_attr(attr);
@@ -714,7 +714,7 @@ MCIDEV_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 
 /* memory scrubber attribute file */
 MCIDEV_ATTR(sdram_scrub_rate, S_IRUGO | S_IWUSR, mci_sdram_scrub_rate_show,
-	    mci_sdram_scrub_rate_store);
+	mci_sdram_scrub_rate_store);
 
 static struct mcidev_sysfs_attribute *mci_attr[] = {
 	&mci_attr_reset_counters,
@@ -841,7 +841,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	return 0;
 
 	/* CSROW error: backout what has already been registered,  */
-      fail1:
+fail1:
 	for (i--; i >= 0; i--) {
 		if (csrow->nr_pages > 0) {
 			init_completion(&csrow->kobj_complete);
@@ -850,7 +850,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 		}
 	}
 
-      fail0:
+fail0:
 	init_completion(&mci->kobj_complete);
 	kobject_unregister(edac_mci_kobj);
 	wait_for_completion(&mci->kobj_complete);

@@ -61,7 +61,7 @@ static ssize_t instance_pe_count_show(struct edac_pci_ctl_info *pci, char *data)
 }
 
 static ssize_t instance_npe_count_show(struct edac_pci_ctl_info *pci,
-				       char *data)
+				char *data)
 {
 	return sprintf(data, "%u\n", atomic_read(&pci->counters.npe_count));
 }
@@ -89,7 +89,7 @@ struct instance_attribute {
 
 /* Function to 'show' fields from the edac_pci 'instance' structure */
 static ssize_t edac_pci_instance_show(struct kobject *kobj,
-				      struct attribute *attr, char *buffer)
+				struct attribute *attr, char *buffer)
 {
 	struct edac_pci_ctl_info *pci = to_instance(kobj);
 	struct instance_attribute *instance_attr = to_instance_attr(attr);
@@ -101,8 +101,8 @@ static ssize_t edac_pci_instance_show(struct kobject *kobj,
 
 /* Function to 'store' fields into the edac_pci 'instance' structure */
 static ssize_t edac_pci_instance_store(struct kobject *kobj,
-				       struct attribute *attr,
-				       const char *buffer, size_t count)
+				struct attribute *attr,
+				const char *buffer, size_t count)
 {
 	struct edac_pci_ctl_info *pci = to_instance(kobj);
 	struct instance_attribute *instance_attr = to_instance_attr(attr);
@@ -212,8 +212,8 @@ static ssize_t edac_pci_dev_show(struct kobject *kobj, struct attribute *attr,
 }
 
 static ssize_t edac_pci_dev_store(struct kobject *kobj,
-				  struct attribute *attr, const char *buffer,
-				  size_t count)
+				struct attribute *attr, const char *buffer,
+				size_t count)
 {
 	struct edac_pci_dev_attribute *edac_pci_dev;
 	edac_pci_dev = (struct edac_pci_dev_attribute *)attr;
@@ -246,13 +246,13 @@ static struct edac_pci_dev_attribute edac_pci_attr_##_name = {		\
 
 /* PCI Parity control files */
 EDAC_PCI_ATTR(check_pci_errors, S_IRUGO | S_IWUSR, edac_pci_int_show,
-	      edac_pci_int_store);
+	edac_pci_int_store);
 EDAC_PCI_ATTR(edac_pci_log_pe, S_IRUGO | S_IWUSR, edac_pci_int_show,
-	      edac_pci_int_store);
+	edac_pci_int_store);
 EDAC_PCI_ATTR(edac_pci_log_npe, S_IRUGO | S_IWUSR, edac_pci_int_show,
-	      edac_pci_int_store);
+	edac_pci_int_store);
 EDAC_PCI_ATTR(edac_pci_panic_on_pe, S_IRUGO | S_IWUSR, edac_pci_int_show,
-	      edac_pci_int_store);
+	edac_pci_int_store);
 EDAC_PCI_ATTR(pci_parity_count, S_IRUGO, edac_pci_int_show, NULL);
 EDAC_PCI_ATTR(pci_nonparity_count, S_IRUGO, edac_pci_int_show, NULL);
 
@@ -405,7 +405,7 @@ static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
 	}
 
 	status &= PCI_STATUS_DETECTED_PARITY | PCI_STATUS_SIG_SYSTEM_ERROR |
-	    PCI_STATUS_PARITY;
+		PCI_STATUS_PARITY;
 
 	if (status)
 		/* reset only the bits we are interested in */
@@ -449,23 +449,23 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 	if (status) {
 		if (status & (PCI_STATUS_SIG_SYSTEM_ERROR)) {
 			edac_printk(KERN_CRIT, EDAC_PCI,
-				    "Signaled System Error on %s\n",
-				    pci_name(dev));
+				"Signaled System Error on %s\n",
+				pci_name(dev));
 			atomic_inc(&pci_nonparity_count);
 		}
 
 		if (status & (PCI_STATUS_PARITY)) {
 			edac_printk(KERN_CRIT, EDAC_PCI,
-				    "Master Data Parity Error on %s\n",
-				    pci_name(dev));
+				"Master Data Parity Error on %s\n",
+				pci_name(dev));
 
 			atomic_inc(&pci_parity_count);
 		}
 
 		if (status & (PCI_STATUS_DETECTED_PARITY)) {
 			edac_printk(KERN_CRIT, EDAC_PCI,
-				    "Detected Parity Error on %s\n",
-				    pci_name(dev));
+				"Detected Parity Error on %s\n",
+				pci_name(dev));
 
 			atomic_inc(&pci_parity_count);
 		}
@@ -486,23 +486,23 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 		if (status) {
 			if (status & (PCI_STATUS_SIG_SYSTEM_ERROR)) {
 				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
-					    "Signaled System Error on %s\n",
-					    pci_name(dev));
+					"Signaled System Error on %s\n",
+					pci_name(dev));
 				atomic_inc(&pci_nonparity_count);
 			}
 
 			if (status & (PCI_STATUS_PARITY)) {
 				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
-					    "Master Data Parity Error on "
-					    "%s\n", pci_name(dev));
+					"Master Data Parity Error on "
+					"%s\n", pci_name(dev));
 
 				atomic_inc(&pci_parity_count);
 			}
 
 			if (status & (PCI_STATUS_DETECTED_PARITY)) {
 				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
-					    "Detected Parity Error on %s\n",
-					    pci_name(dev));
+					"Detected Parity Error on %s\n",
+					pci_name(dev));
 
 				atomic_inc(&pci_parity_count);
 			}

@@ -148,7 +148,7 @@ struct i3000_error_info {
 
 static const struct i3000_dev_info i3000_devs[] = {
 	[I3000] = {
-		   .ctl_name = "i3000"},
+		.ctl_name = "i3000"},
 };
 
 static struct pci_dev *mci_pdev = NULL;
@@ -195,8 +195,8 @@ static void i3000_get_error_info(struct mem_ctl_info *mci,
 }
 
 static int i3000_process_error_info(struct mem_ctl_info *mci,
-				    struct i3000_error_info *info,
-				    int handle_errors)
+				struct i3000_error_info *info,
+				int handle_errors)
 {
 	int row, multi_chan;
 	int pfn, offset, channel;
@@ -224,7 +224,7 @@ static int i3000_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_ue(mci, pfn, offset, row, "i3000 UE");
 	else
 		edac_mc_handle_ce(mci, pfn, offset, info->derrsyn, row,
-				  multi_chan ? channel : 0, "i3000 CE");
+				multi_chan ? channel : 0, "i3000 CE");
 
 	return 1;
 }
@@ -250,7 +250,8 @@ static int i3000_is_interleaved(const unsigned char *c0dra,
 	 */
 	for (i = 0; i < I3000_RANKS_PER_CHANNEL / 2; i++)
 		if (ODD_RANK_ATTRIB(c0dra[i]) != ODD_RANK_ATTRIB(c1dra[i]) ||
-		    EVEN_RANK_ATTRIB(c0dra[i]) != EVEN_RANK_ATTRIB(c1dra[i]))
+			EVEN_RANK_ATTRIB(c0dra[i]) !=
+						EVEN_RANK_ATTRIB(c1dra[i]))
 			return 0;
 
 	/* If the rank boundaries for the two channels are different
@@ -283,7 +284,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	window = ioremap_nocache(mchbar, I3000_MMR_WINDOW_SIZE);
 	if (!window) {
 		printk(KERN_ERR "i3000: cannot map mmio space at 0x%lx\n",
-		       mchbar);
+			mchbar);
 		return -ENODEV;
 	}
 
@@ -398,7 +399,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 /* returns count (>= 0), or negative on error */
 static int __devinit i3000_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -459,7 +460,7 @@ static int __init i3000_init(void)
 	if (mci_pdev == NULL) {
 		i3000_registered = 0;
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-					  PCI_DEVICE_ID_INTEL_3000_HB, NULL);
+					PCI_DEVICE_ID_INTEL_3000_HB, NULL);
 		if (!mci_pdev) {
 			debugf0("i3000 pci_get_device fail\n");
 			pci_rc = -ENODEV;
@@ -476,10 +477,10 @@ static int __init i3000_init(void)
 
 	return 0;
 
-      fail1:
+fail1:
 	pci_unregister_driver(&i3000_driver);
 
-      fail0:
+fail0:
 	if (mci_pdev)
 		pci_dev_put(mci_pdev);
 

@@ -157,7 +157,7 @@ static int __init edac_init(void)
 	 */
 	if (edac_register_sysfs_edac_name()) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			    "Error initializing 'edac' kobject\n");
+			"Error initializing 'edac' kobject\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -166,7 +166,7 @@ static int __init edac_init(void)
 	 */
 	if (edac_sysfs_memctrl_setup()) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			    "Error initializing sysfs code\n");
+			"Error initializing sysfs code\n");
 		err = -ENODEV;
 		goto error_sysfs;
 	}
@@ -181,11 +181,11 @@ static int __init edac_init(void)
 	return 0;
 
 	/* Error teardown stack */
-      error_mem:
+error_mem:
 	edac_sysfs_memctrl_teardown();
-      error_sysfs:
+error_sysfs:
 	edac_unregister_sysfs_edac_name();
-      error:
+error:
 	return err;
 }
 
