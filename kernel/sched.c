@@ -2235,7 +2235,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 			rq = cpu_rq(i);
 
-			if (*sd_idle && !idle_cpu(i))
+			if (*sd_idle && rq->nr_running)
 				*sd_idle = 0;
 
 			/* Bias balancing toward cpus of our domain */
@@ -2257,9 +2257,11 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		/*
 		 * First idle cpu or the first cpu(busiest) in this sched group
 		 * is eligible for doing load balancing at this and above
-		 * domains.
+		 * domains. In the newly idle case, we will allow all the cpu's
+		 * to do the newly idle load balance.
 		 */
-		if (local_group && balance_cpu != this_cpu && balance) {
+		if (idle != CPU_NEWLY_IDLE && local_group &&
+		    balance_cpu != this_cpu && balance) {
 			*balance = 0;
 			goto ret;
 		}
