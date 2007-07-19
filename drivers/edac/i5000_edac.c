@@ -1345,6 +1345,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_name = "i5000_edac.c";
 	mci->mod_ver = I5000_REVISION;
 	mci->ctl_name = i5000_devs[dev_idx].ctl_name;
+	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
 	/* Set the function pointer to an actual operation function */

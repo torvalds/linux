@@ -11,7 +11,7 @@
  *
  * Written with reference to 82600 High Integration Dual PCI System
  * Controller Data Book:
- * http://www.radisys.com/files/support_downloads/007-01277-0002.82600DataBook.pdf
+ * www.radisys.com/files/support_downloads/007-01277-0002.82600DataBook.pdf
  * references to this document given in []
  */
 
@@ -305,6 +305,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = R82600_REVISION;
 	mci->ctl_name = "R82600";
+	mci->dev_name = pci_name(pdev);
 	mci->edac_check = r82600_check;
 	mci->ctl_page_to_phys = NULL;
 	r82600_init_csrows(mci, pdev, dramcr);

@@ -318,6 +318,7 @@ static int  i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = I82443_REVISION;
 	mci->ctl_name = "I82443BXGX";
+	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i82443bxgx_edacmc_check;
 	mci->ctl_page_to_phys = NULL;
 

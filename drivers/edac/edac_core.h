@@ -95,11 +95,7 @@ extern int edac_debug_level;
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev
 
-#if defined(CONFIG_X86) && defined(CONFIG_PCI)
-#define dev_name(dev) pci_name(to_pci_dev(dev))
-#else
-#define dev_name(dev) to_platform_device(dev)->name
-#endif
+#define dev_name(dev) (dev)->dev_name
 
 /* memory devices */
 enum dev_type {
@@ -368,6 +364,7 @@ struct mem_ctl_info {
 	const char *mod_name;
 	const char *mod_ver;
 	const char *ctl_name;
+	const char *dev_name;
 	char proc_name[MC_PROC_NAME_MAX_LEN + 1];
 	void *pvt_info;
 	u32 ue_noinfo_count;	/* Uncorrectable Errors w/o info */
@@ -538,6 +535,7 @@ struct edac_device_ctl_info {
 
 	const char *mod_name;	/* module name */
 	const char *ctl_name;	/* edac controller  name */
+	const char *dev_name;	/* pci/platform/etc... name */
 
 	void *pvt_info;		/* pointer to 'private driver' info */
 

@@ -1004,6 +1004,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf3("%s(): more mci init\n", __func__);
 	mci->ctl_name = pvt->dev_info->ctl_name;
+	mci->dev_name = pci_name(pdev);
 	mci->edac_check = e752x_check;
 	mci->ctl_page_to_phys = ctl_page_to_phys;
 

@@ -264,7 +264,7 @@ static int add_edac_dev_to_global_list (struct edac_device_ctl_info *edac_dev)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
 		"%s (%s) %s %s already assigned %d\n",
-		rover->dev->bus_id, dev_name(rover->dev),
+		rover->dev->bus_id, dev_name(rover),
 		rover->mod_name, rover->ctl_name, rover->dev_idx);
 	return 1;
 
@@ -491,7 +491,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 		"Giving out device to module '%s' controller '%s': DEV '%s' (%s)\n",
 		edac_dev->mod_name,
 		edac_dev->ctl_name,
-		dev_name(edac_dev->dev),
+		dev_name(edac_dev),
 		edac_op_state_toString(edac_dev)
 		);
 
@@ -553,7 +553,7 @@ struct edac_device_ctl_info * edac_device_del_device(struct device *dev)
 		edac_dev->dev_idx,
 		edac_dev->mod_name,
 		edac_dev->ctl_name,
-		dev_name(edac_dev->dev));
+		dev_name(edac_dev));
 
 	return edac_dev;
 }
