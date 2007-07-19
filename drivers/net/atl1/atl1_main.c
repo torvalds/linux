@@ -917,7 +917,10 @@ static u32 atl1_configure(struct atl1_adapter *adapter)
 	iowrite32(value, hw->hw_addr + REG_DMA_CTRL);
 
 	/* config CMB / SMB */
-	value = hw->cmb_rrd | ((u32) hw->cmb_tpd << 16);
+	value = (hw->cmb_tpd > adapter->tpd_ring.count) ?
+		hw->cmb_tpd : adapter->tpd_ring.count;
+	value <<= 16;
+	value |= hw->cmb_rrd;
 	iowrite32(value, hw->hw_addr + REG_CMB_WRITE_TH);
 	value = hw->cmb_rx_timer | ((u32) hw->cmb_tx_timer << 16);
 	iowrite32(value, hw->hw_addr + REG_CMB_WRITE_TIMER);
