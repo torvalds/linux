@@ -84,12 +84,8 @@ int venus_rootfid(struct super_block *sb, struct CodaFid *fidp)
         UPARG(CODA_ROOT);
 
 	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
-	
-	if (error) {
-	        printk("coda_get_rootfid: error %d\n", error);
-	} else {
+	if (!error)
 		*fidp = outp->coda_root.VFid;
-	}
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -106,9 +102,9 @@ int venus_getattr(struct super_block *sb, struct CodaFid *fid,
 	UPARG(CODA_GETATTR);
         inp->coda_getattr.VFid = *fid;
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
-	
-	*attr = outp->coda_getattr.attr;
+	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	if (!error)
+		*attr = outp->coda_getattr.attr;
 
 	CODA_FREE(inp, insize);
         return error;
@@ -153,10 +149,11 @@ int venus_lookup(struct super_block *sb, struct CodaFid *fid,
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
-
-	*resfid = outp->coda_lookup.VFid;
-	*type = outp->coda_lookup.vtype;
+	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	if (!error) {
+		*resfid = outp->coda_lookup.VFid;
+		*type = outp->coda_lookup.vtype;
+	}
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -278,11 +275,12 @@ int venus_mkdir(struct super_block *sb, struct CodaFid *dirfid,
         /* Venus must get null terminated string */
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
-        
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
 
-	*attrs = outp->coda_mkdir.attr;
-	*newfid = outp->coda_mkdir.VFid;
+	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	if (!error) {
+		*attrs = outp->coda_mkdir.attr;
+		*newfid = outp->coda_mkdir.VFid;
+	}
 
 	CODA_FREE(inp, insize);
 	return error;        
@@ -348,11 +346,12 @@ int venus_create(struct super_block *sb, struct CodaFid *dirfid,
         /* Venus must get null terminated string */
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
-                
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
 
-	*attrs = outp->coda_create.attr;
-	*newfid = outp->coda_create.VFid;
+	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	if (!error) {
+		*attrs = outp->coda_create.attr;
+		*newfid = outp->coda_create.VFid;
+	}
 
 	CODA_FREE(inp, insize);
 	return error;        
@@ -417,19 +416,18 @@ int venus_readlink(struct super_block *sb, struct CodaFid *fid,
 	UPARG(CODA_READLINK);
 
         inp->coda_readlink.VFid = *fid;
-    
-        error =  coda_upcall(coda_sbp(sb), insize, &outsize, inp);
-	
-	if (! error) {
-                retlen = outp->coda_readlink.count;
+
+	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	if (!error) {
+		retlen = outp->coda_readlink.count;
 		if ( retlen > *length )
-		        retlen = *length;
+			retlen = *length;
 		*length = retlen;
 		result =  (char *)outp + (long)outp->coda_readlink.data;
 		memcpy(buffer, result, retlen);
 		*(buffer + retlen) = '\0';
 	}
-        
+
         CODA_FREE(inp, insize);
         return error;
 }
@@ -617,16 +615,13 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	insize = max_t(unsigned int, INSIZE(statfs), OUTSIZE(statfs));
 	UPARG(CODA_STATFS);
 
-        error = coda_upcall(coda_sbp(dentry->d_sb), insize, &outsize, inp);
-	
-        if (!error) {
+	error = coda_upcall(coda_sbp(dentry->d_sb), insize, &outsize, inp);
+	if (!error) {
 		sfs->f_blocks = outp->coda_statfs.stat.f_blocks;
 		sfs->f_bfree  = outp->coda_statfs.stat.f_bfree;
 		sfs->f_bavail = outp->coda_statfs.stat.f_bavail;
 		sfs->f_files  = outp->coda_statfs.stat.f_files;
 		sfs->f_ffree  = outp->coda_statfs.stat.f_ffree;
-	} else {
-		printk("coda_statfs: Venus returns: %d\n", error);
 	}
 
         CODA_FREE(inp, insize);
