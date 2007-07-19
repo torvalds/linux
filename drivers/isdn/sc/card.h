@@ -125,7 +125,7 @@ int sendmessage(int card, unsigned int procid, unsigned int type,
 int receivemessage(int card, RspMessage *rspmsg);
 int sc_ioctl(int card, scs_ioctl *data);
 int setup_buffers(int card, int c);
-void check_reset(unsigned long data);
+void sc_check_reset(unsigned long data);
 void check_phystat(unsigned long data);
 
 #endif /* CARD_H */
