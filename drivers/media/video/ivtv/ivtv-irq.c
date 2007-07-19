@@ -420,7 +420,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x02, IVTV_REG_DMAXFER);
 		set_bit(IVTV_F_I_DMA, &itv->i_flags);
 		itv->cur_dma_stream = s->type;
-		itv->dma_timer.expires = jiffies + HZ / 10;
+		itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
 		add_timer(&itv->dma_timer);
 	}
 }
@@ -437,7 +437,7 @@ static void ivtv_dma_dec_start(struct ivtv_stream *s)
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
 	set_bit(IVTV_F_I_DMA, &itv->i_flags);
 	itv->cur_dma_stream = s->type;
-	itv->dma_timer.expires = jiffies + HZ / 10;
+	itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
 	add_timer(&itv->dma_timer);
 }
 

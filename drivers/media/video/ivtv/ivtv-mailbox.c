@@ -176,9 +176,9 @@ static int get_mailbox(struct ivtv *itv, struct ivtv_mailbox_data *mbdata, int f
 
 		/* Sleep before a retry, if not atomic */
 		if (!(flags & API_NO_WAIT_MB)) {
-			if (jiffies - then > retries * HZ / 100)
+			if (jiffies - then > msecs_to_jiffies(10*retries))
 			       break;
-			ivtv_sleep_timeout(HZ / 100, 0);
+			ivtv_msleep_timeout(10, 0);
 		}
 	}
 	return -ENODEV;
@@ -213,7 +213,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 {
 	struct ivtv_mailbox_data *mbdata = (cmd >= 128) ? &itv->enc_mbox : &itv->dec_mbox;
 	volatile struct ivtv_mailbox __iomem *mbox;
-	int api_timeout = HZ;
+	int api_timeout = msecs_to_jiffies(1000);
 	int flags, mb, i;
 	unsigned long then;
 
@@ -243,7 +243,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	   data, then just return 0 as there is no need to issue this command again.
 	   Just an optimization to prevent unnecessary use of mailboxes. */
 	if (itv->api_cache[cmd].last_jiffies &&
-	    jiffies - itv->api_cache[cmd].last_jiffies < HZ * 1800 &&
+	    jiffies - itv->api_cache[cmd].last_jiffies < msecs_to_jiffies(1800000) &&
 	    !memcmp(data, itv->api_cache[cmd].data, sizeof(itv->api_cache[cmd].data))) {
 		itv->api_cache[cmd].last_jiffies = jiffies;
 		return 0;
@@ -268,7 +268,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	}
 
 	if ((flags & API_FAST_RESULT) == API_FAST_RESULT)
-		api_timeout = HZ / 10;
+		api_timeout = msecs_to_jiffies(100);
 
 	mb = get_mailbox(itv, mbdata, flags);
 	if (mb < 0) {
@@ -301,11 +301,12 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 		if (flags & API_NO_WAIT_RES)
 			mdelay(1);
 		else
-			ivtv_sleep_timeout(HZ / 100, 0);
+			ivtv_msleep_timeout(10, 0);
 	}
-	if (jiffies - then > HZ / 10)
-		IVTV_DEBUG_WARN("%s took %lu jiffies (%d per HZ)\n",
-				api_info[cmd].name, jiffies - then, HZ);
+	if (jiffies - then > msecs_to_jiffies(100))
+		IVTV_DEBUG_WARN("%s took %u jiffies\n",
+				api_info[cmd].name,
+				jiffies_to_msecs(jiffies - then));
 
 	for (i = 0; i < CX2341X_MBOX_MAX_DATA; i++)
 		data[i] = readl(&mbox->data[i]);

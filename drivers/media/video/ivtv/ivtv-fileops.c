@@ -218,7 +218,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			/* Process pending program info updates and pending VBI data */
 			ivtv_update_pgm_info(itv);
 
-			if (jiffies - itv->dualwatch_jiffies > HZ) {
+			if (jiffies - itv->dualwatch_jiffies > msecs_to_jiffies(1000)) {
 				itv->dualwatch_jiffies = jiffies;
 				ivtv_dualwatch(itv);
 			}
@@ -924,7 +924,7 @@ void ivtv_unmute(struct ivtv *itv)
 	if (atomic_read(&itv->capturing) == 0)
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
-	ivtv_sleep_timeout(HZ / 10, 0);
+	ivtv_msleep_timeout(100, 0);
 
 	if (atomic_read(&itv->capturing)) {
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);
