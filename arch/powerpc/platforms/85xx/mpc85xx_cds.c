@@ -129,7 +129,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 		/* There are two USB controllers.
 		 * Identify them by functon number
 		 */
-			if (PCI_FUNC(dev->devfn))
+			if (PCI_FUNC(dev->devfn) == 3)
 				dev->irq = 11;
 			else
 				dev->irq = 10;
@@ -300,10 +300,10 @@ static void __init mpc85xx_cds_setup_arch(void)
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
 		struct resource rsrc;
 		of_address_to_resource(np, 0, &rsrc);
-		if ((rsrc.start & 0xfffff) == 0x9000)
-			fsl_add_bridge(np, 0);
-		else
+		if ((rsrc.start & 0xfffff) == 0x8000)
 			fsl_add_bridge(np, 1);
+		else
+			fsl_add_bridge(np, 0);
 	}
 	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
