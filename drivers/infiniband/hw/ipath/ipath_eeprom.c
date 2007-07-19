@@ -426,8 +426,8 @@ bail:
  * @buffer: data to write
  * @len: number of bytes to write
  */
-int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offset,
-				const void *buffer, int len)
+static int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offset,
+				       const void *buffer, int len)
 {
 	u8 single_byte;
 	int sub_len;

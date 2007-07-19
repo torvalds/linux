@@ -776,7 +776,6 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
-void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but
@@ -820,7 +819,6 @@ static inline u64 ipath_mdio_req(int cmd, int dev, int reg, int data)
 #define IPATH_MDIO_CTRL_8355_REG_10 0x1D
 
 int ipath_get_user_pages(unsigned long, size_t, struct page **);
-int ipath_get_user_pages_nocopy(unsigned long, struct page **);
 void ipath_release_user_pages(struct page **, size_t);
 void ipath_release_user_pages_on_close(struct page **, size_t);
 int ipath_eeprom_read(struct ipath_devdata *, u8, void *, int);

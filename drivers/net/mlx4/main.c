@@ -78,7 +78,7 @@ static const char mlx4_version[] __devinitdata =
 static struct mlx4_profile default_profile = {
 	.num_qp		= 1 << 16,
 	.num_srq	= 1 << 16,
-	.rdmarc_per_qp	= 4,
+	.rdmarc_per_qp	= 1 << 4,
 	.num_cq		= 1 << 16,
 	.num_mcg	= 1 << 13,
 	.num_mpt	= 1 << 17,
@@ -583,13 +583,11 @@ static int __devinit mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_pd_table_free;
 	}
 
-	mlx4_map_catas_buf(dev);
-
 	err = mlx4_init_eq_table(dev);
 	if (err) {
 		mlx4_err(dev, "Failed to initialize "
 			 "event queue table, aborting.\n");
-		goto err_catas_buf;
+		goto err_mr_table_free;
 	}
 
 	err = mlx4_cmd_use_events(dev);
@@ -659,8 +657,7 @@ err_cmd_poll:
 err_eq_table_free:
 	mlx4_cleanup_eq_table(dev);
 
-err_catas_buf:
-	mlx4_unmap_catas_buf(dev);
+err_mr_table_free:
 	mlx4_cleanup_mr_table(dev);
 
 err_pd_table_free:
@@ -836,9 +833,6 @@ err_cleanup:
 	mlx4_cleanup_cq_table(dev);
 	mlx4_cmd_use_polling(dev);
 	mlx4_cleanup_eq_table(dev);
-
-	mlx4_unmap_catas_buf(dev);
-
 	mlx4_cleanup_mr_table(dev);
 	mlx4_cleanup_pd_table(dev);
 	mlx4_cleanup_uar_table(dev);
@@ -885,9 +879,6 @@ static void __devexit mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cleanup_cq_table(dev);
 		mlx4_cmd_use_polling(dev);
 		mlx4_cleanup_eq_table(dev);
-
-		mlx4_unmap_catas_buf(dev);
-
 		mlx4_cleanup_mr_table(dev);
 		mlx4_cleanup_pd_table(dev);
 
@@ -906,6 +897,12 @@ static void __devexit mlx4_remove_one(struct pci_dev *pdev)
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);
 	}
+}
+
+int mlx4_restart_one(struct pci_dev *pdev)
+{
+	mlx4_remove_one(pdev);
+	return mlx4_init_one(pdev, NULL);
 }
 
 static struct pci_device_id mlx4_pci_table[] = {
@@ -930,6 +927,10 @@ static int __init mlx4_init(void)
 {
 	int ret;
 
+	ret = mlx4_catas_init();
+	if (ret)
+		return ret;
+
 	ret = pci_register_driver(&mlx4_driver);
 	return ret < 0 ? ret : 0;
 }
@@ -937,6 +938,7 @@ static int __init mlx4_init(void)
 static void __exit mlx4_cleanup(void)
 {
 	pci_unregister_driver(&mlx4_driver);
+	mlx4_catas_cleanup();
 }
 
 module_init(mlx4_init);

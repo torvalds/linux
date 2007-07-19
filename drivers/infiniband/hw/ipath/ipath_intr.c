@@ -70,7 +70,7 @@ static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
  * If rewrite is true, and bits are set in the sendbufferror registers,
  * we'll write to the buffer, for error recovery on parity errors.
  */
-void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
+static void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 {
 	u32 piobcnt;
 	unsigned long sbuf[4];

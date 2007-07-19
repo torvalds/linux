@@ -501,8 +501,8 @@ u64 hipz_h_register_rpage_qp(const struct ipz_adapter_handle adapter_handle,
 		return H_PARAMETER;
 	}
 
-	return hipz_h_register_rpage(adapter_handle,pagesize,queue_type,
-				     qp_handle.handle,logical_address_of_page,
+	return hipz_h_register_rpage(adapter_handle, pagesize, queue_type,
+				     qp_handle.handle, logical_address_of_page,
 				     count);
 }
 
@@ -522,9 +522,9 @@ u64 hipz_h_disable_and_get_wqe(const struct ipz_adapter_handle adapter_handle,
 				qp_handle.handle,	   /* r6 */
 				0, 0, 0, 0, 0, 0);
 	if (log_addr_next_sq_wqe2processed)
-		*log_addr_next_sq_wqe2processed = (void*)outs[0];
+		*log_addr_next_sq_wqe2processed = (void *)outs[0];
 	if (log_addr_next_rq_wqe2processed)
-		*log_addr_next_rq_wqe2processed = (void*)outs[1];
+		*log_addr_next_rq_wqe2processed = (void *)outs[1];
 
 	return ret;
 }

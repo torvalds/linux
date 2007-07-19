@@ -49,26 +49,26 @@
 #include "hipz_fns.h"
 #include "ipz_pt_fn.h"
 
-#define EQE_COMPLETION_EVENT   EHCA_BMASK_IBM(1,1)
-#define EQE_CQ_QP_NUMBER       EHCA_BMASK_IBM(8,31)
-#define EQE_EE_IDENTIFIER      EHCA_BMASK_IBM(2,7)
-#define EQE_CQ_NUMBER          EHCA_BMASK_IBM(8,31)
-#define EQE_QP_NUMBER          EHCA_BMASK_IBM(8,31)
-#define EQE_QP_TOKEN           EHCA_BMASK_IBM(32,63)
-#define EQE_CQ_TOKEN           EHCA_BMASK_IBM(32,63)
+#define EQE_COMPLETION_EVENT   EHCA_BMASK_IBM( 1,  1)
+#define EQE_CQ_QP_NUMBER       EHCA_BMASK_IBM( 8, 31)
+#define EQE_EE_IDENTIFIER      EHCA_BMASK_IBM( 2,  7)
+#define EQE_CQ_NUMBER          EHCA_BMASK_IBM( 8, 31)
+#define EQE_QP_NUMBER          EHCA_BMASK_IBM( 8, 31)
+#define EQE_QP_TOKEN           EHCA_BMASK_IBM(32, 63)
+#define EQE_CQ_TOKEN           EHCA_BMASK_IBM(32, 63)
 
-#define NEQE_COMPLETION_EVENT  EHCA_BMASK_IBM(1,1)
-#define NEQE_EVENT_CODE        EHCA_BMASK_IBM(2,7)
-#define NEQE_PORT_NUMBER       EHCA_BMASK_IBM(8,15)
-#define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16,16)
-#define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16,16)
+#define NEQE_COMPLETION_EVENT  EHCA_BMASK_IBM( 1,  1)
+#define NEQE_EVENT_CODE        EHCA_BMASK_IBM( 2,  7)
+#define NEQE_PORT_NUMBER       EHCA_BMASK_IBM( 8, 15)
+#define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16, 16)
+#define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16, 16)
 
-#define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52,63)
-#define ERROR_DATA_TYPE        EHCA_BMASK_IBM(0,7)
+#define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52, 63)
+#define ERROR_DATA_TYPE        EHCA_BMASK_IBM( 0,  7)
 
 static void queue_comp_task(struct ehca_cq *__cq);
 
-static struct ehca_comp_pool* pool;
+static struct ehca_comp_pool *pool;
 #ifdef CONFIG_HOTPLUG_CPU
 static struct notifier_block comp_pool_callback_nb;
 #endif
@@ -85,8 +85,8 @@ static inline void comp_event_callback(struct ehca_cq *cq)
 	return;
 }
 
-static void print_error_data(struct ehca_shca * shca, void* data,
-			     u64* rblock, int length)
+static void print_error_data(struct ehca_shca *shca, void *data,
+			     u64 *rblock, int length)
 {
 	u64 type = EHCA_BMASK_GET(ERROR_DATA_TYPE, rblock[2]);
 	u64 resource = rblock[1];
@@ -94,7 +94,7 @@ static void print_error_data(struct ehca_shca * shca, void* data,
 	switch (type) {
 	case 0x1: /* Queue Pair */
 	{
-		struct ehca_qp *qp = (struct ehca_qp*)data;
+		struct ehca_qp *qp = (struct ehca_qp *)data;
 
 		/* only print error data if AER is set */
 		if (rblock[6] == 0)
@@ -107,7 +107,7 @@ static void print_error_data(struct ehca_shca * shca, void* data,
 	}
 	case 0x4: /* Completion Queue */
 	{
-		struct ehca_cq *cq = (struct ehca_cq*)data;
+		struct ehca_cq *cq = (struct ehca_cq *)data;
 
 		ehca_err(&shca->ib_device,
 			 "CQ 0x%x (resource=%lx) has errors.",
@@ -572,7 +572,7 @@ void ehca_tasklet_eq(unsigned long data)
 	ehca_process_eq((struct ehca_shca*)data, 1);
 }
 
-static inline int find_next_online_cpu(struct ehca_comp_pool* pool)
+static inline int find_next_online_cpu(struct ehca_comp_pool *pool)
 {
 	int cpu;
 	unsigned long flags;
@@ -636,7 +636,7 @@ static void queue_comp_task(struct ehca_cq *__cq)
 	__queue_comp_task(__cq, cct);
 }
 
-static void run_comp_task(struct ehca_cpu_comp_task* cct)
+static void run_comp_task(struct ehca_cpu_comp_task *cct)
 {
 	struct ehca_cq *cq;
 	unsigned long flags;
@@ -666,12 +666,12 @@ static void run_comp_task(struct ehca_cpu_comp_task* cct)
 
 static int comp_task(void *__cct)
 {
-	struct ehca_cpu_comp_task* cct = __cct;
+	struct ehca_cpu_comp_task *cct = __cct;
 	int cql_empty;
 	DECLARE_WAITQUEUE(wait, current);
 
 	set_current_state(TASK_INTERRUPTIBLE);
-	while(!kthread_should_stop()) {
+	while (!kthread_should_stop()) {
 		add_wait_queue(&cct->wait_queue, &wait);
 
 		spin_lock_irq(&cct->task_lock);
@@ -745,7 +745,7 @@ static void take_over_work(struct ehca_comp_pool *pool,
 
 	list_splice_init(&cct->cq_list, &list);
 
-	while(!list_empty(&list)) {
+	while (!list_empty(&list)) {
 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
 
 		list_del(&cq->entry);
@@ -768,7 +768,7 @@ static int comp_pool_callback(struct notifier_block *nfb,
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		ehca_gen_dbg("CPU: %x (CPU_PREPARE)", cpu);
-		if(!create_comp_task(pool, cpu)) {
+		if (!create_comp_task(pool, cpu)) {
 			ehca_gen_err("Can't create comp_task for cpu: %x", cpu);
 			return NOTIFY_BAD;
 		}
@@ -838,7 +838,7 @@ int ehca_create_comp_pool(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	comp_pool_callback_nb.notifier_call = comp_pool_callback;
-	comp_pool_callback_nb.priority =0;
+	comp_pool_callback_nb.priority = 0;
 	register_cpu_notifier(&comp_pool_callback_nb);
 #endif
 

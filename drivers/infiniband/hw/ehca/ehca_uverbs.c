@@ -70,7 +70,7 @@ int ehca_dealloc_ucontext(struct ib_ucontext *context)
 
 static void ehca_mm_open(struct vm_area_struct *vma)
 {
-	u32 *count = (u32*)vma->vm_private_data;
+	u32 *count = (u32 *)vma->vm_private_data;
 	if (!count) {
 		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
 			     vma->vm_start, vma->vm_end);
@@ -86,7 +86,7 @@ static void ehca_mm_open(struct vm_area_struct *vma)
 
 static void ehca_mm_close(struct vm_area_struct *vma)
 {
-	u32 *count = (u32*)vma->vm_private_data;
+	u32 *count = (u32 *)vma->vm_private_data;
 	if (!count) {
 		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
 			     vma->vm_start, vma->vm_end);
@@ -215,7 +215,8 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	case 2: /* qp rqueue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
 			 qp->ib_qp.qp_num);
-		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue, &qp->mm_count_rqueue);
+		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
+				      &qp->mm_count_rqueue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
 				 "ehca_mmap_queue(rq) failed rc=%x qp_num=%x",
@@ -227,7 +228,8 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	case 3: /* qp squeue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
 			 qp->ib_qp.qp_num);
-		ret = ehca_mmap_queue(vma, &qp->ipz_squeue, &qp->mm_count_squeue);
+		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
+				      &qp->mm_count_squeue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
 				 "ehca_mmap_queue(sq) failed rc=%x qp_num=%x",

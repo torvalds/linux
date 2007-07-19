@@ -507,7 +507,7 @@ static int want_buffer(struct ipath_devdata *dd)
  *
  * Called when we run out of PIO buffers.
  */
-void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
+static void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 {
 	unsigned long flags;
 

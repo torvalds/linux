@@ -96,7 +96,8 @@ int ehca_create_eq(struct ehca_shca *shca,
 	for (i = 0; i < nr_pages; i++) {
 		u64 rpage;
 
-		if (!(vpage = ipz_qpageit_get_inc(&eq->ipz_queue))) {
+		vpage = ipz_qpageit_get_inc(&eq->ipz_queue);
+		if (!vpage) {
 			ret = H_RESOURCE;
 			goto create_eq_exit2;
 		}

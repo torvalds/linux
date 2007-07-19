@@ -39,6 +39,7 @@
 
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
+#include <linux/timer.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -67,7 +68,6 @@ enum {
 enum {
 	MLX4_EQ_ASYNC,
 	MLX4_EQ_COMP,
-	MLX4_EQ_CATAS,
 	MLX4_NUM_EQ
 };
 
@@ -248,7 +248,8 @@ struct mlx4_mcg_table {
 
 struct mlx4_catas_err {
 	u32 __iomem	       *map;
-	int			size;
+	struct timer_list	timer;
+	struct list_head	list;
 };
 
 struct mlx4_priv {
@@ -311,9 +312,11 @@ void mlx4_cleanup_qp_table(struct mlx4_dev *dev);
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev);
 
-void mlx4_map_catas_buf(struct mlx4_dev *dev);
-void mlx4_unmap_catas_buf(struct mlx4_dev *dev);
-
+void mlx4_start_catas_poll(struct mlx4_dev *dev);
+void mlx4_stop_catas_poll(struct mlx4_dev *dev);
+int mlx4_catas_init(void);
+void mlx4_catas_cleanup(void);
+int mlx4_restart_one(struct pci_dev *pdev);
 int mlx4_register_device(struct mlx4_dev *dev);
 void mlx4_unregister_device(struct mlx4_dev *dev);
 void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_event type,

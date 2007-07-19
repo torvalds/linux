@@ -50,7 +50,7 @@ int hcall_map_page(u64 physaddr, u64 *mapaddr)
 
 int hcall_unmap_page(u64 mapaddr)
 {
-	iounmap((volatile void __iomem*)mapaddr);
+	iounmap((volatile void __iomem *) mapaddr);
 	return 0;
 }
 

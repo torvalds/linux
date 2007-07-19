@@ -161,11 +161,11 @@ struct hipz_qptemm {
 /* 0x1000      */
 };
 
-#define QPX_SQADDER EHCA_BMASK_IBM(48,63)
-#define QPX_RQADDER EHCA_BMASK_IBM(48,63)
-#define QPX_AAELOG_RESET_SRQ_LIMIT EHCA_BMASK_IBM(3,3)
+#define QPX_SQADDER EHCA_BMASK_IBM(48, 63)
+#define QPX_RQADDER EHCA_BMASK_IBM(48, 63)
+#define QPX_AAELOG_RESET_SRQ_LIMIT EHCA_BMASK_IBM(3, 3)
 
-#define QPTEMM_OFFSET(x) offsetof(struct hipz_qptemm,x)
+#define QPTEMM_OFFSET(x) offsetof(struct hipz_qptemm, x)
 
 /* MRMWPT Entry Memory Map */
 struct hipz_mrmwmm {
@@ -187,7 +187,7 @@ struct hipz_mrmwmm {
 
 };
 
-#define MRMWMM_OFFSET(x) offsetof(struct hipz_mrmwmm,x)
+#define MRMWMM_OFFSET(x) offsetof(struct hipz_mrmwmm, x)
 
 struct hipz_qpedmm {
 	/* 0x00 */
@@ -238,7 +238,7 @@ struct hipz_qpedmm {
 	u64 qpedx_rrva3;
 };
 
-#define QPEDMM_OFFSET(x) offsetof(struct hipz_qpedmm,x)
+#define QPEDMM_OFFSET(x) offsetof(struct hipz_qpedmm, x)
 
 /* CQ Table Entry Memory Map */
 struct hipz_cqtemm {
@@ -263,12 +263,12 @@ struct hipz_cqtemm {
 /* 0x1000 */
 };
 
-#define CQX_FEC_CQE_CNT           EHCA_BMASK_IBM(32,63)
-#define CQX_FECADDER              EHCA_BMASK_IBM(32,63)
-#define CQX_N0_GENERATE_SOLICITED_COMP_EVENT EHCA_BMASK_IBM(0,0)
-#define CQX_N1_GENERATE_COMP_EVENT EHCA_BMASK_IBM(0,0)
+#define CQX_FEC_CQE_CNT           EHCA_BMASK_IBM(32, 63)
+#define CQX_FECADDER              EHCA_BMASK_IBM(32, 63)
+#define CQX_N0_GENERATE_SOLICITED_COMP_EVENT EHCA_BMASK_IBM(0, 0)
+#define CQX_N1_GENERATE_COMP_EVENT EHCA_BMASK_IBM(0, 0)
 
-#define CQTEMM_OFFSET(x) offsetof(struct hipz_cqtemm,x)
+#define CQTEMM_OFFSET(x) offsetof(struct hipz_cqtemm, x)
 
 /* EQ Table Entry Memory Map */
 struct hipz_eqtemm {
@@ -293,7 +293,7 @@ struct hipz_eqtemm {
 
 };
 
-#define EQTEMM_OFFSET(x) offsetof(struct hipz_eqtemm,x)
+#define EQTEMM_OFFSET(x) offsetof(struct hipz_eqtemm, x)
 
 /* access control defines for MR/MW */
 #define HIPZ_ACCESSCTRL_L_WRITE  0x00800000

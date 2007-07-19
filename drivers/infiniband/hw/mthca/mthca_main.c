@@ -67,7 +67,7 @@ MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
 static int msi = 0;
 module_param(msi, int, 0444);
-MODULE_PARM_DESC(msi, "attempt to use MSI if nonzero");
+MODULE_PARM_DESC(msi, "attempt to use MSI if nonzero (deprecated, use MSI-X instead)");
 
 #else /* CONFIG_PCI_MSI */
 
@@ -1117,9 +1117,21 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	if (msi_x && !mthca_enable_msi_x(mdev))
 		mdev->mthca_flags |= MTHCA_FLAG_MSI_X;
-	if (msi && !(mdev->mthca_flags & MTHCA_FLAG_MSI_X) &&
-	    !pci_enable_msi(pdev))
-		mdev->mthca_flags |= MTHCA_FLAG_MSI;
+	else if (msi) {
+		static int warned;
+
+		if (!warned) {
+			printk(KERN_WARNING PFX "WARNING: MSI support will be "
+			       "removed from the ib_mthca driver in January 2008.\n");
+			printk(KERN_WARNING "    If you are using MSI and cannot "
+			       "switch to MSI-X, please tell "
+			       "<general@lists.openfabrics.org>.\n");
+			++warned;
+		}
+
+		if (!pci_enable_msi(pdev))
+			mdev->mthca_flags |= MTHCA_FLAG_MSI;
+	}
 
 	if (mthca_cmd_init(mdev)) {
 		mthca_err(mdev, "Failed to init command interface, aborting.\n");
@@ -1135,7 +1147,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 		goto err_cmd;
 
 	if (mdev->fw_ver < mthca_hca_table[hca_type].latest_fw) {
-		mthca_warn(mdev, "HCA FW version %d.%d.%3d is old (%d.%d.%3d is current).\n",
+		mthca_warn(mdev, "HCA FW version %d.%d.%03d is old (%d.%d.%03d is current).\n",
 			   (int) (mdev->fw_ver >> 32), (int) (mdev->fw_ver >> 16) & 0xffff,
 			   (int) (mdev->fw_ver & 0xffff),
 			   (int) (mthca_hca_table[hca_type].latest_fw >> 32),

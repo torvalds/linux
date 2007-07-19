@@ -97,7 +97,7 @@ int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int real_qp_num)
 	return ret;
 }
 
-struct ehca_qp* ehca_cq_get_qp(struct ehca_cq *cq, int real_qp_num)
+struct ehca_qp *ehca_cq_get_qp(struct ehca_cq *cq, int real_qp_num)
 {
 	struct ehca_qp *ret = NULL;
 	unsigned int key = real_qp_num & (QP_HASHTAB_LEN-1);

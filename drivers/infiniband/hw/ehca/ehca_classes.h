@@ -204,11 +204,11 @@ struct ehca_mr {
 	spinlock_t mrlock;
 
 	enum ehca_mr_flag flags;
-	u32 num_pages;		/* number of MR pages */
-	u32 num_4k;		/* number of 4k "page" portions to form MR */
+	u32 num_kpages;		/* number of kernel pages */
+	u32 num_hwpages;	/* number of hw pages to form MR */
 	int acl;		/* ACL (stored here for usage in reregister) */
 	u64 *start;		/* virtual start address (stored here for */
-	                        /* usage in reregister) */
+				/* usage in reregister) */
 	u64 size;		/* size (stored here for usage in reregister) */
 	u32 fmr_page_size;	/* page size for FMR */
 	u32 fmr_max_pages;	/* max pages for FMR */
@@ -217,9 +217,6 @@ struct ehca_mr {
 	/* fw specific data */
 	struct ipz_mrmw_handle ipz_mr_handle;	/* MR handle for h-calls */
 	struct h_galpas galpas;
-	/* data for userspace bridge */
-	u32 nr_of_pages;
-	void *pagearray;
 };
 
 struct ehca_mw {
@@ -241,26 +238,29 @@ enum ehca_mr_pgi_type {
 
 struct ehca_mr_pginfo {
 	enum ehca_mr_pgi_type type;
-	u64 num_pages;
-	u64 page_cnt;
-	u64 num_4k;       /* number of 4k "page" portions */
-	u64 page_4k_cnt;  /* counter for 4k "page" portions */
-	u64 next_4k;      /* next 4k "page" portion in buffer/chunk/listelem */
+	u64 num_kpages;
+	u64 kpage_cnt;
+	u64 num_hwpages;     /* number of hw pages */
+	u64 hwpage_cnt;      /* counter for hw pages */
+	u64 next_hwpage;     /* next hw page in buffer/chunk/listelem */
 
-	/* type EHCA_MR_PGI_PHYS section */
-	int num_phys_buf;
-	struct ib_phys_buf *phys_buf_array;
-	u64 next_buf;
-
-	/* type EHCA_MR_PGI_USER section */
-	struct ib_umem *region;
-	struct ib_umem_chunk *next_chunk;
-	u64 next_nmap;
-
-	/* type EHCA_MR_PGI_FMR section */
-	u64 *page_list;
-	u64 next_listelem;
-	/* next_4k also used within EHCA_MR_PGI_FMR */
+	union {
+		struct { /* type EHCA_MR_PGI_PHYS section */
+			int num_phys_buf;
+			struct ib_phys_buf *phys_buf_array;
+			u64 next_buf;
+		} phy;
+		struct { /* type EHCA_MR_PGI_USER section */
+			struct ib_umem *region;
+			struct ib_umem_chunk *next_chunk;
+			u64 next_nmap;
+		} usr;
+		struct { /* type EHCA_MR_PGI_FMR section */
+			u64 fmr_pgsize;
+			u64 *page_list;
+			u64 next_listelem;
+		} fmr;
+	} u;
 };
 
 /* output parameters for MR/FMR hipz calls */
@@ -391,6 +391,6 @@ struct ehca_alloc_qp_parms {
 
 int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp);
 int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int qp_num);
-struct ehca_qp* ehca_cq_get_qp(struct ehca_cq *cq, int qp_num);
+struct ehca_qp *ehca_cq_get_qp(struct ehca_cq *cq, int qp_num);
 
 #endif

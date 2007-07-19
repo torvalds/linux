@@ -310,3 +310,13 @@ Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
 Who:  linuxppc-dev@ozlabs.org
 
 ---------------------------
+
+What:	mthca driver's MSI support
+When:	January 2008
+Files:	drivers/infiniband/hw/mthca/*.[ch]
+Why:	All mthca hardware also supports MSI-X, which provides
+	strictly more functionality than MSI.  So there is no point in
+	having both MSI-X and MSI support in the driver.
+Who:	Roland Dreier <rolandd@cisco.com>
+
+---------------------------

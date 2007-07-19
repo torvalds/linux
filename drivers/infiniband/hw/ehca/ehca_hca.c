@@ -127,6 +127,7 @@ int ehca_query_port(struct ib_device *ibdev,
 		    u8 port, struct ib_port_attr *props)
 {
 	int ret = 0;
+	u64 h_ret;
 	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca,
 					      ib_device);
 	struct hipz_query_port *rblock;
@@ -137,7 +138,8 @@ int ehca_query_port(struct ib_device *ibdev,
 		return -ENOMEM;
 	}
 
-	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+	h_ret = hipz_h_query_port(shca->ipz_hca_handle, port, rblock);
+	if (h_ret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't query port properties");
 		ret = -EINVAL;
 		goto query_port1;
@@ -197,6 +199,7 @@ int ehca_query_sma_attr(struct ehca_shca *shca,
 			u8 port, struct ehca_sma_attr *attr)
 {
 	int ret = 0;
+	u64 h_ret;
 	struct hipz_query_port *rblock;
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_ATOMIC);
@@ -205,7 +208,8 @@ int ehca_query_sma_attr(struct ehca_shca *shca,
 		return -ENOMEM;
 	}
 
-	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+	h_ret = hipz_h_query_port(shca->ipz_hca_handle, port, rblock);
+	if (h_ret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't query port properties");
 		ret = -EINVAL;
 		goto query_sma_attr1;
@@ -230,9 +234,11 @@ query_sma_attr1:
 int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 {
 	int ret = 0;
-	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca, ib_device);
+	u64 h_ret;
+	struct ehca_shca *shca;
 	struct hipz_query_port *rblock;
 
+	shca = container_of(ibdev, struct ehca_shca, ib_device);
 	if (index > 16) {
 		ehca_err(&shca->ib_device, "Invalid index: %x.", index);
 		return -EINVAL;
@@ -244,7 +250,8 @@ int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 		return -ENOMEM;
 	}
 
-	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+	h_ret = hipz_h_query_port(shca->ipz_hca_handle, port, rblock);
+	if (h_ret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't query port properties");
 		ret = -EINVAL;
 		goto query_pkey1;
@@ -262,6 +269,7 @@ int ehca_query_gid(struct ib_device *ibdev, u8 port,
 		   int index, union ib_gid *gid)
 {
 	int ret = 0;
+	u64 h_ret;
 	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca,
 					      ib_device);
 	struct hipz_query_port *rblock;
@@ -277,7 +285,8 @@ int ehca_query_gid(struct ib_device *ibdev, u8 port,
 		return -ENOMEM;
 	}
 
-	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+	h_ret = hipz_h_query_port(shca->ipz_hca_handle, port, rblock);
+	if (h_ret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't query port properties");
 		ret = -EINVAL;
 		goto query_gid1;
@@ -302,11 +311,12 @@ int ehca_modify_port(struct ib_device *ibdev,
 		     struct ib_port_modify *props)
 {
 	int ret = 0;
-	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca, ib_device);
+	struct ehca_shca *shca;
 	struct hipz_query_port *rblock;
 	u32 cap;
 	u64 hret;
 
+	shca = container_of(ibdev, struct ehca_shca, ib_device);
 	if ((props->set_port_cap_mask | props->clr_port_cap_mask)
 	    & ~allowed_port_caps) {
 		ehca_err(&shca->ib_device, "Non-changeable bits set in masks  "
@@ -325,7 +335,8 @@ int ehca_modify_port(struct ib_device *ibdev,
 		goto modify_port1;
 	}
 
-	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+	hret = hipz_h_query_port(shca->ipz_hca_handle, port, rblock);
+	if (hret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't query port properties");
 		ret = -EINVAL;
 		goto modify_port2;
@@ -337,7 +348,8 @@ int ehca_modify_port(struct ib_device *ibdev,
 	hret = hipz_h_modify_port(shca->ipz_hca_handle, port,
 				  cap, props->init_type, port_modify_mask);
 	if (hret != H_SUCCESS) {
-		ehca_err(&shca->ib_device, "Modify port failed  hret=%lx", hret);
+		ehca_err(&shca->ib_device, "Modify port failed  hret=%lx",
+			 hret);
 		ret = -EINVAL;
 	}
 
