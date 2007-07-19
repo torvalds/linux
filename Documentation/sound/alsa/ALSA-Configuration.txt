@@ -843,6 +843,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
 	  macpro	MacPro support
+	  imac24	iMac 24'' with jack detection
 	  w2jc		ASUS W2JC
 	  auto		auto-config reading BIOS (default)
 
