@@ -714,8 +714,6 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 		*count=TM6000_MIN_BUF;
 	}
 
-printk("Requesting %d buffers\n",*count);
-
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
 
