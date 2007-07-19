@@ -130,7 +130,6 @@
 					 * 30:0  reserved
 					 */
 
-
 enum i3000p_chips {
 	I3000 = 0,
 };
@@ -149,15 +148,14 @@ struct i3000_error_info {
 
 static const struct i3000_dev_info i3000_devs[] = {
 	[I3000] = {
-		     .ctl_name = "i3000"
-	},
+		   .ctl_name = "i3000"},
 };
 
 static struct pci_dev *mci_pdev = NULL;
 static int i3000_registered = 1;
 
 static void i3000_get_error_info(struct mem_ctl_info *mci,
-		struct i3000_error_info *info)
+				 struct i3000_error_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -183,22 +181,21 @@ static void i3000_get_error_info(struct mem_ctl_info *mci,
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & I3000_ERRSTS_BITS) {
-			pci_read_config_byte(pdev, I3000_EDEAP,
-					&info->edeap);
-			pci_read_config_dword(pdev, I3000_DEAP,
-					&info->deap);
-			pci_read_config_byte(pdev, I3000_DERRSYN,
-					&info->derrsyn);
+		pci_read_config_byte(pdev, I3000_EDEAP, &info->edeap);
+		pci_read_config_dword(pdev, I3000_DEAP, &info->deap);
+		pci_read_config_byte(pdev, I3000_DERRSYN, &info->derrsyn);
 	}
 
 	/* Clear any error bits.
 	 * (Yes, we really clear bits by writing 1 to them.)
 	 */
-	pci_write_bits16(pdev, I3000_ERRSTS, I3000_ERRSTS_BITS, I3000_ERRSTS_BITS);
+	pci_write_bits16(pdev, I3000_ERRSTS, I3000_ERRSTS_BITS,
+			 I3000_ERRSTS_BITS);
 }
 
 static int i3000_process_error_info(struct mem_ctl_info *mci,
-		struct i3000_error_info *info, int handle_errors)
+				    struct i3000_error_info *info,
+				    int handle_errors)
 {
 	int row, multi_chan;
 	int pfn, offset, channel;
@@ -226,8 +223,7 @@ static int i3000_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_ue(mci, pfn, offset, row, "i3000 UE");
 	else
 		edac_mc_handle_ce(mci, pfn, offset, info->derrsyn, row,
-				       multi_chan ? channel : 0,
-				       "i3000 CE");
+				  multi_chan ? channel : 0, "i3000 CE");
 
 	return 1;
 }
@@ -281,18 +277,19 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf0("MC: %s()\n", __func__);
 
-	pci_read_config_dword(pdev, I3000_MCHBAR, (u32 *)&mchbar);
+	pci_read_config_dword(pdev, I3000_MCHBAR, (u32 *) & mchbar);
 	mchbar &= I3000_MCHBAR_MASK;
 	window = ioremap_nocache(mchbar, I3000_MMR_WINDOW_SIZE);
 	if (!window) {
-		printk(KERN_ERR "i3000: cannot map mmio space at 0x%lx\n", mchbar);
+		printk(KERN_ERR "i3000: cannot map mmio space at 0x%lx\n",
+		       mchbar);
 		return -ENODEV;
 	}
 
-	c0dra[0] = readb(window + I3000_C0DRA + 0); /* ranks 0,1 */
-	c0dra[1] = readb(window + I3000_C0DRA + 1); /* ranks 2,3 */
-	c1dra[0] = readb(window + I3000_C1DRA + 0); /* ranks 0,1 */
-	c1dra[1] = readb(window + I3000_C1DRA + 1); /* ranks 2,3 */
+	c0dra[0] = readb(window + I3000_C0DRA + 0);	/* ranks 0,1 */
+	c0dra[1] = readb(window + I3000_C0DRA + 1);	/* ranks 2,3 */
+	c1dra[0] = readb(window + I3000_C1DRA + 0);	/* ranks 0,1 */
+	c1dra[1] = readb(window + I3000_C1DRA + 1);	/* ranks 2,3 */
 
 	for (i = 0; i < I3000_RANKS_PER_CHANNEL; i++) {
 		c0drb[i] = readb(window + I3000_C0DRB + i);
@@ -367,7 +364,8 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	/* Clear any error bits.
 	 * (Yes, we really clear bits by writing 1 to them.)
 	 */
-	pci_write_bits16(pdev, I3000_ERRSTS, I3000_ERRSTS_BITS, I3000_ERRSTS_BITS);
+	pci_write_bits16(pdev, I3000_ERRSTS, I3000_ERRSTS_BITS,
+			 I3000_ERRSTS_BITS);
 
 	rc = -ENODEV;
 	if (edac_mc_add_mc(mci, 0)) {
@@ -388,7 +386,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 /* returns count (>= 0), or negative on error */
 static int __devinit i3000_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+				    const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -418,12 +416,11 @@ static void __devexit i3000_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id i3000_pci_tbl[] __devinitdata = {
 	{
-		PCI_VEND_DEV(INTEL, 3000_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 	I3000
-	},
+	 PCI_VEND_DEV(INTEL, 3000_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	 I3000},
 	{
-		0,
-	}	/* 0 terminated list. */
+	 0,
+	 }			/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, i3000_pci_tbl);
@@ -464,10 +461,10 @@ static int __init i3000_init(void)
 
 	return 0;
 
-fail1:
+      fail1:
 	pci_unregister_driver(&i3000_driver);
 
-fail0:
+      fail0:
 	if (mci_pdev)
 		pci_dev_put(mci_pdev);
 
