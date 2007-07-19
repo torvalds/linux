@@ -73,15 +73,15 @@ static void keyboard_set_repeat(void)
 }
 
 /*
- * Get Intel SpeedStep IST information.
+ * Get Intel SpeedStep (IST) information.
  */
-static void query_speedstep_ist(void)
+static void query_ist(void)
 {
 	asm("int $0x15"
-	    : "=a" (boot_params.speedstep_info[0]),
-	      "=b" (boot_params.speedstep_info[1]),
-	      "=c" (boot_params.speedstep_info[2]),
-	      "=d" (boot_params.speedstep_info[3])
+	    : "=a" (boot_params.ist_info.signature),
+	      "=b" (boot_params.ist_info.command),
+	      "=c" (boot_params.ist_info.event),
+	      "=d" (boot_params.ist_info.perf_level)
 	    : "a" (0x0000e980),	 /* IST Support */
 	      "d" (0x47534943)); /* Request value */
 }
@@ -144,8 +144,8 @@ void main(void)
 	query_voyager();
 #endif
 
-	/* Query SpeedStep IST information */
-	query_speedstep_ist();
+	/* Query Intel SpeedStep (IST) information */
+	query_ist();
 
 	/* Query APM information */
 #if defined(CONFIG_APM) || defined(CONFIG_APM_MODULE)

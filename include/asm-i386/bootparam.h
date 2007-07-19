@@ -4,8 +4,9 @@
 #include <linux/types.h>
 #include <linux/screen_info.h>
 #include <linux/apm_bios.h>
-#include <asm/e820.h>
 #include <linux/edd.h>
+#include <asm/e820.h>
+#include <asm/ist.h>
 #include <video/edid.h>
 
 struct setup_header {
@@ -59,7 +60,7 @@ struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
 	struct apm_bios_info apm_bios_info;		/* 0x040 */
 	u8  _pad2[12];					/* 0x054 */
-	u32 speedstep_info[4];				/* 0x060 */
+	struct ist_info ist_info;			/* 0x060 */
 	u8  _pad3[16];					/* 0x070 */
 	u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
 	u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
