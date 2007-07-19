@@ -181,6 +181,25 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 			goto retry;
 		}
 		mapping = vma->vm_file->f_mapping;
+		/*
+		 * page_mkclean doesn't work on nonlinear vmas, so if
+		 * dirty pages need to be accounted, emulate with linear
+		 * vmas.
+		 */
+		if (mapping_cap_account_dirty(mapping)) {
+			unsigned long addr;
+
+			flags &= MAP_NONBLOCK;
+			addr = mmap_region(vma->vm_file, start, size,
+					flags, vma->vm_flags, pgoff, 1);
+			if (IS_ERR_VALUE(addr)) {
+				err = addr;
+			} else {
+				BUG_ON(addr != start);
+				err = 0;
+			}
+			goto out;
+		}
 		spin_lock(&mapping->i_mmap_lock);
 		flush_dcache_mmap_lock(mapping);
 		vma->vm_flags |= VM_NONLINEAR;
