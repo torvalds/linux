@@ -3000,11 +3000,15 @@ static struct backlight_ops ibm_backlight_data = {
         .update_status  = brightness_update_status,
 };
 
+static struct mutex brightness_mutex;
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
+
+	mutex_init(&brightness_mutex);
 
 	if (!brightness_mode) {
 		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
@@ -3092,27 +3096,44 @@ static int brightness_get(struct backlight_device *bd)
 
 static int brightness_set(int value)
 {
-	int cmos_cmd, inc, i;
-	int current_value = brightness_get(NULL);
+	int cmos_cmd, inc, i, res;
+	int current_value;
 
 	if (value > 7)
 		return -EINVAL;
+
+	res = mutex_lock_interruptible(&brightness_mutex);
+	if (res < 0)
+		return res;
+
+	current_value = brightness_get(NULL);
+	if (current_value < 0) {
+		res = current_value;
+		goto errout;
+	}
 
 	cmos_cmd = value > current_value ?
 			TP_CMOS_BRIGHTNESS_UP :
 			TP_CMOS_BRIGHTNESS_DOWN;
 	inc = value > current_value ? 1 : -1;
 
+	res = 0;
 	for (i = current_value; i != value; i += inc) {
 		if ((brightness_mode & 2) &&
-		    issue_thinkpad_cmos_command(cmos_cmd))
-			return -EIO;
+		    issue_thinkpad_cmos_command(cmos_cmd)) {
+			res = -EIO;
+			goto errout;
+		}
 		if ((brightness_mode & 1) &&
-		    !acpi_ec_write(brightness_offset, i + inc))
-			return -EIO;
+		    !acpi_ec_write(brightness_offset, i + inc)) {
+			res = -EIO;
+			goto errout;;
+		}
 	}
 
-	return 0;
+errout:
+	mutex_unlock(&brightness_mutex);
+	return res;
 }
 
 static int brightness_read(char *p)
