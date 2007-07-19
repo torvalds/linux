@@ -2026,7 +2026,10 @@ static struct tp_acpi_drv_struct ibm_dock_acpidriver[2] = {
 	 .type = ACPI_SYSTEM_NOTIFY,
 	},
 	{
-	 .hid = IBM_PCI_HID,
+	/* THIS ONE MUST NEVER BE USED FOR DRIVER AUTOLOADING.
+	 * We just use it to get notifications of dock hotplug
+	 * in very old thinkpads */
+	 .hid = PCI_ROOT_HID_STRING,
 	 .notify = dock_notify,
 	 .handle = &pci_handle,
 	 .type = ACPI_SYSTEM_NOTIFY,
@@ -2085,7 +2088,7 @@ static int __init dock_init2(struct ibm_init_struct *iibm)
 static void dock_notify(struct ibm_struct *ibm, u32 event)
 {
 	int docked = dock_docked();
-	int pci = ibm->acpi->hid && strstr(ibm->acpi->hid, IBM_PCI_HID);
+	int pci = ibm->acpi->hid && strstr(ibm->acpi->hid, PCI_ROOT_HID_STRING);
 
 	if (event == 1 && !pci)	/* 570 */
 		acpi_bus_generate_event(ibm->acpi->device, event, 1);	/* button */

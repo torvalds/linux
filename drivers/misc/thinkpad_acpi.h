@@ -107,7 +107,6 @@ static const char *str_supported(int is_supported);
 
 /* ACPI HIDs */
 #define IBM_HKEY_HID    "IBM0068"
-#define IBM_PCI_HID     "PNP0A03"
 
 /* ACPI helpers */
 static int __must_check acpi_evalf(acpi_handle handle,
