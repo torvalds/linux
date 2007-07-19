@@ -1157,3 +1157,7 @@ Sysfs interface changelog:
 		device.
 0x000200:	Hot key support for 32 hot keys, and radio slider switch
 		support.
+0x010000:	Hot keys are now handled by default over the input
+		layer, the radio switch generates input event EV_RADIO,
+		and the driver enables hot key handling by default in
+		the firmware.
