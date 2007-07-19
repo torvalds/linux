@@ -48,6 +48,7 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 }
 #endif				/* CONFIG_EDAC_DEBUG */
 
+
 /*
  * edac_device_alloc_ctl_info()
  *	Allocate a new edac device control info structure
@@ -78,6 +79,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	unsigned count;
 	unsigned instance, block, attr;
 	void *pvt;
+	int err;
 
 	debugf1("%s() instances=%d blocks=%d\n",
 		__func__, nr_instances, nr_blocks);
@@ -208,6 +210,22 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	/* Mark this instance as merely ALLOCATED */
 	dev_ctl->op_state = OP_ALLOC;
 
+	/*
+	 * Initialize the 'root' kobj for the edac_device controller
+	 */
+	err = edac_device_register_sysfs_main_kobj(dev_ctl);
+	if (err) {
+		kfree(dev_ctl);
+		return NULL;
+	}
+
+	/* at this point, the root kobj is valid, and in order to
+	 * 'free' the object, then the function:
+	 *	edac_device_unregister_sysfs_main_kobj() must be called
+	 * which will perform kobj unregistration and the actual free
+	 * will occur during the kobject callback operation
+	 */
+
 	return dev_ctl;
 }
 EXPORT_SYMBOL_GPL(edac_device_alloc_ctl_info);
@@ -219,7 +237,7 @@ EXPORT_SYMBOL_GPL(edac_device_alloc_ctl_info);
  */
 void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info)
 {
-	kfree(ctl_info);
+	edac_device_unregister_sysfs_main_kobj(ctl_info);
 }
 EXPORT_SYMBOL_GPL(edac_device_free_ctl_info);
 
@@ -315,22 +333,23 @@ static void complete_edac_device_list_del(struct rcu_head *head)
 
 	edac_dev = container_of(head, struct edac_device_ctl_info, rcu);
 	INIT_LIST_HEAD(&edac_dev->link);
-	complete(&edac_dev->complete);
+	complete(&edac_dev->removal_complete);
 }
 
 /*
  * del_edac_device_from_global_list
  *
- *	remove the RCU, setup for a callback call, then wait for the
- *	callback to occur
+ *	remove the RCU, setup for a callback call,
+ *	then wait for the callback to occur
  */
 static void del_edac_device_from_global_list(struct edac_device_ctl_info
 						*edac_device)
 {
 	list_del_rcu(&edac_device->link);
-	init_completion(&edac_device->complete);
+
+	init_completion(&edac_device->removal_complete);
 	call_rcu(&edac_device->rcu, complete_edac_device_list_del);
-	wait_for_completion(&edac_device->complete);
+	wait_for_completion(&edac_device->removal_complete);
 }
 
 /**
@@ -542,13 +561,13 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 	/* clear workq processing on this instance */
 	edac_device_workq_teardown(edac_dev);
 
-	/* Tear down the sysfs entries for this instance */
-	edac_device_remove_sysfs(edac_dev);
-
 	/* deregister from global list */
 	del_edac_device_from_global_list(edac_dev);
 
 	mutex_unlock(&device_ctls_mutex);
+
+	/* Tear down the sysfs entries for this instance */
+	edac_device_remove_sysfs(edac_dev);
 
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n",

@@ -337,6 +337,9 @@ struct mcidev_sysfs_attribute {
  */
 struct mem_ctl_info {
 	struct list_head link;	/* for global list of mem_ctl_info structs */
+
+	struct module *owner;	/* Module owner of this control struct */
+
 	unsigned long mtype_cap;	/* memory types supported by mc */
 	unsigned long edac_ctl_cap;	/* Mem controller EDAC capabilities */
 	unsigned long edac_cap;	/* configuration capabilities - this is
@@ -510,7 +513,6 @@ struct edac_device_block {
 
 	/* edac sysfs device control */
 	struct kobject kobj;
-	struct completion kobj_complete;
 };
 
 /* device instance control structure */
@@ -525,7 +527,6 @@ struct edac_device_instance {
 
 	/* edac sysfs device control */
 	struct kobject kobj;
-	struct completion kobj_complete;
 };
 
 
@@ -536,6 +537,8 @@ struct edac_device_instance {
 struct edac_device_ctl_info {
 	/* for global list of edac_device_ctl_info structs */
 	struct list_head link;
+
+	struct module *owner;	/* Module owner of this control struct */
 
 	int dev_idx;
 
@@ -587,7 +590,7 @@ struct edac_device_ctl_info {
 	 * NMI handlers may be traversing list
 	 */
 	struct rcu_head rcu;
-	struct completion complete;
+	struct completion removal_complete;
 
 	/* sysfs top name under 'edac' directory
 	 * and instance name:
@@ -611,7 +614,6 @@ struct edac_device_ctl_info {
 	 * device this structure controls
 	 */
 	struct kobject kobj;
-	struct completion kobj_complete;
 };
 
 /* To get from the instance's wq to the beginning of the ctl structure */
