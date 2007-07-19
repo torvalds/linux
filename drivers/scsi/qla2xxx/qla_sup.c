@@ -919,7 +919,7 @@ qla2x00_beacon_off(struct scsi_qla_host *ha)
 	else
 		ha->beacon_color_state = QLA_LED_GRN_ON;
 
-	ha->isp_ops.beacon_blink(ha);	/* This turns green LED off */
+	ha->isp_ops->beacon_blink(ha);	/* This turns green LED off */
 
 	ha->fw_options[1] &= ~FO1_SET_EMPHASIS_SWING;
 	ha->fw_options[1] &= ~FO1_DISABLE_GPIO6_7;
@@ -1031,7 +1031,7 @@ qla24xx_beacon_off(struct scsi_qla_host *ha)
 	ha->beacon_blink_led = 0;
 	ha->beacon_color_state = QLA_LED_ALL_ON;
 
-	ha->isp_ops.beacon_blink(ha);	/* Will flip to all off. */
+	ha->isp_ops->beacon_blink(ha);	/* Will flip to all off. */
 
 	/* Give control back to firmware. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1419,7 +1419,7 @@ qla2x00_suspend_hba(struct scsi_qla_host *ha)
 
 	/* Suspend HBA. */
 	scsi_block_requests(ha->host);
-	ha->isp_ops.disable_intrs(ha);
+	ha->isp_ops->disable_intrs(ha);
 	set_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 
 	/* Pause RISC. */
@@ -1705,7 +1705,7 @@ qla24xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 {
 	/* Suspend HBA. */
 	scsi_block_requests(ha->host);
-	ha->isp_ops.disable_intrs(ha);
+	ha->isp_ops->disable_intrs(ha);
 	set_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 
 	/* Go with read. */
@@ -1713,7 +1713,7 @@ qla24xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 
 	/* Resume HBA. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
-	ha->isp_ops.enable_intrs(ha);
+	ha->isp_ops->enable_intrs(ha);
 	scsi_unblock_requests(ha->host);
 
 	return buf;
@@ -1727,7 +1727,7 @@ qla24xx_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 
 	/* Suspend HBA. */
 	scsi_block_requests(ha->host);
-	ha->isp_ops.disable_intrs(ha);
+	ha->isp_ops->disable_intrs(ha);
 	set_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 
 	/* Go with write. */

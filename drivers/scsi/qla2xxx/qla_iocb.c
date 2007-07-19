@@ -326,7 +326,7 @@ qla2x00_start_scsi(srb_t *sp)
 	tot_dsds = nseg;
 
 	/* Calculate the number of request entries needed. */
-	req_cnt = ha->isp_ops.calc_req_entries(tot_dsds);
+	req_cnt = ha->isp_ops->calc_req_entries(tot_dsds);
 	if (ha->req_q_cnt < (req_cnt + 2)) {
 		cnt = RD_REG_WORD_RELAXED(ISP_REQ_Q_OUT(ha, reg));
 		if (ha->req_ring_index < cnt)
@@ -364,7 +364,7 @@ qla2x00_start_scsi(srb_t *sp)
 	cmd_pkt->byte_count = cpu_to_le32((uint32_t)scsi_bufflen(cmd));
 
 	/* Build IOCB segments */
-	ha->isp_ops.build_iocbs(sp, cmd_pkt, tot_dsds);
+	ha->isp_ops->build_iocbs(sp, cmd_pkt, tot_dsds);
 
 	/* Set total data segment count. */
 	cmd_pkt->entry_count = (uint8_t)req_cnt;
