@@ -173,12 +173,11 @@ int coda_permission(struct inode *inode, int mask, struct nameidata *nd)
 
  out:
 	unlock_kernel();
-
-        return error; 
+	return error;
 }
 
 
-static inline void coda_dir_changed(struct inode *dir, int link)
+static inline void coda_dir_update_mtime(struct inode *dir)
 {
 #ifdef REQUERY_VENUS_FOR_MTIME
 	/* invalidate the directory cnode's attributes so we refetch the
@@ -186,12 +185,27 @@ static inline void coda_dir_changed(struct inode *dir, int link)
 	coda_flag_inode(dir, C_VATTR);
 #else
 	/* optimistically we can also act as if our nose bleeds. The
-         * granularity of the mtime is coarse anyways so we might actually be
-         * right most of the time. Note: we only do this for directories. */
+	 * granularity of the mtime is coarse anyways so we might actually be
+	 * right most of the time. Note: we only do this for directories. */
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 #endif
-	if (link)
-		dir->i_nlink += link;
+}
+
+/* we have to wrap inc_nlink/drop_nlink because sometimes userspace uses a
+ * trick to fool GNU find's optimizations. If we can't be sure of the link
+ * (because of volume mount points) we set i_nlink to 1 which forces find
+ * to consider every child as a possible directory. We should also never
+ * see an increment or decrement for deleted directories where i_nlink == 0 */
+static inline void coda_dir_inc_nlink(struct inode *dir)
+{
+	if (dir->i_nlink >= 2)
+		inc_nlink(dir);
+}
+
+static inline void coda_dir_drop_nlink(struct inode *dir)
+{
+	if (dir->i_nlink > 2)
+		drop_nlink(dir);
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
@@ -229,10 +243,10 @@ static int coda_create(struct inode *dir, struct dentry *de, int mode, struct na
 	}
 
 	/* invalidate the directory cnode's attributes */
-	coda_dir_changed(dir, 0);
+	coda_dir_update_mtime(dir);
 	unlock_kernel();
 	d_instantiate(de, inode);
-        return 0;
+	return 0;
 }
 
 static int coda_mkdir(struct inode *dir, struct dentry *de, int mode)
@@ -268,12 +282,13 @@ static int coda_mkdir(struct inode *dir, struct dentry *de, int mode)
 		d_drop(de);
 		return PTR_ERR(inode);
 	}
-	
+
 	/* invalidate the directory cnode's attributes */
-	coda_dir_changed(dir, 1);
+	coda_dir_inc_nlink(dir);
+	coda_dir_update_mtime(dir);
 	unlock_kernel();
 	d_instantiate(de, inode);
-        return 0;
+	return 0;
 }
 
 /* try to make de an entry in dir_inodde linked to source_de */ 
@@ -296,16 +311,16 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 	error = venus_link(dir_inode->i_sb, coda_i2f(inode),
 			   coda_i2f(dir_inode), (const char *)name, len);
 
-	if (error) { 
+	if (error) {
 		d_drop(de);
 		goto out;
 	}
 
-	coda_dir_changed(dir_inode, 0);
+	coda_dir_update_mtime(dir_inode);
 	atomic_inc(&inode->i_count);
 	d_instantiate(de, inode);
 	inc_nlink(inode);
-        
+
 out:
 	unlock_kernel();
 	return(error);
@@ -336,18 +351,18 @@ static int coda_symlink(struct inode *dir_inode, struct dentry *de,
 
 	/*
 	 * This entry is now negative. Since we do not create
-	 * an inode for the entry we have to drop it. 
+	 * an inode for the entry we have to drop it.
 	 */
 	d_drop(de);
-	error = venus_symlink(dir_inode->i_sb, coda_i2f(dir_inode), name, len, 
+	error = venus_symlink(dir_inode->i_sb, coda_i2f(dir_inode), name, len,
 			      symname, symlen);
 
 	/* mtime is no good anymore */
 	if ( !error )
-		coda_dir_changed(dir_inode, 0);
+		coda_dir_update_mtime(dir_inode);
 
 	unlock_kernel();
-        return error;
+	return error;
 }
 
 /* destruction routines: unlink, rmdir */
@@ -360,17 +375,16 @@ int coda_unlink(struct inode *dir, struct dentry *de)
 	lock_kernel();
 	coda_vfs_stat.unlink++;
 
-        error = venus_remove(dir->i_sb, coda_i2f(dir), name, len);
-        if ( error ) {
+	error = venus_remove(dir->i_sb, coda_i2f(dir), name, len);
+	if ( error ) {
 		unlock_kernel();
-                return error;
-        }
+		return error;
+	}
 
-	coda_dir_changed(dir, 0);
+	coda_dir_update_mtime(dir);
 	drop_nlink(de->d_inode);
 	unlock_kernel();
-
-        return 0;
+	return 0;
 }
 
 int coda_rmdir(struct inode *dir, struct dentry *de)
@@ -388,49 +402,49 @@ int coda_rmdir(struct inode *dir, struct dentry *de)
 	}
 	error = venus_rmdir(dir->i_sb, coda_i2f(dir), name, len);
 
-        if ( error ) {
+	if ( error ) {
 		unlock_kernel();
-                return error;
-        }
+		return error;
+	}
 
-	coda_dir_changed(dir, -1);
+	coda_dir_drop_nlink(dir);
+	coda_dir_update_mtime(dir);
 	drop_nlink(de->d_inode);
 	d_delete(de);
 	unlock_kernel();
-
-        return 0;
+	return 0;
 }
 
 /* rename */
-static int coda_rename(struct inode *old_dir, struct dentry *old_dentry, 
+static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 		       struct inode *new_dir, struct dentry *new_dentry)
 {
-        const char *old_name = old_dentry->d_name.name;
-        const char *new_name = new_dentry->d_name.name;
+	const char *old_name = old_dentry->d_name.name;
+	const char *new_name = new_dentry->d_name.name;
 	int old_length = old_dentry->d_name.len;
 	int new_length = new_dentry->d_name.len;
-        int link_adjust = 0;
-        int error;
+	int error;
 
 	lock_kernel();
 	coda_vfs_stat.rename++;
 
-        error = venus_rename(old_dir->i_sb, coda_i2f(old_dir), 
-			     coda_i2f(new_dir), old_length, new_length, 
+	error = venus_rename(old_dir->i_sb, coda_i2f(old_dir),
+			     coda_i2f(new_dir), old_length, new_length,
 			     (const char *) old_name, (const char *)new_name);
 
-        if ( !error ) {
+	if ( !error ) {
 		if ( new_dentry->d_inode ) {
-			if ( S_ISDIR(new_dentry->d_inode->i_mode) )
-                        	link_adjust = 1;
-
-                        coda_dir_changed(old_dir, -link_adjust);
-                        coda_dir_changed(new_dir,  link_adjust);
+			if ( S_ISDIR(new_dentry->d_inode->i_mode) ) {
+				coda_dir_drop_nlink(old_dir);
+				coda_dir_inc_nlink(new_dir);
+			}
+			coda_dir_update_mtime(old_dir);
+			coda_dir_update_mtime(new_dir);
 			coda_flag_inode(new_dentry->d_inode, C_VATTR);
 		} else {
 			coda_flag_inode(old_dir, C_VATTR);
 			coda_flag_inode(new_dir, C_VATTR);
-                }
+		}
 	}
 	unlock_kernel();
 
