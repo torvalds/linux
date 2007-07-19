@@ -641,8 +641,7 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
  * 
  */
 
-static inline void coda_waitfor_upcall(struct upc_req *vmp,
-				       struct venus_comm *vcommp)
+static inline void coda_waitfor_upcall(struct upc_req *vmp)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -654,10 +653,6 @@ static inline void coda_waitfor_upcall(struct upc_req *vmp,
 			set_current_state(TASK_INTERRUPTIBLE);
 		else
 			set_current_state(TASK_UNINTERRUPTIBLE);
-
-                /* venus died */
-                if ( !vcommp->vc_inuse )
-                        break;
 
 		/* got a reply */
 		if ( vmp->uc_flags & ( REQ_WRITE | REQ_ABORT ) )
@@ -738,7 +733,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	 * ENODEV.  */
 
 	/* Go to sleep.  Wake up on signals only after the timeout. */
-	coda_waitfor_upcall(req, vcommp);
+	coda_waitfor_upcall(req);
 
 	if (vcommp->vc_inuse) {      /* i.e. Venus is still alive */
 	    /* Op went through, interrupt or not... */
