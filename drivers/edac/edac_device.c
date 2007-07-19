@@ -33,7 +33,7 @@
 #include "edac_module.h"
 
 /* lock to memory controller's control array 'edac_device_list' */
-static DECLARE_MUTEX(device_ctls_mutex);
+static DEFINE_MUTEX(device_ctls_mutex);
 static struct list_head edac_device_list = LIST_HEAD_INIT(edac_device_list);
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -340,7 +340,7 @@ static void edac_device_workq_function(struct work_struct *work_req)
 	struct edac_device_ctl_info *edac_dev = to_edac_device_ctl_work(d_work);
 
 	//debugf0("%s() here and running\n", __func__);
-	down(&device_ctls_mutex);
+	mutex_lock(&device_ctls_mutex);
 
 	/* Only poll controllers that are running polled and have a check */
 	if ((edac_dev->op_state == OP_RUNNING_POLL) &&
@@ -348,7 +348,7 @@ static void edac_device_workq_function(struct work_struct *work_req)
 			edac_dev->edac_check(edac_dev);
 	}
 
-	up(&device_ctls_mutex);
+	mutex_unlock(&device_ctls_mutex);
 
 	/* Reschedule */
 	queue_delayed_work(edac_workqueue, &edac_dev->work, edac_dev->delay);
@@ -393,7 +393,7 @@ void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev)
 void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev,
 					unsigned long value)
 {
-	down(&device_ctls_mutex);
+	mutex_lock(&device_ctls_mutex);
 
 	/* cancel the current workq request */
 	edac_device_workq_teardown(edac_dev);
@@ -401,7 +401,7 @@ void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev,
 	/* restart the workq request, with new delay value */
 	edac_device_workq_setup(edac_dev, value);
 
-	up(&device_ctls_mutex);
+	mutex_unlock(&device_ctls_mutex);
 }
 
 /**
@@ -425,7 +425,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 	if (edac_debug_level >= 3)
 		edac_device_dump_device(edac_dev);
 #endif
-	down(&device_ctls_mutex);
+	mutex_lock(&device_ctls_mutex);
 
 	if (add_edac_dev_to_global_list(edac_dev))
 		goto fail0;
@@ -463,7 +463,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 				dev_name(edac_dev),
 				edac_op_state_to_string(edac_dev->op_state));
 
-	up(&device_ctls_mutex);
+	mutex_unlock(&device_ctls_mutex);
 	return 0;
 
 fail1:
@@ -471,7 +471,7 @@ fail1:
 	del_edac_device_from_global_list(edac_dev);
 
 fail0:
-	up(&device_ctls_mutex);
+	mutex_unlock(&device_ctls_mutex);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(edac_device_add_device);
@@ -495,12 +495,12 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 
 	debugf0("MC: %s()\n", __func__);
 
-	down(&device_ctls_mutex);
+	mutex_lock(&device_ctls_mutex);
 
 	/* Find the structure on the list, if not there, then leave */
 	edac_dev = find_edac_device_by_dev(dev);
 	if (edac_dev == NULL) {
-		up(&device_ctls_mutex);
+		mutex_unlock(&device_ctls_mutex);
 		return NULL;
 	}
 
@@ -516,7 +516,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 	/* deregister from global list */
 	del_edac_device_from_global_list(edac_dev);
 
-	up(&device_ctls_mutex);
+	mutex_unlock(&device_ctls_mutex);
 
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n",
