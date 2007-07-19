@@ -11,8 +11,11 @@ obj-$(CONFIG_EDAC)			:= edac_stub.o
 obj-$(CONFIG_EDAC_MM_EDAC)		+= edac_core.o
 
 edac_core-objs	:= edac_mc.o edac_device.o edac_mc_sysfs.o edac_pci_sysfs.o
-
 edac_core-objs	+= edac_module.o edac_device_sysfs.o
+
+ifdef CONFIG_PCI
+edac_core-objs	+= edac_pci.o edac_pci_sysfs.o
+endif
 
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o
 obj-$(CONFIG_EDAC_I5000)		+= i5000_edac.o

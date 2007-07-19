@@ -60,6 +60,10 @@
 #define edac_device_printk(ctl, level, fmt, arg...) \
 	printk(level "EDAC DEVICE%d: " fmt, ctl->dev_idx, ##arg)
 
+/* edac_pci printk */
+#define edac_pci_printk(ctl, level, fmt, arg...) \
+	printk(level "EDAC PCI%d: " fmt, ctl->pci_idx, ##arg)
+
 /* prefixes for edac_printk() and edac_mc_printk() */
 #define EDAC_MC "MC"
 #define EDAC_PCI "PCI"
@@ -199,6 +203,13 @@ enum scrub_type {
 #define SCRUB_FLAG_HW_TUN	BIT(SCRUB_HW_TUNABLE)
 
 /* FIXME - should have notify capabilities: NMI, LOG, PROC, etc */
+
+/* EDAC internal operation states */
+#define	OP_ALLOC		0x100
+#define OP_RUNNING_POLL		0x201
+#define OP_RUNNING_INTERRUPT	0x202
+#define OP_RUNNING_POLL_INTR	0x203
+#define OP_OFFLINE		0x300
 
 extern char * edac_align_ptr(void *ptr, unsigned size);
 
@@ -520,12 +531,6 @@ struct edac_device_ctl_info {
 
 	/* the internal state of this controller instance */
 	int op_state;
-#define	OP_ALLOC		0x100
-#define OP_RUNNING_POLL		0x201
-#define OP_RUNNING_INTERRUPT	0x202
-#define OP_RUNNING_POLL_INTR	0x203
-#define OP_OFFLINE		0x300
-
 	/* work struct for this instance */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct delayed_work work;
@@ -625,6 +630,84 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 extern void edac_device_free_ctl_info( struct edac_device_ctl_info *ctl_info);
 
 #ifdef CONFIG_PCI
+
+struct edac_pci_counter {
+	atomic_t	pe_count;
+	atomic_t	npe_count;
+};
+
+/*
+ * Abstract edac_pci control info structure
+ *
+ */
+struct edac_pci_ctl_info {
+	/* for global list of edac_pci_ctl_info structs */
+	struct list_head link;
+
+	int pci_idx;
+
+	/* Per instance controls for this edac_device */
+	int check_parity_error;	/* boolean for checking parity errs */
+	int log_parity_error;	/* boolean for logging parity errs */
+	int panic_on_pe;	/* boolean for panic'ing on a PE */
+	unsigned poll_msec;	/* number of milliseconds to poll interval */
+	unsigned long delay;	/* number of jiffies for poll_msec */
+
+	struct sysdev_class *edac_class;	/* pointer to class */
+
+	/* the internal state of this controller instance */
+	int op_state;
+	/* work struct for this instance */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+	struct delayed_work work;
+#else
+	struct work_struct work;
+#endif
+
+	/* pointer to edac polling checking routine:
+	 *	If NOT NULL: points to polling check routine
+	 *	If NULL: Then assumes INTERRUPT operation, where
+	 *		MC driver will receive events
+	 */
+	void (*edac_check) (struct edac_pci_ctl_info * edac_dev);
+
+	struct device *dev;	/* pointer to device structure */
+
+	const char *mod_name;	/* module name */
+	const char *ctl_name;	/* edac controller  name */
+	const char *dev_name;	/* pci/platform/etc... name */
+
+	void *pvt_info;		/* pointer to 'private driver' info */
+
+	unsigned long start_time;/* edac_pci load start time (jiffies)*/
+
+	/* these are for safe removal of devices from global list while
+	 * NMI handlers may be traversing list
+	 */
+	struct rcu_head rcu;
+	struct completion complete;
+
+	/* sysfs top name under 'edac' directory
+	 * and instance name:
+	 *	cpu/cpu0/...
+	 *	cpu/cpu1/...
+	 *	cpu/cpu2/...
+	 *	...
+	 */
+	char name[EDAC_DEVICE_NAME_LEN + 1];
+
+	/* Event counters for the this whole EDAC Device */
+	struct edac_pci_counter counters;
+
+	/* edac sysfs device control for the 'name'
+	 * device this structure controls
+	 */
+	struct kobject kobj;
+	struct completion kobj_complete;
+};
+
+#define to_edac_pci_ctl_work(w) \
+		container_of(w, struct edac_pci_ctl_info,work)
 
 /* write all or some bits in a byte-register*/
 static inline void pci_write_bits8(struct pci_dev *pdev, int offset, u8 value,
@@ -726,5 +809,30 @@ extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 		int inst_nr, int block_nr, const char *msg);
 
+/*
+ * edac_pci APIs
+ */
+extern struct edac_pci_ctl_info *
+edac_pci_alloc_ctl_info(unsigned int sz_pvt, const char *edac_pci_name);
+
+extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
+
+extern void
+edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci, unsigned long value);
+
+extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
+extern struct edac_pci_ctl_info * edac_pci_del_device(struct device *dev);
+
+extern struct edac_pci_ctl_info *
+edac_pci_create_generic_ctl(struct device *dev, const char *mod_name);
+
+extern void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci);
+extern int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci);
+extern void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci);
+
+/*
+ * edac misc APIs
+ */
+extern char * edac_op_state_toString(int op_state);
 
 #endif				/* _EDAC_CORE_H_ */

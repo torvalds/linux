@@ -418,27 +418,6 @@ void edac_device_reset_delay_period(
 	unlock_device_list();
 }
 
-/*
- * edac_op_state_toString(edac_dev)
- */
-static char *edac_op_state_toString(struct edac_device_ctl_info *edac_dev)
-{
-	int opstate = edac_dev->op_state;
-
-	if (opstate == OP_RUNNING_POLL)
-		return "POLLED";
-	else if (opstate == OP_RUNNING_INTERRUPT)
-		return "INTERRUPT";
-	else if (opstate == OP_RUNNING_POLL_INTR)
-		return "POLL-INTR";
-	else if (opstate == OP_ALLOC)
-		return "ALLOC";
-	else if (opstate == OP_OFFLINE)
-		return "OFFLINE";
-
-	return "UNKNOWN";
-}
-
 /**
  * edac_device_add_device: Insert the 'edac_dev' structure into the
  * edac_device global list and create sysfs entries associated with
@@ -496,7 +475,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 		edac_dev->mod_name,
 		edac_dev->ctl_name,
 		dev_name(edac_dev),
-		edac_op_state_toString(edac_dev)
+		edac_op_state_toString(edac_dev->op_state)
 		);
 
 	unlock_device_list();

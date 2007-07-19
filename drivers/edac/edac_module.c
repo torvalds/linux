@@ -35,6 +35,25 @@ static struct sysdev_class edac_class = {
 static int edac_class_valid = 0;
 
 /*
+ * edac_op_state_toString()
+ */
+char * edac_op_state_toString(int opstate)
+{
+	if (opstate == OP_RUNNING_POLL)
+		return "POLLED";
+	else if (opstate == OP_RUNNING_INTERRUPT)
+		return "INTERRUPT";
+	else if (opstate == OP_RUNNING_POLL_INTR)
+		return "POLL-INTR";
+	else if (opstate == OP_ALLOC)
+		return "ALLOC";
+	else if (opstate == OP_OFFLINE)
+		return "OFFLINE";
+
+	return "UNKNOWN";
+}
+
+/*
  * edac_get_edac_class()
  *
  *	return pointer to the edac class of 'edac'
@@ -153,26 +172,16 @@ static int __init edac_init(void)
 		goto error_sysfs;
 	}
 
-	/* Create the PCI parity sysfs entries */
-	if (edac_sysfs_pci_setup()) {
-		edac_printk(KERN_ERR, EDAC_MC,
-			"PCI: Error initializing sysfs code\n");
-		err = -ENODEV;
-		goto error_mem;
-	}
-
 	/* Setup/Initialize the edac_device system */
 	err = edac_workqueue_setup();
 	if (err) {
 		edac_printk(KERN_ERR, EDAC_MC, "init WorkQueue failure\n");
-		goto error_pci;
+		goto error_mem;
 	}
 
 	return 0;
 
 	/* Error teardown stack */
-error_pci:
-	edac_sysfs_pci_teardown();
 error_mem:
 	edac_sysfs_memctrl_teardown();
 error_sysfs:
@@ -192,7 +201,6 @@ static void __exit edac_exit(void)
 	/* tear down the various subsystems*/
 	edac_workqueue_teardown();
 	edac_sysfs_memctrl_teardown();
-	edac_sysfs_pci_teardown();
 	edac_unregister_sysfs_edac_name();
 }
 

@@ -30,6 +30,8 @@
 
 static int force_function_unhide;
 
+static struct edac_pci_ctl_info *e752x_pci;
+
 #define e752x_printk(level, fmt, arg...) \
 	edac_printk(level, "e752x", fmt, ##arg)
 
@@ -1040,6 +1042,17 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	e752x_init_error_reporting_regs(pvt);
 	e752x_get_error_info(mci, &discard); /* clear other MCH errors */
 
+	/* allocating generic PCI control info */
+	e752x_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!e752x_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 	return 0;
@@ -1072,6 +1085,9 @@ static void __devexit e752x_remove_one(struct pci_dev *pdev)
 	struct e752x_pvt *pvt;
 
 	debugf0("%s()\n", __func__);
+
+	if (e752x_pci)
+		edac_pci_release_generic_ctl(e752x_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
