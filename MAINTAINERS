@@ -1371,6 +1371,27 @@ L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
+EDAC-I82443BXGX
+P:	Tim Small
+M:	tim@buttersideup.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-I3000
+P:	Jason Uhlenkott
+M:	juhlenko@akamai.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-I5000
+P:	Doug Thompson
+M:	norsk5@xmission.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
 EDAC-R82600
 P:	Tim Small
 M:	tim@buttersideup.com
