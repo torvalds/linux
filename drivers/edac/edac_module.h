@@ -28,6 +28,7 @@ extern int edac_get_log_ue(void);
 extern int edac_get_log_ce(void);
 extern int edac_get_panic_on_ue(void);
 extern int edac_get_poll_msec(void);
+extern int edac_mc_get_poll_msec(void);
 
 extern int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev);
 extern void edac_device_remove_sysfs(struct edac_device_ctl_info *edac_dev);
@@ -35,9 +36,9 @@ extern struct sysdev_class *edac_get_edac_class(void);
 
 /* edac core workqueue: single CPU mode */
 extern struct workqueue_struct *edac_workqueue;
-extern void edac_workq_setup(struct edac_device_ctl_info *edac_dev,
+extern void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
 				unsigned msec);
-extern void edac_workq_teardown(struct edac_device_ctl_info *edac_dev);
+extern void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev);
 extern void edac_device_reset_delay_period(
 			struct edac_device_ctl_info *edac_dev,
 			unsigned long value);

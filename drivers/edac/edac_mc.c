@@ -184,6 +184,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 		}
 	}
 
+	mci->op_state = OP_ALLOC;
+
 	return mci;
 }
 EXPORT_SYMBOL_GPL(edac_mc_alloc);
@@ -213,6 +215,107 @@ static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 	}
 
 	return NULL;
+}
+
+/*
+ * handler for EDAC to check if NMI type handler has asserted interrupt
+ */
+static int edac_mc_assert_error_check_and_clear(void)
+{
+	int vreg;
+
+	if(edac_op_state == EDAC_OPSTATE_POLL)
+		return 1;
+
+	vreg = atomic_read(&edac_err_assert);
+	if(vreg) {
+		atomic_set(&edac_err_assert, 0);
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * edac_mc_workq_function
+ *	performs the operation scheduled by a workq request
+ */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+static void edac_mc_workq_function(struct work_struct *work_req)
+{
+	struct delayed_work *d_work = (struct delayed_work*) work_req;
+	struct mem_ctl_info *mci = to_edac_mem_ctl_work(d_work);
+#else
+static void edac_mc_workq_function(void *ptr)
+{
+	struct mem_ctl_info *mci = (struct mem_ctl_info *) ptr;
+#endif
+
+	mutex_lock(&mem_ctls_mutex);
+
+	/* Only poll controllers that are running polled and have a check */
+	if (edac_mc_assert_error_check_and_clear() && (mci->edac_check != NULL))
+		mci->edac_check(mci);
+
+	/*
+	 * FIXME: temp place holder for PCI checks,
+	 * goes away when we break out PCI
+	 */
+	edac_pci_do_parity_check();
+
+	mutex_unlock(&mem_ctls_mutex);
+
+	/* Reschedule */
+	queue_delayed_work(edac_workqueue, &mci->work, edac_mc_get_poll_msec());
+}
+
+/*
+ * edac_mc_workq_setup
+ *	initialize a workq item for this mci
+ *	passing in the new delay period in msec
+ */
+void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
+{
+	debugf0("%s()\n", __func__);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
+#else
+	INIT_WORK(&mci->work, edac_mc_workq_function, mci);
+#endif
+	queue_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
+}
+
+/*
+ * edac_mc_workq_teardown
+ *	stop the workq processing on this mci
+ */
+void edac_mc_workq_teardown(struct mem_ctl_info *mci)
+{
+	int status;
+
+	status = cancel_delayed_work(&mci->work);
+	if (status == 0) {
+		/* workq instance might be running, wait for it */
+		flush_workqueue(edac_workqueue);
+	}
+}
+
+/*
+ * edac_reset_delay_period
+ */
+
+void edac_reset_delay_period(struct mem_ctl_info *mci, unsigned long value)
+{
+	mutex_lock(&mem_ctls_mutex);
+
+	/* cancel the current workq request */
+	edac_mc_workq_teardown(mci);
+
+	/* restart the workq request, with new delay value */
+	edac_mc_workq_setup(mci, value);
+
+	mutex_unlock(&mem_ctls_mutex);
 }
 
 /* Return 0 on success, 1 on failure.
@@ -351,6 +454,16 @@ int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
 		goto fail1;
 	}
 
+	/* If there IS a check routine, then we are running POLLED */
+	if (mci->edac_check != NULL) {
+		/* This instance is NOW RUNNING */
+		mci->op_state = OP_RUNNING_POLL;
+
+		edac_mc_workq_setup(mci, edac_mc_get_poll_msec());
+	} else {
+		mci->op_state = OP_RUNNING_INTERRUPT;
+	}
+
 	/* Report action taken */
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: DEV %s\n",
 		mci->mod_name, mci->ctl_name, dev_name(mci));
@@ -385,6 +498,12 @@ struct mem_ctl_info * edac_mc_del_mc(struct device *dev)
 		mutex_unlock(&mem_ctls_mutex);
 		return NULL;
 	}
+
+	/* marking MCI offline */
+	mci->op_state = OP_OFFLINE;
+
+	/* flush workq processes */
+	edac_mc_workq_teardown(mci);
 
 	edac_remove_sysfs_mci_device(mci);
 	del_mc_from_global_list(mci);

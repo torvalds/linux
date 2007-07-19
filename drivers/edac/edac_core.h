@@ -382,6 +382,15 @@ struct mem_ctl_info {
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
 	struct completion kobj_complete;
+
+	/* work struct for this MC */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+	struct delayed_work work;
+#else
+	struct work_struct work;
+#endif
+	/* the internal state of this controller instance */
+	int op_state;
 };
 
 /*
@@ -573,6 +582,9 @@ struct edac_device_ctl_info {
 };
 
 /* To get from the instance's wq to the beginning of the ctl structure */
+#define to_edac_mem_ctl_work(w) \
+		container_of(w, struct mem_ctl_info, work)
+
 #define to_edac_device_ctl_work(w) \
 		container_of(w,struct edac_device_ctl_info,work)
 
@@ -583,6 +595,8 @@ static inline void edac_device_calc_delay(
 	/* convert from msec to jiffies */
 	edac_dev->delay = edac_dev->poll_msec * HZ / 1000;
 }
+
+#define edac_calc_delay(dev) dev->delay = dev->poll_msec * HZ / 1000;
 
 /*
  * The alloc() and free() functions for the 'edac_device' control info

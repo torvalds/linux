@@ -22,22 +22,28 @@ static int panic_on_ue;
 static int poll_msec = 1000;
 
 /* Getter functions for above */
-int edac_get_log_ue()
+int edac_get_log_ue(void)
 {
 	return log_ue;
 }
 
-int edac_get_log_ce()
+int edac_get_log_ce(void)
 {
 	return log_ce;
 }
 
-int edac_get_panic_on_ue()
+int edac_get_panic_on_ue(void)
 {
 	return panic_on_ue;
 }
 
-int edac_get_poll_msec()
+/* this is temporary */
+int edac_mc_get_poll_msec(void)
+{
+	return edac_get_poll_msec();
+}
+
+int edac_get_poll_msec(void)
 {
 	return poll_msec;
 }

@@ -1,6 +1,14 @@
-
-#include <linux/freezer.h>
-#include <linux/kthread.h>
+/*
+ * edac_module.c
+ *
+ * (C) 2007 www.douglaskthompson.com
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * Author: Doug Thompson <norsk5@xmission.com>
+ *
+ */
 #include <linux/edac.h>
 
 #include "edac_core.h"
@@ -16,10 +24,6 @@ EXPORT_SYMBOL_GPL(edac_debug_level);
 
 /* scope is to module level only */
 struct workqueue_struct *edac_workqueue;
-
-/* private to this file */
-static struct task_struct *edac_thread;
-
 
 /*
  * sysfs object: /sys/devices/system/edac
@@ -82,63 +86,6 @@ static void edac_unregister_sysfs_edac_name(void)
 		sysdev_class_unregister(&edac_class);
 
 	edac_class_valid = 0;
-}
-
-
-/*
- * Check MC status every edac_get_poll_msec().
- * Check PCI status every edac_get_poll_msec() as well.
- *
- * This where the work gets done for edac.
- *
- * SMP safe, doesn't use NMI, and auto-rate-limits.
- */
-static void do_edac_check(void)
-{
-	debugf3("%s()\n", __func__);
-
-	/* perform the poll activities */
-	edac_check_mc_devices();
-	edac_pci_do_parity_check();
-}
-
-/*
- * handler for EDAC to check if NMI type handler has asserted interrupt
- */
-static int edac_assert_error_check_and_clear(void)
-{
-	int vreg;
-
-	if(edac_op_state == EDAC_OPSTATE_POLL)
-		return 1;
-
-	vreg = atomic_read(&edac_err_assert);
-	if(vreg) {
-		atomic_set(&edac_err_assert, 0);
-		return 1;
-	}
-
-	return 0;
-}
-
-/*
- * Action thread for EDAC to perform the POLL operations
- */
-static int edac_kernel_thread(void *arg)
-{
-	int msec;
-
-	while (!kthread_should_stop()) {
-		if(edac_assert_error_check_and_clear())
-			do_edac_check();
-
-		/* goto sleep for the interval */
-		msec = (HZ * edac_get_poll_msec()) / 1000;
-		schedule_timeout_interruptible(msec);
-		try_to_freeze();
-	}
-
-	return 0;
 }
 
 /*
@@ -221,19 +168,9 @@ static int __init edac_init(void)
 		goto error_pci;
 	}
 
-	/* create our kernel thread */
-	edac_thread = kthread_run(edac_kernel_thread, NULL, "kedac");
-
-	if (IS_ERR(edac_thread)) {
-		err = PTR_ERR(edac_thread);
-		goto error_work;
-	}
-
 	return 0;
 
 	/* Error teardown stack */
-error_work:
-	edac_workqueue_teardown();
 error_pci:
 	edac_sysfs_pci_teardown();
 error_mem:
@@ -251,7 +188,6 @@ error:
 static void __exit edac_exit(void)
 {
 	debugf0("%s()\n", __func__);
-	kthread_stop(edac_thread);
 
 	/* tear down the various subsystems*/
 	edac_workqueue_teardown();

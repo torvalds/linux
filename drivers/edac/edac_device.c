@@ -332,17 +332,17 @@ EXPORT_SYMBOL(edac_device_find);
 
 
 /*
- * edac_workq_function
+ * edac_device_workq_function
  *	performs the operation scheduled by a workq request
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
-static void edac_workq_function(struct work_struct *work_req)
+static void edac_device_workq_function(struct work_struct *work_req)
 {
 	struct delayed_work *d_work = (struct delayed_work*) work_req;
 	struct edac_device_ctl_info *edac_dev =
 		to_edac_device_ctl_work(d_work);
 #else
-static void edac_workq_function(void *ptr)
+static void edac_device_workq_function(void *ptr)
 {
 	struct edac_device_ctl_info *edac_dev =
 		(struct edac_device_ctl_info *) ptr;
@@ -364,30 +364,31 @@ static void edac_workq_function(void *ptr)
 }
 
 /*
- * edac_workq_setup
+ * edac_device_workq_setup
  *	initialize a workq item for this edac_device instance
  *	passing in the new delay period in msec
  */
-void edac_workq_setup(struct edac_device_ctl_info *edac_dev, unsigned msec)
+void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
+		unsigned msec)
 {
 	debugf0("%s()\n", __func__);
 
 	edac_dev->poll_msec = msec;
-	edac_device_calc_delay(edac_dev);	/* Calc delay jiffies */
+	edac_calc_delay(edac_dev);	/* Calc delay jiffies */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
-	INIT_DELAYED_WORK(&edac_dev->work,edac_workq_function);
+	INIT_DELAYED_WORK(&edac_dev->work, edac_device_workq_function);
 #else
-	INIT_WORK(&edac_dev->work,edac_workq_function,edac_dev);
+	INIT_WORK(&edac_dev->work, edac_device_workq_function, edac_dev);
 #endif
-	queue_delayed_work(edac_workqueue,&edac_dev->work, edac_dev->delay);
+	queue_delayed_work(edac_workqueue, &edac_dev->work, edac_dev->delay);
 }
 
 /*
- * edac_workq_teardown
+ * edac_device_workq_teardown
  *	stop the workq processing on this edac_dev
  */
-void edac_workq_teardown(struct edac_device_ctl_info *edac_dev)
+void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev)
 {
 	int status;
 
@@ -409,10 +410,10 @@ void edac_device_reset_delay_period(
 	lock_device_list();
 
 	/* cancel the current workq request */
-	edac_workq_teardown(edac_dev);
+	edac_device_workq_teardown(edac_dev);
 
 	/* restart the workq request, with new delay value */
-	edac_workq_setup(edac_dev, value);
+	edac_device_workq_setup(edac_dev, value);
 
 	unlock_device_list();
 }
@@ -479,8 +480,11 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 		/* This instance is NOW RUNNING */
 		edac_dev->op_state = OP_RUNNING_POLL;
 
-		/* enable workq processing on this instance, default = 1000 msec */
-		edac_workq_setup(edac_dev, 1000);
+		/*
+		 * enable workq processing on this instance,
+		 * default = 1000 msec
+		 */
+		edac_device_workq_setup(edac_dev, 1000);
 	} else {
 		edac_dev->op_state = OP_RUNNING_INTERRUPT;
 	}
@@ -538,7 +542,7 @@ struct edac_device_ctl_info * edac_device_del_device(struct device *dev)
 	edac_dev->op_state = OP_OFFLINE;
 
 	/* clear workq processing on this instance */
-	edac_workq_teardown(edac_dev);
+	edac_device_workq_teardown(edac_dev);
 
 	/* Tear down the sysfs entries for this instance */
 	edac_device_remove_sysfs(edac_dev);
