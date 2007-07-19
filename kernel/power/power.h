@@ -170,7 +170,6 @@ extern int swsusp_resume(void);
 extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
 extern void swsusp_close(void);
-extern int suspend_enter(suspend_state_t state);
 
 struct timeval;
 /* kernel/power/swsusp.c */
@@ -178,6 +177,8 @@ extern void swsusp_show_speed(struct timeval *, struct timeval *,
 				unsigned int, char *);
 
 /* kernel/power/main.c */
+extern int suspend_enter(suspend_state_t state);
+extern int suspend_devices_and_enter(suspend_state_t state);
 extern struct blocking_notifier_head pm_chain_head;
 
 static inline int pm_notifier_call_chain(unsigned long val)

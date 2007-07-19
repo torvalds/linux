@@ -255,47 +255,19 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case SNAPSHOT_S2RAM:
-		if (!pm_ops) {
-			error = -ENOSYS;
-			break;
-		}
-
 		if (!data->frozen) {
 			error = -EPERM;
 			break;
 		}
-
 		if (!mutex_trylock(&pm_mutex)) {
 			error = -EBUSY;
 			break;
 		}
-
-		if (pm_ops->prepare) {
-			error = pm_ops->prepare(PM_SUSPEND_MEM);
-			if (error)
-				goto OutS3;
-		}
-
-		/* Put devices to sleep */
-		suspend_console();
-		error = device_suspend(PMSG_SUSPEND);
-		if (error) {
-			printk(KERN_ERR "Failed to suspend some devices.\n");
-		} else {
-			error = disable_nonboot_cpus();
-			if (!error) {
-				/* Enter S3, system is already frozen */
-				suspend_enter(PM_SUSPEND_MEM);
-				enable_nonboot_cpus();
-			}
-			/* Wake up devices */
-			device_resume();
-		}
-		resume_console();
-		if (pm_ops->finish)
-			pm_ops->finish(PM_SUSPEND_MEM);
-
- OutS3:
+		/*
+		 * Tasks are frozen and the notifiers have been called with
+		 * PM_HIBERNATION_PREPARE
+		 */
+		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
 		mutex_unlock(&pm_mutex);
 		break;
 

@@ -65,14 +65,11 @@ static inline void pm_finish(suspend_state_t state)
 
 /**
  *	suspend_prepare - Do prep work before entering low-power state.
- *	@state:		State we're entering.
  *
- *	This is common code that is called for each state that we're 
- *	entering. Allocate a console, stop all processes, then make sure
- *	the platform can enter the requested state.
+ *	This is common code that is called for each state that we're entering.
+ *	Run suspend notifiers, allocate a console and stop all processes.
  */
-
-static int suspend_prepare(suspend_state_t state)
+static int suspend_prepare(void)
 {
 	int error;
 	unsigned int free_pages;
@@ -91,43 +88,18 @@ static int suspend_prepare(suspend_state_t state)
 		goto Thaw;
 	}
 
-	if ((free_pages = global_page_state(NR_FREE_PAGES))
-			< FREE_PAGE_NUMBER) {
+	free_pages = global_page_state(NR_FREE_PAGES);
+	if (free_pages < FREE_PAGE_NUMBER) {
 		pr_debug("PM: free some memory\n");
 		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
 		if (nr_free_pages() < FREE_PAGE_NUMBER) {
 			error = -ENOMEM;
 			printk(KERN_ERR "PM: No enough memory\n");
-			goto Thaw;
 		}
 	}
-
-	if (pm_ops->set_target) {
-		error = pm_ops->set_target(state);
-		if (error)
-			goto Thaw;
-	}
-	suspend_console();
-	error = device_suspend(PMSG_SUSPEND);
-	if (error) {
-		printk(KERN_ERR "Some devices failed to suspend\n");
-		goto Resume_console;
-	}
-	if (pm_ops->prepare) {
-		if ((error = pm_ops->prepare(state)))
-			goto Resume_devices;
-	}
-
-	error = disable_nonboot_cpus();
 	if (!error)
 		return 0;
 
-	enable_nonboot_cpus();
-	pm_finish(state);
- Resume_devices:
-	device_resume();
- Resume_console:
-	resume_console();
  Thaw:
 	thaw_processes();
 	pm_restore_console();
@@ -148,6 +120,12 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
 	local_irq_enable();
 }
 
+/**
+ *	suspend_enter - enter the desired system sleep state.
+ *	@state:		state to enter
+ *
+ *	This function should be called after devices have been suspended.
+ */
 int suspend_enter(suspend_state_t state)
 {
 	int error = 0;
@@ -167,21 +145,55 @@ int suspend_enter(suspend_state_t state)
 	return error;
 }
 
+/**
+ *	suspend_devices_and_enter - suspend devices and enter the desired system sleep
+ *			  state.
+ *	@state:		  state to enter
+ */
+int suspend_devices_and_enter(suspend_state_t state)
+{
+	int error;
+
+	if (!pm_ops)
+		return -ENOSYS;
+
+	if (pm_ops->set_target) {
+		error = pm_ops->set_target(state);
+		if (error)
+			return error;
+	}
+	suspend_console();
+	error = device_suspend(PMSG_SUSPEND);
+	if (error) {
+		printk(KERN_ERR "Some devices failed to suspend\n");
+		goto Resume_console;
+	}
+	if (pm_ops->prepare) {
+		error = pm_ops->prepare(state);
+		if (error)
+			goto Resume_devices;
+	}
+	error = disable_nonboot_cpus();
+	if (!error)
+		suspend_enter(state);
+
+	enable_nonboot_cpus();
+	pm_finish(state);
+ Resume_devices:
+	device_resume();
+ Resume_console:
+	resume_console();
+	return error;
+}
 
 /**
  *	suspend_finish - Do final work before exiting suspend sequence.
- *	@state:		State we're coming out of.
  *
  *	Call platform code to clean up, restart processes, and free the 
  *	console that we've allocated. This is not called for suspend-to-disk.
  */
-
-static void suspend_finish(suspend_state_t state)
+static void suspend_finish(void)
 {
-	enable_nonboot_cpus();
-	pm_finish(state);
-	device_resume();
-	resume_console();
 	thaw_processes();
 	pm_restore_console();
 	pm_notifier_call_chain(PM_POST_SUSPEND);
@@ -216,7 +228,6 @@ static inline int valid_state(suspend_state_t state)
  *	Then, do the setup for suspend, enter the state, and cleaup (after
  *	we've woken up).
  */
-
 static int enter_state(suspend_state_t state)
 {
 	int error;
@@ -227,14 +238,14 @@ static int enter_state(suspend_state_t state)
 		return -EBUSY;
 
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
-	if ((error = suspend_prepare(state)))
+	if ((error = suspend_prepare()))
 		goto Unlock;
 
 	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
-	error = suspend_enter(state);
+	error = suspend_devices_and_enter(state);
 
 	pr_debug("PM: Finishing wakeup.\n");
-	suspend_finish(state);
+	suspend_finish();
  Unlock:
 	mutex_unlock(&pm_mutex);
 	return error;
