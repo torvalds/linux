@@ -157,6 +157,7 @@ static unsigned int try_to_freeze_tasks(int freeze_user_space)
 				freeze_user_space ? "user space processes" :
 					"kernel threads",
 				TIMEOUT / HZ, todo);
+		show_state();
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			if (freeze_user_space && !is_user_space(p))
