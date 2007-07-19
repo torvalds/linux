@@ -33,13 +33,20 @@ config PM_DEBUG
 	bool "Power Management Debug Support"
 	depends on PM
 	---help---
-	This option enables verbose debugging support in the Power Management
-	code. This is helpful when debugging and reporting various PM bugs, 
-	like suspend support.
+	This option enables various debugging support in the Power Management
+	code. This is helpful when debugging and reporting PM bugs, like
+	suspend support.
+
+config PM_VERBOSE
+	bool "Verbose Power Management debugging"
+	depends on PM_DEBUG
+	default n
+	---help---
+	This option enables verbose messages from the Power Management code.
 
 config DISABLE_CONSOLE_SUSPEND
 	bool "Keep console(s) enabled during suspend/resume (DANGEROUS)"
-	depends on PM && PM_DEBUG
+	depends on PM_DEBUG
 	default n
 	---help---
 	This option turns off the console suspend mechanism that prevents
@@ -50,7 +57,7 @@ config DISABLE_CONSOLE_SUSPEND
 
 config PM_TRACE
 	bool "Suspend/resume event tracing"
-	depends on PM && PM_DEBUG && X86_32 && EXPERIMENTAL
+	depends on PM_DEBUG && X86_32 && EXPERIMENTAL
 	default n
 	---help---
 	This enables some cheesy code to save the last PM event point in the

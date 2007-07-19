@@ -5,6 +5,6 @@ obj-$(CONFIG_PM_TRACE)	+= trace.o
 ifeq ($(CONFIG_DEBUG_DRIVER),y)
 EXTRA_CFLAGS += -DDEBUG
 endif
-ifeq ($(CONFIG_PM_DEBUG),y)
+ifeq ($(CONFIG_PM_VERBOSE),y)
 EXTRA_CFLAGS += -DDEBUG
 endif
