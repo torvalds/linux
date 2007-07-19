@@ -52,7 +52,6 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 static ide_pci_device_t rz1000_chipset __devinitdata = {
 	.name		= "RZ100x",
 	.init_hwif	= init_hwif_rz1000,
-	.channels	= 2,
 	.autodma	= NODMA,
 	.bootable	= ON_BOARD,
 };

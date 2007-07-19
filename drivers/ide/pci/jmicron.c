@@ -177,7 +177,6 @@ fallback:
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_jmicron,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
 		.enablebits	= { {0x40, 1, 1}, {0x40, 0x10, 0x10} }, \

@@ -194,10 +194,9 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.name		= name_str,			\
 		.init_setup_dma = cs5520_init_setup_dma,	\
 		.init_hwif	= init_hwif_cs5520,		\
-		.channels	= 2,				\
 		.autodma	= AUTODMA,			\
 		.bootable	= ON_BOARD,			\
-		.flags		= IDEPCI_FLAG_ISA_PORTS,	\
+		.host_flags	= IDE_HFLAG_ISA_PORTS,		\
 	}
 
 static ide_pci_device_t cyrix_chipsets[] __devinitdata = {

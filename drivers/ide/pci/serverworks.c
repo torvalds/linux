@@ -441,9 +441,12 @@ static int __devinit init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 			d->bootable = ON_BOARD;
 	}
 
-	d->channels = ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
-			dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
-		       (!(PCI_FUNC(dev->devfn) & 1))) ? 1 : 2;
+	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
+	    dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
+	    (!(PCI_FUNC(dev->devfn) & 1)))
+		d->host_flags |= IDE_HFLAG_SINGLE;
+	else
+		d->host_flags &= ~IDE_HFLAG_SINGLE;
 
 	return ide_setup_pci_device(dev, d);
 }
@@ -454,7 +457,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
 	},{	/* 1 */
@@ -462,7 +464,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
 	},{	/* 2 */
@@ -470,7 +471,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
 	},{	/* 3 */
@@ -478,17 +478,17 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.channels	= 1,	/* 2 */
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_SINGLE,
 	},{	/* 4 */
 		.name		= "SvrWks HT1000",
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.channels	= 1,	/* 2 */
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_SINGLE,
 	}
 };
 

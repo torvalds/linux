@@ -1483,7 +1483,7 @@ static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 		 * to both functions -- really stupid design decision... :-(
 		 * Bit 4 is for the primary channel, bit 5 for the secondary.
 		 */
-		d->channels = 1;
+		d->host_flags |= IDE_HFLAG_SINGLE;
 		d->enablebits[0].mask = d->enablebits[0].val = 0x10;
 
 		d->udma_mask = HPT366_ALLOW_ATA66_3 ?
@@ -1546,7 +1546,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.bootable	= OFF_BOARD,
@@ -1557,7 +1556,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? 0x7f : 0x3f,
@@ -1569,7 +1567,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT302_ALLOW_ATA133_6 ? 0x7f : 0x3f,
@@ -1581,7 +1578,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT371_ALLOW_ATA133_6 ? 0x7f : 0x3f,
@@ -1593,7 +1589,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,	/* 4 */
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= 0x3f,
@@ -1605,7 +1600,6 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.channels	= 2,	/* 4 */
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? 0x7f : 0x3f,

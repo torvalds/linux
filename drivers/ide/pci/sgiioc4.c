@@ -724,10 +724,10 @@ static ide_pci_device_t sgiioc4_chipset __devinitdata = {
 	 .name = "SGIIOC4",
 	 .init_hwif = ide_init_sgiioc4,
 	 .init_dma = ide_dma_sgiioc4,
-	 .channels = 1,
 	 .autodma = AUTODMA,
 	 /* SGI IOC4 doesn't have enablebits. */
 	 .bootable = ON_BOARD,
+	 .host_flags = IDE_HFLAG_SINGLE,
 };
 
 int

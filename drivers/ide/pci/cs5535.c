@@ -228,9 +228,9 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.init_hwif	= init_hwif_cs5535,
-	.channels	= 1,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_SINGLE,
 };
 
 static int __devinit cs5535_init_one(struct pci_dev *dev,

@@ -1244,7 +1244,8 @@ typedef struct ide_pci_enablebit_s {
 
 enum {
 	/* Uses ISA control ports not PCI ones. */
-	IDEPCI_FLAG_ISA_PORTS		= (1 << 0),
+	IDE_HFLAG_ISA_PORTS		= (1 << 0),
+	IDE_HFLAG_SINGLE		= (1 << 1),
 };
 
 typedef struct ide_pci_device_s {
@@ -1256,13 +1257,12 @@ typedef struct ide_pci_device_s {
 	void                    (*init_hwif)(ide_hwif_t *);
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
 	void			(*fixup)(ide_hwif_t *);
-	u8			channels;
 	u8			autodma;
 	ide_pci_enablebit_t	enablebits[2];
 	u8			bootable;
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
-	u8			flags;
+	u8			host_flags;
 	u8			udma_mask;
 } ide_pci_device_t;
 

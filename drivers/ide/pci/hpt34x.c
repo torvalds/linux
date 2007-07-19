@@ -175,7 +175,6 @@ static ide_pci_device_t hpt34x_chipset __devinitdata = {
 	.name		= "HPT34X",
 	.init_chipset	= init_chipset_hpt34x,
 	.init_hwif	= init_hwif_hpt34x,
-	.channels	= 2,
 	.autodma	= NOAUTODMA,
 	.bootable	= NEVER_BOARD,
 	.extra		= 16
