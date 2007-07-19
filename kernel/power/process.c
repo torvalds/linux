@@ -40,7 +40,7 @@ static inline void frozen_process(void)
 		current->flags |= PF_FROZEN;
 		wmb();
 	}
-	clear_tsk_thread_flag(current, TIF_FREEZE);
+	clear_freeze_flag(current);
 }
 
 /* Refrigerator is place where frozen processes are stored :-). */
@@ -75,17 +75,16 @@ void refrigerator(void)
 	current->state = save;
 }
 
-static inline void freeze_process(struct task_struct *p)
+static void freeze_task(struct task_struct *p)
 {
 	unsigned long flags;
 
 	if (!freezing(p)) {
 		rmb();
 		if (!frozen(p)) {
+			set_freeze_flag(p);
 			if (p->state == TASK_STOPPED)
 				force_sig_specific(SIGSTOP, p);
-
-			freeze(p);
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			signal_wake_up(p, p->state == TASK_STOPPED);
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
@@ -99,16 +98,11 @@ static void cancel_freezing(struct task_struct *p)
 
 	if (freezing(p)) {
 		pr_debug("  clean up: %s\n", p->comm);
-		do_not_freeze(p);
+		clear_freeze_flag(p);
 		spin_lock_irqsave(&p->sighand->siglock, flags);
 		recalc_sigpending_and_wake(p);
 		spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	}
-}
-
-static inline int is_user_space(struct task_struct *p)
-{
-	return p->mm && !(p->flags & PF_BORROWED_MM);
 }
 
 static unsigned int try_to_freeze_tasks(int freeze_user_space)
@@ -122,20 +116,34 @@ static unsigned int try_to_freeze_tasks(int freeze_user_space)
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			if (!freezeable(p))
+			if (frozen(p) || !freezeable(p))
 				continue;
 
-			if (frozen(p))
-				continue;
-
-			if (p->state == TASK_TRACED && frozen(p->parent)) {
-				cancel_freezing(p);
-				continue;
+			if (freeze_user_space) {
+				if (p->state == TASK_TRACED &&
+				    frozen(p->parent)) {
+					cancel_freezing(p);
+					continue;
+				}
+				/*
+				 * Kernel threads should not have TIF_FREEZE set
+				 * at this point, so we must ensure that either
+				 * p->mm is not NULL *and* PF_BORROWED_MM is
+				 * unset, or TIF_FRREZE is left unset.
+				 * The task_lock() is necessary to prevent races
+				 * with exit_mm() or use_mm()/unuse_mm() from
+				 * occuring.
+				 */
+				task_lock(p);
+				if (!p->mm || (p->flags & PF_BORROWED_MM)) {
+					task_unlock(p);
+					continue;
+				}
+				freeze_task(p);
+				task_unlock(p);
+			} else {
+				freeze_task(p);
 			}
-			if (freeze_user_space && !is_user_space(p))
-				continue;
-
-			freeze_process(p);
 			if (!freezer_should_skip(p))
 				todo++;
 		} while_each_thread(g, p);
@@ -152,22 +160,16 @@ static unsigned int try_to_freeze_tasks(int freeze_user_space)
 		 * but it cleans up leftover PF_FREEZE requests.
 		 */
 		printk("\n");
-		printk(KERN_ERR "Stopping %s timed out after %d seconds "
+		printk(KERN_ERR "Freezing of %s timed out after %d seconds "
 				"(%d tasks refusing to freeze):\n",
-				freeze_user_space ? "user space processes" :
-					"kernel threads",
+				freeze_user_space ? "user space " : "tasks ",
 				TIMEOUT / HZ, todo);
 		show_state();
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			if (freeze_user_space && !is_user_space(p))
-				continue;
-
 			task_lock(p);
-			if (freezeable(p) && !frozen(p) &&
-			    !freezer_should_skip(p))
+			if (freezing(p) && !freezer_should_skip(p))
 				printk(KERN_ERR " %s\n", p->comm);
-
 			cancel_freezing(p);
 			task_unlock(p);
 		} while_each_thread(g, p);
@@ -211,7 +213,7 @@ static void thaw_tasks(int thaw_user_space)
 		if (!freezeable(p))
 			continue;
 
-		if (is_user_space(p) == !thaw_user_space)
+		if (!p->mm == thaw_user_space)
 			continue;
 
 		thaw_process(p);
