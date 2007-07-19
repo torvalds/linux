@@ -9,8 +9,6 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/sysdev.h>
 #include <linux/ctype.h>
 
 #include "edac_core.h"
@@ -622,6 +620,34 @@ static void edac_device_delete_instances(struct edac_device_ctl_info *edac_dev)
 /******************* edac_dev sysfs ctor/dtor  code *************/
 
 /*
+ * edac_device_add_sysfs_attributes
+ *	add some attributes to this instance's main kobject
+ */
+static int edac_device_add_sysfs_attributes(
+			struct edac_device_ctl_info *edac_dev)
+{
+	int err;
+        struct edac_dev_sysfs_attribute *sysfs_attrib;
+
+        /* point to the start of the array and iterate over it
+         * adding each attribute listed to this mci instance's kobject
+         */
+        sysfs_attrib = edac_dev->sysfs_attributes;
+
+        while (sysfs_attrib->attr.name != NULL) {
+                err = sysfs_create_file(&edac_dev->kobj,
+                                        (struct attribute*) sysfs_attrib);
+                if (err) {
+                        return err;
+                }
+
+                sysfs_attrib++;
+        }
+
+	return 0;
+}
+
+/*
  * edac_device_create_sysfs() Constructor
  *
  * Create a new edac_device kobject instance,
@@ -642,6 +668,18 @@ int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev)
 
 	debugf0("%s() idx=%d\n", __func__, edac_dev->dev_idx);
 
+	/* If the low level driver requests some sysfs entries
+	 * then go create them here
+	 */
+	if (edac_dev->sysfs_attributes != NULL) {
+		err = edac_device_add_sysfs_attributes(edac_dev);
+		if (err) {
+			debugf0("%s() failed to add sysfs attribs\n",
+				__func__);
+			goto err_unreg_object;
+		}
+	}
+
 	/* create a symlink from the edac device
 	 * to the platform 'device' being used for this
 	 */
@@ -650,7 +688,7 @@ int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev)
 	if (err) {
 		debugf0("%s() sysfs_create_link() returned err= %d\n",
 			__func__, err);
-		return err;
+		goto err_unreg_object;
 	}
 
 	debugf0("%s() calling create-instances, idx=%d\n",
@@ -659,14 +697,17 @@ int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev)
 	/* Create the first level instance directories */
 	err = edac_device_create_instances(edac_dev);
 	if (err) {
-		goto error0;
+		goto err_remove_link;
 	}
 
 	return 0;
 
 	/* Error unwind stack */
+err_remove_link:
+	/* remove the sym link */
+	sysfs_remove_link(&edac_dev->kobj, EDAC_DEVICE_SYMLINK);
 
-      error0:
+err_unreg_object:
 	edac_device_unregister_main_kobj(edac_dev);
 
 	return err;

@@ -326,6 +326,18 @@ struct csrow_info {
 	struct channel_info *channels;
 };
 
+/* mcidev_sysfs_attribute structure
+ *	used for driver sysfs attributes and in mem_ctl_info
+ * 	sysfs top level entries
+ */
+struct mcidev_sysfs_attribute {
+        struct attribute attr;
+        ssize_t (*show)(struct mem_ctl_info *,char *);
+        ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
+};
+
+/* MEMORY controller information structure
+ */
 struct mem_ctl_info {
 	struct list_head link;	/* for global list of mem_ctl_info structs */
 	unsigned long mtype_cap;	/* memory types supported by mc */
@@ -352,6 +364,7 @@ struct mem_ctl_info {
 	   bandwith in bytes/sec.
 	 */
 	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci, u32 * bw);
+
 
 	/* pointer to edac checking routine */
 	void (*edac_check) (struct mem_ctl_info * mci);
@@ -394,6 +407,18 @@ struct mem_ctl_info {
 	struct kobject edac_mci_kobj;
 	struct completion kobj_complete;
 
+	/* Additional top controller level attributes, but specified
+	 * by the low level driver.
+	 *
+	 * Set by the low level driver to provide attributes at the
+	 * controller level, same level as 'ue_count' and 'ce_count' above.
+	 * An array of structures, NULL terminated
+	 *
+	 * If attributes are desired, then set to array of attributes
+	 * If no attributes are desired, leave NULL
+	 */
+	struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
+
 	/* work struct for this MC */
 	struct delayed_work work;
 
@@ -402,7 +427,7 @@ struct mem_ctl_info {
 };
 
 /*
- * The following are the structures to provide for a generice
+ * The following are the structures to provide for a generic
  * or abstract 'edac_device'. This set of structures and the
  * code that implements the APIs for the same, provide for
  * registering EDAC type devices which are NOT standard memory.
@@ -505,6 +530,16 @@ struct edac_device_instance {
 	struct completion kobj_complete;
 };
 
+/* edac_dev_sysfs_attribute structure
+ *     used for driver sysfs attributes and in mem_ctl_info
+ *     sysfs top level entries
+ */
+struct edac_dev_sysfs_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct edac_device_ctl_info *,char *);
+	ssize_t (*store)(struct edac_device_ctl_info *, const char *,size_t);
+};
+
 /*
  * Abstract edac_device control info structure
  *
@@ -522,7 +557,20 @@ struct edac_device_ctl_info {
 	unsigned poll_msec;	/* number of milliseconds to poll interval */
 	unsigned long delay;	/* number of jiffies for poll_msec */
 
-	struct sysdev_class *edac_class;	/* pointer to class */
+	/* Additional top controller level attributes, but specified
+	 * by the low level driver.
+	 *
+	 * Set by the low level driver to provide attributes at the
+	 * controller level, same level as 'ue_count' and 'ce_count' above.
+	 * An array of structures, NULL terminated
+	 *
+	 * If attributes are desired, then set to array of attributes
+	 * If no attributes are desired, leave NULL
+	 */
+	struct edac_dev_sysfs_attribute *sysfs_attributes;
+
+	/* pointer to main 'edac' class in sysfs */
+	struct sysdev_class *edac_class;
 
 	/* the internal state of this controller instance */
 	int op_state;

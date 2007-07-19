@@ -1,15 +1,14 @@
 /*
  * edac_mc kernel module
- * (C) 2005, 2006 Linux Networx (http://lnxi.com)
+ * (C) 2005-2007 Linux Networx (http://lnxi.com)
+ *
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written Doug Thompson <norsk5@xmission.com>
+ * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
  *
  */
 
-#include <linux/module.h>
-#include <linux/sysdev.h>
 #include <linux/ctype.h>
 
 #include "edac_core.h"
@@ -661,21 +660,15 @@ static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 	return sprintf(data, "%u\n", PAGES_TO_MiB(total_pages));
 }
 
-struct mcidev_attribute {
-	struct attribute attr;
-	 ssize_t(*show) (struct mem_ctl_info *, char *);
-	 ssize_t(*store) (struct mem_ctl_info *, const char *, size_t);
-};
-
 #define to_mci(k) container_of(k, struct mem_ctl_info, edac_mci_kobj)
-#define to_mcidev_attr(a) container_of(a, struct mcidev_attribute, attr)
+#define to_mcidev_attr(a) container_of(a,struct mcidev_sysfs_attribute,attr)
 
 /* MCI show/store functions for top most object */
 static ssize_t mcidev_show(struct kobject *kobj, struct attribute *attr,
 			   char *buffer)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
-	struct mcidev_attribute *mcidev_attr = to_mcidev_attr(attr);
+	struct mcidev_sysfs_attribute *mcidev_attr = to_mcidev_attr(attr);
 
 	if (mcidev_attr->show)
 		return mcidev_attr->show(mem_ctl_info, buffer);
@@ -687,7 +680,7 @@ static ssize_t mcidev_store(struct kobject *kobj, struct attribute *attr,
 			    const char *buffer, size_t count)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
-	struct mcidev_attribute *mcidev_attr = to_mcidev_attr(attr);
+	struct mcidev_sysfs_attribute *mcidev_attr = to_mcidev_attr(attr);
 
 	if (mcidev_attr->store)
 		return mcidev_attr->store(mem_ctl_info, buffer, count);
@@ -701,7 +694,7 @@ static struct sysfs_ops mci_ops = {
 };
 
 #define MCIDEV_ATTR(_name,_mode,_show,_store)			\
-static struct mcidev_attribute mci_attr_##_name = {			\
+static struct mcidev_sysfs_attribute mci_attr_##_name = {			\
 	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show   = _show,					\
 	.store  = _store,					\
@@ -723,7 +716,7 @@ MCIDEV_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 MCIDEV_ATTR(sdram_scrub_rate, S_IRUGO | S_IWUSR, mci_sdram_scrub_rate_show,
 	    mci_sdram_scrub_rate_store);
 
-static struct mcidev_attribute *mci_attr[] = {
+static struct mcidev_sysfs_attribute *mci_attr[] = {
 	&mci_attr_reset_counters,
 	&mci_attr_mc_name,
 	&mci_attr_size_mb,
@@ -755,6 +748,34 @@ static struct kobj_type ktype_mci = {
 };
 
 #define EDAC_DEVICE_SYMLINK	"device"
+
+/*
+ * edac_create_driver_attributes
+ *	create MC driver specific attributes at the topmost level
+ *	directory of this mci instance.
+ */
+static int edac_create_driver_attributes(struct mem_ctl_info *mci)
+{
+	int err;
+	struct mcidev_sysfs_attribute *sysfs_attrib;
+
+	/* point to the start of the array and iterate over it
+	 * adding each attribute listed to this mci instance's kobject
+	 */
+	sysfs_attrib = mci->mc_driver_sysfs_attributes;
+
+	while (sysfs_attrib->attr.name != NULL) {
+		err = sysfs_create_file(&mci->edac_mci_kobj,
+					(struct attribute*) sysfs_attrib);
+		if (err) {
+			return err;
+		}
+
+		sysfs_attrib++;
+	}
+
+	return 0;
+}
 
 /*
  * Create a new Memory Controller kobject instance,
@@ -793,6 +814,15 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 				EDAC_DEVICE_SYMLINK);
 	if (err)
 		goto fail0;
+
+	/* If the low level driver desires some attributes,
+	 * then create them now for the driver.
+	 */
+	if (mci->mc_driver_sysfs_attributes) {
+		err = edac_create_driver_attributes(mci);
+		if (err)
+			goto fail0;
+	}
 
 	/* Make directories for each CSROW object
 	 * under the mc<id> kobject
