@@ -63,6 +63,8 @@ SECTIONS
 		__stop___ex_table = .;
 	}
 
+	NOTES
+
 	BUG_TABLE
 
 /*
