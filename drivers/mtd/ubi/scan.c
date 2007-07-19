@@ -673,10 +673,6 @@ int ubi_scan_erase_peb(const struct ubi_device *ubi,
 	int err;
 	struct ubi_ec_hdr *ec_hdr;
 
-	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
-	if (!ec_hdr)
-		return -ENOMEM;
-
 	if ((long long)ec >= UBI_MAX_ERASECOUNTER) {
 		/*
 		 * Erase counter overflow. Upgrade UBI and use 64-bit
@@ -685,6 +681,10 @@ int ubi_scan_erase_peb(const struct ubi_device *ubi,
 		ubi_err("erase counter overflow at PEB %d, EC %d", pnum, ec);
 		return -EINVAL;
 	}
+
+	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	if (!ec_hdr)
+		return -ENOMEM;
 
 	ec_hdr->ec = cpu_to_be64(ec);
 
