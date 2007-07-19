@@ -292,8 +292,8 @@ static void edac_device_ctrl_instance_release(struct kobject *kobj)
 /* instance specific attribute structure */
 struct instance_attribute {
 	struct attribute attr;
-	 ssize_t(*show) (struct edac_device_instance *, char *);
-	 ssize_t(*store) (struct edac_device_instance *, const char *, size_t);
+	ssize_t(*show) (struct edac_device_instance *, char *);
+	ssize_t(*store) (struct edac_device_instance *, const char *, size_t);
 };
 
 /* Function to 'show' fields from the edac_dev 'instance' structure */
@@ -540,9 +540,8 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 	for (i = 0; i < instance->nr_blocks; i++) {
 		err = edac_device_create_block(edac_dev, instance, i);
 		if (err) {
-			for (j = 0; j < i; j++) {
+			for (j = 0; j < i; j++)
 				edac_device_delete_block(edac_dev, instance, j);
-			}
 			return err;
 		}
 	}
@@ -566,9 +565,8 @@ static void edac_device_delete_instance(struct edac_device_ctl_info *edac_dev,
 	instance = &edac_dev->instances[idx];
 
 	/* unregister all blocks in this instance */
-	for (i = 0; i < instance->nr_blocks; i++) {
+	for (i = 0; i < instance->nr_blocks; i++)
 		edac_device_delete_block(edac_dev, instance, i);
-	}
 
 	/* unregister this instance's kobject */
 	init_completion(&instance->kobj_complete);
@@ -593,9 +591,8 @@ static int edac_device_create_instances(struct edac_device_ctl_info *edac_dev)
 		err = edac_device_create_instance(edac_dev, i);
 		if (err) {
 			/* unwind previous instances on error */
-			for (j = 0; j < i; j++) {
+			for (j = 0; j < i; j++)
 				edac_device_delete_instance(edac_dev, j);
-			}
 			return err;
 		}
 	}
@@ -612,9 +609,8 @@ static void edac_device_delete_instances(struct edac_device_ctl_info *edac_dev)
 	int i;
 
 	/* iterate over creation of the instances */
-	for (i = 0; i < edac_dev->nr_instances; i++) {
+	for (i = 0; i < edac_dev->nr_instances; i++)
 		edac_device_delete_instance(edac_dev, i);
-	}
 }
 
 /******************* edac_dev sysfs ctor/dtor  code *************/
@@ -637,9 +633,8 @@ static int edac_device_add_sysfs_attributes(
 	while (sysfs_attrib->attr.name != NULL) {
 		err = sysfs_create_file(&edac_dev->kobj,
 				(struct attribute*) sysfs_attrib);
-		if (err) {
+		if (err)
 			return err;
-		}
 
 		sysfs_attrib++;
 	}
@@ -696,9 +691,8 @@ int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev)
 
 	/* Create the first level instance directories */
 	err = edac_device_create_instances(edac_dev);
-	if (err) {
+	if (err)
 		goto err_remove_link;
-	}
 
 	return 0;
 

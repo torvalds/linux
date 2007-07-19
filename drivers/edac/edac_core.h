@@ -470,8 +470,6 @@ struct edac_device_counter {
 	u32 ce_count;
 };
 
-#define INC_COUNTER(cnt)	(cnt++)
-
 /*
  * An array of these is passed to the alloc() function
  * to specify attributes of the edac_block
@@ -631,15 +629,6 @@ struct edac_device_ctl_info {
 
 #define to_edac_device_ctl_work(w) \
 		container_of(w,struct edac_device_ctl_info,work)
-
-/* Function to calc the number of delay jiffies from poll_msec */
-static inline void edac_device_calc_delay(struct edac_device_ctl_info *edac_dev)
-{
-	/* convert from msec to jiffies */
-	edac_dev->delay = edac_dev->poll_msec * HZ / 1000;
-}
-
-#define edac_calc_delay(dev) dev->delay = dev->poll_msec * HZ / 1000;
 
 /*
  * The alloc() and free() functions for the 'edac_device' control info
