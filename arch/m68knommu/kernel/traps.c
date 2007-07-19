@@ -62,8 +62,6 @@ static char const * const vec_names[] = {
 
 void __init trap_init(void)
 {
-	if (mach_trap_init)
-		mach_trap_init();
 }
 
 void die_if_kernel(char *str, struct pt_regs *fp, int nr)

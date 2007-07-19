@@ -1,7 +1,7 @@
 /*
  *  linux/arch/m68knommu/platform/5307/entry.S
  *
- *  Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
+ *  Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                      Kenneth Albanowski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
@@ -155,34 +155,21 @@ Lsignal_return:
 
 /*
  * This is the generic interrupt handler (for all hardware interrupt
- * sources). It figures out the vector number and calls the appropriate
- * interrupt service routine directly.
+ * sources). Calls upto high level code to do all the work.
  */
 ENTRY(inthandler)
 	SAVE_ALL
 	moveq	#-1,%d0
 	movel	%d0,%sp@(PT_ORIG_D0)
-	addql	#1,local_irq_count
 
 	movew	%sp@(PT_FORMATVEC),%d0	/* put exception # in d0 */
 	andl	#0x03fc,%d0		/* mask out vector only */
 
-	leal	per_cpu__kstat+STAT_IRQ,%a0
-	addql	#1,%a0@(%d0)
-
+	movel	%sp,%sp@-		/* push regs arg */
 	lsrl	#2,%d0			/* calculate real vector # */
-	movel	%d0,%d1			/* calculate array offset */
-	lsll	#4,%d1
-	lea	irq_list,%a0
-	addl	%d1,%a0			/* pointer to array struct */
-
-	movel	%sp,%sp@-		/* push regs arg onto stack */
-	movel	%a0@(8),%sp@-		/* push devid arg */
-	movel	%d0,%sp@-		/* push vector # on stack */
-
-	movel	%a0@,%a0		/* get function to call */
-	jbsr	%a0@			/* call vector handler */
-	lea	%sp@(12),%sp		/* pop parameters off stack */
+	movel	%d0,%sp@-		/* push vector number */
+	jbsr	do_IRQ			/* call high level irq handler */
+	lea	%sp@(8),%sp		/* pop args off stack */
 
 	bra	ret_from_interrupt	/* this was fallthrough */
 
@@ -198,24 +185,15 @@ ENTRY(fasthandler)
 	movew	%sp@(PT_FORMATVEC),%d0
 	andl	#0x03fc,%d0		/* mask out vector only */
 
-	leal	per_cpu__kstat+STAT_IRQ,%a0
-	addql	#1,%a0@(%d0)
-
-	movel	%sp,%sp@-		/* push regs arg onto stack */
-	clrl	%sp@-			/* push devid arg */
+	movel	%sp,%sp@-		/* push regs arg */
 	lsrl	#2,%d0			/* calculate real vector # */
-	movel	%d0,%sp@-		/* push vector # on stack */
-
-	lsll	#4,%d0			/* adjust for array offset */
-	lea	irq_list,%a0
-	movel	%a0@(%d0),%a0		/* get function to call */
-	jbsr	%a0@			/* call vector handler */
-	lea	%sp@(12),%sp		/* pop parameters off stack */
+	movel	%d0,%sp@-		/* push vector number */
+	jbsr	do_IRQ			/* call high level irq handler */
+	lea	%sp@(8),%sp		/* pop args off stack */
 
 	RESTORE_LOCAL
 
 ENTRY(ret_from_interrupt)
-	subql	#1,local_irq_count
 	jeq	2f
 1:
 	RESTORE_ALL

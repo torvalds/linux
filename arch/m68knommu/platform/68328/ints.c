@@ -9,21 +9,14 @@
  * Copyright 1999 D. Jeff Dionne <jeff@rt-control.com>
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/kernel_stat.h>
-#include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
-
-#include <asm/system.h>
-#include <asm/irq.h>
-#include <asm/irqnode.h>
+#include <linux/irq.h>
 #include <asm/traps.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/setup.h>
 
 #if defined(CONFIG_M68328)
 #include <asm/MC68328.h>
@@ -79,16 +72,12 @@ extern e_vector *_ramvec;
 
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
-unsigned int local_irq_count[NR_CPUS];
-
-/* irq node variables for the 32 (potential) on chip sources */
-static irq_node_t int_irq_list[NR_IRQS];
 
 /*
  * This function should be called during kernel startup to initialize
- * the IRQ handling routines.
+ * the machine vector table.
  */
-void init_IRQ(void)
+void __init init_vectors(void)
 {
 	int i;
 
@@ -108,94 +97,8 @@ void init_IRQ(void)
  
 	IVR = 0x40; /* Set DragonBall IVR (interrupt base) to 64 */
 
-	/* initialize handlers */
-	for (i = 0; i < NR_IRQS; i++) {
-		int_irq_list[i].handler = bad_interrupt;
-		int_irq_list[i].flags   = IRQ_FLG_STD;
-		int_irq_list[i].dev_id  = NULL;
-		int_irq_list[i].devname = NULL;
-	}
-
 	/* turn off all interrupts */
 	IMR = ~0;
-}
-
-int request_irq(
-	unsigned int irq,
-	irq_handler_t handler,
-	unsigned long flags,
-	const char *devname,
-	void *dev_id)
-{
-	if (irq >= NR_IRQS) {
-		printk (KERN_ERR "%s: Unknown IRQ %d from %s\n", __FUNCTION__, irq, devname);
-		return -ENXIO;
-	}
-
-	if (!(int_irq_list[irq].flags & IRQ_FLG_STD)) {
-		if (int_irq_list[irq].flags & IRQ_FLG_LOCK) {
-			printk(KERN_ERR "%s: IRQ %d from %s is not replaceable\n",
-			       __FUNCTION__, irq, int_irq_list[irq].devname);
-			return -EBUSY;
-		}
-		if (flags & IRQ_FLG_REPLACE) {
-			printk(KERN_ERR "%s: %s can't replace IRQ %d from %s\n",
-			       __FUNCTION__, devname, irq, int_irq_list[irq].devname);
-			return -EBUSY;
-		}
-	}
-
-	int_irq_list[irq].handler = handler;
-	int_irq_list[irq].flags   = flags;
-	int_irq_list[irq].dev_id  = dev_id;
-	int_irq_list[irq].devname = devname;
-
-	IMR &= ~(1<<irq);
-
-	return 0;
-}
-
-EXPORT_SYMBOL(request_irq);
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	if (irq >= NR_IRQS) {
-		printk (KERN_ERR "%s: Unknown IRQ %d\n", __FUNCTION__, irq);
-		return;
-	}
-
-	if (int_irq_list[irq].dev_id != dev_id)
-		printk(KERN_INFO "%s: removing probably wrong IRQ %d from %s\n",
-		       __FUNCTION__, irq, int_irq_list[irq].devname);
-
-	int_irq_list[irq].handler = bad_interrupt;
-	int_irq_list[irq].flags   = IRQ_FLG_STD;
-	int_irq_list[irq].dev_id  = NULL;
-	int_irq_list[irq].devname = NULL;
-
-	IMR |= 1<<irq;
-}
-
-EXPORT_SYMBOL(free_irq);
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v;
-
-	if (i < NR_IRQS) {
-		if (int_irq_list[i].devname) {
-			seq_printf(p, "%3d: %10u ", i, kstat_cpu(0).irqs[i]);
-			if (int_irq_list[i].flags & IRQ_FLG_LOCK)
-				seq_printf(p, "L ");
-			else
-				seq_printf(p, "  ");
-			seq_printf(p, "%s\n", int_irq_list[i].devname);
-		}
-	}
-	if (i == NR_IRQS)
-		seq_printf(p, "   : %10u   spurious\n", num_spurious);
-
-	return 0;
 }
 
 /* The 68k family did not have a good way to determine the source
@@ -255,14 +158,23 @@ void process_int(int vec, struct pt_regs *fp)
 			irq++;
 		}
 
-		kstat_cpu(0).irqs[irq]++;
-
-		if (int_irq_list[irq].handler) {
-			int_irq_list[irq].handler(irq, int_irq_list[irq].dev_id, fp);
-		} else {
-			printk(KERN_ERR "unregistered interrupt %d!\nTurning it off in the IMR...\n", irq);
-			IMR |= mask;
-		}
+		do_IRQ(irq, fp);
 		pend &= ~mask;
 	}
 }
+
+void enable_vector(unsigned int irq)
+{
+	IMR &= ~(1<<irq);
+}
+
+void disable_vector(unsigned int irq)
+{
+	IMR |= (1<<irq);
+}
+
+void ack_vector(unsigned int irq)
+{
+	/* Nothing needed */
+}
+

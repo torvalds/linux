@@ -15,7 +15,6 @@
 #include <linux/hardirq.h>
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
-#include <asm/irqnode.h>
 #include <asm/thread_info.h>
 
 #define DEFINE(sym, val) \
@@ -72,10 +71,6 @@ int main(void)
 #else
 	/* bitfields are a bit difficult */
 	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) + 4);
-	/* offsets into the irq_handler struct */
-	DEFINE(IRQ_HANDLER, offsetof(struct irq_node, handler));
-	DEFINE(IRQ_DEVID, offsetof(struct irq_node, dev_id));
-	DEFINE(IRQ_NEXT, offsetof(struct irq_node, next));
 #endif
 
 	/* offsets into the kernel_stat struct */
