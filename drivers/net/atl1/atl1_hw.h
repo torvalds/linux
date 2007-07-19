@@ -680,11 +680,6 @@ void atl1_check_options(struct atl1_adapter *adapter);
 #define AUTONEG_ADVERTISE_10_100_ALL	0x000F	/* All 10/100 speeds */
 #define AUTONEG_ADVERTISE_10_ALL	0x0003	/* 10Mbps Full & Half speeds */
 
-/* The size (in bytes) of a ethernet packet */
-#define ENET_HEADER_SIZE		14
-#define MAXIMUM_ETHERNET_FRAME_SIZE	1518	/* with FCS */
-#define MINIMUM_ETHERNET_FRAME_SIZE	64	/* with FCS */
-#define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x2800
 
 #define PHY_AUTO_NEG_TIME	45	/* 4.5 Seconds */

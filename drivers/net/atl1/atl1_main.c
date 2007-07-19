@@ -59,6 +59,7 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/if_ether.h>
 #include <linux/irqreturn.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
@@ -120,8 +121,8 @@ static int __devinit atl1_sw_init(struct atl1_adapter *adapter)
 	struct atl1_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
-	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
-	hw->min_frame_size = MINIMUM_ETHERNET_FRAME_SIZE;
+	hw->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	hw->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	adapter->wol = 0;
 	adapter->rx_buffer_len = (hw->max_frame_size + 7) & ~7;
@@ -688,9 +689,9 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	int old_mtu = netdev->mtu;
-	int max_frame = new_mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	if ((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
+	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
 		dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
 		return -EINVAL;
@@ -1337,7 +1338,7 @@ rrd_ok:
 		skb = buffer_info->skb;
 		length = le16_to_cpu(rrd->xsz.xsum_sz.pkt_size);
 
-		skb_put(skb, length - ETHERNET_FCS_SIZE);
+		skb_put(skb, length - ETH_FCS_LEN);
 
 		/* Receive Checksum Offload */
 		atl1_rx_checksum(adapter, rrd, skb);
@@ -1456,7 +1457,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
 				iph->daddr, 0, IPPROTO_TCP, 0);
 			ipofst = skb_network_offset(skb);
-			if (ipofst != ENET_HEADER_SIZE) /* 802.3 frame */
+			if (ipofst != ETH_HLEN) /* 802.3 frame */
 				tso->tsopl |= 1 << TSO_PARAM_ETHTYPE_SHIFT;
 
 			tso->tsopl |= (iph->ihl &
