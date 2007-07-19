@@ -1009,29 +1009,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
 
-static int bsg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	int ret;
-	struct scsi_device *sdp = to_scsi_device(cl_dev->dev);
-	struct request_queue *rq = sdp->request_queue;
-
-	if (rq->kobj.parent)
-		ret = bsg_register_queue(rq, kobject_name(rq->kobj.parent));
-	else
-		ret = bsg_register_queue(rq, kobject_name(&sdp->sdev_gendev.kobj));
-	return ret;
-}
-
-static void bsg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	bsg_unregister_queue(to_scsi_device(cl_dev->dev)->request_queue);
-}
-
-static struct class_interface bsg_intf = {
-	.add	= bsg_add,
-	.remove	= bsg_remove,
-};
-
 static struct cdev bsg_cdev = {
 	.kobj   = {.name = "bsg", },
 	.owner  = THIS_MODULE,
@@ -1069,16 +1046,9 @@ static int __init bsg_init(void)
 	if (ret)
 		goto unregister_chrdev;
 
-	ret = scsi_register_interface(&bsg_intf);
-	if (ret)
-		goto remove_cdev;
-
 	printk(KERN_INFO BSG_DESCRIPTION " version " BSG_VERSION
 	       " loaded (major %d)\n", bsg_major);
 	return 0;
-remove_cdev:
-	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
-	cdev_del(&bsg_cdev);
 unregister_chrdev:
 	unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
 destroy_bsg_class:
