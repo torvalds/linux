@@ -589,7 +589,30 @@ xfs_setattr(
 			code = xfs_igrow_start(ip, vap->va_size, credp);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		vn_iowait(vp); /* wait for the completion of any pending DIOs */
+
+		/*
+		 * We are going to log the inode size change in this
+		 * transaction so any previous writes that are beyond the on
+		 * disk EOF and the new EOF that have not been written out need
+		 * to be written here. If we do not write the data out, we
+		 * expose ourselves to the null files problem.
+		 *
+		 * Only flush from the on disk size to the smaller of the in
+		 * memory file size or the new size as that's the range we
+		 * really care about here and prevents waiting for other data
+		 * not within the range we care about here.
+		 */
+		if (!code &&
+		    (ip->i_size != ip->i_d.di_size) &&
+		    (vap->va_size > ip->i_d.di_size)) {
+			code = bhv_vop_flush_pages(XFS_ITOV(ip),
+					ip->i_d.di_size, vap->va_size,
+					XFS_B_ASYNC, FI_NONE);
+		}
+
+		/* wait for all I/O to complete */
+		vn_iowait(vp);
+
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
 		if (code) {
