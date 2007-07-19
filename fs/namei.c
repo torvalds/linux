@@ -1172,6 +1172,37 @@ int fastcall path_lookup(const char *name, unsigned int flags,
 	return do_path_lookup(AT_FDCWD, name, flags, nd);
 }
 
+/**
+ * vfs_path_lookup - lookup a file path relative to a dentry-vfsmount pair
+ * @dentry:  pointer to dentry of the base directory
+ * @mnt: pointer to vfs mount of the base directory
+ * @name: pointer to file name
+ * @flags: lookup flags
+ * @nd: pointer to nameidata
+ */
+int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
+		    const char *name, unsigned int flags,
+		    struct nameidata *nd)
+{
+	int retval;
+
+	/* same as do_path_lookup */
+	nd->last_type = LAST_ROOT;
+	nd->flags = flags;
+	nd->depth = 0;
+
+	nd->mnt = mntget(mnt);
+	nd->dentry = dget(dentry);
+
+	retval = path_walk(name, nd);
+	if (unlikely(!retval && !audit_dummy_context() && nd->dentry &&
+				nd->dentry->d_inode))
+		audit_inode(name, nd->dentry->d_inode);
+
+	return retval;
+
+}
+
 static int __path_lookup_intent_open(int dfd, const char *name,
 		unsigned int lookup_flags, struct nameidata *nd,
 		int open_flags, int create_mode)
@@ -2774,6 +2805,7 @@ EXPORT_SYMBOL(__page_symlink);
 EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
 EXPORT_SYMBOL(path_lookup);
+EXPORT_SYMBOL(vfs_path_lookup);
 EXPORT_SYMBOL(path_release);
 EXPORT_SYMBOL(path_walk);
 EXPORT_SYMBOL(permission);
