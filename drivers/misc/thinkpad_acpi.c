@@ -2853,6 +2853,8 @@ static int thermal_get_sensor(int idx, s32 *value)
 			snprintf(tmpi, sizeof(tmpi), "TMP%c", '0' + idx);
 			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
 				return -EIO;
+			if (t > 127 || t < -127)
+				t = TP_EC_THERMAL_TMP_NA;
 			*value = t * 1000;
 			return 0;
 		}
