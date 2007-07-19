@@ -37,9 +37,6 @@
 #include <linux/coda_cache.h>
 #include <linux/coda_proc.h> 
 
-#define upc_alloc() kmalloc(sizeof(struct upc_req), GFP_KERNEL)
-#define upc_free(r) kfree(r)
-
 static int coda_upcall(struct coda_sb_info *mntinfo, int inSize, int *outSize, 
 		       union inputArgs *buffer);
 
@@ -745,7 +742,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	}
 
 	/* Format the request message. */
-	req = upc_alloc();
+	req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
@@ -802,12 +799,12 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	}
 
 	error = -ENOMEM;
-	sig_req = upc_alloc();
+	sig_req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!sig_req) goto exit;
 
 	CODA_ALLOC((sig_req->uc_data), char *, sizeof(struct coda_in_hdr));
 	if (!sig_req->uc_data) {
-		upc_free(sig_req);
+		kfree(sig_req);
 		goto exit;
 	}
 
@@ -827,7 +824,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	wake_up_interruptible(&vcommp->vc_waitq);
 
 exit:
-	upc_free(req);
+	kfree(req);
 	return error;
 }
 
