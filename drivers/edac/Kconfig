@@ -88,6 +88,13 @@ config EDAC_I82875P
 	  Support for error detection and correction on the Intel
 	  DP82785P and E7210 server chipsets.
 
+config EDAC_I82975X
+	tristate "Intel 82975x (D82975x)"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  DP82975x server chipsets.
+
 config EDAC_I3000
 	tristate "Intel 3000/3010"
 	depends on EDAC_MM_EDAC && PCI && X86_32
