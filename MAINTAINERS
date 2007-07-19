@@ -1352,21 +1352,23 @@ S:	Supported
 
 EDAC-CORE
 P:	Doug Thompson
-M:	norsk5@xmission.com
+M:	dougthompson@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Supported
 
 EDAC-E752X
 P:	Mark Gross
+P:	Doug Thompson
 M:	mark.gross@intel.com
+M:	dougthompson@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
 EDAC-E7XXX
 P:	Doug Thompson
-M:	norsk5@xmission.com
+M:	dougthompson@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -1387,7 +1389,23 @@ S:	Maintained
 
 EDAC-I5000
 P:	Doug Thompson
-M:	norsk5@xmission.com
+M:	dougthompson@xmission.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-I82975X
+P:	Ranganathan Desikan
+P:	Arvind R.
+M:	rdesikan@jetzbroadband.com
+M:	arvind@acarlab.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-PASEMI
+P:	Egor Martovetsky
+M:	egor@pasemi.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
