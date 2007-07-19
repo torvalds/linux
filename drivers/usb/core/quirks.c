@@ -32,8 +32,16 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x03f0, 0x0701), .driver_info = USB_QUIRK_STRING_FETCH_255 },
 	/* Benq S2W 3300U */
 	{ USB_DEVICE(0x04a5, 0x20b0), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Canon, Inc. CanoScan N650U/N656U */
+	{ USB_DEVICE(0x04a9, 0x2206), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Canon, Inc. CanoScan N670U/N676U/LiDE 20 */
+	{ USB_DEVICE(0x04a9, 0x220d), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* old Cannon scanner */
+	{ USB_DEVICE(0x04a9, 0x2220), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Seiko Epson Corp. Perfection 1200 */
 	{ USB_DEVICE(0x04b8, 0x0104), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Seiko Epson Corp. Perfection 660 */
+	{ USB_DEVICE(0x04b8, 0x0114), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Seiko Epson Corp - Perfection 1670 */
 	{ USB_DEVICE(0x04b8, 0x011f), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Samsung ML-2510 Series printer */
@@ -42,6 +50,8 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x05cc, 0x2267), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Ultima Electronics Corp.*/
 	{ USB_DEVICE(0x05d8, 0x4005), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Agfa Snapscan1212u */
+	{ USB_DEVICE(0x06bd, 0x2061), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Umax [hex] Astra 3400U */
 	{ USB_DEVICE(0x1606, 0x0060), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
