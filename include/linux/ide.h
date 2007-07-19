@@ -1363,6 +1363,11 @@ extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
 int ide_use_fast_pio(ide_drive_t *);
 
+static inline int ide_dev_has_iordy(struct hd_driveid *id)
+{
+	return ((id->field_valid & 2) && (id->capability & 8)) ? 1 : 0;
+}
+
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
 typedef struct ide_pio_timings_s {
@@ -1374,7 +1379,6 @@ typedef struct ide_pio_timings_s {
 
 typedef struct ide_pio_data_s {
 	u8 pio_mode;
-	u8 use_iordy;
 	unsigned int cycle_time;
 } ide_pio_data_t;
 

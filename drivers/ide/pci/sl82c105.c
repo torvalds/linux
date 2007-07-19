@@ -52,9 +52,10 @@
  * Convert a PIO mode and cycle time to the required on/off times
  * for the interface.  This has protection against runaway timings.
  */
-static unsigned int get_pio_timings(ide_pio_data_t *p)
+static unsigned int get_pio_timings(ide_drive_t *drive, ide_pio_data_t *p)
 {
 	unsigned int cmd_on, cmd_off;
+	u8 iordy = 0;
 
 	cmd_on  = (ide_pio_timings[p->pio_mode].active_time + 29) / 30;
 	cmd_off = (p->cycle_time - 30 * cmd_on + 29) / 30;
@@ -65,7 +66,10 @@ static unsigned int get_pio_timings(ide_pio_data_t *p)
 	if (cmd_off == 0)
 		cmd_off = 1;
 
-	return (cmd_on - 1) << 8 | (cmd_off - 1) | (p->use_iordy ? 0x40 : 0x00);
+	if (p->pio_mode > 2 || ide_dev_has_iordy(drive->id))
+		iordy = 0x40;
+
+	return (cmd_on - 1) << 8 | (cmd_off - 1) | iordy;
 }
 
 /*
@@ -82,7 +86,7 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 
 	pio = ide_get_best_pio_mode(drive, pio, 5, &p);
 
-	drv_ctrl = get_pio_timings(&p);
+	drv_ctrl = get_pio_timings(drive, &p);
 
 	/*
 	 * Store the PIO timings so that we can restore them

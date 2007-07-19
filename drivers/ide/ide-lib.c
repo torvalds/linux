@@ -267,18 +267,15 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 {
 	int pio_mode;
 	int cycle_time = 0;
-	int use_iordy = 0;
 	struct hd_driveid* id = drive->id;
 	int overridden  = 0;
 
 	if (mode_wanted != 255) {
 		pio_mode = mode_wanted;
-		use_iordy = (pio_mode > 2);
 	} else if (!drive->id) {
 		pio_mode = 0;
 	} else if ((pio_mode = ide_scan_pio_blacklist(id->model)) != -1) {
 		printk(KERN_INFO "%s: is on PIO blacklist\n", drive->name);
-		use_iordy = (pio_mode > 2);
 	} else {
 		pio_mode = id->tPIO;
 		if (pio_mode > 2) {	/* 2 is maximum allowed tPIO value */
@@ -286,8 +283,7 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 			overridden = 1;
 		}
 		if (id->field_valid & 2) {	  /* drive implements ATA2? */
-			if (id->capability & 8) { /* drive supports use_iordy? */
-				use_iordy = 1;
+			if (id->capability & 8) { /* IORDY supported? */
 				cycle_time = id->eide_pio_iordy;
 				if (id->eide_pio_modes & 7) {
 					overridden = 0;
@@ -325,7 +321,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 	if (d) {
 		d->pio_mode = pio_mode;
 		d->cycle_time = cycle_time ? cycle_time : ide_pio_timings[pio_mode].cycle_time;
-		d->use_iordy = use_iordy;
 	}
 	return pio_mode;
 }
