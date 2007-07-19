@@ -33,23 +33,3 @@ unsigned long kernel_map(unsigned long paddr, unsigned long size,
 	return paddr;
 }
 
-
-int is_in_rom(unsigned long addr)
-{
-	extern unsigned long _ramstart, _ramend;
-
-	/*
-	 *	What we are really trying to do is determine if addr is
-	 *	in an allocated kernel memory region. If not then assume
-	 *	we cannot free it or otherwise de-allocate it. Ideally
-	 *	we could restrict this to really being in a ROM or flash,
-	 *	but that would need to be done on a board by board basis,
-	 *	not globally.
-	 */
-	if ((addr < _ramstart) || (addr >= _ramend))
-		return(1);
-
-	/* Default case, not in ROM */
-	return(0);
-}
-
