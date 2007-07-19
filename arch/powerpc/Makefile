@@ -201,6 +201,14 @@ checkbin:
 			false; \
 		fi ; \
 	fi
+	@if test "$(call cc-fullversion)" = "040200" \
+	    && test "x${CONFIG_MODULES}${CONFIG_PPC64}" = "xyy" ; then \
+		echo -n '*** GCC-4.2.0 cannot compile the 64-bit powerpc ' ; \
+		echo 'kernel with modules enabled.' ; \
+		echo -n '*** Please use a different GCC version or ' ; \
+		echo 'disable kernel modules' ; \
+		false ; \
+	fi
 	@if ! /bin/echo dssall | $(AS) -many -o $(TOUT) >/dev/null 2>&1 ; then \
 		echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build ' ; \
 		echo 'correctly with old versions of binutils.' ; \

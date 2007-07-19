@@ -66,4 +66,4 @@ static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 }
 #endif
 
-struct genapic apic_es7000 = APIC_INIT("es7000", probe_es7000);
+struct genapic __initdata_refok apic_es7000 = APIC_INIT("es7000", probe_es7000);

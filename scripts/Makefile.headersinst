@@ -11,13 +11,13 @@ UNIFDEF := scripts/unifdef -U__KERNEL__
 
 # Eliminate the contents of (and inclusions of) compiler.h
 HDRSED  := sed 	-e "s/ inline / __inline__ /g" \
-		-e "s/[[:space:]]__user[[:space:]]\+/ /g" \
-		-e "s/(__user[[:space:]]\+/ (/g" \
-		-e "s/[[:space:]]__force[[:space:]]\+/ /g" \
-		-e "s/(__force[[:space:]]\+/ (/g" \
-		-e "s/[[:space:]]__iomem[[:space:]]\+/ /g" \
-		-e "s/(__iomem[[:space:]]\+/ (/g" \
-		-e "s/[[:space:]]__attribute_const__[[:space:]]\+/\ /g" \
+		-e "s/[[:space:]]__user[[:space:]]\{1,\}/ /g" \
+		-e "s/(__user[[:space:]]\{1,\}/ (/g" \
+		-e "s/[[:space:]]__force[[:space:]]\{1,\}/ /g" \
+		-e "s/(__force[[:space:]]\{1,\}/ (/g" \
+		-e "s/[[:space:]]__iomem[[:space:]]\{1,\}/ /g" \
+		-e "s/(__iomem[[:space:]]\{1,\}/ (/g" \
+		-e "s/[[:space:]]__attribute_const__[[:space:]]\{1,\}/\ /g" \
 		-e "s/[[:space:]]__attribute_const__$$//" \
 		-e "/^\#include <linux\/compiler.h>/d"
 
