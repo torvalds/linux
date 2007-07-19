@@ -46,7 +46,7 @@ MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
 
-char netxen_nic_driver_name[] = "netxen-nic";
+char netxen_nic_driver_name[] = "netxen_nic";
 static char netxen_nic_driver_string[] = "NetXen Network Driver version "
     NETXEN_NIC_LINUX_VERSIONID;
 
@@ -640,6 +640,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETXEN_CRB_NORMALIZE(adapter,
 				NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
 		/* Handshake with the card before we register the devices. */
+		writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+		netxen_pinit_from_rom(adapter, 0);
+		msleep(1);
+		netxen_load_firmware(adapter);
 		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	}
 
@@ -782,19 +786,18 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	if (adapter->portnum == 0) {
 		if (init_firmware_done) {
-			dma_watchdog_shutdown_request(adapter);
-			msleep(100);
 			i = 100;
-			while ((dma_watchdog_shutdown_poll_result(adapter) != 1) && i) {
-				printk(KERN_INFO "dma_watchdog_shutdown_poll still in progress\n");
+			do {
+				if (dma_watchdog_shutdown_request(adapter) == 1)
+					break;
 				msleep(100);
-				i--;
-			}
+				if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+					break;
+			} while (--i);
 
-			if (i == 0) {
-				printk(KERN_ERR "dma_watchdog_shutdown_request failed\n");
-				return;
-			}
+			if (i == 0)
+				printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+						netdev->name);
 
 			/* clear the register for future unloads/loads */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
@@ -803,11 +806,9 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 			/* leave the hw in the same state as reboot */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-			if (netxen_pinit_from_rom(adapter, 0))
-				return;
+			netxen_pinit_from_rom(adapter, 0);
 			msleep(1);
-			if (netxen_load_firmware(adapter))
-				return;
+			netxen_load_firmware(adapter);
 			netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 		}
 
@@ -816,22 +817,21 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		printk(KERN_INFO "State: 0x%0x\n",
 			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
 
-		dma_watchdog_shutdown_request(adapter);
-		msleep(100);
 		i = 100;
-		while ((dma_watchdog_shutdown_poll_result(adapter) != 1) && i) {
-			printk(KERN_INFO "dma_watchdog_shutdown_poll still in progress\n");
+		do {
+			if (dma_watchdog_shutdown_request(adapter) == 1)
+				break;
 			msleep(100);
-			i--;
-		}
+			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+				break;
+		} while (--i);
 
 		if (i) {
 			netxen_free_adapter_offload(adapter);
 		} else {
-			printk(KERN_ERR "failed to dma shutdown\n");
-			return;
+			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+					netdev->name);
 		}
-
 	}
 
 	iounmap(adapter->ahw.db_base);

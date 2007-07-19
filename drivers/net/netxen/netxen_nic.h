@@ -1179,8 +1179,7 @@ dma_watchdog_shutdown_poll_result(struct netxen_adapter *adapter)
 	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
 		printk(KERN_ERR "failed to read dma watchdog status\n");
 
-	return ((netxen_get_dma_watchdog_enabled(ctrl) == 0) &&
-		(netxen_get_dma_watchdog_disabled(ctrl) == 0));
+	return (netxen_get_dma_watchdog_enabled(ctrl) == 0);
 }
 
 static inline int
