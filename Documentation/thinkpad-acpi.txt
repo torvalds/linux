@@ -710,23 +710,15 @@ Temperature sensors
 procfs: /proc/acpi/ibm/thermal
 sysfs device attributes: (hwmon) temp*_input
 
-Most ThinkPads include six or more separate temperature sensors but
-only expose the CPU temperature through the standard ACPI methods.
-This feature shows readings from up to eight different sensors on older
-ThinkPads, and it has experimental support for up to sixteen different
-sensors on newer ThinkPads.
-
-EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
-implementation directly accesses hardware registers and may not work as
-expected. USE WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.  When EXPERIMENTAL
-mode is enabled, reading the first 8 sensors on newer ThinkPads will
-also use an new experimental thermal sensor access mode.
+Most ThinkPads include six or more separate temperature sensors but only
+expose the CPU temperature through the standard ACPI methods.  This
+feature shows readings from up to eight different sensors on older
+ThinkPads, and up to sixteen different sensors on newer ThinkPads.
 
 For example, on the X40, a typical output may be:
 temperatures:   42 42 45 41 36 -128 33 -128
 
-EXPERIMENTAL: On the T43/p, a typical output may be:
+On the T43/p, a typical output may be:
 temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
 
 The mapping of thermal sensors to physical locations varies depending on
