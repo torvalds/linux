@@ -13,8 +13,9 @@ menuconfig EDAC
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
-	  supporting chipset: memory errors, cache errors, PCI errors,
-	  thermal throttling, etc..  If unsure, select 'Y'.
+	  supporting chipset or other subsystems:
+	  memory errors, cache errors, PCI errors, thermal throttling, etc..
+	  If unsure, select 'Y'.
 
 	  If this code is reporting problems on your system, please
 	  see the EDAC project web pages for more information at:
