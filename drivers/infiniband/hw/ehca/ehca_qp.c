@@ -363,10 +363,11 @@ init_qp_queue1:
  * the value of the is_srq parameter. If init_attr and srq_init_attr share
  * fields, the field out of init_attr is used.
  */
-struct ehca_qp *internal_create_qp(struct ib_pd *pd,
-				   struct ib_qp_init_attr *init_attr,
-				   struct ib_srq_init_attr *srq_init_attr,
-				   struct ib_udata *udata, int is_srq)
+static struct ehca_qp *internal_create_qp(
+	struct ib_pd *pd,
+	struct ib_qp_init_attr *init_attr,
+	struct ib_srq_init_attr *srq_init_attr,
+	struct ib_udata *udata, int is_srq)
 {
 	struct ehca_qp *my_qp;
 	struct ehca_pd *my_pd = container_of(pd, struct ehca_pd, ib_pd);
@@ -752,8 +753,8 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	return IS_ERR(ret) ? (struct ib_qp *)ret : &ret->ib_qp;
 }
 
-int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
-			struct ib_uobject *uobject);
+static int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
+			       struct ib_uobject *uobject);
 
 struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 			       struct ib_srq_init_attr *srq_init_attr,
@@ -1669,8 +1670,8 @@ query_srq_exit1:
 	return ret;
 }
 
-int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
-			struct ib_uobject *uobject)
+static int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
+			       struct ib_uobject *uobject)
 {
 	struct ehca_shca *shca = container_of(dev, struct ehca_shca, ib_device);
 	struct ehca_pd *my_pd = container_of(my_qp->ib_qp.pd, struct ehca_pd,
