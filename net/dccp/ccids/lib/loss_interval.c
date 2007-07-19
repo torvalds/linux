@@ -227,7 +227,7 @@ void dccp_li_update_li(struct sock *sk,
 		       struct list_head *li_hist_list,
 		       struct list_head *hist_list,
 		       struct timeval *last_feedback, u16 s, u32 bytes_recv,
-                       u32 previous_x_recv, u64 seq_loss, u8 win_loss)
+		       u32 previous_x_recv, u64 seq_loss, u8 win_loss)
 {
 	struct dccp_li_hist_entry *head;
 	u64 seq_temp;
