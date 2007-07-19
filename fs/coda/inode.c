@@ -83,7 +83,7 @@ void coda_destroy_inodecache(void)
 
 static int coda_remount(struct super_block *sb, int *flags, char *data)
 {
-	*flags |= MS_NODIRATIME;
+	*flags |= MS_NOATIME;
 	return 0;
 }
 
@@ -176,12 +176,12 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi->sbi_vcomm = vc;
 
-        sb->s_fs_info = sbi;
-	sb->s_flags |= MS_NODIRATIME; /* probably even noatime */
-        sb->s_blocksize = 1024;	/* XXXXX  what do we put here?? */
-        sb->s_blocksize_bits = 10;
-        sb->s_magic = CODA_SUPER_MAGIC;
-        sb->s_op = &coda_super_operations;
+	sb->s_fs_info = sbi;
+	sb->s_flags |= MS_NOATIME;
+	sb->s_blocksize = 4096;	/* XXXXX  what do we put here?? */
+	sb->s_blocksize_bits = 12;
+	sb->s_magic = CODA_SUPER_MAGIC;
+	sb->s_op = &coda_super_operations;
 
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
@@ -296,7 +296,7 @@ static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/* and fill in the rest */
 	buf->f_type = CODA_SUPER_MAGIC;
-	buf->f_bsize = 1024;
+	buf->f_bsize = 4096;
 	buf->f_namelen = CODA_MAXNAMLEN;
 
 	return 0; 
