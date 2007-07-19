@@ -28,6 +28,7 @@
  * Alter this version for the I5000 module when modifications are made
  */
 #define I5000_REVISION    " Ver: 2.0.12 " __DATE__
+#define EDAC_MOD_STR      "i5000_edac"
 
 #define i5000_printk(level, fmt, arg...) \
         edac_printk(level, "i5000", fmt, ##arg)
@@ -380,6 +381,8 @@ struct i5000_error_info {
 	u16 nrecmemb;		/* Non-Recoverable Mem log B */
 
 };
+
+static struct edac_pci_ctl_info *i5000_pci;
 
 /******************************************************************************
  *	i5000_get_error_info	Retrieve the hardware error information from
@@ -1375,6 +1378,17 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	i5000_clear_error(mci);
 
+	/* allocating generic PCI control info */
+	i5000_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!i5000_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	return 0;
 
 	/* Error exit unwinding stack */
@@ -1419,6 +1433,9 @@ static void __devexit i5000_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
+
+	if (i5000_pci)
+		edac_pci_release_generic_ctl(i5000_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

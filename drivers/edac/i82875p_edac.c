@@ -183,6 +183,8 @@ static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code has
 
 static int i82875p_registered = 1;
 
+static struct edac_pci_ctl_info *i82875p_pci;
+
 static void i82875p_get_error_info(struct mem_ctl_info *mci,
 				   struct i82875p_error_info *info)
 {
@@ -424,6 +426,17 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail1;
 	}
 
+	/* allocating generic PCI control info */
+	i82875p_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!i82875p_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 	return 0;
@@ -466,6 +479,9 @@ static void __devexit i82875p_remove_one(struct pci_dev *pdev)
 	struct i82875p_pvt *pvt = NULL;
 
 	debugf0("%s()\n", __func__);
+
+	if (i82875p_pci)
+		edac_pci_release_generic_ctl(i82875p_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

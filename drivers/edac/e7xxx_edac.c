@@ -144,6 +144,8 @@ struct e7xxx_error_info {
 	u32 dram_uelog_add;
 };
 
+static struct edac_pci_ctl_info *e7xxx_pci;
+
 static const struct e7xxx_dev_info e7xxx_devs[] = {
 	[E7500] = {
 		   .err_dev = PCI_DEVICE_ID_INTEL_7500_1_ERR,
@@ -481,6 +483,17 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail1;
 	}
 
+	/* allocating generic PCI control info */
+	e7xxx_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!e7xxx_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 	return 0;
@@ -511,6 +524,9 @@ static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 	struct e7xxx_pvt *pvt;
 
 	debugf0("%s()\n", __func__);
+
+	if (e7xxx_pci)
+		edac_pci_release_generic_ctl(e7xxx_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

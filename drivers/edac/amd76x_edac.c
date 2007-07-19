@@ -91,6 +91,8 @@ static const struct amd76x_dev_info amd76x_devs[] = {
 		    .ctl_name = "AMD762"},
 };
 
+static struct edac_pci_ctl_info *amd76x_pci;
+
 /**
  *	amd76x_get_error_info	-	fetch error information
  *	@mci: Memory controller
@@ -266,6 +268,17 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
+	/* allocating generic PCI control info */
+	amd76x_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!amd76x_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 	return 0;
@@ -298,6 +311,9 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 
 	debugf0("%s()\n", __func__);
+
+	if (amd76x_pci)
+		edac_pci_release_generic_ctl(amd76x_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

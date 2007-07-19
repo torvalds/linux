@@ -111,6 +111,8 @@ struct i82443bxgx_edacmc_error_info {
 	u32 eap;
 };
 
+static struct edac_pci_ctl_info *i82443bxgx_pci;
+
 static void i82443bxgx_edacmc_get_error_info(struct mem_ctl_info *mci,
 					     struct i82443bxgx_edacmc_error_info
 					     *info)
@@ -316,6 +318,17 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
+	/* allocating generic PCI control info */
+	i82443bxgx_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!i82443bxgx_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
 	return 0;
 
@@ -341,6 +354,9 @@ static void __devexit i82443bxgx_edacmc_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
+
+	if (i82443bxgx_pci)
+		edac_pci_release_generic_ctl(i82443bxgx_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

@@ -60,6 +60,7 @@ static const struct i82860_dev_info i82860_devs[] = {
 static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
 					 * has already registered driver
 					 */
+static struct edac_pci_ctl_info *i82860_pci;
 
 static void i82860_get_error_info(struct mem_ctl_info *mci,
 				  struct i82860_error_info *info)
@@ -213,6 +214,17 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
+	/* allocating generic PCI control info */
+	i82860_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!i82860_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 
@@ -248,6 +260,9 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 
 	debugf0("%s()\n", __func__);
+
+	if (i82860_pci)
+		edac_pci_release_generic_ctl(i82860_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;

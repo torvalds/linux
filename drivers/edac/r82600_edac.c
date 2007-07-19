@@ -133,6 +133,8 @@ struct r82600_error_info {
 
 static unsigned int disable_hardware_scrub = 0;
 
+static struct edac_pci_ctl_info *r82600_pci;
+
 static void r82600_get_error_info(struct mem_ctl_info *mci,
 				  struct r82600_error_info *info)
 {
@@ -326,6 +328,17 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		pci_write_bits32(pdev, R82600_EAP, BIT(31), BIT(31));
 	}
 
+	/* allocating generic PCI control info */
+	r82600_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!r82600_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	debugf3("%s(): success\n", __func__);
 	return 0;
 
@@ -349,6 +362,9 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 
 	debugf0("%s()\n", __func__);
+
+	if (r82600_pci)
+		edac_pci_release_generic_ctl(r82600_pci);
 
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
