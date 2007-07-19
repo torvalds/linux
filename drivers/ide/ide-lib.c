@@ -277,7 +277,7 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 	} else if (!drive->id) {
 		pio_mode = 0;
 	} else if ((pio_mode = ide_scan_pio_blacklist(id->model)) != -1) {
-		overridden = 1;
+		printk(KERN_INFO "%s: is on PIO blacklist\n", drive->name);
 		use_iordy = (pio_mode > 2);
 	} else {
 		pio_mode = id->tPIO;
@@ -303,12 +303,17 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 			}
 		}
 
+		if (overridden)
+			printk(KERN_INFO "%s: tPIO > 2, assuming tPIO = 2\n",
+					 drive->name);
+
 		/*
 		 * Conservative "downgrade" for all pre-ATA2 drives
 		 */
 		if (pio_mode && pio_mode < 4) {
 			pio_mode--;
-			overridden = 1;
+			printk(KERN_INFO "%s: applying conservative "
+					 "PIO \"downgrade\"\n", drive->name);
 			if (cycle_time && cycle_time < ide_pio_timings[pio_mode].cycle_time)
 				cycle_time = 0; /* use standard timing */
 		}
@@ -321,7 +326,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		d->pio_mode = pio_mode;
 		d->cycle_time = cycle_time ? cycle_time : ide_pio_timings[pio_mode].cycle_time;
 		d->use_iordy = use_iordy;
-		d->overridden = overridden;
 	}
 	return pio_mode;
 }

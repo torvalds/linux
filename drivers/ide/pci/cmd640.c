@@ -665,13 +665,12 @@ static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 	(void) ide_get_best_pio_mode (drive, mode_wanted, 5, &d);
 	cmd640_set_mode (index, d.pio_mode, d.cycle_time);
 
-	printk ("%s: selected cmd640 PIO mode%d (%dns)%s",
+	printk("%s: selected cmd640 PIO mode%d (%dns)",
 		drive->name,
 		d.pio_mode,
-		d.cycle_time,
-		d.overridden ? " (overriding vendor mode)" : "");
+		d.cycle_time);
+
 	display_clocks(index);
-	return;
 }
 
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */

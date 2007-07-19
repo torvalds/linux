@@ -1375,7 +1375,6 @@ typedef struct ide_pio_timings_s {
 typedef struct ide_pio_data_s {
 	u8 pio_mode;
 	u8 use_iordy;
-	u8 overridden;
 	unsigned int cycle_time;
 } ide_pio_data_t;
 
