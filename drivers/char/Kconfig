@@ -185,7 +185,7 @@ config ESPSERIAL
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
 
@@ -241,7 +241,7 @@ config SYNCLINK
 
 config SYNCLINKMP
 	tristate "SyncLink Multiport support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && PCI
 	help
 	  Enable support for the SyncLink Multiport (2 or 4 ports)
 	  serial adapter, running asynchronous and HDLC communications up
