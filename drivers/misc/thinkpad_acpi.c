@@ -758,29 +758,7 @@ static u32 hotkey_orig_mask;
 static u32 hotkey_all_mask;
 static u32 hotkey_reserved_mask;
 
-static u16 hotkey_keycode_map[] = {
-	/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
-	KEY_FN_F1,	KEY_FN_F2,	KEY_FN_F3,	KEY_SLEEP,
-	KEY_FN_F5,	KEY_FN_F6,	KEY_FN_F7,	KEY_FN_F8,
-	KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
-	/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
-	KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
-	KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
-	KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
-	KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
-	/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
-	KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
-	KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
-	KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
-	KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
-	KEY_RESERVED,	/* 0x14: VOLUME UP */
-	KEY_RESERVED,	/* 0x15: VOLUME DOWN */
-	KEY_RESERVED,	/* 0x16: MUTE */
-	KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
-	/* (assignments unknown, please report if found) */
-	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-};
+static u16 *hotkey_keycode_map;
 
 static struct attribute_set *hotkey_dev_attributes;
 
@@ -939,6 +917,58 @@ static struct attribute *hotkey_mask_attributes[] = {
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
+
+	static u16 ibm_keycode_map[] __initdata = {
+		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
+		KEY_FN_F1,	KEY_FN_F2,	KEY_COFFEE,	KEY_SLEEP,
+		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
+		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
+		/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
+		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
+		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
+		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		/* (assignments unknown, please report if found) */
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	};
+	static u16 lenovo_keycode_map[] __initdata = {
+		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
+		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
+		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
+		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
+		/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
+		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
+		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		/* (assignments unknown, please report if found) */
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	};
+
+#define TPACPI_HOTKEY_MAP_LEN		ARRAY_SIZE(ibm_keycode_map)
+#define TPACPI_HOTKEY_MAP_SIZE		sizeof(ibm_keycode_map)
+#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(ibm_keycode_map[0])
+
 	int res, i;
 	int status;
 
@@ -1003,6 +1033,27 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		if (res)
 			return res;
 
+		/* Set up key map */
+
+		hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
+						GFP_KERNEL);
+		if (!hotkey_keycode_map) {
+			printk(IBM_ERR "failed to allocate memory for key map\n");
+			return -ENOMEM;
+		}
+
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+			dbg_printk(TPACPI_DBG_INIT,
+				   "using Lenovo default hot key map\n");
+			memcpy(hotkey_keycode_map, &lenovo_keycode_map,
+				TPACPI_HOTKEY_MAP_SIZE);
+		} else {
+			dbg_printk(TPACPI_DBG_INIT,
+				   "using IBM default hot key map\n");
+			memcpy(hotkey_keycode_map, &ibm_keycode_map,
+				TPACPI_HOTKEY_MAP_SIZE);
+		}
+
 #ifndef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
 		for (i = 0; i < 12; i++)
 			hotkey_keycode_map[i] = KEY_UNKNOWN;
@@ -1011,10 +1062,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		set_bit(EV_KEY, tpacpi_inputdev->evbit);
 		set_bit(EV_MSC, tpacpi_inputdev->evbit);
 		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
-		tpacpi_inputdev->keycodesize = sizeof(hotkey_keycode_map[0]);
-		tpacpi_inputdev->keycodemax = ARRAY_SIZE(hotkey_keycode_map);
-		tpacpi_inputdev->keycode = &hotkey_keycode_map;
-		for (i = 0; i < ARRAY_SIZE(hotkey_keycode_map); i++) {
+		tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
+		tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
+		tpacpi_inputdev->keycode = hotkey_keycode_map;
+		for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
 			if (hotkey_keycode_map[i] != KEY_RESERVED) {
 				set_bit(hotkey_keycode_map[i],
 					tpacpi_inputdev->keybit);
@@ -4618,7 +4669,9 @@ static int __init thinkpad_acpi_module_init(void)
 		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
 		tpacpi_inputdev->phys = IBM_DRVR_NAME "/input0";
 		tpacpi_inputdev->id.bustype = BUS_HOST;
-		tpacpi_inputdev->id.vendor = TPACPI_HKEY_INPUT_VENDOR;
+		tpacpi_inputdev->id.vendor = (thinkpad_id.vendor) ?
+						thinkpad_id.vendor :
+						PCI_VENDOR_ID_IBM;
 		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
 		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
 	}

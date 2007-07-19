@@ -270,7 +270,8 @@ remapping KEY_UNKNOWN keys.
 The events are available in an input device, with the following id:
 
 	Bus:		BUS_HOST
-	vendor:		0x1014 (PCI_VENDOR_ID_IBM)
+	vendor:		0x1014 (PCI_VENDOR_ID_IBM)  or
+			0x17aa (PCI_VENDOR_ID_LENOVO)
 	product:	0x5054 ("TP")
 	version:	0x4101
 
@@ -290,12 +291,15 @@ ACPI	Scan
 event	code	Key		Notes
 
 0x1001	0x00	FN+F1		-
-0x1002	0x01	FN+F2		-
+0x1002	0x01	FN+F2		IBM: battery (rare)
+				Lenovo: Screen lock
 
-0x1003	0x02	FN+F3		Many models always report this
-				hot key, even with hot keys
+0x1003	0x02	FN+F3		Many IBM models always report
+				this hot key, even with hot keys
 				disabled or with Fn+F3 masked
 				off
+				IBM: screen lock
+				Lenovo: battery
 
 0x1004	0x03	FN+F4		Sleep button (ACPI sleep button
 				semanthics, i.e. sleep-to-RAM).
@@ -313,13 +317,19 @@ event	code	Key		Notes
 				and W-WAN card if left in control
 				of the firmware.  Does not affect
 				the WLAN card.
+				Should be used to turn on/off all
+				radios (bluetooth+W-WAN+WLAN),
+				really.
 
 0x1006	0x05	FN+F6		-
 
 0x1007	0x06	FN+F7		Video output cycle.
 				Do you feel lucky today?
 
-0x1008	0x07	FN+F8		-
+0x1008	0x07	FN+F8		IBM: toggle screen expand
+				Lenovo: configure ultranav
+
+0x1009	0x08	FN+F9		-
 	..	..		..
 0x100B	0x0A	FN+F11		-
 
@@ -338,13 +348,15 @@ event	code	Key		Notes
 0x100F	0x0E	FN+DELETE	-
 
 0x1010	0x0F	FN+HOME		Brightness up.  This key is
-				always handled by the firmware,
-				even when unmasked.  Just leave
-				it alone.
-0x1011	0x10	FN+END		Brightness down. This key is
-				always handled by the firmware,
-				even when unmasked.  Just leave
-				it alone.
+				always handled by the firmware
+				in IBM ThinkPads, even when
+				unmasked.  Just leave it alone.
+				For Lenovo ThinkPads with a new
+				BIOS, it has to be handled either
+				by the ACPI OSI, or by userspace.
+0x1011	0x10	FN+END		Brightness down.  See brightness
+				up for details.
+
 0x1012	0x11	FN+PGUP		Thinklight toggle.  This key is
 				always handled by the firmware,
 				even when unmasked.
@@ -356,9 +368,13 @@ event	code	Key		Notes
 0x1015	0x14	VOLUME UP	Internal mixer volume up. This
 				key is always handled by the
 				firmware, even when unmasked.
+				NOTE: Lenovo seems to be changing
+				this.
 0x1016	0x15	VOLUME DOWN	Internal mixer volume up. This
 				key is always handled by the
 				firmware, even when unmasked.
+				NOTE: Lenovo seems to be changing
+				this.
 0x1017	0x16	MUTE		Mute internal mixer. This
 				key is always handled by the
 				firmware, even when unmasked.
