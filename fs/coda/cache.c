@@ -43,7 +43,7 @@ void coda_cache_enter(struct inode *inode, int mask)
 void coda_cache_clear_inode(struct inode *inode)
 {
 	struct coda_inode_info *cii = ITOC(inode);
-        cii->c_cached_perm = 0;
+	cii->c_cached_epoch = atomic_read(&permission_epoch) - 1;
 }
 
 /* remove all acl caches */
