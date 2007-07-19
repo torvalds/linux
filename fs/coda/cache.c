@@ -49,11 +49,6 @@ void coda_cache_clear_inode(struct inode *inode)
 /* remove all acl caches */
 void coda_cache_clear_all(struct super_block *sb)
 {
-        struct coda_sb_info *sbi;
-
-        sbi = coda_sbp(sb);
-	BUG_ON(!sbi);
-
 	atomic_inc(&permission_epoch);
 }
 

@@ -37,7 +37,7 @@
 #include <linux/coda_cache.h>
 #include <linux/coda_proc.h> 
 
-static int coda_upcall(struct coda_sb_info *mntinfo, int inSize, int *outSize, 
+static int coda_upcall(struct venus_comm *vc, int inSize, int *outSize,
 		       union inputArgs *buffer);
 
 static void *alloc_upcall(int opcode, int size)
@@ -83,7 +83,7 @@ int venus_rootfid(struct super_block *sb, struct CodaFid *fidp)
         insize = SIZE(root);
         UPARG(CODA_ROOT);
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error)
 		*fidp = outp->coda_root.VFid;
 
@@ -102,7 +102,7 @@ int venus_getattr(struct super_block *sb, struct CodaFid *fid,
 	UPARG(CODA_GETATTR);
         inp->coda_getattr.VFid = *fid;
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error)
 		*attr = outp->coda_getattr.attr;
 
@@ -123,7 +123,7 @@ int venus_setattr(struct super_block *sb, struct CodaFid *fid,
         inp->coda_setattr.VFid = *fid;
 	inp->coda_setattr.attr = *vattr;
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
         CODA_FREE(inp, insize);
         return error;
@@ -149,7 +149,7 @@ int venus_lookup(struct super_block *sb, struct CodaFid *fid,
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error) {
 		*resfid = outp->coda_lookup.VFid;
 		*type = outp->coda_lookup.vtype;
@@ -182,7 +182,7 @@ int venus_store(struct super_block *sb, struct CodaFid *fid, int flags,
         inp->coda_store.VFid = *fid;
         inp->coda_store.flags = flags;
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
         return error;
@@ -200,7 +200,7 @@ int venus_release(struct super_block *sb, struct CodaFid *fid, int flags)
 	inp->coda_release.VFid = *fid;
 	inp->coda_release.flags = flags;
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -229,7 +229,7 @@ int venus_close(struct super_block *sb, struct CodaFid *fid, int flags,
         inp->coda_close.VFid = *fid;
         inp->coda_close.flags = flags;
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
         return error;
@@ -248,7 +248,7 @@ int venus_open(struct super_block *sb, struct CodaFid *fid,
 	inp->coda_open_by_fd.VFid = *fid;
 	inp->coda_open_by_fd.flags = flags;
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error)
 		*fh = outp->coda_open_by_fd.fh;
 
@@ -276,7 +276,7 @@ int venus_mkdir(struct super_block *sb, struct CodaFid *dirfid,
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error) {
 		*attrs = outp->coda_mkdir.attr;
 		*newfid = outp->coda_mkdir.VFid;
@@ -318,7 +318,7 @@ int venus_rename(struct super_block *sb, struct CodaFid *old_fid,
         memcpy((char *)(inp) + offset, new_name, new_length);
         *((char *)inp + offset + new_length) = '\0';
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -347,7 +347,7 @@ int venus_create(struct super_block *sb, struct CodaFid *dirfid,
         memcpy((char *)(inp) + offset, name, length);
         *((char *)inp + offset + length) = '\0';
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error) {
 		*attrs = outp->coda_create.attr;
 		*newfid = outp->coda_create.VFid;
@@ -373,8 +373,8 @@ int venus_rmdir(struct super_block *sb, struct CodaFid *dirfid,
         inp->coda_rmdir.name = offset;
         memcpy((char *)(inp) + offset, name, length);
 	*((char *)inp + offset + length) = '\0';
-        
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -395,8 +395,8 @@ int venus_remove(struct super_block *sb, struct CodaFid *dirfid,
         inp->coda_remove.name = offset;
         memcpy((char *)(inp) + offset, name, length);
 	*((char *)inp + offset + length) = '\0';
-        
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -417,7 +417,7 @@ int venus_readlink(struct super_block *sb, struct CodaFid *fid,
 
         inp->coda_readlink.VFid = *fid;
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error) {
 		retlen = outp->coda_readlink.count;
 		if ( retlen > *length )
@@ -453,8 +453,8 @@ int venus_link(struct super_block *sb, struct CodaFid *fid,
         /* make sure strings are null terminated */
         memcpy((char *)(inp) + offset, name, len);
         *((char *)inp + offset + len) = '\0';
-        
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
         return error;
@@ -489,7 +489,7 @@ int venus_symlink(struct super_block *sb, struct CodaFid *fid,
         memcpy((char *)(inp) + offset, name, len);
         *((char *)inp + offset + len) = '\0';
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
         return error;
@@ -504,9 +504,9 @@ int venus_fsync(struct super_block *sb, struct CodaFid *fid)
 	insize=SIZE(fsync);
 	UPARG(CODA_FSYNC);
 
-        inp->coda_fsync.VFid = *fid;
-        error = coda_upcall(coda_sbp(sb), sizeof(union inputArgs), 
-                            &outsize, inp);
+	inp->coda_fsync.VFid = *fid;
+	error = coda_upcall(coda_vcp(sb), sizeof(union inputArgs),
+			    &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -524,7 +524,7 @@ int venus_access(struct super_block *sb, struct CodaFid *fid, int mask)
         inp->coda_access.VFid = *fid;
         inp->coda_access.flags = mask;
 
-	error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;
@@ -573,9 +573,9 @@ int venus_pioctl(struct super_block *sb, struct CodaFid *fid,
 	        goto exit;
 	}
 
-        error = coda_upcall(coda_sbp(sb), SIZE(ioctl) + data->vi.in_size,
-                            &outsize, inp);
-        
+	error = coda_upcall(coda_vcp(sb), SIZE(ioctl) + data->vi.in_size,
+			    &outsize, inp);
+
         if (error) {
 	        printk("coda_pioctl: Venus returns: %d for %s\n", 
 		       error, coda_f2s(fid));
@@ -615,7 +615,7 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	insize = max_t(unsigned int, INSIZE(statfs), OUTSIZE(statfs));
 	UPARG(CODA_STATFS);
 
-	error = coda_upcall(coda_sbp(dentry->d_sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(dentry->d_sb), insize, &outsize, inp);
 	if (!error) {
 		sfs->f_blocks = outp->coda_statfs.stat.f_blocks;
 		sfs->f_bfree  = outp->coda_statfs.stat.f_bfree;
@@ -710,28 +710,25 @@ static inline void coda_waitfor_upcall(struct upc_req *req)
 }
 
 
-/* 
- * coda_upcall will return an error in the case of 
+/*
+ * coda_upcall will return an error in the case of
  * failed communication with Venus _or_ will peek at Venus
  * reply and return Venus' error.
  *
  * As venus has 2 types of errors, normal errors (positive) and internal
  * errors (negative), normal errors are negated, while internal errors
  * are all mapped to -EINTR, while showing a nice warning message. (jh)
- * 
  */
-static int coda_upcall(struct coda_sb_info *sbi,
+static int coda_upcall(struct venus_comm *vcp,
 		       int inSize, int *outSize,
 		       union inputArgs *buffer)
 {
-	struct venus_comm *vcommp;
 	union outputArgs *out;
 	union inputArgs *sig_inputArgs;
 	struct upc_req *req, *sig_req;
 	int error = 0;
 
-	vcommp = sbi->sbi_vcomm;
-	if (!vcommp->vc_inuse) {
+	if (!vcp->vc_inuse) {
 		printk(KERN_NOTICE "coda: Venus dead, not sending upcall\n");
 		return -ENXIO;
 	}
@@ -746,16 +743,16 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	req->uc_inSize = inSize;
 	req->uc_outSize = *outSize ? *outSize : inSize;
 	req->uc_opcode = ((union inputArgs *)buffer)->ih.opcode;
-	req->uc_unique = ++vcommp->vc_seq;
+	req->uc_unique = ++vcp->vc_seq;
 	init_waitqueue_head(&req->uc_sleep);
 
 	/* Fill in the common input args. */
 	((union inputArgs *)buffer)->ih.unique = req->uc_unique;
 
 	/* Append msg to pending queue and poke Venus. */
-	list_add_tail(&req->uc_chain, &vcommp->vc_pending);
+	list_add_tail(&req->uc_chain, &vcp->vc_pending);
 
-	wake_up_interruptible(&vcommp->vc_waitq);
+	wake_up_interruptible(&vcp->vc_waitq);
 	/* We can be interrupted while we wait for Venus to process
 	 * our request.  If the interrupt occurs before Venus has read
 	 * the request, we dequeue and return. If it occurs after the
@@ -788,7 +785,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 		goto exit;
 
 	/* Venus saw the upcall, make sure we can send interrupt signal */
-	if (!vcommp->vc_inuse) {
+	if (!vcp->vc_inuse) {
 		printk(KERN_INFO "coda: Venus dead, not sending signal.\n");
 		goto exit;
 	}
@@ -815,8 +812,8 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	sig_req->uc_outSize = sizeof(struct coda_in_hdr);
 
 	/* insert at head of queue! */
-	list_add(&(sig_req->uc_chain), &vcommp->vc_pending);
-	wake_up_interruptible(&vcommp->vc_waitq);
+	list_add(&(sig_req->uc_chain), &vcp->vc_pending);
+	wake_up_interruptible(&vcp->vc_waitq);
 
 exit:
 	kfree(req);
