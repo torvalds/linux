@@ -88,7 +88,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
  * If 'size' is a constant, the compiler will optimize this whole function
  * down to either a no-op or the addition of a constant to the value of 'ptr'.
  */
-static inline char * align_ptr(void *ptr, unsigned size)
+char * edac_align_ptr(void *ptr, unsigned size)
 {
 	unsigned align, r;
 
@@ -147,10 +147,10 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	 * hardcode everything into a single struct.
 	 */
 	mci = (struct mem_ctl_info *) 0;
-	csi = (struct csrow_info *)align_ptr(&mci[1], sizeof(*csi));
+	csi = (struct csrow_info *)edac_align_ptr(&mci[1], sizeof(*csi));
 	chi = (struct channel_info *)
-			align_ptr(&csi[nr_csrows], sizeof(*chi));
-	pvt = align_ptr(&chi[nr_chans * nr_csrows], sz_pvt);
+			edac_align_ptr(&csi[nr_csrows], sizeof(*chi));
+	pvt = edac_align_ptr(&chi[nr_chans * nr_csrows], sz_pvt);
 	size = ((unsigned long) pvt) + sz_pvt;
 
 	if ((mci = kmalloc(size, GFP_KERNEL)) == NULL)

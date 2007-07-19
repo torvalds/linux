@@ -10,9 +10,9 @@
 
 obj-$(CONFIG_EDAC_MM_EDAC)		+= edac_core.o
 
-edac_core-objs	:= edac_mc.o edac_mc_sysfs.o edac_pci_sysfs.o
+edac_core-objs	:= edac_mc.o edac_device.o edac_mc_sysfs.o edac_pci_sysfs.o
 
-edac_core-objs	+= edac_module.o
+edac_core-objs	+= edac_module.o edac_device_sysfs.o
 
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o
 obj-$(CONFIG_EDAC_E7XXX)		+= e7xxx_edac.o

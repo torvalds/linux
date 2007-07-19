@@ -94,14 +94,6 @@ static const char *edac_caps[] = {
 	[EDAC_S16ECD16ED] = "S16ECD16ED"
 };
 
-/*
- * sysfs object: /sys/devices/system/edac
- *	need to export to other files in this modules
- */
-struct sysdev_class edac_class = {
-	set_kset_name("edac"),
-};
-
 /* sysfs object:
  *	/sys/devices/system/edac/mc
  */
@@ -224,43 +216,38 @@ static struct kobj_type ktype_memctrl = {
 int edac_sysfs_memctrl_setup(void)
 {
 	int err = 0;
+	struct sysdev_class *edac_class;
 
 	debugf1("%s()\n", __func__);
 
-	/* create the /sys/devices/system/edac directory */
-	err = sysdev_class_register(&edac_class);
-
-	if (err) {
-		debugf1("%s() error=%d\n", __func__, err);
+	/* get the /sys/devices/system/edac class reference */
+	edac_class = edac_get_edac_class();
+	if (edac_class == NULL) {
+		debugf1("%s() no edac_class error=%d\n", __func__, err);
 		return err;
 	}
 
 	/* Init the MC's kobject */
 	memset(&edac_memctrl_kobj, 0, sizeof (edac_memctrl_kobj));
-	edac_memctrl_kobj.parent = &edac_class.kset.kobj;
+	edac_memctrl_kobj.parent = &edac_class->kset.kobj;
 	edac_memctrl_kobj.ktype = &ktype_memctrl;
 
 	/* generate sysfs "..../edac/mc"   */
 	err = kobject_set_name(&edac_memctrl_kobj,"mc");
-
-	if (err)
-		goto fail;
+	if (err) {
+		debugf1("%s() Failed to set name '.../edac/mc'\n", __func__ );
+		return err;
+	}
 
 	/* FIXME: maybe new sysdev_create_subdir() */
 	err = kobject_register(&edac_memctrl_kobj);
-
 	if (err) {
-		debugf1("Failed to register '.../edac/mc'\n");
-		goto fail;
+		debugf1("%s() Failed to register '.../edac/mc'\n", __func__ );
+		return err;
 	}
 
-	debugf1("Registered '.../edac/mc' kobject\n");
-
+	debugf1("%s() Registered '.../edac/mc' kobject\n",__func__);
 	return 0;
-
-fail:
-	sysdev_class_unregister(&edac_class);
-	return err;
 }
 
 /*
@@ -276,9 +263,6 @@ void edac_sysfs_memctrl_teardown(void)
 	init_completion(&edac_memctrl_kobj_complete);
 	kobject_unregister(&edac_memctrl_kobj);
 	wait_for_completion(&edac_memctrl_kobj_complete);
-
-	/* Unregister the 'edac' object */
-	sysdev_class_unregister(&edac_class);
 }
 
 
@@ -286,32 +270,38 @@ void edac_sysfs_memctrl_teardown(void)
  */
 
 /* Set of more default csrow<id> attribute show/store functions */
-static ssize_t csrow_ue_count_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_ue_count_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%u\n", csrow->ue_count);
 }
 
-static ssize_t csrow_ce_count_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_ce_count_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%u\n", csrow->ce_count);
 }
 
-static ssize_t csrow_size_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_size_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%u\n", PAGES_TO_MiB(csrow->nr_pages));
 }
 
-static ssize_t csrow_mem_type_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_mem_type_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%s\n", mem_types[csrow->mtype]);
 }
 
-static ssize_t csrow_dev_type_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_dev_type_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%s\n", dev_types[csrow->dtype]);
 }
 
-static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data, int private)
+static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data,
+			int private)
 {
 	return sprintf(data,"%s\n", edac_caps[csrow->edac_mode]);
 }
@@ -509,9 +499,10 @@ static int edac_create_channel_files(struct kobject *kobj, int chan)
 	if (!err) {
 		/* create the CE Count attribute file */
 		err = sysfs_create_file(kobj,
-			(struct attribute *) dynamic_csrow_ce_count_attr[chan]);
+			(struct attribute *)dynamic_csrow_ce_count_attr[chan]);
 	} else {
-		debugf1("%s()  dimm labels and ce_count files created", __func__);
+		debugf1("%s()  dimm labels and ce_count files created",
+			__func__);
 	}
 
 	return err;
@@ -643,7 +634,7 @@ static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 	} else {
 		/* FIXME: produce "not implemented" ERROR for user-side.  */
 		edac_printk(KERN_WARNING, EDAC_MC,
-			"Memory scrubbing 'get' control is not implemented!\n");
+			"Memory scrubbing 'get' control is not implemented\n");
 	}
 	return sprintf(data, "%d\n", bandwidth);
 }
@@ -755,7 +746,8 @@ MCIDEV_ATTR(ue_count,S_IRUGO,mci_ue_count_show,NULL);
 MCIDEV_ATTR(ce_count,S_IRUGO,mci_ce_count_show,NULL);
 
 /* memory scrubber attribute file */
-MCIDEV_ATTR(sdram_scrub_rate,S_IRUGO|S_IWUSR,mci_sdram_scrub_rate_show,mci_sdram_scrub_rate_store);
+MCIDEV_ATTR(sdram_scrub_rate,S_IRUGO|S_IWUSR,mci_sdram_scrub_rate_show,\
+			mci_sdram_scrub_rate_store);
 
 static struct mcidev_attribute *mci_attr[] = {
 	&mci_attr_reset_counters,

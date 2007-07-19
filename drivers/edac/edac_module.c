@@ -13,7 +13,76 @@ int edac_debug_level = 1;
 EXPORT_SYMBOL_GPL(edac_debug_level);
 #endif
 
+/* scope is to module level only */
+struct workqueue_struct *edac_workqueue;
+
+/* private to this file */
 static struct task_struct *edac_thread;
+
+
+/*
+ * sysfs object: /sys/devices/system/edac
+ *	need to export to other files in this modules
+ */
+static struct sysdev_class edac_class = {
+	set_kset_name("edac"),
+};
+static int edac_class_valid = 0;
+
+/*
+ * edac_get_edac_class()
+ *
+ *	return pointer to the edac class of 'edac'
+ */
+struct sysdev_class *edac_get_edac_class(void)
+{
+	struct sysdev_class *classptr=NULL;
+
+	if (edac_class_valid)
+		classptr = &edac_class;
+
+	return classptr;
+}
+
+/*
+ * edac_register_sysfs_edac_name()
+ *
+ *	register the 'edac' into /sys/devices/system
+ *
+ * return:
+ *	0  success
+ *	!0 error
+ */
+static int edac_register_sysfs_edac_name(void)
+{
+	int err;
+
+	/* create the /sys/devices/system/edac directory */
+	err = sysdev_class_register(&edac_class);
+
+	if (err) {
+		debugf1("%s() error=%d\n", __func__, err);
+		return err;
+	}
+
+	edac_class_valid = 1;
+	return 0;
+}
+
+/*
+ * sysdev_class_unregister()
+ *
+ *	unregister the 'edac' from /sys/devices/system
+ */
+static void edac_unregister_sysfs_edac_name(void)
+{
+	/* only if currently registered, then unregister it */
+	if (edac_class_valid)
+		sysdev_class_unregister(&edac_class);
+
+	edac_class_valid = 0;
+}
+
 
 /*
  * Check MC status every edac_get_poll_msec().
@@ -53,11 +122,40 @@ static int edac_kernel_thread(void *arg)
 }
 
 /*
+ * edac_workqueue_setup
+ *	initialize the edac work queue for polling operations
+ */
+static int edac_workqueue_setup(void)
+{
+	edac_workqueue = create_singlethread_workqueue("edac-poller");
+	if (edac_workqueue == NULL)
+		return -ENODEV;
+	else
+		return 0;
+}
+
+/*
+ * edac_workqueue_teardown
+ *	teardown the edac workqueue
+ */
+static void edac_workqueue_teardown(void)
+{
+	if (edac_workqueue) {
+		flush_workqueue(edac_workqueue);
+		destroy_workqueue(edac_workqueue);
+		edac_workqueue = NULL;
+	}
+}
+
+
+/*
  * edac_init
  *      module initialization entry point
  */
 static int __init edac_init(void)
 {
+	int err = 0;
+
 	edac_printk(KERN_INFO, EDAC_MC, EDAC_MC_VERSION "\n");
 
 	/*
@@ -69,32 +167,61 @@ static int __init edac_init(void)
 	 */
 	edac_pci_clear_parity_errors();
 
-	/* Create the MC sysfs entries */
+	/*
+	 * perform the registration of the /sys/devices/system/edac object
+	 */
+	if (edac_register_sysfs_edac_name()) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			"Error initializing 'edac' kobject\n");
+		err = -ENODEV;
+		goto error;
+	}
+
+	/* Create the MC sysfs entries, must be first
+	 */
 	if (edac_sysfs_memctrl_setup()) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			"Error initializing sysfs code\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto error_sysfs;
 	}
 
 	/* Create the PCI parity sysfs entries */
 	if (edac_sysfs_pci_setup()) {
-		edac_sysfs_memctrl_teardown();
 		edac_printk(KERN_ERR, EDAC_MC,
 			"PCI: Error initializing sysfs code\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto error_mem;
+	}
+
+	/* Setup/Initialize the edac_device system */
+	err = edac_workqueue_setup();
+	if (err) {
+		edac_printk(KERN_ERR, EDAC_MC, "init WorkQueue failure\n");
+		goto error_pci;
 	}
 
 	/* create our kernel thread */
 	edac_thread = kthread_run(edac_kernel_thread, NULL, "kedac");
 
 	if (IS_ERR(edac_thread)) {
-		/* remove the sysfs entries */
-		edac_sysfs_memctrl_teardown();
-		edac_sysfs_pci_teardown();
-		return PTR_ERR(edac_thread);
+		err = PTR_ERR(edac_thread);
+		goto error_work;
 	}
 
 	return 0;
+
+	/* Error teardown stack */
+error_work:
+	edac_workqueue_teardown();
+error_pci:
+	edac_sysfs_pci_teardown();
+error_mem:
+	edac_sysfs_memctrl_teardown();
+error_sysfs:
+	edac_unregister_sysfs_edac_name();
+error:
+	return err;
 }
 
 /*
@@ -106,9 +233,11 @@ static void __exit edac_exit(void)
 	debugf0("%s()\n", __func__);
 	kthread_stop(edac_thread);
 
-	/* tear down the sysfs device */
+	/* tear down the various subsystems*/
+	edac_workqueue_teardown();
 	edac_sysfs_memctrl_teardown();
 	edac_sysfs_pci_teardown();
+	edac_unregister_sysfs_edac_name();
 }
 
 /*
