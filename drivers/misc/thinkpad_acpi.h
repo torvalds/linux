@@ -205,6 +205,7 @@ struct ibm_struct {
 	int (*read) (char *);
 	int (*write) (char *);
 	void (*exit) (void);
+	void (*resume) (void);
 
 	struct list_head all_drivers;
 

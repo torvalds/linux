@@ -519,11 +519,27 @@ static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;
 static struct input_dev *tpacpi_inputdev;
 
+
+static int tpacpi_resume_handler(struct platform_device *pdev)
+{
+	struct ibm_struct *ibm, *itmp;
+
+	list_for_each_entry_safe(ibm, itmp,
+				 &tpacpi_all_drivers,
+				 all_drivers) {
+		if (ibm->resume)
+			(ibm->resume)();
+	}
+
+	return 0;
+}
+
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = IBM_DRVR_NAME,
 		.owner = THIS_MODULE,
 	},
+	.resume = tpacpi_resume_handler,
 };
 
 
