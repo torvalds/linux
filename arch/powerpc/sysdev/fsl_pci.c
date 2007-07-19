@@ -142,6 +142,20 @@ int __init fsl_pcie_check_link(struct pci_controller *hose)
 	return 0;
 }
 
+void fsl_pcibios_fixup_bus(struct pci_bus *bus)
+{
+	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	int i;
+
+	/* deal with bogus pci_bus when we don't have anything connected on PCIe */
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
+		if (bus->parent) {
+			for (i = 0; i < 4; ++i)
+				bus->resource[i] = bus->parent->resource[i];
+		}
+	}
+}
+
 int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 {
 	int len;

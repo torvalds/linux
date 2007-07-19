@@ -431,7 +431,6 @@ mpc86xx_time_init(void)
 	return 0;
 }
 
-
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",
 	.probe			= mpc86xx_hpcn_probe,
@@ -443,4 +442,5 @@ define_machine(mpc86xx_hpcn) {
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 };
