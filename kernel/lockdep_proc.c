@@ -5,7 +5,8 @@
  *
  * Started by Ingo Molnar:
  *
- *  Copyright (C) 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
+ *  Copyright (C) 2006,2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *
  * Code for /proc/lockdep and /proc/lockdep_stats:
  *
@@ -497,6 +498,9 @@ static void *ls_start(struct seq_file *m, loff_t *pos)
 
 	if (data->iter == data->stats)
 		seq_header(m);
+
+	if (data->iter == data->iter_end)
+		data->iter = NULL;
 
 	return data->iter;
 }
