@@ -5,12 +5,6 @@
  *
  *  Copyright (c) 1995-1998  Mark Lord
  *  May be copied or modified under the terms of the GNU General Public License
- *
- *  Recent Changes
- *	Split the set up function into multiple functions
- *	Use pci_set_master
- *	Fix misreporting of I/O v MMIO problems
- *	Initial fixups for simplex devices
  */
 
 /*
