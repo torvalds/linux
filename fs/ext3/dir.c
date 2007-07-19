@@ -136,12 +136,14 @@ static int ext3_readdir(struct file * filp,
 		err = ext3_get_blocks_handle(NULL, inode, blk, 1,
 						&map_bh, 0, 0);
 		if (err > 0) {
-			page_cache_readahead(sb->s_bdev->bd_inode->i_mapping,
-				&filp->f_ra,
-				filp,
-				map_bh.b_blocknr >>
-					(PAGE_CACHE_SHIFT - inode->i_blkbits),
-				1);
+			pgoff_t index = map_bh.b_blocknr >>
+					(PAGE_CACHE_SHIFT - inode->i_blkbits);
+			if (!ra_has_index(&filp->f_ra, index))
+				page_cache_readahead_ondemand(
+					sb->s_bdev->bd_inode->i_mapping,
+					&filp->f_ra, filp,
+					NULL, index, 1);
+			filp->f_ra.prev_index = index;
 			bh = ext3_bread(NULL, inode, blk, 0, &err);
 		}
 
