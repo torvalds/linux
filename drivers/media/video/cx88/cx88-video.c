@@ -1881,8 +1881,14 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
-	if (core->tuner_type != TUNER_ABSENT)
+	if (core->tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
+		if (IS_ERR(core->kthread)) {
+			err = PTR_ERR(core->kthread);
+			printk(KERN_ERR "Failed to create cx88 audio thread, err=%d\n",
+			       err);
+		}
+	}
 	return 0;
 
 fail_unreg:
