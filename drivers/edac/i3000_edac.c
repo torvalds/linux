@@ -309,7 +309,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	interleaved = i3000_is_interleaved(c0dra, c1dra, c0drb, c1drb);
 	nr_channels = interleaved ? 2 : 1;
-	mci = edac_mc_alloc(0, I3000_RANKS / nr_channels, nr_channels);
+	mci = edac_mc_alloc(0, I3000_RANKS / nr_channels, nr_channels, 0);
 	if (!mci)
 		return -ENOMEM;
 
@@ -370,7 +370,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 			 I3000_ERRSTS_BITS);
 
 	rc = -ENODEV;
-	if (edac_mc_add_mc(mci, 0)) {
+	if (edac_mc_add_mc(mci)) {
 		debugf3("MC: %s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}

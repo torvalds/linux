@@ -186,7 +186,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	   the channel and the GRA registers map to physical devices so we are
 	   going to make 1 channel for group.
 	 */
-	mci = edac_mc_alloc(0, 16, 1);
+	mci = edac_mc_alloc(0, 16, 1, 0);
 
 	if (!mci)
 		return -ENOMEM;
@@ -209,7 +209,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	/* Here we assume that we will never see multiple instances of this
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
-	if (edac_mc_add_mc(mci, 0)) {
+	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}

@@ -765,8 +765,11 @@ static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
 
 #endif				/* CONFIG_PCI */
 
+extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
+					  unsigned nr_chans, int edac_index);
+extern int edac_mc_add_mc(struct mem_ctl_info *mci);
+extern void edac_mc_free(struct mem_ctl_info *mci);
 extern struct mem_ctl_info *edac_mc_find(int idx);
-extern int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx);
 extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				      unsigned long page);
@@ -803,33 +806,31 @@ extern void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci, unsigned int csrow,
 /*
  * edac_device APIs
  */
-extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
-					  unsigned nr_chans);
-extern void edac_mc_free(struct mem_ctl_info *mci);
 extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev,
-				  int edac_idx);
+				int dev_idx);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
-				  int inst_nr, int block_nr, const char *msg);
+				int inst_nr, int block_nr, const char *msg);
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
-				  int inst_nr, int block_nr, const char *msg);
+				int inst_nr, int block_nr, const char *msg);
 
 /*
  * edac_pci APIs
  */
-extern struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt, const char
-							 *edac_pci_name);
+extern struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
+				const char *edac_pci_name);
 
 extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
 
-extern void
-edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci, unsigned long value);
+extern void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
+				unsigned long value);
 
 extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
 extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
 
-extern struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev, const char
-							     *mod_name);
+extern struct edac_pci_ctl_info *edac_pci_create_generic_ctl(
+				struct device *dev,
+				const char *mod_name);
 
 extern void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci);
 extern int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci);

@@ -205,7 +205,8 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 		MCDEBUG_ERRCTL1_RFL_LOG_EN;
 	pci_write_config_dword(pdev, MCDEBUG_ERRCTL1, errctl1);
 
-	mci = edac_mc_alloc(0, PASEMI_EDAC_NR_CSROWS, PASEMI_EDAC_NR_CHANS);
+	mci = edac_mc_alloc(0, PASEMI_EDAC_NR_CSROWS, PASEMI_EDAC_NR_CHANS,
+				system_mmc_id++);
 
 	if (mci == NULL)
 		return -ENOMEM;
@@ -245,7 +246,7 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 	 */
 	pasemi_edac_get_error_info(mci);
 
-	if (edac_mc_add_mc(mci, system_mmc_id++))
+	if (edac_mc_add_mc(mci))
 		goto fail;
 
 	/* get this far and it's successful */

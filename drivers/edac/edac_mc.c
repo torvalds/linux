@@ -129,7 +129,7 @@ void *edac_align_ptr(void *ptr, unsigned size)
  *	struct mem_ctl_info pointer
  */
 struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
-				unsigned nr_chans)
+				unsigned nr_chans, int edac_index)
 {
 	struct mem_ctl_info *mci;
 	struct csrow_info *csi, *csrow;
@@ -159,7 +159,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	chi = (struct channel_info *)(((char *)mci) + ((unsigned long)chi));
 	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
 
-	memset(mci, 0, size);	/* clear all fields */
+	/* setup index and various internal pointers */
+	mci->mc_idx = edac_index;
 	mci->csrows = csi;
 	mci->pvt_info = pvt;
 	mci->nr_csrows = nr_csrows;
@@ -405,10 +406,10 @@ EXPORT_SYMBOL(edac_mc_find);
  */
 
 /* FIXME - should a warning be printed if no error detection? correction? */
-int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
+int edac_mc_add_mc(struct mem_ctl_info *mci)
 {
 	debugf0("%s()\n", __func__);
-	mci->mc_idx = mc_idx;
+
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
 		edac_mc_dump_mci(mci);

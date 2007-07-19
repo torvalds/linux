@@ -338,8 +338,6 @@ struct i5000_pvt {
 	struct pci_dev *branch_0;	/* 21.0 */
 	struct pci_dev *branch_1;	/* 22.0 */
 
-	int node_id;		/* ID of this node */
-
 	u16 tolm;		/* top of low memory */
 	u64 ambase;		/* AMB BAR */
 
@@ -1319,7 +1317,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 		__func__, num_channels, num_dimms_per_channel, num_csrows);
 
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels);
+	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
 
 	if (mci == NULL)
 		return -ENOMEM;
@@ -1366,7 +1364,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* add this new MC control structure to EDAC's list of MCs */
-	if (edac_mc_add_mc(mci, pvt->node_id)) {
+	if (edac_mc_add_mc(mci)) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mc_add_mc()\n", __func__);
 		/* FIXME: perhaps some code should go here that disables error
