@@ -73,6 +73,13 @@ config EDAC_E752X
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.
 
+config EDAC_I82443BXGX
+	tristate "Intel 82443BX/GX (440BX/GX)"
+	depends on EDAC_MM_EDAC && PCI && X86_32
+	help
+	  Support for error detection and correction on the Intel
+	  82443BX/GX memory controllers (440BX/GX chipsets).
+
 config EDAC_I82875P
 	tristate "Intel 82875p (D82875P, E7210)"
 	depends on EDAC_MM_EDAC && PCI && X86_32
