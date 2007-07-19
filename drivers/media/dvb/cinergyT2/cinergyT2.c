@@ -905,12 +905,11 @@ static int cinergyt2_probe (struct usb_interface *intf,
 	struct cinergyt2 *cinergyt2;
 	int err;
 
-	if (!(cinergyt2 = kmalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
+	if (!(cinergyt2 = kzalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
 		dprintk(1, "out of memory?!?\n");
 		return -ENOMEM;
 	}
 
-	memset (cinergyt2, 0, sizeof (struct cinergyt2));
 	usb_set_intfdata (intf, (void *) cinergyt2);
 
 	mutex_init(&cinergyt2->sem);

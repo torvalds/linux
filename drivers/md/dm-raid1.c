@@ -951,13 +951,12 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 
 	len = sizeof(*ms) + (sizeof(ms->mirror[0]) * nr_mirrors);
 
-	ms = kmalloc(len, GFP_KERNEL);
+	ms = kzalloc(len, GFP_KERNEL);
 	if (!ms) {
 		ti->error = "Cannot allocate mirror context";
 		return NULL;
 	}
 
-	memset(ms, 0, len);
 	spin_lock_init(&ms->lock);
 
 	ms->ti = ti;

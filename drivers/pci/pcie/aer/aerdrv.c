@@ -148,11 +148,10 @@ static struct aer_rpc* aer_alloc_rpc(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc;
 
-	if (!(rpc = kmalloc(sizeof(struct aer_rpc),
+	if (!(rpc = kzalloc(sizeof(struct aer_rpc),
 		GFP_KERNEL)))
 		return NULL;
 
-	memset(rpc, 0, sizeof(struct aer_rpc));
 	/*
 	 * Initialize Root lock access, e_lock, to Root Error Status Reg,
 	 * Root Error ID Reg, and Root error producer/consumer index.

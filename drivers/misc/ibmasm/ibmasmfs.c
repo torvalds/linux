@@ -563,11 +563,10 @@ static ssize_t remote_settings_file_write(struct file *file, const char __user *
 	if (*offset != 0)
 		return 0;
 
-	buff = kmalloc (count + 1, GFP_KERNEL);
+	buff = kzalloc (count + 1, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
-	memset(buff, 0x0, count + 1);
 
 	if (copy_from_user(buff, ubuff, count)) {
 		kfree(buff);

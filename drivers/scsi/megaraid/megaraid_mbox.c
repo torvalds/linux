@@ -454,7 +454,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	// Allocate the per driver initialization structure
-	adapter = kmalloc(sizeof(adapter_t), GFP_KERNEL);
+	adapter = kzalloc(sizeof(adapter_t), GFP_KERNEL);
 
 	if (adapter == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -462,7 +462,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		goto out_probe_one;
 	}
-	memset(adapter, 0, sizeof(adapter_t));
 
 
 	// set up PCI related soft state and other pre-known parameters
@@ -746,10 +745,9 @@ megaraid_init_mbox(adapter_t *adapter)
 	 * Allocate and initialize the init data structure for mailbox
 	 * controllers
 	 */
-	raid_dev = kmalloc(sizeof(mraid_device_t), GFP_KERNEL);
+	raid_dev = kzalloc(sizeof(mraid_device_t), GFP_KERNEL);
 	if (raid_dev == NULL) return -1;
 
-	memset(raid_dev, 0, sizeof(mraid_device_t));
 
 	/*
 	 * Attach the adapter soft state to raid device soft state
@@ -1050,8 +1048,7 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 	 * since the calling routine does not yet know the number of available
 	 * commands.
 	 */
-	adapter->kscb_list = kmalloc(sizeof(scb_t) * MBOX_MAX_SCSI_CMDS,
-			GFP_KERNEL);
+	adapter->kscb_list = kcalloc(MBOX_MAX_SCSI_CMDS, sizeof(scb_t), GFP_KERNEL);
 
 	if (adapter->kscb_list == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -1059,7 +1056,6 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 			__LINE__));
 		goto out_free_ibuf;
 	}
-	memset(adapter->kscb_list, 0, sizeof(scb_t) * MBOX_MAX_SCSI_CMDS);
 
 	// memory allocation for our command packets
 	if (megaraid_mbox_setup_dma_pools(adapter) != 0) {
@@ -3495,8 +3491,7 @@ megaraid_cmm_register(adapter_t *adapter)
 	int		i;
 
 	// Allocate memory for the base list of scb for management module.
-	adapter->uscb_list = kmalloc(sizeof(scb_t) * MBOX_MAX_USER_CMDS,
-			GFP_KERNEL);
+	adapter->uscb_list = kcalloc(MBOX_MAX_USER_CMDS, sizeof(scb_t), GFP_KERNEL);
 
 	if (adapter->uscb_list == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -3504,7 +3499,6 @@ megaraid_cmm_register(adapter_t *adapter)
 			__LINE__));
 		return -1;
 	}
-	memset(adapter->uscb_list, 0, sizeof(scb_t) * MBOX_MAX_USER_CMDS);
 
 
 	// Initialize the synchronization parameters for resources for

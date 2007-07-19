@@ -1427,7 +1427,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		gs_acm_config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	gs_device = dev = kmalloc(sizeof(struct gs_dev), GFP_KERNEL);
+	gs_device = dev = kzalloc(sizeof(struct gs_dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
 
@@ -1435,7 +1435,6 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
-	memset(dev, 0, sizeof(struct gs_dev));
 	dev->dev_gadget = gadget;
 	spin_lock_init(&dev->dev_lock);
 	INIT_LIST_HEAD(&dev->dev_req_list);

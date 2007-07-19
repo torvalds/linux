@@ -334,14 +334,13 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 		return i;
 	}
 
-	card = kmalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
 		printk(KERN_ERR "pc300: unable to allocate memory\n");
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;
 	}
-	memset(card, 0, sizeof(card_t));
 	pci_set_drvdata(pdev, card);
 
 	if (pdev->device == PCI_DEVICE_ID_PC300_TE_1 ||

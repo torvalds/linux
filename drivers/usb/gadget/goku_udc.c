@@ -1777,14 +1777,13 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kmalloc (sizeof *dev, GFP_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		pr_debug("enomem %s\n", pci_name(pdev));
 		retval = -ENOMEM;
 		goto done;
 	}
 
-	memset(dev, 0, sizeof *dev);
 	spin_lock_init(&dev->lock);
 	dev->pdev = pdev;
 	dev->gadget.ops = &goku_ops;

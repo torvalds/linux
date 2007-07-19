@@ -1082,13 +1082,12 @@ static int __init pvr2fb_init(void)
 #endif
 	size = sizeof(struct fb_info) + sizeof(struct pvr2fb_par) + 16 * sizeof(u32);
 
-	fb_info = kmalloc(size, GFP_KERNEL);
+	fb_info = kzalloc(size, GFP_KERNEL);
 	if (!fb_info) {
 		printk(KERN_ERR "Failed to allocate memory for fb_info\n");
 		return -ENOMEM;
 	}
 
-	memset(fb_info, 0, size);
 
 	currentpar = (struct pvr2fb_par *)(fb_info + 1);
 

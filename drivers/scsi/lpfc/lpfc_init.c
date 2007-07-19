@@ -1830,7 +1830,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Initialize and populate the iocb list per host.  */
 	INIT_LIST_HEAD(&phba->lpfc_iocb_list);
 	for (i = 0; i < LPFC_IOCB_LIST_CNT; i++) {
-		iocbq_entry = kmalloc(sizeof(struct lpfc_iocbq), GFP_KERNEL);
+		iocbq_entry = kzalloc(sizeof(struct lpfc_iocbq), GFP_KERNEL);
 		if (iocbq_entry == NULL) {
 			printk(KERN_ERR "%s: only allocated %d iocbs of "
 				"expected %d count. Unloading driver.\n",
@@ -1839,7 +1839,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 			goto out_free_iocbq;
 		}
 
-		memset(iocbq_entry, 0, sizeof(struct lpfc_iocbq));
 		iotag = lpfc_sli_next_iotag(phba, iocbq_entry);
 		if (iotag == 0) {
 			kfree (iocbq_entry);

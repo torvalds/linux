@@ -2639,10 +2639,9 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 			return -ENODEV;
 	}
 
-	intf = kmalloc(sizeof(*intf), GFP_KERNEL);
+	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
 		return -ENOMEM;
-	memset(intf, 0, sizeof(*intf));
 
 	intf->ipmi_version_major = ipmi_version_major(device_id);
 	intf->ipmi_version_minor = ipmi_version_minor(device_id);

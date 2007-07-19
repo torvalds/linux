@@ -248,7 +248,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 	} else {
 		int splpar_strlen;
 		int idx, w_idx;
-		char *workbuffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
+		char *workbuffer = kzalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 		if (!workbuffer) {
 			printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
 			       __FILE__, __FUNCTION__, __LINE__);
@@ -261,7 +261,6 @@ static void parse_system_parameter_string(struct seq_file *m)
 		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
 		local_buffer += 2;	/* step over strlen value */
 
-		memset(workbuffer, 0, SPLPAR_MAXLENGTH);
 		w_idx = 0;
 		idx = 0;
 		while ((*local_buffer) && (idx < splpar_strlen)) {

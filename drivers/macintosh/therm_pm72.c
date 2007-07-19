@@ -318,10 +318,9 @@ static struct i2c_client *attach_i2c_chip(int id, const char *name)
 	if (adap == NULL)
 		return NULL;
 
-	clt = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	clt = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (clt == NULL)
 		return NULL;
-	memset(clt, 0, sizeof(struct i2c_client));
 
 	clt->addr = (id >> 1) & 0x7f;
 	clt->adapter = adap;

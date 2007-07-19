@@ -35,12 +35,11 @@ void *pnp_alloc(long size)
 {
 	void *result;
 
-	result = kmalloc(size, GFP_KERNEL);
+	result = kzalloc(size, GFP_KERNEL);
 	if (!result){
 		printk(KERN_ERR "pnp: Out of Memory\n");
 		return NULL;
 	}
-	memset(result, 0, size);
 	return result;
 }
 

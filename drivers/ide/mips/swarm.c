@@ -165,12 +165,11 @@ static int __devinit swarm_ide_init_module(void)
 		goto out;
 	}
 
-        if (!(pldev = kmalloc(sizeof (*pldev), GFP_KERNEL))) {
+        if (!(pldev = kzalloc(sizeof (*pldev), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto out_unregister_driver;
 	}
 
-	memset (pldev, 0, sizeof (*pldev));
 	pldev->name		= swarm_ide_string;
 	pldev->id		= 0;
 	pldev->dev.release	= swarm_ide_platform_release;

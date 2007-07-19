@@ -171,11 +171,10 @@ static int ohci_urb_enqueue (
 	}
 
 	/* allocate the private part of the URB */
-	urb_priv = kmalloc (sizeof (urb_priv_t) + size * sizeof (struct td *),
+	urb_priv = kzalloc (sizeof (urb_priv_t) + size * sizeof (struct td *),
 			mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
-	memset (urb_priv, 0, sizeof (urb_priv_t) + size * sizeof (struct td *));
 	INIT_LIST_HEAD (&urb_priv->pending);
 	urb_priv->length = size;
 	urb_priv->ed = ed;

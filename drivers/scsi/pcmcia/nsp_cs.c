@@ -1602,9 +1602,8 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
 	/* Create new SCSI device */
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) { return -ENOMEM; }
-	memset(info, 0, sizeof(*info));
 	info->p_dev = link;
 	link->priv = info;
 	data->ScsiInfo = info;

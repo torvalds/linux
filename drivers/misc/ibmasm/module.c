@@ -77,13 +77,12 @@ static int __devinit ibmasm_init_one(struct pci_dev *pdev, const struct pci_devi
 	/* vnc client won't work without bus-mastering */
 	pci_set_master(pdev);
 
-	sp = kmalloc(sizeof(struct service_processor), GFP_KERNEL);
+	sp = kzalloc(sizeof(struct service_processor), GFP_KERNEL);
 	if (sp == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
 		result = -ENOMEM;
 		goto error_kmalloc;
 	}
-	memset(sp, 0, sizeof(struct service_processor));
 
 	spin_lock_init(&sp->lock);
 	INIT_LIST_HEAD(&sp->command_queue);

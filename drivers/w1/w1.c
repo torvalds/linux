@@ -520,7 +520,7 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	int err;
 	struct w1_netlink_msg msg;
 
-	sl = kmalloc(sizeof(struct w1_slave), GFP_KERNEL);
+	sl = kzalloc(sizeof(struct w1_slave), GFP_KERNEL);
 	if (!sl) {
 		dev_err(&dev->dev,
 			 "%s: failed to allocate new slave device.\n",
@@ -528,7 +528,6 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 		return -ENOMEM;
 	}
 
-	memset(sl, 0, sizeof(*sl));
 
 	sl->owner = THIS_MODULE;
 	sl->master = dev;

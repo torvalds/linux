@@ -5137,12 +5137,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
 	}
-	np->rx_skb = kmalloc(sizeof(struct nv_skb_map) * np->rx_ring_size, GFP_KERNEL);
-	np->tx_skb = kmalloc(sizeof(struct nv_skb_map) * np->tx_ring_size, GFP_KERNEL);
+	np->rx_skb = kcalloc(np->rx_ring_size, sizeof(struct nv_skb_map), GFP_KERNEL);
+	np->tx_skb = kcalloc(np->tx_ring_size, sizeof(struct nv_skb_map), GFP_KERNEL);
 	if (!np->rx_skb || !np->tx_skb)
 		goto out_freering;
-	memset(np->rx_skb, 0, sizeof(struct nv_skb_map) * np->rx_ring_size);
-	memset(np->tx_skb, 0, sizeof(struct nv_skb_map) * np->tx_ring_size);
 
 	dev->open = nv_open;
 	dev->stop = nv_close;

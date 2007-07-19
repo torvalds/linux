@@ -1130,13 +1130,12 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	if ((cam =
-	     kmalloc(sizeof (struct vicam_camera), GFP_KERNEL)) == NULL) {
+	     kzalloc(sizeof (struct vicam_camera), GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING
 		       "could not allocate kernel memory for vicam_camera struct\n");
 		return -ENOMEM;
 	}
 
-	memset(cam, 0, sizeof (struct vicam_camera));
 
 	cam->shutter_speed = 15;
 

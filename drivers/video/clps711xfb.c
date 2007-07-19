@@ -366,11 +366,10 @@ int __init clps711xfb_init(void)
 	if (fb_get_options("clps711xfb", NULL))
 		return -ENODEV;
 
-	cfb = kmalloc(sizeof(*cfb), GFP_KERNEL);
+	cfb = kzalloc(sizeof(*cfb), GFP_KERNEL);
 	if (!cfb)
 		goto out;
 
-	memset(cfb, 0, sizeof(*cfb));
 	strcpy(cfb->fix.id, "clps711x");
 
 	cfb->fbops		= &clps7111fb_ops;

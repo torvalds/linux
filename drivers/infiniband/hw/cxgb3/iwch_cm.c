@@ -229,9 +229,8 @@ static void *alloc_ep(int size, gfp_t gfp)
 {
 	struct iwch_ep_common *epc;
 
-	epc = kmalloc(size, gfp);
+	epc = kzalloc(size, gfp);
 	if (epc) {
-		memset(epc, 0, size);
 		kref_init(&epc->kref);
 		spin_lock_init(&epc->lock);
 		init_waitqueue_head(&epc->waitq);

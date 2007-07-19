@@ -41,7 +41,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	/*
 	 * We are in process context(kernel thread), so can sleep.
 	 */
-	dev = kmalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_ERR
 			"Failed to allocate %zd bytes for new w1 device.\n",
@@ -49,7 +49,6 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 		return NULL;
 	}
 
-	memset(dev, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 

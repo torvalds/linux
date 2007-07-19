@@ -875,10 +875,9 @@ SYM53C500_probe(struct pcmcia_device *link)
 	DEBUG(0, "SYM53C500_attach()\n");
 
 	/* Create new SCSI device */
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	memset(info, 0, sizeof(*info));
 	info->p_dev = link;
 	link->priv = info;
 	link->io.NumPorts1 = 16;

@@ -3606,11 +3606,10 @@ out:
 int esp_slave_alloc(struct scsi_device *SDptr)
 {
 	struct esp_device *esp_dev =
-		kmalloc(sizeof(struct esp_device), GFP_ATOMIC);
+		kzalloc(sizeof(struct esp_device), GFP_ATOMIC);
 
 	if (!esp_dev)
 		return -ENOMEM;
-	memset(esp_dev, 0, sizeof(struct esp_device));
 	SDptr->hostdata = esp_dev;
 	return 0;
 }

@@ -812,10 +812,9 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	int msp_product, msp_prod_hi, msp_prod_lo;
 	int msp_rom;
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
 		return -ENOMEM;
-	memset(client, 0, sizeof(*client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;

@@ -105,9 +105,8 @@ static int parport_probe(struct pcmcia_device *link)
     DEBUG(0, "parport_attach()\n");
 
     /* Create new parport device */
-    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    info = kzalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return -ENOMEM;
-    memset(info, 0, sizeof(*info));
     link->priv = info;
     info->p_dev = link;
 

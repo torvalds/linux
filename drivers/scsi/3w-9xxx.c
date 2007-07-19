@@ -1160,13 +1160,12 @@ static int twa_initialize_device_extension(TW_Device_Extension *tw_dev)
 	}
 
 	/* Allocate event info space */
-	tw_dev->event_queue[0] = kmalloc(sizeof(TW_Event) * TW_Q_LENGTH, GFP_KERNEL);
+	tw_dev->event_queue[0] = kcalloc(TW_Q_LENGTH, sizeof(TW_Event), GFP_KERNEL);
 	if (!tw_dev->event_queue[0]) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x18, "Event info memory allocation failed");
 		goto out;
 	}
 
-	memset(tw_dev->event_queue[0], 0, sizeof(TW_Event) * TW_Q_LENGTH);
 
 	for (i = 0; i < TW_Q_LENGTH; i++) {
 		tw_dev->event_queue[i] = (TW_Event *)((unsigned char *)tw_dev->event_queue[0] + (i * sizeof(TW_Event)));

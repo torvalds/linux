@@ -2224,15 +2224,13 @@ struct camera_data *cpia2_init_camera_struct(void)
 {
 	struct camera_data *cam;
 
-	cam = kmalloc(sizeof(*cam), GFP_KERNEL);
+	cam = kzalloc(sizeof(*cam), GFP_KERNEL);
 
 	if (!cam) {
 		ERR("couldn't kmalloc cpia2 struct\n");
 		return NULL;
 	}
 
-	/* Default everything to 0 */
-	memset(cam, 0, sizeof(struct camera_data));
 
 	cam->present = 1;
 	mutex_init(&cam->busy_lock);

@@ -100,7 +100,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 {
 	struct Scsi_Host * host = NULL;
 	struct NCR_700_Host_Parameters *hostdata =
-		kmalloc(sizeof(struct NCR_700_Host_Parameters),	GFP_KERNEL);
+		kzalloc(sizeof(struct NCR_700_Host_Parameters),	GFP_KERNEL);
 
 	printk(KERN_NOTICE "sim710: %s\n", dev->bus_id);
 	printk(KERN_NOTICE "sim710: irq = %d, clock = %d, base = 0x%lx, scsi_id = %d\n",
@@ -110,7 +110,6 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 		printk(KERN_ERR "sim710: Failed to allocate host data\n");
 		goto out;
 	}
-	memset(hostdata, 0, sizeof(struct NCR_700_Host_Parameters));
 
 	if(request_region(base_addr, 64, "sim710") == NULL) {
 		printk(KERN_ERR "sim710: Failed to reserve IO region 0x%lx\n",

@@ -273,10 +273,9 @@ via_alloc_desc_pages(drm_via_sg_info_t *vsg)
 	vsg->num_desc_pages = (vsg->num_desc + vsg->descriptors_per_page - 1) / 
 		vsg->descriptors_per_page;
 
-	if (NULL ==  (vsg->desc_pages = kmalloc(sizeof(void *) * vsg->num_desc_pages, GFP_KERNEL))) 
+	if (NULL ==  (vsg->desc_pages = kcalloc(vsg->num_desc_pages, sizeof(void *), GFP_KERNEL)))
 		return DRM_ERR(ENOMEM);
 	
-	memset(vsg->desc_pages, 0, sizeof(void *) * vsg->num_desc_pages);
 	vsg->state = dr_via_desc_pages_alloc;
 	for (i=0; i<vsg->num_desc_pages; ++i) {
 		if (NULL == (vsg->desc_pages[i] = 

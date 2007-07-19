@@ -164,7 +164,7 @@ static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_devi
 	if (pdev->vendor != PCI_VENDOR_ID_MATROX || pdev->device != PCI_DEVICE_ID_MATROX_G400)
 		return -ENODEV;
 
-	dev = kmalloc(sizeof(struct matrox_device) +
+	dev = kzalloc(sizeof(struct matrox_device) +
 		       sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&pdev->dev,
@@ -173,7 +173,6 @@ static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_devi
 		return -ENOMEM;
 	}
 
-	memset(dev, 0, sizeof(struct matrox_device) + sizeof(struct w1_bus_master));
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 

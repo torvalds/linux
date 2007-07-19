@@ -124,9 +124,8 @@ static void cn_test_timer_func(unsigned long __data)
 	struct cn_msg *m;
 	char data[32];
 
-	m = kmalloc(sizeof(*m) + sizeof(data), GFP_ATOMIC);
+	m = kzalloc(sizeof(*m) + sizeof(data), GFP_ATOMIC);
 	if (m) {
-		memset(m, 0, sizeof(*m) + sizeof(data));
 
 		memcpy(&m->id, &cn_test_id, sizeof(m->id));
 		m->seq = cn_test_timer_counter;

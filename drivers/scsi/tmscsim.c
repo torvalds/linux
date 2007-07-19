@@ -2082,10 +2082,9 @@ static int dc390_slave_alloc(struct scsi_device *scsi_device)
 	uint id = scsi_device->id;
 	uint lun = scsi_device->lun;
 
-	pDCB = kmalloc(sizeof(struct dc390_dcb), GFP_KERNEL);
+	pDCB = kzalloc(sizeof(struct dc390_dcb), GFP_KERNEL);
 	if (!pDCB)
 		return -ENOMEM;
-	memset(pDCB, 0, sizeof(struct dc390_dcb));
 
 	if (!pACB->DCBCnt++) {
 		pACB->pLinkDCB = pDCB;

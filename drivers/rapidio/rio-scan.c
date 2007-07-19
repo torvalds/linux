@@ -297,11 +297,10 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 	struct rio_switch *rswitch;
 	int result, rdid;
 
-	rdev = kmalloc(sizeof(struct rio_dev), GFP_KERNEL);
+	rdev = kzalloc(sizeof(struct rio_dev), GFP_KERNEL);
 	if (!rdev)
 		goto out;
 
-	memset(rdev, 0, sizeof(struct rio_dev));
 	rdev->net = net;
 	rio_mport_read_config_32(port, destid, hopcount, RIO_DEV_ID_CAR,
 				 &result);
@@ -801,9 +800,8 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
 {
 	struct rio_net *net;
 
-	net = kmalloc(sizeof(struct rio_net), GFP_KERNEL);
+	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
 	if (net) {
-		memset(net, 0, sizeof(struct rio_net));
 		INIT_LIST_HEAD(&net->node);
 		INIT_LIST_HEAD(&net->devices);
 		INIT_LIST_HEAD(&net->mports);

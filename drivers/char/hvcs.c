@@ -784,12 +784,10 @@ static int __devinit hvcs_probe(
 		return -EFAULT;
 	}
 
-	hvcsd = kmalloc(sizeof(*hvcsd), GFP_KERNEL);
+	hvcsd = kzalloc(sizeof(*hvcsd), GFP_KERNEL);
 	if (!hvcsd)
 		return -ENODEV;
 
-	/* hvcsd->tty is zeroed out with the memset */
-	memset(hvcsd, 0x00, sizeof(*hvcsd));
 
 	spin_lock_init(&hvcsd->lock);
 	/* Automatically incs the refcount the first time */

@@ -312,14 +312,13 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 		return i;
 	}
 
-	card = kmalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
 		printk(KERN_ERR "pci200syn: unable to allocate memory\n");
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;
 	}
-	memset(card, 0, sizeof(card_t));
 	pci_set_drvdata(pdev, card);
 	card->ports[0].dev = alloc_hdlcdev(&card->ports[0]);
 	card->ports[1].dev = alloc_hdlcdev(&card->ports[1]);

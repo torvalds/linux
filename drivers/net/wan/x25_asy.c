@@ -786,14 +786,12 @@ static int __init init_x25_asy(void)
 	printk(KERN_INFO "X.25 async: version 0.00 ALPHA "
 			"(dynamic channels, max=%d).\n", x25_asy_maxdev );
 
-	x25_asy_devs = kmalloc(sizeof(struct net_device *)*x25_asy_maxdev, 
-			       GFP_KERNEL);
+	x25_asy_devs = kcalloc(x25_asy_maxdev, sizeof(struct net_device*), GFP_KERNEL);
 	if (!x25_asy_devs) {
 		printk(KERN_WARNING "X25 async: Can't allocate x25_asy_ctrls[] "
 				"array! Uaargh! (-> No X.25 available)\n");
 		return -ENOMEM;
 	}
-	memset(x25_asy_devs, 0, sizeof(struct net_device *)*x25_asy_maxdev); 
 
 	return tty_register_ldisc(N_X25, &x25_ldisc);
 }
