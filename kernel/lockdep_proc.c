@@ -421,8 +421,30 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 	class = data->class;
 	stats = &data->stats;
 
-	snprintf(name, 38, "%s", class->name);
+	namelen = 38;
+	if (class->name_version > 1)
+		namelen -= 2; /* XXX truncates versions > 9 */
+	if (class->subclass)
+		namelen -= 2;
+
+	if (!class->name) {
+		char str[KSYM_NAME_LEN];
+		const char *key_name;
+
+		key_name = __get_key_name(class->key, str);
+		snprintf(name, namelen, "%s", key_name);
+	} else {
+		snprintf(name, namelen, "%s", class->name);
+	}
 	namelen = strlen(name);
+	if (class->name_version > 1) {
+		snprintf(name+namelen, 3, "#%d", class->name_version);
+		namelen += 2;
+	}
+	if (class->subclass) {
+		snprintf(name+namelen, 3, "/%d", class->subclass);
+		namelen += 2;
+	}
 
 	if (stats->write_holdtime.nr) {
 		if (stats->read_holdtime.nr)
