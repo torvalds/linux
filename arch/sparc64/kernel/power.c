@@ -83,7 +83,7 @@ static int __devinit power_probe(struct of_device *op, const struct of_device_id
 
 	power_reg = of_ioremap(res, 0, 0x4, "power");
 
-	printk("%s: Control reg at %lx ... ",
+	printk(KERN_INFO "%s: Control reg at %lx\n",
 	       op->node->name, res->start);
 
 	poweroff_method = machine_halt;  /* able to use the standard halt */
@@ -92,8 +92,6 @@ static int __devinit power_probe(struct of_device *op, const struct of_device_id
 		if (request_irq(irq,
 				power_handler, 0, "power", NULL) < 0)
 			printk(KERN_ERR "power: Cannot setup IRQ handler.\n");
-	} else {
-		printk(KERN_INFO "power: Not using powerd.\n");
 	}
 
 	return 0;
