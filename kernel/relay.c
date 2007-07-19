@@ -80,7 +80,7 @@ static struct vm_operations_struct relay_file_mmap_ops = {
  *
  *	Caller should already have grabbed mmap_sem.
  */
-int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
+static int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
 {
 	unsigned long length = vma->vm_end - vma->vm_start;
 	struct file *filp = vma->vm_file;
@@ -145,7 +145,7 @@ depopulate:
  *
  *	Returns channel buffer if successful, %NULL otherwise.
  */
-struct rchan_buf *relay_create_buf(struct rchan *chan)
+static struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
 	struct rchan_buf *buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
 	if (!buf)
@@ -175,7 +175,7 @@ free_buf:
  *
  *	Should only be called from kref_put().
  */
-void relay_destroy_channel(struct kref *kref)
+static void relay_destroy_channel(struct kref *kref)
 {
 	struct rchan *chan = container_of(kref, struct rchan, kref);
 	kfree(chan);
@@ -185,7 +185,7 @@ void relay_destroy_channel(struct kref *kref)
  *	relay_destroy_buf - destroy an rchan_buf struct and associated buffer
  *	@buf: the buffer struct
  */
-void relay_destroy_buf(struct rchan_buf *buf)
+static void relay_destroy_buf(struct rchan_buf *buf)
 {
 	struct rchan *chan = buf->chan;
 	unsigned int i;
@@ -210,7 +210,7 @@ void relay_destroy_buf(struct rchan_buf *buf)
  *	rchan_buf_struct and the channel buffer.  Should only be called from
  *	kref_put().
  */
-void relay_remove_buf(struct kref *kref)
+static void relay_remove_buf(struct kref *kref)
 {
 	struct rchan_buf *buf = container_of(kref, struct rchan_buf, kref);
 	buf->chan->cb->remove_buf_file(buf->dentry);
@@ -223,11 +223,10 @@ void relay_remove_buf(struct kref *kref)
  *
  *	Returns 1 if the buffer is empty, 0 otherwise.
  */
-int relay_buf_empty(struct rchan_buf *buf)
+static int relay_buf_empty(struct rchan_buf *buf)
 {
 	return (buf->subbufs_produced - buf->subbufs_consumed) ? 0 : 1;
 }
-EXPORT_SYMBOL_GPL(relay_buf_empty);
 
 /**
  *	relay_buf_full - boolean, is the channel buffer full?
