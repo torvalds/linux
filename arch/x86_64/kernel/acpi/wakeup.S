@@ -50,7 +50,7 @@ wakeup_code:
 	movw	%ax, %ss
 
 	# Data segment must be set up before we can see whether to beep.
-	testl   $1, beep_flags - wakeup_code
+	testl   $4, realmode_flags - wakeup_code
 	jz      1f
 	BEEP
 1:
@@ -70,7 +70,7 @@ wakeup_code:
 	testl	%eax, %eax
 	jnz	no_longmode
 
-	testl	$1, video_flags - wakeup_code
+	testl	$1, realmode_flags - wakeup_code
 	jz	1f
 	lcall   $0xc000,$3
 	movw	%cs, %ax
@@ -78,7 +78,7 @@ wakeup_code:
 	movw	%ax, %ss
 1:
 
-	testl	$2, video_flags - wakeup_code
+	testl	$2, realmode_flags - wakeup_code
 	jz	1f
 	mov	video_mode - wakeup_code, %ax
 	call	mode_seta
@@ -251,9 +251,8 @@ gdt_48a:
 	.long   gdta - wakeup_code              # gdt base (relocated in later)
 	
 real_magic:	.quad 0
-beep_flags:	.quad 0
 video_mode:	.quad 0
-video_flags:	.quad 0
+realmode_flags:	.quad 0
 
 .code16
 bogus_real_magic:
@@ -367,12 +366,10 @@ ENTRY(acpi_copy_wakeup_routine)
 	pushq	%rax
 	pushq	%rdx
 
-	movl	s2ram_beep, %edx
-	movl	%edx, beep_flags - wakeup_start (,%rdi)
 	movl	saved_video_mode, %edx
 	movl	%edx, video_mode - wakeup_start (,%rdi)
-	movl	acpi_video_flags, %edx
-	movl	%edx, video_flags - wakeup_start (,%rdi)
+	movl	acpi_realmode_flags, %edx
+	movl	%edx, realmode_flags - wakeup_start (,%rdi)
 	movq	$0x12345678, real_magic - wakeup_start (,%rdi)
 	movq	$0x123456789abcdef0, %rdx
 	movq	%rdx, saved_magic
