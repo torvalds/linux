@@ -420,10 +420,15 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 {
 	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	const struct linux_prom_irqs *intr;
+	struct dev_archdata *sd;
 	int len, i;
 
 	if (!op)
 		return NULL;
+
+	sd = &op->dev.archdata;
+	sd->prom_node = dp;
+	sd->op = op;
 
 	op->node = dp;
 
