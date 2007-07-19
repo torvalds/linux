@@ -205,12 +205,23 @@ int hibernation_restore(int platform_mode)
 
 int hibernation_platform_enter(void)
 {
+	int error;
+
 	if (hibernation_ops) {
 		kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-		return hibernation_ops->enter();
+		/*
+		 * We have cancelled the power transition by running
+		 * hibernation_ops->finish() before saving the image, so we
+		 * should let the firmware know that we're going to enter the
+		 * sleep state after all
+		 */
+		error = hibernation_ops->prepare();
+		if (!error)
+			error = hibernation_ops->enter();
 	} else {
-		return -ENOSYS;
+		error = -ENOSYS;
 	}
+	return error;
 }
 
 /**
