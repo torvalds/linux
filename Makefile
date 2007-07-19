@@ -514,6 +514,12 @@ CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 # disable pointer signed / unsigned warnings in gcc 4.0
 CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
+# Use --build-id when available.
+LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
+			      $(call ld-option, -Wl$(comma)--build-id,))
+LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
+LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
+
 # Default kernel image to build when no specific target is given.
 # KBUILD_IMAGE may be overruled on the command line or
 # set in the environment
