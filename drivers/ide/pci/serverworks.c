@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/serverworks.c		Version 0.21	Jun 16 2007
+ * linux/drivers/ide/pci/serverworks.c		Version 0.22	Jun 27 2007
  *
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
@@ -387,8 +387,6 @@ static u8 __devinit ata66_svwks(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 {
-	u8 dma_stat = 0;
-
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
@@ -419,9 +417,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 
-	dma_stat = inb(hwif->dma_status);
-	hwif->drives[0].autodma = (dma_stat & 0x20);
-	hwif->drives[1].autodma = (dma_stat & 0x40);
+	hwif->drives[0].autodma = hwif->drives[1].autodma = 1;
 }
 
 static int __devinit init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
