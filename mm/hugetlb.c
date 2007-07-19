@@ -78,16 +78,13 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 	for (z = zonelist->zones; *z; z++) {
 		nid = zone_to_nid(*z);
 		if (cpuset_zone_allowed_softwall(*z, htlb_alloc_mask) &&
-		    !list_empty(&hugepage_freelists[nid]))
-			break;
-	}
-
-	if (*z) {
-		page = list_entry(hugepage_freelists[nid].next,
-				  struct page, lru);
-		list_del(&page->lru);
-		free_huge_pages--;
-		free_huge_pages_node[nid]--;
+		    !list_empty(&hugepage_freelists[nid])) {
+			page = list_entry(hugepage_freelists[nid].next,
+					  struct page, lru);
+			list_del(&page->lru);
+			free_huge_pages--;
+			free_huge_pages_node[nid]--;
+		}
 	}
 	return page;
 }
