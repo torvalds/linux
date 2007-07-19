@@ -1,11 +1,11 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.14
-                          April 21st, 2007
+                            Version 0.15
+                           July 1st, 2007
 
                Borislav Deianov <borislav@users.sf.net>
-	     Henrique de Moraes Holschuh <hmh@hmh.eng.br>
-		      http://ibm-acpi.sf.net/
+             Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+                      http://ibm-acpi.sf.net/
 
 
 This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
