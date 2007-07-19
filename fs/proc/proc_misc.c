@@ -445,6 +445,11 @@ static int show_stat(struct seq_file *p, void *v)
 	cputime64_t user, nice, system, idle, iowait, irq, softirq, steal;
 	u64 sum = 0;
 	struct timespec boottime;
+	unsigned int *per_irq_sum;
+
+	per_irq_sum = kzalloc(sizeof(unsigned int)*NR_IRQS, GFP_KERNEL);
+	if (!per_irq_sum)
+		return -ENOMEM;
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
@@ -462,8 +467,11 @@ static int show_stat(struct seq_file *p, void *v)
 		irq = cputime64_add(irq, kstat_cpu(i).cpustat.irq);
 		softirq = cputime64_add(softirq, kstat_cpu(i).cpustat.softirq);
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
-		for (j = 0 ; j < NR_IRQS ; j++)
-			sum += kstat_cpu(i).irqs[j];
+		for (j = 0; j < NR_IRQS; j++) {
+			unsigned int temp = kstat_cpu(i).irqs[j];
+			sum += temp;
+			per_irq_sum[j] += temp;
+		}
 	}
 
 	seq_printf(p, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu\n",
@@ -501,7 +509,7 @@ static int show_stat(struct seq_file *p, void *v)
 
 #if !defined(CONFIG_PPC64) && !defined(CONFIG_ALPHA) && !defined(CONFIG_IA64)
 	for (i = 0; i < NR_IRQS; i++)
-		seq_printf(p, " %u", kstat_irqs(i));
+		seq_printf(p, " %u", per_irq_sum[i]);
 #endif
 
 	seq_printf(p,
@@ -516,6 +524,7 @@ static int show_stat(struct seq_file *p, void *v)
 		nr_running(),
 		nr_iowait());
 
+	kfree(per_irq_sum);
 	return 0;
 }
 
