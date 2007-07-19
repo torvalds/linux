@@ -1457,6 +1457,34 @@ static void del_mc_from_global_list(struct mem_ctl_info *mci)
 }
 
 /**
+ * edac_mc_find: Search for a mem_ctl_info structure whose index is 'idx'.
+ *
+ * If found, return a pointer to the structure.
+ * Else return NULL.
+ *
+ * Caller must hold mem_ctls_mutex.
+ */
+struct mem_ctl_info * edac_mc_find(int idx)
+{
+	struct list_head *item;
+	struct mem_ctl_info *mci;
+
+	list_for_each(item, &mc_devices) {
+		mci = list_entry(item, struct mem_ctl_info, link);
+
+		if (mci->mc_idx >= idx) {
+			if (mci->mc_idx == idx)
+				return mci;
+
+			break;
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(edac_mc_find);
+
+/**
  * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
  *                 create sysfs entries associated with mci structure
  * @mci: pointer to the mci structure to be added to the list
