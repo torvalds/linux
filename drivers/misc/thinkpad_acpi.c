@@ -22,7 +22,7 @@
  */
 
 #define IBM_VERSION "0.14"
-#define TPACPI_SYSFS_VERSION 0x000100
+#define TPACPI_SYSFS_VERSION 0x000200
 
 /*
  *  Changelog:

@@ -134,6 +134,21 @@ end of this document.  Changes to the sysfs interface done by the kernel
 subsystems are not documented here, nor are they tracked by this
 attribute.
 
+Changes to the thinkpad-acpi sysfs interface are only considered
+non-experimental when they are submitted to Linux mainline, at which
+point the changes in this interface are documented and interface_version
+may be updated.  If you are using any thinkpad-acpi features not yet
+sent to mainline for merging, you do so on your own risk: these features
+may disappear, or be implemented in a different and incompatible way by
+the time they are merged in Linux mainline.
+
+Changes that are backwards-compatible by nature (e.g. the addition of
+attributes that do not change the way the other attributes work) do not
+always warrant an update of interface_version.  Therefore, one must
+expect that an attribute might not be there, and deal with it properly
+(an attribute not being there *is* a valid way to make it clear that a
+feature is not available in sysfs).
+
 Hot keys
 --------
 
@@ -989,3 +1004,5 @@ Sysfs interface changelog:
 
 0x000100:	Initial sysfs support, as a single platform driver and
 		device.
+0x000200:	Hot key support for 32 hot keys, and radio slider switch
+		support.
