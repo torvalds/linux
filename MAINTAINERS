@@ -732,6 +732,13 @@ L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
+BLACKFIN EMAC DRIVER
+P:	Bryan Wu
+M:	bryan.wu@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org
+S:	Supported
+
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
 M:	michael.frysinger@analog.com

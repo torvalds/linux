@@ -1582,7 +1582,7 @@ static void ns83820_set_multicast(struct net_device *ndev)
 	else
 		and_mask &= ~(RFCR_AAU | RFCR_AAM);
 
-	if (ndev->flags & IFF_ALLMULTI)
+	if (ndev->flags & IFF_ALLMULTI || ndev->mc_count)
 		or_mask |= RFCR_AAM;
 	else
 		and_mask &= ~RFCR_AAM;

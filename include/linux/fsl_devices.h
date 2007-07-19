@@ -53,6 +53,7 @@ struct gianfar_platform_data {
 	u32	bus_id;
 	u32	phy_id;
 	u8	mac_addr[6];
+	phy_interface_t interface;
 };
 
 struct gianfar_mdio_data {

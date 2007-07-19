@@ -420,8 +420,18 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 	if (ecntrl & ECNTRL_REDUCED_MODE) {
 		if (ecntrl & ECNTRL_REDUCED_MII_MODE)
 			return PHY_INTERFACE_MODE_RMII;
-		else
+		else {
+			phy_interface_t interface = priv->einfo->interface;
+
+			/*
+			 * This isn't autodetected right now, so it must
+			 * be set by the device tree or platform code.
+			 */
+			if (interface == PHY_INTERFACE_MODE_RGMII_ID)
+				return PHY_INTERFACE_MODE_RGMII_ID;
+
 			return PHY_INTERFACE_MODE_RGMII;
+		}
 	}
 
 	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)

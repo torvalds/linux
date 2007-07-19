@@ -940,15 +940,14 @@ static void lan_saa9730_set_multicast(struct net_device *dev)
 		       CAM_CONTROL_GROUP_ACC | CAM_CONTROL_BROAD_ACC,
 		       &lp->lan_saa9730_regs->CamCtl);
 	} else {
-		if (dev->flags & IFF_ALLMULTI) {
+		if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
 			/* accept all multicast packets */
-			writel(CAM_CONTROL_COMP_EN | CAM_CONTROL_GROUP_ACC |
-			       CAM_CONTROL_BROAD_ACC,
-			       &lp->lan_saa9730_regs->CamCtl);
-		} else {
 			/*
 			 * Will handle the multicast stuff later. -carstenl
 			 */
+			writel(CAM_CONTROL_COMP_EN | CAM_CONTROL_GROUP_ACC |
+			       CAM_CONTROL_BROAD_ACC,
+			       &lp->lan_saa9730_regs->CamCtl);
 		}
 	}
 
