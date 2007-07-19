@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 
+#include <linux/nvram.h>
 #include <linux/proc_fs.h>
 #include <linux/sysfs.h>
 #include <linux/backlight.h>
@@ -79,6 +80,11 @@
 #define TP_CMOS_VOLUME_MUTE	2
 #define TP_CMOS_BRIGHTNESS_UP	4
 #define TP_CMOS_BRIGHTNESS_DOWN	5
+
+/* ThinkPad CMOS NVRAM constants */
+#define TP_NVRAM_ADDR_BRIGHTNESS       0x5e
+#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x07
+#define TP_NVRAM_POS_LEVEL_BRIGHTNESS 0
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -323,6 +329,7 @@ static int bluetooth_write(char *buf);
 
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
+static int brightness_mode;
 
 static int brightness_init(struct ibm_init_struct *iibm);
 static void brightness_exit(void);

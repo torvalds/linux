@@ -860,6 +860,12 @@ cannot be controlled.
 The backlight control has eight levels, ranging from 0 to 7.  Some of the
 levels may not be distinct.
 
+There are two interfaces to the firmware for brightness control, EC and CMOS.
+To select which one should be used, use the brightness_mode module parameter:
+brightness_mode=1 selects EC mode, brightness_mode=2 selects CMOS mode,
+brightness_mode=3 selects both EC and CMOS.  The driver tries to autodetect
+which interface to use.
+
 Procfs notes:
 
 	The available commands are:

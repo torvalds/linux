@@ -2953,9 +2953,22 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
 
+	if (!brightness_mode) {
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
+			brightness_mode = 2;
+		else
+			brightness_mode = 3;
+
+		dbg_printk(TPACPI_DBG_INIT, "selected brightness_mode=%d\n",
+			brightness_mode);
+	}
+
+	if (brightness_mode > 3)
+		return -EINVAL;
+
 	b = brightness_get(NULL);
 	if (b < 0)
-		return b;
+		return 1;
 
 	ibm_backlight_device = backlight_device_register(
 					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
@@ -2991,13 +3004,35 @@ static int brightness_update_status(struct backlight_device *bd)
 				bd->props.brightness : 0);
 }
 
+/*
+ * ThinkPads can read brightness from two places: EC 0x31, or
+ * CMOS NVRAM byte 0x5E, bits 0-3.
+ */
 static int brightness_get(struct backlight_device *bd)
 {
-	u8 level;
-	if (!acpi_ec_read(brightness_offset, &level))
-		return -EIO;
+	u8 lec = 0, lcmos = 0, level = 0;
 
-	level &= 0x7;
+	if (brightness_mode & 1) {
+		if (!acpi_ec_read(brightness_offset, &lec))
+			return -EIO;
+		lec &= 7;
+		level = lec;
+	};
+	if (brightness_mode & 2) {
+		lcmos = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
+			 & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
+			>> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
+		level = lcmos;
+	}
+
+	if (brightness_mode == 3 && lec != lcmos) {
+		printk(IBM_ERR
+			"CMOS NVRAM (%u) and EC (%u) do not agree "
+			"on display brightness level\n",
+			(unsigned int) lcmos,
+			(unsigned int) lec);
+		return -EIO;
+	}
 
 	return level;
 }
@@ -3007,14 +3042,20 @@ static int brightness_set(int value)
 	int cmos_cmd, inc, i;
 	int current_value = brightness_get(NULL);
 
-	value &= 7;
+	if (value > 7)
+		return -EINVAL;
 
-	cmos_cmd = value > current_value ? TP_CMOS_BRIGHTNESS_UP : TP_CMOS_BRIGHTNESS_DOWN;
+	cmos_cmd = value > current_value ?
+			TP_CMOS_BRIGHTNESS_UP :
+			TP_CMOS_BRIGHTNESS_DOWN;
 	inc = value > current_value ? 1 : -1;
+
 	for (i = current_value; i != value; i += inc) {
-		if (issue_thinkpad_cmos_command(cmos_cmd))
+		if ((brightness_mode & 2) &&
+		    issue_thinkpad_cmos_command(cmos_cmd))
 			return -EIO;
-		if (!acpi_ec_write(brightness_offset, i + inc))
+		if ((brightness_mode & 1) &&
+		    !acpi_ec_write(brightness_offset, i + inc))
 			return -EIO;
 	}
 
@@ -4484,6 +4525,9 @@ module_param(force_load, bool, 0);
 
 static int fan_control_allowed;
 module_param_named(fan_control, fan_control_allowed, bool, 0);
+
+static int brightness_mode;
+module_param_named(brightness_mode, brightness_mode, int, 0);
 
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)

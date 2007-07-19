@@ -150,6 +150,7 @@ config THINKPAD_ACPI
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select NVRAM
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
