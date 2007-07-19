@@ -379,6 +379,23 @@ static inline unsigned long long rq_clock(struct rq *rq)
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 
+/*
+ * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
+ * clock constructed from sched_clock():
+ */
+unsigned long long cpu_clock(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long long now;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	now = rq_clock(rq);
+	spin_unlock_irqrestore(&rq->lock, flags);
+
+	return now;
+}
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /* Change a task's ->cfs_rq if it moves across CPUs */
 static inline void set_task_cfs_rq(struct task_struct *p)
