@@ -42,8 +42,6 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 
-#include "ipath_layer.h"
-
 #define IPATH_MAX_RDMA_ATOMIC	4
 
 #define QPN_MAX                 (1 << 24)
