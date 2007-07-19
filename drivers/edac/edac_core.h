@@ -485,7 +485,16 @@ struct edac_dev_sysfs_attribute {
 };
 
 /* edac_dev_sysfs_block_attribute structure
+ *
  *	used in leaf 'block' nodes for adding controls/attributes
+ *
+ *	each block in each instance of the containing control structure
+ *	can have an array of the following. The show and store functions
+ *	will be filled in with the show/store function in the
+ *	low level driver.
+ *
+ *	The 'value' field will be the actual value field used for
+ *	counting
  */
 struct edac_dev_sysfs_block_attribute {
 	struct attribute attr;
@@ -494,8 +503,6 @@ struct edac_dev_sysfs_block_attribute {
 			const char *, size_t);
 	struct edac_device_block *block;
 
-	/* low driver use */
-	void *arg;
 	unsigned int value;
 };
 

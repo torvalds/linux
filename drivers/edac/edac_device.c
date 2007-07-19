@@ -83,7 +83,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	void *pvt;
 	int err;
 
-	debugf1("%s() instances=%d blocks=%d\n",
+	debugf4("%s() instances=%d blocks=%d\n",
 		__func__, nr_instances, nr_blocks);
 
 	/* Calculate the size of memory we need to allocate AND
@@ -158,6 +158,9 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	/* Name of this edac device */
 	snprintf(dev_ctl->name,sizeof(dev_ctl->name),"%s",edac_device_name);
 
+	debugf4("%s() edac_dev=%p next after end=%p\n",
+		__func__, dev_ctl, pvt + sz_private );
+
 	/* Initialize every Instance */
 	for (instance = 0; instance < nr_instances; instance++) {
 		inst = &dev_inst[instance];
@@ -177,8 +180,10 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			snprintf(blk->name, sizeof(blk->name),
 				 "%s%d", edac_block_name, block+offset_value);
 
-			debugf1("%s() instance=%d block=%d name=%s\n",
-				__func__, instance, block, blk->name);
+			debugf4("%s() instance=%d inst_p=%p block=#%d "
+				"block_p=%p name='%s'\n",
+				__func__, instance, inst, block,
+				blk, blk->name);
 
 			/* if there are NO attributes OR no attribute pointer
 			 * then continue on to next block iteration
@@ -191,20 +196,32 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			attrib_p = &dev_attrib[block*nr_instances*nr_attrib];
 			blk->block_attributes = attrib_p;
 
+			debugf4("%s() THIS BLOCK_ATTRIB=%p\n",
+				__func__, blk->block_attributes);
+
 			/* Initialize every user specified attribute in this
 			 * block with the data the caller passed in
+			 * Each block gets its own copy of pointers,
+			 * and its unique 'value'
 			 */
 			for (attr = 0; attr < nr_attrib; attr++) {
 				attrib = &attrib_p[attr];
-				attrib->attr = attrib_spec->attr;
-				attrib->show = attrib_spec->show;
-				attrib->store = attrib_spec->store;
 
-				/* up reference this block */
-				attrib->block = blk;
+				/* populate the unique per attrib
+				 * with the code pointers and info
+				 */
+				attrib->attr = attrib_spec[attr].attr;
+				attrib->show = attrib_spec[attr].show;
+				attrib->store = attrib_spec[attr].store;
 
-				/* bump the attrib_spec */
-				attrib_spec++;
+				attrib->block = blk;	/* up link */
+
+				debugf4("%s() alloc-attrib=%p attrib_name='%s' "
+					"attrib-spec=%p spec-name=%s\n",
+					__func__, attrib, attrib->attr.name,
+					&attrib_spec[attr],
+					attrib_spec[attr].attr.name
+					);
 			}
 		}
 	}
@@ -258,7 +275,7 @@ static struct edac_device_ctl_info *find_edac_device_by_dev(struct device *dev)
 	struct edac_device_ctl_info *edac_dev;
 	struct list_head *item;
 
-	debugf3("%s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	list_for_each(item, &edac_device_list) {
 		edac_dev = list_entry(item, struct edac_device_ctl_info, link);
@@ -402,7 +419,6 @@ static void edac_device_workq_function(struct work_struct *work_req)
 	struct delayed_work *d_work = (struct delayed_work *)work_req;
 	struct edac_device_ctl_info *edac_dev = to_edac_device_ctl_work(d_work);
 
-	//debugf0("%s() here and running\n", __func__);
 	mutex_lock(&device_ctls_mutex);
 
 	/* Only poll controllers that are running polled and have a check */
@@ -582,7 +598,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 {
 	struct edac_device_ctl_info *edac_dev;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	mutex_lock(&device_ctls_mutex);
 
