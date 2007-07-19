@@ -87,7 +87,10 @@ SECTIONS
 
   . = ALIGN(PAGE_SIZE);
   __per_cpu_start = .;
-  .data.percpu : C_PHYS(.data.percpu) { *(.data.percpu) }
+  .data.percpu : C_PHYS(.data.percpu) {
+	*(.data.percpu)
+	*(.data.percpu.shared_aligned)
+  }
   __per_cpu_end = . ;
   .data.cacheline_aligned : C_PHYS(.data.cacheline_aligned) { *(.data.cacheline_aligned) }
 

@@ -144,6 +144,7 @@ SECTIONS
 	.data.percpu : {
 		__per_cpu_start = .;
 		*(.data.percpu)
+		*(.data.percpu.shared_aligned)
 		__per_cpu_end = .;
 	}
 

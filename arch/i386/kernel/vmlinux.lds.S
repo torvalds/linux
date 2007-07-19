@@ -181,6 +181,7 @@ SECTIONS
   .data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {
 	__per_cpu_start = .;
 	*(.data.percpu)
+	*(.data.percpu.shared_aligned)
 	__per_cpu_end = .;
   }
   . = ALIGN(4096);
