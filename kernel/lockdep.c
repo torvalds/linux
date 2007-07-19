@@ -42,6 +42,20 @@
 
 #include "lockdep_internals.h"
 
+#ifdef CONFIG_PROVE_LOCKING
+int prove_locking = 1;
+module_param(prove_locking, int, 0644);
+#else
+#define prove_locking 0
+#endif
+
+#ifdef CONFIG_LOCK_STAT
+int lock_stat = 1;
+module_param(lock_stat, int, 0644);
+#else
+#define lock_stat 0
+#endif
+
 /*
  * lockdep_lock: protects the lockdep graph, the hashes and the
  *               class/list/hash allocators.
@@ -103,6 +117,70 @@ static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
  */
 unsigned long nr_lock_classes;
 static struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
+
+#ifdef CONFIG_LOCK_STAT
+static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS], lock_stats);
+
+static int lock_contention_point(struct lock_class *class, unsigned long ip)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(class->contention_point); i++) {
+		if (class->contention_point[i] == 0) {
+			class->contention_point[i] = ip;
+			break;
+		}
+		if (class->contention_point[i] == ip)
+			break;
+	}
+
+	return i;
+}
+
+static void lock_time_inc(struct lock_time *lt, s64 time)
+{
+	if (time > lt->max)
+		lt->max = time;
+
+	if (time < lt->min || !lt->min)
+		lt->min = time;
+
+	lt->total += time;
+	lt->nr++;
+}
+
+static struct lock_class_stats *get_lock_stats(struct lock_class *class)
+{
+	return &get_cpu_var(lock_stats)[class - lock_classes];
+}
+
+static void put_lock_stats(struct lock_class_stats *stats)
+{
+	put_cpu_var(lock_stats);
+}
+
+static void lock_release_holdtime(struct held_lock *hlock)
+{
+	struct lock_class_stats *stats;
+	s64 holdtime;
+
+	if (!lock_stat)
+		return;
+
+	holdtime = sched_clock() - hlock->holdtime_stamp;
+
+	stats = get_lock_stats(hlock->class);
+	if (hlock->read)
+		lock_time_inc(&stats->read_holdtime, holdtime);
+	else
+		lock_time_inc(&stats->write_holdtime, holdtime);
+	put_lock_stats(stats);
+}
+#else
+static inline void lock_release_holdtime(struct held_lock *hlock)
+{
+}
+#endif
 
 /*
  * We keep a global list of all lock classes. The list only grows,
@@ -2221,6 +2299,9 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	int chain_head = 0;
 	u64 chain_key;
 
+	if (!prove_locking)
+		check = 1;
+
 	if (unlikely(!debug_locks))
 		return 0;
 
@@ -2271,6 +2352,10 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->read = read;
 	hlock->check = check;
 	hlock->hardirqs_off = hardirqs_off;
+#ifdef CONFIG_LOCK_STAT
+	hlock->waittime_stamp = 0;
+	hlock->holdtime_stamp = sched_clock();
+#endif
 
 	if (check == 2 && !mark_irqflags(curr, hlock))
 		return 0;
@@ -2411,6 +2496,8 @@ lock_release_non_nested(struct task_struct *curr,
 	return print_unlock_inbalance_bug(curr, lock, ip);
 
 found_it:
+	lock_release_holdtime(hlock);
+
 	/*
 	 * We have the right lock to unlock, 'hlock' points to it.
 	 * Now we remove it from the stack, and add back the other
@@ -2462,6 +2549,8 @@ static int lock_release_nested(struct task_struct *curr,
 		return 0;
 
 	curr->curr_chain_key = hlock->prev_chain_key;
+
+	lock_release_holdtime(hlock);
 
 #ifdef CONFIG_DEBUG_LOCKDEP
 	hlock->prev_chain_key = 0;
@@ -2537,6 +2626,9 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 {
 	unsigned long flags;
 
+	if (unlikely(!lock_stat && !prove_locking))
+		return;
+
 	if (unlikely(current->lockdep_recursion))
 		return;
 
@@ -2556,6 +2648,9 @@ void lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 {
 	unsigned long flags;
 
+	if (unlikely(!lock_stat && !prove_locking))
+		return;
+
 	if (unlikely(current->lockdep_recursion))
 		return;
 
@@ -2568,6 +2663,158 @@ void lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 }
 
 EXPORT_SYMBOL_GPL(lock_release);
+
+#ifdef CONFIG_LOCK_STAT
+static int
+print_lock_contention_bug(struct task_struct *curr, struct lockdep_map *lock,
+			   unsigned long ip)
+{
+	if (!debug_locks_off())
+		return 0;
+	if (debug_locks_silent)
+		return 0;
+
+	printk("\n=================================\n");
+	printk(  "[ BUG: bad contention detected! ]\n");
+	printk(  "---------------------------------\n");
+	printk("%s/%d is trying to contend lock (",
+		curr->comm, curr->pid);
+	print_lockdep_cache(lock);
+	printk(") at:\n");
+	print_ip_sym(ip);
+	printk("but there are no locks held!\n");
+	printk("\nother info that might help us debug this:\n");
+	lockdep_print_held_locks(curr);
+
+	printk("\nstack backtrace:\n");
+	dump_stack();
+
+	return 0;
+}
+
+static void
+__lock_contended(struct lockdep_map *lock, unsigned long ip)
+{
+	struct task_struct *curr = current;
+	struct held_lock *hlock, *prev_hlock;
+	struct lock_class_stats *stats;
+	unsigned int depth;
+	int i, point;
+
+	depth = curr->lockdep_depth;
+	if (DEBUG_LOCKS_WARN_ON(!depth))
+		return;
+
+	prev_hlock = NULL;
+	for (i = depth-1; i >= 0; i--) {
+		hlock = curr->held_locks + i;
+		/*
+		 * We must not cross into another context:
+		 */
+		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
+			break;
+		if (hlock->instance == lock)
+			goto found_it;
+		prev_hlock = hlock;
+	}
+	print_lock_contention_bug(curr, lock, ip);
+	return;
+
+found_it:
+	hlock->waittime_stamp = sched_clock();
+
+	point = lock_contention_point(hlock->class, ip);
+
+	stats = get_lock_stats(hlock->class);
+	if (point < ARRAY_SIZE(stats->contention_point))
+		stats->contention_point[i]++;
+	put_lock_stats(stats);
+}
+
+static void
+__lock_acquired(struct lockdep_map *lock)
+{
+	struct task_struct *curr = current;
+	struct held_lock *hlock, *prev_hlock;
+	struct lock_class_stats *stats;
+	unsigned int depth;
+	u64 now;
+	s64 waittime;
+	int i;
+
+	depth = curr->lockdep_depth;
+	if (DEBUG_LOCKS_WARN_ON(!depth))
+		return;
+
+	prev_hlock = NULL;
+	for (i = depth-1; i >= 0; i--) {
+		hlock = curr->held_locks + i;
+		/*
+		 * We must not cross into another context:
+		 */
+		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
+			break;
+		if (hlock->instance == lock)
+			goto found_it;
+		prev_hlock = hlock;
+	}
+	print_lock_contention_bug(curr, lock, _RET_IP_);
+	return;
+
+found_it:
+	if (!hlock->waittime_stamp)
+		return;
+
+	now = sched_clock();
+	waittime = now - hlock->waittime_stamp;
+	hlock->holdtime_stamp = now;
+
+	stats = get_lock_stats(hlock->class);
+	if (hlock->read)
+		lock_time_inc(&stats->read_waittime, waittime);
+	else
+		lock_time_inc(&stats->write_waittime, waittime);
+	put_lock_stats(stats);
+}
+
+void lock_contended(struct lockdep_map *lock, unsigned long ip)
+{
+	unsigned long flags;
+
+	if (unlikely(!lock_stat))
+		return;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+	current->lockdep_recursion = 1;
+	__lock_contended(lock, ip);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_contended);
+
+void lock_acquired(struct lockdep_map *lock)
+{
+	unsigned long flags;
+
+	if (unlikely(!lock_stat))
+		return;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+	current->lockdep_recursion = 1;
+	__lock_acquired(lock);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_acquired);
+#endif
 
 /*
  * Used by the testsuite, sanitize the validator state

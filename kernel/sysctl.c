@@ -161,6 +161,8 @@ extern ctl_table inotify_table[];
 int sysctl_legacy_va_layout;
 #endif
 
+extern int prove_locking;
+extern int lock_stat;
 
 /* The default sysctl tables: */
 
@@ -282,6 +284,26 @@ static ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#ifdef CONFIG_PROVE_LOCKING
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "prove_locking",
+		.data		= &prove_locking,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_LOCK_STAT
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "lock_stat",
+		.data		= &lock_stat,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "sched_features",
