@@ -4803,7 +4803,7 @@ static int sctp_getsockopt_partial_delivery_point(struct sock *sk, int len,
 						  char __user *optval,
 						  int __user *optlen)
 {
-        u32 val;
+	u32 val;
 
 	if (len < sizeof(u32))
 		return -EINVAL;
@@ -4827,7 +4827,7 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 				    char __user *optval,
 				    int __user *optlen)
 {
-        int val;
+	int val;
 
 	if (len < sizeof(int))
 		return -EINVAL;

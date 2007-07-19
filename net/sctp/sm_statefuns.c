@@ -1779,7 +1779,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(const struct sctp_endpoint *ep,
 					     SCTP_COMM_UP, 0,
 					     asoc->c.sinit_num_ostreams,
 					     asoc->c.sinit_max_instreams,
-                                             NULL, GFP_ATOMIC);
+					     NULL, GFP_ATOMIC);
 		if (!ev)
 			goto nomem;
 

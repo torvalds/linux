@@ -230,7 +230,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 			warned++;
 			printk(KERN_INFO "sock_set_timeout: `%s' (pid %d) "
 			       "tries to set negative timeout\n",
-			        current->comm, current->pid);
+				current->comm, current->pid);
 		return 0;
 	}
 	*timeo_p = MAX_SCHEDULE_TIMEOUT;

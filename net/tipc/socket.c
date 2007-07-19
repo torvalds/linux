@@ -1629,8 +1629,8 @@ static struct proto_ops msg_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_msg,
 	.recvmsg	= recv_msg,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops packet_ops = {
@@ -1650,8 +1650,8 @@ static struct proto_ops packet_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_packet,
 	.recvmsg	= recv_msg,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops stream_ops = {
@@ -1671,8 +1671,8 @@ static struct proto_ops stream_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_stream,
 	.recvmsg	= recv_stream,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct net_proto_family tipc_family_ops = {

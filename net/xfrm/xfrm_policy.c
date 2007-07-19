@@ -857,7 +857,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 					       pol, NULL);
 				return err;
 			}
-                }
+		}
 		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
 			hlist_for_each_entry(pol, entry,
 					     xfrm_policy_bydst[dir].table + i,

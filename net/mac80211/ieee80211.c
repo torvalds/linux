@@ -4986,8 +4986,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * and we need some headroom for passing the frame to monitor
 	 * interfaces, but never both at the same time.
 	 */
-	local->tx_headroom = max(local->hw.extra_tx_headroom,
-				 sizeof(struct ieee80211_tx_status_rtap_hdr));
+	local->tx_headroom = max_t(unsigned int , local->hw.extra_tx_headroom,
+				   sizeof(struct ieee80211_tx_status_rtap_hdr));
 
 	debugfs_hw_add(local);
 
@@ -5095,7 +5095,7 @@ int ieee80211_register_hwmode(struct ieee80211_hw *hw,
 	}
 
 	if (!(hw->flags & IEEE80211_HW_DEFAULT_REG_DOMAIN_CONFIGURED))
-		ieee80211_init_client(local->mdev);
+		ieee80211_set_default_regdomain(mode);
 
 	return 0;
 }
@@ -5246,6 +5246,7 @@ static int __init ieee80211_init(void)
 	}
 
 	ieee80211_debugfs_netdev_init();
+	ieee80211_regdomain_init();
 
 	return 0;
 }

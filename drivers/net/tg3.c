@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.78"
-#define DRV_MODULE_RELDATE	"July 11, 2007"
+#define DRV_MODULE_VERSION	"3.79"
+#define DRV_MODULE_RELDATE	"July 18, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -4847,6 +4847,59 @@ static int tg3_poll_fw(struct tg3 *tp)
 	return 0;
 }
 
+/* Save PCI command register before chip reset */
+static void tg3_save_pci_state(struct tg3 *tp)
+{
+	u32 val;
+
+	pci_read_config_dword(tp->pdev, TG3PCI_COMMAND, &val);
+	tp->pci_cmd = val;
+}
+
+/* Restore PCI state after chip reset */
+static void tg3_restore_pci_state(struct tg3 *tp)
+{
+	u32 val;
+
+	/* Re-enable indirect register accesses. */
+	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
+			       tp->misc_host_ctrl);
+
+	/* Set MAX PCI retry to zero. */
+	val = (PCISTATE_ROM_ENABLE | PCISTATE_ROM_RETRY_ENABLE);
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5704_A0 &&
+	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE))
+		val |= PCISTATE_RETRY_SAME_DMA;
+	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
+
+	pci_write_config_dword(tp->pdev, TG3PCI_COMMAND, tp->pci_cmd);
+
+	/* Make sure PCI-X relaxed ordering bit is clear. */
+	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
+	val &= ~PCIX_CAPS_RELAXED_ORDERING;
+	pci_write_config_dword(tp->pdev, TG3PCI_X_CAPS, val);
+
+	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
+		u32 val;
+
+		/* Chip reset on 5780 will reset MSI enable bit,
+		 * so need to restore it.
+		 */
+		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+			u16 ctrl;
+
+			pci_read_config_word(tp->pdev,
+					     tp->msi_cap + PCI_MSI_FLAGS,
+					     &ctrl);
+			pci_write_config_word(tp->pdev,
+					      tp->msi_cap + PCI_MSI_FLAGS,
+					      ctrl | PCI_MSI_FLAGS_ENABLE);
+			val = tr32(MSGINT_MODE);
+			tw32(MSGINT_MODE, val | MSGINT_MODE_ENABLE);
+		}
+	}
+}
+
 static void tg3_stop_fw(struct tg3 *);
 
 /* tp->lock is held. */
@@ -4862,6 +4915,12 @@ static int tg3_chip_reset(struct tg3 *tp)
 	 * chip reset below will undo the nvram lock.
 	 */
 	tp->nvram_lock_cnt = 0;
+
+	/* GRC_MISC_CFG core clock reset will clear the memory
+	 * enable bit in PCI register 4 and the MSI enable bit
+	 * on some chips, so we save relevant registers here.
+	 */
+	tg3_save_pci_state(tp);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
@@ -4961,50 +5020,14 @@ static int tg3_chip_reset(struct tg3 *tp)
 		pci_write_config_dword(tp->pdev, 0xd8, 0xf5000);
 	}
 
-	/* Re-enable indirect register accesses. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
-			       tp->misc_host_ctrl);
-
-	/* Set MAX PCI retry to zero. */
-	val = (PCISTATE_ROM_ENABLE | PCISTATE_ROM_RETRY_ENABLE);
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5704_A0 &&
-	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE))
-		val |= PCISTATE_RETRY_SAME_DMA;
-	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
-
-	pci_restore_state(tp->pdev);
+	tg3_restore_pci_state(tp);
 
 	tp->tg3_flags &= ~TG3_FLAG_CHIP_RESETTING;
 
-	/* Make sure PCI-X relaxed ordering bit is clear. */
-	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
-	val &= ~PCIX_CAPS_RELAXED_ORDERING;
-	pci_write_config_dword(tp->pdev, TG3PCI_X_CAPS, val);
-
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
-		u32 val;
-
-		/* Chip reset on 5780 will reset MSI enable bit,
-		 * so need to restore it.
-		 */
-		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
-			u16 ctrl;
-
-			pci_read_config_word(tp->pdev,
-					     tp->msi_cap + PCI_MSI_FLAGS,
-					     &ctrl);
-			pci_write_config_word(tp->pdev,
-					      tp->msi_cap + PCI_MSI_FLAGS,
-					      ctrl | PCI_MSI_FLAGS_ENABLE);
-			val = tr32(MSGINT_MODE);
-			tw32(MSGINT_MODE, val | MSGINT_MODE_ENABLE);
-		}
-
+	val = 0;
+	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
 		val = tr32(MEMARB_MODE);
-		tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
-
-	} else
-		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
+	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A3) {
 		tg3_stop_fw(tp);
@@ -11978,7 +12001,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 */
 	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
 	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
-		pci_save_state(tp->pdev);
 		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	}
@@ -12006,12 +12028,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
 
 	tg3_init_coal(tp);
-
-	/* Now that we have fully setup the chip, save away a snapshot
-	 * of the PCI config space.  We need to restore this after
-	 * GRC_MISC_CFG core clock resets and some resume events.
-	 */
-	pci_save_state(tp->pdev);
 
 	pci_set_drvdata(pdev, dev);
 

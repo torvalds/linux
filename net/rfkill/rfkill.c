@@ -187,7 +187,7 @@ static ssize_t rfkill_claim_store(struct device *dev,
 static struct device_attribute rfkill_dev_attrs[] = {
 	__ATTR(name, S_IRUGO, rfkill_name_show, NULL),
 	__ATTR(type, S_IRUGO, rfkill_type_show, NULL),
-	__ATTR(state, S_IRUGO, rfkill_state_show, rfkill_state_store),
+	__ATTR(state, S_IRUGO|S_IWUSR, rfkill_state_show, rfkill_state_store),
 	__ATTR(claim, S_IRUGO|S_IWUSR, rfkill_claim_show, rfkill_claim_store),
 	__ATTR_NULL
 };

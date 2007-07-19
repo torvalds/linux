@@ -759,7 +759,6 @@ void ieee80211_update_default_wep_only(struct ieee80211_local *local);
 /* ieee80211_ioctl.c */
 int ieee80211_set_compression(struct ieee80211_local *local,
 			      struct net_device *dev, struct sta_info *sta);
-int ieee80211_init_client(struct net_device *dev);
 int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq);
 /* ieee80211_sta.c */
 void ieee80211_sta_timer(unsigned long data);
@@ -797,6 +796,10 @@ void ieee80211_if_free(struct net_device *dev);
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata);
 int ieee80211_if_add_mgmt(struct ieee80211_local *local);
 void ieee80211_if_del_mgmt(struct ieee80211_local *local);
+
+/* regdomain.c */
+void ieee80211_regdomain_init(void);
+void ieee80211_set_default_regdomain(struct ieee80211_hw_mode *mode);
 
 /* for wiphy privid */
 extern void *mac80211_wiphy_privid;

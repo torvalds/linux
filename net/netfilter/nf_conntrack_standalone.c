@@ -181,7 +181,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	if (seq_printf(s, "use=%u\n", atomic_read(&conntrack->ct_general.use)))
 		return -ENOSPC;
-	
+
 	return 0;
 }
 

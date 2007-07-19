@@ -407,7 +407,7 @@ xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
 				xfrm_audit_log(audit_info->loginuid,
 					       audit_info->secid,
 					       AUDIT_MAC_IPSEC_DELSA,
-                                               0, NULL, x);
+					       0, NULL, x);
 
 				return err;
 			}

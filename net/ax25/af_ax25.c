@@ -1262,7 +1262,7 @@ static int __must_check ax25_connect(struct socket *sock,
 
 		for (;;) {
 			prepare_to_wait(sk->sk_sleep, &wait,
-			                TASK_INTERRUPTIBLE);
+					TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
 			if (!signal_pending(current)) {
