@@ -252,7 +252,7 @@ static int xip_file_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 out:
 	page_cache_get(page);
 	vmf->page = page;
-	return VM_FAULT_MINOR;
+	return 0;
 }
 
 static struct vm_operations_struct xip_file_vm_ops = {

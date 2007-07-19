@@ -307,6 +307,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int write)
 	unsigned long address;
 	int space;
 	int si_code;
+	int fault;
 
 	if (notify_page_fault(regs, error_code))
 		return;
@@ -377,23 +378,22 @@ survive:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	switch (handle_mm_fault(mm, vma, address, write)) {
-	case VM_FAULT_MINOR:
-		tsk->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		tsk->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		do_sigbus(regs, error_code, address);
-		return;
-	case VM_FAULT_OOM:
-		if (do_out_of_memory(regs, error_code, address))
-			goto survive;
-		return;
-	default:
+	fault = handle_mm_fault(mm, vma, address, write);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM) {
+			if (do_out_of_memory(regs, error_code, address))
+				goto survive;
+			return;
+		} else if (fault & VM_FAULT_SIGBUS) {
+			do_sigbus(regs, error_code, address);
+			return;
+		}
 		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		tsk->maj_flt++;
+	else
+		tsk->min_flt++;
 
         up_read(&mm->mmap_sem);
 	/*

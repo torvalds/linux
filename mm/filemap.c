@@ -1322,9 +1322,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page;
 	unsigned long size;
 	int did_readaround = 0;
-	int ret;
-
-	ret = VM_FAULT_MINOR;
+	int ret = 0;
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (vmf->pgoff >= size)
@@ -1408,7 +1406,7 @@ retry_find:
 	 */
 	mark_page_accessed(page);
 	vmf->page = page;
-	return ret | FAULT_RET_LOCKED;
+	return ret | VM_FAULT_LOCKED;
 
 outside_data_content:
 	/*

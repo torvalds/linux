@@ -469,7 +469,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	avoidcopy = (page_count(old_page) == 1);
 	if (avoidcopy) {
 		set_huge_ptep_writable(vma, address, ptep);
-		return VM_FAULT_MINOR;
+		return 0;
 	}
 
 	page_cache_get(old_page);
@@ -494,7 +494,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 	page_cache_release(new_page);
 	page_cache_release(old_page);
-	return VM_FAULT_MINOR;
+	return 0;
 }
 
 static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -551,7 +551,7 @@ retry:
 	if (idx >= size)
 		goto backout;
 
-	ret = VM_FAULT_MINOR;
+	ret = 0;
 	if (!pte_none(*ptep))
 		goto backout;
 
@@ -602,7 +602,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		return ret;
 	}
 
-	ret = VM_FAULT_MINOR;
+	ret = 0;
 
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
@@ -641,7 +641,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			spin_unlock(&mm->page_table_lock);
 			ret = hugetlb_fault(mm, vma, vaddr, 0);
 			spin_lock(&mm->page_table_lock);
-			if (ret == VM_FAULT_MINOR)
+			if (!(ret & VM_FAULT_MAJOR))
 				continue;
 
 			remainder = 0;

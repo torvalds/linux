@@ -196,25 +196,10 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
 
 
-#define FAULT_RET_NOPAGE	0x0100	/* ->fault did not return a page. This
-					 * can be used if the handler installs
-					 * their own pte.
-					 */
-#define FAULT_RET_LOCKED	0x0200	/* ->fault locked the page, caller must
-					 * unlock after installing the mapping.
-					 * This is used by pagecache in
-					 * particular, where the page lock is
-					 * used to synchronise against truncate
-					 * and invalidate. Mutually exclusive
-					 * with FAULT_RET_NOPAGE.
-					 */
-
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
- * ->fault function. The vma's ->fault is responsible for returning the
- * VM_FAULT_xxx type which occupies the lowest byte of the return code, ORed
- * with FAULT_RET_ flags that occupy the next byte and give details about
- * how the fault was handled.
+ * ->fault function. The vma's ->fault is responsible for returning a bitmask
+ * of VM_FAULT_xxx flags that give details about how the fault was handled.
  *
  * pgoff should be used in favour of virtual_address, if possible. If pgoff
  * is used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get nonlinear
@@ -226,9 +211,9 @@ struct vm_fault {
 	void __user *virtual_address;	/* Faulting virtual address */
 
 	struct page *page;		/* ->fault handlers should return a
-					 * page here, unless FAULT_RET_NOPAGE
+					 * page here, unless VM_FAULT_NOPAGE
 					 * is set (which is also implied by
-					 * VM_FAULT_OOM or SIGBUS).
+					 * VM_FAULT_ERROR).
 					 */
 };
 
@@ -712,26 +697,17 @@ static inline int page_mapped(struct page *page)
  * just gets major/minor fault counters bumped up.
  */
 
-/*
- * VM_FAULT_ERROR is set for the error cases, to make some tests simpler.
- */
-#define VM_FAULT_ERROR	0x20
+#define VM_FAULT_MINOR	0 /* For backwards compat. Remove me quickly. */
 
-#define VM_FAULT_OOM	(0x00 | VM_FAULT_ERROR)
-#define VM_FAULT_SIGBUS	(0x01 | VM_FAULT_ERROR)
-#define VM_FAULT_MINOR	0x02
-#define VM_FAULT_MAJOR	0x03
+#define VM_FAULT_OOM	0x0001
+#define VM_FAULT_SIGBUS	0x0002
+#define VM_FAULT_MAJOR	0x0004
+#define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
 
-/* 
- * Special case for get_user_pages.
- * Must be in a distinct bit from the above VM_FAULT_ flags.
- */
-#define VM_FAULT_WRITE	0x10
+#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+#define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
 
-/*
- * Mask of VM_FAULT_ flags
- */
-#define VM_FAULT_MASK	0xff
+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
 
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
@@ -817,16 +793,8 @@ extern int vmtruncate(struct inode * inode, loff_t offset);
 extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
 
 #ifdef CONFIG_MMU
-extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
+extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, int write_access);
-
-static inline int handle_mm_fault(struct mm_struct *mm,
-			struct vm_area_struct *vma, unsigned long address,
-			int write_access)
-{
-	return __handle_mm_fault(mm, vma, address, write_access) &
-				(~VM_FAULT_WRITE);
-}
 #else
 static inline int handle_mm_fault(struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long address,

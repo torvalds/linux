@@ -112,7 +112,7 @@ static int gfs2_sharewrite_fault(struct vm_area_struct *vma,
 	struct gfs2_holder i_gh;
 	int alloc_required;
 	int error;
-	int ret = VM_FAULT_MINOR;
+	int ret = 0;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)
@@ -132,14 +132,19 @@ static int gfs2_sharewrite_fault(struct vm_area_struct *vma,
 	set_bit(GFF_EXLOCK, &gf->f_flags);
 	ret = filemap_fault(vma, vmf);
 	clear_bit(GFF_EXLOCK, &gf->f_flags);
-	if (ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE))
+	if (ret & VM_FAULT_ERROR)
 		goto out_unlock;
 
 	if (alloc_required) {
 		/* XXX: do we need to drop page lock around alloc_page_backing?*/
 		error = alloc_page_backing(ip, vmf->page);
 		if (error) {
-			if (ret & FAULT_RET_LOCKED)
+			/*
+			 * VM_FAULT_LOCKED should always be the case for
+			 * filemap_fault, but it may not be in a future
+			 * implementation.
+			 */
+			if (ret & VM_FAULT_LOCKED)
 				unlock_page(vmf->page);
 			page_cache_release(vmf->page);
 			ret = VM_FAULT_OOM;

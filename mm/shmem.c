@@ -1103,7 +1103,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 		return -EFBIG;
 
 	if (type)
-		*type = VM_FAULT_MINOR;
+		*type = 0;
 
 	/*
 	 * Normally, filepage is NULL on entry, and either found
@@ -1138,9 +1138,9 @@ repeat:
 		if (!swappage) {
 			shmem_swp_unmap(entry);
 			/* here we actually do the io */
-			if (type && *type == VM_FAULT_MINOR) {
+			if (type && !(*type & VM_FAULT_MAJOR)) {
 				__count_vm_event(PGMAJFAULT);
-				*type = VM_FAULT_MAJOR;
+				*type |= VM_FAULT_MAJOR;
 			}
 			spin_unlock(&info->lock);
 			swappage = shmem_swapin(info, swap, idx);
@@ -1323,7 +1323,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
 
 	mark_page_accessed(vmf->page);
-	return ret | FAULT_RET_LOCKED;
+	return ret | VM_FAULT_LOCKED;
 }
 
 #ifdef CONFIG_NUMA

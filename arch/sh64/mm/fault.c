@@ -127,6 +127,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	struct vm_area_struct * vma;
 	const struct exception_table_entry *fixup;
 	pte_t *pte;
+	int fault;
 
 #if defined(CONFIG_SH64_PROC_TLB)
         ++calls_to_do_slow_page_fault;
@@ -221,18 +222,19 @@ good_area:
 	 * the fault.
 	 */
 survive:
-	switch (handle_mm_fault(mm, vma, address, writeaccess)) {
-	case VM_FAULT_MINOR:
-		tsk->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		tsk->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		goto do_sigbus;
-	default:
-		goto out_of_memory;
+	fault = handle_mm_fault(mm, vma, address, writeaccess);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto do_sigbus;
+		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		tsk->maj_flt++;
+	else
+		tsk->min_flt++;
+
 	/* If we get here, the page fault has been handled.  Do the TLB refill
 	   now from the newly-setup PTE, to avoid having to fault again right
 	   away on the same instruction. */

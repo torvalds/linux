@@ -1068,31 +1068,30 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			cond_resched();
 			while (!(page = follow_page(vma, start, foll_flags))) {
 				int ret;
-				ret = __handle_mm_fault(mm, vma, start,
+				ret = handle_mm_fault(mm, vma, start,
 						foll_flags & FOLL_WRITE);
+				if (ret & VM_FAULT_ERROR) {
+					if (ret & VM_FAULT_OOM)
+						return i ? i : -ENOMEM;
+					else if (ret & VM_FAULT_SIGBUS)
+						return i ? i : -EFAULT;
+					BUG();
+				}
+				if (ret & VM_FAULT_MAJOR)
+					tsk->maj_flt++;
+				else
+					tsk->min_flt++;
+
 				/*
-				 * The VM_FAULT_WRITE bit tells us that do_wp_page has
-				 * broken COW when necessary, even if maybe_mkwrite
-				 * decided not to set pte_write. We can thus safely do
-				 * subsequent page lookups as if they were reads.
+				 * The VM_FAULT_WRITE bit tells us that
+				 * do_wp_page has broken COW when necessary,
+				 * even if maybe_mkwrite decided not to set
+				 * pte_write. We can thus safely do subsequent
+				 * page lookups as if they were reads.
 				 */
 				if (ret & VM_FAULT_WRITE)
 					foll_flags &= ~FOLL_WRITE;
-				
-				switch (ret & ~VM_FAULT_WRITE) {
-				case VM_FAULT_MINOR:
-					tsk->min_flt++;
-					break;
-				case VM_FAULT_MAJOR:
-					tsk->maj_flt++;
-					break;
-				case VM_FAULT_SIGBUS:
-					return i ? i : -EFAULT;
-				case VM_FAULT_OOM:
-					return i ? i : -ENOMEM;
-				default:
-					BUG();
-				}
+
 				cond_resched();
 			}
 			if (pages) {
@@ -1639,7 +1638,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct page *old_page, *new_page;
 	pte_t entry;
-	int reuse = 0, ret = VM_FAULT_MINOR;
+	int reuse = 0, ret = 0;
 	struct page *dirty_page = NULL;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
@@ -1835,8 +1834,8 @@ static int unmap_mapping_range_vma(struct vm_area_struct *vma,
 	/*
 	 * files that support invalidating or truncating portions of the
 	 * file from under mmaped areas must have their ->fault function
-	 * return a locked page (and FAULT_RET_LOCKED code). This provides
-	 * synchronisation against concurrent unmapping here.
+	 * return a locked page (and set VM_FAULT_LOCKED in the return).
+	 * This provides synchronisation against concurrent unmapping here.
 	 */
 
 again:
@@ -2140,7 +2139,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *page;
 	swp_entry_t entry;
 	pte_t pte;
-	int ret = VM_FAULT_MINOR;
+	int ret = 0;
 
 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
 		goto out;
@@ -2208,8 +2207,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	unlock_page(page);
 
 	if (write_access) {
+		/* XXX: We could OR the do_wp_page code with this one? */
 		if (do_wp_page(mm, vma, address,
-				page_table, pmd, ptl, pte) == VM_FAULT_OOM)
+				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
 			ret = VM_FAULT_OOM;
 		goto out;
 	}
@@ -2280,7 +2280,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	lazy_mmu_prot_update(entry);
 unlock:
 	pte_unmap_unlock(page_table, ptl);
-	return VM_FAULT_MINOR;
+	return 0;
 release:
 	page_cache_release(page);
 	goto unlock;
@@ -2323,11 +2323,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	if (likely(vma->vm_ops->fault)) {
 		ret = vma->vm_ops->fault(vma, &vmf);
-		if (unlikely(ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE)))
-			return (ret & VM_FAULT_MASK);
+		if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+			return ret;
 	} else {
 		/* Legacy ->nopage path */
-		ret = VM_FAULT_MINOR;
+		ret = 0;
 		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
 		/* no page was available -- either SIGBUS or OOM */
 		if (unlikely(vmf.page == NOPAGE_SIGBUS))
@@ -2340,7 +2340,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * For consistency in subsequent calls, make the faulted page always
 	 * locked.
 	 */
-	if (unlikely(!(ret & FAULT_RET_LOCKED)))
+	if (unlikely(!(ret & VM_FAULT_LOCKED)))
 		lock_page(vmf.page);
 	else
 		VM_BUG_ON(!PageLocked(vmf.page));
@@ -2356,7 +2356,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 				ret = VM_FAULT_OOM;
 				goto out;
 			}
-			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+						vma, address);
 			if (!page) {
 				ret = VM_FAULT_OOM;
 				goto out;
@@ -2384,7 +2385,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 				 * is better done later.
 				 */
 				if (!page->mapping) {
-					ret = VM_FAULT_MINOR;
+					ret = 0;
 					anon = 1; /* no anon but release vmf.page */
 					goto out;
 				}
@@ -2447,7 +2448,7 @@ out_unlocked:
 		put_page(dirty_page);
 	}
 
-	return (ret & VM_FAULT_MASK);
+	return ret;
 }
 
 static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -2486,7 +2487,6 @@ static noinline int do_no_pfn(struct mm_struct *mm, struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	pte_t entry;
 	unsigned long pfn;
-	int ret = VM_FAULT_MINOR;
 
 	pte_unmap(page_table);
 	BUG_ON(!(vma->vm_flags & VM_PFNMAP));
@@ -2498,7 +2498,7 @@ static noinline int do_no_pfn(struct mm_struct *mm, struct vm_area_struct *vma,
 	else if (unlikely(pfn == NOPFN_SIGBUS))
 		return VM_FAULT_SIGBUS;
 	else if (unlikely(pfn == NOPFN_REFAULT))
-		return VM_FAULT_MINOR;
+		return 0;
 
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 
@@ -2510,7 +2510,7 @@ static noinline int do_no_pfn(struct mm_struct *mm, struct vm_area_struct *vma,
 		set_pte_at(mm, address, page_table, entry);
 	}
 	pte_unmap_unlock(page_table, ptl);
-	return ret;
+	return 0;
 }
 
 /*
@@ -2531,7 +2531,7 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgoff_t pgoff;
 
 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
-		return VM_FAULT_MINOR;
+		return 0;
 
 	if (unlikely(!(vma->vm_flags & VM_NONLINEAR) ||
 			!(vma->vm_flags & VM_CAN_NONLINEAR))) {
@@ -2615,13 +2615,13 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 	}
 unlock:
 	pte_unmap_unlock(pte, ptl);
-	return VM_FAULT_MINOR;
+	return 0;
 }
 
 /*
  * By the time we get here, we already hold the mm semaphore
  */
-int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, int write_access)
 {
 	pgd_t *pgd;
@@ -2650,7 +2650,7 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
 }
 
-EXPORT_SYMBOL_GPL(__handle_mm_fault);
+EXPORT_SYMBOL_GPL(handle_mm_fault);
 
 #ifndef __PAGETABLE_PUD_FOLDED
 /*

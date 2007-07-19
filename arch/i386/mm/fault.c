@@ -303,6 +303,7 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 	struct vm_area_struct * vma;
 	unsigned long address;
 	int write, si_code;
+	int fault;
 
 	/* get the address */
         address = read_cr2();
@@ -422,20 +423,18 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	switch (handle_mm_fault(mm, vma, address, write)) {
-		case VM_FAULT_MINOR:
-			tsk->min_flt++;
-			break;
-		case VM_FAULT_MAJOR:
-			tsk->maj_flt++;
-			break;
-		case VM_FAULT_SIGBUS:
-			goto do_sigbus;
-		case VM_FAULT_OOM:
+	fault = handle_mm_fault(mm, vma, address, write);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		default:
-			BUG();
+		else if (fault & VM_FAULT_SIGBUS)
+			goto do_sigbus;
+		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		tsk->maj_flt++;
+	else
+		tsk->min_flt++;
 
 	/*
 	 * Did it hit the DOS screen memory VA from vm86 mode?

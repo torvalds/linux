@@ -76,23 +76,24 @@ good_area:
 		goto out;
 
 	do {
+		int fault;
 survive:
-		switch (handle_mm_fault(mm, vma, address, is_write)){
-		case VM_FAULT_MINOR:
-			current->min_flt++;
-			break;
-		case VM_FAULT_MAJOR:
-			current->maj_flt++;
-			break;
-		case VM_FAULT_SIGBUS:
-			err = -EACCES;
-			goto out;
-		case VM_FAULT_OOM:
-			err = -ENOMEM;
-			goto out_of_memory;
-		default:
+		fault = handle_mm_fault(mm, vma, address, is_write);
+		if (unlikely(fault & VM_FAULT_ERROR)) {
+			if (fault & VM_FAULT_OOM) {
+				err = -ENOMEM;
+				goto out_of_memory;
+			} else if (fault & VM_FAULT_SIGBUS) {
+				err = -EACCES;
+				goto out;
+			}
 			BUG();
 		}
+		if (fault & VM_FAULT_MAJOR)
+			current->maj_flt++;
+		else
+			current->min_flt++;
+
 		pgd = pgd_offset(mm, address);
 		pud = pud_offset(pgd, address);
 		pmd = pmd_offset(pud, address);

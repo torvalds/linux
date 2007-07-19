@@ -20,6 +20,7 @@ static int __handle_fault(struct mm_struct *mm, unsigned long address,
 {
 	struct vm_area_struct *vma;
 	int ret = -EFAULT;
+	int fault;
 
 	if (in_atomic())
 		return ret;
@@ -44,20 +45,18 @@ static int __handle_fault(struct mm_struct *mm, unsigned long address,
 	}
 
 survive:
-	switch (handle_mm_fault(mm, vma, address, write_access)) {
-	case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		goto out_sigbus;
-	case VM_FAULT_OOM:
-		goto out_of_memory;
-	default:
+	fault = handle_mm_fault(mm, vma, address, write_access);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto out_sigbus;
 		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	ret = 0;
 out:
 	up_read(&mm->mmap_sem);
