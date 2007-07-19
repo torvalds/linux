@@ -89,17 +89,14 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	dev_ctl = (struct edac_device_ctl_info *)NULL;
 
 	/* Calc the 'end' offset past the ctl_info structure */
-	dev_inst = (struct edac_device_instance *)
-		edac_align_ptr(&dev_ctl[1], sizeof(*dev_inst));
+	dev_inst = edac_align_ptr(&dev_ctl[1], sizeof(*dev_inst));
 
 	/* Calc the 'end' offset past the instance array */
-	dev_blk = (struct edac_device_block *)
-		edac_align_ptr(&dev_inst[nr_instances], sizeof(*dev_blk));
+	dev_blk = edac_align_ptr(&dev_inst[nr_instances], sizeof(*dev_blk));
 
 	/* Calc the 'end' offset past the dev_blk array */
 	count = nr_instances * nr_blocks;
-	dev_attrib = (struct edac_attrib *)
-		edac_align_ptr(&dev_blk[count], sizeof(*dev_attrib));
+	dev_attrib = edac_align_ptr(&dev_blk[count], sizeof(*dev_attrib));
 
 	/* Check for case of NO attributes specified */
 	if (nr_attribs > 0)

@@ -211,8 +211,6 @@ enum scrub_type {
 #define OP_RUNNING_POLL_INTR	0x203
 #define OP_OFFLINE		0x300
 
-extern char *edac_align_ptr(void *ptr, unsigned size);
-
 /*
  * There are several things to be aware of that aren't at all obvious:
  *

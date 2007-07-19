@@ -85,7 +85,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
  * If 'size' is a constant, the compiler will optimize this whole function
  * down to either a no-op or the addition of a constant to the value of 'ptr'.
  */
-char *edac_align_ptr(void *ptr, unsigned size)
+void *edac_align_ptr(void *ptr, unsigned size)
 {
 	unsigned align, r;
 
@@ -109,7 +109,7 @@ char *edac_align_ptr(void *ptr, unsigned size)
 	if (r == 0)
 		return (char *)ptr;
 
-	return (char *)(((unsigned long)ptr) + align - r);
+	return (void *)(((unsigned long)ptr) + align - r);
 }
 
 /**
@@ -144,9 +144,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	 * hardcode everything into a single struct.
 	 */
 	mci = (struct mem_ctl_info *)0;
-	csi = (struct csrow_info *)edac_align_ptr(&mci[1], sizeof(*csi));
-	chi = (struct channel_info *)
-		edac_align_ptr(&csi[nr_csrows], sizeof(*chi));
+	csi = edac_align_ptr(&mci[1], sizeof(*csi));
+	chi = edac_align_ptr(&csi[nr_csrows], sizeof(*chi));
 	pvt = edac_align_ptr(&chi[nr_chans * nr_csrows], sz_pvt);
 	size = ((unsigned long)pvt) + sz_pvt;
 
