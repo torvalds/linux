@@ -288,7 +288,6 @@ void i2c_adapter_dev_release(struct device *dev)
 	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
-EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);	/* exported to i2c-isa */
 
 static ssize_t
 show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -307,7 +306,6 @@ struct class i2c_adapter_class = {
 	.name			= "i2c-adapter",
 	.dev_attrs		= i2c_adapter_attrs,
 };
-EXPORT_SYMBOL_GPL(i2c_adapter_class);		/* exported to i2c-isa */
 
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {

@@ -607,6 +607,12 @@ W:	http://sourceforge.net/projects/acpi4asus
 W:	http://xf.iksaif.net/acpi4asus
 S:	Maintained
 
+ASUS ASB100 HARDWARE MONITOR DRIVER
+P:	Mark M. Hoffman
+M:	mhoffman@lightlink.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ASUS LAPTOP EXTRAS DRIVER
 P:	Corentin Chary
 M:	corentincj@iksaif.net
@@ -1273,6 +1279,12 @@ M:	shannon.nelson@intel.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+DME1737 HARDWARE MONITOR DRIVER
+P:	Juerg Haefliger
+M:	juergh@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 DOCBOOK FOR DOCUMENTATION
 P:	Randy Dunlap
 M:	rdunlap@xenotime.net
@@ -1623,11 +1635,11 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARDWARE MONITORING
-P:	Jean Delvare
-M:	khali@linux-fr.org
+P:	Mark M. Hoffman
+M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-hwmon/
+T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git
 S:	Maintained
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
@@ -1761,6 +1773,12 @@ S:	Maintained
 HUGETLB FILESYSTEM
 P:	William Irwin
 M:	wli@holomorphy.com
+S:	Maintained
+
+I2C/SMBUS STUB DRIVER
+P:	Mark M. Hoffman
+M:	mhoffman@lightlink.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 I2C SUBSYSTEM
@@ -3292,6 +3310,12 @@ W:	http://www.brownhat.org/sis900.html
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+SIS 96X I2C/SMBUS DRIVER
+P:	Mark M. Hoffman
+M:	mhoffman@lightlink.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 SIS FRAMEBUFFER DRIVER
 P:	Thomas Winischhofer
 M:	thomas@winischhofer.net
@@ -3307,6 +3331,12 @@ S:	Maintained
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
+S:	Maintained
+
+SMSC47B397 HARDWARE MONITOR DRIVER
+P:	Mark M. Hoffman
+M:	mhoffman@lightlink.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 SOFTMAC LAYER (IEEE 802.11)

@@ -27,6 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
@@ -52,9 +53,11 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
 #define DS1621_REG_CONFIG_DONE		0x80
 
 /* The DS1621 registers */
-#define DS1621_REG_TEMP			0xAA /* word, RO */
-#define DS1621_REG_TEMP_MIN		0xA2 /* word, RW */
-#define DS1621_REG_TEMP_MAX		0xA1 /* word, RW */
+static const u8 DS1621_REG_TEMP[3] = {
+	0xAA,		/* input, word, RO */
+	0xA2,		/* min, word, RW */
+	0xA1,		/* max, word, RW */
+};
 #define DS1621_REG_CONF			0xAC /* byte, RW */
 #define DS1621_COM_START		0xEE /* no data */
 #define DS1621_COM_STOP			0x22 /* no data */
@@ -63,10 +66,7 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
 #define DS1621_ALARM_TEMP_HIGH		0x40
 #define DS1621_ALARM_TEMP_LOW		0x20
 
-/* Conversions. Rounding and limit checking is only done on the TO_REG
-   variants. Note that you should be a bit careful with which arguments
-   these macros are called: arguments may be evaluated more than once.
-   Fixing this is just not worth it. */
+/* Conversions */
 #define ALARMS_FROM_REG(val) ((val) & \
                               (DS1621_ALARM_TEMP_HIGH | DS1621_ALARM_TEMP_LOW))
 
@@ -78,7 +78,7 @@ struct ds1621_data {
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
-	u16 temp, temp_min, temp_max;	/* Register values, word */
+	u16 temp[3];			/* Register values, word */
 	u8 conf;			/* Register encoding, combined */
 };
 
@@ -101,7 +101,7 @@ static struct i2c_driver ds1621_driver = {
 
 /* All registers are word-sized, except for the configuration register.
    DS1621 uses a high-byte first convention, which is exactly opposite to
-   the usual practice. */
+   the SMBus standard. */
 static int ds1621_read_value(struct i2c_client *client, u8 reg)
 {
 	if (reg == DS1621_REG_CONF)
@@ -110,9 +110,6 @@ static int ds1621_read_value(struct i2c_client *client, u8 reg)
 		return swab16(i2c_smbus_read_word_data(client, reg));
 }
 
-/* All registers are word-sized, except for the configuration register.
-   DS1621 uses a high-byte first convention, which is exactly opposite to
-   the usual practice. */
 static int ds1621_write_value(struct i2c_client *client, u8 reg, u16 value)
 {
 	if (reg == DS1621_REG_CONF)
@@ -139,50 +136,61 @@ static void ds1621_init_client(struct i2c_client *client)
 	i2c_smbus_write_byte(client, DS1621_COM_START);
 }
 
-#define show(value)							\
-static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	struct ds1621_data *data = ds1621_update_client(dev);		\
-	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->value));	\
+static ssize_t show_temp(struct device *dev, struct device_attribute *da,
+			 char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	struct ds1621_data *data = ds1621_update_client(dev);
+	return sprintf(buf, "%d\n",
+		       LM75_TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-show(temp);
-show(temp_min);
-show(temp_max);
+static ssize_t set_temp(struct device *dev, struct device_attribute *da,
+			const char *buf, size_t count)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1621_data *data = ds1621_update_client(dev);
+	u16 val = LM75_TEMP_TO_REG(simple_strtoul(buf, NULL, 10));
 
-#define set_temp(suffix, value, reg)					\
-static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *attr, const char *buf,	\
-				 size_t count)				\
-{									\
-	struct i2c_client *client = to_i2c_client(dev);			\
-	struct ds1621_data *data = ds1621_update_client(dev);		\
-	u16 val = LM75_TEMP_TO_REG(simple_strtoul(buf, NULL, 10));	\
-									\
-	mutex_lock(&data->update_lock);					\
-	data->value = val;						\
-	ds1621_write_value(client, reg, data->value);			\
-	mutex_unlock(&data->update_lock);				\
-	return count;							\
+	mutex_lock(&data->update_lock);
+	data->temp[attr->index] = val;
+	ds1621_write_value(client, DS1621_REG_TEMP[attr->index],
+			   data->temp[attr->index]);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
 
-set_temp(min, temp_min, DS1621_REG_TEMP_MIN);
-set_temp(max, temp_max, DS1621_REG_TEMP_MAX);
-
-static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *da,
+			   char *buf)
 {
 	struct ds1621_data *data = ds1621_update_client(dev);
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->conf));
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *da,
+			  char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	struct ds1621_data *data = ds1621_update_client(dev);
+	return sprintf(buf, "%d\n", !!(data->conf & attr->index));
+}
+
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
-static DEVICE_ATTR(temp1_input, S_IRUGO , show_temp, NULL);
-static DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO , show_temp_min, set_temp_min);
-static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_max, set_temp_max);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp, set_temp, 1);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp, set_temp, 2);
+static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL,
+		DS1621_ALARM_TEMP_LOW);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL,
+		DS1621_ALARM_TEMP_HIGH);
 
 static struct attribute *ds1621_attributes[] = {
-	&dev_attr_temp1_input.attr,
-	&dev_attr_temp1_min.attr,
-	&dev_attr_temp1_max.attr,
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
 	&dev_attr_alarms.attr,
 	NULL
 };
@@ -204,9 +212,9 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 			 int kind)
 {
 	int conf, temp;
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct ds1621_data *data;
-	int err = 0;
+	int i, err = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA 
 				     | I2C_FUNC_SMBUS_WORD_DATA 
@@ -221,55 +229,44 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 		goto exit;
 	}
 	
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &ds1621_driver;
-	new_client->flags = 0;
-
+	client = &data->client;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &ds1621_driver;
 
 	/* Now, we do the remaining detection. It is lousy. */
 	if (kind < 0) {
 		/* The NVB bit should be low if no EEPROM write has been 
 		   requested during the latest 10ms, which is highly 
 		   improbable in our case. */
-		conf = ds1621_read_value(new_client, DS1621_REG_CONF);
+		conf = ds1621_read_value(client, DS1621_REG_CONF);
 		if (conf & DS1621_REG_CONFIG_NVB)
 			goto exit_free;
 		/* The 7 lowest bits of a temperature should always be 0. */
-		temp = ds1621_read_value(new_client, DS1621_REG_TEMP);
-		if (temp & 0x007f)
-			goto exit_free;
-		temp = ds1621_read_value(new_client, DS1621_REG_TEMP_MIN);
-		if (temp & 0x007f)
-			goto exit_free;
-		temp = ds1621_read_value(new_client, DS1621_REG_TEMP_MAX);
-		if (temp & 0x007f)
-			goto exit_free;
+		for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
+			temp = ds1621_read_value(client, DS1621_REG_TEMP[i]);
+			if (temp & 0x007f)
+				goto exit_free;
+		}
 	}
 
-	/* Determine the chip type - only one kind supported! */
-	if (kind <= 0)
-		kind = ds1621;
-
 	/* Fill in remaining client fields and put it into the global list */
-	strlcpy(new_client->name, "ds1621", I2C_NAME_SIZE);
-	data->valid = 0;
+	strlcpy(client->name, "ds1621", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 
 	/* Initialize the DS1621 chip */
-	ds1621_init_client(new_client);
+	ds1621_init_client(client);
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&new_client->dev.kobj, &ds1621_group)))
+	if ((err = sysfs_create_group(&client->dev.kobj, &ds1621_group)))
 		goto exit_detach;
 
-	data->class_dev = hwmon_device_register(&new_client->dev);
+	data->class_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
 		goto exit_remove_files;
@@ -278,9 +275,9 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 	return 0;
 
       exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &ds1621_group);
+	sysfs_remove_group(&client->dev.kobj, &ds1621_group);
       exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
       exit_free:
 	kfree(data);
       exit:
@@ -314,23 +311,21 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
+		int i;
 
 		dev_dbg(&client->dev, "Starting ds1621 update\n");
 
 		data->conf = ds1621_read_value(client, DS1621_REG_CONF);
 
-		data->temp = ds1621_read_value(client, DS1621_REG_TEMP);
-		
-		data->temp_min = ds1621_read_value(client,
-		                                    DS1621_REG_TEMP_MIN);
-		data->temp_max = ds1621_read_value(client,
-						    DS1621_REG_TEMP_MAX);
+		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
+			data->temp[i] = ds1621_read_value(client,
+							  DS1621_REG_TEMP[i]);
 
 		/* reset alarms if necessary */
 		new_conf = data->conf;
-		if (data->temp > data->temp_min)
+		if (data->temp[0] > data->temp[1])	/* input > min */
 			new_conf &= ~DS1621_ALARM_TEMP_LOW;
-		if (data->temp < data->temp_max)
+		if (data->temp[0] < data->temp[2])	/* input < max */
 			new_conf &= ~DS1621_ALARM_TEMP_HIGH;
 		if (data->conf != new_conf)
 			ds1621_write_value(client, DS1621_REG_CONF,

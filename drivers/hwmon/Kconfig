@@ -29,16 +29,33 @@ config HWMON_VID
 	default n
 
 config SENSORS_ABITUGURU
-	tristate "Abit uGuru"
+	tristate "Abit uGuru (rev 1 & 2)"
 	depends on EXPERIMENTAL
 	help
-	  If you say yes here you get support for the Abit uGuru chips
-	  sensor part. The voltage and frequency control parts of the Abit
-	  uGuru are not supported. The Abit uGuru chip can be found on Abit
-	  uGuru featuring motherboards (most modern Abit motherboards).
+	  If you say yes here you get support for the sensor part of the first
+	  and second revision of the Abit uGuru chip. The voltage and frequency
+	  control parts of the Abit uGuru are not supported. The Abit uGuru
+	  chip can be found on Abit uGuru featuring motherboards (most modern
+	  Abit motherboards from before end 2005). For more info and a list
+	  of which motherboards have which revision see
+	  Documentation/hwmon/abituguru
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called abituguru.
+
+config SENSORS_ABITUGURU3
+	tristate "Abit uGuru (rev 3)"
+	depends on HWMON && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the sensor part of the
+	  third revision of the Abit uGuru chip. Only reading the sensors
+	  and their settings is supported. The third revision of the Abit
+	  uGuru chip can be found on recent Abit motherboards (since end
+	  2005). For more info and a list of which motherboards have which
+	  revision see Documentation/hwmon/abituguru3
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called abituguru3.
 
 config SENSORS_AD7418
 	tristate "Analog Devices AD7416, AD7417 and AD7418"
@@ -250,12 +267,10 @@ config SENSORS_CORETEMP
 
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
-	depends on I2C
-	select I2C_ISA
 	select HWMON_VID
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
-	  IT8716F and IT8718F sensor chips, and the SiS960 clone.
+	  IT8716F, IT8718F and IT8726F sensor chips, and the SiS960 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -365,8 +380,8 @@ config SENSORS_LM90
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032 and Maxim MAX6657 and
-	  MAX6658 sensor chips.
+	  LM86, LM89 and LM99, Analog Devices ADM1032 and Maxim MAX6657,
+	  MAX6658, MAX6659, MAX6680 and MAX6681 sensor chips.
 
 	  The Analog Devices ADT7461 sensor chip is also supported, but only
 	  if found in ADM1032 compatibility mode.
@@ -383,6 +398,17 @@ config SENSORS_LM92
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm92.
+
+config SENSORS_LM93
+	tristate "National Semiconductor LM93 and compatibles"
+	depends on HWMON && I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for National Semiconductor LM93
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm93.
 
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
@@ -405,8 +431,6 @@ config SENSORS_MAX6650
 
 config SENSORS_PC87360
 	tristate "National Semiconductor PC87360 family"
-	depends on I2C && EXPERIMENTAL
-	select I2C_ISA
 	select HWMON_VID
 	help
 	  If you say yes here you get access to the hardware monitoring
@@ -433,14 +457,25 @@ config SENSORS_PC87427
 
 config SENSORS_SIS5595
 	tristate "Silicon Integrated Systems Corp. SiS5595"
-	depends on I2C && PCI && EXPERIMENTAL
-	select I2C_ISA
+	depends on PCI
 	help
 	  If you say yes here you get support for the integrated sensors in
 	  SiS5595 South Bridges.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sis5595.
+
+config SENSORS_DME1737
+	tristate "SMSC DME1737 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  and fan control features of the SMSC DME1737 (and compatibles
+	  like the Asus A8000) Super-I/O chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called dme1737.
 
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
@@ -487,8 +522,7 @@ config SENSORS_SMSC47B397
 
 config SENSORS_VIA686A
 	tristate "VIA686A"
-	depends on I2C && PCI
-	select I2C_ISA
+	depends on PCI
 	help
 	  If you say yes here you get support for the integrated sensors in
 	  Via 686A/B South Bridges.
@@ -509,9 +543,8 @@ config SENSORS_VT1211
 
 config SENSORS_VT8231
 	tristate "VIA VT8231"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on PCI
 	select HWMON_VID
-	select I2C_ISA
 	help
 	  If you say yes here then you get support for the integrated sensors
 	  in the VIA VT8231 device.
@@ -584,17 +617,16 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF"
-	depends on I2C && EXPERIMENTAL
-	select I2C_ISA
+	tristate "Winbond W83627EHF/DHG"
+	select HWMON_VID
 	help
-	  If you say yes here you get preliminary support for the hardware
+	  If you say yes here you get support for the hardware
 	  monitoring functionality of the Winbond W83627EHF Super-I/O chip.
-	  Only fan and temperature inputs are supported at the moment, while
-	  the chip does much more than that.
 
 	  This driver also supports the W83627EHG, which is the lead-free
-	  version of the W83627EHF.
+	  version of the W83627EHF, and the W83627DHG, which is a similar
+	  chip suited for specific Intel processors that use PECI such as
+	  the Core 2 Duo.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.

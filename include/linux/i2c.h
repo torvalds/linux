@@ -368,7 +368,6 @@ struct i2c_client_address_data {
 
 /* The numbers to use to set I2C bus address */
 #define ANY_I2C_BUS		0xffff
-#define ANY_I2C_ISA_BUS		9191
 
 
 /* ----- functions exported by i2c.o */

@@ -164,15 +164,6 @@ Who:	Kay Sievers <kay.sievers@suse.de>
 
 ---------------------------
 
-What:	i2c-isa
-When:	December 2006
-Why:	i2c-isa is a non-sense and doesn't fit in the device driver
-	model. Drivers relying on it are better implemented as platform
-	drivers.
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	i2c_adapter.list
 When:	July 2007
 Why:	Superfluous, this list duplicates the one maintained by the driver
