@@ -470,6 +470,6 @@ extern int stop_a_enabled;
  */
 #define __ARCH_WANT_UNLOCKED_CTXSW
 
-#define arch_align_stack(x) (x)
+extern unsigned long arch_align_stack(unsigned long sp);
 
 #endif /* _ASM_SYSTEM_H */
