@@ -987,6 +987,8 @@ int test_clear_page_writeback(struct page *page)
 	} else {
 		ret = TestClearPageWriteback(page);
 	}
+	if (ret)
+		dec_zone_page_state(page, NR_WRITEBACK);
 	return ret;
 }
 
@@ -1012,6 +1014,8 @@ int test_set_page_writeback(struct page *page)
 	} else {
 		ret = TestSetPageWriteback(page);
 	}
+	if (!ret)
+		inc_zone_page_state(page, NR_WRITEBACK);
 	return ret;
 
 }

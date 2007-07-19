@@ -189,37 +189,15 @@ static inline void SetPageUptodate(struct page *page)
 #define __SetPagePrivate(page)  __set_bit(PG_private, &(page)->flags)
 #define __ClearPagePrivate(page) __clear_bit(PG_private, &(page)->flags)
 
+/*
+ * Only test-and-set exist for PG_writeback.  The unconditional operators are
+ * risky: they bypass page accounting.
+ */
 #define PageWriteback(page)	test_bit(PG_writeback, &(page)->flags)
-#define SetPageWriteback(page)						\
-	do {								\
-		if (!test_and_set_bit(PG_writeback,			\
-				&(page)->flags))			\
-			inc_zone_page_state(page, NR_WRITEBACK);	\
-	} while (0)
-#define TestSetPageWriteback(page)					\
-	({								\
-		int ret;						\
-		ret = test_and_set_bit(PG_writeback,			\
-					&(page)->flags);		\
-		if (!ret)						\
-			inc_zone_page_state(page, NR_WRITEBACK);	\
-		ret;							\
-	})
-#define ClearPageWriteback(page)					\
-	do {								\
-		if (test_and_clear_bit(PG_writeback,			\
-				&(page)->flags))			\
-			dec_zone_page_state(page, NR_WRITEBACK);	\
-	} while (0)
-#define TestClearPageWriteback(page)					\
-	({								\
-		int ret;						\
-		ret = test_and_clear_bit(PG_writeback,			\
-				&(page)->flags);			\
-		if (ret)						\
-			dec_zone_page_state(page, NR_WRITEBACK);	\
-		ret;							\
-	})
+#define TestSetPageWriteback(page) test_and_set_bit(PG_writeback,	\
+							&(page)->flags)
+#define TestClearPageWriteback(page) test_and_clear_bit(PG_writeback,	\
+							&(page)->flags)
 
 #define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
 #define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
