@@ -133,14 +133,14 @@ int hibernation_snapshot(int platform_mode)
 	/* Free memory before shutting down devices. */
 	error = swsusp_shrink_memory();
 	if (error)
-		goto Finish;
-
-	error = platform_prepare(platform_mode);
-	if (error)
-		goto Finish;
+		return error;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
+	if (error)
+		goto Resume_console;
+
+	error = platform_prepare(platform_mode);
 	if (error)
 		goto Resume_devices;
 
@@ -159,8 +159,8 @@ int hibernation_snapshot(int platform_mode)
  Resume_devices:
 	platform_finish(platform_mode);
 	device_resume();
+ Resume_console:
 	resume_console();
- Finish:
 	return error;
 }
 
@@ -191,8 +191,8 @@ int hibernation_restore(int platform_mode)
 		enable_nonboot_cpus();
 	}
 	platform_restore_cleanup(platform_mode);
- Finish:
 	device_resume();
+ Finish:
 	resume_console();
 	pm_restore_console();
 	return error;
