@@ -16,47 +16,44 @@
 #include "edac_module.h"
 
 /* MC EDAC Controls, setable by module parameter, and sysfs */
-static int log_ue = 1;
-static int log_ce = 1;
-static int panic_on_ue;
-static int poll_msec = 1000;
+static int edac_mc_log_ue = 1;
+static int edac_mc_log_ce = 1;
+static int edac_mc_panic_on_ue = 0;
+static int edac_mc_poll_msec = 1000;
 
 /* Getter functions for above */
-int edac_get_log_ue(void)
+int edac_mc_get_log_ue(void)
 {
-	return log_ue;
+	return edac_mc_log_ue;
 }
 
-int edac_get_log_ce(void)
+int edac_mc_get_log_ce(void)
 {
-	return log_ce;
+	return edac_mc_log_ce;
 }
 
-int edac_get_panic_on_ue(void)
+int edac_mc_get_panic_on_ue(void)
 {
-	return panic_on_ue;
+	return edac_mc_panic_on_ue;
 }
 
 /* this is temporary */
 int edac_mc_get_poll_msec(void)
 {
-	return edac_get_poll_msec();
-}
-
-int edac_get_poll_msec(void)
-{
-	return poll_msec;
+	return edac_mc_poll_msec;
 }
 
 /* Parameter declarations for above */
-module_param(panic_on_ue, int, 0644);
-MODULE_PARM_DESC(panic_on_ue, "Panic on uncorrected error: 0=off 1=on");
-module_param(log_ue, int, 0644);
-MODULE_PARM_DESC(log_ue, "Log uncorrectable error to console: 0=off 1=on");
-module_param(log_ce, int, 0644);
-MODULE_PARM_DESC(log_ce, "Log correctable error to console: 0=off 1=on");
-module_param(poll_msec, int, 0644);
-MODULE_PARM_DESC(poll_msec, "Polling period in milliseconds");
+module_param(edac_mc_panic_on_ue, int, 0644);
+MODULE_PARM_DESC(edac_mc_panic_on_ue, "Panic on uncorrected error: 0=off 1=on");
+module_param(edac_mc_log_ue, int, 0644);
+MODULE_PARM_DESC(edac_mc_log_ue,
+		"Log uncorrectable error to console: 0=off 1=on");
+module_param(edac_mc_log_ce, int, 0644);
+MODULE_PARM_DESC(edac_mc_log_ce,
+		"Log correctable error to console: 0=off 1=on");
+module_param(edac_mc_poll_msec, int, 0644);
+MODULE_PARM_DESC(edac_mc_poll_msec, "Polling period in milliseconds");
 
 
 /*
@@ -187,17 +184,32 @@ static struct memctrl_dev_attribute attr_##_name = {			\
 };
 
 /* csrow<id> control files */
-MEMCTRL_ATTR(panic_on_ue,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
-MEMCTRL_ATTR(log_ue,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
-MEMCTRL_ATTR(log_ce,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
-MEMCTRL_ATTR(poll_msec,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
+MEMCTRL_ATTR(edac_mc_panic_on_ue,
+		S_IRUGO | S_IWUSR,
+		memctrl_int_show,
+		memctrl_int_store);
+
+MEMCTRL_ATTR(edac_mc_log_ue,
+		S_IRUGO|S_IWUSR,
+		memctrl_int_show,
+		memctrl_int_store);
+
+MEMCTRL_ATTR(edac_mc_log_ce,
+		S_IRUGO|S_IWUSR,
+		memctrl_int_show,
+		memctrl_int_store);
+
+MEMCTRL_ATTR(edac_mc_poll_msec,
+		S_IRUGO|S_IWUSR,
+		memctrl_int_show,
+		memctrl_int_store);
 
 /* Base Attributes of the memory ECC object */
 static struct memctrl_dev_attribute *memctrl_attr[] = {
-	&attr_panic_on_ue,
-	&attr_log_ue,
-	&attr_log_ce,
-	&attr_poll_msec,
+	&attr_edac_mc_panic_on_ue,
+	&attr_edac_mc_log_ue,
+	&attr_edac_mc_log_ce,
+	&attr_edac_mc_poll_msec,
 	NULL,
 };
 

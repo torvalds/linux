@@ -646,13 +646,6 @@ struct edac_pci_ctl_info {
 
 	int pci_idx;
 
-	/* Per instance controls for this edac_device */
-	int check_parity_error;	/* boolean for checking parity errs */
-	int log_parity_error;	/* boolean for logging parity errs */
-	int panic_on_pe;	/* boolean for panic'ing on a PE */
-	unsigned poll_msec;	/* number of milliseconds to poll interval */
-	unsigned long delay;	/* number of jiffies for poll_msec */
-
 	struct sysdev_class *edac_class;	/* pointer to class */
 
 	/* the internal state of this controller instance */

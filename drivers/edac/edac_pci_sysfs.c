@@ -19,14 +19,41 @@
 #define EDAC_PCI_SYMLINK	"device"
 
 static int check_pci_errors = 0;	/* default YES check PCI parity */
-static int panic_on_pci_parity = 0;	/* default no panic on PCI Parity */
-static int log_pci_errs = 1;
+static int edac_pci_panic_on_pe = 0;	/* default no panic on PCI Parity */
+static int edac_pci_log_pe = 1;	/* log PCI parity errors */
+static int edac_pci_log_npe = 1;	/* log PCI non-parity error errors */
 static atomic_t pci_parity_count = ATOMIC_INIT(0);
 static atomic_t pci_nonparity_count = ATOMIC_INIT(0);
+static int edac_pci_poll_msec = 1000;
 
 static struct kobject edac_pci_kobj; /* /sys/devices/system/edac/pci */
 static struct completion edac_pci_kobj_complete;
 static atomic_t edac_pci_sysfs_refcount = ATOMIC_INIT(0);
+
+int edac_pci_get_check_errors(void)
+{
+	return check_pci_errors;
+}
+
+int edac_pci_get_log_pe(void)
+{
+	return edac_pci_log_pe;
+}
+
+int edac_pci_get_log_npe(void)
+{
+	return edac_pci_log_npe;
+}
+
+int edac_pci_get_panic_on_pe(void)
+{
+	return edac_pci_panic_on_pe;
+}
+
+int edac_pci_get_poll_msec(void)
+{
+	return edac_pci_poll_msec;
+}
 
 /**************************** EDAC PCI sysfs instance *******************/
 static ssize_t instance_pe_count_show(struct edac_pci_ctl_info *pci, char *data)
@@ -222,9 +249,11 @@ static struct edac_pci_dev_attribute edac_pci_attr_##_name = {		\
 /* PCI Parity control files */
 EDAC_PCI_ATTR(check_pci_errors, S_IRUGO|S_IWUSR, edac_pci_int_show,
 	edac_pci_int_store);
-EDAC_PCI_ATTR(log_pci_errs, S_IRUGO|S_IWUSR, edac_pci_int_show,
+EDAC_PCI_ATTR(edac_pci_log_pe, S_IRUGO|S_IWUSR, edac_pci_int_show,
 	edac_pci_int_store);
-EDAC_PCI_ATTR(panic_on_pci_parity, S_IRUGO|S_IWUSR, edac_pci_int_show,
+EDAC_PCI_ATTR(edac_pci_log_npe, S_IRUGO|S_IWUSR, edac_pci_int_show,
+	edac_pci_int_store);
+EDAC_PCI_ATTR(edac_pci_panic_on_pe, S_IRUGO|S_IWUSR, edac_pci_int_show,
 	edac_pci_int_store);
 EDAC_PCI_ATTR(pci_parity_count, S_IRUGO, edac_pci_int_show, NULL);
 EDAC_PCI_ATTR(pci_nonparity_count, S_IRUGO, edac_pci_int_show, NULL);
@@ -232,8 +261,9 @@ EDAC_PCI_ATTR(pci_nonparity_count, S_IRUGO, edac_pci_int_show, NULL);
 /* Base Attributes of the memory ECC object */
 static struct edac_pci_dev_attribute *edac_pci_attr[] = {
 	&edac_pci_attr_check_pci_errors,
-	&edac_pci_attr_log_pci_errs,
-	&edac_pci_attr_panic_on_pci_parity,
+	&edac_pci_attr_edac_pci_log_pe,
+	&edac_pci_attr_edac_pci_log_npe,
+	&edac_pci_attr_edac_pci_panic_on_pe,
 	&edac_pci_attr_pci_parity_count,
 	&edac_pci_attr_pci_nonparity_count,
 	NULL,
@@ -529,7 +559,7 @@ void edac_pci_do_parity_check(void)
 	local_irq_restore(flags);
 
 	/* Only if operator has selected panic on PCI Error */
-	if (panic_on_pci_parity) {
+	if (edac_pci_get_panic_on_pe()) {
 		/* If the count is different 'after' from 'before' */
 		if (before_count != atomic_read(&pci_parity_count))
 			panic("EDAC: PCI Parity Error");
@@ -549,7 +579,7 @@ void edac_pci_handle_pe(struct edac_pci_ctl_info *pci, const char *msg)
 	/* global PE counter incremented by edac_pci_do_parity_check() */
 	atomic_inc(&pci->counters.pe_count);
 
-	if (log_pci_errs)
+	if (edac_pci_get_log_pe())
 		edac_pci_printk(pci, KERN_WARNING,
 				"Parity Error ctl: %s %d: %s\n",
 				pci->ctl_name, pci->pci_idx, msg);
@@ -568,7 +598,7 @@ void edac_pci_handle_npe(struct edac_pci_ctl_info *pci, const char *msg)
 	/* global NPE counter incremented by edac_pci_do_parity_check() */
 	atomic_inc(&pci->counters.npe_count);
 
-	if (log_pci_errs)
+	if (edac_pci_get_log_npe())
 		edac_pci_printk(pci, KERN_WARNING,
 				"Non-Parity Error ctl: %s %d: %s\n",
 				pci->ctl_name, pci->pci_idx, msg);
@@ -585,8 +615,10 @@ EXPORT_SYMBOL_GPL(edac_pci_handle_npe);
  * Define the PCI parameter to the module
  */
 module_param(check_pci_errors, int, 0644);
-MODULE_PARM_DESC(check_pci_errors, "Check for PCI bus parity errors: 0=off 1=on");
-module_param(panic_on_pci_parity, int, 0644);
-MODULE_PARM_DESC(panic_on_pci_parity, "Panic on PCI Bus Parity error: 0=off 1=on");
+MODULE_PARM_DESC(check_pci_errors,
+		"Check for PCI bus parity errors: 0=off 1=on");
+module_param(edac_pci_panic_on_pe, int, 0644);
+MODULE_PARM_DESC(edac_pci_panic_on_pe,
+		"Panic on PCI Bus Parity error: 0=off 1=on");
 
 #endif	/* CONFIG_PCI */

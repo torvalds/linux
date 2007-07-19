@@ -263,7 +263,8 @@ static void edac_mc_workq_function(void *ptr)
 	mutex_unlock(&mem_ctls_mutex);
 
 	/* Reschedule */
-	queue_delayed_work(edac_workqueue, &mci->work, edac_mc_get_poll_msec());
+	queue_delayed_work(edac_workqueue, &mci->work,
+			msecs_to_jiffies(edac_mc_get_poll_msec()));
 }
 
 /*
@@ -611,7 +612,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		return;
 	}
 
-	if (edac_get_log_ce())
+	if (edac_mc_get_log_ce())
 		/* FIXME - put in DIMM location */
 		edac_mc_printk(mci, KERN_WARNING,
 			"CE page 0x%lx, offset 0x%lx, grain %d, syndrome "
@@ -646,7 +647,7 @@ EXPORT_SYMBOL_GPL(edac_mc_handle_ce);
 
 void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci, const char *msg)
 {
-	if (edac_get_log_ce())
+	if (edac_mc_get_log_ce())
 		edac_mc_printk(mci, KERN_WARNING,
 			"CE - no information available: %s\n", msg);
 
@@ -690,14 +691,14 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 		pos += chars;
 	}
 
-	if (edac_get_log_ue())
+	if (edac_mc_get_log_ue())
 		edac_mc_printk(mci, KERN_EMERG,
 			"UE page 0x%lx, offset 0x%lx, grain %d, row %d, "
 			"labels \"%s\": %s\n", page_frame_number,
 			offset_in_page, mci->csrows[row].grain, row, labels,
 			msg);
 
-	if (edac_get_panic_on_ue())
+	if (edac_mc_get_panic_on_ue())
 		panic("EDAC MC%d: UE page 0x%lx, offset 0x%lx, grain %d, "
 			"row %d, labels \"%s\": %s\n", mci->mc_idx,
 			page_frame_number, offset_in_page,
@@ -710,10 +711,10 @@ EXPORT_SYMBOL_GPL(edac_mc_handle_ue);
 
 void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci, const char *msg)
 {
-	if (edac_get_panic_on_ue())
+	if (edac_mc_get_panic_on_ue())
 		panic("EDAC MC%d: Uncorrected Error", mci->mc_idx);
 
-	if (edac_get_log_ue())
+	if (edac_mc_get_log_ue())
 		edac_mc_printk(mci, KERN_WARNING,
 			"UE - no information available: %s\n", msg);
 	mci->ue_noinfo_count++;
@@ -776,13 +777,13 @@ void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
 	chars = snprintf(pos, len + 1, "-%s",
 			 mci->csrows[csrow].channels[channelb].label);
 
-	if (edac_get_log_ue())
+	if (edac_mc_get_log_ue())
 		edac_mc_printk(mci, KERN_EMERG,
 			"UE row %d, channel-a= %d channel-b= %d "
 			"labels \"%s\": %s\n", csrow, channela, channelb,
 			labels, msg);
 
-	if (edac_get_panic_on_ue())
+	if (edac_mc_get_panic_on_ue())
 		panic("UE row %d, channel-a= %d channel-b= %d "
 				"labels \"%s\": %s\n", csrow, channela,
 				channelb, labels, msg);
@@ -817,7 +818,7 @@ void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 		return;
 	}
 
-	if (edac_get_log_ce())
+	if (edac_mc_get_log_ce())
 		/* FIXME - put in DIMM location */
 		edac_mc_printk(mci, KERN_WARNING,
 			"CE row %d, channel %d, label \"%s\": %s\n",

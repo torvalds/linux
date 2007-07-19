@@ -226,13 +226,14 @@ static void edac_pci_workq_function(void *ptr)
 
 	if ((pci->op_state == OP_RUNNING_POLL) &&
 		(pci->edac_check != NULL) &&
-		(pci->check_parity_error))
+		(edac_pci_get_check_errors()))
 		pci->edac_check(pci);
 
 	edac_unlock_pci_list();
 
 	/* Reschedule */
-	queue_delayed_work(edac_workqueue, &pci->work, pci->delay);
+	queue_delayed_work(edac_workqueue, &pci->work,
+			msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -245,15 +246,13 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 {
 	debugf0("%s()\n", __func__);
 
-	pci->poll_msec = msec;
-	edac_calc_delay(pci);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
 #else
 	INIT_WORK(&pci->work, edac_pci_workq_function, pci);
 #endif
-	queue_delayed_work(edac_workqueue, &pci->work, pci->delay);
+	queue_delayed_work(edac_workqueue, &pci->work,
+			msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -389,16 +388,6 @@ struct edac_pci_ctl_info * edac_pci_del_device(struct device *dev)
 	return pci;
 }
 EXPORT_SYMBOL_GPL(edac_pci_del_device);
-
-static inline int edac_pci_get_log_pe(struct edac_pci_ctl_info *pci)
-{
-	return pci->log_parity_error;
-}
-
-static inline int edac_pci_get_panic_on_pe(struct edac_pci_ctl_info *pci)
-{
-	return pci->panic_on_pe;
-}
 
 void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
 {
