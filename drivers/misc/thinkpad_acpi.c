@@ -129,7 +129,7 @@ IBM_BIOS_MODULE_ALIAS("K[U,X-Z]");
  * ACPI basic handles
  */
 
-static acpi_handle root_handle = NULL;
+static acpi_handle root_handle;
 
 #define IBM_HANDLE(object, parent, paths...)			\
 	static acpi_handle  object##_handle;			\
@@ -515,8 +515,8 @@ static char *next_cmd(char **cmds)
  ****************************************************************************
  ****************************************************************************/
 
-static struct platform_device *tpacpi_pdev = NULL;
-static struct class_device *tpacpi_hwmon = NULL;
+static struct platform_device *tpacpi_pdev;
+static struct class_device *tpacpi_hwmon;
 
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
@@ -729,7 +729,7 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
-static struct attribute_set *hotkey_dev_attributes = NULL;
+static struct attribute_set *hotkey_dev_attributes;
 
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
@@ -2694,7 +2694,7 @@ static struct ibm_struct ecdump_driver_data = {
  * Backlight/brightness subdriver
  */
 
-static struct backlight_device *ibm_backlight_device = NULL;
+static struct backlight_device *ibm_backlight_device;
 
 static struct backlight_ops ibm_backlight_data = {
         .get_brightness = brightness_get,
@@ -3497,7 +3497,7 @@ static void fan_watchdog_fire(struct work_struct *ignored)
 
 static void fan_watchdog_reset(void)
 {
-	static int fan_watchdog_active = 0;
+	static int fan_watchdog_active;
 
 	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
 		return;
@@ -3900,7 +3900,7 @@ static struct ibm_struct fan_driver_data = {
  ****************************************************************************/
 
 /* /proc support */
-static struct proc_dir_entry *proc_dir = NULL;
+static struct proc_dir_entry *proc_dir;
 
 /* Subdriver registry */
 static LIST_HEAD(tpacpi_all_drivers);
@@ -4043,7 +4043,7 @@ static void ibm_exit(struct ibm_struct *ibm)
 
 /* Probing */
 
-static char *ibm_thinkpad_ec_found = NULL;
+static char *ibm_thinkpad_ec_found;
 
 static char* __init check_dmi_for_ec(void)
 {
