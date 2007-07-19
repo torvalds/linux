@@ -1678,7 +1678,7 @@ qla2x00_gfpn_id(scsi_qla_host_t *ha, sw_info_t *list)
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
 
-	if (!IS_FWI2_CAPABLE(ha))
+	if (!IS_IIDMA_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
@@ -1786,7 +1786,7 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
 
-	if (!IS_FWI2_CAPABLE(ha))
+	if (!IS_IIDMA_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 	if (!ha->flags.gpsc_supported)
 		return QLA_FUNCTION_FAILED;

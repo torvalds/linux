@@ -2119,7 +2119,7 @@ qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	int rval;
 	uint16_t port_speed, mb[6];
 
-	if (!IS_QLA24XX(ha))
+	if (!IS_IIDMA_CAPABLE(ha))
 		return;
 
 	switch (be16_to_cpu(fcport->fp_speed)) {
