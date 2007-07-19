@@ -108,7 +108,7 @@ Outgoing, dev->hard_header!=NULL
 Incoming, dev->hard_header==NULL
    mac_header -> UNKNOWN position. It is very likely, that it points to ll
 		 header.  PPP makes it, that is wrong, because introduce
-                 assymetry between rx and tx paths.
+		 assymetry between rx and tx paths.
    data       -> data
 
 Outgoing, dev->hard_header==NULL
