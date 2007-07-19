@@ -29,7 +29,7 @@ In newer kernels, the following are also available:
 
 If sysfs is enabled, the contents of /sys/class/vtconsole can be
 examined. This shows the console backends currently registered by the
-system which are named vtcon<n> where <n> is an integer fro 0 to 15. Thus:
+system which are named vtcon<n> where <n> is an integer from 0 to 15. Thus:
 
        ls /sys/class/vtconsole
        .  ..  vtcon0  vtcon1
