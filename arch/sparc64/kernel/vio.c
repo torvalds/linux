@@ -235,7 +235,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 				break;
 		}
 		if (!id) {
-			printk(KERN_ERR "VIO: vdc-prot lacks parent "
+			printk(KERN_ERR "VIO: vdc-port lacks parent "
 			       "cfg-handle.\n");
 			return NULL;
 		}
