@@ -3,7 +3,7 @@
 OUTPUT_FORMAT("elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
-PHDRS { kernel PT_LOAD ; }
+PHDRS { kernel PT_LOAD; note PT_NOTE; }
 jiffies = jiffies_64;
 SECTIONS
 {
@@ -27,6 +27,9 @@ SECTIONS
   __start___ex_table = .;			/* Exception table */
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
+
+  NOTES :kernel :note
+  .dummy : { *(.dummy) } :kernel
 
   RODATA
 
