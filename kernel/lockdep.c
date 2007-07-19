@@ -149,6 +149,50 @@ static void lock_time_inc(struct lock_time *lt, s64 time)
 	lt->nr++;
 }
 
+static inline void lock_time_add(struct lock_time *src, struct lock_time *dst)
+{
+	dst->min += src->min;
+	dst->max += src->max;
+	dst->total += src->total;
+	dst->nr += src->nr;
+}
+
+struct lock_class_stats lock_stats(struct lock_class *class)
+{
+	struct lock_class_stats stats;
+	int cpu, i;
+
+	memset(&stats, 0, sizeof(struct lock_class_stats));
+	for_each_possible_cpu(cpu) {
+		struct lock_class_stats *pcs =
+			&per_cpu(lock_stats, cpu)[class - lock_classes];
+
+		for (i = 0; i < ARRAY_SIZE(stats.contention_point); i++)
+			stats.contention_point[i] += pcs->contention_point[i];
+
+		lock_time_add(&pcs->read_waittime, &stats.read_waittime);
+		lock_time_add(&pcs->write_waittime, &stats.write_waittime);
+
+		lock_time_add(&pcs->read_holdtime, &stats.read_holdtime);
+		lock_time_add(&pcs->write_holdtime, &stats.write_holdtime);
+	}
+
+	return stats;
+}
+
+void clear_lock_stats(struct lock_class *class)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct lock_class_stats *cpu_stats =
+			&per_cpu(lock_stats, cpu)[class - lock_classes];
+
+		memset(cpu_stats, 0, sizeof(struct lock_class_stats));
+	}
+	memset(class->contention_point, 0, sizeof(class->contention_point));
+}
+
 static struct lock_class_stats *get_lock_stats(struct lock_class *class)
 {
 	return &get_cpu_var(lock_stats)[class - lock_classes];
