@@ -155,52 +155,47 @@ Hot keys
 procfs: /proc/acpi/ibm/hotkey
 sysfs device attribute: hotkey_*
 
-Without this driver, only the Fn-F4 key (sleep button) generates an
-ACPI event. With the driver loaded, the hotkey feature enabled and the
-mask set (see below), the various hot keys generate ACPI events in the
+In a ThinkPad, the ACPI HKEY handler is responsible for comunicating
+some important events and also keyboard hot key presses to the operating
+system.  Enabling the hotkey functionality of thinkpad-acpi signals the
+firmware that such a driver is present, and modifies how the ThinkPad
+firmware will behave in many situations.
+
+When the hotkey feature is enabled and the hot key mask is set (see
+below), the various hot keys either generate ACPI events in the
 following format:
 
 	ibm/hotkey HKEY 00000080 0000xxxx
 
-The last four digits vary depending on the key combination pressed.
-All labeled Fn-Fx key combinations generate distinct events. In
-addition, the lid microswitch and some docking station buttons may
-also generate such events.
-
-Hot keys also generate regular keyboard key press/release events through
-the input layer in addition to the ibm/hotkey ACPI events.  The input
-layer support accepts the standard IOCTLs to remap the keycodes assigned
-to each hotkey.
+or events over the input layer.  The input layer support accepts the
+standard IOCTLs to remap the keycodes assigned to each hotkey.
 
 When the input device is open, the driver will suppress any ACPI hot key
 events that get translated into a meaningful input layer event, in order
 to avoid sending duplicate events to userspace.  Hot keys that are
-mapped to KEY_RESERVED are not translated, and will always generate only
-ACPI hot key event, and no input layer events.
+mapped to KEY_RESERVED in the keymap are not translated, and will always
+generate an ACPI ibm/hotkey HKEY event, and no input layer events.
 
-The bit mask allows some control over which hot keys generate ACPI
-events. Not all bits in the mask can be modified. Not all bits that can
-be modified do anything. Not all hot keys can be individually controlled
-by the mask. Some models do not support the mask at all. On those
-models, hot keys cannot be controlled individually.
+The hot key bit mask allows some control over which hot keys generate
+events.  If a key is "masked" (bit set to 0 in the mask), the firmware
+will handle it.  If it is "unmasked", it signals the firmware that
+thinkpad-acpi would prefer to handle it, if the firmware would be so
+kind to allow it (and it often doesn't!).
 
-Note that enabling ACPI events for some keys prevents their default
-behavior. For example, if events for Fn-F5 are enabled, that key will no
-longer enable/disable Bluetooth by itself. This can still be done from
-an acpid handler for the ibm/hotkey event.
+Not all bits in the mask can be modified.  Not all bits that can be
+modified do anything.  Not all hot keys can be individually controlled
+by the mask.  Some models do not support the mask at all, and in those
+models, hot keys cannot be controlled individually.  The behaviour of
+the mask is, therefore, higly dependent on the ThinkPad model.
 
-On some models, even enabling/disabling the entire hot key feature may
-change the way some keys behave (e.g. in a T43, Fn+F4 will generate an
-button/sleep ACPI event if hot keys are disabled, and it will ignore its
-mask when hot keys are enabled, so the key always does something.  On a
-X40, Fn+F4 respects its mask status, but generates the button/sleep ACPI
-event if masked off).
+Note that unmasking some keys prevents their default behavior.  For
+example, if Fn+F5 is unmasked, that key will no longer enable/disable
+Bluetooth by itself.
 
-Note also that not all Fn key combinations are supported through
-ACPI. For example, on the X40, the brightness, volume and "Access IBM"
-buttons do not generate ACPI events even with this driver. They *can*
-be used through the "ThinkPad Buttons" utility, see
-http://www.nongnu.org/tpb/
+Note also that not all Fn key combinations are supported through ACPI.
+For example, on the X40, the brightness, volume and "Access IBM" buttons
+do not generate ACPI events even with this driver.  They *can* be used
+through the "ThinkPad Buttons" utility, see http://www.nongnu.org/tpb/
 
 procfs notes:
 
@@ -221,7 +216,7 @@ sysfs notes:
 		key feature status will be restored to this value.
 
 		0: hot keys were disabled
-		1: hot keys were enabled
+		1: hot keys were enabled (unusual)
 
 	hotkey_bios_mask:
 		Returns the hot keys mask when thinkpad-acpi was loaded.
@@ -236,9 +231,10 @@ sysfs notes:
 		1: enables the hot keys feature / feature enabled
 
 	hotkey_mask:
-		bit mask to enable ACPI event generation for each hot
-		key (see above).  Returns the current status of the hot
-		keys mask, and allows one to modify it.
+		bit mask to enable driver-handling and ACPI event
+		generation for each hot key (see above).  Returns the
+		current status of the hot keys mask, and allows one to
+		modify it.
 
 	hotkey_all_mask:
 		bit mask that should enable event reporting for all
@@ -250,8 +246,9 @@ sysfs notes:
 
 	hotkey_recommended_mask:
 		bit mask that should enable event reporting for all
-		supported hot keys, except those which are handled by
-		the firmware.  Echo it to hotkey_mask above, to use.
+		supported hot keys, except those which are always
+		handled by the firmware anyway.  Echo it to
+		hotkey_mask above, to use.
 
 	hotkey_radio_sw:
 		if the ThinkPad has a hardware radio switch, this
@@ -389,10 +386,6 @@ ACPI hotkey event.
 
 If a key is mapped to anything else, it will only generate legacy
 thinkpad-acpi ACPI hotkey events if nobody has opened the input device.
-
-For userspace backwards-compatibility purposes, the keycode map is
-initially filled with KEY_RESERVED and KEY_UNKNOWN mappings for scan codes
-0x00 to 0x10 (and maybe others).
 
 Non hot-key ACPI HKEY event map:
 0x5001		Lid closed

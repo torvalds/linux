@@ -734,9 +734,9 @@ static u32 hotkey_reserved_mask;
 
 static u16 hotkey_keycode_map[] = {
 	/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
-	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	KEY_FN_F1,	KEY_FN_F2,	KEY_FN_F3,	KEY_SLEEP,
+	KEY_FN_F5,	KEY_FN_F6,	KEY_FN_F7,	KEY_FN_F8,
+	KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
 	/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
 	KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
 	KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
@@ -977,6 +977,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		if (res)
 			return res;
 
+#ifndef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
+		for (i = 0; i < 12; i++)
+			hotkey_keycode_map[i] = KEY_UNKNOWN;
+#endif /* ! CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
+
 		set_bit(EV_KEY, tpacpi_inputdev->evbit);
 		set_bit(EV_MSC, tpacpi_inputdev->evbit);
 		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
@@ -993,6 +998,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			}
 		}
 
+#ifdef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
+		dbg_printk(TPACPI_DBG_INIT,
+				"enabling hot key handling\n");
+		res = hotkey_set(1, (hotkey_all_mask & ~hotkey_reserved_mask)
+					| hotkey_orig_mask);
+		if (res)
+			return res;
+#endif /* CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
