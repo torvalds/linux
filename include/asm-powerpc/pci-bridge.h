@@ -87,8 +87,6 @@ int early_write_config_dword(struct pci_controller *hose, int bus, int dev_fn,
 extern int early_find_capability(struct pci_controller *hose, int bus,
 				 int dev_fn, int cap);
 
-extern void setup_indirect_pci_nomap(struct pci_controller* hose,
-			       void __iomem *cfg_addr, void __iomem *cfg_data);
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       u32 cfg_addr, u32 cfg_data);
 extern void setup_grackle(struct pci_controller *hose);

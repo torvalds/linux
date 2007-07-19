@@ -149,24 +149,15 @@ static struct pci_ops indirect_pci_ops =
 };
 
 void __init
-setup_indirect_pci_nomap(struct pci_controller* hose, void __iomem * cfg_addr,
-	void __iomem * cfg_data)
-{
-	hose->cfg_addr = cfg_addr;
-	hose->cfg_data = cfg_data;
-	hose->ops = &indirect_pci_ops;
-}
-
-void __init
 setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data)
 {
 	unsigned long base = cfg_addr & PAGE_MASK;
-	void __iomem *mbase, *addr, *data;
+	void __iomem *mbase;
 
 	mbase = ioremap(base, PAGE_SIZE);
-	addr = mbase + (cfg_addr & ~PAGE_MASK);
+	hose->cfg_addr = mbase + (cfg_addr & ~PAGE_MASK);
 	if ((cfg_data & PAGE_MASK) != base)
 		mbase = ioremap(cfg_data & PAGE_MASK, PAGE_SIZE);
-	data = mbase + (cfg_data & ~PAGE_MASK);
-	setup_indirect_pci_nomap(hose, addr, data);
+	hose->cfg_data = mbase + (cfg_data & ~PAGE_MASK);
+	hose->ops = &indirect_pci_ops;
 }
