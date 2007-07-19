@@ -805,26 +805,26 @@ static int __init af_rxrpc_init(void)
 	}
 
 	ret = proto_register(&rxrpc_proto, 1);
-        if (ret < 0) {
-                printk(KERN_CRIT "RxRPC: Cannot register protocol\n");
+	if (ret < 0) {
+		printk(KERN_CRIT "RxRPC: Cannot register protocol\n");
 		goto error_proto;
 	}
 
 	ret = sock_register(&rxrpc_family_ops);
 	if (ret < 0) {
-                printk(KERN_CRIT "RxRPC: Cannot register socket family\n");
+		printk(KERN_CRIT "RxRPC: Cannot register socket family\n");
 		goto error_sock;
 	}
 
 	ret = register_key_type(&key_type_rxrpc);
 	if (ret < 0) {
-                printk(KERN_CRIT "RxRPC: Cannot register client key type\n");
+		printk(KERN_CRIT "RxRPC: Cannot register client key type\n");
 		goto error_key_type;
 	}
 
 	ret = register_key_type(&key_type_rxrpc_s);
 	if (ret < 0) {
-                printk(KERN_CRIT "RxRPC: Cannot register server key type\n");
+		printk(KERN_CRIT "RxRPC: Cannot register server key type\n");
 		goto error_key_type_s;
 	}
 
