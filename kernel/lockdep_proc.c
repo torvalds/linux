@@ -271,8 +271,10 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	if (nr_list_entries)
 		factor = sum_forward_deps / nr_list_entries;
 
+#ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " dependency chains:             %11lu [max: %lu]\n",
 			nr_lock_chains, MAX_LOCKDEP_CHAINS);
+#endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	seq_printf(m, " in-hardirq chains:             %11u\n",
