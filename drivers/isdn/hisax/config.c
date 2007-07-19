@@ -1146,14 +1146,12 @@ static int hisax_cs_setup(int cardnr, struct IsdnCard *card,
 	}
 	if (ret) {
 		closecard(cardnr);
-		ret = 0;
 		goto outf_cs;
 	}
 	init_tei(cs, cs->protocol);
 	ret = CallcNewChan(cs);
 	if (ret) {
 		closecard(cardnr);
-		ret = 0;
 		goto outf_cs;
 	}
 	/* ISAR needs firmware download first */
@@ -1165,7 +1163,7 @@ static int hisax_cs_setup(int cardnr, struct IsdnCard *card,
 outf_cs:
 	kfree(cs);
 	card->cs = NULL;
-	return ret;
+	return 0;
 }
 
 static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockowner)
