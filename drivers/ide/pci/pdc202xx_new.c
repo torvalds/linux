@@ -378,13 +378,6 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 	int f, r;
 	u8 pll_ctl0, pll_ctl1;
 
-	if (dev->resource[PCI_ROM_RESOURCE].start) {
-		pci_write_config_dword(dev, PCI_ROM_ADDRESS,
-			dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
-		printk(KERN_INFO "%s: ROM enabled at 0x%08lx\n", name,
-			(unsigned long)dev->resource[PCI_ROM_RESOURCE].start);
-	}
-
 #ifdef CONFIG_PPC_PMAC
 	apple_kiwi_init(dev);
 #endif

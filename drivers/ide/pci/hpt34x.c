@@ -120,17 +120,10 @@ static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const cha
 	pci_write_config_byte(dev, HPT34X_PCI_INIT_REG, 0x00);
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 
-	if (cmd & PCI_COMMAND_MEMORY) {
-		if (pci_resource_start(dev, PCI_ROM_RESOURCE)) {
-			pci_write_config_dword(dev, PCI_ROM_ADDRESS,
-				dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
-			printk(KERN_INFO "HPT345: ROM enabled at 0x%08lx\n",
-				(unsigned long)dev->resource[PCI_ROM_RESOURCE].start);
-		}
+	if (cmd & PCI_COMMAND_MEMORY)
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xF0);
-	} else {
+	else
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
-	}
 
 	/*
 	 * Since 20-23 can be assigned and are R/W, we correct them.
