@@ -258,6 +258,12 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 
 	mutex_lock(&mem_ctls_mutex);
 
+	/* if this control struct has movd to offline state, we are done */
+	if (mci->op_state == OP_OFFLINE) {
+		mutex_unlock(&mem_ctls_mutex);
+		return;
+	}
+
 	/* Only poll controllers that are running polled and have a check */
 	if (edac_mc_assert_error_check_and_clear() && (mci->edac_check != NULL))
 		mci->edac_check(mci);
@@ -279,10 +285,18 @@ static void edac_mc_workq_function(struct work_struct *work_req)
  * edac_mc_workq_setup
  *	initialize a workq item for this mci
  *	passing in the new delay period in msec
+ *
+ *	locking model:
+ *
+ *		called with the mem_ctls_mutex held
  */
-void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
+static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
 {
 	debugf0("%s()\n", __func__);
+
+	/* if this instance is not in the POLL state, then simply return */
+	if (mci->op_state != OP_RUNNING_POLL)
+		return;
 
 	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
 	queue_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
@@ -291,28 +305,38 @@ void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
 /*
  * edac_mc_workq_teardown
  *	stop the workq processing on this mci
+ *
+ *	locking model:
+ *
+ *		called WITHOUT lock held
  */
-void edac_mc_workq_teardown(struct mem_ctl_info *mci)
+static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
 {
 	int status;
 
-	status = cancel_delayed_work(&mci->work);
-	if (status == 0) {
-		/* workq instance might be running, wait for it */
-		flush_workqueue(edac_workqueue);
+	/* if not running POLL, leave now */
+	if (mci->op_state == OP_RUNNING_POLL) {
+		status = cancel_delayed_work(&mci->work);
+		if (status == 0) {
+			debugf0("%s() not canceled, flush the queue\n",
+				__func__);
+
+			/* workq instance might be running, wait for it */
+			flush_workqueue(edac_workqueue);
+		}
 	}
 }
 
 /*
  * edac_reset_delay_period
  */
-
-void edac_reset_delay_period(struct mem_ctl_info *mci, unsigned long value)
+static void edac_reset_delay_period(struct mem_ctl_info *mci, unsigned long value)
 {
-	mutex_lock(&mem_ctls_mutex);
-
 	/* cancel the current workq request */
 	edac_mc_workq_teardown(mci);
+
+	/* lock the list of devices for the new setup */
+	mutex_lock(&mem_ctls_mutex);
 
 	/* restart the workq request, with new delay value */
 	edac_mc_workq_setup(mci, value);
@@ -323,6 +347,10 @@ void edac_reset_delay_period(struct mem_ctl_info *mci, unsigned long value)
 /* Return 0 on success, 1 on failure.
  * Before calling this function, caller must
  * assign a unique value to mci->mc_idx.
+ *
+ *	locking model:
+ *
+ *		called with the mem_ctls_mutex lock held
  */
 static int add_mc_to_global_list(struct mem_ctl_info *mci)
 {
@@ -331,7 +359,8 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 
 	insert_before = &mc_devices;
 
-	if (unlikely((p = find_mci_by_dev(mci->dev)) != NULL))
+	p = find_mci_by_dev(mci->dev);
+	if (unlikely(p != NULL))
 		goto fail0;
 
 	list_for_each(item, &mc_devices) {
@@ -467,8 +496,8 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 	}
 
 	/* Report action taken */
-	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: DEV %s\n",
-		mci->mod_name, mci->ctl_name, dev_name(mci));
+	edac_mc_printk(mci, KERN_INFO, "Giving out device to '%s' '%s':"
+		" DEV %s\n", mci->mod_name, mci->ctl_name, dev_name(mci));
 
 	mutex_unlock(&mem_ctls_mutex);
 	return 0;
@@ -493,10 +522,13 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("%s()\n", __func__);
+
 	mutex_lock(&mem_ctls_mutex);
 
-	if ((mci = find_mci_by_dev(dev)) == NULL) {
+	/* find the requested mci struct in the global list */
+	mci = find_mci_by_dev(dev);
+	if (mci == NULL) {
 		mutex_unlock(&mem_ctls_mutex);
 		return NULL;
 	}
@@ -504,15 +536,17 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 	/* marking MCI offline */
 	mci->op_state = OP_OFFLINE;
 
-	/* flush workq processes */
-	edac_mc_workq_teardown(mci);
-
-	edac_remove_sysfs_mci_device(mci);
 	del_mc_from_global_list(mci);
 	mutex_unlock(&mem_ctls_mutex);
+
+	/* flush workq processes and remove sysfs */
+	edac_mc_workq_teardown(mci);
+	edac_remove_sysfs_mci_device(mci);
+
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n", mci->mc_idx,
 		mci->mod_name, mci->ctl_name, dev_name(mci));
+
 	return mci;
 }
 EXPORT_SYMBOL_GPL(edac_mc_del_mc);
