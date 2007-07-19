@@ -859,77 +859,66 @@ exit:
 
 int coda_downcall(int opcode, union outputArgs * out, struct super_block *sb)
 {
+	struct inode *inode = NULL;
+	struct CodaFid *fid, *newfid;
+
 	/* Handle invalidation requests. */
-          if ( !sb || !sb->s_root || !sb->s_root->d_inode)
-		  return 0; 
+	if ( !sb || !sb->s_root)
+		return 0;
 
-	  switch (opcode) {
+	switch (opcode) {
+	case CODA_FLUSH:
+		coda_cache_clear_all(sb);
+		shrink_dcache_sb(sb);
+		if (sb->s_root->d_inode)
+		    coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
+		break;
 
-	  case CODA_FLUSH : {
-		   coda_cache_clear_all(sb);
-		   shrink_dcache_sb(sb);
-		   coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
-		   return(0);
-	  }
+	case CODA_PURGEUSER:
+		coda_cache_clear_all(sb);
+		break;
 
-	  case CODA_PURGEUSER : {
-		   coda_cache_clear_all(sb);
-		   return(0);
-	  }
+	case CODA_ZAPDIR:
+		fid = &out->coda_zapdir.CodaFid;
+		inode = coda_fid_to_inode(fid, sb);
+		if (inode) {
+			coda_flag_inode_children(inode, C_PURGE);
+			coda_flag_inode(inode, C_VATTR);
+		}
+		break;
 
-	  case CODA_ZAPDIR : {
-	          struct inode *inode;
-		  struct CodaFid *fid = &out->coda_zapdir.CodaFid;
+	case CODA_ZAPFILE:
+		fid = &out->coda_zapfile.CodaFid;
+		inode = coda_fid_to_inode(fid, sb);
+		if (inode)
+			coda_flag_inode(inode, C_VATTR);
+		break;
 
-		  inode = coda_fid_to_inode(fid, sb);
-		  if (inode) {
-			  coda_flag_inode_children(inode, C_PURGE);
-	                  coda_flag_inode(inode, C_VATTR);
-			  iput(inode);
-		  }
-		  
-		  return(0);
-	  }
-
-	  case CODA_ZAPFILE : {
-	          struct inode *inode;
-		  struct CodaFid *fid = &out->coda_zapfile.CodaFid;
-		  inode = coda_fid_to_inode(fid, sb);
-		  if ( inode ) {
-	                  coda_flag_inode(inode, C_VATTR);
-			  iput(inode);
-		  }
-		  return 0;
-	  }
-
-	  case CODA_PURGEFID : {
-	          struct inode *inode;
-		  struct CodaFid *fid = &out->coda_purgefid.CodaFid;
-		  inode = coda_fid_to_inode(fid, sb);
-		  if ( inode ) { 
+	case CODA_PURGEFID:
+		fid = &out->coda_purgefid.CodaFid;
+		inode = coda_fid_to_inode(fid, sb);
+		if (inode) {
 			coda_flag_inode_children(inode, C_PURGE);
 
 			/* catch the dentries later if some are still busy */
 			coda_flag_inode(inode, C_PURGE);
 			d_prune_aliases(inode);
 
-			iput(inode);
-		  }
-		  return 0;
-	  }
+		}
+		break;
 
-	  case CODA_REPLACE : {
-	          struct inode *inode;
-		  struct CodaFid *oldfid = &out->coda_replace.OldFid;
-		  struct CodaFid *newfid = &out->coda_replace.NewFid;
-		  inode = coda_fid_to_inode(oldfid, sb);
-		  if ( inode ) { 
-			  coda_replace_fid(inode, oldfid, newfid);
-			  iput(inode);
-		  }
-		  return 0;
-	  }
-	  }
-	  return 0;
+	case CODA_REPLACE:
+		fid = &out->coda_replace.OldFid;
+		newfid = &out->coda_replace.NewFid;
+		inode = coda_fid_to_inode(fid, sb);
+		if (inode)
+			coda_replace_fid(inode, fid, newfid);
+		break;
+	}
+
+	if (inode)
+		iput(inode);
+
+	return 0;
 }
 
