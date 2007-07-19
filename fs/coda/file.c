@@ -143,8 +143,11 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	lock_kernel();
 
 	error = venus_open(coda_inode->i_sb, coda_i2f(coda_inode), coda_flags,
-			   &host_file); 
-	if (error || !host_file) {
+			   &host_file);
+	if (!host_file)
+		error = -EIO;
+
+	if (error) {
 		kfree(cfi);
 		unlock_kernel();
 		return error;
