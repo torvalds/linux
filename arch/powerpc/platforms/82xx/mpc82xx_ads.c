@@ -553,7 +553,8 @@ static void __init mpc82xx_add_bridge(struct device_node *np)
 
 	setup_indirect_pci(hose,
 			   r.start + offsetof(pci_cpm2_t, pci_cfg_addr),
-			   r.start + offsetof(pci_cpm2_t, pci_cfg_data));
+			   r.start + offsetof(pci_cpm2_t, pci_cfg_data),
+			   0);
 
 	pci_process_bridge_OF_ranges(hose, np, 1);
 }

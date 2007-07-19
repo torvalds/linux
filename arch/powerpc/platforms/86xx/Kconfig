@@ -14,7 +14,6 @@ endchoice
 
 config MPC8641
 	bool
-	select PPC_INDIRECT_PCI_BE if PCI
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC

@@ -20,12 +20,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 
-#ifdef CONFIG_PPC_INDIRECT_PCI_BE
-#define PCI_CFG_OUT out_be32
-#else
-#define PCI_CFG_OUT out_le32
-#endif
-
 static int
 indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		     int len, u32 *val)
@@ -58,9 +52,12 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	else
 		reg = offset & 0xfc;
 
-	PCI_CFG_OUT(hose->cfg_addr,
-		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | reg | cfg_type));
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
+	else
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
 
 	/*
 	 * Note: the caller has already checked that offset is
@@ -113,9 +110,12 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	else
 		reg = offset & 0xfc;
 
-	PCI_CFG_OUT(hose->cfg_addr,
-		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | reg | cfg_type));
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
+	else
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
 
 	/* surpress setting of PCI_PRIMARY_BUS */
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS)
@@ -149,7 +149,7 @@ static struct pci_ops indirect_pci_ops =
 };
 
 void __init
-setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data)
+setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data, u32 flags)
 {
 	unsigned long base = cfg_addr & PAGE_MASK;
 	void __iomem *mbase;

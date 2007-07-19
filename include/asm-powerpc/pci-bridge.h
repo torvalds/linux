@@ -49,11 +49,13 @@ struct pci_controller {
 	 *   hanging if we don't have link and try to do config cycles to
 	 *   anything but the PHB.  Only allow talking to the PHB if this is
 	 *   set.
+	 *  BIG_ENDIAN - cfg_addr is a big endian register
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		(0x00000001)
 #define PPC_INDIRECT_TYPE_EXT_REG		(0x00000002)
 #define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	(0x00000004)
 #define PPC_INDIRECT_TYPE_NO_PCIE_LINK		(0x00000008)
+#define PPC_INDIRECT_TYPE_BIG_ENDIAN		(0x00000010)
 	u32 indirect_type;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
@@ -88,7 +90,7 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 				 int dev_fn, int cap);
 
 extern void setup_indirect_pci(struct pci_controller* hose,
-			       u32 cfg_addr, u32 cfg_data);
+			       u32 cfg_addr, u32 cfg_data, u32 flags);
 extern void setup_grackle(struct pci_controller *hose);
 
 #else

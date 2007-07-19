@@ -51,7 +51,6 @@ config MPC85xx
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI if PCI
-	select PPC_INDIRECT_PCI_BE if PCI
 	select MPIC
 	select FSL_PCI if PCI
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250

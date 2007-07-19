@@ -74,11 +74,11 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	 */
 	/* PCI 1 */
 	if ((rsrc.start & 0xfffff) == 0x8500) {
-		setup_indirect_pci(hose, immr + 0x8300, immr + 0x8304);
+		setup_indirect_pci(hose, immr + 0x8300, immr + 0x8304, 0);
 	}
 	/* PCI 2 */
 	if ((rsrc.start & 0xfffff) == 0x8600) {
-		setup_indirect_pci(hose, immr + 0x8380, immr + 0x8384);
+		setup_indirect_pci(hose, immr + 0x8380, immr + 0x8384, 0);
 		primary = 0;
 	}
 
