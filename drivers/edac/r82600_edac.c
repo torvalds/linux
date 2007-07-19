@@ -131,7 +131,7 @@ struct r82600_error_info {
 	u32 eapr;
 };
 
-static unsigned int disable_hardware_scrub = 0;
+static unsigned int disable_hardware_scrub;
 
 static struct edac_pci_ctl_info *r82600_pci;
 

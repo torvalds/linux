@@ -32,7 +32,7 @@ struct workqueue_struct *edac_workqueue;
 static struct sysdev_class edac_class = {
 	set_kset_name("edac"),
 };
-static int edac_class_valid = 0;
+static int edac_class_valid;
 
 /*
  * edac_op_state_toString()

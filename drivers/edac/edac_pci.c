@@ -385,7 +385,7 @@ void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
 	edac_pci_do_parity_check();
 }
 
-static int edac_pci_idx = 0;
+static int edac_pci_idx;
 #define EDAC_PCI_GENCTL_NAME	"EDAC PCI controller"
 
 struct edac_pci_gen_data {

@@ -17,8 +17,8 @@
 
 #define EDAC_PCI_SYMLINK	"device"
 
-static int check_pci_errors = 0;	/* default YES check PCI parity */
-static int edac_pci_panic_on_pe = 0;	/* default no panic on PCI Parity */
+static int check_pci_errors;	/* default YES check PCI parity */
+static int edac_pci_panic_on_pe;	/* default no panic on PCI Parity */
 static int edac_pci_log_pe = 1;	/* log PCI parity errors */
 static int edac_pci_log_npe = 1;	/* log PCI non-parity error errors */
 static atomic_t pci_parity_count = ATOMIC_INIT(0);

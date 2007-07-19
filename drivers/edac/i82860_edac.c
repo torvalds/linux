@@ -57,7 +57,7 @@ static const struct i82860_dev_info i82860_devs[] = {
 		.ctl_name = "i82860"},
 };
 
-static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
+static struct pci_dev *mci_pdev;	/* init dev: in case that AGP code
 					 * has already registered driver
 					 */
 static struct edac_pci_ctl_info *i82860_pci;

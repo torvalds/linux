@@ -151,7 +151,7 @@ static const struct i3000_dev_info i3000_devs[] = {
 		.ctl_name = "i3000"},
 };
 
-static struct pci_dev *mci_pdev = NULL;
+static struct pci_dev *mci_pdev;
 static int i3000_registered = 1;
 static struct edac_pci_ctl_info *i3000_pci;
 
