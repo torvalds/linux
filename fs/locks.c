@@ -458,22 +458,20 @@ static int lease_init(struct file *filp, int type, struct file_lock *fl)
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static int lease_alloc(struct file *filp, int type, struct file_lock **flp)
+static struct file_lock *lease_alloc(struct file *filp, int type)
 {
 	struct file_lock *fl = locks_alloc_lock();
 	int error = -ENOMEM;
 
 	if (fl == NULL)
-		goto out;
+		return ERR_PTR(error);
 
 	error = lease_init(filp, type, fl);
 	if (error) {
 		locks_free_lock(fl);
-		fl = NULL;
+		return ERR_PTR(error);
 	}
-out:
-	*flp = fl;
-	return error;
+	return fl;
 }
 
 /* Check if two locks overlap each other.
@@ -661,7 +659,7 @@ static int locks_block_on_timeout(struct file_lock *blocker, struct file_lock *w
 	return result;
 }
 
-int
+void
 posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
@@ -673,14 +671,12 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 		if (posix_locks_conflict(cfl, fl))
 			break;
 	}
-	if (cfl) {
+	if (cfl)
 		__locks_copy_lock(fl, cfl);
-		unlock_kernel();
-		return 1;
-	} else
+	else
 		fl->fl_type = F_UNLCK;
 	unlock_kernel();
-	return 0;
+	return;
 }
 
 EXPORT_SYMBOL(posix_test_lock);
@@ -1169,9 +1165,9 @@ static void time_out_leases(struct inode *inode)
  *	@inode: the inode of the file to return
  *	@mode: the open mode (read or write)
  *
- *	break_lease (inlined for speed) has checked there already
- *	is a lease on this file.  Leases are broken on a call to open()
- *	or truncate().  This function can sleep unless you
+ *	break_lease (inlined for speed) has checked there already is at least
+ *	some kind of lock (maybe a lease) on this file.  Leases are broken on
+ *	a call to open() or truncate().  This function can sleep unless you
  *	specified %O_NONBLOCK to your open().
  */
 int __break_lease(struct inode *inode, unsigned int mode)
@@ -1179,12 +1175,10 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	int error = 0, future;
 	struct file_lock *new_fl, *flock;
 	struct file_lock *fl;
-	int alloc_err;
 	unsigned long break_time;
 	int i_have_this_lease = 0;
 
-	alloc_err = lease_alloc(NULL, mode & FMODE_WRITE ? F_WRLCK : F_RDLCK,
-			&new_fl);
+	new_fl = lease_alloc(NULL, mode & FMODE_WRITE ? F_WRLCK : F_RDLCK);
 
 	lock_kernel();
 
@@ -1212,8 +1206,9 @@ int __break_lease(struct inode *inode, unsigned int mode)
 		goto out;
 	}
 
-	if (alloc_err && !i_have_this_lease && ((mode & O_NONBLOCK) == 0)) {
-		error = alloc_err;
+	if (IS_ERR(new_fl) && !i_have_this_lease
+			&& ((mode & O_NONBLOCK) == 0)) {
+		error = PTR_ERR(new_fl);
 		goto out;
 	}
 
@@ -1260,7 +1255,7 @@ restart:
 
 out:
 	unlock_kernel();
-	if (!alloc_err)
+	if (!IS_ERR(new_fl))
 		locks_free_lock(new_fl);
 	return error;
 }
@@ -1329,7 +1324,7 @@ int fcntl_getlease(struct file *filp)
 }
 
 /**
- *	__setlease	-	sets a lease on an open file
+ *	setlease	-	sets a lease on an open file
  *	@filp: file pointer
  *	@arg: type of lease to obtain
  *	@flp: input - file_lock to use, output - file_lock inserted
@@ -1339,18 +1334,24 @@ int fcntl_getlease(struct file *filp)
  *
  *	Called with kernel lock held.
  */
-static int __setlease(struct file *filp, long arg, struct file_lock **flp)
+int setlease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
 
+	if ((current->fsuid != inode->i_uid) && !capable(CAP_LEASE))
+		return -EACCES;
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+	error = security_file_lock(filp, arg);
+	if (error)
+		return error;
+
 	time_out_leases(inode);
 
-	error = -EINVAL;
-	if (!flp || !(*flp) || !(*flp)->fl_lmops || !(*flp)->fl_lmops->fl_break)
-		goto out;
+	BUG_ON(!(*flp)->fl_lmops->fl_break);
 
 	lease = *flp;
 
@@ -1418,39 +1419,49 @@ static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 out:
 	return error;
 }
+EXPORT_SYMBOL(setlease);
 
  /**
- *	setlease        -       sets a lease on an open file
+ *	vfs_setlease        -       sets a lease on an open file
  *	@filp: file pointer
  *	@arg: type of lease to obtain
  *	@lease: file_lock to use
  *
  *	Call this to establish a lease on the file.
- *	The fl_lmops fl_break function is required by break_lease
+ *	The (*lease)->fl_lmops->fl_break operation must be set; if not,
+ *	break_lease will oops!
+ *
+ *	This will call the filesystem's setlease file method, if
+ *	defined.  Note that there is no getlease method; instead, the
+ *	filesystem setlease method should call back to setlease() to
+ *	add a lease to the inode's lease list, where fcntl_getlease() can
+ *	find it.  Since fcntl_getlease() only reports whether the current
+ *	task holds a lease, a cluster filesystem need only do this for
+ *	leases held by processes on this node.
+ *
+ *	There is also no break_lease method; filesystems that
+ *	handle their own leases shoud break leases themselves from the
+ *	filesystem's open, create, and (on truncate) setattr methods.
+ *
+ *	Warning: the only current setlease methods exist only to disable
+ *	leases in certain cases.  More vfs changes may be required to
+ *	allow a full filesystem lease implementation.
  */
 
-int setlease(struct file *filp, long arg, struct file_lock **lease)
+int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 {
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
 	int error;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_LEASE))
-		return -EACCES;
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-	error = security_file_lock(filp, arg);
-	if (error)
-		return error;
-
 	lock_kernel();
-	error = __setlease(filp, arg, lease);
+	if (filp->f_op && filp->f_op->setlease)
+		error = filp->f_op->setlease(filp, arg, lease);
+	else
+		error = setlease(filp, arg, lease);
 	unlock_kernel();
 
 	return error;
 }
-
-EXPORT_SYMBOL(setlease);
+EXPORT_SYMBOL_GPL(vfs_setlease);
 
 /**
  *	fcntl_setlease	-	sets a lease on an open file
@@ -1469,14 +1480,6 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_LEASE))
-		return -EACCES;
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-	error = security_file_lock(filp, arg);
-	if (error)
-		return error;
-
 	locks_init_lock(&fl);
 	error = lease_init(filp, arg, &fl);
 	if (error)
@@ -1484,15 +1487,15 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 
 	lock_kernel();
 
-	error = __setlease(filp, arg, &flp);
+	error = vfs_setlease(filp, arg, &flp);
 	if (error || arg == F_UNLCK)
 		goto out_unlock;
 
 	error = fasync_helper(fd, filp, 1, &flp->fl_fasync);
 	if (error < 0) {
-		/* remove lease just inserted by __setlease */
+		/* remove lease just inserted by setlease */
 		flp->fl_type = F_UNLCK | F_INPROGRESS;
-		flp->fl_break_time = jiffies- 10;
+		flp->fl_break_time = jiffies - 10;
 		time_out_leases(inode);
 		goto out_unlock;
 	}
@@ -1597,8 +1600,7 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 /**
  * vfs_test_lock - test file byte range lock
  * @filp: The file to test lock for
- * @fl: The lock to test
- * @conf: Place to return a copy of the conflicting lock, if found
+ * @fl: The lock to test; also used to hold result
  *
  * Returns -ERRNO on failure.  Indicates presence of conflicting lock by
  * setting conf->fl_type to something other than F_UNLCK.
