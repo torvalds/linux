@@ -42,6 +42,7 @@ Table of Contents
   2.12	/proc/<pid>/oom_adj - Adjust the oom-killer score
   2.13	/proc/<pid>/oom_score - Display current oom-killer score
   2.14	/proc/<pid>/io - Display the IO accounting fields
+  2.15	/proc/<pid>/coredump_filter - Core dump filtering settings
 
 ------------------------------------------------------------------------------
 Preface
@@ -2183,5 +2184,42 @@ those 64-bit counters, process A could see an intermediate result.
 
 More information about this can be found within the taskstats documentation in
 Documentation/accounting.
+
+2.15 /proc/<pid>/coredump_filter - Core dump filtering settings
+---------------------------------------------------------------
+When a process is dumped, all anonymous memory is written to a core file as
+long as the size of the core file isn't limited. But sometimes we don't want
+to dump some memory segments, for example, huge shared memory. Conversely,
+sometimes we want to save file-backed memory segments into a core file, not
+only the individual files.
+
+/proc/<pid>/coredump_filter allows you to customize which memory segments
+will be dumped when the <pid> process is dumped. coredump_filter is a bitmask
+of memory types. If a bit of the bitmask is set, memory segments of the
+corresponding memory type are dumped, otherwise they are not dumped.
+
+The following 4 memory types are supported:
+  - (bit 0) anonymous private memory
+  - (bit 1) anonymous shared memory
+  - (bit 2) file-backed private memory
+  - (bit 3) file-backed shared memory
+
+  Note that MMIO pages such as frame buffer are never dumped and vDSO pages
+  are always dumped regardless of the bitmask status.
+
+Default value of coredump_filter is 0x3; this means all anonymous memory
+segments are dumped.
+
+If you don't want to dump all shared memory segments attached to pid 1234,
+write 1 to the process's proc file.
+
+  $ echo 0x1 > /proc/1234/coredump_filter
+
+When a new process is created, the process inherits the bitmask status from its
+parent. It is useful to set up coredump_filter before the program runs.
+For example:
+
+  $ echo 0x7 > /proc/self/coredump_filter
+  $ ./some_program
 
 ------------------------------------------------------------------------------
