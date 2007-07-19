@@ -4434,9 +4434,12 @@ xfs_free_file_space(
 	while (!error && !done) {
 
 		/*
-		 * allocate and setup the transaction
+		 * allocate and setup the transaction. Allow this
+		 * transaction to dip into the reserve blocks to ensure
+		 * the freeing of the space succeeds at ENOSPC.
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
+		tp->t_flags |= XFS_TRANS_RESERVE;
 		error = xfs_trans_reserve(tp,
 					  resblks,
 					  XFS_WRITE_LOG_RES(mp),
