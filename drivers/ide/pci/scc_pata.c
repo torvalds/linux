@@ -165,9 +165,9 @@ scc_ide_outbsync(ide_drive_t * drive, u8 addr, unsigned long port)
 	ide_hwif_t *hwif = HWIF(drive);
 
 	out_be32((void*)port, addr);
-	__asm__ __volatile__("eieio":::"memory");
+	eieio();
 	in_be32((void*)(hwif->dma_base + 0x01c));
-	__asm__ __volatile__("eieio":::"memory");
+	eieio();
 }
 
 static void
