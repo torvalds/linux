@@ -982,7 +982,7 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 
 			skb->dev = (void *) hdev;
 			bt_cb(skb)->pkt_type = type;
-	
+
 			__reassembly(hdev, type) = skb;
 
 			scb = (void *) skb->cb;
