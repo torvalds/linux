@@ -15,30 +15,32 @@
 #include <asm/edac.h>
 
 int edac_op_state = EDAC_OPSTATE_INVAL;
-EXPORT_SYMBOL(edac_op_state);
+EXPORT_SYMBOL_GPL(edac_op_state);
 
 atomic_t edac_handlers = ATOMIC_INIT(0);
-EXPORT_SYMBOL(edac_handlers);
+EXPORT_SYMBOL_GPL(edac_handlers);
 
 int edac_err_assert = 0;
-EXPORT_SYMBOL(edac_err_assert);
+EXPORT_SYMBOL_GPL(edac_err_assert);
 
-inline int edac_handler_set(void)
+/*
+ * called to determine if there is an EDAC driver interested in
+ * knowing an event (such as NMI) occurred
+ */
+int edac_handler_set(void)
 {
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		return 0;
 
 	return atomic_read(&edac_handlers);
 }
-
-EXPORT_SYMBOL(edac_handler_set);
+EXPORT_SYMBOL_GPL(edac_handler_set);
 
 /*
  * handler for NMI type of interrupts to assert error
  */
-inline void edac_atomic_assert_error(void)
+void edac_atomic_assert_error(void)
 {
 	edac_err_assert++;
 }
-
-EXPORT_SYMBOL(edac_atomic_assert_error);
+EXPORT_SYMBOL_GPL(edac_atomic_assert_error);

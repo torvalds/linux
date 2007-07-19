@@ -1,12 +1,13 @@
 /*
  * edac_module.c
  *
- * (C) 2007 www.douglaskthompson.com
+ * (C) 2007 www.softwarebitmaker.com
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  *
- * Author: Doug Thompson <norsk5@xmission.com>
+ * Author: Doug Thompson <dougthompson@xmission.com>
  *
  */
 #include <linux/edac.h>
@@ -14,7 +15,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define EDAC_MC_VERSION "Ver: 2.0.5 " __DATE__
+#define EDAC_VERSION "Ver: 2.1.0 " __DATE__
 
 #ifdef CONFIG_EDAC_DEBUG
 /* Values of 0 to 4 will generate output */
@@ -141,7 +142,7 @@ static int __init edac_init(void)
 {
 	int err = 0;
 
-	edac_printk(KERN_INFO, EDAC_MC, EDAC_MC_VERSION "\n");
+	edac_printk(KERN_INFO, EDAC_MC, EDAC_VERSION "\n");
 
 	/*
 	 * Harvest and clear any boot/initialization PCI parity errors
