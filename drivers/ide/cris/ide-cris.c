@@ -684,6 +684,8 @@ static void tune_cris_ide(ide_drive_t *drive, u8 pio)
 {
 	int setup, strobe, hold;
 
+	pio = ide_get_best_pio_mode(drive, pio, 4);
+
 	switch(pio)
 	{
 		case 0:
