@@ -281,9 +281,16 @@ int hibernate(void)
 {
 	int error;
 
+	mutex_lock(&pm_mutex);
 	/* The snapshot device should not be opened while we're running */
-	if (!atomic_add_unless(&snapshot_device_available, -1, 0))
-		return -EBUSY;
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+		error = -EBUSY;
+		goto Unlock;
+	}
+
+	error = pm_notifier_call_chain(PM_HIBERNATION_PREPARE);
+	if (error)
+		goto Exit;
 
 	/* Allocate memory management structures */
 	error = create_basic_memory_bitmaps();
@@ -294,7 +301,6 @@ int hibernate(void)
 	if (error)
 		goto Finish;
 
-	mutex_lock(&pm_mutex);
 	if (hibernation_mode == HIBERNATION_TESTPROC) {
 		printk("swsusp debug: Waiting for 5 seconds.\n");
 		mdelay(5000);
@@ -316,12 +322,14 @@ int hibernate(void)
 		swsusp_free();
 	}
  Thaw:
-	mutex_unlock(&pm_mutex);
 	unprepare_processes();
  Finish:
 	free_basic_memory_bitmaps();
  Exit:
+	pm_notifier_call_chain(PM_POST_HIBERNATION);
 	atomic_inc(&snapshot_device_available);
+ Unlock:
+	mutex_unlock(&pm_mutex);
 	return error;
 }
 

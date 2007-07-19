@@ -54,7 +54,8 @@ struct hibernation_ops {
 	void (*restore_cleanup)(void);
 };
 
-#if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
+#ifdef CONFIG_PM
+#ifdef CONFIG_SOFTWARE_SUSPEND
 /* kernel/power/snapshot.c */
 extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
 static inline void register_nosave_region(unsigned long b, unsigned long e)
@@ -72,21 +73,58 @@ extern unsigned long get_safe_page(gfp_t gfp_mask);
 
 extern void hibernation_set_ops(struct hibernation_ops *ops);
 extern int hibernate(void);
-#else
-static inline void register_nosave_region(unsigned long b, unsigned long e) {}
-static inline void register_nosave_region_late(unsigned long b, unsigned long e) {}
+#else /* CONFIG_SOFTWARE_SUSPEND */
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
 
 static inline void hibernation_set_ops(struct hibernation_ops *ops) {}
 static inline int hibernate(void) { return -ENOSYS; }
-#endif /* defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND) */
+#endif /* CONFIG_SOFTWARE_SUSPEND */
 
 void save_processor_state(void);
 void restore_processor_state(void);
 struct saved_context;
 void __save_processor_state(struct saved_context *ctxt);
 void __restore_processor_state(struct saved_context *ctxt);
+
+/* kernel/power/main.c */
+extern struct blocking_notifier_head pm_chain_head;
+
+static inline int register_pm_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&pm_chain_head, nb);
+}
+
+static inline int unregister_pm_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&pm_chain_head, nb);
+}
+
+#define pm_notifier(fn, pri) {				\
+	static struct notifier_block fn##_nb =			\
+		{ .notifier_call = fn, .priority = pri };	\
+	register_pm_notifier(&fn##_nb);			\
+}
+#else /* CONFIG_PM */
+
+static inline int register_pm_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int unregister_pm_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+#define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
+#endif /* CONFIG_PM */
+
+#if !defined CONFIG_SOFTWARE_SUSPEND || !defined(CONFIG_PM)
+static inline void register_nosave_region(unsigned long b, unsigned long e)
+{
+}
+#endif
 
 #endif /* _LINUX_SWSUSP_H */

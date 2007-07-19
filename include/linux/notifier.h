@@ -212,5 +212,11 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 #define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
 #define CPU_DYING_FROZEN	(CPU_DYING | CPU_TASKS_FROZEN)
 
+/* Hibernation and suspend events */
+#define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
+#define PM_POST_HIBERNATION	0x0002 /* Hibernation finished */
+#define PM_SUSPEND_PREPARE	0x0003 /* Going to suspend the system */
+#define PM_POST_SUSPEND		0x0004 /* Suspend finished */
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */

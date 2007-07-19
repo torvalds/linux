@@ -23,6 +23,8 @@
 
 #include "power.h"
 
+BLOCKING_NOTIFIER_HEAD(pm_chain_head);
+
 /*This is just an arbitrary number */
 #define FREE_PAGE_NUMBER (100)
 
@@ -78,6 +80,10 @@ static int suspend_prepare(suspend_state_t state)
 	if (!pm_ops || !pm_ops->enter)
 		return -EPERM;
 
+	error = pm_notifier_call_chain(PM_SUSPEND_PREPARE);
+	if (error)
+		goto Finish;
+
 	pm_prepare_console();
 
 	if (freeze_processes()) {
@@ -125,6 +131,8 @@ static int suspend_prepare(suspend_state_t state)
  Thaw:
 	thaw_processes();
 	pm_restore_console();
+ Finish:
+	pm_notifier_call_chain(PM_POST_SUSPEND);
 	return error;
 }
 
@@ -176,6 +184,7 @@ static void suspend_finish(suspend_state_t state)
 	resume_console();
 	thaw_processes();
 	pm_restore_console();
+	pm_notifier_call_chain(PM_POST_SUSPEND);
 }
 
 

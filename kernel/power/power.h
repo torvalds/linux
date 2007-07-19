@@ -173,5 +173,15 @@ extern void swsusp_close(void);
 extern int suspend_enter(suspend_state_t state);
 
 struct timeval;
+/* kernel/power/swsusp.c */
 extern void swsusp_show_speed(struct timeval *, struct timeval *,
 				unsigned int, char *);
+
+/* kernel/power/main.c */
+extern struct blocking_notifier_head pm_chain_head;
+
+static inline int pm_notifier_call_chain(unsigned long val)
+{
+	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
+			== NOTIFY_BAD) ? -EINVAL : 0;
+}

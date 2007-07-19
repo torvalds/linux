@@ -151,10 +151,14 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (data->frozen)
 			break;
 		mutex_lock(&pm_mutex);
-		if (freeze_processes()) {
-			thaw_processes();
-			error = -EBUSY;
+		error = pm_notifier_call_chain(PM_HIBERNATION_PREPARE);
+		if (!error) {
+			error = freeze_processes();
+			if (error)
+				thaw_processes();
 		}
+		if (error)
+			pm_notifier_call_chain(PM_POST_HIBERNATION);
 		mutex_unlock(&pm_mutex);
 		if (!error)
 			data->frozen = 1;
@@ -165,6 +169,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			break;
 		mutex_lock(&pm_mutex);
 		thaw_processes();
+		pm_notifier_call_chain(PM_POST_HIBERNATION);
 		mutex_unlock(&pm_mutex);
 		data->frozen = 0;
 		break;
