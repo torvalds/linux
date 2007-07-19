@@ -441,6 +441,8 @@ static struct fscher_data *fscher_update_device(struct device *dev)
 		data->watchdog[2] = fscher_read_value(client, FSCHER_REG_WDOG_CONTROL);
 
 		data->global_event = fscher_read_value(client, FSCHER_REG_EVENT_STATE);
+		data->global_control = fscher_read_value(client,
+							FSCHER_REG_CONTROL);
 
 		data->last_updated = jiffies;
 		data->valid = 1;                 
