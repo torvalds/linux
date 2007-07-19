@@ -1014,6 +1014,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			}
 		}
 
+		if (tp_features.hotkey_wlsw) {
+			set_bit(EV_SW, tpacpi_inputdev->evbit);
+			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
+		}
+
 #ifdef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
 		dbg_printk(TPACPI_DBG_INIT,
 				"enabling hot key handling\n");
@@ -1062,6 +1067,15 @@ static void tpacpi_input_send_key(unsigned int scancode,
 	}
 }
 
+static void tpacpi_input_send_radiosw(void)
+{
+	int wlsw;
+
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw))
+		input_report_switch(tpacpi_inputdev,
+				    SW_RADIO, !!wlsw);
+}
+
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
@@ -1096,6 +1110,14 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 						hkey);
 				}
 				break;
+			case 7:
+				/* 0x7000-0x7FFF: misc */
+				if (tp_features.hotkey_wlsw && hkey == 0x7000) {
+						tpacpi_input_send_radiosw();
+						sendacpi = 0;
+					break;
+				}
+				/* fallthrough to default */
 			default:
 				/* case 2: dock-related */
 				/*	0x2305 - T43 waking up due to bay lever eject while aslept */
@@ -1111,6 +1133,11 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
 		acpi_bus_generate_event(ibm->acpi->device, event, 0);
 	}
+}
+
+static void hotkey_resume(void)
+{
+	tpacpi_input_send_radiosw();
 }
 
 /*
@@ -1240,6 +1267,7 @@ static struct ibm_struct hotkey_driver_data = {
 	.read = hotkey_read,
 	.write = hotkey_write,
 	.exit = hotkey_exit,
+	.resume = hotkey_resume,
 	.acpi = &ibm_hotkey_acpidriver,
 };
 
