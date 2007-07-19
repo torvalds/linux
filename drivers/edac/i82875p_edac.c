@@ -198,12 +198,14 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 	 * overwritten by UE.
 	 */
 	pci_read_config_word(pdev, I82875P_ERRSTS, &info->errsts);
+
+	if (!(info->errsts & 0x0081))
+		return;
+
 	pci_read_config_dword(pdev, I82875P_EAP, &info->eap);
 	pci_read_config_byte(pdev, I82875P_DES, &info->des);
 	pci_read_config_byte(pdev, I82875P_DERRSYN, &info->derrsyn);
 	pci_read_config_word(pdev, I82875P_ERRSTS, &info->errsts2);
-
-	pci_write_bits16(pdev, I82875P_ERRSTS, 0x0081, 0x0081);
 
 	/*
 	 * If the error is the same then we can for both reads then
@@ -211,14 +213,13 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 	 * there is a CE no info and the second set of reads is valid
 	 * and should be UE info.
 	 */
-	if (!(info->errsts2 & 0x0081))
-		return;
-
 	if ((info->errsts ^ info->errsts2) & 0x0081) {
 		pci_read_config_dword(pdev, I82875P_EAP, &info->eap);
 		pci_read_config_byte(pdev, I82875P_DES, &info->des);
 		pci_read_config_byte(pdev, I82875P_DERRSYN, &info->derrsyn);
 	}
+
+	pci_write_bits16(pdev, I82875P_ERRSTS, 0x0081, 0x0081);
 }
 
 static int i82875p_process_error_info(struct mem_ctl_info *mci,
@@ -229,7 +230,7 @@ static int i82875p_process_error_info(struct mem_ctl_info *mci,
 
 	multi_chan = mci->csrows[0].nr_channels - 1;
 
-	if (!(info->errsts2 & 0x0081))
+	if (!(info->errsts & 0x0081))
 		return 0;
 
 	if (!handle_errors)
