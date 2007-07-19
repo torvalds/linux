@@ -30,9 +30,13 @@
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 1)
 
 /* Inputs */
-#define TM6000_INPUT_TV		0
-#define TM6000_INPUT_COMPOSITE	1
-#define TM6000_INPUT_SVIDEO	2
+
+enum tm6000_itype {
+	TM6000_INPUT_TV	= 0,
+	TM6000_INPUT_COMPOSITE,
+	TM6000_INPUT_SVIDEO,
+};
+
 
 /* ------------------------------------------------------------------
 	Basic structures
