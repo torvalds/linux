@@ -67,7 +67,7 @@ krb5_encrypt(
 
 	if (crypto_blkcipher_ivsize(tfm) > 16) {
 		dprintk("RPC:       gss_k5encrypt: tfm iv size to large %d\n",
-		         crypto_blkcipher_ivsize(tfm));
+			 crypto_blkcipher_ivsize(tfm));
 		goto out;
 	}
 
