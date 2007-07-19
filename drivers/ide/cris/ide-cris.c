@@ -414,12 +414,6 @@ cris_ide_reset(unsigned val)
 #ifdef CONFIG_ETRAX_IDE_G27_RESET
 	REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow, 27, val);
 #endif
-#ifdef CONFIG_ETRAX_IDE_CSE1_16_RESET
-	REG_SHADOW_SET(port_cse1_addr, port_cse1_shadow, 16, val);
-#endif
-#ifdef CONFIG_ETRAX_IDE_CSP0_8_RESET
-	REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, 8, val);
-#endif
 #ifdef CONFIG_ETRAX_IDE_PB7_RESET
 	port_pb_dir_shadow = port_pb_dir_shadow |
 		IO_STATE(R_PORT_PB_DIR, dir7, output);
