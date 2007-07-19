@@ -74,18 +74,18 @@ good_area:
 			goto bad_area;
 	}
 	ret = 0;
-	fault = handle_mm_fault(mm, vma, ea, is_write);
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM) {
+	*flt = handle_mm_fault(mm, vma, ea, is_write);
+	if (unlikely(*flt & VM_FAULT_ERROR)) {
+		if (*flt & VM_FAULT_OOM) {
 			ret = -ENOMEM;
 			goto bad_area;
-		} else if (fault & VM_FAULT_SIGBUS) {
+		} else if (*flt & VM_FAULT_SIGBUS) {
 			ret = -EFAULT;
 			goto bad_area;
 		}
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+	if (*flt & VM_FAULT_MAJOR)
 		current->maj_flt++;
 	else
 		current->min_flt++;
@@ -210,15 +210,15 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * In case of unhandled error report the problem to user space.
 	 */
 	if (!ret) {
-		if (flt == VM_FAULT_MINOR)
-			ctx->stats.min_flt++;
-		else
+		if (flt & VM_FAULT_MAJOR)
 			ctx->stats.maj_flt++;
+		else
+			ctx->stats.min_flt++;
 		if (ctx->state == SPU_STATE_RUNNABLE) {
-			if (flt == VM_FAULT_MINOR)
-				ctx->spu->stats.min_flt++;
-			else
+			if (flt & VM_FAULT_MAJOR)
 				ctx->spu->stats.maj_flt++;
+			else
+				ctx->spu->stats.min_flt++;
 		}
 
 		if (ctx->spu)
