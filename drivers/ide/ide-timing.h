@@ -111,16 +111,14 @@ static short ide_find_best_pio_mode(ide_drive_t *drive)
 	struct hd_driveid *id = drive->id;
 	short best = 0;
 
-	if (id->field_valid & 2) {	/* EIDE PIO modes */
-
+	/* EIDE PIO modes */
+	if ((id->field_valid & 2) && (id->capability & 8)) {
 		if ((best = (drive->id->eide_pio_modes & 4) ? XFER_PIO_5 :
 			    (drive->id->eide_pio_modes & 2) ? XFER_PIO_4 :
 			    (drive->id->eide_pio_modes & 1) ? XFER_PIO_3 : 0)) return best;
 	}
-	
-	return  (drive->id->tPIO == 2) ? XFER_PIO_2 :
-		(drive->id->tPIO == 1) ? XFER_PIO_1 :
-		(drive->id->tPIO == 0) ? XFER_PIO_0 : XFER_PIO_SLOW;
+
+	return XFER_PIO_0 + min_t(u8, id->tPIO, 2);
 }
 
 static void ide_timing_quantize(struct ide_timing *t, struct ide_timing *q, int T, int UT)
