@@ -727,7 +727,7 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
  */
 
 static int hotkey_orig_status;
-static int hotkey_orig_mask;
+static u32 hotkey_orig_mask;
 
 static struct attribute_set *hotkey_dev_attributes;
 
@@ -736,7 +736,8 @@ static ssize_t hotkey_enable_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
@@ -750,7 +751,8 @@ static ssize_t hotkey_enable_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
@@ -771,13 +773,14 @@ static ssize_t hotkey_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", mask);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", mask);
 }
 
 static ssize_t hotkey_mask_store(struct device *dev,
@@ -785,9 +788,10 @@ static ssize_t hotkey_mask_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
-	if (parse_strtoul(buf, 0xffff, &t))
+	if (parse_strtoul(buf, 0xffffffffUL, &t))
 		return -EINVAL;
 
 	res = hotkey_get(&status, &mask);
@@ -817,7 +821,7 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", hotkey_orig_mask);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_orig_mask);
 }
 
 static struct device_attribute dev_attr_hotkey_bios_mask =
@@ -902,10 +906,10 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	int hkey;
 
-	if (acpi_evalf(hkey_handle, &hkey, "MHKP", "d"))
+	if (event == 0x80 && acpi_evalf(hkey_handle, &hkey, "MHKP", "d")) {
 		acpi_bus_generate_event(ibm->acpi->device, event, hkey);
-	else {
-		printk(IBM_ERR "unknown hotkey event %d\n", event);
+	} else {
+		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
 		acpi_bus_generate_event(ibm->acpi->device, event, 0);
 	}
 }
@@ -913,7 +917,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 /*
  * Call with hotkey_mutex held
  */
-static int hotkey_get(int *status, int *mask)
+static int hotkey_get(int *status, u32 *mask)
 {
 	if (!acpi_evalf(hkey_handle, status, "DHKC", "d"))
 		return -EIO;
@@ -928,7 +932,7 @@ static int hotkey_get(int *status, int *mask)
 /*
  * Call with hotkey_mutex held
  */
-static int hotkey_set(int status, int mask)
+static int hotkey_set(int status, u32 mask)
 {
 	int i;
 
@@ -949,7 +953,8 @@ static int hotkey_set(int status, int mask)
 /* procfs -------------------------------------------------------------- */
 static int hotkey_read(char *p)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 	int len = 0;
 
 	if (!tp_features.hotkey) {
@@ -967,7 +972,7 @@ static int hotkey_read(char *p)
 
 	len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 0));
 	if (tp_features.hotkey_mask) {
-		len += sprintf(p + len, "mask:\t\t0x%04x\n", mask);
+		len += sprintf(p + len, "mask:\t\t0x%08x\n", mask);
 		len += sprintf(p + len,
 			       "commands:\tenable, disable, reset, <mask>\n");
 	} else {
@@ -980,7 +985,8 @@ static int hotkey_read(char *p)
 
 static int hotkey_write(char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 	char *cmd;
 	int do_cmd = 0;
 

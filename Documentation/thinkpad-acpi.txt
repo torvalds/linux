@@ -153,29 +153,22 @@ addition, the lid microswitch and some docking station buttons may
 also generate such events.
 
 The bit mask allows some control over which hot keys generate ACPI
-events. Not all bits in the mask can be modified. Not all bits that
-can be modified do anything. Not all hot keys can be individually
-controlled by the mask. Most recent ThinkPad models honor the
-following bits (assuming the hot keys feature has been enabled):
-
-	key	bit	behavior when set	behavior when unset
-
-	Fn-F3			always generates ACPI event
-	Fn-F4			always generates ACPI event
-	Fn-F5	0010	generate ACPI event	enable/disable Bluetooth
-	Fn-F7	0040	generate ACPI event	switch LCD and external display
-	Fn-F8	0080	generate ACPI event	expand screen or none
-	Fn-F9	0100	generate ACPI event	none
-	Fn-F12			always generates ACPI event
-
-Some models do not support all of the above. For example, the T30 does
-not support Fn-F5 and Fn-F9. Other models do not support the mask at
-all. On those models, hot keys cannot be controlled individually.
+events. Not all bits in the mask can be modified. Not all bits that can
+be modified do anything. Not all hot keys can be individually controlled
+by the mask. Some models do not support the mask at all. On those
+models, hot keys cannot be controlled individually.
 
 Note that enabling ACPI events for some keys prevents their default
-behavior. For example, if events for Fn-F5 are enabled, that key will
-no longer enable/disable Bluetooth by itself. This can still be done
-from an acpid handler for the ibm/hotkey event.
+behavior. For example, if events for Fn-F5 are enabled, that key will no
+longer enable/disable Bluetooth by itself. This can still be done from
+an acpid handler for the ibm/hotkey event.
+
+On some models, even enabling/disabling the entire hot key feature may
+change the way some keys behave (e.g. in a T43, Fn+F4 will generate an
+button/sleep ACPI event if hot keys are disabled, and it will ignore its
+mask when hot keys are enabled, so the key always does something.  On a
+X40, Fn+F4 respects its mask status, but generates the button/sleep ACPI
+event if masked off).
 
 Note also that not all Fn key combinations are supported through
 ACPI. For example, on the X40, the brightness, volume and "Access IBM"
@@ -189,9 +182,9 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 
 	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
 	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
-	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
-	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
-	... any other 4-hex-digit mask ...
+	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
+	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
+	... any other 8-hex-digit mask ...
 	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
 
 sysfs notes:
