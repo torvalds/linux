@@ -1456,8 +1456,8 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
  * dump the segments for an MMU process
  */
 #ifdef CONFIG_MMU
-static int elf_fdpic_dump_segments(struct file *file, struct mm_struct *mm,
-				   size_t *size, unsigned long *limit)
+static int elf_fdpic_dump_segments(struct file *file, size_t *size,
+				   unsigned long *limit)
 {
 	struct vm_area_struct *vma;
 
@@ -1511,8 +1511,8 @@ end_coredump:
  * dump the segments for a NOMMU process
  */
 #ifndef CONFIG_MMU
-static int elf_fdpic_dump_segments(struct file *file, struct mm_struct *mm,
-				   size_t *size, unsigned long *limit)
+static int elf_fdpic_dump_segments(struct file *file, size_t *size,
+				   unsigned long *limit)
 {
 	struct vm_list_struct *vml;
 
