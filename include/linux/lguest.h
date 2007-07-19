@@ -3,11 +3,6 @@
 #ifndef _ASM_LGUEST_H
 #define _ASM_LGUEST_H
 
-/* These are randomly chosen numbers which indicate we're an lguest at boot */
-#define LGUEST_MAGIC_EBP 0x4C687970
-#define LGUEST_MAGIC_EDI 0x652D4D65
-#define LGUEST_MAGIC_ESI 0xFFFFFFFF
-
 #ifndef __ASSEMBLY__
 #include <asm/irq.h>
 
@@ -20,7 +15,7 @@
 #define LHCALL_LOAD_IDT_ENTRY	6
 #define LHCALL_SET_STACK	7
 #define LHCALL_TS		8
-#define LHCALL_TIMER_READ	9
+#define LHCALL_SET_CLOCKEVENT	9
 #define LHCALL_HALT		10
 #define LHCALL_GET_WALLCLOCK	11
 #define LHCALL_BIND_DMA		12
@@ -28,6 +23,9 @@
 #define LHCALL_SET_PTE		14
 #define LHCALL_SET_PMD		15
 #define LHCALL_LOAD_TLS		16
+
+#define LG_CLOCK_MIN_DELTA	100UL
+#define LG_CLOCK_MAX_DELTA	ULONG_MAX
 
 #define LGUEST_TRAP_ENTRY 0x1F
 
@@ -75,6 +73,8 @@ struct lguest_data
 	unsigned long reserve_mem;
 	/* ID of this guest (used by network driver to set ethernet address) */
 	u16 guestid;
+	/* KHz for the TSC clock. */
+	u32 tsc_khz;
 
 /* Fields initialized by the guest at boot: */
 	/* Instruction range to suppress interrupts even if enabled */

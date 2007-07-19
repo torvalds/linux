@@ -44,7 +44,7 @@ unsigned long long sched_clock(void)
 
 static int tsc_unstable;
 
-static inline int check_tsc_unstable(void)
+inline int check_tsc_unstable(void)
 {
 	return tsc_unstable;
 }

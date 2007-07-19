@@ -10,7 +10,8 @@
  * This is where we begin: we have a magic signature which the launcher looks
  * for.  The plan is that the Linux boot protocol will be extended with a
  * "platform type" field which will guide us here from the normal entry point,
- * but for the moment this suffices.
+ * but for the moment this suffices.  We pass the virtual address of the boot
+ * info to lguest_init().
  *
  * We put it in .init.text will be discarded after boot.
  */
@@ -18,6 +19,8 @@
 .ascii "GenuineLguest"
 	/* Set up initial stack. */
  	movl $(init_thread_union+THREAD_SIZE),%esp
+	movl %esi, %eax
+	addl $__PAGE_OFFSET, %eax
 	jmp lguest_init
 
 /* The templates for inline patching. */

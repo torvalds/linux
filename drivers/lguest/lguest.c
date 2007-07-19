@@ -25,6 +25,8 @@
 #include <linux/screen_info.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
 #include <linux/lguest_bus.h>
@@ -37,6 +39,7 @@
 #include <asm/e820.h>
 #include <asm/mce.h>
 #include <asm/io.h>
+//#include <asm/sched-clock.h>
 
 /* Declarations for definitions in lguest_guest.S */
 extern char lguest_noirq_start[], lguest_noirq_end[];
@@ -54,7 +57,6 @@ struct lguest_data lguest_data = {
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 };
 struct lguest_device_desc *lguest_devices;
-static __initdata const struct lguest_boot_info *boot = __va(0);
 
 static enum paravirt_lazy_mode lazy_mode;
 static void lguest_lazy_mode(enum paravirt_lazy_mode mode)
@@ -210,7 +212,7 @@ static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
 		*ecx &= 0x00002201;
-		/* Similarly: SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
+		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
 		*edx &= 0x07808101;
 		/* Host wants to know when we flush kernel pages: set PGE. */
 		*edx |= 0x00002000;
@@ -346,24 +348,104 @@ static unsigned long lguest_get_wallclock(void)
 	return hcall(LHCALL_GET_WALLCLOCK, 0, 0, 0);
 }
 
-static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
+static cycle_t lguest_clock_read(void)
 {
-	do_timer(hcall(LHCALL_TIMER_READ, 0, 0, 0));
-	update_process_times(user_mode_vm(get_irq_regs()));
+	if (lguest_data.tsc_khz)
+		return native_read_tsc();
+	else
+		return jiffies;
 }
 
-static u64 sched_clock_base;
+/* This is what we tell the kernel is our clocksource.  */
+static struct clocksource lguest_clock = {
+	.name		= "lguest",
+	.rating		= 400,
+	.read		= lguest_clock_read,
+};
+
+/* We also need a "struct clock_event_device": Linux asks us to set it to go
+ * off some time in the future.  Actually, James Morris figured all this out, I
+ * just applied the patch. */
+static int lguest_clockevent_set_next_event(unsigned long delta,
+                                           struct clock_event_device *evt)
+{
+	if (delta < LG_CLOCK_MIN_DELTA) {
+		if (printk_ratelimit())
+			printk(KERN_DEBUG "%s: small delta %lu ns\n",
+			       __FUNCTION__, delta);
+		return -ETIME;
+	}
+	hcall(LHCALL_SET_CLOCKEVENT, delta, 0, 0);
+	return 0;
+}
+
+static void lguest_clockevent_set_mode(enum clock_event_mode mode,
+                                      struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		/* A 0 argument shuts the clock down. */
+		hcall(LHCALL_SET_CLOCKEVENT, 0, 0, 0);
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* This is what we expect. */
+		break;
+	case CLOCK_EVT_MODE_PERIODIC:
+		BUG();
+	}
+}
+
+/* This describes our primitive timer chip. */
+static struct clock_event_device lguest_clockevent = {
+	.name                   = "lguest",
+	.features               = CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event         = lguest_clockevent_set_next_event,
+	.set_mode               = lguest_clockevent_set_mode,
+	.rating                 = INT_MAX,
+	.mult                   = 1,
+	.shift                  = 0,
+	.min_delta_ns           = LG_CLOCK_MIN_DELTA,
+	.max_delta_ns           = LG_CLOCK_MAX_DELTA,
+};
+
+/* This is the Guest timer interrupt handler (hardware interrupt 0).  We just
+ * call the clockevent infrastructure and it does whatever needs doing. */
+static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
+{
+	unsigned long flags;
+
+	/* Don't interrupt us while this is running. */
+	local_irq_save(flags);
+	lguest_clockevent.event_handler(&lguest_clockevent);
+	local_irq_restore(flags);
+}
+
 static void lguest_time_init(void)
 {
 	set_irq_handler(0, lguest_time_irq);
-	hcall(LHCALL_TIMER_READ, 0, 0, 0);
-	sched_clock_base = jiffies_64;
-	enable_lguest_irq(0);
-}
 
-static unsigned long long lguest_sched_clock(void)
-{
-	return (jiffies_64 - sched_clock_base) * (1000000000 / HZ);
+	/* We use the TSC if the Host tells us we can, otherwise a dumb
+	 * jiffies-based clock. */
+	if (lguest_data.tsc_khz) {
+		lguest_clock.shift = 22;
+		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
+							 lguest_clock.shift);
+		lguest_clock.mask = CLOCKSOURCE_MASK(64);
+		lguest_clock.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	} else {
+		/* To understand this, start at kernel/time/jiffies.c... */
+		lguest_clock.shift = 8;
+		lguest_clock.mult = (((u64)NSEC_PER_SEC<<8)/ACTHZ) << 8;
+		lguest_clock.mask = CLOCKSOURCE_MASK(32);
+	}
+	clocksource_register(&lguest_clock);
+
+	/* We can't set cpumask in the initializer: damn C limitations! */
+	lguest_clockevent.cpumask = cpumask_of_cpu(0);
+	clockevents_register_device(&lguest_clockevent);
+
+	enable_lguest_irq(0);
 }
 
 static void lguest_load_esp0(struct tss_struct *tss,
@@ -418,8 +500,7 @@ static __init char *lguest_memory_setup(void)
 	/* We do this here because lockcheck barfs if before start_kernel */
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
-	e820.nr_map = 0;
-	add_memory_region(0, PFN_PHYS(boot->max_pfn), E820_RAM);
+	add_memory_region(E820_MAP->addr, E820_MAP->size, E820_MAP->type);
 	return "LGUEST";
 }
 
@@ -450,8 +531,13 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *insns, unsigned len)
 	return insn_len;
 }
 
-__init void lguest_init(void)
+__init void lguest_init(void *boot)
 {
+	/* Copy boot parameters first. */
+	memcpy(&boot_params, boot, PARAM_SIZE);
+	memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
+	       COMMAND_LINE_SIZE);
+
 	paravirt_ops.name = "lguest";
 	paravirt_ops.paravirt_enabled = 1;
 	paravirt_ops.kernel_rpl = 1;
@@ -498,10 +584,8 @@ __init void lguest_init(void)
 	paravirt_ops.time_init = lguest_time_init;
 	paravirt_ops.set_lazy_mode = lguest_lazy_mode;
 	paravirt_ops.wbinvd = lguest_wbinvd;
-	paravirt_ops.sched_clock = lguest_sched_clock;
 
 	hcall(LHCALL_LGUEST_INIT, __pa(&lguest_data), 0, 0);
-	strncpy(boot_command_line, boot->cmdline, COMMAND_LINE_SIZE);
 
 	/* We use top of mem for initial pagetables. */
 	init_pg_tables_end = __pa(pg0);
@@ -531,13 +615,6 @@ __init void lguest_init(void)
 #endif
 
 	add_preferred_console("hvc", 0, NULL);
-
-	if (boot->initrd_size) {
-		/* We stash this at top of memory. */
-		INITRD_START = boot->max_pfn*PAGE_SIZE - boot->initrd_size;
-		INITRD_SIZE = boot->initrd_size;
-		LOADER_TYPE = 0xFF;
-	}
 
 	pm_power_off = lguest_power_off;
 	start_kernel();
