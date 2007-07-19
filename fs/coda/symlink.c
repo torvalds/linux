@@ -20,7 +20,6 @@
 #include <linux/coda_linux.h>
 #include <linux/coda_psdev.h>
 #include <linux/coda_fs_i.h>
-#include <linux/coda_proc.h>
 
 static int coda_symlink_filler(struct file *file, struct page *page)
 {
@@ -32,7 +31,6 @@ static int coda_symlink_filler(struct file *file, struct page *page)
 
 	lock_kernel();
 	cii = ITOC(inode);
-	coda_vfs_stat.follow_link++;
 
 	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
 	unlock_kernel();

@@ -35,7 +35,8 @@
 #include <linux/coda_psdev.h>
 #include <linux/coda_fs_i.h>
 #include <linux/coda_cache.h>
-#include <linux/coda_proc.h> 
+
+#include "coda_int.h"
 
 static int coda_upcall(struct venus_comm *vc, int inSize, int *outSize,
 		       union inputArgs *buffer);

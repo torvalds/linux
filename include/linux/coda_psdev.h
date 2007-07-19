@@ -69,8 +69,6 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs);
 
 
 /* messages between coda filesystem in kernel and Venus */
-extern int coda_hard;
-extern unsigned long coda_timeout;
 struct upc_req {
 	struct list_head    uc_chain;
 	caddr_t	            uc_data;

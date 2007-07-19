@@ -45,7 +45,6 @@
 #include <linux/coda_linux.h>
 #include <linux/coda_fs_i.h>
 #include <linux/coda_psdev.h>
-#include <linux/coda_proc.h>
 
 #include "coda_int.h"
 

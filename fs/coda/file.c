@@ -22,7 +22,6 @@
 #include <linux/coda_linux.h>
 #include <linux/coda_fs_i.h>
 #include <linux/coda_psdev.h>
-#include <linux/coda_proc.h>
 
 #include "coda_int.h"
 
@@ -134,8 +133,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	unsigned short coda_flags = coda_flags_to_cflags(flags);
 	struct coda_file_info *cfi;
 
-	coda_vfs_stat.open++;
-
 	cfi = kmalloc(sizeof(struct coda_file_info), GFP_KERNEL);
 	if (!cfi)
 		return -ENOMEM;
@@ -175,8 +172,6 @@ int coda_flush(struct file *coda_file, fl_owner_t id)
 	int err = 0, fcnt;
 
 	lock_kernel();
-
-	coda_vfs_stat.flush++;
 
 	/* last close semantics */
 	fcnt = file_count(coda_file);
@@ -219,8 +214,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	int err = 0;
 
 	lock_kernel();
-	coda_vfs_stat.release++;
- 
+
 	if (!use_coda_close) {
 		err = venus_release(coda_inode->i_sb, coda_i2f(coda_inode),
 				    coda_flags);
@@ -270,8 +264,6 @@ int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
-
-	coda_vfs_stat.fsync++;
 
 	if (host_file->f_op && host_file->f_op->fsync) {
 		host_dentry = host_file->f_path.dentry;

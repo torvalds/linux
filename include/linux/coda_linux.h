@@ -43,9 +43,6 @@ int coda_revalidate_inode(struct dentry *);
 int coda_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 int coda_setattr(struct dentry *, struct iattr *);
 
-/* global variables */
-extern int coda_fake_statfs;
-
 /* this file:  heloers */
 static __inline__ struct CodaFid *coda_i2f(struct inode *);
 static __inline__ char *coda_i2s(struct inode *);
