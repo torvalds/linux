@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_mc.h"
 
 #define	E7XXX_REVISION " Ver: 2.0.1 " __DATE__
@@ -419,6 +420,17 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	struct e7xxx_error_info discard;
 
 	debugf0("%s(): mci\n", __func__);
+
+	/* make sure error reporting method is sane */
+	switch(edac_op_state) {
+		case EDAC_OPSTATE_POLL:
+		case EDAC_OPSTATE_NMI:
+			break;
+		default:
+			edac_op_state = EDAC_OPSTATE_POLL;
+			break;
+	}
+
 	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
 
 	drc_chan = dual_channel_active(drc, dev_idx);
@@ -565,3 +577,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh et al\n"
 	"Based on.work by Dan Hollis et al");
 MODULE_DESCRIPTION("MC support for Intel e7xxx memory controllers");
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/sysdev.h>
 #include <linux/ctype.h>
+#include <linux/edac.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/edac.h>
@@ -241,6 +242,7 @@ static int add_mc_to_global_list (struct mem_ctl_info *mci)
 	}
 
 	list_add_tail_rcu(&mci->link, insert_before);
+	atomic_inc(&edac_handlers);
 	return 0;
 
 fail0:
@@ -267,6 +269,7 @@ static void complete_mc_list_del(struct rcu_head *head)
 
 static void del_mc_from_global_list(struct mem_ctl_info *mci)
 {
+	atomic_dec(&edac_handlers);
 	list_del_rcu(&mci->link);
 	init_completion(&mci->complete);
 	call_rcu(&mci->rcu, complete_mc_list_del);

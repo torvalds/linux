@@ -109,15 +109,4 @@ config EDAC_I5000
 	  Support for error detection and correction the Intel
 	  Greekcreek/Blackford chipsets.
 
-choice
-	prompt "Error detecting method"
-	default EDAC_POLL
-
-config EDAC_POLL
-	bool "Poll for errors"
-	help
-	  Poll the chipset periodically to detect errors.
-
-endchoice
-
 endif # EDAC

@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include <asm/mmzone.h>
 
 #include "edac_mc.h"
@@ -1285,6 +1286,16 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	if (PCI_FUNC(pdev->devfn) != 0)
 		return -ENODEV;
 
+	/* make sure error reporting method is sane */
+	switch(edac_op_state) {
+		case EDAC_OPSTATE_POLL:
+		case EDAC_OPSTATE_NMI:
+			break;
+		default:
+			edac_op_state = EDAC_OPSTATE_POLL;
+			break;
+	}
+
 	/* Ask the devices for the number of CSROWS and CHANNELS so
 	 * that we can calculate the memory resources, etc
 	 *
@@ -1475,3 +1486,5 @@ MODULE_AUTHOR
     ("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - "
 		   I5000_REVISION);
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

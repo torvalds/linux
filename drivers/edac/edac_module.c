@@ -1,6 +1,7 @@
 
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/edac.h>
 
 #include "edac_mc.h"
 #include "edac_module.h"
@@ -102,6 +103,25 @@ static void do_edac_check(void)
 }
 
 /*
+ * handler for EDAC to check if NMI type handler has asserted interrupt
+ */
+static int edac_assert_error_check_and_clear(void)
+{
+	int vreg;
+
+	if(edac_op_state == EDAC_OPSTATE_POLL)
+		return 1;
+
+	vreg = atomic_read(&edac_err_assert);
+	if(vreg) {
+		atomic_set(&edac_err_assert, 0);
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
  * Action thread for EDAC to perform the POLL operations
  */
 static int edac_kernel_thread(void *arg)
@@ -109,8 +129,8 @@ static int edac_kernel_thread(void *arg)
 	int msec;
 
 	while (!kthread_should_stop()) {
-
-		do_edac_check();
+		if(edac_assert_error_check_and_clear())
+			do_edac_check();
 
 		/* goto sleep for the interval */
 		msec = (HZ * edac_get_poll_msec()) / 1000;

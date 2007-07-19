@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_mc.h"
 
 #define E752X_REVISION	" Ver: 2.0.1 " __DATE__
@@ -948,6 +949,16 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf0("%s(): mci\n", __func__);
 	debugf0("Starting Probe1\n");
 
+	/* make sure error reporting method is sane */
+	switch(edac_op_state) {
+		case EDAC_OPSTATE_POLL:
+		case EDAC_OPSTATE_NMI:
+			break;
+		default:
+			edac_op_state = EDAC_OPSTATE_POLL;
+			break;
+	}
+
 	/* check to see if device 0 function 1 is enabled; if it isn't, we
 	 * assume the BIOS has reserved it for a reason and is expecting
 	 * exclusive access, we take care not to violate that assumption and
@@ -1123,4 +1134,5 @@ MODULE_DESCRIPTION("MC support for Intel e752x memory controllers");
 module_param(force_function_unhide, int, 0444);
 MODULE_PARM_DESC(force_function_unhide, "if BIOS sets Dev0:Fun1 up as hidden:"
 " 1=force unhide and hope BIOS doesn't fight driver for Dev0:Fun1 access");
-
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

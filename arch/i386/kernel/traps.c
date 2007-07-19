@@ -41,6 +41,10 @@
 #include <linux/mca.h>
 #endif
 
+#if defined(CONFIG_EDAC)
+#include <linux/edac.h>
+#endif
+
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -638,6 +642,14 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
 		"CPU %d.\n", reason, smp_processor_id());
 	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
+
+#if defined(CONFIG_EDAC)
+	if(edac_handler_set()) {
+		edac_atomic_assert_error();
+		return;
+	}
+#endif
+
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
 
