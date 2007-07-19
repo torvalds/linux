@@ -25,7 +25,10 @@ struct swsusp_info {
  */
 #define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
-extern struct hibernation_ops *hibernation_ops;
+/* kernel/power/disk.c */
+extern int hibernation_snapshot(int platform_mode);
+extern int hibernation_restore(void);
+extern int hibernation_platform_enter(void);
 #endif
 
 extern int pfn_is_nosave(unsigned long);
