@@ -13,6 +13,7 @@ mac80211-objs := \
 	ieee80211_iface.o \
 	ieee80211_rate.o \
 	michael.o \
+	regdomain.o \
 	tkip.o \
 	aes_ccm.o \
 	wme.o \
