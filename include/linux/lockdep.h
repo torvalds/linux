@@ -130,12 +130,24 @@ struct lock_time {
 	unsigned long			nr;
 };
 
+enum bounce_type {
+	bounce_acquired_write,
+	bounce_acquired_read,
+	bounce_contended_write,
+	bounce_contended_read,
+	nr_bounce_types,
+
+	bounce_acquired = bounce_acquired_write,
+	bounce_contended = bounce_contended_write,
+};
+
 struct lock_class_stats {
 	unsigned long			contention_point[4];
 	struct lock_time		read_waittime;
 	struct lock_time		write_waittime;
 	struct lock_time		read_holdtime;
 	struct lock_time		write_holdtime;
+	unsigned long			bounces[nr_bounce_types];
 };
 
 struct lock_class_stats lock_stats(struct lock_class *class);
@@ -150,6 +162,9 @@ struct lockdep_map {
 	struct lock_class_key		*key;
 	struct lock_class		*class_cache;
 	const char			*name;
+#ifdef CONFIG_LOCK_STAT
+	int				cpu;
+#endif
 };
 
 /*
@@ -321,8 +336,8 @@ do {								\
 	if (!try(_lock)) {					\
 		lock_contended(&(_lock)->dep_map, _RET_IP_);	\
 		lock(_lock);					\
-		lock_acquired(&(_lock)->dep_map);		\
 	}							\
+	lock_acquired(&(_lock)->dep_map);			\
 } while (0)
 
 #else /* CONFIG_LOCK_STAT */

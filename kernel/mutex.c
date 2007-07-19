@@ -180,8 +180,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 		spin_lock_mutex(&lock->wait_lock, flags);
 	}
 
-	lock_acquired(&lock->dep_map);
 done:
+	lock_acquired(&lock->dep_map);
 	/* got the lock - rejoice! */
 	mutex_remove_waiter(lock, &waiter, task_thread_info(task));
 	debug_mutex_set_owner(lock, task_thread_info(task));

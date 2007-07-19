@@ -177,6 +177,9 @@ struct lock_class_stats lock_stats(struct lock_class *class)
 
 		lock_time_add(&pcs->read_holdtime, &stats.read_holdtime);
 		lock_time_add(&pcs->write_holdtime, &stats.write_holdtime);
+
+		for (i = 0; i < ARRAY_SIZE(stats.bounces); i++)
+			stats.bounces[i] += pcs->bounces[i];
 	}
 
 	return stats;
@@ -2325,6 +2328,9 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	lock->name = name;
 	lock->key = key;
 	lock->class_cache = NULL;
+#ifdef CONFIG_LOCK_STAT
+	lock->cpu = raw_smp_processor_id();
+#endif
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
@@ -2775,6 +2781,8 @@ found_it:
 	stats = get_lock_stats(hlock->class);
 	if (point < ARRAY_SIZE(stats->contention_point))
 		stats->contention_point[i]++;
+	if (lock->cpu != smp_processor_id())
+		stats->bounces[bounce_contended + !!hlock->read]++;
 	put_lock_stats(stats);
 }
 
@@ -2786,8 +2794,8 @@ __lock_acquired(struct lockdep_map *lock)
 	struct lock_class_stats *stats;
 	unsigned int depth;
 	u64 now;
-	s64 waittime;
-	int i;
+	s64 waittime = 0;
+	int i, cpu;
 
 	depth = curr->lockdep_depth;
 	if (DEBUG_LOCKS_WARN_ON(!depth))
@@ -2809,19 +2817,25 @@ __lock_acquired(struct lockdep_map *lock)
 	return;
 
 found_it:
-	if (!hlock->waittime_stamp)
-		return;
-
-	now = sched_clock();
-	waittime = now - hlock->waittime_stamp;
-	hlock->holdtime_stamp = now;
+	cpu = smp_processor_id();
+	if (hlock->waittime_stamp) {
+		now = sched_clock();
+		waittime = now - hlock->waittime_stamp;
+		hlock->holdtime_stamp = now;
+	}
 
 	stats = get_lock_stats(hlock->class);
-	if (hlock->read)
-		lock_time_inc(&stats->read_waittime, waittime);
-	else
-		lock_time_inc(&stats->write_waittime, waittime);
+	if (waittime) {
+		if (hlock->read)
+			lock_time_inc(&stats->read_waittime, waittime);
+		else
+			lock_time_inc(&stats->write_waittime, waittime);
+	}
+	if (lock->cpu != cpu)
+		stats->bounces[bounce_acquired + !!hlock->read]++;
 	put_lock_stats(stats);
+
+	lock->cpu = cpu;
 }
 
 void lock_contended(struct lockdep_map *lock, unsigned long ip)
