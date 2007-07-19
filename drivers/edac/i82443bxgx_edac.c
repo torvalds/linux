@@ -29,7 +29,7 @@
 
 #include <linux/slab.h>
 
-#include "edac_mc.h"
+#include "edac_core.h"
 
 #define I82443_REVISION	"0.1"
 

@@ -22,12 +22,12 @@
 #include <linux/edac.h>
 #include <asm/mmzone.h>
 
-#include "edac_mc.h"
+#include "edac_core.h"
 
 /*
  * Alter this version for the I5000 module when modifications are made
  */
-#define I5000_REVISION    " Ver: 2.0.11.devel " __DATE__
+#define I5000_REVISION    " Ver: 2.0.12 " __DATE__
 
 #define i5000_printk(level, fmt, arg...) \
         edac_printk(level, "i5000", fmt, ##arg)

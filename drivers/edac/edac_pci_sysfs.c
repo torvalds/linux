@@ -1,4 +1,4 @@
-/* edac_mc kernel module
+/*
  * (C) 2005, 2006 Linux Networx (http://lnxi.com)
  * This file may be distributed under the terms of the
  * GNU General Public License.
@@ -10,7 +10,7 @@
 #include <linux/sysdev.h>
 #include <linux/ctype.h>
 
-#include "edac_mc.h"
+#include "edac_core.h"
 #include "edac_module.h"
 
 

@@ -20,9 +20,9 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
-#include "edac_mc.h"
+#include "edac_core.h"
 
-#define R82600_REVISION	" Ver: 2.0.1 " __DATE__
+#define R82600_REVISION	" Ver: 2.0.2 " __DATE__
 #define EDAC_MOD_STR	"r82600_edac"
 
 #define r82600_printk(level, fmt, arg...) \

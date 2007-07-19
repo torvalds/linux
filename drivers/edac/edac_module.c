@@ -3,10 +3,10 @@
 #include <linux/kthread.h>
 #include <linux/edac.h>
 
-#include "edac_mc.h"
+#include "edac_core.h"
 #include "edac_module.h"
 
-#define EDAC_MC_VERSION "Ver: 2.0.3" __DATE__
+#define EDAC_MC_VERSION "Ver: 2.0.4 " __DATE__
 
 #ifdef CONFIG_EDAC_DEBUG
 /* Values of 0 to 4 will generate output */

@@ -23,9 +23,9 @@
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
 #include <linux/edac.h>
-#include "edac_mc.h"
+#include "edac_core.h"
 
-#define E752X_REVISION	" Ver: 2.0.1 " __DATE__
+#define E752X_REVISION	" Ver: 2.0.2 " __DATE__
 #define EDAC_MOD_STR	"e752x_edac"
 
 static int force_function_unhide;

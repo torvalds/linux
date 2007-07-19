@@ -28,9 +28,9 @@
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
 #include <linux/edac.h>
-#include "edac_mc.h"
+#include "edac_core.h"
 
-#define	E7XXX_REVISION " Ver: 2.0.1 " __DATE__
+#define	E7XXX_REVISION " Ver: 2.0.2 " __DATE__
 #define	EDAC_MOD_STR	"e7xxx_edac"
 
 #define e7xxx_printk(level, fmt, arg...) \

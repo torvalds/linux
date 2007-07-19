@@ -18,9 +18,9 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
-#include "edac_mc.h"
+#include "edac_core.h"
 
-#define I82875P_REVISION	" Ver: 2.0.1 " __DATE__
+#define I82875P_REVISION	" Ver: 2.0.2 " __DATE__
 #define EDAC_MOD_STR		"i82875p_edac"
 
 #define i82875p_printk(level, fmt, arg...) \
