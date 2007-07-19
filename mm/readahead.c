@@ -592,3 +592,22 @@ unsigned long max_sane_readahead(unsigned long nr)
 	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE)
 		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
 }
+
+/*
+ * Submit IO for the read-ahead request in file_ra_state.
+ */
+unsigned long ra_submit(struct file_ra_state *ra,
+		       struct address_space *mapping, struct file *filp)
+{
+	unsigned long ra_size;
+	unsigned long la_size;
+	int actual;
+
+	ra_size = ra_readahead_size(ra);
+	la_size = ra_lookahead_size(ra);
+	actual = __do_page_cache_readahead(mapping, filp,
+					ra->ra_index, ra_size, la_size);
+
+	return actual;
+}
+EXPORT_SYMBOL_GPL(ra_submit);
