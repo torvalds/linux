@@ -55,7 +55,7 @@
 #include <asm/bitops.h>
 
 static int __ide_end_request(ide_drive_t *drive, struct request *rq,
-			     int uptodate, int nr_sectors)
+			     int uptodate, unsigned int nr_bytes)
 {
 	int ret = 1;
 
@@ -64,7 +64,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 	 * complete the whole request right now
 	 */
 	if (blk_noretry_request(rq) && end_io_error(uptodate))
-		nr_sectors = rq->hard_nr_sectors;
+		nr_bytes = rq->hard_nr_sectors << 9;
 
 	if (!blk_fs_request(rq) && end_io_error(uptodate) && !rq->errors)
 		rq->errors = -EIO;
@@ -78,7 +78,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 		HWGROUP(drive)->hwif->ide_dma_on(drive);
 	}
 
-	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
+	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
 		add_disk_randomness(rq->rq_disk);
 		if (!list_empty(&rq->queuelist))
 			blkdev_dequeue_request(rq);
@@ -103,6 +103,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 
 int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
+	unsigned int nr_bytes = nr_sectors << 9;
 	struct request *rq;
 	unsigned long flags;
 	int ret = 1;
@@ -114,10 +115,14 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	spin_lock_irqsave(&ide_lock, flags);
 	rq = HWGROUP(drive)->rq;
 
-	if (!nr_sectors)
-		nr_sectors = rq->hard_cur_sectors;
+	if (!nr_bytes) {
+		if (blk_pc_request(rq))
+			nr_bytes = rq->data_len;
+		else
+			nr_bytes = rq->hard_cur_sectors << 9;
+	}
 
-	ret = __ide_end_request(drive, rq, uptodate, nr_sectors);
+	ret = __ide_end_request(drive, rq, uptodate, nr_bytes);
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ret;
