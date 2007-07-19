@@ -843,7 +843,7 @@ static void audit_log_execve_info(struct audit_buffer *ab,
 		return; /* execve failed, no additional info */
 
 	for (i = 0; i < axi->argc; i++, p += len) {
-		len = strnlen_user(p, MAX_ARG_PAGES*PAGE_SIZE);
+		len = strnlen_user(p, MAX_ARG_STRLEN);
 		/*
 		 * We just created this mm, if we can't find the strings
 		 * we just copied into it something is _very_ wrong. Similar

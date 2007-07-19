@@ -1571,33 +1571,11 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 }
 #endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
 
-#ifdef CONFIG_STACK_GROWSUP
-int expand_stack(struct vm_area_struct *vma, unsigned long address)
-{
-	return expand_upwards(vma, address);
-}
-
-struct vm_area_struct *
-find_extend_vma(struct mm_struct *mm, unsigned long addr)
-{
-	struct vm_area_struct *vma, *prev;
-
-	addr &= PAGE_MASK;
-	vma = find_vma_prev(mm, addr, &prev);
-	if (vma && (vma->vm_start <= addr))
-		return vma;
-	if (!prev || expand_stack(prev, addr))
-		return NULL;
-	if (prev->vm_flags & VM_LOCKED) {
-		make_pages_present(addr, prev->vm_end);
-	}
-	return prev;
-}
-#else
 /*
  * vma is the first one with address < vma->vm_start.  Have to extend vma.
  */
-int expand_stack(struct vm_area_struct *vma, unsigned long address)
+static inline int expand_downwards(struct vm_area_struct *vma,
+				   unsigned long address)
 {
 	int error;
 
@@ -1634,6 +1612,38 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
 	return error;
 }
 
+int expand_stack_downwards(struct vm_area_struct *vma, unsigned long address)
+{
+	return expand_downwards(vma, address);
+}
+
+#ifdef CONFIG_STACK_GROWSUP
+int expand_stack(struct vm_area_struct *vma, unsigned long address)
+{
+	return expand_upwards(vma, address);
+}
+
+struct vm_area_struct *
+find_extend_vma(struct mm_struct *mm, unsigned long addr)
+{
+	struct vm_area_struct *vma, *prev;
+
+	addr &= PAGE_MASK;
+	vma = find_vma_prev(mm, addr, &prev);
+	if (vma && (vma->vm_start <= addr))
+		return vma;
+	if (!prev || expand_stack(prev, addr))
+		return NULL;
+	if (prev->vm_flags & VM_LOCKED)
+		make_pages_present(addr, prev->vm_end);
+	return prev;
+}
+#else
+int expand_stack(struct vm_area_struct *vma, unsigned long address)
+{
+	return expand_downwards(vma, address);
+}
+
 struct vm_area_struct *
 find_extend_vma(struct mm_struct * mm, unsigned long addr)
 {
@@ -1651,9 +1661,8 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
 	start = vma->vm_start;
 	if (expand_stack(vma, addr))
 		return NULL;
-	if (vma->vm_flags & VM_LOCKED) {
+	if (vma->vm_flags & VM_LOCKED)
 		make_pages_present(addr, start);
-	}
 	return vma;
 }
 #endif

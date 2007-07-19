@@ -148,6 +148,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	elf_addr_t *elf_info;
 	int ei_index = 0;
 	struct task_struct *tsk = current;
+	struct vm_area_struct *vma;
 
 	/*
 	 * If this architecture has a platform capability string, copy it
@@ -234,6 +235,15 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	sp = (elf_addr_t __user *)bprm->p;
 #endif
 
+
+	/*
+	 * Grow the stack manually; some architectures have a limit on how
+	 * far ahead a user-space access may be in order to grow the stack.
+	 */
+	vma = find_extend_vma(current->mm, bprm->p);
+	if (!vma)
+		return -EFAULT;
+
 	/* Now, let's put argc (and argv, envp if appropriate) on the stack */
 	if (__put_user(argc, sp++))
 		return -EFAULT;
@@ -254,8 +264,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 		size_t len;
 		if (__put_user((elf_addr_t)p, argv++))
 			return -EFAULT;
-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
-		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
+		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
+		if (!len || len > MAX_ARG_STRLEN)
 			return 0;
 		p += len;
 	}
@@ -266,8 +276,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 		size_t len;
 		if (__put_user((elf_addr_t)p, envp++))
 			return -EFAULT;
-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
-		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
+		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
+		if (!len || len > MAX_ARG_STRLEN)
 			return 0;
 		p += len;
 	}
@@ -826,10 +836,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	}
 
 	/* OK, This is the point of no return */
-	current->mm->start_data = 0;
-	current->mm->end_data = 0;
-	current->mm->end_code = 0;
-	current->mm->mmap = NULL;
 	current->flags &= ~PF_FORKNOEXEC;
 	current->mm->def_flags = def_flags;
 
@@ -1051,9 +1057,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	compute_creds(bprm);
 	current->flags &= ~PF_FORKNOEXEC;
-	create_elf_tables(bprm, &loc->elf_ex,
+	retval = create_elf_tables(bprm, &loc->elf_ex,
 			  (interpreter_type == INTERPRETER_AOUT),
 			  load_addr, interp_load_addr);
+	if (retval < 0) {
+		send_sig(SIGKILL, current, 0);
+		goto out;
+	}
 	/* N.B. passed_fileno might not be initialized? */
 	if (interpreter_type == INTERPRETER_AOUT)
 		current->mm->arg_start += strlen(passed_fileno) + 1;

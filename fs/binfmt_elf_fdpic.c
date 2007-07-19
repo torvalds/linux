@@ -621,8 +621,8 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	p = (char __user *) current->mm->arg_start;
 	for (loop = bprm->argc; loop > 0; loop--) {
 		__put_user((elf_caddr_t) p, argv++);
-		len = strnlen_user(p, PAGE_SIZE * MAX_ARG_PAGES);
-		if (!len || len > PAGE_SIZE * MAX_ARG_PAGES)
+		len = strnlen_user(p, MAX_ARG_STRLEN);
+		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
@@ -633,8 +633,8 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	current->mm->env_start = (unsigned long) p;
 	for (loop = bprm->envc; loop > 0; loop--) {
 		__put_user((elf_caddr_t)(unsigned long) p, envp++);
-		len = strnlen_user(p, PAGE_SIZE * MAX_ARG_PAGES);
-		if (!len || len > PAGE_SIZE * MAX_ARG_PAGES)
+		len = strnlen_user(p, MAX_ARG_STRLEN);
+		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
