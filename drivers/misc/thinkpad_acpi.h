@@ -175,9 +175,7 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 static int experimental;
 static u32 dbg_level;
 static int force_load;
-static char *ibm_thinkpad_ec_found;
 
-static char* check_dmi_for_ec(void);
 static int thinkpad_acpi_module_init(void);
 static void thinkpad_acpi_module_exit(void);
 
@@ -243,6 +241,21 @@ static struct {
 	u16 fan_ctrl_status_undef:1;
 	u16 input_device_registered:1;
 } tp_features;
+
+struct thinkpad_id_data {
+	unsigned int vendor;	/* ThinkPad vendor:
+				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LENOVO */
+
+	char *bios_version_str;	/* Something like 1ZET51WW (1.03z) */
+	char *ec_version_str;	/* Something like 1ZHT51WW-1.04a */
+
+	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
+	u16 ec_model;
+
+	char *model_str;
+};
+
+static struct thinkpad_id_data thinkpad_id;
 
 static struct list_head tpacpi_all_drivers;
 
