@@ -364,7 +364,7 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	else
 		vma->vm_ops = &gfs2_vm_ops_private;
 
-	vma->vm_flags |= VM_CAN_INVALIDATE;
+	vma->vm_flags |= VM_CAN_INVALIDATE|VM_CAN_NONLINEAR;
 
 	gfs2_glock_dq_uninit(&i_gh);
 

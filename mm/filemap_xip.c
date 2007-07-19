@@ -205,62 +205,67 @@ __xip_unmap (struct address_space * mapping,
 }
 
 /*
- * xip_nopage() is invoked via the vma operations vector for a
+ * xip_fault() is invoked via the vma operations vector for a
  * mapped memory region to read in file data during a page fault.
  *
- * This function is derived from filemap_nopage, but used for execute in place
+ * This function is derived from filemap_fault, but used for execute in place
  */
-static struct page *
-xip_file_nopage(struct vm_area_struct * area,
-		   unsigned long address,
-		   int *type)
+static struct page *xip_file_fault(struct vm_area_struct *area,
+					struct fault_data *fdata)
 {
 	struct file *file = area->vm_file;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
 	struct page *page;
-	unsigned long size, pgoff, endoff;
+	pgoff_t size;
 
-	pgoff = ((address - area->vm_start) >> PAGE_CACHE_SHIFT)
-		+ area->vm_pgoff;
-	endoff = ((area->vm_end - area->vm_start) >> PAGE_CACHE_SHIFT)
-		+ area->vm_pgoff;
+	/* XXX: are VM_FAULT_ codes OK? */
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (pgoff >= size)
-		return NOPAGE_SIGBUS;
+	if (fdata->pgoff >= size) {
+		fdata->type = VM_FAULT_SIGBUS;
+		return NULL;
+	}
 
-	page = mapping->a_ops->get_xip_page(mapping, pgoff*(PAGE_SIZE/512), 0);
+	page = mapping->a_ops->get_xip_page(mapping,
+					fdata->pgoff*(PAGE_SIZE/512), 0);
 	if (!IS_ERR(page))
 		goto out;
-	if (PTR_ERR(page) != -ENODATA)
-		return NOPAGE_SIGBUS;
+	if (PTR_ERR(page) != -ENODATA) {
+		fdata->type = VM_FAULT_OOM;
+		return NULL;
+	}
 
 	/* sparse block */
 	if ((area->vm_flags & (VM_WRITE | VM_MAYWRITE)) &&
 	    (area->vm_flags & (VM_SHARED| VM_MAYSHARE)) &&
 	    (!(mapping->host->i_sb->s_flags & MS_RDONLY))) {
 		/* maybe shared writable, allocate new block */
-		page = mapping->a_ops->get_xip_page (mapping,
-			pgoff*(PAGE_SIZE/512), 1);
-		if (IS_ERR(page))
-			return NOPAGE_SIGBUS;
+		page = mapping->a_ops->get_xip_page(mapping,
+					fdata->pgoff*(PAGE_SIZE/512), 1);
+		if (IS_ERR(page)) {
+			fdata->type = VM_FAULT_SIGBUS;
+			return NULL;
+		}
 		/* unmap page at pgoff from all other vmas */
-		__xip_unmap(mapping, pgoff);
+		__xip_unmap(mapping, fdata->pgoff);
 	} else {
 		/* not shared and writable, use xip_sparse_page() */
 		page = xip_sparse_page();
-		if (!page)
-			return NOPAGE_OOM;
+		if (!page) {
+			fdata->type = VM_FAULT_OOM;
+			return NULL;
+		}
 	}
 
 out:
+	fdata->type = VM_FAULT_MINOR;
 	page_cache_get(page);
 	return page;
 }
 
 static struct vm_operations_struct xip_file_vm_ops = {
-	.nopage         = xip_file_nopage,
+	.fault	= xip_file_fault,
 };
 
 int xip_file_mmap(struct file * file, struct vm_area_struct * vma)
@@ -269,6 +274,7 @@ int xip_file_mmap(struct file * file, struct vm_area_struct * vma)
 
 	file_accessed(file);
 	vma->vm_ops = &xip_file_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xip_file_mmap);

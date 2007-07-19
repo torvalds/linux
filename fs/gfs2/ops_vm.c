@@ -27,13 +27,13 @@
 #include "trans.h"
 #include "util.h"
 
-static struct page *gfs2_private_nopage(struct vm_area_struct *area,
-					unsigned long address, int *type)
+static struct page *gfs2_private_fault(struct vm_area_struct *vma,
+					struct fault_data *fdata)
 {
-	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
+	struct gfs2_inode *ip = GFS2_I(vma->vm_file->f_mapping->host);
 
 	set_bit(GIF_PAGED, &ip->i_flags);
-	return filemap_nopage(area, address, type);
+	return filemap_fault(vma, fdata);
 }
 
 static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
@@ -104,16 +104,14 @@ out:
 	return error;
 }
 
-static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
-					   unsigned long address, int *type)
+static struct page *gfs2_sharewrite_fault(struct vm_area_struct *vma,
+						struct fault_data *fdata)
 {
-	struct file *file = area->vm_file;
+	struct file *file = vma->vm_file;
 	struct gfs2_file *gf = file->private_data;
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	struct page *result = NULL;
-	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +
-			      area->vm_pgoff;
 	int alloc_required;
 	int error;
 
@@ -124,23 +122,27 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	set_bit(GIF_PAGED, &ip->i_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	error = gfs2_write_alloc_required(ip, (u64)index << PAGE_CACHE_SHIFT,
-					  PAGE_CACHE_SIZE, &alloc_required);
-	if (error)
+	error = gfs2_write_alloc_required(ip,
+					(u64)fdata->pgoff << PAGE_CACHE_SHIFT,
+					PAGE_CACHE_SIZE, &alloc_required);
+	if (error) {
+		fdata->type = VM_FAULT_OOM; /* XXX: are these right? */
 		goto out;
+	}
 
 	set_bit(GFF_EXLOCK, &gf->f_flags);
-	result = filemap_nopage(area, address, type);
+	result = filemap_fault(vma, fdata);
 	clear_bit(GFF_EXLOCK, &gf->f_flags);
-	if (!result || result == NOPAGE_OOM)
+	if (!result)
 		goto out;
 
 	if (alloc_required) {
 		error = alloc_page_backing(ip, result);
 		if (error) {
-			if (area->vm_flags & VM_CAN_INVALIDATE)
+			if (vma->vm_flags & VM_CAN_INVALIDATE)
 				unlock_page(result);
 			page_cache_release(result);
+			fdata->type = VM_FAULT_OOM;
 			result = NULL;
 			goto out;
 		}
@@ -154,10 +156,10 @@ out:
 }
 
 struct vm_operations_struct gfs2_vm_ops_private = {
-	.nopage = gfs2_private_nopage,
+	.fault = gfs2_private_fault,
 };
 
 struct vm_operations_struct gfs2_vm_ops_sharewrite = {
-	.nopage = gfs2_sharewrite_nopage,
+	.fault = gfs2_sharewrite_fault,
 };
 

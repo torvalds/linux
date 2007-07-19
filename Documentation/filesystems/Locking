@@ -510,12 +510,14 @@ More details about quota locking can be found in fs/dquot.c.
 prototypes:
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
+	struct page *(*fault)(struct vm_area_struct*, struct fault_data *);
 	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int *);
 
 locking rules:
 		BKL	mmap_sem
 open:		no	yes
 close:		no	yes
+fault:		no	yes
 nopage:		no	yes
 
 ================================================================================

@@ -232,7 +232,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	 * might now be discovering a truncate that hit on another node.
 	 * block_read_full_page->get_block freaks out if it is asked to read
 	 * beyond the end of a file, so we check here.  Callers
-	 * (generic_file_read, fault->nopage) are clever enough to check i_size
+	 * (generic_file_read, vm_ops->fault) are clever enough to check i_size
 	 * and notice that the page they just read isn't needed.
 	 *
 	 * XXX sys_readahead() seems to get that wrong?

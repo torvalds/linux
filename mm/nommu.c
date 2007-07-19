@@ -1341,8 +1341,7 @@ int in_gate_area_no_task(unsigned long addr)
 	return 0;
 }
 
-struct page *filemap_nopage(struct vm_area_struct *area,
-			unsigned long address, int *type)
+struct page *filemap_fault(struct vm_area_struct *vma, struct fault_data *fdata)
 {
 	BUG();
 	return NULL;

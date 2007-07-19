@@ -173,6 +173,7 @@ extern unsigned int kobjsize(const void *objp);
 					 * In this case, do_no_page must
 					 * return with the page locked.
 					 */
+#define VM_CAN_NONLINEAR 0x10000000	/* Has ->fault & does nonlinear pages */
 
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
@@ -196,6 +197,25 @@ extern unsigned int kobjsize(const void *objp);
  */
 extern pgprot_t protection_map[16];
 
+#define FAULT_FLAG_WRITE	0x01
+#define FAULT_FLAG_NONLINEAR	0x02
+
+/*
+ * fault_data is filled in the the pagefault handler and passed to the
+ * vma's ->fault function. That function is responsible for filling in
+ * 'type', which is the type of fault if a page is returned, or the type
+ * of error if NULL is returned.
+ *
+ * pgoff should be used in favour of address, if possible. If pgoff is
+ * used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get
+ * nonlinear mapping support.
+ */
+struct fault_data {
+	unsigned long address;
+	pgoff_t pgoff;
+	unsigned int flags;
+	int type;
+};
 
 /*
  * These are the virtual MM functions - opening of an area, closing and
@@ -205,9 +225,15 @@ extern pgprot_t protection_map[16];
 struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);
 	void (*close)(struct vm_area_struct * area);
-	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int *type);
-	unsigned long (*nopfn)(struct vm_area_struct * area, unsigned long address);
-	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
+	struct page *(*fault)(struct vm_area_struct *vma,
+			struct fault_data *fdata);
+	struct page *(*nopage)(struct vm_area_struct *area,
+			unsigned long address, int *type);
+	unsigned long (*nopfn)(struct vm_area_struct *area,
+			unsigned long address);
+	int (*populate)(struct vm_area_struct *area, unsigned long address,
+			unsigned long len, pgprot_t prot, unsigned long pgoff,
+			int nonblock);
 
 	/* notification that a previously read-only page is about to become
 	 * writable, if an error is returned it will cause a SIGBUS */
@@ -661,7 +687,6 @@ static inline int page_mapped(struct page *page)
  */
 #define NOPAGE_SIGBUS	(NULL)
 #define NOPAGE_OOM	((struct page *) (-1))
-#define NOPAGE_REFAULT	((struct page *) (-2))	/* Return to userspace, rerun */
 
 /*
  * Error return values for the *_nopfn functions
@@ -1110,9 +1135,11 @@ extern void truncate_inode_pages_range(struct address_space *,
 				       loff_t lstart, loff_t lend);
 
 /* generic vm_area_ops exported for stackable file systems */
-extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);
-extern int filemap_populate(struct vm_area_struct *, unsigned long,
-		unsigned long, pgprot_t, unsigned long, int);
+extern struct page *filemap_fault(struct vm_area_struct *, struct fault_data *);
+extern struct page * __deprecated_for_modules
+filemap_nopage(struct vm_area_struct *, unsigned long, int *);
+extern int __deprecated_for_modules filemap_populate(struct vm_area_struct *,
+		unsigned long, unsigned long, pgprot_t, unsigned long, int);
 
 /* mm/page-writeback.c */
 int write_one_page(struct page *page, int wait);

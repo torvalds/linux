@@ -1047,7 +1047,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		if (pages)
 			foll_flags |= FOLL_GET;
 		if (!write && !(vma->vm_flags & VM_LOCKED) &&
-		    (!vma->vm_ops || !vma->vm_ops->nopage))
+		    (!vma->vm_ops || (!vma->vm_ops->nopage &&
+					!vma->vm_ops->fault)))
 			foll_flags |= FOLL_ANON;
 
 		do {
@@ -2288,10 +2289,10 @@ oom:
 }
 
 /*
- * do_no_page() tries to create a new page mapping. It aggressively
+ * __do_fault() tries to create a new page mapping. It aggressively
  * tries to share with existing pages, but makes a separate copy if
- * the "write_access" parameter is true in order to avoid the next
- * page fault.
+ * the FAULT_FLAG_WRITE is set in the flags parameter in order to avoid
+ * the next page fault.
  *
  * As this is called only for pages that do not currently exist, we
  * do not need to flush old virtual caches or the TLB.
@@ -2300,64 +2301,82 @@ oom:
  * but allow concurrent faults), and pte mapped but not yet locked.
  * We return with mmap_sem still held, but pte unmapped and unlocked.
  */
-static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
-		int write_access)
+		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
 {
 	spinlock_t *ptl;
-	struct page *page, *nopage_page;
+	struct page *page, *faulted_page;
 	pte_t entry;
-	int ret = VM_FAULT_MINOR;
 	int anon = 0;
 	struct page *dirty_page = NULL;
+	struct fault_data fdata;
+
+	fdata.address = address & PAGE_MASK;
+	fdata.pgoff = pgoff;
+	fdata.flags = flags;
 
 	pte_unmap(page_table);
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
 
-	nopage_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
-	/* no page was available -- either SIGBUS, OOM or REFAULT */
-	if (unlikely(nopage_page == NOPAGE_SIGBUS))
-		return VM_FAULT_SIGBUS;
-	else if (unlikely(nopage_page == NOPAGE_OOM))
-		return VM_FAULT_OOM;
-	else if (unlikely(nopage_page == NOPAGE_REFAULT))
-		return VM_FAULT_MINOR;
+	if (likely(vma->vm_ops->fault)) {
+		fdata.type = -1;
+		faulted_page = vma->vm_ops->fault(vma, &fdata);
+		WARN_ON(fdata.type == -1);
+		if (unlikely(!faulted_page))
+			return fdata.type;
+	} else {
+		/* Legacy ->nopage path */
+		fdata.type = VM_FAULT_MINOR;
+		faulted_page = vma->vm_ops->nopage(vma, address & PAGE_MASK,
+								&fdata.type);
+		/* no page was available -- either SIGBUS or OOM */
+		if (unlikely(faulted_page == NOPAGE_SIGBUS))
+			return VM_FAULT_SIGBUS;
+		else if (unlikely(faulted_page == NOPAGE_OOM))
+			return VM_FAULT_OOM;
+	}
 
-	BUG_ON(vma->vm_flags & VM_CAN_INVALIDATE && !PageLocked(nopage_page));
 	/*
-	 * For consistency in subsequent calls, make the nopage_page always
+	 * For consistency in subsequent calls, make the faulted_page always
 	 * locked.
 	 */
 	if (unlikely(!(vma->vm_flags & VM_CAN_INVALIDATE)))
-		lock_page(nopage_page);
+		lock_page(faulted_page);
+	else
+		BUG_ON(!PageLocked(faulted_page));
 
 	/*
 	 * Should we do an early C-O-W break?
 	 */
-	page = nopage_page;
-	if (write_access) {
+	page = faulted_page;
+	if (flags & FAULT_FLAG_WRITE) {
 		if (!(vma->vm_flags & VM_SHARED)) {
+			anon = 1;
 			if (unlikely(anon_vma_prepare(vma))) {
-				ret = VM_FAULT_OOM;
-				goto out_error;
+				fdata.type = VM_FAULT_OOM;
+				goto out;
 			}
 			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 			if (!page) {
-				ret = VM_FAULT_OOM;
-				goto out_error;
+				fdata.type = VM_FAULT_OOM;
+				goto out;
 			}
-			copy_user_highpage(page, nopage_page, address, vma);
-			anon = 1;
+			copy_user_highpage(page, faulted_page, address, vma);
 		} else {
-			/* if the page will be shareable, see if the backing
+			/*
+			 * If the page will be shareable, see if the backing
 			 * address space wants to know that the page is about
-			 * to become writable */
+			 * to become writable
+			 */
 			if (vma->vm_ops->page_mkwrite &&
 			    vma->vm_ops->page_mkwrite(vma, page) < 0) {
-				ret = VM_FAULT_SIGBUS;
-				goto out_error;
+				fdata.type = VM_FAULT_SIGBUS;
+				anon = 1; /* no anon but release faulted_page */
+				goto out;
 			}
 		}
+
 	}
 
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
@@ -2373,10 +2392,10 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * handle that later.
 	 */
 	/* Only go through if we didn't race with anybody else... */
-	if (likely(pte_none(*page_table))) {
+	if (likely(pte_same(*page_table, orig_pte))) {
 		flush_icache_page(vma, page);
 		entry = mk_pte(page, vma->vm_page_prot);
-		if (write_access)
+		if (flags & FAULT_FLAG_WRITE)
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		set_pte_at(mm, address, page_table, entry);
 		if (anon) {
@@ -2386,7 +2405,7 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(page);
-			if (write_access) {
+			if (flags & FAULT_FLAG_WRITE) {
 				dirty_page = page;
 				get_page(dirty_page);
 			}
@@ -2399,25 +2418,42 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (anon)
 			page_cache_release(page);
 		else
-			anon = 1; /* not anon, but release nopage_page */
+			anon = 1; /* no anon but release faulted_page */
 	}
 
 	pte_unmap_unlock(page_table, ptl);
 
 out:
-	unlock_page(nopage_page);
+	unlock_page(faulted_page);
 	if (anon)
-		page_cache_release(nopage_page);
+		page_cache_release(faulted_page);
 	else if (dirty_page) {
 		set_page_dirty_balance(dirty_page);
 		put_page(dirty_page);
 	}
 
-	return ret;
+	return fdata.type;
+}
 
-out_error:
-	anon = 1; /* relase nopage_page */
-	goto out;
+static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+		unsigned long address, pte_t *page_table, pmd_t *pmd,
+		int write_access, pte_t orig_pte)
+{
+	pgoff_t pgoff = (((address & PAGE_MASK)
+			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
+	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
+
+	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
+}
+
+static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+		unsigned long address, pte_t *page_table, pmd_t *pmd,
+		int write_access, pgoff_t pgoff, pte_t orig_pte)
+{
+	unsigned int flags = FAULT_FLAG_NONLINEAR |
+				(write_access ? FAULT_FLAG_WRITE : 0);
+
+	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
 }
 
 /*
@@ -2496,9 +2532,14 @@ static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		print_bad_pte(vma, orig_pte, address);
 		return VM_FAULT_OOM;
 	}
-	/* We can then assume vm->vm_ops && vma->vm_ops->populate */
 
 	pgoff = pte_to_pgoff(orig_pte);
+
+	if (vma->vm_ops && vma->vm_ops->fault)
+		return do_nonlinear_fault(mm, vma, address, page_table, pmd,
+					write_access, pgoff, orig_pte);
+
+	/* We can then assume vm->vm_ops && vma->vm_ops->populate */
 	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE,
 					vma->vm_page_prot, pgoff, 0);
 	if (err == -ENOMEM)
@@ -2532,10 +2573,9 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
 			if (vma->vm_ops) {
-				if (vma->vm_ops->nopage)
-					return do_no_page(mm, vma, address,
-							  pte, pmd,
-							  write_access);
+				if (vma->vm_ops->fault || vma->vm_ops->nopage)
+					return do_linear_fault(mm, vma, address,
+						pte, pmd, write_access, entry);
 				if (unlikely(vma->vm_ops->nopfn))
 					return do_no_pfn(mm, vma, address, pte,
 							 pmd, write_access);

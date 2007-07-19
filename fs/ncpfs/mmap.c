@@ -25,8 +25,8 @@
 /*
  * Fill in the supplied page for mmap
  */
-static struct page* ncp_file_mmap_nopage(struct vm_area_struct *area,
-				     unsigned long address, int *type)
+static struct page* ncp_file_mmap_fault(struct vm_area_struct *area,
+						struct fault_data *fdata)
 {
 	struct file *file = area->vm_file;
 	struct dentry *dentry = file->f_path.dentry;
@@ -40,15 +40,17 @@ static struct page* ncp_file_mmap_nopage(struct vm_area_struct *area,
 
 	page = alloc_page(GFP_HIGHUSER); /* ncpfs has nothing against high pages
 	           as long as recvmsg and memset works on it */
-	if (!page)
-		return page;
+	if (!page) {
+		fdata->type = VM_FAULT_OOM;
+		return NULL;
+	}
 	pg_addr = kmap(page);
-	address &= PAGE_MASK;
-	pos = address - area->vm_start + (area->vm_pgoff << PAGE_SHIFT);
+	pos = fdata->pgoff << PAGE_SHIFT;
 
 	count = PAGE_SIZE;
-	if (address + PAGE_SIZE > area->vm_end) {
-		count = area->vm_end - address;
+	if (fdata->address + PAGE_SIZE > area->vm_end) {
+		WARN_ON(1); /* shouldn't happen? */
+		count = area->vm_end - fdata->address;
 	}
 	/* what we can read in one go */
 	bufsize = NCP_SERVER(inode)->buffer_size;
@@ -91,15 +93,14 @@ static struct page* ncp_file_mmap_nopage(struct vm_area_struct *area,
 	 * fetches from the network, here the analogue of disk.
 	 * -- wli
 	 */
-	if (type)
-		*type = VM_FAULT_MAJOR;
+	fdata->type = VM_FAULT_MAJOR;
 	count_vm_event(PGMAJFAULT);
 	return page;
 }
 
 static struct vm_operations_struct ncp_file_mmap =
 {
-	.nopage	= ncp_file_mmap_nopage,
+	.fault = ncp_file_mmap_fault,
 };
 
 
