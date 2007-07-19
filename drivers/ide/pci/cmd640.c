@@ -661,7 +661,7 @@ static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 			return;
 	}
 
-	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 5, NULL);
+	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 5);
 	cycle_time = ide_pio_cycle_time(drive, mode_wanted);
 	cmd640_set_mode(index, mode_wanted, cycle_time);
 

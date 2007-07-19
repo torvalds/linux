@@ -330,7 +330,7 @@ static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
 #endif /* CY82C693_DEBUG_LOGS */
 
 	/* first let's calc the pio modes */
-	pio = ide_get_best_pio_mode(drive, pio, CY82C693_MAX_PIO, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, CY82C693_MAX_PIO);
 
 #if CY82C693_DEBUG_INFO
 	printk (KERN_INFO "%s: Selected PIO mode %d\n", drive->name, pio);

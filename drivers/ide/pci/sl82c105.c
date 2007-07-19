@@ -83,7 +83,7 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 
 	DBG(("sl82c105_tune_pio(drive:%s, pio:%u)\n", drive->name, pio));
 
-	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 5);
 
 	drv_ctrl = get_pio_timings(drive, pio);
 

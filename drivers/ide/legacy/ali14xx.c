@@ -117,7 +117,7 @@ static void ali14xx_tune_drive (ide_drive_t *drive, u8 pio)
 	unsigned long flags;
 	int bus_speed = system_bus_clock();
 
-	pio = ide_get_best_pio_mode(drive, pio, ALI_MAX_PIO, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, ALI_MAX_PIO);
 
 	/* calculate timing, according to PIO mode */
 	time1 = ide_pio_cycle_time(drive, pio);

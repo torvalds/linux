@@ -277,7 +277,6 @@ EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
  *	@drive: drive to consider
  *	@mode_wanted: preferred mode
  *	@max_mode: highest allowed mode
- *	@d: PIO data
  *
  *	This routine returns the recommended PIO settings for a given drive,
  *	based on the drive->id information and the ide_pio_blacklist[].
@@ -286,7 +285,7 @@ EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
  *	This is used by most chipset support modules when "auto-tuning".
  */
 
-u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_pio_data_t *d)
+u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 {
 	int pio_mode;
 	struct hd_driveid* id = drive->id;
@@ -334,9 +333,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 
 	if (pio_mode > max_mode)
 		pio_mode = max_mode;
-
-	if (d)
-		d->pio_mode = pio_mode;
 
 	return pio_mode;
 }

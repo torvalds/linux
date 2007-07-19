@@ -106,7 +106,7 @@ static void auide_tune_drive(ide_drive_t *drive, byte pio)
 	u8 speed;
 
 	/* get the best pio mode for the drive */
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 
 	printk(KERN_INFO "%s: setting Au1XXX IDE to PIO mode%d\n",
 	       drive->name, pio);

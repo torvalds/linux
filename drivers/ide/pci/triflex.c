@@ -96,7 +96,7 @@ static int triflex_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 
 static void triflex_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	int use_pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	int use_pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void) triflex_tune_chipset(drive, (XFER_PIO_0 + use_pio));
 }
 

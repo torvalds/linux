@@ -210,7 +210,7 @@ static void scc_tuneproc(ide_drive_t *drive, byte mode_wanted)
 	unsigned char speed = XFER_PIO_0;
 	int offset;
 
-	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 4, NULL);
+	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 4);
 	switch (mode_wanted) {
 	case 4:
 		speed = XFER_PIO_4;

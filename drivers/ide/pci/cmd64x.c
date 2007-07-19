@@ -226,7 +226,7 @@ static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
 	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
 	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
 
-	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, NULL);
+	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5);
 	cycle_time = ide_pio_cycle_time(drive, pio_mode);
 
 	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)\n",

@@ -255,7 +255,7 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	 * on the cable.
 	 */
 	if (pair) {
-		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4, NULL);
+		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
 		/* trim PIO to the slowest of the master/slave */
 		if (pair_pio < set_pio)
 			set_pio = pair_pio;
@@ -276,7 +276,7 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 
 static void it821x_tuneproc(ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)it821x_tunepio(drive, pio);
 }
 

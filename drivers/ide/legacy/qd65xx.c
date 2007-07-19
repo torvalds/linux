@@ -258,7 +258,7 @@ static void qd6580_tune_drive (ide_drive_t *drive, u8 pio)
 	int recovery_time = 415; /* worst case values from the dos driver */
 
 	if (drive->id && !qd_find_disk_type(drive, &active_time, &recovery_time)) {
-		pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+		pio = ide_get_best_pio_mode(drive, pio, 4);
 		cycle_time = ide_pio_cycle_time(drive, pio);
 
 		switch (pio) {

@@ -627,7 +627,7 @@ pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
 	switch (pmif->kind) {

@@ -189,7 +189,7 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
 	if (pair->present) {
-		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4, NULL);
+		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
 
 		if (pair_pio < tf_pio)
 			tf_pio = pair_pio;
@@ -221,7 +221,7 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 
 static void sil_tuneproc(ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	sil_tune_pio(drive, pio);
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }

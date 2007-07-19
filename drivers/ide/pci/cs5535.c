@@ -89,7 +89,7 @@ static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
 
 		pioa = speed - XFER_PIO_0;
 		piob = ide_get_best_pio_mode(&(drive->hwif->drives[!unit]),
-						255, 4, NULL);
+						255, 4);
 		cmd = pioa < piob ? pioa : piob;
 
 		/* Write the speed of the current drive */
@@ -159,7 +159,7 @@ static void cs5535_tuneproc(ide_drive_t *drive, u8 xferspeed)
 	/* cs5535 max pio is pio 4, best_pio will check the blacklist.
 	i think we don't need to rate_filter the incoming xferspeed
 	since we know we're only going to choose pio */
-	xferspeed = ide_get_best_pio_mode(drive, xferspeed, 4, NULL);
+	xferspeed = ide_get_best_pio_mode(drive, xferspeed, 4);
 	ide_config_drive_speed(drive, modes[xferspeed]);
 	cs5535_set_speed(drive, xferspeed);
 }
@@ -174,7 +174,7 @@ static int cs5535_dma_check(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive)) {
-		speed = ide_get_best_pio_mode(drive, 255, 4, NULL);
+		speed = ide_get_best_pio_mode(drive, 255, 4);
 		cs5535_set_drive(drive, speed);
 	}
 

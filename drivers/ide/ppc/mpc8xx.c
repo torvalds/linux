@@ -431,13 +431,12 @@ void m8xx_ide_init_hwif_ports (hw_regs_t *hw,
 static void
 m8xx_ide_tuneproc(ide_drive_t *drive, u8 pio)
 {
-	ide_pio_data_t d;
 #if defined(CONFIG_IDE_8xx_PCCARD) || defined(CONFIG_IDE_8xx_DIRECT)
 	volatile pcmconf8xx_t	*pcmp;
 	ulong timing, mask, reg;
 #endif
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, &d);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 
 #if 1
 	printk("%s[%d] %s: best PIO mode: %d\n",

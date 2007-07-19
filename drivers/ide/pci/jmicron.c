@@ -97,7 +97,7 @@ static void jmicron_tuneproc (ide_drive_t *drive, byte mode_wanted)
 
 static void config_jmicron_chipset_for_pio (ide_drive_t *drive, byte set_speed)
 {
-	u8 speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5, NULL);
+	u8 speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5);
 	if (set_speed)
 		(void) ide_config_drive_speed(drive, speed);
 }

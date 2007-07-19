@@ -142,7 +142,7 @@ static int aec6260_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 
 static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void) HWIF(drive)->speedproc(drive, pio + XFER_PIO_0);
 }
 

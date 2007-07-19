@@ -304,7 +304,7 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
 		return;
 	}
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	printk("SC1200: %s: setting PIO mode%d\n", drive->name, pio);
 
 	if (sc1200_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)

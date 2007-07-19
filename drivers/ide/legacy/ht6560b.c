@@ -208,7 +208,7 @@ static u8 ht_pio2timings(ide_drive_t *drive, u8 pio)
         if (pio) {
 		unsigned int cycle_time;
 
-		pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
+		pio = ide_get_best_pio_mode(drive, pio, 5);
 		cycle_time = ide_pio_cycle_time(drive, pio);
 
 		/*
