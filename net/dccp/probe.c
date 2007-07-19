@@ -112,7 +112,7 @@ static struct jprobe dccp_send_probe = {
 	.kp	= {
 		.symbol_name = "dccp_sendmsg",
 	},
-	.entry	= JPROBE_ENTRY(jdccp_sendmsg),
+	.entry	= jdccp_sendmsg,
 };
 
 static int dccpprobe_open(struct inode *inode, struct file *file)

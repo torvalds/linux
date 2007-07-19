@@ -119,6 +119,9 @@ struct jprobe {
 	void *entry;	/* probe handling code to jump to */
 };
 
+/* For backward compatibility with old code using JPROBE_ENTRY() */
+#define JPROBE_ENTRY(handler)	(handler)
+
 DECLARE_PER_CPU(struct kprobe *, current_kprobe);
 DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 

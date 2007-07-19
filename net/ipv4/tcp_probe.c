@@ -130,7 +130,7 @@ static struct jprobe tcp_jprobe = {
 	.kp = {
 		.symbol_name	= "tcp_rcv_established",
 	},
-	.entry	= JPROBE_ENTRY(jtcp_rcv_established),
+	.entry	= jtcp_rcv_established,
 };
 
 static int tcpprobe_open(struct inode * inode, struct file * file)

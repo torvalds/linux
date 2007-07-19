@@ -247,12 +247,6 @@ control to Kprobes.)  If the probed function is declared asmlinkage,
 fastcall, or anything else that affects how args are passed, the
 handler's declaration must match.
 
-NOTE: A macro JPROBE_ENTRY is provided to handle architecture-specific
-aliasing of jp->entry. In the interest of portability, it is advised
-to use:
-
-	jp->entry = JPROBE_ENTRY(handler);
-
 register_jprobe() returns 0 on success, or a negative errno otherwise.
 
 4.3 register_kretprobe
@@ -518,7 +512,7 @@ long jdo_fork(unsigned long clone_flags, unsigned long stack_start,
 }
 
 static struct jprobe my_jprobe = {
-	.entry = JPROBE_ENTRY(jdo_fork)
+	.entry = jdo_fork
 };
 
 static int __init jprobe_init(void)
