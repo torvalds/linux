@@ -43,10 +43,6 @@
 
 #undef DEBUG
 
-#define DRV_DESC "QE UCC Gigabit Ethernet Controller"
-#define DRV_NAME "ucc_geth"
-#define DRV_VERSION "1.1"
-
 #define ugeth_printk(level, format, arg...)  \
         printk(level format "\n", ## arg)
 
@@ -65,6 +61,8 @@
 #define ugeth_vdbg(fmt, args...) do { } while (0)
 #endif				/* UGETH_VERBOSE_DEBUG */
 
+void uec_set_ethtool_ops(struct net_device *netdev);
+	
 static DEFINE_SPINLOCK(ugeth_lock);
 
 static struct ucc_geth_info ugeth_primary_info = {
@@ -104,6 +102,7 @@ static struct ucc_geth_info ugeth_primary_info = {
 	.maxRetransmission = 0xf,
 	.collisionWindow = 0x37,
 	.receiveFlowControl = 1,
+	.transmitFlowControl = 1,
 	.maxGroupAddrInHash = 4,
 	.maxIndAddrInHash = 4,
 	.prel = 7,
@@ -139,7 +138,9 @@ static struct ucc_geth_info ugeth_primary_info = {
 	.numStationAddresses = UCC_GETH_NUM_OF_STATION_ADDRESSES_1,
 	.largestexternallookupkeysize =
 	    QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE,
-	.statisticsMode = UCC_GETH_STATISTICS_GATHERING_MODE_NONE,
+	.statisticsMode = UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE |
+		UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX |
+		UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX,
 	.vlanOperationTagged = UCC_GETH_VLAN_OPERATION_TAGGED_NOP,
 	.vlanOperationNonTagged = UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP,
 	.rxQoSMode = UCC_GETH_QOS_MODE_DEFAULT,
@@ -1200,7 +1201,7 @@ static int init_inter_frame_gap_params(u8 non_btb_cs_ipg,
 	return 0;
 }
 
-static int init_flow_control_params(u32 automatic_flow_control_mode,
+int init_flow_control_params(u32 automatic_flow_control_mode,
 				    int rx_flow_control_enable,
 				    int tx_flow_control_enable,
 				    u16 pause_period,
@@ -2507,7 +2508,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* For more details see the hardware spec.           */
 	init_flow_control_params(ug_info->aufc,
 				 ug_info->receiveFlowControl,
-				 1,
+				 ug_info->transmitFlowControl,
 				 ug_info->pausePeriod,
 				 ug_info->extensionField,
 				 &uf_regs->upsmr,
@@ -3732,8 +3733,6 @@ static int ucc_geth_close(struct net_device *dev)
 	return 0;
 }
 
-const struct ethtool_ops ucc_geth_ethtool_ops = { };
-
 static phy_interface_t to_phy_interface(const char *phy_connection_type)
 {
 	if (strcasecmp(phy_connection_type, "mii") == 0)
@@ -3896,6 +3895,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	SET_NETDEV_DEV(dev, device);
 
 	/* Fill in the dev structure */
+	uec_set_ethtool_ops(dev);
 	dev->open = ucc_geth_open;
 	dev->hard_start_xmit = ucc_geth_start_xmit;
 	dev->tx_timeout = ucc_geth_timeout;
@@ -3909,7 +3909,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 //    dev->change_mtu = ucc_geth_change_mtu;
 	dev->mtu = 1500;
 	dev->set_multicast_list = ucc_geth_set_multi;
-	dev->ethtool_ops = &ucc_geth_ethtool_ops;
 
 	ugeth->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
 	ugeth->phy_interface = phy_interface;
