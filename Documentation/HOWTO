@@ -249,6 +249,9 @@ process is as follows:
     release a new -rc kernel every week.
   - Process continues until the kernel is considered "ready", the
     process should last around 6 weeks.
+  - A list of known regressions present in each -rc release is
+    tracked at the following URI:
+    http://kernelnewbies.org/known_regressions
 
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:

@@ -33,25 +33,15 @@ static DEFINE_SPINLOCK(sequence_lock);
 static struct sock *uevent_sock;
 #endif
 
-static char *action_to_string(enum kobject_action action)
-{
-	switch (action) {
-	case KOBJ_ADD:
-		return "add";
-	case KOBJ_REMOVE:
-		return "remove";
-	case KOBJ_CHANGE:
-		return "change";
-	case KOBJ_OFFLINE:
-		return "offline";
-	case KOBJ_ONLINE:
-		return "online";
-	case KOBJ_MOVE:
-		return "move";
-	default:
-		return NULL;
-	}
-}
+/* the strings here must match the enum in include/linux/kobject.h */
+const char *kobject_actions[] = {
+	"add",
+	"remove",
+	"change",
+	"move",
+	"online",
+	"offline",
+};
 
 /**
  * kobject_uevent_env - send an uevent with environmental data
@@ -83,7 +73,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 
 	pr_debug("%s\n", __FUNCTION__);
 
-	action_string = action_to_string(action);
+	action_string = kobject_actions[action];
 	if (!action_string) {
 		pr_debug("kobject attempted to send uevent without action_string!\n");
 		return -EINVAL;

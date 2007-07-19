@@ -361,20 +361,20 @@ static struct dentry_operations sysfs_dentry_ops = {
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 {
 	char *dup_name = NULL;
-	struct sysfs_dirent *sd = NULL;
+	struct sysfs_dirent *sd;
 
 	if (type & SYSFS_COPY_NAME) {
 		name = dup_name = kstrdup(name, GFP_KERNEL);
 		if (!name)
-			goto err_out;
+			return NULL;
 	}
 
 	sd = kmem_cache_zalloc(sysfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
-		goto err_out;
+		goto err_out1;
 
 	if (sysfs_alloc_ino(&sd->s_ino))
-		goto err_out;
+		goto err_out2;
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_active, 0);
@@ -386,9 +386,10 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	return sd;
 
- err_out:
-	kfree(dup_name);
+ err_out2:
 	kmem_cache_free(sysfs_dir_cachep, sd);
+ err_out1:
+	kfree(dup_name);
 	return NULL;
 }
 
@@ -698,17 +699,19 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 
 	/* link in */
 	sysfs_addrm_start(&acxt, parent_sd);
+
 	if (!sysfs_find_dirent(parent_sd, name)) {
 		sysfs_add_one(&acxt, sd);
 		sysfs_link_sibling(sd);
 	}
-	if (sysfs_addrm_finish(&acxt)) {
-		*p_sd = sd;
-		return 0;
+
+	if (!sysfs_addrm_finish(&acxt)) {
+		sysfs_put(sd);
+		return -EEXIST;
 	}
 
-	sysfs_put(sd);
-	return -EEXIST;
+	*p_sd = sd;
+	return 0;
 }
 
 int sysfs_create_subdir(struct kobject *kobj, const char *name,

@@ -410,11 +410,12 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 		sysfs_link_sibling(sd);
 	}
 
-	if (sysfs_addrm_finish(&acxt))
-		return 0;
+	if (!sysfs_addrm_finish(&acxt)) {
+		sysfs_put(sd);
+		return -EEXIST;
+	}
 
-	sysfs_put(sd);
-	return -EEXIST;
+	return 0;
 }
 
 

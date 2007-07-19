@@ -207,7 +207,7 @@ responsibility.  This is usually non-issue because bus ops and
 resource allocations already do the job.
 
 For an example of single-instance devres type, read pcim_iomap_table()
-in lib/iomap.c.
+in lib/devres.c.
 
 All devres interface functions can be called without context if the
 right gfp mask is given.
