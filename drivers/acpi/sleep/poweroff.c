@@ -39,7 +39,13 @@ int acpi_sleep_prepare(u32 acpi_state)
 
 #ifdef CONFIG_PM
 
-void acpi_power_off(void)
+static void acpi_power_off_prepare(void)
+{
+	/* Prepare to power off the system */
+	acpi_sleep_prepare(ACPI_STATE_S5);
+}
+
+static void acpi_power_off(void)
 {
 	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
 	printk("%s called\n", __FUNCTION__);
@@ -47,27 +53,6 @@ void acpi_power_off(void)
 	/* Some SMP machines only can poweroff in boot CPU */
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
-
-static int acpi_shutdown(struct sys_device *x)
-{
-	switch (system_state) {
-	case SYSTEM_POWER_OFF:
-		/* Prepare to power off the system */
-		return acpi_sleep_prepare(ACPI_STATE_S5);
-	default:
-		return 0;
-	}
-}
-
-static struct sysdev_class acpi_sysclass = {
-	set_kset_name("acpi"),
-	.shutdown = acpi_shutdown
-};
-
-static struct sys_device device_acpi = {
-	.id = 0,
-	.cls = &acpi_sysclass,
-};
 
 static int acpi_poweroff_init(void)
 {
@@ -78,13 +63,8 @@ static int acpi_poweroff_init(void)
 		status =
 		    acpi_get_sleep_type_data(ACPI_STATE_S5, &type_a, &type_b);
 		if (ACPI_SUCCESS(status)) {
-			int error;
-			error = sysdev_class_register(&acpi_sysclass);
-			if (!error)
-				error = sysdev_register(&device_acpi);
-			if (!error)
-				pm_power_off = acpi_power_off;
-			return error;
+			pm_power_off_prepare = acpi_power_off_prepare;
+			pm_power_off = acpi_power_off;
 		}
 	}
 	return 0;
