@@ -110,16 +110,6 @@ do {									\
 } while (0)
 
 /*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
-/*
  * Save the current interrupt enable state & disable IRQs
  */
 #define local_irq_save(x)                               \

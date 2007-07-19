@@ -64,16 +64,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	last = __last;							\
 } while (0)
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
 #ifdef CONFIG_CPU_SH4A
 #define __icbi()			\
 {					\

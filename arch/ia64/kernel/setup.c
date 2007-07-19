@@ -980,15 +980,6 @@ cpu_init (void)
 	pm_idle = default_idle;
 }
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- */
-void sched_cacheflush(void)
-{
-	ia64_sal_cache_flush(3);
-}
-
 void __init
 check_bugs (void)
 {

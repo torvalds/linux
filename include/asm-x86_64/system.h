@@ -111,15 +111,6 @@ static inline void write_cr4(unsigned long val)
 #define wbinvd() \
 	__asm__ __volatile__ ("wbinvd": : :"memory");
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- */
-static inline void sched_cacheflush(void)
-{
-	wbinvd();
-}
-
 #endif	/* __KERNEL__ */
 
 #define nop() __asm__ __volatile__ ("nop")
