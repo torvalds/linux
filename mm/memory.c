@@ -2369,11 +2369,14 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			 * address space wants to know that the page is about
 			 * to become writable
 			 */
-			if (vma->vm_ops->page_mkwrite &&
-			    vma->vm_ops->page_mkwrite(vma, page) < 0) {
-				fdata.type = VM_FAULT_SIGBUS;
-				anon = 1; /* no anon but release faulted_page */
-				goto out;
+			if (vma->vm_ops->page_mkwrite) {
+				unlock_page(page);
+				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
+					fdata.type = VM_FAULT_SIGBUS;
+					anon = 1; /* no anon but release faulted_page */
+					goto out_unlocked;
+				}
+				lock_page(page);
 			}
 		}
 
@@ -2425,6 +2428,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 out:
 	unlock_page(faulted_page);
+out_unlocked:
 	if (anon)
 		page_cache_release(faulted_page);
 	else if (dirty_page) {
