@@ -154,6 +154,7 @@ use strict;
 
 my $errors = 0;
 my $warnings = 0;
+my $anon_struct_union = 0;
 
 # match expressions used to find embedded type information
 my $type_constant = '\%([-_\w]+)';
@@ -1510,8 +1511,13 @@ sub push_parameter($$$) {
 	my $param = shift;
 	my $type = shift;
 	my $file = shift;
-	my $anon = 0;
 
+	if (($anon_struct_union == 1) && ($type eq "") &&
+	    ($param eq "}")) {
+		return;		# ignore the ending }; from anon. struct/union
+	}
+
+	$anon_struct_union = 0;
 	my $param_name = $param;
 	$param_name =~ s/\[.*//;
 
@@ -1530,16 +1536,16 @@ sub push_parameter($$$) {
 	# handle unnamed (anonymous) union or struct:
 	{
 		$type = $param;
-		$param = "{unnamed_" . $param. "}";
+		$param = "{unnamed_" . $param . "}";
 		$parameterdescs{$param} = "anonymous\n";
-		$anon = 1;
+		$anon_struct_union = 1;
 	}
 
 	# warn if parameter has no description
 	# (but ignore ones starting with # as these are not parameters
 	# but inline preprocessor statements);
 	# also ignore unnamed structs/unions;
-	if (!$anon) {
+	if (!$anon_struct_union) {
 	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
 
 	    $parameterdescs{$param_name} = $undescribed;
