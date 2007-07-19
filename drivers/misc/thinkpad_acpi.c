@@ -4444,10 +4444,10 @@ static u32 dbg_level;
 module_param_named(debug, dbg_level, uint, 0);
 
 static int force_load;
-module_param(force_load, int, 0);
+module_param(force_load, bool, 0);
 
 static int fan_control_allowed;
-module_param_named(fan_control, fan_control_allowed, int, 0);
+module_param_named(fan_control, fan_control_allowed, bool, 0);
 
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)
