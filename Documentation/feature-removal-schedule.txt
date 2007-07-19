@@ -51,6 +51,7 @@ Who:	David Miller <davem@davemloft.net>
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2006
 Files:	include/linux/video_decoder.h
+Check:	include/linux/video_decoder.h
 Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	series. The old API have lots of drawbacks and don't provide enough
 	means to work with all video and audio standards. The newer API is
@@ -84,7 +85,7 @@ Who:	Dominik Brodowski <linux@brodo.de>
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
-Funcs:	kernel_thread
+Check:	kernel_thread
 Why:	kernel_thread is a low-level implementation detail.  Drivers should
         use the <linux/kthread.h> API instead which shields them from
 	implementation details and provides a higherlevel interface that
