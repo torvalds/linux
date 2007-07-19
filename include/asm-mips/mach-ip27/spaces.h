@@ -14,22 +14,17 @@
  * IP27 uses the R10000's uncached attribute feature.  Attribute 3 selects
  * uncached memory addressing.
  */
-#define CAC_BASE		0xa800000000000000
 
 #define HSPEC_BASE		0x9000000000000000
 #define IO_BASE			0x9200000000000000
 #define MSPEC_BASE		0x9400000000000000
 #define UNCAC_BASE		0x9600000000000000
-#define MAP_BASE		0xc000000000000000
 
-#define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
-#define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
-#define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 #define TO_MSPEC(x)		(MSPEC_BASE | ((x) & TO_PHYS_MASK))
 #define TO_HSPEC(x)		(HSPEC_BASE | ((x) & TO_PHYS_MASK))
 
-#define PAGE_OFFSET		CAC_BASE
-
 #define HIGHMEM_START		(~0UL)
+
+#include <asm/mach-generic/spaces.h>
 
 #endif /* _ASM_MACH_IP27_SPACES_H */

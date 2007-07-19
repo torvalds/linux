@@ -1,0 +1,21 @@
+#
+# 9P protocol configuration
+#
+
+menuconfig NET_9P
+	depends on NET && EXPERIMENTAL
+	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
+	help
+	  If you say Y here, you will get experimental support for
+	  Plan 9 resource sharing via the 9P2000 protocol.
+
+	  See <http://v9fs.sf.net> for more information.
+
+	  If unsure, say N.
+
+config NET_9P_DEBUG
+	bool "Debug information"
+	depends on NET_9P
+	help
+	  Say Y if you want the 9P subsistem to log debug information.
+

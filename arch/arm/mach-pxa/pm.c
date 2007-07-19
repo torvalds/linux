@@ -77,7 +77,6 @@ int pxa_pm_enter(suspend_state_t state)
 {
 	unsigned long sleep_save[SLEEP_SAVE_SIZE];
 	unsigned long checksum = 0;
-	struct timespec delta, rtc;
 	int i;
 	extern void pxa_cpu_pm_enter(suspend_state_t state);
 
@@ -86,11 +85,6 @@ int pxa_pm_enter(suspend_state_t state)
 	if (elf_hwcap & HWCAP_IWMMXT)
 		iwmmxt_task_disable(NULL);
 #endif
-
-	/* preserve current time */
-	rtc.tv_sec = RCNR;
-	rtc.tv_nsec = 0;
-	save_time_delta(&delta, &rtc);
 
 	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2);
 	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2);
@@ -183,10 +177,6 @@ int pxa_pm_enter(suspend_state_t state)
 
 	RESTORE(PSTR);
 
-	/* restore current time */
-	rtc.tv_sec = RCNR;
-	restore_time_delta(&delta, &rtc);
-
 #ifdef DEBUG
 	printk(KERN_DEBUG "*** made it back from resume\n");
 #endif
@@ -200,40 +190,3 @@ unsigned long sleep_phys_sp(void *sp)
 {
 	return virt_to_phys(sp);
 }
-
-/*
- * Called after processes are frozen, but before we shut down devices.
- */
-int pxa_pm_prepare(suspend_state_t state)
-{
-	extern int pxa_cpu_pm_prepare(suspend_state_t state);
-
-	return pxa_cpu_pm_prepare(state);
-}
-
-EXPORT_SYMBOL_GPL(pxa_pm_prepare);
-
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-int pxa_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(pxa_pm_finish);
-
-static struct pm_ops pxa_pm_ops = {
-	.prepare	= pxa_pm_prepare,
-	.enter		= pxa_pm_enter,
-	.finish		= pxa_pm_finish,
-	.valid		= pm_valid_only_mem,
-};
-
-static int __init pxa_pm_init(void)
-{
-	pm_set_ops(&pxa_pm_ops);
-	return 0;
-}
-
-device_initcall(pxa_pm_init);

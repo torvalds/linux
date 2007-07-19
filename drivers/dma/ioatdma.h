@@ -30,9 +30,6 @@
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 
-extern struct list_head dma_device_list;
-extern struct list_head dma_client_list;
-
 /**
  * struct ioat_device - internal representation of a IOAT device
  * @pdev: PCI-Express device
@@ -105,21 +102,20 @@ struct ioat_dma_chan {
 /**
  * struct ioat_desc_sw - wrapper around hardware descriptor
  * @hw: hardware DMA descriptor
- * @node:
- * @cookie:
- * @phys:
+ * @node: this descriptor will either be on the free list,
+ *     or attached to a transaction list (async_tx.tx_list)
+ * @tx_cnt: number of descriptors required to complete the transaction
+ * @async_tx: the generic software descriptor for all engines
  */
-
 struct ioat_desc_sw {
 	struct ioat_dma_descriptor *hw;
 	struct list_head node;
-	dma_cookie_t cookie;
-	dma_addr_t phys;
+	int tx_cnt;
 	DECLARE_PCI_UNMAP_ADDR(src)
 	DECLARE_PCI_UNMAP_LEN(src_len)
 	DECLARE_PCI_UNMAP_ADDR(dst)
 	DECLARE_PCI_UNMAP_LEN(dst_len)
+	struct dma_async_tx_descriptor async_tx;
 };
 
 #endif /* IOATDMA_H */
-

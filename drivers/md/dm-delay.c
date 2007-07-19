@@ -20,7 +20,7 @@
 
 struct delay_c {
 	struct timer_list delay_timer;
-	struct semaphore timer_lock;
+	struct mutex timer_lock;
 	struct work_struct flush_expired_bios;
 	struct list_head delayed_bios;
 	atomic_t may_delay;
@@ -37,7 +37,7 @@ struct delay_c {
 	unsigned writes;
 };
 
-struct delay_info {
+struct dm_delay_info {
 	struct delay_c *context;
 	struct list_head list;
 	struct bio *bio;
@@ -58,12 +58,12 @@ static void handle_delayed_timer(unsigned long data)
 
 static void queue_timeout(struct delay_c *dc, unsigned long expires)
 {
-	down(&dc->timer_lock);
+	mutex_lock(&dc->timer_lock);
 
 	if (!timer_pending(&dc->delay_timer) || expires < dc->delay_timer.expires)
 		mod_timer(&dc->delay_timer, expires);
 
-	up(&dc->timer_lock);
+	mutex_unlock(&dc->timer_lock);
 }
 
 static void flush_bios(struct bio *bio)
@@ -80,7 +80,7 @@ static void flush_bios(struct bio *bio)
 
 static struct bio *flush_delayed_bios(struct delay_c *dc, int flush_all)
 {
-	struct delay_info *delayed, *next;
+	struct dm_delay_info *delayed, *next;
 	unsigned long next_expires = 0;
 	int start_timer = 0;
 	BIO_LIST(flush_bios);
@@ -193,13 +193,11 @@ out:
 		goto bad;
 	}
 
-	init_timer(&dc->delay_timer);
-	dc->delay_timer.function = handle_delayed_timer;
-	dc->delay_timer.data = (unsigned long)dc;
+	setup_timer(&dc->delay_timer, handle_delayed_timer, (unsigned long)dc);
 
 	INIT_WORK(&dc->flush_expired_bios, flush_expired_bios);
 	INIT_LIST_HEAD(&dc->delayed_bios);
-	init_MUTEX(&dc->timer_lock);
+	mutex_init(&dc->timer_lock);
 	atomic_set(&dc->may_delay, 1);
 
 	ti->private = dc;
@@ -227,7 +225,7 @@ static void delay_dtr(struct dm_target *ti)
 
 static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 {
-	struct delay_info *delayed;
+	struct dm_delay_info *delayed;
 	unsigned long expires = 0;
 
 	if (!delay || !atomic_read(&dc->may_delay))
@@ -338,10 +336,7 @@ static int __init dm_delay_init(void)
 		goto bad_queue;
 	}
 
-	delayed_cache = kmem_cache_create("dm-delay",
-					  sizeof(struct delay_info),
-					  __alignof__(struct delay_info),
-					  0, NULL, NULL);
+	delayed_cache = KMEM_CACHE(dm_delay_info, 0);
 	if (!delayed_cache) {
 		DMERR("Couldn't create delayed bio cache.");
 		goto bad_memcache;

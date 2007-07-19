@@ -453,7 +453,7 @@ static int __init configfs_example_init(void)
 		subsys = example_subsys[i];
 
 		config_group_init(&subsys->su_group);
-		init_MUTEX(&subsys->su_sem);
+		mutex_init(&subsys->su_mutex);
 		ret = configfs_register_subsystem(subsys);
 		if (ret) {
 			printk(KERN_ERR "Error %d while registering subsystem %s\n",

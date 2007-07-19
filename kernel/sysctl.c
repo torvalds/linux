@@ -29,6 +29,7 @@
 #include <linux/utsname.h>
 #include <linux/capability.h>
 #include <linux/smp_lock.h>
+#include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
@@ -45,12 +46,10 @@
 #include <linux/syscalls.h>
 #include <linux/nfs_fs.h>
 #include <linux/acpi.h>
+#include <linux/reboot.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
-
-extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
-                     void __user *buffer, size_t *lenp, loff_t *ppos);
 
 #ifdef CONFIG_X86
 #include <asm/nmi.h>
@@ -61,6 +60,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 
 /* External variables not in a header file. */
 extern int C_A_D;
+extern int print_fatal_signals;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern int sysctl_panic_on_oom;
@@ -202,11 +202,94 @@ static ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= dev_table,
 	},
-
+/*
+ * NOTE: do not add new entries to this table unless you have read
+ * Documentation/sysctl/ctl_unnumbered.txt
+ */
 	{ .ctl_name = 0 }
 };
 
+#ifdef CONFIG_SCHED_DEBUG
+static unsigned long min_sched_granularity_ns = 100000;		/* 100 usecs */
+static unsigned long max_sched_granularity_ns = 1000000000;	/* 1 second */
+static unsigned long min_wakeup_granularity_ns;			/* 0 usecs */
+static unsigned long max_wakeup_granularity_ns = 1000000000;	/* 1 second */
+#endif
+
 static ctl_table kern_table[] = {
+#ifdef CONFIG_SCHED_DEBUG
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_granularity_ns",
+		.data		= &sysctl_sched_granularity,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_sched_granularity_ns,
+		.extra2		= &max_sched_granularity_ns,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_wakeup_granularity_ns",
+		.data		= &sysctl_sched_wakeup_granularity,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_wakeup_granularity_ns,
+		.extra2		= &max_wakeup_granularity_ns,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_batch_wakeup_granularity_ns",
+		.data		= &sysctl_sched_batch_wakeup_granularity,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_wakeup_granularity_ns,
+		.extra2		= &max_wakeup_granularity_ns,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_stat_granularity_ns",
+		.data		= &sysctl_sched_stat_granularity,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_wakeup_granularity_ns,
+		.extra2		= &max_wakeup_granularity_ns,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_runtime_limit_ns",
+		.data		= &sysctl_sched_runtime_limit,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_sched_granularity_ns,
+		.extra2		= &max_sched_granularity_ns,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_child_runs_first",
+		.data		= &sysctl_sched_child_runs_first,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_features",
+		.data		= &sysctl_sched_features,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 	{
 		.ctl_name	= KERN_PANIC,
 		.procname	= "panic",
@@ -260,6 +343,14 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "print-fatal-signals",
+		.data		= &print_fatal_signals,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #ifdef __sparc__
 	{
 		.ctl_name	= KERN_SPARC_REBOOT,
@@ -615,6 +706,15 @@ static ctl_table kern_table[] = {
 		.proc_handler   = &proc_dointvec,
 	},
 #endif
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "poweroff_cmd",
+		.data		= &poweroff_cmd,
+		.maxlen		= POWEROFF_CMD_PATH_LEN,
+		.mode		= 0644,
+		.proc_handler	= &proc_dostring,
+		.strategy	= &sysctl_string,
+	},
 
 	{ .ctl_name = 0 }
 };
@@ -734,6 +834,14 @@ static ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	 },
+	 {
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hugepages_treat_as_movable",
+		.data		= &hugepages_treat_as_movable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &hugetlb_treat_movable_handler,
+	},
 #endif
 	{
 		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
@@ -869,6 +977,27 @@ static ctl_table vm_table[] = {
 		.strategy	= &sysctl_jiffies,
 	},
 #endif
+#ifdef CONFIG_SECURITY
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "mmap_min_addr",
+		.data		= &mmap_min_addr,
+		.maxlen         = sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+	},
+#ifdef CONFIG_NUMA
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "numa_zonelist_order",
+		.data		= &numa_zonelist_order,
+		.maxlen		= NUMA_ZONELIST_ORDER_LEN,
+		.mode		= 0644,
+		.proc_handler	= &numa_zonelist_order_handler,
+		.strategy	= &sysctl_string,
+	},
+#endif
+#endif
 #if defined(CONFIG_X86_32) || \
    (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
 	{
@@ -882,6 +1011,10 @@ static ctl_table vm_table[] = {
 		.extra1		= &zero,
 	},
 #endif
+/*
+ * NOTE: do not add new entries to this table unless you have read
+ * Documentation/sysctl/ctl_unnumbered.txt
+ */
 	{ .ctl_name = 0 }
 };
 
@@ -1022,6 +1155,10 @@ static ctl_table fs_table[] = {
 		.child		= binfmt_misc_table,
 	},
 #endif
+/*
+ * NOTE: do not add new entries to this table unless you have read
+ * Documentation/sysctl/ctl_unnumbered.txt
+ */
 	{ .ctl_name = 0 }
 };
 

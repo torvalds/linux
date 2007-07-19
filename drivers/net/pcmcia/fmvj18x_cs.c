@@ -109,7 +109,7 @@ static const struct ethtool_ops netdev_ethtool_ops;
     card type
  */
 typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN, 
-	       XXX10304
+	       XXX10304, NEC, KME
 } cardtype_t;
 
 /*
@@ -374,6 +374,18 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		link->io.NumPorts2 = 8;
 	    }
 	    break;
+	case MANFID_NEC:
+	    cardtype = NEC; /* MultiFunction Card */
+	    link->conf.ConfigBase = 0x800;
+	    link->conf.ConfigIndex = 0x47;
+	    link->io.NumPorts2 = 8;
+	    break;
+	case MANFID_KME:
+	    cardtype = KME; /* MultiFunction Card */
+	    link->conf.ConfigBase = 0x800;
+	    link->conf.ConfigIndex = 0x47;
+	    link->io.NumPorts2 = 8;
+	    break;
 	case MANFID_CONTEC:
 	    cardtype = CONTEC;
 	    break;
@@ -450,6 +462,8 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case TDK:
     case LA501:
     case CONTEC:
+    case NEC:
+    case KME:
 	tuple.DesiredTuple = CISTPL_FUNCE;
 	tuple.TupleOffset = 0;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -469,6 +483,10 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		card_name = "TDK LAK-CD021";
 	    } else if( cardtype == LA501 ) {
 		card_name = "LA501";
+	    } else if( cardtype == NEC ) {
+		card_name = "PK-UG-J001";
+	    } else if( cardtype == KME ) {
+		card_name = "Panasonic";
 	    } else {
 		card_name = "C-NET(PC)C";
 	    }
@@ -678,8 +696,11 @@ static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_PROD_ID1("PCMCIA MBH10302", 0x8f4005da),
 	PCMCIA_DEVICE_PROD_ID1("UBKK,V2.0", 0x90888080),
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "TDK", "GlobalNetworker 3410/3412", 0x1eae9475, 0xd9a93bed),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "NEC", "PK-UG-J001" ,0x18df0ba0 ,0x831b1064),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0a05),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x1101),
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, fmvj18x_ids);

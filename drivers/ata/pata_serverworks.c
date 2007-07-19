@@ -410,10 +410,7 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 
 static int serverworks_fixup_csb(struct pci_dev *pdev)
 {
-	u8 rev;
 	u8 btr;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 
 	/* Third Channel Test */
 	if (!(PCI_FUNC(pdev->devfn) & 1)) {
@@ -456,7 +453,7 @@ static int serverworks_fixup_csb(struct pci_dev *pdev)
 	if (!(PCI_FUNC(pdev->devfn) & 1))
 		btr |= 0x2;
 	else
-		btr |= (rev >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
+		btr |= (pdev->revision >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
 	pci_write_config_byte(pdev, 0x5A, btr);
 
 	return btr;
@@ -478,31 +475,31 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	static const struct ata_port_info info[4] = {
 		{ /* OSB4 */
 			.sht = &serverworks_sht,
-			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
 			.udma_mask = 0x07,
 			.port_ops = &serverworks_osb4_port_ops
 		}, { /* OSB4 no UDMA */
 			.sht = &serverworks_sht,
-			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
 			.udma_mask = 0x00,
 			.port_ops = &serverworks_osb4_port_ops
 		}, { /* CSB5 */
 			.sht = &serverworks_sht,
-			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
-			.udma_mask = 0x1f,
+			.udma_mask = ATA_UDMA4,
 			.port_ops = &serverworks_csb_port_ops
 		}, { /* CSB5 - later revisions*/
 			.sht = &serverworks_sht,
-			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
-			.udma_mask = 0x3f,
+			.udma_mask = ATA_UDMA5,
 			.port_ops = &serverworks_csb_port_ops
 		}
 	};

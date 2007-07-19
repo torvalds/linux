@@ -115,8 +115,8 @@ int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
 		"GFS2: fsid=%s:   inode = %llu %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (unsigned long long)ip->i_num.no_formal_ino,
-		(unsigned long long)ip->i_num.no_addr,
+		sdp->sd_fsname, (unsigned long long)ip->i_no_formal_ino,
+		(unsigned long long)ip->i_no_addr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }
@@ -137,7 +137,7 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 		"GFS2: fsid=%s:   RG = %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (unsigned long long)rgd->rd_ri.ri_addr,
+		sdp->sd_fsname, (unsigned long long)rgd->rd_addr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }

@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 
 #include <asm/io.h>

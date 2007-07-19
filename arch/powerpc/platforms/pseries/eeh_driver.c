@@ -1,6 +1,7 @@
 /*
  * PCI Error Recovery Driver for RPA-compliant PPC64 platform.
- * Copyright (C) 2004, 2005 Linas Vepstas <linas@linas.org>
+ * Copyright IBM Corp. 2004 2005
+ * Copyright Linas Vepstas <linas@linas.org> 2004, 2005
  *
  * All rights reserved.
  *
@@ -19,8 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Send feedback to <linas@us.ibm.com>
- *
+ * Send comments and feedback to Linas Vepstas <linas@austin.ibm.com>
  */
 #include <linux/delay.h>
 #include <linux/interrupt.h>

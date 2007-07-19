@@ -19,6 +19,7 @@
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 #include <asm/immap_qe.h>
@@ -70,6 +71,7 @@ void ucc_fast_dump_regs(struct ucc_fast_private * uccf)
 	printk(KERN_INFO "guemr : addr - 0x%08x, val - 0x%02x",
 		  (u32) & uccf->uf_regs->guemr, uccf->uf_regs->guemr);
 }
+EXPORT_SYMBOL(ucc_fast_dump_regs);
 
 u32 ucc_fast_get_qe_cr_subblock(int uccf_num)
 {
@@ -85,11 +87,13 @@ u32 ucc_fast_get_qe_cr_subblock(int uccf_num)
 	default: return QE_CR_SUBBLOCK_INVALID;
 	}
 }
+EXPORT_SYMBOL(ucc_fast_get_qe_cr_subblock);
 
 void ucc_fast_transmit_on_demand(struct ucc_fast_private * uccf)
 {
 	out_be16(&uccf->uf_regs->utodr, UCC_FAST_TOD);
 }
+EXPORT_SYMBOL(ucc_fast_transmit_on_demand);
 
 void ucc_fast_enable(struct ucc_fast_private * uccf, enum comm_dir mode)
 {
@@ -110,6 +114,7 @@ void ucc_fast_enable(struct ucc_fast_private * uccf, enum comm_dir mode)
 	}
 	out_be32(&uf_regs->gumr, gumr);
 }
+EXPORT_SYMBOL(ucc_fast_enable);
 
 void ucc_fast_disable(struct ucc_fast_private * uccf, enum comm_dir mode)
 {
@@ -130,6 +135,7 @@ void ucc_fast_disable(struct ucc_fast_private * uccf, enum comm_dir mode)
 	}
 	out_be32(&uf_regs->gumr, gumr);
 }
+EXPORT_SYMBOL(ucc_fast_disable);
 
 int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** uccf_ret)
 {
@@ -341,6 +347,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	*uccf_ret = uccf;
 	return 0;
 }
+EXPORT_SYMBOL(ucc_fast_init);
 
 void ucc_fast_free(struct ucc_fast_private * uccf)
 {
@@ -355,3 +362,4 @@ void ucc_fast_free(struct ucc_fast_private * uccf)
 
 	kfree(uccf);
 }
+EXPORT_SYMBOL(ucc_fast_free);

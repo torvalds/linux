@@ -27,6 +27,9 @@ unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
 static unsigned int free_huge_pages_node[MAX_NUMNODES];
+static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+unsigned long hugepages_treat_as_movable;
+
 /*
  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
  */
@@ -66,14 +69,15 @@ static void enqueue_huge_page(struct page *page)
 static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 				unsigned long address)
 {
-	int nid = numa_node_id();
+	int nid;
 	struct page *page = NULL;
-	struct zonelist *zonelist = huge_zonelist(vma, address);
+	struct zonelist *zonelist = huge_zonelist(vma, address,
+						htlb_alloc_mask);
 	struct zone **z;
 
 	for (z = zonelist->zones; *z; z++) {
 		nid = zone_to_nid(*z);
-		if (cpuset_zone_allowed_softwall(*z, GFP_HIGHUSER) &&
+		if (cpuset_zone_allowed_softwall(*z, htlb_alloc_mask) &&
 		    !list_empty(&hugepage_freelists[nid]))
 			break;
 	}
@@ -101,13 +105,20 @@ static void free_huge_page(struct page *page)
 
 static int alloc_fresh_huge_page(void)
 {
-	static int nid = 0;
+	static int prev_nid;
 	struct page *page;
-	page = alloc_pages_node(nid, GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN,
-					HUGETLB_PAGE_ORDER);
-	nid = next_node(nid, node_online_map);
+	static DEFINE_SPINLOCK(nid_lock);
+	int nid;
+
+	spin_lock(&nid_lock);
+	nid = next_node(prev_nid, node_online_map);
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
+	prev_nid = nid;
+	spin_unlock(&nid_lock);
+
+	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+					HUGETLB_PAGE_ORDER);
 	if (page) {
 		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
@@ -256,6 +267,19 @@ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
 	max_huge_pages = set_max_huge_pages(max_huge_pages);
 	return 0;
 }
+
+int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+			struct file *file, void __user *buffer,
+			size_t *length, loff_t *ppos)
+{
+	proc_dointvec(table, write, file, buffer, length, ppos);
+	if (hugepages_treat_as_movable)
+		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
+	else
+		htlb_alloc_mask = GFP_HIGHUSER;
+	return 0;
+}
+
 #endif /* CONFIG_SYSCTL */
 
 int hugetlb_report_meminfo(char *buf)
@@ -474,7 +498,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	return VM_FAULT_MINOR;
 }
 
-int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, int write_access)
 {
 	int ret = VM_FAULT_SIGBUS;

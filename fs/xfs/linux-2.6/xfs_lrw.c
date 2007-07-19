@@ -287,50 +287,6 @@ xfs_read(
 }
 
 ssize_t
-xfs_sendfile(
-	bhv_desc_t		*bdp,
-	struct file		*filp,
-	loff_t			*offset,
-	int			ioflags,
-	size_t			count,
-	read_actor_t		actor,
-	void			*target,
-	cred_t			*credp)
-{
-	xfs_inode_t		*ip = XFS_BHVTOI(bdp);
-	xfs_mount_t		*mp = ip->i_mount;
-	ssize_t			ret;
-
-	XFS_STATS_INC(xs_read_calls);
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-
-	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
-	    (!(ioflags & IO_INVIS))) {
-		bhv_vrwlock_t locktype = VRWLOCK_READ;
-		int error;
-
-		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
-				      *offset, count,
-				      FILP_DELAY_FLAG(filp), &locktype);
-		if (error) {
-			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			return -error;
-		}
-	}
-	xfs_rw_enter_trace(XFS_SENDFILE_ENTER, &ip->i_iocore,
-		   (void *)(unsigned long)target, count, *offset, ioflags);
-	ret = generic_file_sendfile(filp, offset, count, actor, target);
-	if (ret > 0)
-		XFS_STATS_ADD(xs_read_bytes, ret);
-
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-	return ret;
-}
-
-ssize_t
 xfs_splice_read(
 	bhv_desc_t		*bdp,
 	struct file		*infilp,

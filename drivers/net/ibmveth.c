@@ -1337,7 +1337,7 @@ const char * buf, size_t count)
 
 #define ATTR(_name, _mode)      \
         struct attribute veth_##_name##_attr = {               \
-        .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE \
+        .name = __stringify(_name), .mode = _mode, \
         };
 
 static ATTR(active, 0644);

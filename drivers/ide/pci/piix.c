@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.47	February 8, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.50	Jun 10, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -394,14 +394,45 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	hwif->OUTB(dma_stat, hwif->dma_status);
 }
 
-static int __devinit piix_cable_detect(ide_hwif_t *hwif)
+struct ich_laptop {
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+};
+
+/*
+ *	List of laptops that use short cables rather than 80 wire
+ */
+
+static const struct ich_laptop ich_laptop[] = {
+	/* devid, subvendor, subdev */
+	{ 0x27DF, 0x0005, 0x0280 },	/* ICH7 on Acer 5602WLMi */
+	{ 0x27DF, 0x1025, 0x0110 },	/* ICH7 on Acer 3682WLMi */
+	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
+	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on Acer Aspire 2023WLMi */
+	/* end marker */
+	{ 0, }
+};
+
+static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *pdev = hwif->pci_dev;
+	const struct ich_laptop *lap = &ich_laptop[0];
 	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
 
-	pci_read_config_byte(dev, 0x54, &reg54h);
+	/* check for specials */
+	while (lap->device) {
+		if (lap->device == pdev->device &&
+		    lap->subvendor == pdev->subsystem_vendor &&
+		    lap->subdevice == pdev->subsystem_device) {
+			return ATA_CBL_PATA40_SHORT;
+		}
+		lap++;
+	}
 
-	return (reg54h & mask) ? 1 : 0;
+	pci_read_config_byte(pdev, 0x54, &reg54h);
+
+	return (reg54h & mask) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 /**
@@ -444,8 +475,8 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	if (hwif->ultra_mask & 0x78) {
-		if (!hwif->udma_four)
-			hwif->udma_four = piix_cable_detect(hwif);
+		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+			hwif->cbl = piix_cable_detect(hwif);
 	}
 
 	if (no_piix_dma)
@@ -541,18 +572,16 @@ static void __devinit piix_check_450nx(void)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
-	u8 rev;
 	while((pdev=pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev))!=NULL)
 	{
 		/* Look for 450NX PXB. Check for problem configurations
 		   A PCI quirk checks bit 6 already */
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 		pci_read_config_word(pdev, 0x41, &cfg);
 		/* Only on the original revision: IDE DMA can hang */
-		if(rev == 0x00)
+		if (pdev->revision == 0x00)
 			no_piix_dma = 1;
 		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
-		else if(cfg & (1<<14) && rev < 5)
+		else if (cfg & (1<<14) && pdev->revision < 5)
 			no_piix_dma = 2;
 	}
 	if(no_piix_dma)

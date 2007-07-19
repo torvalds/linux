@@ -218,9 +218,7 @@ extern struct page *empty_zero_page;
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-#define pte_read(pte)                   (!(pte_val(pte) & _PAGE_NOT_USER))
 #define pte_write(pte)                  (!(pte_val(pte) & _PAGE_READONLY))
-#define pte_exec(pte)                   (!(pte_val(pte) & _PAGE_NOT_USER))
 #define pte_dirty(pte)                  (!(pte_val(pte) & _PAGE_CLEAN))
 #define pte_young(pte)                  (!(pte_val(pte) & _PAGE_OLD))
 //ONLY when !pte_present() I think. nicked from arm32 (FIXME!)
@@ -231,8 +229,6 @@ static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
 PTE_BIT_FUNC(wrprotect, |=  _PAGE_READONLY);
 PTE_BIT_FUNC(mkwrite,   &= ~_PAGE_READONLY);
-PTE_BIT_FUNC(exprotect, |=  _PAGE_NOT_USER);
-PTE_BIT_FUNC(mkexec,    &= ~_PAGE_NOT_USER);
 PTE_BIT_FUNC(mkclean,   |=  _PAGE_CLEAN);
 PTE_BIT_FUNC(mkdirty,   &= ~_PAGE_CLEAN);
 PTE_BIT_FUNC(mkold,     |=  _PAGE_OLD);

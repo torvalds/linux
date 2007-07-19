@@ -196,6 +196,8 @@ static int fill_pid(pid_t pid, struct task_struct *tsk,
 
 	/* fill in basic acct fields */
 	stats->version = TASKSTATS_VERSION;
+	stats->nvcsw = tsk->nvcsw;
+	stats->nivcsw = tsk->nivcsw;
 	bacct_add_tsk(stats, tsk);
 
 	/* fill in extended acct fields */
@@ -242,6 +244,8 @@ static int fill_tgid(pid_t tgid, struct task_struct *first,
 		 */
 		delayacct_add_tsk(stats, tsk);
 
+		stats->nvcsw += tsk->nvcsw;
+		stats->nivcsw += tsk->nivcsw;
 	} while_each_thread(first, tsk);
 
 	unlock_task_sighand(first, &flags);

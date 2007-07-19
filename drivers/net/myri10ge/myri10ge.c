@@ -60,6 +60,7 @@
 #include <linux/crc32.h>
 #include <linux/moduleparam.h>
 #include <linux/io.h>
+#include <linux/log2.h>
 #include <net/checksum.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1059,7 +1060,6 @@ static inline void myri10ge_tx_done(struct myri10ge_priv *mgp, int mcp_index)
 	struct myri10ge_tx_buf *tx = &mgp->tx;
 	struct sk_buff *skb;
 	int idx, len;
-	int limit = 0;
 
 	while (tx->pkt_done != mcp_index) {
 		idx = tx->done & tx->mask;
@@ -1090,11 +1090,6 @@ static inline void myri10ge_tx_done(struct myri10ge_priv *mgp, int mcp_index)
 							      bus), len,
 					       PCI_DMA_TODEVICE);
 		}
-
-		/* limit potential for livelock by only handling
-		 * 2 full tx rings per call */
-		if (unlikely(++limit > 2 * tx->mask))
-			break;
 	}
 	/* start the queue if we've stopped it */
 	if (netif_queue_stopped(mgp->dev)
@@ -1804,7 +1799,7 @@ static int myri10ge_open(struct net_device *dev)
 	 */
 	big_pow2 = dev->mtu + ETH_HLEN + VLAN_HLEN + MXGEFW_PAD;
 	if (big_pow2 < MYRI10GE_ALLOC_SIZE / 2) {
-		while ((big_pow2 & (big_pow2 - 1)) != 0)
+		while (!is_power_of_2(big_pow2))
 			big_pow2++;
 		mgp->big_bytes = dev->mtu + ETH_HLEN + VLAN_HLEN + MXGEFW_PAD;
 	} else {
@@ -2853,6 +2848,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(dev, "Could not allocate ethernet device\n");
 		return -ENOMEM;
 	}
+
+	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	mgp = netdev_priv(netdev);
 	memset(mgp, 0, sizeof(*mgp));

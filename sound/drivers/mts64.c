@@ -1048,7 +1048,7 @@ static struct platform_driver snd_mts64_driver = {
 /*********************************************************************
  * module init stuff
  *********************************************************************/
-static void __init_or_module snd_mts64_unregister_all(void)
+static void snd_mts64_unregister_all(void)
 {
 	int i;
 

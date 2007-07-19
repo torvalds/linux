@@ -35,6 +35,7 @@ int afs_abort_to_error(u32 abort_code)
 	case VOVERQUOTA:	return -EDQUOT;
 	case VBUSY:		return -EBUSY;
 	case VMOVED:		return -ENXIO;
+	case 0x2f6df0a:		return -EWOULDBLOCK;
 	case 0x2f6df0c:		return -EACCES;
 	case 0x2f6df0f:		return -EBUSY;
 	case 0x2f6df10:		return -EEXIST;

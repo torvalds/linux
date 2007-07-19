@@ -6,7 +6,6 @@
 
 #ifdef __KERNEL__
 #include <linux/list.h>
-#include <linux/spinlock.h>
 
 /*
  * Real Time signals may be queued.

@@ -785,7 +785,6 @@ static void __de_set_rx_mode (struct net_device *dev)
 
 	de->tx_head = NEXT_TX(entry);
 
-	BUG_ON(TX_BUFFS_AVAIL(de) < 0);
 	if (TX_BUFFS_AVAIL(de) == 0)
 		netif_stop_queue(dev);
 

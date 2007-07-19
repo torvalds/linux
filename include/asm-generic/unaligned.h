@@ -18,7 +18,8 @@
 #define get_unaligned(ptr) \
 	__get_unaligned((ptr), sizeof(*(ptr)))
 #define put_unaligned(x,ptr) \
-	__put_unaligned((__u64)(x), (ptr), sizeof(*(ptr)))
+	((void)sizeof(*(ptr)=(x)),\
+	__put_unaligned((__force __u64)(x), (ptr), sizeof(*(ptr))))
 
 /*
  * This function doesn't actually exist.  The idea is that when
@@ -95,21 +96,21 @@ static inline void __ustw(__u16 val, __u16 *addr)
 	default:				\
 		bad_unaligned_access_length();	\
 	};					\
-	(__typeof__(*(ptr)))val;		\
+	(__force __typeof__(*(ptr)))val;	\
 })
 
 #define __put_unaligned(val, ptr, size)		\
-do {						\
+({						\
 	void *__gu_p = ptr;			\
 	switch (size) {				\
 	case 1:					\
-		*(__u8 *)__gu_p = val;		\
+		*(__u8 *)__gu_p = (__force __u8)val;		\
 	        break;				\
 	case 2:					\
-		__ustw(val, __gu_p);		\
+		__ustw((__force __u16)val, __gu_p);		\
 		break;				\
 	case 4:					\
-		__ustl(val, __gu_p);		\
+		__ustl((__force __u32)val, __gu_p);		\
 		break;				\
 	case 8:					\
 		__ustq(val, __gu_p);		\
@@ -117,6 +118,7 @@ do {						\
 	default:				\
 	    	bad_unaligned_access_length();	\
 	};					\
-} while(0)
+	(void)0;				\
+})
 
 #endif /* _ASM_GENERIC_UNALIGNED_H */

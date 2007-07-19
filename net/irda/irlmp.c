@@ -116,7 +116,7 @@ int __init irlmp_init(void)
  *    Remove IrLMP layer
  *
  */
-void __exit irlmp_cleanup(void)
+void irlmp_cleanup(void)
 {
 	/* Check for main structure */
 	IRDA_ASSERT(irlmp != NULL, return;);
@@ -1994,7 +1994,7 @@ static int irlmp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irlmp_seq_ops = {
+static const struct seq_operations irlmp_seq_ops = {
 	.start  = irlmp_seq_start,
 	.next   = irlmp_seq_next,
 	.stop   = irlmp_seq_stop,

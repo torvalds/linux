@@ -282,13 +282,21 @@ int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol)
 		mtd->flags = MTD_WRITEABLE;
 	mtd->writesize  = ubi->min_io_size;
 	mtd->owner      = THIS_MODULE;
-	mtd->size       = vol->usable_leb_size * vol->reserved_pebs;
 	mtd->erasesize  = vol->usable_leb_size;
 	mtd->read       = gluebi_read;
 	mtd->write      = gluebi_write;
 	mtd->erase      = gluebi_erase;
 	mtd->get_device = gluebi_get_device;
 	mtd->put_device = gluebi_put_device;
+
+	/*
+	 * In case of dynamic volume, MTD device size is just volume size. In
+	 * case of a static volume the size is equivalent to the amount of data
+	 * bytes, which is zero at this moment and will be changed after volume
+	 * update.
+	 */
+	if (vol->vol_type == UBI_DYNAMIC_VOLUME)
+		mtd->size = vol->usable_leb_size * vol->reserved_pebs;
 
 	if (add_mtd_device(mtd)) {
 		ubi_err("cannot not add MTD device\n");
@@ -320,4 +328,21 @@ int ubi_destroy_gluebi(struct ubi_volume *vol)
 		return err;
 	kfree(mtd->name);
 	return 0;
+}
+
+/**
+ * ubi_gluebi_updated - UBI volume was updated notifier.
+ * @vol: volume description object
+ *
+ * This function is called every time an UBI volume is updated. This function
+ * does nothing if volume @vol is dynamic, and changes MTD device size if the
+ * volume is static. This is needed because static volumes cannot be read past
+ * data they contain.
+ */
+void ubi_gluebi_updated(struct ubi_volume *vol)
+{
+	struct mtd_info *mtd = &vol->gluebi_mtd;
+
+	if (vol->vol_type == UBI_STATIC_VOLUME)
+		mtd->size = vol->used_bytes;
 }

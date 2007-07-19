@@ -1406,7 +1406,7 @@ static void migrate_hrtimers(int cpu)
 static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 					unsigned long action, void *hcpu)
 {
-	long cpu = (long)hcpu;
+	unsigned int cpu = (long)hcpu;
 
 	switch (action) {
 

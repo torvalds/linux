@@ -94,7 +94,7 @@ extern struct tblock *TxBlock;	/* transaction block table */
  */
 struct tlock {
 	lid_t next;		/* 2: index next lockword on tid locklist
-				 *          next lockword on freelist
+				 *	    next lockword on freelist
 				 */
 	tid_t tid;		/* 2: transaction id holding lock */
 

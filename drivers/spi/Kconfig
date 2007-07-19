@@ -107,6 +107,15 @@ config SPI_IMX
 	  This enables using the Freescale iMX SPI controller in master
 	  mode.
 
+config SPI_LM70_LLP
+	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
+	depends on SPI_MASTER && PARPORT && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This driver supports the NS LM70 LLP Evaluation Board,
+	  which interfaces to an LM70 temperature sensor using
+	  a parallel port.
+
 config SPI_MPC52xx_PSC
 	tristate "Freescale MPC52xx PSC SPI controller"
 	depends on SPI_MASTER && PPC_MPC52xx && EXPERIMENTAL
@@ -133,6 +142,12 @@ config SPI_OMAP_UWIRE
 	help
 	  This hooks up to the MicroWire controller on OMAP1 chips.
 
+config SPI_OMAP24XX
+	tristate "McSPI driver for OMAP24xx"
+	depends on SPI_MASTER && ARCH_OMAP24XX
+	help
+	  SPI master controller for OMAP24xx Multichannel SPI
+	  (McSPI) modules.
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
@@ -145,17 +160,36 @@ config SPI_PXA2XX
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
 	depends on SPI_MASTER && ARCH_S3C2410 && EXPERIMENTAL
+	select SPI_BITBANG
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
 
 config SPI_S3C24XX_GPIO
 	tristate "Samsung S3C24XX series SPI by GPIO"
-	depends on SPI_MASTER && ARCH_S3C2410 && SPI_BITBANG && EXPERIMENTAL
+	depends on SPI_MASTER && ARCH_S3C2410 && EXPERIMENTAL
+	select SPI_BITBANG
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs using
 	  GPIO lines to provide the SPI bus. This can be used where
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
+
+config SPI_TXX9
+	tristate "Toshiba TXx9 SPI controller"
+	depends on SPI_MASTER && GENERIC_GPIO && CPU_TX49XX
+	help
+	  SPI driver for Toshiba TXx9 MIPS SoCs
+
+config SPI_XILINX
+	tristate "Xilinx SPI controller"
+	depends on SPI_MASTER && XILINX_VIRTEX && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This exposes the SPI controller IP from the Xilinx EDK.
+
+	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
+	  Product Specification document (DS464) for hardware details.
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
@@ -186,6 +220,15 @@ config SPI_SPIDEV
 
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
+
+config SPI_TLE62X0
+	tristate "Infineon TLE62X0 (for power switching)"
+	depends on SPI_MASTER && SYSFS
+	help
+	  SPI driver for Infineon TLE62X0 series line driver chips,
+	  such as the TLE6220, TLE6230 and TLE6240.  This provides a
+	  sysfs interface, with each line presented as a kind of GPIO
+	  exposing both switch control and diagnostic feedback.
 
 #
 # Add new SPI protocol masters in alphabetical order above this line

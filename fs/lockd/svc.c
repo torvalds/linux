@@ -25,6 +25,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -75,18 +76,31 @@ static const int		nlm_port_min = 0, nlm_port_max = 65535;
 
 static struct ctl_table_header * nlm_sysctl_table;
 
-static unsigned long set_grace_period(void)
+static unsigned long get_lockd_grace_period(void)
 {
-	unsigned long grace_period;
-
 	/* Note: nlm_timeout should always be nonzero */
 	if (nlm_grace_period)
-		grace_period = ((nlm_grace_period + nlm_timeout - 1)
-				/ nlm_timeout) * nlm_timeout * HZ;
+		return roundup(nlm_grace_period, nlm_timeout) * HZ;
 	else
-		grace_period = nlm_timeout * 5 * HZ;
+		return nlm_timeout * 5 * HZ;
+}
+
+unsigned long get_nfs_grace_period(void)
+{
+	unsigned long lockdgrace = get_lockd_grace_period();
+	unsigned long nfsdgrace = 0;
+
+	if (nlmsvc_ops)
+		nfsdgrace = nlmsvc_ops->get_grace_period();
+
+	return max(lockdgrace, nfsdgrace);
+}
+EXPORT_SYMBOL(get_nfs_grace_period);
+
+static unsigned long set_grace_period(void)
+{
 	nlmsvc_grace_period = 1;
-	return grace_period + jiffies;
+	return get_nfs_grace_period() + jiffies;
 }
 
 static inline void clear_grace_period(void)
@@ -119,12 +133,10 @@ lockd(struct svc_rqst *rqstp)
 	complete(&lockd_start_done);
 
 	daemonize("lockd");
+	set_freezable();
 
 	/* Process request with signals blocked, but allow SIGKILL.  */
 	allow_signal(SIGKILL);
-
-	/* kick rpciod */
-	rpciod_up();
 
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
@@ -201,9 +213,6 @@ lockd(struct svc_rqst *rqstp)
 
 	/* Exit the RPC thread */
 	svc_exit_thread(rqstp);
-
-	/* release rpciod */
-	rpciod_down();
 
 	/* Release module */
 	unlock_kernel();

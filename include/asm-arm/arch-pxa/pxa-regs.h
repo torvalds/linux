@@ -1765,28 +1765,8 @@
 #define SSACD_P(x) (*(((x) == 1) ? &SSACD_P1 : ((x) == 2) ? &SSACD_P2 : ((x) == 3) ? &SSACD_P3 : NULL))
 
 /*
- * MultiMediaCard (MMC) controller
+ * MultiMediaCard (MMC) controller - see drivers/mmc/host/pxamci.h
  */
-
-#define MMC_STRPCL	__REG(0x41100000)  /* Control to start and stop MMC clock */
-#define MMC_STAT	__REG(0x41100004)  /* MMC Status Register (read only) */
-#define MMC_CLKRT	__REG(0x41100008)  /* MMC clock rate */
-#define MMC_SPI		__REG(0x4110000c)  /* SPI mode control bits */
-#define MMC_CMDAT	__REG(0x41100010)  /* Command/response/data sequence control */
-#define MMC_RESTO	__REG(0x41100014)  /* Expected response time out */
-#define MMC_RDTO	__REG(0x41100018)  /* Expected data read time out */
-#define MMC_BLKLEN	__REG(0x4110001c)  /* Block length of data transaction */
-#define MMC_NOB		__REG(0x41100020)  /* Number of blocks, for block mode */
-#define MMC_PRTBUF	__REG(0x41100024)  /* Partial MMC_TXFIFO FIFO written */
-#define MMC_I_MASK	__REG(0x41100028)  /* Interrupt Mask */
-#define MMC_I_REG	__REG(0x4110002c)  /* Interrupt Register (read only) */
-#define MMC_CMD		__REG(0x41100030)  /* Index of current command */
-#define MMC_ARGH	__REG(0x41100034)  /* MSW part of the current command argument */
-#define MMC_ARGL	__REG(0x41100038)  /* LSW part of the current command argument */
-#define MMC_RES		__REG(0x4110003c)  /* Response FIFO (read only) */
-#define MMC_RXFIFO	__REG(0x41100040)  /* Receive FIFO (read only) */
-#define MMC_TXFIFO	__REG(0x41100044)  /* Transmit FIFO (write only) */
-
 
 /*
  * Core Clock

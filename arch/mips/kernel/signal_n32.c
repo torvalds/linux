@@ -72,7 +72,7 @@ struct ucontextn32 {
 struct rt_sigframe_n32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
 	u32 rs_code[2];			/* signal trampoline */
-	struct siginfo rs_info;
+	struct compat_siginfo rs_info;
 	struct ucontextn32 rs_uc;
 };
 
@@ -81,7 +81,7 @@ struct rt_sigframe_n32 {
 struct rt_sigframe_n32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
 	u32 rs_pad[2];
-	struct siginfo rs_info;
+	struct compat_siginfo rs_info;
 	struct ucontextn32 rs_uc;
 	u32 rs_code[8] ____cacheline_aligned;		/* signal trampoline */
 };
@@ -187,7 +187,7 @@ static int setup_rt_frame_n32(struct k_sigaction * ka,
 	install_sigtramp(frame->rs_code, __NR_N32_rt_sigreturn);
 
 	/* Create siginfo.  */
-	err |= copy_siginfo_to_user(&frame->rs_info, info);
+	err |= copy_siginfo_to_user32(&frame->rs_info, info);
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);

@@ -68,11 +68,27 @@ module_init(eraseconfig_init);
  * IRL3 = crypto
  */
 
-static struct ipr_data snapgear_ipr_map[] = {
-	make_ipr_irq(IRL0_IRQ, IRL0_IPR_ADDR, IRL0_IPR_POS, IRL0_PRIORITY);
-	make_ipr_irq(IRL1_IRQ, IRL1_IPR_ADDR, IRL1_IPR_POS, IRL1_PRIORITY);
-	make_ipr_irq(IRL2_IRQ, IRL2_IPR_ADDR, IRL2_IPR_POS, IRL2_PRIORITY);
-	make_ipr_irq(IRL3_IRQ, IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY);
+static struct ipr_data ipr_irq_table[] = {
+	{ IRL0_IRQ, 0, IRL0_IPR_POS, IRL0_PRIORITY },
+	{ IRL1_IRQ, 0, IRL1_IPR_POS, IRL1_PRIORITY },
+	{ IRL2_IRQ, 0, IRL2_IPR_POS, IRL2_PRIORITY },
+	{ IRL3_IRQ, 0, IRL3_IPR_POS, IRL3_PRIORITY },
+};
+
+static unsigned long ipr_offsets[] = {
+	INTC_IPRD,
+};
+
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
+
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+
+	.chip = {
+		.name	= "IPR-snapgear",
+	},
 };
 
 static void __init init_snapgear_IRQ(void)
@@ -82,7 +98,7 @@ static void __init init_snapgear_IRQ(void)
 
 	printk("Setup SnapGear IRQ/IPR ...\n");
 
-	make_ipr_irq(snapgear_ipr_map, ARRAY_SIZE(snapgear_ipr_map));
+	register_ipr_controller(&ipr_irq_desc);
 }
 
 /*
@@ -96,7 +112,7 @@ static void __init snapgear_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_snapgear __initmv = {
+static struct sh_machine_vector mv_snapgear __initmv = {
 	.mv_name		= "SnapGear SecureEdge5410",
 	.mv_setup		= snapgear_setup,
 	.mv_nr_irqs		= 72,
@@ -117,4 +133,3 @@ struct sh_machine_vector mv_snapgear __initmv = {
 
 	.mv_init_irq		= init_snapgear_IRQ,
 };
-ALIAS_MV(snapgear)

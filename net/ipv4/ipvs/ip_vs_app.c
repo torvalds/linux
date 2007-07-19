@@ -549,7 +549,7 @@ static int ip_vs_app_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ip_vs_app_seq_ops = {
+static const struct seq_operations ip_vs_app_seq_ops = {
 	.start = ip_vs_app_seq_start,
 	.next  = ip_vs_app_seq_next,
 	.stop  = ip_vs_app_seq_stop,

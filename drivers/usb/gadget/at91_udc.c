@@ -601,25 +601,6 @@ static void at91_ep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	kfree(req);
 }
 
-static void *at91_ep_alloc_buffer(
-	struct usb_ep *_ep,
-	unsigned bytes,
-	dma_addr_t *dma,
-	gfp_t gfp_flags)
-{
-	*dma = ~0;
-	return kmalloc(bytes, gfp_flags);
-}
-
-static void at91_ep_free_buffer(
-	struct usb_ep *ep,
-	void *buf,
-	dma_addr_t dma,
-	unsigned bytes)
-{
-	kfree(buf);
-}
-
 static int at91_ep_queue(struct usb_ep *_ep,
 			struct usb_request *_req, gfp_t gfp_flags)
 {
@@ -788,8 +769,6 @@ static const struct usb_ep_ops at91_ep_ops = {
 	.disable	= at91_ep_disable,
 	.alloc_request	= at91_ep_alloc_request,
 	.free_request	= at91_ep_free_request,
-	.alloc_buffer	= at91_ep_alloc_buffer,
-	.free_buffer	= at91_ep_free_buffer,
 	.queue		= at91_ep_queue,
 	.dequeue	= at91_ep_dequeue,
 	.set_halt	= at91_ep_set_halt,

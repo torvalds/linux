@@ -114,6 +114,7 @@ struct atmel_uart_port {
 	struct uart_port	uart;		/* uart */
 	struct clk		*clk;		/* uart clock */
 	unsigned short		suspended;	/* is port suspended? */
+	int			break_active;	/* break being received */
 };
 
 static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
@@ -252,6 +253,7 @@ static void atmel_break_ctl(struct uart_port *port, int break_state)
  */
 static void atmel_rx_chars(struct uart_port *port)
 {
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flg;
 
@@ -267,13 +269,29 @@ static void atmel_rx_chars(struct uart_port *port)
 		 * note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (unlikely(status & (ATMEL_US_PARE | ATMEL_US_FRAME | ATMEL_US_OVRE | ATMEL_US_RXBRK))) {
+		if (unlikely(status & (ATMEL_US_PARE | ATMEL_US_FRAME
+				       | ATMEL_US_OVRE | ATMEL_US_RXBRK)
+			     || atmel_port->break_active)) {
 			UART_PUT_CR(port, ATMEL_US_RSTSTA);	/* clear error */
-			if (status & ATMEL_US_RXBRK) {
+			if (status & ATMEL_US_RXBRK
+			    && !atmel_port->break_active) {
 				status &= ~(ATMEL_US_PARE | ATMEL_US_FRAME);	/* ignore side-effect */
 				port->icount.brk++;
+				atmel_port->break_active = 1;
+				UART_PUT_IER(port, ATMEL_US_RXBRK);
 				if (uart_handle_break(port))
 					goto ignore_char;
+			} else {
+				/*
+				 * This is either the end-of-break
+				 * condition or we've received at
+				 * least one character without RXBRK
+				 * being set. In both cases, the next
+				 * RXBRK will indicate start-of-break.
+				 */
+				UART_PUT_IDR(port, ATMEL_US_RXBRK);
+				status &= ~ATMEL_US_RXBRK;
+				atmel_port->break_active = 0;
 			}
 			if (status & ATMEL_US_PARE)
 				port->icount.parity++;
@@ -352,6 +370,16 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 		/* Interrupt receive */
 		if (pending & ATMEL_US_RXRDY)
 			atmel_rx_chars(port);
+		else if (pending & ATMEL_US_RXBRK) {
+			/*
+			 * End of break detected. If it came along
+			 * with a character, atmel_rx_chars will
+			 * handle it.
+			 */
+			UART_PUT_CR(port, ATMEL_US_RSTSTA);
+			UART_PUT_IDR(port, ATMEL_US_RXBRK);
+			atmel_port->break_active = 0;
+		}
 
 		// TODO: All reads to CSR will clear these interrupts!
 		if (pending & ATMEL_US_RIIC) port->icount.rng++;

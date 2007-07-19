@@ -40,7 +40,11 @@ GLOBAL_ENTRY(mca_handler_bhhook)
 	mov	b6=loc1
 	;;
 	mov	loc1=rp
-	ssm	psr.i | psr.ic
+	ssm	psr.ic
+	;;
+	srlz.i
+	;;
+	ssm	psr.i
 	br.call.sptk.many rp=b6		// does not return ...
 	;;
 	mov	ar.pfs=loc0

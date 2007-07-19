@@ -258,7 +258,7 @@ static void recv_handler(struct work_struct *work)
 	if ((!ap) || (ap->release_in_progress))
 		return;
 
-	down(&ap->recv_sem);
+	mutex_lock(&ap->recv_mtx);
 	while ((skb = skb_dequeue(&ap->recv_queue))) {
 		if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3_IND)
 			ap->nrecvdatapkt++;
@@ -267,7 +267,7 @@ static void recv_handler(struct work_struct *work)
 
 		ap->recv_message(ap, skb);
 	}
-	up(&ap->recv_sem);
+	mutex_unlock(&ap->recv_mtx);
 }
 
 void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *skb)
@@ -547,7 +547,7 @@ u16 capi20_register(struct capi20_appl *ap)
 	ap->nsentctlpkt = 0;
 	ap->nsentdatapkt = 0;
 	ap->callback = NULL;
-	init_MUTEX(&ap->recv_sem);
+	mutex_init(&ap->recv_mtx);
 	skb_queue_head_init(&ap->recv_queue);
 	INIT_WORK(&ap->recv_work, recv_handler);
 	ap->release_in_progress = 0;

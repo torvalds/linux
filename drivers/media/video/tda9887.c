@@ -11,6 +11,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
+#include "tuner-driver.h"
 
 
 /* Chips:
@@ -29,6 +30,9 @@
 		printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
+struct tda9887_priv {
+	unsigned char 	   data[4];
+};
 
 /* ---------------------------------------------------------------------- */
 
@@ -508,10 +512,11 @@ static int tda9887_status(struct tuner *t)
 static void tda9887_configure(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
+	struct tda9887_priv *priv = t->priv;
 	int rc;
 
-	memset(t->tda9887_data,0,sizeof(t->tda9887_data));
-	tda9887_set_tvnorm(t,t->tda9887_data);
+	memset(priv->data,0,sizeof(priv->data));
+	tda9887_set_tvnorm(t,priv->data);
 
 	/* A note on the port settings:
 	   These settings tend to depend on the specifics of the board.
@@ -526,22 +531,22 @@ static void tda9887_configure(struct i2c_client *client)
 	   the ports should be set to active (0), but, again, that may
 	   differ depending on the precise hardware configuration.
 	 */
-	t->tda9887_data[1] |= cOutputPort1Inactive;
-	t->tda9887_data[1] |= cOutputPort2Inactive;
+	priv->data[1] |= cOutputPort1Inactive;
+	priv->data[1] |= cOutputPort2Inactive;
 
-	tda9887_set_config(t,t->tda9887_data);
-	tda9887_set_insmod(t,t->tda9887_data);
+	tda9887_set_config(t,priv->data);
+	tda9887_set_insmod(t,priv->data);
 
 	if (t->mode == T_STANDBY) {
-		t->tda9887_data[1] |= cForcedMuteAudioON;
+		priv->data[1] |= cForcedMuteAudioON;
 	}
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
-		t->tda9887_data[1],t->tda9887_data[2],t->tda9887_data[3]);
+		priv->data[1],priv->data[2],priv->data[3]);
 	if (tuner_debug > 1)
-		dump_write_message(t, t->tda9887_data);
+		dump_write_message(t, priv->data);
 
-	if (4 != (rc = i2c_master_send(&t->i2c,t->tda9887_data,4)))
+	if (4 != (rc = i2c_master_send(&t->i2c,priv->data,4)))
 		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (tuner_debug > 2) {
@@ -555,7 +560,8 @@ static void tda9887_configure(struct i2c_client *client)
 static void tda9887_tuner_status(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
-	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", t->tda9887_data[1], t->tda9887_data[2], t->tda9887_data[3]);
+	struct tda9887_priv *priv = t->priv;
+	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", priv->data[1], priv->data[2], priv->data[3]);
 }
 
 static int tda9887_get_afc(struct i2c_client *client)
@@ -586,20 +592,39 @@ static void tda9887_set_freq(struct i2c_client *client, unsigned int freq)
 	tda9887_configure(client);
 }
 
-int tda9887_tuner_init(struct i2c_client *c)
+static void tda9887_release(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
+static struct tuner_operations tda9887_tuner_ops = {
+	.set_tv_freq    = tda9887_set_freq,
+	.set_radio_freq = tda9887_set_freq,
+	.standby        = tda9887_standby,
+	.tuner_status   = tda9887_tuner_status,
+	.get_afc        = tda9887_get_afc,
+	.release        = tda9887_release,
+};
+
+int tda9887_tuner_init(struct i2c_client *c)
+{
+	struct tda9887_priv *priv = NULL;
+	struct tuner *t = i2c_get_clientdata(c);
+
+	priv = kzalloc(sizeof(struct tda9887_priv), GFP_KERNEL);
+	if (priv == NULL)
+		return -ENOMEM;
+	t->priv = priv;
 
 	strlcpy(c->name, "tda9887", sizeof(c->name));
 
 	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
 						t->i2c.driver->driver.name);
 
-	t->set_tv_freq = tda9887_set_freq;
-	t->set_radio_freq = tda9887_set_freq;
-	t->standby = tda9887_standby;
-	t->tuner_status = tda9887_tuner_status;
-	t->get_afc = tda9887_get_afc;
+	memcpy(&t->ops, &tda9887_tuner_ops, sizeof(struct tuner_operations));
 
 	return 0;
 }

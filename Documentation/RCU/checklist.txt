@@ -222,7 +222,15 @@ over a rather long period of time, but improvements are always welcome!
 	deadlock as soon as the RCU callback happens to interrupt that
 	acquisition's critical section.
 
-13.	SRCU (srcu_read_lock(), srcu_read_unlock(), and synchronize_srcu())
+13.	RCU callbacks can be and are executed in parallel.  In many cases,
+	the callback code simply wrappers around kfree(), so that this
+	is not an issue (or, more accurately, to the extent that it is
+	an issue, the memory-allocator locking handles it).  However,
+	if the callbacks do manipulate a shared data structure, they
+	must use whatever locking or other synchronization is required
+	to safely access and/or modify that data structure.
+
+14.	SRCU (srcu_read_lock(), srcu_read_unlock(), and synchronize_srcu())
 	may only be invoked from process context.  Unlike other forms of
 	RCU, it -is- permissible to block in an SRCU read-side critical
 	section (demarked by srcu_read_lock() and srcu_read_unlock()),

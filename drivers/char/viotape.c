@@ -873,12 +873,12 @@ free_op:
 }
 
 const struct file_operations viotap_fops = {
-	owner: THIS_MODULE,
-	read: viotap_read,
-	write: viotap_write,
-	ioctl: viotap_ioctl,
-	open: viotap_open,
-	release: viotap_release,
+	.owner =	THIS_MODULE,
+	.read =		viotap_read,
+	.write =	viotap_write,
+	.ioctl =	viotap_ioctl,
+	.open =		viotap_open,
+	.release =	viotap_release,
 };
 
 /* Handle interrupt events for tape */

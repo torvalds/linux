@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -32,6 +32,7 @@
 #include "trans.h"
 #include "rgrp.h"
 #include "ops_file.h"
+#include "super.h"
 #include "util.h"
 #include "glops.h"
 
@@ -49,6 +50,8 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 		end = start + bsize;
 		if (end <= from || start >= to)
 			continue;
+		if (gfs2_is_jdata(ip))
+			set_buffer_uptodate(bh);
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	}
 }
@@ -134,7 +137,9 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		return 0; /* don't care */
 	}
 
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) {
+	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) &&
+	    PageChecked(page)) {
+		ClearPageChecked(page);
 		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
 		if (error)
 			goto out_ignore;
@@ -203,11 +208,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	 * so we need to supply one here. It doesn't happen often.
 	 */
 	if (unlikely(page->index)) {
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr, 0, PAGE_CACHE_SIZE);
-		kunmap_atomic(kaddr, KM_USER0);
-		flush_dcache_page(page);
-		SetPageUptodate(page);
+		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
 		return 0;
 	}
 
@@ -450,6 +451,31 @@ out_uninit:
 }
 
 /**
+ * adjust_fs_space - Adjusts the free space available due to gfs2_grow
+ * @inode: the rindex inode
+ */
+static void adjust_fs_space(struct inode *inode)
+{
+	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
+	u64 fs_total, new_free;
+
+	/* Total up the file system space, according to the latest rindex. */
+	fs_total = gfs2_ri_total(sdp);
+
+	spin_lock(&sdp->sd_statfs_spin);
+	if (fs_total > (m_sc->sc_total + l_sc->sc_total))
+		new_free = fs_total - (m_sc->sc_total + l_sc->sc_total);
+	else
+		new_free = 0;
+	spin_unlock(&sdp->sd_statfs_spin);
+	fs_warn(sdp, "File system extended by %llu blocks.\n",
+		(unsigned long long)new_free);
+	gfs2_statfs_change(sdp, new_free, new_free, 0);
+}
+
+/**
  * gfs2_commit_write - Commit write to a file
  * @file: The file to write to
  * @page: The page containing the data
@@ -511,6 +537,9 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		di->di_size = cpu_to_be64(inode->i_size);
 	}
 
+	if (inode == sdp->sd_rindex)
+		adjust_fs_space(inode);
+
 	brelse(dibh);
 	gfs2_trans_end(sdp);
 	if (al->al_requested) {
@@ -540,6 +569,23 @@ fail_endtrans:
 fail_nounlock:
 	ClearPageUptodate(page);
 	return error;
+}
+
+/**
+ * gfs2_set_page_dirty - Page dirtying function
+ * @page: The page to dirty
+ *
+ * Returns: 1 if it dirtyed the page, or 0 otherwise
+ */
+ 
+static int gfs2_set_page_dirty(struct page *page)
+{
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		SetPageChecked(page);
+	return __set_page_dirty_buffers(page);
 }
 
 /**
@@ -578,6 +624,8 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (bd) {
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
+		if (!bd->bd_ail && list_empty(&bd->bd_le.le_list))
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 	gfs2_log_unlock(sdp);
 
@@ -598,6 +646,8 @@ static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 	unsigned int curr_off = 0;
 
 	BUG_ON(!PageLocked(page));
+	if (offset == 0)
+		ClearPageChecked(page);
 	if (!page_has_buffers(page))
 		return;
 
@@ -728,8 +778,8 @@ static unsigned limit = 0;
 			return;
 
 		fs_warn(sdp, "ip = %llu %llu\n",
-			(unsigned long long)ip->i_num.no_formal_ino,
-			(unsigned long long)ip->i_num.no_addr);
+			(unsigned long long)ip->i_no_formal_ino,
+			(unsigned long long)ip->i_no_addr);
 
 		for (x = 0; x < GFS2_MAX_META_HEIGHT; x++)
 			fs_warn(sdp, "ip->i_cache[%u] = %s\n",
@@ -810,6 +860,7 @@ const struct address_space_operations gfs2_file_aops = {
 	.sync_page = block_sync_page,
 	.prepare_write = gfs2_prepare_write,
 	.commit_write = gfs2_commit_write,
+	.set_page_dirty = gfs2_set_page_dirty,
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,

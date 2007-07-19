@@ -35,7 +35,7 @@ static struct sockaddr_un *new_addr(void *name, int len)
 {
 	struct sockaddr_un *sun;
 
-	sun = um_kmalloc(sizeof(struct sockaddr_un));
+	sun = kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
 	if(sun == NULL){
 		printk("new_addr: allocation of sockaddr_un failed\n");
 		return NULL;
@@ -83,7 +83,7 @@ static int connect_to_switch(struct daemon_data *pri)
 		goto out_close;
 	}
 
-	sun = um_kmalloc(sizeof(struct sockaddr_un));
+	sun = kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
 	if(sun == NULL){
 		printk("new_addr: allocation of sockaddr_un failed\n");
 		err = -ENOMEM;

@@ -24,12 +24,6 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_rule.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 #define NAT_VALID_HOOKS ((1<<NF_IP_PRE_ROUTING) | (1<<NF_IP_POST_ROUTING) | (1<<NF_IP_LOCAL_OUT))
 
 static struct
@@ -140,39 +134,39 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
 }
 
-static int ipt_snat_checkentry(const char *tablename,
-			       const void *entry,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hook_mask)
+static bool ipt_snat_checkentry(const char *tablename,
+				const void *entry,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hook_mask)
 {
 	struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		printk("SNAT: multiple ranges no longer supported\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static int ipt_dnat_checkentry(const char *tablename,
-			       const void *entry,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hook_mask)
+static bool ipt_dnat_checkentry(const char *tablename,
+				const void *entry,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hook_mask)
 {
 	struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		printk("DNAT: multiple ranges no longer supported\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-inline unsigned int
+unsigned int
 alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
 	/* Force range to this IP; let proto decide mapping for
@@ -186,8 +180,8 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 	struct nf_nat_range range
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { 0 }, { 0 } };
 
-	DEBUGP("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
-	       ct, NIPQUAD(ip));
+	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
+		 ct, NIPQUAD(ip));
 	return nf_nat_setup_info(ct, &range, hooknum);
 }
 
@@ -205,8 +199,8 @@ alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 	struct nf_nat_range range
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { all }, { all } };
 
-	DEBUGP("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
-	       ct, NIPQUAD(ip));
+	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
+		 ct, NIPQUAD(ip));
 	return nf_nat_setup_info(ct, &range, hooknum);
 }
 
@@ -228,7 +222,7 @@ int nf_nat_rule_find(struct sk_buff **pskb,
 	return ret;
 }
 
-static struct xt_target ipt_snat_reg = {
+static struct xt_target ipt_snat_reg __read_mostly = {
 	.name		= "SNAT",
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
@@ -238,7 +232,7 @@ static struct xt_target ipt_snat_reg = {
 	.family		= AF_INET,
 };
 
-static struct xt_target ipt_dnat_reg = {
+static struct xt_target ipt_dnat_reg __read_mostly = {
 	.name		= "DNAT",
 	.target		= ipt_dnat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),

@@ -24,8 +24,8 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("iptables ECN modification module");
 
 /* set ECT codepoint from IP header.
- * 	return 0 if there was an error. */
-static inline int
+ * 	return false if there was an error. */
+static inline bool
 set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct iphdr *iph = ip_hdr(*pskb);
@@ -33,18 +33,18 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		__u8 oldtos;
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
-			return 0;
+			return false;
 		iph = ip_hdr(*pskb);
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
 		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
 	}
-	return 1;
+	return true;
 }
 
-/* Return 0 if there was an error. */
-static inline int
+/* Return false if there was an error. */
+static inline bool
 set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct tcphdr _tcph, *tcph;
@@ -54,16 +54,16 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 	tcph = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 				  sizeof(_tcph), &_tcph);
 	if (!tcph)
-		return 0;
+		return false;
 
 	if ((!(einfo->operation & IPT_ECN_OP_SET_ECE) ||
 	     tcph->ece == einfo->proto.tcp.ece) &&
-	    ((!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
-	     tcph->cwr == einfo->proto.tcp.cwr)))
-		return 1;
+	    (!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
+	     tcph->cwr == einfo->proto.tcp.cwr))
+		return true;
 
 	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
-		return 0;
+		return false;
 	tcph = (void *)ip_hdr(*pskb) + ip_hdrlen(*pskb);
 
 	oldval = ((__be16 *)tcph)[6];
@@ -74,7 +74,7 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 
 	nf_proto_csum_replace2(&tcph->check, *pskb,
 				oldval, ((__be16 *)tcph)[6], 0);
-	return 1;
+	return true;
 }
 
 static unsigned int
@@ -99,7 +99,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
@@ -112,23 +112,23 @@ checkentry(const char *tablename,
 	if (einfo->operation & IPT_ECN_OP_MASK) {
 		printk(KERN_WARNING "ECN: unsupported ECN operation %x\n",
 			einfo->operation);
-		return 0;
+		return false;
 	}
 	if (einfo->ip_ect & ~IPT_ECN_IP_MASK) {
 		printk(KERN_WARNING "ECN: new ECT codepoint %x out of mask\n",
 			einfo->ip_ect);
-		return 0;
+		return false;
 	}
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR))
 	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
 		printk(KERN_WARNING "ECN: cannot use TCP operations on a "
 		       "non-tcp rule\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static struct xt_target ipt_ecn_reg = {
+static struct xt_target ipt_ecn_reg __read_mostly = {
 	.name		= "ECN",
 	.family		= AF_INET,
 	.target		= target,

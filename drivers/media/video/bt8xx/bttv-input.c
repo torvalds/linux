@@ -313,7 +313,7 @@ int bttv_input_init(struct bttv *btv)
 		input_dev->id.vendor  = btv->c.pci->vendor;
 		input_dev->id.product = btv->c.pci->device;
 	}
-	input_dev->cdev.dev = &btv->c.pci->dev;
+	input_dev->dev.parent = &btv->c.pci->dev;
 
 	btv->remote = ir;
 	bttv_ir_start(btv, ir);

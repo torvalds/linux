@@ -131,7 +131,8 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 	struct phy_device *phydev = to_phy_device(dev);
 	struct phy_driver *phydrv = to_phy_driver(drv);
 
-	return (phydrv->phy_id == (phydev->phy_id & phydrv->phy_id_mask));
+	return ((phydrv->phy_id & phydrv->phy_id_mask) ==
+		(phydev->phy_id & phydrv->phy_id_mask));
 }
 
 /* Suspend and resume.  Copied from platform_suspend and

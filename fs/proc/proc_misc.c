@@ -105,6 +105,7 @@ static int uptime_read_proc(char *page, char **start, off_t off,
 	cputime_t idletime = cputime_add(init_task.utime, init_task.stime);
 
 	do_posix_clock_monotonic_gettime(&uptime);
+	monotonic_to_bootbased(&uptime);
 	cputime_to_timespec(idletime, &idle);
 	len = sprintf(page,"%lu.%02lu %lu.%02lu\n",
 			(unsigned long) uptime.tv_sec,
@@ -443,12 +444,12 @@ static int show_stat(struct seq_file *p, void *v)
 	unsigned long jif;
 	cputime64_t user, nice, system, idle, iowait, irq, softirq, steal;
 	u64 sum = 0;
+	struct timespec boottime;
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
-	jif = - wall_to_monotonic.tv_sec;
-	if (wall_to_monotonic.tv_nsec)
-		--jif;
+	getboottime(&boottime);
+	jif = boottime.tv_sec;
 
 	for_each_possible_cpu(i) {
 		int j;

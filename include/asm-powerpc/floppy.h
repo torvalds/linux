@@ -29,7 +29,7 @@
 #define fd_free_irq()           free_irq(FLOPPY_IRQ, NULL);
 
 #include <linux/pci.h>
-#include <asm/ppc-pci.h>	/* for ppc64_isabridge_dev */
+#include <asm/ppc-pci.h>	/* for isa_bridge_pcidev */
 
 #define fd_dma_setup(addr,size,mode,io) fd_ops->_dma_setup(addr,size,mode,io)
 
@@ -139,12 +139,12 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	if (bus_addr 
 	    && (addr != prev_addr || size != prev_size || dir != prev_dir)) {
 		/* different from last time -- unmap prev */
-		pci_unmap_single(ppc64_isabridge_dev, bus_addr, prev_size, prev_dir);
+		pci_unmap_single(isa_bridge_pcidev, bus_addr, prev_size, prev_dir);
 		bus_addr = 0;
 	}
 
 	if (!bus_addr)	/* need to map it */
-		bus_addr = pci_map_single(ppc64_isabridge_dev, addr, size, dir);
+		bus_addr = pci_map_single(isa_bridge_pcidev, addr, size, dir);
 
 	/* remember this one as prev */
 	prev_addr = addr;

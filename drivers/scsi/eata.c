@@ -1609,8 +1609,9 @@ static int eata2x_detect(struct scsi_host_template *tpnt)
 
 static void map_dma(unsigned int i, struct hostdata *ha)
 {
-	unsigned int k, count, pci_dir;
-	struct scatterlist *sgpnt;
+	unsigned int k, pci_dir;
+	int count;
+	struct scatterlist *sg;
 	struct mscp *cpp;
 	struct scsi_cmnd *SCpnt;
 
@@ -1625,38 +1626,19 @@ static void map_dma(unsigned int i, struct hostdata *ha)
 
 	cpp->sense_len = sizeof SCpnt->sense_buffer;
 
-	if (!SCpnt->use_sg) {
-
-		/* If we get here with PCI_DMA_NONE, pci_map_single triggers a BUG() */
-		if (!SCpnt->request_bufflen)
-			pci_dir = PCI_DMA_BIDIRECTIONAL;
-
-		if (SCpnt->request_buffer)
-			cpp->data_address = H2DEV(pci_map_single(ha->pdev,
-								 SCpnt->
-								 request_buffer,
-								 SCpnt->
-								 request_bufflen,
-								 pci_dir));
-
-		cpp->data_len = H2DEV(SCpnt->request_bufflen);
-		return;
-	}
-
-	sgpnt = (struct scatterlist *)SCpnt->request_buffer;
-	count = pci_map_sg(ha->pdev, sgpnt, SCpnt->use_sg, pci_dir);
-
-	for (k = 0; k < count; k++) {
-		cpp->sglist[k].address = H2DEV(sg_dma_address(&sgpnt[k]));
-		cpp->sglist[k].num_bytes = H2DEV(sg_dma_len(&sgpnt[k]));
+	count = scsi_dma_map(SCpnt);
+	BUG_ON(count < 0);
+	scsi_for_each_sg(SCpnt, sg, count, k) {
+		cpp->sglist[k].address = H2DEV(sg_dma_address(sg));
+		cpp->sglist[k].num_bytes = H2DEV(sg_dma_len(sg));
 	}
 
 	cpp->sg = 1;
 	cpp->data_address = H2DEV(pci_map_single(ha->pdev, cpp->sglist,
-						 SCpnt->use_sg *
+						 scsi_sg_count(SCpnt) *
 						 sizeof(struct sg_list),
 						 pci_dir));
-	cpp->data_len = H2DEV((SCpnt->use_sg * sizeof(struct sg_list)));
+	cpp->data_len = H2DEV((scsi_sg_count(SCpnt) * sizeof(struct sg_list)));
 }
 
 static void unmap_dma(unsigned int i, struct hostdata *ha)
@@ -1673,9 +1655,7 @@ static void unmap_dma(unsigned int i, struct hostdata *ha)
 		pci_unmap_single(ha->pdev, DEV2H(cpp->sense_addr),
 				 DEV2H(cpp->sense_len), PCI_DMA_FROMDEVICE);
 
-	if (SCpnt->use_sg)
-		pci_unmap_sg(ha->pdev, SCpnt->request_buffer, SCpnt->use_sg,
-			     pci_dir);
+	scsi_dma_unmap(SCpnt);
 
 	if (!DEV2H(cpp->data_len))
 		pci_dir = PCI_DMA_BIDIRECTIONAL;
@@ -1700,9 +1680,9 @@ static void sync_dma(unsigned int i, struct hostdata *ha)
 					    DEV2H(cpp->sense_len),
 					    PCI_DMA_FROMDEVICE);
 
-	if (SCpnt->use_sg)
-		pci_dma_sync_sg_for_cpu(ha->pdev, SCpnt->request_buffer,
-					SCpnt->use_sg, pci_dir);
+	if (scsi_sg_count(SCpnt))
+		pci_dma_sync_sg_for_cpu(ha->pdev, scsi_sglist(SCpnt),
+					scsi_sg_count(SCpnt), pci_dir);
 
 	if (!DEV2H(cpp->data_len))
 		pci_dir = PCI_DMA_BIDIRECTIONAL;

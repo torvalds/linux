@@ -300,98 +300,72 @@ enpci_interrupt(int intno, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
-static struct pci_dev *dev_netjet __devinitdata = NULL;
-
-/* called by config.c */
-int __devinit
-setup_enternow_pci(struct IsdnCard *card)
+static int __devinit en_pci_probe(struct pci_dev *dev_netjet,
+				  struct IsdnCardState *cs)
 {
-	int bytecnt;
-	struct IsdnCardState *cs = card->cs;
-	char tmp[64];
-
-#ifdef CONFIG_PCI
-#ifdef __BIG_ENDIAN
-#error "not running on big endian machines now"
-#endif
-        strcpy(tmp, enternow_pci_rev);
-	printk(KERN_INFO "HiSax: Formula-n Europe AG enter:now ISDN PCI driver Rev. %s\n", HiSax_getrev(tmp));
-	if (cs->typ != ISDN_CTYPE_ENTERNOW)
+	if (pci_enable_device(dev_netjet))
 		return(0);
-	test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
-
-	for ( ;; )
-	{
-		if ((dev_netjet = pci_find_device(PCI_VENDOR_ID_TIGERJET,
-			PCI_DEVICE_ID_TIGERJET_300,  dev_netjet))) {
-			if (pci_enable_device(dev_netjet))
-				return(0);
-			cs->irq = dev_netjet->irq;
-			if (!cs->irq) {
-				printk(KERN_WARNING "enter:now PCI: No IRQ for PCI card found\n");
-				return(0);
-			}
-			cs->hw.njet.base = pci_resource_start(dev_netjet, 0);
-			if (!cs->hw.njet.base) {
-				printk(KERN_WARNING "enter:now PCI: No IO-Adr for PCI card found\n");
-				return(0);
-			}
-                        /* checks Sub-Vendor ID because system crashes with Traverse-Card */
-			if ((dev_netjet->subsystem_vendor != 0x55) ||
-				(dev_netjet->subsystem_device != 0x02)) {
-				printk(KERN_WARNING "enter:now: You tried to load this driver with an incompatible TigerJet-card\n");
-                                printk(KERN_WARNING "Use type=20 for Traverse NetJet PCI Card.\n");
-                                return(0);
-                        }
-		} else {
-                        printk(KERN_WARNING "enter:now PCI: No PCI card found\n");
-			return(0);
-		}
-
-		cs->hw.njet.auxa = cs->hw.njet.base + NETJET_AUXDATA;
-		cs->hw.njet.isac = cs->hw.njet.base + 0xC0; // Fenster zum AMD
-
-		/* Reset an */
-		cs->hw.njet.ctrl_reg = 0x07;  // geändert von 0xff
-		outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
-		/* 20 ms Pause */
-		mdelay(20);
-
-		cs->hw.njet.ctrl_reg = 0x30;  /* Reset Off and status read clear */
-		outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
-		mdelay(10);
-
-		cs->hw.njet.auxd = 0x00; // war 0xc0
-		cs->hw.njet.dmactrl = 0;
-
-		outb(~TJ_AMD_IRQ, cs->hw.njet.base + NETJET_AUXCTRL);
-		outb(TJ_AMD_IRQ, cs->hw.njet.base + NETJET_IRQMASK1);
-		outb(cs->hw.njet.auxd, cs->hw.njet.auxa);
-
-		break;
+	cs->irq = dev_netjet->irq;
+	if (!cs->irq) {
+		printk(KERN_WARNING "enter:now PCI: No IRQ for PCI card found\n");
+		return(0);
 	}
-#else
+	cs->hw.njet.base = pci_resource_start(dev_netjet, 0);
+	if (!cs->hw.njet.base) {
+		printk(KERN_WARNING "enter:now PCI: No IO-Adr for PCI card found\n");
+		return(0);
+	}
+	/* checks Sub-Vendor ID because system crashes with Traverse-Card */
+	if ((dev_netjet->subsystem_vendor != 0x55) ||
+	    (dev_netjet->subsystem_device != 0x02)) {
+		printk(KERN_WARNING "enter:now: You tried to load this driver with an incompatible TigerJet-card\n");
+		printk(KERN_WARNING "Use type=20 for Traverse NetJet PCI Card.\n");
+		return(0);
+	}
 
-	printk(KERN_WARNING "enter:now PCI: NO_PCI_BIOS\n");
-	printk(KERN_WARNING "enter:now PCI: unable to config Formula-n enter:now ISDN PCI ab\n");
-	return (0);
+	return(1);
+}
 
-#endif /* CONFIG_PCI */
+static void __devinit en_cs_init(struct IsdnCard *card,
+				 struct IsdnCardState *cs)
+{
+	cs->hw.njet.auxa = cs->hw.njet.base + NETJET_AUXDATA;
+	cs->hw.njet.isac = cs->hw.njet.base + 0xC0; // Fenster zum AMD
 
-	bytecnt = 256;
+	/* Reset an */
+	cs->hw.njet.ctrl_reg = 0x07;  // geändert von 0xff
+	outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
+	/* 20 ms Pause */
+	mdelay(20);
+
+	cs->hw.njet.ctrl_reg = 0x30;  /* Reset Off and status read clear */
+	outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
+	mdelay(10);
+
+	cs->hw.njet.auxd = 0x00; // war 0xc0
+	cs->hw.njet.dmactrl = 0;
+
+	outb(~TJ_AMD_IRQ, cs->hw.njet.base + NETJET_AUXCTRL);
+	outb(TJ_AMD_IRQ, cs->hw.njet.base + NETJET_IRQMASK1);
+	outb(cs->hw.njet.auxd, cs->hw.njet.auxa);
+}
+
+static int __devinit en_cs_init_rest(struct IsdnCard *card,
+				     struct IsdnCardState *cs)
+{
+	const int bytecnt = 256;
 
 	printk(KERN_INFO
 		"enter:now PCI: PCI card configured at 0x%lx IRQ %d\n",
 		cs->hw.njet.base, cs->irq);
 	if (!request_region(cs->hw.njet.base, bytecnt, "Fn_ISDN")) {
 		printk(KERN_WARNING
-			   "HiSax: %s config port %lx-%lx already in use\n",
-			   CardType[card->typ],
-			   cs->hw.njet.base,
-			   cs->hw.njet.base + bytecnt);
+		       "HiSax: enter:now config port %lx-%lx already in use\n",
+		       cs->hw.njet.base,
+		       cs->hw.njet.base + bytecnt);
 		return (0);
 	}
+
 	setup_Amd7930(cs);
 	cs->hw.njet.last_is0 = 0;
         /* macro rByteAMD */
@@ -407,5 +381,44 @@ setup_enternow_pci(struct IsdnCard *card)
 	cs->irq_func = &enpci_interrupt;
 	cs->irq_flags |= IRQF_SHARED;
 
-        return (1);
+	return (1);
+}
+
+static struct pci_dev *dev_netjet __devinitdata = NULL;
+
+/* called by config.c */
+int __devinit
+setup_enternow_pci(struct IsdnCard *card)
+{
+	int ret;
+	struct IsdnCardState *cs = card->cs;
+	char tmp[64];
+
+#ifdef __BIG_ENDIAN
+#error "not running on big endian machines now"
+#endif
+
+        strcpy(tmp, enternow_pci_rev);
+	printk(KERN_INFO "HiSax: Formula-n Europe AG enter:now ISDN PCI driver Rev. %s\n", HiSax_getrev(tmp));
+	if (cs->typ != ISDN_CTYPE_ENTERNOW)
+		return(0);
+	test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
+
+	for ( ;; )
+	{
+		if ((dev_netjet = pci_find_device(PCI_VENDOR_ID_TIGERJET,
+			PCI_DEVICE_ID_TIGERJET_300,  dev_netjet))) {
+			ret = en_pci_probe(dev_netjet, cs);
+			if (!ret)
+				return(0);
+		} else {
+                        printk(KERN_WARNING "enter:now PCI: No PCI card found\n");
+			return(0);
+		}
+
+		en_cs_init(card, cs);
+		break;
+	}
+
+        return en_cs_init_rest(card, cs);
 }

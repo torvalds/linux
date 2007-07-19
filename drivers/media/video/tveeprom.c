@@ -183,7 +183,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Silicon TDA8275C1 8290 FM"},
 	{ TUNER_ABSENT,        "Thompson DTT757"},
 	/* 80-89 */
-	{ TUNER_ABSENT,        "Philips FQ1216LME MK3"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "Philips FQ1216LME MK3"},
 	{ TUNER_LG_PAL_NEW_TAPC, "LG TAPC G701D"},
 	{ TUNER_LG_NTSC_NEW_TAPC, "LG TAPC H791F"},
 	{ TUNER_LG_PAL_NEW_TAPC, "TCL 2002MB 3"},
@@ -490,7 +490,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			to indicate 4052 mux was removed in favor of using MSP
 			inputs directly. */
 			audioic = eeprom_data[i+2] & 0x7f;
-			if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
 				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
@@ -523,7 +523,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			to indicate 4052 mux was removed in favor of using MSP
 			inputs directly. */
 			audioic = eeprom_data[i+1] & 0x7f;
-			if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
 				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
@@ -678,7 +678,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		tveeprom_info("audio processor is unknown (no idx)\n");
 		tvee->audio_processor=AUDIO_CHIP_UNKNOWN;
 	} else {
-		if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+		if (audioic < ARRAY_SIZE(audioIC))
 			tveeprom_info("audio processor is %s (idx %d)\n",
 					audioIC[audioic].name,audioic);
 		else

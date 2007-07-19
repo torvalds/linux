@@ -5,11 +5,9 @@
 # Parport configuration.
 #
 
-menu "Parallel port support"
-	depends on HAS_IOMEM
-
-config PARPORT
+menuconfig PARPORT
 	tristate "Parallel port support"
+	depends on HAS_IOMEM
 	---help---
 	  If you want to use devices connected to your machine's parallel port
 	  (the connector at the computer with 25 holes), e.g. printer, ZIP
@@ -33,9 +31,11 @@ config PARPORT
 
 	  If unsure, say Y.
 
+if PARPORT
+
 config PARPORT_PC
 	tristate "PC-style hardware"
-	depends on PARPORT && (!SPARC64 || PCI) && !SPARC32 && !M32R && !FRV
+	depends on (!SPARC64 || PCI) && !SPARC32 && !M32R && !FRV
 	---help---
 	  You should say Y here if you have a PC-style parallel port. All
 	  IBM PC compatible computers and some Alphas have PC-style
@@ -85,7 +85,7 @@ config PARPORT_PC_PCMCIA
 
 config PARPORT_IP32
 	tristate "SGI IP32 builtin port (EXPERIMENTAL)"
-	depends on SGI_IP32 && PARPORT && EXPERIMENTAL
+	depends on SGI_IP32 && EXPERIMENTAL
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need support for the parallel port on
@@ -94,7 +94,7 @@ config PARPORT_IP32
 
 config PARPORT_AMIGA
 	tristate "Amiga builtin port"
-	depends on AMIGA && PARPORT
+	depends on AMIGA
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need support for the parallel port hardware on
@@ -103,7 +103,7 @@ config PARPORT_AMIGA
 
 config PARPORT_MFC3
 	tristate "Multiface III parallel port"
-	depends on ZORRO && PARPORT
+	depends on ZORRO
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need parallel port support for the MFC3 card.
@@ -112,7 +112,7 @@ config PARPORT_MFC3
 
 config PARPORT_ATARI
 	tristate "Atari hardware"
-	depends on ATARI && PARPORT
+	depends on ATARI
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need support for the parallel port hardware on
@@ -122,12 +122,11 @@ config PARPORT_ATARI
 config PARPORT_GSC
 	tristate
 	default GSC
-	depends on PARPORT
 	select PARPORT_NOT_PC
 
 config PARPORT_SUNBPP
 	tristate "Sparc hardware (EXPERIMENTAL)"
-	depends on SBUS && PARPORT && EXPERIMENTAL
+	depends on SBUS && EXPERIMENTAL
 	select PARPORT_NOT_PC
 	help
 	  This driver provides support for the bidirectional parallel port
@@ -136,7 +135,6 @@ config PARPORT_SUNBPP
 
 config PARPORT_AX88796
 	tristate "AX88796 Parallel Port"
-	depends on PARPORT
 	select PARPORT_NOT_PC
 	help
 	  Say Y here if you need support for the parallel port hardware on
@@ -148,7 +146,6 @@ config PARPORT_AX88796
 
 config PARPORT_1284
 	bool "IEEE 1284 transfer modes"
-	depends on PARPORT
 	help
 	  If you have a printer that supports status readback or device ID, or
 	  want to use a device that uses enhanced parallel port transfer modes
@@ -159,5 +156,4 @@ config PARPORT_1284
 config PARPORT_NOT_PC
 	bool
 
-endmenu
-
+endif # PARPORT

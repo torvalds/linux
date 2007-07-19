@@ -22,6 +22,8 @@ There are three different groups of fields in the struct taskstats:
     /* Extended accounting fields end */
     Their values are collected if CONFIG_TASK_XACCT is set.
 
+4) Per-task and per-thread context switch count statistics
+
 Future extension should add fields to the end of the taskstats struct, and
 should not change the relative position of each field within the struct.
 
@@ -157,5 +159,9 @@ struct taskstats {
 	__u64	write_syscalls;		/* write syscalls */
 
 	/* Extended accounting fields end */
+
+4) Per-task and per-thread statistics
+	__u64	nvcsw;			/* Context voluntary switch counter */
+	__u64	nivcsw;			/* Context involuntary switch counter */
 
 }

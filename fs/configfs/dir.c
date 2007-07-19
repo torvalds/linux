@@ -355,6 +355,10 @@ static int configfs_detach_prep(struct dentry *dentry)
 			/* Mark that we've taken i_mutex */
 			sd->s_type |= CONFIGFS_USET_DROPPING;
 
+			/*
+			 * Yup, recursive.  If there's a problem, blame
+			 * deep nesting of default_groups
+			 */
 			ret = configfs_detach_prep(sd->s_dentry);
 			if (!ret)
 				continue;
@@ -562,7 +566,7 @@ static int populate_groups(struct config_group *group)
 
 /*
  * All of link_obj/unlink_obj/link_group/unlink_group require that
- * subsys->su_sem is held.
+ * subsys->su_mutex is held.
  */
 
 static void unlink_obj(struct config_item *item)
@@ -714,6 +718,28 @@ static void configfs_detach_group(struct config_item *item)
 }
 
 /*
+ * After the item has been detached from the filesystem view, we are
+ * ready to tear it out of the hierarchy.  Notify the client before
+ * we do that so they can perform any cleanup that requires
+ * navigating the hierarchy.  A client does not need to provide this
+ * callback.  The subsystem semaphore MUST be held by the caller, and
+ * references must be valid for both items.  It also assumes the
+ * caller has validated ci_type.
+ */
+static void client_disconnect_notify(struct config_item *parent_item,
+				     struct config_item *item)
+{
+	struct config_item_type *type;
+
+	type = parent_item->ci_type;
+	BUG_ON(!type);
+
+	if (type->ct_group_ops && type->ct_group_ops->disconnect_notify)
+		type->ct_group_ops->disconnect_notify(to_config_group(parent_item),
+						      item);
+}
+
+/*
  * Drop the initial reference from make_item()/make_group()
  * This function assumes that reference is held on item
  * and that item holds a valid reference to the parent.  Also, it
@@ -733,11 +759,244 @@ static void client_drop_item(struct config_item *parent_item,
 	 */
 	if (type->ct_group_ops && type->ct_group_ops->drop_item)
 		type->ct_group_ops->drop_item(to_config_group(parent_item),
-						item);
+					      item);
 	else
 		config_item_put(item);
 }
 
+#ifdef DEBUG
+static void configfs_dump_one(struct configfs_dirent *sd, int level)
+{
+	printk(KERN_INFO "%*s\"%s\":\n", level, " ", configfs_get_name(sd));
+
+#define type_print(_type) if (sd->s_type & _type) printk(KERN_INFO "%*s %s\n", level, " ", #_type);
+	type_print(CONFIGFS_ROOT);
+	type_print(CONFIGFS_DIR);
+	type_print(CONFIGFS_ITEM_ATTR);
+	type_print(CONFIGFS_ITEM_LINK);
+	type_print(CONFIGFS_USET_DIR);
+	type_print(CONFIGFS_USET_DEFAULT);
+	type_print(CONFIGFS_USET_DROPPING);
+#undef type_print
+}
+
+static int configfs_dump(struct configfs_dirent *sd, int level)
+{
+	struct configfs_dirent *child_sd;
+	int ret = 0;
+
+	configfs_dump_one(sd, level);
+
+	if (!(sd->s_type & (CONFIGFS_DIR|CONFIGFS_ROOT)))
+		return 0;
+
+	list_for_each_entry(child_sd, &sd->s_children, s_sibling) {
+		ret = configfs_dump(child_sd, level + 2);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+#endif
+
+
+/*
+ * configfs_depend_item() and configfs_undepend_item()
+ *
+ * WARNING: Do not call these from a configfs callback!
+ *
+ * This describes these functions and their helpers.
+ *
+ * Allow another kernel system to depend on a config_item.  If this
+ * happens, the item cannot go away until the dependant can live without
+ * it.  The idea is to give client modules as simple an interface as
+ * possible.  When a system asks them to depend on an item, they just
+ * call configfs_depend_item().  If the item is live and the client
+ * driver is in good shape, we'll happily do the work for them.
+ *
+ * Why is the locking complex?  Because configfs uses the VFS to handle
+ * all locking, but this function is called outside the normal
+ * VFS->configfs path.  So it must take VFS locks to prevent the
+ * VFS->configfs stuff (configfs_mkdir(), configfs_rmdir(), etc).  This is
+ * why you can't call these functions underneath configfs callbacks.
+ *
+ * Note, btw, that this can be called at *any* time, even when a configfs
+ * subsystem isn't registered, or when configfs is loading or unloading.
+ * Just like configfs_register_subsystem().  So we take the same
+ * precautions.  We pin the filesystem.  We lock each i_mutex _in_order_
+ * on our way down the tree.  If we can find the target item in the
+ * configfs tree, it must be part of the subsystem tree as well, so we
+ * do not need the subsystem semaphore.  Holding the i_mutex chain locks
+ * out mkdir() and rmdir(), who might be racing us.
+ */
+
+/*
+ * configfs_depend_prep()
+ *
+ * Only subdirectories count here.  Files (CONFIGFS_NOT_PINNED) are
+ * attributes.  This is similar but not the same to configfs_detach_prep().
+ * Note that configfs_detach_prep() expects the parent to be locked when it
+ * is called, but we lock the parent *inside* configfs_depend_prep().  We
+ * do that so we can unlock it if we find nothing.
+ *
+ * Here we do a depth-first search of the dentry hierarchy looking for
+ * our object.  We take i_mutex on each step of the way down.  IT IS
+ * ESSENTIAL THAT i_mutex LOCKING IS ORDERED.  If we come back up a branch,
+ * we'll drop the i_mutex.
+ *
+ * If the target is not found, -ENOENT is bubbled up and we have released
+ * all locks.  If the target was found, the locks will be cleared by
+ * configfs_depend_rollback().
+ *
+ * This adds a requirement that all config_items be unique!
+ *
+ * This is recursive because the locking traversal is tricky.  There isn't
+ * much on the stack, though, so folks that need this function - be careful
+ * about your stack!  Patches will be accepted to make it iterative.
+ */
+static int configfs_depend_prep(struct dentry *origin,
+				struct config_item *target)
+{
+	struct configfs_dirent *child_sd, *sd = origin->d_fsdata;
+	int ret = 0;
+
+	BUG_ON(!origin || !sd);
+
+	/* Lock this guy on the way down */
+	mutex_lock(&sd->s_dentry->d_inode->i_mutex);
+	if (sd->s_element == target)  /* Boo-yah */
+		goto out;
+
+	list_for_each_entry(child_sd, &sd->s_children, s_sibling) {
+		if (child_sd->s_type & CONFIGFS_DIR) {
+			ret = configfs_depend_prep(child_sd->s_dentry,
+						   target);
+			if (!ret)
+				goto out;  /* Child path boo-yah */
+		}
+	}
+
+	/* We looped all our children and didn't find target */
+	mutex_unlock(&sd->s_dentry->d_inode->i_mutex);
+	ret = -ENOENT;
+
+out:
+	return ret;
+}
+
+/*
+ * This is ONLY called if configfs_depend_prep() did its job.  So we can
+ * trust the entire path from item back up to origin.
+ *
+ * We walk backwards from item, unlocking each i_mutex.  We finish by
+ * unlocking origin.
+ */
+static void configfs_depend_rollback(struct dentry *origin,
+				     struct config_item *item)
+{
+	struct dentry *dentry = item->ci_dentry;
+
+	while (dentry != origin) {
+		mutex_unlock(&dentry->d_inode->i_mutex);
+		dentry = dentry->d_parent;
+	}
+
+	mutex_unlock(&origin->d_inode->i_mutex);
+}
+
+int configfs_depend_item(struct configfs_subsystem *subsys,
+			 struct config_item *target)
+{
+	int ret;
+	struct configfs_dirent *p, *root_sd, *subsys_sd = NULL;
+	struct config_item *s_item = &subsys->su_group.cg_item;
+
+	/*
+	 * Pin the configfs filesystem.  This means we can safely access
+	 * the root of the configfs filesystem.
+	 */
+	ret = configfs_pin_fs();
+	if (ret)
+		return ret;
+
+	/*
+	 * Next, lock the root directory.  We're going to check that the
+	 * subsystem is really registered, and so we need to lock out
+	 * configfs_[un]register_subsystem().
+	 */
+	mutex_lock(&configfs_sb->s_root->d_inode->i_mutex);
+
+	root_sd = configfs_sb->s_root->d_fsdata;
+
+	list_for_each_entry(p, &root_sd->s_children, s_sibling) {
+		if (p->s_type & CONFIGFS_DIR) {
+			if (p->s_element == s_item) {
+				subsys_sd = p;
+				break;
+			}
+		}
+	}
+
+	if (!subsys_sd) {
+		ret = -ENOENT;
+		goto out_unlock_fs;
+	}
+
+	/* Ok, now we can trust subsys/s_item */
+
+	/* Scan the tree, locking i_mutex recursively, return 0 if found */
+	ret = configfs_depend_prep(subsys_sd->s_dentry, target);
+	if (ret)
+		goto out_unlock_fs;
+
+	/* We hold all i_mutexes from the subsystem down to the target */
+	p = target->ci_dentry->d_fsdata;
+	p->s_dependent_count += 1;
+
+	configfs_depend_rollback(subsys_sd->s_dentry, target);
+
+out_unlock_fs:
+	mutex_unlock(&configfs_sb->s_root->d_inode->i_mutex);
+
+	/*
+	 * If we succeeded, the fs is pinned via other methods.  If not,
+	 * we're done with it anyway.  So release_fs() is always right.
+	 */
+	configfs_release_fs();
+
+	return ret;
+}
+EXPORT_SYMBOL(configfs_depend_item);
+
+/*
+ * Release the dependent linkage.  This is much simpler than
+ * configfs_depend_item() because we know that that the client driver is
+ * pinned, thus the subsystem is pinned, and therefore configfs is pinned.
+ */
+void configfs_undepend_item(struct configfs_subsystem *subsys,
+			    struct config_item *target)
+{
+	struct configfs_dirent *sd;
+
+	/*
+	 * Since we can trust everything is pinned, we just need i_mutex
+	 * on the item.
+	 */
+	mutex_lock(&target->ci_dentry->d_inode->i_mutex);
+
+	sd = target->ci_dentry->d_fsdata;
+	BUG_ON(sd->s_dependent_count < 1);
+
+	sd->s_dependent_count -= 1;
+
+	/*
+	 * After this unlock, we cannot trust the item to stay alive!
+	 * DO NOT REFERENCE item after this unlock.
+	 */
+	mutex_unlock(&target->ci_dentry->d_inode->i_mutex);
+}
+EXPORT_SYMBOL(configfs_undepend_item);
 
 static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
@@ -783,7 +1042,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	snprintf(name, dentry->d_name.len + 1, "%s", dentry->d_name.name);
 
-	down(&subsys->su_sem);
+	mutex_lock(&subsys->su_mutex);
 	group = NULL;
 	item = NULL;
 	if (type->ct_group_ops->make_group) {
@@ -797,7 +1056,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		if (item)
 			link_obj(parent_item, item);
 	}
-	up(&subsys->su_sem);
+	mutex_unlock(&subsys->su_mutex);
 
 	kfree(name);
 	if (!item) {
@@ -841,13 +1100,16 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 out_unlink:
 	if (ret) {
 		/* Tear down everything we built up */
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
+
+		client_disconnect_notify(parent_item, item);
 		if (group)
 			unlink_group(group);
 		else
 			unlink_obj(item);
 		client_drop_item(parent_item, item);
-		up(&subsys->su_sem);
+
+		mutex_unlock(&subsys->su_mutex);
 
 		if (module_got)
 			module_put(owner);
@@ -881,6 +1143,13 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DEFAULT)
 		return -EPERM;
 
+	/*
+	 * Here's where we check for dependents.  We're protected by
+	 * i_mutex.
+	 */
+	if (sd->s_dependent_count)
+		return -EBUSY;
+
 	/* Get a working ref until we have the child */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	subsys = to_config_group(parent_item)->cg_subsys;
@@ -910,17 +1179,19 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DIR) {
 		configfs_detach_group(item);
 
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
+		client_disconnect_notify(parent_item, item);
 		unlink_group(to_config_group(item));
 	} else {
 		configfs_detach_item(item);
 
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
+		client_disconnect_notify(parent_item, item);
 		unlink_obj(item);
 	}
 
 	client_drop_item(parent_item, item);
-	up(&subsys->su_sem);
+	mutex_unlock(&subsys->su_mutex);
 
 	/* Drop our reference from above */
 	config_item_put(item);

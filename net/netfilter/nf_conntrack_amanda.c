@@ -142,23 +142,22 @@ static int amanda_help(struct sk_buff **pskb,
 		if (port == 0 || len > 5)
 			break;
 
-		exp = nf_conntrack_expect_alloc(ct);
+		exp = nf_ct_expect_alloc(ct);
 		if (exp == NULL) {
 			ret = NF_DROP;
 			goto out;
 		}
 		tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-		nf_conntrack_expect_init(exp, family,
-					 &tuple->src.u3, &tuple->dst.u3,
-					 IPPROTO_TCP, NULL, &port);
+		nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+				  IPPROTO_TCP, NULL, &port);
 
 		nf_nat_amanda = rcu_dereference(nf_nat_amanda_hook);
 		if (nf_nat_amanda && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_amanda(pskb, ctinfo, off - dataoff,
 					    len, exp);
-		else if (nf_conntrack_expect_related(exp) != 0)
+		else if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
-		nf_conntrack_expect_put(exp);
+		nf_ct_expect_put(exp);
 	}
 
 out:
@@ -175,9 +174,6 @@ static struct nf_conntrack_helper amanda_helper[2] __read_mostly = {
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.udp.port	= __constant_htons(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 	},
 	{
 		.name			= "amanda",
@@ -188,9 +184,6 @@ static struct nf_conntrack_helper amanda_helper[2] __read_mostly = {
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.udp.port	= __constant_htons(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 	},
 };
 

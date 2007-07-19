@@ -29,6 +29,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
+#include <linux/serial_8250.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -58,10 +59,6 @@ static void __init mb93090_display(void);
 static void __init setup_linux_memory(void);
 #else
 static void __init setup_uclinux_memory(void);
-#endif
-
-#ifdef CONFIG_CONSOLE
-extern struct consw *conswitchp;
 #endif
 
 #ifdef CONFIG_MB93090_MB00
@@ -795,13 +792,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 
-#if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
-	/* we need to initialize the Flashrom device here since we might
-	 * do things with flash early on in the boot
-	 */
-	flash_probe();
-#endif
-
 	/* deal with the command line - RedBoot may have passed one to the kernel */
 	memcpy(command_line, boot_command_line, sizeof(command_line));
 	*cmdline_p = &command_line[0];
@@ -836,11 +826,6 @@ void __init setup_arch(char **cmdline_p)
         conswitchp = &dummy_con;
 #endif
 #endif
-
-#ifdef CONFIG_BLK_DEV_BLKMEM
-	ROOT_DEV = MKDEV(BLKMEM_MAJOR,0);
-#endif
-	/*rom_length = (unsigned long)&_flashend - (unsigned long)&_romvec;*/
 
 #ifdef CONFIG_MMU
 	setup_linux_memory();

@@ -30,6 +30,54 @@
  *
  */
 
+/*
+	Theory of operation
+	-------------------
+
+	The SX4 (PDC20621) chip features a single Host DMA (HDMA) copy
+	engine, DIMM memory, and four ATA engines (one per SATA port).
+	Data is copied to/from DIMM memory by the HDMA engine, before
+	handing off to one (or more) of the ATA engines.  The ATA
+	engines operate solely on DIMM memory.
+
+	The SX4 behaves like a PATA chip, with no SATA controls or
+	knowledge whatsoever, leading to the presumption that
+	PATA<->SATA bridges exist on SX4 boards, external to the
+	PDC20621 chip itself.
+
+	The chip is quite capable, supporting an XOR engine and linked
+	hardware commands (permits a string to transactions to be
+	submitted and waited-on as a single unit), and an optional
+	microprocessor.
+
+	The limiting factor is largely software.  This Linux driver was
+	written to multiplex the single HDMA engine to copy disk
+	transactions into a fixed DIMM memory space, from where an ATA
+	engine takes over.  As a result, each WRITE looks like this:
+
+		submit HDMA packet to hardware
+		hardware copies data from system memory to DIMM
+		hardware raises interrupt
+
+		submit ATA packet to hardware
+		hardware executes ATA WRITE command, w/ data in DIMM
+		hardware raises interrupt
+	
+	and each READ looks like this:
+
+		submit ATA packet to hardware
+		hardware executes ATA READ command, w/ data in DIMM
+		hardware raises interrupt
+	
+		submit HDMA packet to hardware
+		hardware copies data from DIMM to system memory
+		hardware raises interrupt
+
+	This is a very slow, lock-step way of doing things that can
+	certainly be improved by motivated kernel hackers.
+
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -57,6 +105,8 @@ enum {
 	PDC_HDMA_PKT_SUBMIT	= 0x100, /* Host DMA packet pointer addr */
 	PDC_INT_SEQMASK		= 0x40,	/* Mask of asserted SEQ INTs */
 	PDC_HDMA_CTLSTAT	= 0x12C, /* Host DMA control / status */
+
+	PDC_CTLSTAT		= 0x60,	/* IDEn control / status */
 
 	PDC_20621_SEQCTL	= 0x400,
 	PDC_20621_SEQMASK	= 0x480,
@@ -87,48 +137,60 @@ enum {
 
 	board_20621		= 0,	/* FastTrak S150 SX4 */
 
-	PDC_RESET		= (1 << 11), /* HDMA reset */
+	PDC_MASK_INT		= (1 << 10), /* HDMA/ATA mask int */
+	PDC_RESET		= (1 << 11), /* HDMA/ATA reset */
+	PDC_DMA_ENABLE		= (1 << 7),  /* DMA start/stop */
 
 	PDC_MAX_HDMA		= 32,
 	PDC_HDMA_Q_MASK		= (PDC_MAX_HDMA - 1),
 
-	PDC_DIMM0_SPD_DEV_ADDRESS     = 0x50,
-	PDC_DIMM1_SPD_DEV_ADDRESS     = 0x51,
-	PDC_MAX_DIMM_MODULE           = 0x02,
-	PDC_I2C_CONTROL_OFFSET        = 0x48,
-	PDC_I2C_ADDR_DATA_OFFSET      = 0x4C,
-	PDC_DIMM0_CONTROL_OFFSET      = 0x80,
-	PDC_DIMM1_CONTROL_OFFSET      = 0x84,
-	PDC_SDRAM_CONTROL_OFFSET      = 0x88,
-	PDC_I2C_WRITE                 = 0x00000000,
-	PDC_I2C_READ                  = 0x00000040,
-	PDC_I2C_START                 = 0x00000080,
-	PDC_I2C_MASK_INT              = 0x00000020,
-	PDC_I2C_COMPLETE              = 0x00010000,
-	PDC_I2C_NO_ACK                = 0x00100000,
-	PDC_DIMM_SPD_SUBADDRESS_START = 0x00,
-	PDC_DIMM_SPD_SUBADDRESS_END   = 0x7F,
-	PDC_DIMM_SPD_ROW_NUM          = 3,
-	PDC_DIMM_SPD_COLUMN_NUM       = 4,
-	PDC_DIMM_SPD_MODULE_ROW       = 5,
-	PDC_DIMM_SPD_TYPE             = 11,
-	PDC_DIMM_SPD_FRESH_RATE       = 12,
-	PDC_DIMM_SPD_BANK_NUM         = 17,
-	PDC_DIMM_SPD_CAS_LATENCY      = 18,
-	PDC_DIMM_SPD_ATTRIBUTE        = 21,
-	PDC_DIMM_SPD_ROW_PRE_CHARGE   = 27,
-	PDC_DIMM_SPD_ROW_ACTIVE_DELAY = 28,
-	PDC_DIMM_SPD_RAS_CAS_DELAY    = 29,
-	PDC_DIMM_SPD_ACTIVE_PRECHARGE = 30,
-	PDC_DIMM_SPD_SYSTEM_FREQ      = 126,
-	PDC_CTL_STATUS		      = 0x08,
-	PDC_DIMM_WINDOW_CTLR	      = 0x0C,
-	PDC_TIME_CONTROL              = 0x3C,
-	PDC_TIME_PERIOD               = 0x40,
-	PDC_TIME_COUNTER              = 0x44,
-	PDC_GENERAL_CTLR	      = 0x484,
-	PCI_PLL_INIT                  = 0x8A531824,
-	PCI_X_TCOUNT                  = 0xEE1E5CFF
+	PDC_DIMM0_SPD_DEV_ADDRESS	= 0x50,
+	PDC_DIMM1_SPD_DEV_ADDRESS	= 0x51,
+	PDC_I2C_CONTROL			= 0x48,
+	PDC_I2C_ADDR_DATA		= 0x4C,
+	PDC_DIMM0_CONTROL		= 0x80,
+	PDC_DIMM1_CONTROL		= 0x84,
+	PDC_SDRAM_CONTROL		= 0x88,
+	PDC_I2C_WRITE			= 0,		/* master -> slave */
+	PDC_I2C_READ			= (1 << 6),	/* master <- slave */
+	PDC_I2C_START			= (1 << 7),	/* start I2C proto */
+	PDC_I2C_MASK_INT		= (1 << 5),	/* mask I2C interrupt */
+	PDC_I2C_COMPLETE		= (1 << 16),	/* I2C normal compl. */
+	PDC_I2C_NO_ACK			= (1 << 20),	/* slave no-ack addr */
+	PDC_DIMM_SPD_SUBADDRESS_START	= 0x00,
+	PDC_DIMM_SPD_SUBADDRESS_END	= 0x7F,
+	PDC_DIMM_SPD_ROW_NUM		= 3,
+	PDC_DIMM_SPD_COLUMN_NUM		= 4,
+	PDC_DIMM_SPD_MODULE_ROW		= 5,
+	PDC_DIMM_SPD_TYPE		= 11,
+	PDC_DIMM_SPD_FRESH_RATE		= 12,
+	PDC_DIMM_SPD_BANK_NUM		= 17,
+	PDC_DIMM_SPD_CAS_LATENCY	= 18,
+	PDC_DIMM_SPD_ATTRIBUTE		= 21,
+	PDC_DIMM_SPD_ROW_PRE_CHARGE	= 27,
+	PDC_DIMM_SPD_ROW_ACTIVE_DELAY	= 28,
+	PDC_DIMM_SPD_RAS_CAS_DELAY	= 29,
+	PDC_DIMM_SPD_ACTIVE_PRECHARGE	= 30,
+	PDC_DIMM_SPD_SYSTEM_FREQ	= 126,
+	PDC_CTL_STATUS			= 0x08,
+	PDC_DIMM_WINDOW_CTLR		= 0x0C,
+	PDC_TIME_CONTROL		= 0x3C,
+	PDC_TIME_PERIOD			= 0x40,
+	PDC_TIME_COUNTER		= 0x44,
+	PDC_GENERAL_CTLR		= 0x484,
+	PCI_PLL_INIT			= 0x8A531824,
+	PCI_X_TCOUNT			= 0xEE1E5CFF,
+
+	/* PDC_TIME_CONTROL bits */
+	PDC_TIMER_BUZZER		= (1 << 10),
+	PDC_TIMER_MODE_PERIODIC		= 0,		/* bits 9:8 == 00 */
+	PDC_TIMER_MODE_ONCE		= (1 << 8),	/* bits 9:8 == 01 */
+	PDC_TIMER_ENABLE		= (1 << 7),
+	PDC_TIMER_MASK_INT		= (1 << 5),
+	PDC_TIMER_SEQ_MASK		= 0x1f,		/* SEQ ID for timer */
+	PDC_TIMER_DEFAULT		= PDC_TIMER_MODE_ONCE |
+					  PDC_TIMER_ENABLE |
+					  PDC_TIMER_MASK_INT,
 };
 
 
@@ -217,7 +279,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_20621_ops,
 	},
 
@@ -999,17 +1061,17 @@ static unsigned int pdc20621_i2c_read(struct ata_host *host, u32 device,
 	i2creg |= subaddr << 16;
 
 	/* Set the device and subaddress */
-	writel(i2creg, mmio + PDC_I2C_ADDR_DATA_OFFSET);
-	readl(mmio + PDC_I2C_ADDR_DATA_OFFSET);
+	writel(i2creg, mmio + PDC_I2C_ADDR_DATA);
+	readl(mmio + PDC_I2C_ADDR_DATA);
 
 	/* Write Control to perform read operation, mask int */
 	writel(PDC_I2C_READ | PDC_I2C_START | PDC_I2C_MASK_INT,
-	       mmio + PDC_I2C_CONTROL_OFFSET);
+	       mmio + PDC_I2C_CONTROL);
 
 	for (count = 0; count <= 1000; count ++) {
-		status = readl(mmio + PDC_I2C_CONTROL_OFFSET);
+		status = readl(mmio + PDC_I2C_CONTROL);
 		if (status & PDC_I2C_COMPLETE) {
-			status = readl(mmio + PDC_I2C_ADDR_DATA_OFFSET);
+			status = readl(mmio + PDC_I2C_ADDR_DATA);
 			break;
 		} else if (count == 1000)
 			return 0;
@@ -1099,8 +1161,8 @@ static int pdc20621_prog_dimm0(struct ata_host *host)
    	data |= (((size / 16) - 1) << 16);
    	data |= (0 << 23);
 	data |= 8;
-   	writel(data, mmio + PDC_DIMM0_CONTROL_OFFSET);
-	readl(mmio + PDC_DIMM0_CONTROL_OFFSET);
+   	writel(data, mmio + PDC_DIMM0_CONTROL);
+	readl(mmio + PDC_DIMM0_CONTROL);
    	return size;
 }
 
@@ -1122,27 +1184,27 @@ static unsigned int pdc20621_prog_dimm_global(struct ata_host *host)
 	*/
 
 	data = 0x022259F1;
-	writel(data, mmio + PDC_SDRAM_CONTROL_OFFSET);
-	readl(mmio + PDC_SDRAM_CONTROL_OFFSET);
+	writel(data, mmio + PDC_SDRAM_CONTROL);
+	readl(mmio + PDC_SDRAM_CONTROL);
 
 	/* Turn on for ECC */
 	pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
 			  PDC_DIMM_SPD_TYPE, &spd0);
 	if (spd0 == 0x02) {
 		data |= (0x01 << 16);
-		writel(data, mmio + PDC_SDRAM_CONTROL_OFFSET);
-		readl(mmio + PDC_SDRAM_CONTROL_OFFSET);
+		writel(data, mmio + PDC_SDRAM_CONTROL);
+		readl(mmio + PDC_SDRAM_CONTROL);
 		printk(KERN_ERR "Local DIMM ECC Enabled\n");
    	}
 
    	/* DIMM Initialization Select/Enable (bit 18/19) */
    	data &= (~(1<<18));
    	data |= (1<<19);
-   	writel(data, mmio + PDC_SDRAM_CONTROL_OFFSET);
+   	writel(data, mmio + PDC_SDRAM_CONTROL);
 
    	error = 1;
    	for (i = 1; i <= 10; i++) {   /* polling ~5 secs */
-		data = readl(mmio + PDC_SDRAM_CONTROL_OFFSET);
+		data = readl(mmio + PDC_SDRAM_CONTROL);
 		if (!(data & (1<<19))) {
 	   		error = 0;
 	   		break;
@@ -1176,7 +1238,7 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 	VPRINTK("Time Period Register (0x40): 0x%x\n", time_period);
 
 	/* Enable timer */
-	writel(0x00001a0, mmio + PDC_TIME_CONTROL);
+	writel(PDC_TIMER_DEFAULT, mmio + PDC_TIME_CONTROL);
 	readl(mmio + PDC_TIME_CONTROL);
 
 	/* Wait 3 seconds */

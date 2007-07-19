@@ -112,20 +112,12 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA: {
-		int copied;
-
+	case PTRACE_PEEKDATA:
 		ret = -EIO;
 		if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
 			break;
-
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		if (copied != sizeof(tmp))
-			break;
-
-		ret = put_user(tmp,(unsigned long *) data);
+		ret = generic_ptrace_peekdata(child, addr, data);
 		break;
-	}
 
 		/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
@@ -176,9 +168,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = -EIO;
 		if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
 			break;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1) != sizeof(data))
-			break;
-		ret = 0;
+		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */

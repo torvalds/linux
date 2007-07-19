@@ -188,6 +188,7 @@ struct zd_usb {
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
+	u8 is_zd1211b:1, initialized:1;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)
@@ -235,6 +236,8 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	              unsigned int count);
 
 int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits);
+
+int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len);
 
 extern struct workqueue_struct *zd_workqueue;
 

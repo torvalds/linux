@@ -93,7 +93,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 				return 0;
 
 			opt[i+2] = (newmss & 0xff00) >> 8;
-			opt[i+3] = (newmss & 0x00ff);
+			opt[i+3] = newmss & 0x00ff;
 
 			nf_proto_csum_replace2(&tcph->check, *pskb,
 					       htons(oldmss), htons(newmss), 0);
@@ -126,7 +126,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
-	opt[3] = (newmss & 0x00ff);
+	opt[3] = newmss & 0x00ff;
 
 	nf_proto_csum_replace4(&tcph->check, *pskb, 0, *((__be32 *)opt), 0);
 
@@ -197,19 +197,19 @@ xt_tcpmss_target6(struct sk_buff **pskb,
 #define TH_SYN 0x02
 
 /* Must specify -p tcp --syn */
-static inline int find_syn_match(const struct xt_entry_match *m)
+static inline bool find_syn_match(const struct xt_entry_match *m)
 {
 	const struct xt_tcp *tcpinfo = (const struct xt_tcp *)m->data;
 
 	if (strcmp(m->u.kernel.match->name, "tcp") == 0 &&
 	    tcpinfo->flg_cmp & TH_SYN &&
 	    !(tcpinfo->invflags & XT_TCP_INV_FLAGS))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
-static int
+static bool
 xt_tcpmss_checkentry4(const char *tablename,
 		      const void *entry,
 		      const struct xt_target *target,
@@ -225,16 +225,16 @@ xt_tcpmss_checkentry4(const char *tablename,
 			   (1 << NF_IP_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return 0;
+		return false;
 	}
 	if (IPT_MATCH_ITERATE(e, find_syn_match))
-		return 1;
+		return true;
 	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return 0;
+	return false;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-static int
+static bool
 xt_tcpmss_checkentry6(const char *tablename,
 		      const void *entry,
 		      const struct xt_target *target,
@@ -250,16 +250,16 @@ xt_tcpmss_checkentry6(const char *tablename,
 			   (1 << NF_IP6_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return 0;
+		return false;
 	}
 	if (IP6T_MATCH_ITERATE(e, find_syn_match))
-		return 1;
+		return true;
 	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
-	return 0;
+	return false;
 }
 #endif
 
-static struct xt_target xt_tcpmss_reg[] = {
+static struct xt_target xt_tcpmss_reg[] __read_mostly = {
 	{
 		.family		= AF_INET,
 		.name		= "TCPMSS",

@@ -35,7 +35,6 @@
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
-#include <linux/nfsd/interface.h>
 
 #include <asm/uaccess.h>
 
@@ -245,7 +244,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 	}
 	exp_readunlock();
 	if (err == 0)
-		err = res->fh_size + (int)&((struct knfsd_fh*)0)->fh_base;
+		err = res->fh_size + offsetof(struct knfsd_fh, fh_base);
  out:
 	return err;
 }

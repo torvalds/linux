@@ -174,7 +174,7 @@ static void do_mce_trigger(void)
 	if (events != atomic_read(&mce_logged) && trigger[0]) {
 		/* Small race window, but should be harmless.  */
 		atomic_set(&mce_logged, events);
-		call_usermodehelper(trigger, trigger_argv, NULL, -1);
+		call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
 	}
 }
 
@@ -497,15 +497,17 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	for (i = 0; i < next; i++) {		
 		unsigned long start = jiffies;
 		while (!mcelog.entry[i].finished) {
-			if (!time_before(jiffies, start + 2)) {
+			if (time_after_eq(jiffies, start + 2)) {
 				memset(mcelog.entry + i,0, sizeof(struct mce));
-				continue;
+				goto timeout;
 			}
 			cpu_relax();
 		}
 		smp_rmb();
 		err |= copy_to_user(buf, mcelog.entry + i, sizeof(struct mce));
 		buf += sizeof(struct mce); 
+ timeout:
+		;
 	} 
 
 	memset(mcelog.entry, 0, next * sizeof(struct mce));

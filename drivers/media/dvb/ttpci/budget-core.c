@@ -529,7 +529,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	if (bi->type != BUDGET_FS_ACTIVY)
 		saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
 
-	if (budget_register(budget) == 0)
+	if ((ret = budget_register(budget)) == 0)
 		return 0; /* Everything OK */
 
 	/* An error occurred, cleanup resources */

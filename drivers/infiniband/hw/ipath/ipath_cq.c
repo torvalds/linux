@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -90,6 +90,8 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 	wc->queue[head].sl = entry->sl;
 	wc->queue[head].dlid_path_bits = entry->dlid_path_bits;
 	wc->queue[head].port_num = entry->port_num;
+	/* Make sure queue entry is written before the head index. */
+	smp_wmb();
 	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
@@ -139,7 +141,8 @@ int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 		if (tail == wc->head)
 			break;
-
+		/* Make sure entry is read after head index is read. */
+		smp_rmb();
 		qp = ipath_lookup_qpn(&to_idev(cq->ibcq.device)->qp_table,
 				      wc->queue[tail].qp_num);
 		entry->qp = &qp->ibqp;

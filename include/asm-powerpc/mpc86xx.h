@@ -19,12 +19,6 @@
 
 #ifdef CONFIG_PPC_86xx
 
-#define _IO_BASE        isa_io_base
-#define _ISA_MEM_BASE   isa_mem_base
-#ifdef CONFIG_PCI
-#define PCI_DRAM_OFFSET pci_dram_offset
-#endif
-
 #define CPU0_BOOT_RELEASE 0x01000000
 #define CPU1_BOOT_RELEASE 0x02000000
 #define CPU_ALL_RELEASED (CPU0_BOOT_RELEASE | CPU1_BOOT_RELEASE)

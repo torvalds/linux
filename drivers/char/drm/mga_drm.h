@@ -181,7 +181,7 @@ typedef struct _drm_mga_sarea {
 
 	/* The current cliprects, or a subset thereof.
 	 */
-	drm_clip_rect_t boxes[MGA_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[MGA_NR_SAREA_CLIPRECTS];
 	unsigned int nbox;
 
 	/* Information about the most recently used 3d drawable.  The
@@ -202,7 +202,7 @@ typedef struct _drm_mga_sarea {
 	unsigned int exported_nback;
 	int exported_back_x, exported_front_x, exported_w;
 	int exported_back_y, exported_front_y, exported_h;
-	drm_clip_rect_t exported_boxes[MGA_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect exported_boxes[MGA_NR_SAREA_CLIPRECTS];
 
 	/* Counters for aging textures and for client-side throttling.
 	 */
@@ -216,7 +216,7 @@ typedef struct _drm_mga_sarea {
 
 	/* LRU lists for texture memory in agp space and on the card.
 	 */
-	drm_tex_region_t texList[MGA_NR_TEX_HEAPS][MGA_NR_TEX_REGIONS + 1];
+	struct drm_tex_region texList[MGA_NR_TEX_HEAPS][MGA_NR_TEX_REGIONS + 1];
 	unsigned int texAge[MGA_NR_TEX_HEAPS];
 
 	/* Mechanism to validate card state.

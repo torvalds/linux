@@ -231,7 +231,7 @@ static int it8213_config_drive_for_dma (ide_drive_t *drive)
 
 static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 {
-	u8 reg42h = 0, ata66 = 0;
+	u8 reg42h = 0;
 
 	hwif->speedproc = &it8213_tune_chipset;
 	hwif->tuneproc	= &it8213_tuneproc;
@@ -250,11 +250,11 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	pci_read_config_byte(hwif->pci_dev, 0x42, &reg42h);
-	ata66 = (reg42h & 0x02) ? 0 : 1;
 
 	hwif->ide_dma_check = &it8213_config_drive_for_dma;
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66;
+
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 
 	/*
 	 *	The BIOS often doesn't set up DMA on this controller

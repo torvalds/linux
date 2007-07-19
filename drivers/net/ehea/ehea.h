@@ -39,7 +39,13 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0064"
+#define DRV_VERSION	"EHEA_0070"
+
+/* eHEA capability flags */
+#define DLPAR_PORT_ADD_REM 1
+#define DLPAR_MEM_ADD      2
+#define DLPAR_MEM_REM      4
+#define EHEA_CAPABILITIES  (DLPAR_PORT_ADD_REM)
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -107,6 +113,8 @@
 /* Memory Regions */
 #define EHEA_MR_ACC_CTRL       0x00800000
 
+#define EHEA_BUSMAP_START      0x8000000000000000ULL
+
 #define EHEA_WATCH_DOG_TIMEOUT 10*HZ
 
 /* utility functions */
@@ -136,10 +144,10 @@ void ehea_dump(void *adr, int len, char *msg);
 	(0xffffffffffffffffULL >> ((64 - (mask)) & 0xffff))
 
 #define EHEA_BMASK_SET(mask, value) \
-        ((EHEA_BMASK_MASK(mask) & ((u64)(value))) << EHEA_BMASK_SHIFTPOS(mask))
+	((EHEA_BMASK_MASK(mask) & ((u64)(value))) << EHEA_BMASK_SHIFTPOS(mask))
 
 #define EHEA_BMASK_GET(mask, value) \
-        (EHEA_BMASK_MASK(mask) & (((u64)(value)) >> EHEA_BMASK_SHIFTPOS(mask)))
+	(EHEA_BMASK_MASK(mask) & (((u64)(value)) >> EHEA_BMASK_SHIFTPOS(mask)))
 
 /*
  * Generic ehea page
@@ -180,6 +188,12 @@ struct h_epas {
 				   set to 0 if unused */
 };
 
+struct ehea_busmap {
+	unsigned int entries;		/* total number of entries */
+	unsigned int valid_sections;	/* number of valid sections */
+	u64 *vaddr;
+};
+
 struct ehea_qp;
 struct ehea_cq;
 struct ehea_eq;
@@ -190,7 +204,7 @@ struct ehea_av;
  * Queue attributes passed to ehea_create_qp()
  */
 struct ehea_qp_init_attr {
-        /* input parameter */
+	/* input parameter */
 	u32 qp_token;           /* queue token */
 	u8 low_lat_rq1;
 	u8 signalingtype;       /* cqe generation flag */
@@ -212,7 +226,7 @@ struct ehea_qp_init_attr {
 	u64 recv_cq_handle;
 	u64 aff_eq_handle;
 
-        /* output parameter */
+	/* output parameter */
 	u32 qp_nr;
 	u16 act_nr_send_wqes;
 	u16 act_nr_rwqes_rq1;
@@ -279,12 +293,12 @@ struct ehea_qp {
  * Completion Queue attributes
  */
 struct ehea_cq_attr {
-        /* input parameter */
+	/* input parameter */
 	u32 max_nr_of_cqes;
 	u32 cq_token;
 	u64 eq_handle;
 
-        /* output parameter */
+	/* output parameter */
 	u32 act_nr_of_cqes;
 	u32 nr_pages;
 };
@@ -376,6 +390,8 @@ struct ehea_adapter {
 	struct ehea_mr mr;
 	u32 pd;                    /* protection domain */
 	u64 max_mc_mac;            /* max number of multicast mac addresses */
+	int active_ports;
+	struct list_head list;
 };
 
 
@@ -425,6 +441,9 @@ struct port_res_cfg {
 	int max_entries_rq3;
 };
 
+enum ehea_flag_bits {
+	__EHEA_STOP_XFER
+};
 
 void ehea_set_ethtool_ops(struct net_device *netdev);
 int ehea_sense_port_attr(struct ehea_port *port);

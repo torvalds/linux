@@ -397,8 +397,10 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_BE_DESC	0x08			/* BE descriptors */
 #define	OHCI_QUIRK_BE_MMIO	0x10			/* BE registers */
 #define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
+#define	OHCI_QUIRK_NEC		0x40			/* lost interrupts */
 	// there are also chip quirks/bugs in init logic
 
+	struct work_struct	nec_work;	/* Worker for NEC quirk */
 };
 
 /* convert between an hcd pointer and the corresponding ohci_hcd */

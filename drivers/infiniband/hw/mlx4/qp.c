@@ -1455,3 +1455,140 @@ out:
 
 	return err;
 }
+
+static inline enum ib_qp_state to_ib_qp_state(enum mlx4_qp_state mlx4_state)
+{
+	switch (mlx4_state) {
+	case MLX4_QP_STATE_RST:      return IB_QPS_RESET;
+	case MLX4_QP_STATE_INIT:     return IB_QPS_INIT;
+	case MLX4_QP_STATE_RTR:      return IB_QPS_RTR;
+	case MLX4_QP_STATE_RTS:      return IB_QPS_RTS;
+	case MLX4_QP_STATE_SQ_DRAINING:
+	case MLX4_QP_STATE_SQD:      return IB_QPS_SQD;
+	case MLX4_QP_STATE_SQER:     return IB_QPS_SQE;
+	case MLX4_QP_STATE_ERR:      return IB_QPS_ERR;
+	default:		     return -1;
+	}
+}
+
+static inline enum ib_mig_state to_ib_mig_state(int mlx4_mig_state)
+{
+	switch (mlx4_mig_state) {
+	case MLX4_QP_PM_ARMED:		return IB_MIG_ARMED;
+	case MLX4_QP_PM_REARM:		return IB_MIG_REARM;
+	case MLX4_QP_PM_MIGRATED:	return IB_MIG_MIGRATED;
+	default: return -1;
+	}
+}
+
+static int to_ib_qp_access_flags(int mlx4_flags)
+{
+	int ib_flags = 0;
+
+	if (mlx4_flags & MLX4_QP_BIT_RRE)
+		ib_flags |= IB_ACCESS_REMOTE_READ;
+	if (mlx4_flags & MLX4_QP_BIT_RWE)
+		ib_flags |= IB_ACCESS_REMOTE_WRITE;
+	if (mlx4_flags & MLX4_QP_BIT_RAE)
+		ib_flags |= IB_ACCESS_REMOTE_ATOMIC;
+
+	return ib_flags;
+}
+
+static void to_ib_ah_attr(struct mlx4_dev *dev, struct ib_ah_attr *ib_ah_attr,
+				struct mlx4_qp_path *path)
+{
+	memset(ib_ah_attr, 0, sizeof *path);
+	ib_ah_attr->port_num	  = path->sched_queue & 0x40 ? 2 : 1;
+
+	if (ib_ah_attr->port_num == 0 || ib_ah_attr->port_num > dev->caps.num_ports)
+		return;
+
+	ib_ah_attr->dlid	  = be16_to_cpu(path->rlid);
+	ib_ah_attr->sl		  = (path->sched_queue >> 2) & 0xf;
+	ib_ah_attr->src_path_bits = path->grh_mylmc & 0x7f;
+	ib_ah_attr->static_rate   = path->static_rate ? path->static_rate - 5 : 0;
+	ib_ah_attr->ah_flags      = (path->grh_mylmc & (1 << 7)) ? IB_AH_GRH : 0;
+	if (ib_ah_attr->ah_flags) {
+		ib_ah_attr->grh.sgid_index = path->mgid_index;
+		ib_ah_attr->grh.hop_limit  = path->hop_limit;
+		ib_ah_attr->grh.traffic_class =
+			(be32_to_cpu(path->tclass_flowlabel) >> 20) & 0xff;
+		ib_ah_attr->grh.flow_label =
+			be32_to_cpu(path->tclass_flowlabel) & 0xffffff;
+		memcpy(ib_ah_attr->grh.dgid.raw,
+			path->rgid, sizeof ib_ah_attr->grh.dgid.raw);
+	}
+}
+
+int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,
+		     struct ib_qp_init_attr *qp_init_attr)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
+	struct mlx4_ib_qp *qp = to_mqp(ibqp);
+	struct mlx4_qp_context context;
+	int mlx4_state;
+	int err;
+
+	if (qp->state == IB_QPS_RESET) {
+		qp_attr->qp_state = IB_QPS_RESET;
+		goto done;
+	}
+
+	err = mlx4_qp_query(dev->dev, &qp->mqp, &context);
+	if (err)
+		return -EINVAL;
+
+	mlx4_state = be32_to_cpu(context.flags) >> 28;
+
+	qp_attr->qp_state	     = to_ib_qp_state(mlx4_state);
+	qp_attr->path_mtu	     = context.mtu_msgmax >> 5;
+	qp_attr->path_mig_state	     =
+		to_ib_mig_state((be32_to_cpu(context.flags) >> 11) & 0x3);
+	qp_attr->qkey		     = be32_to_cpu(context.qkey);
+	qp_attr->rq_psn		     = be32_to_cpu(context.rnr_nextrecvpsn) & 0xffffff;
+	qp_attr->sq_psn		     = be32_to_cpu(context.next_send_psn) & 0xffffff;
+	qp_attr->dest_qp_num	     = be32_to_cpu(context.remote_qpn) & 0xffffff;
+	qp_attr->qp_access_flags     =
+		to_ib_qp_access_flags(be32_to_cpu(context.params2));
+
+	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
+		to_ib_ah_attr(dev->dev, &qp_attr->ah_attr, &context.pri_path);
+		to_ib_ah_attr(dev->dev, &qp_attr->alt_ah_attr, &context.alt_path);
+		qp_attr->alt_pkey_index = context.alt_path.pkey_index & 0x7f;
+		qp_attr->alt_port_num	= qp_attr->alt_ah_attr.port_num;
+	}
+
+	qp_attr->pkey_index = context.pri_path.pkey_index & 0x7f;
+	qp_attr->port_num   = context.pri_path.sched_queue & 0x40 ? 2 : 1;
+
+	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
+	qp_attr->sq_draining = mlx4_state == MLX4_QP_STATE_SQ_DRAINING;
+
+	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context.params1) >> 21) & 0x7);
+
+	qp_attr->max_dest_rd_atomic =
+		1 << ((be32_to_cpu(context.params2) >> 21) & 0x7);
+	qp_attr->min_rnr_timer	    =
+		(be32_to_cpu(context.rnr_nextrecvpsn) >> 24) & 0x1f;
+	qp_attr->timeout	    = context.pri_path.ackto >> 3;
+	qp_attr->retry_cnt	    = (be32_to_cpu(context.params1) >> 16) & 0x7;
+	qp_attr->rnr_retry	    = (be32_to_cpu(context.params1) >> 13) & 0x7;
+	qp_attr->alt_timeout	    = context.alt_path.ackto >> 3;
+
+done:
+	qp_attr->cur_qp_state	     = qp_attr->qp_state;
+	if (!ibqp->uobject) {
+		qp_attr->cap.max_send_wr     = qp->sq.wqe_cnt;
+		qp_attr->cap.max_recv_wr     = qp->rq.wqe_cnt;
+		qp_attr->cap.max_send_sge    = qp->sq.max_gs;
+		qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
+		qp_attr->cap.max_inline_data = (1 << qp->sq.wqe_shift) -
+			send_wqe_overhead(qp->ibqp.qp_type) -
+			sizeof (struct mlx4_wqe_inline_seg);
+		qp_init_attr->cap	     = qp_attr->cap;
+	}
+
+	return 0;
+}
+

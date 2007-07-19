@@ -483,37 +483,6 @@ int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	return retval;
 }
 
-/**
- * hpsb_listen_channel - enable receving a certain isochronous channel
- *
- * Reception is handled through the @hl's iso_receive op.
- */
-int hpsb_listen_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
-			unsigned int channel)
-{
-	if (channel > 63) {
-		HPSB_ERR("%s called with invalid channel", __FUNCTION__);
-		return -EINVAL;
-	}
-	if (host->iso_listen_count[channel]++ == 0)
-		return host->driver->devctl(host, ISO_LISTEN_CHANNEL, channel);
-	return 0;
-}
-
-/**
- * hpsb_unlisten_channel - disable receving a certain isochronous channel
- */
-void hpsb_unlisten_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
-			   unsigned int channel)
-{
-	if (channel > 63) {
-		HPSB_ERR("%s called with invalid channel", __FUNCTION__);
-		return;
-	}
-	if (--host->iso_listen_count[channel] == 0)
-		host->driver->devctl(host, ISO_UNLISTEN_CHANNEL, channel);
-}
-
 static void init_hpsb_highlevel(struct hpsb_host *host)
 {
 	INIT_LIST_HEAD(&dummy_zero_addr.host_list);
@@ -566,20 +535,6 @@ void highlevel_host_reset(struct hpsb_host *host)
 	list_for_each_entry(hl, &hl_irqs, irq_list) {
 		if (hl->host_reset)
 			hl->host_reset(host);
-	}
-	read_unlock_irqrestore(&hl_irqs_lock, flags);
-}
-
-void highlevel_iso_receive(struct hpsb_host *host, void *data, size_t length)
-{
-	unsigned long flags;
-	struct hpsb_highlevel *hl;
-	int channel = (((quadlet_t *)data)[0] >> 8) & 0x3f;
-
-	read_lock_irqsave(&hl_irqs_lock, flags);
-	list_for_each_entry(hl, &hl_irqs, irq_list) {
-		if (hl->iso_receive)
-			hl->iso_receive(host, channel, data, length);
 	}
 	read_unlock_irqrestore(&hl_irqs_lock, flags);
 }

@@ -1306,22 +1306,26 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 					wake_up(&tw_dev->ioctl_wqueue);
 				}
 			} else {
+				struct scsi_cmnd *cmd;
+
+				cmd = tw_dev->srb[request_id];
+
 				twa_scsiop_execute_scsi_complete(tw_dev, request_id);
 				/* If no error command was a success */
 				if (error == 0) {
-					tw_dev->srb[request_id]->result = (DID_OK << 16);
+					cmd->result = (DID_OK << 16);
 				}
 
 				/* If error, command failed */
 				if (error == 1) {
 					/* Ask for a host reset */
-					tw_dev->srb[request_id]->result = (DID_OK << 16) | (CHECK_CONDITION << 1);
+					cmd->result = (DID_OK << 16) | (CHECK_CONDITION << 1);
 				}
 
 				/* Report residual bytes for single sgl */
-				if ((tw_dev->srb[request_id]->use_sg <= 1) && (full_command_packet->command.newcommand.status == 0)) {
-					if (full_command_packet->command.newcommand.sg_list[0].length < tw_dev->srb[request_id]->request_bufflen)
-						tw_dev->srb[request_id]->resid = tw_dev->srb[request_id]->request_bufflen - full_command_packet->command.newcommand.sg_list[0].length;
+				if ((scsi_sg_count(cmd) <= 1) && (full_command_packet->command.newcommand.status == 0)) {
+					if (full_command_packet->command.newcommand.sg_list[0].length < scsi_bufflen(tw_dev->srb[request_id]))
+						scsi_set_resid(cmd, scsi_bufflen(cmd) - full_command_packet->command.newcommand.sg_list[0].length);
 				}
 
 				/* Now complete the io */
@@ -1384,52 +1388,20 @@ static int twa_map_scsi_sg_data(TW_Device_Extension *tw_dev, int request_id)
 {
 	int use_sg;
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	struct pci_dev *pdev = tw_dev->tw_pci_dev;
-	int retval = 0;
 
-	if (cmd->use_sg == 0)
-		goto out;
-
-	use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
-
-	if (use_sg == 0) {
+	use_sg = scsi_dma_map(cmd);
+	if (!use_sg)
+		return 0;
+	else if (use_sg < 0) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1c, "Failed to map scatter gather list");
-		goto out;
+		return 0;
 	}
 
 	cmd->SCp.phase = TW_PHASE_SGLIST;
 	cmd->SCp.have_data_in = use_sg;
-	retval = use_sg;
-out:
-	return retval;
+
+	return use_sg;
 } /* End twa_map_scsi_sg_data() */
-
-/* This function will perform a pci-dma map for a single buffer */
-static dma_addr_t twa_map_scsi_single_data(TW_Device_Extension *tw_dev, int request_id)
-{
-	dma_addr_t mapping;
-	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	struct pci_dev *pdev = tw_dev->tw_pci_dev;
-	dma_addr_t retval = 0;
-
-	if (cmd->request_bufflen == 0) {
-		retval = 0;
-		goto out;
-	}
-
-	mapping = pci_map_single(pdev, cmd->request_buffer, cmd->request_bufflen, DMA_BIDIRECTIONAL);
-
-	if (mapping == 0) {
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1d, "Failed to map page");
-		goto out;
-	}
-
-	cmd->SCp.phase = TW_PHASE_SINGLE;
-	cmd->SCp.have_data_in = mapping;
-	retval = mapping;
-out:
-	return retval;
-} /* End twa_map_scsi_single_data() */
 
 /* This function will poll for a response interrupt of a request */
 static int twa_poll_response(TW_Device_Extension *tw_dev, int request_id, int seconds)
@@ -1815,15 +1787,13 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 	u32 num_sectors = 0x0;
 	int i, sg_count;
 	struct scsi_cmnd *srb = NULL;
-	struct scatterlist *sglist = NULL;
-	dma_addr_t buffaddr = 0x0;
+	struct scatterlist *sglist = NULL, *sg;
 	int retval = 1;
 
 	if (tw_dev->srb[request_id]) {
-		if (tw_dev->srb[request_id]->request_buffer) {
-			sglist = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
-		}
 		srb = tw_dev->srb[request_id];
+		if (scsi_sglist(srb))
+			sglist = scsi_sglist(srb);
 	}
 
 	/* Initialize command packet */
@@ -1856,32 +1826,12 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 
 	if (!sglistarg) {
 		/* Map sglist from scsi layer to cmd packet */
-		if (tw_dev->srb[request_id]->use_sg == 0) {
-			if (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH) {
-				command_packet->sg_list[0].address = TW_CPU_TO_SGL(tw_dev->generic_buffer_phys[request_id]);
-				command_packet->sg_list[0].length = cpu_to_le32(TW_MIN_SGL_LENGTH);
-				if (tw_dev->srb[request_id]->sc_data_direction == DMA_TO_DEVICE || tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL)
-					memcpy(tw_dev->generic_buffer_virt[request_id], tw_dev->srb[request_id]->request_buffer, tw_dev->srb[request_id]->request_bufflen);
-			} else {
-				buffaddr = twa_map_scsi_single_data(tw_dev, request_id);
-				if (buffaddr == 0)
-					goto out;
 
-				command_packet->sg_list[0].address = TW_CPU_TO_SGL(buffaddr);
-				command_packet->sg_list[0].length = cpu_to_le32(tw_dev->srb[request_id]->request_bufflen);
-			}
-			command_packet->sgl_entries__lunh = cpu_to_le16(TW_REQ_LUN_IN((srb->device->lun >> 4), 1));
-
-			if (command_packet->sg_list[0].address & TW_CPU_TO_SGL(TW_ALIGNMENT_9000_SGL)) {
-				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x2d, "Found unaligned address during execute scsi");
-				goto out;
-			}
-		}
-
-		if (tw_dev->srb[request_id]->use_sg > 0) {
-			if ((tw_dev->srb[request_id]->use_sg == 1) && (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH)) {
-				if (tw_dev->srb[request_id]->sc_data_direction == DMA_TO_DEVICE || tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL) {
-					struct scatterlist *sg = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
+		if (scsi_sg_count(srb)) {
+			if ((scsi_sg_count(srb) == 1) &&
+			    (scsi_bufflen(srb) < TW_MIN_SGL_LENGTH)) {
+				if (srb->sc_data_direction == DMA_TO_DEVICE || srb->sc_data_direction == DMA_BIDIRECTIONAL) {
+					struct scatterlist *sg = scsi_sglist(srb);
 					char *buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
 					memcpy(tw_dev->generic_buffer_virt[request_id], buf, sg->length);
 					kunmap_atomic(buf - sg->offset, KM_IRQ0);
@@ -1893,16 +1843,16 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 				if (sg_count == 0)
 					goto out;
 
-				for (i = 0; i < sg_count; i++) {
-					command_packet->sg_list[i].address = TW_CPU_TO_SGL(sg_dma_address(&sglist[i]));
-					command_packet->sg_list[i].length = cpu_to_le32(sg_dma_len(&sglist[i]));
+				scsi_for_each_sg(srb, sg, sg_count, i) {
+					command_packet->sg_list[i].address = TW_CPU_TO_SGL(sg_dma_address(sg));
+					command_packet->sg_list[i].length = cpu_to_le32(sg_dma_len(sg));
 					if (command_packet->sg_list[i].address & TW_CPU_TO_SGL(TW_ALIGNMENT_9000_SGL)) {
 						TW_PRINTK(tw_dev->host, TW_DRIVER, 0x2e, "Found unaligned sgl address during execute scsi");
 						goto out;
 					}
 				}
 			}
-			command_packet->sgl_entries__lunh = cpu_to_le16(TW_REQ_LUN_IN((srb->device->lun >> 4), tw_dev->srb[request_id]->use_sg));
+			command_packet->sgl_entries__lunh = cpu_to_le16(TW_REQ_LUN_IN((srb->device->lun >> 4), scsi_sg_count(tw_dev->srb[request_id])));
 		}
 	} else {
 		/* Internal cdb post */
@@ -1932,7 +1882,7 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 
 	/* Update SG statistics */
 	if (srb) {
-		tw_dev->sgl_entries = tw_dev->srb[request_id]->use_sg;
+		tw_dev->sgl_entries = scsi_sg_count(tw_dev->srb[request_id]);
 		if (tw_dev->sgl_entries > tw_dev->max_sgl_entries)
 			tw_dev->max_sgl_entries = tw_dev->sgl_entries;
 	}
@@ -1951,16 +1901,13 @@ out:
 /* This function completes an execute scsi operation */
 static void twa_scsiop_execute_scsi_complete(TW_Device_Extension *tw_dev, int request_id)
 {
-	if (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH &&
-	    (tw_dev->srb[request_id]->sc_data_direction == DMA_FROM_DEVICE ||
-	     tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL)) {
-		if (tw_dev->srb[request_id]->use_sg == 0) {
-			memcpy(tw_dev->srb[request_id]->request_buffer,
-			       tw_dev->generic_buffer_virt[request_id],
-			       tw_dev->srb[request_id]->request_bufflen);
-		}
-		if (tw_dev->srb[request_id]->use_sg == 1) {
-			struct scatterlist *sg = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
+	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
+
+	if (scsi_bufflen(cmd) < TW_MIN_SGL_LENGTH &&
+	    (cmd->sc_data_direction == DMA_FROM_DEVICE ||
+	     cmd->sc_data_direction == DMA_BIDIRECTIONAL)) {
+		if (scsi_sg_count(cmd) == 1) {
+			struct scatterlist *sg = scsi_sglist(tw_dev->srb[request_id]);
 			char *buf;
 			unsigned long flags = 0;
 			local_irq_save(flags);
@@ -2017,16 +1964,8 @@ static char *twa_string_lookup(twa_message_type *table, unsigned int code)
 static void twa_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	struct pci_dev *pdev = tw_dev->tw_pci_dev;
 
-	switch(cmd->SCp.phase) {
-	case TW_PHASE_SINGLE:
-		pci_unmap_single(pdev, cmd->SCp.have_data_in, cmd->request_bufflen, DMA_BIDIRECTIONAL);
-		break;
-	case TW_PHASE_SGLIST:
-		pci_unmap_sg(pdev, cmd->request_buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
-		break;
-	}
+	scsi_dma_unmap(cmd);
 } /* End twa_unmap_scsi_data() */
 
 /* scsi_host_template initializer */

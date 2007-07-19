@@ -19,18 +19,17 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/vr41xx/giu.h>
 #include <asm/vr41xx/irq.h>
@@ -43,18 +42,6 @@ MODULE_LICENSE("GPL");
 static int major;	/* default is dynamic major device number */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
-
-#define GIU_TYPE1_START		0x0b000100UL
-#define GIU_TYPE1_SIZE		0x20UL
-
-#define GIU_TYPE2_START		0x0f000140UL
-#define GIU_TYPE2_SIZE		0x20UL
-
-#define GIU_TYPE3_START		0x0f000140UL
-#define GIU_TYPE3_SIZE		0x28UL
-
-#define GIU_PULLUPDOWN_START	0x0b0002e0UL
-#define GIU_PULLUPDOWN_SIZE	0x04UL
 
 #define GIUIOSELL	0x00
 #define GIUIOSELH	0x02
@@ -89,8 +76,6 @@ MODULE_PARM_DESC(major, "Major device number");
 #define GPIO_HAS_INTERRUPT_EDGE_SELECT	0x0100
 
 static spinlock_t giu_lock;
-static struct resource *giu_resource1;
-static struct resource *giu_resource2;
 static unsigned long giu_flags;
 static unsigned int giu_nr_pins;
 
@@ -234,7 +219,7 @@ void vr41xx_set_irq_trigger(unsigned int pin, irq_trigger_t trigger, irq_signal_
 				giu_set(GIUINTHTSELL, mask);
 			else
 				giu_clear(GIUINTHTSELL, mask);
-			if (current_cpu_data.cputype == CPU_VR4133) {
+			if (giu_flags & GPIO_HAS_INTERRUPT_EDGE_SELECT) {
 				switch (trigger) {
 				case IRQ_TRIGGER_EDGE_FALLING:
 					giu_set(GIUFEDGEINHL, mask);
@@ -269,7 +254,7 @@ void vr41xx_set_irq_trigger(unsigned int pin, irq_trigger_t trigger, irq_signal_
 				giu_set(GIUINTHTSELH, mask);
 			else
 				giu_clear(GIUINTHTSELH, mask);
-			if (current_cpu_data.cputype == CPU_VR4133) {
+			if (giu_flags & GPIO_HAS_INTERRUPT_EDGE_SELECT) {
 				switch (trigger) {
 				case IRQ_TRIGGER_EDGE_FALLING:
 					giu_set(GIUFEDGEINHH, mask);
@@ -298,7 +283,6 @@ void vr41xx_set_irq_trigger(unsigned int pin, irq_trigger_t trigger, irq_signal_
 		giu_write(GIUINTSTATH, mask);
 	}
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_set_irq_trigger);
 
 void vr41xx_set_irq_level(unsigned int pin, irq_level_t level)
@@ -321,7 +305,6 @@ void vr41xx_set_irq_level(unsigned int pin, irq_level_t level)
 		giu_write(GIUINTSTATH, mask);
 	}
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_set_irq_level);
 
 gpio_data_t vr41xx_gpio_get_pin(unsigned int pin)
@@ -350,7 +333,6 @@ gpio_data_t vr41xx_gpio_get_pin(unsigned int pin)
 
 	return GPIO_DATA_LOW;
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_gpio_get_pin);
 
 int vr41xx_gpio_set_pin(unsigned int pin, gpio_data_t data)
@@ -388,7 +370,6 @@ int vr41xx_gpio_set_pin(unsigned int pin, gpio_data_t data)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_gpio_set_pin);
 
 int vr41xx_gpio_set_direction(unsigned int pin, gpio_direction_t dir)
@@ -438,7 +419,6 @@ int vr41xx_gpio_set_direction(unsigned int pin, gpio_direction_t dir)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_gpio_set_direction);
 
 int vr41xx_gpio_pullupdown(unsigned int pin, gpio_pull_t pull)
@@ -477,7 +457,6 @@ int vr41xx_gpio_pullupdown(unsigned int pin, gpio_pull_t pull)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_gpio_pullupdown);
 
 static ssize_t gpio_read(struct file *file, char __user *buf, size_t len,
@@ -596,61 +575,40 @@ static const struct file_operations gpio_fops = {
 
 static int __devinit giu_probe(struct platform_device *dev)
 {
-	unsigned long start, size, flags = 0;
-	unsigned int nr_pins = 0, trigger, i, pin;
-	struct resource *res1, *res2 = NULL;
-	void *base;
+	struct resource *res;
+	unsigned int trigger, i, pin;
 	struct irq_chip *chip;
-	int retval;
+	int irq, retval;
 
-	switch (current_cpu_data.cputype) {
-	case CPU_VR4111:
-	case CPU_VR4121:
-		start = GIU_TYPE1_START;
-		size = GIU_TYPE1_SIZE;
-		flags = GPIO_HAS_PULLUPDOWN_IO;
-		nr_pins = 50;
+	switch (dev->id) {
+	case GPIO_50PINS_PULLUPDOWN:
+		giu_flags = GPIO_HAS_PULLUPDOWN_IO;
+		giu_nr_pins = 50;
 		break;
-	case CPU_VR4122:
-	case CPU_VR4131:
-		start = GIU_TYPE2_START;
-		size = GIU_TYPE2_SIZE;
-		nr_pins = 36;
+	case GPIO_36PINS:
+		giu_nr_pins = 36;
 		break;
-	case CPU_VR4133:
-		start = GIU_TYPE3_START;
-		size = GIU_TYPE3_SIZE;
-		flags = GPIO_HAS_INTERRUPT_EDGE_SELECT;
-		nr_pins = 48;
+	case GPIO_48PINS_EDGE_SELECT:
+		giu_flags = GPIO_HAS_INTERRUPT_EDGE_SELECT;
+		giu_nr_pins = 48;
 		break;
 	default:
+		printk(KERN_ERR "GIU: unknown ID %d\n", dev->id);
 		return -ENODEV;
 	}
 
-	res1 = request_mem_region(start, size, "GIU");
-	if (res1 == NULL)
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!res)
 		return -EBUSY;
 
-	base = ioremap(start, size);
-	if (base == NULL) {
-		release_resource(res1);
+	giu_base = ioremap(res->start, res->end - res->start + 1);
+	if (!giu_base)
 		return -ENOMEM;
-	}
-
-	if (flags & GPIO_HAS_PULLUPDOWN_IO) {
-		res2 = request_mem_region(GIU_PULLUPDOWN_START, GIU_PULLUPDOWN_SIZE, "GIU");
-		if (res2 == NULL) {
-			iounmap(base);
-			release_resource(res1);
-			return -EBUSY;
-		}
-	}
 
 	retval = register_chrdev(major, "GIU", &gpio_fops);
 	if (retval < 0) {
-		iounmap(base);
-		release_resource(res1);
-		release_resource(res2);
+		iounmap(giu_base);
+		giu_base = NULL;
 		return retval;
 	}
 
@@ -660,11 +618,6 @@ static int __devinit giu_probe(struct platform_device *dev)
 	}
 
 	spin_lock_init(&giu_lock);
-	giu_base = base;
-	giu_resource1 = res1;
-	giu_resource2 = res2;
-	giu_flags = flags;
-	giu_nr_pins = nr_pins;
 
 	giu_write(GIUINTENL, 0);
 	giu_write(GIUINTENH, 0);
@@ -685,21 +638,22 @@ static int __devinit giu_probe(struct platform_device *dev)
 
 	}
 
-	return cascade_irq(GIUINT_IRQ, giu_get_irq);
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0 || irq >= NR_IRQS)
+		return -EBUSY;
+
+	return cascade_irq(irq, giu_get_irq);
 }
 
 static int __devexit giu_remove(struct platform_device *dev)
 {
-	iounmap(giu_base);
-
-	release_resource(giu_resource1);
-	if (giu_flags & GPIO_HAS_PULLUPDOWN_IO)
-		release_resource(giu_resource2);
+	if (giu_base) {
+		iounmap(giu_base);
+		giu_base = NULL;
+	}
 
 	return 0;
 }
-
-static struct platform_device *giu_platform_device;
 
 static struct platform_driver giu_device_driver = {
 	.probe		= giu_probe,
@@ -712,30 +666,12 @@ static struct platform_driver giu_device_driver = {
 
 static int __init vr41xx_giu_init(void)
 {
-	int retval;
-
-	giu_platform_device = platform_device_alloc("GIU", -1);
-	if (!giu_platform_device)
-		return -ENOMEM;
-
-	retval = platform_device_add(giu_platform_device);
-	if (retval < 0) {
-		platform_device_put(giu_platform_device);
-		return retval;
-	}
-
-	retval = platform_driver_register(&giu_device_driver);
-	if (retval < 0)
-		platform_device_unregister(giu_platform_device);
-
-	return retval;
+	return platform_driver_register(&giu_device_driver);
 }
 
 static void __exit vr41xx_giu_exit(void)
 {
 	platform_driver_unregister(&giu_device_driver);
-
-	platform_device_unregister(giu_platform_device);
 }
 
 module_init(vr41xx_giu_init);

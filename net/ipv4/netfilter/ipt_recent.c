@@ -163,24 +163,23 @@ static void recent_table_flush(struct recent_table *t)
 	struct recent_entry *e, *next;
 	unsigned int i;
 
-	for (i = 0; i < ip_list_hash_size; i++) {
+	for (i = 0; i < ip_list_hash_size; i++)
 		list_for_each_entry_safe(e, next, &t->iphash[i], list)
 			recent_entry_remove(t, e);
-	}
 }
 
-static int
+static bool
 ipt_recent_match(const struct sk_buff *skb,
 		 const struct net_device *in, const struct net_device *out,
 		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, int *hotdrop)
+		 int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
 	__be32 addr;
 	u_int8_t ttl;
-	int ret = info->invert;
+	bool ret = info->invert;
 
 	if (info->side == IPT_RECENT_DEST)
 		addr = ip_hdr(skb)->daddr;
@@ -201,16 +200,16 @@ ipt_recent_match(const struct sk_buff *skb,
 			goto out;
 		e = recent_entry_init(t, addr, ttl);
 		if (e == NULL)
-			*hotdrop = 1;
-		ret ^= 1;
+			*hotdrop = true;
+		ret = !ret;
 		goto out;
 	}
 
 	if (info->check_set & IPT_RECENT_SET)
-		ret ^= 1;
+		ret = !ret;
 	else if (info->check_set & IPT_RECENT_REMOVE) {
 		recent_entry_remove(t, e);
-		ret ^= 1;
+		ret = !ret;
 	} else if (info->check_set & (IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) {
 		unsigned long t = jiffies - info->seconds * HZ;
 		unsigned int i, hits = 0;
@@ -219,7 +218,7 @@ ipt_recent_match(const struct sk_buff *skb,
 			if (info->seconds && time_after(t, e->stamps[i]))
 				continue;
 			if (++hits >= info->hit_count) {
-				ret ^= 1;
+				ret = !ret;
 				break;
 			}
 		}
@@ -235,7 +234,7 @@ out:
 	return ret;
 }
 
-static int
+static bool
 ipt_recent_checkentry(const char *tablename, const void *ip,
 		      const struct xt_match *match, void *matchinfo,
 		      unsigned int hook_mask)
@@ -243,24 +242,24 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 	unsigned i;
-	int ret = 0;
+	bool ret = false;
 
 	if (hweight8(info->check_set &
 		     (IPT_RECENT_SET | IPT_RECENT_REMOVE |
 		      IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) != 1)
-		return 0;
+		return false;
 	if ((info->check_set & (IPT_RECENT_SET | IPT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
-		return 0;
+		return false;
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, IPT_RECENT_NAME_LEN) == IPT_RECENT_NAME_LEN)
-		return 0;
+		return false;
 
 	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		ret = 1;
+		ret = true;
 		goto out;
 	}
 
@@ -287,7 +286,7 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &tables);
 	spin_unlock_bh(&recent_lock);
-	ret = 1;
+	ret = true;
 out:
 	mutex_unlock(&recent_mutex);
 	return ret;
@@ -323,18 +322,16 @@ struct recent_iter_state {
 static void *recent_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct recent_iter_state *st = seq->private;
-	struct recent_table *t = st->table;
+	const struct recent_table *t = st->table;
 	struct recent_entry *e;
 	loff_t p = *pos;
 
 	spin_lock_bh(&recent_lock);
 
-	for (st->bucket = 0; st->bucket < ip_list_hash_size; st->bucket++) {
-		list_for_each_entry(e, &t->iphash[st->bucket], list) {
+	for (st->bucket = 0; st->bucket < ip_list_hash_size; st->bucket++)
+		list_for_each_entry(e, &t->iphash[st->bucket], list)
 			if (p-- == 0)
 				return e;
-		}
-	}
 	return NULL;
 }
 
@@ -373,7 +370,7 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations recent_seq_ops = {
+static const struct seq_operations recent_seq_ops = {
 	.start		= recent_seq_start,
 	.next		= recent_seq_next,
 	.stop		= recent_seq_stop,
@@ -463,7 +460,7 @@ static const struct file_operations recent_fops = {
 };
 #endif /* CONFIG_PROC_FS */
 
-static struct xt_match recent_match = {
+static struct xt_match recent_match __read_mostly = {
 	.name		= "recent",
 	.family		= AF_INET,
 	.match		= ipt_recent_match,

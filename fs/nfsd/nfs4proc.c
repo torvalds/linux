@@ -47,6 +47,7 @@
 #include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
 #include <linux/nfs4_acl.h>
+#include <linux/sunrpc/gss_api.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -286,8 +287,7 @@ nfsd4_putrootfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 
 	fh_put(&cstate->current_fh);
-	status = exp_pseudoroot(rqstp->rq_client, &cstate->current_fh,
-			      &rqstp->rq_chandle);
+	status = exp_pseudoroot(rqstp, &cstate->current_fh);
 	return status;
 }
 
@@ -474,8 +474,8 @@ nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 ret;
 
 	fh_init(&tmp_fh, NFS4_FHSIZE);
-	if((ret = exp_pseudoroot(rqstp->rq_client, &tmp_fh,
-			      &rqstp->rq_chandle)) != 0)
+	ret = exp_pseudoroot(rqstp, &tmp_fh);
+	if (ret)
 		return ret;
 	if (tmp_fh.fh_dentry == cstate->current_fh.fh_dentry) {
 		fh_put(&tmp_fh);
@@ -608,6 +608,30 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		set_change_info(&rename->rn_tinfo, &cstate->save_fh);
 	}
 	return status;
+}
+
+static __be32
+nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      struct nfsd4_secinfo *secinfo)
+{
+	struct svc_fh resfh;
+	struct svc_export *exp;
+	struct dentry *dentry;
+	__be32 err;
+
+	fh_init(&resfh, NFS4_FHSIZE);
+	err = nfsd_lookup_dentry(rqstp, &cstate->current_fh,
+				    secinfo->si_name, secinfo->si_namelen,
+				    &exp, &dentry);
+	if (err)
+		return err;
+	if (dentry->d_inode == NULL) {
+		exp_put(exp);
+		err = nfserr_noent;
+	} else
+		secinfo->si_exp = exp;
+	dput(dentry);
+	return err;
 }
 
 static __be32
@@ -1008,6 +1032,9 @@ static struct nfsd4_operation nfsd4_ops[OP_RELEASE_LOCKOWNER+1] = {
 	},
 	[OP_SAVEFH] = {
 		.op_func = (nfsd4op_func)nfsd4_savefh,
+	},
+	[OP_SECINFO] = {
+		.op_func = (nfsd4op_func)nfsd4_secinfo,
 	},
 	[OP_SETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_setattr,

@@ -4,26 +4,43 @@ comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
 	depends on EXPERIMENTAL=n
 
 config FIREWIRE
-	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack, experimental)"
+	tristate "IEEE 1394 (FireWire) support - alternative stack, EXPERIMENTAL"
 	depends on EXPERIMENTAL
 	select CRC_ITU_T
 	help
-	  IEEE 1394 describes a high performance serial bus, which is also
-	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
-	  sorts of devices (most notably digital video cameras) to your
-	  computer.
-
-	  If you have FireWire hardware and want to use it, say Y here.  This
-	  is the core support only, you will also need to select a driver for
-	  your IEEE 1394 adapter.
-
-	  To compile this driver as a module, say M here: the module will be
-	  called firewire-core.
-
-	  This is the "JUJU" FireWire stack, an alternative implementation
+	  This is the "Juju" FireWire stack, a new alternative implementation
 	  designed for robustness and simplicity.  You can build either this
 	  stack, or the classic stack (the ieee1394 driver, ohci1394 etc.)
 	  or both.
+
+	  To compile this driver as a module, say M here: the module will be
+	  called firewire-core.  It functionally replaces ieee1394, raw1394,
+	  and video1394.
+
+          NOTE:
+
+	  You should only build ONE of the stacks, unless you REALLY know what
+	  you are doing.  If you install both, you should configure them only as
+	  modules rather than link them statically, and you should blacklist one
+	  of the concurrent low-level drivers in /etc/modprobe.conf.  Add either
+
+	      blacklist firewire-ohci
+	  or
+	      blacklist ohci1394
+
+	  there depending on which driver you DON'T want to have auto-loaded.
+	  You can optionally do the same with the other IEEE 1394/ FireWire
+	  drivers.
+
+	  If you have an old modprobe which doesn't implement the blacklist
+	  directive, use either
+
+	       install firewire-ohci /bin/true
+	  or
+	       install ohci1394 /bin/true
+
+	  and so on, depending on which modules you DON't want to have
+	  auto-loaded.
 
 config FIREWIRE_OHCI
 	tristate "Support for OHCI FireWire host controllers"
@@ -34,11 +51,13 @@ config FIREWIRE_OHCI
 	  is the only chipset in use, so say Y here.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-ohci.
+	  called firewire-ohci.  It replaces ohci1394 of the classic IEEE 1394
+	  stack.
 
-	  If you also build ohci1394 of the classic IEEE 1394 driver stack,
-	  blacklist either ohci1394 or firewire-ohci to let hotplug load the
-	  desired driver.
+          NOTE:
+
+	  If you also build ohci1394 of the classic stack, blacklist either
+	  ohci1394 or firewire-ohci to let hotplug load only the desired driver.
 
 config FIREWIRE_SBP2
 	tristate "Support for storage devices (SBP-2 protocol driver)"
@@ -50,12 +69,14 @@ config FIREWIRE_SBP2
 	  like scanners.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-sbp2.
+	  called firewire-sbp2.  It replaces sbp2 of the classic IEEE 1394
+	  stack.
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
 
-	  If you also build sbp2 of the classic IEEE 1394 driver stack,
-	  blacklist either sbp2 or firewire-sbp2 to let hotplug load the
-	  desired driver.
+          NOTE:
+
+	  If you also build sbp2 of the classic stack, blacklist either sbp2
+	  or firewire-sbp2 to let hotplug load only the desired driver.
 

@@ -49,6 +49,7 @@
 #include <asm/arch/ohci.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /********************************************************************************************
  * ONBOARD FLASH
@@ -503,7 +504,7 @@ MACHINE_START(TRIZEPS4, "Keith und Koep Trizeps IV module")
 	.boot_params	= TRIZEPS4_SDRAM_BASE + 0x100,
 	.init_machine	= trizeps4_init,
 	.map_io		= trizeps4_map_io,
-	.init_irq	= pxa_init_irq,
+	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
 

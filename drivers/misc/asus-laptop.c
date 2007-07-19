@@ -737,8 +737,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 	struct device_attribute dev_attr_##_name = {			\
 		.attr = {						\
 			.name = __stringify(_name),			\
-			.mode = 0,					\
-			.owner = THIS_MODULE },				\
+			.mode = 0 },					\
 		.show   = NULL,						\
 		.store  = NULL,						\
 	}

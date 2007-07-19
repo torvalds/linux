@@ -250,7 +250,6 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 			np->an_enable = 1;
 		mii_set_media (dev);
 	}
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &np->pci_rev_id);
 
 	err = register_netdev (dev);
 	if (err)
@@ -866,9 +865,9 @@ receive_packet (struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
-				eth_copy_and_sum (skb,
+				skb_copy_to_linear_data (skb,
 						  np->rx_skbuff[entry]->data,
-						  pkt_len, 0);
+						  pkt_len);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
 				  			       desc->fraginfo &
@@ -879,7 +878,7 @@ receive_packet (struct net_device *dev)
 			skb->protocol = eth_type_trans (skb, dev);
 #if 0
 			/* Checksum done by hw, but csum value unavailable. */
-			if (np->pci_rev_id >= 0x0c &&
+			if (np->pdev->pci_rev_id >= 0x0c &&
 				!(frame_status & (TCPError | UDPError | IPError))) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			}

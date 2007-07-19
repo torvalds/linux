@@ -4,7 +4,7 @@
 #
 config ARM_AM79C961A
 	bool "ARM EBSA110 AM79C961A support"
-	depends on NET_ETHERNET && ARM && ARCH_EBSA110
+	depends on ARM && ARCH_EBSA110
 	select CRC32
 	help
 	  If you wish to compile a kernel for the EBSA-110, then you should
@@ -12,21 +12,21 @@ config ARM_AM79C961A
 
 config ARM_ETHER1
 	tristate "Acorn Ether1 support"
-	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	depends on ARM && ARCH_ACORN
 	help
 	  If you have an Acorn system with one of these (AKA25) network cards,
 	  you should say Y to this option if you wish to use it with Linux.
 
 config ARM_ETHER3
 	tristate "Acorn/ANT Ether3 support"
-	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	depends on ARM && ARCH_ACORN
 	help
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
 
 config ARM_ETHERH
 	tristate "I-cubed EtherH/ANT EtherM support"
-	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	depends on ARM && ARCH_ACORN
 	select CRC32
 	help
 	  If you have an Acorn system with one of these network cards, you
@@ -34,7 +34,7 @@ config ARM_ETHERH
 
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
-	depends on NET_ETHERNET && ARM && ARCH_AT91RM9200
+	depends on ARM && ARCH_AT91RM9200
 	select MII
 	help
 	  If you wish to compile a kernel for the AT91RM9200 and enable
@@ -42,7 +42,8 @@ config ARM_AT91_ETHER
 
 config EP93XX_ETH
 	tristate "EP93xx Ethernet support"
-	depends on NET_ETHERNET && ARM && ARCH_EP93XX
+	depends on ARM && ARCH_EP93XX
+	select MII
 	help
 	  This is a driver for the ethernet hardware included in EP93xx CPUs.
 	  Say Y if you are building a kernel for EP93xx based devices.

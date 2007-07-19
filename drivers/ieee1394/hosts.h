@@ -28,8 +28,6 @@ struct hpsb_host {
 	struct timer_list timeout;
 	unsigned long timeout_interval;
 
-	unsigned char iso_listen_count[64];
-
 	int node_count;      /* number of identified nodes on this bus */
 	int selfid_count;    /* total number of SelfIDs received */
 	int nodes_active;    /* number of nodes with active link layer */
@@ -57,7 +55,7 @@ struct hpsb_host {
 	struct hpsb_host_driver *driver;
 	struct pci_dev *pdev;
 	struct device device;
-	struct class_device class_dev;
+	struct device host_dev;
 
 	struct delayed_work delayed_reset;
 	unsigned config_roms:31;
@@ -99,12 +97,6 @@ enum devctl_cmd {
 	/* Cancel all outstanding async requests without resetting the bus.
 	 * Return void. */
 	CANCEL_REQUESTS,
-
-	/* Start or stop receiving isochronous channel in arg.  Return void.
-	 * This acts as an optimization hint, hosts are not required not to
-	 * listen on unrequested channels. */
-	ISO_LISTEN_CHANNEL,
-	ISO_UNLISTEN_CHANNEL
 };
 
 enum isoctl_cmd {

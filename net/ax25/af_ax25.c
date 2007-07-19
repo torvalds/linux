@@ -1924,7 +1924,7 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ax25_info_seqops = {
+static const struct seq_operations ax25_info_seqops = {
 	.start = ax25_info_start,
 	.next = ax25_info_next,
 	.stop = ax25_info_stop,

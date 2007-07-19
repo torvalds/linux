@@ -78,9 +78,41 @@ void *idr_find(struct idr *idp, int id);
 int idr_pre_get(struct idr *idp, gfp_t gfp_mask);
 int idr_get_new(struct idr *idp, void *ptr, int *id);
 int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
+int idr_for_each(struct idr *idp,
+		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_replace(struct idr *idp, void *ptr, int id);
 void idr_remove(struct idr *idp, int id);
+void idr_remove_all(struct idr *idp);
 void idr_destroy(struct idr *idp);
 void idr_init(struct idr *idp);
+
+
+/*
+ * IDA - IDR based id allocator, use when translation from id to
+ * pointer isn't necessary.
+ */
+#define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
+#define IDA_BITMAP_LONGS	(128 / sizeof(long) - 1)
+#define IDA_BITMAP_BITS		(IDA_BITMAP_LONGS * sizeof(long) * 8)
+
+struct ida_bitmap {
+	long			nr_busy;
+	unsigned long		bitmap[IDA_BITMAP_LONGS];
+};
+
+struct ida {
+	struct idr		idr;
+	struct ida_bitmap	*free_bitmap;
+};
+
+#define IDA_INIT(name)		{ .idr = IDR_INIT(name), .free_bitmap = NULL, }
+#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
+
+int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+int ida_get_new(struct ida *ida, int *p_id);
+void ida_remove(struct ida *ida, int id);
+void ida_destroy(struct ida *ida);
+void ida_init(struct ida *ida);
 
 #endif /* __IDR_H__ */

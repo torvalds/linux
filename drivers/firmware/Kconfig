@@ -84,4 +84,13 @@ config DCDBAS
 	  Say Y or M here to enable the driver for use by Dell systems
 	  management software such as Dell OpenManage.
 
+config DMIID
+    bool "Export DMI identification via sysfs to userspace"
+    depends on DMI
+    default y
+	help
+	  Say Y here if you want to query SMBIOS/DMI system identification
+	  information from userspace through /sys/class/dmi/id/ or if you want
+	  DMI-based module auto-loading.
+
 endmenu

@@ -47,6 +47,7 @@ static int videobuf_dvb_thread(void *data)
 	int err;
 
 	dprintk("dvb thread started\n");
+	set_freezable();
 	videobuf_read_start(&dvb->dvbq);
 
 	for (;;) {

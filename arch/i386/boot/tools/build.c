@@ -1,13 +1,12 @@
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 1997 Martin Mares
+ *  Copyright (C) 2007 H. Peter Anvin
  */
 
 /*
- * This file builds a disk-image from three different files:
+ * This file builds a disk-image from two different files:
  *
- * - bootsect: compatibility mbr which prints an error message if
- *             someone tries to boot the kernel directly.
  * - setup: 8086 machine code, sets up system parm
  * - system: 80386 code for actual system
  *
@@ -21,6 +20,7 @@
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  * Cross compiling fixes by Gertjan van Wingerde, July 1996
  * Rewritten by Martin Mares, April 1997
+ * Substantially overhauled by H. Peter Anvin, April 2007
  */
 
 #include <stdio.h>
@@ -32,23 +32,25 @@
 #include <sys/sysmacros.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <asm/boot.h>
 
-typedef unsigned char byte;
-typedef unsigned short word;
-typedef unsigned long u32;
+typedef unsigned char  u8;
+typedef unsigned short u16;
+typedef unsigned long  u32;
 
 #define DEFAULT_MAJOR_ROOT 0
 #define DEFAULT_MINOR_ROOT 0
 
-/* Minimal number of setup sectors (see also bootsect.S) */
-#define SETUP_SECTS 4
+/* Minimal number of setup sectors */
+#define SETUP_SECT_MIN 5
+#define SETUP_SECT_MAX 64
 
-byte buf[1024];
-int fd;
+/* This must be large enough to hold the entire setup */
+u8 buf[SETUP_SECT_MAX*512];
 int is_big_kernel;
 
-void die(const char * str, ...)
+static void die(const char * str, ...)
 {
 	va_list args;
 	va_start(args, str);
@@ -57,15 +59,9 @@ void die(const char * str, ...)
 	exit(1);
 }
 
-void file_open(const char *name)
+static void usage(void)
 {
-	if ((fd = open(name, O_RDONLY, 0)) < 0)
-		die("Unable to open `%s': %m", name);
-}
-
-void usage(void)
-{
-	die("Usage: build [-b] bootsect setup system [rootdev] [> image]");
+	die("Usage: build [-b] setup system [rootdev] [> image]");
 }
 
 int main(int argc, char ** argv)
@@ -73,27 +69,30 @@ int main(int argc, char ** argv)
 	unsigned int i, sz, setup_sectors;
 	int c;
 	u32 sys_size;
-	byte major_root, minor_root;
+	u8 major_root, minor_root;
 	struct stat sb;
+	FILE *file;
+	int fd;
+	void *kernel;
 
 	if (argc > 2 && !strcmp(argv[1], "-b"))
 	  {
 	    is_big_kernel = 1;
 	    argc--, argv++;
 	  }
-	if ((argc < 4) || (argc > 5))
+	if ((argc < 3) || (argc > 4))
 		usage();
-	if (argc > 4) {
-		if (!strcmp(argv[4], "CURRENT")) {
+	if (argc > 3) {
+		if (!strcmp(argv[3], "CURRENT")) {
 			if (stat("/", &sb)) {
 				perror("/");
 				die("Couldn't stat /");
 			}
 			major_root = major(sb.st_dev);
 			minor_root = minor(sb.st_dev);
-		} else if (strcmp(argv[4], "FLOPPY")) {
-			if (stat(argv[4], &sb)) {
-				perror(argv[4]);
+		} else if (strcmp(argv[3], "FLOPPY")) {
+			if (stat(argv[3], &sb)) {
+				perror(argv[3]);
 				die("Couldn't stat root device.");
 			}
 			major_root = major(sb.st_rdev);
@@ -108,79 +107,62 @@ int main(int argc, char ** argv)
 	}
 	fprintf(stderr, "Root device is (%d, %d)\n", major_root, minor_root);
 
-	file_open(argv[1]);
-	i = read(fd, buf, sizeof(buf));
-	fprintf(stderr,"Boot sector %d bytes.\n",i);
-	if (i != 512)
-		die("Boot block must be exactly 512 bytes");
+	/* Copy the setup code */
+	file = fopen(argv[1], "r");
+	if (!file)
+		die("Unable to open `%s': %m", argv[1]);
+	c = fread(buf, 1, sizeof(buf), file);
+	if (ferror(file))
+		die("read-error on `setup'");
+	if (c < 1024)
+		die("The setup must be at least 1024 bytes");
 	if (buf[510] != 0x55 || buf[511] != 0xaa)
 		die("Boot block hasn't got boot flag (0xAA55)");
+	fclose(file);
+
+	/* Pad unused space with zeros */
+	setup_sectors = (c + 511) / 512;
+	if (setup_sectors < SETUP_SECT_MIN)
+		setup_sectors = SETUP_SECT_MIN;
+	i = setup_sectors*512;
+	memset(buf+c, 0, i-c);
+
+	/* Set the default root device */
 	buf[508] = minor_root;
 	buf[509] = major_root;
-	if (write(1, buf, 512) != 512)
-		die("Write call failed");
-	close (fd);
 
-	file_open(argv[2]);				    /* Copy the setup code */
-	for (i=0 ; (c=read(fd, buf, sizeof(buf)))>0 ; i+=c )
-		if (write(1, buf, c) != c)
-			die("Write call failed");
-	if (c != 0)
-		die("read-error on `setup'");
-	close (fd);
+	fprintf(stderr, "Setup is %d bytes (padded to %d bytes).\n", c, i);
 
-	setup_sectors = (i + 511) / 512;	/* Pad unused space with zeros */
-	/* for compatibility with ancient versions of LILO. */
-	if (setup_sectors < SETUP_SECTS)
-		setup_sectors = SETUP_SECTS;
-	fprintf(stderr, "Setup is %d bytes.\n", i);
-	memset(buf, 0, sizeof(buf));
-	while (i < setup_sectors * 512) {
-		c = setup_sectors * 512 - i;
-		if (c > sizeof(buf))
-			c = sizeof(buf);
-		if (write(1, buf, c) != c)
-			die("Write call failed");
-		i += c;
-	}
-
-	file_open(argv[3]);
-	if (fstat (fd, &sb))
-		die("Unable to stat `%s': %m", argv[3]);
+	/* Open and stat the kernel file */
+	fd = open(argv[2], O_RDONLY);
+	if (fd < 0)
+		die("Unable to open `%s': %m", argv[2]);
+	if (fstat(fd, &sb))
+		die("Unable to stat `%s': %m", argv[2]);
 	sz = sb.st_size;
-	fprintf (stderr, "System is %d kB\n", sz/1024);
+	fprintf (stderr, "System is %d kB\n", (sz+1023)/1024);
+	kernel = mmap(NULL, sz, PROT_READ, MAP_SHARED, fd, 0);
+	if (kernel == MAP_FAILED)
+		die("Unable to mmap '%s': %m", argv[2]);
 	sys_size = (sz + 15) / 16;
 	if (!is_big_kernel && sys_size > DEF_SYSSIZE)
 		die("System is too big. Try using bzImage or modules.");
-	while (sz > 0) {
-		int l, n;
 
-		l = (sz > sizeof(buf)) ? sizeof(buf) : sz;
-		if ((n=read(fd, buf, l)) != l) {
-			if (n < 0)
-				die("Error reading %s: %m", argv[3]);
-			else
-				die("%s: Unexpected EOF", argv[3]);
-		}
-		if (write(1, buf, l) != l)
-			die("Write failed");
-		sz -= l;
-	}
+	/* Patch the setup code with the appropriate size parameters */
+	buf[0x1f1] = setup_sectors-1;
+	buf[0x1f4] = sys_size;
+	buf[0x1f5] = sys_size >> 8;
+	buf[0x1f6] = sys_size >> 16;
+	buf[0x1f7] = sys_size >> 24;
+
+	if (fwrite(buf, 1, i, stdout) != i)
+		die("Writing setup failed");
+
+	/* Copy the kernel code */
+	if (fwrite(kernel, 1, sz, stdout) != sz)
+		die("Writing kernel failed");
 	close(fd);
 
-	if (lseek(1, 497, SEEK_SET) != 497)		    /* Write sizes to the bootsector */
-		die("Output: seek failed");
-	buf[0] = setup_sectors;
-	if (write(1, buf, 1) != 1)
-		die("Write of setup sector count failed");
-	if (lseek(1, 500, SEEK_SET) != 500)
-		die("Output: seek failed");
-	buf[0] = (sys_size & 0xff);
-	buf[1] = ((sys_size >> 8) & 0xff);
-	buf[2] = ((sys_size >> 16) & 0xff);
-	buf[3] = ((sys_size >> 24) & 0xff);
-	if (write(1, buf, 4) != 4)
-		die("Write of image length failed");
-
-	return 0;					    /* Everything is OK */
+	/* Everything is OK */
+	return 0;
 }

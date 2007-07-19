@@ -146,9 +146,6 @@ extern unsigned int sni_brd_type;
 #define SNI_A20R_IRQ_BASE       MIPS_CPU_IRQ_BASE
 #define SNI_A20R_IRQ_TIMER      (SNI_A20R_IRQ_BASE+5)
 
-#define SNI_DS1216_A20R_BASE    0xbc081ffc
-#define SNI_DS1216_RM200_BASE   0xbcd41ffc
-
 #define SNI_PCIT_INT_REG        0xbfff000c
 
 #define SNI_PCIT_INT_START      24

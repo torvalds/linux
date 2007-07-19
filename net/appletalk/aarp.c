@@ -1024,7 +1024,7 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations aarp_seq_ops = {
+static const struct seq_operations aarp_seq_ops = {
 	.start  = aarp_seq_start,
 	.next   = aarp_seq_next,
 	.stop   = aarp_seq_stop,

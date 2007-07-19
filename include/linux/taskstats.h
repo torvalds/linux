@@ -31,7 +31,7 @@
  */
 
 
-#define TASKSTATS_VERSION	4
+#define TASKSTATS_VERSION	5
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -149,6 +149,9 @@ struct taskstats {
 	__u64	read_bytes;		/* bytes of read I/O */
 	__u64	write_bytes;		/* bytes of write I/O */
 	__u64	cancelled_write_bytes;	/* bytes of cancelled write I/O */
+
+	__u64  nvcsw;			/* voluntary_ctxt_switches */
+	__u64  nivcsw;			/* nonvoluntary_ctxt_switches */
 };
 
 

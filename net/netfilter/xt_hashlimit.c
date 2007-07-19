@@ -94,7 +94,8 @@ static DEFINE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
 static HLIST_HEAD(hashlimit_htables);
 static struct kmem_cache *hashlimit_cachep __read_mostly;
 
-static inline int dst_cmp(const struct dsthash_ent *ent, struct dsthash_dst *b)
+static inline bool dst_cmp(const struct dsthash_ent *ent,
+			   const struct dsthash_dst *b)
 {
 	return !memcmp(&ent->dst, b, sizeof(ent->dst));
 }
@@ -106,7 +107,8 @@ hash_dst(const struct xt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 }
 
 static struct dsthash_ent *
-dsthash_find(const struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
+dsthash_find(const struct xt_hashlimit_htable *ht,
+	     const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
 	struct hlist_node *pos;
@@ -122,7 +124,8 @@ dsthash_find(const struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
 
 /* allocate dsthash_ent, initialize dst, put in htable and lock it */
 static struct dsthash_ent *
-dsthash_alloc_init(struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
+dsthash_alloc_init(struct xt_hashlimit_htable *ht,
+		   const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
 
@@ -227,19 +230,21 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	return 0;
 }
 
-static int select_all(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_all(const struct xt_hashlimit_htable *ht,
+		       const struct dsthash_ent *he)
 {
 	return 1;
 }
 
-static int select_gc(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_gc(const struct xt_hashlimit_htable *ht,
+		      const struct dsthash_ent *he)
 {
-	return (jiffies >= he->expires);
+	return jiffies >= he->expires;
 }
 
 static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
-				int (*select)(struct xt_hashlimit_htable *ht,
-					      struct dsthash_ent *he))
+			bool (*select)(const struct xt_hashlimit_htable *ht,
+				      const struct dsthash_ent *he))
 {
 	unsigned int i;
 
@@ -282,7 +287,8 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 	vfree(hinfo);
 }
 
-static struct xt_hashlimit_htable *htable_find_get(char *name, int family)
+static struct xt_hashlimit_htable *htable_find_get(const char *name,
+						   int family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
@@ -367,7 +373,8 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 }
 
 static int
-hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
+hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
+		   struct dsthash_dst *dst,
 		   const struct sk_buff *skb, unsigned int protoff)
 {
 	__be16 _ports[2], *ports;
@@ -432,7 +439,7 @@ hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
 	return 0;
 }
 
-static int
+static bool
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
@@ -440,10 +447,10 @@ hashlimit_match(const struct sk_buff *skb,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
-		int *hotdrop)
+		bool *hotdrop)
 {
-	struct xt_hashlimit_info *r =
-		((struct xt_hashlimit_info *)matchinfo)->u.master;
+	const struct xt_hashlimit_info *r =
+		((const struct xt_hashlimit_info *)matchinfo)->u.master;
 	struct xt_hashlimit_htable *hinfo = r->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
@@ -478,20 +485,20 @@ hashlimit_match(const struct sk_buff *skb,
 		/* We're underlimit. */
 		dh->rateinfo.credit -= dh->rateinfo.cost;
 		spin_unlock_bh(&hinfo->lock);
-		return 1;
+		return true;
 	}
 
 	spin_unlock_bh(&hinfo->lock);
 
 	/* default case: we're overlimit, thus don't match */
-	return 0;
+	return false;
 
 hotdrop:
-	*hotdrop = 1;
-	return 0;
+	*hotdrop = true;
+	return false;
 }
 
-static int
+static bool
 hashlimit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
@@ -505,20 +512,20 @@ hashlimit_checkentry(const char *tablename,
 	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
 		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
 		       r->cfg.avg, r->cfg.burst);
-		return 0;
+		return false;
 	}
 	if (r->cfg.mode == 0 ||
 	    r->cfg.mode > (XT_HASHLIMIT_HASH_DPT |
 			   XT_HASHLIMIT_HASH_DIP |
 			   XT_HASHLIMIT_HASH_SIP |
 			   XT_HASHLIMIT_HASH_SPT))
-		return 0;
+		return false;
 	if (!r->cfg.gc_interval)
-		return 0;
+		return false;
 	if (!r->cfg.expire)
-		return 0;
+		return false;
 	if (r->name[sizeof(r->name) - 1] != '\0')
-		return 0;
+		return false;
 
 	/* This is the best we've got: We cannot release and re-grab lock,
 	 * since checkentry() is called before x_tables.c grabs xt_mutex.
@@ -530,19 +537,19 @@ hashlimit_checkentry(const char *tablename,
 	r->hinfo = htable_find_get(r->name, match->family);
 	if (!r->hinfo && htable_create(r, match->family) != 0) {
 		mutex_unlock(&hlimit_mutex);
-		return 0;
+		return false;
 	}
 	mutex_unlock(&hlimit_mutex);
 
 	/* Ugly hack: For SMP, we only want to use one set */
 	r->u.master = r;
-	return 1;
+	return true;
 }
 
 static void
 hashlimit_destroy(const struct xt_match *match, void *matchinfo)
 {
-	struct xt_hashlimit_info *r = matchinfo;
+	const struct xt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }
@@ -571,7 +578,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match xt_hashlimit[] = {
+static struct xt_match xt_hashlimit[] __read_mostly = {
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET,
@@ -694,7 +701,7 @@ static int dl_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations dl_seq_ops = {
+static const struct seq_operations dl_seq_ops = {
 	.start = dl_seq_start,
 	.next  = dl_seq_next,
 	.stop  = dl_seq_stop,

@@ -33,20 +33,24 @@
  */
 static void putc(int c)
 {
+#ifdef AT91_DBGU
 	void __iomem *sys = (void __iomem *) AT91_BASE_SYS;	/* physical address */
 
 	while (!(__raw_readl(sys + AT91_DBGU_SR) & AT91_DBGU_TXRDY))
 		barrier();
 	__raw_writel(c, sys + AT91_DBGU_THR);
+#endif
 }
 
 static inline void flush(void)
 {
+#ifdef AT91_DBGU
 	void __iomem *sys = (void __iomem *) AT91_BASE_SYS;	/* physical address */
 
 	/* wait for transmission to complete */
 	while (!(__raw_readl(sys + AT91_DBGU_SR) & AT91_DBGU_TXEMPTY))
 		barrier();
+#endif
 }
 
 #define arch_decomp_setup()

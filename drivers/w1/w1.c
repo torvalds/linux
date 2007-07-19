@@ -105,7 +105,9 @@ static ssize_t w1_slave_read_name(struct device *dev, struct device_attribute *a
 	return sprintf(buf, "%s\n", sl->name);
 }
 
-static ssize_t w1_slave_read_id(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t w1_slave_read_id(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -128,7 +130,6 @@ static struct bin_attribute w1_slave_attr_bin_id = {
       .attr = {
               .name = "id",
               .mode = S_IRUGO,
-              .owner = THIS_MODULE,
       },
       .size = 8,
       .read = w1_slave_read_id,
@@ -136,7 +137,9 @@ static struct bin_attribute w1_slave_attr_bin_id = {
 
 /* Default family */
 
-static ssize_t w1_default_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t w1_default_write(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -153,7 +156,9 @@ out_up:
 	return count;
 }
 
-static ssize_t w1_default_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t w1_default_read(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -167,7 +172,6 @@ static struct bin_attribute w1_default_attr = {
       .attr = {
               .name = "rw",
               .mode = S_IRUGO | S_IWUSR,
-              .owner = THIS_MODULE,
       },
       .size = PAGE_SIZE,
       .read = w1_default_read,
@@ -801,6 +805,7 @@ static int w1_control(void *data)
 	struct w1_master *dev, *n;
 	int have_to_wait = 0;
 
+	set_freezable();
 	while (!kthread_should_stop() || have_to_wait) {
 		have_to_wait = 0;
 

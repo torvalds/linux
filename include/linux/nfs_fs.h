@@ -30,7 +30,9 @@
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/kref.h>
 #include <linux/mm.h>
+#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
@@ -69,9 +71,8 @@ struct nfs_access_entry {
 
 struct nfs4_state;
 struct nfs_open_context {
-	atomic_t count;
-	struct vfsmount *vfsmnt;
-	struct dentry *dentry;
+	struct kref kref;
+	struct path path;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	fl_owner_t lockowner;
@@ -155,13 +156,9 @@ struct nfs_inode {
 	/*
 	 * This is the list of dirty unwritten pages.
 	 */
-	spinlock_t		req_lock;
-	struct list_head	dirty;
-	struct list_head	commit;
 	struct radix_tree_root	nfs_page_tree;
 
-	unsigned int		ndirty,
-				ncommit,
+	unsigned long		ncommit,
 				npages;
 
 	/* Open contexts for shared mmap writes */
@@ -187,6 +184,7 @@ struct nfs_inode {
 #define NFS_INO_INVALID_ACCESS	0x0008		/* cached access cred invalid */
 #define NFS_INO_INVALID_ACL	0x0010		/* cached acls are invalid */
 #define NFS_INO_REVAL_PAGECACHE	0x0020		/* must revalidate pagecache */
+#define NFS_INO_REVAL_FORCED	0x0040		/* force revalidation ignoring a delegation */
 
 /*
  * Bit offsets in flags field
@@ -496,21 +494,18 @@ static inline void nfs3_forget_cached_acls(struct inode *inode)
 
 /*
  * linux/fs/mount_clnt.c
- * (Used only by nfsroot module)
  */
-extern int  nfsroot_mount(struct sockaddr_in *, char *, struct nfs_fh *,
-		int, int);
+extern int  nfs_mount(struct sockaddr *, size_t, char *, char *,
+		      int, int, struct nfs_fh *);
 
 /*
  * inline functions
  */
 
-static inline loff_t
-nfs_size_to_loff_t(__u64 size)
+static inline loff_t nfs_size_to_loff_t(__u64 size)
 {
-	loff_t maxsz = (((loff_t) ULONG_MAX) << PAGE_CACHE_SHIFT) + PAGE_CACHE_SIZE - 1;
-	if (size > maxsz)
-		return maxsz;
+	if (size > (__u64) OFFSET_MAX - 1)
+		return OFFSET_MAX - 1;
 	return (loff_t) size;
 }
 
@@ -557,6 +552,7 @@ extern void * nfs_root_data(void);
 #define NFSDBG_ROOT		0x0080
 #define NFSDBG_CALLBACK		0x0100
 #define NFSDBG_CLIENT		0x0200
+#define NFSDBG_MOUNT		0x0400
 #define NFSDBG_ALL		0xFFFF
 
 #ifdef __KERNEL__

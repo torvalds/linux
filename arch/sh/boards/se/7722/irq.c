@@ -19,15 +19,24 @@
 #define INTC_INTMSK0             0xFFD00044
 #define INTC_INTMSKCLR0          0xFFD00064
 
+struct se7722_data {
+	unsigned char irq;
+	unsigned char ipr_idx;
+	unsigned char shift;
+	unsigned short priority;
+	unsigned long addr;
+};
+
+
 static void disable_se7722_irq(unsigned int irq)
 {
-	struct ipr_data *p = get_irq_chip_data(irq);
+	struct se7722_data *p = get_irq_chip_data(irq);
 	ctrl_outw( ctrl_inw( p->addr ) | p->priority , p->addr );
 }
 
 static void enable_se7722_irq(unsigned int irq)
 {
-	struct ipr_data *p = get_irq_chip_data(irq);
+	struct se7722_data *p = get_irq_chip_data(irq);
 	ctrl_outw( ctrl_inw( p->addr ) & ~p->priority , p->addr );
 }
 
@@ -38,7 +47,7 @@ static struct irq_chip se7722_irq_chip __read_mostly = {
 	.mask_ack       = disable_se7722_irq,
 };
 
-static struct ipr_data ipr_irq_table[] = {
+static struct se7722_data ipr_irq_table[] = {
 	/* irq        ,idx,sft, priority     , addr   */
 	{ MRSHPC_IRQ0 , 0 , 0 , MRSHPC_BIT0 , IRQ01_MASK } ,
 	{ MRSHPC_IRQ1 , 0 , 0 , MRSHPC_BIT1 , IRQ01_MASK } ,

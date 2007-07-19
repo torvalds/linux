@@ -56,6 +56,7 @@
 
 /* iPlus device */
 #define FTDI_IPLUS_PID 0xD070 /* Product Id */
+#define FTDI_IPLUS2_PID 0xD071 /* Product Id */
 
 /* DMX4ALL DMX Interfaces */
 #define FTDI_DMX4ALL 0xC850

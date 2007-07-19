@@ -23,7 +23,6 @@
 void invalidate_dcache_region(void *start, size_t size)
 {
 	unsigned long v, begin, end, linesz, mask;
-	int flush = 0;
 
 	linesz = boot_cpu_data.dcache.linesz;
 	mask = linesz - 1;
@@ -32,24 +31,21 @@ void invalidate_dcache_region(void *start, size_t size)
 	 * instead of invalidating ... never discard valid data!
 	 */
 	begin = (unsigned long)start;
-	end = begin + size - 1;
+	end = begin + size;
 
 	if (begin & mask) {
 		flush_dcache_line(start);
 		begin += linesz;
-		flush = 1;
 	}
-	if ((end & mask) != mask) {
+	if (end & mask) {
 		flush_dcache_line((void *)end);
-		end -= linesz;
-		flush = 1;
+		end &= ~mask;
 	}
 
 	/* remaining cachelines only need invalidation */
-	for (v = begin; v <= end; v += linesz)
+	for (v = begin; v < end; v += linesz)
 		invalidate_dcache_line((void *)v);
-	if (flush)
-		flush_write_buffer();
+	flush_write_buffer();
 }
 
 void clean_dcache_region(void *start, size_t size)

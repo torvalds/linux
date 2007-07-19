@@ -1788,7 +1788,6 @@ static void stl_offintr(struct work_struct *work)
 	if (tty == NULL)
 		return;
 
-	lock_kernel();
 	if (test_bit(ASYI_TXLOW, &portp->istate))
 		tty_wakeup(tty);
 
@@ -1802,7 +1801,6 @@ static void stl_offintr(struct work_struct *work)
 			if (portp->flags & ASYNC_CHECK_CD)
 				tty_hangup(tty);	/* FIXME: module removal race here - AKPM */
 	}
-	unlock_kernel();
 }
 
 /*****************************************************************************/
@@ -2356,9 +2354,6 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
 		goto err;
-
-	dev_info(&pdev->dev, "please, report this to LKML: %x/%x/%x\n",
-			pdev->vendor, pdev->device, pdev->class);
 
 	retval = pci_enable_device(pdev);
 	if (retval)
@@ -4753,13 +4748,14 @@ static int __init stallion_module_init(void)
 		brdp->ioaddr2 = conf.ioaddr2;
 		brdp->irq = conf.irq;
 		brdp->irqtype = conf.irqtype;
-		if (stl_brdinit(brdp))
+		stl_brds[brdp->brdnr] = brdp;
+		if (stl_brdinit(brdp)) {
+			stl_brds[brdp->brdnr] = NULL;
 			kfree(brdp);
-		else {
+		} else {
 			for (j = 0; j < brdp->nrports; j++)
 				tty_register_device(stl_serial,
 					brdp->brdnr * STL_MAXPORTS + j, NULL);
-			stl_brds[brdp->brdnr] = brdp;
 			stl_nrbrds = i + 1;
 		}
 	}

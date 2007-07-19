@@ -242,7 +242,7 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 #ifdef CONFIG_KALLSYMS
 		/* Handle some frequent special cases.... */
 		{
-			char symname[KSYM_NAME_LEN+1];
+			char symname[KSYM_NAME_LEN];
 			char *modname;
 
 			kallsyms_lookup(info->ip, NULL, NULL, &modname,

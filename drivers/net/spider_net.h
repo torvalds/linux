@@ -349,10 +349,22 @@ enum spider_net_int2_status {
 #define SPIDER_NET_GPRDAT_MASK			0x0000ffff
 
 #define SPIDER_NET_DMAC_NOINTR_COMPLETE		0x00800000
-#define SPIDER_NET_DMAC_NOCS			0x00040000
+#define SPIDER_NET_DMAC_TXFRMTL		0x00040000
 #define SPIDER_NET_DMAC_TCP			0x00020000
 #define SPIDER_NET_DMAC_UDP			0x00030000
 #define SPIDER_NET_TXDCEST			0x08000000
+
+#define SPIDER_NET_DESCR_RXFDIS        0x00000001
+#define SPIDER_NET_DESCR_RXDCEIS       0x00000002
+#define SPIDER_NET_DESCR_RXDEN0IS      0x00000004
+#define SPIDER_NET_DESCR_RXINVDIS      0x00000008
+#define SPIDER_NET_DESCR_RXRERRIS      0x00000010
+#define SPIDER_NET_DESCR_RXFDCIMS      0x00000100
+#define SPIDER_NET_DESCR_RXDCEIMS      0x00000200
+#define SPIDER_NET_DESCR_RXDEN0IMS     0x00000400
+#define SPIDER_NET_DESCR_RXINVDIMS     0x00000800
+#define SPIDER_NET_DESCR_RXRERRMIS     0x00001000
+#define SPIDER_NET_DESCR_UNUSED        0x077fe0e0
 
 #define SPIDER_NET_DESCR_IND_PROC_MASK		0xF0000000
 #define SPIDER_NET_DESCR_COMPLETE		0x00000000 /* used in rx and tx */
@@ -363,6 +375,13 @@ enum spider_net_int2_status {
 #define SPIDER_NET_DESCR_CARDOWNED		0xA0000000 /* used in rx and tx */
 #define SPIDER_NET_DESCR_NOT_IN_USE		0xF0000000
 #define SPIDER_NET_DESCR_TXDESFLG		0x00800000
+
+#define SPIDER_NET_DESCR_BAD_STATUS   (SPIDER_NET_DESCR_RXDEN0IS | \
+                                       SPIDER_NET_DESCR_RXRERRIS | \
+                                       SPIDER_NET_DESCR_RXDEN0IMS | \
+                                       SPIDER_NET_DESCR_RXINVDIMS | \
+                                       SPIDER_NET_DESCR_RXRERRMIS | \
+                                       SPIDER_NET_DESCR_UNUSED)
 
 /* Descriptor, as defined by the hardware */
 struct spider_net_hw_descr {

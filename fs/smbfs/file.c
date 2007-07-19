@@ -262,8 +262,9 @@ out:
 }
 
 static ssize_t
-smb_file_sendfile(struct file *file, loff_t *ppos,
-		  size_t count, read_actor_t actor, void *target)
+smb_file_splice_read(struct file *file, loff_t *ppos,
+		     struct pipe_inode_info *pipe, size_t count,
+		     unsigned int flags)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	ssize_t status;
@@ -277,7 +278,7 @@ smb_file_sendfile(struct file *file, loff_t *ppos,
 			 DENTRY_PATH(dentry), status);
 		goto out;
 	}
-	status = generic_file_sendfile(file, ppos, count, actor, target);
+	status = generic_file_splice_read(file, ppos, pipe, count, flags);
 out:
 	return status;
 }
@@ -416,7 +417,7 @@ const struct file_operations smb_file_operations =
 	.open		= smb_file_open,
 	.release	= smb_file_release,
 	.fsync		= smb_fsync,
-	.sendfile	= smb_file_sendfile,
+	.splice_read	= smb_file_splice_read,
 };
 
 const struct inode_operations smb_file_inode_operations =

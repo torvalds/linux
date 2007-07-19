@@ -464,9 +464,25 @@ section Linus Computer Science 101.
 Nuff said.  If your code deviates too much from this, it is likely
 to be rejected without further review, and without comment.
 
+Once significant exception is when moving code from one file to
+another in this case you should not modify the moved code at all in
+the same patch which moves it.  This clearly delineates the act of
+moving the code and your changes.  This greatly aids review of the
+actual differences and allows tools to better track the history of
+the code itself.
+
 Check your patches with the patch style checker prior to submission
-(scripts/checkpatch.pl).  You should be able to justify all
-violations that remain in your patch.
+(scripts/checkpatch.pl).  The style checker should be viewed as
+a guide not as the final word.  If your code looks better with
+a violation then its probably best left alone.
+
+The checker reports at three levels:
+ - ERROR: things that are very likely to be wrong
+ - WARNING: things requiring careful review
+ - CHECK: things requiring thought
+
+You should be able to justify all violations that remain in your
+patch.
 
 
 

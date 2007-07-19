@@ -329,12 +329,13 @@ extern void sysrq_timer_list_show(void);
 #ifdef CONFIG_TIMER_STATS
 
 extern void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-				     void *timerf, char * comm);
+				     void *timerf, char *comm,
+				     unsigned int timer_flag);
 
 static inline void timer_stats_account_hrtimer(struct hrtimer *timer)
 {
 	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
-				 timer->function, timer->start_comm);
+				 timer->function, timer->start_comm, 0);
 }
 
 extern void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer,

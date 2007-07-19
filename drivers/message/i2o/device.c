@@ -62,7 +62,7 @@ int i2o_device_claim(struct i2o_device *dev)
 {
 	int rc = 0;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 
 	rc = i2o_device_issue_claim(dev, I2O_CMD_UTIL_CLAIM, I2O_CLAIM_PRIMARY);
 	if (!rc)
@@ -72,7 +72,7 @@ int i2o_device_claim(struct i2o_device *dev)
 		pr_debug("i2o: claim of device %d failed %d\n",
 			 dev->lct_data.tid, rc);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	return rc;
 }
@@ -96,7 +96,7 @@ int i2o_device_claim_release(struct i2o_device *dev)
 	int tries;
 	int rc = 0;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 
 	/*
 	 *      If the controller takes a nonblocking approach to
@@ -118,7 +118,7 @@ int i2o_device_claim_release(struct i2o_device *dev)
 		pr_debug("i2o: claim release of device %d failed %d\n",
 			 dev->lct_data.tid, rc);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	return rc;
 }
@@ -198,7 +198,7 @@ static struct i2o_device *i2o_device_alloc(void)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&dev->list);
-	init_MUTEX(&dev->lock);
+	mutex_init(&dev->lock);
 
 	dev->device.bus = &i2o_bus_type;
 	dev->device.release = &i2o_device_release;
@@ -326,7 +326,7 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 	u16 table_size;
 	u32 buf;
 
-	down(&c->lct_lock);
+	mutex_lock(&c->lct_lock);
 
 	kfree(c->lct);
 
@@ -335,7 +335,7 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 
 	lct = c->lct = kmalloc(table_size * 4, GFP_KERNEL);
 	if (!lct) {
-		up(&c->lct_lock);
+		mutex_unlock(&c->lct_lock);
 		return -ENOMEM;
 	}
 
@@ -408,7 +408,7 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 			i2o_device_remove(dev);
 	}
 
-	up(&c->lct_lock);
+	mutex_unlock(&c->lct_lock);
 
 	return 0;
 }
@@ -485,7 +485,7 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 	u8 *resblk;		/* 8 bytes for header */
 	int rc;
 
-	resblk = kmalloc(buflen + 8, GFP_KERNEL | GFP_ATOMIC);
+	resblk = kmalloc(buflen + 8, GFP_KERNEL);
 	if (!resblk)
 		return -ENOMEM;
 

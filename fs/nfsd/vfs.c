@@ -23,7 +23,7 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/major.h>
-#include <linux/ext2_fs.h>
+#include <linux/splice.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
@@ -113,7 +113,7 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 
 	while (follow_down(&mnt,&mounts)&&d_mountpoint(mounts));
 
-	exp2 = exp_get_by_name(exp->ex_client, mnt, mounts, &rqstp->rq_chandle);
+	exp2 = rqst_exp_get_by_name(rqstp, mnt, mounts);
 	if (IS_ERR(exp2)) {
 		err = PTR_ERR(exp2);
 		dput(mounts);
@@ -135,21 +135,10 @@ out:
 	return err;
 }
 
-/*
- * Look up one component of a pathname.
- * N.B. After this call _both_ fhp and resfh need an fh_put
- *
- * If the lookup would cross a mountpoint, and the mounted filesystem
- * is exported to the client with NFSEXP_NOHIDE, then the lookup is
- * accepted as it stands and the mounted directory is
- * returned. Otherwise the covered directory is returned.
- * NOTE: this mountpoint crossing is not supported properly by all
- *   clients and is explicitly disallowed for NFSv3
- *      NeilBrown <neilb@cse.unsw.edu.au>
- */
 __be32
-nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
-					int len, struct svc_fh *resfh)
+nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		   const char *name, int len,
+		   struct svc_export **exp_ret, struct dentry **dentry_ret)
 {
 	struct svc_export	*exp;
 	struct dentry		*dparent;
@@ -167,8 +156,6 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 	dparent = fhp->fh_dentry;
 	exp  = fhp->fh_export;
 	exp_get(exp);
-
-	err = nfserr_acces;
 
 	/* Lookup the name, but don't follow links */
 	if (isdotent(name, len)) {
@@ -190,17 +177,15 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 			dput(dentry);
 			dentry = dp;
 
-			exp2 = exp_parent(exp->ex_client, mnt, dentry,
-					  &rqstp->rq_chandle);
-			if (IS_ERR(exp2)) {
+			exp2 = rqst_exp_parent(rqstp, mnt, dentry);
+			if (PTR_ERR(exp2) == -ENOENT) {
+				dput(dentry);
+				dentry = dget(dparent);
+			} else if (IS_ERR(exp2)) {
 				host_err = PTR_ERR(exp2);
 				dput(dentry);
 				mntput(mnt);
 				goto out_nfserr;
-			}
-			if (!exp2) {
-				dput(dentry);
-				dentry = dget(dparent);
 			} else {
 				exp_put(exp);
 				exp = exp2;
@@ -223,6 +208,41 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 			}
 		}
 	}
+	*dentry_ret = dentry;
+	*exp_ret = exp;
+	return 0;
+
+out_nfserr:
+	exp_put(exp);
+	return nfserrno(host_err);
+}
+
+/*
+ * Look up one component of a pathname.
+ * N.B. After this call _both_ fhp and resfh need an fh_put
+ *
+ * If the lookup would cross a mountpoint, and the mounted filesystem
+ * is exported to the client with NFSEXP_NOHIDE, then the lookup is
+ * accepted as it stands and the mounted directory is
+ * returned. Otherwise the covered directory is returned.
+ * NOTE: this mountpoint crossing is not supported properly by all
+ *   clients and is explicitly disallowed for NFSv3
+ *      NeilBrown <neilb@cse.unsw.edu.au>
+ */
+__be32
+nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
+					int len, struct svc_fh *resfh)
+{
+	struct svc_export	*exp;
+	struct dentry		*dentry;
+	__be32 err;
+
+	err = nfsd_lookup_dentry(rqstp, fhp, name, len, &exp, &dentry);
+	if (err)
+		return err;
+	err = check_nfsd_access(exp, rqstp);
+	if (err)
+		goto out;
 	/*
 	 * Note: we compose the file handle now, but as the
 	 * dentry may be negative, it may need to be updated.
@@ -230,15 +250,12 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 	err = fh_compose(resfh, exp, dentry, fhp);
 	if (!err && !dentry->d_inode)
 		err = nfserr_noent;
-	dput(dentry);
 out:
+	dput(dentry);
 	exp_put(exp);
 	return err;
-
-out_nfserr:
-	err = nfserrno(host_err);
-	goto out;
 }
+
 
 /*
  * Set various file attributes.
@@ -311,7 +328,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	/* The size case is special. It changes the file as well as the attributes.  */
 	if (iap->ia_valid & ATTR_SIZE) {
 		if (iap->ia_size < inode->i_size) {
-			err = nfsd_permission(fhp->fh_export, dentry, MAY_TRUNC|MAY_OWNER_OVERRIDE);
+			err = nfsd_permission(rqstp, fhp->fh_export, dentry, MAY_TRUNC|MAY_OWNER_OVERRIDE);
 			if (err)
 				goto out;
 		}
@@ -435,7 +452,7 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	/* Get inode */
 	error = fh_verify(rqstp, fhp, 0 /* S_IFREG */, MAY_SATTR);
 	if (error)
-		goto out;
+		return error;
 
 	dentry = fhp->fh_dentry;
 	inode = dentry->d_inode;
@@ -444,33 +461,25 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	host_error = nfs4_acl_nfsv4_to_posix(acl, &pacl, &dpacl, flags);
 	if (host_error == -EINVAL) {
-		error = nfserr_attrnotsupp;
-		goto out;
+		return nfserr_attrnotsupp;
 	} else if (host_error < 0)
 		goto out_nfserr;
 
 	host_error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
 	if (host_error < 0)
-		goto out_nfserr;
+		goto out_release;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode))
 		host_error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
-		if (host_error < 0)
-			goto out_nfserr;
-	}
 
-	error = nfs_ok;
-
-out:
+out_release:
 	posix_acl_release(pacl);
 	posix_acl_release(dpacl);
-	return (error);
 out_nfserr:
 	if (host_error == -EOPNOTSUPP)
-		error = nfserr_attrnotsupp;
+		return nfserr_attrnotsupp;
 	else
-		error = nfserrno(host_error);
-	goto out;
+		return nfserrno(host_error);
 }
 
 static struct posix_acl *
@@ -607,7 +616,7 @@ nfsd_access(struct svc_rqst *rqstp, struct svc_fh *fhp, u32 *access, u32 *suppor
 
 			sresult |= map->access;
 
-			err2 = nfsd_permission(export, dentry, map->how);
+			err2 = nfsd_permission(rqstp, export, dentry, map->how);
 			switch (err2) {
 			case nfs_ok:
 				result |= map->access;
@@ -801,26 +810,32 @@ found:
 }
 
 /*
- * Grab and keep cached pages assosiated with a file in the svc_rqst
- * so that they can be passed to the netowork sendmsg/sendpage routines
- * directrly. They will be released after the sending has completed.
+ * Grab and keep cached pages associated with a file in the svc_rqst
+ * so that they can be passed to the network sendmsg/sendpage routines
+ * directly. They will be released after the sending has completed.
  */
 static int
-nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset , unsigned long size)
+nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+		  struct splice_desc *sd)
 {
-	unsigned long count = desc->count;
-	struct svc_rqst *rqstp = desc->arg.data;
+	struct svc_rqst *rqstp = sd->u.data;
 	struct page **pp = rqstp->rq_respages + rqstp->rq_resused;
+	struct page *page = buf->page;
+	size_t size;
+	int ret;
 
-	if (size > count)
-		size = count;
+	ret = buf->ops->confirm(pipe, buf);
+	if (unlikely(ret))
+		return ret;
+
+	size = sd->len;
 
 	if (rqstp->rq_res.page_len == 0) {
 		get_page(page);
 		put_page(*pp);
 		*pp = page;
 		rqstp->rq_resused++;
-		rqstp->rq_res.page_base = offset;
+		rqstp->rq_res.page_base = buf->offset;
 		rqstp->rq_res.page_len = size;
 	} else if (page != pp[-1]) {
 		get_page(page);
@@ -832,9 +847,13 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 	} else
 		rqstp->rq_res.page_len += size;
 
-	desc->count = count - size;
-	desc->written += size;
 	return size;
+}
+
+static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
+				    struct splice_desc *sd)
+{
+	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
 static __be32
@@ -861,10 +880,16 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (ra && ra->p_set)
 		file->f_ra = ra->p_ra;
 
-	if (file->f_op->sendfile && rqstp->rq_sendfile_ok) {
+	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
+		struct splice_desc sd = {
+			.len		= 0,
+			.total_len	= *count,
+			.pos		= offset,
+			.u.data		= rqstp,
+		};
+
 		rqstp->rq_resused = 1;
-		host_err = file->f_op->sendfile(file, &offset, *count,
-						 nfsd_read_actor, rqstp);
+		host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
 	} else {
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
@@ -1018,7 +1043,7 @@ nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	__be32		err;
 
 	if (file) {
-		err = nfsd_permission(fhp->fh_export, fhp->fh_dentry,
+		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
 				MAY_READ|MAY_OWNER_OVERRIDE);
 		if (err)
 			goto out;
@@ -1047,7 +1072,7 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	__be32			err = 0;
 
 	if (file) {
-		err = nfsd_permission(fhp->fh_export, fhp->fh_dentry,
+		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
 				MAY_WRITE|MAY_OWNER_OVERRIDE);
 		if (err)
 			goto out;
@@ -1776,7 +1801,8 @@ nfsd_statfs(struct svc_rqst *rqstp, struct svc_fh *fhp, struct kstatfs *stat)
  * Check for a user's access permissions to this inode.
  */
 __be32
-nfsd_permission(struct svc_export *exp, struct dentry *dentry, int acc)
+nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
+					struct dentry *dentry, int acc)
 {
 	struct inode	*inode = dentry->d_inode;
 	int		err;
@@ -1807,7 +1833,7 @@ nfsd_permission(struct svc_export *exp, struct dentry *dentry, int acc)
 	 */
 	if (!(acc & MAY_LOCAL_ACCESS))
 		if (acc & (MAY_WRITE | MAY_SATTR | MAY_TRUNC)) {
-			if (EX_RDONLY(exp) || IS_RDONLY(inode))
+			if (EX_RDONLY(exp, rqstp) || IS_RDONLY(inode))
 				return nfserr_rofs;
 			if (/* (acc & MAY_WRITE) && */ IS_IMMUTABLE(inode))
 				return nfserr_perm;

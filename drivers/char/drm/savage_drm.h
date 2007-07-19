@@ -47,7 +47,7 @@
 typedef struct _drm_savage_sarea {
 	/* LRU lists for texture memory in agp space and on the card.
 	 */
-	drm_tex_region_t texList[SAVAGE_NR_TEX_HEAPS][SAVAGE_NR_TEX_REGIONS +
+	struct drm_tex_region texList[SAVAGE_NR_TEX_HEAPS][SAVAGE_NR_TEX_REGIONS +
 						      1];
 	unsigned int texAge[SAVAGE_NR_TEX_HEAPS];
 
@@ -113,7 +113,7 @@ typedef struct drm_savage_cmdbuf {
 	unsigned int vb_size;	/* size of client vertex buffer in bytes */
 	unsigned int vb_stride;	/* stride of vertices in 32bit words */
 	/* boxes in client's address space */
-	drm_clip_rect_t __user *box_addr;
+	struct drm_clip_rect __user *box_addr;
 	unsigned int nbox;	/* number of clipping boxes */
 } drm_savage_cmdbuf_t;
 

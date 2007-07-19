@@ -67,3 +67,7 @@ executed on expiry.
 
     Thomas, Ingo
 
+Added flag to indicate 'deferrable timer' in /proc/timer_stats. A deferrable
+timer will appear as follows
+  10D,     1 swapper          queue_delayed_work_on (delayed_work_timer_fn)
+

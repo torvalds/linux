@@ -11,7 +11,7 @@ obj-$(CONFIG_DVB_BUDGET_CI) += budget-core.o budget-ci.o ttpci-eeprom.o
 obj-$(CONFIG_DVB_BUDGET_PATCH) += budget-core.o budget-patch.o ttpci-eeprom.o
 obj-$(CONFIG_DVB_AV7110) += dvb-ttpci.o ttpci-eeprom.o
 
-EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 
 hostprogs-y	:= fdump
 

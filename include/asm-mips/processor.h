@@ -82,10 +82,6 @@ struct mips_fpu_struct {
 	unsigned int	fcr31;
 };
 
-#define INIT_FPU { \
-	{0,} \
-}
-
 #define NUM_DSP_REGS   6
 
 typedef __u32 dspreg_t;
@@ -94,8 +90,6 @@ struct mips_dsp_state {
 	dspreg_t        dspr[NUM_DSP_REGS];
 	unsigned int    dspcontrol;
 };
-
-#define INIT_DSP {{0,},}
 
 #define INIT_CPUMASK { \
 	{0,} \
@@ -155,41 +149,63 @@ struct thread_struct {
 #define MF_N64		0
 
 #ifdef CONFIG_MIPS_MT_FPAFF
-#define FPAFF_INIT 0, INIT_CPUMASK,
+#define FPAFF_INIT						\
+	.emulated_fp			= 0,			\
+	.user_cpus_allowed		= INIT_CPUMASK,
 #else
 #define FPAFF_INIT
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
-#define INIT_THREAD  { \
-        /* \
-         * saved main processor registers \
-         */ \
-	0, 0, 0, 0, 0, 0, 0, 0, \
-	               0, 0, 0, \
-	/* \
-	 * saved cp0 stuff \
-	 */ \
-	0, \
-	/* \
-	 * saved fpu/fpu emulator stuff \
-	 */ \
-	INIT_FPU, \
-	/* \
-	 * fpu affinity state (null if not FPAFF) \
-	 */ \
-	FPAFF_INIT \
-	/* \
-	 * saved dsp/dsp emulator stuff \
-	 */ \
-	INIT_DSP, \
-	/* \
-	 * Other stuff associated with the process \
-	 */ \
-	0, 0, 0, 0, \
-	/* \
-	 * For now the default is to fix address errors \
-	 */ \
-	MF_FIXADE, 0, 0 \
+#define INIT_THREAD  {						\
+        /*							\
+         * Saved main processor registers			\
+         */							\
+	.reg16			= 0,				\
+	.reg17			= 0,				\
+	.reg18			= 0,				\
+	.reg19			= 0,				\
+	.reg20			= 0,				\
+	.reg21			= 0,				\
+	.reg22			= 0,				\
+	.reg23			= 0,				\
+	.reg29			= 0,				\
+	.reg30			= 0,				\
+	.reg31			= 0,				\
+	/*							\
+	 * Saved cp0 stuff					\
+	 */							\
+	.cp0_status		= 0,				\
+	/*							\
+	 * Saved FPU/FPU emulator stuff				\
+	 */							\
+	.fpu			= {				\
+		.fpr		= {0,},				\
+		.fcr31		= 0,				\
+	},							\
+	/*							\
+	 * FPU affinity state (null if not FPAFF)		\
+	 */							\
+	FPAFF_INIT						\
+	/*							\
+	 * Saved DSP stuff					\
+	 */							\
+	.dsp			= {				\
+		.dspr		= {0, },			\
+		.dspcontrol	= 0,				\
+	},							\
+	/*							\
+	 * Other stuff associated with the process		\
+	 */							\
+	.cp0_badvaddr		= 0,				\
+	.cp0_baduaddr		= 0,				\
+	.error_code		= 0,				\
+	.trap_no		= 0,				\
+	/*							\
+	 * For now the default is to fix address errors		\
+	 */							\
+	.mflags			= MF_FIXADE,			\
+	.irix_trampoline	= 0,				\
+	.irix_oldctx		= 0,				\
 }
 
 struct task_struct;
@@ -237,7 +253,7 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define ARCH_HAS_PREFETCH
 
-extern inline void prefetch(const void *addr)
+static inline void prefetch(const void *addr)
 {
 	__asm__ __volatile__(
 	"	.set	mips4		\n"

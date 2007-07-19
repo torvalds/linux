@@ -67,7 +67,7 @@ struct sbp2_command_orb {
 #define ORB_SET_LUN(v)			((v) & 0xffff)
 #define ORB_SET_FUNCTION(v)		(((v) & 0xf) << 16)
 #define ORB_SET_RECONNECT(v)		(((v) & 0xf) << 20)
-#define ORB_SET_EXCLUSIVE(v)		(((v) & 0x1) << 28)
+#define ORB_SET_EXCLUSIVE(v)		((v) ? 1 << 28 : 0)
 #define ORB_SET_LOGIN_RESP_LENGTH(v)	((v) & 0xffff)
 #define ORB_SET_PASSWD_LENGTH(v)	(((v) & 0xffff) << 16)
 

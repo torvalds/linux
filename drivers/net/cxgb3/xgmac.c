@@ -335,11 +335,11 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	hwm = min(hwm, MAC_RXFIFO_SIZE - 8192);
 	lwm = min(3 * (int)mtu, MAC_RXFIFO_SIZE / 4);
 
-	v = t3_read_reg(adap, A_XGM_RXFIFO_CFG + mac->offset);
 	if (adap->params.rev == T3_REV_B2 &&
 	    (t3_read_reg(adap, A_XGM_RX_CTRL + mac->offset) & F_RXEN)) {
 		disable_exact_filters(mac);
-		t3_set_reg_field(adap, A_XGM_RXFIFO_CFG + mac->offset,
+		v = t3_read_reg(adap, A_XGM_RX_CFG + mac->offset);
+		t3_set_reg_field(adap, A_XGM_RX_CFG + mac->offset,
 				 F_ENHASHMCAST | F_COPYALLFRAMES, F_DISBCAST);
 
 		/* drain rx FIFO */
@@ -347,11 +347,12 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 				    A_XGM_RX_MAX_PKT_SIZE_ERR_CNT +
 				    mac->offset,
 				    1 << 31, 1, 20, 5)) {
-			t3_write_reg(adap, A_XGM_RXFIFO_CFG + mac->offset, v);
+			t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
 			enable_exact_filters(mac);
 			return -EIO;
 		}
 		t3_write_reg(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset, mtu);
+		t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
 		enable_exact_filters(mac);
 	} else
 		t3_write_reg(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset, mtu);
@@ -362,6 +363,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	 */
 	hwm = rx_fifo_hwm(mtu);
 	lwm = min(3 * (int)mtu, MAC_RXFIFO_SIZE / 4);
+	v = t3_read_reg(adap, A_XGM_RXFIFO_CFG + mac->offset);
 	v &= ~V_RXFIFOPAUSELWM(M_RXFIFOPAUSELWM);
 	v |= V_RXFIFOPAUSELWM(lwm / 8);
 	if (G_RXFIFOPAUSEHWM(v))

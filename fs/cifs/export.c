@@ -44,9 +44,7 @@
 #include "cifsglob.h"
 #include "cifs_debug.h"
 
-
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-
 static struct dentry *cifs_get_parent(struct dentry *dentry)
 {
 	/* BB need to add code here eventually to enable export via NFSD */

@@ -235,6 +235,7 @@ struct sock_xprt {
 	 * Connection of transports
 	 */
 	struct delayed_work	connect_worker;
+	struct sockaddr_storage	addr;
 	unsigned short		port;
 
 	/*
@@ -653,8 +654,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
-	cancel_delayed_work(&transport->connect_worker);
-	flush_scheduled_work();
+	cancel_rearming_delayed_work(&transport->connect_worker);
 
 	xprt_disconnect(xprt);
 	xs_close(xprt);
@@ -1001,7 +1001,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		/* Try to schedule an autoclose RPC calls */
 		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
 		if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
-			schedule_work(&xprt->task_cleanup);
+			queue_work(rpciod_workqueue, &xprt->task_cleanup);
 	default:
 		xprt_disconnect(xprt);
 	}
@@ -1146,31 +1146,36 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	sap->sin_port = htons(port);
 }
 
-static int xs_bindresvport(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
 	};
+	struct sockaddr_in *sa;
 	int err;
 	unsigned short port = transport->port;
 
+	if (!transport->xprt.resvport)
+		port = 0;
+	sa = (struct sockaddr_in *)&transport->addr;
+	myaddr.sin_addr = sa->sin_addr;
 	do {
 		myaddr.sin_port = htons(port);
 		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
+		if (!transport->xprt.resvport)
+			break;
 		if (err == 0) {
 			transport->port = port;
-			dprintk("RPC:       xs_bindresvport bound to port %u\n",
-					port);
-			return 0;
+			break;
 		}
 		if (port <= xprt_min_resvport)
 			port = xprt_max_resvport;
 		else
 			port--;
 	} while (err == -EADDRINUSE && port != transport->port);
-
-	dprintk("RPC:       can't bind to reserved port (%d).\n", -err);
+	dprintk("RPC:       xs_bind "NIPQUAD_FMT":%u: %s (%d)\n",
+		NIPQUAD(myaddr.sin_addr), port, err ? "failed" : "ok", err);
 	return err;
 }
 
@@ -1229,7 +1234,7 @@ static void xs_udp_connect_worker(struct work_struct *work)
 	}
 	xs_reclassify_socket(sock);
 
-	if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
+	if (xs_bind(transport, sock)) {
 		sock_release(sock);
 		goto out;
 	}
@@ -1316,7 +1321,7 @@ static void xs_tcp_connect_worker(struct work_struct *work)
 		}
 		xs_reclassify_socket(sock);
 
-		if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
+		if (xs_bind(transport, sock)) {
 			sock_release(sock);
 			goto out;
 		}
@@ -1410,18 +1415,16 @@ static void xs_connect(struct rpc_task *task)
 		dprintk("RPC:       xs_connect delayed xprt %p for %lu "
 				"seconds\n",
 				xprt, xprt->reestablish_timeout / HZ);
-		schedule_delayed_work(&transport->connect_worker,
-					xprt->reestablish_timeout);
+		queue_delayed_work(rpciod_workqueue,
+				   &transport->connect_worker,
+				   xprt->reestablish_timeout);
 		xprt->reestablish_timeout <<= 1;
 		if (xprt->reestablish_timeout > XS_TCP_MAX_REEST_TO)
 			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {
 		dprintk("RPC:       xs_connect scheduled xprt %p\n", xprt);
-		schedule_delayed_work(&transport->connect_worker, 0);
-
-		/* flush_scheduled_work can sleep... */
-		if (!RPC_IS_ASYNC(task))
-			flush_scheduled_work();
+		queue_delayed_work(rpciod_workqueue,
+				   &transport->connect_worker, 0);
 	}
 }
 
@@ -1476,7 +1479,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
-	.rpcbind		= rpcb_getport,
+	.rpcbind		= rpcb_getport_async,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
@@ -1493,7 +1496,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 static struct rpc_xprt_ops xs_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xs_tcp_release_xprt,
-	.rpcbind		= rpcb_getport,
+	.rpcbind		= rpcb_getport_async,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
@@ -1505,12 +1508,12 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
-static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, unsigned int slot_table_size)
+static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *new;
 
-	if (addrlen > sizeof(xprt->addr)) {
+	if (args->addrlen > sizeof(xprt->addr)) {
 		dprintk("RPC:       xs_setup_xprt: address too large\n");
 		return ERR_PTR(-EBADF);
 	}
@@ -1532,8 +1535,10 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memcpy(&xprt->addr, addr, addrlen);
-	xprt->addrlen = addrlen;
+	memcpy(&xprt->addr, args->dstaddr, args->addrlen);
+	xprt->addrlen = args->addrlen;
+	if (args->srcaddr)
+		memcpy(&new->addr, args->srcaddr, args->addrlen);
 	new->port = xs_get_random_port();
 
 	return xprt;
@@ -1541,22 +1546,20 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 
 /**
  * xs_setup_udp - Set up transport to use a UDP socket
- * @addr: address of remote server
- * @addrlen: length of address in bytes
- * @to:   timeout parameters
+ * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
-	xprt = xs_setup_xprt(addr, addrlen, xprt_udp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
 		xprt_set_bound(xprt);
 
 	xprt->prot = IPPROTO_UDP;
@@ -1572,8 +1575,8 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xprt->ops = &xs_udp_ops;
 
-	if (to)
-		xprt->timeout = *to;
+	if (args->timeout)
+		xprt->timeout = *args->timeout;
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
@@ -1586,22 +1589,20 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 /**
  * xs_setup_tcp - Set up transport to use a TCP socket
- * @addr: address of remote server
- * @addrlen: length of address in bytes
- * @to: timeout parameters
+ * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
-	xprt = xs_setup_xprt(addr, addrlen, xprt_tcp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
 		xprt_set_bound(xprt);
 
 	xprt->prot = IPPROTO_TCP;
@@ -1616,8 +1617,8 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xprt->ops = &xs_tcp_ops;
 
-	if (to)
-		xprt->timeout = *to;
+	if (args->timeout)
+		xprt->timeout = *args->timeout;
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
 

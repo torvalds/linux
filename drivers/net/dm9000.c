@@ -104,6 +104,18 @@
 #define PRINTK(args...)   printk(KERN_DEBUG args)
 #endif
 
+#ifdef CONFIG_BLACKFIN
+#define readsb	insb
+#define readsw	insw
+#define readsl	insl
+#define writesb	outsb
+#define writesw	outsw
+#define writesl	outsl
+#define DM9000_IRQ_FLAGS	(IRQF_SHARED | IRQF_TRIGGER_HIGH)
+#else
+#define DM9000_IRQ_FLAGS	IRQF_SHARED
+#endif
+
 /*
  * Transmit timeout, default 5 seconds.
  */
@@ -431,6 +443,9 @@ dm9000_probe(struct platform_device *pdev)
 		db->io_addr = (void __iomem *)base;
 		db->io_data = (void __iomem *)(base + 4);
 
+		/* ensure at least we have a default set of IO routines */
+		dm9000_set_io(db, 2);
+
 	} else {
 		db->addr_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		db->data_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -614,7 +629,7 @@ dm9000_open(struct net_device *dev)
 
 	PRINTK2("entering dm9000_open\n");
 
-	if (request_irq(dev->irq, &dm9000_interrupt, IRQF_SHARED, dev->name, dev))
+	if (request_irq(dev->irq, &dm9000_interrupt, DM9000_IRQ_FLAGS, dev->name, dev))
 		return -EAGAIN;
 
 	/* Initialize DM9000 board */

@@ -158,7 +158,7 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 		}
 		dprintk(4, "writing DRAM block %d\n", i);
 		mwdebi(av7110, DEBISWAB, bootblock,
-		       ((char*)data) + i * AV7110_BOOT_MAX_SIZE, AV7110_BOOT_MAX_SIZE);
+		       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE, AV7110_BOOT_MAX_SIZE);
 		bootblock ^= 0x1400;
 		iwdebi(av7110, DEBISWAB, AV7110_BOOT_BASE, swab32(base), 4);
 		iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_SIZE, AV7110_BOOT_MAX_SIZE, 2);
@@ -173,10 +173,10 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 		}
 		if (rest > 4)
 			mwdebi(av7110, DEBISWAB, bootblock,
-			       ((char*)data) + i * AV7110_BOOT_MAX_SIZE, rest);
+			       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE, rest);
 		else
 			mwdebi(av7110, DEBISWAB, bootblock,
-			       ((char*)data) + i * AV7110_BOOT_MAX_SIZE - 4, rest + 4);
+			       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE - 4, rest + 4);
 
 		iwdebi(av7110, DEBISWAB, AV7110_BOOT_BASE, swab32(base), 4);
 		iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_SIZE, rest, 2);
@@ -751,7 +751,7 @@ static int FlushText(struct av7110 *av7110)
 	return 0;
 }
 
-static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, u8* buf)
+static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, char *buf)
 {
 	int i, ret;
 	unsigned long start;

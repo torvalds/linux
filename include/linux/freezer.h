@@ -1,5 +1,8 @@
 /* Freezer declarations */
 
+#ifndef FREEZER_H_INCLUDED
+#define FREEZER_H_INCLUDED
+
 #include <linux/sched.h>
 
 #ifdef CONFIG_PM
@@ -115,6 +118,14 @@ static inline int freezer_should_skip(struct task_struct *p)
 	return !!(p->flags & PF_FREEZER_SKIP);
 }
 
+/*
+ * Tell the freezer that the current task should be frozen by it
+ */
+static inline void set_freezable(void)
+{
+	current->flags &= ~PF_NOFREEZE;
+}
+
 #else
 static inline int frozen(struct task_struct *p) { return 0; }
 static inline int freezing(struct task_struct *p) { return 0; }
@@ -130,4 +141,7 @@ static inline int try_to_freeze(void) { return 0; }
 static inline void freezer_do_not_count(void) {}
 static inline void freezer_count(void) {}
 static inline int freezer_should_skip(struct task_struct *p) { return 0; }
+static inline void set_freezable(void) {}
 #endif
+
+#endif	/* FREEZER_H_INCLUDED */

@@ -25,6 +25,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
+#include <asm/mutex.h>
 
 /******************************************************************************
  * IDE driver configuration options (play with these as desired):
@@ -685,6 +686,8 @@ typedef struct hwif_s {
 	u8 mwdma_mask;
 	u8 swdma_mask;
 
+	u8 cbl;		/* cable type */
+
 	hwif_chipset_t chipset;	/* sub-module for tuning.. */
 
 	struct pci_dev  *pci_dev;	/* for pci chipsets */
@@ -735,8 +738,8 @@ typedef struct hwif_s {
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 	void (*dma_host_on)(ide_drive_t *drive);
 	void (*dma_host_off)(ide_drive_t *drive);
-	int (*ide_dma_lostirq)(ide_drive_t *drive);
-	int (*ide_dma_timeout)(ide_drive_t *drive);
+	void (*dma_lost_irq)(ide_drive_t *drive);
+	void (*dma_timeout)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
@@ -791,7 +794,6 @@ typedef struct hwif_s {
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	reset      : 1;	/* reset after probe */
 	unsigned	autodma    : 1;	/* auto-attempt using DMA at boot */
-	unsigned	udma_four  : 1;	/* 1=ATA-66 capable, 0=default */
 	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
 	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
@@ -863,7 +865,7 @@ typedef struct hwgroup_s {
 
 typedef struct ide_driver_s ide_driver_t;
 
-extern struct semaphore ide_setting_sem;
+extern struct mutex ide_setting_mtx;
 
 int set_io_32bit(ide_drive_t *, int);
 int set_pio_mode(ide_drive_t *, int);
@@ -1304,8 +1306,8 @@ extern int __ide_dma_check(ide_drive_t *);
 extern int ide_dma_setup(ide_drive_t *);
 extern void ide_dma_start(ide_drive_t *);
 extern int __ide_dma_end(ide_drive_t *);
-extern int __ide_dma_lostirq(ide_drive_t *);
-extern int __ide_dma_timeout(ide_drive_t *);
+extern void ide_dma_lost_irq(ide_drive_t *);
+extern void ide_dma_timeout(ide_drive_t *);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 #else
@@ -1382,11 +1384,11 @@ extern const ide_pio_timings_t ide_pio_timings[6];
 
 
 extern spinlock_t ide_lock;
-extern struct semaphore ide_cfg_sem;
+extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_sem and ide_lock together protect changes to
+ * ide_cfg_mtx and ide_lock together protect changes to
  * ide_hwif_t->{next,hwgroup}
  * ide_drive_t->next
  *

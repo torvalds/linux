@@ -724,7 +724,7 @@ int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 	__u32 mac_cfg0;
 	u32 port = physical_port[adapter->portnum];
 
-	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+	if (port > NETXEN_NIU_MAX_GBE_PORTS)
 		return -EINVAL;
 	mac_cfg0 = 0;
 	netxen_gb_soft_reset(mac_cfg0);
@@ -757,7 +757,7 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 	__u32 reg;
 	u32 port = physical_port[adapter->portnum];
 
-	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+	if (port > NETXEN_NIU_MAX_GBE_PORTS)
 		return -EINVAL;
 
 	/* save previous contents */
@@ -894,7 +894,7 @@ int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 	__u32 reg;
 	u32 port = physical_port[adapter->portnum];
 
-	if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
 	if (netxen_nic_hw_read_wx(adapter,

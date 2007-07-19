@@ -206,49 +206,6 @@ extern int pci_dma_supported(struct pci_dev *hwdev, u64 mask);
 #define PCI64_REQUIRED_MASK	(~(dma64_addr_t)0)
 #define PCI64_ADDR_BASE		0xfffc000000000000UL
 
-/* Usage of the pci_dac_foo interfaces is only valid if this
- * test passes.
- */
-#define pci_dac_dma_supported(pci_dev, mask) \
-	((((mask) & PCI64_REQUIRED_MASK) == PCI64_REQUIRED_MASK) ? 1 : 0)
-
-static inline dma64_addr_t
-pci_dac_page_to_dma(struct pci_dev *pdev, struct page *page, unsigned long offset, int direction)
-{
-	return (PCI64_ADDR_BASE +
-		__pa(page_address(page)) + offset);
-}
-
-static inline struct page *
-pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	unsigned long paddr = (dma_addr & PAGE_MASK) - PCI64_ADDR_BASE;
-
-	return virt_to_page(__va(paddr));
-}
-
-static inline unsigned long
-pci_dac_dma_to_offset(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return (dma_addr & ~PAGE_MASK);
-}
-
-static inline void
-pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-	/* DAC cycle addressing does not make use of the
-	 * PCI controller's streaming cache, so nothing to do.
-	 */
-}
-
-static inline void
-pci_dac_dma_sync_single_for_device(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-	/* DAC cycle addressing does not make use of the
-	 * PCI controller's streaming cache, so nothing to do.
-	 */
-}
-
 #define PCI_DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 
 static inline int pci_dma_mapping_error(dma_addr_t dma_addr)
@@ -302,10 +259,6 @@ pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			struct pci_bus_region *region);
 
 extern struct resource *pcibios_select_root(struct pci_dev *, struct resource *);
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {

@@ -56,7 +56,7 @@ extern void register_pci_controller(struct pci_controller *hose);
 /*
  * board supplied pci irq fixup routine
  */
-extern int pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
+extern int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
 
 /* Can be used to override the logic in pci_scan_bus for skipping
@@ -121,20 +121,6 @@ extern unsigned int PCI_DMA_BUS_IS_PHYS;
 
 #endif /* CONFIG_DMA_NEED_PCI_MAP_STATE  */
 
-/* This is always fine. */
-#define pci_dac_dma_supported(pci_dev, mask)	(1)
-
-extern dma64_addr_t pci_dac_page_to_dma(struct pci_dev *pdev,
-	struct page *page, unsigned long offset, int direction);
-extern struct page *pci_dac_dma_to_page(struct pci_dev *pdev,
-	dma64_addr_t dma_addr);
-extern unsigned long pci_dac_dma_to_offset(struct pci_dev *pdev,
-	dma64_addr_t dma_addr);
-extern void pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev,
-	dma64_addr_t dma_addr, size_t len, int direction);
-extern void pci_dac_dma_sync_single_for_device(struct pci_dev *pdev,
-	dma64_addr_t dma_addr, size_t len, int direction);
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
@@ -180,10 +166,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
 #include <asm-generic/pci-dma-compat.h>
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 /* Do platform specific device initialization at pci_enable_device() time */
 extern int pcibios_plat_dev_init(struct pci_dev *dev);

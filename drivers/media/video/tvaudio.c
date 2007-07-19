@@ -271,7 +271,7 @@ static int chip_thread(void *data)
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
 	v4l_dbg(1, debug, &chip->c, "%s: thread started\n", chip->c.name);
-
+	set_freezable();
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!kthread_should_stop())

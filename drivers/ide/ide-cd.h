@@ -498,8 +498,6 @@ struct cdrom_info {
  * Descriptions of ATAPI error codes.
  */
 
-#define ARY_LEN(a) ((sizeof(a) / sizeof(a[0])))
-
 /* This stuff should be in cdrom.h, since it is now generic... */
 
 /* ATAPI sense keys (from table 140 of ATAPI 2.6) */

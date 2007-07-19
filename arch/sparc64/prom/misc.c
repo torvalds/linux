@@ -14,6 +14,7 @@
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/system.h>
+#include <asm/ldc.h>
 
 int prom_service_exists(const char *service_name)
 {
@@ -37,6 +38,10 @@ void prom_sun4v_guest_soft_state(void)
 /* Reset and reboot the machine with the command 'bcommand'. */
 void prom_reboot(const char *bcommand)
 {
+#ifdef CONFIG_SUN_LDOMS
+	if (ldom_domaining_enabled)
+		ldom_reboot(bcommand);
+#endif
 	p1275_cmd("boot", P1275_ARG(0, P1275_ARG_IN_STRING) |
 		  P1275_INOUT(1, 0), bcommand);
 }
@@ -91,6 +96,10 @@ void prom_cmdline(void)
  */
 void prom_halt(void)
 {
+#ifdef CONFIG_SUN_LDOMS
+	if (ldom_domaining_enabled)
+		ldom_power_off();
+#endif
 again:
 	p1275_cmd("exit", P1275_INOUT(0, 0));
 	goto again; /* PROM is out to get me -DaveM */
@@ -98,6 +107,10 @@ again:
 
 void prom_halt_power_off(void)
 {
+#ifdef CONFIG_SUN_LDOMS
+	if (ldom_domaining_enabled)
+		ldom_power_off();
+#endif
 	p1275_cmd("SUNW,power-off", P1275_INOUT(0, 0));
 
 	/* if nothing else helps, we just halt */

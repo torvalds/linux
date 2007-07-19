@@ -310,7 +310,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	mips3					\n"

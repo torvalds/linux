@@ -16,15 +16,16 @@ struct inode;
 struct gfs2_inode;
 struct gfs2_inum;
 
-int gfs2_dir_search(struct inode *dir, const struct qstr *filename,
-		    struct gfs2_inum_host *inum, unsigned int *type);
+struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *filename);
+int gfs2_dir_check(struct inode *dir, const struct qstr *filename,
+		   const struct gfs2_inode *ip);
 int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
-		 const struct gfs2_inum_host *inum, unsigned int type);
+		 const struct gfs2_inode *ip, unsigned int type);
 int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *filename);
 int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		  filldir_t filldir);
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
-		   struct gfs2_inum_host *new_inum, unsigned int new_type);
+		   const struct gfs2_inode *nip, unsigned int new_type);
 
 int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip);
 

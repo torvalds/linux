@@ -509,7 +509,7 @@ static void irport_timeout(struct net_device *dev)
 	IRDA_DEBUG(0, "%s(), iir=%02x, lsr=%02x, iobase=%#x\n", 
 		   __FUNCTION__, iir, lsr, iobase);
 
-	IRDA_DEBUG(0, "%s(), transmitting=%d, remain=%d, done=%d\n", 
+	IRDA_DEBUG(0, "%s(), transmitting=%d, remain=%d, done=%td\n",
 		   __FUNCTION__, self->transmitting, self->tx_buff.len,
 		   self->tx_buff.data - self->tx_buff.head);
 

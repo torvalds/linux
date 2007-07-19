@@ -86,6 +86,7 @@ typedef struct _riva_hw_state {
 	u32 timingV;
 	u32 displayV;
 	u32 crtcSync;
+	u32 control;
 } RIVA_HW_STATE;
 
 struct riva_regs {

@@ -38,8 +38,10 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
 #if 0
 /* FIXME: smp needs to migrate into the sas class */
-static ssize_t smp_portal_read(struct kobject *, char *, loff_t, size_t);
-static ssize_t smp_portal_write(struct kobject *, char *, loff_t, size_t);
+static ssize_t smp_portal_read(struct kobject *, struct bin_attribute *,
+			       char *, loff_t, size_t);
+static ssize_t smp_portal_write(struct kobject *, struct bin_attribute *,
+				char *, loff_t, size_t);
 #endif
 
 /* ---------- SMP task management ---------- */
@@ -1368,7 +1370,6 @@ static void sas_ex_smp_hook(struct domain_device *dev)
 	memset(bin_attr, 0, sizeof(*bin_attr));
 
 	bin_attr->attr.name = SMP_BIN_ATTR_NAME;
-	bin_attr->attr.owner = THIS_MODULE;
 	bin_attr->attr.mode = 0600;
 
 	bin_attr->size = 0;
@@ -1846,8 +1847,9 @@ out:
 #if 0
 /* ---------- SMP portal ---------- */
 
-static ssize_t smp_portal_write(struct kobject *kobj, char *buf, loff_t offs,
-				size_t size)
+static ssize_t smp_portal_write(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t offs, size_t size)
 {
 	struct domain_device *dev = to_dom_device(kobj);
 	struct expander_device *ex = &dev->ex_dev;
@@ -1873,8 +1875,9 @@ static ssize_t smp_portal_write(struct kobject *kobj, char *buf, loff_t offs,
 	return size;
 }
 
-static ssize_t smp_portal_read(struct kobject *kobj, char *buf, loff_t offs,
-			       size_t size)
+static ssize_t smp_portal_read(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t offs, size_t size)
 {
 	struct domain_device *dev = to_dom_device(kobj);
 	struct expander_device *ex = &dev->ex_dev;

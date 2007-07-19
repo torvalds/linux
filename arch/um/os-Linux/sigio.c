@@ -26,6 +26,7 @@
  * exitcall.
  */
 static int write_sigio_pid = -1;
+static unsigned long write_sigio_stack;
 
 /* These arrays are initialized before the sigio thread is started, and
  * the descriptors closed after it is killed.  So, it can't see them change.
@@ -104,7 +105,7 @@ static int need_poll(struct pollfds *polls, int n)
 	if(n <= polls->size)
 		return 0;
 
-	new = um_kmalloc_atomic(n * sizeof(struct pollfd));
+	new = kmalloc(n * sizeof(struct pollfd), UM_GFP_ATOMIC);
 	if(new == NULL){
 		printk("need_poll : failed to allocate new pollfds\n");
 		return -ENOMEM;
@@ -144,8 +145,10 @@ static void update_thread(void)
 	return;
  fail:
 	/* Critical section start */
-	if(write_sigio_pid != -1)
+	if (write_sigio_pid != -1) {
 		os_kill_process(write_sigio_pid, 1);
+		free_stack(write_sigio_stack, 0);
+	}
 	write_sigio_pid = -1;
 	close(sigio_private[0]);
 	close(sigio_private[1]);
@@ -230,7 +233,7 @@ static struct pollfd *setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
-	p = um_kmalloc(sizeof(struct pollfd));
+	p = kmalloc(sizeof(struct pollfd), UM_GFP_KERNEL);
 	if (p == NULL) {
 		printk("setup_initial_poll : failed to allocate poll\n");
 		return NULL;
@@ -243,7 +246,6 @@ static struct pollfd *setup_initial_poll(int fd)
 
 static void write_sigio_workaround(void)
 {
-	unsigned long stack;
 	struct pollfd *p;
 	int err;
 	int l_write_sigio_fds[2];
@@ -293,7 +295,8 @@ static void write_sigio_workaround(void)
 	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
 
 	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL,
-					    CLONE_FILES | CLONE_VM, &stack, 0);
+					    CLONE_FILES | CLONE_VM,
+					    &write_sigio_stack);
 
 	if (write_sigio_pid < 0)
 		goto out_clear;
@@ -356,10 +359,12 @@ out:
 
 static void sigio_cleanup(void)
 {
-	if(write_sigio_pid != -1){
-		os_kill_process(write_sigio_pid, 1);
-		write_sigio_pid = -1;
-	}
+	if (write_sigio_pid == -1)
+		return;
+
+	os_kill_process(write_sigio_pid, 1);
+	free_stack(write_sigio_stack, 0);
+	write_sigio_pid = -1;
 }
 
 __uml_exitcall(sigio_cleanup);

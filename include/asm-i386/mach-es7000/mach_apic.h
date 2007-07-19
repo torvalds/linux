@@ -73,6 +73,10 @@ static inline void init_apic_ldr(void)
 	apic_write_around(APIC_LDR, val);
 }
 
+#ifndef CONFIG_X86_GENERICARCH
+extern void enable_apic_mode(void);
+#endif
+
 extern int apic_version [MAX_APICS];
 static inline void setup_apic_routing(void)
 {

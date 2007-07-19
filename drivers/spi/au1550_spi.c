@@ -280,6 +280,9 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	return 0;
 }
 
+/* the spi->mode bits understood by this driver: */
+#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST)
+
 static int au1550_spi_setup(struct spi_device *spi)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
@@ -289,6 +292,12 @@ static int au1550_spi_setup(struct spi_device *spi)
 	if (spi->bits_per_word < 4 || spi->bits_per_word > 24) {
 		dev_err(&spi->dev, "setup: invalid bits_per_word=%d\n",
 			spi->bits_per_word);
+		return -EINVAL;
+	}
+
+	if (spi->mode & ~MODEBITS) {
+		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+			spi->mode & ~MODEBITS);
 		return -EINVAL;
 	}
 

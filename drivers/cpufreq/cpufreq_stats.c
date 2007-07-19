@@ -25,8 +25,7 @@ static spinlock_t cpufreq_stats_lock;
 
 #define CPUFREQ_STATDEVICE_ATTR(_name,_mode,_show) \
 static struct freq_attr _attr_##_name = {\
-	.attr = {.name = __stringify(_name), .owner = THIS_MODULE, \
-		.mode = _mode, }, \
+	.attr = {.name = __stringify(_name), .mode = _mode, }, \
 	.show = _show,\
 };
 

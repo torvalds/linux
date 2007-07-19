@@ -977,6 +977,22 @@
 #  define __ARCH_WANT_COMPAT_SYS_TIME
 # endif
 
+/* whitelists for checksyscalls */
+#define __IGNORE_select
+#define __IGNORE_vfork
+#define __IGNORE_time
+#define __IGNORE_uselib
+#define __IGNORE_fadvise64_64
+#define __IGNORE_getdents64
+#if _MIPS_SIM == _MIPS_SIM_NABI32
+#define __IGNORE_truncate64
+#define __IGNORE_ftruncate64
+#define __IGNORE_stat64
+#define __IGNORE_lstat64
+#define __IGNORE_fstat64
+#define __IGNORE_fstatat64
+#endif
+
 #endif /* !__ASSEMBLY__ */
 
 /*

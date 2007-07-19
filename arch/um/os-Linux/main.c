@@ -235,8 +235,8 @@ void *__wrap_malloc(int size)
 		return __real_malloc(size);
 	else if(size <= UM_KERN_PAGE_SIZE)
 		/* finding contiguous pages can be hard*/
-		ret = um_kmalloc(size);
-	else ret = um_vmalloc(size);
+		ret = kmalloc(size, UM_GFP_KERNEL);
+	else ret = vmalloc(size);
 
 	/* glibc people insist that if malloc fails, errno should be
 	 * set by malloc as well. So we do.

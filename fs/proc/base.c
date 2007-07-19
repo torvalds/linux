@@ -67,7 +67,6 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
-#include <linux/seccomp.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
 #include <linux/poll.h>
@@ -204,12 +203,17 @@ static int proc_pid_environ(struct task_struct *task, char * buffer)
 	int res = 0;
 	struct mm_struct *mm = get_task_mm(task);
 	if (mm) {
-		unsigned int len = mm->env_end - mm->env_start;
+		unsigned int len;
+
+		res = -ESRCH;
+		if (!ptrace_may_attach(task))
+			goto out;
+
+		len  = mm->env_end - mm->env_start;
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
 		res = access_process_vm(task, mm->env_start, buffer, len, 0);
-		if (!ptrace_may_attach(task))
-			res = -ESRCH;
+out:
 		mmput(mm);
 	}
 	return res;
@@ -279,7 +283,7 @@ static int proc_pid_auxv(struct task_struct *task, char *buffer)
 static int proc_pid_wchan(struct task_struct *task, char *buffer)
 {
 	unsigned long wchan;
-	char symname[KSYM_NAME_LEN+1];
+	char symname[KSYM_NAME_LEN];
 
 	wchan = get_wchan(task);
 
@@ -296,7 +300,7 @@ static int proc_pid_wchan(struct task_struct *task, char *buffer)
  */
 static int proc_pid_schedstat(struct task_struct *task, char *buffer)
 {
-	return sprintf(buffer, "%lu %lu %lu\n",
+	return sprintf(buffer, "%llu %llu %lu\n",
 			task->sched_info.cpu_time,
 			task->sched_info.run_delay,
 			task->sched_info.pcnt);
@@ -812,71 +816,6 @@ static const struct file_operations proc_loginuid_operations = {
 };
 #endif
 
-#ifdef CONFIG_SECCOMP
-static ssize_t seccomp_read(struct file *file, char __user *buf,
-			    size_t count, loff_t *ppos)
-{
-	struct task_struct *tsk = get_proc_task(file->f_dentry->d_inode);
-	char __buf[20];
-	size_t len;
-
-	if (!tsk)
-		return -ESRCH;
-	/* no need to print the trailing zero, so use only len */
-	len = sprintf(__buf, "%u\n", tsk->seccomp.mode);
-	put_task_struct(tsk);
-
-	return simple_read_from_buffer(buf, count, ppos, __buf, len);
-}
-
-static ssize_t seccomp_write(struct file *file, const char __user *buf,
-			     size_t count, loff_t *ppos)
-{
-	struct task_struct *tsk = get_proc_task(file->f_dentry->d_inode);
-	char __buf[20], *end;
-	unsigned int seccomp_mode;
-	ssize_t result;
-
-	result = -ESRCH;
-	if (!tsk)
-		goto out_no_task;
-
-	/* can set it only once to be even more secure */
-	result = -EPERM;
-	if (unlikely(tsk->seccomp.mode))
-		goto out;
-
-	result = -EFAULT;
-	memset(__buf, 0, sizeof(__buf));
-	count = min(count, sizeof(__buf) - 1);
-	if (copy_from_user(__buf, buf, count))
-		goto out;
-
-	seccomp_mode = simple_strtoul(__buf, &end, 0);
-	if (*end == '\n')
-		end++;
-	result = -EINVAL;
-	if (seccomp_mode && seccomp_mode <= NR_SECCOMP_MODES) {
-		tsk->seccomp.mode = seccomp_mode;
-		set_tsk_thread_flag(tsk, TIF_SECCOMP);
-	} else
-		goto out;
-	result = -EIO;
-	if (unlikely(!(end - __buf)))
-		goto out;
-	result = end - __buf;
-out:
-	put_task_struct(tsk);
-out_no_task:
-	return result;
-}
-
-static const struct file_operations proc_seccomp_operations = {
-	.read		= seccomp_read,
-	.write		= seccomp_write,
-};
-#endif /* CONFIG_SECCOMP */
-
 #ifdef CONFIG_FAULT_INJECTION
 static ssize_t proc_fault_inject_read(struct file * file, char __user * buf,
 				      size_t count, loff_t *ppos)
@@ -927,6 +866,69 @@ static const struct file_operations proc_fault_inject_operations = {
 	.read		= proc_fault_inject_read,
 	.write		= proc_fault_inject_write,
 };
+#endif
+
+#ifdef CONFIG_SCHED_DEBUG
+/*
+ * Print out various scheduling related per-task fields:
+ */
+static int sched_show(struct seq_file *m, void *v)
+{
+	struct inode *inode = m->private;
+	struct task_struct *p;
+
+	WARN_ON(!inode);
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	proc_sched_show_task(p, m);
+
+	put_task_struct(p);
+
+	return 0;
+}
+
+static ssize_t
+sched_write(struct file *file, const char __user *buf,
+	    size_t count, loff_t *offset)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct task_struct *p;
+
+	WARN_ON(!inode);
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	proc_sched_set_task(p);
+
+	put_task_struct(p);
+
+	return count;
+}
+
+static int sched_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	ret = single_open(filp, sched_show, NULL);
+	if (!ret) {
+		struct seq_file *m = filp->private_data;
+
+		m->private = inode;
+	}
+	return ret;
+}
+
+static const struct file_operations proc_pid_sched_operations = {
+	.open		= sched_open,
+	.read		= seq_read,
+	.write		= sched_write,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 #endif
 
 static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -1963,6 +1965,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	INF("environ",    S_IRUSR, pid_environ),
 	INF("auxv",       S_IRUSR, pid_auxv),
 	INF("status",     S_IRUGO, pid_status),
+#ifdef CONFIG_SCHED_DEBUG
+	REG("sched",      S_IRUGO|S_IWUSR, pid_sched),
+#endif
 	INF("cmdline",    S_IRUGO, pid_cmdline),
 	INF("stat",       S_IRUGO, tgid_stat),
 	INF("statm",      S_IRUGO, pid_statm),
@@ -1971,9 +1976,6 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("numa_maps",  S_IRUGO, numa_maps),
 #endif
 	REG("mem",        S_IRUSR|S_IWUSR, mem),
-#ifdef CONFIG_SECCOMP
-	REG("seccomp",    S_IRUSR|S_IWUSR, seccomp),
-#endif
 	LNK("cwd",        cwd),
 	LNK("root",       root),
 	LNK("exe",        exe),
@@ -2247,6 +2249,9 @@ static const struct pid_entry tid_base_stuff[] = {
 	INF("environ",   S_IRUSR, pid_environ),
 	INF("auxv",      S_IRUSR, pid_auxv),
 	INF("status",    S_IRUGO, pid_status),
+#ifdef CONFIG_SCHED_DEBUG
+	REG("sched",     S_IRUGO|S_IWUSR, pid_sched),
+#endif
 	INF("cmdline",   S_IRUGO, pid_cmdline),
 	INF("stat",      S_IRUGO, tid_stat),
 	INF("statm",     S_IRUGO, pid_statm),
@@ -2255,9 +2260,6 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("numa_maps", S_IRUGO, numa_maps),
 #endif
 	REG("mem",       S_IRUSR|S_IWUSR, mem),
-#ifdef CONFIG_SECCOMP
-	REG("seccomp",   S_IRUSR|S_IWUSR, seccomp),
-#endif
 	LNK("cwd",       cwd),
 	LNK("root",      root),
 	LNK("exe",       exe),

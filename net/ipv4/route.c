@@ -101,7 +101,6 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 #include <net/xfrm.h>
-#include <net/ip_mp_alg.h>
 #include <net/netevent.h>
 #include <net/rtnetlink.h>
 #ifdef CONFIG_SYSCTL
@@ -168,7 +167,7 @@ static struct dst_ops ipv4_dst_ops = {
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
 
-__u8 ip_tos2prio[16] = {
+const __u8 ip_tos2prio[16] = {
 	TC_PRIO_BESTEFFORT,
 	ECN_OR_COST(FILLER),
 	TC_PRIO_BESTEFFORT,
@@ -495,13 +494,11 @@ static const struct file_operations rt_cpu_seq_fops = {
 
 static __inline__ void rt_free(struct rtable *rt)
 {
-	multipath_remove(rt);
 	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
 
 static __inline__ void rt_drop(struct rtable *rt)
 {
-	multipath_remove(rt);
 	ip_rt_put(rt);
 	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
@@ -574,52 +571,6 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 		(fl1->iif ^ fl2->iif)) == 0;
 }
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-static struct rtable **rt_remove_balanced_route(struct rtable **chain_head,
-						struct rtable *expentry,
-						int *removed_count)
-{
-	int passedexpired = 0;
-	struct rtable **nextstep = NULL;
-	struct rtable **rthp = chain_head;
-	struct rtable *rth;
-
-	if (removed_count)
-		*removed_count = 0;
-
-	while ((rth = *rthp) != NULL) {
-		if (rth == expentry)
-			passedexpired = 1;
-
-		if (((*rthp)->u.dst.flags & DST_BALANCED) != 0  &&
-		    compare_keys(&(*rthp)->fl, &expentry->fl)) {
-			if (*rthp == expentry) {
-				*rthp = rth->u.dst.rt_next;
-				continue;
-			} else {
-				*rthp = rth->u.dst.rt_next;
-				rt_free(rth);
-				if (removed_count)
-					++(*removed_count);
-			}
-		} else {
-			if (!((*rthp)->u.dst.flags & DST_BALANCED) &&
-			    passedexpired && !nextstep)
-				nextstep = &rth->u.dst.rt_next;
-
-			rthp = &rth->u.dst.rt_next;
-		}
-	}
-
-	rt_free(expentry);
-	if (removed_count)
-		++(*removed_count);
-
-	return nextstep;
-}
-#endif /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
-
-
 /* This runs via a timer and thus is always in BH context. */
 static void rt_check_expire(unsigned long dummy)
 {
@@ -658,22 +609,8 @@ static void rt_check_expire(unsigned long dummy)
 			}
 
 			/* Cleanup aged off entries. */
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-			/* remove all related balanced entries if necessary */
-			if (rth->u.dst.flags & DST_BALANCED) {
-				rthp = rt_remove_balanced_route(
-					&rt_hash_table[i].chain,
-					rth, NULL);
-				if (!rthp)
-					break;
-			} else {
-				*rthp = rth->u.dst.rt_next;
-				rt_free(rth);
-			}
-#else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
 			*rthp = rth->u.dst.rt_next;
 			rt_free(rth);
-#endif /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
 		}
 		spin_unlock(rt_hash_lock_addr(i));
 
@@ -720,9 +657,6 @@ void rt_cache_flush(int delay)
 
 	if (delay < 0)
 		delay = ip_rt_min_delay;
-
-	/* flush existing multipath state*/
-	multipath_flush();
 
 	spin_lock_bh(&rt_flush_lock);
 
@@ -842,30 +776,9 @@ static int rt_garbage_collect(void)
 					rthp = &rth->u.dst.rt_next;
 					continue;
 				}
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-				/* remove all related balanced entries
-				 * if necessary
-				 */
-				if (rth->u.dst.flags & DST_BALANCED) {
-					int r;
-
-					rthp = rt_remove_balanced_route(
-						&rt_hash_table[k].chain,
-						rth,
-						&r);
-					goal -= r;
-					if (!rthp)
-						break;
-				} else {
-					*rthp = rth->u.dst.rt_next;
-					rt_free(rth);
-					goal--;
-				}
-#else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
 				*rthp = rth->u.dst.rt_next;
 				rt_free(rth);
 				goal--;
-#endif /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
 			}
 			spin_unlock_bh(rt_hash_lock_addr(k));
 			if (goal <= 0)
@@ -939,12 +852,7 @@ restart:
 
 	spin_lock_bh(rt_hash_lock_addr(hash));
 	while ((rth = *rthp) != NULL) {
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-		if (!(rth->u.dst.flags & DST_BALANCED) &&
-		    compare_keys(&rth->fl, &rt->fl)) {
-#else
 		if (compare_keys(&rth->fl, &rt->fl)) {
-#endif
 			/* Put it first */
 			*rthp = rth->u.dst.rt_next;
 			/*
@@ -1774,10 +1682,6 @@ static inline int __mkroute_input(struct sk_buff *skb,
 
 	atomic_set(&rth->u.dst.__refcnt, 1);
 	rth->u.dst.flags= DST_HOST;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	if (res->fi->fib_nhs > 1)
-		rth->u.dst.flags |= DST_BALANCED;
-#endif
 	if (IN_DEV_CONF_GET(in_dev, NOPOLICY))
 		rth->u.dst.flags |= DST_NOPOLICY;
 	if (IN_DEV_CONF_GET(out_dev, NOXFRM))
@@ -1812,11 +1716,11 @@ static inline int __mkroute_input(struct sk_buff *skb,
 	return err;
 }
 
-static inline int ip_mkroute_input_def(struct sk_buff *skb,
-				       struct fib_result* res,
-				       const struct flowi *fl,
-				       struct in_device *in_dev,
-				       __be32 daddr, __be32 saddr, u32 tos)
+static inline int ip_mkroute_input(struct sk_buff *skb,
+				   struct fib_result* res,
+				   const struct flowi *fl,
+				   struct in_device *in_dev,
+				   __be32 daddr, __be32 saddr, u32 tos)
 {
 	struct rtable* rth = NULL;
 	int err;
@@ -1836,63 +1740,6 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 	hash = rt_hash(daddr, saddr, fl->iif);
 	return rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
 }
-
-static inline int ip_mkroute_input(struct sk_buff *skb,
-				   struct fib_result* res,
-				   const struct flowi *fl,
-				   struct in_device *in_dev,
-				   __be32 daddr, __be32 saddr, u32 tos)
-{
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	struct rtable* rth = NULL, *rtres;
-	unsigned char hop, hopcount;
-	int err = -EINVAL;
-	unsigned int hash;
-
-	if (res->fi)
-		hopcount = res->fi->fib_nhs;
-	else
-		hopcount = 1;
-
-	/* distinguish between multipath and singlepath */
-	if (hopcount < 2)
-		return ip_mkroute_input_def(skb, res, fl, in_dev, daddr,
-					    saddr, tos);
-
-	/* add all alternatives to the routing cache */
-	for (hop = 0; hop < hopcount; hop++) {
-		res->nh_sel = hop;
-
-		/* put reference to previous result */
-		if (hop)
-			ip_rt_put(rtres);
-
-		/* create a routing cache entry */
-		err = __mkroute_input(skb, res, in_dev, daddr, saddr, tos,
-				      &rth);
-		if (err)
-			return err;
-
-		/* put it into the cache */
-		hash = rt_hash(daddr, saddr, fl->iif);
-		err = rt_intern_hash(hash, rth, &rtres);
-		if (err)
-			return err;
-
-		/* forward hop information to multipath impl. */
-		multipath_set_nhinfo(rth,
-				     FIB_RES_NETWORK(*res),
-				     FIB_RES_NETMASK(*res),
-				     res->prefixlen,
-				     &FIB_RES_NH(*res));
-	}
-	skb->dst = &rtres->u.dst;
-	return err;
-#else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED  */
-	return ip_mkroute_input_def(skb, res, fl, in_dev, daddr, saddr, tos);
-#endif /* CONFIG_IP_ROUTE_MULTIPATH_CACHED  */
-}
-
 
 /*
  *	NOTE. We drop all the packets that has local source
@@ -2211,13 +2058,6 @@ static inline int __mkroute_output(struct rtable **result,
 
 	atomic_set(&rth->u.dst.__refcnt, 1);
 	rth->u.dst.flags= DST_HOST;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	if (res->fi) {
-		rth->rt_multipath_alg = res->fi->fib_mp_alg;
-		if (res->fi->fib_nhs > 1)
-			rth->u.dst.flags |= DST_BALANCED;
-	}
-#endif
 	if (IN_DEV_CONF_GET(in_dev, NOXFRM))
 		rth->u.dst.flags |= DST_NOXFRM;
 	if (IN_DEV_CONF_GET(in_dev, NOPOLICY))
@@ -2277,12 +2117,12 @@ static inline int __mkroute_output(struct rtable **result,
 	return err;
 }
 
-static inline int ip_mkroute_output_def(struct rtable **rp,
-					struct fib_result* res,
-					const struct flowi *fl,
-					const struct flowi *oldflp,
-					struct net_device *dev_out,
-					unsigned flags)
+static inline int ip_mkroute_output(struct rtable **rp,
+				    struct fib_result* res,
+				    const struct flowi *fl,
+				    const struct flowi *oldflp,
+				    struct net_device *dev_out,
+				    unsigned flags)
 {
 	struct rtable *rth = NULL;
 	int err = __mkroute_output(&rth, res, fl, oldflp, dev_out, flags);
@@ -2293,68 +2133,6 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 	}
 
 	return err;
-}
-
-static inline int ip_mkroute_output(struct rtable** rp,
-				    struct fib_result* res,
-				    const struct flowi *fl,
-				    const struct flowi *oldflp,
-				    struct net_device *dev_out,
-				    unsigned flags)
-{
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	unsigned char hop;
-	unsigned hash;
-	int err = -EINVAL;
-	struct rtable *rth = NULL;
-
-	if (res->fi && res->fi->fib_nhs > 1) {
-		unsigned char hopcount = res->fi->fib_nhs;
-
-		for (hop = 0; hop < hopcount; hop++) {
-			struct net_device *dev2nexthop;
-
-			res->nh_sel = hop;
-
-			/* hold a work reference to the output device */
-			dev2nexthop = FIB_RES_DEV(*res);
-			dev_hold(dev2nexthop);
-
-			/* put reference to previous result */
-			if (hop)
-				ip_rt_put(*rp);
-
-			err = __mkroute_output(&rth, res, fl, oldflp,
-					       dev2nexthop, flags);
-
-			if (err != 0)
-				goto cleanup;
-
-			hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src,
-					oldflp->oif);
-			err = rt_intern_hash(hash, rth, rp);
-
-			/* forward hop information to multipath impl. */
-			multipath_set_nhinfo(rth,
-					     FIB_RES_NETWORK(*res),
-					     FIB_RES_NETMASK(*res),
-					     res->prefixlen,
-					     &FIB_RES_NH(*res));
-		cleanup:
-			/* release work reference to output device */
-			dev_put(dev2nexthop);
-
-			if (err != 0)
-				return err;
-		}
-		return err;
-	} else {
-		return ip_mkroute_output_def(rp, res, fl, oldflp, dev_out,
-					     flags);
-	}
-#else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED */
-	return ip_mkroute_output_def(rp, res, fl, oldflp, dev_out, flags);
-#endif
 }
 
 /*
@@ -2570,17 +2348,6 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK))) {
-
-			/* check for multipath routes and choose one if
-			 * necessary
-			 */
-			if (multipath_select_route(flp, rth, rp)) {
-				dst_hold(&(*rp)->u.dst);
-				RT_CACHE_STAT_INC(out_hit);
-				rcu_read_unlock_bh();
-				return 0;
-			}
-
 			rth->u.dst.lastuse = jiffies;
 			dst_hold(&rth->u.dst);
 			rth->u.dst.__use++;
@@ -2728,10 +2495,6 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (rt->u.dst.tclassid)
 		NLA_PUT_U32(skb, RTA_FLOW, rt->u.dst.tclassid);
-#endif
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	if (rt->rt_multipath_alg != IP_MP_ALG_NONE)
-		NLA_PUT_U32(skb, RTA_MP_ALGO, rt->rt_multipath_alg);
 #endif
 	if (rt->fl.iif)
 		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_spec_dst);

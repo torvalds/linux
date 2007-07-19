@@ -461,14 +461,14 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
-		atomic_set(&ctx->count, 1);
-		ctx->dentry = dget(dentry);
-		ctx->vfsmnt = mntget(mnt);
+		ctx->path.dentry = dget(dentry);
+		ctx->path.mnt = mntget(mnt);
 		ctx->cred = get_rpccred(cred);
 		ctx->state = NULL;
 		ctx->lockowner = current->files;
 		ctx->error = 0;
 		ctx->dir_cookie = 0;
+		kref_init(&ctx->kref);
 	}
 	return ctx;
 }
@@ -476,27 +476,33 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		atomic_inc(&ctx->count);
+		kref_get(&ctx->kref);
 	return ctx;
+}
+
+static void nfs_free_open_context(struct kref *kref)
+{
+	struct nfs_open_context *ctx = container_of(kref,
+			struct nfs_open_context, kref);
+
+	if (!list_empty(&ctx->list)) {
+		struct inode *inode = ctx->path.dentry->d_inode;
+		spin_lock(&inode->i_lock);
+		list_del(&ctx->list);
+		spin_unlock(&inode->i_lock);
+	}
+	if (ctx->state != NULL)
+		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+	if (ctx->cred != NULL)
+		put_rpccred(ctx->cred);
+	dput(ctx->path.dentry);
+	mntput(ctx->path.mnt);
+	kfree(ctx);
 }
 
 void put_nfs_open_context(struct nfs_open_context *ctx)
 {
-	if (atomic_dec_and_test(&ctx->count)) {
-		if (!list_empty(&ctx->list)) {
-			struct inode *inode = ctx->dentry->d_inode;
-			spin_lock(&inode->i_lock);
-			list_del(&ctx->list);
-			spin_unlock(&inode->i_lock);
-		}
-		if (ctx->state != NULL)
-			nfs4_close_state(ctx->state, ctx->mode);
-		if (ctx->cred != NULL)
-			put_rpccred(ctx->cred);
-		dput(ctx->dentry);
-		mntput(ctx->vfsmnt);
-		kfree(ctx);
-	}
+	kref_put(&ctx->kref, nfs_free_open_context);
 }
 
 /*
@@ -961,8 +967,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		goto out_changed;
 
 	server = NFS_SERVER(inode);
-	/* Update the fsid if and only if this is the root directory */
-	if (inode == inode->i_sb->s_root->d_inode
+	/* Update the fsid? */
+	if (S_ISDIR(inode->i_mode)
 			&& !nfs_fsid_equal(&server->fsid, &fattr->fsid))
 		server->fsid = fattr->fsid;
 
@@ -1066,8 +1072,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		invalid &= ~NFS_INO_INVALID_DATA;
 	if (data_stable)
 		invalid &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME|NFS_INO_REVAL_PAGECACHE);
-	if (!nfs_have_delegation(inode, FMODE_READ))
+	if (!nfs_have_delegation(inode, FMODE_READ) ||
+			(nfsi->cache_validity & NFS_INO_REVAL_FORCED))
 		nfsi->cache_validity |= invalid;
+	nfsi->cache_validity &= ~NFS_INO_REVAL_FORCED;
 
 	return 0;
  out_changed:
@@ -1103,27 +1111,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 void nfs4_clear_inode(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation(inode);
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
-	/* Now clear out any remaining state */
-	while (!list_empty(&nfsi->open_states)) {
-		struct nfs4_state *state;
-		
-		state = list_entry(nfsi->open_states.next,
-				struct nfs4_state,
-				inode_states);
-		dprintk("%s(%s/%Ld): found unclaimed NFSv4 state %p\n",
-				__FUNCTION__,
-				inode->i_sb->s_id,
-				(long long)NFS_FILEID(inode),
-				state);
-		BUG_ON(atomic_read(&state->count) != 1);
-		nfs4_close_state(state, state->state);
-	}
 }
 #endif
 
@@ -1165,15 +1156,11 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	struct nfs_inode *nfsi = (struct nfs_inode *) foo;
 
 	inode_init_once(&nfsi->vfs_inode);
-	spin_lock_init(&nfsi->req_lock);
-	INIT_LIST_HEAD(&nfsi->dirty);
-	INIT_LIST_HEAD(&nfsi->commit);
 	INIT_LIST_HEAD(&nfsi->open_files);
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
 	atomic_set(&nfsi->data_updates, 0);
-	nfsi->ndirty = 0;
 	nfsi->ncommit = 0;
 	nfsi->npages = 0;
 	nfs4_init_once(nfsi);

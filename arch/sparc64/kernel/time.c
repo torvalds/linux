@@ -849,9 +849,6 @@ static unsigned long sparc64_init_timers(void)
 {
 	struct device_node *dp;
 	unsigned long clock;
-#ifdef CONFIG_SMP
-	extern void smp_tick_init(void);
-#endif
 
 	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
@@ -873,10 +870,6 @@ static unsigned long sparc64_init_timers(void)
 		tick_ops = &stick_operations;
 		clock = of_getintprop_default(dp, "stick-frequency", 0);
 	}
-
-#ifdef CONFIG_SMP
-	smp_tick_init();
-#endif
 
 	return clock;
 }
@@ -1038,9 +1031,30 @@ static void __init setup_clockevent_multiplier(unsigned long hz)
 	sparc64_clockevent.mult = mult;
 }
 
+static unsigned long tb_ticks_per_usec __read_mostly;
+
+void __delay(unsigned long loops)
+{
+	unsigned long bclock, now;
+
+	bclock = tick_ops->get_tick();
+	do {
+		now = tick_ops->get_tick();
+	} while ((now-bclock) < loops);
+}
+EXPORT_SYMBOL(__delay);
+
+void udelay(unsigned long usecs)
+{
+	__delay(tb_ticks_per_usec * usecs);
+}
+EXPORT_SYMBOL(udelay);
+
 void __init time_init(void)
 {
 	unsigned long clock = sparc64_init_timers();
+
+	tb_ticks_per_usec = clock / USEC_PER_SEC;
 
 	timer_ticks_per_nsec_quotient =
 		clocksource_hz2mult(clock, SPARC64_NSEC_PER_CYC_SHIFT);

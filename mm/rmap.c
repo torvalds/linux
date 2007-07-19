@@ -53,24 +53,6 @@
 
 struct kmem_cache *anon_vma_cachep;
 
-static inline void validate_anon_vma(struct vm_area_struct *find_vma)
-{
-#ifdef CONFIG_DEBUG_VM
-	struct anon_vma *anon_vma = find_vma->anon_vma;
-	struct vm_area_struct *vma;
-	unsigned int mapcount = 0;
-	int found = 0;
-
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-		mapcount++;
-		BUG_ON(mapcount > 100000);
-		if (vma == find_vma)
-			found = 1;
-	}
-	BUG_ON(!found);
-#endif
-}
-
 /* This must be called under the mmap_sem. */
 int anon_vma_prepare(struct vm_area_struct *vma)
 {
@@ -121,10 +103,8 @@ void __anon_vma_link(struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 
-	if (anon_vma) {
+	if (anon_vma)
 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-		validate_anon_vma(vma);
-	}
 }
 
 void anon_vma_link(struct vm_area_struct *vma)
@@ -134,7 +114,6 @@ void anon_vma_link(struct vm_area_struct *vma)
 	if (anon_vma) {
 		spin_lock(&anon_vma->lock);
 		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-		validate_anon_vma(vma);
 		spin_unlock(&anon_vma->lock);
 	}
 }
@@ -148,7 +127,6 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 		return;
 
 	spin_lock(&anon_vma->lock);
-	validate_anon_vma(vma);
 	list_del(&vma->anon_vma_node);
 
 	/* We must garbage collect the anon_vma if it's empty */

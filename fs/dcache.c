@@ -883,6 +883,11 @@ static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
 	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
+static struct shrinker dcache_shrinker = {
+	.shrink = shrink_dcache_memory,
+	.seeks = DEFAULT_SEEKS,
+};
+
 /**
  * d_alloc	-	allocate a dcache entry
  * @parent: parent of entry to allocate
@@ -2115,7 +2120,7 @@ static void __init dcache_init(unsigned long mempages)
 	dentry_cache = KMEM_CACHE(dentry,
 		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
 	
-	set_shrinker(DEFAULT_SEEKS, shrink_dcache_memory);
+	register_shrinker(&dcache_shrinker);
 
 	/* Hash may have been set up in dcache_init_early */
 	if (!hashdist)

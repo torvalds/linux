@@ -197,6 +197,12 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 			    __FUNCTION__);
 			return;
 		}
+		/*
+		 * After turning power off, we must wait for at least
+		 * 1 second before taking any action that relies on
+		 * power having been removed from the slot/adapter.
+		 */
+		msleep(1000);
 	}
 }
 
@@ -615,6 +621,12 @@ int pciehp_disable_slot(struct slot *p_slot)
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
 		}
+		/*
+		 * After turning power off, we must wait for at least
+		 * 1 second before taking any action that relies on
+		 * power having been removed from the slot/adapter.
+		 */
+		msleep(1000);
 	}
 
 	ret = remove_board(p_slot);

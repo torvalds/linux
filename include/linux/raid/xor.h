@@ -3,9 +3,10 @@
 
 #include <linux/raid/md.h>
 
-#define MAX_XOR_BLOCKS 5
+#define MAX_XOR_BLOCKS 4
 
-extern void xor_block(unsigned int count, unsigned int bytes, void **ptr);
+extern void xor_blocks(unsigned int count, unsigned int bytes,
+	void *dest, void **srcs);
 
 struct xor_block_template {
         struct xor_block_template *next;

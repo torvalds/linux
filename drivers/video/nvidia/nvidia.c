@@ -674,6 +674,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 		info->fbops->fb_sync = nvidiafb_sync;
 		info->pixmap.scan_align = 4;
 		info->flags &= ~FBINFO_HWACCEL_DISABLED;
+		info->flags |= FBINFO_READS_FAST;
 		NVResetGraphics(info);
 	} else {
 		info->fbops->fb_imageblit = cfb_imageblit;
@@ -682,6 +683,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 		info->fbops->fb_sync = NULL;
 		info->pixmap.scan_align = 1;
 		info->flags |= FBINFO_HWACCEL_DISABLED;
+		info->flags &= ~FBINFO_READS_FAST;
 	}
 
 	par->cursor_reset = 1;
@@ -1193,7 +1195,8 @@ static u32 __devinit nvidia_get_chipset(struct fb_info *info)
 
 	printk(KERN_INFO PFX "Device ID: %x \n", id);
 
-	if ((id & 0xfff0) == 0x00f0) {
+	if ((id & 0xfff0) == 0x00f0 ||
+	    (id & 0xfff0) == 0x02e0) {
 		/* pci-e */
 		id = NV_RD32(par->REGS, 0x1800);
 
@@ -1238,18 +1241,16 @@ static u32 __devinit nvidia_get_arch(struct fb_info *info)
 	case 0x0040:		/* GeForce 6800 */
 	case 0x00C0:		/* GeForce 6800 */
 	case 0x0120:		/* GeForce 6800 */
-	case 0x0130:
 	case 0x0140:		/* GeForce 6600 */
 	case 0x0160:		/* GeForce 6200 */
 	case 0x01D0:		/* GeForce 7200, 7300, 7400 */
-	case 0x02E0:		/* GeForce 7300 GT */
 	case 0x0090:		/* GeForce 7800 */
 	case 0x0210:		/* GeForce 6800 */
 	case 0x0220:		/* GeForce 6200 */
-	case 0x0230:
 	case 0x0240:		/* GeForce 6100 */
 	case 0x0290:		/* GeForce 7900 */
 	case 0x0390:		/* GeForce 7600 */
+	case 0x03D0:
 		arch = NV_ARCH_40;
 		break;
 	case 0x0020:		/* TNT, TNT2 */

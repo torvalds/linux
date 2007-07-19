@@ -460,6 +460,9 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 	spin_lock_init(&vnode->writeback_lock);
 	spin_lock_init(&vnode->lock);
 	INIT_LIST_HEAD(&vnode->writebacks);
+	INIT_LIST_HEAD(&vnode->pending_locks);
+	INIT_LIST_HEAD(&vnode->granted_locks);
+	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
 	INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
 }
 

@@ -61,10 +61,11 @@ archmrproper:
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-vmlinux.srec vmlinux.bin: vmlinux
+vmlinux.srec vmlinux.bin zImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 define archhelp
-  echo  'vmlinux.bin  - Create raw binary'
-  echo  'vmlinux.srec - Create srec binary'
+  @echo  'vmlinux.bin  - Create raw binary'
+  @echo  'vmlinux.srec - Create srec binary'
+  @echo  'zImage       - Compressed kernel image'
 endef

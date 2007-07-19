@@ -174,7 +174,6 @@ static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 	lp->cur = DLM_LOCK_IV;
 	lp->lvb = NULL;
 	lp->hold_null = NULL;
-	init_completion(&lp->ast_wait);
 	INIT_LIST_HEAD(&lp->clist);
 	INIT_LIST_HEAD(&lp->blist);
 	INIT_LIST_HEAD(&lp->delay_list);
@@ -399,6 +398,12 @@ static void gdlm_del_lvb(struct gdlm_lock *lp)
 	lp->lksb.sb_lvbptr = NULL;
 }
 
+static int gdlm_ast_wait(void *word)
+{
+	schedule();
+	return 0;
+}
+
 /* This can do a synchronous dlm request (requiring a lock_dlm thread to get
    the completion) because gfs won't call hold_lvb() during a callback (from
    the context of a lock_dlm thread). */
@@ -424,10 +429,10 @@ static int hold_null_lock(struct gdlm_lock *lp)
 	lpn->lkf = DLM_LKF_VALBLK | DLM_LKF_EXPEDITE;
 	set_bit(LFL_NOBAST, &lpn->flags);
 	set_bit(LFL_INLOCK, &lpn->flags);
+	set_bit(LFL_AST_WAIT, &lpn->flags);
 
-	init_completion(&lpn->ast_wait);
 	gdlm_do_lock(lpn);
-	wait_for_completion(&lpn->ast_wait);
+	wait_on_bit(&lpn->flags, LFL_AST_WAIT, gdlm_ast_wait, TASK_UNINTERRUPTIBLE);
 	error = lpn->lksb.sb_status;
 	if (error) {
 		printk(KERN_INFO "lock_dlm: hold_null_lock dlm error %d\n",

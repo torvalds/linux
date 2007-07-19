@@ -453,7 +453,6 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
 	[RTA_MULTIPATH]		= { .len = sizeof(struct rtnexthop) },
 	[RTA_PROTOINFO]		= { .type = NLA_U32 },
 	[RTA_FLOW]		= { .type = NLA_U32 },
-	[RTA_MP_ALGO]		= { .type = NLA_U32 },
 };
 
 static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -514,9 +513,6 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 			break;
 		case RTA_FLOW:
 			cfg->fc_flow = nla_get_u32(attr);
-			break;
-		case RTA_MP_ALGO:
-			cfg->fc_mp_alg = nla_get_u32(attr);
 			break;
 		case RTA_TABLE:
 			cfg->fc_table = nla_get_u32(attr);

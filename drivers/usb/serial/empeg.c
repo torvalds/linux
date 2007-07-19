@@ -326,12 +326,14 @@ static int empeg_chars_in_buffer (struct usb_serial_port *port)
 
 static void empeg_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -345,11 +347,13 @@ static void empeg_read_bulk_callback (struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 

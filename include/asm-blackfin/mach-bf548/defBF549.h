@@ -1070,21 +1070,13 @@
 /* Bit masks for PIXC_CTL */
 
 #define                   PIXC_EN  0x1        /* Pixel Compositor Enable */
-#define                  nPIXC_EN  0x0       
 #define                  OVR_A_EN  0x2        /* Overlay A Enable */
-#define                 nOVR_A_EN  0x0       
 #define                  OVR_B_EN  0x4        /* Overlay B Enable */
-#define                 nOVR_B_EN  0x0       
 #define                  IMG_FORM  0x8        /* Image Data Format */
-#define                 nIMG_FORM  0x0       
 #define                  OVR_FORM  0x10       /* Overlay Data Format */
-#define                 nOVR_FORM  0x0       
 #define                  OUT_FORM  0x20       /* Output Data Format */
-#define                 nOUT_FORM  0x0       
 #define                   UDS_MOD  0x40       /* Resampling Mode */
-#define                  nUDS_MOD  0x0       
 #define                     TC_EN  0x80       /* Transparent Color Enable */
-#define                    nTC_EN  0x0       
 #define                  IMG_STAT  0x300      /* Image FIFO Status */
 #define                  OVR_STAT  0xc00      /* Overlay FIFO Status */
 #define                    WM_LVL  0x3000     /* FIFO Watermark Level */
@@ -1132,13 +1124,9 @@
 /* Bit masks for PIXC_INTRSTAT */
 
 #define                OVR_INT_EN  0x1        /* Interrupt at End of Last Valid Overlay */
-#define               nOVR_INT_EN  0x0       
 #define                FRM_INT_EN  0x2        /* Interrupt at End of Frame */
-#define               nFRM_INT_EN  0x0       
 #define              OVR_INT_STAT  0x4        /* Overlay Interrupt Status */
-#define             nOVR_INT_STAT  0x0       
 #define              FRM_INT_STAT  0x8        /* Frame Interrupt Status */
-#define             nFRM_INT_STAT  0x0       
 
 /* Bit masks for PIXC_RYCON */
 
@@ -1146,7 +1134,6 @@
 #define                       A12  0xffc00    /* A12 in the Coefficient Matrix */
 #define                       A13  0x3ff00000 /* A13 in the Coefficient Matrix */
 #define                  RY_MULT4  0x40000000 /* Multiply Row by 4 */
-#define                 nRY_MULT4  0x0       
 
 /* Bit masks for PIXC_GUCON */
 
@@ -1154,7 +1141,6 @@
 #define                       A22  0xffc00    /* A22 in the Coefficient Matrix */
 #define                       A23  0x3ff00000 /* A23 in the Coefficient Matrix */
 #define                  GU_MULT4  0x40000000 /* Multiply Row by 4 */
-#define                 nGU_MULT4  0x0       
 
 /* Bit masks for PIXC_BVCON */
 
@@ -1162,7 +1148,6 @@
 #define                       A32  0xffc00    /* A32 in the Coefficient Matrix */
 #define                       A33  0x3ff00000 /* A33 in the Coefficient Matrix */
 #define                  BV_MULT4  0x40000000 /* Multiply Row by 4 */
-#define                 nBV_MULT4  0x0       
 
 /* Bit masks for PIXC_CCBIAS */
 
@@ -1179,48 +1164,28 @@
 /* Bit masks for HOST_CONTROL */
 
 #define                   HOST_EN  0x1        /* Host Enable */
-#define                  nHOST_EN  0x0       
 #define                  HOST_END  0x2        /* Host Endianess */
-#define                 nHOST_END  0x0       
 #define                 DATA_SIZE  0x4        /* Data Size */
-#define                nDATA_SIZE  0x0       
 #define                  HOST_RST  0x8        /* Host Reset */
-#define                 nHOST_RST  0x0       
 #define                  HRDY_OVR  0x20       /* Host Ready Override */
-#define                 nHRDY_OVR  0x0       
 #define                  INT_MODE  0x40       /* Interrupt Mode */
-#define                 nINT_MODE  0x0       
 #define                     BT_EN  0x80       /* Bus Timeout Enable */
-#define                    nBT_EN  0x0       
 #define                       EHW  0x100      /* Enable Host Write */
-#define                      nEHW  0x0       
 #define                       EHR  0x200      /* Enable Host Read */
-#define                      nEHR  0x0       
 #define                       BDR  0x400      /* Burst DMA Requests */
-#define                      nBDR  0x0       
 
 /* Bit masks for HOST_STATUS */
 
 #define                     READY  0x1        /* DMA Ready */
-#define                    nREADY  0x0       
 #define                  FIFOFULL  0x2        /* FIFO Full */
-#define                 nFIFOFULL  0x0       
 #define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define                nFIFOEMPTY  0x0       
-#define                  COMPLETE  0x8        /* DMA Complete */
-#define                 nCOMPLETE  0x0       
+#define              DMA_COMPLETE  0x8        /* DMA Complete */
 #define                      HSHK  0x10       /* Host Handshake */
-#define                     nHSHK  0x0       
 #define                   TIMEOUT  0x20       /* Host Timeout */
-#define                  nTIMEOUT  0x0       
 #define                      HIRQ  0x40       /* Host Interrupt Request */
-#define                     nHIRQ  0x0       
 #define                ALLOW_CNFG  0x80       /* Allow New Configuration */
-#define               nALLOW_CNFG  0x0       
 #define                   DMA_DIR  0x100      /* DMA Direction */
-#define                  nDMA_DIR  0x0       
 #define                       BTE  0x200      /* Bus Timeout Enabled */
-#define                      nBTE  0x0       
 
 /* Bit masks for HOST_TIMEOUT */
 
@@ -1229,71 +1194,41 @@
 /* Bit masks for MXVR_CONFIG */
 
 #define                    MXVREN  0x1        /* MXVR Enable */
-#define                   nMXVREN  0x0       
 #define                      MMSM  0x2        /* MXVR Master/Slave Mode Select */
-#define                     nMMSM  0x0       
 #define                    ACTIVE  0x4        /* Active Mode */
-#define                   nACTIVE  0x0       
 #define                    SDELAY  0x8        /* Synchronous Data Delay */
-#define                   nSDELAY  0x0       
 #define                   NCMRXEN  0x10       /* Normal Control Message Receive Enable */
-#define                  nNCMRXEN  0x0       
 #define                   RWRRXEN  0x20       /* Remote Write Receive Enable */
-#define                  nRWRRXEN  0x0       
 #define                     MTXEN  0x40       /* MXVR Transmit Data Enable */
-#define                    nMTXEN  0x0       
 #define                    MTXONB  0x80       /* MXVR Phy Transmitter On */
-#define                   nMTXONB  0x0       
 #define                   EPARITY  0x100      /* Even Parity Select */
-#define                  nEPARITY  0x0       
 #define                       MSB  0x1e00     /* Master Synchronous Boundary */
 #define                    APRXEN  0x2000     /* Asynchronous Packet Receive Enable */
-#define                   nAPRXEN  0x0       
 #define                    WAKEUP  0x4000     /* Wake-Up */
-#define                   nWAKEUP  0x0       
 #define                     LMECH  0x8000     /* Lock Mechanism Select */
-#define                    nLMECH  0x0       
 
 /* Bit masks for MXVR_STATE_0 */
 
 #define                      NACT  0x1        /* Network Activity */
-#define                     nNACT  0x0       
 #define                    SBLOCK  0x2        /* Super Block Lock */
-#define                   nSBLOCK  0x0       
 #define                   FMPLLST  0xc        /* Frequency Multiply PLL SM State */
 #define                  CDRPLLST  0xe0       /* Clock/Data Recovery PLL SM State */
 #define                     APBSY  0x100      /* Asynchronous Packet Transmit Buffer Busy */
-#define                    nAPBSY  0x0       
 #define                     APARB  0x200      /* Asynchronous Packet Arbitrating */
-#define                    nAPARB  0x0       
 #define                      APTX  0x400      /* Asynchronous Packet Transmitting */
-#define                     nAPTX  0x0       
 #define                      APRX  0x800      /* Receiving Asynchronous Packet */
-#define                     nAPRX  0x0       
 #define                     CMBSY  0x1000     /* Control Message Transmit Buffer Busy */
-#define                    nCMBSY  0x0       
 #define                     CMARB  0x2000     /* Control Message Arbitrating */
-#define                    nCMARB  0x0       
 #define                      CMTX  0x4000     /* Control Message Transmitting */
-#define                     nCMTX  0x0       
 #define                      CMRX  0x8000     /* Receiving Control Message */
-#define                     nCMRX  0x0       
 #define                    MRXONB  0x10000    /* MRXONB Pin State */
-#define                   nMRXONB  0x0       
 #define                     RGSIP  0x20000    /* Remote Get Source In Progress */
-#define                    nRGSIP  0x0       
 #define                     DALIP  0x40000    /* Resource Deallocate In Progress */
-#define                    nDALIP  0x0       
 #define                      ALIP  0x80000    /* Resource Allocate In Progress */
-#define                     nALIP  0x0       
 #define                     RRDIP  0x100000   /* Remote Read In Progress */
-#define                    nRRDIP  0x0       
 #define                     RWRIP  0x200000   /* Remote Write In Progress */
-#define                    nRWRIP  0x0       
 #define                     FLOCK  0x400000   /* Frame Lock */
-#define                    nFLOCK  0x0       
 #define                     BLOCK  0x800000   /* Block Lock */
-#define                    nBLOCK  0x0       
 #define                       RSB  0xf000000  /* Received Synchronous Boundary */
 #define                   DERRNUM  0xf0000000 /* DMA Error Channel Number */
 
@@ -1302,535 +1237,343 @@
 #define                   SRXNUMB  0xf        /* Synchronous Receive FIFO Number of Bytes */
 #define                   STXNUMB  0xf0       /* Synchronous Transmit FIFO Number of Bytes */
 #define                    APCONT  0x100      /* Asynchronous Packet Continuation */
-#define                   nAPCONT  0x0       
 #define                  OBERRNUM  0xe00      /* DMA Out of Bounds Error Channel Number */
 #define                DMAACTIVE0  0x10000    /* DMA0 Active */
-#define               nDMAACTIVE0  0x0       
 #define                DMAACTIVE1  0x20000    /* DMA1 Active */
-#define               nDMAACTIVE1  0x0       
 #define                DMAACTIVE2  0x40000    /* DMA2 Active */
-#define               nDMAACTIVE2  0x0       
 #define                DMAACTIVE3  0x80000    /* DMA3 Active */
-#define               nDMAACTIVE3  0x0       
 #define                DMAACTIVE4  0x100000   /* DMA4 Active */
-#define               nDMAACTIVE4  0x0       
 #define                DMAACTIVE5  0x200000   /* DMA5 Active */
-#define               nDMAACTIVE5  0x0       
 #define                DMAACTIVE6  0x400000   /* DMA6 Active */
-#define               nDMAACTIVE6  0x0       
 #define                DMAACTIVE7  0x800000   /* DMA7 Active */
-#define               nDMAACTIVE7  0x0       
 #define                  DMAPMEN0  0x1000000  /* DMA0 Pattern Matching Enabled */
-#define                 nDMAPMEN0  0x0       
 #define                  DMAPMEN1  0x2000000  /* DMA1 Pattern Matching Enabled */
-#define                 nDMAPMEN1  0x0       
 #define                  DMAPMEN2  0x4000000  /* DMA2 Pattern Matching Enabled */
-#define                 nDMAPMEN2  0x0       
 #define                  DMAPMEN3  0x8000000  /* DMA3 Pattern Matching Enabled */
-#define                 nDMAPMEN3  0x0       
 #define                  DMAPMEN4  0x10000000 /* DMA4 Pattern Matching Enabled */
-#define                 nDMAPMEN4  0x0       
 #define                  DMAPMEN5  0x20000000 /* DMA5 Pattern Matching Enabled */
-#define                 nDMAPMEN5  0x0       
 #define                  DMAPMEN6  0x40000000 /* DMA6 Pattern Matching Enabled */
-#define                 nDMAPMEN6  0x0       
 #define                  DMAPMEN7  0x80000000 /* DMA7 Pattern Matching Enabled */
-#define                 nDMAPMEN7  0x0       
 
 /* Bit masks for MXVR_INT_STAT_0 */
 
 #define                      NI2A  0x1        /* Network Inactive to Active */
-#define                     nNI2A  0x0       
 #define                      NA2I  0x2        /* Network Active to Inactive */
-#define                     nNA2I  0x0       
 #define                     SBU2L  0x4        /* Super Block Unlock to Lock */
-#define                    nSBU2L  0x0       
 #define                     SBL2U  0x8        /* Super Block Lock to Unlock */
-#define                    nSBL2U  0x0       
 #define                       PRU  0x10       /* Position Register Updated */
-#define                      nPRU  0x0       
 #define                      MPRU  0x20       /* Maximum Position Register Updated */
-#define                     nMPRU  0x0       
 #define                       DRU  0x40       /* Delay Register Updated */
-#define                      nDRU  0x0       
 #define                      MDRU  0x80       /* Maximum Delay Register Updated */
-#define                     nMDRU  0x0       
 #define                       SBU  0x100      /* Synchronous Boundary Updated */
-#define                      nSBU  0x0       
 #define                       ATU  0x200      /* Allocation Table Updated */
-#define                      nATU  0x0       
 #define                      FCZ0  0x400      /* Frame Counter 0 Zero */
-#define                     nFCZ0  0x0       
 #define                      FCZ1  0x800      /* Frame Counter 1 Zero */
-#define                     nFCZ1  0x0       
 #define                      PERR  0x1000     /* Parity Error */
-#define                     nPERR  0x0       
 #define                      MH2L  0x2000     /* MRXONB High to Low */
-#define                     nMH2L  0x0       
 #define                      ML2H  0x4000     /* MRXONB Low to High */
-#define                     nML2H  0x0       
 #define                       WUP  0x8000     /* Wake-Up Preamble Received */
-#define                      nWUP  0x0       
 #define                      FU2L  0x10000    /* Frame Unlock to Lock */
-#define                     nFU2L  0x0       
 #define                      FL2U  0x20000    /* Frame Lock to Unlock */
-#define                     nFL2U  0x0       
 #define                      BU2L  0x40000    /* Block Unlock to Lock */
-#define                     nBU2L  0x0       
 #define                      BL2U  0x80000    /* Block Lock to Unlock */
-#define                     nBL2U  0x0       
 #define                     OBERR  0x100000   /* DMA Out of Bounds Error */
-#define                    nOBERR  0x0       
 #define                       PFL  0x200000   /* PLL Frequency Locked */
-#define                      nPFL  0x0       
 #define                       SCZ  0x400000   /* System Clock Counter Zero */
-#define                      nSCZ  0x0       
 #define                      FERR  0x800000   /* FIFO Error */
-#define                     nFERR  0x0       
 #define                       CMR  0x1000000  /* Control Message Received */
-#define                      nCMR  0x0       
 #define                     CMROF  0x2000000  /* Control Message Receive Buffer Overflow */
-#define                    nCMROF  0x0       
 #define                      CMTS  0x4000000  /* Control Message Transmit Buffer Successfully Sent */
-#define                     nCMTS  0x0       
 #define                      CMTC  0x8000000  /* Control Message Transmit Buffer Successfully Cancelled */
-#define                     nCMTC  0x0       
 #define                      RWRC  0x10000000 /* Remote Write Control Message Completed */
-#define                     nRWRC  0x0       
 #define                       BCZ  0x20000000 /* Block Counter Zero */
-#define                      nBCZ  0x0       
 #define                     BMERR  0x40000000 /* Biphase Mark Coding Error */
-#define                    nBMERR  0x0       
 #define                      DERR  0x80000000 /* DMA Error */
-#define                     nDERR  0x0       
 
 /* Bit masks for MXVR_INT_STAT_1 */
 
 #define                    HDONE0  0x1        /* DMA0 Half Done */
-#define                   nHDONE0  0x0       
 #define                     DONE0  0x2        /* DMA0 Done */
-#define                    nDONE0  0x0       
 #define                       APR  0x4        /* Asynchronous Packet Received */
-#define                      nAPR  0x0       
 #define                     APROF  0x8        /* Asynchronous Packet Receive Buffer Overflow */
-#define                    nAPROF  0x0       
 #define                    HDONE1  0x10       /* DMA1 Half Done */
-#define                   nHDONE1  0x0       
 #define                     DONE1  0x20       /* DMA1 Done */
-#define                    nDONE1  0x0       
 #define                      APTS  0x40       /* Asynchronous Packet Transmit Buffer Successfully Sent */
-#define                     nAPTS  0x0       
 #define                      APTC  0x80       /* Asynchronous Packet Transmit Buffer Successfully Cancelled */
-#define                     nAPTC  0x0       
 #define                    HDONE2  0x100      /* DMA2 Half Done */
-#define                   nHDONE2  0x0       
 #define                     DONE2  0x200      /* DMA2 Done */
-#define                    nDONE2  0x0       
 #define                     APRCE  0x400      /* Asynchronous Packet Receive CRC Error */
-#define                    nAPRCE  0x0       
 #define                     APRPE  0x800      /* Asynchronous Packet Receive Packet Error */
-#define                    nAPRPE  0x0       
 #define                    HDONE3  0x1000     /* DMA3 Half Done */
-#define                   nHDONE3  0x0       
 #define                     DONE3  0x2000     /* DMA3 Done */
-#define                    nDONE3  0x0       
 #define                    HDONE4  0x10000    /* DMA4 Half Done */
-#define                   nHDONE4  0x0       
 #define                     DONE4  0x20000    /* DMA4 Done */
-#define                    nDONE4  0x0       
 #define                    HDONE5  0x100000   /* DMA5 Half Done */
-#define                   nHDONE5  0x0       
 #define                     DONE5  0x200000   /* DMA5 Done */
-#define                    nDONE5  0x0       
 #define                    HDONE6  0x1000000  /* DMA6 Half Done */
-#define                   nHDONE6  0x0       
 #define                     DONE6  0x2000000  /* DMA6 Done */
-#define                    nDONE6  0x0       
 #define                    HDONE7  0x10000000 /* DMA7 Half Done */
-#define                   nHDONE7  0x0       
 #define                     DONE7  0x20000000 /* DMA7 Done */
-#define                    nDONE7  0x0       
 
 /* Bit masks for MXVR_INT_EN_0 */
 
 #define                    NI2AEN  0x1        /* Network Inactive to Active Interrupt Enable */
-#define                   nNI2AEN  0x0       
 #define                    NA2IEN  0x2        /* Network Active to Inactive Interrupt Enable */
-#define                   nNA2IEN  0x0       
 #define                   SBU2LEN  0x4        /* Super Block Unlock to Lock Interrupt Enable */
-#define                  nSBU2LEN  0x0       
 #define                   SBL2UEN  0x8        /* Super Block Lock to Unlock Interrupt Enable */
-#define                  nSBL2UEN  0x0       
 #define                     PRUEN  0x10       /* Position Register Updated Interrupt Enable */
-#define                    nPRUEN  0x0       
 #define                    MPRUEN  0x20       /* Maximum Position Register Updated Interrupt Enable */
-#define                   nMPRUEN  0x0       
 #define                     DRUEN  0x40       /* Delay Register Updated Interrupt Enable */
-#define                    nDRUEN  0x0       
 #define                    MDRUEN  0x80       /* Maximum Delay Register Updated Interrupt Enable */
-#define                   nMDRUEN  0x0       
 #define                     SBUEN  0x100      /* Synchronous Boundary Updated Interrupt Enable */
-#define                    nSBUEN  0x0       
 #define                     ATUEN  0x200      /* Allocation Table Updated Interrupt Enable */
-#define                    nATUEN  0x0       
 #define                    FCZ0EN  0x400      /* Frame Counter 0 Zero Interrupt Enable */
-#define                   nFCZ0EN  0x0       
 #define                    FCZ1EN  0x800      /* Frame Counter 1 Zero Interrupt Enable */
-#define                   nFCZ1EN  0x0       
 #define                    PERREN  0x1000     /* Parity Error Interrupt Enable */
-#define                   nPERREN  0x0       
 #define                    MH2LEN  0x2000     /* MRXONB High to Low Interrupt Enable */
-#define                   nMH2LEN  0x0       
 #define                    ML2HEN  0x4000     /* MRXONB Low to High Interrupt Enable */
-#define                   nML2HEN  0x0       
 #define                     WUPEN  0x8000     /* Wake-Up Preamble Received Interrupt Enable */
-#define                    nWUPEN  0x0       
 #define                    FU2LEN  0x10000    /* Frame Unlock to Lock Interrupt Enable */
-#define                   nFU2LEN  0x0       
 #define                    FL2UEN  0x20000    /* Frame Lock to Unlock Interrupt Enable */
-#define                   nFL2UEN  0x0       
 #define                    BU2LEN  0x40000    /* Block Unlock to Lock Interrupt Enable */
-#define                   nBU2LEN  0x0       
 #define                    BL2UEN  0x80000    /* Block Lock to Unlock Interrupt Enable */
-#define                   nBL2UEN  0x0       
 #define                   OBERREN  0x100000   /* DMA Out of Bounds Error Interrupt Enable */
-#define                  nOBERREN  0x0       
 #define                     PFLEN  0x200000   /* PLL Frequency Locked Interrupt Enable */
-#define                    nPFLEN  0x0       
 #define                     SCZEN  0x400000   /* System Clock Counter Zero Interrupt Enable */
-#define                    nSCZEN  0x0       
 #define                    FERREN  0x800000   /* FIFO Error Interrupt Enable */
-#define                   nFERREN  0x0       
 #define                     CMREN  0x1000000  /* Control Message Received Interrupt Enable */
-#define                    nCMREN  0x0       
 #define                   CMROFEN  0x2000000  /* Control Message Receive Buffer Overflow Interrupt Enable */
-#define                  nCMROFEN  0x0       
 #define                    CMTSEN  0x4000000  /* Control Message Transmit Buffer Successfully Sent Interrupt Enable */
-#define                   nCMTSEN  0x0       
 #define                    CMTCEN  0x8000000  /* Control Message Transmit Buffer Successfully Cancelled Interrupt Enable */
-#define                   nCMTCEN  0x0       
 #define                    RWRCEN  0x10000000 /* Remote Write Control Message Completed Interrupt Enable */
-#define                   nRWRCEN  0x0       
 #define                     BCZEN  0x20000000 /* Block Counter Zero Interrupt Enable */
-#define                    nBCZEN  0x0       
 #define                   BMERREN  0x40000000 /* Biphase Mark Coding Error Interrupt Enable */
-#define                  nBMERREN  0x0       
 #define                    DERREN  0x80000000 /* DMA Error Interrupt Enable */
-#define                   nDERREN  0x0       
 
 /* Bit masks for MXVR_INT_EN_1 */
 
 #define                  HDONEEN0  0x1        /* DMA0 Half Done Interrupt Enable */
-#define                 nHDONEEN0  0x0       
 #define                   DONEEN0  0x2        /* DMA0 Done Interrupt Enable */
-#define                  nDONEEN0  0x0       
 #define                     APREN  0x4        /* Asynchronous Packet Received Interrupt Enable */
-#define                    nAPREN  0x0       
 #define                   APROFEN  0x8        /* Asynchronous Packet Receive Buffer Overflow Interrupt Enable */
-#define                  nAPROFEN  0x0       
 #define                  HDONEEN1  0x10       /* DMA1 Half Done Interrupt Enable */
-#define                 nHDONEEN1  0x0       
 #define                   DONEEN1  0x20       /* DMA1 Done Interrupt Enable */
-#define                  nDONEEN1  0x0       
 #define                    APTSEN  0x40       /* Asynchronous Packet Transmit Buffer Successfully Sent Interrupt Enable */
-#define                   nAPTSEN  0x0       
 #define                    APTCEN  0x80       /* Asynchronous Packet Transmit Buffer Successfully Cancelled Interrupt Enable */
-#define                   nAPTCEN  0x0       
 #define                  HDONEEN2  0x100      /* DMA2 Half Done Interrupt Enable */
-#define                 nHDONEEN2  0x0       
 #define                   DONEEN2  0x200      /* DMA2 Done Interrupt Enable */
-#define                  nDONEEN2  0x0       
 #define                   APRCEEN  0x400      /* Asynchronous Packet Receive CRC Error Interrupt Enable */
-#define                  nAPRCEEN  0x0       
 #define                   APRPEEN  0x800      /* Asynchronous Packet Receive Packet Error Interrupt Enable */
-#define                  nAPRPEEN  0x0       
 #define                  HDONEEN3  0x1000     /* DMA3 Half Done Interrupt Enable */
-#define                 nHDONEEN3  0x0       
 #define                   DONEEN3  0x2000     /* DMA3 Done Interrupt Enable */
-#define                  nDONEEN3  0x0       
 #define                  HDONEEN4  0x10000    /* DMA4 Half Done Interrupt Enable */
-#define                 nHDONEEN4  0x0       
 #define                   DONEEN4  0x20000    /* DMA4 Done Interrupt Enable */
-#define                  nDONEEN4  0x0       
 #define                  HDONEEN5  0x100000   /* DMA5 Half Done Interrupt Enable */
-#define                 nHDONEEN5  0x0       
 #define                   DONEEN5  0x200000   /* DMA5 Done Interrupt Enable */
-#define                  nDONEEN5  0x0       
 #define                  HDONEEN6  0x1000000  /* DMA6 Half Done Interrupt Enable */
-#define                 nHDONEEN6  0x0       
 #define                   DONEEN6  0x2000000  /* DMA6 Done Interrupt Enable */
-#define                  nDONEEN6  0x0       
 #define                  HDONEEN7  0x10000000 /* DMA7 Half Done Interrupt Enable */
-#define                 nHDONEEN7  0x0       
 #define                   DONEEN7  0x20000000 /* DMA7 Done Interrupt Enable */
-#define                  nDONEEN7  0x0       
 
 /* Bit masks for MXVR_POSITION */
 
 #define                  POSITION  0x3f       /* Node Position */
 #define                    PVALID  0x8000     /* Node Position Valid */
-#define                   nPVALID  0x0       
 
 /* Bit masks for MXVR_MAX_POSITION */
 
 #define                 MPOSITION  0x3f       /* Maximum Node Position */
 #define                   MPVALID  0x8000     /* Maximum Node Position Valid */
-#define                  nMPVALID  0x0       
 
 /* Bit masks for MXVR_DELAY */
 
 #define                     DELAY  0x3f       /* Node Frame Delay */
 #define                    DVALID  0x8000     /* Node Frame Delay Valid */
-#define                   nDVALID  0x0       
 
 /* Bit masks for MXVR_MAX_DELAY */
 
 #define                    MDELAY  0x3f       /* Maximum Node Frame Delay */
 #define                   MDVALID  0x8000     /* Maximum Node Frame Delay Valid */
-#define                  nMDVALID  0x0       
 
 /* Bit masks for MXVR_LADDR */
 
 #define                     LADDR  0xffff     /* Logical Address */
 #define                    LVALID  0x80000000 /* Logical Address Valid */
-#define                   nLVALID  0x0       
 
 /* Bit masks for MXVR_GADDR */
 
 #define                    GADDRL  0xff       /* Group Address Lower Byte */
 #define                    GVALID  0x8000     /* Group Address Valid */
-#define                   nGVALID  0x0       
 
 /* Bit masks for MXVR_AADDR */
 
 #define                     AADDR  0xffff     /* Alternate Address */
 #define                    AVALID  0x80000000 /* Alternate Address Valid */
-#define                   nAVALID  0x0       
 
 /* Bit masks for MXVR_ALLOC_0 */
 
 #define                       CL0  0x7f       /* Channel 0 Connection Label */
 #define                      CIU0  0x80       /* Channel 0 In Use */
-#define                     nCIU0  0x0       
 #define                       CL1  0x7f00     /* Channel 0 Connection Label */
 #define                      CIU1  0x8000     /* Channel 0 In Use */
-#define                     nCIU1  0x0       
 #define                       CL2  0x7f0000   /* Channel 0 Connection Label */
 #define                      CIU2  0x800000   /* Channel 0 In Use */
-#define                     nCIU2  0x0       
 #define                       CL3  0x7f000000 /* Channel 0 Connection Label */
 #define                      CIU3  0x80000000 /* Channel 0 In Use */
-#define                     nCIU3  0x0       
 
 /* Bit masks for MXVR_ALLOC_1 */
 
 #define                       CL4  0x7f       /* Channel 4 Connection Label */
 #define                      CIU4  0x80       /* Channel 4 In Use */
-#define                     nCIU4  0x0       
 #define                       CL5  0x7f00     /* Channel 5 Connection Label */
 #define                      CIU5  0x8000     /* Channel 5 In Use */
-#define                     nCIU5  0x0       
 #define                       CL6  0x7f0000   /* Channel 6 Connection Label */
 #define                      CIU6  0x800000   /* Channel 6 In Use */
-#define                     nCIU6  0x0       
 #define                       CL7  0x7f000000 /* Channel 7 Connection Label */
 #define                      CIU7  0x80000000 /* Channel 7 In Use */
-#define                     nCIU7  0x0       
 
 /* Bit masks for MXVR_ALLOC_2 */
 
 #define                       CL8  0x7f       /* Channel 8 Connection Label */
 #define                      CIU8  0x80       /* Channel 8 In Use */
-#define                     nCIU8  0x0       
 #define                       CL9  0x7f00     /* Channel 9 Connection Label */
 #define                      CIU9  0x8000     /* Channel 9 In Use */
-#define                     nCIU9  0x0       
 #define                      CL10  0x7f0000   /* Channel 10 Connection Label */
 #define                     CIU10  0x800000   /* Channel 10 In Use */
-#define                    nCIU10  0x0       
 #define                      CL11  0x7f000000 /* Channel 11 Connection Label */
 #define                     CIU11  0x80000000 /* Channel 11 In Use */
-#define                    nCIU11  0x0       
 
 /* Bit masks for MXVR_ALLOC_3 */
 
 #define                      CL12  0x7f       /* Channel 12 Connection Label */
 #define                     CIU12  0x80       /* Channel 12 In Use */
-#define                    nCIU12  0x0       
 #define                      CL13  0x7f00     /* Channel 13 Connection Label */
 #define                     CIU13  0x8000     /* Channel 13 In Use */
-#define                    nCIU13  0x0       
 #define                      CL14  0x7f0000   /* Channel 14 Connection Label */
 #define                     CIU14  0x800000   /* Channel 14 In Use */
-#define                    nCIU14  0x0       
 #define                      CL15  0x7f000000 /* Channel 15 Connection Label */
 #define                     CIU15  0x80000000 /* Channel 15 In Use */
-#define                    nCIU15  0x0       
 
 /* Bit masks for MXVR_ALLOC_4 */
 
 #define                      CL16  0x7f       /* Channel 16 Connection Label */
 #define                     CIU16  0x80       /* Channel 16 In Use */
-#define                    nCIU16  0x0       
 #define                      CL17  0x7f00     /* Channel 17 Connection Label */
 #define                     CIU17  0x8000     /* Channel 17 In Use */
-#define                    nCIU17  0x0       
 #define                      CL18  0x7f0000   /* Channel 18 Connection Label */
 #define                     CIU18  0x800000   /* Channel 18 In Use */
-#define                    nCIU18  0x0       
 #define                      CL19  0x7f000000 /* Channel 19 Connection Label */
 #define                     CIU19  0x80000000 /* Channel 19 In Use */
-#define                    nCIU19  0x0       
 
 /* Bit masks for MXVR_ALLOC_5 */
 
 #define                      CL20  0x7f       /* Channel 20 Connection Label */
 #define                     CIU20  0x80       /* Channel 20 In Use */
-#define                    nCIU20  0x0       
 #define                      CL21  0x7f00     /* Channel 21 Connection Label */
 #define                     CIU21  0x8000     /* Channel 21 In Use */
-#define                    nCIU21  0x0       
 #define                      CL22  0x7f0000   /* Channel 22 Connection Label */
 #define                     CIU22  0x800000   /* Channel 22 In Use */
-#define                    nCIU22  0x0       
 #define                      CL23  0x7f000000 /* Channel 23 Connection Label */
 #define                     CIU23  0x80000000 /* Channel 23 In Use */
-#define                    nCIU23  0x0       
 
 /* Bit masks for MXVR_ALLOC_6 */
 
 #define                      CL24  0x7f       /* Channel 24 Connection Label */
 #define                     CIU24  0x80       /* Channel 24 In Use */
-#define                    nCIU24  0x0       
 #define                      CL25  0x7f00     /* Channel 25 Connection Label */
 #define                     CIU25  0x8000     /* Channel 25 In Use */
-#define                    nCIU25  0x0       
 #define                      CL26  0x7f0000   /* Channel 26 Connection Label */
 #define                     CIU26  0x800000   /* Channel 26 In Use */
-#define                    nCIU26  0x0       
 #define                      CL27  0x7f000000 /* Channel 27 Connection Label */
 #define                     CIU27  0x80000000 /* Channel 27 In Use */
-#define                    nCIU27  0x0       
 
 /* Bit masks for MXVR_ALLOC_7 */
 
 #define                      CL28  0x7f       /* Channel 28 Connection Label */
 #define                     CIU28  0x80       /* Channel 28 In Use */
-#define                    nCIU28  0x0       
 #define                      CL29  0x7f00     /* Channel 29 Connection Label */
 #define                     CIU29  0x8000     /* Channel 29 In Use */
-#define                    nCIU29  0x0       
 #define                      CL30  0x7f0000   /* Channel 30 Connection Label */
 #define                     CIU30  0x800000   /* Channel 30 In Use */
-#define                    nCIU30  0x0       
 #define                      CL31  0x7f000000 /* Channel 31 Connection Label */
 #define                     CIU31  0x80000000 /* Channel 31 In Use */
-#define                    nCIU31  0x0       
 
 /* Bit masks for MXVR_ALLOC_8 */
 
 #define                      CL32  0x7f       /* Channel 32 Connection Label */
 #define                     CIU32  0x80       /* Channel 32 In Use */
-#define                    nCIU32  0x0       
 #define                      CL33  0x7f00     /* Channel 33 Connection Label */
 #define                     CIU33  0x8000     /* Channel 33 In Use */
-#define                    nCIU33  0x0       
 #define                      CL34  0x7f0000   /* Channel 34 Connection Label */
 #define                     CIU34  0x800000   /* Channel 34 In Use */
-#define                    nCIU34  0x0       
 #define                      CL35  0x7f000000 /* Channel 35 Connection Label */
 #define                     CIU35  0x80000000 /* Channel 35 In Use */
-#define                    nCIU35  0x0       
 
 /* Bit masks for MXVR_ALLOC_9 */
 
 #define                      CL36  0x7f       /* Channel 36 Connection Label */
 #define                     CIU36  0x80       /* Channel 36 In Use */
-#define                    nCIU36  0x0       
 #define                      CL37  0x7f00     /* Channel 37 Connection Label */
 #define                     CIU37  0x8000     /* Channel 37 In Use */
-#define                    nCIU37  0x0       
 #define                      CL38  0x7f0000   /* Channel 38 Connection Label */
 #define                     CIU38  0x800000   /* Channel 38 In Use */
-#define                    nCIU38  0x0       
 #define                      CL39  0x7f000000 /* Channel 39 Connection Label */
 #define                     CIU39  0x80000000 /* Channel 39 In Use */
-#define                    nCIU39  0x0       
 
 /* Bit masks for MXVR_ALLOC_10 */
 
 #define                      CL40  0x7f       /* Channel 40 Connection Label */
 #define                     CIU40  0x80       /* Channel 40 In Use */
-#define                    nCIU40  0x0       
 #define                      CL41  0x7f00     /* Channel 41 Connection Label */
 #define                     CIU41  0x8000     /* Channel 41 In Use */
-#define                    nCIU41  0x0       
 #define                      CL42  0x7f0000   /* Channel 42 Connection Label */
 #define                     CIU42  0x800000   /* Channel 42 In Use */
-#define                    nCIU42  0x0       
 #define                      CL43  0x7f000000 /* Channel 43 Connection Label */
 #define                     CIU43  0x80000000 /* Channel 43 In Use */
-#define                    nCIU43  0x0       
 
 /* Bit masks for MXVR_ALLOC_11 */
 
 #define                      CL44  0x7f       /* Channel 44 Connection Label */
 #define                     CIU44  0x80       /* Channel 44 In Use */
-#define                    nCIU44  0x0       
 #define                      CL45  0x7f00     /* Channel 45 Connection Label */
 #define                     CIU45  0x8000     /* Channel 45 In Use */
-#define                    nCIU45  0x0       
 #define                      CL46  0x7f0000   /* Channel 46 Connection Label */
 #define                     CIU46  0x800000   /* Channel 46 In Use */
-#define                    nCIU46  0x0       
 #define                      CL47  0x7f000000 /* Channel 47 Connection Label */
 #define                     CIU47  0x80000000 /* Channel 47 In Use */
-#define                    nCIU47  0x0       
 
 /* Bit masks for MXVR_ALLOC_12 */
 
 #define                      CL48  0x7f       /* Channel 48 Connection Label */
 #define                     CIU48  0x80       /* Channel 48 In Use */
-#define                    nCIU48  0x0       
 #define                      CL49  0x7f00     /* Channel 49 Connection Label */
 #define                     CIU49  0x8000     /* Channel 49 In Use */
-#define                    nCIU49  0x0       
 #define                      CL50  0x7f0000   /* Channel 50 Connection Label */
 #define                     CIU50  0x800000   /* Channel 50 In Use */
-#define                    nCIU50  0x0       
 #define                      CL51  0x7f000000 /* Channel 51 Connection Label */
 #define                     CIU51  0x80000000 /* Channel 51 In Use */
-#define                    nCIU51  0x0       
 
 /* Bit masks for MXVR_ALLOC_13 */
 
 #define                      CL52  0x7f       /* Channel 52 Connection Label */
 #define                     CIU52  0x80       /* Channel 52 In Use */
-#define                    nCIU52  0x0       
 #define                      CL53  0x7f00     /* Channel 53 Connection Label */
 #define                     CIU53  0x8000     /* Channel 53 In Use */
-#define                    nCIU53  0x0       
 #define                      CL54  0x7f0000   /* Channel 54 Connection Label */
 #define                     CIU54  0x800000   /* Channel 54 In Use */
-#define                    nCIU54  0x0       
 #define                      CL55  0x7f000000 /* Channel 55 Connection Label */
 #define                     CIU55  0x80000000 /* Channel 55 In Use */
-#define                    nCIU55  0x0       
 
 /* Bit masks for MXVR_ALLOC_14 */
 
 #define                      CL56  0x7f       /* Channel 56 Connection Label */
 #define                     CIU56  0x80       /* Channel 56 In Use */
-#define                    nCIU56  0x0       
 #define                      CL57  0x7f00     /* Channel 57 Connection Label */
 #define                     CIU57  0x8000     /* Channel 57 In Use */
-#define                    nCIU57  0x0       
 #define                      CL58  0x7f0000   /* Channel 58 Connection Label */
 #define                     CIU58  0x800000   /* Channel 58 In Use */
-#define                    nCIU58  0x0       
 #define                      CL59  0x7f000000 /* Channel 59 Connection Label */
 #define                     CIU59  0x80000000 /* Channel 59 In Use */
-#define                    nCIU59  0x0       
 
 /* MXVR_SYNC_LCHAN_0 Masks */
 
@@ -1926,19 +1669,13 @@
 /* Bit masks for MXVR_DMAx_CONFIG */
 
 #define                    MDMAEN  0x1        /* DMA Channel Enable */
-#define                   nMDMAEN  0x0       
 #define                        DD  0x2        /* DMA Channel Direction */
-#define                       nDD  0x0       
 #define                 BY4SWAPEN  0x20       /* DMA Channel Four Byte Swap Enable */
-#define                nBY4SWAPEN  0x0       
 #define                     LCHAN  0x3c0      /* DMA Channel Logical Channel */
 #define                 BITSWAPEN  0x400      /* DMA Channel Bit Swap Enable */
-#define                nBITSWAPEN  0x0       
 #define                 BY2SWAPEN  0x800      /* DMA Channel Two Byte Swap Enable */
-#define                nBY2SWAPEN  0x0       
 #define                     MFLOW  0x7000     /* DMA Channel Operation Flow */
 #define                   FIXEDPM  0x80000    /* DMA Channel Fixed Pattern Matching Select */
-#define                  nFIXEDPM  0x0       
 #define                  STARTPAT  0x300000   /* DMA Channel Start Pattern Select */
 #define                   STOPPAT  0xc00000   /* DMA Channel Stop Pattern Select */
 #define                  COUNTPOS  0x1c000000 /* DMA Channel Count Position */
@@ -1946,94 +1683,71 @@
 /* Bit masks for MXVR_AP_CTL */
 
 #define                   STARTAP  0x1        /* Start Asynchronous Packet Transmission */
-#define                  nSTARTAP  0x0       
 #define                  CANCELAP  0x2        /* Cancel Asynchronous Packet Transmission */
-#define                 nCANCELAP  0x0       
 #define                   RESETAP  0x4        /* Reset Asynchronous Packet Arbitration */
-#define                  nRESETAP  0x0       
 #define                    APRBE0  0x4000     /* Asynchronous Packet Receive Buffer Entry 0 */
-#define                   nAPRBE0  0x0       
 #define                    APRBE1  0x8000     /* Asynchronous Packet Receive Buffer Entry 1 */
-#define                   nAPRBE1  0x0       
 
 /* Bit masks for MXVR_APRB_START_ADDR */
 
-#define      MXVR_APRB_START_ADDR  0x1fffffe  /* Asynchronous Packet Receive Buffer Start Address */
+#define      MXVR_APRB_START_ADDR_MASK  0x1fffffe  /* Asynchronous Packet Receive Buffer Start Address */
 
 /* Bit masks for MXVR_APRB_CURR_ADDR */
 
-#define       MXVR_APRB_CURR_ADDR  0xffffffff /* Asynchronous Packet Receive Buffer Current Address */
+#define       MXVR_APRB_CURR_ADDR_MASK  0xffffffff /* Asynchronous Packet Receive Buffer Current Address */
 
 /* Bit masks for MXVR_APTB_START_ADDR */
 
-#define       MXVR_APTB_START_ADDR  0x1fffffe  /* Asynchronous Packet Transmit Buffer Start Address */
+#define       MXVR_APTB_START_ADDR_MASK  0x1fffffe  /* Asynchronous Packet Transmit Buffer Start Address */
 
 /* Bit masks for MXVR_APTB_CURR_ADDR */
 
-#define        MXVR_APTB_CURR_ADDR  0xffffffff /* Asynchronous Packet Transmit Buffer Current Address */
+#define        MXVR_APTB_CURR_ADDR_MASK  0xffffffff /* Asynchronous Packet Transmit Buffer Current Address */
 
 /* Bit masks for MXVR_CM_CTL */
 
 #define                   STARTCM  0x1        /* Start Control Message Transmission */
-#define                  nSTARTCM  0x0       
 #define                  CANCELCM  0x2        /* Cancel Control Message Transmission */
-#define                 nCANCELCM  0x0       
 #define                    CMRBE0  0x10000    /* Control Message Receive Buffer Entry 0 */
-#define                   nCMRBE0  0x0       
 #define                    CMRBE1  0x20000    /* Control Message Receive Buffer Entry 1 */
-#define                   nCMRBE1  0x0       
 #define                    CMRBE2  0x40000    /* Control Message Receive Buffer Entry 2 */
-#define                   nCMRBE2  0x0       
 #define                    CMRBE3  0x80000    /* Control Message Receive Buffer Entry 3 */
-#define                   nCMRBE3  0x0       
 #define                    CMRBE4  0x100000   /* Control Message Receive Buffer Entry 4 */
-#define                   nCMRBE4  0x0       
 #define                    CMRBE5  0x200000   /* Control Message Receive Buffer Entry 5 */
-#define                   nCMRBE5  0x0       
 #define                    CMRBE6  0x400000   /* Control Message Receive Buffer Entry 6 */
-#define                   nCMRBE6  0x0       
 #define                    CMRBE7  0x800000   /* Control Message Receive Buffer Entry 7 */
-#define                   nCMRBE7  0x0       
 #define                    CMRBE8  0x1000000  /* Control Message Receive Buffer Entry 8 */
-#define                   nCMRBE8  0x0       
 #define                    CMRBE9  0x2000000  /* Control Message Receive Buffer Entry 9 */
-#define                   nCMRBE9  0x0       
 #define                   CMRBE10  0x4000000  /* Control Message Receive Buffer Entry 10 */
-#define                  nCMRBE10  0x0       
 #define                   CMRBE11  0x8000000  /* Control Message Receive Buffer Entry 11 */
-#define                  nCMRBE11  0x0       
 #define                   CMRBE12  0x10000000 /* Control Message Receive Buffer Entry 12 */
-#define                  nCMRBE12  0x0       
 #define                   CMRBE13  0x20000000 /* Control Message Receive Buffer Entry 13 */
-#define                  nCMRBE13  0x0       
 #define                   CMRBE14  0x40000000 /* Control Message Receive Buffer Entry 14 */
-#define                  nCMRBE14  0x0       
 #define                   CMRBE15  0x80000000 /* Control Message Receive Buffer Entry 15 */
-#define                  nCMRBE15  0x0       
 
 /* Bit masks for MXVR_CMRB_START_ADDR */
 
-#define      MXVR_CMRB_START_ADDR  0x1fffffe  /* Control Message Receive Buffer Start Address */
+#define      MXVR_CMRB_START_ADDR_MASK  0x1fffffe  /* Control Message Receive Buffer Start Address */
 
 /* Bit masks for MXVR_CMRB_CURR_ADDR */
 
-#define       MXVR_CMRB_CURR_ADDR  0xffffffff /* Control Message Receive Buffer Current Address */
+#define       MXVR_CMRB_CURR_ADDR_MASK  0xffffffff /* Control Message Receive Buffer Current Address */
 
 /* Bit masks for MXVR_CMTB_START_ADDR */
 
-#define      MXVR_CMTB_START_ADDR  0x1fffffe  /* Control Message Transmit Buffer Start Address */
+#define      MXVR_CMTB_START_ADDR_MASK  0x1fffffe  /* Control Message Transmit Buffer Start Address */
 
 /* Bit masks for MXVR_CMTB_CURR_ADDR */
 
-#define       MXVR_CMTB_CURR_ADDR  0xffffffff /* Control Message Transmit Buffer Current Address */
+#define       MXVR_CMTB_CURR_ADDR_MASK  0xffffffff /* Control Message Transmit Buffer Current Address */
 
 /* Bit masks for MXVR_RRDB_START_ADDR */
 
-#define      MXVR_RRDB_START_ADDR  0x1fffffe  /* Remote Read Buffer Start Address */
+#define      MXVR_RRDB_START_ADDR_MASK  0x1fffffe  /* Remote Read Buffer Start Address */
 
 /* Bit masks for MXVR_RRDB_CURR_ADDR */
 
-#define       MXVR_RRDB_CURR_ADDR  0xffffffff /* Remote Read Buffer Current Address */
+#define       MXVR_RRDB_CURR_ADDR_MASK  0xffffffff /* Remote Read Buffer Current Address */
 
 /* Bit masks for MXVR_PAT_DATAx */
 
@@ -2045,136 +1759,72 @@
 /* Bit masks for MXVR_PAT_EN_0 */
 
 #define              MATCH_EN_0_0  0x1        /* Pattern Match Enable Byte 0 Bit 0 */
-#define             nMATCH_EN_0_0  0x0       
 #define              MATCH_EN_0_1  0x2        /* Pattern Match Enable Byte 0 Bit 1 */
-#define             nMATCH_EN_0_1  0x0       
 #define              MATCH_EN_0_2  0x4        /* Pattern Match Enable Byte 0 Bit 2 */
-#define             nMATCH_EN_0_2  0x0       
 #define              MATCH_EN_0_3  0x8        /* Pattern Match Enable Byte 0 Bit 3 */
-#define             nMATCH_EN_0_3  0x0       
 #define              MATCH_EN_0_4  0x10       /* Pattern Match Enable Byte 0 Bit 4 */
-#define             nMATCH_EN_0_4  0x0       
 #define              MATCH_EN_0_5  0x20       /* Pattern Match Enable Byte 0 Bit 5 */
-#define             nMATCH_EN_0_5  0x0       
 #define              MATCH_EN_0_6  0x40       /* Pattern Match Enable Byte 0 Bit 6 */
-#define             nMATCH_EN_0_6  0x0       
 #define              MATCH_EN_0_7  0x80       /* Pattern Match Enable Byte 0 Bit 7 */
-#define             nMATCH_EN_0_7  0x0       
 #define              MATCH_EN_1_0  0x100      /* Pattern Match Enable Byte 1 Bit 0 */
-#define             nMATCH_EN_1_0  0x0       
 #define              MATCH_EN_1_1  0x200      /* Pattern Match Enable Byte 1 Bit 1 */
-#define             nMATCH_EN_1_1  0x0       
 #define              MATCH_EN_1_2  0x400      /* Pattern Match Enable Byte 1 Bit 2 */
-#define             nMATCH_EN_1_2  0x0       
 #define              MATCH_EN_1_3  0x800      /* Pattern Match Enable Byte 1 Bit 3 */
-#define             nMATCH_EN_1_3  0x0       
 #define              MATCH_EN_1_4  0x1000     /* Pattern Match Enable Byte 1 Bit 4 */
-#define             nMATCH_EN_1_4  0x0       
 #define              MATCH_EN_1_5  0x2000     /* Pattern Match Enable Byte 1 Bit 5 */
-#define             nMATCH_EN_1_5  0x0       
 #define              MATCH_EN_1_6  0x4000     /* Pattern Match Enable Byte 1 Bit 6 */
-#define             nMATCH_EN_1_6  0x0       
 #define              MATCH_EN_1_7  0x8000     /* Pattern Match Enable Byte 1 Bit 7 */
-#define             nMATCH_EN_1_7  0x0       
 #define              MATCH_EN_2_0  0x10000    /* Pattern Match Enable Byte 2 Bit 0 */
-#define             nMATCH_EN_2_0  0x0       
 #define              MATCH_EN_2_1  0x20000    /* Pattern Match Enable Byte 2 Bit 1 */
-#define             nMATCH_EN_2_1  0x0       
 #define              MATCH_EN_2_2  0x40000    /* Pattern Match Enable Byte 2 Bit 2 */
-#define             nMATCH_EN_2_2  0x0       
 #define              MATCH_EN_2_3  0x80000    /* Pattern Match Enable Byte 2 Bit 3 */
-#define             nMATCH_EN_2_3  0x0       
 #define              MATCH_EN_2_4  0x100000   /* Pattern Match Enable Byte 2 Bit 4 */
-#define             nMATCH_EN_2_4  0x0       
 #define              MATCH_EN_2_5  0x200000   /* Pattern Match Enable Byte 2 Bit 5 */
-#define             nMATCH_EN_2_5  0x0       
 #define              MATCH_EN_2_6  0x400000   /* Pattern Match Enable Byte 2 Bit 6 */
-#define             nMATCH_EN_2_6  0x0       
 #define              MATCH_EN_2_7  0x800000   /* Pattern Match Enable Byte 2 Bit 7 */
-#define             nMATCH_EN_2_7  0x0       
 #define              MATCH_EN_3_0  0x1000000  /* Pattern Match Enable Byte 3 Bit 0 */
-#define             nMATCH_EN_3_0  0x0       
 #define              MATCH_EN_3_1  0x2000000  /* Pattern Match Enable Byte 3 Bit 1 */
-#define             nMATCH_EN_3_1  0x0       
 #define              MATCH_EN_3_2  0x4000000  /* Pattern Match Enable Byte 3 Bit 2 */
-#define             nMATCH_EN_3_2  0x0       
 #define              MATCH_EN_3_3  0x8000000  /* Pattern Match Enable Byte 3 Bit 3 */
-#define             nMATCH_EN_3_3  0x0       
 #define              MATCH_EN_3_4  0x10000000 /* Pattern Match Enable Byte 3 Bit 4 */
-#define             nMATCH_EN_3_4  0x0       
 #define              MATCH_EN_3_5  0x20000000 /* Pattern Match Enable Byte 3 Bit 5 */
-#define             nMATCH_EN_3_5  0x0       
 #define              MATCH_EN_3_6  0x40000000 /* Pattern Match Enable Byte 3 Bit 6 */
-#define             nMATCH_EN_3_6  0x0       
 #define              MATCH_EN_3_7  0x80000000 /* Pattern Match Enable Byte 3 Bit 7 */
-#define             nMATCH_EN_3_7  0x0       
 
 /* Bit masks for MXVR_PAT_EN_1 */
 
 #define              MATCH_EN_0_0  0x1        /* Pattern Match Enable Byte 0 Bit 0 */
-#define             nMATCH_EN_0_0  0x0       
 #define              MATCH_EN_0_1  0x2        /* Pattern Match Enable Byte 0 Bit 1 */
-#define             nMATCH_EN_0_1  0x0       
 #define              MATCH_EN_0_2  0x4        /* Pattern Match Enable Byte 0 Bit 2 */
-#define             nMATCH_EN_0_2  0x0       
 #define              MATCH_EN_0_3  0x8        /* Pattern Match Enable Byte 0 Bit 3 */
-#define             nMATCH_EN_0_3  0x0       
 #define              MATCH_EN_0_4  0x10       /* Pattern Match Enable Byte 0 Bit 4 */
-#define             nMATCH_EN_0_4  0x0       
 #define              MATCH_EN_0_5  0x20       /* Pattern Match Enable Byte 0 Bit 5 */
-#define             nMATCH_EN_0_5  0x0       
 #define              MATCH_EN_0_6  0x40       /* Pattern Match Enable Byte 0 Bit 6 */
-#define             nMATCH_EN_0_6  0x0       
 #define              MATCH_EN_0_7  0x80       /* Pattern Match Enable Byte 0 Bit 7 */
-#define             nMATCH_EN_0_7  0x0       
 #define              MATCH_EN_1_0  0x100      /* Pattern Match Enable Byte 1 Bit 0 */
-#define             nMATCH_EN_1_0  0x0       
 #define              MATCH_EN_1_1  0x200      /* Pattern Match Enable Byte 1 Bit 1 */
-#define             nMATCH_EN_1_1  0x0       
 #define              MATCH_EN_1_2  0x400      /* Pattern Match Enable Byte 1 Bit 2 */
-#define             nMATCH_EN_1_2  0x0       
 #define              MATCH_EN_1_3  0x800      /* Pattern Match Enable Byte 1 Bit 3 */
-#define             nMATCH_EN_1_3  0x0       
 #define              MATCH_EN_1_4  0x1000     /* Pattern Match Enable Byte 1 Bit 4 */
-#define             nMATCH_EN_1_4  0x0       
 #define              MATCH_EN_1_5  0x2000     /* Pattern Match Enable Byte 1 Bit 5 */
-#define             nMATCH_EN_1_5  0x0       
 #define              MATCH_EN_1_6  0x4000     /* Pattern Match Enable Byte 1 Bit 6 */
-#define             nMATCH_EN_1_6  0x0       
 #define              MATCH_EN_1_7  0x8000     /* Pattern Match Enable Byte 1 Bit 7 */
-#define             nMATCH_EN_1_7  0x0       
 #define              MATCH_EN_2_0  0x10000    /* Pattern Match Enable Byte 2 Bit 0 */
-#define             nMATCH_EN_2_0  0x0       
 #define              MATCH_EN_2_1  0x20000    /* Pattern Match Enable Byte 2 Bit 1 */
-#define             nMATCH_EN_2_1  0x0       
 #define              MATCH_EN_2_2  0x40000    /* Pattern Match Enable Byte 2 Bit 2 */
-#define             nMATCH_EN_2_2  0x0       
 #define              MATCH_EN_2_3  0x80000    /* Pattern Match Enable Byte 2 Bit 3 */
-#define             nMATCH_EN_2_3  0x0       
 #define              MATCH_EN_2_4  0x100000   /* Pattern Match Enable Byte 2 Bit 4 */
-#define             nMATCH_EN_2_4  0x0       
 #define              MATCH_EN_2_5  0x200000   /* Pattern Match Enable Byte 2 Bit 5 */
-#define             nMATCH_EN_2_5  0x0       
 #define              MATCH_EN_2_6  0x400000   /* Pattern Match Enable Byte 2 Bit 6 */
-#define             nMATCH_EN_2_6  0x0       
 #define              MATCH_EN_2_7  0x800000   /* Pattern Match Enable Byte 2 Bit 7 */
-#define             nMATCH_EN_2_7  0x0       
 #define              MATCH_EN_3_0  0x1000000  /* Pattern Match Enable Byte 3 Bit 0 */
-#define             nMATCH_EN_3_0  0x0       
 #define              MATCH_EN_3_1  0x2000000  /* Pattern Match Enable Byte 3 Bit 1 */
-#define             nMATCH_EN_3_1  0x0       
 #define              MATCH_EN_3_2  0x4000000  /* Pattern Match Enable Byte 3 Bit 2 */
-#define             nMATCH_EN_3_2  0x0       
 #define              MATCH_EN_3_3  0x8000000  /* Pattern Match Enable Byte 3 Bit 3 */
-#define             nMATCH_EN_3_3  0x0       
 #define              MATCH_EN_3_4  0x10000000 /* Pattern Match Enable Byte 3 Bit 4 */
-#define             nMATCH_EN_3_4  0x0       
 #define              MATCH_EN_3_5  0x20000000 /* Pattern Match Enable Byte 3 Bit 5 */
-#define             nMATCH_EN_3_5  0x0       
 #define              MATCH_EN_3_6  0x40000000 /* Pattern Match Enable Byte 3 Bit 6 */
-#define             nMATCH_EN_3_6  0x0       
 #define              MATCH_EN_3_7  0x80000000 /* Pattern Match Enable Byte 3 Bit 7 */
-#define             nMATCH_EN_3_7  0x0       
 
 /* Bit masks for MXVR_FRAME_CNT_0 */
 
@@ -2188,226 +1838,166 @@
 
 #define                    TX_CH0  0x3f       /* Transmit Channel 0 */
 #define                  MUTE_CH0  0x80       /* Mute Channel 0 */
-#define                 nMUTE_CH0  0x0       
 #define                    TX_CH1  0x3f00     /* Transmit Channel 0 */
 #define                  MUTE_CH1  0x8000     /* Mute Channel 0 */
-#define                 nMUTE_CH1  0x0       
 #define                    TX_CH2  0x3f0000   /* Transmit Channel 0 */
 #define                  MUTE_CH2  0x800000   /* Mute Channel 0 */
-#define                 nMUTE_CH2  0x0       
 #define                    TX_CH3  0x3f000000 /* Transmit Channel 0 */
 #define                  MUTE_CH3  0x80000000 /* Mute Channel 0 */
-#define                 nMUTE_CH3  0x0       
 
 /* Bit masks for MXVR_ROUTING_1 */
 
 #define                    TX_CH4  0x3f       /* Transmit Channel 4 */
 #define                  MUTE_CH4  0x80       /* Mute Channel 4 */
-#define                 nMUTE_CH4  0x0       
 #define                    TX_CH5  0x3f00     /* Transmit Channel 5 */
 #define                  MUTE_CH5  0x8000     /* Mute Channel 5 */
-#define                 nMUTE_CH5  0x0       
 #define                    TX_CH6  0x3f0000   /* Transmit Channel 6 */
 #define                  MUTE_CH6  0x800000   /* Mute Channel 6 */
-#define                 nMUTE_CH6  0x0       
 #define                    TX_CH7  0x3f000000 /* Transmit Channel 7 */
 #define                  MUTE_CH7  0x80000000 /* Mute Channel 7 */
-#define                 nMUTE_CH7  0x0       
 
 /* Bit masks for MXVR_ROUTING_2 */
 
 #define                    TX_CH8  0x3f       /* Transmit Channel 8 */
 #define                  MUTE_CH8  0x80       /* Mute Channel 8 */
-#define                 nMUTE_CH8  0x0       
 #define                    TX_CH9  0x3f00     /* Transmit Channel 9 */
 #define                  MUTE_CH9  0x8000     /* Mute Channel 9 */
-#define                 nMUTE_CH9  0x0       
 #define                   TX_CH10  0x3f0000   /* Transmit Channel 10 */
 #define                 MUTE_CH10  0x800000   /* Mute Channel 10 */
-#define                nMUTE_CH10  0x0       
 #define                   TX_CH11  0x3f000000 /* Transmit Channel 11 */
 #define                 MUTE_CH11  0x80000000 /* Mute Channel 11 */
-#define                nMUTE_CH11  0x0       
 
 /* Bit masks for MXVR_ROUTING_3 */
 
 #define                   TX_CH12  0x3f       /* Transmit Channel 12 */
 #define                 MUTE_CH12  0x80       /* Mute Channel 12 */
-#define                nMUTE_CH12  0x0       
 #define                   TX_CH13  0x3f00     /* Transmit Channel 13 */
 #define                 MUTE_CH13  0x8000     /* Mute Channel 13 */
-#define                nMUTE_CH13  0x0       
 #define                   TX_CH14  0x3f0000   /* Transmit Channel 14 */
 #define                 MUTE_CH14  0x800000   /* Mute Channel 14 */
-#define                nMUTE_CH14  0x0       
 #define                   TX_CH15  0x3f000000 /* Transmit Channel 15 */
 #define                 MUTE_CH15  0x80000000 /* Mute Channel 15 */
-#define                nMUTE_CH15  0x0       
 
 /* Bit masks for MXVR_ROUTING_4 */
 
 #define                   TX_CH16  0x3f       /* Transmit Channel 16 */
 #define                 MUTE_CH16  0x80       /* Mute Channel 16 */
-#define                nMUTE_CH16  0x0       
 #define                   TX_CH17  0x3f00     /* Transmit Channel 17 */
 #define                 MUTE_CH17  0x8000     /* Mute Channel 17 */
-#define                nMUTE_CH17  0x0       
 #define                   TX_CH18  0x3f0000   /* Transmit Channel 18 */
 #define                 MUTE_CH18  0x800000   /* Mute Channel 18 */
-#define                nMUTE_CH18  0x0       
 #define                   TX_CH19  0x3f000000 /* Transmit Channel 19 */
 #define                 MUTE_CH19  0x80000000 /* Mute Channel 19 */
-#define                nMUTE_CH19  0x0       
 
 /* Bit masks for MXVR_ROUTING_5 */
 
 #define                   TX_CH20  0x3f       /* Transmit Channel 20 */
 #define                 MUTE_CH20  0x80       /* Mute Channel 20 */
-#define                nMUTE_CH20  0x0       
 #define                   TX_CH21  0x3f00     /* Transmit Channel 21 */
 #define                 MUTE_CH21  0x8000     /* Mute Channel 21 */
-#define                nMUTE_CH21  0x0       
 #define                   TX_CH22  0x3f0000   /* Transmit Channel 22 */
 #define                 MUTE_CH22  0x800000   /* Mute Channel 22 */
-#define                nMUTE_CH22  0x0       
 #define                   TX_CH23  0x3f000000 /* Transmit Channel 23 */
 #define                 MUTE_CH23  0x80000000 /* Mute Channel 23 */
-#define                nMUTE_CH23  0x0       
 
 /* Bit masks for MXVR_ROUTING_6 */
 
 #define                   TX_CH24  0x3f       /* Transmit Channel 24 */
 #define                 MUTE_CH24  0x80       /* Mute Channel 24 */
-#define                nMUTE_CH24  0x0       
 #define                   TX_CH25  0x3f00     /* Transmit Channel 25 */
 #define                 MUTE_CH25  0x8000     /* Mute Channel 25 */
-#define                nMUTE_CH25  0x0       
 #define                   TX_CH26  0x3f0000   /* Transmit Channel 26 */
 #define                 MUTE_CH26  0x800000   /* Mute Channel 26 */
-#define                nMUTE_CH26  0x0       
 #define                   TX_CH27  0x3f000000 /* Transmit Channel 27 */
 #define                 MUTE_CH27  0x80000000 /* Mute Channel 27 */
-#define                nMUTE_CH27  0x0       
 
 /* Bit masks for MXVR_ROUTING_7 */
 
 #define                   TX_CH28  0x3f       /* Transmit Channel 28 */
 #define                 MUTE_CH28  0x80       /* Mute Channel 28 */
-#define                nMUTE_CH28  0x0       
 #define                   TX_CH29  0x3f00     /* Transmit Channel 29 */
 #define                 MUTE_CH29  0x8000     /* Mute Channel 29 */
-#define                nMUTE_CH29  0x0       
 #define                   TX_CH30  0x3f0000   /* Transmit Channel 30 */
 #define                 MUTE_CH30  0x800000   /* Mute Channel 30 */
-#define                nMUTE_CH30  0x0       
 #define                   TX_CH31  0x3f000000 /* Transmit Channel 31 */
 #define                 MUTE_CH31  0x80000000 /* Mute Channel 31 */
-#define                nMUTE_CH31  0x0       
 
 /* Bit masks for MXVR_ROUTING_8 */
 
 #define                   TX_CH32  0x3f       /* Transmit Channel 32 */
 #define                 MUTE_CH32  0x80       /* Mute Channel 32 */
-#define                nMUTE_CH32  0x0       
 #define                   TX_CH33  0x3f00     /* Transmit Channel 33 */
 #define                 MUTE_CH33  0x8000     /* Mute Channel 33 */
-#define                nMUTE_CH33  0x0       
 #define                   TX_CH34  0x3f0000   /* Transmit Channel 34 */
 #define                 MUTE_CH34  0x800000   /* Mute Channel 34 */
-#define                nMUTE_CH34  0x0       
 #define                   TX_CH35  0x3f000000 /* Transmit Channel 35 */
 #define                 MUTE_CH35  0x80000000 /* Mute Channel 35 */
-#define                nMUTE_CH35  0x0       
 
 /* Bit masks for MXVR_ROUTING_9 */
 
 #define                   TX_CH36  0x3f       /* Transmit Channel 36 */
 #define                 MUTE_CH36  0x80       /* Mute Channel 36 */
-#define                nMUTE_CH36  0x0       
 #define                   TX_CH37  0x3f00     /* Transmit Channel 37 */
 #define                 MUTE_CH37  0x8000     /* Mute Channel 37 */
-#define                nMUTE_CH37  0x0       
 #define                   TX_CH38  0x3f0000   /* Transmit Channel 38 */
 #define                 MUTE_CH38  0x800000   /* Mute Channel 38 */
-#define                nMUTE_CH38  0x0       
 #define                   TX_CH39  0x3f000000 /* Transmit Channel 39 */
 #define                 MUTE_CH39  0x80000000 /* Mute Channel 39 */
-#define                nMUTE_CH39  0x0       
 
 /* Bit masks for MXVR_ROUTING_10 */
 
 #define                   TX_CH40  0x3f       /* Transmit Channel 40 */
 #define                 MUTE_CH40  0x80       /* Mute Channel 40 */
-#define                nMUTE_CH40  0x0       
 #define                   TX_CH41  0x3f00     /* Transmit Channel 41 */
 #define                 MUTE_CH41  0x8000     /* Mute Channel 41 */
-#define                nMUTE_CH41  0x0       
 #define                   TX_CH42  0x3f0000   /* Transmit Channel 42 */
 #define                 MUTE_CH42  0x800000   /* Mute Channel 42 */
-#define                nMUTE_CH42  0x0       
 #define                   TX_CH43  0x3f000000 /* Transmit Channel 43 */
 #define                 MUTE_CH43  0x80000000 /* Mute Channel 43 */
-#define                nMUTE_CH43  0x0       
 
 /* Bit masks for MXVR_ROUTING_11 */
 
 #define                   TX_CH44  0x3f       /* Transmit Channel 44 */
 #define                 MUTE_CH44  0x80       /* Mute Channel 44 */
-#define                nMUTE_CH44  0x0       
 #define                   TX_CH45  0x3f00     /* Transmit Channel 45 */
 #define                 MUTE_CH45  0x8000     /* Mute Channel 45 */
-#define                nMUTE_CH45  0x0       
 #define                   TX_CH46  0x3f0000   /* Transmit Channel 46 */
 #define                 MUTE_CH46  0x800000   /* Mute Channel 46 */
-#define                nMUTE_CH46  0x0       
 #define                   TX_CH47  0x3f000000 /* Transmit Channel 47 */
 #define                 MUTE_CH47  0x80000000 /* Mute Channel 47 */
-#define                nMUTE_CH47  0x0       
 
 /* Bit masks for MXVR_ROUTING_12 */
 
 #define                   TX_CH48  0x3f       /* Transmit Channel 48 */
 #define                 MUTE_CH48  0x80       /* Mute Channel 48 */
-#define                nMUTE_CH48  0x0       
 #define                   TX_CH49  0x3f00     /* Transmit Channel 49 */
 #define                 MUTE_CH49  0x8000     /* Mute Channel 49 */
-#define                nMUTE_CH49  0x0       
 #define                   TX_CH50  0x3f0000   /* Transmit Channel 50 */
 #define                 MUTE_CH50  0x800000   /* Mute Channel 50 */
-#define                nMUTE_CH50  0x0       
 #define                   TX_CH51  0x3f000000 /* Transmit Channel 51 */
 #define                 MUTE_CH51  0x80000000 /* Mute Channel 51 */
-#define                nMUTE_CH51  0x0       
 
 /* Bit masks for MXVR_ROUTING_13 */
 
 #define                   TX_CH52  0x3f       /* Transmit Channel 52 */
 #define                 MUTE_CH52  0x80       /* Mute Channel 52 */
-#define                nMUTE_CH52  0x0       
 #define                   TX_CH53  0x3f00     /* Transmit Channel 53 */
 #define                 MUTE_CH53  0x8000     /* Mute Channel 53 */
-#define                nMUTE_CH53  0x0       
 #define                   TX_CH54  0x3f0000   /* Transmit Channel 54 */
 #define                 MUTE_CH54  0x800000   /* Mute Channel 54 */
-#define                nMUTE_CH54  0x0       
 #define                   TX_CH55  0x3f000000 /* Transmit Channel 55 */
 #define                 MUTE_CH55  0x80000000 /* Mute Channel 55 */
-#define                nMUTE_CH55  0x0       
 
 /* Bit masks for MXVR_ROUTING_14 */
 
 #define                   TX_CH56  0x3f       /* Transmit Channel 56 */
 #define                 MUTE_CH56  0x80       /* Mute Channel 56 */
-#define                nMUTE_CH56  0x0       
 #define                   TX_CH57  0x3f00     /* Transmit Channel 57 */
 #define                 MUTE_CH57  0x8000     /* Mute Channel 57 */
-#define                nMUTE_CH57  0x0       
 #define                   TX_CH58  0x3f0000   /* Transmit Channel 58 */
 #define                 MUTE_CH58  0x800000   /* Mute Channel 58 */
-#define                nMUTE_CH58  0x0       
 #define                   TX_CH59  0x3f000000 /* Transmit Channel 59 */
 #define                 MUTE_CH59  0x80000000 /* Mute Channel 59 */
-#define                nMUTE_CH59  0x0       
 
 /* Bit masks for MXVR_BLOCK_CNT */
 
@@ -2416,53 +2006,37 @@
 /* Bit masks for MXVR_CLK_CTL */
 
 #define                  MXTALCEN  0x1        /* MXVR Crystal Oscillator Clock Enable */
-#define                 nMXTALCEN  0x0       
 #define                  MXTALFEN  0x2        /* MXVR Crystal Oscillator Feedback Enable */
-#define                 nMXTALFEN  0x0       
 #define                  MXTALMUL  0x30       /* MXVR Crystal Multiplier */
 #define                  CLKX3SEL  0x80       /* Clock Generation Source Select */
-#define                 nCLKX3SEL  0x0       
 #define                   MMCLKEN  0x100      /* Master Clock Enable */
-#define                  nMMCLKEN  0x0       
 #define                  MMCLKMUL  0x1e00     /* Master Clock Multiplication Factor */
 #define                   PLLSMPS  0xe000     /* MXVR PLL State Machine Prescaler */
 #define                   MBCLKEN  0x10000    /* Bit Clock Enable */
-#define                  nMBCLKEN  0x0       
 #define                  MBCLKDIV  0x1e0000   /* Bit Clock Divide Factor */
 #define                     INVRX  0x800000   /* Invert Receive Data */
-#define                    nINVRX  0x0       
 #define                     MFSEN  0x1000000  /* Frame Sync Enable */
-#define                    nMFSEN  0x0       
 #define                    MFSDIV  0x1e000000 /* Frame Sync Divide Factor */
 #define                    MFSSEL  0x60000000 /* Frame Sync Select */
 #define                   MFSSYNC  0x80000000 /* Frame Sync Synchronization Select */
-#define                  nMFSSYNC  0x0       
 
 /* Bit masks for MXVR_CDRPLL_CTL */
 
 #define                   CDRSMEN  0x1        /* MXVR CDRPLL State Machine Enable */
-#define                  nCDRSMEN  0x0       
 #define                   CDRRSTB  0x2        /* MXVR CDRPLL Reset */
-#define                  nCDRRSTB  0x0       
 #define                   CDRSVCO  0x4        /* MXVR CDRPLL Start VCO */
-#define                  nCDRSVCO  0x0       
 #define                   CDRMODE  0x8        /* MXVR CDRPLL CDR Mode Select */
-#define                  nCDRMODE  0x0       
 #define                   CDRSCNT  0x3f0      /* MXVR CDRPLL Start Counter */
 #define                   CDRLCNT  0xfc00     /* MXVR CDRPLL Lock Counter */
 #define                 CDRSHPSEL  0x3f0000   /* MXVR CDRPLL Shaper Select */
 #define                  CDRSHPEN  0x800000   /* MXVR CDRPLL Shaper Enable */
-#define                 nCDRSHPEN  0x0       
 #define                  CDRCPSEL  0xff000000 /* MXVR CDRPLL Charge Pump Current Select */
 
 /* Bit masks for MXVR_FMPLL_CTL */
 
 #define                    FMSMEN  0x1        /* MXVR FMPLL State Machine Enable */
-#define                   nFMSMEN  0x0       
 #define                    FMRSTB  0x2        /* MXVR FMPLL Reset */
-#define                   nFMRSTB  0x0       
 #define                    FMSVCO  0x4        /* MXVR FMPLL Start VCO */
-#define                   nFMSVCO  0x0       
 #define                    FMSCNT  0x3f0      /* MXVR FMPLL Start Counter */
 #define                    FMLCNT  0xfc00     /* MXVR FMPLL Lock Counter */
 #define                   FMCPSEL  0xff000000 /* MXVR FMPLL Charge Pump Current Select */
@@ -2470,15 +2044,10 @@
 /* Bit masks for MXVR_PIN_CTL */
 
 #define                  MTXONBOD  0x1        /* MTXONB Open Drain Select */
-#define                 nMTXONBOD  0x0       
 #define                   MTXONBG  0x2        /* MTXONB Gates MTX Select */
-#define                  nMTXONBG  0x0       
 #define                     MFSOE  0x10       /* MFS Output Enable */
-#define                    nMFSOE  0x0       
 #define                  MFSGPSEL  0x20       /* MFS General Purpose Output Select */
-#define                 nMFSGPSEL  0x0       
 #define                  MFSGPDAT  0x40       /* MFS General Purpose Output Data */
-#define                 nMFSGPDAT  0x0       
 
 /* Bit masks for MXVR_SCLK_CNT */
 
@@ -2487,7 +2056,6 @@
 /* Bit masks for KPAD_CTL */
 
 #define                   KPAD_EN  0x1        /* Keypad Enable */
-#define                  nKPAD_EN  0x0       
 #define              KPAD_IRQMODE  0x6        /* Key Press Interrupt Enable */
 #define                KPAD_ROWEN  0x1c00     /* Row Enable Width */
 #define                KPAD_COLEN  0xe000     /* Column Enable Width */
@@ -2509,29 +2077,21 @@
 /* Bit masks for KPAD_STAT */
 
 #define                  KPAD_IRQ  0x1        /* Keypad Interrupt Status */
-#define                 nKPAD_IRQ  0x0       
 #define              KPAD_MROWCOL  0x6        /* Multiple Row/Column Keypress Status */
 #define              KPAD_PRESSED  0x8        /* Key press current status */
-#define             nKPAD_PRESSED  0x0       
 
 /* Bit masks for KPAD_SOFTEVAL */
 
 #define           KPAD_SOFTEVAL_E  0x2        /* Software Programmable Force Evaluate */
-#define          nKPAD_SOFTEVAL_E  0x0       
 
 /* Bit masks for SDH_COMMAND */
 
 #define                   CMD_IDX  0x3f       /* Command Index */
 #define                   CMD_RSP  0x40       /* Response */
-#define                  nCMD_RSP  0x0       
 #define                 CMD_L_RSP  0x80       /* Long Response */
-#define                nCMD_L_RSP  0x0       
 #define                 CMD_INT_E  0x100      /* Command Interrupt */
-#define                nCMD_INT_E  0x0       
 #define                CMD_PEND_E  0x200      /* Command Pending */
-#define               nCMD_PEND_E  0x0       
 #define                     CMD_E  0x400      /* Command Enable */
-#define                    nCMD_E  0x0       
 
 /* Bit masks for SDH_PWR_CTL */
 
@@ -2540,21 +2100,15 @@
 #define                       TBD  0x3c       /* TBD */
 #endif
 #define                 SD_CMD_OD  0x40       /* Open Drain Output */
-#define                nSD_CMD_OD  0x0       
 #define                   ROD_CTL  0x80       /* Rod Control */
-#define                  nROD_CTL  0x0       
 
 /* Bit masks for SDH_CLK_CTL */
 
 #define                    CLKDIV  0xff       /* MC_CLK Divisor */
 #define                     CLK_E  0x100      /* MC_CLK Bus Clock Enable */
-#define                    nCLK_E  0x0       
 #define                  PWR_SV_E  0x200      /* Power Save Enable */
-#define                 nPWR_SV_E  0x0       
 #define             CLKDIV_BYPASS  0x400      /* Bypass Divisor */
-#define            nCLKDIV_BYPASS  0x0       
 #define                  WIDE_BUS  0x800      /* Wide Bus Mode Enable */
-#define                 nWIDE_BUS  0x0       
 
 /* Bit masks for SDH_RESP_CMD */
 
@@ -2563,133 +2117,74 @@
 /* Bit masks for SDH_DATA_CTL */
 
 #define                     DTX_E  0x1        /* Data Transfer Enable */
-#define                    nDTX_E  0x0       
 #define                   DTX_DIR  0x2        /* Data Transfer Direction */
-#define                  nDTX_DIR  0x0       
 #define                  DTX_MODE  0x4        /* Data Transfer Mode */
-#define                 nDTX_MODE  0x0       
 #define                 DTX_DMA_E  0x8        /* Data Transfer DMA Enable */
-#define                nDTX_DMA_E  0x0       
 #define              DTX_BLK_LGTH  0xf0       /* Data Transfer Block Length */
 
 /* Bit masks for SDH_STATUS */
 
 #define              CMD_CRC_FAIL  0x1        /* CMD CRC Fail */
-#define             nCMD_CRC_FAIL  0x0       
 #define              DAT_CRC_FAIL  0x2        /* Data CRC Fail */
-#define             nDAT_CRC_FAIL  0x0       
-#define               CMD_TIMEOUT  0x4        /* CMD Time Out */
-#define              nCMD_TIMEOUT  0x0       
-#define               DAT_TIMEOUT  0x8        /* Data Time Out */
-#define              nDAT_TIMEOUT  0x0       
+#define               CMD_TIME_OUT  0x4        /* CMD Time Out */
+#define               DAT_TIME_OUT  0x8        /* Data Time Out */
 #define               TX_UNDERRUN  0x10       /* Transmit Underrun */
-#define              nTX_UNDERRUN  0x0       
 #define                RX_OVERRUN  0x20       /* Receive Overrun */
-#define               nRX_OVERRUN  0x0       
 #define              CMD_RESP_END  0x40       /* CMD Response End */
-#define             nCMD_RESP_END  0x0       
 #define                  CMD_SENT  0x80       /* CMD Sent */
-#define                 nCMD_SENT  0x0       
 #define                   DAT_END  0x100      /* Data End */
-#define                  nDAT_END  0x0       
 #define             START_BIT_ERR  0x200      /* Start Bit Error */
-#define            nSTART_BIT_ERR  0x0       
 #define               DAT_BLK_END  0x400      /* Data Block End */
-#define              nDAT_BLK_END  0x0       
 #define                   CMD_ACT  0x800      /* CMD Active */
-#define                  nCMD_ACT  0x0       
 #define                    TX_ACT  0x1000     /* Transmit Active */
-#define                   nTX_ACT  0x0       
 #define                    RX_ACT  0x2000     /* Receive Active */
-#define                   nRX_ACT  0x0       
 #define              TX_FIFO_STAT  0x4000     /* Transmit FIFO Status */
-#define             nTX_FIFO_STAT  0x0       
 #define              RX_FIFO_STAT  0x8000     /* Receive FIFO Status */
-#define             nRX_FIFO_STAT  0x0       
 #define              TX_FIFO_FULL  0x10000    /* Transmit FIFO Full */
-#define             nTX_FIFO_FULL  0x0       
 #define              RX_FIFO_FULL  0x20000    /* Receive FIFO Full */
-#define             nRX_FIFO_FULL  0x0       
 #define              TX_FIFO_ZERO  0x40000    /* Transmit FIFO Empty */
-#define             nTX_FIFO_ZERO  0x0       
 #define               RX_DAT_ZERO  0x80000    /* Receive FIFO Empty */
-#define              nRX_DAT_ZERO  0x0       
 #define                TX_DAT_RDY  0x100000   /* Transmit Data Available */
-#define               nTX_DAT_RDY  0x0       
 #define               RX_FIFO_RDY  0x200000   /* Receive Data Available */
-#define              nRX_FIFO_RDY  0x0       
 
 /* Bit masks for SDH_STATUS_CLR */
 
 #define         CMD_CRC_FAIL_STAT  0x1        /* CMD CRC Fail Status */
-#define        nCMD_CRC_FAIL_STAT  0x0       
 #define         DAT_CRC_FAIL_STAT  0x2        /* Data CRC Fail Status */
-#define        nDAT_CRC_FAIL_STAT  0x0       
 #define          CMD_TIMEOUT_STAT  0x4        /* CMD Time Out Status */
-#define         nCMD_TIMEOUT_STAT  0x0       
 #define          DAT_TIMEOUT_STAT  0x8        /* Data Time Out status */
-#define         nDAT_TIMEOUT_STAT  0x0       
 #define          TX_UNDERRUN_STAT  0x10       /* Transmit Underrun Status */
-#define         nTX_UNDERRUN_STAT  0x0       
 #define           RX_OVERRUN_STAT  0x20       /* Receive Overrun Status */
-#define          nRX_OVERRUN_STAT  0x0       
 #define         CMD_RESP_END_STAT  0x40       /* CMD Response End Status */
-#define        nCMD_RESP_END_STAT  0x0       
 #define             CMD_SENT_STAT  0x80       /* CMD Sent Status */
-#define            nCMD_SENT_STAT  0x0       
 #define              DAT_END_STAT  0x100      /* Data End Status */
-#define             nDAT_END_STAT  0x0       
 #define        START_BIT_ERR_STAT  0x200      /* Start Bit Error Status */
-#define       nSTART_BIT_ERR_STAT  0x0       
 #define          DAT_BLK_END_STAT  0x400      /* Data Block End Status */
-#define         nDAT_BLK_END_STAT  0x0       
 
 /* Bit masks for SDH_MASK0 */
 
 #define         CMD_CRC_FAIL_MASK  0x1        /* CMD CRC Fail Mask */
-#define        nCMD_CRC_FAIL_MASK  0x0       
 #define         DAT_CRC_FAIL_MASK  0x2        /* Data CRC Fail Mask */
-#define        nDAT_CRC_FAIL_MASK  0x0       
 #define          CMD_TIMEOUT_MASK  0x4        /* CMD Time Out Mask */
-#define         nCMD_TIMEOUT_MASK  0x0       
 #define          DAT_TIMEOUT_MASK  0x8        /* Data Time Out Mask */
-#define         nDAT_TIMEOUT_MASK  0x0       
 #define          TX_UNDERRUN_MASK  0x10       /* Transmit Underrun Mask */
-#define         nTX_UNDERRUN_MASK  0x0       
 #define           RX_OVERRUN_MASK  0x20       /* Receive Overrun Mask */
-#define          nRX_OVERRUN_MASK  0x0       
 #define         CMD_RESP_END_MASK  0x40       /* CMD Response End Mask */
-#define        nCMD_RESP_END_MASK  0x0       
 #define             CMD_SENT_MASK  0x80       /* CMD Sent Mask */
-#define            nCMD_SENT_MASK  0x0       
 #define              DAT_END_MASK  0x100      /* Data End Mask */
-#define             nDAT_END_MASK  0x0       
 #define        START_BIT_ERR_MASK  0x200      /* Start Bit Error Mask */
-#define       nSTART_BIT_ERR_MASK  0x0       
 #define          DAT_BLK_END_MASK  0x400      /* Data Block End Mask */
-#define         nDAT_BLK_END_MASK  0x0       
 #define              CMD_ACT_MASK  0x800      /* CMD Active Mask */
-#define             nCMD_ACT_MASK  0x0       
 #define               TX_ACT_MASK  0x1000     /* Transmit Active Mask */
-#define              nTX_ACT_MASK  0x0       
 #define               RX_ACT_MASK  0x2000     /* Receive Active Mask */
-#define              nRX_ACT_MASK  0x0       
 #define         TX_FIFO_STAT_MASK  0x4000     /* Transmit FIFO Status Mask */
-#define        nTX_FIFO_STAT_MASK  0x0       
 #define         RX_FIFO_STAT_MASK  0x8000     /* Receive FIFO Status Mask */
-#define        nRX_FIFO_STAT_MASK  0x0       
 #define         TX_FIFO_FULL_MASK  0x10000    /* Transmit FIFO Full Mask */
-#define        nTX_FIFO_FULL_MASK  0x0       
 #define         RX_FIFO_FULL_MASK  0x20000    /* Receive FIFO Full Mask */
-#define        nRX_FIFO_FULL_MASK  0x0       
 #define         TX_FIFO_ZERO_MASK  0x40000    /* Transmit FIFO Empty Mask */
-#define        nTX_FIFO_ZERO_MASK  0x0       
 #define          RX_DAT_ZERO_MASK  0x80000    /* Receive FIFO Empty Mask */
-#define         nRX_DAT_ZERO_MASK  0x0       
 #define           TX_DAT_RDY_MASK  0x100000   /* Transmit Data Available Mask */
-#define          nTX_DAT_RDY_MASK  0x0       
 #define          RX_FIFO_RDY_MASK  0x200000   /* Receive Data Available Mask */
-#define         nRX_FIFO_RDY_MASK  0x0       
 
 /* Bit masks for SDH_FIFO_CNT */
 
@@ -2698,73 +2193,47 @@
 /* Bit masks for SDH_E_STATUS */
 
 #define              SDIO_INT_DET  0x2        /* SDIO Int Detected */
-#define             nSDIO_INT_DET  0x0       
 #define               SD_CARD_DET  0x10       /* SD Card Detect */
-#define              nSD_CARD_DET  0x0       
 
 /* Bit masks for SDH_E_MASK */
 
 #define                  SDIO_MSK  0x2        /* Mask SDIO Int Detected */
-#define                 nSDIO_MSK  0x0       
 #define                   SCD_MSK  0x40       /* Mask Card Detect */
-#define                  nSCD_MSK  0x0       
 
 /* Bit masks for SDH_CFG */
 
 #define                   CLKS_EN  0x1        /* Clocks Enable */
-#define                  nCLKS_EN  0x0       
 #define                      SD4E  0x4        /* SDIO 4-Bit Enable */
-#define                     nSD4E  0x0       
 #define                       MWE  0x8        /* Moving Window Enable */
-#define                      nMWE  0x0       
 #define                    SD_RST  0x10       /* SDMMC Reset */
-#define                   nSD_RST  0x0       
 #define                 PUP_SDDAT  0x20       /* Pull-up SD_DAT */
-#define                nPUP_SDDAT  0x0       
 #define                PUP_SDDAT3  0x40       /* Pull-up SD_DAT3 */
-#define               nPUP_SDDAT3  0x0       
 #define                 PD_SDDAT3  0x80       /* Pull-down SD_DAT3 */
-#define                nPD_SDDAT3  0x0       
 
 /* Bit masks for SDH_RD_WAIT_EN */
 
 #define                       RWR  0x1        /* Read Wait Request */
-#define                      nRWR  0x0       
 
 /* Bit masks for ATAPI_CONTROL */
 
 #define                 PIO_START  0x1        /* Start PIO/Reg Op */
-#define                nPIO_START  0x0       
 #define               MULTI_START  0x2        /* Start Multi-DMA Op */
-#define              nMULTI_START  0x0       
 #define               ULTRA_START  0x4        /* Start Ultra-DMA Op */
-#define              nULTRA_START  0x0       
 #define                  XFER_DIR  0x8        /* Transfer Direction */
-#define                 nXFER_DIR  0x0       
 #define                  IORDY_EN  0x10       /* IORDY Enable */
-#define                 nIORDY_EN  0x0       
 #define                FIFO_FLUSH  0x20       /* Flush FIFOs */
-#define               nFIFO_FLUSH  0x0       
 #define                  SOFT_RST  0x40       /* Soft Reset */
-#define                 nSOFT_RST  0x0       
 #define                   DEV_RST  0x80       /* Device Reset */
-#define                  nDEV_RST  0x0       
 #define                TFRCNT_RST  0x100      /* Trans Count Reset */
-#define               nTFRCNT_RST  0x0       
 #define               END_ON_TERM  0x200      /* End/Terminate Select */
-#define              nEND_ON_TERM  0x0       
 #define               PIO_USE_DMA  0x400      /* PIO-DMA Enable */
-#define              nPIO_USE_DMA  0x0       
 #define          UDMAIN_FIFO_THRS  0xf000     /* Ultra DMA-IN FIFO Threshold */
 
 /* Bit masks for ATAPI_STATUS */
 
 #define               PIO_XFER_ON  0x1        /* PIO transfer in progress */
-#define              nPIO_XFER_ON  0x0       
 #define             MULTI_XFER_ON  0x2        /* Multi-word DMA transfer in progress */
-#define            nMULTI_XFER_ON  0x0       
 #define             ULTRA_XFER_ON  0x4        /* Ultra DMA transfer in progress */
-#define            nULTRA_XFER_ON  0x0       
 #define               ULTRA_IN_FL  0xf0       /* Ultra DMA Input FIFO Level */
 
 /* Bit masks for ATAPI_DEV_ADDR */
@@ -2774,66 +2243,39 @@
 /* Bit masks for ATAPI_INT_MASK */
 
 #define        ATAPI_DEV_INT_MASK  0x1        /* Device interrupt mask */
-#define       nATAPI_DEV_INT_MASK  0x0       
 #define             PIO_DONE_MASK  0x2        /* PIO transfer done interrupt mask */
-#define            nPIO_DONE_MASK  0x0       
 #define           MULTI_DONE_MASK  0x4        /* Multi-DMA transfer done interrupt mask */
-#define          nMULTI_DONE_MASK  0x0       
 #define          UDMAIN_DONE_MASK  0x8        /* Ultra-DMA in transfer done interrupt mask */
-#define         nUDMAIN_DONE_MASK  0x0       
 #define         UDMAOUT_DONE_MASK  0x10       /* Ultra-DMA out transfer done interrupt mask */
-#define        nUDMAOUT_DONE_MASK  0x0       
 #define       HOST_TERM_XFER_MASK  0x20       /* Host terminate current transfer interrupt mask */
-#define      nHOST_TERM_XFER_MASK  0x0       
 #define           MULTI_TERM_MASK  0x40       /* Device terminate Multi-DMA transfer interrupt mask */
-#define          nMULTI_TERM_MASK  0x0       
 #define          UDMAIN_TERM_MASK  0x80       /* Device terminate Ultra-DMA-in transfer interrupt mask */
-#define         nUDMAIN_TERM_MASK  0x0       
 #define         UDMAOUT_TERM_MASK  0x100      /* Device terminate Ultra-DMA-out transfer interrupt mask */
-#define        nUDMAOUT_TERM_MASK  0x0       
 
 /* Bit masks for ATAPI_INT_STATUS */
 
 #define             ATAPI_DEV_INT  0x1        /* Device interrupt status */
-#define            nATAPI_DEV_INT  0x0       
 #define              PIO_DONE_INT  0x2        /* PIO transfer done interrupt status */
-#define             nPIO_DONE_INT  0x0       
 #define            MULTI_DONE_INT  0x4        /* Multi-DMA transfer done interrupt status */
-#define           nMULTI_DONE_INT  0x0       
 #define           UDMAIN_DONE_INT  0x8        /* Ultra-DMA in transfer done interrupt status */
-#define          nUDMAIN_DONE_INT  0x0       
 #define          UDMAOUT_DONE_INT  0x10       /* Ultra-DMA out transfer done interrupt status */
-#define         nUDMAOUT_DONE_INT  0x0       
 #define        HOST_TERM_XFER_INT  0x20       /* Host terminate current transfer interrupt status */
-#define       nHOST_TERM_XFER_INT  0x0       
 #define            MULTI_TERM_INT  0x40       /* Device terminate Multi-DMA transfer interrupt status */
-#define           nMULTI_TERM_INT  0x0       
 #define           UDMAIN_TERM_INT  0x80       /* Device terminate Ultra-DMA-in transfer interrupt status */
-#define          nUDMAIN_TERM_INT  0x0       
 #define          UDMAOUT_TERM_INT  0x100      /* Device terminate Ultra-DMA-out transfer interrupt status */
-#define         nUDMAOUT_TERM_INT  0x0       
 
 /* Bit masks for ATAPI_LINE_STATUS */
 
 #define                ATAPI_INTR  0x1        /* Device interrupt to host line status */
-#define               nATAPI_INTR  0x0       
 #define                ATAPI_DASP  0x2        /* Device dasp to host line status */
-#define               nATAPI_DASP  0x0       
 #define                ATAPI_CS0N  0x4        /* ATAPI chip select 0 line status */
-#define               nATAPI_CS0N  0x0       
 #define                ATAPI_CS1N  0x8        /* ATAPI chip select 1 line status */
-#define               nATAPI_CS1N  0x0       
 #define                ATAPI_ADDR  0x70       /* ATAPI address line status */
 #define              ATAPI_DMAREQ  0x80       /* ATAPI DMA request line status */
-#define             nATAPI_DMAREQ  0x0       
 #define             ATAPI_DMAACKN  0x100      /* ATAPI DMA acknowledge line status */
-#define            nATAPI_DMAACKN  0x0       
 #define               ATAPI_DIOWN  0x200      /* ATAPI write line status */
-#define              nATAPI_DIOWN  0x0       
 #define               ATAPI_DIORN  0x400      /* ATAPI read line status */
-#define              nATAPI_DIORN  0x0       
 #define               ATAPI_IORDY  0x800      /* ATAPI IORDY line status */
-#define              nATAPI_IORDY  0x0       
 
 /* Bit masks for ATAPI_SM_STATE */
 
@@ -2845,7 +2287,6 @@
 /* Bit masks for ATAPI_TERMINATE */
 
 #define           ATAPI_HOST_TERM  0x1        /* Host terminationation */
-#define          nATAPI_HOST_TERM  0x0       
 
 /* Bit masks for ATAPI_REG_TIM_0 */
 
@@ -2900,41 +2341,26 @@
 /* Bit masks for TIMER_ENABLE1 */
 
 #define                    TIMEN8  0x1        /* Timer 8 Enable */
-#define                   nTIMEN8  0x0       
 #define                    TIMEN9  0x2        /* Timer 9 Enable */
-#define                   nTIMEN9  0x0       
 #define                   TIMEN10  0x4        /* Timer 10 Enable */
-#define                  nTIMEN10  0x0       
 
 /* Bit masks for TIMER_DISABLE1 */
 
 #define                   TIMDIS8  0x1        /* Timer 8 Disable */
-#define                  nTIMDIS8  0x0       
 #define                   TIMDIS9  0x2        /* Timer 9 Disable */
-#define                  nTIMDIS9  0x0       
 #define                  TIMDIS10  0x4        /* Timer 10 Disable */
-#define                 nTIMDIS10  0x0       
 
 /* Bit masks for TIMER_STATUS1 */
 
 #define                    TIMIL8  0x1        /* Timer 8 Interrupt */
-#define                   nTIMIL8  0x0       
 #define                    TIMIL9  0x2        /* Timer 9 Interrupt */
-#define                   nTIMIL9  0x0       
 #define                   TIMIL10  0x4        /* Timer 10 Interrupt */
-#define                  nTIMIL10  0x0       
 #define                 TOVF_ERR8  0x10       /* Timer 8 Counter Overflow */
-#define                nTOVF_ERR8  0x0       
 #define                 TOVF_ERR9  0x20       /* Timer 9 Counter Overflow */
-#define                nTOVF_ERR9  0x0       
 #define                TOVF_ERR10  0x40       /* Timer 10 Counter Overflow */
-#define               nTOVF_ERR10  0x0       
 #define                     TRUN8  0x1000     /* Timer 8 Slave Enable Status */
-#define                    nTRUN8  0x0       
 #define                     TRUN9  0x2000     /* Timer 9 Slave Enable Status */
-#define                    nTRUN9  0x0       
 #define                    TRUN10  0x4000     /* Timer 10 Slave Enable Status */
-#define                   nTRUN10  0x0       
 
 /* Bit masks for EPPI0 are obtained from common base header for EPPIx (EPPI1 and EPPI2) */
 
@@ -2945,131 +2371,77 @@
 /* Bit masks for USB_POWER */
 
 #define           ENABLE_SUSPENDM  0x1        /* enable SuspendM output */
-#define          nENABLE_SUSPENDM  0x0       
 #define              SUSPEND_MODE  0x2        /* Suspend Mode indicator */
-#define             nSUSPEND_MODE  0x0       
 #define               RESUME_MODE  0x4        /* DMA Mode */
-#define              nRESUME_MODE  0x0       
 #define                     RESET  0x8        /* Reset indicator */
-#define                    nRESET  0x0       
 #define                   HS_MODE  0x10       /* High Speed mode indicator */
-#define                  nHS_MODE  0x0       
 #define                 HS_ENABLE  0x20       /* high Speed Enable */
-#define                nHS_ENABLE  0x0       
 #define                 SOFT_CONN  0x40       /* Soft connect */
-#define                nSOFT_CONN  0x0       
 #define                ISO_UPDATE  0x80       /* Isochronous update */
-#define               nISO_UPDATE  0x0       
 
 /* Bit masks for USB_INTRTX */
 
 #define                    EP0_TX  0x1        /* Tx Endpoint 0 interrupt */
-#define                   nEP0_TX  0x0       
 #define                    EP1_TX  0x2        /* Tx Endpoint 1 interrupt */
-#define                   nEP1_TX  0x0       
 #define                    EP2_TX  0x4        /* Tx Endpoint 2 interrupt */
-#define                   nEP2_TX  0x0       
 #define                    EP3_TX  0x8        /* Tx Endpoint 3 interrupt */
-#define                   nEP3_TX  0x0       
 #define                    EP4_TX  0x10       /* Tx Endpoint 4 interrupt */
-#define                   nEP4_TX  0x0       
 #define                    EP5_TX  0x20       /* Tx Endpoint 5 interrupt */
-#define                   nEP5_TX  0x0       
 #define                    EP6_TX  0x40       /* Tx Endpoint 6 interrupt */
-#define                   nEP6_TX  0x0       
 #define                    EP7_TX  0x80       /* Tx Endpoint 7 interrupt */
-#define                   nEP7_TX  0x0       
 
 /* Bit masks for USB_INTRRX */
 
 #define                    EP1_RX  0x2        /* Rx Endpoint 1 interrupt */
-#define                   nEP1_RX  0x0       
 #define                    EP2_RX  0x4        /* Rx Endpoint 2 interrupt */
-#define                   nEP2_RX  0x0       
 #define                    EP3_RX  0x8        /* Rx Endpoint 3 interrupt */
-#define                   nEP3_RX  0x0       
 #define                    EP4_RX  0x10       /* Rx Endpoint 4 interrupt */
-#define                   nEP4_RX  0x0       
 #define                    EP5_RX  0x20       /* Rx Endpoint 5 interrupt */
-#define                   nEP5_RX  0x0       
 #define                    EP6_RX  0x40       /* Rx Endpoint 6 interrupt */
-#define                   nEP6_RX  0x0       
 #define                    EP7_RX  0x80       /* Rx Endpoint 7 interrupt */
-#define                   nEP7_RX  0x0       
 
 /* Bit masks for USB_INTRTXE */
 
 #define                  EP0_TX_E  0x1        /* Endpoint 0 interrupt Enable */
-#define                 nEP0_TX_E  0x0       
 #define                  EP1_TX_E  0x2        /* Tx Endpoint 1 interrupt  Enable */
-#define                 nEP1_TX_E  0x0       
 #define                  EP2_TX_E  0x4        /* Tx Endpoint 2 interrupt  Enable */
-#define                 nEP2_TX_E  0x0       
 #define                  EP3_TX_E  0x8        /* Tx Endpoint 3 interrupt  Enable */
-#define                 nEP3_TX_E  0x0       
 #define                  EP4_TX_E  0x10       /* Tx Endpoint 4 interrupt  Enable */
-#define                 nEP4_TX_E  0x0       
 #define                  EP5_TX_E  0x20       /* Tx Endpoint 5 interrupt  Enable */
-#define                 nEP5_TX_E  0x0       
 #define                  EP6_TX_E  0x40       /* Tx Endpoint 6 interrupt  Enable */
-#define                 nEP6_TX_E  0x0       
 #define                  EP7_TX_E  0x80       /* Tx Endpoint 7 interrupt  Enable */
-#define                 nEP7_TX_E  0x0       
 
 /* Bit masks for USB_INTRRXE */
 
 #define                  EP1_RX_E  0x2        /* Rx Endpoint 1 interrupt  Enable */
-#define                 nEP1_RX_E  0x0       
 #define                  EP2_RX_E  0x4        /* Rx Endpoint 2 interrupt  Enable */
-#define                 nEP2_RX_E  0x0       
 #define                  EP3_RX_E  0x8        /* Rx Endpoint 3 interrupt  Enable */
-#define                 nEP3_RX_E  0x0       
 #define                  EP4_RX_E  0x10       /* Rx Endpoint 4 interrupt  Enable */
-#define                 nEP4_RX_E  0x0       
 #define                  EP5_RX_E  0x20       /* Rx Endpoint 5 interrupt  Enable */
-#define                 nEP5_RX_E  0x0       
 #define                  EP6_RX_E  0x40       /* Rx Endpoint 6 interrupt  Enable */
-#define                 nEP6_RX_E  0x0       
 #define                  EP7_RX_E  0x80       /* Rx Endpoint 7 interrupt  Enable */
-#define                 nEP7_RX_E  0x0       
 
 /* Bit masks for USB_INTRUSB */
 
 #define                 SUSPEND_B  0x1        /* Suspend indicator */
-#define                nSUSPEND_B  0x0       
 #define                  RESUME_B  0x2        /* Resume indicator */
-#define                 nRESUME_B  0x0       
 #define          RESET_OR_BABLE_B  0x4        /* Reset/babble indicator */
-#define         nRESET_OR_BABLE_B  0x0       
 #define                     SOF_B  0x8        /* Start of frame */
-#define                    nSOF_B  0x0       
 #define                    CONN_B  0x10       /* Connection indicator */
-#define                   nCONN_B  0x0       
 #define                  DISCON_B  0x20       /* Disconnect indicator */
-#define                 nDISCON_B  0x0       
 #define             SESSION_REQ_B  0x40       /* Session Request */
-#define            nSESSION_REQ_B  0x0       
 #define              VBUS_ERROR_B  0x80       /* Vbus threshold indicator */
-#define             nVBUS_ERROR_B  0x0       
 
 /* Bit masks for USB_INTRUSBE */
 
 #define                SUSPEND_BE  0x1        /* Suspend indicator int enable */
-#define               nSUSPEND_BE  0x0       
 #define                 RESUME_BE  0x2        /* Resume indicator int enable */
-#define                nRESUME_BE  0x0       
 #define         RESET_OR_BABLE_BE  0x4        /* Reset/babble indicator int enable */
-#define        nRESET_OR_BABLE_BE  0x0       
 #define                    SOF_BE  0x8        /* Start of frame int enable */
-#define                   nSOF_BE  0x0       
 #define                   CONN_BE  0x10       /* Connection indicator int enable */
-#define                  nCONN_BE  0x0       
 #define                 DISCON_BE  0x20       /* Disconnect indicator int enable */
-#define                nDISCON_BE  0x0       
 #define            SESSION_REQ_BE  0x40       /* Session Request int enable */
-#define           nSESSION_REQ_BE  0x0       
 #define             VBUS_ERROR_BE  0x80       /* Vbus threshold indicator int enable */
-#define            nVBUS_ERROR_BE  0x0       
 
 /* Bit masks for USB_FRAME */
 
@@ -3082,117 +2454,67 @@
 /* Bit masks for USB_GLOBAL_CTL */
 
 #define                GLOBAL_ENA  0x1        /* enables USB module */
-#define               nGLOBAL_ENA  0x0       
 #define                EP1_TX_ENA  0x2        /* Transmit endpoint 1 enable */
-#define               nEP1_TX_ENA  0x0       
 #define                EP2_TX_ENA  0x4        /* Transmit endpoint 2 enable */
-#define               nEP2_TX_ENA  0x0       
 #define                EP3_TX_ENA  0x8        /* Transmit endpoint 3 enable */
-#define               nEP3_TX_ENA  0x0       
 #define                EP4_TX_ENA  0x10       /* Transmit endpoint 4 enable */
-#define               nEP4_TX_ENA  0x0       
 #define                EP5_TX_ENA  0x20       /* Transmit endpoint 5 enable */
-#define               nEP5_TX_ENA  0x0       
 #define                EP6_TX_ENA  0x40       /* Transmit endpoint 6 enable */
-#define               nEP6_TX_ENA  0x0       
 #define                EP7_TX_ENA  0x80       /* Transmit endpoint 7 enable */
-#define               nEP7_TX_ENA  0x0       
 #define                EP1_RX_ENA  0x100      /* Receive endpoint 1 enable */
-#define               nEP1_RX_ENA  0x0       
 #define                EP2_RX_ENA  0x200      /* Receive endpoint 2 enable */
-#define               nEP2_RX_ENA  0x0       
 #define                EP3_RX_ENA  0x400      /* Receive endpoint 3 enable */
-#define               nEP3_RX_ENA  0x0       
 #define                EP4_RX_ENA  0x800      /* Receive endpoint 4 enable */
-#define               nEP4_RX_ENA  0x0       
 #define                EP5_RX_ENA  0x1000     /* Receive endpoint 5 enable */
-#define               nEP5_RX_ENA  0x0       
 #define                EP6_RX_ENA  0x2000     /* Receive endpoint 6 enable */
-#define               nEP6_RX_ENA  0x0       
 #define                EP7_RX_ENA  0x4000     /* Receive endpoint 7 enable */
-#define               nEP7_RX_ENA  0x0       
 
 /* Bit masks for USB_OTG_DEV_CTL */
 
 #define                   SESSION  0x1        /* session indicator */
-#define                  nSESSION  0x0       
 #define                  HOST_REQ  0x2        /* Host negotiation request */
-#define                 nHOST_REQ  0x0       
 #define                 HOST_MODE  0x4        /* indicates USBDRC is a host */
-#define                nHOST_MODE  0x0       
 #define                     VBUS0  0x8        /* Vbus level indicator[0] */
-#define                    nVBUS0  0x0       
 #define                     VBUS1  0x10       /* Vbus level indicator[1] */
-#define                    nVBUS1  0x0       
 #define                     LSDEV  0x20       /* Low-speed indicator */
-#define                    nLSDEV  0x0       
 #define                     FSDEV  0x40       /* Full or High-speed indicator */
-#define                    nFSDEV  0x0       
 #define                  B_DEVICE  0x80       /* A' or 'B' device indicator */
-#define                 nB_DEVICE  0x0       
 
 /* Bit masks for USB_OTG_VBUS_IRQ */
 
 #define             DRIVE_VBUS_ON  0x1        /* indicator to drive VBUS control circuit */
-#define            nDRIVE_VBUS_ON  0x0       
 #define            DRIVE_VBUS_OFF  0x2        /* indicator to shut off charge pump */
-#define           nDRIVE_VBUS_OFF  0x0       
 #define           CHRG_VBUS_START  0x4        /* indicator for external circuit to start charging VBUS */
-#define          nCHRG_VBUS_START  0x0       
 #define             CHRG_VBUS_END  0x8        /* indicator for external circuit to end charging VBUS */
-#define            nCHRG_VBUS_END  0x0       
 #define        DISCHRG_VBUS_START  0x10       /* indicator to start discharging VBUS */
-#define       nDISCHRG_VBUS_START  0x0       
 #define          DISCHRG_VBUS_END  0x20       /* indicator to stop discharging VBUS */
-#define         nDISCHRG_VBUS_END  0x0       
 
 /* Bit masks for USB_OTG_VBUS_MASK */
 
 #define         DRIVE_VBUS_ON_ENA  0x1        /* enable DRIVE_VBUS_ON interrupt */
-#define        nDRIVE_VBUS_ON_ENA  0x0       
 #define        DRIVE_VBUS_OFF_ENA  0x2        /* enable DRIVE_VBUS_OFF interrupt */
-#define       nDRIVE_VBUS_OFF_ENA  0x0       
 #define       CHRG_VBUS_START_ENA  0x4        /* enable CHRG_VBUS_START interrupt */
-#define      nCHRG_VBUS_START_ENA  0x0       
 #define         CHRG_VBUS_END_ENA  0x8        /* enable CHRG_VBUS_END interrupt */
-#define        nCHRG_VBUS_END_ENA  0x0       
 #define    DISCHRG_VBUS_START_ENA  0x10       /* enable DISCHRG_VBUS_START interrupt */
-#define   nDISCHRG_VBUS_START_ENA  0x0       
 #define      DISCHRG_VBUS_END_ENA  0x20       /* enable DISCHRG_VBUS_END interrupt */
-#define     nDISCHRG_VBUS_END_ENA  0x0       
 
 /* Bit masks for USB_CSR0 */
 
 #define                  RXPKTRDY  0x1        /* data packet receive indicator */
-#define                 nRXPKTRDY  0x0       
 #define                  TXPKTRDY  0x2        /* data packet in FIFO indicator */
-#define                 nTXPKTRDY  0x0       
 #define                STALL_SENT  0x4        /* STALL handshake sent */
-#define               nSTALL_SENT  0x0       
 #define                   DATAEND  0x8        /* Data end indicator */
-#define                  nDATAEND  0x0       
 #define                  SETUPEND  0x10       /* Setup end */
-#define                 nSETUPEND  0x0       
 #define                 SENDSTALL  0x20       /* Send STALL handshake */
-#define                nSENDSTALL  0x0       
 #define         SERVICED_RXPKTRDY  0x40       /* used to clear the RxPktRdy bit */
-#define        nSERVICED_RXPKTRDY  0x0       
 #define         SERVICED_SETUPEND  0x80       /* used to clear the SetupEnd bit */
-#define        nSERVICED_SETUPEND  0x0       
 #define                 FLUSHFIFO  0x100      /* flush endpoint FIFO */
-#define                nFLUSHFIFO  0x0       
 #define          STALL_RECEIVED_H  0x4        /* STALL handshake received host mode */
-#define         nSTALL_RECEIVED_H  0x0       
 #define                SETUPPKT_H  0x8        /* send Setup token host mode */
-#define               nSETUPPKT_H  0x0       
 #define                   ERROR_H  0x10       /* timeout error indicator host mode */
-#define                  nERROR_H  0x0       
 #define                  REQPKT_H  0x20       /* Request an IN transaction host mode */
-#define                 nREQPKT_H  0x0       
 #define               STATUSPKT_H  0x40       /* Status stage transaction host mode */
-#define              nSTATUSPKT_H  0x0       
 #define             NAK_TIMEOUT_H  0x80       /* EP0 halted after a NAK host mode */
-#define            nNAK_TIMEOUT_H  0x0       
 
 /* Bit masks for USB_COUNT0 */
 
@@ -3213,37 +2535,21 @@
 /* Bit masks for USB_TXCSR */
 
 #define                TXPKTRDY_T  0x1        /* data packet in FIFO indicator */
-#define               nTXPKTRDY_T  0x0       
 #define          FIFO_NOT_EMPTY_T  0x2        /* FIFO not empty */
-#define         nFIFO_NOT_EMPTY_T  0x0       
 #define                UNDERRUN_T  0x4        /* TxPktRdy not set  for an IN token */
-#define               nUNDERRUN_T  0x0       
 #define               FLUSHFIFO_T  0x8        /* flush endpoint FIFO */
-#define              nFLUSHFIFO_T  0x0       
 #define              STALL_SEND_T  0x10       /* issue a Stall handshake */
-#define             nSTALL_SEND_T  0x0       
 #define              STALL_SENT_T  0x20       /* Stall handshake transmitted */
-#define             nSTALL_SENT_T  0x0       
 #define        CLEAR_DATATOGGLE_T  0x40       /* clear endpoint data toggle */
-#define       nCLEAR_DATATOGGLE_T  0x0       
 #define                INCOMPTX_T  0x80       /* indicates that a large packet is split */
-#define               nINCOMPTX_T  0x0       
 #define              DMAREQMODE_T  0x400      /* DMA mode (0 or 1) selection */
-#define             nDMAREQMODE_T  0x0       
 #define        FORCE_DATATOGGLE_T  0x800      /* Force data toggle */
-#define       nFORCE_DATATOGGLE_T  0x0       
 #define              DMAREQ_ENA_T  0x1000     /* Enable DMA request for Tx EP */
-#define             nDMAREQ_ENA_T  0x0       
 #define                     ISO_T  0x4000     /* enable Isochronous transfers */
-#define                    nISO_T  0x0       
 #define                 AUTOSET_T  0x8000     /* allows TxPktRdy to be set automatically */
-#define                nAUTOSET_T  0x0       
 #define                  ERROR_TH  0x4        /* error condition host mode */
-#define                 nERROR_TH  0x0       
 #define         STALL_RECEIVED_TH  0x20       /* Stall handshake received host mode */
-#define        nSTALL_RECEIVED_TH  0x0       
 #define            NAK_TIMEOUT_TH  0x80       /* NAK timeout host mode */
-#define           nNAK_TIMEOUT_TH  0x0       
 
 /* Bit masks for USB_TXCOUNT */
 
@@ -3252,45 +2558,25 @@
 /* Bit masks for USB_RXCSR */
 
 #define                RXPKTRDY_R  0x1        /* data packet in FIFO indicator */
-#define               nRXPKTRDY_R  0x0       
 #define               FIFO_FULL_R  0x2        /* FIFO not empty */
-#define              nFIFO_FULL_R  0x0       
 #define                 OVERRUN_R  0x4        /* TxPktRdy not set  for an IN token */
-#define                nOVERRUN_R  0x0       
 #define               DATAERROR_R  0x8        /* Out packet cannot be loaded into Rx  FIFO */
-#define              nDATAERROR_R  0x0       
 #define               FLUSHFIFO_R  0x10       /* flush endpoint FIFO */
-#define              nFLUSHFIFO_R  0x0       
 #define              STALL_SEND_R  0x20       /* issue a Stall handshake */
-#define             nSTALL_SEND_R  0x0       
 #define              STALL_SENT_R  0x40       /* Stall handshake transmitted */
-#define             nSTALL_SENT_R  0x0       
 #define        CLEAR_DATATOGGLE_R  0x80       /* clear endpoint data toggle */
-#define       nCLEAR_DATATOGGLE_R  0x0       
 #define                INCOMPRX_R  0x100      /* indicates that a large packet is split */
-#define               nINCOMPRX_R  0x0       
 #define              DMAREQMODE_R  0x800      /* DMA mode (0 or 1) selection */
-#define             nDMAREQMODE_R  0x0       
 #define                 DISNYET_R  0x1000     /* disable Nyet handshakes */
-#define                nDISNYET_R  0x0       
 #define              DMAREQ_ENA_R  0x2000     /* Enable DMA request for Tx EP */
-#define             nDMAREQ_ENA_R  0x0       
 #define                     ISO_R  0x4000     /* enable Isochronous transfers */
-#define                    nISO_R  0x0       
 #define               AUTOCLEAR_R  0x8000     /* allows TxPktRdy to be set automatically */
-#define              nAUTOCLEAR_R  0x0       
 #define                  ERROR_RH  0x4        /* TxPktRdy not set  for an IN token host mode */
-#define                 nERROR_RH  0x0       
 #define                 REQPKT_RH  0x20       /* request an IN transaction host mode */
-#define                nREQPKT_RH  0x0       
 #define         STALL_RECEIVED_RH  0x40       /* Stall handshake received host mode */
-#define        nSTALL_RECEIVED_RH  0x0       
 #define               INCOMPRX_RH  0x100      /* indicates that a large packet is split host mode */
-#define              nINCOMPRX_RH  0x0       
 #define             DMAREQMODE_RH  0x800      /* DMA mode (0 or 1) selection host mode */
-#define            nDMAREQMODE_RH  0x0       
 #define                AUTOREQ_RH  0x4000     /* sets ReqPkt automatically host mode */
-#define               nAUTOREQ_RH  0x0       
 
 /* Bit masks for USB_RXCOUNT */
 
@@ -3317,35 +2603,22 @@
 /* Bit masks for USB_DMA_INTERRUPT */
 
 #define                  DMA0_INT  0x1        /* DMA0 pending interrupt */
-#define                 nDMA0_INT  0x0       
 #define                  DMA1_INT  0x2        /* DMA1 pending interrupt */
-#define                 nDMA1_INT  0x0       
 #define                  DMA2_INT  0x4        /* DMA2 pending interrupt */
-#define                 nDMA2_INT  0x0       
 #define                  DMA3_INT  0x8        /* DMA3 pending interrupt */
-#define                 nDMA3_INT  0x0       
 #define                  DMA4_INT  0x10       /* DMA4 pending interrupt */
-#define                 nDMA4_INT  0x0       
 #define                  DMA5_INT  0x20       /* DMA5 pending interrupt */
-#define                 nDMA5_INT  0x0       
 #define                  DMA6_INT  0x40       /* DMA6 pending interrupt */
-#define                 nDMA6_INT  0x0       
 #define                  DMA7_INT  0x80       /* DMA7 pending interrupt */
-#define                 nDMA7_INT  0x0       
 
 /* Bit masks for USB_DMAxCONTROL */
 
 #define                   DMA_ENA  0x1        /* DMA enable */
-#define                  nDMA_ENA  0x0       
 #define                 DIRECTION  0x2        /* direction of DMA transfer */
-#define                nDIRECTION  0x0       
 #define                      MODE  0x4        /* DMA Bus error */
-#define                     nMODE  0x0       
 #define                   INT_ENA  0x8        /* Interrupt enable */
-#define                  nINT_ENA  0x0       
 #define                     EPNUM  0xf0       /* EP number */
 #define                  BUSERROR  0x100      /* DMA Bus error */
-#define                 nBUSERROR  0x0       
 
 /* Bit masks for USB_DMAxADDRHIGH */
 
@@ -3366,26 +2639,16 @@
 /* Bit masks for HMDMAx_CONTROL */
 
 #define                   HMDMAEN  0x1        /* Handshake MDMA Enable */
-#define                  nHMDMAEN  0x0       
 #define                       REP  0x2        /* Handshake MDMA Request Polarity */
-#define                      nREP  0x0       
 #define                       UTE  0x8        /* Urgency Threshold Enable */
-#define                      nUTE  0x0       
 #define                       OIE  0x10       /* Overflow Interrupt Enable */
-#define                      nOIE  0x0       
 #define                      BDIE  0x20       /* Block Done Interrupt Enable */
-#define                     nBDIE  0x0       
 #define                      MBDI  0x40       /* Mask Block Done Interrupt */
-#define                     nMBDI  0x0       
 #define                       DRQ  0x300      /* Handshake MDMA Request Type */
 #define                       RBC  0x1000     /* Force Reload of BCOUNT */
-#define                      nRBC  0x0       
 #define                        PS  0x2000     /* Pin Status */
-#define                       nPS  0x0       
 #define                        OI  0x4000     /* Overflow Interrupt Generated */
-#define                       nOI  0x0       
 #define                       BDI  0x8000     /* Block Done Interrupt Generated */
-#define                      nBDI  0x0       
 
 /* ******************************************* */
 /*     MULTI BIT MACRO ENUMERATIONS            */

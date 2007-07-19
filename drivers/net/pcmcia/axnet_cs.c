@@ -521,6 +521,7 @@ static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
 
 static int axnet_open(struct net_device *dev)
 {
+    int ret;
     axnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
     
@@ -529,9 +530,11 @@ static int axnet_open(struct net_device *dev)
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
-    link->open++;
+    ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, "axnet_cs", dev);
+    if (ret)
+	    return ret;
 
-    request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, "axnet_cs", dev);
+    link->open++;
 
     info->link_status = 0x00;
     init_timer(&info->watchdog);

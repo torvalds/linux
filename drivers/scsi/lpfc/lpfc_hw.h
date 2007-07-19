@@ -59,6 +59,12 @@
 #define SLI2_IOCB_CMD_R3XTRA_ENTRIES 24
 #define SLI2_IOCB_RSP_R3XTRA_ENTRIES 32
 
+#define SLI2_IOCB_CMD_SIZE	32
+#define SLI2_IOCB_RSP_SIZE	32
+#define SLI3_IOCB_CMD_SIZE	128
+#define SLI3_IOCB_RSP_SIZE	64
+
+
 /* Common Transport structures and definitions */
 
 union CtRevisionId {
@@ -78,6 +84,9 @@ union CtCommandResponse {
 	} bits;
 	uint32_t word;
 };
+
+#define FC4_FEATURE_INIT 0x2
+#define FC4_FEATURE_TARGET 0x1
 
 struct lpfc_sli_ct_request {
 	/* Structure is in Big Endian format */
@@ -121,20 +130,6 @@ struct lpfc_sli_ct_request {
 
 			uint32_t rsvd[7];
 		} rft;
-		struct rff {
-			uint32_t PortId;
-			uint8_t reserved[2];
-#ifdef __BIG_ENDIAN_BITFIELD
-			uint8_t feature_res:6;
-			uint8_t feature_init:1;
-			uint8_t feature_tgt:1;
-#else  /*  __LITTLE_ENDIAN_BITFIELD */
-			uint8_t feature_tgt:1;
-			uint8_t feature_init:1;
-			uint8_t feature_res:6;
-#endif
-			uint8_t type_code;     /* type=8 for FCP */
-		} rff;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
 			uint8_t wwnn[8];
@@ -144,15 +139,42 @@ struct lpfc_sli_ct_request {
 			uint8_t len;
 			uint8_t symbname[255];
 		} rsnn;
+		struct rspn {	/* For RSPN_ID requests */
+			uint32_t PortId;
+			uint8_t len;
+			uint8_t symbname[255];
+		} rspn;
+		struct gff {
+			uint32_t PortId;
+		} gff;
+		struct gff_acc {
+			uint8_t fbits[128];
+		} gff_acc;
+#define FCP_TYPE_FEATURE_OFFSET 4
+		struct rff {
+			uint32_t PortId;
+			uint8_t reserved[2];
+			uint8_t fbits;
+			uint8_t type_code;     /* type=8 for FCP */
+		} rff;
 	} un;
 };
 
 #define  SLI_CT_REVISION        1
-#define  GID_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 260)
-#define  RFT_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 228)
-#define  RFF_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 235)
-#define  RNN_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 252)
-#define  RSNN_REQUEST_SZ        (sizeof(struct lpfc_sli_ct_request))
+#define  GID_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct gid))
+#define  GFF_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct gff))
+#define  RFT_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rft))
+#define  RFF_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rff))
+#define  RNN_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rnn))
+#define  RSNN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rsnn))
+#define  RSPN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rspn))
 
 /*
  * FsType Definitions
@@ -227,6 +249,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_GFT_ID      0x0117
 #define  SLI_CTNS_GSPN_ID     0x0118
 #define  SLI_CTNS_GPT_ID      0x011A
+#define  SLI_CTNS_GFF_ID      0x011F
 #define  SLI_CTNS_GID_PN      0x0121
 #define  SLI_CTNS_GID_NN      0x0131
 #define  SLI_CTNS_GIP_NN      0x0135
@@ -240,9 +263,9 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_RNN_ID      0x0213
 #define  SLI_CTNS_RCS_ID      0x0214
 #define  SLI_CTNS_RFT_ID      0x0217
-#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RSPN_ID     0x0218
 #define  SLI_CTNS_RPT_ID      0x021A
+#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RIP_NN      0x0235
 #define  SLI_CTNS_RIPA_NN     0x0236
 #define  SLI_CTNS_RSNN_NN     0x0239
@@ -311,9 +334,9 @@ struct csp {
 	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint16_t increasingOffset:1;	/* FC Word 1, bit 31 */
+	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
-	uint16_t word1Reserved2:1;	/* FC Word 1, bit 29 */
+	uint16_t response_multiple_NPort:1;	/* FC Word 1, bit 29 */
 	uint16_t fPort:1;	/* FC Word 1, bit 28 */
 	uint16_t altBbCredit:1;	/* FC Word 1, bit 27 */
 	uint16_t edtovResolution:1;	/* FC Word 1, bit 26 */
@@ -332,9 +355,9 @@ struct csp {
 	uint16_t edtovResolution:1;	/* FC Word 1, bit 26 */
 	uint16_t altBbCredit:1;	/* FC Word 1, bit 27 */
 	uint16_t fPort:1;	/* FC Word 1, bit 28 */
-	uint16_t word1Reserved2:1;	/* FC Word 1, bit 29 */
+	uint16_t response_multiple_NPort:1;	/* FC Word 1, bit 29 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
-	uint16_t increasingOffset:1;	/* FC Word 1, bit 31 */
+	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 
 	uint16_t payloadlength:1;	/* FC Word 1, bit 16 */
 	uint16_t contIncSeqCnt:1;	/* FC Word 1, bit 17 */
@@ -1255,7 +1278,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
+#define MBX_HEARTBEAT       0x31
 
+#define MBX_CONFIG_HBQ	    0x7C
 #define MBX_LOAD_AREA       0x81
 #define MBX_RUN_BIU_DIAG64  0x84
 #define MBX_CONFIG_PORT     0x88
@@ -1263,6 +1288,10 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_RPI64      0x8F
 #define MBX_REG_LOGIN64     0x93
 #define MBX_READ_LA64       0x95
+#define MBX_REG_VPI	    0x96
+#define MBX_UNREG_VPI	    0x97
+#define MBX_REG_VNPID	    0x96
+#define MBX_UNREG_VNPID	    0x97
 
 #define MBX_FLASH_WR_ULA    0x98
 #define MBX_SET_DEBUG       0x99
@@ -1334,6 +1363,10 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_TSEND64_CX      0x9F
 #define CMD_FCP_TRECEIVE64_CX   0xA1
 #define CMD_FCP_TRSP64_CX       0xA3
+
+#define CMD_IOCB_RCV_SEQ64_CX	0xB5
+#define CMD_IOCB_RCV_ELS64_CX	0xB7
+#define CMD_IOCB_RCV_CONT64_CX	0xBB
 
 #define CMD_GEN_REQUEST64_CR    0xC2
 #define CMD_GEN_REQUEST64_CX    0xC3
@@ -1561,6 +1594,7 @@ typedef struct {
 #define FLAGS_TOPOLOGY_MODE_PT_PT    0x02 /* Attempt pt-pt only */
 #define FLAGS_TOPOLOGY_MODE_LOOP     0x04 /* Attempt loop only */
 #define FLAGS_TOPOLOGY_MODE_PT_LOOP  0x06 /* Attempt pt-pt then loop */
+#define	FLAGS_UNREG_LOGIN_ALL	     0x08 /* UNREG_LOGIN all on link down */
 #define FLAGS_LIRP_LILP              0x80 /* LIRP / LILP is disabled */
 
 #define FLAGS_TOPOLOGY_FAILOVER      0x0400	/* Bit 10 */
@@ -1744,8 +1778,6 @@ typedef struct {
 #define LMT_4Gb       0x040
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
-
-
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -1754,7 +1786,10 @@ typedef struct {
 	uint32_t avail_xri;
 	uint32_t avail_iocb;
 	uint32_t avail_rpi;
-	uint32_t default_rpi;
+	uint32_t max_vpi;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint32_t avail_vpi;
 } READ_CONFIG_VAR;
 
 /* Structure for MB Command READ_RCONFIG (12) */
@@ -1818,6 +1853,13 @@ typedef struct {
 				      structure */
 		struct ulp_bde64 sp64;
 	} un;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd3;
+	uint16_t vpi;
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint16_t vpi;
+	uint16_t rsvd3;
+#endif
 } READ_SPARM_VAR;
 
 /* Structure for MB Command READ_STATUS (14) */
@@ -1918,11 +1960,17 @@ typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t cv:1;
 	uint32_t rr:1;
-	uint32_t rsvd1:29;
+	uint32_t rsvd2:2;
+	uint32_t v3req:1;
+	uint32_t v3rsp:1;
+	uint32_t rsvd1:25;
 	uint32_t rv:1;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint32_t rv:1;
-	uint32_t rsvd1:29;
+	uint32_t rsvd1:25;
+	uint32_t v3rsp:1;
+	uint32_t v3req:1;
+	uint32_t rsvd2:2;
 	uint32_t rr:1;
 	uint32_t cv:1;
 #endif
@@ -1972,8 +2020,8 @@ typedef struct {
 	uint8_t sli1FwName[16];
 	uint32_t sli2FwRev;
 	uint8_t sli2FwName[16];
-	uint32_t rsvd2;
-	uint32_t RandomData[7];
+	uint32_t sli3Feat;
+	uint32_t RandomData[6];
 } READ_REV_VAR;
 
 /* Structure for MB Command READ_LINK_STAT (18) */
@@ -2013,6 +2061,14 @@ typedef struct {
 		struct ulp_bde64 sp64;
 	} un;
 
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else /* __LITTLE_ENDIAN_BITFIELD */
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
+
 } REG_LOGIN_VAR;
 
 /* Word 30 contents for REG_LOGIN */
@@ -2037,16 +2093,78 @@ typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t rsvd1;
 	uint16_t rpi;
+	uint32_t rsvd2;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t rsvd6;
+	uint16_t vpi;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint16_t rpi;
 	uint16_t rsvd1;
+	uint32_t rsvd2;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t vpi;
+	uint16_t rsvd6;
 #endif
 } UNREG_LOGIN_VAR;
+
+/* Structure for MB Command REG_VPI (0x96) */
+typedef struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd1;
+	uint32_t rsvd2:8;
+	uint32_t sid:24;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t rsvd1;
+	uint32_t sid:24;
+	uint32_t rsvd2:8;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
+} REG_VPI_VAR;
+
+/* Structure for MB Command UNREG_VPI (0x97) */
+typedef struct {
+	uint32_t rsvd1;
+	uint32_t rsvd2;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else	/*  __LITTLE_ENDIAN */
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
+} UNREG_VPI_VAR;
 
 /* Structure for MB Command UNREG_D_ID (0x23) */
 
 typedef struct {
 	uint32_t did;
+	uint32_t rsvd2;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
 } UNREG_D_ID_VAR;
 
 /* Structure for MB Command READ_LA (21) */
@@ -2178,13 +2296,240 @@ typedef struct {
 #define  DMP_RSP_OFFSET          0x14   /* word 5 contains first word of rsp */
 #define  DMP_RSP_SIZE            0x6C   /* maximum of 27 words of rsp data */
 
-/* Structure for MB Command CONFIG_PORT (0x88) */
+struct hbq_mask {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t tmatch;
+	uint8_t tmask;
+	uint8_t rctlmatch;
+	uint8_t rctlmask;
+#else	/*  __LITTLE_ENDIAN */
+	uint8_t rctlmask;
+	uint8_t rctlmatch;
+	uint8_t tmask;
+	uint8_t tmatch;
+#endif
+};
 
+
+/* Structure for MB Command CONFIG_HBQ (7c) */
+
+struct config_hbq_var {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd1      :7;
+	uint32_t recvNotify :1;     /* Receive Notification */
+	uint32_t numMask    :8;     /* # Mask Entries       */
+	uint32_t profile    :8;     /* Selection Profile    */
+	uint32_t rsvd2      :8;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t rsvd2      :8;
+	uint32_t profile    :8;     /* Selection Profile    */
+	uint32_t numMask    :8;     /* # Mask Entries       */
+	uint32_t recvNotify :1;     /* Receive Notification */
+	uint32_t rsvd1      :7;
+#endif
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t hbqId      :16;
+	uint32_t rsvd3      :12;
+	uint32_t ringMask   :4;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t ringMask   :4;
+	uint32_t rsvd3      :12;
+	uint32_t hbqId      :16;
+#endif
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t entry_count :16;
+	uint32_t rsvd4        :8;
+	uint32_t headerLen    :8;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t headerLen    :8;
+	uint32_t rsvd4        :8;
+	uint32_t entry_count :16;
+#endif
+
+	uint32_t hbqaddrLow;
+	uint32_t hbqaddrHigh;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd5      :31;
+	uint32_t logEntry   :1;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t logEntry   :1;
+	uint32_t rsvd5      :31;
+#endif
+
+	uint32_t rsvd6;    /* w7 */
+	uint32_t rsvd7;    /* w8 */
+	uint32_t rsvd8;    /* w9 */
+
+	struct hbq_mask hbqMasks[6];
+
+
+	union {
+		uint32_t allprofiles[12];
+
+		struct {
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	seqlenoff	:16;
+				uint32_t	maxlen		:16;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	maxlen		:16;
+				uint32_t	seqlenoff	:16;
+			#endif
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	rsvd1		:28;
+				uint32_t	seqlenbcnt	:4;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	seqlenbcnt	:4;
+				uint32_t	rsvd1		:28;
+			#endif
+			uint32_t rsvd[10];
+		} profile2;
+
+		struct {
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	seqlenoff	:16;
+				uint32_t	maxlen		:16;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	maxlen		:16;
+				uint32_t	seqlenoff	:16;
+			#endif
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	cmdcodeoff	:28;
+				uint32_t	rsvd1		:12;
+				uint32_t	seqlenbcnt	:4;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	seqlenbcnt	:4;
+				uint32_t	rsvd1		:12;
+				uint32_t	cmdcodeoff	:28;
+			#endif
+			uint32_t cmdmatch[8];
+
+			uint32_t rsvd[2];
+		} profile3;
+
+		struct {
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	seqlenoff	:16;
+				uint32_t	maxlen		:16;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	maxlen		:16;
+				uint32_t	seqlenoff	:16;
+			#endif
+			#ifdef __BIG_ENDIAN_BITFIELD
+				uint32_t	cmdcodeoff	:28;
+				uint32_t	rsvd1		:12;
+				uint32_t	seqlenbcnt	:4;
+			#else	/*  __LITTLE_ENDIAN */
+				uint32_t	seqlenbcnt	:4;
+				uint32_t	rsvd1		:12;
+				uint32_t	cmdcodeoff	:28;
+			#endif
+			uint32_t cmdmatch[8];
+
+			uint32_t rsvd[2];
+		} profile5;
+
+	} profiles;
+
+};
+
+
+
+/* Structure for MB Command CONFIG_PORT (0x88) */
 typedef struct {
-	uint32_t pcbLen;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t cBE       :  1;
+	uint32_t cET       :  1;
+	uint32_t cHpcb     :  1;
+	uint32_t cMA       :  1;
+	uint32_t sli_mode  :  4;
+	uint32_t pcbLen    : 24;       /* bit 23:0  of memory based port
+					* config block */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t pcbLen    : 24;       /* bit 23:0  of memory based port
+					* config block */
+	uint32_t sli_mode  :  4;
+	uint32_t cMA       :  1;
+	uint32_t cHpcb     :  1;
+	uint32_t cET       :  1;
+	uint32_t cBE       :  1;
+#endif
+
 	uint32_t pcbLow;       /* bit 31:0  of memory based port config block */
 	uint32_t pcbHigh;      /* bit 63:32 of memory based port config block */
-	uint32_t hbainit[5];
+	uint32_t hbainit[6];
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd      : 24;  /* Reserved                             */
+	uint32_t cmv	   :  1;  /* Configure Max VPIs                   */
+	uint32_t ccrp      :  1;  /* Config Command Ring Polling          */
+	uint32_t csah      :  1;  /* Configure Synchronous Abort Handling */
+	uint32_t chbs      :  1;  /* Cofigure Host Backing store          */
+	uint32_t cinb      :  1;  /* Enable Interrupt Notification Block  */
+	uint32_t cerbm	   :  1;  /* Configure Enhanced Receive Buf Mgmt  */
+	uint32_t cmx	   :  1;  /* Configure Max XRIs                   */
+	uint32_t cmr	   :  1;  /* Configure Max RPIs                   */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t cmr	   :  1;  /* Configure Max RPIs                   */
+	uint32_t cmx	   :  1;  /* Configure Max XRIs                   */
+	uint32_t cerbm	   :  1;  /* Configure Enhanced Receive Buf Mgmt  */
+	uint32_t cinb      :  1;  /* Enable Interrupt Notification Block  */
+	uint32_t chbs      :  1;  /* Cofigure Host Backing store          */
+	uint32_t csah      :  1;  /* Configure Synchronous Abort Handling */
+	uint32_t ccrp      :  1;  /* Config Command Ring Polling          */
+	uint32_t cmv	   :  1;  /* Configure Max VPIs                   */
+	uint32_t rsvd      : 24;  /* Reserved                             */
+#endif
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd2     : 24;  /* Reserved                             */
+	uint32_t gmv	   :  1;  /* Grant Max VPIs                       */
+	uint32_t gcrp	   :  1;  /* Grant Command Ring Polling           */
+	uint32_t gsah	   :  1;  /* Grant Synchronous Abort Handling     */
+	uint32_t ghbs	   :  1;  /* Grant Host Backing Store             */
+	uint32_t ginb	   :  1;  /* Grant Interrupt Notification Block   */
+	uint32_t gerbm	   :  1;  /* Grant ERBM Request                   */
+	uint32_t gmx	   :  1;  /* Grant Max XRIs                       */
+	uint32_t gmr	   :  1;  /* Grant Max RPIs                       */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t gmr	   :  1;  /* Grant Max RPIs                       */
+	uint32_t gmx	   :  1;  /* Grant Max XRIs                       */
+	uint32_t gerbm	   :  1;  /* Grant ERBM Request                   */
+	uint32_t ginb	   :  1;  /* Grant Interrupt Notification Block   */
+	uint32_t ghbs	   :  1;  /* Grant Host Backing Store             */
+	uint32_t gsah	   :  1;  /* Grant Synchronous Abort Handling     */
+	uint32_t gcrp	   :  1;  /* Grant Command Ring Polling           */
+	uint32_t gmv	   :  1;  /* Grant Max VPIs                       */
+	uint32_t rsvd2     : 24;  /* Reserved                             */
+#endif
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t max_rpi   : 16;  /* Max RPIs Port should configure       */
+	uint32_t max_xri   : 16;  /* Max XRIs Port should configure       */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t max_xri   : 16;  /* Max XRIs Port should configure       */
+	uint32_t max_rpi   : 16;  /* Max RPIs Port should configure       */
+#endif
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t max_hbq   : 16;  /* Max HBQs Host expect to configure    */
+	uint32_t rsvd3     : 16;  /* Max HBQs Host expect to configure    */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t rsvd3     : 16;  /* Max HBQs Host expect to configure    */
+	uint32_t max_hbq   : 16;  /* Max HBQs Host expect to configure    */
+#endif
+
+	uint32_t rsvd4;           /* Reserved                             */
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd5      : 16;  /* Reserved                             */
+	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
+	uint32_t rsvd5      : 16;  /* Reserved                             */
+#endif
+
 } CONFIG_PORT_VAR;
 
 /* SLI-2 Port Control Block */
@@ -2262,33 +2607,40 @@ typedef struct {
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
 
 typedef union {
-	uint32_t varWords[MAILBOX_CMD_WSIZE - 1];
-	LOAD_SM_VAR varLdSM;	/* cmd =  1 (LOAD_SM)        */
-	READ_NV_VAR varRDnvp;	/* cmd =  2 (READ_NVPARMS)   */
-	WRITE_NV_VAR varWTnvp;	/* cmd =  3 (WRITE_NVPARMS)  */
-	BIU_DIAG_VAR varBIUdiag;	/* cmd =  4 (RUN_BIU_DIAG)   */
-	INIT_LINK_VAR varInitLnk;	/* cmd =  5 (INIT_LINK)      */
+	uint32_t varWords[MAILBOX_CMD_WSIZE - 1]; /* first word is type/
+						    * feature/max ring number
+						    */
+	LOAD_SM_VAR varLdSM;		/* cmd =  1 (LOAD_SM)        */
+	READ_NV_VAR varRDnvp;		/* cmd =  2 (READ_NVPARMS)   */
+	WRITE_NV_VAR varWTnvp;		/* cmd =  3 (WRITE_NVPARMS)  */
+	BIU_DIAG_VAR varBIUdiag; 	/* cmd =  4 (RUN_BIU_DIAG)   */
+	INIT_LINK_VAR varInitLnk; 	/* cmd =  5 (INIT_LINK)      */
 	DOWN_LINK_VAR varDwnLnk;	/* cmd =  6 (DOWN_LINK)      */
-	CONFIG_LINK varCfgLnk;	/* cmd =  7 (CONFIG_LINK)    */
-	PART_SLIM_VAR varSlim;	/* cmd =  8 (PART_SLIM)      */
+	CONFIG_LINK varCfgLnk;		/* cmd =  7 (CONFIG_LINK)    */
+	PART_SLIM_VAR varSlim;		/* cmd =  8 (PART_SLIM)      */
 	CONFIG_RING_VAR varCfgRing;	/* cmd =  9 (CONFIG_RING)    */
 	RESET_RING_VAR varRstRing;	/* cmd = 10 (RESET_RING)     */
 	READ_CONFIG_VAR varRdConfig;	/* cmd = 11 (READ_CONFIG)    */
 	READ_RCONF_VAR varRdRConfig;	/* cmd = 12 (READ_RCONFIG)   */
 	READ_SPARM_VAR varRdSparm;	/* cmd = 13 (READ_SPARM(64)) */
 	READ_STATUS_VAR varRdStatus;	/* cmd = 14 (READ_STATUS)    */
-	READ_RPI_VAR varRdRPI;	/* cmd = 15 (READ_RPI(64))   */
-	READ_XRI_VAR varRdXRI;	/* cmd = 16 (READ_XRI)       */
-	READ_REV_VAR varRdRev;	/* cmd = 17 (READ_REV)       */
-	READ_LNK_VAR varRdLnk;	/* cmd = 18 (READ_LNK_STAT)  */
+	READ_RPI_VAR varRdRPI;		/* cmd = 15 (READ_RPI(64))   */
+	READ_XRI_VAR varRdXRI;		/* cmd = 16 (READ_XRI)       */
+	READ_REV_VAR varRdRev;		/* cmd = 17 (READ_REV)       */
+	READ_LNK_VAR varRdLnk;		/* cmd = 18 (READ_LNK_STAT)  */
 	REG_LOGIN_VAR varRegLogin;	/* cmd = 19 (REG_LOGIN(64))  */
 	UNREG_LOGIN_VAR varUnregLogin;	/* cmd = 20 (UNREG_LOGIN)    */
-	READ_LA_VAR varReadLA;	/* cmd = 21 (READ_LA(64))    */
+	READ_LA_VAR varReadLA;		/* cmd = 21 (READ_LA(64))    */
 	CLEAR_LA_VAR varClearLA;	/* cmd = 22 (CLEAR_LA)       */
-	DUMP_VAR varDmp;	/* Warm Start DUMP mbx cmd   */
-	UNREG_D_ID_VAR varUnregDID; /* cmd = 0x23 (UNREG_D_ID)   */
-	CONFIG_FARP_VAR varCfgFarp; /* cmd = 0x25 (CONFIG_FARP)  NEW_FEATURE */
-	CONFIG_PORT_VAR varCfgPort; /* cmd = 0x88 (CONFIG_PORT)  */
+	DUMP_VAR varDmp;		/* Warm Start DUMP mbx cmd   */
+	UNREG_D_ID_VAR varUnregDID;	/* cmd = 0x23 (UNREG_D_ID)   */
+	CONFIG_FARP_VAR varCfgFarp;	/* cmd = 0x25 (CONFIG_FARP)
+					 * NEW_FEATURE
+					 */
+	struct config_hbq_var varCfgHbq;/* cmd = 0x7c (CONFIG_HBQ)  */
+	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
+	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
+	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 } MAILVARIANTS;
 
 /*
@@ -2305,14 +2657,27 @@ struct lpfc_pgp {
 	__le32 rspPutInx;
 };
 
-typedef struct _SLI2_DESC {
-	struct lpfc_hgp host[MAX_RINGS];
+struct sli2_desc {
 	uint32_t unused1[16];
+	struct lpfc_hgp host[MAX_RINGS];
 	struct lpfc_pgp port[MAX_RINGS];
-} SLI2_DESC;
+};
+
+struct sli3_desc {
+	struct lpfc_hgp host[MAX_RINGS];
+	uint32_t reserved[8];
+	uint32_t hbq_put[16];
+};
+
+struct sli3_pgp {
+	struct lpfc_pgp port[MAX_RINGS];
+	uint32_t hbq_get[16];
+};
 
 typedef union {
-	SLI2_DESC s2;
+	struct sli2_desc s2;
+	struct sli3_desc s3;
+	struct sli3_pgp  s3_pgp;
 } SLI_VAR;
 
 typedef struct {
@@ -2618,6 +2983,25 @@ typedef struct {
 	uint32_t fcpt_Length;	/* transfer ready for IWRITE */
 } FCPT_FIELDS64;
 
+/* IOCB Command template for CMD_IOCB_RCV_ELS64_CX (0xB7)
+   or CMD_IOCB_RCV_SEQ64_CX (0xB5) */
+
+struct rcv_sli3 {
+	uint32_t word8Rsvd;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t vpi;
+	uint16_t word9Rsvd;
+#else  /*  __LITTLE_ENDIAN */
+	uint16_t word9Rsvd;
+	uint16_t vpi;
+#endif
+	uint32_t word10Rsvd;
+	uint32_t acc_len;      /* accumulated length */
+	struct ulp_bde64 bde2;
+};
+
+
+
 typedef struct _IOCB {	/* IOCB structure */
 	union {
 		GENERIC_RSP grsp;	/* Generic response */
@@ -2632,8 +3016,8 @@ typedef struct _IOCB {	/* IOCB structure */
 
 		/* SLI-2 structures */
 
-		struct ulp_bde64 cont64[2];	/* up to 2 64 bit continuation
-					   bde_64s */
+		struct ulp_bde64 cont64[2];  /* up to 2 64 bit continuation
+					      * bde_64s */
 		ELS_REQUEST64 elsreq64;	/* ELS_REQUEST template */
 		GEN_REQUEST64 genreq64;	/* GEN_REQUEST template */
 		RCV_ELS_REQ64 rcvels64;	/* RCV_ELS_REQ template */
@@ -2695,9 +3079,20 @@ typedef struct _IOCB {	/* IOCB structure */
 	uint32_t ulpTimeout:8;
 #endif
 
+	union {
+		struct rcv_sli3 rcvsli3; /* words 8 - 15 */
+		uint32_t sli3Words[24]; /* 96 extra bytes for SLI-3 */
+	} unsli3;
+
+#define ulpCt_h ulpXS
+#define ulpCt_l ulpFCP2Rcvy
+
+#define IOCB_FCP	   1	/* IOCB is used for FCP ELS cmds-ulpRsvByte */
+#define IOCB_IP		   2	/* IOCB is used for IP ELS cmds */
 #define PARM_UNUSED        0	/* PU field (Word 4) not used */
 #define PARM_REL_OFF       1	/* PU field (Word 4) = R. O. */
 #define PARM_READ_CHECK    2	/* PU field (Word 4) = Data Transfer Length */
+#define PARM_NPIV_DID	   3
 #define CLASS1             0	/* Class 1 */
 #define CLASS2             1	/* Class 2 */
 #define CLASS3             2	/* Class 3 */
@@ -2718,12 +3113,18 @@ typedef struct _IOCB {	/* IOCB structure */
 #define IOSTAT_RSVD2           0xC
 #define IOSTAT_RSVD3           0xD
 #define IOSTAT_RSVD4           0xE
-#define IOSTAT_RSVD5           0xF
+#define IOSTAT_NEED_BUFFER     0xF
 #define IOSTAT_DRIVER_REJECT   0x10   /* ulpStatus  - Driver defined */
 #define IOSTAT_DEFAULT         0xF    /* Same as rsvd5 for now */
 #define IOSTAT_CNT             0x11
 
 } IOCB_t;
+
+/* Structure used for a single HBQ entry */
+struct lpfc_hbq_entry {
+	struct ulp_bde64 bde;
+	uint32_t buffer_tag;
+};
 
 
 #define SLI1_SLIM_SIZE   (4 * 1024)
@@ -2731,26 +3132,32 @@ typedef struct _IOCB {	/* IOCB structure */
 /* Up to 498 IOCBs will fit into 16k
  * 256 (MAILBOX_t) + 140 (PCB_t) + ( 32 (IOCB_t) * 498 ) = < 16384
  */
-#define SLI2_SLIM_SIZE   (16 * 1024)
+#define SLI2_SLIM_SIZE   (64 * 1024)
 
 /* Maximum IOCBs that will fit in SLI2 slim */
 #define MAX_SLI2_IOCB    498
+#define MAX_SLIM_IOCB_SIZE (SLI2_SLIM_SIZE - \
+			    (sizeof(MAILBOX_t) + sizeof(PCB_t)))
+
+/* HBQ entries are 4 words each = 4k */
+#define LPFC_TOTAL_HBQ_SIZE (sizeof(struct lpfc_hbq_entry) *  \
+			     lpfc_sli_hbq_count())
 
 struct lpfc_sli2_slim {
 	MAILBOX_t mbx;
 	PCB_t pcb;
-	IOCB_t IOCBs[MAX_SLI2_IOCB];
+	IOCB_t IOCBs[MAX_SLIM_IOCB_SIZE];
 };
 
-/*******************************************************************
-This macro check PCI device to allow special handling for LC HBAs.
-
-Parameters:
-device : struct pci_dev 's device field
-
-return 1 => TRUE
-       0 => FALSE
- *******************************************************************/
+/*
+ * This function checks PCI device to allow special handling for LC HBAs.
+ *
+ * Parameters:
+ * device : struct pci_dev 's device field
+ *
+ * return 1 => TRUE
+ *        0 => FALSE
+ */
 static inline int
 lpfc_is_LC_HBA(unsigned short device)
 {
@@ -2765,4 +3172,17 @@ lpfc_is_LC_HBA(unsigned short device)
 		return 1;
 	else
 		return 0;
+}
+
+/*
+ * Determine if an IOCB failed because of a link event or firmware reset.
+ */
+
+static inline int
+lpfc_error_lost_link(IOCB_t *iocbp)
+{
+	return (iocbp->ulpStatus == IOSTAT_LOCAL_REJECT &&
+		(iocbp->un.ulpWord[4] == IOERR_SLI_ABORTED ||
+		 iocbp->un.ulpWord[4] == IOERR_LINK_DOWN ||
+		 iocbp->un.ulpWord[4] == IOERR_SLI_DOWN));
 }

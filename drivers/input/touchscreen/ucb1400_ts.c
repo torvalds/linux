@@ -292,6 +292,7 @@ static int ucb1400_ts_thread(void *_ucb)
 
 	sched_setscheduler(tsk, SCHED_FIFO, &param);
 
+	set_freezable();
 	while (!kthread_should_stop()) {
 		unsigned int x, y, p;
 		long timeout;

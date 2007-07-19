@@ -240,8 +240,8 @@ static const unsigned char formats[][7] = {
 	[INSTR_RXY_FRRD]  = { 0xff, F_8,D20_20,X_12,B_16,0,0 },/* e.g. ley   */
 	[INSTR_RX_FRRD]	  = { 0xff, F_8,D_20,X_12,B_16,0,0 },  /* e.g. ae    */
 	[INSTR_RX_RRRD]	  = { 0xff, R_8,D_20,X_12,B_16,0,0 },  /* e.g. l     */
-	[INSTR_RX_URRD]	  = { 0x00, U4_8,D_20,X_12,B_16,0,0 }, /* e.g. bc    */
-	[INSTR_SI_URD]	  = { 0x00, D_20,B_16,U8_8,0,0,0 },    /* e.g. cli   */
+	[INSTR_RX_URRD]	  = { 0xff, U4_8,D_20,X_12,B_16,0,0 }, /* e.g. bc    */
+	[INSTR_SI_URD]	  = { 0xff, D_20,B_16,U8_8,0,0,0 },    /* e.g. cli   */
 	[INSTR_SIY_URD]	  = { 0xff, D20_20,B_16,U8_8,0,0,0 },  /* e.g. tmy   */
 	[INSTR_SSE_RDRD]  = { 0xff, D_20,B_16,D_36,B_32,0,0 }, /* e.g. mvsdk */
 	[INSTR_SS_L0RDRD] = { 0xff, D_20,L8_8,B_16,D_36,B_32,0 },
@@ -1190,7 +1190,8 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 			else if (operand->flags & OPERAND_CR)
 				ptr += sprintf(ptr, "%%c%i", value);
 			else if (operand->flags & OPERAND_PCREL)
-				ptr += sprintf(ptr, "%lx", value + addr);
+				ptr += sprintf(ptr, "%lx", (signed int) value
+								      + addr);
 			else if (operand->flags & OPERAND_SIGNED)
 				ptr += sprintf(ptr, "%i", value);
 			else

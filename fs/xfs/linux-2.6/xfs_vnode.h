@@ -129,19 +129,13 @@ typedef enum bhv_vchange {
 	VCHANGE_FLAGS_IOEXCL_COUNT	= 4
 } bhv_vchange_t;
 
-typedef enum { L_FALSE, L_TRUE } lastclose_t;
-
 typedef int	(*vop_open_t)(bhv_desc_t *, struct cred *);
-typedef int	(*vop_close_t)(bhv_desc_t *, int, lastclose_t, struct cred *);
 typedef ssize_t (*vop_read_t)(bhv_desc_t *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);
 typedef ssize_t (*vop_write_t)(bhv_desc_t *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);
-typedef ssize_t (*vop_sendfile_t)(bhv_desc_t *, struct file *,
-				loff_t *, int, size_t, read_actor_t,
-				void *, struct cred *);
 typedef ssize_t (*vop_splice_read_t)(bhv_desc_t *, struct file *, loff_t *,
 				struct pipe_inode_info *, size_t, int, int,
 				struct cred *);
@@ -203,10 +197,8 @@ typedef int	(*vop_iflush_t)(bhv_desc_t *, int);
 typedef struct bhv_vnodeops {
 	bhv_position_t  vn_position;    /* position within behavior chain */
 	vop_open_t		vop_open;
-	vop_close_t		vop_close;
 	vop_read_t		vop_read;
 	vop_write_t		vop_write;
-	vop_sendfile_t		vop_sendfile;
 	vop_splice_read_t	vop_splice_read;
 	vop_splice_write_t	vop_splice_write;
 	vop_ioctl_t		vop_ioctl;
@@ -249,13 +241,10 @@ typedef struct bhv_vnodeops {
 #define VNHEAD(vp)	((vp)->v_bh.bh_first)
 #define VOP(op, vp)	(*((bhv_vnodeops_t *)VNHEAD(vp)->bd_ops)->op)
 #define bhv_vop_open(vp, cr)		VOP(vop_open, vp)(VNHEAD(vp),cr)
-#define bhv_vop_close(vp, f,last,cr)	VOP(vop_close, vp)(VNHEAD(vp),f,last,cr)
 #define bhv_vop_read(vp,file,iov,segs,offset,ioflags,cr)		\
 		VOP(vop_read, vp)(VNHEAD(vp),file,iov,segs,offset,ioflags,cr)
 #define bhv_vop_write(vp,file,iov,segs,offset,ioflags,cr)		\
 		VOP(vop_write, vp)(VNHEAD(vp),file,iov,segs,offset,ioflags,cr)
-#define bhv_vop_sendfile(vp,f,off,ioflags,cnt,act,targ,cr)		\
-		VOP(vop_sendfile, vp)(VNHEAD(vp),f,off,ioflags,cnt,act,targ,cr)
 #define bhv_vop_splice_read(vp,f,o,pipe,cnt,fl,iofl,cr)			\
 		VOP(vop_splice_read, vp)(VNHEAD(vp),f,o,pipe,cnt,fl,iofl,cr)
 #define bhv_vop_splice_write(vp,f,o,pipe,cnt,fl,iofl,cr)		\

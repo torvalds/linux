@@ -90,8 +90,6 @@
 #define UART_MCR_AFE		0x20
 #define UART_LSR_SPECIAL	0x1E
 
-#define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|\
-					  IXON|IXOFF))
 
 #define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED : IRQF_DISABLED)
 
@@ -1729,16 +1727,12 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
-	if ((tty->termios->c_cflag != old_termios->c_cflag) ||
-			(RELEVANT_IFLAG(tty->termios->c_iflag) != RELEVANT_IFLAG(old_termios->c_iflag))) {
+	mxser_change_speed(info, old_termios);
 
-		mxser_change_speed(info, old_termios);
-
-		if ((old_termios->c_cflag & CRTSCTS) &&
-				!(tty->termios->c_cflag & CRTSCTS)) {
-			tty->hw_stopped = 0;
-			mxser_start(tty);
-		}
+	if ((old_termios->c_cflag & CRTSCTS) &&
+			!(tty->termios->c_cflag & CRTSCTS)) {
+		tty->hw_stopped = 0;
+		mxser_start(tty);
 	}
 
 /* Handle sw stopped */

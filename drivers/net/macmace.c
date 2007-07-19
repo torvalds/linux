@@ -577,7 +577,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	struct mace_data *mp = netdev_priv(dev);
 	volatile struct mace *mb = mp->mace;
 	int intr, fs;
-	unsigned int flags;
+	unsigned long flags;
 
 	/* don't want the dma interrupt handler to fire */
 	local_irq_save(flags);

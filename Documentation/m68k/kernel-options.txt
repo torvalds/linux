@@ -82,13 +82,6 @@ Valid names are:
   /dev/fd : -> 0x0200 (floppy disk)
   /dev/xda: -> 0x0c00 (first XT disk, unused in Linux/m68k)
   /dev/xdb: -> 0x0c40 (second XT disk, unused in Linux/m68k)
-  /dev/ada: -> 0x1c00 (first ACSI device)
-  /dev/adb: -> 0x1c10 (second ACSI device)
-  /dev/adc: -> 0x1c20 (third ACSI device)
-  /dev/add: -> 0x1c30 (forth ACSI device)
-
-The last four names are available only if the kernel has been compiled
-with Atari and ACSI support.
 
   The name must be followed by a decimal number, that stands for the
 partition number. Internally, the value of the number is just

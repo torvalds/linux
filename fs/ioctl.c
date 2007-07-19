@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/module.h>
-#include <linux/kallsyms.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -21,7 +20,6 @@ static long do_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
 	int error = -ENOTTY;
-	void *f;
 
 	if (!filp->f_op)
 		goto out;
@@ -31,16 +29,10 @@ static long do_ioctl(struct file *filp, unsigned int cmd,
 		if (error == -ENOIOCTLCMD)
 			error = -EINVAL;
 		goto out;
-	} else if ((f = filp->f_op->ioctl)) {
+	} else if (filp->f_op->ioctl) {
 		lock_kernel();
-		if (!filp->f_op->ioctl) {
-			printk("%s: ioctl %p disappeared\n", __FUNCTION__, f);
-			print_symbol("symbol: %s\n", (unsigned long)f);
-			dump_stack();
-		} else {
-			error = filp->f_op->ioctl(filp->f_path.dentry->d_inode,
-						  filp, cmd, arg);
-		}
+		error = filp->f_op->ioctl(filp->f_path.dentry->d_inode,
+					  filp, cmd, arg);
 		unlock_kernel();
 	}
 
@@ -182,11 +174,3 @@ asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
  out:
 	return error;
 }
-
-/*
- * Platforms implementing 32 bit compatibility ioctl handlers in
- * modules need this exported
- */
-#ifdef CONFIG_COMPAT
-EXPORT_SYMBOL(sys_ioctl);
-#endif

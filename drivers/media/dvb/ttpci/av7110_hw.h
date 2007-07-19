@@ -393,7 +393,7 @@ static inline void iwdebi(struct av7110 *av7110, u32 config, int addr, u32 val, 
 }
 
 /* buffer writes */
-static inline void mwdebi(struct av7110 *av7110, u32 config, int addr, char *val, int count)
+static inline void mwdebi(struct av7110 *av7110, u32 config, int addr, u8 *val, int count)
 {
 	memcpy(av7110->debi_virt, val, count);
 	av7110_debiwrite(av7110, config, addr, 0, count);

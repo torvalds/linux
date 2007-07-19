@@ -118,14 +118,13 @@ MODULE_PARM_DESC(max_speed, "Force max speed "
 		 "(3 = 800Mb/s, 2 = 400Mb/s, 1 = 200Mb/s, 0 = 100Mb/s)");
 
 /*
- * Set serialize_io to 1 if you'd like only one scsi command sent
- * down to us at a time (debugging). This might be necessary for very
- * badly behaved sbp2 devices.
+ * Set serialize_io to 0 or N to use dynamically appended lists of command ORBs.
+ * This is and always has been buggy in multiple subtle ways. See above TODOs.
  */
 static int sbp2_serialize_io = 1;
-module_param_named(serialize_io, sbp2_serialize_io, int, 0444);
-MODULE_PARM_DESC(serialize_io, "Serialize I/O coming from scsi drivers "
-		 "(default = 1, faster = 0)");
+module_param_named(serialize_io, sbp2_serialize_io, bool, 0444);
+MODULE_PARM_DESC(serialize_io, "Serialize requests coming from SCSI drivers "
+		 "(default = Y, faster but buggy = N)");
 
 /*
  * Bump up max_sectors if you'd like to support very large sized
@@ -154,9 +153,9 @@ MODULE_PARM_DESC(max_sectors, "Change max sectors per I/O supported "
  * are possible on OXFW911 and newer Oxsemi bridges.
  */
 static int sbp2_exclusive_login = 1;
-module_param_named(exclusive_login, sbp2_exclusive_login, int, 0644);
+module_param_named(exclusive_login, sbp2_exclusive_login, bool, 0644);
 MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
-		 "(default = 1)");
+		 "(default = Y, use N for concurrent initiators)");
 
 /*
  * If any of the following workarounds is required for your device to work,
@@ -1510,69 +1509,6 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 	}
 }
 
-static void sbp2_prep_command_orb_no_sg(struct sbp2_command_orb *orb,
-					struct sbp2_fwhost_info *hi,
-					struct sbp2_command_info *cmd,
-					struct scatterlist *sgpnt,
-					u32 orb_direction,
-					unsigned int scsi_request_bufflen,
-					void *scsi_request_buffer,
-					enum dma_data_direction dma_dir)
-{
-	cmd->dma_dir = dma_dir;
-	cmd->dma_size = scsi_request_bufflen;
-	cmd->dma_type = CMD_DMA_SINGLE;
-	cmd->cmd_dma = dma_map_single(hi->host->device.parent,
-				      scsi_request_buffer,
-				      cmd->dma_size, cmd->dma_dir);
-	orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
-	orb->misc |= ORB_SET_DIRECTION(orb_direction);
-
-	/* handle case where we get a command w/o s/g enabled
-	 * (but check for transfers larger than 64K) */
-	if (scsi_request_bufflen <= SBP2_MAX_SG_ELEMENT_LENGTH) {
-
-		orb->data_descriptor_lo = cmd->cmd_dma;
-		orb->misc |= ORB_SET_DATA_SIZE(scsi_request_bufflen);
-
-	} else {
-		/* The buffer is too large. Turn this into page tables. */
-
-		struct sbp2_unrestricted_page_table *sg_element =
-						&cmd->scatter_gather_element[0];
-		u32 sg_count, sg_len;
-		dma_addr_t sg_addr;
-
-		orb->data_descriptor_lo = cmd->sge_dma;
-		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
-
-		/* fill out our SBP-2 page tables; split up the large buffer */
-		sg_count = 0;
-		sg_len = scsi_request_bufflen;
-		sg_addr = cmd->cmd_dma;
-		while (sg_len) {
-			sg_element[sg_count].segment_base_lo = sg_addr;
-			if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
-				sg_element[sg_count].length_segment_base_hi =
-					PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
-				sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
-				sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
-			} else {
-				sg_element[sg_count].length_segment_base_hi =
-					PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
-				sg_len = 0;
-			}
-			sg_count++;
-		}
-
-		orb->misc |= ORB_SET_DATA_SIZE(sg_count);
-
-		sbp2util_cpu_to_be32_buffer(sg_element,
-				(sizeof(struct sbp2_unrestricted_page_table)) *
-				sg_count);
-	}
-}
-
 static void sbp2_create_command_orb(struct sbp2_lu *lu,
 				    struct sbp2_command_info *cmd,
 				    unchar *scsi_cmd,
@@ -1616,13 +1552,9 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 		orb->data_descriptor_hi = 0x0;
 		orb->data_descriptor_lo = 0x0;
 		orb->misc |= ORB_SET_DIRECTION(1);
-	} else if (scsi_use_sg)
+	} else
 		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_use_sg, sgpnt,
 					 orb_direction, dma_dir);
-	else
-		sbp2_prep_command_orb_no_sg(orb, hi, cmd, sgpnt, orb_direction,
-					    scsi_request_bufflen,
-					    scsi_request_buffer, dma_dir);
 
 	sbp2util_cpu_to_be32_buffer(orb, sizeof(*orb));
 
@@ -1711,15 +1643,15 @@ static int sbp2_send_command(struct sbp2_lu *lu, struct scsi_cmnd *SCpnt,
 			     void (*done)(struct scsi_cmnd *))
 {
 	unchar *scsi_cmd = (unchar *)SCpnt->cmnd;
-	unsigned int request_bufflen = SCpnt->request_bufflen;
+	unsigned int request_bufflen = scsi_bufflen(SCpnt);
 	struct sbp2_command_info *cmd;
 
 	cmd = sbp2util_allocate_command_orb(lu, SCpnt, done);
 	if (!cmd)
 		return -EIO;
 
-	sbp2_create_command_orb(lu, cmd, scsi_cmd, SCpnt->use_sg,
-				request_bufflen, SCpnt->request_buffer,
+	sbp2_create_command_orb(lu, cmd, scsi_cmd, scsi_sg_count(SCpnt),
+				request_bufflen, scsi_sglist(SCpnt),
 				SCpnt->sc_data_direction);
 	sbp2_link_orb_command(lu, cmd);
 

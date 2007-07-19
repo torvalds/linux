@@ -112,12 +112,8 @@ static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 static struct elevator_type *elevator_find(const char *name)
 {
 	struct elevator_type *e;
-	struct list_head *entry;
 
-	list_for_each(entry, &elv_list) {
-
-		e = list_entry(entry, struct elevator_type, list);
-
+	list_for_each_entry(e, &elv_list, list) {
 		if (!strcmp(e->elevator_name, name))
 			return e;
 	}
@@ -181,11 +177,10 @@ static elevator_t *elevator_alloc(request_queue_t *q, struct elevator_type *e)
 	elevator_t *eq;
 	int i;
 
-	eq = kmalloc_node(sizeof(elevator_t), GFP_KERNEL, q->node);
+	eq = kmalloc_node(sizeof(elevator_t), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (unlikely(!eq))
 		goto err;
 
-	memset(eq, 0, sizeof(*eq));
 	eq->ops = &e->ops;
 	eq->elevator_type = e;
 	kobject_init(&eq->kobj);
@@ -1116,14 +1111,11 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 {
 	elevator_t *e = q->elevator;
 	struct elevator_type *elv = e->elevator_type;
-	struct list_head *entry;
+	struct elevator_type *__e;
 	int len = 0;
 
 	spin_lock(&elv_list_lock);
-	list_for_each(entry, &elv_list) {
-		struct elevator_type *__e;
-
-		__e = list_entry(entry, struct elevator_type, list);
+	list_for_each_entry(__e, &elv_list, list) {
 		if (!strcmp(elv->elevator_name, __e->elevator_name))
 			len += sprintf(name+len, "[%s] ", elv->elevator_name);
 		else

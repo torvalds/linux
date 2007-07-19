@@ -1639,14 +1639,11 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 {
 	struct snd_card *card;
 	struct atiixp *chip;
-	unsigned char revision;
 	int err;
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
-
-	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
 
 	strcpy(card->driver, spdif_aclink ? "ATIIXP" : "ATIIXP-SPDMA");
 	strcpy(card->shortname, "ATI IXP");
@@ -1670,7 +1667,8 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 	snd_atiixp_chip_start(chip);
 
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s rev %x with %s at %#lx, irq %i", card->shortname, revision,
+		 "%s rev %x with %s at %#lx, irq %i", card->shortname,
+		 pci->revision,
 		 chip->ac97[0] ? snd_ac97_get_short_name(chip->ac97[0]) : "?",
 		 chip->addr, chip->irq);
 

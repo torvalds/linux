@@ -19,23 +19,23 @@
 #define _H_JFS_DINODE
 
 /*
- *      jfs_dinode.h: on-disk inode manager
+ *	jfs_dinode.h: on-disk inode manager
  */
 
-#define INODESLOTSIZE           128
-#define L2INODESLOTSIZE         7
-#define log2INODESIZE           9	/* log2(bytes per dinode) */
+#define INODESLOTSIZE		128
+#define L2INODESLOTSIZE		7
+#define log2INODESIZE		9	/* log2(bytes per dinode) */
 
 
 /*
- *      on-disk inode : 512 bytes
+ *	on-disk inode : 512 bytes
  *
  * note: align 64-bit fields on 8-byte boundary.
  */
 struct dinode {
 	/*
-	 *      I. base area (128 bytes)
-	 *      ------------------------
+	 *	I. base area (128 bytes)
+	 *	------------------------
 	 *
 	 * define generic/POSIX attributes
 	 */
@@ -70,16 +70,16 @@ struct dinode {
 	__le32 di_acltype;	/* 4: Type of ACL */
 
 	/*
-	 *      Extension Areas.
+	 *	Extension Areas.
 	 *
-	 *      Historically, the inode was partitioned into 4 128-byte areas,
-	 *      the last 3 being defined as unions which could have multiple
-	 *      uses.  The first 96 bytes had been completely unused until
-	 *      an index table was added to the directory.  It is now more
-	 *      useful to describe the last 3/4 of the inode as a single
-	 *      union.  We would probably be better off redesigning the
-	 *      entire structure from scratch, but we don't want to break
-	 *      commonality with OS/2's JFS at this time.
+	 *	Historically, the inode was partitioned into 4 128-byte areas,
+	 *	the last 3 being defined as unions which could have multiple
+	 *	uses.  The first 96 bytes had been completely unused until
+	 *	an index table was added to the directory.  It is now more
+	 *	useful to describe the last 3/4 of the inode as a single
+	 *	union.  We would probably be better off redesigning the
+	 *	entire structure from scratch, but we don't want to break
+	 *	commonality with OS/2's JFS at this time.
 	 */
 	union {
 		struct {
@@ -95,7 +95,7 @@ struct dinode {
 		} _dir;					/* (384) */
 #define di_dirtable	u._dir._table
 #define di_dtroot	u._dir._dtroot
-#define di_parent       di_dtroot.header.idotdot
+#define di_parent	di_dtroot.header.idotdot
 #define di_DASD		di_dtroot.header.DASD
 
 		struct {
@@ -127,14 +127,14 @@ struct dinode {
 #define di_inlinedata	u._file._u2._special._u
 #define di_rdev		u._file._u2._special._u._rdev
 #define di_fastsymlink	u._file._u2._special._u._fastsymlink
-#define di_inlineea     u._file._u2._special._inlineea
+#define di_inlineea	u._file._u2._special._inlineea
 	} u;
 };
 
 /* extended mode bits (on-disk inode di_mode) */
-#define IFJOURNAL       0x00010000	/* journalled file */
-#define ISPARSE         0x00020000	/* sparse file enabled */
-#define INLINEEA        0x00040000	/* inline EA area free */
+#define IFJOURNAL	0x00010000	/* journalled file */
+#define ISPARSE		0x00020000	/* sparse file enabled */
+#define INLINEEA	0x00040000	/* inline EA area free */
 #define ISWAPFILE	0x00800000	/* file open for pager swap space */
 
 /* more extended mode bits: attributes for OS/2 */

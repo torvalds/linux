@@ -1,5 +1,6 @@
 config PCI
 	bool "PCI support"
+	depends on SYS_SUPPORTS_PCI
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside

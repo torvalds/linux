@@ -197,6 +197,13 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	}
 
 	/*
+	 * Drop packets that this interface sent, ie multicast packets
+	 * that the HCA has replicated.
+	 */
+	if (wc->slid == priv->local_lid && wc->src_qp == priv->qp->qp_num)
+		goto repost;
+
+	/*
 	 * If we can't allocate a new RX buffer, dump
 	 * this packet and reuse the old buffer.
 	 */
@@ -213,24 +220,18 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb_put(skb, wc->byte_len);
 	skb_pull(skb, IB_GRH_BYTES);
 
-	if (wc->slid != priv->local_lid ||
-	    wc->src_qp != priv->qp->qp_num) {
-		skb->protocol = ((struct ipoib_header *) skb->data)->proto;
-		skb_reset_mac_header(skb);
-		skb_pull(skb, IPOIB_ENCAP_LEN);
+	skb->protocol = ((struct ipoib_header *) skb->data)->proto;
+	skb_reset_mac_header(skb);
+	skb_pull(skb, IPOIB_ENCAP_LEN);
 
-		dev->last_rx = jiffies;
-		++priv->stats.rx_packets;
-		priv->stats.rx_bytes += skb->len;
+	dev->last_rx = jiffies;
+	++priv->stats.rx_packets;
+	priv->stats.rx_bytes += skb->len;
 
-		skb->dev = dev;
-		/* XXX get correct PACKET_ type here */
-		skb->pkt_type = PACKET_HOST;
-		netif_receive_skb(skb);
-	} else {
-		ipoib_dbg_data(priv, "dropping loopback packet\n");
-		dev_kfree_skb_any(skb);
-	}
+	skb->dev = dev;
+	/* XXX get correct PACKET_ type here */
+	skb->pkt_type = PACKET_HOST;
+	netif_receive_skb(skb);
 
 repost:
 	if (unlikely(ipoib_ib_post_receive(dev, wr_id)))

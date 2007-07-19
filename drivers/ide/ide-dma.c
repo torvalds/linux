@@ -91,45 +91,45 @@
 
 static const struct drive_list_entry drive_whitelist [] = {
 
-	{ "Micropolis 2112A"	,       "ALL"		},
-	{ "CONNER CTMA 4000"	,       "ALL"		},
-	{ "CONNER CTT8000-A"	,       "ALL"		},
-	{ "ST34342A"		,	"ALL"		},
+	{ "Micropolis 2112A"	,       NULL		},
+	{ "CONNER CTMA 4000"	,       NULL		},
+	{ "CONNER CTT8000-A"	,       NULL		},
+	{ "ST34342A"		,	NULL		},
 	{ NULL			,	NULL		}
 };
 
 static const struct drive_list_entry drive_blacklist [] = {
 
-	{ "WDC AC11000H"	,	"ALL"		},
-	{ "WDC AC22100H"	,	"ALL"		},
-	{ "WDC AC32500H"	,	"ALL"		},
-	{ "WDC AC33100H"	,	"ALL"		},
-	{ "WDC AC31600H"	,	"ALL"		},
+	{ "WDC AC11000H"	,	NULL 		},
+	{ "WDC AC22100H"	,	NULL 		},
+	{ "WDC AC32500H"	,	NULL 		},
+	{ "WDC AC33100H"	,	NULL 		},
+	{ "WDC AC31600H"	,	NULL 		},
 	{ "WDC AC32100H"	,	"24.09P07"	},
 	{ "WDC AC23200L"	,	"21.10N21"	},
-	{ "Compaq CRD-8241B"	,	"ALL"		},
-	{ "CRD-8400B"		,	"ALL"		},
-	{ "CRD-8480B",			"ALL"		},
-	{ "CRD-8482B",			"ALL"		},
- 	{ "CRD-84"		,	"ALL"		},
-	{ "SanDisk SDP3B"	,	"ALL"		},
-	{ "SanDisk SDP3B-64"	,	"ALL"		},
-	{ "SANYO CD-ROM CRD"	,	"ALL"		},
-	{ "HITACHI CDR-8"	,	"ALL"		},
-	{ "HITACHI CDR-8335"	,	"ALL"		},
-	{ "HITACHI CDR-8435"	,	"ALL"		},
-	{ "Toshiba CD-ROM XM-6202B"	,	"ALL"		},
-	{ "TOSHIBA CD-ROM XM-1702BC",	"ALL"		},
-	{ "CD-532E-A"		,	"ALL"		},
-	{ "E-IDE CD-ROM CR-840",	"ALL"		},
-	{ "CD-ROM Drive/F5A",	"ALL"		},
-	{ "WPI CDD-820",		"ALL"		},
-	{ "SAMSUNG CD-ROM SC-148C",	"ALL"		},
-	{ "SAMSUNG CD-ROM SC",	"ALL"		},
-	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",	"ALL"		},
-	{ "_NEC DV5800A",               "ALL"           },  
+	{ "Compaq CRD-8241B"	,	NULL 		},
+	{ "CRD-8400B"		,	NULL 		},
+	{ "CRD-8480B",			NULL 		},
+	{ "CRD-8482B",			NULL 		},
+	{ "CRD-84"		,	NULL 		},
+	{ "SanDisk SDP3B"	,	NULL 		},
+	{ "SanDisk SDP3B-64"	,	NULL 		},
+	{ "SANYO CD-ROM CRD"	,	NULL 		},
+	{ "HITACHI CDR-8"	,	NULL 		},
+	{ "HITACHI CDR-8335"	,	NULL 		},
+	{ "HITACHI CDR-8435"	,	NULL 		},
+	{ "Toshiba CD-ROM XM-6202B"	,	NULL 		},
+	{ "TOSHIBA CD-ROM XM-1702BC",	NULL 		},
+	{ "CD-532E-A"		,	NULL 		},
+	{ "E-IDE CD-ROM CR-840",	NULL 		},
+	{ "CD-ROM Drive/F5A",	NULL 		},
+	{ "WPI CDD-820",		NULL 		},
+	{ "SAMSUNG CD-ROM SC-148C",	NULL 		},
+	{ "SAMSUNG CD-ROM SC",	NULL 		},
+	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",	NULL 		},
+	{ "_NEC DV5800A",               NULL            },
 	{ "SAMSUNG CD-ROM SN-124",	"N001" },
-	{ "Seagate STT20000A",		"ALL" },
+	{ "Seagate STT20000A",		NULL  },
 	{ NULL			,	NULL		}
 
 };
@@ -147,8 +147,8 @@ int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *driv
 {
 	for ( ; drive_table->id_model ; drive_table++)
 		if ((!strcmp(drive_table->id_model, id->model)) &&
-		    ((strstr(id->fw_rev, drive_table->id_firmware)) ||
-		     (!strcmp(drive_table->id_firmware, "ALL"))))
+		    (!drive_table->id_firmware ||
+		     strstr(id->fw_rev, drive_table->id_firmware)))
 			return 1;
 	return 0;
 }
@@ -702,8 +702,22 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 			mask = id->dma_mword & hwif->mwdma_mask;
 		break;
 	case XFER_SW_DMA_0:
-		if (id->field_valid & 2)
+		if (id->field_valid & 2) {
 			mask = id->dma_1word & hwif->swdma_mask;
+		} else if (id->tDMA) {
+			/*
+			 * ide_fix_driveid() doesn't convert ->tDMA to the
+			 * CPU endianness so we need to do it here
+			 */
+			u8 mode = le16_to_cpu(id->tDMA);
+
+			/*
+			 * if the mode is valid convert it to the mask
+			 * (the maximum allowed mode is XFER_SW_DMA_2)
+			 */
+			if (mode <= 2)
+				mask = ((2 << mode) - 1) & hwif->swdma_mask;
+		}
 		break;
 	default:
 		BUG();
@@ -847,27 +861,27 @@ int ide_set_dma(ide_drive_t *drive)
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(ide_set_dma);
-
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
-int __ide_dma_lostirq (ide_drive_t *drive)
+void ide_dma_lost_irq (ide_drive_t *drive)
 {
 	printk("%s: DMA interrupt recovery\n", drive->name);
-	return 1;
 }
 
-EXPORT_SYMBOL(__ide_dma_lostirq);
+EXPORT_SYMBOL(ide_dma_lost_irq);
 
-int __ide_dma_timeout (ide_drive_t *drive)
+void ide_dma_timeout (ide_drive_t *drive)
 {
-	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
-	if (HWIF(drive)->ide_dma_test_irq(drive))
-		return 0;
+	ide_hwif_t *hwif = HWIF(drive);
 
-	return HWIF(drive)->ide_dma_end(drive);
+	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
+
+	if (hwif->ide_dma_test_irq(drive))
+		return;
+
+	hwif->ide_dma_end(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_timeout);
+EXPORT_SYMBOL(ide_dma_timeout);
 
 /*
  * Needed for allowing full modular support of ide-driver
@@ -1018,10 +1032,10 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 		hwif->ide_dma_end = &__ide_dma_end;
 	if (!hwif->ide_dma_test_irq)
 		hwif->ide_dma_test_irq = &__ide_dma_test_irq;
-	if (!hwif->ide_dma_timeout)
-		hwif->ide_dma_timeout = &__ide_dma_timeout;
-	if (!hwif->ide_dma_lostirq)
-		hwif->ide_dma_lostirq = &__ide_dma_lostirq;
+	if (!hwif->dma_timeout)
+		hwif->dma_timeout = &ide_dma_timeout;
+	if (!hwif->dma_lost_irq)
+		hwif->dma_lost_irq = &ide_dma_lost_irq;
 
 	if (hwif->chipset != ide_trm290) {
 		u8 dma_stat = hwif->INB(hwif->dma_status);

@@ -102,18 +102,9 @@ static struct nfs_client *nfs_alloc_client(const char *hostname,
 					   int nfsversion)
 {
 	struct nfs_client *clp;
-	int error;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
-
-	error = rpciod_up();
-	if (error < 0) {
-		dprintk("%s: couldn't start rpciod! Error = %d\n",
-				__FUNCTION__, error);
-		goto error_1;
-	}
-	__set_bit(NFS_CS_RPCIOD, &clp->cl_res_state);
 
 	if (nfsversion == 4) {
 		if (nfs_callback_up() < 0)
@@ -139,8 +130,6 @@ static struct nfs_client *nfs_alloc_client(const char *hostname,
 #ifdef CONFIG_NFS_V4
 	init_rwsem(&clp->cl_sem);
 	INIT_LIST_HEAD(&clp->cl_delegations);
-	INIT_LIST_HEAD(&clp->cl_state_owners);
-	INIT_LIST_HEAD(&clp->cl_unused);
 	spin_lock_init(&clp->cl_lock);
 	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
@@ -154,9 +143,6 @@ error_3:
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
 		nfs_callback_down();
 error_2:
-	rpciod_down();
-	__clear_bit(NFS_CS_RPCIOD, &clp->cl_res_state);
-error_1:
 	kfree(clp);
 error_0:
 	return NULL;
@@ -167,16 +153,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 #ifdef CONFIG_NFS_V4
 	if (__test_and_clear_bit(NFS_CS_RENEWD, &clp->cl_res_state))
 		nfs4_kill_renewd(clp);
-	while (!list_empty(&clp->cl_unused)) {
-		struct nfs4_state_owner *sp;
-
-		sp = list_entry(clp->cl_unused.next,
-				struct nfs4_state_owner,
-				so_list);
-		list_del(&sp->so_list);
-		kfree(sp);
-	}
-	BUG_ON(!list_empty(&clp->cl_state_owners));
+	BUG_ON(!RB_EMPTY_ROOT(&clp->cl_state_owners));
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);
 #endif
@@ -197,9 +174,6 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
 		nfs_callback_down();
-
-	if (__test_and_clear_bit(NFS_CS_RPCIOD, &clp->cl_res_state))
-		rpciod_down();
 
 	kfree(clp->cl_hostname);
 	kfree(clp);
@@ -1232,23 +1206,9 @@ static int nfs_server_list_open(struct inode *inode, struct file *file)
  */
 static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
 {
-	struct list_head *_p;
-	loff_t pos = *_pos;
-
 	/* lock the list against modification */
 	spin_lock(&nfs_client_lock);
-
-	/* allow for the header line */
-	if (!pos)
-		return SEQ_START_TOKEN;
-	pos--;
-
-	/* find the n'th element in the list */
-	list_for_each(_p, &nfs_client_list)
-		if (!pos--)
-			break;
-
-	return _p != &nfs_client_list ? _p : NULL;
+	return seq_list_start_head(&nfs_client_list, *_pos);
 }
 
 /*
@@ -1256,14 +1216,7 @@ static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
  */
 static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	struct list_head *_p;
-
-	(*pos)++;
-
-	_p = v;
-	_p = (v == SEQ_START_TOKEN) ? nfs_client_list.next : _p->next;
-
-	return _p != &nfs_client_list ? _p : NULL;
+	return seq_list_next(v, &nfs_client_list, pos);
 }
 
 /*
@@ -1282,7 +1235,7 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
 	struct nfs_client *clp;
 
 	/* display header on line 1 */
-	if (v == SEQ_START_TOKEN) {
+	if (v == &nfs_client_list) {
 		seq_puts(m, "NV SERVER   PORT USE HOSTNAME\n");
 		return 0;
 	}
@@ -1323,23 +1276,9 @@ static int nfs_volume_list_open(struct inode *inode, struct file *file)
  */
 static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
 {
-	struct list_head *_p;
-	loff_t pos = *_pos;
-
 	/* lock the list against modification */
 	spin_lock(&nfs_client_lock);
-
-	/* allow for the header line */
-	if (!pos)
-		return SEQ_START_TOKEN;
-	pos--;
-
-	/* find the n'th element in the list */
-	list_for_each(_p, &nfs_volume_list)
-		if (!pos--)
-			break;
-
-	return _p != &nfs_volume_list ? _p : NULL;
+	return seq_list_start_head(&nfs_volume_list, *_pos);
 }
 
 /*
@@ -1347,14 +1286,7 @@ static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
  */
 static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	struct list_head *_p;
-
-	(*pos)++;
-
-	_p = v;
-	_p = (v == SEQ_START_TOKEN) ? nfs_volume_list.next : _p->next;
-
-	return _p != &nfs_volume_list ? _p : NULL;
+	return seq_list_next(v, &nfs_volume_list, pos);
 }
 
 /*
@@ -1375,7 +1307,7 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 	char dev[8], fsid[17];
 
 	/* display header on line 1 */
-	if (v == SEQ_START_TOKEN) {
+	if (v == &nfs_volume_list) {
 		seq_puts(m, "NV SERVER   PORT DEV     FSID\n");
 		return 0;
 	}

@@ -8,8 +8,12 @@
 
 #include <linux/irqflags.h>
 #include <linux/compiler.h>
+#include <linux/linkage.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
+
+struct task_struct *__switch_to(struct task_struct *prev,
+				struct task_struct *next);
 
 /*
  *	switch_to() should switch tasks to task nr n, first
@@ -122,7 +126,7 @@ static inline void sched_cacheflush(void)
 #define smp_read_barrier_depends()	do { } while(0)
 #endif
 
-#define set_mb(var, value) do { xchg(&var, value); } while (0)
+#define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 
 /*
  * Jump to P2 area.
@@ -270,6 +274,16 @@ extern unsigned int instruction_size(unsigned int insn);
 #define HAVE_DISABLE_HLT
 void disable_hlt(void);
 void enable_hlt(void);
+
+void default_idle(void);
+
+asmlinkage void break_point_trap(void);
+asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
+				   unsigned long r6, unsigned long r7,
+				   struct pt_regs __regs);
+asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
+				 unsigned long r6, unsigned long r7,
+				 struct pt_regs __regs);
 
 #define arch_align_stack(x) (x)
 

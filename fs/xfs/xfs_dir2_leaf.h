@@ -32,7 +32,7 @@ struct xfs_trans;
 #define	XFS_DIR2_LEAF_SPACE	1
 #define	XFS_DIR2_LEAF_OFFSET	(XFS_DIR2_LEAF_SPACE * XFS_DIR2_SPACE_SIZE)
 #define	XFS_DIR2_LEAF_FIRSTDB(mp)	\
-	XFS_DIR2_BYTE_TO_DB(mp, XFS_DIR2_LEAF_OFFSET)
+	xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET)
 
 /*
  * Offset in data space of a data entry.
@@ -82,7 +82,6 @@ typedef struct xfs_dir2_leaf {
  * DB blocks here are logical directory block numbers, not filesystem blocks.
  */
 
-#define	XFS_DIR2_MAX_LEAF_ENTS(mp)	xfs_dir2_max_leaf_ents(mp)
 static inline int xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
 {
 	return (int)(((mp)->m_dirblksize - (uint)sizeof(xfs_dir2_leaf_hdr_t)) /
@@ -92,7 +91,6 @@ static inline int xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
 /*
  * Get address of the bestcount field in the single-leaf block.
  */
-#define	XFS_DIR2_LEAF_TAIL_P(mp,lp)	xfs_dir2_leaf_tail_p(mp, lp)
 static inline xfs_dir2_leaf_tail_t *
 xfs_dir2_leaf_tail_p(struct xfs_mount *mp, xfs_dir2_leaf_t *lp)
 {
@@ -104,7 +102,6 @@ xfs_dir2_leaf_tail_p(struct xfs_mount *mp, xfs_dir2_leaf_t *lp)
 /*
  * Get address of the bests array in the single-leaf block.
  */
-#define	XFS_DIR2_LEAF_BESTS_P(ltp)	xfs_dir2_leaf_bests_p(ltp)
 static inline __be16 *
 xfs_dir2_leaf_bests_p(xfs_dir2_leaf_tail_t *ltp)
 {
@@ -114,7 +111,6 @@ xfs_dir2_leaf_bests_p(xfs_dir2_leaf_tail_t *ltp)
 /*
  * Convert dataptr to byte in file space
  */
-#define	XFS_DIR2_DATAPTR_TO_BYTE(mp,dp)	xfs_dir2_dataptr_to_byte(mp, dp)
 static inline xfs_dir2_off_t
 xfs_dir2_dataptr_to_byte(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 {
@@ -124,7 +120,6 @@ xfs_dir2_dataptr_to_byte(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 /*
  * Convert byte in file space to dataptr.  It had better be aligned.
  */
-#define	XFS_DIR2_BYTE_TO_DATAPTR(mp,by)	xfs_dir2_byte_to_dataptr(mp,by)
 static inline xfs_dir2_dataptr_t
 xfs_dir2_byte_to_dataptr(struct xfs_mount *mp, xfs_dir2_off_t by)
 {
@@ -134,7 +129,6 @@ xfs_dir2_byte_to_dataptr(struct xfs_mount *mp, xfs_dir2_off_t by)
 /*
  * Convert byte in space to (DB) block
  */
-#define	XFS_DIR2_BYTE_TO_DB(mp,by)	xfs_dir2_byte_to_db(mp, by)
 static inline xfs_dir2_db_t
 xfs_dir2_byte_to_db(struct xfs_mount *mp, xfs_dir2_off_t by)
 {
@@ -145,17 +139,15 @@ xfs_dir2_byte_to_db(struct xfs_mount *mp, xfs_dir2_off_t by)
 /*
  * Convert dataptr to a block number
  */
-#define	XFS_DIR2_DATAPTR_TO_DB(mp,dp)	xfs_dir2_dataptr_to_db(mp, dp)
 static inline xfs_dir2_db_t
 xfs_dir2_dataptr_to_db(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 {
-	return XFS_DIR2_BYTE_TO_DB(mp, XFS_DIR2_DATAPTR_TO_BYTE(mp, dp));
+	return xfs_dir2_byte_to_db(mp, xfs_dir2_dataptr_to_byte(mp, dp));
 }
 
 /*
  * Convert byte in space to offset in a block
  */
-#define	XFS_DIR2_BYTE_TO_OFF(mp,by)	xfs_dir2_byte_to_off(mp, by)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_byte_to_off(struct xfs_mount *mp, xfs_dir2_off_t by)
 {
@@ -166,18 +158,15 @@ xfs_dir2_byte_to_off(struct xfs_mount *mp, xfs_dir2_off_t by)
 /*
  * Convert dataptr to a byte offset in a block
  */
-#define	XFS_DIR2_DATAPTR_TO_OFF(mp,dp)	xfs_dir2_dataptr_to_off(mp, dp)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_dataptr_to_off(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 {
-	return XFS_DIR2_BYTE_TO_OFF(mp, XFS_DIR2_DATAPTR_TO_BYTE(mp, dp));
+	return xfs_dir2_byte_to_off(mp, xfs_dir2_dataptr_to_byte(mp, dp));
 }
 
 /*
  * Convert block and offset to byte in space
  */
-#define	XFS_DIR2_DB_OFF_TO_BYTE(mp,db,o)	\
-	xfs_dir2_db_off_to_byte(mp, db, o)
 static inline xfs_dir2_off_t
 xfs_dir2_db_off_to_byte(struct xfs_mount *mp, xfs_dir2_db_t db,
 			xfs_dir2_data_aoff_t o)
@@ -189,7 +178,6 @@ xfs_dir2_db_off_to_byte(struct xfs_mount *mp, xfs_dir2_db_t db,
 /*
  * Convert block (DB) to block (dablk)
  */
-#define	XFS_DIR2_DB_TO_DA(mp,db)	xfs_dir2_db_to_da(mp, db)
 static inline xfs_dablk_t
 xfs_dir2_db_to_da(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
@@ -199,29 +187,25 @@ xfs_dir2_db_to_da(struct xfs_mount *mp, xfs_dir2_db_t db)
 /*
  * Convert byte in space to (DA) block
  */
-#define	XFS_DIR2_BYTE_TO_DA(mp,by)	xfs_dir2_byte_to_da(mp, by)
 static inline xfs_dablk_t
 xfs_dir2_byte_to_da(struct xfs_mount *mp, xfs_dir2_off_t by)
 {
-	return XFS_DIR2_DB_TO_DA(mp, XFS_DIR2_BYTE_TO_DB(mp, by));
+	return xfs_dir2_db_to_da(mp, xfs_dir2_byte_to_db(mp, by));
 }
 
 /*
  * Convert block and offset to dataptr
  */
-#define	XFS_DIR2_DB_OFF_TO_DATAPTR(mp,db,o)	\
-	xfs_dir2_db_off_to_dataptr(mp, db, o)
 static inline xfs_dir2_dataptr_t
 xfs_dir2_db_off_to_dataptr(struct xfs_mount *mp, xfs_dir2_db_t db,
 			   xfs_dir2_data_aoff_t o)
 {
-	return XFS_DIR2_BYTE_TO_DATAPTR(mp, XFS_DIR2_DB_OFF_TO_BYTE(mp, db, o));
+	return xfs_dir2_byte_to_dataptr(mp, xfs_dir2_db_off_to_byte(mp, db, o));
 }
 
 /*
  * Convert block (dablk) to block (DB)
  */
-#define	XFS_DIR2_DA_TO_DB(mp,da)	xfs_dir2_da_to_db(mp, da)
 static inline xfs_dir2_db_t
 xfs_dir2_da_to_db(struct xfs_mount *mp, xfs_dablk_t da)
 {
@@ -231,11 +215,10 @@ xfs_dir2_da_to_db(struct xfs_mount *mp, xfs_dablk_t da)
 /*
  * Convert block (dablk) to byte offset in space
  */
-#define XFS_DIR2_DA_TO_BYTE(mp,da)	xfs_dir2_da_to_byte(mp, da)
 static inline xfs_dir2_off_t
 xfs_dir2_da_to_byte(struct xfs_mount *mp, xfs_dablk_t da)
 {
-	return XFS_DIR2_DB_OFF_TO_BYTE(mp, XFS_DIR2_DA_TO_DB(mp, da), 0);
+	return xfs_dir2_db_off_to_byte(mp, xfs_dir2_da_to_db(mp, da), 0);
 }
 
 /*

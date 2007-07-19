@@ -2721,9 +2721,9 @@ static void __devexit sx_pci_remove(struct pci_dev *pdev)
    its because the standard requires it. So check for SUBVENDOR_ID. */
 static struct pci_device_id sx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8,
-		.subvendor = 0x0200,.subdevice = PCI_ANY_ID },
+		.subvendor = PCI_ANY_ID, .subdevice = 0x0200 },
 	{ PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8,
-		.subvendor = 0x0300,.subdevice = PCI_ANY_ID },
+		.subvendor = PCI_ANY_ID, .subdevice = 0x0300 },
 	{ 0 }
 };
 

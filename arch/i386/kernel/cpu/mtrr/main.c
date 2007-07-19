@@ -229,6 +229,8 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 	data.smp_size = size;
 	data.smp_type = type;
 	atomic_set(&data.count, num_booting_cpus() - 1);
+	/* make sure data.count is visible before unleashing other CPUs */
+	smp_wmb();
 	atomic_set(&data.gate,0);
 
 	/*  Start the ball rolling on other CPUs  */
@@ -242,6 +244,7 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 
 	/* ok, reset count and toggle gate */
 	atomic_set(&data.count, num_booting_cpus() - 1);
+	smp_wmb();
 	atomic_set(&data.gate,1);
 
 	/* do our MTRR business */
@@ -260,6 +263,7 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 		cpu_relax();
 
 	atomic_set(&data.count, num_booting_cpus() - 1);
+	smp_wmb();
 	atomic_set(&data.gate,0);
 
 	/*

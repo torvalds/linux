@@ -92,6 +92,8 @@ struct cfq_data {
 	struct cfq_queue *active_queue;
 	struct cfq_io_context *active_cic;
 
+	struct cfq_queue *async_cfqq[IOPRIO_BE_NR];
+
 	struct timer_list idle_class_timer;
 
 	sector_t last_position;
@@ -1249,9 +1251,9 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
 	struct cfq_io_context *cic;
 
-	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask, cfqd->queue->node);
+	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask | __GFP_ZERO,
+							cfqd->queue->node);
 	if (cic) {
-		memset(cic, 0, sizeof(*cic));
 		cic->last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
 		cic->dtor = cfq_free_io_context;
@@ -1351,8 +1353,8 @@ static void cfq_ioc_set_ioprio(struct io_context *ioc)
 }
 
 static struct cfq_queue *
-cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
-	      gfp_t gfp_mask)
+cfq_find_alloc_queue(struct cfq_data *cfqd, int is_sync,
+		     struct task_struct *tsk, gfp_t gfp_mask)
 {
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
 	struct cfq_io_context *cic;
@@ -1374,16 +1376,18 @@ retry:
 			 * free memory.
 			 */
 			spin_unlock_irq(cfqd->queue->queue_lock);
-			new_cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask|__GFP_NOFAIL, cfqd->queue->node);
+			new_cfqq = kmem_cache_alloc_node(cfq_pool,
+					gfp_mask | __GFP_NOFAIL | __GFP_ZERO,
+					cfqd->queue->node);
 			spin_lock_irq(cfqd->queue->queue_lock);
 			goto retry;
 		} else {
-			cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask, cfqd->queue->node);
+			cfqq = kmem_cache_alloc_node(cfq_pool,
+					gfp_mask | __GFP_ZERO,
+					cfqd->queue->node);
 			if (!cfqq)
 				goto out;
 		}
-
-		memset(cfqq, 0, sizeof(*cfqq));
 
 		RB_CLEAR_NODE(&cfqq->rb_node);
 		INIT_LIST_HEAD(&cfqq->fifo);
@@ -1405,9 +1409,32 @@ retry:
 	if (new_cfqq)
 		kmem_cache_free(cfq_pool, new_cfqq);
 
-	atomic_inc(&cfqq->ref);
 out:
 	WARN_ON((gfp_mask & __GFP_WAIT) && !cfqq);
+	return cfqq;
+}
+
+static struct cfq_queue *
+cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
+	      gfp_t gfp_mask)
+{
+	const int ioprio = task_ioprio(tsk);
+	struct cfq_queue *cfqq = NULL;
+
+	if (!is_sync)
+		cfqq = cfqd->async_cfqq[ioprio];
+	if (!cfqq)
+		cfqq = cfq_find_alloc_queue(cfqd, is_sync, tsk, gfp_mask);
+
+	/*
+	 * pin the queue now that it's allocated, scheduler exit will prune it
+	 */
+	if (!is_sync && !cfqd->async_cfqq[ioprio]) {
+		atomic_inc(&cfqq->ref);
+		cfqd->async_cfqq[ioprio] = cfqq;
+	}
+
+	atomic_inc(&cfqq->ref);
 	return cfqq;
 }
 
@@ -2019,6 +2046,7 @@ static void cfq_exit_queue(elevator_t *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
 	request_queue_t *q = cfqd->queue;
+	int i;
 
 	cfq_shutdown_timer_wq(cfqd);
 
@@ -2035,6 +2063,13 @@ static void cfq_exit_queue(elevator_t *e)
 		__cfq_exit_single_io_context(cfqd, cic);
 	}
 
+	/*
+	 * Put the async queues
+	 */
+	for (i = 0; i < IOPRIO_BE_NR; i++)
+		if (cfqd->async_cfqq[i])	
+			cfq_put_queue(cfqd->async_cfqq[i]);
+
 	spin_unlock_irq(q->queue_lock);
 
 	cfq_shutdown_timer_wq(cfqd);
@@ -2046,11 +2081,9 @@ static void *cfq_init_queue(request_queue_t *q)
 {
 	struct cfq_data *cfqd;
 
-	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL, q->node);
+	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (!cfqd)
 		return NULL;
-
-	memset(cfqd, 0, sizeof(*cfqd));
 
 	cfqd->service_tree = CFQ_RB_ROOT;
 	INIT_LIST_HEAD(&cfqd->cic_list);

@@ -19,18 +19,13 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
-
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
 
 #ifdef CONFIG_XFRM
 static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
@@ -113,8 +108,13 @@ nf_nat_fn(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);
-	if (!nat)
-		return NF_ACCEPT;
+	if (!nat) {
+		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
+		if (nat == NULL) {
+			pr_debug("failed to add NAT extension\n");
+			return NF_ACCEPT;
+		}
+	}
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
@@ -148,9 +148,9 @@ nf_nat_fn(unsigned int hooknum,
 				return ret;
 			}
 		} else
-			DEBUGP("Already setup manip %s for ct %p\n",
-			       maniptype == IP_NAT_MANIP_SRC ? "SRC" : "DST",
-			       ct);
+			pr_debug("Already setup manip %s for ct %p\n",
+				 maniptype == IP_NAT_MANIP_SRC ? "SRC" : "DST",
+				 ct);
 		break;
 
 	default:
@@ -264,7 +264,7 @@ nf_nat_adjust(unsigned int hooknum,
 
 	ct = nf_ct_get(*pskb, &ctinfo);
 	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-		DEBUGP("nf_nat_standalone: adjusting sequence number\n");
+		pr_debug("nf_nat_standalone: adjusting sequence number\n");
 		if (!nf_nat_seq_adjust(pskb, ct, ctinfo))
 			return NF_DROP;
 	}
@@ -326,26 +326,10 @@ static struct nf_hook_ops nf_nat_ops[] = {
 
 static int __init nf_nat_standalone_init(void)
 {
-	int size, ret = 0;
+	int ret = 0;
 
 	need_conntrack();
 
-	size = ALIGN(sizeof(struct nf_conn), __alignof__(struct nf_conn_nat)) +
-	       sizeof(struct nf_conn_nat);
-	ret = nf_conntrack_register_cache(NF_CT_F_NAT, "nf_nat:base", size);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
-		return ret;
-	}
-
-	size = ALIGN(size, __alignof__(struct nf_conn_help)) +
-	       sizeof(struct nf_conn_help);
-	ret = nf_conntrack_register_cache(NF_CT_F_NAT|NF_CT_F_HELP,
-					  "nf_nat:help", size);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
-		goto cleanup_register_cache;
-	}
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
 	ip_nat_decode_session = nat_decode_session;
@@ -360,7 +344,6 @@ static int __init nf_nat_standalone_init(void)
 		printk("nf_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
 	}
-	nf_nat_module_is_loaded = 1;
 	return ret;
 
  cleanup_rule_init:
@@ -370,9 +353,6 @@ static int __init nf_nat_standalone_init(void)
 	ip_nat_decode_session = NULL;
 	synchronize_net();
 #endif
-	nf_conntrack_unregister_cache(NF_CT_F_NAT|NF_CT_F_HELP);
- cleanup_register_cache:
-	nf_conntrack_unregister_cache(NF_CT_F_NAT);
 	return ret;
 }
 
@@ -380,7 +360,6 @@ static void __exit nf_nat_standalone_fini(void)
 {
 	nf_unregister_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	nf_nat_rule_cleanup();
-	nf_nat_module_is_loaded = 0;
 #ifdef CONFIG_XFRM
 	ip_nat_decode_session = NULL;
 	synchronize_net();

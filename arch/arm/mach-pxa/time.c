@@ -30,11 +30,6 @@
 #include <asm/arch/pxa-regs.h>
 
 
-static inline unsigned long pxa_get_rtc_time(void)
-{
-	return RCNR;
-}
-
 static int pxa_set_rtc(void)
 {
 	unsigned long current_time = xtime.tv_sec;
@@ -121,10 +116,6 @@ static void __init pxa_timer_init(void)
 	unsigned long flags;
 
 	set_rtc = pxa_set_rtc;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = pxa_get_rtc_time();
-	do_settimeofday(&tv);
 
 	OIER = 0;		/* disable any timer interrupts */
 	OSSR = 0xf;		/* clear status on all timers */

@@ -34,7 +34,6 @@
 
 #include "sound_config.h"
 
-#include "opl3.h"
 #include "opl3_hw.h"
 
 #define MAX_VOICE	18
@@ -73,7 +72,6 @@ typedef struct opl_devinfo
 	unsigned char   cmask;
 
 	int             is_opl4;
-	int            *osp;
 } opl_devinfo;
 
 static struct opl_devinfo *devc = NULL;
@@ -144,7 +142,7 @@ static int opl3_ioctl(int dev, unsigned int cmd, void __user * arg)
 	}
 }
 
-int opl3_detect(int ioaddr, int *osp)
+static int opl3_detect(int ioaddr)
 {
 	/*
 	 * This function returns 1 if the FM chip is present at the given I/O port
@@ -182,7 +180,6 @@ int opl3_detect(int ioaddr, int *osp)
 		goto cleanup_devc;
 	}
 
-	devc->osp = osp;
 	devc->base = ioaddr;
 
 	/* Reset timers 1 and 2 */
@@ -1105,7 +1102,7 @@ static struct synth_operations opl3_operations =
 	.setup_voice	= opl3_setup_voice
 };
 
-int opl3_init(int ioaddr, int *osp, struct module *owner)
+static int opl3_init(int ioaddr, struct module *owner)
 {
 	int i;
 	int me;
@@ -1194,9 +1191,6 @@ int opl3_init(int ioaddr, int *osp, struct module *owner)
 	return me;
 }
 
-EXPORT_SYMBOL(opl3_init);
-EXPORT_SYMBOL(opl3_detect);
-
 static int me;
 
 static int io = -1;
@@ -1209,12 +1203,12 @@ static int __init init_opl3 (void)
 
 	if (io != -1)	/* User loading pure OPL3 module */
 	{
-		if (!opl3_detect(io, NULL))
+		if (!opl3_detect(io))
 		{
 			return -ENODEV;
 		}
 
-		me = opl3_init(io, NULL, THIS_MODULE);
+		me = opl3_init(io, THIS_MODULE);
 	}
 
 	return 0;

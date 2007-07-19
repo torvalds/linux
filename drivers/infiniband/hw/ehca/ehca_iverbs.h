@@ -49,6 +49,9 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props);
 int ehca_query_port(struct ib_device *ibdev, u8 port,
 		    struct ib_port_attr *props);
 
+int ehca_query_sma_attr(struct ehca_shca *shca, u8 port,
+			struct ehca_sma_attr *attr);
+
 int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 * pkey);
 
 int ehca_query_gid(struct ib_device *ibdev, u8 port, int index,
@@ -153,6 +156,21 @@ int ehca_post_send(struct ib_qp *qp, struct ib_send_wr *send_wr,
 
 int ehca_post_recv(struct ib_qp *qp, struct ib_recv_wr *recv_wr,
 		   struct ib_recv_wr **bad_recv_wr);
+
+int ehca_post_srq_recv(struct ib_srq *srq,
+		       struct ib_recv_wr *recv_wr,
+		       struct ib_recv_wr **bad_recv_wr);
+
+struct ib_srq *ehca_create_srq(struct ib_pd *pd,
+			       struct ib_srq_init_attr *init_attr,
+			       struct ib_udata *udata);
+
+int ehca_modify_srq(struct ib_srq *srq, struct ib_srq_attr *attr,
+		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
+
+int ehca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
+
+int ehca_destroy_srq(struct ib_srq *srq);
 
 u64 ehca_define_sqp(struct ehca_shca *shca, struct ehca_qp *ibqp,
 		    struct ib_qp_init_attr *qp_init_attr);

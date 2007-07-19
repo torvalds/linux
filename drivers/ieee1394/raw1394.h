@@ -17,11 +17,11 @@
 #define RAW1394_REQ_ASYNC_WRITE     101
 #define RAW1394_REQ_LOCK            102
 #define RAW1394_REQ_LOCK64          103
-#define RAW1394_REQ_ISO_SEND        104
+#define RAW1394_REQ_ISO_SEND        104 /* removed ABI, now a no-op */
 #define RAW1394_REQ_ASYNC_SEND      105
 #define RAW1394_REQ_ASYNC_STREAM    106
 
-#define RAW1394_REQ_ISO_LISTEN      200
+#define RAW1394_REQ_ISO_LISTEN      200 /* removed ABI, now a no-op */
 #define RAW1394_REQ_FCP_LISTEN      201
 #define RAW1394_REQ_RESET_BUS       202
 #define RAW1394_REQ_GET_ROM         203

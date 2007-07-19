@@ -21,6 +21,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/system.h>
 #include <asm/pci-bridge.h>

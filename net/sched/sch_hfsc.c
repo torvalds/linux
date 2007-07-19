@@ -53,7 +53,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/jiffies.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -62,13 +61,11 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/init.h>
-#include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
-#include <asm/system.h>
 #include <asm/div64.h>
 
 /*
@@ -122,7 +119,6 @@ struct hfsc_class
 	struct gnet_stats_basic bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est rate_est;
-	spinlock_t	*stats_lock;
 	unsigned int	level;		/* class level in hierarchy */
 	struct tcf_proto *filter_list;	/* filter list */
 	unsigned int	filter_cnt;	/* filter count */
@@ -1054,11 +1050,10 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 		sch_tree_unlock(sch);
 
-#ifdef CONFIG_NET_ESTIMATOR
 		if (tca[TCA_RATE-1])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-				cl->stats_lock, tca[TCA_RATE-1]);
-#endif
+					      &sch->dev->queue_lock,
+					      tca[TCA_RATE-1]);
 		return 0;
 	}
 
@@ -1098,7 +1093,6 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->qdisc = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid);
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
-	cl->stats_lock = &sch->dev->queue_lock;
 	INIT_LIST_HEAD(&cl->children);
 	cl->vt_tree = RB_ROOT;
 	cl->cf_tree = RB_ROOT;
@@ -1112,11 +1106,9 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->cl_pcvtoff = parent->cl_cvtoff;
 	sch_tree_unlock(sch);
 
-#ifdef CONFIG_NET_ESTIMATOR
 	if (tca[TCA_RATE-1])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-			cl->stats_lock, tca[TCA_RATE-1]);
-#endif
+				  &sch->dev->queue_lock, tca[TCA_RATE-1]);
 	*arg = (unsigned long)cl;
 	return 0;
 }
@@ -1128,9 +1120,7 @@ hfsc_destroy_class(struct Qdisc *sch, struct hfsc_class *cl)
 
 	tcf_destroy_chain(cl->filter_list);
 	qdisc_destroy(cl->qdisc);
-#ifdef CONFIG_NET_ESTIMATOR
 	gen_kill_estimator(&cl->bstats, &cl->rate_est);
-#endif
 	if (cl != &q->root)
 		kfree(cl);
 }
@@ -1184,9 +1174,6 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		case TC_ACT_SHOT:
 			return NULL;
 		}
-#elif defined(CONFIG_NET_CLS_POLICE)
-		if (result == TC_POLICE_SHOT)
-			return NULL;
 #endif
 		if ((cl = (struct hfsc_class *)res.class) == NULL) {
 			if ((cl = hfsc_find_class(res.classid, sch)) == NULL)
@@ -1384,9 +1371,7 @@ hfsc_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	xstats.rtwork  = cl->cl_cumul;
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
-#ifdef CONFIG_NET_ESTIMATOR
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-#endif
 	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
 		return -1;
 
@@ -1448,8 +1433,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct rtattr *opt)
 		return -EINVAL;
 	qopt = RTA_DATA(opt);
 
-	sch->stats_lock = &sch->dev->queue_lock;
-
 	q->defcls = qopt->defcls;
 	for (i = 0; i < HFSC_HSIZE; i++)
 		INIT_LIST_HEAD(&q->clhash[i]);
@@ -1464,7 +1447,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct rtattr *opt)
 					  sch->handle);
 	if (q->root.qdisc == NULL)
 		q->root.qdisc = &noop_qdisc;
-	q->root.stats_lock = &sch->dev->queue_lock;
 	INIT_LIST_HEAD(&q->root.children);
 	q->root.vt_tree = RB_ROOT;
 	q->root.cf_tree = RB_ROOT;

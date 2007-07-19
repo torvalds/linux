@@ -1,4 +1,7 @@
 /*
+ *  Copyright (C) 2007, OpenWrt.org, Florian Fainelli <florian@openwrt.org>
+ *  	Architecture specific GPIO support
+ *
  *  This program is free software; you can redistribute	 it and/or modify it
  *  under  the terms of	 the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the	License, or (at your
@@ -18,101 +21,136 @@
  *  You should have received a copy of the  GNU General Public License along
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *  Notes :
+ * 	au1000 SoC have only one GPIO line : GPIO1
+ * 	others have a second one : GPIO2
  */
+
+#include <linux/autoconf.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/types.h>
 #include <linux/module.h>
-#include <au1000.h>
-#include <au1xxx_gpio.h>
+
+#include <asm/addrspace.h>
+
+#include <asm/mach-au1x00/au1000.h>
+#include <asm/gpio.h>
 
 #define gpio1 sys
 #if !defined(CONFIG_SOC_AU1000)
-static AU1X00_GPIO2 * const gpio2 = (AU1X00_GPIO2 *)GPIO2_BASE;
 
-#define GPIO2_OUTPUT_ENABLE_MASK 0x00010000
+static struct au1x00_gpio2 *const gpio2 = (struct au1x00_gpio2 *) GPIO2_BASE;
+#define GPIO2_OUTPUT_ENABLE_MASK 	0x00010000
 
-int au1xxx_gpio2_read(int signal)
+static int au1xxx_gpio2_read(unsigned gpio)
 {
-	signal -= 200;
-/*	gpio2->dir &= ~(0x01 << signal);						//Set GPIO to input */
-	return ((gpio2->pinstate >> signal) & 0x01);
+	gpio -= AU1XXX_GPIO_BASE;
+	return ((gpio2->pinstate >> gpio) & 0x01);
 }
 
-void au1xxx_gpio2_write(int signal, int value)
+static void au1xxx_gpio2_write(unsigned gpio, int value)
 {
-	signal -= 200;
+	gpio -= AU1XXX_GPIO_BASE;
 
-	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << signal) |
-		(value << signal);
+	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | (value << gpio);
 }
 
-void au1xxx_gpio2_tristate(int signal)
+static int au1xxx_gpio2_direction_input(unsigned gpio)
 {
-	signal -= 200;
-	gpio2->dir &= ~(0x01 << signal); 	/* Set GPIO to input */
-}
-#endif
-
-int au1xxx_gpio1_read(int signal)
-{
-/*	gpio1->trioutclr |= (0x01 << signal); */
-	return ((gpio1->pinstaterd >> signal) & 0x01);
+	gpio -= AU1XXX_GPIO_BASE;
+	gpio2->dir &= ~(0x01 << gpio);
+	return 0;
 }
 
-void au1xxx_gpio1_write(int signal, int value)
+static int au1xxx_gpio2_direction_output(unsigned gpio, int value)
 {
-	if(value)
-		gpio1->outputset = (0x01 << signal);
+	gpio -= AU1XXX_GPIO_BASE;
+	gpio2->dir = (0x01 << gpio) | (value << gpio);
+	return 0;
+}
+
+#endif /* !defined(CONFIG_SOC_AU1000) */
+
+static int au1xxx_gpio1_read(unsigned gpio)
+{
+	return ((gpio1->pinstaterd >> gpio) & 0x01);
+}
+
+static void au1xxx_gpio1_write(unsigned gpio, int value)
+{
+	if (value)
+		gpio1->outputset = (0x01 << gpio);
 	else
-		gpio1->outputclr = (0x01 << signal);	/* Output a Zero */
+		/* Output a zero */
+		gpio1->outputclr = (0x01 << gpio);
 }
 
-void au1xxx_gpio1_tristate(int signal)
+static int au1xxx_gpio1_direction_input(unsigned gpio)
 {
-	gpio1->trioutclr = (0x01 << signal);		/* Tristate signal */
+	gpio1->pininputen = (0x01 << gpio);
+	return 0;
 }
 
-
-int au1xxx_gpio_read(int signal)
+static int au1xxx_gpio1_direction_output(unsigned gpio, int value)
 {
-	if(signal >= 200)
+	gpio1->trioutclr = (0x01 & gpio);
+	return 0;
+}
+
+int au1xxx_gpio_get_value(unsigned gpio)
+{
+	if (gpio >= AU1XXX_GPIO_BASE)
 #if defined(CONFIG_SOC_AU1000)
 		return 0;
 #else
-		return au1xxx_gpio2_read(signal);
+		return au1xxx_gpio2_read(gpio);
 #endif
 	else
-		return au1xxx_gpio1_read(signal);
+		return au1xxx_gpio1_read(gpio);
 }
 
-void au1xxx_gpio_write(int signal, int value)
+EXPORT_SYMBOL(au1xxx_gpio_get_value);
+
+void au1xxx_gpio_set_value(unsigned gpio, int value)
 {
-	if(signal >= 200)
+	if (gpio >= AU1XXX_GPIO_BASE)
 #if defined(CONFIG_SOC_AU1000)
 		;
 #else
-		au1xxx_gpio2_write(signal, value);
+		au1xxx_gpio2_write(gpio, value);
 #endif
 	else
-		au1xxx_gpio1_write(signal, value);
+		au1xxx_gpio1_write(gpio, value);
 }
 
-void au1xxx_gpio_tristate(int signal)
+EXPORT_SYMBOL(au1xxx_gpio_set_value);
+
+int au1xxx_gpio_direction_input(unsigned gpio)
 {
-	if(signal >= 200)
+	if (gpio >= AU1XXX_GPIO_BASE)
 #if defined(CONFIG_SOC_AU1000)
 		;
 #else
-		au1xxx_gpio2_tristate(signal);
+		return au1xxx_gpio2_direction_input(gpio);
 #endif
 	else
-		au1xxx_gpio1_tristate(signal);
+		return au1xxx_gpio1_direction_input(gpio);
 }
 
-void au1xxx_gpio1_set_inputs(void)
+EXPORT_SYMBOL(au1xxx_gpio_direction_input);
+
+int au1xxx_gpio_direction_output(unsigned gpio, int value)
 {
-	gpio1->pininputen = 0;
+	if (gpio >= AU1XXX_GPIO_BASE)
+#if defined(CONFIG_SOC_AU1000)
+		;
+#else
+		return au1xxx_gpio2_direction_output(gpio, value);
+#endif
+	else
+		return au1xxx_gpio1_direction_output(gpio, value);
 }
 
-EXPORT_SYMBOL(au1xxx_gpio1_set_inputs);
-EXPORT_SYMBOL(au1xxx_gpio_tristate);
-EXPORT_SYMBOL(au1xxx_gpio_write);
-EXPORT_SYMBOL(au1xxx_gpio_read);
+EXPORT_SYMBOL(au1xxx_gpio_direction_output);

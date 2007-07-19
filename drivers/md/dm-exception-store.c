@@ -125,9 +125,11 @@ struct pstore {
 	uint32_t callback_count;
 	struct commit_callback *callbacks;
 	struct dm_io_client *io_client;
+
+	struct workqueue_struct *metadata_wq;
 };
 
-static inline unsigned int sectors_to_pages(unsigned int sectors)
+static unsigned sectors_to_pages(unsigned sectors)
 {
 	return sectors / (PAGE_SIZE >> 9);
 }
@@ -156,10 +158,24 @@ static void free_area(struct pstore *ps)
 	ps->area = NULL;
 }
 
+struct mdata_req {
+	struct io_region *where;
+	struct dm_io_request *io_req;
+	struct work_struct work;
+	int result;
+};
+
+static void do_metadata(struct work_struct *work)
+{
+	struct mdata_req *req = container_of(work, struct mdata_req, work);
+
+	req->result = dm_io(req->io_req, 1, req->where, NULL);
+}
+
 /*
  * Read or write a chunk aligned and sized block of data from a device.
  */
-static int chunk_io(struct pstore *ps, uint32_t chunk, int rw)
+static int chunk_io(struct pstore *ps, uint32_t chunk, int rw, int metadata)
 {
 	struct io_region where = {
 		.bdev = ps->snap->cow->bdev,
@@ -173,8 +189,23 @@ static int chunk_io(struct pstore *ps, uint32_t chunk, int rw)
 		.client = ps->io_client,
 		.notify.fn = NULL,
 	};
+	struct mdata_req req;
 
-	return dm_io(&io_req, 1, &where, NULL);
+	if (!metadata)
+		return dm_io(&io_req, 1, &where, NULL);
+
+	req.where = &where;
+	req.io_req = &io_req;
+
+	/*
+	 * Issue the synchronous I/O from a different thread
+	 * to avoid generic_make_request recursion.
+	 */
+	INIT_WORK(&req.work, do_metadata);
+	queue_work(ps->metadata_wq, &req.work);
+	flush_workqueue(ps->metadata_wq);
+
+	return req.result;
 }
 
 /*
@@ -189,7 +220,7 @@ static int area_io(struct pstore *ps, uint32_t area, int rw)
 	/* convert a metadata area index to a chunk index */
 	chunk = 1 + ((ps->exceptions_per_area + 1) * area);
 
-	r = chunk_io(ps, chunk, rw);
+	r = chunk_io(ps, chunk, rw, 0);
 	if (r)
 		return r;
 
@@ -230,7 +261,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	if (r)
 		return r;
 
-	r = chunk_io(ps, 0, READ);
+	r = chunk_io(ps, 0, READ, 1);
 	if (r)
 		goto bad;
 
@@ -292,7 +323,7 @@ static int write_header(struct pstore *ps)
 	dh->version = cpu_to_le32(ps->version);
 	dh->chunk_size = cpu_to_le32(ps->snap->chunk_size);
 
-	return chunk_io(ps, 0, WRITE);
+	return chunk_io(ps, 0, WRITE, 1);
 }
 
 /*
@@ -393,7 +424,7 @@ static int read_exceptions(struct pstore *ps)
 	return 0;
 }
 
-static inline struct pstore *get_info(struct exception_store *store)
+static struct pstore *get_info(struct exception_store *store)
 {
 	return (struct pstore *) store->context;
 }
@@ -409,6 +440,7 @@ static void persistent_destroy(struct exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
+	destroy_workqueue(ps->metadata_wq);
 	dm_io_client_destroy(ps->io_client);
 	vfree(ps->callbacks);
 	free_area(ps);
@@ -457,16 +489,17 @@ static int persistent_read_metadata(struct exception_store *store)
 		/*
 		 * Sanity checks.
 		 */
-		if (!ps->valid) {
-			DMWARN("snapshot is marked invalid");
-			return -EINVAL;
-		}
-
 		if (ps->version != SNAPSHOT_DISK_VERSION) {
 			DMWARN("unable to handle snapshot disk version %d",
 			       ps->version);
 			return -EINVAL;
 		}
+
+		/*
+		 * Metadata are valid, but snapshot is invalidated
+		 */
+		if (!ps->valid)
+			return 1;
 
 		/*
 		 * Read the metadata.
@@ -480,7 +513,7 @@ static int persistent_read_metadata(struct exception_store *store)
 }
 
 static int persistent_prepare(struct exception_store *store,
-			      struct exception *e)
+			      struct dm_snap_exception *e)
 {
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
@@ -505,7 +538,7 @@ static int persistent_prepare(struct exception_store *store,
 }
 
 static void persistent_commit(struct exception_store *store,
-			      struct exception *e,
+			      struct dm_snap_exception *e,
 			      void (*callback) (void *, int success),
 			      void *callback_context)
 {
@@ -588,6 +621,13 @@ int dm_create_persistent(struct exception_store *store)
 	atomic_set(&ps->pending_count, 0);
 	ps->callbacks = NULL;
 
+	ps->metadata_wq = create_singlethread_workqueue("ksnaphd");
+	if (!ps->metadata_wq) {
+		kfree(ps);
+		DMERR("couldn't start header metadata update thread");
+		return -ENOMEM;
+	}
+
 	store->destroy = persistent_destroy;
 	store->read_metadata = persistent_read_metadata;
 	store->prepare_exception = persistent_prepare;
@@ -616,7 +656,8 @@ static int transient_read_metadata(struct exception_store *store)
 	return 0;
 }
 
-static int transient_prepare(struct exception_store *store, struct exception *e)
+static int transient_prepare(struct exception_store *store,
+			     struct dm_snap_exception *e)
 {
 	struct transient_c *tc = (struct transient_c *) store->context;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
@@ -631,9 +672,9 @@ static int transient_prepare(struct exception_store *store, struct exception *e)
 }
 
 static void transient_commit(struct exception_store *store,
-		      struct exception *e,
-		      void (*callback) (void *, int success),
-		      void *callback_context)
+			     struct dm_snap_exception *e,
+			     void (*callback) (void *, int success),
+			     void *callback_context)
 {
 	/* Just succeed */
 	callback(callback_context, 1);

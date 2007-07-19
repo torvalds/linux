@@ -591,6 +591,9 @@ int
 pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 		     enum pci_mmap_state mmap_state, int write_combine)
 {
+	unsigned long size = vma->vm_end - vma->vm_start;
+	pgprot_t prot;
+
 	/*
 	 * I/O space cannot be accessed via normal processor loads and
 	 * stores on this platform.
@@ -604,15 +607,24 @@ pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 		 */
 		return -EINVAL;
 
+	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))
+		return -EINVAL;
+
+	prot = phys_mem_access_prot(NULL, vma->vm_pgoff, size,
+				    vma->vm_page_prot);
+
 	/*
-	 * Leave vm_pgoff as-is, the PCI space address is the physical
-	 * address on this platform.
+	 * If the user requested WC, the kernel uses UC or WC for this region,
+	 * and the chipset supports WC, we can use WC. Otherwise, we have to
+	 * use the same attribute the kernel uses.
 	 */
-	if (write_combine && efi_range_is_wc(vma->vm_start,
-					     vma->vm_end - vma->vm_start))
+	if (write_combine &&
+	    ((pgprot_val(prot) & _PAGE_MA_MASK) == _PAGE_MA_UC ||
+	     (pgprot_val(prot) & _PAGE_MA_MASK) == _PAGE_MA_WC) &&
+	    efi_range_is_wc(vma->vm_start, vma->vm_end - vma->vm_start))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	else
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = prot;
 
 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))

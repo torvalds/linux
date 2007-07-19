@@ -9,12 +9,9 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
-#include <linux/netdevice.h>
-#include <net/ip.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
-#include <net/route.h>
 
 
 /*

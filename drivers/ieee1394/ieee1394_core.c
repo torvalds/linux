@@ -30,6 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
 #include <linux/kdev_t.h>
+#include <linux/freezer.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/preempt.h>
@@ -1028,11 +1029,6 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 		handle_incoming_packet(host, tcode, data, size, write_acked);
 		break;
 
-
-	case TCODE_ISO_DATA:
-		highlevel_iso_receive(host, data, size);
-		break;
-
 	case TCODE_CYCLE_START:
 		/* simply ignore this packet if it is passed on */
 		break;
@@ -1132,8 +1128,6 @@ static int hpsbpkt_thread(void *__hi)
 	struct hpsb_packet *packet, *p;
 	struct list_head tmp;
 	int may_schedule;
-
-	current->flags |= PF_NOFREEZE;
 
 	while (!kthread_should_stop()) {
 
@@ -1316,7 +1310,6 @@ EXPORT_SYMBOL(hpsb_make_streampacket);
 EXPORT_SYMBOL(hpsb_make_lockpacket);
 EXPORT_SYMBOL(hpsb_make_lock64packet);
 EXPORT_SYMBOL(hpsb_make_phypacket);
-EXPORT_SYMBOL(hpsb_make_isopacket);
 EXPORT_SYMBOL(hpsb_read);
 EXPORT_SYMBOL(hpsb_write);
 EXPORT_SYMBOL(hpsb_packet_success);
@@ -1327,8 +1320,6 @@ EXPORT_SYMBOL(hpsb_unregister_highlevel);
 EXPORT_SYMBOL(hpsb_register_addrspace);
 EXPORT_SYMBOL(hpsb_unregister_addrspace);
 EXPORT_SYMBOL(hpsb_allocate_and_register_addrspace);
-EXPORT_SYMBOL(hpsb_listen_channel);
-EXPORT_SYMBOL(hpsb_unlisten_channel);
 EXPORT_SYMBOL(hpsb_get_hostinfo);
 EXPORT_SYMBOL(hpsb_create_hostinfo);
 EXPORT_SYMBOL(hpsb_destroy_hostinfo);

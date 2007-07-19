@@ -729,10 +729,9 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    /* although the numbers above are not valid since long ago, the
 	       point is still up-to-date and the comment still has its value
 	       even if only as a historical artifact.  --mj, July 1998 */
-	    vc = kmalloc(sizeof(struct vc_data), GFP_KERNEL);
+	    vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
 	    if (!vc)
 		return -ENOMEM;
-	    memset(vc, 0, sizeof(*vc));
 	    vc_cons[currcons].d = vc;
 	    INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 	    visual_init(vc, currcons, 1);
@@ -1956,7 +1955,7 @@ char con_buf[CON_BUF_SIZE];
 DEFINE_MUTEX(con_buf_mtx);
 
 /* is_double_width() is based on the wcwidth() implementation by
- * Markus Kuhn -- 2003-05-20 (Unicode 4.0)
+ * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 struct interval {
@@ -1988,11 +1987,10 @@ static int is_double_width(uint32_t ucs)
 	static const struct interval double_width[] = {
 		{ 0x1100, 0x115F }, { 0x2329, 0x232A }, { 0x2E80, 0x303E },
 		{ 0x3040, 0xA4CF }, { 0xAC00, 0xD7A3 }, { 0xF900, 0xFAFF },
-		{ 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 }, { 0xFFE0, 0xFFE6 },
-		{ 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
+		{ 0xFE10, 0xFE19 }, { 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 },
+		{ 0xFFE0, 0xFFE6 }, { 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
 	};
-	return bisearch(ucs, double_width,
-		sizeof(double_width) / sizeof(*double_width) - 1);
+	return bisearch(ucs, double_width, ARRAY_SIZE(double_width) - 1);
 }
 
 /* acquires console_sem */
@@ -2187,9 +2185,12 @@ rescan_last_byte:
 				    continue; /* nothing to display */
 				}
 				/* Glyph not found */
-				if (!(vc->vc_utf && !vc->vc_disp_ctrl) && !(c & ~charmask)) {
+				if ((!(vc->vc_utf && !vc->vc_disp_ctrl) || c < 128) && !(c & ~charmask)) {
 				    /* In legacy mode use the glyph we get by a 1:1 mapping.
-				       This would make absolutely no sense with Unicode in mind. */
+				       This would make absolutely no sense with Unicode in mind,
+				       but do this for ASCII characters since a font may lack
+				       Unicode mapping info and we don't want to end up with
+				       having question marks only. */
 				    tc = c;
 				} else {
 				    /* Display U+FFFD. If it's not found, display an inverse question mark. */
@@ -2213,6 +2214,7 @@ rescan_last_byte:
 				} else {
 					vc_attr = ((vc->vc_attr) & 0x88) | (((vc->vc_attr) & 0x70) >> 4) | (((vc->vc_attr) & 0x07) << 4);
 				}
+				FLUSH
 			}
 
 			while (1) {
@@ -2244,6 +2246,10 @@ rescan_last_byte:
 
 				tc = conv_uni_to_pc(vc, ' '); /* A space is printed in the second column */
 				if (tc < 0) tc = ' ';
+			}
+
+			if (inverse) {
+				FLUSH
 			}
 
 			if (rescan) {
@@ -2981,8 +2987,24 @@ static int con_is_graphics(const struct consw *csw, int first, int last)
 	return retval;
 }
 
-static int unbind_con_driver(const struct consw *csw, int first, int last,
-			     int deflt)
+/**
+ * unbind_con_driver - unbind a console driver
+ * @csw: pointer to console driver to unregister
+ * @first: first in range of consoles that @csw should be unbound from
+ * @last: last in range of consoles that @csw should be unbound from
+ * @deflt: should next bound console driver be default after @csw is unbound?
+ *
+ * To unbind a driver from all possible consoles, pass 0 as @first and
+ * %MAX_NR_CONSOLES as @last.
+ *
+ * @deflt controls whether the console that ends up replacing @csw should be
+ * the default console.
+ *
+ * RETURNS:
+ * -ENODEV if @csw isn't a registered console driver or can't be unregistered
+ * or 0 on success.
+ */
+int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
 	struct module *owner = csw->owner;
 	const struct consw *defcsw = NULL;
@@ -3067,6 +3089,7 @@ err:
 	return retval;
 
 }
+EXPORT_SYMBOL(unbind_con_driver);
 
 static int vt_bind(struct con_driver *con)
 {
@@ -3483,9 +3506,6 @@ void do_blank_screen(int entering_gfx)
 		}
 		return;
 	}
-	if (blank_state != blank_normal_wait)
-		return;
-	blank_state = blank_off;
 
 	/* entering graphics mode? */
 	if (entering_gfx) {
@@ -3493,9 +3513,14 @@ void do_blank_screen(int entering_gfx)
 		save_screen(vc);
 		vc->vc_sw->con_blank(vc, -1, 1);
 		console_blanked = fg_console + 1;
+		blank_state = blank_off;
 		set_origin(vc);
 		return;
 	}
+
+	if (blank_state != blank_normal_wait)
+		return;
+	blank_state = blank_off;
 
 	/* don't blank graphics */
 	if (vc->vc_mode != KD_TEXT) {

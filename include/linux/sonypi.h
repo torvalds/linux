@@ -153,8 +153,6 @@
 #define SONYPI_COMMAND_GETCAMERAROMVERSION	18	/* obsolete */
 #define SONYPI_COMMAND_GETCAMERAREVISION	19	/* obsolete */
 
-int sonypi_camera_command(int command, u8 value);
-
 #endif				/* __KERNEL__ */
 
 #endif				/* _SONYPI_H_ */

@@ -45,3 +45,6 @@ series
 
 # cscope files
 cscope.*
+
+*.orig
+*.rej

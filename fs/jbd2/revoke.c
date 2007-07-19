@@ -68,6 +68,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #endif
+#include <linux/log2.h>
 
 static struct kmem_cache *jbd2_revoke_record_cache;
 static struct kmem_cache *jbd2_revoke_table_cache;
@@ -212,7 +213,7 @@ int jbd2_journal_init_revoke(journal_t *journal, int hash_size)
 	journal->j_revoke = journal->j_revoke_table[0];
 
 	/* Check that the hash_size is a power of two */
-	J_ASSERT ((hash_size & (hash_size-1)) == 0);
+	J_ASSERT(is_power_of_2(hash_size));
 
 	journal->j_revoke->hash_size = hash_size;
 
@@ -239,7 +240,7 @@ int jbd2_journal_init_revoke(journal_t *journal, int hash_size)
 	journal->j_revoke = journal->j_revoke_table[1];
 
 	/* Check that the hash_size is a power of two */
-	J_ASSERT ((hash_size & (hash_size-1)) == 0);
+	J_ASSERT(is_power_of_2(hash_size));
 
 	journal->j_revoke->hash_size = hash_size;
 

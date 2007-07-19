@@ -19,8 +19,9 @@
  * included with this package.                                     *
  *******************************************************************/
 
-struct lpfc_sli2_slim;
+#include <scsi/scsi_host.h>
 
+struct lpfc_sli2_slim;
 
 #define LPFC_MAX_TARGET		256	/* max number of targets supported */
 #define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
@@ -31,6 +32,20 @@ struct lpfc_sli2_slim;
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
+
+/*
+ * Following time intervals are used of adjusting SCSI device
+ * queue depths when there are driver resource error or Firmware
+ * resource error.
+ */
+#define QUEUE_RAMP_DOWN_INTERVAL	(1 * HZ)   /* 1 Second */
+#define QUEUE_RAMP_UP_INTERVAL		(300 * HZ) /* 5 minutes */
+
+/* Number of exchanges reserved for discovery to complete */
+#define LPFC_DISC_IOCB_BUFF_COUNT 20
+
+#define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
+#define LPFC_HB_MBOX_TIMEOUT    30 	/* Heart beat timeout  in seconds. */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -59,6 +74,11 @@ struct lpfc_dma_pool {
 	struct lpfc_dmabuf   *elements;
 	uint32_t    max_count;
 	uint32_t    current_count;
+};
+
+struct hbq_dmabuf {
+	struct lpfc_dmabuf dbuf;
+	uint32_t tag;
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -90,6 +110,29 @@ typedef struct lpfc_vpd {
 		uint32_t sli2FwRev;
 		uint8_t sli2FwName[16];
 	} rev;
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		uint32_t rsvd2  :24;  /* Reserved                             */
+		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
+		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
+		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
+		uint32_t chbs   : 1;  /* Cofigure Host Backing store          */
+		uint32_t cinb   : 1;  /* Enable Interrupt Notification Block  */
+		uint32_t cerbm	: 1;  /* Configure Enhanced Receive Buf Mgmt  */
+		uint32_t cmx	: 1;  /* Configure Max XRIs                   */
+		uint32_t cmr	: 1;  /* Configure Max RPIs                   */
+#else	/*  __LITTLE_ENDIAN */
+		uint32_t cmr	: 1;  /* Configure Max RPIs                   */
+		uint32_t cmx	: 1;  /* Configure Max XRIs                   */
+		uint32_t cerbm	: 1;  /* Configure Enhanced Receive Buf Mgmt  */
+		uint32_t cinb   : 1;  /* Enable Interrupt Notification Block  */
+		uint32_t chbs   : 1;  /* Cofigure Host Backing store          */
+		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
+		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
+		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
+		uint32_t rsvd2  :24;  /* Reserved                             */
+#endif
+	} sli3Feat;
 } lpfc_vpd_t;
 
 struct lpfc_scsi_buf;
@@ -122,6 +165,7 @@ struct lpfc_stats {
 	uint32_t elsRcvRPS;
 	uint32_t elsRcvRPL;
 	uint32_t elsXmitFLOGI;
+	uint32_t elsXmitFDISC;
 	uint32_t elsXmitPLOGI;
 	uint32_t elsXmitPRLI;
 	uint32_t elsXmitADISC;
@@ -165,96 +209,71 @@ struct lpfc_sysfs_mbox {
 	struct lpfcMboxq *    mbox;
 };
 
-struct lpfc_hba {
-	struct lpfc_sli sli;
-	struct lpfc_sli2_slim *slim2p;
-	dma_addr_t slim2p_mapping;
-	uint16_t pci_cfg_value;
+struct lpfc_hba;
 
-	int32_t hba_state;
 
-#define LPFC_STATE_UNKNOWN        0    /* HBA state is unknown */
-#define LPFC_WARM_START           1    /* HBA state after selective reset */
-#define LPFC_INIT_START           2    /* Initial state after board reset */
-#define LPFC_INIT_MBX_CMDS        3    /* Initialize HBA with mbox commands */
-#define LPFC_LINK_DOWN            4    /* HBA initialized, link is down */
-#define LPFC_LINK_UP              5    /* Link is up  - issue READ_LA */
-#define LPFC_LOCAL_CFG_LINK       6    /* local NPORT Id configured */
-#define LPFC_FLOGI                7    /* FLOGI sent to Fabric */
-#define LPFC_FABRIC_CFG_LINK      8    /* Fabric assigned NPORT Id
-					   configured */
-#define LPFC_NS_REG               9	/* Register with NameServer */
-#define LPFC_NS_QRY               10	/* Query NameServer for NPort ID list */
-#define LPFC_BUILD_DISC_LIST      11	/* Build ADISC and PLOGI lists for
-					 * device authentication / discovery */
-#define LPFC_DISC_AUTH            12	/* Processing ADISC list */
-#define LPFC_CLEAR_LA             13	/* authentication cmplt - issue
-					   CLEAR_LA */
-#define LPFC_HBA_READY            32
-#define LPFC_HBA_ERROR            -1
+enum discovery_state {
+	LPFC_VPORT_UNKNOWN     =  0,    /* vport state is unknown */
+	LPFC_VPORT_FAILED      =  1,    /* vport has failed */
+	LPFC_LOCAL_CFG_LINK    =  6,    /* local NPORT Id configured */
+	LPFC_FLOGI             =  7,    /* FLOGI sent to Fabric */
+	LPFC_FDISC             =  8,    /* FDISC sent for vport */
+	LPFC_FABRIC_CFG_LINK   =  9,    /* Fabric assigned NPORT Id
+				         * configured */
+	LPFC_NS_REG            =  10,   /* Register with NameServer */
+	LPFC_NS_QRY            =  11,   /* Query NameServer for NPort ID list */
+	LPFC_BUILD_DISC_LIST   =  12,   /* Build ADISC and PLOGI lists for
+				         * device authentication / discovery */
+	LPFC_DISC_AUTH         =  13,   /* Processing ADISC list */
+	LPFC_VPORT_READY       =  32,
+};
 
-	int32_t stopped;   /* HBA has not been restarted since last ERATT */
-	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
+enum hba_state {
+	LPFC_LINK_UNKNOWN    =   0,   /* HBA state is unknown */
+	LPFC_WARM_START      =   1,   /* HBA state after selective reset */
+	LPFC_INIT_START      =   2,   /* Initial state after board reset */
+	LPFC_INIT_MBX_CMDS   =   3,   /* Initialize HBA with mbox commands */
+	LPFC_LINK_DOWN       =   4,   /* HBA initialized, link is down */
+	LPFC_LINK_UP         =   5,   /* Link is up  - issue READ_LA */
+	LPFC_CLEAR_LA        =   6,   /* authentication cmplt - issue
+				       * CLEAR_LA */
+	LPFC_HBA_READY       =  32,
+	LPFC_HBA_ERROR       =  -1
+};
 
-	uint32_t fc_eventTag;	/* event tag for link attention */
-	uint32_t fc_prli_sent;	/* cntr for outstanding PRLIs */
+struct lpfc_vport {
+	struct list_head listentry;
+	struct lpfc_hba *phba;
+	uint8_t port_type;
+#define LPFC_PHYSICAL_PORT 1
+#define LPFC_NPIV_PORT  2
+#define LPFC_FABRIC_PORT 3
+	enum discovery_state port_state;
 
-	uint32_t num_disc_nodes;	/*in addition to hba_state */
+	uint16_t vpi;
 
-	struct timer_list fc_estabtmo;	/* link establishment timer */
-	struct timer_list fc_disctmo;	/* Discovery rescue timer */
-	struct timer_list fc_fdmitmo;	/* fdmi timer */
-	/* These fields used to be binfo */
-	struct lpfc_name fc_nodename;	/* fc nodename */
-	struct lpfc_name fc_portname;	/* fc portname */
-	uint32_t fc_pref_DID;	/* preferred D_ID */
-	uint8_t fc_pref_ALPA;	/* preferred AL_PA */
-	uint32_t fc_edtov;	/* E_D_TOV timer value */
-	uint32_t fc_arbtov;	/* ARB_TOV timer value */
-	uint32_t fc_ratov;	/* R_A_TOV timer value */
-	uint32_t fc_rttov;	/* R_T_TOV timer value */
-	uint32_t fc_altov;	/* AL_TOV timer value */
-	uint32_t fc_crtov;	/* C_R_TOV timer value */
-	uint32_t fc_citov;	/* C_I_TOV timer value */
-	uint32_t fc_myDID;	/* fibre channel S_ID */
-	uint32_t fc_prevDID;	/* previous fibre channel S_ID */
-
-	struct serv_parm fc_sparam;	/* buffer for our service parameters */
-	struct serv_parm fc_fabparam;	/* fabric service parameters buffer */
-	uint8_t alpa_map[128];	/* AL_PA map from READ_LA */
-
-	uint8_t fc_ns_retry;	/* retries for fabric nameserver */
-	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
-	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
-	struct lpfc_dmabuf *fc_rscn_id_list[FC_MAX_HOLD_RSCN];
-	uint32_t lmt;
 	uint32_t fc_flag;	/* FC flags */
-#define FC_PT2PT                0x1	/* pt2pt with no fabric */
-#define FC_PT2PT_PLOGI          0x2	/* pt2pt initiate PLOGI */
-#define FC_DISC_TMO             0x4	/* Discovery timer running */
-#define FC_PUBLIC_LOOP          0x8	/* Public loop */
-#define FC_LBIT                 0x10	/* LOGIN bit in loopinit set */
-#define FC_RSCN_MODE            0x20	/* RSCN cmd rcv'ed */
-#define FC_NLP_MORE             0x40	/* More node to process in node tbl */
-#define FC_OFFLINE_MODE         0x80	/* Interface is offline for diag */
-#define FC_FABRIC               0x100	/* We are fabric attached */
-#define FC_ESTABLISH_LINK       0x200	/* Reestablish Link */
-#define FC_RSCN_DISCOVERY       0x400	/* Authenticate all devices after RSCN*/
-#define FC_BLOCK_MGMT_IO        0x800   /* Don't allow mgmt mbx or iocb cmds */
-#define FC_LOADING		0x1000	/* HBA in process of loading drvr */
-#define FC_UNLOADING		0x2000	/* HBA in process of unloading drvr */
-#define FC_SCSI_SCAN_TMO        0x4000	/* scsi scan timer running */
-#define FC_ABORT_DISCOVERY      0x8000	/* we want to abort discovery */
-#define FC_NDISC_ACTIVE         0x10000	/* NPort discovery active */
-#define FC_BYPASSED_MODE        0x20000	/* NPort is in bypassed mode */
-#define FC_LOOPBACK_MODE        0x40000	/* NPort is in Loopback mode */
-					/* This flag is set while issuing */
-					/* INIT_LINK mailbox command */
-#define FC_IGNORE_ERATT         0x80000	/* intr handler should ignore ERATT */
-
-	uint32_t fc_topology;	/* link topology, from LINK INIT */
-
-	struct lpfc_stats fc_stat;
+/* Several of these flags are HBA centric and should be moved to
+ * phba->link_flag (e.g. FC_PTP, FC_PUBLIC_LOOP)
+ */
+#define FC_PT2PT                0x1	 /* pt2pt with no fabric */
+#define FC_PT2PT_PLOGI          0x2	 /* pt2pt initiate PLOGI */
+#define FC_DISC_TMO             0x4	 /* Discovery timer running */
+#define FC_PUBLIC_LOOP          0x8	 /* Public loop */
+#define FC_LBIT                 0x10	 /* LOGIN bit in loopinit set */
+#define FC_RSCN_MODE            0x20	 /* RSCN cmd rcv'ed */
+#define FC_NLP_MORE             0x40	 /* More node to process in node tbl */
+#define FC_OFFLINE_MODE         0x80	 /* Interface is offline for diag */
+#define FC_FABRIC               0x100	 /* We are fabric attached */
+#define FC_ESTABLISH_LINK       0x200	 /* Reestablish Link */
+#define FC_RSCN_DISCOVERY       0x400	 /* Auth all devices after RSCN */
+#define FC_SCSI_SCAN_TMO        0x4000	 /* scsi scan timer running */
+#define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
+#define FC_NDISC_ACTIVE         0x10000	 /* NPort discovery active */
+#define FC_BYPASSED_MODE        0x20000	 /* NPort is in bypassed mode */
+#define FC_RFF_NOT_SUPPORTED    0x40000	 /* RFF_ID was rejected by switch */
+#define FC_VPORT_NEEDS_REG_VPI	0x80000  /* Needs to have its vpi registered */
+#define FC_RSCN_DEFERRED	0x100000 /* A deferred RSCN being processed */
 
 	struct list_head fc_nodes;
 
@@ -267,10 +286,131 @@ struct lpfc_hba {
 	uint16_t fc_map_cnt;
 	uint16_t fc_npr_cnt;
 	uint16_t fc_unused_cnt;
+	struct serv_parm fc_sparam;	/* buffer for our service parameters */
+
+	uint32_t fc_myDID;	/* fibre channel S_ID */
+	uint32_t fc_prevDID;	/* previous fibre channel S_ID */
+
+	int32_t stopped;   /* HBA has not been restarted since last ERATT */
+	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
+
+	uint32_t num_disc_nodes;	/*in addition to hba_state */
+
+	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
+	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
+	struct lpfc_dmabuf *fc_rscn_id_list[FC_MAX_HOLD_RSCN];
+	struct lpfc_name fc_nodename;	/* fc nodename */
+	struct lpfc_name fc_portname;	/* fc portname */
+
+	struct lpfc_work_evt disc_timeout_evt;
+
+	struct timer_list fc_disctmo;	/* Discovery rescue timer */
+	uint8_t fc_ns_retry;	/* retries for fabric nameserver */
+	uint32_t fc_prli_sent;	/* cntr for outstanding PRLIs */
+
+	spinlock_t work_port_lock;
+	uint32_t work_port_events; /* Timeout to be handled  */
+#define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
+#define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
+#define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
+
+#define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
+#define WORKER_HB_TMO                  0x200	/* hba: Heart beat timeout */
+#define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timout */
+#define WORKER_RAMP_DOWN_QUEUE         0x800	/* hba: Decrease Q depth */
+#define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
+
+	struct timer_list fc_fdmitmo;
+	struct timer_list els_tmofunc;
+
+	int unreg_vpi_cmpl;
+
+	uint8_t load_flag;
+#define FC_LOADING		0x1	/* HBA in process of loading drvr */
+#define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
+	char  *vname;		        /* Application assigned name */
+	struct fc_vport *fc_vport;
+
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct dentry *debug_disc_trc;
+	struct dentry *debug_nodelist;
+	struct dentry *vport_debugfs_root;
+	struct lpfc_disc_trc *disc_trc;
+	atomic_t disc_trc_cnt;
+#endif
+};
+
+struct hbq_s {
+	uint16_t entry_count;	  /* Current number of HBQ slots */
+	uint32_t next_hbqPutIdx;  /* Index to next HBQ slot to use */
+	uint32_t hbqPutIdx;	  /* HBQ slot to use */
+	uint32_t local_hbqGetIdx; /* Local copy of Get index from Port */
+};
+
+#define LPFC_MAX_HBQS  16
+/* this matches the possition in the lpfc_hbq_defs array */
+#define LPFC_ELS_HBQ	0
+
+struct lpfc_hba {
+	struct lpfc_sli sli;
+	uint32_t sli_rev;		/* SLI2 or SLI3 */
+	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
+#define LPFC_SLI3_ENABLED 	 0x01
+#define LPFC_SLI3_HBQ_ENABLED	 0x02
+#define LPFC_SLI3_NPIV_ENABLED	 0x04
+#define LPFC_SLI3_VPORT_TEARDOWN 0x08
+	uint32_t iocb_cmd_size;
+	uint32_t iocb_rsp_size;
+
+	enum hba_state link_state;
+	uint32_t link_flag;	/* link state flags */
+#define LS_LOOPBACK_MODE      0x1 	/* NPort is in Loopback mode */
+					/* This flag is set while issuing */
+					/* INIT_LINK mailbox command */
+#define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
+#define LS_IGNORE_ERATT       0x3	/* intr handler should ignore ERATT */
+
+	struct lpfc_sli2_slim *slim2p;
+	struct lpfc_dmabuf hbqslimp;
+
+	dma_addr_t slim2p_mapping;
+
+	uint16_t pci_cfg_value;
+
+	uint8_t work_found;
+#define LPFC_MAX_WORKER_ITERATION  4
+
+	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
+
+	uint32_t fc_eventTag;	/* event tag for link attention */
+
+
+	struct timer_list fc_estabtmo;	/* link establishment timer */
+	/* These fields used to be binfo */
+	uint32_t fc_pref_DID;	/* preferred D_ID */
+	uint8_t  fc_pref_ALPA;	/* preferred AL_PA */
+	uint32_t fc_edtov;	/* E_D_TOV timer value */
+	uint32_t fc_arbtov;	/* ARB_TOV timer value */
+	uint32_t fc_ratov;	/* R_A_TOV timer value */
+	uint32_t fc_rttov;	/* R_T_TOV timer value */
+	uint32_t fc_altov;	/* AL_TOV timer value */
+	uint32_t fc_crtov;	/* C_R_TOV timer value */
+	uint32_t fc_citov;	/* C_I_TOV timer value */
+
+	struct serv_parm fc_fabparam;	/* fabric service parameters buffer */
+	uint8_t alpa_map[128];	/* AL_PA map from READ_LA */
+
+	uint32_t lmt;
+
+	uint32_t fc_topology;	/* link topology, from LINK INIT */
+
+	struct lpfc_stats fc_stat;
+
 	struct lpfc_nodelist fc_fcpnodev; /* nodelist entry for no device */
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
 
-	uint32_t wwnn[2];
+	uint8_t  wwnn[8];
+	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
 
 	uint32_t cfg_log_verbose;
@@ -278,6 +418,9 @@ struct lpfc_hba {
 	uint32_t cfg_nodev_tmo;
 	uint32_t cfg_devloss_tmo;
 	uint32_t cfg_hba_queue_depth;
+	uint32_t cfg_peer_port_login;
+	uint32_t cfg_vport_restrict_login;
+	uint32_t cfg_npiv_enable;
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_ack0;
@@ -304,21 +447,19 @@ struct lpfc_hba {
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
-	struct Scsi_Host *host;
 	struct pci_dev *pcidev;
 	struct list_head      work_list;
 	uint32_t              work_ha;      /* Host Attention Bits for WT */
 	uint32_t              work_ha_mask; /* HA Bits owned by WT        */
 	uint32_t              work_hs;      /* HS stored in case of ERRAT */
 	uint32_t              work_status[2]; /* Extra status from SLIM */
-	uint32_t              work_hba_events; /* Timeout to be handled  */
-#define WORKER_DISC_TMO                0x1	/* Discovery timeout */
-#define WORKER_ELS_TMO                 0x2	/* ELS timeout */
-#define WORKER_MBOX_TMO                0x4	/* MBOX timeout */
-#define WORKER_FDMI_TMO                0x8	/* FDMI timeout */
 
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
+
+	struct list_head hbq_buffer_list;
+	uint32_t hbq_count;	        /* Count of configured HBQs */
+	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
 	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
@@ -333,6 +474,10 @@ struct lpfc_hba {
 	void __iomem *HSregaddr;	/* virtual address for host status
 					   reg */
 	void __iomem *HCregaddr;	/* virtual address for host ctl reg */
+
+	struct lpfc_hgp __iomem *host_gp; /* Host side get/put pointers */
+	uint32_t __iomem  *hbq_put;     /* Address in SLIM to HBQ put ptrs */
+	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 
 	int brd_no;			/* FC board number */
 
@@ -353,7 +498,6 @@ struct lpfc_hba {
 	uint8_t soft_wwn_enable;
 
 	struct timer_list fcp_poll_timer;
-	struct timer_list els_tmofunc;
 
 	/*
 	 * stat  counters
@@ -370,31 +514,69 @@ struct lpfc_hba {
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
+	spinlock_t hbalock;
 
 	/* pci_mem_pools */
 	struct pci_pool *lpfc_scsi_dma_buf_pool;
 	struct pci_pool *lpfc_mbuf_pool;
+	struct pci_pool *lpfc_hbq_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
+
+	struct list_head port_list;
+	struct lpfc_vport *pport; /* physical lpfc_vport pointer */
+	uint16_t max_vpi;	/* Maximum virtual nports */
+#define LPFC_MAX_VPI 100  /* Max number of VPorts supported */
+	unsigned long *vpi_bmask; /* vpi allocation table */
+
+	/* Data structure used by fabric iocb scheduler */
+	struct list_head fabric_iocb_list;
+	atomic_t fabric_iocb_count;
+	struct timer_list fabric_block_timer;
+	unsigned long bit_flags;
+#define	FABRIC_COMANDS_BLOCKED	0
+	atomic_t num_rsrc_err;
+	atomic_t num_cmd_success;
+	unsigned long last_rsrc_error_time;
+	unsigned long last_ramp_down_time;
+	unsigned long last_ramp_up_time;
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct dentry *hba_debugfs_root;
+	atomic_t debugfs_vport_count;
+#endif
+
+	/* Fields used for heart beat. */
+	unsigned long last_completion_time;
+	struct timer_list hb_tmofunc;
+	uint8_t hb_outstanding;
 };
 
-static inline void
-lpfc_set_loopback_flag(struct lpfc_hba *phba) {
-	if (phba->cfg_topology == FLAGS_LOCAL_LB)
-		phba->fc_flag |= FC_LOOPBACK_MODE;
-	else
-		phba->fc_flag &= ~FC_LOOPBACK_MODE;
+static inline struct Scsi_Host *
+lpfc_shost_from_vport(struct lpfc_vport *vport)
+{
+	return container_of((void *) vport, struct Scsi_Host, hostdata[0]);
 }
 
-struct rnidrsp {
-	void *buf;
-	uint32_t uniqueid;
-	struct list_head list;
-	uint32_t data;
-};
+static inline void
+lpfc_set_loopback_flag(struct lpfc_hba *phba)
+{
+	if (phba->cfg_topology == FLAGS_LOCAL_LB)
+		phba->link_flag |= LS_LOOPBACK_MODE;
+	else
+		phba->link_flag &= ~LS_LOOPBACK_MODE;
+}
+
+static inline int
+lpfc_is_link_up(struct lpfc_hba *phba)
+{
+	return  phba->link_state == LPFC_LINK_UP ||
+		phba->link_state == LPFC_CLEAR_LA ||
+		phba->link_state == LPFC_HBA_READY;
+}
 
 #define FC_REG_DUMP_EVENT	0x10	/* Register for Dump events */
+

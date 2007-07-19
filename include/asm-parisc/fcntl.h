@@ -3,21 +3,22 @@
 
 /* open/fcntl - O_SYNC is only implemented on blocks devices and on files
    located on an ext2 file system */
-#define O_APPEND	00000010
-#define O_BLKSEEK	00000100 /* HPUX only */
-#define O_CREAT		00000400 /* not fcntl */
-#define O_EXCL		00002000 /* not fcntl */
-#define O_LARGEFILE	00004000
-#define O_SYNC		00100000
-#define O_NONBLOCK	00200004 /* HPUX has separate NDELAY & NONBLOCK */
-#define O_NOCTTY	00400000 /* not fcntl */
-#define O_DSYNC		01000000 /* HPUX only */
-#define O_RSYNC		02000000 /* HPUX only */
-#define O_NOATIME	04000000
+#define O_APPEND	000000010
+#define O_BLKSEEK	000000100 /* HPUX only */
+#define O_CREAT		000000400 /* not fcntl */
+#define O_EXCL		000002000 /* not fcntl */
+#define O_LARGEFILE	000004000
+#define O_SYNC		000100000
+#define O_NONBLOCK	000200004 /* HPUX has separate NDELAY & NONBLOCK */
+#define O_NOCTTY	000400000 /* not fcntl */
+#define O_DSYNC		001000000 /* HPUX only */
+#define O_RSYNC		002000000 /* HPUX only */
+#define O_NOATIME	004000000
+#define O_CLOEXEC	010000000 /* set close_on_exec */
 
-#define O_DIRECTORY	00010000 /* must be a directory */
-#define O_NOFOLLOW	00000200 /* don't follow links */
-#define O_INVISIBLE	04000000 /* invisible I/O, for DMAPI/XDSM */
+#define O_DIRECTORY	000010000 /* must be a directory */
+#define O_NOFOLLOW	000000200 /* don't follow links */
+#define O_INVISIBLE	004000000 /* invisible I/O, for DMAPI/XDSM */
 
 #define F_GETLK64	8
 #define F_SETLK64	9

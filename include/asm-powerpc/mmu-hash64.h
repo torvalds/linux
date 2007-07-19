@@ -94,6 +94,9 @@ extern char initial_stab[];
 #define HPTE_R_C		ASM_CONST(0x0000000000000080)
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
 
+#define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
+#define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
+
 /* Values for PP (assumes Ks=0, Kp=1) */
 /* pp0 will always be 0 for linux     */
 #define PP_RWXX	0	/* Supervisor read/write, User none */
@@ -103,12 +106,12 @@ extern char initial_stab[];
 
 #ifndef __ASSEMBLY__
 
-typedef struct {
+struct hash_pte {
 	unsigned long v;
 	unsigned long r;
-} hpte_t;
+};
 
-extern hpte_t *htab_address;
+extern struct hash_pte *htab_address;
 extern unsigned long htab_size_bytes;
 extern unsigned long htab_hash_mask;
 

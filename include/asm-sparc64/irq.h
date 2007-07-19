@@ -53,6 +53,8 @@ extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 extern void sun4v_destroy_msi(unsigned int virt_irq);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
+extern void fixup_irqs(void);
+
 static __inline__ void set_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%set_softint"

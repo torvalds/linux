@@ -976,7 +976,7 @@ static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 
 
-	if (bpp==8) {
+	if (bpp == 8) {
 		t_outb(0xFF,0x3C6);
 		t_outb(regno,0x3C8);
 
@@ -984,19 +984,21 @@ static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		t_outb(green>>10,0x3C9);
 		t_outb(blue>>10,0x3C9);
 
-	} else if (bpp == 16) {	/* RGB 565 */
-		u32 col;
+	} else if (regno < 16) {
+		if (bpp == 16) {	/* RGB 565 */
+			u32 col;
 
-		col = (red & 0xF800) | ((green & 0xFC00) >> 5) |
-			((blue & 0xF800) >> 11);
-		col |= col << 16;	
-		((u32 *)(info->pseudo_palette))[regno] = col;
-	} else if (bpp == 32)		/* ARGB 8888 */
-		((u32*)info->pseudo_palette)[regno] =
-			((transp & 0xFF00) <<16) 	|
-			((red & 0xFF00) << 8) 		|
-			((green & 0xFF00))		|
-			((blue & 0xFF00)>>8);
+			col = (red & 0xF800) | ((green & 0xFC00) >> 5) |
+				((blue & 0xF800) >> 11);
+			col |= col << 16;
+			((u32 *)(info->pseudo_palette))[regno] = col;
+		} else if (bpp == 32)		/* ARGB 8888 */
+			((u32*)info->pseudo_palette)[regno] =
+				((transp & 0xFF00) <<16) 	|
+				((red & 0xFF00) << 8) 		|
+				((green & 0xFF00))		|
+				((blue & 0xFF00)>>8);
+	}
 
 //	debug("exit\n");
 	return 0;

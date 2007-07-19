@@ -931,7 +931,6 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	int i, addr_len, option;
 	void __iomem *ioaddr;
 	static int board_idx = -1;
-	u8 pci_rev;
 
 	assert (pdev != NULL);
 	assert (ent != NULL);
@@ -949,13 +948,11 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	}
 #endif
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &pci_rev);
-
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
-	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pci_rev >= 0x20) {
+	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pdev->revision >= 0x20) {
 		dev_info(&pdev->dev,
 			   "This (id %04x:%04x rev %02x) is an enhanced 8139C+ chip\n",
-		       	   pdev->vendor, pdev->device, pci_rev);
+		       	   pdev->vendor, pdev->device, pdev->revision);
 		dev_info(&pdev->dev,
 			   "Use the \"8139cp\" driver for improved performance and stability.\n");
 	}
@@ -2017,7 +2014,7 @@ no_early_rx:
 #if RX_BUF_IDX == 3
 			wrap_copy(skb, rx_ring, ring_offset+4, pkt_size);
 #else
-			eth_copy_and_sum (skb, &rx_ring[ring_offset + 4], pkt_size, 0);
+			skb_copy_to_linear_data (skb, &rx_ring[ring_offset + 4], pkt_size);
 #endif
 			skb_put (skb, pkt_size);
 

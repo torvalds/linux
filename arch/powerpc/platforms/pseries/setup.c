@@ -176,7 +176,7 @@ static void __init pseries_mpic_init_IRQ(void)
 		return;
 
 	cascade_irq = irq_of_parse_and_map(cascade, 0);
-	if (cascade == NO_IRQ) {
+	if (cascade_irq == NO_IRQ) {
 		printk(KERN_ERR "mpic: failed to map cascade interrupt");
 		return;
 	}
@@ -399,6 +399,7 @@ static void pseries_dedicated_idle_sleep(void)
 	 * a good time to find other work to dispatch.
 	 */
 	get_lppaca()->idle = 1;
+	get_lppaca()->donate_dedicated_cpu = 1;
 
 	/*
 	 * We come in with interrupts disabled, and need_resched()
@@ -431,6 +432,7 @@ static void pseries_dedicated_idle_sleep(void)
 
 out:
 	HMT_medium();
+	get_lppaca()->donate_dedicated_cpu = 0;
 	get_lppaca()->idle = 0;
 }
 

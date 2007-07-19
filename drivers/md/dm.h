@@ -18,13 +18,45 @@
 
 #define DM_NAME "device-mapper"
 
-#define DMERR(f, arg...) printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
-#define DMWARN(f, arg...) printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
-#define DMINFO(f, arg...) printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMERR(f, arg...) \
+	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMERR_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " \
+			       f "\n", ## arg); \
+	} while (0)
+
+#define DMWARN(f, arg...) \
+	printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMWARN_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " \
+			       f "\n", ## arg); \
+	} while (0)
+
+#define DMINFO(f, arg...) \
+	printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMINFO_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f \
+			       "\n", ## arg); \
+	} while (0)
+
 #ifdef CONFIG_DM_DEBUG
-#  define DMDEBUG(f, arg...) printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
+#  define DMDEBUG(f, arg...) \
+	printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
+#  define DMDEBUG_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX ": " f \
+			       "\n", ## arg); \
+	} while (0)
 #else
 #  define DMDEBUG(f, arg...) do {} while (0)
+#  define DMDEBUG_LIMIT(f, arg...) do {} while (0)
 #endif
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \

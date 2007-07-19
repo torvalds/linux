@@ -350,7 +350,7 @@
 		CALL(sys_set_robust_list)
 		CALL(sys_get_robust_list)
 /* 340 */	CALL(sys_splice)
-		CALL(sys_arm_sync_file_range)
+		CALL(sys_sync_file_range2)
 		CALL(sys_tee)
 		CALL(sys_vmsplice)
 		CALL(sys_move_pages)

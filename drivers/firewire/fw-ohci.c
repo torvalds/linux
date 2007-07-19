@@ -373,8 +373,8 @@ static void ar_context_tasklet(unsigned long data)
 
 		offset = offsetof(struct ar_buffer, data);
 		dma_unmap_single(ohci->card.device,
-				 ab->descriptor.data_address - offset,
-				 PAGE_SIZE, DMA_BIDIRECTIONAL);
+			le32_to_cpu(ab->descriptor.data_address) - offset,
+			PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 		buffer = ab;
 		ab = ab->next;
@@ -427,7 +427,7 @@ static void ar_context_run(struct ar_context *ctx)
 	size_t offset;
 
 	offset = offsetof(struct ar_buffer, data);
-	ab_bus = ab->descriptor.data_address - offset;
+	ab_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
 
 	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs), ab_bus | 1);
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN);
@@ -1934,12 +1934,12 @@ static int pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	free_irq(pdev->irq, ohci);
 	err = pci_save_state(pdev);
 	if (err) {
-		fw_error("pci_save_state failed with %d", err);
+		fw_error("pci_save_state failed\n");
 		return err;
 	}
 	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	if (err) {
-		fw_error("pci_set_power_state failed with %d", err);
+		fw_error("pci_set_power_state failed\n");
 		return err;
 	}
 
@@ -1955,7 +1955,7 @@ static int pci_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
-		fw_error("pci_enable_device failed with %d", err);
+		fw_error("pci_enable_device failed\n");
 		return err;
 	}
 

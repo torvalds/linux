@@ -462,9 +462,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 	 * erratum 46: Setup violation on AGP SBA pins - Disable side band addressing.
 	 * With this lot disabled, we should prevent lockups. */
 	if (agp_bridge->dev->device == PCI_DEVICE_ID_AMD_FE_GATE_700E) {
-		u8 revision=0;
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &revision);
-		if (revision == 0x10 || revision == 0x11) {
+		if (pdev->revision == 0x10 || pdev->revision == 0x11) {
 			agp_bridge->flags = AGP_ERRATA_FASTWRITES;
 			agp_bridge->flags |= AGP_ERRATA_SBA;
 			agp_bridge->flags |= AGP_ERRATA_1X;

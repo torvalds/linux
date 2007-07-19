@@ -835,7 +835,7 @@ static void vmlogrdr_cleanup(void)
 }
 
 
-static int vmlogrdr_init(void)
+static int __init vmlogrdr_init(void)
 {
 	int rc;
 	int i;
@@ -885,7 +885,7 @@ cleanup:
 }
 
 
-static void vmlogrdr_exit(void)
+static void __exit vmlogrdr_exit(void)
 {
 	vmlogrdr_cleanup();
 	printk (KERN_INFO "vmlogrdr: driver unloaded\n");

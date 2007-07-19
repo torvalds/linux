@@ -6,6 +6,10 @@
  */
 
 #include "ql4_def.h"
+#include "ql4_glbl.h"
+#include "ql4_dbg.h"
+#include "ql4_inline.h"
+
 
 #include <scsi/scsi_tcq.h>
 
@@ -141,11 +145,13 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 	uint16_t avail_dsds;
 	struct data_seg_a64 *cur_dsd;
 	struct scsi_cmnd *cmd;
+	struct scatterlist *sg;
+	int i;
 
 	cmd = srb->cmd;
 	ha = srb->ha;
 
-	if (cmd->request_bufflen == 0 || cmd->sc_data_direction == DMA_NONE) {
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
 		/* No data being transferred */
 		cmd_entry->ttlByteCnt = __constant_cpu_to_le32(0);
 		return;
@@ -154,40 +160,27 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 	avail_dsds = COMMAND_SEG;
 	cur_dsd = (struct data_seg_a64 *) & (cmd_entry->dataseg[0]);
 
-	/* Load data segments */
-	if (cmd->use_sg) {
-		struct scatterlist *cur_seg;
-		struct scatterlist *end_seg;
+	scsi_for_each_sg(cmd, sg, tot_dsds, i) {
+		dma_addr_t sle_dma;
 
-		cur_seg = (struct scatterlist *)cmd->request_buffer;
-		end_seg = cur_seg + tot_dsds;
-		while (cur_seg < end_seg) {
-			dma_addr_t sle_dma;
+		/* Allocate additional continuation packets? */
+		if (avail_dsds == 0) {
+			struct continuation_t1_entry *cont_entry;
 
-			/* Allocate additional continuation packets? */
-			if (avail_dsds == 0) {
-				struct continuation_t1_entry *cont_entry;
-
-				cont_entry = qla4xxx_alloc_cont_entry(ha);
-				cur_dsd =
-					(struct data_seg_a64 *)
-					&cont_entry->dataseg[0];
-				avail_dsds = CONTINUE_SEG;
-			}
-
-			sle_dma = sg_dma_address(cur_seg);
-			cur_dsd->base.addrLow = cpu_to_le32(LSDW(sle_dma));
-			cur_dsd->base.addrHigh = cpu_to_le32(MSDW(sle_dma));
-			cur_dsd->count = cpu_to_le32(sg_dma_len(cur_seg));
-			avail_dsds--;
-
-			cur_dsd++;
-			cur_seg++;
+			cont_entry = qla4xxx_alloc_cont_entry(ha);
+			cur_dsd =
+				(struct data_seg_a64 *)
+				&cont_entry->dataseg[0];
+			avail_dsds = CONTINUE_SEG;
 		}
-	} else {
-		cur_dsd->base.addrLow = cpu_to_le32(LSDW(srb->dma_handle));
-		cur_dsd->base.addrHigh = cpu_to_le32(MSDW(srb->dma_handle));
-		cur_dsd->count = cpu_to_le32(cmd->request_bufflen);
+
+		sle_dma = sg_dma_address(sg);
+		cur_dsd->base.addrLow = cpu_to_le32(LSDW(sle_dma));
+		cur_dsd->base.addrHigh = cpu_to_le32(MSDW(sle_dma));
+		cur_dsd->count = cpu_to_le32(sg_dma_len(sg));
+		avail_dsds--;
+
+		cur_dsd++;
 	}
 }
 
@@ -204,8 +197,8 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 	struct ddb_entry *ddb_entry;
 	struct command_t3_entry *cmd_entry;
-	struct scatterlist *sg = NULL;
 
+	int nseg;
 	uint16_t tot_dsds;
 	uint16_t req_cnt;
 
@@ -233,24 +226,11 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	index = (uint32_t)cmd->request->tag;
 
 	/* Calculate the number of request entries needed. */
-	if (cmd->use_sg) {
-		sg = (struct scatterlist *)cmd->request_buffer;
-		tot_dsds = pci_map_sg(ha->pdev, sg, cmd->use_sg,
-				      cmd->sc_data_direction);
-		if (tot_dsds == 0)
-			goto queuing_error;
-	} else if (cmd->request_bufflen) {
-		dma_addr_t	req_dma;
+	nseg = scsi_dma_map(cmd);
+	if (nseg < 0)
+		goto queuing_error;
+	tot_dsds = nseg;
 
-		req_dma = pci_map_single(ha->pdev, cmd->request_buffer,
-					 cmd->request_bufflen,
-					 cmd->sc_data_direction);
-		if (dma_mapping_error(req_dma))
-			goto queuing_error;
-
-		srb->dma_handle = req_dma;
-		tot_dsds = 1;
-	}
 	req_cnt = qla4xxx_calc_request_entries(tot_dsds);
 
 	if (ha->req_q_count < (req_cnt + 2)) {
@@ -279,7 +259,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 
 	int_to_scsilun(cmd->device->lun, &cmd_entry->lun);
 	cmd_entry->cmdSeqNum = cpu_to_le32(ddb_entry->CmdSn);
-	cmd_entry->ttlByteCnt = cpu_to_le32(cmd->request_bufflen);
+	cmd_entry->ttlByteCnt = cpu_to_le32(scsi_bufflen(cmd));
 	memcpy(cmd_entry->cdb, cmd->cmnd, cmd->cmd_len);
 	cmd_entry->dataSegCnt = cpu_to_le16(tot_dsds);
 	cmd_entry->hdr.entryCount = req_cnt;
@@ -289,13 +269,13 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	 *	 transferred, as the data direction bit is sometimed filled
 	 *	 in when there is no data to be transferred */
 	cmd_entry->control_flags = CF_NO_DATA;
-	if (cmd->request_bufflen) {
+	if (scsi_bufflen(cmd)) {
 		if (cmd->sc_data_direction == DMA_TO_DEVICE)
 			cmd_entry->control_flags = CF_WRITE;
 		else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 			cmd_entry->control_flags = CF_READ;
 
-		ha->bytes_xfered += cmd->request_bufflen;
+		ha->bytes_xfered += scsi_bufflen(cmd);
 		if (ha->bytes_xfered & ~0xFFFFF){
 			ha->total_mbytes_xferred += ha->bytes_xfered >> 20;
 			ha->bytes_xfered &= 0xFFFFF;
@@ -359,14 +339,9 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	return QLA_SUCCESS;
 
 queuing_error:
+	if (tot_dsds)
+		scsi_dma_unmap(cmd);
 
-	if (cmd->use_sg && tot_dsds) {
-		sg = (struct scatterlist *) cmd->request_buffer;
-		pci_unmap_sg(ha->pdev, sg, cmd->use_sg,
-			     cmd->sc_data_direction);
-	} else if (tot_dsds)
-		pci_unmap_single(ha->pdev, srb->dma_handle,
-				 cmd->request_bufflen, cmd->sc_data_direction);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_ERROR;

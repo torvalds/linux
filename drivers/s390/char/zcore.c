@@ -156,7 +156,7 @@ static int memcpy_real(void *dest, unsigned long src, size_t count)
 	return rc;
 }
 
-static int memcpy_real_user(__user void *dest, unsigned long src, size_t count)
+static int memcpy_real_user(void __user *dest, unsigned long src, size_t count)
 {
 	static char buf[4096];
 	int offs = 0, size;

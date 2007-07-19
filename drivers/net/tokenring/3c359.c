@@ -363,7 +363,7 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 }
 
 
-static int __init xl_init(struct net_device *dev) 
+static int __devinit xl_init(struct net_device *dev) 
 {
     	struct xl_private *xl_priv = (struct xl_private *)dev->priv ;
 

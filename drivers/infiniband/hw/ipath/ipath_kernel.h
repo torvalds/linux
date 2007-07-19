@@ -1,7 +1,7 @@
 #ifndef _IPATH_KERNEL_H
 #define _IPATH_KERNEL_H
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -57,6 +57,24 @@
 extern struct infinipath_stats ipath_stats;
 
 #define IPATH_CHIP_SWVERSION IPATH_CHIP_VERS_MAJ
+/*
+ * First-cut critierion for "device is active" is
+ * two thousand dwords combined Tx, Rx traffic per
+ * 5-second interval. SMA packets are 64 dwords,
+ * and occur "a few per second", presumably each way.
+ */
+#define IPATH_TRAFFIC_ACTIVE_THRESHOLD (2000)
+/*
+ * Struct used to indicate which errors are logged in each of the
+ * error-counters that are logged to EEPROM. A counter is incremented
+ * _once_ (saturating at 255) for each event with any bits set in
+ * the error or hwerror register masks below.
+ */
+#define IPATH_EEP_LOG_CNT (4)
+struct ipath_eep_log_mask {
+	u64 errs_to_log;
+	u64 hwerrs_to_log;
+};
 
 struct ipath_portdata {
 	void **port_rcvegrbuf;
@@ -109,6 +127,8 @@ struct ipath_portdata {
 	u32 port_tidcursor;
 	/* next expected TID to check */
 	unsigned long port_flag;
+	/* what happened */
+	unsigned long int_flag;
 	/* WAIT_RCV that timed out, no interrupt */
 	u32 port_rcvwait_to;
 	/* WAIT_PIO that timed out, no interrupt */
@@ -137,6 +157,8 @@ struct ipath_portdata {
 	u32 userversion;
 	/* Bitmask of active slaves */
 	u32 active_slaves;
+	/* Type of packets or conditions we want to poll for */
+	u16 poll_type;
 };
 
 struct sk_buff;
@@ -275,6 +297,8 @@ struct ipath_devdata {
 	u32 ipath_lastport_piobuf;
 	/* is a stats timer active */
 	u32 ipath_stats_timer_active;
+	/* number of interrupts for this device -- saturates... */
+	u32 ipath_int_counter;
 	/* dwords sent read from counter */
 	u32 ipath_lastsword;
 	/* dwords received read from counter */
@@ -369,9 +393,6 @@ struct ipath_devdata {
 	struct class_device *diag_class_dev;
 	/* timer used to prevent stats overflow, error throttling, etc. */
 	struct timer_list ipath_stats_timer;
-	/* check for stale messages in rcv queue */
-	/* only allow one intr at a time. */
-	unsigned long ipath_rcv_pending;
 	void *ipath_dummy_hdrq;	/* used after port close */
 	dma_addr_t ipath_dummy_hdrq_phys;
 
@@ -399,6 +420,8 @@ struct ipath_devdata {
 	u64 ipath_gpio_out;
 	/* shadow the gpio mask register */
 	u64 ipath_gpio_mask;
+	/* shadow the gpio output enable, etc... */
+	u64 ipath_extctrl;
 	/* kr_revision shadow */
 	u64 ipath_revision;
 	/*
@@ -473,8 +496,6 @@ struct ipath_devdata {
 	u32 ipath_cregbase;
 	/* shadow the control register contents */
 	u32 ipath_control;
-	/* shadow the gpio output contents */
-	u32 ipath_extctrl;
 	/* PCI revision register (HTC rev on FPGA) */
 	u32 ipath_pcirev;
 
@@ -552,6 +573,9 @@ struct ipath_devdata {
 	u32 ipath_overrun_thresh_errs;
 	u32 ipath_lli_errs;
 
+	/* status check work */
+	struct delayed_work status_work;
+
 	/*
 	 * Not all devices managed by a driver instance are the same
 	 * type, so these fields must be per-device.
@@ -575,6 +599,37 @@ struct ipath_devdata {
 	u16 ipath_gpio_scl_num;
 	u64 ipath_gpio_sda;
 	u64 ipath_gpio_scl;
+
+	/* lock for doing RMW of shadows/regs for ExtCtrl and GPIO */
+	spinlock_t ipath_gpio_lock;
+
+	/* used to override LED behavior */
+	u8 ipath_led_override;  /* Substituted for normal value, if non-zero */
+	u16 ipath_led_override_timeoff; /* delta to next timer event */
+	u8 ipath_led_override_vals[2]; /* Alternates per blink-frame */
+	u8 ipath_led_override_phase; /* Just counts, LSB picks from vals[] */
+	atomic_t ipath_led_override_timer_active;
+	/* Used to flash LEDs in override mode */
+	struct timer_list ipath_led_override_timer;
+
+	/* Support (including locks) for EEPROM logging of errors and time */
+	/* control access to actual counters, timer */
+	spinlock_t ipath_eep_st_lock;
+	/* control high-level access to EEPROM */
+	struct semaphore ipath_eep_sem;
+	/* Below inc'd by ipath_snap_cntrs(), locked by ipath_eep_st_lock */
+	uint64_t ipath_traffic_wds;
+	/* active time is kept in seconds, but logged in hours */
+	atomic_t ipath_active_time;
+	/* Below are nominal shadow of EEPROM, new since last EEPROM update */
+	uint8_t ipath_eep_st_errs[IPATH_EEP_LOG_CNT];
+	uint8_t ipath_eep_st_new_errs[IPATH_EEP_LOG_CNT];
+	uint16_t ipath_eep_hrs;
+	/*
+	 * masks for which bits of errs, hwerrs that cause
+	 * each of the counters to increment.
+	 */
+	struct ipath_eep_log_mask ipath_eep_st_masks[IPATH_EEP_LOG_CNT];
 };
 
 /* Private data for file operations */
@@ -592,6 +647,7 @@ int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
 int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
+void ipath_clear_freeze(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
@@ -627,6 +683,7 @@ int ipath_unordered_wc(void);
 
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
+void ipath_cancel_sends(struct ipath_devdata *);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
 void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
@@ -685,7 +742,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		 * are 64bit */
 #define IPATH_32BITCOUNTERS 0x20000
 		/* can miss port0 rx interrupts */
-#define IPATH_POLL_RX_INTR  0x40000
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
@@ -704,6 +760,10 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_PORT_WAITING_PIO   3
 		/* master has not finished initializing */
 #define IPATH_PORT_MASTER_UNINIT 4
+		/* waiting for an urgent packet to arrive */
+#define IPATH_PORT_WAITING_URG 5
+		/* waiting for a header overflow */
+#define IPATH_PORT_WAITING_OVERFLOW 6
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
@@ -713,8 +773,19 @@ u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
+int ipath_update_eeprom_log(struct ipath_devdata *dd);
+void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
+
+/*
+ * Set LED override, only the two LSBs have "public" meaning, but
+ * any non-zero value substitutes them for the Link and LinkTrain
+ * LED states.
+ */
+#define IPATH_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
+#define IPATH_LED_LOG 2  /* Logical (link) YELLOW LED */
+void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
 
 /*
  * number of words used for protocol header if not set by ipath_userinit();

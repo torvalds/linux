@@ -367,6 +367,7 @@
 #define __NR_get_robust_list		(__NR_SYSCALL_BASE+339)
 #define __NR_splice			(__NR_SYSCALL_BASE+340)
 #define __NR_arm_sync_file_range	(__NR_SYSCALL_BASE+341)
+#define __NR_sync_file_range2		__NR_arm_sync_file_range
 #define __NR_tee			(__NR_SYSCALL_BASE+342)
 #define __NR_vmsplice			(__NR_SYSCALL_BASE+343)
 #define __NR_move_pages			(__NR_SYSCALL_BASE+344)

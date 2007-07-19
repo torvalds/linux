@@ -117,7 +117,10 @@ static int versatile_read_config(struct pci_bus *bus, unsigned int devfn, int wh
 	} else {
 		switch (size) {
 		case 1:
-			v = __raw_readb(addr);
+			v = __raw_readl(addr);
+			if (where & 2) v >>= 16;
+			if (where & 1) v >>= 8;
+ 			v &= 0xff;
 			break;
 
 		case 2:

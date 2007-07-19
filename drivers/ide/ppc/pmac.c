@@ -942,8 +942,8 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 				return 1;
 		case XFER_UDMA_4:
 		case XFER_UDMA_3:
-			if (HWIF(drive)->udma_four == 0)
-				return 1;		
+			if (drive->hwif->cbl != ATA_CBL_PATA80)
+				return 1;
 		case XFER_UDMA_2:
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
@@ -1244,7 +1244,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->chipset = ide_pmac;
 	hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET] || pmif->mediabay;
 	hwif->hold = pmif->mediabay;
-	hwif->udma_four = pmif->cable_80;
+	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
 	hwif->tuneproc = pmac_ide_tuneproc;
@@ -1821,28 +1821,11 @@ pmac_ide_dma_check(ide_drive_t *drive)
 		enable = 0;
 
 	if (enable) {
-		short mode;
-		
-		map = XFER_MWDMA;
-		if (pmif->kind == controller_kl_ata4
-		    || pmif->kind == controller_un_ata6
-		    || pmif->kind == controller_k2_ata6
-		    || pmif->kind == controller_sh_ata6) {
-			map |= XFER_UDMA;
-			if (pmif->cable_80) {
-				map |= XFER_UDMA_66;
-				if (pmif->kind == controller_un_ata6 ||
-				    pmif->kind == controller_k2_ata6 ||
-				    pmif->kind == controller_sh_ata6)
-					map |= XFER_UDMA_100;
-				if (pmif->kind == controller_sh_ata6)
-					map |= XFER_UDMA_133;
-			}
-		}
-		mode = ide_find_best_mode(drive, map);
-		if (mode & XFER_UDMA)
+		u8 mode = ide_max_dma_mode(drive);
+
+		if (mode >= XFER_UDMA_0)
 			drive->using_dma = pmac_ide_udma_enable(drive, mode);
-		else if (mode & XFER_MWDMA)
+		else if (mode >= XFER_MW_DMA_0)
 			drive->using_dma = pmac_ide_mdma_enable(drive, mode);
 		hwif->OUTB(0, IDE_CONTROL_REG);
 		/* Apply settings to controller */
@@ -2004,20 +1987,19 @@ static void pmac_ide_dma_host_on(ide_drive_t *drive)
 {
 }
 
-static int
-pmac_ide_dma_lostirq (ide_drive_t *drive)
+static void
+pmac_ide_dma_lost_irq (ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
 	volatile struct dbdma_regs __iomem *dma;
 	unsigned long status;
 
 	if (pmif == NULL)
-		return 0;
+		return;
 	dma = pmif->dma_regs;
 
 	status = readl(&dma->status);
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
-	return 0;
 }
 
 /*
@@ -2057,8 +2039,8 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->ide_dma_test_irq = &pmac_ide_dma_test_irq;
 	hwif->dma_host_off = &pmac_ide_dma_host_off;
 	hwif->dma_host_on = &pmac_ide_dma_host_on;
-	hwif->ide_dma_timeout = &__ide_dma_timeout;
-	hwif->ide_dma_lostirq = &pmac_ide_dma_lostirq;
+	hwif->dma_timeout = &ide_dma_timeout;
+	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
 
 	hwif->atapi_dma = 1;
 	switch(pmif->kind) {

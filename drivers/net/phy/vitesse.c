@@ -84,7 +84,7 @@ static int vsc824x_config_intr(struct phy_device *phydev)
 
 /* Vitesse 824x */
 static struct phy_driver vsc8244_driver = {
-	.phy_id		= 0x000fc6c2,
+	.phy_id		= 0x000fc6c0,
 	.name		= "Vitesse VSC8244",
 	.phy_id_mask	= 0x000fffc0,
 	.features	= PHY_GBIT_FEATURES,

@@ -13,7 +13,6 @@
 #include <linux/pci.h>
 #include <linux/serial_8250.h>
 
-#include <asm/mc146818-time.h>
 #include <asm/sni.h>
 #include <asm/time.h>
 #include <asm/irq_cpu.h>
@@ -56,6 +55,25 @@ static struct platform_device pcit_cplus_serial8250_device = {
 	.dev			= {
 		.platform_data	= pcit_cplus_data,
 	},
+};
+
+static struct resource pcit_cmos_rsrc[] = {
+        {
+                .start = 0x70,
+                .end   = 0x71,
+                .flags = IORESOURCE_IO
+        },
+        {
+                .start = 8,
+                .end   = 8,
+                .flags = IORESOURCE_IRQ
+        }
+};
+
+static struct platform_device pcit_cmos_device = {
+        .name           = "rtc_cmos",
+        .num_resources  = ARRAY_SIZE(pcit_cmos_rsrc),
+        .resource       = pcit_cmos_rsrc
 };
 
 static struct resource sni_io_resource = {
@@ -243,10 +261,8 @@ void __init sni_pcit_cplus_irq_init(void)
 	setup_irq (MIPS_CPU_IRQ_BASE + 3, &sni_isa_irq);
 }
 
-void sni_pcit_init(void)
+void __init sni_pcit_init(void)
 {
-	rtc_mips_get_time = mc146818_get_cmos_time;
-	rtc_mips_set_time = mc146818_set_rtc_mmss;
 	board_time_init = sni_cpu_time_init;
 	ioport_resource.end = sni_io_resource.end;
 #ifdef CONFIG_PCI
@@ -261,10 +277,12 @@ static int __init snirm_pcit_setup_devinit(void)
 	switch (sni_brd_type) {
 	case SNI_BRD_PCI_TOWER:
 	        platform_device_register(&pcit_serial8250_device);
+	        platform_device_register(&pcit_cmos_device);
 	        break;
 
 	case SNI_BRD_PCI_TOWER_CPLUS:
 	        platform_device_register(&pcit_cplus_serial8250_device);
+	        platform_device_register(&pcit_cmos_device);
 	        break;
 	}
 	return 0;

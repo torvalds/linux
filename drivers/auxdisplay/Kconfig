@@ -5,8 +5,11 @@
 # Auxiliary display drivers configuration.
 #
 
-menu "Auxiliary Display support"
+menuconfig AUXDISPLAY
 	depends on PARPORT
+	bool "Auxiliary Display support"
+
+if AUXDISPLAY && PARPORT
 
 config KS0108
 	tristate "KS0108 LCD Controller"
@@ -111,4 +114,5 @@ config CFAG12864B_RATE
 
 	  If you compile this as a module, you can still override this
 	  value using the module parameters.
-endmenu
+
+endif # AUXDISPLAY

@@ -889,9 +889,9 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 
 		DEB_EE(("VIDIOC_QUERYCAP\n"));
 
-		strcpy(cap->driver, "saa7146 v4l2");
-		strlcpy(cap->card, dev->ext->name, sizeof(cap->card));
-		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
+		strcpy((char *)cap->driver, "saa7146 v4l2");
+		strlcpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
+		sprintf((char *)cap->bus_info,"PCI:%s", pci_name(dev->pci));
 		cap->version = SAA7146_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
@@ -968,7 +968,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 			}
 			memset(f,0,sizeof(*f));
 			f->index = index;
-			strlcpy(f->description,formats[index].name,sizeof(f->description));
+			strlcpy((char *)f->description,formats[index].name,sizeof(f->description));
 			f->pixelformat = formats[index].pixelformat;
 			break;
 		}

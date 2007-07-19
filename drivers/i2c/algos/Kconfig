@@ -34,10 +34,6 @@ config I2C_ALGOPCA
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-algo-pca.
 
-config I2C_ALGO8XX
-	tristate "MPC8xx CPM I2C interface"
-	depends on 8xx
-
 config I2C_ALGO_SGI
 	tristate "I2C SGI interfaces"
 	depends on SGI_IP22 || SGI_IP32 || X86_VISWS

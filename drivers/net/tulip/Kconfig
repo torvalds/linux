@@ -2,17 +2,17 @@
 # Tulip family network device configuration
 #
 
-menu "Tulip family network device support"
-	depends on NET_ETHERNET && (PCI || EISA || CARDBUS)
-
-config NET_TULIP
+menuconfig NET_TULIP
 	bool "\"Tulip\" family network device support"
+	depends on PCI || EISA || CARDBUS
 	help
 	  This selects the "Tulip" family of EISA/PCI network cards.
 
+if NET_TULIP
+
 config DE2104X
 	tristate "Early DECchip Tulip (dc2104x) PCI support (EXPERIMENTAL)"
-	depends on NET_TULIP && PCI && EXPERIMENTAL
+	depends on PCI && EXPERIMENTAL
 	select CRC32
 	---help---
 	  This driver is developed for the SMC EtherPower series Ethernet
@@ -30,7 +30,7 @@ config DE2104X
 
 config TULIP
 	tristate "DECchip Tulip (dc2114x) PCI support"
-	depends on NET_TULIP && PCI
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver is developed for the SMC EtherPower series Ethernet
@@ -95,7 +95,7 @@ config TULIP_NAPI_HW_MITIGATION
 
 config DE4X5
 	tristate "Generic DECchip & DIGITAL EtherWORKS PCI/EISA"
-	depends on NET_TULIP && (PCI || EISA)
+	depends on PCI || EISA
 	select CRC32
 	---help---
 	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.
@@ -112,7 +112,7 @@ config DE4X5
 
 config WINBOND_840
 	tristate "Winbond W89c840 Ethernet support"
-	depends on NET_TULIP && PCI
+	depends on PCI
 	select CRC32
 	select MII
 	help
@@ -123,7 +123,7 @@ config WINBOND_840
 
 config DM9102
 	tristate "Davicom DM910x/DM980x support"
-	depends on NET_TULIP && PCI
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver is for DM9102(A)/DM9132/DM9801 compatible PCI cards from
@@ -137,7 +137,7 @@ config DM9102
 
 config ULI526X
 	tristate "ULi M526x controller support"
-	depends on NET_TULIP && PCI
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver is for ULi M5261/M5263 10/100M Ethernet Controller
@@ -149,7 +149,7 @@ config ULI526X
 	  
 config PCMCIA_XIRCOM
 	tristate "Xircom CardBus support (new driver)"
-	depends on NET_TULIP && CARDBUS
+	depends on CARDBUS
 	---help---
 	  This driver is for the Digital "Tulip" Ethernet CardBus adapters.
 	  It should work with most DEC 21*4*-based chips/ethercards, as well
@@ -162,7 +162,7 @@ config PCMCIA_XIRCOM
 
 config PCMCIA_XIRTULIP
 	tristate "Xircom Tulip-like CardBus support (old driver)"
-	depends on NET_TULIP && CARDBUS && BROKEN_ON_SMP
+	depends on CARDBUS && BROKEN_ON_SMP
 	select CRC32
 	---help---
 	  This driver is for the Digital "Tulip" Ethernet CardBus adapters.
@@ -174,5 +174,4 @@ config PCMCIA_XIRTULIP
 	  <file:Documentation/networking/net-modules.txt>.  The module will
 	  be called xircom_tulip_cb.  If unsure, say N.
 
-endmenu
-
+endif # NET_TULIP

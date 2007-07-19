@@ -107,14 +107,14 @@ enum {
 #define HCI_IDLE_TIMEOUT	(6000)	/* 6 seconds */
 #define HCI_INIT_TIMEOUT	(10000)	/* 10 seconds */
 
-/* HCI Packet types */
+/* HCI data types */
 #define HCI_COMMAND_PKT		0x01
 #define HCI_ACLDATA_PKT		0x02
 #define HCI_SCODATA_PKT		0x03
 #define HCI_EVENT_PKT		0x04
 #define HCI_VENDOR_PKT		0xff
 
-/* HCI Packet types */
+/* HCI packet types */
 #define HCI_DM1		0x0008
 #define HCI_DM3		0x0400
 #define HCI_DM5		0x4000
@@ -129,6 +129,14 @@ enum {
 #define SCO_PTYPE_MASK	(HCI_HV1 | HCI_HV2 | HCI_HV3)
 #define ACL_PTYPE_MASK	(~SCO_PTYPE_MASK)
 
+/* eSCO packet types */
+#define ESCO_HV1	0x0001
+#define ESCO_HV2	0x0002
+#define ESCO_HV3	0x0004
+#define ESCO_EV3	0x0008
+#define ESCO_EV4	0x0010
+#define ESCO_EV5	0x0020
+
 /* ACL flags */
 #define ACL_CONT		0x01
 #define ACL_START		0x02
@@ -138,6 +146,7 @@ enum {
 /* Baseband links */
 #define SCO_LINK	0x00
 #define ACL_LINK	0x01
+#define ESCO_LINK	0x02
 
 /* LMP features */
 #define LMP_3SLOT	0x01
@@ -161,6 +170,11 @@ enum {
 #define LMP_CVSD	0x01
 #define LMP_PSCHEME	0x02
 #define LMP_PCONTROL	0x04
+
+#define LMP_ESCO	0x80
+
+#define LMP_EV4		0x01
+#define LMP_EV5		0x02
 
 #define LMP_SNIFF_SUBR	0x02
 

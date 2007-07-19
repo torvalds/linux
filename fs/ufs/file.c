@@ -60,5 +60,5 @@ const struct file_operations ufs_file_operations = {
 	.mmap		= generic_file_mmap,
 	.open           = generic_file_open,
 	.fsync		= ufs_sync_file,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 };

@@ -17,7 +17,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -44,11 +44,11 @@ void ibmasm_receive_message(struct service_processor *sp, void *message, int mes
 		size = message_size;
 
 	switch (header->type) {
-	case sp_event: 
+	case sp_event:
 		ibmasm_receive_event(sp, message, size);
 		break;
 	case sp_command_response:
-		ibmasm_receive_command_response(sp, message, size); 
+		ibmasm_receive_command_response(sp, message, size);
 		break;
 	case sp_heartbeat:
 		ibmasm_receive_heartbeat(sp, message, size);
@@ -95,7 +95,7 @@ int ibmasm_send_driver_vpd(struct service_processor *sp)
 	strcat(vpd_data, IBMASM_DRIVER_VPD);
 	vpd_data[10] = 0;
 	vpd_data[15] = 0;
-	
+
 	ibmasm_exec_command(sp, command);
 	ibmasm_wait_for_response(command, IBMASM_CMD_TIMEOUT_NORMAL);
 
@@ -118,7 +118,7 @@ struct os_state_command {
  * During driver init this function is called with os state "up".
  * This causes the service processor to start sending heartbeats the
  * driver.
- * During driver exit the function is called with os state "down", 
+ * During driver exit the function is called with os state "down",
  * causing the service processor to stop the heartbeats.
  */
 int ibmasm_send_os_state(struct service_processor *sp, int os_state)

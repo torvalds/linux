@@ -208,7 +208,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		argv [0] = uevent_helper;
 		argv [1] = (char *)subsystem;
 		argv [2] = NULL;
-		call_usermodehelper (argv[0], argv, envp, 0);
+		call_usermodehelper (argv[0], argv, envp, UMH_WAIT_EXEC);
 	}
 
 exit:

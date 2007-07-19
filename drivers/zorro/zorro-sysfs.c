@@ -49,8 +49,9 @@ static ssize_t zorro_show_resource(struct device *dev, struct device_attribute *
 
 static DEVICE_ATTR(resource, S_IRUGO, zorro_show_resource, NULL);
 
-static ssize_t zorro_read_config(struct kobject *kobj, char *buf, loff_t off,
-				 size_t count)
+static ssize_t zorro_read_config(struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t off, size_t count)
 {
 	struct zorro_dev *z = to_zorro_dev(container_of(kobj, struct device,
 					   kobj));
@@ -78,7 +79,6 @@ static struct bin_attribute zorro_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE
 	},
 	.size = sizeof(struct ConfigDev),
 	.read = zorro_read_config,

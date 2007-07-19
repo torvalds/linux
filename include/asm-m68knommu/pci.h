@@ -24,16 +24,6 @@ static inline int pci_dma_supported(struct pci_dev *hwdev, u64 mask)
 	return 1;
 }
 
-/*
- * Not supporting more than 32-bit PCI bus addresses now, but
- * must satisfy references to this function.  Change if needed.
- */
-#define pci_dac_dma_supported(pci_dev, mask) (0)
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* CONFIG_COMEMPCI */
 
 #endif /* M68KNOMMU_PCI_H */

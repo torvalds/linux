@@ -574,7 +574,10 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
 
-	if (hwif->udma_four == 0)
+	if (hwif->cbl == ATA_CBL_PATA40_SHORT)
+		return 1;
+
+	if (hwif->cbl != ATA_CBL_PATA80)
 		goto no_80w;
 
 	/* Check for SATA but only if we are ATA5 or higher */
@@ -600,7 +603,8 @@ no_80w:
 
 	printk(KERN_WARNING "%s: %s side 80-wire cable detection failed, "
 			    "limiting max speed to UDMA33\n",
-			    drive->name, hwif->udma_four ? "drive" : "host");
+			    drive->name,
+			    hwif->cbl == ATA_CBL_PATA80 ? "drive" : "host");
 
 	drive->udma33_warned = 1;
 

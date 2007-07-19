@@ -238,6 +238,8 @@ config_item_type.
 		struct config_group *(*make_group)(struct config_group *group,
 						   const char *name);
 		int (*commit_item)(struct config_item *item);
+		void (*disconnect_notify)(struct config_group *group,
+					  struct config_item *item);
 		void (*drop_item)(struct config_group *group,
 				  struct config_item *item);
 	};
@@ -268,6 +270,16 @@ the item in other threads, the memory is safe.  It may take some time
 for the item to actually disappear from the subsystem's usage.  But it
 is gone from configfs.
 
+When drop_item() is called, the item's linkage has already been torn
+down.  It no longer has a reference on its parent and has no place in
+the item hierarchy.  If a client needs to do some cleanup before this
+teardown happens, the subsystem can implement the
+ct_group_ops->disconnect_notify() method.  The method is called after
+configfs has removed the item from the filesystem view but before the
+item is removed from its parent group.  Like drop_item(),
+disconnect_notify() is void and cannot fail.  Client subsystems should
+not drop any references here, as they still must do it in drop_item().
+
 A config_group cannot be removed while it still has child items.  This
 is implemented in the configfs rmdir(2) code.  ->drop_item() will not be
 called, as the item has not been dropped.  rmdir(2) will fail, as the
@@ -280,18 +292,18 @@ tells configfs to make the subsystem appear in the file tree.
 
 	struct configfs_subsystem {
 		struct config_group	su_group;
-		struct semaphore	su_sem;
+		struct mutex		su_mutex;
 	};
 
 	int configfs_register_subsystem(struct configfs_subsystem *subsys);
 	void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
 
-	A subsystem consists of a toplevel config_group and a semaphore.
+	A subsystem consists of a toplevel config_group and a mutex.
 The group is where child config_items are created.  For a subsystem,
 this group is usually defined statically.  Before calling
 configfs_register_subsystem(), the subsystem must have initialized the
 group via the usual group _init() functions, and it must also have
-initialized the semaphore.
+initialized the mutex.
 	When the register call returns, the subsystem is live, and it
 will be visible via configfs.  At that point, mkdir(2) can be called and
 the subsystem must be ready for it.
@@ -303,7 +315,7 @@ subsystem/group and the simple_child item in configfs_example.c  It
 shows a trivial object displaying and storing an attribute, and a simple
 group creating and destroying these children.
 
-[Hierarchy Navigation and the Subsystem Semaphore]
+[Hierarchy Navigation and the Subsystem Mutex]
 
 There is an extra bonus that configfs provides.  The config_groups and
 config_items are arranged in a hierarchy due to the fact that they
@@ -314,19 +326,19 @@ and config_item->ci_parent structure members.
 
 A subsystem can navigate the cg_children list and the ci_parent pointer
 to see the tree created by the subsystem.  This can race with configfs'
-management of the hierarchy, so configfs uses the subsystem semaphore to
+management of the hierarchy, so configfs uses the subsystem mutex to
 protect modifications.  Whenever a subsystem wants to navigate the
 hierarchy, it must do so under the protection of the subsystem
-semaphore.
+mutex.
 
-A subsystem will be prevented from acquiring the semaphore while a newly
+A subsystem will be prevented from acquiring the mutex while a newly
 allocated item has not been linked into this hierarchy.   Similarly, it
-will not be able to acquire the semaphore while a dropping item has not
+will not be able to acquire the mutex while a dropping item has not
 yet been unlinked.  This means that an item's ci_parent pointer will
 never be NULL while the item is in configfs, and that an item will only
 be in its parent's cg_children list for the same duration.  This allows
 a subsystem to trust ci_parent and cg_children while they hold the
-semaphore.
+mutex.
 
 [Item Aggregation Via symlink(2)]
 
@@ -385,6 +397,33 @@ also means every default group child associated with that parent group.
 As a consequence of this, default_groups cannot be removed directly via
 rmdir(2).  They also are not considered when rmdir(2) on the parent
 group is checking for children.
+
+[Dependant Subsystems]
+
+Sometimes other drivers depend on particular configfs items.  For
+example, ocfs2 mounts depend on a heartbeat region item.  If that
+region item is removed with rmdir(2), the ocfs2 mount must BUG or go
+readonly.  Not happy.
+
+configfs provides two additional API calls: configfs_depend_item() and
+configfs_undepend_item().  A client driver can call
+configfs_depend_item() on an existing item to tell configfs that it is
+depended on.  configfs will then return -EBUSY from rmdir(2) for that
+item.  When the item is no longer depended on, the client driver calls
+configfs_undepend_item() on it.
+
+These API cannot be called underneath any configfs callbacks, as
+they will conflict.  They can block and allocate.  A client driver
+probably shouldn't calling them of its own gumption.  Rather it should
+be providing an API that external subsystems call.
+
+How does this work?  Imagine the ocfs2 mount process.  When it mounts,
+it asks for a heartbeat region item.  This is done via a call into the
+heartbeat code.  Inside the heartbeat code, the region item is looked
+up.  Here, the heartbeat code calls configfs_depend_item().  If it
+succeeds, then heartbeat knows the region is safe to give to ocfs2.
+If it fails, it was being torn down anyway, and heartbeat can gracefully
+pass up an error.
 
 [Committable Items]
 

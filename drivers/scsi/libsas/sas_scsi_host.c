@@ -40,6 +40,7 @@
 
 #include <linux/err.h>
 #include <linux/blkdev.h>
+#include <linux/freezer.h>
 #include <linux/scatterlist.h>
 
 /* ---------- SCSI Host glue ---------- */
@@ -76,8 +77,8 @@ static void sas_scsi_task_done(struct sas_task *task)
 			hs = DID_NO_CONNECT;
 			break;
 		case SAS_DATA_UNDERRUN:
-			sc->resid = ts->residual;
-			if (sc->request_bufflen - sc->resid < sc->underflow)
+			scsi_set_resid(sc, ts->residual);
+			if (scsi_bufflen(sc) - scsi_get_resid(sc) < sc->underflow)
 				hs = DID_ERROR;
 			break;
 		case SAS_DATA_OVERRUN:
@@ -161,9 +162,9 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->ssp_task.task_attr = sas_scsi_get_task_attr(cmd);
 	memcpy(task->ssp_task.cdb, cmd->cmnd, 16);
 
-	task->scatter = cmd->request_buffer;
-	task->num_scatter = cmd->use_sg;
-	task->total_xfer_len = cmd->request_bufflen;
+	task->scatter = scsi_sglist(cmd);
+	task->num_scatter = scsi_sg_count(cmd);
+	task->total_xfer_len = scsi_bufflen(cmd);
 	task->data_dir = cmd->sc_data_direction;
 
 	task->task_done = sas_scsi_task_done;
@@ -867,8 +868,6 @@ static void sas_queue(struct sas_ha_struct *sas_ha)
 static int sas_queue_thread(void *_sas_ha)
 {
 	struct sas_ha_struct *sas_ha = _sas_ha;
-
-	current->flags |= PF_NOFREEZE;
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);

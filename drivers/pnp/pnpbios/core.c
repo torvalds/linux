@@ -147,7 +147,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 		info->location_id, info->serial, info->capabilities);
 	envp[i] = NULL;
 	
-	value = call_usermodehelper (argv [0], argv, envp, 0);
+	value = call_usermodehelper (argv [0], argv, envp, UMH_WAIT_EXEC);
 	kfree (buf);
 	kfree (envp);
 	return 0;
@@ -160,6 +160,7 @@ static int pnp_dock_thread(void * unused)
 {
 	static struct pnp_docking_station_info now;
 	int docked = -1, d = 0;
+	set_freezable();
 	while (!unloading)
 	{
 		int status;

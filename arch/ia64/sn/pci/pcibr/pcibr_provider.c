@@ -15,6 +15,7 @@
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/sn/pic.h>
 #include <asm/sn/sn2/sn_hwperf.h>
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
@@ -79,7 +80,7 @@ static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus)
 {
 	s64 rc;
-	u16 ioboard;
+	u16 uninitialized_var(ioboard);		/* GCC be quiet */
 	nasid_t nasid = NASID_GET(SN_PCIBUS_BUSSOFT(pci_bus)->bs_base);
 
 	rc = ia64_sn_sysctl_ioboard_get(nasid, &ioboard);
@@ -130,9 +131,9 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	}
 
 	memcpy(soft, prom_bussoft, sizeof(struct pcibus_info));
-	soft->pbi_buscommon.bs_base =
-	    (((u64) soft->pbi_buscommon.
-	      bs_base << 4) >> 4) | __IA64_UNCACHED_OFFSET;
+	soft->pbi_buscommon.bs_base = (unsigned long)
+		ioremap(REGION_OFFSET(soft->pbi_buscommon.bs_base),
+			sizeof(struct pic));
 
 	spin_lock_init(&soft->pbi_lock);
 

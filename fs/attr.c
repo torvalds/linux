@@ -42,7 +42,7 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 
 	/* Make sure a caller can chmod. */
 	if (ia_valid & ATTR_MODE) {
-		if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+		if (!is_owner_or_cap(inode))
 			goto error;
 		/* Also check the setgid bit! */
 		if (!in_group_p((ia_valid & ATTR_GID) ? attr->ia_gid :
@@ -52,7 +52,7 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 
 	/* Check for setting the inode time. */
 	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
-		if (current->fsuid != inode->i_uid && !capable(CAP_FOWNER))
+		if (!is_owner_or_cap(inode))
 			goto error;
 	}
 fine:

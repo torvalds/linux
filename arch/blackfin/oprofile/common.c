@@ -33,12 +33,12 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
+#include <linux/ptrace.h>
+#include <linux/irq.h>
+#include <linux/io.h>
 
-#include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/blackfin.h>
-#include <asm/irq.h>
-#include <asm/io.h>
 
 #include "op_blackfin.h"
 

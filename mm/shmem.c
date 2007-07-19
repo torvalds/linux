@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>
+#include <linux/exportfs.h>
 #include <linux/generic_acl.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -93,8 +94,11 @@ static inline struct page *shmem_dir_alloc(gfp_t gfp_mask)
 	 * The above definition of ENTRIES_PER_PAGE, and the use of
 	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
 	 * might be reconsidered if it ever diverges from PAGE_SIZE.
+	 *
+	 * __GFP_MOVABLE is masked out as swap vectors cannot move
 	 */
-	return alloc_pages(gfp_mask, PAGE_CACHE_SHIFT-PAGE_SHIFT);
+	return alloc_pages((gfp_mask & ~__GFP_MOVABLE) | __GFP_ZERO,
+				PAGE_CACHE_SHIFT-PAGE_SHIFT);
 }
 
 static inline void shmem_dir_free(struct page *page)
@@ -372,7 +376,7 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 		}
 
 		spin_unlock(&info->lock);
-		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
+		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
 		if (page)
 			set_page_private(page, 0);
 		spin_lock(&info->lock);
@@ -1100,9 +1104,9 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 	 * Normally, filepage is NULL on entry, and either found
 	 * uptodate immediately, or allocated and zeroed, or read
 	 * in under swappage, which is then assigned to filepage.
-	 * But shmem_prepare_write passes in a locked filepage,
-	 * which may be found not uptodate by other callers too,
-	 * and may need to be copied from the swappage read in.
+	 * But shmem_readpage and shmem_prepare_write pass in a locked
+	 * filepage, which may be found not uptodate by other callers
+	 * too, and may need to be copied from the swappage read in.
 	 */
 repeat:
 	if (!filepage)
@@ -1485,9 +1489,18 @@ static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_symlink_inline_operations;
 
 /*
- * Normally tmpfs makes no use of shmem_prepare_write, but it
- * lets a tmpfs file be used read-write below the loop driver.
+ * Normally tmpfs avoids the use of shmem_readpage and shmem_prepare_write;
+ * but providing them allows a tmpfs file to be used for splice, sendfile, and
+ * below the loop driver, in the generic fashion that many filesystems support.
  */
+static int shmem_readpage(struct file *file, struct page *page)
+{
+	struct inode *inode = page->mapping->host;
+	int error = shmem_getpage(inode, page->index, &page, SGP_CACHE, NULL);
+	unlock_page(page);
+	return error;
+}
+
 static int
 shmem_prepare_write(struct file *file, struct page *page, unsigned offset, unsigned to)
 {
@@ -1706,25 +1719,6 @@ static ssize_t shmem_file_read(struct file *filp, char __user *buf, size_t count
 	desc.error = 0;
 
 	do_shmem_file_read(filp, ppos, &desc, file_read_actor);
-	if (desc.written)
-		return desc.written;
-	return desc.error;
-}
-
-static ssize_t shmem_file_sendfile(struct file *in_file, loff_t *ppos,
-			 size_t count, read_actor_t actor, void *target)
-{
-	read_descriptor_t desc;
-
-	if (!count)
-		return 0;
-
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
-
-	do_shmem_file_read(in_file, ppos, &desc, actor);
 	if (desc.written)
 		return desc.written;
 	return desc.error;
@@ -2386,6 +2380,7 @@ static const struct address_space_operations shmem_aops = {
 	.writepage	= shmem_writepage,
 	.set_page_dirty	= __set_page_dirty_no_writeback,
 #ifdef CONFIG_TMPFS
+	.readpage	= shmem_readpage,
 	.prepare_write	= shmem_prepare_write,
 	.commit_write	= simple_commit_write,
 #endif
@@ -2399,7 +2394,8 @@ static const struct file_operations shmem_file_operations = {
 	.read		= shmem_file_read,
 	.write		= shmem_file_write,
 	.fsync		= simple_sync_file,
-	.sendfile	= shmem_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 #endif
 };
 

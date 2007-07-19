@@ -328,7 +328,7 @@ BEGIN_FTR_SECTION
 	mtspr   SPRN_L1CSR0,r3
 	isync
 	blr
-END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
+END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
 	mfspr	r3,SPRN_L1CSR1
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
@@ -355,7 +355,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 _GLOBAL(__flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
-END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
@@ -472,7 +472,7 @@ _GLOBAL(flush_dcache_all)
 _GLOBAL(__flush_dcache_icache)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
 	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
@@ -500,7 +500,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 _GLOBAL(__flush_dcache_icache_phys)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mfmsr	r10
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0

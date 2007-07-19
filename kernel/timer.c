@@ -305,6 +305,20 @@ void __timer_stats_timer_set_start_info(struct timer_list *timer, void *addr)
 	memcpy(timer->start_comm, current->comm, TASK_COMM_LEN);
 	timer->start_pid = current->pid;
 }
+
+static void timer_stats_account_timer(struct timer_list *timer)
+{
+	unsigned int flag = 0;
+
+	if (unlikely(tbase_get_deferrable(timer->base)))
+		flag |= TIMER_STATS_FLAG_DEFERRABLE;
+
+	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
+				 timer->function, timer->start_comm, flag);
+}
+
+#else
+static void timer_stats_account_timer(struct timer_list *timer) {}
 #endif
 
 /**
@@ -1114,6 +1128,7 @@ int do_sysinfo(struct sysinfo *info)
 		getnstimeofday(&tp);
 		tp.tv_sec += wall_to_monotonic.tv_sec;
 		tp.tv_nsec += wall_to_monotonic.tv_nsec;
+		monotonic_to_bootbased(&tp);
 		if (tp.tv_nsec - NSEC_PER_SEC >= 0) {
 			tp.tv_nsec = tp.tv_nsec - NSEC_PER_SEC;
 			tp.tv_sec++;
@@ -1206,7 +1221,8 @@ static int __devinit init_timers_cpu(int cpu)
 			/*
 			 * The APs use this path later in boot
 			 */
-			base = kmalloc_node(sizeof(*base), GFP_KERNEL,
+			base = kmalloc_node(sizeof(*base),
+						GFP_KERNEL | __GFP_ZERO,
 						cpu_to_node(cpu));
 			if (!base)
 				return -ENOMEM;
@@ -1217,7 +1233,6 @@ static int __devinit init_timers_cpu(int cpu)
 				kfree(base);
 				return -ENOMEM;
 			}
-			memset(base, 0, sizeof(*base));
 			per_cpu(tvec_bases, cpu) = base;
 		} else {
 			/*

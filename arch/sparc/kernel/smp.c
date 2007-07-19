@@ -68,16 +68,6 @@ void __cpuinit smp_store_cpu_info(int id)
 	cpu_data(id).prom_node = cpu_node;
 	cpu_data(id).mid = cpu_get_hwmid(cpu_node);
 
-	/* this is required to tune the scheduler correctly */
-	/* is it possible to have CPUs with different cache sizes? */
-	if (id == boot_cpu_id) {
-		int cache_line,cache_nlines;
-		cache_line = 0x20;
-		cache_line = prom_getintdefault(cpu_node, "ecache-line-size", cache_line);
-		cache_nlines = 0x8000;
-		cache_nlines = prom_getintdefault(cpu_node, "ecache-nlines", cache_nlines);
-		max_cache_size = cache_line * cache_nlines;
-	}
 	if (cpu_data(id).mid < 0)
 		panic("No MID found for CPU%d at node 0x%08d", id, cpu_node);
 }

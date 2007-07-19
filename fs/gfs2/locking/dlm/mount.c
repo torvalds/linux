@@ -147,7 +147,7 @@ static int gdlm_mount(char *table_name, char *host_data,
 
 	error = dlm_new_lockspace(ls->fsname, strlen(ls->fsname),
 				  &ls->dlm_lockspace,
-				  nodir ? DLM_LSFL_NODIR : 0,
+				  DLM_LSFL_FS | (nodir ? DLM_LSFL_NODIR : 0),
 				  GDLM_LVB_SIZE);
 	if (error) {
 		log_error("dlm_new_lockspace error %d", error);

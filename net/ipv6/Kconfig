@@ -109,7 +109,7 @@ config INET6_IPCOMP
 	  If unsure, say Y.
 
 config IPV6_MIP6
-	bool "IPv6: Mobility (EXPERIMENTAL)"
+	tristate "IPv6: Mobility (EXPERIMENTAL)"
 	depends on IPV6 && EXPERIMENTAL
 	select XFRM
 	---help---

@@ -538,6 +538,11 @@ static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
 	return (dqstats.free_dquots / 100) * sysctl_vfs_cache_pressure;
 }
 
+static struct shrinker dqcache_shrinker = {
+	.shrink = shrink_dqcache_memory,
+	.seeks = DEFAULT_SEEKS,
+};
+
 /*
  * Put reference to dquot
  * NOTE: If you change this function please check whether dqput_blocks() works right...
@@ -1870,7 +1875,7 @@ static int __init dquot_init(void)
 	printk("Dquot-cache hash table entries: %ld (order %ld, %ld bytes)\n",
 			nr_hash, order, (PAGE_SIZE << order));
 
-	set_shrinker(DEFAULT_SEEKS, shrink_dqcache_memory);
+	register_shrinker(&dqcache_shrinker);
 
 	return 0;
 }

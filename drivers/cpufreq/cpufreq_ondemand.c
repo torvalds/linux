@@ -96,15 +96,25 @@ static struct dbs_tuners {
 
 static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
 {
-	cputime64_t retval;
+	cputime64_t idle_time;
+	cputime64_t cur_jiffies;
+	cputime64_t busy_time;
 
-	retval = cputime64_add(kstat_cpu(cpu).cpustat.idle,
-			kstat_cpu(cpu).cpustat.iowait);
+	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
+	busy_time = cputime64_add(kstat_cpu(cpu).cpustat.user,
+			kstat_cpu(cpu).cpustat.system);
 
-	if (dbs_tuners_ins.ignore_nice)
-		retval = cputime64_add(retval, kstat_cpu(cpu).cpustat.nice);
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.irq);
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.softirq);
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.steal);
 
-	return retval;
+	if (!dbs_tuners_ins.ignore_nice) {
+		busy_time = cputime64_add(busy_time,
+				kstat_cpu(cpu).cpustat.nice);
+	}
+
+	idle_time = cputime64_sub(cur_jiffies, busy_time);
+	return idle_time;
 }
 
 /*
@@ -325,7 +335,7 @@ static struct attribute_group dbs_attr_group = {
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 {
 	unsigned int idle_ticks, total_ticks;
-	unsigned int load;
+	unsigned int load = 0;
 	cputime64_t cur_jiffies;
 
 	struct cpufreq_policy *policy;
@@ -339,7 +349,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
 	total_ticks = (unsigned int) cputime64_sub(cur_jiffies,
 			this_dbs_info->prev_cpu_wall);
-	this_dbs_info->prev_cpu_wall = cur_jiffies;
+	this_dbs_info->prev_cpu_wall = get_jiffies_64();
+
 	if (!total_ticks)
 		return;
 	/*
@@ -370,7 +381,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (tmp_idle_ticks < idle_ticks)
 			idle_ticks = tmp_idle_ticks;
 	}
-	load = (100 * (total_ticks - idle_ticks)) / total_ticks;
+	if (likely(total_ticks > idle_ticks))
+		load = (100 * (total_ticks - idle_ticks)) / total_ticks;
 
 	/* Check for frequency increase */
 	if (load > dbs_tuners_ins.up_threshold) {

@@ -18,7 +18,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  * Orignally written by Pete Reynolds
  */
@@ -73,7 +73,7 @@ struct keyboard_input {
 
 
 
-struct remote_input { 
+struct remote_input {
 	union {
 		struct mouse_input	mouse;
 		struct keyboard_input	keyboard;
@@ -85,7 +85,7 @@ struct remote_input {
 	unsigned char	pad3;
 };
 
-#define mouse_addr(sp) 		(sp->base_address + CONDOR_MOUSE_DATA)
+#define mouse_addr(sp)		(sp->base_address + CONDOR_MOUSE_DATA)
 #define display_width(sp)	(mouse_addr(sp) + CONDOR_INPUT_DISPLAY_RESX)
 #define display_height(sp)	(mouse_addr(sp) + CONDOR_INPUT_DISPLAY_RESY)
 #define display_depth(sp)	(mouse_addr(sp) + CONDOR_INPUT_DISPLAY_BITS)
@@ -93,7 +93,7 @@ struct remote_input {
 #define vnc_status(sp)		(mouse_addr(sp) + CONDOR_OUTPUT_VNC_STATUS)
 #define isr_control(sp)		(mouse_addr(sp) + CONDOR_MOUSE_ISR_CONTROL)
 
-#define mouse_interrupt_pending(sp) 	readl(mouse_addr(sp) + CONDOR_MOUSE_ISR_STATUS)
+#define mouse_interrupt_pending(sp)	readl(mouse_addr(sp) + CONDOR_MOUSE_ISR_STATUS)
 #define clear_mouse_interrupt(sp)	writel(0, mouse_addr(sp) + CONDOR_MOUSE_ISR_STATUS)
 #define enable_mouse_interrupts(sp)	writel(1, mouse_addr(sp) + CONDOR_MOUSE_ISR_CONTROL)
 #define disable_mouse_interrupts(sp)	writel(0, mouse_addr(sp) + CONDOR_MOUSE_ISR_CONTROL)

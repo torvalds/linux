@@ -586,7 +586,7 @@ void avc_audit(u32 ssid, u32 tsid,
 				}
 			}
 			if (inode)
-				audit_log_format(ab, " dev=%s ino=%ld",
+				audit_log_format(ab, " dev=%s ino=%lu",
 						 inode->i_sb->s_id,
 						 inode->i_ino);
 			break;
@@ -832,6 +832,7 @@ int avc_ss_reset(u32 seqno)
  * @tsid: target security identifier
  * @tclass: target security class
  * @requested: requested permissions, interpreted based on @tclass
+ * @flags:  AVC_STRICT or 0
  * @avd: access vector decisions
  *
  * Check the AVC to determine whether the @requested permissions are granted
@@ -846,8 +847,9 @@ int avc_ss_reset(u32 seqno)
  * should be released for the auditing.
  */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid,
-                         u16 tclass, u32 requested,
-                         struct av_decision *avd)
+			 u16 tclass, u32 requested,
+			 unsigned flags,
+			 struct av_decision *avd)
 {
 	struct avc_node *node;
 	struct avc_entry entry, *p_ae;
@@ -874,7 +876,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	denied = requested & ~(p_ae->avd.allowed);
 
 	if (!requested || denied) {
-		if (selinux_enforcing)
+		if (selinux_enforcing || (flags & AVC_STRICT))
 			rc = -EACCES;
 		else
 			if (node)
@@ -909,7 +911,7 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 	struct av_decision avd;
 	int rc;
 
-	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, &avd);
+	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 	avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
 	return rc;
 }

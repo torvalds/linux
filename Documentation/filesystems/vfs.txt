@@ -3,7 +3,7 @@
 
 	Original author: Richard Gooch <rgooch@atnf.csiro.au>
 
-		  Last updated on October 28, 2005
+		  Last updated on June 24, 2007.
 
   Copyright (C) 1999 Richard Gooch
   Copyright (C) 2005 Pekka Enberg
@@ -107,7 +107,7 @@ file /proc/filesystems.
 struct file_system_type
 -----------------------
 
-This describes the filesystem. As of kernel 2.6.13, the following
+This describes the filesystem. As of kernel 2.6.22, the following
 members are defined:
 
 struct file_system_type {
@@ -119,6 +119,8 @@ struct file_system_type {
         struct module *owner;
         struct file_system_type * next;
         struct list_head fs_supers;
+	struct lock_class_key s_lock_key;
+	struct lock_class_key s_umount_key;
 };
 
   name: the name of the filesystem type, such as "ext2", "iso9660",
@@ -137,11 +139,12 @@ struct file_system_type {
 
   next: for internal VFS use: you should initialize this to NULL
 
+  s_lock_key, s_umount_key: lockdep-specific
+
 The get_sb() method has the following arguments:
 
-  struct super_block *sb: the superblock structure. This is partially
-	initialized by the VFS and the rest must be initialized by the
-	get_sb() method
+  struct file_system_type *fs_type: decribes the filesystem, partly initialized
+  	by the specific filesystem code
 
   int flags: mount flags
 
@@ -150,12 +153,13 @@ The get_sb() method has the following arguments:
   void *data: arbitrary mount options, usually comes as an ASCII
 	string
 
-  int silent: whether or not to be silent on error
+  struct vfsmount *mnt: a vfs-internal representation of a mount point
 
 The get_sb() method must determine if the block device specified
-in the superblock contains a filesystem of the type the method
-supports. On success the method returns the superblock pointer, on
-failure it returns NULL.
+in the dev_name and fs_type contains a filesystem of the type the method
+supports. If it succeeds in opening the named block device, it initializes a
+struct super_block descriptor for the filesystem contained by the block device.
+On failure it returns an error.
 
 The most interesting member of the superblock structure that the
 get_sb() method fills in is the "s_op" field. This is a pointer to
@@ -193,7 +197,7 @@ struct super_operations
 -----------------------
 
 This describes how the VFS can manipulate the superblock of your
-filesystem. As of kernel 2.6.13, the following members are defined:
+filesystem. As of kernel 2.6.22, the following members are defined:
 
 struct super_operations {
         struct inode *(*alloc_inode)(struct super_block *sb);
@@ -216,8 +220,6 @@ struct super_operations {
         void (*clear_inode) (struct inode *);
         void (*umount_begin) (struct super_block *);
 
-        void (*sync_inodes) (struct super_block *sb,
-                                struct writeback_control *wbc);
         int (*show_options)(struct seq_file *, struct vfsmount *);
 
         ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
@@ -300,9 +302,6 @@ or bottom half).
 
   umount_begin: called when the VFS is unmounting a filesystem.
 
-  sync_inodes: called when the VFS is writing out dirty data associated with
-  	a superblock.
-
   show_options: called by the VFS to show mount options for /proc/<pid>/mounts.
 
   quota_read: called by the VFS to read from filesystem quota file.
@@ -324,7 +323,7 @@ struct inode_operations
 -----------------------
 
 This describes how the VFS can manipulate an inode in your
-filesystem. As of kernel 2.6.13, the following members are defined:
+filesystem. As of kernel 2.6.22, the following members are defined:
 
 struct inode_operations {
 	int (*create) (struct inode *,struct dentry *,int, struct nameidata *);
@@ -348,6 +347,7 @@ struct inode_operations {
 	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
+	void (*truncate_range)(struct inode *, loff_t, loff_t);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -444,6 +444,9 @@ otherwise noted.
   removexattr: called by the VFS to remove an extended attribute from
   	a file. This method is called by removexattr(2) system call.
 
+  truncate_range: a method provided by the underlying filesystem to truncate a
+  	range of blocks , i.e. punch a hole somewhere in a file.
+
 
 The Address Space Object
 ========================
@@ -522,7 +525,7 @@ struct address_space_operations
 -------------------------------
 
 This describes how the VFS can manipulate mapping of a file to page cache in
-your filesystem. As of kernel 2.6.16, the following members are defined:
+your filesystem. As of kernel 2.6.22, the following members are defined:
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
@@ -543,6 +546,7 @@ struct address_space_operations {
 			int);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
+	int (*launder_page) (struct page *);
 };
 
   writepage: called by the VM to write a dirty page to backing store.
@@ -689,6 +693,10 @@ struct address_space_operations {
 	transfer any private data across and update any references
         that it has to the page.
 
+  launder_page: Called before freeing a page - it writes back the dirty page. To
+  	prevent redirtying the page, it is kept locked during the whole
+	operation.
+
 The File Object
 ===============
 
@@ -699,9 +707,10 @@ struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-2.6.17, the following members are defined:
+2.6.22, the following members are defined:
 
 struct file_operations {
+	struct module *owner;
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
@@ -728,10 +737,8 @@ struct file_operations {
 	int (*check_flags)(int);
 	int (*dir_notify)(struct file *filp, unsigned long arg);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned 
-int);
-	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned  
-int);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
 };
 
 Again, all methods are called without any locks being held, unless

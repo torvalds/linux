@@ -101,7 +101,6 @@
  * Feature macros (disable/enable)
  */
 #undef  HAVE_REFCACHE	/* reference cache not needed for NFS in 2.6 */
-#define HAVE_SENDFILE	/* sendfile(2) exists in 2.6, but not in 2.4 */
 #define HAVE_SPLICE	/* a splice(2) exists in 2.6, but not in 2.4 */
 #ifdef CONFIG_SMP
 #define HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
@@ -124,6 +123,7 @@
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
 #define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
+#define xfs_fstrm_centisecs	xfs_params.fstrm_timer.val
 
 #define current_cpu()		(raw_smp_processor_id())
 #define current_pid()		(current->pid)

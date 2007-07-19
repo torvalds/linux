@@ -580,5 +580,7 @@ void
 ecryptfs_write_header_metadata(char *virt,
 			       struct ecryptfs_crypt_stat *crypt_stat,
 			       size_t *written);
+int ecryptfs_write_zeros(struct file *file, pgoff_t index, int start,
+			 int num_zeros);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

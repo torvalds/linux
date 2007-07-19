@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/wait.h>
 #include "hcd.h"
 
 #define to_urb(d) container_of(d, struct urb, kref)
@@ -11,6 +12,10 @@
 static void urb_destroy(struct kref *kref)
 {
 	struct urb *urb = to_urb(kref);
+
+	if (urb->transfer_flags & URB_FREE_BUFFER)
+		kfree(urb->transfer_buffer);
+
 	kfree(urb);
 }
 
@@ -34,6 +39,7 @@ void usb_init_urb(struct urb *urb)
 		memset(urb, 0, sizeof(*urb));
 		kref_init(&urb->kref);
 		spin_lock_init(&urb->lock);
+		INIT_LIST_HEAD(&urb->anchor_list);
 	}
 }
 
@@ -100,8 +106,60 @@ struct urb * usb_get_urb(struct urb *urb)
 		kref_get(&urb->kref);
 	return urb;
 }
-		
-		
+
+/**
+ * usb_anchor_urb - anchors an URB while it is processed
+ * @urb: pointer to the urb to anchor
+ * @anchor: pointer to the anchor
+ *
+ * This can be called to have access to URBs which are to be executed
+ * without bothering to track them
+ */
+void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	usb_get_urb(urb);
+	list_add_tail(&urb->anchor_list, &anchor->urb_list);
+	urb->anchor = anchor;
+	spin_unlock_irqrestore(&anchor->lock, flags);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_urb);
+
+/**
+ * usb_unanchor_urb - unanchors an URB
+ * @urb: pointer to the urb to anchor
+ *
+ * Call this to stop the system keeping track of this URB
+ */
+void usb_unanchor_urb(struct urb *urb)
+{
+	unsigned long flags;
+	struct usb_anchor *anchor;
+
+	if (!urb)
+		return;
+
+	anchor = urb->anchor;
+	if (!anchor)
+		return;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	if (unlikely(anchor != urb->anchor)) {
+		/* we've lost the race to another thread */
+		spin_unlock_irqrestore(&anchor->lock, flags);
+		return;
+	}
+	urb->anchor = NULL;
+	list_del(&urb->anchor_list);
+	spin_unlock_irqrestore(&anchor->lock, flags);
+	usb_put_urb(urb);
+	if (list_empty(&anchor->urb_list))
+		wake_up(&anchor->wait);
+}
+EXPORT_SYMBOL_GPL(usb_unanchor_urb);
+
 /*-------------------------------------------------------------------*/
 
 /**
@@ -478,6 +536,48 @@ void usb_kill_urb(struct urb *urb)
 	spin_unlock_irq(&urb->lock);
 }
 
+/**
+ * usb_kill_anchored_urbs - cancel transfer requests en masse
+ * @anchor: anchor the requests are bound to
+ *
+ * this allows all outstanding URBs to be killed starting
+ * from the back of the queue
+ */
+void usb_kill_anchored_urbs(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+
+	spin_lock_irq(&anchor->lock);
+	while (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.prev, struct urb, anchor_list);
+		/* we must make sure the URB isn't freed before we kill it*/
+		usb_get_urb(victim);
+		spin_unlock_irq(&anchor->lock);
+		/* this will unanchor the URB */
+		usb_kill_urb(victim);
+		usb_put_urb(victim);
+		spin_lock_irq(&anchor->lock);
+	}
+	spin_unlock_irq(&anchor->lock);
+}
+EXPORT_SYMBOL_GPL(usb_kill_anchored_urbs);
+
+/**
+ * usb_wait_anchor_empty_timeout - wait for an anchor to be unused
+ * @anchor: the anchor you want to become unused
+ * @timeout: how long you are willing to wait in milliseconds
+ *
+ * Call this is you want to be sure all an anchor's
+ * URBs have finished
+ */
+int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
+				  unsigned int timeout)
+{
+	return wait_event_timeout(anchor->wait, list_empty(&anchor->urb_list),
+				  msecs_to_jiffies(timeout));
+}
+EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);
+
 EXPORT_SYMBOL(usb_init_urb);
 EXPORT_SYMBOL(usb_alloc_urb);
 EXPORT_SYMBOL(usb_free_urb);
@@ -485,4 +585,3 @@ EXPORT_SYMBOL(usb_get_urb);
 EXPORT_SYMBOL(usb_submit_urb);
 EXPORT_SYMBOL(usb_unlink_urb);
 EXPORT_SYMBOL(usb_kill_urb);
-

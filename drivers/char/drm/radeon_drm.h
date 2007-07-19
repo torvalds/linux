@@ -417,7 +417,7 @@ typedef struct {
 
 	/* The current cliprects, or a subset thereof.
 	 */
-	drm_clip_rect_t boxes[RADEON_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[RADEON_NR_SAREA_CLIPRECTS];
 	unsigned int nbox;
 
 	/* Counters for client-side throttling of rendering clients.
@@ -426,7 +426,7 @@ typedef struct {
 	unsigned int last_dispatch;
 	unsigned int last_clear;
 
-	drm_tex_region_t tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS +
+	struct drm_tex_region tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS +
 						       1];
 	unsigned int tex_age[RADEON_NR_TEX_HEAPS];
 	int ctx_owner;
@@ -604,7 +604,7 @@ typedef struct drm_radeon_cmd_buffer {
 	int bufsz;
 	char __user *buf;
 	int nbox;
-	drm_clip_rect_t __user *boxes;
+	struct drm_clip_rect __user *boxes;
 } drm_radeon_cmd_buffer_t;
 
 typedef struct drm_radeon_tex_image {
@@ -655,6 +655,7 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_GART_TEX_HANDLE       10
 #define RADEON_PARAM_SCRATCH_OFFSET        11
 #define RADEON_PARAM_CARD_TYPE             12
+#define RADEON_PARAM_VBLANK_CRTC           13   /* VBLANK CRTC */
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -708,7 +709,7 @@ typedef struct drm_radeon_setparam {
 #define RADEON_SETPARAM_PCIGART_LOCATION 3	/* PCI Gart Location */
 #define RADEON_SETPARAM_NEW_MEMMAP 4		/* Use new memory map */
 #define RADEON_SETPARAM_PCIGART_TABLE_SIZE 5    /* PCI GART Table Size */
-
+#define RADEON_SETPARAM_VBLANK_CRTC 6           /* VBLANK CRTC */
 /* 1.14: Clients can allocate/free a surface
  */
 typedef struct drm_radeon_surface_alloc {
@@ -720,5 +721,8 @@ typedef struct drm_radeon_surface_alloc {
 typedef struct drm_radeon_surface_free {
 	unsigned int address;
 } drm_radeon_surface_free_t;
+
+#define	DRM_RADEON_VBLANK_CRTC1 	1
+#define	DRM_RADEON_VBLANK_CRTC2 	2
 
 #endif

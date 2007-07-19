@@ -11,6 +11,7 @@
 #include <linux/efs_fs.h>
 #include <linux/efs_vh.h>
 #include <linux/efs_fs_sb.h>
+#include <linux/exportfs.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
@@ -113,6 +114,7 @@ static const struct super_operations efs_superblock_operations = {
 };
 
 static struct export_operations efs_export_ops = {
+	.get_dentry	= efs_get_dentry,
 	.get_parent	= efs_get_parent,
 };
 

@@ -999,11 +999,11 @@ static int __init acpi_osi_setup(char *str)
 	if (str == NULL || *str == '\0') {
 		printk(KERN_INFO PREFIX "_OSI method disabled\n");
 		acpi_gbl_create_osi_method = FALSE;
+	} else if (!strcmp("!Linux", str)) {
+		enable_osi_linux(0);
 	} else if (*str == '!') {
 		if (acpi_osi_invalidate(++str) == AE_OK)
 			printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
-	} else if (!strcmp("!Linux", str)) {
-		enable_osi_linux(0);
 	} else if (!strcmp("Linux", str)) {
 		enable_osi_linux(1);
 	} else if (*osi_additional_string == '\0') {

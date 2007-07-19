@@ -26,34 +26,6 @@
 #include "jfs_filsys.h"
 #include "jfs_debug.h"
 
-#ifdef CONFIG_JFS_DEBUG
-void dump_mem(char *label, void *data, int length)
-{
-	int i, j;
-	int *intptr = data;
-	char *charptr = data;
-	char buf[10], line[80];
-
-	printk("%s: dump of %d bytes of data at 0x%p\n\n", label, length,
-	       data);
-	for (i = 0; i < length; i += 16) {
-		line[0] = 0;
-		for (j = 0; (j < 4) && (i + j * 4 < length); j++) {
-			sprintf(buf, " %08x", intptr[i / 4 + j]);
-			strcat(line, buf);
-		}
-		buf[0] = ' ';
-		buf[2] = 0;
-		for (j = 0; (j < 16) && (i + j < length); j++) {
-			buf[1] =
-			    isprint(charptr[i + j]) ? charptr[i + j] : '.';
-			strcat(line, buf);
-		}
-		printk("%s\n", line);
-	}
-}
-#endif
-
 #ifdef PROC_FS_JFS /* see jfs_debug.h */
 
 static struct proc_dir_entry *base;

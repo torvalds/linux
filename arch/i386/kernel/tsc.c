@@ -4,6 +4,7 @@
  * See comments there for proper credits.
  */
 
+#include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
 #include <linux/cpufreq.h>
@@ -83,7 +84,7 @@ static inline int check_tsc_unstable(void)
  *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
-static unsigned long cyc2ns_scale __read_mostly;
+unsigned long cyc2ns_scale __read_mostly;
 
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
@@ -92,31 +93,43 @@ static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
 }
 
-static inline unsigned long long cycles_2_ns(unsigned long long cyc)
-{
-	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
-}
-
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long sched_clock(void)
+unsigned long long native_sched_clock(void)
 {
 	unsigned long long this_offset;
 
 	/*
 	 * Fall back to jiffies if there's no TSC available:
+	 * ( But note that we still use it if the TSC is marked
+	 *   unstable. We do this because unlike Time Of Day,
+	 *   the scheduler clock tolerates small errors and it's
+	 *   very important for it to be as fast as the platform
+	 *   can achive it. )
 	 */
-	if (unlikely(!tsc_enabled))
+	if (unlikely(!tsc_enabled && !tsc_unstable))
 		/* No locking but a rare wrong value is not a big deal: */
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
 	/* read the Time Stamp Counter: */
-	get_scheduled_cycles(this_offset);
+	rdtscll(this_offset);
 
 	/* return the value in ns */
 	return cycles_2_ns(this_offset);
 }
+
+/* We need to define a real function for sched_clock, to override the
+   weak default version */
+#ifdef CONFIG_PARAVIRT
+unsigned long long sched_clock(void)
+{
+	return paravirt_sched_clock();
+}
+#else
+unsigned long long sched_clock(void)
+	__attribute__((alias("native_sched_clock")));
+#endif
 
 unsigned long native_calculate_cpu_khz(void)
 {
@@ -277,6 +290,7 @@ static struct clocksource clocksource_tsc = {
 
 void mark_tsc_unstable(char *reason)
 {
+	sched_clock_unstable_event();
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
 		tsc_enabled = 0;

@@ -86,7 +86,7 @@ void __init which_prom(s32 magic, s32 *prom_vec)
 
 void __init prom_init(void)
 {
-	extern void ATTRIB_NORET dec_machine_halt(void);
+	extern void dec_machine_halt(void);
 	static char cpu_msg[] __initdata =
 		"Sorry, this kernel is compiled for a wrong CPU type!\n";
 	s32 argc = fw_arg0;
@@ -102,6 +102,9 @@ void __init prom_init(void)
 
 	if (prom_is_rex(magic))
 		rex_clear_cache();
+
+	/* Register the early console.  */
+	register_prom_console();
 
 	/* Were we compiled with the right CPU option? */
 #if defined(CONFIG_CPU_R3000)

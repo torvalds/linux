@@ -106,6 +106,14 @@ struct spu_context;
 struct spu_runqueue;
 struct device_node;
 
+enum spu_utilization_state {
+	SPU_UTIL_SYSTEM,
+	SPU_UTIL_USER,
+	SPU_UTIL_IOWAIT,
+	SPU_UTIL_IDLE,
+	SPU_UTIL_MAX
+};
+
 struct spu {
 	const char *name;
 	unsigned long local_store_phys;
@@ -156,6 +164,21 @@ struct spu {
 	u64 shadow_int_mask_RW[3];
 
 	struct sys_device sysdev;
+
+	struct {
+		/* protected by interrupt reentrancy */
+		enum spu_utilization_state utilization_state;
+		unsigned long tstamp;		/* time of last ctx switch */
+		unsigned long times[SPU_UTIL_MAX];
+		unsigned long long vol_ctx_switch;
+		unsigned long long invol_ctx_switch;
+		unsigned long long min_flt;
+		unsigned long long maj_flt;
+		unsigned long long hash_flt;
+		unsigned long long slb_flt;
+		unsigned long long class2_intr;
+		unsigned long long libassist;
+	} stats;
 };
 
 struct spu *spu_alloc(void);
@@ -448,6 +471,7 @@ struct spu_priv1 {
 #define MFC_STATE1_PROBLEM_STATE_MASK		0x08ull
 #define MFC_STATE1_RELOCATE_MASK		0x10ull
 #define MFC_STATE1_MASTER_RUN_CONTROL_MASK	0x20ull
+#define MFC_STATE1_TABLE_SEARCH_MASK		0x40ull
 	u64 mfc_lpid_RW;					/* 0x008 */
 	u64 spu_idr_RW;						/* 0x010 */
 	u64 mfc_vr_RO;						/* 0x018 */

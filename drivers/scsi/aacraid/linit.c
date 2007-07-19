@@ -39,10 +39,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 #include <asm/semaphore.h>
 
@@ -223,12 +221,12 @@ static struct aac_driver_ident aac_drivers[] = {
 	{ aac_rx_init, "percraid", "DELL    ", "PERC 320/DC     ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Perc 320/DC*/
 	{ aac_sa_init, "aacraid",  "ADAPTEC ", "Adaptec 5400S   ", 4, AAC_QUIRK_34SG }, /* Adaptec 5400S (Mustang)*/
 	{ aac_sa_init, "aacraid",  "ADAPTEC ", "AAC-364         ", 4, AAC_QUIRK_34SG }, /* Adaptec 5400S (Mustang)*/
-	{ aac_sa_init, "percraid", "DELL    ", "PERCRAID        ", 4, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Dell PERC2/QC */
+	{ aac_sa_init, "percraid", "DELL    ", "PERCRAID        ", 4, AAC_QUIRK_34SG }, /* Dell PERC2/QC */
 	{ aac_sa_init, "hpnraid",  "HP      ", "NetRAID         ", 4, AAC_QUIRK_34SG }, /* HP NetRAID-4M */
 
 	{ aac_rx_init, "aacraid",  "DELL    ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Dell Catchall */
 	{ aac_rx_init, "aacraid",  "Legend  ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Legend Catchall */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Adaptec Catch All */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "RAID            ", 2 }, /* Adaptec Catch All */
 	{ aac_rkt_init, "aacraid", "ADAPTEC ", "RAID            ", 2 }, /* Adaptec Rocket Catch All */
 	{ aac_nark_init, "aacraid", "ADAPTEC ", "RAID            ", 2 } /* Adaptec NEMER/ARK Catch All */
 };
@@ -403,10 +401,6 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
-	if (sdev_channel(sdev) == CONTAINER_CHANNEL) {
-		sdev->skip_ms_page_8 = 1;
-		sdev->skip_ms_page_3f = 1;
-	}
 	if ((sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
 		if (expose_physicals == 0)
@@ -448,6 +442,43 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		scsi_adjust_queue_depth(sdev, 0, 1);
 
 	return 0;
+}
+
+/**
+ *	aac_change_queue_depth		-	alter queue depths
+ *	@sdev:	SCSI device we are considering
+ *	@depth:	desired queue depth
+ *
+ *	Alters queue depths for target device based on the host adapter's
+ *	total capacity and the queue depth supported by the target device.
+ */
+
+static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
+{
+	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
+	    (sdev_channel(sdev) == CONTAINER_CHANNEL)) {
+		struct scsi_device * dev;
+		struct Scsi_Host *host = sdev->host;
+		unsigned num = 0;
+
+		__shost_for_each_device(dev, host) {
+			if (dev->tagged_supported && (dev->type == TYPE_DISK) &&
+			    (sdev_channel(dev) == CONTAINER_CHANNEL))
+				++num;
+			++num;
+		}
+		if (num >= host->can_queue)
+			num = host->can_queue - 1;
+		if (depth > (host->can_queue - num))
+			depth = host->can_queue - num;
+		if (depth > 256)
+			depth = 256;
+		else if (depth < 2)
+			depth = 2;
+		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+	} else
+		scsi_adjust_queue_depth(sdev, 0, 1);
+	return sdev->queue_depth;
 }
 
 static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
@@ -548,6 +579,14 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		ssleep(1);
 	}
 	printk(KERN_ERR "%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
+	/*
+	 * This adapter needs a blind reset, only do so for Adapters that
+	 * support a register, instead of a commanded, reset.
+	 */
+	if ((aac->supplement_adapter_info.SupportedOptions2 &
+	  le32_to_cpu(AAC_OPTION_MU_RESET|AAC_OPTION_IGNORE_RESET)) ==
+	  le32_to_cpu(AAC_OPTION_MU_RESET))
+		aac_reset_adapter(aac, 2); /* Bypass wait for command quiesce */
 	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
 }
 
@@ -731,15 +770,21 @@ static ssize_t aac_show_bios_version(struct class_device *class_dev,
 	return len;
 }
 
-static ssize_t aac_show_serial_number(struct class_device *class_dev,
-		char *buf)
+ssize_t aac_show_serial_number(struct class_device *class_dev, char *buf)
 {
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
 	int len = 0;
 
 	if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
-		len = snprintf(buf, PAGE_SIZE, "%x\n",
+		len = snprintf(buf, PAGE_SIZE, "%06X\n",
 		  le32_to_cpu(dev->adapter_info.serial[0]));
+	if (len &&
+	  !memcmp(&dev->supplement_adapter_info.MfgPcbaSerialNo[
+	    sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo)+2-len],
+	  buf, len))
+		len = snprintf(buf, PAGE_SIZE, "%.*s\n",
+		  (int)sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo),
+		  dev->supplement_adapter_info.MfgPcbaSerialNo);
 	return len;
 }
 
@@ -755,6 +800,31 @@ static ssize_t aac_show_max_id(struct class_device *class_dev, char *buf)
 	  class_to_shost(class_dev)->max_id);
 }
 
+static ssize_t aac_store_reset_adapter(struct class_device *class_dev,
+		const char *buf, size_t count)
+{
+	int retval = -EACCES;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return retval;
+	retval = aac_reset_adapter((struct aac_dev*)class_to_shost(class_dev)->hostdata, buf[0] == '!');
+	if (retval >= 0)
+		retval = count;
+	return retval;
+}
+
+static ssize_t aac_show_reset_adapter(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len, tmp;
+
+	tmp = aac_adapter_check_health(dev);
+	if ((tmp == 0) && dev->in_reset)
+		tmp = -EBUSY;
+	len = snprintf(buf, PAGE_SIZE, "0x%x", tmp);
+	return len;
+}
 
 static struct class_device_attribute aac_model = {
 	.attr = {
@@ -812,6 +882,14 @@ static struct class_device_attribute aac_max_id = {
 	},
 	.show = aac_show_max_id,
 };
+static struct class_device_attribute aac_reset = {
+	.attr = {
+		.name = "reset_host",
+		.mode = S_IWUSR|S_IRUGO,
+	},
+	.store = aac_store_reset_adapter,
+	.show = aac_show_reset_adapter,
+};
 
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
@@ -822,6 +900,7 @@ static struct class_device_attribute *aac_attrs[] = {
 	&aac_serial_number,
 	&aac_max_channel,
 	&aac_max_id,
+	&aac_reset,
 	NULL
 };
 
@@ -848,6 +927,7 @@ static struct scsi_host_template aac_driver_template = {
 	.bios_param     		= aac_biosparm,	
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
+	.change_queue_depth		= aac_change_queue_depth,
 	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
 	.can_queue      		= AAC_NUM_IO_FIB,	
@@ -1086,7 +1166,7 @@ static int __init aac_init(void)
 {
 	int error;
 	
-	printk(KERN_INFO "Adaptec %s driver (%s)\n",
+	printk(KERN_INFO "Adaptec %s driver %s\n",
 	  AAC_DRIVERNAME, aac_driver_version);
 
 	error = pci_register_driver(&aac_pci_driver);

@@ -25,6 +25,7 @@ int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
 int root_mountflags = MS_RDONLY | MS_SILENT;
 char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
+static int __initdata root_wait;
 
 dev_t ROOT_DEV;
 
@@ -215,6 +216,16 @@ static int __init root_dev_setup(char *line)
 }
 
 __setup("root=", root_dev_setup);
+
+static int __init rootwait_setup(char *str)
+{
+	if (*str)
+		return 0;
+	root_wait = 1;
+	return 1;
+}
+
+__setup("rootwait", rootwait_setup);
 
 static char * __initdata root_mount_data;
 static int __init root_data_setup(char *str)
@@ -438,10 +449,19 @@ void __init prepare_namespace(void)
 			root_device_name += 5;
 	}
 
-	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
-
 	if (initrd_load())
 		goto out;
+
+	/* wait for any asynchronous scanning to complete */
+	if ((ROOT_DEV == 0) && root_wait) {
+		printk(KERN_INFO "Waiting for root device %s...\n",
+			saved_root_name);
+		while (driver_probe_done() != 0 ||
+			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
+			msleep(100);
+	}
+
+	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
 
 	if (is_floppy && rd_doload && rd_load_disk(0))
 		ROOT_DEV = Root_RAM0;

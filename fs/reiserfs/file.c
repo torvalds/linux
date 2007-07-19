@@ -1305,7 +1305,6 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (get_inode_item_key_version (inode) == KEY_FORMAT_3_5 &&
 	    *ppos + count > MAX_NON_LFS) {
 		if (*ppos >= MAX_NON_LFS) {
-			send_sig(SIGXFSZ, current, 0);
 			return -EFBIG;
 		}
 		if (count > MAX_NON_LFS - (unsigned long)*ppos)
@@ -1531,7 +1530,6 @@ const struct file_operations reiserfs_file_operations = {
 	.open = generic_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,
-	.sendfile = generic_file_sendfile,
 	.aio_read = generic_file_aio_read,
 	.aio_write = generic_file_aio_write,
 	.splice_read = generic_file_splice_read,

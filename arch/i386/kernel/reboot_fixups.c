@@ -5,12 +5,14 @@
  *
  * List of supported fixups:
  * geode-gx1/cs5530a - Jaya Kumar <jayalk@intworks.biz>
+ * geode-gx/lx/cs5536 - Andres Salomon <dilinger@debian.org>
  *
  */
 
 #include <asm/delay.h>
 #include <linux/pci.h>
 #include <asm/reboot_fixups.h>
+#include <asm/msr.h>
 
 static void cs5530a_warm_reset(struct pci_dev *dev)
 {
@@ -21,6 +23,16 @@ static void cs5530a_warm_reset(struct pci_dev *dev)
 	return;
 }
 
+static void cs5536_warm_reset(struct pci_dev *dev)
+{
+	/*
+	 * 6.6.2.12 Soft Reset (DIVIL_SOFT_RESET)
+	 * writing 1 to the LSB of this MSR causes a hard reset.
+	 */
+	wrmsrl(0x51400017, 1ULL);
+	udelay(50); /* shouldn't get here but be safe and spin a while */
+}
+
 struct device_fixup {
 	unsigned int vendor;
 	unsigned int device;
@@ -29,6 +41,7 @@ struct device_fixup {
 
 static struct device_fixup fixups_table[] = {
 { PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY, cs5530a_warm_reset },
+{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA, cs5536_warm_reset },
 };
 
 /*

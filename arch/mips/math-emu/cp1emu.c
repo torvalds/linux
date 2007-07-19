@@ -35,6 +35,7 @@
  * better performance by compiling with -msoft-float!
  */
 #include <linux/sched.h>
+#include <linux/debugfs.h>
 
 #include <asm/inst.h>
 #include <asm/bootinfo.h>
@@ -204,7 +205,7 @@ static int isBranchInstr(mips_instruction * i)
 static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 {
 	mips_instruction ir;
-	void * emulpc, *contpc;
+	unsigned long emulpc, contpc;
 	unsigned int cond;
 
 	if (get_user(ir, (mips_instruction __user *) xcp->cp0_epc)) {
@@ -229,7 +230,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 		 * Linux MIPS branch emulator operates on context, updating the
 		 * cp0_epc.
 		 */
-		emulpc = (void *) (xcp->cp0_epc + 4);	/* Snapshot emulation target */
+		emulpc = xcp->cp0_epc + 4;	/* Snapshot emulation target */
 
 		if (__compute_return_epc(xcp)) {
 #ifdef CP1DBG
@@ -243,12 +244,12 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 			return SIGBUS;
 		}
 		/* __compute_return_epc() will have updated cp0_epc */
-		contpc = (void *)  xcp->cp0_epc;
+		contpc = xcp->cp0_epc;
 		/* In order not to confuse ptrace() et al, tweak context */
-		xcp->cp0_epc = (unsigned long) emulpc - 4;
+		xcp->cp0_epc = emulpc - 4;
 	} else {
-		emulpc = (void *)  xcp->cp0_epc;
-		contpc = (void *) (xcp->cp0_epc + 4);
+		emulpc = xcp->cp0_epc;
+		contpc = xcp->cp0_epc + 4;
 	}
 
       emul:
@@ -426,8 +427,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 				 * instruction
 				 */
 				xcp->cp0_epc += 4;
-				contpc = (void *)
-					(xcp->cp0_epc +
+				contpc = (xcp->cp0_epc +
 					(MIPSInst_SIMM(ir) << 2));
 
 				if (get_user(ir,
@@ -461,7 +461,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 				 * Single step the non-cp1
 				 * instruction in the dslot
 				 */
-				return mips_dsemul(xcp, ir, (unsigned long) contpc);
+				return mips_dsemul(xcp, ir, contpc);
 			}
 			else {
 				/* branch not taken */
@@ -520,7 +520,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 	}
 
 	/* we did it !! */
-	xcp->cp0_epc = (unsigned long) contpc;
+	xcp->cp0_epc = contpc;
 	xcp->cp0_cause &= ~CAUSEF_BD;
 
 	return 0;
@@ -1277,3 +1277,36 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 	return sig;
 }
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *mips_debugfs_dir;
+static int __init debugfs_fpuemu(void)
+{
+	struct dentry *d, *dir;
+	int i;
+	static struct {
+		const char *name;
+		unsigned int *v;
+	} vars[] __initdata = {
+		{ "emulated", &fpuemustats.emulated },
+		{ "loads",    &fpuemustats.loads },
+		{ "stores",   &fpuemustats.stores },
+		{ "cp1ops",   &fpuemustats.cp1ops },
+		{ "cp1xops",  &fpuemustats.cp1xops },
+		{ "errors",   &fpuemustats.errors },
+	};
+
+	if (!mips_debugfs_dir)
+		return -ENODEV;
+	dir = debugfs_create_dir("fpuemustats", mips_debugfs_dir);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+	for (i = 0; i < ARRAY_SIZE(vars); i++) {
+		d = debugfs_create_u32(vars[i].name, S_IRUGO, dir, vars[i].v);
+		if (IS_ERR(d))
+			return PTR_ERR(d);
+	}
+	return 0;
+}
+__initcall(debugfs_fpuemu);
+#endif

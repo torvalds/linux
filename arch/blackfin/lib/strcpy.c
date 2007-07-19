@@ -6,6 +6,5 @@
 
 char *strcpy(char *dest, const char *src)
 {
-	        return __inline_strcpy(dest, src);
+	return __inline_strcpy(dest, src);
 }
-

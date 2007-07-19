@@ -1,8 +1,8 @@
 /*
  *  net/dccp/ccids/ccid3.c
  *
- *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
- *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
+ *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>
  *
  *  An implementation of the DCCP protocol
  *
@@ -49,7 +49,6 @@ static int ccid3_debug;
 
 static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
-static struct dccp_li_hist *ccid3_li_hist;
 
 /*
  *	Transmitter Half-Connection Routines
@@ -194,25 +193,20 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
  *	The algorithm is not applicable if RTT < 4 microseconds.
  */
 static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hctx,
-						struct timeval *now)
+						ktime_t now)
 {
-	suseconds_t delta;
 	u32 quarter_rtts;
 
 	if (unlikely(hctx->ccid3hctx_rtt < 4))	/* avoid divide-by-zero */
 		return;
 
-	delta = timeval_delta(now, &hctx->ccid3hctx_t_last_win_count);
-	DCCP_BUG_ON(delta < 0);
-
-	quarter_rtts = (u32)delta / (hctx->ccid3hctx_rtt / 4);
+	quarter_rtts = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count);
+	quarter_rtts /= hctx->ccid3hctx_rtt / 4;
 
 	if (quarter_rtts > 0) {
-		hctx->ccid3hctx_t_last_win_count = *now;
+		hctx->ccid3hctx_t_last_win_count = now;
 		hctx->ccid3hctx_last_win_count	+= min_t(u32, quarter_rtts, 5);
 		hctx->ccid3hctx_last_win_count	&= 0xF;		/* mod 16 */
-
-		ccid3_pr_debug("now at %#X\n", hctx->ccid3hctx_last_win_count);
 	}
 }
 
@@ -312,8 +306,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct timeval now;
-	suseconds_t delay;
+	ktime_t now = ktime_get_real();
+	s64 delay;
 
 	BUG_ON(hctx == NULL);
 
@@ -324,8 +318,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
-
-	dccp_timestamp(sk, &now);
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
@@ -349,7 +341,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hctx->ccid3hctx_rtt  = dp->dccps_syn_rtt;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = now;
+			hctx->ccid3hctx_t_ld = ktime_to_timeval(now);
 		} else {
 			/* Sender does not have RTT sample: X = MSS/second */
 			hctx->ccid3hctx_x = dp->dccps_mss_cache;
@@ -361,7 +353,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		delay = timeval_delta(&hctx->ccid3hctx_t_nom, &now);
+		delay = ktime_us_delta(hctx->ccid3hctx_t_nom, now);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions [RFC 3448, 4.6]
@@ -371,10 +363,10 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 * else
 		 *       // send the packet in (t_nom - t_now) milliseconds.
 		 */
-		if (delay - (suseconds_t)hctx->ccid3hctx_delta >= 0)
-			return delay / 1000L;
+		if (delay - (s64)hctx->ccid3hctx_delta >= 1000)
+			return (u32)delay / 1000L;
 
-		ccid3_hc_tx_update_win_count(hctx, &now);
+		ccid3_hc_tx_update_win_count(hctx, now);
 		break;
 	case TFRC_SSTATE_TERM:
 		DCCP_BUG("%s(%p) - Illegal state TERM", dccp_role(sk), sk);
@@ -387,8 +379,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	hctx->ccid3hctx_idle = 0;
 
 	/* set the nominal send time for the next following packet */
-	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
-
+	hctx->ccid3hctx_t_nom = ktime_add_us(hctx->ccid3hctx_t_nom,
+					     hctx->ccid3hctx_t_ipi);
 	return 0;
 }
 
@@ -819,154 +811,6 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-/* calculate first loss interval
- *
- * returns estimated loss interval in usecs */
-
-static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
-{
-	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
-	u32 x_recv, p;
-	suseconds_t rtt, delta;
-	struct timeval tstamp = { 0, };
-	int interval = 0;
-	int win_count = 0;
-	int step = 0;
-	u64 fval;
-
-	list_for_each_entry_safe(entry, next, &hcrx->ccid3hcrx_hist,
-				 dccphrx_node) {
-		if (dccp_rx_hist_entry_data_packet(entry)) {
-			tail = entry;
-
-			switch (step) {
-			case 0:
-				tstamp	  = entry->dccphrx_tstamp;
-				win_count = entry->dccphrx_ccval;
-				step = 1;
-				break;
-			case 1:
-				interval = win_count - entry->dccphrx_ccval;
-				if (interval < 0)
-					interval += TFRC_WIN_COUNT_LIMIT;
-				if (interval > 4)
-					goto found;
-				break;
-			}
-		}
-	}
-
-	if (unlikely(step == 0)) {
-		DCCP_WARN("%s(%p), packet history has no data packets!\n",
-			  dccp_role(sk), sk);
-		return ~0;
-	}
-
-	if (unlikely(interval == 0)) {
-		DCCP_WARN("%s(%p), Could not find a win_count interval > 0."
-			  "Defaulting to 1\n", dccp_role(sk), sk);
-		interval = 1;
-	}
-found:
-	if (!tail) {
-		DCCP_CRIT("tail is null\n");
-		return ~0;
-	}
-
-	delta = timeval_delta(&tstamp, &tail->dccphrx_tstamp);
-	DCCP_BUG_ON(delta < 0);
-
-	rtt = delta * 4 / interval;
-	ccid3_pr_debug("%s(%p), approximated RTT to %dus\n",
-		       dccp_role(sk), sk, (int)rtt);
-
-	/*
-	 * Determine the length of the first loss interval via inverse lookup.
-	 * Assume that X_recv can be computed by the throughput equation
-	 *		    s
-	 *	X_recv = --------
-	 *		 R * fval
-	 * Find some p such that f(p) = fval; return 1/p [RFC 3448, 6.3.1].
-	 */
-	if (rtt == 0) {			/* would result in divide-by-zero */
-		DCCP_WARN("RTT==0\n");
-		return ~0;
-	}
-
-	dccp_timestamp(sk, &tstamp);
-	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
-	DCCP_BUG_ON(delta <= 0);
-
-	x_recv = scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
-	if (x_recv == 0) {		/* would also trigger divide-by-zero */
-		DCCP_WARN("X_recv==0\n");
-		if ((x_recv = hcrx->ccid3hcrx_x_recv) == 0) {
-			DCCP_BUG("stored value of X_recv is zero");
-			return ~0;
-		}
-	}
-
-	fval = scaled_div(hcrx->ccid3hcrx_s, rtt);
-	fval = scaled_div32(fval, x_recv);
-	p = tfrc_calc_x_reverse_lookup(fval);
-
-	ccid3_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
-		       "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
-
-	if (p == 0)
-		return ~0;
-	else
-		return 1000000 / p;
-}
-
-static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
-{
-	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_li_hist_entry *head;
-	u64 seq_temp;
-
-	if (list_empty(&hcrx->ccid3hcrx_li_hist)) {
-		if (!dccp_li_hist_interval_new(ccid3_li_hist,
-		   &hcrx->ccid3hcrx_li_hist, seq_loss, win_loss))
-			return;
-
-		head = list_entry(hcrx->ccid3hcrx_li_hist.next,
-		   struct dccp_li_hist_entry, dccplih_node);
-		head->dccplih_interval = ccid3_hc_rx_calc_first_li(sk);
-	} else {
-		struct dccp_li_hist_entry *entry;
-		struct list_head *tail;
-
-		head = list_entry(hcrx->ccid3hcrx_li_hist.next,
-		   struct dccp_li_hist_entry, dccplih_node);
-		/* FIXME win count check removed as was wrong */
-		/* should make this check with receive history */
-		/* and compare there as per section 10.2 of RFC4342 */
-
-		/* new loss event detected */
-		/* calculate last interval length */
-		seq_temp = dccp_delta_seqno(head->dccplih_seqno, seq_loss);
-		entry = dccp_li_hist_entry_new(ccid3_li_hist, GFP_ATOMIC);
-
-		if (entry == NULL) {
-			DCCP_BUG("out of memory - can not allocate entry");
-			return;
-		}
-
-		list_add(&entry->dccplih_node, &hcrx->ccid3hcrx_li_hist);
-
-		tail = hcrx->ccid3hcrx_li_hist.prev;
-		list_del(tail);
-		kmem_cache_free(ccid3_li_hist->dccplih_slab, tail);
-
-		/* Create the newest interval */
-		entry->dccplih_seqno = seq_loss;
-		entry->dccplih_interval = seq_temp;
-		entry->dccplih_win_count = win_loss;
-	}
-}
-
 static int ccid3_hc_rx_detect_loss(struct sock *sk,
 				    struct dccp_rx_hist_entry *packet)
 {
@@ -992,8 +836,15 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 	while (dccp_delta_seqno(hcrx->ccid3hcrx_seqno_nonloss, seqno)
 	   > TFRC_RECV_NUM_LATE_LOSS) {
 		loss = 1;
-		ccid3_hc_rx_update_li(sk, hcrx->ccid3hcrx_seqno_nonloss,
-		   hcrx->ccid3hcrx_ccval_nonloss);
+		dccp_li_update_li(sk,
+				  &hcrx->ccid3hcrx_li_hist,
+				  &hcrx->ccid3hcrx_hist,
+				  &hcrx->ccid3hcrx_tstamp_last_feedback,
+				  hcrx->ccid3hcrx_s,
+				  hcrx->ccid3hcrx_bytes_recv,
+				  hcrx->ccid3hcrx_x_recv,
+				  hcrx->ccid3hcrx_seqno_nonloss,
+				  hcrx->ccid3hcrx_ccval_nonloss);
 		tmp_seqno = hcrx->ccid3hcrx_seqno_nonloss;
 		dccp_inc_seqno(&tmp_seqno);
 		hcrx->ccid3hcrx_seqno_nonloss = tmp_seqno;
@@ -1152,7 +1003,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 	dccp_rx_hist_purge(ccid3_rx_hist, &hcrx->ccid3hcrx_hist);
 
 	/* Empty loss interval history */
-	dccp_li_hist_purge(ccid3_li_hist, &hcrx->ccid3hcrx_li_hist);
+	dccp_li_hist_purge(&hcrx->ccid3hcrx_li_hist);
 }
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
@@ -1236,19 +1087,12 @@ static __init int ccid3_module_init(void)
 	if (ccid3_tx_hist == NULL)
 		goto out_free_rx;
 
-	ccid3_li_hist = dccp_li_hist_new("ccid3");
-	if (ccid3_li_hist == NULL)
-		goto out_free_tx;
-
 	rc = ccid_register(&ccid3);
 	if (rc != 0)
-		goto out_free_loss_interval_history;
+		goto out_free_tx;
 out:
 	return rc;
 
-out_free_loss_interval_history:
-	dccp_li_hist_delete(ccid3_li_hist);
-	ccid3_li_hist = NULL;
 out_free_tx:
 	dccp_tx_hist_delete(ccid3_tx_hist);
 	ccid3_tx_hist = NULL;
@@ -1270,10 +1114,6 @@ static __exit void ccid3_module_exit(void)
 	if (ccid3_rx_hist != NULL) {
 		dccp_rx_hist_delete(ccid3_rx_hist);
 		ccid3_rx_hist = NULL;
-	}
-	if (ccid3_li_hist != NULL) {
-		dccp_li_hist_delete(ccid3_li_hist);
-		ccid3_li_hist = NULL;
 	}
 }
 module_exit(ccid3_module_exit);

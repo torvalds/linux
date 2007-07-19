@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 
 /* #define SECCOMP_DEBUG 1 */
+#define NR_SECCOMP_MODES 1
 
 /*
  * Secure computing mode 1 allows only read/write/exit/sigreturn.
@@ -53,4 +54,32 @@ void __secure_computing(int this_syscall)
 	dump_stack();
 #endif
 	do_exit(SIGKILL);
+}
+
+long prctl_get_seccomp(void)
+{
+	return current->seccomp.mode;
+}
+
+long prctl_set_seccomp(unsigned long seccomp_mode)
+{
+	long ret;
+
+	/* can set it only once to be even more secure */
+	ret = -EPERM;
+	if (unlikely(current->seccomp.mode))
+		goto out;
+
+	ret = -EINVAL;
+	if (seccomp_mode && seccomp_mode <= NR_SECCOMP_MODES) {
+		current->seccomp.mode = seccomp_mode;
+		set_thread_flag(TIF_SECCOMP);
+#ifdef TIF_NOTSC
+		disable_TSC();
+#endif
+		ret = 0;
+	}
+
+ out:
+	return ret;
 }

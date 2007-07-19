@@ -1592,9 +1592,10 @@ static int selinux_vm_enough_memory(long pages)
 	rc = secondary_ops->capable(current, CAP_SYS_ADMIN);
 	if (rc == 0)
 		rc = avc_has_perm_noaudit(tsec->sid, tsec->sid,
-					SECCLASS_CAPABILITY,
-					CAP_TO_MASK(CAP_SYS_ADMIN),
-					NULL);
+					  SECCLASS_CAPABILITY,
+					  CAP_TO_MASK(CAP_SYS_ADMIN),
+					  0,
+					  NULL);
 
 	if (rc == 0)
 		cap_sys_admin = 1;
@@ -2317,7 +2318,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, char *name, void *value
 	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
 		return -EOPNOTSUPP;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(inode))
 		return -EPERM;
 
 	AVC_AUDIT_DATA_INIT(&ad,FS);
@@ -2568,12 +2569,16 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 }
 
 static int selinux_file_mmap(struct file *file, unsigned long reqprot,
-			     unsigned long prot, unsigned long flags)
+			     unsigned long prot, unsigned long flags,
+			     unsigned long addr, unsigned long addr_only)
 {
-	int rc;
+	int rc = 0;
+	u32 sid = ((struct task_security_struct*)(current->security))->sid;
 
-	rc = secondary_ops->file_mmap(file, reqprot, prot, flags);
-	if (rc)
+	if (addr < mmap_min_addr)
+		rc = avc_has_perm(sid, sid, SECCLASS_MEMPROTECT,
+				  MEMPROTECT__MMAP_ZERO, NULL);
+	if (rc || addr_only)
 		return rc;
 
 	if (selinux_checkreqprot)
@@ -4626,7 +4631,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		if (p->ptrace & PT_PTRACED) {
 			error = avc_has_perm_noaudit(tsec->ptrace_sid, sid,
 						     SECCLASS_PROCESS,
-						     PROCESS__PTRACE, &avd);
+						     PROCESS__PTRACE, 0, &avd);
 			if (!error)
 				tsec->sid = sid;
 			task_unlock(p);

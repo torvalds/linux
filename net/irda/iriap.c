@@ -153,7 +153,7 @@ int __init iriap_init(void)
  *    Initializes the IrIAP layer, called by the module cleanup code in
  *    irmod.c
  */
-void __exit iriap_cleanup(void)
+void iriap_cleanup(void)
 {
 	irlmp_unregister_service(service_handle);
 
@@ -1066,7 +1066,7 @@ static int irias_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irias_seq_ops = {
+static const struct seq_operations irias_seq_ops = {
 	.start  = irias_seq_start,
 	.next   = irias_seq_next,
 	.stop   = irias_seq_stop,

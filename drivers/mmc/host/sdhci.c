@@ -70,6 +70,14 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
 	},
 
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+	},
+
 	{	/* Generic SD host controller */
 		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
 	},
@@ -1022,7 +1030,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		writel(SDHCI_INT_BUS_POWER, host->ioaddr + SDHCI_INT_STATUS);
 	}
 
-	intmask &= SDHCI_INT_BUS_POWER;
+	intmask &= ~SDHCI_INT_BUS_POWER;
 
 	if (intmask) {
 		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x.\n",

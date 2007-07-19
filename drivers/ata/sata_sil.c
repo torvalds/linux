@@ -218,7 +218,7 @@ static const struct ata_port_info sil_port_info[] = {
 		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_MOD15WRITE,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
 	/* sil_3112_no_sata_irq */
@@ -227,7 +227,7 @@ static const struct ata_port_info sil_port_info[] = {
 				  SIL_FLAG_NO_SATA_IRQ,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
 	/* sil_3512 */
@@ -235,7 +235,7 @@ static const struct ata_port_info sil_port_info[] = {
 		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
 	/* sil_3114 */
@@ -243,7 +243,7 @@ static const struct ata_port_info sil_port_info[] = {
 		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
 };
@@ -262,8 +262,9 @@ static const struct {
 	unsigned long sfis_cfg;	/* SATA FIS reception config register */
 } sil_port[] = {
 	/* port 0 ... */
-	{ 0x80, 0x8A, 0x00, 0x10, 0x40, 0x100, 0x148, 0xb4, 0x14c },
-	{ 0xC0, 0xCA, 0x08, 0x18, 0x44, 0x180, 0x1c8, 0xf4, 0x1cc },
+	/*   tf    ctl  bmdma  bmdma2  fifo    scr   sien   mode   sfis */
+	{  0x80,  0x8A,   0x0,  0x10,  0x40, 0x100, 0x148,  0xb4, 0x14c },
+	{  0xC0,  0xCA,   0x8,  0x18,  0x44, 0x180, 0x1c8,  0xf4, 0x1cc },
 	{ 0x280, 0x28A, 0x200, 0x210, 0x240, 0x300, 0x348, 0x2b4, 0x34c },
 	{ 0x2C0, 0x2CA, 0x208, 0x218, 0x244, 0x380, 0x3c8, 0x2f4, 0x3cc },
 	/* ... port 3 */

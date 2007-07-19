@@ -190,22 +190,9 @@ struct ti_ohci {
 	unsigned long ir_multichannel_used; /* ditto */
         spinlock_t IR_channel_lock;
 
-	/* iso receive (legacy API) */
-	u64 ir_legacy_channels; /* note: this differs from ISO_channel_usage;
-				   it only accounts for channels listened to
-				   by the legacy API, so that we can know when
-				   it is safe to free the legacy API context */
-
-	struct dma_rcv_ctx ir_legacy_context;
-	struct ohci1394_iso_tasklet ir_legacy_tasklet;
-
         /* iso transmit */
 	int nb_iso_xmit_ctx;
 	unsigned long it_ctx_usage; /* use test_and_set_bit() for atomicity */
-
-	/* iso transmit (legacy API) */
-	struct dma_trm_ctx it_legacy_context;
-	struct ohci1394_iso_tasklet it_legacy_tasklet;
 
         u64 ISO_channel_usage;
 
@@ -221,7 +208,6 @@ struct ti_ohci {
 
 	/* Tasklets for iso receive and transmit, used by video1394
 	 * and dv1394 */
-
 	struct list_head iso_tasklet_list;
 	spinlock_t iso_tasklet_list_lock;
 

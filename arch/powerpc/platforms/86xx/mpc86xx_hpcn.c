@@ -44,13 +44,6 @@
 #define DBG(fmt...) do { } while(0)
 #endif
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-unsigned long pci_dram_offset = 0;
-#endif
-
-
 #ifdef CONFIG_PCI
 static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
@@ -81,21 +74,8 @@ mpc86xx_hpcn_init_irq(void)
 	/* Alloc mpic structure and per isu has 16 INT entries. */
 	mpic1 = mpic_alloc(np, res.start,
 			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			16, NR_IRQS - 4,
-			" MPIC     ");
+			0, 256, " MPIC     ");
 	BUG_ON(mpic1 == NULL);
-
-	mpic_assign_isu(mpic1, 0, res.start + 0x10000);
-
-	/* 48 Internal Interrupts */
-	mpic_assign_isu(mpic1, 1, res.start + 0x10200);
-	mpic_assign_isu(mpic1, 2, res.start + 0x10400);
-	mpic_assign_isu(mpic1, 3, res.start + 0x10600);
-
-	/* 16 External interrupts
-	 * Moving them from [0 - 15] to [64 - 79]
-	 */
-	mpic_assign_isu(mpic1, 4, res.start + 0x10000);
 
 	mpic_init(mpic1);
 
@@ -319,6 +299,7 @@ static void __devinit quirk_uli5229(struct pci_dev *dev)
 {
 	unsigned short temp;
 	pci_write_config_word(dev, 0x04, 0x0405);
+	dev->class &= ~0x5;
 	pci_read_config_word(dev, 0x4a, &temp);
 	temp |= 0x1000;
 	pci_write_config_word(dev, 0x4a, temp);
@@ -364,9 +345,7 @@ mpc86xx_hpcn_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
-
-	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
+		mpc86xx_add_bridge(np);
 #endif
 
 	printk("MPC86xx HPCN board from Freescale Semiconductor\n");

@@ -185,6 +185,7 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 		/* check for microcode update */
 		rdmsr_on_cpu(data->id, MSR_IA32_UCODE_REV, &eax, &edx);
 		if (edx < 0x39) {
+			err = -ENODEV;
 			dev_err(&pdev->dev,
 				"Errata AE18 not fixed, update BIOS or "
 				"microcode of the CPU!\n");

@@ -69,7 +69,7 @@ int pci_get_irq(struct pci_dev *dev, int pin)
 	return irq;
 }
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	unsigned char irq = 0;
 

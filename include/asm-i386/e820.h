@@ -25,13 +25,15 @@
 
 #ifndef __ASSEMBLY__
 
+struct e820entry {
+	u64 addr;	/* start of memory segment */
+	u64 size;	/* size of memory segment */
+	u32 type;	/* type of memory segment */
+} __attribute__((packed));
+
 struct e820map {
-    int nr_map;
-    struct e820entry {
-	unsigned long long addr;	/* start of memory segment */
-	unsigned long long size;	/* size of memory segment */
-	unsigned long type;		/* type of memory segment */
-    } map[E820MAX];
+	u32 nr_map;
+	struct e820entry map[E820MAX];
 };
 
 extern struct e820map e820;

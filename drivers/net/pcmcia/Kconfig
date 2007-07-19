@@ -19,7 +19,7 @@ menuconfig NET_PCMCIA
 
 	  If unsure, say N.
 
-if NET_PCMCIA
+if NET_PCMCIA && PCMCIA
 
 config PCMCIA_3C589
 	tristate "3Com 3c589 PCMCIA support"

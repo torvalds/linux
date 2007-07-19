@@ -927,6 +927,14 @@ xlog_find_tail(
 			ASSIGN_ANY_LSN_HOST(log->l_last_sync_lsn, log->l_curr_cycle,
 					after_umount_blk);
 			*tail_blk = after_umount_blk;
+
+			/*
+			 * Note that the unmount was clean. If the unmount
+			 * was not clean, we need to know this to rebuild the
+			 * superblock counters from the perag headers if we
+			 * have a filesystem using non-persistent counters.
+			 */
+			log->l_mp->m_flags |= XFS_MOUNT_WAS_CLEAN;
 		}
 	}
 

@@ -69,6 +69,16 @@ struct port_database_24xx {
 	uint8_t reserved_3[24];
 };
 
+struct vp_database_24xx {
+	uint16_t vp_status;
+	uint8_t  options;
+	uint8_t  id;
+	uint8_t  port_name[WWN_SIZE];
+	uint8_t  node_name[WWN_SIZE];
+	uint16_t port_id_low;
+	uint16_t port_id_high;
+};
+
 struct nvram_24xx {
 	/* NVRAM header. */
 	uint8_t id[4];
@@ -962,6 +972,25 @@ struct mid_db_24xx {
 	struct mid_db_entry_24xx entries[MAX_MID_VPS];
 };
 
+ /*
+ * Virtual Fabric ID type definition.
+ */
+typedef struct vf_id {
+        uint16_t id : 12;
+        uint16_t priority : 4;
+} vf_id_t;
+
+/*
+ * Virtual Fabric HopCt type definition.
+ */
+typedef struct vf_hopct {
+        uint16_t reserved : 8;
+        uint16_t hopct : 8;
+} vf_hopct_t;
+
+/*
+ * Virtual Port Control IOCB
+ */
 #define VP_CTRL_IOCB_TYPE	0x30	/* Vitual Port Control entry. */
 struct vp_ctrl_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
@@ -974,6 +1003,7 @@ struct vp_ctrl_entry_24xx {
 	uint16_t vp_idx_failed;
 
 	uint16_t comp_status;		/* Completion status. */
+#define CS_VCE_IOCB_ERROR       0x01    /* Error processing IOCB */
 #define CS_VCE_ACQ_ID_ERROR	0x02	/* Error while acquireing ID. */
 #define CS_VCE_BUSY		0x05	/* Firmware not ready to accept cmd. */
 
@@ -982,24 +1012,34 @@ struct vp_ctrl_entry_24xx {
 #define VCE_COMMAND_DISABLE_VPS	0x08	/* Disable VPs. */
 #define VCE_COMMAND_DISABLE_VPS_REINIT	0x09 /* Disable VPs and reinit link. */
 #define VCE_COMMAND_DISABLE_VPS_LOGO	0x0a /* Disable VPs and LOGO ports. */
+#define VCE_COMMAND_DISABLE_VPS_LOGO_ALL        0x0b /* Disable VPs and LOGO ports. */
 
 	uint16_t vp_count;
 
 	uint8_t vp_idx_map[16];
-
-	uint8_t reserved_4[32];
+	uint16_t flags;
+	struct vf_id    id;
+	uint16_t reserved_4;
+	struct vf_hopct  hopct;
+	uint8_t reserved_5[8];
 };
 
+/*
+ * Modify Virtual Port Configuration IOCB
+ */
 #define VP_CONFIG_IOCB_TYPE	0x31	/* Vitual Port Config entry. */
 struct vp_config_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
-	uint8_t sys_define;		/* System defined. */
+	uint8_t handle_count;
 	uint8_t entry_status;		/* Entry Status. */
 
 	uint32_t handle;		/* System handle. */
 
-	uint16_t reserved_1;
+	uint16_t flags;
+#define CS_VF_BIND_VPORTS_TO_VF         BIT_0
+#define CS_VF_SET_QOS_OF_VPORTS         BIT_1
+#define CS_VF_SET_HOPS_OF_VPORTS        BIT_2
 
 	uint16_t comp_status;		/* Completion status. */
 #define CS_VCT_STS_ERROR	0x01	/* Specified VPs were not disabled. */
@@ -1009,27 +1049,29 @@ struct vp_config_entry_24xx {
 #define CS_VCT_BUSY		0x05	/* Firmware not ready to accept cmd. */
 
 	uint8_t command;
-#define VCT_COMMAND_MOD_VPS	0x00	/* Enable VPs. */
-#define VCT_COMMAND_MOD_ENABLE_VPS 0x08	/* Disable VPs. */
+#define VCT_COMMAND_MOD_VPS     0x00    /* Modify VP configurations. */
+#define VCT_COMMAND_MOD_ENABLE_VPS 0x01 /* Modify configuration & enable VPs. */
 
 	uint8_t vp_count;
 
-	uint8_t vp_idx1;
-	uint8_t vp_idx2;
+	uint8_t vp_index1;
+	uint8_t vp_index2;
 
 	uint8_t options_idx1;
 	uint8_t hard_address_idx1;
-	uint16_t reserved_2;
+	uint16_t reserved_vp1;
 	uint8_t port_name_idx1[WWN_SIZE];
 	uint8_t node_name_idx1[WWN_SIZE];
 
 	uint8_t options_idx2;
 	uint8_t hard_address_idx2;
-	uint16_t reserved_3;
+	uint16_t reserved_vp2;
 	uint8_t port_name_idx2[WWN_SIZE];
 	uint8_t node_name_idx2[WWN_SIZE];
-
-	uint8_t reserved_4[8];
+	struct vf_id    id;
+	uint16_t reserved_4;
+	struct vf_hopct  hopct;
+	uint8_t reserved_5;
 };
 
 #define VP_RPT_ID_IOCB_TYPE	0x32	/* Report ID Acquisition entry. */
@@ -1052,6 +1094,31 @@ struct vp_rpt_id_entry_24xx {
 	uint8_t vp_idx_map[16];
 
 	uint8_t reserved_4[32];
+};
+
+#define VF_EVFP_IOCB_TYPE       0x26    /* Exchange Virtual Fabric Parameters entry. */
+struct vf_evfp_entry_24xx {
+        uint8_t entry_type;             /* Entry type. */
+        uint8_t entry_count;            /* Entry count. */
+        uint8_t sys_define;             /* System defined. */
+        uint8_t entry_status;           /* Entry Status. */
+
+        uint32_t handle;                /* System handle. */
+        uint16_t comp_status;           /* Completion status. */
+        uint16_t timeout;               /* timeout */
+        uint16_t adim_tagging_mode;
+
+        uint16_t vfport_id;
+        uint32_t exch_addr;
+
+        uint16_t nport_handle;          /* N_PORT handle. */
+        uint16_t control_flags;
+        uint32_t io_parameter_0;
+        uint32_t io_parameter_1;
+        uint32_t tx_address[2];         /* Data segment 0 address. */
+        uint32_t tx_len;                /* Data segment 0 length. */
+        uint32_t rx_address[2];         /* Data segment 1 address. */
+        uint32_t rx_len;                /* Data segment 1 length. */
 };
 
 /* END MID Support ***********************************************************/

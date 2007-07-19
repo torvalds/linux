@@ -187,7 +187,7 @@ static void bond_send_gratuitous_arp(struct bonding *bond);
 
 /*---------------------------- General routines -----------------------------*/
 
-const char *bond_mode_name(int mode)
+static const char *bond_mode_name(int mode)
 {
 	switch (mode) {
 	case BOND_MODE_ROUNDROBIN :
@@ -1224,7 +1224,8 @@ static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 
 /*---------------------------------- IOCTL ----------------------------------*/
 
-int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev)
+static int bond_sethwaddr(struct net_device *bond_dev,
+			  struct net_device *slave_dev)
 {
 	dprintk("bond_dev=%p\n", bond_dev);
 	dprintk("slave_dev=%p\n", slave_dev);
@@ -1390,17 +1391,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_free;
 	}
 
+	res = netdev_set_master(slave_dev, bond_dev);
+	if (res) {
+		dprintk("Error %d calling netdev_set_master\n", res);
+		goto err_close;
+	}
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
 		dprintk("Openning slave %s failed\n", slave_dev->name);
 		goto err_restore_mac;
-	}
-
-	res = netdev_set_master(slave_dev, bond_dev);
-	if (res) {
-		dprintk("Error %d calling netdev_set_master\n", res);
-		goto err_close;
 	}
 
 	new_slave->dev = slave_dev;

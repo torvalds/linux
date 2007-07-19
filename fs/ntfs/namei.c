@@ -21,6 +21,7 @@
  */
 
 #include <linux/dcache.h>
+#include <linux/exportfs.h>
 #include <linux/security.h>
 
 #include "attrib.h"

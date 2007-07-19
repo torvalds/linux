@@ -30,6 +30,7 @@
 #define LOG_SLI                       0x800	/* SLI events */
 #define LOG_FCP_ERROR                 0x1000	/* log errors, not underruns */
 #define LOG_LIBDFC                    0x2000	/* Libdfc events */
+#define LOG_VPORT                     0x4000	/* NPIV events */
 #define LOG_ALL_MSG                   0xffff	/* LOG all messages */
 
 #define lpfc_printf_log(phba, level, mask, fmt, arg...) \

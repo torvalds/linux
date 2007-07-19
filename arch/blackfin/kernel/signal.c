@@ -34,8 +34,8 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/freezer.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 
@@ -124,7 +124,7 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 
 	return r0;
 
-      badframe:
+ badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
 }
@@ -239,7 +239,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 
 	return 0;
 
-      give_sigsegv:
+ give_sigsegv:
 	if (sig == SIGSEGV)
 		ka->sa.sa_handler = SIG_DFL;
 	force_sig(SIGSEGV, current);
@@ -263,7 +263,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 		}
 		/* fallthrough */
 	case -ERESTARTNOINTR:
-	      do_restart:
+ do_restart:
 		regs->p0 = regs->orig_p0;
 		regs->r0 = regs->orig_r0;
 		regs->pc -= 2;
@@ -341,7 +341,7 @@ asmlinkage void do_signal(struct pt_regs *regs)
 		return;
 	}
 
-no_signal:
+ no_signal:
 	/* Did we come from a system call? */
 	if (regs->orig_p0 >= 0)
 		/* Restart the system call - no handlers present */

@@ -17,6 +17,8 @@
 #include <asm/thread_info.h>
 #include <asm/elf.h>
 
+#include <xen/interface/xen.h>
+
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
@@ -59,6 +61,7 @@ void foo(void)
 	OFFSET(TI_addr_limit, thread_info, addr_limit);
 	OFFSET(TI_restart_block, thread_info, restart_block);
 	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
+	OFFSET(TI_cpu, thread_info, cpu);
 	BLANK();
 
 	OFFSET(GDS_size, Xgt_desc_struct, size);
@@ -114,5 +117,11 @@ void foo(void)
 	OFFSET(PARAVIRT_irq_enable_sysexit, paravirt_ops, irq_enable_sysexit);
 	OFFSET(PARAVIRT_iret, paravirt_ops, iret);
 	OFFSET(PARAVIRT_read_cr0, paravirt_ops, read_cr0);
+#endif
+
+#ifdef CONFIG_XEN
+	BLANK();
+	OFFSET(XEN_vcpu_info_mask, vcpu_info, evtchn_upcall_mask);
+	OFFSET(XEN_vcpu_info_pending, vcpu_info, evtchn_upcall_pending);
 #endif
 }

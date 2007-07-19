@@ -879,3 +879,11 @@ asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi, 
 	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
 				len, advice);
 }
+
+asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+				unsigned offset_hi, unsigned len_lo,
+				unsigned len_hi)
+{
+	return sys_fallocate(fd, mode, ((u64)offset_hi << 32) | offset_lo,
+			     ((u64)len_hi << 32) | len_lo);
+}

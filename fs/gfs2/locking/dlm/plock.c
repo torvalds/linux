@@ -242,7 +242,7 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 	op->info.number		= name->ln_number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-
+	op->info.owner		= (__u64)(long) fl->fl_owner;
 
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
@@ -254,16 +254,20 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 	}
 	spin_unlock(&ops_lock);
 
+	/* info.rv from userspace is 1 for conflict, 0 for no-conflict,
+	   -ENOENT if there are no locks on the file */
+
 	rv = op->info.rv;
 
 	fl->fl_type = F_UNLCK;
 	if (rv == -ENOENT)
 		rv = 0;
-	else if (rv == 0 && op->info.pid != fl->fl_pid) {
+	else if (rv > 0) {
 		fl->fl_type = (op->info.ex) ? F_WRLCK : F_RDLCK;
 		fl->fl_pid = op->info.pid;
 		fl->fl_start = op->info.start;
 		fl->fl_end = op->info.end;
+		rv = 0;
 	}
 
 	kfree(op);

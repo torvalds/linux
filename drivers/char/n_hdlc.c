@@ -400,7 +400,12 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 		/* Send the next block of data to device */
 		tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
 		actual = tty->driver->write(tty, tbuf->buf, tbuf->count);
-		    
+
+		/* rollback was possible and has been done */
+		if (actual == -ERESTARTSYS) {
+			n_hdlc->tbuf = tbuf;
+			break;
+		}
 		/* if transmit error, throw frame away by */
 		/* pretending it was accepted by driver */
 		if (actual < 0)
@@ -780,13 +785,14 @@ static unsigned int n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 		poll_wait(filp, &tty->write_wait, wait);
 
 		/* set bits for operations that won't block */
-		if(n_hdlc->rx_buf_list.head)
+		if (n_hdlc->rx_buf_list.head)
 			mask |= POLLIN | POLLRDNORM;	/* readable */
 		if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 			mask |= POLLHUP;
-		if(tty_hung_up_p(filp))
+		if (tty_hung_up_p(filp))
 			mask |= POLLHUP;
-		if(n_hdlc->tx_free_buf_list.head)
+		if (!tty_is_writelocked(tty) &&
+				n_hdlc->tx_free_buf_list.head)
 			mask |= POLLOUT | POLLWRNORM;	/* writable */
 	}
 	return mask;
@@ -861,7 +867,7 @@ static void n_hdlc_buf_put(struct n_hdlc_buf_list *list,
 	spin_lock_irqsave(&list->spinlock,flags);
 	
 	buf->link=NULL;
-	if(list->tail)
+	if (list->tail)
 		list->tail->link = buf;
 	else
 		list->head = buf;

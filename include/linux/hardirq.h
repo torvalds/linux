@@ -79,6 +79,19 @@
 #endif
 
 #ifdef CONFIG_PREEMPT
+# define PREEMPT_CHECK_OFFSET 1
+#else
+# define PREEMPT_CHECK_OFFSET 0
+#endif
+
+/*
+ * Check whether we were atomic before we did preempt_disable():
+ * (used by the scheduler)
+ */
+#define in_atomic_preempt_off() \
+		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_CHECK_OFFSET)
+
+#ifdef CONFIG_PREEMPT
 # define preemptible()	(preempt_count() == 0 && !irqs_disabled())
 # define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
 #else

@@ -158,8 +158,7 @@ void dlm_dispatch_work(struct work_struct *work)
 	struct dlm_ctxt *dlm =
 		container_of(work, struct dlm_ctxt, dispatched_work);
 	LIST_HEAD(tmp_list);
-	struct list_head *iter, *iter2;
-	struct dlm_work_item *item;
+	struct dlm_work_item *item, *next;
 	dlm_workfunc_t *workfunc;
 	int tot=0;
 
@@ -167,13 +166,12 @@ void dlm_dispatch_work(struct work_struct *work)
 	list_splice_init(&dlm->work_list, &tmp_list);
 	spin_unlock(&dlm->work_lock);
 
-	list_for_each_safe(iter, iter2, &tmp_list) {
+	list_for_each_entry(item, &tmp_list, list) {
 		tot++;
 	}
 	mlog(0, "%s: work thread has %d work items\n", dlm->name, tot);
 
-	list_for_each_safe(iter, iter2, &tmp_list) {
-		item = list_entry(iter, struct dlm_work_item, list);
+	list_for_each_entry_safe(item, next, &tmp_list, list) {
 		workfunc = item->func;
 		list_del_init(&item->list);
 
@@ -549,7 +547,6 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 {
 	int status = 0;
 	struct dlm_reco_node_data *ndata;
-	struct list_head *iter;
 	int all_nodes_done;
 	int destroy = 0;
 	int pass = 0;
@@ -567,8 +564,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 
 	/* safe to access the node data list without a lock, since this
 	 * process is the only one to change the list */
-	list_for_each(iter, &dlm->reco.node_data) {
-		ndata = list_entry (iter, struct dlm_reco_node_data, list);
+	list_for_each_entry(ndata, &dlm->reco.node_data, list) {
 		BUG_ON(ndata->state != DLM_RECO_NODE_DATA_INIT);
 		ndata->state = DLM_RECO_NODE_DATA_REQUESTING;
 
@@ -655,9 +651,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 		 * done, or if anyone died */
 		all_nodes_done = 1;
 		spin_lock(&dlm_reco_state_lock);
-		list_for_each(iter, &dlm->reco.node_data) {
-			ndata = list_entry (iter, struct dlm_reco_node_data, list);
-
+		list_for_each_entry(ndata, &dlm->reco.node_data, list) {
 			mlog(0, "checking recovery state of node %u\n",
 			     ndata->node_num);
 			switch (ndata->state) {
@@ -774,16 +768,14 @@ static int dlm_init_recovery_area(struct dlm_ctxt *dlm, u8 dead_node)
 
 static void dlm_destroy_recovery_area(struct dlm_ctxt *dlm, u8 dead_node)
 {
-	struct list_head *iter, *iter2;
-	struct dlm_reco_node_data *ndata;
+	struct dlm_reco_node_data *ndata, *next;
 	LIST_HEAD(tmplist);
 
 	spin_lock(&dlm_reco_state_lock);
 	list_splice_init(&dlm->reco.node_data, &tmplist);
 	spin_unlock(&dlm_reco_state_lock);
 
-	list_for_each_safe(iter, iter2, &tmplist) {
-		ndata = list_entry (iter, struct dlm_reco_node_data, list);
+	list_for_each_entry_safe(ndata, next, &tmplist, list) {
 		list_del_init(&ndata->list);
 		kfree(ndata);
 	}
@@ -876,7 +868,6 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	struct dlm_lock_resource *res;
 	struct dlm_ctxt *dlm;
 	LIST_HEAD(resources);
-	struct list_head *iter;
 	int ret;
 	u8 dead_node, reco_master;
 	int skip_all_done = 0;
@@ -920,8 +911,7 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 
 	/* any errors returned will be due to the new_master dying,
 	 * the dlm_reco_thread should detect this */
-	list_for_each(iter, &resources) {
-		res = list_entry (iter, struct dlm_lock_resource, recovering);
+	list_for_each_entry(res, &resources, recovering) {
 		ret = dlm_send_one_lockres(dlm, res, mres, reco_master,
 				   	DLM_MRES_RECOVERY);
 		if (ret < 0) {
@@ -983,7 +973,6 @@ int dlm_reco_data_done_handler(struct o2net_msg *msg, u32 len, void *data,
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_reco_data_done *done = (struct dlm_reco_data_done *)msg->buf;
-	struct list_head *iter;
 	struct dlm_reco_node_data *ndata = NULL;
 	int ret = -EINVAL;
 
@@ -1000,8 +989,7 @@ int dlm_reco_data_done_handler(struct o2net_msg *msg, u32 len, void *data,
 			dlm->reco.dead_node, done->node_idx, dlm->node_num);
 
 	spin_lock(&dlm_reco_state_lock);
-	list_for_each(iter, &dlm->reco.node_data) {
-		ndata = list_entry (iter, struct dlm_reco_node_data, list);
+	list_for_each_entry(ndata, &dlm->reco.node_data, list) {
 		if (ndata->node_num != done->node_idx)
 			continue;
 
@@ -1049,13 +1037,11 @@ static void dlm_move_reco_locks_to_list(struct dlm_ctxt *dlm,
 					struct list_head *list,
 				       	u8 dead_node)
 {
-	struct dlm_lock_resource *res;
-	struct list_head *iter, *iter2;
+	struct dlm_lock_resource *res, *next;
 	struct dlm_lock *lock;
 
 	spin_lock(&dlm->spinlock);
-	list_for_each_safe(iter, iter2, &dlm->reco.resources) {
-		res = list_entry (iter, struct dlm_lock_resource, recovering);
+	list_for_each_entry_safe(res, next, &dlm->reco.resources, recovering) {
 		/* always prune any $RECOVERY entries for dead nodes,
 		 * otherwise hangs can occur during later recovery */
 		if (dlm_is_recovery_lock(res->lockname.name,
@@ -1169,7 +1155,7 @@ static void dlm_init_migratable_lockres(struct dlm_migratable_lockres *mres,
 					u8 flags, u8 master)
 {
 	/* mres here is one full page */
-	memset(mres, 0, PAGE_SIZE);
+	clear_page(mres);
 	mres->lockname_len = namelen;
 	memcpy(mres->lockname, lockname, namelen);
 	mres->num_locks = 0;
@@ -1252,7 +1238,7 @@ int dlm_send_one_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 			 struct dlm_migratable_lockres *mres,
 			 u8 send_to, u8 flags)
 {
-	struct list_head *queue, *iter;
+	struct list_head *queue;
 	int total_locks, i;
 	u64 mig_cookie = 0;
 	struct dlm_lock *lock;
@@ -1278,9 +1264,7 @@ int dlm_send_one_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	total_locks = 0;
 	for (i=DLM_GRANTED_LIST; i<=DLM_BLOCKED_LIST; i++) {
 		queue = dlm_list_idx_to_ptr(res, i);
-		list_for_each(iter, queue) {
-			lock = list_entry (iter, struct dlm_lock, list);
-
+		list_for_each_entry(lock, queue, list) {
 			/* add another lock. */
 			total_locks++;
 			if (!dlm_add_lock_to_array(lock, mres, i))
@@ -1717,7 +1701,6 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 	struct dlm_lockstatus *lksb = NULL;
 	int ret = 0;
 	int i, j, bad;
-	struct list_head *iter;
 	struct dlm_lock *lock = NULL;
 	u8 from = O2NM_MAX_NODES;
 	unsigned int added = 0;
@@ -1755,8 +1738,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			spin_lock(&res->spinlock);
 			for (j = DLM_GRANTED_LIST; j <= DLM_BLOCKED_LIST; j++) {
 				tmpq = dlm_list_idx_to_ptr(res, j);
-				list_for_each(iter, tmpq) {
-					lock = list_entry (iter, struct dlm_lock, list);
+				list_for_each_entry(lock, tmpq, list) {
 					if (lock->ml.cookie != ml->cookie)
 						lock = NULL;
 					else
@@ -1930,8 +1912,8 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 				       struct dlm_lock_resource *res)
 {
 	int i;
-	struct list_head *queue, *iter, *iter2;
-	struct dlm_lock *lock;
+	struct list_head *queue;
+	struct dlm_lock *lock, *next;
 
 	res->state |= DLM_LOCK_RES_RECOVERING;
 	if (!list_empty(&res->recovering)) {
@@ -1947,8 +1929,7 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 	/* find any pending locks and put them back on proper list */
 	for (i=DLM_BLOCKED_LIST; i>=DLM_GRANTED_LIST; i--) {
 		queue = dlm_list_idx_to_ptr(res, i);
-		list_for_each_safe(iter, iter2, queue) {
-			lock = list_entry (iter, struct dlm_lock, list);
+		list_for_each_entry_safe(lock, next, queue, list) {
 			dlm_lock_get(lock);
 			if (lock->convert_pending) {
 				/* move converting lock back to granted */
@@ -2013,18 +1994,15 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 					      u8 dead_node, u8 new_master)
 {
 	int i;
-	struct list_head *iter, *iter2;
 	struct hlist_node *hash_iter;
 	struct hlist_head *bucket;
-
-	struct dlm_lock_resource *res;
+	struct dlm_lock_resource *res, *next;
 
 	mlog_entry_void();
 
 	assert_spin_locked(&dlm->spinlock);
 
-	list_for_each_safe(iter, iter2, &dlm->reco.resources) {
-		res = list_entry (iter, struct dlm_lock_resource, recovering);
+	list_for_each_entry_safe(res, next, &dlm->reco.resources, recovering) {
 		if (res->owner == dead_node) {
 			list_del_init(&res->recovering);
 			spin_lock(&res->spinlock);
@@ -2099,7 +2077,7 @@ static inline int dlm_lvb_needs_invalidation(struct dlm_lock *lock, int local)
 static void dlm_revalidate_lvb(struct dlm_ctxt *dlm,
 			       struct dlm_lock_resource *res, u8 dead_node)
 {
-	struct list_head *iter, *queue;
+	struct list_head *queue;
 	struct dlm_lock *lock;
 	int blank_lvb = 0, local = 0;
 	int i;
@@ -2121,8 +2099,7 @@ static void dlm_revalidate_lvb(struct dlm_ctxt *dlm,
 
 	for (i=DLM_GRANTED_LIST; i<=DLM_CONVERTING_LIST; i++) {
 		queue = dlm_list_idx_to_ptr(res, i);
-		list_for_each(iter, queue) {
-			lock = list_entry (iter, struct dlm_lock, list);
+		list_for_each_entry(lock, queue, list) {
 			if (lock->ml.node == search_node) {
 				if (dlm_lvb_needs_invalidation(lock, local)) {
 					/* zero the lksb lvb and lockres lvb */
@@ -2143,8 +2120,7 @@ static void dlm_revalidate_lvb(struct dlm_ctxt *dlm,
 static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 				struct dlm_lock_resource *res, u8 dead_node)
 {
-	struct list_head *iter, *tmpiter;
-	struct dlm_lock *lock;
+	struct dlm_lock *lock, *next;
 	unsigned int freed = 0;
 
 	/* this node is the lockres master:
@@ -2155,24 +2131,21 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 	assert_spin_locked(&res->spinlock);
 
 	/* TODO: check pending_asts, pending_basts here */
-	list_for_each_safe(iter, tmpiter, &res->granted) {
-		lock = list_entry (iter, struct dlm_lock, list);
+	list_for_each_entry_safe(lock, next, &res->granted, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
 			dlm_lock_put(lock);
 			freed++;
 		}
 	}
-	list_for_each_safe(iter, tmpiter, &res->converting) {
-		lock = list_entry (iter, struct dlm_lock, list);
+	list_for_each_entry_safe(lock, next, &res->converting, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
 			dlm_lock_put(lock);
 			freed++;
 		}
 	}
-	list_for_each_safe(iter, tmpiter, &res->blocked) {
-		lock = list_entry (iter, struct dlm_lock, list);
+	list_for_each_entry_safe(lock, next, &res->blocked, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
 			dlm_lock_put(lock);

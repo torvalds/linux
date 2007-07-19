@@ -623,7 +623,7 @@ const struct file_operations cifs_file_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.sendfile = generic_file_sendfile,
+	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
@@ -644,7 +644,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.lock = cifs_lock,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
-	.sendfile = generic_file_sendfile, /* BB removeme BB */
+	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -663,7 +663,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.sendfile = generic_file_sendfile,
+	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
@@ -683,7 +683,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
-	.sendfile = generic_file_sendfile, /* BB removeme BB */
+	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -856,6 +856,7 @@ static int cifs_oplock_thread(void *dummyarg)
 	__u16  netfid;
 	int rc;
 
+	set_freezable();
 	do {
 		if (try_to_freeze())
 			continue;

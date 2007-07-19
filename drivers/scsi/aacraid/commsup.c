@@ -1021,7 +1021,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 }
 
-static int _aac_reset_adapter(struct aac_dev *aac)
+static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 {
 	int index, quirks;
 	int retval;
@@ -1029,25 +1029,32 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 	struct scsi_device *dev;
 	struct scsi_cmnd *command;
 	struct scsi_cmnd *command_list;
+	int jafo = 0;
 
 	/*
 	 * Assumptions:
-	 *	- host is locked.
+	 *	- host is locked, unless called by the aacraid thread.
+	 *	  (a matter of convenience, due to legacy issues surrounding
+	 *	  eh_host_adapter_reset).
 	 *	- in_reset is asserted, so no new i/o is getting to the
 	 *	  card.
-	 *	- The card is dead.
+	 *	- The card is dead, or will be very shortly ;-/ so no new
+	 *	  commands are completing in the interrupt service.
 	 */
 	host = aac->scsi_host_ptr;
 	scsi_block_requests(host);
 	aac_adapter_disable_int(aac);
-	spin_unlock_irq(host->host_lock);
-	kthread_stop(aac->thread);
+	if (aac->thread->pid != current->pid) {
+		spin_unlock_irq(host->host_lock);
+		kthread_stop(aac->thread);
+		jafo = 1;
+	}
 
 	/*
 	 *	If a positive health, means in a known DEAD PANIC
 	 * state and the adapter could be reset to `try again'.
 	 */
-	retval = aac_adapter_restart(aac, aac_adapter_check_health(aac));
+	retval = aac_adapter_restart(aac, forced ? 0 : aac_adapter_check_health(aac));
 
 	if (retval)
 		goto out;
@@ -1104,10 +1111,12 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 	if (aac_get_driver_ident(index)->quirks & AAC_QUIRK_31BIT)
 		if ((retval = pci_set_dma_mask(aac->pdev, DMA_32BIT_MASK)))
 			goto out;
-	aac->thread = kthread_run(aac_command_thread, aac, aac->name);
-	if (IS_ERR(aac->thread)) {
-		retval = PTR_ERR(aac->thread);
-		goto out;
+	if (jafo) {
+		aac->thread = kthread_run(aac_command_thread, aac, aac->name);
+		if (IS_ERR(aac->thread)) {
+			retval = PTR_ERR(aac->thread);
+			goto out;
+		}
 	}
 	(void)aac_get_adapter_info(aac);
 	quirks = aac_get_driver_ident(index)->quirks;
@@ -1150,7 +1159,98 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 out:
 	aac->in_reset = 0;
 	scsi_unblock_requests(host);
-	spin_lock_irq(host->host_lock);
+	if (jafo) {
+		spin_lock_irq(host->host_lock);
+	}
+	return retval;
+}
+
+int aac_reset_adapter(struct aac_dev * aac, int forced)
+{
+	unsigned long flagv = 0;
+	int retval;
+	struct Scsi_Host * host;
+
+	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
+		return -EBUSY;
+
+	if (aac->in_reset) {
+		spin_unlock_irqrestore(&aac->fib_lock, flagv);
+		return -EBUSY;
+	}
+	aac->in_reset = 1;
+	spin_unlock_irqrestore(&aac->fib_lock, flagv);
+
+	/*
+	 * Wait for all commands to complete to this specific
+	 * target (block maximum 60 seconds). Although not necessary,
+	 * it does make us a good storage citizen.
+	 */
+	host = aac->scsi_host_ptr;
+	scsi_block_requests(host);
+	if (forced < 2) for (retval = 60; retval; --retval) {
+		struct scsi_device * dev;
+		struct scsi_cmnd * command;
+		int active = 0;
+
+		__shost_for_each_device(dev, host) {
+			spin_lock_irqsave(&dev->list_lock, flagv);
+			list_for_each_entry(command, &dev->cmd_list, list) {
+				if (command->SCp.phase == AAC_OWNER_FIRMWARE) {
+					active++;
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&dev->list_lock, flagv);
+			if (active)
+				break;
+
+		}
+		/*
+		 * We can exit If all the commands are complete
+		 */
+		if (active == 0)
+			break;
+		ssleep(1);
+	}
+
+	/* Quiesce build, flush cache, write through mode */
+	aac_send_shutdown(aac);
+	spin_lock_irqsave(host->host_lock, flagv);
+	retval = _aac_reset_adapter(aac, forced);
+	spin_unlock_irqrestore(host->host_lock, flagv);
+
+	if (retval == -ENODEV) {
+		/* Unwind aac_send_shutdown() IOP_RESET unsupported/disabled */
+		struct fib * fibctx = aac_fib_alloc(aac);
+		if (fibctx) {
+			struct aac_pause *cmd;
+			int status;
+
+			aac_fib_init(fibctx);
+
+			cmd = (struct aac_pause *) fib_data(fibctx);
+
+			cmd->command = cpu_to_le32(VM_ContainerConfig);
+			cmd->type = cpu_to_le32(CT_PAUSE_IO);
+			cmd->timeout = cpu_to_le32(1);
+			cmd->min = cpu_to_le32(1);
+			cmd->noRescan = cpu_to_le32(1);
+			cmd->count = cpu_to_le32(0);
+
+			status = aac_fib_send(ContainerCommand,
+			  fibctx,
+			  sizeof(struct aac_pause),
+			  FsaNormal,
+			  -2 /* Timeout silently */, 1,
+			  NULL, NULL);
+
+			if (status >= 0)
+				aac_fib_complete(fibctx);
+			aac_fib_free(fibctx);
+		}
+	}
+
 	return retval;
 }
 
@@ -1270,10 +1370,15 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
+	if (!check_reset || (aac->supplement_adapter_info.SupportedOptions2 &
+	  le32_to_cpu(AAC_OPTION_IGNORE_RESET)))
+		goto out;
 	host = aac->scsi_host_ptr;
-	spin_lock_irqsave(host->host_lock, flagv);
-	BlinkLED = _aac_reset_adapter(aac);
-	spin_unlock_irqrestore(host->host_lock, flagv);
+	if (aac->thread->pid != current->pid)
+		spin_lock_irqsave(host->host_lock, flagv);
+	BlinkLED = _aac_reset_adapter(aac, 0);
+	if (aac->thread->pid != current->pid)
+		spin_unlock_irqrestore(host->host_lock, flagv);
 	return BlinkLED;
 
 out:
@@ -1300,6 +1405,9 @@ int aac_command_thread(void *data)
 	struct aac_fib_context *fibctx;
 	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
+	unsigned long next_jiffies = jiffies + HZ;
+	unsigned long next_check_jiffies = next_jiffies;
+	long difference = HZ;
 
 	/*
 	 *	We can only have one thread per adapter for AIF's.
@@ -1368,7 +1476,7 @@ int aac_command_thread(void *data)
 				     cpu_to_le32(AifCmdJobProgress))) {
 					aac_handle_aif(dev, fib);
 				}
- 				
+
 				time_now = jiffies/HZ;
 
 				/*
@@ -1507,11 +1615,79 @@ int aac_command_thread(void *data)
 		 *	There are no more AIF's
 		 */
 		spin_unlock_irqrestore(dev->queues->queue[HostNormCmdQueue].lock, flags);
-		schedule();
+
+		/*
+		 *	Background activity
+		 */
+		if ((time_before(next_check_jiffies,next_jiffies))
+		 && ((difference = next_check_jiffies - jiffies) <= 0)) {
+			next_check_jiffies = next_jiffies;
+			if (aac_check_health(dev) == 0) {
+				difference = ((long)(unsigned)check_interval)
+					   * HZ;
+				next_check_jiffies = jiffies + difference;
+			} else if (!dev->queues)
+				break;
+		}
+		if (!time_before(next_check_jiffies,next_jiffies)
+		 && ((difference = next_jiffies - jiffies) <= 0)) {
+			struct timeval now;
+			int ret;
+
+			/* Don't even try to talk to adapter if its sick */
+			ret = aac_check_health(dev);
+			if (!ret && !dev->queues)
+				break;
+			next_check_jiffies = jiffies
+					   + ((long)(unsigned)check_interval)
+					   * HZ;
+			do_gettimeofday(&now);
+
+			/* Synchronize our watches */
+			if (((1000000 - (1000000 / HZ)) > now.tv_usec)
+			 && (now.tv_usec > (1000000 / HZ)))
+				difference = (((1000000 - now.tv_usec) * HZ)
+				  + 500000) / 1000000;
+			else if (ret == 0) {
+				struct fib *fibptr;
+
+				if ((fibptr = aac_fib_alloc(dev))) {
+					u32 * info;
+
+					aac_fib_init(fibptr);
+
+					info = (u32 *) fib_data(fibptr);
+					if (now.tv_usec > 500000)
+						++now.tv_sec;
+
+					*info = cpu_to_le32(now.tv_sec);
+
+					(void)aac_fib_send(SendHostTime,
+						fibptr,
+						sizeof(*info),
+						FsaNormal,
+						1, 1,
+						NULL,
+						NULL);
+					aac_fib_complete(fibptr);
+					aac_fib_free(fibptr);
+				}
+				difference = (long)(unsigned)update_interval*HZ;
+			} else {
+				/* retry shortly */
+				difference = 10 * HZ;
+			}
+			next_jiffies = jiffies + difference;
+			if (time_before(next_check_jiffies,next_jiffies))
+				difference = next_check_jiffies - jiffies;
+		}
+		if (difference <= 0)
+			difference = 1;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(difference);
 
 		if (kthread_should_stop())
 			break;
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	if (dev->queues)
 		remove_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);

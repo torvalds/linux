@@ -14,6 +14,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #include <linux/pm.h>
 
 #include <asm/io.h>
@@ -158,8 +159,8 @@ const char *get_system_type(void)
  */
 void __init prom_init(void)
 {
-	mips_machgroup = MACH_GROUP_GALILEO;
-	mips_machtype = MACH_EV64120A;
+	mips_machgroup = MACH_GROUP_WINDRIVER;
+	mips_machtype = MACH_WRPPMC;
 
 	add_memory_region(WRPPMC_SDRAM_SCS0_BASE, WRPPMC_SDRAM_SCS0_SIZE, BOOT_MEM_RAM);
 	add_memory_region(WRPPMC_BOOTROM_BASE, WRPPMC_BOOTROM_SIZE, BOOT_MEM_ROM_DATA);

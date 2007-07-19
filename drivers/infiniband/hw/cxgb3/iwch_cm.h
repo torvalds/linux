@@ -175,6 +175,7 @@ struct iwch_ep {
 	unsigned int atid;
 	u32 hwtid;
 	u32 snd_seq;
+	u32 rcv_seq;
 	struct l2t_entry *l2t;
 	struct dst_entry *dst;
 	struct sk_buff *mpa_skb;

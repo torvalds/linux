@@ -23,7 +23,7 @@ const struct file_operations minix_file_operations = {
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.fsync		= minix_sync_file,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 };
 
 const struct inode_operations minix_file_inode_operations = {

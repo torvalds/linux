@@ -93,10 +93,6 @@ static void stopmachine_set_state(enum stopmachine_state state)
 static int stop_machine(void)
 {
 	int i, ret = 0;
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
-
-	/* One high-prio thread per cpu.  We'll do this one. */
-	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	atomic_set(&stopmachine_thread_ack, 0);
 	stopmachine_num_threads = 0;
@@ -189,6 +185,10 @@ struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
 
 	p = kthread_create(do_stop, &smdata, "kstopmachine");
 	if (!IS_ERR(p)) {
+		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+
+		/* One high-prio thread per cpu.  We'll do this one. */
+		sched_setscheduler(p, SCHED_FIFO, &param);
 		kthread_bind(p, cpu);
 		wake_up_process(p);
 		wait_for_completion(&smdata.done);

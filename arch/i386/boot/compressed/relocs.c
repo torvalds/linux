@@ -31,6 +31,8 @@ static const char* safe_abs_relocs[] = {
 		"__kernel_rt_sigreturn",
 		"__kernel_sigreturn",
 		"SYSENTER_RETURN",
+		"xen_irq_disable_direct_reloc",
+		"xen_save_fl_direct_reloc",
 };
 
 static int is_safe_abs_reloc(const char* sym_name)

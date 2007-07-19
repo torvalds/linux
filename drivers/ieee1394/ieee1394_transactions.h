@@ -19,8 +19,6 @@ struct hpsb_packet *hpsb_make_lock64packet(struct hpsb_host *host,
 					   nodeid_t node, u64 addr, int extcode,
 					   octlet_t *data, octlet_t arg);
 struct hpsb_packet *hpsb_make_phypacket(struct hpsb_host *host, quadlet_t data);
-struct hpsb_packet *hpsb_make_isopacket(struct hpsb_host *host, int length,
-					int channel, int tag, int sync);
 struct hpsb_packet *hpsb_make_writepacket(struct hpsb_host *host,
 					  nodeid_t node, u64 addr,
 					  quadlet_t *buffer, size_t length);

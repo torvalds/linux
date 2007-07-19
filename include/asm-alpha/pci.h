@@ -199,30 +199,6 @@ pci_dma_sync_sg_for_device(struct pci_dev *dev, struct scatterlist *sg,
 
 extern int pci_dma_supported(struct pci_dev *hwdev, u64 mask);
 
-/* True if the machine supports DAC addressing, and DEV can
-   make use of it given MASK.  */
-extern int pci_dac_dma_supported(struct pci_dev *hwdev, u64 mask);
-
-/* Convert to/from DAC dma address and struct page.  */
-extern dma64_addr_t pci_dac_page_to_dma(struct pci_dev *, struct page *,
-					unsigned long, int);
-extern struct page *pci_dac_dma_to_page(struct pci_dev *, dma64_addr_t);
-extern unsigned long pci_dac_dma_to_offset(struct pci_dev *, dma64_addr_t);
-
-static inline void
-pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev, dma64_addr_t dma_addr,
-				size_t len, int direction)
-{
-	/* Nothing to do. */
-}
-
-static inline void
-pci_dac_dma_sync_single_for_device(struct pci_dev *pdev, dma64_addr_t dma_addr,
-				   size_t len, int direction)
-{
-	/* Nothing to do. */
-}
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
@@ -273,11 +249,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	struct pci_controller *hose = bus->sysdata;
 	return hose->need_domain_info;
-}
-
-static inline void
-pcibios_add_platform_entries(struct pci_dev *dev)
-{
 }
 
 struct pci_dev *alpha_gendev_to_pci(struct device *dev);

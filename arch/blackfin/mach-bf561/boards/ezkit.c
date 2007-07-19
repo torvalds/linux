@@ -30,10 +30,9 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
-#include <asm/irq.h>
-#include <asm/bfin5xx_spi.h>
-#include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <asm/bfin5xx_spi.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -45,13 +44,13 @@ char *bfin_board_name = "ADDS-BF561-EZKIT";
 
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
 static struct resource bfin_isp1761_resources[] = {
-	[0] = {
+	{
 		.name	= "isp1761-regs",
 		.start  = ISP1761_BASE + 0x00000000,
 		.end    = ISP1761_BASE + 0x000fffff,
 		.flags  = IORESOURCE_MEM,
 	},
-	[1] = {
+	{
 		.start  = ISP1761_IRQ,
 		.end    = ISP1761_IRQ,
 		.flags  = IORESOURCE_IRQ,
@@ -71,7 +70,7 @@ static struct platform_device *bfin_isp1761_devices[] = {
 
 int __init bfin_isp1761_init(void)
 {
-	unsigned int num_devices=ARRAY_SIZE(bfin_isp1761_devices);
+	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
 
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
@@ -98,7 +97,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x2C010300,
 		.end = 0x2C010300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 
 		.start = IRQ_PF9,
 		.end = IRQ_PF9,
@@ -116,18 +115,18 @@ static struct platform_device smc91x_device = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
-        {
-                .start = 0xFFC00400,
-                .end = 0xFFC004FF,
-                .flags = IORESOURCE_MEM,
-        },
+	{
+		.start = 0xFFC00400,
+		.end = 0xFFC004FF,
+		.flags = IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device bfin_uart_device = {
-        .name = "bfin-uart",
-        .id = 1,
-        .num_resources = ARRAY_SIZE(bfin_uart_resources),
-        .resource = bfin_uart_resources,
+	.name = "bfin-uart",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_uart_resources),
+	.resource = bfin_uart_resources,
 };
 #endif
 
@@ -176,7 +175,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&spi_bfin_master_device,
 #endif
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-        &bfin_uart_device,
+	&bfin_uart_device,
 #endif
 };
 

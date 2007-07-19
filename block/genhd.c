@@ -108,28 +108,24 @@ out:
 
 EXPORT_SYMBOL(register_blkdev);
 
-/* todo: make void - error printk here */
-int unregister_blkdev(unsigned int major, const char *name)
+void unregister_blkdev(unsigned int major, const char *name)
 {
 	struct blk_major_name **n;
 	struct blk_major_name *p = NULL;
 	int index = major_to_index(major);
-	int ret = 0;
 
 	mutex_lock(&block_subsys_lock);
 	for (n = &major_names[index]; *n; n = &(*n)->next)
 		if ((*n)->major == major)
 			break;
-	if (!*n || strcmp((*n)->name, name))
-		ret = -EINVAL;
-	else {
+	if (!*n || strcmp((*n)->name, name)) {
+		WARN_ON(1);
+	} else {
 		p = *n;
 		*n = p->next;
 	}
 	mutex_unlock(&block_subsys_lock);
 	kfree(p);
-
-	return ret;
 }
 
 EXPORT_SYMBOL(unregister_blkdev);
@@ -726,21 +722,21 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
 
-	disk = kmalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
+	disk = kmalloc_node(sizeof(struct gendisk),
+				GFP_KERNEL | __GFP_ZERO, node_id);
 	if (disk) {
-		memset(disk, 0, sizeof(struct gendisk));
 		if (!init_disk_stats(disk)) {
 			kfree(disk);
 			return NULL;
 		}
 		if (minors > 1) {
 			int size = (minors - 1) * sizeof(struct hd_struct *);
-			disk->part = kmalloc_node(size, GFP_KERNEL, node_id);
+			disk->part = kmalloc_node(size,
+				GFP_KERNEL | __GFP_ZERO, node_id);
 			if (!disk->part) {
 				kfree(disk);
 				return NULL;
 			}
-			memset(disk->part, 0, size);
 		}
 		disk->minors = minors;
 		kobj_set_kset_s(disk,block_subsys);

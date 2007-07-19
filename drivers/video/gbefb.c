@@ -86,7 +86,7 @@ static int gbe_revision;
 
 static int ypan, ywrap;
 
-static uint32_t pseudo_palette[256];
+static uint32_t pseudo_palette[16];
 
 static char *mode_option __initdata = NULL;
 
@@ -854,8 +854,7 @@ static int gbefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	green >>= 8;
 	blue >>= 8;
 
-	switch (info->var.bits_per_pixel) {
-	case 8:
+	if (info->var.bits_per_pixel <= 8) {
 		/* wait for the color map FIFO to have a free entry */
 		for (i = 0; i < 1000 && gbe->cm_fifo >= 63; i++)
 			udelay(10);
@@ -864,23 +863,25 @@ static int gbefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			return 1;
 		}
 		gbe->cmap[regno] = (red << 24) | (green << 16) | (blue << 8);
-		break;
-	case 15:
-	case 16:
-		red >>= 3;
-		green >>= 3;
-		blue >>= 3;
-		pseudo_palette[regno] =
-			(red << info->var.red.offset) |
-			(green << info->var.green.offset) |
-			(blue << info->var.blue.offset);
-		break;
-	case 32:
-		pseudo_palette[regno] =
-			(red << info->var.red.offset) |
-			(green << info->var.green.offset) |
-			(blue << info->var.blue.offset);
-		break;
+	} else if (regno < 16) {
+		switch (info->var.bits_per_pixel) {
+		case 15:
+		case 16:
+			red >>= 3;
+			green >>= 3;
+			blue >>= 3;
+			pseudo_palette[regno] =
+				(red << info->var.red.offset) |
+				(green << info->var.green.offset) |
+				(blue << info->var.blue.offset);
+			break;
+		case 32:
+			pseudo_palette[regno] =
+				(red << info->var.red.offset) |
+				(green << info->var.green.offset) |
+				(blue << info->var.blue.offset);
+			break;
+		}
 	}
 
 	return 0;

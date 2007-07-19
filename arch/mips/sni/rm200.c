@@ -15,7 +15,6 @@
 
 #include <asm/sni.h>
 #include <asm/time.h>
-#include <asm/ds1216.h>
 #include <asm/irq_cpu.h>
 
 #define PORT(_base,_irq)				\
@@ -41,20 +40,34 @@ static struct platform_device rm200_serial8250_device = {
 	},
 };
 
+static struct resource rm200_ds1216_rsrc[] = {
+        {
+                .start = 0x1cd41ffc,
+                .end   = 0x1cd41fff,
+                .flags = IORESOURCE_MEM
+        }
+};
+
+static struct platform_device rm200_ds1216_device = {
+        .name           = "rtc-ds1216",
+        .num_resources  = ARRAY_SIZE(rm200_ds1216_rsrc),
+        .resource       = rm200_ds1216_rsrc
+};
+
 static struct resource snirm_82596_rm200_rsrc[] = {
 	{
-		.start = 0xb8000000,
-		.end   = 0xb80fffff,
+		.start = 0x18000000,
+		.end   = 0x180fffff,
 		.flags = IORESOURCE_MEM
 	},
 	{
-		.start = 0xbb000000,
-		.end   = 0xbb000004,
+		.start = 0x1b000000,
+		.end   = 0x1b000004,
 		.flags = IORESOURCE_MEM
 	},
 	{
-		.start = 0xbff00000,
-		.end   = 0xbff00020,
+		.start = 0x1ff00000,
+		.end   = 0x1ff00020,
 		.flags = IORESOURCE_MEM
 	},
 	{
@@ -75,8 +88,8 @@ static struct platform_device snirm_82596_rm200_pdev = {
 
 static struct resource snirm_53c710_rm200_rsrc[] = {
 	{
-		.start = 0xb9000000,
-		.end   = 0xb90fffff,
+		.start = 0x19000000,
+		.end   = 0x190fffff,
 		.flags = IORESOURCE_MEM
 	},
 	{
@@ -96,6 +109,7 @@ static int __init snirm_setup_devinit(void)
 {
 	if (sni_brd_type == SNI_BRD_RM200) {
 		platform_device_register(&rm200_serial8250_device);
+		platform_device_register(&rm200_ds1216_device);
 		platform_device_register(&snirm_82596_rm200_pdev);
 		platform_device_register(&snirm_53c710_rm200_pdev);
 	}
@@ -176,11 +190,9 @@ void __init sni_rm200_irq_init(void)
 	setup_irq (SNI_RM200_INT_START + 0, &sni_isa_irq);
 }
 
-void sni_rm200_init(void)
+void __init sni_rm200_init(void)
 {
 	set_io_port_base(SNI_PORT_BASE + 0x02000000);
 	ioport_resource.end += 0x02000000;
-	ds1216_base = (volatile unsigned char *) SNI_DS1216_RM200_BASE;
-	rtc_mips_get_time = ds1216_get_cmos_time;
 	board_time_init = sni_cpu_time_init;
 }

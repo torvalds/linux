@@ -114,12 +114,6 @@ static int bad_file_lock(struct file *file, int cmd, struct file_lock *fl)
 	return -EIO;
 }
 
-static ssize_t bad_file_sendfile(struct file *in_file, loff_t *ppos,
-			size_t count, read_actor_t actor, void *target)
-{
-	return -EIO;
-}
-
 static ssize_t bad_file_sendpage(struct file *file, struct page *page,
 			int off, size_t len, loff_t *pos, int more)
 {
@@ -182,7 +176,6 @@ static const struct file_operations bad_file_ops =
 	.aio_fsync	= bad_file_aio_fsync,
 	.fasync		= bad_file_fasync,
 	.lock		= bad_file_lock,
-	.sendfile	= bad_file_sendfile,
 	.sendpage	= bad_file_sendpage,
 	.get_unmapped_area = bad_file_get_unmapped_area,
 	.check_flags	= bad_file_check_flags,

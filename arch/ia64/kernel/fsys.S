@@ -247,6 +247,9 @@ ENTRY(fsys_gettimeofday)
 .time_redo:
 	.pred.rel.mutex p8,p9,p10
 	ld4.acq r28 = [r29]	// xtime_lock.sequence. Must come first for locking purposes
+	;;
+	and r28 = ~1,r28	// Make sequence even to force retry if odd
+	;;
 (p8)	mov r2 = ar.itc		// CPU_TIMER. 36 clocks latency!!!
 	add r22 = IA64_TIME_INTERPOLATOR_LAST_COUNTER_OFFSET,r20
 (p9)	ld8 r2 = [r30]		// readq(ti->address). Could also have latency issues..
@@ -284,7 +287,6 @@ EX(.fail_efault, probe.w.fault r31, 3)	// This takes 5 cycles and we have spare 
 (p15)	ld8 r17 = [r19],-IA64_TIMESPEC_TV_NSEC_OFFSET
 (p7)	cmp.ne p7,p0 = r25,r3	// if cmpxchg not successful redo
 	// simulate tbit.nz.or p7,p0 = r28,0
-	and r28 = ~1,r28	// Make sequence even to force retry if odd
 	getf.sig r2 = f8
 	mf
 	add r8 = r8,r18		// Add time interpolator offset

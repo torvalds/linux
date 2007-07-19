@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -194,6 +194,8 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 			ret = 0;
 			goto bail;
 		}
+		/* Make sure entry is read after head index is read. */
+		smp_rmb();
 		wqe = get_rwqe_ptr(rq, tail);
 		if (++tail >= rq->size)
 			tail = 0;
@@ -267,7 +269,7 @@ again:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
 	if (!(ib_ipath_state_ops[sqp->state] & IPATH_PROCESS_SEND_OK) ||
-	    qp->s_rnr_timeout) {
+	    sqp->s_rnr_timeout) {
 		spin_unlock_irqrestore(&sqp->s_lock, flags);
 		goto done;
 	}
@@ -319,12 +321,22 @@ again:
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_WRITE))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.imm_data = wqe->wr.imm_data;
 		if (!ipath_get_rwqe(qp, 1))
 			goto rnr_nak;
 		/* FALLTHROUGH */
 	case IB_WR_RDMA_WRITE:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_WRITE))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (wqe->length == 0)
 			break;
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, wqe->length,
@@ -354,8 +366,10 @@ again:
 
 	case IB_WR_RDMA_READ:
 		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_READ)))
-			goto acc_err;
+			       IB_ACCESS_REMOTE_READ))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (unlikely(!ipath_rkey_ok(qp, &sqp->s_sge, wqe->length,
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
@@ -369,8 +383,10 @@ again:
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_ATOMIC)))
-			goto acc_err;
+			       IB_ACCESS_REMOTE_ATOMIC))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, sizeof(u64),
 					    wqe->wr.wr.atomic.remote_addr,
 					    wqe->wr.wr.atomic.rkey,
@@ -396,6 +412,8 @@ again:
 
 		if (len > sge->length)
 			len = sge->length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
 		BUG_ON(len == 0);
 		ipath_copy_sge(&qp->r_sge, sge->vaddr, len);
 		sge->vaddr += len;
@@ -503,11 +521,9 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	 * could be called.  If we are still in the tasklet function,
 	 * tasklet_hi_schedule() will not call us until the next time
 	 * tasklet_hi_schedule() is called.
-	 * We clear the tasklet flag now since we are committing to return
-	 * from the tasklet function.
+	 * We leave the busy flag set so that another post send doesn't
+	 * try to put the same QP on the piowait list again.
 	 */
-	clear_bit(IPATH_S_BUSY, &qp->s_busy);
-	tasklet_unlock(&qp->s_task);
 	want_buffer(dev->dd);
 	dev->n_piowait++;
 }

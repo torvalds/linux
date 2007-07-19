@@ -16,28 +16,6 @@
 #include <asm/io.h>
 #include <asm/se7780.h>
 
-#define INTC_INTMSK0             0xFFD00044
-#define INTC_INTMSKCLR0          0xFFD00064
-
-static void disable_se7780_irq(unsigned int irq)
-{
-	struct intc2_data *p = get_irq_chip_data(irq);
-	ctrl_outl(1 << p->msk_shift, INTC_INTMSK0 + p->msk_offset);
-}
-
-static void enable_se7780_irq(unsigned int irq)
-{
-	struct intc2_data *p = get_irq_chip_data(irq);
-	ctrl_outl(1 << p->msk_shift, INTC_INTMSKCLR0 + p->msk_offset);
-}
-
-static struct irq_chip se7780_irq_chip __read_mostly = {
-	.name           = "SE7780",
-	.mask           = disable_se7780_irq,
-	.unmask         = enable_se7780_irq,
-	.mask_ack       = disable_se7780_irq,
-};
-
 static struct intc2_data intc2_irq_table[] = {
 	{ 2,  0, 31, 0, 31, 3 }, /* daughter board EXTINT1 */
 	{ 4,  0, 30, 0, 30, 3 }, /* daughter board EXTINT2 */
@@ -51,13 +29,24 @@ static struct intc2_data intc2_irq_table[] = {
 	{ 0 , 0, 24, 0, 24, 3 }, /* SM501 */
 };
 
+static struct intc2_desc intc2_irq_desc __read_mostly = {
+	.prio_base	= 0, /* N/A */
+	.msk_base	= 0xffd00044,
+	.mskclr_base	= 0xffd00064,
+
+	.intc2_data	= intc2_irq_table,
+	.nr_irqs	= ARRAY_SIZE(intc2_irq_table),
+
+	.chip = {
+		.name	= "INTC2-se7780",
+	},
+};
+
 /*
  * Initialize IRQ setting
  */
 void __init init_se7780_IRQ(void)
 {
-	int i ;
-
 	/* enable all interrupt at FPGA */
 	ctrl_outw(0, FPGA_INTMSK1);
 	/* mask SM501 interrupt */
@@ -79,11 +68,5 @@ void __init init_se7780_IRQ(void)
 	/* FPGA + 0x0A */
 	ctrl_outw((IRQPIN_PCCPW << IRQPOS_PCCPW), FPGA_INTSEL3);
 
-	for (i = 0; i < ARRAY_SIZE(intc2_irq_table); i++) {
-		disable_irq_nosync(intc2_irq_table[i].irq);
-		set_irq_chip_and_handler_name( intc2_irq_table[i].irq, &se7780_irq_chip,
-			handle_level_irq, "level");
-		set_irq_chip_data( intc2_irq_table[i].irq, &intc2_irq_table[i] );
-		disable_se7780_irq(intc2_irq_table[i].irq);
-	}
+	register_intc2_controller(&intc2_irq_desc);
 }

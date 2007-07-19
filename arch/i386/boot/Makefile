@@ -25,27 +25,56 @@ SVGA_MODE := -DSVGA_MODE=NORMAL_VGA
 
 #RAMDISK := -DRAMDISK=512
 
-targets		:= vmlinux.bin bootsect bootsect.o \
-		   setup setup.o zImage bzImage
+targets		:= vmlinux.bin setup.bin setup.elf zImage bzImage
 subdir- 	:= compressed
 
+setup-y		+= a20.o apm.o cmdline.o copy.o cpu.o cpucheck.o edd.o
+setup-y		+= header.o main.o mca.o memory.o pm.o pmjump.o
+setup-y		+= printf.o string.o tty.o video.o version.o voyager.o
+
+# The link order of the video-*.o modules can matter.  In particular,
+# video-vga.o *must* be listed first, followed by video-vesa.o.
+# Hardware-specific drivers should follow in the order they should be
+# probed, and video-bios.o should typically be last.
+setup-y		+= video-vga.o
+setup-y		+= video-vesa.o
+setup-y		+= video-bios.o
+targets		+= $(setup-y)
 hostprogs-y	:= tools/build
 
 HOSTCFLAGS_build.o := $(LINUXINCLUDE)
 
 # ---------------------------------------------------------------------------
 
+# How to compile the 16-bit code.  Note we always compile for -march=i386,
+# that way we can complain to the user if the CPU is insufficient.
+cflags-i386   := 
+cflags-x86_64 := -m32
+CFLAGS		:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
+		   $(cflags-$(ARCH)) \
+		   -Wall -Wstrict-prototypes \
+		   -march=i386 -mregparm=3 \
+		   -include $(srctree)/$(src)/code16gcc.h \
+		   -fno-strict-aliasing -fomit-frame-pointer \
+		   $(call cc-option, -ffreestanding) \
+		   $(call cc-option, -fno-toplevel-reorder,\
+			$(call cc-option, -fno-unit-at-a-time)) \
+		   $(call cc-option, -fno-stack-protector) \
+		   $(call cc-option, -mpreferred-stack-boundary=2)
+AFLAGS		:= $(CFLAGS) -D__ASSEMBLY__
+
 $(obj)/zImage:  IMAGE_OFFSET := 0x1000
 $(obj)/zImage:  EXTRA_AFLAGS := $(SVGA_MODE) $(RAMDISK)
 $(obj)/bzImage: IMAGE_OFFSET := 0x100000
+$(obj)/bzImage: EXTRA_CFLAGS := -D__BIG_KERNEL__
 $(obj)/bzImage: EXTRA_AFLAGS := $(SVGA_MODE) $(RAMDISK) -D__BIG_KERNEL__
 $(obj)/bzImage: BUILDFLAGS   := -b
 
 quiet_cmd_image = BUILD   $@
-cmd_image = $(obj)/tools/build $(BUILDFLAGS) $(obj)/bootsect $(obj)/setup \
+cmd_image = $(obj)/tools/build $(BUILDFLAGS) $(obj)/setup.bin \
 	    $(obj)/vmlinux.bin $(ROOT_DEV) > $@
 
-$(obj)/zImage $(obj)/bzImage: $(obj)/bootsect $(obj)/setup \
+$(obj)/zImage $(obj)/bzImage: $(obj)/setup.bin \
 			      $(obj)/vmlinux.bin $(obj)/tools/build FORCE
 	$(call if_changed,image)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
@@ -53,11 +82,16 @@ $(obj)/zImage $(obj)/bzImage: $(obj)/bootsect $(obj)/setup \
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 
-LDFLAGS_bootsect := -Ttext 0x0 -s --oformat binary
-LDFLAGS_setup	 := -Ttext 0x0 -s --oformat binary -e begtext
+SETUP_OBJS = $(addprefix $(obj)/,$(setup-y))
 
-$(obj)/setup $(obj)/bootsect: %: %.o FORCE
+LDFLAGS_setup.elf	:= -T
+$(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
 	$(call if_changed,ld)
+
+OBJCOPYFLAGS_setup.bin	:= -O binary
+
+$(obj)/setup.bin: $(obj)/setup.elf FORCE
+	$(call if_changed,objcopy)
 
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed IMAGE_OFFSET=$(IMAGE_OFFSET) $@

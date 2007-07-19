@@ -195,7 +195,7 @@ static inline void sl82c105_reset_host(struct pci_dev *dev)
  * This function is called when the IDE timer expires, the drive
  * indicates that it is READY, and we were waiting for DMA to complete.
  */
-static int sl82c105_ide_dma_lostirq(ide_drive_t *drive)
+static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -222,9 +222,6 @@ static int sl82c105_ide_dma_lostirq(ide_drive_t *drive)
 	}
 
 	sl82c105_reset_host(dev);
-
-	/* __ide_dma_lostirq would return 1, so we do as well */
-	return 1;
 }
 
 /*
@@ -244,15 +241,12 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static int sl82c105_ide_dma_timeout(ide_drive_t *drive)
+static void sl82c105_dma_timeout(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	DBG(("sl82c105_dma_timeout(drive:%s)\n", drive->name));
 
-	DBG(("sl82c105_ide_dma_timeout(drive:%s)\n", drive->name));
-
-	sl82c105_reset_host(dev);
-	return __ide_dma_timeout(drive);
+	sl82c105_reset_host(HWIF(drive)->pci_dev);
+	ide_dma_timeout(drive);
 }
 
 static int sl82c105_ide_dma_on(ide_drive_t *drive)
@@ -344,7 +338,6 @@ static void sl82c105_tune_drive(ide_drive_t *drive, u8 pio)
 static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 {
 	struct pci_dev *bridge;
-	u8 rev;
 
 	/*
 	 * The bridge should be part of the same device, but function 0.
@@ -366,10 +359,9 @@ static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 	/*
 	 * We need to find function 0's revision, not function 1
 	 */
-	pci_read_config_byte(bridge, PCI_REVISION_ID, &rev);
 	pci_dev_put(bridge);
 
-	return rev;
+	return bridge->revision;
 }
 
 /*
@@ -441,9 +433,9 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->ide_dma_check		= &sl82c105_ide_dma_check;
 	hwif->ide_dma_on		= &sl82c105_ide_dma_on;
 	hwif->dma_off_quietly		= &sl82c105_dma_off_quietly;
-	hwif->ide_dma_lostirq		= &sl82c105_ide_dma_lostirq;
+	hwif->dma_lost_irq		= &sl82c105_dma_lost_irq;
 	hwif->dma_start			= &sl82c105_dma_start;
-	hwif->ide_dma_timeout		= &sl82c105_ide_dma_timeout;
+	hwif->dma_timeout		= &sl82c105_dma_timeout;
 
 	if (!noautodma)
 		hwif->autodma = 1;

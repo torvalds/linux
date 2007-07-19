@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/random.h>
 #include <linux/version.h>
+#include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/dma-mapping.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -145,9 +146,6 @@ struct vivi_buffer {
 
 	struct vivi_fmt        *fmt;
 
-#ifdef CONFIG_VIVI_SCATTER
-	struct sg_to_addr      *to_addr;
-#endif
 };
 
 struct vivi_dmaqueue {
@@ -168,7 +166,7 @@ static LIST_HEAD(vivi_devlist);
 struct vivi_dev {
 	struct list_head           vivi_devlist;
 
-	struct semaphore           lock;
+	struct mutex               lock;
 
 	int                        users;
 
@@ -232,68 +230,13 @@ static u8 bars[8][3] = {
 #define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
 #define TSTAMP_MIN_X 64
 
-#ifdef CONFIG_VIVI_SCATTER
-static void prep_to_addr(struct sg_to_addr to_addr[],
-			 struct videobuf_buffer *vb)
-{
-	int i, pos=0;
 
-	for (i=0;i<vb->dma.nr_pages;i++) {
-		to_addr[i].sg=&vb->dma.sglist[i];
-		to_addr[i].pos=pos;
-		pos += vb->dma.sglist[i].length;
-	}
-}
-
-static int get_addr_pos(int pos, int pages, struct sg_to_addr to_addr[])
-{
-	int p1=0,p2=pages-1,p3=pages/2;
-
-	/* Sanity test */
-	BUG_ON (pos>=to_addr[p2].pos+to_addr[p2].sg->length);
-
-	while (p1+1<p2) {
-		if (pos < to_addr[p3].pos) {
-			p2=p3;
-		} else {
-			p1=p3;
-		}
-		p3=(p1+p2)/2;
-	}
-	if (pos >= to_addr[p2].pos)
-		p1=p2;
-
-	return (p1);
-}
-#endif
-
-#ifdef CONFIG_VIVI_SCATTER
-static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
-		     int hmax, int line, char *timestr)
-#else
 static void gen_line(char *basep,int inipos,int wmax,
 		     int hmax, int line, char *timestr)
-#endif
 {
 	int  w,i,j,pos=inipos,y;
 	char *p,*s;
 	u8   chr,r,g,b,color;
-#ifdef CONFIG_VIVI_SCATTER
-	int pgpos,oldpg;
-	char *basep;
-	struct page *pg;
-
-	unsigned long flags;
-	spinlock_t spinlock;
-
-	spin_lock_init(&spinlock);
-
-	/* Get first addr pointed to pixel position */
-	oldpg=get_addr_pos(pos,pages,to_addr);
-	pg=pfn_to_page(sg_dma_address(to_addr[oldpg].sg) >> PAGE_SHIFT);
-	spin_lock_irqsave(&spinlock,flags);
-	basep = kmap_atomic(pg, KM_BOUNCE_READ)+to_addr[oldpg].sg->offset;
-#endif
 
 	/* We will just duplicate the second pixel at the packet */
 	wmax/=2;
@@ -305,18 +248,7 @@ static void gen_line(char *basep,int inipos,int wmax,
 		b=bars[w*7/wmax][2];
 
 		for (color=0;color<4;color++) {
-#ifdef CONFIG_VIVI_SCATTER
-			pgpos=get_addr_pos(pos,pages,to_addr);
-			if (pgpos!=oldpg) {
-				pg=pfn_to_page(sg_dma_address(to_addr[pgpos].sg) >> PAGE_SHIFT);
-				kunmap_atomic(basep, KM_BOUNCE_READ);
-				basep= kmap_atomic(pg, KM_BOUNCE_READ)+to_addr[pgpos].sg->offset;
-				oldpg=pgpos;
-			}
-			p=basep+pos-to_addr[pgpos].pos;
-#else
 			p=basep+pos;
-#endif
 
 			switch (color) {
 				case 0:
@@ -361,23 +293,7 @@ static void gen_line(char *basep,int inipos,int wmax,
 
 				pos=inipos+j*2;
 				for (color=0;color<4;color++) {
-#ifdef CONFIG_VIVI_SCATTER
-					pgpos=get_addr_pos(pos,pages,to_addr);
-					if (pgpos!=oldpg) {
-						pg=pfn_to_page(sg_dma_address(
-								to_addr[pgpos].sg)
-								>> PAGE_SHIFT);
-						kunmap_atomic(basep,
-								KM_BOUNCE_READ);
-						basep= kmap_atomic(pg,
-							KM_BOUNCE_READ)+
-							to_addr[pgpos].sg->offset;
-						oldpg=pgpos;
-					}
-					p=basep+pos-to_addr[pgpos].pos;
-#else
 					p=basep+pos;
-#endif
 
 					y=TO_Y(r,g,b);
 
@@ -402,12 +318,7 @@ static void gen_line(char *basep,int inipos,int wmax,
 
 
 end:
-#ifdef CONFIG_VIVI_SCATTER
-	kunmap_atomic(basep, KM_BOUNCE_READ);
-	spin_unlock_irqrestore(&spinlock,flags);
-#else
 	return;
-#endif
 }
 static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 {
@@ -415,35 +326,16 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	int hmax  = buf->vb.height;
 	int wmax  = buf->vb.width;
 	struct timeval ts;
-#ifdef CONFIG_VIVI_SCATTER
-	struct sg_to_addr *to_addr=buf->to_addr;
-	struct videobuf_buffer *vb=&buf->vb;
-#else
 	char *tmpbuf;
-#endif
 
-#ifdef CONFIG_VIVI_SCATTER
-	/* Test if DMA mapping is ready */
-	if (!sg_dma_address(&vb->dma.sglist[0]))
-		return;
-
-	prep_to_addr(to_addr,vb);
-
-	/* Check if there is enough memory */
-	BUG_ON(buf->vb.dma.nr_pages << PAGE_SHIFT < (buf->vb.width*buf->vb.height)*2);
-#else
 	if (buf->vb.dma.varea) {
 		tmpbuf=kmalloc (wmax*2, GFP_KERNEL);
 	} else {
 		tmpbuf=buf->vb.dma.vmalloc;
 	}
 
-#endif
 
 	for (h=0;h<hmax;h++) {
-#ifdef CONFIG_VIVI_SCATTER
-		gen_line(to_addr,pos,vb->dma.nr_pages,wmax,hmax,h,dev->timestr);
-#else
 		if (buf->vb.dma.varea) {
 			gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
 			/* FIXME: replacing to __copy_to_user */
@@ -452,7 +344,6 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 		} else {
 			gen_line(tmpbuf,pos,wmax,hmax,h,dev->timestr);
 		}
-#endif
 		pos += wmax*2;
 	}
 
@@ -573,6 +464,7 @@ static int vivi_thread(void *data)
 	dprintk(1,"thread started\n");
 
 	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+	set_freezable();
 
 	for (;;) {
 		vivi_sleep(dma_q);
@@ -717,11 +609,6 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 	if (in_interrupt())
 		BUG();
 
-#ifdef CONFIG_VIVI_SCATTER
-	/*FIXME: Maybe a spinlock is required here */
-	kfree(buf->to_addr);
-	buf->to_addr=NULL;
-#endif
 
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_unmap(vq, &buf->vb.dma);
@@ -767,12 +654,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 	buf->vb.state = STATE_PREPARED;
 
-#ifdef CONFIG_VIVI_SCATTER
-	if (NULL == (buf->to_addr = kmalloc(sizeof(*buf->to_addr) * vb->dma.nr_pages,GFP_KERNEL))) {
-		rc=-ENOMEM;
-		goto fail;
-	}
-#endif
 	return 0;
 
 fail:
@@ -837,40 +718,6 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	free_buffer(vq,buf);
 }
 
-#ifdef CONFIG_VIVI_SCATTER
-static int vivi_map_sg(void *dev, struct scatterlist *sg, int nents,
-		       int direction)
-{
-	int i;
-
-	dprintk(1,"%s, number of pages=%d\n",__FUNCTION__,nents);
-	BUG_ON(direction == DMA_NONE);
-
-	for (i = 0; i < nents; i++ ) {
-		BUG_ON(!sg[i].page);
-
-		sg_dma_address(&sg[i]) = page_to_phys(sg[i].page) + sg[i].offset;
-	}
-
-	return nents;
-}
-
-static int vivi_unmap_sg(void *dev,struct scatterlist *sglist,int nr_pages,
-			 int direction)
-{
-	dprintk(1,"%s\n",__FUNCTION__);
-	return 0;
-}
-
-static int vivi_dma_sync_sg(void *dev,struct scatterlist *sglist, int nr_pages,
-			    int direction)
-{
-//	dprintk(1,"%s\n",__FUNCTION__);
-
-//	flush_write_buffers();
-	return 0;
-}
-#endif
 
 static struct videobuf_queue_ops vivi_video_qops = {
 	.buf_setup      = buffer_setup,
@@ -892,16 +739,16 @@ static struct videobuf_queue_ops vivi_video_qops = {
 static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
 {
 	/* is it free? */
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	if (dev->resources) {
 		/* no, someone else uses it */
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	dev->resources =1;
 	dprintk(1,"res: get\n");
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -912,10 +759,10 @@ static int res_locked(struct vivi_dev *dev)
 
 static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
 {
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	dev->resources = 0;
 	dprintk(1,"res: put\n");
-	up(&dev->lock);
+	mutex_lock(&dev->lock);
 }
 
 /* ------------------------------------------------------------------
@@ -1259,19 +1106,11 @@ static int vivi_open(struct inode *inode, struct file *file)
 	sprintf(dev->timestr,"%02d:%02d:%02d:%03d",
 			dev->h,dev->m,dev->s,(dev->us+500)/1000);
 
-#ifdef CONFIG_VIVI_SCATTER
-	videobuf_queue_init(&fh->vb_vidq,VIDEOBUF_DMA_SCATTER, &vivi_video_qops,
-			NULL, NULL,
-			fh->type,
-			V4L2_FIELD_INTERLACED,
-			sizeof(struct vivi_buffer),fh);
-#else
 	videobuf_queue_init(&fh->vb_vidq, &vivi_video_qops,
 			NULL, NULL,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
 			sizeof(struct vivi_buffer),fh);
-#endif
 
 	return 0;
 }
@@ -1422,7 +1261,7 @@ static int __init vivi_init(void)
 	init_waitqueue_head(&dev->vidq.wq);
 
 	/* initialize locks */
-	init_MUTEX(&dev->lock);
+	mutex_init(&dev->lock);
 
 	dev->vidq.timeout.function = vivi_vid_timeout;
 	dev->vidq.timeout.data     = (unsigned long)dev;

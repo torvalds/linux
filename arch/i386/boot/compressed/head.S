@@ -45,10 +45,10 @@ startup_32:
  * at and where we were actually loaded at.  This can only be done
  * with a short local call on x86.  Nothing  else will tell us what
  * address we are running at.  The reserved chunk of the real-mode
- * data at 0x34-0x3f are used as the stack for this calculation.
- * Only 4 bytes are needed.
+ * data at 0x1e4 (defined as a scratch field) are used as the stack
+ * for this calculation. Only 4 bytes are needed.
  */
-	leal 0x40(%esi), %esp
+	leal (0x1e4+4)(%esi), %esp
 	call 1f
 1:	popl %ebp
 	subl $1b, %ebp

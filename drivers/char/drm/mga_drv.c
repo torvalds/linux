@@ -36,7 +36,7 @@
 
 #include "drm_pciids.h"
 
-static int mga_driver_device_is_agp(drm_device_t * dev);
+static int mga_driver_device_is_agp(struct drm_device * dev);
 
 static struct pci_device_id pciidlist[] = {
 	mga_PCI_IDS
@@ -118,7 +118,7 @@ MODULE_LICENSE("GPL and additional rights");
  * \returns
  * If the device is a PCI G450, zero is returned.  Otherwise 2 is returned.
  */
-static int mga_driver_device_is_agp(drm_device_t * dev)
+static int mga_driver_device_is_agp(struct drm_device * dev)
 {
 	const struct pci_dev *const pdev = dev->pdev;
 

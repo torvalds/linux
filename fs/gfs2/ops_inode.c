@@ -157,7 +157,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out_gunlock;
 
-	error = gfs2_dir_search(dir, &dentry->d_name, NULL, NULL);
+	error = gfs2_dir_check(dir, &dentry->d_name, NULL);
 	switch (error) {
 	case -ENOENT:
 		break;
@@ -206,7 +206,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 al->al_rgd->rd_ri.ri_length +
+					 al->al_rgd->rd_length +
 					 2 * RES_DINODE + RES_STATFS +
 					 RES_QUOTA, 0);
 		if (error)
@@ -217,8 +217,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_ipres;
 	}
 
-	error = gfs2_dir_add(dir, &dentry->d_name, &ip->i_num,
-			     IF2DT(inode->i_mode));
+	error = gfs2_dir_add(dir, &dentry->d_name, ip, IF2DT(inode->i_mode));
 	if (error)
 		goto out_end_trans;
 
@@ -275,7 +274,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl,  LM_ST_EXCLUSIVE, 0, ghs + 1);
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
 	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
 
 
@@ -420,7 +419,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
 		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
-		gfs2_inum_out(&dip->i_num, &dent->de_inum);
+		gfs2_inum_out(dip, dent);
 		dent->de_type = cpu_to_be16(DT_DIR);
 
 		gfs2_dinode_out(ip, di);
@@ -472,7 +471,7 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 1);
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
 	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
 
 	error = gfs2_glock_nq_m(3, ghs);
@@ -614,7 +613,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		 * this is the case of the target file already existing
 		 * so we unlink before doing the rename
 		 */
-		nrgd = gfs2_blk2rgrpd(sdp, nip->i_num.no_addr);
+		nrgd = gfs2_blk2rgrpd(sdp, nip->i_no_addr);
 		if (nrgd)
 			gfs2_holder_init(nrgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh++);
 	}
@@ -653,7 +652,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_dir_search(ndir, &ndentry->d_name, NULL, NULL);
+		error = gfs2_dir_check(ndir, &ndentry->d_name, NULL);
 		switch (error) {
 		case -ENOENT:
 			error = 0;
@@ -712,7 +711,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 al->al_rgd->rd_ri.ri_length +
+					 al->al_rgd->rd_length +
 					 4 * RES_DINODE + 4 * RES_LEAF +
 					 RES_STATFS + RES_QUOTA + 4, 0);
 		if (error)
@@ -750,7 +749,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_end_trans;
 
-		error = gfs2_dir_mvino(ip, &name, &ndip->i_num, DT_DIR);
+		error = gfs2_dir_mvino(ip, &name, ndip, DT_DIR);
 		if (error)
 			goto out_end_trans;
 	} else {
@@ -758,7 +757,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		error = gfs2_meta_inode_buffer(ip, &dibh);
 		if (error)
 			goto out_end_trans;
-		ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+		ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -768,8 +767,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(ndir, &ndentry->d_name, &ip->i_num,
-			     IF2DT(ip->i_inode.i_mode));
+	error = gfs2_dir_add(ndir, &ndentry->d_name, ip, IF2DT(ip->i_inode.i_mode));
 	if (error)
 		goto out_end_trans;
 
@@ -905,8 +903,8 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 	}
 
 	error = gfs2_truncatei(ip, attr->ia_size);
-	if (error)
-		return error;
+	if (error && (inode->i_size != ip->i_di.di_size))
+		i_size_write(inode, ip->i_di.di_size);
 
 	return error;
 }

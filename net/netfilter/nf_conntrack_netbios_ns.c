@@ -74,7 +74,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 	if (mask == 0)
 		goto out;
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL)
 		goto out;
 
@@ -83,16 +83,13 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 
 	exp->mask.src.u3.ip       = mask;
 	exp->mask.src.u.udp.port  = htons(0xFFFF);
-	exp->mask.dst.u3.ip       = htonl(0xFFFFFFFF);
-	exp->mask.dst.u.udp.port  = htons(0xFFFF);
-	exp->mask.dst.protonum    = 0xFF;
 
 	exp->expectfn             = NULL;
 	exp->flags                = NF_CT_EXPECT_PERMANENT;
 	exp->helper               = NULL;
 
-	nf_conntrack_expect_related(exp);
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_related(exp);
+	nf_ct_expect_put(exp);
 
 	nf_ct_refresh(ct, *pskb, timeout * HZ);
 out:
@@ -104,9 +101,6 @@ static struct nf_conntrack_helper helper __read_mostly = {
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.udp.port	= __constant_htons(NMBD_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
-	.mask.src.l3num		= 0xFFFF,
-	.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-	.mask.dst.protonum	= 0xFF,
 	.max_expected		= 1,
 	.me			= THIS_MODULE,
 	.help			= help,

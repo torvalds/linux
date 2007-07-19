@@ -63,14 +63,15 @@
 #define MCT_U232_SET_UNKNOWN1_REQUEST   11  /* Unknown functionality */
 #define MCT_U232_SET_UNKNOWN1_SIZE       1
 
-/* This USB device request code is not well understood.  It is transmitted by
-   the MCT-supplied Windows driver whenever the baud rate changes. 
+/* This USB device request code appears to control whether CTS is required
+   during transmission.
    
-   Without this USB device request, the USB/RS-232 adapter will not write to
-   RS-232 devices which do not assert the 'CTS' signal.
+   Sending a zero byte allows data transmission to a device which is not
+   asserting CTS.  Sending a '1' byte will cause transmission to be deferred
+   until the device asserts CTS.
 */
-#define MCT_U232_SET_UNKNOWN2_REQUEST   12  /* Unknown functionality */
-#define MCT_U232_SET_UNKNOWN2_SIZE       1
+#define MCT_U232_SET_CTS_REQUEST   12
+#define MCT_U232_SET_CTS_SIZE       1
 
 /*
  * Baud rate (divisor)
@@ -439,7 +440,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, int value);
  * which says "U232-P9" ;-)
  * 
  * The circuit board inside the adaptor contains a Philips PDIUSBD12
- * USB endpoint chip and a Phillips P87C52UBAA microcontroller with
+ * USB endpoint chip and a Philips P87C52UBAA microcontroller with
  * embedded UART.  Exhaustive documentation for these is available at:
  *
  *   http://www.semiconductors.philips.com/pip/p87c52ubaa

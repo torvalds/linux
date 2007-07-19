@@ -336,7 +336,7 @@ static void cx8802_timeout(unsigned long data)
 {
 	struct cx8802_dev *dev = (struct cx8802_dev*)data;
 
-	dprintk(0, "%s\n",__FUNCTION__);
+	dprintk(1, "%s\n",__FUNCTION__);
 
 	if (debug)
 		cx88_sram_channel_dump(dev->core, &cx88_sram_channels[SRAM_CH28]);

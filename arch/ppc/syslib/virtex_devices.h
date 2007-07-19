@@ -31,4 +31,11 @@ void __init virtex_early_serial_map(void);
  */
 int virtex_device_fixup(struct platform_device *dev);
 
+/* SPI Controller IP */
+struct xspi_platform_data {
+	s16 bus_num;
+	u16 num_chipselect;
+	u32 speed_hz;
+};
+
 #endif  /* __ASM_VIRTEX_DEVICES_H__ */

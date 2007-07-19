@@ -78,29 +78,33 @@ static int pnx8550_proc_init( void )
 {
 
 	// Create /proc/pnx8550
-        pnx8550_dir = create_proc_entry("pnx8550", S_IFDIR|S_IRUGO, NULL);
+        pnx8550_dir = proc_mkdir("pnx8550", NULL);
         if (!pnx8550_dir) {
                 printk(KERN_ERR "Can't create pnx8550 proc dir\n");
                 return -1;
         }
 
 	// Create /proc/pnx8550/timers
-        pnx8550_timers = create_proc_entry("timers", S_IFREG|S_IRUGO, pnx8550_dir );
-        if (pnx8550_timers){
-                pnx8550_timers->read_proc = pnx8550_timers_read;
-        }
-        else {
+        pnx8550_timers = create_proc_read_entry(
+		"timers",
+		0,
+		pnx8550_dir,
+		pnx8550_timers_read,
+		NULL);
+
+        if (!pnx8550_timers)
                 printk(KERN_ERR "Can't create pnx8550 timers proc file\n");
-        }
 
 	// Create /proc/pnx8550/registers
-        pnx8550_registers = create_proc_entry("registers", S_IFREG|S_IRUGO, pnx8550_dir );
-        if (pnx8550_registers){
-                pnx8550_registers->read_proc = pnx8550_registers_read;
-        }
-        else {
+        pnx8550_registers = create_proc_read_entry(
+		"registers",
+		0,
+		pnx8550_dir,
+		pnx8550_registers_read,
+		NULL);
+
+        if (!pnx8550_registers)
                 printk(KERN_ERR "Can't create pnx8550 registers proc file\n");
-        }
 
 	return 0;
 }

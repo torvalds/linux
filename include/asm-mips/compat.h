@@ -37,8 +37,10 @@ typedef s32		compat_key_t;
 
 typedef s32		compat_int_t;
 typedef s32		compat_long_t;
+typedef s64		compat_s64;
 typedef u32		compat_uint_t;
 typedef u32		compat_ulong_t;
+typedef u64		compat_u64;
 
 struct compat_timespec {
 	compat_time_t	tv_sec;
@@ -132,7 +134,8 @@ typedef u32		compat_uptr_t;
 
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {
-	return (void __user *)(long)uptr;
+	/* cast to a __user pointer via "unsigned long" makes sparse happy */
+	return (void __user *)(unsigned long)(long)uptr;
 }
 
 static inline compat_uptr_t ptr_to_compat(void __user *uptr)

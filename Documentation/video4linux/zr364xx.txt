@@ -62,4 +62,4 @@ Vendor  Product  Distributor     Model
 0x0784  0x0040   Traveler        Slimline X5
 0x06d6  0x0034   Trust           Powerc@m 750
 0x0a17  0x0062   Pentax          Optio 50L
-
+0x06d6  0x003b   Trust           Powerc@m 970Z

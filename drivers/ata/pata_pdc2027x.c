@@ -689,10 +689,12 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
-	long pll_clock;
+	struct timeval start_time, end_time;
+	long pll_clock, usec_elapsed;
 
 	/* Read current counter value */
 	start_count = pdc_read_counter(host);
+	do_gettimeofday(&start_time);
 
 	/* Start the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -705,6 +707,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 
 	/* Read the counter values again */
 	end_count = pdc_read_counter(host);
+	do_gettimeofday(&end_time);
 
 	/* Stop the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -713,7 +716,11 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	readl(mmio_base + PDC_SYS_CTL); /* flush */
 
 	/* calculate the input clock in Hz */
-	pll_clock = (start_count - end_count) * 10;
+	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
+		(end_time.tv_usec - start_time.tv_usec);
+
+	pll_clock = (start_count - end_count) / 100 *
+		(100000000 / usec_elapsed);
 
 	PDPRINTK("start[%ld] end[%ld] \n", start_count, end_count);
 	PDPRINTK("PLL input clock[%ld]Hz\n", pll_clock);

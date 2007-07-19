@@ -6,13 +6,17 @@
  */
 #include "qla_def.h"
 
+#include <linux/kthread.h>
 #include <linux/vmalloc.h>
+
+int qla24xx_vport_disable(struct fc_vport *, bool);
 
 /* SYSFS attributes --------------------------------------------------------- */
 
 static ssize_t
-qla2x00_sysfs_read_fw_dump(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -31,8 +35,9 @@ qla2x00_sysfs_read_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
+			    struct bin_attribute *bin_attr,
+			    char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -73,7 +78,6 @@ static struct bin_attribute sysfs_fw_dump_attr = {
 	.attr = {
 		.name = "fw_dump",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 0,
 	.read = qla2x00_sysfs_read_fw_dump,
@@ -81,8 +85,9 @@ static struct bin_attribute sysfs_fw_dump_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_nvram(struct kobject *kobj,
+			 struct bin_attribute *bin_attr,
+			 char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -101,8 +106,9 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_nvram(struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
+			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -149,7 +155,6 @@ static struct bin_attribute sysfs_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 512,
 	.read = qla2x00_sysfs_read_nvram,
@@ -157,8 +162,9 @@ static struct bin_attribute sysfs_nvram_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_optrom(struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
+			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -176,8 +182,9 @@ qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_optrom(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_optrom(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -198,7 +205,6 @@ static struct bin_attribute sysfs_optrom_attr = {
 	.attr = {
 		.name = "optrom",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = OPTROM_SIZE_24XX,
 	.read = qla2x00_sysfs_read_optrom,
@@ -206,8 +212,9 @@ static struct bin_attribute sysfs_optrom_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -279,15 +286,15 @@ static struct bin_attribute sysfs_optrom_ctl_attr = {
 	.attr = {
 		.name = "optrom_ctl",
 		.mode = S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 0,
 	.write = qla2x00_sysfs_write_optrom_ctl,
 };
 
 static ssize_t
-qla2x00_sysfs_read_vpd(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_vpd(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -305,8 +312,9 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_vpd(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_vpd(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -327,7 +335,6 @@ static struct bin_attribute sysfs_vpd_attr = {
 	.attr = {
 		.name = "vpd",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 0,
 	.read = qla2x00_sysfs_read_vpd,
@@ -335,8 +342,9 @@ static struct bin_attribute sysfs_vpd_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_sfp(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_sfp(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -375,7 +383,6 @@ static struct bin_attribute sysfs_sfp_attr = {
 	.attr = {
 		.name = "sfp",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = SFP_DEV_SIZE * 2,
 	.read = qla2x00_sysfs_read_sfp,
@@ -959,7 +966,166 @@ qla2x00_get_host_port_state(struct Scsi_Host *shost)
 		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
 }
 
+static int
+qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
+{
+	int	ret = 0;
+	scsi_qla_host_t *ha = (scsi_qla_host_t *) fc_vport->shost->hostdata;
+	scsi_qla_host_t *vha;
+
+	ret = qla24xx_vport_create_req_sanity_check(fc_vport);
+	if (ret) {
+		DEBUG15(printk("qla24xx_vport_create_req_sanity_check failed, "
+		    "status %x\n", ret));
+		return (ret);
+	}
+
+	vha = qla24xx_create_vhost(fc_vport);
+	if (vha == NULL) {
+		DEBUG15(printk ("qla24xx_create_vhost failed, vha = %p\n",
+		    vha));
+		return FC_VPORT_FAILED;
+	}
+	if (disable) {
+		atomic_set(&vha->vp_state, VP_OFFLINE);
+		fc_vport_set_state(fc_vport, FC_VPORT_DISABLED);
+	} else
+		atomic_set(&vha->vp_state, VP_FAILED);
+
+	/* ready to create vport */
+	qla_printk(KERN_INFO, vha, "VP entry id %d assigned.\n", vha->vp_idx);
+
+	/* initialized vport states */
+	atomic_set(&vha->loop_state, LOOP_DOWN);
+	vha->vp_err_state=  VP_ERR_PORTDWN;
+	vha->vp_prev_err_state=  VP_ERR_UNKWN;
+	/* Check if physical ha port is Up */
+	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
+	    atomic_read(&ha->loop_state) == LOOP_DEAD) {
+		/* Don't retry or attempt login of this virtual port */
+		DEBUG15(printk ("scsi(%ld): pport loop_state is not UP.\n",
+		    vha->host_no));
+		atomic_set(&vha->loop_state, LOOP_DEAD);
+		if (!disable)
+			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
+	}
+
+	if (scsi_add_host(vha->host, &fc_vport->dev)) {
+		DEBUG15(printk("scsi(%ld): scsi_add_host failure for VP[%d].\n",
+			vha->host_no, vha->vp_idx));
+		goto vport_create_failed_2;
+	}
+
+	/* initialize attributes */
+	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
+	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
+	fc_host_supported_classes(vha->host) =
+		fc_host_supported_classes(ha->host);
+	fc_host_supported_speeds(vha->host) =
+		fc_host_supported_speeds(ha->host);
+
+	qla24xx_vport_disable(fc_vport, disable);
+
+	return 0;
+vport_create_failed_2:
+	qla24xx_disable_vp(vha);
+	qla24xx_deallocate_vp_id(vha);
+	kfree(vha->port_name);
+	kfree(vha->node_name);
+	scsi_host_put(vha->host);
+	return FC_VPORT_FAILED;
+}
+
+int
+qla24xx_vport_delete(struct fc_vport *fc_vport)
+{
+	scsi_qla_host_t *ha = (scsi_qla_host_t *) fc_vport->shost->hostdata;
+	scsi_qla_host_t *vha = fc_vport->dd_data;
+
+	qla24xx_disable_vp(vha);
+	qla24xx_deallocate_vp_id(vha);
+
+	down(&ha->vport_sem);
+	ha->cur_vport_count--;
+	clear_bit(vha->vp_idx, (unsigned long *)ha->vp_idx_map);
+	up(&ha->vport_sem);
+
+	kfree(vha->node_name);
+	kfree(vha->port_name);
+
+	if (vha->timer_active) {
+		qla2x00_vp_stop_timer(vha);
+		DEBUG15(printk ("scsi(%ld): timer for the vport[%d] = %p "
+		    "has stopped\n",
+		    vha->host_no, vha->vp_idx, vha));
+        }
+
+	fc_remove_host(vha->host);
+
+	scsi_remove_host(vha->host);
+
+	scsi_host_put(vha->host);
+
+	return 0;
+}
+
+int
+qla24xx_vport_disable(struct fc_vport *fc_vport, bool disable)
+{
+	scsi_qla_host_t *vha = fc_vport->dd_data;
+
+	if (disable)
+		qla24xx_disable_vp(vha);
+	else
+		qla24xx_enable_vp(vha);
+
+	return 0;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
+
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+
+	.get_host_port_id = qla2x00_get_host_port_id,
+	.show_host_port_id = 1,
+	.get_host_speed = qla2x00_get_host_speed,
+	.show_host_speed = 1,
+	.get_host_port_type = qla2x00_get_host_port_type,
+	.show_host_port_type = 1,
+	.get_host_symbolic_name = qla2x00_get_host_symbolic_name,
+	.show_host_symbolic_name = 1,
+	.set_host_system_hostname = qla2x00_set_host_system_hostname,
+	.show_host_system_hostname = 1,
+	.get_host_fabric_name = qla2x00_get_host_fabric_name,
+	.show_host_fabric_name = 1,
+	.get_host_port_state = qla2x00_get_host_port_state,
+	.show_host_port_state = 1,
+
+	.dd_fcrport_size = sizeof(struct fc_port *),
+	.show_rport_supported_classes = 1,
+
+	.get_starget_node_name = qla2x00_get_starget_node_name,
+	.show_starget_node_name = 1,
+	.get_starget_port_name = qla2x00_get_starget_port_name,
+	.show_starget_port_name = 1,
+	.get_starget_port_id  = qla2x00_get_starget_port_id,
+	.show_starget_port_id = 1,
+
+	.get_rport_dev_loss_tmo = qla2x00_get_rport_loss_tmo,
+	.set_rport_dev_loss_tmo = qla2x00_set_rport_loss_tmo,
+	.show_rport_dev_loss_tmo = 1,
+
+	.issue_fc_host_lip = qla2x00_issue_lip,
+	.get_fc_host_stats = qla2x00_get_fc_host_stats,
+
+	.vport_create = qla24xx_vport_create,
+	.vport_disable = qla24xx_vport_disable,
+	.vport_delete = qla24xx_vport_delete,
+};
+
+struct fc_function_template qla2xxx_transport_vport_functions = {
 
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
@@ -1004,4 +1170,6 @@ qla2x00_init_host_attr(scsi_qla_host_t *ha)
 	fc_host_node_name(ha->host) = wwn_to_u64(ha->node_name);
 	fc_host_port_name(ha->host) = wwn_to_u64(ha->port_name);
 	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
+	fc_host_max_npiv_vports(ha->host) = MAX_NUM_VPORT_FABRIC;
+	fc_host_npiv_vports_inuse(ha->host) = ha->cur_vport_count;
 }

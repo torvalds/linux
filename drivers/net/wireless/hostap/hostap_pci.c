@@ -20,7 +20,6 @@
 #include "hostap_wlan.h"
 
 
-static char *version = PRISM2_VERSION " (Jouni Malinen <j@w1.fi>)";
 static char *dev_info = "hostap_pci";
 
 
@@ -29,7 +28,6 @@ MODULE_DESCRIPTION("Support for Intersil Prism2.5-based 802.11 wireless LAN "
 		   "PCI cards.");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2.5-based WLAN PCI cards");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(PRISM2_VERSION);
 
 
 /* struct local_info::hw_priv */
@@ -455,15 +453,11 @@ static struct pci_driver prism2_pci_drv_id = {
 	.suspend	= prism2_pci_suspend,
 	.resume		= prism2_pci_resume,
 #endif /* CONFIG_PM */
-	/* Linux 2.4.6 added save_state and enable_wake that are not used here
-	 */
 };
 
 
 static int __init init_prism2_pci(void)
 {
-	printk(KERN_INFO "%s: %s\n", dev_info, version);
-
 	return pci_register_driver(&prism2_pci_drv_id);
 }
 
@@ -471,7 +465,6 @@ static int __init init_prism2_pci(void)
 static void __exit exit_prism2_pci(void)
 {
 	pci_unregister_driver(&prism2_pci_drv_id);
-	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
 }
 
 

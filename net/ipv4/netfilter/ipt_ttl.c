@@ -18,37 +18,33 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IP tables TTL matching module");
 MODULE_LICENSE("GPL");
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in, const struct net_device *out,
-		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, int *hotdrop)
+static bool match(const struct sk_buff *skb,
+		  const struct net_device *in, const struct net_device *out,
+		  const struct xt_match *match, const void *matchinfo,
+		  int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
 	const u8 ttl = ip_hdr(skb)->ttl;
 
 	switch (info->mode) {
 		case IPT_TTL_EQ:
-			return (ttl == info->ttl);
-			break;
+			return ttl == info->ttl;
 		case IPT_TTL_NE:
-			return (!(ttl == info->ttl));
-			break;
+			return ttl != info->ttl;
 		case IPT_TTL_LT:
-			return (ttl < info->ttl);
-			break;
+			return ttl < info->ttl;
 		case IPT_TTL_GT:
-			return (ttl > info->ttl);
-			break;
+			return ttl > info->ttl;
 		default:
 			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",
 				info->mode);
-			return 0;
+			return false;
 	}
 
-	return 0;
+	return false;
 }
 
-static struct xt_match ttl_match = {
+static struct xt_match ttl_match __read_mostly = {
 	.name		= "ttl",
 	.family		= AF_INET,
 	.match		= match,

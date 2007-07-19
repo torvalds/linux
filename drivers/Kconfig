@@ -24,8 +24,6 @@ source "drivers/scsi/Kconfig"
 
 source "drivers/ata/Kconfig"
 
-source "drivers/cdrom/Kconfig"
-
 source "drivers/md/Kconfig"
 
 source "drivers/message/fusion/Kconfig"
@@ -53,6 +51,8 @@ source "drivers/i2c/Kconfig"
 source "drivers/spi/Kconfig"
 
 source "drivers/w1/Kconfig"
+
+source "drivers/power/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 

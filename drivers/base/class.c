@@ -312,9 +312,6 @@ static void class_dev_release(struct kobject * kobj)
 
 	pr_debug("device class '%s': release.\n", cd->class_id);
 
-	kfree(cd->devt_attr);
-	cd->devt_attr = NULL;
-
 	if (cd->release)
 		cd->release(cd);
 	else if (cls->release)
@@ -547,12 +544,18 @@ static ssize_t show_dev(struct class_device *class_dev, char *buf)
 	return print_dev_t(buf, class_dev->devt);
 }
 
+static struct class_device_attribute class_devt_attr =
+	__ATTR(dev, S_IRUGO, show_dev, NULL);
+
 static ssize_t store_uevent(struct class_device *class_dev,
 			    const char *buf, size_t count)
 {
 	kobject_uevent(&class_dev->kobj, KOBJ_ADD);
 	return count;
 }
+
+static struct class_device_attribute class_uevent_attr =
+	__ATTR(uevent, S_IWUSR, NULL, store_uevent);
 
 void class_device_initialize(struct class_device *class_dev)
 {
@@ -603,32 +606,15 @@ int class_device_add(struct class_device *class_dev)
 				  &parent_class->subsys.kobj, "subsystem");
 	if (error)
 		goto out3;
-	class_dev->uevent_attr.attr.name = "uevent";
-	class_dev->uevent_attr.attr.mode = S_IWUSR;
-	class_dev->uevent_attr.attr.owner = parent_class->owner;
-	class_dev->uevent_attr.store = store_uevent;
-	error = class_device_create_file(class_dev, &class_dev->uevent_attr);
+
+	error = class_device_create_file(class_dev, &class_uevent_attr);
 	if (error)
 		goto out3;
 
 	if (MAJOR(class_dev->devt)) {
-		struct class_device_attribute *attr;
-		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
-		if (!attr) {
-			error = -ENOMEM;
+		error = class_device_create_file(class_dev, &class_devt_attr);
+		if (error)
 			goto out4;
-		}
-		attr->attr.name = "dev";
-		attr->attr.mode = S_IRUGO;
-		attr->attr.owner = parent_class->owner;
-		attr->show = show_dev;
-		error = class_device_create_file(class_dev, attr);
-		if (error) {
-			kfree(attr);
-			goto out4;
-		}
-
-		class_dev->devt_attr = attr;
 	}
 
 	error = class_device_add_attrs(class_dev);
@@ -671,10 +657,10 @@ int class_device_add(struct class_device *class_dev)
  out6:
 	class_device_remove_attrs(class_dev);
  out5:
-	if (class_dev->devt_attr)
-		class_device_remove_file(class_dev, class_dev->devt_attr);
+	if (MAJOR(class_dev->devt))
+		class_device_remove_file(class_dev, &class_devt_attr);
  out4:
-	class_device_remove_file(class_dev, &class_dev->uevent_attr);
+	class_device_remove_file(class_dev, &class_uevent_attr);
  out3:
 	kobject_del(&class_dev->kobj);
  out2:
@@ -774,9 +760,9 @@ void class_device_del(struct class_device *class_dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
 	}
 	sysfs_remove_link(&class_dev->kobj, "subsystem");
-	class_device_remove_file(class_dev, &class_dev->uevent_attr);
-	if (class_dev->devt_attr)
-		class_device_remove_file(class_dev, class_dev->devt_attr);
+	class_device_remove_file(class_dev, &class_uevent_attr);
+	if (MAJOR(class_dev->devt))
+		class_device_remove_file(class_dev, &class_devt_attr);
 	class_device_remove_attrs(class_dev);
 	class_device_remove_groups(class_dev);
 

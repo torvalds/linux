@@ -175,12 +175,6 @@ static inline int pte_none(pte_t pte)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_user(pte_t pte)
-{
-	return((pte_get_bits(pte, _PAGE_USER)) &&
-	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
-}
-
 static inline int pte_read(pte_t pte)
 { 
 	return((pte_get_bits(pte, _PAGE_USER)) &&
@@ -236,18 +230,6 @@ static inline pte_t pte_mknewprot(pte_t pte)
 {
 	pte_set_bits(pte, _PAGE_NEWPROT);
 	return(pte);
-}
-
-static inline pte_t pte_rdprotect(pte_t pte)
-{ 
-	pte_clear_bits(pte, _PAGE_USER);
-	return(pte_mknewprot(pte));
-}
-
-static inline pte_t pte_exprotect(pte_t pte)
-{ 
-	pte_clear_bits(pte, _PAGE_USER);
-	return(pte_mknewprot(pte));
 }
 
 static inline pte_t pte_mkclean(pte_t pte)

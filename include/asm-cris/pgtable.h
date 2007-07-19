@@ -111,9 +111,7 @@ extern unsigned long empty_zero_page;
  * Undefined behaviour if not..
  */
 
-static inline int pte_read(pte_t pte)           { return pte_val(pte) & _PAGE_READ; }
 static inline int pte_write(pte_t pte)          { return pte_val(pte) & _PAGE_WRITE; }
-static inline int pte_exec(pte_t pte)           { return pte_val(pte) & _PAGE_READ; }
 static inline int pte_dirty(pte_t pte)          { return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)          { return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)           { return pte_val(pte) & _PAGE_FILE; }
@@ -122,18 +120,6 @@ static inline pte_t pte_wrprotect(pte_t pte)
 {
         pte_val(pte) &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
         return pte;
-}
-
-static inline pte_t pte_rdprotect(pte_t pte)
-{
-        pte_val(pte) &= ~(_PAGE_READ | _PAGE_SILENT_READ);
-	return pte;
-}
-
-static inline pte_t pte_exprotect(pte_t pte)
-{
-        pte_val(pte) &= ~(_PAGE_READ | _PAGE_SILENT_READ);
-	return pte;
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
@@ -153,22 +139,6 @@ static inline pte_t pte_mkwrite(pte_t pte)
         pte_val(pte) |= _PAGE_WRITE;
         if (pte_val(pte) & _PAGE_MODIFIED)
                 pte_val(pte) |= _PAGE_SILENT_WRITE;
-        return pte;
-}
-
-static inline pte_t pte_mkread(pte_t pte)
-{
-        pte_val(pte) |= _PAGE_READ;
-        if (pte_val(pte) & _PAGE_ACCESSED)
-                pte_val(pte) |= _PAGE_SILENT_READ;
-        return pte;
-}
-
-static inline pte_t pte_mkexec(pte_t pte)
-{
-        pte_val(pte) |= _PAGE_READ;
-        if (pte_val(pte) & _PAGE_ACCESSED)
-                pte_val(pte) |= _PAGE_SILENT_READ;
         return pte;
 }
 

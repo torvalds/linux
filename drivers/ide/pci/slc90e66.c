@@ -199,10 +199,9 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x06;
 	hwif->swdma_mask = 0x04;
 
-	if (!hwif->udma_four) {
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		/* bit[0(1)]: 0:80, 1:40 */
-		hwif->udma_four = (reg47 & mask) ? 0 : 1;
-	}
+		hwif->cbl = (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 
 	hwif->ide_dma_check = &slc90e66_config_drive_xfer_rate;
 

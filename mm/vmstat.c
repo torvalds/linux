@@ -472,13 +472,13 @@ const struct seq_operations fragmentation_op = {
 #endif
 
 #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
-					TEXT_FOR_HIGHMEM(xx)
+					TEXT_FOR_HIGHMEM(xx) xx "_movable",
 
 static const char * const vmstat_text[] = {
 	/* Zoned VM counters */
 	"nr_free_pages",
-	"nr_active",
 	"nr_inactive",
+	"nr_active",
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",

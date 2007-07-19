@@ -67,7 +67,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	EXTRACT(status->group);
 	bp++; /* sync counter */
 	data_version |= (u64) ntohl(*bp++) << 32;
-	bp++; /* lock count */
+	EXTRACT(status->lock_count);
 	size |= (u64) ntohl(*bp++) << 32;
 	bp++; /* spare 4 */
 	*_bp = bp;
@@ -1745,6 +1745,159 @@ int afs_fs_get_volume_status(struct afs_server *server,
 	bp = call->request;
 	bp[0] = htonl(FSGETVOLUMESTATUS);
 	bp[1] = htonl(vnode->fid.vid);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.SetLock, FS.ExtendLock or FS.ReleaseLock
+ */
+static int afs_deliver_fs_xxxx_lock(struct afs_call *call,
+				    struct sk_buff *skb, bool last)
+{
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.SetLock operation type
+ */
+static const struct afs_call_type afs_RXFSSetLock = {
+	.name		= "FS.SetLock",
+	.deliver	= afs_deliver_fs_xxxx_lock,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * FS.ExtendLock operation type
+ */
+static const struct afs_call_type afs_RXFSExtendLock = {
+	.name		= "FS.ExtendLock",
+	.deliver	= afs_deliver_fs_xxxx_lock,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * FS.ReleaseLock operation type
+ */
+static const struct afs_call_type afs_RXFSReleaseLock = {
+	.name		= "FS.ReleaseLock",
+	.deliver	= afs_deliver_fs_xxxx_lock,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * get a lock on a file
+ */
+int afs_fs_set_lock(struct afs_server *server,
+		    struct key *key,
+		    struct afs_vnode *vnode,
+		    afs_lock_type_t type,
+		    const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(&afs_RXFSSetLock, 5 * 4, 6 * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSSETLOCK);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+	*bp++ = htonl(type);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * extend a lock on a file
+ */
+int afs_fs_extend_lock(struct afs_server *server,
+		       struct key *key,
+		       struct afs_vnode *vnode,
+		       const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(&afs_RXFSExtendLock, 4 * 4, 6 * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSEXTENDLOCK);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * release a lock on a file
+ */
+int afs_fs_release_lock(struct afs_server *server,
+			struct key *key,
+			struct afs_vnode *vnode,
+			const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(&afs_RXFSReleaseLock, 4 * 4, 6 * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSRELEASELOCK);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
 
 	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
 }

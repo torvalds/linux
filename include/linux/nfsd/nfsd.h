@@ -22,7 +22,6 @@
 #include <linux/nfsd/export.h>
 #include <linux/nfsd/auth.h>
 #include <linux/nfsd/stats.h>
-#include <linux/nfsd/interface.h>
 /*
  * nfsd version
  */
@@ -72,6 +71,9 @@ int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
 				const char *, int, struct svc_fh *);
+__be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
+				const char *, int,
+				struct svc_export **, struct dentry **);
 __be32		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
 				struct iattr *, int, time_t);
 #ifdef CONFIG_NFSD_V4
@@ -120,7 +122,8 @@ __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *);
 
 int		nfsd_notify_change(struct inode *, struct iattr *);
-__be32		nfsd_permission(struct svc_export *, struct dentry *, int);
+__be32		nfsd_permission(struct svc_rqst *, struct svc_export *,
+				struct dentry *, int);
 int		nfsd_sync_dir(struct dentry *dp);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
@@ -149,6 +152,7 @@ extern int nfsd_max_blksize;
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4
+extern unsigned int max_delegations;
 void nfs4_state_init(void);
 int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
@@ -236,6 +240,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_badname		__constant_htonl(NFSERR_BADNAME)
 #define	nfserr_cb_path_down	__constant_htonl(NFSERR_CB_PATH_DOWN)
 #define	nfserr_locked		__constant_htonl(NFSERR_LOCKED)
+#define	nfserr_wrongsec		__constant_htonl(NFSERR_WRONGSEC)
 #define	nfserr_replay_me	__constant_htonl(NFSERR_REPLAY_ME)
 
 /* error codes for internal use */

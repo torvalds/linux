@@ -36,8 +36,14 @@
  * page size of ehea hardware queues
  */
 
-#define EHEA_PAGESHIFT  12
-#define EHEA_PAGESIZE   4096UL
+#define EHEA_PAGESHIFT         12
+#define EHEA_PAGESIZE          (1UL << EHEA_PAGESHIFT)
+#define EHEA_SECTSIZE          (1UL << 24)
+#define EHEA_PAGES_PER_SECTION (EHEA_SECTSIZE >> PAGE_SHIFT)
+
+#if (1UL << SECTION_SIZE_BITS) < EHEA_SECTSIZE
+#error eHEA module can't work if kernel sectionsize < ehea sectionsize
+#endif
 
 /* Some abbreviations used here:
  *
@@ -371,5 +377,9 @@ int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
 int ehea_rem_mr(struct ehea_mr *mr);
 
 void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle);
+
+int ehea_create_busmap( void );
+void ehea_destroy_busmap( void );
+u64 ehea_map_vaddr(void *caddr);
 
 #endif	/* __EHEA_QMR_H__ */

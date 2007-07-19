@@ -41,7 +41,7 @@ int is_skas_winch(int pid, int fd, void *data)
 	if(pid != os_getpgrp())
 		return(0);
 
-	register_winch_irq(-1, fd, -1, data);
+	register_winch_irq(-1, fd, -1, data, 0);
 	return(1);
 }
 

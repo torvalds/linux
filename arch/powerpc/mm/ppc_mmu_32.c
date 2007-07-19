@@ -11,7 +11,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -35,12 +34,12 @@
 
 #include "mmu_decl.h"
 
-PTE *Hash, *Hash_end;
+struct hash_pte *Hash, *Hash_end;
 unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
 
 union ubat {			/* BAT register values to be loaded */
-	BAT	bat;
+	struct ppc_bat bat;
 	u32	word[2];
 } BATS[8][2];			/* 8 pairs of IBAT, DBAT */
 
@@ -245,7 +244,7 @@ void __init MMU_init_hw(void)
 	cacheable_memzero(Hash, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 
-	Hash_end = (PTE *) ((unsigned long)Hash + Hash_size);
+	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);
 
 	printk("Total memory = %ldMB; using %ldkB for hash table (at %p)\n",
 	       total_memory >> 20, Hash_size >> 10, Hash);

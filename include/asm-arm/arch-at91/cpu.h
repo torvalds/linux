@@ -28,6 +28,11 @@
 
 #define ARCH_ID_AT91SAM9RL64	0x019b03a0
 
+#define ARCH_ID_AT91M40800	0x14080044
+#define ARCH_ID_AT91R40807	0x44080746
+#define ARCH_ID_AT91M40807	0x14080745
+#define ARCH_ID_AT91R40008	0x44000840
+
 static inline unsigned long at91_cpu_identify(void)
 {
 	return (at91_sys_read(AT91_DBGU_CIDR) & ~AT91_CIDR_VERSION);

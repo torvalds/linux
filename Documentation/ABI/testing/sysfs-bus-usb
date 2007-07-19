@@ -39,3 +39,16 @@ Description:
 		If you want to suspend a device immediately but leave it
 		free to wake up in response to I/O requests, you should
 		write "0" to power/autosuspend.
+
+What:		/sys/bus/usb/devices/.../power/persist
+Date:		May 2007
+KernelVersion:	2.6.23
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		If CONFIG_USB_PERSIST is set, then each USB device directory
+		will contain a file named power/persist.  The file holds a
+		boolean value (0 or 1) indicating whether or not the
+		"USB-Persist" facility is enabled for the device.  Since the
+		facility is inherently dangerous, it is disabled by default
+		for all devices except hubs.  For more information, see
+		Documentation/usb/persist.txt.

@@ -43,14 +43,6 @@ extern int _chrp_type;
 /* what kind of prep workstation we are */
 extern int _prep_type;
 
-/*
- * This is used to identify the board type from a given PReP board
- * vendor. Board revision is also made available. This will be moved
- * elsewhere soon
- */
-extern unsigned char ucBoardRev;
-extern unsigned char ucBoardRevMaj, ucBoardRevMin;
-
 #endif /* CONFIG_PPC_PREP */
 
 #endif /* defined(__KERNEL__) && defined(CONFIG_PPC32) */

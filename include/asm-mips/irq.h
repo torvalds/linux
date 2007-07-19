@@ -24,7 +24,7 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
-#ifdef CONFIG_MIPS_MT_SMTC
+#ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
 /*
  * Clear interrupt mask handling "backstop" if irq_hwmask
  * entry so indicates. This implies that the ack() or end()

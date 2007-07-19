@@ -37,7 +37,7 @@
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb_isp1362.h>
 #endif
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/bfin5xx_spi.h>
 
 /*
@@ -62,7 +62,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20300300,
 		.end = 0x20300300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -83,7 +83,7 @@ static struct resource net2272_bfin_resources[] = {
 		.start = 0x20300000,
 		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF10,
 		.end = IRQ_PF10,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -108,11 +108,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -229,19 +229,19 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 
 #if defined(CONFIG_PBX)
 	{
-		.modalias	= "fxs-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 3,
-		.controller_data= &spi_si3xxx_chip_info,
+		.modalias = "fxs-spi",
+		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 3,
+		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
 	},
 	{
-		.modalias	= "fxo-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 2,
-		.controller_data= &spi_si3xxx_chip_info,
+		.modalias = "fxo-spi",
+		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 2,
+		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif

@@ -5,6 +5,7 @@
  *
  *  Authors: Heiko J Schick <schickhj@de.ibm.com>
  *           Christoph Raisch <raisch@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *
  *  Copyright (c) 2005 IBM Corporation
  *
@@ -86,11 +87,17 @@ struct ehca_eq {
 	struct ehca_eqe_cache_entry eqe_cache[EHCA_EQE_CACHE_SIZE];
 };
 
+struct ehca_sma_attr {
+	u16 lid, lmc, sm_sl, sm_lid;
+	u16 pkey_tbl_len, pkeys[16];
+};
+
 struct ehca_sport {
 	struct ib_cq *ibcq_aqp1;
 	struct ib_qp *ibqp_aqp1;
 	enum ib_rate  rate;
 	enum ib_port_state port_state;
+	struct ehca_sma_attr saved_attr;
 };
 
 struct ehca_shca {
@@ -107,6 +114,8 @@ struct ehca_shca {
 	struct ehca_pd *pd;
 	struct h_galpas galpas;
 	struct mutex modify_mutex;
+	u64 hca_cap;
+	int max_mtu;
 };
 
 struct ehca_pd {
@@ -115,9 +124,20 @@ struct ehca_pd {
 	u32 ownpid;
 };
 
+enum ehca_ext_qp_type {
+	EQPT_NORMAL    = 0,
+	EQPT_LLQP      = 1,
+	EQPT_SRQBASE   = 2,
+	EQPT_SRQ       = 3,
+};
+
 struct ehca_qp {
-	struct ib_qp ib_qp;
+	union {
+		struct ib_qp ib_qp;
+		struct ib_srq ib_srq;
+	};
 	u32 qp_type;
+	enum ehca_ext_qp_type ext_type;
 	struct ipz_queue ipz_squeue;
 	struct ipz_queue ipz_rqueue;
 	struct h_galpas galpas;
@@ -140,6 +160,10 @@ struct ehca_qp {
 	u32 mm_count_galpa;
 };
 
+#define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)
+#define HAS_SQ(qp) (qp->ext_type != EQPT_SRQ)
+#define HAS_RQ(qp) (qp->ext_type != EQPT_SRQBASE)
+
 /* must be power of 2 */
 #define QP_HASHTAB_LEN 8
 
@@ -156,8 +180,8 @@ struct ehca_cq {
 	spinlock_t cb_lock;
 	struct hlist_head qp_hashtab[QP_HASHTAB_LEN];
 	struct list_head entry;
-	u32 nr_callbacks; /* #events assigned to cpu by scaling code */
-	u32 nr_events;    /* #events seen */
+	u32 nr_callbacks;   /* #events assigned to cpu by scaling code */
+	atomic_t nr_events; /* #events seen */
 	wait_queue_head_t wait_completion;
 	spinlock_t task_lock;
 	u32 ownpid;
@@ -275,9 +299,8 @@ void ehca_cleanup_av_cache(void);
 int ehca_init_mrmw_cache(void);
 void ehca_cleanup_mrmw_cache(void);
 
-extern spinlock_t ehca_qp_idr_lock;
-extern spinlock_t ehca_cq_idr_lock;
-extern spinlock_t hcall_lock;
+extern rwlock_t ehca_qp_idr_lock;
+extern rwlock_t ehca_cq_idr_lock;
 extern struct idr ehca_qp_idr;
 extern struct idr ehca_cq_idr;
 
@@ -305,6 +328,7 @@ struct ehca_create_qp_resp {
 	u32 qp_num;
 	u32 token;
 	u32 qp_type;
+	u32 ext_type;
 	u32 qkey;
 	/* qp_num assigned by ehca: sqp0/1 may have got different numbers */
 	u32 real_qp_num;
@@ -320,13 +344,41 @@ struct ehca_alloc_cq_parms {
 	struct ipz_eq_handle eq_handle;
 };
 
+enum ehca_service_type {
+	ST_RC  = 0,
+	ST_UC  = 1,
+	ST_RD  = 2,
+	ST_UD  = 3,
+};
+
+enum ehca_ll_comp_flags {
+	LLQP_SEND_COMP = 0x20,
+	LLQP_RECV_COMP = 0x40,
+	LLQP_COMP_MASK = 0x60,
+};
+
 struct ehca_alloc_qp_parms {
-	int servicetype;
+/* input parameters */
+	enum ehca_service_type servicetype;
 	int sigtype;
-	int daqp_ctrl;
-	int max_send_sge;
-	int max_recv_sge;
+	enum ehca_ext_qp_type ext_type;
+	enum ehca_ll_comp_flags ll_comp_flags;
+
+	int max_send_wr, max_recv_wr;
+	int max_send_sge, max_recv_sge;
 	int ud_av_l_key_ctl;
+
+	u32 token;
+	struct ipz_eq_handle eq_handle;
+	struct ipz_pd pd;
+	struct ipz_cq_handle send_cq_handle, recv_cq_handle;
+
+	u32 srq_qpn, srq_token, srq_limit;
+
+/* output parameters */
+	u32 real_qp_num;
+	struct ipz_qp_handle qp_handle;
+	struct h_galpas galpas;
 
 	u16 act_nr_send_wqes;
 	u16 act_nr_recv_wqes;
@@ -335,9 +387,6 @@ struct ehca_alloc_qp_parms {
 
 	u32 nr_rq_pages;
 	u32 nr_sq_pages;
-
-	struct ipz_eq_handle ipz_eq_handle;
-	struct ipz_pd pd;
 };
 
 int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp);

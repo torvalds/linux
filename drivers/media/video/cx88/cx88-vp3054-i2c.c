@@ -94,7 +94,7 @@ static int vp3054_bit_getsda(void *data)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_algo_bit_data vp3054_i2c_algo_template = {
+static const struct i2c_algo_bit_data vp3054_i2c_algo_template = {
 	.setsda  = vp3054_bit_setsda,
 	.setscl  = vp3054_bit_setscl,
 	.getsda  = vp3054_bit_getsda,
@@ -104,12 +104,6 @@ static struct i2c_algo_bit_data vp3054_i2c_algo_template = {
 };
 
 /* ----------------------------------------------------------------------- */
-
-static struct i2c_adapter vp3054_i2c_adap_template = {
-	.name              = "cx2388x",
-	.owner             = THIS_MODULE,
-	.id                = I2C_HW_B_CX2388x,
-};
 
 int vp3054_i2c_probe(struct cx8802_dev *dev)
 {
@@ -125,8 +119,6 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 		return -ENOMEM;
 	vp3054_i2c = dev->card_priv;
 
-	memcpy(&vp3054_i2c->adap, &vp3054_i2c_adap_template,
-	       sizeof(vp3054_i2c->adap));
 	memcpy(&vp3054_i2c->algo, &vp3054_i2c_algo_template,
 	       sizeof(vp3054_i2c->algo));
 
@@ -135,6 +127,8 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	vp3054_i2c->adap.dev.parent = &dev->pci->dev;
 	strlcpy(vp3054_i2c->adap.name, core->name,
 		sizeof(vp3054_i2c->adap.name));
+	vp3054_i2c->adap.owner = THIS_MODULE;
+	vp3054_i2c->adap.id = I2C_HW_B_CX2388x;
 	vp3054_i2c->algo.data = dev;
 	i2c_set_adapdata(&vp3054_i2c->adap, dev);
 	vp3054_i2c->adap.algo_data = &vp3054_i2c->algo;

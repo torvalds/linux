@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -25,6 +25,8 @@ void dlm_unregister_debugfs(void);
 static inline int dlm_register_debugfs(void) { return 0; }
 static inline void dlm_unregister_debugfs(void) { }
 #endif
+int dlm_netlink_init(void);
+void dlm_netlink_exit(void);
 
 static int __init init_dlm(void)
 {
@@ -50,10 +52,16 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_debug;
 
+	error = dlm_netlink_init();
+	if (error)
+		goto out_user;
+
 	printk("DLM (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
 
+ out_user:
+	dlm_user_exit();
  out_debug:
 	dlm_unregister_debugfs();
  out_config:
@@ -68,6 +76,7 @@ static int __init init_dlm(void)
 
 static void __exit exit_dlm(void)
 {
+	dlm_netlink_exit();
 	dlm_user_exit();
 	dlm_config_exit();
 	dlm_memory_exit();

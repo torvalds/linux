@@ -38,7 +38,7 @@
  */
 
 static void r128_emit_clip_rects(drm_r128_private_t * dev_priv,
-				 drm_clip_rect_t * boxes, int count)
+				 struct drm_clip_rect * boxes, int count)
 {
 	u32 aux_sc_cntl = 0x00000000;
 	RING_LOCALS;
@@ -352,13 +352,13 @@ static void r128_print_dirty(const char *msg, unsigned int flags)
 		 (flags & R128_REQUIRE_QUIESCENCE) ? "quiescence, " : "");
 }
 
-static void r128_cce_dispatch_clear(drm_device_t * dev,
+static void r128_cce_dispatch_clear(struct drm_device * dev,
 				    drm_r128_clear_t * clear)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	int nbox = sarea_priv->nbox;
-	drm_clip_rect_t *pbox = sarea_priv->boxes;
+	struct drm_clip_rect *pbox = sarea_priv->boxes;
 	unsigned int flags = clear->flags;
 	int i;
 	RING_LOCALS;
@@ -458,12 +458,12 @@ static void r128_cce_dispatch_clear(drm_device_t * dev,
 	}
 }
 
-static void r128_cce_dispatch_swap(drm_device_t * dev)
+static void r128_cce_dispatch_swap(struct drm_device * dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	int nbox = sarea_priv->nbox;
-	drm_clip_rect_t *pbox = sarea_priv->boxes;
+	struct drm_clip_rect *pbox = sarea_priv->boxes;
 	int i;
 	RING_LOCALS;
 	DRM_DEBUG("%s\n", __FUNCTION__);
@@ -524,7 +524,7 @@ static void r128_cce_dispatch_swap(drm_device_t * dev)
 	ADVANCE_RING();
 }
 
-static void r128_cce_dispatch_flip(drm_device_t * dev)
+static void r128_cce_dispatch_flip(struct drm_device * dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -567,7 +567,7 @@ static void r128_cce_dispatch_flip(drm_device_t * dev)
 	ADVANCE_RING();
 }
 
-static void r128_cce_dispatch_vertex(drm_device_t * dev, drm_buf_t * buf)
+static void r128_cce_dispatch_vertex(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv = buf->dev_private;
@@ -637,8 +637,8 @@ static void r128_cce_dispatch_vertex(drm_device_t * dev, drm_buf_t * buf)
 	sarea_priv->nbox = 0;
 }
 
-static void r128_cce_dispatch_indirect(drm_device_t * dev,
-				       drm_buf_t * buf, int start, int end)
+static void r128_cce_dispatch_indirect(struct drm_device * dev,
+				       struct drm_buf * buf, int start, int end)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv = buf->dev_private;
@@ -692,8 +692,8 @@ static void r128_cce_dispatch_indirect(drm_device_t * dev,
 	dev_priv->sarea_priv->last_dispatch++;
 }
 
-static void r128_cce_dispatch_indices(drm_device_t * dev,
-				      drm_buf_t * buf,
+static void r128_cce_dispatch_indices(struct drm_device * dev,
+				      struct drm_buf * buf,
 				      int start, int end, int count)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -777,11 +777,11 @@ static void r128_cce_dispatch_indices(drm_device_t * dev,
 }
 
 static int r128_cce_dispatch_blit(DRMFILE filp,
-				  drm_device_t * dev, drm_r128_blit_t * blit)
+				  struct drm_device * dev, drm_r128_blit_t * blit)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	u32 *data;
 	int dword_shift, dwords;
@@ -887,7 +887,7 @@ static int r128_cce_dispatch_blit(DRMFILE filp,
  * have hardware stencil support.
  */
 
-static int r128_cce_dispatch_write_span(drm_device_t * dev,
+static int r128_cce_dispatch_write_span(struct drm_device * dev,
 					drm_r128_depth_t * depth)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -983,7 +983,7 @@ static int r128_cce_dispatch_write_span(drm_device_t * dev,
 	return 0;
 }
 
-static int r128_cce_dispatch_write_pixels(drm_device_t * dev,
+static int r128_cce_dispatch_write_pixels(struct drm_device * dev,
 					  drm_r128_depth_t * depth)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1105,7 +1105,7 @@ static int r128_cce_dispatch_write_pixels(drm_device_t * dev,
 	return 0;
 }
 
-static int r128_cce_dispatch_read_span(drm_device_t * dev,
+static int r128_cce_dispatch_read_span(struct drm_device * dev,
 				       drm_r128_depth_t * depth)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1148,7 +1148,7 @@ static int r128_cce_dispatch_read_span(drm_device_t * dev,
 	return 0;
 }
 
-static int r128_cce_dispatch_read_pixels(drm_device_t * dev,
+static int r128_cce_dispatch_read_pixels(struct drm_device * dev,
 					 drm_r128_depth_t * depth)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1220,7 +1220,7 @@ static int r128_cce_dispatch_read_pixels(drm_device_t * dev,
  * Polygon stipple
  */
 
-static void r128_cce_dispatch_stipple(drm_device_t * dev, u32 * stipple)
+static void r128_cce_dispatch_stipple(struct drm_device * dev, u32 * stipple)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	int i;
@@ -1269,7 +1269,7 @@ static int r128_cce_clear(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-static int r128_do_init_pageflip(drm_device_t * dev)
+static int r128_do_init_pageflip(struct drm_device * dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
@@ -1288,7 +1288,7 @@ static int r128_do_init_pageflip(drm_device_t * dev)
 	return 0;
 }
 
-static int r128_do_cleanup_pageflip(drm_device_t * dev)
+static int r128_do_cleanup_pageflip(struct drm_device * dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
@@ -1354,8 +1354,8 @@ static int r128_cce_vertex(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_vertex_t vertex;
 
@@ -1413,8 +1413,8 @@ static int r128_cce_indices(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indices_t elts;
 	int count;
@@ -1483,7 +1483,7 @@ static int r128_cce_indices(DRM_IOCTL_ARGS)
 static int r128_cce_blit(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_blit_t blit;
 	int ret;
@@ -1571,8 +1571,8 @@ static int r128_cce_indirect(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *buf;
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_indirect_t indirect;
 #if 0
@@ -1675,7 +1675,7 @@ static int r128_getparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void r128_driver_preclose(drm_device_t * dev, DRMFILE filp)
+void r128_driver_preclose(struct drm_device * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1685,7 +1685,7 @@ void r128_driver_preclose(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void r128_driver_lastclose(drm_device_t * dev)
+void r128_driver_lastclose(struct drm_device * dev)
 {
 	r128_do_cleanup_cce(dev);
 }

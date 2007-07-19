@@ -159,7 +159,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT			"-NAPI"
-#define DRV_VERSION		"3.5.17-k4"DRV_EXT
+#define DRV_VERSION		"3.5.23-k4"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2006 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -583,7 +583,6 @@ struct nic {
 	u32 rx_tco_frames;
 	u32 rx_over_length_errors;
 
-	u8 rev_id;
 	u16 leds;
 	u16 eeprom_wc;
 	u16 eeprom[256];
@@ -937,9 +936,8 @@ static void e100_get_defaults(struct nic *nic)
 	struct param_range rfds = { .min = 16, .max = 256, .count = 256 };
 	struct param_range cbs  = { .min = 64, .max = 256, .count = 128 };
 
-	pci_read_config_byte(nic->pdev, PCI_REVISION_ID, &nic->rev_id);
 	/* MAC type is encoded as rev ID; exception: ICH is treated as 82559 */
-	nic->mac = (nic->flags & ich) ? mac_82559_D101M : nic->rev_id;
+	nic->mac = (nic->flags & ich) ? mac_82559_D101M : nic->pdev->revision;
 	if(nic->mac == mac_unknown)
 		nic->mac = mac_82557_D100_A;
 
@@ -1024,10 +1022,16 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->mwi_enable = 0x1;	/* 1=enable, 0=disable */
 		config->standard_tcb = 0x0;	/* 1=standard, 0=extended */
 		config->rx_long_ok = 0x1;	/* 1=VLANs ok, 0=standard */
-		if(nic->mac >= mac_82559_D101M)
+		if (nic->mac >= mac_82559_D101M) {
 			config->tno_intr = 0x1;		/* TCO stats enable */
-		else
+			/* Enable TCO in extended config */
+			if (nic->mac >= mac_82551_10) {
+				config->byte_count = 0x20; /* extended bytes */
+				config->rx_d102_mode = 0x1; /* GMRC for TCO */
+			}
+		} else {
 			config->standard_stat_counter = 0x0;
+		}
 	}
 
 	DPRINTK(HW, DEBUG, "[00-07]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -1273,7 +1277,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 	if (nic->flags & ich)
 		goto noloaducode;
 
-	/* Search for ucode match against h/w rev_id */
+	/* Search for ucode match against h/w revision */
 	for (opts = ucode_opts; opts->mac; opts++) {
 		int i;
 		u32 *ucode = opts->ucode;
@@ -2232,7 +2236,7 @@ static void e100_get_regs(struct net_device *netdev,
 	u32 *buff = p;
 	int i;
 
-	regs->version = (1 << 24) | nic->rev_id;
+	regs->version = (1 << 24) | nic->pdev->revision;
 	buff[0] = ioread8(&nic->csr->scb.cmd_hi) << 24 |
 		ioread8(&nic->csr->scb.cmd_lo) << 16 |
 		ioread16(&nic->csr->scb.status);

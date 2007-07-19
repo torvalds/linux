@@ -203,7 +203,9 @@ int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len)
 		return 0;
 
 	/* Not exclusive use of packet?  Must copy. */
-	if (skb_shared(*pskb) || skb_cloned(*pskb))
+	if (skb_cloned(*pskb) && !skb_clone_writable(*pskb, writable_len))
+		goto copy_skb;
+	if (skb_shared(*pskb))
 		goto copy_skb;
 
 	return pskb_may_pull(*pskb, writable_len);
@@ -229,13 +231,13 @@ void nf_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
 {
 	__be32 diff[] = { ~from, to };
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		*sum = csum_fold(csum_partial((char *)diff, sizeof(diff),
+		*sum = csum_fold(csum_partial(diff, sizeof(diff),
 				~csum_unfold(*sum)));
 		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
-			skb->csum = ~csum_partial((char *)diff, sizeof(diff),
+			skb->csum = ~csum_partial(diff, sizeof(diff),
 						~skb->csum);
 	} else if (pseudohdr)
-		*sum = ~csum_fold(csum_partial((char *)diff, sizeof(diff),
+		*sum = ~csum_fold(csum_partial(diff, sizeof(diff),
 				csum_unfold(*sum)));
 }
 EXPORT_SYMBOL(nf_proto_csum_replace4);

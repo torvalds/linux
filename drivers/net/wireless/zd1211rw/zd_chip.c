@@ -49,8 +49,9 @@ void zd_chip_clear(struct zd_chip *chip)
 	ZD_MEMCLEAR(chip, sizeof(*chip));
 }
 
-static int scnprint_mac_oui(const u8 *addr, char *buffer, size_t size)
+static int scnprint_mac_oui(struct zd_chip *chip, char *buffer, size_t size)
 {
+	u8 *addr = zd_usb_to_netdev(&chip->usb)->dev_addr;
 	return scnprintf(buffer, size, "%02x-%02x-%02x",
 		         addr[0], addr[1], addr[2]);
 }
@@ -61,10 +62,10 @@ static int scnprint_id(struct zd_chip *chip, char *buffer, size_t size)
 	int i = 0;
 
 	i = scnprintf(buffer, size, "zd1211%s chip ",
-		      chip->is_zd1211b ? "b" : "");
+		      zd_chip_is_zd1211b(chip) ? "b" : "");
 	i += zd_usb_scnprint_id(&chip->usb, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " ");
-	i += scnprint_mac_oui(chip->e2p_mac, buffer+i, size-i);
+	i += scnprint_mac_oui(chip, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " ");
 	i += zd_rf_scnprint_id(&chip->rf, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c%c", chip->pa_type,
@@ -366,64 +367,9 @@ error:
 	return r;
 }
 
-static int _read_mac_addr(struct zd_chip *chip, u8 *mac_addr,
-	                  const zd_addr_t *addr)
-{
-	int r;
-	u32 parts[2];
-
-	r = zd_ioread32v_locked(chip, parts, (const zd_addr_t *)addr, 2);
-	if (r) {
-		dev_dbg_f(zd_chip_dev(chip),
-			"error: couldn't read e2p macs. Error number %d\n", r);
-		return r;
-	}
-
-	mac_addr[0] = parts[0];
-	mac_addr[1] = parts[0] >>  8;
-	mac_addr[2] = parts[0] >> 16;
-	mac_addr[3] = parts[0] >> 24;
-	mac_addr[4] = parts[1];
-	mac_addr[5] = parts[1] >>  8;
-
-	return 0;
-}
-
-static int read_e2p_mac_addr(struct zd_chip *chip)
-{
-	static const zd_addr_t addr[2] = { E2P_MAC_ADDR_P1, E2P_MAC_ADDR_P2 };
-
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	return _read_mac_addr(chip, chip->e2p_mac, (const zd_addr_t *)addr);
-}
-
 /* MAC address: if custom mac addresses are to to be used CR_MAC_ADDR_P1 and
  *              CR_MAC_ADDR_P2 must be overwritten
  */
-void zd_get_e2p_mac_addr(struct zd_chip *chip, u8 *mac_addr)
-{
-	mutex_lock(&chip->mutex);
-	memcpy(mac_addr, chip->e2p_mac, ETH_ALEN);
-	mutex_unlock(&chip->mutex);
-}
-
-static int read_mac_addr(struct zd_chip *chip, u8 *mac_addr)
-{
-	static const zd_addr_t addr[2] = { CR_MAC_ADDR_P1, CR_MAC_ADDR_P2 };
-	return _read_mac_addr(chip, mac_addr, (const zd_addr_t *)addr);
-}
-
-int zd_read_mac_addr(struct zd_chip *chip, u8 *mac_addr)
-{
-	int r;
-
-	dev_dbg_f(zd_chip_dev(chip), "\n");
-	mutex_lock(&chip->mutex);
-	r = read_mac_addr(chip, mac_addr);
-	mutex_unlock(&chip->mutex);
-	return r;
-}
-
 int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
 {
 	int r;
@@ -444,12 +390,6 @@ int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
 
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite32a_locked(chip, reqs, ARRAY_SIZE(reqs));
-#ifdef DEBUG
-	{
-		u8 tmp[ETH_ALEN];
-		read_mac_addr(chip, tmp);
-	}
-#endif /* DEBUG */
 	mutex_unlock(&chip->mutex);
 	return r;
 }
@@ -809,7 +749,7 @@ out:
 
 static int hw_reset_phy(struct zd_chip *chip)
 {
-	return chip->is_zd1211b ? zd1211b_hw_reset_phy(chip) :
+	return zd_chip_is_zd1211b(chip) ? zd1211b_hw_reset_phy(chip) :
 		                  zd1211_hw_reset_phy(chip);
 }
 
@@ -874,7 +814,7 @@ static int hw_init_hmac(struct zd_chip *chip)
 	if (r)
 		return r;
 
-	return chip->is_zd1211b ?
+	return zd_chip_is_zd1211b(chip) ?
 		zd1211b_hw_init_hmac(chip) : zd1211_hw_init_hmac(chip);
 }
 
@@ -1136,8 +1076,15 @@ static int read_fw_regs_offset(struct zd_chip *chip)
 	return 0;
 }
 
+/* Read mac address using pre-firmware interface */
+int zd_chip_read_mac_addr_fw(struct zd_chip *chip, u8 *addr)
+{
+	dev_dbg_f(zd_chip_dev(chip), "\n");
+	return zd_usb_read_fw(&chip->usb, E2P_MAC_ADDR_P1, addr,
+		ETH_ALEN);
+}
 
-int zd_chip_init_hw(struct zd_chip *chip, u8 device_type)
+int zd_chip_init_hw(struct zd_chip *chip)
 {
 	int r;
 	u8 rf_type;
@@ -1145,7 +1092,6 @@ int zd_chip_init_hw(struct zd_chip *chip, u8 device_type)
 	dev_dbg_f(zd_chip_dev(chip), "\n");
 
 	mutex_lock(&chip->mutex);
-	chip->is_zd1211b = (device_type == DEVICE_ZD1211B) != 0;
 
 #ifdef DEBUG
 	r = test_init(chip);
@@ -1201,10 +1147,6 @@ int zd_chip_init_hw(struct zd_chip *chip, u8 device_type)
 		goto out;
 #endif /* DEBUG */
 
-	r = read_e2p_mac_addr(chip);
-	if (r)
-		goto out;
-
 	r = read_cal_int_tables(chip);
 	if (r)
 		goto out;
@@ -1253,10 +1195,13 @@ static int update_channel_integration_and_calibration(struct zd_chip *chip,
 {
 	int r;
 
+	if (!zd_rf_should_update_pwr_int(&chip->rf))
+		return 0;
+
 	r = update_pwr_int(chip, channel);
 	if (r)
 		return r;
-	if (chip->is_zd1211b) {
+	if (zd_chip_is_zd1211b(chip)) {
 		static const struct zd_ioreq16 ioreqs[] = {
 			{ CR69, 0x28 },
 			{},
@@ -1283,7 +1228,7 @@ static int patch_cck_gain(struct zd_chip *chip)
 	int r;
 	u32 value;
 
-	if (!chip->patch_cck_gain)
+	if (!chip->patch_cck_gain || !zd_rf_should_patch_cck_gain(&chip->rf))
 		return 0;
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));

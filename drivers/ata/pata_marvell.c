@@ -163,22 +163,22 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 {
 	static const struct ata_port_info info = {
 		.sht		= &marvell_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask 	= 0x3f,
+		.udma_mask 	= ATA_UDMA5,
 
 		.port_ops	= &marvell_ops,
 	};
 	static const struct ata_port_info info_sata = {
 		.sht		= &marvell_sht,
 		/* Slave possible as its magically mapped not real */
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask 	= 0x7f,
+		.udma_mask 	= ATA_UDMA6,
 
 		.port_ops	= &marvell_ops,
 	};

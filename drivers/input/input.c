@@ -442,7 +442,7 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 		printk(KERN_ERR
 			"input: failed to attach handler %s to device %s, "
 			"error: %d\n",
-			handler->name, kobject_name(&dev->cdev.kobj), error);
+			handler->name, kobject_name(&dev->dev.kobj), error);
 
 	return error;
 }
@@ -527,7 +527,7 @@ static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
 static int input_devices_seq_show(struct seq_file *seq, void *v)
 {
 	struct input_dev *dev = container_of(v, struct input_dev, node);
-	const char *path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
+	const char *path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	struct input_handle *handle;
 
 	seq_printf(seq, "I: Bus=%04x Vendor=%04x Product=%04x Version=%04x\n",
@@ -682,15 +682,17 @@ static inline int input_proc_init(void) { return 0; }
 static inline void input_proc_exit(void) { }
 #endif
 
-#define INPUT_DEV_STRING_ATTR_SHOW(name)					\
-static ssize_t input_dev_show_##name(struct class_device *dev, char *buf)	\
-{										\
-	struct input_dev *input_dev = to_input_dev(dev);			\
-										\
-	return scnprintf(buf, PAGE_SIZE, "%s\n",				\
-			 input_dev->name ? input_dev->name : "");		\
-}										\
-static CLASS_DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL);
+#define INPUT_DEV_STRING_ATTR_SHOW(name)				\
+static ssize_t input_dev_show_##name(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
+{									\
+	struct input_dev *input_dev = to_input_dev(dev);		\
+									\
+	return scnprintf(buf, PAGE_SIZE, "%s\n",			\
+			 input_dev->name ? input_dev->name : "");	\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL)
 
 INPUT_DEV_STRING_ATTR_SHOW(name);
 INPUT_DEV_STRING_ATTR_SHOW(phys);
@@ -744,7 +746,9 @@ static int input_print_modalias(char *buf, int size, struct input_dev *id,
 	return len;
 }
 
-static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
+static ssize_t input_dev_show_modalias(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct input_dev *id = to_input_dev(dev);
 	ssize_t len;
@@ -753,13 +757,13 @@ static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
 
 	return min_t(int, len, PAGE_SIZE);
 }
-static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
+static DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
 static struct attribute *input_dev_attrs[] = {
-	&class_device_attr_name.attr,
-	&class_device_attr_phys.attr,
-	&class_device_attr_uniq.attr,
-	&class_device_attr_modalias.attr,
+	&dev_attr_name.attr,
+	&dev_attr_phys.attr,
+	&dev_attr_uniq.attr,
+	&dev_attr_modalias.attr,
 	NULL
 };
 
@@ -767,13 +771,15 @@ static struct attribute_group input_dev_attr_group = {
 	.attrs	= input_dev_attrs,
 };
 
-#define INPUT_DEV_ID_ATTR(name)							\
-static ssize_t input_dev_show_id_##name(struct class_device *dev, char *buf)	\
-{										\
-	struct input_dev *input_dev = to_input_dev(dev);			\
-	return scnprintf(buf, PAGE_SIZE, "%04x\n", input_dev->id.name);		\
-}										\
-static CLASS_DEVICE_ATTR(name, S_IRUGO, input_dev_show_id_##name, NULL);
+#define INPUT_DEV_ID_ATTR(name)						\
+static ssize_t input_dev_show_id_##name(struct device *dev,		\
+					struct device_attribute *attr,	\
+					char *buf)			\
+{									\
+	struct input_dev *input_dev = to_input_dev(dev);		\
+	return scnprintf(buf, PAGE_SIZE, "%04x\n", input_dev->id.name);	\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, input_dev_show_id_##name, NULL)
 
 INPUT_DEV_ID_ATTR(bustype);
 INPUT_DEV_ID_ATTR(vendor);
@@ -781,10 +787,10 @@ INPUT_DEV_ID_ATTR(product);
 INPUT_DEV_ID_ATTR(version);
 
 static struct attribute *input_dev_id_attrs[] = {
-	&class_device_attr_bustype.attr,
-	&class_device_attr_vendor.attr,
-	&class_device_attr_product.attr,
-	&class_device_attr_version.attr,
+	&dev_attr_bustype.attr,
+	&dev_attr_vendor.attr,
+	&dev_attr_product.attr,
+	&dev_attr_version.attr,
 	NULL
 };
 
@@ -813,15 +819,17 @@ static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
 	return len;
 }
 
-#define INPUT_DEV_CAP_ATTR(ev, bm)						\
-static ssize_t input_dev_show_cap_##bm(struct class_device *dev, char *buf)	\
-{										\
-	struct input_dev *input_dev = to_input_dev(dev);			\
-	int len = input_print_bitmap(buf, PAGE_SIZE,				\
-				     input_dev->bm##bit, ev##_MAX, 1);		\
-	return min_t(int, len, PAGE_SIZE);					\
-}										\
-static CLASS_DEVICE_ATTR(bm, S_IRUGO, input_dev_show_cap_##bm, NULL);
+#define INPUT_DEV_CAP_ATTR(ev, bm)					\
+static ssize_t input_dev_show_cap_##bm(struct device *dev,		\
+				       struct device_attribute *attr,	\
+				       char *buf)			\
+{									\
+	struct input_dev *input_dev = to_input_dev(dev);		\
+	int len = input_print_bitmap(buf, PAGE_SIZE,			\
+				     input_dev->bm##bit, ev##_MAX, 1);	\
+	return min_t(int, len, PAGE_SIZE);				\
+}									\
+static DEVICE_ATTR(bm, S_IRUGO, input_dev_show_cap_##bm, NULL)
 
 INPUT_DEV_CAP_ATTR(EV, ev);
 INPUT_DEV_CAP_ATTR(KEY, key);
@@ -834,15 +842,15 @@ INPUT_DEV_CAP_ATTR(FF, ff);
 INPUT_DEV_CAP_ATTR(SW, sw);
 
 static struct attribute *input_dev_caps_attrs[] = {
-	&class_device_attr_ev.attr,
-	&class_device_attr_key.attr,
-	&class_device_attr_rel.attr,
-	&class_device_attr_abs.attr,
-	&class_device_attr_msc.attr,
-	&class_device_attr_led.attr,
-	&class_device_attr_snd.attr,
-	&class_device_attr_ff.attr,
-	&class_device_attr_sw.attr,
+	&dev_attr_ev.attr,
+	&dev_attr_key.attr,
+	&dev_attr_rel.attr,
+	&dev_attr_abs.attr,
+	&dev_attr_msc.attr,
+	&dev_attr_led.attr,
+	&dev_attr_snd.attr,
+	&dev_attr_ff.attr,
+	&dev_attr_sw.attr,
 	NULL
 };
 
@@ -858,9 +866,9 @@ static struct attribute_group *input_dev_attr_groups[] = {
 	NULL
 };
 
-static void input_dev_release(struct class_device *class_dev)
+static void input_dev_release(struct device *device)
 {
-	struct input_dev *dev = to_input_dev(class_dev);
+	struct input_dev *dev = to_input_dev(device);
 
 	input_ff_destroy(dev);
 	kfree(dev);
@@ -947,10 +955,10 @@ static int input_add_uevent_modalias_var(char **envp, int num_envp, int *cur_ind
 			return err;					\
 	} while (0)
 
-static int input_dev_uevent(struct class_device *cdev, char **envp,
+static int input_dev_uevent(struct device *device, char **envp,
 			    int num_envp, char *buffer, int buffer_size)
 {
-	struct input_dev *dev = to_input_dev(cdev);
+	struct input_dev *dev = to_input_dev(device);
 	int i = 0;
 	int len = 0;
 
@@ -988,10 +996,14 @@ static int input_dev_uevent(struct class_device *cdev, char **envp,
 	return 0;
 }
 
+static struct device_type input_dev_type = {
+	.groups		= input_dev_attr_groups,
+	.release	= input_dev_release,
+	.uevent		= input_dev_uevent,
+};
+
 struct class input_class = {
-	.name			= "input",
-	.release		= input_dev_release,
-	.uevent			= input_dev_uevent,
+	.name		= "input",
 };
 EXPORT_SYMBOL_GPL(input_class);
 
@@ -1010,9 +1022,9 @@ struct input_dev *input_allocate_device(void)
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
-		dev->cdev.class = &input_class;
-		dev->cdev.groups = input_dev_attr_groups;
-		class_device_initialize(&dev->cdev);
+		dev->dev.type = &input_dev_type;
+		dev->dev.class = &input_class;
+		device_initialize(&dev->dev);
 		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
@@ -1131,17 +1143,17 @@ int input_register_device(struct input_dev *dev)
 
 	list_add_tail(&dev->node, &input_dev_list);
 
-	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
+	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
-	if (!dev->cdev.dev)
-		dev->cdev.dev = dev->dev.parent;
+	if (dev->cdev.dev)
+		dev->dev.parent = dev->cdev.dev;
 
-	error = class_device_add(&dev->cdev);
+	error = device_add(&dev->dev);
 	if (error)
 		return error;
 
-	path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
+	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "input: %s as %s\n",
 		dev->name ? dev->name : "Unspecified device", path ? path : "N/A");
 	kfree(path);
@@ -1173,7 +1185,7 @@ void input_unregister_device(struct input_dev *dev)
 
 	list_del_init(&dev->node);
 
-	class_device_unregister(&dev->cdev);
+	device_unregister(&dev->dev);
 
 	input_wakeup_procfs_readers();
 }

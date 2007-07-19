@@ -371,7 +371,7 @@ static void __init microdev_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_sh4202_microdev __initmv = {
+static struct sh_machine_vector mv_sh4202_microdev __initmv = {
 	.mv_name		= "SH4-202 MicroDev",
 	.mv_setup		= microdev_setup,
 	.mv_nr_irqs		= 72,		/* QQQ need to check this - use the MACRO */
@@ -403,4 +403,3 @@ struct sh_machine_vector mv_sh4202_microdev __initmv = {
 	.mv_heartbeat		= microdev_heartbeat,
 #endif
 };
-ALIAS_MV(sh4202_microdev)

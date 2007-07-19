@@ -74,8 +74,9 @@ static inline void WRITECFG32(u32 addr, u32 data)
 	*(u32 *)(cfg_space + (addr & ~3)) = data;
 }
 
-int pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
+	This is b0rked.
 	return dev->irq;
 }
 

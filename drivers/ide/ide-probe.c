@@ -144,7 +144,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	local_irq_enable();
 	ide_fix_driveid(id);
 
-#if defined (CONFIG_SCSI_EATA_DMA) || defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
+#if defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
 	/*
 	 * EATA SCSI controllers do a hardware ATA emulation:
 	 * Ignore them if there is a driver for them available.
@@ -154,7 +154,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 		printk("%s: EATA SCSI HBA %.10s\n", drive->name, id->model);
 		goto err_misc;
 	}
-#endif /* CONFIG_SCSI_EATA_DMA || CONFIG_SCSI_EATA_PIO */
+#endif /* CONFIG_SCSI_EATA || CONFIG_SCSI_EATA_PIO */
 
 	/*
 	 *  WIN_IDENTIFY returns little-endian info,
@@ -574,11 +574,11 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 			/* look for ATAPI device */
 			(void) do_probe(drive, WIN_PIDENTIFY);
 		}
-		if (strstr(drive->id->model, "E X A B Y T E N E S T"))
-			enable_nest(drive);
 		if (!drive->present)
 			/* drive not found */
 			return 0;
+		if (strstr(drive->id->model, "E X A B Y T E N E S T"))
+			enable_nest(drive);
 	
 		/* identification failed? */
 		if (!drive->id_read) {
@@ -1025,7 +1025,7 @@ static int init_irq (ide_hwif_t *hwif)
 	BUG_ON(irqs_disabled());	
 	BUG_ON(hwif == NULL);
 
-	down(&ide_cfg_sem);
+	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
 #if MAX_HWIFS > 1
 	/*
@@ -1073,14 +1073,14 @@ static int init_irq (ide_hwif_t *hwif)
 		hwgroup->hwif->next = hwif;
 		spin_unlock_irq(&ide_lock);
 	} else {
-		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t), GFP_KERNEL,
+		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t),
+					GFP_KERNEL | __GFP_ZERO,
 					hwif_to_node(hwif->drives[0].hwif));
 		if (!hwgroup)
 	       		goto out_up;
 
 		hwif->hwgroup = hwgroup;
 
-		memset(hwgroup, 0, sizeof(ide_hwgroup_t));
 		hwgroup->hwif     = hwif->next = hwif;
 		hwgroup->rq       = NULL;
 		hwgroup->handler  = NULL;
@@ -1154,7 +1154,7 @@ static int init_irq (ide_hwif_t *hwif)
 		printk(" (%sed with %s)",
 			hwif->sharing_irq ? "shar" : "serializ", match->name);
 	printk("\n");
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 	return 0;
 out_unlink:
 	spin_lock_irq(&ide_lock);
@@ -1177,7 +1177,7 @@ out_unlink:
 	}
 	spin_unlock_irq(&ide_lock);
 out_up:
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 	return 1;
 }
 

@@ -1411,9 +1411,9 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 		printk("0x%02x ", cmd->cmnd[i]);
 	}
 	printk("\n  seg_cnt=%d, allowed=%d, retries=%d\n",
-	    cmd->use_sg, cmd->allowed, cmd->retries);
+	       scsi_sg_count(cmd), cmd->allowed, cmd->retries);
 	printk("  request buffer=0x%p, request buffer len=0x%x\n",
-	    cmd->request_buffer, cmd->request_bufflen);
+	       scsi_sglist(cmd), scsi_bufflen(cmd));
 	printk("  tag=%d, transfersize=0x%x\n",
 	    cmd->tag, cmd->transfersize);
 	printk("  serial_number=%lx, SP=%p\n", cmd->serial_number, sp);

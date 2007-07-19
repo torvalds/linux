@@ -37,6 +37,7 @@ static unsigned int	cpu_set_freq[NR_CPUS]; /* CPU freq desired by userspace */
 static unsigned int	cpu_is_managed[NR_CPUS];
 
 static DEFINE_MUTEX	(userspace_mutex);
+static int cpus_using_userspace_governor;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_GOVERNOR, "userspace", msg)
 
@@ -47,7 +48,11 @@ userspace_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 {
         struct cpufreq_freqs *freq = data;
 
-	dprintk("saving cpu_cur_freq of cpu %u to be %u kHz\n", freq->cpu, freq->new);
+	if (!cpu_is_managed[freq->cpu])
+		return 0;
+
+	dprintk("saving cpu_cur_freq of cpu %u to be %u kHz\n",
+			freq->cpu, freq->new);
 	cpu_cur_freq[freq->cpu] = freq->new;
 
         return 0;
@@ -120,7 +125,7 @@ store_speed (struct cpufreq_policy *policy, const char *buf, size_t count)
 
 static struct freq_attr freq_attr_scaling_setspeed =
 {
-	.attr = { .name = "scaling_setspeed", .mode = 0644, .owner = THIS_MODULE },
+	.attr = { .name = "scaling_setspeed", .mode = 0644 },
 	.show = show_speed,
 	.store = store_speed,
 };
@@ -142,6 +147,13 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		if (rc)
 			goto start_out;
 
+		if (cpus_using_userspace_governor == 0) {
+			cpufreq_register_notifier(
+					&userspace_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+		}
+		cpus_using_userspace_governor++;
+
 		cpu_is_managed[cpu] = 1;
 		cpu_min_freq[cpu] = policy->min;
 		cpu_max_freq[cpu] = policy->max;
@@ -153,6 +165,13 @@ start_out:
 		break;
 	case CPUFREQ_GOV_STOP:
 		mutex_lock(&userspace_mutex);
+		cpus_using_userspace_governor--;
+		if (cpus_using_userspace_governor == 0) {
+			cpufreq_unregister_notifier(
+					&userspace_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+		}
+
 		cpu_is_managed[cpu] = 0;
 		cpu_min_freq[cpu] = 0;
 		cpu_max_freq[cpu] = 0;
@@ -198,7 +217,6 @@ EXPORT_SYMBOL(cpufreq_gov_userspace);
 
 static int __init cpufreq_gov_userspace_init(void)
 {
-	cpufreq_register_notifier(&userspace_cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
 	return cpufreq_register_governor(&cpufreq_gov_userspace);
 }
 
@@ -206,7 +224,6 @@ static int __init cpufreq_gov_userspace_init(void)
 static void __exit cpufreq_gov_userspace_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_userspace);
-        cpufreq_unregister_notifier(&userspace_cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 

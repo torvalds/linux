@@ -1,8 +1,6 @@
-menu "Dallas's 1-wire bus"
-	depends on HAS_IOMEM
-
-config W1
+menuconfig W1
 	tristate "Dallas's 1-wire support"
+	depends on HAS_IOMEM
 	---help---
 	  Dallas' 1-wire bus is useful to connect slow 1-pin devices
 	  such as iButtons and thermal sensors.
@@ -12,8 +10,10 @@ config W1
 	  This W1 support can also be built as a module.  If so, the module
 	  will be called wire.ko.
 
+if W1
+
 config W1_CON
-	depends on CONNECTOR && W1
+	depends on CONNECTOR
 	bool "Userspace communication over connector"
 	default y
 	--- help ---
@@ -27,4 +27,4 @@ config W1_CON
 source drivers/w1/masters/Kconfig
 source drivers/w1/slaves/Kconfig
 
-endmenu
+endif # W1

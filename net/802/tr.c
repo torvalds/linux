@@ -567,7 +567,7 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 }
 
 
-static struct seq_operations rif_seq_ops = {
+static const struct seq_operations rif_seq_ops = {
 	.start = rif_seq_start,
 	.next  = rif_seq_next,
 	.stop  = rif_seq_stop,

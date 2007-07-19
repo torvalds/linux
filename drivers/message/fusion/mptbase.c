@@ -6,7 +6,7 @@
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
  *  Copyright (c) 1999-2007 LSI Logic Corporation
- *  (mailto:mpt_linux_developer@lsi.com)
+ *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -64,6 +64,7 @@
 #endif
 
 #include "mptbase.h"
+#include "lsi/mpi_log_fc.h"
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #define my_NAME		"Fusion MPT base driver"
@@ -6349,14 +6350,37 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 static void
 mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
 {
-	static char *subcl_str[8] = {
-		"FCP Initiator", "FCP Target", "LAN", "MPI Message Layer",
-		"FC Link", "Context Manager", "Invalid Field Offset", "State Change Info"
-	};
-	u8 subcl = (log_info >> 24) & 0x7;
+	char *desc = "unknown";
 
-	printk(MYIOC_s_INFO_FMT "LogInfo(0x%08x): SubCl={%s}\n",
-			ioc->name, log_info, subcl_str[subcl]);
+	switch (log_info & 0xFF000000) {
+	case MPI_IOCLOGINFO_FC_INIT_BASE:
+		desc = "FCP Initiator";
+		break;
+	case MPI_IOCLOGINFO_FC_TARGET_BASE:
+		desc = "FCP Target";
+		break;
+	case MPI_IOCLOGINFO_FC_LAN_BASE:
+		desc = "LAN";
+		break;
+	case MPI_IOCLOGINFO_FC_MSG_BASE:
+		desc = "MPI Message Layer";
+		break;
+	case MPI_IOCLOGINFO_FC_LINK_BASE:
+		desc = "FC Link";
+		break;
+	case MPI_IOCLOGINFO_FC_CTX_BASE:
+		desc = "Context Manager";
+		break;
+	case MPI_IOCLOGINFO_FC_INVALID_FIELD_BYTE_OFFSET:
+		desc = "Invalid Field Offset";
+		break;
+	case MPI_IOCLOGINFO_FC_STATE_CHANGE:
+		desc = "State Change Info";
+		break;
+	}
+
+	printk(MYIOC_s_INFO_FMT "LogInfo(0x%08x): SubClass={%s}, Value=(0x%06x)\n",
+			ioc->name, log_info, desc, (log_info & 0xFFFFFF));
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

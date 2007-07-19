@@ -154,15 +154,16 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 
 	memcpy(&h->device, &nodemgr_dev_template_host, sizeof(h->device));
 	h->device.parent = dev;
+	set_dev_node(&h->device, dev_to_node(dev));
 	snprintf(h->device.bus_id, BUS_ID_SIZE, "fw-host%d", h->id);
 
-	h->class_dev.dev = &h->device;
-	h->class_dev.class = &hpsb_host_class;
-	snprintf(h->class_dev.class_id, BUS_ID_SIZE, "fw-host%d", h->id);
+	h->host_dev.parent = &h->device;
+	h->host_dev.class = &hpsb_host_class;
+	snprintf(h->host_dev.bus_id, BUS_ID_SIZE, "fw-host%d", h->id);
 
 	if (device_register(&h->device))
 		goto fail;
-	if (class_device_register(&h->class_dev)) {
+	if (device_register(&h->host_dev)) {
 		device_unregister(&h->device);
 		goto fail;
 	}
@@ -202,7 +203,7 @@ void hpsb_remove_host(struct hpsb_host *host)
 	host->driver = &dummy_driver;
 	highlevel_remove_host(host);
 
-	class_device_unregister(&host->class_dev);
+	device_unregister(&host->host_dev);
 	device_unregister(&host->device);
 }
 

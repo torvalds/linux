@@ -27,6 +27,7 @@ struct dlm_config_info {
 	int ci_scan_secs;
 	int ci_log_debug;
 	int ci_protocol;
+	int ci_timewarn_cs;
 };
 
 extern struct dlm_config_info dlm_config;

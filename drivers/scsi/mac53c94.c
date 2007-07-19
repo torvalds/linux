@@ -77,7 +77,7 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 		for (i = 0; i < cmd->cmd_len; ++i)
 			printk(" %.2x", cmd->cmnd[i]);
 		printk("\n" KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
-		       cmd->use_sg, cmd->request_bufflen, cmd->request_buffer);
+		       scsi_sg_count(cmd), scsi_bufflen(cmd), scsi_sglist(cmd));
 	}
 #endif
 
@@ -173,8 +173,7 @@ static void mac53c94_start(struct fsc_state *state)
 	writeb(CMD_SELECT, &regs->command);
 	state->phase = selecting;
 
-	if (cmd->use_sg > 0 || cmd->request_bufflen != 0)
-		set_dma_cmds(state, cmd);
+	set_dma_cmds(state, cmd);
 }
 
 static irqreturn_t do_mac53c94_interrupt(int irq, void *dev_id)
@@ -262,7 +261,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		writeb(CMD_NOP, &regs->command);
 		/* set DMA controller going if any data to transfer */
 		if ((stat & (STAT_MSG|STAT_CD)) == 0
-		    && (cmd->use_sg > 0 || cmd->request_bufflen != 0)) {
+		    && (scsi_sg_count(cmd) > 0 || scsi_bufflen(cmd))) {
 			nb = cmd->SCp.this_residual;
 			if (nb > 0xfff0)
 				nb = 0xfff0;
@@ -310,14 +309,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			printk(KERN_DEBUG "intr %x before data xfer complete\n", intr);
 		}
 		writel(RUN << 16, &dma->control);	/* stop dma */
-		if (cmd->use_sg != 0) {
-			pci_unmap_sg(state->pdev,
-				(struct scatterlist *)cmd->request_buffer,
-				cmd->use_sg, cmd->sc_data_direction);
-		} else {
-			pci_unmap_single(state->pdev, state->dma_addr,
-				cmd->request_bufflen, cmd->sc_data_direction);
-		}
+		scsi_dma_unmap(cmd);
 		/* should check dma status */
 		writeb(CMD_I_COMPLETE, &regs->command);
 		state->phase = completing;
@@ -365,47 +357,35 @@ static void cmd_done(struct fsc_state *state, int result)
  */
 static void set_dma_cmds(struct fsc_state *state, struct scsi_cmnd *cmd)
 {
-	int i, dma_cmd, total;
+	int i, dma_cmd, total, nseg;
 	struct scatterlist *scl;
 	struct dbdma_cmd *dcmds;
 	dma_addr_t dma_addr;
 	u32 dma_len;
 
+	nseg = scsi_dma_map(cmd);
+	BUG_ON(nseg < 0);
+	if (!nseg)
+		return;
+
 	dma_cmd = cmd->sc_data_direction == DMA_TO_DEVICE ?
 			OUTPUT_MORE : INPUT_MORE;
 	dcmds = state->dma_cmds;
-	if (cmd->use_sg > 0) {
-		int nseg;
+	total = 0;
 
-		total = 0;
-		scl = (struct scatterlist *) cmd->request_buffer;
-		nseg = pci_map_sg(state->pdev, scl, cmd->use_sg,
-				cmd->sc_data_direction);
-		for (i = 0; i < nseg; ++i) {
-			dma_addr = sg_dma_address(scl);
-			dma_len = sg_dma_len(scl);
-			if (dma_len > 0xffff)
-				panic("mac53c94: scatterlist element >= 64k");
-			total += dma_len;
-			st_le16(&dcmds->req_count, dma_len);
-			st_le16(&dcmds->command, dma_cmd);
-			st_le32(&dcmds->phy_addr, dma_addr);
-			dcmds->xfer_status = 0;
-			++scl;
-			++dcmds;
-		}
-	} else {
-		total = cmd->request_bufflen;
-		if (total > 0xffff)
-			panic("mac53c94: transfer size >= 64k");
-		dma_addr = pci_map_single(state->pdev, cmd->request_buffer,
-					  total, cmd->sc_data_direction);
-		state->dma_addr = dma_addr;
-		st_le16(&dcmds->req_count, total);
+	scsi_for_each_sg(cmd, scl, nseg, i) {
+		dma_addr = sg_dma_address(scl);
+		dma_len = sg_dma_len(scl);
+		if (dma_len > 0xffff)
+			panic("mac53c94: scatterlist element >= 64k");
+		total += dma_len;
+		st_le16(&dcmds->req_count, dma_len);
+		st_le16(&dcmds->command, dma_cmd);
 		st_le32(&dcmds->phy_addr, dma_addr);
 		dcmds->xfer_status = 0;
 		++dcmds;
 	}
+
 	dma_cmd += OUTPUT_LAST - OUTPUT_MORE;
 	st_le16(&dcmds[-1].command, dma_cmd);
 	st_le16(&dcmds->command, DBDMA_STOP);

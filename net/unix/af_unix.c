@@ -592,7 +592,8 @@ static struct sock * unix_create1(struct socket *sock)
 	u->dentry = NULL;
 	u->mnt	  = NULL;
 	spin_lock_init(&u->lock);
-	atomic_set(&u->inflight, sock ? 0 : -1);
+	atomic_set(&u->inflight, 0);
+	INIT_LIST_HEAD(&u->link);
 	mutex_init(&u->readlock); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);
 	unix_insert_socket(unix_sockets_unbound, sk);
@@ -1134,9 +1135,6 @@ restart:
 	/* take ten and and send info to listening sock */
 	spin_lock(&other->sk_receive_queue.lock);
 	__skb_queue_tail(&other->sk_receive_queue, skb);
-	/* Undo artificially decreased inflight after embrion
-	 * is installed to listening socket. */
-	atomic_inc(&newu->inflight);
 	spin_unlock(&other->sk_receive_queue.lock);
 	unix_state_unlock(other);
 	other->sk_data_ready(other, 0);
@@ -2048,7 +2046,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations unix_seq_ops = {
+static const struct seq_operations unix_seq_ops = {
 	.start  = unix_seq_start,
 	.next   = unix_seq_next,
 	.stop   = unix_seq_stop,

@@ -68,7 +68,7 @@ struct parsed_partitions;
 #define VBLK_SIZE_DSK3		12
 #define VBLK_SIZE_DSK4		45
 #define VBLK_SIZE_PRT3		28
-#define VBLK_SIZE_VOL5		59
+#define VBLK_SIZE_VOL5		58
 
 /* component types */
 #define COMP_STRIPE		0x01		/* Stripe-set */

@@ -11,6 +11,9 @@
 #define _PPC_BOOT_44X_H_
 
 void ibm44x_fixup_memsize(void);
+void ibm4xx_fixup_ebc_ranges(const char *ebc);
+
+void ibm44x_dbcr_reset(void);
 void ebony_init(void *mac0, void *mac1);
 
 #endif /* _PPC_BOOT_44X_H_ */

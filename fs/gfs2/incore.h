@@ -28,6 +28,14 @@ struct gfs2_sbd;
 
 typedef void (*gfs2_glop_bh_t) (struct gfs2_glock *gl, unsigned int ret);
 
+struct gfs2_log_header_host {
+	u64 lh_sequence;	/* Sequence number of this transaction */
+	u32 lh_flags;		/* GFS2_LOG_HEAD_... */
+	u32 lh_tail;		/* Block number of log tail */
+	u32 lh_blkno;
+	u32 lh_hash;
+};
+
 /*
  * Structure of operations that are associated with each
  * type of element in the log.
@@ -60,12 +68,23 @@ struct gfs2_bitmap {
 	u32 bi_len;
 };
 
+struct gfs2_rgrp_host {
+	u32 rg_flags;
+	u32 rg_free;
+	u32 rg_dinodes;
+	u64 rg_igeneration;
+};
+
 struct gfs2_rgrpd {
 	struct list_head rd_list;	/* Link with superblock */
 	struct list_head rd_list_mru;
 	struct list_head rd_recent;	/* Recently used rgrps */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
-	struct gfs2_rindex_host rd_ri;
+	u64 rd_addr;			/* grp block disk address */
+	u64 rd_data0;			/* first data location */
+	u32 rd_length;			/* length of rgrp header in fs blocks */
+	u32 rd_data;			/* num of data blocks in rgrp */
+	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	struct gfs2_rgrp_host rd_rg;
 	u64 rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
@@ -76,6 +95,8 @@ struct gfs2_rgrpd {
 	u32 rd_last_alloc_data;
 	u32 rd_last_alloc_meta;
 	struct gfs2_sbd *rd_sbd;
+	unsigned long rd_flags;
+#define GFS2_RDF_CHECK        0x0001          /* Need to check for unlinked inodes */
 };
 
 enum gfs2_state_bits {
@@ -211,10 +232,24 @@ enum {
 	GIF_SW_PAGED		= 3,
 };
 
+struct gfs2_dinode_host {
+	u64 di_size;		/* number of bytes in file */
+	u64 di_blocks;		/* number of blocks in file */
+	u64 di_goal_meta;	/* rgrp to alloc from next */
+	u64 di_goal_data;	/* data block goal */
+	u64 di_generation;	/* generation number for NFS */
+	u32 di_flags;		/* GFS2_DIF_... */
+	u16 di_height;		/* height of metadata */
+	/* These only apply to directories  */
+	u16 di_depth;		/* Number of bits in the table */
+	u32 di_entries;		/* The number of entries in the directory */
+	u64 di_eattr;		/* extended attribute block number */
+};
+
 struct gfs2_inode {
 	struct inode i_inode;
-	struct gfs2_inum_host i_num;
-
+	u64 i_no_addr;
+	u64 i_no_formal_ino;
 	unsigned long i_flags;		/* GIF_... */
 
 	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */
@@ -275,14 +310,6 @@ enum {
 	QDF_LOCKED		= 2,
 };
 
-struct gfs2_quota_lvb {
-        __be32 qb_magic;
-        u32 __pad;
-        __be64 qb_limit;      /* Hard limit of # blocks to alloc */
-        __be64 qb_warn;       /* Warn user when alloc is above this # */
-        __be64 qb_value;       /* Current # blocks allocated */
-};
-
 struct gfs2_quota_data {
 	struct list_head qd_list;
 	unsigned int qd_count;
@@ -327,7 +354,9 @@ struct gfs2_trans {
 
 	unsigned int tr_num_buf;
 	unsigned int tr_num_buf_new;
+	unsigned int tr_num_databuf_new;
 	unsigned int tr_num_buf_rm;
+	unsigned int tr_num_databuf_rm;
 	struct list_head tr_list_buf;
 
 	unsigned int tr_num_revoke;
@@ -352,6 +381,12 @@ struct gfs2_jdesc {
 	int jd_dirty;
 
 	unsigned int jd_blocks;
+};
+
+struct gfs2_statfs_change_host {
+	s64 sc_total;
+	s64 sc_free;
+	s64 sc_dinodes;
 };
 
 #define GFS2_GLOCKD_DEFAULT	1
@@ -425,6 +460,28 @@ enum {
 };
 
 #define GFS2_FSNAME_LEN		256
+
+struct gfs2_inum_host {
+	u64 no_formal_ino;
+	u64 no_addr;
+};
+
+struct gfs2_sb_host {
+	u32 sb_magic;
+	u32 sb_type;
+	u32 sb_format;
+
+	u32 sb_fs_format;
+	u32 sb_multihost_format;
+	u32 sb_bsize;
+	u32 sb_bsize_shift;
+
+	struct gfs2_inum_host sb_master_dir;
+	struct gfs2_inum_host sb_root_dir;
+
+	char sb_lockproto[GFS2_LOCKNAME_LEN];
+	char sb_locktable[GFS2_LOCKNAME_LEN];
+};
 
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
@@ -544,6 +601,7 @@ struct gfs2_sbd {
 
 	unsigned int sd_log_blks_reserved;
 	unsigned int sd_log_commited_buf;
+	unsigned int sd_log_commited_databuf;
 	unsigned int sd_log_commited_revoke;
 
 	unsigned int sd_log_num_gl;
@@ -552,7 +610,6 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
 	unsigned int sd_log_num_jdata;
-	unsigned int sd_log_num_hdrs;
 
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;

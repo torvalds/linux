@@ -176,9 +176,6 @@ struct ld_usb {
 	int			interrupt_out_busy;
 };
 
-/* prevent races between open() and disconnect() */
-static DEFINE_MUTEX(disconnect_mutex);
-
 static struct usb_driver ld_usb_driver;
 
 /**
@@ -298,35 +295,28 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 {
 	struct ld_usb *dev;
 	int subminor;
-	int retval = 0;
+	int retval;
 	struct usb_interface *interface;
 
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
-
-	mutex_lock(&disconnect_mutex);
 
 	interface = usb_find_interface(&ld_usb_driver, subminor);
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
 		     __FUNCTION__, subminor);
-		retval = -ENODEV;
-		goto unlock_disconnect_exit;
+		return -ENODEV;
 	}
 
 	dev = usb_get_intfdata(interface);
 
-	if (!dev) {
-		retval = -ENODEV;
-		goto unlock_disconnect_exit;
-	}
+	if (!dev)
+		return -ENODEV;
 
 	/* lock this device */
-	if (down_interruptible(&dev->sem)) {
-		retval = -ERESTARTSYS;
-		goto unlock_disconnect_exit;
-	}
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
 
 	/* allow opening only once */
 	if (dev->open_count) {
@@ -365,9 +355,6 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 
 unlock_exit:
 	up(&dev->sem);
-
-unlock_disconnect_exit:
-	mutex_unlock(&disconnect_mutex);
 
 	return retval;
 }
@@ -766,17 +753,15 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 	struct ld_usb *dev;
 	int minor;
 
-	mutex_lock(&disconnect_mutex);
-
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-
-	down(&dev->sem);
 
 	minor = intf->minor;
 
 	/* give back our minor */
 	usb_deregister_dev(intf, &ld_usb_class);
+
+	down(&dev->sem);
 
 	/* if the device is not opened, then we clean up right now */
 	if (!dev->open_count) {
@@ -786,8 +771,6 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 		dev->intf = NULL;
 		up(&dev->sem);
 	}
-
-	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&intf->dev, "LD USB Device #%d now disconnected\n",
 		 (minor - USB_LD_MINOR_BASE));

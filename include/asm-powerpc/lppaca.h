@@ -98,7 +98,7 @@ struct lppaca {
 	u64	saved_gpr5;		// Saved GPR5                   x30-x37
 
 	u8	reserved4;		// Reserved			x38-x38
-	u8	cpuctls_task_attrs;	// Task attributes for cpuctls  x39-x39
+	u8	donate_dedicated_cpu;	// Donate dedicated CPU cycles  x39-x39
 	u8	fpregs_in_use;		// FP regs in use               x3A-x3A
 	u8	pmcregs_in_use;		// PMC regs in use              x3B-x3B
 	volatile u32 saved_decr;	// Saved Decr Value             x3C-x3F

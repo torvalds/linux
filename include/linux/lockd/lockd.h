@@ -39,6 +39,7 @@
 struct nlm_host {
 	struct hlist_node	h_hash;		/* doubly linked list */
 	struct sockaddr_in	h_addr;		/* peer address */
+	struct sockaddr_in	h_saddr;	/* our address (optional) */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
 	char *			h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */

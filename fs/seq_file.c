@@ -177,21 +177,23 @@ EXPORT_SYMBOL(seq_read);
 
 static int traverse(struct seq_file *m, loff_t offset)
 {
-	loff_t pos = 0;
+	loff_t pos = 0, index;
 	int error = 0;
 	void *p;
 
 	m->version = 0;
-	m->index = 0;
+	index = 0;
 	m->count = m->from = 0;
-	if (!offset)
+	if (!offset) {
+		m->index = index;
 		return 0;
+	}
 	if (!m->buf) {
 		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
 		if (!m->buf)
 			return -ENOMEM;
 	}
-	p = m->op->start(m, &m->index);
+	p = m->op->start(m, &index);
 	while (p) {
 		error = PTR_ERR(p);
 		if (IS_ERR(p))
@@ -204,15 +206,17 @@ static int traverse(struct seq_file *m, loff_t offset)
 		if (pos + m->count > offset) {
 			m->from = offset - pos;
 			m->count -= m->from;
+			m->index = index;
 			break;
 		}
 		pos += m->count;
 		m->count = 0;
 		if (pos == offset) {
-			m->index++;
+			index++;
+			m->index = index;
 			break;
 		}
-		p = m->op->next(m, p, &m->index);
+		p = m->op->next(m, p, &index);
 	}
 	m->op->stop(m, p);
 	return error;
@@ -260,8 +264,8 @@ loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 				}
 			}
 	}
-	mutex_unlock(&m->lock);
 	file->f_version = m->version;
+	mutex_unlock(&m->lock);
 	return retval;
 }
 EXPORT_SYMBOL(seq_lseek);
@@ -447,3 +451,37 @@ int seq_puts(struct seq_file *m, const char *s)
 	return -1;
 }
 EXPORT_SYMBOL(seq_puts);
+
+struct list_head *seq_list_start(struct list_head *head, loff_t pos)
+{
+	struct list_head *lh;
+
+	list_for_each(lh, head)
+		if (pos-- == 0)
+			return lh;
+
+	return NULL;
+}
+
+EXPORT_SYMBOL(seq_list_start);
+
+struct list_head *seq_list_start_head(struct list_head *head, loff_t pos)
+{
+	if (!pos)
+		return head;
+
+	return seq_list_start(head, pos - 1);
+}
+
+EXPORT_SYMBOL(seq_list_start_head);
+
+struct list_head *seq_list_next(void *v, struct list_head *head, loff_t *ppos)
+{
+	struct list_head *lh;
+
+	lh = ((struct list_head *)v)->next;
+	++*ppos;
+	return lh == head ? NULL : lh;
+}
+
+EXPORT_SYMBOL(seq_list_next);

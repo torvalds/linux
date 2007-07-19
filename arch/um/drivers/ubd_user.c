@@ -43,6 +43,12 @@ int start_io_thread(unsigned long sp, int *fd_out)
 	kernel_fd = fds[0];
 	*fd_out = fds[1];
 
+	err = os_set_fd_block(*fd_out, 0);
+	if (err) {
+		printk("start_io_thread - failed to set nonblocking I/O.\n");
+		goto out_close;
+	}
+
 	pid = clone(io_thread, (void *) sp, CLONE_FILES | CLONE_VM | SIGCHLD,
 		    NULL);
 	if(pid < 0){

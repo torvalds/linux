@@ -477,7 +477,11 @@ static void send_next(struct ti_lynx *lynx, int what)
         struct lynx_send_data *d;
         struct hpsb_packet *packet;
 
+#if 0 /* has been removed from ieee1394 core */
         d = (what == hpsb_iso ? &lynx->iso_send : &lynx->async);
+#else
+	d = &lynx->async;
+#endif
         if (!list_empty(&d->pcl_queue)) {
                 PRINT(KERN_ERR, lynx->id, "trying to queue a new packet in nonempty fifo");
                 BUG();
@@ -511,9 +515,11 @@ static void send_next(struct ti_lynx *lynx, int what)
         case hpsb_async:
                 pcl.buffer[0].control |= PCL_CMD_XMT;
                 break;
+#if 0 /* has been removed from ieee1394 core */
         case hpsb_iso:
                 pcl.buffer[0].control |= PCL_CMD_XMT | PCL_ISOMODE;
                 break;
+#endif
         case hpsb_raw:
                 pcl.buffer[0].control |= PCL_CMD_UNFXMT;
                 break;
@@ -542,9 +548,11 @@ static int lynx_transmit(struct hpsb_host *host, struct hpsb_packet *packet)
         case hpsb_raw:
                 d = &lynx->async;
                 break;
+#if 0 /* has been removed from ieee1394 core */
         case hpsb_iso:
                 d = &lynx->iso_send;
                 break;
+#endif
         default:
                 PRINT(KERN_ERR, lynx->id, "invalid packet type %d",
                       packet->type);
@@ -797,7 +805,7 @@ static int lynx_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 		}
 
                 break;
-
+#if 0 /* has been removed from ieee1394 core */
         case ISO_LISTEN_CHANNEL:
                 spin_lock_irqsave(&lynx->iso_rcv.lock, flags);
 
@@ -819,7 +827,7 @@ static int lynx_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 
                 spin_unlock_irqrestore(&lynx->iso_rcv.lock, flags);
                 break;
-
+#endif
         default:
                 PRINT(KERN_ERR, lynx->id, "unknown devctl command %d", cmd);
                 retval = -1;
@@ -1009,11 +1017,11 @@ static irqreturn_t lynx_irq_handler(int irq, void *dev_id)
                                 pci_unmap_single(lynx->dev, lynx->iso_send.data_dma,
                                                  packet->data_size, PCI_DMA_TODEVICE);
                         }
-
+#if 0 /* has been removed from ieee1394 core */
                         if (!list_empty(&lynx->iso_send.queue)) {
                                 send_next(lynx, hpsb_iso);
                         }
-
+#endif
                         spin_unlock(&lynx->iso_send.queue_lock);
 
                         if (pcl.pcl_status & DMA_CHAN_STAT_PKTCMPL) {

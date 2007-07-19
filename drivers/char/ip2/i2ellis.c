@@ -43,8 +43,6 @@ static void iiEnableMailIrqIIEX(i2eBordStrPtr);
 static void iiWriteMaskII(i2eBordStrPtr, unsigned char);
 static void iiWriteMaskIIEX(i2eBordStrPtr, unsigned char);
 
-static void ii2DelayTimer(unsigned int);
-static void ii2DelayWakeup(unsigned long id);
 static void ii2Nop(void);
 
 //***************
@@ -55,8 +53,6 @@ static int ii2Safe;         // Safe I/O address for delay routine
 
 static int iiDelayed;	// Set when the iiResetDelay function is
 							// called. Cleared when ANY board is reset.
-static struct timer_list * pDelayTimer;   // Used by iiDelayTimer
-static wait_queue_head_t pDelayWait;    // Used by iiDelayTimer
 static rwlock_t Dl_spinlock;
 
 //********
@@ -86,9 +82,6 @@ static rwlock_t Dl_spinlock;
 static void
 iiEllisInit(void)
 {
-	pDelayTimer = kmalloc ( sizeof (struct timer_list), GFP_KERNEL );
-	init_timer(pDelayTimer);
-	init_waitqueue_head(&pDelayWait);
 	LOCK_INIT(&Dl_spinlock);
 }
 
@@ -106,7 +99,6 @@ iiEllisInit(void)
 static void
 iiEllisCleanup(void)
 {
-	kfree(pDelayTimer);
 }
 
 //******************************************************************************
@@ -560,19 +552,6 @@ iiInitialize(i2eBordStrPtr pB)
 	COMPLETE(pB, I2EE_GOOD);
 }
 
-//=======================================================
-// Delay Routines
-//
-// iiDelayIO
-// iiNop
-//=======================================================
-
-static void
-ii2DelayWakeup(unsigned long id)
-{
-	wake_up_interruptible ( &pDelayWait );
-}
-
 //******************************************************************************
 // Function:   ii2DelayTimer(mseconds)
 // Parameters: mseconds - number of milliseconds to delay
@@ -594,28 +573,7 @@ ii2DelayWakeup(unsigned long id)
 static void
 ii2DelayTimer(unsigned int mseconds)
 {
-	wait_queue_t wait;
-
-	init_waitqueue_entry(&wait, current);
-
-	init_timer ( pDelayTimer );
-
-	add_wait_queue(&pDelayWait, &wait);
-
-	set_current_state( TASK_INTERRUPTIBLE );
-
-	pDelayTimer->expires  = jiffies + ( mseconds + 9 ) / 10;
-	pDelayTimer->function = ii2DelayWakeup;
-	pDelayTimer->data     = 0;
-
-	add_timer ( pDelayTimer );
-
-	schedule();
-
-	set_current_state( TASK_RUNNING );
-	remove_wait_queue(&pDelayWait, &wait);
-
-	del_timer ( pDelayTimer );
+	msleep_interruptible(mseconds);
 }
 
 #if 0

@@ -165,8 +165,6 @@ toshiba_rbtx4938_irq_ioc_disable(unsigned int irq)
 	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
 }
 
-extern void __init txx9_spi_irqinit(int irc_irq);
-
 void __init arch_init_irq(void)
 {
 	extern void tx4938_irq_init(void);
@@ -184,10 +182,6 @@ void __init arch_init_irq(void)
 	toshiba_rbtx4938_irq_ioc_init();
 	/* Onboard 10M Ether: High Active */
 	TX4938_WR(TX4938_MKA(TX4938_IRC_IRDM0), 0x00000040);
-
-	if (tx4938_ccfgptr->pcfg & TX4938_PCFG_SPI_SEL) {
-		txx9_spi_irqinit(RBTX4938_IRQ_IRC_SPI);
-        }
 
 	wbflush();
 }

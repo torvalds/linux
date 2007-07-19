@@ -13,7 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev.h>
 #include <linux/delay.h>
-#include <media/tuner.h>
+#include "tuner-driver.h"
 
 #define PREFIX "TEA5767 "
 
@@ -343,6 +343,14 @@ int tea5767_autodetection(struct i2c_client *c)
 	return 0;
 }
 
+static struct tuner_operations tea5767_tuner_ops = {
+	.set_tv_freq    = set_tv_freq,
+	.set_radio_freq = set_radio_freq,
+	.has_signal     = tea5767_signal,
+	.is_stereo      = tea5767_stereo,
+	.standby        = tea5767_standby,
+};
+
 int tea5767_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
@@ -350,11 +358,7 @@ int tea5767_tuner_init(struct i2c_client *c)
 	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
 	strlcpy(c->name, "tea5767", sizeof(c->name));
 
-	t->set_tv_freq = set_tv_freq;
-	t->set_radio_freq = set_radio_freq;
-	t->has_signal = tea5767_signal;
-	t->is_stereo = tea5767_stereo;
-	t->standby = tea5767_standby;
+	memcpy(&t->ops, &tea5767_tuner_ops, sizeof(struct tuner_operations));
 
 	return (0);
 }

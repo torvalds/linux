@@ -16,6 +16,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/freezer.h>
 #include <linux/spinlock.h>
 #include <linux/hdreg.h>
 #include <linux/init.h>
@@ -80,7 +81,7 @@ static int mtd_blktrans_thread(void *arg)
 	struct request_queue *rq = tr->blkcore_priv->rq;
 
 	/* we might get involved when memory gets low, so use PF_MEMALLOC */
-	current->flags |= PF_MEMALLOC | PF_NOFREEZE;
+	current->flags |= PF_MEMALLOC;
 
 	spin_lock_irq(rq->queue_lock);
 	while (!kthread_should_stop()) {

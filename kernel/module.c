@@ -61,10 +61,8 @@ extern int module_sysfs_initialized;
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
-/* Protects module list */
-static DEFINE_SPINLOCK(modlist_lock);
-
-/* List of modules, protected by module_mutex AND modlist_lock */
+/* List of modules, protected by module_mutex or preempt_disable
+ * (add/delete uses stop_machine). */
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
@@ -488,8 +486,7 @@ static void free_modinfo_##field(struct module *mod)                  \
         mod->field = NULL;                                            \
 }                                                                     \
 static struct module_attribute modinfo_##field = {                    \
-	.attr = { .name = __stringify(field), .mode = 0444,           \
-		  .owner = THIS_MODULE },                             \
+	.attr = { .name = __stringify(field), .mode = 0444 },         \
 	.show = show_modinfo_##field,                                 \
 	.setup = setup_modinfo_##field,                               \
 	.test = modinfo_##field##_exists,                             \
@@ -761,14 +758,13 @@ static void print_unload_info(struct seq_file *m, struct module *mod)
 void __symbol_put(const char *symbol)
 {
 	struct module *owner;
-	unsigned long flags;
 	const unsigned long *crc;
 
-	spin_lock_irqsave(&modlist_lock, flags);
+	preempt_disable();
 	if (!__find_symbol(symbol, &owner, &crc, 1))
 		BUG();
 	module_put(owner);
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	preempt_enable();
 }
 EXPORT_SYMBOL(__symbol_put);
 
@@ -793,7 +789,7 @@ static ssize_t show_refcnt(struct module_attribute *mattr,
 }
 
 static struct module_attribute refcnt = {
-	.attr = { .name = "refcnt", .mode = 0444, .owner = THIS_MODULE },
+	.attr = { .name = "refcnt", .mode = 0444 },
 	.show = show_refcnt,
 };
 
@@ -851,7 +847,7 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 }
 
 static struct module_attribute initstate = {
-	.attr = { .name = "initstate", .mode = 0444, .owner = THIS_MODULE },
+	.attr = { .name = "initstate", .mode = 0444 },
 	.show = show_initstate,
 };
 
@@ -1032,7 +1028,6 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 		sattr->mattr.show = module_sect_show;
 		sattr->mattr.store = NULL;
 		sattr->mattr.attr.name = sattr->name;
-		sattr->mattr.attr.owner = mod;
 		sattr->mattr.attr.mode = S_IRUGO;
 		*(gattr++) = &(sattr++)->mattr.attr;
 	}
@@ -1090,7 +1085,6 @@ int module_add_modinfo_attrs(struct module *mod)
 		if (!attr->test ||
 		    (attr->test && attr->test(mod))) {
 			memcpy(temp_attr, attr, sizeof(*temp_attr));
-			temp_attr->attr.owner = mod;
 			error = sysfs_create_file(&mod->mkobj.kobj,&temp_attr->attr);
 			++temp_attr;
 		}
@@ -1231,14 +1225,14 @@ static void free_module(struct module *mod)
 void *__symbol_get(const char *symbol)
 {
 	struct module *owner;
-	unsigned long value, flags;
+	unsigned long value;
 	const unsigned long *crc;
 
-	spin_lock_irqsave(&modlist_lock, flags);
+	preempt_disable();
 	value = __find_symbol(symbol, &owner, &crc, 1);
 	if (value && !strong_try_module_get(owner))
 		value = 0;
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	preempt_enable();
 
 	return (void *)value;
 }
@@ -2139,7 +2133,7 @@ int lookup_module_symbol_name(unsigned long addr, char *symname)
 			sym = get_ksymbol(mod, addr, NULL, NULL);
 			if (!sym)
 				goto out;
-			strlcpy(symname, sym, KSYM_NAME_LEN + 1);
+			strlcpy(symname, sym, KSYM_NAME_LEN);
 			mutex_unlock(&module_mutex);
 			return 0;
 		}
@@ -2164,9 +2158,9 @@ int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size,
 			if (!sym)
 				goto out;
 			if (modname)
-				strlcpy(modname, mod->name, MODULE_NAME_LEN + 1);
+				strlcpy(modname, mod->name, MODULE_NAME_LEN);
 			if (name)
-				strlcpy(name, sym, KSYM_NAME_LEN + 1);
+				strlcpy(name, sym, KSYM_NAME_LEN);
 			mutex_unlock(&module_mutex);
 			return 0;
 		}
@@ -2187,8 +2181,8 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 			*value = mod->symtab[symnum].st_value;
 			*type = mod->symtab[symnum].st_info;
 			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
-				KSYM_NAME_LEN + 1);
-			strlcpy(module_name, mod->name, MODULE_NAME_LEN + 1);
+				KSYM_NAME_LEN);
+			strlcpy(module_name, mod->name, MODULE_NAME_LEN);
 			*exported = is_exported(name, mod);
 			mutex_unlock(&module_mutex);
 			return 0;
@@ -2235,26 +2229,13 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 /* Called by the /proc file system to return a list of modules. */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct list_head *i;
-	loff_t n = 0;
-
 	mutex_lock(&module_mutex);
-	list_for_each(i, &modules) {
-		if (n++ == *pos)
-			break;
-	}
-	if (i == &modules)
-		return NULL;
-	return i;
+	return seq_list_start(&modules, *pos);
 }
 
 static void *m_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct list_head *i = p;
-	(*pos)++;
-	if (i->next == &modules)
-		return NULL;
-	return i->next;
+	return seq_list_next(p, &modules, pos);
 }
 
 static void m_stop(struct seq_file *m, void *p)
@@ -2324,11 +2305,10 @@ const struct seq_operations modules_op = {
 /* Given an address, look for it in the module exception tables. */
 const struct exception_table_entry *search_module_extables(unsigned long addr)
 {
-	unsigned long flags;
 	const struct exception_table_entry *e = NULL;
 	struct module *mod;
 
-	spin_lock_irqsave(&modlist_lock, flags);
+	preempt_disable();
 	list_for_each_entry(mod, &modules, list) {
 		if (mod->num_exentries == 0)
 			continue;
@@ -2339,7 +2319,7 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
 		if (e)
 			break;
 	}
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	preempt_enable();
 
 	/* Now, if we found one, we are running inside it now, hence
            we cannot unload the module, hence no refcnt needed. */
@@ -2351,25 +2331,24 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
  */
 int is_module_address(unsigned long addr)
 {
-	unsigned long flags;
 	struct module *mod;
 
-	spin_lock_irqsave(&modlist_lock, flags);
+	preempt_disable();
 
 	list_for_each_entry(mod, &modules, list) {
 		if (within(addr, mod->module_core, mod->core_size)) {
-			spin_unlock_irqrestore(&modlist_lock, flags);
+			preempt_enable();
 			return 1;
 		}
 	}
 
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	preempt_enable();
 
 	return 0;
 }
 
 
-/* Is this a valid kernel address?  We don't grab the lock: we are oopsing. */
+/* Is this a valid kernel address? */
 struct module *__module_text_address(unsigned long addr)
 {
 	struct module *mod;
@@ -2384,11 +2363,10 @@ struct module *__module_text_address(unsigned long addr)
 struct module *module_text_address(unsigned long addr)
 {
 	struct module *mod;
-	unsigned long flags;
 
-	spin_lock_irqsave(&modlist_lock, flags);
+	preempt_disable();
 	mod = __module_text_address(addr);
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	preempt_enable();
 
 	return mod;
 }

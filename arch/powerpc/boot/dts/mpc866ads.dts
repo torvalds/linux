@@ -15,12 +15,10 @@
 	compatible = "mpc8xx";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		linux,phandle = <200>;
 
 		PowerPC,866@0 {
 			device_type = "cpu";
@@ -34,14 +32,12 @@
 			clock-frequency = <0>;
 			32-bit;
 			interrupts = <f 2>;	// decrementer interrupt
-			interrupt-parent = <ff000000>;
-			linux,phandle = <201>;
+			interrupt-parent = <&Mpc8xx_pic>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 800000>;
 	};
 
@@ -57,11 +53,9 @@
 			device_type = "mdio";
 			compatible = "fs_enet";
 			reg = <e80 8>;
-			linux,phandle = <e80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			ethernet-phy@f {
-				linux,phandle = <e800f>;
+			phy: ethernet-phy@f {
 				reg = <f>;
 				device_type = "ethernet-phy";
 			};
@@ -75,12 +69,11 @@
 			reg = <e00 188>;
 			mac-address = [ 00 00 0C 00 01 FD ];
 			interrupts = <3 1>;
-			interrupt-parent = <ff000000>;
-			phy-handle = <e800f>;
+			interrupt-parent = <&Mpc8xx_pic>;
+			phy-handle = <&Phy>;
 		};
 
-		pic@ff000000 {
-			linux,phandle = <ff000000>;
+		mpc8xx_pic: pic@ff000000 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
@@ -91,7 +84,6 @@
 		};
 
 		cpm@ff000000 {
-			linux,phandle = <ff000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			#interrupt-cells = <2>;
@@ -102,15 +94,14 @@
 			command-proc = <9c0>;
 			brg-frequency = <0>;
 			interrupts = <0 2>;	// cpm error interrupt
-			interrupt-parent = <930>;
+			interrupt-parent = <&Cpm_pic>;
 
-			pic@930 {
-				linux,phandle = <930>;
+			cpm_pic: pic@930 {
 				interrupt-controller;
 				#address-cells = <0>;
 				#interrupt-cells = <2>;
 				interrupts = <5 2 0 2>;
-				interrupt-parent = <ff000000>;
+				interrupt-parent = <&Mpc8xx_pic>;
 				reg = <930 20>;
 				built-in;
 				device_type = "cpm-pic";
@@ -128,7 +119,7 @@
 				tx-clock = <1>;
 				current-speed = <0>;
 				interrupts = <4 3>;
-				interrupt-parent = <930>;
+				interrupt-parent = <&Cpm_pic>;
 			};
 
 			smc@a90 {
@@ -142,7 +133,7 @@
 				tx-clock = <2>;
 				current-speed = <0>;
 				interrupts = <3 3>;
-				interrupt-parent = <930>;
+				interrupt-parent = <&Cpm_pic>;
 			};
 
 			scc@a00 {
@@ -153,7 +144,7 @@
 				reg = <a00 18 3c00 80>;
 				mac-address = [ 00 00 0C 00 03 FD ];
 				interrupts = <1e 3>;
-				interrupt-parent = <930>;
+				interrupt-parent = <&Cpm_pic>;
 			};
 		};
 	};

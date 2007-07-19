@@ -350,11 +350,24 @@ static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *s
 		if (hdev->features[0] & LMP_5SLOT)
 			hdev->pkt_type |= (HCI_DM5 | HCI_DH5);
 
-		if (hdev->features[1] & LMP_HV2)
-			hdev->pkt_type |= (HCI_HV2);
+		if (hdev->features[1] & LMP_HV2) {
+			hdev->pkt_type  |= (HCI_HV2);
+			hdev->esco_type |= (ESCO_HV2);
+		}
 
-		if (hdev->features[1] & LMP_HV3)
-			hdev->pkt_type |= (HCI_HV3);
+		if (hdev->features[1] & LMP_HV3) {
+			hdev->pkt_type  |= (HCI_HV3);
+			hdev->esco_type |= (ESCO_HV3);
+		}
+
+		if (hdev->features[3] & LMP_ESCO)
+			hdev->esco_type |= (ESCO_EV3);
+
+		if (hdev->features[4] & LMP_EV4)
+			hdev->esco_type |= (ESCO_EV4);
+
+		if (hdev->features[4] & LMP_EV5)
+			hdev->esco_type |= (ESCO_EV5);
 
 		BT_DBG("%s: features 0x%x 0x%x 0x%x", hdev->name,
 				lf->features[0], lf->features[1], lf->features[2]);
@@ -881,12 +894,12 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (conn) {
 			conn->sent -= count;
 
-			if (conn->type == SCO_LINK) {
-				if ((hdev->sco_cnt += count) > hdev->sco_pkts)
-					hdev->sco_cnt = hdev->sco_pkts;
-			} else {
+			if (conn->type == ACL_LINK) {
 				if ((hdev->acl_cnt += count) > hdev->acl_pkts)
 					hdev->acl_cnt = hdev->acl_pkts;
+			} else {
+				if ((hdev->sco_cnt += count) > hdev->sco_pkts)
+					hdev->sco_cnt = hdev->sco_pkts;
 			}
 		}
 	}

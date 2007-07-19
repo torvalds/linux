@@ -1,6 +1,6 @@
 config FS_ENET
        tristate "Freescale Ethernet Driver"
-       depends on NET_ETHERNET && (CPM1 || CPM2)
+       depends on CPM1 || CPM2
        select MII
 
 config FS_ENET_HAS_SCC

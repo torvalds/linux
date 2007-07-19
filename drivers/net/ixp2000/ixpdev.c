@@ -111,7 +111,7 @@ static int ixpdev_rx(struct net_device *dev, int *budget)
 		skb = dev_alloc_skb(desc->pkt_length + 2);
 		if (likely(skb != NULL)) {
 			skb_reserve(skb, 2);
-			eth_copy_and_sum(skb, buf, desc->pkt_length, 0);
+			skb_copy_to_linear_data(skb, buf, desc->pkt_length);
 			skb_put(skb, desc->pkt_length);
 			skb->protocol = eth_type_trans(skb, nds[desc->channel]);
 
@@ -222,7 +222,7 @@ static irqreturn_t ixpdev_interrupt(int irq, void *dev_id)
 static void ixpdev_poll_controller(struct net_device *dev)
 {
 	disable_irq(IRQ_IXP2000_THDA0);
-	ixpdev_interrupt(IRQ_IXP2000_THDA0, dev, NULL);
+	ixpdev_interrupt(IRQ_IXP2000_THDA0, dev);
 	enable_irq(IRQ_IXP2000_THDA0);
 }
 #endif

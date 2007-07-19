@@ -75,7 +75,8 @@
 #define V_DUART_PARITY_MODE_ADD_FIXED V_DUART_PARITY_MODE(K_DUART_PARITY_MODE_ADD_FIXED)
 #define V_DUART_PARITY_MODE_NONE      V_DUART_PARITY_MODE(K_DUART_PARITY_MODE_NONE)
 
-#define M_DUART_ERR_MODE            _SB_MAKEMASK1(5)    /* must be zero */
+#define M_DUART_TX_IRQ_SEL_TXRDY    0
+#define M_DUART_TX_IRQ_SEL_TXEMPT   _SB_MAKEMASK1(5)
 
 #define M_DUART_RX_IRQ_SEL_RXRDY    0
 #define M_DUART_RX_IRQ_SEL_RXFULL   _SB_MAKEMASK1(6)
@@ -246,10 +247,13 @@
 
 #define M_DUART_ISR_BRK_A           _SB_MAKEMASK1(2)
 #define M_DUART_ISR_IN_A            _SB_MAKEMASK1(3)
+#define M_DUART_ISR_ALL_A	    _SB_MAKEMASK(4,0)
+
 #define M_DUART_ISR_TX_B            _SB_MAKEMASK1(4)
 #define M_DUART_ISR_RX_B            _SB_MAKEMASK1(5)
 #define M_DUART_ISR_BRK_B           _SB_MAKEMASK1(6)
 #define M_DUART_ISR_IN_B            _SB_MAKEMASK1(7)
+#define M_DUART_ISR_ALL_B	    _SB_MAKEMASK(4,4)
 
 /*
  * DUART Channel A Interrupt Status Register (Table 10-17)
@@ -262,6 +266,7 @@
 #define M_DUART_ISR_RX              _SB_MAKEMASK1(1)
 #define M_DUART_ISR_BRK             _SB_MAKEMASK1(2)
 #define M_DUART_ISR_IN              _SB_MAKEMASK1(3)
+#define M_DUART_ISR_ALL		    _SB_MAKEMASK(4,0)
 #define M_DUART_ISR_RESERVED        _SB_MAKEMASK(4,4)
 
 /*

@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 
 #include "dlm_internal.h"
+#include "lock.h"
 
 #define DLM_DEBUG_BUF_LEN 4096
 static char debug_buf[DLM_DEBUG_BUF_LEN];
@@ -26,6 +27,8 @@ static struct dentry *dlm_root;
 
 struct rsb_iter {
 	int entry;
+	int locks;
+	int header;
 	struct dlm_ls *ls;
 	struct list_head *next;
 	struct dlm_rsb *rsb;
@@ -57,8 +60,8 @@ static char *print_lockmode(int mode)
 	}
 }
 
-static void print_lock(struct seq_file *s, struct dlm_lkb *lkb,
-		       struct dlm_rsb *res)
+static void print_resource_lock(struct seq_file *s, struct dlm_lkb *lkb,
+				struct dlm_rsb *res)
 {
 	seq_printf(s, "%08x %s", lkb->lkb_id, print_lockmode(lkb->lkb_grmode));
 
@@ -84,6 +87,8 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 {
 	struct dlm_lkb *lkb;
 	int i, lvblen = res->res_ls->ls_lvblen, recover_list, root_list;
+
+	lock_rsb(res);
 
 	seq_printf(s, "\nResource %p Name (len=%d) \"", res, res->res_length);
 	for (i = 0; i < res->res_length; i++) {
@@ -129,15 +134,15 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 	/* Print the locks attached to this resource */
 	seq_printf(s, "Granted Queue\n");
 	list_for_each_entry(lkb, &res->res_grantqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	seq_printf(s, "Conversion Queue\n");
 	list_for_each_entry(lkb, &res->res_convertqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	seq_printf(s, "Waiting Queue\n");
 	list_for_each_entry(lkb, &res->res_waitqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	if (list_empty(&res->res_lookup))
 		goto out;
@@ -151,6 +156,61 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 		seq_printf(s, "\n");
 	}
  out:
+	unlock_rsb(res);
+	return 0;
+}
+
+static void print_lock(struct seq_file *s, struct dlm_lkb *lkb, struct dlm_rsb *r)
+{
+	struct dlm_user_args *ua;
+	unsigned int waiting = 0;
+	uint64_t xid = 0;
+
+	if (lkb->lkb_flags & DLM_IFL_USER) {
+		ua = (struct dlm_user_args *) lkb->lkb_astparam;
+		if (ua)
+			xid = ua->xid;
+	}
+
+	if (lkb->lkb_timestamp)
+		waiting = jiffies_to_msecs(jiffies - lkb->lkb_timestamp);
+
+	/* id nodeid remid pid xid exflags flags sts grmode rqmode time_ms
+	   r_nodeid r_len r_name */
+
+	seq_printf(s, "%x %d %x %u %llu %x %x %d %d %d %u %u %d \"%s\"\n",
+		   lkb->lkb_id,
+		   lkb->lkb_nodeid,
+		   lkb->lkb_remid,
+		   lkb->lkb_ownpid,
+		   (unsigned long long)xid,
+		   lkb->lkb_exflags,
+		   lkb->lkb_flags,
+		   lkb->lkb_status,
+		   lkb->lkb_grmode,
+		   lkb->lkb_rqmode,
+		   waiting,
+		   r->res_nodeid,
+		   r->res_length,
+		   r->res_name);
+}
+
+static int print_locks(struct dlm_rsb *r, struct seq_file *s)
+{
+	struct dlm_lkb *lkb;
+
+	lock_rsb(r);
+
+	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue)
+		print_lock(s, lkb, r);
+
+	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue)
+		print_lock(s, lkb, r);
+
+	list_for_each_entry(lkb, &r->res_waitqueue, lkb_statequeue)
+		print_lock(s, lkb, r);
+
+	unlock_rsb(r);
 	return 0;
 }
 
@@ -166,6 +226,9 @@ static int rsb_iter_next(struct rsb_iter *ri)
 			read_lock(&ls->ls_rsbtbl[i].lock);
 			if (!list_empty(&ls->ls_rsbtbl[i].list)) {
 				ri->next = ls->ls_rsbtbl[i].list.next;
+				ri->rsb = list_entry(ri->next, struct dlm_rsb,
+							res_hashchain);
+				dlm_hold_rsb(ri->rsb);
 				read_unlock(&ls->ls_rsbtbl[i].lock);
 				break;
 			}
@@ -176,6 +239,7 @@ static int rsb_iter_next(struct rsb_iter *ri)
 		if (ri->entry >= ls->ls_rsbtbl_size)
 			return 1;
 	} else {
+		struct dlm_rsb *old = ri->rsb;
 		i = ri->entry;
 		read_lock(&ls->ls_rsbtbl[i].lock);
 		ri->next = ri->next->next;
@@ -184,11 +248,14 @@ static int rsb_iter_next(struct rsb_iter *ri)
 			ri->next = NULL;
 			ri->entry++;
 			read_unlock(&ls->ls_rsbtbl[i].lock);
+			dlm_put_rsb(old);
 			goto top;
                 }
+		ri->rsb = list_entry(ri->next, struct dlm_rsb, res_hashchain);
+		dlm_hold_rsb(ri->rsb);
 		read_unlock(&ls->ls_rsbtbl[i].lock);
+		dlm_put_rsb(old);
 	}
-	ri->rsb = list_entry(ri->next, struct dlm_rsb, res_hashchain);
 
 	return 0;
 }
@@ -202,7 +269,7 @@ static struct rsb_iter *rsb_iter_init(struct dlm_ls *ls)
 {
 	struct rsb_iter *ri;
 
-	ri = kmalloc(sizeof *ri, GFP_KERNEL);
+	ri = kzalloc(sizeof *ri, GFP_KERNEL);
 	if (!ri)
 		return NULL;
 
@@ -260,7 +327,17 @@ static int rsb_seq_show(struct seq_file *file, void *iter_ptr)
 {
 	struct rsb_iter *ri = iter_ptr;
 
-	print_resource(ri->rsb, file);
+	if (ri->locks) {
+		if (ri->header) {
+			seq_printf(file, "id nodeid remid pid xid exflags flags "
+					 "sts grmode rqmode time_ms r_nodeid "
+					 "r_len r_name\n");
+			ri->header = 0;
+		}
+		print_locks(ri->rsb, file);
+	} else {
+		print_resource(ri->rsb, file);
+	}
 
 	return 0;
 }
@@ -290,6 +367,83 @@ static int rsb_open(struct inode *inode, struct file *file)
 static const struct file_operations rsb_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rsb_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release
+};
+
+/*
+ * Dump state in compact per-lock listing
+ */
+
+static struct rsb_iter *locks_iter_init(struct dlm_ls *ls, loff_t *pos)
+{
+	struct rsb_iter *ri;
+
+	ri = kzalloc(sizeof *ri, GFP_KERNEL);
+	if (!ri)
+		return NULL;
+
+	ri->ls = ls;
+	ri->entry = 0;
+	ri->next = NULL;
+	ri->locks = 1;
+
+	if (*pos == 0)
+		ri->header = 1;
+
+	if (rsb_iter_next(ri)) {
+		rsb_iter_free(ri);
+		return NULL;
+	}
+
+	return ri;
+}
+
+static void *locks_seq_start(struct seq_file *file, loff_t *pos)
+{
+	struct rsb_iter *ri;
+	loff_t n = *pos;
+
+	ri = locks_iter_init(file->private, pos);
+	if (!ri)
+		return NULL;
+
+	while (n--) {
+		if (rsb_iter_next(ri)) {
+			rsb_iter_free(ri);
+			return NULL;
+		}
+	}
+
+	return ri;
+}
+
+static struct seq_operations locks_seq_ops = {
+	.start = locks_seq_start,
+	.next  = rsb_seq_next,
+	.stop  = rsb_seq_stop,
+	.show  = rsb_seq_show,
+};
+
+static int locks_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq;
+	int ret;
+
+	ret = seq_open(file, &locks_seq_ops);
+	if (ret)
+		return ret;
+
+	seq = file->private_data;
+	seq->private = inode->i_private;
+
+	return 0;
+}
+
+static const struct file_operations locks_fops = {
+	.owner   = THIS_MODULE,
+	.open    = locks_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release
@@ -362,6 +516,20 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 		return -ENOMEM;
 	}
 
+	memset(name, 0, sizeof(name));
+	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_locks", ls->ls_name);
+
+	ls->ls_debug_locks_dentry = debugfs_create_file(name,
+							S_IFREG | S_IRUGO,
+							dlm_root,
+							ls,
+							&locks_fops);
+	if (!ls->ls_debug_locks_dentry) {
+		debugfs_remove(ls->ls_debug_waiters_dentry);
+		debugfs_remove(ls->ls_debug_rsb_dentry);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -371,6 +539,8 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 		debugfs_remove(ls->ls_debug_rsb_dentry);
 	if (ls->ls_debug_waiters_dentry)
 		debugfs_remove(ls->ls_debug_waiters_dentry);
+	if (ls->ls_debug_locks_dentry)
+		debugfs_remove(ls->ls_debug_locks_dentry);
 }
 
 int dlm_register_debugfs(void)

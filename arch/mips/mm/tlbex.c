@@ -893,6 +893,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_4KSC:
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_LOONGSON2:
 		tlbw(p);
 		break;
 
@@ -1276,7 +1277,8 @@ static void __init build_r4000_tlb_refill_handler(void)
 	 * need three, with the second nop'ed and the third being
 	 * unused.
 	 */
-#ifdef CONFIG_32BIT
+	/* Loongson2 ebase is different than r4k, we have more space */
+#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
 	if ((p - tlb_handler) > 64)
 		panic("TLB refill handler space exceeded");
 #else
@@ -1289,7 +1291,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 	/*
 	 * Now fold the handler in the TLB refill handler space.
 	 */
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
 	f = final_handler;
 	/* Simplest case, just copy the handler. */
 	copy_handler(relocs, labels, tlb_handler, p, f);
@@ -1336,7 +1338,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 		final_len);
 
 	f = final_handler;
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && !defined(CONFIG_CPU_LOONGSON2)
 	if (final_len > 32)
 		final_len = 64;
 	else

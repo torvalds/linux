@@ -79,8 +79,6 @@ extern void iSeries_pci_final_fixup(void);
 static void iSeries_pci_final_fixup(void) { }
 #endif
 
-extern unsigned long iSeries_recal_tb;
-extern unsigned long iSeries_recal_titan;
 
 struct MemoryBlock {
 	unsigned long absStart;
@@ -292,8 +290,8 @@ static void __init iSeries_init_early(void)
 {
 	DBG(" -> iSeries_init_early()\n");
 
-	iSeries_recal_tb = get_tb();
-	iSeries_recal_titan = HvCallXm_loadTod();
+	/* Snapshot the timebase, for use in later recalibration */
+	iSeries_time_init_early();
 
 	/*
 	 * Initialize the DMA/TCE management

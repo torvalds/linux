@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
+#include <linux/sysctl.h>
 
 struct ipv4_devconf
 {

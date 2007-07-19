@@ -1071,8 +1071,6 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 	struct r3964_client_info *pClient;
 	struct r3964_message *pMsg;
 	struct r3964_client_message theMsg;
-	DECLARE_WAITQUEUE(wait, current);
-
 	int count;
 
 	TRACE_L("read()");
@@ -1086,16 +1084,8 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 				return -EAGAIN;
 			}
 			/* block until there is a message: */
-			add_wait_queue(&pInfo->read_wait, &wait);
-repeat:
-			__set_current_state(TASK_INTERRUPTIBLE);
-			pMsg = remove_msg(pInfo, pClient);
-			if (!pMsg && !signal_pending(current)) {
-				schedule();
-				goto repeat;
-			}
-			__set_current_state(TASK_RUNNING);
-			remove_wait_queue(&pInfo->read_wait, &wait);
+			wait_event_interruptible(pInfo->read_wait,
+					(pMsg = remove_msg(pInfo, pClient)));
 		}
 
 		/* If we still haven't got a message, we must have been signalled */

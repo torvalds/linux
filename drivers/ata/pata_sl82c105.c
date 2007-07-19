@@ -270,7 +270,6 @@ static struct ata_port_operations sl82c105_port_ops = {
 static int sl82c105_bridge_revision(struct pci_dev *pdev)
 {
 	struct pci_dev *bridge;
-	u8 rev;
 
 	/*
 	 * The bridge should be part of the same device, but function 0.
@@ -292,10 +291,8 @@ static int sl82c105_bridge_revision(struct pci_dev *pdev)
 	/*
 	 * We need to find function 0's revision, not function 1
 	 */
-	pci_read_config_byte(bridge, PCI_REVISION_ID, &rev);
-
 	pci_dev_put(bridge);
-	return rev;
+	return bridge->revision;
 }
 
 
@@ -303,14 +300,14 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 {
 	static const struct ata_port_info info_dma = {
 		.sht = &sl82c105_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &sl82c105_port_ops
 	};
 	static const struct ata_port_info info_early = {
 		.sht = &sl82c105_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &sl82c105_port_ops
 	};

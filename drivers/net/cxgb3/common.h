@@ -101,6 +101,7 @@ enum {
 	TCB_SIZE = 128,		/* TCB size */
 	NMTUS = 16,		/* size of MTU table */
 	NCCTRL_WIN = 32,	/* # of congestion control windows */
+	PROTO_SRAM_LINES = 128, /* size of TP sram */
 };
 
 #define MAX_RX_COALESCING_LEN 16224U
@@ -122,6 +123,30 @@ enum {				/* adapter interrupt-maintained statistics */
 
 	IRQ_NUM_STATS		/* keep last */
 };
+
+enum {
+	TP_VERSION_MAJOR	= 1,
+	TP_VERSION_MINOR	= 0,
+	TP_VERSION_MICRO	= 44
+};
+
+#define S_TP_VERSION_MAJOR		16
+#define M_TP_VERSION_MAJOR		0xFF
+#define V_TP_VERSION_MAJOR(x)		((x) << S_TP_VERSION_MAJOR)
+#define G_TP_VERSION_MAJOR(x)		\
+	    (((x) >> S_TP_VERSION_MAJOR) & M_TP_VERSION_MAJOR)
+
+#define S_TP_VERSION_MINOR		8
+#define M_TP_VERSION_MINOR		0xFF
+#define V_TP_VERSION_MINOR(x)		((x) << S_TP_VERSION_MINOR)
+#define G_TP_VERSION_MINOR(x)		\
+	    (((x) >> S_TP_VERSION_MINOR) & M_TP_VERSION_MINOR)
+
+#define S_TP_VERSION_MICRO		0
+#define M_TP_VERSION_MICRO		0xFF
+#define V_TP_VERSION_MICRO(x)		((x) << S_TP_VERSION_MICRO)
+#define G_TP_VERSION_MICRO(x)		\
+	    (((x) >> S_TP_VERSION_MICRO) & M_TP_VERSION_MICRO)
 
 enum {
 	SGE_QSETS = 8,		/* # of SGE Tx/Rx/RspQ sets */
@@ -654,6 +679,9 @@ const struct adapter_info *t3_get_adapter_info(unsigned int board_id);
 int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data);
 int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data);
 int t3_seeprom_wp(struct adapter *adapter, int enable);
+int t3_check_tpsram_version(struct adapter *adapter);
+int t3_check_tpsram(struct adapter *adapter, u8 *tp_ram, unsigned int size);
+int t3_set_proto_sram(struct adapter *adap, u8 *data);
 int t3_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t3_load_fw(struct adapter *adapter, const u8 * fw_data, unsigned int size);

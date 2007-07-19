@@ -562,7 +562,7 @@ static int ircomm_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ircomm_seq_ops = {
+static const struct seq_operations ircomm_seq_ops = {
 	.start  = ircomm_seq_start,
 	.next   = ircomm_seq_next,
 	.stop   = ircomm_seq_stop,

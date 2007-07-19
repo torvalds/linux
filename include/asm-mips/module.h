@@ -112,6 +112,8 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_PROC_FAMILY "RM9000 "
 #elif defined CONFIG_CPU_SB1
 #define MODULE_PROC_FAMILY "SB1 "
+#elif defined CONFIG_CPU_LOONGSON2
+#define MODULE_PROC_FAMILY "LOONGSON2 "
 #else
 #error MODULE_PROC_FAMILY undefined for your processor configuration
 #endif
@@ -122,6 +124,13 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_KERNEL_TYPE "64BIT "
 #endif
 
-#define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY MODULE_KERNEL_TYPE
+#ifdef CONFIG_MIPS_MT_SMTC
+#define MODULE_KERNEL_SMTC "MT_SMTC "
+#else
+#define MODULE_KERNEL_SMTC ""
+#endif
+
+#define MODULE_ARCH_VERMAGIC \
+	MODULE_PROC_FAMILY MODULE_KERNEL_TYPE MODULE_KERNEL_SMTC
 
 #endif /* _ASM_MODULE_H */

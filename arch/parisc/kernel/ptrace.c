@@ -87,10 +87,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	switch (request) {
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
 	case PTRACE_PEEKDATA: {
-		int copied;
-
 #ifdef CONFIG_64BIT
 		if (__is_compat_task(child)) {
+			int copied;
 			unsigned int tmp;
 
 			addr &= 0xffffffffL;
@@ -105,15 +104,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		else
 #endif
-		{
-			unsigned long tmp;
-
-			copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-			ret = -EIO;
-			if (copied != sizeof(tmp))
-				goto out_tsk;
-			ret = put_user(tmp,(unsigned long *) data);
-		}
+			ret = generic_ptrace_peekdata(child, addr, data);
 		goto out_tsk;
 	}
 

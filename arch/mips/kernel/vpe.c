@@ -1436,10 +1436,6 @@ static int __init vpe_module_init(void)
 			write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() & ~VPECONTROL_TE);
 
 			if (i != 0) {
-				write_vpe_c0_status((read_c0_status() &
-						     ~(ST0_IM | ST0_IE | ST0_KSU))
-						    | ST0_CU0);
-
 				/*
 				 * Set config to be the same as vpe0,
 				 * particularly kseg0 coherency alg

@@ -25,14 +25,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("iptables REDIRECT target module");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* FIXME: Take multiple ranges --RR */
-static int
+static bool
 redirect_check(const char *tablename,
 	       const void *e,
 	       const struct xt_target *target,
@@ -42,14 +36,14 @@ redirect_check(const char *tablename,
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
-		DEBUGP("redirect_check: bad MAP_IPS.\n");
-		return 0;
+		pr_debug("redirect_check: bad MAP_IPS.\n");
+		return false;
 	}
 	if (mr->rangesize != 1) {
-		DEBUGP("redirect_check: bad rangesize %u.\n", mr->rangesize);
-		return 0;
+		pr_debug("redirect_check: bad rangesize %u.\n", mr->rangesize);
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static unsigned int
@@ -101,7 +95,7 @@ redirect_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target redirect_reg = {
+static struct xt_target redirect_reg __read_mostly = {
 	.name		= "REDIRECT",
 	.family		= AF_INET,
 	.target		= redirect_target,

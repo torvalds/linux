@@ -211,6 +211,7 @@ typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
 extern int acpiphp_enable_slot (struct acpiphp_slot *slot);
 extern int acpiphp_disable_slot (struct acpiphp_slot *slot);
+extern int acpiphp_eject_slot (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_power_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);

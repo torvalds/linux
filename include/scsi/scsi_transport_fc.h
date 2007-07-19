@@ -1,4 +1,4 @@
-/* 
+/*
  *  FiberChannel transport specific attributes exported to sysfs.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
@@ -19,7 +19,7 @@
  *
  *  ========
  *
- *  Copyright (C) 2004-2005   James Smart, Emulex Corporation
+ *  Copyright (C) 2004-2007   James Smart, Emulex Corporation
  *    Rewrite for host, target, device, and remote port attributes,
  *    statistics, and service functions...
  *
@@ -62,7 +62,9 @@ enum fc_port_type {
 	FC_PORTTYPE_NLPORT,		/* (Public) Loop w/ FLPort */
 	FC_PORTTYPE_LPORT,		/* (Private) Loop w/o FLPort */
 	FC_PORTTYPE_PTP,		/* Point to Point w/ another NPort */
+	FC_PORTTYPE_NPIV,		/* VPORT based on NPIV */
 };
+
 
 /*
  * fc_port_state: If you alter this, you also need to alter scsi_transport_fc.c
@@ -83,7 +85,26 @@ enum fc_port_state {
 };
 
 
-/* 
+/*
+ * fc_vport_state: If you alter this, you also need to alter
+ * scsi_transport_fc.c (for the ascii descriptions).
+ */
+enum fc_vport_state {
+	FC_VPORT_UNKNOWN,
+	FC_VPORT_ACTIVE,
+	FC_VPORT_DISABLED,
+	FC_VPORT_LINKDOWN,
+	FC_VPORT_INITIALIZING,
+	FC_VPORT_NO_FABRIC_SUPP,
+	FC_VPORT_NO_FABRIC_RSCS,
+	FC_VPORT_FABRIC_LOGOUT,
+	FC_VPORT_FABRIC_REJ_WWN,
+	FC_VPORT_FAILED,
+};
+
+
+
+/*
  * FC Classes of Service
  * Note: values are not enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_classes). If you alter this list,
@@ -96,7 +117,7 @@ enum fc_port_state {
 #define FC_COS_CLASS4			0x10
 #define FC_COS_CLASS6			0x40
 
-/* 
+/*
  * FC Port Speeds
  * Note: values are not enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_speeds). If you alter this list,
@@ -124,16 +145,114 @@ enum fc_tgtid_binding_type  {
 };
 
 /*
- * FC Remote Port Roles
+ * FC Port Roles
  * Note: values are not enumerated, as they can be "or'd" together
  * for reporting (e.g. report roles). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
-#define FC_RPORT_ROLE_UNKNOWN			0x00
-#define FC_RPORT_ROLE_FCP_TARGET		0x01
-#define FC_RPORT_ROLE_FCP_INITIATOR		0x02
-#define FC_RPORT_ROLE_IP_PORT			0x04
+#define FC_PORT_ROLE_UNKNOWN			0x00
+#define FC_PORT_ROLE_FCP_TARGET			0x01
+#define FC_PORT_ROLE_FCP_INITIATOR		0x02
+#define FC_PORT_ROLE_IP_PORT			0x04
 
+/* The following are for compatibility */
+#define FC_RPORT_ROLE_UNKNOWN			FC_PORT_ROLE_UNKNOWN
+#define FC_RPORT_ROLE_FCP_TARGET		FC_PORT_ROLE_FCP_TARGET
+#define FC_RPORT_ROLE_FCP_INITIATOR		FC_PORT_ROLE_FCP_INITIATOR
+#define FC_RPORT_ROLE_IP_PORT			FC_PORT_ROLE_IP_PORT
+
+
+/* Macro for use in defining Virtual Port attributes */
+#define FC_VPORT_ATTR(_name,_mode,_show,_store)				\
+struct class_device_attribute class_device_attr_vport_##_name = 	\
+	__ATTR(_name,_mode,_show,_store)
+
+
+/*
+ * FC Virtual Port Attributes
+ *
+ * This structure exists for each FC port is a virtual FC port. Virtual
+ * ports share the physical link with the Physical port. Each virtual
+ * ports has a unique presense on the SAN, and may be instantiated via
+ * NPIV, Virtual Fabrics, or via additional ALPAs. As the vport is a
+ * unique presense, each vport has it's own view of the fabric,
+ * authentication priviledge, and priorities.
+ *
+ * A virtual port may support 1 or more FC4 roles. Typically it is a
+ * FCP Initiator. It could be a FCP Target, or exist sole for an IP over FC
+ * roles. FC port attributes for the vport will be reported on any
+ * fc_host class object allocated for an FCP Initiator.
+ *
+ * --
+ *
+ * Fixed attributes are not expected to change. The driver is
+ * expected to set these values after receiving the fc_vport structure
+ * via the vport_create() call from the transport.
+ * The transport fully manages all get functions w/o driver interaction.
+ *
+ * Dynamic attributes are expected to change. The driver participates
+ * in all get/set operations via functions provided by the driver.
+ *
+ * Private attributes are transport-managed values. They are fully
+ * managed by the transport w/o driver interaction.
+ */
+
+#define FC_VPORT_SYMBOLIC_NAMELEN		64
+struct fc_vport {
+	/* Fixed Attributes */
+
+	/* Dynamic Attributes */
+
+	/* Private (Transport-managed) Attributes */
+	enum fc_vport_state vport_state;
+	enum fc_vport_state vport_last_state;
+	u64 node_name;
+	u64 port_name;
+	u32 roles;
+	u32 vport_id;		/* Admin Identifier for the vport */
+	enum fc_port_type vport_type;
+	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
+
+	/* exported data */
+	void *dd_data;			/* Used for driver-specific storage */
+
+	/* internal data */
+	struct Scsi_Host *shost;	/* Physical Port Parent */
+	unsigned int channel;
+	u32 number;
+	u8 flags;
+	struct list_head peers;
+	struct device dev;
+	struct work_struct vport_delete_work;
+} __attribute__((aligned(sizeof(unsigned long))));
+
+/* bit field values for struct fc_vport "flags" field: */
+#define FC_VPORT_CREATING		0x01
+#define FC_VPORT_DELETING		0x02
+#define FC_VPORT_DELETED		0x04
+#define FC_VPORT_DEL			0x06	/* Any DELETE state */
+
+#define	dev_to_vport(d)				\
+	container_of(d, struct fc_vport, dev)
+#define transport_class_to_vport(classdev)	\
+	dev_to_vport(classdev->dev)
+#define vport_to_shost(v)			\
+	(v->shost)
+#define vport_to_shost_channel(v)		\
+	(v->channel)
+#define vport_to_parent(v)			\
+	(v->dev.parent)
+
+
+/* Error return codes for vport_create() callback */
+#define VPCERR_UNSUPPORTED		-ENOSYS		/* no driver/adapter
+							   support */
+#define VPCERR_BAD_WWN			-ENOTUNIQ	/* driver validation
+							   of WWNs failed */
+#define VPCERR_NO_FABRIC_SUPP		-EOPNOTSUPP	/* Fabric connection
+							   is loop or the
+							   Fabric Port does
+							   not support NPIV */
 
 /*
  * fc_rport_identifiers: This set of data contains all elements
@@ -148,6 +267,7 @@ struct fc_rport_identifiers {
 	u32 port_id;
 	u32 roles;
 };
+
 
 /* Macro for use in defining Remote Port attributes */
 #define FC_RPORT_ATTR(_name,_mode,_show,_store)				\
@@ -278,7 +398,7 @@ struct fc_host_statistics {
 	u64 prim_seq_protocol_err_count;
 	u64 invalid_tx_word_count;
 	u64 invalid_crc_count;
-	
+
 	/* fc4 statistics  (only FCP supported currently) */
 	u64 fcp_input_requests;
 	u64 fcp_output_requests;
@@ -343,6 +463,7 @@ struct fc_host_attrs {
 	u8  supported_fc4s[FC_FC4_LIST_SIZE];
 	u32 supported_speeds;
 	u32 maxframe_size;
+	u16 max_npiv_vports;
 	char serial_number[FC_SERIAL_NUMBER_SIZE];
 
 	/* Dynamic Attributes */
@@ -361,8 +482,11 @@ struct fc_host_attrs {
 	/* internal data */
 	struct list_head rports;
 	struct list_head rport_bindings;
+	struct list_head vports;
 	u32 next_rport_number;
 	u32 next_target_id;
+	u32 next_vport_number;
+	u16 npiv_vports_inuse;
 
 	/* work queues for rport state manipulation */
 	char work_q_name[KOBJ_NAME_LEN];
@@ -388,6 +512,8 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->supported_speeds)
 #define fc_host_maxframe_size(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->maxframe_size)
+#define fc_host_max_npiv_vports(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->max_npiv_vports)
 #define fc_host_serial_number(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->serial_number)
 #define fc_host_port_id(x)	\
@@ -412,10 +538,16 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->rports)
 #define fc_host_rport_bindings(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->rport_bindings)
+#define fc_host_vports(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->vports)
 #define fc_host_next_rport_number(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->next_rport_number)
 #define fc_host_next_target_id(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->next_target_id)
+#define fc_host_next_vport_number(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->next_vport_number)
+#define fc_host_npiv_vports_inuse(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->npiv_vports_inuse)
 #define fc_host_work_q_name(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->work_q_name)
 #define fc_host_work_q(x) \
@@ -452,14 +584,20 @@ struct fc_function_template {
 	void    (*dev_loss_tmo_callbk)(struct fc_rport *);
 	void	(*terminate_rport_io)(struct fc_rport *);
 
+	void	(*set_vport_symbolic_name)(struct fc_vport *);
+	int  	(*vport_create)(struct fc_vport *, bool);
+	int	(*vport_disable)(struct fc_vport *, bool);
+	int  	(*vport_delete)(struct fc_vport *);
+
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
+	u32	 			dd_fcvport_size;
 
-	/* 
+	/*
 	 * The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
 	 * is not set, the attribute will be private to the transport
-	 * class 
+	 * class
 	 */
 
 	/* remote port fixed attributes */
@@ -512,7 +650,7 @@ fc_remote_port_chkready(struct fc_rport *rport)
 
 	switch (rport->port_state) {
 	case FC_PORTSTATE_ONLINE:
-		if (rport->roles & FC_RPORT_ROLE_FCP_TARGET)
+		if (rport->roles & FC_PORT_ROLE_FCP_TARGET)
 			result = 0;
 		else if (rport->flags & FC_RPORT_DEVLOSS_PENDING)
 			result = DID_IMM_RETRY << 16;
@@ -549,6 +687,27 @@ static inline void u64_to_wwn(u64 inm, u8 *wwn)
 	wwn[7] = inm & 0xff;
 }
 
+/**
+ * fc_vport_set_state() - called to set a vport's state. Saves the old state,
+ *   excepting the transitory states of initializing and sending the ELS
+ *   traffic to instantiate the vport on the link.
+ *
+ * Assumes the driver has surrounded this with the proper locking to ensure
+ * a coherent state change.
+ *
+ * @vport:	virtual port whose state is changing
+ * @new_state:  new state
+ **/
+static inline void
+fc_vport_set_state(struct fc_vport *vport, enum fc_vport_state new_state)
+{
+	if ((new_state != FC_VPORT_UNKNOWN) &&
+	    (new_state != FC_VPORT_INITIALIZING))
+		vport->vport_last_state = vport->vport_state;
+	vport->vport_state = new_state;
+}
+
+
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);
 void fc_release_transport(struct scsi_transport_template *);
@@ -567,5 +726,6 @@ void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	 *   be sure to read the Vendor Type and ID formatting requirements
 	 *   specified in scsi_netlink.h
 	 */
+int fc_vport_terminate(struct fc_vport *vport);
 
 #endif /* SCSI_TRANSPORT_FC_H */

@@ -573,7 +573,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
  *	return error if it failed to found.
  */
 
-static int __init sis900_mii_probe(struct net_device * net_dev)
+static int __devinit sis900_mii_probe(struct net_device * net_dev)
 {
 	struct sis900_private * sis_priv = net_dev->priv;
 	const char *dev_name = pci_name(sis_priv->pci_dev);

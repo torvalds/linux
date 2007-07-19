@@ -172,7 +172,17 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		    irqreturn_t action_ret)
 {
 	if (unlikely(action_ret != IRQ_HANDLED)) {
-		desc->irqs_unhandled++;
+		/*
+		 * If we are seeing only the odd spurious IRQ caused by
+		 * bus asynchronicity then don't eventually trigger an error,
+		 * otherwise the couter becomes a doomsday timer for otherwise
+		 * working systems
+		 */
+		if (jiffies - desc->last_unhandled > HZ/10)
+			desc->irqs_unhandled = 1;
+		else
+			desc->irqs_unhandled++;
+		desc->last_unhandled = jiffies;
 		if (unlikely(action_ret != IRQ_NONE))
 			report_bad_irq(irq, desc, action_ret);
 	}

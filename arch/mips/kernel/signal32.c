@@ -36,68 +36,6 @@
 
 #include "signal-common.h"
 
-#define SI_PAD_SIZE32   ((SI_MAX_SIZE/sizeof(int)) - 3)
-
-typedef struct compat_siginfo {
-	int si_signo;
-	int si_code;
-	int si_errno;
-
-	union {
-		int _pad[SI_PAD_SIZE32];
-
-		/* kill() */
-		struct {
-			compat_pid_t _pid;	/* sender's pid */
-			compat_uid_t _uid;	/* sender's uid */
-		} _kill;
-
-		/* SIGCHLD */
-		struct {
-			compat_pid_t _pid;	/* which child */
-			compat_uid_t _uid;	/* sender's uid */
-			int _status;		/* exit code */
-			compat_clock_t _utime;
-			compat_clock_t _stime;
-		} _sigchld;
-
-		/* IRIX SIGCHLD */
-		struct {
-			compat_pid_t _pid;	/* which child */
-			compat_clock_t _utime;
-			int _status;		/* exit code */
-			compat_clock_t _stime;
-		} _irix_sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			s32 _addr; /* faulting insn/memory ref. */
-		} _sigfault;
-
-		/* SIGPOLL, SIGXFSZ (To do ...)  */
-		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
-		} _sigpoll;
-
-		/* POSIX.1b timers */
-		struct {
-			timer_t _tid;		/* timer id */
-			int _overrun;		/* overrun count */
-			compat_sigval_t _sigval;/* same as below */
-			int _sys_private;       /* not to be passed to user */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			compat_pid_t _pid;	/* sender's pid */
-			compat_uid_t _uid;	/* sender's uid */
-			compat_sigval_t _sigval;
-		} _rt;
-
-	} _sifields;
-} compat_siginfo_t;
-
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */

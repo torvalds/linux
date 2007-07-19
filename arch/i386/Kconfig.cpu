@@ -344,8 +344,8 @@ config X86_CMOV
 	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7)
 	default y
 
-config X86_MINIMUM_CPU_MODEL
+config X86_MINIMUM_CPU_FAMILY
 	int
-	default "4" if X86_XADD || X86_CMPXCHG || X86_BSWAP
-	default "0"
+	default "4" if X86_XADD || X86_CMPXCHG || X86_BSWAP || X86_WP_WORKS_OK
+	default "3"
 

@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21.3
+# Linux kernel version: 2.6.21.5
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -114,17 +114,26 @@ CONFIG_PREEMPT_VOLUNTARY=y
 # CONFIG_BF534 is not set
 # CONFIG_BF536 is not set
 CONFIG_BF537=y
+# CONFIG_BF542 is not set
+# CONFIG_BF544 is not set
+# CONFIG_BF548 is not set
+# CONFIG_BF549 is not set
 # CONFIG_BF561 is not set
+# CONFIG_BF_REV_0_0 is not set
 CONFIG_BF_REV_0_2=y
 # CONFIG_BF_REV_0_3 is not set
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
+# CONFIG_BF_REV_ANY is not set
+# CONFIG_BF_REV_NONE is not set
+CONFIG_BF53x=y
 CONFIG_BFIN_SINGLE_CORE=y
 # CONFIG_BFIN533_EZKIT is not set
 # CONFIG_BFIN533_STAMP is not set
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_BFIN533_BLUETECHNIX_CM is not set
 # CONFIG_BFIN537_BLUETECHNIX_CM is not set
+# CONFIG_BFIN548_EZKIT is not set
 # CONFIG_BFIN561_BLUETECHNIX_CM is not set
 # CONFIG_BFIN561_EZKIT is not set
 # CONFIG_BFIN561_TEPLA is not set
@@ -598,6 +607,7 @@ CONFIG_BFIN_MAC=y
 CONFIG_BFIN_TX_DESC_NUM=100
 CONFIG_BFIN_RX_DESC_NUM=100
 CONFIG_BFIN_MAC_RMII=y
+# CONFIG_SMSC911X is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -746,7 +756,6 @@ CONFIG_CAN_BLACKFIN=m
 # CONFIG_WATCHDOG is not set
 CONFIG_HW_RANDOM=y
 # CONFIG_GEN_RTC is not set
-CONFIG_BLACKFIN_DPMC=y
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 # CONFIG_RAW_DRIVER is not set

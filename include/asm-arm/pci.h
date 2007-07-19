@@ -26,11 +26,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 #define PCI_DMA_BUS_IS_PHYS     (0)
 
 /*
- * We don't support DAC DMA cycles.
- */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
-
-/*
  * Whether pci_unmap_{single,page} is a nop depends upon the
  * configuration.
  */
@@ -74,10 +69,6 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 		root = &iomem_resource;
 
 	return root;
-}
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
 }
 
 #endif /* __KERNEL__ */

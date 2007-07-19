@@ -55,6 +55,8 @@ static int do_configure(sclp_cmdw_t cmd)
 	struct chp_cfg_data *data;
 	int rc;
 
+	if (!SCLP_HAS_CHP_RECONFIG)
+		return -EOPNOTSUPP;
 	/* Prepare sccb. */
 	data = (struct chp_cfg_data *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!data)
@@ -152,6 +154,8 @@ int sclp_chp_read_info(struct sclp_chp_info *info)
 	struct chp_info_data *data;
 	int rc;
 
+	if (!SCLP_HAS_CHP_INFO)
+		return -EOPNOTSUPP;
 	/* Prepare sccb. */
 	data = (struct chp_info_data *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!data)

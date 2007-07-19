@@ -209,7 +209,6 @@ extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 extern int scsi_add_device(struct Scsi_Host *host, uint channel,
 			   uint target, uint lun);
 extern void scsi_remove_device(struct scsi_device *);
-extern int scsi_device_cancel(struct scsi_device *, int);
 
 extern int scsi_device_get(struct scsi_device *);
 extern void scsi_device_put(struct scsi_device *);
@@ -287,6 +286,7 @@ extern void scsi_target_block(struct device *);
 extern void scsi_target_unblock(struct device *);
 extern void scsi_remove_target(struct device *);
 extern void int_to_scsilun(unsigned int, struct scsi_lun *);
+extern int scsilun_to_int(struct scsi_lun *);
 extern const char *scsi_device_state_name(enum scsi_device_state);
 extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);

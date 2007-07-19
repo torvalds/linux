@@ -248,21 +248,15 @@ static int adb_scan_bus(void)
 static int
 adb_probe_task(void *x)
 {
-	sigset_t blocked;
-
 	strcpy(current->comm, "kadbprobe");
-
-	sigfillset(&blocked);
-	sigprocmask(SIG_BLOCK, &blocked, NULL);
-	flush_signals(current);
 
 	printk(KERN_INFO "adb: starting probe task...\n");
 	do_adb_reset_bus();
 	printk(KERN_INFO "adb: finished probe task...\n");
-	
+
 	adb_probe_task_pid = 0;
 	up(&adb_probe_mutex);
-	
+
 	return 0;
 }
 

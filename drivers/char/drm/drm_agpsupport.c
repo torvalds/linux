@@ -48,7 +48,7 @@
  * Verifies the AGP device has been initialized and acquired and fills in the
  * drm_agp_info structure with the information in drm_agp_head::agp_info.
  */
-int drm_agp_info(drm_device_t * dev, drm_agp_info_t * info)
+int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 {
 	DRM_AGP_KERN *kern;
 
@@ -74,16 +74,16 @@ EXPORT_SYMBOL(drm_agp_info);
 int drm_agp_info_ioctl(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_info_t info;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_info info;
 	int err;
 
 	err = drm_agp_info(dev, &info);
 	if (err)
 		return err;
 
-	if (copy_to_user((drm_agp_info_t __user *) arg, &info, sizeof(info)))
+	if (copy_to_user((struct drm_agp_info __user *) arg, &info, sizeof(info)))
 		return -EFAULT;
 	return 0;
 }
@@ -97,7 +97,7 @@ int drm_agp_info_ioctl(struct inode *inode, struct file *filp,
  * Verifies the AGP device hasn't been acquired before and calls
  * \c agp_backend_acquire.
  */
-int drm_agp_acquire(drm_device_t * dev)
+int drm_agp_acquire(struct drm_device * dev)
 {
 	if (!dev->agp)
 		return -ENODEV;
@@ -126,9 +126,9 @@ EXPORT_SYMBOL(drm_agp_acquire);
 int drm_agp_acquire_ioctl(struct inode *inode, struct file *filp,
 			  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
+	struct drm_file *priv = filp->private_data;
 
-	return drm_agp_acquire((drm_device_t *) priv->head->dev);
+	return drm_agp_acquire((struct drm_device *) priv->head->dev);
 }
 
 /**
@@ -139,7 +139,7 @@ int drm_agp_acquire_ioctl(struct inode *inode, struct file *filp,
  *
  * Verifies the AGP device has been acquired and calls \c agp_backend_release.
  */
-int drm_agp_release(drm_device_t * dev)
+int drm_agp_release(struct drm_device * dev)
 {
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -152,8 +152,8 @@ EXPORT_SYMBOL(drm_agp_release);
 int drm_agp_release_ioctl(struct inode *inode, struct file *filp,
 			  unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 
 	return drm_agp_release(dev);
 }
@@ -168,7 +168,7 @@ int drm_agp_release_ioctl(struct inode *inode, struct file *filp,
  * Verifies the AGP device has been acquired but not enabled, and calls
  * \c agp_enable.
  */
-int drm_agp_enable(drm_device_t * dev, drm_agp_mode_t mode)
+int drm_agp_enable(struct drm_device * dev, struct drm_agp_mode mode)
 {
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -185,11 +185,11 @@ EXPORT_SYMBOL(drm_agp_enable);
 int drm_agp_enable_ioctl(struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_mode_t mode;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_mode mode;
 
-	if (copy_from_user(&mode, (drm_agp_mode_t __user *) arg, sizeof(mode)))
+	if (copy_from_user(&mode, (struct drm_agp_mode __user *) arg, sizeof(mode)))
 		return -EFAULT;
 
 	return drm_agp_enable(dev, mode);
@@ -207,9 +207,9 @@ int drm_agp_enable_ioctl(struct inode *inode, struct file *filp,
  * Verifies the AGP device is present and has been acquired, allocates the
  * memory via alloc_agp() and creates a drm_agp_mem entry for it.
  */
-int drm_agp_alloc(drm_device_t *dev, drm_agp_buffer_t *request)
+int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	DRM_AGP_MEM *memory;
 	unsigned long pages;
 	u32 type;
@@ -232,11 +232,7 @@ int drm_agp_alloc(drm_device_t *dev, drm_agp_buffer_t *request)
 	entry->memory = memory;
 	entry->bound = 0;
 	entry->pages = pages;
-	entry->prev = NULL;
-	entry->next = dev->agp->memory;
-	if (dev->agp->memory)
-		dev->agp->memory->prev = entry;
-	dev->agp->memory = entry;
+	list_add(&entry->head, &dev->agp->memory);
 
 	request->handle = entry->handle;
 	request->physical = memory->physical;
@@ -248,10 +244,10 @@ EXPORT_SYMBOL(drm_agp_alloc);
 int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
 			unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_buffer_t request;
-	drm_agp_buffer_t __user *argp = (void __user *)arg;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_buffer request;
+	struct drm_agp_buffer __user *argp = (void __user *)arg;
 	int err;
 
 	if (copy_from_user(&request, argp, sizeof(request)))
@@ -262,10 +258,12 @@ int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
 		return err;
 
 	if (copy_to_user(argp, &request, sizeof(request))) {
-		drm_agp_mem_t *entry = dev->agp->memory;
-
-		dev->agp->memory = entry->next;
-		dev->agp->memory->prev = NULL;
+		struct drm_agp_mem *entry;
+		list_for_each_entry(entry, &dev->agp->memory, head) {
+			if (entry->handle == request.handle)
+				break;
+		}
+		list_del(&entry->head);
 		drm_free_agp(entry->memory, entry->pages);
 		drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
 		return -EFAULT;
@@ -283,12 +281,12 @@ int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
  *
  * Walks through drm_agp_head::memory until finding a matching handle.
  */
-static drm_agp_mem_t *drm_agp_lookup_entry(drm_device_t * dev,
+static struct drm_agp_mem *drm_agp_lookup_entry(struct drm_device * dev,
 					   unsigned long handle)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 
-	for (entry = dev->agp->memory; entry; entry = entry->next) {
+	list_for_each_entry(entry, &dev->agp->memory, head) {
 		if (entry->handle == handle)
 			return entry;
 	}
@@ -307,9 +305,9 @@ static drm_agp_mem_t *drm_agp_lookup_entry(drm_device_t * dev,
  * Verifies the AGP device is present and acquired, looks-up the AGP memory
  * entry and passes it to the unbind_agp() function.
  */
-int drm_agp_unbind(drm_device_t *dev, drm_agp_binding_t *request)
+int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	int ret;
 
 	if (!dev->agp || !dev->agp->acquired)
@@ -328,12 +326,12 @@ EXPORT_SYMBOL(drm_agp_unbind);
 int drm_agp_unbind_ioctl(struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_binding_t request;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_binding request;
 
 	if (copy_from_user
-	    (&request, (drm_agp_binding_t __user *) arg, sizeof(request)))
+	    (&request, (struct drm_agp_binding __user *) arg, sizeof(request)))
 		return -EFAULT;
 
 	return drm_agp_unbind(dev, &request);
@@ -352,9 +350,9 @@ int drm_agp_unbind_ioctl(struct inode *inode, struct file *filp,
  * is currently bound into the GATT. Looks-up the AGP memory entry and passes
  * it to bind_agp() function.
  */
-int drm_agp_bind(drm_device_t *dev, drm_agp_binding_t *request)
+int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 	int retcode;
 	int page;
 
@@ -377,12 +375,12 @@ EXPORT_SYMBOL(drm_agp_bind);
 int drm_agp_bind_ioctl(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_binding_t request;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_binding request;
 
 	if (copy_from_user
-	    (&request, (drm_agp_binding_t __user *) arg, sizeof(request)))
+	    (&request, (struct drm_agp_binding __user *) arg, sizeof(request)))
 		return -EFAULT;
 
 	return drm_agp_bind(dev, &request);
@@ -402,9 +400,9 @@ int drm_agp_bind_ioctl(struct inode *inode, struct file *filp,
  * unbind_agp(). Frees it via free_agp() as well as the entry itself
  * and unlinks from the doubly linked list it's inserted in.
  */
-int drm_agp_free(drm_device_t *dev, drm_agp_buffer_t *request)
+int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 {
-	drm_agp_mem_t *entry;
+	struct drm_agp_mem *entry;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -413,13 +411,7 @@ int drm_agp_free(drm_device_t *dev, drm_agp_buffer_t *request)
 	if (entry->bound)
 		drm_unbind_agp(entry->memory);
 
-	if (entry->prev)
-		entry->prev->next = entry->next;
-	else
-		dev->agp->memory = entry->next;
-
-	if (entry->next)
-		entry->next->prev = entry->prev;
+	list_del(&entry->head);
 
 	drm_free_agp(entry->memory, entry->pages);
 	drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
@@ -430,12 +422,12 @@ EXPORT_SYMBOL(drm_agp_free);
 int drm_agp_free_ioctl(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_agp_buffer_t request;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_agp_buffer request;
 
 	if (copy_from_user
-	    (&request, (drm_agp_buffer_t __user *) arg, sizeof(request)))
+	    (&request, (struct drm_agp_buffer __user *) arg, sizeof(request)))
 		return -EFAULT;
 
 	return drm_agp_free(dev, &request);
@@ -450,9 +442,9 @@ int drm_agp_free_ioctl(struct inode *inode, struct file *filp,
  * via the inter_module_* functions. Creates and initializes a drm_agp_head
  * structure.
  */
-drm_agp_head_t *drm_agp_init(drm_device_t * dev)
+struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
-	drm_agp_head_t *head = NULL;
+	struct drm_agp_head *head = NULL;
 
 	if (!(head = drm_alloc(sizeof(*head), DRM_MEM_AGPLISTS)))
 		return NULL;
@@ -472,7 +464,7 @@ drm_agp_head_t *drm_agp_init(drm_device_t * dev)
 		drm_free(head, sizeof(*head), DRM_MEM_AGPLISTS);
 		return NULL;
 	}
-	head->memory = NULL;
+	INIT_LIST_HEAD(&head->memory);
 	head->cant_use_aperture = head->agp_info.cant_use_aperture;
 	head->page_mask = head->agp_info.page_mask;
 

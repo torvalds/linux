@@ -1002,7 +1002,9 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 		return NULL;
 
 	memcpy(tioce_common, prom_bussoft, sizeof(struct tioce_common));
-	tioce_common->ce_pcibus.bs_base |= __IA64_UNCACHED_OFFSET;
+	tioce_common->ce_pcibus.bs_base = (unsigned long)
+		ioremap(REGION_OFFSET(tioce_common->ce_pcibus.bs_base),
+			sizeof(struct tioce_common));
 
 	tioce_kern = tioce_kern_init(tioce_common);
 	if (tioce_kern == NULL) {

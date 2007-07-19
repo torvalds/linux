@@ -68,9 +68,10 @@ static int nfs4_stat_to_errno(int);
 #endif
 
 /* lock,open owner id: 
- * we currently use size 1 (u32) out of (NFS4_OPAQUE_LIMIT  >> 2)
+ * we currently use size 2 (u64) out of (NFS4_OPAQUE_LIMIT  >> 2)
  */
-#define owner_id_maxsz          (1 + 1)
+#define open_owner_id_maxsz	(1 + 4)
+#define lock_owner_id_maxsz	(1 + 4)
 #define compound_encode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define compound_decode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define op_encode_hdr_maxsz	(1)
@@ -87,9 +88,11 @@ static int nfs4_stat_to_errno(int);
 #define encode_getattr_maxsz    (op_encode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
 #define nfs4_name_maxsz		(1 + ((3 + NFS4_MAXNAMLEN) >> 2))
 #define nfs4_path_maxsz		(1 + ((3 + NFS4_MAXPATHLEN) >> 2))
+#define nfs4_owner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+#define nfs4_group_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
 /* This is based on getfattr, which uses the most attributes: */
 #define nfs4_fattr_value_maxsz	(1 + (1 + 2 + 2 + 4 + 2 + 1 + 1 + 2 + 2 + \
-				3 + 3 + 3 + 2 * nfs4_name_maxsz))
+				3 + 3 + 3 + nfs4_owner_maxsz + nfs4_group_maxsz))
 #define nfs4_fattr_maxsz	(nfs4_fattr_bitmap_maxsz + \
 				nfs4_fattr_value_maxsz)
 #define decode_getattr_maxsz    (op_decode_hdr_maxsz + nfs4_fattr_maxsz)
@@ -116,8 +119,27 @@ static int nfs4_stat_to_errno(int);
 				3 + (NFS4_VERIFIER_SIZE >> 2))
 #define decode_setclientid_confirm_maxsz \
 				(op_decode_hdr_maxsz)
-#define encode_lookup_maxsz	(op_encode_hdr_maxsz + \
-				1 + ((3 + NFS4_FHSIZE) >> 2))
+#define encode_lookup_maxsz	(op_encode_hdr_maxsz + nfs4_name_maxsz)
+#define decode_lookup_maxsz	(op_decode_hdr_maxsz)
+#define encode_share_access_maxsz \
+				(2)
+#define encode_createmode_maxsz	(1 + nfs4_fattr_maxsz)
+#define encode_opentype_maxsz	(1 + encode_createmode_maxsz)
+#define encode_claim_null_maxsz	(1 + nfs4_name_maxsz)
+#define encode_open_maxsz	(op_encode_hdr_maxsz + \
+				2 + encode_share_access_maxsz + 2 + \
+				open_owner_id_maxsz + \
+				encode_opentype_maxsz + \
+				encode_claim_null_maxsz)
+#define decode_ace_maxsz	(3 + nfs4_owner_maxsz)
+#define decode_delegation_maxsz	(1 + XDR_QUADLEN(NFS4_STATEID_SIZE) + 1 + \
+				decode_ace_maxsz)
+#define decode_change_info_maxsz	(5)
+#define decode_open_maxsz	(op_decode_hdr_maxsz + \
+				XDR_QUADLEN(NFS4_STATEID_SIZE) + \
+				decode_change_info_maxsz + 1 + \
+				nfs4_fattr_bitmap_maxsz + \
+				decode_delegation_maxsz)
 #define encode_remove_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
 #define encode_rename_maxsz	(op_encode_hdr_maxsz + \
@@ -134,9 +156,15 @@ static int nfs4_stat_to_errno(int);
 #define encode_create_maxsz	(op_encode_hdr_maxsz + \
 				2 + nfs4_name_maxsz + \
 				nfs4_fattr_maxsz)
-#define decode_create_maxsz	(op_decode_hdr_maxsz + 8)
+#define decode_create_maxsz	(op_decode_hdr_maxsz + \
+				decode_change_info_maxsz + \
+				nfs4_fattr_bitmap_maxsz)
 #define encode_delegreturn_maxsz (op_encode_hdr_maxsz + 4)
 #define decode_delegreturn_maxsz (op_decode_hdr_maxsz)
+#define encode_fs_locations_maxsz \
+				(encode_getattr_maxsz)
+#define decode_fs_locations_maxsz \
+				(0)
 #define NFS4_enc_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_dec_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_enc_read_sz	(compound_encode_hdr_maxsz + \
@@ -174,16 +202,21 @@ static int nfs4_stat_to_errno(int);
 				op_decode_hdr_maxsz + 2 + \
 				decode_getattr_maxsz)
 #define NFS4_enc_open_sz        (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + \
-                                13 + 3 + 2 + 64 + \
-                                encode_getattr_maxsz + \
-                                encode_getfh_maxsz)
+				encode_putfh_maxsz + \
+				encode_savefh_maxsz + \
+				encode_open_maxsz + \
+				encode_getfh_maxsz + \
+				encode_getattr_maxsz + \
+				encode_restorefh_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_open_sz        (compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4 + 5 + 2 + 3 + \
-                                decode_getattr_maxsz + \
-                                decode_getfh_maxsz)
+				decode_putfh_maxsz + \
+				decode_savefh_maxsz + \
+				decode_open_maxsz + \
+				decode_getfh_maxsz + \
+				decode_getattr_maxsz + \
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_open_confirm_sz      \
                                 (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
@@ -193,12 +226,12 @@ static int nfs4_stat_to_errno(int);
                                         op_decode_hdr_maxsz + 4)
 #define NFS4_enc_open_noattr_sz	(compound_encode_hdr_maxsz + \
 					encode_putfh_maxsz + \
-					op_encode_hdr_maxsz + \
-					11)
+					encode_open_maxsz + \
+					encode_getattr_maxsz)
 #define NFS4_dec_open_noattr_sz	(compound_decode_hdr_maxsz + \
 					decode_putfh_maxsz + \
-					op_decode_hdr_maxsz + \
-					4 + 5 + 2 + 3)
+					decode_open_maxsz + \
+					decode_getattr_maxsz)
 #define NFS4_enc_open_downgrade_sz \
 				(compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
@@ -256,19 +289,19 @@ static int nfs4_stat_to_errno(int);
 				op_encode_hdr_maxsz + \
 				1 + 1 + 2 + 2 + \
 				1 + 4 + 1 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_dec_lock_sz        (compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				decode_getattr_maxsz + \
 				op_decode_hdr_maxsz + \
 				2 + 2 + 1 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_enc_lockt_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz + \
 				op_encode_hdr_maxsz + \
 				1 + 2 + 2 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_dec_lockt_sz       (NFS4_dec_lock_sz)
 #define NFS4_enc_locku_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
@@ -298,7 +331,7 @@ static int nfs4_stat_to_errno(int);
 				encode_getfh_maxsz)
 #define NFS4_dec_lookup_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + \
+				decode_lookup_maxsz + \
 				decode_getattr_maxsz + \
 				decode_getfh_maxsz)
 #define NFS4_enc_lookup_root_sz (compound_encode_hdr_maxsz + \
@@ -417,12 +450,13 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_enc_fs_locations_sz \
 				(compound_encode_hdr_maxsz + \
 				 encode_putfh_maxsz + \
-				 encode_getattr_maxsz)
+				 encode_lookup_maxsz + \
+				 encode_fs_locations_maxsz)
 #define NFS4_dec_fs_locations_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_putfh_maxsz + \
-				 op_decode_hdr_maxsz + \
-				 nfs4_fattr_bitmap_maxsz)
+				 decode_lookup_maxsz + \
+				 decode_fs_locations_maxsz)
 
 static struct {
 	unsigned int	mode;
@@ -793,13 +827,14 @@ static int encode_lock(struct xdr_stream *xdr, const struct nfs_lock_args *args)
 	WRITE64(nfs4_lock_length(args->fl));
 	WRITE32(args->new_lock_owner);
 	if (args->new_lock_owner){
-		RESERVE_SPACE(4+NFS4_STATEID_SIZE+20);
+		RESERVE_SPACE(4+NFS4_STATEID_SIZE+32);
 		WRITE32(args->open_seqid->sequence->counter);
 		WRITEMEM(args->open_stateid->data, NFS4_STATEID_SIZE);
 		WRITE32(args->lock_seqid->sequence->counter);
 		WRITE64(args->lock_owner.clientid);
-		WRITE32(4);
-		WRITE32(args->lock_owner.id);
+		WRITE32(16);
+		WRITEMEM("lock id:", 8);
+		WRITE64(args->lock_owner.id);
 	}
 	else {
 		RESERVE_SPACE(NFS4_STATEID_SIZE+4);
@@ -814,14 +849,15 @@ static int encode_lockt(struct xdr_stream *xdr, const struct nfs_lockt_args *arg
 {
 	__be32 *p;
 
-	RESERVE_SPACE(40);
+	RESERVE_SPACE(52);
 	WRITE32(OP_LOCKT);
 	WRITE32(nfs4_lock_type(args->fl, 0));
 	WRITE64(args->fl->fl_start);
 	WRITE64(nfs4_lock_length(args->fl));
 	WRITE64(args->lock_owner.clientid);
-	WRITE32(4);
-	WRITE32(args->lock_owner.id);
+	WRITE32(16);
+	WRITEMEM("lock id:", 8);
+	WRITE64(args->lock_owner.id);
 
 	return 0;
 }
@@ -886,10 +922,11 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
 	WRITE32(OP_OPEN);
 	WRITE32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->open_flags);
-	RESERVE_SPACE(16);
+	RESERVE_SPACE(28);
 	WRITE64(arg->clientid);
-	WRITE32(4);
-	WRITE32(arg->id);
+	WRITE32(16);
+	WRITEMEM("open id:", 8);
+	WRITE64(arg->id);
 }
 
 static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_openargs *arg)
@@ -1071,7 +1108,7 @@ static int encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args)
 
 static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	uint32_t attrs[2] = {
 		FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID,
 		FATTR4_WORD1_MOUNTED_ON_FILEID,
@@ -1117,7 +1154,7 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 
 static int encode_readlink(struct xdr_stream *xdr, const struct nfs4_readlink *readlink, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	unsigned int replen;
 	__be32 *p;
 
@@ -1735,7 +1772,7 @@ out:
  */
 static int nfs4_xdr_enc_read(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.nops = 2,
@@ -1795,7 +1832,7 @@ nfs4_xdr_enc_getacl(struct rpc_rqst *req, __be32 *p,
 		struct nfs_getaclargs *args)
 {
 	struct xdr_stream xdr;
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct compound_hdr hdr = {
 		.nops   = 2,
 	};
@@ -2030,7 +2067,7 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, __be32 *p, struct nfs
 	struct compound_hdr hdr = {
 		.nops = 3,
 	};
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	int replen;
 	int status;
 
@@ -3269,7 +3306,7 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
 {
         __be32 *p;
-        uint32_t bmlen;
+	uint32_t savewords, bmlen, i;
         int status;
 
         status = decode_op_hdr(xdr, OP_OPEN);
@@ -3287,7 +3324,12 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
                 goto xdr_error;
 
         READ_BUF(bmlen << 2);
-        p += bmlen;
+	savewords = min_t(uint32_t, bmlen, NFS4_BITMAP_SIZE);
+	for (i = 0; i < savewords; ++i)
+		READ32(res->attrset[i]);
+	for (; i < NFS4_BITMAP_SIZE; i++)
+		res->attrset[i] = 0;
+
 	return decode_delegation(xdr, res);
 xdr_error:
 	dprintk("%s: Bitmap too large! Length = %u\n", __FUNCTION__, bmlen);

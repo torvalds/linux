@@ -1248,14 +1248,8 @@ autoconf_fail:
 	tasklet_init(&dev->tasklet, gmidi_in_tasklet, (unsigned long)dev);
 
 	/* preallocate control response and buffer */
-	dev->req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
+	dev->req = alloc_ep_req(gadget->ep0, USB_BUFSIZ);
 	if (!dev->req) {
-		err = -ENOMEM;
-		goto fail;
-	}
-	dev->req->buf = usb_ep_alloc_buffer(gadget->ep0, USB_BUFSIZ,
-				&dev->req->dma, GFP_KERNEL);
-	if (!dev->req->buf) {
 		err = -ENOMEM;
 		goto fail;
 	}

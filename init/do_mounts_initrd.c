@@ -56,12 +56,9 @@ static void __init handle_initrd(void)
 	sys_chroot(".");
 
 	pid = kernel_thread(do_linuxrc, "/linuxrc", SIGCHLD);
-	if (pid > 0) {
-		while (pid != sys_wait4(-1, NULL, 0, NULL)) {
-			try_to_freeze();
+	if (pid > 0)
+		while (pid != sys_wait4(-1, NULL, 0, NULL))
 			yield();
-		}
-	}
 
 	/* move initrd to rootfs' /old */
 	sys_fchdir(old_fd);

@@ -72,11 +72,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 #endif
 
-/* Not supporting more than 32-bit PCI bus addresses now, but
- * must satisfy references to this function.  Change if needed.
- */
-#define pci_dac_dma_supported(pci_dev, mask) (0)
-
 /* These macros should be used after a pci_map_sg call has been done
  * to get bus addresses of each of the SG entries and their lengths.
  * You should only work with the number of sg entries pci_map_sg
@@ -103,10 +98,6 @@ extern void pcibios_fixup_irqs(void);
 #ifdef CONFIG_PCI_AUTO
 extern int pciauto_assign_resources(int busno, struct pci_channel *hose);
 #endif
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 #endif /* __KERNEL__ */
 

@@ -203,11 +203,7 @@ wakeup_counter0_set(int ticks)
 /* I haven't found anyone that doesn't use a 12 MHz source clock,
  * but just in case.....
  */
-#ifdef CONFIG_AU1000_SRC_CLK
-#define AU1000_SRC_CLK	CONFIG_AU1000_SRC_CLK
-#else
 #define AU1000_SRC_CLK	12000000
-#endif
 
 /*
  * We read the real processor speed from the PLL.  This is important
@@ -247,33 +243,8 @@ unsigned long cal_r4koff(void)
 		au_writel (0, SYS_TOYWRITE);
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S);
 
-#if defined(CONFIG_AU1000_USE32K)
-		{
-			unsigned long start, end, count;
-
-			start = au_readl(SYS_RTCREAD);
-			start += 2;
-			/* wait for the beginning of a new tick
-			*/
-			while (au_readl(SYS_RTCREAD) < start);
-
-			/* Start r4k counter.
-			*/
-			write_c0_count(0);
-
-			/* Wait 0.5 seconds.
-			*/
-			end = start + (32768 / trim_divide)/2;
-
-			while (end > au_readl(SYS_RTCREAD));
-
-			count = read_c0_count();
-			cpu_speed = count * 2;
-		}
-#else
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) *
 			AU1000_SRC_CLK;
-#endif
 	}
 	else {
 		/* The 32KHz oscillator isn't running, so assume there

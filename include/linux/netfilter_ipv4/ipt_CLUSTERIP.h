@@ -18,13 +18,13 @@ struct clusterip_config;
 struct ipt_clusterip_tgt_info {
 
 	u_int32_t flags;
-	
+
 	/* only relevant for new ones */
 	u_int8_t clustermac[6];
 	u_int16_t num_total_nodes;
 	u_int16_t num_local_nodes;
 	u_int16_t local_nodes[CLUSTERIP_MAX_NODES];
-	enum clusterip_hashmode hash_mode;
+	u_int32_t hash_mode;
 	u_int32_t hash_initval;
 
 	struct clusterip_config *config;

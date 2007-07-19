@@ -933,16 +933,17 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
  *	interface.
  */
 
-static unsigned int __devinit ata66_siimage(ide_hwif_t *hwif)
+static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
 {
 	unsigned long addr = siimage_selreg(hwif, 0);
-	if (pci_get_drvdata(hwif->pci_dev) == NULL) {
-		u8 ata66 = 0;
-		pci_read_config_byte(hwif->pci_dev, addr, &ata66);
-		return (ata66 & 0x01) ? 1 : 0;
-	}
+	u8 ata66 = 0;
 
-	return (hwif->INB(addr) & 0x01) ? 1 : 0;
+	if (pci_get_drvdata(hwif->pci_dev) == NULL)
+		pci_read_config_byte(hwif->pci_dev, addr, &ata66);
+	else
+		ata66 = hwif->INB(addr);
+
+	return (ata66 & 0x01) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 /**
@@ -988,8 +989,9 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		hwif->atapi_dma = 1;
 
 	hwif->ide_dma_check = &siimage_config_drive_for_dma;
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66_siimage(hwif);
+
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_siimage(hwif);
 
 	if (hwif->mmio) {
 		hwif->ide_dma_test_irq = &siimage_mmio_ide_dma_test_irq;

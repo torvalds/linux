@@ -92,6 +92,7 @@ static struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0784, 0x0040), .driver_info = METHOD1 },
 	{USB_DEVICE(0x06d6, 0x0034), .driver_info = METHOD0 },
 	{USB_DEVICE(0x0a17, 0x0062), .driver_info = METHOD2 },
+	{USB_DEVICE(0x06d6, 0x003b), .driver_info = METHOD0 },
 	{}			/* Terminating entry */
 };
 
@@ -792,6 +793,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct zr364xx_camera *cam = NULL;
+	int err;
 
 	DBG("probing...");
 
@@ -799,12 +801,11 @@ static int zr364xx_probe(struct usb_interface *intf,
 	info("model %04x:%04x detected", udev->descriptor.idVendor,
 	     udev->descriptor.idProduct);
 
-	if ((cam =
-	     kmalloc(sizeof(struct zr364xx_camera), GFP_KERNEL)) == NULL) {
+	cam = kzalloc(sizeof(struct zr364xx_camera), GFP_KERNEL);
+	if (cam == NULL) {
 		info("cam: out of memory !");
-		return -ENODEV;
+		return -ENOMEM;
 	}
-	memset(cam, 0x00, sizeof(struct zr364xx_camera));
 	/* save the init method used by this camera */
 	cam->method = id->driver_info;
 
@@ -812,7 +813,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 	if (cam->vdev == NULL) {
 		info("cam->vdev: out of memory !");
 		kfree(cam);
-		return -ENODEV;
+		return -ENOMEM;
 	}
 	memcpy(cam->vdev, &zr364xx_template, sizeof(zr364xx_template));
 	video_set_drvdata(cam->vdev, cam);
@@ -858,12 +859,13 @@ static int zr364xx_probe(struct usb_interface *intf,
 	cam->brightness = 64;
 	mutex_init(&cam->lock);
 
-	if (video_register_device(cam->vdev, VFL_TYPE_GRABBER, -1) == -1) {
+	err = video_register_device(cam->vdev, VFL_TYPE_GRABBER, -1);
+	if (err) {
 		info("video_register_device failed");
 		video_device_release(cam->vdev);
 		kfree(cam->buffer);
 		kfree(cam);
-		return -ENODEV;
+		return err;
 	}
 
 	usb_set_intfdata(intf, cam);
@@ -905,7 +907,7 @@ static struct usb_driver zr364xx_driver = {
 static int __init zr364xx_init(void)
 {
 	int retval;
-	retval = usb_register(&zr364xx_driver) < 0;
+	retval = usb_register(&zr364xx_driver);
 	if (retval)
 		info("usb_register failed!");
 	else

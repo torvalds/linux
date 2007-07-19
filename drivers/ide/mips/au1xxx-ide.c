@@ -381,9 +381,7 @@ static int auide_dma_setup(ide_drive_t *drive)
 
 static int auide_dma_check(ide_drive_t *drive)
 {
-	u8 speed;
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	u8 speed = ide_max_dma_mode(drive);
 
 	if( dbdma_init_done == 0 ){
 		auide_hwif.white_list = ide_in_drive_list(drive->id,
@@ -394,7 +392,6 @@ static int auide_dma_check(ide_drive_t *drive)
 		auide_ddma_init(&auide_hwif);
 		dbdma_init_done = 1;
 	}
-#endif
 
 	/* Is the drive in our DMA black list? */
 
@@ -409,8 +406,6 @@ static int auide_dma_check(ide_drive_t *drive)
 	else
 		drive->using_dma = 1;
 
-	speed = ide_find_best_mode(drive, XFER_PIO | XFER_MWDMA);
-	
 	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
 		return 0;
 
@@ -456,10 +451,9 @@ static void auide_dma_off_quietly(ide_drive_t *drive)
 	drive->using_dma = 0;
 }
 
-static int auide_dma_lostirq(ide_drive_t *drive)
+static void auide_dma_lost_irq(ide_drive_t *drive)
 {
 	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-	return 0;
 }
 
 static void auide_ddma_tx_callback(int irq, void *param)
@@ -489,16 +483,16 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
   
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 
-static int auide_dma_timeout(ide_drive_t *drive)
+static void auide_dma_timeout(ide_drive_t *drive)
 {
-//      printk("%s\n", __FUNCTION__);
+	ide_hwif_t *hwif = HWIF(drive);
 
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
-	if (HWIF(drive)->ide_dma_test_irq(drive))
-		return 0;
+	if (hwif->ide_dma_test_irq(drive))
+		return;
 
-	return HWIF(drive)->ide_dma_end(drive);
+	hwif->ide_dma_end(drive);
 }
 					
 
@@ -721,7 +715,7 @@ static int au_ide_probe(struct device *dev)
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	hwif->dma_off_quietly		= &auide_dma_off_quietly;
-	hwif->ide_dma_timeout           = &auide_dma_timeout;
+	hwif->dma_timeout		= &auide_dma_timeout;
 
 	hwif->ide_dma_check             = &auide_dma_check;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
@@ -731,7 +725,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
 	hwif->dma_host_off		= &auide_dma_host_off;
 	hwif->dma_host_on		= &auide_dma_host_on;
-	hwif->ide_dma_lostirq           = &auide_dma_lostirq;
+	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 	hwif->ide_dma_on                = &auide_dma_on;
 
 	hwif->autodma                   = 1;

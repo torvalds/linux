@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ahci"
-#define DRV_VERSION	"2.2"
+#define DRV_VERSION	"2.3"
 
 
 enum {
@@ -54,7 +54,7 @@ enum {
 	AHCI_MAX_PORTS		= 32,
 	AHCI_MAX_SG		= 168, /* hardware max is 64K */
 	AHCI_DMA_BOUNDARY	= 0xffffffff,
-	AHCI_USE_CLUSTERING	= 0,
+	AHCI_USE_CLUSTERING	= 1,
 	AHCI_MAX_CMDS		= 32,
 	AHCI_CMD_SZ		= 32,
 	AHCI_CMD_SLOT_SZ	= AHCI_MAX_CMDS * AHCI_CMD_SZ,
@@ -81,6 +81,7 @@ enum {
 	board_ahci_vt8251	= 2,
 	board_ahci_ign_iferr	= 3,
 	board_ahci_sb600	= 4,
+	board_ahci_mv		= 5,
 
 	/* global controller registers */
 	HOST_CAP		= 0x00, /* host capabilities */
@@ -171,6 +172,8 @@ enum {
 	AHCI_FLAG_HONOR_PI		= (1 << 26), /* honor PORTS_IMPL */
 	AHCI_FLAG_IGN_SERR_INTERNAL	= (1 << 27), /* ignore SERR_INTERNAL */
 	AHCI_FLAG_32BIT_ONLY		= (1 << 28), /* force 32bit */
+	AHCI_FLAG_MV_PATA		= (1 << 29), /* PATA port */
+	AHCI_FLAG_NO_MSI		= (1 << 30), /* no PCI MSI */
 
 	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 					  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
@@ -228,9 +231,12 @@ static void ahci_thaw(struct ata_port *ap);
 static void ahci_error_handler(struct ata_port *ap);
 static void ahci_vt8251_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
+static int ahci_port_resume(struct ata_port *ap);
+static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl);
+static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
+			       u32 opts);
 #ifdef CONFIG_PM
 static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg);
-static int ahci_port_resume(struct ata_port *ap);
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -327,14 +333,14 @@ static const struct ata_port_info ahci_port_info[] = {
 	{
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_pi */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_HONOR_PI,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_vt8251 */
@@ -342,14 +348,14 @@ static const struct ata_port_info ahci_port_info[] = {
 		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_HRST_TO_RESUME |
 				  AHCI_FLAG_NO_NCQ,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_vt8251_ops,
 	},
 	/* board_ahci_ign_iferr */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_IGN_IRQ_IF_ERR,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_sb600 */
@@ -358,7 +364,19 @@ static const struct ata_port_info ahci_port_info[] = {
 				  AHCI_FLAG_IGN_SERR_INTERNAL |
 				  AHCI_FLAG_32BIT_ONLY,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	/* board_ahci_mv */
+	{
+		.sht		= &ahci_sht,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  ATA_FLAG_SKIP_D2H_BSY | AHCI_FLAG_HONOR_PI |
+				  AHCI_FLAG_NO_NCQ | AHCI_FLAG_NO_MSI |
+				  AHCI_FLAG_MV_PATA,
+		.pio_mask	= 0x1f, /* pio0-4 */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 };
@@ -456,6 +474,9 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, 0x1185), board_ahci }, /* SiS 966 */
 	{ PCI_VDEVICE(SI, 0x0186), board_ahci }, /* SiS 968 */
 
+	/* Marvell */
+	{ PCI_VDEVICE(MARVELL, 0x6145), board_ahci_mv },	/* 6145 */
+
 	/* Generic, PCI class code for AHCI */
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff, board_ahci },
@@ -481,11 +502,17 @@ static inline int ahci_nr_ports(u32 cap)
 	return (cap & 0x1f) + 1;
 }
 
+static inline void __iomem *__ahci_port_base(struct ata_host *host,
+					     unsigned int port_no)
+{
+	void __iomem *mmio = host->iomap[AHCI_PCI_BAR];
+
+	return mmio + 0x100 + (port_no * 0x80);
+}
+
 static inline void __iomem *ahci_port_base(struct ata_port *ap)
 {
-	void __iomem *mmio = ap->host->iomap[AHCI_PCI_BAR];
-
-	return mmio + 0x100 + (ap->port_no * 0x80);
+	return __ahci_port_base(ap->host, ap->port_no);
 }
 
 /**
@@ -533,6 +560,20 @@ static void ahci_save_initial_config(struct pci_dev *pdev,
 
 		/* write the fixed up value to the PI register */
 		hpriv->saved_port_map = port_map;
+	}
+
+	/*
+	 * Temporary Marvell 6145 hack: PATA port presence
+	 * is asserted through the standard AHCI port
+	 * presence register, as bit 4 (counting from 0)
+	 */
+	if (pi->flags & AHCI_FLAG_MV_PATA) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "MV_AHCI HACK: port_map %x -> %x\n",
+			   hpriv->port_map,
+			   hpriv->port_map & 0xf);
+
+		port_map &= 0xf;
 	}
 
 	/* cross check port_map and cap.n_ports */
@@ -740,7 +781,7 @@ static void ahci_power_down(struct ata_port *ap)
 }
 #endif
 
-static void ahci_init_port(struct ata_port *ap)
+static void ahci_start_port(struct ata_port *ap)
 {
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
@@ -814,39 +855,62 @@ static int ahci_reset_controller(struct ata_host *host)
 	return 0;
 }
 
+static void ahci_port_init(struct pci_dev *pdev, struct ata_port *ap,
+			   int port_no, void __iomem *mmio,
+			   void __iomem *port_mmio)
+{
+	const char *emsg = NULL;
+	int rc;
+	u32 tmp;
+
+	/* make sure port is not active */
+	rc = ahci_deinit_port(ap, &emsg);
+	if (rc)
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "%s (%d)\n", emsg, rc);
+
+	/* clear SError */
+	tmp = readl(port_mmio + PORT_SCR_ERR);
+	VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
+	writel(tmp, port_mmio + PORT_SCR_ERR);
+
+	/* clear port IRQ */
+	tmp = readl(port_mmio + PORT_IRQ_STAT);
+	VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
+	if (tmp)
+		writel(tmp, port_mmio + PORT_IRQ_STAT);
+
+	writel(1 << port_no, mmio + HOST_IRQ_STAT);
+}
+
 static void ahci_init_controller(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	void __iomem *mmio = host->iomap[AHCI_PCI_BAR];
-	int i, rc;
+	int i;
+	void __iomem *port_mmio;
 	u32 tmp;
 
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-		void __iomem *port_mmio = ahci_port_base(ap);
-		const char *emsg = NULL;
+	if (host->ports[0]->flags & AHCI_FLAG_MV_PATA) {
+		port_mmio = __ahci_port_base(host, 4);
 
-		if (ata_port_is_dummy(ap))
-			continue;
-
-		/* make sure port is not active */
-		rc = ahci_deinit_port(ap, &emsg);
-		if (rc)
-			dev_printk(KERN_WARNING, &pdev->dev,
-				   "%s (%d)\n", emsg, rc);
-
-		/* clear SError */
-		tmp = readl(port_mmio + PORT_SCR_ERR);
-		VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
-		writel(tmp, port_mmio + PORT_SCR_ERR);
+		writel(0, port_mmio + PORT_IRQ_MASK);
 
 		/* clear port IRQ */
 		tmp = readl(port_mmio + PORT_IRQ_STAT);
 		VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
 		if (tmp)
 			writel(tmp, port_mmio + PORT_IRQ_STAT);
+	}
 
-		writel(1 << i, mmio + HOST_IRQ_STAT);
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		port_mmio = ahci_port_base(ap);
+		if (ata_port_is_dummy(ap))
+			continue;
+
+		ahci_port_init(pdev, ap, i, mmio, port_mmio);
 	}
 
 	tmp = readl(mmio + HOST_CTL);
@@ -1232,7 +1296,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		ata_port_abort(ap);
 }
 
-static void ahci_host_intr(struct ata_port *ap)
+static void ahci_port_intr(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
 	struct ata_eh_info *ehi = &ap->eh_info;
@@ -1358,7 +1422,7 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		if (ap) {
-			ahci_host_intr(ap);
+			ahci_port_intr(ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
@@ -1466,7 +1530,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 		ahci_power_down(ap);
 	else {
 		ata_port_printk(ap, KERN_ERR, "%s (%d)\n", emsg, rc);
-		ahci_init_port(ap);
+		ahci_start_port(ap);
 	}
 
 	return rc;
@@ -1475,7 +1539,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 static int ahci_port_resume(struct ata_port *ap)
 {
 	ahci_power_up(ap);
-	ahci_init_port(ap);
+	ahci_start_port(ap);
 
 	return 0;
 }
@@ -1573,13 +1637,8 @@ static int ahci_port_start(struct ata_port *ap)
 
 	ap->private_data = pp;
 
-	/* power up port */
-	ahci_power_up(ap);
-
-	/* initialize port */
-	ahci_init_port(ap);
-
-	return 0;
+	/* engage engines, captain */
+	return ahci_port_resume(ap);
 }
 
 static void ahci_port_stop(struct ata_port *ap)
@@ -1724,7 +1783,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	if (pci_enable_msi(pdev))
+	if ((pi.flags & AHCI_FLAG_NO_MSI) || pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
@@ -1745,14 +1804,18 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->private_data = hpriv;
 
 	for (i = 0; i < host->n_ports; i++) {
-		if (hpriv->port_map & (1 << i)) {
-			struct ata_port *ap = host->ports[i];
-			void __iomem *port_mmio = ahci_port_base(ap);
+		struct ata_port *ap = host->ports[i];
+		void __iomem *port_mmio = ahci_port_base(ap);
 
+		/* standard SATA port setup */
+		if (hpriv->port_map & (1 << i)) {
 			ap->ioaddr.cmd_addr = port_mmio;
 			ap->ioaddr.scr_addr = port_mmio + PORT_SCR;
-		} else
-			host->ports[i]->ops = &ata_dummy_port_ops;
+		}
+
+		/* disabled/not-implemented port */
+		else
+			ap->ops = &ata_dummy_port_ops;
 	}
 
 	/* initialize adapter */

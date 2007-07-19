@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
+#include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/limits.h>
 #include <linux/init.h>
@@ -140,6 +141,251 @@ static const struct super_operations proc_sops = {
 	.remount_fs	= proc_remount,
 };
 
+static void pde_users_dec(struct proc_dir_entry *pde)
+{
+	spin_lock(&pde->pde_unload_lock);
+	pde->pde_users--;
+	if (pde->pde_unload_completion && pde->pde_users == 0)
+		complete(pde->pde_unload_completion);
+	spin_unlock(&pde->pde_unload_lock);
+}
+
+static loff_t proc_reg_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	loff_t rv = -EINVAL;
+	loff_t (*llseek)(struct file *, loff_t, int);
+
+	spin_lock(&pde->pde_unload_lock);
+	/*
+	 * remove_proc_entry() is going to delete PDE (as part of module
+	 * cleanup sequence). No new callers into module allowed.
+	 */
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	/*
+	 * Bump refcount so that remove_proc_entry will wail for ->llseek to
+	 * complete.
+	 */
+	pde->pde_users++;
+	/*
+	 * Save function pointer under lock, to protect against ->proc_fops
+	 * NULL'ifying right after ->pde_unload_lock is dropped.
+	 */
+	llseek = pde->proc_fops->llseek;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (!llseek)
+		llseek = default_llseek;
+	rv = llseek(file, offset, whence);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static ssize_t proc_reg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	ssize_t rv = -EIO;
+	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	read = pde->proc_fops->read;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (read)
+		rv = read(file, buf, count, ppos);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	ssize_t rv = -EIO;
+	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	write = pde->proc_fops->write;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (write)
+		rv = write(file, buf, count, ppos);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	unsigned int rv = 0;
+	unsigned int (*poll)(struct file *, struct poll_table_struct *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	poll = pde->proc_fops->poll;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (poll)
+		rv = poll(file, pts);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	long rv = -ENOTTY;
+	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
+	int (*ioctl)(struct inode *, struct file *, unsigned int, unsigned long);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	unlocked_ioctl = pde->proc_fops->unlocked_ioctl;
+	ioctl = pde->proc_fops->ioctl;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (unlocked_ioctl) {
+		rv = unlocked_ioctl(file, cmd, arg);
+		if (rv == -ENOIOCTLCMD)
+			rv = -EINVAL;
+	} else if (ioctl) {
+		lock_kernel();
+		rv = ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+		unlock_kernel();
+	}
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+#ifdef CONFIG_COMPAT
+static long proc_reg_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	long rv = -ENOTTY;
+	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	compat_ioctl = pde->proc_fops->compat_ioctl;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (compat_ioctl)
+		rv = compat_ioctl(file, cmd, arg);
+
+	pde_users_dec(pde);
+	return rv;
+}
+#endif
+
+static int proc_reg_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	int rv = -EIO;
+	int (*mmap)(struct file *, struct vm_area_struct *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	mmap = pde->proc_fops->mmap;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (mmap)
+		rv = mmap(file, vma);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static int proc_reg_open(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *pde = PDE(inode);
+	int rv = 0;
+	int (*open)(struct inode *, struct file *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	open = pde->proc_fops->open;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (open)
+		rv = open(inode, file);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static int proc_reg_release(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *pde = PDE(inode);
+	int rv = 0;
+	int (*release)(struct inode *, struct file *);
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	release = pde->proc_fops->release;
+	spin_unlock(&pde->pde_unload_lock);
+
+	if (release)
+		rv = release(inode, file);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static const struct file_operations proc_reg_file_ops = {
+	.llseek		= proc_reg_llseek,
+	.read		= proc_reg_read,
+	.write		= proc_reg_write,
+	.poll		= proc_reg_poll,
+	.unlocked_ioctl	= proc_reg_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= proc_reg_compat_ioctl,
+#endif
+	.mmap		= proc_reg_mmap,
+	.open		= proc_reg_open,
+	.release	= proc_reg_release,
+};
+
 struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 				struct proc_dir_entry *de)
 {
@@ -166,8 +412,12 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 			inode->i_nlink = de->nlink;
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
-		if (de->proc_fops)
-			inode->i_fop = de->proc_fops;
+		if (de->proc_fops) {
+			if (S_ISREG(inode->i_mode))
+				inode->i_fop = &proc_reg_file_ops;
+			else
+				inode->i_fop = de->proc_fops;
+		}
 	}
 
 	return inode;

@@ -26,12 +26,15 @@
 #define NEW_CL_POINTER		0x228	/* Relative to real mode data */
 
 #ifndef __ASSEMBLY__
+
+#include <asm/bootparam.h>
+
 /*
  * This is set up by the setup-routine at boot-time
  */
-extern unsigned char boot_params[PARAM_SIZE];
+extern struct boot_params boot_params;
 
-#define PARAM	(boot_params)
+#define PARAM	((char *)&boot_params)
 #define SCREEN_INFO (*(struct screen_info *) (PARAM+0))
 #define EXT_MEM_K (*(unsigned short *) (PARAM+2))
 #define ALT_MEM_K (*(unsigned long *) (PARAM+0x1e0))
@@ -39,8 +42,7 @@ extern unsigned char boot_params[PARAM_SIZE];
 #define E820_MAP    ((struct e820entry *) (PARAM+E820MAP))
 #define APM_BIOS_INFO (*(struct apm_bios_info *) (PARAM+0x40))
 #define IST_INFO   (*(struct ist_info *) (PARAM+0x60))
-#define DRIVE_INFO (*(struct drive_info_struct *) (PARAM+0x80))
-#define SYS_DESC_TABLE (*(struct sys_desc_table_struct*)(PARAM+0xa0))
+#define SYS_DESC_TABLE (*(struct sys_desc_table *)(PARAM+0xa0))
 #define EFI_SYSTAB ((efi_system_table_t *) *((unsigned long *)(PARAM+0x1c4)))
 #define EFI_MEMDESC_SIZE (*((unsigned long *) (PARAM+0x1c8)))
 #define EFI_MEMDESC_VERSION (*((unsigned long *) (PARAM+0x1cc)))
@@ -78,6 +80,10 @@ void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 
 extern unsigned long init_pg_tables_end;
+
+#ifndef CONFIG_PARAVIRT
+#define paravirt_post_allocator_init()	do {} while (0)
+#endif
 
 #endif /* __ASSEMBLY__ */
 

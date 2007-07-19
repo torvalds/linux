@@ -516,7 +516,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 }
 
 
-static int __init rr_init(struct net_device *dev)
+static int __devinit rr_init(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;

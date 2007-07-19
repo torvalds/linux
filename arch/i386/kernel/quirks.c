@@ -20,8 +20,6 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 	if (rev > 0x9)
 		return;
 
-	printk(KERN_INFO "Intel E7520/7320/7525 detected.");
-
 	/* enable access to config space*/
 	pci_read_config_byte(dev, 0xf4, &config);
 	pci_write_config_byte(dev, 0xf4, config|0x2);
@@ -30,7 +28,8 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 	raw_pci_ops->read(0, 0, 0x40, 0x4c, 2, &word);
 
 	if (!(word & (1 << 13))) {
-		printk(KERN_INFO "Disabling irq balancing and affinity\n");
+		printk(KERN_INFO "Intel E7520/7320/7525 detected. "
+			"Disabling irq balancing and affinity\n");
 #ifdef CONFIG_IRQBALANCE
 		irqbalance_disable("");
 #endif

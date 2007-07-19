@@ -88,6 +88,7 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *ha, uint32_t req_size, uint32_t rsp_size)
 	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	ct_pkt->vp_index = ha->vp_idx;
 
 	return (ct_pkt);
 }
@@ -1186,6 +1187,7 @@ qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *ha, uint32_t req_size,
 	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	ct_pkt->vp_index = ha->vp_idx;
 
 	return ct_pkt;
 }
@@ -1746,6 +1748,7 @@ qla24xx_prep_ms_fm_iocb(scsi_qla_host_t *ha, uint32_t req_size,
 	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	ct_pkt->vp_index = ha->vp_idx;
 
 	return ct_pkt;
 }

@@ -124,6 +124,10 @@ static inline __attribute_pure__ uint32_t bfin_compiled_revid(void)
 	return 4;
 #elif defined(CONFIG_BF_REV_0_5)
 	return 5;
+#elif defined(CONFIG_BF_REV_ANY)
+	return 0xffff;
+#else
+	return -1;
 #endif
 }
 

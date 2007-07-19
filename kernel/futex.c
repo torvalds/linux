@@ -121,6 +121,24 @@ static struct futex_hash_bucket futex_queues[1<<FUTEX_HASHBITS];
 static struct vfsmount *futex_mnt;
 
 /*
+ * Take mm->mmap_sem, when futex is shared
+ */
+static inline void futex_lock_mm(struct rw_semaphore *fshared)
+{
+	if (fshared)
+		down_read(fshared);
+}
+
+/*
+ * Release mm->mmap_sem, when the futex is shared
+ */
+static inline void futex_unlock_mm(struct rw_semaphore *fshared)
+{
+	if (fshared)
+		up_read(fshared);
+}
+
+/*
  * We hash on the keys returned from get_futex_key (see below).
  */
 static struct futex_hash_bucket *hash_futex(union futex_key *key)
@@ -287,7 +305,18 @@ void drop_futex_key_refs(union futex_key *key)
 }
 EXPORT_SYMBOL_GPL(drop_futex_key_refs);
 
-static inline int get_futex_value_locked(u32 *dest, u32 __user *from)
+static u32 cmpxchg_futex_value_locked(u32 __user *uaddr, u32 uval, u32 newval)
+{
+	u32 curval;
+
+	pagefault_disable();
+	curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
+	pagefault_enable();
+
+	return curval;
+}
+
+static int get_futex_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
@@ -409,14 +438,12 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 
 	rcu_read_lock();
 	p = find_task_by_pid(pid);
-	if (!p)
-		goto out_unlock;
-	if ((current->euid != p->euid) && (current->euid != p->uid)) {
-		p = NULL;
-		goto out_unlock;
-	}
-	get_task_struct(p);
-out_unlock:
+
+	if (!p || ((current->euid != p->euid) && (current->euid != p->uid)))
+		p = ERR_PTR(-ESRCH);
+	else
+		get_task_struct(p);
+
 	rcu_read_unlock();
 
 	return p;
@@ -622,9 +649,7 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 
 		newval = FUTEX_WAITERS | new_owner->pid;
 
-		pagefault_disable();
-		curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-		pagefault_enable();
+		curval = cmpxchg_futex_value_locked(uaddr, uval, newval);
 
 		if (curval == -EFAULT)
 			ret = -EFAULT;
@@ -661,9 +686,7 @@ static int unlock_futex_pi(u32 __user *uaddr, u32 uval)
 	 * There is no waiter, so we unlock the futex. The owner died
 	 * bit has not to be preserved here. We are the owner:
 	 */
-	pagefault_disable();
-	oldval = futex_atomic_cmpxchg_inatomic(uaddr, uval, 0);
-	pagefault_enable();
+	oldval = cmpxchg_futex_value_locked(uaddr, uval, 0);
 
 	if (oldval == -EFAULT)
 		return oldval;
@@ -702,8 +725,7 @@ static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
 	union futex_key key;
 	int ret;
 
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr, fshared, &key);
 	if (unlikely(ret != 0))
@@ -727,8 +749,7 @@ static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	spin_unlock(&hb->lock);
 out:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 	return ret;
 }
 
@@ -748,8 +769,7 @@ futex_wake_op(u32 __user *uaddr1, struct rw_semaphore *fshared,
 	int ret, op_ret, attempt = 0;
 
 retryfull:
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr1, fshared, &key1);
 	if (unlikely(ret != 0))
@@ -795,7 +815,7 @@ retry:
 		 */
 		if (attempt++) {
 			ret = futex_handle_fault((unsigned long)uaddr2,
-						fshared, attempt);
+						 fshared, attempt);
 			if (ret)
 				goto out;
 			goto retry;
@@ -805,8 +825,7 @@ retry:
 		 * If we would have faulted, release mmap_sem,
 		 * fault it in and start all over again.
 		 */
-		if (fshared)
-			up_read(fshared);
+		futex_unlock_mm(fshared);
 
 		ret = get_user(dummy, uaddr2);
 		if (ret)
@@ -843,8 +862,8 @@ retry:
 	if (hb1 != hb2)
 		spin_unlock(&hb2->lock);
 out:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
+
 	return ret;
 }
 
@@ -863,8 +882,7 @@ static int futex_requeue(u32 __user *uaddr1, struct rw_semaphore *fshared,
 	int ret, drop_count = 0;
 
  retry:
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr1, fshared, &key1);
 	if (unlikely(ret != 0))
@@ -892,8 +910,7 @@ static int futex_requeue(u32 __user *uaddr1, struct rw_semaphore *fshared,
 			 * If we would have faulted, release mmap_sem, fault
 			 * it in and start all over again.
 			 */
-			if (fshared)
-				up_read(fshared);
+			futex_unlock_mm(fshared);
 
 			ret = get_user(curval, uaddr1);
 
@@ -946,8 +963,7 @@ out_unlock:
 		drop_futex_key_refs(&key1);
 
 out:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 	return ret;
 }
 
@@ -1115,10 +1131,7 @@ static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 	while (!ret) {
 		newval = (uval & FUTEX_OWNER_DIED) | newtid;
 
-		pagefault_disable();
-		curval = futex_atomic_cmpxchg_inatomic(uaddr,
-						       uval, newval);
-		pagefault_enable();
+		curval = cmpxchg_futex_value_locked(uaddr, uval, newval);
 
 		if (curval == -EFAULT)
 			ret = -EFAULT;
@@ -1136,6 +1149,7 @@ static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 #define ARG3_SHARED  1
 
 static long futex_wait_restart(struct restart_block *restart);
+
 static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		      u32 val, ktime_t *abs_time)
 {
@@ -1150,8 +1164,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	q.pi_state = NULL;
  retry:
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr, fshared, &q.key);
 	if (unlikely(ret != 0))
@@ -1188,8 +1201,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		 * If we would have faulted, release mmap_sem, fault it in and
 		 * start all over again.
 		 */
-		if (fshared)
-			up_read(fshared);
+		futex_unlock_mm(fshared);
 
 		ret = get_user(uval, uaddr);
 
@@ -1208,8 +1220,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 	 * Now the futex is queued and we have checked the data, we
 	 * don't want to hold mmap_sem while we sleep.
 	 */
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	/*
 	 * There might have been scheduling since the queue_me(), as we
@@ -1287,8 +1298,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 	queue_unlock(&q, hb);
 
  out_release_sem:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 	return ret;
 }
 
@@ -1335,8 +1345,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	q.pi_state = NULL;
  retry:
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr, fshared, &q.key);
 	if (unlikely(ret != 0))
@@ -1355,9 +1364,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	 */
 	newval = current->pid;
 
-	pagefault_disable();
-	curval = futex_atomic_cmpxchg_inatomic(uaddr, 0, newval);
-	pagefault_enable();
+	curval = cmpxchg_futex_value_locked(uaddr, 0, newval);
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1400,9 +1407,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 		lock_taken = 1;
 	}
 
-	pagefault_disable();
-	curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-	pagefault_enable();
+	curval = cmpxchg_futex_value_locked(uaddr, uval, newval);
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1430,8 +1435,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 			 * exit to complete.
 			 */
 			queue_unlock(&q, hb);
-			if (fshared)
-				up_read(fshared);
+			futex_unlock_mm(fshared);
 			cond_resched();
 			goto retry;
 
@@ -1467,8 +1471,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	 * Now the futex is queued and we have checked the data, we
 	 * don't want to hold mmap_sem while we sleep.
 	 */
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	WARN_ON(!q.pi_state);
 	/*
@@ -1482,8 +1485,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 		ret = ret ? 0 : -EWOULDBLOCK;
 	}
 
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 	spin_lock(q.lock_ptr);
 
 	if (!ret) {
@@ -1520,8 +1522,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	/* Unqueue and drop the lock */
 	unqueue_me_pi(&q);
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	return ret != -EINTR ? ret : -ERESTARTNOINTR;
 
@@ -1529,8 +1530,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	queue_unlock(&q, hb);
 
  out_release_sem:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 	return ret;
 
  uaddr_faulted:
@@ -1552,8 +1552,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 		goto retry_unlocked;
 	}
 
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	ret = get_user(uval, uaddr);
 	if (!ret && (uval != -EFAULT))
@@ -1587,8 +1586,7 @@ retry:
 	/*
 	 * First take all the futex related locks:
 	 */
-	if (fshared)
-		down_read(fshared);
+	futex_lock_mm(fshared);
 
 	ret = get_futex_key(uaddr, fshared, &key);
 	if (unlikely(ret != 0))
@@ -1603,11 +1601,9 @@ retry_unlocked:
 	 * again. If it succeeds then we can return without waking
 	 * anyone else up:
 	 */
-	if (!(uval & FUTEX_OWNER_DIED)) {
-		pagefault_disable();
-		uval = futex_atomic_cmpxchg_inatomic(uaddr, current->pid, 0);
-		pagefault_enable();
-	}
+	if (!(uval & FUTEX_OWNER_DIED))
+		uval = cmpxchg_futex_value_locked(uaddr, current->pid, 0);
+
 
 	if (unlikely(uval == -EFAULT))
 		goto pi_faulted;
@@ -1649,8 +1645,7 @@ retry_unlocked:
 out_unlock:
 	spin_unlock(&hb->lock);
 out:
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	return ret;
 
@@ -1673,8 +1668,7 @@ pi_faulted:
 		goto retry_unlocked;
 	}
 
-	if (fshared)
-		up_read(fshared);
+	futex_unlock_mm(fshared);
 
 	ret = get_user(uval, uaddr);
 	if (!ret && (uval != -EFAULT))
@@ -1731,8 +1725,8 @@ static int futex_fd(u32 __user *uaddr, int signal)
 
 	if (printk_timed_ratelimit(&printk_interval, 60 * 60 * 1000)) {
 		printk(KERN_WARNING "Process `%s' used FUTEX_FD, which "
-		    	"will be removed from the kernel in June 2007\n",
-			current->comm);
+		       "will be removed from the kernel in June 2007\n",
+		       current->comm);
 	}
 
 	ret = -EINVAL;
@@ -1910,10 +1904,8 @@ retry:
 		 * Wake robust non-PI futexes here. The wakeup of
 		 * PI futexes happens in exit_pi_state():
 		 */
-		if (!pi) {
-			if (uval & FUTEX_WAITERS)
+		if (!pi && (uval & FUTEX_WAITERS))
 				futex_wake(uaddr, &curr->mm->mmap_sem, 1);
-		}
 	}
 	return 0;
 }

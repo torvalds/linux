@@ -860,22 +860,31 @@ static int num_channels;
 static void sunsab_console_putchar(struct uart_port *port, int c)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *)port;
-	unsigned long flags;
-
-	spin_lock_irqsave(&up->port.lock, flags);
 
 	sunsab_tec_wait(up);
 	writeb(c, &up->regs->w.tic);
-
-	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static void sunsab_console_write(struct console *con, const char *s, unsigned n)
 {
 	struct uart_sunsab_port *up = &sunsab_ports[con->index];
+	unsigned long flags;
+	int locked = 1;
+
+	local_irq_save(flags);
+	if (up->port.sysrq) {
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&up->port.lock);
+	} else
+		spin_lock(&up->port.lock);
 
 	uart_console_write(&up->port, s, n, sunsab_console_putchar);
 	sunsab_tec_wait(up);
+
+	if (locked)
+		spin_unlock(&up->port.lock);
+	local_irq_restore(flags);
 }
 
 static int sunsab_console_setup(struct console *con, char *options)

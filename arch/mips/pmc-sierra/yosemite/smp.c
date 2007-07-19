@@ -77,7 +77,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * stack so the first thing we do is throw away that stuff and load useful
  * values into the registers ...
  */
-void prom_boot_secondary(int cpu, struct task_struct *idle)
+void __init prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long) task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);

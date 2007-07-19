@@ -172,6 +172,7 @@ struct mlx4_caps {
 	int			num_pds;
 	int			reserved_pds;
 	int			mtt_entry_sz;
+	u32			max_msg_sz;
 	u32			page_size_cap;
 	u32			flags;
 	u16			stat_rate_support;
@@ -322,6 +323,7 @@ int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, struct mlx4_mtt *mtt,
 		   u64 db_rec, struct mlx4_srq *srq);
 void mlx4_srq_free(struct mlx4_dev *dev, struct mlx4_srq *srq);
 int mlx4_srq_arm(struct mlx4_dev *dev, struct mlx4_srq *srq, int limit_watermark);
+int mlx4_srq_query(struct mlx4_dev *dev, struct mlx4_srq *srq, int *limit_watermark);
 
 int mlx4_INIT_PORT(struct mlx4_dev *dev, int port);
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);

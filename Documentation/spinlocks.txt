@@ -1,7 +1,12 @@
-UPDATE March 21 2005 Amit Gud <gud@eth.net>
+SPIN_LOCK_UNLOCKED and RW_LOCK_UNLOCKED defeat lockdep state tracking and
+are hence deprecated.
 
-Macros SPIN_LOCK_UNLOCKED and RW_LOCK_UNLOCKED are deprecated and will be
-removed soon. So for any new code dynamic initialization should be used:
+Please use DEFINE_SPINLOCK()/DEFINE_RWLOCK() or
+__SPIN_LOCK_UNLOCKED()/__RW_LOCK_UNLOCKED() as appropriate for static
+initialization.
+
+Dynamic initialization, when necessary, may be performed as
+demonstrated below.
 
    spinlock_t xxx_lock;
    rwlock_t xxx_rw_lock;
@@ -15,12 +20,9 @@ removed soon. So for any new code dynamic initialization should be used:
 
    module_init(xxx_init);
 
-Reasons for deprecation
-  - it hurts automatic lock validators
-  - it becomes intrusive for the realtime preemption patches
-
-Following discussion is still valid, however, with the dynamic initialization
-of spinlocks instead of static.
+The following discussion is still valid, however, with the dynamic
+initialization of spinlocks or with DEFINE_SPINLOCK, etc., used
+instead of SPIN_LOCK_UNLOCKED.
 
 -----------------------
 

@@ -41,6 +41,7 @@ extern int selinux_mls_enabled;
 
 int security_load_policy(void * data, size_t len);
 
+#define SEL_VEC_MAX 32
 struct av_decision {
 	u32 allowed;
 	u32 decided;
@@ -86,6 +87,9 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
                                  u16 tclass);
 
 int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
+
+int security_get_classes(char ***classes, int *nclasses);
+int security_get_permissions(char *class, char ***perms, int *nperms);
 
 #define SECURITY_FS_USE_XATTR		1 /* use xattr */
 #define SECURITY_FS_USE_TRANS		2 /* use transition SIDs, e.g. devpts/tmpfs */

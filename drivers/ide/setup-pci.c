@@ -872,11 +872,15 @@ void __init ide_scan_pcibus (int scan_direction)
 	 *	are post init.
 	 */
 
-	list_for_each_safe(l, n, &ide_pci_drivers)
-	{
+	list_for_each_safe(l, n, &ide_pci_drivers) {
 		list_del(l);
 		d = list_entry(l, struct pci_driver, node);
-		__pci_register_driver(d, d->driver.owner, d->driver.mod_name);
+		if (__pci_register_driver(d, d->driver.owner,
+					d->driver.mod_name)) {
+			printk(KERN_ERR "%s: failed to register driver "
+					"for %s\n", __FUNCTION__,
+					 d->driver.mod_name);
+		}
 	}
 }
 #endif

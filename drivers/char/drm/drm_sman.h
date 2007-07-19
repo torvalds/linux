@@ -50,7 +50,7 @@
  * for memory management.
  */
 
-typedef struct drm_sman_mm {
+struct drm_sman_mm {
 	/* private info. If allocated, needs to be destroyed by the destroy
 	   function */
 	void *private;
@@ -74,30 +74,30 @@ typedef struct drm_sman_mm {
 	   "alloc" function */
 
 	unsigned long (*offset) (void *private, void *ref);
-} drm_sman_mm_t;
+};
 
-typedef struct drm_memblock_item {
+struct drm_memblock_item {
 	struct list_head owner_list;
-	drm_hash_item_t user_hash;
+	struct drm_hash_item user_hash;
 	void *mm_info;
-	drm_sman_mm_t *mm;
+	struct drm_sman_mm *mm;
 	struct drm_sman *sman;
-} drm_memblock_item_t;
+};
 
-typedef struct drm_sman {
-	drm_sman_mm_t *mm;
+struct drm_sman {
+	struct drm_sman_mm *mm;
 	int num_managers;
-	drm_open_hash_t owner_hash_tab;
-	drm_open_hash_t user_hash_tab;
+	struct drm_open_hash owner_hash_tab;
+	struct drm_open_hash user_hash_tab;
 	struct list_head owner_items;
-} drm_sman_t;
+};
 
 /*
  * Take down a memory manager. This function should only be called after a
  * successful init and after a call to drm_sman_cleanup.
  */
 
-extern void drm_sman_takedown(drm_sman_t * sman);
+extern void drm_sman_takedown(struct drm_sman * sman);
 
 /*
  * Allocate structures for a manager.
@@ -112,7 +112,7 @@ extern void drm_sman_takedown(drm_sman_t * sman);
  *
  */
 
-extern int drm_sman_init(drm_sman_t * sman, unsigned int num_managers,
+extern int drm_sman_init(struct drm_sman * sman, unsigned int num_managers,
 			 unsigned int user_order, unsigned int owner_order);
 
 /*
@@ -120,7 +120,7 @@ extern int drm_sman_init(drm_sman_t * sman, unsigned int num_managers,
  * manager unless a customized allogator is used.
  */
 
-extern int drm_sman_set_range(drm_sman_t * sman, unsigned int manager,
+extern int drm_sman_set_range(struct drm_sman * sman, unsigned int manager,
 			      unsigned long start, unsigned long size);
 
 /*
@@ -129,23 +129,23 @@ extern int drm_sman_set_range(drm_sman_t * sman, unsigned int manager,
  * so it can be destroyed after this call.
  */
 
-extern int drm_sman_set_manager(drm_sman_t * sman, unsigned int mananger,
-				drm_sman_mm_t * allocator);
+extern int drm_sman_set_manager(struct drm_sman * sman, unsigned int mananger,
+				struct drm_sman_mm * allocator);
 
 /*
  * Allocate a memory block. Aligment is not implemented yet.
  */
 
-extern drm_memblock_item_t *drm_sman_alloc(drm_sman_t * sman,
-					   unsigned int manager,
-					   unsigned long size,
-					   unsigned alignment,
-					   unsigned long owner);
+extern struct drm_memblock_item *drm_sman_alloc(struct drm_sman * sman,
+						unsigned int manager,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long owner);
 /*
  * Free a memory block identified by its user hash key.
  */
 
-extern int drm_sman_free_key(drm_sman_t * sman, unsigned int key);
+extern int drm_sman_free_key(struct drm_sman * sman, unsigned int key);
 
 /*
  * returns 1 iff there are no stale memory blocks associated with this owner.
@@ -154,7 +154,7 @@ extern int drm_sman_free_key(drm_sman_t * sman, unsigned int key);
  * resources associated with owner.
  */
 
-extern int drm_sman_owner_clean(drm_sman_t * sman, unsigned long owner);
+extern int drm_sman_owner_clean(struct drm_sman * sman, unsigned long owner);
 
 /*
  * Frees all stale memory blocks associated with this owner. Note that this
@@ -164,13 +164,13 @@ extern int drm_sman_owner_clean(drm_sman_t * sman, unsigned long owner);
  * is not going to be referenced anymore.
  */
 
-extern void drm_sman_owner_cleanup(drm_sman_t * sman, unsigned long owner);
+extern void drm_sman_owner_cleanup(struct drm_sman * sman, unsigned long owner);
 
 /*
  * Frees all stale memory blocks associated with the memory manager.
  * See idling above.
  */
 
-extern void drm_sman_cleanup(drm_sman_t * sman);
+extern void drm_sman_cleanup(struct drm_sman * sman);
 
 #endif

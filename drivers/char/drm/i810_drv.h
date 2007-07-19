@@ -77,8 +77,8 @@ typedef struct _drm_i810_ring_buffer {
 } drm_i810_ring_buffer_t;
 
 typedef struct drm_i810_private {
-	drm_map_t *sarea_map;
-	drm_map_t *mmio_map;
+	struct drm_map *sarea_map;
+	struct drm_map *mmio_map;
 
 	drm_i810_sarea_t *sarea_priv;
 	drm_i810_ring_buffer_t ring;
@@ -88,7 +88,7 @@ typedef struct drm_i810_private {
 
 	dma_addr_t dma_status_page;
 
-	drm_buf_t *mmap_buffer;
+	struct drm_buf *mmap_buffer;
 
 	u32 front_di1, back_di1, zi1;
 
@@ -115,15 +115,15 @@ typedef struct drm_i810_private {
 } drm_i810_private_t;
 
 				/* i810_dma.c */
-extern int i810_driver_dma_quiescent(drm_device_t * dev);
-extern void i810_driver_reclaim_buffers_locked(drm_device_t * dev,
+extern int i810_driver_dma_quiescent(struct drm_device * dev);
+extern void i810_driver_reclaim_buffers_locked(struct drm_device * dev,
 					       struct file *filp);
 extern int i810_driver_load(struct drm_device *, unsigned long flags);
-extern void i810_driver_lastclose(drm_device_t * dev);
-extern void i810_driver_preclose(drm_device_t * dev, DRMFILE filp);
-extern void i810_driver_reclaim_buffers_locked(drm_device_t * dev,
+extern void i810_driver_lastclose(struct drm_device * dev);
+extern void i810_driver_preclose(struct drm_device * dev, DRMFILE filp);
+extern void i810_driver_reclaim_buffers_locked(struct drm_device * dev,
 					       struct file *filp);
-extern int i810_driver_device_is_agp(drm_device_t * dev);
+extern int i810_driver_device_is_agp(struct drm_device * dev);
 
 extern drm_ioctl_desc_t i810_ioctls[];
 extern int i810_max_ioctl;

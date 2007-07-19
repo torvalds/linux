@@ -300,7 +300,7 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev)
 	return 0;
 
  err:
-	if (CKEN & CKEN_AC97) {
+	if (CKEN & (1 << CKEN_AC97)) {
 		GCR |= GCR_ACLINK_OFF;
 		free_irq(IRQ_AC97, NULL);
 		pxa_set_cken(CKEN_AC97, 0);

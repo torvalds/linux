@@ -124,30 +124,6 @@ xfs_file_aio_write_invis(
 }
 
 STATIC ssize_t
-xfs_file_sendfile(
-	struct file		*filp,
-	loff_t			*pos,
-	size_t			count,
-	read_actor_t		actor,
-	void			*target)
-{
-	return bhv_vop_sendfile(vn_from_inode(filp->f_path.dentry->d_inode),
-				filp, pos, 0, count, actor, target, NULL);
-}
-
-STATIC ssize_t
-xfs_file_sendfile_invis(
-	struct file		*filp,
-	loff_t			*pos,
-	size_t			count,
-	read_actor_t		actor,
-	void			*target)
-{
-	return bhv_vop_sendfile(vn_from_inode(filp->f_path.dentry->d_inode),
-				filp, pos, IO_INVIS, count, actor, target, NULL);
-}
-
-STATIC ssize_t
 xfs_file_splice_read(
 	struct file		*infilp,
 	loff_t			*ppos,
@@ -205,15 +181,6 @@ xfs_file_open(
 	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EFBIG;
 	return -bhv_vop_open(vn_from_inode(inode), NULL);
-}
-
-STATIC int
-xfs_file_close(
-	struct file	*filp,
-	fl_owner_t	id)
-{
-	return -bhv_vop_close(vn_from_inode(filp->f_path.dentry->d_inode), 0,
-				file_count(filp) > 1 ? L_FALSE : L_TRUE, NULL);
 }
 
 STATIC int
@@ -452,7 +419,6 @@ const struct file_operations xfs_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= xfs_file_aio_read,
 	.aio_write	= xfs_file_aio_write,
-	.sendfile	= xfs_file_sendfile,
 	.splice_read	= xfs_file_splice_read,
 	.splice_write	= xfs_file_splice_write,
 	.unlocked_ioctl	= xfs_file_ioctl,
@@ -461,7 +427,6 @@ const struct file_operations xfs_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
-	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 #ifdef HAVE_FOP_OPEN_EXEC
@@ -475,7 +440,6 @@ const struct file_operations xfs_invis_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= xfs_file_aio_read_invis,
 	.aio_write	= xfs_file_aio_write_invis,
-	.sendfile	= xfs_file_sendfile_invis,
 	.splice_read	= xfs_file_splice_read_invis,
 	.splice_write	= xfs_file_splice_write_invis,
 	.unlocked_ioctl	= xfs_file_ioctl_invis,
@@ -484,7 +448,6 @@ const struct file_operations xfs_invis_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
-	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 };

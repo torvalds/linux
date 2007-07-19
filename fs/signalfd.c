@@ -133,7 +133,8 @@ static unsigned int signalfd_poll(struct file *file, poll_table *wait)
 	 * the peer disconnects.
 	 */
 	if (signalfd_lock(ctx, &lk)) {
-		if (next_signal(&lk.tsk->pending, &ctx->sigmask) > 0 ||
+		if ((lk.tsk == current &&
+		     next_signal(&lk.tsk->pending, &ctx->sigmask) > 0) ||
 		    next_signal(&lk.tsk->signal->shared_pending,
 				&ctx->sigmask) > 0)
 			events |= POLLIN;

@@ -36,7 +36,7 @@ target(struct sk_buff **pskb,
 	return NF_QUEUE_NR(tinfo->queuenum);
 }
 
-static struct xt_target xt_nfqueue_target[] = {
+static struct xt_target xt_nfqueue_target[] __read_mostly = {
 	{
 		.name		= "NFQUEUE",
 		.family		= AF_INET,

@@ -107,6 +107,11 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	l	%r13,__LC_SVC_NEW_PSW+4	# load &system_call to %r13
 	.endm
 
+	.macro	SAVE_ALL_SVC psworg,savearea
+	la	%r12,\psworg
+	l	%r15,__LC_KERNEL_STACK	# problem state -> load ksp
+	.endm
+
 	.macro	SAVE_ALL_SYNC psworg,savearea
 	la	%r12,\psworg
 	tm	\psworg+1,0x01		# test problem state bit
@@ -218,7 +223,7 @@ system_call:
 	STORE_TIMER __LC_SYNC_ENTER_TIMER
 sysc_saveall:
 	SAVE_ALL_BASE __LC_SAVE_AREA
-	SAVE_ALL_SYNC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
+	SAVE_ALL_SVC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	lh	%r7,0x8a	  # get svc number from lowcore
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING

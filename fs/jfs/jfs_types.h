@@ -21,7 +21,7 @@
 /*
  *	jfs_types.h:
  *
- * basic type/utility  definitions
+ * basic type/utility definitions
  *
  * note: this header file must be the 1st include file
  * of JFS include list in all JFS .c file.
@@ -54,8 +54,8 @@ struct timestruc_t {
  */
 
 #define LEFTMOSTONE	0x80000000
-#define	HIGHORDER	0x80000000u	/* high order bit on            */
-#define	ONES		0xffffffffu	/* all bit on                   */
+#define	HIGHORDER	0x80000000u	/* high order bit on	*/
+#define	ONES		0xffffffffu	/* all bit on		*/
 
 /*
  *	logical xd (lxd)
@@ -148,7 +148,7 @@ typedef struct {
 #define sizeDXD(dxd)	le32_to_cpu((dxd)->size)
 
 /*
- *      directory entry argument
+ *	directory entry argument
  */
 struct component_name {
 	int namlen;
@@ -160,14 +160,14 @@ struct component_name {
  *	DASD limit information - stored in directory inode
  */
 struct dasd {
-	u8 thresh;		/* Alert Threshold (in percent) */
-	u8 delta;		/* Alert Threshold delta (in percent)   */
+	u8 thresh;		/* Alert Threshold (in percent)		*/
+	u8 delta;		/* Alert Threshold delta (in percent)	*/
 	u8 rsrvd1;
-	u8 limit_hi;		/* DASD limit (in logical blocks)       */
-	__le32 limit_lo;	/* DASD limit (in logical blocks)       */
+	u8 limit_hi;		/* DASD limit (in logical blocks)	*/
+	__le32 limit_lo;	/* DASD limit (in logical blocks)	*/
 	u8 rsrvd2[3];
-	u8 used_hi;		/* DASD usage (in logical blocks)       */
-	__le32 used_lo;		/* DASD usage (in logical blocks)       */
+	u8 used_hi;		/* DASD usage (in logical blocks)	*/
+	__le32 used_lo;		/* DASD usage (in logical blocks)	*/
 };
 
 #define DASDLIMIT(dasdp) \

@@ -37,12 +37,10 @@
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb_isp1362.h>
 #endif
-#include <asm/irq.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <asm/bfin5xx_spi.h>
 #include <linux/usb_sl811.h>
-
+#include <asm/bfin5xx_spi.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -85,7 +83,7 @@ static struct platform_device *bfin_isp1761_devices[] = {
 
 int __init bfin_isp1761_init(void)
 {
-	unsigned int num_devices=ARRAY_SIZE(bfin_isp1761_devices);
+	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
 
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
@@ -107,15 +105,15 @@ static struct resource bfin_pcmcia_cf_resources[] = {
 		.start = 0x20310000, /* IO PORT */
 		.end = 0x20312000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20311000, /* Attribute Memory */
 		.end = 0x20311FFF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},{
+	}, {
 		.start = 6, /* Card Detect PF6 */
 		.end = 6,
 		.flags = IORESOURCE_IRQ,
@@ -144,7 +142,7 @@ static struct resource smc91x_resources[] = {
 		.start = 0x20300300,
 		.end = 0x20300300 + 16,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
@@ -159,17 +157,39 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
+#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+static struct resource dm9000_resources[] = {
+	[0] = {
+		.start	= 0x203FB800,
+		.end	= 0x203FB800 + 8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF9,
+		.end	= IRQ_PF9,
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	},
+};
+
+static struct platform_device dm9000_device = {
+	.name		= "dm9000",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm9000_resources),
+	.resource	= dm9000_resources,
+};
+#endif
+
 #if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
 static struct resource sl811_hcd_resources[] = {
 	{
 		.start = 0x20340000,
 		.end = 0x20340000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20340004,
 		.end = 0x20340004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = CONFIG_USB_SL811_BFIN_IRQ,
 		.end = CONFIG_USB_SL811_BFIN_IRQ,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -216,11 +236,11 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x20360000,
 		.end = 0x20360000,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0x20360004,
 		.end = 0x20360004,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
 		.end = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -261,7 +281,7 @@ static struct resource net2272_bfin_resources[] = {
 		.start = 0x20300000,
 		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -287,11 +307,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
-	},{
+	}, {
 		.name = "kernel",
 		.size = 0xe0000,
 		.offset = 0x20000
-	},{
+	}, {
 		.name = "file system",
 		.size = 0x700000,
 		.offset = 0x00100000,
@@ -361,7 +381,6 @@ static struct bfin5xx_spi_chip ad5304_chip_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
-//	.cs_change_per_word = 1,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -449,19 +468,19 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #endif
 #if defined(CONFIG_PBX)
 	{
-		.modalias	= "fxs-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 3,
-		.controller_data= &spi_si3xxx_chip_info,
+		.modalias = "fxs-spi",
+		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 3,
+		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
 	},
 	{
-		.modalias	= "fxo-spi",
-		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
-		.chip_select	= 2,
-		.controller_data= &spi_si3xxx_chip_info,
+		.modalias = "fxo-spi",
+		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 2,
+		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -516,7 +535,7 @@ static struct resource bfin_uart_resources[] = {
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	},{
+	}, {
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
@@ -569,6 +588,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
+#endif
+
+#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+	&dm9000_device,
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)

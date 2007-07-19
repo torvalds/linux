@@ -203,22 +203,37 @@ void chan_enable_winch(struct list_head *chans, struct tty_struct *tty)
 	}
 }
 
-void enable_chan(struct line *line)
+int enable_chan(struct line *line)
 {
 	struct list_head *ele;
 	struct chan *chan;
+	int err;
 
 	list_for_each(ele, &line->chan_list){
 		chan = list_entry(ele, struct chan, list);
-		if(open_one_chan(chan))
+		err = open_one_chan(chan);
+		if (err) {
+			if (chan->primary)
+				goto out_close;
+
 			continue;
+		}
 
 		if(chan->enabled)
 			continue;
-		line_setup_irq(chan->fd, chan->input, chan->output, line,
-			       chan);
+		err = line_setup_irq(chan->fd, chan->input, chan->output, line,
+				     chan);
+		if (err)
+			goto out_close;
+
 		chan->enabled = 1;
 	}
+
+	return 0;
+
+ out_close:
+	close_chan(&line->chan_list, 0);
+	return err;
 }
 
 /* Items are added in IRQ context, when free_irq can't be called, and

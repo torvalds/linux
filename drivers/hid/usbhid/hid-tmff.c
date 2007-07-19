@@ -70,7 +70,7 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 
 	tmff->rumble->value[0] = left;
 	tmff->rumble->value[1] = right;
-	dbg("(left,right)=(%08x, %08x)", left, right);
+	dbg_hid("(left,right)=(%08x, %08x)\n", left, right);
 	usbhid_submit_report(hid, tmff->report, USB_DIR_OUT);
 
 	return 0;

@@ -222,6 +222,8 @@ config PARAVIRT
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
 
+source "arch/i386/xen/Kconfig"
+
 config VMI
 	bool "VMI Paravirt-ops support"
 	depends on PARAVIRT
@@ -441,8 +443,8 @@ config X86_REBOOTFIXUPS
 	  this config is intended, is when reboot ends with a stalled/hung
 	  system.
 
-	  Currently, the only fixup is for the Geode GX1/CS5530A/TROM2.1.
-	  combination.
+	  Currently, the only fixup is for the Geode machines using
+	  CS5530A and CS5536 chipsets.
 
 	  Say Y if you want to enable the fixup. Currently, it's safe to
 	  enable this option even if you don't need it.
@@ -1212,21 +1214,26 @@ source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
-menu "Instrumentation Support"
+menuconfig INSTRUMENTATION
+	bool "Instrumentation Support"
 	depends on EXPERIMENTAL
+	default y
+
+if INSTRUMENTATION
 
 source "arch/i386/oprofile/Kconfig"
 
 config KPROBES
-	bool "Kprobes (EXPERIMENTAL)"
-	depends on KALLSYMS && EXPERIMENTAL && MODULES
+	bool "Kprobes"
+	depends on KALLSYMS && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
 	  a probepoint and specifies the callback.  Kprobes is useful
 	  for kernel debugging, non-intrusive instrumentation and testing.
 	  If in doubt, say "N".
-endmenu
+
+endif # INSTRUMENTATION
 
 source "arch/i386/Kconfig.debug"
 

@@ -1099,7 +1099,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
-	down(&pdev->modlock);
+	mutex_lock(&pdev->modlock);
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
 		pdev->usb_init = 1;
@@ -1131,7 +1131,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 	if (i < 0) {
 		PWC_DEBUG_OPEN("Failed to allocate buffers memory.\n");
 		pwc_free_buffers(pdev);
-		up(&pdev->modlock);
+		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1172,7 +1172,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 	if (i) {
 		PWC_DEBUG_OPEN("Second attempt at set_video_mode failed.\n");
 		pwc_free_buffers(pdev);
-		up(&pdev->modlock);
+		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1181,7 +1181,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 		PWC_DEBUG_OPEN("Failed to init ISOC stuff = %d.\n", i);
 		pwc_isoc_cleanup(pdev);
 		pwc_free_buffers(pdev);
-		up(&pdev->modlock);
+		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1191,7 +1191,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 
 	pdev->vopen++;
 	file->private_data = vdev;
-	up(&pdev->modlock);
+	mutex_unlock(&pdev->modlock);
 	PWC_DEBUG_OPEN("<< video_open() returns 0.\n");
 	return 0;
 }
@@ -1685,7 +1685,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		pdev->angle_range.tilt_max =  2500;
 	}
 
-	init_MUTEX(&pdev->modlock);
+	mutex_init(&pdev->modlock);
 	spin_lock_init(&pdev->ptrlock);
 
 	pdev->udev = udev;

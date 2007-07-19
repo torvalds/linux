@@ -176,7 +176,7 @@ static const struct ata_port_info qs_port_info[] = {
 				  //FIXME ATA_FLAG_SRST |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x10, /* pio4 */
-		.udma_mask	= 0x7f, /* udma0-6 */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &qs_ata_ops,
 	},
 };

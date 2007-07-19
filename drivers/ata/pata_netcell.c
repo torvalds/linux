@@ -94,12 +94,12 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	static int printed_version;
 	static const struct ata_port_info info = {
 		.sht		= &netcell_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		/* Actually we don't really care about these as the
 		   firmware deals with it */
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask 	= 0x3f, /* UDMA 133 */
+		.udma_mask 	= ATA_UDMA5, /* UDMA 133 */
 		.port_ops	= &netcell_ops,
 	};
 	const struct ata_port_info *port_info[] = { &info, NULL };

@@ -67,7 +67,7 @@ Code	Seq#	Include File		Comments
 0x00	00-1F	linux/wavefront.h	conflict!
 0x02	all	linux/fd.h
 0x03	all	linux/hdreg.h
-0x04	all	linux/umsdos_fs.h
+0x04	D2-DC	linux/umsdos_fs.h	Dead since 2.6.11, but don't reuse these.
 0x06	all	linux/lp.h
 0x09	all	linux/md.h
 0x12	all	linux/fs.h

@@ -1218,7 +1218,14 @@ audio_mux(struct bttv *btv, int input, int mute)
 			break;
 		case TVAUDIO_INPUT_TUNER:
 		default:
-			route.input = MSP_INPUT_DEFAULT;
+			/* This is the only card that uses TUNER2, and afaik,
+			   is the only difference between the VOODOOTV_FM
+			   and VOODOOTV_200 */
+			if (btv->c.type == BTTV_BOARD_VOODOOTV_200)
+				route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER2, \
+					MSP_DSP_IN_TUNER, MSP_DSP_IN_TUNER);
+			else
+				route.input = MSP_INPUT_DEFAULT;
 			break;
 		}
 		route.output = MSP_OUTPUT_DEFAULT;
@@ -1253,7 +1260,7 @@ i2c_vidiocschan(struct bttv *btv)
 	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
 
 	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
-	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
+	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM || btv->c.type == BTTV_BOARD_VOODOOTV_200)
 		bttv_tda9880_setnorm(btv,btv->tvnorm);
 }
 
@@ -1323,6 +1330,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	switch (btv->c.type) {
 	case BTTV_BOARD_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_200:
 		bttv_tda9880_setnorm(btv,norm);
 		break;
 	}
@@ -1331,7 +1339,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 /* Call with btv->lock down. */
 static void
-set_input(struct bttv *btv, unsigned int input)
+set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 {
 	unsigned long flags;
 
@@ -1350,7 +1358,7 @@ set_input(struct bttv *btv, unsigned int input)
 	}
 	audio_input(btv,(input == bttv_tvcards[btv->c.type].tuner ?
 		       TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN));
-	set_tvnorm(btv,btv->tvnorm);
+	set_tvnorm(btv, norm);
 	i2c_vidiocschan(btv);
 }
 
@@ -1441,7 +1449,7 @@ static void bttv_reinit_bt848(struct bttv *btv)
 
 	init_bt848(btv);
 	btv->pll.pll_current = -1;
-	set_input(btv,btv->input);
+	set_input(btv, btv->input, btv->tvnorm);
 }
 
 static int get_control(struct bttv *btv, struct v4l2_control *c)
@@ -2011,8 +2019,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			return 0;
 		}
 
-		btv->tvnorm = v->norm;
-		set_input(btv,v->channel);
+		set_input(btv, v->channel, v->norm);
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
@@ -2148,7 +2155,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		if (*i > bttv_tvcards[btv->c.type].video_inputs)
 			return -EINVAL;
 		mutex_lock(&btv->lock);
-		set_input(btv,*i);
+		set_input(btv, *i, btv->tvnorm);
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
@@ -2252,6 +2259,24 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		printk(KERN_INFO "bttv%d: ==================  END STATUS CARD #%d  ==================\n", btv->c.nr, btv->c.nr);
 		return 0;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+			return -EINVAL;
+		/* bt848 has a 12-bit register space */
+		reg->reg &= 0xfff;
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = btread(reg->reg);
+		else
+			btwrite(reg->val, reg->reg);
+		return 0;
+	}
+#endif
 
 	default:
 		return -ENOIOCTLCMD;
@@ -3562,6 +3587,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_FREQUENCY:
 	case VIDIOC_S_FREQUENCY:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -3944,6 +3971,8 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -4780,7 +4809,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		bt848_hue(btv,32768);
 		bt848_sat(btv,32768);
 		audio_mute(btv, 1);
-		set_input(btv,0);
+		set_input(btv, 0, btv->tvnorm);
 		bttv_crop_reset(&btv->crop[0], btv->tvnorm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
 		disclaim_vbi_lines(btv);

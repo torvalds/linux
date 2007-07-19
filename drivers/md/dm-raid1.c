@@ -24,6 +24,7 @@
 #define DM_IO_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
+#define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
 
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
@@ -85,6 +86,7 @@ struct region_hash {
 	struct list_head clean_regions;
 	struct list_head quiesced_regions;
 	struct list_head recovered_regions;
+	struct list_head failed_recovered_regions;
 };
 
 enum {
@@ -132,6 +134,7 @@ struct mirror_set {
 	/* recovery */
 	region_t nr_regions;
 	int in_sync;
+	int log_failure;
 
 	struct mirror *default_mirror;	/* Default mirror */
 
@@ -204,6 +207,7 @@ static int rh_init(struct region_hash *rh, struct mirror_set *ms,
 	INIT_LIST_HEAD(&rh->clean_regions);
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
+	INIT_LIST_HEAD(&rh->failed_recovered_regions);
 
 	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
 						      sizeof(struct region));
@@ -368,6 +372,7 @@ static void rh_update_states(struct region_hash *rh)
 
 	LIST_HEAD(clean);
 	LIST_HEAD(recovered);
+	LIST_HEAD(failed_recovered);
 
 	/*
 	 * Quickly grab the lists.
@@ -378,10 +383,8 @@ static void rh_update_states(struct region_hash *rh)
 		list_splice(&rh->clean_regions, &clean);
 		INIT_LIST_HEAD(&rh->clean_regions);
 
-		list_for_each_entry (reg, &clean, list) {
-			rh->log->type->clear_region(rh->log, reg->key);
+		list_for_each_entry(reg, &clean, list)
 			list_del(&reg->hash_list);
-		}
 	}
 
 	if (!list_empty(&rh->recovered_regions)) {
@@ -391,6 +394,15 @@ static void rh_update_states(struct region_hash *rh)
 		list_for_each_entry (reg, &recovered, list)
 			list_del(&reg->hash_list);
 	}
+
+	if (!list_empty(&rh->failed_recovered_regions)) {
+		list_splice(&rh->failed_recovered_regions, &failed_recovered);
+		INIT_LIST_HEAD(&rh->failed_recovered_regions);
+
+		list_for_each_entry(reg, &failed_recovered, list)
+			list_del(&reg->hash_list);
+	}
+
 	spin_unlock(&rh->region_lock);
 	write_unlock_irq(&rh->hash_lock);
 
@@ -405,10 +417,17 @@ static void rh_update_states(struct region_hash *rh)
 		mempool_free(reg, rh->region_pool);
 	}
 
-	rh->log->type->flush(rh->log);
-
-	list_for_each_entry_safe (reg, next, &clean, list)
+	list_for_each_entry_safe(reg, next, &failed_recovered, list) {
+		complete_resync_work(reg, errors_handled(rh->ms) ? 0 : 1);
 		mempool_free(reg, rh->region_pool);
+	}
+
+	list_for_each_entry_safe(reg, next, &clean, list) {
+		rh->log->type->clear_region(rh->log, reg->key);
+		mempool_free(reg, rh->region_pool);
+	}
+
+	rh->log->type->flush(rh->log);
 }
 
 static void rh_inc(struct region_hash *rh, region_t region)
@@ -555,21 +574,25 @@ static struct region *rh_recovery_start(struct region_hash *rh)
 	return reg;
 }
 
-/* FIXME: success ignored for now */
 static void rh_recovery_end(struct region *reg, int success)
 {
 	struct region_hash *rh = reg->rh;
 
 	spin_lock_irq(&rh->region_lock);
-	list_add(&reg->list, &reg->rh->recovered_regions);
+	if (success)
+		list_add(&reg->list, &reg->rh->recovered_regions);
+	else {
+		reg->state = RH_NOSYNC;
+		list_add(&reg->list, &reg->rh->failed_recovered_regions);
+	}
 	spin_unlock_irq(&rh->region_lock);
 
 	wake(rh->ms);
 }
 
-static void rh_flush(struct region_hash *rh)
+static int rh_flush(struct region_hash *rh)
 {
-	rh->log->type->flush(rh->log);
+	return rh->log->type->flush(rh->log);
 }
 
 static void rh_delay(struct region_hash *rh, struct bio *bio)
@@ -633,7 +656,14 @@ static void recovery_complete(int read_err, unsigned int write_err,
 {
 	struct region *reg = (struct region *) context;
 
-	/* FIXME: better error handling */
+	if (read_err)
+		/* Read error means the failure of default mirror. */
+		DMERR_LIMIT("Unable to read primary mirror during recovery");
+
+	if (write_err)
+		DMERR_LIMIT("Write error during recovery (error = 0x%x)",
+			    write_err);
+
 	rh_recovery_end(reg, !(read_err || write_err));
 }
 
@@ -863,12 +893,15 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 */
 	rh_inc_pending(&ms->rh, &sync);
 	rh_inc_pending(&ms->rh, &nosync);
-	rh_flush(&ms->rh);
+	ms->log_failure = rh_flush(&ms->rh) ? 1 : 0;
 
 	/*
 	 * Dispatch io.
 	 */
-	while ((bio = bio_list_pop(&sync)))
+	if (unlikely(ms->log_failure))
+		while ((bio = bio_list_pop(&sync)))
+			bio_endio(bio, bio->bi_size, -EIO);
+	else while ((bio = bio_list_pop(&sync)))
 		do_write(ms, bio);
 
 	while ((bio = bio_list_pop(&recover)))
@@ -1145,6 +1178,15 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
+	/*
+	 * Any read-balancing addition depends on the
+	 * DM_RAID1_HANDLE_ERRORS flag being present.
+	 * This is because the decision to balance depends
+	 * on the sync state of a region.  If the above
+	 * flag is not present, we ignore errors; and
+	 * the sync state may be inaccurate.
+	 */
+
 	if (argc) {
 		ti->error = "Too many mirror arguments";
 		free_context(ms, ti, ms->nr_mirrors);
@@ -1288,12 +1330,12 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT("%s ", ms->mirror[m].dev->name);
 
-		DMEMIT("%llu/%llu",
+		DMEMIT("%llu/%llu 0 ",
 			(unsigned long long)ms->rh.log->type->
 				get_sync_count(ms->rh.log),
 			(unsigned long long)ms->nr_regions);
 
-		sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
+		sz += ms->rh.log->type->status(ms->rh.log, type, result+sz, maxlen-sz);
 
 		break;
 
@@ -1335,8 +1377,7 @@ static int __init dm_mirror_init(void)
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
-		DMERR("%s: Failed to register mirror target",
-		      mirror_target.name);
+		DMERR("Failed to register mirror target");
 		dm_dirty_log_exit();
 	}
 
@@ -1349,7 +1390,7 @@ static void __exit dm_mirror_exit(void)
 
 	r = dm_unregister_target(&mirror_target);
 	if (r < 0)
-		DMERR("%s: unregister failed %d", mirror_target.name, r);
+		DMERR("unregister failed %d", r);
 
 	dm_dirty_log_exit();
 }

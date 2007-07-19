@@ -2225,6 +2225,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	__show_regs(regs);
+	add_taint(TAINT_DIE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct reg_window *rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);

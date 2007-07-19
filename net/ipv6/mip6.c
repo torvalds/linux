@@ -30,6 +30,7 @@
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
+#include <net/rawv6.h>
 #include <net/xfrm.h>
 #include <net/mip6.h>
 
@@ -86,7 +87,7 @@ static int mip6_mh_len(int type)
 	return len;
 }
 
-int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
+static int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip6_mh *mh;
 
@@ -471,7 +472,7 @@ static struct xfrm_type mip6_rthdr_type =
 	.remote_addr	= mip6_xfrm_addr,
 };
 
-int __init mip6_init(void)
+static int __init mip6_init(void)
 {
 	printk(KERN_INFO "Mobile IPv6\n");
 
@@ -483,18 +484,35 @@ int __init mip6_init(void)
 		printk(KERN_INFO "%s: can't add xfrm type(rthdr)\n", __FUNCTION__);
 		goto mip6_rthdr_xfrm_fail;
 	}
+	if (rawv6_mh_filter_register(mip6_mh_filter) < 0) {
+		printk(KERN_INFO "%s: can't add rawv6 mh filter\n", __FUNCTION__);
+		goto mip6_rawv6_mh_fail;
+	}
+
+
 	return 0;
 
+ mip6_rawv6_mh_fail:
+	xfrm_unregister_type(&mip6_rthdr_type, AF_INET6);
  mip6_rthdr_xfrm_fail:
 	xfrm_unregister_type(&mip6_destopt_type, AF_INET6);
  mip6_destopt_xfrm_fail:
 	return -EAGAIN;
 }
 
-void __exit mip6_fini(void)
+static void __exit mip6_fini(void)
 {
+	if (rawv6_mh_filter_unregister(mip6_mh_filter) < 0)
+		printk(KERN_INFO "%s: can't remove rawv6 mh filter\n", __FUNCTION__);
 	if (xfrm_unregister_type(&mip6_rthdr_type, AF_INET6) < 0)
 		printk(KERN_INFO "%s: can't remove xfrm type(rthdr)\n", __FUNCTION__);
 	if (xfrm_unregister_type(&mip6_destopt_type, AF_INET6) < 0)
 		printk(KERN_INFO "%s: can't remove xfrm type(destopt)\n", __FUNCTION__);
 }
+
+module_init(mip6_init);
+module_exit(mip6_fini);
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_DSTOPTS);
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_ROUTING);

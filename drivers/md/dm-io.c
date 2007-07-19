@@ -293,7 +293,10 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 		 * bvec for bio_get/set_region() and decrement bi_max_vecs
 		 * to hide it from bio_add_page().
 		 */
-		num_bvecs = (remaining / (PAGE_SIZE >> SECTOR_SHIFT)) + 2;
+		num_bvecs = dm_sector_div_up(remaining,
+					     (PAGE_SIZE >> SECTOR_SHIFT));
+		num_bvecs = 1 + min_t(int, bio_get_nr_vecs(where->bdev),
+				      num_bvecs);
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_sector = where->sector + (where->count - remaining);
 		bio->bi_bdev = where->bdev;

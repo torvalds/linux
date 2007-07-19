@@ -223,7 +223,7 @@ static const struct ata_port_info vt6420_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 	.pio_mask	= 0x1f,
 	.mwdma_mask	= 0x07,
-	.udma_mask	= 0x7f,
+	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &vt6420_sata_ops,
 };
 
@@ -231,7 +231,7 @@ static struct ata_port_info vt6421_sport_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 	.pio_mask	= 0x1f,
 	.mwdma_mask	= 0x07,
-	.udma_mask	= 0x7f,
+	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &vt6421_sata_ops,
 };
 
@@ -239,7 +239,7 @@ static struct ata_port_info vt6421_pport_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_LEGACY,
 	.pio_mask	= 0x1f,
 	.mwdma_mask	= 0,
-	.udma_mask	= 0x7f,
+	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &vt6421_pata_ops,
 };
 
@@ -303,9 +303,7 @@ static int vt6420_prereset(struct ata_port *ap, unsigned long deadline)
 	if (!(ap->pflags & ATA_PFLAG_LOADING))
 		goto skip_scr;
 
-	/* Resume phy.  This is the old resume sequence from
-	 * __sata_phy_reset().
-	 */
+	/* Resume phy.  This is the old SATA resume sequence */
 	svia_scr_write(ap, SCR_CONTROL, 0x300);
 	svia_scr_read(ap, SCR_CONTROL); /* flush */
 
@@ -414,7 +412,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
-	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
+	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;

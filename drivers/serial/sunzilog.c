@@ -9,7 +9,7 @@
  * C. Dost, Pete Zaitcev, Ted Ts'o and Alex Buell for their
  * work there.
  *
- *  Copyright (C) 2002, 2006 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2002, 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -1151,11 +1151,22 @@ sunzilog_console_write(struct console *con, const char *s, unsigned int count)
 {
 	struct uart_sunzilog_port *up = &sunzilog_port_table[con->index];
 	unsigned long flags;
+	int locked = 1;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	local_irq_save(flags);
+	if (up->port.sysrq) {
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&up->port.lock);
+	} else
+		spin_lock(&up->port.lock);
+
 	uart_console_write(&up->port, s, count, sunzilog_putchar);
 	udelay(2);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+
+	if (locked)
+		spin_unlock(&up->port.lock);
+	local_irq_restore(flags);
 }
 
 static int __init sunzilog_console_setup(struct console *con, char *options)

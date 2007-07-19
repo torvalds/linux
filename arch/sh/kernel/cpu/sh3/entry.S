@@ -340,8 +340,27 @@ ENTRY(vbr_base)
 general_exception:
 	mov.l	1f, k2
 	mov.l	2f, k3
+#ifdef CONFIG_CPU_SUBTYPE_SHX3
+	mov.l	@k2, k2
+
+	! Is EXPEVT larger than 0x800?
+	mov	#0x8, k0
+	shll8	k0
+	cmp/hs	k0, k2
+	bf	0f
+
+	! then add 0x580 (k2 is 0xd80 or 0xda0)
+	mov	#0x58, k0
+	shll2	k0
+	shll2	k0
+	add	k0, k2
+0:
+	bra	handle_exception
+	 nop
+#else
 	bra	handle_exception
 	 mov.l	@k2, k2
+#endif
 	.align	2
 1:	.long	EXPEVT
 2:	.long	ret_from_exception

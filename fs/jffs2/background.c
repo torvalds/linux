@@ -81,6 +81,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 
 	set_user_nice(current, 10);
 
+	set_freezable();
 	for (;;) {
 		allow_signal(SIGHUP);
 

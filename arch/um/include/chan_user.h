@@ -12,8 +12,6 @@ struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);
 	char *xterm_title;
 	const int raw;
-	const unsigned long tramp_stack;
-	const int in_kernel;
 };
 
 enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };
@@ -44,7 +42,8 @@ extern void generic_free(void *data);
 
 struct tty_struct;
 extern void register_winch(int fd,  struct tty_struct *tty);
-extern void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty);
+extern void register_winch_irq(int fd, int tty_fd, int pid,
+			       struct tty_struct *tty, unsigned long stack);
 
 #define __channel_help(fn, prefix) \
 __uml_help(fn, prefix "[0-9]*=<channel description>\n" \

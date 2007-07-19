@@ -22,8 +22,6 @@
 #include <linux/errno.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
 #include <linux/delay.h>
 #include "aerdrv.h"
 
@@ -115,6 +113,21 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 	else
 		status &= mask; /* Clear corresponding fatal bits */
 	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
+
+	return 0;
+}
+
+int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
+{
+	int pos;
+	u32 status;
+
+	pos = pci_find_aer_capability(dev);
+	if (!pos)
+		return -EIO;
+
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS, status);
 
 	return 0;
 }
@@ -733,20 +746,8 @@ void aer_delete_rootport(struct aer_rpc *rpc)
  **/
 int aer_init(struct pcie_device *dev)
 {
-	int status;
-
-	/* Run _OSC Method */
-	status = aer_osc_setup(dev->port);
-
-	if(status != OSC_METHOD_RUN_SUCCESS) {
-		printk(KERN_DEBUG "%s: AER service init fails - %s\n",
-		__FUNCTION__,
-		(status == OSC_METHOD_NOT_SUPPORTED) ?
-			"No ACPI _OSC support" : "Run ACPI _OSC fails");
-
-		if (!forceload)
-			return status;
-	}
+	if (aer_osc_setup(dev) && !forceload)
+		return -ENXIO;
 
 	return AER_SUCCESS;
 }
@@ -755,4 +756,5 @@ EXPORT_SYMBOL_GPL(pci_find_aer_capability);
 EXPORT_SYMBOL_GPL(pci_enable_pcie_error_reporting);
 EXPORT_SYMBOL_GPL(pci_disable_pcie_error_reporting);
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
+EXPORT_SYMBOL_GPL(pci_cleanup_aer_correct_error_status);
 

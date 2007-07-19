@@ -1503,6 +1503,15 @@ int tty_hung_up_p(struct file * filp)
 
 EXPORT_SYMBOL(tty_hung_up_p);
 
+/**
+ * is_tty	-	checker whether file is a TTY
+ */
+int is_tty(struct file *filp)
+{
+	return filp->f_op->read == tty_read
+		|| filp->f_op->read == hung_up_tty_read;
+}
+
 static void session_clear_tty(struct pid *session)
 {
 	struct task_struct *p;
@@ -1726,6 +1735,23 @@ static ssize_t tty_read(struct file * file, char __user * buf, size_t count,
 	return i;
 }
 
+void tty_write_unlock(struct tty_struct *tty)
+{
+	mutex_unlock(&tty->atomic_write_lock);
+	wake_up_interruptible(&tty->write_wait);
+}
+
+int tty_write_lock(struct tty_struct *tty, int ndelay)
+{
+	if (!mutex_trylock(&tty->atomic_write_lock)) {
+		if (ndelay)
+			return -EAGAIN;
+		if (mutex_lock_interruptible(&tty->atomic_write_lock))
+			return -ERESTARTSYS;
+	}
+	return 0;
+}
+
 /*
  * Split writes up in sane blocksizes to avoid
  * denial-of-service type attacks
@@ -1737,13 +1763,12 @@ static inline ssize_t do_tty_write(
 	const char __user *buf,
 	size_t count)
 {
-	ssize_t ret = 0, written = 0;
+	ssize_t ret, written = 0;
 	unsigned int chunk;
 	
-	/* FIXME: O_NDELAY ... */
-	if (mutex_lock_interruptible(&tty->atomic_write_lock)) {
-		return -ERESTARTSYS;
-	}
+	ret = tty_write_lock(tty, file->f_flags & O_NDELAY);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We chunk up writes into a temporary buffer. This
@@ -1776,8 +1801,8 @@ static inline ssize_t do_tty_write(
 
 		buf = kmalloc(chunk, GFP_KERNEL);
 		if (!buf) {
-			mutex_unlock(&tty->atomic_write_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 		kfree(tty->write_buf);
 		tty->write_cnt = chunk;
@@ -1812,7 +1837,8 @@ static inline ssize_t do_tty_write(
 		inode->i_mtime = current_fs_time(inode->i_sb);
 		ret = written;
 	}
-	mutex_unlock(&tty->atomic_write_lock);
+out:
+	tty_write_unlock(tty);
 	return ret;
 }
 
@@ -2016,11 +2042,9 @@ static int init_dev(struct tty_driver *driver, int idx,
 	}
 
 	if (!*ltp_loc) {
-		ltp = (struct ktermios *) kmalloc(sizeof(struct ktermios),
-						 GFP_KERNEL);
+		ltp = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
 		if (!ltp)
 			goto free_mem_out;
-		memset(ltp, 0, sizeof(struct ktermios));
 	}
 
 	if (driver->type == TTY_DRIVER_TYPE_PTY) {
@@ -2049,11 +2073,9 @@ static int init_dev(struct tty_driver *driver, int idx,
 		}
 
 		if (!*o_ltp_loc) {
-			o_ltp = (struct ktermios *)
-				kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+			o_ltp = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
 			if (!o_ltp)
 				goto free_mem_out;
-			memset(o_ltp, 0, sizeof(struct ktermios));
 		}
 
 		/*
@@ -2660,6 +2682,7 @@ got_driver:
 		__proc_set_tty(current, tty);
 	spin_unlock_irq(&current->sighand->siglock);
 	mutex_unlock(&tty_mutex);
+	tty_audit_opening();
 	return 0;
 }
 
@@ -2722,8 +2745,10 @@ static int ptmx_open(struct inode * inode, struct file * filp)
 
 	check_tty_count(tty, "tty_open");
 	retval = ptm_driver->open(tty, filp);
-	if (!retval)
+	if (!retval) {
+		tty_audit_opening();
 		return 0;
+	}
 out1:
 	release_dev(filp);
 	return retval;
@@ -3163,14 +3188,13 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 
 static int send_break(struct tty_struct *tty, unsigned int duration)
 {
-	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+	if (tty_write_lock(tty, 0) < 0)
 		return -EINTR;
 	tty->driver->break_ctl(tty, -1);
-	if (!signal_pending(current)) {
+	if (!signal_pending(current))
 		msleep_interruptible(duration);
-	}
 	tty->driver->break_ctl(tty, 0);
-	mutex_unlock(&tty->atomic_write_lock);
+	tty_write_unlock(tty);
 	if (signal_pending(current))
 		return -EINTR;
 	return 0;
@@ -3739,9 +3763,8 @@ struct tty_driver *alloc_tty_driver(int lines)
 {
 	struct tty_driver *driver;
 
-	driver = kmalloc(sizeof(struct tty_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(struct tty_driver), GFP_KERNEL);
 	if (driver) {
-		memset(driver, 0, sizeof(struct tty_driver));
 		driver->magic = TTY_DRIVER_MAGIC;
 		driver->num = lines;
 		/* later we'll move allocation of tables here */

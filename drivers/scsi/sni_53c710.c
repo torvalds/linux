@@ -84,7 +84,7 @@ static int __init snirm710_probe(struct platform_device *dev)
 
 	hostdata->dev = &dev->dev;
 	dma_set_mask(&dev->dev, DMA_32BIT_MASK);
-	hostdata->base = ioremap_nocache(CPHYSADDR(base), 0x100);
+	hostdata->base = ioremap_nocache(base, 0x100);
 	hostdata->differential = 0;
 
 	hostdata->clock = SNIRM710_CLOCK;
@@ -141,13 +141,7 @@ static struct platform_driver snirm710_driver = {
 
 static int __init snirm710_init(void)
 {
-	int err;
-
-	if ((err = platform_driver_register(&snirm710_driver))) {
-		printk(KERN_ERR "Driver registration failed\n");
-		return err;
-	}
-	return 0;
+	return platform_driver_register(&snirm710_driver);
 }
 
 static void __exit snirm710_exit(void)

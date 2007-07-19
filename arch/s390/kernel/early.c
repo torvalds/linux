@@ -171,37 +171,6 @@ static inline int memory_fast_detect(void)
 }
 #endif
 
-#define ADDR2G	(1UL << 31)
-
-static noinline __init unsigned long sclp_memory_detect(void)
-{
-	struct sclp_readinfo_sccb *sccb;
-	unsigned long long memsize;
-
-	sccb = &s390_readinfo_sccb;
-
-	if (sccb->header.response_code != 0x10)
-		return 0;
-
-	if (sccb->rnsize)
-		memsize = sccb->rnsize << 20;
-	else
-		memsize = sccb->rnsize2 << 20;
-	if (sccb->rnmax)
-		memsize *= sccb->rnmax;
-	else
-		memsize *= sccb->rnmax2;
-#ifndef CONFIG_64BIT
-	/*
-	 * Can't deal with more than 2G in 31 bit addressing mode, so
-	 * limit the value in order to avoid strange side effects.
-	 */
-	if (memsize > ADDR2G)
-		memsize = ADDR2G;
-#endif
-	return (unsigned long) memsize;
-}
-
 static inline __init unsigned long __tprot(unsigned long addr)
 {
 	int cc = -1;
@@ -218,6 +187,7 @@ static inline __init unsigned long __tprot(unsigned long addr)
 
 /* Checking memory in 128KB increments. */
 #define CHUNK_INCR	(1UL << 17)
+#define ADDR2G		(1UL << 31)
 
 static noinline __init void find_memory_chunks(unsigned long memsize)
 {
@@ -293,7 +263,7 @@ static noinline __init void setup_lowcore_early(void)
  */
 void __init startup_init(void)
 {
-	unsigned long memsize;
+	unsigned long long memsize;
 
 	ipl_save_parameters();
 	clear_bss_section();
@@ -305,8 +275,17 @@ void __init startup_init(void)
 	sort_main_extable();
 	setup_lowcore_early();
 	sclp_readinfo_early();
+	sclp_facilities_detect();
 	memsize = sclp_memory_detect();
+#ifndef CONFIG_64BIT
+	/*
+	 * Can't deal with more than 2G in 31 bit addressing mode, so
+	 * limit the value in order to avoid strange side effects.
+	 */
+	if (memsize > ADDR2G)
+		memsize = ADDR2G;
+#endif
 	if (memory_fast_detect() < 0)
-		find_memory_chunks(memsize);
+		find_memory_chunks((unsigned long) memsize);
 	lockdep_on();
 }

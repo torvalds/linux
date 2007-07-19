@@ -34,12 +34,8 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * This gives the physical RAM offset.
- */
-#ifndef PHYS_OFFSET
-#define PHYS_OFFSET		0UL
-#endif
+#include <linux/pfn.h>
+#include <asm/io.h>
 
 /*
  * It's normally defined only for FLATMEM config but it's
@@ -47,9 +43,6 @@
  * So always define it.
  */
 #define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
-
-#include <linux/pfn.h>
-#include <asm/io.h>
 
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
@@ -150,11 +143,15 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * __pa()/__va() should be used only during mem init.
  */
 #if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
-#define __pa_page_offset(x)	((unsigned long)(x) < CKSEG0 ? PAGE_OFFSET : CKSEG0)
+#define __pa(x)								\
+({									\
+    unsigned long __x = (unsigned long)(x);				\
+    __x < CKSEG0 ? XPHYSADDR(__x) : CPHYSADDR(__x);			\
+})
 #else
-#define __pa_page_offset(x)	PAGE_OFFSET
+#define __pa(x)								\
+    ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
 #endif
-#define __pa(x)		((unsigned long)(x) - __pa_page_offset(x) + PHYS_OFFSET)
 #define __va(x)		((void *)((unsigned long)(x) + PAGE_OFFSET - PHYS_OFFSET))
 #define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x),0))
 

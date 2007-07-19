@@ -72,8 +72,6 @@ MODULE_PARM_DESC(last, "Number of last console to take over (1 - MAX_NR_CONSOLES
 
 static struct usb_driver sisusb_driver;
 
-DEFINE_MUTEX(disconnect_mutex);
-
 static void
 sisusb_free_buffers(struct sisusb_usb_data *sisusb)
 {
@@ -2511,31 +2509,24 @@ sisusb_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor = iminor(inode);
 
-	mutex_lock(&disconnect_mutex);
-
 	if (!(interface = usb_find_interface(&sisusb_driver, subminor))) {
 		printk(KERN_ERR "sisusb[%d]: Failed to find interface\n",
 				subminor);
-		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
-	if (!(sisusb = usb_get_intfdata(interface))) {
-		mutex_unlock(&disconnect_mutex);
+	if (!(sisusb = usb_get_intfdata(interface)))
 		return -ENODEV;
-	}
 
 	mutex_lock(&sisusb->lock);
 
 	if (!sisusb->present || !sisusb->ready) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
 	if (sisusb->isopen) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return -EBUSY;
 	}
 
@@ -2543,7 +2534,6 @@ sisusb_open(struct inode *inode, struct file *file)
 		if (sisusb->sisusb_dev->speed == USB_SPEED_HIGH) {
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
 				mutex_unlock(&sisusb->lock);
-				mutex_unlock(&disconnect_mutex);
 				printk(KERN_ERR
 					"sisusbvga[%d]: Failed to initialize "
 					"device\n",
@@ -2552,7 +2542,6 @@ sisusb_open(struct inode *inode, struct file *file)
 			}
 		} else {
 			mutex_unlock(&sisusb->lock);
-			mutex_unlock(&disconnect_mutex);
 			printk(KERN_ERR
 				"sisusbvga[%d]: Device not attached to "
 				"USB 2.0 hub\n",
@@ -2569,8 +2558,6 @@ sisusb_open(struct inode *inode, struct file *file)
 	file->private_data = sisusb;
 
 	mutex_unlock(&sisusb->lock);
-
-	mutex_unlock(&disconnect_mutex);
 
 	return 0;
 }
@@ -2601,12 +2588,8 @@ sisusb_release(struct inode *inode, struct file *file)
 	struct sisusb_usb_data *sisusb;
 	int myminor;
 
-	mutex_lock(&disconnect_mutex);
-
-	if (!(sisusb = (struct sisusb_usb_data *)file->private_data)) {
-		mutex_unlock(&disconnect_mutex);
+	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
-	}
 
 	mutex_lock(&sisusb->lock);
 
@@ -2625,8 +2608,6 @@ sisusb_release(struct inode *inode, struct file *file)
 
 	/* decrement the usage count on our device */
 	kref_put(&sisusb->kref, sisusb_delete);
-
-	mutex_unlock(&disconnect_mutex);
 
 	return 0;
 }
@@ -3383,12 +3364,9 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	sisusb_console_exit(sisusb);
 #endif
 
-	/* The above code doesn't need the disconnect
-	 * semaphore to be down; its meaning is to
-	 * protect all other routines from the disconnect
-	 * case, not the other way round.
-	 */
-	mutex_lock(&disconnect_mutex);
+	minor = sisusb->minor;
+
+	usb_deregister_dev(intf, &usb_sisusb_class);
 
 	mutex_lock(&sisusb->lock);
 
@@ -3396,11 +3374,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	if (!sisusb_wait_all_out_complete(sisusb))
 		sisusb_kill_all_busy(sisusb);
 
-	minor = sisusb->minor;
-
 	usb_set_intfdata(intf, NULL);
-
-	usb_deregister_dev(intf, &usb_sisusb_class);
 
 #ifdef SISUSB_OLD_CONFIG_COMPAT
 	if (sisusb->ioctl32registered) {
@@ -3425,8 +3399,6 @@ static void sisusb_disconnect(struct usb_interface *intf)
 
 	/* decrement our usage count */
 	kref_put(&sisusb->kref, sisusb_delete);
-
-	mutex_unlock(&disconnect_mutex);
 
 	printk(KERN_INFO "sisusbvga[%d]: Disconnected\n", minor);
 }

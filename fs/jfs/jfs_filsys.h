@@ -34,9 +34,9 @@
 #define JFS_UNICODE	0x00000001	/* unicode name */
 
 /* mount time flags for error handling */
-#define JFS_ERR_REMOUNT_RO 0x00000002   /* remount read-only */
-#define JFS_ERR_CONTINUE   0x00000004   /* continue */
-#define JFS_ERR_PANIC      0x00000008   /* panic */
+#define JFS_ERR_REMOUNT_RO 0x00000002	/* remount read-only */
+#define JFS_ERR_CONTINUE   0x00000004	/* continue */
+#define JFS_ERR_PANIC      0x00000008	/* panic */
 
 /* Quota support */
 #define	JFS_USRQUOTA	0x00000010
@@ -83,7 +83,6 @@
 /*	case-insensitive name/directory support */
 
 #define JFS_AIX		0x80000000	/* AIX support */
-/*	POSIX name/directory  support - Never implemented*/
 
 /*
  *	buffer cache configuration
@@ -113,10 +112,10 @@
 #define IDATASIZE	256	/* inode inline data size */
 #define	IXATTRSIZE	128	/* inode inline extended attribute size */
 
-#define XTPAGE_SIZE     4096
-#define log2_PAGESIZE     12
+#define XTPAGE_SIZE	4096
+#define log2_PAGESIZE	12
 
-#define IAG_SIZE        4096
+#define IAG_SIZE	4096
 #define IAG_EXTENT_SIZE 4096
 #define	INOSPERIAG	4096	/* number of disk inodes per iag */
 #define	L2INOSPERIAG	12	/* l2 number of disk inodes per iag */

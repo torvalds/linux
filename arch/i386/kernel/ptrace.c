@@ -164,14 +164,22 @@ static unsigned long convert_eip_to_linear(struct task_struct *child, struct pt_
 		u32 *desc;
 		unsigned long base;
 
-		down(&child->mm->context.sem);
-		desc = child->mm->context.ldt + (seg & ~7);
-		base = (desc[0] >> 16) | ((desc[1] & 0xff) << 16) | (desc[1] & 0xff000000);
+		seg &= ~7UL;
 
-		/* 16-bit code segment? */
-		if (!((desc[1] >> 22) & 1))
-			addr &= 0xffff;
-		addr += base;
+		down(&child->mm->context.sem);
+		if (unlikely((seg >> 3) >= child->mm->context.size))
+			addr = -1L; /* bogus selector, access would fault */
+		else {
+			desc = child->mm->context.ldt + seg;
+			base = ((desc[0] >> 16) |
+				((desc[1] & 0xff) << 16) |
+				(desc[1] & 0xff000000));
+
+			/* 16-bit code segment? */
+			if (!((desc[1] >> 22) & 1))
+				addr &= 0xffff;
+			addr += base;
+		}
 		up(&child->mm->context.sem);
 	}
 	return addr;
@@ -358,17 +366,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
-	case PTRACE_PEEKDATA: {
-		unsigned long tmp;
-		int copied;
-
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		ret = -EIO;
-		if (copied != sizeof(tmp))
-			break;
-		ret = put_user(tmp, datap);
+	case PTRACE_PEEKDATA:
+		ret = generic_ptrace_peekdata(child, addr, data);
 		break;
-	}
 
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
@@ -395,10 +395,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
 	case PTRACE_POKEDATA:
-		ret = 0;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1) == sizeof(data))
-			break;
-		ret = -EIO;
+		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */

@@ -39,13 +39,8 @@ extern void		eth_header_cache_update(struct hh_cache *hh, struct net_device *dev
 extern int		eth_header_cache(struct neighbour *neigh,
 					 struct hh_cache *hh);
 
-extern struct net_device *alloc_etherdev(int sizeof_priv);
-static inline void eth_copy_and_sum (struct sk_buff *dest, 
-				     const unsigned char *src, 
-				     int len, int base)
-{
-	memcpy (dest->data, src, len);
-}
+extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
+#define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.

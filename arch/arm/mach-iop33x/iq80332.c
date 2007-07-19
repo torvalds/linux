@@ -136,6 +136,9 @@ static void __init iq80332_init_machine(void)
 	platform_device_register(&iop33x_uart0_device);
 	platform_device_register(&iop33x_uart1_device);
 	platform_device_register(&iq80332_flash_device);
+	platform_device_register(&iop3xx_dma_0_channel);
+	platform_device_register(&iop3xx_dma_1_channel);
+	platform_device_register(&iop3xx_aau_channel);
 }
 
 MACHINE_START(IQ80332, "Intel IQ80332")

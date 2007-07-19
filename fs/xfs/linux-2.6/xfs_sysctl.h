@@ -47,6 +47,7 @@ typedef struct xfs_param {
 	xfs_sysctl_val_t inherit_nosym;	/* Inherit the "nosymlinks" flag. */
 	xfs_sysctl_val_t rotorstep;	/* inode32 AG rotoring control knob */
 	xfs_sysctl_val_t inherit_nodfrg;/* Inherit the "nodefrag" inode flag. */
+	xfs_sysctl_val_t fstrm_timer;	/* Filestream dir-AG assoc'n timeout. */
 } xfs_param_t;
 
 /*
@@ -86,6 +87,7 @@ enum {
 	XFS_INHERIT_NOSYM = 19,
 	XFS_ROTORSTEP = 20,
 	XFS_INHERIT_NODFRG = 21,
+	XFS_FILESTREAM_TIMER = 22,
 };
 
 extern xfs_param_t	xfs_params;

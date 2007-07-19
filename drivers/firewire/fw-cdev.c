@@ -397,7 +397,7 @@ static int ioctl_send_request(struct client *client, void *buffer)
 			request->tcode & 0x1f,
 			device->node->node_id,
 			request->generation,
-			device->node->max_speed,
+			device->max_speed,
 			request->offset,
 			response->response.data, request->length,
 			complete_transaction, response);

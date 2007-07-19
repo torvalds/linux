@@ -37,6 +37,7 @@ Offset	Type		Description
 0x1d0	unsigned long	EFI memory descriptor map pointer
 0x1d4	unsigned long	EFI memory descriptor map size
 0x1e0	unsigned long	ALT_MEM_K, alternative mem check, in Kb
+0x1e4	unsigned long	Scratch field for the kernel setup code
 0x1e8	char		number of entries in E820MAP (below)
 0x1e9	unsigned char	number of entries in EDDBUF (below)
 0x1ea	unsigned char	number of entries in EDD_MBR_SIG_BUFFER (below)

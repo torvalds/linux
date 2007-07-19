@@ -323,6 +323,8 @@ static int assoc_helper_secinfo(wlan_private *priv,
 {
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
+	u32 do_wpa;
+	u32 rsn = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -333,12 +335,34 @@ static int assoc_helper_secinfo(wlan_private *priv,
 	if (ret)
 		goto out;
 
-	/* enable/disable RSN */
+	/* If RSN is already enabled, don't try to enable it again, since
+	 * ENABLE_RSN resets internal state machines and will clobber the
+	 * 4-way WPA handshake.
+	 */
+
+	/* Get RSN enabled/disabled */
 	ret = libertas_prepare_and_send_command(priv,
 				    cmd_802_11_enable_rsn,
 				    cmd_act_set,
 				    cmd_option_waitforrsp,
-				    0, assoc_req);
+				    0, &rsn);
+	if (ret) {
+		lbs_deb_assoc("Failed to get RSN status: %d", ret);
+		goto out;
+	}
+
+	/* Don't re-enable RSN if it's already enabled */
+	do_wpa = (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled);
+	if (do_wpa == rsn)
+		goto out;
+
+	/* Set RSN enabled/disabled */
+	rsn = do_wpa;
+	ret = libertas_prepare_and_send_command(priv,
+				    cmd_802_11_enable_rsn,
+				    cmd_act_set,
+				    cmd_option_waitforrsp,
+				    0, &rsn);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

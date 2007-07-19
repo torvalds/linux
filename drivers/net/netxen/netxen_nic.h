@@ -937,6 +937,7 @@ struct netxen_adapter {
 	struct netxen_ring_ctx *ctx_desc;
 	struct pci_dev *ctx_desc_pdev;
 	dma_addr_t ctx_desc_phys_addr;
+	int intr_scheme;
 	int (*enable_phy_interrupts) (struct netxen_adapter *);
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	void (*handle_phy_intr) (struct netxen_adapter *);
@@ -950,6 +951,24 @@ struct netxen_adapter {
 	void (*init_niu) (struct netxen_adapter *);
 	int (*stop_port) (struct netxen_adapter *);
 };				/* netxen_adapter structure */
+
+/*
+ * NetXen dma watchdog control structure
+ *
+ *	Bit 0		: enabled => R/O: 1 watchdog active, 0 inactive
+ *	Bit 1		: disable_request => 1 req disable dma watchdog
+ *	Bit 2		: enable_request =>  1 req enable dma watchdog
+ *	Bit 3-31	: unused
+ */
+
+#define netxen_set_dma_watchdog_disable_req(config_word) \
+	_netxen_set_bits(config_word, 1, 1, 1)
+#define netxen_set_dma_watchdog_enable_req(config_word) \
+	_netxen_set_bits(config_word, 2, 1, 1)
+#define netxen_get_dma_watchdog_enabled(config_word) \
+	((config_word) & 0x1)
+#define netxen_get_dma_watchdog_disabled(config_word) \
+	(((config_word) >> 1) & 0x1)
 
 /* Max number of xmit producer threads that can run simultaneously */
 #define	MAX_XMIT_PRODUCERS		16
@@ -1030,8 +1049,8 @@ int netxen_nic_erase_pxe(struct netxen_adapter *adapter);
 /* Functions from netxen_nic_init.c */
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
-void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
-void netxen_load_firmware(struct netxen_adapter *adapter);
+int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
+int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
 int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
@@ -1078,40 +1097,6 @@ int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
-static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
-{
-	/*
-	 * ISR_INT_MASK: Can be read from window 0 or 1.
-	 */
-	writel(0x7ff, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
-
-}
-
-static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
-{
-	u32 mask;
-
-	switch (adapter->ahw.board_type) {
-	case NETXEN_NIC_GBE:
-		mask = 0x77b;
-		break;
-	case NETXEN_NIC_XGBE:
-		mask = 0x77f;
-		break;
-	default:
-		mask = 0x7ff;
-		break;
-	}
-
-	writel(mask, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
-
-	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-		mask = 0xbff;
-		writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter,
-						     ISR_INT_TARGET_MASK));
-	}
-}
 
 /*
  * NetXen Board information
@@ -1163,6 +1148,62 @@ static inline void get_brd_name_by_type(u32 type, char *name)
 	if (!found)
 		name = "Unknown";
 }
+
+static inline int
+dma_watchdog_shutdown_request(struct netxen_adapter *adapter)
+{
+	u32 ctrl;
+
+	/* check if already inactive */
+	if (netxen_nic_hw_read_wx(adapter,
+	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
+		printk(KERN_ERR "failed to read dma watchdog status\n");
+
+	if (netxen_get_dma_watchdog_enabled(ctrl) == 0)
+		return 1;
+
+	/* Send the disable request */
+	netxen_set_dma_watchdog_disable_req(ctrl);
+	netxen_crb_writelit_adapter(adapter,
+		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
+
+	return 0;
+}
+
+static inline int
+dma_watchdog_shutdown_poll_result(struct netxen_adapter *adapter)
+{
+	u32 ctrl;
+
+	if (netxen_nic_hw_read_wx(adapter,
+	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
+		printk(KERN_ERR "failed to read dma watchdog status\n");
+
+	return ((netxen_get_dma_watchdog_enabled(ctrl) == 0) &&
+		(netxen_get_dma_watchdog_disabled(ctrl) == 0));
+}
+
+static inline int
+dma_watchdog_wakeup(struct netxen_adapter *adapter)
+{
+	u32 ctrl;
+
+	if (netxen_nic_hw_read_wx(adapter,
+		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
+		printk(KERN_ERR "failed to read dma watchdog status\n");
+
+	if (netxen_get_dma_watchdog_enabled(ctrl))
+		return 1;
+
+	/* send the wakeup request */
+	netxen_set_dma_watchdog_enable_req(ctrl);
+
+	netxen_crb_writelit_adapter(adapter,
+		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
+
+	return 0;
+}
+
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter);
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[]);

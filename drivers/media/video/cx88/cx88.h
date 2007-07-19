@@ -209,6 +209,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_NORWOOD_MICRO           54
 #define CX88_BOARD_TE_DTV_250_OEM_SWANN    55
 #define CX88_BOARD_HAUPPAUGE_HVR1300       56
+#define CX88_BOARD_ADSTECH_PTV_390         57
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -316,8 +317,6 @@ struct cx88_core {
 
 	/* config info -- dvb */
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
-	struct dvb_pll_desc        *pll_desc;
-	unsigned int               pll_addr;
 	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 #endif
 
@@ -463,13 +462,10 @@ struct cx8802_dev {
 	u32                        mailbox;
 	int                        width;
 	int                        height;
-	int                        fw_size;
 
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* for dvb only */
 	struct videobuf_dvb        dvb;
-	void*                      fe_handle;
-	int                        (*fe_release)(void *handle);
 
 	void			   *card_priv;
 #endif

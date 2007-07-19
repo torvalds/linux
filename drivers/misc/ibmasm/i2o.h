@@ -17,7 +17,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -26,9 +26,9 @@ struct i2o_header {
 	u8	version;
 	u8	message_flags;
 	u16	message_size;
-	u8	target;           
+	u8	target;
 	u8	initiator_and_target;
-	u8	initiator;        
+	u8	initiator;
 	u8	function;
 	u32	initiator_context;
 };
@@ -64,12 +64,12 @@ static inline unsigned short outgoing_message_size(unsigned int data_size)
 	size = sizeof(struct i2o_header) + data_size;
 
 	i2o_size = size / sizeof(u32);
-	
+
 	if (size % sizeof(u32))
 	       i2o_size++;
 
 	return i2o_size;
-}	
+}
 
 static inline u32 incoming_data_size(struct i2o_message *i2o_message)
 {

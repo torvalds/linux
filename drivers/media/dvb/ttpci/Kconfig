@@ -108,7 +108,7 @@ config DVB_BUDGET_AV
 	tristate "Budget cards with analog video inputs"
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	select DVB_TDA10021 if !DVB_FE_CUSTOMISE

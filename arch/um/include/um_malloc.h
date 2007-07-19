@@ -6,11 +6,17 @@
 #ifndef __UM_MALLOC_H__
 #define __UM_MALLOC_H__
 
-extern void *um_kmalloc(int size);
-extern void *um_kmalloc_atomic(int size);
+#include "kern_constants.h"
+
+extern void *__kmalloc(int size, int flags);
+static inline void *kmalloc(int size, int flags)
+{
+	return __kmalloc(size, flags);
+}
+
 extern void kfree(const void *ptr);
 
-extern void *um_vmalloc(int size);
+extern void *vmalloc(unsigned long size);
 extern void vfree(void *ptr);
 
 #endif /* __UM_MALLOC_H__ */

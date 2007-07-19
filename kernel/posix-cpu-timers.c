@@ -161,7 +161,7 @@ static inline cputime_t virt_ticks(struct task_struct *p)
 }
 static inline unsigned long long sched_ns(struct task_struct *p)
 {
-	return (p == current) ? current_sched_time(p) : p->sched_time;
+	return task_sched_runtime(p);
 }
 
 int posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
@@ -246,10 +246,10 @@ static int cpu_clock_sample_group_locked(unsigned int clock_idx,
 		} while (t != p);
 		break;
 	case CPUCLOCK_SCHED:
-		cpu->sched = p->signal->sched_time;
+		cpu->sched = p->signal->sum_sched_runtime;
 		/* Add in each other live thread.  */
 		while ((t = next_thread(t)) != p) {
-			cpu->sched += t->sched_time;
+			cpu->sched += t->se.sum_exec_runtime;
 		}
 		cpu->sched += sched_ns(p);
 		break;
@@ -422,7 +422,7 @@ int posix_cpu_timer_del(struct k_itimer *timer)
  */
 static void cleanup_timers(struct list_head *head,
 			   cputime_t utime, cputime_t stime,
-			   unsigned long long sched_time)
+			   unsigned long long sum_exec_runtime)
 {
 	struct cpu_timer_list *timer, *next;
 	cputime_t ptime = cputime_add(utime, stime);
@@ -451,10 +451,10 @@ static void cleanup_timers(struct list_head *head,
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
 		list_del_init(&timer->entry);
-		if (timer->expires.sched < sched_time) {
+		if (timer->expires.sched < sum_exec_runtime) {
 			timer->expires.sched = 0;
 		} else {
-			timer->expires.sched -= sched_time;
+			timer->expires.sched -= sum_exec_runtime;
 		}
 	}
 }
@@ -467,7 +467,7 @@ static void cleanup_timers(struct list_head *head,
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
 	cleanup_timers(tsk->cpu_timers,
-		       tsk->utime, tsk->stime, tsk->sched_time);
+		       tsk->utime, tsk->stime, tsk->se.sum_exec_runtime);
 
 }
 void posix_cpu_timers_exit_group(struct task_struct *tsk)
@@ -475,7 +475,7 @@ void posix_cpu_timers_exit_group(struct task_struct *tsk)
 	cleanup_timers(tsk->signal->cpu_timers,
 		       cputime_add(tsk->utime, tsk->signal->utime),
 		       cputime_add(tsk->stime, tsk->signal->stime),
-		       tsk->sched_time + tsk->signal->sched_time);
+		     tsk->se.sum_exec_runtime + tsk->signal->sum_sched_runtime);
 }
 
 
@@ -536,7 +536,7 @@ static void process_timer_rebalance(struct task_struct *p,
 		nsleft = max_t(unsigned long long, nsleft, 1);
 		do {
 			if (likely(!(t->flags & PF_EXITING))) {
-				ns = t->sched_time + nsleft;
+				ns = t->se.sum_exec_runtime + nsleft;
 				if (t->it_sched_expires == 0 ||
 				    t->it_sched_expires > ns) {
 					t->it_sched_expires = ns;
@@ -1004,7 +1004,7 @@ static void check_thread_timers(struct task_struct *tsk,
 		struct cpu_timer_list *t = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || tsk->sched_time < t->expires.sched) {
+		if (!--maxfire || tsk->se.sum_exec_runtime < t->expires.sched) {
 			tsk->it_sched_expires = t->expires.sched;
 			break;
 		}
@@ -1024,7 +1024,7 @@ static void check_process_timers(struct task_struct *tsk,
 	int maxfire;
 	struct signal_struct *const sig = tsk->signal;
 	cputime_t utime, stime, ptime, virt_expires, prof_expires;
-	unsigned long long sched_time, sched_expires;
+	unsigned long long sum_sched_runtime, sched_expires;
 	struct task_struct *t;
 	struct list_head *timers = sig->cpu_timers;
 
@@ -1044,12 +1044,12 @@ static void check_process_timers(struct task_struct *tsk,
 	 */
 	utime = sig->utime;
 	stime = sig->stime;
-	sched_time = sig->sched_time;
+	sum_sched_runtime = sig->sum_sched_runtime;
 	t = tsk;
 	do {
 		utime = cputime_add(utime, t->utime);
 		stime = cputime_add(stime, t->stime);
-		sched_time += t->sched_time;
+		sum_sched_runtime += t->se.sum_exec_runtime;
 		t = next_thread(t);
 	} while (t != tsk);
 	ptime = cputime_add(utime, stime);
@@ -1090,7 +1090,7 @@ static void check_process_timers(struct task_struct *tsk,
 		struct cpu_timer_list *t = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || sched_time < t->expires.sched) {
+		if (!--maxfire || sum_sched_runtime < t->expires.sched) {
 			sched_expires = t->expires.sched;
 			break;
 		}
@@ -1182,7 +1182,7 @@ static void check_process_timers(struct task_struct *tsk,
 		virt_left = cputime_sub(virt_expires, utime);
 		virt_left = cputime_div_non_zero(virt_left, nthreads);
 		if (sched_expires) {
-			sched_left = sched_expires - sched_time;
+			sched_left = sched_expires - sum_sched_runtime;
 			do_div(sched_left, nthreads);
 			sched_left = max_t(unsigned long long, sched_left, 1);
 		} else {
@@ -1208,7 +1208,7 @@ static void check_process_timers(struct task_struct *tsk,
 				t->it_virt_expires = ticks;
 			}
 
-			sched = t->sched_time + sched_left;
+			sched = t->se.sum_exec_runtime + sched_left;
 			if (sched_expires && (t->it_sched_expires == 0 ||
 					      t->it_sched_expires > sched)) {
 				t->it_sched_expires = sched;
@@ -1300,7 +1300,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 
 	if (UNEXPIRED(prof) && UNEXPIRED(virt) &&
 	    (tsk->it_sched_expires == 0 ||
-	     tsk->sched_time < tsk->it_sched_expires))
+	     tsk->se.sum_exec_runtime < tsk->it_sched_expires))
 		return;
 
 #undef	UNEXPIRED

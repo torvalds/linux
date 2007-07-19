@@ -181,7 +181,7 @@ MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
 MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
-		 "\t\t\t(debug = 511 gives full debugging)");
+		 "\t\t\t(debug = 1023 gives full debugging)");
 MODULE_PARM_DESC(ivtv_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
@@ -339,6 +339,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 		/* In a few cases the PCI subsystem IDs do not correctly
 		   identify the card. A better method is to check the
 		   model number from the eeprom instead. */
+		case 30012 ... 30039:  /* Low profile PVR250 */
 		case 32000 ... 32999:
 		case 48000 ... 48099:  /* 48??? range are PVR250s with a cx23415 */
 		case 48400 ... 48599:
@@ -622,6 +623,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
 
+	mutex_init(&itv->serialize_lock);
 	mutex_init(&itv->i2c_bus_lock);
 	mutex_init(&itv->udma.lock);
 
@@ -1288,10 +1290,7 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 
 	IVTV_DEBUG_INFO(" Releasing irq.\n");
 	free_irq(itv->dev->irq, (void *)itv);
-
-	if (itv->dev) {
-		ivtv_iounmap(itv);
-	}
+	ivtv_iounmap(itv);
 
 	IVTV_DEBUG_INFO(" Releasing mem.\n");
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
@@ -1326,9 +1325,9 @@ static int module_start(void)
 		return -1;
 	}
 
-	if (ivtv_debug < 0 || ivtv_debug > 511) {
+	if (ivtv_debug < 0 || ivtv_debug > 1023) {
 		ivtv_debug = 0;
-		printk(KERN_INFO "ivtv:  debug value must be >= 0 and <= 511!\n");
+		printk(KERN_INFO "ivtv:  debug value must be >= 0 and <= 1023!\n");
 	}
 
 	if (pci_register_driver(&ivtv_pci_driver)) {

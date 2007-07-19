@@ -481,8 +481,7 @@ alloc_ep_req (struct usb_ep *ep, unsigned length)
 	req = usb_ep_alloc_request (ep, GFP_ATOMIC);
 	if (req) {
 		req->length = length;
-		req->buf = usb_ep_alloc_buffer (ep, length,
-				&req->dma, GFP_ATOMIC);
+		req->buf = kmalloc(length, GFP_ATOMIC);
 		if (!req->buf) {
 			usb_ep_free_request (ep, req);
 			req = NULL;
@@ -493,8 +492,7 @@ alloc_ep_req (struct usb_ep *ep, unsigned length)
 
 static void free_ep_req (struct usb_ep *ep, struct usb_request *req)
 {
-	if (req->buf)
-		usb_ep_free_buffer (ep, req->buf, req->dma, req->length);
+	kfree(req->buf);
 	usb_ep_free_request (ep, req);
 }
 
@@ -1199,8 +1197,7 @@ autoconf_fail:
 	dev->req = usb_ep_alloc_request (gadget->ep0, GFP_KERNEL);
 	if (!dev->req)
 		goto enomem;
-	dev->req->buf = usb_ep_alloc_buffer (gadget->ep0, USB_BUFSIZ,
-				&dev->req->dma, GFP_KERNEL);
+	dev->req->buf = kmalloc(USB_BUFSIZ, GFP_KERNEL);
 	if (!dev->req->buf)
 		goto enomem;
 

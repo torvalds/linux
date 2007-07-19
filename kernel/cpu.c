@@ -103,11 +103,19 @@ static inline void check_for_tasks(int cpu)
 	write_unlock_irq(&tasklist_lock);
 }
 
+struct take_cpu_down_param {
+	unsigned long mod;
+	void *hcpu;
+};
+
 /* Take this CPU down. */
-static int take_cpu_down(void *unused)
+static int take_cpu_down(void *_param)
 {
+	struct take_cpu_down_param *param = _param;
 	int err;
 
+	raw_notifier_call_chain(&cpu_chain, CPU_DYING | param->mod,
+				param->hcpu);
 	/* Ensure this CPU doesn't handle any more interrupts. */
 	err = __cpu_disable();
 	if (err < 0)
@@ -127,6 +135,10 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 	cpumask_t old_allowed, tmp;
 	void *hcpu = (void *)(long)cpu;
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
+	struct take_cpu_down_param tcd_param = {
+		.mod = mod,
+		.hcpu = hcpu,
+	};
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
@@ -153,7 +165,7 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 	set_cpus_allowed(current, tmp);
 
 	mutex_lock(&cpu_bitmask_lock);
-	p = __stop_machine_run(take_cpu_down, NULL, cpu);
+	p = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
 	mutex_unlock(&cpu_bitmask_lock);
 
 	if (IS_ERR(p) || cpu_online(cpu)) {

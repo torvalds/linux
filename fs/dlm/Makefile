@@ -8,6 +8,7 @@ dlm-y :=			ast.o \
 				member.o \
 				memory.o \
 				midcomms.o \
+				netlink.o \
 				lowcomms.o \
 				rcom.o \
 				recover.o \

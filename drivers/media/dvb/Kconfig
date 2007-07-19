@@ -11,7 +11,7 @@ menuconfig DVB_CAPTURE_DRIVERS
 	---help---
 	  Say Y to select Digital TV adapters
 
-if DVB_CAPTURE_DRIVERS
+if DVB_CAPTURE_DRIVERS && DVB_CORE
 
 comment "Supported SAA7146 based PCI Adapters"
 	depends on DVB_CORE && PCI && I2C

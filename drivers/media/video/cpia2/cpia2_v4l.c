@@ -105,7 +105,7 @@ static struct control_menu_info framerate_controls[] =
 	{ CPIA2_VP_FRAMERATE_25,   "25 fps"   },
 	{ CPIA2_VP_FRAMERATE_30,   "30 fps"   },
 };
-#define NUM_FRAMERATE_CONTROLS (sizeof(framerate_controls)/sizeof(framerate_controls[0]))
+#define NUM_FRAMERATE_CONTROLS (ARRAY_SIZE(framerate_controls))
 
 static struct control_menu_info flicker_controls[] =
 {
@@ -113,7 +113,7 @@ static struct control_menu_info flicker_controls[] =
 	{ FLICKER_50,    "50 Hz" },
 	{ FLICKER_60,    "60 Hz"  },
 };
-#define NUM_FLICKER_CONTROLS (sizeof(flicker_controls)/sizeof(flicker_controls[0]))
+#define NUM_FLICKER_CONTROLS (ARRAY_SIZE(flicker_controls))
 
 static struct control_menu_info lights_controls[] =
 {
@@ -122,7 +122,7 @@ static struct control_menu_info lights_controls[] =
 	{ 128, "Bottom"  },
 	{ 192, "Both"  },
 };
-#define NUM_LIGHTS_CONTROLS (sizeof(lights_controls)/sizeof(lights_controls[0]))
+#define NUM_LIGHTS_CONTROLS (ARRAY_SIZE(lights_controls))
 #define GPIO_LIGHTS_MASK 192
 
 static struct v4l2_queryctrl controls[] = {
@@ -235,7 +235,7 @@ static struct v4l2_queryctrl controls[] = {
 		.default_value = 0,
 	},
 };
-#define NUM_CONTROLS (sizeof(controls)/sizeof(controls[0]))
+#define NUM_CONTROLS (ARRAY_SIZE(controls))
 
 
 /******************************************************************************

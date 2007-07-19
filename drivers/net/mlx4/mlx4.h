@@ -37,6 +37,7 @@
 #ifndef MLX4_H
 #define MLX4_H
 
+#include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
 #include <linux/mlx4/device.h>

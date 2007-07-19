@@ -1703,7 +1703,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
 						    PKT_BUF_SZ,
 						    PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(new_skb, skb->data, pkt_len, 0);
+			skb_copy_to_linear_data(new_skb, skb->data, pkt_len);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr,
 						       PKT_BUF_SZ,
 						       PCI_DMA_FROMDEVICE);
@@ -2267,12 +2267,6 @@ need_resume:
 	typhoon_resume(pdev);
 	return -EBUSY;
 }
-
-static int
-typhoon_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
-{
-	return pci_enable_wake(pdev, state, enable);
-}
 #endif
 
 static int __devinit
@@ -2636,7 +2630,6 @@ static struct pci_driver typhoon_driver = {
 #ifdef CONFIG_PM
 	.suspend	= typhoon_suspend,
 	.resume		= typhoon_resume,
-	.enable_wake	= typhoon_enable_wake,
 #endif
 };
 

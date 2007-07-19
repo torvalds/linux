@@ -454,7 +454,10 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	tty->driver_data = line;
 	line->tty = tty;
 
-	enable_chan(line);
+	err = enable_chan(line);
+	if (err)
+		return err;
+
 	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 	if(!line->sigio){
@@ -746,7 +749,23 @@ struct winch {
 	int tty_fd;
 	int pid;
 	struct tty_struct *tty;
+	unsigned long stack;
 };
+
+static void free_winch(struct winch *winch, int free_irq_ok)
+{
+	list_del(&winch->list);
+
+	if (winch->pid != -1)
+		os_kill_process(winch->pid, 1);
+	if (winch->fd != -1)
+		os_close_file(winch->fd);
+	if (winch->stack != 0)
+		free_stack(winch->stack, 0);
+	if (free_irq_ok)
+		free_irq(WINCH_IRQ, winch);
+	kfree(winch);
+}
 
 static irqreturn_t winch_interrupt(int irq, void *data)
 {
@@ -764,12 +783,13 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 				       "errno = %d\n", -err);
 				printk("fd %d is losing SIGWINCH support\n",
 				       winch->tty_fd);
+				free_winch(winch, 0);
 				return IRQ_HANDLED;
 			}
 			goto out;
 		}
 	}
-	tty  = winch->tty;
+	tty = winch->tty;
 	if (tty != NULL) {
 		line = tty->driver_data;
 		chan_window_size(&line->chan_list, &tty->winsize.ws_row,
@@ -782,43 +802,44 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
+void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty,
+			unsigned long stack)
 {
 	struct winch *winch;
 
 	winch = kmalloc(sizeof(*winch), GFP_KERNEL);
 	if (winch == NULL) {
 		printk("register_winch_irq - kmalloc failed\n");
-		return;
+		goto cleanup;
 	}
 
 	*winch = ((struct winch) { .list  	= LIST_HEAD_INIT(winch->list),
 				   .fd  	= fd,
 				   .tty_fd 	= tty_fd,
 				   .pid  	= pid,
-				   .tty 	= tty });
+				   .tty 	= tty,
+				   .stack	= stack });
+
+	if (um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
+			   IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+			   "winch", winch) < 0) {
+		printk("register_winch_irq - failed to register IRQ\n");
+		goto out_free;
+	}
 
 	spin_lock(&winch_handler_lock);
 	list_add(&winch->list, &winch_handlers);
 	spin_unlock(&winch_handler_lock);
 
-	if(um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
-			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  "winch", winch) < 0)
-		printk("register_winch_irq - failed to register IRQ\n");
-}
+	return;
 
-static void free_winch(struct winch *winch)
-{
-	list_del(&winch->list);
-
-	if(winch->pid != -1)
-		os_kill_process(winch->pid, 1);
-	if(winch->fd != -1)
-		os_close_file(winch->fd);
-
-	free_irq(WINCH_IRQ, winch);
+ out_free:
 	kfree(winch);
+ cleanup:
+	os_kill_process(pid, 1);
+	os_close_file(fd);
+	if (stack != 0)
+		free_stack(stack, 0);
 }
 
 static void unregister_winch(struct tty_struct *tty)
@@ -831,7 +852,7 @@ static void unregister_winch(struct tty_struct *tty)
 	list_for_each(ele, &winch_handlers){
 		winch = list_entry(ele, struct winch, list);
                 if(winch->tty == tty){
-			free_winch(winch);
+			free_winch(winch, 1);
 			break;
                 }
         }
@@ -847,7 +868,7 @@ static void winch_cleanup(void)
 
 	list_for_each_safe(ele, next, &winch_handlers){
 		winch = list_entry(ele, struct winch, list);
-		free_winch(winch);
+		free_winch(winch, 1);
 	}
 
 	spin_unlock(&winch_handler_lock);

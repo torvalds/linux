@@ -60,6 +60,7 @@ csum_tcpudp_nofold (__be32 saddr, __be32 daddr, unsigned short len,
 	result = (result & 0xffffffff) + (result >> 32);
 	return (__force __wsum)result;
 }
+EXPORT_SYMBOL(csum_tcpudp_nofold);
 
 extern unsigned long do_csum (const unsigned char *, long);
 

@@ -60,6 +60,9 @@ static inline u32 get_longbusy_msecs(int long_busy_ret_code)
 	}
 }
 
+/* Number of pages which can be registered at once by H_REGISTER_HEA_RPAGES */
+#define EHEA_MAX_RPAGE 512
+
 /* Notification Event Queue (NEQ) Entry bit masks */
 #define NEQE_EVENT_CODE		EHEA_BMASK_IBM(2, 7)
 #define NEQE_PORTNUM  		EHEA_BMASK_IBM(32, 47)

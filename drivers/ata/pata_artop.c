@@ -416,7 +416,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	static int printed_version;
 	static const struct ata_port_info info_6210 = {
 		.sht		= &artop_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask 	= ATA_UDMA2,
@@ -424,7 +424,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	static const struct ata_port_info info_626x = {
 		.sht		= &artop_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask 	= ATA_UDMA4,
@@ -432,7 +432,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	static const struct ata_port_info info_626x_fast = {
 		.sht		= &artop_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask 	= ATA_UDMA5,

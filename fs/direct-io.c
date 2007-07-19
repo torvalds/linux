@@ -1106,7 +1106,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	spin_lock_irqsave(&dio->bio_lock, flags);
 	ret2 = --dio->refcount;
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
-	BUG_ON(!dio->is_async && ret2 != 0);
+
 	if (ret2 == 0) {
 		ret = dio_complete(dio, offset, ret);
 		kfree(dio);

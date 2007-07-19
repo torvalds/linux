@@ -3549,7 +3549,8 @@ static int st_ioctl(struct inode *inode, struct file *file,
 			    !capable(CAP_SYS_RAWIO))
 				i = -EPERM;
 			else
-				i = scsi_cmd_ioctl(file, STp->disk, cmd_in, p);
+				i = scsi_cmd_ioctl(file, STp->disk->queue,
+						   STp->disk, cmd_in, p);
 			if (i != -ENOTTY)
 				return i;
 			break;

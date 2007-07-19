@@ -189,8 +189,7 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_FORCE_WC_ORDER	0x4
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
 #define IPATH_RUNTIME_MASTER	0x10
-#define IPATH_RUNTIME_PBC_REWRITE 0x20
-#define IPATH_RUNTIME_LOOSE_DMA_ALIGN 0x40
+/* 0x20 and 0x40 are no longer used, but are reserved for ABI compatibility */
 
 /*
  * This structure is returned by ipath_userinit() immediately after
@@ -432,8 +431,15 @@ struct ipath_user_info {
 #define IPATH_CMD_UNUSED_1	25
 #define IPATH_CMD_UNUSED_2	26
 #define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
+#define IPATH_CMD_POLL_TYPE	28	/* set the kind of polling we want */
 
-#define IPATH_CMD_MAX		27
+#define IPATH_CMD_MAX		28
+
+/*
+ * Poll types
+ */
+#define IPATH_POLL_TYPE_URGENT	 0x01
+#define IPATH_POLL_TYPE_OVERFLOW 0x02
 
 struct ipath_port_info {
 	__u32 num_active;	/* number of active units */
@@ -474,6 +480,8 @@ struct ipath_cmd {
 		__u16 part_key;
 		/* user address of __u32 bitmask of active slaves */
 		__u64 slave_mask_addr;
+		/* type of polling we want */
+		__u16 poll_type;
 	} cmd;
 };
 
@@ -502,10 +510,27 @@ struct __ipath_sendpkt {
 	struct ipath_iovec sps_iov[4];
 };
 
-/* Passed into diag data special file's ->write method. */
+/*
+ * diagnostics can send a packet by "writing" one of the following
+ * two structs to diag data special file
+ * The first is the legacy version for backward compatibility
+ */
 struct ipath_diag_pkt {
 	__u32 unit;
 	__u64 data;
+	__u32 len;
+};
+
+/* The second diag_pkt struct is the expanded version that allows
+ * more control over the packet, specifically, by allowing a custom
+ * pbc (+ extra) qword, so that special modes and deliberate
+ * changes to CRCs can be used. The elements were also re-ordered
+ * for better alignment and to avoid padding issues.
+ */
+struct ipath_diag_xpkt {
+	__u64 data;
+	__u64 pbc_wd;
+	__u32 unit;
 	__u32 len;
 };
 

@@ -178,8 +178,8 @@ static struct CARD {
 	/* this seems to happen as well ... */
 	{ 0xff1211bd, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV" },
 
-	{ 0x3000121a, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
-	{ 0x263710b4, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
+	{ 0x3000121a, BTTV_BOARD_VOODOOTV_200,  "3Dfx VoodooTV 200" },
+	{ 0x263710b4, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM" },
 	{ 0x3060121a, BTTV_BOARD_STB2,	  "3Dfx VoodooTV 100/ STB OEM" },
 
 	{ 0x3000144f, BTTV_BOARD_MAGICTVIEW063, "(Askey Magic/others) TView99 CPH06x" },
@@ -313,6 +313,7 @@ static struct CARD {
 	{ 0xdb1118ac, BTTV_BOARD_DVICO_DVBT_LITE,    "Ultraview DVB-T Lite" },
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
 	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,	"DNTV Live! Mini "},
+	{ 0xd200dbc0, BTTV_BOARD_DVICO_FUSIONHDTV_2,	"DViCO FusionHDTV 2" },
 
 	{ 0, -1, NULL }
 };
@@ -329,7 +330,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner		= 0,
 		.svhs		= 2,
 		.muxsel		= { 2, 3, 1, 0 },
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -344,7 +345,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 2, 0, 0, 0 },
 		.gpiomute 	= 10,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -359,7 +360,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 1, 2, 3 },
 		.gpiomute 	= 4,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -387,13 +388,13 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Intel Create and Share PCI/ Smart Video Recorder III",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 2,
 		.gpiomask	= 0,
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 0 },
 		.needs_tvaudio	= 0,
-		.tuner_type	= 4,
+		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -408,7 +409,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 1, 0, 1 },
 		.gpiomute 	= 3,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -423,7 +424,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0x0c, 0x04, 0x08, 0x04 },
 		/*                0x04 for some cards ?? */
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook	= avermedia_tvphone_audio,
@@ -433,13 +434,13 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "MATRIX-Vision MV-Delta",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 3,
 		.gpiomask	= 0,
 		.muxsel		= { 2, 3, 1, 0, 0 },
 		.gpiomux 	= { 0 },
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -457,7 +458,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0xc00,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -488,7 +489,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 4,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -503,7 +504,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0x20001,0x10001, 0, 0 },
 		.gpiomute 	= 10,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -519,7 +520,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 13, 14, 11, 7 },
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -553,7 +554,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 4,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -568,7 +569,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 0, 1, 0 },
 		.gpiomute 	= 10,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -587,7 +588,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0x002000,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 	},
 	[BTTV_BOARD_WINVIEW_601] = {
 		.name		= "Leadtek WinView 601",
@@ -600,7 +601,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0x4fa007,0xcfa007,0xcfa007,0xcfa007 },
 		.gpiomute 	= 0xcfa007,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook	= winview_audio,
@@ -616,7 +617,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 1, 0, 0, 0 },
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -624,13 +625,13 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Lifeview FlyVideo II EZ /FlyKit LR38 Bt848 (capture only)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
-		.tuner		= -1,
-		.svhs		= -1,
+		.tuner		= UNSET,
+		.svhs		= UNSET,
 		.gpiomask	= 0x8dff00,
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 0 },
 		.no_msp34xx	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -643,7 +644,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner		= 0,
 		.svhs		= 2,
 		.muxsel		= { 2, 3, 1, 1 },
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -674,7 +675,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0xc00,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -683,7 +684,7 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
 		.tuner		= 0,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		.gpiomask	= 7,
 		.muxsel		= { 2, 3, -1 },
 		.digital_mode   = DIGITAL_MODE_CAMERA,
@@ -708,7 +709,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0xc00,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_remote     = 1,
@@ -740,7 +741,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 1, 2, 3 },
 		.gpiomute 	= 4,
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -813,13 +814,13 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Imagenation PXC200",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 1, /* was: 4 */
 		.gpiomask	= 0,
 		.muxsel		= { 2, 3, 1, 0, 0},
 		.gpiomux 	= { 0 },
 		.needs_tvaudio	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.muxsel_hook    = PXC200_muxsel,
@@ -836,7 +837,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 0x0800, 0x1000, 0x1000 },
 		.gpiomute 	= 0x1800,
 		.pll            = PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -860,13 +861,13 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Intel Create and Share PCI/ Smart Video Recorder III",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 2,
 		.gpiomask	= 0,
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 0 },
 		.needs_tvaudio	= 0,
-		.tuner_type	= 4,
+		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -911,7 +912,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio	= 0,
 		.pll		= PLL_28,
 		.has_radio	= 1,
-		.tuner_type	= 5, /* default for now, gpio reads BFFF06 for Pal bg+dk */
+		.tuner_type	= TUNER_PHILIPS_PAL, /* default for now, gpio reads BFFF06 for Pal bg+dk */
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook	= winfast2000_audio,
@@ -928,7 +929,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 0x800, 0x1000, 0x1000 },
 		.gpiomute 	= 0x1800,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -945,7 +946,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0, 0x800, 0x1000, 0x1000 },
 		.gpiomute 	= 0x1800,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio	= 1,
@@ -962,7 +963,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0x29,
 		.no_msp34xx	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -978,7 +979,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0x551c00,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= 1,
+		.tuner_type	= TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_remote     = 1,
@@ -995,7 +996,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 1,
 		.needs_tvaudio	= 0,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1030,7 +1031,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 13, 4, 11, 7 },
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio	= 1,
@@ -1048,7 +1049,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio	= 1,
 		.no_msp34xx	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= 1,
+		.tuner_type	= TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1063,7 +1064,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux 	= { 0xff9ff6, 0xff9ff6, 0xff1ff7, 0 },
 		.gpiomute 	= 0xff3ffc,
 		.no_msp34xx	= 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1074,14 +1075,14 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 2,
 		.audio_inputs	= 1,
 		.tuner		= 0,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		.gpiomask	= 3,
 		.muxsel		= { 2, 3, 1, 1 },
 		.gpiomux 	= { 1, 1, 0, 2 },
 		.gpiomute 	= 3,
 		.no_msp34xx	= 1,
 		.pll		= PLL_NONE,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1089,14 +1090,14 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "MATRIX-Vision MV-Delta 2",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 3,
 		.gpiomask	= 0,
 		.muxsel		= { 2, 3, 1, 0, 0 },
 		.gpiomux 	= { 0 },
 		.no_msp34xx	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1112,7 +1113,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0xbcb03f,
 		.no_msp34xx	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= 21,
+		.tuner_type	= TUNER_TEMIC_4039FR5_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1129,7 +1130,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio	= 1,
 		.no_msp34xx	= 1,
 		.pll		= PLL_35,
-		.tuner_type	= 1,
+		.tuner_type	= TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio	= 1,
@@ -1148,7 +1149,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 1,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1206,7 +1207,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0, 1, 2, 3 },
 		.gpiomute 	= 4,
 		.pll            = PLL_28,
-		.tuner_type     = -1 /* TUNER_ALPS_TMDH2_NTSC */,
+		.tuner_type     = UNSET /* TUNER_ALPS_TMDH2_NTSC */,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1234,7 +1235,7 @@ struct tvcard bttv_tvcards[] = {
 					1= FM stereo Radio from Tuner */
 		.needs_tvaudio  = 0,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1277,7 +1278,7 @@ struct tvcard bttv_tvcards[] = {
 				0x0080: Tuner A2 SAP (second audio program = Zweikanalton)
 				0x0880: Tuner A2 stereo */
 		.pll		= PLL_28,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1313,7 +1314,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0, 0x800, 0x1000, 0x1000 },
 		.gpiomute 	= 0x1800,
 		.pll            = PLL_28,
-		.tuner_type     = 5,
+		.tuner_type     = TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1324,7 +1325,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "GrandTec 'Grand Video Capture' (Bt848)",
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.gpiomask       = 0,
 		.muxsel         = { 3, 1 },
@@ -1332,7 +1333,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.pll            = PLL_35,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1365,7 +1366,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 2, 0, 0, 0 },
 		.gpiomute 	= 1,
 		.pll            = PLL_28,
-		.tuner_type	= 0,
+		.tuner_type	= TUNER_TEMIC_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1377,7 +1378,7 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 2,
 		.audio_inputs   = 2,
 		.tuner		= 0,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		.gpiomask       = 11,
 		.muxsel         = { 2, 3, 1, 1 },
 		.gpiomux        = { 2, 0, 0, 1 },
@@ -1392,7 +1393,7 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "AG Electronics GMV1",
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 1,
 		.gpiomask       = 0xF,
 		.muxsel		= { 2, 2 },
@@ -1400,7 +1401,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_msp34xx     = 1,
 		.needs_tvaudio  = 0,
 		.pll		= PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1447,7 +1448,7 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 2,
 		.audio_inputs	= 1,
 		.tuner		= 0,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		.gpiomask	= 1,
 		.muxsel		= { 2, 3, 0, 1 },
 		.gpiomux 	= { 0, 0, 1, 0 },
@@ -1476,7 +1477,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875	= 1,
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = 5,
+		.tuner_type     = TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1517,13 +1518,35 @@ struct tvcard bttv_tvcards[] = {
 
 	/* ---- card 0x44 ---------------------------------- */
 	[BTTV_BOARD_VOODOOTV_FM] = {
-		.name           = "3Dfx VoodooTV FM (Euro), VoodooTV 200 (USA)",
+		.name           = "3Dfx VoodooTV FM (Euro)",
 		/* try "insmod msp3400 simple=0" if you have
 		* sound problems with this card. */
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
 		.tuner          = 0,
-		.svhs           = -1,
+		.svhs           = UNSET,
+		.gpiomask       = 0x4f8a00,
+		/* 0x100000: 1=MSP enabled (0=disable again)
+		* 0x010000: Connected to "S0" on tda9880 (0=Pal/BG, 1=NTSC) */
+		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
+		.gpiomute 	= 0x947fff,
+		/* tvtuner, radio,   external,internal, mute,  stereo
+		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		.muxsel         = { 2, 3 ,0 ,1 },
+		.tuner_type     = TUNER_MT2032,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.pll		= PLL_28,
+		.has_radio	= 1,
+	},
+	[BTTV_BOARD_VOODOOTV_200] = {
+		.name           = "VoodooTV 200 (USA)",
+		/* try "insmod msp3400 simple=0" if you have
+		* sound problems with this card. */
+		.video_inputs   = 4,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = UNSET,
 		.gpiomask       = 0x4f8a00,
 		/* 0x100000: 1=MSP enabled (0=disable again)
 		* 0x010000: Connected to "S0" on tda9880 (0=Pal/BG, 1=NTSC) */
@@ -1543,8 +1566,8 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Active Imaging AIMMS",
 		.video_inputs   = 1,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.pll            = PLL_28,
@@ -1564,7 +1587,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 13,
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = 25,
+		.tuner_type     = TUNER_LG_PAL_I_FM,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_remote     = 1,
@@ -1580,7 +1603,7 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Lifeview FlyVideo 98EZ (capture only) LR51",
 		.video_inputs	= 4,
 		.audio_inputs   = 0,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 2,
 		.muxsel		= { 2, 3, 1, 1 }, /* AV1, AV2, SVHS, CVid adapter on SVHS */
 		.pll		= PLL_28,
@@ -1606,7 +1629,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_msp34xx	= 1,
 		.no_tda9875	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= 5,
+		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook	= pvbt878p9b_audio, /* Note: not all cards have stereo */
@@ -1626,13 +1649,13 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Sensoray 311",
 		.video_inputs   = 5,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 4,
 		.gpiomask       = 0,
 		.muxsel         = { 2, 3, 1, 0, 0 },
 		.gpiomux        = { 0 },
 		.needs_tvaudio  = 0,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1641,15 +1664,15 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "RemoteVision MX (RV605)",
 		.video_inputs   = 16,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.gpiomask       = 0x00,
 		.gpiomask2      = 0x07ff,
 		.muxsel         = { 0x33, 0x13, 0x23, 0x43, 0xf3, 0x73, 0xe3, 0x03,
 				0xd3, 0xb3, 0xc3, 0x63, 0x93, 0x53, 0x83, 0xa3 },
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.muxsel_hook    = rv605_muxsel,
@@ -1693,15 +1716,15 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "GrandTec Multi Capture Card (Bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.gpiomask       = 0,
 		.muxsel         = { 2, 3, 1, 0 },
 		.gpiomux        = { 0 },
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1724,7 +1747,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = 5,
+		.tuner_type     = TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		/* Samsung TCPA9095PC27A (BG+DK), philips compatible, w/FM, stereo and
@@ -1744,10 +1767,10 @@ struct tvcard bttv_tvcards[] = {
 		/* Arthur Tetzlaff-Deas, DSP Design Ltd <software@dspdesign.com> */
 		.name           = "DSP Design TCVIDEO",
 		.video_inputs   = 4,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.muxsel         = { 2, 3, 1, 0 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -1762,7 +1785,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = { 2, 0, 1, 1 },
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 
@@ -1791,11 +1814,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 100/150 (878)", /* 0x1(2|3)-45C6-C1 */
 		.video_inputs   = 4,                  /* id-inputs-clock */
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 3,
 		.muxsel         = { 3, 2, 0, 1 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1806,11 +1829,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 100/150 (848)", /* 0x04-54C0-C1 & older boards */
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 2,
 		.muxsel         = { 2, 3, 1 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1823,11 +1846,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 101 (848)", /* 0x05-40C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 3, 1 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1838,11 +1861,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 101/151",       /* 0x1(4|5)-0004-C4 */
 		.video_inputs   = 1,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.muxsel         = { 0 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1853,11 +1876,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 101/151 w/ svid",  /* 0x(16|17|20)-00C4-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 0, 1 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1868,8 +1891,8 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 200/201/250/251",  /* 0x1(8|9|E|F)-0004-C4 */
 		.video_inputs   = 1,
 		.audio_inputs   = 1,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.muxsel         = { 0 },
 		.pll            = PLL_28,
 		.tuner_type	= UNSET,
@@ -1885,7 +1908,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 200/250",   /* 0x1(A|B)-00C4-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 0, 1 },
 		.pll            = PLL_28,
@@ -1900,7 +1923,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 210/220/230",   /* 0x1(A|B)-04C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 2, 3 },
 		.pll            = PLL_28,
@@ -1915,11 +1938,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 500",   /* 500 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 2, 3 },
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1930,9 +1953,9 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 540",   /* 540 */
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -1945,7 +1968,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 2000",  /* 2000 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 2, 3 },
 		.pll            = PLL_28,
@@ -1961,11 +1984,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "IDS Eagle",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.gpiomask       = 0,
 		.muxsel         = { 0, 1, 2, 3 },
 		.muxsel_hook    = eagle_muxsel,
@@ -1978,8 +2001,8 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
 		.svhs           = 1,
-		.tuner          = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
@@ -2020,13 +2043,13 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 3,
 		.audio_inputs   = 1,
 		.tuner          = 0,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.gpiomask       = 7,
 		.muxsel         = { 2, 3, 1, 1},
 		.gpiomux        = { 0, 1, 2, 3},
 		.gpiomute 	= 4,
 		.needs_tvaudio  = 1,
-		.tuner_type     = 5,
+		.tuner_type     = TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.pll            = PLL_28,
@@ -2035,7 +2058,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Euresys Picolo",
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 2,
 		.gpiomask       = 0,
 		.no_msp34xx     = 1,
@@ -2052,8 +2075,8 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "ProVideo PV150", /* 0x4f */
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.gpiomask       = 0,
 		.muxsel         = { 2, 3 },
 		.gpiomux        = { 0 },
@@ -2080,7 +2103,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = 2,
+		.tuner_type     = TUNER_PHILIPS_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook	= adtvk503_audio,
@@ -2098,7 +2121,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio  = 1,
 		.no_msp34xx     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = 5,
+		.tuner_type     = TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		/* Notes:
@@ -2121,7 +2144,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 0,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
-		.tuner_type     = 1,
+		.tuner_type     = TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio      = 1,
@@ -2138,11 +2161,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "IVC-200",
 		.video_inputs   = 1,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.gpiomask       = 0xdf,
 		.muxsel         = { 2 },
 		.pll            = PLL_28,
@@ -2151,9 +2174,9 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Grand X-Guard / Trust 814PCI",
 		.video_inputs   = 16,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
-		.tuner_type     = 4,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
+		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.gpiomask2      = 0xff,
@@ -2169,14 +2192,14 @@ struct tvcard bttv_tvcards[] = {
 	[BTTV_BOARD_NEBULA_DIGITV] = {
 		.name           = "Nebula Electronics DigiTV",
 		.video_inputs   = 1,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.muxsel         = { 2, 3, 1, 0 },
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_dvb        = 1,
@@ -2189,15 +2212,15 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "ProVideo PV143",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.gpiomask       = 0,
 		.muxsel         = { 2, 3, 1, 0 },
 		.gpiomux        = { 0 },
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2206,14 +2229,14 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "PHYTEC VD-009-X1 MiniDIN (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1, /* card has no tuner */
+		.tuner          = UNSET, /* card has no tuner */
 		.svhs           = 3,
 		.gpiomask       = 0x00,
 		.muxsel         = { 2, 3, 1, 0 },
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2221,14 +2244,14 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "PHYTEC VD-009-X1 Combi (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1, /* card has no tuner */
+		.tuner          = UNSET, /* card has no tuner */
 		.svhs           = 3,
 		.gpiomask       = 0x00,
 		.muxsel         = { 2, 3, 1, 1 },
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2238,7 +2261,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "PHYTEC VD-009 MiniDIN (bt878)",
 		.video_inputs   = 10,
 		.audio_inputs   = 0,
-		.tuner          = -1, /* card has no tuner */
+		.tuner          = UNSET, /* card has no tuner */
 		.svhs           = 9,
 		.gpiomask       = 0x00,
 		.gpiomask2      = 0x03, /* gpiomask2 defines the bits used to switch audio
@@ -2248,7 +2271,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2256,7 +2279,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "PHYTEC VD-009 Combi (bt878)",
 		.video_inputs   = 10,
 		.audio_inputs   = 0,
-		.tuner          = -1, /* card has no tuner */
+		.tuner          = UNSET, /* card has no tuner */
 		.svhs           = 9,
 		.gpiomask       = 0x00,
 		.gpiomask2      = 0x03, /* gpiomask2 defines the bits used to switch audio
@@ -2266,7 +2289,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2274,11 +2297,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "IVC-100",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.gpiomask       = 0xdf,
 		.muxsel         = { 2, 3, 1, 0 },
 		.pll            = PLL_28,
@@ -2288,11 +2311,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "IVC-120G",
 		.video_inputs   = 16,
 		.audio_inputs   = 0,    /* card has no audio */
-		.tuner          = -1,   /* card has no tuner */
-		.tuner_type     = -1,
+		.tuner          = UNSET,   /* card has no tuner */
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs           = -1,   /* card has no svhs */
+		.svhs           = UNSET,   /* card has no svhs */
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
@@ -2333,7 +2356,7 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
 		.svhs           = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.muxsel         = { 3, 1, 1, 3 }, /* Vid In, SVid In, Vid over SVid in connector */
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
@@ -2364,9 +2387,9 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "SIMUS GVC1100",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
-		.tuner_type     = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.pll            = PLL_28,
@@ -2395,14 +2418,14 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "LMLBT4",
 		.video_inputs   = 4, /* IN1,IN2,IN3,IN4 */
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.muxsel         = { 2, 3, 1, 0 },
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.needs_tvaudio  = 0,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2452,8 +2475,8 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Euresys Picolo Tetra",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.gpiomask       = 0,
 		.gpiomask2      = 0x3C<<16,/*Set the GPIO[18]->GPIO[21] as output pin.==> drive the video inputs through analog multiplexers*/
 		.no_msp34xx     = 1,
@@ -2464,7 +2487,7 @@ struct tvcard bttv_tvcards[] = {
 		.pll            = PLL_28,
 		.needs_tvaudio  = 0,
 		.muxsel_hook    = picolo_tetra_muxsel,/*Required as it doesn't follow the classic input selection policy*/
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2490,7 +2513,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "AVerMedia AVerTV DVB-T 771",
 		.video_inputs   = 2,
 		.svhs           = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -2509,14 +2532,14 @@ struct tvcard bttv_tvcards[] = {
 		/* Based on the Nebula card data - added remote and new card number - BTTV_BOARD_AVDVBT_761, see also ir-kbd-gpio.c */
 		.name           = "AverMedia AverTV DVB-T 761",
 		.video_inputs   = 2,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 3, 1, 2, 0 }, /* Comp0, S-Video, ?, ? */
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_dvb        = 1,
@@ -2528,8 +2551,8 @@ struct tvcard bttv_tvcards[] = {
 		.name             = "MATRIX Vision Sigma-SQ",
 		.video_inputs     = 16,
 		.audio_inputs     = 0,
-		.tuner            = -1,
-		.svhs             = -1,
+		.tuner            = UNSET,
+		.svhs             = UNSET,
 		.gpiomask         = 0x0,
 		.muxsel           = { 2, 2, 2, 2, 2, 2, 2, 2,
 				3, 3, 3, 3, 3, 3, 3, 3 },
@@ -2537,7 +2560,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux          = { 0 },
 		.no_msp34xx       = 1,
 		.pll              = PLL_28,
-		.tuner_type       = -1,
+		.tuner_type       = UNSET,
 		.tuner_addr	  = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2546,15 +2569,15 @@ struct tvcard bttv_tvcards[] = {
 		.name             = "MATRIX Vision Sigma-SLC",
 		.video_inputs     = 4,
 		.audio_inputs     = 0,
-		.tuner            = -1,
-		.svhs             = -1,
+		.tuner            = UNSET,
+		.svhs             = UNSET,
 		.gpiomask         = 0x0,
 		.muxsel           = { 2, 2, 2, 2 },
 		.muxsel_hook      = sigmaSLC_muxsel,
 		.gpiomux          = { 0 },
 		.no_msp34xx       = 1,
 		.pll              = PLL_28,
-		.tuner_type       = -1,
+		.tuner_type       = UNSET,
 		.tuner_addr	  = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2566,7 +2589,7 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
 		.tuner          = 0,
-		.svhs           = -1,
+		.svhs           = UNSET,
 		.gpiomask       = 0xFF,
 		.muxsel         = { 2, 3, 1, 1 },
 		.gpiomux        = { 2, 0, 0, 0 },
@@ -2584,14 +2607,14 @@ struct tvcard bttv_tvcards[] = {
 	[BTTV_BOARD_DVICO_DVBT_LITE] = {
 		/* Chris Pascoe <c.pascoe@itee.uq.edu.au> */
 		.name           = "DViCO FusionHDTV DVB-T Lite",
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 		.no_video       = 1,
 		.has_dvb        = 1,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2634,14 +2657,14 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Tibet Systems 'Progress DVR' CS16",
 		.video_inputs   = 16,
 		.audio_inputs   = 0,
-		.tuner          = -1,
-		.svhs           = -1,
+		.tuner          = UNSET,
+		.svhs           = UNSET,
 		.muxsel         = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
 		.pll		= PLL_28,
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432	= 1,
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.muxsel_hook    = tibetCS16_muxsel,
@@ -2661,11 +2684,11 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Kodicom 4400R (master)",
 		.video_inputs	= 16,
 		.audio_inputs	= 0,
-		.tuner		= -1,
-		.tuner_type	= -1,
+		.tuner		= UNSET,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		/* GPIO bits 0-9 used for analog switch:
 		*   00 - 03:	camera selector
 		*   04 - 06:	channel (controller) selector
@@ -2693,11 +2716,11 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Kodicom 4400R (slave)",
 		.video_inputs	= 16,
 		.audio_inputs	= 0,
-		.tuner		= -1,
-		.tuner_type	= -1,
+		.tuner		= UNSET,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.svhs		= -1,
+		.svhs		= UNSET,
 		.gpiomask	= 0x010000,
 		.no_gpioirq     = 1,
 		.muxsel		= { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
@@ -2717,7 +2740,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner          = 0,
 		.svhs           = 2,
 		.muxsel         = { 2, 3, 1, 0 },
-		.tuner_type     = -1,
+		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.pll            = PLL_28,
@@ -2824,7 +2847,7 @@ struct tvcard bttv_tvcards[] = {
 		.name           = "Osprey 440",
 		.video_inputs   = 1,
 		.audio_inputs   = 1,
-		.tuner          = -1,
+		.tuner          = UNSET,
 		.svhs           = 1,
 		.muxsel         = { 2 },
 		.pll            = PLL_28,
@@ -2848,7 +2871,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 1,
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
-		.tuner_type	= 2,
+		.tuner_type	= TUNER_PHILIPS_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2875,14 +2898,14 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "Hauppauge ImpactVCB (bt878)",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
-		.tuner		= -1,
-		.svhs		= -1,
+		.tuner		= UNSET,
+		.svhs		= UNSET,
 		.gpiomask	= 0x0f, /* old: 7 */
 		.muxsel		= { 0, 1, 3, 2 }, /* Composite 0-3 */
 		.no_msp34xx	= 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2914,10 +2937,10 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "SSAI Security Video Interface",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
-		.tuner		= -1,
-		.svhs		= -1,
+		.tuner		= UNSET,
+		.svhs		= UNSET,
 		.muxsel		= { 0, 1, 2, 3 },
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
@@ -2925,12 +2948,30 @@ struct tvcard bttv_tvcards[] = {
 		.name		= "SSAI Ultrasound Video Interface",
 		.video_inputs	= 2,
 		.audio_inputs	= 0,
-		.tuner		= -1,
+		.tuner		= UNSET,
 		.svhs		= 1,
 		.muxsel		= { 2, 0, 1, 3 },
-		.tuner_type	= -1,
+		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
+	},
+	/* ---- card 0x94---------------------------------- */
+	[BTTV_BOARD_DVICO_FUSIONHDTV_2] = {
+		.name           = "DViCO FusionHDTV 2",
+		.tuner          = 0,
+		.tuner_type     = TUNER_PHILIPS_ATSC, /* FCV1236D */
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.svhs           = 2,
+		.muxsel		= { 2, 3, 1 },
+		.gpiomask       = 0x00e00007,
+		.gpiomux        = { 0x00400005, 0, 0x00000001, 0 },
+		.gpiomute 	= 0x00c00007,
+		.no_msp34xx     = 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
 	},
 };
 
@@ -3040,7 +3081,7 @@ static void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 static void flyvideo_gpio(struct bttv *btv)
 {
 	int gpio,has_remote,has_radio,is_capture_only,is_lr90,has_tda9820_tda9821;
-	int tuner=-1,ttype;
+	int tuner=UNSET,ttype;
 
 	gpio_inout(0xffffff, 0);
 	udelay(8);  /* without this we would see the 0x1800 mask */
@@ -3085,7 +3126,7 @@ static void flyvideo_gpio(struct bttv *btv)
 	 * gpio & 0x001000    output bit for audio routing */
 
 	if(is_capture_only)
-		tuner=4; /* No tuner present */
+		tuner = TUNER_ABSENT; /* No tuner present */
 
 	printk(KERN_INFO "bttv%d: FlyVideo Radio=%s RemoteControl=%s Tuner=%d gpio=0x%06x\n",
 	       btv->c.nr, has_radio? "yes":"no ", has_remote? "yes":"no ", tuner, gpio);
@@ -3093,7 +3134,7 @@ static void flyvideo_gpio(struct bttv *btv)
 		btv->c.nr, is_lr90?"yes":"no ", has_tda9820_tda9821?"yes":"no ",
 		is_capture_only?"yes":"no ");
 
-	if(tuner!= -1) /* only set if known tuner autodetected, else let insmod option through */
+	if (tuner != UNSET) /* only set if known tuner autodetected, else let insmod option through */
 		btv->tuner_type = tuner;
 	btv->has_radio = has_radio;
 
@@ -3302,6 +3343,7 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	case BTTV_BOARD_HAUPPAUGE878:
 		boot_msp34xx(btv,5);
 		break;
+	case BTTV_BOARD_VOODOOTV_200:
 	case BTTV_BOARD_VOODOOTV_FM:
 		boot_msp34xx(btv,20);
 		break;
@@ -3328,10 +3370,9 @@ void __devinit bttv_init_card1(struct bttv *btv)
 /* initialization part two -- after registering i2c bus */
 void __devinit bttv_init_card2(struct bttv *btv)
 {
-	int tda9887;
 	int addr=ADDR_UNSET;
 
-	btv->tuner_type = -1;
+	btv->tuner_type = UNSET;
 
 	if (BTTV_BOARD_UNKNOWN == btv->c.type) {
 		bttv_readee(btv,eeprom_data,0xa0);
@@ -3479,7 +3520,15 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
 	if (UNSET != tuner[btv->c.nr])
 		btv->tuner_type = tuner[btv->c.nr];
-	printk("bttv%d: using tuner=%d\n",btv->c.nr,btv->tuner_type);
+
+	if (btv->tuner_type == TUNER_ABSENT ||
+	    bttv_tvcards[btv->c.type].tuner == UNSET)
+		printk(KERN_INFO "bttv%d: tuner absent\n", btv->c.nr);
+	else if(btv->tuner_type == UNSET)
+		printk(KERN_WARNING "bttv%d: tuner type unset\n", btv->c.nr);
+	else
+		printk(KERN_INFO "bttv%d: tuner type=%d\n", btv->c.nr,
+		       btv->tuner_type);
 
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
@@ -3521,6 +3570,9 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (!autoload)
 		return;
 
+	if (bttv_tvcards[btv->c.type].tuner == UNSET)
+		return;  /* no tuner or related drivers to load */
+
 	/* try to detect audio/fader chips */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx &&
 	    bttv_I2CRead(btv, I2C_ADDR_MSP3400, "MSP34xx") >=0)
@@ -3541,17 +3593,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (bttv_tvcards[btv->c.type].needs_tvaudio)
 		request_module("tvaudio");
 
-	/* tuner modules */
-	tda9887 = 0;
-	if (btv->tda9887_conf)
-		tda9887 = 1;
-	if (0 == tda9887 && 0 == bttv_tvcards[btv->c.type].has_dvb &&
-	    bttv_I2CRead(btv, I2C_ADDR_TDA9887, "TDA9887") >=0)
-		tda9887 = 1;
-	/* Hybrid DVB card, DOES have a tda9887 */
-	if (btv->c.type == BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE)
-		tda9887 = 1;
-	if (btv->tuner_type != UNSET)
+	if (btv->tuner_type != UNSET && btv->tuner_type != TUNER_ABSENT)
 		request_module("tuner");
 }
 
@@ -3865,11 +3907,15 @@ void bttv_tda9880_setnorm(struct bttv *btv, int norm)
 	if(norm==VIDEO_MODE_NTSC) {
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x957fff;
 		dprintk("bttv_tda9880_setnorm to NTSC\n");
 	}
 	else {
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x947fff;
 		dprintk("bttv_tda9880_setnorm to PAL\n");
 	}
 	/* set GPIO according */

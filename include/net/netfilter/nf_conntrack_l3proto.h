@@ -58,13 +58,11 @@ struct nf_conntrack_l3proto
 
 	/*
 	 * Called before tracking. 
-	 *	*dataoff: offset of protocol header (TCP, UDP,...) in *pskb
+	 *	*dataoff: offset of protocol header (TCP, UDP,...) in skb
 	 *	*protonum: protocol number
 	 */
-	int (*prepare)(struct sk_buff **pskb, unsigned int hooknum,
-		       unsigned int *dataoff, u_int8_t *protonum);
-
-	u_int32_t (*get_features)(const struct nf_conntrack_tuple *tuple);
+	int (*get_l4proto)(const struct sk_buff *skb, unsigned int nhoff,
+			   unsigned int *dataoff, u_int8_t *protonum);
 
 	int (*tuple_to_nfattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
@@ -91,8 +89,6 @@ extern struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
 extern void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
 
 /* Existing built-in protocols */
-extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
-extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6;
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;
 
 static inline struct nf_conntrack_l3proto *

@@ -49,7 +49,6 @@
 #include <linux/string.h>
 
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "nxt200x.h"
 
 struct nxt200x_state {
@@ -546,11 +545,6 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 		nxt200x_writebytes(state, 0x17, buf, 1);
 	}
 
-	/* get tuning information */
-	if (fe->ops.tuner_ops.calc_regs) {
-		fe->ops.tuner_ops.calc_regs(fe, p, buf, 5);
-	}
-
 	/* set additional params */
 	switch (p->u.vsb.modulation) {
 		case QAM_64:
@@ -559,27 +553,24 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 			/* This is just a guess since I am unable to test it */
 			if (state->config->set_ts_params)
 				state->config->set_ts_params(fe, 1);
-
-			/* set input */
-			if (state->config->set_pll_input)
-				state->config->set_pll_input(buf+1, 1);
 			break;
 		case VSB_8:
 			/* Set non-punctured clock for VSB */
 			if (state->config->set_ts_params)
 				state->config->set_ts_params(fe, 0);
-
-			/* set input */
-			if (state->config->set_pll_input)
-				state->config->set_pll_input(buf+1, 0);
 			break;
 		default:
 			return -EINVAL;
 			break;
 	}
 
-	/* write frequency information */
-	nxt200x_writetuner(state, buf);
+	if (fe->ops.tuner_ops.calc_regs) {
+		/* get tuning information */
+		fe->ops.tuner_ops.calc_regs(fe, p, buf, 5);
+
+		/* write frequency information */
+		nxt200x_writetuner(state, buf);
+	}
 
 	/* reset the agc now that tuning has been completed */
 	nxt200x_agc_reset(state);

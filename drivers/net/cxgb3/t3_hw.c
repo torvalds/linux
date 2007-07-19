@@ -847,6 +847,64 @@ static int t3_write_flash(struct adapter *adapter, unsigned int addr,
 	return 0;
 }
 
+/**
+ *	t3_check_tpsram_version - read the tp sram version
+ *	@adapter: the adapter
+ *
+ *	Reads the protocol sram version from serial eeprom.
+ */
+int t3_check_tpsram_version(struct adapter *adapter)
+{
+	int ret;
+	u32 vers;
+	unsigned int major, minor;
+
+	/* Get version loaded in SRAM */
+	t3_write_reg(adapter, A_TP_EMBED_OP_FIELD0, 0);
+	ret = t3_wait_op_done(adapter, A_TP_EMBED_OP_FIELD0,
+			      1, 1, 5, 1);
+	if (ret)
+		return ret;
+	
+	vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
+
+	major = G_TP_VERSION_MAJOR(vers);
+	minor = G_TP_VERSION_MINOR(vers);
+
+	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
+		return 0;
+
+	return -EINVAL;
+}
+
+/**
+ *	t3_check_tpsram - check if provided protocol SRAM 
+ *			  is compatible with this driver
+ *	@adapter: the adapter
+ *	@tp_sram: the firmware image to write
+ *	@size: image size
+ *
+ *	Checks if an adapter's tp sram is compatible with the driver.
+ *	Returns 0 if the versions are compatible, a negative error otherwise.
+ */
+int t3_check_tpsram(struct adapter *adapter, u8 *tp_sram, unsigned int size)
+{
+	u32 csum;
+	unsigned int i;
+	const u32 *p = (const u32 *)tp_sram;
+
+	/* Verify checksum */
+	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
+		csum += ntohl(p[i]);
+	if (csum != 0xffffffff) {
+		CH_ERR(adapter, "corrupted protocol SRAM image, checksum %u\n",
+		       csum);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 enum fw_version_type {
 	FW_VERSION_N3,
 	FW_VERSION_T3
@@ -921,7 +979,7 @@ static int t3_flash_erase_sectors(struct adapter *adapter, int start, int end)
 /*
  *	t3_load_fw - download firmware
  *	@adapter: the adapter
- *	@fw_data: the firrware image to write
+ *	@fw_data: the firmware image to write
  *	@size: image size
  *
  *	Write the supplied firmware image to the card's serial flash.
@@ -2362,7 +2420,7 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 		     F_TCPCHECKSUMOFFLOAD | V_IPTTL(64));
 	t3_write_reg(adap, A_TP_TCP_OPTIONS, V_MTUDEFAULT(576) |
 		     F_MTUENABLE | V_WINDOWSCALEMODE(1) |
-		     V_TIMESTAMPSMODE(1) | V_SACKMODE(1) | V_SACKRX(1));
+		     V_TIMESTAMPSMODE(0) | V_SACKMODE(1) | V_SACKRX(1));
 	t3_write_reg(adap, A_TP_DACK_CONFIG, V_AUTOSTATE3(1) |
 		     V_AUTOSTATE2(1) | V_AUTOSTATE1(0) |
 		     V_BYTETHRESHOLD(16384) | V_MSSTHRESHOLD(2) |
@@ -2371,16 +2429,18 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 			 F_IPV6ENABLE | F_NICMODE);
 	t3_write_reg(adap, A_TP_TX_RESOURCE_LIMIT, 0x18141814);
 	t3_write_reg(adap, A_TP_PARA_REG4, 0x5050105);
-	t3_set_reg_field(adap, A_TP_PARA_REG6,
-			 adap->params.rev > 0 ? F_ENABLEESND : F_T3A_ENABLEESND,
-			 0);
+	t3_set_reg_field(adap, A_TP_PARA_REG6, 0,
+			 adap->params.rev > 0 ? F_ENABLEESND :
+			 F_T3A_ENABLEESND);
 
 	t3_set_reg_field(adap, A_TP_PC_CONFIG,
-			 F_ENABLEEPCMDAFULL | F_ENABLEOCSPIFULL,
-			 F_TXDEFERENABLE | F_HEARBEATDACK | F_TXCONGESTIONMODE |
-			 F_RXCONGESTIONMODE);
+			 F_ENABLEEPCMDAFULL,
+			 F_ENABLEOCSPIFULL |F_TXDEFERENABLE | F_HEARBEATDACK |
+			 F_TXCONGESTIONMODE | F_RXCONGESTIONMODE);
 	t3_set_reg_field(adap, A_TP_PC_CONFIG2, F_CHDRAFULL, 0);
-
+	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1080);
+	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1000);
+	
 	if (adap->params.rev > 0) {
 		tp_wr_indirect(adap, A_TP_EGRESS_CONFIG, F_REWRITEFORCETOSIZE);
 		t3_set_reg_field(adap, A_TP_PARA_REG3, F_TXPACEAUTO,
@@ -2390,9 +2450,10 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 	} else
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEFIXED);
 
-	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0x12121212);
-	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0x12121212);
-	t3_write_reg(adap, A_TP_MOD_CHANNEL_WEIGHT, 0x1212);
+	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0);
+	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0);
+	t3_write_reg(adap, A_TP_MOD_CHANNEL_WEIGHT, 0);
+	t3_write_reg(adap, A_TP_MOD_RATE_LIMIT, 0xf2200000);
 }
 
 /* Desired TP timer resolution in usec */
@@ -2468,6 +2529,7 @@ int t3_tp_set_coalescing_size(struct adapter *adap, unsigned int size, int psh)
 		val |= F_RXCOALESCEENABLE;
 		if (psh)
 			val |= F_RXCOALESCEPSHEN;
+		size = min(MAX_RX_COALESCING_LEN, size);
 		t3_write_reg(adap, A_TP_PARA_REG2, V_RXCOALESCESIZE(size) |
 			     V_MAXRXDATA(MAX_RX_COALESCING_LEN));
 	}
@@ -2496,11 +2558,11 @@ static void __devinit init_mtus(unsigned short mtus[])
 	 * it can accomodate max size TCP/IP headers when SACK and timestamps
 	 * are enabled and still have at least 8 bytes of payload.
 	 */
-	mtus[0] = 88;
-	mtus[1] = 256;
-	mtus[2] = 512;
-	mtus[3] = 576;
-	mtus[4] = 808;
+	mtus[1] = 88;
+	mtus[1] = 88;
+	mtus[2] = 256;
+	mtus[3] = 512;
+	mtus[4] = 576;
 	mtus[5] = 1024;
 	mtus[6] = 1280;
 	mtus[7] = 1492;
@@ -2682,6 +2744,34 @@ static void ulp_config(struct adapter *adap, const struct tp_params *p)
 	t3_write_reg(adap, A_ULPRX_TDDP_TAGMASK, 0xffffffff);
 }
 
+/**
+ *	t3_set_proto_sram - set the contents of the protocol sram
+ *	@adapter: the adapter
+ *	@data: the protocol image
+ *
+ *	Write the contents of the protocol SRAM.
+ */
+int t3_set_proto_sram(struct adapter *adap, u8 *data)
+{
+	int i;
+	u32 *buf = (u32 *)data;
+
+	for (i = 0; i < PROTO_SRAM_LINES; i++) {
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, cpu_to_be32(*buf++));
+		
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, i << 1 | 1 << 31);
+		if (t3_wait_op_done(adap, A_TP_EMBED_OP_FIELD0, 1, 1, 5, 1))
+			return -EIO;
+	}
+	t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, 0);
+
+	return 0;
+}
+
 void t3_config_trace_filter(struct adapter *adapter,
 			    const struct trace_params *tp, int filter_index,
 			    int invert, int enable)
@@ -2802,7 +2892,7 @@ static void init_hw_for_avail_ports(struct adapter *adap, int nports)
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, F_CFG_RR_ARB, 0);
 		t3_write_reg(adap, A_MPS_CFG, F_TPRXPORTEN | F_TPTXPORT0EN |
 			     F_PORT0ACTIVE | F_ENFORCEPKT);
-		t3_write_reg(adap, A_PM1_TX_CFG, 0xc000c000);
+		t3_write_reg(adap, A_PM1_TX_CFG, 0xffffffff);
 	} else {
 		t3_set_reg_field(adap, A_ULPRX_CTL, 0, F_ROUND_ROBIN);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, 0, F_CFG_RR_ARB);
@@ -3097,7 +3187,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	else
 		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
 
-	t3_write_reg(adapter, A_PM1_RX_CFG, 0xf000f000);
+	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
 	init_hw_for_avail_ports(adapter, adapter->params.nports);
 	t3_sge_init(adapter, &adapter->params.sge);
 

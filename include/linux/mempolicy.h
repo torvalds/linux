@@ -159,7 +159,7 @@ extern void mpol_fix_fork_child_flag(struct task_struct *p);
 
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-		unsigned long addr);
+		unsigned long addr, gfp_t gfp_flags);
 extern unsigned slab_node(struct mempolicy *policy);
 
 extern enum zone_type policy_zone;
@@ -256,9 +256,9 @@ static inline void mpol_fix_fork_child_flag(struct task_struct *p)
 #define set_cpuset_being_rebound(x) do {} while (0)
 
 static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-		unsigned long addr)
+		unsigned long addr, gfp_t gfp_flags)
 {
-	return NODE_DATA(0)->node_zonelists + gfp_zone(GFP_HIGHUSER);
+	return NODE_DATA(0)->node_zonelists + gfp_zone(gfp_flags);
 }
 
 static inline int do_migrate_pages(struct mm_struct *mm,

@@ -293,28 +293,16 @@ static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 {
 	struct device_driver *drv = dev->driver;
 	struct scsi_device *sdev = to_scsi_device(dev);
-	struct scsi_host_template *sht = sdev->host->hostt;
 	int err;
 
 	err = scsi_device_quiesce(sdev);
 	if (err)
 		return err;
 
-	/* call HLD suspend first */
 	if (drv && drv->suspend) {
 		err = drv->suspend(dev, state);
 		if (err)
 			return err;
-	}
-
-	/* then, call host suspend */
-	if (sht->suspend) {
-		err = sht->suspend(sdev, state);
-		if (err) {
-			if (drv && drv->resume)
-				drv->resume(dev);
-			return err;
-		}
 	}
 
 	return 0;
@@ -324,21 +312,14 @@ static int scsi_bus_resume(struct device * dev)
 {
 	struct device_driver *drv = dev->driver;
 	struct scsi_device *sdev = to_scsi_device(dev);
-	struct scsi_host_template *sht = sdev->host->hostt;
-	int err = 0, err2 = 0;
+	int err = 0;
 
-	/* call host resume first */
-	if (sht->resume)
-		err = sht->resume(sdev);
-
-	/* then, call HLD resume */
 	if (drv && drv->resume)
-		err2 = drv->resume(dev);
+		err = drv->resume(dev);
 
 	scsi_device_resume(sdev);
 
-	/* favor LLD failure */
-	return err ? err : err2;;
+	return err;
 }
 
 struct bus_type scsi_bus_type = {

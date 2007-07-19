@@ -48,6 +48,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT	= UEVENT_BASE + 14,
 
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
+	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -71,6 +72,8 @@ struct iscsi_uevent {
 		/* messages u -> k */
 		struct msg_create_session {
 			uint32_t	initial_cmdsn;
+			uint16_t	cmds_max;
+			uint16_t	queue_depth;
 		} c_session;
 		struct msg_destroy_session {
 			uint32_t	sid;
@@ -136,6 +139,11 @@ struct iscsi_uevent {
 			 */
 			uint32_t	enable;
 		} tgt_dscvr;
+		struct msg_set_host_param {
+			uint32_t	host_no;
+			uint32_t	param; /* enum iscsi_host_param */
+			uint32_t	len;
+		} set_host_param;
 	} u;
 	union {
 		/* messages k -> u */
@@ -223,6 +231,11 @@ enum iscsi_param {
 	ISCSI_PARAM_CONN_PORT,
 	ISCSI_PARAM_CONN_ADDRESS,
 
+	ISCSI_PARAM_USERNAME,
+	ISCSI_PARAM_USERNAME_IN,
+	ISCSI_PARAM_PASSWORD,
+	ISCSI_PARAM_PASSWORD_IN,
+
 	/* must always be last */
 	ISCSI_PARAM_MAX,
 };
@@ -249,6 +262,24 @@ enum iscsi_param {
 #define ISCSI_SESS_RECOVERY_TMO		(1 << ISCSI_PARAM_SESS_RECOVERY_TMO)
 #define ISCSI_CONN_PORT			(1 << ISCSI_PARAM_CONN_PORT)
 #define ISCSI_CONN_ADDRESS		(1 << ISCSI_PARAM_CONN_ADDRESS)
+#define ISCSI_USERNAME			(1 << ISCSI_PARAM_USERNAME)
+#define ISCSI_USERNAME_IN		(1 << ISCSI_PARAM_USERNAME_IN)
+#define ISCSI_PASSWORD			(1 << ISCSI_PARAM_PASSWORD)
+#define ISCSI_PASSWORD_IN		(1 << ISCSI_PARAM_PASSWORD_IN)
+
+/* iSCSI HBA params */
+enum iscsi_host_param {
+	ISCSI_HOST_PARAM_HWADDRESS,
+	ISCSI_HOST_PARAM_INITIATOR_NAME,
+	ISCSI_HOST_PARAM_NETDEV_NAME,
+	ISCSI_HOST_PARAM_IPADDRESS,
+	ISCSI_HOST_PARAM_MAX,
+};
+
+#define ISCSI_HOST_HWADDRESS		(1 << ISCSI_HOST_PARAM_HWADDRESS)
+#define ISCSI_HOST_INITIATOR_NAME	(1 << ISCSI_HOST_PARAM_INITIATOR_NAME)
+#define ISCSI_HOST_NETDEV_NAME		(1 << ISCSI_HOST_PARAM_NETDEV_NAME)
+#define ISCSI_HOST_IPADDRESS		(1 << ISCSI_HOST_PARAM_IPADDRESS)
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)
@@ -272,6 +303,9 @@ enum iscsi_param {
 #define CAP_MULTI_CONN		0x40
 #define CAP_TEXT_NEGO		0x80
 #define CAP_MARKERS		0x100
+#define CAP_FW_DB		0x200
+#define CAP_SENDTARGETS_OFFLOAD	0x400
+#define CAP_DATA_PATH_OFFLOAD	0x800
 
 /*
  * These flags describes reason of stop_conn() call

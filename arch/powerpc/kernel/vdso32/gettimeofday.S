@@ -32,6 +32,8 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	mr	r11,r4			/* r11 saves tz */
 	bl	__get_datapage@local	/* get data page */
 	mr	r9, r3			/* datapage ptr in r9 */
+	cmplwi	r10,0			/* check if tv is NULL */
+	beq	3f
 	bl	__do_get_xsec@local	/* get xsec from tb & kernel */
 	bne-	2f			/* out of line -> do syscall */
 
@@ -50,7 +52,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	mulhwu	r5,r5,r6
 	stw	r5,TVAL32_TV_USEC(r10)
 
-	cmpli	cr0,r11,0		/* check if tz is NULL */
+3:	cmplwi	r11,0			/* check if tz is NULL */
 	beq	1f
 	lwz	r4,CFG_TZ_MINUTEWEST(r9)/* fill tz */
 	lwz	r5,CFG_TZ_DSTTIME(r9)

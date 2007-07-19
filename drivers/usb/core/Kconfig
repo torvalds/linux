@@ -86,6 +86,31 @@ config USB_SUSPEND
 
 	  If you are unsure about this, say N here.
 
+config USB_PERSIST
+	bool "USB device persistence during system suspend (DANGEROUS)"
+	depends on USB && PM && EXPERIMENTAL
+	default n
+	help
+
+	  If you say Y here and enable the "power/persist" attribute
+	  for a USB device, the device's data structures will remain
+	  persistent across system suspend, even if the USB bus loses
+	  power.  (This includes hibernation, also known as swsusp or
+	  suspend-to-disk.)  The devices will reappear as if by magic
+	  when the system wakes up, with no need to unmount USB
+	  filesystems, rmmod host-controller drivers, or do anything
+	  else.
+
+	  	WARNING: This option can be dangerous!
+
+	  If a USB device is replaced by another of the same type while
+	  the system is asleep, there's a good chance the kernel won't
+	  detect the change.  Likewise if the media in a USB storage
+	  device is replaced.  When this happens it's almost certain to
+	  cause data corruption and maybe even crash your system.
+
+	  If you are unsure, say N here.
+
 config USB_OTG
 	bool
 	depends on USB && EXPERIMENTAL

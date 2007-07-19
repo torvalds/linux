@@ -296,7 +296,7 @@ static inline void restore_complete(void)
  * This code deviates from the documented sequence in the
  * following aspects:
  *
- * 	1. The EA for LSCSA is passed from PPE in the
+ *	1. The EA for LSCSA is passed from PPE in the
  *	   signal notification channels.
  *	2. The register spill area is pulled by SPU
  *	   into LS, rather than pushed by PPE.

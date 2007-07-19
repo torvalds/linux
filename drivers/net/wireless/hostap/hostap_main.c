@@ -37,7 +37,6 @@
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP common routines");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(PRISM2_VERSION);
 
 #define TX_TIMEOUT (2 * HZ)
 

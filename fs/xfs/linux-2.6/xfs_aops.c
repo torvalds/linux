@@ -108,14 +108,19 @@ xfs_page_trace(
 
 /*
  * Schedule IO completion handling on a xfsdatad if this was
- * the final hold on this ioend.
+ * the final hold on this ioend. If we are asked to wait,
+ * flush the workqueue.
  */
 STATIC void
 xfs_finish_ioend(
-	xfs_ioend_t		*ioend)
+	xfs_ioend_t	*ioend,
+	int		wait)
 {
-	if (atomic_dec_and_test(&ioend->io_remaining))
+	if (atomic_dec_and_test(&ioend->io_remaining)) {
 		queue_work(xfsdatad_workqueue, &ioend->io_work);
+		if (wait)
+			flush_workqueue(xfsdatad_workqueue);
+	}
 }
 
 /*
@@ -156,6 +161,8 @@ xfs_setfilesize(
 	xfs_fsize_t		bsize;
 
 	ip = xfs_vtoi(ioend->io_vnode);
+	if (!ip)
+		return;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
 	ASSERT(ioend->io_type != IOMAP_READ);
@@ -334,7 +341,7 @@ xfs_end_bio(
 	bio->bi_end_io = NULL;
 	bio_put(bio);
 
-	xfs_finish_ioend(ioend);
+	xfs_finish_ioend(ioend, 0);
 	return 0;
 }
 
@@ -470,7 +477,7 @@ xfs_submit_ioend(
 		}
 		if (bio)
 			xfs_submit_ioend_bio(ioend, bio);
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	} while ((ioend = next) != NULL);
 }
 
@@ -1003,6 +1010,8 @@ xfs_page_state_convert(
 		if (buffer_unwritten(bh) || buffer_delay(bh) ||
 		    ((buffer_uptodate(bh) || PageUptodate(page)) &&
 		     !buffer_mapped(bh) && (unmapped || startio))) {
+			int new_ioend = 0;
+
 			/*
 			 * Make sure we don't use a read-only iomap
 			 */
@@ -1021,6 +1030,15 @@ xfs_page_state_convert(
 			}
 
 			if (!iomap_valid) {
+				/*
+				 * if we didn't have a valid mapping then we
+				 * need to ensure that we put the new mapping
+				 * in a new ioend structure. This needs to be
+				 * done to ensure that the ioends correctly
+				 * reflect the block mappings at io completion
+				 * for unwritten extent conversion.
+				 */
+				new_ioend = 1;
 				if (type == IOMAP_NEW) {
 					size = xfs_probe_cluster(inode,
 							page, bh, head, 0);
@@ -1040,7 +1058,7 @@ xfs_page_state_convert(
 				if (startio) {
 					xfs_add_to_ioend(inode, bh, offset,
 							type, &ioend,
-							!iomap_valid);
+							new_ioend);
 				} else {
 					set_buffer_dirty(bh);
 					unlock_buffer(bh);
@@ -1416,6 +1434,13 @@ xfs_end_io_direct(
 	 * This is not necessary for synchronous direct I/O, but we do
 	 * it anyway to keep the code uniform and simpler.
 	 *
+	 * Well, if only it were that simple. Because synchronous direct I/O
+	 * requires extent conversion to occur *before* we return to userspace,
+	 * we have to wait for extent conversion to complete. Look at the
+	 * iocb that has been passed to us to determine if this is AIO or
+	 * not. If it is synchronous, tell xfs_finish_ioend() to kick the
+	 * workqueue and wait for it to complete.
+	 *
 	 * The core direct I/O code might be changed to always call the
 	 * completion handler in the future, in which case all this can
 	 * go away.
@@ -1423,9 +1448,9 @@ xfs_end_io_direct(
 	ioend->io_offset = offset;
 	ioend->io_size = size;
 	if (ioend->io_type == IOMAP_READ) {
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	} else if (private && size > 0) {
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, is_sync_kiocb(iocb));
 	} else {
 		/*
 		 * A direct I/O write ioend starts it's life in unwritten
@@ -1434,7 +1459,7 @@ xfs_end_io_direct(
 		 * handler.
 		 */
 		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	}
 
 	/*

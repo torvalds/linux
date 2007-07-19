@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21
-# Mon May 14 12:55:04 2007
+# Linux kernel version: 2.6.22-rc6
+# Tue Jun 26 13:51:39 2007
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -295,20 +295,8 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_INET6_TUNNEL is not set
 # CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
-
-#
-# DCCP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_DCCP is not set
-
-#
-# SCTP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_SCTP is not set
-
-#
-# TIPC Configuration (EXPERIMENTAL)
-#
 # CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
@@ -466,10 +454,6 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # CONFIG_SGI_IOC4 is not set
 # CONFIG_TIFM_CORE is not set
 # CONFIG_BLINK is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
-#
 CONFIG_IDE=y
 CONFIG_BLK_DEV_IDE=y
 
@@ -571,7 +555,6 @@ CONFIG_SCSI_3W_9XXX=y
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
 # CONFIG_SCSI_DEBUG is not set
-# CONFIG_SCSI_ESP_CORE is not set
 # CONFIG_SCSI_SRP is not set
 
 #
@@ -580,10 +563,6 @@ CONFIG_SCSI_3W_9XXX=y
 # CONFIG_PCMCIA_FDOMAIN is not set
 # CONFIG_PCMCIA_QLOGIC is not set
 # CONFIG_PCMCIA_SYM53C500 is not set
-
-#
-# Serial ATA (prod) and Parallel ATA (experimental) drivers
-#
 CONFIG_ATA=y
 # CONFIG_ATA_NONSTANDARD is not set
 # CONFIG_SATA_AHCI is not set
@@ -694,15 +673,7 @@ CONFIG_DUMMY=y
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
-
-#
-# ARCnet devices
-#
 # CONFIG_ARCNET is not set
-
-#
-# PHY device support
-#
 CONFIG_PHYLIB=y
 
 #
@@ -752,10 +723,7 @@ CONFIG_NET_PCI=y
 # CONFIG_SUNDANCE is not set
 # CONFIG_VIA_RHINE is not set
 # CONFIG_SC92031 is not set
-
-#
-# Ethernet (1000 Mbit)
-#
+CONFIG_NETDEV_1000=y
 # CONFIG_ACENIC is not set
 # CONFIG_DL2K is not set
 CONFIG_E1000=y
@@ -774,10 +742,7 @@ CONFIG_TIGON3=y
 # CONFIG_BNX2 is not set
 # CONFIG_QLA3XXX is not set
 # CONFIG_ATL1 is not set
-
-#
-# Ethernet (10000 Mbit)
-#
+CONFIG_NETDEV_10000=y
 # CONFIG_CHELSIO_T1 is not set
 # CONFIG_CHELSIO_T3 is not set
 # CONFIG_IXGB is not set
@@ -786,11 +751,6 @@ CONFIG_TIGON3=y
 # CONFIG_NETXEN_NIC is not set
 CONFIG_PASEMI_MAC=y
 # CONFIG_MLX4_CORE is not set
-CONFIG_MLX4_DEBUG=y
-
-#
-# Token Ring devices
-#
 # CONFIG_TR is not set
 
 #
@@ -808,15 +768,7 @@ CONFIG_MLX4_DEBUG=y
 # CONFIG_USB_RTL8150 is not set
 # CONFIG_USB_USBNET_MII is not set
 # CONFIG_USB_USBNET is not set
-
-#
-# PCMCIA network device support
-#
 # CONFIG_NET_PCMCIA is not set
-
-#
-# Wan interfaces
-#
 # CONFIG_WAN is not set
 # CONFIG_FDDI is not set
 # CONFIG_HIPPI is not set
@@ -843,6 +795,7 @@ CONFIG_MLX4_DEBUG=y
 #
 CONFIG_INPUT=y
 # CONFIG_INPUT_FF_MEMLESS is not set
+# CONFIG_INPUT_POLLDEV is not set
 
 #
 # Userland interfaces
@@ -1661,7 +1614,6 @@ CONFIG_NLS_ISO8859_1=y
 #
 # CONFIG_DLM is not set
 # CONFIG_UCC_SLOW is not set
-# CONFIG_UCC_FAST is not set
 
 #
 # Library routines

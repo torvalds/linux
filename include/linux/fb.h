@@ -119,6 +119,7 @@ struct dentry;
 #define FB_ACCEL_NV_40          46      /* nVidia Arch 40               */
 #define FB_ACCEL_XGI_VOLARI_V	47	/* XGI Volari V3XT, V5, V8      */
 #define FB_ACCEL_XGI_VOLARI_Z	48	/* XGI Volari Z7                */
+#define FB_ACCEL_OMAP1610	49	/* TI OMAP16xx                  */
 #define FB_ACCEL_NEOMAGIC_NM2070 90	/* NeoMagic NM2070              */
 #define FB_ACCEL_NEOMAGIC_NM2090 91	/* NeoMagic NM2090              */
 #define FB_ACCEL_NEOMAGIC_NM2093 92	/* NeoMagic NM2093              */
@@ -529,6 +530,8 @@ struct fb_cursor_user {
 #define FB_EVENT_CONBLANK               0x0C
 /*      Get drawing requirements        */
 #define FB_EVENT_GET_REQ                0x0D
+/*      Unbind from the console if possible */
+#define FB_EVENT_FB_UNBIND              0x0E
 
 struct fb_event {
 	struct fb_info *info;

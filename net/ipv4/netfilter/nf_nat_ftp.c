@@ -25,12 +25,6 @@ MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp NAT helper");
 MODULE_ALIAS("ip_nat_ftp");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* FIXME: Time out? --RR */
 
 static int
@@ -47,7 +41,7 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 	sprintf(buffer, "%u,%u,%u,%u,%u,%u",
 		NIPQUAD(newip), port>>8, port&0xFF);
 
-	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
+	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
@@ -67,7 +61,7 @@ mangle_eprt_packet(struct sk_buff **pskb,
 
 	sprintf(buffer, "|1|%u.%u.%u.%u|%u|", NIPQUAD(newip), port);
 
-	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
+	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
@@ -87,7 +81,7 @@ mangle_epsv_packet(struct sk_buff **pskb,
 
 	sprintf(buffer, "|||%u|", port);
 
-	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
+	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
@@ -117,7 +111,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_conn *ct = exp->master;
 
-	DEBUGP("FTP_NAT: type %i, off %u len %u\n", type, matchoff, matchlen);
+	pr_debug("FTP_NAT: type %i, off %u len %u\n", type, matchoff, matchlen);
 
 	/* Connection will come from wherever this packet goes, hence !dir */
 	newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
@@ -131,7 +125,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		exp->tuple.dst.u.tcp.port = htons(port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -139,7 +133,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 		return NF_DROP;
 
 	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo)) {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}
 	return NF_ACCEPT;

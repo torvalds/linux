@@ -20,9 +20,11 @@ struct mon_bus {
 	struct usb_bus *u_bus;
 
 	int text_inited;
+	int bin_inited;
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
 	struct dentry *dent_u;		/* Second text interface file */
+	struct device *classdev;	/* Device in usbmon class */
 
 	/* Ref */
 	int nreaders;			/* Under mon_lock AND mbus->lock */
@@ -52,9 +54,10 @@ void mon_reader_del(struct mon_bus *mbus, struct mon_reader *r);
 
 struct mon_bus *mon_bus_lookup(unsigned int num);
 
-int /*bool*/ mon_text_add(struct mon_bus *mbus, int busnum);
+int /*bool*/ mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus);
 void mon_text_del(struct mon_bus *mbus);
-// void mon_bin_add(struct mon_bus *);
+int /*bool*/ mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus);
+void mon_bin_del(struct mon_bus *mbus);
 
 int __init mon_text_init(void);
 void mon_text_exit(void);

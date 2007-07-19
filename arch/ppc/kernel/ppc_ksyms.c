@@ -64,7 +64,6 @@ extern unsigned long mm_ptov (unsigned long paddr);
 
 EXPORT_SYMBOL(clear_pages);
 EXPORT_SYMBOL(clear_user_page);
-EXPORT_SYMBOL(do_signal);
 EXPORT_SYMBOL(transfer_to_handler);
 EXPORT_SYMBOL(do_IRQ);
 EXPORT_SYMBOL(machine_check_exception);

@@ -140,7 +140,7 @@ static int pxakbd_resume(struct platform_device *pdev)
 		KPREC = pdata->reg_kprec;
 
 		/* Enable unit clock */
-		pxa_set_cken(CKEN19_KEYPAD, 1);
+		pxa_set_cken(CKEN_KEYPAD, 1);
 	}
 
 	mutex_unlock(&input_dev->mutex);

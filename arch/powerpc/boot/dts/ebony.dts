@@ -31,8 +31,8 @@
 			reg = <0>;
 			clock-frequency = <0>; // Filled in by zImage
 			timebase-frequency = <0>; // Filled in by zImage
-			i-cache-line-size = <32>;
-			d-cache-line-size = <32>;
+			i-cache-line-size = <20>;
+			d-cache-line-size = <20>;
 			i-cache-size = <8000>; /* 32 kB */
 			d-cache-size = <8000>; /* 32 kB */
 			dcr-controller;
@@ -135,11 +135,9 @@
 				#address-cells = <2>;
 				#size-cells = <1>;
 				clock-frequency = <0>; // Filled in by zImage
-				ranges = <0 00000000 fff00000 100000
-					  1 00000000 48000000 100000
-					  2 00000000 ff800000 400000
-					  3 00000000 48200000 100000
-					  7 00000000 48300000 100000>;
+				// ranges property is supplied by zImage
+				// based on firmware's configuration of the
+				// EBC bridge
 				interrupts = <5 4>;
 				interrupt-parent = <&UIC1>;
 

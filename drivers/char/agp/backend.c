@@ -321,7 +321,7 @@ EXPORT_SYMBOL(agp_try_unsupported_boot);
 static int __init agp_init(void)
 {
 	if (!agp_off)
-		printk(KERN_INFO "Linux agpgart interface v%d.%d (c) Dave Jones\n",
+		printk(KERN_INFO "Linux agpgart interface v%d.%d\n",
 			AGPGART_VERSION_MAJOR, AGPGART_VERSION_MINOR);
 	return 0;
 }

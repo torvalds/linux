@@ -35,7 +35,7 @@ typedef union {
 
 
 /*
- *      entry segment/slot
+ *	entry segment/slot
  *
  * an entry consists of type dependent head/only segment/slot and
  * additional segments/slots linked vi next field;

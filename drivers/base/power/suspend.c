@@ -40,6 +40,14 @@ static inline char *suspend_verb(u32 event)
 }
 
 
+static void
+suspend_device_dbg(struct device *dev, pm_message_t state, char *info)
+{
+	dev_dbg(dev, "%s%s%s\n", info, suspend_verb(state.event),
+		((state.event == PM_EVENT_SUSPEND) && device_may_wakeup(dev)) ?
+		", may wakeup" : "");
+}
+
 /**
  *	suspend_device - Save state of one device.
  *	@dev:	Device.
@@ -55,49 +63,21 @@ int suspend_device(struct device * dev, pm_message_t state)
 		dev_dbg(dev, "PM: suspend %d-->%d\n",
 			dev->power.power_state.event, state.event);
 	}
-	if (dev->power.pm_parent
-			&& dev->power.pm_parent->power.power_state.event) {
-		dev_err(dev,
-			"PM: suspend %d->%d, parent %s already %d\n",
-			dev->power.power_state.event, state.event,
-			dev->power.pm_parent->bus_id,
-			dev->power.pm_parent->power.power_state.event);
-	}
 
-	dev->power.prev_state = dev->power.power_state;
-
-	if (dev->class && dev->class->suspend && !dev->power.power_state.event) {
-		dev_dbg(dev, "class %s%s\n",
-			suspend_verb(state.event),
-			((state.event == PM_EVENT_SUSPEND)
-					&& device_may_wakeup(dev))
-				? ", may wakeup"
-				: ""
-			);
+	if (dev->class && dev->class->suspend) {
+		suspend_device_dbg(dev, state, "class ");
 		error = dev->class->suspend(dev, state);
 		suspend_report_result(dev->class->suspend, error);
 	}
 
-	if (!error && dev->type && dev->type->suspend && !dev->power.power_state.event) {
-		dev_dbg(dev, "%s%s\n",
-			suspend_verb(state.event),
-			((state.event == PM_EVENT_SUSPEND)
-					&& device_may_wakeup(dev))
-				? ", may wakeup"
-				: ""
-			);
+	if (!error && dev->type && dev->type->suspend) {
+		suspend_device_dbg(dev, state, "type ");
 		error = dev->type->suspend(dev, state);
 		suspend_report_result(dev->type->suspend, error);
 	}
 
-	if (!error && dev->bus && dev->bus->suspend && !dev->power.power_state.event) {
-		dev_dbg(dev, "%s%s\n",
-			suspend_verb(state.event),
-			((state.event == PM_EVENT_SUSPEND)
-					&& device_may_wakeup(dev))
-				? ", may wakeup"
-				: ""
-			);
+	if (!error && dev->bus && dev->bus->suspend) {
+		suspend_device_dbg(dev, state, "");
 		error = dev->bus->suspend(dev, state);
 		suspend_report_result(dev->bus->suspend, error);
 	}
@@ -108,21 +88,15 @@ int suspend_device(struct device * dev, pm_message_t state)
 
 /*
  * This is called with interrupts off, only a single CPU
- * running. We can't do down() on a semaphore (and we don't
+ * running. We can't acquire a mutex or semaphore (and we don't
  * need the protection)
  */
 static int suspend_device_late(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
-	if (dev->bus && dev->bus->suspend_late && !dev->power.power_state.event) {
-		dev_dbg(dev, "LATE %s%s\n",
-			suspend_verb(state.event),
-			((state.event == PM_EVENT_SUSPEND)
-					&& device_may_wakeup(dev))
-				? ", may wakeup"
-				: ""
-			);
+	if (dev->bus && dev->bus->suspend_late) {
+		suspend_device_dbg(dev, state, "LATE ");
 		error = dev->bus->suspend_late(dev, state);
 		suspend_report_result(dev->bus->suspend_late, error);
 	}
@@ -153,18 +127,18 @@ int device_suspend(pm_message_t state)
 	int error = 0;
 
 	might_sleep();
-	down(&dpm_sem);
-	down(&dpm_list_sem);
+	mutex_lock(&dpm_mtx);
+	mutex_lock(&dpm_list_mtx);
 	while (!list_empty(&dpm_active) && error == 0) {
 		struct list_head * entry = dpm_active.prev;
 		struct device * dev = to_device(entry);
 
 		get_device(dev);
-		up(&dpm_list_sem);
+		mutex_unlock(&dpm_list_mtx);
 
 		error = suspend_device(dev, state);
 
-		down(&dpm_list_sem);
+		mutex_lock(&dpm_list_mtx);
 
 		/* Check if the device got removed */
 		if (!list_empty(&dev->power.entry)) {
@@ -179,11 +153,11 @@ int device_suspend(pm_message_t state)
 				error == -EAGAIN ? " (please convert to suspend_late)" : "");
 		put_device(dev);
 	}
-	up(&dpm_list_sem);
+	mutex_unlock(&dpm_list_mtx);
 	if (error)
 		dpm_resume();
 
-	up(&dpm_sem);
+	mutex_unlock(&dpm_mtx);
 	return error;
 }
 

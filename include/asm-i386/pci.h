@@ -56,47 +56,10 @@ struct pci_dev;
 #define pci_unmap_len(PTR, LEN_NAME)		(0)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 
-/* This is always fine. */
-#define pci_dac_dma_supported(pci_dev, mask)	(1)
-
-static inline dma64_addr_t
-pci_dac_page_to_dma(struct pci_dev *pdev, struct page *page, unsigned long offset, int direction)
-{
-	return ((dma64_addr_t) page_to_phys(page) +
-		(dma64_addr_t) offset);
-}
-
-static inline struct page *
-pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return pfn_to_page(dma_addr >> PAGE_SHIFT);
-}
-
-static inline unsigned long
-pci_dac_dma_to_offset(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return (dma_addr & ~PAGE_MASK);
-}
-
-static inline void
-pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-}
-
-static inline void
-pci_dac_dma_sync_single_for_device(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-	flush_write_buffers();
-}
-
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			       enum pci_mmap_state mmap_state, int write_combine);
 
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,

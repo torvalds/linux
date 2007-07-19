@@ -325,6 +325,7 @@ static struct scsi_host_template nv_adma_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
+	.change_queue_depth	= ata_scsi_change_queue_depth,
 	.can_queue		= NV_ADMA_MAX_CPBS,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= NV_ADMA_SGTBL_TOTAL_LEN,
@@ -1559,7 +1560,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ppi[0] = &nv_port_info[type];
-	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
+	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 

@@ -79,8 +79,7 @@ static int bf533_target(struct cpufreq_policy *policy,
 	int i;
 
 	struct cpufreq_freqs freqs;
-	if (cpufreq_frequency_table_target
-	    (policy, bf533_freq_table, target_freq, relation, &index))
+	if (cpufreq_frequency_table_target(policy, bf533_freq_table, target_freq, relation, &index))
 		return -EINVAL;
 	cclk_mhz = bf533_freq_table[index].frequency;
 	vco_mhz = bf533_freq_table[index].index;

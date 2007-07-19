@@ -292,7 +292,7 @@ static void __init chips_hw_init(void)
 		write_fr(chips_init_fr[i].addr, chips_init_fr[i].data);
 }
 
-static struct fb_fix_screeninfo chipsfb_fix __initdata = {
+static struct fb_fix_screeninfo chipsfb_fix __devinitdata = {
 	.id =		"C&T 65550",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
@@ -309,7 +309,7 @@ static struct fb_fix_screeninfo chipsfb_fix __initdata = {
 	.smem_len =	0x100000,	/* 1MB */
 };
 
-static struct fb_var_screeninfo chipsfb_var __initdata = {
+static struct fb_var_screeninfo chipsfb_var __devinitdata = {
 	.xres = 800,
 	.yres = 600,
 	.xres_virtual = 800,
@@ -330,7 +330,7 @@ static struct fb_var_screeninfo chipsfb_var __initdata = {
 	.vsync_len = 8,
 };
 
-static void __init init_chips(struct fb_info *p, unsigned long addr)
+static void __devinit init_chips(struct fb_info *p, unsigned long addr)
 {
 	memset(p->screen_base, 0, 0x100000);
 

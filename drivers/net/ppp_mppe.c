@@ -493,14 +493,14 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 
 	/*
 	 * Make sure we have enough room to decrypt the packet.
-	 * To account for possible PFC we should only subtract 1
-	 * byte whereas in mppe_compress() we added 2 bytes (+MPPE_OVHD);
-	 * However, we assume no PFC, thus subtracting 2 bytes.
+	 * Note that for our test we only subtract 1 byte whereas in
+	 * mppe_compress() we added 2 bytes (+MPPE_OVHD);
+	 * this is to account for possible PFC.
 	 */
-	if (osize < isize - MPPE_OVHD - 2) {
+	if (osize < isize - MPPE_OVHD - 1) {
 		printk(KERN_DEBUG "mppe_decompress[%d]: osize too small! "
 		       "(have: %d need: %d)\n", state->unit,
-		       osize, isize - MPPE_OVHD - 2);
+		       osize, isize - MPPE_OVHD - 1);
 		return DECOMP_ERROR;
 	}
 	osize = isize - MPPE_OVHD - 2;	/* assume no PFC */

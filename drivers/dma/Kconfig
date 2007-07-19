@@ -3,13 +3,13 @@
 #
 
 menu "DMA Engine support"
-	depends on !S390
+	depends on HAS_DMA
 
 config DMA_ENGINE
 	bool "Support for DMA engines"
 	---help---
-	  DMA engines offload copy operations from the CPU to dedicated
-	  hardware, allowing the copies to happen asynchronously.
+          DMA engines offload bulk memory operations from the CPU to dedicated
+          hardware, allowing the operations to happen asynchronously.
 
 comment "DMA Clients"
 
@@ -31,5 +31,13 @@ config INTEL_IOATDMA
 	default m
 	---help---
 	  Enable support for the Intel(R) I/OAT DMA engine.
+
+config INTEL_IOP_ADMA
+        tristate "Intel IOP ADMA support"
+        depends on DMA_ENGINE && (ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX)
+	select ASYNC_CORE
+        default m
+        ---help---
+          Enable support for the Intel(R) IOP Series RAID engines.
 
 endmenu

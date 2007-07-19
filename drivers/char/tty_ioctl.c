@@ -52,8 +52,6 @@
 
 void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
-
 #ifdef TTY_DEBUG_WAIT_UNTIL_SENT
 	char buf[64];
 	
@@ -61,26 +59,13 @@ void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 #endif
 	if (!tty->driver->chars_in_buffer)
 		return;
-	add_wait_queue(&tty->write_wait, &wait);
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
-	do {
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-		printk(KERN_DEBUG "waiting %s...(%d)\n", tty_name(tty, buf),
-		       tty->driver->chars_in_buffer(tty));
-#endif
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			goto stop_waiting;
-		if (!tty->driver->chars_in_buffer(tty))
-			break;
-		timeout = schedule_timeout(timeout);
-	} while (timeout);
+	if (wait_event_interruptible_timeout(tty->write_wait,
+			!tty->driver->chars_in_buffer(tty), timeout))
+		return;
 	if (tty->driver->wait_until_sent)
 		tty->driver->wait_until_sent(tty, timeout);
-stop_waiting:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tty->write_wait, &wait);
 }
 
 EXPORT_SYMBOL(tty_wait_until_sent);
@@ -276,13 +261,12 @@ void tty_termios_encode_baud_rate(struct ktermios *termios, speed_t ibaud, speed
 				termios->c_cflag |= (baud_bits[i] << IBSHIFT);
 			ifound = i;
 		}
-	}
-	while(++i < n_baud_table);
+	} while (++i < n_baud_table);
 	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
 	/* Set exact input bits only if the input and output differ or the
 	   user already did */
-	if (ifound == -1 && (ibaud != obaud  || ibinput))
+	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 }
 
@@ -575,7 +559,7 @@ static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 		return -EFAULT;
 
 	mutex_lock(&tty->termios_mutex);
-	termios =  *tty->termios;
+	termios = *tty->termios;
 	termios.c_cc[VERASE] = tmp.sg_erase;
 	termios.c_cc[VKILL] = tmp.sg_kill;
 	set_sgflags(&termios, tmp.sg_flags);
@@ -667,7 +651,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 		return 0;
 	}
 
-	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+	if (tty_write_lock(tty, 0) < 0)
 		return -ERESTARTSYS;
 
 	if (was_stopped)
@@ -675,7 +659,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 	tty->driver->write(tty, &ch, 1);
 	if (was_stopped)
 		stop_tty(tty);
-	mutex_unlock(&tty->atomic_write_lock);
+	tty_write_unlock(tty);
 	return 0;
 }
 

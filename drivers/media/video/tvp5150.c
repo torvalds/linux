@@ -1006,7 +1006,7 @@ static int tvp5150_command(struct i2c_client *c,
 		{
 			struct v4l2_control *ctrl = arg;
 			u8 i, n;
-			n = sizeof(tvp5150_qctrl) / sizeof(tvp5150_qctrl[0]);
+			n = ARRAY_SIZE(tvp5150_qctrl);
 			for (i = 0; i < n; i++)
 				if (ctrl->id == tvp5150_qctrl[i].id) {
 					if (ctrl->value <

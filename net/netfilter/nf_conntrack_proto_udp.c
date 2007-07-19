@@ -191,7 +191,7 @@ static struct ctl_table udp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDP,
@@ -218,7 +218,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDP,

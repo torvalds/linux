@@ -47,8 +47,10 @@ enum {
 #define IOPRIO_NORM	(4)
 static inline int task_ioprio(struct task_struct *task)
 {
-	WARN_ON(!ioprio_valid(task->ioprio));
-	return IOPRIO_PRIO_DATA(task->ioprio);
+	if (ioprio_valid(task->ioprio))
+		return IOPRIO_PRIO_DATA(task->ioprio);
+
+	return IOPRIO_NORM;
 }
 
 static inline int task_nice_ioprio(struct task_struct *task)

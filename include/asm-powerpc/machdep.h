@@ -218,7 +218,7 @@ struct machdep_calls {
 	int  (*pcibios_enable_device_hook)(struct pci_dev *, int initial);
 
 	/* Called in indirect_* to avoid touching devices */
-	int (*pci_exclude_device)(unsigned char, unsigned char);
+	int (*pci_exclude_device)(struct pci_controller *, unsigned char, unsigned char);
 
 	/* Called at then very end of pcibios_init() */
 	void (*pcibios_after_init)(void);

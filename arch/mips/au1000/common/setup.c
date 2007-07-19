@@ -100,18 +100,9 @@ void __init plat_mem_setup(void)
         argptr = prom_getcmdline();
         /* default panel */
         /*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
-#ifdef CONFIG_MIPS_HYDROGEN3
-         strcat(argptr, " video=au1100fb:panel:Hydrogen_3_NEC_panel_320x240,nohwcursor");
-#endif
     }
 #endif
 
-#ifdef CONFIG_FB_XPERT98
-	if ((argptr = strstr(argptr, "video=")) == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " video=atyfb:1024x768-8@70");
-	}
-#endif
 
 #if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
 	/* au1000 does not support vra, au1500 and au1100 do */

@@ -95,7 +95,7 @@ int __init irlap_init(void)
 	return 0;
 }
 
-void __exit irlap_cleanup(void)
+void irlap_cleanup(void)
 {
 	IRDA_ASSERT(irlap != NULL, return;);
 
@@ -1210,7 +1210,7 @@ static int irlap_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations irlap_seq_ops = {
+static const struct seq_operations irlap_seq_ops = {
 	.start  = irlap_seq_start,
 	.next   = irlap_seq_next,
 	.stop   = irlap_seq_stop,

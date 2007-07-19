@@ -80,7 +80,8 @@ int wf_critical_overtemp(void)
 				"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
 				NULL };
 
-	return call_usermodehelper(critical_overtemp_path, argv, envp, 0);
+	return call_usermodehelper(critical_overtemp_path,
+				   argv, envp, UMH_WAIT_EXEC);
 }
 EXPORT_SYMBOL_GPL(wf_critical_overtemp);
 
@@ -92,6 +93,7 @@ static int wf_thread_func(void *data)
 
 	DBG("wf: thread started\n");
 
+	set_freezable();
 	while(!kthread_should_stop()) {
 		if (time_after_eq(jiffies, next)) {
 			wf_notify(WF_EVENT_TICK, NULL);
@@ -212,7 +214,6 @@ int wf_register_control(struct wf_control *new_ct)
 	list_add(&new_ct->link, &wf_controls);
 
 	new_ct->attr.attr.name = new_ct->name;
-	new_ct->attr.attr.owner = THIS_MODULE;
 	new_ct->attr.attr.mode = 0644;
 	new_ct->attr.show = wf_show_control;
 	new_ct->attr.store = wf_store_control;
@@ -325,7 +326,6 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 	list_add(&new_sr->link, &wf_sensors);
 
 	new_sr->attr.attr.name = new_sr->name;
-	new_sr->attr.attr.owner = THIS_MODULE;
 	new_sr->attr.attr.mode = 0444;
 	new_sr->attr.show = wf_show_sensor;
 	new_sr->attr.store = NULL;

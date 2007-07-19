@@ -460,11 +460,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	skb_pull(skb, plen);
 	skb_set_mac_header(skb, -ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
-#ifdef CONFIG_BR2684_FAST_TRANS
-	skb->protocol = ((u16 *) skb->data)[-1];
-#else				/* some protocols might require this: */
 	skb->protocol = br_type_trans(skb, net_dev);
-#endif /* CONFIG_BR2684_FAST_TRANS */
 #else
 	skb_pull(skb, plen - ETH_HLEN);
 	skb->protocol = eth_type_trans(skb, net_dev);
@@ -699,28 +695,13 @@ static struct atm_ioctl br2684_ioctl_ops = {
 #ifdef CONFIG_PROC_FS
 static void *br2684_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	loff_t offs = 0;
-	struct br2684_dev *brd;
-
 	read_lock(&devs_lock);
-
-	list_for_each_entry(brd, &br2684_devs, br2684_devs) {
-		if (offs == *pos)
-			return brd;
-		++offs;
-	}
-	return NULL;
+	return seq_list_start(&br2684_devs, *pos);
 }
 
 static void *br2684_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct br2684_dev *brd = v;
-
-	++*pos;
-
-	brd = list_entry(brd->br2684_devs.next,
-			 struct br2684_dev, br2684_devs);
-	return (&brd->br2684_devs != &br2684_devs) ? brd : NULL;
+	return seq_list_next(v, &br2684_devs, pos);
 }
 
 static void br2684_seq_stop(struct seq_file *seq, void *v)
@@ -730,7 +711,8 @@ static void br2684_seq_stop(struct seq_file *seq, void *v)
 
 static int br2684_seq_show(struct seq_file *seq, void *v)
 {
-	const struct br2684_dev *brdev = v;
+	const struct br2684_dev *brdev = list_entry(v, struct br2684_dev,
+			br2684_devs);
 	const struct net_device *net_dev = brdev->net_dev;
 	const struct br2684_vcc *brvcc;
 
@@ -772,7 +754,7 @@ static int br2684_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations br2684_seq_ops = {
+static const struct seq_operations br2684_seq_ops = {
 	.start = br2684_seq_start,
 	.next  = br2684_seq_next,
 	.stop  = br2684_seq_stop,

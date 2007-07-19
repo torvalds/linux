@@ -51,6 +51,8 @@
 #include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_clnt.h"
+#include "xfs_mru_cache.h"
+#include "xfs_filestream.h"
 #include "xfs_fsops.h"
 
 STATIC int	xfs_sync(bhv_desc_t *, int, cred_t *);
@@ -81,6 +83,8 @@ xfs_init(void)
 	xfs_dabuf_zone = kmem_zone_init(sizeof(xfs_dabuf_t), "xfs_dabuf");
 	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
 	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
+	xfs_mru_cache_init();
+	xfs_filestream_init();
 
 	/*
 	 * The size of the zone allocated buf log item is the maximum
@@ -164,6 +168,8 @@ xfs_cleanup(void)
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
 	xfs_refcache_destroy();
+	xfs_filestream_uninit();
+	xfs_mru_cache_uninit();
 	xfs_acl_zone_destroy(xfs_acl_zone);
 
 #ifdef XFS_DIR2_TRACE
@@ -319,6 +325,9 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_BARRIER;
 	else
 		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+
+	if (ap->flags2 & XFSMNT2_FILESTREAMS)
+		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 
 	return 0;
 }
@@ -518,6 +527,9 @@ xfs_mount(
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
 
+	if ((error = xfs_filestream_mount(mp)))
+		goto error2;
+
 	error = XFS_IOINIT(vfsp, args, flags);
 	if (error)
 		goto error2;
@@ -574,6 +586,13 @@ xfs_unmount(
 	 * out of the reference cache, and delete the timer.
 	 */
 	xfs_refcache_purge_mp(mp);
+
+	/*
+	 * Blow away any referenced inode in the filestreams cache.
+	 * This can and will cause log traffic as inodes go inactive
+	 * here.
+	 */
+	xfs_filestream_unmount(mp);
 
 	XFS_bflush(mp->m_ddev_targp);
 	error = xfs_unmount_flush(mp, 0);
@@ -640,7 +659,7 @@ xfs_quiesce_fs(
 	 * we can write the unmount record.
 	 */
 	do {
-		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, NULL);
+		xfs_syncsub(mp, SYNC_INODE_QUIESCE, NULL);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);
@@ -649,6 +668,30 @@ xfs_quiesce_fs(
 	} while (count < 2);
 
 	return 0;
+}
+
+/*
+ * Second stage of a quiesce. The data is already synced, now we have to take
+ * care of the metadata. New transactions are already blocked, so we need to
+ * wait for any remaining transactions to drain out before proceding.
+ */
+STATIC void
+xfs_attr_quiesce(
+	xfs_mount_t	*mp)
+{
+	/* wait for all modifications to complete */
+	while (atomic_read(&mp->m_active_trans) > 0)
+		delay(100);
+
+	/* flush inodes and push all remaining buffers out to disk */
+	xfs_quiesce_fs(mp);
+
+	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
+
+	/* Push the superblock and write an unmount record */
+	xfs_log_sbcount(mp, 1);
+	xfs_log_unmount_write(mp);
+	xfs_unmountfs_writesb(mp);
 }
 
 STATIC int
@@ -670,10 +713,9 @@ xfs_mntupdate(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		}
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
-		bhv_vfs_sync(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL);
-		xfs_quiesce_fs(mp);
-		xfs_log_unmount_write(mp);
-		xfs_unmountfs_writesb(mp);
+		xfs_filestream_flush(mp);
+		bhv_vfs_sync(vfsp, SYNC_DATA_QUIESCE, NULL);
+		xfs_attr_quiesce(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
 	}
 	return 0;
@@ -886,6 +928,9 @@ xfs_sync(
 	cred_t		*credp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
+
+	if (flags & SYNC_IOWAIT)
+		xfs_filestream_flush(mp);
 
 	return xfs_syncsub(mp, flags, NULL);
 }
@@ -1128,58 +1173,41 @@ xfs_sync_inodes(
 		 * in the inode list.
 		 */
 
-		if ((flags & SYNC_CLOSE)  && (vp != NULL)) {
-			/*
-			 * This is the shutdown case.  We just need to
-			 * flush and invalidate all the pages associated
-			 * with the inode.  Drop the inode lock since
-			 * we can't hold it across calls to the buffer
-			 * cache.
-			 *
-			 * We don't set the VREMAPPING bit in the vnode
-			 * here, because we don't hold the vnode lock
-			 * exclusively.  It doesn't really matter, though,
-			 * because we only come here when we're shutting
-			 * down anyway.
-			 */
+		/*
+		 * If we have to flush data or wait for I/O completion
+		 * we need to drop the ilock that we currently hold.
+		 * If we need to drop the lock, insert a marker if we
+		 * have not already done so.
+		 */
+		if ((flags & (SYNC_CLOSE|SYNC_IOWAIT)) ||
+		    ((flags & SYNC_DELWRI) && VN_DIRTY(vp))) {
+			if (mount_locked) {
+				IPOINTER_INSERT(ip, mp);
+			}
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-			if (XFS_FORCED_SHUTDOWN(mp)) {
-				bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
-			} else {
-				error = bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
-			}
-
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
-
-		} else if ((flags & SYNC_DELWRI) && (vp != NULL)) {
-			if (VN_DIRTY(vp)) {
-				/* We need to have dropped the lock here,
-				 * so insert a marker if we have not already
-				 * done so.
-				 */
-				if (mount_locked) {
-					IPOINTER_INSERT(ip, mp);
-				}
-
-				/*
-				 * Drop the inode lock since we can't hold it
-				 * across calls to the buffer cache.
-				 */
-				xfs_iunlock(ip, XFS_ILOCK_SHARED);
+			if (flags & SYNC_CLOSE) {
+				/* Shutdown case. Flush and invalidate. */
+				if (XFS_FORCED_SHUTDOWN(mp))
+					bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
+				else
+					error = bhv_vop_flushinval_pages(vp, 0,
+								-1, FI_REMAPF);
+			} else if ((flags & SYNC_DELWRI) && VN_DIRTY(vp)) {
 				error = bhv_vop_flush_pages(vp, (xfs_off_t)0,
 							-1, fflag, FI_NONE);
-				xfs_ilock(ip, XFS_ILOCK_SHARED);
 			}
 
+			/*
+			 * When freezing, we need to wait ensure all I/O (including direct
+			 * I/O) is complete to ensure no further data modification can take
+			 * place after this point
+			 */
+			if (flags & SYNC_IOWAIT)
+				vn_iowait(vp);
+
+			xfs_ilock(ip, XFS_ILOCK_SHARED);
 		}
-		/*
-		 * When freezing, we need to wait ensure all I/O (including direct
-		 * I/O) is complete to ensure no further data modification can take
-		 * place after this point
-		 */
-		if (flags & SYNC_IOWAIT)
-			vn_iowait(vp);
 
 		if (flags & SYNC_BDFLUSH) {
 			if ((flags & SYNC_ATTR) &&
@@ -1514,6 +1542,15 @@ xfs_syncsub(
 	}
 
 	/*
+	 * If asked, update the disk superblock with incore counter values if we
+	 * are using non-persistent counters so that they don't get too far out
+	 * of sync if we crash or get a forced shutdown. We don't want to force
+	 * this to disk, just get a transaction into the iclogs....
+	 */
+	if (flags & SYNC_SUPER)
+		xfs_log_sbcount(mp, 0);
+
+	/*
 	 * Now check to see if the log needs a "dummy" transaction.
 	 */
 
@@ -1645,6 +1682,7 @@ xfs_vget(
 					 * in stat(). */
 #define MNTOPT_ATTR2	"attr2"		/* do use attr2 attribute format */
 #define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
+#define MNTOPT_FILESTREAM  "filestreams" /* use filestreams allocator */
 
 STATIC unsigned long
 suffix_strtoul(char *s, char **endp, unsigned int base)
@@ -1831,6 +1869,8 @@ xfs_parseargs(
 			args->flags |= XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
 			args->flags &= ~XFSMNT_ATTR2;
+		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
+			args->flags2 |= XFSMNT2_FILESTREAMS;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 			cmn_err(CE_WARN,
@@ -1959,9 +1999,9 @@ xfs_showargs(
 }
 
 /*
- * Second stage of a freeze. The data is already frozen, now we have to take
- * care of the metadata. New transactions are already blocked, so we need to
- * wait for any remaining transactions to drain out before proceding.
+ * Second stage of a freeze. The data is already frozen so we only
+ * need to take care of themetadata. Once that's done write a dummy
+ * record to dirty the log in case of a crash while frozen.
  */
 STATIC void
 xfs_freeze(
@@ -1969,18 +2009,7 @@ xfs_freeze(
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
-	/* wait for all modifications to complete */
-	while (atomic_read(&mp->m_active_trans) > 0)
-		delay(100);
-
-	/* flush inodes and push all remaining buffers out to disk */
-	xfs_quiesce_fs(mp);
-
-	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
-
-	/* Push the superblock and write an unmount record */
-	xfs_log_unmount_write(mp);
-	xfs_unmountfs_writesb(mp);
+	xfs_attr_quiesce(mp);
 	xfs_fs_log_dummy(mp);
 }
 

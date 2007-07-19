@@ -164,6 +164,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		page_cache_release(page);
 }
 
+/**
+ * generic_pipe_buf_map - virtually map a pipe buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer that should be mapped
+ * @atomic:	whether to use an atomic map
+ *
+ * Description:
+ *	This function returns a kernel virtual address mapping for the
+ *	passed in @pipe_buffer. If @atomic is set, an atomic map is provided
+ *	and the caller has to be careful not to fault before calling
+ *	the unmap function.
+ *
+ *	Note that this function occupies KM_USER0 if @atomic != 0.
+ */
 void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 			   struct pipe_buffer *buf, int atomic)
 {
@@ -175,6 +189,15 @@ void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 	return kmap(buf->page);
 }
 
+/**
+ * generic_pipe_buf_unmap - unmap a previously mapped pipe buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer that should be unmapped
+ * @map_data:	the data that the mapping function returned
+ *
+ * Description:
+ *	This function undoes the mapping that ->map() provided.
+ */
 void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, void *map_data)
 {
@@ -185,11 +208,28 @@ void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 		kunmap(buf->page);
 }
 
+/**
+ * generic_pipe_buf_steal - attempt to take ownership of a @pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to attempt to steal
+ *
+ * Description:
+ *	This function attempts to steal the @struct page attached to
+ *	@buf. If successful, this function returns 0 and returns with
+ *	the page locked. The caller may then reuse the page for whatever
+ *	he wishes, the typical use is insertion into a different file
+ *	page cache.
+ */
 int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 			   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
+	/*
+	 * A reference of one is golden, that means that the owner of this
+	 * page is the only one holding a reference to it. lock the page
+	 * and return OK.
+	 */
 	if (page_count(page) == 1) {
 		lock_page(page);
 		return 0;
@@ -198,12 +238,32 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 	return 1;
 }
 
-void generic_pipe_buf_get(struct pipe_inode_info *info, struct pipe_buffer *buf)
+/**
+ * generic_pipe_buf_get - get a reference to a @struct pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to get a reference to
+ *
+ * Description:
+ *	This function grabs an extra reference to @buf. It's used in
+ *	in the tee() system call, when we duplicate the buffers in one
+ *	pipe into another.
+ */
+void generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	page_cache_get(buf->page);
 }
 
-int generic_pipe_buf_pin(struct pipe_inode_info *info, struct pipe_buffer *buf)
+/**
+ * generic_pipe_buf_confirm - verify contents of the pipe buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to confirm
+ *
+ * Description:
+ *	This function does nothing, because the generic pipe code uses
+ *	pages that are always good when inserted into the pipe.
+ */
+int generic_pipe_buf_confirm(struct pipe_inode_info *info,
+			     struct pipe_buffer *buf)
 {
 	return 0;
 }
@@ -212,7 +272,7 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = generic_pipe_buf_pin,
+	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = generic_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -252,7 +312,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 			if (chars > total_len)
 				chars = total_len;
 
-			error = ops->pin(pipe, buf);
+			error = ops->confirm(pipe, buf);
 			if (error) {
 				if (!ret)
 					error = ret;
@@ -373,7 +433,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 			int error, atomic = 1;
 			void *addr;
 
-			error = ops->pin(pipe, buf);
+			error = ops->confirm(pipe, buf);
 			if (error)
 				goto out;
 

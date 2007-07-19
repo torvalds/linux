@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/posix_acl.h>
 #include <linux/buffer_head.h>
+#include <linux/exportfs.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 
@@ -737,6 +738,7 @@ static const struct super_operations jfs_super_operations = {
 };
 
 static struct export_operations jfs_export_operations = {
+	.get_dentry	= jfs_get_dentry,
 	.get_parent	= jfs_get_parent,
 };
 

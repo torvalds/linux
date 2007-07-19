@@ -476,7 +476,7 @@ static __init void probe_cache_sizes(void)
  * memory management function pointers, as well as initialize
  * the caches and tlbs
  */
-void sb1_cache_init(void)
+void __init sb1_cache_init(void)
 {
 	extern char except_vec2_sb1;
 

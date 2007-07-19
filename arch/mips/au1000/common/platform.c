@@ -289,7 +289,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 #endif
 };
 
-int au1xxx_platform_init(void)
+int __init au1xxx_platform_init(void)
 {
 	return platform_add_devices(au1xxx_platform_devices, ARRAY_SIZE(au1xxx_platform_devices));
 }

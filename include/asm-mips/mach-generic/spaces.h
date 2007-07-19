@@ -10,38 +10,54 @@
 #ifndef _ASM_MACH_GENERIC_SPACES_H
 #define _ASM_MACH_GENERIC_SPACES_H
 
+#include <linux/const.h>
+
+/*
+ * This gives the physical RAM offset.
+ */
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET		_AC(0, UL)
+#endif
 
 #ifdef CONFIG_32BIT
 
-#define CAC_BASE		0x80000000
-#define IO_BASE			0xa0000000
-#define UNCAC_BASE		0xa0000000
-#define MAP_BASE		0xc0000000
+#define CAC_BASE		_AC(0x80000000, UL)
+#define IO_BASE			_AC(0xa0000000, UL)
+#define UNCAC_BASE		_AC(0xa0000000, UL)
 
-/*
- * This handles the memory map.
- * We handle pages at KSEG0 for kernels with 32 bit address space.
- */
-#define PAGE_OFFSET		0x80000000UL
+#ifndef MAP_BASE
+#define MAP_BASE		_AC(0xc0000000, UL)
+#endif
 
 /*
  * Memory above this physical address will be considered highmem.
  */
 #ifndef HIGHMEM_START
-#define HIGHMEM_START		0x20000000UL
+#define HIGHMEM_START		_AC(0x20000000, UL)
 #endif
 
 #endif /* CONFIG_32BIT */
 
 #ifdef CONFIG_64BIT
 
-/*
- * This handles the memory map.
- */
+#ifndef CAC_BASE
 #ifdef CONFIG_DMA_NONCOHERENT
-#define PAGE_OFFSET	0x9800000000000000UL
+#define CAC_BASE		_AC(0x9800000000000000, UL)
 #else
-#define PAGE_OFFSET	0xa800000000000000UL
+#define CAC_BASE		_AC(0xa800000000000000, UL)
+#endif
+#endif
+
+#ifndef IO_BASE
+#define IO_BASE			_AC(0x9000000000000000, UL)
+#endif
+
+#ifndef UNCAC_BASE
+#define UNCAC_BASE		_AC(0x9000000000000000, UL)
+#endif
+
+#ifndef MAP_BASE
+#define MAP_BASE		_AC(0xc000000000000000, UL)
 #endif
 
 /*
@@ -50,22 +66,20 @@
  * in the distant future.  Nobody will care for a few years :-)
  */
 #ifndef HIGHMEM_START
-#define HIGHMEM_START		(1UL << 59UL)
+#define HIGHMEM_START		(_AC(1, UL) << _AC(59, UL))
 #endif
-
-#ifdef CONFIG_DMA_NONCOHERENT
-#define CAC_BASE		0x9800000000000000UL
-#else
-#define CAC_BASE		0xa800000000000000UL
-#endif
-#define IO_BASE			0x9000000000000000UL
-#define UNCAC_BASE		0x9000000000000000UL
-#define MAP_BASE		0xc000000000000000UL
 
 #define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
 #define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 
 #endif /* CONFIG_64BIT */
+
+/*
+ * This handles the memory map.
+ */
+#ifndef PAGE_OFFSET
+#define PAGE_OFFSET		(CAC_BASE + PHYS_OFFSET)
+#endif
 
 #endif /* __ASM_MACH_GENERIC_SPACES_H */

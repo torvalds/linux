@@ -718,7 +718,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
 		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
-		rg_blocks += rgd->rd_ri.ri_length;
+		rg_blocks += rgd->rd_length;
 	}
 
 	error = gfs2_glock_nq_m(rlist.rl_rgrps, rlist.rl_ghs);
@@ -772,7 +772,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 			gfs2_free_data(ip, bstart, blen);
 	}
 
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 
 	gfs2_dinode_out(ip, dibh->b_data);
 
@@ -824,7 +824,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 		goto out_gunlock_q;
 
 	error = gfs2_trans_begin(sdp,
-			sdp->sd_max_height + al->al_rgd->rd_ri.ri_length +
+			sdp->sd_max_height + al->al_rgd->rd_length +
 			RES_JDATA + RES_DINODE + RES_STATFS + RES_QUOTA, 0);
 	if (error)
 		goto out_ipres;
@@ -847,7 +847,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	}
 
 	ip->i_di.di_size = size;
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
@@ -885,7 +885,6 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 	unsigned blocksize, iblock, length, pos;
 	struct buffer_head *bh;
 	struct page *page;
-	void *kaddr;
 	int err;
 
 	page = grab_cache_page(mapping, index);
@@ -928,15 +927,13 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
 			goto unlock;
+		err = 0;
 	}
 
 	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr + offset, 0, length);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	zero_user_page(page, offset, length, KM_USER0);
 
 unlock:
 	unlock_page(page);
@@ -962,7 +959,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 	if (gfs2_is_stuffed(ip)) {
 		ip->i_di.di_size = size;
-		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
@@ -974,7 +971,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 		if (!error) {
 			ip->i_di.di_size = size;
-			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			gfs2_dinode_out(ip, dibh->b_data);
@@ -1044,10 +1041,10 @@ static int trunc_end(struct gfs2_inode *ip)
 		ip->i_di.di_height = 0;
 		ip->i_di.di_goal_meta =
 			ip->i_di.di_goal_data =
-			ip->i_num.no_addr;
+			ip->i_no_addr;
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	}
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);

@@ -450,100 +450,6 @@ net2280_free_request (struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * dma-coherent memory allocation (for dma-capable endpoints)
- *
- * NOTE: the dma_*_coherent() API calls suck.  Most implementations are
- * (a) page-oriented, so small buffers lose big; and (b) asymmetric with
- * respect to calls with irqs disabled:  alloc is safe, free is not.
- * We currently work around (b), but not (a).
- */
-
-static void *
-net2280_alloc_buffer (
-	struct usb_ep		*_ep,
-	unsigned		bytes,
-	dma_addr_t		*dma,
-	gfp_t			gfp_flags
-)
-{
-	void			*retval;
-	struct net2280_ep	*ep;
-
-	ep = container_of (_ep, struct net2280_ep, ep);
-	if (!_ep)
-		return NULL;
-	*dma = DMA_ADDR_INVALID;
-
-	if (ep->dma)
-		retval = dma_alloc_coherent(&ep->dev->pdev->dev,
-				bytes, dma, gfp_flags);
-	else
-		retval = kmalloc(bytes, gfp_flags);
-	return retval;
-}
-
-static DEFINE_SPINLOCK(buflock);
-static LIST_HEAD(buffers);
-
-struct free_record {
-	struct list_head	list;
-	struct device		*dev;
-	unsigned		bytes;
-	dma_addr_t		dma;
-};
-
-static void do_free(unsigned long ignored)
-{
-	spin_lock_irq(&buflock);
-	while (!list_empty(&buffers)) {
-		struct free_record	*buf;
-
-		buf = list_entry(buffers.next, struct free_record, list);
-		list_del(&buf->list);
-		spin_unlock_irq(&buflock);
-
-		dma_free_coherent(buf->dev, buf->bytes, buf, buf->dma);
-
-		spin_lock_irq(&buflock);
-	}
-	spin_unlock_irq(&buflock);
-}
-
-static DECLARE_TASKLET(deferred_free, do_free, 0);
-
-static void
-net2280_free_buffer (
-	struct usb_ep *_ep,
-	void *address,
-	dma_addr_t dma,
-	unsigned bytes
-) {
-	/* free memory into the right allocator */
-	if (dma != DMA_ADDR_INVALID) {
-		struct net2280_ep	*ep;
-		struct free_record	*buf = address;
-		unsigned long		flags;
-
-		ep = container_of(_ep, struct net2280_ep, ep);
-		if (!_ep)
-			return;
-
-		ep = container_of (_ep, struct net2280_ep, ep);
-		buf->dev = &ep->dev->pdev->dev;
-		buf->bytes = bytes;
-		buf->dma = dma;
-
-		spin_lock_irqsave(&buflock, flags);
-		list_add_tail(&buf->list, &buffers);
-		tasklet_schedule(&deferred_free);
-		spin_unlock_irqrestore(&buflock, flags);
-	} else
-		kfree (address);
-}
-
-/*-------------------------------------------------------------------------*/
-
 /* load a packet into the fifo we use for usb IN transfers.
  * works for all endpoints.
  *
@@ -1391,9 +1297,6 @@ static const struct usb_ep_ops net2280_ep_ops = {
 
 	.alloc_request	= net2280_alloc_request,
 	.free_request	= net2280_free_request,
-
-	.alloc_buffer	= net2280_alloc_buffer,
-	.free_buffer	= net2280_free_buffer,
 
 	.queue		= net2280_queue,
 	.dequeue	= net2280_dequeue,
@@ -2964,7 +2867,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			, &dev->pci->pcimstctl);
 	/* erratum 0115 shouldn't appear: Linux inits PCI_LATENCY_TIMER */
 	pci_set_master (pdev);
-	pci_set_mwi (pdev);
+	pci_try_set_mwi (pdev);
 
 	/* ... also flushes any posted pci writes */
 	dev->chiprev = get_idx_reg (dev->regs, REG_CHIPREV) & 0xffff;

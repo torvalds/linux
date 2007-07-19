@@ -90,7 +90,6 @@ typedef struct xfs_dir2_sf {
 	xfs_dir2_sf_entry_t	list[1];	/* shortform entries */
 } xfs_dir2_sf_t;
 
-#define	XFS_DIR2_SF_HDR_SIZE(i8count)	xfs_dir2_sf_hdr_size(i8count)
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
 	return ((uint)sizeof(xfs_dir2_sf_hdr_t) - \
@@ -98,14 +97,11 @@ static inline int xfs_dir2_sf_hdr_size(int i8count)
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
-#define	XFS_DIR2_SF_INUMBERP(sfep)	xfs_dir2_sf_inumberp(sfep)
 static inline xfs_dir2_inou_t *xfs_dir2_sf_inumberp(xfs_dir2_sf_entry_t *sfep)
 {
 	return (xfs_dir2_inou_t *)&(sfep)->name[(sfep)->namelen];
 }
 
-#define	XFS_DIR2_SF_GET_INUMBER(sfp, from) \
-	xfs_dir2_sf_get_inumber(sfp, from)
 static inline xfs_intino_t
 xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp, xfs_dir2_inou_t *from)
 {
@@ -114,8 +110,6 @@ xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp, xfs_dir2_inou_t *from)
 		(xfs_intino_t)XFS_GET_DIR_INO8((from)->i8));
 }
 
-#define	XFS_DIR2_SF_PUT_INUMBER(sfp,from,to) \
-	xfs_dir2_sf_put_inumber(sfp,from,to)
 static inline void xfs_dir2_sf_put_inumber(xfs_dir2_sf_t *sfp, xfs_ino_t *from,
 						xfs_dir2_inou_t *to)
 {
@@ -125,24 +119,18 @@ static inline void xfs_dir2_sf_put_inumber(xfs_dir2_sf_t *sfp, xfs_ino_t *from,
 		XFS_PUT_DIR_INO8(*(from), (to)->i8);
 }
 
-#define	XFS_DIR2_SF_GET_OFFSET(sfep)	\
-	xfs_dir2_sf_get_offset(sfep)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep)
 {
 	return INT_GET_UNALIGNED_16_BE(&(sfep)->offset.i);
 }
 
-#define	XFS_DIR2_SF_PUT_OFFSET(sfep,off) \
-	xfs_dir2_sf_put_offset(sfep,off)
 static inline void
 xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 {
 	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i, off);
 }
 
-#define XFS_DIR2_SF_ENTSIZE_BYNAME(sfp,len)	\
-	xfs_dir2_sf_entsize_byname(sfp,len)
 static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_t *sfp, int len)
 {
 	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (len) - \
@@ -150,8 +138,6 @@ static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_t *sfp, int len)
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
-#define XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)	\
-	xfs_dir2_sf_entsize_byentry(sfp,sfep)
 static inline int
 xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
 {
@@ -160,19 +146,17 @@ xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
-#define XFS_DIR2_SF_FIRSTENTRY(sfp)	xfs_dir2_sf_firstentry(sfp)
 static inline xfs_dir2_sf_entry_t *xfs_dir2_sf_firstentry(xfs_dir2_sf_t *sfp)
 {
 	return ((xfs_dir2_sf_entry_t *) \
-		((char *)(sfp) + XFS_DIR2_SF_HDR_SIZE(sfp->hdr.i8count)));
+		((char *)(sfp) + xfs_dir2_sf_hdr_size(sfp->hdr.i8count)));
 }
 
-#define XFS_DIR2_SF_NEXTENTRY(sfp,sfep)	xfs_dir2_sf_nextentry(sfp,sfep)
 static inline xfs_dir2_sf_entry_t *
 xfs_dir2_sf_nextentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
 {
 	return ((xfs_dir2_sf_entry_t *) \
-		((char *)(sfep) + XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)));
+		((char *)(sfep) + xfs_dir2_sf_entsize_byentry(sfp,sfep)));
 }
 
 /*

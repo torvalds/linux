@@ -34,9 +34,6 @@ static struct usb_device_id skel_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, skel_table);
 
-/* to prevent a race between open and disconnect */
-static DEFINE_MUTEX(skel_open_lock);
-
 
 /* Get a minor range for your devices from the usb maintainer */
 #define USB_SKEL_MINOR_BASE	192
@@ -54,16 +51,21 @@ struct usb_skel {
 	struct usb_device	*udev;			/* the usb device for this device */
 	struct usb_interface	*interface;		/* the interface for this device */
 	struct semaphore	limit_sem;		/* limiting the number of writes in progress */
+	struct usb_anchor	submitted;		/* in case we need to retract our submissions */
 	unsigned char           *bulk_in_buffer;	/* the buffer to receive data */
 	size_t			bulk_in_size;		/* the size of the receive buffer */
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
+	int			errors;			/* the last request tanked */
+	int			open_count;		/* count the number of openers */
+	spinlock_t		err_lock;		/* lock for errors */
 	struct kref		kref;
 	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
 };
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
 static struct usb_driver skel_driver;
+static void skel_draw_down(struct usb_skel *dev);
 
 static void skel_delete(struct kref *kref)
 {
@@ -83,10 +85,8 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
-	mutex_lock(&skel_open_lock);
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
-		mutex_unlock(&skel_open_lock);
 		err ("%s - error, can't find device for minor %d",
 		     __FUNCTION__, subminor);
 		retval = -ENODEV;
@@ -95,22 +95,33 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
-		mutex_unlock(&skel_open_lock);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
-	/* now we can drop the lock */
-	mutex_unlock(&skel_open_lock);
 
-	/* prevent the device from being autosuspended */
-	retval = usb_autopm_get_interface(interface);
-	if (retval) {
+	/* lock the device to allow correctly handling errors
+	 * in resumption */
+	mutex_lock(&dev->io_mutex);
+
+	if (!dev->open_count++) {
+		retval = usb_autopm_get_interface(interface);
+			if (retval) {
+				dev->open_count--;
+				mutex_unlock(&dev->io_mutex);
+				kref_put(&dev->kref, skel_delete);
+				goto exit;
+			}
+	} /* else { //uncomment this block if you want exclusive open
+		retval = -EBUSY;
+		dev->open_count--;
+		mutex_unlock(&dev->io_mutex);
 		kref_put(&dev->kref, skel_delete);
 		goto exit;
-	}
+	} */
+	/* prevent the device from being autosuspended */
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
@@ -129,13 +140,37 @@ static int skel_release(struct inode *inode, struct file *file)
 
 	/* allow the device to be autosuspended */
 	mutex_lock(&dev->io_mutex);
-	if (dev->interface)
+	if (!--dev->open_count && dev->interface)
 		usb_autopm_put_interface(dev->interface);
 	mutex_unlock(&dev->io_mutex);
 
 	/* decrement the count on our device */
 	kref_put(&dev->kref, skel_delete);
 	return 0;
+}
+
+static int skel_flush(struct file *file, fl_owner_t id)
+{
+	struct usb_skel *dev;
+	int res;
+
+	dev = (struct usb_skel *)file->private_data;
+	if (dev == NULL)
+		return -ENODEV;
+
+	/* wait for io to stop */
+	mutex_lock(&dev->io_mutex);
+	skel_draw_down(dev);
+
+	/* read out errors, leave subsequent opens a clean slate */
+	spin_lock_irq(&dev->err_lock);
+	res = dev->errors ? (dev->errors == -EPIPE ? -EPIPE : -EIO) : 0;
+	dev->errors = 0;
+	spin_unlock_irq(&dev->err_lock);
+
+	mutex_unlock(&dev->io_mutex);
+
+	return res;
 }
 
 static ssize_t skel_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
@@ -179,12 +214,16 @@ static void skel_write_bulk_callback(struct urb *urb)
 	dev = (struct usb_skel *)urb->context;
 
 	/* sync/async unlink faults aren't errors */
-	if (urb->status &&
-	    !(urb->status == -ENOENT ||
-	      urb->status == -ECONNRESET ||
-	      urb->status == -ESHUTDOWN)) {
-		err("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+	if (urb->status) {
+		if(!(urb->status == -ENOENT ||
+		    urb->status == -ECONNRESET ||
+		    urb->status == -ESHUTDOWN))
+			err("%s - nonzero write bulk status received: %d",
+			    __FUNCTION__, urb->status);
+
+		spin_lock(&dev->err_lock);
+		dev->errors = urb->status;
+		spin_unlock(&dev->err_lock);
 	}
 
 	/* free up our allocated buffer */
@@ -212,6 +251,17 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
+
+	spin_lock_irq(&dev->err_lock);
+	if ((retval = dev->errors) < 0) {
+		/* any error is reported once */
+		dev->errors = 0;
+		/* to preserve notifications about reset */
+		retval = (retval == -EPIPE) ? retval : -EIO;
+	}
+	spin_unlock_irq(&dev->err_lock);
+	if (retval < 0)
+		goto error;
 
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -244,13 +294,14 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 			  usb_sndbulkpipe(dev->udev, dev->bulk_out_endpointAddr),
 			  buf, writesize, skel_write_bulk_callback, dev);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	usb_anchor_urb(urb, &dev->submitted);
 
 	/* send the data out the bulk port */
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	mutex_unlock(&dev->io_mutex);
 	if (retval) {
 		err("%s - failed submitting write urb, error %d", __FUNCTION__, retval);
-		goto error;
+		goto error_unanchor;
 	}
 
 	/* release our reference to this urb, the USB core will eventually free it entirely */
@@ -259,6 +310,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 
 	return writesize;
 
+error_unanchor:
+	usb_unanchor_urb(urb);
 error:
 	if (urb) {
 		usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
@@ -276,6 +329,7 @@ static const struct file_operations skel_fops = {
 	.write =	skel_write,
 	.open =		skel_open,
 	.release =	skel_release,
+	.flush =	skel_flush,
 };
 
 /*
@@ -306,6 +360,8 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 	kref_init(&dev->kref);
 	sema_init(&dev->limit_sem, WRITES_IN_FLIGHT);
 	mutex_init(&dev->io_mutex);
+	spin_lock_init(&dev->err_lock);
+	init_usb_anchor(&dev->submitted);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -368,22 +424,18 @@ static void skel_disconnect(struct usb_interface *interface)
 	struct usb_skel *dev;
 	int minor = interface->minor;
 
-	/* prevent skel_open() from racing skel_disconnect() */
-	mutex_lock(&skel_open_lock);
-
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);
-	mutex_unlock(&skel_open_lock);
 
 	/* prevent more I/O from starting */
 	mutex_lock(&dev->io_mutex);
 	dev->interface = NULL;
 	mutex_unlock(&dev->io_mutex);
 
-
+	usb_kill_anchored_urbs(&dev->submitted);
 
 	/* decrement our usage count */
 	kref_put(&dev->kref, skel_delete);
@@ -391,10 +443,59 @@ static void skel_disconnect(struct usb_interface *interface)
 	info("USB Skeleton #%d now disconnected", minor);
 }
 
+static void skel_draw_down(struct usb_skel *dev)
+{
+	int time;
+
+	time = usb_wait_anchor_empty_timeout(&dev->submitted, 1000);
+	if (!time)
+		usb_kill_anchored_urbs(&dev->submitted);
+}
+
+static int skel_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	if (!dev)
+		return 0;
+	skel_draw_down(dev);
+	return 0;
+}
+
+static int skel_resume (struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int skel_pre_reset(struct usb_interface *intf)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	mutex_lock(&dev->io_mutex);
+	skel_draw_down(dev);
+
+	return 0;
+}
+
+static int skel_post_reset(struct usb_interface *intf)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	/* we are sure no URBs are active - no locking needed */
+	dev->errors = -EPIPE;
+	mutex_unlock(&dev->io_mutex);
+
+	return 0;
+}
+
 static struct usb_driver skel_driver = {
 	.name =		"skeleton",
 	.probe =	skel_probe,
 	.disconnect =	skel_disconnect,
+	.suspend =	skel_suspend,
+	.resume =	skel_resume,
+	.pre_reset =	skel_pre_reset,
+	.post_reset =	skel_post_reset,
 	.id_table =	skel_table,
 	.supports_autosuspend = 1,
 };

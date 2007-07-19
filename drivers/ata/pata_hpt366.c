@@ -393,10 +393,10 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_hpt366 = {
 		.sht = &hpt36x_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
-		.udma_mask = 0x1f,
+		.udma_mask = ATA_UDMA4,
 		.port_ops = &hpt366_port_ops
 	};
 	struct ata_port_info info = info_hpt366;

@@ -131,7 +131,7 @@ static unsigned char rockhopperII_irq_map[MAX_SLOT_NUM] = {
 	/* SLOT: 20, AD:31 */ VRC5477_IRQ_IOPCI_INTA, /* vrc5477 usb host */
 };
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int slot_num;
 	unsigned char *slot_irq_map;

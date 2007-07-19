@@ -14,6 +14,7 @@
 #include <linux/notifier.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/rcupdate.h>
 #include <linux/smp.h>
@@ -488,9 +489,6 @@ void __init softirq_init(void)
 
 static int ksoftirqd(void * __bind_cpu)
 {
-	set_user_nice(current, 19);
-	current->flags |= PF_NOFREEZE;
-
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	while (!kthread_should_stop()) {
@@ -615,12 +613,16 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 		kthread_bind(per_cpu(ksoftirqd, hotcpu),
 			     any_online_cpu(cpu_online_map));
 	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
+	case CPU_DEAD_FROZEN: {
+		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+
 		p = per_cpu(ksoftirqd, hotcpu);
 		per_cpu(ksoftirqd, hotcpu) = NULL;
+		sched_setscheduler(p, SCHED_FIFO, &param);
 		kthread_stop(p);
 		takeover_tasklets(hotcpu);
 		break;
+	}
 #endif /* CONFIG_HOTPLUG_CPU */
  	}
 	return NOTIFY_OK;

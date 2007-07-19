@@ -51,19 +51,21 @@ error:
 /*
  * UML SIGWINCH handling
  *
- * The point of this is to handle SIGWINCH on consoles which have host ttys and
- * relay them inside UML to whatever might be running on the console and cares
- * about the window size (since SIGWINCH notifies about terminal size changes).
+ * The point of this is to handle SIGWINCH on consoles which have host
+ * ttys and relay them inside UML to whatever might be running on the
+ * console and cares about the window size (since SIGWINCH notifies
+ * about terminal size changes).
  *
- * So, we have a separate thread for each host tty attached to a UML device
- * (side-issue - I'm annoyed that one thread can't have multiple controlling
- * ttys for purposed of handling SIGWINCH, but I imagine there are other reasons
- * that doesn't make any sense).
+ * So, we have a separate thread for each host tty attached to a UML
+ * device (side-issue - I'm annoyed that one thread can't have
+ * multiple controlling ttys for the purpose of handling SIGWINCH, but
+ * I imagine there are other reasons that doesn't make any sense).
  *
- * SIGWINCH can't be received synchronously, so you have to set up to receive it
- * as a signal.  That being the case, if you are going to wait for it, it is
- * convenient to sit in sigsuspend() and wait for the signal to bounce you out of
- * it (see below for how we make sure to exit only on SIGWINCH).
+ * SIGWINCH can't be received synchronously, so you have to set up to
+ * receive it as a signal.  That being the case, if you are going to
+ * wait for it, it is convenient to sit in sigsuspend() and wait for
+ * the signal to bounce you out of it (see below for how we make sure
+ * to exit only on SIGWINCH).
  */
 
 static void winch_handler(int sig)
@@ -112,7 +114,8 @@ static int winch_thread(void *arg)
 
 	err = os_new_tty_pgrp(pty_fd, os_getpid());
 	if(err < 0){
-		printk("winch_thread : new_tty_pgrp failed, err = %d\n", -err);
+		printk("winch_thread : new_tty_pgrp failed on fd %d, "
+		       "err = %d\n", pty_fd, -err);
 		exit(1);
 	}
 
@@ -126,8 +129,9 @@ static int winch_thread(void *arg)
 		       "err = %d\n", -count);
 
 	while(1){
-		/* This will be interrupted by SIGWINCH only, since other signals
-		 * are blocked.*/
+		/* This will be interrupted by SIGWINCH only, since
+		 * other signals are blocked.
+		 */
 		sigsuspend(&sigs);
 
 		count = os_write_file(pipe_fd, &c, sizeof(c));
@@ -137,10 +141,10 @@ static int winch_thread(void *arg)
 	}
 }
 
-static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
+static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out,
+		       unsigned long *stack_out)
 {
 	struct winch_data data;
-	unsigned long stack;
 	int fds[2], n, err;
 	char c;
 
@@ -153,9 +157,11 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	data = ((struct winch_data) { .pty_fd 		= fd,
 				      .pipe_fd 		= fds[1] } );
 	/* CLONE_FILES so this thread doesn't hold open files which are open
-	 * now, but later closed.  This is a problem with /dev/net/tun.
+	 * now, but later closed in a different thread.  This is a
+	 * problem with /dev/net/tun, which if held open by this
+	 * thread, prevents the TUN/TAP device from being reused.
 	 */
-	err = run_helper_thread(winch_thread, &data, CLONE_FILES, &stack, 0);
+	err = run_helper_thread(winch_thread, &data, CLONE_FILES, stack_out);
 	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", -err);
 		goto out_close;
@@ -170,7 +176,13 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
                 err = -EINVAL;
 		goto out_close;
 	}
-	return err ;
+
+	if (os_set_fd_block(*fd_out, 0)) {
+		printk("winch_tramp: failed to set thread_fd non-blocking.\n");
+		goto out_close;
+	}
+
+	return err;
 
  out_close:
 	os_close_file(fds[1]);
@@ -181,25 +193,25 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 
 void register_winch(int fd, struct tty_struct *tty)
 {
-	int pid, thread, thread_fd = -1;
-	int count;
+	unsigned long stack;
+	int pid, thread, count, thread_fd = -1;
 	char c = 1;
 
 	if(!isatty(fd))
 		return;
 
 	pid = tcgetpgrp(fd);
-	if(!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd,
-			     tty) && (pid == -1)){
-		thread = winch_tramp(fd, tty, &thread_fd);
-		if(thread > 0){
-			register_winch_irq(thread_fd, fd, thread, tty);
+	if (!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd, tty) &&
+	    (pid == -1)) {
+		thread = winch_tramp(fd, tty, &thread_fd, &stack);
+		if (thread < 0)
+			return;
 
-			count = os_write_file(thread_fd, &c, sizeof(c));
-			if(count != sizeof(c))
-				printk("register_winch : failed to write "
-				       "synchronization byte, err = %d\n",
-					-count);
-		}
+		register_winch_irq(thread_fd, fd, thread, tty, stack);
+
+		count = os_write_file(thread_fd, &c, sizeof(c));
+		if(count != sizeof(c))
+			printk("register_winch : failed to write "
+			       "synchronization byte, err = %d\n", -count);
 	}
 }

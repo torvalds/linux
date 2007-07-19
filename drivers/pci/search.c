@@ -139,11 +139,13 @@ struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 }
 
 /**
- * pci_get_bus_and_slot - locate PCI device from a given PCI slot
+ * pci_get_bus_and_slot - locate PCI device from a given PCI bus & slot
  * @bus: number of PCI bus on which desired PCI device resides
  * @devfn: encodes number of PCI slot in which the desired PCI
  * device resides and the logical device number within that slot
  * in case of multi-function devices.
+ *
+ * Note: the bus/slot search is limited to PCI domain (segment) 0.
  *
  * Given a PCI bus and slot/function number, the desired PCI device
  * is located in system global list of PCI devices.  If the device
@@ -157,7 +159,8 @@ struct pci_dev * pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
 	struct pci_dev *dev = NULL;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (dev->bus->number == bus && dev->devfn == devfn)
+		if (pci_domain_nr(dev->bus) == 0 &&
+		   (dev->bus->number == bus && dev->devfn == devfn))
 			return dev;
 	}
 	return NULL;
@@ -199,7 +202,7 @@ static struct pci_dev * pci_find_subsys(unsigned int vendor,
 	 * can cause some machines to crash.  So here we detect and flag that
 	 * situation and bail out early.
 	 */
-	if (unlikely(list_empty(&pci_devices)))
+	if (unlikely(no_pci_devices()))
 		return NULL;
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
@@ -274,7 +277,7 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	 * can cause some machines to crash.  So here we detect and flag that
 	 * situation and bail out early.
 	 */
-	if (unlikely(list_empty(&pci_devices)))
+	if (unlikely(no_pci_devices()))
 		return NULL;
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;

@@ -54,7 +54,7 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 		return;
 	}
 
-	output = um_kmalloc(UM_KERN_PAGE_SIZE);
+	output = kmalloc(UM_KERN_PAGE_SIZE, UM_GFP_KERNEL);
 	if(output == NULL)
 		printk("etap_change : Failed to allocate output buffer\n");
 	read_output(fd, output, UM_KERN_PAGE_SIZE);
@@ -117,7 +117,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	pe_data.control_remote = control_remote;
 	pe_data.control_me = control_me;
 	pe_data.data_me = data_me;
-	pid = run_helper(etap_pre_exec, &pe_data, args, NULL);
+	pid = run_helper(etap_pre_exec, &pe_data, args);
 
 	if(pid < 0)
 		err = pid;
@@ -166,7 +166,7 @@ static int etap_open(void *data)
 	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0], 
 			 control_fds[1], data_fds[0], data_fds[1]);
 	output_len = UM_KERN_PAGE_SIZE;
-	output = um_kmalloc(output_len);
+	output = kmalloc(output_len, UM_GFP_KERNEL);
 	read_output(control_fds[0], output, output_len);
 
 	if(output == NULL)

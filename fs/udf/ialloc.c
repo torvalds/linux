@@ -50,7 +50,7 @@ void udf_free_inode(struct inode * inode)
 		else
 			UDF_SB_LVIDIU(sb)->numFiles =
 				cpu_to_le32(le32_to_cpu(UDF_SB_LVIDIU(sb)->numFiles) - 1);
-		
+
 		mark_buffer_dirty(sbi->s_lvidbh);
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
@@ -135,6 +135,13 @@ struct inode * udf_new_inode (struct inode *dir, int mode, int * err)
 	{
 		UDF_I_EFE(inode) = 0;
 		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize - sizeof(struct fileEntry), GFP_KERNEL);
+	}
+	if (!UDF_I_DATA(inode))
+	{
+		iput(inode);
+		*err = -ENOMEM;
+		mutex_unlock(&sbi->s_alloc_mutex);
+		return NULL;
 	}
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_AD_IN_ICB))
 		UDF_I_ALLOCTYPE(inode) = ICBTAG_FLAG_AD_IN_ICB;

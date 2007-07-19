@@ -46,7 +46,6 @@
 #include "mode.h"
 #include "mode_kern.h"
 #include "choose-mode.h"
-#include "um_malloc.h"
 
 /* This is a per-cpu array.  A processor only modifies its entry and it only
  * cares about its entry, so it's OK if another processor is modifying its
@@ -260,21 +259,6 @@ char *current_cmd(void)
 
 void dump_thread(struct pt_regs *regs, struct user *u)
 {
-}
-
-void *um_kmalloc(int size)
-{
-	return kmalloc(size, GFP_KERNEL);
-}
-
-void *um_kmalloc_atomic(int size)
-{
-	return kmalloc(size, GFP_ATOMIC);
-}
-
-void *um_vmalloc(int size)
-{
-	return vmalloc(size);
 }
 
 int __cant_sleep(void) {

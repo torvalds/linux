@@ -263,19 +263,28 @@ struct hid_item {
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x00000100
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
 #define HID_QUIRK_MIGHTYMOUSE			0x00000400
-#define HID_QUIRK_CYMOTION			0x00000800
-#define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
-#define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
-#define HID_QUIRK_INVERT_HWHEEL			0x00004000
-#define HID_QUIRK_POWERBOOK_ISO_KEYBOARD        0x00008000
-#define HID_QUIRK_BAD_RELATIVE_KEYS		0x00010000
-#define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00020000
-#define HID_QUIRK_IGNORE_MOUSE			0x00040000
-#define HID_QUIRK_SONY_PS3_CONTROLLER		0x00080000
-#define HID_QUIRK_LOGITECH_DESCRIPTOR		0x00100000
-#define HID_QUIRK_DUPLICATE_USAGES		0x00200000
-#define HID_QUIRK_RESET_LEDS			0x00400000
-#define HID_QUIRK_SWAPPED_MIN_MAX		0x00800000
+#define HID_QUIRK_POWERBOOK_HAS_FN		0x00000800
+#define HID_QUIRK_POWERBOOK_FN_ON		0x00001000
+#define HID_QUIRK_INVERT_HWHEEL			0x00002000
+#define HID_QUIRK_POWERBOOK_ISO_KEYBOARD        0x00004000
+#define HID_QUIRK_BAD_RELATIVE_KEYS		0x00008000
+#define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
+#define HID_QUIRK_IGNORE_MOUSE			0x00020000
+#define HID_QUIRK_SONY_PS3_CONTROLLER		0x00040000
+#define HID_QUIRK_DUPLICATE_USAGES		0x00080000
+#define HID_QUIRK_RESET_LEDS			0x00100000
+#define HID_QUIRK_HIDINPUT			0x00200000
+#define HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL	0x00400000
+#define HID_QUIRK_LOGITECH_EXPANDED_KEYMAP	0x00800000
+
+/*
+ * Separate quirks for runtime report descriptor fixup
+ */
+
+#define HID_QUIRK_RDESC_CYMOTION		0x00000001
+#define HID_QUIRK_RDESC_LOGITECH		0x00000002
+#define HID_QUIRK_RDESC_SWAPPED_MIN_MAX		0x00000004
+#define HID_QUIRK_RDESC_PETALYNX		0x00000008
 
 /*
  * This is the global environment of the parser. This information is
@@ -488,6 +497,11 @@ struct hid_descriptor {
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
 
 /* HID core API */
+
+#ifdef CONFIG_HID_DEBUG
+extern int hid_debug;
+#endif
+
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
 extern int hidinput_connect(struct hid_device *);
@@ -506,6 +520,7 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct, const u32 quirks);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
+void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char **);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
@@ -523,14 +538,19 @@ static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #endif
-#ifdef DEBUG
-#define dbg(format, arg...) printk(KERN_DEBUG "%s: " format "\n" , \
-		__FILE__ , ## arg)
+
+#ifdef CONFIG_HID_DEBUG
+#define dbg_hid(format, arg...) if (hid_debug) \
+				printk(KERN_DEBUG "%s: " format ,\
+				__FILE__ , ## arg)
+#define dbg_hid_line(format, arg...) if (hid_debug) \
+				printk(format, ## arg)
 #else
-#define dbg(format, arg...) do {} while (0)
+#define dbg_hid(format, arg...) do {} while (0)
+#define dbg_hid_line dbg_hid
 #endif
 
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
+#define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
 		__FILE__ , ## arg)
 #endif
 

@@ -1,6 +1,6 @@
 config INFINIBAND_AMSO1100
 	tristate "Ammasso 1100 HCA support"
-	depends on PCI && INET && INFINIBAND
+	depends on PCI && INET
 	---help---
 	  This is a low-level driver for the Ammasso 1100 host
 	  channel adapter (HCA).

@@ -368,7 +368,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
 				       " done = 0x%p, queuecommand 0x%p\n",
-					cmd->request_buffer, cmd->request_bufflen,
+					scsi_sglist(cmd), scsi_bufflen(cmd),
 					cmd->done,
 					cmd->device->host->hostt->queuecommand);
 
@@ -1015,52 +1015,6 @@ struct scsi_device *scsi_device_lookup(struct Scsi_Host *shost,
 	return sdev;
 }
 EXPORT_SYMBOL(scsi_device_lookup);
-
-/**
- * scsi_device_cancel - cancel outstanding IO to this device
- * @sdev:	Pointer to struct scsi_device
- * @recovery:	Boolean instructing function to recover device or not.
- *
- **/
-int scsi_device_cancel(struct scsi_device *sdev, int recovery)
-{
-	struct scsi_cmnd *scmd;
-	LIST_HEAD(active_list);
-	struct list_head *lh, *lh_sf;
-	unsigned long flags;
-
-	scsi_device_set_state(sdev, SDEV_CANCEL);
-
-	spin_lock_irqsave(&sdev->list_lock, flags);
-	list_for_each_entry(scmd, &sdev->cmd_list, list) {
-		if (scmd->request) {
-			/*
-			 * If we are unable to remove the timer, it means
-			 * that the command has already timed out or
-			 * finished.
-			 */
-			if (!scsi_delete_timer(scmd))
-				continue;
-			list_add_tail(&scmd->eh_entry, &active_list);
-		}
-	}
-	spin_unlock_irqrestore(&sdev->list_lock, flags);
-
-	if (!list_empty(&active_list)) {
-		list_for_each_safe(lh, lh_sf, &active_list) {
-			scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
-			list_del_init(lh);
-			if (recovery &&
-			    !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD)) {
-				scmd->result = (DID_ABORT << 16);
-				scsi_finish_command(scmd);
-			}
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(scsi_device_cancel);
 
 MODULE_DESCRIPTION("SCSI core");
 MODULE_LICENSE("GPL");

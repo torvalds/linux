@@ -230,6 +230,7 @@ bogus_magic:
 #
 ENTRY(acpi_copy_wakeup_routine)
 
+	pushl	%ebx
 	sgdt	saved_gdt
 	sidt	saved_idt
 	sldt	saved_ldt
@@ -263,6 +264,7 @@ ENTRY(acpi_copy_wakeup_routine)
 	movl	%edx, video_flags - wakeup_start (%eax)
 	movl	$0x12345678, real_magic - wakeup_start (%eax)
 	movl	$0x12345678, saved_magic
+	popl	%ebx
 	ret
 
 save_registers:

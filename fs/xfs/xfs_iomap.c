@@ -451,19 +451,14 @@ xfs_iomap_write_direct(
 		return XFS_ERROR(error);
 
 	rt = XFS_IS_REALTIME_INODE(ip);
-	if (unlikely(rt)) {
-		if (!(extsz = ip->i_d.di_extsize))
-			extsz = mp->m_sb.sb_rextsize;
-	} else {
-		extsz = ip->i_d.di_extsize;
-	}
+	extsz = xfs_get_extsz_hint(ip);
 
 	isize = ip->i_size;
 	if (io->io_new_size > isize)
 		isize = io->io_new_size;
 
-  	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-  	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
+	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
 	if ((offset + count) > isize) {
 		error = xfs_iomap_eof_align_last_fsb(mp, io, isize, extsz,
 							&last_fsb);
@@ -489,13 +484,13 @@ xfs_iomap_write_direct(
 	if (unlikely(rt)) {
 		resrtextents = qblocks = resaligned;
 		resrtextents /= mp->m_sb.sb_rextsize;
-  		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
-  		quota_flag = XFS_QMOPT_RES_RTBLKS;
-  	} else {
-  		resrtextents = 0;
+		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+		quota_flag = XFS_QMOPT_RES_RTBLKS;
+	} else {
+		resrtextents = 0;
 		resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
-  		quota_flag = XFS_QMOPT_RES_REGBLKS;
-  	}
+		quota_flag = XFS_QMOPT_RES_REGBLKS;
+	}
 
 	/*
 	 * Allocate and setup the transaction
@@ -666,13 +661,7 @@ xfs_iomap_write_delay(
 	if (error)
 		return XFS_ERROR(error);
 
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		if (!(extsz = ip->i_d.di_extsize))
-			extsz = mp->m_sb.sb_rextsize;
-	} else {
-		extsz = ip->i_d.di_extsize;
-	}
-
+	extsz = xfs_get_extsz_hint(ip);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
 retry:
@@ -788,18 +777,12 @@ xfs_iomap_write_allocate(
 		nimaps = 0;
 		while (nimaps == 0) {
 			tp = xfs_trans_alloc(mp, XFS_TRANS_STRAT_WRITE);
+			tp->t_flags |= XFS_TRANS_RESERVE;
 			nres = XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK);
 			error = xfs_trans_reserve(tp, nres,
 					XFS_WRITE_LOG_RES(mp),
 					0, XFS_TRANS_PERM_LOG_RES,
 					XFS_WRITE_LOG_COUNT);
-			if (error == ENOSPC) {
-				error = xfs_trans_reserve(tp, 0,
-						XFS_WRITE_LOG_RES(mp),
-						0,
-						XFS_TRANS_PERM_LOG_RES,
-						XFS_WRITE_LOG_COUNT);
-			}
 			if (error) {
 				xfs_trans_cancel(tp, 0);
 				return XFS_ERROR(error);
@@ -917,8 +900,8 @@ xfs_iomap_write_unwritten(
 		 * from unwritten to real. Do allocations in a loop until
 		 * we have covered the range passed in.
 		 */
-
 		tp = xfs_trans_alloc(mp, XFS_TRANS_STRAT_WRITE);
+		tp->t_flags |= XFS_TRANS_RESERVE;
 		error = xfs_trans_reserve(tp, resblks,
 				XFS_WRITE_LOG_RES(mp), 0,
 				XFS_TRANS_PERM_LOG_RES,

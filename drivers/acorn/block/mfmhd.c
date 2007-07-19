@@ -439,7 +439,7 @@ static void mfm_rw_intr(void)
 	   a choice of command end or some data which is ready to be collected */
 	/* I think we have to transfer data while the interrupt line is on and its
 	   not any other type of interrupt */
-	if (CURRENT->cmd == WRITE) {
+	if (rq_data_dir(CURRENT) == WRITE) {
 		extern void hdc63463_writedma(void);
 		if ((hdc63463_dataleft <= 0) && (!(mfm_status & STAT_CED))) {
 			printk("mfm_rw_intr: Apparent DMA write request when no more to DMA\n");
@@ -799,7 +799,7 @@ static void issue_request(unsigned int block, unsigned int nsect,
 	raw_cmd.head = start_head;
 	raw_cmd.cylinder = track / p->heads;
 	raw_cmd.cmdtype = CURRENT->cmd;
-	raw_cmd.cmdcode = CURRENT->cmd == WRITE ? CMD_WD : CMD_RD;
+	raw_cmd.cmdcode = rq_data_dir(CURRENT) == WRITE ? CMD_WD : CMD_RD;
 	raw_cmd.cmddata[0] = dev + 1;	/* DAG: +1 to get US */
 	raw_cmd.cmddata[1] = raw_cmd.head;
 	raw_cmd.cmddata[2] = raw_cmd.cylinder >> 8;
@@ -830,7 +830,7 @@ static void issue_request(unsigned int block, unsigned int nsect,
 	hdc63463_dataleft = nsect * 256;	/* Better way? */
 
 	DBG("mfm%c: %sing: CHS=%d/%d/%d, sectors=%d, buffer=0x%08lx (%p)\n",
-	     raw_cmd.dev + 'a', (CURRENT->cmd == READ) ? "read" : "writ",
+	     raw_cmd.dev + 'a', rq_data_dir(CURRENT) == READ ? "read" : "writ",
 		       raw_cmd.cylinder,
 		       raw_cmd.head,
 	    raw_cmd.sector, nsect, (unsigned long) Copy_buffer, CURRENT);
@@ -917,13 +917,6 @@ static void mfm_request(void)
 
 		DBG("mfm_request: block after offset=%d\n", block);
 
-		if (CURRENT->cmd != READ && CURRENT->cmd != WRITE) {
-			printk("unknown mfm-command %d\n", CURRENT->cmd);
-			end_request(CURRENT, 0);
-			Busy = 0;
-			printk("mfm: continue 4\n");
-			continue;
-		}
 		issue_request(block, nsect, CURRENT);
 
 		break;

@@ -27,6 +27,11 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/dm9000.h>
+#include <linux/fb.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
+
+#include <video/atmel_lcdc.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -271,6 +276,127 @@ static struct spi_board_info ek_spi_devices[] = {
 };
 
 
+/*
+ * LCD Controller
+ */
+#if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
+static struct fb_videomode at91_tft_vga_modes[] = {
+	{
+	        .name           = "TX09D50VM1CCA @ 60",
+		.refresh	= 60,
+		.xres		= 240,		.yres		= 320,
+		.pixclock	= KHZ2PICOS(4965),
+
+		.left_margin	= 1,		.right_margin	= 33,
+		.upper_margin	= 1,		.lower_margin	= 0,
+		.hsync_len	= 5,		.vsync_len	= 1,
+
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+	},
+};
+
+static struct fb_monspecs at91fb_default_monspecs = {
+	.manufacturer	= "HIT",
+	.monitor        = "TX09D50VM1CCA",
+
+	.modedb		= at91_tft_vga_modes,
+	.modedb_len	= ARRAY_SIZE(at91_tft_vga_modes),
+	.hfmin		= 15000,
+	.hfmax		= 64000,
+	.vfmin		= 50,
+	.vfmax		= 150,
+};
+
+#define AT91SAM9261_DEFAULT_LCDCON2 	(ATMEL_LCDC_MEMOR_LITTLE \
+					| ATMEL_LCDC_DISTYPE_TFT    \
+					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
+
+static void at91_lcdc_power_control(int on)
+{
+	if (on)
+		at91_set_gpio_value(AT91_PIN_PA12, 0);	/* power up */
+	else
+		at91_set_gpio_value(AT91_PIN_PA12, 1);	/* power down */
+}
+
+/* Driver datas */
+static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.default_bpp			= 16,
+	.default_dmacon			= ATMEL_LCDC_DMAEN,
+	.default_lcdcon2		= AT91SAM9261_DEFAULT_LCDCON2,
+	.default_monspecs		= &at91fb_default_monspecs,
+	.atmel_lcdfb_power_control	= at91_lcdc_power_control,
+	.guard_time			= 1,
+};
+
+#else
+static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+#endif
+
+
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PA27,
+		.keycode	= BTN_0,
+		.desc		= "Button 0",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA26,
+		.keycode	= BTN_1,
+		.desc		= "Button 1",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA25,
+		.keycode	= BTN_2,
+		.desc		= "Button 2",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA24,
+		.keycode	= BTN_3,
+		.desc		= "Button 3",
+		.active_low	= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PB27, 0);	/* btn0 */
+	at91_set_deglitch(AT91_PIN_PB27, 1);
+	at91_set_gpio_input(AT91_PIN_PB26, 0);	/* btn1 */
+	at91_set_deglitch(AT91_PIN_PB26, 1);
+	at91_set_gpio_input(AT91_PIN_PB25, 0);	/* btn2 */
+	at91_set_deglitch(AT91_PIN_PB25, 1);
+	at91_set_gpio_input(AT91_PIN_PB24, 0);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PB24, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -296,6 +422,10 @@ static void __init ek_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
 #endif
+	/* LCD Controller */
+	at91_add_device_lcdc(&ek_lcdc_data);
+	/* Push Buttons */
+	ek_add_device_buttons();
 }
 
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")

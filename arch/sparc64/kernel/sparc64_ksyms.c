@@ -1,7 +1,6 @@
-/* $Id: sparc64_ksyms.c,v 1.121 2002/02/09 19:49:31 davem Exp $
- * arch/sparc64/kernel/sparc64_ksyms.c: Sparc64 specific ksyms support.
+/* arch/sparc64/kernel/sparc64_ksyms.c: Sparc64 specific ksyms support.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Eddie C. Dost (ecd@skynet.be)
  * Copyright (C) 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
@@ -28,7 +27,6 @@
 #include <net/compat.h>
 
 #include <asm/oplib.h>
-#include <asm/delay.h>
 #include <asm/system.h>
 #include <asm/auxio.h>
 #include <asm/pgtable.h>
@@ -123,10 +121,6 @@ EXPORT_SYMBOL(__read_unlock);
 EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
-
-/* CPU online map and active count.  */
-EXPORT_SYMBOL(cpu_online_map);
-EXPORT_SYMBOL(phys_cpu_present_map);
 
 EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
@@ -329,12 +323,6 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(strncmp);
-
-/* Delay routines. */
-EXPORT_SYMBOL(__udelay);
-EXPORT_SYMBOL(__ndelay);
-EXPORT_SYMBOL(__const_udelay);
-EXPORT_SYMBOL(__delay);
 
 void VISenter(void);
 /* RAID code needs this */

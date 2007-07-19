@@ -26,8 +26,11 @@
 
 #define RIM_VENDOR		0x0fca
 #define BLACKBERRY		0x0001
+#define BLACKBERRY_PEARL_DUAL   0x0004
+#define BLACKBERRY_PEARL        0x0006
 
 static int debug;
+static int pearl_dual_mode = 1;
 
 #ifdef dbg
 #undef dbg
@@ -38,6 +41,8 @@ static int debug;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY) },
+	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY_PEARL) },
+	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY_PEARL_DUAL) },
 	{ },					/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -86,6 +91,30 @@ static int magic_charge(struct usb_device *udev)
 	return retval;
 }
 
+static int magic_dual_mode(struct usb_device *udev)
+{
+	char *dummy_buffer = kzalloc(2, GFP_KERNEL);
+	int retval;
+
+	if (!dummy_buffer)
+		return -ENOMEM;
+
+	/* send magic command so that the Blackberry Pearl device exposes
+	 * two interfaces: both the USB mass-storage one and one which can
+	 * be used for database access. */
+	dbg(&udev->dev, "Sending magic pearl command\n");
+	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				 0xa9, 0xc0, 1, 1, dummy_buffer, 2, 100);
+	dbg(&udev->dev, "Magic pearl command returned %d\n", retval);
+
+	dbg(&udev->dev, "Calling set_configuration\n");
+	retval = usb_driver_set_configuration(udev, 1);
+	if (retval)
+		dev_err(&udev->dev, "Set Configuration failed :%d.\n", retval);
+
+	return retval;
+}
+
 static int berry_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
@@ -104,6 +133,10 @@ static int berry_probe(struct usb_interface *intf,
 
 	/* turn the power on */
 	magic_charge(udev);
+
+	if ((le16_to_cpu(udev->descriptor.idProduct) == BLACKBERRY_PEARL) &&
+	    (pearl_dual_mode))
+		magic_dual_mode(udev);
 
 	/* we don't really want to bind to the device, userspace programs can
 	 * handle the syncing just fine, so get outta here. */
@@ -138,3 +171,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@suse.de>");
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
+module_param(pearl_dual_mode, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(pearl_dual_mode, "Change Blackberry Pearl to run in dual mode");

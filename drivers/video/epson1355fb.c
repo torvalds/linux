@@ -63,23 +63,12 @@
 
 struct epson1355_par {
 	unsigned long reg_addr;
+	u32 pseudo_palette[16];
 };
 
 /* ------------------------------------------------------------------------- */
 
-#ifdef CONFIG_SUPERH
-
-static inline u8 epson1355_read_reg(int index)
-{
-	return ctrl_inb(par.reg_addr + index);
-}
-
-static inline void epson1355_write_reg(u8 data, int index)
-{
-	ctrl_outb(data, par.reg_addr + index);
-}
-
-#elif defined(CONFIG_ARM)
+#if defined(CONFIG_ARM)
 
 # ifdef CONFIG_ARCH_CEIVA
 #  include <asm/arch/hardware.h>
@@ -289,7 +278,7 @@ static int epson1355fb_blank(int blank_mode, struct fb_info *info)
 	struct epson1355_par *par = info->par;
 
 	switch (blank_mode) {
-	case FB_BLANK_UNBLANKING:
+	case FB_BLANK_UNBLANK:
 	case FB_BLANK_NORMAL:
 		lcd_enable(par, 1);
 		backlight_enable(1);
@@ -635,7 +624,7 @@ int __init epson1355fb_probe(struct platform_device *dev)
 		goto bail;
 	}
 
-	info = framebuffer_alloc(sizeof(struct epson1355_par) + sizeof(u32) * 256, &dev->dev);
+	info = framebuffer_alloc(sizeof(struct epson1355_par), &dev->dev);
 	if (!info) {
 		rc = -ENOMEM;
 		goto bail;
@@ -648,7 +637,7 @@ int __init epson1355fb_probe(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto bail;
 	}
-	info->pseudo_palette = (void *)(default_par + 1);
+	info->pseudo_palette = default_par->pseudo_palette;
 
 	info->screen_base = ioremap(EPSON1355FB_FB_PHYS, EPSON1355FB_FB_LEN);
 	if (!info->screen_base) {

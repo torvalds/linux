@@ -18,12 +18,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 #ifdef CONFIG_NF_CT_ACCT
 static unsigned int
 seq_print_counters(struct seq_file *s,
@@ -41,35 +35,36 @@ struct ct_iter_state {
 	unsigned int bucket;
 };
 
-static struct list_head *ct_get_first(struct seq_file *seq)
+static struct hlist_node *ct_get_first(struct seq_file *seq)
 {
 	struct ct_iter_state *st = seq->private;
 
 	for (st->bucket = 0;
 	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
-		if (!list_empty(&nf_conntrack_hash[st->bucket]))
-			return nf_conntrack_hash[st->bucket].next;
+		if (!hlist_empty(&nf_conntrack_hash[st->bucket]))
+			return nf_conntrack_hash[st->bucket].first;
 	}
 	return NULL;
 }
 
-static struct list_head *ct_get_next(struct seq_file *seq, struct list_head *head)
+static struct hlist_node *ct_get_next(struct seq_file *seq,
+				      struct hlist_node *head)
 {
 	struct ct_iter_state *st = seq->private;
 
 	head = head->next;
-	while (head == &nf_conntrack_hash[st->bucket]) {
+	while (head == NULL) {
 		if (++st->bucket >= nf_conntrack_htable_size)
 			return NULL;
-		head = nf_conntrack_hash[st->bucket].next;
+		head = nf_conntrack_hash[st->bucket].first;
 	}
 	return head;
 }
 
-static struct list_head *ct_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct list_head *head = ct_get_first(seq);
+	struct hlist_node *head = ct_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_get_next(seq, head)))
@@ -169,7 +164,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations ct_seq_ops = {
+static const struct seq_operations ct_seq_ops = {
 	.start = ct_seq_start,
 	.next  = ct_seq_next,
 	.stop  = ct_seq_stop,
@@ -206,47 +201,68 @@ static const struct file_operations ct_file_ops = {
 };
 
 /* expects */
-static void *exp_seq_start(struct seq_file *s, loff_t *pos)
+struct ct_expect_iter_state {
+	unsigned int bucket;
+};
+
+static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
 {
-	struct list_head *e = &nf_conntrack_expect_list;
-	loff_t i;
+	struct ct_expect_iter_state *st = seq->private;
 
-	/* strange seq_file api calls stop even if we fail,
-	 * thus we need to grab lock since stop unlocks */
-	read_lock_bh(&nf_conntrack_lock);
-
-	if (list_empty(e))
-		return NULL;
-
-	for (i = 0; i <= *pos; i++) {
-		e = e->next;
-		if (e == &nf_conntrack_expect_list)
-			return NULL;
+	for (st->bucket = 0; st->bucket < nf_ct_expect_hsize; st->bucket++) {
+		if (!hlist_empty(&nf_ct_expect_hash[st->bucket]))
+			return nf_ct_expect_hash[st->bucket].first;
 	}
-	return e;
+	return NULL;
 }
 
-static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
+static struct hlist_node *ct_expect_get_next(struct seq_file *seq,
+					     struct hlist_node *head)
 {
-	struct list_head *e = v;
+	struct ct_expect_iter_state *st = seq->private;
 
-	++*pos;
-	e = e->next;
-
-	if (e == &nf_conntrack_expect_list)
-		return NULL;
-
-	return e;
+	head = head->next;
+	while (head == NULL) {
+		if (++st->bucket >= nf_ct_expect_hsize)
+			return NULL;
+		head = nf_ct_expect_hash[st->bucket].first;
+	}
+	return head;
 }
 
-static void exp_seq_stop(struct seq_file *s, void *v)
+static struct hlist_node *ct_expect_get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct hlist_node *head = ct_expect_get_first(seq);
+
+	if (head)
+		while (pos && (head = ct_expect_get_next(seq, head)))
+			pos--;
+	return pos ? NULL : head;
+}
+
+static void *exp_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	read_lock_bh(&nf_conntrack_lock);
+	return ct_expect_get_idx(seq, *pos);
+}
+
+static void *exp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return ct_expect_get_next(seq, v);
+}
+
+static void exp_seq_stop(struct seq_file *seq, void *v)
 {
 	read_unlock_bh(&nf_conntrack_lock);
 }
 
 static int exp_seq_show(struct seq_file *s, void *v)
 {
-	struct nf_conntrack_expect *exp = v;
+	struct nf_conntrack_expect *exp;
+	struct hlist_node *n = v;
+
+	exp = hlist_entry(n, struct nf_conntrack_expect, hnode);
 
 	if (exp->tuple.src.l3num != AF_INET)
 		return 0;
@@ -266,7 +282,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	return seq_putc(s, '\n');
 }
 
-static struct seq_operations exp_seq_ops = {
+static const struct seq_operations exp_seq_ops = {
 	.start = exp_seq_start,
 	.next = exp_seq_next,
 	.stop = exp_seq_stop,
@@ -275,7 +291,23 @@ static struct seq_operations exp_seq_ops = {
 
 static int exp_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &exp_seq_ops);
+	struct seq_file *seq;
+	struct ct_expect_iter_state *st;
+	int ret;
+
+	st = kmalloc(sizeof(struct ct_expect_iter_state), GFP_KERNEL);
+	if (st == NULL)
+		return -ENOMEM;
+	ret = seq_open(file, &exp_seq_ops);
+	if (ret)
+		goto out_free;
+	seq          = file->private_data;
+	seq->private = st;
+	memset(st, 0, sizeof(struct ct_expect_iter_state));
+	return ret;
+out_free:
+	kfree(st);
+	return ret;
 }
 
 static const struct file_operations ip_exp_file_ops = {
@@ -283,7 +315,7 @@ static const struct file_operations ip_exp_file_ops = {
 	.open    = exp_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release
+	.release = seq_release_private,
 };
 
 static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
@@ -354,7 +386,7 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ct_cpu_seq_ops = {
+static const struct seq_operations ct_cpu_seq_ops = {
 	.start  = ct_cpu_seq_start,
 	.next   = ct_cpu_seq_next,
 	.stop   = ct_cpu_seq_stop,

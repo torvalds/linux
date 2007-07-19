@@ -178,7 +178,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 			case 2: /* Mouse with wheel */
 				wacom_report_key(wcombo, BTN_MIDDLE, data[1] & 0x04);
-				if (wacom->features->type == WACOM_G4) {
+				if (wacom->features->type == WACOM_G4 ||
+						wacom->features->type == WACOM_MO) {
 					rw = data[7] & 0x04 ? (data[7] & 0x03)-4 : (data[7] & 0x03);
 					wacom_report_rel(wcombo, REL_WHEEL, -rw);
 				} else
@@ -190,7 +191,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 				id = CURSOR_DEVICE_ID;
 				wacom_report_key(wcombo, BTN_LEFT, data[1] & 0x01);
 				wacom_report_key(wcombo, BTN_RIGHT, data[1] & 0x02);
-				if (wacom->features->type == WACOM_G4)
+				if (wacom->features->type == WACOM_G4 ||
+						wacom->features->type == WACOM_MO)
 					wacom_report_abs(wcombo, ABS_DISTANCE, data[6] & 0x3f);
 				else
 					wacom_report_abs(wcombo, ABS_DISTANCE, data[7] & 0x3f);
@@ -226,7 +228,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	/* send pad data */
-	if (wacom->features->type == WACOM_G4) {
+	switch (wacom->features->type) {
+	    case WACOM_G4:
 		if (data[7] & 0xf8) {
 			wacom_input_sync(wcombo); /* sync last event */
 			wacom->id[1] = 1;
@@ -247,6 +250,33 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_MISC, 0);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
 		}
+		break;
+	    case WACOM_MO:
+		if ((data[7] & 0xf8) || (data[8] & 0x80)) {
+			wacom_input_sync(wcombo); /* sync last event */
+			wacom->id[1] = 1;
+			wacom->serial[1] = (data[7] & 0xf8);
+			wacom_report_key(wcombo, BTN_0, (data[7] & 0x08));
+			wacom_report_key(wcombo, BTN_1, (data[7] & 0x20));
+			wacom_report_key(wcombo, BTN_4, (data[7] & 0x10));
+			wacom_report_key(wcombo, BTN_5, (data[7] & 0x40));
+			wacom_report_abs(wcombo, ABS_WHEEL, (data[8] & 0x7f));
+			wacom_report_key(wcombo, BTN_TOOL_FINGER, 0xf0);
+			wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
+			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
+		} else if (wacom->id[1]) {
+			wacom_input_sync(wcombo); /* sync last event */
+			wacom->id[1] = 0;
+			wacom_report_key(wcombo, BTN_0, (data[7] & 0x08));
+			wacom_report_key(wcombo, BTN_1, (data[7] & 0x20));
+			wacom_report_key(wcombo, BTN_4, (data[7] & 0x10));
+			wacom_report_key(wcombo, BTN_5, (data[7] & 0x40));
+			wacom_report_abs(wcombo, ABS_WHEEL, (data[8] & 0x7f));
+			wacom_report_key(wcombo, BTN_TOOL_FINGER, 0);
+			wacom_report_abs(wcombo, ABS_MISC, 0);
+			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
+		}
+		break;
 	}
 	return 1;
 }
@@ -331,7 +361,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_EXTRA, 0);
 			wacom_report_abs(wcombo, ABS_THROTTLE, 0);
 			wacom_report_abs(wcombo, ABS_RZ, 0);
- 		} else {
+		} else {
 			wacom_report_abs(wcombo, ABS_PRESSURE, 0);
 			wacom_report_abs(wcombo, ABS_TILT_X, 0);
 			wacom_report_abs(wcombo, ABS_TILT_Y, 0);
@@ -423,9 +453,9 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
                 return result-1;
 
 	/* Only large I3 and I1 & I2 support Lense Cursor */
- 	if((wacom->tool[idx] == BTN_TOOL_LENS)
+	if ((wacom->tool[idx] == BTN_TOOL_LENS)
 			&& ((wacom->features->type == INTUOS3)
-		 	|| (wacom->features->type == INTUOS3S)))
+			|| (wacom->features->type == INTUOS3S)))
 		return 0;
 
 	/* Cintiq doesn't send data when RDY bit isn't set */
@@ -517,6 +547,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 			break;
 		case WACOM_G4:
 		case GRAPHIRE:
+		case WACOM_MO:
 			return (wacom_graphire_irq(wacom_wac, wcombo));
 			break;
 		case PTU:
@@ -538,6 +569,8 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	switch (wacom_wac->features->type) {
+		case WACOM_MO:
+			input_dev_mo(input_dev, wacom_wac);
 		case WACOM_G4:
 			input_dev_g4(input_dev, wacom_wac);
 			/* fall through */
@@ -579,6 +612,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Volito2 4x5",   8,   5104,  3712,  511, 63, GRAPHIRE },
 	{ "Wacom Volito2 2x3",   8,   3248,  2320,  511, 63, GRAPHIRE },
 	{ "Wacom PenPartner2",   8,   3250,  2320,  255, 63, GRAPHIRE },
+	{ "Wacom Bamboo",        9,  14760,  9225,  511, 63, WACOM_MO },
 	{ "Wacom Intuos 4x5",   10,  12700, 10600, 1023, 31, INTUOS },
 	{ "Wacom Intuos 6x8",   10,  20320, 16240, 1023, 31, INTUOS },
 	{ "Wacom Intuos 9x12",  10,  30480, 24060, 1023, 31, INTUOS },
@@ -627,6 +661,7 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x62) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x63) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x64) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x65) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x20) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x21) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x22) },

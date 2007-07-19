@@ -1906,6 +1906,7 @@ static void do_edac_check(void)
 
 static int edac_kernel_thread(void *arg)
 {
+	set_freezable();
 	while (!kthread_should_stop()) {
 		do_edac_check();
 

@@ -29,17 +29,17 @@
 #include "jfs_txnmgr.h"
 #include "jfs_debug.h"
 
-#define BITSPERPAGE     (PSIZE << 3)
-#define L2MEGABYTE      20
-#define MEGABYTE        (1 << L2MEGABYTE)
-#define MEGABYTE32     (MEGABYTE << 5)
+#define BITSPERPAGE	(PSIZE << 3)
+#define L2MEGABYTE	20
+#define MEGABYTE	(1 << L2MEGABYTE)
+#define MEGABYTE32	(MEGABYTE << 5)
 
 /* convert block number to bmap file page number */
 #define BLKTODMAPN(b)\
-        (((b) >> 13) + ((b) >> 23) + ((b) >> 33) + 3 + 1)
+	(((b) >> 13) + ((b) >> 23) + ((b) >> 33) + 3 + 1)
 
 /*
- *      jfs_extendfs()
+ *	jfs_extendfs()
  *
  * function: extend file system;
  *
@@ -48,9 +48,9 @@
  *                                   workspace  space
  *
  * input:
- *      new LVSize: in LV blocks (required)
- *      new LogSize: in LV blocks (optional)
- *      new FSSize: in LV blocks (optional)
+ *	new LVSize: in LV blocks (required)
+ *	new LogSize: in LV blocks (optional)
+ *	new FSSize: in LV blocks (optional)
  *
  * new configuration:
  * 1. set new LogSize as specified or default from new LVSize;
@@ -125,8 +125,8 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	}
 
 	/*
-	 *      reconfigure LV spaces
-	 *      ---------------------
+	 *	reconfigure LV spaces
+	 *	---------------------
 	 *
 	 * validate new size, or, if not specified, determine new size
 	 */
@@ -198,7 +198,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		log_formatted = 1;
 	}
 	/*
-	 *      quiesce file system
+	 *	quiesce file system
 	 *
 	 * (prepare to move the inline log and to prevent map update)
 	 *
@@ -270,8 +270,8 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	}
 
 	/*
-	 *      extend block allocation map
-	 *      ---------------------------
+	 *	extend block allocation map
+	 *	---------------------------
 	 *
 	 * extendfs() for new extension, retry after crash recovery;
 	 *
@@ -283,7 +283,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 *  s_size: aggregate size in physical blocks;
 	 */
 	/*
-	 *      compute the new block allocation map configuration
+	 *	compute the new block allocation map configuration
 	 *
 	 * map dinode:
 	 *  di_size: map file size in byte;
@@ -301,7 +301,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	newNpages = BLKTODMAPN(t64) + 1;
 
 	/*
-	 *      extend map from current map (WITHOUT growing mapfile)
+	 *	extend map from current map (WITHOUT growing mapfile)
 	 *
 	 * map new extension with unmapped part of the last partial
 	 * dmap page, if applicable, and extra page(s) allocated
@@ -341,8 +341,8 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	XSize -= nblocks;
 
 	/*
-	 *      grow map file to cover remaining extension
-	 *      and/or one extra dmap page for next extendfs();
+	 *	grow map file to cover remaining extension
+	 *	and/or one extra dmap page for next extendfs();
 	 *
 	 * allocate new map pages and its backing blocks, and
 	 * update map file xtree
@@ -422,8 +422,8 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	dbFinalizeBmap(ipbmap);
 
 	/*
-	 *      update inode allocation map
-	 *      ---------------------------
+	 *	update inode allocation map
+	 *	---------------------------
 	 *
 	 * move iag lists from old to new iag;
 	 * agstart field is not updated for logredo() to reconstruct
@@ -442,8 +442,8 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	}
 
 	/*
-	 *      finalize
-	 *      --------
+	 *	finalize
+	 *	--------
 	 *
 	 * extension is committed when on-disk super block is
 	 * updated with new descriptors: logredo will recover
@@ -480,7 +480,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	diFreeSpecial(ipbmap2);
 
 	/*
-	 *      update superblock
+	 *	update superblock
 	 */
 	if ((rc = readSuper(sb, &bh)))
 		goto error_out;
@@ -530,7 +530,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 
       resume:
 	/*
-	 *      resume file system transactions
+	 *	resume file system transactions
 	 */
 	txResume(sb);
 

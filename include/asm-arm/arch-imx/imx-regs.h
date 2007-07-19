@@ -77,6 +77,8 @@
 #define SWR(x)     __REG2(IMX_GPIO_BASE + 0x3c, ((x) & 3) << 8)
 #define PUEN(x)    __REG2(IMX_GPIO_BASE + 0x40, ((x) & 3) << 8)
 
+#define GPIO_PORT_MAX  3
+
 #define GPIO_PIN_MASK 0x1f
 #define GPIO_PORT_MASK (0x3 << 5)
 

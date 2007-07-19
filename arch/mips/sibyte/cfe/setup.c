@@ -62,7 +62,7 @@ extern unsigned long initrd_start, initrd_end;
 extern int kgdb_port;
 #endif
 
-static void ATTRIB_NORET cfe_linux_exit(void *arg)
+static void __noreturn cfe_linux_exit(void *arg)
 {
 	int warm = *(int *)arg;
 
@@ -83,14 +83,14 @@ static void ATTRIB_NORET cfe_linux_exit(void *arg)
 	while (1);
 }
 
-static void ATTRIB_NORET cfe_linux_restart(char *command)
+static void __noreturn cfe_linux_restart(char *command)
 {
 	static const int zero;
 
 	cfe_linux_exit((void *)&zero);
 }
 
-static void ATTRIB_NORET cfe_linux_halt(void)
+static void __noreturn cfe_linux_halt(void)
 {
 	static const int one = 1;
 

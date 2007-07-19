@@ -55,9 +55,9 @@ xfs_dir_mount(
 	       XFS_MAX_BLOCKSIZE);
 	mp->m_dirblksize = 1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog);
 	mp->m_dirblkfsbs = 1 << mp->m_sb.sb_dirblklog;
-	mp->m_dirdatablk = XFS_DIR2_DB_TO_DA(mp, XFS_DIR2_DATA_FIRSTDB(mp));
-	mp->m_dirleafblk = XFS_DIR2_DB_TO_DA(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
-	mp->m_dirfreeblk = XFS_DIR2_DB_TO_DA(mp, XFS_DIR2_FREE_FIRSTDB(mp));
+	mp->m_dirdatablk = xfs_dir2_db_to_da(mp, XFS_DIR2_DATA_FIRSTDB(mp));
+	mp->m_dirleafblk = xfs_dir2_db_to_da(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
+	mp->m_dirfreeblk = xfs_dir2_db_to_da(mp, XFS_DIR2_FREE_FIRSTDB(mp));
 	mp->m_attr_node_ents =
 		(mp->m_sb.sb_blocksize - (uint)sizeof(xfs_da_node_hdr_t)) /
 		(uint)sizeof(xfs_da_node_entry_t);
@@ -554,7 +554,7 @@ xfs_dir2_grow_inode(
 	 */
 	if (mapp != &map)
 		kmem_free(mapp, sizeof(*mapp) * count);
-	*dbp = XFS_DIR2_DA_TO_DB(mp, (xfs_dablk_t)bno);
+	*dbp = xfs_dir2_da_to_db(mp, (xfs_dablk_t)bno);
 	/*
 	 * Update file's size if this is the data space and it grew.
 	 */
@@ -706,7 +706,7 @@ xfs_dir2_shrink_inode(
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
-	da = XFS_DIR2_DB_TO_DA(mp, db);
+	da = xfs_dir2_db_to_da(mp, db);
 	/*
 	 * Unmap the fsblock(s).
 	 */
@@ -742,7 +742,7 @@ xfs_dir2_shrink_inode(
 	/*
 	 * If the block isn't the last one in the directory, we're done.
 	 */
-	if (dp->i_d.di_size > XFS_DIR2_DB_OFF_TO_BYTE(mp, db + 1, 0))
+	if (dp->i_d.di_size > xfs_dir2_db_off_to_byte(mp, db + 1, 0))
 		return 0;
 	bno = da;
 	if ((error = xfs_bmap_last_before(tp, dp, &bno, XFS_DATA_FORK))) {

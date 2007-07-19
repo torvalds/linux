@@ -177,7 +177,7 @@ static void set_adapter_info(struct ibmvscsi_host_data *hostdata)
 	memset(&hostdata->madapter_info, 0x00,
 			sizeof(hostdata->madapter_info));
 
-	printk(KERN_INFO "rpa_vscsi: SPR_VERSION: %s\n", SRP_VERSION);
+	dev_info(hostdata->dev, "SRP_VERSION: %s\n", SRP_VERSION);
 	strcpy(hostdata->madapter_info.srp_version, SRP_VERSION);
 
 	strncpy(hostdata->madapter_info.partition_name, partition_name,
@@ -232,25 +232,24 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 
 	if (rc == 2) {
 		/* Adapter is good, but other end is not ready */
-		printk(KERN_WARNING "ibmvscsi: Partner adapter not ready\n");
+		dev_warn(hostdata->dev, "Partner adapter not ready\n");
 		retrc = 0;
 	} else if (rc != 0) {
-		printk(KERN_WARNING "ibmvscsi: Error %d opening adapter\n", rc);
+		dev_warn(hostdata->dev, "Error %d opening adapter\n", rc);
 		goto reg_crq_failed;
 	}
 
 	if (request_irq(vdev->irq,
 			ibmvscsi_handle_event,
 			0, "ibmvscsi", (void *)hostdata) != 0) {
-		printk(KERN_ERR "ibmvscsi: couldn't register irq 0x%x\n",
-		       vdev->irq);
+		dev_err(hostdata->dev, "couldn't register irq 0x%x\n",
+			vdev->irq);
 		goto req_irq_failed;
 	}
 
 	rc = vio_enable_interrupts(vdev);
 	if (rc != 0) {
-		printk(KERN_ERR "ibmvscsi:  Error %d enabling interrupts!!!\n",
-		       rc);
+		dev_err(hostdata->dev, "Error %d enabling interrupts!!!\n", rc);
 		goto req_irq_failed;
 	}
 
@@ -294,7 +293,7 @@ int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
 	} while ((rc == H_IN_PROGRESS) || (rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 
 	if (rc)
-		printk(KERN_ERR "ibmvscsi: Error %d enabling adapter\n", rc);
+		dev_err(hostdata->dev, "Error %d enabling adapter\n", rc);
 	return rc;
 }
 
@@ -327,10 +326,9 @@ int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 				queue->msg_token, PAGE_SIZE);
 	if (rc == 2) {
 		/* Adapter is good, but other end is not ready */
-		printk(KERN_WARNING "ibmvscsi: Partner adapter not ready\n");
+		dev_warn(hostdata->dev, "Partner adapter not ready\n");
 	} else if (rc != 0) {
-		printk(KERN_WARNING
-		       "ibmvscsi: couldn't register crq--rc 0x%x\n", rc);
+		dev_warn(hostdata->dev, "couldn't register crq--rc 0x%x\n", rc);
 	}
 	return rc;
 }

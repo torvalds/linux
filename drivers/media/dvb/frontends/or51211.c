@@ -223,38 +223,13 @@ static int or51211_set_parameters(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *param)
 {
 	struct or51211_state* state = fe->demodulator_priv;
-	u32 freq = 0;
-	u16 tunerfreq = 0;
-	u8 buf[4];
 
 	/* Change only if we are actually changing the channel */
 	if (state->current_frequency != param->frequency) {
-		freq = 44000 + (param->frequency/1000);
-		tunerfreq = freq * 16/1000;
-
-		dprintk("set_parameters frequency = %d (tunerfreq = %d)\n",
-			param->frequency,tunerfreq);
-
-		buf[0] = (tunerfreq >> 8) & 0x7F;
-		buf[1] = (tunerfreq & 0xFF);
-		buf[2] = 0x8E;
-
-		if (param->frequency < 157250000) {
-			buf[3] = 0xA0;
-			dprintk("set_parameters VHF low range\n");
-		} else if (param->frequency < 454000000) {
-			buf[3] = 0x90;
-			dprintk("set_parameters VHF high range\n");
-		} else {
-			buf[3] = 0x30;
-			dprintk("set_parameters UHF range\n");
+		if (fe->ops.tuner_ops.set_params) {
+			fe->ops.tuner_ops.set_params(fe, param);
+			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
-		dprintk("set_parameters tuner bytes: 0x%02x 0x%02x "
-			"0x%02x 0x%02x\n",buf[0],buf[1],buf[2],buf[3]);
-
-		if (i2c_writebytes(state,0xC2>>1,buf,4))
-			printk(KERN_WARNING "or51211:set_parameters error "
-			       "writing to tuner\n");
 
 		/* Set to ATSC mode */
 		or51211_setmode(fe,0);

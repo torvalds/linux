@@ -40,6 +40,7 @@
 #include <linux/jiffies.h>
 #include <linux/kmod.h>
 #include <linux/seq_file.h>
+#include <linux/reboot.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_bus.h>
@@ -59,7 +60,6 @@
 #define ACPI_THERMAL_NOTIFY_CRITICAL	0xF0
 #define ACPI_THERMAL_NOTIFY_HOT		0xF1
 #define ACPI_THERMAL_MODE_ACTIVE	0x00
-#define ACPI_THERMAL_PATH_POWEROFF	"/sbin/poweroff"
 
 #define ACPI_THERMAL_MAX_ACTIVE	10
 #define ACPI_THERMAL_MAX_LIMIT_STR_LEN 65
@@ -419,26 +419,6 @@ static int acpi_thermal_get_devices(struct acpi_thermal *tz)
 	return 0;
 }
 
-static int acpi_thermal_call_usermode(char *path)
-{
-	char *argv[2] = { NULL, NULL };
-	char *envp[3] = { NULL, NULL, NULL };
-
-
-	if (!path)
-		return -EINVAL;
-
-	argv[0] = path;
-
-	/* minimal command environment */
-	envp[0] = "HOME=/";
-	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-
-	call_usermodehelper(argv[0], argv, envp, 0);
-
-	return 0;
-}
-
 static int acpi_thermal_critical(struct acpi_thermal *tz)
 {
 	if (!tz || !tz->trips.critical.flags.valid)
@@ -456,7 +436,7 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 	acpi_bus_generate_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
 				tz->trips.critical.flags.enabled);
 
-	acpi_thermal_call_usermode(ACPI_THERMAL_PATH_POWEROFF);
+	orderly_poweroff(true);
 
 	return 0;
 }
@@ -828,6 +808,8 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_thermal *tz = seq->private;
 	struct acpi_device *device;
+	acpi_status status;
+
 	int i = 0;
 	int j = 0;
 
@@ -850,8 +832,10 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 			   tz->trips.passive.tc1, tz->trips.passive.tc2,
 			   tz->trips.passive.tsp);
 		for (j = 0; j < tz->trips.passive.devices.count; j++) {
-			acpi_bus_get_device(tz->trips.passive.devices.handles[j], &device);
-			seq_printf(seq, "%4.4s ", acpi_device_bid(device));
+			status = acpi_bus_get_device(tz->trips.passive.devices.
+						     handles[j], &device);
+			seq_printf(seq, "%4.4s ", status ? "" :
+				   acpi_device_bid(device));
 		}
 		seq_puts(seq, "\n");
 	}
@@ -863,8 +847,11 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 			   i,
 			   KELVIN_TO_CELSIUS(tz->trips.active[i].temperature));
 		for (j = 0; j < tz->trips.active[i].devices.count; j++){
-			acpi_bus_get_device(tz->trips.active[i].devices.handles[j], &device);
-			seq_printf(seq, "%4.4s ", acpi_device_bid(device));
+			status = acpi_bus_get_device(tz->trips.active[i].
+						     devices.handles[j],
+						     &device);
+			seq_printf(seq, "%4.4s ", status ? "" :
+				   acpi_device_bid(device));
 		}
 		seq_puts(seq, "\n");
 	}

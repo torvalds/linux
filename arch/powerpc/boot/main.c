@@ -36,8 +36,6 @@ struct addr_range {
 	unsigned long size;
 };
 
-typedef void (*kernel_entry_t)(unsigned long, unsigned long, void *);
-
 #undef DEBUG
 
 static struct addr_range prep_kernel(void)

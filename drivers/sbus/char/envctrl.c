@@ -26,6 +26,7 @@
 #include <linux/ioport.h>
 #include <linux/miscdevice.h>
 #include <linux/kmod.h>
+#include <linux/reboot.h>
 
 #include <asm/ebus.h>
 #include <asm/uaccess.h>
@@ -966,10 +967,6 @@ static struct i2c_child_t *envctrl_get_i2c_child(unsigned char mon_type)
 static void envctrl_do_shutdown(void)
 {
 	static int inprog = 0;
-	static char *envp[] = {	
-		"HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
-	char *argv[] = { 
-		"/sbin/shutdown", "-h", "now", NULL };	
 	int ret;
 
 	if (inprog != 0)
@@ -977,7 +974,7 @@ static void envctrl_do_shutdown(void)
 
 	inprog = 1;
 	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system now.\n");
-	ret = call_usermodehelper("/sbin/shutdown", argv, envp, 0);
+	ret = orderly_poweroff(true);
 	if (ret < 0) {
 		printk(KERN_CRIT "kenvctrld: WARNING: system shutdown failed!\n"); 
 		inprog = 0;  /* unlikely to succeed, but we could try again */

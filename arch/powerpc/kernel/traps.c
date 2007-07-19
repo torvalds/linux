@@ -149,6 +149,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
+	add_taint(TAINT_DIE);
 	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (kexec_should_crash(current) ||
@@ -777,7 +778,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 			return;
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
-		    report_bug(regs->nip) == BUG_TRAP_TYPE_WARN) {
+		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
 			return;
 		}

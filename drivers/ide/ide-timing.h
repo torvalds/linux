@@ -102,66 +102,16 @@ static struct ide_timing ide_timing[] = {
 #define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
 
 #define XFER_MODE	0xf0
-#define XFER_UDMA_133	0x48
-#define XFER_UDMA_100	0x44
-#define XFER_UDMA_66	0x42
-#define XFER_UDMA	0x40
 #define XFER_MWDMA	0x20
-#define XFER_SWDMA	0x10
 #define XFER_EPIO	0x01
 #define XFER_PIO	0x00
 
-static short ide_find_best_mode(ide_drive_t *drive, int map)
+static short ide_find_best_pio_mode(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
 	short best = 0;
 
-	if (!id)
-		return XFER_PIO_SLOW;
-
-	if ((map & XFER_UDMA) && (id->field_valid & 4)) {	/* Want UDMA and UDMA bitmap valid */
-
-		if ((map & XFER_UDMA_133) == XFER_UDMA_133)
-			if ((best = (id->dma_ultra & 0x0040) ? XFER_UDMA_6 : 0)) return best;
-
-		if ((map & XFER_UDMA_100) == XFER_UDMA_100)
-			if ((best = (id->dma_ultra & 0x0020) ? XFER_UDMA_5 : 0)) return best;
-
-		if ((map & XFER_UDMA_66) == XFER_UDMA_66)
-			if ((best = (id->dma_ultra & 0x0010) ? XFER_UDMA_4 :
-                	    	    (id->dma_ultra & 0x0008) ? XFER_UDMA_3 : 0)) return best;
-
-                if ((best = (id->dma_ultra & 0x0004) ? XFER_UDMA_2 :
-                	    (id->dma_ultra & 0x0002) ? XFER_UDMA_1 :
-                	    (id->dma_ultra & 0x0001) ? XFER_UDMA_0 : 0)) return best;
-	}
-
-	if ((map & XFER_MWDMA) && (id->field_valid & 2)) {	/* Want MWDMA and drive has EIDE fields */
-
-		if ((best = (id->dma_mword & 0x0004) ? XFER_MW_DMA_2 :
-                	    (id->dma_mword & 0x0002) ? XFER_MW_DMA_1 :
-                	    (id->dma_mword & 0x0001) ? XFER_MW_DMA_0 : 0)) return best;
-	}
-
-	if (map & XFER_SWDMA) {					/* Want SWDMA */
-
- 		if (id->field_valid & 2) {			/* EIDE SWDMA */
-
-			if ((best = (id->dma_1word & 0x0004) ? XFER_SW_DMA_2 :
-      				    (id->dma_1word & 0x0002) ? XFER_SW_DMA_1 :
-				    (id->dma_1word & 0x0001) ? XFER_SW_DMA_0 : 0)) return best;
-		}
-
-		if (id->capability & 1) {			/* Pre-EIDE style SWDMA */
-
-			if ((best = (id->tDMA == 2) ? XFER_SW_DMA_2 :
-				    (id->tDMA == 1) ? XFER_SW_DMA_1 :
-				    (id->tDMA == 0) ? XFER_SW_DMA_0 : 0)) return best;
-		}
-	}
-
-
-	if ((map & XFER_EPIO) && (id->field_valid & 2)) {	/* EIDE PIO modes */
+	if (id->field_valid & 2) {	/* EIDE PIO modes */
 
 		if ((best = (drive->id->eide_pio_modes & 4) ? XFER_PIO_5 :
 			    (drive->id->eide_pio_modes & 2) ? XFER_PIO_4 :
@@ -262,7 +212,7 @@ static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing
  */
 
 	if ((speed & XFER_MODE) != XFER_PIO) {
-		ide_timing_compute(drive, ide_find_best_mode(drive, XFER_PIO | XFER_EPIO), &p, T, UT);
+		ide_timing_compute(drive, ide_find_best_pio_mode(drive), &p, T, UT);
 		ide_timing_merge(&p, t, t, IDE_TIMING_ALL);
 	}
 

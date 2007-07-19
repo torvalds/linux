@@ -238,7 +238,7 @@ EXPORT_SYMBOL(task_no_data_intr);
 static u8 wait_drive_not_busy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	int retries = 100;
+	int retries;
 	u8 stat;
 
 	/*
@@ -246,10 +246,14 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	 * This can take up to 10 usec, but we will wait max 1 ms
 	 * (drive_cmd_intr() waits that long).
 	 */
-	while (((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) && retries--)
-		udelay(10);
+	for (retries = 0; retries < 100; retries++) {
+		if ((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT)
+			udelay(10);
+		else
+			break;
+	}
 
-	if (!retries)
+	if (stat & BUSY_STAT)
 		printk(KERN_ERR "%s: drive still BUSY!\n", drive->name);
 
 	return stat;

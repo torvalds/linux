@@ -1,6 +1,6 @@
 
 /*
- * linux/drivers/ide/pci/it821x.c		Version 0.15	Jun 2 2007
+ * linux/drivers/ide/pci/it821x.c		Version 0.16	Jul 3 2007
  *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
@@ -491,10 +491,10 @@ static int it821x_config_drive_for_dma (ide_drive_t *drive)
  *	the needed logic onboard.
  */
 
-static unsigned int __devinit ata66_it821x(ide_hwif_t *hwif)
+static u8 __devinit ata66_it821x(ide_hwif_t *hwif)
 {
 	/* The reference driver also only does disk side */
-	return 1;
+	return ATA_CBL_PATA80;
 }
 
 /**
@@ -660,11 +660,11 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	hwif->ide_dma_check = &it821x_config_drive_for_dma;
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66_it821x(hwif);
+
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_it821x(hwif);
 
 	/*
 	 *	The BIOS often doesn't set up DMA on this controller

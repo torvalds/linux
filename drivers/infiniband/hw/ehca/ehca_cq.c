@@ -56,11 +56,11 @@ int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp)
 {
 	unsigned int qp_num = qp->real_qp_num;
 	unsigned int key = qp_num & (QP_HASHTAB_LEN-1);
-	unsigned long spl_flags;
+	unsigned long flags;
 
-	spin_lock_irqsave(&cq->spinlock, spl_flags);
+	spin_lock_irqsave(&cq->spinlock, flags);
 	hlist_add_head(&qp->list_entries, &cq->qp_hashtab[key]);
-	spin_unlock_irqrestore(&cq->spinlock, spl_flags);
+	spin_unlock_irqrestore(&cq->spinlock, flags);
 
 	ehca_dbg(cq->ib_cq.device, "cq_num=%x real_qp_num=%x",
 		 cq->cq_number, qp_num);
@@ -74,9 +74,9 @@ int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int real_qp_num)
 	unsigned int key = real_qp_num & (QP_HASHTAB_LEN-1);
 	struct hlist_node *iter;
 	struct ehca_qp *qp;
-	unsigned long spl_flags;
+	unsigned long flags;
 
-	spin_lock_irqsave(&cq->spinlock, spl_flags);
+	spin_lock_irqsave(&cq->spinlock, flags);
 	hlist_for_each(iter, &cq->qp_hashtab[key]) {
 		qp = hlist_entry(iter, struct ehca_qp, list_entries);
 		if (qp->real_qp_num == real_qp_num) {
@@ -88,7 +88,7 @@ int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int real_qp_num)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&cq->spinlock, spl_flags);
+	spin_unlock_irqrestore(&cq->spinlock, flags);
 	if (ret)
 		ehca_err(cq->ib_cq.device,
 			 "qp not found cq_num=%x real_qp_num=%x",
@@ -146,6 +146,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	spin_lock_init(&my_cq->spinlock);
 	spin_lock_init(&my_cq->cb_lock);
 	spin_lock_init(&my_cq->task_lock);
+	atomic_set(&my_cq->nr_events, 0);
 	init_waitqueue_head(&my_cq->wait_completion);
 	my_cq->ownpid = current->tgid;
 
@@ -162,9 +163,9 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			goto create_cq_exit1;
 		}
 
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		write_lock_irqsave(&ehca_cq_idr_lock, flags);
 		ret = idr_get_new(&ehca_cq_idr, my_cq, &my_cq->token);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 	} while (ret == -EAGAIN);
 
@@ -293,24 +294,14 @@ create_cq_exit3:
 			 "cq_num=%x h_ret=%lx", my_cq, my_cq->cq_number, h_ret);
 
 create_cq_exit2:
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	write_lock_irqsave(&ehca_cq_idr_lock, flags);
 	idr_remove(&ehca_cq_idr, my_cq->token);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 create_cq_exit1:
 	kmem_cache_free(cq_cache, my_cq);
 
 	return cq;
-}
-
-static int get_cq_nr_events(struct ehca_cq *my_cq)
-{
-	int ret;
-	unsigned long flags;
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-	ret = my_cq->nr_events;
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-	return ret;
 }
 
 int ehca_destroy_cq(struct ib_cq *cq)
@@ -339,17 +330,18 @@ int ehca_destroy_cq(struct ib_cq *cq)
 		}
 	}
 
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-	while (my_cq->nr_events) {
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-		wait_event(my_cq->wait_completion, !get_cq_nr_events(my_cq));
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-		/* recheck nr_events to assure no cqe has just arrived */
-	}
-
+	/*
+	 * remove the CQ from the idr first to make sure
+	 * no more interrupt tasklets will touch this CQ
+	 */
+	write_lock_irqsave(&ehca_cq_idr_lock, flags);
 	idr_remove(&ehca_cq_idr, my_cq->token);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
+	/* now wait until all pending events have completed */
+	wait_event(my_cq->wait_completion, !atomic_read(&my_cq->nr_events));
+
+	/* nobody's using our CQ any longer -- we can destroy it */
 	h_ret = hipz_h_destroy_cq(adapter_handle, my_cq, 0);
 	if (h_ret == H_R_STATE) {
 		/* cq in err: read err data and destroy it forcibly */

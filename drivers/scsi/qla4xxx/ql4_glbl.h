@@ -8,6 +8,9 @@
 #ifndef __QLA4x_GBL_H
 #define	__QLA4x_GBL_H
 
+struct iscsi_cls_conn;
+
+void qla4xxx_hw_reset(struct scsi_qla_host *ha);
 int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a);
 int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port);
 int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb);
@@ -58,11 +61,13 @@ int qla4xxx_get_fw_version(struct scsi_qla_host * ha);
 void qla4xxx_interrupt_service_routine(struct scsi_qla_host * ha,
 				       uint32_t intr_status);
 int qla4xxx_init_rings(struct scsi_qla_host * ha);
-struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t index);
+struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha,
+					uint32_t index);
 void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb);
 int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host * ha);
 int qla4xxx_process_ddb_changed(struct scsi_qla_host * ha,
 				uint32_t fw_ddb_index, uint32_t state);
+void qla4xxx_dump_buffer(void *b, uint32_t size);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;

@@ -746,7 +746,7 @@ static int ariadne_rx(struct net_device *dev)
 
 	    skb_reserve(skb,2);		/* 16 byte align */
 	    skb_put(skb,pkt_len);	/* Make room */
-	    eth_copy_and_sum(skb, (char *)priv->rx_buff[entry], pkt_len,0);
+	    skb_copy_to_linear_data(skb, (char *)priv->rx_buff[entry], pkt_len);
 	    skb->protocol=eth_type_trans(skb,dev);
 #if 0
 	    printk(KERN_DEBUG "RX pkt type 0x%04x from ",

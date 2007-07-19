@@ -893,15 +893,6 @@
 #define PHYS_ADDR_ONLY       1     /* Update the physical address only */
 
 /*
-** Booleans
-*/
-#define NO                   0
-#define FALSE                0
-
-#define YES                  ~0
-#define TRUE                 ~0
-
-/*
 ** Adapter state
 */
 #define INITIALISED          0     /* After h/w initialised and mem alloc'd */

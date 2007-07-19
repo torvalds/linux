@@ -43,16 +43,6 @@ static int gs_debug;
 
 #define func_enter() gs_dprintk (GS_DEBUG_FLOW, "gs: enter %s\n", __FUNCTION__)
 #define func_exit()  gs_dprintk (GS_DEBUG_FLOW, "gs: exit  %s\n", __FUNCTION__)
-#define NEW_WRITE_LOCKING 1
-#if NEW_WRITE_LOCKING
-#define DECL      /* Nothing */
-#define LOCKIT    mutex_lock(& port->port_write_mutex);
-#define RELEASEIT mutex_unlock(&port->port_write_mutex);
-#else
-#define DECL      unsigned long flags;
-#define LOCKIT    save_flags (flags);cli ()
-#define RELEASEIT restore_flags (flags)
-#endif
 
 #define RS_EVENT_WRITE_WAKEUP	1
 
@@ -62,7 +52,6 @@ module_param(gs_debug, int, 0644);
 void gs_put_char(struct tty_struct * tty, unsigned char ch)
 {
 	struct gs_port *port;
-	DECL
 
 	func_enter (); 
 
@@ -75,11 +64,11 @@ void gs_put_char(struct tty_struct * tty, unsigned char ch)
 	if (! (port->flags & ASYNC_INITIALIZED)) return;
 
 	/* Take a lock on the serial tranmit buffer! */
-	LOCKIT;
+	mutex_lock(& port->port_write_mutex);
 
 	if (port->xmit_cnt >= SERIAL_XMIT_SIZE - 1) {
 		/* Sorry, buffer is full, drop character. Update statistics???? -- REW */
-		RELEASEIT;
+		mutex_unlock(&port->port_write_mutex);
 		return;
 	}
 
@@ -87,12 +76,10 @@ void gs_put_char(struct tty_struct * tty, unsigned char ch)
 	port->xmit_head &= SERIAL_XMIT_SIZE - 1;
 	port->xmit_cnt++;  /* Characters in buffer */
 
-	RELEASEIT;
+	mutex_unlock(&port->port_write_mutex);
 	func_exit ();
 }
 
-
-#ifdef NEW_WRITE_LOCKING
 
 /*
 > Problems to take into account are:
@@ -166,90 +153,6 @@ int gs_write(struct tty_struct * tty,
 	func_exit ();
 	return total;
 }
-#else
-/*
-> Problems to take into account are:
->       -1- Interrupts that empty part of the buffer.
->       -2- page faults on the access to userspace. 
->       -3- Other processes that are also trying to do a "write". 
-*/
-
-int gs_write(struct tty_struct * tty,
-                    const unsigned char *buf, int count)
-{
-	struct gs_port *port;
-	int c, total = 0;
-	int t;
-	unsigned long flags;
-
-	func_enter ();
-
-	/* The standard serial driver returns 0 in this case. 
-	   That sounds to me as "No error, I just didn't get to writing any
-	   bytes. Feel free to try again." 
-	   The "official" way to write n bytes from buf is:
-
-		 for (nwritten = 0;nwritten < n;nwritten += rv) {
-			 rv = write (fd, buf+nwritten, n-nwritten);
-			 if (rv < 0) break; // Error: bail out. //
-		 } 
-
-	   which will loop endlessly in this case. The manual page for write
-	   agrees with me. In practise almost everybody writes 
-	   "write (fd, buf,n);" but some people might have had to deal with 
-	   incomplete writes in the past and correctly implemented it by now... 
-	 */
-
-	if (!tty) return -EIO;
-
-	port = tty->driver_data;
-	if (!port || !port->xmit_buf)
-		return -EIO;
-
-	local_save_flags(flags);
-	while (1) {
-		cli();
-		c = count;
-
-		/* This is safe because we "OWN" the "head". Noone else can 
-		   change the "head": we own the port_write_mutex. */
-		/* Don't overrun the end of the buffer */
-		t = SERIAL_XMIT_SIZE - port->xmit_head;
-		if (t < c) c = t;
-
-		/* This is safe because the xmit_cnt can only decrease. This 
-		   would increase "t", so we might copy too little chars. */
-		/* Don't copy past the "head" of the buffer */
-		t = SERIAL_XMIT_SIZE - 1 - port->xmit_cnt;
-		if (t < c) c = t;
-
-		/* Can't copy more? break out! */
-		if (c <= 0) {
-			local_restore_flags(flags);
-			break;
-		}
-		memcpy(port->xmit_buf + port->xmit_head, buf, c);
-		port->xmit_head = ((port->xmit_head + c) &
-		                   (SERIAL_XMIT_SIZE-1));
-		port->xmit_cnt += c;
-		local_restore_flags(flags);
-		buf += c;
-		count -= c;
-		total += c;
-	}
-
-	if (port->xmit_cnt && 
-	    !tty->stopped && 
-	    !tty->hw_stopped &&
-	    !(port->flags & GS_TX_INTEN)) {
-		port->flags |= GS_TX_INTEN;
-		port->rd->enable_tx_interrupts (port);
-	}
-	func_exit ();
-	return total;
-}
-
-#endif
 
 
 
@@ -736,23 +639,6 @@ void gs_set_termios (struct tty_struct * tty,
 	if (gs_debug & GS_DEBUG_TERMIOS) {
 		gs_dprintk (GS_DEBUG_TERMIOS, "termios structure (%p):\n", tiosp);
 	}
-
-	/* This is an optimization that is only allowed for dumb cards */
-	/* Smart cards require knowledge of iflags and oflags too: that 
-	   might change hardware cooking mode.... */
-	if (old_termios) {
-		if(   (tiosp->c_iflag == old_termios->c_iflag)
-		   && (tiosp->c_oflag == old_termios->c_oflag)
-		   && (tiosp->c_cflag == old_termios->c_cflag)
-		   && (tiosp->c_lflag == old_termios->c_lflag)
-		   && (tiosp->c_line  == old_termios->c_line)
-		   && (memcmp(tiosp->c_cc, old_termios->c_cc, NCC) == 0)) {
-			gs_dprintk(GS_DEBUG_TERMIOS, "gs_set_termios: optimized away\n");
-			return /* 0 */;
-		}
-	} else 
-		gs_dprintk(GS_DEBUG_TERMIOS, "gs_set_termios: no old_termios: "
-		           "no optimization\n");
 
 	if(old_termios && (gs_debug & GS_DEBUG_TERMIOS)) {
 		if(tiosp->c_iflag != old_termios->c_iflag)  printk("c_iflag changed\n");

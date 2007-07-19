@@ -18,12 +18,13 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -640,16 +641,8 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	memcpy(scmd->cmnd, cmnd, cmnd_size);
 
 	if (copy_sense) {
-		gfp_t gfp_mask = GFP_ATOMIC;
-
-		if (shost->hostt->unchecked_isa_dma)
-			gfp_mask |= __GFP_DMA;
-
-		sgl.page = alloc_page(gfp_mask);
-		if (!sgl.page)
-			return FAILED;
-		sgl.offset = 0;
-		sgl.length = 252;
+		sg_init_one(&sgl, scmd->sense_buffer,
+			    sizeof(scmd->sense_buffer));
 
 		scmd->sc_data_direction = DMA_FROM_DEVICE;
 		scmd->request_bufflen = sgl.length;
@@ -716,18 +709,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	} else {
 		scsi_abort_eh_cmnd(scmd);
 		rtn = FAILED;
-	}
-
-
-	/*
-	 * Last chance to have valid sense data.
-	 */
-	if (copy_sense) {
-		if (!SCSI_SENSE_VALID(scmd)) {
-			memcpy(scmd->sense_buffer, page_address(sgl.page),
-			       sizeof(scmd->sense_buffer));
-		}
-		__free_page(sgl.page);
 	}
 
 
@@ -1535,8 +1516,6 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 int scsi_error_handler(void *data)
 {
 	struct Scsi_Host *shost = data;
-
-	current->flags |= PF_NOFREEZE;
 
 	/*
 	 * We use TASK_INTERRUPTIBLE so that the thread is not

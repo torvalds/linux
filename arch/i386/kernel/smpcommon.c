@@ -47,7 +47,7 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 EXPORT_SYMBOL(smp_call_function);
 
 /**
- * smp_call_function_single - Run a function on another CPU
+ * smp_call_function_single - Run a function on a specific CPU
  * @cpu: The target CPU.  Cannot be the calling CPU.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
@@ -66,9 +66,11 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 	int ret;
 	int me = get_cpu();
 	if (cpu == me) {
-		WARN_ON(1);
+		local_irq_disable();
+		func(info);
+		local_irq_enable();
 		put_cpu();
-		return -EBUSY;
+		return 0;
 	}
 
 	ret = smp_call_function_mask(cpumask_of_cpu(cpu), func, info, wait);

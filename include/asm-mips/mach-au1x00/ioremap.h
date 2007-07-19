@@ -28,4 +28,15 @@ static inline phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 	return __fixup_bigphys_addr(phys_addr, size);
 }
 
+static inline void __iomem *plat_ioremap(phys_t offset, unsigned long size,
+	unsigned long flags)
+{
+	return NULL;
+}
+
+static inline int plat_iounmap(const volatile void __iomem *addr)
+{
+	return 0;
+}
+
 #endif /* __ASM_MACH_AU1X00_IOREMAP_H */

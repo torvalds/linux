@@ -730,10 +730,9 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
-		dev_warn(&hcd->self.root_hub->dev, "HC isn't running!\n");
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
 		rc = -ESHUTDOWN;
-	} else if (!uhci->dead)
+	else if (!uhci->dead)
 		wakeup_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return rc;

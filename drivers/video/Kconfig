@@ -812,7 +812,7 @@ config FB_PVR2
 
 config FB_EPSON1355
 	bool "Epson 1355 framebuffer support"
-	depends on (FB = y) && (SUPERH || ARCH_CEIVA)
+	depends on (FB = y) && ARCH_CEIVA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1790,8 +1790,8 @@ config FB_IBM_GXT4500
 	  adaptor, found on some IBM System P (pSeries) machines.
 
 config FB_PS3
-	bool "PS3 GPU framebuffer driver"
-	depends on (FB = y) && PS3_PS3AV
+	tristate "PS3 GPU framebuffer driver"
+	depends on FB && PS3_PS3AV
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -1819,6 +1819,10 @@ config FB_XILINX
 	  Include support for the Xilinx ML300/ML403 reference design
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
+
+if ARCH_OMAP
+	source "drivers/video/omap/Kconfig"
+endif
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

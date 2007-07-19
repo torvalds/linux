@@ -77,6 +77,7 @@
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
+#include <linux/debugfs.h>
 #include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/byteorder.h>
@@ -87,9 +88,18 @@
 #define STR(x)  __STR(x)
 #define __STR(x)  #x
 
-#ifdef CONFIG_PROC_FS
-unsigned long unaligned_instructions;
+enum {
+	UNALIGNED_ACTION_QUIET,
+	UNALIGNED_ACTION_SIGNAL,
+	UNALIGNED_ACTION_SHOW,
+};
+#ifdef CONFIG_DEBUG_FS
+static u32 unaligned_instructions;
+static u32 unaligned_action;
+#else
+#define unaligned_action UNALIGNED_ACTION_QUIET
 #endif
+extern void show_registers(struct pt_regs *regs);
 
 static inline int emulate_load_store_insn(struct pt_regs *regs,
 	void __user *addr, unsigned int __user *pc,
@@ -459,7 +469,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		goto sigill;
 	}
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_DEBUG_FS
 	unaligned_instructions++;
 #endif
 
@@ -516,6 +526,10 @@ asmlinkage void do_ade(struct pt_regs *regs)
 	pc = (unsigned int __user *) exception_epc(regs);
 	if (user_mode(regs) && (current->thread.mflags & MF_FIXADE) == 0)
 		goto sigbus;
+	if (unaligned_action == UNALIGNED_ACTION_SIGNAL)
+		goto sigbus;
+	else if (unaligned_action == UNALIGNED_ACTION_SHOW)
+		show_registers(regs);
 
 	/*
 	 * Do branch emulation only if we didn't forward the exception.
@@ -546,3 +560,24 @@ sigbus:
 	 * XXX On return from the signal handler we should advance the epc
 	 */
 }
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *mips_debugfs_dir;
+static int __init debugfs_unaligned(void)
+{
+	struct dentry *d;
+
+	if (!mips_debugfs_dir)
+		return -ENODEV;
+	d = debugfs_create_u32("unaligned_instructions", S_IRUGO,
+			       mips_debugfs_dir, &unaligned_instructions);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+	d = debugfs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
+			       mips_debugfs_dir, &unaligned_action);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+	return 0;
+}
+__initcall(debugfs_unaligned);
+#endif

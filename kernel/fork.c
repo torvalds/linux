@@ -49,6 +49,7 @@
 #include <linux/delayacct.h>
 #include <linux/taskstats_kern.h>
 #include <linux/random.h>
+#include <linux/tty.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -877,7 +878,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
-	sig->sched_time = 0;
+	sig->sum_sched_runtime = 0;
 	INIT_LIST_HEAD(&sig->cpu_timers[0]);
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
 	INIT_LIST_HEAD(&sig->cpu_timers[2]);
@@ -896,6 +897,8 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 			secs_to_cputime(sig->rlim[RLIMIT_CPU].rlim_cur);
 	}
 	acct_init_pacct(&sig->pacct);
+
+	tty_audit_fork(sig);
 
 	return 0;
 }
@@ -920,7 +923,7 @@ static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
 {
 	unsigned long new_flags = p->flags;
 
-	new_flags &= ~(PF_SUPERPRIV | PF_NOFREEZE);
+	new_flags &= ~PF_SUPERPRIV;
 	new_flags |= PF_FORKNOEXEC;
 	if (!(clone_flags & CLONE_PTRACE))
 		p->ptrace = 0;
@@ -999,7 +1002,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (atomic_read(&p->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE) &&
-				p->user != &root_user)
+		    p->user != current->nsproxy->user_ns->root_user)
 			goto bad_fork_free;
 	}
 
@@ -1040,7 +1043,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->utime = cputime_zero;
 	p->stime = cputime_zero;
- 	p->sched_time = 0;
+
 #ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */
 	p->wchar = 0;		/* I/O counter: bytes written */
@@ -1059,6 +1062,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->lock_depth = -1;		/* -1 = no lock */
 	do_posix_clock_monotonic_gettime(&p->start_time);
+	p->real_start_time = p->start_time;
+	monotonic_to_bootbased(&p->real_start_time);
 	p->security = NULL;
 	p->io_context = NULL;
 	p->io_wait = NULL;
@@ -1601,7 +1606,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	err = -EINVAL;
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
 				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
-				CLONE_NEWUTS|CLONE_NEWIPC))
+				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWUSER))
 		goto bad_unshare_out;
 
 	if ((err = unshare_thread(unshare_flags)))

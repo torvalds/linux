@@ -897,14 +897,13 @@ int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 	return (nd->intent.open.flags & O_EXCL) != 0;
 }
 
-static inline int nfs_reval_fsid(struct vfsmount *mnt, struct inode *dir,
-				 struct nfs_fh *fh, struct nfs_fattr *fattr)
+static inline int nfs_reval_fsid(struct inode *dir, const struct nfs_fattr *fattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 
 	if (!nfs_fsid_equal(&server->fsid, &fattr->fsid))
-		/* Revalidate fsid on root dir */
-		return __nfs_revalidate_inode(server, mnt->mnt_root->d_inode);
+		/* Revalidate fsid using the parent directory */
+		return __nfs_revalidate_inode(server, dir);
 	return 0;
 }
 
@@ -946,7 +945,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		res = ERR_PTR(error);
 		goto out_unlock;
 	}
-	error = nfs_reval_fsid(nd->mnt, dir, &fhandle, &fattr);
+	error = nfs_reval_fsid(dir, &fattr);
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unlock;
@@ -1244,7 +1243,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
-	if (nd && (nd->flags & LOOKUP_CREATE))
+	if ((nd->flags & LOOKUP_CREATE) != 0)
 		open_flags = nd->intent.open.flags;
 
 	lock_kernel();
@@ -1535,7 +1534,7 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 
 	lock_kernel();
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_HIGHUSER);
 	if (!page) {
 		unlock_kernel();
 		return -ENOMEM;
@@ -1744,8 +1743,8 @@ int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 	struct nfs_inode *nfsi;
 	struct nfs_access_entry *cache;
 
-	spin_lock(&nfs_access_lru_lock);
 restart:
+	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
 		struct inode *inode;
 
@@ -1770,6 +1769,7 @@ remove_lru_entry:
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
 		}
 		spin_unlock(&inode->i_lock);
+		spin_unlock(&nfs_access_lru_lock);
 		iput(inode);
 		goto restart;
 	}

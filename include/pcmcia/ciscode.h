@@ -126,4 +126,6 @@
 #define MANFID_POSSIO			0x030c
 #define PRODID_POSSIO_GCC		0x0003
 
+#define MANFID_NEC			0x0010
+
 #endif /* _LINUX_CISCODE_H */

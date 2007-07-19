@@ -390,7 +390,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 		unsigned long esp;
 		unsigned short ss;
 
-		report_bug(regs->eip);
+		report_bug(regs->eip, regs);
 
 		printk(KERN_EMERG "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
@@ -433,6 +433,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
+	add_taint(TAINT_DIE);
 	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (!regs)
@@ -517,10 +518,12 @@ fastcall void do_##name(struct pt_regs * regs, long error_code) \
 	do_trap(trapnr, signr, str, 0, regs, error_code, NULL); \
 }
 
-#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr) \
+#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr, irq) \
 fastcall void do_##name(struct pt_regs * regs, long error_code) \
 { \
 	siginfo_t info; \
+	if (irq) \
+		local_irq_enable(); \
 	info.si_signo = signr; \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
@@ -560,13 +563,13 @@ DO_VM86_ERROR( 3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip, 0)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
-DO_ERROR_INFO(32, SIGSEGV, "iret exception", iret_error, ILL_BADSTK, 0)
+DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
+DO_ERROR_INFO(32, SIGSEGV, "iret exception", iret_error, ILL_BADSTK, 0, 1)
 
 fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 					      long error_code)

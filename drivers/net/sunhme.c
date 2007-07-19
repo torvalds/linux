@@ -2625,7 +2625,7 @@ static void quattro_sbus_free_irqs(void)
 #endif /* CONFIG_SBUS */
 
 #ifdef CONFIG_PCI
-static struct quattro * __init quattro_pci_find(struct pci_dev *pdev)
+static struct quattro * __devinit quattro_pci_find(struct pci_dev *pdev)
 {
 	struct pci_dev *bdev = pdev->bus->self;
 	struct quattro *qp;
@@ -3095,12 +3095,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 
 #ifdef CONFIG_SPARC
 	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
-	if (hp->hm_revision == 0xff) {
-		unsigned char prev;
-
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &prev);
-		hp->hm_revision = 0xc0 | (prev & 0x0f);
-	}
+	if (hp->hm_revision == 0xff)
+		hp->hm_revision = 0xc0 | (pdev->revision & 0x0f);
 #else
 	/* works with this on non-sparc hosts */
 	hp->hm_revision = 0x20;

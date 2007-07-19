@@ -211,11 +211,13 @@ static void safe_read_bulk_callback (struct urb *urb)
 	unsigned char length = urb->actual_length;
 	int i;
 	int result;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
-	if (urb->status) {
-		dbg ("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 

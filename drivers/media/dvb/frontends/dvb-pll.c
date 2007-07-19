@@ -24,6 +24,23 @@
 
 #include "dvb-pll.h"
 
+struct dvb_pll_desc {
+	char *name;
+	u32  min;
+	u32  max;
+	u32  iffreq;
+	void (*set)(u8 *buf, const struct dvb_frontend_parameters *params);
+	u8   *initdata;
+	u8   *sleepdata;
+	int  count;
+	struct {
+		u32 limit;
+		u32 stepsize;
+		u8  config;
+		u8  cb;
+	} entries[12];
+};
+
 /* ----------------------------------------------------------- */
 /* descriptions                                                */
 
@@ -38,7 +55,13 @@
 	0x50 = AGC Take over point = 103 dBuV */
 static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
 
-struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
+/*	0x04 = 166.67 kHz divider
+
+	0x80 = AGC Time constant 50ms Iagc = 9 uA
+	0x20 = AGC Take over point = 112 dBuV */
+static u8 tua603x_agc112[] = { 2, 0x80|0x40|0x18|0x04|0x01, 0x80|0x20 };
+
+static struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
 	.max   = 858000000,
@@ -52,9 +75,8 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 		{  999999999, 166667, 0xf4, 0x08 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_thomson_dtt7579);
 
-struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
+static struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 	.name  = "Thomson dtt7610",
 	.min   =  44000000,
 	.max   = 958000000,
@@ -66,19 +88,19 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 		{ 999999999, 62500, 0x8e, 0x3c },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_thomson_dtt7610);
 
-static void thomson_dtt759x_bw(u8 *buf, u32 freq, int bandwidth)
+static void thomson_dtt759x_bw(u8 *buf,
+			       const struct dvb_frontend_parameters *params)
 {
-	if (BANDWIDTH_7_MHZ == bandwidth)
+	if (BANDWIDTH_7_MHZ == params->u.ofdm.bandwidth)
 		buf[3] |= 0x10;
 }
 
-struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
+static struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
 	.name  = "Thomson dtt759x",
 	.min   = 177000000,
 	.max   = 896000000,
-	.setbw = thomson_dtt759x_bw,
+	.set   = thomson_dtt759x_bw,
 	.iffreq= 36166667,
 	.sleepdata = (u8[]){ 2, 0x84, 0x03 },
 	.count = 5,
@@ -90,9 +112,8 @@ struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
 		{  999999999, 166667, 0xfc, 0x08 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_thomson_dtt759x);
 
-struct dvb_pll_desc dvb_pll_lg_z201 = {
+static struct dvb_pll_desc dvb_pll_lg_z201 = {
 	.name  = "LG z201",
 	.min   = 174000000,
 	.max   = 862000000,
@@ -107,9 +128,8 @@ struct dvb_pll_desc dvb_pll_lg_z201 = {
 		{  999999999, 166667, 0xfc, 0x04 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_lg_z201);
 
-struct dvb_pll_desc dvb_pll_microtune_4042 = {
+static struct dvb_pll_desc dvb_pll_microtune_4042 = {
 	.name  = "Microtune 4042 FI5",
 	.min   =  57000000,
 	.max   = 858000000,
@@ -121,9 +141,8 @@ struct dvb_pll_desc dvb_pll_microtune_4042 = {
 		{ 999999999, 62500, 0x8e, 0x31 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_microtune_4042);
 
-struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
+static struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
 	/* DTT 7611 7611A 7612 7613 7613A 7614 7615 7615A */
 	.name  = "Thomson dtt761x",
 	.min   =  57000000,
@@ -137,9 +156,8 @@ struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
 		{ 999999999, 62500, 0x8e, 0x3c },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_thomson_dtt761x);
 
-struct dvb_pll_desc dvb_pll_unknown_1 = {
+static struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
 	.min   = 174000000,
 	.max   = 862000000,
@@ -157,12 +175,11 @@ struct dvb_pll_desc dvb_pll_unknown_1 = {
 		{  999999999, 166667, 0xfc, 0x08 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_unknown_1);
 
 /* Infineon TUA6010XS
  * used in Thomson Cable Tuner
  */
-struct dvb_pll_desc dvb_pll_tua6010xs = {
+static struct dvb_pll_desc dvb_pll_tua6010xs = {
 	.name  = "Infineon TUA6010XS",
 	.min   =  44250000,
 	.max   = 858000000,
@@ -174,10 +191,9 @@ struct dvb_pll_desc dvb_pll_tua6010xs = {
 		{  999999999, 62500, 0x8e, 0x85 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_tua6010xs);
 
 /* Panasonic env57h1xd5 (some Philips PLL ?) */
-struct dvb_pll_desc dvb_pll_env57h1xd5 = {
+static struct dvb_pll_desc dvb_pll_env57h1xd5 = {
 	.name  = "Panasonic ENV57H1XD5",
 	.min   =  44250000,
 	.max   = 858000000,
@@ -190,23 +206,23 @@ struct dvb_pll_desc dvb_pll_env57h1xd5 = {
 		{  999999999, 166667, 0xc2, 0xa4 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_env57h1xd5);
 
 /* Philips TDA6650/TDA6651
  * used in Panasonic ENV77H11D5
  */
-static void tda665x_bw(u8 *buf, u32 freq, int bandwidth)
+static void tda665x_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
-	if (bandwidth == BANDWIDTH_8_MHZ)
+	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 0x08;
 }
 
-struct dvb_pll_desc dvb_pll_tda665x = {
+static struct dvb_pll_desc dvb_pll_tda665x = {
 	.name  = "Philips TDA6650/TDA6651",
 	.min   =  44250000,
 	.max   = 858000000,
-	.setbw = tda665x_bw,
+	.set   = tda665x_bw,
 	.iffreq= 36166667,
+	.initdata = (u8[]){ 4, 0x0b, 0xf5, 0x85, 0xab },
 	.count = 12,
 	.entries = {
 		{   93834000, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
@@ -223,36 +239,34 @@ struct dvb_pll_desc dvb_pll_tda665x = {
 		{  861000000, 166667, 0xca, 0xe4 /* 111 0 0 1  00 */ },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_tda665x);
 
 /* Infineon TUA6034
  * used in LG TDTP E102P
  */
-static void tua6034_bw(u8 *buf, u32 freq, int bandwidth)
+static void tua6034_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
-	if (BANDWIDTH_7_MHZ != bandwidth)
+	if (BANDWIDTH_7_MHZ != params->u.ofdm.bandwidth)
 		buf[3] |= 0x08;
 }
 
-struct dvb_pll_desc dvb_pll_tua6034 = {
+static struct dvb_pll_desc dvb_pll_tua6034 = {
 	.name  = "Infineon TUA6034",
 	.min   =  44250000,
 	.max   = 858000000,
 	.iffreq= 36166667,
 	.count = 3,
-	.setbw = tua6034_bw,
+	.set   = tua6034_bw,
 	.entries = {
 		{  174500000, 62500, 0xce, 0x01 },
 		{  230000000, 62500, 0xce, 0x02 },
 		{  999999999, 62500, 0xce, 0x04 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_tua6034);
 
 /* Infineon TUA6034
  * used in LG TDVS-H061F, LG TDVS-H062F and LG TDVS-H064F
  */
-struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
+static struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
 	.name  = "LG TDVS-H06xF",
 	.min   =  54000000,
 	.max   = 863000000,
@@ -265,23 +279,25 @@ struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
 		{  999999999, 62500, 0xce, 0x04 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_lg_tdvs_h06xf);
 
 /* Philips FMD1216ME
  * used in Medion Hybrid PCMCIA card and USB Box
  */
-static void fmd1216me_bw(u8 *buf, u32 freq, int bandwidth)
+static void fmd1216me_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
-	if (bandwidth == BANDWIDTH_8_MHZ && freq >= 158870000)
+	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
+	    params->frequency >= 158870000)
 		buf[3] |= 0x08;
 }
 
-struct dvb_pll_desc dvb_pll_fmd1216me = {
+static struct dvb_pll_desc dvb_pll_fmd1216me = {
 	.name = "Philips FMD1216ME",
 	.min = 50870000,
 	.max = 858000000,
 	.iffreq= 36125000,
-	.setbw = fmd1216me_bw,
+	.set   = fmd1216me_bw,
+	.initdata = tua603x_agc112,
+	.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	.count = 7,
 	.entries = {
 		{ 143870000, 166667, 0xbc, 0x41 },
@@ -293,23 +309,22 @@ struct dvb_pll_desc dvb_pll_fmd1216me = {
 		{ 999999999, 166667, 0xfc, 0x44 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_fmd1216me);
 
 /* ALPS TDED4
  * used in Nebula-Cards and USB boxes
  */
-static void tded4_bw(u8 *buf, u32 freq, int bandwidth)
+static void tded4_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
-	if (bandwidth == BANDWIDTH_8_MHZ)
+	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 0x04;
 }
 
-struct dvb_pll_desc dvb_pll_tded4 = {
+static struct dvb_pll_desc dvb_pll_tded4 = {
 	.name = "ALPS TDED4",
 	.min = 47000000,
 	.max = 863000000,
 	.iffreq= 36166667,
-	.setbw = tded4_bw,
+	.set   = tded4_bw,
 	.count = 4,
 	.entries = {
 		{ 153000000, 166667, 0x85, 0x01 },
@@ -318,12 +333,11 @@ struct dvb_pll_desc dvb_pll_tded4 = {
 		{ 999999999, 166667, 0x85, 0x88 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_tded4);
 
 /* ALPS TDHU2
  * used in AverTVHD MCE A180
  */
-struct dvb_pll_desc dvb_pll_tdhu2 = {
+static struct dvb_pll_desc dvb_pll_tdhu2 = {
 	.name = "ALPS TDHU2",
 	.min = 54000000,
 	.max = 864000000,
@@ -336,16 +350,29 @@ struct dvb_pll_desc dvb_pll_tdhu2 = {
 		{ 999999999, 62500, 0x85, 0x88 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_tdhu2);
 
 /* Philips TUV1236D
  * used in ATI HDTV Wonder
  */
-struct dvb_pll_desc dvb_pll_tuv1236d = {
+static void tuv1236d_rf(u8 *buf, const struct dvb_frontend_parameters *params)
+{
+	switch (params->u.vsb.modulation) {
+		case QAM_64:
+		case QAM_256:
+			buf[3] |= 0x08;
+			break;
+		case VSB_8:
+		default:
+			buf[3] &= ~0x08;
+	}
+}
+
+static struct dvb_pll_desc dvb_pll_tuv1236d = {
 	.name  = "Philips TUV1236D",
 	.min   =  54000000,
 	.max   = 864000000,
 	.iffreq= 44000000,
+	.set   = tuv1236d_rf,
 	.count = 3,
 	.entries = {
 		{ 157250000, 62500, 0xc6, 0x41 },
@@ -353,12 +380,11 @@ struct dvb_pll_desc dvb_pll_tuv1236d = {
 		{ 999999999, 62500, 0xc6, 0x44 },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_tuv1236d);
 
 /* Samsung TBMV30111IN / TBMV30712IN1
  * used in Air2PC ATSC - 2nd generation (nxt2002)
  */
-struct dvb_pll_desc dvb_pll_samsung_tbmv = {
+static struct dvb_pll_desc dvb_pll_samsung_tbmv = {
 	.name = "Samsung TBMV30111IN / TBMV30712IN1",
 	.min = 54000000,
 	.max = 860000000,
@@ -373,12 +399,11 @@ struct dvb_pll_desc dvb_pll_samsung_tbmv = {
 		{ 999999999, 166667, 0xfc, 0x02 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_samsung_tbmv);
 
 /*
  * Philips SD1878 Tuner.
  */
-struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
+static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	.name  = "Philips SD1878",
 	.min   =  950000,
 	.max   = 2150000,
@@ -391,19 +416,18 @@ struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 		{ 2150000, 500, 0xc4, 0xc0},
 	},
 };
-EXPORT_SYMBOL(dvb_pll_philips_sd1878_tda8261);
 
 /*
  * Philips TD1316 Tuner.
  */
-static void td1316_bw(u8 *buf, u32 freq, int bandwidth)
+static void td1316_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
 	u8 band;
 
 	/* determine band */
-	if (freq < 161000000)
+	if (params->frequency < 161000000)
 		band = 1;
-	else if (freq < 444000000)
+	else if (params->frequency < 444000000)
 		band = 2;
 	else
 		band = 4;
@@ -411,16 +435,16 @@ static void td1316_bw(u8 *buf, u32 freq, int bandwidth)
 	buf[3] |= band;
 
 	/* setup PLL filter */
-	if (bandwidth == BANDWIDTH_8_MHZ)
+	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 1 << 3;
 }
 
-struct dvb_pll_desc dvb_pll_philips_td1316 = {
+static struct dvb_pll_desc dvb_pll_philips_td1316 = {
 	.name  = "Philips TD1316",
 	.min   =  87000000,
 	.max   = 895000000,
 	.iffreq= 36166667,
-	.setbw = td1316_bw,
+	.set   = td1316_bw,
 	.count = 9,
 	.entries = {
 		{  93834000, 166667, 0xca, 0x60},
@@ -434,10 +458,9 @@ struct dvb_pll_desc dvb_pll_philips_td1316 = {
 		{ 858834000, 166667, 0xca, 0xe0},
 	},
 };
-EXPORT_SYMBOL(dvb_pll_philips_td1316);
 
 /* FE6600 used on DViCO Hybrid */
-struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
+static struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 	.name = "Thomson FE6600",
 	.min =  44250000,
 	.max = 858000000,
@@ -450,19 +473,19 @@ struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 		{ 999999999, 166667, 0xf4, 0x18 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
-static void opera1_bw(u8 *buf, u32 freq, int bandwidth)
+
+static void opera1_bw(u8 *buf, const struct dvb_frontend_parameters *params)
 {
-	if (bandwidth == BANDWIDTH_8_MHZ)
+	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[2] |= 0x08;
 }
 
-struct dvb_pll_desc dvb_pll_opera1 = {
+static struct dvb_pll_desc dvb_pll_opera1 = {
 	.name  = "Opera Tuner",
 	.min   =  900000,
 	.max   = 2250000,
 	.iffreq= 0,
-	.setbw = opera1_bw,
+	.set   = opera1_bw,
 	.count = 8,
 	.entries = {
 		{ 1064000, 500, 0xe5, 0xc6 },
@@ -475,7 +498,54 @@ struct dvb_pll_desc dvb_pll_opera1 = {
 		{ 2250000, 500, 0xe5, 0xc4 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_opera1);
+
+/* Philips FCV1236D
+ */
+struct dvb_pll_desc dvb_pll_fcv1236d = {
+/* Bit_0: RF Input select
+ * Bit_1: 0=digital, 1=analog
+ */
+	.name  = "Philips FCV1236D",
+	.min   =  53000000,
+	.max   = 803000000,
+	.iffreq= 44000000,
+	.count = 3,
+	.entries = {
+		{ 159000000, 62500, 0x8e, 0xa0 },
+		{ 453000000, 62500, 0x8e, 0x90 },
+		{ 999999999, 62500, 0x8e, 0x30 },
+	},
+};
+
+/* ----------------------------------------------------------- */
+
+static struct dvb_pll_desc *pll_list[] = {
+	[DVB_PLL_UNDEFINED]              = NULL,
+	[DVB_PLL_THOMSON_DTT7579]        = &dvb_pll_thomson_dtt7579,
+	[DVB_PLL_THOMSON_DTT759X]        = &dvb_pll_thomson_dtt759x,
+	[DVB_PLL_THOMSON_DTT7610]        = &dvb_pll_thomson_dtt7610,
+	[DVB_PLL_LG_Z201]                = &dvb_pll_lg_z201,
+	[DVB_PLL_MICROTUNE_4042]         = &dvb_pll_microtune_4042,
+	[DVB_PLL_THOMSON_DTT761X]        = &dvb_pll_thomson_dtt761x,
+	[DVB_PLL_UNKNOWN_1]              = &dvb_pll_unknown_1,
+	[DVB_PLL_TUA6010XS]              = &dvb_pll_tua6010xs,
+	[DVB_PLL_ENV57H1XD5]             = &dvb_pll_env57h1xd5,
+	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
+	[DVB_PLL_LG_TDVS_H06XF]          = &dvb_pll_lg_tdvs_h06xf,
+	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
+	[DVB_PLL_FMD1216ME]              = &dvb_pll_fmd1216me,
+	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
+	[DVB_PLL_TUV1236D]               = &dvb_pll_tuv1236d,
+	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
+	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
+	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
+	[DVB_PLL_PHILIPS_TD1316]         = &dvb_pll_philips_td1316,
+	[DVB_PLL_THOMSON_FE6600]         = &dvb_pll_thomson_fe6600,
+	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
+	[DVB_PLL_FCV1236D]               = &dvb_pll_fcv1236d,
+};
+
+/* ----------------------------------------------------------- */
 
 struct dvb_pll_priv {
 	/* i2c details */
@@ -497,35 +567,37 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
-		      u32 freq, int bandwidth)
+static int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
+			     const struct dvb_frontend_parameters *params)
 {
 	u32 div;
 	int i;
 
-	if (freq != 0 && (freq < desc->min || freq > desc->max))
-	    return -EINVAL;
+	if (params->frequency != 0 && (params->frequency < desc->min ||
+				       params->frequency > desc->max))
+		return -EINVAL;
 
 	for (i = 0; i < desc->count; i++) {
-		if (freq > desc->entries[i].limit)
+		if (params->frequency > desc->entries[i].limit)
 			continue;
 		break;
 	}
+
 	if (debug)
-		printk("pll: %s: freq=%d bw=%d | i=%d/%d\n",
-		       desc->name, freq, bandwidth, i, desc->count);
+		printk("pll: %s: freq=%d | i=%d/%d\n", desc->name,
+		       params->frequency, i, desc->count);
 	if (i == desc->count)
 		return -EINVAL;
 
-	div = (freq + desc->iffreq + desc->entries[i].stepsize/2) /
-	      desc->entries[i].stepsize;
+	div = (params->frequency + desc->iffreq +
+	       desc->entries[i].stepsize/2) / desc->entries[i].stepsize;
 	buf[0] = div >> 8;
 	buf[1] = div & 0xff;
 	buf[2] = desc->entries[i].config;
 	buf[3] = desc->entries[i].cb;
 
-	if (desc->setbw)
-		desc->setbw(buf, freq, bandwidth);
+	if (desc->set)
+		desc->set(buf, params);
 
 	if (debug)
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
@@ -534,7 +606,6 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	// calculate the frequency we set it to
 	return (div * desc->entries[i].stepsize) - desc->iffreq;
 }
-EXPORT_SYMBOL(dvb_pll_configure);
 
 static int dvb_pll_release(struct dvb_frontend *fe)
 {
@@ -578,18 +649,12 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 		{ .addr = priv->pll_i2c_address, .flags = 0,
 		  .buf = buf, .len = sizeof(buf) };
 	int result;
-	u32 bandwidth = 0, frequency = 0;
+	u32 frequency = 0;
 
 	if (priv->i2c == NULL)
 		return -EINVAL;
 
-	// DVBT bandwidth only just now
-	if (fe->ops.info.type == FE_OFDM) {
-		bandwidth = params->u.ofdm.bandwidth;
-	}
-
-	if ((result = dvb_pll_configure(priv->pll_desc, buf,
-					params->frequency, bandwidth)) < 0)
+	if ((result = dvb_pll_configure(priv->pll_desc, buf, params)) < 0)
 		return result;
 	else
 		frequency = result;
@@ -601,7 +666,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 	}
 
 	priv->frequency = frequency;
-	priv->bandwidth = bandwidth;
+	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 
 	return 0;
 }
@@ -612,18 +677,12 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	int result;
-	u32 bandwidth = 0, frequency = 0;
+	u32 frequency = 0;
 
 	if (buf_len < 5)
 		return -EINVAL;
 
-	// DVBT bandwidth only just now
-	if (fe->ops.info.type == FE_OFDM) {
-		bandwidth = params->u.ofdm.bandwidth;
-	}
-
-	if ((result = dvb_pll_configure(priv->pll_desc, buf+1,
-					params->frequency, bandwidth)) < 0)
+	if ((result = dvb_pll_configure(priv->pll_desc, buf+1, params)) < 0)
 		return result;
 	else
 		frequency = result;
@@ -631,7 +690,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 	buf[0] = priv->pll_i2c_address;
 
 	priv->frequency = frequency;
-	priv->bandwidth = bandwidth;
+	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 
 	return 5;
 }
@@ -687,13 +746,18 @@ static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 
 struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 				    struct i2c_adapter *i2c,
-				    struct dvb_pll_desc *desc)
+				    unsigned int pll_desc_id)
 {
 	u8 b1 [] = { 0 };
 	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD,
 			       .buf = b1, .len = 1 };
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
+	struct dvb_pll_desc *desc;
+
+	BUG_ON(pll_desc_id < 1 || pll_desc_id >= ARRAY_SIZE(pll_list));
+
+	desc = pll_list[pll_desc_id];
 
 	if (i2c != NULL) {
 		if (fe->ops.i2c_gate_ctrl)

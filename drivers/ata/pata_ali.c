@@ -455,23 +455,21 @@ static struct ata_port_operations ali_c5_port_ops = {
 
 static void ali_init_chipset(struct pci_dev *pdev)
 {
-	u8 rev, tmp;
+	u8 tmp;
 	struct pci_dev *north, *isa_bridge;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 
 	/*
 	 * The chipset revision selects the driver operations and
 	 * mode data.
 	 */
 
-	if (rev >= 0x20 && rev < 0xC2) {
+	if (pdev->revision >= 0x20 && pdev->revision < 0xC2) {
 		/* 1543-E/F, 1543C-C, 1543C-D, 1543C-E */
 		pci_read_config_byte(pdev, 0x4B, &tmp);
 		/* Clear CD-ROM DMA write bit */
 		tmp &= 0x7F;
 		pci_write_config_byte(pdev, 0x4B, tmp);
-	} else if (rev >= 0xC2) {
+	} else if (pdev->revision >= 0xC2) {
 		/* Enable cable detection logic */
 		pci_read_config_byte(pdev, 0x4B, &tmp);
 		pci_write_config_byte(pdev, 0x4B, tmp | 0x08);
@@ -483,21 +481,21 @@ static void ali_init_chipset(struct pci_dev *pdev)
 		/* Configure the ALi bridge logic. For non ALi rely on BIOS.
 		   Set the south bridge enable bit */
 		pci_read_config_byte(isa_bridge, 0x79, &tmp);
-		if (rev == 0xC2)
+		if (pdev->revision == 0xC2)
 			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x04);
-		else if (rev > 0xC2 && rev < 0xC5)
+		else if (pdev->revision > 0xC2 && pdev->revision < 0xC5)
 			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
 	}
-	if (rev >= 0x20) {
+	if (pdev->revision >= 0x20) {
 		/*
 		 * CD_ROM DMA on (0x53 bit 0). Enable this even if we want
 		 * to use PIO. 0x53 bit 1 (rev 20 only) - enable FIFO control
 		 * via 0x54/55.
 		 */
 		pci_read_config_byte(pdev, 0x53, &tmp);
-		if (rev <= 0x20)
+		if (pdev->revision <= 0x20)
 			tmp &= ~0x02;
-		if (rev >= 0xc7)
+		if (pdev->revision >= 0xc7)
 			tmp |= 0x03;
 		else
 			tmp |= 0x01;	/* CD_ROM enable for DMA */
@@ -520,14 +518,14 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_early = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &ali_early_port_ops
 	};
 	/* Revision 0x20 added DMA */
 	static const struct ata_port_info info_20 = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &ali_20_port_ops
@@ -535,7 +533,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Revision 0x20 with support logic added UDMA */
 	static const struct ata_port_info info_20_udma = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.udma_mask = 0x07,	/* UDMA33 */
@@ -544,60 +542,58 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Revision 0xC2 adds UDMA66 */
 	static const struct ata_port_info info_c2 = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
-		.udma_mask = 0x1f,
+		.udma_mask = ATA_UDMA4,
 		.port_ops = &ali_c2_port_ops
 	};
-	/* Revision 0xC3 is UDMA100 */
+	/* Revision 0xC3 is UDMA66 for now */
 	static const struct ata_port_info info_c3 = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
-		.udma_mask = 0x3f,
+		.udma_mask = ATA_UDMA4,
 		.port_ops = &ali_c2_port_ops
 	};
-	/* Revision 0xC4 is UDMA133 */
+	/* Revision 0xC4 is UDMA100 */
 	static const struct ata_port_info info_c4 = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
-		.udma_mask = 0x7f,
+		.udma_mask = ATA_UDMA5,
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC5 is UDMA133 with LBA48 DMA */
 	static const struct ata_port_info info_c5 = {
 		.sht = &ali_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
-		.udma_mask = 0x7f,
+		.udma_mask = ATA_UDMA6,
 		.port_ops = &ali_c5_port_ops
 	};
 
 	const struct ata_port_info *ppi[] = { NULL, NULL };
-	u8 rev, tmp;
+	u8 tmp;
 	struct pci_dev *isa_bridge;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 
 	/*
 	 * The chipset revision selects the driver operations and
 	 * mode data.
 	 */
 
-	if (rev < 0x20) {
+	if (pdev->revision < 0x20) {
 		ppi[0] = &info_early;
-	} else if (rev < 0xC2) {
+	} else if (pdev->revision < 0xC2) {
         	ppi[0] = &info_20;
-	} else if (rev == 0xC2) {
+	} else if (pdev->revision == 0xC2) {
         	ppi[0] = &info_c2;
-	} else if (rev == 0xC3) {
+	} else if (pdev->revision == 0xC3) {
         	ppi[0] = &info_c3;
-	} else if (rev == 0xC4) {
+	} else if (pdev->revision == 0xC4) {
         	ppi[0] = &info_c4;
 	} else
         	ppi[0] = &info_c5;
@@ -605,7 +601,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ali_init_chipset(pdev);
 
 	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
-	if (isa_bridge && rev >= 0x20 && rev < 0xC2) {
+	if (isa_bridge && pdev->revision >= 0x20 && pdev->revision < 0xC2) {
 		/* Are we paired with a UDMA capable chip */
 		pci_read_config_byte(isa_bridge, 0x5E, &tmp);
 		if ((tmp & 0x1E) == 0x12)

@@ -137,6 +137,15 @@ static void init_av7110_av(struct av7110 *av7110)
 	if (ret < 0)
 		printk("dvb-ttpci:cannot set internal volume to maximum:%d\n",ret);
 
+	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetMonitorType,
+			    1, (u16) av7110->display_ar);
+	if (ret < 0)
+		printk("dvb-ttpci: unable to set aspect ratio\n");
+	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
+			    1, av7110->display_panscan);
+	if (ret < 0)
+		printk("dvb-ttpci: unable to set pan scan\n");
+
 	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 2, 2, wss_cfg_4_3);
 	if (ret < 0)
 		printk("dvb-ttpci: unable to configure 4:3 wss\n");
@@ -2639,11 +2648,11 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	av7110->mixer.volume_left  = volume;
 	av7110->mixer.volume_right = volume;
 
-	init_av7110_av(av7110);
-
 	ret = av7110_register(av7110);
 	if (ret < 0)
 		goto err_arm_thread_stop_10;
+
+	init_av7110_av(av7110);
 
 	/* special case DVB-C: these cards have an analog tuner
 	   plus need some special handling, so we have separate

@@ -41,6 +41,9 @@ struct sm501_devdata {
 	struct resource			*regs_claim;
 	struct sm501_platdata		*platdata;
 
+	unsigned int			 in_suspend;
+	unsigned long			 pm_misc;
+
 	int				 unit_power[20];
 	unsigned int			 pdev_id;
 	unsigned int			 irq;
@@ -169,10 +172,41 @@ x		 "M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		fmt_freq(decode_div(pll2, pm1, 8,  1<<12, 15, misc_div)),
 		fmt_freq(decode_div(pll2, pm1, 0,  1<<4,  15, misc_div)));
 }
-#else
-static void sm501_dump_clk(struct sm501_devdata *sm)
+
+static void sm501_dump_regs(struct sm501_devdata *sm)
 {
+	void __iomem *regs = sm->regs;
+
+	dev_info(sm->dev, "System Control   %08x\n",
+			readl(regs + SM501_SYSTEM_CONTROL));
+	dev_info(sm->dev, "Misc Control     %08x\n",
+			readl(regs + SM501_MISC_CONTROL));
+	dev_info(sm->dev, "GPIO Control Low %08x\n",
+			readl(regs + SM501_GPIO31_0_CONTROL));
+	dev_info(sm->dev, "GPIO Control Hi  %08x\n",
+			readl(regs + SM501_GPIO63_32_CONTROL));
+	dev_info(sm->dev, "DRAM Control     %08x\n",
+			readl(regs + SM501_DRAM_CONTROL));
+	dev_info(sm->dev, "Arbitration Ctrl %08x\n",
+			readl(regs + SM501_ARBTRTN_CONTROL));
+	dev_info(sm->dev, "Misc Timing      %08x\n",
+			readl(regs + SM501_MISC_TIMING));
 }
+
+static void sm501_dump_gate(struct sm501_devdata *sm)
+{
+	dev_info(sm->dev, "CurrentGate      %08x\n",
+			readl(sm->regs + SM501_CURRENT_GATE));
+	dev_info(sm->dev, "CurrentClock     %08x\n",
+			readl(sm->regs + SM501_CURRENT_CLOCK));
+	dev_info(sm->dev, "PowerModeControl %08x\n",
+			readl(sm->regs + SM501_POWER_MODE_CONTROL));
+}
+
+#else
+static inline void sm501_dump_gate(struct sm501_devdata *sm) { }
+static inline void sm501_dump_regs(struct sm501_devdata *sm) { }
+static inline void sm501_dump_clk(struct sm501_devdata *sm) { }
 #endif
 
 /* sm501_sync_regs
@@ -185,9 +219,21 @@ static void sm501_sync_regs(struct sm501_devdata *sm)
 	readl(sm->regs);
 }
 
+static inline void sm501_mdelay(struct sm501_devdata *sm, unsigned int delay)
+{
+	/* during suspend/resume, we are currently not allowed to sleep,
+	 * so change to using mdelay() instead of msleep() if we
+	 * are in one of these paths */
+
+	if (sm->in_suspend)
+		mdelay(delay);
+	else
+		msleep(delay);
+}
+
 /* sm501_misc_control
  *
- * alters the misceleneous control parameters
+ * alters the miscellaneous control parameters
 */
 
 int sm501_misc_control(struct device *dev,
@@ -368,7 +414,7 @@ int sm501_unit_power(struct device *dev, unsigned int unit, unsigned int to)
 	dev_dbg(sm->dev, "gate %08lx, clock %08lx, mode %08lx\n",
 		gate, clock, mode);
 
-	msleep(16);
+	sm501_mdelay(sm, 16);
 
  already:
 	mutex_unlock(&sm->clock_lock);
@@ -538,7 +584,7 @@ unsigned long sm501_set_clock(struct device *dev,
 	dev_info(sm->dev, "gate %08lx, clock %08lx, mode %08lx\n",
 		 gate, clock, mode);
 
-	msleep(16);
+	sm501_mdelay(sm, 16);
 	mutex_unlock(&sm->clock_lock);
 
 	sm501_dump_clk(sm);
@@ -767,6 +813,9 @@ static DEVICE_ATTR(dbg_regs, 0666, sm501_dbg_regs, NULL);
 /* sm501_init_reg
  *
  * Helper function for the init code to setup a register
+ *
+ * clear the bits which are set in r->mask, and then set
+ * the bits set in r->set.
 */
 
 static inline void sm501_init_reg(struct sm501_devdata *sm,
@@ -776,8 +825,8 @@ static inline void sm501_init_reg(struct sm501_devdata *sm,
 	unsigned long tmp;
 
 	tmp = readl(sm->regs + reg);
-	tmp |= r->set;
 	tmp &= ~r->mask;
+	tmp |= r->set;
 	writel(tmp, sm->regs + reg);
 }
 
@@ -797,15 +846,33 @@ static void sm501_init_regs(struct sm501_devdata *sm,
 	sm501_init_reg(sm, SM501_GPIO31_0_CONTROL, &init->gpio_low);
 	sm501_init_reg(sm, SM501_GPIO63_32_CONTROL, &init->gpio_high);
 
+	if (init->m1xclk) {
+		dev_info(sm->dev, "setting M1XCLK to %ld\n", init->m1xclk);
+		sm501_set_clock(sm->dev, SM501_CLOCK_M1XCLK, init->m1xclk);
+	}
+
 	if (init->mclk) {
 		dev_info(sm->dev, "setting MCLK to %ld\n", init->mclk);
 		sm501_set_clock(sm->dev, SM501_CLOCK_MCLK, init->mclk);
 	}
 
-	if (init->m1xclk) {
-		dev_info(sm->dev, "setting M1XCLK to %ld\n", init->m1xclk);
-		sm501_set_clock(sm->dev, SM501_CLOCK_M1XCLK, init->m1xclk);
-	}
+}
+
+/* Check the PLL sources for the M1CLK and M1XCLK
+ *
+ * If the M1CLK and M1XCLKs are not sourced from the same PLL, then
+ * there is a risk (see errata AB-5) that the SM501 will cease proper
+ * function. If this happens, then it is likely the SM501 will
+ * hang the system.
+*/
+
+static int sm501_check_clocks(struct sm501_devdata *sm)
+{
+	unsigned long pwrmode = readl(sm->regs + SM501_CURRENT_CLOCK);
+	unsigned long msrc = (pwrmode & SM501_POWERMODE_M_SRC);
+	unsigned long m1src = (pwrmode & SM501_POWERMODE_M1_SRC);
+
+	return ((msrc == 0 && m1src != 0) || (msrc != 0 && m1src == 0));
 }
 
 static unsigned int sm501_mem_local[] = {
@@ -826,6 +893,7 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 {
 	resource_size_t mem_avail;
 	unsigned long dramctrl;
+	unsigned long devid;
 	int ret;
 
 	mutex_init(&sm->clock_lock);
@@ -833,17 +901,20 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	INIT_LIST_HEAD(&sm->devices);
 
-	dramctrl = readl(sm->regs + SM501_DRAM_CONTROL);
+	devid = readl(sm->regs + SM501_DEVICEID);
 
+	if ((devid & SM501_DEVICEID_IDMASK) != SM501_DEVICEID_SM501) {
+		dev_err(sm->dev, "incorrect device id %08lx\n", devid);
+		return -EINVAL;
+	}
+
+	dramctrl = readl(sm->regs + SM501_DRAM_CONTROL);
 	mem_avail = sm501_mem_local[(dramctrl >> 13) & 0x7];
 
-	dev_info(sm->dev, "SM501 At %p: Version %08x, %ld Mb, IRQ %d\n",
-		 sm->regs, readl(sm->regs + SM501_DEVICEID),
-		 (unsigned long)mem_avail >> 20, sm->irq);
+	dev_info(sm->dev, "SM501 At %p: Version %08lx, %ld Mb, IRQ %d\n",
+		 sm->regs, devid, (unsigned long)mem_avail >> 20, sm->irq);
 
-	dev_info(sm->dev, "CurrentGate      %08x\n", readl(sm->regs+0x38));
-	dev_info(sm->dev, "CurrentClock     %08x\n", readl(sm->regs+0x3c));
-	dev_info(sm->dev, "PowerModeControl %08x\n", readl(sm->regs+0x54));
+	sm501_dump_gate(sm);
 
 	ret = device_create_file(sm->dev, &dev_attr_dbg_regs);
 	if (ret)
@@ -862,6 +933,13 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 			if (pdata->init->devices & SM501_USE_USB_HOST)
 				sm501_register_usbhost(sm, &mem_avail);
 		}
+	}
+
+	ret = sm501_check_clocks(sm);
+	if (ret) {
+		dev_err(sm->dev, "M1X and M clocks sourced from different "
+					"PLLs\n");
+		return -EINVAL;
 	}
 
 	/* always create a framebuffer */
@@ -933,6 +1011,57 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 }
 
+#ifdef CONFIG_PM
+/* power management support */
+
+static int sm501_plat_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct sm501_devdata *sm = platform_get_drvdata(pdev);
+
+	sm->in_suspend = 1;
+	sm->pm_misc = readl(sm->regs + SM501_MISC_CONTROL);
+
+	sm501_dump_regs(sm);
+	return 0;
+}
+
+static int sm501_plat_resume(struct platform_device *pdev)
+{
+	struct sm501_devdata *sm = platform_get_drvdata(pdev);
+
+	sm501_dump_regs(sm);
+	sm501_dump_gate(sm);
+	sm501_dump_clk(sm);
+
+	/* check to see if we are in the same state as when suspended */
+
+	if (readl(sm->regs + SM501_MISC_CONTROL) != sm->pm_misc) {
+		dev_info(sm->dev, "SM501_MISC_CONTROL changed over sleep\n");
+		writel(sm->pm_misc, sm->regs + SM501_MISC_CONTROL);
+
+		/* our suspend causes the controller state to change,
+		 * either by something attempting setup, power loss,
+		 * or an external reset event on power change */
+
+		if (sm->platdata && sm->platdata->init) {
+			sm501_init_regs(sm, sm->platdata->init);
+		}
+	}
+
+	/* dump our state from resume */
+
+	sm501_dump_regs(sm);
+	sm501_dump_clk(sm);
+
+	sm->in_suspend = 0;
+
+	return 0;
+}
+#else
+#define sm501_plat_suspend NULL
+#define sm501_plat_resume NULL
+#endif
+
 /* Initialisation data for PCI devices */
 
 static struct sm501_initdata sm501_pci_initdata = {
@@ -950,8 +1079,12 @@ static struct sm501_initdata sm501_pci_initdata = {
 	},
 
 	.devices	= SM501_USE_ALL,
-	.mclk		= 100 * MHZ,
-	.m1xclk		= 160 * MHZ,
+
+	/* Errata AB-3 says that 72MHz is the fastest available
+	 * for 33MHZ PCI with proper bus-mastering operation */
+
+	.mclk		= 72 * MHZ,
+	.m1xclk		= 144 * MHZ,
 };
 
 static struct sm501_platdata_fbsub sm501_pdata_fbsub = {
@@ -1126,6 +1259,8 @@ static struct platform_driver sm501_plat_drv = {
 	},
 	.probe		= sm501_plat_probe,
 	.remove		= sm501_plat_remove,
+	.suspend	= sm501_plat_suspend,
+	.resume		= sm501_plat_resume,
 };
 
 static int __init sm501_base_init(void)

@@ -31,10 +31,12 @@
 #include <linux/cn_proc.h>
 #include <linux/getcpu.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/seccomp.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
+#include <linux/user_namespace.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -1078,13 +1080,13 @@ static int set_user(uid_t new_ruid, int dumpclear)
 {
 	struct user_struct *new_user;
 
-	new_user = alloc_uid(new_ruid);
+	new_user = alloc_uid(current->nsproxy->user_ns, new_ruid);
 	if (!new_user)
 		return -EAGAIN;
 
 	if (atomic_read(&new_user->processes) >=
 				current->signal->rlim[RLIMIT_NPROC].rlim_cur &&
-			new_user != &root_user) {
+			new_user != current->nsproxy->user_ns->root_user) {
 		free_uid(new_user);
 		return -EAGAIN;
 	}
@@ -2241,6 +2243,13 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			error = SET_ENDIAN(current, arg2);
 			break;
 
+		case PR_GET_SECCOMP:
+			error = prctl_get_seccomp();
+			break;
+		case PR_SET_SECCOMP:
+			error = prctl_set_seccomp(arg2);
+			break;
+
 		default:
 			error = -EINVAL;
 			break;
@@ -2277,3 +2286,61 @@ asmlinkage long sys_getcpu(unsigned __user *cpup, unsigned __user *nodep,
 	}
 	return err ? -EFAULT : 0;
 }
+
+char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
+
+static void argv_cleanup(char **argv, char **envp)
+{
+	argv_free(argv);
+}
+
+/**
+ * orderly_poweroff - Trigger an orderly system poweroff
+ * @force: force poweroff if command execution fails
+ *
+ * This may be called from any context to trigger a system shutdown.
+ * If the orderly shutdown fails, it will force an immediate shutdown.
+ */
+int orderly_poweroff(bool force)
+{
+	int argc;
+	char **argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
+	static char *envp[] = {
+		"HOME=/",
+		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
+		NULL
+	};
+	int ret = -ENOMEM;
+	struct subprocess_info *info;
+
+	if (argv == NULL) {
+		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
+		       __func__, poweroff_cmd);
+		goto out;
+	}
+
+	info = call_usermodehelper_setup(argv[0], argv, envp);
+	if (info == NULL) {
+		argv_free(argv);
+		goto out;
+	}
+
+	call_usermodehelper_setcleanup(info, argv_cleanup);
+
+	ret = call_usermodehelper_exec(info, UMH_NO_WAIT);
+
+  out:
+	if (ret && force) {
+		printk(KERN_WARNING "Failed to start orderly shutdown: "
+		       "forcing the issue\n");
+
+		/* I guess this should try to kick off some daemon to
+		   sync and poweroff asap.  Or not even bother syncing
+		   if we're doing an emergency shutdown? */
+		emergency_sync();
+		kernel_power_off();
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(orderly_poweroff);

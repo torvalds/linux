@@ -27,15 +27,27 @@
 
 #include "atstk1000.h"
 
-#define	SW2_DEFAULT		/* MMCI and UART_A available */
 
 struct eth_addr {
 	u8 addr[6];
 };
 
 static struct eth_addr __initdata hw_addr[2];
-static struct eth_platform_data __initdata eth_data[2];
+static struct eth_platform_data __initdata eth_data[2] = {
+	{
+		/*
+		 * The MDIO pullups on STK1000 are a bit too weak for
+		 * the autodetection to work properly, so we have to
+		 * mask out everything but the correct address.
+		 */
+		.phy_mask	= ~(1U << 16),
+	},
+	{
+		.phy_mask	= ~(1U << 17),
+	},
+};
 
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
 		/* QVGA display */
@@ -45,6 +57,13 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 		.mode		= SPI_MODE_3,
 	},
 };
+#endif
+
+#ifdef CONFIG_BOARD_ATSTK1002_SPI1
+static struct spi_board_info spi1_board_info[] __initdata = { {
+	/* patch in custom entries here */
+} };
+#endif
 
 /*
  * The next two functions should go away as the boot loader is
@@ -103,10 +122,10 @@ static void __init set_hw_addr(struct platform_device *pdev)
 
 void __init setup_board(void)
 {
-#ifdef	SW2_DEFAULT
-	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
-#else
+#ifdef	CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
 	at32_map_usart(0, 1);	/* USART 0/B: /dev/ttyS1, IRDA */
+#else
+	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
 #endif
 	/* USART 2/unused: expansion connector */
 	at32_map_usart(3, 2);	/* USART 3/C: /dev/ttyS2, DB9 */
@@ -140,18 +159,31 @@ static int __init atstk1002_init(void)
 
 	at32_add_system_devices();
 
-#ifdef	SW2_DEFAULT
-	at32_add_device_usart(0);
-#else
+#ifdef	CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
 	at32_add_device_usart(1);
+#else
+	at32_add_device_usart(0);
 #endif
 	at32_add_device_usart(2);
 
+#ifndef CONFIG_BOARD_ATSTK1002_SW6_CUSTOM
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
-
+#endif
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
+#endif
+#ifdef CONFIG_BOARD_ATSTK1002_SPI1
+	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
+#endif
+#ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
+	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
+#else
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
 			     fbmem_start, fbmem_size);
+#endif
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+	at32_add_device_ssc(0, ATMEL_SSC_TX);
+#endif
 
 	return 0;
 }

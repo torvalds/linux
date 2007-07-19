@@ -216,4 +216,20 @@ config MOUSE_HIL
 	help
 	  Say Y here to support HIL pointers.
 
+config MOUSE_GPIO
+	tristate "GPIO mouse"
+	depends on GENERIC_GPIO
+	select INPUT_POLLDEV
+	help
+	  This driver simulates a mouse on GPIO lines of various CPUs (and some
+	  other chips).
+
+	  Say Y here if your device has buttons or a simple joystick connected
+	  directly to GPIO lines. Your board-specific setup logic must also
+	  provide a platform device and platform data saying which GPIOs are
+	  used.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio_mouse.
+
 endif

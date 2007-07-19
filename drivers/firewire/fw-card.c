@@ -336,8 +336,11 @@ fw_card_bm_work(struct work_struct *work)
 	}
 
  pick_me:
-	/* Now figure out what gap count to set. */
-	if (card->topology_type == FW_TOPOLOGY_A &&
+	/*
+	 * Pick a gap count from 1394a table E-1.  The table doesn't cover
+	 * the typically much larger 1394b beta repeater delays though.
+	 */
+	if (!card->beta_repeaters_present &&
 	    card->root_node->max_hops < ARRAY_SIZE(gap_count_table))
 		gap_count = gap_count_table[card->root_node->max_hops];
 	else

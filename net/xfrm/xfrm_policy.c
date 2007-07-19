@@ -2141,7 +2141,7 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		if (last == first)
 			break;
 
-		last = last->u.next;
+		last = (struct xfrm_dst *)last->u.dst.next;
 		last->child_mtu_cached = mtu;
 	}
 

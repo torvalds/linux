@@ -62,7 +62,21 @@ config SERIAL_8250_CONSOLE
 	  kernel will automatically use the first serial line, /dev/ttyS0, as
 	  system console.
 
+	  you can set that using a kernel command line option such as
+	  "console=uart8250,io,0x3f8,9600n8"
+	  "console=uart8250,mmio,0xff5e0000,115200n8".
+	  and it will switch to normal serial console when correponding port is
+	  ready.
+	  "earlycon=uart8250,io,0x3f8,9600n8"
+	  "earlycon=uart8250,mmio,0xff5e0000,115200n8".
+	  it will not only setup early console.
+
 	  If unsure, say N.
+
+config FIX_EARLYCON_MEM
+	bool
+	depends on X86
+	default y
 
 config SERIAL_8250_GSC
 	tristate
@@ -324,6 +338,34 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_SB1250_DUART
+	tristate "BCM1xxx on-chip DUART serial support"
+	depends on SIBYTE_SB1xxx_SOC=y
+	select SERIAL_CORE
+	default y
+	---help---
+	  Support for the asynchronous serial interface (DUART) included in
+	  the BCM1250 and derived System-On-a-Chip (SOC) devices.  Note that
+	  the letter D in DUART stands for "dual", which is how the device
+	  is implemented.  Depending on the SOC configuration there may be
+	  one or more DUARTs available of which all are handled.
+
+	  If unsure, say Y.  To compile this driver as a module, choose M here:
+	  the module will be called sb1250-duart.
+
+config SERIAL_SB1250_DUART_CONSOLE
+	bool "Support for console on a BCM1xxx DUART serial port"
+	depends on SERIAL_SB1250_DUART=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  If unsure, say Y.
+
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
 	depends on (ARM && ARCH_AT91) || AVR32
@@ -444,6 +486,36 @@ config SERIAL_DZ_CONSOLE
 
 	  If unsure, say Y.
 
+config SERIAL_ZS
+	tristate "DECstation Z85C30 serial support"
+	depends on MACH_DECSTATION
+	select SERIAL_CORE
+	default y
+	---help---
+	  Support for the Zilog 85C350 serial communications controller used
+	  for serial ports in newer DECstation systems.  These include the
+	  DECsystem 5900 and all models of the DECstation and DECsystem 5000
+	  systems except from model 200.
+
+	  If unsure, say Y.  To compile this driver as a module, choose M here:
+	  the module will be called zs.
+
+config SERIAL_ZS_CONSOLE
+	bool "Support for console on a DECstation Z85C30 serial port"
+	depends on SERIAL_ZS=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  Note that the firmware uses ttyS1 as the serial console on the
+	  Maxine and ttyS3 on the others using this driver.
+
+	  If unsure, say Y.
+
 config SERIAL_21285
 	tristate "DC21285 serial port support"
 	depends on ARM && FOOTBRIDGE
@@ -556,7 +628,7 @@ choice
 
 config SERIAL_BFIN_DMA
 	bool "DMA mode"
-	depends on DMA_UNCACHED_1M
+	depends on DMA_UNCACHED_1M && !KGDB_UART
 	help
 	  This driver works under DMA mode. If this option is selected, the
 	  blackfin simple dma driver is also enabled.
@@ -599,7 +671,7 @@ config UART0_RTS_PIN
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
-	depends on SERIAL_BFIN && (BF534 || BF536 || BF537)
+	depends on SERIAL_BFIN && (BF534 || BF536 || BF537 || BF54x)
 	help
 	  Enable UART1
 
@@ -612,17 +684,57 @@ config BFIN_UART1_CTSRTS
 
 config UART1_CTS_PIN
 	int "UART1 CTS pin"
-	depends on BFIN_UART1_CTSRTS
+	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
 
 config UART1_RTS_PIN
 	int "UART1 RTS pin"
-	depends on BFIN_UART1_CTSRTS
+	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config SERIAL_BFIN_UART2
+	bool "Enable UART2"
+	depends on SERIAL_BFIN && (BF54x)
+	help
+	  Enable UART2
+
+config BFIN_UART2_CTSRTS
+	bool "Enable UART2 hardware flow control"
+	depends on SERIAL_BFIN_UART2
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
+
+config UART2_CTS_PIN
+	int "UART2 CTS pin"
+	depends on BFIN_UART2_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config UART2_RTS_PIN
+	int "UART2 RTS pin"
+	depends on BFIN_UART2_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config SERIAL_BFIN_UART3
+	bool "Enable UART3"
+	depends on SERIAL_BFIN && (BF54x)
+	help
+	  Enable UART3
+
+config BFIN_UART3_CTSRTS
+	bool "Enable UART3 hardware flow control"
+	depends on SERIAL_BFIN_UART3
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
 
 config SERIAL_IMX
 	bool "IMX serial port support"

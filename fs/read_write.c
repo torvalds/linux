@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
+#include <linux/splice.h>
 #include "read_write.h"
 
 #include <asm/uaccess.h>
@@ -25,7 +26,7 @@ const struct file_operations generic_ro_fops = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.mmap		= generic_file_readonly_mmap,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 };
 
 EXPORT_SYMBOL(generic_ro_fops);
@@ -708,7 +709,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	struct inode * in_inode, * out_inode;
 	loff_t pos;
 	ssize_t retval;
-	int fput_needed_in, fput_needed_out;
+	int fput_needed_in, fput_needed_out, fl;
 
 	/*
 	 * Get input file, and verify that it is ok..
@@ -723,7 +724,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	in_inode = in_file->f_path.dentry->d_inode;
 	if (!in_inode)
 		goto fput_in;
-	if (!in_file->f_op || !in_file->f_op->sendfile)
+	if (!in_file->f_op || !in_file->f_op->splice_read)
 		goto fput_in;
 	retval = -ESPIPE;
 	if (!ppos)
@@ -776,7 +777,18 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		count = max - pos;
 	}
 
-	retval = in_file->f_op->sendfile(in_file, ppos, count, file_send_actor, out_file);
+	fl = 0;
+#if 0
+	/*
+	 * We need to debate whether we can enable this or not. The
+	 * man page documents EAGAIN return for the output at least,
+	 * and the application is arguably buggy if it doesn't expect
+	 * EAGAIN on a non-blocking file descriptor.
+	 */
+	if (in_file->f_flags & O_NONBLOCK)
+		fl = SPLICE_F_NONBLOCK;
+#endif
+	retval = do_splice_direct(in_file, ppos, out_file, count, fl);
 
 	if (retval > 0) {
 		add_rchar(current, retval);

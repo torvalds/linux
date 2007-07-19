@@ -118,6 +118,7 @@ cflags-$(CONFIG_CPU_R4300)	+= -march=r4300 -Wa,--trap
 cflags-$(CONFIG_CPU_VR41XX)	+= -march=r4100 -Wa,--trap
 cflags-$(CONFIG_CPU_R4X00)	+= -march=r4600 -Wa,--trap
 cflags-$(CONFIG_CPU_TX49XX)	+= -march=r4600 -Wa,--trap
+cflags-$(CONFIG_CPU_LOONGSON2)	+= -march=r4600 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips32 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
 			-Wa,-mips32 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS32_R2)	+= $(call cc-option,-march=mips32r2,-mips32r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
@@ -283,19 +284,18 @@ load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
 CLEAN_FILES			+= drivers/tc/lk201-map.c
 
 #
-# Galileo EV64120 Board
-#
-core-$(CONFIG_MIPS_EV64120)	+= arch/mips/gt64120/ev64120/
-core-$(CONFIG_MIPS_EV64120)	+= arch/mips/gt64120/common/
-cflags-$(CONFIG_MIPS_EV64120)	+= -Iinclude/asm-mips/mach-ev64120
-load-$(CONFIG_MIPS_EV64120)	+= 0xffffffff80100000
-
-#
 # Wind River PPMC Board (4KC + GT64120)
 #
 core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/
 cflags-$(CONFIG_WR_PPMC)		+= -Iinclude/asm-mips/mach-wrppmc
 load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
+
+#
+# lemote fulong mini-PC board
+#
+core-$(CONFIG_LEMOTE_FULONG) +=arch/mips/lemote/lm2e/
+load-$(CONFIG_LEMOTE_FULONG) +=0xffffffff80100000
+cflags-$(CONFIG_LEMOTE_FULONG) += -Iinclude/asm-mips/mach-lemote
 
 #
 # For all MIPS, Inc. eval boards
@@ -327,7 +327,7 @@ load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
 #
 # MIPS SIM
 #
-core-$(CONFIG_MIPS_SIM)		+= arch/mips/mips-boards/sim/
+core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
 cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-sim
 load-$(CONFIG_MIPS_SIM)		+= 0x80100000
 
@@ -343,12 +343,12 @@ cflags-$(CONFIG_MOMENCO_OCELOT)	+= -Iinclude/asm-mips/mach-ocelot
 load-$(CONFIG_MOMENCO_OCELOT)	+= 0xffffffff80100000
 
 #
-# Momentum Ocelot-C and -CS boards
+# PMC-Sierra MSP SOCs
 #
-# The Ocelot-C[S] setup.o must be linked early - it does the ioremap() for the
-# mips_io_port_base.
-core-$(CONFIG_MOMENCO_OCELOT_C)	+= arch/mips/momentum/ocelot_c/
-load-$(CONFIG_MOMENCO_OCELOT_C)	+= 0xffffffff80100000
+core-$(CONFIG_PMC_MSP)		+= arch/mips/pmc-sierra/msp71xx/
+cflags-$(CONFIG_PMC_MSP)	+= -Iinclude/asm-mips/pmc-sierra/msp71xx \
+					-mno-branch-likely
+load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
 
 #
 # PMC-Sierra Yosemite
@@ -363,13 +363,6 @@ load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 core-$(CONFIG_QEMU)		+= arch/mips/qemu/
 cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
 load-$(CONFIG_QEMU)		+= 0xffffffff80010000
-
-#
-# Momentum Ocelot-3
-#
-core-$(CONFIG_MOMENCO_OCELOT_3) 	+= arch/mips/momentum/ocelot_3/
-cflags-$(CONFIG_MOMENCO_OCELOT_3)	+= -Iinclude/asm-mips/mach-ocelot3
-load-$(CONFIG_MOMENCO_OCELOT_3) 	+= 0xffffffff80100000
 
 #
 # Basler eXcite
@@ -388,10 +381,6 @@ core-$(CONFIG_DDB5XXX_COMMON)	+= arch/mips/ddb5xxx/common/
 #
 core-$(CONFIG_DDB5477)		+= arch/mips/ddb5xxx/ddb5477/
 load-$(CONFIG_DDB5477)		+= 0xffffffff80100000
-
-core-$(CONFIG_LASAT)		+= arch/mips/lasat/
-cflags-$(CONFIG_LASAT)		+= -Iinclude/asm-mips/mach-lasat
-load-$(CONFIG_LASAT)		+= 0xffffffff80000000
 
 #
 # Common VR41xx
@@ -580,6 +569,7 @@ load-$(CONFIG_TOSHIBA_JMR3927)	+= 0xffffffff80050000
 #
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/toshiba_rbtx4927/
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/common/
+cflags-$(CONFIG_TOSHIBA_RBTX4927) += -Iinclude/asm-mips/mach-tx49xx
 load-$(CONFIG_TOSHIBA_RBTX4927)	+= 0xffffffff80020000
 
 #
@@ -587,6 +577,7 @@ load-$(CONFIG_TOSHIBA_RBTX4927)	+= 0xffffffff80020000
 #
 core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/toshiba_rbtx4938/
 core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/common/
+cflags-$(CONFIG_TOSHIBA_RBTX4938) += -Iinclude/asm-mips/mach-tx49xx
 load-$(CONFIG_TOSHIBA_RBTX4938) += 0xffffffff80100000
 
 cflags-y			+= -Iinclude/asm-mips/mach-generic
@@ -603,7 +594,8 @@ JIFFIES			= jiffies_64
 endif
 
 AFLAGS		+= $(cflags-y)
-CFLAGS		+= $(cflags-y)
+CFLAGS		+= $(cflags-y) \
+			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
 
 LDFLAGS			+= -m $(ld-emul)
 
@@ -633,17 +625,10 @@ CPPFLAGS_vmlinux.lds := \
 head-y := arch/mips/kernel/head.o arch/mips/kernel/init_task.o
 
 libs-y			+= arch/mips/lib/
-libs-$(CONFIG_32BIT)	+= arch/mips/lib-32/
-libs-$(CONFIG_64BIT)	+= arch/mips/lib-64/
 
 core-y			+= arch/mips/kernel/ arch/mips/mm/ arch/mips/math-emu/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
-
-ifdef CONFIG_LASAT
-rom.bin rom.sw: vmlinux
-	$(Q)$(MAKE) $(build)=arch/mips/lasat/image $@
-endif
 
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
@@ -702,32 +687,19 @@ vmlinux.srec: $(vmlinux-32)
 CLEAN_FILES += vmlinux.ecoff \
 	       vmlinux.srec
 
+archprepare:
+ifdef CONFIG_MIPS32_N32
+	@echo '  Checking missing-syscalls for N32'
+	$(Q)$(MAKE) $(build)=. missing-syscalls EXTRA_CFLAGS="-mabi=n32"
+endif
+ifdef CONFIG_MIPS32_O32
+	@echo '  Checking missing-syscalls for O32'
+	$(Q)$(MAKE) $(build)=. missing-syscalls EXTRA_CFLAGS="-mabi=32"
+endif
+
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
-	@$(MAKE) $(clean)=arch/mips/lasat
 
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \
 	       vmlinux.ecoff
-
-quiet_cmd_syscalls_n32 = CALL-N32 $<
-      cmd_syscalls_n32 = $(CONFIG_SHELL) $< $(CC) $(c_flags) -mabi=n32
-
-quiet_cmd_syscalls_o32 = CALL-O32 $<
-      cmd_syscalls_o32 = $(CONFIG_SHELL) $< $(CC) $(c_flags) -mabi=32
-
-PHONY += missing-syscalls-n32 missing-syscalls-o32
-
-missing-syscalls-n32: scripts/checksyscalls.sh FORCE
-	$(call cmd,syscalls_n32)
-
-missing-syscalls-o32: scripts/checksyscalls.sh FORCE
-	$(call cmd,syscalls_o32)
-
-archprepare:
-ifdef CONFIG_MIPS32_N32
-	$(Q)$(MAKE) $(build)=arch/mips missing-syscalls-n32
-endif
-ifdef CONFIG_MIPS32_O32
-	$(Q)$(MAKE) $(build)=arch/mips missing-syscalls-o32
-endif

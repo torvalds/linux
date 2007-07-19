@@ -81,7 +81,7 @@ struct termio {
 
 #define user_termio_to_kernel_termios(a_termios, u_termio)			\
 ({										\
-	struct termios *k_termios = (a_termios);				\
+	struct ktermios *k_termios = (a_termios);				\
 	struct termio k_termio;							\
 	int canon, ret;								\
 										\
@@ -113,7 +113,7 @@ struct termio {
  */
 #define kernel_termios_to_user_termio(u_termio, a_termios)		\
 ({									\
-	struct termios *k_termios = (a_termios);			\
+	struct ktermios *k_termios = (a_termios);			\
 	struct termio k_termio;						\
 	int canon;							\
 									\

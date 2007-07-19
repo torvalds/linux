@@ -54,7 +54,7 @@ static struct resource jazz_io_resources[] = {
 		.start	= 0x40,
 		.end	= 0x5f,
 		.name	= "timer",
-		.end	= IORESOURCE_BUSY
+		.flags	= IORESOURCE_BUSY
 	}, {
 		.start	= 0x80,
 		.end	= 0x8f,

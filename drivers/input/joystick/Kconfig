@@ -268,4 +268,11 @@ config JOYSTICK_XPAD
 	  To compile this driver as a module, choose M here: the
 	  module will be called xpad.
 
+config JOYSTICK_XPAD_FF
+	bool "X-Box gamepad rumble support"
+	depends on JOYSTICK_XPAD && INPUT
+	select INPUT_FF_MEMLESS
+	---help---
+	  Say Y here if you want to take advantage of xbox 360 rumble features.
+
 endif

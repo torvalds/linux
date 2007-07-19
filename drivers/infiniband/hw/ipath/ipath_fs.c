@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -257,9 +257,14 @@ static ssize_t atomic_port_info_read(struct file *file, char __user *buf,
 		/* Notimpl InitType (actually, an SMA decision) */
 		/* VLHighLimit is 0 (only one VL) */
 		; /* VLArbitrationHighCap is 0 (only one VL) */
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so set the maximum
+	 * to 2048.
+	 */
 	portinfo[10] = 	/* VLArbitrationLowCap is 0 (only one VL) */
 		/* InitTypeReply is SMA decision */
-		(5 << 16)	/* MTUCap 4096 */
+		(4 << 16)	/* MTUCap 2048 */
 		| (7 << 13)	/* VLStallCount */
 		| (0x1f << 8)	/* HOQLife */
 		| (1 << 4)

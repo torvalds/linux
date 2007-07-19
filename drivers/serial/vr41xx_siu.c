@@ -1,7 +1,7 @@
 /*
  *  Driver for NEC VR4100 series Serial Interface Unit.
  *
- *  Copyright (C) 2004-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2004-2007  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  Based on drivers/serial/8250.c, by Russell King.
  *
@@ -25,12 +25,12 @@
 #endif
 
 #include <linux/console.h>
-#include <linux/platform_device.h>
-#include <linux/err.h>
-#include <linux/ioport.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -38,11 +38,9 @@
 #include <linux/tty_flip.h>
 
 #include <asm/io.h>
-#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/siu.h>
 #include <asm/vr41xx/vr41xx.h>
 
-#define SIU_PORTS_MAX	2
 #define SIU_BAUD_BASE	1152000
 #define SIU_MAJOR	204
 #define SIU_MINOR_BASE	82
@@ -60,32 +58,13 @@
  #define IRUSESEL	0x02
  #define SIRSEL		0x01
 
-struct siu_port {
-	unsigned int type;
-	unsigned int irq;
-	unsigned long start;
+static struct uart_port siu_uart_ports[SIU_PORTS_MAX] = {
+	[0 ... SIU_PORTS_MAX-1] = {
+		.lock	= __SPIN_LOCK_UNLOCKED(siu_uart_ports->lock),
+		.irq	= -1,
+	},
 };
 
-static const struct siu_port siu_type1_ports[] = {
-	{	.type		= PORT_VR41XX_SIU,
-		.irq		= SIU_IRQ,
-		.start		= 0x0c000000UL,		},
-};
-
-#define SIU_TYPE1_NR_PORTS	(sizeof(siu_type1_ports) / sizeof(struct siu_port))
-
-static const struct siu_port siu_type2_ports[] = {
-	{	.type		= PORT_VR41XX_SIU,
-		.irq		= SIU_IRQ,
-		.start		= 0x0f000800UL,		},
-	{	.type		= PORT_VR41XX_DSIU,
-		.irq		= DSIU_IRQ,
-		.start		= 0x0f000820UL,		},
-};
-
-#define SIU_TYPE2_NR_PORTS	(sizeof(siu_type2_ports) / sizeof(struct siu_port))
-
-static struct uart_port siu_uart_ports[SIU_PORTS_MAX];
 static uint8_t lsr_break_flag[SIU_PORTS_MAX];
 
 #define siu_read(port, offset)		readb((port)->membase + (offset))
@@ -110,7 +89,6 @@ void vr41xx_select_siu_interface(siu_interface_t interface)
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_select_siu_interface);
 
 void vr41xx_use_irda(irda_use_t use)
@@ -132,7 +110,6 @@ void vr41xx_use_irda(irda_use_t use)
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_use_irda);
 
 void vr41xx_select_irda_module(irda_module_t module, irda_speed_t speed)
@@ -166,7 +143,6 @@ void vr41xx_select_irda_module(irda_module_t module, irda_speed_t speed)
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
-
 EXPORT_SYMBOL_GPL(vr41xx_select_irda_module);
 
 static inline void siu_clear_fifo(struct uart_port *port)
@@ -175,21 +151,6 @@ static inline void siu_clear_fifo(struct uart_port *port)
 	siu_write(port, UART_FCR, UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR |
 	                          UART_FCR_CLEAR_XMIT);
 	siu_write(port, UART_FCR, 0);
-}
-
-static inline int siu_probe_ports(void)
-{
-	switch (current_cpu_data.cputype) {
-	case CPU_VR4111:
-	case CPU_VR4121:
-		return SIU_TYPE1_NR_PORTS;
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4133:
-		return SIU_TYPE2_NR_PORTS;
-	}
-
-	return 0;
 }
 
 static inline unsigned long siu_port_size(struct uart_port *port)
@@ -206,21 +167,10 @@ static inline unsigned long siu_port_size(struct uart_port *port)
 
 static inline unsigned int siu_check_type(struct uart_port *port)
 {
-	switch (current_cpu_data.cputype) {
-	case CPU_VR4111:
-	case CPU_VR4121:
-		if (port->line == 0)
-			return PORT_VR41XX_SIU;
-		break;
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4133:
-		if (port->line == 0)
-			return PORT_VR41XX_SIU;
-		else if (port->line == 1)
-			return PORT_VR41XX_DSIU;
-		break;
-	}
+	if (port->line == 0)
+		return PORT_VR41XX_SIU;
+	if (port->line == 1 && port->irq != -1)
+		return PORT_VR41XX_DSIU;
 
 	return PORT_UNKNOWN;
 }
@@ -751,44 +701,34 @@ static struct uart_ops siu_uart_ops = {
 	.verify_port	= siu_verify_port,
 };
 
-static int siu_init_ports(void)
+static int siu_init_ports(struct platform_device *pdev)
 {
-	const struct siu_port *siu;
 	struct uart_port *port;
-	int i, num;
+	struct resource *res;
+	int *type = pdev->dev.platform_data;
+	int i;
 
-	switch (current_cpu_data.cputype) {
-	case CPU_VR4111:
-	case CPU_VR4121:
-		siu = siu_type1_ports;
-		break;
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4133:
-		siu = siu_type2_ports;
-		break;
-	default:
+	if (!type)
 		return 0;
-	}
 
 	port = siu_uart_ports;
-	num = siu_probe_ports();
-	for (i = 0; i < num; i++) {
-		spin_lock_init(&port->lock);
-		port->irq = siu->irq;
+	for (i = 0; i < SIU_PORTS_MAX; i++) {
+		port->type = type[i];
+		if (port->type == PORT_UNKNOWN)
+			continue;
+		port->irq = platform_get_irq(pdev, i);
 		port->uartclk = SIU_BAUD_BASE * 16;
 		port->fifosize = 16;
 		port->regshift = 0;
 		port->iotype = UPIO_MEM;
 		port->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
-		port->type = siu->type;
 		port->line = i;
-		port->mapbase = siu->start;
-		siu++;
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		port->mapbase = res->start;
 		port++;
 	}
 
-	return num;
+	return i;
 }
 
 #ifdef CONFIG_SERIAL_VR41XX_CONSOLE
@@ -883,13 +823,9 @@ static struct console siu_console = {
 static int __devinit siu_console_init(void)
 {
 	struct uart_port *port;
-	int num, i;
+	int i;
 
-	num = siu_init_ports();
-	if (num <= 0)
-		return -ENODEV;
-
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < SIU_PORTS_MAX; i++) {
 		port = &siu_uart_ports[i];
 		port->ops = &siu_uart_ops;
 	}
@@ -920,7 +856,7 @@ static int __devinit siu_probe(struct platform_device *dev)
 	struct uart_port *port;
 	int num, i, retval;
 
-	num = siu_init_ports();
+	num = siu_init_ports(dev);
 	if (num <= 0)
 		return -ENODEV;
 
@@ -998,8 +934,6 @@ static int siu_resume(struct platform_device *dev)
 	return 0;
 }
 
-static struct platform_device *siu_platform_device;
-
 static struct platform_driver siu_device_driver = {
 	.probe		= siu_probe,
 	.remove		= __devexit_p(siu_remove),
@@ -1013,29 +947,12 @@ static struct platform_driver siu_device_driver = {
 
 static int __init vr41xx_siu_init(void)
 {
-	int retval;
-
-	siu_platform_device = platform_device_alloc("SIU", -1);
-	if (!siu_platform_device)
-		return -ENOMEM;
-
-	retval = platform_device_add(siu_platform_device);
-	if (retval < 0) {
-		platform_device_put(siu_platform_device);
-		return retval;
-	}
-
-	retval = platform_driver_register(&siu_device_driver);
-	if (retval < 0)
-		platform_device_unregister(siu_platform_device);
-
-	return retval;
+	return platform_driver_register(&siu_device_driver);
 }
 
 static void __exit vr41xx_siu_exit(void)
 {
 	platform_driver_unregister(&siu_device_driver);
-	platform_device_unregister(siu_platform_device);
 }
 
 module_init(vr41xx_siu_init);

@@ -41,24 +41,6 @@ Who:	Pavel Machek <pavel@suse.cz>
 
 ---------------------------
 
-What:	RAW driver (CONFIG_RAW_DRIVER)
-When:	December 2005
-Why:	declared obsolete since kernel 2.6.3
-	O_DIRECT can be used instead
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
-What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	June 2007
-Why:	Deprecated in favour of the more efficient and robust rawiso interface.
-	Affected are applications which use the deprecated part of libraw1394
-	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
-	raw1394_stop_iso_rcv) or bypass	libraw1394.
-Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
-
----------------------------
-
 What:	old NCR53C9x driver
 When:	October 2007
 Why:	Replaced by the much better esp_scsi driver.  Actual low-level
@@ -126,13 +108,6 @@ What:   eepro100 network driver
 When:   January 2007
 Why:    replaced by the e100 driver
 Who:    Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
-What:  drivers depending on OSS_OBSOLETE_DRIVER
-When:  options in 2.6.20, code in 2.6.22
-Why:   OSS drivers with ALSA replacements
-Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -206,28 +181,6 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	ACPI hooks (X86_SPEEDSTEP_CENTRINO_ACPI) in speedstep-centrino driver
-When:	December 2006
-Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
-	functionally very much similar. They talk to ACPI in same way. Only
-	difference between them is the way they do frequency transitions.
-	One uses MSRs and the other one uses IO ports. Functionaliy of
-	speedstep_centrino with ACPI hooks is now merged into acpi-cpufreq.
-	That means one common driver will support all Intel Enhanced Speedstep
-	capable CPUs. That means less confusion over name of
-	speedstep-centrino driver (with that driver supposed to be used on
-	non-centrino platforms). That means less duplication of code and
-	less maintenance effort and no possibility of these two drivers
-	going out of sync.
-	Current users of speedstep_centrino with ACPI hooks are requested to
-	switch over to acpi-cpufreq driver. speedstep-centrino will continue
-	to work using older non-ACPI static table based scheme even after this
-	date.
-
-Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
----------------------------
-
 What:	/sys/firmware/acpi/namespace
 When:	2.6.21
 Why:	The ACPI namespace is effectively the symbol list for
@@ -258,14 +211,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What:   sk98lin network driver
-When:   July 2007
-Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
-	replaced by the skge driver. 
-Who:    Stephen Hemminger <shemminger@osdl.org>
-
----------------------------
-
 What:	Compaq touchscreen device emulation
 When:	Oct 2007
 Files:	drivers/input/tsdev.c
@@ -277,25 +222,6 @@ Why:	The code says it was obsolete when it was written in 2001.
 	The name "tsdev" is also extremely confusing and lots of people have
 	it loaded when they don't need/use it.
 Who:	Richard Purdie <rpurdie@rpsys.net>
-
----------------------------
-
-What:	Multipath cached routing support in ipv4
-When:	in 2.6.23
-Why:	Code was merged, then submitter immediately disappeared leaving
-	us with no maintainer and lots of bugs.  The code should not have
-	been merged in the first place, and many aspects of it's
-	implementation are blocking more critical core networking
-	development.  It's marked EXPERIMENTAL and no distribution
-	enables it because it cause obscure crashes due to unfixable bugs
-	(interfaces don't return errors so memory allocation can't be
-	handled, calling contexts of these interfaces make handling
-	errors impossible too because they get called after we've
-	totally commited to creating a route object, for example).
-	This problem has existed for years and no forward progress
-	has ever been made, and nobody steps up to try and salvage
-	this code, so we're going to finally just get rid of it.
-Who:	David S. Miller <davem@davemloft.net>
 
 ---------------------------
 
@@ -320,6 +246,14 @@ When:	September 2007
 Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
 	I2C-over-GPIO drivers.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	'time' kernel boot parameter
+When:	January 2008
+Why:	replaced by 'printk.time=<value>' so that printk timestamps can be
+	enabled or disabled as needed
+Who:	Randy Dunlap <randy.dunlap@oracle.com>
 
 ---------------------------
 
@@ -348,3 +282,31 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
+What:	Legacy RTC drivers (under drivers/i2c/chips)
+When:	November 2007
+Why:	Obsolete. We have a RTC subsystem with better drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	iptables SAME target
+When:	1.1. 2008
+Files:	net/ipv4/netfilter/ipt_SAME.c, include/linux/netfilter_ipv4/ipt_SAME.h
+Why:	Obsolete for multiple years now, NAT core provides the same behaviour.
+	Unfixable broken wrt. 32/64 bit cleanness.
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------
+
+What: The arch/ppc and include/asm-ppc directories
+When: Jun 2008
+Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
+      platforms.  Currently there are efforts underway to port the remaining
+      arch/ppc platforms to the merged tree.  New submissions to the arch/ppc
+      tree have been frozen with the 2.6.22 kernel release and that tree will
+      remain in bug-fix only mode until its scheduled removal.  Platforms
+      that are not ported by June 2008 will be removed due to the lack of an
+      interested maintainer.
+Who:  linuxppc-dev@ozlabs.org
+
+---------------------------

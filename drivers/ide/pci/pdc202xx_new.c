@@ -225,7 +225,10 @@ static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
 
 static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 {
-	return get_indexed_reg(hwif, 0x0b) & 0x04;
+	if (get_indexed_reg(hwif, 0x0b) & 0x04)
+		return ATA_CBL_PATA40;
+	else
+		return ATA_CBL_PATA80;
 }
 
 static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
@@ -306,11 +309,13 @@ static long __devinit read_counter(u32 dma_base)
  */
 static long __devinit detect_pll_input_clock(unsigned long dma_base)
 {
+	struct timeval start_time, end_time;
 	long start_count, end_count;
-	long pll_input;
+	long pll_input, usec_elapsed;
 	u8 scr1;
 
 	start_count = read_counter(dma_base);
+	do_gettimeofday(&start_time);
 
 	/* Start the test mode */
 	outb(0x01, dma_base + 0x01);
@@ -322,6 +327,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 	mdelay(10);
 
 	end_count = read_counter(dma_base);
+	do_gettimeofday(&end_time);
 
 	/* Stop the test mode */
 	outb(0x01, dma_base + 0x01);
@@ -333,7 +339,10 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 	 * Calculate the input clock in Hz
 	 * (the clock counter is 30 bit wide and counts down)
 	 */
-	pll_input = ((start_count - end_count) & 0x3ffffff) * 100;
+	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
+		(end_time.tv_usec - start_time.tv_usec);
+	pll_input = ((start_count - end_count) & 0x3ffffff) / 10 *
+		(10000000 / usec_elapsed);
 
 	DBG("start[%ld] end[%ld]\n", start_count, end_count);
 
@@ -503,8 +512,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 
 	hwif->ide_dma_check = &pdcnew_config_drive_xfer_rate;
 
-	if (!hwif->udma_four)
-		hwif->udma_four = pdcnew_cable_detect(hwif) ? 0 : 1;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = pdcnew_cable_detect(hwif);
 
 	if (!noautodma)
 		hwif->autodma = 1;

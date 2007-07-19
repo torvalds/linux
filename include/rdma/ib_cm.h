@@ -385,7 +385,6 @@ struct ib_cm_rep_param {
 	u8		private_data_len;
 	u8		responder_resources;
 	u8		initiator_depth;
-	u8		target_ack_delay;
 	u8		failover_accepted;
 	u8		flow_control;
 	u8		rnr_retry_count;

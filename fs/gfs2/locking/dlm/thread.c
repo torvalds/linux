@@ -44,6 +44,13 @@ static void process_blocking(struct gdlm_lock *lp, int bast_mode)
 	ls->fscb(ls->sdp, cb, &lp->lockname);
 }
 
+static void wake_up_ast(struct gdlm_lock *lp)
+{
+	clear_bit(LFL_AST_WAIT, &lp->flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&lp->flags, LFL_AST_WAIT);
+}
+
 static void process_complete(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
@@ -136,7 +143,7 @@ static void process_complete(struct gdlm_lock *lp)
 	 */
 
 	if (test_and_clear_bit(LFL_SYNC_LVB, &lp->flags)) {
-		complete(&lp->ast_wait);
+		wake_up_ast(lp);
 		return;
 	}
 
@@ -214,7 +221,7 @@ out:
 	if (test_bit(LFL_INLOCK, &lp->flags)) {
 		clear_bit(LFL_NOBLOCK, &lp->flags);
 		lp->cur = lp->req;
-		complete(&lp->ast_wait);
+		wake_up_ast(lp);
 		return;
 	}
 

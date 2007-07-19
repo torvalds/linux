@@ -238,6 +238,12 @@ static void scc_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	else
 		offset = 0;	/* 100MHz */
 
+	/* errata A308 workaround: limit ATAPI UDMA mode to UDMA4 */
+	if (adev->class == ATA_DEV_ATAPI && speed > XFER_UDMA_4) {
+		printk(KERN_INFO "%s: limit ATAPI UDMA to UDMA4\n", DRV_NAME);
+		speed = XFER_UDMA_4;
+	}
+
 	if (speed >= XFER_UDMA_0)
 		idx = speed - XFER_UDMA_0;
 	else
@@ -724,22 +730,36 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 
 static u8 scc_bmdma_status (struct ata_port *ap)
 {
-	u8 host_stat;
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
+	u8 host_stat = in_be32(mmio + SCC_DMA_STATUS);
+	u32 int_status = in_be32(mmio + SCC_DMA_INTST);
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	static int retry = 0;
 
-	host_stat = in_be32(mmio + SCC_DMA_STATUS);
+	/* return if IOS_SS is cleared */
+	if (!(in_be32(mmio + SCC_DMA_CMD) & ATA_DMA_START))
+		return host_stat;
 
-	/* Workaround for PTERADD: emulate DMA_INTR when
-	 * - IDE_STATUS[ERR] = 1
-	 * - INT_STATUS[INTRQ] = 1
-	 * - DMA_STATUS[IORACTA] = 1
-	 */
-	if (!(host_stat & ATA_DMA_INTR)) {
-		u32 int_status = in_be32(mmio + SCC_DMA_INTST);
-		if (ata_altstatus(ap) & ATA_ERR &&
-		    int_status & INTSTS_INTRQ &&
-		    host_stat & ATA_DMA_ACTIVE)
-			host_stat |= ATA_DMA_INTR;
+	/* errata A252,A308 workaround: Step4 */
+	if (ata_altstatus(ap) & ATA_ERR && int_status & INTSTS_INTRQ)
+		return (host_stat | ATA_DMA_INTR);
+
+	/* errata A308 workaround Step5 */
+	if (int_status & INTSTS_IOIRQS) {
+		host_stat |= ATA_DMA_INTR;
+
+		/* We don't check ATAPI DMA because it is limited to UDMA4 */
+		if ((qc->tf.protocol == ATA_PROT_DMA &&
+		     qc->dev->xfer_mode > XFER_UDMA_4)) {
+			if (!(int_status & INTSTS_ACTEINT)) {
+				printk(KERN_WARNING "ata%u: data lost occurred. (ACTEINT==0, retry:%d)\n",
+				       ap->print_id, retry);
+				host_stat |= ATA_DMA_ERR;
+				if (retry++)
+					ap->udma_mask >>= 1;
+			} else
+				retry = 0;
+		}
 	}
 
 	return host_stat;
@@ -891,10 +911,6 @@ static int scc_pata_prereset(struct ata_port *ap, unsigned long deadline)
 static void scc_std_postreset (struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
-
-	/* re-enable interrupts */
-	if (!ap->ops->error_handler)
-		ap->ops->irq_on(ap);
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)

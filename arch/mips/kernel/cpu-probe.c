@@ -137,14 +137,24 @@ static inline void check_wait(void)
 	case CPU_4KEC:
 	case CPU_4KSC:
 	case CPU_5KC:
-/*	case CPU_20KC:*/
-	case CPU_24K:
 	case CPU_25KF:
-	case CPU_34K:
-	case CPU_74K:
- 	case CPU_PR4450:
+	case CPU_PR4450:
 		cpu_wait = r4k_wait;
 		break;
+
+	case CPU_24K:
+	case CPU_34K:
+		cpu_wait = r4k_wait;
+		if (read_c0_config7() & MIPS_CONF7_WII)
+			cpu_wait = r4k_wait_irqoff;
+		break;
+
+	case CPU_74K:
+		cpu_wait = r4k_wait;
+		if ((c->processor_id & 0xff) >= PRID_REV_ENCODE_332(2, 1, 0))
+			cpu_wait = r4k_wait_irqoff;
+		break;
+
 	case CPU_TX49XX:
 		cpu_wait = r4k_wait_irqoff;
 		break;
@@ -156,6 +166,17 @@ static inline void check_wait(void)
 		if (allow_au1k_wait)
 			cpu_wait = au1k_wait;
 		break;
+	case CPU_20KC:
+		/*
+		 * WAIT on Rev1.0 has E1, E2, E3 and E16.
+		 * WAIT on Rev2.0 and Rev3.0 has E16.
+		 * Rev3.1 WAIT is nop, why bother
+		 */
+		if ((c->processor_id & 0xff) <= 0x64)
+			break;
+
+		cpu_wait = r4k_wait;
+		break;
 	case CPU_RM9000:
 		if ((c->processor_id & 0x00ff) >= 0x40)
 			cpu_wait = r4k_wait;
@@ -165,9 +186,29 @@ static inline void check_wait(void)
 	}
 }
 
+static inline void check_errata(void)
+{
+	struct cpuinfo_mips *c = &current_cpu_data;
+
+	switch (c->cputype) {
+	case CPU_34K:
+		/*
+		 * Erratum "RPS May Cause Incorrect Instruction Execution"
+		 * This code only handles VPE0, any SMP/SMTC/RTOS code
+		 * making use of VPE1 will be responsable for that VPE.
+		 */
+		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)
+			write_c0_config7(read_c0_config7() | MIPS_CONF7_RPS);
+		break;
+	default:
+		break;
+	}
+}
+
 void __init check_bugs32(void)
 {
 	check_wait();
+	check_errata();
 }
 
 /*
@@ -464,6 +505,14 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 		             MIPS_CPU_LLSC;
 		c->tlbsize = 64;
 		break;
+	case PRID_IMP_LOONGSON2:
+		c->cputype = CPU_LOONGSON2;
+		c->isa_level = MIPS_CPU_ISA_III;
+		c->options = R4K_OPTS |
+			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
+			     MIPS_CPU_32FPR;
+		c->tlbsize = 64;
+		break;
 	}
 }
 
@@ -567,6 +616,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_VEIC;
 	if (config3 & MIPS_CONF3_MT)
 	        c->ases |= MIPS_ASE_MIPSMT;
+	if (config3 & MIPS_CONF3_ULRI)
+		c->options |= MIPS_CPU_ULRI;
 
 	return config3 & MIPS_CONF_M;
 }

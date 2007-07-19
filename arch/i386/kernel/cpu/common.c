@@ -353,6 +353,8 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 			if ( xlvl >= 0x80000004 )
 				get_model_name(c); /* Default name */
 		}
+
+		init_scattered_cpuid_features(c);
 	}
 
 	early_intel_workaround(c);

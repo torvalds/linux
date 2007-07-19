@@ -3893,8 +3893,6 @@ static void prism2_get_drvinfo(struct net_device *dev,
 	local = iface->local;
 
 	strncpy(info->driver, "hostap", sizeof(info->driver) - 1);
-	strncpy(info->version, PRISM2_VERSION,
-		sizeof(info->version) - 1);
 	snprintf(info->fw_version, sizeof(info->fw_version) - 1,
 		 "%d.%d.%d", (local->sta_fw_ver >> 16) & 0xff,
 		 (local->sta_fw_ver >> 8) & 0xff,

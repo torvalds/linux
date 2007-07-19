@@ -148,7 +148,7 @@ void __init smp_alloc_memory(void)
  * a given CPU
  */
 
-static void __cpuinit smp_store_cpu_info(int id)
+void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = cpu_data + id;
 
@@ -308,8 +308,7 @@ cpumask_t cpu_coregroup_map(int cpu)
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
-static inline void
-set_cpu_sibling_map(int cpu)
+void set_cpu_sibling_map(int cpu)
 {
 	int i;
 	struct cpuinfo_x86 *c = cpu_data;
@@ -941,17 +940,6 @@ exit:
 }
 #endif
 
-static void smp_tune_scheduling(void)
-{
-	if (cpu_khz) {
-		/* cache size in kB */
-		long cachesize = boot_cpu_data.x86_cache_size;
-
-		if (cachesize > 0)
-			max_cache_size = cachesize * 1024;
-	}
-}
-
 /*
  * Cycle through the processors sending APIC IPIs to boot each.
  */
@@ -980,7 +968,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	x86_cpu_to_apicid[0] = boot_cpu_physical_apicid;
 
 	current_thread_info()->cpu = 0;
-	smp_tune_scheduling();
 
 	set_cpu_sibling_map(0);
 
@@ -1156,8 +1143,7 @@ void __init native_smp_prepare_boot_cpu(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void
-remove_siblinginfo(int cpu)
+void remove_siblinginfo(int cpu)
 {
 	int sibling;
 	struct cpuinfo_x86 *c = cpu_data;

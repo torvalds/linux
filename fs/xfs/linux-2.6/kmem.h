@@ -100,25 +100,6 @@ kmem_zone_destroy(kmem_zone_t *zone)
 extern void *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
 extern void *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
 
-/*
- * Low memory cache shrinkers
- */
-
-typedef struct shrinker *kmem_shaker_t;
-typedef int (*kmem_shake_func_t)(int, gfp_t);
-
-static inline kmem_shaker_t
-kmem_shake_register(kmem_shake_func_t sfunc)
-{
-	return set_shrinker(DEFAULT_SEEKS, sfunc);
-}
-
-static inline void
-kmem_shake_deregister(kmem_shaker_t shrinker)
-{
-	remove_shrinker(shrinker);
-}
-
 static inline int
 kmem_shake_allow(gfp_t gfp_mask)
 {

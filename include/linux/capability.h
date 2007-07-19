@@ -44,7 +44,6 @@ typedef struct __user_cap_data_struct {
   
 #ifdef __KERNEL__
 
-#include <linux/spinlock.h>
 #include <asm/current.h>
 
 /* #define STRICT_CAP_T_TYPECHECKS */

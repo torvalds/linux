@@ -23,9 +23,9 @@
  */
 
 #ifdef TC35815_NAPI
-#define DRV_VERSION	"1.35-NAPI"
+#define DRV_VERSION	"1.36-NAPI"
 #else
-#define DRV_VERSION	"1.35"
+#define DRV_VERSION	"1.36"
 #endif
 static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
@@ -49,6 +49,7 @@ static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #include <linux/pci.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
@@ -597,13 +598,46 @@ static int tc_mdio_read(struct net_device *dev, int phy_id, int location);
 static void tc_mdio_write(struct net_device *dev, int phy_id, int location,
 			  int val);
 
-static void __devinit tc35815_init_dev_addr (struct net_device *dev)
+#ifdef CONFIG_CPU_TX49XX
+/*
+ * Find a platform_device providing a MAC address.  The platform code
+ * should provide a "tc35815-mac" device with a MAC address in its
+ * platform_data.
+ */
+static int __devinit tc35815_mac_match(struct device *dev, void *data)
+{
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct pci_dev *pci_dev = data;
+	unsigned int id = (pci_dev->bus->number << 8) | pci_dev->devfn;
+	return !strcmp(plat_dev->name, "tc35815-mac") && plat_dev->id == id;
+}
+
+static int __devinit tc35815_read_plat_dev_addr(struct net_device *dev)
+{
+	struct tc35815_local *lp = dev->priv;
+	struct device *pd = bus_find_device(&platform_bus_type, NULL,
+					    lp->pci_dev, tc35815_mac_match);
+	if (pd) {
+		if (pd->platform_data)
+			memcpy(dev->dev_addr, pd->platform_data, ETH_ALEN);
+		put_device(pd);
+		return is_valid_ether_addr(dev->dev_addr) ? 0 : -ENODEV;
+	}
+	return -ENODEV;
+}
+#else
+static int __devinit tc35815_read_plat_dev_addr(struct device *dev)
+{
+	return -ENODEV;
+}
+#endif
+
+static int __devinit tc35815_init_dev_addr (struct net_device *dev)
 {
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
 	int i;
 
-	/* dev_addr will be overwritten on NETDEV_REGISTER event */
 	while (tc_readl(&tr->PROM_Ctl) & PROM_Busy)
 		;
 	for (i = 0; i < 6; i += 2) {
@@ -615,6 +649,9 @@ static void __devinit tc35815_init_dev_addr (struct net_device *dev)
 		dev->dev_addr[i] = data & 0xff;
 		dev->dev_addr[i+1] = data >> 8;
 	}
+	if (!is_valid_ether_addr(dev->dev_addr))
+		return tc35815_read_plat_dev_addr(dev);
+	return 0;
 }
 
 static int __devinit tc35815_init_one (struct pci_dev *pdev,
@@ -724,7 +761,10 @@ static int __devinit tc35815_init_one (struct pci_dev *pdev,
 	tc35815_chip_reset(dev);
 
 	/* Retrieve the ethernet address. */
-	tc35815_init_dev_addr(dev);
+	if (tc35815_init_dev_addr(dev)) {
+		dev_warn(&pdev->dev, "not valid ether addr\n");
+		random_ether_addr(dev->dev_addr);
+	}
 
 	rc = register_netdev (dev);
 	if (rc)

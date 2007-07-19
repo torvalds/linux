@@ -165,8 +165,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".l1.text", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0) &&
-			 (hdr->e_flags & FLG_CODE_IN_L1) && (s->sh_size > 0))) {
+		    ((strcmp(".text", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & FLG_CODE_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -179,9 +179,9 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_flags &= ~SHF_ALLOC;
 			s->sh_addr = (unsigned long)dest;
 		}
-		if ((strcmp(".l1.data", secstrings + s->sh_name) == 0)||
-			((strcmp(".data", secstrings + s->sh_name)==0) &&
-			 (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
+		if ((strcmp(".l1.data", secstrings + s->sh_name) == 0) ||
+		    ((strcmp(".data", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.data_a_l1 = s;
 			dest = l1_data_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -195,8 +195,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".l1.bss", secstrings + s->sh_name) == 0 ||
-			((strcmp(".bss", secstrings + s->sh_name)==0) &&
-			 (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
+		    ((strcmp(".bss", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.bss_a_l1 = s;
 			dest = l1_data_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -326,7 +326,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			pr_debug("before %x after %x\n", *location16,
 				       (value & 0xffff));
 			tmp = (value & 0xffff);
-			if((unsigned long)location16 >= L1_CODE_START) {
+			if ((unsigned long)location16 >= L1_CODE_START) {
 				dma_memcpy(location16, &tmp, 2);
 			} else
 				*location16 = tmp;
@@ -335,7 +335,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			pr_debug("before %x after %x\n", *location16,
 				       ((value >> 16) & 0xffff));
 			tmp = ((value >> 16) & 0xffff);
-			if((unsigned long)location16 >= L1_CODE_START) {
+			if ((unsigned long)location16 >= L1_CODE_START) {
 				dma_memcpy(location16, &tmp, 2);
 			} else
 				*location16 = tmp;
@@ -404,8 +404,8 @@ module_finalize(const Elf_Ehdr * hdr,
 			continue;
 
 		if ((sechdrs[i].sh_type == SHT_RELA) &&
-		    ((strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0)||
-			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) &&
+		    ((strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0) ||
+		    ((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) &&
 			 (hdr->e_flags & FLG_CODE_IN_L1)))) {
 			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
 					   symindex, i, mod);
@@ -417,13 +417,13 @@ module_finalize(const Elf_Ehdr * hdr,
 void module_arch_cleanup(struct module *mod)
 {
 	if ((mod->arch.text_l1) && (mod->arch.text_l1->sh_addr))
-		l1_inst_sram_free((void*)mod->arch.text_l1->sh_addr);
+		l1_inst_sram_free((void *)mod->arch.text_l1->sh_addr);
 	if ((mod->arch.data_a_l1) && (mod->arch.data_a_l1->sh_addr))
-		l1_data_sram_free((void*)mod->arch.data_a_l1->sh_addr);
+		l1_data_sram_free((void *)mod->arch.data_a_l1->sh_addr);
 	if ((mod->arch.bss_a_l1) && (mod->arch.bss_a_l1->sh_addr))
-		l1_data_sram_free((void*)mod->arch.bss_a_l1->sh_addr);
+		l1_data_sram_free((void *)mod->arch.bss_a_l1->sh_addr);
 	if ((mod->arch.data_b_l1) && (mod->arch.data_b_l1->sh_addr))
-		l1_data_B_sram_free((void*)mod->arch.data_b_l1->sh_addr);
+		l1_data_B_sram_free((void *)mod->arch.data_b_l1->sh_addr);
 	if ((mod->arch.bss_b_l1) && (mod->arch.bss_b_l1->sh_addr))
-		l1_data_B_sram_free((void*)mod->arch.bss_b_l1->sh_addr);
+		l1_data_B_sram_free((void *)mod->arch.bss_b_l1->sh_addr);
 }

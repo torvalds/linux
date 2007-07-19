@@ -46,6 +46,7 @@ xfs_param_t xfs_params = {
 	.inherit_nosym	= {	0,		0,		1	},
 	.rotorstep	= {	1,		1,		255	},
 	.inherit_nodfrg	= {	0,		1,		1	},
+	.fstrm_timer	= {	1,		50,		3600*100},
 };
 
 /*

@@ -215,38 +215,6 @@ done:
 }
 
 /**
- *  @brief Post process the scan table after a new scan command has completed
- *
- *  Inspect each entry of the scan table and try to find an entry that
- *    matches our current associated/joined network from the scan.  If
- *    one is found, update the stored copy of the bssdescriptor for our
- *    current network.
- *
- *  Debug dump the current scan table contents if compiled accordingly.
- *
- *  @param priv   A pointer to wlan_private structure
- *
- *  @return       void
- */
-static void wlan_scan_process_results(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	struct bss_descriptor * iter_bss;
-	int i = 0;
-
-	if (adapter->connect_status == libertas_connected)
-		return;
-
-	mutex_lock(&adapter->lock);
-	list_for_each_entry (iter_bss, &adapter->network_list, list) {
-		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
-		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
-		       escape_essid(iter_bss->ssid, iter_bss->ssid_len));
-	}
-	mutex_unlock(&adapter->lock);
-}
-
-/**
  *  @brief Create a channel list for the driver to scan based on region info
  *
  *  Use the driver region/band information to construct a comprehensive list
@@ -791,6 +759,10 @@ int wlan_scan_networks(wlan_private * priv,
 	u8 scancurrentchanonly;
 	int maxchanperscan;
 	int ret;
+#ifdef CONFIG_LIBERTAS_DEBUG
+	struct bss_descriptor * iter_bss;
+	int i = 0;
+#endif
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -832,11 +804,16 @@ int wlan_scan_networks(wlan_private * priv,
 				     puserscanin,
 				     full_scan);
 
-	/*  Process the resulting scan table:
-	 *    - Remove any bad ssids
-	 *    - Update our current BSS information from scan data
-	 */
-	wlan_scan_process_results(priv);
+#ifdef CONFIG_LIBERTAS_DEBUG
+	/* Dump the scan table */
+	mutex_lock(&adapter->lock);
+	list_for_each_entry (iter_bss, &adapter->network_list, list) {
+		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
+		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
+		       escape_essid(iter_bss->ssid, iter_bss->ssid_len));
+	}
+	mutex_unlock(&adapter->lock);
+#endif
 
 	if (priv->adapter->connect_status == libertas_connected) {
 		netif_carrier_on(priv->dev);

@@ -808,8 +808,6 @@ static const struct SiS_VCLKData SiSUSB_VCLKData[] =
 	{ 0x2b,0xc2, 35}  /* 0x71 768@576@60 */
 };
 
-extern struct mutex disconnect_mutex;
-
 int		SiSUSBSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 int		SiSUSBSetVESAMode(struct SiS_Private *SiS_Pr, unsigned short VModeNo);
 
