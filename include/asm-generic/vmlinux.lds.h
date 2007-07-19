@@ -224,7 +224,11 @@
 	}
 
 #define NOTES								\
-	.notes : { *(.note.*) } :note
+	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
+		VMLINUX_SYMBOL(__start_notes) = .;			\
+		*(.note.*)						\
+		VMLINUX_SYMBOL(__stop_notes) = .;			\
+	}
 
 #define INITCALLS							\
   	*(.initcall0.init)						\
