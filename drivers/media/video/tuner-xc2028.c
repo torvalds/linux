@@ -314,28 +314,11 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 	struct tuner  *t  = i2c_get_clientdata(c);
 	u32 div, offset = 0;
 
-	printk("xc3028: should set frequency %d kHz)\n", freq / 1000);
+	/* HACK: It seems that specific firmware need to be reloaded
+	   when freq is changed */
+	struct xc2028_data	*xc2028 = t->priv;
 
-	if (check_firmware(c, new_mode, bandwidth)<0)
-		return;
-
-	if(new_mode == T_DIGITAL_TV) {
-		switch(bandwidth) {
-			case BANDWIDTH_8_MHZ:
-				offset = 2750000;
-			break;
-
-			case BANDWIDTH_7_MHZ:
-				offset = 2750000;
-			break;
-
-			case BANDWIDTH_6_MHZ:
-			default:
-				printk(KERN_ERR "xc2028: bandwidth not implemented!\n");
-		}
-	}
-
-	div = (freq - offset + DIV/2)/DIV;
+	xc2028->firm_type=0;
 
 	/* Reset GPIO 1 */
 	if (t->tuner_callback) {
@@ -345,17 +328,16 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 			return;
 	}
 	msleep(10);
+	printk("xc3028: should set frequency %d kHz)\n", freq / 1000);
 
-	char *name;
+	if (check_firmware(c, new_mode, bandwidth)<0)
+		return;
 
-	rc = load_firmware(c,firmware_INIT1);
+	if(new_mode == T_DIGITAL_TV)
+		offset = 2750000;
 
-	if (t->std & V4L2_STD_MN)
-		name=firmware_MN;
-	else
-		name=firmware_DK;
+	div = (freq - offset + DIV/2)/DIV;
 
-	rc = load_firmware(c,name);
 	/* CMD= Set frequency */
 	send_seq(c, {0x00, 0x02, 0x00, 0x00});
 	if (t->tuner_callback) {
@@ -366,8 +348,6 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 	}
 
 	msleep(10);
-//	send_seq(c, {0x00, 0x00, 0x10, 0xd0, 0x00});
-//	msleep(100);
 
 	buf[0]= 0xff & (div>>24);
 	buf[1]= 0xff & (div>>16);
@@ -383,7 +363,6 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 	printk("divider= %02x %02x %02x %02x (freq=%d.%02d)\n",
 		 buf[1],buf[2],buf[3],buf[4],
 		 freq / 16, freq % 16 * 100 / 16);
-//	printk("signal=%d\n",xc2028_signal(c));
 }
 
 
