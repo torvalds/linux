@@ -1144,13 +1144,6 @@ unsigned long page_cache_readahead_ondemand(struct address_space *mapping,
 			  struct page *page,
 			  pgoff_t offset,
 			  unsigned long size);
-unsigned long page_cache_readahead(struct address_space *mapping,
-			  struct file_ra_state *ra,
-			  struct file *filp,
-			  pgoff_t offset,
-			  unsigned long size);
-void handle_ra_miss(struct address_space *mapping, 
-		    struct file_ra_state *ra, pgoff_t offset);
 unsigned long max_sane_readahead(unsigned long nr);
 
 /* Do stack extension */
