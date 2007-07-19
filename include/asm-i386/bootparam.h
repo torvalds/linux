@@ -48,9 +48,9 @@ struct efi_info {
 	u32 _pad1;
 	u32 efi_systab;
 	u32 efi_memdesc_size;
-	u32 efi_memdec_version;
+	u32 efi_memdesc_version;
 	u32 efi_memmap;
-	u32 fi_memmap_size;
+	u32 efi_memmap_size;
 	u32 _pad2[2];
 };
 
