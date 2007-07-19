@@ -54,9 +54,6 @@ static int acpi_shutdown(struct sys_device *x)
 	case SYSTEM_POWER_OFF:
 		/* Prepare to power off the system */
 		return acpi_sleep_prepare(ACPI_STATE_S5);
-	case SYSTEM_SUSPEND_DISK:
-		/* Prepare to suspend the system to disk */
-		return acpi_sleep_prepare(ACPI_STATE_S4);
 	default:
 		return 0;
 	}
