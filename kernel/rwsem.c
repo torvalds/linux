@@ -20,7 +20,7 @@ void down_read(struct rw_semaphore *sem)
 	might_sleep();
 	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
 
-	__down_read(sem);
+	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
 }
 
 EXPORT_SYMBOL(down_read);
@@ -47,7 +47,7 @@ void down_write(struct rw_semaphore *sem)
 	might_sleep();
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
 
-	__down_write(sem);
+	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
 }
 
 EXPORT_SYMBOL(down_write);
@@ -111,7 +111,7 @@ void down_read_nested(struct rw_semaphore *sem, int subclass)
 	might_sleep();
 	rwsem_acquire_read(&sem->dep_map, subclass, 0, _RET_IP_);
 
-	__down_read(sem);
+	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
 }
 
 EXPORT_SYMBOL(down_read_nested);
@@ -130,7 +130,7 @@ void down_write_nested(struct rw_semaphore *sem, int subclass)
 	might_sleep();
 	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
 
-	__down_write_nested(sem, subclass);
+	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
 }
 
 EXPORT_SYMBOL(down_write_nested);
