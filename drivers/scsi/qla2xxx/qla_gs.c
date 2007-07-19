@@ -1528,11 +1528,15 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_SUPPORT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
-		eiter->a.sup_speed = __constant_cpu_to_be32(4);
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
+		    FDMI_PORT_SPEED_4GB);
 	else if (IS_QLA23XX(ha))
-		eiter->a.sup_speed = __constant_cpu_to_be32(2);
+		eiter->a.sup_speed =__constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB);
 	else
-		eiter->a.sup_speed = __constant_cpu_to_be32(1);
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB);
 	size += 4 + 4;
 
 	DEBUG13(printk("%s(%ld): SUPPORTED_SPEED=%x.\n", __func__, ha->host_no,
@@ -1543,14 +1547,21 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_CURRENT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
 	switch (ha->link_data_rate) {
-	case 0:
-		eiter->a.cur_speed = __constant_cpu_to_be32(1);
+	case PORT_SPEED_1GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_1GB);
 		break;
-	case 1:
-		eiter->a.cur_speed = __constant_cpu_to_be32(2);
+	case PORT_SPEED_2GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_2GB);
 		break;
-	case 3:
-		eiter->a.cur_speed = __constant_cpu_to_be32(4);
+	case PORT_SPEED_4GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_4GB);
+		break;
+	default:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_UNKNOWN);
 		break;
 	}
 	size += 4 + 4;

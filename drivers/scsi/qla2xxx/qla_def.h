@@ -1711,6 +1711,14 @@ struct ct_fdmi_hba_attributes {
 #define FDMI_PORT_OS_DEVICE_NAME	5
 #define FDMI_PORT_HOST_NAME		6
 
+#define FDMI_PORT_SPEED_1GB		0x1
+#define FDMI_PORT_SPEED_2GB		0x2
+#define FDMI_PORT_SPEED_10GB		0x4
+#define FDMI_PORT_SPEED_4GB		0x8
+#define FDMI_PORT_SPEED_8GB		0x10
+#define FDMI_PORT_SPEED_16GB		0x20
+#define FDMI_PORT_SPEED_UNKNOWN		0x8000
+
 struct ct_fdmi_port_attr {
 	uint16_t type;
 	uint16_t len;
