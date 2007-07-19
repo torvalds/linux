@@ -654,7 +654,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 
 	if (IS_ROOT(dentry))
 		return 1;
-	verf = (unsigned long)dentry->d_fsdata;
+	verf = dentry->d_time;
 	if (nfs_caches_unstable(dir)
 			|| verf != NFS_I(dir)->cache_change_attribute)
 		return 0;
@@ -663,7 +663,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 {
-	dentry->d_fsdata = (void *)verf;
+	dentry->d_time = verf;
 }
 
 static void nfs_refresh_verifier(struct dentry * dentry, unsigned long verf)
@@ -869,7 +869,7 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
 		drop_nlink(inode);
-		nfs_complete_unlink(dentry);
+		nfs_complete_unlink(dentry, inode);
 		unlock_kernel();
 	}
 	/* When creating a negative dentry, we want to renew d_time */
@@ -1411,7 +1411,7 @@ static int nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		nfs_renew_times(dentry);
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		d_move(dentry, sdentry);
-		error = nfs_async_unlink(dentry);
+		error = nfs_async_unlink(dir, dentry);
  		/* If we return 0 we don't unlink */
 	}
 	dput(sdentry);

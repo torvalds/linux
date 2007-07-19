@@ -43,7 +43,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/auth.h>
@@ -1000,9 +999,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
 	*p++ = htonl(rqstp->rq_seqno);
 
-	lock_kernel();
-	status = encode(rqstp, p, obj);
-	unlock_kernel();
+	status = rpc_call_xdrproc(encode, rqstp, p, obj);
 	if (status)
 		return status;
 
@@ -1096,9 +1093,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
 	*p++ = htonl(rqstp->rq_seqno);
 
-	lock_kernel();
-	status = encode(rqstp, p, obj);
-	unlock_kernel();
+	status = rpc_call_xdrproc(encode, rqstp, p, obj);
 	if (status)
 		return status;
 
@@ -1157,16 +1152,12 @@ gss_wrap_req(struct rpc_task *task,
 		/* The spec seems a little ambiguous here, but I think that not
 		 * wrapping context destruction requests makes the most sense.
 		 */
-		lock_kernel();
-		status = encode(rqstp, p, obj);
-		unlock_kernel();
+		status = rpc_call_xdrproc(encode, rqstp, p, obj);
 		goto out;
 	}
 	switch (gss_cred->gc_service) {
 		case RPC_GSS_SVC_NONE:
-			lock_kernel();
-			status = encode(rqstp, p, obj);
-			unlock_kernel();
+			status = rpc_call_xdrproc(encode, rqstp, p, obj);
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
 			status = gss_wrap_req_integ(cred, ctx, encode,
@@ -1282,9 +1273,7 @@ gss_unwrap_resp(struct rpc_task *task,
 	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)
 						+ (savedlen - head->iov_len);
 out_decode:
-	lock_kernel();
-	status = decode(rqstp, p, obj);
-	unlock_kernel();
+	status = rpc_call_xdrproc(decode, rqstp, p, obj);
 out:
 	gss_put_ctx(ctx);
 	dprintk("RPC: %5u gss_unwrap_resp returning %d\n", task->tk_pid,

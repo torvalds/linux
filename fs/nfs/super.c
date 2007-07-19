@@ -1685,6 +1685,9 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 
 		dprintk("MNTPATH: %s\n", *mntpath);
 
+		if (args.client_address == NULL)
+			goto out_no_client_address;
+
 		*ip_addr = args.client_address;
 
 		break;
@@ -1704,6 +1707,10 @@ out_inval_auth:
 
 out_no_address:
 	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");
+	return -EINVAL;
+
+out_no_client_address:
+	dfprintk(MOUNT, "NFS4: mount program didn't pass callback address\n");
 	return -EINVAL;
 }
 
