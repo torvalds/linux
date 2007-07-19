@@ -224,11 +224,12 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if ((drive->id->capability & 1) == 0)
-			break;
 		if (drive->hwif->ide_dma_check == NULL)
 			break;
 		drive->hwif->dma_off_quietly(drive);
+		/*
+		 * TODO: respect ->using_dma setting
+		 */
 		ide_set_dma(drive);
 		break;
 	}
