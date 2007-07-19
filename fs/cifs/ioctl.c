@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with io control
  *
- *   Copyright (C) International Business Machines  Corp., 2005
+ *   Copyright (C) International Business Machines  Corp., 2005,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -30,7 +30,7 @@
 
 #define CIFS_IOC_CHECKUMOUNT _IO(0xCF, 2)
 
-int cifs_ioctl (struct inode * inode, struct file * filep,
+int cifs_ioctl (struct inode *inode, struct file *filep,
 		unsigned int command, unsigned long arg)
 {
 	int rc = -ENOTTY; /* strange error - but the precedent */
