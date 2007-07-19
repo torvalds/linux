@@ -967,7 +967,7 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 	mem_buffer = p = kmalloc(space, GFP_KERNEL);
 	if (p == NULL) {
 		i5000_printk(KERN_ERR, "MC: %s:%s() kmalloc() failed\n",
-			    __FILE__, __func__);
+			     __FILE__, __func__);
 		return;
 	}
 
@@ -1287,13 +1287,13 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENODEV;
 
 	/* make sure error reporting method is sane */
-	switch(edac_op_state) {
-		case EDAC_OPSTATE_POLL:
-		case EDAC_OPSTATE_NMI:
-			break;
-		default:
-			edac_op_state = EDAC_OPSTATE_POLL;
-			break;
+	switch (edac_op_state) {
+	case EDAC_OPSTATE_POLL:
+	case EDAC_OPSTATE_NMI:
+		break;
+	default:
+		edac_op_state = EDAC_OPSTATE_POLL;
+		break;
 	}
 
 	/* Ask the devices for the number of CSROWS and CHANNELS so
