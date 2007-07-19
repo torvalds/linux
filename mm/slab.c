@@ -3690,8 +3690,8 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	 * functions.
 	 */
 	cachep = __find_general_cachep(size, flags);
-	if (unlikely(cachep == NULL))
-		return NULL;
+	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+		return cachep;
 	return __cache_alloc(cachep, flags, caller);
 }
 
