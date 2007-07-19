@@ -214,16 +214,10 @@ EXPORT_SYMBOL_GPL(edac_pci_find);
  * edac_pci_workq_function()
  * 	performs the operation scheduled by a workq request
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 static void edac_pci_workq_function(struct work_struct *work_req)
 {
 	struct delayed_work *d_work = (struct delayed_work *)work_req;
 	struct edac_pci_ctl_info *pci = to_edac_pci_ctl_work(d_work);
-#else
-static void edac_pci_workq_function(void *ptr)
-{
-	struct edac_pci_ctl_info *pci = ptr;
-#endif
 
 	edac_lock_pci_list();
 
@@ -248,11 +242,7 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 {
 	debugf0("%s()\n", __func__);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
-#else
-	INIT_WORK(&pci->work, edac_pci_workq_function, pci);
-#endif
 	queue_delayed_work(edac_workqueue, &pci->work,
 			   msecs_to_jiffies(edac_pci_get_poll_msec()));
 }

@@ -332,17 +332,10 @@ EXPORT_SYMBOL(edac_device_find);
  * edac_device_workq_function
  *	performs the operation scheduled by a workq request
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 static void edac_device_workq_function(struct work_struct *work_req)
 {
 	struct delayed_work *d_work = (struct delayed_work *)work_req;
 	struct edac_device_ctl_info *edac_dev = to_edac_device_ctl_work(d_work);
-#else
-static void edac_device_workq_function(void *ptr)
-{
-	struct edac_device_ctl_info *edac_dev =
-	    (struct edac_device_ctl_info *)ptr;
-#endif
 
 	//debugf0("%s() here and running\n", __func__);
 	lock_device_list();
@@ -372,11 +365,7 @@ void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
 	edac_dev->poll_msec = msec;
 	edac_calc_delay(edac_dev);	/* Calc delay jiffies */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_DELAYED_WORK(&edac_dev->work, edac_device_workq_function);
-#else
-	INIT_WORK(&edac_dev->work, edac_device_workq_function, edac_dev);
-#endif
 	queue_delayed_work(edac_workqueue, &edac_dev->work, edac_dev->delay);
 }
 

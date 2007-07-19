@@ -395,11 +395,8 @@ struct mem_ctl_info {
 	struct completion kobj_complete;
 
 	/* work struct for this MC */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct delayed_work work;
-#else
-	struct work_struct work;
-#endif
+
 	/* the internal state of this controller instance */
 	int op_state;
 };
@@ -530,11 +527,7 @@ struct edac_device_ctl_info {
 	/* the internal state of this controller instance */
 	int op_state;
 	/* work struct for this instance */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct delayed_work work;
-#else
-	struct work_struct work;
-#endif
 
 	/* pointer to edac polling checking routine:
 	 *      If NOT NULL: points to polling check routine
@@ -647,11 +640,7 @@ struct edac_pci_ctl_info {
 	/* the internal state of this controller instance */
 	int op_state;
 	/* work struct for this instance */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct delayed_work work;
-#else
-	struct work_struct work;
-#endif
 
 	/* pointer to edac polling checking routine:
 	 *      If NOT NULL: points to polling check routine

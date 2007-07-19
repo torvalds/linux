@@ -235,16 +235,10 @@ static int edac_mc_assert_error_check_and_clear(void)
  * edac_mc_workq_function
  *	performs the operation scheduled by a workq request
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 static void edac_mc_workq_function(struct work_struct *work_req)
 {
 	struct delayed_work *d_work = (struct delayed_work *)work_req;
 	struct mem_ctl_info *mci = to_edac_mem_ctl_work(d_work);
-#else
-static void edac_mc_workq_function(void *ptr)
-{
-	struct mem_ctl_info *mci = (struct mem_ctl_info *)ptr;
-#endif
 
 	mutex_lock(&mem_ctls_mutex);
 
@@ -274,11 +268,7 @@ void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
 {
 	debugf0("%s()\n", __func__);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
-#else
-	INIT_WORK(&mci->work, edac_mc_workq_function, mci);
-#endif
 	queue_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
 }
 
