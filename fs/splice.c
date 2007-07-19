@@ -287,12 +287,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		nr_pages = PIPE_BUFFERS;
 
 	/*
-	 * Don't try to 2nd guess the read-ahead logic, call into
-	 * page_cache_readahead() like the page cache reads would do.
-	 */
-	page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
-
-	/*
 	 * Lookup the (hopefully) full range of pages we need.
 	 */
 	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
@@ -310,11 +304,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		page = find_get_page(mapping, index);
 		if (!page) {
-			/*
-			 * Make sure the read-ahead engine is notified
-			 * about this failure.
-			 */
-			handle_ra_miss(mapping, &in->f_ra, index);
+			page_cache_readahead_ondemand(mapping, &in->f_ra, in,
+					NULL, index, nr_pages - spd.nr_pages);
 
 			/*
 			 * page didn't exist, allocate one.
@@ -360,6 +351,10 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
 		page = pages[page_nr];
+
+		if (PageReadahead(page))
+			page_cache_readahead_ondemand(mapping, &in->f_ra, in,
+					page, index, nr_pages - page_nr);
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
@@ -453,6 +448,7 @@ fill_it:
 	 */
 	while (page_nr < nr_pages)
 		page_cache_release(pages[page_nr++]);
+	in->f_ra.prev_index = index;
 
 	if (spd.nr_pages)
 		return splice_to_pipe(pipe, &spd);
