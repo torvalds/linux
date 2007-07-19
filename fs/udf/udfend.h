@@ -78,4 +78,4 @@ static inline timestamp cpu_to_lets(kernel_timestamp in)
 	return out;
 }
 
-#endif /* __UDF_ENDIAN_H */
+#endif				/* __UDF_ENDIAN_H */

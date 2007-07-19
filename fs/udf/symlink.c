@@ -33,41 +33,40 @@
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
-static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen, char *to)
+static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen,
+			   char *to)
 {
 	struct pathComponent *pc;
 	int elen = 0;
 	char *p = to;
 
-	while (elen < fromlen)
-	{
+	while (elen < fromlen) {
 		pc = (struct pathComponent *)(from + elen);
-		switch (pc->componentType)
-		{
-			case 1:
-				if (pc->lengthComponentIdent == 0)
-				{
-					p = to;
-					*p++ = '/';
-				}
-				break;
-			case 3:
-				memcpy(p, "../", 3);
-				p += 3;
-				break;
-			case 4:
-				memcpy(p, "./", 2);
-				p += 2;
-				/* that would be . - just ignore */
-				break;
-			case 5:
-				p += udf_get_filename(sb, pc->componentIdent, p, pc->lengthComponentIdent);
+		switch (pc->componentType) {
+		case 1:
+			if (pc->lengthComponentIdent == 0) {
+				p = to;
 				*p++ = '/';
-				break;
+			}
+			break;
+		case 3:
+			memcpy(p, "../", 3);
+			p += 3;
+			break;
+		case 4:
+			memcpy(p, "./", 2);
+			p += 2;
+			/* that would be . - just ignore */
+			break;
+		case 5:
+			p += udf_get_filename(sb, pc->componentIdent, p,
+					      pc->lengthComponentIdent);
+			*p++ = '/';
+			break;
 		}
 		elen += sizeof(struct pathComponent) + pc->lengthComponentIdent;
 	}
-	if (p > to+1)
+	if (p > to + 1)
 		p[-1] = '\0';
 	else
 		p[0] = '\0';
@@ -84,8 +83,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	lock_kernel();
 	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB)
 		symlink = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
-	else
-	{
+	else {
 		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
 
 		if (!bh)
@@ -102,7 +100,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	kunmap(page);
 	unlock_page(page);
 	return 0;
-out:
+      out:
 	unlock_kernel();
 	SetPageError(page);
 	kunmap(page);
@@ -114,5 +112,5 @@ out:
  * symlinks can't do much...
  */
 const struct address_space_operations udf_symlink_aops = {
-	.readpage		= udf_symlink_filler,
+	.readpage = udf_symlink_filler,
 };
