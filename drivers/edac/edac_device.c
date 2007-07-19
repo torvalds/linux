@@ -158,7 +158,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			attrib_p = &dev_attrib[block * nr_attribs];
 			blk->attribs = attrib_p;
 			snprintf(blk->name, sizeof(blk->name),
-				 "%s%d", edac_block_name, block + 1);
+				 "%s%d", edac_block_name, block+offset_value);
 			blk->name[sizeof(blk->name) - 1] = '\0';
 
 			debugf1("%s() instance=%d block=%d name=%s\n",
@@ -580,7 +580,7 @@ void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 
 	if (edac_device_get_log_ce(edac_dev))
 		edac_device_printk(edac_dev, KERN_WARNING,
-				   "CE ctl: %s, instance: %s, block: %s: %s\n",
+				   "CE: %s instance: %s block: %s '%s'\n",
 				   edac_dev->ctl_name, instance->name,
 				   block ? block->name : "N/A", msg);
 }
@@ -626,12 +626,12 @@ void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 
 	if (edac_device_get_log_ue(edac_dev))
 		edac_device_printk(edac_dev, KERN_EMERG,
-				   "UE ctl: %s, instance: %s, block: %s: %s\n",
+				   "UE: %s instance: %s block: %s '%s'\n",
 				   edac_dev->ctl_name, instance->name,
 				   block ? block->name : "N/A", msg);
 
 	if (edac_device_get_panic_on_ue(edac_dev))
-		panic("EDAC %s: UE instance: %s, block %s: %s\n",
+		panic("EDAC %s: UE instance: %s block %s '%s'\n",
 		      edac_dev->ctl_name, instance->name,
 		      block ? block->name : "N/A", msg);
 }
