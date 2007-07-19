@@ -214,6 +214,19 @@ sysfs notes:
 		key (see above).  Returns the current status of the hot
 		keys mask, and allows one to modify it.
 
+	hotkey_all_mask:
+		bit mask that should enable event reporting for all
+		supported hot keys, when echoed to hotkey_mask above.
+		Unless you know which events need to be handled
+		passively (because the firmware *will* handle them
+		anyway), do *not* use hotkey_all_mask.  Use
+		hotkey_recommended_mask, instead. You have been warned.
+
+	hotkey_recommended_mask:
+		bit mask that should enable event reporting for all
+		supported hot keys, except those which are handled by
+		the firmware.  Echo it to hotkey_mask above, to use.
+
 
 Bluetooth
 ---------

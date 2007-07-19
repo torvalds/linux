@@ -728,6 +728,8 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
 
 static int hotkey_orig_status;
 static u32 hotkey_orig_mask;
+static u32 hotkey_all_mask;
+static u32 hotkey_reserved_mask = 0x00778000;
 
 static struct attribute_set *hotkey_dev_attributes;
 
@@ -827,12 +829,38 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_bios_mask =
 	__ATTR(hotkey_bios_mask, S_IRUGO, hotkey_bios_mask_show, NULL);
 
+/* sysfs hotkey all_mask ----------------------------------------------- */
+static ssize_t hotkey_all_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_all_mask);
+}
+
+static struct device_attribute dev_attr_hotkey_all_mask =
+	__ATTR(hotkey_all_mask, S_IRUGO, hotkey_all_mask_show, NULL);
+
+/* sysfs hotkey recommended_mask --------------------------------------- */
+static ssize_t hotkey_recommended_mask_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+			hotkey_all_mask & ~hotkey_reserved_mask);
+}
+
+static struct device_attribute dev_attr_hotkey_recommended_mask =
+	__ATTR(hotkey_recommended_mask, S_IRUGO,
+		hotkey_recommended_mask_show, NULL);
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *hotkey_mask_attributes[] = {
 	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
+	&dev_attr_hotkey_all_mask.attr,
+	&dev_attr_hotkey_recommended_mask.attr,
 };
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
@@ -851,7 +879,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(4, NULL);
+		hotkey_dev_attributes = create_attr_set(6, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_to_attr_set(hotkey_dev_attributes,
@@ -866,6 +894,13 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 		vdbg_printk(TPACPI_DBG_INIT, "hotkey masks are %s\n",
 			str_supported(tp_features.hotkey_mask));
+
+		if (tp_features.hotkey_mask) {
+			/* MHKA available in A31, R40, R40e, T4x, X31, and later */
+			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
+					"MHKA", "qd"))
+				hotkey_all_mask = 0x080cU; /* FN+F12, FN+F4, FN+F3 */
+		}
 
 		res = hotkey_get(&hotkey_orig_status, &hotkey_orig_mask);
 		if (!res && tp_features.hotkey_mask) {
