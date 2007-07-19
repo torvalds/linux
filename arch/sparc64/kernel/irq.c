@@ -701,10 +701,10 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 {
 	unsigned long sysino, hv_err;
 
-	BUG_ON(devhandle & ~IMAP_IGN);
-	BUG_ON(devino & ~IMAP_INO);
+	BUG_ON(devhandle & devino);
 
 	sysino = devhandle | devino;
+	BUG_ON(sysino & ~(IMAP_IGN | IMAP_INO));
 
 	hv_err = sun4v_vintr_set_cookie(devhandle, devino, sysino);
 	if (hv_err) {
