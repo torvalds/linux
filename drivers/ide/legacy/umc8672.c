@@ -149,10 +149,12 @@ static int __init umc8672_probe(void)
 	mate = &ide_hwifs[1];
 
 	hwif->chipset = ide_umc8672;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = &tune_umc;
 	hwif->mate = mate;
 
 	mate->chipset = ide_umc8672;
+	mate->pio_mask = ATA_PIO4;
 	mate->tuneproc = &tune_umc;
 	mate->mate = hwif;
 	mate->channel = 1;

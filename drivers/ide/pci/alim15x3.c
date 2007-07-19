@@ -818,6 +818,7 @@ static ide_pci_device_t ali15x3_chipset __devinitdata = {
 	.init_dma	= init_dma_ali15x3,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO5,
 };
 
 /**

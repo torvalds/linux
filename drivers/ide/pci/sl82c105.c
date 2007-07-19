@@ -456,6 +456,7 @@ static ide_pci_device_t sl82c105_chipset __devinitdata = {
 	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO5,
 };
 
 static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)

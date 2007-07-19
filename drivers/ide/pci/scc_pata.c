@@ -775,6 +775,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
       .autodma	= AUTODMA,				\
       .bootable	= ON_BOARD,				\
       .host_flags	= IDE_HFLAG_SINGLE,		\
+      .pio_mask		= ATA_PIO4,			\
   }
 
 static ide_pci_device_t scc_chipsets[] __devinitdata = {

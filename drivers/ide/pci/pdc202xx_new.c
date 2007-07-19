@@ -568,6 +568,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 1 */
 		.name		= "PDC20269",
@@ -576,6 +577,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 2 */
 		.name		= "PDC20270",
@@ -584,6 +586,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 3 */
 		.name		= "PDC20271",
@@ -592,6 +595,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 4 */
 		.name		= "PDC20275",
@@ -600,6 +604,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 5 */
 		.name		= "PDC20276",
@@ -608,6 +613,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 6 */
 		.name		= "PDC20277",
@@ -616,6 +622,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
 	}
 };

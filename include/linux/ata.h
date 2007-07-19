@@ -64,6 +64,15 @@ enum {
 	ATA_ID_PROD_LEN		= 40,
 
 	ATA_PCI_CTL_OFS		= 2,
+
+	ATA_PIO0		= (1 << 0),
+	ATA_PIO1		= ATA_PIO0 | (1 << 1),
+	ATA_PIO2		= ATA_PIO1 | (1 << 2),
+	ATA_PIO3		= ATA_PIO2 | (1 << 3),
+	ATA_PIO4		= ATA_PIO3 | (1 << 4),
+	ATA_PIO5		= ATA_PIO4 | (1 << 5),
+	ATA_PIO6		= ATA_PIO5 | (1 << 6),
+
 	ATA_UDMA0		= (1 << 0),
 	ATA_UDMA1		= ATA_UDMA0 | (1 << 1),
 	ATA_UDMA2		= ATA_UDMA1 | (1 << 2),

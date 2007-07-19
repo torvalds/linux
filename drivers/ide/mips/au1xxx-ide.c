@@ -692,6 +692,8 @@ static int au_ide_probe(struct device *dev)
 	hwif->swdma_mask                = 0x0;
 #endif
 
+	hwif->pio_mask = ATA_PIO4;
+
 	hwif->noprobe = 0;
 	hwif->drives[0].unmask          = 1;
 	hwif->drives[1].unmask          = 1;

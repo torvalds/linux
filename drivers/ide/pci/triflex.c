@@ -132,6 +132,7 @@ static ide_pci_device_t triflex_device __devinitdata = {
 	.autodma	= AUTODMA,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit triflex_init_one(struct pci_dev *dev, 

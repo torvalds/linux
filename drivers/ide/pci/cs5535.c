@@ -231,6 +231,7 @@ static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
 	.host_flags	= IDE_HFLAG_SINGLE,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit cs5535_init_one(struct pci_dev *dev,

@@ -333,12 +333,14 @@ int __init ht6560b_init(void)
 
 	hwif->chipset = ide_ht6560b;
 	hwif->selectproc = &ht6560b_selectproc;
+	hwif->pio_mask = ATA_PIO5;
 	hwif->tuneproc = &tune_ht6560b;
 	hwif->serialized = 1;	/* is this needed? */
 	hwif->mate = mate;
 
 	mate->chipset = ide_ht6560b;
 	mate->selectproc = &ht6560b_selectproc;
+	mate->pio_mask = ATA_PIO5;
 	mate->tuneproc = &tune_ht6560b;
 	mate->serialized = 1;	/* is this needed? */
 	mate->mate = hwif;

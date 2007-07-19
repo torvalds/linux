@@ -1248,6 +1248,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = pmac_ide_tuneproc;
 	if (pmif->kind == controller_un_ata6
 	    || pmif->kind == controller_k2_ata6

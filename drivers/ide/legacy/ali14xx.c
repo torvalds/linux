@@ -211,10 +211,12 @@ static int __init ali14xx_probe(void)
 	mate = &ide_hwifs[1];
 
 	hwif->chipset = ide_ali14xx;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = &ali14xx_tune_drive;
 	hwif->mate = mate;
 
 	mate->chipset = ide_ali14xx;
+	mate->pio_mask = ATA_PIO4;
 	mate->tuneproc = &ali14xx_tune_drive;
 	mate->mate = hwif;
 	mate->channel = 1;

@@ -1549,7 +1549,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	},{	/* 1 */
 		.name		= "HPT372A",
 		.init_setup	= init_setup_hpt372a,
@@ -1560,7 +1561,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? 0x7f : 0x3f,
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	},{	/* 2 */
 		.name		= "HPT302",
 		.init_setup	= init_setup_hpt302,
@@ -1571,7 +1573,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT302_ALLOW_ATA133_6 ? 0x7f : 0x3f,
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	},{	/* 3 */
 		.name		= "HPT371",
 		.init_setup	= init_setup_hpt371,
@@ -1582,7 +1585,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT371_ALLOW_ATA133_6 ? 0x7f : 0x3f,
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	},{	/* 4 */
 		.name		= "HPT374",
 		.init_setup	= init_setup_hpt374,
@@ -1593,7 +1597,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= 0x3f,
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	},{	/* 5 */
 		.name		= "HPT372N",
 		.init_setup	= init_setup_hpt372n,
@@ -1604,7 +1609,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? 0x7f : 0x3f,
 		.bootable	= OFF_BOARD,
-		.extra		= 240
+		.extra		= 240,
+		.pio_mask	= ATA_PIO4,
 	}
 };
 

@@ -959,6 +959,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.fixup		= siimage_fixup,	\
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
+		.pio_mask	= ATA_PIO4,		\
 	}
 
 static ide_pci_device_t siimage_chipsets[] __devinitdata = {

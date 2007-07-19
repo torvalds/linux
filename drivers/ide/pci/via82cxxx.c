@@ -503,6 +503,7 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.bootable	= ON_BOARD,
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
 				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+		.pio_mask	= ATA_PIO5,
 	},{	/* 1 */
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
@@ -512,6 +513,7 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.bootable	= ON_BOARD,
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
 				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+		.pio_mask	= ATA_PIO5,
 	}
 };
 

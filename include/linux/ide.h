@@ -683,6 +683,8 @@ typedef struct hwif_s {
 
 	u8 host_flags;
 
+	u8 pio_mask;
+
 	u8 atapi_dma;	/* host supports atapi_dma */
 	u8 ultra_mask;
 	u8 mwdma_mask;
@@ -1270,6 +1272,7 @@ typedef struct ide_pci_device_s {
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
 	u8			host_flags;
+	u8			pio_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
 

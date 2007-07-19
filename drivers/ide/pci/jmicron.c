@@ -180,6 +180,7 @@ fallback:
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
 		.enablebits	= { {0x40, 1, 1}, {0x40, 0x10, 0x10} }, \
+		.pio_mask	= ATA_PIO5,		\
 	}
 
 static ide_pci_device_t jmicron_chipsets[] __devinitdata = {

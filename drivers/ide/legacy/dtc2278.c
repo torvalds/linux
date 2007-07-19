@@ -123,6 +123,7 @@ static int __init dtc2278_probe(void)
 
 	hwif->serialized = 1;
 	hwif->chipset = ide_dtc2278;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = &tune_dtc2278;
 	hwif->drives[0].no_unmask = 1;
 	hwif->drives[1].no_unmask = 1;

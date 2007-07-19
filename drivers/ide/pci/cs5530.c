@@ -343,6 +343,7 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.init_hwif	= init_hwif_cs5530,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)

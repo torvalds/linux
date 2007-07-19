@@ -177,7 +177,8 @@ static ide_pci_device_t hpt34x_chipset __devinitdata = {
 	.init_hwif	= init_hwif_hpt34x,
 	.autodma	= NOAUTODMA,
 	.bootable	= NEVER_BOARD,
-	.extra		= 16
+	.extra		= 16,
+	.pio_mask	= ATA_PIO5,
 };
 
 static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_device_id *id)

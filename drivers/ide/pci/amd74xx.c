@@ -453,6 +453,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.bootable	= ON_BOARD,				\
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
 				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 #define DECLARE_NV_DEV(name_str)					\
@@ -465,6 +466,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.bootable	= ON_BOARD,				\
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
 				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {

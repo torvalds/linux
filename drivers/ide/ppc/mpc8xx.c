@@ -316,6 +316,7 @@ m8xx_ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port,
 	}
 
 	/* register routine to tune PIO mode */
+	ide_hwifs[data_port].pio_mask = ATA_PIO4;
 	ide_hwifs[data_port].tuneproc = m8xx_ide_tuneproc;
 
 	hw->ack_intr = (ide_ack_intr_t *) ide_interrupt_ack;
@@ -402,6 +403,7 @@ void m8xx_ide_init_hwif_ports (hw_regs_t *hw,
 	}
 
 	/* register routine to tune PIO mode */
+	ide_hwifs[data_port].pio_mask = ATA_PIO4;
 	ide_hwifs[data_port].tuneproc = m8xx_ide_tuneproc;
 
 	hw->ack_intr = (ide_ack_intr_t *) ide_interrupt_ack;

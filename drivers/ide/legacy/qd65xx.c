@@ -346,6 +346,7 @@ static void __init qd_setup(ide_hwif_t *hwif, int base, int config,
 	hwif->drives[1].drive_data = data1;
 	hwif->drives[0].io_32bit =
 	hwif->drives[1].io_32bit = 1;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = tuneproc;
 	probe_hwif_init(hwif);
 }
