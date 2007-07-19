@@ -391,28 +391,23 @@ int coda_rmdir(struct inode *dir, struct dentry *de)
 {
 	const char *name = de->d_name.name;
 	int len = de->d_name.len;
-        int error;
+	int error;
 
 	lock_kernel();
 	coda_vfs_stat.rmdir++;
 
-	if (!d_unhashed(de)) {
-		unlock_kernel();
-		return -EBUSY;
-	}
 	error = venus_rmdir(dir->i_sb, coda_i2f(dir), name, len);
+	if (!error) {
+		/* VFS may delete the child */
+		if (de->d_inode)
+		    de->d_inode->i_nlink = 0;
 
-	if ( error ) {
-		unlock_kernel();
-		return error;
+		/* fix the link count of the parent */
+		coda_dir_drop_nlink(dir);
+		coda_dir_update_mtime(dir);
 	}
-
-	coda_dir_drop_nlink(dir);
-	coda_dir_update_mtime(dir);
-	drop_nlink(de->d_inode);
-	d_delete(de);
 	unlock_kernel();
-	return 0;
+	return error;
 }
 
 /* rename */
