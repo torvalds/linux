@@ -97,7 +97,7 @@ static void jmicron_tuneproc (ide_drive_t *drive, byte mode_wanted)
 
 static void config_jmicron_chipset_for_pio (ide_drive_t *drive, byte set_speed)
 {
-	u8 speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5, NULL);
+	u8 speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5);
 	if (set_speed)
 		(void) ide_config_drive_speed(drive, speed);
 }
@@ -177,10 +177,10 @@ fallback:
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_jmicron,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
 		.enablebits	= { {0x40, 1, 1}, {0x40, 0x10, 0x10} }, \
+		.pio_mask	= ATA_PIO5,		\
 	}
 
 static ide_pci_device_t jmicron_chipsets[] __devinitdata = {

@@ -633,9 +633,8 @@ static void cmd640_set_mode (unsigned int index, u8 pio_mode, unsigned int cycle
  */
 static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 {
+	unsigned int index = 0, cycle_time;
 	u8 b;
-	ide_pio_data_t  d;
-	unsigned int index = 0;
 
 	while (drive != cmd_drives[index]) {
 		if (++index > 3) {
@@ -662,16 +661,14 @@ static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 			return;
 	}
 
-	(void) ide_get_best_pio_mode (drive, mode_wanted, 5, &d);
-	cmd640_set_mode (index, d.pio_mode, d.cycle_time);
+	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 5);
+	cycle_time = ide_pio_cycle_time(drive, mode_wanted);
+	cmd640_set_mode(index, mode_wanted, cycle_time);
 
-	printk ("%s: selected cmd640 PIO mode%d (%dns)%s",
-		drive->name,
-		d.pio_mode,
-		d.cycle_time,
-		d.overridden ? " (overriding vendor mode)" : "");
+	printk("%s: selected cmd640 PIO mode%d (%dns)",
+		drive->name, mode_wanted, cycle_time);
+
 	display_clocks(index);
-	return;
 }
 
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
@@ -769,6 +766,7 @@ int __init ide_probe_for_cmd640x (void)
 	       cmd_hwif0->name, 'a' + cmd640_chip_version - 1, bus_type, cfr);
 	cmd_hwif0->chipset = ide_cmd640;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	cmd_hwif0->pio_mask = ATA_PIO5;
 	cmd_hwif0->tuneproc = &cmd640_tune_drive;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
@@ -824,6 +822,7 @@ int __init ide_probe_for_cmd640x (void)
 		cmd_hwif1->mate = cmd_hwif0;
 		cmd_hwif1->channel = 1;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+		cmd_hwif1->pio_mask = ATA_PIO5;
 		cmd_hwif1->tuneproc = &cmd640_tune_drive;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 	}

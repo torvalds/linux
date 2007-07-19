@@ -203,19 +203,21 @@ static u8 ht_pio2timings(ide_drive_t *drive, u8 pio)
 {
 	int active_time, recovery_time;
 	int active_cycles, recovery_cycles;
-	ide_pio_data_t d;
 	int bus_speed = system_bus_clock();
 	
         if (pio) {
-		pio = ide_get_best_pio_mode(drive, pio, 5, &d);
-		
+		unsigned int cycle_time;
+
+		pio = ide_get_best_pio_mode(drive, pio, 5);
+		cycle_time = ide_pio_cycle_time(drive, pio);
+
 		/*
 		 *  Just like opti621.c we try to calculate the
 		 *  actual cycle time for recovery and activity
 		 *  according system bus speed.
 		 */
 		active_time = ide_pio_timings[pio].active_time;
-		recovery_time = d.cycle_time 
+		recovery_time = cycle_time
 			- active_time
 			- ide_pio_timings[pio].setup_time;
 		/*
@@ -331,12 +333,14 @@ int __init ht6560b_init(void)
 
 	hwif->chipset = ide_ht6560b;
 	hwif->selectproc = &ht6560b_selectproc;
+	hwif->pio_mask = ATA_PIO5;
 	hwif->tuneproc = &tune_ht6560b;
 	hwif->serialized = 1;	/* is this needed? */
 	hwif->mate = mate;
 
 	mate->chipset = ide_ht6560b;
 	mate->selectproc = &ht6560b_selectproc;
+	mate->pio_mask = ATA_PIO5;
 	mate->tuneproc = &tune_ht6560b;
 	mate->serialized = 1;	/* is this needed? */
 	mate->mate = hwif;

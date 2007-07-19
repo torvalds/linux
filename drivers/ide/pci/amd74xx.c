@@ -1,5 +1,5 @@
 /*
- * Version 2.20
+ * Version 2.21
  *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
@@ -272,10 +272,8 @@ static int amd_set_drive(ide_drive_t *drive, u8 speed)
 
 static void amd74xx_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	if (pio == 255) {
-		amd_set_drive(drive, ide_find_best_pio_mode(drive));
-		return;
-	}
+	if (pio == 255)
+		pio = ide_get_best_pio_mode(drive, 255, 5);
 
 	amd_set_drive(drive, XFER_PIO_0 + min_t(byte, pio, 5));
 }
@@ -284,12 +282,14 @@ static int amd74xx_ide_dma_check(ide_drive_t *drive)
 {
 	u8 speed = ide_max_dma_mode(drive);
 
-	if (speed == 0)
-		speed = ide_find_best_pio_mode(drive);
+	if (speed == 0) {
+		amd74xx_tune_drive(drive, 255);
+		return -1;
+	}
 
 	amd_set_drive(drive, speed);
 
-	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
+	if (drive->autodma)
 		return 0;
 
 	return -1;
@@ -448,10 +448,12 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.channels	= 2,					\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 #define DECLARE_NV_DEV(name_str)					\
@@ -459,10 +461,12 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.channels	= 2,					\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {

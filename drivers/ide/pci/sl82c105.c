@@ -52,12 +52,13 @@
  * Convert a PIO mode and cycle time to the required on/off times
  * for the interface.  This has protection against runaway timings.
  */
-static unsigned int get_pio_timings(ide_pio_data_t *p)
+static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 {
 	unsigned int cmd_on, cmd_off;
+	u8 iordy = 0;
 
-	cmd_on  = (ide_pio_timings[p->pio_mode].active_time + 29) / 30;
-	cmd_off = (p->cycle_time - 30 * cmd_on + 29) / 30;
+	cmd_on  = (ide_pio_timings[pio].active_time + 29) / 30;
+	cmd_off = (ide_pio_cycle_time(drive, pio) - 30 * cmd_on + 29) / 30;
 
 	if (cmd_on == 0)
 		cmd_on = 1;
@@ -65,7 +66,10 @@ static unsigned int get_pio_timings(ide_pio_data_t *p)
 	if (cmd_off == 0)
 		cmd_off = 1;
 
-	return (cmd_on - 1) << 8 | (cmd_off - 1) | (p->use_iordy ? 0x40 : 0x00);
+	if (pio > 2 || ide_dev_has_iordy(drive->id))
+		iordy = 0x40;
+
+	return (cmd_on - 1) << 8 | (cmd_off - 1) | iordy;
 }
 
 /*
@@ -75,14 +79,13 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
 	int reg			= 0x44 + drive->dn * 4;
-	ide_pio_data_t p;
 	u16 drv_ctrl;
 
 	DBG(("sl82c105_tune_pio(drive:%s, pio:%u)\n", drive->name, pio));
 
-	pio = ide_get_best_pio_mode(drive, pio, 5, &p);
+	pio = ide_get_best_pio_mode(drive, pio, 5);
 
-	drv_ctrl = get_pio_timings(&p);
+	drv_ctrl = get_pio_timings(drive, pio);
 
 	/*
 	 * Store the PIO timings so that we can restore them
@@ -101,7 +104,8 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 	}
 
 	printk(KERN_DEBUG "%s: selected %s (%dns) (%04X)\n", drive->name,
-	       ide_xfer_verbose(pio + XFER_PIO_0), p.cycle_time, drv_ctrl);
+			  ide_xfer_verbose(pio + XFER_PIO_0),
+			  ide_pio_cycle_time(drive, pio), drv_ctrl);
 
 	return pio;
 }
@@ -449,10 +453,10 @@ static ide_pci_device_t sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,
-	.channels	= 2,
 	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO5,
 };
 
 static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)

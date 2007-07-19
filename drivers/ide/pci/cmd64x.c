@@ -221,17 +221,18 @@ static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	ide_pio_data_t pio;
+	unsigned int cycle_time;
 	u8 pio_mode, setup_count, arttim = 0;
 	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
 	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
-	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, &pio);
 
-	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)%s\n",
-		  drive->name, mode_wanted, pio_mode, pio.cycle_time,
-		  pio.overridden ? " (overriding vendor mode)" : "");
+	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5);
+	cycle_time = ide_pio_cycle_time(drive, pio_mode);
 
-	program_cycle_times(drive, pio.cycle_time,
+	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)\n",
+		  drive->name, mode_wanted, pio_mode, cycle_time);
+
+	program_cycle_times(drive, cycle_time,
 			    ide_pio_timings[pio_mode].active_time);
 
 	setup_count = quantize_timing(ide_pio_timings[pio_mode].setup_time,
@@ -618,40 +619,40 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
 		.init_setup	= init_setup_cmd646,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 2 */
 		.name		= "CMD648",
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "CMD649",
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };

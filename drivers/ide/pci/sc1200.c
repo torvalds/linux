@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.94	Mar 10 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.95	Jun 16 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -304,7 +304,7 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
 		return;
 	}
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	printk("SC1200: %s: setting PIO mode%d\n", drive->name, pio);
 
 	if (sc1200_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
@@ -390,7 +390,7 @@ static int sc1200_resume (struct pci_dev *dev)
 	// loop over all interfaces that are part of this pci device:
 	//
 	while ((hwif = lookup_pci_dev(hwif, dev)) != NULL) {
-		unsigned int		basereg, r, d, format;
+		unsigned int		basereg, r;
 		sc1200_saved_state_t	*ss = (sc1200_saved_state_t *)hwif->config_data;
 
 		//
@@ -400,41 +400,6 @@ static int sc1200_resume (struct pci_dev *dev)
 		if (ss != NULL) {
 			for (r = 0; r < 4; ++r) {
 				pci_write_config_dword(hwif->pci_dev, basereg + (r<<2), ss->regs[r]);
-			}
-		}
-		//
-		// Re-program drive PIO modes
-		//
-		pci_read_config_dword(hwif->pci_dev, basereg+4, &format);
-		format = (format >> 31) & 1;
-		if (format)
-			format += sc1200_get_pci_clock();
-		for (d = 0; d < 2; ++d) {
-			ide_drive_t *drive = &(hwif->drives[d]);
-			if (drive->present) {
-				unsigned int pio, timings;
-				pci_read_config_dword(hwif->pci_dev, basereg+(drive->select.b.unit << 3), &timings);
-				for (pio = 0; pio <= 4; ++pio) {
-					if (sc1200_pio_timings[format][pio] == timings)
-						break;
-				}
-				if (pio > 4)
-					pio = 255; /* autotune */
-				(void)sc1200_tuneproc(drive, pio);
-			}
-		}
-		//
-		// Re-program drive DMA modes
-		//
-		for (d = 0; d < MAX_DRIVES; ++d) {
-			ide_drive_t *drive = &(hwif->drives[d]);
-			if (drive->present && !__ide_dma_bad_drive(drive)) {
-				int enable_dma = drive->using_dma;
-				hwif->dma_off_quietly(drive);
-				if (sc1200_config_dma(drive))
-					enable_dma = 0;
-				if (enable_dma)
-					hwif->dma_host_on(drive);
 			}
 		}
 	}
@@ -471,9 +436,9 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 static ide_pci_device_t sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
 	.init_hwif	= init_hwif_sc1200,
-	.channels	= 2,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)

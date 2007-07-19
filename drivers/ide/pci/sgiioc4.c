@@ -586,6 +586,7 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->ultra_mask = 0x0;	/* Disable Ultra DMA */
 	hwif->mwdma_mask = 0x2;	/* Multimode-2 DMA  */
 	hwif->swdma_mask = 0x2;
+	hwif->pio_mask = 0x00;
 	hwif->tuneproc = NULL;	/* Sets timing for PIO mode */
 	hwif->speedproc = NULL;	/* Sets timing for DMA &/or PIO modes */
 	hwif->selectproc = NULL;/* Use the default routine to select drive */
@@ -724,10 +725,10 @@ static ide_pci_device_t sgiioc4_chipset __devinitdata = {
 	 .name = "SGIIOC4",
 	 .init_hwif = ide_init_sgiioc4,
 	 .init_dma = ide_dma_sgiioc4,
-	 .channels = 1,
 	 .autodma = AUTODMA,
 	 /* SGI IOC4 doesn't have enablebits. */
 	 .bootable = ON_BOARD,
+	 .host_flags = IDE_HFLAG_SINGLE,
 };
 
 int

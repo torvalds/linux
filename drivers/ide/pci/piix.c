@@ -219,7 +219,7 @@ static void piix_tune_pio (ide_drive_t *drive, u8 pio)
  */
 static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	piix_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -495,10 +495,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_piix,	\
 		.init_hwif	= init_hwif_piix,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.bootable	= ON_BOARD,		\
+		.pio_mask	= ATA_PIO4,		\
 		.udma_mask	= udma,			\
 	}
 
@@ -514,11 +514,11 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 		 */
 		.name		= "MPIIX",
 		.init_hwif	= init_hwif_piix,
-		.channels	= 2,
 		.autodma	= NODMA,
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
 		.bootable	= ON_BOARD,
-		.flags		= IDEPCI_FLAG_ISA_PORTS
+		.host_flags	= IDE_HFLAG_ISA_PORTS,
+		.pio_mask	= ATA_PIO4,
 	},
 
 	/*  3 */ DECLARE_PIIX_DEV("PIIX3", 0x00),	/* no udma */

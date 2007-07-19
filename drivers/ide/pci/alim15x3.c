@@ -295,7 +295,6 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
  
 static u8 ali15x3_tune_pio (ide_drive_t *drive, u8 pio)
 {
-	ide_pio_data_t d;
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = hwif->pci_dev;
 	int s_time, a_time, c_time;
@@ -307,7 +306,7 @@ static u8 ali15x3_tune_pio (ide_drive_t *drive, u8 pio)
 	u8 cd_dma_fifo = 0;
 	int unit = drive->select.b.unit & 1;
 
-	pio = ide_get_best_pio_mode(drive, pio, 5, &d);
+	pio = ide_get_best_pio_mode(drive, pio, 5);
 	s_time = ide_pio_timings[pio].setup_time;
 	a_time = ide_pio_timings[pio].active_time;
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
@@ -817,9 +816,9 @@ static ide_pci_device_t ali15x3_chipset __devinitdata = {
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
-	.channels	= 2,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO5,
 };
 
 /**

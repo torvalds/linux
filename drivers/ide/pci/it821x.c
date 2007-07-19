@@ -255,7 +255,7 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	 * on the cable.
 	 */
 	if (pair) {
-		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4, NULL);
+		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
 		/* trim PIO to the slowest of the master/slave */
 		if (pair_pio < set_pio)
 			set_pio = pair_pio;
@@ -276,7 +276,7 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 
 static void it821x_tuneproc(ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)it821x_tunepio(drive, pio);
 }
 
@@ -718,10 +718,10 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
-		.fixup	 	= it821x_fixups		\
+		.fixup	 	= it821x_fixups,	\
+		.pio_mask	= ATA_PIO4,		\
 	}
 
 static ide_pci_device_t it821x_chipsets[] __devinitdata = {
