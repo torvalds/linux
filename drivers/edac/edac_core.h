@@ -845,6 +845,6 @@ extern void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci);
 /*
  * edac misc APIs
  */
-extern char *edac_op_state_toString(int op_state);
+extern char *edac_op_state_to_string(int op_state);
 
 #endif				/* _EDAC_CORE_H_ */

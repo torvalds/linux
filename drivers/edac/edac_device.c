@@ -461,7 +461,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 				edac_dev->mod_name,
 				edac_dev->ctl_name,
 				dev_name(edac_dev),
-				edac_op_state_toString(edac_dev->op_state));
+				edac_op_state_to_string(edac_dev->op_state));
 
 	up(&device_ctls_mutex);
 	return 0;

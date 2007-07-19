@@ -35,9 +35,9 @@ static struct sysdev_class edac_class = {
 static int edac_class_valid;
 
 /*
- * edac_op_state_toString()
+ * edac_op_state_to_string()
  */
-char *edac_op_state_toString(int opstate)
+char *edac_op_state_to_string(int opstate)
 {
 	if (opstate == OP_RUNNING_POLL)
 		return "POLLED";

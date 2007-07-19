@@ -321,7 +321,7 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 			" DEV '%s' (%s)\n",
 			pci->mod_name,
 			pci->ctl_name,
-			dev_name(pci), edac_op_state_toString(pci->op_state));
+			dev_name(pci), edac_op_state_to_string(pci->op_state));
 
 	edac_unlock_pci_list();
 	return 0;
