@@ -72,7 +72,7 @@ void refrigerator(void)
 		schedule();
 	}
 	pr_debug("%s left refrigerator\n", current->comm);
-	current->state = save;
+	__set_current_state(save);
 }
 
 static void freeze_task(struct task_struct *p)
