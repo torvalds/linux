@@ -1434,6 +1434,78 @@ static int bq4802_set_rtc_time(struct rtc_time *time)
 
 	return 0;
 }
+
+static void cmos_get_rtc_time(struct rtc_time *rtc_tm)
+{
+	unsigned char ctrl;
+
+	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
+	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
+	rtc_tm->tm_hour = CMOS_READ(RTC_HOURS);
+	rtc_tm->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
+	rtc_tm->tm_mon = CMOS_READ(RTC_MONTH);
+	rtc_tm->tm_year = CMOS_READ(RTC_YEAR);
+	rtc_tm->tm_wday = CMOS_READ(RTC_DAY_OF_WEEK);
+
+	ctrl = CMOS_READ(RTC_CONTROL);
+	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		BCD_TO_BIN(rtc_tm->tm_sec);
+		BCD_TO_BIN(rtc_tm->tm_min);
+		BCD_TO_BIN(rtc_tm->tm_hour);
+		BCD_TO_BIN(rtc_tm->tm_mday);
+		BCD_TO_BIN(rtc_tm->tm_mon);
+		BCD_TO_BIN(rtc_tm->tm_year);
+		BCD_TO_BIN(rtc_tm->tm_wday);
+	}
+
+	if (rtc_tm->tm_year <= 69)
+		rtc_tm->tm_year += 100;
+
+	rtc_tm->tm_mon--;
+}
+
+static int cmos_set_rtc_time(struct rtc_time *rtc_tm)
+{
+	unsigned char mon, day, hrs, min, sec;
+	unsigned char save_control, save_freq_select;
+	unsigned int yrs;
+
+	yrs = rtc_tm->tm_year;
+	mon = rtc_tm->tm_mon + 1;
+	day = rtc_tm->tm_mday;
+	hrs = rtc_tm->tm_hour;
+	min = rtc_tm->tm_min;
+	sec = rtc_tm->tm_sec;
+
+	if (yrs >= 100)
+		yrs -= 100;
+
+	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		BIN_TO_BCD(sec);
+		BIN_TO_BCD(min);
+		BIN_TO_BCD(hrs);
+		BIN_TO_BCD(day);
+		BIN_TO_BCD(mon);
+		BIN_TO_BCD(yrs);
+	}
+
+	save_control = CMOS_READ(RTC_CONTROL);
+	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
+	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
+	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
+
+	CMOS_WRITE(yrs, RTC_YEAR);
+	CMOS_WRITE(mon, RTC_MONTH);
+	CMOS_WRITE(day, RTC_DAY_OF_MONTH);
+	CMOS_WRITE(hrs, RTC_HOURS);
+	CMOS_WRITE(min, RTC_MINUTES);
+	CMOS_WRITE(sec, RTC_SECONDS);
+
+	CMOS_WRITE(save_control, RTC_CONTROL);
+	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
+
+	return 0;
+}
 #endif /* CONFIG_PCI */
 
 struct mini_rtc_ops {
@@ -1455,6 +1527,11 @@ static struct mini_rtc_ops hypervisor_rtc_ops = {
 static struct mini_rtc_ops bq4802_rtc_ops = {
 	.get_rtc_time = bq4802_get_rtc_time,
 	.set_rtc_time = bq4802_set_rtc_time,
+};
+
+static struct mini_rtc_ops cmos_rtc_ops = {
+	.get_rtc_time = cmos_get_rtc_time,
+	.set_rtc_time = cmos_set_rtc_time,
 };
 #endif /* CONFIG_PCI */
 
@@ -1583,6 +1660,8 @@ static int __init rtc_mini_init(void)
 #ifdef CONFIG_PCI
 	else if (bq4802_regs)
 		mini_rtc_ops = &bq4802_rtc_ops;
+	else if (ds1287_regs)
+		mini_rtc_ops = &cmos_rtc_ops;
 #endif /* CONFIG_PCI */
 	else
 		return -ENODEV;
