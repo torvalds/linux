@@ -929,8 +929,8 @@ enum atl1_dma_req_block {
 	atl1_dma_req_128 = 0,
 	atl1_dma_req_256 = 1,
 	atl1_dma_req_512 = 2,
-	atl1_dam_req_1024 = 3,
-	atl1_dam_req_2048 = 4,
+	atl1_dma_req_1024 = 3,
+	atl1_dma_req_2048 = 4,
 	atl1_dma_req_4096 = 5
 };
 
