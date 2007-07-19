@@ -468,32 +468,34 @@ struct edac_device_counter {
 	u32 ce_count;
 };
 
-/*
- * An array of these is passed to the alloc() function
- * to specify attributes of the edac_block
- */
-struct edac_attrib_spec {
-	char name[EDAC_DEVICE_NAME_LEN + 1];
+/* forward reference */
+struct edac_device_ctl_info;
+struct edac_device_block;
 
-	int type;
-#define	EDAC_ATTR_INT		0x01
-#define EDAC_ATTR_CHAR		0x02
+/* edac_dev_sysfs_attribute structure
+ *	used for driver sysfs attributes in mem_ctl_info
+ *	for extra controls and attributes:
+ *		like high level error Injection controls
+ */
+struct edac_dev_sysfs_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct edac_device_ctl_info *, char *);
+	ssize_t (*store)(struct edac_device_ctl_info *, const char *, size_t);
 };
 
-/* Attribute control structure
- * In this structure is a pointer to the driver's edac_attrib_spec
- * The life of this pointer is inclusive in the life of the driver's
- * life cycle.
+/* edac_dev_sysfs_block_attribute structure
+ *	used in leaf 'block' nodes for adding controls/attributes
  */
-struct edac_attrib {
-	struct edac_device_block *block;	/* Up Pointer */
+struct edac_dev_sysfs_block_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct kobject *, struct attribute *, char *);
+	ssize_t (*store)(struct kobject *, struct attribute *,
+			const char *, size_t);
+	struct edac_device_block *block;
 
-	struct edac_attrib_spec *spec;	/* ptr to module spec entry */
-
-	union {			/* actual value */
-		int edac_attrib_int_value;
-		char edac_attrib_char_value[EDAC_ATTRIB_VALUE_LEN + 1];
-	} edac_attrib_value;
+	/* low driver use */
+	void *arg;
+	unsigned int value;
 };
 
 /* device block control structure */
@@ -504,7 +506,9 @@ struct edac_device_block {
 	struct edac_device_counter counters;	/* basic UE and CE counters */
 
 	int nr_attribs;		/* how many attributes */
-	struct edac_attrib *attribs;	/* this block's attributes */
+
+	/* this block's attributes, could be NULL */
+	struct edac_dev_sysfs_block_attribute *block_attributes;
 
 	/* edac sysfs device control */
 	struct kobject kobj;
@@ -526,15 +530,6 @@ struct edac_device_instance {
 	struct completion kobj_complete;
 };
 
-/* edac_dev_sysfs_attribute structure
- *     used for driver sysfs attributes and in mem_ctl_info
- *     sysfs top level entries
- */
-struct edac_dev_sysfs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct edac_device_ctl_info *,char *);
-	ssize_t (*store)(struct edac_device_ctl_info *, const char *,size_t);
-};
 
 /*
  * Abstract edac_device control info structure
@@ -635,12 +630,10 @@ struct edac_device_ctl_info {
  */
 extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		unsigned sizeof_private,
-		char *edac_device_name,
-		unsigned nr_instances,
-		char *edac_block_name,
-		unsigned nr_blocks,
+		char *edac_device_name, unsigned nr_instances,
+		char *edac_block_name, unsigned nr_blocks,
 		unsigned offset_value,
-		struct edac_attrib_spec *attrib_spec,
+		struct edac_dev_sysfs_block_attribute *block_attributes,
 		unsigned nr_attribs);
 
 /* The offset value can be:

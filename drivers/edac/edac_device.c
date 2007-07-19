@@ -67,12 +67,12 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	char *edac_device_name, unsigned nr_instances,
 	char *edac_block_name, unsigned nr_blocks,
 	unsigned offset_value,		/* zero, 1, or other based offset */
-	struct edac_attrib_spec *attrib_spec, unsigned nr_attribs)
+	struct edac_dev_sysfs_block_attribute *attrib_spec, unsigned nr_attrib)
 {
 	struct edac_device_ctl_info *dev_ctl;
 	struct edac_device_instance *dev_inst, *inst;
 	struct edac_device_block *dev_blk, *blk_p, *blk;
-	struct edac_attrib *dev_attrib, *attrib_p, *attrib;
+	struct edac_dev_sysfs_block_attribute *dev_attrib, *attrib_p, *attrib;
 	unsigned total_size;
 	unsigned count;
 	unsigned instance, block, attr;
@@ -81,29 +81,47 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	debugf1("%s() instances=%d blocks=%d\n",
 		__func__, nr_instances, nr_blocks);
 
-	/* Figure out the offsets of the various items from the start of an
-	 * ctl_info structure.  We want the alignment of each item
+	/* Calculate the size of memory we need to allocate AND
+	 * determine the offsets of the various item arrays
+	 * (instance,block,attrib) from the start of an  allocated structure.
+	 * We want the alignment of each item  (instance,block,attrib)
 	 * to be at least as stringent as what the compiler would
 	 * provide if we could simply hardcode everything into a single struct.
 	 */
 	dev_ctl = (struct edac_device_ctl_info *)NULL;
 
-	/* Calc the 'end' offset past the ctl_info structure */
+	/* Calc the 'end' offset past end of ONE ctl_info structure
+	 * which will become the start of the 'instance' array
+	 */
 	dev_inst = edac_align_ptr(&dev_ctl[1], sizeof(*dev_inst));
 
-	/* Calc the 'end' offset past the instance array */
+	/* Calc the 'end' offset past the instance array within the ctl_info
+	 * which will become the start of the block array
+	 */
 	dev_blk = edac_align_ptr(&dev_inst[nr_instances], sizeof(*dev_blk));
 
-	/* Calc the 'end' offset past the dev_blk array */
+	/* Calc the 'end' offset past the dev_blk array
+	 * which will become the start of the attrib array, if any.
+	 */
 	count = nr_instances * nr_blocks;
 	dev_attrib = edac_align_ptr(&dev_blk[count], sizeof(*dev_attrib));
 
-	/* Check for case of NO attributes specified */
-	if (nr_attribs > 0)
-		count *= nr_attribs;
+	/* Check for case of when an attribute array is specified */
+	if (nr_attrib > 0) {
+		/* calc how many nr_attrib we need */
+		count *= nr_attrib;
 
-	/* Calc the 'end' offset past the attributes array */
-	pvt = edac_align_ptr(&dev_attrib[count], sz_private);
+		/* Calc the 'end' offset past the attributes array */
+		pvt = edac_align_ptr(&dev_attrib[count], sz_private);
+	} else {
+		/* no attribute array specificed */
+		pvt = edac_align_ptr(dev_attrib, sz_private);
+	}
+
+	/* 'pvt' now points to where the private data area is.
+	 * At this point 'pvt' (like dev_inst,dev_blk and dev_attrib)
+	 * is baselined at ZERO
+	 */
 	total_size = ((unsigned long)pvt) + sz_private;
 
 	/* Allocate the amount of memory for the set of control structures */
@@ -111,17 +129,22 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	if (dev_ctl == NULL)
 		return NULL;
 
-	/* Adjust pointers so they point within the memory we just allocated
-	 * rather than an imaginary chunk of memory located at address 0.
+	/* Adjust pointers so they point within the actual memory we
+	 * just allocated rather than an imaginary chunk of memory
+	 * located at address 0.
+	 * 'dev_ctl' points to REAL memory, while the others are
+	 * ZERO based and thus need to be adjusted to point within
+	 * the allocated memory.
 	 */
 	dev_inst = (struct edac_device_instance *)
 		(((char *)dev_ctl) + ((unsigned long)dev_inst));
 	dev_blk = (struct edac_device_block *)
 		(((char *)dev_ctl) + ((unsigned long)dev_blk));
-	dev_attrib = (struct edac_attrib *)
+	dev_attrib = (struct edac_dev_sysfs_block_attribute *)
 		(((char *)dev_ctl) + ((unsigned long)dev_attrib));
 	pvt = sz_private ? (((char *)dev_ctl) + ((unsigned long)pvt)) : NULL;
 
+	/* Begin storing the information into the control info structure */
 	dev_ctl->nr_instances = nr_instances;
 	dev_ctl->instances = dev_inst;
 	dev_ctl->pvt_info = pvt;
@@ -145,28 +168,37 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		for (block = 0; block < nr_blocks; block++) {
 			blk = &blk_p[block];
 			blk->instance = inst;
-			blk->nr_attribs = nr_attribs;
-			attrib_p = &dev_attrib[block * nr_attribs];
-			blk->attribs = attrib_p;
 			snprintf(blk->name, sizeof(blk->name),
 				 "%s%d", edac_block_name, block+offset_value);
 
 			debugf1("%s() instance=%d block=%d name=%s\n",
 				__func__, instance, block, blk->name);
 
-			if (attrib_spec != NULL) {
-				/* when there is an attrib_spec passed int then
-				 * Initialize every attrib of each block
-				 */
-				for (attr = 0; attr < nr_attribs; attr++) {
-					attrib = &attrib_p[attr];
-					attrib->block = blk;
+			/* if there are NO attributes OR no attribute pointer
+			 * then continue on to next block iteration
+			 */
+			if ((nr_attrib == 0) || (attrib_spec == NULL))
+				continue;
 
-					/* Link each attribute to the caller's
-					 * spec entry, for name and type
-					 */
-					attrib->spec = &attrib_spec[attr];
-				}
+			/* setup the attribute array for this block */
+			blk->nr_attribs = nr_attrib;
+			attrib_p = &dev_attrib[block*nr_instances*nr_attrib];
+			blk->block_attributes = attrib_p;
+
+			/* Initialize every user specified attribute in this
+			 * block with the data the caller passed in
+			 */
+			for (attr = 0; attr < nr_attrib; attr++) {
+				attrib = &attrib_p[attr];
+				attrib->attr = attrib_spec->attr;
+				attrib->show = attrib_spec->show;
+				attrib->store = attrib_spec->store;
+
+				/* up reference this block */
+				attrib->block = blk;
+
+				/* bump the attrib_spec */
+				attrib_spec++;
 			}
 		}
 	}

@@ -456,8 +456,10 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 				struct edac_device_instance *instance,
 				int idx)
 {
+	int i;
 	int err;
 	struct edac_device_block *block;
+	struct edac_dev_sysfs_block_attribute *sysfs_attrib;
 
 	block = &instance->blocks[idx];
 
@@ -480,7 +482,27 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 		return err;
 	}
 
+	/* If there are driver level block attributes, then added them
+	 * to the block kobject
+	 */
+	sysfs_attrib = block->block_attributes;
+	if (sysfs_attrib != NULL) {
+		for (i = 0; i < block->nr_attribs; i++) {
+			err = sysfs_create_file(&block->kobj,
+				(struct attribute *) &sysfs_attrib[i]);
+			if (err)
+				goto err_on_attrib;
+
+			sysfs_attrib++;
+		}
+	}
+
 	return 0;
+
+err_on_attrib:
+	kobject_unregister(&block->kobj);
+
+	return err;
 }
 
 /*
