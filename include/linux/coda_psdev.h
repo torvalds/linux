@@ -85,7 +85,6 @@ struct upc_req {
 	u_short	            uc_opcode;  /* copied from data to save lookup */
 	int		    uc_unique;
 	wait_queue_head_t   uc_sleep;   /* process' wait queue */
-	unsigned long       uc_posttime;
 };
 
 #define REQ_ASYNC  0x1

@@ -638,42 +638,83 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
 
 /*
  * coda_upcall and coda_downcall routines.
- * 
  */
+static void block_signals(sigset_t *old)
+{
+	spin_lock_irq(&current->sighand->siglock);
+	*old = current->blocked;
 
-static inline void coda_waitfor_upcall(struct upc_req *vmp)
+	sigfillset(&current->blocked);
+	sigdelset(&current->blocked, SIGKILL);
+	sigdelset(&current->blocked, SIGSTOP);
+	sigdelset(&current->blocked, SIGINT);
+
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+}
+
+static void unblock_signals(sigset_t *old)
+{
+	spin_lock_irq(&current->sighand->siglock);
+	current->blocked = *old;
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+}
+
+/* Don't allow signals to interrupt the following upcalls before venus
+ * has seen them,
+ * - CODA_CLOSE or CODA_RELEASE upcall  (to avoid reference count problems)
+ * - CODA_STORE				(to avoid data loss)
+ */
+#define CODA_INTERRUPTIBLE(r) (!coda_hard && \
+			       (((r)->uc_opcode != CODA_CLOSE && \
+				 (r)->uc_opcode != CODA_STORE && \
+				 (r)->uc_opcode != CODA_RELEASE) || \
+				(r)->uc_flags & REQ_READ))
+
+static inline void coda_waitfor_upcall(struct upc_req *req)
 {
 	DECLARE_WAITQUEUE(wait, current);
+	unsigned long timeout = jiffies + coda_timeout * HZ;
+	sigset_t old;
+	int blocked;
 
-	vmp->uc_posttime = jiffies;
+	block_signals(&old);
+	blocked = 1;
 
-	add_wait_queue(&vmp->uc_sleep, &wait);
+	add_wait_queue(&req->uc_sleep, &wait);
 	for (;;) {
-		if ( !coda_hard && vmp->uc_opcode != CODA_CLOSE ) 
+		if (CODA_INTERRUPTIBLE(req))
 			set_current_state(TASK_INTERRUPTIBLE);
 		else
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 		/* got a reply */
-		if ( vmp->uc_flags & ( REQ_WRITE | REQ_ABORT ) )
+		if (req->uc_flags & (REQ_WRITE | REQ_ABORT))
 			break;
 
-		if ( !coda_hard && vmp->uc_opcode != CODA_CLOSE && signal_pending(current) ) {
-			/* if this process really wants to die, let it go */
-			if ( sigismember(&(current->pending.signal), SIGKILL) ||
-			     sigismember(&(current->pending.signal), SIGINT) )
-				break;
-			/* signal is present: after timeout always return 
-			   really smart idea, probably useless ... */
-			if ( jiffies - vmp->uc_posttime > coda_timeout * HZ )
-				break; 
+		if (blocked && time_after(jiffies, timeout) &&
+		    CODA_INTERRUPTIBLE(req))
+		{
+			unblock_signals(&old);
+			blocked = 0;
 		}
-		schedule();
-	}
-	remove_wait_queue(&vmp->uc_sleep, &wait);
-	set_current_state(TASK_RUNNING);
 
-	return;
+		if (signal_pending(current)) {
+			list_del(&req->uc_chain);
+			break;
+		}
+
+		if (blocked)
+			schedule_timeout(HZ);
+		else
+			schedule();
+	}
+	if (blocked)
+		unblock_signals(&old);
+
+	remove_wait_queue(&req->uc_sleep, &wait);
+	set_current_state(TASK_RUNNING);
 }
 
 
@@ -749,8 +790,6 @@ static int coda_upcall(struct coda_sb_info *sbi,
 		printk(KERN_WARNING "coda: Unexpected interruption.\n");
 		goto exit;
 	}
-
-	list_del(&(req->uc_chain));
 
 	/* Interrupted before venus read it. */
 	if (!(req->uc_flags & REQ_READ))
