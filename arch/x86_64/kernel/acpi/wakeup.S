@@ -16,6 +16,21 @@
 # cs = 0x1234, eip = 0x05
 #
 
+#define BEEP \
+	inb	$97, %al; 	\
+	outb	%al, $0x80; 	\
+	movb	$3, %al; 	\
+	outb	%al, $97; 	\
+	outb	%al, $0x80; 	\
+	movb	$-74, %al; 	\
+	outb	%al, $67; 	\
+	outb	%al, $0x80; 	\
+	movb	$-119, %al; 	\
+	outb	%al, $66; 	\
+	outb	%al, $0x80; 	\
+	movb	$15, %al; 	\
+	outb	%al, $66;
+
 
 ALIGN
 	.align	16
@@ -33,6 +48,13 @@ wakeup_code:
 	movw	%cs, %ax
 	movw	%ax, %ds		# Make ds:0 point to wakeup_start
 	movw	%ax, %ss
+
+	# Data segment must be set up before we can see whether to beep.
+	testl   $1, beep_flags - wakeup_code
+	jz      1f
+	BEEP
+1:
+
 					# Private stack is needed for ASUS board
 	mov	$(wakeup_stack - wakeup_code), %sp
 
@@ -229,6 +251,7 @@ gdt_48a:
 	.long   gdta - wakeup_code              # gdt base (relocated in later)
 	
 real_magic:	.quad 0
+beep_flags:	.quad 0
 video_mode:	.quad 0
 video_flags:	.quad 0
 
@@ -344,6 +367,8 @@ ENTRY(acpi_copy_wakeup_routine)
 	pushq	%rax
 	pushq	%rdx
 
+	movl	s2ram_beep, %edx
+	movl	%edx, beep_flags - wakeup_start (,%rdi)
 	movl	saved_video_mode, %edx
 	movl	%edx, video_mode - wakeup_start (,%rdi)
 	movl	acpi_video_flags, %edx

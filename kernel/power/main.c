@@ -332,6 +332,27 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 
 power_attr(state);
 
+unsigned long s2ram_beep = 0;
+
+static ssize_t s2ram_beep_show(struct kset *kset, char *buf)
+{
+	return sprintf(buf, "%d\n", s2ram_beep);
+}
+
+static ssize_t
+s2ram_beep_store(struct kset *kset, const char *buf, size_t n)
+{
+	int val;
+
+	if (sscanf(buf, "%d", &val) > 0) {
+		s2ram_beep = val;
+		return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(s2ram_beep);
+
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
@@ -357,11 +378,13 @@ power_attr(pm_trace);
 static struct attribute * g[] = {
 	&state_attr.attr,
 	&pm_trace_attr.attr,
+	&s2ram_beep_attr.attr,
 	NULL,
 };
 #else
 static struct attribute * g[] = {
 	&state_attr.attr,
+	&s2ram_beep_attr.attr,
 	NULL,
 };
 #endif /* CONFIG_PM_TRACE */

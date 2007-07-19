@@ -123,6 +123,7 @@ extern int pci_mmcfg_config_num;
 
 extern int sbf_port;
 extern unsigned long acpi_video_flags;
+extern unsigned long s2ram_beep;
 
 #else	/* !CONFIG_ACPI */
 
