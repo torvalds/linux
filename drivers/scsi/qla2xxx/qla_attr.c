@@ -119,7 +119,7 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 		return 0;
 
 	/* Checksum NVRAM. */
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	if (IS_FWI2_CAPABLE(ha)) {
 		uint32_t *iter;
 		uint32_t chksum;
 
@@ -410,7 +410,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	int ret;
 
 	for (iter = bin_file_entries; iter->name; iter++) {
-		if (iter->is4GBp_only && (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)))
+		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -429,7 +429,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 	struct sysfs_entry *iter;
 
 	for (iter = bin_file_entries; iter->name; iter++) {
-		if (iter->is4GBp_only && (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)))
+		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -898,7 +898,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	if (IS_FWI2_CAPABLE(ha)) {
 		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
 		    sizeof(stat_buf) / 4, mb_stat);
 	} else if (atomic_read(&ha->loop_state) == LOOP_READY &&

@@ -736,7 +736,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		fixed_size = offsetof(struct qla2300_fw_dump, data_ram);
 		mem_size = (ha->fw_memory_size - 0x11000 + 1) *
 		    sizeof(uint16_t);
-	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	} else if (IS_FWI2_CAPABLE(ha)) {
 		fixed_size = offsetof(struct qla24xx_fw_dump, ext_mem);
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
@@ -2267,7 +2267,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	/* If FL port exists, then SNS is present */
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	if (IS_FWI2_CAPABLE(ha))
 		loop_id = NPH_F_PORT;
 	else
 		loop_id = SNS_FL_PORT;
@@ -2294,7 +2294,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 			qla2x00_fdmi_register(ha);
 
 		/* Ensure we are logged into the SNS. */
-		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		if (IS_FWI2_CAPABLE(ha))
 			loop_id = NPH_SNS;
 		else
 			loop_id = SIMPLE_NAME_SERVER;
@@ -4012,7 +4012,7 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
 {
 	int ret, retries;
 
-	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+	if (!IS_FWI2_CAPABLE(ha))
 		return;
 	if (!ha->fw_major_version)
 		return;
