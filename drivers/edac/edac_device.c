@@ -67,7 +67,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	char *edac_device_name, unsigned nr_instances,
 	char *edac_block_name, unsigned nr_blocks,
 	unsigned offset_value,		/* zero, 1, or other based offset */
-	struct edac_dev_sysfs_block_attribute *attrib_spec, unsigned nr_attrib)
+	struct edac_dev_sysfs_block_attribute *attrib_spec, unsigned nr_attrib,
+	int device_index)
 {
 	struct edac_device_ctl_info *dev_ctl;
 	struct edac_device_instance *dev_inst, *inst;
@@ -145,6 +146,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	pvt = sz_private ? (((char *)dev_ctl) + ((unsigned long)pvt)) : NULL;
 
 	/* Begin storing the information into the control info structure */
+	dev_ctl->dev_idx = device_index;
 	dev_ctl->nr_instances = nr_instances;
 	dev_ctl->instances = dev_inst;
 	dev_ctl->pvt_info = pvt;
@@ -441,18 +443,16 @@ void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev,
  * edac_device global list and create sysfs entries associated with
  * edac_device structure.
  * @edac_device: pointer to the edac_device structure to be added to the list
- * @edac_idx: A unique numeric identifier to be assigned to the
  * 'edac_device' structure.
  *
  * Return:
  *	0	Success
  *	!0	Failure
  */
-int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
+int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 {
 	debugf0("%s()\n", __func__);
 
-	edac_dev->dev_idx = edac_idx;
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
 		edac_device_dump_device(edac_dev);

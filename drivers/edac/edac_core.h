@@ -634,7 +634,8 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		char *edac_block_name, unsigned nr_blocks,
 		unsigned offset_value,
 		struct edac_dev_sysfs_block_attribute *block_attributes,
-		unsigned nr_attribs);
+		unsigned nr_attribs,
+		int device_index);
 
 /* The offset value can be:
  *	-1 indicating no offset value
@@ -806,8 +807,7 @@ extern void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci, unsigned int csrow,
 /*
  * edac_device APIs
  */
-extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev,
-				int dev_idx);
+extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
