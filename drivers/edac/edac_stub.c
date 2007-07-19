@@ -30,6 +30,7 @@ inline int edac_handler_set(void)
 
 	return atomic_read(&edac_handlers);
 }
+
 EXPORT_SYMBOL(edac_handler_set);
 
 /*
@@ -39,4 +40,5 @@ inline void edac_atomic_assert_error(void)
 {
 	edac_err_assert++;
 }
+
 EXPORT_SYMBOL(edac_atomic_assert_error);

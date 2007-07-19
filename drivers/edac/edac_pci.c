@@ -46,9 +46,8 @@ static inline void edac_unlock_pci_list(void)
  * structure. The chip driver will allocate one of these for each
  * edac_pci it is going to control/register with the EDAC CORE.
  */
-struct edac_pci_ctl_info * edac_pci_alloc_ctl_info(
-	unsigned int sz_pvt,
-	const char *edac_pci_name)
+struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
+						  const char *edac_pci_name)
 {
 	struct edac_pci_ctl_info *pci;
 	void *pvt;
@@ -67,10 +66,11 @@ struct edac_pci_ctl_info * edac_pci_alloc_ctl_info(
 
 	pci->op_state = OP_ALLOC;
 
-	snprintf(pci->name, strlen(edac_pci_name)+1, "%s", edac_pci_name);
+	snprintf(pci->name, strlen(edac_pci_name) + 1, "%s", edac_pci_name);
 
 	return pci;
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
 
 /*
@@ -81,13 +81,14 @@ void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci)
 {
 	kfree(pci);
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_free_ctl_info);
 
 /*
  * find_edac_pci_by_dev()
  * 	scans the edac_pci list for a specific 'struct device *'
  */
-static struct edac_pci_ctl_info * find_edac_pci_by_dev(struct device *dev)
+static struct edac_pci_ctl_info *find_edac_pci_by_dev(struct device *dev)
 {
 	struct edac_pci_ctl_info *pci;
 	struct list_head *item;
@@ -139,17 +140,18 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 	list_add_tail_rcu(&pci->link, insert_before);
 	return 0;
 
-fail0:
+      fail0:
 	edac_printk(KERN_WARNING, EDAC_PCI,
-		"%s (%s) %s %s already assigned %d\n",
-		rover->dev->bus_id, dev_name(rover),
-		rover->mod_name, rover->ctl_name, rover->pci_idx);
+		    "%s (%s) %s %s already assigned %d\n",
+		    rover->dev->bus_id, dev_name(rover),
+		    rover->mod_name, rover->ctl_name, rover->pci_idx);
 	return 1;
 
-fail1:
+      fail1:
 	edac_printk(KERN_WARNING, EDAC_PCI,
-		"but in low-level driver: attempt to assign\n"
-		"\tduplicate pci_idx %d in %s()\n", rover->pci_idx, __func__);
+		    "but in low-level driver: attempt to assign\n"
+		    "\tduplicate pci_idx %d in %s()\n", rover->pci_idx,
+		    __func__);
 	return 1;
 }
 
@@ -185,7 +187,7 @@ static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
  *
  * Caller must hold pci_ctls_mutex.
  */
-struct edac_pci_ctl_info * edac_pci_find(int idx)
+struct edac_pci_ctl_info *edac_pci_find(int idx)
 {
 	struct list_head *item;
 	struct edac_pci_ctl_info *pci;
@@ -198,13 +200,14 @@ struct edac_pci_ctl_info * edac_pci_find(int idx)
 			if (pci->pci_idx == idx)
 				return pci;
 
-		/* not on list, so terminate early */
+			/* not on list, so terminate early */
 			break;
 		}
 	}
 
 	return NULL;
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_find);
 
 /*
@@ -225,15 +228,14 @@ static void edac_pci_workq_function(void *ptr)
 	edac_lock_pci_list();
 
 	if ((pci->op_state == OP_RUNNING_POLL) &&
-		(pci->edac_check != NULL) &&
-		(edac_pci_get_check_errors()))
+	    (pci->edac_check != NULL) && (edac_pci_get_check_errors()))
 		pci->edac_check(pci);
 
 	edac_unlock_pci_list();
 
 	/* Reschedule */
 	queue_delayed_work(edac_workqueue, &pci->work,
-			msecs_to_jiffies(edac_pci_get_poll_msec()));
+			   msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -242,7 +244,7 @@ static void edac_pci_workq_function(void *ptr)
  * 	passing in the new delay period in msec
  */
 static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
-		unsigned int msec)
+				 unsigned int msec)
 {
 	debugf0("%s()\n", __func__);
 
@@ -252,7 +254,7 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 	INIT_WORK(&pci->work, edac_pci_workq_function, pci);
 #endif
 	queue_delayed_work(edac_workqueue, &pci->work,
-			msecs_to_jiffies(edac_pci_get_poll_msec()));
+			   msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -272,7 +274,7 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
  * edac_pci_reset_delay_period
  */
 void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
-		unsigned long value)
+				 unsigned long value)
 {
 	edac_lock_pci_list();
 
@@ -282,6 +284,7 @@ void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
 
 	edac_unlock_pci_list();
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_reset_delay_period);
 
 /*
@@ -324,22 +327,22 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 	}
 
 	edac_pci_printk(pci, KERN_INFO,
-		"Giving out device to module '%s' controller '%s':"
-		" DEV '%s' (%s)\n",
-		pci->mod_name,
-		pci->ctl_name,
-		dev_name(pci),
-		edac_op_state_toString(pci->op_state));
+			"Giving out device to module '%s' controller '%s':"
+			" DEV '%s' (%s)\n",
+			pci->mod_name,
+			pci->ctl_name,
+			dev_name(pci), edac_op_state_toString(pci->op_state));
 
 	edac_unlock_pci_list();
 	return 0;
 
-fail1:
+      fail1:
 	del_edac_pci_from_global_list(pci);
-fail0:
+      fail0:
 	edac_unlock_pci_list();
 	return 1;
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_add_device);
 
 /*
@@ -355,7 +358,7 @@ EXPORT_SYMBOL_GPL(edac_pci_add_device);
  * 	Pointer to removed edac_pci structure,
  * 	or NULL if device not found
  */
-struct edac_pci_ctl_info * edac_pci_del_device(struct device *dev)
+struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 {
 	struct edac_pci_ctl_info *pci;
 
@@ -379,14 +382,12 @@ struct edac_pci_ctl_info * edac_pci_del_device(struct device *dev)
 	edac_unlock_pci_list();
 
 	edac_printk(KERN_INFO, EDAC_PCI,
-		"Removed device %d for %s %s: DEV %s\n",
-		pci->pci_idx,
-		pci->mod_name,
-		pci->ctl_name,
-		dev_name(pci));
+		    "Removed device %d for %s %s: DEV %s\n",
+		    pci->pci_idx, pci->mod_name, pci->ctl_name, dev_name(pci));
 
 	return pci;
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_del_device);
 
 void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
@@ -401,8 +402,8 @@ struct edac_pci_gen_data {
 	int edac_idx;
 };
 
-struct edac_pci_ctl_info *
-edac_pci_create_generic_ctl(struct device *dev, const char *mod_name)
+struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
+						      const char *mod_name)
 {
 	struct edac_pci_ctl_info *pci;
 	struct edac_pci_gen_data *pdata;
@@ -430,6 +431,7 @@ edac_pci_create_generic_ctl(struct device *dev, const char *mod_name)
 
 	return pci;
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_create_generic_ctl);
 
 void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci)
@@ -437,4 +439,5 @@ void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci)
 	edac_pci_del_device(pci->dev);
 	edac_pci_free_ctl_info(pci);
 }
+
 EXPORT_SYMBOL_GPL(edac_pci_release_generic_ctl);

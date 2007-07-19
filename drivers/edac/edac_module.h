@@ -40,12 +40,10 @@ extern struct sysdev_class *edac_get_edac_class(void);
 /* edac core workqueue: single CPU mode */
 extern struct workqueue_struct *edac_workqueue;
 extern void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
-				unsigned msec);
+				    unsigned msec);
 extern void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev);
-extern void edac_device_reset_delay_period(
-			struct edac_device_ctl_info *edac_dev,
-			unsigned long value);
-
+extern void edac_device_reset_delay_period(struct edac_device_ctl_info
+					   *edac_dev, unsigned long value);
 
 /*
  * EDAC PCI functions
@@ -57,7 +55,7 @@ extern int edac_sysfs_pci_setup(void);
 extern void edac_sysfs_pci_teardown(void);
 extern int edac_pci_get_check_errors(void);
 extern int edac_pci_get_poll_msec(void);
-#else   /* CONFIG_PCI */
+#else				/* CONFIG_PCI */
 /* pre-process these away */
 #define edac_pci_do_parity_check()
 #define edac_pci_clear_parity_errors()
@@ -65,8 +63,6 @@ extern int edac_pci_get_poll_msec(void);
 #define edac_sysfs_pci_teardown()
 #define edac_pci_get_check_errors()
 #define edac_pci_get_poll_msec()
-#endif  /* CONFIG_PCI */
+#endif				/* CONFIG_PCI */
 
-
-#endif	/* __EDAC_MODULE_H__ */
-
+#endif				/* __EDAC_MODULE_H__ */

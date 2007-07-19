@@ -35,7 +35,6 @@
 static DECLARE_MUTEX(device_ctls_mutex);
 static struct list_head edac_device_list = LIST_HEAD_INIT(edac_device_list);
 
-
 static inline void lock_device_list(void)
 {
 	down(&device_ctls_mutex);
@@ -46,18 +45,17 @@ static inline void unlock_device_list(void)
 	up(&device_ctls_mutex);
 }
 
-
 #ifdef CONFIG_EDAC_DEBUG
 static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 {
-	debugf3("\tedac_dev = %p dev_idx=%d \n", edac_dev,edac_dev->dev_idx);
+	debugf3("\tedac_dev = %p dev_idx=%d \n", edac_dev, edac_dev->dev_idx);
 	debugf4("\tedac_dev->edac_check = %p\n", edac_dev->edac_check);
 	debugf3("\tdev = %p\n", edac_dev->dev);
 	debugf3("\tmod_name:ctl_name = %s:%s\n",
 		edac_dev->mod_name, edac_dev->ctl_name);
 	debugf3("\tpvt_info = %p\n\n", edac_dev->pvt_info);
 }
-#endif  /* CONFIG_EDAC_DEBUG */
+#endif				/* CONFIG_EDAC_DEBUG */
 
 /*
  * The alloc() and free() functions for the 'edac_device' control info
@@ -71,7 +69,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	char *edac_block_name,
 	unsigned nr_blocks,
 	unsigned offset_value,
-	struct edac_attrib_spec *attrib_spec,
+	struct edac_attrib_spec
+	*attrib_spec,
 	unsigned nr_attribs)
 {
 	struct edac_device_ctl_info *dev_ctl;
@@ -84,35 +83,35 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	void *pvt;
 
 	debugf1("%s() instances=%d blocks=%d\n",
-		__func__,nr_instances,nr_blocks);
+		__func__, nr_instances, nr_blocks);
 
 	/* Figure out the offsets of the various items from the start of an
 	 * ctl_info structure.  We want the alignment of each item
 	 * to be at least as stringent as what the compiler would
 	 * provide if we could simply hardcode everything into a single struct.
 	 */
-	dev_ctl = (struct edac_device_ctl_info *) 0;
+	dev_ctl = (struct edac_device_ctl_info *)0;
 
 	/* Calc the 'end' offset past the ctl_info structure */
 	dev_inst = (struct edac_device_instance *)
-			edac_align_ptr(&dev_ctl[1],sizeof(*dev_inst));
+	    edac_align_ptr(&dev_ctl[1], sizeof(*dev_inst));
 
 	/* Calc the 'end' offset past the instance array */
 	dev_blk = (struct edac_device_block *)
-			edac_align_ptr(&dev_inst[nr_instances],sizeof(*dev_blk));
+	    edac_align_ptr(&dev_inst[nr_instances], sizeof(*dev_blk));
 
 	/* Calc the 'end' offset past the dev_blk array */
 	count = nr_instances * nr_blocks;
 	dev_attrib = (struct edac_attrib *)
-			edac_align_ptr(&dev_blk[count],sizeof(*dev_attrib));
+	    edac_align_ptr(&dev_blk[count], sizeof(*dev_attrib));
 
 	/* Check for case of NO attributes specified */
 	if (nr_attribs > 0)
 		count *= nr_attribs;
 
 	/* Calc the 'end' offset past the attributes array */
-	pvt = edac_align_ptr(&dev_attrib[count],sz_private);
-	total_size = ((unsigned long) pvt) + sz_private;
+	pvt = edac_align_ptr(&dev_attrib[count], sz_private);
+	total_size = ((unsigned long)pvt) + sz_private;
 
 	/* Allocate the amount of memory for the set of control structures */
 	if ((dev_ctl = kmalloc(total_size, GFP_KERNEL)) == NULL)
@@ -122,22 +121,21 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	 * rather than an imaginary chunk of memory located at address 0.
 	 */
 	dev_inst = (struct edac_device_instance *)
-			(((char *) dev_ctl) + ((unsigned long) dev_inst));
+	    (((char *)dev_ctl) + ((unsigned long)dev_inst));
 	dev_blk = (struct edac_device_block *)
-			(((char *) dev_ctl) + ((unsigned long) dev_blk));
+	    (((char *)dev_ctl) + ((unsigned long)dev_blk));
 	dev_attrib = (struct edac_attrib *)
-			(((char *) dev_ctl) + ((unsigned long) dev_attrib));
-	pvt = sz_private ?
-			(((char *) dev_ctl) + ((unsigned long) pvt)) : NULL;
+	    (((char *)dev_ctl) + ((unsigned long)dev_attrib));
+	pvt = sz_private ? (((char *)dev_ctl) + ((unsigned long)pvt)) : NULL;
 
-	memset(dev_ctl, 0, total_size);		/* clear all fields */
+	memset(dev_ctl, 0, total_size);	/* clear all fields */
 	dev_ctl->nr_instances = nr_instances;
 	dev_ctl->instances = dev_inst;
 	dev_ctl->pvt_info = pvt;
 
 	/* Name of this edac device, ensure null terminated */
-	snprintf(dev_ctl->name,sizeof(dev_ctl->name),"%s", edac_device_name);
-	dev_ctl->name[sizeof(dev_ctl->name)-1] = '\0';
+	snprintf(dev_ctl->name, sizeof(dev_ctl->name), "%s", edac_device_name);
+	dev_ctl->name[sizeof(dev_ctl->name) - 1] = '\0';
 
 	/* Initialize every Instance */
 	for (instance = 0; instance < nr_instances; instance++) {
@@ -149,24 +147,22 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 		/* name of this instance */
 		snprintf(inst->name, sizeof(inst->name),
-			"%s%u", edac_device_name, instance);
-		inst->name[sizeof(inst->name)-1] = '\0';
+			 "%s%u", edac_device_name, instance);
+		inst->name[sizeof(inst->name) - 1] = '\0';
 
 		/* Initialize every block in each instance */
-		for (		block = 0;
-				block < nr_blocks;
-				block++) {
+		for (block = 0; block < nr_blocks; block++) {
 			blk = &blk_p[block];
 			blk->instance = inst;
 			blk->nr_attribs = nr_attribs;
 			attrib_p = &dev_attrib[block * nr_attribs];
 			blk->attribs = attrib_p;
 			snprintf(blk->name, sizeof(blk->name),
-				"%s%d", edac_block_name,block+1);
-			blk->name[sizeof(blk->name)-1] = '\0';
+				 "%s%d", edac_block_name, block + 1);
+			blk->name[sizeof(blk->name) - 1] = '\0';
 
 			debugf1("%s() instance=%d block=%d name=%s\n",
-				__func__, instance,block,blk->name);
+				__func__, instance, block, blk->name);
 
 			if (attrib_spec != NULL) {
 				/* when there is an attrib_spec passed int then
@@ -178,7 +174,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 					/* Link each attribute to the caller's
 					 * spec entry, for name and type
-				 	 */
+					 */
 					attrib->spec = &attrib_spec[attr];
 				}
 			}
@@ -190,6 +186,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 	return dev_ctl;
 }
+
 EXPORT_SYMBOL_GPL(edac_device_alloc_ctl_info);
 
 /*
@@ -197,19 +194,18 @@ EXPORT_SYMBOL_GPL(edac_device_alloc_ctl_info);
  *	frees the memory allocated by the edac_device_alloc_ctl_info()
  *	function
  */
-void edac_device_free_ctl_info( struct edac_device_ctl_info *ctl_info) {
+void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info)
+{
 	kfree(ctl_info);
 }
+
 EXPORT_SYMBOL_GPL(edac_device_free_ctl_info);
-
-
 
 /*
  * find_edac_device_by_dev
  *	scans the edac_device list for a specific 'struct device *'
  */
-static struct edac_device_ctl_info *
-find_edac_device_by_dev(struct device *dev)
+static struct edac_device_ctl_info *find_edac_device_by_dev(struct device *dev)
 {
 	struct edac_device_ctl_info *edac_dev;
 	struct list_head *item;
@@ -234,7 +230,7 @@ find_edac_device_by_dev(struct device *dev)
  *		0 on success
  *		1 on failure.
  */
-static int add_edac_dev_to_global_list (struct edac_device_ctl_info *edac_dev)
+static int add_edac_dev_to_global_list(struct edac_device_ctl_info *edac_dev)
 {
 	struct list_head *item, *insert_before;
 	struct edac_device_ctl_info *rover;
@@ -261,17 +257,18 @@ static int add_edac_dev_to_global_list (struct edac_device_ctl_info *edac_dev)
 	list_add_tail_rcu(&edac_dev->link, insert_before);
 	return 0;
 
-fail0:
+      fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
-		"%s (%s) %s %s already assigned %d\n",
-		rover->dev->bus_id, dev_name(rover),
-		rover->mod_name, rover->ctl_name, rover->dev_idx);
+		    "%s (%s) %s %s already assigned %d\n",
+		    rover->dev->bus_id, dev_name(rover),
+		    rover->mod_name, rover->ctl_name, rover->dev_idx);
 	return 1;
 
-fail1:
+      fail1:
 	edac_printk(KERN_WARNING, EDAC_MC,
-		"bug in low-level driver: attempt to assign\n"
-		"    duplicate dev_idx %d in %s()\n", rover->dev_idx, __func__);
+		    "bug in low-level driver: attempt to assign\n"
+		    "    duplicate dev_idx %d in %s()\n", rover->dev_idx,
+		    __func__);
 	return 1;
 }
 
@@ -290,8 +287,8 @@ static void complete_edac_device_list_del(struct rcu_head *head)
 /*
  * del_edac_device_from_global_list
  */
-static void del_edac_device_from_global_list(
-			struct edac_device_ctl_info *edac_device)
+static void del_edac_device_from_global_list(struct edac_device_ctl_info
+					     *edac_device)
 {
 	list_del_rcu(&edac_device->link);
 	init_completion(&edac_device->complete);
@@ -308,7 +305,7 @@ static void del_edac_device_from_global_list(
  *
  * Caller must hold device_ctls_mutex.
  */
-struct edac_device_ctl_info * edac_device_find(int idx)
+struct edac_device_ctl_info *edac_device_find(int idx)
 {
 	struct list_head *item;
 	struct edac_device_ctl_info *edac_dev;
@@ -328,8 +325,8 @@ struct edac_device_ctl_info * edac_device_find(int idx)
 
 	return NULL;
 }
-EXPORT_SYMBOL(edac_device_find);
 
+EXPORT_SYMBOL(edac_device_find);
 
 /*
  * edac_device_workq_function
@@ -338,14 +335,13 @@ EXPORT_SYMBOL(edac_device_find);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 static void edac_device_workq_function(struct work_struct *work_req)
 {
-	struct delayed_work *d_work = (struct delayed_work*) work_req;
-	struct edac_device_ctl_info *edac_dev =
-		to_edac_device_ctl_work(d_work);
+	struct delayed_work *d_work = (struct delayed_work *)work_req;
+	struct edac_device_ctl_info *edac_dev = to_edac_device_ctl_work(d_work);
 #else
 static void edac_device_workq_function(void *ptr)
 {
 	struct edac_device_ctl_info *edac_dev =
-		(struct edac_device_ctl_info *) ptr;
+	    (struct edac_device_ctl_info *)ptr;
 #endif
 
 	//debugf0("%s() here and running\n", __func__);
@@ -353,14 +349,14 @@ static void edac_device_workq_function(void *ptr)
 
 	/* Only poll controllers that are running polled and have a check */
 	if ((edac_dev->op_state == OP_RUNNING_POLL) &&
-					(edac_dev->edac_check != NULL)) {
+	    (edac_dev->edac_check != NULL)) {
 		edac_dev->edac_check(edac_dev);
 	}
 
 	unlock_device_list();
 
 	/* Reschedule */
-	queue_delayed_work(edac_workqueue,&edac_dev->work, edac_dev->delay);
+	queue_delayed_work(edac_workqueue, &edac_dev->work, edac_dev->delay);
 }
 
 /*
@@ -369,7 +365,7 @@ static void edac_device_workq_function(void *ptr)
  *	passing in the new delay period in msec
  */
 void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
-		unsigned msec)
+			     unsigned msec)
 {
 	debugf0("%s()\n", __func__);
 
@@ -403,9 +399,8 @@ void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev)
  * edac_device_reset_delay_period
  */
 
-void edac_device_reset_delay_period(
-		struct edac_device_ctl_info *edac_dev,
-		unsigned long value)
+void edac_device_reset_delay_period(struct edac_device_ctl_info *edac_dev,
+				    unsigned long value)
 {
 	lock_device_list();
 
@@ -450,7 +445,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 	/* create this instance's sysfs entries */
 	if (edac_device_create_sysfs(edac_dev)) {
 		edac_device_printk(edac_dev, KERN_WARNING,
-			"failed to create sysfs device\n");
+				   "failed to create sysfs device\n");
 		goto fail1;
 	}
 
@@ -468,27 +463,27 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev, int edac_idx)
 		edac_dev->op_state = OP_RUNNING_INTERRUPT;
 	}
 
-
 	/* Report action taken */
 	edac_device_printk(edac_dev, KERN_INFO,
-		"Giving out device to module '%s' controller '%s': DEV '%s' (%s)\n",
-		edac_dev->mod_name,
-		edac_dev->ctl_name,
-		dev_name(edac_dev),
-		edac_op_state_toString(edac_dev->op_state)
-		);
+			   "Giving out device to module '%s' controller '%s': DEV '%s' (%s)\n",
+			   edac_dev->mod_name,
+			   edac_dev->ctl_name,
+			   dev_name(edac_dev),
+			   edac_op_state_toString(edac_dev->op_state)
+	    );
 
 	unlock_device_list();
 	return 0;
 
-fail1:
+      fail1:
 	/* Some error, so remove the entry from the lsit */
 	del_edac_device_from_global_list(edac_dev);
 
-fail0:
+      fail0:
 	unlock_device_list();
 	return 1;
 }
+
 EXPORT_SYMBOL_GPL(edac_device_add_device);
 
 /**
@@ -504,7 +499,7 @@ EXPORT_SYMBOL_GPL(edac_device_add_device);
  *	Pointer to removed edac_device structure,
  *	OR NULL if device not found.
  */
-struct edac_device_ctl_info * edac_device_del_device(struct device *dev)
+struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 {
 	struct edac_device_ctl_info *edac_dev;
 
@@ -532,16 +527,14 @@ struct edac_device_ctl_info * edac_device_del_device(struct device *dev)
 	unlock_device_list();
 
 	edac_printk(KERN_INFO, EDAC_MC,
-		"Removed device %d for %s %s: DEV %s\n",
-		edac_dev->dev_idx,
-		edac_dev->mod_name,
-		edac_dev->ctl_name,
-		dev_name(edac_dev));
+		    "Removed device %d for %s %s: DEV %s\n",
+		    edac_dev->dev_idx,
+		    edac_dev->mod_name, edac_dev->ctl_name, dev_name(edac_dev));
 
 	return edac_dev;
 }
-EXPORT_SYMBOL_GPL(edac_device_del_device);
 
+EXPORT_SYMBOL_GPL(edac_device_del_device);
 
 static inline int edac_device_get_log_ce(struct edac_device_ctl_info *edac_dev)
 {
@@ -553,8 +546,8 @@ static inline int edac_device_get_log_ue(struct edac_device_ctl_info *edac_dev)
 	return edac_dev->log_ue;
 }
 
-static inline int edac_device_get_panic_on_ue(
-		struct edac_device_ctl_info *edac_dev)
+static inline int edac_device_get_panic_on_ue(struct edac_device_ctl_info
+					      *edac_dev)
 {
 	return edac_dev->panic_on_ue;
 }
@@ -564,15 +557,16 @@ static inline int edac_device_get_panic_on_ue(
  *	perform a common output and handling of an 'edac_dev' CE event
  */
 void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
-		int inst_nr, int block_nr, const char *msg)
+			   int inst_nr, int block_nr, const char *msg)
 {
 	struct edac_device_instance *instance;
 	struct edac_device_block *block = NULL;
 
 	if ((inst_nr >= edac_dev->nr_instances) || (inst_nr < 0)) {
 		edac_device_printk(edac_dev, KERN_ERR,
-			"INTERNAL ERROR: 'instance' out of range "
-			"(%d >= %d)\n", inst_nr, edac_dev->nr_instances);
+				   "INTERNAL ERROR: 'instance' out of range "
+				   "(%d >= %d)\n", inst_nr,
+				   edac_dev->nr_instances);
 		return;
 	}
 
@@ -580,8 +574,9 @@ void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 
 	if ((block_nr >= instance->nr_blocks) || (block_nr < 0)) {
 		edac_device_printk(edac_dev, KERN_ERR,
-			"INTERNAL ERROR: instance %d 'block' out of range "
-			"(%d >= %d)\n", inst_nr, block_nr, instance->nr_blocks);
+				   "INTERNAL ERROR: instance %d 'block' out of range "
+				   "(%d >= %d)\n", inst_nr, block_nr,
+				   instance->nr_blocks);
 		return;
 	}
 
@@ -596,10 +591,11 @@ void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 
 	if (edac_device_get_log_ce(edac_dev))
 		edac_device_printk(edac_dev, KERN_WARNING,
-		"CE ctl: %s, instance: %s, block: %s: %s\n",
-		edac_dev->ctl_name, instance->name,
-		block ? block->name : "N/A", msg);
+				   "CE ctl: %s, instance: %s, block: %s: %s\n",
+				   edac_dev->ctl_name, instance->name,
+				   block ? block->name : "N/A", msg);
 }
+
 EXPORT_SYMBOL_GPL(edac_device_handle_ce);
 
 /*
@@ -607,15 +603,16 @@ EXPORT_SYMBOL_GPL(edac_device_handle_ce);
  *	perform a common output and handling of an 'edac_dev' UE event
  */
 void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
-		int inst_nr, int block_nr, const char *msg)
+			   int inst_nr, int block_nr, const char *msg)
 {
 	struct edac_device_instance *instance;
 	struct edac_device_block *block = NULL;
 
 	if ((inst_nr >= edac_dev->nr_instances) || (inst_nr < 0)) {
 		edac_device_printk(edac_dev, KERN_ERR,
-			"INTERNAL ERROR: 'instance' out of range "
-			"(%d >= %d)\n", inst_nr, edac_dev->nr_instances);
+				   "INTERNAL ERROR: 'instance' out of range "
+				   "(%d >= %d)\n", inst_nr,
+				   edac_dev->nr_instances);
 		return;
 	}
 
@@ -623,8 +620,9 @@ void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 
 	if ((block_nr >= instance->nr_blocks) || (block_nr < 0)) {
 		edac_device_printk(edac_dev, KERN_ERR,
-			"INTERNAL ERROR: instance %d 'block' out of range "
-			"(%d >= %d)\n", inst_nr, block_nr, instance->nr_blocks);
+				   "INTERNAL ERROR: instance %d 'block' out of range "
+				   "(%d >= %d)\n", inst_nr, block_nr,
+				   instance->nr_blocks);
 		return;
 	}
 
@@ -639,14 +637,14 @@ void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 
 	if (edac_device_get_log_ue(edac_dev))
 		edac_device_printk(edac_dev, KERN_EMERG,
-		"UE ctl: %s, instance: %s, block: %s: %s\n",
-		edac_dev->ctl_name, instance->name,
-		block ? block->name : "N/A", msg);
+				   "UE ctl: %s, instance: %s, block: %s: %s\n",
+				   edac_dev->ctl_name, instance->name,
+				   block ? block->name : "N/A", msg);
 
 	if (edac_device_get_panic_on_ue(edac_dev))
 		panic("EDAC %s: UE instance: %s, block %s: %s\n",
-			edac_dev->ctl_name, instance->name,
-			block ? block->name : "N/A", msg);
+		      edac_dev->ctl_name, instance->name,
+		      block ? block->name : "N/A", msg);
 }
-EXPORT_SYMBOL_GPL(edac_device_handle_ue);
 
+EXPORT_SYMBOL_GPL(edac_device_handle_ue);

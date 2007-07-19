@@ -37,7 +37,7 @@ static int edac_class_valid = 0;
 /*
  * edac_op_state_toString()
  */
-char * edac_op_state_toString(int opstate)
+char *edac_op_state_toString(int opstate)
 {
 	if (opstate == OP_RUNNING_POLL)
 		return "POLLED";
@@ -60,7 +60,7 @@ char * edac_op_state_toString(int opstate)
  */
 struct sysdev_class *edac_get_edac_class(void)
 {
-	struct sysdev_class *classptr=NULL;
+	struct sysdev_class *classptr = NULL;
 
 	if (edac_class_valid)
 		classptr = &edac_class;
@@ -133,7 +133,6 @@ static void edac_workqueue_teardown(void)
 	}
 }
 
-
 /*
  * edac_init
  *      module initialization entry point
@@ -148,8 +147,8 @@ static int __init edac_init(void)
 	 * Harvest and clear any boot/initialization PCI parity errors
 	 *
 	 * FIXME: This only clears errors logged by devices present at time of
-	 * 	module initialization.  We should also do an initial clear
-	 *	of each newly hotplugged device.
+	 *      module initialization.  We should also do an initial clear
+	 *      of each newly hotplugged device.
 	 */
 	edac_pci_clear_parity_errors();
 
@@ -158,7 +157,7 @@ static int __init edac_init(void)
 	 */
 	if (edac_register_sysfs_edac_name()) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			"Error initializing 'edac' kobject\n");
+			    "Error initializing 'edac' kobject\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -167,7 +166,7 @@ static int __init edac_init(void)
 	 */
 	if (edac_sysfs_memctrl_setup()) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			"Error initializing sysfs code\n");
+			    "Error initializing sysfs code\n");
 		err = -ENODEV;
 		goto error_sysfs;
 	}
@@ -182,11 +181,11 @@ static int __init edac_init(void)
 	return 0;
 
 	/* Error teardown stack */
-error_mem:
+      error_mem:
 	edac_sysfs_memctrl_teardown();
-error_sysfs:
+      error_sysfs:
 	edac_unregister_sysfs_edac_name();
-error:
+      error:
 	return err;
 }
 
@@ -198,7 +197,7 @@ static void __exit edac_exit(void)
 {
 	debugf0("%s()\n", __func__);
 
-	/* tear down the various subsystems*/
+	/* tear down the various subsystems */
 	edac_workqueue_teardown();
 	edac_sysfs_memctrl_teardown();
 	edac_unregister_sysfs_edac_name();
@@ -220,4 +219,3 @@ MODULE_DESCRIPTION("Core library routines for EDAC reporting");
 module_param(edac_debug_level, int, 0644);
 MODULE_PARM_DESC(edac_debug_level, "Debug level");
 #endif
-
