@@ -12,7 +12,7 @@
 #include <linux/cache.h>
 /* need struct page definitions */
 #include <linux/mm.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
