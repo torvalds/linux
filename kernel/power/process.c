@@ -105,7 +105,7 @@ static void cancel_freezing(struct task_struct *p)
 	}
 }
 
-static unsigned int try_to_freeze_tasks(int freeze_user_space)
+static int try_to_freeze_tasks(int freeze_user_space)
 {
 	struct task_struct *g, *p;
 	unsigned long end_time;
@@ -176,28 +176,25 @@ static unsigned int try_to_freeze_tasks(int freeze_user_space)
 		read_unlock(&tasklist_lock);
 	}
 
-	return todo;
+	return todo ? -EBUSY : 0;
 }
 
 /**
  *	freeze_processes - tell processes to enter the refrigerator
- *
- *	Returns 0 on success, or the number of processes that didn't freeze,
- *	although they were told to.
  */
 int freeze_processes(void)
 {
-	unsigned int nr_unfrozen;
+	int error;
 
 	printk("Stopping tasks ... ");
-	nr_unfrozen = try_to_freeze_tasks(FREEZER_USER_SPACE);
-	if (nr_unfrozen)
-		return nr_unfrozen;
+	error = try_to_freeze_tasks(FREEZER_USER_SPACE);
+	if (error)
+		return error;
 
 	sys_sync();
-	nr_unfrozen = try_to_freeze_tasks(FREEZER_KERNEL_THREADS);
-	if (nr_unfrozen)
-		return nr_unfrozen;
+	error = try_to_freeze_tasks(FREEZER_KERNEL_THREADS);
+	if (error)
+		return error;
 
 	printk("done.\n");
 	BUG_ON(in_atomic());
