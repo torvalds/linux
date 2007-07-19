@@ -104,15 +104,19 @@ static int alloc_fresh_huge_page(void)
 {
 	static int prev_nid;
 	struct page *page;
-	static DEFINE_SPINLOCK(nid_lock);
 	int nid;
 
-	spin_lock(&nid_lock);
+	/*
+	 * Copy static prev_nid to local nid, work on that, then copy it
+	 * back to prev_nid afterwards: otherwise there's a window in which
+	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
+	 * But we don't need to use a spin_lock here: it really doesn't
+	 * matter if occasionally a racer chooses the same nid as we do.
+	 */
 	nid = next_node(prev_nid, node_online_map);
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
 	prev_nid = nid;
-	spin_unlock(&nid_lock);
 
 	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
 					HUGETLB_PAGE_ORDER);
