@@ -404,7 +404,11 @@ sub output_highlight {
 	    print $lineprefix, $blankline;
 	} else {
 	    $line =~ s/\\\\\\/\&/g;
-	    print $lineprefix, $line;
+	    if ($output_mode eq "man" && substr($line, 0, 1) eq ".") {
+		print "\\&$line";
+	    } else {
+		print $lineprefix, $line;
+	    }
 	}
 	print "\n";
     }
