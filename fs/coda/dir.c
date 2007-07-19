@@ -510,20 +510,20 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;
 
-	switch (coda_file->f_pos) {
-	case 0:
+	if (coda_file->f_pos == 0) {
 		ret = filldir(buf, ".", 1, 0, de->d_inode->i_ino, DT_DIR);
-		if (ret < 0) break;
+		if (ret < 0)
+			goto out;
 		result++;
 		coda_file->f_pos++;
-		/* fallthrough */
-	case 1:
+	}
+	if (coda_file->f_pos == 1) {
 		ret = filldir(buf, "..", 2, 1, de->d_parent->d_inode->i_ino, DT_DIR);
-		if (ret < 0) break;
+		if (ret < 0)
+			goto out;
 		result++;
 		coda_file->f_pos++;
-		/* fallthrough */
-	default:
+	}
 	while (1) {
 		/* read entries from the directory file */
 		ret = kernel_read(host_file, coda_file->f_pos - 2, (char *)vdir,
@@ -578,7 +578,7 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 		 * we've already established it is non-zero. */
 		coda_file->f_pos += vdir->d_reclen;
 	}
-	}
+out:
 	kfree(vdir);
 	return result ? result : ret;
 }
