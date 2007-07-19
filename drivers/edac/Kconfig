@@ -76,6 +76,7 @@ config EDAC_E752X
 config EDAC_I82443BXGX
 	tristate "Intel 82443BX/GX (440BX/GX)"
 	depends on EDAC_MM_EDAC && PCI && X86_32
+	depends on BROKEN
 	help
 	  Support for error detection and correction on the Intel
 	  82443BX/GX memory controllers (440BX/GX chipsets).
