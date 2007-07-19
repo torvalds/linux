@@ -18,11 +18,15 @@
  * INTERNAL EDAC MODULE:
  * EDAC memory controller sysfs create/remove functions
  * and setup/teardown functions
+ *
+ * edac_mc objects
  */
+extern int edac_sysfs_setup_mc_kset(void);
+extern void edac_sysfs_teardown_mc_kset(void);
+extern int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci);
+extern void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci);
 extern int edac_create_sysfs_mci_device(struct mem_ctl_info *mci);
 extern void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci);
-extern int edac_sysfs_memctrl_setup(void);
-extern void edac_sysfs_memctrl_teardown(void);
 extern void edac_check_mc_devices(void);
 extern int edac_get_log_ue(void);
 extern int edac_get_log_ce(void);

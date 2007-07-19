@@ -137,6 +137,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	void *pvt;
 	unsigned size;
 	int row, chn;
+	int err;
 
 	/* Figure out the offsets of the various items from the start of an mc
 	 * structure.  We want the alignment of each item to be at least as
@@ -149,7 +150,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	pvt = edac_align_ptr(&chi[nr_chans * nr_csrows], sz_pvt);
 	size = ((unsigned long)pvt) + sz_pvt;
 
-	if ((mci = kmalloc(size, GFP_KERNEL)) == NULL)
+	mci = kzalloc(size, GFP_KERNEL);
+	if (mci == NULL)
 		return NULL;
 
 	/* Adjust pointers so they point within the memory we just allocated
@@ -182,20 +184,34 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 
 	mci->op_state = OP_ALLOC;
 
+	/*
+	 * Initialize the 'root' kobj for the edac_mc controller
+	 */
+	err = edac_mc_register_sysfs_main_kobj(mci);
+	if (err) {
+		kfree(mci);
+		return NULL;
+	}
+
+	/* at this point, the root kobj is valid, and in order to
+	 * 'free' the object, then the function:
+	 *      edac_mc_unregister_sysfs_main_kobj() must be called
+	 * which will perform kobj unregistration and the actual free
+	 * will occur during the kobject callback operation
+	 */
 	return mci;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_alloc);
 
 /**
- * edac_mc_free:  Free a previously allocated 'mci' structure
+ * edac_mc_free
+ *	'Free' a previously allocated 'mci' structure
  * @mci: pointer to a struct mem_ctl_info structure
  */
 void edac_mc_free(struct mem_ctl_info *mci)
 {
-	kfree(mci);
+	edac_mc_unregister_sysfs_main_kobj(mci);
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
 static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
@@ -391,7 +407,6 @@ struct mem_ctl_info *edac_mc_find(int idx)
 
 	return NULL;
 }
-
 EXPORT_SYMBOL(edac_mc_find);
 
 /**
@@ -465,7 +480,6 @@ fail0:
 	mutex_unlock(&mem_ctls_mutex);
 	return 1;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_add_mc);
 
 /**
@@ -501,7 +515,6 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		mci->mod_name, mci->ctl_name, dev_name(mci));
 	return mci;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_del_mc);
 
 static void edac_mc_scrub_block(unsigned long page, unsigned long offset,
@@ -571,7 +584,6 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci, unsigned long page)
 
 	return row;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_find_csrow_by_page);
 
 /* FIXME - setable log (warning/emerg) levels */
@@ -636,7 +648,6 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 				mci->csrows[row].grain);
 	}
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_handle_ce);
 
 void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci, const char *msg)
@@ -648,7 +659,6 @@ void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci, const char *msg)
 	mci->ce_noinfo_count++;
 	mci->ce_count++;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_handle_ce_no_info);
 
 void edac_mc_handle_ue(struct mem_ctl_info *mci,
@@ -702,7 +712,6 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	mci->ue_count++;
 	mci->csrows[row].ue_count++;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_handle_ue);
 
 void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci, const char *msg)
@@ -716,7 +725,6 @@ void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci, const char *msg)
 	mci->ue_noinfo_count++;
 	mci->ue_count++;
 }
-
 EXPORT_SYMBOL_GPL(edac_mc_handle_ue_no_info);
 
 /*************************************************************
@@ -784,7 +792,6 @@ void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
 			"labels \"%s\": %s\n", csrow, channela,
 			channelb, labels, msg);
 }
-
 EXPORT_SYMBOL(edac_mc_handle_fbd_ue);
 
 /*************************************************************
@@ -824,7 +831,6 @@ void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 	mci->csrows[csrow].ce_count++;
 	mci->csrows[csrow].channels[channel].ce_count++;
 }
-
 EXPORT_SYMBOL(edac_mc_handle_fbd_ce);
 
 /*

@@ -14,11 +14,11 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define EDAC_MC_VERSION "Ver: 2.0.4 " __DATE__
+#define EDAC_MC_VERSION "Ver: 2.0.5 " __DATE__
 
 #ifdef CONFIG_EDAC_DEBUG
 /* Values of 0 to 4 will generate output */
-int edac_debug_level = 1;
+int edac_debug_level = 2;
 EXPORT_SYMBOL_GPL(edac_debug_level);
 #endif
 
@@ -153,7 +153,7 @@ static int __init edac_init(void)
 	edac_pci_clear_parity_errors();
 
 	/*
-	 * perform the registration of the /sys/devices/system/edac object
+	 * perform the registration of the /sys/devices/system/edac class object
 	 */
 	if (edac_register_sysfs_edac_name()) {
 		edac_printk(KERN_ERR, EDAC_MC,
@@ -162,29 +162,29 @@ static int __init edac_init(void)
 		goto error;
 	}
 
-	/* Create the MC sysfs entries, must be first
+	/*
+	 * now set up the mc_kset under the edac class object
 	 */
-	if (edac_sysfs_memctrl_setup()) {
-		edac_printk(KERN_ERR, EDAC_MC,
-			"Error initializing sysfs code\n");
-		err = -ENODEV;
-		goto error_sysfs;
-	}
+	err = edac_sysfs_setup_mc_kset();
+	if (err)
+		goto sysfs_setup_fail;
 
-	/* Setup/Initialize the edac_device system */
+	/* Setup/Initialize the workq for this core */
 	err = edac_workqueue_setup();
 	if (err) {
 		edac_printk(KERN_ERR, EDAC_MC, "init WorkQueue failure\n");
-		goto error_mem;
+		goto workq_fail;
 	}
 
 	return 0;
 
 	/* Error teardown stack */
-error_mem:
-	edac_sysfs_memctrl_teardown();
-error_sysfs:
+workq_fail:
+	edac_sysfs_teardown_mc_kset();
+
+sysfs_setup_fail:
 	edac_unregister_sysfs_edac_name();
+
 error:
 	return err;
 }
@@ -199,7 +199,7 @@ static void __exit edac_exit(void)
 
 	/* tear down the various subsystems */
 	edac_workqueue_teardown();
-	edac_sysfs_memctrl_teardown();
+	edac_sysfs_teardown_mc_kset();
 	edac_unregister_sysfs_edac_name();
 }
 

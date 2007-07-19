@@ -317,9 +317,8 @@ struct csrow_info {
 	struct mem_ctl_info *mci;	/* the parent */
 
 	struct kobject kobj;	/* sysfs kobject for this csrow */
-	struct completion kobj_complete;
 
-	/* FIXME the number of CHANNELs might need to become dynamic */
+	/* channel information for this csrow */
 	u32 nr_channels;
 	struct channel_info *channels;
 };
@@ -403,7 +402,6 @@ struct mem_ctl_info {
 
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
-	struct completion kobj_complete;
 
 	/* Additional top controller level attributes, but specified
 	 * by the low level driver.
