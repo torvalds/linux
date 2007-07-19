@@ -226,6 +226,7 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	ocfs2_meta_unlock(file->f_dentry->d_inode, lock_level);
 out:
 	vma->vm_ops = &ocfs2_file_vm_ops;
+	vma->vm_flags |= VM_CAN_INVALIDATE;
 	return 0;
 }
 

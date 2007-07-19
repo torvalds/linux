@@ -168,6 +168,12 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
 #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
 
+#define VM_CAN_INVALIDATE 0x08000000	/* The mapping may be invalidated,
+					 * eg. truncate or invalidate_inode_*.
+					 * In this case, do_no_page must
+					 * return with the page locked.
+					 */
+
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
 #endif

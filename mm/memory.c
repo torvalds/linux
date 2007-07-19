@@ -1831,6 +1831,13 @@ static int unmap_mapping_range_vma(struct vm_area_struct *vma,
 	unsigned long restart_addr;
 	int need_break;
 
+	/*
+	 * files that support invalidating or truncating portions of the
+	 * file from under mmaped areas must set the VM_CAN_INVALIDATE flag, and
+	 * have their .nopage function return the page locked.
+	 */
+	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
+
 again:
 	restart_addr = vma->vm_truncate_count;
 	if (is_restart_addr(restart_addr) && start_addr < restart_addr) {
@@ -1959,17 +1966,8 @@ void unmap_mapping_range(struct address_space *mapping,
 
 	spin_lock(&mapping->i_mmap_lock);
 
-	/* serialize i_size write against truncate_count write */
-	smp_wmb();
-	/* Protect against page faults, and endless unmapping loops */
+	/* Protect against endless unmapping loops */
 	mapping->truncate_count++;
-	/*
-	 * For archs where spin_lock has inclusive semantics like ia64
-	 * this smp_mb() will prevent to read pagetable contents
-	 * before the truncate_count increment is visible to
-	 * other cpus.
-	 */
-	smp_mb();
 	if (unlikely(is_restart_addr(mapping->truncate_count))) {
 		if (mapping->truncate_count == 0)
 			reset_vma_truncate_counts(mapping);
@@ -2008,8 +2006,18 @@ int vmtruncate(struct inode * inode, loff_t offset)
 	if (IS_SWAPFILE(inode))
 		goto out_busy;
 	i_size_write(inode, offset);
+
+	/*
+	 * unmap_mapping_range is called twice, first simply for efficiency
+	 * so that truncate_inode_pages does fewer single-page unmaps. However
+	 * after this first call, and before truncate_inode_pages finishes,
+	 * it is possible for private pages to be COWed, which remain after
+	 * truncate_inode_pages finishes, hence the second unmap_mapping_range
+	 * call must be made for correctness.
+	 */
 	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 	truncate_inode_pages(mapping, offset);
+	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 	goto out_truncate;
 
 do_expand:
@@ -2049,6 +2057,7 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 	down_write(&inode->i_alloc_sem);
 	unmap_mapping_range(mapping, offset, (end - offset), 1);
 	truncate_inode_pages_range(mapping, offset, end);
+	unmap_mapping_range(mapping, offset, (end - offset), 1);
 	inode->i_op->truncate_range(inode, offset, end);
 	up_write(&inode->i_alloc_sem);
 	mutex_unlock(&inode->i_mutex);
@@ -2206,7 +2215,6 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, address, pte);
-	lazy_mmu_prot_update(pte);
 unlock:
 	pte_unmap_unlock(page_table, ptl);
 out:
@@ -2297,10 +2305,8 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		int write_access)
 {
 	spinlock_t *ptl;
-	struct page *new_page;
-	struct address_space *mapping = NULL;
+	struct page *page, *nopage_page;
 	pte_t entry;
-	unsigned int sequence = 0;
 	int ret = VM_FAULT_MINOR;
 	int anon = 0;
 	struct page *dirty_page = NULL;
@@ -2308,74 +2314,53 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_unmap(page_table);
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
 
-	if (vma->vm_file) {
-		mapping = vma->vm_file->f_mapping;
-		sequence = mapping->truncate_count;
-		smp_rmb(); /* serializes i_size against truncate_count */
-	}
-retry:
-	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
-	/*
-	 * No smp_rmb is needed here as long as there's a full
-	 * spin_lock/unlock sequence inside the ->nopage callback
-	 * (for the pagecache lookup) that acts as an implicit
-	 * smp_mb() and prevents the i_size read to happen
-	 * after the next truncate_count read.
-	 */
-
+	nopage_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
 	/* no page was available -- either SIGBUS, OOM or REFAULT */
-	if (unlikely(new_page == NOPAGE_SIGBUS))
+	if (unlikely(nopage_page == NOPAGE_SIGBUS))
 		return VM_FAULT_SIGBUS;
-	else if (unlikely(new_page == NOPAGE_OOM))
+	else if (unlikely(nopage_page == NOPAGE_OOM))
 		return VM_FAULT_OOM;
-	else if (unlikely(new_page == NOPAGE_REFAULT))
+	else if (unlikely(nopage_page == NOPAGE_REFAULT))
 		return VM_FAULT_MINOR;
+
+	BUG_ON(vma->vm_flags & VM_CAN_INVALIDATE && !PageLocked(nopage_page));
+	/*
+	 * For consistency in subsequent calls, make the nopage_page always
+	 * locked.
+	 */
+	if (unlikely(!(vma->vm_flags & VM_CAN_INVALIDATE)))
+		lock_page(nopage_page);
 
 	/*
 	 * Should we do an early C-O-W break?
 	 */
+	page = nopage_page;
 	if (write_access) {
 		if (!(vma->vm_flags & VM_SHARED)) {
-			struct page *page;
-
-			if (unlikely(anon_vma_prepare(vma)))
-				goto oom;
-			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
-						vma, address);
-			if (!page)
-				goto oom;
-			copy_user_highpage(page, new_page, address, vma);
-			page_cache_release(new_page);
-			new_page = page;
+			if (unlikely(anon_vma_prepare(vma))) {
+				ret = VM_FAULT_OOM;
+				goto out_error;
+			}
+			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+			if (!page) {
+				ret = VM_FAULT_OOM;
+				goto out_error;
+			}
+			copy_user_highpage(page, nopage_page, address, vma);
 			anon = 1;
-
 		} else {
 			/* if the page will be shareable, see if the backing
 			 * address space wants to know that the page is about
 			 * to become writable */
 			if (vma->vm_ops->page_mkwrite &&
-			    vma->vm_ops->page_mkwrite(vma, new_page) < 0
-			    ) {
-				page_cache_release(new_page);
-				return VM_FAULT_SIGBUS;
+			    vma->vm_ops->page_mkwrite(vma, page) < 0) {
+				ret = VM_FAULT_SIGBUS;
+				goto out_error;
 			}
 		}
 	}
 
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-	/*
-	 * For a file-backed vma, someone could have truncated or otherwise
-	 * invalidated this page.  If unmap_mapping_range got called,
-	 * retry getting the page.
-	 */
-	if (mapping && unlikely(sequence != mapping->truncate_count)) {
-		pte_unmap_unlock(page_table, ptl);
-		page_cache_release(new_page);
-		cond_resched();
-		sequence = mapping->truncate_count;
-		smp_rmb();
-		goto retry;
-	}
 
 	/*
 	 * This silly early PAGE_DIRTY setting removes a race
@@ -2388,43 +2373,51 @@ retry:
 	 * handle that later.
 	 */
 	/* Only go through if we didn't race with anybody else... */
-	if (pte_none(*page_table)) {
-		flush_icache_page(vma, new_page);
-		entry = mk_pte(new_page, vma->vm_page_prot);
+	if (likely(pte_none(*page_table))) {
+		flush_icache_page(vma, page);
+		entry = mk_pte(page, vma->vm_page_prot);
 		if (write_access)
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		set_pte_at(mm, address, page_table, entry);
 		if (anon) {
-			inc_mm_counter(mm, anon_rss);
-			lru_cache_add_active(new_page);
-			page_add_new_anon_rmap(new_page, vma, address);
+                        inc_mm_counter(mm, anon_rss);
+                        lru_cache_add_active(page);
+                        page_add_new_anon_rmap(page, vma, address);
 		} else {
 			inc_mm_counter(mm, file_rss);
-			page_add_file_rmap(new_page);
+			page_add_file_rmap(page);
 			if (write_access) {
-				dirty_page = new_page;
+				dirty_page = page;
 				get_page(dirty_page);
 			}
 		}
+
+		/* no need to invalidate: a not-present page won't be cached */
+		update_mmu_cache(vma, address, entry);
+		lazy_mmu_prot_update(entry);
 	} else {
-		/* One of our sibling threads was faster, back out. */
-		page_cache_release(new_page);
-		goto unlock;
+		if (anon)
+			page_cache_release(page);
+		else
+			anon = 1; /* not anon, but release nopage_page */
 	}
 
-	/* no need to invalidate: a not-present page shouldn't be cached */
-	update_mmu_cache(vma, address, entry);
-	lazy_mmu_prot_update(entry);
-unlock:
 	pte_unmap_unlock(page_table, ptl);
-	if (dirty_page) {
+
+out:
+	unlock_page(nopage_page);
+	if (anon)
+		page_cache_release(nopage_page);
+	else if (dirty_page) {
 		set_page_dirty_balance(dirty_page);
 		put_page(dirty_page);
 	}
+
 	return ret;
-oom:
-	page_cache_release(new_page);
-	return VM_FAULT_OOM;
+
+out_error:
+	anon = 1; /* relase nopage_page */
+	goto out;
 }
 
 /*

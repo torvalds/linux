@@ -192,6 +192,11 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				unlock_page(page);
 				continue;
 			}
+			if (page_mapped(page)) {
+				unmap_mapping_range(mapping,
+				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+				  PAGE_CACHE_SIZE, 0);
+			}
 			truncate_complete_page(mapping, page);
 			unlock_page(page);
 		}
@@ -229,6 +234,11 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				break;
 			lock_page(page);
 			wait_on_page_writeback(page);
+			if (page_mapped(page)) {
+				unmap_mapping_range(mapping,
+				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+				  PAGE_CACHE_SIZE, 0);
+			}
 			if (page->index > next)
 				next = page->index;
 			next++;
@@ -405,7 +415,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				break;
 			}
 			wait_on_page_writeback(page);
-			while (page_mapped(page)) {
+			if (page_mapped(page)) {
 				if (!did_range_unmap) {
 					/*
 					 * Zap the rest of the file in one hit.
@@ -425,6 +435,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 					  PAGE_CACHE_SIZE, 0);
 				}
 			}
+			BUG_ON(page_mapped(page));
 			ret = do_launder_page(mapping, page);
 			if (ret == 0 && !invalidate_complete_page2(mapping, page))
 				ret = -EIO;

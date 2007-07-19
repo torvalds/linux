@@ -123,6 +123,7 @@ int ncp_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EFBIG;
 
 	vma->vm_ops = &ncp_file_mmap;
+	vma->vm_flags |= VM_CAN_INVALIDATE;
 	file_accessed(file);
 	return 0;
 }

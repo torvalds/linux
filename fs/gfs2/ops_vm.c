@@ -138,6 +138,8 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	if (alloc_required) {
 		error = alloc_page_backing(ip, result);
 		if (error) {
+			if (area->vm_flags & VM_CAN_INVALIDATE)
+				unlock_page(result);
 			page_cache_release(result);
 			result = NULL;
 			goto out;
