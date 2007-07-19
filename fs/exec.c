@@ -1058,9 +1058,9 @@ int flush_old_exec(struct linux_binprm * bprm)
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
 	if (current->euid == current->uid && current->egid == current->gid)
-		current->mm->dumpable = 1;
+		set_dumpable(current->mm, 1);
 	else
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 
 	name = bprm->filename;
 
@@ -1088,7 +1088,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	    file_permission(bprm->file, MAY_READ) ||
 	    (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
 		suid_keys(current);
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 	}
 
 	/* An exec changes our domain. We are no longer part of the thread
@@ -1665,6 +1665,56 @@ fail:
 	return core_waiters;
 }
 
+/*
+ * set_dumpable converts traditional three-value dumpable to two flags and
+ * stores them into mm->flags.  It modifies lower two bits of mm->flags, but
+ * these bits are not changed atomically.  So get_dumpable can observe the
+ * intermediate state.  To avoid doing unexpected behavior, get get_dumpable
+ * return either old dumpable or new one by paying attention to the order of
+ * modifying the bits.
+ *
+ * dumpable |   mm->flags (binary)
+ * old  new | initial interim  final
+ * ---------+-----------------------
+ *  0    1  |   00      01      01
+ *  0    2  |   00      10(*)   11
+ *  1    0  |   01      00      00
+ *  1    2  |   01      11      11
+ *  2    0  |   11      10(*)   00
+ *  2    1  |   11      11      01
+ *
+ * (*) get_dumpable regards interim value of 10 as 11.
+ */
+void set_dumpable(struct mm_struct *mm, int value)
+{
+	switch (value) {
+	case 0:
+		clear_bit(MMF_DUMPABLE, &mm->flags);
+		smp_wmb();
+		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
+		break;
+	case 1:
+		set_bit(MMF_DUMPABLE, &mm->flags);
+		smp_wmb();
+		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
+		break;
+	case 2:
+		set_bit(MMF_DUMP_SECURELY, &mm->flags);
+		smp_wmb();
+		set_bit(MMF_DUMPABLE, &mm->flags);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(set_dumpable);
+
+int get_dumpable(struct mm_struct *mm)
+{
+	int ret;
+
+	ret = mm->flags & 0x3;
+	return (ret >= 2) ? 2 : ret;
+}
+
 int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 {
 	char corename[CORENAME_MAX_SIZE + 1];
@@ -1683,7 +1733,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
 	down_write(&mm->mmap_sem);
-	if (!mm->dumpable) {
+	if (!get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
 		goto fail;
 	}
@@ -1693,11 +1743,11 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 *	process nor do we know its entire history. We only know it
 	 *	was tainted so we dump it as root in mode 2.
 	 */
-	if (mm->dumpable == 2) {	/* Setuid core dump mode */
+	if (get_dumpable(mm) == 2) {	/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
 		current->fsuid = 0;	/* Dump root private */
 	}
-	mm->dumpable = 0;
+	set_dumpable(mm, 0);
 
 	retval = coredump_wait(exit_code);
 	if (retval < 0)

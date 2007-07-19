@@ -1014,7 +1014,7 @@ static int task_dumpable(struct task_struct *task)
 	task_lock(task);
 	mm = task->mm;
 	if (mm)
-		dumpable = mm->dumpable;
+		dumpable = get_dumpable(mm);
 	task_unlock(task);
 	if(dumpable == 1)
 		return 1;

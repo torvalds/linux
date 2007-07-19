@@ -142,7 +142,7 @@ static int may_attach(struct task_struct *task)
 		return -EPERM;
 	smp_rmb();
 	if (task->mm)
-		dumpable = task->mm->dumpable;
+		dumpable = get_dumpable(task->mm);
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
