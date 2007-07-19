@@ -295,8 +295,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * readahead/allocate the rest and fill in the holes.
 	 */
 	if (spd.nr_pages < nr_pages)
-		page_cache_readahead_ondemand(mapping, &in->f_ra, in,
-				NULL, index, req_pages - spd.nr_pages);
+		page_cache_sync_readahead(mapping, &in->f_ra, in,
+				index, req_pages - spd.nr_pages);
 
 	error = 0;
 	while (spd.nr_pages < nr_pages) {
@@ -352,7 +352,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		page = pages[page_nr];
 
 		if (PageReadahead(page))
-			page_cache_readahead_ondemand(mapping, &in->f_ra, in,
+			page_cache_async_readahead(mapping, &in->f_ra, in,
 					page, index, req_pages - page_nr);
 
 		/*
