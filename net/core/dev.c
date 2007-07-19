@@ -2629,7 +2629,7 @@ void __dev_set_rx_mode(struct net_device *dev)
 		return;
 
 	if (!netif_device_present(dev))
-	        return;
+		return;
 
 	if (dev->set_rx_mode)
 		dev->set_rx_mode(dev);
