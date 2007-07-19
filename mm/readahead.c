@@ -448,6 +448,12 @@ page_cache_readahead_ondemand(struct address_space *mapping,
 		return 0;
 
 	if (page) {
+		/*
+		 * It can be PG_reclaim.
+		 */
+		if (PageWriteback(page))
+			return 0;
+
 		ClearPageReadahead(page);
 
 		/*
