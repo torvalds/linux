@@ -129,14 +129,13 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 int
 qla2100_pci_config(scsi_qla_host_t *ha)
 {
-	int ret;
 	uint16_t w;
 	uint32_t d;
 	unsigned long flags;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	pci_set_master(ha->pdev);
-	ret = pci_set_mwi(ha->pdev);
+	pci_try_set_mwi(ha->pdev);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -164,7 +163,6 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 int
 qla2300_pci_config(scsi_qla_host_t *ha)
 {
-	int		ret;
 	uint16_t	w;
 	uint32_t	d;
 	unsigned long   flags = 0;
@@ -172,7 +170,7 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	pci_set_master(ha->pdev);
-	ret = pci_set_mwi(ha->pdev);
+	pci_try_set_mwi(ha->pdev);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -250,14 +248,13 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 int
 qla24xx_pci_config(scsi_qla_host_t *ha)
 {
-	int ret;
 	uint16_t w;
 	uint32_t d;
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
 	pci_set_master(ha->pdev);
-	ret = pci_set_mwi(ha->pdev);
+	pci_try_set_mwi(ha->pdev);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
