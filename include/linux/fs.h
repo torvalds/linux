@@ -695,16 +695,12 @@ struct fown_struct {
 
 /*
  * Track a single file's readahead state
- *
- *  ================#============|==================#==================|
- *                  ^            ^                  ^                  ^
- *  file_ra_state.la_index    .ra_index   .lookahead_index   .readahead_index
  */
 struct file_ra_state {
-	pgoff_t la_index;               /* enqueue time */
-	pgoff_t ra_index;               /* begin offset */
-	pgoff_t lookahead_index;        /* time to do next readahead */
-	pgoff_t readahead_index;        /* end offset */
+	pgoff_t start;                  /* where readahead started */
+	unsigned long size;             /* # of readahead pages */
+	unsigned long async_size;       /* do asynchronous readahead when
+					   there are only # of pages ahead */
 
 	unsigned long ra_pages;		/* Maximum readahead window */
 	unsigned long mmap_hit;		/* Cache hit stat for mmap accesses */
@@ -714,58 +710,13 @@ struct file_ra_state {
 };
 
 /*
- * Measuring read-ahead sizes.
- *
- *                  |----------- readahead size ------------>|
- *  ===#============|==================#=====================|
- *     |------- invoke interval ------>|-- lookahead size -->|
- */
-static inline unsigned long ra_readahead_size(struct file_ra_state *ra)
-{
-	return ra->readahead_index - ra->ra_index;
-}
-
-static inline unsigned long ra_lookahead_size(struct file_ra_state *ra)
-{
-	return ra->readahead_index - ra->lookahead_index;
-}
-
-static inline unsigned long ra_invoke_interval(struct file_ra_state *ra)
-{
-	return ra->lookahead_index - ra->la_index;
-}
-
-/*
  * Check if @index falls in the readahead windows.
  */
 static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 {
-	return (index >= ra->la_index &&
-		index <  ra->readahead_index);
+	return (index >= ra->start &&
+		index <  ra->start + ra->size);
 }
-
-/*
- * Where is the old read-ahead and look-ahead?
- */
-static inline void ra_set_index(struct file_ra_state *ra,
-				pgoff_t la_index, pgoff_t ra_index)
-{
-	ra->la_index = la_index;
-	ra->ra_index = ra_index;
-}
-
-/*
- * Where is the new read-ahead and look-ahead?
- */
-static inline void ra_set_size(struct file_ra_state *ra,
-				unsigned long ra_size, unsigned long la_size)
-{
-	ra->readahead_index = ra->ra_index + ra_size;
-	ra->lookahead_index = ra->ra_index + ra_size - la_size;
-}
-
-unsigned long ra_submit(struct file_ra_state *ra,
-		       struct address_space *mapping, struct file *filp);
 
 struct file {
 	/*
