@@ -2394,7 +2394,7 @@ size_t ksize(const void *object)
 	struct page *page;
 	struct kmem_cache *s;
 
-	if (object == ZERO_SIZE_PTR)
+	if (ZERO_OR_NULL_PTR(object))
 		return 0;
 
 	page = get_object_page(object);
