@@ -35,7 +35,7 @@
 
 
 /* lock to memory controller's control array */
-static DECLARE_MUTEX(mem_ctls_mutex);
+static DEFINE_MUTEX(mem_ctls_mutex);
 static struct list_head mc_devices = LIST_HEAD_INIT(mc_devices);
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -334,7 +334,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
 		}
 	}
 #endif
-	down(&mem_ctls_mutex);
+	mutex_lock(&mem_ctls_mutex);
 
 	if (add_mc_to_global_list(mci))
 		goto fail0;
@@ -352,14 +352,14 @@ int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: DEV %s\n",
 		mci->mod_name, mci->ctl_name, dev_name(mci->dev));
 
-	up(&mem_ctls_mutex);
+	mutex_unlock(&mem_ctls_mutex);
 	return 0;
 
 fail1:
 	del_mc_from_global_list(mci);
 
 fail0:
-	up(&mem_ctls_mutex);
+	mutex_unlock(&mem_ctls_mutex);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(edac_mc_add_mc);
@@ -376,16 +376,16 @@ struct mem_ctl_info * edac_mc_del_mc(struct device *dev)
 	struct mem_ctl_info *mci;
 
 	debugf0("MC: %s()\n", __func__);
-	down(&mem_ctls_mutex);
+	mutex_lock(&mem_ctls_mutex);
 
 	if ((mci = find_mci_by_dev(dev)) == NULL) {
-		up(&mem_ctls_mutex);
+		mutex_unlock(&mem_ctls_mutex);
 		return NULL;
 	}
 
 	edac_remove_sysfs_mci_device(mci);
 	del_mc_from_global_list(mci);
-	up(&mem_ctls_mutex);
+	mutex_unlock(&mem_ctls_mutex);
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n", mci->mc_idx,
 		mci->mod_name, mci->ctl_name, dev_name(mci->dev));
@@ -722,7 +722,7 @@ void edac_check_mc_devices(void)
 	struct mem_ctl_info *mci;
 
 	debugf3("%s()\n", __func__);
-	down(&mem_ctls_mutex);
+	mutex_lock(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
@@ -731,5 +731,5 @@ void edac_check_mc_devices(void)
 			mci->edac_check(mci);
 	}
 
-	up(&mem_ctls_mutex);
+	mutex_unlock(&mem_ctls_mutex);
 }
