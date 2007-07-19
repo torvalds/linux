@@ -562,7 +562,8 @@ http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
 3:  PCMCIA slot
 9:  MCH (northbridge) to DRAM Bus
-10: ICH (southbridge), under Mini-PCI card, under touchpad
+10: Clock-generator, mini-pci card and ICH (southbridge), under Mini-PCI
+    card, under touchpad
 11: Power regulator, underside of system board, below F2 key
 
 The A31 has a very atypical layout for the thermal sensors
