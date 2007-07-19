@@ -94,6 +94,13 @@ config EDAC_R82600
 	  Support for error detection and correction on the Radisys
 	  82600 embedded chipset.
 
+config EDAC_I5000
+	tristate "Intel Greencreek/Blackford chipset"
+	depends on EDAC_MM_EDAC && X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  Greekcreek/Blackford chipsets.
+
 choice
 	prompt "Error detecting method"
 	default EDAC_POLL
