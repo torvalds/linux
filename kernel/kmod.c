@@ -41,14 +41,6 @@ extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
 
-/*
- * If set, both call_usermodehelper_keys() and call_usermodehelper_pipe() exit
- * immediately returning -EBUSY.  Used for preventing user land processes from
- * being created after the user land has been frozen during a system-wide
- * hibernation or suspend operation.
- */
-static int usermodehelper_disabled;
-
 #ifdef CONFIG_KMOD
 
 /*
@@ -275,15 +267,55 @@ static void __call_usermodehelper(struct work_struct *work)
 	}
 }
 
+#ifdef CONFIG_PM
+/*
+ * If set, call_usermodehelper_exec() will exit immediately returning -EBUSY
+ * (used for preventing user land processes from being created after the user
+ * land has been frozen during a system-wide hibernation or suspend operation).
+ */
+static int usermodehelper_disabled;
+
+/* Number of helpers running */
+static atomic_t running_helpers = ATOMIC_INIT(0);
+
+/*
+ * Wait queue head used by usermodehelper_pm_callback() to wait for all running
+ * helpers to finish.
+ */
+static DECLARE_WAIT_QUEUE_HEAD(running_helpers_waitq);
+
+/*
+ * Time to wait for running_helpers to become zero before the setting of
+ * usermodehelper_disabled in usermodehelper_pm_callback() fails
+ */
+#define RUNNING_HELPERS_TIMEOUT	(5 * HZ)
+
 static int usermodehelper_pm_callback(struct notifier_block *nfb,
 					unsigned long action,
 					void *ignored)
 {
+	long retval;
+
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
 		usermodehelper_disabled = 1;
-		return NOTIFY_OK;
+		smp_mb();
+		/*
+		 * From now on call_usermodehelper_exec() won't start any new
+		 * helpers, so it is sufficient if running_helpers turns out to
+		 * be zero at one point (it may be increased later, but that
+		 * doesn't matter).
+		 */
+		retval = wait_event_timeout(running_helpers_waitq,
+					atomic_read(&running_helpers) == 0,
+					RUNNING_HELPERS_TIMEOUT);
+		if (retval) {
+			return NOTIFY_OK;
+		} else {
+			usermodehelper_disabled = 0;
+			return NOTIFY_BAD;
+		}
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 		usermodehelper_disabled = 0;
@@ -292,6 +324,30 @@ static int usermodehelper_pm_callback(struct notifier_block *nfb,
 
 	return NOTIFY_DONE;
 }
+
+static void helper_lock(void)
+{
+	atomic_inc(&running_helpers);
+	smp_mb__after_atomic_inc();
+}
+
+static void helper_unlock(void)
+{
+	if (atomic_dec_and_test(&running_helpers))
+		wake_up(&running_helpers_waitq);
+}
+
+static void register_pm_notifier_callback(void)
+{
+	pm_notifier(usermodehelper_pm_callback, 0);
+}
+#else /* CONFIG_PM */
+#define usermodehelper_disabled	0
+
+static inline void helper_lock(void) {}
+static inline void helper_unlock(void) {}
+static inline void register_pm_notifier_callback(void) {}
+#endif /* CONFIG_PM */
 
 /**
  * call_usermodehelper_setup - prepare to call a usermode helper
@@ -397,6 +453,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int retval;
 
+	helper_lock();
 	if (sub_info->path[0] == '\0') {
 		retval = 0;
 		goto out;
@@ -418,6 +475,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 
   out:
 	call_usermodehelper_freeinfo(sub_info);
+	helper_unlock();
 	return retval;
 }
 EXPORT_SYMBOL(call_usermodehelper_exec);
@@ -459,5 +517,5 @@ void __init usermodehelper_init(void)
 {
 	khelper_wq = create_singlethread_workqueue("khelper");
 	BUG_ON(!khelper_wq);
-	pm_notifier(usermodehelper_pm_callback, 0);
+	register_pm_notifier_callback();
 }
