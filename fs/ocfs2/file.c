@@ -34,6 +34,7 @@
 #include <linux/splice.h>
 #include <linux/mount.h>
 #include <linux/writeback.h>
+#include <linux/falloc.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -1504,29 +1505,18 @@ out:
 /*
  * Parts of this function taken from xfs_change_file_space()
  */
-int ocfs2_change_file_space(struct file *file, unsigned int cmd,
-			    struct ocfs2_space_resv *sr)
+static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
+				     loff_t f_pos, unsigned int cmd,
+				     struct ocfs2_space_resv *sr,
+				     int change_size)
 {
 	int ret;
 	s64 llen;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	loff_t size;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct buffer_head *di_bh = NULL;
 	handle_t *handle;
 	unsigned long long max_off = ocfs2_max_file_offset(inode->i_sb->s_blocksize_bits);
-
-	if ((cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) &&
-	    !ocfs2_writes_unwritten_extents(osb))
-		return -ENOTTY;
-	else if ((cmd == OCFS2_IOC_UNRESVSP || cmd == OCFS2_IOC_UNRESVSP64) &&
-		 !ocfs2_sparse_alloc(osb))
-		return -ENOTTY;
-
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-
-	if (!(file->f_mode & FMODE_WRITE))
-		return -EBADF;
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
@@ -1557,7 +1547,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 	case 0: /*SEEK_SET*/
 		break;
 	case 1: /*SEEK_CUR*/
-		sr->l_start += file->f_pos;
+		sr->l_start += f_pos;
 		break;
 	case 2: /*SEEK_END*/
 		sr->l_start += i_size_read(inode);
@@ -1577,6 +1567,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 		ret = -EINVAL;
 		goto out_meta_unlock;
 	}
+	size = sr->l_start + sr->l_len;
 
 	if (cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) {
 		if (sr->l_len <= 0) {
@@ -1585,7 +1576,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 		}
 	}
 
-	if (should_remove_suid(file->f_path.dentry)) {
+	if (file && should_remove_suid(file->f_path.dentry)) {
 		ret = __ocfs2_write_remove_suid(inode, di_bh);
 		if (ret) {
 			mlog_errno(ret);
@@ -1628,6 +1619,9 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 		goto out_meta_unlock;
 	}
 
+	if (change_size && i_size_read(inode) < size)
+		i_size_write(inode, size);
+
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 	ret = ocfs2_mark_inode_dirty(handle, inode, di_bh);
 	if (ret < 0)
@@ -1644,6 +1638,52 @@ out_rw_unlock:
 	mutex_unlock(&inode->i_mutex);
 out:
 	return ret;
+}
+
+int ocfs2_change_file_space(struct file *file, unsigned int cmd,
+			    struct ocfs2_space_resv *sr)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);;
+
+	if ((cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) &&
+	    !ocfs2_writes_unwritten_extents(osb))
+		return -ENOTTY;
+	else if ((cmd == OCFS2_IOC_UNRESVSP || cmd == OCFS2_IOC_UNRESVSP64) &&
+		 !ocfs2_sparse_alloc(osb))
+		return -ENOTTY;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EBADF;
+
+	return __ocfs2_change_file_space(file, inode, file->f_pos, cmd, sr, 0);
+}
+
+static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
+			    loff_t len)
+{
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_space_resv sr;
+	int change_size = 1;
+
+	if (!ocfs2_writes_unwritten_extents(osb))
+		return -EOPNOTSUPP;
+
+	if (S_ISDIR(inode->i_mode))
+		return -ENODEV;
+
+	if (mode & FALLOC_FL_KEEP_SIZE)
+		change_size = 0;
+
+	sr.l_whence = 0;
+	sr.l_start = (s64)offset;
+	sr.l_len = (s64)len;
+
+	return __ocfs2_change_file_space(NULL, inode, offset,
+					 OCFS2_IOC_RESVSP64, &sr, change_size);
 }
 
 static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
@@ -2312,6 +2352,7 @@ const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
+	.fallocate	= ocfs2_fallocate,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {
