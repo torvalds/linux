@@ -227,6 +227,12 @@ sysfs notes:
 		supported hot keys, except those which are handled by
 		the firmware.  Echo it to hotkey_mask above, to use.
 
+	hotkey_radio_sw:
+		if the ThinkPad has a hardware radio switch, this
+		attribute will read 0 if the switch is in the "radios
+		disabled" postition, and 1 if the switch is in the
+		"radios enabled" position.
+
 
 Bluetooth
 ---------

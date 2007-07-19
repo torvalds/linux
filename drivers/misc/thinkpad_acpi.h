@@ -228,6 +228,7 @@ static struct {
 	u16 bluetooth:1;
 	u16 hotkey:1;
 	u16 hotkey_mask:1;
+	u16 hotkey_wlsw:1;
 	u16 light:1;
 	u16 light_status:1;
 	u16 wan:1;

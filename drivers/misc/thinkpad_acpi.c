@@ -733,6 +733,13 @@ static u32 hotkey_reserved_mask = 0x00778000;
 
 static struct attribute_set *hotkey_dev_attributes;
 
+static int hotkey_get_wlsw(int *status)
+{
+	if (!acpi_evalf(hkey_handle, status, "WLSW", "d"))
+		return -EIO;
+	return 0;
+}
+
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -853,6 +860,22 @@ static struct device_attribute dev_attr_hotkey_recommended_mask =
 	__ATTR(hotkey_recommended_mask, S_IRUGO,
 		hotkey_recommended_mask_show, NULL);
 
+/* sysfs hotkey radio_sw ----------------------------------------------- */
+static ssize_t hotkey_radio_sw_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res, s;
+	res = hotkey_get_wlsw(&s);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", !!s);
+}
+
+static struct device_attribute dev_attr_hotkey_radio_sw =
+	__ATTR(hotkey_radio_sw, S_IRUGO, hotkey_radio_sw_show, NULL);
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *hotkey_mask_attributes[] = {
@@ -866,6 +889,7 @@ static struct attribute *hotkey_mask_attributes[] = {
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
 	int res;
+	int status;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
 
@@ -879,7 +903,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(6, NULL);
+		hotkey_dev_attributes = create_attr_set(7, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_to_attr_set(hotkey_dev_attributes,
@@ -908,11 +932,21 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				hotkey_mask_attributes,
 				ARRAY_SIZE(hotkey_mask_attributes));
 		}
+
+		/* Not all thinkpads have a hardware radio switch */
+		if (!res && acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
+			tp_features.hotkey_wlsw = 1;
+			printk(IBM_INFO
+				"radio switch found; radios are %s\n",
+				enabled(status, 0));
+			res = add_to_attr_set(hotkey_dev_attributes,
+					&dev_attr_hotkey_radio_sw.attr);
+		}
+
 		if (!res)
 			res = register_attr_set_with_sysfs(
 					hotkey_dev_attributes,
 					&tpacpi_pdev->dev.kobj);
-
 		if (res)
 			return res;
 	}
