@@ -153,7 +153,7 @@ struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
 	int envc;
-	char mem[0];
+	struct mm_struct *mm;
 };
 
 struct audit_aux_data_socketcall {
@@ -831,6 +831,55 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	return rc;
 }
 
+static void audit_log_execve_info(struct audit_buffer *ab,
+		struct audit_aux_data_execve *axi)
+{
+	int i;
+	long len, ret;
+	const char __user *p = (const char __user *)axi->mm->arg_start;
+	char *buf;
+
+	if (axi->mm != current->mm)
+		return; /* execve failed, no additional info */
+
+	for (i = 0; i < axi->argc; i++, p += len) {
+		len = strnlen_user(p, MAX_ARG_PAGES*PAGE_SIZE);
+		/*
+		 * We just created this mm, if we can't find the strings
+		 * we just copied into it something is _very_ wrong. Similar
+		 * for strings that are too long, we should not have created
+		 * any.
+		 */
+		if (!len || len > MAX_ARG_STRLEN) {
+			WARN_ON(1);
+			send_sig(SIGKILL, current, 0);
+		}
+
+		buf = kmalloc(len, GFP_KERNEL);
+		if (!buf) {
+			audit_panic("out of memory for argv string\n");
+			break;
+		}
+
+		ret = copy_from_user(buf, p, len);
+		/*
+		 * There is no reason for this copy to be short. We just
+		 * copied them here, and the mm hasn't been exposed to user-
+		 * space yet.
+		 */
+		if (!ret) {
+			WARN_ON(1);
+			send_sig(SIGKILL, current, 0);
+		}
+
+		audit_log_format(ab, "a%d=", i);
+		audit_log_untrustedstring(ab, buf);
+		audit_log_format(ab, "\n");
+
+		kfree(buf);
+	}
+}
+
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
 	int i, call_panic = 0;
@@ -971,13 +1020,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		case AUDIT_EXECVE: {
 			struct audit_aux_data_execve *axi = (void *)aux;
-			int i;
-			const char *p;
-			for (i = 0, p = axi->mem; i < axi->argc; i++) {
-				audit_log_format(ab, "a%d=", i);
-				p = audit_log_untrustedstring(ab, p);
-				audit_log_format(ab, "\n");
-			}
+			audit_log_execve_info(ab, axi);
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -1821,32 +1864,31 @@ int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode
 	return 0;
 }
 
+int audit_argv_kb = 32;
+
 int audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_aux_data_execve *ax;
 	struct audit_context *context = current->audit_context;
-	unsigned long p, next;
-	void *to;
 
 	if (likely(!audit_enabled || !context || context->dummy))
 		return 0;
 
-	ax = kmalloc(sizeof(*ax) + PAGE_SIZE * MAX_ARG_PAGES - bprm->p,
-				GFP_KERNEL);
+	/*
+	 * Even though the stack code doesn't limit the arg+env size any more,
+	 * the audit code requires that _all_ arguments be logged in a single
+	 * netlink skb. Hence cap it :-(
+	 */
+	if (bprm->argv_len > (audit_argv_kb << 10))
+		return -E2BIG;
+
+	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
 		return -ENOMEM;
 
 	ax->argc = bprm->argc;
 	ax->envc = bprm->envc;
-	for (p = bprm->p, to = ax->mem; p < MAX_ARG_PAGES*PAGE_SIZE; p = next) {
-		struct page *page = bprm->page[p / PAGE_SIZE];
-		void *kaddr = kmap(page);
-		next = (p + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-		memcpy(to, kaddr + (p & (PAGE_SIZE - 1)), next - p);
-		to += next - p;
-		kunmap(page);
-	}
-
+	ax->mm = bprm->mm;
 	ax->d.type = AUDIT_EXECVE;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;

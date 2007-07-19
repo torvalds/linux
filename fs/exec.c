@@ -1154,6 +1154,7 @@ int do_execve(char * filename,
 {
 	struct linux_binprm *bprm;
 	struct file *file;
+	unsigned long env_p;
 	int retval;
 	int i;
 
@@ -1208,9 +1209,11 @@ int do_execve(char * filename,
 	if (retval < 0)
 		goto out;
 
+	env_p = bprm->p;
 	retval = copy_strings(bprm->argc, argv, bprm);
 	if (retval < 0)
 		goto out;
+	bprm->argv_len = env_p - bprm->p;
 
 	retval = search_binary_handler(bprm,regs);
 	if (retval >= 0) {
