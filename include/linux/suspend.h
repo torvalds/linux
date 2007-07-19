@@ -43,11 +43,15 @@ static inline void pm_restore_console(void) {}
  * @prepare: prepare system for hibernation
  * @enter: shut down system after state has been saved to disk
  * @finish: finish/clean up after state has been reloaded
+ * @pre_restore: prepare system for the restoration from a hibernation image
+ * @restore_cleanup: clean up after a failing image restoration
  */
 struct hibernation_ops {
 	int (*prepare)(void);
 	int (*enter)(void);
 	void (*finish)(void);
+	int (*pre_restore)(void);
+	void (*restore_cleanup)(void);
 };
 
 #if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)

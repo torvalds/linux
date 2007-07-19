@@ -54,7 +54,8 @@ static struct hibernation_ops *hibernation_ops;
 
 void hibernation_set_ops(struct hibernation_ops *ops)
 {
-	if (ops && !(ops->prepare && ops->enter && ops->finish)) {
+	if (ops && !(ops->prepare && ops->enter && ops->finish
+	    && ops->pre_restore && ops->restore_cleanup)) {
 		WARN_ON(1);
 		return;
 	}
@@ -89,6 +90,31 @@ static void platform_finish(int platform_mode)
 {
 	if (platform_mode && hibernation_ops)
 		hibernation_ops->finish();
+}
+
+/**
+ *	platform_pre_restore - prepare the platform for the restoration from a
+ *	hibernation image.  If the restore fails after this function has been
+ *	called, platform_restore_cleanup() must be called.
+ */
+
+static int platform_pre_restore(int platform_mode)
+{
+	return (platform_mode && hibernation_ops) ?
+		hibernation_ops->pre_restore() : 0;
+}
+
+/**
+ *	platform_restore_cleanup - switch the platform to the normal mode of
+ *	operation after a failing restore.  If platform_pre_restore() has been
+ *	called before the failing restore, this function must be called too,
+ *	regardless of the result of platform_pre_restore().
+ */
+
+static void platform_restore_cleanup(int platform_mode)
+{
+	if (platform_mode && hibernation_ops)
+		hibernation_ops->restore_cleanup();
 }
 
 /**
@@ -141,11 +167,13 @@ int hibernation_snapshot(int platform_mode)
 /**
  *	hibernation_restore - quiesce devices and restore the hibernation
  *	snapshot image.  If successful, control returns in hibernation_snaphot()
+ *	@platform_mode - if set, use the platform driver, if available, to
+ *			 prepare the platform frimware for the transition.
  *
  *	Must be called with pm_mutex held
  */
 
-int hibernation_restore(void)
+int hibernation_restore(int platform_mode)
 {
 	int error;
 
@@ -155,11 +183,14 @@ int hibernation_restore(void)
 	if (error)
 		goto Finish;
 
-	error = disable_nonboot_cpus();
-	if (!error)
-		error = swsusp_resume();
-
-	enable_nonboot_cpus();
+	error = platform_pre_restore(platform_mode);
+	if (!error) {
+		error = disable_nonboot_cpus();
+		if (!error)
+			error = swsusp_resume();
+		enable_nonboot_cpus();
+	}
+	platform_restore_cleanup(platform_mode);
  Finish:
 	device_resume();
 	resume_console();
@@ -260,8 +291,12 @@ int hibernate(void)
 	}
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
 	if (in_suspend && !error) {
+		unsigned int flags = 0;
+
+		if (hibernation_mode == HIBERNATION_PLATFORM)
+			flags |= SF_PLATFORM_MODE;
 		pr_debug("PM: writing image.\n");
-		error = swsusp_write();
+		error = swsusp_write(flags);
 		swsusp_free();
 		if (!error)
 			power_down();
@@ -295,6 +330,7 @@ int hibernate(void)
 static int software_resume(void)
 {
 	int error;
+	unsigned int flags;
 
 	mutex_lock(&pm_mutex);
 	if (!swsusp_resume_device) {
@@ -342,9 +378,9 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	error = swsusp_read();
+	error = swsusp_read(&flags);
 	if (!error)
-		hibernation_restore();
+		hibernation_restore(flags & SF_PLATFORM_MODE);
 
 	printk(KERN_ERR "PM: Restore failed, recovering.\n");
 	swsusp_free();

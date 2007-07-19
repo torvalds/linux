@@ -188,7 +188,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		error = hibernation_restore();
+		error = hibernation_restore(data->platform_suspend);
 		break;
 
 	case SNAPSHOT_FREE:

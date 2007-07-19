@@ -27,7 +27,7 @@ struct swsusp_info {
 
 /* kernel/power/disk.c */
 extern int hibernation_snapshot(int platform_mode);
-extern int hibernation_restore(void);
+extern int hibernation_restore(int platform_mode);
 extern int hibernation_platform_enter(void);
 #endif
 
@@ -155,13 +155,20 @@ extern sector_t alloc_swapdev_block(int swap);
 extern void free_all_swap_pages(int swap);
 extern int swsusp_swap_in_use(void);
 
+/*
+ * Flags that can be passed from the hibernatig hernel to the "boot" kernel in
+ * the image header.
+ */
+#define SF_PLATFORM_MODE	1
+
+/* kernel/power/disk.c */
 extern int swsusp_check(void);
 extern int swsusp_shrink_memory(void);
 extern void swsusp_free(void);
 extern int swsusp_suspend(void);
 extern int swsusp_resume(void);
-extern int swsusp_read(void);
-extern int swsusp_write(void);
+extern int swsusp_read(unsigned int *flags_p);
+extern int swsusp_write(unsigned int flags);
 extern void swsusp_close(void);
 extern int suspend_enter(suspend_state_t state);
 

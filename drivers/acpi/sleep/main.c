@@ -217,10 +217,26 @@ static void acpi_hibernation_finish(void)
 	}
 }
 
+static int acpi_hibernation_pre_restore(void)
+{
+	acpi_status status;
+
+	status = acpi_hw_disable_all_gpes();
+
+	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
+}
+
+static void acpi_hibernation_restore_cleanup(void)
+{
+	acpi_hw_enable_all_runtime_gpes();
+}
+
 static struct hibernation_ops acpi_hibernation_ops = {
 	.prepare = acpi_hibernation_prepare,
 	.enter = acpi_hibernation_enter,
 	.finish = acpi_hibernation_finish,
+	.pre_restore = acpi_hibernation_pre_restore,
+	.restore_cleanup = acpi_hibernation_restore_cleanup,
 };
 #endif				/* CONFIG_SOFTWARE_SUSPEND */
 
