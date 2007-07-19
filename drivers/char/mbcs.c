@@ -816,12 +816,7 @@ struct cx_drv mbcs_driver = {
 
 static void __exit mbcs_exit(void)
 {
-	int rv;
-
-	rv = unregister_chrdev(mbcs_major, DEVICE_NAME);
-	if (rv < 0)
-		DBG(KERN_ALERT "Error in unregister_chrdev: %d\n", rv);
-
+	unregister_chrdev(mbcs_major, DEVICE_NAME);
 	cx_driver_unregister(&mbcs_driver);
 }
 

@@ -4795,7 +4795,6 @@ static void __exit stallion_module_exit(void)
 {
 	struct stlbrd *brdp;
 	unsigned int i, j;
-	int retval;
 
 	pr_debug("cleanup_module()\n");
 
@@ -4818,9 +4817,7 @@ static void __exit stallion_module_exit(void)
 
 	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	if ((retval = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
-		printk("STALLION: failed to un-register serial memory device, "
-			"errno=%d\n", -retval);
+	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
 	class_destroy(stallion_class);
 
 	pci_unregister_driver(&stl_pcidriver);

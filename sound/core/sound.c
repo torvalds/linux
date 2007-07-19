@@ -446,8 +446,7 @@ static void __exit alsa_sound_exit(void)
 {
 	snd_info_minor_unregister();
 	snd_info_done();
-	if (unregister_chrdev(major, "alsa") != 0)
-		snd_printk(KERN_ERR "unable to unregister major device number %d\n", major);
+	unregister_chrdev(major, "alsa");
 }
 
 module_init(alsa_sound_init)

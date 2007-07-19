@@ -193,9 +193,7 @@ err:
 void __exit
 pcf8563_exit(void)
 {
-	if (unregister_chrdev(PCF8563_MAJOR, DEVICE_NAME) < 0) {
-		printk(KERN_INFO "%s: Unable to unregister device.\n", PCF8563_NAME);
-	}
+	unregister_chrdev(PCF8563_MAJOR, DEVICE_NAME);
 }
 
 /*
