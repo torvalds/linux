@@ -39,6 +39,7 @@
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/input.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -48,6 +49,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/acnamesp.h>
 
+#include <linux/pci_ids.h>
 
 /****************************************************************************
  * Main driver
@@ -97,6 +99,11 @@ static const char *str_supported(int is_supported);
 #else
 #define vdbg_printk(a_dbg_level, format, arg...)
 #endif
+
+/* Input IDs */
+#define TPACPI_HKEY_INPUT_VENDOR	PCI_VENDOR_ID_IBM
+#define TPACPI_HKEY_INPUT_PRODUCT	0x5054 /* "TP" */
+#define TPACPI_HKEY_INPUT_VERSION	0x4101
 
 /* ACPI HIDs */
 #define IBM_HKEY_HID    "IBM0068"
@@ -161,6 +168,7 @@ static int parse_strtoul(const char *buf, unsigned long max,
 static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;
 static struct platform_driver tpacpi_pdriver;
+static struct input_dev *tpacpi_inputdev;
 static int tpacpi_create_driver_attributes(struct device_driver *drv);
 static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 
@@ -233,6 +241,7 @@ static struct {
 	u16 light_status:1;
 	u16 wan:1;
 	u16 fan_ctrl_status_undef:1;
+	u16 input_device_registered:1;
 } tp_features;
 
 static struct list_head tpacpi_all_drivers;

@@ -510,13 +510,14 @@ static char *next_cmd(char **cmds)
 /****************************************************************************
  ****************************************************************************
  *
- * Device model: hwmon and platform
+ * Device model: input, hwmon and platform
  *
  ****************************************************************************
  ****************************************************************************/
 
 static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;
+static struct input_dev *tpacpi_inputdev;
 
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
@@ -4363,6 +4364,20 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
+	tpacpi_inputdev = input_allocate_device();
+	if (!tpacpi_inputdev) {
+		printk(IBM_ERR "unable to allocate input device\n");
+		thinkpad_acpi_module_exit();
+		return -ENOMEM;
+	} else {
+		/* Prepare input device, but don't register */
+		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
+		tpacpi_inputdev->phys = IBM_DRVR_NAME "/input0";
+		tpacpi_inputdev->id.bustype = BUS_HOST;
+		tpacpi_inputdev->id.vendor = TPACPI_HKEY_INPUT_VENDOR;
+		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
+		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
+	}
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ret = ibm_init(&ibms_init[i]);
 		if (ret >= 0 && *ibms_init[i].param)
@@ -4371,6 +4386,14 @@ static int __init thinkpad_acpi_module_init(void)
 			thinkpad_acpi_module_exit();
 			return ret;
 		}
+	}
+	ret = input_register_device(tpacpi_inputdev);
+	if (ret < 0) {
+		printk(IBM_ERR "unable to register input device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	} else {
+		tp_features.input_device_registered = 1;
 	}
 
 	return 0;
@@ -4387,6 +4410,13 @@ static void thinkpad_acpi_module_exit(void)
 	}
 
 	dbg_printk(TPACPI_DBG_INIT, "finished subdriver exit path...\n");
+
+	if (tpacpi_inputdev) {
+		if (tp_features.input_device_registered)
+			input_unregister_device(tpacpi_inputdev);
+		else
+			input_free_device(tpacpi_inputdev);
+	}
 
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
