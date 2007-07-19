@@ -210,8 +210,7 @@ __xip_unmap (struct address_space * mapping,
  *
  * This function is derived from filemap_fault, but used for execute in place
  */
-static struct page *xip_file_fault(struct vm_area_struct *area,
-					struct fault_data *fdata)
+static int xip_file_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {
 	struct file *file = area->vm_file;
 	struct address_space *mapping = file->f_mapping;
@@ -222,19 +221,15 @@ static struct page *xip_file_fault(struct vm_area_struct *area,
 	/* XXX: are VM_FAULT_ codes OK? */
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (fdata->pgoff >= size) {
-		fdata->type = VM_FAULT_SIGBUS;
-		return NULL;
-	}
+	if (vmf->pgoff >= size)
+		return VM_FAULT_SIGBUS;
 
 	page = mapping->a_ops->get_xip_page(mapping,
-					fdata->pgoff*(PAGE_SIZE/512), 0);
+					vmf->pgoff*(PAGE_SIZE/512), 0);
 	if (!IS_ERR(page))
 		goto out;
-	if (PTR_ERR(page) != -ENODATA) {
-		fdata->type = VM_FAULT_OOM;
-		return NULL;
-	}
+	if (PTR_ERR(page) != -ENODATA)
+		return VM_FAULT_OOM;
 
 	/* sparse block */
 	if ((area->vm_flags & (VM_WRITE | VM_MAYWRITE)) &&
@@ -242,26 +237,22 @@ static struct page *xip_file_fault(struct vm_area_struct *area,
 	    (!(mapping->host->i_sb->s_flags & MS_RDONLY))) {
 		/* maybe shared writable, allocate new block */
 		page = mapping->a_ops->get_xip_page(mapping,
-					fdata->pgoff*(PAGE_SIZE/512), 1);
-		if (IS_ERR(page)) {
-			fdata->type = VM_FAULT_SIGBUS;
-			return NULL;
-		}
+					vmf->pgoff*(PAGE_SIZE/512), 1);
+		if (IS_ERR(page))
+			return VM_FAULT_SIGBUS;
 		/* unmap page at pgoff from all other vmas */
-		__xip_unmap(mapping, fdata->pgoff);
+		__xip_unmap(mapping, vmf->pgoff);
 	} else {
 		/* not shared and writable, use xip_sparse_page() */
 		page = xip_sparse_page();
-		if (!page) {
-			fdata->type = VM_FAULT_OOM;
-			return NULL;
-		}
+		if (!page)
+			return VM_FAULT_OOM;
 	}
 
 out:
-	fdata->type = VM_FAULT_MINOR;
 	page_cache_get(page);
-	return page;
+	vmf->page = page;
+	return VM_FAULT_MINOR;
 }
 
 static struct vm_operations_struct xip_file_vm_ops = {

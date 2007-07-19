@@ -20,13 +20,14 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-	struct page *page = NULL;
 
 	if (pte_present(pte)) {
+		struct page *page;
+
 		flush_cache_page(vma, addr, pte_pfn(pte));
 		pte = ptep_clear_flush(vma, addr, ptep);
 		page = vm_normal_page(vma, addr, pte);
@@ -35,68 +36,21 @@ static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 				set_page_dirty(page);
 			page_remove_rmap(page, vma);
 			page_cache_release(page);
+			update_hiwater_rss(mm);
+			dec_mm_counter(mm, file_rss);
 		}
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
 		pte_clear_not_present_full(mm, addr, ptep, 0);
 	}
-	return !!page;
 }
-
-/*
- * Install a file page to a given virtual memory address, release any
- * previously existing mapping.
- */
-int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long addr, struct page *page, pgprot_t prot)
-{
-	struct inode *inode;
-	pgoff_t size;
-	int err = -ENOMEM;
-	pte_t *pte;
-	pte_t pte_val;
-	spinlock_t *ptl;
-
-	pte = get_locked_pte(mm, addr, &ptl);
-	if (!pte)
-		goto out;
-
-	/*
-	 * This page may have been truncated. Tell the
-	 * caller about it.
-	 */
-	err = -EINVAL;
-	inode = vma->vm_file->f_mapping->host;
-	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (!page->mapping || page->index >= size)
-		goto unlock;
-	err = -ENOMEM;
-	if (page_mapcount(page) > INT_MAX/2)
-		goto unlock;
-
-	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
-		inc_mm_counter(mm, file_rss);
-
-	flush_icache_page(vma, page);
-	pte_val = mk_pte(page, prot);
-	set_pte_at(mm, addr, pte, pte_val);
-	page_add_file_rmap(page);
-	update_mmu_cache(vma, addr, pte_val);
-	lazy_mmu_prot_update(pte_val);
-	err = 0;
-unlock:
-	pte_unmap_unlock(pte, ptl);
-out:
-	return err;
-}
-EXPORT_SYMBOL(install_page);
 
 /*
  * Install a file pte to a given virtual memory address, release any
  * previously existing mapping.
  */
-int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long pgoff, pgprot_t prot)
 {
 	int err = -ENOMEM;
@@ -107,10 +61,8 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pte)
 		goto out;
 
-	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte)) {
-		update_hiwater_rss(mm);
-		dec_mm_counter(mm, file_rss);
-	}
+	if (!pte_none(*pte))
+		zap_pte(mm, vma, addr, pte);
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	/*
@@ -208,8 +160,7 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
 		goto out;
 
-	if ((!vma->vm_ops || !vma->vm_ops->populate) &&
-					!(vma->vm_flags & VM_CAN_NONLINEAR))
+	if (!vma->vm_flags & VM_CAN_NONLINEAR)
 		goto out;
 
 	if (end <= start || start < vma->vm_start || end > vma->vm_end)
@@ -239,18 +190,14 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 		spin_unlock(&mapping->i_mmap_lock);
 	}
 
-	if (vma->vm_flags & VM_CAN_NONLINEAR) {
-		err = populate_range(mm, vma, start, size, pgoff);
-		if (!err && !(flags & MAP_NONBLOCK)) {
-			if (unlikely(has_write_lock)) {
-				downgrade_write(&mm->mmap_sem);
-				has_write_lock = 0;
-			}
-			make_pages_present(start, start+size);
+	err = populate_range(mm, vma, start, size, pgoff);
+	if (!err && !(flags & MAP_NONBLOCK)) {
+		if (unlikely(has_write_lock)) {
+			downgrade_write(&mm->mmap_sem);
+			has_write_lock = 0;
 		}
-	} else
-		err = vma->vm_ops->populate(vma, start, size, vma->vm_page_prot,
-					    	pgoff, flags & MAP_NONBLOCK);
+		make_pages_present(start, start+size);
+	}
 
 	/*
 	 * We can't clear VM_NONLINEAR because we'd have to do

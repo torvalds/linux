@@ -24,33 +24,35 @@
 
 /*
  * Fill in the supplied page for mmap
+ * XXX: how are we excluding truncate/invalidate here? Maybe need to lock
+ * page?
  */
-static struct page* ncp_file_mmap_fault(struct vm_area_struct *area,
-						struct fault_data *fdata)
+static int ncp_file_mmap_fault(struct vm_area_struct *area,
+					struct vm_fault *vmf)
 {
 	struct file *file = area->vm_file;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	struct page* page;
 	char *pg_addr;
 	unsigned int already_read;
 	unsigned int count;
 	int bufsize;
-	int pos;
+	int pos; /* XXX: loff_t ? */
 
-	page = alloc_page(GFP_HIGHUSER); /* ncpfs has nothing against high pages
-	           as long as recvmsg and memset works on it */
-	if (!page) {
-		fdata->type = VM_FAULT_OOM;
-		return NULL;
-	}
-	pg_addr = kmap(page);
-	pos = fdata->pgoff << PAGE_SHIFT;
+	/*
+	 * ncpfs has nothing against high pages as long
+	 * as recvmsg and memset works on it
+	 */
+	vmf->page = alloc_page(GFP_HIGHUSER);
+	if (!vmf->page)
+		return VM_FAULT_OOM;
+	pg_addr = kmap(vmf->page);
+	pos = vmf->pgoff << PAGE_SHIFT;
 
 	count = PAGE_SIZE;
-	if (fdata->address + PAGE_SIZE > area->vm_end) {
+	if ((unsigned long)vmf->virtual_address + PAGE_SIZE > area->vm_end) {
 		WARN_ON(1); /* shouldn't happen? */
-		count = area->vm_end - fdata->address;
+		count = area->vm_end - (unsigned long)vmf->virtual_address;
 	}
 	/* what we can read in one go */
 	bufsize = NCP_SERVER(inode)->buffer_size;
@@ -85,17 +87,16 @@ static struct page* ncp_file_mmap_fault(struct vm_area_struct *area,
 
 	if (already_read < PAGE_SIZE)
 		memset(pg_addr + already_read, 0, PAGE_SIZE - already_read);
-	flush_dcache_page(page);
-	kunmap(page);
+	flush_dcache_page(vmf->page);
+	kunmap(vmf->page);
 
 	/*
 	 * If I understand ncp_read_kernel() properly, the above always
 	 * fetches from the network, here the analogue of disk.
 	 * -- wli
 	 */
-	fdata->type = VM_FAULT_MAJOR;
 	count_vm_event(PGMAJFAULT);
-	return page;
+	return VM_FAULT_MAJOR;
 }
 
 static struct vm_operations_struct ncp_file_mmap =
@@ -124,7 +125,6 @@ int ncp_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EFBIG;
 
 	vma->vm_ops = &ncp_file_mmap;
-	vma->vm_flags |= VM_CAN_INVALIDATE;
 	file_accessed(file);
 	return 0;
 }

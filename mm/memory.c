@@ -1834,10 +1834,10 @@ static int unmap_mapping_range_vma(struct vm_area_struct *vma,
 
 	/*
 	 * files that support invalidating or truncating portions of the
-	 * file from under mmaped areas must set the VM_CAN_INVALIDATE flag, and
-	 * have their .nopage function return the page locked.
+	 * file from under mmaped areas must have their ->fault function
+	 * return a locked page (and FAULT_RET_LOCKED code). This provides
+	 * synchronisation against concurrent unmapping here.
 	 */
-	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
 
 again:
 	restart_addr = vma->vm_truncate_count;
@@ -2306,63 +2306,62 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
 {
 	spinlock_t *ptl;
-	struct page *page, *faulted_page;
+	struct page *page;
 	pte_t entry;
 	int anon = 0;
 	struct page *dirty_page = NULL;
-	struct fault_data fdata;
+	struct vm_fault vmf;
+	int ret;
 
-	fdata.address = address & PAGE_MASK;
-	fdata.pgoff = pgoff;
-	fdata.flags = flags;
+	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
+	vmf.pgoff = pgoff;
+	vmf.flags = flags;
+	vmf.page = NULL;
 
 	pte_unmap(page_table);
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
 
 	if (likely(vma->vm_ops->fault)) {
-		fdata.type = -1;
-		faulted_page = vma->vm_ops->fault(vma, &fdata);
-		WARN_ON(fdata.type == -1);
-		if (unlikely(!faulted_page))
-			return fdata.type;
+		ret = vma->vm_ops->fault(vma, &vmf);
+		if (unlikely(ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE)))
+			return (ret & VM_FAULT_MASK);
 	} else {
 		/* Legacy ->nopage path */
-		fdata.type = VM_FAULT_MINOR;
-		faulted_page = vma->vm_ops->nopage(vma, address & PAGE_MASK,
-								&fdata.type);
+		ret = VM_FAULT_MINOR;
+		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
 		/* no page was available -- either SIGBUS or OOM */
-		if (unlikely(faulted_page == NOPAGE_SIGBUS))
+		if (unlikely(vmf.page == NOPAGE_SIGBUS))
 			return VM_FAULT_SIGBUS;
-		else if (unlikely(faulted_page == NOPAGE_OOM))
+		else if (unlikely(vmf.page == NOPAGE_OOM))
 			return VM_FAULT_OOM;
 	}
 
 	/*
-	 * For consistency in subsequent calls, make the faulted_page always
+	 * For consistency in subsequent calls, make the faulted page always
 	 * locked.
 	 */
-	if (unlikely(!(vma->vm_flags & VM_CAN_INVALIDATE)))
-		lock_page(faulted_page);
+	if (unlikely(!(ret & FAULT_RET_LOCKED)))
+		lock_page(vmf.page);
 	else
-		BUG_ON(!PageLocked(faulted_page));
+		VM_BUG_ON(!PageLocked(vmf.page));
 
 	/*
 	 * Should we do an early C-O-W break?
 	 */
-	page = faulted_page;
+	page = vmf.page;
 	if (flags & FAULT_FLAG_WRITE) {
 		if (!(vma->vm_flags & VM_SHARED)) {
 			anon = 1;
 			if (unlikely(anon_vma_prepare(vma))) {
-				fdata.type = VM_FAULT_OOM;
+				ret = VM_FAULT_OOM;
 				goto out;
 			}
 			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 			if (!page) {
-				fdata.type = VM_FAULT_OOM;
+				ret = VM_FAULT_OOM;
 				goto out;
 			}
-			copy_user_highpage(page, faulted_page, address, vma);
+			copy_user_highpage(page, vmf.page, address, vma);
 		} else {
 			/*
 			 * If the page will be shareable, see if the backing
@@ -2372,11 +2371,23 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (vma->vm_ops->page_mkwrite) {
 				unlock_page(page);
 				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
-					fdata.type = VM_FAULT_SIGBUS;
-					anon = 1; /* no anon but release faulted_page */
+					ret = VM_FAULT_SIGBUS;
+					anon = 1; /* no anon but release vmf.page */
 					goto out_unlocked;
 				}
 				lock_page(page);
+				/*
+				 * XXX: this is not quite right (racy vs
+				 * invalidate) to unlock and relock the page
+				 * like this, however a better fix requires
+				 * reworking page_mkwrite locking API, which
+				 * is better done later.
+				 */
+				if (!page->mapping) {
+					ret = VM_FAULT_MINOR;
+					anon = 1; /* no anon but release vmf.page */
+					goto out;
+				}
 			}
 		}
 
@@ -2427,16 +2438,16 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_unmap_unlock(page_table, ptl);
 
 out:
-	unlock_page(faulted_page);
+	unlock_page(vmf.page);
 out_unlocked:
 	if (anon)
-		page_cache_release(faulted_page);
+		page_cache_release(vmf.page);
 	else if (dirty_page) {
 		set_page_dirty_balance(dirty_page);
 		put_page(dirty_page);
 	}
 
-	return fdata.type;
+	return (ret & VM_FAULT_MASK);
 }
 
 static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -2447,18 +2458,10 @@ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
 	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
 
-	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
+	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
+							flags, orig_pte);
 }
 
-static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long address, pte_t *page_table, pmd_t *pmd,
-		int write_access, pgoff_t pgoff, pte_t orig_pte)
-{
-	unsigned int flags = FAULT_FLAG_NONLINEAR |
-				(write_access ? FAULT_FLAG_WRITE : 0);
-
-	return __do_fault(mm, vma, address, page_table, pmd, pgoff, flags, orig_pte);
-}
 
 /*
  * do_no_pfn() tries to create a new page mapping for a page without
@@ -2519,17 +2522,19 @@ static noinline int do_no_pfn(struct mm_struct *mm, struct vm_area_struct *vma,
  * but allow concurrent faults), and pte mapped but not yet locked.
  * We return with mmap_sem still held, but pte unmapped and unlocked.
  */
-static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
+static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		int write_access, pte_t orig_pte)
 {
+	unsigned int flags = FAULT_FLAG_NONLINEAR |
+				(write_access ? FAULT_FLAG_WRITE : 0);
 	pgoff_t pgoff;
-	int err;
 
 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
 		return VM_FAULT_MINOR;
 
-	if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
+	if (unlikely(!(vma->vm_flags & VM_NONLINEAR) ||
+			!(vma->vm_flags & VM_CAN_NONLINEAR))) {
 		/*
 		 * Page table corrupted: show pte and kill process.
 		 */
@@ -2539,18 +2544,8 @@ static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	pgoff = pte_to_pgoff(orig_pte);
 
-	if (vma->vm_ops && vma->vm_ops->fault)
-		return do_nonlinear_fault(mm, vma, address, page_table, pmd,
-					write_access, pgoff, orig_pte);
-
-	/* We can then assume vm->vm_ops && vma->vm_ops->populate */
-	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE,
-					vma->vm_page_prot, pgoff, 0);
-	if (err == -ENOMEM)
-		return VM_FAULT_OOM;
-	if (err)
-		return VM_FAULT_SIGBUS;
-	return VM_FAULT_MAJOR;
+	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
+							flags, orig_pte);
 }
 
 /*
@@ -2588,7 +2583,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 						 pte, pmd, write_access);
 		}
 		if (pte_file(entry))
-			return do_file_page(mm, vma, address,
+			return do_nonlinear_fault(mm, vma, address,
 					pte, pmd, write_access, entry);
 		return do_swap_page(mm, vma, address,
 					pte, pmd, write_access, entry);

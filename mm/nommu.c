@@ -1341,10 +1341,10 @@ int in_gate_area_no_task(unsigned long addr)
 	return 0;
 }
 
-struct page *filemap_fault(struct vm_area_struct *vma, struct fault_data *fdata)
+int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	BUG();
-	return NULL;
+	return 0;
 }
 
 /*

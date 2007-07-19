@@ -224,13 +224,12 @@ static void shm_close(struct vm_area_struct *vma)
 	mutex_unlock(&shm_ids(ns).mutex);
 }
 
-static struct page *shm_fault(struct vm_area_struct *vma,
-					struct fault_data *fdata)
+static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 
-	return sfd->vm_ops->fault(vma, fdata);
+	return sfd->vm_ops->fault(vma, vmf);
 }
 
 #ifdef CONFIG_NUMA

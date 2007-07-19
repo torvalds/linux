@@ -168,12 +168,7 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
 #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
 
-#define VM_CAN_INVALIDATE 0x08000000	/* The mapping may be invalidated,
-					 * eg. truncate or invalidate_inode_*.
-					 * In this case, do_no_page must
-					 * return with the page locked.
-					 */
-#define VM_CAN_NONLINEAR 0x10000000	/* Has ->fault & does nonlinear pages */
+#define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
 
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
@@ -197,24 +192,44 @@ extern unsigned int kobjsize(const void *objp);
  */
 extern pgprot_t protection_map[16];
 
-#define FAULT_FLAG_WRITE	0x01
-#define FAULT_FLAG_NONLINEAR	0x02
+#define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+#define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+
+
+#define FAULT_RET_NOPAGE	0x0100	/* ->fault did not return a page. This
+					 * can be used if the handler installs
+					 * their own pte.
+					 */
+#define FAULT_RET_LOCKED	0x0200	/* ->fault locked the page, caller must
+					 * unlock after installing the mapping.
+					 * This is used by pagecache in
+					 * particular, where the page lock is
+					 * used to synchronise against truncate
+					 * and invalidate. Mutually exclusive
+					 * with FAULT_RET_NOPAGE.
+					 */
 
 /*
- * fault_data is filled in the the pagefault handler and passed to the
- * vma's ->fault function. That function is responsible for filling in
- * 'type', which is the type of fault if a page is returned, or the type
- * of error if NULL is returned.
+ * vm_fault is filled by the the pagefault handler and passed to the vma's
+ * ->fault function. The vma's ->fault is responsible for returning the
+ * VM_FAULT_xxx type which occupies the lowest byte of the return code, ORed
+ * with FAULT_RET_ flags that occupy the next byte and give details about
+ * how the fault was handled.
  *
- * pgoff should be used in favour of address, if possible. If pgoff is
- * used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get
- * nonlinear mapping support.
+ * pgoff should be used in favour of virtual_address, if possible. If pgoff
+ * is used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get nonlinear
+ * mapping support.
  */
-struct fault_data {
-	unsigned long address;
-	pgoff_t pgoff;
-	unsigned int flags;
-	int type;
+struct vm_fault {
+	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+	pgoff_t pgoff;			/* Logical page offset based on vma */
+	void __user *virtual_address;	/* Faulting virtual address */
+
+	struct page *page;		/* ->fault handlers should return a
+					 * page here, unless FAULT_RET_NOPAGE
+					 * is set (which is also implied by
+					 * VM_FAULT_OOM or SIGBUS).
+					 */
 };
 
 /*
@@ -225,15 +240,11 @@ struct fault_data {
 struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);
 	void (*close)(struct vm_area_struct * area);
-	struct page *(*fault)(struct vm_area_struct *vma,
-			struct fault_data *fdata);
+	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
 	struct page *(*nopage)(struct vm_area_struct *area,
 			unsigned long address, int *type);
 	unsigned long (*nopfn)(struct vm_area_struct *area,
 			unsigned long address);
-	int (*populate)(struct vm_area_struct *area, unsigned long address,
-			unsigned long len, pgprot_t prot, unsigned long pgoff,
-			int nonblock);
 
 	/* notification that a previously read-only page is about to become
 	 * writable, if an error is returned it will cause a SIGBUS */
@@ -700,8 +711,14 @@ static inline int page_mapped(struct page *page)
  * Used to decide whether a process gets delivered SIGBUS or
  * just gets major/minor fault counters bumped up.
  */
-#define VM_FAULT_OOM	0x00
-#define VM_FAULT_SIGBUS	0x01
+
+/*
+ * VM_FAULT_ERROR is set for the error cases, to make some tests simpler.
+ */
+#define VM_FAULT_ERROR	0x20
+
+#define VM_FAULT_OOM	(0x00 | VM_FAULT_ERROR)
+#define VM_FAULT_SIGBUS	(0x01 | VM_FAULT_ERROR)
 #define VM_FAULT_MINOR	0x02
 #define VM_FAULT_MAJOR	0x03
 
@@ -710,6 +727,11 @@ static inline int page_mapped(struct page *page)
  * Must be in a distinct bit from the above VM_FAULT_ flags.
  */
 #define VM_FAULT_WRITE	0x10
+
+/*
+ * Mask of VM_FAULT_ flags
+ */
+#define VM_FAULT_MASK	0xff
 
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
@@ -793,8 +815,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 
 extern int vmtruncate(struct inode * inode, loff_t offset);
 extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
-extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
-extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
 
 #ifdef CONFIG_MMU
 extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
@@ -1135,11 +1155,7 @@ extern void truncate_inode_pages_range(struct address_space *,
 				       loff_t lstart, loff_t lend);
 
 /* generic vm_area_ops exported for stackable file systems */
-extern struct page *filemap_fault(struct vm_area_struct *, struct fault_data *);
-extern struct page * __deprecated_for_modules
-filemap_nopage(struct vm_area_struct *, unsigned long, int *);
-extern int __deprecated_for_modules filemap_populate(struct vm_area_struct *,
-		unsigned long, unsigned long, pgprot_t, unsigned long, int);
+extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
 
 /* mm/page-writeback.c */
 int write_one_page(struct page *page, int wait);

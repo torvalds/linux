@@ -212,20 +212,18 @@ xfs_file_fsync(
 }
 
 #ifdef CONFIG_XFS_DMAPI
-STATIC struct page *
+STATIC int
 xfs_vm_fault(
 	struct vm_area_struct	*vma,
-	struct fault_data	*fdata)
+	struct vm_fault	*vmf)
 {
 	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	ASSERT_ALWAYS(vp->v_vfsp->vfs_flag & VFS_DMI);
-	if (XFS_SEND_MMAP(XFS_VFSTOM(vp->v_vfsp), vma, 0)) {
-		fdata->type = VM_FAULT_SIGBUS;
-		return NULL;
-	}
-	return filemap_fault(vma, fdata);
+	if (XFS_SEND_MMAP(XFS_VFSTOM(vp->v_vfsp), vma, 0))
+		return VM_FAULT_SIGBUS;
+	return filemap_fault(vma, vmf);
 }
 #endif /* CONFIG_XFS_DMAPI */
 
@@ -311,7 +309,7 @@ xfs_file_mmap(
 	struct vm_area_struct *vma)
 {
 	vma->vm_ops = &xfs_file_vm_ops;
-	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 
 #ifdef CONFIG_XFS_DMAPI
 	if (vn_from_inode(filp->f_path.dentry->d_inode)->v_vfsp->vfs_flag & VFS_DMI)

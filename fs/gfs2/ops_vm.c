@@ -27,13 +27,12 @@
 #include "trans.h"
 #include "util.h"
 
-static struct page *gfs2_private_fault(struct vm_area_struct *vma,
-					struct fault_data *fdata)
+static int gfs2_private_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct gfs2_inode *ip = GFS2_I(vma->vm_file->f_mapping->host);
 
 	set_bit(GIF_PAGED, &ip->i_flags);
-	return filemap_fault(vma, fdata);
+	return filemap_fault(vma, vmf);
 }
 
 static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
@@ -104,55 +103,55 @@ out:
 	return error;
 }
 
-static struct page *gfs2_sharewrite_fault(struct vm_area_struct *vma,
-						struct fault_data *fdata)
+static int gfs2_sharewrite_fault(struct vm_area_struct *vma,
+						struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
 	struct gfs2_file *gf = file->private_data;
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
-	struct page *result = NULL;
 	int alloc_required;
 	int error;
+	int ret = VM_FAULT_MINOR;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)
-		return NULL;
+		goto out;
 
 	set_bit(GIF_PAGED, &ip->i_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
 	error = gfs2_write_alloc_required(ip,
-					(u64)fdata->pgoff << PAGE_CACHE_SHIFT,
+					(u64)vmf->pgoff << PAGE_CACHE_SHIFT,
 					PAGE_CACHE_SIZE, &alloc_required);
 	if (error) {
-		fdata->type = VM_FAULT_OOM; /* XXX: are these right? */
-		goto out;
+		ret = VM_FAULT_OOM; /* XXX: are these right? */
+		goto out_unlock;
 	}
 
 	set_bit(GFF_EXLOCK, &gf->f_flags);
-	result = filemap_fault(vma, fdata);
+	ret = filemap_fault(vma, vmf);
 	clear_bit(GFF_EXLOCK, &gf->f_flags);
-	if (!result)
-		goto out;
+	if (ret & (VM_FAULT_ERROR | FAULT_RET_NOPAGE))
+		goto out_unlock;
 
 	if (alloc_required) {
-		error = alloc_page_backing(ip, result);
+		/* XXX: do we need to drop page lock around alloc_page_backing?*/
+		error = alloc_page_backing(ip, vmf->page);
 		if (error) {
-			if (vma->vm_flags & VM_CAN_INVALIDATE)
-				unlock_page(result);
-			page_cache_release(result);
-			fdata->type = VM_FAULT_OOM;
-			result = NULL;
-			goto out;
+			if (ret & FAULT_RET_LOCKED)
+				unlock_page(vmf->page);
+			page_cache_release(vmf->page);
+			ret = VM_FAULT_OOM;
+			goto out_unlock;
 		}
-		set_page_dirty(result);
+		set_page_dirty(vmf->page);
 	}
 
-out:
+out_unlock:
 	gfs2_glock_dq_uninit(&i_gh);
-
-	return result;
+out:
+	return ret;
 }
 
 struct vm_operations_struct gfs2_vm_ops_private = {

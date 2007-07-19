@@ -135,26 +135,8 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	filemap_nopage, filemap_populate
-When:	April 2007
-Why:	These legacy interfaces no longer have any callers in the kernel and
-	any functionality provided can be provided with filemap_fault. The
-	removal schedule is short because they are a big maintainence burden
-	and have some bugs.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
-What:	vm_ops.populate, install_page
-When:	April 2007
-Why:	These legacy interfaces no longer have any callers in the kernel and
-	any functionality provided can be provided with vm_ops.fault.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
 What:	vm_ops.nopage
-When:	February 2008, provided in-kernel callers have been converted
+When:	Soon, provided in-kernel callers have been converted
 Why:	This interface is replaced by vm_ops.fault, but it has been around
 	forever, is used by a lot of drivers, and doesn't cost much to
 	maintain.

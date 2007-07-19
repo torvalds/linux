@@ -1309,29 +1309,21 @@ failed:
 	return error;
 }
 
-static struct page *shmem_fault(struct vm_area_struct *vma,
-					struct fault_data *fdata)
+static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
-	struct page *page = NULL;
 	int error;
+	int ret;
 
-	BUG_ON(!(vma->vm_flags & VM_CAN_INVALIDATE));
+	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+		return VM_FAULT_SIGBUS;
 
-	if (((loff_t)fdata->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode)) {
-		fdata->type = VM_FAULT_SIGBUS;
-		return NULL;
-	}
+	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_FAULT, &ret);
+	if (error)
+		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
 
-	error = shmem_getpage(inode, fdata->pgoff, &page,
-						SGP_FAULT, &fdata->type);
-	if (error) {
-		fdata->type = ((error == -ENOMEM)?VM_FAULT_OOM:VM_FAULT_SIGBUS);
-		return NULL;
-	}
-
-	mark_page_accessed(page);
-	return page;
+	mark_page_accessed(vmf->page);
+	return ret | FAULT_RET_LOCKED;
 }
 
 #ifdef CONFIG_NUMA
@@ -1378,7 +1370,7 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	file_accessed(file);
 	vma->vm_ops = &shmem_vm_ops;
-	vma->vm_flags |= VM_CAN_INVALIDATE | VM_CAN_NONLINEAR;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 	return 0;
 }
 
@@ -2560,6 +2552,5 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 		fput(vma->vm_file);
 	vma->vm_file = file;
 	vma->vm_ops = &shmem_vm_ops;
-	vma->vm_flags |= VM_CAN_INVALIDATE;
 	return 0;
 }
