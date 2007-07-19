@@ -1379,9 +1379,9 @@ typedef struct ide_pio_timings_s {
 
 typedef struct ide_pio_data_s {
 	u8 pio_mode;
-	unsigned int cycle_time;
 } ide_pio_data_t;
 
+unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
 extern u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_pio_data_t *d);
 extern const ide_pio_timings_t ide_pio_timings[6];
 

@@ -249,6 +249,29 @@ static int ide_scan_pio_blacklist (char *model)
 	return -1;
 }
 
+unsigned int ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
+{
+	struct hd_driveid *id = drive->id;
+	int cycle_time = 0;
+
+	if (id->field_valid & 2) {
+		if (id->capability & 8)
+			cycle_time = id->eide_pio_iordy;
+		else
+			cycle_time = id->eide_pio;
+	}
+
+	/* conservative "downgrade" for all pre-ATA2 drives */
+	if (pio < 3) {
+		if (cycle_time && cycle_time < ide_pio_timings[pio].cycle_time)
+			cycle_time = 0; /* use standard timing */
+	}
+
+	return cycle_time ? cycle_time : ide_pio_timings[pio].cycle_time;
+}
+
+EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
+
 /**
  *	ide_get_best_pio_mode	-	get PIO mode from drive
  *	@drive: drive to consider
@@ -266,7 +289,6 @@ static int ide_scan_pio_blacklist (char *model)
 u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_pio_data_t *d)
 {
 	int pio_mode;
-	int cycle_time = 0;
 	struct hd_driveid* id = drive->id;
 	int overridden  = 0;
 
@@ -284,7 +306,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		}
 		if (id->field_valid & 2) {	  /* drive implements ATA2? */
 			if (id->capability & 8) { /* IORDY supported? */
-				cycle_time = id->eide_pio_iordy;
 				if (id->eide_pio_modes & 7) {
 					overridden = 0;
 					if (id->eide_pio_modes & 4)
@@ -294,8 +315,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 					else
 						pio_mode = 3;
 				}
-			} else {
-				cycle_time = id->eide_pio;
 			}
 		}
 
@@ -310,18 +329,15 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 			pio_mode--;
 			printk(KERN_INFO "%s: applying conservative "
 					 "PIO \"downgrade\"\n", drive->name);
-			if (cycle_time && cycle_time < ide_pio_timings[pio_mode].cycle_time)
-				cycle_time = 0; /* use standard timing */
 		}
 	}
-	if (pio_mode > max_mode) {
+
+	if (pio_mode > max_mode)
 		pio_mode = max_mode;
-		cycle_time = 0;
-	}
-	if (d) {
+
+	if (d)
 		d->pio_mode = pio_mode;
-		d->cycle_time = cycle_time ? cycle_time : ide_pio_timings[pio_mode].cycle_time;
-	}
+
 	return pio_mode;
 }
 

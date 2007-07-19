@@ -221,16 +221,18 @@ static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	ide_pio_data_t pio;
+	unsigned int cycle_time;
 	u8 pio_mode, setup_count, arttim = 0;
 	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
 	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
-	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, &pio);
+
+	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, NULL);
+	cycle_time = ide_pio_cycle_time(drive, pio_mode);
 
 	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)\n",
-		  drive->name, mode_wanted, pio_mode, pio.cycle_time);
+		  drive->name, mode_wanted, pio_mode, cycle_time);
 
-	program_cycle_times(drive, pio.cycle_time,
+	program_cycle_times(drive, cycle_time,
 			    ide_pio_timings[pio_mode].active_time);
 
 	setup_count = quantize_timing(ide_pio_timings[pio_mode].setup_time,

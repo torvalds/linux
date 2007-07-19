@@ -633,9 +633,8 @@ static void cmd640_set_mode (unsigned int index, u8 pio_mode, unsigned int cycle
  */
 static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 {
+	unsigned int index = 0, cycle_time;
 	u8 b;
-	ide_pio_data_t  d;
-	unsigned int index = 0;
 
 	while (drive != cmd_drives[index]) {
 		if (++index > 3) {
@@ -662,13 +661,12 @@ static void cmd640_tune_drive (ide_drive_t *drive, u8 mode_wanted)
 			return;
 	}
 
-	(void) ide_get_best_pio_mode (drive, mode_wanted, 5, &d);
-	cmd640_set_mode (index, d.pio_mode, d.cycle_time);
+	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 5, NULL);
+	cycle_time = ide_pio_cycle_time(drive, mode_wanted);
+	cmd640_set_mode(index, mode_wanted, cycle_time);
 
 	printk("%s: selected cmd640 PIO mode%d (%dns)",
-		drive->name,
-		d.pio_mode,
-		d.cycle_time);
+		drive->name, mode_wanted, cycle_time);
 
 	display_clocks(index);
 }
