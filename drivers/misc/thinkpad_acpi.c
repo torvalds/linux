@@ -730,7 +730,31 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
 static int hotkey_orig_status;
 static u32 hotkey_orig_mask;
 static u32 hotkey_all_mask;
-static u32 hotkey_reserved_mask = 0x00778000;
+static u32 hotkey_reserved_mask;
+
+static u16 hotkey_keycode_map[] = {
+	/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
+	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
+	KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
+	KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
+	KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+	KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
+	/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
+	KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+	KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+	KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+	KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
+	KEY_RESERVED,	/* 0x14: VOLUME UP */
+	KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+	KEY_RESERVED,	/* 0x16: MUTE */
+	KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+	/* (assignments unknown, please report if found) */
+	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+};
 
 static struct attribute_set *hotkey_dev_attributes;
 
@@ -889,10 +913,12 @@ static struct attribute *hotkey_mask_attributes[] = {
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
-	int res;
+	int res, i;
 	int status;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
+
+	BUG_ON(!tpacpi_inputdev);
 
 	IBM_ACPIHANDLE_INIT(hkey);
 	mutex_init(&hotkey_mutex);
@@ -950,6 +976,23 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 					&tpacpi_pdev->dev.kobj);
 		if (res)
 			return res;
+
+		set_bit(EV_KEY, tpacpi_inputdev->evbit);
+		set_bit(EV_MSC, tpacpi_inputdev->evbit);
+		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
+		tpacpi_inputdev->keycodesize = sizeof(hotkey_keycode_map[0]);
+		tpacpi_inputdev->keycodemax = ARRAY_SIZE(hotkey_keycode_map);
+		tpacpi_inputdev->keycode = &hotkey_keycode_map;
+		for (i = 0; i < ARRAY_SIZE(hotkey_keycode_map); i++) {
+			if (hotkey_keycode_map[i] != KEY_RESERVED) {
+				set_bit(hotkey_keycode_map[i],
+					tpacpi_inputdev->keybit);
+			} else {
+				if (i < sizeof(hotkey_reserved_mask)*8)
+					hotkey_reserved_mask |= 1 << i;
+			}
+		}
+
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -972,12 +1015,69 @@ static void hotkey_exit(void)
 	}
 }
 
+static void tpacpi_input_send_key(unsigned int scancode,
+				  unsigned int keycode)
+{
+	if (keycode != KEY_RESERVED) {
+		input_report_key(tpacpi_inputdev, keycode, 1);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+
+		input_report_key(tpacpi_inputdev, keycode, 0);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+	}
+}
+
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
-	int hkey;
+	u32 hkey;
+	unsigned int keycode, scancode;
+	int sendacpi = 1;
 
 	if (event == 0x80 && acpi_evalf(hkey_handle, &hkey, "MHKP", "d")) {
-		acpi_bus_generate_event(ibm->acpi->device, event, hkey);
+		if (tpacpi_inputdev->users > 0) {
+			switch (hkey >> 12) {
+			case 1:
+				/* 0x1000-0x1FFF: key presses */
+				scancode = hkey & 0xfff;
+				if (scancode > 0 && scancode < 0x21) {
+					scancode--;
+					keycode = hotkey_keycode_map[scancode];
+					tpacpi_input_send_key(scancode, keycode);
+					sendacpi = (keycode == KEY_RESERVED
+						|| keycode == KEY_UNKNOWN);
+				} else {
+					printk(IBM_ERR
+					       "hotkey 0x%04x out of range for keyboard map\n",
+					       hkey);
+				}
+				break;
+			case 5:
+				/* 0x5000-0x5FFF: LID */
+				/* we don't handle it through this path, just
+				 * eat up known LID events */
+				if (hkey != 0x5001 && hkey != 0x5002) {
+					printk(IBM_ERR
+						"unknown LID-related hotkey event: 0x%04x\n",
+						hkey);
+				}
+				break;
+			default:
+				/* case 2: dock-related */
+				/*	0x2305 - T43 waking up due to bay lever eject while aslept */
+				/* case 3: ultra-bay related. maybe bay in dock? */
+				/*	0x3003 - T43 after wake up by bay lever eject (0x2305) */
+				printk(IBM_NOTICE "unhandled hotkey event 0x%04x\n", hkey);
+			}
+		}
+
+		if (sendacpi)
+			acpi_bus_generate_event(ibm->acpi->device, event, hkey);
 	} else {
 		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
 		acpi_bus_generate_event(ibm->acpi->device, event, 0);
