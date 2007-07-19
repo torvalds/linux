@@ -613,6 +613,8 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		else
 			ide_hwif_setup_dma(dev, d, hwif);
 bypass_legacy_dma:
+		hwif->host_flags = d->host_flags;
+
 		if (d->init_hwif)
 			/* Call chipset-specific routine
 			 * for each enabled hwif

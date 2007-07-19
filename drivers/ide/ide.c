@@ -455,6 +455,8 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->straight8			= tmp_hwif->straight8;
 	hwif->bus_state			= tmp_hwif->bus_state;
 
+	hwif->host_flags		= tmp_hwif->host_flags;
+
 	hwif->atapi_dma			= tmp_hwif->atapi_dma;
 	hwif->ultra_mask		= tmp_hwif->ultra_mask;
 	hwif->mwdma_mask		= tmp_hwif->mwdma_mask;

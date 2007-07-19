@@ -106,21 +106,6 @@ static struct ide_timing ide_timing[] = {
 #define XFER_EPIO	0x01
 #define XFER_PIO	0x00
 
-static short ide_find_best_pio_mode(ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-	short best = 0;
-
-	/* EIDE PIO modes */
-	if ((id->field_valid & 2) && (id->capability & 8)) {
-		if ((best = (drive->id->eide_pio_modes & 4) ? XFER_PIO_5 :
-			    (drive->id->eide_pio_modes & 2) ? XFER_PIO_4 :
-			    (drive->id->eide_pio_modes & 1) ? XFER_PIO_3 : 0)) return best;
-	}
-
-	return XFER_PIO_0 + min_t(u8, id->tPIO, 2);
-}
-
 static void ide_timing_quantize(struct ide_timing *t, struct ide_timing *q, int T, int UT)
 {
 	q->setup   = EZ(t->setup   * 1000,  T);
@@ -210,7 +195,8 @@ static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing
  */
 
 	if ((speed & XFER_MODE) != XFER_PIO) {
-		ide_timing_compute(drive, ide_find_best_pio_mode(drive), &p, T, UT);
+		u8 pio = ide_get_best_pio_mode(drive, 255, 5);
+		ide_timing_compute(drive, XFER_PIO_0 + pio, &p, T, UT);
 		ide_timing_merge(&p, t, t, IDE_TIMING_ALL);
 	}
 
