@@ -265,7 +265,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			   unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
-	unsigned int loff, nr_pages;
+	unsigned int loff, nr_pages, req_pages;
 	struct page *pages[PIPE_BUFFERS];
 	struct partial_page partial[PIPE_BUFFERS];
 	struct page *page;
@@ -281,10 +281,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	loff = *ppos & ~PAGE_CACHE_MASK;
-	nr_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	if (nr_pages > PIPE_BUFFERS)
-		nr_pages = PIPE_BUFFERS;
+	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	nr_pages = min(req_pages, (unsigned)PIPE_BUFFERS);
 
 	/*
 	 * Lookup the (hopefully) full range of pages we need.
@@ -298,7 +296,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 */
 	if (spd.nr_pages < nr_pages)
 		page_cache_readahead_ondemand(mapping, &in->f_ra, in,
-				NULL, index, nr_pages - spd.nr_pages);
+				NULL, index, req_pages - spd.nr_pages);
 
 	error = 0;
 	while (spd.nr_pages < nr_pages) {
@@ -355,7 +353,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 		if (PageReadahead(page))
 			page_cache_readahead_ondemand(mapping, &in->f_ra, in,
-					page, index, nr_pages - page_nr);
+					page, index, req_pages - page_nr);
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
