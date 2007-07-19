@@ -8,6 +8,7 @@
 
 /* grabbed from the intel stuff  */   
 #define STACK_TOP TASK_SIZE
+#define STACK_TOP_MAX	STACK_TOP
 
 
 struct exec

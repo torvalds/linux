@@ -40,6 +40,7 @@ struct exec
 #ifdef CONFIG_64BIT
 #define STACK_TOP	(current->thread.mflags & MF_32BIT_ADDR ? TASK_SIZE32 : TASK_SIZE)
 #endif
+#define STACK_TOP_MAX	TASK_SIZE
 
 #endif
 

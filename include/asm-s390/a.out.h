@@ -32,6 +32,7 @@ struct exec
 #ifdef __KERNEL__
 
 #define STACK_TOP	TASK_SIZE
+#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
 
 #endif
 
