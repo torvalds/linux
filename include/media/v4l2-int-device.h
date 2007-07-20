@@ -170,7 +170,7 @@ int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg);
 					    arg_type asterisk arg)	\
 	{								\
 		return v4l2_int_ioctl_1(d, vidioc_int_##name##_num,	\
-					(void *)arg);			\
+					(void *)(unsigned long)arg);	\
 	}								\
 									\
 	static inline struct v4l2_int_ioctl_desc			\

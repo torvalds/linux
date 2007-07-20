@@ -115,13 +115,9 @@ void v4l2_int_device_unregister(struct v4l2_int_device *d)
 	mutex_unlock(&mutex);
 }
 
-static int no_such_ioctl(struct v4l2_int_device *d)
-{
-	return -EINVAL;
-}
-
 /* Adapted from search_extable in extable.c. */
-static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd)
+static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd,
+				       v4l2_int_ioctl_func *no_such_ioctl)
 {
 	const struct v4l2_int_ioctl_desc *first = slave->ioctls;
 	const struct v4l2_int_ioctl_desc *last =
@@ -140,15 +136,29 @@ static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd)
 			return mid->func;
 	}
 
-	return &no_such_ioctl;
+	return no_such_ioctl;
+}
+
+static int no_such_ioctl_0(struct v4l2_int_device *d)
+{
+	return -EINVAL;
 }
 
 int v4l2_int_ioctl_0(struct v4l2_int_device *d, int cmd)
 {
-	return ((v4l2_int_ioctl_func_0 *)find_ioctl(d->u.slave, cmd))(d);
+	return ((v4l2_int_ioctl_func_0 *)
+		find_ioctl(d->u.slave, cmd,
+			   (v4l2_int_ioctl_func *)&no_such_ioctl_0))(d);
+}
+
+static int no_such_ioctl_1(struct v4l2_int_device *d, void *arg)
+{
+	return -EINVAL;
 }
 
 int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg)
 {
-	return ((v4l2_int_ioctl_func_1 *)find_ioctl(d->u.slave, cmd))(d, arg);
+	return ((v4l2_int_ioctl_func_1 *)
+		find_ioctl(d->u.slave, cmd,
+			   (v4l2_int_ioctl_func *)&no_such_ioctl_1))(d, arg);
 }
