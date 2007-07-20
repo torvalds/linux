@@ -5,6 +5,7 @@ config SH_DMA_API
 
 config SH_DMA
 	bool "SuperH on-chip DMA controller (DMAC) support"
+	depends on CPU_SH3 || CPU_SH4
 	select SH_DMA_API
 	default n
 
