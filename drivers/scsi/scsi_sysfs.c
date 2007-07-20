@@ -736,7 +736,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	 * released by the sdev_class .release */
 	get_device(&sdev->sdev_gendev);
 
-	error = bsg_register_queue(rq, sdev->sdev_gendev.bus_id);
+	error = bsg_register_queue(rq, &sdev->sdev_gendev, NULL);
 
 	if (error)
 		sdev_printk(KERN_INFO, sdev,

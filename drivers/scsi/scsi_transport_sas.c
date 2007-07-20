@@ -191,25 +191,34 @@ static void sas_non_host_smp_request(struct request_queue *q)
 	sas_smp_request(q, rphy_to_shost(rphy), rphy);
 }
 
-static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy,
-			      char *name)
+static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 {
 	struct request_queue *q;
 	int error;
+	struct device *dev;
+	char namebuf[BUS_ID_SIZE];
+	const char *name;
 
 	if (!to_sas_internal(shost->transportt)->f->smp_handler) {
 		printk("%s can't handle SMP requests\n", shost->hostt->name);
 		return 0;
 	}
 
-	if (rphy)
+	if (rphy) {
 		q = blk_init_queue(sas_non_host_smp_request, NULL);
-	else
+		dev = &rphy->dev;
+		name = dev->bus_id;
+	} else {
 		q = blk_init_queue(sas_host_smp_request, NULL);
+		dev = &shost->shost_gendev;
+		snprintf(namebuf, sizeof(namebuf),
+			 "sas_host%d", shost->host_no);
+		name = namebuf;
+	}
 	if (!q)
 		return -ENOMEM;
 
-	error = bsg_register_queue(q, name);
+	error = bsg_register_queue(q, dev, name);
 	if (error) {
 		blk_cleanup_queue(q);
 		return -ENOMEM;
@@ -255,7 +264,6 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
-	char name[BUS_ID_SIZE];
 
 	INIT_LIST_HEAD(&sas_host->rphy_list);
 	mutex_init(&sas_host->lock);
@@ -263,8 +271,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	sas_host->next_expander_id = 0;
 	sas_host->next_port_id = 0;
 
-	snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
-	if (sas_bsg_initialize(shost, NULL, name))
+	if (sas_bsg_initialize(shost, NULL))
 		dev_printk(KERN_ERR, dev, "fail to a bsg device %d\n",
 			   shost->host_no);
 
@@ -1332,9 +1339,6 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
-	if (sas_bsg_initialize(shost, &rdev->rphy, rdev->rphy.dev.bus_id))
-		printk("fail to a bsg device %s\n", rdev->rphy.dev.bus_id);
-
 	return &rdev->rphy;
 }
 EXPORT_SYMBOL(sas_end_device_alloc);
@@ -1374,9 +1378,6 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
-	if (sas_bsg_initialize(shost, &rdev->rphy, rdev->rphy.dev.bus_id))
-		printk("fail to a bsg device %s\n", rdev->rphy.dev.bus_id);
-
 	return &rdev->rphy;
 }
 EXPORT_SYMBOL(sas_expander_alloc);
@@ -1404,6 +1405,9 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		return error;
 	transport_add_device(&rphy->dev);
 	transport_configure_device(&rphy->dev);
+	if (sas_bsg_initialize(shost, rphy))
+		printk("fail to a bsg device %s\n", rphy->dev.bus_id);
+
 
 	mutex_lock(&sas_host->lock);
 	list_add_tail(&rphy->list, &sas_host->rphy_list);

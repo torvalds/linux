@@ -936,20 +936,29 @@ void bsg_unregister_queue(struct request_queue *q)
 
 	mutex_lock(&bsg_mutex);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
+	class_device_unregister(bcd->class_dev);
+	put_device(bcd->dev);
 	bcd->class_dev = NULL;
+	bcd->dev = NULL;
 	list_del_init(&bcd->list);
 	bsg_device_nr--;
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, const char *name)
+int bsg_register_queue(struct request_queue *q, struct device *gdev,
+		       const char *name)
 {
 	struct bsg_class_device *bcd, *__bcd;
 	dev_t dev;
 	int ret = -EMFILE;
 	struct class_device *class_dev = NULL;
+	const char *devname;
+
+	if (name)
+		devname = name;
+	else
+		devname = gdev->bus_id;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -982,11 +991,13 @@ retry:
 		bsg_minor_idx = 0;
 
 	bcd->queue = q;
+	bcd->dev = get_device(gdev);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
+	class_dev = class_device_create(bsg_class, NULL, dev, gdev, "%s",
+					devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
-		goto err;
+		goto err_put;
 	}
 	bcd->class_dev = class_dev;
 
@@ -1004,6 +1015,8 @@ retry:
 
 err_unregister:
 	class_device_unregister(class_dev);
+err_put:
+	put_device(gdev);
 err:
 	mutex_unlock(&bsg_mutex);
 	return ret;
