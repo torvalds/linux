@@ -190,34 +190,34 @@ static void inic_reset_port(void __iomem *port_base)
 	writew(ctl, idma_ctl);
 }
 
-static u32 inic_scr_read(struct ata_port *ap, unsigned sc_reg)
+static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
 {
 	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	void __iomem *addr;
-	u32 val;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
-		return 0xffffffffU;
+		return -EINVAL;
 
 	addr = scr_addr + scr_map[sc_reg] * 4;
-	val = readl(scr_addr + scr_map[sc_reg] * 4);
+	*val = readl(scr_addr + scr_map[sc_reg] * 4);
 
 	/* this controller has stuck DIAG.N, ignore it */
 	if (sc_reg == SCR_ERROR)
-		val &= ~SERR_PHYRDY_CHG;
-	return val;
+		*val &= ~SERR_PHYRDY_CHG;
+	return 0;
 }
 
-static void inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
+static int inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 {
 	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
-		return;
+		return -EINVAL;
 
 	addr = scr_addr + scr_map[sc_reg] * 4;
 	writel(val, scr_addr + scr_map[sc_reg] * 4);
+	return 0;
 }
 
 /*

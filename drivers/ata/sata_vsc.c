@@ -98,20 +98,21 @@ enum {
 			      VSC_SATA_INT_PHY_CHANGE),
 };
 
-static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int vsc_sata_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return 0xffffffffU;
-	return readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+		return -EINVAL;
+	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 
-static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
-			       u32 val)
+static int vsc_sata_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return;
+		return -EINVAL;
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 

@@ -111,8 +111,9 @@ MODULE_VERSION(DRV_VERSION);
 /**
  *	ata_tf_to_fis - Convert ATA taskfile to SATA FIS structure
  *	@tf: Taskfile to convert
- *	@fis: Buffer into which data will output
  *	@pmp: Port multiplier port
+ *	@is_cmd: This FIS is for command
+ *	@fis: Buffer into which data will output
  *
  *	Converts a standard ATA taskfile to a Serial ATA
  *	FIS structure (Register - Host to Device).
@@ -120,12 +121,13 @@ MODULE_VERSION(DRV_VERSION);
  *	LOCKING:
  *	Inherited from caller.
  */
-
-void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp)
+void ata_tf_to_fis(const struct ata_taskfile *tf, u8 pmp, int is_cmd, u8 *fis)
 {
-	fis[0] = 0x27;	/* Register - Host to Device FIS */
-	fis[1] = (pmp & 0xf) | (1 << 7); /* Port multiplier number,
-					    bit 7 indicates Command FIS */
+	fis[0] = 0x27;			/* Register - Host to Device FIS */
+	fis[1] = pmp & 0xf;		/* Port multiplier number*/
+	if (is_cmd)
+		fis[1] |= (1 << 7);	/* bit 7 indicates Command FIS */
+
 	fis[2] = tf->command;
 	fis[3] = tf->feature;
 
@@ -2387,21 +2389,35 @@ int sata_down_spd_limit(struct ata_port *ap)
 	u32 sstatus, spd, mask;
 	int rc, highbit;
 
+	if (!sata_scr_valid(ap))
+		return -EOPNOTSUPP;
+
+	/* If SCR can be read, use it to determine the current SPD.
+	 * If not, use cached value in ap->sata_spd.
+	 */
 	rc = sata_scr_read(ap, SCR_STATUS, &sstatus);
-	if (rc)
-		return rc;
+	if (rc == 0)
+		spd = (sstatus >> 4) & 0xf;
+	else
+		spd = ap->sata_spd;
 
 	mask = ap->sata_spd_limit;
 	if (mask <= 1)
 		return -EINVAL;
+
+	/* unconditionally mask off the highest bit */
 	highbit = fls(mask) - 1;
 	mask &= ~(1 << highbit);
 
-	spd = (sstatus >> 4) & 0xf;
-	if (spd <= 1)
-		return -EINVAL;
-	spd--;
-	mask &= (1 << spd) - 1;
+	/* Mask off all speeds higher than or equal to the current
+	 * one.  Force 1.5Gbps if current SPD is not available.
+	 */
+	if (spd > 1)
+		mask &= (1 << (spd - 1)) - 1;
+	else
+		mask &= 1;
+
+	/* were we already at the bottom? */
 	if (!mask)
 		return -EINVAL;
 
@@ -3251,9 +3267,11 @@ int sata_phy_debounce(struct ata_port *ap, const unsigned long *params,
 		last = cur;
 		last_jiffies = jiffies;
 
-		/* check deadline */
+		/* Check deadline.  If debouncing failed, return
+		 * -EPIPE to tell upper layer to lower link speed.
+		 */
 		if (time_after(jiffies, deadline))
-			return -EBUSY;
+			return -EPIPE;
 	}
 }
 
@@ -3769,6 +3787,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Hitachi HTS541616J9SA00", "SB4OC70P", ATA_HORKAGE_NONCQ, },
 	{ "WDC WD740ADFD-00NLR1", NULL,		ATA_HORKAGE_NONCQ, },
 	{ "FUJITSU MHV2080BH",	"00840028",	ATA_HORKAGE_NONCQ, },
+	{ "ST9160821AS",	"3.CLF",	ATA_HORKAGE_NONCQ, },
 
 	/* Devices with NCQ limits */
 
@@ -5729,10 +5748,8 @@ int sata_scr_valid(struct ata_port *ap)
  */
 int sata_scr_read(struct ata_port *ap, int reg, u32 *val)
 {
-	if (sata_scr_valid(ap)) {
-		*val = ap->ops->scr_read(ap, reg);
-		return 0;
-	}
+	if (sata_scr_valid(ap))
+		return ap->ops->scr_read(ap, reg, val);
 	return -EOPNOTSUPP;
 }
 
@@ -5754,10 +5771,8 @@ int sata_scr_read(struct ata_port *ap, int reg, u32 *val)
  */
 int sata_scr_write(struct ata_port *ap, int reg, u32 val)
 {
-	if (sata_scr_valid(ap)) {
-		ap->ops->scr_write(ap, reg, val);
-		return 0;
-	}
+	if (sata_scr_valid(ap))
+		return ap->ops->scr_write(ap, reg, val);
 	return -EOPNOTSUPP;
 }
 
@@ -5778,10 +5793,13 @@ int sata_scr_write(struct ata_port *ap, int reg, u32 val)
  */
 int sata_scr_write_flush(struct ata_port *ap, int reg, u32 val)
 {
+	int rc;
+
 	if (sata_scr_valid(ap)) {
-		ap->ops->scr_write(ap, reg, val);
-		ap->ops->scr_read(ap, reg);
-		return 0;
+		rc = ap->ops->scr_write(ap, reg, val);
+		if (rc == 0)
+			rc = ap->ops->scr_read(ap, reg, &val);
+		return rc;
 	}
 	return -EOPNOTSUPP;
 }
@@ -5993,6 +6011,7 @@ void ata_dev_init(struct ata_device *dev)
 
 	/* SATA spd limit is bound to the first device */
 	ap->sata_spd_limit = ap->hw_sata_spd_limit;
+	ap->sata_spd = 0;
 
 	/* High bits of dev->flags are used to record warm plug
 	 * requests which occur asynchronously.  Synchronize using
@@ -6058,6 +6077,9 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
+	init_timer_deferrable(&ap->fastdrain_timer);
+	ap->fastdrain_timer.function = ata_eh_fastdrain_timerfn;
+	ap->fastdrain_timer.data = (unsigned long)ap;
 
 	ap->cbl = ATA_CBL_NONE;
 
@@ -6434,7 +6456,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		ata_scsi_scan_host(ap);
+		ata_scsi_scan_host(ap, 1);
 	}
 
 	return 0;
@@ -6942,6 +6964,9 @@ EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
 
+EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);
+EXPORT_SYMBOL_GPL(ata_ehi_push_desc);
+EXPORT_SYMBOL_GPL(ata_ehi_clear_desc);
 EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_port_schedule_eh);
 EXPORT_SYMBOL_GPL(ata_port_abort);

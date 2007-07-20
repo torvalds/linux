@@ -128,8 +128,8 @@ struct pdc_port_priv {
 	dma_addr_t		pkt_dma;
 };
 
-static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int pdc_sata_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int pdc_sata_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static int pdc_common_port_start(struct ata_port *ap);
 static int pdc_sata_port_start(struct ata_port *ap);
@@ -427,19 +427,20 @@ static int pdc_sata_cable_detect(struct ata_port *ap)
 	return ATA_CBL_SATA;
 }
 
-static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int pdc_sata_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return 0xffffffffU;
-	return readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+		return -EINVAL;
+	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
-static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
-			       u32 val)
+static int pdc_sata_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return;
+		return -EINVAL;
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	return 0;
 }
 
 static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
@@ -642,8 +643,12 @@ static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   | PDC_PCI_SYS_ERR | PDC1_PCI_PARITY_ERR))
 		ac_err_mask |= AC_ERR_HOST_BUS;
 
-	if (sata_scr_valid(ap))
-		ehi->serror |= pdc_sata_scr_read(ap, SCR_ERROR);
+	if (sata_scr_valid(ap)) {
+		u32 serror;
+
+		pdc_sata_scr_read(ap, SCR_ERROR, &serror);
+		ehi->serror |= serror;
+	}
 
 	qc->err_mask |= ac_err_mask;
 

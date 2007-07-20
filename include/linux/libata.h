@@ -323,6 +323,7 @@ enum ata_completion_errors {
 	AC_ERR_INVALID		= (1 << 7), /* invalid argument */
 	AC_ERR_OTHER		= (1 << 8), /* unknown */
 	AC_ERR_NODEV_HINT	= (1 << 9), /* polling device detection hint */
+	AC_ERR_NCQ		= (1 << 10), /* marker for offending NCQ qc */
 };
 
 /* forward declarations */
@@ -530,6 +531,7 @@ struct ata_port {
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;	/* SATA PHY speed limit */
+	unsigned int		sata_spd;	/* current SATA PHY speed */
 
 	/* record runtime error info, protected by host lock */
 	struct ata_eh_info	eh_info;
@@ -562,6 +564,9 @@ struct ata_port {
 
 	pm_message_t		pm_mesg;
 	int			*pm_result;
+
+	struct timer_list	fastdrain_timer;
+	unsigned long		fastdrain_cnt;
 
 	void			*private_data;
 
@@ -619,9 +624,8 @@ struct ata_port_operations {
 	u8 (*irq_on) (struct ata_port *);
 	u8 (*irq_ack) (struct ata_port *ap, unsigned int chk_drq);
 
-	u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
-	void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
-			   u32 val);
+	int (*scr_read) (struct ata_port *ap, unsigned int sc_reg, u32 *val);
+	int (*scr_write) (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 	int (*port_suspend) (struct ata_port *ap, pm_message_t mesg);
 	int (*port_resume) (struct ata_port *ap);
@@ -764,7 +768,8 @@ extern unsigned int ata_dev_try_classify(struct ata_port *, unsigned int, u8 *);
  */
 extern void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
-extern void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp);
+extern void ata_tf_to_fis(const struct ata_taskfile *tf,
+			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
 extern void ata_noop_dev_select (struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
@@ -909,27 +914,21 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 /*
  * ata_eh_info helpers
  */
-#define ata_ehi_push_desc(ehi, fmt, args...) do { \
-	(ehi)->desc_len += scnprintf((ehi)->desc + (ehi)->desc_len, \
-				     ATA_EH_DESC_LEN - (ehi)->desc_len, \
-				     fmt , ##args); \
-} while (0)
+extern void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
+extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
+extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 
-#define ata_ehi_clear_desc(ehi) do { \
-	(ehi)->desc[0] = '\0'; \
-	(ehi)->desc_len = 0; \
-} while (0)
-
-static inline void __ata_ehi_hotplugged(struct ata_eh_info *ehi)
+static inline void ata_ehi_schedule_probe(struct ata_eh_info *ehi)
 {
-	ehi->flags |= ATA_EHI_HOTPLUGGED | ATA_EHI_RESUME_LINK;
+	ehi->flags |= ATA_EHI_RESUME_LINK;
 	ehi->action |= ATA_EH_SOFTRESET;
 	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
 }
 
 static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 {
-	__ata_ehi_hotplugged(ehi);
+	ata_ehi_schedule_probe(ehi);
+	ehi->flags |= ATA_EHI_HOTPLUGGED;
 	ehi->err_mask |= AC_ERR_ATA_BUS;
 }
 

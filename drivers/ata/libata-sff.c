@@ -1,5 +1,5 @@
 /*
- *  libata-bmdma.c - helper library for PCI IDE BMDMA
+ *  libata-sff.c - helper library for PCI IDE BMDMA
  *
  *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
  *    		    Please ALWAYS copy linux-ide@vger.kernel.org
@@ -211,6 +211,8 @@ void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 		tf->hob_lbal = ioread8(ioaddr->lbal_addr);
 		tf->hob_lbam = ioread8(ioaddr->lbam_addr);
 		tf->hob_lbah = ioread8(ioaddr->lbah_addr);
+		iowrite8(tf->ctl, ioaddr->ctl_addr);
+		ap->last_ctl = tf->ctl;
 	}
 }
 
