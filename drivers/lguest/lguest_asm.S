@@ -2,9 +2,7 @@
 #include <linux/lguest.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-
-/* FIXME: Once asm/processor-flags.h goes in, include that */
-#define X86_EFLAGS_IF 0x00000200
+#include <asm/processor-flags.h>
 
 /*
  * This is where we begin: we have a magic signature which the launcher looks
