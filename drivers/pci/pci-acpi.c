@@ -271,6 +271,7 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	acpi_handle tmp;
 	static int state_conv[] = {
 		[0] = 0,
 		[1] = 1,
@@ -282,6 +283,9 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	if (!handle)
 		return -ENODEV;
+	/* If the ACPI device has _EJ0, ignore the device */
+	if (ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+		return 0;
 	return acpi_bus_set_power(handle, acpi_state);
 }
 
