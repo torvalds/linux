@@ -3,6 +3,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 #include <asm/of_platform.h>
 #include <asm/uaccess.h>
 #include <asm/mpc52xx.h>
@@ -19,8 +20,11 @@ struct mpc5200_wdt {
 	struct miscdevice miscdev;
 	struct resource mem;
 	struct mpc52xx_gpt __iomem *regs;
+	spinlock_t io_lock;
 };
 
+/* is_active stores wether or not the /dev/watchdog device is opened */
+static unsigned long is_active;
 
 /* misc devices don't provide a way, to get back to 'dev' or 'miscdev' from
  * file operations, which sucks. But there can be max 1 watchdog anyway, so...
@@ -47,24 +51,31 @@ static int mpc5200_wdt_get_timeout(struct mpc5200_wdt *wdt)
 /* watchdog operations */
 static int mpc5200_wdt_start(struct mpc5200_wdt *wdt)
 {
+	spin_lock(&wdt->io_lock);
 	/* disable */
 	out_be32(&wdt->regs->mode, 0);
 	/* set timeout, with maximum prescaler */
 	out_be32(&wdt->regs->count, 0x0 | wdt->count);
 	/* enable watchdog */
 	out_be32(&wdt->regs->mode, GPT_MODE_CE | GPT_MODE_WDT | GPT_MODE_MS_TIMER);
+	spin_unlock(&wdt->io_lock);
 
 	return 0;
 }
 static int mpc5200_wdt_ping(struct mpc5200_wdt *wdt)
 {
+	spin_lock(&wdt->io_lock);
 	/* writing A5 to OCPW resets the watchdog */
 	out_be32(&wdt->regs->mode, 0xA5000000 | (0xffffff & in_be32(&wdt->regs->mode)));
+	spin_unlock(&wdt->io_lock);
 	return 0;
 }
 static int mpc5200_wdt_stop(struct mpc5200_wdt *wdt)
 {
+	spin_lock(&wdt->io_lock);
+	/* disable */
 	out_be32(&wdt->regs->mode, 0);
+	spin_unlock(&wdt->io_lock);
 	return 0;
 }
 
@@ -91,9 +102,15 @@ static int mpc5200_wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		ret = copy_to_user(data, &mpc5200_wdt_info, sizeof(mpc5200_wdt_info));
+		ret = copy_to_user(data, &mpc5200_wdt_info,
+			sizeof(mpc5200_wdt_info));
 		if (ret)
 			ret = -EFAULT;
+		break;
+
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		ret = put_user(0, data);
 		break;
 
 	case WDIOC_KEEPALIVE:
@@ -112,15 +129,23 @@ static int mpc5200_wdt_ioctl(struct inode *inode, struct file *file,
 		timeout = mpc5200_wdt_get_timeout(wdt);
 		ret = put_user(timeout, data);
 		break;
+
+	default:
+		ret = -ENOTTY;
 	}
 	return ret;
 }
 static int mpc5200_wdt_open(struct inode *inode, struct file *file)
 {
+	/* /dev/watchdog can only be opened once */
+	if (test_and_set_bit(0, &is_active))
+		return -EBUSY;
+
+	/* Set and activate the watchdog */
 	mpc5200_wdt_set_timeout(wdt_global, 30);
 	mpc5200_wdt_start(wdt_global);
 	file->private_data = wdt_global;
-	return 0;
+	return nonseekable_open(inode, file);
 }
 static int mpc5200_wdt_release(struct inode *inode, struct file *file)
 {
@@ -129,6 +154,7 @@ static int mpc5200_wdt_release(struct inode *inode, struct file *file)
 	mpc5200_wdt_stop(wdt);
 	wdt->count = 0;		/* == disabled */
 #endif
+	clear_bit(0, &is_active);
 	return 0;
 }
 
@@ -173,6 +199,7 @@ static int mpc5200_wdt_probe(struct of_device *op, const struct of_device_id *ma
 	}
 
 	dev_set_drvdata(&op->dev, wdt);
+	spin_lock_init(&wdt->io_lock);
 
 	wdt->miscdev = (struct miscdevice) {
 		.minor	= WATCHDOG_MINOR,
@@ -256,3 +283,4 @@ module_exit(mpc5200_wdt_exit);
 
 MODULE_AUTHOR("Domen Puncer <domen.puncer@telargo.com>");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
