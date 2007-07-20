@@ -290,7 +290,8 @@ static void gelic_net_release_rx_chain(struct gelic_net_card *card)
 			descr->buf_addr = 0;
 			dev_kfree_skb_any(descr->skb);
 			descr->skb = NULL;
-			descr->dmac_cmd_status = GELIC_NET_DESCR_NOT_IN_USE;
+			gelic_net_set_descr_status(descr,
+						   GELIC_NET_DESCR_NOT_IN_USE);
 		}
 		descr = descr->next;
 	} while (descr != card->rx_chain.head);
@@ -374,7 +375,7 @@ static void gelic_net_release_tx_descr(struct gelic_net_card *card,
 	descr->skb = NULL;
 
 	/* set descr status */
-	descr->dmac_cmd_status = GELIC_NET_DMAC_CMDSTAT_NOT_IN_USE;
+	gelic_net_set_descr_status(descr, GELIC_NET_DESCR_NOT_IN_USE);
 }
 
 /**
