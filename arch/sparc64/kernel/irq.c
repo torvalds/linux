@@ -336,15 +336,15 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 
 		err = sun4v_intr_settarget(ino, cpuid);
 		if (err != HV_EOK)
-			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
-			       ino, cpuid, err);
+			printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
+			       "err(%d)\n", ino, cpuid, err);
 		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
 		if (err != HV_EOK)
-			printk("sun4v_intr_setstate(%x): "
+			printk(KERN_ERR "sun4v_intr_setstate(%x): "
 			       "err(%d)\n", ino, err);
 		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 		if (err != HV_EOK)
-			printk("sun4v_intr_setenabled(%x): err(%d)\n",
+			printk(KERN_ERR "sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
 	}
 }
@@ -362,8 +362,8 @@ static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
 
 		err = sun4v_intr_settarget(ino, cpuid);
 		if (err != HV_EOK)
-			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
-			       ino, cpuid, err);
+			printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
+			       "err(%d)\n", ino, cpuid, err);
 	}
 }
 
@@ -377,7 +377,7 @@ static void sun4v_irq_disable(unsigned int virt_irq)
 
 		err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
 		if (err != HV_EOK)
-			printk("sun4v_intr_setenabled(%x): "
+			printk(KERN_ERR "sun4v_intr_setenabled(%x): "
 			       "err(%d)\n", ino, err);
 	}
 }
@@ -410,7 +410,7 @@ static void sun4v_irq_end(unsigned int virt_irq)
 
 		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
 		if (err != HV_EOK)
-			printk("sun4v_intr_setstate(%x): "
+			printk(KERN_ERR "sun4v_intr_setstate(%x): "
 			       "err(%d)\n", ino, err);
 	}
 }
@@ -431,19 +431,19 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 
 		err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_target(%lx,%lx,%lu): "
+			printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
 			       "err(%d)\n",
 			       dev_handle, dev_ino, cpuid, err);
 		err = sun4v_vintr_set_state(dev_handle, dev_ino,
 					    HV_INTR_STATE_IDLE);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_state(%lx,%lx,"
+			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
 				"HV_INTR_STATE_IDLE): err(%d)\n",
 			       dev_handle, dev_ino, err);
 		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
 					    HV_INTR_ENABLED);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_state(%lx,%lx,"
+			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
 			       "HV_INTR_ENABLED): err(%d)\n",
 			       dev_handle, dev_ino, err);
 	}
@@ -465,7 +465,7 @@ static void sun4v_virt_set_affinity(unsigned int virt_irq, cpumask_t mask)
 
 		err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_target(%lx,%lx,%lu): "
+			printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
 			       "err(%d)\n",
 			       dev_handle, dev_ino, cpuid, err);
 	}
@@ -486,7 +486,7 @@ static void sun4v_virq_disable(unsigned int virt_irq)
 		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
 					    HV_INTR_DISABLED);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_state(%lx,%lx,"
+			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
 			       "HV_INTR_DISABLED): err(%d)\n",
 			       dev_handle, dev_ino, err);
 	}
@@ -511,7 +511,7 @@ static void sun4v_virq_end(unsigned int virt_irq)
 		err = sun4v_vintr_set_state(dev_handle, dev_ino,
 					    HV_INTR_STATE_IDLE);
 		if (err != HV_EOK)
-			printk("sun4v_vintr_set_state(%lx,%lx,"
+			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
 				"HV_INTR_STATE_IDLE): err(%d)\n",
 			       dev_handle, dev_ino, err);
 	}
