@@ -670,6 +670,9 @@ static struct tuner_params tuner_panasonic_vp27_params[] = {
 		.count  = ARRAY_SIZE(tuner_panasonic_vp27_ntsc_ranges),
 		.has_tda9887 = 1,
 		.intercarrier_mode = 1,
+		.default_top_low = -3,
+		.default_top_mid = -3,
+		.default_top_high = -3,
 	},
 };
 
