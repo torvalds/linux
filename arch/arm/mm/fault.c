@@ -145,8 +145,8 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		__do_kernel_fault(mm, addr, fsr, regs);
 }
 
-#define VM_FAULT_BADMAP		(-20)
-#define VM_FAULT_BADACCESS	(-21)
+#define VM_FAULT_BADMAP		0x010000
+#define VM_FAULT_BADACCESS	0x020000
 
 static int
 __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
@@ -249,7 +249,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/*
 	 * Handle the "normal" case first - VM_FAULT_MAJOR / VM_FAULT_MINOR
 	 */
-	if (likely(!(fault & VM_FAULT_ERROR)))
+	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
 		return 0;
 
 	/*
