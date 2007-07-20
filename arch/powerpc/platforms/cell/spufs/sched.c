@@ -783,7 +783,7 @@ int __init spu_sched_init(void)
 	return err;
 }
 
-void __exit spu_sched_exit(void)
+void spu_sched_exit(void)
 {
 	struct spu *spu, *tmp;
 	int node;
