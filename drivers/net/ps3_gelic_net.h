@@ -32,8 +32,8 @@
 #define GELIC_NET_RX_DESCRIPTORS        128 /* num of descriptors */
 #define GELIC_NET_TX_DESCRIPTORS        128 /* num of descriptors */
 
-#define GELIC_NET_MAX_MTU               2308
-#define GELIC_NET_MIN_MTU               64
+#define GELIC_NET_MAX_MTU               VLAN_ETH_FRAME_LEN
+#define GELIC_NET_MIN_MTU               VLAN_ETH_ZLEN
 #define GELIC_NET_RXBUF_ALIGN           128
 #define GELIC_NET_RX_CSUM_DEFAULT       1 /* hw chksum */
 #define GELIC_NET_WATCHDOG_TIMEOUT      5*HZ
@@ -81,7 +81,8 @@ enum gelic_net_int1_status {
 					    */
 #define GELIC_NET_RXVLNPKT	0x00200000 /* VLAN packet */
 /* bit 20..16 reserved */
-#define GELIC_NET_RXRECNUM	0x0000ff00 /* reception receipt number */
+#define GELIC_NET_RXRRECNUM	0x0000ff00 /* reception receipt number */
+#define GELIC_NET_RXRRECNUM_SHIFT	8
 /* bit 7..0 reserved */
 
 #define GELIC_NET_TXDESC_TAIL		0
@@ -129,13 +130,14 @@ enum gelic_net_int1_status {
 
 
 enum gelic_net_descr_status {
-	GELIC_NET_DESCR_COMPLETE            = 0x00, /* used in rx and tx */
+	GELIC_NET_DESCR_COMPLETE            = 0x00, /* used in tx */
+	GELIC_NET_DESCR_BUFFER_FULL         = 0x00, /* used in rx */
 	GELIC_NET_DESCR_RESPONSE_ERROR      = 0x01, /* used in rx and tx */
 	GELIC_NET_DESCR_PROTECTION_ERROR    = 0x02, /* used in rx and tx */
 	GELIC_NET_DESCR_FRAME_END           = 0x04, /* used in rx */
 	GELIC_NET_DESCR_FORCE_END           = 0x05, /* used in rx and tx */
 	GELIC_NET_DESCR_CARDOWNED           = 0x0a, /* used in rx and tx */
-	GELIC_NET_DESCR_NOT_IN_USE                  /* any other value */
+	GELIC_NET_DESCR_NOT_IN_USE          = 0x0b  /* any other value */
 };
 /* for lv1_net_control */
 #define GELIC_NET_GET_MAC_ADDRESS               0x0000000000000001

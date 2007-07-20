@@ -917,31 +917,60 @@ static int gelic_net_decode_one_descr(struct gelic_net_card *card)
 		goto refill;
 	}
 
-	if ((status != GELIC_NET_DESCR_COMPLETE) &&
-	    (status != GELIC_NET_DESCR_FRAME_END)) {
+	if (status == GELIC_NET_DESCR_BUFFER_FULL) {
+		/*
+		 * Buffer full would occur if and only if
+		 * the frame length was longer than the size of this
+		 * descriptor's buffer.  If the frame length was equal
+		 * to or shorter than buffer'size, FRAME_END condition
+		 * would occur.
+		 * Anyway this frame was longer than the MTU,
+		 * just drop it.
+		 */
+		dev_info(ctodev(card), "overlength frame\n");
+		goto refill;
+	}
+	/*
+	 * descriptoers any other than FRAME_END here should
+	 * be treated as error.
+	 */
+	if (status != GELIC_NET_DESCR_FRAME_END) {
 		dev_dbg(ctodev(card), "RX descriptor with state %x\n",
 			status);
 		goto refill;
 	}
 
 	/* ok, we've got a packet in descr */
-	gelic_net_pass_skb_up(descr, card); /* 1: skb_up sccess */
-
+	gelic_net_pass_skb_up(descr, card);
 refill:
-	descr->next_descr_addr = 0; /* unlink the descr */
+	/*
+	 * So that always DMAC can see the end
+	 * of the descriptor chain to avoid
+	 * from unwanted DMAC overrun.
+	 */
+	descr->next_descr_addr = 0;
 
 	/* change the descriptor state: */
 	gelic_net_set_descr_status(descr, GELIC_NET_DESCR_NOT_IN_USE);
 
-	/* refill one desc
-	 * FIXME: this can fail, but for now, just leave this
-	 * descriptor without skb
+	/*
+	 * this call can fail, but for now, just leave this
+	 * decriptor without skb
 	 */
 	gelic_net_prepare_rx_descr(card, descr);
+
 	chain->head = descr;
 	chain->tail = descr->next;
+
+	/*
+	 * Set this descriptor the end of the chain.
+	 */
 	descr->prev->next_descr_addr = descr->bus_addr;
 
+	/*
+	 * If dmac chain was met, DMAC stopped.
+	 * thus re-enable it
+	 */
 	if (dmac_chain_ended) {
 		card->rx_dma_restart_required = 1;
 		dev_dbg(ctodev(card), "reenable rx dma scheduled\n");
