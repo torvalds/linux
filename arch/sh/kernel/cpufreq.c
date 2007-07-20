@@ -23,12 +23,7 @@
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/sched.h>	/* set_cpus_allowed() */
-#include <linux/io.h>
 #include <linux/clk.h>
-#include <asm/processor.h>
-#include <asm/watchdog.h>
-#include <asm/freq.h>
-#include <asm/clock.h>
 
 static struct clk *cpuclk;
 
