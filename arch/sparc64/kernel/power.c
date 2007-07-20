@@ -112,6 +112,6 @@ static struct of_platform_driver power_driver = {
 
 void __init power_init(void)
 {
-	of_register_driver(&power_driver, &of_bus_type);
+	of_register_driver(&power_driver, &of_platform_bus_type);
 	return;
 }
