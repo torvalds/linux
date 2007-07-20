@@ -23,6 +23,8 @@ int have_vmlinux = 0;
 static int all_versions = 0;
 /* If we are modposting external module set to 1 */
 static int external_module = 0;
+/* Warn about section mismatch in vmlinux if set to 1 */
+static int vmlinux_section_warnings = 1;
 /* Only warn about unresolved symbols */
 static int warn_unresolved = 0;
 /* How a symbol is exported */
@@ -1257,8 +1259,10 @@ static void read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
-	check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	if (is_vmlinux(modname) && vmlinux_section_warnings) {
+		check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
+		check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	}
 
 	version = get_modinfo(info.modinfo, info.modinfo_len, "version");
 	if (version)
@@ -1626,7 +1630,7 @@ int main(int argc, char **argv)
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:mo:aw")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:mso:aw")) != -1) {
 		switch(opt) {
 			case 'i':
 				kernel_read = optarg;
@@ -1643,6 +1647,9 @@ int main(int argc, char **argv)
 				break;
 			case 'a':
 				all_versions = 1;
+				break;
+			case 's':
+				vmlinux_section_warnings = 0;
 				break;
 			case 'w':
 				warn_unresolved = 1;
