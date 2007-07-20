@@ -1076,6 +1076,7 @@ static int initexit_section_ref_ok(const char *name)
 		".plt",			/* seen on ARCH=um build on x86_64. Harmless */
 		".smp_locks",
 		".stab",
+		".m68k_fixup",
 		NULL
 	};
 	/* Start of section names */
