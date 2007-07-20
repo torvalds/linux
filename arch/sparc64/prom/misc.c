@@ -72,7 +72,7 @@ void prom_cmdline(void)
 
 	local_irq_save(flags);
 
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette(1);
 
 #ifdef CONFIG_SMP
@@ -85,7 +85,7 @@ void prom_cmdline(void)
 	smp_release();
 #endif
 
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette(0);
 
 	local_irq_restore(flags);

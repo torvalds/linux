@@ -1646,6 +1646,60 @@ static void __init of_fill_in_cpu_data(void)
 	smp_fill_in_sib_core_maps();
 }
 
+struct device_node *of_console_device;
+EXPORT_SYMBOL(of_console_device);
+
+char *of_console_path;
+EXPORT_SYMBOL(of_console_path);
+
+char *of_console_options;
+EXPORT_SYMBOL(of_console_options);
+
+static void __init of_console_init(void)
+{
+	char *msg = "OF stdout device is: %s\n";
+	struct device_node *dp;
+	const char *type;
+	phandle node;
+
+	of_console_path = prom_early_alloc(256);
+	if (prom_ihandle2path(prom_stdout, of_console_path, 256) < 0) {
+		prom_printf("Cannot obtain path of stdout.\n");
+		prom_halt();
+	}
+	of_console_options = strrchr(of_console_path, ':');
+	if (of_console_options) {
+		of_console_options++;
+		if (*of_console_options == '\0')
+			of_console_options = NULL;
+	}
+
+	node = prom_inst2pkg(prom_stdout);
+	if (!node) {
+		prom_printf("Cannot resolve stdout node from "
+			    "instance %08x.\n", prom_stdout);
+		prom_halt();
+	}
+
+	dp = of_find_node_by_phandle(node);
+	type = of_get_property(dp, "device_type", NULL);
+	if (!type) {
+		prom_printf("Console stdout lacks device_type property.\n");
+		prom_halt();
+	}
+
+	if (strcmp(type, "display") && strcmp(type, "serial")) {
+		prom_printf("Console device_type is neither display "
+			    "nor serial.\n");
+		prom_halt();
+	}
+
+	of_console_device = dp;
+
+	prom_printf(msg, of_console_path);
+	printk(msg, of_console_path);
+}
+
 void __init prom_build_devicetree(void)
 {
 	struct device_node **nextp;
@@ -1658,6 +1712,8 @@ void __init prom_build_devicetree(void)
 	allnodes->child = build_tree(allnodes,
 				     prom_getchild(allnodes->node),
 				     &nextp);
+	of_console_init();
+
 	printk("PROM: Built device tree with %u bytes of memory.\n",
 	       prom_early_allocated);
 

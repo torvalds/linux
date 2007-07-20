@@ -46,7 +46,7 @@ static void (*poweroff_method)(void) = machine_alt_power_off;
 void machine_power_off(void)
 {
 	sstate_poweroff();
-	if (!serial_console || scons_pwroff) {
+	if (strcmp(of_console_device->type, "serial") || scons_pwroff) {
 		if (power_reg) {
 			/* Both register bits seem to have the
 			 * same effect, so until I figure out

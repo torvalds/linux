@@ -2913,10 +2913,6 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 	int node, len, i, j, ret;
 	u32 mem, chip_id;
 
-	/* Do not attach when we have a serial console. */
-	if (!con_is_present())
-		return -ENXIO;
-
 	/*
 	 * Map memory-mapped registers.
 	 */

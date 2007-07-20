@@ -330,7 +330,6 @@ EXPORT_SYMBOL(VISenter);
 
 /* for input/keybdev */
 EXPORT_SYMBOL(sun_do_break);
-EXPORT_SYMBOL(serial_console);
 EXPORT_SYMBOL(stop_a_enabled);
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE

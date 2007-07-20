@@ -94,5 +94,9 @@ static inline void of_node_put(struct device_node *node)
  */
 #include <linux/of.h>
 
+extern struct device_node *of_console_device;
+extern char *of_console_path;
+extern char *of_console_options;
+
 #endif /* __KERNEL__ */
 #endif /* _SPARC64_PROM_H */

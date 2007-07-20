@@ -115,13 +115,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 #ifndef __ASSEMBLY__
 
 extern void sun_do_break(void);
-extern int serial_console;
 extern int stop_a_enabled;
-
-static __inline__ int con_is_present(void)
-{
-	return serial_console ? 0 : 1;
-}
 
 extern void synchronize_user_stack(void);
 
