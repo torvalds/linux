@@ -930,8 +930,6 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 			       dp->id, np->handle);
 			return 0;
 		}
-		printk(KERN_INFO "ds-%lu: Could not register %s service\n",
-		       dp->id, cp->service_id);
 		cp->state = CAP_STATE_UNKNOWN;
 	}
 
