@@ -81,7 +81,7 @@ static int set_pmode_pmi(int cpu, unsigned int pmode)
 	int ret;
 	pmi_message_t pmi_msg;
 #ifdef DEBUG
-	u64 time;
+	long time;
 #endif
 
 	pmi_msg.type = PMI_TYPE_FREQ_CHANGE;
@@ -89,7 +89,7 @@ static int set_pmode_pmi(int cpu, unsigned int pmode)
 	pmi_msg.data2 = pmode;
 
 #ifdef DEBUG
-	time = (u64) get_cycles();
+	time = jiffies;
 #endif
 
 	pmi_send_message(pmi_msg);
@@ -98,9 +98,9 @@ static int set_pmode_pmi(int cpu, unsigned int pmode)
 	pr_debug("PMI returned slow mode %d\n", ret);
 
 #ifdef DEBUG
-	time = (u64) get_cycles() - time; /* actual cycles (not cpu cycles!) */
-	time = 1000000000 * time / CLOCK_TICK_RATE; /* time in ns (10^-9) */
-	pr_debug("had to wait %lu ns for a transition\n", time);
+	time = jiffies - time; /* actual cycles (not cpu cycles!) */
+	time = jiffies_to_msecs(time);
+	pr_debug("had to wait %lu ms for a transition using PMI.\n", time);
 #endif
 	return ret;
 }
@@ -123,15 +123,18 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
 	u64 flags;
 	u64 value;
+#ifdef DEBUG
+	long time;
+#endif
 
 	local_irq_save(flags);
 
 	mic_tm_regs = cbe_get_cpu_mic_tm_regs(cpu);
 	pmd_regs = cbe_get_cpu_pmd_regs(cpu);
 
-	pr_debug("pm register is mapped at %p\n", &pmd_regs->pmcr);
-	pr_debug("mic register is mapped at %p\n", &mic_tm_regs->slow_fast_timer_0);
-
+#ifdef DEBUG
+	time = jiffies;
+#endif
 	out_be64(&mic_tm_regs->slow_fast_timer_0, MIC_Slow_Fast_Timer_table[pmode]);
 	out_be64(&mic_tm_regs->slow_fast_timer_1, MIC_Slow_Fast_Timer_table[pmode]);
 
@@ -146,6 +149,7 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 
 	out_be64(&pmd_regs->pmcr, value);
 
+#ifdef DEBUG
 	/* wait until new pmode appears in status register */
 	value = in_be64(&pmd_regs->pmsr) & 0x07;
 	while(value != pmode) {
@@ -153,6 +157,11 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 		value = in_be64(&pmd_regs->pmsr) & 0x07;
 	}
 
+	time = jiffies - time;
+	time = jiffies_to_msecs(time);
+	pr_debug("had to wait %lu ms for a transition using " \
+		 "the pervasive unit.\n", time);
+#endif
 	local_irq_restore(flags);
 
 	return 0;
