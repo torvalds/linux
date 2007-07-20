@@ -54,6 +54,7 @@ extern void show_regs(struct pt_regs * regs);
 extern void flush_instruction_cache(void);
 extern void hard_reset_now(void);
 extern void poweroff_now(void);
+extern int set_dabr(unsigned long dabr);
 #ifdef CONFIG_6xx
 extern long _get_L2CR(void);
 extern long _get_L3CR(void);
