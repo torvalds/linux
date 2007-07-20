@@ -122,6 +122,7 @@ struct spu {
 	struct spu_problem __iomem *problem;
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
+	struct list_head cbe_list;
 	struct list_head sched_list;
 	struct list_head full_list;
 	int number;
@@ -180,6 +181,15 @@ struct spu {
 		unsigned long long libassist;
 	} stats;
 };
+
+struct cbe_spu_info {
+	struct list_head spus;
+	struct list_head free_spus;
+	int n_spus;
+	atomic_t reserved_spus;
+};
+
+extern struct cbe_spu_info cbe_spu_info[];
 
 struct spu *spu_alloc(void);
 struct spu *spu_alloc_node(int node);

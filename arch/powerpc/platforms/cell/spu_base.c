@@ -41,7 +41,6 @@ EXPORT_SYMBOL_GPL(spu_management_ops);
 
 const struct spu_priv1_ops *spu_priv1_ops;
 
-static struct list_head spu_list[MAX_NUMNODES];
 static LIST_HEAD(spu_full_list);
 static DEFINE_MUTEX(spu_mutex);
 static DEFINE_SPINLOCK(spu_list_lock);
@@ -429,8 +428,9 @@ struct spu *spu_alloc_node(int node)
 	struct spu *spu = NULL;
 
 	mutex_lock(&spu_mutex);
-	if (!list_empty(&spu_list[node])) {
-		spu = list_entry(spu_list[node].next, struct spu, list);
+	if (!list_empty(&cbe_spu_info[node].free_spus)) {
+		spu = list_entry(cbe_spu_info[node].free_spus.next, struct spu,
+									list);
 		list_del_init(&spu->list);
 		pr_debug("Got SPU %d %d\n", spu->number, spu->node);
 	}
@@ -459,7 +459,7 @@ struct spu *spu_alloc(void)
 void spu_free(struct spu *spu)
 {
 	mutex_lock(&spu_mutex);
-	list_add_tail(&spu->list, &spu_list[spu->node]);
+	list_add_tail(&spu->list, &cbe_spu_info[spu->node].free_spus);
 	mutex_unlock(&spu_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_free);
@@ -582,7 +582,9 @@ static int __init create_spu(void *data)
 
 	mutex_lock(&spu_mutex);
 	spin_lock_irqsave(&spu_list_lock, flags);
-	list_add(&spu->list, &spu_list[spu->node]);
+	list_add(&spu->list, &cbe_spu_info[spu->node].free_spus);
+	list_add(&spu->cbe_list, &cbe_spu_info[spu->node].spus);
+	cbe_spu_info[spu->node].n_spus++;
 	list_add(&spu->full_list, &spu_full_list);
 	spin_unlock_irqrestore(&spu_list_lock, flags);
 	mutex_unlock(&spu_mutex);
@@ -650,12 +652,17 @@ static ssize_t spu_stat_show(struct sys_device *sysdev, char *buf)
 
 static SYSDEV_ATTR(stat, 0644, spu_stat_show, NULL);
 
+struct cbe_spu_info cbe_spu_info[MAX_NUMNODES];
+EXPORT_SYMBOL_GPL(cbe_spu_info);
+
 static int __init init_spu_base(void)
 {
 	int i, ret = 0;
 
-	for (i = 0; i < MAX_NUMNODES; i++)
-		INIT_LIST_HEAD(&spu_list[i]);
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		INIT_LIST_HEAD(&cbe_spu_info[i].spus);
+		INIT_LIST_HEAD(&cbe_spu_info[i].free_spus);
+	}
 
 	if (!spu_management_ops)
 		goto out;

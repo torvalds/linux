@@ -231,6 +231,9 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 		 spu->number, spu->node);
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
+	if (ctx->flags & SPU_CREATE_NOSCHED)
+		atomic_inc(&cbe_spu_info[spu->node].reserved_spus);
+
 	ctx->stats.slb_flt_base = spu->stats.slb_flt;
 	ctx->stats.class2_intr_base = spu->stats.class2_intr;
 
@@ -267,6 +270,8 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 		 spu->pid, spu->number, spu->node);
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
+ 	if (spu->ctx->flags & SPU_CREATE_NOSCHED)
+		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
