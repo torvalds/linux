@@ -1325,12 +1325,8 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 	return ret;
 }
 
-/*
- * flush the inode to disk.
- */
-int nfs_wb_all(struct inode *inode)
+static int nfs_write_mapping(struct address_space *mapping, int how)
 {
-	struct address_space *mapping = inode->i_mapping;
 	struct writeback_control wbc = {
 		.bdi = mapping->backing_dev_info,
 		.sync_mode = WB_SYNC_ALL,
@@ -1343,35 +1339,26 @@ int nfs_wb_all(struct inode *inode)
 	ret = nfs_writepages(mapping, &wbc);
 	if (ret < 0)
 		goto out;
-	ret = nfs_sync_mapping_wait(mapping, &wbc, 0);
-	if (ret >= 0)
-		return 0;
+	ret = nfs_sync_mapping_wait(mapping, &wbc, how);
+	if (ret < 0)
+		goto out;
+	return 0;
 out:
 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	return ret;
 }
 
-int nfs_sync_mapping_range(struct address_space *mapping, loff_t range_start, loff_t range_end, int how)
+/*
+ * flush the inode to disk.
+ */
+int nfs_wb_all(struct inode *inode)
 {
-	struct writeback_control wbc = {
-		.bdi = mapping->backing_dev_info,
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.range_start = range_start,
-		.range_end = range_end,
-		.for_writepages = 1,
-	};
-	int ret;
+	return nfs_write_mapping(inode->i_mapping, 0);
+}
 
-	ret = nfs_writepages(mapping, &wbc);
-	if (ret < 0)
-		goto out;
-	ret = nfs_sync_mapping_wait(mapping, &wbc, how);
-	if (ret >= 0)
-		return 0;
-out:
-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-	return ret;
+int nfs_wb_nocommit(struct inode *inode)
+{
+	return nfs_write_mapping(inode->i_mapping, FLUSH_NOCOMMIT);
 }
 
 int nfs_wb_page_cancel(struct inode *inode, struct page *page)
