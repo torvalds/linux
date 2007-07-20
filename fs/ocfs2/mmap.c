@@ -89,7 +89,7 @@ static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
 {
 	int ret;
 	struct address_space *mapping = inode->i_mapping;
-	loff_t pos = page->index << PAGE_CACHE_SHIFT;
+	loff_t pos = page_offset(page);
 	unsigned int len = PAGE_CACHE_SIZE;
 	pgoff_t last_index;
 	struct page *locked_page = NULL;

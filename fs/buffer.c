@@ -2221,7 +2221,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
 	lock_page(page);
 	size = i_size_read(inode);
 	if ((page->mapping != inode->i_mapping) ||
-	    ((page->index << PAGE_CACHE_SHIFT) > size)) {
+	    (page_offset(page) > size)) {
 		/* page got truncated out from underneath us */
 		goto out_unlock;
 	}
