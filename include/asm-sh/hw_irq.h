@@ -115,4 +115,7 @@ void __init register_intc_controller(struct intc_desc *desc);
 
 void __init plat_irq_setup(void);
 
+enum { IRQ_MODE_IRQ, IRQ_MODE_IRL7654, IRQ_MODE_IRL3210 };
+void __init plat_irq_setup_pins(int mode);
+
 #endif /* __ASM_SH_HW_IRQ_H */
