@@ -118,11 +118,24 @@ static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
 		return;
 	}
 
+	/* Clear out any of the virtual P2P bridge registers */
+	pci_write_config_word(dev, PCI_IO_BASE_UPPER16, 0);
+	pci_write_config_word(dev, PCI_IO_LIMIT_UPPER16, 0);
+	pci_write_config_byte(dev, PCI_IO_BASE, 0x10);
+	pci_write_config_byte(dev, PCI_IO_LIMIT, 0);
+	pci_write_config_word(dev, PCI_MEMORY_BASE, 0x10);
+	pci_write_config_word(dev, PCI_MEMORY_LIMIT, 0);
+	pci_write_config_word(dev, PCI_PREF_BASE_UPPER32, 0x0);
+	pci_write_config_word(dev, PCI_PREF_LIMIT_UPPER32, 0x0);
+	pci_write_config_word(dev, PCI_PREF_MEMORY_BASE, 0x10);
+	pci_write_config_word(dev, PCI_PREF_MEMORY_LIMIT, 0);
+
 	if (hose->io_resource.flags) {
 		res = &dev->resource[res_idx++];
 		res->start = hose->io_resource.start;
 		res->end = hose->io_resource.end;
 		res->flags = hose->io_resource.flags;
+		update_bridge_resource(dev, res);
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -130,6 +143,7 @@ static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
 		res->start = hose->mem_resources[i].start;
 		res->end = hose->mem_resources[i].end;
 		res->flags = hose->mem_resources[i].flags;
+		update_bridge_resource(dev, res);
 	}
 }
 
