@@ -1073,7 +1073,7 @@ static int gelic_net_open_device(struct gelic_net_card *card)
 	}
 
 	result = request_irq(card->netdev->irq, gelic_net_interrupt,
-			     IRQF_DISABLED, "gelic network", card->netdev);
+			     IRQF_DISABLED, card->netdev->name, card->netdev);
 
 	if (result) {
 		dev_info(ctodev(card), "%s:%d: request_irq failed (%d)\n",
