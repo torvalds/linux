@@ -67,7 +67,7 @@ static u64 MIC_Slow_Next_Timer_table[] = {
 	0x00003FC000000000ull,
 };
 
-static unsigned int pmi_frequency_limit = 0;
+static u8 pmi_slow_mode_limit[MAX_BE];
 
 /*
  * hardware specific functions
@@ -169,35 +169,50 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 
 static int set_pmode(int cpu, unsigned int slow_mode)
 {
+	int rc;
 #ifdef CONFIG_PPC_PMI
 	if (cbe_cpufreq_has_pmi)
-		return set_pmode_pmi(cpu, slow_mode);
+		rc = set_pmode_pmi(cpu, slow_mode);
+	else
 #endif
-	return set_pmode_reg(cpu, slow_mode);
+		rc = set_pmode_reg(cpu, slow_mode);
+
+	pr_debug("register contains slow mode %d\n", get_pmode(cpu));
+
+	return rc;
 }
 
 static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
-	u8 cpu;
-	u8 cbe_pmode_new;
+	u8 node; slow_mode;
 
 	BUG_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
 
-	cpu = cbe_node_to_cpu(pmi_msg.data1);
-	cbe_pmode_new = pmi_msg.data2;
+	node = pmi_msg.data1;
+	slow_mode = pmi_msg.data2;
 
-	pmi_frequency_limit = cbe_freqs[cbe_pmode_new].frequency;
+	pmi_slow_mode_limit[node] = slow_mode;
 
-	pr_debug("cbe_handle_pmi: max freq=%d\n", pmi_frequency_limit);
+	pr_debug("cbe_handle_pmi: node: %d, max slow_mode=%d\n", slow_mode);
 }
 
 static int pmi_notifier(struct notifier_block *nb,
 				       unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
+	u8 node;
 
-	if (pmi_frequency_limit)
-		cpufreq_verify_within_limits(policy, 0, pmi_frequency_limit);
+	node = cbe_cpu_to_node(policy->cpu);
+
+	pr_debug("got notified, event=%lu, node=%u\n", event, node);
+
+	if (pmi_slow_mode_limit[node] != 0) {
+		pr_debug("limiting node %d to slow mode %d\n",
+			 node, pmi_slow_mode_limit[node]);
+
+		cpufreq_verify_within_limits(policy, 0,
+			 cbe_freqs[pmi_slow_mode_limit[node]].frequency);
+	}
 
 	return 0;
 }
@@ -232,6 +247,8 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
 
+	of_node_put(cpu);
+
 	if (!max_freqp)
 		return -EINVAL;
 
@@ -248,7 +265,9 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	/* if DEBUG is enabled set_pmode() measures the correct latency of a transition */
+
+	/* if DEBUG is enabled set_pmode() measures the latency
+	 * of a transition */
 	policy->cpuinfo.transition_latency = 25000;
 
 	cur_pmode = get_pmode(policy->cpu);
@@ -262,8 +281,8 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
 
-
-	/* this ensures that policy->cpuinfo_min and policy->cpuinfo_max are set correctly */
+	/* this ensures that policy->cpuinfo_min
+	 * and policy->cpuinfo_max are set correctly */
 	return cpufreq_frequency_table_cpuinfo(policy, cbe_freqs);
 }
 
@@ -279,12 +298,13 @@ static int cbe_cpufreq_verify(struct cpufreq_policy *policy)
 }
 
 
-static int cbe_cpufreq_target(struct cpufreq_policy *policy, unsigned int target_freq,
-			    unsigned int relation)
+static int cbe_cpufreq_target(struct cpufreq_policy *policy,
+			      unsigned int target_freq,
+			      unsigned int relation)
 {
 	int rc;
 	struct cpufreq_freqs freqs;
-	int cbe_pmode_new;
+	unsigned int cbe_pmode_new;
 
 	cpufreq_frequency_table_target(policy,
 				       cbe_freqs,
@@ -299,12 +319,14 @@ static int cbe_cpufreq_target(struct cpufreq_policy *policy, unsigned int target
 	mutex_lock(&cbe_switch_mutex);
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
-	pr_debug("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
+	pr_debug("setting frequency for cpu %d to %d kHz, " \
+		 "1/%d of max frequency\n",
 		 policy->cpu,
 		 cbe_freqs[cbe_pmode_new].frequency,
 		 cbe_freqs[cbe_pmode_new].index);
 
 	rc = set_pmode(policy->cpu, cbe_pmode_new);
+
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	mutex_unlock(&cbe_switch_mutex);
 
