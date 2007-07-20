@@ -28,8 +28,6 @@
 #ifndef _GELIC_NET_H
 #define _GELIC_NET_H
 
-#define GELIC_NET_ETHTOOL               /* use ethtool */
-
 /* descriptors */
 #define GELIC_NET_RX_DESCRIPTORS        128 /* num of descriptors */
 #define GELIC_NET_TX_DESCRIPTORS        128 /* num of descriptors */

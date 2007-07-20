@@ -1160,7 +1160,6 @@ alloc_tx_failed:
 	return -ENOMEM;
 }
 
-#ifdef GELIC_NET_ETHTOOL
 static void gelic_net_get_drvinfo (struct net_device *netdev,
 				   struct ethtool_drvinfo *info)
 {
@@ -1280,7 +1279,6 @@ static struct ethtool_ops gelic_net_ethtool_ops = {
 	.get_rx_csum	= gelic_net_get_rx_csum,
 	.set_rx_csum	= gelic_net_set_rx_csum,
 };
-#endif
 
 /**
  * gelic_net_tx_timeout_task - task scheduled by the watchdog timeout
@@ -1348,9 +1346,7 @@ static void gelic_net_setup_netdev_ops(struct net_device *netdev)
 	/* NAPI */
 	netdev->poll = &gelic_net_poll;
 	netdev->weight = GELIC_NET_NAPI_WEIGHT;
-#ifdef GELIC_NET_ETHTOOL
 	netdev->ethtool_ops = &gelic_net_ethtool_ops;
-#endif
 }
 
 /**
