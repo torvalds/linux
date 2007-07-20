@@ -1,13 +1,14 @@
 #ifndef __ASMARM_ELF_H
 #define __ASMARM_ELF_H
 
+#include <asm/hwcap.h>
+
 #ifndef __ASSEMBLY__
 /*
  * ELF register definitions..
  */
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#include <asm/hwcap.h>
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
