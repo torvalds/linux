@@ -420,7 +420,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 
 		case FBIO_WAITFORVSYNC:
 			prepare_to_wait(&itv->vsync_waitq, &wait, TASK_INTERRUPTIBLE);
-			if (!schedule_timeout(HZ/20)) rc = -ETIMEDOUT;
+			if (!schedule_timeout(msecs_to_jiffies(50))) rc = -ETIMEDOUT;
 			finish_wait(&itv->vsync_waitq, &wait);
 			return rc;
 
