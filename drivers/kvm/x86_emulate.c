@@ -1235,40 +1235,40 @@ twobyte_insn:
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		dst.val = dst.orig_val = src.val;
-		d &= ~Mov;	/* default to no move */
+		no_wb = 1;
 		/*
 		 * First, assume we're decoding an even cmov opcode
 		 * (lsb == 0).
 		 */
 		switch ((b & 15) >> 1) {
 		case 0:	/* cmovo */
-			d |= (_eflags & EFLG_OF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_OF) ? 0 : 1;
 			break;
 		case 1:	/* cmovb/cmovc/cmovnae */
-			d |= (_eflags & EFLG_CF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_CF) ? 0 : 1;
 			break;
 		case 2:	/* cmovz/cmove */
-			d |= (_eflags & EFLG_ZF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_ZF) ? 0 : 1;
 			break;
 		case 3:	/* cmovbe/cmovna */
-			d |= (_eflags & (EFLG_CF | EFLG_ZF)) ? Mov : 0;
+			no_wb = (_eflags & (EFLG_CF | EFLG_ZF)) ? 0 : 1;
 			break;
 		case 4:	/* cmovs */
-			d |= (_eflags & EFLG_SF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_SF) ? 0 : 1;
 			break;
 		case 5:	/* cmovp/cmovpe */
-			d |= (_eflags & EFLG_PF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_PF) ? 0 : 1;
 			break;
 		case 7:	/* cmovle/cmovng */
-			d |= (_eflags & EFLG_ZF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_ZF) ? 0 : 1;
 			/* fall through */
 		case 6:	/* cmovl/cmovnge */
-			d |= (!(_eflags & EFLG_SF) !=
-			      !(_eflags & EFLG_OF)) ? Mov : 0;
+			no_wb &= (!(_eflags & EFLG_SF) !=
+			      !(_eflags & EFLG_OF)) ? 0 : 1;
 			break;
 		}
 		/* Odd cmov opcodes (lsb == 1) have inverted sense. */
-		d ^= (b & 1) ? Mov : 0;
+		no_wb ^= b & 1;
 		break;
 	case 0xb0 ... 0xb1:	/* cmpxchg */
 		/*
