@@ -295,8 +295,7 @@ static inline int spu_process_events(struct spu_context *ctx)
 	return ret;
 }
 
-long spufs_run_spu(struct file *file, struct spu_context *ctx,
-		   u32 *npc, u32 *event)
+long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 {
 	int ret;
 	u32 status;
