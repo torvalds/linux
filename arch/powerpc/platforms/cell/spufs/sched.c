@@ -502,7 +502,7 @@ static struct spu_context *grab_runnable_context(int prio, int node)
 	int best;
 
 	spin_lock(&spu_prio->runq_lock);
-	best = sched_find_first_bit(spu_prio->bitmap);
+	best = find_first_bit(spu_prio->bitmap, prio);
 	while (best < prio) {
 		struct list_head *rq = &spu_prio->runq[best];
 
@@ -738,7 +738,6 @@ int __init spu_sched_init(void)
 		INIT_LIST_HEAD(&spu_prio->runq[i]);
 		__clear_bit(i, spu_prio->bitmap);
 	}
-	__set_bit(MAX_PRIO, spu_prio->bitmap);
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		mutex_init(&spu_prio->active_mutex[i]);
 		INIT_LIST_HEAD(&spu_prio->active_list[i]);
