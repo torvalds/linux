@@ -38,12 +38,12 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 		ss = lg->regs->ss;
 	}
 
-	/* We use IF bit in eflags to indicate whether irqs were disabled
-	   (it's always 0, since irqs are enabled when guest is running). */
+	/* We use IF bit in eflags to indicate whether irqs were enabled
+	   (it's always 1, since irqs are enabled when guest is running). */
 	eflags = lg->regs->eflags;
-	if (get_user(irq_enable, &lg->lguest_data->irq_enabled))
-		irq_enable = 0;
-	eflags |= (irq_enable & X86_EFLAGS_IF);
+	if (get_user(irq_enable, &lg->lguest_data->irq_enabled) == 0
+	    && !(irq_enable & X86_EFLAGS_IF))
+		eflags &= ~X86_EFLAGS_IF;
 
 	push_guest_stack(lg, &gstack, eflags);
 	push_guest_stack(lg, &gstack, lg->regs->cs);
