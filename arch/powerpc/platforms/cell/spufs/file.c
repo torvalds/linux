@@ -370,7 +370,7 @@ spufs_regs_read(struct file *file, char __user *buffer,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_regs_read(ctx, buffer, size, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -392,7 +392,7 @@ spufs_regs_write(struct file *file, const char __user *buffer,
 	ret = copy_from_user(lscsa->gprs + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -421,7 +421,7 @@ spufs_fpcr_read(struct file *file, char __user * buffer,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_fpcr_read(ctx, buffer, size, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -443,7 +443,7 @@ spufs_fpcr_write(struct file *file, const char __user * buffer,
 	ret = copy_from_user((char *)&lscsa->fpcr + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -868,7 +868,7 @@ static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_signal1_read(ctx, buf, len, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -999,7 +999,7 @@ static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_signal2_read(ctx, buf, len, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1626,7 +1626,7 @@ static void spufs_decr_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->decr.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_decr_get(void *data)
@@ -1642,7 +1642,7 @@ static u64 spufs_decr_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_decr_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_ops, spufs_decr_get, spufs_decr_set,
@@ -1654,7 +1654,7 @@ static void spufs_decr_status_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->decr_status.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_decr_status_get(void *data)
@@ -1670,7 +1670,7 @@ static u64 spufs_decr_status_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_decr_status_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_status_ops, spufs_decr_status_get,
@@ -1682,7 +1682,7 @@ static void spufs_event_mask_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->event_mask.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_event_mask_get(void *data)
@@ -1698,7 +1698,7 @@ static u64 spufs_event_mask_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_event_mask_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_mask_ops, spufs_event_mask_get,
@@ -1722,7 +1722,7 @@ static u64 spufs_event_status_get(void *data)
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_event_status_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_status_ops, spufs_event_status_get,
@@ -1734,7 +1734,7 @@ static void spufs_srr0_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->srr0.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 spufs_srr0_get(void *data)
@@ -1744,7 +1744,7 @@ static u64 spufs_srr0_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = lscsa->srr0.slot[0];
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_srr0_ops, spufs_srr0_get, spufs_srr0_set,
@@ -1800,7 +1800,7 @@ static u64 spufs_lslr_get(void *data)
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_lslr_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1864,7 +1864,7 @@ static ssize_t spufs_mbox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_mbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1902,7 +1902,7 @@ static ssize_t spufs_ibox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_ibox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1943,7 +1943,7 @@ static ssize_t spufs_wbox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_wbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1993,7 +1993,7 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_dma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -2044,7 +2044,7 @@ static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_proxydma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }

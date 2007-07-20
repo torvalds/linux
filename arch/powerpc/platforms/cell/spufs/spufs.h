@@ -40,6 +40,10 @@ enum {
 struct spu_context_ops;
 struct spu_gang;
 
+enum {
+	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
+};
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -214,6 +218,7 @@ void spu_unmap_mappings(struct spu_context *ctx);
 void spu_forget(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags);
 void spu_acquire_saved(struct spu_context *ctx);
+void spu_release_saved(struct spu_context *ctx);
 
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);

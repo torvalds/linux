@@ -165,6 +165,22 @@ int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
 void spu_acquire_saved(struct spu_context *ctx)
 {
 	spu_acquire(ctx);
-	if (ctx->state != SPU_STATE_SAVED)
+	if (ctx->state != SPU_STATE_SAVED) {
+		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
 		spu_deactivate(ctx);
+	}
+}
+
+/**
+ * spu_release_saved - unlock spu context and return it to the runqueue
+ * @ctx:	context to unlock
+ */
+void spu_release_saved(struct spu_context *ctx)
+{
+	BUG_ON(ctx->state != SPU_STATE_SAVED);
+
+	if (test_and_clear_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags))
+		spu_activate(ctx, 0);
+
+	spu_release(ctx);
 }
