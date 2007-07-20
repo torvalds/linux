@@ -112,6 +112,9 @@ extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsign
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
  * address. 
+ *
+ * If the area you are trying to map is a PCI BAR you should have a
+ * look at pci_iomap().
  */
 
 static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
