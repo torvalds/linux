@@ -49,6 +49,9 @@ config ARCH_MAY_HAVE_PC_FDC
 config NO_IOPORT
 	def_bool y
 
+config NO_DMA
+	def_bool SUN3
+
 mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
