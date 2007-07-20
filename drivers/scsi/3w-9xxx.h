@@ -4,7 +4,7 @@
    Written By: Adam Radford <linuxraid@amcc.com>
    Modifications By: Tom Couch <linuxraid@amcc.com>
 
-   Copyright (C) 2004-2006 Applied Micro Circuits Corporation.
+   Copyright (C) 2004-2007 Applied Micro Circuits Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -418,6 +418,9 @@ static twa_message_type twa_error_table[] = {
 #endif
 #ifndef PCI_DEVICE_ID_3WARE_9650SE
 #define PCI_DEVICE_ID_3WARE_9650SE 0x1004
+#endif
+#ifndef PCI_DEVICE_ID_3WARE_9690SA
+#define PCI_DEVICE_ID_3WARE_9690SA 0x1005
 #endif
 
 /* Bitmask macros to eliminate bitfields */
