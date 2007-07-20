@@ -51,10 +51,6 @@ struct dma_chan_ref {
  * @ASYNC_TX_ACK: immediately ack the descriptor, precludes setting up a
  * dependency chain
  * @ASYNC_TX_DEP_ACK: ack the dependency descriptor.  Useful for chaining.
- * @ASYNC_TX_KMAP_SRC: if the transaction is to be performed synchronously
- * take an atomic mapping (KM_USER0) on the source page(s)
- * @ASYNC_TX_KMAP_DST: if the transaction is to be performed synchronously
- * take an atomic mapping (KM_USER0) on the dest page(s)
  */
 enum async_tx_flags {
 	ASYNC_TX_XOR_ZERO_DST	 = (1 << 0),
@@ -62,8 +58,6 @@ enum async_tx_flags {
 	ASYNC_TX_ASSUME_COHERENT = (1 << 2),
 	ASYNC_TX_ACK		 = (1 << 3),
 	ASYNC_TX_DEP_ACK	 = (1 << 4),
-	ASYNC_TX_KMAP_SRC	 = (1 << 5),
-	ASYNC_TX_KMAP_DST	 = (1 << 6),
 };
 
 #ifdef CONFIG_DMA_ENGINE

@@ -493,12 +493,12 @@ async_copy_data(int frombio, struct bio *bio, struct page *page,
 			if (frombio)
 				tx = async_memcpy(page, bio_page, page_offset,
 					b_offset, clen,
-					ASYNC_TX_DEP_ACK | ASYNC_TX_KMAP_SRC,
+					ASYNC_TX_DEP_ACK,
 					tx, NULL, NULL);
 			else
 				tx = async_memcpy(bio_page, page, b_offset,
 					page_offset, clen,
-					ASYNC_TX_DEP_ACK | ASYNC_TX_KMAP_DST,
+					ASYNC_TX_DEP_ACK,
 					tx, NULL, NULL);
 		}
 		if (clen < len) /* hit end of page */
