@@ -147,12 +147,11 @@ ENTRY(fsys_set_tid_address)
 	FSYS_RETURN
 END(fsys_set_tid_address)
 
-/*
- * Ensure that the time interpolator structure is compatible with the asm code
- */
-#if IA64_TIME_INTERPOLATOR_SOURCE_OFFSET !=0 || IA64_TIME_INTERPOLATOR_SHIFT_OFFSET != 2 \
-	|| IA64_TIME_INTERPOLATOR_JITTER_OFFSET != 3 || IA64_TIME_INTERPOLATOR_NSEC_OFFSET != 4
-#error fsys_gettimeofday incompatible with changes to struct time_interpolator
+#if IA64_GTOD_LOCK_OFFSET !=0
+#error fsys_gettimeofday incompatible with changes to struct fsyscall_gtod_data_t
+#endif
+#if IA64_ITC_JITTER_OFFSET !=0
+#error fsys_gettimeofday incompatible with changes to struct itc_jitter_data_t
 #endif
 #define CLOCK_REALTIME 0
 #define CLOCK_MONOTONIC 1
@@ -179,126 +178,124 @@ ENTRY(fsys_gettimeofday)
 	// r11 = preserved: saved ar.pfs
 	// r12 = preserved: memory stack
 	// r13 = preserved: thread pointer
-	// r14 = address of mask / mask
+	// r14 = address of mask / mask value
 	// r15 = preserved: system call number
 	// r16 = preserved: current task pointer
-	// r17 = wall to monotonic use
-	// r18 = time_interpolator->offset
-	// r19 = address of wall_to_monotonic
-	// r20 = pointer to struct time_interpolator / pointer to time_interpolator->address
-	// r21 = shift factor
-	// r22 = address of time interpolator->last_counter
-	// r23 = address of time_interpolator->last_cycle
-	// r24 = adress of time_interpolator->offset
-	// r25 = last_cycle value
-	// r26 = last_counter value
-	// r27 = pointer to xtime
+	// r17 = (not used)
+	// r18 = (not used)
+	// r19 = address of itc_lastcycle
+	// r20 = struct fsyscall_gtod_data (= address of gtod_lock.sequence)
+	// r21 = address of mmio_ptr
+	// r22 = address of wall_time or monotonic_time
+	// r23 = address of shift / value
+	// r24 = address mult factor / cycle_last value
+	// r25 = itc_lastcycle value
+	// r26 = address clocksource cycle_last
+	// r27 = (not used)
 	// r28 = sequence number at the beginning of critcal section
-	// r29 = address of seqlock
+	// r29 = address of itc_jitter
 	// r30 = time processing flags / memory address
 	// r31 = pointer to result
 	// Predicates
 	// p6,p7 short term use
 	// p8 = timesource ar.itc
 	// p9 = timesource mmio64
-	// p10 = timesource mmio32
+	// p10 = timesource mmio32 - not used
 	// p11 = timesource not to be handled by asm code
-	// p12 = memory time source ( = p9 | p10)
-	// p13 = do cmpxchg with time_interpolator_last_cycle
+	// p12 = memory time source ( = p9 | p10) - not used
+	// p13 = do cmpxchg with itc_lastcycle
 	// p14 = Divide by 1000
 	// p15 = Add monotonic
 	//
-	// Note that instructions are optimized for McKinley. McKinley can process two
-	// bundles simultaneously and therefore we continuously try to feed the CPU
-	// two bundles and then a stop.
-	tnat.nz p6,p0 = r31	// branch deferred since it does not fit into bundle structure
+	// Note that instructions are optimized for McKinley. McKinley can
+	// process two bundles simultaneously and therefore we continuously
+	// try to feed the CPU two bundles and then a stop.
+	//
+	// Additional note that code has changed a lot. Optimization is TBD.
+	// Comments begin with "?" are maybe outdated.
+	tnat.nz p6,p0 = r31	// ? branch deferred to fit later bundle
 	mov pr = r30,0xc000	// Set predicates according to function
 	add r2 = TI_FLAGS+IA64_TASK_SIZE,r16
-	movl r20 = time_interpolator
+	movl r20 = fsyscall_gtod_data // load fsyscall gettimeofday data address
 	;;
-	ld8 r20 = [r20]		// get pointer to time_interpolator structure
-	movl r29 = xtime_lock
+	movl r29 = itc_jitter_data	// itc_jitter
+	add r22 = IA64_GTOD_WALL_TIME_OFFSET,r20	// wall_time
 	ld4 r2 = [r2]		// process work pending flags
-	movl r27 = xtime
-	;;	// only one bundle here
-	ld8 r21 = [r20]		// first quad with control information
-	and r2 = TIF_ALLWORK_MASK,r2
-(p6)    br.cond.spnt.few .fail_einval	// deferred branch
 	;;
-	add r10 = IA64_TIME_INTERPOLATOR_ADDRESS_OFFSET,r20
-	extr r3 = r21,32,32	// time_interpolator->nsec_per_cyc
-	extr r8 = r21,0,16	// time_interpolator->source
+(p15)	add r22 = IA64_GTOD_MONO_TIME_OFFSET,r20	// monotonic_time
+	add r21 = IA64_CLKSRC_MMIO_OFFSET,r20
+	add r19 = IA64_ITC_LASTCYCLE_OFFSET,r29
+	and r2 = TIF_ALLWORK_MASK,r2
+(p6)    br.cond.spnt.few .fail_einval	// ? deferred branch
+	;;
+	add r26 = IA64_CLKSRC_CYCLE_LAST_OFFSET,r20 // clksrc_cycle_last
 	cmp.ne p6, p0 = 0, r2	// Fallback if work is scheduled
 (p6)    br.cond.spnt.many fsys_fallback_syscall
 	;;
-	cmp.eq p8,p12 = 0,r8	// Check for cpu timer
-	cmp.eq p9,p0 = 1,r8	// MMIO64 ?
-	extr r2 = r21,24,8	// time_interpolator->jitter
-	cmp.eq p10,p0 = 2,r8	// MMIO32 ?
-	cmp.ltu p11,p0 = 2,r8	// function or other clock
-(p11)	br.cond.spnt.many fsys_fallback_syscall
-	;;
-	setf.sig f7 = r3	// Setup for scaling of counter
-(p15)	movl r19 = wall_to_monotonic
-(p12)	ld8 r30 = [r10]
-	cmp.ne p13,p0 = r2,r0	// need jitter compensation?
-	extr r21 = r21,16,8	// shift factor
-	;;
+	// Begin critical section
 .time_redo:
-	.pred.rel.mutex p8,p9,p10
-	ld4.acq r28 = [r29]	// xtime_lock.sequence. Must come first for locking purposes
+	ld4.acq r28 = [r20]	// gtod_lock.sequence, Must take first
 	;;
-	and r28 = ~1,r28	// Make sequence even to force retry if odd
+	and r28 = ~1,r28	// And make sequence even to force retry if odd
 	;;
+	ld8 r30 = [r21]		// clocksource->mmio_ptr
+	add r24 = IA64_CLKSRC_MULT_OFFSET,r20
+	ld4 r2 = [r29]		// itc_jitter value
+	add r23 = IA64_CLKSRC_SHIFT_OFFSET,r20
+	add r14 = IA64_CLKSRC_MASK_OFFSET,r20
+	;;
+	ld4 r3 = [r24]		// clocksource mult value
+	ld8 r14 = [r14]         // clocksource mask value
+	cmp.eq p8,p9 = 0,r30	// use cpu timer if no mmio_ptr
+	;;
+	setf.sig f7 = r3	// Setup for mult scaling of counter
+(p8)	cmp.ne p13,p0 = r2,r0	// need itc_jitter compensation, set p13
+	ld4 r23 = [r23]		// clocksource shift value
+	ld8 r24 = [r26]		// get clksrc_cycle_last value
+(p9)	cmp.eq p13,p0 = 0,r30	// if mmio_ptr, clear p13 jitter control
+	;;
+	.pred.rel.mutex p8,p9
 (p8)	mov r2 = ar.itc		// CPU_TIMER. 36 clocks latency!!!
-	add r22 = IA64_TIME_INTERPOLATOR_LAST_COUNTER_OFFSET,r20
-(p9)	ld8 r2 = [r30]		// readq(ti->address). Could also have latency issues..
-(p10)	ld4 r2 = [r30]		// readw(ti->address)
-(p13)	add r23 = IA64_TIME_INTERPOLATOR_LAST_CYCLE_OFFSET,r20
-	;;			// could be removed by moving the last add upward
-	ld8 r26 = [r22]		// time_interpolator->last_counter
-(p13)	ld8 r25 = [r23]		// time interpolator->last_cycle
-	add r24 = IA64_TIME_INTERPOLATOR_OFFSET_OFFSET,r20
-(p15)	ld8 r17 = [r19],IA64_TIMESPEC_TV_NSEC_OFFSET
- 	ld8 r9 = [r27],IA64_TIMESPEC_TV_NSEC_OFFSET
-	add r14 = IA64_TIME_INTERPOLATOR_MASK_OFFSET, r20
+(p9)	ld8 r2 = [r30]		// MMIO_TIMER. Could also have latency issues..
+(p13)	ld8 r25 = [r19]		// get itc_lastcycle value
+	;;		// ? could be removed by moving the last add upward
+	ld8 r9 = [r22],IA64_TIMESPEC_TV_NSEC_OFFSET	// tv_sec
 	;;
-	ld8 r18 = [r24]		// time_interpolator->offset
-	ld8 r8 = [r27],-IA64_TIMESPEC_TV_NSEC_OFFSET	// xtime.tv_nsec
-(p13)	sub r3 = r25,r2	// Diff needed before comparison (thanks davidm)
+	ld8 r8 = [r22],-IA64_TIMESPEC_TV_NSEC_OFFSET	// tv_nsec
+(p13)	sub r3 = r25,r2		// Diff needed before comparison (thanks davidm)
 	;;
-	ld8 r14 = [r14]		// time_interpolator->mask
-(p13)	cmp.gt.unc p6,p7 = r3,r0	// check if it is less than last. p6,p7 cleared
-	sub r10 = r2,r26	// current_counter - last_counter
+(p13)	cmp.gt.unc p6,p7 = r3,r0 // check if it is less than last. p6,p7 cleared
+	sub r10 = r2,r24	// current_cycle - last_cycle
 	;;
-(p6)	sub r10 = r25,r26	// time we got was less than last_cycle
+(p6)	sub r10 = r25,r24	// time we got was less than last_cycle
 (p7)	mov ar.ccv = r25	// more than last_cycle. Prep for cmpxchg
+	;;
+(p7)	cmpxchg8.rel r3 = [r19],r2,ar.ccv
+	;;
+(p7)	cmp.ne p7,p0 = r25,r3	// if cmpxchg not successful
+	;;
+(p7)	sub r10 = r3,r24	// then use new last_cycle instead
 	;;
 	and r10 = r10,r14	// Apply mask
 	;;
 	setf.sig f8 = r10
 	nop.i 123
 	;;
-(p7)	cmpxchg8.rel r3 = [r23],r2,ar.ccv
-EX(.fail_efault, probe.w.fault r31, 3)	// This takes 5 cycles and we have spare time
+	// fault check takes 5 cycles and we have spare time
+EX(.fail_efault, probe.w.fault r31, 3)
 	xmpy.l f8 = f8,f7	// nsec_per_cyc*(counter-last_counter)
-(p15)	add r9 = r9,r17		// Add wall to monotonic.secs to result secs
 	;;
-(p15)	ld8 r17 = [r19],-IA64_TIMESPEC_TV_NSEC_OFFSET
-(p7)	cmp.ne p7,p0 = r25,r3	// if cmpxchg not successful redo
-	// simulate tbit.nz.or p7,p0 = r28,0
+	// ? simulate tbit.nz.or p7,p0 = r28,0
 	getf.sig r2 = f8
 	mf
-	add r8 = r8,r18		// Add time interpolator offset
 	;;
-	ld4 r10 = [r29]		// xtime_lock.sequence
-(p15)	add r8 = r8, r17	// Add monotonic.nsecs to nsecs
-	shr.u r2 = r2,r21
-	;;		// overloaded 3 bundles!
-	// End critical section.
+	ld4 r10 = [r20]		// gtod_lock.sequence
+	shr.u r2 = r2,r23	// shift by factor
+	;;		// ? overloaded 3 bundles!
 	add r8 = r8,r2		// Add xtime.nsecs
-	cmp4.ne.or p7,p0 = r28,r10
-(p7)	br.cond.dpnt.few .time_redo	// sequence number changed ?
+	cmp4.ne p7,p0 = r28,r10
+(p7)	br.cond.dpnt.few .time_redo	// sequence number changed, redo
+	// End critical section.
 	// Now r8=tv->tv_nsec and r9=tv->tv_sec
 	mov r10 = r0
 	movl r2 = 1000000000
@@ -308,19 +305,19 @@ EX(.fail_efault, probe.w.fault r31, 3)	// This takes 5 cycles and we have spare 
 .time_normalize:
 	mov r21 = r8
 	cmp.ge p6,p0 = r8,r2
-(p14)	shr.u r20 = r8, 3		// We can repeat this if necessary just wasting some time
+(p14)	shr.u r20 = r8, 3 // We can repeat this if necessary just wasting time
 	;;
 (p14)	setf.sig f8 = r20
 (p6)	sub r8 = r8,r2
-(p6)	add r9 = 1,r9			// two nops before the branch.
-(p14)	setf.sig f7 = r3		// Chances for repeats are 1 in 10000 for gettod
+(p6)	add r9 = 1,r9		// two nops before the branch.
+(p14)	setf.sig f7 = r3	// Chances for repeats are 1 in 10000 for gettod
 (p6)	br.cond.dpnt.few .time_normalize
 	;;
 	// Divided by 8 though shift. Now divide by 125
 	// The compiler was able to do that with a multiply
 	// and a shift and we do the same
-EX(.fail_efault, probe.w.fault r23, 3)		// This also costs 5 cycles
-(p14)	xmpy.hu f8 = f8, f7			// xmpy has 5 cycles latency so use it...
+EX(.fail_efault, probe.w.fault r23, 3)	// This also costs 5 cycles
+(p14)	xmpy.hu f8 = f8, f7		// xmpy has 5 cycles latency so use it
 	;;
 	mov r8 = r0
 (p14)	getf.sig r2 = f8

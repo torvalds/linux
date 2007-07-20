@@ -1154,6 +1154,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nointroute	[IA-64]
 
+	nojitter	[IA64] Disables jitter checking for ITC timers.
+
 	nolapic		[IA-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[IA-32,APIC] Do not use the local APIC timer.
@@ -1884,6 +1886,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
+
+	vector=		[IA-64,SMP]
+			vector=percpu: enable percpu vector domain
 
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
