@@ -22,6 +22,7 @@ SECTIONS
 	*(.empty_zero_page)
 	} = 0
   .text : {
+  	*(.text.head)
 	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
