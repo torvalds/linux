@@ -138,6 +138,7 @@ struct spu {
 	struct spu_runqueue *rq;
 	unsigned long long timestamp;
 	pid_t pid;
+	pid_t tgid;
 	int class_0_pending;
 	spinlock_t register_lock;
 
@@ -216,6 +217,20 @@ extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
 /* Calls from the memory management to the SPU */
 struct mm_struct;
 extern void spu_flush_all_slbs(struct mm_struct *mm);
+
+/* This interface allows a profiler (e.g., OProfile) to store a ref
+ * to spu context information that it creates.	This caching technique
+ * avoids the need to recreate this information after a save/restore operation.
+ *
+ * Assumes the caller has already incremented the ref count to
+ * profile_info; then spu_context_destroy must call kref_put
+ * on prof_info_kref.
+ */
+void spu_set_profile_private_kref(struct spu_context *ctx,
+				  struct kref *prof_info_kref,
+				  void ( * prof_info_release) (struct kref *kref));
+
+void *spu_get_profile_private_kref(struct spu_context *ctx);
 
 /* system callbacks from the SPU */
 struct spu_syscall_block {

@@ -274,6 +274,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
+	spu->tgid = current->tgid;
 	spu_associate_mm(spu, ctx->owner);
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
@@ -456,6 +457,7 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->dma_callback = NULL;
 	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
+	spu->tgid = 0;
 	ctx->ops = &spu_backing_ops;
 	spu->flags = 0;
 	spu->ctx = NULL;
@@ -737,7 +739,7 @@ void spu_deactivate(struct spu_context *ctx)
 }
 
 /**
- * spu_yield -  yield a physical spu if others are waiting
+ * spu_yield -	yield a physical spu if others are waiting
  * @ctx:	spu context to yield
  *
  * Check if there is a higher priority context waiting and if yes

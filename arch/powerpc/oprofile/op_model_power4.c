@@ -32,7 +32,7 @@ static u32 mmcr0_val;
 static u64 mmcr1_val;
 static u64 mmcra_val;
 
-static void power4_reg_setup(struct op_counter_config *ctr,
+static int power4_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
 			     int num_ctrs)
 {
@@ -60,6 +60,8 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 		mmcr0_val &= ~MMCR0_PROBLEM_DISABLE;
 	else
 		mmcr0_val |= MMCR0_PROBLEM_DISABLE;
+
+	return 0;
 }
 
 extern void ppc64_enable_pmcs(void);
@@ -84,7 +86,7 @@ static inline int mmcra_must_set_sample(void)
 	return 0;
 }
 
-static void power4_cpu_setup(struct op_counter_config *ctr)
+static int power4_cpu_setup(struct op_counter_config *ctr)
 {
 	unsigned int mmcr0 = mmcr0_val;
 	unsigned long mmcra = mmcra_val;
@@ -111,9 +113,11 @@ static void power4_cpu_setup(struct op_counter_config *ctr)
 	    mfspr(SPRN_MMCR1));
 	dbg("setup on cpu %d, mmcra %lx\n", smp_processor_id(),
 	    mfspr(SPRN_MMCRA));
+
+	return 0;
 }
 
-static void power4_start(struct op_counter_config *ctr)
+static int power4_start(struct op_counter_config *ctr)
 {
 	int i;
 	unsigned int mmcr0;
@@ -148,6 +152,7 @@ static void power4_start(struct op_counter_config *ctr)
 	oprofile_running = 1;
 
 	dbg("start on cpu %d, mmcr0 %x\n", smp_processor_id(), mmcr0);
+	return 0;
 }
 
 static void power4_stop(void)

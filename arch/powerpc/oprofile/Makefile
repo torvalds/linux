@@ -11,7 +11,9 @@ DRIVER_OBJS := $(addprefix ../../../drivers/oprofile/, \
 		timer_int.o )
 
 oprofile-y := $(DRIVER_OBJS) common.o backtrace.o
-oprofile-$(CONFIG_PPC_CELL_NATIVE) += op_model_cell.o
+oprofile-$(CONFIG_OPROFILE_CELL) += op_model_cell.o \
+		cell/spu_profiler.o cell/vma_map.o \
+		cell/spu_task_sync.o
 oprofile-$(CONFIG_PPC64) += op_model_rs64.o op_model_power4.o op_model_pa6t.o
 oprofile-$(CONFIG_FSL_BOOKE) += op_model_fsl_booke.o
 oprofile-$(CONFIG_6xx) += op_model_7450.o

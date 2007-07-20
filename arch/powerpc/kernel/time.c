@@ -122,6 +122,7 @@ extern struct timezone sys_tz;
 static long timezone_offset;
 
 unsigned long ppc_proc_freq;
+EXPORT_SYMBOL(ppc_proc_freq);
 unsigned long ppc_tb_freq;
 
 static u64 tb_last_jiffy __cacheline_aligned_in_smp;

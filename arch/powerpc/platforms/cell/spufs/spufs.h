@@ -85,6 +85,8 @@ struct spu_context {
 
 	struct list_head gang_list;
 	struct spu_gang *gang;
+	struct kref *prof_priv_kref;
+	void ( * prof_priv_release) (struct kref *kref);
 
 	/* owner thread */
 	pid_t tid;

@@ -89,7 +89,7 @@ static inline void ctr_write(unsigned int i, u64 val)
 
 
 /* precompute the values to stuff in the hardware registers */
-static void pa6t_reg_setup(struct op_counter_config *ctr,
+static int pa6t_reg_setup(struct op_counter_config *ctr,
 			   struct op_system_config *sys,
 			   int num_ctrs)
 {
@@ -135,10 +135,12 @@ static void pa6t_reg_setup(struct op_counter_config *ctr,
 		pr_debug("reset_value for pmc%u inited to 0x%lx\n",
 				 pmc, reset_value[pmc]);
 	}
+
+	return 0;
 }
 
 /* configure registers on this cpu */
-static void pa6t_cpu_setup(struct op_counter_config *ctr)
+static int pa6t_cpu_setup(struct op_counter_config *ctr)
 {
 	u64 mmcr0 = mmcr0_val;
 	u64 mmcr1 = mmcr1_val;
@@ -154,9 +156,11 @@ static void pa6t_cpu_setup(struct op_counter_config *ctr)
 		mfspr(SPRN_PA6T_MMCR0));
 	pr_debug("setup on cpu %d, mmcr1 %016lx\n", smp_processor_id(),
 		mfspr(SPRN_PA6T_MMCR1));
+
+	return 0;
 }
 
-static void pa6t_start(struct op_counter_config *ctr)
+static int pa6t_start(struct op_counter_config *ctr)
 {
 	int i;
 
@@ -174,6 +178,8 @@ static void pa6t_start(struct op_counter_config *ctr)
 	oprofile_running = 1;
 
 	pr_debug("start on cpu %d, mmcr0 %lx\n", smp_processor_id(), mmcr0);
+
+	return 0;
 }
 
 static void pa6t_stop(void)
