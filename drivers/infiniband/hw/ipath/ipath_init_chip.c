@@ -782,7 +782,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 * Follows early_init because some chips have to initialize
 	 * PIO buffers in early_init to avoid false parity errors.
 	 */
-	ipath_cancel_sends(dd);
+	ipath_cancel_sends(dd, 0);
 
 	/* early_init sets rcvhdrentsize and rcvhdrsize, so this must be
 	 * done after early_init */

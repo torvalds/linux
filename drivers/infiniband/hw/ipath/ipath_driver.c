@@ -740,7 +740,7 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 	 * pioavail updates to memory to stop.
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 sendorig & ~IPATH_S_PIOBUFAVAILUPD);
+			 sendorig & ~INFINIPATH_S_PIOBUFAVAILUPD);
 	sendorig = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
@@ -1614,7 +1614,7 @@ int ipath_waitfor_mdio_cmdready(struct ipath_devdata *dd)
  * it's safer to always do it.
  * PIOAvail bits are updated by the chip as if normal send had happened.
  */
-void ipath_cancel_sends(struct ipath_devdata *dd)
+void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 {
 	ipath_dbg("Cancelling all in-progress send buffers\n");
 	dd->ipath_lastcancel = jiffies+HZ/2; /* skip armlaunch errs a bit */
@@ -1627,6 +1627,9 @@ void ipath_cancel_sends(struct ipath_devdata *dd)
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_disarm_piobufs(dd, 0,
 		(unsigned)(dd->ipath_piobcnt2k + dd->ipath_piobcnt4k));
+	if (restore_sendctrl) /* else done by caller later */
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+				 dd->ipath_sendctrl);
 
 	/* and again, be sure all have hit the chip */
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
@@ -1655,7 +1658,7 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 	/* flush all queued sends when going to DOWN or INIT, to be sure that
 	 * they don't block MAD packets */
 	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT)
-		ipath_cancel_sends(dd);
+		ipath_cancel_sends(dd, 1);
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 			 dd->ipath_ibcctrl | which);
@@ -2000,7 +2003,7 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 
 	ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
 			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
-	ipath_cancel_sends(dd);
+	ipath_cancel_sends(dd, 0);
 
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;

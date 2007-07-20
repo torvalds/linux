@@ -303,7 +303,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		 * Flush all queued sends when link went to DOWN or INIT,
 		 * to be sure that they don't block SMA and other MAD packets
 		 */
-		ipath_cancel_sends(dd);
+		ipath_cancel_sends(dd, 1);
 	}
 	else if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
 	    lstate == IPATH_IBSTATE_ACTIVE) {
@@ -799,13 +799,13 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	 * therefore would not be sent, and eventually
 	 * might cause the process to run out of bufs
 	 */
-	ipath_cancel_sends(dd);
+	ipath_cancel_sends(dd, 0);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 			 dd->ipath_control);
 
 	/* ensure pio avail updates continue */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		 dd->ipath_sendctrl & ~IPATH_S_PIOBUFAVAILUPD);
+		 dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 		 dd->ipath_sendctrl);

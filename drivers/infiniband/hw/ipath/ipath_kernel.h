@@ -683,7 +683,7 @@ int ipath_unordered_wc(void);
 
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
-void ipath_cancel_sends(struct ipath_devdata *);
+void ipath_cancel_sends(struct ipath_devdata *, int);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
 void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
