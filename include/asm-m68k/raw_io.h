@@ -49,10 +49,16 @@ extern void __iounmap(void *addr, unsigned long size);
 #define raw_inb in_8
 #define raw_inw in_be16
 #define raw_inl in_be32
+#define __raw_readb in_8
+#define __raw_readw in_be16
+#define __raw_readl in_be32
 
 #define raw_outb(val,port) out_8((port),(val))
 #define raw_outw(val,port) out_be16((port),(val))
 #define raw_outl(val,port) out_be32((port),(val))
+#define __raw_writeb(val,addr) out_8((addr),(val))
+#define __raw_writew(val,addr) out_be16((addr),(val))
+#define __raw_writel(val,addr) out_be32((addr),(val))
 
 static inline void raw_insb(volatile u8 __iomem *port, u8 *buf, unsigned int len)
 {
@@ -335,8 +341,6 @@ static inline void raw_outsw_swapw(volatile u16 __iomem *port, const u16 *buf,
 		: "g" (port), "g" (buf), "g" (nr)
 		: "d0", "a0", "a1", "d6");
 }
-
-#define __raw_writel raw_outl
 
 #endif /* __KERNEL__ */
 

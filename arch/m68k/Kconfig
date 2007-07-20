@@ -37,6 +37,10 @@ config TIME_LOW_RES
 	bool
 	default y
 
+config GENERIC_IOMAP
+	bool
+	default y
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	depends on Q40 || (BROKEN && SUN3X)
