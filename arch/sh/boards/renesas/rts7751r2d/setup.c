@@ -86,7 +86,8 @@ static struct plat_serial8250_port uart_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.regshift	= 2,
 		.uartclk	= (9600 * 16),
-	}
+	},
+	{ 0 },
 };
 
 static struct platform_device uart_device = {

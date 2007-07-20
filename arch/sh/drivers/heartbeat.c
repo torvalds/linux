@@ -78,7 +78,7 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 			hd->bit_pos[i] = i;
 	}
 
-	hd->base = (void __iomem *)res->start;
+	hd->base = (void __iomem *)(unsigned long)res->start;
 
 	setup_timer(&hd->timer, heartbeat_timer, (unsigned long)hd);
 	platform_set_drvdata(pdev, hd);

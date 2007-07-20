@@ -178,6 +178,9 @@ config CPU_HAS_PINT_IRQ
 config CPU_HAS_MASKREG_IRQ
 	bool
 
+config CPU_HAS_INTC_IRQ
+	bool
+
 config CPU_HAS_INTC2_IRQ
 	bool
 
@@ -209,6 +212,7 @@ config SOLUTION_ENGINE
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE
+	select CPU_HAS_IPR_IRQ
 	depends on CPU_SUBTYPE_SH7709 || CPU_SUBTYPE_SH7750
 	help
 	  Select SolutionEngine if configuring for a Hitachi SH7709
@@ -241,6 +245,7 @@ config SH_7722_SOLUTION_ENGINE
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
+	select CPU_HAS_IPR_IRQ
 	depends on CPU_SUBTYPE_SH7751
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
@@ -250,6 +255,7 @@ config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
 	select SYS_SUPPORTS_PCI
+	select CPU_HAS_INTC2_IRQ
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
@@ -317,6 +323,7 @@ config SH_MPC1211
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
 	depends on CPU_SUBTYPE_SH7751 && BROKEN
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  CTP/PCI-SH03 is a CPU module computer that is produced
@@ -326,6 +333,7 @@ config SH_SH03
 config SH_SECUREEDGE5410
 	bool "SecureEdge5410"
 	depends on CPU_SUBTYPE_SH7751R
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  Select SecureEdge5410 if configuring for a SnapGear SH board.
@@ -380,6 +388,7 @@ config SH_LANDISK
 config SH_TITAN
 	bool "TITAN"
 	depends on CPU_SUBTYPE_SH7751R
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  Select Titan if you are configuring for a Nimble Microsystems
@@ -388,6 +397,7 @@ config SH_TITAN
 config SH_SHMIN
 	bool "SHMIN"
 	depends on CPU_SUBTYPE_SH7706
+	select CPU_HAS_IPR_IRQ
 	help
 	  Select SHMIN if configuring for the SHMIN board.
 

@@ -101,7 +101,7 @@ static struct ipr_desc ipr_irq_desc = {
 	},
 };
 
-void __init init_IRQ_ipr(void)
+void __init plat_irq_setup(void)
 {
 	register_ipr_controller(&ipr_irq_desc);
 }

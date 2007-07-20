@@ -121,8 +121,7 @@ core-y	+= $(addprefix arch/sh/boards/, \
 endif
 
 # Companion chips
-core-$(CONFIG_HD64461)		+= arch/sh/cchips/hd6446x/hd64461/
-core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
+core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
