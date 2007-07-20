@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/kexec.h>
+#include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -78,7 +79,11 @@ static char __initdata command_line[COMMAND_LINE_SIZE] = { 0, };
 static struct resource code_resource = { .name = "Kernel code", };
 static struct resource data_resource = { .name = "Kernel data", };
 
-unsigned long memory_start, memory_end;
+unsigned long memory_start;
+EXPORT_SYMBOL(memory_start);
+
+unsigned long memory_end;
+EXPORT_SYMBOL(memory_end);
 
 static int __init early_parse_mem(char *p)
 {
