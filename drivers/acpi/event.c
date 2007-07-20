@@ -132,30 +132,19 @@ enum {
 };
 #define ACPI_GENL_CMD_MAX (__ACPI_GENL_CMD_MAX - 1)
 
-#define ACPI_GENL_NAME		"acpi_event"
-#define ACPI_GENL_VERSION	0x01
+#define ACPI_GENL_FAMILY_NAME		"acpi_event"
+#define ACPI_GENL_VERSION		0x01
+#define ACPI_GENL_MCAST_GROUP_NAME 	"acpi_mc_group"
 
 static struct genl_family acpi_event_genl_family = {
 	.id = GENL_ID_GENERATE,
-	.name = ACPI_GENL_NAME,
+	.name = ACPI_GENL_FAMILY_NAME,
 	.version = ACPI_GENL_VERSION,
 	.maxattr = ACPI_GENL_ATTR_MAX,
 };
 
-/* .doit: standard command callback */
-static int acpi_genl_cmd_event(struct sk_buff *skb, struct genl_info *info)
-{
-	struct acpi_genl_event *event = info->userhdr;
-
-	if (!event)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "ACPI event: NULL\n"));
-
-	return 0;
-}
-
-static struct genl_ops acpi_event_genl_ops = {
-	.cmd = ACPI_GENL_CMD_EVENT,
-	.doit = acpi_genl_cmd_event,
+static struct genl_multicast_group acpi_event_mcgrp = {
+	.name = ACPI_GENL_MCAST_GROUP_NAME,
 };
 
 int acpi_bus_generate_genetlink_event(struct acpi_device *device,
@@ -215,7 +204,7 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 	}
 
 	result =
-	    genlmsg_multicast(skb, 0, acpi_event_genl_family.id, GFP_ATOMIC);
+	    genlmsg_multicast(skb, 0, acpi_event_mcgrp.id, GFP_ATOMIC);
 	if (result)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Failed to send a Genetlink message!\n"));
@@ -230,8 +219,8 @@ static int acpi_event_genetlink_init(void)
 	if (result)
 		return result;
 
-	result =
-	    genl_register_ops(&acpi_event_genl_family, &acpi_event_genl_ops);
+	result = genl_register_mc_group(&acpi_event_genl_family,
+					&acpi_event_mcgrp);
 	if (result)
 		genl_unregister_family(&acpi_event_genl_family);
 
