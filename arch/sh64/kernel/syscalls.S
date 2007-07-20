@@ -378,3 +378,4 @@ sys_call_table:
 	.long sys_signalfd
 	.long sys_timerfd		/* 350 */
 	.long sys_eventfd
+	.long sys_fallocate
