@@ -1,7 +1,7 @@
 /*
  * cpufreq driver for the cell processor
  *
- * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
+ * (C) Copyright IBM Deutschland Entwicklung GmbH 2005-2007
  *
  * Author: Christian Krafft <krafft@de.ibm.com>
  *
@@ -21,18 +21,10 @@
  */
 
 #include <linux/cpufreq.h>
-#include <linux/timer.h>
-
-#include <asm/hw_irq.h>
-#include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/processor.h>
-#include <asm/prom.h>
-#include <asm/time.h>
-#include <asm/pmi.h>
 #include <asm/of_platform.h>
-
-#include "cbe_regs.h"
+#include <asm/prom.h>
+#include "cbe_cpufreq.h"
 
 static DEFINE_MUTEX(cbe_switch_mutex);
 
@@ -50,182 +42,23 @@ static struct cpufreq_frequency_table cbe_freqs[] = {
 	{0,	CPUFREQ_TABLE_END},
 };
 
-/* to write to MIC register */
-static u64 MIC_Slow_Fast_Timer_table[] = {
-	[0 ... 7] = 0x007fc00000000000ull,
-};
-
-/* more values for the MIC */
-static u64 MIC_Slow_Next_Timer_table[] = {
-	0x0000240000000000ull,
-	0x0000268000000000ull,
-	0x000029C000000000ull,
-	0x00002D0000000000ull,
-	0x0000300000000000ull,
-	0x0000334000000000ull,
-	0x000039C000000000ull,
-	0x00003FC000000000ull,
-};
-
-static u8 pmi_slow_mode_limit[MAX_BE];
-
 /*
  * hardware specific functions
  */
 
-static bool cbe_cpufreq_has_pmi;
-
-#ifdef CONFIG_PPC_PMI
-static int set_pmode_pmi(int cpu, unsigned int pmode)
-{
-	int ret;
-	pmi_message_t pmi_msg;
-#ifdef DEBUG
-	long time;
-#endif
-
-	pmi_msg.type = PMI_TYPE_FREQ_CHANGE;
-	pmi_msg.data1 =	cbe_cpu_to_node(cpu);
-	pmi_msg.data2 = pmode;
-
-#ifdef DEBUG
-	time = jiffies;
-#endif
-
-	pmi_send_message(pmi_msg);
-	ret = pmi_msg.data2;
-
-	pr_debug("PMI returned slow mode %d\n", ret);
-
-#ifdef DEBUG
-	time = jiffies - time; /* actual cycles (not cpu cycles!) */
-	time = jiffies_to_msecs(time);
-	pr_debug("had to wait %lu ms for a transition using PMI.\n", time);
-#endif
-	return ret;
-}
-#endif
-
-static int get_pmode(int cpu)
-{
-	int ret;
-	struct cbe_pmd_regs __iomem *pmd_regs;
-
-	pmd_regs = cbe_get_cpu_pmd_regs(cpu);
-	ret = in_be64(&pmd_regs->pmsr) & 0x07;
-
-	return ret;
-}
-
-static int set_pmode_reg(int cpu, unsigned int pmode)
-{
-	struct cbe_pmd_regs __iomem *pmd_regs;
-	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
-	u64 flags;
-	u64 value;
-#ifdef DEBUG
-	long time;
-#endif
-
-	local_irq_save(flags);
-
-	mic_tm_regs = cbe_get_cpu_mic_tm_regs(cpu);
-	pmd_regs = cbe_get_cpu_pmd_regs(cpu);
-
-#ifdef DEBUG
-	time = jiffies;
-#endif
-	out_be64(&mic_tm_regs->slow_fast_timer_0, MIC_Slow_Fast_Timer_table[pmode]);
-	out_be64(&mic_tm_regs->slow_fast_timer_1, MIC_Slow_Fast_Timer_table[pmode]);
-
-	out_be64(&mic_tm_regs->slow_next_timer_0, MIC_Slow_Next_Timer_table[pmode]);
-	out_be64(&mic_tm_regs->slow_next_timer_1, MIC_Slow_Next_Timer_table[pmode]);
-
-	value = in_be64(&pmd_regs->pmcr);
-	/* set bits to zero */
-	value &= 0xFFFFFFFFFFFFFFF8ull;
-	/* set bits to next pmode */
-	value |= pmode;
-
-	out_be64(&pmd_regs->pmcr, value);
-
-#ifdef DEBUG
-	/* wait until new pmode appears in status register */
-	value = in_be64(&pmd_regs->pmsr) & 0x07;
-	while(value != pmode) {
-		cpu_relax();
-		value = in_be64(&pmd_regs->pmsr) & 0x07;
-	}
-
-	time = jiffies - time;
-	time = jiffies_to_msecs(time);
-	pr_debug("had to wait %lu ms for a transition using " \
-		 "the pervasive unit.\n", time);
-#endif
-	local_irq_restore(flags);
-
-	return 0;
-}
-
-static int set_pmode(int cpu, unsigned int slow_mode)
+static int set_pmode(unsigned int cpu, unsigned int slow_mode)
 {
 	int rc;
-#ifdef CONFIG_PPC_PMI
-	if (cbe_cpufreq_has_pmi)
-		rc = set_pmode_pmi(cpu, slow_mode);
-	else
-#endif
-		rc = set_pmode_reg(cpu, slow_mode);
 
-	pr_debug("register contains slow mode %d\n", get_pmode(cpu));
+	if (cbe_cpufreq_has_pmi)
+		rc = cbe_cpufreq_set_pmode_pmi(cpu, slow_mode);
+	else
+		rc = cbe_cpufreq_set_pmode(cpu, slow_mode);
+
+	pr_debug("register contains slow mode %d\n", cbe_cpufreq_get_pmode(cpu));
 
 	return rc;
 }
-
-static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
-{
-	u8 node; slow_mode;
-
-	BUG_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
-
-	node = pmi_msg.data1;
-	slow_mode = pmi_msg.data2;
-
-	pmi_slow_mode_limit[node] = slow_mode;
-
-	pr_debug("cbe_handle_pmi: node: %d, max slow_mode=%d\n", slow_mode);
-}
-
-static int pmi_notifier(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	struct cpufreq_policy *policy = data;
-	u8 node;
-
-	node = cbe_cpu_to_node(policy->cpu);
-
-	pr_debug("got notified, event=%lu, node=%u\n", event, node);
-
-	if (pmi_slow_mode_limit[node] != 0) {
-		pr_debug("limiting node %d to slow mode %d\n",
-			 node, pmi_slow_mode_limit[node]);
-
-		cpufreq_verify_within_limits(policy, 0,
-			 cbe_freqs[pmi_slow_mode_limit[node]].frequency);
-	}
-
-	return 0;
-}
-
-static struct notifier_block pmi_notifier_block = {
-	.notifier_call = pmi_notifier,
-};
-
-static struct pmi_handler cbe_pmi_handler = {
-	.type			= PMI_TYPE_FREQ_CHANGE,
-	.handle_pmi_message	= cbe_cpufreq_handle_pmi,
-};
-
 
 /*
  * cpufreq functions
@@ -270,7 +103,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 * of a transition */
 	policy->cpuinfo.transition_latency = 25000;
 
-	cur_pmode = get_pmode(policy->cpu);
+	cur_pmode = cbe_cpufreq_get_pmode(policy->cpu);
 	pr_debug("current pmode is at %d\n",cur_pmode);
 
 	policy->cur = cbe_freqs[cur_pmode].frequency;
@@ -296,7 +129,6 @@ static int cbe_cpufreq_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, cbe_freqs);
 }
-
 
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 			      unsigned int target_freq,
@@ -352,22 +184,12 @@ static int __init cbe_cpufreq_init(void)
 	if (!machine_is(cell))
 		return -ENODEV;
 
-	cbe_cpufreq_has_pmi = pmi_register_handler(&cbe_pmi_handler) == 0;
-
-	if (cbe_cpufreq_has_pmi)
-		cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
-
 	return cpufreq_register_driver(&cbe_cpufreq_driver);
 }
 
 static void __exit cbe_cpufreq_exit(void)
 {
 	cpufreq_unregister_driver(&cbe_cpufreq_driver);
-
-	if (cbe_cpufreq_has_pmi) {
-		cpufreq_unregister_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
-		pmi_unregister_handler(&cbe_pmi_handler);
-	}
 }
 
 module_init(cbe_cpufreq_init);
