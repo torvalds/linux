@@ -1107,7 +1107,7 @@ static int gelic_net_open(struct net_device *netdev)
 			card->descr, GELIC_NET_TX_DESCRIPTORS))
 		goto alloc_tx_failed;
 	if (gelic_net_init_chain(card, &card->rx_chain,
-				 card->descr + GELIC_NET_RX_DESCRIPTORS,
+				 card->descr + GELIC_NET_TX_DESCRIPTORS,
 				 GELIC_NET_RX_DESCRIPTORS))
 		goto alloc_rx_failed;
 
