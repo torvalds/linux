@@ -63,7 +63,7 @@ struct rt_device
 static void sleep_delay(long n)
 {
 	/* Sleep nicely for 'n' uS */
-	int d=n/(1000000/HZ);
+	int d=n/msecs_to_jiffies(1000);
 	if(!d)
 		udelay(n);
 	else

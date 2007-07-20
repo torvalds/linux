@@ -403,6 +403,11 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 	/* Mark last buffer size for Interrupt flag */
 	s->SGarray[s->SG_length - 1].size |= cpu_to_le32(0x80000000);
 
+	if (s->type == IVTV_ENC_STREAM_TYPE_VBI)
+		set_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);
+	else
+		clear_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);
+
 	if (ivtv_use_pio(s)) {
 		for (i = 0; i < s->SG_length; i++) {
 			s->PIOarray[i].src = le32_to_cpu(s->SGarray[i].src);
@@ -420,7 +425,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x02, IVTV_REG_DMAXFER);
 		set_bit(IVTV_F_I_DMA, &itv->i_flags);
 		itv->cur_dma_stream = s->type;
-		itv->dma_timer.expires = jiffies + HZ / 10;
+		itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
 		add_timer(&itv->dma_timer);
 	}
 }
@@ -437,7 +442,7 @@ static void ivtv_dma_dec_start(struct ivtv_stream *s)
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
 	set_bit(IVTV_F_I_DMA, &itv->i_flags);
 	itv->cur_dma_stream = s->type;
-	itv->dma_timer.expires = jiffies + HZ / 10;
+	itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
 	add_timer(&itv->dma_timer);
 }
 
@@ -597,7 +602,6 @@ static void ivtv_irq_enc_start_cap(struct ivtv *itv)
 				data[0], data[1], data[2]);
 		return;
 	}
-	clear_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);
 	s = &itv->streams[ivtv_stream_map[data[0]]];
 	if (!stream_enc_dma_append(s, data)) {
 		set_bit(ivtv_use_pio(s) ? IVTV_F_S_PIO_PENDING : IVTV_F_S_DMA_PENDING, &s->s_flags);
@@ -634,7 +638,6 @@ static void ivtv_irq_enc_vbi_cap(struct ivtv *itv)
 	   then start a DMA request for just the VBI data. */
 	if (!stream_enc_dma_append(s, data) &&
 			!test_bit(IVTV_F_S_STREAMING, &s_mpg->s_flags)) {
-		set_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);
 		set_bit(ivtv_use_pio(s) ? IVTV_F_S_PIO_PENDING : IVTV_F_S_DMA_PENDING, &s->s_flags);
 	}
 }

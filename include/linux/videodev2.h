@@ -60,6 +60,7 @@
 #include <linux/compiler.h> /* need __user */
 #else
 #define __user
+#include <sys/time.h>
 #endif
 #include <linux/types.h>
 

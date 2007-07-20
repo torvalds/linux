@@ -37,6 +37,7 @@
 #define API_RESULT	 (1 << 1) 	/* Allow 1 second for this cmd to end */
 #define API_FAST_RESULT	 (3 << 1)	/* Allow 0.1 second for this cmd to end */
 #define API_DMA 	 (1 << 3)	/* DMA mailbox, has special handling */
+#define API_HIGH_VOL 	 (1 << 5)	/* High volume command (i.e. called during encoding or decoding) */
 #define API_NO_WAIT_MB 	 (1 << 4)	/* Command may not wait for a free mailbox */
 #define API_NO_WAIT_RES	 (1 << 5)	/* Command may not wait for the result */
 
@@ -77,11 +78,11 @@ static const struct ivtv_api_info api_info[256] = {
 	API_ENTRY(CX2341X_ENC_SET_DMA_BLOCK_SIZE, 	API_CACHE),
 	API_ENTRY(CX2341X_ENC_GET_PREV_DMA_INFO_MB_10, 	API_FAST_RESULT),
 	API_ENTRY(CX2341X_ENC_GET_PREV_DMA_INFO_MB_9, 	API_FAST_RESULT),
-	API_ENTRY(CX2341X_ENC_SCHED_DMA_TO_HOST, 	API_DMA),
+	API_ENTRY(CX2341X_ENC_SCHED_DMA_TO_HOST, 	API_DMA | API_HIGH_VOL),
 	API_ENTRY(CX2341X_ENC_INITIALIZE_INPUT, 	API_RESULT),
 	API_ENTRY(CX2341X_ENC_SET_FRAME_DROP_RATE, 	API_CACHE),
 	API_ENTRY(CX2341X_ENC_PAUSE_ENCODER, 		API_RESULT),
-	API_ENTRY(CX2341X_ENC_REFRESH_INPUT, 		API_NO_WAIT_MB),
+	API_ENTRY(CX2341X_ENC_REFRESH_INPUT, 		API_NO_WAIT_MB | API_HIGH_VOL),
 	API_ENTRY(CX2341X_ENC_SET_COPYRIGHT, 		API_CACHE),
 	API_ENTRY(CX2341X_ENC_SET_EVENT_NOTIFICATION, 	API_RESULT),
 	API_ENTRY(CX2341X_ENC_SET_NUM_VSYNC_LINES, 	API_CACHE),
@@ -102,7 +103,7 @@ static const struct ivtv_api_info api_info[256] = {
 	API_ENTRY(CX2341X_DEC_SET_DMA_BLOCK_SIZE, 	API_CACHE),
 	API_ENTRY(CX2341X_DEC_GET_XFER_INFO, 		API_FAST_RESULT),
 	API_ENTRY(CX2341X_DEC_GET_DMA_STATUS, 		API_FAST_RESULT),
-	API_ENTRY(CX2341X_DEC_SCHED_DMA_FROM_HOST, 	API_DMA),
+	API_ENTRY(CX2341X_DEC_SCHED_DMA_FROM_HOST, 	API_DMA | API_HIGH_VOL),
 	API_ENTRY(CX2341X_DEC_PAUSE_PLAYBACK, 		API_RESULT),
 	API_ENTRY(CX2341X_DEC_HALT_FW, 			API_FAST_RESULT),
 	API_ENTRY(CX2341X_DEC_SET_STANDARD, 		API_CACHE),
@@ -175,9 +176,9 @@ static int get_mailbox(struct ivtv *itv, struct ivtv_mailbox_data *mbdata, int f
 
 		/* Sleep before a retry, if not atomic */
 		if (!(flags & API_NO_WAIT_MB)) {
-			if (jiffies - then > retries * HZ / 100)
+			if (jiffies - then > msecs_to_jiffies(10*retries))
 			       break;
-			ivtv_sleep_timeout(HZ / 100, 0);
+			ivtv_msleep_timeout(10, 0);
 		}
 	}
 	return -ENODEV;
@@ -212,7 +213,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 {
 	struct ivtv_mailbox_data *mbdata = (cmd >= 128) ? &itv->enc_mbox : &itv->dec_mbox;
 	volatile struct ivtv_mailbox __iomem *mbox;
-	int api_timeout = HZ;
+	int api_timeout = msecs_to_jiffies(1000);
 	int flags, mb, i;
 	unsigned long then;
 
@@ -227,7 +228,12 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 		return -EINVAL;
 	}
 
-	IVTV_DEBUG_API("API Call: %s\n", api_info[cmd].name);
+	if (api_info[cmd].flags & API_HIGH_VOL) {
+	    IVTV_DEBUG_HI_API("API Call: %s\n", api_info[cmd].name);
+	}
+	else {
+	    IVTV_DEBUG_API("API Call: %s\n", api_info[cmd].name);
+	}
 
 	/* clear possibly uninitialized part of data array */
 	for (i = args; i < CX2341X_MBOX_MAX_DATA; i++)
@@ -237,7 +243,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	   data, then just return 0 as there is no need to issue this command again.
 	   Just an optimization to prevent unnecessary use of mailboxes. */
 	if (itv->api_cache[cmd].last_jiffies &&
-	    jiffies - itv->api_cache[cmd].last_jiffies < HZ * 1800 &&
+	    jiffies - itv->api_cache[cmd].last_jiffies < msecs_to_jiffies(1800000) &&
 	    !memcmp(data, itv->api_cache[cmd].data, sizeof(itv->api_cache[cmd].data))) {
 		itv->api_cache[cmd].last_jiffies = jiffies;
 		return 0;
@@ -262,7 +268,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	}
 
 	if ((flags & API_FAST_RESULT) == API_FAST_RESULT)
-		api_timeout = HZ / 10;
+		api_timeout = msecs_to_jiffies(100);
 
 	mb = get_mailbox(itv, mbdata, flags);
 	if (mb < 0) {
@@ -295,11 +301,12 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 		if (flags & API_NO_WAIT_RES)
 			mdelay(1);
 		else
-			ivtv_sleep_timeout(HZ / 100, 0);
+			ivtv_msleep_timeout(10, 0);
 	}
-	if (jiffies - then > HZ / 10)
-		IVTV_DEBUG_WARN("%s took %lu jiffies (%d per HZ)\n",
-				api_info[cmd].name, jiffies - then, HZ);
+	if (jiffies - then > msecs_to_jiffies(100))
+		IVTV_DEBUG_WARN("%s took %u jiffies\n",
+				api_info[cmd].name,
+				jiffies_to_msecs(jiffies - then));
 
 	for (i = 0; i < CX2341X_MBOX_MAX_DATA; i++)
 		data[i] = readl(&mbox->data[i]);

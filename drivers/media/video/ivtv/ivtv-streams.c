@@ -565,7 +565,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		/* Initialize Digitizer for Capture */
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
-		ivtv_sleep_timeout(HZ / 10, 0);
+		ivtv_msleep_timeout(100, 0);
 	}
 
 	/* begin_capture */
@@ -781,8 +781,9 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			set_current_state(TASK_INTERRUPTIBLE);
 
 			/* wait 2s for EOS interrupt */
-			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) && jiffies < then + 2 * HZ) {
-				schedule_timeout(HZ / 100);
+			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) &&
+				jiffies < then + msecs_to_jiffies (2000)) {
+				schedule_timeout(msecs_to_jiffies(10));
 			}
 
 			/* To convert jiffies to ms, we must multiply by 1000
@@ -821,7 +822,8 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			} else if (read_reg(IVTV_REG_DMASTATUS) & 0x02) {
 				break;
 			}
-		} while (!ivtv_sleep_timeout(HZ / 100, 1) && then + HZ * 2 > jiffies);
+		} while (!ivtv_msleep_timeout(10, 1) &&
+			 then + msecs_to_jiffies(2000) > jiffies);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&s->waitq, &wait);
@@ -892,7 +894,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 					break;
 				tmp = data[3];
 			}
-			if (ivtv_sleep_timeout(HZ/10, 1))
+			if (ivtv_msleep_timeout(100, 1))
 				break;
 		}
 	}

@@ -345,8 +345,8 @@ void ir_rc5_timer_end(unsigned long data)
 			}
 
 			/* Set/reset key-up timer */
-			timeout = current_jiffies + (500 + ir->rc5_key_timeout
-						     * HZ) / 1000;
+			timeout = current_jiffies +
+				  msecs_to_jiffies(ir->rc5_key_timeout);
 			mod_timer(&ir->timer_keyup, timeout);
 
 			/* Save code for repeat test */

@@ -153,7 +153,7 @@ static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 {
 	if (ir->polling) {
 		setup_timer(&ir->timer, bttv_input_timer, (unsigned long)btv);
-		ir->timer.expires  = jiffies + HZ;
+		ir->timer.expires  = jiffies + msecs_to_jiffies(1000);
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */

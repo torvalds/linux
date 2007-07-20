@@ -284,8 +284,8 @@ extern int fini_bttv_i2c(struct bttv *btv);
 #define d2printk if (bttv_debug >= 2) printk
 
 #define BTTV_MAX_FBUF   0x208000
-#define BTTV_TIMEOUT    (HZ/2) /* 0.5 seconds */
-#define BTTV_FREE_IDLE  (HZ)   /* one second */
+#define BTTV_TIMEOUT    msecs_to_jiffies(500)    /* 0.5 seconds */
+#define BTTV_FREE_IDLE  msecs_to_jiffies(1000)   /* one second */
 
 
 struct bttv_pll_info {

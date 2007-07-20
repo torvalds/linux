@@ -848,7 +848,7 @@ int ivtv_set_output_mode(struct ivtv *itv, int mode);
 struct ivtv_stream *ivtv_get_output_stream(struct ivtv *itv);
 
 /* Return non-zero if a signal is pending */
-int ivtv_sleep_timeout(int timeout, int intr);
+int ivtv_msleep_timeout(unsigned int msecs, int intr);
 
 /* Wait on queue, returns -EINTR if interrupted */
 int ivtv_waitq(wait_queue_head_t *waitq);

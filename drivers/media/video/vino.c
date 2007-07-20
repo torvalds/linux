@@ -2080,7 +2080,7 @@ static int vino_wait_for_frame(struct vino_channel_settings *vcs)
 
 	/* to ensure that schedule_timeout will return immediately
 	 * if VINO interrupt was triggered meanwhile */
-	schedule_timeout_interruptible(HZ / 10);
+	schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 	if (signal_pending(current))
 		err = -EINTR;

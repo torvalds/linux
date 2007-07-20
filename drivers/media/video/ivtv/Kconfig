@@ -1,6 +1,7 @@
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
 	depends on VIDEO_V4L1 && VIDEO_V4L2 && PCI && I2C && EXPERIMENTAL
+	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
@@ -16,11 +17,11 @@ config VIDEO_IVTV
 	select VIDEO_UPD64031A
 	select VIDEO_UPD64083
 	---help---
-	  This is a video4linux driver for Conexant cx23416 or cx23416 based
+	  This is a video4linux driver for Conexant cx23416 or cx23415 based
 	  PCI personal video recorder devices.
 
 	  This is used in devices such as the Hauppauge PVR-150/250/350/500
-	  cards.
+	  cards. There is a driver homepage at <http://www.ivtvdriver.org>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
