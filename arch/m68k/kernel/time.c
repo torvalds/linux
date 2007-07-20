@@ -72,7 +72,7 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 	return IRQ_HANDLED;
 }
 
-void time_init(void)
+void __init time_init(void)
 {
 	struct rtc_time time;
 
