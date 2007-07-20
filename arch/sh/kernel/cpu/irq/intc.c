@@ -244,13 +244,33 @@ static unsigned int __init intc_find_prio_handler(unsigned int width)
 	return REG_FN_ERROR;
 }
 
-static unsigned int __init intc_prio_value(struct intc_desc *desc,
-					   intc_enum enum_id)
+static intc_enum __init intc_grp_id(struct intc_desc *desc, intc_enum enum_id)
 {
+	struct intc_group *g = desc->groups;
+	unsigned int i, j;
+
+	for (i = 0; g && enum_id && i < desc->nr_groups; i++) {
+		g = desc->groups + i;
+
+		for (j = 0; g->enum_ids[j]; j++) {
+			if (g->enum_ids[j] != enum_id)
+				continue;
+
+			return g->enum_id;
+		}
+	}
+
+	return 0;
+}
+
+static unsigned int __init intc_prio_value(struct intc_desc *desc,
+					   intc_enum enum_id, int do_grps)
+{
+	struct intc_prio *p = desc->priorities;
 	unsigned int i;
 
-	for (i = 0; i < desc->nr_priorities; i++) {
-		struct intc_prio *p = desc->priorities + i;
+	for (i = 0; p && enum_id && i < desc->nr_priorities; i++) {
+		p = desc->priorities + i;
 
 		if (p->enum_id != enum_id)
 			continue;
@@ -258,16 +278,24 @@ static unsigned int __init intc_prio_value(struct intc_desc *desc,
 		return p->priority;
 	}
 
-	return 1; /* default to the lowest priority if no priority is set */
+	if (do_grps)
+		return intc_prio_value(desc, intc_grp_id(desc, enum_id), 0);
+
+	/* default to the lowest priority possible if no priority is set
+	 * - this needs to be at least 2 for 5-bit priorities on 7780
+	 */
+
+	return 2;
 }
 
 static unsigned int __init intc_mask_data(struct intc_desc *desc,
-					  intc_enum enum_id)
+					  intc_enum enum_id, int do_grps)
 {
+	struct intc_mask_reg *mr = desc->mask_regs;
 	unsigned int i, j, fn;
 
-	for (i = 0; i < desc->nr_mask_regs; i++) {
-		struct intc_mask_reg *mr = desc->mask_regs + i;
+	for (i = 0; mr && enum_id && i < desc->nr_mask_regs; i++) {
+		mr = desc->mask_regs + i;
 
 		for (j = 0; j < ARRAY_SIZE(mr->enum_ids); j++) {
 			if (mr->enum_ids[j] != enum_id)
@@ -281,16 +309,20 @@ static unsigned int __init intc_mask_data(struct intc_desc *desc,
 		}
 	}
 
+	if (do_grps)
+		return intc_mask_data(desc, intc_grp_id(desc, enum_id), 0);
+
 	return 0;
 }
 
 static unsigned int __init intc_prio_data(struct intc_desc *desc,
-					  intc_enum enum_id)
+					  intc_enum enum_id, int do_grps)
 {
+	struct intc_prio_reg *pr = desc->prio_regs;
 	unsigned int i, j, fn, bit, prio;
 
-	for (i = 0; i < desc->nr_prio_regs; i++) {
-		struct intc_prio_reg *pr = desc->prio_regs + i;
+	for (i = 0; pr && enum_id && i < desc->nr_prio_regs; i++) {
+		pr = desc->prio_regs + i;
 
 		for (j = 0; j < ARRAY_SIZE(pr->enum_ids); j++) {
 			if (pr->enum_ids[j] != enum_id)
@@ -300,7 +332,7 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 			if (fn == REG_FN_ERROR)
 				return 0;
 
-			prio = intc_prio_value(desc, enum_id);
+			prio = intc_prio_value(desc, enum_id, 1);
 			bit = pr->reg_width - ((j + 1) * pr->field_width);
 
 			BUG_ON(bit < 0);
@@ -309,27 +341,48 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 		}
 	}
 
+	if (do_grps)
+		return intc_prio_data(desc, intc_grp_id(desc, enum_id), 0);
+
 	return 0;
 }
 
 static void __init intc_register_irq(struct intc_desc *desc, intc_enum enum_id,
 				     unsigned int irq)
 {
-	unsigned int mask_data = intc_mask_data(desc, enum_id);
-	unsigned int prio_data = intc_prio_data(desc, enum_id);
-	unsigned int data = mask_data ? mask_data : prio_data;
+	unsigned int data[2], primary;
 
-	BUG_ON(!data);
+	/* Prefer single interrupt source bitmap over other combinations:
+	 * 1. bitmap, single interrupt source
+	 * 2. priority, single interrupt source
+	 * 3. bitmap, multiple interrupt sources (groups)
+	 * 4. priority, multiple interrupt sources (groups)
+	 */
+
+	data[0] = intc_mask_data(desc, enum_id, 0);
+	data[1] = intc_prio_data(desc, enum_id, 0);
+
+	primary = 0;
+	if (!data[0] && data[1])
+		primary = 1;
+
+	data[0] = data[0] ? data[0] : intc_mask_data(desc, enum_id, 1);
+	data[1] = data[1] ? data[1] : intc_prio_data(desc, enum_id, 1);
+
+	if (!data[primary])
+		primary ^= 1;
+
+	BUG_ON(!data[primary]); /* must have primary masking method */
 
 	disable_irq_nosync(irq);
 	set_irq_chip_and_handler_name(irq, &desc->chip,
 				      handle_level_irq, "level");
-	set_irq_chip_data(irq, (void *)data);
+	set_irq_chip_data(irq, (void *)data[primary]);
 
-	/* set priority */
-
-	if (prio_data)
-		intc_reg_fns[_INTC_FN(prio_data)].enable(desc, prio_data);
+	/* enable secondary masking method if present */
+	if (data[!primary])
+		intc_reg_fns[_INTC_FN(data[!primary])].enable(desc,
+							      data[!primary]);
 
 	/* irq should be disabled by default */
 	desc->chip.mask(irq);
