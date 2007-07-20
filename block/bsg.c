@@ -993,7 +993,7 @@ retry:
 	if (q->kobj.sd) {
 		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
 		if (ret)
-			goto err;
+			goto err_unregister;
 	}
 
 	list_add_tail(&bcd->list, &bsg_class_list);
@@ -1001,9 +1001,10 @@ retry:
 
 	mutex_unlock(&bsg_mutex);
 	return 0;
+
+err_unregister:
+	class_device_unregister(class_dev);
 err:
-	if (class_dev)
-		class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
