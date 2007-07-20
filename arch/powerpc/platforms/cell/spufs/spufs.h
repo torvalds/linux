@@ -44,6 +44,11 @@ enum {
 	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
 };
 
+/* ctx->sched_flags */
+enum {
+	SPU_SCHED_NOTIFY_ACTIVE,
+};
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -240,6 +245,7 @@ void spu_release_saved(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
+void spu_switch_notify(struct spu *spu, struct spu_context *ctx);
 void spu_set_timeslice(struct spu_context *ctx);
 void spu_update_sched_info(struct spu_context *ctx);
 void __spu_update_sched_info(struct spu_context *ctx);
