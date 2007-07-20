@@ -34,34 +34,24 @@
 #include "../scsi.h"
 #include <scsi/scsi_host.h>
 
-#define NCR5380_implementation_fields	int port, ctrl
-#define NCR5380_local_declare()		struct Scsi_Host *_instance
-#define NCR5380_setup(instance)		_instance = instance
+#define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 
-#define NCR5380_read(reg)		ecoscsi_read(_instance, reg)
-#define NCR5380_write(reg, value)	ecoscsi_write(_instance, reg, value)
+#define NCR5380_local_declare()		void __iomem *_base
+#define NCR5380_setup(host)		_base = priv(host)->base
+
+#define NCR5380_read(reg)		({ writeb(reg | 8, _base); readb(_base + 4); })
+#define NCR5380_write(reg, value)	({ writeb(reg | 8, _base); writeb(value, _base + 4); })
 
 #define NCR5380_intr			ecoscsi_intr
 #define NCR5380_queue_command		ecoscsi_queue_command
 #define NCR5380_proc_info		ecoscsi_proc_info
 
+#define NCR5380_implementation_fields	\
+	void __iomem *base
+
 #include "../NCR5380.h"
 
 #define ECOSCSI_PUBLIC_RELEASE 1
-
-static char ecoscsi_read(struct Scsi_Host *instance, int reg)
-{
-  int iobase = instance->io_port;
-  outb(reg | 8, iobase);
-  return inb(iobase + 1);
-}
-
-static void ecoscsi_write(struct Scsi_Host *instance, int reg, int value)
-{
-  int iobase = instance->io_port;
-  outb(reg | 8, iobase);
-  outb(value, iobase + 1);
-}
 
 /*
  * Function : ecoscsi_setup(char *str, int *ints)
@@ -81,73 +71,6 @@ const char * ecoscsi_info (struct Scsi_Host *spnt)
 {
 	return "";
 }
-
-#if 0
-#define STAT(p) inw(p + 144)
-
-static inline int NCR5380_pwrite(struct Scsi_Host *host, unsigned char *addr,
-              int len)
-{
-  int iobase = host->io_port;
-printk("writing %p len %d\n",addr, len);
-  if(!len) return -1;
-
-  while(1)
-  {
-    int status;
-    while(((status = STAT(iobase)) & 0x100)==0);
-  }
-}
-
-static inline int NCR5380_pread(struct Scsi_Host *host, unsigned char *addr,
-              int len)
-{
-  int iobase = host->io_port;
-  int iobase2= host->io_port + 0x100;
-  unsigned char *start = addr;
-  int s;
-printk("reading %p len %d\n",addr, len);
-  outb(inb(iobase + 128), iobase + 135);
-  while(len > 0)
-  {
-    int status,b,i, timeout;
-    timeout = 0x07FFFFFF;
-    while(((status = STAT(iobase)) & 0x100)==0)
-    {
-      timeout--;
-      if(status & 0x200 || !timeout)
-      {
-        printk("status = %p\n",status);
-        outb(0, iobase + 135);
-        return 1;
-      }
-    }
-    if(len >= 128)
-    {
-      for(i=0; i<64; i++)
-      {
-        b = inw(iobase + 136);
-        *addr++ = b;
-        *addr++ = b>>8;
-      }
-      len -= 128;
-    }
-    else
-    {
-      b = inw(iobase + 136);
-      *addr ++ = b;
-      len -= 1;
-      if(len)
-        *addr ++ = b>>8;
-      len -= 1;
-    }
-  }
-  outb(0, iobase + 135);
-  printk("first bytes = %02X %02X %02X %20X %02X %02X %02X\n",*start, start[1], start[2], start[3], start[4], start[5], start[6]);
-  return 1;
-}
-#endif
-#undef STAT
 
 #define BOARD_NORMAL	0
 #define BOARD_NCR53C400	1
@@ -173,25 +96,36 @@ static struct Scsi_Host *host;
 
 static int __init ecoscsi_init(void)
 {
+	void __iomem *_base;
+	int ret;
+
+	if (!request_mem_region(0x33a0000, 4096, "ecoscsi")) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	_base = ioremap(0x33a0000, 4096);
+	if (!_base) {
+		ret = -ENOMEM;
+		goto out_release;
+	}
+
+	NCR5380_write(MODE_REG, 0x20);		/* Is it really SCSI? */
+	if (NCR5380_read(MODE_REG) != 0x20)	/* Write to a reg.    */
+		goto out_unmap;
+
+	NCR5380_write(MODE_REG, 0x00);		/* it back.	      */
+	if (NCR5380_read(MODE_REG) != 0x00)
+		goto out_unmap;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct NCR5380_hostdata));
-	if (!host)
-		return 0;
+	if (!host) {
+		ret = -ENOMEM;
+		goto out_unmap;
+	}
 
-	host->io_port = 0x80ce8000;
-	host->n_io_port = 144;
+	priv(host)->base = _base;
 	host->irq = IRQ_NONE;
-
-	if (!(request_region(host->io_port, host->n_io_port, "ecoscsi")) )
-		goto unregister_scsi;
-
-	ecoscsi_write(host, MODE_REG, 0x20);		/* Is it really SCSI? */
-	if (ecoscsi_read(host, MODE_REG) != 0x20) /* Write to a reg.    */
-		goto release_reg;
-
-	ecoscsi_write(host, MODE_REG, 0x00 );		/* it back.	      */
-	if (ecoscsi_read(host, MODE_REG) != 0x00)
-		goto release_reg;
 
 	NCR5380_init(host, 0);
 
@@ -206,24 +140,20 @@ static int __init ecoscsi_init(void)
 	scsi_scan_host(host);
 	return 0;
 
-release_reg:
-	release_region(host->io_port, host->n_io_port);
-unregister_scsi:
-	scsi_host_put(host);
-	return -ENODEV;
+ out_unmap:
+	iounmap(_base);
+ out_release:
+	release_mem_region(0x33a0000, 4096);
+ out:
+	return ret;
 }
 
 static void __exit ecoscsi_exit(void)
 {
 	scsi_remove_host(host);
-
-	if (shpnt->irq != IRQ_NONE)
-		free_irq(shpnt->irq, NULL);
 	NCR5380_exit(host);
-	if (shpnt->io_port)
-		release_region(shpnt->io_port, shpnt->n_io_port);
-
 	scsi_host_put(host);
+	release_mem_region(0x33a0000, 4096);
 	return 0;
 }
 
