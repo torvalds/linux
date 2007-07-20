@@ -612,12 +612,6 @@ config CPU_CACHE_ROUND_ROBIN
 	  Say Y here to use the predictable round-robin cache replacement
 	  policy.  Unless you specifically require this or are unsure, say N.
 
-config CPU_L2CACHE_DISABLE
-	bool "Disable level 2 cache"
-	depends on CPU_V7
-	help
-	  Say Y here to disable the level 2 cache.  If unsure, say N.
-
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
 	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3 || CPU_V7

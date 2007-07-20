@@ -176,16 +176,6 @@ __v7_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
-#ifndef CONFIG_CPU_L2CACHE_DISABLE
-	@ L2 cache configuration in the L2 aux control register
-	mrc	p15, 1, r10, c9, c0, 2
-	bic	r10, r10, #(1 << 16)		@ L2 outer cache
-	mcr	p15, 1, r10, c9, c0, 2
-	@ L2 cache is enabled in the aux control register
-	mrc	p15, 0, r10, c1, c0, 1
-	orr	r10, r10, #2
-	mcr	p15, 0, r10, c1, c0, 1
-#endif
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	ldr	r10, cr1_clear			@ get mask for bits to clear
 	bic	r0, r0, r10			@ clear bits them
