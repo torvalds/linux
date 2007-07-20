@@ -974,13 +974,13 @@ static inline void terminate_spu_app(struct spu_state *csa, struct spu *spu)
 	 */
 }
 
-static inline void suspend_mfc(struct spu_state *csa, struct spu *spu)
+static inline void suspend_mfc_and_halt_decr(struct spu_state *csa,
+		struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
 	/* Restore, Step 7:
-	 * Restore, Step 47.
-	 *     Write MFC_Cntl[Dh,Sc]='1','1' to suspend
+	 *     Write MFC_Cntl[Dh,Sc,Sm]='1','1','0' to suspend
 	 *     the queue and halt the decrementer.
 	 */
 	out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE |
@@ -1395,6 +1395,18 @@ static inline void restore_ls_16kb(struct spu_state *csa, struct spu *spu)
 	 *     16kb of local storage from CSA.
 	 */
 	send_mfc_dma(spu, addr, ls_offset, size, tag, rclass, cmd);
+}
+
+static inline void suspend_mfc(struct spu_state *csa, struct spu *spu)
+{
+	struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+	/* Restore, Step 47.
+	 *     Write MFC_Cntl[Sc,Sm]='1','0' to suspend
+	 *     the queue.
+	 */
+	out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
+	eieio();
 }
 
 static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
@@ -1926,7 +1938,7 @@ static void harvest(struct spu_state *prev, struct spu *spu)
 	set_switch_pending(prev, spu);	        /* Step 5.  */
 	stop_spu_isolate(spu);			/* NEW.     */
 	remove_other_spu_access(prev, spu);	/* Step 6.  */
-	suspend_mfc(prev, spu);	                /* Step 7.  */
+	suspend_mfc_and_halt_decr(prev, spu);	/* Step 7.  */
 	wait_suspend_mfc_complete(prev, spu);	/* Step 8.  */
 	if (!suspend_spe(prev, spu))	        /* Step 9.  */
 		clear_spu_status(prev, spu);	/* Step 10. */
