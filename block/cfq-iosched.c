@@ -115,9 +115,6 @@ struct cfq_data {
 	unsigned int cfq_slice_idle;
 
 	struct list_head cic_list;
-
-	sector_t new_seek_mean;
-	u64 new_seek_total;
 };
 
 /*
@@ -157,8 +154,6 @@ struct cfq_queue {
 
 	/* various state flags, see below */
 	unsigned int flags;
-
-	sector_t last_request_pos;
 };
 
 enum cfqq_state_flags {
@@ -1621,11 +1616,6 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
 	else
 		sdist = cic->last_request_pos - rq->sector;
 
-	if (!cic->seek_samples) {
-		cfqd->new_seek_total = (7*cic->seek_total + (u64)256*sdist) / 8;
-		cfqd->new_seek_mean = cfqd->new_seek_total / 256;
-	}
-
 	/*
 	 * Don't allow the seek distance to get too large from the
 	 * odd fragment, pagein, etc
@@ -1761,7 +1751,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
 	cic->last_request_pos = rq->sector + rq->nr_sectors;
-	cfqq->last_request_pos = cic->last_request_pos;
 
 	if (cfqq == cfqd->active_queue) {
 		/*
