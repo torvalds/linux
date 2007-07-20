@@ -13,11 +13,11 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/reboot.h>
 #include <linux/cpu.h>
 
 #include <asm/ldc.h>
 #include <asm/vio.h>
-#include <asm/power.h>
 #include <asm/mdesc.h>
 #include <asm/head.h>
 #include <asm/irq.h>
@@ -328,7 +328,7 @@ static void domain_shutdown_data(struct ldc_channel *lp,
 
 	ds_send(lp, &pkt, sizeof(pkt));
 
-	wake_up_powerd();
+	orderly_poweroff(true);
 }
 
 struct ds_panic_req {
@@ -1132,8 +1132,6 @@ static int __devinit ds_probe(struct vio_dev *vdev,
 		goto out_free_ldc;
 
 	ds_info = dp;
-
-	start_powerd();
 
 	return err;
 

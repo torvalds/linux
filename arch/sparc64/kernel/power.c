@@ -12,13 +12,13 @@
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/syscalls.h>
+#include <linux/reboot.h>
 
 #include <asm/system.h>
 #include <asm/auxio.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
 #include <asm/io.h>
-#include <asm/power.h>
 #include <asm/sstate.h>
 
 #include <linux/unistd.h>
@@ -31,20 +31,9 @@ int scons_pwroff = 1;
 
 static void __iomem *power_reg;
 
-static DECLARE_WAIT_QUEUE_HEAD(powerd_wait);
-static int button_pressed;
-
-void wake_up_powerd(void)
-{
-	if (button_pressed == 0) {
-		button_pressed = 1;
-		wake_up(&powerd_wait);
-	}
-}
-
 static irqreturn_t power_handler(int irq, void *dev_id)
 {
-	wake_up_powerd();
+	orderly_poweroff(true);
 
 	/* FIXME: Check registers for status... */
 	return IRQ_HANDLED;
@@ -77,48 +66,6 @@ void machine_power_off(void)
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
-static int powerd(void *__unused)
-{
-	static char *envp[] = { "HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
-	char *argv[] = { "/sbin/shutdown", "-h", "now", NULL };
-	DECLARE_WAITQUEUE(wait, current);
-
-	daemonize("powerd");
-
-	add_wait_queue(&powerd_wait, &wait);
-
-	for (;;) {
-		set_task_state(current, TASK_INTERRUPTIBLE);
-		if (button_pressed)
-			break;
-		flush_signals(current);
-		schedule();
-	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&powerd_wait, &wait);
-
-	/* Ok, down we go... */
-	button_pressed = 0;
-	if (kernel_execve("/sbin/shutdown", argv, envp) < 0) {
-		printk(KERN_ERR "powerd: shutdown execution failed\n");
-		machine_power_off();
-	}
-	return 0;
-}
-
-int start_powerd(void)
-{
-	int err;
-
-	err = kernel_thread(powerd, NULL, CLONE_FS);
-	if (err < 0)
-		printk(KERN_ERR "power: Failed to start power daemon.\n");
-	else
-		printk(KERN_INFO "power: powerd running.\n");
-
-	return err;
-}
-
 static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
 	if (irq == 0xffffffff)
@@ -136,20 +83,15 @@ static int __devinit power_probe(struct of_device *op, const struct of_device_id
 
 	power_reg = of_ioremap(res, 0, 0x4, "power");
 
-	printk("%s: Control reg at %lx ... ",
+	printk(KERN_INFO "%s: Control reg at %lx\n",
 	       op->node->name, res->start);
 
 	poweroff_method = machine_halt;  /* able to use the standard halt */
 
 	if (has_button_interrupt(irq, op->node)) {
-		if (start_powerd() < 0)
-			return 0;
-
 		if (request_irq(irq,
 				power_handler, 0, "power", NULL) < 0)
 			printk(KERN_ERR "power: Cannot setup IRQ handler.\n");
-	} else {
-		printk(KERN_INFO "power: Not using powerd.\n");
 	}
 
 	return 0;

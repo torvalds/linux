@@ -103,9 +103,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct vio_dev *vdev = to_vio_dev(dev);
 	const char *str = "none";
 
-	if (!strcmp(vdev->type, "network"))
+	if (!strcmp(vdev->type, "vnet-port"))
 		str = "vnet";
-	else if (!strcmp(vdev->type, "block"))
+	else if (!strcmp(vdev->type, "vdc-port"))
 		str = "vdisk";
 
 	return sprintf(buf, "%s\n", str);
@@ -221,6 +221,27 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		return NULL;
 	}
 
+	if (!strcmp(type, "vdc-port")) {
+		u64 a;
+
+		id = NULL;
+		mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
+			u64 target;
+
+			target = mdesc_arc_target(hp, a);
+			id = mdesc_get_property(hp, target,
+						"cfg-handle", NULL);
+			if (id)
+				break;
+		}
+		if (!id) {
+			printk(KERN_ERR "VIO: vdc-port lacks parent "
+			       "cfg-handle.\n");
+			return NULL;
+		}
+	} else
+		id = mdesc_get_property(hp, mp, "id", NULL);
+
 	bus_id_name = type;
 	if (!strcmp(type, "domain-services-port"))
 		bus_id_name = "ds";
@@ -260,13 +281,15 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	vio_fill_channel_info(hp, mp, vdev);
 
-	id = mdesc_get_property(hp, mp, "id", NULL);
-	if (!id)
+	if (!id) {
 		snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%s",
 			 bus_id_name);
-	else
+		vdev->dev_no = ~(u64)0;
+	} else {
 		snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%s-%lu",
 			 bus_id_name, *id);
+		vdev->dev_no = *id;
+	}
 
 	vdev->dev.parent = parent;
 	vdev->dev.bus = &vio_bus_type;

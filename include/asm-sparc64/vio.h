@@ -275,6 +275,8 @@ struct vio_dev {
 	char			compat[VIO_MAX_COMPAT_LEN];
 	int			compat_len;
 
+	u64			dev_no;
+
 	unsigned long		channel_id;
 
 	unsigned int		tx_irq;

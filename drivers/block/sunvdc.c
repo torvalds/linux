@@ -64,7 +64,6 @@ struct vdc_port {
 	u64			operations;
 	u32			vdisk_size;
 	u8			vdisk_type;
-	u8			dev_no;
 
 	char			disk_name[32];
 
@@ -703,7 +702,7 @@ static int probe_disk(struct vdc_port *port)
 	blk_queue_max_phys_segments(q, port->ring_cookies);
 	blk_queue_max_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
-	g->first_minor = port->dev_no << PARTITION_SHIFT;
+	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
 	strcpy(g->disk_name, port->disk_name);
 
 	g->fops = &vdc_fops;
@@ -747,21 +746,16 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 {
 	struct mdesc_handle *hp;
 	struct vdc_port *port;
-	const u64 *port_id;
 	int err;
 
 	print_version();
 
 	hp = mdesc_grab();
 
-	port_id = mdesc_get_property(hp, vdev->mp, "id", NULL);
 	err = -ENODEV;
-	if (!port_id) {
-		printk(KERN_ERR PFX "Port lacks id property.\n");
-		goto err_out_release_mdesc;
-	}
-	if ((*port_id << PARTITION_SHIFT) & ~(u64)MINORMASK) {
-		printk(KERN_ERR PFX "Port id [%lu] too large.\n", *port_id);
+	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
+		printk(KERN_ERR PFX "Port id [%lu] too large.\n",
+		       vdev->dev_no);
 		goto err_out_release_mdesc;
 	}
 
@@ -772,16 +766,14 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 		goto err_out_release_mdesc;
 	}
 
-	port->dev_no = *port_id;
-
-	if (port->dev_no >= 26)
+	if (vdev->dev_no >= 26)
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c%c",
-			 'a' + (port->dev_no / 26) - 1,
-			 'a' + (port->dev_no % 26));
+			 'a' + ((int)vdev->dev_no / 26) - 1,
+			 'a' + ((int)vdev->dev_no % 26));
 	else
 		snprintf(port->disk_name, sizeof(port->disk_name),
-			 VDCBLK_NAME "%c", 'a' + (port->dev_no % 26));
+			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_no % 26));
 
 	err = vio_driver_init(&port->vio, vdev, VDEV_DISK,
 			      vdc_versions, ARRAY_SIZE(vdc_versions),
@@ -849,7 +841,7 @@ static struct vio_device_id vdc_port_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(vio, vdc_match);
+MODULE_DEVICE_TABLE(vio, vdc_port_match);
 
 static struct vio_driver vdc_port_driver = {
 	.id_table	= vdc_port_match,

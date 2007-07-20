@@ -231,6 +231,25 @@ void mdesc_register_notifier(struct mdesc_notifier_client *client)
 	mutex_unlock(&mdesc_mutex);
 }
 
+static const u64 *parent_cfg_handle(struct mdesc_handle *hp, u64 node)
+{
+	const u64 *id;
+	u64 a;
+
+	id = NULL;
+	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 target;
+
+		target = mdesc_arc_target(hp, a);
+		id = mdesc_get_property(hp, target,
+					"cfg-handle", NULL);
+		if (id)
+			break;
+	}
+
+	return id;
+}
+
 /* Run 'func' on nodes which are in A but not in B.  */
 static void invoke_on_missing(const char *name,
 			      struct mdesc_handle *a,
@@ -240,13 +259,42 @@ static void invoke_on_missing(const char *name,
 	u64 node;
 
 	mdesc_for_each_node_by_name(a, node, name) {
-		const u64 *id = mdesc_get_property(a, node, "id", NULL);
-		int found = 0;
+		int found = 0, is_vdc_port = 0;
+		const char *name_prop;
+		const u64 *id;
 		u64 fnode;
 
+		name_prop = mdesc_get_property(a, node, "name", NULL);
+		if (name_prop && !strcmp(name_prop, "vdc-port")) {
+			is_vdc_port = 1;
+			id = parent_cfg_handle(a, node);
+		} else
+			id = mdesc_get_property(a, node, "id", NULL);
+
+		if (!id) {
+			printk(KERN_ERR "MD: Cannot find ID for %s node.\n",
+			       (name_prop ? name_prop : name));
+			continue;
+		}
+
 		mdesc_for_each_node_by_name(b, fnode, name) {
-			const u64 *fid = mdesc_get_property(b, fnode,
-							    "id", NULL);
+			const u64 *fid;
+
+			if (is_vdc_port) {
+				name_prop = mdesc_get_property(b, fnode,
+							       "name", NULL);
+				if (!name_prop ||
+				    strcmp(name_prop, "vdc-port"))
+					continue;
+				fid = parent_cfg_handle(b, fnode);
+				if (!fid) {
+					printk(KERN_ERR "MD: Cannot find ID "
+					       "for vdc-port node.\n");
+					continue;
+				}
+			} else
+				fid = mdesc_get_property(b, fnode,
+							 "id", NULL);
 
 			if (*id == *fid) {
 				found = 1;
