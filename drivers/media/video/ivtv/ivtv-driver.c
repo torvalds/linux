@@ -1154,8 +1154,13 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;
 	vf.frequency = 6400; /* the tuner 'baseline' frequency */
-	if (itv->std & V4L2_STD_NTSC_M) {
-		/* Why on earth? */
+
+	/* Set initial frequency. For PAL/SECAM broadcasts no
+	   'default' channel exists AFAIK. */
+	if (itv->std == V4L2_STD_NTSC_M_JP) {
+		vf.frequency = 1460;	/* ch. 1 91250*16/1000 */
+	}
+	else if (itv->std & V4L2_STD_NTSC_M) {
 		vf.frequency = 1076;	/* ch. 4 67250*16/1000 */
 	}
 
