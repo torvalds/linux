@@ -89,11 +89,9 @@
 
 extern const u32 yuv_offset[4];
 
-/* Maximum ivtv driver instances.
-   Based on 6 PVR500s each with two PVR15s...
-   TODO: make this dynamic. I believe it is only a global in order to support
-    ivtv-fb. There must be a better way to do that. */
-#define IVTV_MAX_CARDS 12
+/* Maximum ivtv driver instances. Some people have a huge number of
+   capture cards, so set this to a high value. */
+#define IVTV_MAX_CARDS 32
 
 /* Supported cards */
 #define IVTV_CARD_PVR_250 	      0	/* WinTV PVR 250 */
@@ -303,28 +301,10 @@ extern const u32 yuv_offset[4];
 #define IVTV_DEBUG_HI_DEC(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
 #define IVTV_DEBUG_HI_YUV(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
 
-#define IVTV_FB_DEBUG(x, type, fmt, args...) \
-	do { \
-		if ((x) & ivtv_debug) \
-			printk(KERN_INFO "ivtv%d-fb " type ": " fmt, itv->num , ## args); \
-	} while (0)
-#define IVTV_FB_DEBUG_WARN(fmt, args...)  IVTV_FB_DEBUG(IVTV_DBGFLG_WARN, "warning", fmt , ## args)
-#define IVTV_FB_DEBUG_INFO(fmt, args...)  IVTV_FB_DEBUG(IVTV_DBGFLG_INFO, "info", fmt , ## args)
-#define IVTV_FB_DEBUG_API(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_API, "api", fmt , ## args)
-#define IVTV_FB_DEBUG_DMA(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_DMA, "dma", fmt , ## args)
-#define IVTV_FB_DEBUG_IOCTL(fmt, args...) IVTV_FB_DEBUG(IVTV_DBGFLG_IOCTL, "ioctl", fmt , ## args)
-#define IVTV_FB_DEBUG_I2C(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_I2C, "i2c", fmt , ## args)
-#define IVTV_FB_DEBUG_IRQ(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_IRQ, "irq", fmt , ## args)
-#define IVTV_FB_DEBUG_DEC(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
-#define IVTV_FB_DEBUG_YUV(fmt, args...)   IVTV_FB_DEBUG(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
-
 /* Standard kernel messages */
 #define IVTV_ERR(fmt, args...)      printk(KERN_ERR  "ivtv%d: " fmt, itv->num , ## args)
 #define IVTV_WARN(fmt, args...)     printk(KERN_WARNING "ivtv%d: " fmt, itv->num , ## args)
 #define IVTV_INFO(fmt, args...)     printk(KERN_INFO "ivtv%d: " fmt, itv->num , ## args)
-#define IVTV_FB_ERR(fmt, args...)   printk(KERN_ERR  "ivtv%d-fb: " fmt, itv->num , ## args)
-#define IVTV_FB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtv%d-fb: " fmt, itv->num , ## args)
-#define IVTV_FB_INFO(fmt, args...)  printk(KERN_INFO "ivtv%d-fb: " fmt, itv->num , ## args)
 
 /* Values for IVTV_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
 #define MPEG_FRAME_TYPE_IFRAME 1

@@ -5,3 +5,4 @@ ivtv-objs	:= ivtv-audio.o ivtv-cards.o ivtv-controls.o \
 		   ivtv-vbi.o ivtv-video.o ivtv-yuv.o
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv.o
+obj-$(CONFIG_VIDEO_IVTV_FB) += ivtv-fb.o

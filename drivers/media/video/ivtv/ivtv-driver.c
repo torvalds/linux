@@ -95,8 +95,14 @@ const u32 yuv_offset[4] = {
 
 /* Parameter declarations */
 static int cardtype[IVTV_MAX_CARDS];
-static int tuner[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static int tuner[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1 };
+static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1,
+				     -1, -1, -1, -1, -1, -1, -1, -1 };
 
 static int cardtype_c = 1;
 static int tuner_c = 1;
@@ -1242,8 +1248,10 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		retval = -ENODEV;
 	IVTV_ERR("Error %d on initialization\n", retval);
 
+	spin_lock(&ivtv_cards_lock);
 	kfree(ivtv_cards[ivtv_cards_active]);
 	ivtv_cards[ivtv_cards_active] = NULL;
+	spin_unlock(&ivtv_cards_lock);
 	return retval;
 }
 
@@ -1346,6 +1354,7 @@ static void module_cleanup(void)
 
 	pci_unregister_driver(&ivtv_pci_driver);
 
+	spin_lock(&ivtv_cards_lock);
 	for (i = 0; i < ivtv_cards_active; i++) {
 		if (ivtv_cards[i] == NULL)
 			continue;
@@ -1354,6 +1363,7 @@ static void module_cleanup(void)
 		}
 		kfree(ivtv_cards[i]);
 	}
+	spin_unlock(&ivtv_cards_lock);
 }
 
 /* Note: These symbols are exported because they are used by the ivtv-fb
@@ -1361,6 +1371,7 @@ static void module_cleanup(void)
 EXPORT_SYMBOL(ivtv_set_irq_mask);
 EXPORT_SYMBOL(ivtv_cards_active);
 EXPORT_SYMBOL(ivtv_cards);
+EXPORT_SYMBOL(ivtv_cards_lock);
 EXPORT_SYMBOL(ivtv_api);
 EXPORT_SYMBOL(ivtv_vapi);
 EXPORT_SYMBOL(ivtv_vapi_result);
