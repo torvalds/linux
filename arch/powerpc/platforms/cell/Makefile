@@ -25,3 +25,5 @@ obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   $(spu-priv1-y) \
 					   $(spu-manage-y) \
 					   spufs/
+
+obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
