@@ -943,8 +943,8 @@ refill:
 	descr->prev->next_descr_addr = descr->bus_addr;
 
 	if (dmac_chain_ended) {
-		gelic_net_enable_rxdmac(card);
-		dev_dbg(ctodev(card), "reenable rx dma\n");
+		card->rx_dma_restart_required = 1;
+		dev_dbg(ctodev(card), "reenable rx dma scheduled\n");
 	}
 
 	return 1;
@@ -1019,6 +1019,11 @@ static irqreturn_t gelic_net_interrupt(int irq, void *ptr)
 
 	if (!status)
 		return IRQ_NONE;
+
+	if (card->rx_dma_restart_required) {
+		card->rx_dma_restart_required = 0;
+		gelic_net_enable_rxdmac(card);
+	}
 
 	if (status & GELIC_NET_RXINT) {
 		gelic_net_rx_irq_off(card);

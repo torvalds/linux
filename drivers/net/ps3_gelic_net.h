@@ -206,6 +206,7 @@ struct gelic_net_card {
 
 	struct gelic_net_descr_chain tx_chain;
 	struct gelic_net_descr_chain rx_chain;
+	int rx_dma_restart_required;
 	/* gurad dmac descriptor chain*/
 	spinlock_t chain_lock;
 
