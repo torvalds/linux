@@ -1347,7 +1347,7 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 		tbl->kmem_cachep =
 			kmem_cache_create(tbl->id, tbl->entry_size, 0,
 					  SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					  NULL, NULL);
+					  NULL);
 	tbl->stats = alloc_percpu(struct neigh_statistics);
 	if (!tbl->stats)
 		panic("cannot create neighbour cache statistics");

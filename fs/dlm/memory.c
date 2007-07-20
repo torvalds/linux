@@ -23,7 +23,7 @@ int dlm_memory_init(void)
 	int ret = 0;
 
 	lkb_cache = kmem_cache_create("dlm_lkb", sizeof(struct dlm_lkb),
-				__alignof__(struct dlm_lkb), 0, NULL, NULL);
+				__alignof__(struct dlm_lkb), 0, NULL);
 	if (!lkb_cache)
 		ret = -ENOMEM;
 	return ret;

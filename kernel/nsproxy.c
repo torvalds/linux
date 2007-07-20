@@ -193,7 +193,7 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 static int __init nsproxy_cache_init(void)
 {
 	nsproxy_cachep = kmem_cache_create("nsproxy", sizeof(struct nsproxy),
-					   0, SLAB_PANIC, NULL, NULL);
+					   0, SLAB_PANIC, NULL);
 	return 0;
 }
 

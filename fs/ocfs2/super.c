@@ -984,7 +984,7 @@ static int ocfs2_initialize_mem_caches(void)
 				       0,
 				       (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-				       ocfs2_inode_init_once, NULL);
+				       ocfs2_inode_init_once);
 	if (!ocfs2_inode_cachep)
 		return -ENOMEM;
 

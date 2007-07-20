@@ -1388,8 +1388,7 @@ void __init inode_init(unsigned long mempages)
 					 0,
 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 					 SLAB_MEM_SPREAD),
-					 init_once,
-					 NULL);
+					 init_once);
 	register_shrinker(&icache_shrinker);
 
 	/* Hash may have been set up in inode_init_early */

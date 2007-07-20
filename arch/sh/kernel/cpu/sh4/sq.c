@@ -371,8 +371,7 @@ static int __init sq_api_init(void)
 	printk(KERN_NOTICE "sq: Registering store queue API.\n");
 
 	sq_cache = kmem_cache_create("store_queue_cache",
-				sizeof(struct sq_mapping), 0, 0,
-				NULL, NULL);
+				sizeof(struct sq_mapping), 0, 0, NULL);
 	if (unlikely(!sq_cache))
 		return ret;
 

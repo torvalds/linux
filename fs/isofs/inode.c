@@ -86,7 +86,7 @@ static int init_inodecache(void)
 					sizeof(struct iso_inode_info),
 					0, (SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD),
-					init_once, NULL);
+					init_once);
 	if (isofs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

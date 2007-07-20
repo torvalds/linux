@@ -540,7 +540,7 @@ int __init nf_conntrack_expect_init(void)
 
 	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
 					sizeof(struct nf_conntrack_expect),
-					0, 0, NULL, NULL);
+					0, 0, NULL);
 	if (!nf_ct_expect_cachep)
 		goto err2;
 

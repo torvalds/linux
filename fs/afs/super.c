@@ -89,8 +89,7 @@ int __init afs_fs_init(void)
 					     sizeof(struct afs_vnode),
 					     0,
 					     SLAB_HWCACHE_ALIGN,
-					     afs_i_init_once,
-					     NULL);
+					     afs_i_init_once);
 	if (!afs_inode_cachep) {
 		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
 		return ret;

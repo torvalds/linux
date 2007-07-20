@@ -1729,7 +1729,7 @@ static int __init ether1394_init_module(void)
 
 	packet_task_cache = kmem_cache_create("packet_task",
 					      sizeof(struct packet_task),
-					      0, 0, NULL, NULL);
+					      0, 0, NULL);
 	if (!packet_task_cache)
 		return -ENOMEM;
 

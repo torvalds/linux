@@ -980,14 +980,14 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_bucket_cachep = kmem_cache_create("sctp_bind_bucket",
 					       sizeof(struct sctp_bind_bucket),
 					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
+					       NULL);
 	if (!sctp_bucket_cachep)
 		goto out;
 
 	sctp_chunk_cachep = kmem_cache_create("sctp_chunk",
 					       sizeof(struct sctp_chunk),
 					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
+					       NULL);
 	if (!sctp_chunk_cachep)
 		goto err_chunk_cachep;
 

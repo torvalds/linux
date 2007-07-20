@@ -1950,13 +1950,13 @@ int ehca_init_mrmw_cache(void)
 	mr_cache = kmem_cache_create("ehca_cache_mr",
 				     sizeof(struct ehca_mr), 0,
 				     SLAB_HWCACHE_ALIGN,
-				     NULL, NULL);
+				     NULL);
 	if (!mr_cache)
 		return -ENOMEM;
 	mw_cache = kmem_cache_create("ehca_cache_mw",
 				     sizeof(struct ehca_mw), 0,
 				     SLAB_HWCACHE_ALIGN,
-				     NULL, NULL);
+				     NULL);
 	if (!mw_cache) {
 		kmem_cache_destroy(mr_cache);
 		mr_cache = NULL;

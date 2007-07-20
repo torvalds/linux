@@ -2322,7 +2322,7 @@ static int init_inodecache(void)
 {
 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
 				sizeof(struct shmem_inode_info),
-				0, 0, init_once, NULL);
+				0, 0, init_once);
 	if (shmem_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

@@ -592,7 +592,7 @@ static int __init init_dlmfs_fs(void)
 				sizeof(struct dlmfs_inode_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD),
-				dlmfs_init_once, NULL);
+				dlmfs_init_once);
 	if (!dlmfs_inode_cache)
 		return -ENOMEM;
 	cleanup_inode = 1;

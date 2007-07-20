@@ -86,7 +86,7 @@ int __init sysfs_init(void)
 
 	sysfs_dir_cachep = kmem_cache_create("sysfs_dir_cache",
 					      sizeof(struct sysfs_dirent),
-					      0, 0, NULL, NULL);
+					      0, 0, NULL);
 	if (!sysfs_dir_cachep)
 		goto out;
 

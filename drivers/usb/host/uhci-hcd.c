@@ -933,7 +933,7 @@ static int __init uhci_hcd_init(void)
 	}
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
-		sizeof(struct urb_priv), 0, 0, NULL, NULL);
+		sizeof(struct urb_priv), 0, 0, NULL);
 	if (!uhci_up_cachep)
 		goto up_failed;
 

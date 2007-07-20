@@ -387,7 +387,7 @@ int ehca_init_cq_cache(void)
 	cq_cache = kmem_cache_create("ehca_cache_cq",
 				     sizeof(struct ehca_cq), 0,
 				     SLAB_HWCACHE_ALIGN,
-				     NULL, NULL);
+				     NULL);
 	if (!cq_cache)
 		return -ENOMEM;
 	return 0;

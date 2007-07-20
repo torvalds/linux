@@ -2998,7 +2998,6 @@ static int __init ib_mad_init_module(void)
 					 sizeof(struct ib_mad_private),
 					 0,
 					 SLAB_HWCACHE_ALIGN,
-					 NULL,
 					 NULL);
 	if (!ib_mad_cache) {
 		printk(KERN_ERR PFX "Couldn't create ib_mad cache\n");

@@ -205,7 +205,7 @@ static int dcookie_init(void)
 
 	dcookie_cache = kmem_cache_create("dcookie_cache",
 		sizeof(struct dcookie_struct),
-		0, 0, NULL, NULL);
+		0, 0, NULL);
 
 	if (!dcookie_cache)
 		goto out;

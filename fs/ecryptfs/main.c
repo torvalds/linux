@@ -677,7 +677,7 @@ static int ecryptfs_init_kmem_caches(void)
 
 		info = &ecryptfs_cache_infos[i];
 		*(info->cache) = kmem_cache_create(info->name, info->size,
-				0, SLAB_HWCACHE_ALIGN, info->ctor, NULL);
+				0, SLAB_HWCACHE_ALIGN, info->ctor);
 		if (!*(info->cache)) {
 			ecryptfs_free_kmem_caches();
 			ecryptfs_printk(KERN_WARNING, "%s: "

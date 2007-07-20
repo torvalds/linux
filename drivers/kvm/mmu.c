@@ -1332,24 +1332,24 @@ int kvm_mmu_module_init(void)
 {
 	pte_chain_cache = kmem_cache_create("kvm_pte_chain",
 					    sizeof(struct kvm_pte_chain),
-					    0, 0, NULL, NULL);
+					    0, 0, NULL);
 	if (!pte_chain_cache)
 		goto nomem;
 	rmap_desc_cache = kmem_cache_create("kvm_rmap_desc",
 					    sizeof(struct kvm_rmap_desc),
-					    0, 0, NULL, NULL);
+					    0, 0, NULL);
 	if (!rmap_desc_cache)
 		goto nomem;
 
 	mmu_page_cache = kmem_cache_create("kvm_mmu_page",
 					   PAGE_SIZE,
-					   PAGE_SIZE, 0, NULL, NULL);
+					   PAGE_SIZE, 0, NULL);
 	if (!mmu_page_cache)
 		goto nomem;
 
 	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
 						  sizeof(struct kvm_mmu_page),
-						  0, 0, NULL, NULL);
+						  0, 0, NULL);
 	if (!mmu_page_header_cache)
 		goto nomem;
 

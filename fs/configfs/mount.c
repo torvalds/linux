@@ -136,7 +136,7 @@ static int __init configfs_init(void)
 
 	configfs_dir_cachep = kmem_cache_create("configfs_dir_cache",
 						sizeof(struct configfs_dirent),
-						0, 0, NULL, NULL);
+						0, 0, NULL);
 	if (!configfs_dir_cachep)
 		goto out;
 

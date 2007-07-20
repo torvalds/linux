@@ -163,7 +163,7 @@ static int ehca_create_slab_caches(void)
 	ctblk_cache = kmem_cache_create("ehca_cache_ctblk",
 					EHCA_PAGESIZE, H_CB_ALIGNMENT,
 					SLAB_HWCACHE_ALIGN,
-					NULL, NULL);
+					NULL);
 	if (!ctblk_cache) {
 		ehca_gen_err("Cannot create ctblk SLAB cache.");
 		ehca_cleanup_mrmw_cache();

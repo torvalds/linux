@@ -2378,7 +2378,7 @@ static void __init xfrm_policy_init(void)
 	xfrm_dst_cache = kmem_cache_create("xfrm_dst_cache",
 					   sizeof(struct xfrm_dst),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					   NULL, NULL);
+					   NULL);
 
 	hmask = 8 - 1;
 	sz = (hmask+1) * sizeof(struct hlist_head);

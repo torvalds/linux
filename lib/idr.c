@@ -590,7 +590,7 @@ static  int init_id_cache(void)
 {
 	if (!idr_layer_cache)
 		idr_layer_cache = kmem_cache_create("idr_layer_cache",
-			sizeof(struct idr_layer), 0, 0, idr_cache_ctor, NULL);
+			sizeof(struct idr_layer), 0, 0, idr_cache_ctor);
 	return 0;
 }
 

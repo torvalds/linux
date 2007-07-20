@@ -719,7 +719,7 @@ cifs_init_inodecache(void)
 					      sizeof (struct cifsInodeInfo),
 					      0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					      cifs_init_once, NULL);
+					      cifs_init_once);
 	if (cifs_inode_cachep == NULL)
 		return -ENOMEM;
 
@@ -748,7 +748,7 @@ cifs_init_request_bufs(void)
 	cifs_req_cachep = kmem_cache_create("cifs_request",
 					    CIFSMaxBufSize +
 					    MAX_CIFS_HDR_SIZE, 0,
-					    SLAB_HWCACHE_ALIGN, NULL, NULL);
+					    SLAB_HWCACHE_ALIGN, NULL);
 	if (cifs_req_cachep == NULL)
 		return -ENOMEM;
 
@@ -776,7 +776,7 @@ cifs_init_request_bufs(void)
 	alloc of large cifs buffers even when page debugging is on */
 	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
 			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN,
-			NULL, NULL);
+			NULL);
 	if (cifs_sm_req_cachep == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);
@@ -817,7 +817,7 @@ cifs_init_mids(void)
 {
 	cifs_mid_cachep = kmem_cache_create("cifs_mpx_ids",
 				sizeof (struct mid_q_entry), 0,
-				SLAB_HWCACHE_ALIGN, NULL, NULL);
+				SLAB_HWCACHE_ALIGN, NULL);
 	if (cifs_mid_cachep == NULL)
 		return -ENOMEM;
 
@@ -830,7 +830,7 @@ cifs_init_mids(void)
 
 	cifs_oplock_cachep = kmem_cache_create("cifs_oplock_structs",
 				sizeof (struct oplock_q_entry), 0,
-				SLAB_HWCACHE_ALIGN, NULL, NULL);
+				SLAB_HWCACHE_ALIGN, NULL);
 	if (cifs_oplock_cachep == NULL) {
 		mempool_destroy(cifs_mid_poolp);
 		kmem_cache_destroy(cifs_mid_cachep);

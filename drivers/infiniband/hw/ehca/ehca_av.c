@@ -259,7 +259,7 @@ int ehca_init_av_cache(void)
 	av_cache = kmem_cache_create("ehca_cache_av",
 				   sizeof(struct ehca_av), 0,
 				   SLAB_HWCACHE_ALIGN,
-				   NULL, NULL);
+				   NULL);
 	if (!av_cache)
 		return -ENOMEM;
 	return 0;

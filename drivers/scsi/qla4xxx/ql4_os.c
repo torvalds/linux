@@ -1677,7 +1677,7 @@ static int __init qla4xxx_module_init(void)
 
 	/* Allocate cache for SRBs. */
 	srb_cachep = kmem_cache_create("qla4xxx_srbs", sizeof(struct srb), 0,
-				       SLAB_HWCACHE_ALIGN, NULL, NULL);
+				       SLAB_HWCACHE_ALIGN, NULL);
 	if (srb_cachep == NULL) {
 		printk(KERN_ERR
 		       "%s: Unable to allocate SRB cache..."

@@ -1452,7 +1452,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	if (ubi_devices_cnt == 0) {
 		wl_entries_slab = kmem_cache_create("ubi_wl_entry_slab",
 						    sizeof(struct ubi_wl_entry),
-						    0, 0, NULL, NULL);
+						    0, 0, NULL);
 		if (!wl_entries_slab)
 			return -ENOMEM;
 	}

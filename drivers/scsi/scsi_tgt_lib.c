@@ -585,7 +585,7 @@ static int __init scsi_tgt_init(void)
 
 	scsi_tgt_cmd_cache = kmem_cache_create("scsi_tgt_cmd",
 					       sizeof(struct scsi_tgt_cmd),
-					       0, 0, NULL, NULL);
+					       0, 0, NULL);
 	if (!scsi_tgt_cmd_cache)
 		return -ENOMEM;
 
