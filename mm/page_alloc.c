@@ -138,7 +138,7 @@ static unsigned long __meminitdata dma_reserve;
 #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
   unsigned long __initdata required_kernelcore;
   unsigned long __initdata required_movablecore;
-  unsigned long __initdata zone_movable_pfn[MAX_NUMNODES];
+  unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
 
   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
   int movable_zone;
