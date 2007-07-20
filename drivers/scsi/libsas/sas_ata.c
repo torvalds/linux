@@ -172,7 +172,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->tf.nsect = 0;
 	}
 
-	ata_tf_to_fis(&qc->tf, (u8*)&task->ata_task.fis, 0);
+	ata_tf_to_fis(&qc->tf, 1, 0, (u8*)&task->ata_task.fis);
 	task->uldd_task = qc;
 	if (is_atapi_taskfile(&qc->tf)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
@@ -298,7 +298,7 @@ static void sas_ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	memcpy(tf, &dev->sata_dev.tf, sizeof (*tf));
 }
 
-static void sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
+static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 			      u32 val)
 {
 	struct domain_device *dev = ap->private_data;
@@ -317,25 +317,33 @@ static void sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 		case SCR_ACTIVE:
 			dev->sata_dev.ap->sactive = val;
 			break;
+		default:
+			return -EINVAL;
 	}
+	return 0;
 }
 
-static u32 sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
+static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
+			    u32 *val)
 {
 	struct domain_device *dev = ap->private_data;
 
 	SAS_DPRINTK("STUB %s\n", __FUNCTION__);
 	switch (sc_reg_in) {
 		case SCR_STATUS:
-			return dev->sata_dev.sstatus;
+			*val = dev->sata_dev.sstatus;
+			return 0;
 		case SCR_CONTROL:
-			return dev->sata_dev.scontrol;
+			*val = dev->sata_dev.scontrol;
+			return 0;
 		case SCR_ERROR:
-			return dev->sata_dev.serror;
+			*val = dev->sata_dev.serror;
+			return 0;
 		case SCR_ACTIVE:
-			return dev->sata_dev.ap->sactive;
+			*val = dev->sata_dev.ap->sactive;
+			return 0;
 		default:
-			return 0xffffffffU;
+			return -EINVAL;
 	}
 }
 
