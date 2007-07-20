@@ -296,6 +296,9 @@ struct mpic
 	unsigned int		dcr_base;
 #endif
 
+	/* Protected sources */
+	unsigned long		*protected;
+
 #ifdef CONFIG_MPIC_WEIRD
 	/* Pointer to HW info array */
 	u32			*hw_set;
