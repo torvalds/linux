@@ -14,7 +14,6 @@ ELFNOTE_START(Linux, 0, "a")
 ELFNOTE_END
 
 #ifdef CONFIG_XEN
-
 /*
  * Add a special note telling glibc's dynamic linker a fake hardware
  * flavor that it will use to choose the search path for libraries in the
@@ -28,15 +27,19 @@ ELFNOTE_END
  * It should contain:
  *	hwcap 1 nosegneg
  * to match the mapping of bit to name that we give here.
+ *
+ * At runtime, the fake hardware feature will be considered to be present
+ * if its bit is set in the mask word.  So, we start with the mask 0, and
+ * at boot time we set VDSO_NOTE_NONEGSEG_BIT if running under Xen.
  */
 
-/* Bit used for the pseudo-hwcap for non-negative segments.  We use
-   bit 1 to avoid bugs in some versions of glibc when bit 0 is
-   used; the choice is otherwise arbitrary. */
-#define VDSO_NOTE_NONEGSEG_BIT	1
+#include "../xen/vdso.h"	/* Defines VDSO_NOTE_NONEGSEG_BIT.  */
 
+	.globl VDSO_NOTE_MASK
 ELFNOTE_START(GNU, 2, "a")
-	.long 1, 1<<VDSO_NOTE_NONEGSEG_BIT		/* ncaps, mask */
+	.long 1			/* ncaps */
+VDSO_NOTE_MASK:
+	.long 0			/* mask */
 	.byte VDSO_NOTE_NONEGSEG_BIT; .asciz "nosegneg"	/* bit, name */
 ELFNOTE_END
 #endif

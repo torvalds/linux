@@ -31,6 +31,7 @@ static const char* safe_abs_relocs[] = {
 		"__kernel_rt_sigreturn",
 		"__kernel_sigreturn",
 		"SYSENTER_RETURN",
+		"VDSO_NOTE_MASK",
 		"xen_irq_disable_direct_reloc",
 		"xen_save_fl_direct_reloc",
 };

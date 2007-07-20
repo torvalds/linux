@@ -19,6 +19,7 @@
 #include <xen/features.h>
 
 #include "xen-ops.h"
+#include "vdso.h"
 
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
@@ -53,6 +54,18 @@ static void xen_idle(void)
 		safe_halt();
 		current_thread_info()->status |= TS_POLLING;
 	}
+}
+
+/*
+ * Set the bit indicating "nosegneg" library variants should be used.
+ */
+static void fiddle_vdso(void)
+{
+	extern u32 VDSO_NOTE_MASK; /* See ../kernel/vsyscall-note.S.  */
+	extern char vsyscall_int80_start;
+	u32 *mask = (u32 *) ((unsigned long) &VDSO_NOTE_MASK - VDSO_PRELINK +
+			     &vsyscall_int80_start);
+	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 }
 
 void __init xen_arch_setup(void)
@@ -93,4 +106,6 @@ void __init xen_arch_setup(void)
 #endif
 
 	paravirt_disable_iospace();
+
+	fiddle_vdso();
 }
