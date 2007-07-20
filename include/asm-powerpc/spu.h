@@ -121,10 +121,9 @@ struct spu {
 	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
 	struct spu_priv2 __iomem *priv2;
-	struct list_head list;
 	struct list_head cbe_list;
-	struct list_head sched_list;
 	struct list_head full_list;
+	enum { SPU_FREE, SPU_USED } alloc_state;
 	int number;
 	unsigned int irqs[3];
 	u32 node;
@@ -187,18 +186,16 @@ struct spu {
 };
 
 struct cbe_spu_info {
+	struct mutex list_mutex;
 	struct list_head spus;
-	struct list_head free_spus;
 	int n_spus;
+	int nr_active;
 	atomic_t reserved_spus;
 };
 
 extern struct cbe_spu_info cbe_spu_info[];
 
-struct spu *spu_alloc(void);
-struct spu *spu_alloc_node(int node);
-struct spu *spu_alloc_spu(struct spu *spu);
-void spu_free(struct spu *spu);
+void spu_init_channels(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);

@@ -409,7 +409,7 @@ static void spu_free_irqs(struct spu *spu)
 		free_irq(spu->irqs[2], spu);
 }
 
-static void spu_init_channels(struct spu *spu)
+void spu_init_channels(struct spu *spu)
 {
 	static const struct {
 		 unsigned channel;
@@ -442,66 +442,7 @@ static void spu_init_channels(struct spu *spu)
 		out_be64(&priv2->spu_chnlcnt_RW, count_list[i].count);
 	}
 }
-
-struct spu *spu_alloc_spu(struct spu *req_spu)
-{
-	struct spu *spu, *ret = NULL;
-
-	spin_lock(&spu_lock);
-	list_for_each_entry(spu, &cbe_spu_info[req_spu->node].free_spus, list) {
-		if (spu == req_spu) {
-			list_del_init(&spu->list);
-			pr_debug("Got SPU %d %d\n", spu->number, spu->node);
-			spu_init_channels(spu);
-			ret = spu;
-			break;
-		}
-	}
-	spin_unlock(&spu_lock);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(spu_alloc_spu);
-
-struct spu *spu_alloc_node(int node)
-{
-	struct spu *spu = NULL;
-
-	spin_lock(&spu_lock);
-	if (!list_empty(&cbe_spu_info[node].free_spus)) {
-		spu = list_entry(cbe_spu_info[node].free_spus.next, struct spu,
-									list);
-		list_del_init(&spu->list);
-		pr_debug("Got SPU %d %d\n", spu->number, spu->node);
-	}
-	spin_unlock(&spu_lock);
-
-	if (spu)
-		spu_init_channels(spu);
-	return spu;
-}
-EXPORT_SYMBOL_GPL(spu_alloc_node);
-
-struct spu *spu_alloc(void)
-{
-	struct spu *spu = NULL;
-	int node;
-
-	for (node = 0; node < MAX_NUMNODES; node++) {
-		spu = spu_alloc_node(node);
-		if (spu)
-			break;
-	}
-
-	return spu;
-}
-
-void spu_free(struct spu *spu)
-{
-	spin_lock(&spu_lock);
-	list_add_tail(&spu->list, &cbe_spu_info[spu->node].free_spus);
-	spin_unlock(&spu_lock);
-}
-EXPORT_SYMBOL_GPL(spu_free);
+EXPORT_SYMBOL_GPL(spu_init_channels);
 
 static int spu_shutdown(struct sys_device *sysdev)
 {
@@ -597,6 +538,8 @@ static int __init create_spu(void *data)
 	if (!spu)
 		goto out;
 
+	spu->alloc_state = SPU_FREE;
+
 	spin_lock_init(&spu->register_lock);
 	spin_lock(&spu_lock);
 	spu->number = number++;
@@ -617,11 +560,10 @@ static int __init create_spu(void *data)
 	if (ret)
 		goto out_free_irqs;
 
-	spin_lock(&spu_lock);
-	list_add(&spu->list, &cbe_spu_info[spu->node].free_spus);
+	mutex_lock(&cbe_spu_info[spu->node].list_mutex);
 	list_add(&spu->cbe_list, &cbe_spu_info[spu->node].spus);
 	cbe_spu_info[spu->node].n_spus++;
-	spin_unlock(&spu_lock);
+	mutex_unlock(&cbe_spu_info[spu->node].list_mutex);
 
 	mutex_lock(&spu_full_list_mutex);
 	spin_lock_irqsave(&spu_full_list_lock, flags);
@@ -831,8 +773,8 @@ static int __init init_spu_base(void)
 	int i, ret = 0;
 
 	for (i = 0; i < MAX_NUMNODES; i++) {
+		mutex_init(&cbe_spu_info[i].list_mutex);
 		INIT_LIST_HEAD(&cbe_spu_info[i].spus);
-		INIT_LIST_HEAD(&cbe_spu_info[i].free_spus);
 	}
 
 	if (!spu_management_ops)
