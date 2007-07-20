@@ -92,7 +92,11 @@ struct cfq_data {
 	struct cfq_queue *active_queue;
 	struct cfq_io_context *active_cic;
 
-	struct cfq_queue *async_cfqq[IOPRIO_BE_NR];
+	/*
+	 * async queue for each priority case
+	 */
+	struct cfq_queue *async_cfqq[2][IOPRIO_BE_NR];
+	struct cfq_queue *async_idle_cfqq;
 
 	struct timer_list idle_class_timer;
 
@@ -111,9 +115,6 @@ struct cfq_data {
 	unsigned int cfq_slice_idle;
 
 	struct list_head cic_list;
-
-	sector_t new_seek_mean;
-	u64 new_seek_total;
 };
 
 /*
@@ -153,8 +154,6 @@ struct cfq_queue {
 
 	/* various state flags, see below */
 	unsigned int flags;
-
-	sector_t last_request_pos;
 };
 
 enum cfqq_state_flags {
@@ -1414,24 +1413,44 @@ out:
 	return cfqq;
 }
 
+static struct cfq_queue **
+cfq_async_queue_prio(struct cfq_data *cfqd, int ioprio_class, int ioprio)
+{
+	switch(ioprio_class) {
+	case IOPRIO_CLASS_RT:
+		return &cfqd->async_cfqq[0][ioprio];
+	case IOPRIO_CLASS_BE:
+		return &cfqd->async_cfqq[1][ioprio];
+	case IOPRIO_CLASS_IDLE:
+		return &cfqd->async_idle_cfqq;
+	default:
+		BUG();
+	}
+}
+
 static struct cfq_queue *
 cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
 	      gfp_t gfp_mask)
 {
 	const int ioprio = task_ioprio(tsk);
+	const int ioprio_class = task_ioprio_class(tsk);
+	struct cfq_queue **async_cfqq = NULL;
 	struct cfq_queue *cfqq = NULL;
 
-	if (!is_sync)
-		cfqq = cfqd->async_cfqq[ioprio];
+	if (!is_sync) {
+		async_cfqq = cfq_async_queue_prio(cfqd, ioprio_class, ioprio);
+		cfqq = *async_cfqq;
+	}
+
 	if (!cfqq)
 		cfqq = cfq_find_alloc_queue(cfqd, is_sync, tsk, gfp_mask);
 
 	/*
 	 * pin the queue now that it's allocated, scheduler exit will prune it
 	 */
-	if (!is_sync && !cfqd->async_cfqq[ioprio]) {
+	if (!is_sync && !(*async_cfqq)) {
 		atomic_inc(&cfqq->ref);
-		cfqd->async_cfqq[ioprio] = cfqq;
+		*async_cfqq = cfqq;
 	}
 
 	atomic_inc(&cfqq->ref);
@@ -1597,11 +1616,6 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
 	else
 		sdist = cic->last_request_pos - rq->sector;
 
-	if (!cic->seek_samples) {
-		cfqd->new_seek_total = (7*cic->seek_total + (u64)256*sdist) / 8;
-		cfqd->new_seek_mean = cfqd->new_seek_total / 256;
-	}
-
 	/*
 	 * Don't allow the seek distance to get too large from the
 	 * odd fragment, pagein, etc
@@ -1737,7 +1751,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
 	cic->last_request_pos = rq->sector + rq->nr_sectors;
-	cfqq->last_request_pos = cic->last_request_pos;
 
 	if (cfqq == cfqd->active_queue) {
 		/*
@@ -2042,11 +2055,24 @@ static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 	blk_sync_queue(cfqd->queue);
 }
 
+static void cfq_put_async_queues(struct cfq_data *cfqd)
+{
+	int i;
+
+	for (i = 0; i < IOPRIO_BE_NR; i++) {
+		if (cfqd->async_cfqq[0][i])
+			cfq_put_queue(cfqd->async_cfqq[0][i]);
+		if (cfqd->async_cfqq[1][i])
+			cfq_put_queue(cfqd->async_cfqq[1][i]);
+		if (cfqd->async_idle_cfqq)
+			cfq_put_queue(cfqd->async_idle_cfqq);
+	}
+}
+
 static void cfq_exit_queue(elevator_t *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
 	request_queue_t *q = cfqd->queue;
-	int i;
 
 	cfq_shutdown_timer_wq(cfqd);
 
@@ -2063,12 +2089,7 @@ static void cfq_exit_queue(elevator_t *e)
 		__cfq_exit_single_io_context(cfqd, cic);
 	}
 
-	/*
-	 * Put the async queues
-	 */
-	for (i = 0; i < IOPRIO_BE_NR; i++)
-		if (cfqd->async_cfqq[i])	
-			cfq_put_queue(cfqd->async_cfqq[i]);
+	cfq_put_async_queues(cfqd);
 
 	spin_unlock_irq(q->queue_lock);
 
