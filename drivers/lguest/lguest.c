@@ -39,7 +39,6 @@
 #include <asm/e820.h>
 #include <asm/mce.h>
 #include <asm/io.h>
-//#include <asm/sched-clock.h>
 
 /* Declarations for definitions in lguest_guest.S */
 extern char lguest_noirq_start[], lguest_noirq_end[];
@@ -57,6 +56,7 @@ struct lguest_data lguest_data = {
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 };
 struct lguest_device_desc *lguest_devices;
+static cycle_t clock_base;
 
 static enum paravirt_lazy_mode lazy_mode;
 static void lguest_lazy_mode(enum paravirt_lazy_mode mode)
@@ -363,6 +363,11 @@ static struct clocksource lguest_clock = {
 	.read		= lguest_clock_read,
 };
 
+static unsigned long long lguest_sched_clock(void)
+{
+	return cyc2ns(&lguest_clock, lguest_clock_read() - clock_base);
+}
+
 /* We also need a "struct clock_event_device": Linux asks us to set it to go
  * off some time in the future.  Actually, James Morris figured all this out, I
  * just applied the patch. */
@@ -439,6 +444,7 @@ static void lguest_time_init(void)
 		lguest_clock.mult = (((u64)NSEC_PER_SEC<<8)/ACTHZ) << 8;
 		lguest_clock.mask = CLOCKSOURCE_MASK(32);
 	}
+	clock_base = lguest_clock_read();
 	clocksource_register(&lguest_clock);
 
 	/* We can't set cpumask in the initializer: damn C limitations! */
@@ -584,6 +590,7 @@ __init void lguest_init(void *boot)
 	paravirt_ops.time_init = lguest_time_init;
 	paravirt_ops.set_lazy_mode = lguest_lazy_mode;
 	paravirt_ops.wbinvd = lguest_wbinvd;
+	paravirt_ops.sched_clock = lguest_sched_clock;
 
 	hcall(LHCALL_LGUEST_INIT, __pa(&lguest_data), 0, 0);
 
