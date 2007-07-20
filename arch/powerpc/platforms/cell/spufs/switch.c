@@ -180,7 +180,7 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	case MFC_CNTL_SUSPEND_COMPLETE:
 		if (csa) {
 			csa->priv2.mfc_control_RW =
-				in_be64(&priv2->mfc_control_RW) |
+				MFC_CNTL_SUSPEND_MASK |
 				MFC_CNTL_SUSPEND_DMA_QUEUE;
 		}
 		break;
@@ -190,9 +190,7 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
 				 MFC_CNTL_SUSPEND_COMPLETE);
 		if (csa) {
-			csa->priv2.mfc_control_RW =
-				in_be64(&priv2->mfc_control_RW) &
-				~MFC_CNTL_SUSPEND_DMA_QUEUE;
+			csa->priv2.mfc_control_RW = 0;
 		}
 		break;
 	}
@@ -251,11 +249,8 @@ static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
 	 *     Read MFC_CNTL[Ds].  Update saved copy of
 	 *     CSA.MFC_CNTL[Ds].
 	 */
-	if (in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING) {
-		csa->priv2.mfc_control_RW |= MFC_CNTL_DECREMENTER_RUNNING;
-	} else {
-		csa->priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
-	}
+	csa->priv2.mfc_control_RW |=
+		in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING;
 }
 
 static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
