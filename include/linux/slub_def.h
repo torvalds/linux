@@ -160,7 +160,7 @@ static inline struct kmem_cache *kmalloc_slab(size_t size)
 #define SLUB_DMA __GFP_DMA
 #else
 /* Disable DMA functionality */
-#define SLUB_DMA 0
+#define SLUB_DMA (__force gfp_t)0
 #endif
 
 void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
