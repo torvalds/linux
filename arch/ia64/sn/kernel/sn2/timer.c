@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
+#include <linux/clocksource.h>
 
 #include <asm/hw_irq.h>
 #include <asm/system.h>
@@ -22,11 +23,21 @@
 
 extern unsigned long sn_rtc_cycles_per_second;
 
-static struct time_interpolator sn2_interpolator = {
-	.drift = -1,
-	.shift = 10,
-	.mask = (1LL << 55) - 1,
-	.source = TIME_SOURCE_MMIO64
+static void __iomem *sn2_mc;
+
+static cycle_t read_sn2(void)
+{
+	return (cycle_t)readq(sn2_mc);
+}
+
+static struct clocksource clocksource_sn2 = {
+        .name           = "sn2_rtc",
+        .rating         = 300,
+        .read           = read_sn2,
+        .mask           = (1LL << 55) - 1,
+        .mult           = 0,
+        .shift          = 10,
+        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /*
@@ -47,9 +58,11 @@ ia64_sn_udelay (unsigned long usecs)
 
 void __init sn_timer_init(void)
 {
-	sn2_interpolator.frequency = sn_rtc_cycles_per_second;
-	sn2_interpolator.addr = RTC_COUNTER_ADDR;
-	register_time_interpolator(&sn2_interpolator);
+	sn2_mc = RTC_COUNTER_ADDR;
+	clocksource_sn2.fsys_mmio = RTC_COUNTER_ADDR;
+	clocksource_sn2.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
+							clocksource_sn2.shift);
+	clocksource_register(&clocksource_sn2);
 
 	ia64_udelay = &ia64_sn_udelay;
 }

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/efi.h>
 #include <linux/timex.h>
+#include <linux/clocksource.h>
 
 #include <asm/machvec.h>
 #include <asm/delay.h>
@@ -27,6 +28,16 @@
 #include <asm/sal.h>
 #include <asm/sections.h>
 #include <asm/system.h>
+
+#include "fsyscall_gtod_data.h"
+
+static cycle_t itc_get_cycles(void);
+
+struct fsyscall_gtod_data_t fsyscall_gtod_data = {
+	.lock = SEQLOCK_UNLOCKED,
+};
+
+struct itc_jitter_data_t itc_jitter_data;
 
 volatile int time_keeper_id = 0; /* smp_processor_id() of time-keeper */
 
@@ -37,11 +48,16 @@ EXPORT_SYMBOL(last_cli_ip);
 
 #endif
 
-static struct time_interpolator itc_interpolator = {
-	.shift = 16,
-	.mask = 0xffffffffffffffffLL,
-	.source = TIME_SOURCE_CPU
+static struct clocksource clocksource_itc = {
+        .name           = "itc",
+        .rating         = 350,
+        .read           = itc_get_cycles,
+        .mask           = 0xffffffffffffffff,
+        .mult           = 0, /*to be caluclated*/
+        .shift          = 16,
+        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+static struct clocksource *itc_clocksource;
 
 static irqreturn_t
 timer_interrupt (int irq, void *dev_id)
@@ -210,8 +226,6 @@ ia64_init_itm (void)
 					+ itc_freq/2)/itc_freq;
 
 	if (!(sal_platform_features & IA64_SAL_PLATFORM_FEATURE_ITC_DRIFT)) {
-		itc_interpolator.frequency = local_cpu_data->itc_freq;
-		itc_interpolator.drift = itc_drift;
 #ifdef CONFIG_SMP
 		/* On IA64 in an SMP configuration ITCs are never accurately synchronized.
 		 * Jitter compensation requires a cmpxchg which may limit
@@ -223,14 +237,49 @@ ia64_init_itm (void)
 		 * even going backward) if the ITC offsets between the individual CPUs
 		 * are too large.
 		 */
-		if (!nojitter) itc_interpolator.jitter = 1;
+		if (!nojitter)
+			itc_jitter_data.itc_jitter = 1;
 #endif
-		register_time_interpolator(&itc_interpolator);
 	}
 
 	/* Setup the CPU local timer tick */
 	ia64_cpu_local_tick();
+
+	if (!itc_clocksource) {
+		/* Sort out mult/shift values: */
+		clocksource_itc.mult =
+			clocksource_hz2mult(local_cpu_data->itc_freq,
+						clocksource_itc.shift);
+		clocksource_register(&clocksource_itc);
+		itc_clocksource = &clocksource_itc;
+	}
 }
+
+static cycle_t itc_get_cycles()
+{
+	u64 lcycle, now, ret;
+
+	if (!itc_jitter_data.itc_jitter)
+		return get_cycles();
+
+	lcycle = itc_jitter_data.itc_lastcycle;
+	now = get_cycles();
+	if (lcycle && time_after(lcycle, now))
+		return lcycle;
+
+	/*
+	 * Keep track of the last timer value returned.
+	 * In an SMP environment, you could lose out in contention of
+	 * cmpxchg. If so, your cmpxchg returns new value which the
+	 * winner of contention updated to. Use the new value instead.
+	 */
+	ret = cmpxchg(&itc_jitter_data.itc_lastcycle, lcycle, now);
+	if (unlikely(ret != lcycle))
+		return ret;
+
+	return now;
+}
+
 
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
@@ -307,3 +356,34 @@ ia64_setup_printk_clock(void)
 	if (!(sal_platform_features & IA64_SAL_PLATFORM_FEATURE_ITC_DRIFT))
 		ia64_printk_clock = ia64_itc_printk_clock;
 }
+
+void update_vsyscall(struct timespec *wall, struct clocksource *c)
+{
+        unsigned long flags;
+
+        write_seqlock_irqsave(&fsyscall_gtod_data.lock, flags);
+
+        /* copy fsyscall clock data */
+        fsyscall_gtod_data.clk_mask = c->mask;
+        fsyscall_gtod_data.clk_mult = c->mult;
+        fsyscall_gtod_data.clk_shift = c->shift;
+        fsyscall_gtod_data.clk_fsys_mmio = c->fsys_mmio;
+        fsyscall_gtod_data.clk_cycle_last = c->cycle_last;
+
+	/* copy kernel time structures */
+        fsyscall_gtod_data.wall_time.tv_sec = wall->tv_sec;
+        fsyscall_gtod_data.wall_time.tv_nsec = wall->tv_nsec;
+        fsyscall_gtod_data.monotonic_time.tv_sec = wall_to_monotonic.tv_sec
+							+ wall->tv_sec;
+        fsyscall_gtod_data.monotonic_time.tv_nsec = wall_to_monotonic.tv_nsec
+							+ wall->tv_nsec;
+
+	/* normalize */
+	while (fsyscall_gtod_data.monotonic_time.tv_nsec >= NSEC_PER_SEC) {
+		fsyscall_gtod_data.monotonic_time.tv_nsec -= NSEC_PER_SEC;
+		fsyscall_gtod_data.monotonic_time.tv_sec++;
+	}
+
+        write_sequnlock_irqrestore(&fsyscall_gtod_data.lock, flags);
+}
+
