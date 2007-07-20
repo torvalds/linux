@@ -245,11 +245,27 @@ EXPORT_SYMBOL(pci_osc_control_set);
  * currently we simply return _SxD, if present.
  */
 
-static int acpi_pci_choose_state(struct pci_dev *pdev, pm_message_t state)
+static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,
+	pm_message_t state)
 {
-	/* TBD */
+	int acpi_state;
 
-	return -ENODEV;
+	acpi_state = acpi_pm_device_sleep_state(&pdev->dev,
+		device_may_wakeup(&pdev->dev), NULL);
+	if (acpi_state < 0)
+		return PCI_POWER_ERROR;
+
+	switch (acpi_state) {
+	case ACPI_STATE_D0:
+		return PCI_D0;
+	case ACPI_STATE_D1:
+		return PCI_D1;
+	case ACPI_STATE_D2:
+		return PCI_D2;
+	case ACPI_STATE_D3:
+		return PCI_D3hot;
+	}
+	return PCI_POWER_ERROR;
 }
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
