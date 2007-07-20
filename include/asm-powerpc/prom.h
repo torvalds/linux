@@ -139,7 +139,7 @@ extern unsigned long __init of_get_flat_dt_root(void);
 
 /* For updating the device tree at runtime */
 extern void of_attach_node(struct device_node *);
-extern void of_detach_node(const struct device_node *);
+extern void of_detach_node(struct device_node *);
 
 /* Other Prototypes */
 extern void finish_device_tree(void);
