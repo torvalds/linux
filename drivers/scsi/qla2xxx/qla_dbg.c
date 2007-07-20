@@ -37,6 +37,121 @@ qla2xxx_copy_queues(scsi_qla_host_t *ha, void *ptr)
 	return ptr + (ha->response_q_length * sizeof(response_t));
 }
 
+static int
+qla2xxx_dump_memory(scsi_qla_host_t *ha, uint32_t *code_ram,
+    uint32_t cram_size, uint32_t *ext_mem, void **nxt)
+{
+	int rval;
+	uint32_t cnt, stat, timer, risc_address, ext_mem_cnt;
+	uint16_t mb[4];
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	rval = QLA_SUCCESS;
+	risc_address = ext_mem_cnt = 0;
+	memset(mb, 0, sizeof(mb));
+
+	/* Code RAM. */
+	risc_address = 0x20000;
+	WRT_REG_WORD(&reg->mailbox0, MBC_READ_RAM_EXTENDED);
+	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+
+	for (cnt = 0; cnt < cram_size / 4 && rval == QLA_SUCCESS;
+	    cnt++, risc_address++) {
+		WRT_REG_WORD(&reg->mailbox1, LSW(risc_address));
+		WRT_REG_WORD(&reg->mailbox8, MSW(risc_address));
+		RD_REG_WORD(&reg->mailbox8);
+		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
+
+		for (timer = 6000000; timer; timer--) {
+			/* Check for pending interrupts. */
+			stat = RD_REG_DWORD(&reg->host_status);
+			if (stat & HSRX_RISC_INT) {
+				stat &= 0xff;
+
+				if (stat == 0x1 || stat == 0x2 ||
+				    stat == 0x10 || stat == 0x11) {
+					set_bit(MBX_INTERRUPT,
+					    &ha->mbx_cmd_flags);
+
+					mb[0] = RD_REG_WORD(&reg->mailbox0);
+					mb[2] = RD_REG_WORD(&reg->mailbox2);
+					mb[3] = RD_REG_WORD(&reg->mailbox3);
+
+					WRT_REG_DWORD(&reg->hccr,
+					    HCCRX_CLR_RISC_INT);
+					RD_REG_DWORD(&reg->hccr);
+					break;
+				}
+
+				/* Clear this intr; it wasn't a mailbox intr */
+				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+				RD_REG_DWORD(&reg->hccr);
+			}
+			udelay(5);
+		}
+
+		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
+			rval = mb[0] & MBS_MASK;
+			code_ram[cnt] = htonl((mb[3] << 16) | mb[2]);
+		} else {
+			rval = QLA_FUNCTION_FAILED;
+		}
+	}
+
+	if (rval == QLA_SUCCESS) {
+		/* External Memory. */
+		risc_address = 0x100000;
+		ext_mem_cnt = ha->fw_memory_size - 0x100000 + 1;
+		WRT_REG_WORD(&reg->mailbox0, MBC_READ_RAM_EXTENDED);
+		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+	}
+	for (cnt = 0; cnt < ext_mem_cnt && rval == QLA_SUCCESS;
+	    cnt++, risc_address++) {
+		WRT_REG_WORD(&reg->mailbox1, LSW(risc_address));
+		WRT_REG_WORD(&reg->mailbox8, MSW(risc_address));
+		RD_REG_WORD(&reg->mailbox8);
+		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
+
+		for (timer = 6000000; timer; timer--) {
+			/* Check for pending interrupts. */
+			stat = RD_REG_DWORD(&reg->host_status);
+			if (stat & HSRX_RISC_INT) {
+				stat &= 0xff;
+
+				if (stat == 0x1 || stat == 0x2 ||
+				    stat == 0x10 || stat == 0x11) {
+					set_bit(MBX_INTERRUPT,
+					    &ha->mbx_cmd_flags);
+
+					mb[0] = RD_REG_WORD(&reg->mailbox0);
+					mb[2] = RD_REG_WORD(&reg->mailbox2);
+					mb[3] = RD_REG_WORD(&reg->mailbox3);
+
+					WRT_REG_DWORD(&reg->hccr,
+					    HCCRX_CLR_RISC_INT);
+					RD_REG_DWORD(&reg->hccr);
+					break;
+				}
+
+				/* Clear this intr; it wasn't a mailbox intr */
+				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+				RD_REG_DWORD(&reg->hccr);
+			}
+			udelay(5);
+		}
+
+		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
+			rval = mb[0] & MBS_MASK;
+			ext_mem[cnt] = htonl((mb[3] << 16) | mb[2]);
+		} else {
+			rval = QLA_FUNCTION_FAILED;
+		}
+	}
+
+	*nxt = rval == QLA_SUCCESS ? &ext_mem[cnt]: NULL;
+	return rval;
+}
+
 /**
  * qla2300_fw_dump() - Dumps binary data from the 2300 firmware.
  * @ha: HA context
@@ -633,11 +748,10 @@ void
 qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 {
 	int		rval;
-	uint32_t	cnt, timer;
+	uint32_t	cnt;
 	uint32_t	risc_address;
-	uint16_t	mb[4], wd;
+	uint16_t	mb0, wd;
 
-	uint32_t	stat;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
@@ -645,10 +759,9 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	unsigned long	flags;
 	struct qla24xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
-	void		*eft;
+	void		*nxt;
 
 	risc_address = ext_mem_cnt = 0;
-	memset(mb, 0, sizeof(mb));
 	flags = 0;
 
 	if (!hardware_locked)
@@ -701,250 +814,236 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		/* Shadow registers. */
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
 		RD_REG_DWORD(&reg->iobase_addr);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0000000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[0] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0000000);
+		fw->shadow_reg[0] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0100000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[1] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0100000);
+		fw->shadow_reg[1] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0200000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[2] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0200000);
+		fw->shadow_reg[2] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0300000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[3] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0300000);
+		fw->shadow_reg[3] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0400000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[4] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0400000);
+		fw->shadow_reg[4] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0500000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[5] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0500000);
+		fw->shadow_reg[5] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
-		WRT_REG_DWORD(dmp_reg, 0xB0600000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[6] = htonl(RD_REG_DWORD(dmp_reg));
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0600000);
+		fw->shadow_reg[6] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
 
 		/* Mailbox registers. */
-		mbx_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
+		mbx_reg = &reg->mailbox0;
 		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
 			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
 
 		/* Transfer sequence registers. */
 		iter_reg = fw->xseq_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF00);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF10);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF20);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF30);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF40);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF50);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF60);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF70);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBFE0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->xseq_0_reg) / 4; cnt++)
 			fw->xseq_0_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBFF0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->xseq_1_reg) / 4; cnt++)
 			fw->xseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Receive sequence registers. */
 		iter_reg = fw->rseq_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF00);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF10);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF20);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF30);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF40);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF50);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF60);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF70);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFD0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->rseq_0_reg) / 4; cnt++)
 			fw->rseq_0_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFE0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->rseq_1_reg) / 4; cnt++)
 			fw->rseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFF0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->rseq_2_reg) / 4; cnt++)
 			fw->rseq_2_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Command DMA registers. */
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7100);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->cmd_dma_reg) / 4; cnt++)
 			fw->cmd_dma_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Queues. */
 		iter_reg = fw->req0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7200);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 8; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
+		dmp_reg = &reg->iobase_q;
 		for (cnt = 0; cnt < 7; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->resp0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7300);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 8; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
+		dmp_reg = &reg->iobase_q;
 		for (cnt = 0; cnt < 7; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->req1_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7400);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 8; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
+		dmp_reg = &reg->iobase_q;
 		for (cnt = 0; cnt < 7; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Transmit DMA registers. */
 		iter_reg = fw->xmt0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7600);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7610);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt1_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7620);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7630);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt2_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7640);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7650);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt3_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7660);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7670);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt4_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7680);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7690);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x76A0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < sizeof(fw->xmt_data_dma_reg) / 4; cnt++)
 			fw->xmt_data_dma_reg[cnt] =
 			    htonl(RD_REG_DWORD(dmp_reg++));
@@ -952,221 +1051,221 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		/* Receive DMA registers. */
 		iter_reg = fw->rcvt0_data_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7700);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7710);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->rcvt1_data_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7720);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7730);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* RISC registers. */
 		iter_reg = fw->risc_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F00);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F10);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F20);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F30);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F40);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F50);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F60);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Local memory controller registers. */
 		iter_reg = fw->lmc_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3010);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3020);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3030);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3040);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3050);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3060);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Fibre Protocol Module registers. */
 		iter_reg = fw->fpm_hdw_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4010);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4020);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4030);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4040);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4050);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4060);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4070);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4080);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4090);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x40A0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x40B0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Frame Buffer registers. */
 		iter_reg = fw->fb_hdw_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6010);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6020);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6030);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6040);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6100);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6130);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6150);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6170);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6190);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x61B0);
-		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
+		dmp_reg = &reg->iobase_window;
 		for (cnt = 0; cnt < 16; cnt++)
 			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
@@ -1187,10 +1286,10 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		udelay(100);
 		/* Wait for firmware to complete NVRAM accesses. */
-		mb[0] = (uint32_t) RD_REG_WORD(&reg->mailbox0);
-		for (cnt = 10000 ; cnt && mb[0]; cnt--) {
+		mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+		for (cnt = 10000 ; cnt && mb0; cnt--) {
 			udelay(5);
-			mb[0] = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+			mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 			barrier();
 		}
 
@@ -1214,110 +1313,14 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 			rval = QLA_FUNCTION_TIMEOUT;
 	}
 
-	/* Memory. */
-	if (rval == QLA_SUCCESS) {
-		/* Code RAM. */
-		risc_address = 0x20000;
-		WRT_REG_WORD(&reg->mailbox0, MBC_READ_RAM_EXTENDED);
-		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-	}
-	for (cnt = 0; cnt < sizeof(fw->code_ram) / 4 && rval == QLA_SUCCESS;
-	    cnt++, risc_address++) {
-		WRT_REG_WORD(&reg->mailbox1, LSW(risc_address));
-		WRT_REG_WORD(&reg->mailbox8, MSW(risc_address));
-		RD_REG_WORD(&reg->mailbox8);
-		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
-
-		for (timer = 6000000; timer; timer--) {
-			/* Check for pending interrupts. */
-			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_INT) {
-				stat &= 0xff;
-
-				if (stat == 0x1 || stat == 0x2 ||
-				    stat == 0x10 || stat == 0x11) {
-					set_bit(MBX_INTERRUPT,
-					    &ha->mbx_cmd_flags);
-
-					mb[0] = RD_REG_WORD(&reg->mailbox0);
-					mb[2] = RD_REG_WORD(&reg->mailbox2);
-					mb[3] = RD_REG_WORD(&reg->mailbox3);
-
-					WRT_REG_DWORD(&reg->hccr,
-					    HCCRX_CLR_RISC_INT);
-					RD_REG_DWORD(&reg->hccr);
-					break;
-				}
-
-				/* Clear this intr; it wasn't a mailbox intr */
-				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-				RD_REG_DWORD(&reg->hccr);
-			}
-			udelay(5);
-		}
-
-		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			rval = mb[0] & MBS_MASK;
-			fw->code_ram[cnt] = htonl((mb[3] << 16) | mb[2]);
-		} else {
-			rval = QLA_FUNCTION_FAILED;
-		}
-	}
+	if (rval == QLA_SUCCESS)
+		rval = qla2xxx_dump_memory(ha, fw->code_ram,
+		    sizeof(fw->code_ram), fw->ext_mem, &nxt);
 
 	if (rval == QLA_SUCCESS) {
-		/* External Memory. */
-		risc_address = 0x100000;
-		ext_mem_cnt = ha->fw_memory_size - 0x100000 + 1;
-		WRT_REG_WORD(&reg->mailbox0, MBC_READ_RAM_EXTENDED);
-		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-	}
-	for (cnt = 0; cnt < ext_mem_cnt && rval == QLA_SUCCESS;
-	    cnt++, risc_address++) {
-		WRT_REG_WORD(&reg->mailbox1, LSW(risc_address));
-		WRT_REG_WORD(&reg->mailbox8, MSW(risc_address));
-		RD_REG_WORD(&reg->mailbox8);
-		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
-
-		for (timer = 6000000; timer; timer--) {
-			/* Check for pending interrupts. */
-			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_INT) {
-				stat &= 0xff;
-
-				if (stat == 0x1 || stat == 0x2 ||
-				    stat == 0x10 || stat == 0x11) {
-					set_bit(MBX_INTERRUPT,
-					    &ha->mbx_cmd_flags);
-
-					mb[0] = RD_REG_WORD(&reg->mailbox0);
-					mb[2] = RD_REG_WORD(&reg->mailbox2);
-					mb[3] = RD_REG_WORD(&reg->mailbox3);
-
-					WRT_REG_DWORD(&reg->hccr,
-					    HCCRX_CLR_RISC_INT);
-					RD_REG_DWORD(&reg->hccr);
-					break;
-				}
-
-				/* Clear this intr; it wasn't a mailbox intr */
-				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-				RD_REG_DWORD(&reg->hccr);
-			}
-			udelay(5);
-		}
-
-		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			rval = mb[0] & MBS_MASK;
-			fw->ext_mem[cnt] = htonl((mb[3] << 16) | mb[2]);
-		} else {
-			rval = QLA_FUNCTION_FAILED;
-		}
-	}
-
-	if (rval == QLA_SUCCESS) {
-		eft = qla2xxx_copy_queues(ha, &fw->ext_mem[cnt]);
+		nxt = qla2xxx_copy_queues(ha, nxt);
 		if (ha->eft)
-			memcpy(eft, ha->eft, ntohl(ha->fw_dump->eft_size));
+			memcpy(nxt, ha->eft, ntohl(ha->fw_dump->eft_size));
 	}
 
 	if (rval != QLA_SUCCESS) {
@@ -1333,6 +1336,709 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	}
 
 qla24xx_fw_dump_failed:
+	if (!hardware_locked)
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+void
+qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
+{
+	int		rval;
+	uint32_t	cnt;
+	uint32_t	risc_address;
+	uint16_t	mb0, wd;
+
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	uint32_t __iomem *dmp_reg;
+	uint32_t	*iter_reg;
+	uint16_t __iomem *mbx_reg;
+	unsigned long	flags;
+	struct qla25xx_fw_dump *fw;
+	uint32_t	ext_mem_cnt;
+	void		*nxt;
+
+	risc_address = ext_mem_cnt = 0;
+	flags = 0;
+
+	if (!hardware_locked)
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (!ha->fw_dump) {
+		qla_printk(KERN_WARNING, ha,
+		    "No buffer available for dump!!!\n");
+		goto qla25xx_fw_dump_failed;
+	}
+
+	if (ha->fw_dumped) {
+		qla_printk(KERN_WARNING, ha,
+		    "Firmware has been previously dumped (%p) -- ignoring "
+		    "request...\n", ha->fw_dump);
+		goto qla25xx_fw_dump_failed;
+	}
+	fw = &ha->fw_dump->isp.isp25;
+	qla2xxx_prep_dump(ha, ha->fw_dump);
+
+	rval = QLA_SUCCESS;
+	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
+
+	/* Pause RISC. */
+	if ((RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0) {
+		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET |
+		    HCCRX_CLR_HOST_INT);
+		RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
+		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
+		for (cnt = 30000;
+		    (RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0 &&
+		    rval == QLA_SUCCESS; cnt--) {
+			if (cnt)
+				udelay(100);
+			else
+				rval = QLA_FUNCTION_TIMEOUT;
+		}
+	}
+
+	if (rval == QLA_SUCCESS) {
+		/* Host interface registers. */
+		dmp_reg = (uint32_t __iomem *)(reg + 0);
+		for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
+			fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Disable interrupts. */
+		WRT_REG_DWORD(&reg->ictrl, 0);
+		RD_REG_DWORD(&reg->ictrl);
+
+		/* Shadow registers. */
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
+		RD_REG_DWORD(&reg->iobase_addr);
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0000000);
+		fw->shadow_reg[0] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0100000);
+		fw->shadow_reg[1] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0200000);
+		fw->shadow_reg[2] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0300000);
+		fw->shadow_reg[3] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0400000);
+		fw->shadow_reg[4] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0500000);
+		fw->shadow_reg[5] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0600000);
+		fw->shadow_reg[6] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0700000);
+		fw->shadow_reg[7] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0800000);
+		fw->shadow_reg[8] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0900000);
+		fw->shadow_reg[9] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		WRT_REG_DWORD(&reg->iobase_select, 0xB0A00000);
+		fw->shadow_reg[10] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+		/* RISC I/O register. */
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0010);
+		RD_REG_DWORD(&reg->iobase_addr);
+		fw->risc_io_reg = htonl(RD_REG_DWORD(&reg->iobase_window));
+
+		/* Mailbox registers. */
+		mbx_reg = &reg->mailbox0;
+		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+
+		/* Transfer sequence registers. */
+		iter_reg = fw->xseq_gp_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF00);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF10);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF20);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF30);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF40);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF50);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF60);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBF70);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->xseq_0_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBFC0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBFD0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBFE0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xBFF0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->xseq_1_reg) / 4; cnt++)
+			fw->xseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Receive sequence registers. */
+		iter_reg = fw->rseq_gp_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF00);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF10);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF20);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF30);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF40);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF50);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF60);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFF70);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->rseq_0_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFFC0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFFD0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFFE0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->rseq_1_reg) / 4; cnt++)
+			fw->rseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xFFF0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->rseq_2_reg) / 4; cnt++)
+			fw->rseq_2_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Auxiliary sequence registers. */
+		iter_reg = fw->aseq_gp_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB000);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB010);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB020);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB030);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB040);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB050);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB060);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB070);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->aseq_0_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB0C0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB0D0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB0E0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->aseq_1_reg) / 4; cnt++)
+			fw->aseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0xB0F0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->aseq_2_reg) / 4; cnt++)
+			fw->aseq_2_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Command DMA registers. */
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7100);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->cmd_dma_reg) / 4; cnt++)
+			fw->cmd_dma_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Queues. */
+		iter_reg = fw->req0_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7200);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 8; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		dmp_reg = &reg->iobase_q;
+		for (cnt = 0; cnt < 7; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->resp0_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7300);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 8; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		dmp_reg = &reg->iobase_q;
+		for (cnt = 0; cnt < 7; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->req1_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7400);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 8; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		dmp_reg = &reg->iobase_q;
+		for (cnt = 0; cnt < 7; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Transmit DMA registers. */
+		iter_reg = fw->xmt0_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7600);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7610);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->xmt1_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7620);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7630);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->xmt2_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7640);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7650);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->xmt3_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7660);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7670);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->xmt4_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7680);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7690);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x76A0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < sizeof(fw->xmt_data_dma_reg) / 4; cnt++)
+			fw->xmt_data_dma_reg[cnt] =
+			    htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Receive DMA registers. */
+		iter_reg = fw->rcvt0_data_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7700);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7710);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		iter_reg = fw->rcvt1_data_dma_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7720);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x7730);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* RISC registers. */
+		iter_reg = fw->risc_gp_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F00);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F10);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F20);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F30);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F40);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F50);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F60);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Local memory controller registers. */
+		iter_reg = fw->lmc_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3000);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3010);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3020);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3030);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3040);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3050);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3060);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x3070);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Fibre Protocol Module registers. */
+		iter_reg = fw->fpm_hdw_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4000);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4010);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4020);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4030);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4040);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4050);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4060);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4070);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4080);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x4090);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x40A0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x40B0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Frame Buffer registers. */
+		iter_reg = fw->fb_hdw_reg;
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6010);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6020);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6030);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6040);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6100);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6130);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6150);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6170);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6190);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x61B0);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		WRT_REG_DWORD(&reg->iobase_addr, 0x6F00);
+		dmp_reg = &reg->iobase_window;
+		for (cnt = 0; cnt < 16; cnt++)
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+		/* Reset RISC. */
+		WRT_REG_DWORD(&reg->ctrl_status,
+		    CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
+		for (cnt = 0; cnt < 30000; cnt++) {
+			if ((RD_REG_DWORD(&reg->ctrl_status) &
+			    CSRX_DMA_ACTIVE) == 0)
+				break;
+
+			udelay(10);
+		}
+
+		WRT_REG_DWORD(&reg->ctrl_status,
+		    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
+		pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
+
+		udelay(100);
+		/* Wait for firmware to complete NVRAM accesses. */
+		mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+		for (cnt = 10000 ; cnt && mb0; cnt--) {
+			udelay(5);
+			mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+			barrier();
+		}
+
+		/* Wait for soft-reset to complete. */
+		for (cnt = 0; cnt < 30000; cnt++) {
+			if ((RD_REG_DWORD(&reg->ctrl_status) &
+			    CSRX_ISP_SOFT_RESET) == 0)
+				break;
+
+			udelay(10);
+		}
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
+		RD_REG_DWORD(&reg->hccr);             /* PCI Posting. */
+	}
+
+	for (cnt = 30000; RD_REG_WORD(&reg->mailbox0) != 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt)
+			udelay(100);
+		else
+			rval = QLA_FUNCTION_TIMEOUT;
+	}
+
+	if (rval == QLA_SUCCESS)
+		rval = qla2xxx_dump_memory(ha, fw->code_ram,
+		    sizeof(fw->code_ram), fw->ext_mem, &nxt);
+
+	if (rval == QLA_SUCCESS) {
+		nxt = qla2xxx_copy_queues(ha, nxt);
+		if (ha->eft)
+			memcpy(nxt, ha->eft, ntohl(ha->fw_dump->eft_size));
+	}
+
+	if (rval != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Failed to dump firmware (%x)!!!\n", rval);
+		ha->fw_dumped = 0;
+
+	} else {
+		qla_printk(KERN_INFO, ha,
+		    "Firmware dump saved to temp buffer (%ld/%p).\n",
+		    ha->host_no, ha->fw_dump);
+		ha->fw_dumped = 1;
+	}
+
+qla25xx_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }

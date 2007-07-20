@@ -2209,6 +2209,7 @@ typedef struct scsi_qla_host {
 #define	SWITCH_FOUND			BIT_3
 #define	DFLG_NO_CABLE			BIT_4
 
+#define PCI_DEVICE_ID_QLOGIC_ISP2532	0x2532
 	uint32_t	device_type;
 #define DT_ISP2100			BIT_0
 #define DT_ISP2200			BIT_1
@@ -2221,7 +2222,8 @@ typedef struct scsi_qla_host {
 #define DT_ISP2432			BIT_8
 #define DT_ISP5422			BIT_9
 #define DT_ISP5432			BIT_10
-#define DT_ISP_LAST			(DT_ISP5432 << 1)
+#define DT_ISP2532			BIT_11
+#define DT_ISP_LAST			(DT_ISP2532 << 1)
 
 #define DT_IIDMA			BIT_26
 #define DT_FWI2				BIT_27
@@ -2242,11 +2244,13 @@ typedef struct scsi_qla_host {
 #define IS_QLA2432(ha)	(DT_MASK(ha) & DT_ISP2432)
 #define IS_QLA5422(ha)	(DT_MASK(ha) & DT_ISP5422)
 #define IS_QLA5432(ha)	(DT_MASK(ha) & DT_ISP5432)
+#define IS_QLA2532(ha)	(DT_MASK(ha) & DT_ISP2532)
 
 #define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
     			 IS_QLA6312(ha) || IS_QLA6322(ha))
 #define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
 #define IS_QLA54XX(ha)	(IS_QLA5422(ha) || IS_QLA5432(ha))
+#define IS_QLA25XX(ha)	(IS_QLA2532(ha))
 
 #define IS_IIDMA_CAPABLE(ha)	((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)	((ha)->device_type & DT_FWI2)
@@ -2310,6 +2314,7 @@ typedef struct scsi_qla_host {
 #define PORT_SPEED_1GB	0x00
 #define PORT_SPEED_2GB	0x01
 #define PORT_SPEED_4GB	0x03
+#define PORT_SPEED_8GB	0x04
 	uint16_t	link_data_rate;		/* F/W operating speed */
 
 	uint8_t		current_topology;
@@ -2576,6 +2581,7 @@ typedef struct scsi_qla_host {
 #define OPTROM_SIZE_2300	0x20000
 #define OPTROM_SIZE_2322	0x100000
 #define OPTROM_SIZE_24XX	0x100000
+#define OPTROM_SIZE_25XX	0x200000
 
 #include "qla_gbl.h"
 #include "qla_dbg.h"

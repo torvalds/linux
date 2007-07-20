@@ -206,7 +206,7 @@ static struct bin_attribute sysfs_optrom_attr = {
 		.name = "optrom",
 		.mode = S_IRUSR | S_IWUSR,
 	},
-	.size = OPTROM_SIZE_24XX,
+	.size = 0,
 	.read = qla2x00_sysfs_read_optrom,
 	.write = qla2x00_sysfs_write_optrom,
 };

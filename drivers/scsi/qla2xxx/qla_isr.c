@@ -247,7 +247,7 @@ void
 qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 {
 #define LS_UNKNOWN	2
-	static char	*link_speeds[5] = { "1", "2", "?", "4", "10" };
+	static char	*link_speeds[5] = { "1", "2", "?", "4", "8" };
 	char		*link_speed;
 	uint16_t	handle_cnt;
 	uint16_t	cnt;
@@ -1758,11 +1758,11 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 	int ret;
 
 	/* If possible, enable MSI-X. */
-	if (!IS_QLA2432(ha))
+	if (!IS_QLA2432(ha) && !IS_QLA2532(ha))
 		goto skip_msix;
 
-        if (ha->chip_revision < QLA_MSIX_CHIP_REV_24XX ||
-	    !QLA_MSIX_FW_MODE_1(ha->fw_attributes)) {
+        if (IS_QLA2432(ha) && (ha->chip_revision < QLA_MSIX_CHIP_REV_24XX ||
+	    !QLA_MSIX_FW_MODE_1(ha->fw_attributes))) {
 		DEBUG2(qla_printk(KERN_WARNING, ha,
 		    "MSI-X: Unsupported ISP2432 (0x%X, 0x%X).\n",
 		    ha->chip_revision, ha->fw_attributes));
@@ -1781,7 +1781,7 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
 skip_msix:
 
-	if (!IS_QLA24XX(ha))
+	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha))
 		goto skip_msi;
 
 	ret = pci_enable_msi(ha->pdev);

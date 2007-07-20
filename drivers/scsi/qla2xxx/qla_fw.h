@@ -8,14 +8,17 @@
 #define __QLA_FW_H
 
 #define MBS_CHECKSUM_ERROR	0x4010
+#define MBS_INVALID_PRODUCT_KEY	0x4020
 
 /*
  * Firmware Options.
  */
 #define FO1_ENABLE_PUREX	BIT_10
 #define FO1_DISABLE_LED_CTRL	BIT_6
+#define FO1_ENABLE_8016		BIT_0
 #define FO2_ENABLE_SEL_CLASS2	BIT_5
 #define FO3_NO_ABTS_ON_LINKDOWN	BIT_14
+#define FO3_HOLD_STS_IOCB	BIT_12
 
 /*
  * Port Database structure definition for ISP 24xx.
@@ -341,7 +344,9 @@ struct init_cb_24xx {
 	 * BIT 10 = Reserved
 	 * BIT 11 = Enable FC-SP Security
 	 * BIT 12 = FC Tape Enable
-	 * BIT 13-31 = Reserved
+	 * BIT 13 = Reserved
+	 * BIT 14 = Enable Target PRLI Control
+	 * BIT 15-31 = Reserved
 	 */
 	uint32_t firmware_options_2;
 
@@ -363,7 +368,8 @@ struct init_cb_24xx {
 	 * BIT 13 = Data Rate bit 0
 	 * BIT 14 = Data Rate bit 1
 	 * BIT 15 = Data Rate bit 2
-	 * BIT 16-31 = Reserved
+	 * BIT 16 = Enable 75 ohm Termination Select
+	 * BIT 17-31 = Reserved
 	 */
 	uint32_t firmware_options_3;
 
@@ -435,6 +441,7 @@ struct cmd_type_7 {
 #define TMF_LUN_RESET		BIT_12
 #define TMF_CLEAR_TASK_SET	BIT_10
 #define TMF_ABORT_TASK_SET	BIT_9
+#define TMF_DSD_LIST_ENABLE	BIT_2
 #define TMF_READ_DATA		BIT_1
 #define TMF_WRITE_DATA		BIT_0
 
@@ -589,7 +596,7 @@ struct els_entry_24xx {
 #define EST_SOFI3		(1 << 4)
 #define EST_SOFI2		(3 << 4)
 
-	uint32_t rx_xchg_address[2];	/* Receive exchange address. */
+	uint32_t rx_xchg_address;	/* Receive exchange address. */
 	uint16_t rx_dsd_count;
 
 	uint8_t opcode;
@@ -650,6 +657,7 @@ struct logio_entry_24xx {
 
 	uint16_t control_flags;		/* Control flags. */
 					/* Modifiers. */
+#define LCF_INCLUDE_SNS		BIT_10	/* Include SNS (FFFFFC) during LOGO. */
 #define LCF_FCP2_OVERRIDE	BIT_9	/* Set/Reset word 3 of PRLI. */
 #define LCF_CLASS_2		BIT_8	/* Enable class 2 during PLOGI. */
 #define LCF_FREE_NPORT		BIT_7	/* Release NPORT handle after LOGO. */
@@ -779,6 +787,15 @@ struct device_reg_24xx {
 #define FA_RISC_CODE_ADDR	0x20000
 #define FA_RISC_CODE_SEGMENTS	2
 
+#define FA_FW_AREA_ADDR		0x40000
+#define FA_VPD_NVRAM_ADDR	0x48000
+#define FA_FEATURE_ADDR		0x4C000
+#define FA_FLASH_DESCR_ADDR	0x50000
+#define FA_HW_EVENT_ADDR	0x54000
+#define FA_BOOT_LOG_ADDR	0x58000
+#define FA_FW_DUMP0_ADDR	0x60000
+#define FA_FW_DUMP1_ADDR	0x70000
+
 	uint32_t flash_data;		/* Flash/NVRAM BIOS data. */
 
 	uint32_t ctrl_status;		/* Control/Status. */
@@ -859,10 +876,13 @@ struct device_reg_24xx {
 #define HCCRX_CLR_RISC_INT	0xA0000000
 
 	uint32_t gpiod;			/* GPIO Data register. */
+
 					/* LED update mask. */
 #define GPDX_LED_UPDATE_MASK	(BIT_20|BIT_19|BIT_18)
 					/* Data update mask. */
 #define GPDX_DATA_UPDATE_MASK	(BIT_17|BIT_16)
+					/* Data update mask. */
+#define GPDX_DATA_UPDATE_2_MASK	(BIT_28|BIT_27|BIT_26|BIT_17|BIT_16)
 					/* LED control mask. */
 #define GPDX_LED_COLOR_MASK	(BIT_4|BIT_3|BIT_2)
 					/* LED bit values. Color names as
@@ -877,6 +897,8 @@ struct device_reg_24xx {
 	uint32_t gpioe;			/* GPIO Enable register. */
 					/* Enable update mask. */
 #define GPEX_ENABLE_UPDATE_MASK	(BIT_17|BIT_16)
+					/* Enable update mask. */
+#define GPEX_ENABLE_UPDATE_2_MASK (BIT_28|BIT_27|BIT_26|BIT_17|BIT_16)
 					/* Enable. */
 #define GPEX_ENABLE		(BIT_1|BIT_0)
 
@@ -916,6 +938,14 @@ struct device_reg_24xx {
 	uint16_t mailbox29;
 	uint16_t mailbox30;
 	uint16_t mailbox31;
+
+	uint32_t iobase_window;
+	uint32_t unused_4[8];		/* Gap. */
+	uint32_t iobase_q;
+	uint32_t unused_5[2];		/* Gap. */
+	uint32_t iobase_select;
+	uint32_t unused_6[2];		/* Gap. */
+	uint32_t iobase_sdata;
 };
 
 /* MID Support ***************************************************************/

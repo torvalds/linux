@@ -766,6 +766,29 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	return ret;
 }
 
+uint8_t *
+qla25xx_read_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
+    uint32_t bytes)
+{
+	uint32_t i;
+	uint32_t *dwptr;
+
+	/* Dword reads to flash. */
+	dwptr = (uint32_t *)buf;
+	for (i = 0; i < bytes >> 2; i++, naddr++)
+		dwptr[i] = cpu_to_le32(qla24xx_read_flash_dword(ha,
+		    flash_data_to_access_addr(FA_VPD_NVRAM_ADDR | naddr)));
+
+	return buf;
+}
+
+int
+qla25xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
+    uint32_t bytes)
+{
+	return qla24xx_write_flash_data(ha, (uint32_t *)buf,
+	    FA_VPD_NVRAM_ADDR | naddr, bytes >> 2);
+}
 
 static inline void
 qla2x00_flip_colors(scsi_qla_host_t *ha, uint16_t *pflags)

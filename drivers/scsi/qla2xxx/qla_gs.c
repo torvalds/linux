@@ -1532,7 +1532,11 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter = (struct ct_fdmi_port_attr *) (entries + size);
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_SUPPORT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	if (IS_QLA25XX(ha))
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
+		    FDMI_PORT_SPEED_4GB|FDMI_PORT_SPEED_8GB);
+	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
 		    FDMI_PORT_SPEED_4GB);
@@ -1563,6 +1567,10 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	case PORT_SPEED_4GB:
 		eiter->a.cur_speed =
 		    __constant_cpu_to_be32(FDMI_PORT_SPEED_4GB);
+		break;
+	case PORT_SPEED_8GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_8GB);
 		break;
 	default:
 		eiter->a.cur_speed =

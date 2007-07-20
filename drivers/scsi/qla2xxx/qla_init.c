@@ -287,6 +287,40 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 }
 
 /**
+ * qla25xx_pci_config() - Setup ISP25xx PCI configuration registers.
+ * @ha: HA context
+ *
+ * Returns 0 on success.
+ */
+int
+qla25xx_pci_config(scsi_qla_host_t *ha)
+{
+	uint16_t w;
+	uint32_t d;
+
+	pci_set_master(ha->pdev);
+	pci_try_set_mwi(ha->pdev);
+
+	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
+	w |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
+	w &= ~PCI_COMMAND_INTX_DISABLE;
+	pci_write_config_word(ha->pdev, PCI_COMMAND, w);
+
+	/* PCIe -- adjust Maximum Read Request Size (2048). */
+	if (pci_find_capability(ha->pdev, PCI_CAP_ID_EXP))
+		pcie_set_readrq(ha->pdev, 2048);
+
+	/* Reset expansion ROM address decode enable */
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+
+	ha->chip_revision = ha->pdev->revision;
+
+	return QLA_SUCCESS;
+}
+
+/**
  * qla2x00_isp_firmware() - Choose firmware image.
  * @ha: HA context
  *
@@ -717,7 +751,9 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		mem_size = (ha->fw_memory_size - 0x11000 + 1) *
 		    sizeof(uint16_t);
 	} else if (IS_FWI2_CAPABLE(ha)) {
-		fixed_size = offsetof(struct qla24xx_fw_dump, ext_mem);
+		fixed_size = IS_QLA25XX(ha) ?
+		    offsetof(struct qla25xx_fw_dump, ext_mem):
+		    offsetof(struct qla24xx_fw_dump, ext_mem);
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
 
