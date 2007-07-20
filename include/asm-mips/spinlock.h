@@ -67,7 +67,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		: "memory");
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
@@ -118,7 +118,7 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
 		: "memory");
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res == 0;
 }
@@ -183,7 +183,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		: "memory");
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 }
 
 /* Note the use of sub, not subu which will make the kernel die with an
@@ -193,7 +193,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 
-	smp_mb();
+	smp_llsc_mb();
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
@@ -262,7 +262,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		: "memory");
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
@@ -293,7 +293,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 		"	.set	reorder					\n"
 		"	beqzl	%1, 1b					\n"
 		"	 nop						\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"	li	%2, 1					\n"
 		"2:							\n"
 		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
@@ -310,7 +310,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 		"	beqz	%1, 1b					\n"
 		"	 nop						\n"
 		"	.set	reorder					\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"	li	%2, 1					\n"
 		"2:							\n"
 		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
@@ -336,7 +336,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
 		"	 nop						\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"	li	%2, 1					\n"
 		"	.set	reorder					\n"
 		"2:							\n"
@@ -354,7 +354,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	beqz	%1, 3f					\n"
 		"	 li	%2, 1					\n"
 		"2:							\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"	.subsection 2					\n"
 		"3:	b	1b					\n"
 		"	 li	%2, 0					\n"

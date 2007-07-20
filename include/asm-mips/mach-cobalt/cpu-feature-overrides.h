@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2006 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2006, 07 Ralf Baechle (ralf@linux-mips.org)
  */
 #ifndef __ASM_COBALT_CPU_FEATURE_OVERRIDES_H
 #define __ASM_COBALT_CPU_FEATURE_OVERRIDES_H
@@ -46,6 +46,8 @@
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_icache_snoops_remote_store	0
 #define cpu_has_dsp		0
+#define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

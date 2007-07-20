@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003, 2004 Ralf Baechle
+ * Copyright (C) 2003, 04, 07 Ralf Baechle (ralf@linux-mips.org)
  *
  * SNI RM200 C apparently was only shipped with R4600 V2.0 and R5000 processors.
  */
@@ -32,6 +32,8 @@
 #define cpu_has_dsp		0
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
+#define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

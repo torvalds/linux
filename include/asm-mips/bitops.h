@@ -38,8 +38,8 @@
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
-#define smp_mb__before_clear_bit()	smp_mb()
-#define smp_mb__after_clear_bit()	smp_mb()
+#define smp_mb__before_clear_bit()	smp_llsc_mb()
+#define smp_mb__after_clear_bit()	smp_llsc_mb()
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -289,7 +289,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
@@ -377,7 +377,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
@@ -445,7 +445,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
