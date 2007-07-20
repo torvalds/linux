@@ -616,7 +616,7 @@ static inline void save_ppuint_mb(struct spu_state *csa, struct spu *spu)
 static inline void save_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Save, Step 42:
@@ -627,7 +627,7 @@ static inline void save_ch_part1(struct spu_state *csa, struct spu *spu)
 	csa->spu_chnldata_RW[1] = in_be64(&priv2->spu_chnldata_RW);
 
 	/* Save the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
@@ -1091,7 +1091,7 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 static inline void reset_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	u64 idx;
 	int i;
 
@@ -1103,7 +1103,7 @@ static inline void reset_ch_part1(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->spu_chnldata_RW, 0UL);
 
 	/* Reset the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
@@ -1563,7 +1563,7 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Restore, Step 59:
@@ -1574,7 +1574,7 @@ static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->spu_chnldata_RW, csa->spu_chnldata_RW[1]);
 
 	/* Restore the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
