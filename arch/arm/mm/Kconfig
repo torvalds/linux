@@ -405,6 +405,7 @@ config CPU_32v5
 
 config CPU_32v6
 	bool
+	select TLS_REG_EMUL if !CPU_32v6K && !MMU
 
 config CPU_32v7
 	bool
