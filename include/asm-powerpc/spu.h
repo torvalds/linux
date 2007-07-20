@@ -411,6 +411,7 @@ struct spu_priv2 {
 #define MFC_CNTL_RESUME_DMA_QUEUE		(0ull << 0)
 #define MFC_CNTL_SUSPEND_DMA_QUEUE		(1ull << 0)
 #define MFC_CNTL_SUSPEND_DMA_QUEUE_MASK		(1ull << 0)
+#define MFC_CNTL_SUSPEND_MASK			(1ull << 4)
 #define MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION	(0ull << 8)
 #define MFC_CNTL_SUSPEND_IN_PROGRESS		(1ull << 8)
 #define MFC_CNTL_SUSPEND_COMPLETE		(3ull << 8)

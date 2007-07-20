@@ -271,7 +271,8 @@ static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
 	 *     Write MFC_CNTL[Dh] set to a '1' to halt
 	 *     the decrementer.
 	 */
-	out_be64(&priv2->mfc_control_RW, MFC_CNTL_DECREMENTER_HALTED);
+	out_be64(&priv2->mfc_control_RW,
+		 MFC_CNTL_DECREMENTER_HALTED | MFC_CNTL_SUSPEND_MASK);
 	eieio();
 }
 
