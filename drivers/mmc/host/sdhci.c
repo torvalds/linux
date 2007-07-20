@@ -1024,6 +1024,8 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 
 	intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
 
+	intmask &= ~SDHCI_INT_ERROR;
+
 	if (intmask & SDHCI_INT_BUS_POWER) {
 		printk(KERN_ERR "%s: Card is consuming too much power!\n",
 			mmc_hostname(host->mmc));
