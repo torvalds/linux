@@ -67,6 +67,12 @@ struct clocksource {
 	unsigned long flags;
 	cycle_t (*vread)(void);
 	void (*resume)(void);
+#ifdef CONFIG_IA64
+	void *fsys_mmio;        /* used by fsyscall asm code */
+#define CLKSRC_FSYS_MMIO_SET(mmio, addr)      ((mmio) = (addr))
+#else
+#define CLKSRC_FSYS_MMIO_SET(mmio, addr)      do { } while (0)
+#endif
 
 	/* timekeeping specific data, ignore */
 	cycle_t cycle_interval;
