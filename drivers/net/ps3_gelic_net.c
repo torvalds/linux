@@ -1134,7 +1134,6 @@ static int gelic_net_open(struct net_device *netdev)
 
 	netif_start_queue(netdev);
 	netif_carrier_on(netdev);
-	netif_poll_enable(netdev);
 
 	return 0;
 
