@@ -55,6 +55,8 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+# ALPHA Architecture
+
 # ARM Architecture
 
 config AT91RM9200_WATCHDOG
@@ -189,7 +191,7 @@ config PNX4008_WATCHDOG
 
 config IOP_WATCHDOG
 	tristate "IOP Watchdog"
-	depends on WATCHDOG && PLAT_IOP
+	depends on PLAT_IOP
 	select WATCHDOG_NOWAYOUT if (ARCH_IOP32X || ARCH_IOP33X)
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -205,7 +207,7 @@ config IOP_WATCHDOG
 
 config DAVINCI_WATCHDOG
 	tristate "DaVinci watchdog"
-	depends on WATCHDOG && ARCH_DAVINCI
+	depends on ARCH_DAVINCI
 	help
 	  Say Y here if to include support for the watchdog timer
 	  in the DaVinci DM644x/DM646x processors.
@@ -215,20 +217,22 @@ config DAVINCI_WATCHDOG
 	  NOTE: once enabled, this timer cannot be disabled.
 	  Say N if you are unsure.
 
+# ARM26 Architecture
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
 	tristate "AT32AP700x watchdog"
-	depends on WATCHDOG && CPU_AT32AP7000
+	depends on CPU_AT32AP7000
 	help
 	  Watchdog timer embedded into AT32AP700x devices. This will reboot
 	  your system when the timeout is reached.
 
-# Blackfin Architecture
+# BLACKFIN Architecture
 
 config BFIN_WDT
 	tristate "Blackfin On-Chip Watchdog Timer"
-	depends on WATCHDOG && BLACKFIN
+	depends on BLACKFIN
 	---help---
 	  If you say yes here you will get support for the Blackfin On-Chip
 	  Watchdog Timer. If you have one of these processors and wish to
@@ -236,6 +240,12 @@ config BFIN_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_wdt.
+
+# CRIS Architecture
+
+# FRV Architecture
+
+# H8300 Architecture
 
 # X86 (i386 + ia64 + x86_64) Architecture
 
@@ -565,41 +575,11 @@ config SBC_EPX_C3_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc_epx_c3.
 
-# PowerPC Architecture
+# M32R Architecture
 
-config 8xx_WDT
-	tristate "MPC8xx Watchdog Timer"
-	depends on 8xx
+# M68K Architecture
 
-config MPC5200_WDT
-	tristate "MPC5200 Watchdog Timer"
-	depends on PPC_MPC52xx
-
-config 83xx_WDT
-	tristate "MPC83xx Watchdog Timer"
-	depends on PPC_83xx
-
-config MV64X60_WDT
-	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
-	depends on MV64X60
-
-config BOOKE_WDT
-	bool "PowerPC Book-E Watchdog Timer"
-	depends on BOOKE || 4xx
-	---help---
-	  Please see Documentation/watchdog/watchdog-api.txt for
-	  more information.
-
-# PPC64 Architecture
-
-config WATCHDOG_RTAS
-	tristate "RTAS watchdog"
-	depends on PPC_RTAS
-	help
-	  This driver adds watchdog support for the RTAS watchdog.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called wdrtas.
+# M68KNOMMU Architecture
 
 # MIPS Architecture
 
@@ -629,6 +609,44 @@ config WDT_RM9K_GPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called rm9k_wdt.
 
+# PARISC Architecture
+
+# POWERPC Architecture
+
+config MPC5200_WDT
+	tristate "MPC5200 Watchdog Timer"
+	depends on PPC_MPC52xx
+
+config 8xx_WDT
+	tristate "MPC8xx Watchdog Timer"
+	depends on 8xx
+
+config 83xx_WDT
+	tristate "MPC83xx Watchdog Timer"
+	depends on PPC_83xx
+
+config MV64X60_WDT
+	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
+	depends on MV64X60
+
+config BOOKE_WDT
+	bool "PowerPC Book-E Watchdog Timer"
+	depends on BOOKE || 4xx
+	---help---
+	  Please see Documentation/watchdog/watchdog-api.txt for
+	  more information.
+
+# PPC64 Architecture
+
+config WATCHDOG_RTAS
+	tristate "RTAS watchdog"
+	depends on PPC_RTAS
+	help
+	  This driver adds watchdog support for the RTAS watchdog.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called wdrtas.
+
 # S390 Architecture
 
 config ZVM_WATCHDOG
@@ -643,7 +661,7 @@ config ZVM_WATCHDOG
 	  To compile this driver as a module, choose M here. The module
 	  will be called vmwatchdog.
 
-# SUPERH Architecture
+# SUPERH (sh + sh64) Architecture
 
 config SH_WDT
 	tristate "SuperH Watchdog"
@@ -670,6 +688,8 @@ config SH_WDT_MMAP
 	  If you say Y here, user applications will be able to mmap the
 	  WDT/CPG registers.
 
+# SPARC Architecture
+
 # SPARC64 Architecture
 
 config WATCHDOG_CP1XXX
@@ -693,6 +713,10 @@ config WATCHDOG_RIO
 	  Say Y here to support the hardware watchdog capability on Sun RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
+
+# V850 Architecture
+
+# XTENSA Architecture
 
 #
 # ISA-based Watchdog Cards
