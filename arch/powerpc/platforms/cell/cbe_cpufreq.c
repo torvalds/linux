@@ -196,10 +196,9 @@ static int pmi_notifier(struct notifier_block *nb,
 {
 	struct cpufreq_policy *policy = data;
 
-	if (event != CPUFREQ_INCOMPATIBLE)
-		return 0;
+	if (pmi_frequency_limit)
+		cpufreq_verify_within_limits(policy, 0, pmi_frequency_limit);
 
-	cpufreq_verify_within_limits(policy, 0, pmi_frequency_limit);
 	return 0;
 }
 
@@ -263,11 +262,6 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
 
-	if (cbe_cpufreq_has_pmi) {
-		/* frequency might get limited later, initialize limit with max_freq */
-		pmi_frequency_limit = max_freq;
-		cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
-	}
 
 	/* this ensures that policy->cpuinfo_min and policy->cpuinfo_max are set correctly */
 	return cpufreq_frequency_table_cpuinfo(policy, cbe_freqs);
@@ -275,9 +269,6 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (cbe_cpufreq_has_pmi)
-		cpufreq_unregister_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
-
 	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
@@ -341,6 +332,9 @@ static int __init cbe_cpufreq_init(void)
 
 	cbe_cpufreq_has_pmi = pmi_register_handler(&cbe_pmi_handler) == 0;
 
+	if (cbe_cpufreq_has_pmi)
+		cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
+
 	return cpufreq_register_driver(&cbe_cpufreq_driver);
 }
 
@@ -348,8 +342,10 @@ static void __exit cbe_cpufreq_exit(void)
 {
 	cpufreq_unregister_driver(&cbe_cpufreq_driver);
 
-	if (cbe_cpufreq_has_pmi)
+	if (cbe_cpufreq_has_pmi) {
+		cpufreq_unregister_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
 		pmi_unregister_handler(&cbe_pmi_handler);
+	}
 }
 
 module_init(cbe_cpufreq_init);
