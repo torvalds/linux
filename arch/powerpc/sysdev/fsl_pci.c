@@ -89,11 +89,22 @@ void __init setup_pci_atmu(struct pci_controller *hose, struct resource *rsrc)
 void __init setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
+	int cap_x;
+
 	early_read_config_word(hose, 0, 0, PCI_COMMAND, &cmd);
 	cmd |= PCI_COMMAND_SERR | PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY
 		| PCI_COMMAND_IO;
 	early_write_config_word(hose, 0, 0, PCI_COMMAND, cmd);
-	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
+
+	cap_x = early_find_capability(hose, 0, 0, PCI_CAP_ID_PCIX);
+	if (cap_x) {
+		int pci_x_cmd = cap_x + PCI_X_CMD;
+		cmd = PCI_X_CMD_MAX_SPLIT | PCI_X_CMD_MAX_READ
+			| PCI_X_CMD_ERO | PCI_X_CMD_DPERR_E;
+		early_write_config_word(hose, 0, 0, pci_x_cmd, cmd);
+	} else {
+		early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
+	}
 }
 
 static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
