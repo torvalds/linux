@@ -475,7 +475,7 @@ source "drivers/cpufreq/Kconfig"
 
 config SH_CPU_FREQ
 	tristate "SuperH CPU Frequency driver"
-	depends on CPU_FREQ && CPU_SH4 && BROKEN
+	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help
 	  This adds the cpufreq driver for SuperH. At present, only
