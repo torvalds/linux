@@ -31,6 +31,7 @@
 #include <asm/irq.h>
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
+#include <asm/xen/hypervisor.h>
 
 #include <xen/events.h>
 #include <xen/interface/xen.h>
