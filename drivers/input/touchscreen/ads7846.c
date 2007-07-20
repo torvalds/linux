@@ -95,7 +95,7 @@ struct ads7846 {
 	u16			dummy;		/* for the pwrdown read */
 	struct ts_event		tc;
 
-	struct spi_transfer	xfer[10];
+	struct spi_transfer	xfer[18];
 	struct spi_message	msg[5];
 	struct spi_message	*last_msg;
 	int			msg_idx;
@@ -106,6 +106,8 @@ struct ads7846 {
 	u16			debounce_max;
 	u16			debounce_tol;
 	u16			debounce_rep;
+
+	u16			penirq_recheck_delay_usecs;
 
 	spinlock_t		lock;
 	struct hrtimer		timer;
@@ -553,6 +555,15 @@ static void ads7846_rx(void *ads)
 		return;
 	}
 
+	/* Maybe check the pendown state before reporting. This discards
+	 * false readings when the pen is lifted.
+	 */
+	if (ts->penirq_recheck_delay_usecs) {
+		udelay(ts->penirq_recheck_delay_usecs);
+		if (!ts->get_pendown_state())
+			Rt = 0;
+	}
+
 	/* NOTE: We can't rely on the pressure to determine the pen down
 	 * state, even this controller has a pressure sensor.  The pressure
 	 * value can fluctuate for quite a while after lifting the pen and
@@ -896,6 +907,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		ts->filter = ads7846_no_filter;
 	ts->get_pendown_state = pdata->get_pendown_state;
 
+	if (pdata->penirq_recheck_delay_usecs)
+		ts->penirq_recheck_delay_usecs =
+				pdata->penirq_recheck_delay_usecs;
+
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
 
 	input_dev->name = "ADS784x Touchscreen";
@@ -936,6 +951,24 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	x->len = 2;
 	spi_message_add_tail(x, m);
 
+	/* the first sample after switching drivers can be low quality;
+	 * optionally discard it, using a second one after the signals
+	 * have had enough time to stabilize.
+	 */
+	if (pdata->settle_delay_usecs) {
+		x->delay_usecs = pdata->settle_delay_usecs;
+
+		x++;
+		x->tx_buf = &ts->read_y;
+		x->len = 1;
+		spi_message_add_tail(x, m);
+
+		x++;
+		x->rx_buf = &ts->tc.y;
+		x->len = 2;
+		spi_message_add_tail(x, m);
+	}
+
 	m->complete = ads7846_rx_val;
 	m->context = ts;
 
@@ -953,6 +986,21 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	x->rx_buf = &ts->tc.x;
 	x->len = 2;
 	spi_message_add_tail(x, m);
+
+	/* ... maybe discard first sample ... */
+	if (pdata->settle_delay_usecs) {
+		x->delay_usecs = pdata->settle_delay_usecs;
+
+		x++;
+		x->tx_buf = &ts->read_x;
+		x->len = 1;
+		spi_message_add_tail(x, m);
+
+		x++;
+		x->rx_buf = &ts->tc.x;
+		x->len = 2;
+		spi_message_add_tail(x, m);
+	}
 
 	m->complete = ads7846_rx_val;
 	m->context = ts;
@@ -973,6 +1021,21 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		x->len = 2;
 		spi_message_add_tail(x, m);
 
+		/* ... maybe discard first sample ... */
+		if (pdata->settle_delay_usecs) {
+			x->delay_usecs = pdata->settle_delay_usecs;
+
+			x++;
+			x->tx_buf = &ts->read_z1;
+			x->len = 1;
+			spi_message_add_tail(x, m);
+
+			x++;
+			x->rx_buf = &ts->tc.z1;
+			x->len = 2;
+			spi_message_add_tail(x, m);
+		}
+
 		m->complete = ads7846_rx_val;
 		m->context = ts;
 
@@ -989,6 +1052,21 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		x->rx_buf = &ts->tc.z2;
 		x->len = 2;
 		spi_message_add_tail(x, m);
+
+		/* ... maybe discard first sample ... */
+		if (pdata->settle_delay_usecs) {
+			x->delay_usecs = pdata->settle_delay_usecs;
+
+			x++;
+			x->tx_buf = &ts->read_z2;
+			x->len = 1;
+			spi_message_add_tail(x, m);
+
+			x++;
+			x->rx_buf = &ts->tc.z2;
+			x->len = 2;
+			spi_message_add_tail(x, m);
+		}
 
 		m->complete = ads7846_rx_val;
 		m->context = ts;

@@ -109,7 +109,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
 	struct lifebook_data *priv = psmouse->private;
 	struct input_dev *dev1 = psmouse->dev;
-	struct input_dev *dev2 = priv->dev2;
+	struct input_dev *dev2 = priv ? priv->dev2 : NULL;
 	unsigned char *packet = psmouse->packet;
 	int relative_packet = packet[0] & 0x08;
 

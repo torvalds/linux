@@ -275,4 +275,11 @@ config JOYSTICK_XPAD_FF
 	---help---
 	  Say Y here if you want to take advantage of xbox 360 rumble features.
 
+config JOYSTICK_XPAD_LEDS
+	bool "LED Support for Xbox360 controller 'BigX' LED"
+	depends on LEDS_CLASS && JOYSTICK_XPAD
+	---help---
+	  This option enables support for the LED which surrounds the Big X on
+	  XBox 360 controller.
+
 endif

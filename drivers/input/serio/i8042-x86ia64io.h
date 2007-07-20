@@ -366,6 +366,7 @@ static void i8042_pnp_exit(void)
 static int __init i8042_pnp_init(void)
 {
 	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
+	int pnp_data_busted = 0;
 	int err;
 
 	if (i8042_nopnp) {
@@ -413,27 +414,48 @@ static int __init i8042_pnp_init(void)
 #endif
 
 	if (((i8042_pnp_data_reg & ~0xf) == (i8042_data_reg & ~0xf) &&
-	      i8042_pnp_data_reg != i8042_data_reg) || !i8042_pnp_data_reg) {
-		printk(KERN_WARNING "PNP: PS/2 controller has invalid data port %#x; using default %#x\n",
+	      i8042_pnp_data_reg != i8042_data_reg) ||
+	    !i8042_pnp_data_reg) {
+		printk(KERN_WARNING
+			"PNP: PS/2 controller has invalid data port %#x; "
+			"using default %#x\n",
 			i8042_pnp_data_reg, i8042_data_reg);
 		i8042_pnp_data_reg = i8042_data_reg;
+		pnp_data_busted = 1;
 	}
 
 	if (((i8042_pnp_command_reg & ~0xf) == (i8042_command_reg & ~0xf) &&
-	      i8042_pnp_command_reg != i8042_command_reg) || !i8042_pnp_command_reg) {
-		printk(KERN_WARNING "PNP: PS/2 controller has invalid command port %#x; using default %#x\n",
+	      i8042_pnp_command_reg != i8042_command_reg) ||
+	    !i8042_pnp_command_reg) {
+		printk(KERN_WARNING
+			"PNP: PS/2 controller has invalid command port %#x; "
+			"using default %#x\n",
 			i8042_pnp_command_reg, i8042_command_reg);
 		i8042_pnp_command_reg = i8042_command_reg;
+		pnp_data_busted = 1;
 	}
 
 	if (!i8042_nokbd && !i8042_pnp_kbd_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %d\n", i8042_kbd_irq);
+		printk(KERN_WARNING
+			"PNP: PS/2 controller doesn't have KBD irq; "
+			"using default %d\n", i8042_kbd_irq);
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
+		pnp_data_busted = 1;
 	}
 
 	if (!i8042_noaux && !i8042_pnp_aux_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %d\n", i8042_aux_irq);
-		i8042_pnp_aux_irq = i8042_aux_irq;
+		if (!pnp_data_busted && i8042_pnp_kbd_irq) {
+			printk(KERN_WARNING
+				"PNP: PS/2 appears to have AUX port disabled, "
+				"if this is incorrect please boot with "
+				"i8042.nopnp\n");
+			i8042_noaux = 1;
+		} else {
+			printk(KERN_WARNING
+				"PNP: PS/2 controller doesn't have AUX irq; "
+				"using default %d\n", i8042_aux_irq);
+			i8042_pnp_aux_irq = i8042_aux_irq;
+		}
 	}
 
 	i8042_data_reg = i8042_pnp_data_reg;
