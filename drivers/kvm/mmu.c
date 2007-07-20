@@ -154,7 +154,6 @@ struct kvm_rmap_desc {
 
 static struct kmem_cache *pte_chain_cache;
 static struct kmem_cache *rmap_desc_cache;
-static struct kmem_cache *mmu_page_cache;
 static struct kmem_cache *mmu_page_header_cache;
 
 static int is_write_protection(struct kvm_vcpu *vcpu)
@@ -225,6 +224,29 @@ static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 		kfree(mc->objects[--mc->nobjs]);
 }
 
+static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
+				       int min, gfp_t gfp_flags)
+{
+	struct page *page;
+
+	if (cache->nobjs >= min)
+		return 0;
+	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
+		page = alloc_page(gfp_flags);
+		if (!page)
+			return -ENOMEM;
+		set_page_private(page, 0);
+		cache->objects[cache->nobjs++] = page_address(page);
+	}
+	return 0;
+}
+
+static void mmu_free_memory_cache_page(struct kvm_mmu_memory_cache *mc)
+{
+	while (mc->nobjs)
+		__free_page(mc->objects[--mc->nobjs]);
+}
+
 static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
 {
 	int r;
@@ -237,8 +259,7 @@ static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
 				   rmap_desc_cache, 1, gfp_flags);
 	if (r)
 		goto out;
-	r = mmu_topup_memory_cache(&vcpu->mmu_page_cache,
-				   mmu_page_cache, 4, gfp_flags);
+	r = mmu_topup_memory_cache_page(&vcpu->mmu_page_cache, 4, gfp_flags);
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache(&vcpu->mmu_page_header_cache,
@@ -266,7 +287,7 @@ static void mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 {
 	mmu_free_memory_cache(&vcpu->mmu_pte_chain_cache);
 	mmu_free_memory_cache(&vcpu->mmu_rmap_desc_cache);
-	mmu_free_memory_cache(&vcpu->mmu_page_cache);
+	mmu_free_memory_cache_page(&vcpu->mmu_page_cache);
 	mmu_free_memory_cache(&vcpu->mmu_page_header_cache);
 }
 
@@ -458,7 +479,7 @@ static void kvm_mmu_free_page(struct kvm *kvm,
 {
 	ASSERT(is_empty_shadow_page(page_head->spt));
 	list_del(&page_head->link);
-	kfree(page_head->spt);
+	__free_page(virt_to_page(page_head->spt));
 	kfree(page_head);
 	++kvm->n_free_mmu_pages;
 }
@@ -1301,8 +1322,6 @@ void kvm_mmu_module_exit(void)
 		kmem_cache_destroy(pte_chain_cache);
 	if (rmap_desc_cache)
 		kmem_cache_destroy(rmap_desc_cache);
-	if (mmu_page_cache)
-		kmem_cache_destroy(mmu_page_cache);
 	if (mmu_page_header_cache)
 		kmem_cache_destroy(mmu_page_header_cache);
 }
@@ -1318,12 +1337,6 @@ int kvm_mmu_module_init(void)
 					    sizeof(struct kvm_rmap_desc),
 					    0, 0, NULL);
 	if (!rmap_desc_cache)
-		goto nomem;
-
-	mmu_page_cache = kmem_cache_create("kvm_mmu_page",
-					   PAGE_SIZE,
-					   PAGE_SIZE, 0, NULL);
-	if (!mmu_page_cache)
 		goto nomem;
 
 	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
