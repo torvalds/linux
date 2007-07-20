@@ -100,6 +100,11 @@ struct ehca_sport {
 	struct ehca_sma_attr saved_attr;
 };
 
+#define HCA_CAP_MR_PGSIZE_4K  1
+#define HCA_CAP_MR_PGSIZE_64K 2
+#define HCA_CAP_MR_PGSIZE_1M  4
+#define HCA_CAP_MR_PGSIZE_16M 8
+
 struct ehca_shca {
 	struct ib_device ib_device;
 	struct ibmebus_dev *ibmebus_dev;
@@ -115,6 +120,8 @@ struct ehca_shca {
 	struct h_galpas galpas;
 	struct mutex modify_mutex;
 	u64 hca_cap;
+	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
+	u32 hca_cap_mr_pgsize;
 	int max_mtu;
 };
 
@@ -206,6 +213,7 @@ struct ehca_mr {
 	enum ehca_mr_flag flags;
 	u32 num_kpages;		/* number of kernel pages */
 	u32 num_hwpages;	/* number of hw pages to form MR */
+	u64 hwpage_size;	/* hw page size used for this MR */
 	int acl;		/* ACL (stored here for usage in reregister) */
 	u64 *start;		/* virtual start address (stored here for */
 				/* usage in reregister) */
@@ -240,6 +248,7 @@ struct ehca_mr_pginfo {
 	enum ehca_mr_pgi_type type;
 	u64 num_kpages;
 	u64 kpage_cnt;
+	u64 hwpage_size;     /* hw page size used for this MR */
 	u64 num_hwpages;     /* number of hw pages */
 	u64 hwpage_cnt;      /* counter for hw pages */
 	u64 next_hwpage;     /* next hw page in buffer/chunk/listelem */

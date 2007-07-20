@@ -111,7 +111,7 @@ int ehca_mr_is_maxmr(u64 size,
 void ehca_mrmw_map_acl(int ib_acl,
 		       u32 *hipz_acl);
 
-void ehca_mrmw_set_pgsize_hipz_acl(u32 *hipz_acl);
+void ehca_mrmw_set_pgsize_hipz_acl(u32 pgsize, u32 *hipz_acl);
 
 void ehca_mrmw_reverse_map_acl(const u32 *hipz_acl,
 			       int *ib_acl);

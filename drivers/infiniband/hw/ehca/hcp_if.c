@@ -427,7 +427,8 @@ u64 hipz_h_register_rpage(const struct ipz_adapter_handle adapter_handle,
 {
 	return ehca_plpar_hcall_norets(H_REGISTER_RPAGES,
 				       adapter_handle.handle,      /* r4  */
-				       queue_type | pagesize << 8, /* r5  */
+				       (u64)queue_type | ((u64)pagesize) << 8,
+				       /* r5  */
 				       resource_handle,	           /* r6  */
 				       logical_address_of_page,    /* r7  */
 				       count,	                   /* r8  */
@@ -724,6 +725,9 @@ u64 hipz_h_alloc_resource_mr(const struct ipz_adapter_handle adapter_handle,
 	u64 ret;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
 
+	ehca_gen_dbg("kernel PAGE_SIZE=%x access_ctrl=%016x "
+		     "vaddr=%lx length=%lx",
+		     (u32)PAGE_SIZE, access_ctrl, vaddr, length);
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,            /* r4 */
 				5,                                /* r5 */
@@ -746,7 +750,21 @@ u64 hipz_h_register_rpage_mr(const struct ipz_adapter_handle adapter_handle,
 			     const u64 logical_address_of_page,
 			     const u64 count)
 {
+	extern int ehca_debug_level;
 	u64 ret;
+
+	if (unlikely(ehca_debug_level >= 2)) {
+		if (count > 1) {
+			u64 *kpage;
+			int i;
+			kpage = (u64 *)abs_to_virt(logical_address_of_page);
+			for (i = 0; i < count; i++)
+				ehca_gen_dbg("kpage[%d]=%p",
+					     i, (void *)kpage[i]);
+		} else
+			ehca_gen_dbg("kpage=%p",
+				     (void *)logical_address_of_page);
+	}
 
 	if ((count > 1) && (logical_address_of_page & (EHCA_PAGESIZE-1))) {
 		ehca_gen_err("logical_address_of_page not on a 4k boundary "
