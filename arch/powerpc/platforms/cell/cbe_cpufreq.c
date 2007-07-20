@@ -68,11 +68,12 @@ static u64 MIC_Slow_Next_Timer_table[] = {
 };
 
 static unsigned int pmi_frequency_limit = 0;
+
 /*
  * hardware specific functions
  */
 
-static struct of_device *pmi_dev;
+static bool cbe_cpufreq_has_pmi;
 
 #ifdef CONFIG_PPC_PMI
 static int set_pmode_pmi(int cpu, unsigned int pmode)
@@ -91,7 +92,7 @@ static int set_pmode_pmi(int cpu, unsigned int pmode)
 	time = (u64) get_cycles();
 #endif
 
-	pmi_send_message(pmi_dev, pmi_msg);
+	pmi_send_message(pmi_msg);
 	ret = pmi_msg.data2;
 
 	pr_debug("PMI returned slow mode %d\n", ret);
@@ -157,16 +158,16 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 	return 0;
 }
 
-static int set_pmode(int cpu, unsigned int slow_mode) {
+static int set_pmode(int cpu, unsigned int slow_mode)
+{
 #ifdef CONFIG_PPC_PMI
-	if (pmi_dev)
+	if (cbe_cpufreq_has_pmi)
 		return set_pmode_pmi(cpu, slow_mode);
-	else
 #endif
-		return set_pmode_reg(cpu, slow_mode);
+	return set_pmode_reg(cpu, slow_mode);
 }
 
-static void cbe_cpufreq_handle_pmi(struct of_device *dev, pmi_message_t pmi_msg)
+static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
 	u8 cpu;
 	u8 cbe_pmode_new;
@@ -253,7 +254,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
 
-	if (pmi_dev) {
+	if (cbe_cpufreq_has_pmi) {
 		/* frequency might get limited later, initialize limit with max_freq */
 		pmi_frequency_limit = max_freq;
 		cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
@@ -265,7 +266,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (pmi_dev)
+	if (cbe_cpufreq_has_pmi)
 		cpufreq_unregister_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
 
 	cpufreq_frequency_table_put_attr(policy->cpu);
@@ -326,29 +327,20 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 
 static int __init cbe_cpufreq_init(void)
 {
-#ifdef CONFIG_PPC_PMI
-	struct device_node *np;
-#endif
 	if (!machine_is(cell))
 		return -ENODEV;
-#ifdef CONFIG_PPC_PMI
-	np = of_find_node_by_type(NULL, "ibm,pmi");
 
-	pmi_dev = of_find_device_by_node(np);
+	cbe_cpufreq_has_pmi = pmi_register_handler(&cbe_pmi_handler) == 0;
 
-	if (pmi_dev)
-		pmi_register_handler(pmi_dev, &cbe_pmi_handler);
-#endif
 	return cpufreq_register_driver(&cbe_cpufreq_driver);
 }
 
 static void __exit cbe_cpufreq_exit(void)
 {
-#ifdef CONFIG_PPC_PMI
-	if (pmi_dev)
-		pmi_unregister_handler(pmi_dev, &cbe_pmi_handler);
-#endif
 	cpufreq_unregister_driver(&cbe_cpufreq_driver);
+
+	if (cbe_cpufreq_has_pmi)
+		pmi_unregister_handler(&cbe_pmi_handler);
 }
 
 module_init(cbe_cpufreq_init);

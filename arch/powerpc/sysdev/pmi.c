@@ -48,14 +48,12 @@ struct pmi_data {
 	struct work_struct	work;
 };
 
+static struct pmi_data *data;
 
 static int pmi_irq_handler(int irq, void *dev_id)
 {
-	struct pmi_data *data;
 	u8 type;
 	int rc;
-
-	data = dev_id;
 
 	spin_lock(&data->pmi_spinlock);
 
@@ -111,16 +109,13 @@ MODULE_DEVICE_TABLE(of, pmi_match);
 
 static void pmi_notify_handlers(struct work_struct *work)
 {
-	struct pmi_data *data;
 	struct pmi_handler *handler;
-
-	data = container_of(work, struct pmi_data, work);
 
 	spin_lock(&data->handler_spinlock);
 	list_for_each_entry(handler, &data->handler, node) {
 		pr_debug(KERN_INFO "pmi: notifying handler %p\n", handler);
 		if (handler->type == data->msg.type)
-			handler->handle_pmi_message(data->dev, data->msg);
+			handler->handle_pmi_message(data->msg);
 	}
 	spin_unlock(&data->handler_spinlock);
 }
@@ -129,8 +124,13 @@ static int pmi_of_probe(struct of_device *dev,
 			const struct of_device_id *match)
 {
 	struct device_node *np = dev->node;
-	struct pmi_data *data;
 	int rc;
+
+	if (data) {
+		printk(KERN_ERR "pmi: driver has already been initialized.\n");
+		rc = -EBUSY;
+		goto out;
+	}
 
 	data = kzalloc(sizeof(struct pmi_data), GFP_KERNEL);
 	if (!data) {
@@ -154,7 +154,6 @@ static int pmi_of_probe(struct of_device *dev,
 
 	INIT_WORK(&data->work, pmi_notify_handlers);
 
-	dev->dev.driver_data = data;
 	data->dev = dev;
 
 	data->irq = irq_of_parse_and_map(np, 0);
@@ -164,7 +163,7 @@ static int pmi_of_probe(struct of_device *dev,
 		goto error_cleanup_iomap;
 	}
 
-	rc = request_irq(data->irq, pmi_irq_handler, 0, "pmi", data);
+	rc = request_irq(data->irq, pmi_irq_handler, 0, "pmi", NULL);
 	if (rc) {
 		printk(KERN_ERR "pmi: can't request IRQ %d: returned %d\n",
 				data->irq, rc);
@@ -187,12 +186,9 @@ out:
 
 static int pmi_of_remove(struct of_device *dev)
 {
-	struct pmi_data *data;
 	struct pmi_handler *handler, *tmp;
 
-	data = dev->dev.driver_data;
-
-	free_irq(data->irq, data);
+	free_irq(data->irq, NULL);
 	iounmap(data->pmi_reg);
 
 	spin_lock(&data->handler_spinlock);
@@ -202,7 +198,8 @@ static int pmi_of_remove(struct of_device *dev)
 
 	spin_unlock(&data->handler_spinlock);
 
-	kfree(dev->dev.driver_data);
+	kfree(data);
+	data = NULL;
 
 	return 0;
 }
@@ -226,13 +223,13 @@ static void __exit pmi_module_exit(void)
 }
 module_exit(pmi_module_exit);
 
-void pmi_send_message(struct of_device *device, pmi_message_t msg)
+int pmi_send_message(pmi_message_t msg)
 {
-	struct pmi_data *data;
 	unsigned long flags;
 	DECLARE_COMPLETION_ONSTACK(completion);
 
-	data = device->dev.driver_data;
+	if (!data)
+		return -ENODEV;
 
 	mutex_lock(&data->msg_mutex);
 
@@ -256,30 +253,26 @@ void pmi_send_message(struct of_device *device, pmi_message_t msg)
 	data->completion = NULL;
 
 	mutex_unlock(&data->msg_mutex);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pmi_send_message);
 
-void pmi_register_handler(struct of_device *device,
-			  struct pmi_handler *handler)
+int pmi_register_handler(struct pmi_handler *handler)
 {
-	struct pmi_data *data;
-	data = device->dev.driver_data;
-
 	if (!data)
-		return;
+		return -ENODEV;
 
 	spin_lock(&data->handler_spinlock);
 	list_add_tail(&handler->node, &data->handler);
 	spin_unlock(&data->handler_spinlock);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pmi_register_handler);
 
-void pmi_unregister_handler(struct of_device *device,
-			    struct pmi_handler *handler)
+void pmi_unregister_handler(struct pmi_handler *handler)
 {
-	struct pmi_data *data;
-	data = device->dev.driver_data;
-
 	if (!data)
 		return;
 
