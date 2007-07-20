@@ -233,6 +233,8 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 
 	if (ctx->flags & SPU_CREATE_NOSCHED)
 		atomic_inc(&cbe_spu_info[spu->node].reserved_spus);
+	if (!list_empty(&ctx->aff_list))
+		atomic_inc(&ctx->gang->aff_sched_count);
 
 	ctx->stats.slb_flt_base = spu->stats.slb_flt;
 	ctx->stats.class2_intr_base = spu->stats.class2_intr;
@@ -259,6 +261,143 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 }
 
+/*
+ * XXX(hch): needs locking.
+ */
+static inline int sched_spu(struct spu *spu)
+{
+	return (!spu->ctx || !(spu->ctx->flags & SPU_CREATE_NOSCHED));
+}
+
+static void aff_merge_remaining_ctxs(struct spu_gang *gang)
+{
+	struct spu_context *ctx;
+
+	list_for_each_entry(ctx, &gang->aff_list_head, aff_list) {
+		if (list_empty(&ctx->aff_list))
+			list_add(&ctx->aff_list, &gang->aff_list_head);
+	}
+	gang->aff_flags |= AFF_MERGED;
+}
+
+static void aff_set_offsets(struct spu_gang *gang)
+{
+	struct spu_context *ctx;
+	int offset;
+
+	offset = -1;
+	list_for_each_entry_reverse(ctx, &gang->aff_ref_ctx->aff_list,
+								aff_list) {
+		if (&ctx->aff_list == &gang->aff_list_head)
+			break;
+		ctx->aff_offset = offset--;
+	}
+
+	offset = 0;
+	list_for_each_entry(ctx, gang->aff_ref_ctx->aff_list.prev, aff_list) {
+		if (&ctx->aff_list == &gang->aff_list_head)
+			break;
+		ctx->aff_offset = offset++;
+	}
+
+	gang->aff_flags |= AFF_OFFSETS_SET;
+}
+
+static struct spu *aff_ref_location(struct spu_context *ctx, int mem_aff,
+		 int group_size, int lowest_offset)
+{
+	struct spu *spu;
+	int node, n;
+
+	/*
+	 * TODO: A better algorithm could be used to find a good spu to be
+	 *       used as reference location for the ctxs chain.
+	 */
+	node = cpu_to_node(raw_smp_processor_id());
+	for (n = 0; n < MAX_NUMNODES; n++, node++) {
+		node = (node < MAX_NUMNODES) ? node : 0;
+		if (!node_allowed(ctx, node))
+			continue;
+		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
+			if ((!mem_aff || spu->has_mem_affinity) &&
+							sched_spu(spu))
+				return spu;
+		}
+	}
+	return NULL;
+}
+
+static void aff_set_ref_point_location(struct spu_gang *gang)
+{
+	int mem_aff, gs, lowest_offset;
+	struct spu_context *ctx;
+	struct spu *tmp;
+
+	mem_aff = gang->aff_ref_ctx->flags & SPU_CREATE_AFFINITY_MEM;
+	lowest_offset = 0;
+	gs = 0;
+
+	list_for_each_entry(tmp, &gang->aff_list_head, aff_list)
+		gs++;
+
+	list_for_each_entry_reverse(ctx, &gang->aff_ref_ctx->aff_list,
+								aff_list) {
+		if (&ctx->aff_list == &gang->aff_list_head)
+			break;
+		lowest_offset = ctx->aff_offset;
+	}
+
+	gang->aff_ref_spu = aff_ref_location(ctx, mem_aff, gs, lowest_offset);
+}
+
+static struct spu *ctx_location(struct spu *ref, int offset)
+{
+	struct spu *spu;
+
+	spu = NULL;
+	if (offset >= 0) {
+		list_for_each_entry(spu, ref->aff_list.prev, aff_list) {
+			if (offset == 0)
+				break;
+			if (sched_spu(spu))
+				offset--;
+		}
+	} else {
+		list_for_each_entry_reverse(spu, ref->aff_list.next, aff_list) {
+			if (offset == 0)
+				break;
+			if (sched_spu(spu))
+				offset++;
+		}
+	}
+	return spu;
+}
+
+/*
+ * affinity_check is called each time a context is going to be scheduled.
+ * It returns the spu ptr on which the context must run.
+ */
+struct spu *affinity_check(struct spu_context *ctx)
+{
+	struct spu_gang *gang;
+
+	if (list_empty(&ctx->aff_list))
+		return NULL;
+	gang = ctx->gang;
+	mutex_lock(&gang->aff_mutex);
+	if (!gang->aff_ref_spu) {
+		if (!(gang->aff_flags & AFF_MERGED))
+			aff_merge_remaining_ctxs(gang);
+		if (!(gang->aff_flags & AFF_OFFSETS_SET))
+			aff_set_offsets(gang);
+		aff_set_ref_point_location(gang);
+	}
+	mutex_unlock(&gang->aff_mutex);
+	if (!gang->aff_ref_spu)
+		return NULL;
+	return ctx_location(gang->aff_ref_spu, ctx->aff_offset);
+}
+
 /**
  * spu_unbind_context - unbind spu context from physical spu
  * @spu:	physical spu to unbind from
@@ -272,6 +411,9 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 
  	if (spu->ctx->flags & SPU_CREATE_NOSCHED)
 		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
+ 	if (!list_empty(&ctx->aff_list))
+ 		if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
+ 			ctx->gang->aff_ref_spu = NULL;
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);

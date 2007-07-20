@@ -112,6 +112,7 @@ struct spu_context {
 
 	struct list_head aff_list;
 	int aff_head;
+	int aff_offset;
 };
 
 struct spu_gang {
@@ -124,6 +125,8 @@ struct spu_gang {
 	struct list_head aff_list_head;
 	struct mutex aff_mutex;
 	int aff_flags;
+	struct spu *aff_ref_spu;
+	atomic_t aff_sched_count;
 };
 
 /* Flag bits for spu_gang aff_flags */
@@ -207,6 +210,9 @@ void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 
 /* fault handling */
 int spufs_handle_class1(struct spu_context *ctx);
+
+/* affinity */
+struct spu *affinity_check(struct spu_context *ctx);
 
 /* context management */
 extern atomic_t nr_spu_contexts;
