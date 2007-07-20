@@ -167,6 +167,8 @@ static int pnp_bus_suspend(struct device *dev, pm_message_t state)
 	    		return error;
 	}
 
+	if (pnp_dev->protocol && pnp_dev->protocol->suspend)
+		pnp_dev->protocol->suspend(pnp_dev, state);
 	return 0;
 }
 
@@ -178,6 +180,9 @@ static int pnp_bus_resume(struct device *dev)
 
 	if (!pnp_drv)
 		return 0;
+
+	if (pnp_dev->protocol && pnp_dev->protocol->resume)
+		pnp_dev->protocol->resume(pnp_dev);
 
 	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)) {
 		error = pnp_start_dev(pnp_dev);
