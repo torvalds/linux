@@ -107,10 +107,10 @@ struct spu_runqueue;
 struct device_node;
 
 enum spu_utilization_state {
-	SPU_UTIL_SYSTEM,
 	SPU_UTIL_USER,
+	SPU_UTIL_SYSTEM,
 	SPU_UTIL_IOWAIT,
-	SPU_UTIL_IDLE,
+	SPU_UTIL_IDLE_LOADED,
 	SPU_UTIL_MAX
 };
 
@@ -121,9 +121,9 @@ struct spu {
 	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
 	struct spu_priv2 __iomem *priv2;
-	struct list_head list;
-	struct list_head sched_list;
+	struct list_head cbe_list;
 	struct list_head full_list;
+	enum { SPU_FREE, SPU_USED } alloc_state;
 	int number;
 	unsigned int irqs[3];
 	u32 node;
@@ -137,6 +137,7 @@ struct spu {
 	struct spu_runqueue *rq;
 	unsigned long long timestamp;
 	pid_t pid;
+	pid_t tgid;
 	int class_0_pending;
 	spinlock_t register_lock;
 
@@ -165,11 +166,14 @@ struct spu {
 
 	struct sys_device sysdev;
 
+	int has_mem_affinity;
+	struct list_head aff_list;
+
 	struct {
 		/* protected by interrupt reentrancy */
-		enum spu_utilization_state utilization_state;
-		unsigned long tstamp;		/* time of last ctx switch */
-		unsigned long times[SPU_UTIL_MAX];
+		enum spu_utilization_state util_state;
+		unsigned long long tstamp;
+		unsigned long long times[SPU_UTIL_MAX];
 		unsigned long long vol_ctx_switch;
 		unsigned long long invol_ctx_switch;
 		unsigned long long min_flt;
@@ -181,12 +185,28 @@ struct spu {
 	} stats;
 };
 
-struct spu *spu_alloc(void);
-struct spu *spu_alloc_node(int node);
-void spu_free(struct spu *spu);
+struct cbe_spu_info {
+	struct mutex list_mutex;
+	struct list_head spus;
+	int n_spus;
+	int nr_active;
+	atomic_t reserved_spus;
+};
+
+extern struct cbe_spu_info cbe_spu_info[];
+
+void spu_init_channels(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
+
+#ifdef CONFIG_KEXEC
+void crash_register_spus(struct list_head *list);
+#else
+static inline void crash_register_spus(struct list_head *list)
+{
+}
+#endif
 
 extern void spu_invalidate_slbs(struct spu *spu);
 extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
@@ -194,6 +214,20 @@ extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
 /* Calls from the memory management to the SPU */
 struct mm_struct;
 extern void spu_flush_all_slbs(struct mm_struct *mm);
+
+/* This interface allows a profiler (e.g., OProfile) to store a ref
+ * to spu context information that it creates.	This caching technique
+ * avoids the need to recreate this information after a save/restore operation.
+ *
+ * Assumes the caller has already incremented the ref count to
+ * profile_info; then spu_context_destroy must call kref_put
+ * on prof_info_kref.
+ */
+void spu_set_profile_private_kref(struct spu_context *ctx,
+				  struct kref *prof_info_kref,
+				  void ( * prof_info_release) (struct kref *kref));
+
+void *spu_get_profile_private_kref(struct spu_context *ctx);
 
 /* system callbacks from the SPU */
 struct spu_syscall_block {
@@ -206,7 +240,8 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 struct file;
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
-					unsigned int flags, mode_t mode);
+					unsigned int flags, mode_t mode,
+					struct file *neighbor);
 	asmlinkage long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	struct module *owner;
@@ -233,8 +268,10 @@ struct spu_coredump_calls {
 #define SPU_CREATE_GANG			0x0002
 #define SPU_CREATE_NOSCHED		0x0004
 #define SPU_CREATE_ISOLATE		0x0008
+#define SPU_CREATE_AFFINITY_SPU		0x0010
+#define SPU_CREATE_AFFINITY_MEM		0x0020
 
-#define SPU_CREATE_FLAG_ALL		0x000f /* mask of all valid flags */
+#define SPU_CREATE_FLAG_ALL		0x003f /* mask of all valid flags */
 
 
 #ifdef CONFIG_SPU_FS_MODULE
@@ -403,6 +440,7 @@ struct spu_priv2 {
 #define MFC_CNTL_RESUME_DMA_QUEUE		(0ull << 0)
 #define MFC_CNTL_SUSPEND_DMA_QUEUE		(1ull << 0)
 #define MFC_CNTL_SUSPEND_DMA_QUEUE_MASK		(1ull << 0)
+#define MFC_CNTL_SUSPEND_MASK			(1ull << 4)
 #define MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION	(0ull << 8)
 #define MFC_CNTL_SUSPEND_IN_PROGRESS		(1ull << 8)
 #define MFC_CNTL_SUSPEND_COMPLETE		(3ull << 8)

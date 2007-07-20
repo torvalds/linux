@@ -219,6 +219,72 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	cpus_in_sr = CPU_MASK_NONE;
 }
 #endif
+#ifdef CONFIG_SPU_BASE
+
+#include <asm/spu.h>
+#include <asm/spu_priv1.h>
+
+struct crash_spu_info {
+	struct spu *spu;
+	u32 saved_spu_runcntl_RW;
+	u32 saved_spu_status_R;
+	u32 saved_spu_npc_RW;
+	u64 saved_mfc_sr1_RW;
+	u64 saved_mfc_dar;
+	u64 saved_mfc_dsisr;
+};
+
+#define CRASH_NUM_SPUS	16	/* Enough for current hardware */
+static struct crash_spu_info crash_spu_info[CRASH_NUM_SPUS];
+
+static void crash_kexec_stop_spus(void)
+{
+	struct spu *spu;
+	int i;
+	u64 tmp;
+
+	for (i = 0; i < CRASH_NUM_SPUS; i++) {
+		if (!crash_spu_info[i].spu)
+			continue;
+
+		spu = crash_spu_info[i].spu;
+
+		crash_spu_info[i].saved_spu_runcntl_RW =
+			in_be32(&spu->problem->spu_runcntl_RW);
+		crash_spu_info[i].saved_spu_status_R =
+			in_be32(&spu->problem->spu_status_R);
+		crash_spu_info[i].saved_spu_npc_RW =
+			in_be32(&spu->problem->spu_npc_RW);
+
+		crash_spu_info[i].saved_mfc_dar    = spu_mfc_dar_get(spu);
+		crash_spu_info[i].saved_mfc_dsisr  = spu_mfc_dsisr_get(spu);
+		tmp = spu_mfc_sr1_get(spu);
+		crash_spu_info[i].saved_mfc_sr1_RW = tmp;
+
+		tmp &= ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+		spu_mfc_sr1_set(spu, tmp);
+
+		__delay(200);
+	}
+}
+
+void crash_register_spus(struct list_head *list)
+{
+	struct spu *spu;
+
+	list_for_each_entry(spu, list, full_list) {
+		if (WARN_ON(spu->number >= CRASH_NUM_SPUS))
+			continue;
+
+		crash_spu_info[spu->number].spu = spu;
+	}
+}
+
+#else
+static inline void crash_kexec_stop_spus(void)
+{
+}
+#endif /* CONFIG_SPU_BASE */
 
 void default_machine_crash_shutdown(struct pt_regs *regs)
 {
@@ -254,6 +320,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	crash_save_cpu(regs, crashing_cpu);
 	crash_kexec_prepare_cpus(crashing_cpu);
 	cpu_set(crashing_cpu, cpus_in_crash);
+	crash_kexec_stop_spus();
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 0);
 }

@@ -34,14 +34,27 @@ struct spufs_calls spufs_calls = {
  * this file is not used and the syscalls directly enter the fs code */
 
 asmlinkage long sys_spu_create(const char __user *name,
-		unsigned int flags, mode_t mode)
+		unsigned int flags, mode_t mode, int neighbor_fd)
 {
 	long ret;
 	struct module *owner = spufs_calls.owner;
+	struct file *neighbor;
+	int fput_needed;
 
 	ret = -ENOSYS;
 	if (owner && try_module_get(owner)) {
-		ret = spufs_calls.create_thread(name, flags, mode);
+		if (flags & SPU_CREATE_AFFINITY_SPU) {
+			neighbor = fget_light(neighbor_fd, &fput_needed);
+			if (neighbor) {
+				ret = spufs_calls.create_thread(name, flags,
+								mode, neighbor);
+				fput_light(neighbor, fput_needed);
+			}
+		}
+		else {
+			ret = spufs_calls.create_thread(name, flags,
+							mode, NULL);
+		}
 		module_put(owner);
 	}
 	return ret;

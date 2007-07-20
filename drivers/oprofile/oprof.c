@@ -53,9 +53,24 @@ int oprofile_setup(void)
 	 * us missing task deaths and eventually oopsing
 	 * when trying to process the event buffer.
 	 */
+	if (oprofile_ops.sync_start) {
+		int sync_ret = oprofile_ops.sync_start();
+		switch (sync_ret) {
+		case 0:
+			goto post_sync;
+		case 1:
+			goto do_generic;
+		case -1:
+			goto out3;
+		default:
+			goto out3;
+		}
+	}
+do_generic:
 	if ((err = sync_start()))
 		goto out3;
 
+post_sync:
 	is_setup = 1;
 	mutex_unlock(&start_mutex);
 	return 0;
@@ -118,7 +133,20 @@ out:
 void oprofile_shutdown(void)
 {
 	mutex_lock(&start_mutex);
+	if (oprofile_ops.sync_stop) {
+		int sync_ret = oprofile_ops.sync_stop();
+		switch (sync_ret) {
+		case 0:
+			goto post_sync;
+		case 1:
+			goto do_generic;
+		default:
+			goto post_sync;
+		}
+	}
+do_generic:
 	sync_stop();
+post_sync:
 	if (oprofile_ops.shutdown)
 		oprofile_ops.shutdown();
 	is_setup = 0;

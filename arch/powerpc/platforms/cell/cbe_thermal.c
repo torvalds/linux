@@ -292,7 +292,7 @@ static struct attribute_group ppe_attribute_group = {
 /*
  * initialize throttling with default values
  */
-static void __init init_default_values(void)
+static int __init init_default_values(void)
 {
 	int cpu;
 	struct cbe_pmd_regs __iomem *pmd_regs;
@@ -339,7 +339,18 @@ static void __init init_default_values(void)
 	for_each_possible_cpu (cpu) {
 		pr_debug("processing cpu %d\n", cpu);
 		sysdev = get_cpu_sysdev(cpu);
+
+		if (!sysdev) {
+			pr_info("invalid sysdev pointer for cbe_thermal\n");
+			return -EINVAL;
+		}
+
 		pmd_regs = cbe_get_cpu_pmd_regs(sysdev->id);
+
+		if (!pmd_regs) {
+			pr_info("invalid CBE regs pointer for cbe_thermal\n");
+			return -EINVAL;
+		}
 
 		out_be64(&pmd_regs->tm_str2, str2);
 		out_be64(&pmd_regs->tm_str1.val, str1.val);
@@ -347,17 +358,21 @@ static void __init init_default_values(void)
 		out_be64(&pmd_regs->tm_cr1.val, cr1.val);
 		out_be64(&pmd_regs->tm_cr2, cr2);
 	}
+
+	return 0;
 }
 
 
 static int __init thermal_init(void)
 {
-	init_default_values();
+	int rc = init_default_values();
 
-	spu_add_sysdev_attr_group(&spu_attribute_group);
-	cpu_add_sysdev_attr_group(&ppe_attribute_group);
+	if (rc == 0) {
+		spu_add_sysdev_attr_group(&spu_attribute_group);
+		cpu_add_sysdev_attr_group(&ppe_attribute_group);
+	}
 
-	return 0;
+	return rc;
 }
 module_init(thermal_init);
 

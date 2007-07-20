@@ -272,4 +272,14 @@ config CPM2
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
 
+config AXON_RAM
+	tristate "Axon DDR2 memory device driver"
+	depends on PPC_IBM_CELL_BLADE
+	default m
+	help
+	  It registers one block device per Axon's DDR2 memory bank found
+	  on a system. Block devices are called axonram?, their major and
+	  minor numbers are available in /proc/devices, /proc/partitions or
+	  in /sys/block/axonram?/dev.
+
 endmenu

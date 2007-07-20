@@ -73,4 +73,14 @@ config CBE_CPUFREQ
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 	  If you don't have such processor, say N
 
+config CBE_CPUFREQ_PMI
+	tristate "CBE frequency scaling using PMI interface"
+	depends on CBE_CPUFREQ && PPC_PMI && EXPERIMENTAL
+	default n
+	help
+	  Select this, if you want to use the PMI interface
+	  to switch frequencies. Using PMI, the
+	  processor will not only be able to run at lower speed,
+	  but also at lower core voltage.
+
 endmenu

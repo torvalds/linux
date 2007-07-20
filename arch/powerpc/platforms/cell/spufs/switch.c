@@ -180,7 +180,7 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	case MFC_CNTL_SUSPEND_COMPLETE:
 		if (csa) {
 			csa->priv2.mfc_control_RW =
-				in_be64(&priv2->mfc_control_RW) |
+				MFC_CNTL_SUSPEND_MASK |
 				MFC_CNTL_SUSPEND_DMA_QUEUE;
 		}
 		break;
@@ -190,9 +190,7 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
 				 MFC_CNTL_SUSPEND_COMPLETE);
 		if (csa) {
-			csa->priv2.mfc_control_RW =
-				in_be64(&priv2->mfc_control_RW) &
-				~MFC_CNTL_SUSPEND_DMA_QUEUE;
+			csa->priv2.mfc_control_RW = 0;
 		}
 		break;
 	}
@@ -251,16 +249,8 @@ static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
 	 *     Read MFC_CNTL[Ds].  Update saved copy of
 	 *     CSA.MFC_CNTL[Ds].
 	 */
-	if (in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING) {
-		csa->priv2.mfc_control_RW |= MFC_CNTL_DECREMENTER_RUNNING;
-		csa->suspend_time = get_cycles();
-		out_be64(&priv2->spu_chnlcntptr_RW, 7ULL);
-		eieio();
-		csa->spu_chnldata_RW[7] = in_be64(&priv2->spu_chnldata_RW);
-		eieio();
-	} else {
-		csa->priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
-	}
+	csa->priv2.mfc_control_RW |=
+		in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING;
 }
 
 static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
@@ -271,7 +261,8 @@ static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
 	 *     Write MFC_CNTL[Dh] set to a '1' to halt
 	 *     the decrementer.
 	 */
-	out_be64(&priv2->mfc_control_RW, MFC_CNTL_DECREMENTER_HALTED);
+	out_be64(&priv2->mfc_control_RW,
+		 MFC_CNTL_DECREMENTER_HALTED | MFC_CNTL_SUSPEND_MASK);
 	eieio();
 }
 
@@ -615,7 +606,7 @@ static inline void save_ppuint_mb(struct spu_state *csa, struct spu *spu)
 static inline void save_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Save, Step 42:
@@ -626,7 +617,7 @@ static inline void save_ch_part1(struct spu_state *csa, struct spu *spu)
 	csa->spu_chnldata_RW[1] = in_be64(&priv2->spu_chnldata_RW);
 
 	/* Save the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
@@ -983,13 +974,13 @@ static inline void terminate_spu_app(struct spu_state *csa, struct spu *spu)
 	 */
 }
 
-static inline void suspend_mfc(struct spu_state *csa, struct spu *spu)
+static inline void suspend_mfc_and_halt_decr(struct spu_state *csa,
+		struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
 	/* Restore, Step 7:
-	 * Restore, Step 47.
-	 *     Write MFC_Cntl[Dh,Sc]='1','1' to suspend
+	 *     Write MFC_Cntl[Dh,Sc,Sm]='1','1','0' to suspend
 	 *     the queue and halt the decrementer.
 	 */
 	out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE |
@@ -1090,7 +1081,7 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 static inline void reset_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	u64 idx;
 	int i;
 
@@ -1102,7 +1093,7 @@ static inline void reset_ch_part1(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->spu_chnldata_RW, 0UL);
 
 	/* Reset the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
@@ -1289,7 +1280,15 @@ static inline void setup_decr(struct spu_state *csa, struct spu *spu)
 		cycles_t resume_time = get_cycles();
 		cycles_t delta_time = resume_time - csa->suspend_time;
 
+		csa->lscsa->decr_status.slot[0] = SPU_DECR_STATUS_RUNNING;
+		if (csa->lscsa->decr.slot[0] < delta_time) {
+			csa->lscsa->decr_status.slot[0] |=
+				 SPU_DECR_STATUS_WRAPPED;
+		}
+
 		csa->lscsa->decr.slot[0] -= delta_time;
+	} else {
+		csa->lscsa->decr_status.slot[0] = 0;
 	}
 }
 
@@ -1396,6 +1395,18 @@ static inline void restore_ls_16kb(struct spu_state *csa, struct spu *spu)
 	 *     16kb of local storage from CSA.
 	 */
 	send_mfc_dma(spu, addr, ls_offset, size, tag, rclass, cmd);
+}
+
+static inline void suspend_mfc(struct spu_state *csa, struct spu *spu)
+{
+	struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+	/* Restore, Step 47.
+	 *     Write MFC_Cntl[Sc,Sm]='1','0' to suspend
+	 *     the queue.
+	 */
+	out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
+	eieio();
 }
 
 static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
@@ -1548,10 +1559,10 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 	 *     "wrapped" flag is set, OR in a '1' to
 	 *     CSA.SPU_Event_Status[Tm].
 	 */
-	if (csa->lscsa->decr_status.slot[0] == 1) {
+	if (csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) {
 		csa->spu_chnldata_RW[0] |= 0x20;
 	}
-	if ((csa->lscsa->decr_status.slot[0] == 1) &&
+	if ((csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) &&
 	    (csa->spu_chnlcnt_RW[0] == 0 &&
 	     ((csa->spu_chnldata_RW[2] & 0x20) == 0x0) &&
 	     ((csa->spu_chnldata_RW[0] & 0x20) != 0x1))) {
@@ -1562,18 +1573,13 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Restore, Step 59:
+	 *	Restore the following CH: [0,3,4,24,25,27]
 	 */
-
-	/* Restore CH 1 without count */
-	out_be64(&priv2->spu_chnlcntptr_RW, 1);
-	out_be64(&priv2->spu_chnldata_RW, csa->spu_chnldata_RW[1]);
-
-	/* Restore the following CH: [0,3,4,24,25,27] */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
 		eieio();
@@ -1932,7 +1938,7 @@ static void harvest(struct spu_state *prev, struct spu *spu)
 	set_switch_pending(prev, spu);	        /* Step 5.  */
 	stop_spu_isolate(spu);			/* NEW.     */
 	remove_other_spu_access(prev, spu);	/* Step 6.  */
-	suspend_mfc(prev, spu);	                /* Step 7.  */
+	suspend_mfc_and_halt_decr(prev, spu);	/* Step 7.  */
 	wait_suspend_mfc_complete(prev, spu);	/* Step 8.  */
 	if (!suspend_spe(prev, spu))	        /* Step 9.  */
 		clear_spu_status(prev, spu);	/* Step 10. */

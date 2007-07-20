@@ -47,7 +47,7 @@ static long do_spu_run(struct file *filp,
 		goto out;
 
 	i = SPUFS_I(filp->f_path.dentry->d_inode);
-	ret = spufs_run_spu(filp, i->i_ctx, &npc, &status);
+	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))
 		ret = -EFAULT;
@@ -76,8 +76,8 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 }
 #endif
 
-asmlinkage long sys_spu_create(const char __user *pathname,
-					unsigned int flags, mode_t mode)
+asmlinkage long do_spu_create(const char __user *pathname, unsigned int flags,
+				mode_t mode, struct file *neighbor)
 {
 	char *tmp;
 	int ret;
@@ -90,7 +90,7 @@ asmlinkage long sys_spu_create(const char __user *pathname,
 		ret = path_lookup(tmp, LOOKUP_PARENT|
 				LOOKUP_OPEN|LOOKUP_CREATE, &nd);
 		if (!ret) {
-			ret = spufs_create(&nd, flags, mode);
+			ret = spufs_create(&nd, flags, mode, neighbor);
 			path_release(&nd);
 		}
 		putname(tmp);
@@ -99,8 +99,32 @@ asmlinkage long sys_spu_create(const char __user *pathname,
 	return ret;
 }
 
+#ifndef MODULE
+asmlinkage long sys_spu_create(const char __user *pathname, unsigned int flags,
+				mode_t mode, int neighbor_fd)
+{
+	int fput_needed;
+	struct file *neighbor;
+	long ret;
+
+	if (flags & SPU_CREATE_AFFINITY_SPU) {
+		ret = -EBADF;
+		neighbor = fget_light(neighbor_fd, &fput_needed);
+		if (neighbor) {
+			ret = do_spu_create(pathname, flags, mode, neighbor);
+			fput_light(neighbor, fput_needed);
+		}
+	}
+	else {
+		ret = do_spu_create(pathname, flags, mode, NULL);
+	}
+
+	return ret;
+}
+#endif
+
 struct spufs_calls spufs_calls = {
-	.create_thread = sys_spu_create,
+	.create_thread = do_spu_create,
 	.spu_run = do_spu_run,
 	.owner = THIS_MODULE,
 };
