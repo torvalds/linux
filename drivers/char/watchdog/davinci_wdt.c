@@ -132,10 +132,6 @@ static ssize_t
 davinci_wdt_write(struct file *file, const char *data, size_t len,
 		  loff_t *ppos)
 {
-	/*  Can't seek (pwrite) on this device  */
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	if (len)
 		wdt_service();
 
@@ -143,7 +139,7 @@ davinci_wdt_write(struct file *file, const char *data, size_t len,
 }
 
 static struct watchdog_info ident = {
-	.options = WDIOF_CARDRESET | WDIOF_KEEPALIVEPING,
+	.options = WDIOF_KEEPALIVEPING,
 	.identity = "DaVinci Watchdog",
 };
 
@@ -160,6 +156,7 @@ davinci_wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
 		ret = put_user(0, (int *)arg);
 		break;
 
