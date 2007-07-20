@@ -706,7 +706,7 @@ static int __init fuse_fs_init(void)
 	fuse_inode_cachep = kmem_cache_create("fuse_inode",
 					      sizeof(struct fuse_inode),
 					      0, SLAB_HWCACHE_ALIGN,
-					      fuse_inode_init_once, NULL);
+					      fuse_inode_init_once);
 	err = -ENOMEM;
 	if (!fuse_inode_cachep)
 		goto out_unreg2;

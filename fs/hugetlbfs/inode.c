@@ -848,7 +848,7 @@ static int __init init_hugetlbfs_fs(void)
 
 	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
 					sizeof(struct hugetlbfs_inode_info),
-					0, 0, init_once, NULL);
+					0, 0, init_once);
 	if (hugetlbfs_inode_cachep == NULL)
 		return -ENOMEM;
 

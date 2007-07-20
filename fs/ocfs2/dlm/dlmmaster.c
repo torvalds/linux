@@ -510,7 +510,7 @@ int dlm_init_mle_cache(void)
 	dlm_mle_cache = kmem_cache_create("dlm_mle_cache",
 					  sizeof(struct dlm_master_list_entry),
 					  0, SLAB_HWCACHE_ALIGN,
-					  NULL, NULL);
+					  NULL);
 	if (dlm_mle_cache == NULL)
 		return -ENOMEM;
 	return 0;

@@ -572,14 +572,14 @@ static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 
 	inode_init_once(&ei->vfs_inode);
 }
- 
+
 static int init_inodecache(void)
 {
 	romfs_inode_cachep = kmem_cache_create("romfs_inode_cache",
 					     sizeof(struct romfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (romfs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

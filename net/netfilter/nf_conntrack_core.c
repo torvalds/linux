@@ -1108,7 +1108,7 @@ int __init nf_conntrack_init(void)
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
 						sizeof(struct nf_conn),
-						0, 0, NULL, NULL);
+						0, 0, NULL);
 	if (!nf_conntrack_cachep) {
 		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
 		goto err_free_hash;

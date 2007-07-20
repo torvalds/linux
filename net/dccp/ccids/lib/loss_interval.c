@@ -282,7 +282,7 @@ static __init int dccp_li_init(void)
 {
 	dccp_li_cachep = kmem_cache_create("dccp_li_hist",
 					   sizeof(struct dccp_li_hist_entry),
-					   0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+					   0, SLAB_HWCACHE_ALIGN, NULL);
 	return dccp_li_cachep == NULL ? -ENOBUFS : 0;
 }
 

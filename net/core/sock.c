@@ -1767,7 +1767,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
-					       SLAB_HWCACHE_ALIGN, NULL, NULL);
+					       SLAB_HWCACHE_ALIGN, NULL);
 
 		if (prot->slab == NULL) {
 			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
@@ -1785,7 +1785,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 			sprintf(request_sock_slab_name, mask, prot->name);
 			prot->rsk_prot->slab = kmem_cache_create(request_sock_slab_name,
 								 prot->rsk_prot->obj_size, 0,
-								 SLAB_HWCACHE_ALIGN, NULL, NULL);
+								 SLAB_HWCACHE_ALIGN, NULL);
 
 			if (prot->rsk_prot->slab == NULL) {
 				printk(KERN_CRIT "%s: Can't create request sock SLAB cache!\n",
@@ -1807,7 +1807,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 				kmem_cache_create(timewait_sock_slab_name,
 						  prot->twsk_prot->twsk_obj_size,
 						  0, SLAB_HWCACHE_ALIGN,
-						  NULL, NULL);
+						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
 				goto out_free_timewait_sock_slab_name;
 		}

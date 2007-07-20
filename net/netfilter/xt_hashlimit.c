@@ -738,7 +738,7 @@ static int __init xt_hashlimit_init(void)
 	err = -ENOMEM;
 	hashlimit_cachep = kmem_cache_create("xt_hashlimit",
 					    sizeof(struct dsthash_ent), 0, 0,
-					    NULL, NULL);
+					    NULL);
 	if (!hashlimit_cachep) {
 		printk(KERN_ERR "xt_hashlimit: unable to create slab cache\n");
 		goto err2;

@@ -1043,7 +1043,7 @@ static int __init bsg_init(void)
 	dev_t devid;
 
 	bsg_cmd_cachep = kmem_cache_create("bsg_cmd",
-				sizeof(struct bsg_command), 0, 0, NULL, NULL);
+				sizeof(struct bsg_command), 0, 0, NULL);
 	if (!bsg_cmd_cachep) {
 		printk(KERN_ERR "bsg: failed creating slab cache\n");
 		return -ENOMEM;

@@ -514,7 +514,7 @@ static int __init fat_init_inodecache(void)
 					     sizeof(struct msdos_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (fat_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

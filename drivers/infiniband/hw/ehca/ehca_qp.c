@@ -1760,7 +1760,7 @@ int ehca_init_qp_cache(void)
 	qp_cache = kmem_cache_create("ehca_cache_qp",
 				     sizeof(struct ehca_qp), 0,
 				     SLAB_HWCACHE_ALIGN,
-				     NULL, NULL);
+				     NULL);
 	if (!qp_cache)
 		return -ENOMEM;
 	return 0;

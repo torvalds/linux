@@ -1187,7 +1187,7 @@ static void __init biovec_init_slabs(void)
 
 		size = bvs->nr_vecs * sizeof(struct bio_vec);
 		bvs->slab = kmem_cache_create(bvs->name, size, 0,
-                                SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+                                SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	}
 }
 

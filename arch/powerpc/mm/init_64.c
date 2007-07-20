@@ -178,7 +178,6 @@ void pgtable_cache_init(void)
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
 						     SLAB_PANIC,
-						     zero_ctor,
-						     NULL);
+						     zero_ctor);
 	}
 }

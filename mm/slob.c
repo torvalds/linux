@@ -492,8 +492,7 @@ struct kmem_cache {
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 	size_t align, unsigned long flags,
-	void (*ctor)(void*, struct kmem_cache *, unsigned long),
-	void (*dtor)(void*, struct kmem_cache *, unsigned long))
+	void (*ctor)(void*, struct kmem_cache *, unsigned long))
 {
 	struct kmem_cache *c;
 

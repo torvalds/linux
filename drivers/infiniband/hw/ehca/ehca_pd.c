@@ -100,7 +100,7 @@ int ehca_init_pd_cache(void)
 	pd_cache = kmem_cache_create("ehca_cache_pd",
 				     sizeof(struct ehca_pd), 0,
 				     SLAB_HWCACHE_ALIGN,
-				     NULL, NULL);
+				     NULL);
 	if (!pd_cache)
 		return -ENOMEM;
 	return 0;

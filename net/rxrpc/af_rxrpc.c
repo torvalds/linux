@@ -792,7 +792,7 @@ static int __init af_rxrpc_init(void)
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(
 		"rxrpc_call_jar", sizeof(struct rxrpc_call), 0,
-		SLAB_HWCACHE_ALIGN, NULL, NULL);
+		SLAB_HWCACHE_ALIGN, NULL);
 	if (!rxrpc_call_jar) {
 		printk(KERN_NOTICE "RxRPC: Failed to allocate call jar\n");
 		goto error_call_jar;

@@ -257,9 +257,9 @@ aoeblk_exit(void)
 int __init
 aoeblk_init(void)
 {
-	buf_pool_cache = kmem_cache_create("aoe_bufs", 
+	buf_pool_cache = kmem_cache_create("aoe_bufs",
 					   sizeof(struct buf),
-					   0, 0, NULL, NULL);
+					   0, 0, NULL);
 	if (buf_pool_cache == NULL)
 		return -ENOMEM;
 

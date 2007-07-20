@@ -73,14 +73,14 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 
 	inode_init_once(&ei->vfs_inode);
 }
- 
+
 static int init_inodecache(void)
 {
 	smb_inode_cachep = kmem_cache_create("smb_inode_cache",
 					     sizeof(struct smb_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (smb_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

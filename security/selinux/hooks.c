@@ -4913,7 +4913,7 @@ static __init int selinux_init(void)
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
-					    0, SLAB_PANIC, NULL, NULL);
+					    0, SLAB_PANIC, NULL);
 	avc_init();
 
 	original_ops = secondary_ops = security_ops;

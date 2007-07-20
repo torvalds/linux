@@ -1467,7 +1467,7 @@ int __init nfs_init_writepagecache(void)
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
 					     sizeof(struct nfs_write_data),
 					     0, SLAB_HWCACHE_ALIGN,
-					     NULL, NULL);
+					     NULL);
 	if (nfs_wdata_cachep == NULL)
 		return -ENOMEM;
 

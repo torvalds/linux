@@ -598,7 +598,7 @@ int __init nfs_init_readpagecache(void)
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
 					     sizeof(struct nfs_read_data),
 					     0, SLAB_HWCACHE_ALIGN,
-					     NULL, NULL);
+					     NULL);
 	if (nfs_rdata_cachep == NULL)
 		return -ENOMEM;
 

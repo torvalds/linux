@@ -1801,7 +1801,7 @@ void __init mnt_init(unsigned long mempages)
 	init_rwsem(&namespace_sem);
 
 	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
-			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL, NULL);
+			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
 	mount_hashtable = (struct list_head *)__get_free_page(GFP_ATOMIC);
 

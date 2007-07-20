@@ -1605,11 +1605,11 @@ void __init numa_policy_init(void)
 
 	policy_cache = kmem_cache_create("numa_policy",
 					 sizeof(struct mempolicy),
-					 0, SLAB_PANIC, NULL, NULL);
+					 0, SLAB_PANIC, NULL);
 
 	sn_cache = kmem_cache_create("shared_policy_node",
 				     sizeof(struct sp_node),
-				     0, SLAB_PANIC, NULL, NULL);
+				     0, SLAB_PANIC, NULL);
 
 	/*
 	 * Set interleaving policy for system init. Interleaving is only

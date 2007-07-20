@@ -3698,13 +3698,13 @@ int __init blk_dev_init(void)
 		panic("Failed to create kblockd\n");
 
 	request_cachep = kmem_cache_create("blkdev_requests",
-			sizeof(struct request), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(struct request), 0, SLAB_PANIC, NULL);
 
 	requestq_cachep = kmem_cache_create("blkdev_queue",
-			sizeof(request_queue_t), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(request_queue_t), 0, SLAB_PANIC, NULL);
 
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
-			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(struct io_context), 0, SLAB_PANIC, NULL);
 
 	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));

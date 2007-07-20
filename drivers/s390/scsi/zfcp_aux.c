@@ -259,21 +259,21 @@ zfcp_module_init(void)
 	size = sizeof(struct zfcp_fsf_req_qtcb);
 	align = calc_alignment(size);
 	zfcp_data.fsf_req_qtcb_cache =
-		kmem_cache_create("zfcp_fsf", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_fsf", size, align, 0, NULL);
 	if (!zfcp_data.fsf_req_qtcb_cache)
 		goto out;
 
 	size = sizeof(struct fsf_status_read_buffer);
 	align = calc_alignment(size);
 	zfcp_data.sr_buffer_cache =
-		kmem_cache_create("zfcp_sr", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_sr", size, align, 0, NULL);
 	if (!zfcp_data.sr_buffer_cache)
 		goto out_sr_cache;
 
 	size = sizeof(struct zfcp_gid_pn_data);
 	align = calc_alignment(size);
 	zfcp_data.gid_pn_cache =
-		kmem_cache_create("zfcp_gid", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_gid", size, align, 0, NULL);
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 

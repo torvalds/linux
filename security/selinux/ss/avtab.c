@@ -445,7 +445,7 @@ void avtab_cache_init(void)
 {
 	avtab_node_cachep = kmem_cache_create("avtab_node",
 					      sizeof(struct avtab_node),
-					      0, SLAB_PANIC, NULL, NULL);
+					      0, SLAB_PANIC, NULL);
 }
 
 void avtab_cache_destroy(void)

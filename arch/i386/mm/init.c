@@ -752,8 +752,7 @@ void __init pgtable_cache_init(void)
 					PTRS_PER_PMD*sizeof(pmd_t),
 					PTRS_PER_PMD*sizeof(pmd_t),
 					SLAB_PANIC,
-					pmd_ctor,
-					NULL);
+					pmd_ctor);
 		if (!SHARED_KERNEL_PMD) {
 			/* If we're in PAE mode and have a non-shared
 			   kernel pmd, then the pgd size must be a
