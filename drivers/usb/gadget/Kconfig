@@ -82,6 +82,27 @@ choice
 	   Many controller drivers are platform-specific; these
 	   often need board-specific hooks.
 
+config USB_GADGET_AMD5536UDC
+	boolean "AMD5536 UDC"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
+	   It is a USB Highspeed DMA capable USB device controller. Beside ep0
+	   it provides 4 IN and 4 OUT endpoints (bulk or interrupt type).
+	   The UDC port supports OTG operation, and may be used as a host port
+	   if it's not being used to implement peripheral or OTG roles.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "amd5536udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_AMD5536UDC
+	tristate
+	depends on USB_GADGET_AMD5536UDC
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_FSL_USB2
 	boolean "Freescale Highspeed USB DR Peripheral Controller"
 	depends on MPC834x || PPC_MPC831x
@@ -155,6 +176,24 @@ config USB_PXA2XX_SMALL
 	default y if USB_ZERO
 	default y if USB_ETH
 	default y if USB_G_SERIAL
+
+config USB_GADGET_M66592
+	boolean "Renesas M66592 USB Peripheral Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	   M66592 is a discrete USB peripheral controller chip that
+	   supports both full and high speed USB 2.0 data transfers.
+	   It has seven configurable endpoints, and endpoint zero.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "m66592_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_M66592
+	tristate
+	depends on USB_GADGET_M66592
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 config USB_GADGET_GOKU
 	boolean "Toshiba TC86C001 'Goku-S'"
@@ -260,24 +299,6 @@ config USB_AT91
 	tristate
 	depends on USB_GADGET_AT91
 	default USB_GADGET
-
-config USB_GADGET_M66592
-	boolean "M66592 driver"
-	select USB_GADGET_DUALSPEED
-	help
-	   M66592 is a USB 2.0 peripheral controller.
-
-	   It has seven configurable endpoints, and endpoint zero.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "m66592_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
-config USB_M66592
-	tristate
-	depends on USB_GADGET_M66592
-	default USB_GADGET
-	select USB_GADGET_SELECTED
 
 config USB_GADGET_DUMMY_HCD
 	boolean "Dummy HCD (DEVELOPMENT)"

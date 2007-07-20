@@ -1308,11 +1308,13 @@ static void uea_intr(struct urb *urb)
 {
 	struct uea_softc *sc = urb->context;
 	struct intr_pkt *intr = urb->transfer_buffer;
+	int status = urb->status;
+
 	uea_enters(INS_TO_USBDEV(sc));
 
-	if (unlikely(urb->status < 0)) {
+	if (unlikely(status < 0)) {
 		uea_err(INS_TO_USBDEV(sc), "uea_intr() failed with %d\n",
-		       urb->status);
+		       status);
 		return;
 	}
 

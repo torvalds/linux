@@ -313,6 +313,13 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 		US_SC_DEVICE, US_PR_DEVICE,NULL,
 		US_FL_NOT_LOCKABLE ),
 
+/* Reported by Stefan de Konink <skinkie@xs4all.nl> */
+UNUSUAL_DEV(  0x04b0, 0x0401, 0x0200, 0x0200,
+		"NIKON",
+		"NIKON DSC D100",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Reported by Andreas Bockhold <andreas@bockionline.de> */
 UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
 		"NIKON",
@@ -1383,6 +1390,17 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
+
+/* Reported by Kevin Lloyd <linux@sierrawireless.com>
+ * Entry is needed for the initializer function override,
+ * which instructs the device to load as a modem
+ * device.
+ */
+UNUSUAL_DEV(  0x1199, 0x0fff, 0x0000, 0x9999,
+		"Sierra Wireless",
+		"USB MMC Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE),
 
 /* Reported by Jaco Kroon <jaco@kroon.co.za>
  * The usb-storage module found on the Digitech GNX4 (and supposedly other

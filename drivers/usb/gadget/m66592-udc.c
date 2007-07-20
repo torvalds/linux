@@ -21,26 +21,18 @@
  */
 
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/delay.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
+
 #include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-
 #include "m66592-udc.h"
 
-MODULE_DESCRIPTION("M66592 USB gadget driiver");
+
+MODULE_DESCRIPTION("M66592 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 
@@ -49,16 +41,21 @@ MODULE_AUTHOR("Yoshihiro Shimoda");
 /* module parameters */
 static unsigned short clock = M66592_XTAL24;
 module_param(clock, ushort, 0644);
-MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0(default=16384)");
+MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0 "
+		"(default=16384)");
+
 static unsigned short vif = M66592_LDRV;
 module_param(vif, ushort, 0644);
-MODULE_PARM_DESC(vif, "input VIF: 3.3V=32768, 1.5V=0(default=32768)");
-static unsigned short endian = 0;
+MODULE_PARM_DESC(vif, "input VIF: 3.3V=32768, 1.5V=0 (default=32768)");
+
+static unsigned short endian;
 module_param(endian, ushort, 0644);
-MODULE_PARM_DESC(endian, "data endian: big=256, little=0(default=0)");
+MODULE_PARM_DESC(endian, "data endian: big=256, little=0 (default=0)");
+
 static unsigned short irq_sense = M66592_INTL;
 module_param(irq_sense, ushort, 0644);
-MODULE_PARM_DESC(irq_sense, "IRQ sense: low level=2, falling edge=0(default=2)");
+MODULE_PARM_DESC(irq_sense, "IRQ sense: low level=2, falling edge=0 "
+		"(default=2)");
 
 static const char udc_name[] = "m66592_udc";
 static const char *m66592_ep_name[] = {
@@ -72,8 +69,8 @@ static int m66592_queue(struct usb_ep *_ep, struct usb_request *_req,
 			gfp_t gfp_flags);
 
 static void transfer_complete(struct m66592_ep *ep,
-			      struct m66592_request *req,
-			      int status);
+		struct m66592_request *req, int status);
+
 /*-------------------------------------------------------------------------*/
 static inline u16 get_usb_speed(struct m66592 *m66592)
 {
@@ -81,25 +78,25 @@ static inline u16 get_usb_speed(struct m66592 *m66592)
 }
 
 static void enable_pipe_irq(struct m66592 *m66592, u16 pipenum,
-			    unsigned long reg)
+		unsigned long reg)
 {
 	u16 tmp;
 
 	tmp = m66592_read(m66592, M66592_INTENB0);
 	m66592_bclr(m66592, M66592_BEMPE | M66592_NRDYE | M66592_BRDYE,
-		    M66592_INTENB0);
+			M66592_INTENB0);
 	m66592_bset(m66592, (1 << pipenum), reg);
 	m66592_write(m66592, tmp, M66592_INTENB0);
 }
 
 static void disable_pipe_irq(struct m66592 *m66592, u16 pipenum,
-			     unsigned long reg)
+		unsigned long reg)
 {
 	u16 tmp;
 
 	tmp = m66592_read(m66592, M66592_INTENB0);
 	m66592_bclr(m66592, M66592_BEMPE | M66592_NRDYE | M66592_BRDYE,
-		    M66592_INTENB0);
+			M66592_INTENB0);
 	m66592_bclr(m66592, (1 << pipenum), reg);
 	m66592_write(m66592, tmp, M66592_INTENB0);
 }
@@ -108,17 +105,19 @@ static void m66592_usb_connect(struct m66592 *m66592)
 {
 	m66592_bset(m66592, M66592_CTRE, M66592_INTENB0);
 	m66592_bset(m66592, M66592_WDST | M66592_RDST | M66592_CMPL,
-		    M66592_INTENB0);
+			M66592_INTENB0);
 	m66592_bset(m66592, M66592_BEMPE | M66592_BRDYE, M66592_INTENB0);
 
 	m66592_bset(m66592, M66592_DPRPU, M66592_SYSCFG);
 }
 
 static void m66592_usb_disconnect(struct m66592 *m66592)
+__releases(m66592->lock)
+__acquires(m66592->lock)
 {
 	m66592_bclr(m66592, M66592_CTRE, M66592_INTENB0);
 	m66592_bclr(m66592, M66592_WDST | M66592_RDST | M66592_CMPL,
-		    M66592_INTENB0);
+			M66592_INTENB0);
 	m66592_bclr(m66592, M66592_BEMPE | M66592_BRDYE, M66592_INTENB0);
 	m66592_bclr(m66592, M66592_DPRPU, M66592_SYSCFG);
 
@@ -148,7 +147,7 @@ static inline u16 control_reg_get_pid(struct m66592 *m66592, u16 pipenum)
 }
 
 static inline void control_reg_set_pid(struct m66592 *m66592, u16 pipenum,
-				       u16 pid)
+		u16 pid)
 {
 	unsigned long offset;
 
@@ -250,7 +249,7 @@ static inline void pipe_change(struct m66592 *m66592, u16 pipenum)
 }
 
 static int pipe_buffer_setting(struct m66592 *m66592,
-			       struct m66592_pipe_info *info)
+		struct m66592_pipe_info *info)
 {
 	u16 bufnum = 0, buf_bsize = 0;
 	u16 pipecfg = 0;
@@ -287,7 +286,7 @@ static int pipe_buffer_setting(struct m66592 *m66592,
 	}
 	if (m66592->bi_bufnum > M66592_MAX_BUFNUM) {
 		printk(KERN_ERR "m66592 pipe memory is insufficient(%d)\n",
-		       m66592->bi_bufnum);
+				m66592->bi_bufnum);
 		return -ENOMEM;
 	}
 
@@ -328,7 +327,7 @@ static void pipe_buffer_release(struct m66592 *m66592,
 			m66592->bulk--;
 	} else
 		printk(KERN_ERR "ep_release: unexpect pipenum (%d)\n",
-		       info->pipe);
+				info->pipe);
 }
 
 static void pipe_initialize(struct m66592_ep *ep)
@@ -350,8 +349,8 @@ static void pipe_initialize(struct m66592_ep *ep)
 }
 
 static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
-			      const struct usb_endpoint_descriptor *desc,
-			      u16 pipenum, int dma)
+		const struct usb_endpoint_descriptor *desc,
+		u16 pipenum, int dma)
 {
 	if ((pipenum != 0) && dma) {
 		if (m66592->num_dma == 0) {
@@ -385,7 +384,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 
 	ep->pipectr = get_pipectr_addr(pipenum);
 	ep->pipenum = pipenum;
-	ep->ep.maxpacket = desc->wMaxPacketSize;
+	ep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
 	m66592->pipenum2ep[pipenum] = ep;
 	m66592->epaddr2ep[desc->bEndpointAddress&USB_ENDPOINT_NUMBER_MASK] = ep;
 	INIT_LIST_HEAD(&ep->queue);
@@ -407,7 +406,7 @@ static void m66592_ep_release(struct m66592_ep *ep)
 }
 
 static int alloc_pipe_config(struct m66592_ep *ep,
-			     const struct usb_endpoint_descriptor *desc)
+		const struct usb_endpoint_descriptor *desc)
 {
 	struct m66592 *m66592 = ep->m66592;
 	struct m66592_pipe_info info;
@@ -419,15 +418,15 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 
 	BUG_ON(ep->pipenum);
 
-	switch(desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (m66592->bulk >= M66592_MAX_NUM_BULK) {
 			if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
 				printk(KERN_ERR "bulk pipe is insufficient\n");
 				return -ENODEV;
 			} else {
-				info.pipe = M66592_BASE_PIPENUM_ISOC +
-					    m66592->isochronous;
+				info.pipe = M66592_BASE_PIPENUM_ISOC
+						+ m66592->isochronous;
 				counter = &m66592->isochronous;
 			}
 		} else {
@@ -462,7 +461,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	ep->type = info.type;
 
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	info.maxpacket = desc->wMaxPacketSize;
+	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
 		info.dir_in = 1;
@@ -525,8 +524,8 @@ static void start_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 
 	pipe_change(m66592, ep->pipenum);
 	m66592_mdfy(m66592, M66592_ISEL | M66592_PIPE0,
-		    (M66592_ISEL | M66592_CURPIPE),
-		    M66592_CFIFOSEL);
+			(M66592_ISEL | M66592_CURPIPE),
+			M66592_CFIFOSEL);
 	m66592_write(m66592, M66592_BCLR, ep->fifoctr);
 	if (req->req.length == 0) {
 		m66592_bset(m66592, M66592_BVAL, ep->fifoctr);
@@ -561,8 +560,8 @@ static void start_packet_read(struct m66592_ep *ep, struct m66592_request *req)
 
 	if (ep->pipenum == 0) {
 		m66592_mdfy(m66592, M66592_PIPE0,
-			    (M66592_ISEL | M66592_CURPIPE),
-			    M66592_CFIFOSEL);
+				(M66592_ISEL | M66592_CURPIPE),
+				M66592_CFIFOSEL);
 		m66592_write(m66592, M66592_BCLR, ep->fifoctr);
 		pipe_start(m66592, pipenum);
 		pipe_irq_enable(m66592, pipenum);
@@ -572,8 +571,9 @@ static void start_packet_read(struct m66592_ep *ep, struct m66592_request *req)
 			pipe_change(m66592, pipenum);
 			m66592_bset(m66592, M66592_TRENB, ep->fifosel);
 			m66592_write(m66592,
-				     (req->req.length + ep->ep.maxpacket - 1) /
-				     ep->ep.maxpacket, ep->fifotrn);
+				(req->req.length + ep->ep.maxpacket - 1)
+					/ ep->ep.maxpacket,
+				ep->fifotrn);
 		}
 		pipe_start(m66592, pipenum);	/* trigger once */
 		pipe_irq_enable(m66592, pipenum);
@@ -614,7 +614,7 @@ static void start_ep0(struct m66592_ep *ep, struct m66592_request *req)
 static void init_controller(struct m66592 *m66592)
 {
 	m66592_bset(m66592, (vif & M66592_LDRV) | (endian & M66592_BIGEND),
-		    M66592_PINCFG);
+			M66592_PINCFG);
 	m66592_bset(m66592, M66592_HSE, M66592_SYSCFG);		/* High spd */
 	m66592_mdfy(m66592, clock & M66592_XTAL, M66592_XTAL, M66592_SYSCFG);
 
@@ -634,7 +634,7 @@ static void init_controller(struct m66592 *m66592)
 
 	m66592_bset(m66592, irq_sense & M66592_INTL, M66592_INTENB1);
 	m66592_write(m66592, M66592_BURST | M66592_CPU_ADR_RD_WR,
-		     M66592_DMA0CFG);
+			M66592_DMA0CFG);
 }
 
 static void disable_controller(struct m66592 *m66592)
@@ -659,8 +659,9 @@ static void m66592_start_xclock(struct m66592 *m66592)
 
 /*-------------------------------------------------------------------------*/
 static void transfer_complete(struct m66592_ep *ep,
-			      struct m66592_request *req,
-			      int status)
+		struct m66592_request *req, int status)
+__releases(m66592->lock)
+__acquires(m66592->lock)
 {
 	int restart = 0;
 
@@ -680,8 +681,9 @@ static void transfer_complete(struct m66592_ep *ep,
 	if (!list_empty(&ep->queue))
 		restart = 1;
 
-	if (likely(req->req.complete))
-		req->req.complete(&ep->ep, &req->req);
+	spin_unlock(&ep->m66592->lock);
+	req->req.complete(&ep->ep, &req->req);
+	spin_lock(&ep->m66592->lock);
 
 	if (restart) {
 		req = list_entry(ep->queue.next, struct m66592_request, queue);
@@ -693,7 +695,7 @@ static void transfer_complete(struct m66592_ep *ep,
 static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 {
 	int i;
-	volatile u16 tmp;
+	u16 tmp;
 	unsigned bufsize;
 	size_t size;
 	void *buf;
@@ -731,8 +733,9 @@ static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 	req->req.actual += size;
 
 	/* check transfer finish */
-	if ((!req->req.zero && (req->req.actual == req->req.length)) ||
-	    (size % ep->ep.maxpacket) || (size == 0)) {
+	if ((!req->req.zero && (req->req.actual == req->req.length))
+			|| (size % ep->ep.maxpacket)
+			|| (size == 0)) {
 		disable_irq_ready(m66592, pipenum);
 		disable_irq_empty(m66592, pipenum);
 	} else {
@@ -768,16 +771,19 @@ static void irq_packet_write(struct m66592_ep *ep, struct m66592_request *req)
 	/* write fifo */
 	if (req->req.buf) {
 		m66592_write_fifo(m66592, ep->fifoaddr, buf, size);
-		if ((size == 0) || ((size % ep->ep.maxpacket) != 0) ||
-		    ((bufsize != ep->ep.maxpacket) && (bufsize > size)))
+		if ((size == 0)
+				|| ((size % ep->ep.maxpacket) != 0)
+				|| ((bufsize != ep->ep.maxpacket)
+					&& (bufsize > size)))
 			m66592_bset(m66592, M66592_BVAL, ep->fifoctr);
 	}
 
 	/* update parameters */
 	req->req.actual += size;
 	/* check transfer finish */
-	if ((!req->req.zero && (req->req.actual == req->req.length)) ||
-	    (size % ep->ep.maxpacket) || (size == 0)) {
+	if ((!req->req.zero && (req->req.actual == req->req.length))
+			|| (size % ep->ep.maxpacket)
+			|| (size == 0)) {
 		disable_irq_ready(m66592, pipenum);
 		enable_irq_empty(m66592, pipenum);
 	} else {
@@ -821,8 +827,9 @@ static void irq_packet_read(struct m66592_ep *ep, struct m66592_request *req)
 	req->req.actual += size;
 
 	/* check transfer finish */
-	if ((!req->req.zero && (req->req.actual == req->req.length)) ||
-	    (size % ep->ep.maxpacket) || (size == 0)) {
+	if ((!req->req.zero && (req->req.actual == req->req.length))
+			|| (size % ep->ep.maxpacket)
+			|| (size == 0)) {
 		pipe_stop(m66592, pipenum);
 		pipe_irq_disable(m66592, pipenum);
 		finish = 1;
@@ -850,7 +857,7 @@ static void irq_pipe_ready(struct m66592 *m66592, u16 status, u16 enb)
 	if ((status & M66592_BRDY0) && (enb & M66592_BRDY0)) {
 		m66592_write(m66592, ~M66592_BRDY0, M66592_BRDYSTS);
 		m66592_mdfy(m66592, M66592_PIPE0, M66592_CURPIPE,
-			    M66592_CFIFOSEL);
+				M66592_CFIFOSEL);
 
 		ep = &m66592->ep[0];
 		req = list_entry(ep->queue.next, struct m66592_request, queue);
@@ -909,23 +916,26 @@ static void irq_pipe_empty(struct m66592 *m66592, u16 status, u16 enb)
 }
 
 static void get_status(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
+__releases(m66592->lock)
+__acquires(m66592->lock)
 {
 	struct m66592_ep *ep;
 	u16 pid;
 	u16 status = 0;
+	u16 w_index = le16_to_cpu(ctrl->wIndex);
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		status = 1;	/* selfpower */
+		status = 1 << USB_DEVICE_SELF_POWERED;
 		break;
 	case USB_RECIP_INTERFACE:
 		status = 0;
 		break;
 	case USB_RECIP_ENDPOINT:
-		ep = m66592->epaddr2ep[ctrl->wIndex&USB_ENDPOINT_NUMBER_MASK];
+		ep = m66592->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
 		pid = control_reg_get_pid(m66592, ep->pipenum);
 		if (pid == M66592_PID_STALL)
-			status = 1;
+			status = 1 << USB_ENDPOINT_HALT;
 		else
 			status = 0;
 		break;
@@ -934,11 +944,13 @@ static void get_status(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 		return;		/* exit */
 	}
 
-	*m66592->ep0_buf = status;
-	m66592->ep0_req->buf = m66592->ep0_buf;
+	m66592->ep0_data = cpu_to_le16(status);
+	m66592->ep0_req->buf = &m66592->ep0_data;
 	m66592->ep0_req->length = 2;
 	/* AV: what happens if we get called again before that gets through? */
+	spin_unlock(&m66592->lock);
 	m66592_queue(m66592->gadget.ep0, m66592->ep0_req, GFP_KERNEL);
+	spin_lock(&m66592->lock);
 }
 
 static void clear_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
@@ -953,8 +965,9 @@ static void clear_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 	case USB_RECIP_ENDPOINT: {
 		struct m66592_ep *ep;
 		struct m66592_request *req;
+		u16 w_index = le16_to_cpu(ctrl->wIndex);
 
-		ep = m66592->epaddr2ep[ctrl->wIndex&USB_ENDPOINT_NUMBER_MASK];
+		ep = m66592->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
 		pipe_stop(m66592, ep->pipenum);
 		control_reg_sqclr(m66592, ep->pipenum);
 
@@ -989,8 +1002,9 @@ static void set_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 		break;
 	case USB_RECIP_ENDPOINT: {
 		struct m66592_ep *ep;
+		u16 w_index = le16_to_cpu(ctrl->wIndex);
 
-		ep = m66592->epaddr2ep[ctrl->wIndex&USB_ENDPOINT_NUMBER_MASK];
+		ep = m66592->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
 		pipe_stall(m66592, ep->pipenum);
 
 		control_end(m66592, 1);
@@ -1066,14 +1080,16 @@ static void irq_device_state(struct m66592 *m66592)
 	}
 	if (m66592->old_dvsq == M66592_DS_CNFG && dvsq != M66592_DS_CNFG)
 		m66592_update_usb_speed(m66592);
-	if ((dvsq == M66592_DS_CNFG || dvsq == M66592_DS_ADDS) &&
-	    m66592->gadget.speed == USB_SPEED_UNKNOWN)
+	if ((dvsq == M66592_DS_CNFG || dvsq == M66592_DS_ADDS)
+			&& m66592->gadget.speed == USB_SPEED_UNKNOWN)
 		m66592_update_usb_speed(m66592);
 
 	m66592->old_dvsq = dvsq;
 }
 
 static void irq_control_stage(struct m66592 *m66592)
+__releases(m66592->lock)
+__acquires(m66592->lock)
 {
 	struct usb_ctrlrequest ctrl;
 	u16 ctsq;
@@ -1095,8 +1111,10 @@ static void irq_control_stage(struct m66592 *m66592)
 	case M66592_CS_WRDS:
 	case M66592_CS_WRND:
 		if (setup_packet(m66592, &ctrl)) {
+			spin_unlock(&m66592->lock);
 			if (m66592->driver->setup(&m66592->gadget, &ctrl) < 0)
 				pipe_stall(m66592, 0);
+			spin_lock(&m66592->lock);
 		}
 		break;
 	case M66592_CS_RDSS:
@@ -1119,6 +1137,8 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 	u16 savepipe;
 	u16 mask0;
 
+	spin_lock(&m66592->lock);
+
 	intsts0 = m66592_read(m66592, M66592_INTSTS0);
 	intenb0 = m66592_read(m66592, M66592_INTENB0);
 
@@ -1134,27 +1154,27 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 		bempenb = m66592_read(m66592, M66592_BEMPENB);
 
 		if (mask0 & M66592_VBINT) {
-			m66592_write(m66592, (u16)~M66592_VBINT,
-				     M66592_INTSTS0);
+			m66592_write(m66592,  0xffff & ~M66592_VBINT,
+					M66592_INTSTS0);
 			m66592_start_xclock(m66592);
 
 			/* start vbus sampling */
 			m66592->old_vbus = m66592_read(m66592, M66592_INTSTS0)
-					   & M66592_VBSTS;
+					& M66592_VBSTS;
 			m66592->scount = M66592_MAX_SAMPLING;
 
 			mod_timer(&m66592->timer,
-				  jiffies + msecs_to_jiffies(50));
+					jiffies + msecs_to_jiffies(50));
 		}
 		if (intsts0 & M66592_DVSQ)
 			irq_device_state(m66592);
 
-		if ((intsts0 & M66592_BRDY) && (intenb0 & M66592_BRDYE) &&
-		    (brdysts & brdyenb)) {
+		if ((intsts0 & M66592_BRDY) && (intenb0 & M66592_BRDYE)
+				&& (brdysts & brdyenb)) {
 			irq_pipe_ready(m66592, brdysts, brdyenb);
 		}
-		if ((intsts0 & M66592_BEMP) && (intenb0 & M66592_BEMPE) &&
-		    (bempsts & bempenb)) {
+		if ((intsts0 & M66592_BEMP) && (intenb0 & M66592_BEMPE)
+				&& (bempsts & bempenb)) {
 			irq_pipe_empty(m66592, bempsts, bempenb);
 		}
 
@@ -1164,6 +1184,7 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 	m66592_write(m66592, savepipe, M66592_CFIFOSEL);
 
+	spin_unlock(&m66592->lock);
 	return IRQ_HANDLED;
 }
 
@@ -1191,13 +1212,13 @@ static void m66592_timer(unsigned long _m66592)
 					m66592_usb_disconnect(m66592);
 			} else {
 				mod_timer(&m66592->timer,
-					  jiffies + msecs_to_jiffies(50));
+					jiffies + msecs_to_jiffies(50));
 			}
 		} else {
 			m66592->scount = M66592_MAX_SAMPLING;
 			m66592->old_vbus = tmp;
 			mod_timer(&m66592->timer,
-				  jiffies + msecs_to_jiffies(50));
+					jiffies + msecs_to_jiffies(50));
 		}
 	}
 	spin_unlock_irqrestore(&m66592->lock, flags);
@@ -1335,11 +1356,6 @@ out:
 	return ret;
 }
 
-static int m66592_fifo_status(struct usb_ep *_ep)
-{
-	return -EOPNOTSUPP;
-}
-
 static void m66592_fifo_flush(struct usb_ep *_ep)
 {
 	struct m66592_ep *ep;
@@ -1365,7 +1381,6 @@ static struct usb_ep_ops m66592_ep_ops = {
 	.dequeue	= m66592_dequeue,
 
 	.set_halt	= m66592_set_halt,
-	.fifo_status	= m66592_fifo_status,
 	.fifo_flush	= m66592_fifo_flush,
 };
 
@@ -1377,11 +1392,10 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct m66592 *m66592 = the_controller;
 	int retval;
 
-	if (!driver ||
-	    driver->speed != USB_SPEED_HIGH ||
-	    !driver->bind ||
-	    !driver->unbind ||
-	    !driver->setup)
+	if (!driver
+			|| driver->speed != USB_SPEED_HIGH
+			|| !driver->bind
+			|| !driver->setup)
 		return -EINVAL;
 	if (!m66592)
 		return -ENODEV;
@@ -1413,8 +1427,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		m66592->old_vbus = m66592_read(m66592,
 					 M66592_INTSTS0) & M66592_VBSTS;
 		m66592->scount = M66592_MAX_SAMPLING;
-		mod_timer(&m66592->timer,
-			  jiffies + msecs_to_jiffies(50));
+		mod_timer(&m66592->timer, jiffies + msecs_to_jiffies(50));
 	}
 
 	return 0;
@@ -1431,6 +1444,9 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
 	struct m66592 *m66592 = the_controller;
 	unsigned long flags;
+
+	if (driver != m66592->driver || !driver->unbind)
+		return -EINVAL;
 
 	spin_lock_irqsave(&m66592->lock, flags);
 	if (m66592->gadget.speed != USB_SPEED_UNKNOWN)
@@ -1461,46 +1477,35 @@ static struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
 };
 
-#if defined(CONFIG_PM)
-static int m66592_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	pdev->dev.power.power_state = state;
-	return 0;
-}
-
-static int m66592_resume(struct platform_device *pdev)
-{
-	pdev->dev.power.power_state = PMSG_ON;
-	return 0;
-}
-#else	/* if defined(CONFIG_PM) */
-#define m66592_suspend		NULL
-#define m66592_resume		NULL
-#endif
-
-static int __init_or_module m66592_remove(struct platform_device *pdev)
+static int __exit m66592_remove(struct platform_device *pdev)
 {
 	struct m66592		*m66592 = dev_get_drvdata(&pdev->dev);
 
 	del_timer_sync(&m66592->timer);
 	iounmap(m66592->reg);
 	free_irq(platform_get_irq(pdev, 0), m66592);
+	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
 	kfree(m66592);
 	return 0;
 }
 
+static void nop_completion(struct usb_ep *ep, struct usb_request *r)
+{
+}
+
 #define resource_len(r) (((r)->end - (r)->start) + 1)
+
 static int __init m66592_probe(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
-	int irq = -1;
+	struct resource *res;
+	int irq;
 	void __iomem *reg = NULL;
 	struct m66592 *m66592 = NULL;
 	int ret = 0;
 	int i;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   (char *)udc_name);
+			(char *)udc_name);
 	if (!res) {
 		ret = -ENODEV;
 		printk(KERN_ERR "platform_get_resource_byname error.\n");
@@ -1548,7 +1553,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592->bi_bufnum = M66592_BASE_BUFNUM;
 
 	ret = request_irq(irq, m66592_irq, IRQF_DISABLED | IRQF_SHARED,
-			  udc_name, m66592);
+			udc_name, m66592);
 	if (ret < 0) {
 		printk(KERN_ERR "request_irq error (%d)\n", ret);
 		goto clean_up;
@@ -1563,7 +1568,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 		if (i != 0) {
 			INIT_LIST_HEAD(&m66592->ep[i].ep.ep_list);
 			list_add_tail(&m66592->ep[i].ep.ep_list,
-				      &m66592->gadget.ep_list);
+					&m66592->gadget.ep_list);
 		}
 		ep->m66592 = m66592;
 		INIT_LIST_HEAD(&ep->queue);
@@ -1583,20 +1588,18 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	the_controller = m66592;
 
-	/* AV: leaks */
 	m66592->ep0_req = m66592_alloc_request(&m66592->ep[0].ep, GFP_KERNEL);
 	if (m66592->ep0_req == NULL)
-		goto clean_up;
-	/* AV: leaks, and do we really need it separately allocated? */
-	m66592->ep0_buf = kzalloc(2, GFP_KERNEL);
-	if (m66592->ep0_buf == NULL)
-		goto clean_up;
+		goto clean_up2;
+	m66592->ep0_req->complete = nop_completion;
 
 	init_controller(m66592);
 
-	printk("driver %s, %s\n", udc_name, DRIVER_VERSION);
+	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 	return 0;
 
+clean_up2:
+	free_irq(irq, m66592);
 clean_up:
 	if (m66592) {
 		if (m66592->ep0_req)
@@ -1611,10 +1614,7 @@ clean_up:
 
 /*-------------------------------------------------------------------------*/
 static struct platform_driver m66592_driver = {
-	.probe =	m66592_probe,
-	.remove =	m66592_remove,
-	.suspend =	m66592_suspend,
-	.resume =	m66592_resume,
+	.remove =	__exit_p(m66592_remove),
 	.driver		= {
 		.name =	(char *) udc_name,
 	},
@@ -1622,7 +1622,7 @@ static struct platform_driver m66592_driver = {
 
 static int __init m66592_udc_init(void)
 {
-	return platform_driver_register(&m66592_driver);
+	return platform_driver_probe(&m66592_driver, m66592_probe);
 }
 module_init(m66592_udc_init);
 
@@ -1631,4 +1631,3 @@ static void __exit m66592_udc_cleanup(void)
 	platform_driver_unregister(&m66592_driver);
 }
 module_exit(m66592_udc_cleanup);
-

@@ -17,6 +17,12 @@
 #define	gadget_is_net2280(g)	0
 #endif
 
+#ifdef CONFIG_USB_GADGET_AMD5536UDC
+#define	gadget_is_amd5536udc(g)	!strcmp("amd5536udc", (g)->name)
+#else
+#define	gadget_is_amd5536udc(g)	0
+#endif
+
 #ifdef CONFIG_USB_GADGET_DUMMY_HCD
 #define	gadget_is_dummy(g)	!strcmp("dummy_udc", (g)->name)
 #else
@@ -202,7 +208,9 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x18;
 	else if (gadget_is_fsl_usb2(gadget))
 		return 0x19;
-	else if (gadget_is_m66592(gadget))
+	else if (gadget_is_amd5536udc(gadget))
 		return 0x20;
+	else if (gadget_is_m66592(gadget))
+		return 0x21;
 	return -ENOENT;
 }

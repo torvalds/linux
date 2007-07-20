@@ -612,7 +612,8 @@ static void speedtch_handle_int(struct urb *int_urb)
 	struct speedtch_instance_data *instance = int_urb->context;
 	struct usbatm_data *usbatm = instance->usbatm;
 	unsigned int count = int_urb->actual_length;
-	int ret = int_urb->status;
+	int status = int_urb->status;
+	int ret;
 
 	/* The magic interrupt for "up state" */
 	static const unsigned char up_int[6]   = { 0xa1, 0x00, 0x01, 0x00, 0x00, 0x00 };
@@ -621,8 +622,8 @@ static void speedtch_handle_int(struct urb *int_urb)
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	if (ret < 0) {
-		atm_dbg(usbatm, "%s: nonzero urb status %d!\n", __func__, ret);
+	if (status < 0) {
+		atm_dbg(usbatm, "%s: nonzero urb status %d!\n", __func__, status);
 		goto fail;
 	}
 

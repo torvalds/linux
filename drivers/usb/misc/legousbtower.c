@@ -742,19 +742,20 @@ exit:
 static void tower_interrupt_in_callback (struct urb *urb)
 {
 	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
+	int status = urb->status;
 	int retval;
 
-	dbg(4, "%s: enter, status %d", __FUNCTION__, urb->status);
+	dbg(4, "%s: enter, status %d", __FUNCTION__, status);
 
 	lego_usb_tower_debug_data(5, __FUNCTION__, urb->actual_length, urb->transfer_buffer);
 
-	if (urb->status) {
-		if (urb->status == -ENOENT ||
-		    urb->status == -ECONNRESET ||
-		    urb->status == -ESHUTDOWN) {
+	if (status) {
+		if (status == -ENOENT ||
+		    status == -ECONNRESET ||
+		    status == -ESHUTDOWN) {
 			goto exit;
 		} else {
-			dbg(1, "%s: nonzero status received: %d", __FUNCTION__, urb->status);
+			dbg(1, "%s: nonzero status received: %d", __FUNCTION__, status);
 			goto resubmit; /* maybe we can recover */
 		}
 	}
@@ -788,7 +789,7 @@ exit:
 	wake_up_interruptible (&dev->read_wait);
 
 	lego_usb_tower_debug_data(5, __FUNCTION__, urb->actual_length, urb->transfer_buffer);
-	dbg(4, "%s: leave, status %d", __FUNCTION__, urb->status);
+	dbg(4, "%s: leave, status %d", __FUNCTION__, status);
 }
 
 
@@ -798,23 +799,24 @@ exit:
 static void tower_interrupt_out_callback (struct urb *urb)
 {
 	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
+	int status = urb->status;
 
-	dbg(4, "%s: enter, status %d", __FUNCTION__, urb->status);
+	dbg(4, "%s: enter, status %d", __FUNCTION__, status);
 	lego_usb_tower_debug_data(5, __FUNCTION__, urb->actual_length, urb->transfer_buffer);
 
 	/* sync/async unlink faults aren't errors */
-	if (urb->status && !(urb->status == -ENOENT ||
-			     urb->status == -ECONNRESET ||
-			     urb->status == -ESHUTDOWN)) {
+	if (status && !(status == -ENOENT ||
+			status == -ECONNRESET ||
+			status == -ESHUTDOWN)) {
 		dbg(1, "%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 	}
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
 
 	lego_usb_tower_debug_data(5, __FUNCTION__, urb->actual_length, urb->transfer_buffer);
-	dbg(4, "%s: leave, status %d", __FUNCTION__, urb->status);
+	dbg(4, "%s: leave, status %d", __FUNCTION__, status);
 }
 
 
