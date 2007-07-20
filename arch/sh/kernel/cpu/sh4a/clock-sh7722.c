@@ -387,9 +387,24 @@ out_err:
 	return err;
 }
 
+static long sh7722_frqcr_round_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long parent_rate = clk->parent->rate;
+	int div;
+
+	/* look for multiplier/divisor pair */
+	div = sh7722_find_divisors(parent_rate, rate);
+	if (div < 0)
+		return clk->rate;
+
+	/* calculate new value of clock rate */
+	return parent_rate * 2 / div;
+}
+
 static struct clk_ops sh7722_frqcr_clk_ops = {
 	.recalc = sh7722_frqcr_recalc,
 	.set_rate = sh7722_frqcr_set_rate,
+	.round_rate = sh7722_frqcr_round_rate,
 };
 
 /*
