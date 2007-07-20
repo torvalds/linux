@@ -2079,14 +2079,26 @@ static const char *ctx_state_names[] = {
 };
 
 static unsigned long long spufs_acct_time(struct spu_context *ctx,
-		enum spuctx_execution_state state)
+		enum spu_utilization_state state)
 {
-	unsigned long time = ctx->stats.times[state];
+	struct timespec ts;
+	unsigned long long time = ctx->stats.times[state];
 
-	if (ctx->stats.execution_state == state)
-		time += jiffies - ctx->stats.tstamp;
+	/*
+	 * In general, utilization statistics are updated by the controlling
+	 * thread as the spu context moves through various well defined
+	 * state transitions, but if the context is lazily loaded its
+	 * utilization statistics are not updated as the controlling thread
+	 * is not tightly coupled with the execution of the spu context.  We
+	 * calculate and apply the time delta from the last recorded state
+	 * of the spu context.
+	 */
+	if (ctx->spu && ctx->stats.util_state == state) {
+		ktime_get_ts(&ts);
+		time += timespec_to_ns(&ts) - ctx->stats.tstamp;
+	}
 
-	return jiffies_to_msecs(time);
+	return time / NSEC_PER_MSEC;
 }
 
 static unsigned long long spufs_slb_flts(struct spu_context *ctx)
@@ -2121,11 +2133,11 @@ static int spufs_show_stat(struct seq_file *s, void *private)
 	spu_acquire(ctx);
 	seq_printf(s, "%s %llu %llu %llu %llu "
 		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
-		ctx_state_names[ctx->stats.execution_state],
-		spufs_acct_time(ctx, SPUCTX_UTIL_USER),
-		spufs_acct_time(ctx, SPUCTX_UTIL_SYSTEM),
-		spufs_acct_time(ctx, SPUCTX_UTIL_IOWAIT),
-		spufs_acct_time(ctx, SPUCTX_UTIL_LOADED),
+		ctx_state_names[ctx->stats.util_state],
+		spufs_acct_time(ctx, SPU_UTIL_USER),
+		spufs_acct_time(ctx, SPU_UTIL_SYSTEM),
+		spufs_acct_time(ctx, SPU_UTIL_IOWAIT),
+		spufs_acct_time(ctx, SPU_UTIL_IDLE_LOADED),
 		ctx->stats.vol_ctx_switch,
 		ctx->stats.invol_ctx_switch,
 		spufs_slb_flts(ctx),

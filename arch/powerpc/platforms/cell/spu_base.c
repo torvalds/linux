@@ -553,6 +553,7 @@ static int __init create_spu(void *data)
 	int ret;
 	static int number;
 	unsigned long flags;
+	struct timespec ts;
 
 	ret = -ENOMEM;
 	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
@@ -586,8 +587,9 @@ static int __init create_spu(void *data)
 	spin_unlock_irqrestore(&spu_list_lock, flags);
 	mutex_unlock(&spu_mutex);
 
-	spu->stats.utilization_state = SPU_UTIL_IDLE;
-	spu->stats.tstamp = jiffies;
+	spu->stats.util_state = SPU_UTIL_IDLE_LOADED;
+	ktime_get_ts(&ts);
+	spu->stats.tstamp = timespec_to_ns(&ts);
 
 	goto out;
 
@@ -608,12 +610,20 @@ static const char *spu_state_names[] = {
 static unsigned long long spu_acct_time(struct spu *spu,
 		enum spu_utilization_state state)
 {
+	struct timespec ts;
 	unsigned long long time = spu->stats.times[state];
 
-	if (spu->stats.utilization_state == state)
-		time += jiffies - spu->stats.tstamp;
+	/*
+	 * If the spu is idle or the context is stopped, utilization
+	 * statistics are not updated.  Apply the time delta from the
+	 * last recorded state of the spu.
+	 */
+	if (spu->stats.util_state == state) {
+		ktime_get_ts(&ts);
+		time += timespec_to_ns(&ts) - spu->stats.tstamp;
+	}
 
-	return jiffies_to_msecs(time);
+	return time / NSEC_PER_MSEC;
 }
 
 
@@ -623,11 +633,11 @@ static ssize_t spu_stat_show(struct sys_device *sysdev, char *buf)
 
 	return sprintf(buf, "%s %llu %llu %llu %llu "
 		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
-		spu_state_names[spu->stats.utilization_state],
+		spu_state_names[spu->stats.util_state],
 		spu_acct_time(spu, SPU_UTIL_USER),
 		spu_acct_time(spu, SPU_UTIL_SYSTEM),
 		spu_acct_time(spu, SPU_UTIL_IOWAIT),
-		spu_acct_time(spu, SPU_UTIL_IDLE),
+		spu_acct_time(spu, SPU_UTIL_IDLE_LOADED),
 		spu->stats.vol_ctx_switch,
 		spu->stats.invol_ctx_switch,
 		spu->stats.slb_flt,

@@ -229,6 +229,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: pid=%d SPU=%d NODE=%d\n", __FUNCTION__, current->pid,
 		 spu->number, spu->node);
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	ctx->stats.slb_flt_base = spu->stats.slb_flt;
 	ctx->stats.class2_intr_base = spu->stats.class2_intr;
@@ -251,7 +252,8 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
 	ctx->state = SPU_STATE_RUNNABLE;
-	spu_switch_state(spu, SPU_UTIL_SYSTEM);
+
+	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 }
 
 /**
@@ -263,8 +265,7 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
-
-	spu_switch_state(spu, SPU_UTIL_IDLE);
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
@@ -279,7 +280,6 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
 	ctx->ops = &spu_backing_ops;
-	ctx->spu = NULL;
 	spu->flags = 0;
 	spu->ctx = NULL;
 
@@ -287,6 +287,10 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 		(spu->stats.slb_flt - ctx->stats.slb_flt_base);
 	ctx->stats.class2_intr +=
 		(spu->stats.class2_intr - ctx->stats.class2_intr_base);
+
+	/* This maps the underlying spu state to idle */
+	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
+	ctx->spu = NULL;
 }
 
 /**
@@ -455,8 +459,6 @@ static struct spu *find_victim(struct spu_context *ctx)
  */
 int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
-	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
-
 	do {
 		struct spu *spu;
 
@@ -551,7 +553,6 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 void spu_deactivate(struct spu_context *ctx)
 {
 	__spu_deactivate(ctx, 1, MAX_PRIO);
-	spuctx_switch_state(ctx, SPUCTX_UTIL_USER);
 }
 
 /**
@@ -566,12 +567,7 @@ void spu_yield(struct spu_context *ctx)
 {
 	if (!(ctx->flags & SPU_CREATE_NOSCHED)) {
 		mutex_lock(&ctx->state_mutex);
-		if (__spu_deactivate(ctx, 0, MAX_PRIO))
-			spuctx_switch_state(ctx, SPUCTX_UTIL_USER);
-		else {
-			spuctx_switch_state(ctx, SPUCTX_UTIL_LOADED);
-			spu_switch_state(ctx->spu, SPU_UTIL_USER);
-		}
+		__spu_deactivate(ctx, 0, MAX_PRIO);
 		mutex_unlock(&ctx->state_mutex);
 	}
 }

@@ -126,6 +126,8 @@ out:
 
 static int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
 		unsigned long runcntl;
 
@@ -151,6 +153,8 @@ static int spu_run_init(struct spu_context *ctx, u32 * npc)
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
 
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
+
 	return 0;
 }
 
@@ -161,6 +165,8 @@ static int spu_run_fini(struct spu_context *ctx, u32 * npc,
 
 	*status = ctx->ops->status_read(ctx);
 	*npc = ctx->ops->npc_read(ctx);
+
+	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -328,6 +334,9 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
 		if (unlikely(ret))
 			break;
+
+		spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 		if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 		    (status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
 			ret = spu_process_callback(ctx);
@@ -355,6 +364,7 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100) &&
 	    (ctx->state == SPU_STATE_RUNNABLE))
 		ctx->stats.libassist++;
+
 
 	ctx->ops->master_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);

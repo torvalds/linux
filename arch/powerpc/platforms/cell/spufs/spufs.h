@@ -40,19 +40,6 @@ enum {
 struct spu_context_ops;
 struct spu_gang;
 
-/*
- * This is the state for spu utilization reporting to userspace.
- * Because this state is visible to userspace it must never change and needs
- * to be kept strictly separate from any internal state kept by the kernel.
- */
-enum spuctx_execution_state {
-	SPUCTX_UTIL_USER = 0,
-	SPUCTX_UTIL_SYSTEM,
-	SPUCTX_UTIL_IOWAIT,
-	SPUCTX_UTIL_LOADED,
-	SPUCTX_UTIL_MAX
-};
-
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -104,9 +91,9 @@ struct spu_context {
 	/* statistics */
 	struct {
 		/* updates protected by ctx->state_mutex */
-		enum spuctx_execution_state execution_state;
-		unsigned long tstamp;		/* time of last ctx switch */
-		unsigned long times[SPUCTX_UTIL_MAX];
+		enum spu_utilization_state util_state;
+		unsigned long long tstamp;	/* time of last state switch */
+		unsigned long long times[SPU_UTIL_MAX];
 		unsigned long long vol_ctx_switch;
 		unsigned long long invol_ctx_switch;
 		unsigned long long min_flt;
@@ -293,30 +280,34 @@ extern int spufs_coredump_num_notes;
  * line.
  */
 static inline void spuctx_switch_state(struct spu_context *ctx,
-		enum spuctx_execution_state new_state)
+		enum spu_utilization_state new_state)
 {
+	unsigned long long curtime;
+	signed long long delta;
+	struct timespec ts;
+	struct spu *spu;
+	enum spu_utilization_state old_state;
+
+	ktime_get_ts(&ts);
+	curtime = timespec_to_ns(&ts);
+	delta = curtime - ctx->stats.tstamp;
+
 	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
+	WARN_ON(delta < 0);
 
-	if (ctx->stats.execution_state != new_state) {
-		unsigned long curtime = jiffies;
+	spu = ctx->spu;
+	old_state = ctx->stats.util_state;
+	ctx->stats.util_state = new_state;
+	ctx->stats.tstamp = curtime;
 
-		ctx->stats.times[ctx->stats.execution_state] +=
-				 curtime - ctx->stats.tstamp;
-		ctx->stats.tstamp = curtime;
-		ctx->stats.execution_state = new_state;
-	}
-}
-
-static inline void spu_switch_state(struct spu *spu,
-		enum spuctx_execution_state new_state)
-{
-	if (spu->stats.utilization_state != new_state) {
-		unsigned long curtime = jiffies;
-
-		spu->stats.times[spu->stats.utilization_state] +=
-				 curtime - spu->stats.tstamp;
+	/*
+	 * Update the physical SPU utilization statistics.
+	 */
+	if (spu) {
+		ctx->stats.times[old_state] += delta;
+		spu->stats.times[old_state] += delta;
+		spu->stats.util_state = new_state;
 		spu->stats.tstamp = curtime;
-		spu->stats.utilization_state = new_state;
 	}
 }
 

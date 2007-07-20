@@ -179,16 +179,14 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (!(dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)))
 		return 0;
 
-	spuctx_switch_state(ctx, SPUCTX_UTIL_IOWAIT);
+	spuctx_switch_state(ctx, SPU_UTIL_IOWAIT);
 
 	pr_debug("ctx %p: ea %016lx, dsisr %016lx state %d\n", ctx, ea,
 		dsisr, ctx->state);
 
 	ctx->stats.hash_flt++;
-	if (ctx->state == SPU_STATE_RUNNABLE) {
+	if (ctx->state == SPU_STATE_RUNNABLE)
 		ctx->spu->stats.hash_flt++;
-		spu_switch_state(ctx->spu, SPU_UTIL_IOWAIT);
-	}
 
 	/* we must not hold the lock when entering spu_handle_mm_fault */
 	spu_release(ctx);
@@ -226,7 +224,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	} else
 		spufs_handle_dma_error(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
-	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spufs_handle_class1);
