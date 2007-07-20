@@ -1959,7 +1959,7 @@ static ssize_t ocfs2_file_buffered_write(struct file *file, loff_t *ppos,
 		}
 
 		dst = kmap_atomic(page, KM_USER0);
-		memcpy(dst + (pos & (PAGE_CACHE_SIZE - 1)), buf, bytes);
+		memcpy(dst + (pos & (loff_t)(PAGE_CACHE_SIZE - 1)), buf, bytes);
 		kunmap_atomic(dst, KM_USER0);
 		flush_dcache_page(page);
 		ocfs2_put_write_source(user_page);
