@@ -253,11 +253,6 @@ static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
 	 */
 	if (in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING) {
 		csa->priv2.mfc_control_RW |= MFC_CNTL_DECREMENTER_RUNNING;
-		csa->suspend_time = get_cycles();
-		out_be64(&priv2->spu_chnlcntptr_RW, 7ULL);
-		eieio();
-		csa->spu_chnldata_RW[7] = in_be64(&priv2->spu_chnldata_RW);
-		eieio();
 	} else {
 		csa->priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
 	}
@@ -1567,13 +1562,8 @@ static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
 	int i;
 
 	/* Restore, Step 59:
+	 *	Restore the following CH: [0,3,4,24,25,27]
 	 */
-
-	/* Restore CH 1 without count */
-	out_be64(&priv2->spu_chnlcntptr_RW, 1);
-	out_be64(&priv2->spu_chnldata_RW, csa->spu_chnldata_RW[1]);
-
-	/* Restore the following CH: [0,3,4,24,25,27] */
 	for (i = 0; i < ARRAY_SIZE(ch_indices); i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
