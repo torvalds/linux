@@ -404,13 +404,13 @@ static void gelic_net_release_tx_chain(struct gelic_net_card *card, int stop)
 					 "%s: forcing end of tx descriptor " \
 					 "with status %x\n",
 					 __func__, status);
-			card->netdev_stats.tx_dropped++;
+			card->netdev->stats.tx_dropped++;
 			break;
 
 		case GELIC_NET_DESCR_COMPLETE:
 			if (tx_chain->tail->skb) {
-				card->netdev_stats.tx_packets++;
-				card->netdev_stats.tx_bytes +=
+				card->netdev->stats.tx_packets++;
+				card->netdev->stats.tx_bytes +=
 					tx_chain->tail->skb->len;
 			}
 			break;
@@ -790,7 +790,7 @@ static int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		 * DMA map failed.  As chanses are that failure
 		 * would continue, just release skb and return
 		 */
-		card->netdev_stats.tx_dropped++;
+		card->netdev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		spin_unlock_irqrestore(&card->tx_dma_lock, flags);
 		return NETDEV_TX_OK;
@@ -810,7 +810,7 @@ static int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		 * kick failed.
 		 * release descriptors which were just prepared
 		 */
-		card->netdev_stats.tx_dropped++;
+		card->netdev->stats.tx_dropped++;
 		gelic_net_release_tx_descr(card, descr);
 		gelic_net_release_tx_descr(card, descr->next);
 		card->tx_chain.tail = descr->next->next;
@@ -872,8 +872,8 @@ static void gelic_net_pass_skb_up(struct gelic_net_descr *descr,
 		skb->ip_summed = CHECKSUM_NONE;
 
 	/* update netdevice statistics */
-	card->netdev_stats.rx_packets++;
-	card->netdev_stats.rx_bytes += skb->len;
+	card->netdev->stats.rx_packets++;
+	card->netdev->stats.rx_bytes += skb->len;
 
 	/* pass skb up to stack */
 	netif_receive_skb(skb);
@@ -913,7 +913,7 @@ static int gelic_net_decode_one_descr(struct gelic_net_card *card)
 	    (status == GELIC_NET_DESCR_FORCE_END)) {
 		dev_info(ctodev(card), "dropping RX descriptor with state %x\n",
 			 status);
-		card->netdev_stats.rx_dropped++;
+		card->netdev->stats.rx_dropped++;
 		goto refill;
 	}
 
@@ -986,20 +986,6 @@ static int gelic_net_poll(struct net_device *netdev, int *budget)
 	} else
 		return 1;
 }
-
-/**
- * gelic_net_get_stats - get interface statistics
- * @netdev: interface device structure
- *
- * returns the interface statistics residing in the gelic_net_card struct
- */
-static struct net_device_stats *gelic_net_get_stats(struct net_device *netdev)
-{
-	struct gelic_net_card *card = netdev_priv(netdev);
-
-	return &card->netdev_stats;
-}
-
 /**
  * gelic_net_change_mtu - changes the MTU of an interface
  * @netdev: interface device structure
@@ -1337,7 +1323,6 @@ static void gelic_net_setup_netdev_ops(struct net_device *netdev)
 	netdev->open = &gelic_net_open;
 	netdev->stop = &gelic_net_stop;
 	netdev->hard_start_xmit = &gelic_net_xmit;
-	netdev->get_stats = &gelic_net_get_stats;
 	netdev->set_multicast_list = &gelic_net_set_multi;
 	netdev->change_mtu = &gelic_net_change_mtu;
 	/* tx watchdog */
