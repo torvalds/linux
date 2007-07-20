@@ -676,7 +676,7 @@ static int __init init_spu_base(void)
 	}
 
 	xmon_register_spus(&spu_full_list);
-
+	crash_register_spus(&spu_full_list);
 	spu_add_sysdev_attr(&attr_stat);
 
 	return 0;
