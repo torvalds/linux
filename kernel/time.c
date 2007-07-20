@@ -57,17 +57,14 @@ EXPORT_SYMBOL(sys_tz);
  */
 asmlinkage long sys_time(time_t __user * tloc)
 {
-	/*
-	 * We read xtime.tv_sec atomically - it's updated
-	 * atomically by update_wall_time(), so no need to
-	 * even read-lock the xtime seqlock:
-	 */
-	time_t i = xtime.tv_sec;
+	time_t i;
+	struct timespec tv;
 
-	smp_rmb(); /* sys_time() results are coherent */
+	getnstimeofday(&tv);
+	i = tv.tv_sec;
 
 	if (tloc) {
-		if (put_user(i, tloc))
+		if (put_user(i,tloc))
 			i = -EFAULT;
 	}
 	return i;
