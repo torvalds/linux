@@ -166,6 +166,9 @@ struct spu {
 
 	struct sys_device sysdev;
 
+	int has_mem_affinity;
+	struct list_head aff_list;
+
 	struct {
 		/* protected by interrupt reentrancy */
 		enum spu_utilization_state util_state;

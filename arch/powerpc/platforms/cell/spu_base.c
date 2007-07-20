@@ -593,6 +593,8 @@ static int __init create_spu(void *data)
 	ktime_get_ts(&ts);
 	spu->stats.tstamp = timespec_to_ns(&ts);
 
+	INIT_LIST_HEAD(&spu->aff_list);
+
 	goto out;
 
 out_free_irqs:
