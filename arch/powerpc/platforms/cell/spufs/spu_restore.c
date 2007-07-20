@@ -90,7 +90,7 @@ static inline void restore_decr(void)
 	 *    decrementer value from LSCSA.
 	 */
 	offset = LSCSA_QW_OFFSET(decr_status);
-	decr_running = regs_spill[offset].slot[0];
+	decr_running = regs_spill[offset].slot[0] & SPU_DECR_STATUS_RUNNING;
 	if (decr_running) {
 		offset = LSCSA_QW_OFFSET(decr);
 		decr = regs_spill[offset].slot[0];
