@@ -109,6 +109,9 @@ struct spu_context {
 		unsigned long long class2_intr_base; /* # at last ctx switch */
 		unsigned long long libassist;
 	} stats;
+
+	struct list_head aff_list;
+	int aff_head;
 };
 
 struct spu_gang {
@@ -116,7 +119,16 @@ struct spu_gang {
 	struct mutex mutex;
 	struct kref kref;
 	int contexts;
+
+	struct spu_context *aff_ref_ctx;
+	struct list_head aff_list_head;
+	struct mutex aff_mutex;
+	int aff_flags;
 };
+
+/* Flag bits for spu_gang aff_flags */
+#define AFF_OFFSETS_SET		1
+#define AFF_MERGED		2
 
 struct mfc_dma_command {
 	int32_t pad;	/* reserved */
@@ -182,8 +194,8 @@ extern struct tree_descr spufs_dir_nosched_contents[];
 
 /* system call implementation */
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
-long spufs_create(struct nameidata *nd,
-			 unsigned int flags, mode_t mode);
+long spufs_create(struct nameidata *nd, unsigned int flags,
+			mode_t mode, struct file *filp);
 extern const struct file_operations spufs_context_fops;
 
 /* gang management */

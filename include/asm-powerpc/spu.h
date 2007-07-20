@@ -196,6 +196,7 @@ extern struct cbe_spu_info cbe_spu_info[];
 
 struct spu *spu_alloc(void);
 struct spu *spu_alloc_node(int node);
+struct spu *spu_alloc_spu(struct spu *spu);
 void spu_free(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
@@ -227,7 +228,8 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 struct file;
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
-					unsigned int flags, mode_t mode);
+					unsigned int flags, mode_t mode,
+					struct file *neighbor);
 	asmlinkage long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	struct module *owner;
@@ -254,8 +256,10 @@ struct spu_coredump_calls {
 #define SPU_CREATE_GANG			0x0002
 #define SPU_CREATE_NOSCHED		0x0004
 #define SPU_CREATE_ISOLATE		0x0008
+#define SPU_CREATE_AFFINITY_SPU		0x0010
+#define SPU_CREATE_AFFINITY_MEM		0x0020
 
-#define SPU_CREATE_FLAG_ALL		0x000f /* mask of all valid flags */
+#define SPU_CREATE_FLAG_ALL		0x003f /* mask of all valid flags */
 
 
 #ifdef CONFIG_SPU_FS_MODULE

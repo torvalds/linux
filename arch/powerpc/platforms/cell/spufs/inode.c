@@ -316,11 +316,107 @@ out:
 	return ret;
 }
 
-static int spufs_create_context(struct inode *inode,
-			struct dentry *dentry,
-			struct vfsmount *mnt, int flags, int mode)
+static struct spu_context *
+spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
+						struct file *filp)
+{
+	struct spu_context *tmp, *neighbor;
+	int count, node;
+	int aff_supp;
+
+	aff_supp = !list_empty(&(list_entry(cbe_spu_info[0].spus.next,
+					struct spu, cbe_list))->aff_list);
+
+	if (!aff_supp)
+		return ERR_PTR(-EINVAL);
+
+	if (flags & SPU_CREATE_GANG)
+		return ERR_PTR(-EINVAL);
+
+	if (flags & SPU_CREATE_AFFINITY_MEM &&
+	    gang->aff_ref_ctx &&
+	    gang->aff_ref_ctx->flags & SPU_CREATE_AFFINITY_MEM)
+		return ERR_PTR(-EEXIST);
+
+	if (gang->aff_flags & AFF_MERGED)
+		return ERR_PTR(-EBUSY);
+
+	neighbor = NULL;
+	if (flags & SPU_CREATE_AFFINITY_SPU) {
+		if (!filp || filp->f_op != &spufs_context_fops)
+			return ERR_PTR(-EINVAL);
+
+		neighbor = get_spu_context(
+				SPUFS_I(filp->f_dentry->d_inode)->i_ctx);
+
+		if (!list_empty(&neighbor->aff_list) && !(neighbor->aff_head) &&
+		    !list_is_last(&neighbor->aff_list, &gang->aff_list_head) &&
+		    !list_entry(neighbor->aff_list.next, struct spu_context,
+		    aff_list)->aff_head)
+			return ERR_PTR(-EEXIST);
+
+		if (gang != neighbor->gang)
+			return ERR_PTR(-EINVAL);
+
+		count = 1;
+		list_for_each_entry(tmp, &gang->aff_list_head, aff_list)
+			count++;
+		if (list_empty(&neighbor->aff_list))
+			count++;
+
+		for (node = 0; node < MAX_NUMNODES; node++) {
+			if ((cbe_spu_info[node].n_spus - atomic_read(
+				&cbe_spu_info[node].reserved_spus)) >= count)
+				break;
+		}
+
+		if (node == MAX_NUMNODES)
+			return ERR_PTR(-EEXIST);
+	}
+
+	return neighbor;
+}
+
+static void
+spufs_set_affinity(unsigned int flags, struct spu_context *ctx,
+					struct spu_context *neighbor)
+{
+	if (flags & SPU_CREATE_AFFINITY_MEM)
+		ctx->gang->aff_ref_ctx = ctx;
+
+	if (flags & SPU_CREATE_AFFINITY_SPU) {
+		if (list_empty(&neighbor->aff_list)) {
+			list_add_tail(&neighbor->aff_list,
+				&ctx->gang->aff_list_head);
+			neighbor->aff_head = 1;
+		}
+
+		if (list_is_last(&neighbor->aff_list, &ctx->gang->aff_list_head)
+		    || list_entry(neighbor->aff_list.next, struct spu_context,
+							aff_list)->aff_head) {
+			list_add(&ctx->aff_list, &neighbor->aff_list);
+		} else  {
+			list_add_tail(&ctx->aff_list, &neighbor->aff_list);
+			if (neighbor->aff_head) {
+				neighbor->aff_head = 0;
+				ctx->aff_head = 1;
+			}
+		}
+
+		if (!ctx->gang->aff_ref_ctx)
+			ctx->gang->aff_ref_ctx = ctx;
+	}
+}
+
+static int
+spufs_create_context(struct inode *inode, struct dentry *dentry,
+			struct vfsmount *mnt, int flags, int mode,
+			struct file *aff_filp)
 {
 	int ret;
+	int affinity;
+	struct spu_gang *gang;
+	struct spu_context *neighbor;
 
 	ret = -EPERM;
 	if ((flags & SPU_CREATE_NOSCHED) &&
@@ -336,9 +432,29 @@ static int spufs_create_context(struct inode *inode,
 	if ((flags & SPU_CREATE_ISOLATE) && !isolated_loader)
 		goto out_unlock;
 
+	gang = NULL;
+	neighbor = NULL;
+	affinity = flags & (SPU_CREATE_AFFINITY_MEM | SPU_CREATE_AFFINITY_SPU);
+	if (affinity) {
+		gang = SPUFS_I(inode)->i_gang;
+		ret = -EINVAL;
+		if (!gang)
+			goto out_unlock;
+		mutex_lock(&gang->aff_mutex);
+		neighbor = spufs_assert_affinity(flags, gang, aff_filp);
+		if (IS_ERR(neighbor)) {
+			ret = PTR_ERR(neighbor);
+			goto out_aff_unlock;
+		}
+	}
+
 	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
 	if (ret)
-		goto out_unlock;
+		goto out_aff_unlock;
+
+	if (affinity)
+		spufs_set_affinity(flags, SPUFS_I(dentry->d_inode)->i_ctx,
+								neighbor);
 
 	/*
 	 * get references for dget and mntget, will be released
@@ -352,6 +468,9 @@ static int spufs_create_context(struct inode *inode,
 		goto out;
 	}
 
+out_aff_unlock:
+	if (affinity)
+		mutex_unlock(&gang->aff_mutex);
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
 out:
@@ -450,7 +569,8 @@ out:
 
 static struct file_system_type spufs_type;
 
-long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode)
+long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
+							struct file *filp)
 {
 	struct dentry *dentry;
 	int ret;
@@ -487,7 +607,7 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode)
 					dentry, nd->mnt, mode);
 	else
 		return spufs_create_context(nd->dentry->d_inode,
-					dentry, nd->mnt, flags, mode);
+					dentry, nd->mnt, flags, mode, filp);
 
 out_dput:
 	dput(dentry);

@@ -55,6 +55,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
 	INIT_LIST_HEAD(&ctx->rq);
+	INIT_LIST_HEAD(&ctx->aff_list);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
 	ctx->cpus_allowed = current->cpus_allowed;
