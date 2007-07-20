@@ -1002,7 +1002,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 	u32 istat, chk0rcv = 0;
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
-	u32 oldhead, curtail;
 	static unsigned unexpected = 0;
 	static const u32 port0rbits = (1U<<INFINIPATH_I_RCVAVAIL_SHIFT) |
 		 (1U<<INFINIPATH_I_RCVURG_SHIFT);
@@ -1033,36 +1032,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 		ipath_bad_intr(dd, &unexpected);
 		ret = IRQ_NONE;
 		goto bail;
-	}
-
-	/*
-	 * We try to avoid reading the interrupt status register, since
-	 * that's a PIO read, and stalls the processor for up to about
-	 * ~0.25 usec. The idea is that if we processed a port0 packet,
-	 * we blindly clear the  port 0 receive interrupt bits, and nothing
-	 * else, then return.  If other interrupts are pending, the chip
-	 * will re-interrupt us as soon as we write the intclear register.
-	 * We then won't process any more kernel packets (if not the 2nd
-	 * time, then the 3rd or 4th) and we'll then handle the other
-	 * interrupts.   We clear the interrupts first so that we don't
-	 * lose intr for later packets that arrive while we are processing.
-	 */
-	oldhead = dd->ipath_port0head;
-	curtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
-	if (oldhead != curtail) {
-		if (dd->ipath_flags & IPATH_GPIO_INTR) {
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					 (u64) (1 << IPATH_GPIO_PORT0_BIT));
-			istat = port0rbits | INFINIPATH_I_GPIO;
-		}
-		else
-			istat = port0rbits;
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
-		ipath_kreceive(dd);
-		if (oldhead != dd->ipath_port0head) {
-			ipath_stats.sps_fastrcvint++;
-			goto done;
-		}
 	}
 
 	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
@@ -1225,7 +1194,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 		handle_layer_pioavail(dd);
 	}
 
-done:
 	ret = IRQ_HANDLED;
 
 bail:
