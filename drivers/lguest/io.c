@@ -187,7 +187,7 @@ static u32 copy_data(struct lguest *srclg,
 		/* FIXME: This is not completely portable, since
 		   archs do different things for copy_to_user_page. */
 		if (copy_from_user(maddr + (dst->addr[di] + dstoff)%PAGE_SIZE,
-				   (void *__user)src->addr[si], len) != 0) {
+				   (void __user *)src->addr[si], len) != 0) {
 			kill_guest(srclg, "bad address in sending DMA");
 			totlen = 0;
 			break;
