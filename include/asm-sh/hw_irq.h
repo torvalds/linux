@@ -44,7 +44,7 @@ void register_ipr_controller(struct ipr_desc *);
 /*
  * Enable individual interrupt mode for external IPR IRQs.
  */
-void ipr_irq_enable_irlm(void);
+void __init ipr_irq_enable_irlm(void);
 
 typedef unsigned char intc_enum;
 
