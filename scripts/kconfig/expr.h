@@ -77,7 +77,6 @@ struct symbol {
 	tristate visible;
 	int flags;
 	struct property *prop;
-	struct expr *dep, *dep2;
 	struct expr_value rev_dep;
 };
 
