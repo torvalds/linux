@@ -196,6 +196,45 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	}
 }
 
+static void ipath_chk_errormask(struct ipath_devdata *dd)
+{
+	static u32 fixed;
+	u32 ctrl;
+	unsigned long errormask;
+	unsigned long hwerrs;
+
+	if (!dd->ipath_errormask || !(dd->ipath_flags & IPATH_INITTED))
+		return;
+
+	errormask = ipath_read_kreg64(dd, dd->ipath_kregs->kr_errormask);
+
+	if (errormask == dd->ipath_errormask)
+		return;
+	fixed++;
+
+	hwerrs = ipath_read_kreg64(dd, dd->ipath_kregs->kr_hwerrstatus);
+	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
+
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		dd->ipath_errormask);
+
+	if ((hwerrs & dd->ipath_hwerrmask) ||
+		(ctrl & INFINIPATH_C_FREEZEMODE)) {
+		/* force re-interrupt of pending events, just in case */
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrclear, 0ULL);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear, 0ULL);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, 0ULL);
+		dev_info(&dd->pcidev->dev,
+			"errormask fixed(%u) %lx -> %lx, ctrl %x hwerr %lx\n",
+			fixed, errormask, (unsigned long)dd->ipath_errormask,
+			ctrl, hwerrs);
+	} else
+		ipath_dbg("errormask fixed(%u) %lx -> %lx, no freeze\n",
+			fixed, errormask,
+			(unsigned long)dd->ipath_errormask);
+}
+
+
 /**
  * ipath_get_faststats - get word counters from chip before they overflow
  * @opaque - contains a pointer to the infinipath device ipath_devdata
@@ -251,14 +290,13 @@ void ipath_get_faststats(unsigned long opaque)
 		dd->ipath_lasterror = 0;
 	if (dd->ipath_lasthwerror)
 		dd->ipath_lasthwerror = 0;
-	if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs)
+	if (dd->ipath_maskederrs
 	    && time_after(jiffies, dd->ipath_unmasktime)) {
 		char ebuf[256];
 		int iserr;
 		iserr = ipath_decode_err(ebuf, sizeof ebuf,
-				 (dd->ipath_maskederrs & ~dd->
-				  ipath_ignorederrs));
-		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
+			dd->ipath_maskederrs);
+		if (dd->ipath_maskederrs &
 				~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
 				INFINIPATH_E_PKTERRS ))
 			ipath_dev_err(dd, "Re-enabling masked errors "
@@ -278,9 +316,12 @@ void ipath_get_faststats(unsigned long opaque)
 				ipath_cdbg(ERRPKT, "Re-enabling packet"
 						" problem interrupt (%s)\n", ebuf);
 		}
-		dd->ipath_maskederrs = dd->ipath_ignorederrs;
+
+		/* re-enable masked errors */
+		dd->ipath_errormask |= dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-				 ~dd->ipath_maskederrs);
+			dd->ipath_errormask);
+		dd->ipath_maskederrs = 0;
 	}
 
 	/* limit qfull messages to ~one per minute per port */
@@ -294,6 +335,7 @@ void ipath_get_faststats(unsigned long opaque)
 		}
 	}
 
+	ipath_chk_errormask(dd);
 done:
 	mod_timer(&dd->ipath_stats_timer, jiffies + HZ * 5);
 }

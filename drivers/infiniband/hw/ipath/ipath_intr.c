@@ -517,10 +517,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	supp_msgs = handle_frequent_errors(dd, errs, msg, &noprint);
 
-	/*
-	 * don't report errors that are masked (includes those always
-	 * ignored)
-	 */
+	/* don't report errors that are masked */
 	errs &= ~dd->ipath_maskederrs;
 
 	/* do these first, they are most important */
@@ -566,19 +563,19 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * ones on this particular interrupt, which also isn't great
 		 */
 		dd->ipath_maskederrs |= dd->ipath_lasterror | errs;
+		dd->ipath_errormask &= ~dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-				 ~dd->ipath_maskederrs);
+			dd->ipath_errormask);
 		s_iserr = ipath_decode_err(msg, sizeof msg,
-				 (dd->ipath_maskederrs & ~dd->
-				  ipath_ignorederrs));
+			dd->ipath_maskederrs);
 
-		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
+		if (dd->ipath_maskederrs &
 			~(INFINIPATH_E_RRCVEGRFULL |
 			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Temporarily disabling "
 			    "error(s) %llx reporting; too frequent (%s)\n",
-				(unsigned long long) (dd->ipath_maskederrs &
-				~dd->ipath_ignorederrs), msg);
+				(unsigned long long)dd->ipath_maskederrs,
+				msg);
 		else {
 			/*
 			 * rcvegrfull and rcvhdrqfull are "normal",
@@ -793,6 +790,9 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
 
+	/* also disable interrupts; errormask is sometimes overwriten */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, 0ULL);
+
 	/*
 	 * clear all sends, because they have may been
 	 * completed by usercode while in freeze mode, and
@@ -817,7 +817,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	for (i = 0; i < dd->ipath_pioavregs; i++) {
 		/* deal with 6110 chip bug */
 		im = i > 3 ? ((i&1) ? i-1 : i+1) : i;
-		val = ipath_read_kreg64(dd, 0x1000+(im*sizeof(u64)));
+		val = ipath_read_kreg64(dd, (0x1000/sizeof(u64))+im);
 		dd->ipath_pioavailregs_dma[i] = dd->ipath_pioavailshadow[i]
 			= le64_to_cpu(val);
 	}
@@ -832,7 +832,8 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
 		E_SPKT_ERRS_IGNORE);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-		~dd->ipath_maskederrs);
+		dd->ipath_errormask);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, -1LL);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, 0ULL);
 }
 
