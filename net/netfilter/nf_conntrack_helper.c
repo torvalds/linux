@@ -194,7 +194,7 @@ static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.id	= NF_CT_EXT_HELPER,
 };
 
-int nf_conntrack_helper_init()
+int nf_conntrack_helper_init(void)
 {
 	int err;
 
@@ -216,7 +216,7 @@ err1:
 	return err;
 }
 
-void nf_conntrack_helper_fini()
+void nf_conntrack_helper_fini(void)
 {
 	nf_ct_extend_unregister(&helper_extend);
 	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_vmalloc,
