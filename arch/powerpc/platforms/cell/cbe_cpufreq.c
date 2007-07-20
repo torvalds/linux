@@ -24,6 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/of_platform.h>
 #include <asm/prom.h>
+#include "cbe_regs.h"
 #include "cbe_cpufreq.h"
 
 static DEFINE_MUTEX(cbe_switch_mutex);
@@ -77,6 +78,15 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 
 	pr_debug("init cpufreq on CPU %d\n", policy->cpu);
+
+	/*
+	 * Let's check we can actually get to the CELL regs
+	 */
+	if (!cbe_get_cpu_pmd_regs(policy->cpu) ||
+	    !cbe_get_cpu_mic_tm_regs(policy->cpu)) {
+		pr_info("invalid CBE regs pointers for cpufreq\n");
+		return -EINVAL;
+	}
 
 	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
 
