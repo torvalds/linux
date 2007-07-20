@@ -187,6 +187,7 @@ int ocfs2_update_inode_atime(struct inode *inode,
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	handle_t *handle;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *) bh->b_data;
 
 	mlog_entry_void();
 
@@ -197,11 +198,27 @@ int ocfs2_update_inode_atime(struct inode *inode,
 		goto out;
 	}
 
+	ret = ocfs2_journal_access(handle, inode, bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	/*
+	 * Don't use ocfs2_mark_inode_dirty() here as we don't always
+	 * have i_mutex to guard against concurrent changes to other
+	 * inode fields.
+	 */
 	inode->i_atime = CURRENT_TIME;
-	ret = ocfs2_mark_inode_dirty(handle, inode, bh);
+	di->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
+	di->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
+
+	ret = ocfs2_journal_dirty(handle, bh);
 	if (ret < 0)
 		mlog_errno(ret);
 
+out_commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
 	mlog_exit(ret);
