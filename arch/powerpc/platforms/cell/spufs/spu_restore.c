@@ -84,7 +84,7 @@ static inline void restore_decr(void)
 	unsigned int decr_running;
 	unsigned int decr;
 
-	/* Restore, Step 6:
+	/* Restore, Step 6(moved):
 	 *    If the LSCSA "decrementer running" flag is set
 	 *    then write the SPU_WrDec channel with the
 	 *    decrementer value from LSCSA.
@@ -318,10 +318,10 @@ int main()
 	build_dma_list(lscsa_ea);	/* Step 3.  */
 	restore_upper_240kb(lscsa_ea);	/* Step 4.  */
 					/* Step 5: done by 'exit'. */
-	restore_decr();			/* Step 6. */
 	enqueue_putllc(lscsa_ea);	/* Step 7. */
 	set_tag_update();		/* Step 8. */
 	read_tag_status();		/* Step 9. */
+	restore_decr();			/* moved Step 6. */
 	read_llar_status();		/* Step 10. */
 	write_ppu_mb();			/* Step 11. */
 	write_ppuint_mb();		/* Step 12. */
