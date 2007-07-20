@@ -91,10 +91,12 @@ struct sas_phy {
 #define phy_to_shost(phy) \
 	dev_to_shost((phy)->dev.parent)
 
+struct request_queue;
 struct sas_rphy {
 	struct device		dev;
 	struct sas_identify	identify;
 	struct list_head	list;
+	struct request_queue	*q;
 	u32			scsi_target_id;
 };
 

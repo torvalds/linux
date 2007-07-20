@@ -42,6 +42,7 @@
 struct sas_host_attrs {
 	struct list_head rphy_list;
 	struct mutex lock;
+	struct request_queue *q;
 	u32 next_target_id;
 	u32 next_expander_id;
 	int next_port_id;
@@ -215,6 +216,11 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	}
 
 	if (rphy)
+		rphy->q = q;
+	else
+		to_sas_host_attrs(shost)->q = q;
+
+	if (rphy)
 		q->queuedata = rphy;
 	else
 		q->queuedata = shost;
@@ -222,6 +228,22 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	set_bit(QUEUE_FLAG_BIDI, &q->queue_flags);
 
 	return 0;
+}
+
+static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
+{
+	struct request_queue *q;
+
+	if (rphy)
+		q = rphy->q;
+	else
+		q = to_sas_host_attrs(shost)->q;
+
+	if (!q)
+		return;
+
+	bsg_unregister_queue(q);
+	blk_cleanup_queue(q);
 }
 
 /*
@@ -249,8 +271,18 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	return 0;
 }
 
+static int sas_host_remove(struct transport_container *tc, struct device *dev,
+			   struct class_device *cdev)
+{
+	struct Scsi_Host *shost = dev_to_shost(dev);
+
+	sas_bsg_remove(shost, NULL);
+
+	return 0;
+}
+
 static DECLARE_TRANSPORT_CLASS(sas_host_class,
-		"sas_host", sas_host_setup, NULL, NULL);
+		"sas_host", sas_host_setup, sas_host_remove, NULL);
 
 static int sas_host_match(struct attribute_container *cont,
 			    struct device *dev)
@@ -1413,6 +1445,8 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	mutex_lock(&sas_host->lock);
 	list_del(&rphy->list);
 	mutex_unlock(&sas_host->lock);
+
+	sas_bsg_remove(shost, rphy);
 
 	transport_destroy_device(dev);
 
