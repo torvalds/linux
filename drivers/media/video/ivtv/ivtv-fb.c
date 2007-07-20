@@ -424,10 +424,10 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 			finish_wait(&itv->vsync_waitq, &wait);
 			return rc;
 
-		case IVTVFB_IOCTL_PREP_FRAME: {
-			struct ivtvfb_ioctl_dma_host_to_ivtv_args args;
+		case IVTVFB_IOC_DMA_FRAME: {
+			struct ivtvfb_dma_frame args;
 
-			IVTV_FB_DEBUG_INFO("IVTVFB_IOCTL_PREP_FRAME\n");
+			IVTV_FB_DEBUG_INFO("IVTVFB_IOC_DMA_FRAME\n");
 			if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
 				return -EFAULT;
 

@@ -23,13 +23,12 @@
 
 /* Framebuffer external API */
 
-struct ivtvfb_ioctl_dma_host_to_ivtv_args {
+struct ivtvfb_dma_frame {
 	void __user *source;
 	unsigned long dest_offset;
 	int count;
 };
 
-/* Framebuffer ioctls should use the range 1 - 28 */
-#define IVTVFB_IOCTL_PREP_FRAME         _IOW('@', 3, struct ivtvfb_ioctl_dma_host_to_ivtv_args)
+#define IVTVFB_IOC_DMA_FRAME  _IOW ('V', BASE_VIDIOC_PRIVATE+0, struct ivtvfb_dma_frame)
 
 #endif
