@@ -181,6 +181,12 @@ static int ehca_create_slab_caches(void)
 		goto create_slab_caches5;
 	}
 
+	ret = ehca_init_small_qp_cache();
+	if (ret) {
+		ehca_gen_err("Cannot create small queue SLAB cache.");
+		goto create_slab_caches6;
+	}
+
 #ifdef CONFIG_PPC_64K_PAGES
 	ctblk_cache = kmem_cache_create("ehca_cache_ctblk",
 					EHCA_PAGESIZE, H_CB_ALIGNMENT,
@@ -188,11 +194,14 @@ static int ehca_create_slab_caches(void)
 					NULL);
 	if (!ctblk_cache) {
 		ehca_gen_err("Cannot create ctblk SLAB cache.");
-		ehca_cleanup_mrmw_cache();
-		goto create_slab_caches5;
+		ehca_cleanup_small_qp_cache();
+		goto create_slab_caches6;
 	}
 #endif
 	return 0;
+
+create_slab_caches6:
+	ehca_cleanup_mrmw_cache();
 
 create_slab_caches5:
 	ehca_cleanup_av_cache();
@@ -211,6 +220,7 @@ create_slab_caches2:
 
 static void ehca_destroy_slab_caches(void)
 {
+	ehca_cleanup_small_qp_cache();
 	ehca_cleanup_mrmw_cache();
 	ehca_cleanup_av_cache();
 	ehca_cleanup_qp_cache();

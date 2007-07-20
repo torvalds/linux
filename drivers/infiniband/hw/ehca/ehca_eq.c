@@ -86,8 +86,8 @@ int ehca_create_eq(struct ehca_shca *shca,
 		return -EINVAL;
 	}
 
-	ret = ipz_queue_ctor(&eq->ipz_queue, nr_pages,
-			     EHCA_PAGESIZE, sizeof(struct ehca_eqe), 0);
+	ret = ipz_queue_ctor(NULL, &eq->ipz_queue, nr_pages,
+			     EHCA_PAGESIZE, sizeof(struct ehca_eqe), 0, 0);
 	if (!ret) {
 		ehca_err(ib_dev, "Can't allocate EQ pages eq=%p", eq);
 		goto create_eq_exit1;
@@ -145,7 +145,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 	return 0;
 
 create_eq_exit2:
-	ipz_queue_dtor(&eq->ipz_queue);
+	ipz_queue_dtor(NULL, &eq->ipz_queue);
 
 create_eq_exit1:
 	hipz_h_destroy_eq(shca->ipz_hca_handle, eq);
@@ -181,7 +181,7 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq)
 		ehca_err(&shca->ib_device, "Can't free EQ resources.");
 		return -EINVAL;
 	}
-	ipz_queue_dtor(&eq->ipz_queue);
+	ipz_queue_dtor(NULL, &eq->ipz_queue);
 
 	return 0;
 }

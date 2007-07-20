@@ -149,7 +149,7 @@ static int ehca_mmap_queue(struct vm_area_struct *vma, struct ipz_queue *queue,
 			ehca_gen_err("vm_insert_page() failed rc=%x", ret);
 			return ret;
 		}
-		start +=  PAGE_SIZE;
+		start += PAGE_SIZE;
 	}
 	vma->vm_private_data = mm_count;
 	(*mm_count)++;

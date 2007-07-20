@@ -49,6 +49,7 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 			    struct ib_ucontext *context, struct ib_udata *udata)
 {
 	struct ehca_pd *pd;
+	int i;
 
 	pd = kmem_cache_zalloc(pd_cache, GFP_KERNEL);
 	if (!pd) {
@@ -58,6 +59,11 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 	}
 
 	pd->ownpid = current->tgid;
+	for (i = 0; i < 2; i++) {
+		INIT_LIST_HEAD(&pd->free[i]);
+		INIT_LIST_HEAD(&pd->full[i]);
+	}
+	mutex_init(&pd->lock);
 
 	/*
 	 * Kernel PD: when device = -1, 0
@@ -81,6 +87,9 @@ int ehca_dealloc_pd(struct ib_pd *pd)
 {
 	u32 cur_pid = current->tgid;
 	struct ehca_pd *my_pd = container_of(pd, struct ehca_pd, ib_pd);
+	int i, leftovers = 0;
+	extern struct kmem_cache *small_qp_cache;
+	struct ipz_small_queue_page *page, *tmp;
 
 	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
 	    my_pd->ownpid != cur_pid) {
@@ -89,8 +98,20 @@ int ehca_dealloc_pd(struct ib_pd *pd)
 		return -EINVAL;
 	}
 
-	kmem_cache_free(pd_cache,
-			container_of(pd, struct ehca_pd, ib_pd));
+	for (i = 0; i < 2; i++) {
+		list_splice(&my_pd->full[i], &my_pd->free[i]);
+		list_for_each_entry_safe(page, tmp, &my_pd->free[i], list) {
+			leftovers = 1;
+			free_page(page->page);
+			kmem_cache_free(small_qp_cache, page);
+		}
+	}
+
+	if (leftovers)
+		ehca_warn(pd->device,
+			  "Some small queue pages were not freed");
+
+	kmem_cache_free(pd_cache, my_pd);
 
 	return 0;
 }
