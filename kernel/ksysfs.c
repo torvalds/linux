@@ -65,8 +65,8 @@ KERNEL_ATTR_RO(kexec_crash_loaded);
 /*
  * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
  */
-extern const char __start_notes __attribute__((weak));
-extern const char __stop_notes __attribute__((weak));
+extern const void __start_notes __attribute__((weak));
+extern const void __stop_notes __attribute__((weak));
 #define	notes_size (&__stop_notes - &__start_notes)
 
 static ssize_t notes_read(struct kobject *kobj, struct bin_attribute *bin_attr,
