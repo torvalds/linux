@@ -57,6 +57,7 @@
 #include "ivtv-yuv.h"
 
 #include <media/tveeprom.h>
+#include <media/saa7115.h>
 #include <media/v4l2-chip-ident.h>
 
 /* var to keep track of the number of array elements in use */
@@ -892,6 +893,15 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 			itv->card = ivtv_get_card(IVTV_CARD_CX23416GYC_NOGRYCS);
 		else if ((hw & IVTV_HW_UPD64031A) == 0)
 			itv->card = ivtv_get_card(IVTV_CARD_CX23416GYC_NOGR);
+	}
+	else if (itv->card->type == IVTV_CARD_GV_MVPRX ||
+		 itv->card->type == IVTV_CARD_GV_MVPRX2E) {
+		struct v4l2_crystal_freq crystal_freq;
+
+		/* The crystal frequency of GVMVPRX is 24.576MHz */
+		crystal_freq.freq = SAA7115_FREQ_24_576_MHZ;
+		crystal_freq.flags = SAA7115_FREQ_FL_UCGC;
+		itv->video_dec_func(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
 	}
 
 	if (hw & IVTV_HW_CX25840) {
