@@ -2573,16 +2573,10 @@ static struct tty_driver *serial167_console_device(struct console *c,
 	return cy_serial_driver;
 }
 
-static int __init serial167_console_setup(struct console *co, char *options)
-{
-	return 0;
-}
-
 static struct console sercons = {
 	.name = "ttyS",
 	.write = serial167_console_write,
 	.device = serial167_console_device,
-	.setup = serial167_console_setup,
 	.flags = CON_PRINTBUFFER,
 	.index = -1,
 };
