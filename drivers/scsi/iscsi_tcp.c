@@ -1885,7 +1885,7 @@ static int iscsi_tcp_get_addr(struct iscsi_conn *conn, struct socket *sock,
 	struct sockaddr_in *sin;
 	int rc = 0, len;
 
-	addr = kmalloc(GFP_KERNEL, sizeof(*addr));
+	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
