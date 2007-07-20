@@ -1533,7 +1533,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct buffer_head *di_bh = NULL;
 	handle_t *handle;
-	unsigned long long max_off = ocfs2_max_file_offset(inode->i_sb->s_blocksize_bits);
+	unsigned long long max_off = inode->i_sb->s_maxbytes;
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;

@@ -319,7 +319,7 @@ static void ocfs2_destroy_inode(struct inode *inode)
 /* From xfs_super.c:xfs_max_file_offset
  * Copyright (c) 2000-2004 Silicon Graphics, Inc.
  */
-unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
+static unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
 {
 	unsigned int pagefactor = 1;
 	unsigned int bitshift = BITS_PER_LONG - 1;
