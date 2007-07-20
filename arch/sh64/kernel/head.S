@@ -124,7 +124,7 @@ empty_bad_pte_table:
 fpu_in_use:	.quad	0
 
 
-	.section	.text, "ax"
+	.section	.text.head, "ax"
 	.balign L1_CACHE_BYTES
 /*
  * Condition at the entry of __stext:
