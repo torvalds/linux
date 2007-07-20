@@ -88,8 +88,8 @@
 #define PLAYBACK_BLOCK_COUNTER	0x9A
 #define RECORD_BLOCK_COUNTER	0x9B
 
-#define DEBUG_CALLS	1
-#define DEBUG_PLAY_REC	1
+#define DEBUG_CALLS	0
+#define DEBUG_PLAY_REC	0
 
 #if DEBUG_CALLS
 #define snd_als300_dbgcalls(format, args...) printk(format, ##args)
@@ -733,7 +733,8 @@ static int __devinit snd_als300_create(struct snd_card *card,
 
 	snd_als300_init(chip);
 
-	if (snd_als300_ac97(chip) < 0) {
+	err = snd_als300_ac97(chip);
+	if (err < 0) {
 		snd_printk(KERN_WARNING "Could not create ac97\n");
 		snd_als300_free(chip);
 		return err;

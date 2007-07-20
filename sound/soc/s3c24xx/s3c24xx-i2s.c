@@ -344,11 +344,11 @@ static int s3c24xx_i2s_set_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
 	DBG("Entered %s\n", __FUNCTION__);
 
 	switch (div_id) {
-	case S3C24XX_DIV_MCLK:
+	case S3C24XX_DIV_BCLK:
 		reg = readl(s3c24xx_i2s.regs + S3C2410_IISMOD) & ~S3C2410_IISMOD_FS_MASK;
 		writel(reg | div, s3c24xx_i2s.regs + S3C2410_IISMOD);
 		break;
-	case S3C24XX_DIV_BCLK:
+	case S3C24XX_DIV_MCLK:
 		reg = readl(s3c24xx_i2s.regs + S3C2410_IISMOD) & ~(S3C2410_IISMOD_384FS);
 		writel(reg | div, s3c24xx_i2s.regs + S3C2410_IISMOD);
 		break;

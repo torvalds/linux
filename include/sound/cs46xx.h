@@ -1723,6 +1723,10 @@ struct snd_cs46xx {
 	struct snd_cs46xx_pcm *playback_pcm;
 	unsigned int play_ctl;
 #endif
+
+#ifdef CONFIG_PM
+	u32 *saved_regs;
+#endif
 };
 
 int snd_cs46xx_create(struct snd_card *card,

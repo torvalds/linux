@@ -43,6 +43,7 @@ struct snd_ak4xxx_ops {
 struct snd_akm4xxx_dac_channel {
 	char *name;		/* mixer volume name */
 	unsigned int num_channels;
+	char *switch_name;		/* mixer switch*/
 };
 
 /* ADC labels and channels */

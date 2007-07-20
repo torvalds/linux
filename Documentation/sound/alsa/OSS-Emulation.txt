@@ -278,6 +278,21 @@ current mixer configuration by reading and writing the whole file
 image.
 
 
+Duplex Streams
+==============
+
+Note that when attempting to use a single device file for playback and
+capture, the OSS API provides no way to set the format, sample rate or
+number of channels different in each direction.  Thus
+	io_handle = open("device", O_RDWR)
+will only function correctly if the values are the same in each direction.
+
+To use different values in the two directions, use both
+	input_handle = open("device", O_RDONLY)
+	output_handle = open("device", O_WRONLY)
+and set the values for the corresponding handle.
+
+
 Unsupported Features
 ====================
 

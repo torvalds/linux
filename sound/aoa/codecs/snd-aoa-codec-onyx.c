@@ -661,7 +661,7 @@ static struct transfer_info onyx_transfers[] = {
 		.tag = 2,
 	},
 #ifdef SNDRV_PCM_FMTBIT_COMPRESSED_16BE
-Once alsa gets supports for this kind of thing we can add it...
+	/* Once alsa gets supports for this kind of thing we can add it... */
 	{
 		/* digital compressed output */
 		.formats =  SNDRV_PCM_FMTBIT_COMPRESSED_16BE,
@@ -713,7 +713,7 @@ static int onyx_prepare(struct codec_info_item *cii,
 	if (substream->runtime->format == SNDRV_PCM_FMTBIT_COMPRESSED_16BE) {
 		/* mute and lock analog output */
 		onyx_read_register(onyx, ONYX_REG_DAC_CONTROL, &v);
-		if (onyx_write_register(onyx
+		if (onyx_write_register(onyx,
 					ONYX_REG_DAC_CONTROL,
 					v | ONYX_MUTE_RIGHT | ONYX_MUTE_LEFT))
 			goto out_unlock;

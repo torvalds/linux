@@ -186,7 +186,12 @@ static int revo51_i2c_init(struct snd_ice1712 *ice,
 #define AK_DAC(xname,xch) { .name = xname, .num_channels = xch }
 
 static const struct snd_akm4xxx_dac_channel revo71_front[] = {
-	AK_DAC("PCM Playback Volume", 2)
+	{
+		.name = "PCM Playback Volume",
+		.num_channels = 2,
+		/* front channels DAC supports muting */
+		.switch_name = "PCM Playback Switch",
+	},
 };
 
 static const struct snd_akm4xxx_dac_channel revo71_surround[] = {
