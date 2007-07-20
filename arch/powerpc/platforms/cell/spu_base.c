@@ -425,6 +425,25 @@ static void spu_init_channels(struct spu *spu)
 	}
 }
 
+struct spu *spu_alloc_spu(struct spu *req_spu)
+{
+	struct spu *spu, *ret = NULL;
+
+	mutex_lock(&spu_mutex);
+	list_for_each_entry(spu, &cbe_spu_info[req_spu->node].free_spus, list) {
+		if (spu == req_spu) {
+			list_del_init(&spu->list);
+			pr_debug("Got SPU %d %d\n", spu->number, spu->node);
+			spu_init_channels(spu);
+			ret = spu;
+			break;
+		}
+	}
+	mutex_unlock(&spu_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(spu_alloc_spu);
+
 struct spu *spu_alloc_node(int node)
 {
 	struct spu *spu = NULL;

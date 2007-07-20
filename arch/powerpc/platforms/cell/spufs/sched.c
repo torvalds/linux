@@ -507,6 +507,10 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 	int node = cpu_to_node(raw_smp_processor_id());
 	int n;
 
+	spu = affinity_check(ctx);
+	if (spu)
+		return spu_alloc_spu(spu);
+
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
 		node = (node < MAX_NUMNODES) ? node : 0;
 		if (!node_allowed(ctx, node))
