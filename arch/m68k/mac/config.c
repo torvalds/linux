@@ -49,6 +49,7 @@ struct mac_booter_data mac_bi_data;
 int mac_bisize = sizeof mac_bi_data;
 
 struct mac_hw_present mac_hw_present;
+EXPORT_SYMBOL(mac_hw_present);
 
 /* New m68k bootinfo stuff and videobase */
 

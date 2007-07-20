@@ -95,6 +95,8 @@ enum {
 /* The master ring of all esp hosts we are managing in this driver. */
 static struct NCR_ESP *espchain;
 int nesps = 0, esps_in_use = 0, esps_running = 0;
+EXPORT_SYMBOL(nesps);
+EXPORT_SYMBOL(esps_running);
 
 irqreturn_t esp_intr(int irq, void *dev_id);
 
@@ -524,6 +526,7 @@ void esp_bootup_reset(struct NCR_ESP *esp, struct ESP_regs *eregs)
 	/* Eat any bitrot in the chip and we are done... */
 	trash = esp_read(eregs->esp_intrpt);
 }
+EXPORT_SYMBOL(esp_bootup_reset);
 
 /* Allocate structure and insert basic data such as SCSI chip frequency
  * data and a pointer to the device
@@ -772,6 +775,7 @@ const char *esp_info(struct Scsi_Host *host)
 		panic("Bogon ESP revision");
 	};
 }
+EXPORT_SYMBOL(esp_info);
 
 /* From Wolfgang Stanglmeier's NCR scsi driver. */
 struct info_str
@@ -902,6 +906,7 @@ int esp_proc_info(struct Scsi_Host *shost, char *buffer, char **start, off_t off
 		*start = buffer;
 	return esp_host_info(esp, buffer, offset, length);
 }
+EXPORT_SYMBOL(esp_proc_info);
 
 static void esp_get_dmabufs(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 {
@@ -3535,6 +3540,7 @@ state_machine:
 	if(esp->dma_irq_exit)
 		esp->dma_irq_exit(esp);
 }
+EXPORT_SYMBOL(esp_handle);
 
 #ifndef CONFIG_SMP
 irqreturn_t esp_intr(int irq, void *dev_id)
@@ -3631,6 +3637,7 @@ void esp_release(void)
 	esps_in_use--;
 	esps_running = esps_in_use;
 }
+EXPORT_SYMBOL(esp_release);
 #endif
 
 EXPORT_SYMBOL(esp_abort);
