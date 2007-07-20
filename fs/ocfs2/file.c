@@ -1028,6 +1028,11 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (size_change && attr->ia_size != i_size_read(inode)) {
+		if (attr->ia_size > sb->s_maxbytes) {
+			status = -EFBIG;
+			goto bail_unlock;
+		}
+
 		if (i_size_read(inode) > attr->ia_size)
 			status = ocfs2_truncate_file(inode, bh, attr->ia_size);
 		else
