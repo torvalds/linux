@@ -194,6 +194,13 @@ extern int init_atu;
 #define IOP_TMR_PRIVILEGED 0x08
 #define IOP_TMR_RATIO_1_1  0x00
 
+/* Watchdog timer definitions */
+#define IOP_WDTCR_EN_ARM        0x1e1e1e1e
+#define IOP_WDTCR_EN            0xe1e1e1e1
+/* iop3xx does not support stopping the watchdog, so we just re-arm */
+#define IOP_WDTCR_DIS_ARM	(IOP_WDTCR_EN_ARM)
+#define IOP_WDTCR_DIS		(IOP_WDTCR_EN)
+
 /* Application accelerator unit  */
 #define IOP3XX_AAU_PHYS_BASE (IOP3XX_PERIPHERAL_PHYS_BASE + 0x800)
 #define IOP3XX_AAU_UPPER_PA (IOP3XX_AAU_PHYS_BASE + 0xa7)
@@ -272,6 +279,32 @@ static inline void write_trr1(u32 val)
 static inline void write_tisr(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c6, c1, 0" : : "r" (val));
+}
+
+static inline u32 read_wdtcr(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c7, c1, 0":"=r" (val));
+	return val;
+}
+static inline void write_wdtcr(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c7, c1, 0"::"r" (val));
+}
+
+extern unsigned long get_iop_tick_rate(void);
+
+/* only iop13xx has these registers, we define these to present a
+ * common register interface for the iop_wdt driver.
+ */
+#define IOP_RCSR_WDT	(0)
+static inline u32 read_rcsr(void)
+{
+	return 0;
+}
+static inline void write_wdtsr(u32 val)
+{
+	do { } while (0);
 }
 
 extern struct platform_device iop3xx_dma_0_channel;

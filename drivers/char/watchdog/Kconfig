@@ -187,6 +187,22 @@ config PNX4008_WATCHDOG
 
 	  Say N if you are unsure.
 
+config IOP_WATCHDOG
+	tristate "IOP Watchdog"
+	depends on WATCHDOG && PLAT_IOP
+	select WATCHDOG_NOWAYOUT if (ARCH_IOP32X || ARCH_IOP33X)
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the Intel IOP3XX & IOP13XX I/O Processors.  This driver can
+	  be built as a module by choosing M. The module will
+	  be called iop_wdt.
+
+	  Note: The IOP13XX watchdog does an Internal Bus Reset which will
+	  affect both cores and the peripherals of the IOP.  The ATU-X
+	  and/or ATUe configuration registers will remain intact, but if
+	  operating as an Root Complex and/or Central Resource, the PCI-X
+	  and/or PCIe busses will also be reset.  THIS IS A VERY BIG HAMMER.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
