@@ -10,8 +10,8 @@ config SH_DMA
 	default n
 
 config NR_ONCHIP_DMA_CHANNELS
+	int
 	depends on SH_DMA
-	int "Number of on-chip DMAC channels"
 	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R
 	default "12" if CPU_SUBTYPE_SH7780
 	default "4"
