@@ -931,6 +931,7 @@ static void sparc64_timer_setup(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
 		break;
 
 	case CLOCK_EVT_MODE_SHUTDOWN:

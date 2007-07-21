@@ -412,6 +412,7 @@ static void xen_timerop_set_mode(enum clock_event_mode mode,
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:
@@ -473,6 +474,8 @@ static void xen_vcpuop_set_mode(enum clock_event_mode mode,
 		if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, cpu, NULL) ||
 		    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
 			BUG();
+		break;
+	case CLOCK_EVT_MODE_RESUME:
 		break;
 	}
 }

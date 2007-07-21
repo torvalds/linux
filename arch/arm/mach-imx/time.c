@@ -159,6 +159,7 @@ static void imx_set_mode(enum clock_event_mode mode, struct clock_event_device *
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_RESUME:
 		/* Left event sources disabled, no more interrupts appears */
 		break;
 	}

@@ -459,6 +459,8 @@ static void ixp4xx_set_mode(enum clock_event_mode mode,
 	default:
 		osrt = opts = 0;
 		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
 	}
 
 	*IXP4XX_OSRT1 = osrt | opts;
