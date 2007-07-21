@@ -34,6 +34,7 @@
 #define USB_VID_LEADTEK				0x0413
 #define USB_VID_LITEON				0x04ca
 #define USB_VID_MEDION				0x1660
+#define USB_VID_MIGLIA				0x18f3
 #define USB_VID_MSI				0x0db0
 #define USB_VID_OPERA1				0x695c
 #define USB_VID_PINNACLE			0x2304

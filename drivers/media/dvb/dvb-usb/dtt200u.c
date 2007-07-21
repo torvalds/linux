@@ -1,5 +1,5 @@
 /* DVB USB library compliant Linux driver for the WideView/ Yakumo/ Hama/
- * Typhoon/ Yuan DVB-T USB2.0 receiver.
+ * Typhoon/ Yuan/ Miglia DVB-T USB2.0 receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
  *
@@ -96,6 +96,7 @@ static struct dvb_usb_device_properties dtt200u_properties;
 static struct dvb_usb_device_properties wt220u_fc_properties;
 static struct dvb_usb_device_properties wt220u_properties;
 static struct dvb_usb_device_properties wt220u_zl0353_properties;
+static struct dvb_usb_device_properties wt220u_miglia_properties;
 
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -103,7 +104,8 @@ static int dtt200u_usb_probe(struct usb_interface *intf,
 	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&wt220u_fc_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_zl0353_properties,THIS_MODULE,NULL) == 0)
+		dvb_usb_device_init(intf,&wt220u_zl0353_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&wt220u_miglia_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -ENODEV;
@@ -119,6 +121,7 @@ static struct usb_device_id dtt200u_usb_table [] = {
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_COLD)  },
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_WARM)  },
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZAP250_COLD)  },
+	{ USB_DEVICE(USB_VID_MIGLIA, USB_PID_WT220U_ZAP250_COLD)  },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
@@ -303,6 +306,25 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	}
 };
 
+static struct dvb_usb_device_properties wt220u_miglia_properties = {
+	.usb_ctrl = CYPRESS_FX2,
+	.firmware = "dvb-usb-wt220u-miglia-01.fw",
+
+	.num_adapters = 1,
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.num_device_descs = 1,
+	.devices = {
+		{ .name = "WideView WT-220U PenType Receiver (Miglia)",
+		  .cold_ids = { &dtt200u_usb_table[9], NULL },
+		  /* This device turns into WT220U_ZL0353_WARM when fw
+		     has been uploaded */
+		  .warm_ids = { NULL },
+		},
+		{ NULL },
+	}
+};
+
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver dtt200u_usb_driver = {
 	.name		= "dvb_usb_dtt200u",
@@ -333,6 +355,6 @@ module_init(dtt200u_usb_module_init);
 module_exit(dtt200u_usb_module_exit);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
-MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon/Club3D DVB-T USB2.0 devices");
+MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon/Club3D/Miglia DVB-T USB2.0 devices");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
