@@ -303,8 +303,7 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
  * creates board info from kernel command lines
  */
 
-static void __init_or_module
-scan_boardinfo(struct spi_master *master)
+static void scan_boardinfo(struct spi_master *master)
 {
 	struct boardinfo	*bi;
 	struct device		*dev = master->cdev.dev;
