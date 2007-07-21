@@ -219,8 +219,11 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		var->blue.offset = 10;
 		var->red.length = var->green.length = var->blue.length = 5;
 		break;
-	case 24:
 	case 32:
+		var->transp.offset = 24;
+		var->transp.length = 8;
+		/* fall through */
+	case 24:
 		var->red.offset = 0;
 		var->green.offset = 8;
 		var->blue.offset = 16;
