@@ -210,9 +210,9 @@ static struct ktermios hvcs_tty_termios = {
 static int hvcs_parm_num_devs = -1;
 module_param(hvcs_parm_num_devs, int, 0);
 
-char hvcs_driver_name[] = "hvcs";
-char hvcs_device_node[] = "hvcs";
-char hvcs_driver_string[]
+static const char hvcs_driver_name[] = "hvcs";
+static const char hvcs_device_node[] = "hvcs";
+static const char hvcs_driver_string[]
 	= "IBM hvcs (Hypervisor Virtual Console Server) Driver";
 
 /* Status of partner info rescan triggered via sysfs. */
@@ -1092,7 +1092,7 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
  * NOTICE: Do NOT hold either the hvcs_struct.lock or hvcs_structs_lock when
  * calling this function or you will get deadlock.
  */
-struct hvcs_struct *hvcs_get_by_index(int index)
+static struct hvcs_struct *hvcs_get_by_index(int index)
 {
 	struct hvcs_struct *hvcsd = NULL;
 	unsigned long flags;
