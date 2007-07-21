@@ -473,9 +473,13 @@ out:
 
 	/*
 	 * We need to vacate all active ranges that may have been registered by
-	 * SRAT.
+	 * SRAT and set acpi_numa to -1 so that srat_disabled() always returns
+	 * true.  NUMA emulation has succeeded so we will not scan ACPI nodes.
 	 */
 	remove_all_active_ranges();
+#ifdef CONFIG_ACPI_NUMA
+	acpi_numa = -1;
+#endif
 	for_each_node_mask(i, node_possible_map) {
 		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
 						nodes[i].end >> PAGE_SHIFT);
