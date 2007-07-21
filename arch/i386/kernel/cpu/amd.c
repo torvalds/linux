@@ -272,8 +272,12 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	}
 #endif
 
-	if (cpuid_eax(0x80000000) >= 0x80000006)
-		num_cache_leaves = 3;
+	if (cpuid_eax(0x80000000) >= 0x80000006) {
+		if ((c->x86 == 0x10) && (cpuid_edx(0x80000006) & 0xf000))
+			num_cache_leaves = 4;
+		else
+			num_cache_leaves = 3;
+	}
 
 	if (amd_apic_timer_broken())
 		set_bit(X86_FEATURE_LAPIC_TIMER_BROKEN, c->x86_capability);

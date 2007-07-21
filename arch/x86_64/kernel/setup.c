@@ -602,8 +602,11 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000008)
 		amd_detect_cmp(c);
 
-	/* Fix cpuid4 emulation for more */
-	num_cache_leaves = 3;
+	if (c->extended_cpuid_level >= 0x80000006 &&
+		(cpuid_edx(0x80000006) & 0xf000))
+		num_cache_leaves = 4;
+	else
+		num_cache_leaves = 3;
 
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);

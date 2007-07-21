@@ -4,7 +4,7 @@
  *      Changes:
  *      Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
  *		Ashok Raj <ashok.raj@intel.com>: Work with CPU hotplug infrastructure.
- *	Andi Kleen		: CPUID4 emulation on AMD.
+ *	Andi Kleen / Andreas Herrmann	: CPUID4 emulation on AMD.
  */
 
 #include <linux/init.h>
@@ -135,7 +135,7 @@ unsigned short			num_cache_leaves;
 
 /* AMD doesn't have CPUID4. Emulate it here to report the same
    information to the user.  This makes some assumptions about the machine:
-   No L3, L2 not shared, no SMT etc. that is currently true on AMD CPUs.
+   L2 not shared, no SMT etc. that is currently true on AMD CPUs.
 
    In theory the TLBs could be reported as fake type (they are in "dummy").
    Maybe later */
@@ -159,13 +159,26 @@ union l2_cache {
 	unsigned val;
 };
 
+union l3_cache {
+	struct {
+		unsigned line_size : 8;
+		unsigned lines_per_tag : 4;
+		unsigned assoc : 4;
+		unsigned res : 2;
+		unsigned size_encoded : 14;
+	};
+	unsigned val;
+};
+
 static const unsigned short assocs[] = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
-	[8] = 16,
+	[8] = 16, [0xa] = 32, [0xb] = 48,
+	[0xc] = 64,
 	[0xf] = 0xffff // ??
-	};
-static const unsigned char levels[] = { 1, 1, 2 };
-static const unsigned char types[] = { 1, 2, 3 };
+};
+
+static const unsigned char levels[] = { 1, 1, 2, 3 };
+static const unsigned char types[] = { 1, 2, 3, 3 };
 
 static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		       union _cpuid4_leaf_ebx *ebx,
@@ -175,36 +188,57 @@ static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	unsigned line_size, lines_per_tag, assoc, size_in_kb;
 	union l1_cache l1i, l1d;
 	union l2_cache l2;
+	union l3_cache l3;
+	union l1_cache *l1 = &l1d;
 
 	eax->full = 0;
 	ebx->full = 0;
 	ecx->full = 0;
 
 	cpuid(0x80000005, &dummy, &dummy, &l1d.val, &l1i.val);
-	cpuid(0x80000006, &dummy, &dummy, &l2.val, &dummy);
+	cpuid(0x80000006, &dummy, &dummy, &l2.val, &l3.val);
 
-	if (leaf > 2 || !l1d.val || !l1i.val || !l2.val)
-		return;
-
-	eax->split.is_self_initializing = 1;
-	eax->split.type = types[leaf];
-	eax->split.level = levels[leaf];
-	eax->split.num_threads_sharing = 0;
-	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
-
-	if (leaf <= 1) {
-		union l1_cache *l1 = leaf == 0 ? &l1d : &l1i;
+	switch (leaf) {
+	case 1:
+		l1 = &l1i;
+	case 0:
+		if (!l1->val)
+			return;
 		assoc = l1->assoc;
 		line_size = l1->line_size;
 		lines_per_tag = l1->lines_per_tag;
 		size_in_kb = l1->size_in_kb;
-	} else {
+		break;
+	case 2:
+		if (!l2.val)
+			return;
 		assoc = l2.assoc;
 		line_size = l2.line_size;
 		lines_per_tag = l2.lines_per_tag;
 		/* cpu_data has errata corrections for K7 applied */
 		size_in_kb = current_cpu_data.x86_cache_size;
+		break;
+	case 3:
+		if (!l3.val)
+			return;
+		assoc = l3.assoc;
+		line_size = l3.line_size;
+		lines_per_tag = l3.lines_per_tag;
+		size_in_kb = l3.size_encoded * 512;
+		break;
+	default:
+		return;
 	}
+
+	eax->split.is_self_initializing = 1;
+	eax->split.type = types[leaf];
+	eax->split.level = levels[leaf];
+	if (leaf == 3)
+		eax->split.num_threads_sharing = current_cpu_data.x86_max_cores - 1;
+	else
+		eax->split.num_threads_sharing = 0;
+	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
+
 
 	if (assoc == 0xf)
 		eax->split.is_fully_associative = 1;
