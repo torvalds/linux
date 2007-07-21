@@ -31,7 +31,7 @@ static uint8_t *udf_filead_read(struct inode *dir, uint8_t * tmpad,
 
 	*error = 0;
 
-	ad = (uint8_t *) (*bh)->b_data + *offset;
+	ad = (uint8_t *)(*bh)->b_data + *offset;
 	*offset += ad_size;
 
 	if (!ad) {
@@ -51,7 +51,7 @@ static uint8_t *udf_filead_read(struct inode *dir, uint8_t * tmpad,
 		ad = tmpad;
 
 		remainder = dir->i_sb->s_blocksize - loffset;
-		memcpy((uint8_t *) ad, (*bh)->b_data + loffset, remainder);
+		memcpy((uint8_t *)ad, (*bh)->b_data + loffset, remainder);
 
 		brelse(*bh);
 		block = udf_get_lb_pblock(dir->i_sb, fe_loc, ++*pos);
@@ -60,10 +60,10 @@ static uint8_t *udf_filead_read(struct inode *dir, uint8_t * tmpad,
 		if (!((*bh) = udf_tread(dir->i_sb, block)))
 			return NULL;
 
-		memcpy((uint8_t *) ad + remainder, (*bh)->b_data,
-		       ad_size - remainder);
+		memcpy((uint8_t *)ad + remainder, (*bh)->b_data, ad_size - remainder);
 		*offset = ad_size - remainder;
 	}
+
 	return ad;
 }
 #endif
@@ -86,15 +86,13 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t * nf_pos,
 				       (UDF_I_EFE(dir) ?
 					sizeof(struct extendedFileEntry) :
 					sizeof(struct fileEntry)),
-				       dir->i_sb->s_blocksize,
-				       &(fibh->eoffset));
-
+				       dir->i_sb->s_blocksize, &(fibh->eoffset));
 		if (!fi)
 			return NULL;
 
 		*nf_pos += ((fibh->eoffset - fibh->soffset) >> 2);
 
-		memcpy((uint8_t *) cfi, (uint8_t *) fi,
+		memcpy((uint8_t *)cfi, (uint8_t *)fi,
 		       sizeof(struct fileIdentDesc));
 
 		return fi;
@@ -121,21 +119,14 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t * nf_pos,
 			return NULL;
 		fibh->soffset = fibh->eoffset = 0;
 
-		if (!
-		    (*offset & ((16 >> (dir->i_sb->s_blocksize_bits - 9)) - 1)))
-		{
+		if (!(*offset & ((16 >> (dir->i_sb->s_blocksize_bits - 9)) - 1))) {
 			i = 16 >> (dir->i_sb->s_blocksize_bits - 9);
-			if (i + *offset >
-			    (*elen >> dir->i_sb->s_blocksize_bits))
-				i = (*elen >> dir->i_sb->s_blocksize_bits) -
-				    *offset;
+			if (i + *offset > (*elen >> dir->i_sb->s_blocksize_bits))
+				i = (*elen >> dir->i_sb->s_blocksize_bits)-*offset;
 			for (num = 0; i > 0; i--) {
-				block =
-				    udf_get_lb_pblock(dir->i_sb, *eloc,
-						      *offset + i);
+				block = udf_get_lb_pblock(dir->i_sb, *eloc, *offset + i);
 				tmp = udf_tgetblk(dir->i_sb, block);
-				if (tmp && !buffer_uptodate(tmp)
-				    && !buffer_locked(tmp))
+				if (tmp && !buffer_uptodate(tmp) && !buffer_locked(tmp))
 					bha[num++] = tmp;
 				else
 					brelse(tmp);
@@ -160,7 +151,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t * nf_pos,
 	*nf_pos += ((fibh->eoffset - fibh->soffset) >> 2);
 
 	if (fibh->eoffset <= dir->i_sb->s_blocksize) {
-		memcpy((uint8_t *) cfi, (uint8_t *) fi,
+		memcpy((uint8_t *)cfi, (uint8_t *)fi,
 		       sizeof(struct fileIdentDesc));
 	} else if (fibh->eoffset > dir->i_sb->s_blocksize) {
 		int lextoffset = epos->offset;
@@ -187,21 +178,17 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t * nf_pos,
 		if (sizeof(struct fileIdentDesc) > -fibh->soffset) {
 			int fi_len;
 
-			memcpy((uint8_t *) cfi, (uint8_t *) fi, -fibh->soffset);
-			memcpy((uint8_t *) cfi - fibh->soffset,
-			       fibh->ebh->b_data,
+			memcpy((uint8_t *)cfi, (uint8_t *)fi, -fibh->soffset);
+			memcpy((uint8_t *)cfi - fibh->soffset, fibh->ebh->b_data,
 			       sizeof(struct fileIdentDesc) + fibh->soffset);
 
-			fi_len =
-			    (sizeof(struct fileIdentDesc) +
-			     cfi->lengthFileIdent +
-			     le16_to_cpu(cfi->lengthOfImpUse) + 3) & ~3;
+			fi_len = (sizeof(struct fileIdentDesc) + cfi->lengthFileIdent +
+				  le16_to_cpu(cfi->lengthOfImpUse) + 3) & ~3;
 
-			*nf_pos +=
-			    ((fi_len - (fibh->eoffset - fibh->soffset)) >> 2);
+			*nf_pos += ((fi_len - (fibh->eoffset - fibh->soffset)) >> 2);
 			fibh->eoffset = fibh->soffset + fi_len;
 		} else {
-			memcpy((uint8_t *) cfi, (uint8_t *) fi,
+			memcpy((uint8_t *)cfi, (uint8_t *)fi,
 			       sizeof(struct fileIdentDesc));
 		}
 	}
@@ -237,9 +224,10 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 	}
 	if ((*offset + sizeof(struct fileIdentDesc)) > bufsize) {
 		lengthThisIdent = sizeof(struct fileIdentDesc);
-	} else
+	} else {
 		lengthThisIdent = sizeof(struct fileIdentDesc) +
-		    fi->lengthFileIdent + le16_to_cpu(fi->lengthOfImpUse);
+			fi->lengthFileIdent + le16_to_cpu(fi->lengthOfImpUse);
+	}
 
 	/* we need to figure padding, too! */
 	padlen = lengthThisIdent % UDF_NAME_PAD;
@@ -270,22 +258,20 @@ static extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
 		return NULL;
 	}
 
-	ptr =
-	    (uint8_t *) (fe->extendedAttr) +
-	    le32_to_cpu(fe->lengthExtendedAttr);
+	ptr = (uint8_t *)(fe->extendedAttr) + le32_to_cpu(fe->lengthExtendedAttr);
 
 	if ((*offset > 0) && (*offset < le32_to_cpu(fe->lengthAllocDescs))) {
 		ptr += *offset;
 	}
 
-	ext = (extent_ad *) ptr;
+	ext = (extent_ad *)ptr;
 
 	*offset = *offset + sizeof(extent_ad);
 	return ext;
 }
 #endif
 
-short_ad *udf_get_fileshortad(uint8_t * ptr, int maxoffset, int *offset,
+short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, int *offset,
 			      int inc)
 {
 	short_ad *sa;
@@ -297,7 +283,7 @@ short_ad *udf_get_fileshortad(uint8_t * ptr, int maxoffset, int *offset,
 
 	if ((*offset < 0) || ((*offset + sizeof(short_ad)) > maxoffset))
 		return NULL;
-	else if ((sa = (short_ad *) ptr)->extLength == 0)
+	else if ((sa = (short_ad *)ptr)->extLength == 0)
 		return NULL;
 
 	if (inc)
@@ -305,7 +291,7 @@ short_ad *udf_get_fileshortad(uint8_t * ptr, int maxoffset, int *offset,
 	return sa;
 }
 
-long_ad *udf_get_filelongad(uint8_t * ptr, int maxoffset, int *offset, int inc)
+long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, int *offset, int inc)
 {
 	long_ad *la;
 
@@ -316,7 +302,7 @@ long_ad *udf_get_filelongad(uint8_t * ptr, int maxoffset, int *offset, int inc)
 
 	if ((*offset < 0) || ((*offset + sizeof(long_ad)) > maxoffset))
 		return NULL;
-	else if ((la = (long_ad *) ptr)->extLength == 0)
+	else if ((la = (long_ad *)ptr)->extLength == 0)
 		return NULL;
 
 	if (inc)

@@ -63,8 +63,8 @@ struct udf_vds_record {
 };
 
 struct generic_desc {
-	tag descTag;
-	__le32 volDescSeqNum;
+	tag		descTag;
+	__le32		volDescSeqNum;
 };
 
 struct ustr {

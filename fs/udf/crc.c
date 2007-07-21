@@ -111,7 +111,7 @@ int main(void)
 	return 0;
 }
 
-#endif				/* defined(TEST) */
+#endif /* defined(TEST) */
 
 /****************************************************************************/
 #if defined(GENERATE)
@@ -169,4 +169,4 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-#endif				/* defined(GENERATE) */
+#endif /* defined(GENERATE) */

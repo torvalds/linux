@@ -66,64 +66,64 @@
 #define IS_DF_SOFT_WRITE_PROTECT	0x02
 
 struct UDFIdentSuffix {
-	__le16 UDFRevision;
-	uint8_t OSClass;
-	uint8_t OSIdentifier;
-	uint8_t reserved[4];
+	__le16		UDFRevision;
+	uint8_t		OSClass;
+	uint8_t		OSIdentifier;
+	uint8_t		reserved[4];
 } __attribute__ ((packed));
 
 struct impIdentSuffix {
-	uint8_t OSClass;
-	uint8_t OSIdentifier;
-	uint8_t reserved[6];
+	uint8_t		OSClass;
+	uint8_t		OSIdentifier;
+	uint8_t		reserved[6];
 } __attribute__ ((packed));
 
 struct appIdentSuffix {
-	uint8_t impUse[8];
+	uint8_t		impUse[8];
 } __attribute__ ((packed));
 
 /* Logical Volume Integrity Descriptor (UDF 2.50 2.2.6) */
 /* Implementation Use (UDF 2.50 2.2.6.4) */
 struct logicalVolIntegrityDescImpUse {
-	regid impIdent;
-	__le32 numFiles;
-	__le32 numDirs;
-	__le16 minUDFReadRev;
-	__le16 minUDFWriteRev;
-	__le16 maxUDFWriteRev;
-	uint8_t impUse[0];
+	regid		impIdent;
+	__le32		numFiles;
+	__le32		numDirs;
+	__le16		minUDFReadRev;
+	__le16		minUDFWriteRev;
+	__le16		maxUDFWriteRev;
+	uint8_t		impUse[0];
 } __attribute__ ((packed));
 
 /* Implementation Use Volume Descriptor (UDF 2.50 2.2.7) */
 /* Implementation Use (UDF 2.50 2.2.7.2) */
 struct impUseVolDescImpUse {
-	charspec LVICharset;
-	dstring logicalVolIdent[128];
-	dstring LVInfo1[36];
-	dstring LVInfo2[36];
-	dstring LVInfo3[36];
-	regid impIdent;
-	uint8_t impUse[128];
+	charspec	LVICharset;
+	dstring		logicalVolIdent[128];
+	dstring		LVInfo1[36];
+	dstring		LVInfo2[36];
+	dstring		LVInfo3[36];
+	regid		impIdent;
+	uint8_t		impUse[128];
 } __attribute__ ((packed));
 
 struct udfPartitionMap2 {
-	uint8_t partitionMapType;
-	uint8_t partitionMapLength;
-	uint8_t reserved1[2];
-	regid partIdent;
-	__le16 volSeqNum;
-	__le16 partitionNum;
+	uint8_t		partitionMapType;
+	uint8_t		partitionMapLength;
+	uint8_t		reserved1[2];
+	regid		partIdent;
+	__le16		volSeqNum;
+	__le16		partitionNum;
 } __attribute__ ((packed));
 
 /* Virtual Partition Map (UDF 2.50 2.2.8) */
 struct virtualPartitionMap {
-	uint8_t partitionMapType;
-	uint8_t partitionMapLength;
-	uint8_t reserved1[2];
-	regid partIdent;
-	__le16 volSeqNum;
-	__le16 partitionNum;
-	uint8_t reserved2[24];
+	uint8_t		partitionMapType;
+	uint8_t		partitionMapLength;
+	uint8_t		reserved1[2];
+	regid		partIdent;
+	__le16		volSeqNum;
+	__le16		partitionNum;
+	uint8_t		reserved2[24];
 } __attribute__ ((packed));
 
 /* Sparable Partition Map (UDF 2.50 2.2.9) */
@@ -143,62 +143,62 @@ struct sparablePartitionMap {
 
 /* Metadata Partition Map (UDF 2.4.0 2.2.10) */
 struct metadataPartitionMap {
-	uint8_t partitionMapType;
-	uint8_t partitionMapLength;
-	uint8_t reserved1[2];
-	regid partIdent;
-	__le16 volSeqNum;
-	__le16 partitionNum;
-	__le32 metadataFileLoc;
-	__le32 metadataMirrorFileLoc;
-	__le32 metadataBitmapFileLoc;
-	__le32 allocUnitSize;
-	__le16 alignUnitSize;
-	uint8_t flags;
-	uint8_t reserved2[5];
+	uint8_t		partitionMapType;
+	uint8_t		partitionMapLength;
+	uint8_t		reserved1[2];
+	regid		partIdent;
+	__le16		volSeqNum;
+	__le16		partitionNum;
+	__le32		metadataFileLoc;
+	__le32		metadataMirrorFileLoc;
+	__le32		metadataBitmapFileLoc;
+	__le32		allocUnitSize;
+	__le16		alignUnitSize;
+	uint8_t		flags;
+	uint8_t		reserved2[5];
 } __attribute__ ((packed));
 
 /* Virtual Allocation Table (UDF 1.5 2.2.10) */
 struct virtualAllocationTable15 {
-	__le32 VirtualSector[0];
-	regid vatIdent;
-	__le32 previousVATICBLoc;
+	__le32		VirtualSector[0];
+	regid		vatIdent;
+	__le32		previousVATICBLoc;
 } __attribute__ ((packed));
 
 #define ICBTAG_FILE_TYPE_VAT15		0x00U
 
 /* Virtual Allocation Table (UDF 2.50 2.2.11) */
 struct virtualAllocationTable20 {
-	__le16 lengthHeader;
-	__le16 lengthImpUse;
-	dstring logicalVolIdent[128];
-	__le32 previousVATICBLoc;
-	__le32 numFiles;
-	__le32 numDirs;
-	__le16 minReadRevision;
-	__le16 minWriteRevision;
-	__le16 maxWriteRevision;
-	__le16 reserved;
-	uint8_t impUse[0];
-	__le32 vatEntry[0];
+	__le16		lengthHeader;
+	__le16		lengthImpUse;
+	dstring		logicalVolIdent[128];
+	__le32		previousVATICBLoc;
+	__le32		numFiles;
+	__le32		numDirs;
+	__le16		minReadRevision;
+	__le16		minWriteRevision;
+	__le16		maxWriteRevision;
+	__le16		reserved;
+	uint8_t		impUse[0];
+	__le32		vatEntry[0];
 } __attribute__ ((packed));
 
 #define ICBTAG_FILE_TYPE_VAT20		0xF8U
 
 /* Sparing Table (UDF 2.50 2.2.12) */
 struct sparingEntry {
-	__le32 origLocation;
-	__le32 mappedLocation;
+	__le32		origLocation;
+	__le32		mappedLocation;
 } __attribute__ ((packed));
 
 struct sparingTable {
-	tag descTag;
-	regid sparingIdent;
-	__le16 reallocationTableLen;
-	__le16 reserved;
-	__le32 sequenceNum;
+	tag 		descTag;
+	regid		sparingIdent;
+	__le16		reallocationTableLen;
+	__le16		reserved;
+	__le32		sequenceNum;
 	struct sparingEntry
-	 mapEntry[0];
+			mapEntry[0];
 } __attribute__ ((packed));
 
 /* Metadata File (and Metadata Mirror File) (UDF 2.50 2.2.13.1) */
@@ -208,8 +208,8 @@ struct sparingTable {
 
 /* struct long_ad ICB - ADImpUse (UDF 2.50 2.2.4.3) */
 struct allocDescImpUse {
-	__le16 flags;
-	uint8_t impUse[4];
+	__le16		flags;
+	uint8_t		impUse[4];
 } __attribute__ ((packed));
 
 #define AD_IU_EXT_ERASED		0x0001
@@ -220,23 +220,23 @@ struct allocDescImpUse {
 /* Implementation Use Extended Attribute (UDF 2.50 3.3.4.5) */
 /* FreeEASpace (UDF 2.50 3.3.4.5.1.1) */
 struct freeEaSpace {
-	__le16 headerChecksum;
-	uint8_t freeEASpace[0];
+	__le16		headerChecksum;
+	uint8_t		freeEASpace[0];
 } __attribute__ ((packed));
 
 /* DVD Copyright Management Information (UDF 2.50 3.3.4.5.1.2) */
 struct DVDCopyrightImpUse {
-	__le16 headerChecksum;
-	uint8_t CGMSInfo;
-	uint8_t dataType;
-	uint8_t protectionSystemInfo[4];
+	__le16		headerChecksum;
+	uint8_t		CGMSInfo;
+	uint8_t		dataType;
+	uint8_t		protectionSystemInfo[4];
 } __attribute__ ((packed));
 
 /* Application Use Extended Attribute (UDF 2.50 3.3.4.6) */
 /* FreeAppEASpace (UDF 2.50 3.3.4.6.1) */
 struct freeAppEASpace {
-	__le16 headerChecksum;
-	uint8_t freeEASpace[0];
+	__le16		headerChecksum;
+	uint8_t		freeEASpace[0];
 } __attribute__ ((packed));
 
 /* UDF Defined System Stream (UDF 2.50 3.3.7) */
@@ -276,4 +276,4 @@ struct freeAppEASpace {
 #define UDF_OS_ID_BEOS			0x00U
 #define UDF_OS_ID_WINCE			0x00U
 
-#endif				/* _OSTA_UDF_H */
+#endif /* _OSTA_UDF_H */

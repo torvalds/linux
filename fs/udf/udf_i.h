@@ -23,4 +23,4 @@ static inline struct udf_inode_info *UDF_I(struct inode *inode)
 #define UDF_I_LAD(X)		( UDF_I(X)->i_ext.i_lad )
 #define UDF_I_DATA(X)		( UDF_I(X)->i_ext.i_data )
 
-#endif				/* !defined(_LINUX_UDF_I_H) */
+#endif /* !defined(_LINUX_UDF_I_H) */

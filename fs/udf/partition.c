@@ -14,7 +14,7 @@
  *
  * HISTORY
  *
- * 12/06/98 blf  Created file. 
+ * 12/06/98 blf  Created file.
  *
  */
 
@@ -32,19 +32,17 @@ inline uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
 			       uint16_t partition, uint32_t offset)
 {
 	if (partition >= UDF_SB_NUMPARTS(sb)) {
-		udf_debug
-		    ("block=%d, partition=%d, offset=%d: invalid partition\n",
-		     block, partition, offset);
+		udf_debug("block=%d, partition=%d, offset=%d: invalid partition\n",
+			  block, partition, offset);
 		return 0xFFFFFFFF;
 	}
 	if (UDF_SB_PARTFUNC(sb, partition))
-		return UDF_SB_PARTFUNC(sb, partition) (sb, block, partition,
-						       offset);
+		return UDF_SB_PARTFUNC(sb, partition)(sb, block, partition, offset);
 	else
 		return UDF_SB_PARTROOT(sb, partition) + block + offset;
 }
 
-uint32_t udf_get_pblock_virt15(struct super_block * sb, uint32_t block,
+uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 			       uint16_t partition, uint32_t offset)
 {
 	struct buffer_head *bh = NULL;
@@ -52,14 +50,11 @@ uint32_t udf_get_pblock_virt15(struct super_block * sb, uint32_t block,
 	uint32_t index;
 	uint32_t loc;
 
-	index =
-	    (sb->s_blocksize -
-	     UDF_SB_TYPEVIRT(sb, partition).s_start_offset) / sizeof(uint32_t);
+	index = (sb->s_blocksize - UDF_SB_TYPEVIRT(sb,partition).s_start_offset) / sizeof(uint32_t);
 
-	if (block > UDF_SB_TYPEVIRT(sb, partition).s_num_entries) {
-		udf_debug
-		    ("Trying to access block beyond end of VAT (%d max %d)\n",
-		     block, UDF_SB_TYPEVIRT(sb, partition).s_num_entries);
+	if (block > UDF_SB_TYPEVIRT(sb,partition).s_num_entries) {
+		udf_debug("Trying to access block beyond end of VAT (%d max %d)\n",
+			  block, UDF_SB_TYPEVIRT(sb,partition).s_num_entries);
 		return 0xFFFFFFFF;
 	}
 
@@ -69,10 +64,7 @@ uint32_t udf_get_pblock_virt15(struct super_block * sb, uint32_t block,
 		index = block % (sb->s_blocksize / sizeof(uint32_t));
 	} else {
 		newblock = 0;
-		index =
-		    UDF_SB_TYPEVIRT(sb,
-				    partition).s_start_offset /
-		    sizeof(uint32_t) + block;
+		index = UDF_SB_TYPEVIRT(sb,partition).s_start_offset / sizeof(uint32_t) + block;
 	}
 
 	loc = udf_block_map(UDF_SB_VAT(sb), newblock);
@@ -83,7 +75,7 @@ uint32_t udf_get_pblock_virt15(struct super_block * sb, uint32_t block,
 		return 0xFFFFFFFF;
 	}
 
-	loc = le32_to_cpu(((__le32 *) bh->b_data)[index]);
+	loc = le32_to_cpu(((__le32 *)bh->b_data)[index]);
 
 	brelse(bh);
 
@@ -93,8 +85,8 @@ uint32_t udf_get_pblock_virt15(struct super_block * sb, uint32_t block,
 	}
 
 	return udf_get_pblock(sb, loc,
-			      UDF_I_LOCATION(UDF_SB_VAT(sb)).
-			      partitionReferenceNum, offset);
+			      UDF_I_LOCATION(UDF_SB_VAT(sb)).partitionReferenceNum,
+			      offset);
 }
 
 inline uint32_t udf_get_pblock_virt20(struct super_block * sb, uint32_t block,
@@ -108,40 +100,29 @@ uint32_t udf_get_pblock_spar15(struct super_block * sb, uint32_t block,
 {
 	int i;
 	struct sparingTable *st = NULL;
-	uint32_t packet =
-	    (block + offset) & ~(UDF_SB_TYPESPAR(sb, partition).s_packet_len -
-				 1);
+	uint32_t packet = (block + offset) & ~(UDF_SB_TYPESPAR(sb,partition).s_packet_len - 1);
 
 	for (i = 0; i < 4; i++) {
-		if (UDF_SB_TYPESPAR(sb, partition).s_spar_map[i] != NULL) {
-			st = (struct sparingTable *)UDF_SB_TYPESPAR(sb,
-								    partition).
-			    s_spar_map[i]->b_data;
+		if (UDF_SB_TYPESPAR(sb,partition).s_spar_map[i] != NULL) {
+			st = (struct sparingTable *)UDF_SB_TYPESPAR(sb,partition).s_spar_map[i]->b_data;
 			break;
 		}
 	}
 
 	if (st) {
 		for (i = 0; i < le16_to_cpu(st->reallocationTableLen); i++) {
-			if (le32_to_cpu(st->mapEntry[i].origLocation) >=
-			    0xFFFFFFF0)
+			if (le32_to_cpu(st->mapEntry[i].origLocation) >= 0xFFFFFFF0) {
 				break;
-			else if (le32_to_cpu(st->mapEntry[i].origLocation) ==
-				 packet) {
-				return le32_to_cpu(st->mapEntry[i].
-						   mappedLocation) + ((block +
-								       offset) &
-								      (UDF_SB_TYPESPAR
-								       (sb,
-									partition).
-								       s_packet_len
-								       - 1));
-			} else if (le32_to_cpu(st->mapEntry[i].origLocation) >
-				   packet)
+			} else if (le32_to_cpu(st->mapEntry[i].origLocation) == packet) {
+				return le32_to_cpu(st->mapEntry[i].mappedLocation) +
+					((block + offset) & (UDF_SB_TYPESPAR(sb,partition).s_packet_len - 1));
+			} else if (le32_to_cpu(st->mapEntry[i].origLocation) > packet) {
 				break;
+			}
 		}
 	}
-	return UDF_SB_PARTROOT(sb, partition) + block + offset;
+
+	return UDF_SB_PARTROOT(sb,partition) + block + offset;
 }
 
 int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
@@ -153,20 +134,14 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 	int i, j, k, l;
 
 	for (i = 0; i < UDF_SB_NUMPARTS(sb); i++) {
-		if (old_block > UDF_SB_PARTROOT(sb, i) &&
-		    old_block < UDF_SB_PARTROOT(sb, i) + UDF_SB_PARTLEN(sb, i))
-		{
-			sdata = &UDF_SB_TYPESPAR(sb, i);
-			packet =
-			    (old_block -
-			     UDF_SB_PARTROOT(sb,
-					     i)) & ~(sdata->s_packet_len - 1);
+		if (old_block > UDF_SB_PARTROOT(sb,i) &&
+		    old_block < UDF_SB_PARTROOT(sb,i) + UDF_SB_PARTLEN(sb,i)) {
+			sdata = &UDF_SB_TYPESPAR(sb,i);
+			packet = (old_block - UDF_SB_PARTROOT(sb,i)) & ~(sdata->s_packet_len - 1);
 
 			for (j = 0; j < 4; j++) {
-				if (UDF_SB_TYPESPAR(sb, i).s_spar_map[j] !=
-				    NULL) {
-					st = (struct sparingTable *)sdata->
-					    s_spar_map[j]->b_data;
+				if (UDF_SB_TYPESPAR(sb,i).s_spar_map[j] != NULL) {
+					st = (struct sparingTable *)sdata->s_spar_map[j]->b_data;
 					break;
 				}
 			}
@@ -174,122 +149,51 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 			if (!st)
 				return 1;
 
-			for (k = 0; k < le16_to_cpu(st->reallocationTableLen);
-			     k++) {
-				if (le32_to_cpu(st->mapEntry[k].origLocation) ==
-				    0xFFFFFFFF) {
+			for (k = 0; k < le16_to_cpu(st->reallocationTableLen); k++) {
+				if (le32_to_cpu(st->mapEntry[k].origLocation) == 0xFFFFFFFF) {
 					for (; j < 4; j++) {
 						if (sdata->s_spar_map[j]) {
-							st = (struct
-							      sparingTable *)
-							    sdata->
-							    s_spar_map[j]->
-							    b_data;
-							st->mapEntry[k].
-							    origLocation =
-							    cpu_to_le32(packet);
-							udf_update_tag((char *)
-								       st,
-								       sizeof
-								       (struct
-									sparingTable)
-								       +
-								       le16_to_cpu
-								       (st->
-									reallocationTableLen)
-								       *
-								       sizeof
-								       (struct
-									sparingEntry));
-							mark_buffer_dirty
-							    (sdata->
-							     s_spar_map[j]);
+							st = (struct sparingTable *)sdata->s_spar_map[j]->b_data;
+							st->mapEntry[k].origLocation = cpu_to_le32(packet);
+							udf_update_tag((char *)st, sizeof(struct sparingTable) + le16_to_cpu(st->reallocationTableLen) * sizeof(struct sparingEntry));
+							mark_buffer_dirty(sdata->s_spar_map[j]);
 						}
 					}
-					*new_block =
-					    le32_to_cpu(st->mapEntry[k].
-							mappedLocation) +
-					    ((old_block -
-					      UDF_SB_PARTROOT(sb,
-							      i)) & (sdata->
-								     s_packet_len
-								     - 1));
+					*new_block = le32_to_cpu(st->mapEntry[k].mappedLocation) +
+						((old_block - UDF_SB_PARTROOT(sb,i)) & (sdata->s_packet_len - 1));
 					return 0;
-				} else
-				    if (le32_to_cpu
-					(st->mapEntry[k].origLocation) ==
-					packet) {
-					*new_block =
-					    le32_to_cpu(st->mapEntry[k].
-							mappedLocation) +
-					    ((old_block -
-					      UDF_SB_PARTROOT(sb,
-							      i)) & (sdata->
-								     s_packet_len
-								     - 1));
+				} else if (le32_to_cpu(st->mapEntry[k].origLocation) == packet) {
+					*new_block = le32_to_cpu(st->mapEntry[k].mappedLocation) +
+						((old_block - UDF_SB_PARTROOT(sb,i)) & (sdata->s_packet_len - 1));
 					return 0;
-				} else
-				    if (le32_to_cpu
-					(st->mapEntry[k].origLocation) > packet)
+				} else if (le32_to_cpu(st->mapEntry[k].origLocation) > packet) {
 					break;
+				}
 			}
-			for (l = k; l < le16_to_cpu(st->reallocationTableLen);
-			     l++) {
-				if (le32_to_cpu(st->mapEntry[l].origLocation) ==
-				    0xFFFFFFFF) {
+
+			for (l = k; l < le16_to_cpu(st->reallocationTableLen); l++) {
+				if (le32_to_cpu(st->mapEntry[l].origLocation) == 0xFFFFFFFF) {
 					for (; j < 4; j++) {
 						if (sdata->s_spar_map[j]) {
-							st = (struct
-							      sparingTable *)
-							    sdata->
-							    s_spar_map[j]->
-							    b_data;
-							mapEntry =
-							    st->mapEntry[l];
-							mapEntry.origLocation =
-							    cpu_to_le32(packet);
-							memmove(&st->
-								mapEntry[k + 1],
-								&st->
-								mapEntry[k],
-								(l -
-								 k) *
-								sizeof(struct
-								       sparingEntry));
-							st->mapEntry[k] =
-							    mapEntry;
-							udf_update_tag((char *)
-								       st,
-								       sizeof
-								       (struct
-									sparingTable)
-								       +
-								       le16_to_cpu
-								       (st->
-									reallocationTableLen)
-								       *
-								       sizeof
-								       (struct
-									sparingEntry));
-							mark_buffer_dirty
-							    (sdata->
-							     s_spar_map[j]);
+							st = (struct sparingTable *)sdata->s_spar_map[j]->b_data;
+							mapEntry = st->mapEntry[l];
+							mapEntry.origLocation = cpu_to_le32(packet);
+							memmove(&st->mapEntry[k + 1], &st->mapEntry[k], (l - k) * sizeof(struct sparingEntry));
+							st->mapEntry[k] = mapEntry;
+							udf_update_tag((char *)st, sizeof(struct sparingTable) + le16_to_cpu(st->reallocationTableLen) * sizeof(struct sparingEntry));
+							mark_buffer_dirty(sdata->s_spar_map[j]);
 						}
 					}
-					*new_block =
-					    le32_to_cpu(st->mapEntry[k].
-							mappedLocation) +
-					    ((old_block -
-					      UDF_SB_PARTROOT(sb,
-							      i)) & (sdata->
-								     s_packet_len
-								     - 1));
+					*new_block = le32_to_cpu(st->mapEntry[k].mappedLocation) +
+						((old_block - UDF_SB_PARTROOT(sb,i)) & (sdata->s_packet_len - 1));
 					return 0;
 				}
 			}
+
 			return 1;
-		}
+		} /* if old_block */
 	}
+
 	if (i == UDF_SB_NUMPARTS(sb)) {
 		/* outside of partitions */
 		/* for now, fail =) */

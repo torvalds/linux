@@ -11,7 +11,7 @@
  *	Each contributing author retains all rights to their own work.
  *
  *  (C) 1998-2001 Ben Fennema
- *  (C) 1999 Stelias Computing Inc 
+ *  (C) 1999 Stelias Computing Inc
  *
  * HISTORY
  *
@@ -33,8 +33,7 @@
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
-static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen,
-			   char *to)
+static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen, char *to)
 {
 	struct pathComponent *pc;
 	int elen = 0;
@@ -81,9 +80,9 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	char *p = kmap(page);
 
 	lock_kernel();
-	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB)
+	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
 		symlink = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
-	else {
+	} else {
 		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
 
 		if (!bh)
@@ -100,7 +99,8 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	kunmap(page);
 	unlock_page(page);
 	return 0;
-      out:
+
+out:
 	unlock_kernel();
 	SetPageError(page);
 	kunmap(page);
@@ -112,5 +112,5 @@ static int udf_symlink_filler(struct file *file, struct page *page)
  * symlinks can't do much...
  */
 const struct address_space_operations udf_symlink_aops = {
-	.readpage = udf_symlink_filler,
+	.readpage		= udf_symlink_filler,
 };
