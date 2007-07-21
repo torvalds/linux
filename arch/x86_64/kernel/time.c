@@ -44,6 +44,7 @@
 #include <asm/hpet.h>
 #include <asm/mpspec.h>
 #include <asm/nmi.h>
+#include <asm/vgtod.h>
 
 static char *timename = NULL;
 

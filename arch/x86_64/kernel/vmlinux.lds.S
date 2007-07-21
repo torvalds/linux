@@ -93,6 +93,9 @@ SECTIONS
   .vsyscall_gtod_data : AT(VLOAD(.vsyscall_gtod_data))
 		{ *(.vsyscall_gtod_data) }
   vsyscall_gtod_data = VVIRT(.vsyscall_gtod_data);
+  .vsyscall_clock : AT(VLOAD(.vsyscall_clock))
+		{ *(.vsyscall_clock) }
+  vsyscall_clock = VVIRT(.vsyscall_clock);
 
 
   .vsyscall_1 ADDR(.vsyscall_0) + 1024: AT(VLOAD(.vsyscall_1))
@@ -188,6 +191,12 @@ SECTIONS
      from .altinstructions and .eh_frame */
   .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { *(.exit.text) }
   .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) { *(.exit.data) }
+
+/* vdso blob that is mapped into user space */
+  vdso_start = . ;
+  .vdso  : AT(ADDR(.vdso) - LOAD_OFFSET) { *(.vdso) }
+  . = ALIGN(4096);
+  vdso_end = .;
 
 #ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(4096);

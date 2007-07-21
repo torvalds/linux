@@ -22,6 +22,8 @@ enum vsyscall_num {
 /* Definitions for CONFIG_GENERIC_TIME definitions */
 #define __section_vsyscall_gtod_data __attribute__ \
 	((unused, __section__ (".vsyscall_gtod_data"),aligned(16)))
+#define __section_vsyscall_clock __attribute__ \
+	((unused, __section__ (".vsyscall_clock"),aligned(16)))
 #define __vsyscall_fn __attribute__ ((unused,__section__(".vsyscall_fn")))
 
 #define VGETCPU_RDTSCP	1
@@ -36,7 +38,6 @@ extern volatile unsigned long __jiffies;
 /* kernel space (writeable) */
 extern int vgetcpu_mode;
 extern struct timezone sys_tz;
-extern struct vsyscall_gtod_data_t vsyscall_gtod_data;
 
 #endif /* __KERNEL__ */
 
