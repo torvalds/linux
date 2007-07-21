@@ -44,7 +44,6 @@
 extern int nx_enabled;
 
 #ifdef CONFIG_X86_PAE
-extern unsigned long long __supported_pte_mask;
 typedef struct { unsigned long pte_low, pte_high; } pte_t;
 typedef struct { unsigned long long pmd; } pmd_t;
 typedef struct { unsigned long long pgd; } pgd_t;
