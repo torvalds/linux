@@ -109,7 +109,7 @@ static inline void write_cr4(unsigned long val)
 #define stts() write_cr0(8 | read_cr0())
 
 #define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory");
+	__asm__ __volatile__ ("wbinvd": : :"memory")
 
 #endif	/* __KERNEL__ */
 
