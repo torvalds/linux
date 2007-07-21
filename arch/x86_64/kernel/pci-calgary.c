@@ -155,9 +155,15 @@ struct calgary_bus_info {
 	void __iomem *bbar;
 };
 
-static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
+static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
+static void calgary_tce_cache_blast(struct iommu_table *tbl);
 
-static void tce_cache_blast(struct iommu_table *tbl);
+static struct cal_chipset_ops calgary_chip_ops = {
+	.handle_quirks = calgary_handle_quirks,
+	.tce_cache_blast = calgary_tce_cache_blast
+};
+
+static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
 
 /* enable this to stress test the chip's TCE cache */
 #ifdef CONFIG_IOMMU_DEBUG
@@ -243,7 +249,7 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	offset = find_next_zero_string(tbl->it_map, tbl->it_hint,
 				       tbl->it_size, npages);
 	if (offset == ~0UL) {
-		tce_cache_blast(tbl);
+		tbl->chip_ops->tce_cache_blast(tbl);
 		offset = find_next_zero_string(tbl->it_map, 0,
 					       tbl->it_size, npages);
 		if (offset == ~0UL) {
@@ -552,7 +558,7 @@ static inline void __iomem* calgary_reg(void __iomem *bar, unsigned long offset)
 	return (void __iomem*)target;
 }
 
-static void tce_cache_blast(struct iommu_table *tbl)
+static void calgary_tce_cache_blast(struct iommu_table *tbl)
 {
 	u64 val;
 	u32 aer;
@@ -698,6 +704,8 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
 	tce_free(tbl, 0, tbl->it_size);
 
+	tbl->chip_ops = &calgary_chip_ops;
+
 	calgary_reserve_regions(dev);
 
 	/* set TARs for each PHB */
@@ -807,10 +815,10 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	readq(target); /* flush */
 }
 
-static void __init calgary_handle_quirks(struct pci_dev* dev)
+static void __init calgary_handle_quirks(struct iommu_table *tbl,
+	struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
-	struct iommu_table *tbl = dev->sysdata;
 
 	/*
 	 * Give split completion a longer timeout on bus 1 for aic94xx
@@ -885,6 +893,7 @@ static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
 static int __init calgary_init_one(struct pci_dev *dev)
 {
 	void __iomem *bbar;
+	struct iommu_table *tbl;
 	int ret;
 
 	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
@@ -897,7 +906,8 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	pci_dev_get(dev);
 	dev->bus->self = dev;
 
-	calgary_handle_quirks(dev);
+	tbl = dev->sysdata;
+	tbl->chip_ops->handle_quirks(tbl, dev);
 
 	calgary_enable_translation(dev);
 
