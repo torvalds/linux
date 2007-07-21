@@ -308,6 +308,16 @@ config RTC_DRV_DS1553
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1553.
 
+config RTC_DRV_STK17TA8
+	tristate "Simtek STK17TA8"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  Simtek STK17TA8 timekeeping chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-stk17ta8.
+
 config RTC_DRV_DS1742
 	tristate "Dallas DS1742/1743"
 	depends on RTC_CLASS
