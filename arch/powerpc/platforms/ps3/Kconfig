@@ -102,4 +102,14 @@ config PS3_STORAGE
 	depends on PPC_PS3
 	tristate
 
+config PS3_DISK
+	tristate "PS3 Disk Storage Driver"
+	depends on PPC_PS3 && BLOCK
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 Disk Storage.
+
+	  This support is required to access the PS3 hard disk.
+	  In general, all users will say Y or M.
+
 endmenu
