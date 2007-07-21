@@ -5,9 +5,8 @@
 #include <asm/alternative.h>
 #include <asm/sections.h>
 
-static int noreplace_smp     = 0;
-static int smp_alt_once      = 0;
-static int debug_alternative = 0;
+#ifdef CONFIG_HOTPLUG_CPU
+static int smp_alt_once;
 
 static int __init bootonly(char *str)
 {
@@ -15,6 +14,11 @@ static int __init bootonly(char *str)
 	return 1;
 }
 __setup("smp-alt-boot", bootonly);
+#else
+#define smp_alt_once 1
+#endif
+
+static int debug_alternative;
 
 static int __init debug_alt(char *str)
 {
@@ -22,6 +26,8 @@ static int __init debug_alt(char *str)
 	return 1;
 }
 __setup("debug-alternative", debug_alt);
+
+static int noreplace_smp;
 
 static int __init setup_noreplace_smp(char *str)
 {
@@ -376,8 +382,6 @@ void __init alternative_instructions(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	if (num_possible_cpus() < 2)
 		smp_alt_once = 1;
-#else
-	smp_alt_once = 1;
 #endif
 
 #ifdef CONFIG_SMP
