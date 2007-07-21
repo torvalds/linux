@@ -357,7 +357,8 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	 * This is needed when we sync the memory.  Then we sync the buffer if
 	 * needed.
 	 */
-	io_tlb_orig_addr[index] = buffer;
+	for (i = 0; i < nslots; i++)
+		io_tlb_orig_addr[index+i] = buffer + (i << IO_TLB_SHIFT);
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
 		memcpy(dma_addr, buffer, size);
 
@@ -417,6 +418,8 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size,
 {
 	int index = (dma_addr - io_tlb_start) >> IO_TLB_SHIFT;
 	char *buffer = io_tlb_orig_addr[index];
+
+	buffer += ((unsigned long)dma_addr & ((1 << IO_TLB_SHIFT) - 1));
 
 	switch (target) {
 	case SYNC_FOR_CPU:
