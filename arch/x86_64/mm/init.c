@@ -700,8 +700,6 @@ int kern_addr_valid(unsigned long addr)
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 
-extern int exception_trace, page_fault_trace;
-
 static ctl_table debug_table2[] = {
 	{
 		.ctl_name	= 99,

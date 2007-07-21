@@ -301,7 +301,7 @@ static int vmalloc_fault(unsigned long address)
 	return 0;
 }
 
-int page_fault_trace = 0;
+static int page_fault_trace;
 int exception_trace = 1;
 
 /*
