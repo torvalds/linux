@@ -599,8 +599,8 @@ static struct wd_ops intel_arch_wd_ops = {
 	.setup = setup_intel_arch_watchdog,
 	.rearm = p6_rearm,
 	.stop = single_msr_stop_watchdog,
-	.perfctr = MSR_ARCH_PERFMON_PERFCTR0,
-	.evntsel = MSR_ARCH_PERFMON_EVENTSEL0,
+	.perfctr = MSR_ARCH_PERFMON_PERFCTR1,
+	.evntsel = MSR_ARCH_PERFMON_EVENTSEL1,
 };
 
 static void probe_nmi_watchdog(void)
