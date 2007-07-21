@@ -38,6 +38,9 @@ config RTC_HCTOSYS_DEVICE
 	  clock, usually rtc0.  Initialization is done when the system
 	  starts up, and when it resumes from a low power state.
 
+	  The driver for this RTC device must be loaded before late_initcall
+	  functions run, so it must usually be statically linked.
+
 	  This clock should be battery-backed, so that it reads the correct
 	  time when the system boots from a power-off state.  Otherwise, your
 	  system will need an external clock source (like an NTP server).
