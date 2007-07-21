@@ -903,8 +903,10 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Add host to MMC layer
 	 */
-	if (host->board->det_pin)
+	if (host->board->det_pin) {
 		host->present = !at91_get_gpio_value(host->board->det_pin);
+		device_init_wakeup(&pdev->dev, 1);
+	}
 	else
 		host->present = -1;
 
@@ -940,6 +942,7 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 
 	if (host->present != -1) {
+		device_init_wakeup(&pdev->dev, 0);
 		free_irq(host->board->det_pin, host);
 		cancel_delayed_work(&host->mmc->detect);
 	}
@@ -966,7 +969,11 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct at91mci_host *host = mmc_priv(mmc);
 	int ret = 0;
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(host->board->det_pin);
 
 	if (mmc)
 		ret = mmc_suspend_host(mmc, state);
@@ -977,7 +984,11 @@ static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 static int at91_mci_resume(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct at91mci_host *host = mmc_priv(mmc);
 	int ret = 0;
+
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(host->board->det_pin);
 
 	if (mmc)
 		ret = mmc_resume_host(mmc);

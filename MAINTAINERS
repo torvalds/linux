@@ -651,7 +651,12 @@ W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
 ATMEL AT91 MCI DRIVER
-S:	Orphan
+P:	Nicolas Ferre
+M:	nicolas.ferre@rfo.atmel.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:	http://www.atmel.com/products/AT91/
+W:	http://www.at91.com/
+S:	Maintained
 
 ATMEL MACB ETHERNET DRIVER
 P:	Haavard Skinnemoen
