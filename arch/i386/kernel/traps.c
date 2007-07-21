@@ -211,6 +211,7 @@ static void print_trace_address(void *data, unsigned long addr)
 {
 	printk("%s [<%08lx>] ", (char *)data, addr);
 	print_symbol("%s\n", addr);
+	touch_nmi_watchdog();
 }
 
 static struct stacktrace_ops print_trace_ops = {
