@@ -92,8 +92,9 @@ unsigned int safe_apic_wait_icr_idle(void)
 void enable_NMI_through_LVT0 (void * dummy)
 {
 	unsigned int v;
-	
-	v = APIC_DM_NMI;                        /* unmask and set to NMI */
+
+	/* unmask and set to NMI */
+	v = APIC_DM_NMI;
 	apic_write(APIC_LVT0, v);
 }
 
@@ -120,7 +121,7 @@ void ack_bad_irq(unsigned int irq)
 	 * holds up an irq slot - in excessive cases (when multiple
 	 * unexpected vectors occur) that might lock up the APIC
 	 * completely.
-  	 * But don't ack when the APIC is disabled. -AK
+	 * But don't ack when the APIC is disabled. -AK
 	 */
 	if (!disable_apic)
 		ack_APIC_irq();
@@ -616,7 +617,7 @@ early_param("apic", apic_set_verbosity);
  * Detect and enable local APICs on non-SMP boards.
  * Original code written by Keir Fraser.
  * On AMD64 we trust the BIOS - if it says no APIC it is likely
- * not correctly set up (usually the APIC timer won't work etc.) 
+ * not correctly set up (usually the APIC timer won't work etc.)
  */
 
 static int __init detect_init_APIC (void)
@@ -789,13 +790,13 @@ static void setup_APIC_timer(unsigned int clocks)
 	local_irq_save(flags);
 
 	/* wait for irq slice */
- 	if (hpet_address && hpet_use_timer) {
- 		int trigger = hpet_readl(HPET_T0_CMP);
- 		while (hpet_readl(HPET_COUNTER) >= trigger)
- 			/* do nothing */ ;
- 		while (hpet_readl(HPET_COUNTER) <  trigger)
- 			/* do nothing */ ;
- 	} else {
+	if (hpet_address && hpet_use_timer) {
+		int trigger = hpet_readl(HPET_T0_CMP);
+		while (hpet_readl(HPET_COUNTER) >= trigger)
+			/* do nothing */ ;
+		while (hpet_readl(HPET_COUNTER) <  trigger)
+			/* do nothing */ ;
+	} else {
 		int c1, c2;
 		outb_p(0x00, 0x43);
 		c2 = inb_p(0x40);
@@ -881,10 +882,10 @@ static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock (void)
 {
-	if (disable_apic_timer) { 
-		printk(KERN_INFO "Disabling APIC timer\n"); 
-		return; 
-	} 
+	if (disable_apic_timer) {
+		printk(KERN_INFO "Disabling APIC timer\n");
+		return;
+	}
 
 	printk(KERN_INFO "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
@@ -1128,20 +1129,6 @@ asmlinkage void smp_spurious_interrupt(void)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
-#if 0
-	static unsigned long last_warning; 
-	static unsigned long skipped; 
-
-	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
-	if (time_before(last_warning+30*HZ,jiffies)) { 
-		printk(KERN_INFO "spurious APIC interrupt on CPU#%d, %ld skipped.\n",
-		       smp_processor_id(), skipped);
-		last_warning = jiffies; 
-		skipped = 0;
-	} else { 
-		skipped++; 
-	} 
-#endif 
 	irq_exit();
 }
 
@@ -1173,11 +1160,11 @@ asmlinkage void smp_error_interrupt(void)
 	   7: Illegal register address
 	*/
 	printk (KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
-	        smp_processor_id(), v , v1);
+		smp_processor_id(), v , v1);
 	irq_exit();
 }
 
-int disable_apic; 
+int disable_apic;
 
 /*
  * This initializes the IO-APIC and APIC hardware if this is
@@ -1185,11 +1172,11 @@ int disable_apic;
  */
 int __init APIC_init_uniprocessor (void)
 {
-	if (disable_apic) { 
+	if (disable_apic) {
 		printk(KERN_INFO "Apic disabled\n");
-		return -1; 
+		return -1;
 	}
-	if (!cpu_has_apic) { 
+	if (!cpu_has_apic) {
 		disable_apic = 1;
 		printk(KERN_INFO "Apic disabled by BIOS\n");
 		return -1;
@@ -1211,8 +1198,8 @@ int __init APIC_init_uniprocessor (void)
 	return 0;
 }
 
-static __init int setup_disableapic(char *str) 
-{ 
+static __init int setup_disableapic(char *str)
+{
 	disable_apic = 1;
 	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
 	return 0;
@@ -1220,10 +1207,10 @@ static __init int setup_disableapic(char *str)
 early_param("disableapic", setup_disableapic);
 
 /* same as disableapic, for compatibility */
-static __init int setup_nolapic(char *str) 
-{ 
+static __init int setup_nolapic(char *str)
+{
 	return setup_disableapic(str);
-} 
+}
 early_param("nolapic", setup_nolapic);
 
 static int __init parse_lapic_timer_c2_ok(char *arg)
@@ -1233,13 +1220,13 @@ static int __init parse_lapic_timer_c2_ok(char *arg)
 }
 early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
-static __init int setup_noapictimer(char *str) 
-{ 
+static __init int setup_noapictimer(char *str)
+{
 	if (str[0] != ' ' && str[0] != 0)
 		return 0;
 	disable_apic_timer = 1;
 	return 1;
-} 
+}
 
 static __init int setup_apicmaintimer(char *str)
 {
@@ -1264,5 +1251,5 @@ static __init int setup_apicpmtimer(char *s)
 }
 __setup("apicpmtimer", setup_apicpmtimer);
 
-__setup("noapictimer", setup_noapictimer); 
+__setup("noapictimer", setup_noapictimer);
 
