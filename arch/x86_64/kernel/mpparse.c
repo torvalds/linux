@@ -649,6 +649,20 @@ static int mp_find_ioapic(int gsi)
 	return -1;
 }
 
+static u8 uniq_ioapic_id(u8 id)
+{
+	int i;
+	DECLARE_BITMAP(used, 256);
+	bitmap_zero(used, 256);
+	for (i = 0; i < nr_ioapics; i++) {
+		struct mpc_config_ioapic *ia = &mp_ioapics[i];
+		__set_bit(ia->mpc_apicid, used);
+	}
+	if (!test_bit(id, used))
+		return id;
+	return find_first_zero_bit(used, 256);
+}
+
 void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
@@ -656,14 +670,14 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	if (bad_ioapic(address))
 		return;
 
-	idx = nr_ioapics++;
+	idx = nr_ioapics;
 
 	mp_ioapics[idx].mpc_type = MP_IOAPIC;
 	mp_ioapics[idx].mpc_flags = MPC_APIC_USABLE;
 	mp_ioapics[idx].mpc_apicaddr = address;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	mp_ioapics[idx].mpc_apicid = id;
+	mp_ioapics[idx].mpc_apicid = uniq_ioapic_id(id);
 	mp_ioapics[idx].mpc_apicver = 0;
 	
 	/* 
@@ -680,6 +694,8 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 		mp_ioapics[idx].mpc_apicaddr,
 		mp_ioapic_routing[idx].gsi_start,
 		mp_ioapic_routing[idx].gsi_end);
+
+	nr_ioapics++;
 }
 
 void __init
