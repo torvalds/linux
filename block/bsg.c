@@ -932,7 +932,8 @@ void bsg_unregister_queue(struct request_queue *q)
 {
 	struct bsg_class_device *bcd = &q->bsg_dev;
 
-	WARN_ON(!bcd->class_dev);
+	if (!bcd->class_dev)
+		return;
 
 	mutex_lock(&bsg_mutex);
 	sysfs_remove_link(&q->kobj, "bsg");
