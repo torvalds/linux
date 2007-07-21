@@ -1536,3 +1536,70 @@ static int __init calgary_parse_options(char *p)
 	return 1;
 }
 __setup("calgary=", calgary_parse_options);
+
+static void __init calgary_fixup_one_tce_space(struct pci_dev *dev)
+{
+	struct iommu_table *tbl;
+	unsigned int npages;
+	int i;
+
+	tbl = dev->sysdata;
+
+	for (i = 0; i < 4; i++) {
+		struct resource *r = &dev->resource[PCI_BRIDGE_RESOURCES + i];
+
+		/* Don't give out TCEs that map MEM resources */
+		if (!(r->flags & IORESOURCE_MEM))
+			continue;
+
+		/* 0-based? we reserve the whole 1st MB anyway */
+		if (!r->start)
+			continue;
+
+		/* cover the whole region */
+		npages = (r->end - r->start) >> PAGE_SHIFT;
+		npages++;
+
+		printk(KERN_DEBUG "Calg: dev %p [%x] tbl %p reserving "
+		       "0x%Lx-0x%Lx [0x%x pages]\n", dev, dev->bus->number,
+		       tbl, r->start, r->end, npages);
+
+		iommu_range_reserve(tbl, r->start, npages);
+	}
+}
+
+static int __init calgary_fixup_tce_spaces(void)
+{
+	struct pci_dev *dev = NULL;
+	void *tce_space;
+
+	if (no_iommu || swiotlb || !calgary_detected)
+		return -ENODEV;
+
+	printk(KERN_DEBUG "Calgary: fixing tce spaces\n");
+
+	do {
+		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
+		if (!dev)
+			break;
+		if (!is_cal_pci_dev(dev->device))
+			continue;
+		if (!translate_phb(dev))
+			continue;
+
+		tce_space = bus_info[dev->bus->number].tce_space;
+		if (!tce_space)
+			continue;
+
+		calgary_fixup_one_tce_space(dev);
+
+	} while (1);
+
+	return 0;
+}
+
+/*
+ * We need to be call after pcibios_assign_resources (fs_initcall level)
+ * and before device_initcall.
+ */
+rootfs_initcall(calgary_fixup_tce_spaces);
