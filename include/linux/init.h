@@ -40,10 +40,10 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__attribute__ ((__section__ (".init.text")))
+#define __init		__attribute__ ((__section__ (".init.text"))) __cold
 #define __initdata	__attribute__ ((__section__ (".init.data")))
 #define __exitdata	__attribute__ ((__section__(".exit.data")))
-#define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit")))
+#define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit"))) __cold
 
 /* modpost check for section mismatches during the kernel build.
  * A section mismatch happens when there are references from a
@@ -59,9 +59,9 @@
 #define __initdata_refok          __attribute__ ((__section__ (".data.init.refok")))
 
 #ifdef MODULE
-#define __exit		__attribute__ ((__section__(".exit.text")))
+#define __exit		__attribute__ ((__section__(".exit.text"))) __cold
 #else
-#define __exit		__attribute_used__ __attribute__ ((__section__(".exit.text")))
+#define __exit		__attribute_used__ __attribute__ ((__section__(".exit.text"))) __cold
 #endif
 
 /* For assembly routines */
