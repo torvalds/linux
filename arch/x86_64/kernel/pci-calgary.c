@@ -1,7 +1,7 @@
 /*
  * Derived from arch/powerpc/kernel/iommu.c
  *
- * Copyright (C) IBM Corporation, 2006
+ * Copyright IBM Corporation, 2006-2007
  * Copyright (C) 2006  Jon Mason <jdmason@kudzu.us>
  *
  * Author: Jon Mason <jdmason@kudzu.us>
