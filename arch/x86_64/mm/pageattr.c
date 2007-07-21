@@ -74,14 +74,12 @@ static void flush_kernel_map(void *arg)
 	struct page *pg;
 
 	/* When clflush is available always use it because it is
-	   much cheaper than WBINVD. Disable clflush for now because
-	   the high level code is not ready yet */
-	if (1 || !cpu_has_clflush)
+	   much cheaper than WBINVD. */
+	if (!cpu_has_clflush)
 		asm volatile("wbinvd" ::: "memory");
 	else list_for_each_entry(pg, l, lru) {
 		void *adr = page_address(pg);
-		if (cpu_has_clflush)
-			cache_flush_page(adr);
+		cache_flush_page(adr);
 	}
 	__flush_tlb_all();
 }
@@ -95,7 +93,8 @@ static LIST_HEAD(deferred_pages); /* protected by init_mm.mmap_sem */
 
 static inline void save_page(struct page *fpage)
 {
-	list_add(&fpage->lru, &deferred_pages);
+	if (!test_and_set_bit(PG_arch_1, &fpage->flags))
+		list_add(&fpage->lru, &deferred_pages);
 }
 
 /* 
@@ -129,9 +128,12 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	pte_t *kpte; 
 	struct page *kpte_page;
 	pgprot_t ref_prot2;
+
 	kpte = lookup_address(address);
 	if (!kpte) return 0;
 	kpte_page = virt_to_page(((unsigned long)kpte) & PAGE_MASK);
+	BUG_ON(PageLRU(kpte_page));
+	BUG_ON(PageCompound(kpte_page));
 	if (pgprot_val(prot) != pgprot_val(ref_prot)) { 
 		if (!pte_huge(*kpte)) {
 			set_pte(kpte, pfn_pte(pfn, prot));
@@ -159,10 +161,9 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	/* on x86-64 the direct mapping set at boot is not using 4k pages */
  	BUG_ON(PageReserved(kpte_page));
 
-	if (page_private(kpte_page) == 0) {
-		save_page(kpte_page);
+	save_page(kpte_page);
+	if (page_private(kpte_page) == 0)
 		revert_page(address, ref_prot);
- 	}
 	return 0;
 } 
 
@@ -234,6 +235,10 @@ void global_flush_tlb(void)
 	flush_map(&l);
 
 	list_for_each_entry_safe(pg, next, &l, lru) {
+		list_del(&pg->lru);
+		clear_bit(PG_arch_1, &pg->flags);
+		if (page_private(pg) != 0)
+			continue;
 		ClearPagePrivate(pg);
 		__free_page(pg);
 	} 

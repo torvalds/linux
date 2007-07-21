@@ -82,7 +82,7 @@ static void flush_kernel_map(void *arg)
 	struct page *p;
 
 	/* High level code is not ready for clflush yet */
-	if (0 && cpu_has_clflush) {
+	if (cpu_has_clflush) {
 		list_for_each_entry (p, lh, lru)
 			cache_flush_page(p);
 	} else if (boot_cpu_data.x86_model >= 4)
@@ -136,6 +136,12 @@ static inline void revert_page(struct page *kpte_page, unsigned long address)
 			    ref_prot));
 }
 
+static inline void save_page(struct page *kpte_page)
+{
+	if (!test_and_set_bit(PG_arch_1, &kpte_page->flags))
+		list_add(&kpte_page->lru, &df_list);
+}
+
 static int
 __change_page_attr(struct page *page, pgprot_t prot)
 { 
@@ -150,6 +156,9 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	if (!kpte)
 		return -EINVAL;
 	kpte_page = virt_to_page(kpte);
+	BUG_ON(PageLRU(kpte_page));
+	BUG_ON(PageCompound(kpte_page));
+
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) { 
 		if (!pte_huge(*kpte)) {
 			set_pte_atomic(kpte, mk_pte(page, prot)); 
@@ -179,11 +188,11 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	 * time (not via split_large_page) and in turn we must not
 	 * replace it with a largepage.
 	 */
+
+	save_page(kpte_page);
 	if (!PageReserved(kpte_page)) {
 		if (cpu_has_pse && (page_private(kpte_page) == 0)) {
-			ClearPagePrivate(kpte_page);
 			paravirt_release_pt(page_to_pfn(kpte_page));
-			list_add(&kpte_page->lru, &df_list);
 			revert_page(kpte_page, address);
 		}
 	}
@@ -236,6 +245,11 @@ void global_flush_tlb(void)
 	spin_unlock_irq(&cpa_lock);
 	flush_map(&l);
 	list_for_each_entry_safe(pg, next, &l, lru) {
+		list_del(&pg->lru);
+		clear_bit(PG_arch_1, &pg->flags);
+		if (PageReserved(pg) || !cpu_has_pse || page_private(pg) != 0)
+			continue;
+		ClearPagePrivate(pg);
 		__free_page(pg);
 	}
 }
