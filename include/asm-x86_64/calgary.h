@@ -46,6 +46,7 @@ struct iommu_table {
 struct cal_chipset_ops {
 	void (*handle_quirks)(struct iommu_table *tbl, struct pci_dev *dev);
 	void (*tce_cache_blast)(struct iommu_table *tbl);
+	void (*dump_error_regs)(struct iommu_table *tbl);
 };
 
 #define TCE_TABLE_SIZE_UNSPECIFIED	~0

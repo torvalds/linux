@@ -83,6 +83,7 @@ int use_calgary __read_mostly = 0;
 #define PHB_SAVIOR_L2           0x0DB0
 #define PHB_PAGE_MIG_CTRL       0x0DA8
 #define PHB_PAGE_MIG_DEBUG      0x0DA0
+#define PHB_ROOT_COMPLEX_STATUS 0x0CB0
 
 /* PHB_CONFIG_RW */
 #define PHB_TCE_ENABLE		0x20000000
@@ -165,17 +166,21 @@ struct calgary_bus_info {
 
 static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
 static void calgary_tce_cache_blast(struct iommu_table *tbl);
+static void calgary_dump_error_regs(struct iommu_table *tbl);
 static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
 static void calioc2_tce_cache_blast(struct iommu_table *tbl);
+static void calioc2_dump_error_regs(struct iommu_table *tbl);
 
 static struct cal_chipset_ops calgary_chip_ops = {
 	.handle_quirks = calgary_handle_quirks,
-	.tce_cache_blast = calgary_tce_cache_blast
+	.tce_cache_blast = calgary_tce_cache_blast,
+	.dump_error_regs = calgary_dump_error_regs
 };
 
 static struct cal_chipset_ops calioc2_chip_ops = {
 	.handle_quirks = calioc2_handle_quirks,
-	.tce_cache_blast = calioc2_tce_cache_blast
+	.tce_cache_blast = calioc2_tce_cache_blast,
+	.dump_error_regs = calioc2_dump_error_regs
 };
 
 static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
@@ -895,7 +900,21 @@ static void __init calgary_free_bus(struct pci_dev *dev)
 static void calgary_dump_error_regs(struct iommu_table *tbl)
 {
 	void __iomem *bbar = tbl->bbar;
-	u32 csr, csmr, plssr, mck;
+	u32 val32;
+	void __iomem *target;
+
+	target = calgary_reg(bbar, phb_offset(tbl->it_busno) | PHB_CSR_OFFSET);
+	val32 = be32_to_cpu(readl(target));
+
+	/* If no error, the agent ID in the CSR is not valid */
+	printk(KERN_EMERG "Calgary: DMA error on Calgary PHB 0x%x, "
+	       "CSR = 0x%08x\n", tbl->it_busno, val32);
+}
+
+static void calioc2_dump_error_regs(struct iommu_table *tbl)
+{
+	void __iomem *bbar = tbl->bbar;
+	u32 csr, csmr, plssr, mck, rcstat;
 	void __iomem *target;
 	unsigned long phboff = phb_offset(tbl->it_busno);
 	unsigned long erroff;
@@ -915,8 +934,11 @@ static void calgary_dump_error_regs(struct iommu_table *tbl)
 	target = calgary_reg(bbar, phboff | 0x800);
 	mck = be32_to_cpu(readl(target));
 
-	printk(KERN_EMERG "Calgary: 0x%08x@CSR 0x%08x@PLSSR 0x%08x@CSMR "
-	       "0x%08x@MCK\n", csr, plssr, csmr, mck);
+	printk(KERN_EMERG "Calgary: DMA error on CalIOC2 PHB 0x%x\n",
+	       tbl->it_busno);
+
+	printk(KERN_EMERG "Calgary: 0x%08x@CSR 0x%08x@PLSSR 0x%08x@CSMR 0x%08x@MCK\n",
+	       csr, plssr, csmr, mck);
 
 	/* dump rest of error regs */
 	printk(KERN_EMERG "Calgary: ");
@@ -927,6 +949,12 @@ static void calgary_dump_error_regs(struct iommu_table *tbl)
 		printk("0x%08x@0x%lx ", errregs[i], erroff);
 	}
 	printk("\n");
+
+	/* root complex status */
+	target = calgary_reg(bbar, phboff | PHB_ROOT_COMPLEX_STATUS);
+	rcstat = be32_to_cpu(readl(target));
+	printk(KERN_EMERG "Calgary: 0x%08x@0x%x\n", rcstat,
+	       PHB_ROOT_COMPLEX_STATUS);
 }
 
 static void calgary_watchdog(unsigned long data)
@@ -942,9 +970,7 @@ static void calgary_watchdog(unsigned long data)
 
 	/* If no error, the agent ID in the CSR is not valid */
 	if (val32 & CSR_AGENT_MASK) {
-		printk(KERN_EMERG "Calgary: DMA error on PHB %#x\n",
-		       dev->bus->number);
-		calgary_dump_error_regs(tbl);
+		tbl->chip_ops->dump_error_regs(tbl);
 
 		/* reset error */
 		writel(0, target);
