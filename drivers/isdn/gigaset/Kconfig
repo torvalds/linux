@@ -1,9 +1,7 @@
 menu "Siemens Gigaset"
-	depends on ISDN_I4L
 
 config ISDN_DRV_GIGASET
 	tristate "Siemens Gigaset support (isdn)"
-	depends on ISDN_I4L
 	select CRC_CCITT
 	select BITREVERSE
 	help
