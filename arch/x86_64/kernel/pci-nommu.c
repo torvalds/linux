@@ -6,7 +6,7 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/processor.h>
 #include <asm/dma.h>
 

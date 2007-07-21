@@ -14,6 +14,7 @@
 #include <linux/pci_ids.h>
 #include <asm/pci-direct.h>
 #include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/dma.h>
 
 static void __init via_bugs(void)
