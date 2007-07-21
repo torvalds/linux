@@ -37,8 +37,13 @@ atomic_t mce_entry;
 
 static int mce_dont_init;
 
-/* 0: always panic, 1: panic if deadlock possible, 2: try to avoid panic,
-   3: never panic or exit (for testing only) */
+/*
+ * Tolerant levels:
+ *   0: always panic on uncorrected errors, log corrected errors
+ *   1: panic or SIGBUS on uncorrected errors, log corrected errors
+ *   2: SIGBUS or log uncorrected errors (if possible), log corrected errors
+ *   3: never panic or SIGBUS, log all errors (for testing only)
+ */
 static int tolerant = 1;
 static int banks;
 static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
@@ -132,9 +137,6 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 { 
 	int i;
 
-	if (tolerant >= 3)
-		return;
-
 	oops_begin();
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		unsigned long tsc = mcelog.entry[i].tsc;
@@ -178,11 +180,19 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 void do_machine_check(struct pt_regs * regs, long error_code)
 {
 	struct mce m, panicm;
-	int nowayout = (tolerant < 1); 
-	int kill_it = 0;
 	u64 mcestart = 0;
 	int i;
 	int panicm_found = 0;
+	/*
+	 * If no_way_out gets set, there is no safe way to recover from this
+	 * MCE.  If tolerant is cranked up, we'll try anyway.
+	 */
+	int no_way_out = 0;
+	/*
+	 * If kill_it gets set, there might be a way to recover from this
+	 * error.
+	 */
+	int kill_it = 0;
 
 	atomic_inc(&mce_entry);
 
@@ -194,8 +204,9 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	memset(&m, 0, sizeof(struct mce));
 	m.cpu = smp_processor_id();
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	/* if the restart IP is not valid, we're done for */
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
-		kill_it = 1;
+		no_way_out = 1;
 	
 	rdtscll(mcestart);
 	barrier();
@@ -214,10 +225,18 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			continue;
 
 		if (m.status & MCI_STATUS_EN) {
-			/* In theory _OVER could be a nowayout too, but
-			   assume any overflowed errors were no fatal. */
-			nowayout |= !!(m.status & MCI_STATUS_PCC);
-			kill_it |= !!(m.status & MCI_STATUS_UC);
+			/* if PCC was set, there's no way out */
+			no_way_out |= !!(m.status & MCI_STATUS_PCC);
+			/*
+			 * If this error was uncorrectable and there was
+			 * an overflow, we're in trouble.  If no overflow,
+			 * we might get away with just killing a task.
+			 */
+			if (m.status & MCI_STATUS_UC) {
+				if (tolerant < 1 || m.status & MCI_STATUS_OVER)
+					no_way_out = 1;
+				kill_it = 1;
+			}
 		}
 
 		if (m.status & MCI_STATUS_MISCV)
@@ -228,7 +247,6 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		mce_get_rip(&m, regs);
 		if (error_code >= 0)
 			rdtscll(m.tsc);
-		wrmsrl(MSR_IA32_MC0_STATUS + i*4, 0);
 		if (error_code != -2)
 			mce_log(&m);
 
@@ -251,37 +269,52 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	   the last one (shouldn't happen, just being safe). */
 	if (!panicm_found)
 		panicm = m;
-	if (nowayout)
+
+	/*
+	 * If we have decided that we just CAN'T continue, and the user
+	 *  has not set tolerant to an insane level, give up and die.
+	 */
+	if (no_way_out && tolerant < 3)
 		mce_panic("Machine check", &panicm, mcestart);
-	if (kill_it) {
+
+	/*
+	 * If the error seems to be unrecoverable, something should be
+	 * done.  Try to kill as little as possible.  If we can kill just
+	 * one task, do that.  If the user has set the tolerance very
+	 * high, don't try to do anything at all.
+	 */
+	if (kill_it && tolerant < 3) {
 		int user_space = 0;
 
-		if (m.mcgstatus & MCG_STATUS_RIPV)
+		/*
+		 * If the EIPV bit is set, it means the saved IP is the
+		 * instruction which caused the MCE.
+		 */
+		if (m.mcgstatus & MCG_STATUS_EIPV)
 			user_space = panicm.rip && (panicm.cs & 3);
-		
-		/* When the machine was in user space and the CPU didn't get
-		   confused it's normally not necessary to panic, unless you 
-		   are paranoid (tolerant == 0)
 
-		   RED-PEN could be more tolerant for MCEs in idle,
-		   but most likely they occur at boot anyways, where
-		   it is best to just halt the machine. */
-		if ((!user_space && (panic_on_oops || tolerant < 2)) ||
-		    (unsigned)current->pid <= 1)
-			mce_panic("Uncorrected machine check", &panicm, mcestart);
-
-		/* do_exit takes an awful lot of locks and has as
-		   slight risk of deadlocking. If you don't want that
-		   don't set tolerant >= 2 */
-		if (tolerant < 3)
+		/*
+		 * If we know that the error was in user space, send a
+		 * SIGBUS.  Otherwise, panic if tolerance is low.
+		 *
+		 * do_exit() takes an awful lot of locks and has a slight
+		 * risk of deadlocking.
+		 */
+		if (user_space) {
 			do_exit(SIGBUS);
+		} else if (panic_on_oops || tolerant < 2) {
+			mce_panic("Uncorrected machine check",
+				&panicm, mcestart);
+		}
 	}
 
 	/* notify userspace ASAP */
 	set_thread_flag(TIF_MCE_NOTIFY);
 
  out:
-	/* Last thing done in the machine check exception to clear state. */
+	/* the last thing we do is clear state */
+	for (i = 0; i < banks; i++)
+		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	wrmsrl(MSR_IA32_MCG_STATUS, 0);
  out2:
 	atomic_dec(&mce_entry);
@@ -506,7 +539,7 @@ static int mce_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&mce_state_lock);
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int mce_release(struct inode *inode, struct file *file)

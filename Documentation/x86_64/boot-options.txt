@@ -14,9 +14,11 @@ Machine check
    mce=nobootlog
 		Disable boot machine check logging.
    mce=tolerancelevel (number)
-		0: always panic, 1: panic if deadlock possible,
-		2: try to avoid panic, 3: never panic or exit (for testing)
-		default is 1
+		0: always panic on uncorrected errors, log corrected errors
+		1: panic or SIGBUS on uncorrected errors, log corrected errors
+		2: SIGBUS or log uncorrected errors, log corrected errors
+		3: never panic or SIGBUS, log all errors (for testing only)
+		Default is 1
 		Can be also set using sysfs which is preferable.
 
    nomce (for compatibility with i386): same as mce=off
