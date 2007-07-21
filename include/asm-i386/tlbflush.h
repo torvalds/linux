@@ -160,7 +160,11 @@ DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
 	native_flush_tlb_others(&mask, mm, va)
 #endif
 
-#define flush_tlb_kernel_range(start, end) flush_tlb_all()
+static inline void flush_tlb_kernel_range(unsigned long start,
+					unsigned long end)
+{
+	flush_tlb_all();
+}
 
 static inline void flush_tlb_pgtables(struct mm_struct *mm,
 				      unsigned long start, unsigned long end)
