@@ -146,31 +146,6 @@ static void __init process_switch(char c)
 	}
 }
 
-static void __init process_console(char *commands)
-{
-	serial_console = 0;
-	commands += 8;
-	/* Linux-style serial */
-	if (!strncmp(commands, "ttyS", 4))
-		serial_console = simple_strtoul(commands + 4, NULL, 10) + 1;
-	else if (!strncmp(commands, "tty", 3)) {
-		char c = *(commands + 3);
-		/* Solaris-style serial */
-		if (c == 'a' || c == 'b')
-			serial_console = c - 'a' + 1;
-		/* else Linux-style fbcon, not serial */
-	}
-#if defined(CONFIG_PROM_CONSOLE)
-	if (!strncmp(commands, "prom", 4)) {
-		char *p;
-
-		for (p = commands - 8; *p && *p != ' '; p++)
-			*p = ' ';
-		conswitchp = &prom_con;
-	}
-#endif
-}
-
 static void __init boot_flags_init(char *commands)
 {
 	while (*commands) {
@@ -187,9 +162,7 @@ static void __init boot_flags_init(char *commands)
 				process_switch(*commands++);
 			continue;
 		}
-		if (!strncmp(commands, "console=", 8)) {
-			process_console(commands);
-		} else if (!strncmp(commands, "mem=", 4)) {
+		if (!strncmp(commands, "mem=", 4)) {
 			/*
 			 * "mem=XXX[kKmM] overrides the PROM-reported
 			 * memory size.
@@ -341,41 +314,6 @@ void __init setup_arch(char **cmdline_p)
 	smp_setup_cpu_possible_map();
 }
 
-static int __init set_preferred_console(void)
-{
-	int idev, odev;
-
-	/* The user has requested a console so this is already set up. */
-	if (serial_console >= 0)
-		return -EBUSY;
-
-	idev = prom_query_input_device();
-	odev = prom_query_output_device();
-	if (idev == PROMDEV_IKBD && odev == PROMDEV_OSCREEN) {
-		serial_console = 0;
-	} else if (idev == PROMDEV_ITTYA && odev == PROMDEV_OTTYA) {
-		serial_console = 1;
-	} else if (idev == PROMDEV_ITTYB && odev == PROMDEV_OTTYB) {
-		serial_console = 2;
-	} else if (idev == PROMDEV_I_UNK && odev == PROMDEV_OTTYA) {
-		prom_printf("MrCoffee ttya\n");
-		serial_console = 1;
-	} else if (idev == PROMDEV_I_UNK && odev == PROMDEV_OSCREEN) {
-		serial_console = 0;
-		prom_printf("MrCoffee keyboard\n");
-	} else {
-		prom_printf("Confusing console (idev %d, odev %d)\n",
-		    idev, odev);
-		serial_console = 1;
-	}
-
-	if (serial_console)
-		return add_preferred_console("ttyS", serial_console - 1, NULL);
-
-	return -ENODEV;
-}
-console_initcall(set_preferred_console);
-
 extern char *sparc_cpu_type;
 extern char *sparc_fpu_type;
 
@@ -461,7 +399,6 @@ void sun_do_break(void)
 	prom_cmdline();
 }
 
-int serial_console = -1;
 int stop_a_enabled = 1;
 
 static int __init topology_init(void)

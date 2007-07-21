@@ -83,7 +83,7 @@ static void mdesc_handle_init(struct mdesc_handle *hp,
 	hp->handle_size = handle_size;
 }
 
-static struct mdesc_handle *mdesc_bootmem_alloc(unsigned int mdesc_size)
+static struct mdesc_handle * __init mdesc_bootmem_alloc(unsigned int mdesc_size)
 {
 	struct mdesc_handle *hp;
 	unsigned int handle_size, alloc_size;
@@ -123,7 +123,7 @@ static void mdesc_bootmem_free(struct mdesc_handle *hp)
 	}
 }
 
-static struct mdesc_mem_ops bootmem_mdesc_memops = {
+static struct mdesc_mem_ops bootmem_mdesc_ops = {
 	.alloc = mdesc_bootmem_alloc,
 	.free  = mdesc_bootmem_free,
 };
@@ -860,7 +860,7 @@ void __init sun4v_mdesc_init(void)
 
 	printk("MDESC: Size is %lu bytes.\n", len);
 
-	hp = mdesc_alloc(len, &bootmem_mdesc_memops);
+	hp = mdesc_alloc(len, &bootmem_mdesc_ops);
 	if (hp == NULL) {
 		prom_printf("MDESC: alloc of %lu bytes failed.\n", len);
 		prom_halt();

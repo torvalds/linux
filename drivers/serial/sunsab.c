@@ -968,22 +968,6 @@ static struct console sunsab_console = {
 
 static inline struct console *SUNSAB_CONSOLE(void)
 {
-	int i;
-
-	if (con_is_present())
-		return NULL;
-
-	for (i = 0; i < num_channels; i++) {
-		int this_minor = sunsab_reg.minor + i;
-
-		if ((this_minor - 64) == (serial_console - 1))
-			break;
-	}
-	if (i == num_channels)
-		return NULL;
-
-	sunsab_console.index = i;
-
 	return &sunsab_console;
 }
 #else
@@ -1080,7 +1064,12 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 		return err;
 	}
 
+	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+				&sunsab_reg, up[0].port.line);
 	uart_add_one_port(&sunsab_reg, &up[0].port);
+
+	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+				&sunsab_reg, up[1].port.line);
 	uart_add_one_port(&sunsab_reg, &up[1].port);
 
 	dev_set_drvdata(&op->dev, &up[0]);
@@ -1164,7 +1153,6 @@ static int __init sunsab_init(void)
 		}
 
 		sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
-		sunsab_reg.cons = SUNSAB_CONSOLE();
 		sunserial_current_minor += num_channels;
 	}
 

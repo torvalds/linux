@@ -397,6 +397,135 @@ static struct device_node * __init build_tree(struct device_node *parent, phandl
 	return dp;
 }
 
+struct device_node *of_console_device;
+EXPORT_SYMBOL(of_console_device);
+
+char *of_console_path;
+EXPORT_SYMBOL(of_console_path);
+
+char *of_console_options;
+EXPORT_SYMBOL(of_console_options);
+
+extern void restore_current(void);
+
+static void __init of_console_init(void)
+{
+	char *msg = "OF stdout device is: %s\n";
+	struct device_node *dp;
+	unsigned long flags;
+	const char *type;
+	phandle node;
+	int skip, fd;
+
+	of_console_path = prom_early_alloc(256);
+
+	switch (prom_vers) {
+	case PROM_V0:
+	case PROM_SUN4:
+		skip = 0;
+		switch (*romvec->pv_stdout) {
+		case PROMDEV_SCREEN:
+			type = "display";
+			break;
+
+		case PROMDEV_TTYB:
+			skip = 1;
+			/* FALLTHRU */
+
+		case PROMDEV_TTYA:
+			type = "serial";
+			break;
+
+		default:
+			prom_printf("Invalid PROM_V0 stdout value %u\n",
+				    *romvec->pv_stdout);
+			prom_halt();
+		}
+
+		for_each_node_by_type(dp, type) {
+			if (!skip--)
+				break;
+		}
+		if (!dp) {
+			prom_printf("Cannot find PROM_V0 console node.\n");
+			prom_halt();
+		}
+		of_console_device = dp;
+
+		strcpy(of_console_path, dp->full_name);
+		if (!strcmp(type, "serial")) {
+			strcat(of_console_path,
+			       (skip ? ":b" : ":a"));
+		}
+		break;
+
+	default:
+	case PROM_V2:
+	case PROM_V3:
+		fd = *romvec->pv_v2bootargs.fd_stdout;
+
+		spin_lock_irqsave(&prom_lock, flags);
+		node = (*romvec->pv_v2devops.v2_inst2pkg)(fd);
+		restore_current();
+		spin_unlock_irqrestore(&prom_lock, flags);
+
+		if (!node) {
+			prom_printf("Cannot resolve stdout node from "
+				    "instance %08x.\n", fd);
+			prom_halt();
+		}
+		dp = of_find_node_by_phandle(node);
+		type = of_get_property(dp, "device_type", NULL);
+
+		if (!type) {
+			prom_printf("Console stdout lacks "
+				    "device_type property.\n");
+			prom_halt();
+		}
+
+		if (strcmp(type, "display") && strcmp(type, "serial")) {
+			prom_printf("Console device_type is neither display "
+				    "nor serial.\n");
+			prom_halt();
+		}
+
+		of_console_device = dp;
+
+		if (prom_vers == PROM_V2) {
+			strcpy(of_console_path, dp->full_name);
+			switch (*romvec->pv_stdout) {
+			case PROMDEV_TTYA:
+				strcat(of_console_path, ":a");
+				break;
+			case PROMDEV_TTYB:
+				strcat(of_console_path, ":b");
+				break;
+			}
+		} else {
+			const char *path;
+
+			dp = of_find_node_by_path("/");
+			path = of_get_property(dp, "stdout-path", NULL);
+			if (!path) {
+				prom_printf("No stdout-path in root node.\n");
+				prom_halt();
+			}
+			strcpy(of_console_path, path);
+		}
+		break;
+	}
+
+	of_console_options = strrchr(of_console_path, ':');
+	if (of_console_options) {
+		of_console_options++;
+		if (*of_console_options == '\0')
+			of_console_options = NULL;
+	}
+
+	prom_printf(msg, of_console_path);
+	printk(msg, of_console_path);
+}
+
 void __init prom_build_devicetree(void)
 {
 	struct device_node **nextp;
@@ -409,6 +538,8 @@ void __init prom_build_devicetree(void)
 	allnodes->child = build_tree(allnodes,
 				     prom_getchild(allnodes->node),
 				     &nextp);
+	of_console_init();
+
 	printk("PROM: Built device tree with %u bytes of memory.\n",
 	       prom_early_allocated);
 }

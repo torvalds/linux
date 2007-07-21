@@ -30,6 +30,8 @@ struct vnet_port {
 
 	struct hlist_node	hash;
 	u8			raddr[ETH_ALEN];
+	u8			switch_port;
+	u8			__pad;
 
 	struct vnet		*vp;
 
@@ -53,6 +55,13 @@ static inline unsigned int vnet_hashfn(u8 *mac)
 	return val & (VNET_PORT_HASH_MASK);
 }
 
+struct vnet_mcast_entry {
+	u8			addr[ETH_ALEN];
+	u8			sent;
+	u8			hit;
+	struct vnet_mcast_entry	*next;
+};
+
 struct vnet {
 	/* Protects port_list and port_hash.  */
 	spinlock_t		lock;
@@ -64,6 +73,8 @@ struct vnet {
 	struct list_head	port_list;
 
 	struct hlist_head	port_hash[VNET_PORT_HASH_SIZE];
+
+	struct vnet_mcast_entry	*mcast_list;
 
 	struct list_head	list;
 	u64			local_mac;

@@ -459,6 +459,22 @@ static int vnet_nack(struct vnet_port *port, void *msgbuf)
 	return 0;
 }
 
+static int handle_mcast(struct vnet_port *port, void *msgbuf)
+{
+	struct vio_net_mcast_info *pkt = msgbuf;
+
+	if (pkt->tag.stype != VIO_SUBTYPE_ACK)
+		printk(KERN_ERR PFX "%s: Got unexpected MCAST reply "
+		       "[%02x:%02x:%04x:%08x]\n",
+		       port->vp->dev->name,
+		       pkt->tag.type,
+		       pkt->tag.stype,
+		       pkt->tag.stype_env,
+		       pkt->tag.sid);
+
+	return 0;
+}
+
 static void maybe_tx_wakeup(struct vnet *vp)
 {
 	struct net_device *dev = vp->dev;
@@ -544,7 +560,10 @@ static void vnet_event(void *arg, int event)
 				err = vnet_nack(port, &msgbuf);
 			}
 		} else if (msgbuf.tag.type == VIO_TYPE_CTRL) {
-			err = vio_control_pkt_engine(vio, &msgbuf);
+			if (msgbuf.tag.stype_env == VNET_MCAST_INFO)
+				err = handle_mcast(port, &msgbuf);
+			else
+				err = vio_control_pkt_engine(vio, &msgbuf);
 			if (err)
 				break;
 		} else {
@@ -731,9 +750,122 @@ static int vnet_close(struct net_device *dev)
 	return 0;
 }
 
+static struct vnet_mcast_entry *__vnet_mc_find(struct vnet *vp, u8 *addr)
+{
+	struct vnet_mcast_entry *m;
+
+	for (m = vp->mcast_list; m; m = m->next) {
+		if (!memcmp(m->addr, addr, ETH_ALEN))
+			return m;
+	}
+	return NULL;
+}
+
+static void __update_mc_list(struct vnet *vp, struct net_device *dev)
+{
+	struct dev_addr_list *p;
+
+	for (p = dev->mc_list; p; p = p->next) {
+		struct vnet_mcast_entry *m;
+
+		m = __vnet_mc_find(vp, p->dmi_addr);
+		if (m) {
+			m->hit = 1;
+			continue;
+		}
+
+		if (!m) {
+			m = kzalloc(sizeof(*m), GFP_ATOMIC);
+			if (!m)
+				continue;
+			memcpy(m->addr, p->dmi_addr, ETH_ALEN);
+			m->hit = 1;
+
+			m->next = vp->mcast_list;
+			vp->mcast_list = m;
+		}
+	}
+}
+
+static void __send_mc_list(struct vnet *vp, struct vnet_port *port)
+{
+	struct vio_net_mcast_info info;
+	struct vnet_mcast_entry *m, **pp;
+	int n_addrs;
+
+	memset(&info, 0, sizeof(info));
+
+	info.tag.type = VIO_TYPE_CTRL;
+	info.tag.stype = VIO_SUBTYPE_INFO;
+	info.tag.stype_env = VNET_MCAST_INFO;
+	info.tag.sid = vio_send_sid(&port->vio);
+	info.set = 1;
+
+	n_addrs = 0;
+	for (m = vp->mcast_list; m; m = m->next) {
+		if (m->sent)
+			continue;
+		m->sent = 1;
+		memcpy(&info.mcast_addr[n_addrs * ETH_ALEN],
+		       m->addr, ETH_ALEN);
+		if (++n_addrs == VNET_NUM_MCAST) {
+			info.count = n_addrs;
+
+			(void) vio_ldc_send(&port->vio, &info,
+					    sizeof(info));
+			n_addrs = 0;
+		}
+	}
+	if (n_addrs) {
+		info.count = n_addrs;
+		(void) vio_ldc_send(&port->vio, &info, sizeof(info));
+	}
+
+	info.set = 0;
+
+	n_addrs = 0;
+	pp = &vp->mcast_list;
+	while ((m = *pp) != NULL) {
+		if (m->hit) {
+			m->hit = 0;
+			pp = &m->next;
+			continue;
+		}
+
+		memcpy(&info.mcast_addr[n_addrs * ETH_ALEN],
+		       m->addr, ETH_ALEN);
+		if (++n_addrs == VNET_NUM_MCAST) {
+			info.count = n_addrs;
+			(void) vio_ldc_send(&port->vio, &info,
+					    sizeof(info));
+			n_addrs = 0;
+		}
+
+		*pp = m->next;
+		kfree(m);
+	}
+	if (n_addrs) {
+		info.count = n_addrs;
+		(void) vio_ldc_send(&port->vio, &info, sizeof(info));
+	}
+}
+
 static void vnet_set_rx_mode(struct net_device *dev)
 {
-	/* XXX Implement multicast support XXX */
+	struct vnet *vp = netdev_priv(dev);
+	struct vnet_port *port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->lock, flags);
+	if (!list_empty(&vp->port_list)) {
+		port = list_entry(vp->port_list.next, struct vnet_port, list);
+
+		if (port->switch_port) {
+			__update_mc_list(vp, dev);
+			__send_mc_list(vp, port);
+		}
+	}
+	spin_unlock_irqrestore(&vp->lock, flags);
 }
 
 static int vnet_change_mtu(struct net_device *dev, int new_mtu)
@@ -1070,6 +1202,7 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 	switch_port = 0;
 	if (mdesc_get_property(hp, vdev->mp, "switch-port", NULL) != NULL)
 		switch_port = 1;
+	port->switch_port = switch_port;
 
 	spin_lock_irqsave(&vp->lock, flags);
 	if (switch_port)

@@ -140,32 +140,6 @@ extern void prom_putchar(char character);
 extern void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
 
-/* Query for input device type */
-
-enum prom_input_device {
-	PROMDEV_IKBD,			/* input from keyboard */
-	PROMDEV_ITTYA,			/* input from ttya */
-	PROMDEV_ITTYB,			/* input from ttyb */
-	PROMDEV_IRSC,			/* input from rsc */
-	PROMDEV_IVCONS,			/* input from virtual-console */
-	PROMDEV_I_UNK,
-};
-
-extern enum prom_input_device prom_query_input_device(void);
-
-/* Query for output device type */
-
-enum prom_output_device {
-	PROMDEV_OSCREEN,		/* to screen */
-	PROMDEV_OTTYA,			/* to ttya */
-	PROMDEV_OTTYB,			/* to ttyb */
-	PROMDEV_ORSC,			/* to rsc */
-	PROMDEV_OVCONS,			/* to virtual-console */
-	PROMDEV_O_UNK,
-};
-
-extern enum prom_output_device prom_query_output_device(void);
-
 /* Multiprocessor operations... */
 #ifdef CONFIG_SMP
 /* Start the CPU with the given device tree node at the passed program
@@ -318,6 +292,8 @@ extern int prom_pathtoinode(const char *path);
 extern int prom_inst2pkg(int);
 extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);
+
+extern int prom_ihandle2path(int handle, char *buffer, int bufsize);
 
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);

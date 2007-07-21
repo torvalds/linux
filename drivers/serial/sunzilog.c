@@ -1226,23 +1226,6 @@ static struct console sunzilog_console_ops = {
 
 static inline struct console *SUNZILOG_CONSOLE(void)
 {
-	int i;
-
-	if (con_is_present())
-		return NULL;
-
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		int this_minor = sunzilog_reg.minor + i;
-
-		if ((this_minor - 64) == (serial_console - 1))
-			break;
-	}
-	if (i == NUM_CHANNELS)
-		return NULL;
-
-	sunzilog_console_ops.index = i;
-	sunzilog_port_table[i].flags |= SUNZILOG_FLAG_IS_CONS;
-
 	return &sunzilog_console_ops;
 }
 
@@ -1428,12 +1411,18 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 	sunzilog_init_hw(&up[1]);
 
 	if (!keyboard_mouse) {
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+					    &sunzilog_reg, up[0].port.line))
+			up->flags |= SUNZILOG_FLAG_IS_CONS;
 		err = uart_add_one_port(&sunzilog_reg, &up[0].port);
 		if (err) {
 			of_iounmap(&op->resource[0],
 				   rp, sizeof(struct zilog_layout));
 			return err;
 		}
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+					    &sunzilog_reg, up[1].port.line))
+			up->flags |= SUNZILOG_FLAG_IS_CONS;
 		err = uart_add_one_port(&sunzilog_reg, &up[1].port);
 		if (err) {
 			uart_remove_one_port(&sunzilog_reg, &up[0].port);
@@ -1531,7 +1520,6 @@ static int __init sunzilog_init(void)
 			goto out_free_tables;
 
 		sunzilog_reg.tty_driver->name_base = sunzilog_reg.minor - 64;
-		sunzilog_reg.cons = SUNZILOG_CONSOLE();
 
 		sunserial_current_minor += uart_count;
 	}

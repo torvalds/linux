@@ -33,6 +33,7 @@ struct sbus_bus *sbus_root;
 
 static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sdev)
 {
+	struct dev_archdata *sd;
 	unsigned long base;
 	const void *pval;
 	int len, err;
@@ -66,6 +67,10 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	}
 
 	sbus_fill_device_irq(sdev);
+
+	sd = &sdev->ofdev.dev.archdata;
+	sd->prom_node = dp;
+	sd->op = &sdev->ofdev;
 
 	sdev->ofdev.node = dp;
 	if (sdev->parent)

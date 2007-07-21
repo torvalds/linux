@@ -24,6 +24,8 @@ extern int suncore_mouse_baud_detection(unsigned char, int);
 
 extern int sunserial_current_minor;
 
+extern int sunserial_console_match(struct console *, struct device_node *,
+				   struct uart_driver *, int);
 extern void sunserial_console_termios(struct console *);
 
 #endif /* !(_SERIAL_SUN_H) */
