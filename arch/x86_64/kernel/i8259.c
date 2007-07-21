@@ -444,24 +444,6 @@ void __init init_ISA_irqs (void)
 	}
 }
 
-void apic_timer_interrupt(void);
-void spurious_interrupt(void);
-void error_interrupt(void);
-void reschedule_interrupt(void);
-void call_function_interrupt(void);
-void irq_move_cleanup_interrupt(void);
-void invalidate_interrupt0(void);
-void invalidate_interrupt1(void);
-void invalidate_interrupt2(void);
-void invalidate_interrupt3(void);
-void invalidate_interrupt4(void);
-void invalidate_interrupt5(void);
-void invalidate_interrupt6(void);
-void invalidate_interrupt7(void);
-void thermal_interrupt(void);
-void threshold_interrupt(void);
-void i8254_timer_resume(void);
-
 static void setup_timer_hardware(void)
 {
 	outb_p(0x34,0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
