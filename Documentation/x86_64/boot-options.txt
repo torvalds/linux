@@ -134,12 +134,6 @@ Non Executable Mappings
 
 SMP
 
-  nosmp	Only use a single CPU
-
-  maxcpus=NUMBER only use upto NUMBER CPUs
-
-  cpumask=MASK   only use cpus with bits set in mask
-
   additional_cpus=NUM Allow NUM more CPUs for hotplug
 		 (defaults are specified by the BIOS, see Documentation/x86_64/cpu-hotplug-spec)
 
