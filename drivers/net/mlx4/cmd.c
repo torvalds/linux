@@ -246,8 +246,6 @@ void mlx4_cmd_event(struct mlx4_dev *dev, u16 token, u8 status, u64 out_param)
 	context->result    = mlx4_status_to_errno(status);
 	context->out_param = out_param;
 
-	context->token += priv->cmd.token_mask + 1;
-
 	complete(&context->done);
 }
 
@@ -264,6 +262,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	spin_lock(&cmd->context_lock);
 	BUG_ON(cmd->free_head < 0);
 	context = &cmd->context[cmd->free_head];
+	context->token += cmd->token_mask + 1;
 	cmd->free_head = context->next;
 	spin_unlock(&cmd->context_lock);
 
