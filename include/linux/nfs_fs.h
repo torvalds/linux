@@ -47,10 +47,8 @@
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_xdr.h>
-
 #include <linux/nfs_fs_sb.h>
 
-#include <linux/rwsem.h>
 #include <linux/mempool.h>
 
 /*
