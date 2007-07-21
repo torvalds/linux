@@ -1224,10 +1224,9 @@ static int __init calgary_init(void)
 			continue;
 		}
 		tce_space = bus_info[dev->bus->number].tce_space;
-		if (!tce_space && !translate_empty_slots) {
-			printk("Calg: %p failed tce_space check\n", dev);
+		if (!tce_space && !translate_empty_slots)
 			continue;
-		}
+
 		ret = calgary_init_one(dev);
 		if (ret)
 			goto error;
@@ -1419,8 +1418,6 @@ void __init detect_calgary(void)
 				goto cleanup;
 			info->tce_space = tbl;
 			calgary_found = 1;
-			printk("Calg: allocated tce_table %p for bus 0x%x\n",
-			       info->tce_space, bus);
 		}
 	}
 
@@ -1555,10 +1552,6 @@ static void __init calgary_fixup_one_tce_space(struct pci_dev *dev)
 		npages = (r->end - r->start) >> PAGE_SHIFT;
 		npages++;
 
-		printk(KERN_DEBUG "Calg: dev %p [%x] tbl %p reserving "
-		       "0x%Lx-0x%Lx [0x%x pages]\n", dev, dev->bus->number,
-		       tbl, r->start, r->end, npages);
-
 		iommu_range_reserve(tbl, r->start, npages);
 	}
 }
@@ -1571,7 +1564,7 @@ static int __init calgary_fixup_tce_spaces(void)
 	if (no_iommu || swiotlb || !calgary_detected)
 		return -ENODEV;
 
-	printk(KERN_DEBUG "Calgary: fixing tce spaces\n");
+	printk(KERN_DEBUG "Calgary: fixing up tce spaces\n");
 
 	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
