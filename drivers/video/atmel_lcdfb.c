@@ -79,6 +79,29 @@ static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
+static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
+{
+	unsigned long value;
+
+	if (!(cpu_is_at91sam9261() || cpu_is_at32ap7000()))
+		return xres;
+
+	value = xres;
+	if ((lcdcon2 & ATMEL_LCDC_DISTYPE) != ATMEL_LCDC_DISTYPE_TFT) {
+		/* STN display */
+		if ((lcdcon2 & ATMEL_LCDC_DISTYPE) == ATMEL_LCDC_DISTYPE_STNCOLOR) {
+			value *= 3;
+		}
+		if ( (lcdcon2 & ATMEL_LCDC_IFWIDTH) == ATMEL_LCDC_IFWIDTH_4
+		   || ( (lcdcon2 & ATMEL_LCDC_IFWIDTH) == ATMEL_LCDC_IFWIDTH_8
+		      && (lcdcon2 & ATMEL_LCDC_SCANMOD) == ATMEL_LCDC_SCANMOD_DUAL ))
+			value = DIV_ROUND_UP(value, 4);
+		else
+			value = DIV_ROUND_UP(value, 8);
+	}
+
+	return value;
+}
 
 static void atmel_lcdfb_update_dma(struct fb_info *info,
 			       struct fb_var_screeninfo *var)
@@ -181,6 +204,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	var->xoffset = var->yoffset = 0;
 
 	switch (var->bits_per_pixel) {
+	case 1:
 	case 2:
 	case 4:
 	case 8:
@@ -228,8 +252,10 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 static int atmel_lcdfb_set_par(struct fb_info *info)
 {
 	struct atmel_lcdfb_info *sinfo = info->par;
+	unsigned long hozval_linesz;
 	unsigned long value;
 	unsigned long clk_value_khz;
+	unsigned long bits_per_line;
 
 	dev_dbg(info->device, "%s:\n", __func__);
 	dev_dbg(info->device, "  * resolution: %ux%u (%ux%u virtual)\n",
@@ -241,12 +267,15 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 
 	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
 
-	if (info->var.bits_per_pixel <= 8)
+	if (info->var.bits_per_pixel == 1)
+		info->fix.visual = FB_VISUAL_MONO01;
+	else if (info->var.bits_per_pixel <= 8)
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	info->fix.line_length = info->var.xres_virtual * (info->var.bits_per_pixel / 8);
+	bits_per_line = info->var.xres_virtual * info->var.bits_per_pixel;
+	info->fix.line_length = DIV_ROUND_UP(bits_per_line, 8);
 
 	/* Re-initialize the DMA engine... */
 	dev_dbg(info->device, "  * update DMA engine\n");
@@ -262,18 +291,21 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Set pixel clock */
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
 
-	value = clk_value_khz / PICOS2KHZ(info->var.pixclock);
-
-	if (clk_value_khz % PICOS2KHZ(info->var.pixclock))
-		value++;
+	value = DIV_ROUND_UP(clk_value_khz, PICOS2KHZ(info->var.pixclock));
 
 	value = (value / 2) - 1;
+	dev_dbg(info->device, "  * programming CLKVAL = 0x%08lx\n", value);
 
 	if (value <= 0) {
 		dev_notice(info->device, "Bypassing pixel clock divider\n");
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, ATMEL_LCDC_BYPASS);
-	} else
+	} else {
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, value << ATMEL_LCDC_CLKVAL_OFFSET);
+		info->var.pixclock = KHZ2PICOS(clk_value_khz / (2 * (value + 1)));
+		dev_dbg(info->device, "  updated pixclk:     %lu KHz\n",
+					PICOS2KHZ(info->var.pixclock));
+	}
+
 
 	/* Initialize control register 2 */
 	value = sinfo->default_lcdcon2;
@@ -311,9 +343,14 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	dev_dbg(info->device, "  * LCDTIM2 = %08lx\n", value);
 	lcdc_writel(sinfo, ATMEL_LCDC_TIM2, value);
 
+	/* Horizontal value (aka line size) */
+	hozval_linesz = compute_hozval(info->var.xres,
+					lcdc_readl(sinfo, ATMEL_LCDC_LCDCON2));
+
 	/* Display size */
-	value = (info->var.xres - 1) << ATMEL_LCDC_HOZVAL_OFFSET;
+	value = (hozval_linesz - 1) << ATMEL_LCDC_HOZVAL_OFFSET;
 	value |= info->var.yres - 1;
+	dev_dbg(info->device, "  * LCDFRMCFG = %08lx\n", value);
 	lcdc_writel(sinfo, ATMEL_LCDC_LCDFRMCFG, value);
 
 	/* FIFO Threshold: Use formula from data sheet */
@@ -421,6 +458,15 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 			ret = 0;
 		}
 		break;
+
+	case FB_VISUAL_MONO01:
+		if (regno < 2) {
+			val = (regno == 0) ? 0x00 : 0x1F;
+			lcdc_writel(sinfo, ATMEL_LCDC_LUT(regno), val);
+			ret = 0;
+		}
+		break;
+
 	}
 
 	return ret;
