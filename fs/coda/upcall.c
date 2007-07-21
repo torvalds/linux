@@ -160,55 +160,8 @@ int venus_lookup(struct super_block *sb, struct CodaFid *fid,
 	return error;
 }
 
-int venus_store(struct super_block *sb, struct CodaFid *fid, int flags,
-                vuid_t uid)
-{
-        union inputArgs *inp;
-        union outputArgs *outp;
-        int insize, outsize, error;
-#ifdef CONFIG_CODA_FS_OLD_API
-	struct coda_cred cred = { 0, };
-	cred.cr_fsuid = uid;
-#endif
-	
-	insize = SIZE(store);
-	UPARG(CODA_STORE);
-	
-#ifdef CONFIG_CODA_FS_OLD_API
-	memcpy(&(inp->ih.cred), &cred, sizeof(cred));
-#else
-	inp->ih.uid = uid;
-#endif
-	
-        inp->coda_store.VFid = *fid;
-        inp->coda_store.flags = flags;
-
-	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
-
-	CODA_FREE(inp, insize);
-        return error;
-}
-
-int venus_release(struct super_block *sb, struct CodaFid *fid, int flags)
-{
-        union inputArgs *inp;
-        union outputArgs *outp;
-        int insize, outsize, error;
-	
-	insize = SIZE(release);
-	UPARG(CODA_RELEASE);
-	
-	inp->coda_release.VFid = *fid;
-	inp->coda_release.flags = flags;
-
-	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
-
-	CODA_FREE(inp, insize);
-	return error;
-}
-
 int venus_close(struct super_block *sb, struct CodaFid *fid, int flags,
-                vuid_t uid)
+		vuid_t uid)
 {
 	union inputArgs *inp;
 	union outputArgs *outp;

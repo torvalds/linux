@@ -33,9 +33,6 @@ int venus_setattr(struct super_block *, struct CodaFid *, struct coda_vattr *);
 int venus_lookup(struct super_block *sb, struct CodaFid *fid, 
 		 const char *name, int length, int *type, 
 		 struct CodaFid *resfid);
-int venus_store(struct super_block *sb, struct CodaFid *fid, int flags,
-		vuid_t uid);
-int venus_release(struct super_block *sb, struct CodaFid *fid, int flags);
 int venus_close(struct super_block *sb, struct CodaFid *fid, int flags,
 		vuid_t uid);
 int venus_open(struct super_block *sb, struct CodaFid *fid, int flags,
