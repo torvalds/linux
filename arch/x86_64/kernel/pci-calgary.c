@@ -52,11 +52,6 @@ int use_calgary __read_mostly = 0;
 #define PCI_DEVICE_ID_IBM_CALGARY 0x02a1
 #define PCI_DEVICE_ID_IBM_CALIOC2 0x0308
 
-/* we need these for register space address calculation */
-#define START_ADDRESS           0xfe000000
-#define CHASSIS_BASE            0
-#define ONE_BASED_CHASSIS_NUM   1
-
 /* register offsets inside the host bridge space */
 #define CALGARY_CONFIG_REG	0x0108
 #define PHB_CSR_OFFSET		0x0110 /* Channel Status */
