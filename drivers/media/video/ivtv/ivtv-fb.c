@@ -185,6 +185,9 @@ struct osd_info {
 	unsigned long fb_end_aligned_physaddr;
 #endif
 
+	/* Current osd mode */
+	int osd_mode;
+
 	/* Store the buffer offset */
 	int set_osd_coords_x;
 	int set_osd_coords_y;
@@ -350,6 +353,7 @@ static int ivtv_fb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 			      unsigned long dest_offset, int count)
 {
 	DEFINE_WAIT(wait);
+	struct osd_info *oi = itv->osd_info;
 
 	/* Nothing to do */
 	if (count == 0) {
@@ -358,9 +362,9 @@ static int ivtv_fb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	}
 
 	/* Check Total FB Size */
-	if ((dest_offset + count) > itv->osd_info->video_buffer_size) {
+	if ((dest_offset + count) > oi->video_buffer_size) {
 		IVTV_FB_WARN("ivtv_fb_prep_frame: Overflowing the framebuffer %ld, only %d available\n",
-			dest_offset + count, itv->osd_info->video_buffer_size);
+			dest_offset + count, oi->video_buffer_size);
 		return -E2BIG;
 	}
 
@@ -387,7 +391,7 @@ static int ivtv_fb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	}
 
 	/* OSD Address to send DMA to */
-	dest_offset += IVTV_DEC_MEM_START + itv->osd_info->video_rbase;
+	dest_offset += IVTV_DEC_MEM_START + oi->video_rbase;
 
 	/* Fill Buffers */
 	return ivtv_fb_prep_dec_dma_to_device(itv, dest_offset, source, count);
@@ -445,8 +449,10 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 
 static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 {
+	struct osd_info *oi = itv->osd_info;
 	struct ivtv_osd_coords ivtv_osd;
 	struct v4l2_rect ivtv_window;
+	int osd_mode = -1;
 
 	IVTV_FB_DEBUG_INFO("ivtvfb_set_var\n");
 
@@ -456,32 +462,24 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	else /* RGB  */
 		write_reg(read_reg(0x02a00) & ~0x0002000, 0x02a00);
 
-	/* Set the color mode
-	   Although rare, occasionally things go wrong. The extra mode
-	   change seems to help... */
-
+	/* Set the color mode */
 	switch (var->bits_per_pixel) {
 		case 8:
-			ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
-			ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, IVTV_OSD_BPP_8);
+			osd_mode = IVTV_OSD_BPP_8;
 			break;
 		case 32:
-			ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
-			ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, IVTV_OSD_BPP_32);
+			osd_mode = IVTV_OSD_BPP_32;
 			break;
 		case 16:
 			switch (var->green.length) {
 			case 4:
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, IVTV_OSD_BPP_16_444);
+				osd_mode = IVTV_OSD_BPP_16_444;
 				break;
 			case 5:
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, IVTV_OSD_BPP_16_555);
+				osd_mode = IVTV_OSD_BPP_16_555;
 				break;
 			case 6:
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
-				ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, IVTV_OSD_BPP_16_565);
+				osd_mode = IVTV_OSD_BPP_16_565;
 				break;
 			default:
 				IVTV_FB_DEBUG_WARN("ivtvfb_set_var - Invalid bpp\n");
@@ -491,8 +489,17 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 			IVTV_FB_DEBUG_WARN("ivtvfb_set_var - Invalid bpp\n");
 	}
 
-	itv->osd_info->bits_per_pixel = var->bits_per_pixel;
-	itv->osd_info->bytes_per_pixel = var->bits_per_pixel / 8;
+	/* Change osd mode if needed.
+	   Although rare, things can go wrong. The extra mode
+	   change seems to help... */
+	if (osd_mode != -1 && osd_mode != oi->osd_mode) {
+		ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
+		ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, osd_mode);
+		oi->osd_mode = osd_mode;
+	}
+
+	oi->bits_per_pixel = var->bits_per_pixel;
+	oi->bytes_per_pixel = var->bits_per_pixel / 8;
 
 	/* Set the flicker filter */
 	switch (var->vmode & FB_VMODE_MASK) {
@@ -886,6 +893,9 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	if (osd_depth != 8 && osd_depth != 16 && osd_depth != 32) osd_depth = 8;
 	oi->bits_per_pixel = osd_depth;
 	oi->bytes_per_pixel = oi->bits_per_pixel / 8;
+
+	/* Invalidate current osd mode to force a mode switch later */
+	oi->osd_mode = -1;
 
 	/* Horizontal size & position */
 
