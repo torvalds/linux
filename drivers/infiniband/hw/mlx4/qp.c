@@ -415,9 +415,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_wrid:
-	if (pd->uobject && !init_attr->srq)
-		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &qp->db);
-	else {
+	if (pd->uobject) {
+		if (!init_attr->srq)
+			mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context),
+					      &qp->db);
+	} else {
 		kfree(qp->sq.wrid);
 		kfree(qp->rq.wrid);
 	}
