@@ -900,15 +900,18 @@ static void __init calgary_free_bus(struct pci_dev *dev)
 static void calgary_dump_error_regs(struct iommu_table *tbl)
 {
 	void __iomem *bbar = tbl->bbar;
-	u32 val32;
 	void __iomem *target;
+	u32 csr, plssr;
 
 	target = calgary_reg(bbar, phb_offset(tbl->it_busno) | PHB_CSR_OFFSET);
-	val32 = be32_to_cpu(readl(target));
+	csr = be32_to_cpu(readl(target));
+
+	target = calgary_reg(bbar, phb_offset(tbl->it_busno) | PHB_PLSSR_OFFSET);
+	plssr = be32_to_cpu(readl(target));
 
 	/* If no error, the agent ID in the CSR is not valid */
 	printk(KERN_EMERG "Calgary: DMA error on Calgary PHB 0x%x, "
-	       "CSR = 0x%08x\n", tbl->it_busno, val32);
+	       "0x%08x@CSR 0x%08x@PLSSR\n", tbl->it_busno, csr, plssr);
 }
 
 static void calioc2_dump_error_regs(struct iommu_table *tbl)
