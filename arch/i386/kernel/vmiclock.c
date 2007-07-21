@@ -32,6 +32,7 @@
 #include <asm/apicdef.h>
 #include <asm/apic.h>
 #include <asm/timer.h>
+#include <asm/i8253.h>
 
 #include <irq_vectors.h>
 #include "io_ports.h"
