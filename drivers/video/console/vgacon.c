@@ -187,7 +187,11 @@ static void vgacon_scrollback_init(int pitch)
 	}
 }
 
-static void vgacon_scrollback_startup(void)
+/*
+ * Called only duing init so call of alloc_bootmen is ok.
+ * Marked __init_refok to silence modpost.
+ */
+static void __init_refok vgacon_scrollback_startup(void)
 {
 	vgacon_scrollback = alloc_bootmem(CONFIG_VGACON_SOFT_SCROLLBACK_SIZE
 					  * 1024);
