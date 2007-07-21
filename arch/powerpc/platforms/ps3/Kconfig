@@ -112,4 +112,15 @@ config PS3_DISK
 	  This support is required to access the PS3 hard disk.
 	  In general, all users will say Y or M.
 
+config PS3_ROM
+	tristate "PS3 BD/DVD/CD-ROM Storage Driver"
+	depends on PPC_PS3 && SCSI
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 ROM Storage.
+
+	  This support is required to access the PS3 BD/DVD/CD-ROM drive.
+	  In general, all users will say Y or M.
+	  Also make sure to say Y or M to "SCSI CDROM support" later.
+
 endmenu
