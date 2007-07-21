@@ -20,6 +20,8 @@
 
 #include "ppc_asm.h"
 
+	.machine "ppc64"
+
 	.text
 
 /*

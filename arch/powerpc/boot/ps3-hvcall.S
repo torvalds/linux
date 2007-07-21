@@ -20,6 +20,8 @@
 
 #include "ppc_asm.h"
 
+	.machine "ppc64"
+
 /*
  * The PS3 hypervisor uses a 64 bit "C" language calling convention.
  * The routines here marshal arguments between the 32 bit wrapper
