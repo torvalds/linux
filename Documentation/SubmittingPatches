@@ -122,7 +122,7 @@ then only post say 15 or so at a time and wait for review and integration.
 
 Check your patch for basic style violations, details of which can be
 found in Documentation/CodingStyle.  Failure to do so simply wastes
-the reviewers time and will get your patch rejected, probabally
+the reviewers time and will get your patch rejected, probably
 without even being read.
 
 At a minimum you should check your patches with the patch style
