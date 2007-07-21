@@ -25,8 +25,6 @@
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
-#include <linux/module.h>
-#include <linux/kallsyms.h>
 
 #include "gfs2.h"
 #include "incore.h"
