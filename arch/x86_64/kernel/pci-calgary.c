@@ -79,6 +79,9 @@ int use_calgary __read_mostly = 0;
 #define PHB_MEM_2_SIZE_LOW	0x02E0
 #define PHB_DOSHOLE_OFFSET	0x08E0
 
+/* CalIOC2 specific */
+#define PHB_SAVIOR_L2           0x0DB0
+
 /* PHB_CONFIG_RW */
 #define PHB_TCE_ENABLE		0x20000000
 #define PHB_SLOT_DISABLE	0x1C000000
@@ -156,10 +159,16 @@ struct calgary_bus_info {
 
 static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
 static void calgary_tce_cache_blast(struct iommu_table *tbl);
+static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
 
 static struct cal_chipset_ops calgary_chip_ops = {
 	.handle_quirks = calgary_handle_quirks,
 	.tce_cache_blast = calgary_tce_cache_blast
+};
+
+static struct cal_chipset_ops calioc2_chip_ops = {
+	.handle_quirks = calioc2_handle_quirks,
+	.tce_cache_blast = NULL
 };
 
 static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
@@ -743,7 +752,12 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
 	tce_free(tbl, 0, tbl->it_size);
 
-	tbl->chip_ops = &calgary_chip_ops;
+  	if (is_calgary(dev->device))
+  		tbl->chip_ops = &calgary_chip_ops;
+	else if (is_calioc2(dev->device))
+		tbl->chip_ops = &calioc2_chip_ops;
+  	else
+  		BUG();
 
 	calgary_reserve_regions(dev);
 
@@ -894,8 +908,23 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	readq(target); /* flush */
 }
 
-static void __init calgary_handle_quirks(struct iommu_table *tbl,
-	struct pci_dev *dev)
+static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+{
+	unsigned char busnum = dev->bus->number;
+	void __iomem *bbar = tbl->bbar;
+	void __iomem *target;
+	u32 val;
+
+ 	/*
+ 	 * CalIOC2 designers recommend setting bit 8 in 0xnDB0 to 1
+ 	 */
+ 	target = calgary_reg(bbar, phb_offset(busnum) | PHB_SAVIOR_L2);
+ 	val = cpu_to_be32(readl(target));
+ 	val |= 0x00800000;
+ 	writel(cpu_to_be32(val), target);
+}
+
+static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
 
@@ -903,7 +932,7 @@ static void __init calgary_handle_quirks(struct iommu_table *tbl,
 	 * Give split completion a longer timeout on bus 1 for aic94xx
 	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
 	 */
-	if (busnum == 1)
+	if (is_calgary(dev->device) && (busnum == 1))
 		calgary_set_split_completion_timeout(tbl->bbar, busnum,
 						     CCR_2SEC_TIMEOUT);
 }
