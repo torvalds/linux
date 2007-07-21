@@ -13,10 +13,6 @@
 
 #define irq_canonicalize(irq)	(irq)
 
-extern void disable_irq_nosync(unsigned int irq);
-extern void disable_irq(unsigned int irq);
-extern void enable_irq(unsigned int irq);
-
 extern int request_fast_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, __const__ char *devname);
 
 #endif

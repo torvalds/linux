@@ -95,6 +95,11 @@ void disable_irq(unsigned int irq)
 		desc->enabled = 0;
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+EXPORT_SYMBOL(disable_irq);
+
+void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
+
+EXPORT_SYMBOL(disable_irq_nosync);
 
 /**
  *	enable_irq - enable interrupt handling on an irq
@@ -131,6 +136,7 @@ void enable_irq(unsigned int irq)
 	}
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
+EXPORT_SYMBOL(enable_irq);
 
 int show_interrupts(struct seq_file *p, void *v)
 {

@@ -24,11 +24,6 @@
 
 struct irqaction;
 
-#define disable_irq_nosync(i) disable_irq(i)
-
-extern void disable_irq(unsigned int);
-extern void enable_irq(unsigned int);
-
 #define __IRQT_FALEDGE	(1 << 0)
 #define __IRQT_RISEDGE	(1 << 1)
 #define __IRQT_LOWLVL	(1 << 2)

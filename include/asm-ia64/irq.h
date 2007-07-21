@@ -33,9 +33,6 @@ irq_canonicalize (int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-extern void disable_irq (unsigned int);
-extern void disable_irq_nosync (unsigned int);
-extern void enable_irq (unsigned int);
 extern void set_irq_affinity_info (unsigned int irq, int dest, int redir);
 bool is_affinity_mask_valid(cpumask_t cpumask);
 
