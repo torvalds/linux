@@ -373,7 +373,7 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 	else
 		pbus = pdev->bus;
 
-	tbl = pbus->self->sysdata;
+	tbl = pci_iommu(pbus);
 
 	BUG_ON(pdev->bus->parent &&
 	       (tbl->it_busno != pdev->bus->parent->number));
@@ -716,7 +716,7 @@ static void __init calgary_reserve_mem_region(struct pci_dev *dev, u64 start,
 	limit++;
 
 	numpages = ((limit - start) >> PAGE_SHIFT);
-	iommu_range_reserve(dev->sysdata, start, numpages);
+	iommu_range_reserve(pci_iommu(dev->bus), start, numpages);
 }
 
 static void __init calgary_reserve_peripheral_mem_1(struct pci_dev *dev)
@@ -724,7 +724,7 @@ static void __init calgary_reserve_peripheral_mem_1(struct pci_dev *dev)
 	void __iomem *target;
 	u64 low, high, sizelow;
 	u64 start, limit;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
 
@@ -748,7 +748,7 @@ static void __init calgary_reserve_peripheral_mem_2(struct pci_dev *dev)
 	u32 val32;
 	u64 low, high, sizelow, sizehigh;
 	u64 start, limit;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
 
@@ -784,7 +784,7 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 {
 	unsigned int npages;
 	u64 start;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 
 	/* reserve EMERGENCY_PAGES from bad_dma_address and up */
 	iommu_range_reserve(tbl, bad_dma_address, EMERGENCY_PAGES);
@@ -818,7 +818,7 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	if (ret)
 		return ret;
 
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
 	tce_free(tbl, 0, tbl->it_size);
 
@@ -855,7 +855,7 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 static void __init calgary_free_bus(struct pci_dev *dev)
 {
 	u64 val64;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	void __iomem *target;
 	unsigned int bitmapsz;
 
@@ -870,7 +870,8 @@ static void __init calgary_free_bus(struct pci_dev *dev)
 	tbl->it_map = NULL;
 
 	kfree(tbl);
-	dev->sysdata = NULL;
+	
+	set_pci_iommu(dev->bus, NULL);
 
 	/* Can't free bootmem allocated memory after system is up :-( */
 	bus_info[dev->bus->number].tce_space = NULL;
@@ -943,7 +944,7 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 static void calgary_watchdog(unsigned long data)
 {
 	struct pci_dev *dev = (struct pci_dev *)data;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	void __iomem *bbar = tbl->bbar;
 	u32 val32;
 	void __iomem *target;
@@ -1041,7 +1042,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	struct iommu_table *tbl;
 
 	busnum = dev->bus->number;
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	bbar = tbl->bbar;
 
 	/* enable TCE in PHB Config Register */
@@ -1073,7 +1074,7 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 	struct iommu_table *tbl;
 
 	busnum = dev->bus->number;
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	bbar = tbl->bbar;
 
 	/* disable TCE in PHB Config Register */
@@ -1091,7 +1092,7 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
 {
 	pci_dev_get(dev);
-	dev->sysdata = NULL;
+	set_pci_iommu(dev->bus, NULL);
 
 	/* is the device behind a bridge? */
 	if (dev->bus->parent)
@@ -1123,7 +1124,7 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	} else
 		dev->bus->self = dev;
 
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	tbl->chip_ops->handle_quirks(tbl, dev);
 
 	calgary_enable_translation(dev);
@@ -1520,7 +1521,7 @@ static void __init calgary_fixup_one_tce_space(struct pci_dev *dev)
 	unsigned int npages;
 	int i;
 
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 
 	for (i = 0; i < 4; i++) {
 		struct resource *r = &dev->resource[PCI_BRIDGE_RESOURCES + i];

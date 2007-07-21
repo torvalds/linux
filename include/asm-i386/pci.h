@@ -3,6 +3,11 @@
 
 
 #ifdef __KERNEL__
+
+struct pci_sysdata {
+	int		node;		/* NUMA node */
+};
+
 #include <linux/mm.h>		/* for struct page */
 
 /* Can be used to override the logic in pci_scan_bus for skipping
