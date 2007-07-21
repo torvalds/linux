@@ -161,11 +161,31 @@ void zd_mac_clear(struct zd_mac *mac)
 	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
 }
 
-static int reset_mode(struct zd_mac *mac)
+static int set_rx_filter(struct zd_mac *mac)
 {
 	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 	u32 filter = (ieee->iw_mode == IW_MODE_MONITOR) ? ~0 : STA_RX_FILTER;
 	return zd_iowrite32(&mac->chip, CR_RX_FILTER, filter);
+}
+
+static int set_sniffer(struct zd_mac *mac)
+{
+	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+	return zd_iowrite32(&mac->chip, CR_SNIFFER_ON,
+		ieee->iw_mode == IW_MODE_MONITOR ? 1 : 0);
+	return 0;
+}
+
+static int set_mc_hash(struct zd_mac *mac)
+{
+	struct zd_mc_hash hash;
+	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+
+	zd_mc_clear(&hash);
+	if (ieee->iw_mode == IW_MODE_MONITOR)
+		zd_mc_add_all(&hash);
+
+	return zd_chip_set_multicast_hash(&mac->chip, &hash);
 }
 
 int zd_mac_open(struct net_device *netdev)
@@ -194,7 +214,13 @@ int zd_mac_open(struct net_device *netdev)
 	r = zd_chip_set_basic_rates(chip, CR_RATES_80211B | CR_RATES_80211G);
 	if (r < 0)
 		goto disable_int;
-	r = reset_mode(mac);
+	r = set_rx_filter(mac);
+	if (r)
+		goto disable_int;
+	r = set_sniffer(mac);
+	if (r)
+		goto disable_int;
+	r = set_mc_hash(mac);
 	if (r)
 		goto disable_int;
 	r = zd_chip_switch_radio_on(chip);
@@ -298,12 +324,14 @@ static void set_multicast_hash_handler(struct work_struct *work)
 
 void zd_mac_set_multicast_list(struct net_device *dev)
 {
-	struct zd_mc_hash hash;
 	struct zd_mac *mac = zd_netdev_mac(dev);
+	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+	struct zd_mc_hash hash;
 	struct dev_mc_list *mc;
 	unsigned long flags;
 
-	if (dev->flags & (IFF_PROMISC|IFF_ALLMULTI)) {
+	if (dev->flags & (IFF_PROMISC|IFF_ALLMULTI) ||
+			ieee->iw_mode == IW_MODE_MONITOR) {
 		zd_mc_add_all(&hash);
 	} else {
 		zd_mc_clear(&hash);
@@ -628,8 +656,12 @@ int zd_mac_set_mode(struct zd_mac *mac, u32 mode)
 	ieee->iw_mode = mode;
 	spin_unlock_irq(&ieee->lock);
 
-	if (netif_running(mac->netdev))
-		return reset_mode(mac);
+	if (netif_running(mac->netdev)) {
+		int r = set_rx_filter(mac);
+		if (r)
+			return r;
+		return set_sniffer(mac);
+	}
 
 	return 0;
 }
