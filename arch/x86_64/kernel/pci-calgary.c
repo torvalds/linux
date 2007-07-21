@@ -807,6 +807,20 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	readq(target); /* flush */
 }
 
+static void __init calgary_handle_quirks(struct pci_dev* dev)
+{
+	unsigned char busnum = dev->bus->number;
+	struct iommu_table *tbl = dev->sysdata;
+
+	/*
+	 * Give split completion a longer timeout on bus 1 for aic94xx
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
+	 */
+	if (busnum == 1)
+		calgary_set_split_completion_timeout(tbl->bbar, busnum,
+						     CCR_2SEC_TIMEOUT);
+}
+
 static void __init calgary_enable_translation(struct pci_dev *dev)
 {
 	u32 val32;
@@ -830,14 +844,6 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
-
-	/*
-	 * Give split completion a longer timeout on bus 1 for aic94xx
-	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
-	 */
-	if (busnum == 1)
-		calgary_set_split_completion_timeout(bbar, busnum,
-						     CCR_2SEC_TIMEOUT);
 
 	init_timer(&tbl->watchdog_timer);
 	tbl->watchdog_timer.function = &calgary_watchdog;
@@ -890,6 +896,9 @@ static int __init calgary_init_one(struct pci_dev *dev)
 
 	pci_dev_get(dev);
 	dev->bus->self = dev;
+
+	calgary_handle_quirks(dev);
+
 	calgary_enable_translation(dev);
 
 	return 0;
