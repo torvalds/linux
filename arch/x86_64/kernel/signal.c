@@ -26,6 +26,7 @@
 #include <asm/i387.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
+#include <asm/mce.h>
 
 /* #define DEBUG_SIG 1 */
 
@@ -471,6 +472,12 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 		regs->eflags |= TF_MASK;
 		clear_thread_flag(TIF_SINGLESTEP);
 	}
+
+#ifdef CONFIG_X86_MCE
+	/* notify userspace of pending MCEs */
+	if (thread_info_flags & _TIF_MCE_NOTIFY)
+		mce_notify_user();
+#endif /* CONFIG_X86_MCE */
 
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK))

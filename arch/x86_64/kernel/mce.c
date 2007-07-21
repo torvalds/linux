@@ -18,6 +18,8 @@
 #include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
+#include <linux/poll.h>
+#include <linux/thread_info.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
 #include <linux/kdebug.h>
@@ -26,6 +28,7 @@
 #include <asm/mce.h>
 #include <asm/uaccess.h>
 #include <asm/smp.h>
+#include <asm/idle.h>
 
 #define MISC_MCELOG_MINOR 227
 #define NR_BANKS 6
@@ -39,14 +42,15 @@ static int mce_dont_init;
 static int tolerant = 1;
 static int banks;
 static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
-static unsigned long console_logged;
-static int notify_user;
+static unsigned long notify_user;
 static int rip_msr;
 static int mce_bootlog = 1;
 static atomic_t mce_events;
 
 static char trigger[128];
 static char *trigger_argv[2] = { trigger, NULL };
+
+static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
 /*
  * Lockless MCE logging infrastructure.
@@ -94,8 +98,7 @@ void mce_log(struct mce *mce)
 	mcelog.entry[entry].finished = 1;
 	wmb();
 
-	if (!test_and_set_bit(0, &console_logged))
-		notify_user = 1;
+	set_bit(0, &notify_user);
 }
 
 static void print_mce(struct mce *m)
@@ -128,6 +131,10 @@ static void print_mce(struct mce *m)
 static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 { 
 	int i;
+
+	if (tolerant >= 3)
+		return;
+
 	oops_begin();
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		unsigned long tsc = mcelog.entry[i].tsc;
@@ -139,10 +146,7 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 	}
 	if (backup)
 		print_mce(backup);
-	if (tolerant >= 3)
-		printk("Fake panic: %s\n", msg);
-	else
-		panic(msg);
+	panic(msg);
 } 
 
 static int mce_available(struct cpuinfo_x86 *c)
@@ -164,17 +168,6 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 		m->mcgstatus |= MCG_STATUS_EIPV;
 		rdmsrl(rip_msr, m->rip);
 		m->cs = 0;
-	}
-}
-
-static void do_mce_trigger(void)
-{
-	static atomic_t mce_logged;
-	int events = atomic_read(&mce_events);
-	if (events != atomic_read(&mce_logged) && trigger[0]) {
-		/* Small race window, but should be harmless.  */
-		atomic_set(&mce_logged, events);
-		call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
 	}
 }
 
@@ -251,12 +244,8 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	}
 
 	/* Never do anything final in the polling timer */
-	if (!regs) {
-		/* Normal interrupt context here. Call trigger for any new
-		   events. */
-		do_mce_trigger();
+	if (!regs)
 		goto out;
-	}
 
 	/* If we didn't find an uncorrectable error, pick
 	   the last one (shouldn't happen, just being safe). */
@@ -287,6 +276,9 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		if (tolerant < 3)
 			do_exit(SIGBUS);
 	}
+
+	/* notify userspace ASAP */
+	set_thread_flag(TIF_MCE_NOTIFY);
 
  out:
 	/* Last thing done in the machine check exception to clear state. */
@@ -344,24 +336,11 @@ static void mcheck_timer(struct work_struct *work)
 	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
 
 	/*
-	 * It's ok to read stale data here for notify_user and
-	 * console_logged as we'll simply get the updated versions
-	 * on the next mcheck_timer execution and atomic operations
-	 * on console_logged act as synchronization for notify_user
-	 * writes.
+	 * Alert userspace if needed.  If we logged an MCE, reduce the
+	 * polling interval, otherwise increase the polling interval.
 	 */
-	if (notify_user && console_logged) {
-		static unsigned long last_print;
-		unsigned long now = jiffies;
-
-		/* if we logged an MCE, reduce the polling interval */
+	if (mce_notify_user()) {
 		next_interval = max(next_interval/2, HZ/100);
-		notify_user = 0;
-		clear_bit(0, &console_logged);
-		if (time_after_eq(now, last_print + (check_interval*HZ))) {
-			last_print = now;
-			printk(KERN_INFO "Machine check events logged\n");
-		}
 	} else {
 		next_interval = min(next_interval*2, check_interval*HZ);
 	}
@@ -369,12 +348,55 @@ static void mcheck_timer(struct work_struct *work)
 	schedule_delayed_work(&mcheck_work, next_interval);
 }
 
+/*
+ * This is only called from process context.  This is where we do
+ * anything we need to alert userspace about new MCEs.  This is called
+ * directly from the poller and also from entry.S and idle, thanks to
+ * TIF_MCE_NOTIFY.
+ */
+int mce_notify_user(void)
+{
+	clear_thread_flag(TIF_MCE_NOTIFY);
+	if (test_and_clear_bit(0, &notify_user)) {
+		static unsigned long last_print;
+		unsigned long now = jiffies;
+
+		wake_up_interruptible(&mce_wait);
+		if (trigger[0])
+			call_usermodehelper(trigger, trigger_argv, NULL,
+						UMH_NO_WAIT);
+
+		if (time_after_eq(now, last_print + (check_interval*HZ))) {
+			last_print = now;
+			printk(KERN_INFO "Machine check events logged\n");
+		}
+
+		return 1;
+	}
+	return 0;
+}
+
+/* see if the idle task needs to notify userspace */
+static int
+mce_idle_callback(struct notifier_block *nfb, unsigned long action, void *junk)
+{
+	/* IDLE_END should be safe - interrupts are back on */
+	if (action == IDLE_END && test_thread_flag(TIF_MCE_NOTIFY))
+		mce_notify_user();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mce_idle_notifier = {
+	.notifier_call = mce_idle_callback,
+};
 
 static __init int periodic_mcheck_init(void)
 { 
 	next_interval = check_interval * HZ;
 	if (next_interval)
 		schedule_delayed_work(&mcheck_work, next_interval);
+	idle_notifier_register(&mce_idle_notifier);
 	return 0;
 } 
 __initcall(periodic_mcheck_init);
@@ -566,6 +588,14 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	return err ? -EFAULT : buf - ubuf; 
 }
 
+static unsigned int mce_poll(struct file *file, poll_table *wait)
+{
+	poll_wait(file, &mce_wait, wait);
+	if (rcu_dereference(mcelog.next))
+		return POLLIN | POLLRDNORM;
+	return 0;
+}
+
 static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd, unsigned long arg)
 {
 	int __user *p = (int __user *)arg;
@@ -592,6 +622,7 @@ static const struct file_operations mce_chrdev_ops = {
 	.open = mce_open,
 	.release = mce_release,
 	.read = mce_read,
+	.poll = mce_poll,
 	.ioctl = mce_ioctl,
 };
 

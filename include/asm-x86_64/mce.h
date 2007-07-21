@@ -105,6 +105,8 @@ extern atomic_t mce_entry;
 
 extern void do_machine_check(struct pt_regs *, long);
 
+extern int mce_notify_user(void);
+
 #endif
 
 #endif
