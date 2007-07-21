@@ -51,7 +51,6 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
-#include <linux/pci_ids.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
