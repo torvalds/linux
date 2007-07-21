@@ -31,7 +31,7 @@ extern struct bus_type of_platform_bus_type;
  */
 struct of_platform_driver
 {
-	char			*name;
+	const char		*name;
 	struct of_device_id	*match_table;
 	struct module		*owner;
 
