@@ -239,8 +239,7 @@ static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_le
 	return 0;
 }
 
-/* will only be called once; __init is safe here */
-static int __init find_num_cache_leaves(void)
+static int __cpuinit find_num_cache_leaves(void)
 {
 	unsigned int		eax, ebx, ecx, edx;
 	union _cpuid4_leaf_eax	cache_eax;
