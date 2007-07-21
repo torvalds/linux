@@ -386,9 +386,9 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 		return 0;
 	}
 
-	spin_lock_bh(&call_lock);
+	spin_lock(&call_lock);
 	__smp_call_function_single(cpu, func, info, nonatomic, wait);
-	spin_unlock_bh(&call_lock);
+	spin_unlock(&call_lock);
 	put_cpu();
 	return 0;
 }
