@@ -6,6 +6,7 @@
 
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/processor.h>
 #include <linux/mc146818rtc.h>
 
 #ifndef RTC_PORT
@@ -43,8 +44,10 @@ static inline void lock_cmos(unsigned char reg)
 	unsigned long new;
 	new = ((smp_processor_id()+1) << 8) | reg;
 	for (;;) {
-		if (cmos_lock)
+		if (cmos_lock) {
+			cpu_relax();
 			continue;
+		}
 		if (__cmpxchg(&cmos_lock, 0, new, sizeof(cmos_lock)) == 0)
 			return;
 	}
