@@ -9,7 +9,6 @@ obj-y	+=	cyrix.o
 obj-y	+=	centaur.o
 obj-y	+=	transmeta.o
 obj-y	+=	intel.o intel_cacheinfo.o addon_cpuid_features.o
-obj-y	+=	rise.o
 obj-y	+=	nexgen.o
 obj-y	+=	umc.o
 

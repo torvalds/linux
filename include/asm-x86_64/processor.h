@@ -83,7 +83,6 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_UMC 3
 #define X86_VENDOR_NEXGEN 4
 #define X86_VENDOR_CENTAUR 5
-#define X86_VENDOR_RISE 6
 #define X86_VENDOR_TRANSMETA 7
 #define X86_VENDOR_NUM 8
 #define X86_VENDOR_UNKNOWN 0xff

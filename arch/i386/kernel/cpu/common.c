@@ -606,7 +606,6 @@ extern int nsc_init_cpu(void);
 extern int amd_init_cpu(void);
 extern int centaur_init_cpu(void);
 extern int transmeta_init_cpu(void);
-extern int rise_init_cpu(void);
 extern int nexgen_init_cpu(void);
 extern int umc_init_cpu(void);
 
@@ -618,7 +617,6 @@ void __init early_cpu_init(void)
 	amd_init_cpu();
 	centaur_init_cpu();
 	transmeta_init_cpu();
-	rise_init_cpu();
 	nexgen_init_cpu();
 	umc_init_cpu();
 	early_cpu_detect();
