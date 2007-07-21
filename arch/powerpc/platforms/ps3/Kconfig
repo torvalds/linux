@@ -123,4 +123,19 @@ config PS3_ROM
 	  In general, all users will say Y or M.
 	  Also make sure to say Y or M to "SCSI CDROM support" later.
 
+config PS3_FLASH
+	tristate "PS3 FLASH ROM Storage Driver"
+	depends on PPC_PS3
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 FLASH ROM Storage.
+
+	  This support is required to access the PS3 FLASH ROM, which
+	  contains the boot loader and some boot options.
+	  In general, all users will say Y or M.
+
+	  As this driver needs a fixed buffer of 256 KiB of memory, it can
+	  be disabled on the kernel command line using "ps3flash=off", to
+	  not allocate this fixed buffer.
+
 endmenu
