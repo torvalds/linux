@@ -806,13 +806,13 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 	iommu_range_reserve(tbl, bad_dma_address, EMERGENCY_PAGES);
 
 	/* avoid the BIOS/VGA first 640KB-1MB region */
-	/* for CalIOC2 - avoid the entire first 2MB */
+	/* for CalIOC2 - avoid the entire first MB */
 	if (is_calgary(dev->device)) {
 		start = (640 * 1024);
 		npages = ((1024 - 640) * 1024) >> PAGE_SHIFT;
 	} else { /* calioc2 */
 		start = 0;
-		npages = (2 * 1024 * 1024) >> PAGE_SHIFT;
+		npages = (1 * 1024 * 1024) >> PAGE_SHIFT;
 	}
 	iommu_range_reserve(tbl, start, npages);
 
