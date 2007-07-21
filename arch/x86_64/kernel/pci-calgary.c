@@ -321,7 +321,7 @@ error:
 	return bad_dma_address;
 }
 
-static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
+static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
@@ -359,12 +359,6 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
-static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
-	unsigned int npages)
-{
-	__iommu_free(tbl, dma_addr, npages);
-}
-
 static inline struct iommu_table *find_iommu_table(struct device *dev)
 {
 	struct pci_dev *pdev;
@@ -387,9 +381,14 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 	return tbl;
 }
 
-static void __calgary_unmap_sg(struct iommu_table *tbl,
+static void calgary_unmap_sg(struct device *dev,
 	struct scatterlist *sglist, int nelems, int direction)
 {
+	struct iommu_table *tbl = find_iommu_table(dev);
+
+	if (!translate_phb(to_pci_dev(dev)))
+		return;
+
 	while (nelems--) {
 		unsigned int npages;
 		dma_addr_t dma = sglist->dma_address;
@@ -399,20 +398,9 @@ static void __calgary_unmap_sg(struct iommu_table *tbl,
 			break;
 
 		npages = num_dma_pages(dma, dmalen);
-		__iommu_free(tbl, dma, npages);
+		iommu_free(tbl, dma, npages);
 		sglist++;
 	}
-}
-
-void calgary_unmap_sg(struct device *dev, struct scatterlist *sglist,
-		      int nelems, int direction)
-{
-	struct iommu_table *tbl = find_iommu_table(dev);
-
-	if (!translate_phb(to_pci_dev(dev)))
-		return;
-
-	__calgary_unmap_sg(tbl, sglist, nelems, direction);
 }
 
 static int calgary_nontranslate_map_sg(struct device* dev,
@@ -466,7 +454,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 
 	return nelems;
 error:
-	__calgary_unmap_sg(tbl, sg, nelems, direction);
+	calgary_unmap_sg(dev, sg, nelems, direction);
 	for (i = 0; i < nelems; i++) {
 		sg[i].dma_address = bad_dma_address;
 		sg[i].dma_length = 0;
