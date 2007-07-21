@@ -11,7 +11,6 @@ unsigned long native_calculate_cpu_khz(void);
 
 extern int timer_ack;
 extern int no_timer_check;
-extern int no_sync_cmos_clock;
 extern int recalibrate_cpu_khz(void);
 
 #ifndef CONFIG_PARAVIRT

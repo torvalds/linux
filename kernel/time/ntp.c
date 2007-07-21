@@ -10,6 +10,7 @@
 
 #include <linux/mm.h>
 #include <linux/time.h>
+#include <linux/timer.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/hrtimer.h>
@@ -175,11 +176,63 @@ u64 current_tick_length(void)
 	return tick_length;
 }
 
+#ifdef CONFIG_GENERIC_CMOS_UPDATE
 
-void __attribute__ ((weak)) notify_arch_cmos_timer(void)
+/* Disable the cmos update - used by virtualization and embedded */
+int no_sync_cmos_clock  __read_mostly;
+
+static void sync_cmos_clock(unsigned long dummy);
+
+static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
+
+static void sync_cmos_clock(unsigned long dummy)
 {
-	return;
+	struct timespec now, next;
+	int fail = 1;
+
+	/*
+	 * If we have an externally synchronized Linux clock, then update
+	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
+	 * called as close as possible to 500 ms before the new second starts.
+	 * This code is run on a timer.  If the clock is set, that timer
+	 * may not expire at the correct time.  Thus, we adjust...
+	 */
+	if (!ntp_synced())
+		/*
+		 * Not synced, exit, do not restart a timer (if one is
+		 * running, let it run out).
+		 */
+		return;
+
+	getnstimeofday(&now);
+	if (abs(xtime.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2)
+		fail = update_persistent_clock(now);
+
+	next.tv_nsec = (NSEC_PER_SEC / 2) - now.tv_nsec;
+	if (next.tv_nsec <= 0)
+		next.tv_nsec += NSEC_PER_SEC;
+
+	if (!fail)
+		next.tv_sec = 659;
+	else
+		next.tv_sec = 0;
+
+	if (next.tv_nsec >= NSEC_PER_SEC) {
+		next.tv_sec++;
+		next.tv_nsec -= NSEC_PER_SEC;
+	}
+	mod_timer(&sync_cmos_timer, jiffies + timespec_to_jiffies(&next));
 }
+
+static void notify_cmos_timer(void)
+{
+	if (no_sync_cmos_clock)
+		mod_timer(&sync_cmos_timer, jiffies + 1);
+}
+
+#else
+static inline void notify_cmos_timer(void) { }
+#endif
 
 /* adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
@@ -345,6 +398,6 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	txc->stbcnt	   = 0;
 	write_sequnlock_irq(&xtime_lock);
 	do_gettimeofday(&txc->time);
-	notify_arch_cmos_timer();
+	notify_cmos_timer();
 	return(result);
 }
