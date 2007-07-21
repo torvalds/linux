@@ -375,7 +375,9 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 		pbus = pdev->bus;
 
 	tbl = pbus->self->sysdata;
-	BUG_ON(pdev->bus->parent && (tbl->it_busno != pdev->bus->parent->number));
+
+	BUG_ON(pdev->bus->parent &&
+	       (tbl->it_busno != pdev->bus->parent->number));
 
 	return tbl;
 }
@@ -941,7 +943,8 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 	/* dump rest of error regs */
 	printk(KERN_EMERG "Calgary: ");
 	for (i = 0; i < ARRAY_SIZE(errregs); i++) {
-		erroff = (0x810 + (i * 0x10)); /* err regs are at 0x810 - 0x870 */
+		/* err regs are at 0x810 - 0x870 */
+		erroff = (0x810 + (i * 0x10));
 		target = calgary_reg(bbar, phboff | erroff);
 		errregs[i] = be32_to_cpu(readl(target));
 		printk("0x%08x@0x%lx ", errregs[i], erroff);
@@ -1207,7 +1210,7 @@ static int __init calgary_init(void)
 {
 	int ret;
 	struct pci_dev *dev = NULL;
-	void* tce_space;
+	void *tce_space;
 
 	ret = calgary_locate_bbars();
 	if (ret)
