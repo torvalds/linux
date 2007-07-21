@@ -472,7 +472,7 @@ static void hvc_handle_event(struct HvLpEvent *event)
 	}
 }
 
-static int send_open(HvLpIndex remoteLp, void *sem)
+static int __init send_open(HvLpIndex remoteLp, void *sem)
 {
 	return HvCallEvent_signalLpEventFast(remoteLp,
 			HvLpEvent_Type_VirtualIo,
@@ -484,7 +484,7 @@ static int send_open(HvLpIndex remoteLp, void *sem)
 			0, 0, 0, 0);
 }
 
-static int hvc_vio_init(void)
+static int __init hvc_vio_init(void)
 {
 	atomic_t wait_flag;
 	int rc;
@@ -552,14 +552,14 @@ static int hvc_vio_init(void)
 }
 module_init(hvc_vio_init); /* after drivers/char/hvc_console.c */
 
-static void hvc_vio_exit(void)
+static void __exit hvc_vio_exit(void)
 {
 	vio_unregister_driver(&hvc_vio_driver);
 }
 module_exit(hvc_vio_exit);
 
 /* the device tree order defines our numbering */
-static int hvc_find_vtys(void)
+static int __init hvc_find_vtys(void)
 {
 	struct device_node *vty;
 	int num_found = 0;
