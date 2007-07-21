@@ -618,6 +618,8 @@ static int __init acpi_parse_sbf(struct acpi_table_header *table)
 #ifdef CONFIG_HPET_TIMER
 #include <asm/hpet.h>
 
+static struct __initdata resource *hpet_res;
+
 static int __init acpi_parse_hpet(struct acpi_table_header *table)
 {
 	struct acpi_table_hpet *hpet_tbl;
@@ -638,8 +640,42 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
 	       hpet_tbl->id, hpet_address);
 
+	/*
+	 * Allocate and initialize the HPET firmware resource for adding into
+	 * the resource tree during the lateinit timeframe.
+	 */
+#define HPET_RESOURCE_NAME_SIZE 9
+	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
+
+	if (!hpet_res)
+		return 0;
+
+	memset(hpet_res, 0, sizeof(*hpet_res));
+	hpet_res->name = (void *)&hpet_res[1];
+	hpet_res->flags = IORESOURCE_MEM;
+	snprintf((char *)hpet_res->name, HPET_RESOURCE_NAME_SIZE, "HPET %u",
+		 hpet_tbl->sequence);
+
+	hpet_res->start = hpet_address;
+	hpet_res->end = hpet_address + (1 * 1024) - 1;
+
 	return 0;
 }
+
+/*
+ * hpet_insert_resource inserts the HPET resources used into the resource
+ * tree.
+ */
+static __init int hpet_insert_resource(void)
+{
+	if (!hpet_res)
+		return 1;
+
+	return insert_resource(&iomem_resource, hpet_res);
+}
+
+late_initcall(hpet_insert_resource);
+
 #else
 #define	acpi_parse_hpet	NULL
 #endif
