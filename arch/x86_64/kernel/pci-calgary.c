@@ -344,6 +344,15 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
+static inline struct iommu_table *find_iommu_table(struct device *dev)
+{
+	struct iommu_table *tbl;
+
+	tbl = to_pci_dev(dev)->bus->self->sysdata;
+
+	return tbl;
+}
+
 static void __calgary_unmap_sg(struct iommu_table *tbl,
 	struct scatterlist *sglist, int nelems, int direction)
 {
@@ -365,7 +374,7 @@ void calgary_unmap_sg(struct device *dev, struct scatterlist *sglist,
 		      int nelems, int direction)
 {
 	unsigned long flags;
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 
 	if (!translate_phb(to_pci_dev(dev)))
 		return;
@@ -394,7 +403,7 @@ static int calgary_nontranslate_map_sg(struct device* dev,
 int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	int nelems, int direction)
 {
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned long flags;
 	unsigned long vaddr;
 	unsigned int npages;
@@ -448,7 +457,7 @@ dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
 	dma_addr_t dma_handle = bad_dma_address;
 	unsigned long uaddr;
 	unsigned int npages;
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 
 	uaddr = (unsigned long)vaddr;
 	npages = num_dma_pages(uaddr, size);
@@ -464,7 +473,7 @@ dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
 void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
 	size_t size, int direction)
 {
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned int npages;
 
 	if (!translate_phb(to_pci_dev(dev)))
@@ -480,9 +489,7 @@ void* calgary_alloc_coherent(struct device *dev, size_t size,
 	void *ret = NULL;
 	dma_addr_t mapping;
 	unsigned int npages, order;
-	struct iommu_table *tbl;
-
-	tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 
 	size = PAGE_ALIGN(size); /* size rounded up to full pages */
 	npages = size >> PAGE_SHIFT;
