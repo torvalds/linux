@@ -75,9 +75,9 @@ int use_calgary __read_mostly = 0;
 #define PHB_DOSHOLE_OFFSET	0x08E0
 
 /* CalIOC2 specific */
-#define PHB_SAVIOR_L2           0x0DB0
-#define PHB_PAGE_MIG_CTRL       0x0DA8
-#define PHB_PAGE_MIG_DEBUG      0x0DA0
+#define PHB_SAVIOR_L2		0x0DB0
+#define PHB_PAGE_MIG_CTRL	0x0DA8
+#define PHB_PAGE_MIG_DEBUG	0x0DA0
 #define PHB_ROOT_COMPLEX_STATUS 0x0CB0
 
 /* PHB_CONFIG_RW */
@@ -92,11 +92,11 @@ int use_calgary __read_mostly = 0;
 /* CSR (Channel/DMA Status Register) */
 #define CSR_AGENT_MASK		0xffe0ffff
 /* CCR (Calgary Configuration Register) */
-#define CCR_2SEC_TIMEOUT        0x000000000000000EUL
+#define CCR_2SEC_TIMEOUT	0x000000000000000EUL
 /* PMCR/PMDR (Page Migration Control/Debug Registers */
-#define PMR_SOFTSTOP            0x80000000
-#define PMR_SOFTSTOPFAULT       0x40000000
-#define PMR_HARDSTOP            0x20000000
+#define PMR_SOFTSTOP		0x80000000
+#define PMR_SOFTSTOPFAULT	0x40000000
+#define PMR_HARDSTOP		0x20000000
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
 #define MAX_NUM_CHASSIS		8 /* max number of chassis */
@@ -228,7 +228,7 @@ static inline int translate_phb(struct pci_dev* dev)
 }
 
 static void iommu_range_reserve(struct iommu_table *tbl,
-        unsigned long start_addr, unsigned int npages)
+	unsigned long start_addr, unsigned int npages)
 {
 	unsigned long index;
 	unsigned long end;
@@ -418,7 +418,7 @@ static int calgary_nontranslate_map_sg(struct device* dev,
 {
 	int i;
 
- 	for (i = 0; i < nelems; i++ ) {
+	for (i = 0; i < nelems; i++ ) {
 		struct scatterlist *s = &sg[i];
 		BUG_ON(!s->page);
 		s->dma_address = virt_to_bus(page_address(s->page) +s->offset);
@@ -838,12 +838,12 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
 	tce_free(tbl, 0, tbl->it_size);
 
-  	if (is_calgary(dev->device))
-  		tbl->chip_ops = &calgary_chip_ops;
+	if (is_calgary(dev->device))
+		tbl->chip_ops = &calgary_chip_ops;
 	else if (is_calioc2(dev->device))
 		tbl->chip_ops = &calioc2_chip_ops;
-  	else
-  		BUG();
+	else
+		BUG();
 
 	calgary_reserve_regions(dev);
 
@@ -1025,13 +1025,13 @@ static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 	void __iomem *target;
 	u32 val;
 
- 	/*
- 	 * CalIOC2 designers recommend setting bit 8 in 0xnDB0 to 1
- 	 */
- 	target = calgary_reg(bbar, phb_offset(busnum) | PHB_SAVIOR_L2);
- 	val = cpu_to_be32(readl(target));
- 	val |= 0x00800000;
- 	writel(cpu_to_be32(val), target);
+	/*
+	 * CalIOC2 designers recommend setting bit 8 in 0xnDB0 to 1
+	 */
+	target = calgary_reg(bbar, phb_offset(busnum) | PHB_SAVIOR_L2);
+	val = cpu_to_be32(readl(target));
+	val |= 0x00800000;
+	writel(cpu_to_be32(val), target);
 }
 
 static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
