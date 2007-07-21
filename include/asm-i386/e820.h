@@ -47,6 +47,14 @@ extern void e820_register_memory(void);
 extern void limit_regions(unsigned long long size);
 extern void print_memory_map(char *who);
 
+#if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
+extern void e820_mark_nosave_regions(void);
+#else
+static inline void e820_mark_nosave_regions(void)
+{
+}
+#endif
+
 #endif/*!__ASSEMBLY__*/
 
 #endif/*__E820_HEADER*/
