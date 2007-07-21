@@ -470,9 +470,12 @@ static int __init find_node_by_addr(unsigned long addr)
  */
 void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
-	int i;
+	int i, j;
 	int fake_node_to_pxm_map[MAX_NUMNODES] = {
 		[0 ... MAX_NUMNODES-1] = PXM_INVAL
+	};
+	unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] = {
+		[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 	};
 
 	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
@@ -487,9 +490,17 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 		if (pxm == PXM_INVAL)
 			continue;
 		fake_node_to_pxm_map[i] = pxm;
+		/*
+		 * For each apicid_to_node mapping that exists for this real
+		 * node, it must now point to the fake node ID.
+		 */
+		for (j = 0; j < MAX_LOCAL_APIC; j++)
+			if (apicid_to_node[j] == nid)
+				fake_apicid_to_node[j] = i;
 	}
 	for (i = 0; i < num_nodes; i++)
 		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
+	memcpy(apicid_to_node, fake_apicid_to_node, sizeof(apicid_to_node));
 
 	nodes_clear(nodes_parsed);
 	for (i = 0; i < num_nodes; i++)
