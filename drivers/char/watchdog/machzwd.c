@@ -321,6 +321,7 @@ static int zf_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
 	case WDIOC_KEEPALIVE:
