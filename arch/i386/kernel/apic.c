@@ -524,6 +524,9 @@ void __init setup_boot_APIC_clock(void)
 		 */
 		if (nmi_watchdog != NMI_IO_APIC)
 			lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+		else
+			printk(KERN_WARNING "APIC timer registered as dummy,"
+			       " due to nmi_watchdog=1!\n");
 	}
 
 	/* Setup the lapic or request the broadcast */
