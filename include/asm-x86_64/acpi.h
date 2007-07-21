@@ -29,6 +29,7 @@
 #ifdef __KERNEL__
 
 #include <acpi/pdc_intel.h>
+#include <asm/numa.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
@@ -140,6 +141,16 @@ extern int acpi_pci_disabled;
 
 extern int acpi_skip_timer_override;
 extern int acpi_use_timer_override;
+
+#ifdef CONFIG_ACPI_NUMA
+extern void __init acpi_fake_nodes(const struct bootnode *fake_nodes,
+				   int num_nodes);
+#else
+static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
+				   int num_nodes)
+{
+}
+#endif
 
 #endif /*__KERNEL__*/
 

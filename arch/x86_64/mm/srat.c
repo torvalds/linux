@@ -350,7 +350,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 
 /* Sanity check to catch more bad SRATs (they are amazingly common).
    Make sure the PXMs cover all memory. */
-static int nodes_cover_memory(void)
+static int __init nodes_cover_memory(const struct bootnode *nodes)
 {
 	int i;
 	unsigned long pxmram, e820ram;
@@ -406,7 +406,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		}
 	}
 
-	if (!nodes_cover_memory()) {
+	if (!nodes_cover_memory(nodes)) {
 		bad_srat();
 		return -1;
 	}
@@ -440,6 +440,75 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	return 0;
 }
 
+#ifdef CONFIG_NUMA_EMU
+static int __init find_node_by_addr(unsigned long addr)
+{
+	int ret = NUMA_NO_NODE;
+	int i;
+
+	for_each_node_mask(i, nodes_parsed) {
+		/*
+		 * Find the real node that this emulated node appears on.  For
+		 * the sake of simplicity, we only use a real node's starting
+		 * address to determine which emulated node it appears on.
+		 */
+		if (addr >= nodes[i].start && addr < nodes[i].end) {
+			ret = i;
+			break;
+		}
+	}
+	return i;
+}
+
+/*
+ * In NUMA emulation, we need to setup proximity domain (_PXM) to node ID
+ * mappings that respect the real ACPI topology but reflect our emulated
+ * environment.  For each emulated node, we find which real node it appears on
+ * and create PXM to NID mappings for those fake nodes which mirror that
+ * locality.  SLIT will now represent the correct distances between emulated
+ * nodes as a result of the real topology.
+ */
+void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
+{
+	int i;
+	int fake_node_to_pxm_map[MAX_NUMNODES] = {
+		[0 ... MAX_NUMNODES-1] = PXM_INVAL
+	};
+
+	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
+			 "topology.\n");
+	for (i = 0; i < num_nodes; i++) {
+		int nid, pxm;
+
+		nid = find_node_by_addr(fake_nodes[i].start);
+		if (nid == NUMA_NO_NODE)
+			continue;
+		pxm = node_to_pxm(nid);
+		if (pxm == PXM_INVAL)
+			continue;
+		fake_node_to_pxm_map[i] = pxm;
+	}
+	for (i = 0; i < num_nodes; i++)
+		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
+
+	nodes_clear(nodes_parsed);
+	for (i = 0; i < num_nodes; i++)
+		if (fake_nodes[i].start != fake_nodes[i].end)
+			node_set(i, nodes_parsed);
+	WARN_ON(!nodes_cover_memory(fake_nodes));
+}
+
+static int null_slit_node_compare(int a, int b)
+{
+	return node_to_pxm(a) == node_to_pxm(b);
+}
+#else
+static int null_slit_node_compare(int a, int b)
+{
+	return a == b;
+}
+#endif /* CONFIG_NUMA_EMU */
+
 void __init srat_reserve_add_area(int nodeid)
 {
 	if (found_add_area && nodes_add[nodeid].end) {
@@ -464,7 +533,8 @@ int __node_distance(int a, int b)
 	int index;
 
 	if (!acpi_slit)
-		return a == b ? LOCAL_DISTANCE : REMOTE_DISTANCE;
+		return null_slit_node_compare(a, b) ? LOCAL_DISTANCE :
+						      REMOTE_DISTANCE;
 	index = acpi_slit->locality_count * node_to_pxm(a);
 	return acpi_slit->entry[index + node_to_pxm(b)];
 }

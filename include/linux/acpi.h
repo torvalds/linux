@@ -231,6 +231,9 @@ extern int acpi_paddr_to_node(u64 start_addr, u64 size);
 
 extern int pnpacpi_disabled;
 
+#define PXM_INVAL	(-1)
+#define NID_INVAL	(-1)
+
 #else	/* CONFIG_ACPI */
 
 static inline int acpi_boot_init(void)

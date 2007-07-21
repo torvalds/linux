@@ -484,6 +484,7 @@ out:
 						nodes[i].end >> PAGE_SHIFT);
  		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
+	acpi_fake_nodes(nodes, num_nodes);
  	numa_init_array();
  	return 0;
 }
