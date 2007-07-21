@@ -394,6 +394,9 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 {
 	int i;
 
+	if (acpi_numa <= 0)
+		return -1;
+
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		cutoff_node(i, start, end);
@@ -402,9 +405,6 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 			node_set_offline(i);
 		}
 	}
-
-	if (acpi_numa <= 0)
-		return -1;
 
 	if (!nodes_cover_memory()) {
 		bad_srat();

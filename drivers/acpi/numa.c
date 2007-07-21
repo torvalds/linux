@@ -40,9 +40,9 @@ static nodemask_t nodes_found_map = NODE_MASK_NONE;
 #define NID_INVAL	-1
 
 /* maps to convert between proximity domain and logical node ID */
-static int pxm_to_node_map[MAX_PXM_DOMAINS]
+static int __cpuinitdata pxm_to_node_map[MAX_PXM_DOMAINS]
 				= { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
-static int node_to_pxm_map[MAX_NUMNODES]
+static int __cpuinitdata node_to_pxm_map[MAX_NUMNODES]
 				= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
 
 int pxm_to_node(int pxm)
@@ -83,7 +83,8 @@ void __cpuinit acpi_unmap_pxm_to_node(int node)
 	node_clear(node, nodes_found_map);
 }
 
-void __init acpi_table_print_srat_entry(struct acpi_subtable_header * header)
+static void __init
+acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 {
 
 	ACPI_FUNCTION_NAME("acpi_table_print_srat_entry");
@@ -200,7 +201,7 @@ static int __init acpi_parse_srat(struct acpi_table_header *table)
 	return 0;
 }
 
-int __init
+static int __init
 acpi_table_parse_srat(enum acpi_srat_type id,
 		      acpi_table_entry_handler handler, unsigned int max_entries)
 {
@@ -211,14 +212,13 @@ acpi_table_parse_srat(enum acpi_srat_type id,
 
 int __init acpi_numa_init(void)
 {
-	int result;
-
 	/* SRAT: Static Resource Affinity Table */
 	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
-		result = acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
-					       acpi_parse_processor_affinity,
-					       NR_CPUS);
-		result = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY, acpi_parse_memory_affinity, NR_NODE_MEMBLKS);	// IA64 specific
+		acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
+				      acpi_parse_processor_affinity, NR_CPUS);
+		acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
+				      acpi_parse_memory_affinity,
+				      NR_NODE_MEMBLKS);
 	}
 
 	/* SLIT: System Locality Information Table */
