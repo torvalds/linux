@@ -775,8 +775,8 @@ static void calgary_watchdog(unsigned long data)
 	}
 }
 
-static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
-	unsigned char busnum)
+static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
+	unsigned char busnum, unsigned long timeout)
 {
 	u64 val64;
 	void __iomem *target;
@@ -802,7 +802,7 @@ static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
 	/* zero out this PHB's timer bits */
 	mask = ~(0xFUL << phb_shift);
 	val64 &= mask;
-	val64 |= (CCR_2SEC_TIMEOUT << phb_shift);
+	val64 |= (timeout << phb_shift);
 	writeq(cpu_to_be64(val64), target);
 	readq(target); /* flush */
 }
@@ -836,7 +836,8 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
 	 */
 	if (busnum == 1)
-		calgary_increase_split_completion_timeout(bbar, busnum);
+		calgary_set_split_completion_timeout(bbar, busnum,
+						     CCR_2SEC_TIMEOUT);
 
 	init_timer(&tbl->watchdog_timer);
 	tbl->watchdog_timer.function = &calgary_watchdog;
