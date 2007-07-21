@@ -244,7 +244,7 @@ static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
 static void mmu_free_memory_cache_page(struct kvm_mmu_memory_cache *mc)
 {
 	while (mc->nobjs)
-		__free_page(mc->objects[--mc->nobjs]);
+		free_page((unsigned long)mc->objects[--mc->nobjs]);
 }
 
 static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
