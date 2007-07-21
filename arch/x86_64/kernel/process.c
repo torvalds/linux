@@ -306,6 +306,7 @@ early_param("idle", idle_setup);
 void __show_regs(struct pt_regs * regs)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
+	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned int fsindex,gsindex;
 	unsigned int ds,cs,es; 
 
@@ -350,6 +351,15 @@ void __show_regs(struct pt_regs * regs)
 	       fs,fsindex,gs,gsindex,shadowgs); 
 	printk("CS:  %04x DS: %04x ES: %04x CR0: %016lx\n", cs, ds, es, cr0); 
 	printk("CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3, cr4);
+
+	get_debugreg(d0, 0);
+	get_debugreg(d1, 1);
+	get_debugreg(d2, 2);
+	printk("DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
+	get_debugreg(d3, 3);
+	get_debugreg(d6, 6);
+	get_debugreg(d7, 7);
+	printk("DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 }
 
 void show_regs(struct pt_regs *regs)

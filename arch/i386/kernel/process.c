@@ -300,6 +300,7 @@ early_param("idle", idle_setup);
 void show_regs(struct pt_regs * regs)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L;
+	unsigned long d0, d1, d2, d3, d6, d7;
 
 	printk("\n");
 	printk("Pid: %d, comm: %20s\n", current->pid, current->comm);
@@ -324,6 +325,17 @@ void show_regs(struct pt_regs * regs)
 	cr3 = read_cr3();
 	cr4 = read_cr4_safe();
 	printk("CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n", cr0, cr2, cr3, cr4);
+
+	get_debugreg(d0, 0);
+	get_debugreg(d1, 1);
+	get_debugreg(d2, 2);
+	get_debugreg(d3, 3);
+	printk("DR0: %08lx DR1: %08lx DR2: %08lx DR3: %08lx\n",
+			d0, d1, d2, d3);
+	get_debugreg(d6, 6);
+	get_debugreg(d7, 7);
+	printk("DR6: %08lx DR7: %08lx\n", d6, d7);
+
 	show_trace(NULL, regs, &regs->esp);
 }
 
