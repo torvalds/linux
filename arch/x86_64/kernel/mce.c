@@ -375,7 +375,8 @@ static void mcheck_timer(struct work_struct *work)
 	if (mce_notify_user()) {
 		next_interval = max(next_interval/2, HZ/100);
 	} else {
-		next_interval = min(next_interval*2, check_interval*HZ);
+		next_interval = min(next_interval*2,
+				(int)round_jiffies_relative(check_interval*HZ));
 	}
 
 	schedule_delayed_work(&mcheck_work, next_interval);
@@ -428,7 +429,8 @@ static __init int periodic_mcheck_init(void)
 { 
 	next_interval = check_interval * HZ;
 	if (next_interval)
-		schedule_delayed_work(&mcheck_work, next_interval);
+		schedule_delayed_work(&mcheck_work,
+				      round_jiffies_relative(next_interval));
 	idle_notifier_register(&mce_idle_notifier);
 	return 0;
 } 
@@ -720,7 +722,8 @@ static void mce_restart(void)
 	on_each_cpu(mce_init, NULL, 1, 1);       
 	next_interval = check_interval * HZ;
 	if (next_interval)
-		schedule_delayed_work(&mcheck_work, next_interval);
+		schedule_delayed_work(&mcheck_work,
+				      round_jiffies_relative(next_interval));
 }
 
 static struct sysdev_class mce_sysclass = {
