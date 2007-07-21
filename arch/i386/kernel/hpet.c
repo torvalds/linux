@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/pm.h>
+#include <linux/delay.h>
 
 #include <asm/hpet.h>
 #include <asm/io.h>
