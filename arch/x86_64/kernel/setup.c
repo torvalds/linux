@@ -575,6 +575,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	level = cpuid_eax(1);
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+	if (c->x86 == 0x10)
+		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 
 	/* Enable workaround for FXSAVE leak */
 	if (c->x86 >= 6)
