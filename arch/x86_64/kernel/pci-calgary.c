@@ -233,6 +233,7 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	unsigned long index;
 	unsigned long end;
 	unsigned long badbit;
+	unsigned long flags;
 
 	index = start_addr >> PAGE_SHIFT;
 
@@ -244,6 +245,8 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	if (end > tbl->it_size) /* don't go off the table */
 		end = tbl->it_size;
 
+	spin_lock_irqsave(&tbl->it_lock, flags);
+
 	badbit = verify_bit_range(tbl->it_map, 0, index, end);
 	if (badbit != ~0UL) {
 		if (printk_ratelimit())
@@ -253,14 +256,19 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	}
 
 	set_bit_string(tbl->it_map, index, npages);
+
+	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	unsigned int npages)
 {
+	unsigned long flags;
 	unsigned long offset;
 
 	BUG_ON(npages == 0);
+
+	spin_lock_irqsave(&tbl->it_lock, flags);
 
 	offset = find_next_zero_string(tbl->it_map, tbl->it_hint,
 				       tbl->it_size, npages);
@@ -270,6 +278,7 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 					       tbl->it_size, npages);
 		if (offset == ~0UL) {
 			printk(KERN_WARNING "Calgary: IOMMU full.\n");
+			spin_unlock_irqrestore(&tbl->it_lock, flags);
 			if (panic_on_overflow)
 				panic("Calgary: fix the allocator.\n");
 			else
@@ -281,16 +290,16 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	tbl->it_hint = offset + npages;
 	BUG_ON(tbl->it_hint > tbl->it_size);
 
+	spin_unlock_irqrestore(&tbl->it_lock, flags);
+
 	return offset;
 }
 
 static dma_addr_t iommu_alloc(struct iommu_table *tbl, void *vaddr,
 	unsigned int npages, int direction)
 {
-	unsigned long entry, flags;
+	unsigned long entry;
 	dma_addr_t ret = bad_dma_address;
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
 
 	entry = iommu_range_alloc(tbl, npages);
 
@@ -304,12 +313,9 @@ static dma_addr_t iommu_alloc(struct iommu_table *tbl, void *vaddr,
 	tce_build(tbl, entry, npages, (unsigned long)vaddr & PAGE_MASK,
 		  direction);
 
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
-
 	return ret;
 
 error:
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 	printk(KERN_WARNING "Calgary: failed to allocate %u pages in "
 	       "iommu %p\n", npages, tbl);
 	return bad_dma_address;
@@ -321,6 +327,7 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned long entry;
 	unsigned long badbit;
 	unsigned long badend;
+	unsigned long flags;
 
 	/* were we called with bad_dma_address? */
 	badend = bad_dma_address + (EMERGENCY_PAGES * PAGE_SIZE);
@@ -337,6 +344,8 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 
 	tce_free(tbl, entry, npages);
 
+	spin_lock_irqsave(&tbl->it_lock, flags);
+
 	badbit = verify_bit_range(tbl->it_map, 1, entry, entry + npages);
 	if (badbit != ~0UL) {
 		if (printk_ratelimit())
@@ -346,18 +355,14 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	}
 
 	__clear_bit_string(tbl->it_map, entry, npages);
+
+	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
-
 	__iommu_free(tbl, dma_addr, npages);
-
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static inline struct iommu_table *find_iommu_table(struct device *dev)
@@ -402,17 +407,12 @@ static void __calgary_unmap_sg(struct iommu_table *tbl,
 void calgary_unmap_sg(struct device *dev, struct scatterlist *sglist,
 		      int nelems, int direction)
 {
-	unsigned long flags;
 	struct iommu_table *tbl = find_iommu_table(dev);
 
 	if (!translate_phb(to_pci_dev(dev)))
 		return;
 
-	spin_lock_irqsave(&tbl->it_lock, flags);
-
 	__calgary_unmap_sg(tbl, sglist, nelems, direction);
-
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static int calgary_nontranslate_map_sg(struct device* dev,
@@ -433,7 +433,6 @@ int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	int nelems, int direction)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
-	unsigned long flags;
 	unsigned long vaddr;
 	unsigned int npages;
 	unsigned long entry;
@@ -441,8 +440,6 @@ int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 
 	if (!translate_phb(to_pci_dev(dev)))
 		return calgary_nontranslate_map_sg(dev, sg, nelems, direction);
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
 
 	for (i = 0; i < nelems; i++ ) {
 		struct scatterlist *s = &sg[i];
@@ -467,8 +464,6 @@ int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		s->dma_length = s->length;
 	}
 
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
-
 	return nelems;
 error:
 	__calgary_unmap_sg(tbl, sg, nelems, direction);
@@ -476,7 +471,6 @@ error:
 		sg[i].dma_address = bad_dma_address;
 		sg[i].dma_length = 0;
 	}
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 	return 0;
 }
 
