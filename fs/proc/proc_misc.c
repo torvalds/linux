@@ -507,7 +507,8 @@ static int show_stat(struct seq_file *p, void *v)
 	}
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
-#if !defined(CONFIG_PPC64) && !defined(CONFIG_ALPHA) && !defined(CONFIG_IA64)
+#ifndef CONFIG_SMP
+	/* Touches too many cache lines on SMP setups */
 	for (i = 0; i < NR_IRQS; i++)
 		seq_printf(p, " %u", per_irq_sum[i]);
 #endif
