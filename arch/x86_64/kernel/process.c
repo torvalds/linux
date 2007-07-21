@@ -279,7 +279,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		 */
 		if (!pm_idle) {
 			if (!printed) {
-				printk("using mwait in idle threads.\n");
+				printk(KERN_INFO "using mwait in idle threads.\n");
 				printed = 1;
 			}
 			pm_idle = mwait_idle;
