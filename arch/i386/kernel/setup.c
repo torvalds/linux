@@ -466,7 +466,7 @@ void __init setup_bootmem_allocator(void)
  *
  * This should all compile down to nothing when NUMA is off.
  */
-void __init remapped_pgdat_init(void)
+static void __init remapped_pgdat_init(void)
 {
 	int nid;
 
