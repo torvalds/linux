@@ -2154,7 +2154,7 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_SIMM13(ptrs_per_pgd, SRMMU_PTRS_PER_PGD);
 
 	BTFIXUPSET_INT(page_none, pgprot_val(SRMMU_PAGE_NONE));
-	BTFIXUPSET_INT(page_shared, pgprot_val(SRMMU_PAGE_SHARED));
+	PAGE_SHARED = pgprot_val(SRMMU_PAGE_SHARED);
 	BTFIXUPSET_INT(page_copy, pgprot_val(SRMMU_PAGE_COPY));
 	BTFIXUPSET_INT(page_readonly, pgprot_val(SRMMU_PAGE_RDONLY));
 	BTFIXUPSET_INT(page_kernel, pgprot_val(SRMMU_PAGE_KERNEL));
