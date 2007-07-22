@@ -556,8 +556,10 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	/*
 	 * Can we support the voltage of the card?
 	 */
-	if (!host->ocr)
+	if (!host->ocr) {
+		err = -EINVAL;
 		goto err;
+	}
 
 	/*
 	 * Detect and init the card.
@@ -581,6 +583,9 @@ remove_card:
 err:
 	mmc_detach_bus(host);
 	mmc_release_host(host);
+
+	printk(KERN_ERR "%s: error %d whilst initialising MMC card\n",
+		mmc_hostname(host), err);
 
 	return 0;
 }

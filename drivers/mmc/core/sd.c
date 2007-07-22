@@ -637,8 +637,10 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	/*
 	 * Can we support the voltage(s) of the card(s)?
 	 */
-	if (!host->ocr)
+	if (!host->ocr) {
+		err = -EINVAL;
 		goto err;
+	}
 
 	/*
 	 * Detect and init the card.
@@ -662,6 +664,9 @@ remove_card:
 err:
 	mmc_detach_bus(host);
 	mmc_release_host(host);
+
+	printk(KERN_ERR "%s: error %d whilst initialising SD card\n",
+		mmc_hostname(host), err);
 
 	return 0;
 }
