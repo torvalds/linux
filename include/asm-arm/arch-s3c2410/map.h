@@ -13,32 +13,19 @@
 #ifndef __ASM_ARCH_MAP_H
 #define __ASM_ARCH_MAP_H
 
-/* we have a bit of a tight squeeze to fit all our registers from
- * 0xF00000000 upwards, since we use all of the nGCS space in some
- * capacity, and also need to fit the S3C2410 registers in as well...
- *
- * we try to ensure stuff like the IRQ registers are available for
- * an single MOVS instruction (ie, only 8 bits of set data)
- *
- * Note, we are trying to remove some of these from the implementation
- * as they are only useful to certain drivers...
- */
+#include <asm/plat-s3c/map.h>
 
-#ifndef __ASSEMBLY__
-#define S3C2410_ADDR(x)	  ((void __iomem __force *)0xF0000000 + (x))
-#else
-#define S3C2410_ADDR(x)	  (0xF0000000 + (x))
-#endif
+#define S3C2410_ADDR(x)		S3C_ADDR(x)
 
 /* interrupt controller is the first thing we put in, to make
  * the assembly code for the irq detection easier
  */
-#define S3C24XX_VA_IRQ	   S3C2410_ADDR(0x00000000)
+#define S3C24XX_VA_IRQ	   S3C_VA_IRQ
 #define S3C2410_PA_IRQ	   (0x4A000000)
 #define S3C24XX_SZ_IRQ	   SZ_1M
 
 /* memory controller registers */
-#define S3C24XX_VA_MEMCTRL S3C2410_ADDR(0x00100000)
+#define S3C24XX_VA_MEMCTRL S3C_VA_MEM
 #define S3C2410_PA_MEMCTRL (0x48000000)
 #define S3C24XX_SZ_MEMCTRL SZ_1M
 
@@ -51,7 +38,7 @@
 #define S3C24XX_SZ_DMA	   SZ_1M
 
 /* Clock and Power management */
-#define S3C24XX_VA_CLKPWR  S3C2410_ADDR(0x00200000)
+#define S3C24XX_VA_CLKPWR  S3C_VA_SYS
 #define S3C2410_PA_CLKPWR  (0x4C000000)
 #define S3C24XX_SZ_CLKPWR  SZ_1M
 
@@ -64,12 +51,12 @@
 #define S3C24XX_SZ_NAND	   SZ_1M
 
 /* UARTs */
-#define S3C24XX_VA_UART	   S3C2410_ADDR(0x00400000)
+#define S3C24XX_VA_UART	   S3C_VA_UART
 #define S3C2410_PA_UART	   (0x50000000)
 #define S3C24XX_SZ_UART	   SZ_1M
 
 /* Timers */
-#define S3C24XX_VA_TIMER   S3C2410_ADDR(0x00500000)
+#define S3C24XX_VA_TIMER   S3C_VA_TIMER
 #define S3C2410_PA_TIMER   (0x51000000)
 #define S3C24XX_SZ_TIMER   SZ_1M
 
@@ -78,7 +65,7 @@
 #define S3C24XX_SZ_USBDEV  SZ_1M
 
 /* Watchdog */
-#define S3C24XX_VA_WATCHDOG S3C2410_ADDR(0x00700000)
+#define S3C24XX_VA_WATCHDOG S3C_VA_WATCHDOG
 #define S3C2410_PA_WATCHDOG (0x53000000)
 #define S3C24XX_SZ_WATCHDOG SZ_1M
 
@@ -96,7 +83,7 @@
  * it is the same distance apart from the UART in the
  * phsyical address space, as the initial mapping for the IO
  * is done as a 1:1 maping. This puts it (currently) at
- * 0xF6800000, which is not in the way of any current mapping
+ * 0xFA800000, which is not in the way of any current mapping
  * by the base system.
 */
 
@@ -152,7 +139,6 @@
 #define S3C2410_CS7 (0x38000000)
 
 #define S3C2410_SDRAM_PA    (S3C2410_CS6)
-
 
 /* Use a single interface for common resources between S3C24XX cpus */
 
