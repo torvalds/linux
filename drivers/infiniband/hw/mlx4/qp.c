@@ -415,9 +415,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_wrid:
-	if (pd->uobject && !init_attr->srq)
-		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &qp->db);
-	else {
+	if (pd->uobject) {
+		if (!init_attr->srq)
+			mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context),
+					      &qp->db);
+	} else {
 		kfree(qp->sq.wrid);
 		kfree(qp->rq.wrid);
 	}
@@ -742,7 +744,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_4096) {
 			printk(KERN_ERR "path MTU (%u) is invalid\n",
 			       attr->path_mtu);
-			return -EINVAL;
+			goto out;
 		}
 		context->mtu_msgmax = (attr->path_mtu << 5) | 31;
 	}
@@ -781,10 +783,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (attr_mask & IB_QP_AV) {
 		if (mlx4_set_path(dev, &attr->ah_attr, &context->pri_path,
-				  attr_mask & IB_QP_PORT ? attr->port_num : qp->port)) {
-			err = -EINVAL;
+				  attr_mask & IB_QP_PORT ? attr->port_num : qp->port))
 			goto out;
-		}
 
 		optpar |= (MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH |
 			   MLX4_QP_OPTPAR_SCHED_QUEUE);
@@ -798,15 +798,15 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (attr_mask & IB_QP_ALT_PATH) {
 		if (attr->alt_port_num == 0 ||
 		    attr->alt_port_num > dev->dev->caps.num_ports)
-			return -EINVAL;
+			goto out;
 
 		if (attr->alt_pkey_index >=
 		    dev->dev->caps.pkey_table_len[attr->alt_port_num])
-			return -EINVAL;
+			goto out;
 
 		if (mlx4_set_path(dev, &attr->alt_ah_attr, &context->alt_path,
 				  attr->alt_port_num))
-			return -EINVAL;
+			goto out;
 
 		context->alt_path.pkey_index = attr->alt_pkey_index;
 		context->alt_path.ackto = attr->alt_timeout << 3;

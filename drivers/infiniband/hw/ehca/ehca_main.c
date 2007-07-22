@@ -63,6 +63,7 @@ int ehca_port_act_time = 30;
 int ehca_poll_all_eqs  = 1;
 int ehca_static_rate   = -1;
 int ehca_scaling_code  = 0;
+int ehca_mr_largepage  = 0;
 
 module_param_named(open_aqp1,     ehca_open_aqp1,     int, 0);
 module_param_named(debug_level,   ehca_debug_level,   int, 0);
@@ -72,7 +73,8 @@ module_param_named(use_hp_mr,     ehca_use_hp_mr,     int, 0);
 module_param_named(port_act_time, ehca_port_act_time, int, 0);
 module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  int, 0);
 module_param_named(static_rate,   ehca_static_rate,   int, 0);
-module_param_named(scaling_code,   ehca_scaling_code,   int, 0);
+module_param_named(scaling_code,  ehca_scaling_code,  int, 0);
+module_param_named(mr_largepage,  ehca_mr_largepage,  int, 0);
 
 MODULE_PARM_DESC(open_aqp1,
 		 "AQP1 on startup (0: no (default), 1: yes)");
@@ -95,6 +97,9 @@ MODULE_PARM_DESC(static_rate,
 		 "set permanent static rate (default: disabled)");
 MODULE_PARM_DESC(scaling_code,
 		 "set scaling code (0: disabled/default, 1: enabled)");
+MODULE_PARM_DESC(mr_largepage,
+		 "use large page for MR (0: use PAGE_SIZE (default), "
+		 "1: use large page depending on MR size");
 
 DEFINE_RWLOCK(ehca_qp_idr_lock);
 DEFINE_RWLOCK(ehca_cq_idr_lock);
@@ -124,6 +129,23 @@ void ehca_free_fw_ctrlblock(void *ptr)
 
 }
 #endif
+
+int ehca2ib_return_code(u64 ehca_rc)
+{
+	switch (ehca_rc) {
+	case H_SUCCESS:
+		return 0;
+	case H_RESOURCE:             /* Resource in use */
+	case H_BUSY:
+		return -EBUSY;
+	case H_NOT_ENOUGH_RESOURCES: /* insufficient resources */
+	case H_CONSTRAINED:          /* resource constraint */
+	case H_NO_MEM:
+		return -ENOMEM;
+	default:
+		return -EINVAL;
+	}
+}
 
 static int ehca_create_slab_caches(void)
 {
@@ -159,6 +181,12 @@ static int ehca_create_slab_caches(void)
 		goto create_slab_caches5;
 	}
 
+	ret = ehca_init_small_qp_cache();
+	if (ret) {
+		ehca_gen_err("Cannot create small queue SLAB cache.");
+		goto create_slab_caches6;
+	}
+
 #ifdef CONFIG_PPC_64K_PAGES
 	ctblk_cache = kmem_cache_create("ehca_cache_ctblk",
 					EHCA_PAGESIZE, H_CB_ALIGNMENT,
@@ -166,11 +194,14 @@ static int ehca_create_slab_caches(void)
 					NULL);
 	if (!ctblk_cache) {
 		ehca_gen_err("Cannot create ctblk SLAB cache.");
-		ehca_cleanup_mrmw_cache();
-		goto create_slab_caches5;
+		ehca_cleanup_small_qp_cache();
+		goto create_slab_caches6;
 	}
 #endif
 	return 0;
+
+create_slab_caches6:
+	ehca_cleanup_mrmw_cache();
 
 create_slab_caches5:
 	ehca_cleanup_av_cache();
@@ -189,6 +220,7 @@ create_slab_caches2:
 
 static void ehca_destroy_slab_caches(void)
 {
+	ehca_cleanup_small_qp_cache();
 	ehca_cleanup_mrmw_cache();
 	ehca_cleanup_av_cache();
 	ehca_cleanup_qp_cache();
@@ -294,6 +326,8 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	for (i = 0; i < ARRAY_SIZE(hca_cap_descr); i++)
 		if (EHCA_BMASK_GET(hca_cap_descr[i].mask, shca->hca_cap))
 			ehca_gen_dbg("   %s", hca_cap_descr[i].descr);
+
+	shca->hca_cap_mr_pgsize = rblock->memory_page_size_supported;
 
 	port = (struct hipz_query_port *)rblock;
 	h_ret = hipz_h_query_port(shca->ipz_hca_handle, 1, port);
@@ -590,6 +624,14 @@ static ssize_t ehca_show_adapter_handle(struct device *dev,
 }
 static DEVICE_ATTR(adapter_handle, S_IRUGO, ehca_show_adapter_handle, NULL);
 
+static ssize_t ehca_show_mr_largepage(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", ehca_mr_largepage);
+}
+static DEVICE_ATTR(mr_largepage, S_IRUGO, ehca_show_mr_largepage, NULL);
+
 static struct attribute *ehca_dev_attrs[] = {
 	&dev_attr_adapter_handle.attr,
 	&dev_attr_num_ports.attr,
@@ -606,6 +648,7 @@ static struct attribute *ehca_dev_attrs[] = {
 	&dev_attr_cur_mw.attr,
 	&dev_attr_max_pd.attr,
 	&dev_attr_max_ah.attr,
+	&dev_attr_mr_largepage.attr,
 	NULL
 };
 

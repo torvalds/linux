@@ -154,24 +154,7 @@ extern int ehca_debug_level;
 #define EHCA_BMASK_GET(mask, value) \
 	(EHCA_BMASK_MASK(mask) & (((u64)(value)) >> EHCA_BMASK_SHIFTPOS(mask)))
 
-
 /* Converts ehca to ib return code */
-static inline int ehca2ib_return_code(u64 ehca_rc)
-{
-	switch (ehca_rc) {
-	case H_SUCCESS:
-		return 0;
-	case H_RESOURCE:             /* Resource in use */
-	case H_BUSY:
-		return -EBUSY;
-	case H_NOT_ENOUGH_RESOURCES: /* insufficient resources */
-	case H_CONSTRAINED:          /* resource constraint */
-	case H_NO_MEM:
-		return -ENOMEM;
-	default:
-		return -EINVAL;
-	}
-}
-
+int ehca2ib_return_code(u64 ehca_rc);
 
 #endif /* EHCA_TOOLS_H */

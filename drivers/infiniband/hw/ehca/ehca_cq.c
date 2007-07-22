@@ -190,8 +190,8 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		goto create_cq_exit2;
 	}
 
-	ipz_rc = ipz_queue_ctor(&my_cq->ipz_queue, param.act_pages,
-				EHCA_PAGESIZE, sizeof(struct ehca_cqe), 0);
+	ipz_rc = ipz_queue_ctor(NULL, &my_cq->ipz_queue, param.act_pages,
+				EHCA_PAGESIZE, sizeof(struct ehca_cqe), 0, 0);
 	if (!ipz_rc) {
 		ehca_err(device, "ipz_queue_ctor() failed ipz_rc=%x device=%p",
 			 ipz_rc, device);
@@ -285,7 +285,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	return cq;
 
 create_cq_exit4:
-	ipz_queue_dtor(&my_cq->ipz_queue);
+	ipz_queue_dtor(NULL, &my_cq->ipz_queue);
 
 create_cq_exit3:
 	h_ret = hipz_h_destroy_cq(adapter_handle, my_cq, 1);
@@ -359,7 +359,7 @@ int ehca_destroy_cq(struct ib_cq *cq)
 			 "ehca_cq=%p cq_num=%x", h_ret, my_cq, cq_num);
 		return ehca2ib_return_code(h_ret);
 	}
-	ipz_queue_dtor(&my_cq->ipz_queue);
+	ipz_queue_dtor(NULL, &my_cq->ipz_queue);
 	kmem_cache_free(cq_cache, my_cq);
 
 	return 0;

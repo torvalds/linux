@@ -43,7 +43,6 @@
 #ifndef __EHCA_CLASSES_H__
 #define __EHCA_CLASSES_H__
 
-
 struct ehca_module;
 struct ehca_qp;
 struct ehca_cq;
@@ -100,6 +99,11 @@ struct ehca_sport {
 	struct ehca_sma_attr saved_attr;
 };
 
+#define HCA_CAP_MR_PGSIZE_4K  1
+#define HCA_CAP_MR_PGSIZE_64K 2
+#define HCA_CAP_MR_PGSIZE_1M  4
+#define HCA_CAP_MR_PGSIZE_16M 8
+
 struct ehca_shca {
 	struct ib_device ib_device;
 	struct ibmebus_dev *ibmebus_dev;
@@ -115,6 +119,8 @@ struct ehca_shca {
 	struct h_galpas galpas;
 	struct mutex modify_mutex;
 	u64 hca_cap;
+	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
+	u32 hca_cap_mr_pgsize;
 	int max_mtu;
 };
 
@@ -122,6 +128,10 @@ struct ehca_pd {
 	struct ib_pd ib_pd;
 	struct ipz_pd fw_pd;
 	u32 ownpid;
+	/* small queue mgmt */
+	struct mutex lock;
+	struct list_head free[2];
+	struct list_head full[2];
 };
 
 enum ehca_ext_qp_type {
@@ -206,6 +216,7 @@ struct ehca_mr {
 	enum ehca_mr_flag flags;
 	u32 num_kpages;		/* number of kernel pages */
 	u32 num_hwpages;	/* number of hw pages to form MR */
+	u64 hwpage_size;	/* hw page size used for this MR */
 	int acl;		/* ACL (stored here for usage in reregister) */
 	u64 *start;		/* virtual start address (stored here for */
 				/* usage in reregister) */
@@ -240,6 +251,7 @@ struct ehca_mr_pginfo {
 	enum ehca_mr_pgi_type type;
 	u64 num_kpages;
 	u64 kpage_cnt;
+	u64 hwpage_size;     /* hw page size used for this MR */
 	u64 num_hwpages;     /* number of hw pages */
 	u64 hwpage_cnt;      /* counter for hw pages */
 	u64 next_hwpage;     /* next hw page in buffer/chunk/listelem */
@@ -298,6 +310,8 @@ int ehca_init_av_cache(void);
 void ehca_cleanup_av_cache(void);
 int ehca_init_mrmw_cache(void);
 void ehca_cleanup_mrmw_cache(void);
+int ehca_init_small_qp_cache(void);
+void ehca_cleanup_small_qp_cache(void);
 
 extern rwlock_t ehca_qp_idr_lock;
 extern rwlock_t ehca_cq_idr_lock;
@@ -315,7 +329,7 @@ struct ipzu_queue_resp {
 	u32 queue_length; /* queue length allocated in bytes */
 	u32 pagesize;
 	u32 toggle_state;
-	u32 dummy; /* padding for 8 byte alignment */
+	u32 offset; /* save offset within a page for small_qp */
 };
 
 struct ehca_create_cq_resp {
@@ -357,15 +371,29 @@ enum ehca_ll_comp_flags {
 	LLQP_COMP_MASK = 0x60,
 };
 
+struct ehca_alloc_queue_parms {
+	/* input parameters */
+	int max_wr;
+	int max_sge;
+	int page_size;
+	int is_small;
+
+	/* output parameters */
+	u16 act_nr_wqes;
+	u8  act_nr_sges;
+	u32 queue_size; /* bytes for small queues, pages otherwise */
+};
+
 struct ehca_alloc_qp_parms {
-/* input parameters */
+	struct ehca_alloc_queue_parms squeue;
+	struct ehca_alloc_queue_parms rqueue;
+
+	/* input parameters */
 	enum ehca_service_type servicetype;
+	int qp_storage;
 	int sigtype;
 	enum ehca_ext_qp_type ext_type;
 	enum ehca_ll_comp_flags ll_comp_flags;
-
-	int max_send_wr, max_recv_wr;
-	int max_send_sge, max_recv_sge;
 	int ud_av_l_key_ctl;
 
 	u32 token;
@@ -375,18 +403,10 @@ struct ehca_alloc_qp_parms {
 
 	u32 srq_qpn, srq_token, srq_limit;
 
-/* output parameters */
+	/* output parameters */
 	u32 real_qp_num;
 	struct ipz_qp_handle qp_handle;
 	struct h_galpas galpas;
-
-	u16 act_nr_send_wqes;
-	u16 act_nr_recv_wqes;
-	u8  act_nr_recv_sges;
-	u8  act_nr_send_sges;
-
-	u32 nr_rq_pages;
-	u32 nr_sq_pages;
 };
 
 int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp);
