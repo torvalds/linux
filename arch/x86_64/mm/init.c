@@ -383,7 +383,7 @@ void __meminit init_memory_mapping(unsigned long start, unsigned long end)
 	} 
 
 	if (!after_bootmem)
-		asm volatile("movq %%cr4,%0" : "=r" (mmu_cr4_features));
+		mmu_cr4_features = read_cr4();
 	__flush_tlb_all();
 }
 
