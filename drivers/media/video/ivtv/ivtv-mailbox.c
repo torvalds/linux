@@ -40,6 +40,7 @@
 #define API_HIGH_VOL 	 (1 << 5)	/* High volume command (i.e. called during encoding or decoding) */
 #define API_NO_WAIT_MB 	 (1 << 4)	/* Command may not wait for a free mailbox */
 #define API_NO_WAIT_RES	 (1 << 5)	/* Command may not wait for the result */
+#define API_NO_POLL	 (1 << 6)	/* Avoid pointless polling */
 
 struct ivtv_api_info {
 	int flags;		/* Flags, see above */
@@ -51,7 +52,7 @@ struct ivtv_api_info {
 static const struct ivtv_api_info api_info[256] = {
 	/* MPEG encoder API */
 	API_ENTRY(CX2341X_ENC_PING_FW, 			API_FAST_RESULT),
-	API_ENTRY(CX2341X_ENC_START_CAPTURE, 		API_RESULT),
+	API_ENTRY(CX2341X_ENC_START_CAPTURE, 		API_RESULT | API_NO_POLL),
 	API_ENTRY(CX2341X_ENC_STOP_CAPTURE, 		API_RESULT),
 	API_ENTRY(CX2341X_ENC_SET_AUDIO_ID, 		API_CACHE),
 	API_ENTRY(CX2341X_ENC_SET_VIDEO_ID, 		API_CACHE),
@@ -96,7 +97,7 @@ static const struct ivtv_api_info api_info[256] = {
 
 	/* MPEG decoder API */
 	API_ENTRY(CX2341X_DEC_PING_FW, 			API_FAST_RESULT),
-	API_ENTRY(CX2341X_DEC_START_PLAYBACK, 		API_RESULT),
+	API_ENTRY(CX2341X_DEC_START_PLAYBACK, 		API_RESULT | API_NO_POLL),
 	API_ENTRY(CX2341X_DEC_STOP_PLAYBACK, 		API_RESULT),
 	API_ENTRY(CX2341X_DEC_SET_PLAYBACK_SPEED, 	API_RESULT),
 	API_ENTRY(CX2341X_DEC_STEP_VIDEO, 		API_RESULT),
@@ -290,6 +291,13 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	/* Get results */
 	then = jiffies;
 
+	if (!(flags & API_NO_POLL)) {
+		/* First try to poll, then switch to delays */
+		for (i = 0; i < 100; i++) {
+			if (readl(&mbox->flags) & IVTV_MBOX_FIRMWARE_DONE)
+				break;
+		}
+	}
 	while (!(readl(&mbox->flags) & IVTV_MBOX_FIRMWARE_DONE)) {
 		if (jiffies - then > api_timeout) {
 			IVTV_DEBUG_WARN("Could not get result (%s)\n", api_info[cmd].name);
@@ -301,7 +309,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 		if (flags & API_NO_WAIT_RES)
 			mdelay(1);
 		else
-			ivtv_msleep_timeout(10, 0);
+			ivtv_msleep_timeout(1, 0);
 	}
 	if (jiffies - then > msecs_to_jiffies(100))
 		IVTV_DEBUG_WARN("%s took %u jiffies\n",
