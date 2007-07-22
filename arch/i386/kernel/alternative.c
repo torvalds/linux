@@ -8,6 +8,8 @@
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
+#include <asm/mce.h>
+#include <asm/nmi.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 static int smp_alt_once;
@@ -373,6 +375,14 @@ void __init alternative_instructions(void)
 {
 	unsigned long flags;
 
+	/* The patching is not fully atomic, so try to avoid local interruptions
+	   that might execute the to be patched code.
+	   Other CPUs are not running. */
+	stop_nmi();
+#ifdef CONFIG_MCE
+	stop_mce();
+#endif
+
 	local_irq_save(flags);
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
@@ -405,6 +415,11 @@ void __init alternative_instructions(void)
 #endif
  	apply_paravirt(__parainstructions, __parainstructions_end);
 	local_irq_restore(flags);
+
+	restart_nmi();
+#ifdef CONFIG_MCE
+	restart_mce();
+#endif
 }
 
 /*

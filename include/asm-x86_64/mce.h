@@ -107,6 +107,9 @@ extern void do_machine_check(struct pt_regs *, long);
 
 extern int mce_notify_user(void);
 
+extern void stop_mce(void);
+extern void restart_mce(void);
+
 #endif
 
 #endif

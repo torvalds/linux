@@ -667,6 +667,20 @@ static struct miscdevice mce_log_device = {
 	&mce_chrdev_ops,
 };
 
+static unsigned long old_cr4 __initdata;
+
+void __init stop_mce(void)
+{
+	old_cr4 = read_cr4();
+	clear_in_cr4(X86_CR4_MCE);
+}
+
+void __init restart_mce(void)
+{
+	if (old_cr4 & X86_CR4_MCE)
+		set_in_cr4(X86_CR4_MCE);
+}
+
 /* 
  * Old style boot options parsing. Only for compatibility. 
  */

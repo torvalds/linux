@@ -5,3 +5,7 @@ extern void mcheck_init(struct cpuinfo_x86 *c);
 #endif
 
 extern int mce_disabled;
+
+extern void stop_mce(void);
+extern void restart_mce(void);
+

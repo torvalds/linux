@@ -775,6 +775,8 @@ static __kprobes void default_do_nmi(struct pt_regs * regs)
 	reassert_nmi();
 }
 
+static int ignore_nmis;
+
 fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu;
@@ -785,9 +787,22 @@ fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 
 	++nmi_count(cpu);
 
-	default_do_nmi(regs);
+	if (!ignore_nmis)
+		default_do_nmi(regs);
 
 	nmi_exit();
+}
+
+void stop_nmi(void)
+{
+	acpi_nmi_disable();
+	ignore_nmis++;
+}
+
+void restart_nmi(void)
+{
+	ignore_nmis--;
+	acpi_nmi_enable();
 }
 
 #ifdef CONFIG_KPROBES

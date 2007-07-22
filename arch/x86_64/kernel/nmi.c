@@ -384,11 +384,14 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	return rc;
 }
 
+static unsigned ignore_nmis;
+
 asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	nmi_enter();
 	add_pda(__nmi_count,1);
-	default_do_nmi(regs);
+	if (!ignore_nmis)
+		default_do_nmi(regs);
 	nmi_exit();
 }
 
@@ -399,6 +402,18 @@ int do_nmi_callback(struct pt_regs * regs, int cpu)
 		return unknown_nmi_panic_callback(regs, cpu);
 #endif
 	return 0;
+}
+
+void stop_nmi(void)
+{
+	acpi_nmi_disable();
+	ignore_nmis++;
+}
+
+void restart_nmi(void)
+{
+	ignore_nmis--;
+	acpi_nmi_enable();
 }
 
 #ifdef CONFIG_SYSCTL
