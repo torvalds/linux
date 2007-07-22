@@ -1930,7 +1930,7 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 skip_fsfstatus:
 	send_els->status = retval;
 
-	if (send_els->handler != 0)
+	if (send_els->handler)
 		send_els->handler(send_els->handler_data);
 
 	return retval;

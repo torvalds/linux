@@ -37,6 +37,7 @@ config FUSION_FC
 	  LSIFC929
 	  LSIFC929X
 	  LSIFC929XL
+	  Brocade FC 410/420
 
 config FUSION_SAS
 	tristate "Fusion MPT ScsiHost drivers for SAS"

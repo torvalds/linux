@@ -932,24 +932,34 @@ void bsg_unregister_queue(struct request_queue *q)
 {
 	struct bsg_class_device *bcd = &q->bsg_dev;
 
-	WARN_ON(!bcd->class_dev);
+	if (!bcd->class_dev)
+		return;
 
 	mutex_lock(&bsg_mutex);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
+	class_device_unregister(bcd->class_dev);
+	put_device(bcd->dev);
 	bcd->class_dev = NULL;
+	bcd->dev = NULL;
 	list_del_init(&bcd->list);
 	bsg_device_nr--;
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, const char *name)
+int bsg_register_queue(struct request_queue *q, struct device *gdev,
+		       const char *name)
 {
 	struct bsg_class_device *bcd, *__bcd;
 	dev_t dev;
 	int ret = -EMFILE;
 	struct class_device *class_dev = NULL;
+	const char *devname;
+
+	if (name)
+		devname = name;
+	else
+		devname = gdev->bus_id;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -982,18 +992,20 @@ retry:
 		bsg_minor_idx = 0;
 
 	bcd->queue = q;
+	bcd->dev = get_device(gdev);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
+	class_dev = class_device_create(bsg_class, NULL, dev, gdev, "%s",
+					devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
-		goto err;
+		goto err_put;
 	}
 	bcd->class_dev = class_dev;
 
 	if (q->kobj.sd) {
 		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
 		if (ret)
-			goto err;
+			goto err_unregister;
 	}
 
 	list_add_tail(&bcd->list, &bsg_class_list);
@@ -1001,36 +1013,16 @@ retry:
 
 	mutex_unlock(&bsg_mutex);
 	return 0;
+
+err_unregister:
+	class_device_unregister(class_dev);
+err_put:
+	put_device(gdev);
 err:
-	if (class_dev)
-		class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
-
-static int bsg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	int ret;
-	struct scsi_device *sdp = to_scsi_device(cl_dev->dev);
-	struct request_queue *rq = sdp->request_queue;
-
-	if (rq->kobj.parent)
-		ret = bsg_register_queue(rq, kobject_name(rq->kobj.parent));
-	else
-		ret = bsg_register_queue(rq, kobject_name(&sdp->sdev_gendev.kobj));
-	return ret;
-}
-
-static void bsg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	bsg_unregister_queue(to_scsi_device(cl_dev->dev)->request_queue);
-}
-
-static struct class_interface bsg_intf = {
-	.add	= bsg_add,
-	.remove	= bsg_remove,
-};
 
 static struct cdev bsg_cdev = {
 	.kobj   = {.name = "bsg", },
@@ -1069,16 +1061,9 @@ static int __init bsg_init(void)
 	if (ret)
 		goto unregister_chrdev;
 
-	ret = scsi_register_interface(&bsg_intf);
-	if (ret)
-		goto remove_cdev;
-
 	printk(KERN_INFO BSG_DESCRIPTION " version " BSG_VERSION
 	       " loaded (major %d)\n", bsg_major);
 	return 0;
-remove_cdev:
-	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
-	cdev_del(&bsg_cdev);
 unregister_chrdev:
 	unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
 destroy_bsg_class:

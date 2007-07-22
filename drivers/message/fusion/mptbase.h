@@ -537,7 +537,14 @@ typedef struct _MPT_ADAPTER
 	int			 id;		/* Unique adapter id N {0,1,2,...} */
 	int			 pci_irq;	/* This irq           */
 	char			 name[MPT_NAME_LENGTH];	/* "iocN"             */
-	char			*prod_name;	/* "LSIFC9x9"         */
+	char			 prod_name[MPT_NAME_LENGTH];	/* "LSIFC9x9"         */
+	char			 board_name[16];
+	char			 board_assembly[16];
+	char			 board_tracer[16];
+	u16			 nvdata_version_persistent;
+	u16			 nvdata_version_default;
+	u8			 io_missing_delay;
+	u8			 device_missing_delay;
 	SYSIF_REGS __iomem	*chip;		/* == c8817000 (mmap) */
 	SYSIF_REGS __iomem	*pio_chip;	/* Programmed IO (downloadboot) */
 	u8			 bus_type;

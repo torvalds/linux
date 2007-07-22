@@ -821,6 +821,7 @@ static struct scsi_host_template mptspi_driver_template = {
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.shost_attrs			= mptscsih_host_attrs,
 };
 
 static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
@@ -1523,6 +1524,8 @@ static struct pci_driver mptspi_driver = {
 static int __init
 mptspi_init(void)
 {
+	int error;
+
 	show_mptmod_ver(my_NAME, my_VERSION);
 
 	mptspi_transport_template = spi_attach_transport(&mptspi_transport_functions);
@@ -1543,7 +1546,11 @@ mptspi_init(void)
 		  ": Registered for IOC reset notifications\n"));
 	}
 
-	return pci_register_driver(&mptspi_driver);
+	error = pci_register_driver(&mptspi_driver);
+	if (error)
+		spi_release_transport(mptspi_transport_template);
+
+	return error;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

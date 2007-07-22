@@ -456,8 +456,9 @@ void (*irq_clear) (struct ata_port *);
 
 	<sect2><title>SATA phy read/write</title>
 	<programlisting>
-u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
-void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
+int (*scr_read) (struct ata_port *ap, unsigned int sc_reg,
+		 u32 *val);
+int (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
                    u32 val);
 	</programlisting>
 

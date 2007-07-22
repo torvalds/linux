@@ -214,8 +214,8 @@ int blk_verify_command(unsigned char *cmd, int has_write_perm)
 }
 EXPORT_SYMBOL_GPL(blk_verify_command);
 
-int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
-		      struct sg_io_hdr *hdr, int has_write_perm)
+static int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
+			     struct sg_io_hdr *hdr, int has_write_perm)
 {
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
 
@@ -238,22 +238,20 @@ int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(blk_fill_sghdr_rq);
 
 /*
  * unmap a request that was previously mapped to this sg_io_hdr. handles
  * both sg and non-sg sg_io_hdr.
  */
-int blk_unmap_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr)
+static int blk_unmap_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr)
 {
 	blk_rq_unmap_user(rq->bio);
 	blk_put_request(rq);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(blk_unmap_sghdr_rq);
 
-int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
-			  struct bio *bio)
+static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
+				 struct bio *bio)
 {
 	int r, ret = 0;
 
@@ -287,7 +285,6 @@ int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 
 	return r;
 }
-EXPORT_SYMBOL_GPL(blk_complete_sghdr_rq);
 
 static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)

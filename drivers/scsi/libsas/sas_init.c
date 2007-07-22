@@ -259,6 +259,7 @@ static struct sas_function_template sft = {
 	.phy_reset = sas_phy_reset,
 	.set_phy_speed = sas_set_phy_speed,
 	.get_linkerrors = sas_get_linkerrors,
+	.smp_handler = sas_smp_handler,
 };
 
 struct scsi_transport_template *

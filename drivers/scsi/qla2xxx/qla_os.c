@@ -265,6 +265,8 @@ qla24xx_pci_info_str(struct scsi_qla_host *ha, char *str)
 		strcpy(str, "PCIe (");
 		if (lspeed == 1)
 			strcat(str, "2.5Gb/s ");
+		else if (lspeed == 2)
+			strcat(str, "5.0Gb/s ");
 		else
 			strcat(str, "<unknown> ");
 		snprintf(lwstr, sizeof(lwstr), "x%d)", lwidth);
@@ -343,6 +345,12 @@ qla24xx_fw_version_str(struct scsi_qla_host *ha, char *str)
 		strcat(str, "[IP] ");
 	if (ha->fw_attributes & BIT_2)
 		strcat(str, "[Multi-ID] ");
+	if (ha->fw_attributes & BIT_3)
+		strcat(str, "[SB-2] ");
+	if (ha->fw_attributes & BIT_4)
+		strcat(str, "[T10 CRC] ");
+	if (ha->fw_attributes & BIT_5)
+		strcat(str, "[VI] ");
 	if (ha->fw_attributes & BIT_13)
 		strcat(str, "[Experimental]");
 	return str;
@@ -681,7 +689,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		DEBUG3(qla2x00_print_scsi_cmd(cmd));
 
 		spin_unlock_irqrestore(&pha->hardware_lock, flags);
-		if (ha->isp_ops.abort_command(ha, sp)) {
+		if (ha->isp_ops->abort_command(ha, sp)) {
 			DEBUG2(printk("%s(%ld): abort_command "
 			    "mbx failed.\n", __func__, ha->host_no));
 		} else {
@@ -813,7 +821,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 #if defined(LOGOUT_AFTER_DEVICE_RESET)
 		if (ret == SUCCESS) {
 			if (fcport->flags & FC_FABRIC_DEVICE) {
-				ha->isp_ops.fabric_logout(ha, fcport->loop_id);
+				ha->isp_ops->fabric_logout(ha, fcport->loop_id);
 				qla2x00_mark_device_lost(ha, fcport, 0, 0);
 			}
 		}
@@ -1105,7 +1113,7 @@ static int
 qla2x00_device_reset(scsi_qla_host_t *ha, fc_port_t *reset_fcport)
 {
 	/* Abort Target command will clear Reservation */
-	return ha->isp_ops.abort_target(reset_fcport);
+	return ha->isp_ops->abort_target(reset_fcport);
 }
 
 static int
@@ -1184,8 +1192,8 @@ qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 		    !pci_set_consistent_dma_mask(ha->pdev, DMA_64BIT_MASK)) {
 			/* Ok, a 64bit DMA mask is applicable. */
 			ha->flags.enable_64bit_addressing = 1;
-			ha->isp_ops.calc_req_entries = qla2x00_calc_iocbs_64;
-			ha->isp_ops.build_iocbs = qla2x00_build_scsi_iocbs_64;
+			ha->isp_ops->calc_req_entries = qla2x00_calc_iocbs_64;
+			ha->isp_ops->build_iocbs = qla2x00_build_scsi_iocbs_64;
 			return;
 		}
 	}
@@ -1193,6 +1201,193 @@ qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 	dma_set_mask(&ha->pdev->dev, DMA_32BIT_MASK);
 	pci_set_consistent_dma_mask(ha->pdev, DMA_32BIT_MASK);
 }
+
+static void
+qla2x00_enable_intrs(scsi_qla_host_t *ha)
+{
+	unsigned long flags = 0;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->interrupts_on = 1;
+	/* enable risc and host interrupts */
+	WRT_REG_WORD(&reg->ictrl, ICR_EN_INT | ICR_EN_RISC);
+	RD_REG_WORD(&reg->ictrl);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+}
+
+static void
+qla2x00_disable_intrs(scsi_qla_host_t *ha)
+{
+	unsigned long flags = 0;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->interrupts_on = 0;
+	/* disable risc and host interrupts */
+	WRT_REG_WORD(&reg->ictrl, 0);
+	RD_REG_WORD(&reg->ictrl);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+static void
+qla24xx_enable_intrs(scsi_qla_host_t *ha)
+{
+	unsigned long flags = 0;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->interrupts_on = 1;
+	WRT_REG_DWORD(&reg->ictrl, ICRX_EN_RISC_INT);
+	RD_REG_DWORD(&reg->ictrl);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+static void
+qla24xx_disable_intrs(scsi_qla_host_t *ha)
+{
+	unsigned long flags = 0;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->interrupts_on = 0;
+	WRT_REG_DWORD(&reg->ictrl, 0);
+	RD_REG_DWORD(&reg->ictrl);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+static struct isp_operations qla2100_isp_ops = {
+	.pci_config		= qla2100_pci_config,
+	.reset_chip		= qla2x00_reset_chip,
+	.chip_diag		= qla2x00_chip_diag,
+	.config_rings		= qla2x00_config_rings,
+	.reset_adapter		= qla2x00_reset_adapter,
+	.nvram_config		= qla2x00_nvram_config,
+	.update_fw_options	= qla2x00_update_fw_options,
+	.load_risc		= qla2x00_load_risc,
+	.pci_info_str		= qla2x00_pci_info_str,
+	.fw_version_str		= qla2x00_fw_version_str,
+	.intr_handler		= qla2100_intr_handler,
+	.enable_intrs		= qla2x00_enable_intrs,
+	.disable_intrs		= qla2x00_disable_intrs,
+	.abort_command		= qla2x00_abort_command,
+	.abort_target		= qla2x00_abort_target,
+	.fabric_login		= qla2x00_login_fabric,
+	.fabric_logout		= qla2x00_fabric_logout,
+	.calc_req_entries	= qla2x00_calc_iocbs_32,
+	.build_iocbs		= qla2x00_build_scsi_iocbs_32,
+	.prep_ms_iocb		= qla2x00_prep_ms_iocb,
+	.prep_ms_fdmi_iocb	= qla2x00_prep_ms_fdmi_iocb,
+	.read_nvram		= qla2x00_read_nvram_data,
+	.write_nvram		= qla2x00_write_nvram_data,
+	.fw_dump		= qla2100_fw_dump,
+	.beacon_on		= NULL,
+	.beacon_off		= NULL,
+	.beacon_blink		= NULL,
+	.read_optrom		= qla2x00_read_optrom_data,
+	.write_optrom		= qla2x00_write_optrom_data,
+	.get_flash_version	= qla2x00_get_flash_version,
+};
+
+static struct isp_operations qla2300_isp_ops = {
+	.pci_config		= qla2300_pci_config,
+	.reset_chip		= qla2x00_reset_chip,
+	.chip_diag		= qla2x00_chip_diag,
+	.config_rings		= qla2x00_config_rings,
+	.reset_adapter		= qla2x00_reset_adapter,
+	.nvram_config		= qla2x00_nvram_config,
+	.update_fw_options	= qla2x00_update_fw_options,
+	.load_risc		= qla2x00_load_risc,
+	.pci_info_str		= qla2x00_pci_info_str,
+	.fw_version_str		= qla2x00_fw_version_str,
+	.intr_handler		= qla2300_intr_handler,
+	.enable_intrs		= qla2x00_enable_intrs,
+	.disable_intrs		= qla2x00_disable_intrs,
+	.abort_command		= qla2x00_abort_command,
+	.abort_target		= qla2x00_abort_target,
+	.fabric_login		= qla2x00_login_fabric,
+	.fabric_logout		= qla2x00_fabric_logout,
+	.calc_req_entries	= qla2x00_calc_iocbs_32,
+	.build_iocbs		= qla2x00_build_scsi_iocbs_32,
+	.prep_ms_iocb		= qla2x00_prep_ms_iocb,
+	.prep_ms_fdmi_iocb	= qla2x00_prep_ms_fdmi_iocb,
+	.read_nvram		= qla2x00_read_nvram_data,
+	.write_nvram		= qla2x00_write_nvram_data,
+	.fw_dump		= qla2300_fw_dump,
+	.beacon_on		= qla2x00_beacon_on,
+	.beacon_off		= qla2x00_beacon_off,
+	.beacon_blink		= qla2x00_beacon_blink,
+	.read_optrom		= qla2x00_read_optrom_data,
+	.write_optrom		= qla2x00_write_optrom_data,
+	.get_flash_version	= qla2x00_get_flash_version,
+};
+
+static struct isp_operations qla24xx_isp_ops = {
+	.pci_config		= qla24xx_pci_config,
+	.reset_chip		= qla24xx_reset_chip,
+	.chip_diag		= qla24xx_chip_diag,
+	.config_rings		= qla24xx_config_rings,
+	.reset_adapter		= qla24xx_reset_adapter,
+	.nvram_config		= qla24xx_nvram_config,
+	.update_fw_options	= qla24xx_update_fw_options,
+	.load_risc		= qla24xx_load_risc,
+	.pci_info_str		= qla24xx_pci_info_str,
+	.fw_version_str		= qla24xx_fw_version_str,
+	.intr_handler		= qla24xx_intr_handler,
+	.enable_intrs		= qla24xx_enable_intrs,
+	.disable_intrs		= qla24xx_disable_intrs,
+	.abort_command		= qla24xx_abort_command,
+	.abort_target		= qla24xx_abort_target,
+	.fabric_login		= qla24xx_login_fabric,
+	.fabric_logout		= qla24xx_fabric_logout,
+	.calc_req_entries	= NULL,
+	.build_iocbs		= NULL,
+	.prep_ms_iocb		= qla24xx_prep_ms_iocb,
+	.prep_ms_fdmi_iocb	= qla24xx_prep_ms_fdmi_iocb,
+	.read_nvram		= qla24xx_read_nvram_data,
+	.write_nvram		= qla24xx_write_nvram_data,
+	.fw_dump		= qla24xx_fw_dump,
+	.beacon_on		= qla24xx_beacon_on,
+	.beacon_off		= qla24xx_beacon_off,
+	.beacon_blink		= qla24xx_beacon_blink,
+	.read_optrom		= qla24xx_read_optrom_data,
+	.write_optrom		= qla24xx_write_optrom_data,
+	.get_flash_version	= qla24xx_get_flash_version,
+};
+
+static struct isp_operations qla25xx_isp_ops = {
+	.pci_config		= qla25xx_pci_config,
+	.reset_chip		= qla24xx_reset_chip,
+	.chip_diag		= qla24xx_chip_diag,
+	.config_rings		= qla24xx_config_rings,
+	.reset_adapter		= qla24xx_reset_adapter,
+	.nvram_config		= qla24xx_nvram_config,
+	.update_fw_options	= qla24xx_update_fw_options,
+	.load_risc		= qla24xx_load_risc,
+	.pci_info_str		= qla24xx_pci_info_str,
+	.fw_version_str		= qla24xx_fw_version_str,
+	.intr_handler		= qla24xx_intr_handler,
+	.enable_intrs		= qla24xx_enable_intrs,
+	.disable_intrs		= qla24xx_disable_intrs,
+	.abort_command		= qla24xx_abort_command,
+	.abort_target		= qla24xx_abort_target,
+	.fabric_login		= qla24xx_login_fabric,
+	.fabric_logout		= qla24xx_fabric_logout,
+	.calc_req_entries	= NULL,
+	.build_iocbs		= NULL,
+	.prep_ms_iocb		= qla24xx_prep_ms_iocb,
+	.prep_ms_fdmi_iocb	= qla24xx_prep_ms_fdmi_iocb,
+	.read_nvram		= qla25xx_read_nvram_data,
+	.write_nvram		= qla25xx_write_nvram_data,
+	.fw_dump		= qla25xx_fw_dump,
+	.beacon_on		= qla24xx_beacon_on,
+	.beacon_off		= qla24xx_beacon_off,
+	.beacon_blink		= qla24xx_beacon_blink,
+	.read_optrom		= qla24xx_read_optrom_data,
+	.write_optrom		= qla24xx_write_optrom_data,
+	.get_flash_version	= qla24xx_get_flash_version,
+};
 
 static inline void
 qla2x00_set_isp_flags(scsi_qla_host_t *ha)
@@ -1238,19 +1433,32 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 	case PCI_DEVICE_ID_QLOGIC_ISP2422:
 		ha->device_type |= DT_ISP2422;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
 		ha->device_type |= DT_ISP2432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5422:
 		ha->device_type |= DT_ISP5422;
+		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5432:
 		ha->device_type |= DT_ISP5432;
+		ha->device_type |= DT_FWI2;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2532:
+		ha->device_type |= DT_ISP2532;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	}
@@ -1323,61 +1531,6 @@ iospace_error_exit:
 }
 
 static void
-qla2x00_enable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 1;
-	/* enable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, ICR_EN_INT | ICR_EN_RISC);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-}
-
-static void
-qla2x00_disable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 0;
-	/* disable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, 0);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
-static void
-qla24xx_enable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 1;
-	WRT_REG_DWORD(&reg->ictrl, ICRX_EN_RISC_INT);
-	RD_REG_DWORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
-static void
-qla24xx_disable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 0;
-	WRT_REG_DWORD(&reg->ictrl, 0);
-	RD_REG_DWORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
-static void
 qla2xxx_scan_start(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
@@ -1422,7 +1575,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5422 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5432)
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5432 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2532)
 		sht = &qla24xx_driver_template;
 	host = scsi_host_alloc(sht, sizeof(scsi_qla_host_t));
 	if (host == NULL) {
@@ -1466,33 +1620,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->max_q_depth = ql2xmaxqdepth;
 
 	/* Assign ISP specific operations. */
-	ha->isp_ops.pci_config		= qla2100_pci_config;
-	ha->isp_ops.reset_chip		= qla2x00_reset_chip;
-	ha->isp_ops.chip_diag		= qla2x00_chip_diag;
-	ha->isp_ops.config_rings	= qla2x00_config_rings;
-	ha->isp_ops.reset_adapter	= qla2x00_reset_adapter;
-	ha->isp_ops.nvram_config	= qla2x00_nvram_config;
-	ha->isp_ops.update_fw_options	= qla2x00_update_fw_options;
-	ha->isp_ops.load_risc		= qla2x00_load_risc;
-	ha->isp_ops.pci_info_str	= qla2x00_pci_info_str;
-	ha->isp_ops.fw_version_str	= qla2x00_fw_version_str;
-	ha->isp_ops.intr_handler	= qla2100_intr_handler;
-	ha->isp_ops.enable_intrs	= qla2x00_enable_intrs;
-	ha->isp_ops.disable_intrs	= qla2x00_disable_intrs;
-	ha->isp_ops.abort_command	= qla2x00_abort_command;
-	ha->isp_ops.abort_target	= qla2x00_abort_target;
-	ha->isp_ops.fabric_login	= qla2x00_login_fabric;
-	ha->isp_ops.fabric_logout	= qla2x00_fabric_logout;
-	ha->isp_ops.calc_req_entries	= qla2x00_calc_iocbs_32;
-	ha->isp_ops.build_iocbs		= qla2x00_build_scsi_iocbs_32;
-	ha->isp_ops.prep_ms_iocb	= qla2x00_prep_ms_iocb;
-	ha->isp_ops.prep_ms_fdmi_iocb	= qla2x00_prep_ms_fdmi_iocb;
-	ha->isp_ops.read_nvram		= qla2x00_read_nvram_data;
-	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
-	ha->isp_ops.fw_dump		= qla2100_fw_dump;
-	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
-	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
-	ha->isp_ops.get_flash_version	= qla2x00_get_flash_version;
 	if (IS_QLA2100(ha)) {
 		host->max_id = MAX_TARGETS_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
@@ -1501,6 +1628,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->last_loop_id = SNS_LAST_LOOP_ID_2100;
 		host->sg_tablesize = 32;
 		ha->gid_list_info_size = 4;
+		ha->isp_ops = &qla2100_isp_ops;
 	} else if (IS_QLA2200(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
@@ -1508,21 +1636,17 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->response_q_length = RESPONSE_ENTRY_CNT_2100;
 		ha->last_loop_id = SNS_LAST_LOOP_ID_2100;
 		ha->gid_list_info_size = 4;
+		ha->isp_ops = &qla2100_isp_ops;
 	} else if (IS_QLA23XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		ha->request_q_length = REQUEST_ENTRY_CNT_2200;
 		ha->response_q_length = RESPONSE_ENTRY_CNT_2300;
 		ha->last_loop_id = SNS_LAST_LOOP_ID_2300;
-		ha->isp_ops.pci_config = qla2300_pci_config;
-		ha->isp_ops.intr_handler = qla2300_intr_handler;
-		ha->isp_ops.fw_dump = qla2300_fw_dump;
-		ha->isp_ops.beacon_on = qla2x00_beacon_on;
-		ha->isp_ops.beacon_off = qla2x00_beacon_off;
-		ha->isp_ops.beacon_blink = qla2x00_beacon_blink;
 		ha->gid_list_info_size = 6;
 		if (IS_QLA2322(ha) || IS_QLA6322(ha))
 			ha->optrom_size = OPTROM_SIZE_2322;
+		ha->isp_ops = &qla2300_isp_ops;
 	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
@@ -1531,36 +1655,20 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->last_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
 		ha->mgmt_svr_loop_id = 10 + ha->vp_idx;
-		ha->isp_ops.pci_config = qla24xx_pci_config;
-		ha->isp_ops.reset_chip = qla24xx_reset_chip;
-		ha->isp_ops.chip_diag = qla24xx_chip_diag;
-		ha->isp_ops.config_rings = qla24xx_config_rings;
-		ha->isp_ops.reset_adapter = qla24xx_reset_adapter;
-		ha->isp_ops.nvram_config = qla24xx_nvram_config;
-		ha->isp_ops.update_fw_options = qla24xx_update_fw_options;
-		ha->isp_ops.load_risc = qla24xx_load_risc;
-		ha->isp_ops.pci_info_str = qla24xx_pci_info_str;
-		ha->isp_ops.fw_version_str = qla24xx_fw_version_str;
-		ha->isp_ops.intr_handler = qla24xx_intr_handler;
-		ha->isp_ops.enable_intrs = qla24xx_enable_intrs;
-		ha->isp_ops.disable_intrs = qla24xx_disable_intrs;
-		ha->isp_ops.abort_command = qla24xx_abort_command;
-		ha->isp_ops.abort_target = qla24xx_abort_target;
-		ha->isp_ops.fabric_login = qla24xx_login_fabric;
-		ha->isp_ops.fabric_logout = qla24xx_fabric_logout;
-		ha->isp_ops.prep_ms_iocb = qla24xx_prep_ms_iocb;
-		ha->isp_ops.prep_ms_fdmi_iocb = qla24xx_prep_ms_fdmi_iocb;
-		ha->isp_ops.read_nvram = qla24xx_read_nvram_data;
-		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
-		ha->isp_ops.fw_dump = qla24xx_fw_dump;
-		ha->isp_ops.read_optrom	= qla24xx_read_optrom_data;
-		ha->isp_ops.write_optrom = qla24xx_write_optrom_data;
-		ha->isp_ops.beacon_on = qla24xx_beacon_on;
-		ha->isp_ops.beacon_off = qla24xx_beacon_off;
-		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
-		ha->isp_ops.get_flash_version = qla24xx_get_flash_version;
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_24XX;
+		ha->isp_ops = &qla24xx_isp_ops;
+	} else if (IS_QLA25XX(ha)) {
+		host->max_id = MAX_TARGETS_2200;
+		ha->mbx_count = MAILBOX_REGISTER_COUNT;
+		ha->request_q_length = REQUEST_ENTRY_CNT_24XX;
+		ha->response_q_length = RESPONSE_ENTRY_CNT_2300;
+		ha->last_loop_id = SNS_LAST_LOOP_ID_2300;
+		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
+		ha->mgmt_svr_loop_id = 10 + ha->vp_idx;
+		ha->gid_list_info_size = 8;
+		ha->optrom_size = OPTROM_SIZE_25XX;
+		ha->isp_ops = &qla25xx_isp_ops;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
@@ -1628,11 +1736,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    ha->host_no, ha));
 
-	ha->isp_ops.disable_intrs(ha);
+	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	reg = ha->iobase;
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	if (IS_FWI2_CAPABLE(ha)) {
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
 	} else {
@@ -1654,7 +1762,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	ha->isp_ops.enable_intrs(ha);
+	ha->isp_ops->enable_intrs(ha);
 
 	pci_set_drvdata(pdev, ha);
 
@@ -1679,9 +1787,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    "  ISP%04X: %s @ %s hdma%c, host#=%ld, fw=%s\n",
 	    qla2x00_version_str, ha->model_number,
 	    ha->model_desc ? ha->model_desc: "", pdev->device,
-	    ha->isp_ops.pci_info_str(ha, pci_info), pci_name(pdev),
+	    ha->isp_ops->pci_info_str(ha, pci_info), pci_name(pdev),
 	    ha->flags.enable_64bit_addressing ? '+': '-', ha->host_no,
-	    ha->isp_ops.fw_version_str(ha, fw_str));
+	    ha->isp_ops->fw_version_str(ha, fw_str));
 
 	return 0;
 
@@ -1747,7 +1855,7 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 
 	/* turn-off interrupts on the card */
 	if (ha->interrupts_on)
-		ha->isp_ops.disable_intrs(ha);
+		ha->isp_ops->disable_intrs(ha);
 
 	qla2x00_mem_free(ha);
 
@@ -2025,7 +2133,7 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 			}
 			memset(ha->ct_sns, 0, sizeof(struct ct_sns_pkt));
 
-			if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+			if (IS_FWI2_CAPABLE(ha)) {
 				/*
 				 * Get consistent memory allocated for SFP
 				 * block.
@@ -2305,7 +2413,7 @@ qla2x00_do_dpc(void *data)
 					if (fcport->flags & FCF_FABRIC_DEVICE) {
 						if (fcport->flags &
 						    FCF_TAPE_PRESENT)
-							ha->isp_ops.fabric_logout(
+							ha->isp_ops->fabric_logout(
 							    ha, fcport->loop_id,
 							    fcport->d_id.b.domain,
 							    fcport->d_id.b.area,
@@ -2385,10 +2493,10 @@ qla2x00_do_dpc(void *data)
 		}
 
 		if (!ha->interrupts_on)
-			ha->isp_ops.enable_intrs(ha);
+			ha->isp_ops->enable_intrs(ha);
 
 		if (test_and_clear_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags))
-			ha->isp_ops.beacon_blink(ha);
+			ha->isp_ops->beacon_blink(ha);
 
 		qla2x00_do_dpc_all_vps(ha);
 
@@ -2617,18 +2725,20 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 
 /* Firmware interface routines. */
 
-#define FW_BLOBS	5
+#define FW_BLOBS	6
 #define FW_ISP21XX	0
 #define FW_ISP22XX	1
 #define FW_ISP2300	2
 #define FW_ISP2322	3
 #define FW_ISP24XX	4
+#define FW_ISP25XX	5
 
 #define FW_FILE_ISP21XX	"ql2100_fw.bin"
 #define FW_FILE_ISP22XX	"ql2200_fw.bin"
 #define FW_FILE_ISP2300	"ql2300_fw.bin"
 #define FW_FILE_ISP2322	"ql2322_fw.bin"
 #define FW_FILE_ISP24XX	"ql2400_fw.bin"
+#define FW_FILE_ISP25XX	"ql2500_fw.bin"
 
 static DECLARE_MUTEX(qla_fw_lock);
 
@@ -2638,6 +2748,7 @@ static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
 	{ .name = FW_FILE_ISP2300, .segs = { 0x800, 0 }, },
 	{ .name = FW_FILE_ISP2322, .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
 	{ .name = FW_FILE_ISP24XX, },
+	{ .name = FW_FILE_ISP25XX, },
 };
 
 struct fw_blob *
@@ -2656,6 +2767,8 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 		blob = &qla_fw_blobs[FW_ISP2322];
 	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		blob = &qla_fw_blobs[FW_ISP24XX];
+	} else if (IS_QLA25XX(ha)) {
+		blob = &qla_fw_blobs[FW_ISP25XX];
 	}
 
 	down(&qla_fw_lock);
@@ -2699,6 +2812,7 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2432) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5422) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5432) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2532) },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);

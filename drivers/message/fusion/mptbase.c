@@ -161,6 +161,7 @@ static int	mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum);
 static void 	mpt_read_ioc_pg_1(MPT_ADAPTER *ioc);
 static void 	mpt_read_ioc_pg_4(MPT_ADAPTER *ioc);
 static void	mpt_timer_expired(unsigned long data);
+static void	mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc);
 static int	SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch);
 static int	SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp);
 static int	mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_value, int sleepFlag);
@@ -1131,6 +1132,248 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
 	return -1;
 }
 
+/**
+ *	mpt_get_product_name - returns product string
+ *	@vendor: pci vendor id
+ *	@device: pci device id
+ *	@revision: pci revision id
+ *	@prod_name: string returned
+ *
+ *	Returns product string displayed when driver loads,
+ *	in /proc/mpt/summary and /sysfs/class/scsi_host/host<X>/version_product
+ *
+ **/
+static void
+mpt_get_product_name(u16 vendor, u16 device, u8 revision, char *prod_name)
+{
+	char *product_str = NULL;
+
+	if (vendor == PCI_VENDOR_ID_BROCADE) {
+		switch (device)
+		{
+		case MPI_MANUFACTPAGE_DEVICEID_FC949E:
+			switch (revision)
+			{
+			case 0x00:
+				product_str = "BRE040 A0";
+				break;
+			case 0x01:
+				product_str = "BRE040 A1";
+				break;
+			default:
+				product_str = "BRE040";
+				break;
+			}
+			break;
+		}
+		goto out;
+	}
+
+	switch (device)
+	{
+	case MPI_MANUFACTPAGE_DEVICEID_FC909:
+		product_str = "LSIFC909 B1";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC919:
+		product_str = "LSIFC919 B0";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC929:
+		product_str = "LSIFC929 B0";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X:
+		if (revision < 0x80)
+			product_str = "LSIFC919X A0";
+		else
+			product_str = "LSIFC919XL A1";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X:
+		if (revision < 0x80)
+			product_str = "LSIFC929X A0";
+		else
+			product_str = "LSIFC929XL A1";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC939X:
+		product_str = "LSIFC939X A1";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
+		product_str = "LSIFC949X A1";
+		break;
+	case MPI_MANUFACTPAGE_DEVICEID_FC949E:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSIFC949E A0";
+			break;
+		case 0x01:
+			product_str = "LSIFC949E A1";
+			break;
+		default:
+			product_str = "LSIFC949E";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_53C1030:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSI53C1030 A0";
+			break;
+		case 0x01:
+			product_str = "LSI53C1030 B0";
+			break;
+		case 0x03:
+			product_str = "LSI53C1030 B1";
+			break;
+		case 0x07:
+			product_str = "LSI53C1030 B2";
+			break;
+		case 0x08:
+			product_str = "LSI53C1030 C0";
+			break;
+		case 0x80:
+			product_str = "LSI53C1030T A0";
+			break;
+		case 0x83:
+			product_str = "LSI53C1030T A2";
+			break;
+		case 0x87:
+			product_str = "LSI53C1030T A3";
+			break;
+		case 0xc1:
+			product_str = "LSI53C1020A A1";
+			break;
+		default:
+			product_str = "LSI53C1030";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_1030_53C1035:
+		switch (revision)
+		{
+		case 0x03:
+			product_str = "LSI53C1035 A2";
+			break;
+		case 0x04:
+			product_str = "LSI53C1035 B0";
+			break;
+		default:
+			product_str = "LSI53C1035";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1064:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSISAS1064 A1";
+			break;
+		case 0x01:
+			product_str = "LSISAS1064 A2";
+			break;
+		case 0x02:
+			product_str = "LSISAS1064 A3";
+			break;
+		case 0x03:
+			product_str = "LSISAS1064 A4";
+			break;
+		default:
+			product_str = "LSISAS1064";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1064E:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSISAS1064E A0";
+			break;
+		case 0x01:
+			product_str = "LSISAS1064E B0";
+			break;
+		case 0x02:
+			product_str = "LSISAS1064E B1";
+			break;
+		case 0x04:
+			product_str = "LSISAS1064E B2";
+			break;
+		case 0x08:
+			product_str = "LSISAS1064E B3";
+			break;
+		default:
+			product_str = "LSISAS1064E";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1068:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSISAS1068 A0";
+			break;
+		case 0x01:
+			product_str = "LSISAS1068 B0";
+			break;
+		case 0x02:
+			product_str = "LSISAS1068 B1";
+			break;
+		default:
+			product_str = "LSISAS1068";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1068E:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSISAS1068E A0";
+			break;
+		case 0x01:
+			product_str = "LSISAS1068E B0";
+			break;
+		case 0x02:
+			product_str = "LSISAS1068E B1";
+			break;
+		case 0x04:
+			product_str = "LSISAS1068E B2";
+			break;
+		case 0x08:
+			product_str = "LSISAS1068E B3";
+			break;
+		default:
+			product_str = "LSISAS1068E";
+			break;
+		}
+		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1078:
+		switch (revision)
+		{
+		case 0x00:
+			product_str = "LSISAS1078 A0";
+			break;
+		case 0x01:
+			product_str = "LSISAS1078 B0";
+			break;
+		case 0x02:
+			product_str = "LSISAS1078 C0";
+			break;
+		case 0x03:
+			product_str = "LSISAS1078 C1";
+			break;
+		case 0x04:
+			product_str = "LSISAS1078 C2";
+			break;
+		default:
+			product_str = "LSISAS1078";
+			break;
+		}
+		break;
+	}
+
+ out:
+	if (product_str)
+		sprintf(prod_name, "%s", product_str);
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_attach - Install a PCI intelligent MPT adapter.
@@ -1274,23 +1517,23 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->pio_chip = (SYSIF_REGS __iomem *)pmem;
 	}
 
-	if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC909) {
-		ioc->prod_name = "LSIFC909";
+	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
+	mpt_get_product_name(pdev->vendor, pdev->device, revision, ioc->prod_name);
+
+	switch (pdev->device)
+	{
+	case MPI_MANUFACTPAGE_DEVICEID_FC939X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
+		ioc->errata_flag_1064 = 1;
+	case MPI_MANUFACTPAGE_DEVICEID_FC909:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949E:
 		ioc->bus_type = FC;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC929) {
-		ioc->prod_name = "LSIFC929";
-		ioc->bus_type = FC;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC919) {
-		ioc->prod_name = "LSIFC919";
-		ioc->bus_type = FC;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC929X) {
-		pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
-		ioc->bus_type = FC;
+		break;
+
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X:
 		if (revision < XL_929) {
-			ioc->prod_name = "LSIFC929X";
 			/* 929X Chip Fix. Set Split transactions level
 		 	* for PCIX. Set MOST bits to zero.
 		 	*/
@@ -1298,75 +1541,46 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 			pcixcmd &= 0x8F;
 			pci_write_config_byte(pdev, 0x6a, pcixcmd);
 		} else {
-			ioc->prod_name = "LSIFC929XL";
 			/* 929XL Chip Fix. Set MMRBC to 0x08.
 		 	*/
 			pci_read_config_byte(pdev, 0x6a, &pcixcmd);
 			pcixcmd |= 0x08;
 			pci_write_config_byte(pdev, 0x6a, pcixcmd);
 		}
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC919X) {
-		ioc->prod_name = "LSIFC919X";
 		ioc->bus_type = FC;
+		break;
+
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X:
 		/* 919X Chip Fix. Set Split transactions level
 		 * for PCIX. Set MOST bits to zero.
 		 */
 		pci_read_config_byte(pdev, 0x6a, &pcixcmd);
 		pcixcmd &= 0x8F;
 		pci_write_config_byte(pdev, 0x6a, pcixcmd);
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC939X) {
-		ioc->prod_name = "LSIFC939X";
 		ioc->bus_type = FC;
-		ioc->errata_flag_1064 = 1;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC949X) {
-		ioc->prod_name = "LSIFC949X";
-		ioc->bus_type = FC;
-		ioc->errata_flag_1064 = 1;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC949E) {
-		ioc->prod_name = "LSIFC949E";
-		ioc->bus_type = FC;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_53C1030) {
-		ioc->prod_name = "LSI53C1030";
-		ioc->bus_type = SPI;
+		break;
+
+	case MPI_MANUFACTPAGE_DEVID_53C1030:
 		/* 1030 Chip Fix. Disable Split transactions
 		 * for PCIX. Set MOST bits to zero if Rev < C0( = 8).
 		 */
-		pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
 		if (revision < C0_1030) {
 			pci_read_config_byte(pdev, 0x6a, &pcixcmd);
 			pcixcmd &= 0x8F;
 			pci_write_config_byte(pdev, 0x6a, pcixcmd);
 		}
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_1030_53C1035) {
-		ioc->prod_name = "LSI53C1035";
+
+	case MPI_MANUFACTPAGE_DEVID_1030_53C1035:
 		ioc->bus_type = SPI;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1064) {
-		ioc->prod_name = "LSISAS1064";
-		ioc->bus_type = SAS;
+		break;
+
+	case MPI_MANUFACTPAGE_DEVID_SAS1064:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068:
 		ioc->errata_flag_1064 = 1;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1068) {
-		ioc->prod_name = "LSISAS1068";
-		ioc->bus_type = SAS;
-		ioc->errata_flag_1064 = 1;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1064E) {
-		ioc->prod_name = "LSISAS1064E";
-		ioc->bus_type = SAS;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1068E) {
-		ioc->prod_name = "LSISAS1068E";
-		ioc->bus_type = SAS;
-	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
-		ioc->prod_name = "LSISAS1078";
+
+	case MPI_MANUFACTPAGE_DEVID_SAS1064E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1078:
 		ioc->bus_type = SAS;
 	}
 
@@ -1880,6 +2094,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		}
 
 		GetIoUnitPage2(ioc);
+		mpt_get_manufacturing_pg_0(ioc);
 	}
 
 	/*
@@ -2138,8 +2353,8 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 	int i = 0;
 
 	printk(KERN_INFO "%s: ", ioc->name);
-	if (ioc->prod_name && strlen(ioc->prod_name) > 3)
-		printk("%s: ", ioc->prod_name+3);
+	if (ioc->prod_name)
+		printk("%s: ", ioc->prod_name);
 	printk("Capabilities={");
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
@@ -5188,6 +5403,49 @@ mpt_read_ioc_pg_1(MPT_ADAPTER *ioc)
 	pci_free_consistent(ioc->pcidev, iocpage1sz, pIoc1, ioc1_dma);
 
 	return;
+}
+
+static void
+mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc)
+{
+	CONFIGPARMS		cfg;
+	ConfigPageHeader_t	hdr;
+	dma_addr_t		buf_dma;
+	ManufacturingPage0_t	*pbuf = NULL;
+
+	memset(&cfg, 0 , sizeof(CONFIGPARMS));
+	memset(&hdr, 0 , sizeof(ConfigPageHeader_t));
+
+	hdr.PageType = MPI_CONFIG_PAGETYPE_MANUFACTURING;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.timeout = 10;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!cfg.cfghdr.hdr->PageLength)
+		goto out;
+
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+	pbuf = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4, &buf_dma);
+	if (!pbuf)
+		goto out;
+
+	cfg.physAddr = buf_dma;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	memcpy(ioc->board_name, pbuf->BoardName, sizeof(ioc->board_name));
+	memcpy(ioc->board_assembly, pbuf->BoardAssembly, sizeof(ioc->board_assembly));
+	memcpy(ioc->board_tracer, pbuf->BoardTracerNumber, sizeof(ioc->board_tracer));
+
+	out:
+
+	if (pbuf)
+		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, pbuf, buf_dma);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

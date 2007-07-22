@@ -1626,7 +1626,7 @@ zfcp_erp_schedule_work(struct zfcp_unit *unit)
 {
 	struct zfcp_erp_add_work *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		ZFCP_LOG_NORMAL("error: Out of resources. Could not register "
 				"the FCP-LUN 0x%Lx connected to "
@@ -1639,7 +1639,6 @@ zfcp_erp_schedule_work(struct zfcp_unit *unit)
 	}
 
 	zfcp_unit_get(unit);
-	memset(p, 0, sizeof(*p));
 	atomic_set_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
 	INIT_WORK(&p->work, zfcp_erp_scsi_scan);
 	p->unit = unit;

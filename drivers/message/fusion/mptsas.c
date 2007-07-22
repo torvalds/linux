@@ -1119,6 +1119,7 @@ static struct scsi_host_template mptsas_driver_template = {
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.shost_attrs			= mptscsih_host_attrs,
 };
 
 static int mptsas_get_linkerrors(struct sas_phy *phy)
@@ -1390,6 +1391,11 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		goto out_free_consistent;
 	}
 
+	ioc->nvdata_version_persistent =
+	    le16_to_cpu(buffer->NvdataVersionPersistent);
+	ioc->nvdata_version_default =
+	    le16_to_cpu(buffer->NvdataVersionDefault);
+
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_print_phy_data(&buffer->PhyData[i]);
 		port_info->phy_info[i].phy_id = i;
@@ -1401,6 +1407,63 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		port_info->phy_info[i].handle =
 		    le16_to_cpu(buffer->PhyData[i].ControllerDevHandle);
 	}
+
+ out_free_consistent:
+	pci_free_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
+			    buffer, dma_handle);
+ out:
+	return error;
+}
+
+static int
+mptsas_sas_io_unit_pg1(MPT_ADAPTER *ioc)
+{
+	ConfigExtendedPageHeader_t hdr;
+	CONFIGPARMS cfg;
+	SasIOUnitPage1_t *buffer;
+	dma_addr_t dma_handle;
+	int error;
+	u16 device_missing_delay;
+
+	memset(&hdr, 0, sizeof(ConfigExtendedPageHeader_t));
+	memset(&cfg, 0, sizeof(CONFIGPARMS));
+
+	cfg.cfghdr.ehdr = &hdr;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.timeout = 10;
+	cfg.cfghdr.ehdr->PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+	cfg.cfghdr.ehdr->ExtPageType = MPI_CONFIG_EXTPAGETYPE_SAS_IO_UNIT;
+	cfg.cfghdr.ehdr->PageVersion = MPI_SASIOUNITPAGE1_PAGEVERSION;
+	cfg.cfghdr.ehdr->PageNumber = 1;
+
+	error = mpt_config(ioc, &cfg);
+	if (error)
+		goto out;
+	if (!hdr.ExtPageLength) {
+		error = -ENXIO;
+		goto out;
+	}
+
+	buffer = pci_alloc_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
+					    &dma_handle);
+	if (!buffer) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	cfg.physAddr = dma_handle;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+	error = mpt_config(ioc, &cfg);
+	if (error)
+		goto out_free_consistent;
+
+	ioc->io_missing_delay  =
+	    le16_to_cpu(buffer->IODeviceMissingDelay);
+	device_missing_delay = le16_to_cpu(buffer->ReportDeviceMissingDelay);
+	ioc->device_missing_delay = (device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_UNIT_16) ?
+	    (device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_TIMEOUT_MASK) * 16 :
+	    device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_TIMEOUT_MASK;
 
  out_free_consistent:
 	pci_free_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
@@ -1990,6 +2053,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 	if (error)
 		goto out_free_port_info;
 
+	mptsas_sas_io_unit_pg1(ioc);
 	mutex_lock(&ioc->sas_topology_mutex);
 	ioc->handle = hba->phy_info[0].handle;
 	port_info = mptsas_find_portinfo_by_handle(ioc, ioc->handle);
@@ -3237,6 +3301,8 @@ static struct pci_driver mptsas_driver = {
 static int __init
 mptsas_init(void)
 {
+	int error;
+
 	show_mptmod_ver(my_NAME, my_VERSION);
 
 	mptsas_transport_template =
@@ -3260,7 +3326,11 @@ mptsas_init(void)
 		  ": Registered for IOC reset notifications\n"));
 	}
 
-	return pci_register_driver(&mptsas_driver);
+	error = pci_register_driver(&mptsas_driver);
+	if (error)
+		sas_release_transport(mptsas_transport_template);
+
+	return error;
 }
 
 static void __exit

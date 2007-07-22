@@ -57,10 +57,10 @@ struct bsg_class_device {
 	struct request_queue *queue;
 };
 
-extern int bsg_register_queue(struct request_queue *, const char *);
+extern int bsg_register_queue(struct request_queue *, struct device *, const char *);
 extern void bsg_unregister_queue(struct request_queue *);
 #else
-#define bsg_register_queue(disk, name)		(0)
+#define bsg_register_queue(disk, dev, name)		(0)
 #define bsg_unregister_queue(disk)	do { } while (0)
 #endif
 
