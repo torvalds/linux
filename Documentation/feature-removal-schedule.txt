@@ -180,24 +180,11 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	/sys/firmware/acpi/namespace
-When:	2.6.21
-Why:	The ACPI namespace is effectively the symbol list for
-	the BIOS.  The device names are completely arbitrary
-	and have no place being exposed to user-space.
-
-	For those interested in the BIOS ACPI namespace,
-	the BIOS can be extracted and disassembled with acpidump
-	and iasl as documented in the pmtools package here:
-	http://ftp.kernel.org/pub/linux/kernel/people/lenb/acpi/utils
-Who:	Len Brown <len.brown@intel.com>
-
----------------------------
-
 What:	ACPI procfs interface
-When:	July 2007
-Why:	After ACPI sysfs conversion, ACPI attributes will be duplicated
-	in sysfs and the ACPI procfs interface should be removed.
+When:	July 2008
+Why:	ACPI sysfs conversion should be finished by January 2008.
+	ACPI procfs interface will be removed in July 2008 so that
+	there is enough time for the user space to catch up.
 Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------

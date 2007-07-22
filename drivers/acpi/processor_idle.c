@@ -490,7 +490,17 @@ static void acpi_processor_idle(void)
 
 	case ACPI_STATE_C3:
 
-		if (pr->flags.bm_check) {
+		/*
+		 * disable bus master
+		 * bm_check implies we need ARB_DIS
+		 * !bm_check implies we need cache flush
+		 * bm_control implies whether we can do ARB_DIS
+		 *
+		 * That leaves a case where bm_check is set and bm_control is
+		 * not set. In that case we cannot do much, we enter C3
+		 * without doing anything.
+		 */
+		if (pr->flags.bm_check && pr->flags.bm_control) {
 			if (atomic_inc_return(&c3_cpu_count) ==
 			    num_online_cpus()) {
 				/*
@@ -499,7 +509,7 @@ static void acpi_processor_idle(void)
 				 */
 				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
 			}
-		} else {
+		} else if (!pr->flags.bm_check) {
 			/* SMP with no shared cache... Invalidate cache  */
 			ACPI_FLUSH_CPU_CACHE();
 		}
@@ -511,7 +521,7 @@ static void acpi_processor_idle(void)
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
-		if (pr->flags.bm_check) {
+		if (pr->flags.bm_check && pr->flags.bm_control) {
 			/* Enable bus master arbitration */
 			atomic_dec(&c3_cpu_count);
 			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
@@ -961,9 +971,9 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	if (pr->flags.bm_check) {
 		/* bus mastering control is necessary */
 		if (!pr->flags.bm_control) {
+			/* In this case we enter C3 without bus mastering */
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "C3 support requires bus mastering control\n"));
-			return;
+				"C3 support without bus mastering control\n"));
 		}
 	} else {
 		/*
