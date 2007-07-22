@@ -42,16 +42,16 @@ config CPU_LLSERIAL_S3C2440
 
 comment "Boot options"
 
-config S3C2410_BOOT_WATCHDOG
-	bool "S3C2410 Initialisation watchdog"
+config S3C_BOOT_WATCHDOG
+	bool "S3C Initialisation watchdog"
 	depends on PLAT_S3C && S3C2410_WATCHDOG
 	help
 	  Say y to enable the watchdog during the kernel decompression
 	  stage. If the kernel fails to uncompress, then the watchdog
 	  will trigger a reset and the system should restart.
 
-config S3C2410_BOOT_ERROR_RESET
-	bool "S3C2410 Reboot on decompression error"
+config S3C_BOOT_ERROR_RESET
+	bool "S3C Reboot on decompression error"
 	depends on PLAT_S3C
 	help
 	  Say y here to use the watchdog to reset the system if the

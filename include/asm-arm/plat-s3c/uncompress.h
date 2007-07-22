@@ -92,13 +92,13 @@ static inline void flush(void)
 
 #define __raw_writel(d,ad) do { *((volatile unsigned int *)(ad)) = (d); } while(0)
 
-/* CONFIG_S3C2410_BOOT_WATCHDOG
+/* CONFIG_S3C_BOOT_WATCHDOG
  *
  * Simple boot-time watchdog setup, to reboot the system if there is
  * any problem with the boot process
 */
 
-#ifdef CONFIG_S3C2410_BOOT_WATCHDOG
+#ifdef CONFIG_S3C_BOOT_WATCHDOG
 
 #define WDOG_COUNT (0xff00)
 
@@ -119,7 +119,7 @@ static void arch_decomp_wdog_start(void)
 #define arch_decomp_wdog()
 #endif
 
-#ifdef CONFIG_S3C2410_BOOT_ERROR_RESET
+#ifdef CONFIG_S3C_BOOT_ERROR_RESET
 
 static void arch_decomp_error(const char *x)
 {
