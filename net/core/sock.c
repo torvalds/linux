@@ -182,7 +182,8 @@ static const char *af_family_clock_key_strings[AF_MAX+1] = {
   "clock-21"       , "clock-AF_SNA"      , "clock-AF_IRDA"     ,
   "clock-AF_PPPOX" , "clock-AF_WANPIPE"  , "clock-AF_LLC"      ,
   "clock-27"       , "clock-28"          , "clock-29"          ,
-  "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_MAX"
+  "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_IUCV"     ,
+  "clock-AF_RXRPC" , "clock-AF_MAX"
 };
 #endif
 
