@@ -732,7 +732,7 @@ static int nfs_parse_mount_options(char *raw,
 				return 0;
 			if (option < 0 || option > 65535)
 				return 0;
-			mnt->nfs_server.address.sin_port = htonl(option);
+			mnt->nfs_server.address.sin_port = htons(option);
 			break;
 		case Opt_rsize:
 			if (match_int(args, &mnt->rsize))
