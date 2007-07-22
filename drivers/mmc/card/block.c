@@ -154,7 +154,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
-	if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD))
+	if (err || !(cmd.resp[0] & R1_APP_CMD))
 		return (u32)-1;
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
@@ -192,7 +192,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE)
+	if (cmd.error || data.error)
 		return (u32)-1;
 
 	blocks = ntohl(blocks);

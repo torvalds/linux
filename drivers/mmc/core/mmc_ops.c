@@ -40,10 +40,10 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 	}
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_select_card(struct mmc_card *card)
@@ -99,13 +99,13 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if (err != MMC_ERR_NONE)
+		if (err)
 			break;
 
 		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
 			break;
 
-		err = MMC_ERR_TIMEOUT;
+		err = -ETIMEDOUT;
 
 		mmc_delay(10);
 	}
@@ -131,12 +131,12 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	memcpy(cid, cmd.resp, sizeof(u32) * 4);
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_set_relative_addr(struct mmc_card *card)
@@ -154,10 +154,10 @@ int mmc_set_relative_addr(struct mmc_card *card)
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_csd(struct mmc_card *card, u32 *csd)
@@ -176,12 +176,12 @@ int mmc_send_csd(struct mmc_card *card, u32 *csd)
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	memcpy(csd, cmd.resp, sizeof(u32) * 4);
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
@@ -218,12 +218,12 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	if (cmd.error != MMC_ERR_NONE)
+	if (cmd.error)
 		return cmd.error;
-	if (data.error != MMC_ERR_NONE)
+	if (data.error)
 		return data.error;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
@@ -244,10 +244,10 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_status(struct mmc_card *card, u32 *status)
@@ -265,12 +265,12 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	if (status)
 		*status = cmd.resp[0];
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 

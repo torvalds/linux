@@ -598,7 +598,7 @@ void mmc_rescan(struct work_struct *work)
 		mmc_send_if_cond(host, host->ocr_avail);
 
 		err = mmc_send_app_op_cond(host, 0, &ocr);
-		if (err == MMC_ERR_NONE) {
+		if (!err) {
 			if (mmc_attach_sd(host, ocr))
 				mmc_power_off(host);
 		} else {
@@ -607,7 +607,7 @@ void mmc_rescan(struct work_struct *work)
 			 * searching for MMC cards.
 			 */
 			err = mmc_send_op_cond(host, 0, &ocr);
-			if (err == MMC_ERR_NONE) {
+			if (!err) {
 				if (mmc_attach_mmc(host, ocr))
 					mmc_power_off(host);
 			} else {

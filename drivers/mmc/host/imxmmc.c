@@ -428,11 +428,11 @@ static int imxmci_finish_data(struct imxmci_host *host, unsigned int stat)
 	if ( stat & STATUS_ERR_MASK ) {
 		dev_dbg(mmc_dev(host->mmc), "request failed. status: 0x%08x\n",stat);
 		if(stat & (STATUS_CRC_READ_ERR | STATUS_CRC_WRITE_ERR))
-			data->error = MMC_ERR_BADCRC;
+			data->error = -EILSEQ;
 		else if(stat & STATUS_TIME_OUT_READ)
-			data->error = MMC_ERR_TIMEOUT;
+			data->error = -ETIMEDOUT;
 		else
-			data->error = MMC_ERR_FAILED;
+			data->error = -EIO;
 	} else {
 		data->bytes_xfered = host->dma_size;
 	}
@@ -458,10 +458,10 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 
 	if (stat & STATUS_TIME_OUT_RESP) {
 		dev_dbg(mmc_dev(host->mmc), "CMD TIMEOUT\n");
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ETIMEDOUT;
 	} else if (stat & STATUS_RESP_CRC_ERR && cmd->flags & MMC_RSP_CRC) {
 		dev_dbg(mmc_dev(host->mmc), "cmd crc error\n");
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 	}
 
 	if(cmd->flags & MMC_RSP_PRESENT) {
@@ -482,7 +482,7 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 	dev_dbg(mmc_dev(host->mmc), "RESP 0x%08x, 0x%08x, 0x%08x, 0x%08x, error %d\n",
 		cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3], cmd->error);
 
-	if (data && (cmd->error == MMC_ERR_NONE) && !(stat & STATUS_ERR_MASK)) {
+	if (data && !cmd->error && !(stat & STATUS_ERR_MASK)) {
 		if (host->req->data->flags & MMC_DATA_WRITE) {
 
 			/* Wait for FIFO to be empty before starting DMA write */
@@ -491,7 +491,7 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 			if(imxmci_busy_wait_for_status(host, &stat,
 				STATUS_APPL_BUFF_FE,
 				40, "imxmci_cmd_done DMA WR") < 0) {
-				cmd->error = MMC_ERR_FIFO;
+				cmd->error = -EIO;
 				imxmci_finish_data(host, stat);
 				if(host->req)
 					imxmci_finish_request(host, host->req);

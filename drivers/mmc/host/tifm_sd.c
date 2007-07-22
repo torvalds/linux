@@ -404,14 +404,14 @@ static void tifm_sd_check_status(struct tifm_sd *host)
 	struct tifm_dev *sock = host->dev;
 	struct mmc_command *cmd = host->req->cmd;
 
-	if (cmd->error != MMC_ERR_NONE)
+	if (cmd->error)
 		goto finish_request;
 
 	if (!(host->cmd_flags & CMD_READY))
 		return;
 
 	if (cmd->data) {
-		if (cmd->data->error != MMC_ERR_NONE) {
+		if (cmd->data->error) {
 			if ((host->cmd_flags & SCMD_ACTIVE)
 			    && !(host->cmd_flags & SCMD_READY))
 				return;
@@ -504,7 +504,7 @@ static void tifm_sd_card_event(struct tifm_dev *sock)
 {
 	struct tifm_sd *host;
 	unsigned int host_status = 0;
-	int cmd_error = MMC_ERR_NONE;
+	int cmd_error = 0;
 	struct mmc_command *cmd = NULL;
 	unsigned long flags;
 
@@ -521,15 +521,15 @@ static void tifm_sd_card_event(struct tifm_dev *sock)
 			writel(host_status & TIFM_MMCSD_ERRMASK,
 			       sock->addr + SOCK_MMCSD_STATUS);
 			if (host_status & TIFM_MMCSD_CTO)
-				cmd_error = MMC_ERR_TIMEOUT;
+				cmd_error = -ETIMEDOUT;
 			else if (host_status & TIFM_MMCSD_CCRC)
-				cmd_error = MMC_ERR_BADCRC;
+				cmd_error = -EILSEQ;
 
 			if (cmd->data) {
 				if (host_status & TIFM_MMCSD_DTO)
-					cmd->data->error = MMC_ERR_TIMEOUT;
+					cmd->data->error = -ETIMEDOUT;
 				else if (host_status & TIFM_MMCSD_DCRC)
-					cmd->data->error = MMC_ERR_BADCRC;
+					cmd->data->error = -EILSEQ;
 			}
 
 			writel(TIFM_FIFO_INT_SETALL,
@@ -722,7 +722,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	return;
 
 err_out:
-	mrq->cmd->error = MMC_ERR_TIMEOUT;
+	mrq->cmd->error = -ETIMEDOUT;
 	mmc_request_done(mmc, mrq);
 }
 
@@ -1012,9 +1012,9 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 		writel(TIFM_FIFO_INT_SETALL,
 		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
 		writel(0, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
-		host->req->cmd->error = MMC_ERR_TIMEOUT;
+		host->req->cmd->error = -ENOMEDIUM;
 		if (host->req->stop)
-			host->req->stop->error = MMC_ERR_TIMEOUT;
+			host->req->stop->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	}
 	spin_unlock_irqrestore(&sock->lock, flags);

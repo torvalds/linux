@@ -226,7 +226,7 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 	}
 
 	if (stat & STAT_TIME_OUT_RESPONSE) {
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ETIMEDOUT;
 	} else if (stat & STAT_RES_CRC_ERR && cmd->flags & MMC_RSP_CRC) {
 #ifdef CONFIG_PXA27x
 		/*
@@ -239,11 +239,11 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
 		} else
 #endif
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 	}
 
 	pxamci_disable_irq(host, END_CMD_RES);
-	if (host->data && cmd->error == MMC_ERR_NONE) {
+	if (host->data && !cmd->error) {
 		pxamci_enable_irq(host, DATA_TRAN_DONE);
 	} else {
 		pxamci_finish_request(host, host->mrq);
@@ -264,9 +264,9 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 		     host->dma_dir);
 
 	if (stat & STAT_READ_TIME_OUT)
-		data->error = MMC_ERR_TIMEOUT;
+		data->error = -ETIMEDOUT;
 	else if (stat & (STAT_CRC_READ_ERROR|STAT_CRC_WRITE_ERROR))
-		data->error = MMC_ERR_BADCRC;
+		data->error = -EILSEQ;
 
 	/*
 	 * There appears to be a hardware design bug here.  There seems to
@@ -274,7 +274,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	 * This means that if there was an error on any block, we mark all
 	 * data blocks as being in error.
 	 */
-	if (data->error == MMC_ERR_NONE)
+	if (!data->error)
 		data->bytes_xfered = data->blocks * data->blksz;
 	else
 		data->bytes_xfered = 0;

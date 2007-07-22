@@ -577,24 +577,22 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 			AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE |
 			AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)) {
 		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
-			cmd->error = MMC_ERR_NONE;
+			cmd->error = 0;
 		}
 		else {
 			if (status & (AT91_MCI_RTOE | AT91_MCI_DTOE))
-				cmd->error = MMC_ERR_TIMEOUT;
+				cmd->error = -ETIMEDOUT;
 			else if (status & (AT91_MCI_RCRCE | AT91_MCI_DCRCE))
-				cmd->error = MMC_ERR_BADCRC;
-			else if (status & (AT91_MCI_OVRE | AT91_MCI_UNRE))
-				cmd->error = MMC_ERR_FIFO;
+				cmd->error = -EILSEQ;
 			else
-				cmd->error = MMC_ERR_FAILED;
+				cmd->error = -EIO;
 
 			pr_debug("Error detected and set to %d (cmd = %d, retries = %d)\n",
 				 cmd->error, cmd->opcode, cmd->retries);
 		}
 	}
 	else
-		cmd->error = MMC_ERR_NONE;
+		cmd->error = 0;
 
 	at91_mci_process_next(host);
 }

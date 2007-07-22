@@ -40,14 +40,14 @@ static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 	}
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	/* Check that card supported application commands */
 	if (!(cmd.resp[0] & R1_APP_CMD))
-		return MMC_ERR_FAILED;
+		return -EOPNOTSUPP;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 /**
@@ -73,7 +73,7 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 	BUG_ON(!cmd);
 	BUG_ON(retries < 0);
 
-	err = MMC_ERR_INVALID;
+	err = -EIO;
 
 	/*
 	 * We have to resend MMC_APP_CMD for each attempt so
@@ -83,7 +83,7 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		memset(&mrq, 0, sizeof(struct mmc_request));
 
 		err = mmc_app_cmd(host, card);
-		if (err != MMC_ERR_NONE)
+		if (err)
 			continue;
 
 		memset(&mrq, 0, sizeof(struct mmc_request));
@@ -97,7 +97,7 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		mmc_wait_for_req(host, &mrq);
 
 		err = cmd->error;
-		if (cmd->error == MMC_ERR_NONE)
+		if (!cmd->error)
 			break;
 	}
 
@@ -127,14 +127,14 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 		cmd.arg = SD_BUS_WIDTH_4;
 		break;
 	default:
-		return MMC_ERR_INVALID;
+		return -EINVAL;
 	}
 
 	err = mmc_wait_for_app_cmd(card->host, card, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
@@ -152,13 +152,13 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_app_cmd(host, NULL, &cmd, MMC_CMD_RETRIES);
-		if (err != MMC_ERR_NONE)
+		if (err)
 			break;
 
 		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
 			break;
 
-		err = MMC_ERR_TIMEOUT;
+		err = -ETIMEDOUT;
 
 		mmc_delay(10);
 	}
@@ -185,13 +185,13 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	if ((cmd.resp[0] & 0xFF) != test_pattern)
-		return MMC_ERR_FAILED;
+		return -EIO;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_relative_addr(struct mmc_host *host, unsigned int *rca)
@@ -209,12 +209,12 @@ int mmc_send_relative_addr(struct mmc_host *host, unsigned int *rca)
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	*rca = cmd.resp[0] >> 16;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
@@ -230,7 +230,7 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 	BUG_ON(!scr);
 
 	err = mmc_app_cmd(card->host, card);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
@@ -256,15 +256,15 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	if (cmd.error != MMC_ERR_NONE)
+	if (cmd.error)
 		return cmd.error;
-	if (data.error != MMC_ERR_NONE)
+	if (data.error)
 		return data.error;
 
 	scr[0] = ntohl(scr[0]);
 	scr[1] = ntohl(scr[1]);
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_sd_switch(struct mmc_card *card, int mode, int group,
@@ -306,11 +306,11 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	if (cmd.error != MMC_ERR_NONE)
+	if (cmd.error)
 		return cmd.error;
-	if (data.error != MMC_ERR_NONE)
+	if (data.error)
 		return data.error;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 

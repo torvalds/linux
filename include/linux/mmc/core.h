@@ -54,12 +54,19 @@ struct mmc_command {
 	unsigned int		retries;	/* max number of retries */
 	unsigned int		error;		/* command error */
 
-#define MMC_ERR_NONE	0
-#define MMC_ERR_TIMEOUT	1
-#define MMC_ERR_BADCRC	2
-#define MMC_ERR_FIFO	3
-#define MMC_ERR_FAILED	4
-#define MMC_ERR_INVALID	5
+/*
+ * Standard errno values are used for errors, but some have specific
+ * meaning in the MMC layer:
+ *
+ * ETIMEDOUT    Card took too long to respond
+ * EILSEQ       Basic format problem with the received or sent data
+ *              (e.g. CRC check failed, incorrect opcode in response
+ *              or bad end bit)
+ * EINVAL       Request cannot be performed because of restrictions
+ *              in hardware and/or the driver
+ * ENOMEDIUM    Host can determine that the slot is empty and is
+ *              actively failing requests
+ */
 
 	struct mmc_data		*data;		/* data segment associated with cmd */
 	struct mmc_request	*mrq;		/* associated request */
