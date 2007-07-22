@@ -161,6 +161,7 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 {
 	int err;
 	u8 *ext_csd;
+	unsigned int ext_csd_struct;
 
 	BUG_ON(!card);
 
@@ -209,13 +210,22 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 		goto out;
 	}
 
-	card->ext_csd.sectors =
-		ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
-		ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
-		ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
-		ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
-	if (card->ext_csd.sectors)
-		mmc_card_set_blockaddr(card);
+	ext_csd_struct = ext_csd[EXT_CSD_REV];
+	if (ext_csd_struct > 2) {
+		printk("%s: unrecognised EXT_CSD structure version %d\n",
+			mmc_hostname(card->host), ext_csd_struct);
+		return -EINVAL;
+	}
+
+	if (ext_csd_struct >= 2) {
+		card->ext_csd.sectors =
+			ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
+			ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
+			ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
+			ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
+		if (card->ext_csd.sectors)
+			mmc_card_set_blockaddr(card);
+	}
 
 	switch (ext_csd[EXT_CSD_CARD_TYPE]) {
 	case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
