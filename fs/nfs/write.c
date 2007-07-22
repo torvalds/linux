@@ -292,41 +292,51 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	return 0;
 }
 
+static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
+{
+	struct inode *inode = page->mapping->host;
+
+	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
+
+	nfs_pageio_cond_complete(pgio, page->index);
+	return nfs_page_async_flush(pgio, page);
+}
+
 /*
  * Write an mmapped page to the server.
  */
 static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc)
 {
-	struct nfs_pageio_descriptor mypgio, *pgio;
-	struct inode *inode = page->mapping->host;
+	struct nfs_pageio_descriptor pgio;
 	int err;
 
-	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
-	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
-
-	if (wbc->for_writepages)
-		pgio = wbc->fs_private;
-	else {
-		nfs_pageio_init_write(&mypgio, inode, wb_priority(wbc));
-		pgio = &mypgio;
-	}
-
-	nfs_pageio_cond_complete(pgio, page->index);
-
-	err = nfs_page_async_flush(pgio, page);
-
-	if (!wbc->for_writepages)
-		nfs_pageio_complete(pgio);
-	return err;
+	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
+	err = nfs_do_writepage(page, wbc, &pgio);
+	nfs_pageio_complete(&pgio);
+	if (err < 0)
+		return err;
+	if (pgio.pg_error < 0)
+		return pgio.pg_error;
+	return 0;
 }
 
 int nfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	int err;
+	int ret;
 
-	err = nfs_writepage_locked(page, wbc);
+	ret = nfs_writepage_locked(page, wbc);
 	unlock_page(page);
-	return err; 
+	return ret;
+}
+
+static int nfs_writepages_callback(struct page *page, struct writeback_control *wbc, void *data)
+{
+	int ret;
+
+	ret = nfs_do_writepage(page, wbc, data);
+	unlock_page(page);
+	return ret;
 }
 
 int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
@@ -338,12 +348,11 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
 	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc));
-	wbc->fs_private = &pgio;
-	err = generic_writepages(mapping, wbc);
+	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
 	nfs_pageio_complete(&pgio);
-	if (err)
+	if (err < 0)
 		return err;
-	if (pgio.pg_error)
+	if (pgio.pg_error < 0)
 		return pgio.pg_error;
 	return 0;
 }
