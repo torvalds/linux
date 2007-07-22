@@ -573,14 +573,17 @@ static void mmc_sd_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-
 	err = mmc_sd_init_card(host, host->ocr, host->card);
+	mmc_release_host(host);
+
 	if (err != MMC_ERR_NONE) {
 		mmc_sd_remove(host);
+
+		mmc_claim_host(host);
 		mmc_detach_bus(host);
+		mmc_release_host(host);
 	}
 
-	mmc_release_host(host);
 }
 
 #else
@@ -648,14 +651,14 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 
 	err = mmc_add_card(host->card);
 	if (err)
-		goto reclaim_host;
+		goto remove_card;
 
 	return 0;
 
-reclaim_host:
-	mmc_claim_host(host);
+remove_card:
 	mmc_remove_card(host->card);
 	host->card = NULL;
+	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
 	mmc_release_host(host);
