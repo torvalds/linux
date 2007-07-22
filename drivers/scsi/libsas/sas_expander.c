@@ -535,6 +535,8 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 
 }
 
+#ifdef CONFIG_SCSI_SAS_ATA
+
 #define RPS_REQ_SIZE  16
 #define RPS_RESP_SIZE 60
 
@@ -578,6 +580,7 @@ static int sas_get_report_phy_sata(struct domain_device *dev,
 	kfree(rps_req);
 	return res;
 }
+#endif
 
 static void sas_ex_get_linkrate(struct domain_device *parent,
 				       struct domain_device *child,
@@ -645,6 +648,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 	}
 	sas_ex_get_linkrate(parent, child, phy);
 
+#ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTO_STP) || phy->attached_sata_dev) {
 		child->dev_type = SATA_DEV;
 		if (phy->attached_tproto & SAS_PROTO_STP)
@@ -682,7 +686,9 @@ static struct domain_device *sas_ex_discover_end_dev(
 				    SAS_ADDR(parent->sas_addr), phy_id, res);
 			goto out_list_del;
 		}
-	} else if (phy->attached_tproto & SAS_PROTO_SSP) {
+	} else
+#endif
+	  if (phy->attached_tproto & SAS_PROTO_SSP) {
 		child->dev_type = SAS_END_DEV;
 		rphy = sas_end_device_alloc(phy->port);
 		/* FIXME: error handling */
@@ -710,6 +716,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		SAS_DPRINTK("target proto 0x%x at %016llx:0x%x not handled\n",
 			    phy->attached_tproto, SAS_ADDR(parent->sas_addr),
 			    phy_id);
+		goto out_free;
 	}
 
 	list_add_tail(&child->siblings, &parent_ex->children);

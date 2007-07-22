@@ -30,6 +30,13 @@ config SCSI_SAS_LIBSAS
 	  This provides transport specific helpers for SAS drivers which
 	  use the domain device construct (like the aic94xxx).
 
+config SCSI_SAS_ATA
+	bool "ATA support for libsas (requires libata)"
+	depends on SCSI_SAS_LIBSAS && ATA
+	help
+		Builds in ATA support into libsas.  Will necessitate
+		the loading of libata along with libsas.
+
 config SCSI_SAS_LIBSAS_DEBUG
 	bool "Compile the SAS Domain Transport Attributes in debug mode"
 	default y
