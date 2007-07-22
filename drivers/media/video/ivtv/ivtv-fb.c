@@ -439,7 +439,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 		}
 
 		default:
-			IVTV_FB_ERR("Unknown IOCTL %d\n", cmd);
+			IVTV_FB_DEBUG_INFO("Unknown ioctl %08x\n", cmd);
 			return -EINVAL;
 	}
 	return 0;
