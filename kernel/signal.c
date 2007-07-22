@@ -255,6 +255,16 @@ flush_signal_handlers(struct task_struct *t, int force_default)
 	}
 }
 
+int unhandled_signal(struct task_struct *tsk, int sig)
+{
+	if (is_init(tsk))
+		return 1;
+	if (tsk->ptrace & PT_PTRACED)
+		return 0;
+	return (tsk->sighand->action[sig-1].sa.sa_handler == SIG_IGN) ||
+		(tsk->sighand->action[sig-1].sa.sa_handler == SIG_DFL);
+}
+
 
 /* Notify the system that a driver wants to block all signals for this
  * process, and wants to be notified if any signals at all were to be

@@ -283,6 +283,8 @@ static inline int vmalloc_fault(unsigned long address)
 	return 0;
 }
 
+int show_unhandled_signals = 1;
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -469,6 +471,14 @@ bad_area_nosemaphore:
 		if (is_prefetch(regs, address, error_code))
 			return;
 
+		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+		    printk_ratelimit()) {
+			printk("%s%s[%d]: segfault at %08lx eip %08lx "
+			    "esp %08lx error %lx\n",
+			    tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
+			    tsk->comm, tsk->pid, address, regs->eip,
+			    regs->esp, error_code);
+		}
 		tsk->thread.cr2 = address;
 		/* Kernel addresses are always protection faults */
 		tsk->thread.error_code = error_code | (address >= TASK_SIZE);

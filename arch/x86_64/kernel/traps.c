@@ -584,7 +584,8 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_no = trapnr;
 
-		if (exception_trace && unhandled_signal(tsk, signr))
+		if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
+		    printk_ratelimit())
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
@@ -688,7 +689,8 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_no = 13;
 
-		if (exception_trace && unhandled_signal(tsk, SIGSEGV))
+		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+		    printk_ratelimit())
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,

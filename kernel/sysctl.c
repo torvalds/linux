@@ -1203,6 +1203,16 @@ static ctl_table fs_table[] = {
 };
 
 static ctl_table debug_table[] = {
+#ifdef CONFIG_X86
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "exception-trace",
+		.data		= &show_unhandled_signals,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+#endif
 	{ .ctl_name = 0 }
 };
 

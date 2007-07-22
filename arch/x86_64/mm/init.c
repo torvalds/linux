@@ -697,39 +697,6 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 
-#ifdef CONFIG_SYSCTL
-#include <linux/sysctl.h>
-
-static ctl_table debug_table2[] = {
-	{
-		.ctl_name	= 99,
-		.procname	= "exception-trace",
-		.data		= &exception_trace,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{}
-}; 
-
-static ctl_table debug_root_table2[] = { 
-	{
-		.ctl_name = CTL_DEBUG,
-		.procname = "debug",
-		.mode = 0555,
-		.child = debug_table2
-	},
-	{}
-}; 
-
-static __init int x8664_sysctl_init(void)
-{ 
-	register_sysctl_table(debug_root_table2);
-	return 0;
-}
-__initcall(x8664_sysctl_init);
-#endif
-
 /* A pseudo VMA to allow ptrace access for the vsyscall page.  This only
    covers the 64bit vsyscall page now. 32bit has a real VMA now and does
    not need special handling anymore. */

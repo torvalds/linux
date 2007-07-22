@@ -487,7 +487,7 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 { 
 	struct task_struct *me = current; 
-	if (exception_trace)
+	if (show_unhandled_signals && printk_ratelimit())
 		printk("%s[%d] bad frame in %s frame:%p rip:%lx rsp:%lx orax:%lx\n",
 	       me->comm,me->pid,where,frame,regs->rip,regs->rsp,regs->orig_rax); 
 
