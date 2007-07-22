@@ -346,7 +346,9 @@ static int setup_p6_watchdog(unsigned nmi_hz)
 	perfctr_msr = MSR_P6_PERFCTR0;
 	evntsel_msr = MSR_P6_EVNTSEL0;
 
-	wrmsrl(perfctr_msr, 0UL);
+	/* KVM doesn't implement this MSR */
+	if (wrmsr_safe(perfctr_msr, 0, 0) < 0)
+		return 0;
 
 	evntsel = P6_EVNTSEL_INT
 		| P6_EVNTSEL_OS
