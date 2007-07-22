@@ -314,15 +314,6 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	int lines;
 	int i;
 
-	/* If Embed then streamtype must be Program */
-	/* TODO: should we really do this? */
-	if (0 && !raw && itv->vbi.insert_mpeg) {
-		itv->params.stream_type = 0;
-
-		/* assign stream type */
-		ivtv_vapi(itv, CX2341X_ENC_SET_STREAM_TYPE, 1, itv->params.stream_type);
-	}
-
 	/* Reset VBI */
 	ivtv_vapi(itv, CX2341X_ENC_SET_VBI_LINE, 5, 0xffff , 0, 0, 0, 0);
 
