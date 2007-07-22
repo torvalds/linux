@@ -158,7 +158,7 @@ static void unlink_from_unused(struct inet_peer *p)
 #define lookup(_daddr,_stack) 					\
 ({								\
 	struct inet_peer *u, **v;				\
-	if (_stack) {						\
+	if (_stack != NULL) {					\
 		stackptr = _stack;				\
 		*stackptr++ = &peer_root;			\
 	}							\
@@ -169,7 +169,7 @@ static void unlink_from_unused(struct inet_peer *p)
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
-		if (_stack)					\
+		if (_stack != NULL)				\
 			*stackptr++ = v;			\
 		u = *v;						\
 	}							\

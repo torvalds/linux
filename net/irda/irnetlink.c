@@ -1,7 +1,7 @@
 /*
  * IrDA netlink layer, for stack configuration.
  *
- * Copyright (c) 2007 Samuel Ortiz <samuel@sortiz>
+ * Copyright (c) 2007 Samuel Ortiz <samuel@sortiz.org>
  *
  * Partly based on the 802.11 nelink implementation
  * (see net/wireless/nl80211.c) which is:
