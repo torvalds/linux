@@ -32,10 +32,10 @@ $(obj)/vdso.o: $(src)/vdso.S $(obj)/vdso.so
 $(obj)/vdso.so: $(src)/vdso.lds $(vobjs) FORCE
 	$(call if_changed,syscall)
 
-CF := $(PROFILING) -mcmodel=small -fPIC -g0 -O2 -fasynchronous-unwind-tables -m64
+CFL := $(PROFILING) -mcmodel=small -fPIC -g0 -O2 -fasynchronous-unwind-tables -m64
 
-$(obj)/vclock_gettime.o: CFLAGS = $(CF)
-$(obj)/vgetcpu.o: CFLAGS = $(CF)
+$(obj)/vclock_gettime.o: CFLAGS = $(CFL)
+$(obj)/vgetcpu.o: CFLAGS = $(CFL)
 
 # We also create a special relocatable object that should mirror the symbol
 # table and layout of the linked DSO.  With ld -R we can then refer to
