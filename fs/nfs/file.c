@@ -33,6 +33,7 @@
 #include <asm/system.h>
 
 #include "delegation.h"
+#include "internal.h"
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
@@ -54,6 +55,8 @@ static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_setlease(struct file *file, long arg, struct file_lock **fl);
+
+static struct vm_operations_struct nfs_file_vm_ops;
 
 const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
@@ -257,8 +260,11 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
 	status = nfs_revalidate_mapping(inode, file->f_mapping);
-	if (!status)
-		status = generic_file_mmap(file, vma);
+	if (!status) {
+		vma->vm_ops = &nfs_file_vm_ops;
+		vma->vm_flags |= VM_CAN_NONLINEAR;
+		file_accessed(file);
+	}
 	return status;
 }
 
@@ -344,6 +350,31 @@ const struct address_space_operations nfs_file_aops = {
 	.direct_IO = nfs_direct_IO,
 #endif
 	.launder_page = nfs_launder_page,
+};
+
+static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+{
+	struct file *filp = vma->vm_file;
+	unsigned pagelen;
+	int ret = -EINVAL;
+
+	lock_page(page);
+	if (page->mapping != vma->vm_file->f_path.dentry->d_inode->i_mapping)
+		goto out_unlock;
+	pagelen = nfs_page_length(page);
+	if (pagelen == 0)
+		goto out_unlock;
+	ret = nfs_prepare_write(filp, page, 0, pagelen);
+	if (!ret)
+		ret = nfs_commit_write(filp, page, 0, pagelen);
+out_unlock:
+	unlock_page(page);
+	return ret;
+}
+
+static struct vm_operations_struct nfs_file_vm_ops = {
+	.fault = filemap_fault,
+	.page_mkwrite = nfs_vm_page_mkwrite,
 };
 
 static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
