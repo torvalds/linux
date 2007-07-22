@@ -430,13 +430,16 @@ static int torture_peb(const struct ubi_device *ubi, int pnum)
 	err = patt_count;
 
 out:
-	if (err == UBI_IO_BITFLIPS || err == -EBADMSG)
+	if (err == UBI_IO_BITFLIPS || err == -EBADMSG) {
 		/*
 		 * If a bit-flip or data integrity error was detected, the test
 		 * has not passed because it happened on a freshly erased
 		 * physical eraseblock which means something is wrong with it.
 		 */
+		ubi_err("read problems on freshly erased PEB %d, must be bad",
+			pnum);
 		err = -EIO;
+	}
 	vfree(buf);
 	return err;
 }
