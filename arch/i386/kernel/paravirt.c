@@ -124,20 +124,28 @@ unsigned paravirt_patch_ignore(unsigned len)
 	return len;
 }
 
+struct branch {
+	unsigned char opcode;
+	u32 delta;
+} __attribute__((packed));
+
 unsigned paravirt_patch_call(void *target, u16 tgt_clobbers,
 			     void *site, u16 site_clobbers,
 			     unsigned len)
 {
 	unsigned char *call = site;
 	unsigned long delta = (unsigned long)target - (unsigned long)(call+5);
+	struct branch b;
 
 	if (tgt_clobbers & ~site_clobbers)
 		return len;	/* target would clobber too much for this site */
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	*call++ = 0xe8;		/* call */
-	*(unsigned long *)call = delta;
+	b.opcode = 0xe8; /* call */
+	b.delta = delta;
+	BUILD_BUG_ON(sizeof(b) != 5);
+	text_poke(call, (unsigned char *)&b, 5);
 
 	return 5;
 }
@@ -150,8 +158,9 @@ unsigned paravirt_patch_jmp(void *target, void *site, unsigned len)
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	*jmp++ = 0xe9;		/* jmp */
-	*(unsigned long *)jmp = delta;
+	b.opcode = 0xe9;	/* jmp */
+	b.delta = delta;
+	text_poke(call, (unsigned char *)&b, 5);
 
 	return 5;
 }

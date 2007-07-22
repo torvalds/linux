@@ -149,4 +149,6 @@ apply_paravirt(struct paravirt_patch_site *start,
 #define __parainstructions_end	NULL
 #endif
 
+extern void text_poke(void *addr, unsigned char *opcode, int len);
+
 #endif /* _I386_ALTERNATIVE_H */
