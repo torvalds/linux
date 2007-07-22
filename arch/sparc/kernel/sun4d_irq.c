@@ -190,7 +190,7 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 	kfree(action);
 
 	if (!(*actionp))
-		disable_irq(irq);
+		__disable_irq(irq);
 
 out_unlock:
 	spin_unlock_irqrestore(&irq_action_lock, flags);
@@ -348,7 +348,7 @@ int sun4d_request_irq(unsigned int irq,
 	else
 		*actionp = action;
 		
-	enable_irq(irq);
+	__enable_irq(irq);
 
 	ret = 0;
 out_unlock:
