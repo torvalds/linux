@@ -850,6 +850,15 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	}
 
+	if (!test_and_set_bit(IVTV_F_I_INITED, &itv->i_flags))
+		if (ivtv_init_on_first_open(itv))
+			set_bit(IVTV_F_I_FAILED, &itv->i_flags);
+
+	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags)) {
+		printk(KERN_WARNING "ivtv:  failed to initialize on minor %d\n", minor);
+		return -ENXIO;
+	}
+
 	if (y == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))
 		return -EBUSY;

@@ -625,6 +625,22 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 	struct v4l2_tuner *vt = arg;
 	struct v4l2_routing *route = arg;
 
+	/* ignore these commands */
+	switch (cmd) {
+		case TUNER_SET_TYPE_ADDR:
+			return 0;
+	}
+
+	if (!state->is_initialized) {
+		v4l_dbg(1, cx25840_debug, client, "cmd %08x triggered fw load\n", cmd);
+		/* initialize on first use */
+		state->is_initialized = 1;
+		if (state->is_cx25836)
+			cx25836_initialize(client);
+		else
+			cx25840_initialize(client, 1);
+	}
+
 	switch (cmd) {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct access to the
@@ -905,11 +921,6 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->rev = device_id;
 
 	i2c_attach_client(client);
-
-	if (state->is_cx25836)
-		cx25836_initialize(client);
-	else
-		cx25840_initialize(client, 1);
 
 	return 0;
 }

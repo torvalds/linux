@@ -814,7 +814,6 @@ static void ivtv_request_module(struct ivtv *itv, const char *name)
 
 static void ivtv_load_and_init_modules(struct ivtv *itv)
 {
-	struct v4l2_control ctrl;
 	u32 hw = itv->card->hw_all;
 	int i;
 
@@ -896,11 +895,6 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 
 	if (hw & IVTV_HW_CX25840) {
-		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
-		ctrl.id = V4L2_CID_PRIVATE_BASE;
-		ctrl.value = itv->pvr150_workaround;
-		itv->video_dec_func(itv, VIDIOC_S_CTRL, &ctrl);
-
 		itv->vbi.raw_decoder_line_size = 1444;
 		itv->vbi.raw_decoder_sav_odd_field = 0x20;
 		itv->vbi.raw_decoder_sav_even_field = 0x60;
@@ -946,12 +940,9 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				const struct pci_device_id *pci_id)
 {
 	int retval = 0;
-	int video_input;
 	int yuv_buf_size;
 	int vbi_buf_size;
-	int fw_retry_count = 3;
 	struct ivtv *itv;
-	struct v4l2_frequency vf;
 
 	spin_lock(&ivtv_cards_lock);
 
@@ -1037,22 +1028,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		retval = -ENOMEM;
 		goto free_io;
 	}
-
-	while (--fw_retry_count > 0) {
-		/* load firmware */
-		if (ivtv_firmware_init(itv) == 0)
-			break;
-		if (fw_retry_count > 1)
-			IVTV_WARN("Retry loading firmware\n");
-	}
-	if (fw_retry_count == 0) {
-		IVTV_ERR("Error initializing firmware\n");
-		goto free_i2c;
-	}
-
-	/* Try and get firmware versions */
-	IVTV_DEBUG_INFO("Getting firmware version..\n");
-	ivtv_firmware_versions(itv);
 
 	/* Check yuv output filter table */
 	if (itv->has_cx23415) ivtv_yuv_filter_check(itv);
@@ -1157,43 +1132,15 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		ivtv_call_i2c_clients(itv, TUNER_SET_TYPE_ADDR, &setup);
 	}
 
-	vf.tuner = 0;
-	vf.type = V4L2_TUNER_ANALOG_TV;
-	vf.frequency = 6400; /* the tuner 'baseline' frequency */
-
-	/* Set initial frequency. For PAL/SECAM broadcasts no
-	   'default' channel exists AFAIK. */
-	if (itv->std == V4L2_STD_NTSC_M_JP) {
-		vf.frequency = 1460;	/* ch. 1 91250*16/1000 */
-	}
-	else if (itv->std & V4L2_STD_NTSC_M) {
-		vf.frequency = 1076;	/* ch. 4 67250*16/1000 */
-	}
-
 	/* The tuner is fixed to the standard. The other inputs (e.g. S-Video)
 	   are not. */
 	itv->tuner_std = itv->std;
-
-	video_input = itv->active_input;
-	itv->active_input++;	/* Force update of input */
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_INPUT, &video_input);
-
-	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
-	   in one place. */
-	itv->std++;		/* Force full standard initialization */
-	itv->std_out = itv->std;
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
 
 	retval = ivtv_streams_setup(itv);
 	if (retval) {
 		IVTV_ERR("Error %d setting up streams\n", retval);
 		goto free_i2c;
 	}
-
-	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
-		ivtv_init_mpeg_decoder(itv);
-	}
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
 
 	IVTV_DEBUG_IRQ("Masking interrupts\n");
 	/* clear interrupt mask, effectively disabling interrupts */
@@ -1206,26 +1153,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		IVTV_ERR("Failed to register irq %d\n", retval);
 		goto free_streams;
 	}
-
-	/* On a cx23416 this seems to be able to enable DMA to the chip? */
-	if (!itv->has_cx23415)
-		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
-
-	/* Default interrupts enabled. For the PVR350 this includes the
-	   decoder VSYNC interrupt, which is always on. It is not only used
-	   during decoding but also by the OSD.
-	   Some old PVR250 cards had a cx23415, so testing for that is too
-	   general. Instead test if the card has video output capability. */
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
-		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
-	else
-		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
-
-	if (itv->has_cx23415)
-		ivtv_set_osd_alpha(itv);
-
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
-
 	return 0;
 
       free_irq:
@@ -1255,55 +1183,126 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	return retval;
 }
 
+int ivtv_init_on_first_open(struct ivtv *itv)
+{
+	struct v4l2_frequency vf;
+	int fw_retry_count = 3;
+	int video_input;
+
+	while (--fw_retry_count > 0) {
+		/* load firmware */
+		if (ivtv_firmware_init(itv) == 0)
+			break;
+		if (fw_retry_count > 1)
+			IVTV_WARN("Retry loading firmware\n");
+	}
+	if (fw_retry_count == 0) {
+		IVTV_ERR("Error initializing firmware\n");
+		return -1;
+	}
+
+	/* Try and get firmware versions */
+	IVTV_DEBUG_INFO("Getting firmware version..\n");
+	ivtv_firmware_versions(itv);
+
+	if (itv->card->hw_all & IVTV_HW_CX25840) {
+		struct v4l2_control ctrl;
+
+		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
+		ctrl.id = V4L2_CID_PRIVATE_BASE;
+		ctrl.value = itv->pvr150_workaround;
+		itv->video_dec_func(itv, VIDIOC_S_CTRL, &ctrl);
+	}
+
+	vf.tuner = 0;
+	vf.type = V4L2_TUNER_ANALOG_TV;
+	vf.frequency = 6400; /* the tuner 'baseline' frequency */
+
+	/* Set initial frequency. For PAL/SECAM broadcasts no
+	   'default' channel exists AFAIK. */
+	if (itv->std == V4L2_STD_NTSC_M_JP) {
+		vf.frequency = 1460;	/* ch. 1 91250*16/1000 */
+	}
+	else if (itv->std & V4L2_STD_NTSC_M) {
+		vf.frequency = 1076;	/* ch. 4 67250*16/1000 */
+	}
+
+	video_input = itv->active_input;
+	itv->active_input++;	/* Force update of input */
+	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_INPUT, &video_input);
+
+	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
+	   in one place. */
+	itv->std++;		/* Force full standard initialization */
+	itv->std_out = itv->std;
+	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
+
+	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
+		ivtv_init_mpeg_decoder(itv);
+	}
+	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
+
+	/* On a cx23416 this seems to be able to enable DMA to the chip? */
+	if (!itv->has_cx23415)
+		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
+
+	/* Default interrupts enabled. For the PVR350 this includes the
+	   decoder VSYNC interrupt, which is always on. It is not only used
+	   during decoding but also by the OSD.
+	   Some old PVR250 cards had a cx23415, so testing for that is too
+	   general. Instead test if the card has video output capability. */
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
+		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
+		ivtv_set_osd_alpha(itv);
+	}
+	else
+		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
+	return 0;
+}
+
 static void ivtv_remove(struct pci_dev *pci_dev)
 {
 	struct ivtv *itv = pci_get_drvdata(pci_dev);
 
 	IVTV_DEBUG_INFO("Removing Card #%d\n", itv->num);
 
-	/* Stop all captures */
-	IVTV_DEBUG_INFO("Stopping all streams\n");
-	if (atomic_read(&itv->capturing) > 0)
-		ivtv_stop_all_captures(itv);
+	if (test_bit(IVTV_F_I_INITED, &itv->i_flags)) {
+		/* Stop all captures */
+		IVTV_DEBUG_INFO("Stopping all streams\n");
+		if (atomic_read(&itv->capturing) > 0)
+			ivtv_stop_all_captures(itv);
 
-	/* Stop all decoding */
-	IVTV_DEBUG_INFO("Stopping decoding\n");
-	if (atomic_read(&itv->decoding) > 0) {
-		int type;
+		/* Stop all decoding */
+		IVTV_DEBUG_INFO("Stopping decoding\n");
+		if (atomic_read(&itv->decoding) > 0) {
+			int type;
 
-		if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags))
-			type = IVTV_DEC_STREAM_TYPE_YUV;
-		else
-			type = IVTV_DEC_STREAM_TYPE_MPG;
-		ivtv_stop_v4l2_decode_stream(&itv->streams[type],
-			VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
+			if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags))
+				type = IVTV_DEC_STREAM_TYPE_YUV;
+			else
+				type = IVTV_DEC_STREAM_TYPE_MPG;
+			ivtv_stop_v4l2_decode_stream(&itv->streams[type],
+				VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
+		}
+		ivtv_halt_firmware(itv);
 	}
 
 	/* Interrupts */
-	IVTV_DEBUG_INFO("Disabling interrupts\n");
 	ivtv_set_irq_mask(itv, 0xffffffff);
 	del_timer_sync(&itv->dma_timer);
 
 	/* Stop all Work Queues */
-	IVTV_DEBUG_INFO("Stop Work Queues\n");
 	flush_workqueue(itv->irq_work_queues);
 	destroy_workqueue(itv->irq_work_queues);
 
-	IVTV_DEBUG_INFO("Stopping Firmware\n");
-	ivtv_halt_firmware(itv);
-
-	IVTV_DEBUG_INFO("Unregistering v4l devices\n");
 	ivtv_streams_cleanup(itv);
-	IVTV_DEBUG_INFO("Freeing dma resources\n");
 	ivtv_udma_free(itv);
 
 	exit_ivtv_i2c(itv);
 
-	IVTV_DEBUG_INFO(" Releasing irq\n");
 	free_irq(itv->dev->irq, (void *)itv);
 	ivtv_iounmap(itv);
 
-	IVTV_DEBUG_INFO(" Releasing mem\n");
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
