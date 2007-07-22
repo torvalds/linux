@@ -37,21 +37,21 @@ static ssize_t vol_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf);
 
 /* Device attributes corresponding to files in '/<sysfs>/class/ubi/ubiX_Y' */
-static struct device_attribute vol_reserved_ebs =
+static struct device_attribute attr_vol_reserved_ebs =
 	__ATTR(reserved_ebs, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_type =
+static struct device_attribute attr_vol_type =
 	__ATTR(type, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_name =
+static struct device_attribute attr_vol_name =
 	__ATTR(name, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_corrupted =
+static struct device_attribute attr_vol_corrupted =
 	__ATTR(corrupted, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_alignment =
+static struct device_attribute attr_vol_alignment =
 	__ATTR(alignment, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_usable_eb_size =
+static struct device_attribute attr_vol_usable_eb_size =
 	__ATTR(usable_eb_size, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_data_bytes =
+static struct device_attribute attr_vol_data_bytes =
 	__ATTR(data_bytes, S_IRUGO, vol_attribute_show, NULL);
-static struct device_attribute vol_upd_marker =
+static struct device_attribute attr_vol_upd_marker =
 	__ATTR(upd_marker, S_IRUGO, vol_attribute_show, NULL);
 
 /*
@@ -78,23 +78,27 @@ static ssize_t vol_attribute_show(struct device *dev,
 		spin_unlock(&vol->ubi->volumes_lock);
 		return -ENODEV;
 	}
-	if (attr == &vol_reserved_ebs)
+	if (attr == &attr_vol_reserved_ebs)
 		ret = sprintf(buf, "%d\n", vol->reserved_pebs);
-	else if (attr == &vol_type) {
+	else if (attr == &attr_vol_type) {
 		const char *tp;
-		tp = vol->vol_type == UBI_DYNAMIC_VOLUME ? "dynamic" : "static";
+
+		if (vol->vol_type == UBI_DYNAMIC_VOLUME)
+			tp = "dynamic";
+		else
+			tp = "static";
 		ret = sprintf(buf, "%s\n", tp);
-	} else if (attr == &vol_name)
+	} else if (attr == &attr_vol_name)
 		ret = sprintf(buf, "%s\n", vol->name);
-	else if (attr == &vol_corrupted)
+	else if (attr == &attr_vol_corrupted)
 		ret = sprintf(buf, "%d\n", vol->corrupted);
-	else if (attr == &vol_alignment)
+	else if (attr == &attr_vol_alignment)
 		ret = sprintf(buf, "%d\n", vol->alignment);
-	else if (attr == &vol_usable_eb_size) {
+	else if (attr == &attr_vol_usable_eb_size) {
 		ret = sprintf(buf, "%d\n", vol->usable_leb_size);
-	} else if (attr == &vol_data_bytes)
+	} else if (attr == &attr_vol_data_bytes)
 		ret = sprintf(buf, "%lld\n", vol->used_bytes);
-	else if (attr == &vol_upd_marker)
+	else if (attr == &attr_vol_upd_marker)
 		ret = sprintf(buf, "%d\n", vol->upd_marker);
 	else
 		BUG();
@@ -126,28 +130,28 @@ static int volume_sysfs_init(struct ubi_device *ubi, struct ubi_volume *vol)
 {
 	int err;
 
-	err = device_create_file(&vol->dev, &vol_reserved_ebs);
+	err = device_create_file(&vol->dev, &attr_vol_reserved_ebs);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_type);
+	err = device_create_file(&vol->dev, &attr_vol_type);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_name);
+	err = device_create_file(&vol->dev, &attr_vol_name);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_corrupted);
+	err = device_create_file(&vol->dev, &attr_vol_corrupted);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_alignment);
+	err = device_create_file(&vol->dev, &attr_vol_alignment);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_usable_eb_size);
+	err = device_create_file(&vol->dev, &attr_vol_usable_eb_size);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_data_bytes);
+	err = device_create_file(&vol->dev, &attr_vol_data_bytes);
 	if (err)
 		return err;
-	err = device_create_file(&vol->dev, &vol_upd_marker);
+	err = device_create_file(&vol->dev, &attr_vol_upd_marker);
 	if (err)
 		return err;
 	return 0;
@@ -159,14 +163,14 @@ static int volume_sysfs_init(struct ubi_device *ubi, struct ubi_volume *vol)
  */
 static void volume_sysfs_close(struct ubi_volume *vol)
 {
-	device_remove_file(&vol->dev, &vol_upd_marker);
-	device_remove_file(&vol->dev, &vol_data_bytes);
-	device_remove_file(&vol->dev, &vol_usable_eb_size);
-	device_remove_file(&vol->dev, &vol_alignment);
-	device_remove_file(&vol->dev, &vol_corrupted);
-	device_remove_file(&vol->dev, &vol_name);
-	device_remove_file(&vol->dev, &vol_type);
-	device_remove_file(&vol->dev, &vol_reserved_ebs);
+	device_remove_file(&vol->dev, &attr_vol_upd_marker);
+	device_remove_file(&vol->dev, &attr_vol_data_bytes);
+	device_remove_file(&vol->dev, &attr_vol_usable_eb_size);
+	device_remove_file(&vol->dev, &attr_vol_alignment);
+	device_remove_file(&vol->dev, &attr_vol_corrupted);
+	device_remove_file(&vol->dev, &attr_vol_name);
+	device_remove_file(&vol->dev, &attr_vol_type);
+	device_remove_file(&vol->dev, &attr_vol_reserved_ebs);
 	device_unregister(&vol->dev);
 }
 

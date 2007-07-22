@@ -266,7 +266,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	void *buf;
 	int len, err, second_is_newer, bitflips = 0, corrupted = 0;
 	uint32_t data_crc, crc;
-	struct ubi_vid_hdr *vidh = NULL;
+	struct ubi_vid_hdr *vh = NULL;
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
 	if (seb->sqnum == 0 && sqnum2 == 0) {
@@ -323,11 +323,11 @@ static int compare_lebs(const struct ubi_device *ubi,
 	} else {
 		pnum = seb->pnum;
 
-		vidh = ubi_zalloc_vid_hdr(ubi);
-		if (!vidh)
+		vh = ubi_zalloc_vid_hdr(ubi);
+		if (!vh)
 			return -ENOMEM;
 
-		err = ubi_io_read_vid_hdr(ubi, pnum, vidh, 0);
+		err = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
 		if (err) {
 			if (err == UBI_IO_BITFLIPS)
 				bitflips = 1;
@@ -341,7 +341,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 			}
 		}
 
-		if (!vidh->copy_flag) {
+		if (!vh->copy_flag) {
 			/* It is not a copy, so it is newer */
 			dbg_bld("first PEB %d is newer, copy_flag is unset",
 				pnum);
@@ -349,7 +349,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 			goto out_free_vidh;
 		}
 
-		vid_hdr = vidh;
+		vid_hdr = vh;
 	}
 
 	/* Read the data of the copy and check the CRC */
@@ -379,7 +379,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	}
 
 	vfree(buf);
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, vh);
 
 	if (second_is_newer)
 		dbg_bld("second PEB %d is newer, copy_flag is set", pnum);
@@ -391,7 +391,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 out_free_buf:
 	vfree(buf);
 out_free_vidh:
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, vh);
 	ubi_assert(err < 0);
 	return err;
 }
