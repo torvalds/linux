@@ -87,7 +87,7 @@ struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 #endif
 };
 
-static DEFINE_MUTEX(audit_filter_mutex);
+DEFINE_MUTEX(audit_filter_mutex);
 
 /* Inotify handle */
 extern struct inotify_handle *audit_ih;
@@ -145,7 +145,7 @@ static inline void audit_free_rule(struct audit_entry *e)
 	kfree(e);
 }
 
-static inline void audit_free_rule_rcu(struct rcu_head *head)
+void audit_free_rule_rcu(struct rcu_head *head)
 {
 	struct audit_entry *e = container_of(head, struct audit_entry, rcu);
 	audit_free_rule(e);
@@ -217,7 +217,7 @@ static inline struct audit_entry *audit_init_entry(u32 field_count)
 
 /* Unpack a filter field's string representation from user-space
  * buffer. */
-static char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
+char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 {
 	char *str;
 
@@ -247,7 +247,7 @@ static inline int audit_to_inode(struct audit_krule *krule,
 				 struct audit_field *f)
 {
 	if (krule->listnr != AUDIT_FILTER_EXIT ||
-	    krule->watch || krule->inode_f)
+	    krule->watch || krule->inode_f || krule->tree)
 		return -EINVAL;
 
 	krule->inode_f = f;
@@ -266,7 +266,7 @@ static int audit_to_watch(struct audit_krule *krule, char *path, int len,
 	if (path[0] != '/' || path[len-1] == '/' ||
 	    krule->listnr != AUDIT_FILTER_EXIT ||
 	    op & ~AUDIT_EQUAL ||
-	    krule->inode_f || krule->watch) /* 1 inode # per rule, for hash */
+	    krule->inode_f || krule->watch || krule->tree)
 		return -EINVAL;
 
 	watch = audit_init_watch(path);
@@ -622,6 +622,17 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			}
 			break;
+		case AUDIT_DIR:
+			str = audit_unpack_string(&bufp, &remain, f->val);
+			if (IS_ERR(str))
+				goto exit_free;
+			entry->rule.buflen += f->val;
+
+			err = audit_make_tree(&entry->rule, str, f->op);
+			kfree(str);
+			if (err)
+				goto exit_free;
+			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
 			if (err)
@@ -668,7 +679,7 @@ exit_free:
 }
 
 /* Pack a filter field's string representation into data block. */
-static inline size_t audit_pack_string(void **bufp, char *str)
+static inline size_t audit_pack_string(void **bufp, const char *str)
 {
 	size_t len = strlen(str);
 
@@ -747,6 +758,11 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, krule->watch->path);
 			break;
+		case AUDIT_DIR:
+			data->buflen += data->values[i] =
+				audit_pack_string(&bufp,
+						  audit_tree_path(krule->tree));
+			break;
 		case AUDIT_FILTERKEY:
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, krule->filterkey);
@@ -793,6 +809,11 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 			break;
 		case AUDIT_WATCH:
 			if (strcmp(a->watch->path, b->watch->path))
+				return 1;
+			break;
+		case AUDIT_DIR:
+			if (strcmp(audit_tree_path(a->tree),
+				   audit_tree_path(b->tree)))
 				return 1;
 			break;
 		case AUDIT_FILTERKEY:
@@ -897,6 +918,14 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	new->inode_f = old->inode_f;
 	new->watch = NULL;
 	new->field_count = old->field_count;
+	/*
+	 * note that we are OK with not refcounting here; audit_match_tree()
+	 * never dereferences tree and we can't get false positives there
+	 * since we'd have to have rule gone from the list *and* removed
+	 * before the chunks found by lookup had been allocated, i.e. before
+	 * the beginning of list scan.
+	 */
+	new->tree = old->tree;
 	memcpy(new->fields, old->fields, sizeof(struct audit_field) * fcount);
 
 	/* deep copy this information, updating the se_rule fields, because
@@ -1217,6 +1246,7 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	struct audit_entry *e;
 	struct audit_field *inode_f = entry->rule.inode_f;
 	struct audit_watch *watch = entry->rule.watch;
+	struct audit_tree *tree = entry->rule.tree;
 	struct nameidata *ndp = NULL, *ndw = NULL;
 	int h, err;
 #ifdef CONFIG_AUDITSYSCALL
@@ -1238,6 +1268,9 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	mutex_unlock(&audit_filter_mutex);
 	if (e) {
 		err = -EEXIST;
+		/* normally audit_add_tree_rule() will free it on failure */
+		if (tree)
+			audit_put_tree(tree);
 		goto error;
 	}
 
@@ -1258,6 +1291,13 @@ static inline int audit_add_rule(struct audit_entry *entry,
 		}
 		h = audit_hash_ino((u32)watch->ino);
 		list = &audit_inode_hash[h];
+	}
+	if (tree) {
+		err = audit_add_tree_rule(&entry->rule);
+		if (err) {
+			mutex_unlock(&audit_filter_mutex);
+			goto error;
+		}
 	}
 
 	if (entry->rule.flags & AUDIT_FILTER_PREPEND) {
@@ -1292,6 +1332,7 @@ static inline int audit_del_rule(struct audit_entry *entry,
 	struct audit_entry  *e;
 	struct audit_field *inode_f = entry->rule.inode_f;
 	struct audit_watch *watch, *tmp_watch = entry->rule.watch;
+	struct audit_tree *tree = entry->rule.tree;
 	LIST_HEAD(inotify_list);
 	int h, ret = 0;
 #ifdef CONFIG_AUDITSYSCALL
@@ -1336,6 +1377,9 @@ static inline int audit_del_rule(struct audit_entry *entry,
 		}
 	}
 
+	if (e->rule.tree)
+		audit_remove_tree_rule(&e->rule);
+
 	list_del_rcu(&e->list);
 	call_rcu(&e->rcu, audit_free_rule_rcu);
 
@@ -1354,6 +1398,8 @@ static inline int audit_del_rule(struct audit_entry *entry,
 out:
 	if (tmp_watch)
 		audit_put_watch(tmp_watch); /* match initial get */
+	if (tree)
+		audit_put_tree(tree);	/* that's the temporary one */
 
 	return ret;
 }
@@ -1737,6 +1783,7 @@ int selinux_audit_rule_update(void)
 {
 	struct audit_entry *entry, *n, *nentry;
 	struct audit_watch *watch;
+	struct audit_tree *tree;
 	int i, err = 0;
 
 	/* audit_filter_mutex synchronizes the writers */
@@ -1748,6 +1795,7 @@ int selinux_audit_rule_update(void)
 				continue;
 
 			watch = entry->rule.watch;
+			tree = entry->rule.tree;
 			nentry = audit_dupe_rule(&entry->rule, watch);
 			if (unlikely(IS_ERR(nentry))) {
 				/* save the first error encountered for the
@@ -1763,7 +1811,9 @@ int selinux_audit_rule_update(void)
 					list_add(&nentry->rule.rlist,
 						 &watch->rules);
 					list_del(&entry->rule.rlist);
-				}
+				} else if (tree)
+					list_replace_init(&entry->rule.rlist,
+						     &nentry->rule.rlist);
 				list_replace_rcu(&entry->list, &nentry->list);
 			}
 			call_rcu(&entry->rcu, audit_free_rule_rcu);

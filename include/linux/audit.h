@@ -63,6 +63,8 @@
 #define AUDIT_ADD_RULE		1011	/* Add syscall filtering rule */
 #define AUDIT_DEL_RULE		1012	/* Delete syscall filtering rule */
 #define AUDIT_LIST_RULES	1013	/* List syscall filtering rules */
+#define AUDIT_TRIM		1014	/* Trim junk from watched tree */
+#define AUDIT_MAKE_EQUIV	1015	/* Append to watched tree */
 #define AUDIT_TTY_GET		1016	/* Get TTY auditing status */
 #define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
 
@@ -203,6 +205,7 @@
 #define AUDIT_SUCCESS   104	/* exit >= 0; value ignored */
 #define AUDIT_WATCH	105
 #define AUDIT_PERM	106
+#define AUDIT_DIR	107
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)

@@ -178,6 +178,7 @@ d_iput:		no		no		no       yes
 #define DCACHE_INOTIFY_PARENT_WATCHED	0x0020 /* Parent inode is watched */
 
 extern spinlock_t dcache_lock;
+extern seqlock_t rename_lock;
 
 /**
  * d_drop - drop a dentry
