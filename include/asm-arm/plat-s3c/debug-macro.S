@@ -11,7 +11,26 @@
 
 #include <asm/plat-s3c/regs-serial.h>
 
-#define S3C2410_UART1_OFF (0x4000)
+/* The S3C2440 implementations are used by default as they are the
+ * most widely re-used */
+
+	.macro fifo_level_s3c2440 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		and	\rd, \rd, #S3C2440_UFSTAT_TXMASK
+	.endm
+
+#ifndef fifo_level
+#define fifo_level fifo_level_s3c2410
+#endif
+
+	.macro  fifo_full_s3c2440 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		tst	\rd, #S3C2440_UFSTAT_TXFULL
+	.endm
+
+#ifndef fifo_full
+#define fifo_full fifo_full_s3c2440
+#endif
 
 	.macro	senduart,rd,rx
 		strb 	\rd, [\rx, # S3C2410_UTXH ]
@@ -37,7 +56,6 @@
 	.endm
 
 	.macro	waituart,rd,rx
-
 		ldr	\rd, [ \rx, # S3C2410_UFCON ]
 		tst	\rd, #S3C2410_UFCON_FIFOMODE	@ fifo enabled?
 		beq	1001f				@
