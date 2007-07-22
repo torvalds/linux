@@ -7,6 +7,7 @@
 #include <asm/boot.h>
 #include <xen/interface/elfnote.h>
 
+	.section .init.text
 ENTRY(startup_xen)
 	movl %esi,xen_start_info
 	cld
@@ -19,6 +20,7 @@ ENTRY(hypercall_page)
 	.skip 0x1000
 .popsection
 
+	.section .text
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
 	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz "xen-3.0")
