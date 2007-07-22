@@ -8,6 +8,7 @@ config CPU_S3C2443
 	bool
 	depends on ARCH_S3C2410
 	select S3C2443_DMA if S3C2410_DMA
+	select CPU_LLSERIAL_S3C2440
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 

@@ -12,6 +12,34 @@ config PLAT_S3C
 	help
 	  Base platform code for any Samsung S3C device
 
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	depends on ARCH_S3C2410
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	depends on ARCH_S3C2410
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
+# boot configurations
+
 comment "Boot options"
 
 config S3C2410_BOOT_WATCHDOG
