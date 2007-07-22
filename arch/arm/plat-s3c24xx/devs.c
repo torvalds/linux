@@ -28,7 +28,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/udc.h>
 
 #include <asm/plat-s3c24xx/devs.h>

@@ -34,7 +34,7 @@
 #include <asm/arch/idle.h>
 
 #include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-power.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-gpioj.h>

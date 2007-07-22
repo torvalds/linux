@@ -16,9 +16,9 @@
 typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 
 /* defines for UART registers */
-#include "asm/arch/regs-serial.h"
+#include "asm/plat-s3c/regs-serial.h"
 #include "asm/arch/regs-gpio.h"
-#include "asm/arch/regs-watchdog.h"
+#include "asm/plat-s3c/regs-watchdog.h"
 
 #include <asm/arch/map.h>
 

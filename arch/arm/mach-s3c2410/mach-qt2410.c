@@ -49,9 +49,9 @@
 
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/leds-gpio.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/fb.h>
-#include <asm/arch/nand.h>
+#include <asm/plat-s3c/nand.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/spi.h>
 #include <asm/arch/spi-gpio.h>

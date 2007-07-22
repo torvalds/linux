@@ -13,7 +13,7 @@
 */
 
 #include <asm/arch/map.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
 #define S3C2410_UART1_OFF (0x4000)

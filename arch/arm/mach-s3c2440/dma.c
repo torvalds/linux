@@ -23,7 +23,7 @@
 #include <asm/plat-s3c24xx/dma.h>
 #include <asm/plat-s3c24xx/cpu.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-ac97.h>
 #include <asm/arch/regs-mem.h>
