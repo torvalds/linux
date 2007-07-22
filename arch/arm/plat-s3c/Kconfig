@@ -93,8 +93,8 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 
 	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 
-config S3C2410_LOWLEVEL_UART_PORT
-	int "S3C2410 UART to use for low-level messages"
+config S3C_LOWLEVEL_UART_PORT
+	int "S3C UART to use for low-level messages"
 	depends on PLAT_S3C
 	default 0
 	help

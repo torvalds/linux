@@ -32,7 +32,7 @@ typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
 
-#define uart_base S3C24XX_PA_UART + (0x4000*CONFIG_S3C2410_LOWLEVEL_UART_PORT)
+#define uart_base S3C24XX_PA_UART + (0x4000*CONFIG_S3C_LOWLEVEL_UART_PORT)
 
 static __inline__ void
 uart_wr(unsigned int reg, unsigned int val)

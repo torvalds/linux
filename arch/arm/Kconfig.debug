@@ -100,6 +100,6 @@ config DEBUG_S3C2410_UART
 	  initialised by the boot-loader before use.
 
 	  The uncompressor code port configuration is now handled
-	  by CONFIG_S3C2410_LOWLEVEL_UART_PORT.
+	  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
 endmenu
