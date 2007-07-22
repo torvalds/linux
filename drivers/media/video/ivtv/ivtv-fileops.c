@@ -757,6 +757,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	    itv->output_mode = OUT_NONE;
 
 	itv->speed = 0;
+	clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags);
 	ivtv_release_stream(s);
 }
 

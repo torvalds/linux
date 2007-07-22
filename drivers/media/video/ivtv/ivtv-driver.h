@@ -417,6 +417,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_WORK_HANDLER_YUV  17	/* there is work to be done for YUV */
 #define IVTV_F_I_WORK_HANDLER_PIO  18	/* there is work to be done for PIO */
 #define IVTV_F_I_PIO		   19	/* PIO in progress */
+#define IVTV_F_I_DEC_PAUSED	   20 	/* the decoder is paused */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
