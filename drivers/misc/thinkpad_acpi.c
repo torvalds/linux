@@ -21,8 +21,8 @@
  *  02110-1301, USA.
  */
 
-#define IBM_VERSION "0.14"
-#define TPACPI_SYSFS_VERSION 0x000100
+#define IBM_VERSION "0.15"
+#define TPACPI_SYSFS_VERSION 0x010000
 
 /*
  *  Changelog:
@@ -92,6 +92,29 @@ MODULE_LICENSE("GPL");
 /* Please remove this in year 2009 */
 MODULE_ALIAS("ibm_acpi");
 
+/*
+ * DMI matching for module autoloading
+ *
+ * See http://thinkwiki.org/wiki/List_of_DMI_IDs
+ * See http://thinkwiki.org/wiki/BIOS_Upgrade_Downloads
+ *
+ * Only models listed in thinkwiki will be supported, so add yours
+ * if it is not there yet.
+ */
+#define IBM_BIOS_MODULE_ALIAS(__type) \
+	MODULE_ALIAS("dmi:bvnIBM:bvr" __type "ET??WW")
+
+/* Non-ancient thinkpads */
+MODULE_ALIAS("dmi:bvnIBM:*:svnIBM:*:pvrThinkPad*:rvnIBM:*");
+MODULE_ALIAS("dmi:bvnLENOVO:*:svnLENOVO:*:pvrThinkPad*:rvnLENOVO:*");
+
+/* Ancient thinkpad BIOSes have to be identified by
+ * BIOS type or model number, and there are far less
+ * BIOS types than model numbers... */
+IBM_BIOS_MODULE_ALIAS("I[B,D,H,I,M,N,O,T,W,V,Y,Z]");
+IBM_BIOS_MODULE_ALIAS("1[0,3,6,8,A-G,I,K,M-P,S,T]");
+IBM_BIOS_MODULE_ALIAS("K[U,X-Z]");
+
 #define __unused __attribute__ ((unused))
 
 /****************************************************************************
@@ -106,7 +129,7 @@ MODULE_ALIAS("ibm_acpi");
  * ACPI basic handles
  */
 
-static acpi_handle root_handle = NULL;
+static acpi_handle root_handle;
 
 #define IBM_HANDLE(object, parent, paths...)			\
 	static acpi_handle  object##_handle;			\
@@ -487,19 +510,36 @@ static char *next_cmd(char **cmds)
 /****************************************************************************
  ****************************************************************************
  *
- * Device model: hwmon and platform
+ * Device model: input, hwmon and platform
  *
  ****************************************************************************
  ****************************************************************************/
 
-static struct platform_device *tpacpi_pdev = NULL;
-static struct class_device *tpacpi_hwmon = NULL;
+static struct platform_device *tpacpi_pdev;
+static struct class_device *tpacpi_hwmon;
+static struct input_dev *tpacpi_inputdev;
+
+
+static int tpacpi_resume_handler(struct platform_device *pdev)
+{
+	struct ibm_struct *ibm, *itmp;
+
+	list_for_each_entry_safe(ibm, itmp,
+				 &tpacpi_all_drivers,
+				 all_drivers) {
+		if (ibm->resume)
+			(ibm->resume)();
+	}
+
+	return 0;
+}
 
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = IBM_DRVR_NAME,
 		.owner = THIS_MODULE,
 	},
+	.resume = tpacpi_resume_handler,
 };
 
 
@@ -677,9 +717,19 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 	printk(IBM_INFO "%s v%s\n", IBM_DESC, IBM_VERSION);
 	printk(IBM_INFO "%s\n", IBM_URL);
 
-	if (ibm_thinkpad_ec_found)
-		printk(IBM_INFO "ThinkPad EC firmware %s\n",
-		       ibm_thinkpad_ec_found);
+	printk(IBM_INFO "ThinkPad BIOS %s, EC %s\n",
+		(thinkpad_id.bios_version_str) ?
+			thinkpad_id.bios_version_str : "unknown",
+		(thinkpad_id.ec_version_str) ?
+			thinkpad_id.ec_version_str : "unknown");
+
+	if (thinkpad_id.vendor && thinkpad_id.model_str)
+		printk(IBM_INFO "%s %s\n",
+			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
+				"IBM" : ((thinkpad_id.vendor ==
+						PCI_VENDOR_ID_LENOVO) ?
+					"Lenovo" : "Unknown vendor"),
+			thinkpad_id.model_str);
 
 	return 0;
 }
@@ -704,16 +754,28 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
  */
 
 static int hotkey_orig_status;
-static int hotkey_orig_mask;
+static u32 hotkey_orig_mask;
+static u32 hotkey_all_mask;
+static u32 hotkey_reserved_mask;
 
-static struct attribute_set *hotkey_dev_attributes = NULL;
+static u16 *hotkey_keycode_map;
+
+static struct attribute_set *hotkey_dev_attributes;
+
+static int hotkey_get_wlsw(int *status)
+{
+	if (!acpi_evalf(hkey_handle, status, "WLSW", "d"))
+		return -EIO;
+	return 0;
+}
 
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
@@ -727,7 +789,8 @@ static ssize_t hotkey_enable_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
@@ -748,13 +811,14 @@ static ssize_t hotkey_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", mask);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", mask);
 }
 
 static ssize_t hotkey_mask_store(struct device *dev,
@@ -762,9 +826,10 @@ static ssize_t hotkey_mask_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 
-	if (parse_strtoul(buf, 0xffff, &t))
+	if (parse_strtoul(buf, 0xffffffffUL, &t))
 		return -EINVAL;
 
 	res = hotkey_get(&status, &mask);
@@ -794,11 +859,51 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", hotkey_orig_mask);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_orig_mask);
 }
 
 static struct device_attribute dev_attr_hotkey_bios_mask =
 	__ATTR(hotkey_bios_mask, S_IRUGO, hotkey_bios_mask_show, NULL);
+
+/* sysfs hotkey all_mask ----------------------------------------------- */
+static ssize_t hotkey_all_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_all_mask);
+}
+
+static struct device_attribute dev_attr_hotkey_all_mask =
+	__ATTR(hotkey_all_mask, S_IRUGO, hotkey_all_mask_show, NULL);
+
+/* sysfs hotkey recommended_mask --------------------------------------- */
+static ssize_t hotkey_recommended_mask_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+			hotkey_all_mask & ~hotkey_reserved_mask);
+}
+
+static struct device_attribute dev_attr_hotkey_recommended_mask =
+	__ATTR(hotkey_recommended_mask, S_IRUGO,
+		hotkey_recommended_mask_show, NULL);
+
+/* sysfs hotkey radio_sw ----------------------------------------------- */
+static ssize_t hotkey_radio_sw_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res, s;
+	res = hotkey_get_wlsw(&s);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", !!s);
+}
+
+static struct device_attribute dev_attr_hotkey_radio_sw =
+	__ATTR(hotkey_radio_sw, S_IRUGO, hotkey_radio_sw_show, NULL);
 
 /* --------------------------------------------------------------------- */
 
@@ -806,13 +911,70 @@ static struct attribute *hotkey_mask_attributes[] = {
 	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
+	&dev_attr_hotkey_all_mask.attr,
+	&dev_attr_hotkey_recommended_mask.attr,
 };
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
-	int res;
+
+	static u16 ibm_keycode_map[] __initdata = {
+		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
+		KEY_FN_F1,	KEY_FN_F2,	KEY_COFFEE,	KEY_SLEEP,
+		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
+		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
+		/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
+		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
+		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
+		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		/* (assignments unknown, please report if found) */
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	};
+	static u16 lenovo_keycode_map[] __initdata = {
+		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
+		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
+		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
+		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
+		/* Scan codes 0x0C to 0x0F: Other ACPI HKEY hot keys */
+		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
+		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		/* (assignments unknown, please report if found) */
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+	};
+
+#define TPACPI_HOTKEY_MAP_LEN		ARRAY_SIZE(ibm_keycode_map)
+#define TPACPI_HOTKEY_MAP_SIZE		sizeof(ibm_keycode_map)
+#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(ibm_keycode_map[0])
+
+	int res, i;
+	int status;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
+
+	BUG_ON(!tpacpi_inputdev);
 
 	IBM_ACPIHANDLE_INIT(hkey);
 	mutex_init(&hotkey_mutex);
@@ -824,7 +986,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(4, NULL);
+		hotkey_dev_attributes = create_attr_set(7, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_to_attr_set(hotkey_dev_attributes,
@@ -840,19 +1002,92 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		vdbg_printk(TPACPI_DBG_INIT, "hotkey masks are %s\n",
 			str_supported(tp_features.hotkey_mask));
 
+		if (tp_features.hotkey_mask) {
+			/* MHKA available in A31, R40, R40e, T4x, X31, and later */
+			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
+					"MHKA", "qd"))
+				hotkey_all_mask = 0x080cU; /* FN+F12, FN+F4, FN+F3 */
+		}
+
 		res = hotkey_get(&hotkey_orig_status, &hotkey_orig_mask);
 		if (!res && tp_features.hotkey_mask) {
 			res = add_many_to_attr_set(hotkey_dev_attributes,
 				hotkey_mask_attributes,
 				ARRAY_SIZE(hotkey_mask_attributes));
 		}
+
+		/* Not all thinkpads have a hardware radio switch */
+		if (!res && acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
+			tp_features.hotkey_wlsw = 1;
+			printk(IBM_INFO
+				"radio switch found; radios are %s\n",
+				enabled(status, 0));
+			res = add_to_attr_set(hotkey_dev_attributes,
+					&dev_attr_hotkey_radio_sw.attr);
+		}
+
 		if (!res)
 			res = register_attr_set_with_sysfs(
 					hotkey_dev_attributes,
 					&tpacpi_pdev->dev.kobj);
-
 		if (res)
 			return res;
+
+		/* Set up key map */
+
+		hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
+						GFP_KERNEL);
+		if (!hotkey_keycode_map) {
+			printk(IBM_ERR "failed to allocate memory for key map\n");
+			return -ENOMEM;
+		}
+
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+			dbg_printk(TPACPI_DBG_INIT,
+				   "using Lenovo default hot key map\n");
+			memcpy(hotkey_keycode_map, &lenovo_keycode_map,
+				TPACPI_HOTKEY_MAP_SIZE);
+		} else {
+			dbg_printk(TPACPI_DBG_INIT,
+				   "using IBM default hot key map\n");
+			memcpy(hotkey_keycode_map, &ibm_keycode_map,
+				TPACPI_HOTKEY_MAP_SIZE);
+		}
+
+#ifndef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
+		for (i = 0; i < 12; i++)
+			hotkey_keycode_map[i] = KEY_UNKNOWN;
+#endif /* ! CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
+
+		set_bit(EV_KEY, tpacpi_inputdev->evbit);
+		set_bit(EV_MSC, tpacpi_inputdev->evbit);
+		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
+		tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
+		tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
+		tpacpi_inputdev->keycode = hotkey_keycode_map;
+		for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
+			if (hotkey_keycode_map[i] != KEY_RESERVED) {
+				set_bit(hotkey_keycode_map[i],
+					tpacpi_inputdev->keybit);
+			} else {
+				if (i < sizeof(hotkey_reserved_mask)*8)
+					hotkey_reserved_mask |= 1 << i;
+			}
+		}
+
+		if (tp_features.hotkey_wlsw) {
+			set_bit(EV_SW, tpacpi_inputdev->evbit);
+			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
+		}
+
+#ifdef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
+		dbg_printk(TPACPI_DBG_INIT,
+				"enabling hot key handling\n");
+		res = hotkey_set(1, (hotkey_all_mask & ~hotkey_reserved_mask)
+					| hotkey_orig_mask);
+		if (res)
+			return res;
+#endif /* CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -875,22 +1110,101 @@ static void hotkey_exit(void)
 	}
 }
 
+static void tpacpi_input_send_key(unsigned int scancode,
+				  unsigned int keycode)
+{
+	if (keycode != KEY_RESERVED) {
+		input_report_key(tpacpi_inputdev, keycode, 1);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+
+		input_report_key(tpacpi_inputdev, keycode, 0);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+	}
+}
+
+static void tpacpi_input_send_radiosw(void)
+{
+	int wlsw;
+
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw))
+		input_report_switch(tpacpi_inputdev,
+				    SW_RADIO, !!wlsw);
+}
+
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
-	int hkey;
+	u32 hkey;
+	unsigned int keycode, scancode;
+	int sendacpi = 1;
 
-	if (acpi_evalf(hkey_handle, &hkey, "MHKP", "d"))
-		acpi_bus_generate_event(ibm->acpi->device, event, hkey);
-	else {
-		printk(IBM_ERR "unknown hotkey event %d\n", event);
+	if (event == 0x80 && acpi_evalf(hkey_handle, &hkey, "MHKP", "d")) {
+		if (tpacpi_inputdev->users > 0) {
+			switch (hkey >> 12) {
+			case 1:
+				/* 0x1000-0x1FFF: key presses */
+				scancode = hkey & 0xfff;
+				if (scancode > 0 && scancode < 0x21) {
+					scancode--;
+					keycode = hotkey_keycode_map[scancode];
+					tpacpi_input_send_key(scancode, keycode);
+					sendacpi = (keycode == KEY_RESERVED
+						|| keycode == KEY_UNKNOWN);
+				} else {
+					printk(IBM_ERR
+					       "hotkey 0x%04x out of range for keyboard map\n",
+					       hkey);
+				}
+				break;
+			case 5:
+				/* 0x5000-0x5FFF: LID */
+				/* we don't handle it through this path, just
+				 * eat up known LID events */
+				if (hkey != 0x5001 && hkey != 0x5002) {
+					printk(IBM_ERR
+						"unknown LID-related hotkey event: 0x%04x\n",
+						hkey);
+				}
+				break;
+			case 7:
+				/* 0x7000-0x7FFF: misc */
+				if (tp_features.hotkey_wlsw && hkey == 0x7000) {
+						tpacpi_input_send_radiosw();
+						sendacpi = 0;
+					break;
+				}
+				/* fallthrough to default */
+			default:
+				/* case 2: dock-related */
+				/*	0x2305 - T43 waking up due to bay lever eject while aslept */
+				/* case 3: ultra-bay related. maybe bay in dock? */
+				/*	0x3003 - T43 after wake up by bay lever eject (0x2305) */
+				printk(IBM_NOTICE "unhandled hotkey event 0x%04x\n", hkey);
+			}
+		}
+
+		if (sendacpi)
+			acpi_bus_generate_event(ibm->acpi->device, event, hkey);
+	} else {
+		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
 		acpi_bus_generate_event(ibm->acpi->device, event, 0);
 	}
+}
+
+static void hotkey_resume(void)
+{
+	tpacpi_input_send_radiosw();
 }
 
 /*
  * Call with hotkey_mutex held
  */
-static int hotkey_get(int *status, int *mask)
+static int hotkey_get(int *status, u32 *mask)
 {
 	if (!acpi_evalf(hkey_handle, status, "DHKC", "d"))
 		return -EIO;
@@ -905,7 +1219,7 @@ static int hotkey_get(int *status, int *mask)
 /*
  * Call with hotkey_mutex held
  */
-static int hotkey_set(int status, int mask)
+static int hotkey_set(int status, u32 mask)
 {
 	int i;
 
@@ -926,7 +1240,8 @@ static int hotkey_set(int status, int mask)
 /* procfs -------------------------------------------------------------- */
 static int hotkey_read(char *p)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 	int len = 0;
 
 	if (!tp_features.hotkey) {
@@ -944,7 +1259,7 @@ static int hotkey_read(char *p)
 
 	len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 0));
 	if (tp_features.hotkey_mask) {
-		len += sprintf(p + len, "mask:\t\t0x%04x\n", mask);
+		len += sprintf(p + len, "mask:\t\t0x%08x\n", mask);
 		len += sprintf(p + len,
 			       "commands:\tenable, disable, reset, <mask>\n");
 	} else {
@@ -957,7 +1272,8 @@ static int hotkey_read(char *p)
 
 static int hotkey_write(char *buf)
 {
-	int res, status, mask;
+	int res, status;
+	u32 mask;
 	char *cmd;
 	int do_cmd = 0;
 
@@ -1012,6 +1328,7 @@ static struct ibm_struct hotkey_driver_data = {
 	.read = hotkey_read,
 	.write = hotkey_write,
 	.exit = hotkey_exit,
+	.resume = hotkey_resume,
 	.acpi = &ibm_hotkey_acpidriver,
 };
 
@@ -1770,7 +2087,10 @@ static struct tp_acpi_drv_struct ibm_dock_acpidriver[2] = {
 	 .type = ACPI_SYSTEM_NOTIFY,
 	},
 	{
-	 .hid = IBM_PCI_HID,
+	/* THIS ONE MUST NEVER BE USED FOR DRIVER AUTOLOADING.
+	 * We just use it to get notifications of dock hotplug
+	 * in very old thinkpads */
+	 .hid = PCI_ROOT_HID_STRING,
 	 .notify = dock_notify,
 	 .handle = &pci_handle,
 	 .type = ACPI_SYSTEM_NOTIFY,
@@ -1829,7 +2149,7 @@ static int __init dock_init2(struct ibm_init_struct *iibm)
 static void dock_notify(struct ibm_struct *ibm, u32 event)
 {
 	int docked = dock_docked();
-	int pci = ibm->acpi->hid && strstr(ibm->acpi->hid, IBM_PCI_HID);
+	int pci = ibm->acpi->hid && strstr(ibm->acpi->hid, PCI_ROOT_HID_STRING);
 
 	if (event == 1 && !pci)	/* 570 */
 		acpi_bus_generate_event(ibm->acpi->device, event, 1);	/* button */
@@ -2389,7 +2709,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	acpi_tmp7 = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
 
-	if (ibm_thinkpad_ec_found && experimental) {
+	if (thinkpad_id.ec_model) {
 		/*
 		 * Direct EC access mode: sensors at registers
 		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
@@ -2533,6 +2853,8 @@ static int thermal_get_sensor(int idx, s32 *value)
 			snprintf(tmpi, sizeof(tmpi), "TMP%c", '0' + idx);
 			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
 				return -EIO;
+			if (t > 127 || t < -127)
+				t = TP_EC_THERMAL_TMP_NA;
 			*value = t * 1000;
 			return 0;
 		}
@@ -2671,12 +2993,14 @@ static struct ibm_struct ecdump_driver_data = {
  * Backlight/brightness subdriver
  */
 
-static struct backlight_device *ibm_backlight_device = NULL;
+static struct backlight_device *ibm_backlight_device;
 
 static struct backlight_ops ibm_backlight_data = {
         .get_brightness = brightness_get,
         .update_status  = brightness_update_status,
 };
+
+static struct mutex brightness_mutex;
 
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
@@ -2684,9 +3008,24 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
 
+	mutex_init(&brightness_mutex);
+
+	if (!brightness_mode) {
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
+			brightness_mode = 2;
+		else
+			brightness_mode = 3;
+
+		dbg_printk(TPACPI_DBG_INIT, "selected brightness_mode=%d\n",
+			brightness_mode);
+	}
+
+	if (brightness_mode > 3)
+		return -EINVAL;
+
 	b = brightness_get(NULL);
 	if (b < 0)
-		return b;
+		return 1;
 
 	ibm_backlight_device = backlight_device_register(
 					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
@@ -2722,34 +3061,79 @@ static int brightness_update_status(struct backlight_device *bd)
 				bd->props.brightness : 0);
 }
 
+/*
+ * ThinkPads can read brightness from two places: EC 0x31, or
+ * CMOS NVRAM byte 0x5E, bits 0-3.
+ */
 static int brightness_get(struct backlight_device *bd)
 {
-	u8 level;
-	if (!acpi_ec_read(brightness_offset, &level))
-		return -EIO;
+	u8 lec = 0, lcmos = 0, level = 0;
 
-	level &= 0x7;
+	if (brightness_mode & 1) {
+		if (!acpi_ec_read(brightness_offset, &lec))
+			return -EIO;
+		lec &= 7;
+		level = lec;
+	};
+	if (brightness_mode & 2) {
+		lcmos = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
+			 & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
+			>> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
+		level = lcmos;
+	}
+
+	if (brightness_mode == 3 && lec != lcmos) {
+		printk(IBM_ERR
+			"CMOS NVRAM (%u) and EC (%u) do not agree "
+			"on display brightness level\n",
+			(unsigned int) lcmos,
+			(unsigned int) lec);
+		return -EIO;
+	}
 
 	return level;
 }
 
 static int brightness_set(int value)
 {
-	int cmos_cmd, inc, i;
-	int current_value = brightness_get(NULL);
+	int cmos_cmd, inc, i, res;
+	int current_value;
 
-	value &= 7;
+	if (value > 7)
+		return -EINVAL;
 
-	cmos_cmd = value > current_value ? TP_CMOS_BRIGHTNESS_UP : TP_CMOS_BRIGHTNESS_DOWN;
-	inc = value > current_value ? 1 : -1;
-	for (i = current_value; i != value; i += inc) {
-		if (issue_thinkpad_cmos_command(cmos_cmd))
-			return -EIO;
-		if (!acpi_ec_write(brightness_offset, i + inc))
-			return -EIO;
+	res = mutex_lock_interruptible(&brightness_mutex);
+	if (res < 0)
+		return res;
+
+	current_value = brightness_get(NULL);
+	if (current_value < 0) {
+		res = current_value;
+		goto errout;
 	}
 
-	return 0;
+	cmos_cmd = value > current_value ?
+			TP_CMOS_BRIGHTNESS_UP :
+			TP_CMOS_BRIGHTNESS_DOWN;
+	inc = value > current_value ? 1 : -1;
+
+	res = 0;
+	for (i = current_value; i != value; i += inc) {
+		if ((brightness_mode & 2) &&
+		    issue_thinkpad_cmos_command(cmos_cmd)) {
+			res = -EIO;
+			goto errout;
+		}
+		if ((brightness_mode & 1) &&
+		    !acpi_ec_write(brightness_offset, i + inc)) {
+			res = -EIO;
+			goto errout;;
+		}
+	}
+
+errout:
+	mutex_unlock(&brightness_mutex);
+	return res;
 }
 
 static int brightness_read(char *p)
@@ -3273,20 +3657,19 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			 * Enable for TP-1Y (T43), TP-78 (R51e),
 			 * TP-76 (R52), TP-70 (T43, R52), which are known
 			 * to be buggy. */
-			if (fan_control_initial_status == 0x07 &&
-			    ibm_thinkpad_ec_found &&
-			    ((ibm_thinkpad_ec_found[0] == '1' &&
-			      ibm_thinkpad_ec_found[1] == 'Y') ||
-			     (ibm_thinkpad_ec_found[0] == '7' &&
-			      (ibm_thinkpad_ec_found[1] == '6' ||
-			       ibm_thinkpad_ec_found[1] == '8' ||
-			       ibm_thinkpad_ec_found[1] == '0'))
-			    )) {
-				printk(IBM_NOTICE
-				       "fan_init: initial fan status is "
-				       "unknown, assuming it is in auto "
-				       "mode\n");
-				tp_features.fan_ctrl_status_undef = 1;
+			if (fan_control_initial_status == 0x07) {
+				switch (thinkpad_id.ec_model) {
+				case 0x5931: /* TP-1Y */
+				case 0x3837: /* TP-78 */
+				case 0x3637: /* TP-76 */
+				case 0x3037: /* TP-70 */
+					printk(IBM_NOTICE
+					       "fan_init: initial fan status is "
+					       "unknown, assuming it is in auto "
+					       "mode\n");
+					tp_features.fan_ctrl_status_undef = 1;
+					;;
+				}
 			}
 		} else {
 			printk(IBM_ERR
@@ -3474,7 +3857,7 @@ static void fan_watchdog_fire(struct work_struct *ignored)
 
 static void fan_watchdog_reset(void)
 {
-	static int fan_watchdog_active = 0;
+	static int fan_watchdog_active;
 
 	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
 		return;
@@ -3877,7 +4260,7 @@ static struct ibm_struct fan_driver_data = {
  ****************************************************************************/
 
 /* /proc support */
-static struct proc_dir_entry *proc_dir = NULL;
+static struct proc_dir_entry *proc_dir;
 
 /* Subdriver registry */
 static LIST_HEAD(tpacpi_all_drivers);
@@ -4020,12 +4403,29 @@ static void ibm_exit(struct ibm_struct *ibm)
 
 /* Probing */
 
-static char *ibm_thinkpad_ec_found = NULL;
-
-static char* __init check_dmi_for_ec(void)
+static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 {
 	struct dmi_device *dev = NULL;
 	char ec_fw_string[18];
+
+	if (!tp)
+		return;
+
+	memset(tp, 0, sizeof(*tp));
+
+	if (dmi_name_in_vendors("IBM"))
+		tp->vendor = PCI_VENDOR_ID_IBM;
+	else if (dmi_name_in_vendors("LENOVO"))
+		tp->vendor = PCI_VENDOR_ID_LENOVO;
+	else
+		return;
+
+	tp->bios_version_str = kstrdup(dmi_get_system_info(DMI_BIOS_VERSION),
+					GFP_KERNEL);
+	if (!tp->bios_version_str)
+		return;
+	tp->bios_model = tp->bios_version_str[0]
+			 | (tp->bios_version_str[1] << 8);
 
 	/*
 	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
@@ -4040,10 +4440,20 @@ static char* __init check_dmi_for_ec(void)
 			   ec_fw_string) == 1) {
 			ec_fw_string[sizeof(ec_fw_string) - 1] = 0;
 			ec_fw_string[strcspn(ec_fw_string, " ]")] = 0;
-			return kstrdup(ec_fw_string, GFP_KERNEL);
+
+			tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
+			tp->ec_model = ec_fw_string[0]
+					| (ec_fw_string[1] << 8);
+			break;
 		}
 	}
-	return NULL;
+
+	tp->model_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_VERSION),
+					GFP_KERNEL);
+	if (strnicmp(tp->model_str, "ThinkPad", 8) != 0) {
+		kfree(tp->model_str);
+		tp->model_str = NULL;
+	}
 }
 
 static int __init probe_for_thinkpad(void)
@@ -4057,7 +4467,7 @@ static int __init probe_for_thinkpad(void)
 	 * Non-ancient models have better DMI tagging, but very old models
 	 * don't.
 	 */
-	is_thinkpad = dmi_name_in_vendors("ThinkPad");
+	is_thinkpad = (thinkpad_id.model_str != NULL);
 
 	/* ec is required because many other handles are relative to it */
 	IBM_ACPIHANDLE_INIT(ec);
@@ -4073,7 +4483,7 @@ static int __init probe_for_thinkpad(void)
 	 * false positives a damn great deal
 	 */
 	if (!is_thinkpad)
-		is_thinkpad = dmi_name_in_vendors("IBM");
+		is_thinkpad = (thinkpad_id.vendor == PCI_VENDOR_ID_IBM);
 
 	if (!is_thinkpad && !force_load)
 		return -ENODEV;
@@ -4185,10 +4595,13 @@ static u32 dbg_level;
 module_param_named(debug, dbg_level, uint, 0);
 
 static int force_load;
-module_param(force_load, int, 0);
+module_param(force_load, bool, 0);
 
 static int fan_control_allowed;
-module_param_named(fan_control, fan_control_allowed, int, 0);
+module_param_named(fan_control, fan_control_allowed, bool, 0);
+
+static int brightness_mode;
+module_param_named(brightness_mode, brightness_mode, int, 0);
 
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)
@@ -4216,12 +4629,16 @@ static int __init thinkpad_acpi_module_init(void)
 	int ret, i;
 
 	/* Driver-level probe */
+
+	get_thinkpad_model_data(&thinkpad_id);
 	ret = probe_for_thinkpad();
-	if (ret)
+	if (ret) {
+		thinkpad_acpi_module_exit();
 		return ret;
+	}
 
 	/* Driver initialization */
-	ibm_thinkpad_ec_found = check_dmi_for_ec();
+
 	IBM_ACPIHANDLE_INIT(ecrd);
 	IBM_ACPIHANDLE_INIT(ecwr);
 
@@ -4265,6 +4682,22 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
+	tpacpi_inputdev = input_allocate_device();
+	if (!tpacpi_inputdev) {
+		printk(IBM_ERR "unable to allocate input device\n");
+		thinkpad_acpi_module_exit();
+		return -ENOMEM;
+	} else {
+		/* Prepare input device, but don't register */
+		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
+		tpacpi_inputdev->phys = IBM_DRVR_NAME "/input0";
+		tpacpi_inputdev->id.bustype = BUS_HOST;
+		tpacpi_inputdev->id.vendor = (thinkpad_id.vendor) ?
+						thinkpad_id.vendor :
+						PCI_VENDOR_ID_IBM;
+		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
+		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
+	}
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ret = ibm_init(&ibms_init[i]);
 		if (ret >= 0 && *ibms_init[i].param)
@@ -4273,6 +4706,14 @@ static int __init thinkpad_acpi_module_init(void)
 			thinkpad_acpi_module_exit();
 			return ret;
 		}
+	}
+	ret = input_register_device(tpacpi_inputdev);
+	if (ret < 0) {
+		printk(IBM_ERR "unable to register input device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	} else {
+		tp_features.input_device_registered = 1;
 	}
 
 	return 0;
@@ -4290,6 +4731,13 @@ static void thinkpad_acpi_module_exit(void)
 
 	dbg_printk(TPACPI_DBG_INIT, "finished subdriver exit path...\n");
 
+	if (tpacpi_inputdev) {
+		if (tp_features.input_device_registered)
+			input_unregister_device(tpacpi_inputdev);
+		else
+			input_free_device(tpacpi_inputdev);
+	}
+
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 
@@ -4302,7 +4750,9 @@ static void thinkpad_acpi_module_exit(void)
 	if (proc_dir)
 		remove_proc_entry(IBM_PROC_DIR, acpi_root_dir);
 
-	kfree(ibm_thinkpad_ec_found);
+	kfree(thinkpad_id.bios_version_str);
+	kfree(thinkpad_id.ec_version_str);
+	kfree(thinkpad_id.model_str);
 }
 
 module_init(thinkpad_acpi_module_init);
