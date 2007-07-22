@@ -1078,10 +1078,10 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 	return 1;
 }
 
-static int emulator_write_emulated(unsigned long addr,
-				   const void *val,
-				   unsigned int bytes,
-				   struct x86_emulate_ctxt *ctxt)
+static int emulator_write_emulated_onepage(unsigned long addr,
+					   const void *val,
+					   unsigned int bytes,
+					   struct x86_emulate_ctxt *ctxt)
 {
 	struct kvm_vcpu      *vcpu = ctxt->vcpu;
 	struct kvm_io_device *mmio_dev;
@@ -1111,6 +1111,26 @@ static int emulator_write_emulated(unsigned long addr,
 	memcpy(vcpu->mmio_data, val, bytes);
 
 	return X86EMUL_CONTINUE;
+}
+
+static int emulator_write_emulated(unsigned long addr,
+				   const void *val,
+				   unsigned int bytes,
+				   struct x86_emulate_ctxt *ctxt)
+{
+	/* Crossing a page boundary? */
+	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
+		int rc, now;
+
+		now = -addr & ~PAGE_MASK;
+		rc = emulator_write_emulated_onepage(addr, val, now, ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		addr += now;
+		val += now;
+		bytes -= now;
+	}
+	return emulator_write_emulated_onepage(addr, val, bytes, ctxt);
 }
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
