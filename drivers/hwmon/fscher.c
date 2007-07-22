@@ -599,7 +599,7 @@ static ssize_t set_control(struct i2c_client *client, struct fscher_data *data,
 	unsigned long v = simple_strtoul(buf, NULL, 10) & 0x01;
 
 	mutex_lock(&data->update_lock);
-	data->global_control &= ~v;
+	data->global_control = v;
 	fscher_write_value(client, reg, v);
 	mutex_unlock(&data->update_lock);
 	return count;
