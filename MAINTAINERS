@@ -225,15 +225,15 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
 S:	Supported
 
 ACPI BATTERY DRIVERS
-P:	Vladimir P. Lebedev
-M:	vladimir.p.lebedev@intel.com
+P:	Alexey Starikovskiy
+M:	astarikovskiy@suse.de
 L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 S:	Supported
 
 ACPI EC DRIVER
 P:	Alexey Starikovskiy
-M:	alexey.y.starikovskiy@linux.intel.com
+M:	astarikovskiy@suse.de
 L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 S:	Supported
