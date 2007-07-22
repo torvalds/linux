@@ -14,7 +14,7 @@ void xmon_map_scc(void)
 {
 }
 
-int xmon_write(void *ptr, int nb)
+int xmon_write(const void *ptr, int nb)
 {
 	return udbg_write(ptr, nb);
 }

@@ -166,7 +166,7 @@ int pcibios_add_platform_entries(struct pci_dev *pdev)
 
 }
 
-char __init *pcibios_setup(char *str)
+char __devinit *pcibios_setup(char *str)
 {
 	return str;
 }

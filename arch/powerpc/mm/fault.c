@@ -283,7 +283,13 @@ good_area:
 		/* protection fault */
 		if (error_code & DSISR_PROTFAULT)
 			goto bad_area;
-		if (!(vma->vm_flags & VM_EXEC))
+		/*
+		 * Allow execution from readable areas if the MMU does not
+		 * provide separate controls over reading and executing.
+		 */
+		if (!(vma->vm_flags & VM_EXEC) &&
+		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
 #else
 		pte_t *ptep;

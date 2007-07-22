@@ -215,7 +215,7 @@ config NOT_COHERENT_CACHE
 	depends on 4xx || 8xx || E200
 	default y
 
-config CONFIG_CHECK_CACHE_COHERENCY
+config CHECK_CACHE_COHERENCY
 	bool
 
 endmenu

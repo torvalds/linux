@@ -284,7 +284,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int
 			int wait)
 {
 	cpumask_t map = CPU_MASK_NONE;
-	int ret = -EBUSY;
+	int ret = 0;
 
 	if (!cpu_online(cpu))
 		return -EINVAL;
@@ -292,6 +292,11 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int
 	cpu_set(cpu, map);
 	if (cpu != get_cpu())
 		ret = smp_call_function_map(func,info,nonatomic,wait,map);
+	else {
+		local_irq_disable();
+		func(info);
+		local_irq_enable();
+	}
 	put_cpu();
 	return ret;
 }

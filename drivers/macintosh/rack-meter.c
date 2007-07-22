@@ -30,7 +30,6 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>
-#include <asm/dbdma.h>
 #include <asm/macio.h>
 #include <asm/keylargo.h>
 
