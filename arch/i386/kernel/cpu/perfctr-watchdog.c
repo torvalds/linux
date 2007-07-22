@@ -325,7 +325,7 @@ static struct wd_ops k7_wd_ops = {
 	.stop = single_msr_stop_watchdog,
 	.perfctr = MSR_K7_PERFCTR0,
 	.evntsel = MSR_K7_EVNTSEL0,
-	.checkbit = 1ULL<<63,
+	.checkbit = 1ULL<<47,
 };
 
 /* Intel Model 6 (PPro+,P2,P3,P-M,Core1) */
