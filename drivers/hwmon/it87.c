@@ -252,7 +252,7 @@ struct it87_data {
 
 
 static int it87_probe(struct platform_device *pdev);
-static int it87_remove(struct platform_device *pdev);
+static int __devexit it87_remove(struct platform_device *pdev);
 
 static int it87_read_value(struct it87_data *data, u8 reg);
 static void it87_write_value(struct it87_data *data, u8 reg, u8 value);
