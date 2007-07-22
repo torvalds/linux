@@ -133,7 +133,7 @@ struct clocksource clocksource_hpet = {
 	.vread		= vread_hpet,
 };
 
-int hpet_arch_init(void)
+int __init hpet_arch_init(void)
 {
 	unsigned int id;
 	u64 tmp;
