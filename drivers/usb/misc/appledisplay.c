@@ -138,7 +138,7 @@ exit:
 
 static int appledisplay_bl_update_status(struct backlight_device *bd)
 {
-	struct appledisplay *pdata = class_get_devdata(&bd->class_dev);
+	struct appledisplay *pdata = bl_get_data(bd);
 	int retval;
 
 	pdata->msgdata[0] = 0x10;
@@ -159,7 +159,7 @@ static int appledisplay_bl_update_status(struct backlight_device *bd)
 
 static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 {
-	struct appledisplay *pdata = class_get_devdata(&bd->class_dev);
+	struct appledisplay *pdata = bl_get_data(bd);
 	int retval;
 
 	retval = usb_control_msg(

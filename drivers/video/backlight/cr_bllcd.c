@@ -202,7 +202,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	}
 
 	crp->cr_lcd_device = lcd_device_register("cr-lcd",
-							&pdev->dev,
+							&pdev->dev, NULL,
 							&cr_lcd_ops);
 
 	if (IS_ERR(crp->cr_lcd_device)) {
