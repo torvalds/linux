@@ -603,10 +603,6 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 
 	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
 
-	/* disable VBI signals, if the MPEG stream contains VBI data,
-	   then that data will be processed automatically for you. */
-	ivtv_disable_vbi(itv);
-
 	/* set audio mode to left/stereo  for dual/stereo mode. */
 	ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
 
@@ -639,7 +635,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
 			itv->params.width, itv->params.height, itv->params.audio_properties)) {
-		IVTV_DEBUG_WARN("COULDN'T INITIALIZE DECODER SOURCE\n");
+		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
 	return 0;
 }
@@ -908,11 +904,6 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	clear_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
 	ivtv_flush_queues(s);
-
-	if (!test_bit(IVTV_F_S_PASSTHROUGH, &s->s_flags)) {
-		/* disable VBI on TV-out */
-		ivtv_disable_vbi(itv);
-	}
 
 	/* decrement decoding */
 	atomic_dec(&itv->decoding);
