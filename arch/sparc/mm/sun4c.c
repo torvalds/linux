@@ -2155,7 +2155,7 @@ void __init ld_mmu_sun4c(void)
 	BTFIXUPSET_SIMM13(user_ptrs_per_pgd, KERNBASE / SUN4C_PGDIR_SIZE);
 
 	BTFIXUPSET_INT(page_none, pgprot_val(SUN4C_PAGE_NONE));
-	BTFIXUPSET_INT(page_shared, pgprot_val(SUN4C_PAGE_SHARED));
+	PAGE_SHARED = pgprot_val(SUN4C_PAGE_SHARED);
 	BTFIXUPSET_INT(page_copy, pgprot_val(SUN4C_PAGE_COPY));
 	BTFIXUPSET_INT(page_readonly, pgprot_val(SUN4C_PAGE_READONLY));
 	BTFIXUPSET_INT(page_kernel, pgprot_val(SUN4C_PAGE_KERNEL));

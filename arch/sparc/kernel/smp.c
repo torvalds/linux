@@ -33,6 +33,8 @@
 #include <asm/tlbflush.h>
 #include <asm/cpudata.h>
 
+#include "irq.h"
+
 int smp_num_cpus = 1;
 volatile unsigned long cpu_callin_map[NR_CPUS] __initdata = {0,};
 unsigned char boot_cpu_id = 0;
