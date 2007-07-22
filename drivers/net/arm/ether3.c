@@ -51,7 +51,6 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
-#include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/slab.h>
@@ -69,7 +68,7 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-static char version[] __initdata = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
+static char version[] __devinitdata = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
 
 #include "ether3.h"
 

@@ -1,0 +1,12 @@
+menu "MX3 Options"
+	depends on ARCH_MX3
+
+config MACH_MX31ADS
+	bool "Support MX31ADS platforms"
+	default y
+	help
+	  Include support for MX31ADS platform. This includes specific
+	  configurations for the board and its peripherals.
+
+endmenu
+

@@ -14,11 +14,11 @@
 #ifndef __ASM_ARCH_REGS_WATCHDOG_H
 #define __ASM_ARCH_REGS_WATCHDOG_H "$Id: watchdog.h,v 1.2 2003/04/29 13:31:09 ben Exp $"
 
-#define S3C2410_WDOGREG(x) ((x) + S3C24XX_VA_WATCHDOG)
+#define S3C_WDOGREG(x) ((x) + S3C_VA_WATCHDOG)
 
-#define S3C2410_WTCON	   S3C2410_WDOGREG(0x00)
-#define S3C2410_WTDAT	   S3C2410_WDOGREG(0x04)
-#define S3C2410_WTCNT	   S3C2410_WDOGREG(0x08)
+#define S3C2410_WTCON	   S3C_WDOGREG(0x00)
+#define S3C2410_WTDAT	   S3C_WDOGREG(0x04)
+#define S3C2410_WTCNT	   S3C_WDOGREG(0x08)
 
 /* the watchdog can either generate a reset pulse, or an
  * interrupt.

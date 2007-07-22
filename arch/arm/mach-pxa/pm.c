@@ -24,61 +24,13 @@
 #include <asm/arch/lubbock.h>
 #include <asm/mach/time.h>
 
-
-/*
- * Debug macros
- */
-#undef DEBUG
-
-#define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
-#define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
-
-#define RESTORE_GPLEVEL(n) do { \
-	GPSR##n = sleep_save[SLEEP_SAVE_GPLR##n]; \
-	GPCR##n = ~sleep_save[SLEEP_SAVE_GPLR##n]; \
-} while (0)
-
-/*
- * List of global PXA peripheral registers to preserve.
- * More ones like CP and general purpose register values are preserved
- * with the stack pointer in sleep.S.
- */
-enum {	SLEEP_SAVE_START = 0,
-
-	SLEEP_SAVE_GPLR0, SLEEP_SAVE_GPLR1, SLEEP_SAVE_GPLR2, SLEEP_SAVE_GPLR3,
-	SLEEP_SAVE_GPDR0, SLEEP_SAVE_GPDR1, SLEEP_SAVE_GPDR2, SLEEP_SAVE_GPDR3,
-	SLEEP_SAVE_GRER0, SLEEP_SAVE_GRER1, SLEEP_SAVE_GRER2, SLEEP_SAVE_GRER3,
-	SLEEP_SAVE_GFER0, SLEEP_SAVE_GFER1, SLEEP_SAVE_GFER2, SLEEP_SAVE_GFER3,
-	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
-
-	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
-	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
-	SLEEP_SAVE_GAFR2_L, SLEEP_SAVE_GAFR2_U,
-	SLEEP_SAVE_GAFR3_L, SLEEP_SAVE_GAFR3_U,
-
-	SLEEP_SAVE_PSTR,
-
-	SLEEP_SAVE_ICMR,
-	SLEEP_SAVE_CKEN,
-
-#ifdef CONFIG_PXA27x
- 	SLEEP_SAVE_MDREFR,
- 	SLEEP_SAVE_PWER, SLEEP_SAVE_PCFR, SLEEP_SAVE_PRER,
- 	SLEEP_SAVE_PFER, SLEEP_SAVE_PKWR,
-#endif
-
-	SLEEP_SAVE_CKSUM,
-
-	SLEEP_SAVE_SIZE
-};
-
+struct pxa_cpu_pm_fns *pxa_cpu_pm_fns;
+static unsigned long *sleep_save;
 
 int pxa_pm_enter(suspend_state_t state)
 {
-	unsigned long sleep_save[SLEEP_SAVE_SIZE];
-	unsigned long checksum = 0;
+	unsigned long sleep_save_checksum = 0, checksum = 0;
 	int i;
-	extern void pxa_cpu_pm_enter(suspend_state_t state);
 
 #ifdef CONFIG_IWMMXT
 	/* force any iWMMXt context to ram **/
@@ -86,100 +38,35 @@ int pxa_pm_enter(suspend_state_t state)
 		iwmmxt_task_disable(NULL);
 #endif
 
-	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2);
-	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2);
-	SAVE(GRER0); SAVE(GRER1); SAVE(GRER2);
-	SAVE(GFER0); SAVE(GFER1); SAVE(GFER2);
-	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2);
-
-	SAVE(GAFR0_L); SAVE(GAFR0_U);
-	SAVE(GAFR1_L); SAVE(GAFR1_U);
-	SAVE(GAFR2_L); SAVE(GAFR2_U);
-
-#ifdef CONFIG_PXA27x
-	SAVE(MDREFR);
-	SAVE(GPLR3); SAVE(GPDR3); SAVE(GRER3); SAVE(GFER3); SAVE(PGSR3);
-	SAVE(GAFR3_L); SAVE(GAFR3_U);
-	SAVE(PWER); SAVE(PCFR); SAVE(PRER);
-	SAVE(PFER); SAVE(PKWR);
-#endif
-
-	SAVE(ICMR);
-	ICMR = 0;
-
-	SAVE(CKEN);
-	SAVE(PSTR);
-
-	/* Note: wake up source are set up in each machine specific files */
-
-	/* clear GPIO transition detect  bits */
-	GEDR0 = GEDR0; GEDR1 = GEDR1; GEDR2 = GEDR2;
-#ifdef CONFIG_PXA27x
-	GEDR3 = GEDR3;
-#endif
+	pxa_cpu_pm_fns->save(sleep_save);
 
 	/* Clear sleep reset status */
 	RCSR = RCSR_SMR;
 
 	/* before sleeping, calculate and save a checksum */
-	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
-		checksum += sleep_save[i];
-	sleep_save[SLEEP_SAVE_CKSUM] = checksum;
+	for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
+		sleep_save_checksum += sleep_save[i];
 
 	/* *** go zzz *** */
-	pxa_cpu_pm_enter(state);
-
+	pxa_cpu_pm_fns->enter(state);
 	cpu_init();
 
 	/* after sleeping, validate the checksum */
-	checksum = 0;
-	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
+	for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
 		checksum += sleep_save[i];
 
 	/* if invalid, display message and wait for a hardware reset */
-	if (checksum != sleep_save[SLEEP_SAVE_CKSUM]) {
+	if (checksum != sleep_save_checksum) {
 #ifdef CONFIG_ARCH_LUBBOCK
 		LUB_HEXLED = 0xbadbadc5;
 #endif
 		while (1)
-			pxa_cpu_pm_enter(state);
+			pxa_cpu_pm_fns->enter(state);
 	}
 
-	/* ensure not to come back here if it wasn't intended */
-	PSPR = 0;
+	pxa_cpu_pm_fns->restore(sleep_save);
 
-	/* restore registers */
-	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1); RESTORE_GPLEVEL(2);
-	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2);
-	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
-	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
-	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
-	RESTORE(GRER0); RESTORE(GRER1); RESTORE(GRER2);
-	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2);
-	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2);
-
-#ifdef CONFIG_PXA27x
-	RESTORE(MDREFR);
-	RESTORE_GPLEVEL(3); RESTORE(GPDR3);
-	RESTORE(GAFR3_L); RESTORE(GAFR3_U);
-	RESTORE(GRER3); RESTORE(GFER3); RESTORE(PGSR3);
-	RESTORE(PWER); RESTORE(PCFR); RESTORE(PRER);
-	RESTORE(PFER); RESTORE(PKWR);
-#endif
-
-	PSSR = PSSR_RDH | PSSR_PH;
-
-	RESTORE(CKEN);
-
-	ICLR = 0;
-	ICCR = 1;
-	RESTORE(ICMR);
-
-	RESTORE(PSTR);
-
-#ifdef DEBUG
-	printk(KERN_DEBUG "*** made it back from resume\n");
-#endif
+	pr_debug("*** made it back from resume\n");
 
 	return 0;
 }
@@ -190,3 +77,35 @@ unsigned long sleep_phys_sp(void *sp)
 {
 	return virt_to_phys(sp);
 }
+
+static int pxa_pm_valid(suspend_state_t state)
+{
+	if (pxa_cpu_pm_fns)
+		return pxa_cpu_pm_fns->valid(state);
+
+	return -EINVAL;
+}
+
+static struct pm_ops pxa_pm_ops = {
+	.valid		= pxa_pm_valid,
+	.enter		= pxa_pm_enter,
+};
+
+static int __init pxa_pm_init(void)
+{
+	if (!pxa_cpu_pm_fns) {
+		printk(KERN_ERR "no valid pxa_cpu_pm_fns defined\n");
+		return -EINVAL;
+	}
+
+	sleep_save = kmalloc(pxa_cpu_pm_fns->save_size, GFP_KERNEL);
+	if (!sleep_save) {
+		printk(KERN_ERR "failed to alloc memory for pm save\n");
+		return -ENOMEM;
+	}
+
+	pm_set_ops(&pxa_pm_ops);
+	return 0;
+}
+
+device_initcall(pxa_pm_init);

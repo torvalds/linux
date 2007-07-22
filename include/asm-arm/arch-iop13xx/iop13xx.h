@@ -19,6 +19,39 @@ static inline int iop13xx_cpu_id(void)
 	return id;
 }
 
+/* WDTCR CP6 R7 Page 9 */
+static inline u32 read_wdtcr(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c7, c9, 0":"=r" (val));
+	return val;
+}
+static inline void write_wdtcr(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c7, c9, 0"::"r" (val));
+}
+
+/* WDTSR CP6 R8 Page 9 */
+static inline u32 read_wdtsr(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c8, c9, 0":"=r" (val));
+	return val;
+}
+static inline void write_wdtsr(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c8, c9, 0"::"r" (val));
+}
+
+/* RCSR - Reset Cause Status Register  */
+static inline u32 read_rcsr(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c0, c1, 0":"=r" (val));
+	return val;
+}
+
+extern unsigned long get_iop_tick_rate(void);
 #endif
 
 /*
@@ -480,4 +513,14 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PBI_LR1       		IOP13XX_PBI_OFFSET(0x14)
 
 #define IOP13XX_PROCESSOR_FREQ		IOP13XX_REG_ADDR32(0x2180)
+
+/* Watchdog timer definitions */
+#define IOP_WDTCR_EN_ARM  	0x1e1e1e1e
+#define IOP_WDTCR_EN      	0xe1e1e1e1
+#define IOP_WDTCR_DIS_ARM 	0x1f1f1f1f
+#define IOP_WDTCR_DIS     	0xf1f1f1f1
+#define IOP_RCSR_WDT		(1 << 5) /* reset caused by watchdog timer */
+#define IOP13XX_WDTSR_WRITE_EN	(1 << 31) /* used to speed up reset requests */
+#define IOP13XX_WDTCR_IB_RESET	(1 << 0)
+
 #endif /* _IOP13XX_HW_H_ */

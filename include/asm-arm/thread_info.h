@@ -24,7 +24,6 @@
 struct task_struct;
 struct exec_domain;
 
-#include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/domain.h>
 

@@ -14,12 +14,12 @@
 #ifndef __ASM_ARCH_REGS_TIMER_H
 #define __ASM_ARCH_REGS_TIMER_H "$Id: timer.h,v 1.4 2003/05/06 19:30:50 ben Exp $"
 
-#define S3C2410_TIMERREG(x) (S3C24XX_VA_TIMER + (x))
-#define S3C2410_TIMERREG2(tmr,reg) S3C2410_TIMERREG((reg)+0x0c+((tmr)*0x0c))
+#define S3C_TIMERREG(x) (S3C_VA_TIMER + (x))
+#define S3C_TIMERREG2(tmr,reg) S3C_TIMERREG((reg)+0x0c+((tmr)*0x0c))
 
-#define S3C2410_TCFG0	      S3C2410_TIMERREG(0x00)
-#define S3C2410_TCFG1	      S3C2410_TIMERREG(0x04)
-#define S3C2410_TCON	      S3C2410_TIMERREG(0x08)
+#define S3C2410_TCFG0	      S3C_TIMERREG(0x00)
+#define S3C2410_TCFG1	      S3C_TIMERREG(0x04)
+#define S3C2410_TCON	      S3C_TIMERREG(0x08)
 
 #define S3C2410_TCFG_PRESCALER0_MASK (255<<0)
 #define S3C2410_TCFG_PRESCALER1_MASK (255<<8)
@@ -71,9 +71,9 @@
 
 /* WARNING - timer 4 has no buffer reg, and it's observation is at +4 */
 
-#define S3C2410_TCNTB(tmr)    S3C2410_TIMERREG2(tmr, 0x00)
-#define S3C2410_TCMPB(tmr)    S3C2410_TIMERREG2(tmr, 0x04)
-#define S3C2410_TCNTO(tmr)    S3C2410_TIMERREG2(tmr, (((tmr) == 4) ? 0x04 : 0x08))
+#define S3C2410_TCNTB(tmr)    S3C_TIMERREG2(tmr, 0x00)
+#define S3C2410_TCMPB(tmr)    S3C_TIMERREG2(tmr, 0x04)
+#define S3C2410_TCNTO(tmr)    S3C_TIMERREG2(tmr, (((tmr) == 4) ? 0x04 : 0x08))
 
 #define S3C2410_TCON_T4RELOAD	  (1<<22)
 #define S3C2410_TCON_T4MANUALUPD  (1<<21)

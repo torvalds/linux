@@ -9,6 +9,7 @@ config CPU_S3C2410
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
+	select CPU_LLSERIAL_S3C2410
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line

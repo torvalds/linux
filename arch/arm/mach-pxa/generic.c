@@ -243,7 +243,7 @@ static struct resource pxamci_resources[] = {
 
 static u64 pxamci_dmamask = 0xffffffffUL;
 
-struct platform_device pxamci_device = {
+struct platform_device pxa_device_mci = {
 	.name		= "pxa2xx-mci",
 	.id		= -1,
 	.dev		= {
@@ -256,7 +256,7 @@ struct platform_device pxamci_device = {
 
 void __init pxa_set_mci_info(struct pxamci_platform_data *info)
 {
-	pxamci_device.dev.platform_data = info;
+	pxa_device_mci.dev.platform_data = info;
 }
 
 
@@ -282,7 +282,7 @@ static struct resource pxa2xx_udc_resources[] = {
 
 static u64 udc_dma_mask = ~(u32)0;
 
-struct platform_device pxaudc_device = {
+struct platform_device pxa_device_udc = {
 	.name		= "pxa2xx-udc",
 	.id		= -1,
 	.resource	= pxa2xx_udc_resources,
@@ -308,7 +308,7 @@ static struct resource pxafb_resources[] = {
 
 static u64 fb_dma_mask = ~(u64)0;
 
-struct platform_device pxafb_device = {
+struct platform_device pxa_device_fb = {
 	.name		= "pxa2xx-fb",
 	.id		= -1,
 	.dev		= {
@@ -321,27 +321,27 @@ struct platform_device pxafb_device = {
 
 void __init set_pxa_fb_info(struct pxafb_mach_info *info)
 {
-	pxafb_device.dev.platform_data = info;
+	pxa_device_fb.dev.platform_data = info;
 }
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
 {
-	pxafb_device.dev.parent = parent_dev;
+	pxa_device_fb.dev.parent = parent_dev;
 }
 
-struct platform_device ffuart_device = {
+struct platform_device pxa_device_ffuart= {
 	.name		= "pxa2xx-uart",
 	.id		= 0,
 };
-struct platform_device btuart_device = {
+struct platform_device pxa_device_btuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 1,
 };
-struct platform_device stuart_device = {
+struct platform_device pxa_device_stuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
 };
-struct platform_device hwuart_device = {
+struct platform_device pxa_device_hwuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 3,
 };
@@ -358,7 +358,7 @@ static struct resource pxai2c_resources[] = {
 	},
 };
 
-struct platform_device pxai2c_device = {
+struct platform_device pxa_device_i2c = {
 	.name		= "pxa2xx-i2c",
 	.id		= 0,
 	.resource	= pxai2c_resources,
@@ -367,7 +367,7 @@ struct platform_device pxai2c_device = {
 
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
-	pxai2c_device.dev.platform_data = info;
+	pxa_device_i2c.dev.platform_data = info;
 }
 
 static struct resource pxai2s_resources[] = {
@@ -382,7 +382,7 @@ static struct resource pxai2s_resources[] = {
 	},
 };
 
-struct platform_device pxai2s_device = {
+struct platform_device pxa_device_i2s = {
 	.name		= "pxa2xx-i2s",
 	.id		= -1,
 	.resource	= pxai2s_resources,
@@ -391,7 +391,7 @@ struct platform_device pxai2s_device = {
 
 static u64 pxaficp_dmamask = ~(u32)0;
 
-struct platform_device pxaficp_device = {
+struct platform_device pxa_device_ficp = {
 	.name		= "pxa2xx-ir",
 	.id		= -1,
 	.dev		= {
@@ -402,10 +402,10 @@ struct platform_device pxaficp_device = {
 
 void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 {
-	pxaficp_device.dev.platform_data = info;
+	pxa_device_ficp.dev.platform_data = info;
 }
 
-struct platform_device pxartc_device = {
+struct platform_device pxa_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
 };

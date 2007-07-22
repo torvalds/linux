@@ -114,6 +114,10 @@ static void __init early_cachepolicy(char **p)
 	}
 	if (i == ARRAY_SIZE(cache_policies))
 		printk(KERN_ERR "ERROR: unknown or unsupported cache policy\n");
+	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
+		printk(KERN_WARNING "Only cachepolicy=writeback supported on ARMv6 and later\n");
+		cachepolicy = CPOLICY_WRITEBACK;
+	}
 	flush_cache_all();
 	set_cr(cr_alignment);
 }
@@ -252,13 +256,15 @@ static void __init build_mem_type_table(void)
 	int cpu_arch = cpu_architecture();
 	int i;
 
+	if (cpu_arch < CPU_ARCH_ARMv6) {
 #if defined(CONFIG_CPU_DCACHE_DISABLE)
-	if (cachepolicy > CPOLICY_BUFFERED)
-		cachepolicy = CPOLICY_BUFFERED;
+		if (cachepolicy > CPOLICY_BUFFERED)
+			cachepolicy = CPOLICY_BUFFERED;
 #elif defined(CONFIG_CPU_DCACHE_WRITETHROUGH)
-	if (cachepolicy > CPOLICY_WRITETHROUGH)
-		cachepolicy = CPOLICY_WRITETHROUGH;
+		if (cachepolicy > CPOLICY_WRITETHROUGH)
+			cachepolicy = CPOLICY_WRITETHROUGH;
 #endif
+	}
 	if (cpu_arch < CPU_ARCH_ARMv5) {
 		if (cachepolicy >= CPOLICY_WRITEALLOC)
 			cachepolicy = CPOLICY_WRITEBACK;

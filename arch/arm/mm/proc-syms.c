@@ -31,11 +31,13 @@ EXPORT_SYMBOL(__cpuc_coherent_kern_range);
 EXPORT_SYMBOL(cpu_cache);
 #endif
 
+#ifdef CONFIG_MMU
 #ifndef MULTI_USER
 EXPORT_SYMBOL(__cpu_clear_user_page);
 EXPORT_SYMBOL(__cpu_copy_user_page);
 #else
 EXPORT_SYMBOL(cpu_user);
+#endif
 #endif
 
 /*

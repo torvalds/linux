@@ -77,6 +77,7 @@ ENTRY(cpu_v7_dcache_clean_area)
  *	- we are not using split page tables
  */
 ENTRY(cpu_v7_switch_mm)
+#ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
 	orr	r0, r0, #TTB_RGN_OC_WB		@ mark PTWs outer cacheable, WB
@@ -86,6 +87,7 @@ ENTRY(cpu_v7_switch_mm)
 	isb
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 	isb
+#endif
 	mov	pc, lr
 
 /*
@@ -109,6 +111,7 @@ ENTRY(cpu_v7_switch_mm)
  *	  1111   0   1   1	r/w	r/w
  */
 ENTRY(cpu_v7_set_pte_ext)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	bic	r3, r1, #0x000003f0
@@ -136,6 +139,7 @@ ENTRY(cpu_v7_set_pte_ext)
 
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
+#endif
 	mov	pc, lr
 
 cpu_v7_name:
@@ -169,6 +173,7 @@ __v7_setup:
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #endif
 	dsb
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
 	orr	r4, r4, #TTB_RGN_OC_WB		@ mark PTWs outer cacheable, WB
@@ -176,21 +181,12 @@ __v7_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
-#ifndef CONFIG_CPU_L2CACHE_DISABLE
-	@ L2 cache configuration in the L2 aux control register
-	mrc	p15, 1, r10, c9, c0, 2
-	bic	r10, r10, #(1 << 16)		@ L2 outer cache
-	mcr	p15, 1, r10, c9, c0, 2
-	@ L2 cache is enabled in the aux control register
-	mrc	p15, 0, r10, c1, c0, 1
-	orr	r10, r10, #2
-	mcr	p15, 0, r10, c1, c0, 1
 #endif
-	mrc	p15, 0, r0, c1, c0, 0		@ read control register
-	ldr	r10, cr1_clear			@ get mask for bits to clear
-	bic	r0, r0, r10			@ clear bits them
-	ldr	r10, cr1_set			@ get mask for bits to set
-	orr	r0, r0, r10			@ set them
+	adr	r5, v7_crval
+	ldmia	r5, {r5, r6}
+   	mrc	p15, 0, r0, c1, c0, 0		@ read control register
+	bic	r0, r0, r5			@ clear bits them
+	orr	r0, r0, r6			@ set them
 	mov	pc, lr				@ return to head.S:__ret
 
 	/*
@@ -199,12 +195,9 @@ __v7_setup:
 	 * rrrr rrrx xxx0 0101 xxxx xxxx x111 xxxx < forced
 	 *         0 110       0011 1.00 .111 1101 < we want
 	 */
-	.type	cr1_clear, #object
-	.type	cr1_set, #object
-cr1_clear:
-	.word	0x0120c302
-cr1_set:
-	.word	0x00c0387d
+	.type	v7_crval, #object
+v7_crval:
+	crval	clear=0x0120c302, mmuset=0x00c0387d, ucset=0x00c0187c
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers

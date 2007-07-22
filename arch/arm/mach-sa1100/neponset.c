@@ -292,6 +292,8 @@ static struct platform_device *devices[] __initdata = {
 	&smc91x_device,
 };
 
+extern void sa1110_mb_disable(void);
+
 static int __init neponset_init(void)
 {
 	platform_driver_register(&neponset_device_driver);
