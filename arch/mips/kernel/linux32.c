@@ -567,7 +567,7 @@ asmlinkage long sys32_fadvise64_64(int fd, int __pad,
 }
 
 save_static_function(sys32_clone);
-__attribute_used__ noinline static int
+static int noinline __used
 _sys32_clone(nabi_no_regargs struct pt_regs regs)
 {
 	unsigned long clone_flags;

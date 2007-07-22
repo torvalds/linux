@@ -85,7 +85,7 @@ static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static __attribute_used__ void dump_rtlx(void)
+static void __used dump_rtlx(void)
 {
 	int i;
 
