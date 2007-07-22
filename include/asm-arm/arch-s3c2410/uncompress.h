@@ -1,6 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/uncompress.h
  *
- * Copyright (c) 2003 Simtec Electronics
+ * Copyright (c) 2003, 2007 Simtec Electronics
+ *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - uncompress code
@@ -21,9 +22,6 @@
 #define S3C2410_GPIOREG(x) ((S3C24XX_PA_GPIO + (x)))
 
 #include <asm/plat-s3c/uncompress.h>
-
-/* how many bytes we allow into the FIFO at a time in FIFO mode */
-#define FIFO_MAX	 (14)
 
 static inline int is_arm926(void)
 {
