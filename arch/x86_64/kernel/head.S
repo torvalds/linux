@@ -25,7 +25,7 @@
  */
 
 	.text
-	.section .bootstrap.text
+	.section .text.head
 	.code64
 	.globl startup_64
 startup_64:
@@ -243,10 +243,16 @@ ENTRY(secondary_startup_64)
 	lretq
 
 	/* SMP bootup changes these two */
+#ifndef CONFIG_HOTPLUG_CPU
+	.pushsection .init.data
+#endif
 	.align	8
 	.globl	initial_code
 initial_code:
 	.quad	x86_64_start_kernel
+#ifndef CONFIG_HOTPLUG_CPU
+	.popsection
+#endif
 	.globl init_rsp
 init_rsp:
 	.quad  init_thread_union+THREAD_SIZE-8

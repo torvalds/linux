@@ -28,7 +28,7 @@ SECTIONS
   _text = .;			/* Text and read-only data */
   .text :  AT(ADDR(.text) - LOAD_OFFSET) {
 	/* First the code that has to be first for bootstrapping */
-	*(.bootstrap.text)
+	*(.text.head)
 	_stext = .;
 	/* Then the rest */
 	TEXT_TEXT
