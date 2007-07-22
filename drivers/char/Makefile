@@ -109,6 +109,9 @@ obj-$(CONFIG_TCG_TPM)		+= tpm/
 
 obj-$(CONFIG_PS3_FLASH)		+= ps3flash.o
 
+obj-$(CONFIG_JS_RTC)		+= js-rtc.o
+js-rtc-y = rtc.o
+
 # Files generated that shall be removed upon make clean
 clean-files := consolemap_deftbl.c defkeymap.c
 

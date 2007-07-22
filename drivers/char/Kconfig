@@ -726,7 +726,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC64 && (!SPARC32 || PCI) && !FRV && !ARM && !SUPERH && !S390
+	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV && !ARM && !SUPERH && !S390
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -749,6 +749,28 @@ config RTC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc.
+
+config JS_RTC
+	tristate "Enhanced Real Time Clock Support"
+	depends on SPARC32 && PCI
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called js-rtc.
 
 config SGI_DS1286
 	tristate "SGI DS1286 RTC support"
