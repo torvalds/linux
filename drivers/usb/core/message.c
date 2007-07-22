@@ -411,15 +411,22 @@ int usb_sg_init (
 		 * Some systems need to revert to PIO when DMA is temporarily
 		 * unavailable.  For their sakes, both transfer_buffer and
 		 * transfer_dma are set when possible.  However this can only
-		 * work on systems without HIGHMEM, since DMA buffers located
-		 * in high memory are not directly addressable by the CPU for
-		 * PIO ... so when HIGHMEM is in use, transfer_buffer is NULL
+		 * work on systems without:
+		 *
+		 *  - HIGHMEM, since DMA buffers located in high memory are
+		 *    not directly addressable by the CPU for PIO;
+		 *
+		 *  - IOMMU, since dma_map_sg() is allowed to use an IOMMU to
+		 *    make virtually discontiguous buffers be "dma-contiguous"
+		 *    so that PIO and DMA need diferent numbers of URBs.
+		 *
+		 * So when HIGHMEM or IOMMU are in use, transfer_buffer is NULL
 		 * to prevent stale pointers and to help spot bugs.
 		 */
 		if (dma) {
 			io->urbs [i]->transfer_dma = sg_dma_address (sg + i);
 			len = sg_dma_len (sg + i);
-#ifdef CONFIG_HIGHMEM
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_IOMMU)
 			io->urbs[i]->transfer_buffer = NULL;
 #else
 			io->urbs[i]->transfer_buffer =
