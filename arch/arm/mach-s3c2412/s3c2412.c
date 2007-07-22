@@ -63,7 +63,6 @@ static inline void s3c2412_init_gpio2(void)
 
 static struct map_desc s3c2412_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
-	IODESC_ENT(LCD),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
 };

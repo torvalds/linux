@@ -47,7 +47,6 @@ static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
-	IODESC_ENT(LCD),
 };
 
 /* uart initialisation */

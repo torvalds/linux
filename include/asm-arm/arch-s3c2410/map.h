@@ -56,7 +56,6 @@
 #define S3C24XX_SZ_CLKPWR  SZ_1M
 
 /* LCD controller */
-#define S3C24XX_VA_LCD	   S3C2410_ADDR(0x00300000)
 #define S3C2410_PA_LCD	   (0x4D000000)
 #define S3C24XX_SZ_LCD	   SZ_1M
 
@@ -75,7 +74,6 @@
 #define S3C24XX_SZ_TIMER   SZ_1M
 
 /* USB Device port */
-#define S3C24XX_VA_USBDEV  S3C2410_ADDR(0x00600000)
 #define S3C2410_PA_USBDEV  (0x52000000)
 #define S3C24XX_SZ_USBDEV  SZ_1M
 
