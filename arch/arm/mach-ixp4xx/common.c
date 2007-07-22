@@ -188,7 +188,7 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
 
 	/* Configure the line as an input */
-	gpio_line_config(line, IXP4XX_GPIO_IN);
+	gpio_line_config(irq2gpio[irq], IXP4XX_GPIO_IN);
 
 	return 0;
 }

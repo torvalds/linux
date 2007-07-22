@@ -78,7 +78,7 @@
 
 #include <asm/hardware.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
 /* structures */

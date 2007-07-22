@@ -34,11 +34,11 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
-#include <asm/arch/nand.h>
+#include <asm/plat-s3c/nand.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>

@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 
 #include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -40,7 +40,6 @@
 
 static struct map_desc s3c2410_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
-	IODESC_ENT(LCD),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
 };

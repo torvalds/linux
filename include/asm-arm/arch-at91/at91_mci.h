@@ -26,6 +26,9 @@
 #define AT91_MCI_MR		0x04		/* Mode Register */
 #define		AT91_MCI_CLKDIV		(0xff  <<  0)	/* Clock Divider */
 #define		AT91_MCI_PWSDIV		(7     <<  8)	/* Power Saving Divider */
+#define		AT91_MCI_RDPROOF	(1     << 11)	/* Read Proof Enable [SAM926[03] only] */
+#define		AT91_MCI_WRPROOF	(1     << 12)	/* Write Proof Enable [SAM926[03] only] */
+#define		AT91_MCI_PDCFBYTE	(1     << 13)	/* PDC Force Byte Transfer [SAM926[03] only] */
 #define		AT91_MCI_PDCPADV	(1     << 14)	/* PDC Padding Value */
 #define		AT91_MCI_PDCMODE	(1     << 15)	/* PDC-orientated Mode */
 #define		AT91_MCI_BLKLEN		(0xfff << 18)	/* Data Block Length */

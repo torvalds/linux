@@ -324,6 +324,12 @@ config ARCH_NS9XXX
 
 	  <http://www.digi.com/products/microprocessors/index.jsp>
 
+config ARCH_MXC
+	bool "Freescale MXC/iMX-based"
+	select ARCH_MTD_XIP
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -432,6 +438,7 @@ source "arch/arm/mach-omap1/Kconfig"
 source "arch/arm/mach-omap2/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
+source "arch/arm/plat-s3c/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -455,6 +462,8 @@ source "arch/arm/mach-aaec2000/Kconfig"
 source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
+
+source "arch/arm/plat-mxc/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 

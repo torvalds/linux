@@ -18,6 +18,8 @@
 #include <asm/arch-ns9xxx/regs-mem.h>
 #include <asm/arch-ns9xxx/board.h>
 
+#include "generic.h"
+
 static struct map_desc standard_io_desc[] __initdata = {
 	{ /* BBus */
 		.virtual = io_p2v(0x90000000),

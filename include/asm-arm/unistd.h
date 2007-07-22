@@ -441,7 +441,6 @@
 /*
  * Unimplemented (or alternatively implemented) syscalls
  */
-#define __IGNORE_sync_file_range	1
 #define __IGNORE_fadvise64_64		1
 
 #endif /* __KERNEL__ */
