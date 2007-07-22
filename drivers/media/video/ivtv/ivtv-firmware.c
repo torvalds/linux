@@ -72,8 +72,8 @@ retry:
 			dst++;
 			src++;
 		}
-		release_firmware(fw);
 		IVTV_INFO("Loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		release_firmware(fw);
 		return size;
 	}
 	IVTV_ERR("Unable to open firmware %s (must be %ld bytes)\n", fn, size);
