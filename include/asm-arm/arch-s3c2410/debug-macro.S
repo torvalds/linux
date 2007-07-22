@@ -24,8 +24,8 @@
 		tst	\rx, #1
 		ldreq	\rx, = S3C24XX_PA_UART
 		ldrne	\rx, = S3C24XX_VA_UART
-#if CONFIG_DEBUG_S3C2410_UART != 0
-		add	\rx, \rx, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C2410_UART)
+#if CONFIG_DEBUG_S3C_UART != 0
+		add	\rx, \rx, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C_UART)
 #endif
 	.endm
 
