@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <acpi/acpi_drivers.h>
+#include <net/netlink.h>
+#include <net/genetlink.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("event");
@@ -47,7 +49,6 @@ acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
 	static char str[ACPI_MAX_STRING];
 	static int chars_remaining = 0;
 	static char *ptr;
-
 
 	if (!chars_remaining) {
 		memset(&event, 0, sizeof(struct acpi_bus_event));
@@ -106,23 +107,161 @@ static const struct file_operations acpi_system_event_ops = {
 	.poll = acpi_system_poll_event,
 };
 
+#ifdef CONFIG_NET
+unsigned int acpi_event_seqnum;
+struct acpi_genl_event {
+	acpi_device_class device_class;
+	char bus_id[15];
+	u32 type;
+	u32 data;
+};
+
+/* attributes of acpi_genl_family */
+enum {
+	ACPI_GENL_ATTR_UNSPEC,
+	ACPI_GENL_ATTR_EVENT,	/* ACPI event info needed by user space */
+	__ACPI_GENL_ATTR_MAX,
+};
+#define ACPI_GENL_ATTR_MAX (__ACPI_GENL_ATTR_MAX - 1)
+
+/* commands supported by the acpi_genl_family */
+enum {
+	ACPI_GENL_CMD_UNSPEC,
+	ACPI_GENL_CMD_EVENT,	/* kernel->user notifications for ACPI events */
+	__ACPI_GENL_CMD_MAX,
+};
+#define ACPI_GENL_CMD_MAX (__ACPI_GENL_CMD_MAX - 1)
+
+#define ACPI_GENL_FAMILY_NAME		"acpi_event"
+#define ACPI_GENL_VERSION		0x01
+#define ACPI_GENL_MCAST_GROUP_NAME 	"acpi_mc_group"
+
+static struct genl_family acpi_event_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.name = ACPI_GENL_FAMILY_NAME,
+	.version = ACPI_GENL_VERSION,
+	.maxattr = ACPI_GENL_ATTR_MAX,
+};
+
+static struct genl_multicast_group acpi_event_mcgrp = {
+	.name = ACPI_GENL_MCAST_GROUP_NAME,
+};
+
+int acpi_bus_generate_genetlink_event(struct acpi_device *device,
+				      u8 type, int data)
+{
+	struct sk_buff *skb;
+	struct nlattr *attr;
+	struct acpi_genl_event *event;
+	void *msg_header;
+	int size;
+	int result;
+
+	/* allocate memory */
+	size = nla_total_size(sizeof(struct acpi_genl_event)) +
+	    nla_total_size(0);
+
+	skb = genlmsg_new(size, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	/* add the genetlink message header */
+	msg_header = genlmsg_put(skb, 0, acpi_event_seqnum++,
+				 &acpi_event_genl_family, 0,
+				 ACPI_GENL_CMD_EVENT);
+	if (!msg_header) {
+		nlmsg_free(skb);
+		return -ENOMEM;
+	}
+
+	/* fill the data */
+	attr =
+	    nla_reserve(skb, ACPI_GENL_ATTR_EVENT,
+			sizeof(struct acpi_genl_event));
+	if (!attr) {
+		nlmsg_free(skb);
+		return -EINVAL;
+	}
+
+	event = nla_data(attr);
+	if (!event) {
+		nlmsg_free(skb);
+		return -EINVAL;
+	}
+
+	memset(event, 0, sizeof(struct acpi_genl_event));
+
+	strcpy(event->device_class, device->pnp.device_class);
+	strcpy(event->bus_id, device->dev.bus_id);
+	event->type = type;
+	event->data = data;
+
+	/* send multicast genetlink message */
+	result = genlmsg_end(skb, msg_header);
+	if (result < 0) {
+		nlmsg_free(skb);
+		return result;
+	}
+
+	result =
+	    genlmsg_multicast(skb, 0, acpi_event_mcgrp.id, GFP_ATOMIC);
+	if (result)
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Failed to send a Genetlink message!\n"));
+	return 0;
+}
+
+static int acpi_event_genetlink_init(void)
+{
+	int result;
+
+	result = genl_register_family(&acpi_event_genl_family);
+	if (result)
+		return result;
+
+	result = genl_register_mc_group(&acpi_event_genl_family,
+					&acpi_event_mcgrp);
+	if (result)
+		genl_unregister_family(&acpi_event_genl_family);
+
+	return result;
+}
+
+#else
+int acpi_bus_generate_genetlink_event(struct acpi_device *device, u8 type,
+				      int data)
+{
+	return 0;
+}
+
+static int acpi_event_genetlink_init(void)
+{
+	return -ENODEV;
+}
+#endif
+
 static int __init acpi_event_init(void)
 {
 	struct proc_dir_entry *entry;
 	int error = 0;
 
-
 	if (acpi_disabled)
 		return 0;
+
+	/* create genetlink for acpi event */
+	error = acpi_event_genetlink_init();
+	if (error)
+		printk(KERN_WARNING PREFIX
+		       "Failed to create genetlink family for ACPI event\n");
 
 	/* 'event' [R] */
 	entry = create_proc_entry("event", S_IRUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_event_ops;
-	else {
-		error = -ENODEV;
-	}
-	return error;
+	else
+		return -ENODEV;
+
+	return 0;
 }
 
-subsys_initcall(acpi_event_init);
+fs_initcall(acpi_event_init);
