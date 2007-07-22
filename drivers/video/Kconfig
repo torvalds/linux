@@ -12,6 +12,13 @@ config VGASTATE
        tristate
        default n
 
+config VIDEO_OUTPUT_CONTROL
+	tristate "Lowlevel video output switch controls"
+	default m
+	help
+	  This framework adds support for low-level control of the video 
+	  output switch.
+
 config FB
 	tristate "Support for frame buffer devices"
 	---help---
