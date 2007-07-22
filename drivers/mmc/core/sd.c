@@ -213,10 +213,18 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	err = mmc_sd_switch(card, 0, 0, 1, status);
 	if (err) {
+		/*
+		 * We all hosts that cannot perform the command
+		 * to fail more gracefully
+		 */
+		if (err != -EINVAL)
+			goto out;
+
 		printk(KERN_WARNING "%s: problem reading switch "
 			"capabilities, performance might suffer.\n",
 			mmc_hostname(card->host));
 		err = 0;
+
 		goto out;
 	}
 
@@ -324,8 +332,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 
 	if (oldcard) {
-		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
+		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
+			err = -ENOENT;
 			goto err;
+		}
 
 		card = oldcard;
 	} else {
@@ -333,8 +343,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		 * Allocate card structure.
 		 */
 		card = mmc_alloc_card(host);
-		if (IS_ERR(card))
+		if (IS_ERR(card)) {
+			err = PTR_ERR(card);
 			goto err;
+		}
 
 		card->type = MMC_TYPE_SD;
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
@@ -358,7 +370,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 
 		err = mmc_decode_csd(card);
-		if (err < 0)
+		if (err)
 			goto free_card;
 
 		mmc_decode_cid(card);
@@ -449,7 +461,7 @@ free_card:
 		mmc_remove_card(card);
 err:
 
-	return -EIO;
+	return err;
 }
 
 /*
@@ -666,6 +678,6 @@ err:
 	printk(KERN_ERR "%s: error %d whilst initialising SD card\n",
 		mmc_hostname(host), err);
 
-	return 0;
+	return err;
 }
 

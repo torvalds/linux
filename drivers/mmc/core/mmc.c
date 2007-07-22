@@ -176,13 +176,19 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 	ext_csd = kmalloc(512, GFP_KERNEL);
 	if (!ext_csd) {
 		printk(KERN_ERR "%s: could not allocate a buffer to "
-			"receive the ext_csd. mmc v4 cards will be "
-			"treated as v3.\n", mmc_hostname(card->host));
+			"receive the ext_csd.\n", mmc_hostname(card->host));
 		return -ENOMEM;
 	}
 
 	err = mmc_send_ext_csd(card, ext_csd);
 	if (err) {
+		/*
+		 * We all hosts that cannot perform the command
+		 * to fail more gracefully
+		 */
+		if (err != -EINVAL)
+			goto out;
+
 		/*
 		 * High capacity cards should have this "magic" size
 		 * stored in their CSD.
@@ -199,6 +205,7 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 				mmc_hostname(card->host));
 			err = 0;
 		}
+
 		goto out;
 	}
 
@@ -269,8 +276,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 
 	if (oldcard) {
-		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
+		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
+			err = -ENOENT;
 			goto err;
+		}
 
 		card = oldcard;
 	} else {
@@ -278,8 +287,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * Allocate card structure.
 		 */
 		card = mmc_alloc_card(host);
-		if (IS_ERR(card))
+		if (IS_ERR(card)) {
+			err = PTR_ERR(card);
 			goto err;
+		}
 
 		card->type = MMC_TYPE_MMC;
 		card->rca = 1;
@@ -304,10 +315,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 
 		err = mmc_decode_csd(card);
-		if (err < 0)
+		if (err)
 			goto free_card;
 		err = mmc_decode_cid(card);
-		if (err < 0)
+		if (err)
 			goto free_card;
 	}
 
@@ -379,7 +390,7 @@ free_card:
 		mmc_remove_card(card);
 err:
 
-	return -EIO;
+	return err;
 }
 
 /*
@@ -587,6 +598,6 @@ err:
 	printk(KERN_ERR "%s: error %d whilst initialising MMC card\n",
 		mmc_hostname(host), err);
 
-	return 0;
+	return err;
 }
 
