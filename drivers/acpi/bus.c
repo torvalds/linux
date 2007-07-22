@@ -292,6 +292,10 @@ int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
 	if (!device)
 		return -EINVAL;
 
+	if (acpi_bus_generate_genetlink_event(device, type, data))
+		printk(KERN_WARNING PREFIX
+			"Failed to generate an ACPI event via genetlink!\n");
+
 	/* drop event on the floor if no one's listening */
 	if (!event_is_open)
 		return 0;

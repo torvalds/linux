@@ -210,11 +210,6 @@ static void acpi_hibernation_finish(void)
 
 	/* reset firmware waking vector */
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
-
-	if (init_8259A_after_S1) {
-		printk("Broken toshiba laptop -> kicking interrupts\n");
-		init_8259A(0);
-	}
 }
 
 static int acpi_hibernation_pre_restore(void)

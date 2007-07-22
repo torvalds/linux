@@ -142,43 +142,124 @@ struct sony_laptop_keypress {
 	int key;
 };
 
-/* Correspondance table between sonypi events and input layer events */
-static struct {
-	int sonypiev;
-	int inputev;
-} sony_laptop_inputkeys[] = {
-	{ SONYPI_EVENT_CAPTURE_PRESSED,	 	KEY_CAMERA },
-	{ SONYPI_EVENT_FNKEY_ONLY, 		KEY_FN },
-	{ SONYPI_EVENT_FNKEY_ESC, 		KEY_FN_ESC },
-	{ SONYPI_EVENT_FNKEY_F1, 		KEY_FN_F1 },
-	{ SONYPI_EVENT_FNKEY_F2, 		KEY_FN_F2 },
-	{ SONYPI_EVENT_FNKEY_F3, 		KEY_FN_F3 },
-	{ SONYPI_EVENT_FNKEY_F4, 		KEY_FN_F4 },
-	{ SONYPI_EVENT_FNKEY_F5, 		KEY_FN_F5 },
-	{ SONYPI_EVENT_FNKEY_F6, 		KEY_FN_F6 },
-	{ SONYPI_EVENT_FNKEY_F7, 		KEY_FN_F7 },
-	{ SONYPI_EVENT_FNKEY_F8, 		KEY_FN_F8 },
-	{ SONYPI_EVENT_FNKEY_F9,		KEY_FN_F9 },
-	{ SONYPI_EVENT_FNKEY_F10,		KEY_FN_F10 },
-	{ SONYPI_EVENT_FNKEY_F11, 		KEY_FN_F11 },
-	{ SONYPI_EVENT_FNKEY_F12,		KEY_FN_F12 },
-	{ SONYPI_EVENT_FNKEY_1, 		KEY_FN_1 },
-	{ SONYPI_EVENT_FNKEY_2, 		KEY_FN_2 },
-	{ SONYPI_EVENT_FNKEY_D,			KEY_FN_D },
-	{ SONYPI_EVENT_FNKEY_E,			KEY_FN_E },
-	{ SONYPI_EVENT_FNKEY_F,			KEY_FN_F },
-	{ SONYPI_EVENT_FNKEY_S,			KEY_FN_S },
-	{ SONYPI_EVENT_FNKEY_B,			KEY_FN_B },
-	{ SONYPI_EVENT_BLUETOOTH_PRESSED, 	KEY_BLUE },
-	{ SONYPI_EVENT_BLUETOOTH_ON, 		KEY_BLUE },
-	{ SONYPI_EVENT_PKEY_P1, 		KEY_PROG1 },
-	{ SONYPI_EVENT_PKEY_P2, 		KEY_PROG2 },
-	{ SONYPI_EVENT_PKEY_P3, 		KEY_PROG3 },
-	{ SONYPI_EVENT_BACK_PRESSED, 		KEY_BACK },
-	{ SONYPI_EVENT_HELP_PRESSED, 		KEY_HELP },
-	{ SONYPI_EVENT_ZOOM_PRESSED, 		KEY_ZOOM },
-	{ SONYPI_EVENT_THUMBPHRASE_PRESSED, 	BTN_THUMB },
-	{ 0, 0 },
+/* Correspondance table between sonypi events
+ * and input layer indexes in the keymap
+ */
+static int sony_laptop_input_index[] = {
+	-1,	/* no event */
+	-1,	/* SONYPI_EVENT_JOGDIAL_DOWN */
+	-1,	/* SONYPI_EVENT_JOGDIAL_UP */
+	-1,	/* SONYPI_EVENT_JOGDIAL_DOWN_PRESSED */
+	-1,	/* SONYPI_EVENT_JOGDIAL_UP_PRESSED */
+	-1,	/* SONYPI_EVENT_JOGDIAL_PRESSED */
+	-1,	/* SONYPI_EVENT_JOGDIAL_RELEASED */
+	 0,	/* SONYPI_EVENT_CAPTURE_PRESSED */
+	 1,	/* SONYPI_EVENT_CAPTURE_RELEASED */
+	 2,	/* SONYPI_EVENT_CAPTURE_PARTIALPRESSED */
+	 3,	/* SONYPI_EVENT_CAPTURE_PARTIALRELEASED */
+	 4,	/* SONYPI_EVENT_FNKEY_ESC */
+	 5,	/* SONYPI_EVENT_FNKEY_F1 */
+	 6,	/* SONYPI_EVENT_FNKEY_F2 */
+	 7,	/* SONYPI_EVENT_FNKEY_F3 */
+	 8,	/* SONYPI_EVENT_FNKEY_F4 */
+	 9,	/* SONYPI_EVENT_FNKEY_F5 */
+	10,	/* SONYPI_EVENT_FNKEY_F6 */
+	11,	/* SONYPI_EVENT_FNKEY_F7 */
+	12,	/* SONYPI_EVENT_FNKEY_F8 */
+	13,	/* SONYPI_EVENT_FNKEY_F9 */
+	14,	/* SONYPI_EVENT_FNKEY_F10 */
+	15,	/* SONYPI_EVENT_FNKEY_F11 */
+	16,	/* SONYPI_EVENT_FNKEY_F12 */
+	17,	/* SONYPI_EVENT_FNKEY_1 */
+	18,	/* SONYPI_EVENT_FNKEY_2 */
+	19,	/* SONYPI_EVENT_FNKEY_D */
+	20,	/* SONYPI_EVENT_FNKEY_E */
+	21,	/* SONYPI_EVENT_FNKEY_F */
+	22,	/* SONYPI_EVENT_FNKEY_S */
+	23,	/* SONYPI_EVENT_FNKEY_B */
+	24,	/* SONYPI_EVENT_BLUETOOTH_PRESSED */
+	25,	/* SONYPI_EVENT_PKEY_P1 */
+	26,	/* SONYPI_EVENT_PKEY_P2 */
+	27,	/* SONYPI_EVENT_PKEY_P3 */
+	28,	/* SONYPI_EVENT_BACK_PRESSED */
+	-1,	/* SONYPI_EVENT_LID_CLOSED */
+	-1,	/* SONYPI_EVENT_LID_OPENED */
+	29,	/* SONYPI_EVENT_BLUETOOTH_ON */
+	30,	/* SONYPI_EVENT_BLUETOOTH_OFF */
+	31,	/* SONYPI_EVENT_HELP_PRESSED */
+	32,	/* SONYPI_EVENT_FNKEY_ONLY */
+	33,	/* SONYPI_EVENT_JOGDIAL_FAST_DOWN */
+	34,	/* SONYPI_EVENT_JOGDIAL_FAST_UP */
+	35,	/* SONYPI_EVENT_JOGDIAL_FAST_DOWN_PRESSED */
+	36,	/* SONYPI_EVENT_JOGDIAL_FAST_UP_PRESSED */
+	37,	/* SONYPI_EVENT_JOGDIAL_VFAST_DOWN */
+	38,	/* SONYPI_EVENT_JOGDIAL_VFAST_UP */
+	39,	/* SONYPI_EVENT_JOGDIAL_VFAST_DOWN_PRESSED */
+	40,	/* SONYPI_EVENT_JOGDIAL_VFAST_UP_PRESSED */
+	41,	/* SONYPI_EVENT_ZOOM_PRESSED */
+	42,	/* SONYPI_EVENT_THUMBPHRASE_PRESSED */
+	43,	/* SONYPI_EVENT_MEYE_FACE */
+	44,	/* SONYPI_EVENT_MEYE_OPPOSITE */
+	45,	/* SONYPI_EVENT_MEMORYSTICK_INSERT */
+	46,	/* SONYPI_EVENT_MEMORYSTICK_EJECT */
+	-1,	/* SONYPI_EVENT_ANYBUTTON_RELEASED */
+	-1,	/* SONYPI_EVENT_BATTERY_INSERT */
+	-1,	/* SONYPI_EVENT_BATTERY_REMOVE */
+	-1,	/* SONYPI_EVENT_FNKEY_RELEASED */
+	47,	/* SONYPI_EVENT_WIRELESS_ON */
+	48,	/* SONYPI_EVENT_WIRELESS_OFF */
+};
+
+static int sony_laptop_input_keycode_map[] = {
+	KEY_CAMERA,	/*  0 SONYPI_EVENT_CAPTURE_PRESSED */
+	KEY_RESERVED,	/*  1 SONYPI_EVENT_CAPTURE_RELEASED */
+	KEY_RESERVED,	/*  2 SONYPI_EVENT_CAPTURE_PARTIALPRESSED */
+	KEY_RESERVED,	/*  3 SONYPI_EVENT_CAPTURE_PARTIALRELEASED */
+	KEY_FN_ESC,	/*  4 SONYPI_EVENT_FNKEY_ESC */
+	KEY_FN_F1,	/*  5 SONYPI_EVENT_FNKEY_F1 */
+	KEY_FN_F2,	/*  6 SONYPI_EVENT_FNKEY_F2 */
+	KEY_FN_F3,	/*  7 SONYPI_EVENT_FNKEY_F3 */
+	KEY_FN_F4,	/*  8 SONYPI_EVENT_FNKEY_F4 */
+	KEY_FN_F5,	/*  9 SONYPI_EVENT_FNKEY_F5 */
+	KEY_FN_F6,	/* 10 SONYPI_EVENT_FNKEY_F6 */
+	KEY_FN_F7,	/* 11 SONYPI_EVENT_FNKEY_F7 */
+	KEY_FN_F8,	/* 12 SONYPI_EVENT_FNKEY_F8 */
+	KEY_FN_F9,	/* 13 SONYPI_EVENT_FNKEY_F9 */
+	KEY_FN_F10,	/* 14 SONYPI_EVENT_FNKEY_F10 */
+	KEY_FN_F11,	/* 15 SONYPI_EVENT_FNKEY_F11 */
+	KEY_FN_F12,	/* 16 SONYPI_EVENT_FNKEY_F12 */
+	KEY_FN_F1,	/* 17 SONYPI_EVENT_FNKEY_1 */
+	KEY_FN_F2,	/* 18 SONYPI_EVENT_FNKEY_2 */
+	KEY_FN_D,	/* 19 SONYPI_EVENT_FNKEY_D */
+	KEY_FN_E,	/* 20 SONYPI_EVENT_FNKEY_E */
+	KEY_FN_F,	/* 21 SONYPI_EVENT_FNKEY_F */
+	KEY_FN_S,	/* 22 SONYPI_EVENT_FNKEY_S */
+	KEY_FN_B,	/* 23 SONYPI_EVENT_FNKEY_B */
+	KEY_BLUETOOTH,	/* 24 SONYPI_EVENT_BLUETOOTH_PRESSED */
+	KEY_PROG1,	/* 25 SONYPI_EVENT_PKEY_P1 */
+	KEY_PROG2,	/* 26 SONYPI_EVENT_PKEY_P2 */
+	KEY_PROG3,	/* 27 SONYPI_EVENT_PKEY_P3 */
+	KEY_BACK,	/* 28 SONYPI_EVENT_BACK_PRESSED */
+	KEY_BLUETOOTH,	/* 29 SONYPI_EVENT_BLUETOOTH_ON */
+	KEY_BLUETOOTH,	/* 30 SONYPI_EVENT_BLUETOOTH_OFF */
+	KEY_HELP,	/* 31 SONYPI_EVENT_HELP_PRESSED */
+	KEY_FN,		/* 32 SONYPI_EVENT_FNKEY_ONLY */
+	KEY_RESERVED,	/* 33 SONYPI_EVENT_JOGDIAL_FAST_DOWN */
+	KEY_RESERVED,	/* 34 SONYPI_EVENT_JOGDIAL_FAST_UP */
+	KEY_RESERVED,	/* 35 SONYPI_EVENT_JOGDIAL_FAST_DOWN_PRESSED */
+	KEY_RESERVED,	/* 36 SONYPI_EVENT_JOGDIAL_FAST_UP_PRESSED */
+	KEY_RESERVED,	/* 37 SONYPI_EVENT_JOGDIAL_VFAST_DOWN */
+	KEY_RESERVED,	/* 38 SONYPI_EVENT_JOGDIAL_VFAST_UP */
+	KEY_RESERVED,	/* 39 SONYPI_EVENT_JOGDIAL_VFAST_DOWN_PRESSED */
+	KEY_RESERVED,	/* 40 SONYPI_EVENT_JOGDIAL_VFAST_UP_PRESSED */
+	KEY_ZOOM,	/* 41 SONYPI_EVENT_ZOOM_PRESSED */
+	BTN_THUMB,	/* 42 SONYPI_EVENT_THUMBPHRASE_PRESSED */
+	KEY_RESERVED,	/* 43 SONYPI_EVENT_MEYE_FACE */
+	KEY_RESERVED,	/* 44 SONYPI_EVENT_MEYE_OPPOSITE */
+	KEY_RESERVED,	/* 45 SONYPI_EVENT_MEMORYSTICK_INSERT */
+	KEY_RESERVED,	/* 46 SONYPI_EVENT_MEMORYSTICK_EJECT */
+	KEY_WLAN,	/* 47 SONYPI_EVENT_WIRELESS_ON */
+	KEY_WLAN,	/* 48 SONYPI_EVENT_WIRELESS_OFF */
 };
 
 /* release buttons after a short delay if pressed */
@@ -202,7 +283,6 @@ static void sony_laptop_report_input_event(u8 event)
 	struct input_dev *jog_dev = sony_laptop_input.jog_dev;
 	struct input_dev *key_dev = sony_laptop_input.key_dev;
 	struct sony_laptop_keypress kp = { NULL };
-	int i;
 
 	if (event == SONYPI_EVENT_FNKEY_RELEASED) {
 		/* Nothing, not all VAIOs generate this event */
@@ -231,17 +311,22 @@ static void sony_laptop_report_input_event(u8 event)
 		break;
 
 	default:
-		for (i = 0; sony_laptop_inputkeys[i].sonypiev; i++)
-			if (event == sony_laptop_inputkeys[i].sonypiev) {
+		if (event > ARRAY_SIZE (sony_laptop_input_keycode_map)) {
+			dprintk("sony_laptop_report_input_event, event not known: %d\n", event);
+			break;
+		}
+		if (sony_laptop_input_index[event] != -1) {
+			kp.key = sony_laptop_input_keycode_map[sony_laptop_input_index[event]];
+			if (kp.key != KEY_UNKNOWN)
 				kp.dev = key_dev;
-				kp.key = sony_laptop_inputkeys[i].inputev;
-				break;
-			}
+		}
 		break;
 	}
 
 	if (kp.dev) {
 		input_report_key(kp.dev, kp.key, 1);
+		/* we emit the scancode so we can always remap the key */
+		input_event(kp.dev, EV_MSC, MSC_SCAN, event);
 		input_sync(kp.dev);
 		kfifo_put(sony_laptop_input.fifo,
 			  (unsigned char *)&kp, sizeof(kp));
@@ -296,11 +381,18 @@ static int sony_laptop_setup_input(void)
 	key_dev->id.vendor = PCI_VENDOR_ID_SONY;
 
 	/* Initialize the Input Drivers: special keys */
-	key_dev->evbit[0] = BIT(EV_KEY);
-	for (i = 0; sony_laptop_inputkeys[i].sonypiev; i++)
-		if (sony_laptop_inputkeys[i].inputev)
-			set_bit(sony_laptop_inputkeys[i].inputev,
-					key_dev->keybit);
+	set_bit(EV_KEY, key_dev->evbit);
+	set_bit(EV_MSC, key_dev->evbit);
+	set_bit(MSC_SCAN, key_dev->mscbit);
+	key_dev->keycodesize = sizeof(sony_laptop_input_keycode_map[0]);
+	key_dev->keycodemax = ARRAY_SIZE(sony_laptop_input_keycode_map);
+	key_dev->keycode = &sony_laptop_input_keycode_map;
+	for (i = 0; i < ARRAY_SIZE(sony_laptop_input_keycode_map); i++) {
+		if (sony_laptop_input_keycode_map[i] != KEY_RESERVED) {
+			set_bit(sony_laptop_input_keycode_map[i],
+				key_dev->keybit);
+		}
+	}
 
 	error = input_register_device(key_dev);
 	if (error)
@@ -487,6 +579,14 @@ SNC_HANDLE_NAMES(audiopower_set, "AZPW");
 SNC_HANDLE_NAMES(lanpower_get, "GLNP");
 SNC_HANDLE_NAMES(lanpower_set, "LNPW");
 
+SNC_HANDLE_NAMES(lidstate_get, "GLID");
+
+SNC_HANDLE_NAMES(indicatorlamp_get, "GILS");
+SNC_HANDLE_NAMES(indicatorlamp_set, "SILS");
+
+SNC_HANDLE_NAMES(gainbass_get, "GMGB");
+SNC_HANDLE_NAMES(gainbass_set, "CMGB");
+
 SNC_HANDLE_NAMES(PID_get, "GPID");
 
 SNC_HANDLE_NAMES(CTR_get, "GCTR");
@@ -507,6 +607,12 @@ static struct sony_nc_value sony_nc_values[] = {
 			boolean_validate, 0),
 	SNC_HANDLE(lanpower, snc_lanpower_get, snc_lanpower_set,
 			boolean_validate, 1),
+	SNC_HANDLE(lidstate, snc_lidstate_get, NULL,
+			boolean_validate, 0),
+	SNC_HANDLE(indicatorlamp, snc_indicatorlamp_get, snc_indicatorlamp_set,
+			boolean_validate, 0),
+	SNC_HANDLE(gainbass, snc_gainbass_get, snc_gainbass_set,
+			boolean_validate, 0),
 	/* unknown methods */
 	SNC_HANDLE(PID, snc_PID_get, NULL, NULL, 1),
 	SNC_HANDLE(CTR, snc_CTR_get, snc_CTR_set, NULL, 1),
@@ -689,13 +795,116 @@ static struct backlight_ops sony_backlight_ops = {
 };
 
 /*
+ * New SNC-only Vaios event mapping to driver known keys
+ */
+struct sony_nc_event {
+	u8	data;
+	u8	event;
+};
+
+static struct sony_nc_event *sony_nc_events;
+
+/* Vaio C* --maybe also FE*, N* and AR* ?-- special init sequence
+ * for Fn keys
+ */
+static int sony_nc_C_enable(struct dmi_system_id *id)
+{
+	int result = 0;
+
+	printk(KERN_NOTICE DRV_PFX "detected %s\n", id->ident);
+
+	sony_nc_events = id->driver_data;
+
+	if (acpi_callsetfunc(sony_nc_acpi_handle, "SN02", 0x4, &result) < 0
+			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x2, &result) < 0
+			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN02", 0x10, &result) < 0
+			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x0, &result) < 0
+			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN03", 0x2, &result) < 0
+			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x101, &result) < 0) {
+		printk(KERN_WARNING DRV_PFX "failed to initialize SNC, some "
+				"functionalities may be missing\n");
+		return 1;
+	}
+	return 0;
+}
+
+static struct sony_nc_event sony_C_events[] = {
+	{ 0x81, SONYPI_EVENT_FNKEY_F1 },
+	{ 0x01, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x85, SONYPI_EVENT_FNKEY_F5 },
+	{ 0x05, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x86, SONYPI_EVENT_FNKEY_F6 },
+	{ 0x06, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x87, SONYPI_EVENT_FNKEY_F7 },
+	{ 0x07, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x8A, SONYPI_EVENT_FNKEY_F10 },
+	{ 0x0A, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x8C, SONYPI_EVENT_FNKEY_F12 },
+	{ 0x0C, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0, 0 },
+};
+
+/* SNC-only model map */
+struct dmi_system_id sony_nc_ids[] = {
+		{
+			.ident = "Sony Vaio FE Series",
+			.callback = sony_nc_C_enable,
+			.driver_data = sony_C_events,
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FE"),
+			},
+		},
+		{
+			.ident = "Sony Vaio C Series",
+			.callback = sony_nc_C_enable,
+			.driver_data = sony_C_events,
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-C"),
+			},
+		},
+		{ }
+};
+
+/*
  * ACPI callbacks
  */
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
-	dprintk("sony_acpi_notify, event: %d\n", event);
-	sony_laptop_report_input_event(event);
-	acpi_bus_generate_event(sony_nc_acpi_device, 1, event);
+	struct sony_nc_event *evmap;
+	u32 ev = event;
+	int result;
+
+	if (ev == 0x92) {
+		/* read the key pressed from EC.GECR
+		 * A call to SN07 with 0x0202 will do it as well respecting
+		 * the current protocol on different OSes
+		 *
+		 * Note: the path for GECR may be
+		 *   \_SB.PCI0.LPCB.EC (C, FE, AR, N and friends)
+		 *   \_SB.PCI0.PIB.EC0 (VGN-FR notifications are sent directly, no GECR)
+		 *
+		 * TODO: we may want to do the same for the older GHKE -need
+		 *       dmi list- so this snippet may become one more callback.
+		 */
+		if (acpi_callsetfunc(handle, "SN07", 0x0202, &result) < 0)
+			dprintk("sony_acpi_notify, unable to decode event 0x%.2x\n", ev);
+		else
+			ev = result & 0xFF;
+	}
+
+	if (sony_nc_events)
+		for (evmap = sony_nc_events; evmap->event; evmap++) {
+			if (evmap->data == ev) {
+				ev = evmap->event;
+				break;
+			}
+		}
+
+	dprintk("sony_acpi_notify, event: 0x%.2x\n", ev);
+	sony_laptop_report_input_event(ev);
+	acpi_bus_generate_event(sony_nc_acpi_device, 1, ev);
 }
 
 static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
@@ -732,6 +941,10 @@ static int sony_nc_resume(struct acpi_device *device)
 			break;
 		}
 	}
+
+	/* re-initialize models with specific requirements */
+	dmi_check_system(sony_nc_ids);
+
 	return 0;
 }
 
@@ -750,6 +963,15 @@ static int sony_nc_add(struct acpi_device *device)
 
 	sony_nc_acpi_handle = device->handle;
 
+	/* read device status */
+	result = acpi_bus_get_status(device);
+	/* bail IFF the above call was successful and the device is not present */
+	if (!result && !device->status.present) {
+		dprintk("Device not present\n");
+		result = -ENODEV;
+		goto outwalk;
+	}
+
 	if (debug) {
 		status = acpi_walk_namespace(ACPI_TYPE_METHOD, sony_nc_acpi_handle,
 					     1, sony_walk_callback, NULL, NULL);
@@ -758,6 +980,15 @@ static int sony_nc_add(struct acpi_device *device)
 			result = -ENODEV;
 			goto outwalk;
 		}
+	}
+
+	/* try to _INI the device if such method exists (ACPI spec 3.0-6.5.1
+	 * should be respected as we already checked for the device presence above */
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, METHOD_NAME__INI, &handle))) {
+		dprintk("Invoking _INI\n");
+		if (ACPI_FAILURE(acpi_evaluate_object(sony_nc_acpi_handle, METHOD_NAME__INI,
+						NULL, NULL)))
+			dprintk("_INI Method failed\n");
 	}
 
 	/* setup input devices and helper fifo */
@@ -772,7 +1003,7 @@ static int sony_nc_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     sony_acpi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING DRV_PFX "unable to install notify handler\n");
+		printk(KERN_WARNING DRV_PFX "unable to install notify handler (%u)\n", status);
 		result = -ENODEV;
 		goto outinput;
 	}
@@ -794,6 +1025,9 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 
 	}
+
+	/* initialize models with specific requirements */
+	dmi_check_system(sony_nc_ids);
 
 	result = sony_pf_add();
 	if (result)
@@ -908,7 +1142,9 @@ static struct acpi_driver sony_nc_driver = {
 #define SONYPI_DEVICE_TYPE2	0x00000002
 #define SONYPI_DEVICE_TYPE3	0x00000004
 
-#define SONY_PIC_EV_MASK	0xff
+#define SONYPI_TYPE1_OFFSET	0x04
+#define SONYPI_TYPE2_OFFSET	0x12
+#define SONYPI_TYPE3_OFFSET	0x12
 
 struct sony_pic_ioport {
 	struct acpi_resource_io	io;
@@ -922,6 +1158,7 @@ struct sony_pic_irq {
 
 struct sony_pic_dev {
 	int			model;
+	u16			evport_offset;
 	u8			camera_power;
 	u8			bluetooth_power;
 	u8			wwan_power;
@@ -1999,20 +2236,17 @@ end:
 static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 {
 	int i, j;
-	u32 port_val = 0;
 	u8 ev = 0;
 	u8 data_mask = 0;
 	u8 device_event = 0;
 
 	struct sony_pic_dev *dev = (struct sony_pic_dev *) dev_id;
 
-	acpi_os_read_port(dev->cur_ioport->io.minimum, &port_val,
-			dev->cur_ioport->io.address_length);
-	ev = port_val & SONY_PIC_EV_MASK;
-	data_mask = 0xff & (port_val >> (dev->cur_ioport->io.address_length - 8));
+	ev = inb_p(dev->cur_ioport->io.minimum);
+	data_mask = inb_p(dev->cur_ioport->io.minimum + dev->evport_offset);
 
-	dprintk("event (0x%.8x [%.2x] [%.2x]) at port 0x%.4x\n",
-			port_val, ev, data_mask, dev->cur_ioport->io.minimum);
+	dprintk("event ([%.2x] [%.2x]) at port 0x%.4x(+0x%.2x)\n",
+			ev, data_mask, dev->cur_ioport->io.minimum, dev->evport_offset);
 
 	if (ev == 0x00 || ev == 0xff)
 		return IRQ_HANDLED;
@@ -2102,6 +2336,20 @@ static int sony_pic_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), "sony/hotkey");
 	spic_dev.model = sony_pic_detect_device_type();
 	mutex_init(&spic_dev.lock);
+
+	/* model specific characteristics */
+	switch(spic_dev.model) {
+		case SONYPI_DEVICE_TYPE1:
+			spic_dev.evport_offset = SONYPI_TYPE1_OFFSET;
+			break;
+		case SONYPI_DEVICE_TYPE3:
+			spic_dev.evport_offset = SONYPI_TYPE3_OFFSET;
+			break;
+		case SONYPI_DEVICE_TYPE2:
+		default:
+			spic_dev.evport_offset = SONYPI_TYPE2_OFFSET;
+			break;
+	}
 
 	/* read _PRS resources */
 	result = sony_pic_possible_resources(device);

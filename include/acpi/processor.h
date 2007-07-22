@@ -21,6 +21,8 @@
 #define ACPI_PSD_REV0_REVISION		0	/* Support for _PSD as in ACPI 3.0 */
 #define ACPI_PSD_REV0_ENTRIES		5
 
+#define ACPI_TSD_REV0_REVISION		0	/* Support for _PSD as in ACPI 3.0 */
+#define ACPI_TSD_REV0_ENTRIES		5
 /*
  * Types of coordination defined in ACPI 3.0. Same macros can be used across
  * P, C and T states
@@ -125,17 +127,53 @@ struct acpi_processor_performance {
 
 /* Throttling Control */
 
+struct acpi_tsd_package {
+	acpi_integer num_entries;
+	acpi_integer revision;
+	acpi_integer domain;
+	acpi_integer coord_type;
+	acpi_integer num_processors;
+} __attribute__ ((packed));
+
+struct acpi_ptc_register {
+	u8 descriptor;
+	u16 length;
+	u8 space_id;
+	u8 bit_width;
+	u8 bit_offset;
+	u8 reserved;
+	u64 address;
+} __attribute__ ((packed));
+
+struct acpi_processor_tx_tss {
+	acpi_integer freqpercentage;	/* */
+	acpi_integer power;	/* milliWatts */
+	acpi_integer transition_latency;	/* microseconds */
+	acpi_integer control;	/* control value */
+	acpi_integer status;	/* success indicator */
+};
 struct acpi_processor_tx {
 	u16 power;
 	u16 performance;
 };
 
+struct acpi_processor;
 struct acpi_processor_throttling {
-	int state;
+	unsigned int state;
+	unsigned int platform_limit;
+	struct acpi_pct_register control_register;
+	struct acpi_pct_register status_register;
+	unsigned int state_count;
+	struct acpi_processor_tx_tss *states_tss;
+	struct acpi_tsd_package domain_info;
+	cpumask_t shared_cpu_map;
+	int (*acpi_processor_get_throttling) (struct acpi_processor * pr);
+	int (*acpi_processor_set_throttling) (struct acpi_processor * pr,
+					      int state);
+
 	u32 address;
 	u8 duty_offset;
 	u8 duty_width;
-	int state_count;
 	struct acpi_processor_tx states[ACPI_PROCESSOR_MAX_THROTTLING];
 };
 
@@ -169,6 +207,9 @@ struct acpi_processor {
 	u32 id;
 	u32 pblk;
 	int performance_platform_limit;
+	int throttling_platform_limit;
+	/* 0 - states 0..n-th state available */
+
 	struct acpi_processor_flags flags;
 	struct acpi_processor_power power;
 	struct acpi_processor_performance *performance;
@@ -270,7 +311,7 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 
 /* in processor_throttling.c */
 int acpi_processor_get_throttling_info(struct acpi_processor *pr);
-int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
+extern int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
 extern struct file_operations acpi_processor_throttling_fops;
 
 /* in processor_idle.c */

@@ -150,6 +150,7 @@ config THINKPAD_ACPI
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select NVRAM
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -195,5 +196,18 @@ config THINKPAD_ACPI_BAY
 	  notifications when the bay lever is ejected or inserted.
 
 	  If you are not sure, say Y here.
+
+config THINKPAD_ACPI_INPUT_ENABLED
+	bool "Enable input layer support by default"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Enables hot key handling over the input layer by default.  If unset,
+	  the driver does not enable any hot key handling by default, and also
+	  starts up with a mostly empty keymap.
+
+	  If you are not sure, say Y here.  Say N to retain the deprecated
+	  behavior of ibm-acpi, and thinkpad-acpi for kernels up to 2.6.21.
+
 
 endif # MISC_DEVICES

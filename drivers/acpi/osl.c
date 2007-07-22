@@ -77,13 +77,7 @@ static struct workqueue_struct *kacpi_notify_wq;
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
 
-#define OSI_LINUX_ENABLED
-#ifdef	OSI_LINUX_ENABLED
-int osi_linux = 1;	/* enable _OSI(Linux) by default */
-#else
-int osi_linux;		/* disable _OSI(Linux) by default */
-#endif
-
+static int osi_linux;		/* disable _OSI(Linux) by default */
 
 #ifdef CONFIG_DMI
 static struct __initdata dmi_system_id acpi_osl_dmi_table[];
@@ -1183,17 +1177,10 @@ acpi_os_validate_interface (char *interface)
 	if (!strcmp("Linux", interface)) {
 		printk(KERN_WARNING PREFIX
 			"System BIOS is requesting _OSI(Linux)\n");
-#ifdef	OSI_LINUX_ENABLED
-		printk(KERN_WARNING PREFIX
-			"Please test with \"acpi_osi=!Linux\"\n"
-			"Please send dmidecode "
-			"to linux-acpi@vger.kernel.org\n");
-#else
 		printk(KERN_WARNING PREFIX
 			"If \"acpi_osi=Linux\" works better,\n"
 			"Please send dmidecode "
 			"to linux-acpi@vger.kernel.org\n");
-#endif
 		if(osi_linux)
 			return AE_OK;
 	}
@@ -1227,36 +1214,14 @@ acpi_os_validate_address (
 }
 
 #ifdef CONFIG_DMI
-#ifdef	OSI_LINUX_ENABLED
-static int dmi_osi_not_linux(struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE "%s detected: requires not _OSI(Linux)\n", d->ident);
-	enable_osi_linux(0);
-	return 0;
-}
-#else
 static int dmi_osi_linux(struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE "%s detected: requires _OSI(Linux)\n", d->ident);
+	printk(KERN_NOTICE "%s detected: enabling _OSI(Linux)\n", d->ident);
 	enable_osi_linux(1);
 	return 0;
 }
-#endif
 
 static struct dmi_system_id acpi_osl_dmi_table[] __initdata = {
-#ifdef	OSI_LINUX_ENABLED
-	/*
-	 * Boxes that need NOT _OSI(Linux)
-	 */
-	{
-	 .callback = dmi_osi_not_linux,
-	 .ident = "Toshiba Satellite P100",
-	 .matches = {
-		     DMI_MATCH(DMI_BOARD_VENDOR, "TOSHIBA"),
-		     DMI_MATCH(DMI_BOARD_NAME, "Satellite P100"),
-		     },
-	 },
-#else
 	/*
 	 * Boxes that need _OSI(Linux)
 	 */
@@ -1268,7 +1233,6 @@ static struct dmi_system_id acpi_osl_dmi_table[] __initdata = {
 		     DMI_MATCH(DMI_BOARD_NAME, "MPAD-MSAE Customer Reference Boards"),
 		     },
 	 },
-#endif
 	{}
 };
 #endif /* CONFIG_DMI */
