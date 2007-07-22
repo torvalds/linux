@@ -209,7 +209,7 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-__attribute__((weak))
+__attribute__((weak)) __init
 void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
 {
 	return NULL;
