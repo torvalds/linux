@@ -231,6 +231,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	switch (c->x86) {
 	case 15:
+	/* Use K8 tuning for Fam10h and Fam11h */
+	case 0x10:
+	case 0x11:
 		set_bit(X86_FEATURE_K8, c->x86_capability);
 		break;
 	case 6:
