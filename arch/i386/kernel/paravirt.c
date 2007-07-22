@@ -154,13 +154,14 @@ unsigned paravirt_patch_jmp(void *target, void *site, unsigned len)
 {
 	unsigned char *jmp = site;
 	unsigned long delta = (unsigned long)target - (unsigned long)(jmp+5);
+	struct branch b;
 
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
 	b.opcode = 0xe9;	/* jmp */
 	b.delta = delta;
-	text_poke(call, (unsigned char *)&b, 5);
+	text_poke(jmp, (unsigned char *)&b, 5);
 
 	return 5;
 }
