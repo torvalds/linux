@@ -1790,6 +1790,7 @@ static void kernel_pio(struct kvm_io_device *pio_dev,
 {
 	/* TODO: String I/O for in kernel device */
 
+	mutex_lock(&vcpu->kvm->lock);
 	if (vcpu->pio.in)
 		kvm_iodevice_read(pio_dev, vcpu->pio.port,
 				  vcpu->pio.size,
@@ -1798,6 +1799,7 @@ static void kernel_pio(struct kvm_io_device *pio_dev,
 		kvm_iodevice_write(pio_dev, vcpu->pio.port,
 				   vcpu->pio.size,
 				   pd);
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 static void pio_string_write(struct kvm_io_device *pio_dev,
@@ -1807,12 +1809,14 @@ static void pio_string_write(struct kvm_io_device *pio_dev,
 	void *pd = vcpu->pio_data;
 	int i;
 
+	mutex_lock(&vcpu->kvm->lock);
 	for (i = 0; i < io->cur_count; i++) {
 		kvm_iodevice_write(pio_dev, io->port,
 				   io->size,
 				   pd);
 		pd += io->size;
 	}
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
@@ -2818,6 +2822,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&irq_event, argp, sizeof irq_event))
 			goto out;
 		if (irqchip_in_kernel(kvm)) {
+			mutex_lock(&kvm->lock);
 			if (irq_event.irq < 16)
 				kvm_pic_set_irq(pic_irqchip(kvm),
 					irq_event.irq,
@@ -2825,6 +2830,7 @@ static long kvm_vm_ioctl(struct file *filp,
 			kvm_ioapic_set_irq(kvm->vioapic,
 					irq_event.irq,
 					irq_event.level);
+			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
 		break;
