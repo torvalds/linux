@@ -173,12 +173,6 @@ struct audit_aux_data_fd_pair {
 	int	fd[2];
 };
 
-struct audit_aux_data_path {
-	struct audit_aux_data	d;
-	struct dentry		*dentry;
-	struct vfsmount		*mnt;
-};
-
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
@@ -654,12 +648,6 @@ static inline void audit_free_aux(struct audit_context *context)
 	struct audit_aux_data *aux;
 
 	while ((aux = context->aux)) {
-		if (aux->type == AUDIT_AVC_PATH) {
-			struct audit_aux_data_path *axi = (void *)aux;
-			dput(axi->dentry);
-			mntput(axi->mnt);
-		}
-
 		context->aux = aux->next;
 		kfree(aux);
 	}
@@ -995,7 +983,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-				 "ouid=%u ogid=%u mode=%x",
+				 "ouid=%u ogid=%u mode=%#o",
 				 axi->uid, axi->gid, axi->mode);
 			if (axi->osid != 0) {
 				char *ctx = NULL;
@@ -1014,7 +1002,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC_SET_PERM: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%x",
+				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
 				axi->qbytes, axi->uid, axi->gid, axi->mode);
 			break; }
 
@@ -1036,11 +1024,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 			audit_log_format(ab, "saddr=");
 			audit_log_hex(ab, axs->a, axs->len);
-			break; }
-
-		case AUDIT_AVC_PATH: {
-			struct audit_aux_data_path *axi = (void *)aux;
-			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
 			break; }
 
 		case AUDIT_FD_PAIR: {
@@ -1988,36 +1971,6 @@ void __audit_ptrace(struct task_struct *t)
 
 	context->target_pid = t->pid;
 	selinux_get_task_sid(t, &context->target_sid);
-}
-
-/**
- * audit_avc_path - record the granting or denial of permissions
- * @dentry: dentry to record
- * @mnt: mnt to record
- *
- * Returns 0 for success or NULL context or < 0 on error.
- *
- * Called from security/selinux/avc.c::avc_audit()
- */
-int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
-{
-	struct audit_aux_data_path *ax;
-	struct audit_context *context = current->audit_context;
-
-	if (likely(!context))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->dentry = dget(dentry);
-	ax->mnt = mntget(mnt);
-
-	ax->d.type = AUDIT_AVC_PATH;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
 }
 
 /**
