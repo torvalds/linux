@@ -25,6 +25,8 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
+#include "irq.h"
+
 extern unsigned long lvl14_save[5];
 static unsigned long *linux_lvl14 = NULL;
 static unsigned long obp_lvl14[4];

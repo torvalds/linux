@@ -47,6 +47,8 @@
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
+
 #ifdef CONFIG_SMP
 #define SMP_NOP2 "nop; nop;\n\t"
 #define SMP_NOP3 "nop; nop; nop;\n\t"

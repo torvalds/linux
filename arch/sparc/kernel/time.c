@@ -44,6 +44,8 @@
 #include <asm/of_device.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
+
 DEFINE_SPINLOCK(rtc_lock);
 enum sparc_clock_type sp_clock_typ;
 DEFINE_SPINLOCK(mostek_lock);

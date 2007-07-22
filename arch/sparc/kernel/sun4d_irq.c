@@ -39,6 +39,8 @@
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
+
 /* If you trust current SCSI layer to handle different SCSI IRQs, enable this. I don't trust it... -jj */
 /* #define DISTRIBUTE_IRQS */
 

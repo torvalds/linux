@@ -36,6 +36,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpudata.h>
 
+#include "irq.h"
 #define IRQ_CROSS_CALL		15
 
 extern ctxd_t *srmmu_ctx_table_phys;

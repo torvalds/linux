@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
 
 /*
  * I studied different documents and many live PROMs both from 2.30
