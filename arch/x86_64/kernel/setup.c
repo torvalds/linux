@@ -608,6 +608,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	else
 		num_cache_leaves = 3;
 
+	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x11)
+		set_bit(X86_FEATURE_K8, &c->x86_capability);
+
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 
