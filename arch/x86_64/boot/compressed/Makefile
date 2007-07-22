@@ -3,8 +3,6 @@
 #
 # create a compressed vmlinux image from the original vmlinux
 #
-# Note all the files here are compiled/linked as 32bit executables.
-#
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o
 
