@@ -34,7 +34,7 @@ static inline void __set_64bit (unsigned long long * ptr,
 		"\n1:\t"
 		"movl (%0), %%eax\n\t"
 		"movl 4(%0), %%edx\n\t"
-		"lock cmpxchg8b (%0)\n\t"
+		LOCK_PREFIX "cmpxchg8b (%0)\n\t"
 		"jnz 1b"
 		: /* no outputs */
 		:	"D"(ptr),
