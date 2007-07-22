@@ -2,7 +2,7 @@
  * LED Class Core
  *
  * Copyright (C) 2005 John Lenz <lenz@cs.wisc.edu>
- * Copyright (C) 2005-2006 Richard Purdie <rpurdie@openedhand.com>
+ * Copyright (C) 2005-2007 Richard Purdie <rpurdie@openedhand.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,9 +24,10 @@
 
 static struct class *leds_class;
 
-static ssize_t led_brightness_show(struct class_device *dev, char *buf)
+static ssize_t led_brightness_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	ssize_t ret = 0;
 
 	/* no lock needed for this */
@@ -36,10 +37,10 @@ static ssize_t led_brightness_show(struct class_device *dev, char *buf)
 	return ret;
 }
 
-static ssize_t led_brightness_store(struct class_device *dev,
-				const char *buf, size_t size)
+static ssize_t led_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	ssize_t ret = -EINVAL;
 	char *after;
 	unsigned long state = simple_strtoul(buf, &after, 10);
@@ -56,10 +57,9 @@ static ssize_t led_brightness_store(struct class_device *dev,
 	return ret;
 }
 
-static CLASS_DEVICE_ATTR(brightness, 0644, led_brightness_show,
-			led_brightness_store);
+static DEVICE_ATTR(brightness, 0644, led_brightness_show, led_brightness_store);
 #ifdef CONFIG_LEDS_TRIGGERS
-static CLASS_DEVICE_ATTR(trigger, 0644, led_trigger_show, led_trigger_store);
+static DEVICE_ATTR(trigger, 0644, led_trigger_show, led_trigger_store);
 #endif
 
 /**
@@ -93,16 +93,15 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 {
 	int rc;
 
-	led_cdev->class_dev = class_device_create(leds_class, NULL, 0,
-						parent, "%s", led_cdev->name);
-	if (unlikely(IS_ERR(led_cdev->class_dev)))
-		return PTR_ERR(led_cdev->class_dev);
+	led_cdev->dev = device_create(leds_class, parent, 0, "%s",
+					    led_cdev->name);
+	if (unlikely(IS_ERR(led_cdev->dev)))
+		return PTR_ERR(led_cdev->dev);
 
-	class_set_devdata(led_cdev->class_dev, led_cdev);
+	dev_set_drvdata(led_cdev->dev, led_cdev);
 
 	/* register the attributes */
-	rc = class_device_create_file(led_cdev->class_dev,
-				      &class_device_attr_brightness);
+	rc = device_create_file(led_cdev->dev, &dev_attr_brightness);
 	if (rc)
 		goto err_out;
 
@@ -114,8 +113,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 #ifdef CONFIG_LEDS_TRIGGERS
 	rwlock_init(&led_cdev->trigger_lock);
 
-	rc = class_device_create_file(led_cdev->class_dev,
-				      &class_device_attr_trigger);
+	rc = device_create_file(led_cdev->dev, &dev_attr_trigger);
 	if (rc)
 		goto err_out_led_list;
 
@@ -123,18 +121,17 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 #endif
 
 	printk(KERN_INFO "Registered led device: %s\n",
-			led_cdev->class_dev->class_id);
+			led_cdev->name);
 
 	return 0;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 err_out_led_list:
-	class_device_remove_file(led_cdev->class_dev,
-				&class_device_attr_brightness);
+	device_remove_file(led_cdev->dev, &dev_attr_brightness);
 	list_del(&led_cdev->node);
 #endif
 err_out:
-	class_device_unregister(led_cdev->class_dev);
+	device_unregister(led_cdev->dev);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(led_classdev_register);
@@ -147,18 +144,16 @@ EXPORT_SYMBOL_GPL(led_classdev_register);
  */
 void led_classdev_unregister(struct led_classdev *led_cdev)
 {
-	class_device_remove_file(led_cdev->class_dev,
-				&class_device_attr_brightness);
+	device_remove_file(led_cdev->dev, &dev_attr_brightness);
 #ifdef CONFIG_LEDS_TRIGGERS
-	class_device_remove_file(led_cdev->class_dev,
-				&class_device_attr_trigger);
+	device_remove_file(led_cdev->dev, &dev_attr_trigger);
 	write_lock(&led_cdev->trigger_lock);
 	if (led_cdev->trigger)
 		led_trigger_set(led_cdev, NULL);
 	write_unlock(&led_cdev->trigger_lock);
 #endif
 
-	class_device_unregister(led_cdev->class_dev);
+	device_unregister(led_cdev->dev);
 
 	write_lock(&leds_list_lock);
 	list_del(&led_cdev->node);

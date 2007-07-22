@@ -52,9 +52,10 @@ static void led_timer_function(unsigned long data)
 	mod_timer(&timer_data->timer, jiffies + msecs_to_jiffies(delay));
 }
 
-static ssize_t led_delay_on_show(struct class_device *dev, char *buf)
+static ssize_t led_delay_on_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
 
 	sprintf(buf, "%lu\n", timer_data->delay_on);
@@ -62,10 +63,10 @@ static ssize_t led_delay_on_show(struct class_device *dev, char *buf)
 	return strlen(buf) + 1;
 }
 
-static ssize_t led_delay_on_store(struct class_device *dev, const char *buf,
-				size_t size)
+static ssize_t led_delay_on_store(struct device *dev, 
+		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
 	int ret = -EINVAL;
 	char *after;
@@ -84,9 +85,10 @@ static ssize_t led_delay_on_store(struct class_device *dev, const char *buf,
 	return ret;
 }
 
-static ssize_t led_delay_off_show(struct class_device *dev, char *buf)
+static ssize_t led_delay_off_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
 
 	sprintf(buf, "%lu\n", timer_data->delay_off);
@@ -94,10 +96,10 @@ static ssize_t led_delay_off_show(struct class_device *dev, char *buf)
 	return strlen(buf) + 1;
 }
 
-static ssize_t led_delay_off_store(struct class_device *dev, const char *buf,
-				size_t size)
+static ssize_t led_delay_off_store(struct device *dev, 
+		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
 	int ret = -EINVAL;
 	char *after;
@@ -116,10 +118,8 @@ static ssize_t led_delay_off_store(struct class_device *dev, const char *buf,
 	return ret;
 }
 
-static CLASS_DEVICE_ATTR(delay_on, 0644, led_delay_on_show,
-			led_delay_on_store);
-static CLASS_DEVICE_ATTR(delay_off, 0644, led_delay_off_show,
-			led_delay_off_store);
+static DEVICE_ATTR(delay_on, 0644, led_delay_on_show, led_delay_on_store);
+static DEVICE_ATTR(delay_off, 0644, led_delay_off_show, led_delay_off_store);
 
 static void timer_trig_activate(struct led_classdev *led_cdev)
 {
@@ -136,18 +136,17 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 	timer_data->timer.function = led_timer_function;
 	timer_data->timer.data = (unsigned long) led_cdev;
 
-	rc = class_device_create_file(led_cdev->class_dev,
-				&class_device_attr_delay_on);
-	if (rc) goto err_out;
-	rc = class_device_create_file(led_cdev->class_dev,
-				&class_device_attr_delay_off);
-	if (rc) goto err_out_delayon;
+	rc = device_create_file(led_cdev->dev, &dev_attr_delay_on);
+	if (rc)
+		goto err_out;
+	rc = device_create_file(led_cdev->dev, &dev_attr_delay_off);
+	if (rc)
+		goto err_out_delayon;
 
 	return;
 
 err_out_delayon:
-	class_device_remove_file(led_cdev->class_dev,
-				&class_device_attr_delay_on);
+	device_remove_file(led_cdev->dev, &dev_attr_delay_on);
 err_out:
 	led_cdev->trigger_data = NULL;
 	kfree(timer_data);
@@ -158,10 +157,8 @@ static void timer_trig_deactivate(struct led_classdev *led_cdev)
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
 
 	if (timer_data) {
-		class_device_remove_file(led_cdev->class_dev,
-					&class_device_attr_delay_on);
-		class_device_remove_file(led_cdev->class_dev,
-					&class_device_attr_delay_off);
+		device_remove_file(led_cdev->dev, &dev_attr_delay_on);
+		device_remove_file(led_cdev->dev, &dev_attr_delay_off);
 		del_timer_sync(&timer_data->timer);
 		kfree(timer_data);
 	}

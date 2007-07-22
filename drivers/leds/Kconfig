@@ -1,9 +1,6 @@
-
-menu "LED devices"
-	depends on HAS_IOMEM
-
-config NEW_LEDS
+menuconfig NEW_LEDS
 	bool "LED Support"
+	depends on HAS_IOMEM
 	help
 	  Say Y to enable Linux LED support.  This allows control of supported
 	  LEDs from both userspace and optionally, by kernel events (triggers).
@@ -11,9 +8,10 @@ config NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
+if NEW_LEDS
+
 config LEDS_CLASS
 	tristate "LED Class Support"
-	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
@@ -95,11 +93,18 @@ config LEDS_COBALT
 	help
 	  This option enables support for the front LED on Cobalt Server
 
+config LEDS_GPIO
+	tristate "LED Support for GPIO connected LEDs"
+	depends on LEDS_CLASS && GENERIC_GPIO
+	help
+	  This option enables support for the LEDs connected to GPIO
+	  outputs. To be useful the particular board must have LEDs
+	  and they must be connected to the GPIO lines.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
-	depends on NEW_LEDS
 	help
 	  This option enables trigger support for the leds class.
 	  These triggers allow kernel events to drive the LEDs and can
@@ -128,5 +133,4 @@ config LEDS_TRIGGER_HEARTBEAT
 	  load average.
 	  If unsure, say Y.
 
-endmenu
-
+endif # NEW_LEDS

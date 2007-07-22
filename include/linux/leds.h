@@ -15,7 +15,6 @@
 #include <linux/list.h>
 
 struct device;
-struct class_device;
 /*
  * LED Core
  */
@@ -37,7 +36,7 @@ struct led_classdev {
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
 
-	struct class_device	*class_dev;
+	struct device		*dev;
 	struct list_head	 node;			/* LED Device list */
 	char			*default_trigger;	/* Trigger to use */
 
@@ -108,5 +107,19 @@ extern void ledtrig_ide_activity(void);
 #else
 #define ledtrig_ide_activity() do {} while(0)
 #endif
+
+/* For the leds-gpio driver */
+struct gpio_led {
+	const char *name;
+	char *default_trigger;
+	unsigned 	gpio;
+	u8 		active_low;
+};
+
+struct gpio_led_platform_data {
+	int 		num_leds;
+	struct gpio_led *leds;
+};
+
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */
