@@ -941,13 +941,6 @@ static const struct file_operations spufs_signal1_nosched_fops = {
 	.mmap = spufs_signal1_mmap,
 };
 
-static const struct file_operations spufs_signal1_nosched_fops = {
-	.open = spufs_signal1_open,
-	.release = spufs_signal1_release,
-	.write = spufs_signal1_write,
-	.mmap = spufs_signal1_mmap,
-};
-
 static int spufs_signal2_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
@@ -1072,13 +1065,6 @@ static const struct file_operations spufs_signal2_fops = {
 	.open = spufs_signal2_open,
 	.release = spufs_signal2_release,
 	.read = spufs_signal2_read,
-	.write = spufs_signal2_write,
-	.mmap = spufs_signal2_mmap,
-};
-
-static const struct file_operations spufs_signal2_nosched_fops = {
-	.open = spufs_signal2_open,
-	.release = spufs_signal2_release,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
 };
