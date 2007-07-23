@@ -167,11 +167,11 @@ S:	Maintained
 P:	Eric Van Hensbergen
 M:	ericvh@gmail.com
 P:	Ron Minnich
-M:	rminnich@lanl.gov
+M:	rminnich@sandia.gov
 P:	Latchesar Ionkov
 M:	lucho@ionkov.net
 L:	v9fs-developer@lists.sourceforge.net
-W:	http://v9fs.sf.net
+W:	http://swik.net/v9fs
 T:	git kernel.org:/pub/scm/linux/kernel/ericvh/v9fs.git
 S:	Maintained
 
