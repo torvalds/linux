@@ -23,8 +23,6 @@
 #include <linux/videodev2.h>
 #endif
 
-#include <linux/fs.h>
-
 #define VIDEO_MAJOR	81
 /* Minor device allocation */
 #define MINOR_VFL_TYPE_GRABBER_MIN   0
