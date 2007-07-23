@@ -331,9 +331,6 @@ static void usblp_bulk_write(struct urb *urb)
 	wake_up(&usblp->wwait);
 	spin_unlock(&usblp->lock);
 
-	/* XXX Use usb_setup_bulk_urb when available. Talk to Marcel. */
-	kfree(urb->transfer_buffer);
-	urb->transfer_buffer = NULL;	/* Not refcounted, so to be safe... */
 	usb_free_urb(urb);
 }
 
@@ -719,6 +716,7 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 			usb_sndbulkpipe(usblp->dev,
 			  usblp->protocol[usblp->current_protocol].epwrite->bEndpointAddress),
 			writebuf, transfer_length, usblp_bulk_write, usblp);
+		writeurb->transfer_flags |= URB_FREE_BUFFER;
 		usb_anchor_urb(writeurb, &usblp->urbs);
 
 		if (copy_from_user(writebuf,
