@@ -82,24 +82,24 @@ config DEBUG_CLPS711X_UART2
 	  output to the second serial port on these devices.  Saying N will
 	  cause the debug messages to appear on the first serial port.
 
-config DEBUG_S3C2410_PORT
-	depends on DEBUG_LL && ARCH_S3C2410
-	bool "Kernel low-level debugging messages via S3C2410 UART"
+config DEBUG_S3C_PORT
+	depends on DEBUG_LL && PLAT_S3C
+	bool "Kernel low-level debugging messages via S3C UART"
 	help
 	  Say Y here if you want debug print routines to go to one of the
-	  S3C2410 internal UARTs. The chosen UART must have been configured
+	  S3C internal UARTs. The chosen UART must have been configured
 	  before it is used.
 
-config DEBUG_S3C2410_UART
-	depends on ARCH_S3C2410
-	int "S3C2410 UART to use for low-level debug"
+config DEBUG_S3C_UART
+	depends on PLAT_S3C
+	int "S3C UART to use for low-level debug"
 	default "0"
 	help
-	  Choice for UART for kernel low-level using S3C2410 UARTS,
+	  Choice for UART for kernel low-level using S3C UARTS,
 	  should be between zero and two. The port must have been
 	  initialised by the boot-loader before use.
 
 	  The uncompressor code port configuration is now handled
-	  by CONFIG_S3C2410_LOWLEVEL_UART_PORT.
+	  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
 endmenu

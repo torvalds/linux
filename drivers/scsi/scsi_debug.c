@@ -2405,7 +2405,7 @@ MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
 MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dev_size_mb, "size in MB of ram shared by devs(def=8)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def=0 -> fixed)");
-MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
+MODULE_PARM_DESC(every_nth, "timeout every nth command(def=0)");
 MODULE_PARM_DESC(fake_rw, "fake reads/writes instead of copying (def=0)");
 MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(no_lun_0, "no LU number 0 (def=0 -> have lun 0)");
@@ -2875,7 +2875,7 @@ static int __init scsi_debug_init(void)
 
 	init_all_queued();
 
-	sdebug_driver_template.proc_name = (char *)sdebug_proc_name;
+	sdebug_driver_template.proc_name = sdebug_proc_name;
 
 	host_to_add = scsi_debug_add_host;
         scsi_debug_add_host = 0;

@@ -273,8 +273,11 @@ static int matroxfb_PLL_mavenclock(const struct matrox_pll_features2* pll,
 			}
 		}
 	}
+
+	/* if h2/post/in/feed have not been assigned, return zero (error) */
 	if (besth2 < 2)
 		return 0;
+
 	dprintk(KERN_ERR "clk: %02X %02X %02X %d %d\n", *in, *feed, *post, fxtal, fwant);
 	return fxtal * (*feed) / (*in) * ctl->den;
 }
@@ -284,7 +287,7 @@ static unsigned int matroxfb_mavenclock(const struct matrox_pll_ctl* ctl,
 		unsigned int* in, unsigned int* feed, unsigned int* post,
 		unsigned int* htotal2) {
 	unsigned int fvco;
-	unsigned int p;
+	unsigned int uninitialized_var(p);
 
 	fvco = matroxfb_PLL_mavenclock(&maven1000_pll, ctl, htotal, vtotal, in, feed, &p, htotal2);
 	if (!fvco)
@@ -715,7 +718,9 @@ static int maven_find_exact_clocks(unsigned int ht, unsigned int vt,
 	m->regs[0x82] = 0x81;
 
 	for (x = 0; x < 8; x++) {
-		unsigned int a, b, c, h2;
+		unsigned int c;
+		unsigned int uninitialized_var(a), uninitialized_var(b),
+			     uninitialized_var(h2);
 		unsigned int h = ht + 2 + x;
 
 		if (!matroxfb_mavenclock((m->mode == MATROXFB_OUTPUT_MODE_PAL) ? &maven_PAL : &maven_NTSC, h, vt, &a, &b, &c, &h2)) {

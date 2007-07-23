@@ -608,7 +608,7 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "CS89[02]0 debug level (0-5)");
 MODULE_LICENSE("GPL");
 
-int
+int __init
 init_module(void)
 {
 	net_debug = debug;

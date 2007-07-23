@@ -796,7 +796,6 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 num_of_slots = 0;
 	u8 hp_slot = 0;
 	u8 device;
-	u8 rev;
 	u8 bus_cap;
 	u16 temp_word;
 	u16 vendor_id;
@@ -823,9 +822,8 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	dbg("Vendor ID: %x\n", vendor_id);
 
-	rc = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
-	dbg("revision: %d\n", rev);
-	if (rc || ((vendor_id == PCI_VENDOR_ID_COMPAQ) && (!rev))) {
+	dbg("revision: %d\n", pdev->revision);
+	if ((vendor_id == PCI_VENDOR_ID_COMPAQ) && (!pdev->revision)) {
 		err(msg_HPC_rev_error);
 		rc = -ENODEV;
 		goto err_disable_device;
@@ -836,7 +834,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * For Intel, each SSID bit identifies a PHP capability.
 	 * Also Intel HPC's may have RID=0.
 	 */
-	if ((rev > 2) || (vendor_id == PCI_VENDOR_ID_INTEL)) {
+	if ((pdev->revision > 2) || (vendor_id == PCI_VENDOR_ID_INTEL)) {
 		// TODO: This code can be made to support non-Compaq or Intel subsystem IDs
 		rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vid);
 		if (rc) {
@@ -870,7 +868,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		switch (subsystem_vid) {
 			case PCI_VENDOR_ID_COMPAQ:
-				if (rev >= 0x13) { /* CIOBX */
+				if (pdev->revision >= 0x13) { /* CIOBX */
 					ctrl->push_flag = 1;
 					ctrl->slot_switch_type = 1;
 					ctrl->push_button = 1;
@@ -1075,7 +1073,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(ctrl->pci_bus, pdev->bus, sizeof(*ctrl->pci_bus));
 
 	ctrl->bus = pdev->bus->number;
-	ctrl->rev = rev;
+	ctrl->rev = pdev->revision;
 	dbg("bus device function rev: %d %d %d %d\n", ctrl->bus,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), ctrl->rev);
 

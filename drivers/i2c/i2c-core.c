@@ -207,6 +207,7 @@ EXPORT_SYMBOL_GPL(i2c_bus_type);
  * i2c_new_device - instantiate an i2c device for use with a new style driver
  * @adap: the adapter managing the device
  * @info: describes one I2C device; bus_num is ignored
+ * Context: can sleep
  *
  * Create a device to work with a new style i2c driver, where binding is
  * handled through driver model probe()/remove() methods.  This call is not
@@ -255,6 +256,7 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
 /**
  * i2c_unregister_device - reverse effect of i2c_new_device()
  * @client: value returned from i2c_new_device()
+ * Context: can sleep
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
@@ -286,7 +288,6 @@ void i2c_adapter_dev_release(struct device *dev)
 	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
-EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);	/* exported to i2c-isa */
 
 static ssize_t
 show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -305,7 +306,6 @@ struct class i2c_adapter_class = {
 	.name			= "i2c-adapter",
 	.dev_attrs		= i2c_adapter_attrs,
 };
-EXPORT_SYMBOL_GPL(i2c_adapter_class);		/* exported to i2c-isa */
 
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
@@ -379,6 +379,7 @@ out_list:
 /**
  * i2c_add_adapter - declare i2c adapter, use dynamic bus number
  * @adapter: the adapter to add
+ * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
  * doesn't matter.  Examples: for I2C adapters dynamically added by
@@ -416,6 +417,7 @@ EXPORT_SYMBOL(i2c_add_adapter);
 /**
  * i2c_add_numbered_adapter - declare i2c adapter, use static bus number
  * @adap: the adapter to register (with adap->nr initialized)
+ * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
  * matters.  Example: for I2C adapters from system-on-chip CPUs, or
@@ -463,6 +465,14 @@ retry:
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
+/**
+ * i2c_del_adapter - unregister I2C adapter
+ * @adap: the adapter being unregistered
+ * Context: can sleep
+ *
+ * This unregisters an I2C adapter which was previously registered
+ * by @i2c_add_adapter or @i2c_add_numbered_adapter.
+ */
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct list_head  *item, *_n;
@@ -598,6 +608,7 @@ EXPORT_SYMBOL(i2c_register_driver);
 /**
  * i2c_del_driver - unregister I2C driver
  * @driver: the driver being unregistered
+ * Context: can sleep
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
@@ -1331,10 +1342,14 @@ s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 EXPORT_SYMBOL(i2c_smbus_write_block_data);
 
 /* Returns the number of read bytes */
-s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command, u8 *values)
+s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command,
+				  u8 length, u8 *values)
 {
 	union i2c_smbus_data data;
 
+	if (length > I2C_SMBUS_BLOCK_MAX)
+		length = I2C_SMBUS_BLOCK_MAX;
+	data.block[0] = length;
 	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 	                      I2C_SMBUS_READ,command,
 	                      I2C_SMBUS_I2C_BLOCK_DATA,&data))
@@ -1455,7 +1470,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
-			msg[1].len = I2C_SMBUS_BLOCK_MAX;
+			msg[1].len = data->block[0];
 		} else {
 			msg[0].len = data->block[0] + 1;
 			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 1) {
@@ -1511,9 +1526,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 				data->word = msgbuf1[0] | (msgbuf1[1] << 8);
 				break;
 			case I2C_SMBUS_I2C_BLOCK_DATA:
-				/* fixed at 32 for now */
-				data->block[0] = I2C_SMBUS_BLOCK_MAX;
-				for (i = 0; i < I2C_SMBUS_BLOCK_MAX; i++)
+				for (i = 0; i < data->block[0]; i++)
 					data->block[i+1] = msgbuf1[i];
 				break;
 			case I2C_SMBUS_BLOCK_DATA:

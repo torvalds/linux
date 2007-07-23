@@ -84,6 +84,7 @@ static int __init dmi_checksum(u8 *buf)
 
 static char *dmi_ident[DMI_STRING_MAX];
 static LIST_HEAD(dmi_devices);
+int dmi_available;
 
 /*
  *	Save a DMI string
@@ -100,6 +101,51 @@ static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
 		return;
 
 	dmi_ident[slot] = p;
+}
+
+static void __init dmi_save_uuid(struct dmi_header *dm, int slot, int index)
+{
+	u8 *d = (u8*) dm + index;
+	char *s;
+	int is_ff = 1, is_00 = 1, i;
+
+	if (dmi_ident[slot])
+		return;
+
+	for (i = 0; i < 16 && (is_ff || is_00); i++) {
+		if(d[i] != 0x00) is_ff = 0;
+		if(d[i] != 0xFF) is_00 = 0;
+	}
+
+	if (is_ff || is_00)
+		return;
+
+	s = dmi_alloc(16*2+4+1);
+	if (!s)
+		return;
+
+	sprintf(s,
+		"%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+		d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
+		d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
+
+        dmi_ident[slot] = s;
+}
+
+static void __init dmi_save_type(struct dmi_header *dm, int slot, int index)
+{
+	u8 *d = (u8*) dm + index;
+	char *s;
+
+	if (dmi_ident[slot])
+		return;
+
+	s = dmi_alloc(4);
+	if (!s)
+		return;
+
+	sprintf(s, "%u", *d & 0x7F);
+	dmi_ident[slot] = s;
 }
 
 static void __init dmi_save_devices(struct dmi_header *dm)
@@ -192,11 +238,21 @@ static void __init dmi_decode(struct dmi_header *dm)
 		dmi_save_ident(dm, DMI_PRODUCT_NAME, 5);
 		dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
 		dmi_save_ident(dm, DMI_PRODUCT_SERIAL, 7);
+		dmi_save_uuid(dm, DMI_PRODUCT_UUID, 8);
 		break;
 	case 2:		/* Base Board Information */
 		dmi_save_ident(dm, DMI_BOARD_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BOARD_NAME, 5);
 		dmi_save_ident(dm, DMI_BOARD_VERSION, 6);
+		dmi_save_ident(dm, DMI_BOARD_SERIAL, 7);
+		dmi_save_ident(dm, DMI_BOARD_ASSET_TAG, 8);
+		break;
+	case 3:		/* Chassis Information */
+		dmi_save_ident(dm, DMI_CHASSIS_VENDOR, 4);
+		dmi_save_type(dm, DMI_CHASSIS_TYPE, 5);
+		dmi_save_ident(dm, DMI_CHASSIS_VERSION, 6);
+		dmi_save_ident(dm, DMI_CHASSIS_SERIAL, 7);
+		dmi_save_ident(dm, DMI_CHASSIS_ASSET_TAG, 8);
 		break;
 	case 10:	/* Onboard Devices Information */
 		dmi_save_devices(dm);
@@ -243,18 +299,20 @@ void __init dmi_scan_machine(void)
 		if (efi.smbios == EFI_INVALID_TABLE_ADDR)
 			goto out;
 
-               /* This is called as a core_initcall() because it isn't
-                * needed during early boot.  This also means we can
-                * iounmap the space when we're done with it.
-		*/
+		/* This is called as a core_initcall() because it isn't
+		 * needed during early boot.  This also means we can
+		 * iounmap the space when we're done with it.
+		 */
 		p = dmi_ioremap(efi.smbios, 32);
 		if (p == NULL)
 			goto out;
 
 		rc = dmi_present(p + 0x10); /* offset of _DMI_ string */
 		dmi_iounmap(p, 32);
-		if (!rc)
+		if (!rc) {
+			dmi_available = 1;
 			return;
+		}
 	}
 	else {
 		/*
@@ -268,8 +326,10 @@ void __init dmi_scan_machine(void)
 
 		for (q = p; q < p + 0x10000; q += 16) {
 			rc = dmi_present(q);
-			if (!rc)
+			if (!rc) {
+				dmi_available = 1;
 				return;
+			}
 		}
 	}
  out:	printk(KERN_INFO "DMI not present or invalid.\n");
@@ -404,3 +464,4 @@ int dmi_get_year(int field)
 
 	return year;
 }
+

@@ -52,6 +52,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/pci_ids.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -83,7 +84,7 @@ static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 * u132_module_lock exists to protect access to global variables
 *
 */
-static struct semaphore u132_module_lock;
+static struct mutex u132_module_lock;
 static int u132_exiting = 0;
 static int u132_instances = 0;
 static struct list_head u132_static_list;
@@ -258,10 +259,10 @@ static void u132_hcd_delete(struct kref *kref)
         struct platform_device *pdev = u132->platform_dev;
         struct usb_hcd *hcd = u132_to_hcd(u132);
         u132->going += 1;
-        down(&u132_module_lock);
+        mutex_lock(&u132_module_lock);
         list_del_init(&u132->u132_list);
         u132_instances -= 1;
-        up(&u132_module_lock);
+        mutex_unlock(&u132_module_lock);
         dev_warn(&u132->platform_dev->dev, "FREEING the hcd=%p and thus the u13"
                 "2=%p going=%d pdev=%p\n", hcd, u132, u132->going, pdev);
         usb_put_hcd(hcd);
@@ -3111,10 +3112,10 @@ static int __devinit u132_probe(struct platform_device *pdev)
                 int retval = 0;
                 struct u132 *u132 = hcd_to_u132(hcd);
                 hcd->rsrc_start = 0;
-                down(&u132_module_lock);
+                mutex_lock(&u132_module_lock);
                 list_add_tail(&u132->u132_list, &u132_static_list);
                 u132->sequence_num = ++u132_instances;
-                up(&u132_module_lock);
+                mutex_unlock(&u132_module_lock);
                 u132_u132_init_kref(u132);
                 u132_initialise(u132, pdev);
                 hcd->product_desc = "ELAN U132 Host Controller";
@@ -3216,7 +3217,7 @@ static int __init u132_hcd_init(void)
         INIT_LIST_HEAD(&u132_static_list);
         u132_instances = 0;
         u132_exiting = 0;
-        init_MUTEX(&u132_module_lock);
+        mutex_init(&u132_module_lock);
         if (usb_disabled())
                 return -ENODEV;
         printk(KERN_INFO "driver %s built at %s on %s\n", hcd_name, __TIME__,
@@ -3232,9 +3233,9 @@ static void __exit u132_hcd_exit(void)
 {
         struct u132 *u132;
         struct u132 *temp;
-        down(&u132_module_lock);
+        mutex_lock(&u132_module_lock);
         u132_exiting += 1;
-        up(&u132_module_lock);
+        mutex_unlock(&u132_module_lock);
         list_for_each_entry_safe(u132, temp, &u132_static_list, u132_list) {
                 platform_device_unregister(u132->platform_dev);
         } platform_driver_unregister(&u132_platform_driver);

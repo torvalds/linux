@@ -289,7 +289,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 					 const struct pci_device_id *ent)
 {
 	card_t *card;
-	u8 rev_id;
 	u32 __iomem *p;
 	int i;
 	u32 ramsize;
@@ -313,14 +312,13 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 		return i;
 	}
 
-	card = kmalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
 		printk(KERN_ERR "pci200syn: unable to allocate memory\n");
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;
 	}
-	memset(card, 0, sizeof(card_t));
 	pci_set_drvdata(pdev, card);
 	card->ports[0].dev = alloc_hdlcdev(&card->ports[0]);
 	card->ports[1].dev = alloc_hdlcdev(&card->ports[1]);
@@ -330,7 +328,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
 	if (pci_resource_len(pdev, 0) != PCI200SYN_PLX_SIZE ||
 	    pci_resource_len(pdev, 2) != PCI200SYN_SCA_SIZE ||
 	    pci_resource_len(pdev, 3) < 16384) {

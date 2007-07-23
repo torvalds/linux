@@ -59,7 +59,7 @@ typedef struct _drm_via_sg_info {
 } drm_via_sg_info_t;
 
 typedef struct _drm_via_blitq {
-	drm_device_t *dev;
+	struct drm_device *dev;
 	uint32_t cur_blit_handle;
 	uint32_t done_blit_handle;
 	unsigned serviced;

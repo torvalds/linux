@@ -166,9 +166,9 @@ qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 {
 	char dbf_text[15];
 
-	if (ccq == 0 || ccq == 32 || ccq == 96)
+	if (ccq == 0 || ccq == 32)
 		return 0;
-	if (ccq == 97)
+	if (ccq == 96 || ccq == 97)
 		return 1;
 	/*notify devices immediately*/
 	sprintf(dbf_text,"%d", ccq);
@@ -2306,8 +2306,8 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	if (!ssqd_area) {
 	        QDIO_PRINT_WARN("Could not get memory for chsc. Using all " \
 				"SIGAs for sch x%x.\n", irq_ptr->schid.sch_no);
-		irq_ptr->qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
-				  CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
+		irq_ptr->qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
+				  CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 				  CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
 		irq_ptr->is_qebsm = 0;
 		irq_ptr->sch_token = 0;
@@ -2328,8 +2328,8 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 		QDIO_PRINT_WARN("CHSC returned cc %i. Using all " \
 				"SIGAs for sch 0.%x.%x.\n", result,
 				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
-		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
-			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
+		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
+			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
 		irq_ptr->is_qebsm  = 0;
 		goto out;
@@ -2340,8 +2340,8 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 				"is 0x%x. Using all SIGAs for sch 0.%x.%x.\n",
 				ssqd_area->response.code,
 				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
-		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
-			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
+		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
+			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
 		irq_ptr->is_qebsm  = 0;
 		goto out;

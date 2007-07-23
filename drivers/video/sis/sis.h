@@ -479,7 +479,7 @@ struct sis_video_info {
 	struct fb_var_screeninfo default_var;
 
 	struct fb_fix_screeninfo sisfb_fix;
-	u32		pseudo_palette[17];
+	u32		pseudo_palette[16];
 
 	struct sisfb_monitor {
 		u16 hmin;

@@ -24,7 +24,8 @@ use IO::Handle;
 @components = ( "sp8870", "sp887x", "tda10045", "tda10046",
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
-		"or51211", "or51132_qam", "or51132_vsb", "bluebird");
+		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
+		"opera1");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -56,7 +57,7 @@ syntax();
 
 sub sp8870 {
     my $sourcefile = "tt_Premium_217g.zip";
-    my $url = "http://www.technotrend.de/new/217g/$sourcefile";
+    my $url = "http://www.softwarepatch.pl/9999ccd06a4813cb827dbb0005071c71/$sourcefile";
     my $hash = "53970ec17a538945a6d8cb608a7b3899";
     my $outfile = "dvb-fe-sp8870.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -209,6 +210,45 @@ sub dec3000s {
     copy("$tmpdir/software/OEM/STB/App/Boot/STB_PC_S.bin", $outfile);
 
     $outfile;
+}
+sub opera1{
+	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+
+	checkstandard();
+	my $fwfile1="dvb-usb-opera1-fpga-01.fw";
+	my $fwfile2="dvb-usb-opera-01.fw";
+	extract("2830SCap2.sys", 0x62e8, 55024, "$tmpdir/opera1-fpga.fw");
+	extract("2830SLoad2.sys",0x3178,0x3685-0x3178,"$tmpdir/fw1part1");
+	extract("2830SLoad2.sys",0x0980,0x3150-0x0980,"$tmpdir/fw1part2");
+	delzero("$tmpdir/fw1part1","$tmpdir/fw1part1-1");
+	delzero("$tmpdir/fw1part2","$tmpdir/fw1part2-1");
+	verify("$tmpdir/fw1part1-1","5e0909858fdf0b5b09ad48b9fe622e70");
+	verify("$tmpdir/fw1part2-1","d6e146f321427e931df2c6fcadac37a1");
+	verify("$tmpdir/opera1-fpga.fw","0f8133f5e9051f5f3c1928f7e5a1b07d");
+
+	my $RES1="\x01\x92\x7f\x00\x01\x00";
+	my $RES0="\x01\x92\x7f\x00\x00\x00";
+	my $DAT1="\x01\x00\xe6\x00\x01\x00";
+	my $DAT0="\x01\x00\xe6\x00\x00\x00";
+	open FW,">$tmpdir/opera.fw";
+	print FW "$RES1";
+	print FW "$DAT1";
+	print FW "$RES1";
+	print FW "$DAT1";
+	appendfile(FW,"$tmpdir/fw1part1-1");
+	print FW "$RES0";
+	print FW "$DAT0";
+	print FW "$RES1";
+	print FW "$DAT1";
+	appendfile(FW,"$tmpdir/fw1part2-1");
+	print FW "$RES1";
+	print FW "$DAT1";
+	print FW "$RES0";
+	print FW "$DAT0";
+	copy ("$tmpdir/opera1-fpga.fw",$fwfile1);
+	copy ("$tmpdir/opera.fw",$fwfile2);
+
+	$fwfile1.",".$fwfile2;
 }
 
 sub vp7041 {
@@ -438,6 +478,25 @@ sub appendfile {
 	print $FH $buf;
     }
     close(INFILE);
+}
+
+sub delzero{
+	my ($infile,$outfile) =@_;
+
+	open INFILE,"<$infile";
+	open OUTFILE,">$outfile";
+	while (1){
+		$rcount=sysread(INFILE,$buf,22);
+		$len=ord(substr($buf,0,1));
+		print OUTFILE substr($buf,0,1);
+		print OUTFILE substr($buf,2,$len+3);
+	last if ($rcount<1);
+	printf OUTFILE "%c",0;
+#print $len." ".length($buf)."\n";
+
+	}
+	close(INFILE);
+	close(OUTFILE);
 }
 
 sub syntax() {

@@ -542,7 +542,7 @@ static int __init hugetlbpage_init(void)
 					       HUGEPTE_TABLE_SIZE,
 					       HUGEPTE_TABLE_SIZE,
 					       0,
-					       zero_ctor, NULL);
+					       zero_ctor);
 	if (! huge_pgtable_cache)
 		panic("hugetlbpage_init(): could not create hugepte cache\n");
 

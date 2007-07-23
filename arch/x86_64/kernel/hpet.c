@@ -133,7 +133,7 @@ struct clocksource clocksource_hpet = {
 	.vread		= vread_hpet,
 };
 
-int hpet_arch_init(void)
+int __init hpet_arch_init(void)
 {
 	unsigned int id;
 	u64 tmp;
@@ -190,7 +190,7 @@ int hpet_reenable(void)
  */
 
 #define TICK_COUNT 100000000
-#define TICK_MIN   5000
+#define SMI_THRESHOLD 50000
 #define MAX_TRIES  5
 
 /*
@@ -205,7 +205,7 @@ static void __init read_hpet_tsc(int *hpet, int *tsc)
 		tsc1 = get_cycles_sync();
 		hpet1 = hpet_readl(HPET_COUNTER);
 		tsc2 = get_cycles_sync();
-		if (tsc2 - tsc1 > TICK_MIN)
+		if ((tsc2 - tsc1) < SMI_THRESHOLD)
 			break;
 	}
 	*hpet = hpet1;
@@ -439,7 +439,7 @@ int hpet_rtc_dropped_irq(void)
 	return 1;
 }
 
-irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 {
 	struct rtc_time curr_time;
 	unsigned long rtc_int_flag = 0;

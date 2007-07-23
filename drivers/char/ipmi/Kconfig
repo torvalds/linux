@@ -2,11 +2,9 @@
 # IPMI device configuration
 #
 
-menu "IPMI"
-	depends on HAS_IOMEM
-
-config IPMI_HANDLER
+menuconfig IPMI_HANDLER
        tristate 'IPMI top-level message handler'
+       depends on HAS_IOMEM
        help
          This enables the central IPMI message handler, required for IPMI
 	 to work.
@@ -18,9 +16,10 @@ config IPMI_HANDLER
 
 	 If unsure, say N.
 
+if IPMI_HANDLER
+
 config IPMI_PANIC_EVENT
        bool 'Generate a panic event to all BMCs on a panic'
-       depends on IPMI_HANDLER
        help
          When a panic occurs, this will cause the IPMI message handler to
 	 generate an IPMI event describing the panic to each interface
@@ -40,14 +39,12 @@ config IPMI_PANIC_STRING
 
 config IPMI_DEVICE_INTERFACE
        tristate 'Device interface for IPMI'
-       depends on IPMI_HANDLER
        help
          This provides an IOCTL interface to the IPMI message handler so
 	 userland processes may use IPMI.  It supports poll() and select().
 
 config IPMI_SI
        tristate 'IPMI System Interface handler'
-       depends on IPMI_HANDLER
        help
          Provides a driver for System Interfaces (KCS, SMIC, BT).
 	 Currently, only KCS and SMIC are supported.  If
@@ -55,15 +52,13 @@ config IPMI_SI
 
 config IPMI_WATCHDOG
        tristate 'IPMI Watchdog Timer'
-       depends on IPMI_HANDLER
        help
          This enables the IPMI watchdog timer.
 
 config IPMI_POWEROFF
        tristate 'IPMI Poweroff'
-       depends on IPMI_HANDLER
        help
          This enables a function to power off the system with IPMI if
 	 the IPMI management controller is capable of this.
 
-endmenu
+endif # IPMI_HANDLER

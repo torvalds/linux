@@ -80,7 +80,7 @@ struct vxfs_direct {
  *	a d_name with size len.
  */
 #define VXFS_DIRPAD		4
-#define VXFS_NAMEMIN		((int)((struct vxfs_direct *)0)->d_name)
+#define VXFS_NAMEMIN		offsetof(struct vxfs_direct, d_name)
 #define VXFS_DIRROUND(len)	((VXFS_DIRPAD + (len) - 1) & ~(VXFS_DIRPAD -1))
 #define VXFS_DIRLEN(len)	(VXFS_DIRROUND(VXFS_NAMEMIN + (len)))
 

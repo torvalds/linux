@@ -79,8 +79,7 @@ static uint16_t crc_table[256] = {
  *	July 21, 1997 - Andrew E. Mileski
  *	Adapted from OSTA-UDF(tm) 1.50 standard.
  */
-uint16_t
-udf_crc(uint8_t *data, uint32_t size, uint16_t crc)
+uint16_t udf_crc(uint8_t * data, uint32_t size, uint16_t crc)
 {
 	while (size--)
 		crc = crc_table[(crc >> 8 ^ *(data++)) & 0xffU] ^ (crc << 8);
@@ -106,8 +105,8 @@ int main(void)
 {
 	unsigned short x;
 
-	x = udf_crc16(bytes, sizeof bytes);
-	printf("udf_crc16: calculated = %4.4x, correct = %4.4x\n", x, 0x3299U);
+	x = udf_crc(bytes, sizeof bytes);
+	printf("udf_crc: calculated = %4.4x, correct = %4.4x\n", x, 0x3299U);
 
 	return 0;
 }
@@ -138,7 +137,7 @@ int main(int argc, char **argv)
 
 	/* Get the polynomial */
 	sscanf(argv[1], "%lo", &poly);
-	if (poly & 0xffff0000U){
+	if (poly & 0xffff0000U) {
 		fprintf(stderr, "polynomial is too large\en");
 		exit(1);
 	}
@@ -147,22 +146,22 @@ int main(int argc, char **argv)
 
 	/* Create a table */
 	printf("static unsigned short crc_table[256] = {\n");
-	for (n = 0; n < 256; n++){
+	for (n = 0; n < 256; n++) {
 		if (n % 8 == 0)
 			printf("\t");
 		crc = n << 8;
-		for (i = 0; i < 8; i++){
-			if(crc & 0x8000U)
+		for (i = 0; i < 8; i++) {
+			if (crc & 0x8000U)
 				crc = (crc << 1) ^ poly;
 			else
 				crc <<= 1;
-		crc &= 0xFFFFU;
+			crc &= 0xFFFFU;
 		}
 		if (n == 255)
 			printf("0x%04xU ", crc);
 		else
 			printf("0x%04xU, ", crc);
-		if(n % 8 == 7)
+		if (n % 8 == 7)
 			printf("\n");
 	}
 	printf("};\n");

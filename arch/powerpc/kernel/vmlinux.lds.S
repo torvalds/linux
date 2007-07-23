@@ -7,6 +7,7 @@
 #define PROVIDE32(x)	PROVIDE(x)
 #endif
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/cache.h>
 
 ENTRY(_stext)
 
@@ -61,6 +62,8 @@ SECTIONS
 		*(__ex_table)
 		__stop___ex_table = .;
 	}
+
+	NOTES
 
 	BUG_TABLE
 
@@ -143,6 +146,7 @@ SECTIONS
 	.data.percpu : {
 		__per_cpu_start = .;
 		*(.data.percpu)
+		*(.data.percpu.shared_aligned)
 		__per_cpu_end = .;
 	}
 
@@ -173,7 +177,9 @@ SECTIONS
 	}
 #else
 	.data : {
-		*(.data .data.rel* .toc1)
+		DATA_DATA
+		*(.data.rel*)
+		*(.toc1)
 		*(.branch_lt)
 	}
 
@@ -209,6 +215,11 @@ SECTIONS
 
 	.data.cacheline_aligned : {
 		*(.data.cacheline_aligned)
+	}
+
+	. = ALIGN(L1_CACHE_BYTES);
+	.data.read_mostly : {
+		*(.data.read_mostly)
 	}
 
 	. = ALIGN(PAGE_SIZE);

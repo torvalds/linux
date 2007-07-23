@@ -54,6 +54,19 @@ config TOUCHSCREEN_CORGI
 	  To compile this driver as a module, choose M here: the
 	  module will be called corgi_ts.
 
+config TOUCHSCREEN_FUJITSU
+	tristate "Fujitsu serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have the Fujitsu touchscreen (such as one
+	  installed in Lifebook P series laptop) connected to your
+	  system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fujitsu-ts.
+
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
 	select SERIO

@@ -102,6 +102,16 @@ config NF_CT_PROTO_SCTP
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NF_CT_PROTO_UDPLITE
+	tristate 'UDP-Lite protocol connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on UDP-Lite
+	  connections.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CONNTRACK_AMANDA
 	tristate "Amanda backup protocol support"
 	depends on NF_CONNTRACK
@@ -343,6 +353,18 @@ config NETFILTER_XT_TARGET_NOTRACK
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_TARGET_TRACE
+	tristate  '"TRACE" target support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_RAW || IP6_NF_RAW
+	help
+	  The TRACE target allows you to mark packets so that the kernel
+	  will log every rule which match the packets as those traverse
+	  the tables, chains, rules.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
 config NETFILTER_XT_TARGET_SECMARK
 	tristate '"SECMARK" target support'
 	depends on NETFILTER_XTABLES && NETWORK_SECMARK
@@ -410,6 +432,14 @@ config NETFILTER_XT_MATCH_CONNBYTES
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNLIMIT
+	tristate '"connlimit" match support"'
+	depends on NETFILTER_XTABLES
+	depends on NF_CONNTRACK
+	---help---
+	  This match allows you to match against the number of parallel
+	  connections to a server per client IP address (or address block).
 
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
@@ -634,6 +664,19 @@ config NETFILTER_XT_MATCH_TCPMSS
 	  for that connection.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_U32
+	tristate '"u32" match support'
+	depends on NETFILTER_XTABLES
+	---help---
+	  u32 allows you to extract quantities of up to 4 bytes from a packet,
+	  AND them with specified masks, shift them by specified amounts and
+	  test whether the results are in any of a set of specified ranges.
+	  The specification of what to extract is general enough to skip over
+	  headers with lengths stored in the packet, as in IP or TCP header
+	  lengths.
+
+	  Details and examples are in the kernel module source.
 
 config NETFILTER_XT_MATCH_HASHLIMIT
 	tristate '"hashlimit" match support'

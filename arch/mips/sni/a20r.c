@@ -87,8 +87,8 @@ static struct platform_device snirm_82596_pdev = {
 
 static struct resource snirm_53c710_rsrc[] = {
 	{
-		.start = 0xb9000000,
-		.end   = 0xb90fffff,
+		.start = 0x19000000,
+		.end   = 0x190fffff,
 		.flags = IORESOURCE_MEM
 	},
 	{
@@ -106,8 +106,8 @@ static struct platform_device snirm_53c710_pdev = {
 
 static struct resource sc26xx_rsrc[] = {
 	{
-		.start = 0xbc070000,
-		.end   = 0xbc0700ff,
+		.start = 0x1c070000,
+		.end   = 0x1c0700ff,
 		.flags = IORESOURCE_MEM
 	},
 	{

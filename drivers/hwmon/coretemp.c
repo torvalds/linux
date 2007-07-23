@@ -318,7 +318,7 @@ exit:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void coretemp_device_remove(unsigned int cpu)
+static void coretemp_device_remove(unsigned int cpu)
 {
 	struct pdev_entry *p, *n;
 	mutex_lock(&pdev_list_mutex);

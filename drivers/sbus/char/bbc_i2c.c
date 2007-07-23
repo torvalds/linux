@@ -156,10 +156,9 @@ struct bbc_i2c_client *bbc_i2c_attach(struct linux_ebus_child *echild)
 
 	if (!bp)
 		return NULL;
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return NULL;
-	memset(client, 0, sizeof(*client));
 	client->bp = bp;
 	client->echild = echild;
 	client->bus = echild->resource[0].start;

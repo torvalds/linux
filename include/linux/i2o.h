@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>	/* work_struct */
 #include <linux/mempool.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>	/* Needed for MUTEX init macros */
@@ -425,7 +426,7 @@ struct i2o_device {
 
 	struct device device;
 
-	struct semaphore lock;	/* device lock */
+	struct mutex lock;	/* device lock */
 };
 
 /*
@@ -544,7 +545,7 @@ struct i2o_controller {
 	struct i2o_dma hrt;	/* HW Resource Table */
 	i2o_lct *lct;		/* Logical Config Table */
 	struct i2o_dma dlct;	/* Temp LCT */
-	struct semaphore lct_lock;	/* Lock for LCT updates */
+	struct mutex lct_lock;	/* Lock for LCT updates */
 	struct i2o_dma status_block;	/* IOP status block */
 
 	struct i2o_io base;	/* controller messaging unit */
@@ -945,8 +946,7 @@ static inline int i2o_pool_alloc(struct i2o_pool *pool, const char *name,
 	strcpy(pool->name, name);
 
 	pool->slab =
-	    kmem_cache_create(pool->name, size, 0, SLAB_HWCACHE_ALIGN, NULL,
-			      NULL);
+	    kmem_cache_create(pool->name, size, 0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!pool->slab)
 		goto free_name;
 

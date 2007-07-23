@@ -207,6 +207,7 @@ void cpu_idle (void)
 			if (__get_cpu_var(cpu_idle_state))
 				__get_cpu_var(cpu_idle_state) = 0;
 
+			check_pgt_cache();
 			rmb();
 			idle = pm_idle;
 			if (!idle)
@@ -278,7 +279,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		 */
 		if (!pm_idle) {
 			if (!printed) {
-				printk("using mwait in idle threads.\n");
+				printk(KERN_INFO "using mwait in idle threads.\n");
 				printed = 1;
 			}
 			pm_idle = mwait_idle;
@@ -305,6 +306,7 @@ early_param("idle", idle_setup);
 void __show_regs(struct pt_regs * regs)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
+	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned int fsindex,gsindex;
 	unsigned int ds,cs,es; 
 
@@ -340,15 +342,24 @@ void __show_regs(struct pt_regs * regs)
 	rdmsrl(MSR_GS_BASE, gs); 
 	rdmsrl(MSR_KERNEL_GS_BASE, shadowgs); 
 
-	asm("movq %%cr0, %0": "=r" (cr0));
-	asm("movq %%cr2, %0": "=r" (cr2));
-	asm("movq %%cr3, %0": "=r" (cr3));
-	asm("movq %%cr4, %0": "=r" (cr4));
+	cr0 = read_cr0();
+	cr2 = read_cr2();
+	cr3 = read_cr3();
+	cr4 = read_cr4();
 
 	printk("FS:  %016lx(%04x) GS:%016lx(%04x) knlGS:%016lx\n", 
 	       fs,fsindex,gs,gsindex,shadowgs); 
 	printk("CS:  %04x DS: %04x ES: %04x CR0: %016lx\n", cs, ds, es, cr0); 
 	printk("CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3, cr4);
+
+	get_debugreg(d0, 0);
+	get_debugreg(d1, 1);
+	get_debugreg(d2, 2);
+	printk("DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
+	get_debugreg(d3, 3);
+	get_debugreg(d6, 6);
+	get_debugreg(d7, 7);
+	printk("DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 }
 
 void show_regs(struct pt_regs *regs)

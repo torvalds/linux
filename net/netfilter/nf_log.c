@@ -9,7 +9,7 @@
 
 #include "nf_internals.h"
 
-/* Internal logging interface, which relies on the real 
+/* Internal logging interface, which relies on the real
    LOG target modules */
 
 #define NF_LOG_PREFIXLEN		128
@@ -140,7 +140,7 @@ static int seq_show(struct seq_file *s, void *v)
 	return seq_printf(s, "%2lld %s\n", *pos, logger->name);
 }
 
-static struct seq_operations nflog_seq_ops = {
+static const struct seq_operations nflog_seq_ops = {
 	.start	= seq_start,
 	.next	= seq_next,
 	.stop	= seq_stop,

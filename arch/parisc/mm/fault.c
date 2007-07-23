@@ -147,6 +147,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	struct mm_struct *mm = tsk->mm;
 	const struct exception_table_entry *fix;
 	unsigned long acc_type;
+	int fault;
 
 	if (in_atomic() || !mm)
 		goto no_context;
@@ -173,23 +174,23 @@ good_area:
 	 * fault.
 	 */
 
-	switch (handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) != 0)) {
-	      case VM_FAULT_MINOR:
-		++current->min_flt;
-		break;
-	      case VM_FAULT_MAJOR:
-		++current->maj_flt;
-		break;
-	      case VM_FAULT_SIGBUS:
+	fault = handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) != 0);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
 		/*
 		 * We hit a shared mapping outside of the file, or some
 		 * other thing happened to us that made us unable to
 		 * handle the page fault gracefully.
 		 */
-		goto bad_area;
-	      default:
-		goto out_of_memory;
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto bad_area;
+		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	up_read(&mm->mmap_sem);
 	return;
 

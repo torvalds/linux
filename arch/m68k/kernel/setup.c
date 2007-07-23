@@ -58,6 +58,7 @@ extern int end;
 extern unsigned long availmem;
 
 int m68k_num_memory;
+EXPORT_SYMBOL(m68k_num_memory);
 int m68k_realnum_memory;
 EXPORT_SYMBOL(m68k_realnum_memory);
 unsigned long m68k_memoffset;

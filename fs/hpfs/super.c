@@ -181,14 +181,14 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	mutex_init(&ei->i_parent_mutex);
 	inode_init_once(&ei->vfs_inode);
 }
- 
+
 static int init_inodecache(void)
 {
 	hpfs_inode_cachep = kmem_cache_create("hpfs_inode_cache",
 					     sizeof(struct hpfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (hpfs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

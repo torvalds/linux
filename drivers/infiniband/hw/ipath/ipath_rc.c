@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -125,8 +125,10 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			if (len > pmtu) {
 				len = pmtu;
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_FIRST);
-			} else
+			} else {
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
+				e->sent = 1;
+			}
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_rdma_psn = e->psn;
@@ -143,6 +145,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 				cpu_to_be32(e->atomic_data);
 			hwords += sizeof(ohdr->u.at) / sizeof(u32);
 			bth2 = e->psn;
+			e->sent = 1;
 		}
 		bth0 = qp->s_ack_state << 24;
 		break;
@@ -158,6 +161,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
+			qp->s_ack_queue[qp->s_tail_ack_queue].sent = 1;
 		}
 		bth0 = qp->s_ack_state << 24;
 		bth2 = qp->s_ack_rdma_psn++ & IPATH_PSN_MASK;
@@ -188,7 +192,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 	}
 	qp->s_hdrwords = hwords;
 	qp->s_cur_size = len;
-	*bth0p = bth0;
+	*bth0p = bth0 | (1 << 22); /* Set M bit */
 	*bth2p = bth2;
 	return 1;
 
@@ -240,7 +244,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
-	bth0 = 0;
+	bth0 = 1 << 22; /* Set M bit */
 
 	/* Send a request. */
 	wqe = get_swqe_ptr(qp, qp->s_cur);
@@ -604,7 +608,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	}
 	/* read pkey_index w/o lock (its atomic) */
 	bth0 = ipath_get_pkey(dev->dd, qp->s_pkey_index) |
-		OP(ACKNOWLEDGE) << 24;
+		(OP(ACKNOWLEDGE) << 24) | (1 << 22);
 	if (qp->r_nak_state)
 		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
 					    (qp->r_nak_state <<
@@ -806,13 +810,15 @@ static inline void update_last_psn(struct ipath_qp *qp, u32 psn)
  * Called at interrupt level with the QP s_lock held and interrupts disabled.
  * Returns 1 if OK, 0 if current operation should be aborted (NAK).
  */
-static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
+static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode,
+		     u64 val)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ib_wc wc;
 	struct ipath_swqe *wqe;
 	int ret = 0;
 	u32 ack_psn;
+	int diff;
 
 	/*
 	 * Remove the QP from the timeout queue (or RNR timeout queue).
@@ -840,7 +846,19 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 	 * The MSN might be for a later WQE than the PSN indicates so
 	 * only complete WQEs that the PSN finishes.
 	 */
-	while (ipath_cmp24(ack_psn, wqe->lpsn) >= 0) {
+	while ((diff = ipath_cmp24(ack_psn, wqe->lpsn)) >= 0) {
+		/*
+		 * RDMA_READ_RESPONSE_ONLY is a special case since
+		 * we want to generate completion events for everything
+		 * before the RDMA read, copy the data, then generate
+		 * the completion for the read.
+		 */
+		if (wqe->wr.opcode == IB_WR_RDMA_READ &&
+		    opcode == OP(RDMA_READ_RESPONSE_ONLY) &&
+		    diff == 0) {
+			ret = 1;
+			goto bail;
+		}
 		/*
 		 * If this request is a RDMA read or atomic, and the ACK is
 		 * for a later operation, this ACK NAKs the RDMA read or
@@ -851,12 +869,10 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		 * is sent but before the response is received.
 		 */
 		if ((wqe->wr.opcode == IB_WR_RDMA_READ &&
-		     (opcode != OP(RDMA_READ_RESPONSE_LAST) ||
-		      ipath_cmp24(ack_psn, wqe->lpsn) != 0)) ||
+		     (opcode != OP(RDMA_READ_RESPONSE_LAST) || diff != 0)) ||
 		    ((wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
 		      wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) &&
-		     (opcode != OP(ATOMIC_ACKNOWLEDGE) ||
-		      ipath_cmp24(wqe->psn, psn) != 0))) {
+		     (opcode != OP(ATOMIC_ACKNOWLEDGE) || diff != 0))) {
 			/*
 			 * The last valid PSN seen is the previous
 			 * request's.
@@ -870,6 +886,9 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			 */
 			goto bail;
 		}
+		if (wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		    wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+			*(u64 *) wqe->sg_list[0].vaddr = val;
 		if (qp->s_num_rd_atomic &&
 		    (wqe->wr.opcode == IB_WR_RDMA_READ ||
 		     wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
@@ -1079,6 +1098,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 	int diff;
 	u32 pad;
 	u32 aeth;
+	u64 val;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
@@ -1118,8 +1138,6 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			data += sizeof(__be32);
 		}
 		if (opcode == OP(ATOMIC_ACKNOWLEDGE)) {
-			u64 val;
-
 			if (!header_in_data) {
 				__be32 *p = ohdr->u.at.atomic_ack_eth;
 
@@ -1127,12 +1145,13 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 					be32_to_cpu(p[1]);
 			} else
 				val = be64_to_cpu(((__be64 *) data)[0]);
-			*(u64 *) wqe->sg_list[0].vaddr = val;
-		}
-		if (!do_rc_ack(qp, aeth, psn, opcode) ||
+		} else
+			val = 0;
+		if (!do_rc_ack(qp, aeth, psn, opcode, val) ||
 		    opcode != OP(RDMA_READ_RESPONSE_FIRST))
 			goto ack_done;
 		hdrsize += 4;
+		wqe = get_swqe_ptr(qp, qp->s_last);
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
 			goto ack_op_err;
 		/*
@@ -1176,13 +1195,12 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		goto bail;
 
 	case OP(RDMA_READ_RESPONSE_ONLY):
-		if (unlikely(ipath_cmp24(psn, qp->s_last_psn + 1))) {
-			dev->n_rdma_seq++;
-			ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
+		if (!header_in_data)
+			aeth = be32_to_cpu(ohdr->u.aeth);
+		else
+			aeth = be32_to_cpu(((__be32 *) data)[0]);
+		if (!do_rc_ack(qp, aeth, psn, opcode, 0))
 			goto ack_done;
-		}
-		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
-			goto ack_op_err;
 		/* Get the number of bytes the message was padded by. */
 		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
 		/*
@@ -1197,6 +1215,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		 * have to be careful to copy the data to the right
 		 * location.
 		 */
+		wqe = get_swqe_ptr(qp, qp->s_last);
 		qp->s_rdma_read_len = restart_sge(&qp->s_rdma_read_sge,
 						  wqe, psn, pmtu);
 		goto read_last;
@@ -1230,7 +1249,8 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			data += sizeof(__be32);
 		}
 		ipath_copy_sge(&qp->s_rdma_read_sge, data, tlen);
-		(void) do_rc_ack(qp, aeth, psn, OP(RDMA_READ_RESPONSE_LAST));
+		(void) do_rc_ack(qp, aeth, psn,
+				 OP(RDMA_READ_RESPONSE_LAST), 0);
 		goto ack_done;
 	}
 
@@ -1344,8 +1364,11 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			e = NULL;
 			break;
 		}
-		if (ipath_cmp24(psn, e->psn) >= 0)
+		if (ipath_cmp24(psn, e->psn) >= 0) {
+			if (prev == qp->s_tail_ack_queue)
+				old_req = 0;
 			break;
+		}
 	}
 	switch (opcode) {
 	case OP(RDMA_READ_REQUEST): {
@@ -1457,6 +1480,22 @@ static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
 	ipath_error_qp(qp, err);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
+static inline void ipath_update_ack_queue(struct ipath_qp *qp, unsigned n)
+{
+	unsigned long flags;
+	unsigned next;
+
+	next = n + 1;
+	if (next > IPATH_MAX_RDMA_ATOMIC)
+		next = 0;
+	spin_lock_irqsave(&qp->s_lock, flags);
+	if (n == qp->s_tail_ack_queue) {
+		qp->s_tail_ack_queue = next;
+		qp->s_ack_state = OP(ACKNOWLEDGE);
+	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
@@ -1672,6 +1711,9 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(RDMA_WRITE_FIRST):
 	case OP(RDMA_WRITE_ONLY):
 	case OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE):
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_WRITE)))
+			goto nack_inv;
 		/* consume RWQE */
 		/* RETH comes after BTH */
 		if (!header_in_data)
@@ -1701,9 +1743,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			qp->r_sge.sge.length = 0;
 			qp->r_sge.sge.sge_length = 0;
 		}
-		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_WRITE)))
-			goto nack_acc;
 		if (opcode == OP(RDMA_WRITE_FIRST))
 			goto send_middle;
 		else if (opcode == OP(RDMA_WRITE_ONLY))
@@ -1717,13 +1756,17 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		u32 len;
 		u8 next;
 
-		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
-			goto nack_acc;
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_READ)))
+			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
 		if (next > IPATH_MAX_RDMA_ATOMIC)
 			next = 0;
-		if (unlikely(next == qp->s_tail_ack_queue))
-			goto nack_inv;
+		if (unlikely(next == qp->s_tail_ack_queue)) {
+			if (!qp->s_ack_queue[next].sent)
+				goto nack_inv;
+			ipath_update_ack_queue(qp, next);
+		}
 		e = &qp->s_ack_queue[qp->r_head_ack_queue];
 		/* RETH comes after BTH */
 		if (!header_in_data)
@@ -1758,6 +1801,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			e->rdma_sge.sge.sge_length = 0;
 		}
 		e->opcode = opcode;
+		e->sent = 0;
 		e->psn = psn;
 		/*
 		 * We need to increment the MSN here instead of when we
@@ -1789,12 +1833,15 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 		if (unlikely(!(qp->qp_access_flags &
 			       IB_ACCESS_REMOTE_ATOMIC)))
-			goto nack_acc;
+			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
 		if (next > IPATH_MAX_RDMA_ATOMIC)
 			next = 0;
-		if (unlikely(next == qp->s_tail_ack_queue))
-			goto nack_inv;
+		if (unlikely(next == qp->s_tail_ack_queue)) {
+			if (!qp->s_ack_queue[next].sent)
+				goto nack_inv;
+			ipath_update_ack_queue(qp, next);
+		}
 		if (!header_in_data)
 			ateth = &ohdr->u.atomic_eth;
 		else
@@ -1819,6 +1866,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 				      be64_to_cpu(ateth->compare_data),
 				      sdata);
 		e->opcode = opcode;
+		e->sent = 0;
 		e->psn = psn & IPATH_PSN_MASK;
 		qp->r_msn++;
 		qp->r_psn++;

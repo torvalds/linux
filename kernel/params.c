@@ -491,7 +491,6 @@ param_sysfs_setup(struct module_kobject *mk,
 			pattr->mattr.show = param_attr_show;
 			pattr->mattr.store = param_attr_store;
 			pattr->mattr.attr.name = (char *)&kp->name[name_skip];
-			pattr->mattr.attr.owner = mk->mod;
 			pattr->mattr.attr.mode = kp->perm;
 			*(gattr++) = &(pattr++)->mattr.attr;
 		}

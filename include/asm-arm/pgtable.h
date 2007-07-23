@@ -83,14 +83,14 @@
  * means that a write to a clean page will cause a permission fault, and
  * the Linux MM layer will mark the page dirty via handle_pte_fault().
  * For the hardware to notice the permission change, the TLB entry must
- * be flushed, and ptep_establish() does that for us.
+ * be flushed, and ptep_set_access_flags() does that for us.
  *
  * The "accessed" or "young" bit is emulated by a similar method; we only
  * allow accesses to the page if the "young" bit is set.  Accesses to the
  * page will cause a fault, and handle_pte_fault() will set the young bit
  * for us as long as the page is marked present in the corresponding Linux
- * PTE entry.  Again, ptep_establish() will ensure that the TLB is up to
- * date.
+ * PTE entry.  Again, ptep_set_access_flags() will ensure that the TLB is
+ * up to date.
  *
  * However, when the "young" bit is cleared, we deny access to the page
  * by clearing the hardware PTE.  Currently Linux does not flush the TLB
@@ -257,9 +257,7 @@ extern struct page *empty_zero_page;
  * Undefined behaviour if not..
  */
 #define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
-#define pte_read(pte)		(pte_val(pte) & L_PTE_USER)
 #define pte_write(pte)		(pte_val(pte) & L_PTE_WRITE)
-#define pte_exec(pte)		(pte_val(pte) & L_PTE_EXEC)
 #define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 
@@ -275,12 +273,8 @@ extern struct page *empty_zero_page;
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
-/*PTE_BIT_FUNC(rdprotect, &= ~L_PTE_USER);*/
-/*PTE_BIT_FUNC(mkread,    |= L_PTE_USER);*/
 PTE_BIT_FUNC(wrprotect, &= ~L_PTE_WRITE);
 PTE_BIT_FUNC(mkwrite,   |= L_PTE_WRITE);
-PTE_BIT_FUNC(exprotect, &= ~L_PTE_EXEC);
-PTE_BIT_FUNC(mkexec,    |= L_PTE_EXEC);
 PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
 PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
 PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);

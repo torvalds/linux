@@ -21,29 +21,29 @@ MODULE_DESCRIPTION("IP tables match to match on linklayer packet type");
 MODULE_ALIAS("ipt_pkttype");
 MODULE_ALIAS("ip6t_pkttype");
 
-static int match(const struct sk_buff *skb,
+static bool match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
       const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	u_int8_t type;
 	const struct xt_pkttype_info *info = matchinfo;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
-		type = (MULTICAST(ip_hdr(skb)->daddr)
+		type = MULTICAST(ip_hdr(skb)->daddr)
 			? PACKET_MULTICAST
-			: PACKET_BROADCAST);
+			: PACKET_BROADCAST;
 	else
 		type = skb->pkt_type;
 
 	return (type == info->pkttype) ^ info->invert;
 }
 
-static struct xt_match xt_pkttype_match[] = {
+static struct xt_match xt_pkttype_match[] __read_mostly = {
 	{
 		.name		= "pkttype",
 		.family		= AF_INET,

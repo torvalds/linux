@@ -219,6 +219,7 @@ struct ocfs2_super
 	u16 max_slots;
 	s16 node_num;
 	s16 slot_num;
+	s16 preferred_slot;
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;
@@ -301,6 +302,19 @@ static inline int ocfs2_should_order_data(struct inode *inode)
 static inline int ocfs2_sparse_alloc(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
+{
+	/*
+	 * Support for sparse files is a pre-requisite
+	 */
+	if (!ocfs2_sparse_alloc(osb))
+		return 0;
+
+	if (osb->s_feature_ro_compat & OCFS2_FEATURE_RO_COMPAT_UNWRITTEN)
 		return 1;
 	return 0;
 }

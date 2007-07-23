@@ -2212,13 +2212,13 @@ S: 2300 Copenhagen S
 S: Denmark
 
 N: Claudio S. Matsuoka
-E: claudio@conectiva.com
-E: claudio@helllabs.org
+E: cmatsuoka@gmail.com
+E: claudio@mandriva.com
 W: http://helllabs.org/~claudio
-D: V4L, OV511 driver hacks
+D: V4L, OV511 and HDA-codec hacks
 S: Conectiva S.A.
-S: R. Tocantins 89
-S: 80050-430  Curitiba PR
+S: Souza Naves 1250
+S: 80050-040  Curitiba PR
 S: Brazil
 
 N: Heinz Mauelshagen

@@ -114,10 +114,6 @@
 #define	IRL0_PRIORITY	13
 #define TOP_PRIORITY	15
 
-extern void disable_irq(unsigned int);
-extern void disable_irq_nosync(unsigned int);
-extern void enable_irq(unsigned int);
-
 extern int intc_evt_to_irq[(0xE20/0x20)+1];
 int intc_irq_describe(char* p, int irq);
 

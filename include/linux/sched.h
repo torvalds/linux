@@ -26,6 +26,7 @@
 #define CLONE_STOPPED		0x02000000	/* Start in stopped state */
 #define CLONE_NEWUTS		0x04000000	/* New utsname group? */
 #define CLONE_NEWIPC		0x08000000	/* New ipcs */
+#define CLONE_NEWUSER		0x10000000	/* New user namespace */
 
 /*
  * Scheduling policies
@@ -287,6 +288,7 @@ extern signed long schedule_timeout_uninterruptible(signed long timeout);
 asmlinkage void schedule(void);
 
 struct nsproxy;
+struct user_namespace;
 
 /* Maximum number of active map areas.. This is a random (large) number */
 #define DEFAULT_MAX_MAP_COUNT	65536
@@ -342,6 +344,27 @@ typedef unsigned long mm_counter_t;
 	if ((mm)->hiwater_vm < (mm)->total_vm)		\
 		(mm)->hiwater_vm = (mm)->total_vm;	\
 } while (0)
+
+extern void set_dumpable(struct mm_struct *mm, int value);
+extern int get_dumpable(struct mm_struct *mm);
+
+/* mm flags */
+/* dumpable bits */
+#define MMF_DUMPABLE      0  /* core dump is permitted */
+#define MMF_DUMP_SECURELY 1  /* core file is readable only by root */
+#define MMF_DUMPABLE_BITS 2
+
+/* coredump filter bits */
+#define MMF_DUMP_ANON_PRIVATE	2
+#define MMF_DUMP_ANON_SHARED	3
+#define MMF_DUMP_MAPPED_PRIVATE	4
+#define MMF_DUMP_MAPPED_SHARED	5
+#define MMF_DUMP_FILTER_SHIFT	MMF_DUMPABLE_BITS
+#define MMF_DUMP_FILTER_BITS	4
+#define MMF_DUMP_FILTER_MASK \
+	(((1 << MMF_DUMP_FILTER_BITS) - 1) << MMF_DUMP_FILTER_SHIFT)
+#define MMF_DUMP_FILTER_DEFAULT \
+	((1 << MMF_DUMP_ANON_PRIVATE) |	(1 << MMF_DUMP_ANON_SHARED))
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
@@ -400,7 +423,7 @@ struct mm_struct {
 	unsigned int token_priority;
 	unsigned int last_interval;
 
-	unsigned char dumpable:2;
+	unsigned long flags; /* Must use atomic bitops to access the bits */
 
 	/* coredumping support */
 	int core_waiters;
@@ -528,6 +551,10 @@ struct signal_struct {
 #endif
 #ifdef CONFIG_TASKSTATS
 	struct taskstats *stats;
+#endif
+#ifdef CONFIG_AUDIT
+	unsigned audit_tty;
+	struct tty_audit_buf *tty_audit_buf;
 #endif
 };
 
@@ -972,7 +999,8 @@ struct task_struct {
 	unsigned int rt_priority;
 	cputime_t utime, stime;
 	unsigned long nvcsw, nivcsw; /* context switch counts */
-	struct timespec start_time;
+	struct timespec start_time; 		/* monotonic time */
+	struct timespec real_start_time;	/* boot based time */
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
@@ -1320,6 +1348,13 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 #endif
 
 extern unsigned long long sched_clock(void);
+
+/*
+ * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
+ * clock constructed from sched_clock():
+ */
+extern unsigned long long cpu_clock(int cpu);
+
 extern unsigned long long
 task_sched_runtime(struct task_struct *task);
 
@@ -1403,7 +1438,7 @@ extern struct task_struct *find_task_by_pid_type(int type, int pid);
 extern void __set_special_pids(pid_t session, pid_t pgrp);
 
 /* per-UID process charging. */
-extern struct user_struct * alloc_uid(uid_t);
+extern struct user_struct * alloc_uid(struct user_namespace *, uid_t);
 static inline struct user_struct *get_uid(struct user_struct *u)
 {
 	atomic_inc(&u->__count);

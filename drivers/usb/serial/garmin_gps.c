@@ -1036,15 +1036,16 @@ static void garmin_write_bulk_callback (struct urb *urb)
 	unsigned long flags;
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags |= CLEAR_HALT_REQUIRED;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
@@ -1281,7 +1282,8 @@ static void garmin_read_bulk_callback (struct urb *urb)
 	struct usb_serial *serial =  port->serial;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	int status;
+	int status = urb->status;
+	int retval;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -1290,9 +1292,9 @@ static void garmin_read_bulk_callback (struct urb *urb)
 		return;
 	}
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		return;
 	}
 
@@ -1306,19 +1308,19 @@ static void garmin_read_bulk_callback (struct urb *urb)
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags &= ~FLAGS_BULK_IN_RESTART;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
-		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-		if (status)
+		retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		if (retval)
 			dev_err(&port->dev,
 				"%s - failed resubmitting read urb, error %d\n",
-			        __FUNCTION__, status);
+				__FUNCTION__, retval);
 	} else if (urb->actual_length > 0) {
 		/* Continue trying to read until nothing more is received  */
 		if (0 == (garmin_data_p->flags & FLAGS_THROTTLED)) {
-			status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-			if (status)
+			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+			if (retval)
 				dev_err(&port->dev,
-					"%s - failed resubmitting read urb, error %d\n",
-			        	__FUNCTION__, status);
+					"%s - failed resubmitting read urb, "
+					"error %d\n", __FUNCTION__, retval);
 		}
 	} else {
 		dbg("%s - end of bulk data", __FUNCTION__);
@@ -1333,13 +1335,14 @@ static void garmin_read_bulk_callback (struct urb *urb)
 static void garmin_read_int_callback (struct urb *urb)
 {
 	unsigned long flags;
-	int status;
+	int retval;
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct usb_serial *serial = port->serial;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1348,11 +1351,11 @@ static void garmin_read_int_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		return;
 	}
 
@@ -1374,11 +1377,11 @@ static void garmin_read_int_callback (struct urb *urb)
 					port->read_urb->transfer_buffer,
 					port->read_urb->transfer_buffer_length,
 					garmin_read_bulk_callback, port);
-			status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-			if (status) {
+			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+			if (retval) {
 				dev_err(&port->dev,
 					"%s - failed submitting read urb, error %d\n",
-				__FUNCTION__, status);
+				__FUNCTION__, retval);
 			} else {
 				spin_lock_irqsave(&garmin_data_p->lock, flags);
 				garmin_data_p->flags |= FLAGS_BULK_IN_ACTIVE;
@@ -1422,11 +1425,11 @@ static void garmin_read_int_callback (struct urb *urb)
 	}
 
 	port->interrupt_in_urb->dev = port->serial->dev;
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	if (retval)
 		dev_err(&urb->dev->dev,
 			"%s - Error %d submitting interrupt urb\n",
-			__FUNCTION__, status);
+			__FUNCTION__, retval);
 }
 
 

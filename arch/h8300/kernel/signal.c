@@ -547,3 +547,9 @@ asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	}
 	return 0;
 }
+
+asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
+{
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+		do_signal(regs, NULL);
+}

@@ -185,6 +185,7 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	printk("Internal error: %s: %x\n", str, err);
 	printk("CPU: %d\n", smp_processor_id());
 	show_regs(regs);
+	add_taint(TAINT_DIE);
 	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
 		current->comm, current->pid, end_of_stack(tsk));
 

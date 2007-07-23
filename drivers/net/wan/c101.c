@@ -315,12 +315,11 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 		return -ENODEV;
 	}
 
-	card = kmalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
 		printk(KERN_ERR "c101: unable to allocate memory\n");
 		return -ENOBUFS;
 	}
-	memset(card, 0, sizeof(card_t));
 
 	card->dev = alloc_hdlcdev(card);
 	if (!card->dev) {

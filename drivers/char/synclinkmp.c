@@ -135,8 +135,6 @@ typedef struct _SCADESC_EX
 
 #define IO_PIN_SHUTDOWN_LIMIT 100
 
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 struct	_input_signal_events {
 	int	ri_up;
 	int	ri_down;
@@ -926,12 +924,6 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s set_termios()\n", __FILE__,__LINE__,
 			tty->driver->name );
-
-	/* just return if nothing has changed */
-	if ((tty->termios->c_cflag == old_termios->c_cflag)
-	    && (RELEVANT_IFLAG(tty->termios->c_iflag)
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-	  return;
 
 	change_params(info);
 
@@ -3794,14 +3786,13 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 {
 	SLMP_INFO *info;
 
-	info = kmalloc(sizeof(SLMP_INFO),
+	info = kzalloc(sizeof(SLMP_INFO),
 		 GFP_KERNEL);
 
 	if (!info) {
 		printk("%s(%d) Error can't allocate device instance data for adapter %d, port %d\n",
 			__FILE__,__LINE__, adapter_num, port_num);
 	} else {
-		memset(info, 0, sizeof(SLMP_INFO));
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;

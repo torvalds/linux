@@ -45,6 +45,7 @@ struct Scsi_Host;
 #define MAX_INDIRECT_BUFS 10
 
 #define IBMVSCSI_MAX_REQUESTS_DEFAULT 100
+#define IBMVSCSI_MAX_CMDS_PER_LUN 64
 
 /* ------------------------------------------------------------
  * Data Structures
@@ -69,6 +70,7 @@ struct srp_event_struct {
 	union viosrp_iu iu;
 	void (*cmnd_done) (struct scsi_cmnd *);
 	struct completion comp;
+	struct timer_list timer;
 	union viosrp_iu *sync_srp;
 	struct srp_direct_buf *ext_list;
 	dma_addr_t ext_list_token;

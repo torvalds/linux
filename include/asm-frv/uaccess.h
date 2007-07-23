@@ -277,6 +277,8 @@ extern long __memcpy_user(void *dst, const void *src, unsigned long count);
 
 #endif
 
+#define __clear_user clear_user
+
 static inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {

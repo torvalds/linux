@@ -95,6 +95,26 @@
 
 
 #ifndef __ASSEMBLY__
+
+/* Interrupt handlers registered during init_IRQ */
+void apic_timer_interrupt(void);
+void spurious_interrupt(void);
+void error_interrupt(void);
+void reschedule_interrupt(void);
+void call_function_interrupt(void);
+void irq_move_cleanup_interrupt(void);
+void invalidate_interrupt0(void);
+void invalidate_interrupt1(void);
+void invalidate_interrupt2(void);
+void invalidate_interrupt3(void);
+void invalidate_interrupt4(void);
+void invalidate_interrupt5(void);
+void invalidate_interrupt6(void);
+void invalidate_interrupt7(void);
+void thermal_interrupt(void);
+void threshold_interrupt(void);
+void i8254_timer_resume(void);
+
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
 extern void __setup_vector_irq(int cpu);

@@ -1,14 +1,14 @@
 /*
  * Prolific PL2303 USB to serial adaptor driver
  *
- * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 2001-2007 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2003 IBM Corp.
  *
  * Original driver for 2.2.x by anonymous
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License.
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License version
+ *	2 as published by the Free Software Foundation.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
@@ -484,15 +484,6 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	cflag = port->tty->termios->c_cflag;
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(port->tty->termios->c_iflag) ==
-		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			return;
-		}
-	}
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
@@ -517,29 +508,7 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 		dbg("%s - data bits = %d", __FUNCTION__, buf[6]);
 	}
 
-	baud = 0;
-	switch (cflag & CBAUD) {
-		case B0:	baud = 0;	break;
-		case B75:	baud = 75;	break;
-		case B150:	baud = 150;	break;
-		case B300:	baud = 300;	break;
-		case B600:	baud = 600;	break;
-		case B1200:	baud = 1200;	break;
-		case B1800:	baud = 1800;	break;
-		case B2400:	baud = 2400;	break;
-		case B4800:	baud = 4800;	break;
-		case B9600:	baud = 9600;	break;
-		case B19200:	baud = 19200;	break;
-		case B38400:	baud = 38400;	break;
-		case B57600:	baud = 57600;	break;
-		case B115200:	baud = 115200;	break;
-		case B230400:	baud = 230400;	break;
-		case B460800:	baud = 460800;	break;
-		default:
-			dev_err(&port->dev, "pl2303 driver does not support"
-				" the baudrate requested (fix it)\n");
-			break;
-	}
+	baud = tty_get_baud_rate(port->tty);;
 	dbg("%s - baud = %d", __FUNCTION__, baud);
 	if (baud) {
 		buf[0] = baud & 0xff;
@@ -617,6 +586,13 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 				    VENDOR_WRITE_REQUEST_TYPE,
 				    0x0, index, NULL, 0, 100);
 		dbg("0x40:0x1:0x0:0x%x  %d", index, i);
+	} else {
+		i = usb_control_msg(serial->dev,
+				    usb_sndctrlpipe(serial->dev, 0),
+				    VENDOR_WRITE_REQUEST,
+				    VENDOR_WRITE_REQUEST_TYPE,
+				    0x0, 0x0, NULL, 0, 100);
+		dbg ("0x40:0x1:0x0:0x0  %d", i);
 	}
 
 	kfree(buf);
@@ -954,11 +930,12 @@ static void pl2303_read_int_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned int actual_length = urb->actual_length;
-	int status;
+	int status = urb->status;
+	int retval;
 
 	dbg("%s (%d)", __FUNCTION__, port->number);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -967,11 +944,11 @@ static void pl2303_read_int_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		goto exit;
 	}
 
@@ -981,11 +958,11 @@ static void pl2303_read_int_callback(struct urb *urb)
 	pl2303_update_line_status(port, data, actual_length);
 
 exit:
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
 		dev_err(&urb->dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
-			__FUNCTION__, status);
+			__FUNCTION__, retval);
 }
 
 static void pl2303_read_bulk_callback(struct urb *urb)
@@ -997,23 +974,23 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	unsigned long flags;
 	int i;
 	int result;
-	u8 status;
+	int status = urb->status;
+	u8 line_status;
 	char tty_flag;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - urb->status = %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - urb status = %d", __FUNCTION__, status);
 		if (!port->open_count) {
 			dbg("%s - port is closed, exiting.", __FUNCTION__);
 			return;
 		}
-		if (urb->status == -EPROTO) {
+		if (status == -EPROTO) {
 			/* PL2303 mysteriously fails with -EPROTO reschedule
 			 * the read */
 			dbg("%s - caught -EPROTO, resubmitting the urb",
 			    __FUNCTION__);
-			urb->status = 0;
 			urb->dev = port->serial->dev;
 			result = usb_submit_urb(urb, GFP_ATOMIC);
 			if (result)
@@ -1033,18 +1010,18 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	tty_flag = TTY_NORMAL;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	status = priv->line_status;
+	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	wake_up_interruptible(&priv->delta_msr_wait);
 
 	/* break takes precedence over parity, */
 	/* which takes precedence over framing errors */
-	if (status & UART_BREAK_ERROR )
+	if (line_status & UART_BREAK_ERROR )
 		tty_flag = TTY_BREAK;
-	else if (status & UART_PARITY_ERROR)
+	else if (line_status & UART_PARITY_ERROR)
 		tty_flag = TTY_PARITY;
-	else if (status & UART_FRAME_ERROR)
+	else if (line_status & UART_FRAME_ERROR)
 		tty_flag = TTY_FRAME;
 	dbg("%s - tty_flag = %d", __FUNCTION__, tty_flag);
 
@@ -1052,7 +1029,7 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
-		if (status & UART_OVERRUN_ERROR)
+		if (line_status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		for (i = 0; i < urb->actual_length; ++i)
 			tty_insert_flip_char(tty, data[i], tty_flag);
@@ -1076,10 +1053,11 @@ static void pl2303_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1088,14 +1066,14 @@ static void pl2303_write_bulk_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		priv->write_urb_in_use = 0;
 		return;
 	default:
 		/* error in the urb, so we have to resubmit it */
 		dbg("%s - Overflow in write", __FUNCTION__);
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		port->write_urb->transfer_buffer_length = 1;
 		port->write_urb->dev = port->serial->dev;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);

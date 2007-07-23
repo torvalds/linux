@@ -446,6 +446,9 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	if (s->v4l2dev == NULL)
 		return -EINVAL;
 
+	/* Big serialization lock to ensure no two streams are started
+	   simultaneously: that can give all sorts of weird results. */
+	mutex_lock(&itv->serialize_lock);
 	IVTV_DEBUG_INFO("Start encoder stream %s\n", s->name);
 
 	switch (s->type) {
@@ -487,6 +490,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 			0, sizeof(itv->vbi.sliced_mpeg_size));
 		break;
 	default:
+		mutex_unlock(&itv->serialize_lock);
 		return -EINVAL;
 	}
 	s->subtype = subtype;
@@ -561,13 +565,14 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		/* Initialize Digitizer for Capture */
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
-		ivtv_sleep_timeout(HZ / 10, 0);
+		ivtv_msleep_timeout(100, 0);
 	}
 
 	/* begin_capture */
 	if (ivtv_vapi(itv, CX2341X_ENC_START_CAPTURE, 2, captype, subtype))
 	{
 		IVTV_DEBUG_WARN( "Error starting capture!\n");
+		mutex_unlock(&itv->serialize_lock);
 		return -EINVAL;
 	}
 
@@ -583,6 +588,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 
 	/* you're live! sit back and await interrupts :) */
 	atomic_inc(&itv->capturing);
+	mutex_unlock(&itv->serialize_lock);
 	return 0;
 }
 
@@ -762,17 +768,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	/* when: 0 =  end of GOP  1 = NOW!, type: 0 = mpeg, subtype: 3 = video+audio */
 	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, stopmode, cap_type, s->subtype);
 
-	/* only run these if we're shutting down the last cap */
-	if (atomic_read(&itv->capturing) - 1 == 0) {
-		/* event notification (off) */
-		if (test_and_clear_bit(IVTV_F_I_DIG_RST, &itv->i_flags)) {
-			/* type: 0 = refresh */
-			/* on/off: 0 = off, intr: 0x10000000, mbox_id: -1: none */
-			ivtv_vapi(itv, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4, 0, 0, IVTV_IRQ_ENC_VIM_RST, -1);
-			ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VIM_RST);
-		}
-	}
-
 	then = jiffies;
 
 	if (!test_bit(IVTV_F_S_PASSTHROUGH, &s->s_flags)) {
@@ -786,8 +781,9 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			set_current_state(TASK_INTERRUPTIBLE);
 
 			/* wait 2s for EOS interrupt */
-			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) && jiffies < then + 2 * HZ) {
-				schedule_timeout(HZ / 100);
+			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) &&
+				jiffies < then + msecs_to_jiffies (2000)) {
+				schedule_timeout(msecs_to_jiffies(10));
 			}
 
 			/* To convert jiffies to ms, we must multiply by 1000
@@ -812,7 +808,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		then = jiffies;
 		/* Make sure DMA is complete */
 		add_wait_queue(&s->waitq, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
 		do {
 			/* check if DMA is pending */
 			if ((s->type == IVTV_ENC_STREAM_TYPE_MPG) &&	/* MPG Only */
@@ -827,9 +822,8 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			} else if (read_reg(IVTV_REG_DMASTATUS) & 0x02) {
 				break;
 			}
-
-			ivtv_sleep_timeout(HZ / 100, 1);
-		} while (then + HZ * 2 > jiffies);
+		} while (!ivtv_msleep_timeout(10, 1) &&
+			 then + msecs_to_jiffies(2000) > jiffies);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&s->waitq, &wait);
@@ -840,17 +834,30 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	/* Clear capture and no-read bits */
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
 
+	/* ensure these global cleanup actions are done only once */
+	mutex_lock(&itv->serialize_lock);
+
 	if (s->type == IVTV_ENC_STREAM_TYPE_VBI)
 		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VBI_CAP);
 
 	if (atomic_read(&itv->capturing) > 0) {
+		mutex_unlock(&itv->serialize_lock);
 		return 0;
 	}
 
 	/* Set the following Interrupt mask bits for capture */
 	ivtv_set_irq_mask(itv, IVTV_IRQ_MASK_CAPTURE);
 
+	/* event notification (off) */
+	if (test_and_clear_bit(IVTV_F_I_DIG_RST, &itv->i_flags)) {
+		/* type: 0 = refresh */
+		/* on/off: 0 = off, intr: 0x10000000, mbox_id: -1: none */
+		ivtv_vapi(itv, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4, 0, 0, IVTV_IRQ_ENC_VIM_RST, -1);
+		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VIM_RST);
+	}
+
 	wake_up(&s->waitq);
+	mutex_unlock(&itv->serialize_lock);
 
 	return 0;
 }
@@ -887,7 +894,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 					break;
 				tmp = data[3];
 			}
-			if (ivtv_sleep_timeout(HZ/10, 1))
+			if (ivtv_msleep_timeout(100, 1))
 				break;
 		}
 	}

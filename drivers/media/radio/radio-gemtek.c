@@ -330,7 +330,6 @@ static struct video_device gemtek_radio=
 	.owner		= THIS_MODULE,
 	.name		= "GemTek radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &gemtek_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

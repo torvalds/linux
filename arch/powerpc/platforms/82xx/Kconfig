@@ -1,5 +1,5 @@
 choice
-	prompt "Machine Type"
+	prompt "82xx Board Type"
 	depends on PPC_82xx
 	default MPC82xx_ADS
 

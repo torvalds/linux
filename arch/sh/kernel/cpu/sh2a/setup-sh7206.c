@@ -57,7 +57,7 @@ static int __init sh7206_devices_setup(void)
 }
 __initcall(sh7206_devices_setup);
 
-static struct ipr_data sh7206_ipr_map[] = {
+static struct ipr_data ipr_irq_table[] = {
 	{ 140,  7, 12, 2 },	/* CMI0 */
 	{ 164,  8,  4, 2 },	/* MTU2_TGI1A */
 	{ 240, 13, 12, 3 },	/* SCIF0_BRI */
@@ -78,7 +78,7 @@ static struct ipr_data sh7206_ipr_map[] = {
 	{ 255, 13,  0, 3 },	/* SCIF3_TXI */
 };
 
-static unsigned int ipr_offsets[] = {
+static unsigned long ipr_offsets[] = {
 	0xfffe0818,	/* IPR01 */
 	0xfffe081a,	/* IPR02 */
 	0,		/* unused */
@@ -95,15 +95,19 @@ static unsigned int ipr_offsets[] = {
 	0xfffe0c10,	/* IPR14 */
 };
 
-/* given the IPR index return the address of the IPR register */
-unsigned int map_ipridx_to_addr(int idx)
-{
-	if (unlikely(idx >= ARRAY_SIZE(ipr_offsets)))
-		return 0;
-	return ipr_offsets[idx];
-}
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
 
-void __init init_IRQ_ipr(void)
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+
+	.chip = {
+		.name	= "IPR-sh7206",
+	},
+};
+
+void __init plat_irq_setup(void)
 {
-	make_ipr_irq(sh7206_ipr_map, ARRAY_SIZE(sh7206_ipr_map));
+	register_ipr_controller(&ipr_irq_desc);
 }

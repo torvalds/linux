@@ -282,7 +282,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct dentry *lower_dentry;
 	struct vfsmount *lower_mnt;
 	char *encoded_name;
-	unsigned int encoded_namelen;
+	int encoded_namelen;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	char *page_virt = NULL;
@@ -473,7 +473,7 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	struct dentry *lower_dir_dentry;
 	umode_t mode;
 	char *encoded_symname;
-	unsigned int encoded_symlen;
+	int encoded_symlen;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
@@ -902,8 +902,9 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 	mutex_lock(&crypt_stat->cs_mutex);
 	if (S_ISDIR(dentry->d_inode->i_mode))
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-	else if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)
-		 || !(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
+	else if (S_ISREG(dentry->d_inode->i_mode)
+		 && (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)
+		     || !(crypt_stat->flags & ECRYPTFS_KEY_VALID))) {
 		struct vfsmount *lower_mnt;
 		struct file *lower_file = NULL;
 		struct ecryptfs_mount_crypt_stat *mount_crypt_stat;

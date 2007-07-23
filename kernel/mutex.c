@@ -139,6 +139,12 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 	list_add_tail(&waiter.list, &lock->wait_list);
 	waiter.task = task;
 
+	old_val = atomic_xchg(&lock->count, -1);
+	if (old_val == 1)
+		goto done;
+
+	lock_contended(&lock->dep_map, _RET_IP_);
+
 	for (;;) {
 		/*
 		 * Lets try to take the lock again - this is needed even if
@@ -174,6 +180,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 		spin_lock_mutex(&lock->wait_lock, flags);
 	}
 
+done:
+	lock_acquired(&lock->dep_map);
 	/* got the lock - rejoice! */
 	mutex_remove_waiter(lock, &waiter, task_thread_info(task));
 	debug_mutex_set_owner(lock, task_thread_info(task));

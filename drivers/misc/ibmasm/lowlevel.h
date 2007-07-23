@@ -17,7 +17,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -48,9 +48,9 @@
 #define INTR_CONTROL_REGISTER  0x13A4
 
 #define SCOUT_COM_A_BASE         0x0000
-#define SCOUT_COM_B_BASE         0x0100   
-#define SCOUT_COM_C_BASE         0x0200   
-#define SCOUT_COM_D_BASE         0x0300   
+#define SCOUT_COM_B_BASE         0x0100
+#define SCOUT_COM_C_BASE         0x0200
+#define SCOUT_COM_D_BASE         0x0300
 
 static inline int sp_interrupt_pending(void __iomem *base_address)
 {
@@ -86,12 +86,12 @@ static inline void disable_sp_interrupts(void __iomem *base_address)
 
 static inline void enable_uart_interrupts(void __iomem *base_address)
 {
-	ibmasm_enable_interrupts(base_address, UART_INTR_MASK); 
+	ibmasm_enable_interrupts(base_address, UART_INTR_MASK);
 }
 
 static inline void disable_uart_interrupts(void __iomem *base_address)
 {
-	ibmasm_disable_interrupts(base_address, UART_INTR_MASK); 
+	ibmasm_disable_interrupts(base_address, UART_INTR_MASK);
 }
 
 #define valid_mfa(mfa)	( (mfa) != NO_MFAS_AVAILABLE )
@@ -111,7 +111,7 @@ static inline u32 get_mfa_outbound(void __iomem *base_address)
 
 static inline void set_mfa_outbound(void __iomem *base_address, u32 mfa)
 {
-   	writel(mfa, base_address + OUTBOUND_QUEUE_PORT);
+	writel(mfa, base_address + OUTBOUND_QUEUE_PORT);
 }
 
 static inline u32 get_mfa_inbound(void __iomem *base_address)
@@ -126,7 +126,7 @@ static inline u32 get_mfa_inbound(void __iomem *base_address)
 
 static inline void set_mfa_inbound(void __iomem *base_address, u32 mfa)
 {
-   	writel(mfa, base_address + INBOUND_QUEUE_PORT);
+	writel(mfa, base_address + INBOUND_QUEUE_PORT);
 }
 
 static inline struct i2o_message *get_i2o_message(void __iomem *base_address, u32 mfa)

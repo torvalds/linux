@@ -98,7 +98,7 @@
 #define ISER_MAX_TX_MISC_PDUS		6 /* NOOP_OUT(2), TEXT(1),         *
 					   * SCSI_TMFUNC(2), LOGOUT(1) */
 
-#define ISER_QP_MAX_RECV_DTOS		(ISCSI_XMIT_CMDS_MAX + \
+#define ISER_QP_MAX_RECV_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX + \
 					ISER_MAX_RX_MISC_PDUS    +  \
 					ISER_MAX_TX_MISC_PDUS)
 
@@ -110,7 +110,7 @@
 
 #define ISER_INFLIGHT_DATAOUTS		8
 
-#define ISER_QP_MAX_REQ_DTOS		(ISCSI_XMIT_CMDS_MAX *    \
+#define ISER_QP_MAX_REQ_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX *    \
 					(1 + ISER_INFLIGHT_DATAOUTS) + \
 					ISER_MAX_TX_MISC_PDUS        + \
 					ISER_MAX_RX_MISC_PDUS)
@@ -310,8 +310,6 @@ int  iser_conn_init(struct iser_conn **ib_conn);
 
 void iser_conn_terminate(struct iser_conn *ib_conn);
 
-void iser_conn_release(struct iser_conn *ib_conn);
-
 void iser_rcv_completion(struct iser_desc *desc,
 			 unsigned long    dto_xfer_len);
 
@@ -328,9 +326,6 @@ int  iser_regd_buff_release(struct iser_regd_buf *regd_buf);
 void iser_reg_single(struct iser_device      *device,
 		     struct iser_regd_buf    *regd_buf,
 		     enum dma_data_direction direction);
-
-int  iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task    *ctask,
-				  enum iser_data_dir            cmd_dir);
 
 void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *ctask,
 				     enum iser_data_dir         cmd_dir);

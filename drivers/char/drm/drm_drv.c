@@ -129,11 +129,11 @@ static drm_ioctl_desc_t drm_ioctls[] = {
  *
  * \sa drm_device
  */
-int drm_lastclose(drm_device_t * dev)
+int drm_lastclose(struct drm_device * dev)
 {
-	drm_magic_entry_t *pt, *next;
-	drm_map_list_t *r_list;
-	drm_vma_entry_t *vma, *vma_next;
+	struct drm_magic_entry *pt, *next;
+	struct drm_map_list *r_list, *list_t;
+	struct drm_vma_entry *vma, *vma_temp;
 	int i;
 
 	DRM_DEBUG("\n");
@@ -151,19 +151,10 @@ int drm_lastclose(drm_device_t * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
-	/* Free drawable information memory */
-	for (i = 0; i < dev->drw_bitfield_length / sizeof(*dev->drw_bitfield);
-	     i++) {
-		drm_drawable_info_t *info = drm_get_drawable_info(dev, i);
-
-		if (info) {
-			drm_free(info->rects, info->num_rects *
-				 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
-			drm_free(info, sizeof(*info), DRM_MEM_BUFS);
-		}
-	}
-
 	mutex_lock(&dev->struct_mutex);
+
+	/* Free drawable information memory */
+	drm_drawable_free_all(dev);
 	del_timer(&dev->timer);
 
 	/* Clear pid list */
@@ -178,19 +169,17 @@ int drm_lastclose(drm_device_t * dev)
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		drm_agp_mem_t *entry;
-		drm_agp_mem_t *nexte;
+		struct drm_agp_mem *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
 		   intact until drv_cleanup is called. */
-		for (entry = dev->agp->memory; entry; entry = nexte) {
-			nexte = entry->next;
+		list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {
 			if (entry->bound)
 				drm_unbind_agp(entry->memory);
 			drm_free_agp(entry->memory, entry->pages);
 			drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
 		}
-		dev->agp->memory = NULL;
+		INIT_LIST_HEAD(&dev->agp->memory);
 
 		if (dev->agp->acquired)
 			drm_agp_release(dev);
@@ -204,20 +193,14 @@ int drm_lastclose(drm_device_t * dev)
 	}
 
 	/* Clear vma list (only built for debugging) */
-	if (dev->vmalist) {
-		for (vma = dev->vmalist; vma; vma = vma_next) {
-			vma_next = vma->next;
-			drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
-		}
-		dev->vmalist = NULL;
+	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
+		list_del(&vma->head);
+		drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
 	}
 
-	if (dev->maplist) {
-		while (!list_empty(&dev->maplist->head)) {
-			struct list_head *list = dev->maplist->head.next;
-			r_list = list_entry(list, drm_map_list_t, head);
-			drm_rmmap_locked(dev, r_list->map);
-		}
+	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
+		drm_rmmap_locked(dev, r_list->map);
+		r_list = NULL;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
@@ -298,7 +281,7 @@ EXPORT_SYMBOL(drm_init);
  *
  * \sa drm_init
  */
-static void drm_cleanup(drm_device_t * dev)
+static void drm_cleanup(struct drm_device * dev)
 {
 	DRM_DEBUG("\n");
 
@@ -309,11 +292,7 @@ static void drm_cleanup(drm_device_t * dev)
 
 	drm_lastclose(dev);
 
-	if (dev->maplist) {
-		drm_free(dev->maplist, sizeof(*dev->maplist), DRM_MEM_MAPS);
-		dev->maplist = NULL;
-		drm_ht_remove(&dev->map_hash);
-	}
+	drm_ht_remove(&dev->map_hash);
 
 	drm_ctxbitmap_cleanup(dev);
 
@@ -342,8 +321,8 @@ static void drm_cleanup(drm_device_t * dev)
 void drm_exit(struct drm_driver *driver)
 {
 	int i;
-	drm_device_t *dev = NULL;
-	drm_head_t *head;
+	struct drm_device *dev = NULL;
+	struct drm_head *head;
 
 	DRM_DEBUG("\n");
 
@@ -442,10 +421,10 @@ module_exit(drm_core_exit);
 static int drm_version(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_version_t __user *argp = (void __user *)arg;
-	drm_version_t version;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_version __user *argp = (void __user *)arg;
+	struct drm_version version;
 	int len;
 
 	if (copy_from_user(&version, argp, sizeof(version)))
@@ -478,8 +457,8 @@ static int drm_version(struct inode *inode, struct file *filp,
 int drm_ioctl(struct inode *inode, struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
 	drm_ioctl_desc_t *ioctl;
 	drm_ioctl_t *func;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
@@ -529,3 +508,17 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 }
 
 EXPORT_SYMBOL(drm_ioctl);
+
+drm_local_map_t *drm_getsarea(struct drm_device *dev)
+{
+	struct drm_map_list *entry;
+
+	list_for_each_entry(entry, &dev->maplist, head) {
+		if (entry->map && entry->map->type == _DRM_SHM &&
+		    (entry->map->flags & _DRM_CONTAINS_LOCK)) {
+			return entry->map;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(drm_getsarea);

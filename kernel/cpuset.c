@@ -516,7 +516,7 @@ static void cpuset_release_agent(const char *pathbuf)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[i] = NULL;
 
-	call_usermodehelper(argv[0], argv, envp, 0);
+	call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 	kfree(pathbuf);
 }
 
@@ -981,10 +981,10 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 		mmarray = kmalloc(ntasks * sizeof(*mmarray), GFP_KERNEL);
 		if (!mmarray)
 			goto done;
-		write_lock_irq(&tasklist_lock);		/* block fork */
+		read_lock(&tasklist_lock);		/* block fork */
 		if (atomic_read(&cs->count) <= ntasks)
 			break;				/* got enough */
-		write_unlock_irq(&tasklist_lock);	/* try again */
+		read_unlock(&tasklist_lock);		/* try again */
 		kfree(mmarray);
 	}
 
@@ -1006,7 +1006,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 			continue;
 		mmarray[n++] = mm;
 	} while_each_thread(g, p);
-	write_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 
 	/*
 	 * Now that we've dropped the tasklist spinlock, we can
@@ -2138,6 +2138,9 @@ static void common_cpu_mem_hotplug_unplug(void)
 static int cpuset_handle_cpuhp(struct notifier_block *nb,
 				unsigned long phase, void *cpu)
 {
+	if (phase == CPU_DYING || phase == CPU_DYING_FROZEN)
+		return NOTIFY_DONE;
+
 	common_cpu_mem_hotplug_unplug();
 	return 0;
 }

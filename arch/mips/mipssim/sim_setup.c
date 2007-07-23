@@ -26,6 +26,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -84,7 +85,7 @@ static void __init serial_init(void)
 	/* hardware int 4 - the serial int, is CPU int 6
 	 but poll for now */
 	s.irq =  0;
-	s.uartclk = BASE_BAUD * 16;
+	s.uartclk = 1843200;
 	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	s.iotype = UPIO_PORT;
 	s.regshift = 0;

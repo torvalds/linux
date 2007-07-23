@@ -88,7 +88,7 @@
 #define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
 #define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
 					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
-#define OCFS2_FEATURE_RO_COMPAT_SUPP	0
+#define OCFS2_FEATURE_RO_COMPAT_SUPP	OCFS2_FEATURE_RO_COMPAT_UNWRITTEN
 
 /*
  * Heartbeat-only devices are missing journals and other files.  The
@@ -115,6 +115,11 @@
  * has backup superblocks.
  */
 #define OCFS2_FEATURE_COMPAT_BACKUP_SB		0x0001
+
+/*
+ * Unwritten extents support.
+ */
+#define OCFS2_FEATURE_RO_COMPAT_UNWRITTEN	0x0001
 
 /* The byte offset of the first backup block will be 1G.
  * The following will be 4G, 16G, 64G, 256G and 1T.
@@ -168,6 +173,32 @@
 #define OCFS2_IOC_SETFLAGS	_IOW('f', 2, long)
 #define OCFS2_IOC32_GETFLAGS	_IOR('f', 1, int)
 #define OCFS2_IOC32_SETFLAGS	_IOW('f', 2, int)
+
+/*
+ * Space reservation / allocation / free ioctls and argument structure
+ * are designed to be compatible with XFS.
+ *
+ * ALLOCSP* and FREESP* are not and will never be supported, but are
+ * included here for completeness.
+ */
+struct ocfs2_space_resv {
+	__s16		l_type;
+	__s16		l_whence;
+	__s64		l_start;
+	__s64		l_len;		/* len == 0 means until end of file */
+	__s32		l_sysid;
+	__u32		l_pid;
+	__s32		l_pad[4];	/* reserve area			    */
+};
+
+#define OCFS2_IOC_ALLOCSP		_IOW ('X', 10, struct ocfs2_space_resv)
+#define OCFS2_IOC_FREESP		_IOW ('X', 11, struct ocfs2_space_resv)
+#define OCFS2_IOC_RESVSP		_IOW ('X', 40, struct ocfs2_space_resv)
+#define OCFS2_IOC_UNRESVSP	_IOW ('X', 41, struct ocfs2_space_resv)
+#define OCFS2_IOC_ALLOCSP64	_IOW ('X', 36, struct ocfs2_space_resv)
+#define OCFS2_IOC_FREESP64	_IOW ('X', 37, struct ocfs2_space_resv)
+#define OCFS2_IOC_RESVSP64	_IOW ('X', 42, struct ocfs2_space_resv)
+#define OCFS2_IOC_UNRESVSP64	_IOW ('X', 43, struct ocfs2_space_resv)
 
 /*
  * Journal Flags (ocfs2_dinode.id1.journal1.i_flags)

@@ -270,11 +270,10 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 		return NULL;
 	}
 	
-	b = kmalloc(sizeof(struct slvl_board), GFP_KERNEL);
+	b = kzalloc(sizeof(struct slvl_board), GFP_KERNEL);
 	if(!b)
 		goto fail3;
 
-	memset(b, 0, sizeof(*b));
 	if (!(b->dev[0]= slvl_alloc(iobase, irq)))
 		goto fail2;
 

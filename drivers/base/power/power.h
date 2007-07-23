@@ -14,12 +14,12 @@ extern void device_shutdown(void);
 /*
  * Used to synchronize global power management operations.
  */
-extern struct semaphore dpm_sem;
+extern struct mutex dpm_mtx;
 
 /*
  * Used to serialize changes to the dpm_* lists.
  */
-extern struct semaphore dpm_list_sem;
+extern struct mutex dpm_list_mtx;
 
 /*
  * The PM lists.
@@ -61,11 +61,6 @@ extern int resume_device(struct device *);
  * suspend.c
  */
 extern int suspend_device(struct device *, pm_message_t);
-
-
-/*
- * runtime.c
- */
 
 #else /* CONFIG_PM */
 

@@ -26,6 +26,7 @@
 #include <asm/i387.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
+#include <asm/mce.h>
 
 /* #define DEBUG_SIG 1 */
 
@@ -472,6 +473,12 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 		clear_thread_flag(TIF_SINGLESTEP);
 	}
 
+#ifdef CONFIG_X86_MCE
+	/* notify userspace of pending MCEs */
+	if (thread_info_flags & _TIF_MCE_NOTIFY)
+		mce_notify_user();
+#endif /* CONFIG_X86_MCE */
+
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK))
 		do_signal(regs);
@@ -480,7 +487,7 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 { 
 	struct task_struct *me = current; 
-	if (exception_trace)
+	if (show_unhandled_signals && printk_ratelimit())
 		printk("%s[%d] bad frame in %s frame:%p rip:%lx rsp:%lx orax:%lx\n",
 	       me->comm,me->pid,where,frame,regs->rip,regs->rsp,regs->orig_rax); 
 

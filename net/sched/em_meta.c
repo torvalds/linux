@@ -848,3 +848,5 @@ MODULE_LICENSE("GPL");
 
 module_init(init_em_meta);
 module_exit(exit_em_meta);
+
+MODULE_ALIAS_TCF_EMATCH(TCF_EM_META);

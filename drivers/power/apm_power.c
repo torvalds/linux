@@ -48,8 +48,6 @@ static void find_main_battery(void)
 	}
 	if (!main_battery)
 		main_battery = batm;
-
-	return;
 }
 
 static int calculate_time(int status)
@@ -218,7 +216,6 @@ static void apm_battery_apm_get_power_status(struct apm_power_info *info)
 	}
 
 	up(&power_supply_class->sem);
-	return;
 }
 
 static int __init apm_battery_init(void)
@@ -232,7 +229,6 @@ static int __init apm_battery_init(void)
 static void __exit apm_battery_exit(void)
 {
 	apm_get_power_status = NULL;
-	return;
 }
 
 module_init(apm_battery_init);

@@ -145,7 +145,7 @@ static struct platform_driver snd_virmidi_driver = {
 	},
 };
 
-static void __init_or_module snd_virmidi_unregister_all(void)
+static void snd_virmidi_unregister_all(void)
 {
 	int i;
 

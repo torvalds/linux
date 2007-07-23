@@ -8,6 +8,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/smp.h>
+#include <linux/list.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
@@ -17,6 +18,9 @@
 struct percpu_counter {
 	spinlock_t lock;
 	s64 count;
+#ifdef CONFIG_HOTPLUG_CPU
+	struct list_head list;	/* All percpu_counters are on a list */
+#endif
 	s32 *counters;
 };
 
@@ -26,18 +30,8 @@ struct percpu_counter {
 #define FBC_BATCH	(NR_CPUS*4)
 #endif
 
-static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
-{
-	spin_lock_init(&fbc->lock);
-	fbc->count = amount;
-	fbc->counters = alloc_percpu(s32);
-}
-
-static inline void percpu_counter_destroy(struct percpu_counter *fbc)
-{
-	free_percpu(fbc->counters);
-}
-
+void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
+void percpu_counter_destroy(struct percpu_counter *fbc);
 void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
 s64 percpu_counter_sum(struct percpu_counter *fbc);
 

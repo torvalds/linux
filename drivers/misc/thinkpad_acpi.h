@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 
+#include <linux/nvram.h>
 #include <linux/proc_fs.h>
 #include <linux/sysfs.h>
 #include <linux/backlight.h>
@@ -39,6 +40,7 @@
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/input.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -48,6 +50,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/acnamesp.h>
 
+#include <linux/pci_ids.h>
 
 /****************************************************************************
  * Main driver
@@ -78,6 +81,11 @@
 #define TP_CMOS_BRIGHTNESS_UP	4
 #define TP_CMOS_BRIGHTNESS_DOWN	5
 
+/* ThinkPad CMOS NVRAM constants */
+#define TP_NVRAM_ADDR_BRIGHTNESS       0x5e
+#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x07
+#define TP_NVRAM_POS_LEVEL_BRIGHTNESS 0
+
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
 #define strlencmp(a,b) (strncmp((a), (b), strlen(b)))
@@ -98,9 +106,13 @@ static const char *str_supported(int is_supported);
 #define vdbg_printk(a_dbg_level, format, arg...)
 #endif
 
+/* Input IDs */
+#define TPACPI_HKEY_INPUT_VENDOR	PCI_VENDOR_ID_IBM
+#define TPACPI_HKEY_INPUT_PRODUCT	0x5054 /* "TP" */
+#define TPACPI_HKEY_INPUT_VERSION	0x4101
+
 /* ACPI HIDs */
 #define IBM_HKEY_HID    "IBM0068"
-#define IBM_PCI_HID     "PNP0A03"
 
 /* ACPI helpers */
 static int __must_check acpi_evalf(acpi_handle handle,
@@ -161,6 +173,7 @@ static int parse_strtoul(const char *buf, unsigned long max,
 static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;
 static struct platform_driver tpacpi_pdriver;
+static struct input_dev *tpacpi_inputdev;
 static int tpacpi_create_driver_attributes(struct device_driver *drv);
 static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 
@@ -168,9 +181,7 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 static int experimental;
 static u32 dbg_level;
 static int force_load;
-static char *ibm_thinkpad_ec_found;
 
-static char* check_dmi_for_ec(void);
 static int thinkpad_acpi_module_init(void);
 static void thinkpad_acpi_module_exit(void);
 
@@ -197,6 +208,7 @@ struct ibm_struct {
 	int (*read) (char *);
 	int (*write) (char *);
 	void (*exit) (void);
+	void (*resume) (void);
 
 	struct list_head all_drivers;
 
@@ -228,11 +240,28 @@ static struct {
 	u16 bluetooth:1;
 	u16 hotkey:1;
 	u16 hotkey_mask:1;
+	u16 hotkey_wlsw:1;
 	u16 light:1;
 	u16 light_status:1;
 	u16 wan:1;
 	u16 fan_ctrl_status_undef:1;
+	u16 input_device_registered:1;
 } tp_features;
+
+struct thinkpad_id_data {
+	unsigned int vendor;	/* ThinkPad vendor:
+				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LENOVO */
+
+	char *bios_version_str;	/* Something like 1ZET51WW (1.03z) */
+	char *ec_version_str;	/* Something like 1ZHT51WW-1.04a */
+
+	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
+	u16 ec_model;
+
+	char *model_str;
+};
+
+static struct thinkpad_id_data thinkpad_id;
 
 static struct list_head tpacpi_all_drivers;
 
@@ -300,6 +329,7 @@ static int bluetooth_write(char *buf);
 
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
+static int brightness_mode;
 
 static int brightness_init(struct ibm_init_struct *iibm);
 static void brightness_exit(void);
@@ -415,14 +445,14 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
  */
 
 static int hotkey_orig_status;
-static int hotkey_orig_mask;
+static u32 hotkey_orig_mask;
 
 static struct mutex hotkey_mutex;
 
 static int hotkey_init(struct ibm_init_struct *iibm);
 static void hotkey_exit(void);
-static int hotkey_get(int *status, int *mask);
-static int hotkey_set(int status, int mask);
+static int hotkey_get(int *status, u32 *mask);
+static int hotkey_set(int status, u32 mask);
 static void hotkey_notify(struct ibm_struct *ibm, u32 event);
 static int hotkey_read(char *p);
 static int hotkey_write(char *buf);

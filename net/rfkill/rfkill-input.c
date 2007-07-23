@@ -55,7 +55,7 @@ static void rfkill_task_handler(struct work_struct *work)
 
 static void rfkill_schedule_toggle(struct rfkill_task *task)
 {
-	unsigned int flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&task->lock, flags);
 
@@ -83,7 +83,7 @@ static DEFINE_RFKILL_TASK(rfkill_wlan, RFKILL_TYPE_WLAN);
 static DEFINE_RFKILL_TASK(rfkill_bt, RFKILL_TYPE_BLUETOOTH);
 
 static void rfkill_event(struct input_handle *handle, unsigned int type,
-		        unsigned int code, int down)
+			unsigned int code, int down)
 {
 	if (type == EV_KEY && down == 1) {
 		switch (code) {

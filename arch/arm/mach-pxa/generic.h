@@ -12,8 +12,12 @@
 struct sys_timer;
 
 extern struct sys_timer pxa_timer;
+extern void __init pxa_init_irq_low(void);
+extern void __init pxa_init_irq_high(void);
+extern void __init pxa_init_irq_gpio(int gpio_nr);
+extern void __init pxa25x_init_irq(void);
+extern void __init pxa27x_init_irq(void);
 extern void __init pxa_map_io(void);
-extern void __init pxa_init_irq(void);
 
 extern unsigned int get_clk_frequency_khz(int info);
 

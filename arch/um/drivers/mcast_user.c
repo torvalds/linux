@@ -30,7 +30,7 @@ static struct sockaddr_in *new_addr(char *addr, unsigned short port)
 {
 	struct sockaddr_in *sin;
 
-	sin = um_kmalloc(sizeof(struct sockaddr_in));
+	sin = kmalloc(sizeof(struct sockaddr_in), UM_GFP_KERNEL);
 	if(sin == NULL){
 		printk("new_addr: allocation of sockaddr_in failed\n");
 		return NULL;

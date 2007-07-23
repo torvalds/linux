@@ -53,10 +53,10 @@
 #define hipz_galpa_load_cq(gal, offset) \
 	hipz_galpa_load(gal, CQTEMM_OFFSET(offset))
 
-#define hipz_galpa_store_qp(gal,offset, value) \
+#define hipz_galpa_store_qp(gal, offset, value) \
 	hipz_galpa_store(gal, QPTEMM_OFFSET(offset), value)
 #define hipz_galpa_load_qp(gal, offset) \
-	hipz_galpa_load(gal,QPTEMM_OFFSET(offset))
+	hipz_galpa_load(gal, QPTEMM_OFFSET(offset))
 
 static inline void hipz_update_sqa(struct ehca_qp *qp, u16 nr_wqes)
 {

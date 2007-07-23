@@ -4,3 +4,4 @@ obj-y += system-bus.o
 
 obj-$(CONFIG_SMP) += smp.o
 obj-$(CONFIG_SPU_BASE) += spu.o
+obj-y += device-init.o

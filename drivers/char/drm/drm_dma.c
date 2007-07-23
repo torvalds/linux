@@ -43,7 +43,7 @@
  *
  * Allocate and initialize a drm_device_dma structure.
  */
-int drm_dma_setup(drm_device_t * dev)
+int drm_dma_setup(struct drm_device *dev)
 {
 	int i;
 
@@ -67,9 +67,9 @@ int drm_dma_setup(drm_device_t * dev)
  * Free all pages associated with DMA buffers, the buffers and pages lists, and
  * finally the drm_device::dma structure itself.
  */
-void drm_dma_takedown(drm_device_t * dev)
+void drm_dma_takedown(struct drm_device *dev)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i, j;
 
 	if (!dma)
@@ -129,7 +129,7 @@ void drm_dma_takedown(drm_device_t * dev)
  *
  * Resets the fields of \p buf.
  */
-void drm_free_buffer(drm_device_t * dev, drm_buf_t * buf)
+void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 {
 	if (!buf)
 		return;
@@ -152,9 +152,9 @@ void drm_free_buffer(drm_device_t * dev, drm_buf_t * buf)
  *
  * Frees each buffer associated with \p filp not already on the hardware.
  */
-void drm_core_reclaim_buffers(drm_device_t * dev, struct file *filp)
+void drm_core_reclaim_buffers(struct drm_device *dev, struct file *filp)
 {
-	drm_device_dma_t *dma = dev->dma;
+	struct drm_device_dma *dma = dev->dma;
 	int i;
 
 	if (!dma)

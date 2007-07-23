@@ -4,6 +4,8 @@
  * Copyright (c) 1994-1998 Initio Corporation
  * All rights reserved.
  *
+ * Cleanups (c) Copyright 2007 Red Hat <alan@redhat.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
@@ -17,27 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * --------------------------------------------------------------------------
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * Where this Software is combined with software released under the terms of 
- * the GNU General Public License ("GPL") and the terms of the GPL would require the 
- * combined work to also be released under the terms of the GPL, the terms
- * and conditions of this License will apply in addition to those of the
- * GPL with the exception of any terms or conditions of this License that
- * conflict with, or are expressly prohibited by, the GPL.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -55,17 +36,6 @@
 
 
 #include <linux/types.h>
-
-#define ULONG   unsigned long
-#define USHORT  unsigned short
-#define UCHAR   unsigned char
-#define BYTE    unsigned char
-#define WORD    unsigned short
-#define DWORD   unsigned long
-#define UBYTE   unsigned char
-#define UWORD   unsigned short
-#define UDWORD  unsigned long
-#define U32     u32
 
 #define TOTAL_SG_ENTRY		32
 #define MAX_SUPPORTED_ADAPTERS  8
@@ -368,55 +338,55 @@ typedef struct {
 /************************************************************************/
 /*              Scatter-Gather Element Structure                        */
 /************************************************************************/
-typedef struct SG_Struc {
-	U32 SG_Ptr;		/* Data Pointer */
-	U32 SG_Len;		/* Data Length */
-} SG;
+struct sg_entry {
+	u32 data;		/* Data Pointer */
+	u32 len;		/* Data Length */
+};
 
 /***********************************************************************
 		SCSI Control Block
 ************************************************************************/
-typedef struct Scsi_Ctrl_Blk {
-	struct Scsi_Ctrl_Blk *SCB_NxtScb;
-	UBYTE SCB_Status;	/*4 */
-	UBYTE SCB_NxtStat;	/*5 */
-	UBYTE SCB_Mode;		/*6 */
-	UBYTE SCB_Msgin;	/*7 SCB_Res0 */
-	UWORD SCB_SGIdx;	/*8 */
-	UWORD SCB_SGMax;	/*A */
+struct scsi_ctrl_blk {
+	struct scsi_ctrl_blk *next;
+	u8 status;	/*4 */
+	u8 next_state;	/*5 */
+	u8 mode;		/*6 */
+	u8 msgin;	/*7 SCB_Res0 */
+	u16 sgidx;	/*8 */
+	u16 sgmax;	/*A */
 #ifdef ALPHA
-	U32 SCB_Reserved[2];	/*C */
+	u32 reserved[2];	/*C */
 #else
-	U32 SCB_Reserved[3];	/*C */
+	u32 reserved[3];	/*C */
 #endif
 
-	U32 SCB_XferLen;	/*18 Current xfer len           */
-	U32 SCB_TotXLen;	/*1C Total xfer len             */
-	U32 SCB_PAddr;		/*20 SCB phy. Addr. */
+	u32 xferlen;	/*18 Current xfer len           */
+	u32 totxlen;	/*1C Total xfer len             */
+	u32 paddr;		/*20 SCB phy. Addr. */
 
-	UBYTE SCB_Opcode;	/*24 SCB command code */
-	UBYTE SCB_Flags;	/*25 SCB Flags */
-	UBYTE SCB_Target;	/*26 Target Id */
-	UBYTE SCB_Lun;		/*27 Lun */
-	U32 SCB_BufPtr;		/*28 Data Buffer Pointer */
-	U32 SCB_BufLen;		/*2C Data Allocation Length */
-	UBYTE SCB_SGLen;	/*30 SG list # */
-	UBYTE SCB_SenseLen;	/*31 Sense Allocation Length */
-	UBYTE SCB_HaStat;	/*32 */
-	UBYTE SCB_TaStat;	/*33 */
-	UBYTE SCB_CDBLen;	/*34 CDB Length */
-	UBYTE SCB_Ident;	/*35 Identify */
-	UBYTE SCB_TagMsg;	/*36 Tag Message */
-	UBYTE SCB_TagId;	/*37 Queue Tag */
-	UBYTE SCB_CDB[12];	/*38 */
-	U32 SCB_SGPAddr;	/*44 SG List/Sense Buf phy. Addr. */
-	U32 SCB_SensePtr;	/*48 Sense data pointer */
-	void (*SCB_Post) (BYTE *, BYTE *);	/*4C POST routine */
-	struct scsi_cmnd *SCB_Srb;	/*50 SRB Pointer */
-	SG SCB_SGList[TOTAL_SG_ENTRY];	/*54 Start of SG list */
-} SCB;
+	u8 opcode;	/*24 SCB command code */
+	u8 flags;	/*25 SCB Flags */
+	u8 target;	/*26 Target Id */
+	u8 lun;		/*27 Lun */
+	u32 bufptr;		/*28 Data Buffer Pointer */
+	u32 buflen;		/*2C Data Allocation Length */
+	u8 sglen;	/*30 SG list # */
+	u8 senselen;	/*31 Sense Allocation Length */
+	u8 hastat;	/*32 */
+	u8 tastat;	/*33 */
+	u8 cdblen;	/*34 CDB Length */
+	u8 ident;	/*35 Identify */
+	u8 tagmsg;	/*36 Tag Message */
+	u8 tagid;	/*37 Queue Tag */
+	u8 cdb[12];	/*38 */
+	u32 sgpaddr;	/*44 SG List/Sense Buf phy. Addr. */
+	u32 senseptr;	/*48 Sense data pointer */
+	void (*post) (u8 *, u8 *);	/*4C POST routine */
+	struct scsi_cmnd *srb;	/*50 SRB Pointer */
+	struct sg_entry sglist[TOTAL_SG_ENTRY];	/*54 Start of SG list */
+};
 
-/* Bit Definition for SCB_Status */
+/* Bit Definition for status */
 #define SCB_RENT        0x01
 #define SCB_PEND        0x02
 #define SCB_CONTIG      0x04	/* Contigent Allegiance */
@@ -425,17 +395,17 @@ typedef struct Scsi_Ctrl_Blk {
 #define SCB_DONE        0x20
 
 
-/* Opcodes of SCB_Opcode */
+/* Opcodes for opcode */
 #define ExecSCSI        0x1
 #define BusDevRst       0x2
 #define AbortCmd        0x3
 
 
-/* Bit Definition for SCB_Mode */
+/* Bit Definition for mode */
 #define SCM_RSENS       0x01	/* request sense mode */
 
 
-/* Bit Definition for SCB_Flags */
+/* Bit Definition for flags */
 #define SCF_DONE        0x01
 #define SCF_POST        0x02
 #define SCF_SENSE       0x04
@@ -492,15 +462,14 @@ typedef struct Scsi_Ctrl_Blk {
 		Target Device Control Structure
 **********************************************************************/
 
-typedef struct Tar_Ctrl_Struc {
-	UWORD TCS_Flags;	/* 0 */
-	UBYTE TCS_JS_Period;	/* 2 */
-	UBYTE TCS_SConfig0;	/* 3 */
-
-	UWORD TCS_DrvFlags;	/* 4 */
-	UBYTE TCS_DrvHead;	/* 6 */
-	UBYTE TCS_DrvSector;	/* 7 */
-} TCS;
+struct target_control {
+	u16 flags;
+	u8 js_period;
+	u8 sconfig0;
+	u16 drv_flags;
+	u8 heads;
+	u8 sectors;
+};
 
 /***********************************************************************
 		Target Device Control Structure
@@ -523,62 +492,53 @@ typedef struct Tar_Ctrl_Struc {
 #define TCF_DRV_EN_TAG          0x0800
 #define TCF_DRV_255_63          0x0400
 
-typedef struct I91u_Adpt_Struc {
-	UWORD ADPT_BIOS;	/* 0 */
-	UWORD ADPT_BASE;	/* 1 */
-	UBYTE ADPT_Bus;		/* 2 */
-	UBYTE ADPT_Device;	/* 3 */
-	UBYTE ADPT_INTR;	/* 4 */
-} INI_ADPT_STRUCT;
-
-
 /***********************************************************************
 	      Host Adapter Control Structure
 ************************************************************************/
-typedef struct Ha_Ctrl_Struc {
-	UWORD HCS_Base;		/* 00 */
-	UWORD HCS_BIOS;		/* 02 */
-	UBYTE HCS_Intr;		/* 04 */
-	UBYTE HCS_SCSI_ID;	/* 05 */
-	UBYTE HCS_MaxTar;	/* 06 */
-	UBYTE HCS_NumScbs;	/* 07 */
+struct initio_host {
+	u16 addr;		/* 00 */
+	u16 bios_addr;		/* 02 */
+	u8 irq;			/* 04 */
+	u8 scsi_id;		/* 05 */
+	u8 max_tar;		/* 06 */
+	u8 num_scbs;		/* 07 */
 
-	UBYTE HCS_Flags;	/* 08 */
-	UBYTE HCS_Index;	/* 09 */
-	UBYTE HCS_HaId;		/* 0A */
-	UBYTE HCS_Config;	/* 0B */
-	UWORD HCS_IdMask;	/* 0C */
-	UBYTE HCS_Semaph;	/* 0E */
-	UBYTE HCS_Phase;	/* 0F */
-	UBYTE HCS_JSStatus0;	/* 10 */
-	UBYTE HCS_JSInt;	/* 11 */
-	UBYTE HCS_JSStatus1;	/* 12 */
-	UBYTE HCS_SConf1;	/* 13 */
+	u8 flags;		/* 08 */
+	u8 index;		/* 09 */
+	u8 ha_id;		/* 0A */
+	u8 config;		/* 0B */
+	u16 idmask;		/* 0C */
+	u8 semaph;		/* 0E */
+	u8 phase;		/* 0F */
+	u8 jsstatus0;		/* 10 */
+	u8 jsint;		/* 11 */
+	u8 jsstatus1;		/* 12 */
+	u8 sconf1;		/* 13 */
 
-	UBYTE HCS_Msg[8];	/* 14 */
-	SCB *HCS_NxtAvail;	/* 1C */
-	SCB *HCS_Scb;		/* 20 */
-	SCB *HCS_ScbEnd;	/* 24 */
-	SCB *HCS_NxtPend;	/* 28 */
-	SCB *HCS_NxtContig;	/* 2C */
-	SCB *HCS_ActScb;	/* 30 */
-	TCS *HCS_ActTcs;	/* 34 */
+	u8 msg[8];		/* 14 */
+	struct scsi_ctrl_blk *next_avail;	/* 1C */
+	struct scsi_ctrl_blk *scb;		/* 20 */
+	struct scsi_ctrl_blk *scb_end;		/* 24 */ /*UNUSED*/
+	struct scsi_ctrl_blk *next_pending;	/* 28 */
+	struct scsi_ctrl_blk *next_contig;	/* 2C */ /*UNUSED*/
+	struct scsi_ctrl_blk *active;		/* 30 */
+	struct target_control *active_tc;	/* 34 */
 
-	SCB *HCS_FirstAvail;	/* 38 */
-	SCB *HCS_LastAvail;	/* 3C */
-	SCB *HCS_FirstPend;	/* 40 */
-	SCB *HCS_LastPend;	/* 44 */
-	SCB *HCS_FirstBusy;	/* 48 */
-	SCB *HCS_LastBusy;	/* 4C */
-	SCB *HCS_FirstDone;	/* 50 */
-	SCB *HCS_LastDone;	/* 54 */
-	UBYTE HCS_MaxTags[16];	/* 58 */
-	UBYTE HCS_ActTags[16];	/* 68 */
-	TCS HCS_Tcs[MAX_TARGETS];	/* 78 */
-	spinlock_t HCS_AvailLock;
-	spinlock_t HCS_SemaphLock;
+	struct scsi_ctrl_blk *first_avail;	/* 38 */
+	struct scsi_ctrl_blk *last_avail;	/* 3C */
+	struct scsi_ctrl_blk *first_pending;	/* 40 */
+	struct scsi_ctrl_blk *last_pending;	/* 44 */
+	struct scsi_ctrl_blk *first_busy;	/* 48 */
+	struct scsi_ctrl_blk *last_busy;	/* 4C */
+	struct scsi_ctrl_blk *first_done;	/* 50 */
+	struct scsi_ctrl_blk *last_done;	/* 54 */
+	u8 max_tags[16];	/* 58 */
+	u8 act_tags[16];	/* 68 */
+	struct target_control targets[MAX_TARGETS];	/* 78 */
+	spinlock_t avail_lock;
+	spinlock_t semaph_lock;
 	struct pci_dev *pci_dev;
-} HCS;
+};
 
 /* Bit Definition for HCB_Config */
 #define HCC_SCSI_RESET          0x01
@@ -599,47 +559,47 @@ typedef struct Ha_Ctrl_Struc {
 *******************************************************************/
 
 typedef struct _NVRAM_SCSI {	/* SCSI channel configuration   */
-	UCHAR NVM_ChSCSIID;	/* 0Ch -> Channel SCSI ID       */
-	UCHAR NVM_ChConfig1;	/* 0Dh -> Channel config 1      */
-	UCHAR NVM_ChConfig2;	/* 0Eh -> Channel config 2      */
-	UCHAR NVM_NumOfTarg;	/* 0Fh -> Number of SCSI target */
+	u8 NVM_ChSCSIID;	/* 0Ch -> Channel SCSI ID       */
+	u8 NVM_ChConfig1;	/* 0Dh -> Channel config 1      */
+	u8 NVM_ChConfig2;	/* 0Eh -> Channel config 2      */
+	u8 NVM_NumOfTarg;	/* 0Fh -> Number of SCSI target */
 	/* SCSI target configuration    */
-	UCHAR NVM_Targ0Config;	/* 10h -> Target 0 configuration */
-	UCHAR NVM_Targ1Config;	/* 11h -> Target 1 configuration */
-	UCHAR NVM_Targ2Config;	/* 12h -> Target 2 configuration */
-	UCHAR NVM_Targ3Config;	/* 13h -> Target 3 configuration */
-	UCHAR NVM_Targ4Config;	/* 14h -> Target 4 configuration */
-	UCHAR NVM_Targ5Config;	/* 15h -> Target 5 configuration */
-	UCHAR NVM_Targ6Config;	/* 16h -> Target 6 configuration */
-	UCHAR NVM_Targ7Config;	/* 17h -> Target 7 configuration */
-	UCHAR NVM_Targ8Config;	/* 18h -> Target 8 configuration */
-	UCHAR NVM_Targ9Config;	/* 19h -> Target 9 configuration */
-	UCHAR NVM_TargAConfig;	/* 1Ah -> Target A configuration */
-	UCHAR NVM_TargBConfig;	/* 1Bh -> Target B configuration */
-	UCHAR NVM_TargCConfig;	/* 1Ch -> Target C configuration */
-	UCHAR NVM_TargDConfig;	/* 1Dh -> Target D configuration */
-	UCHAR NVM_TargEConfig;	/* 1Eh -> Target E configuration */
-	UCHAR NVM_TargFConfig;	/* 1Fh -> Target F configuration */
+	u8 NVM_Targ0Config;	/* 10h -> Target 0 configuration */
+	u8 NVM_Targ1Config;	/* 11h -> Target 1 configuration */
+	u8 NVM_Targ2Config;	/* 12h -> Target 2 configuration */
+	u8 NVM_Targ3Config;	/* 13h -> Target 3 configuration */
+	u8 NVM_Targ4Config;	/* 14h -> Target 4 configuration */
+	u8 NVM_Targ5Config;	/* 15h -> Target 5 configuration */
+	u8 NVM_Targ6Config;	/* 16h -> Target 6 configuration */
+	u8 NVM_Targ7Config;	/* 17h -> Target 7 configuration */
+	u8 NVM_Targ8Config;	/* 18h -> Target 8 configuration */
+	u8 NVM_Targ9Config;	/* 19h -> Target 9 configuration */
+	u8 NVM_TargAConfig;	/* 1Ah -> Target A configuration */
+	u8 NVM_TargBConfig;	/* 1Bh -> Target B configuration */
+	u8 NVM_TargCConfig;	/* 1Ch -> Target C configuration */
+	u8 NVM_TargDConfig;	/* 1Dh -> Target D configuration */
+	u8 NVM_TargEConfig;	/* 1Eh -> Target E configuration */
+	u8 NVM_TargFConfig;	/* 1Fh -> Target F configuration */
 } NVRAM_SCSI;
 
 typedef struct _NVRAM {
 /*----------header ---------------*/
-	USHORT NVM_Signature;	/* 0,1: Signature */
-	UCHAR NVM_Size;		/* 2:   Size of data structure */
-	UCHAR NVM_Revision;	/* 3:   Revision of data structure */
+	u16 NVM_Signature;	/* 0,1: Signature */
+	u8 NVM_Size;		/* 2:   Size of data structure */
+	u8 NVM_Revision;	/* 3:   Revision of data structure */
 	/* ----Host Adapter Structure ---- */
-	UCHAR NVM_ModelByte0;	/* 4:   Model number (byte 0) */
-	UCHAR NVM_ModelByte1;	/* 5:   Model number (byte 1) */
-	UCHAR NVM_ModelInfo;	/* 6:   Model information         */
-	UCHAR NVM_NumOfCh;	/* 7:   Number of SCSI channel */
-	UCHAR NVM_BIOSConfig1;	/* 8:   BIOS configuration 1  */
-	UCHAR NVM_BIOSConfig2;	/* 9:   BIOS configuration 2  */
-	UCHAR NVM_HAConfig1;	/* A:   Hoat adapter configuration 1 */
-	UCHAR NVM_HAConfig2;	/* B:   Hoat adapter configuration 2 */
+	u8 NVM_ModelByte0;	/* 4:   Model number (byte 0) */
+	u8 NVM_ModelByte1;	/* 5:   Model number (byte 1) */
+	u8 NVM_ModelInfo;	/* 6:   Model information         */
+	u8 NVM_NumOfCh;	/* 7:   Number of SCSI channel */
+	u8 NVM_BIOSConfig1;	/* 8:   BIOS configuration 1  */
+	u8 NVM_BIOSConfig2;	/* 9:   BIOS configuration 2  */
+	u8 NVM_HAConfig1;	/* A:   Hoat adapter configuration 1 */
+	u8 NVM_HAConfig2;	/* B:   Hoat adapter configuration 2 */
 	NVRAM_SCSI NVM_SCSIInfo[2];
-	UCHAR NVM_reserved[10];
+	u8 NVM_reserved[10];
 	/* ---------- CheckSum ----------       */
-	USHORT NVM_CheckSum;	/* 0x3E, 0x3F: Checksum of NVRam        */
+	u16 NVM_CheckSum;	/* 0x3E, 0x3F: Checksum of NVRam        */
 } NVRAM, *PNVRAM;
 
 /* Bios Configuration for nvram->BIOSConfig1                            */
@@ -680,19 +640,6 @@ typedef struct _NVRAM {
 #define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
 #define DISC_ALLOW              0xC0	/* Disconnect is allowed        */
 #define SCSICMD_RequestSense    0x03
-
-typedef struct _HCSinfo {
-	ULONG base;
-	UCHAR vec;
-	UCHAR bios;		/* High byte of BIOS address */
-	USHORT BaseAndBios;	/* high byte: pHcsInfo->bios,low byte:pHcsInfo->base */
-} HCSINFO;
-
-#define TUL_RD(x,y)             (UCHAR)(inb(  (int)((ULONG)(x+y)) ))
-#define TUL_RDLONG(x,y)         (ULONG)(inl((int)((ULONG)(x+y)) ))
-#define TUL_WR(     adr,data)   outb( (UCHAR)(data), (int)(adr))
-#define TUL_WRSHORT(adr,data)   outw( (UWORD)(data), (int)(adr))
-#define TUL_WRLONG( adr,data)   outl( (ULONG)(data), (int)(adr))
 
 #define SCSI_ABORT_SNOOZE 0
 #define SCSI_ABORT_SUCCESS 1

@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/arch/map.h>
-#include <asm/arch/regs-timer.h>
+#include <asm/plat-s3c/regs-timer.h>
 #include <asm/arch/regs-irq.h>
 #include <asm/mach/time.h>
 

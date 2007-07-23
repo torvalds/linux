@@ -745,7 +745,7 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ip_vs_conn_seq_ops = {
+static const struct seq_operations ip_vs_conn_seq_ops = {
 	.start = ip_vs_conn_seq_start,
 	.next  = ip_vs_conn_seq_next,
 	.stop  = ip_vs_conn_seq_stop,
@@ -901,7 +901,7 @@ int ip_vs_conn_init(void)
 	/* Allocate ip_vs_conn slab cache */
 	ip_vs_conn_cachep = kmem_cache_create("ip_vs_conn",
 					      sizeof(struct ip_vs_conn), 0,
-					      SLAB_HWCACHE_ALIGN, NULL, NULL);
+					      SLAB_HWCACHE_ALIGN, NULL);
 	if (!ip_vs_conn_cachep) {
 		vfree(ip_vs_conn_tab);
 		return -ENOMEM;

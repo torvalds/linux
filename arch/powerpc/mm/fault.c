@@ -145,7 +145,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	struct mm_struct *mm = current->mm;
 	siginfo_t info;
 	int code = SEGV_MAPERR;
-	int is_write = 0;
+	int is_write = 0, ret;
 	int trap = TRAP(regs);
  	int is_exec = trap == 0x400;
 
@@ -283,7 +283,13 @@ good_area:
 		/* protection fault */
 		if (error_code & DSISR_PROTFAULT)
 			goto bad_area;
-		if (!(vma->vm_flags & VM_EXEC))
+		/*
+		 * Allow execution from readable areas if the MMU does not
+		 * provide separate controls over reading and executing.
+		 */
+		if (!(vma->vm_flags & VM_EXEC) &&
+		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
 #else
 		pte_t *ptep;
@@ -330,22 +336,18 @@ good_area:
 	 * the fault.
 	 */
  survive:
-	switch (handle_mm_fault(mm, vma, address, is_write)) {
-
-	case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		goto do_sigbus;
-	case VM_FAULT_OOM:
-		goto out_of_memory;
-	default:
+	ret = handle_mm_fault(mm, vma, address, is_write);
+	if (unlikely(ret & VM_FAULT_ERROR)) {
+		if (ret & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (ret & VM_FAULT_SIGBUS)
+			goto do_sigbus;
 		BUG();
 	}
-
+	if (ret & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	up_read(&mm->mmap_sem);
 	return 0;
 
@@ -380,7 +382,7 @@ out_of_memory:
 	}
 	printk("VM: killing process %s\n", current->comm);
 	if (user_mode(regs))
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 	return SIGKILL;
 
 do_sigbus:

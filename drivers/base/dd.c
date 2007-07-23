@@ -281,24 +281,16 @@ int driver_attach(struct device_driver * drv)
 	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
 
-/**
- *	device_release_driver - manually detach device from driver.
- *	@dev:	device.
- *
- *	Manually detach device from driver.
- *
+/*
  *	__device_release_driver() must be called with @dev->sem held.
- *	When called for a USB interface, @dev->parent->sem must be held
- *	as well.
+ *	When called for a USB interface, @dev->parent->sem must be held as well.
  */
-
 static void __device_release_driver(struct device * dev)
 {
 	struct device_driver * drv;
 
-	drv = dev->driver;
+	drv = get_driver(dev->driver);
 	if (drv) {
-		get_driver(drv);
 		driver_sysfs_remove(dev);
 		sysfs_remove_link(&dev->kobj, "driver");
 		klist_remove(&dev->knode_driver);
@@ -318,6 +310,13 @@ static void __device_release_driver(struct device * dev)
 	}
 }
 
+/**
+ *	device_release_driver - manually detach device from driver.
+ *	@dev:	device.
+ *
+ *	Manually detach device from driver.
+ *	When called for a USB interface, @dev->parent->sem must be held.
+ */
 void device_release_driver(struct device * dev)
 {
 	/*

@@ -42,6 +42,9 @@
 #define	NFSEXP_NOACL		0x8000	/* reserved for possible ACL related use */
 #define NFSEXP_ALLFLAGS		0xFE3F
 
+/* The flags that may vary depending on security flavor: */
+#define NFSEXP_SECINFO_FLAGS	(NFSEXP_READONLY | NFSEXP_ROOTSQUASH \
+					| NFSEXP_ALLSQUASH)
 
 #ifdef __KERNEL__
 
@@ -64,6 +67,19 @@ struct nfsd4_fs_locations {
 	int migrated;
 };
 
+/*
+ * We keep an array of pseudoflavors with the export, in order from most
+ * to least preferred.  For the forseeable future, we don't expect more
+ * than the eight pseudoflavors null, unix, krb5, krb5i, krb5p, skpm3,
+ * spkm3i, and spkm3p (and using all 8 at once should be rare).
+ */
+#define MAX_SECINFO_LIST	8
+
+struct exp_flavor_info {
+	u32	pseudoflavor;
+	u32	flags;
+};
+
 struct svc_export {
 	struct cache_head	h;
 	struct auth_domain *	ex_client;
@@ -76,6 +92,8 @@ struct svc_export {
 	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
+	int			ex_nflavors;
+	struct exp_flavor_info	ex_flavors[MAX_SECINFO_LIST];
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an
@@ -95,10 +113,11 @@ struct svc_expkey {
 
 #define EX_SECURE(exp)		(!((exp)->ex_flags & NFSEXP_INSECURE_PORT))
 #define EX_ISSYNC(exp)		(!((exp)->ex_flags & NFSEXP_ASYNC))
-#define EX_RDONLY(exp)		((exp)->ex_flags & NFSEXP_READONLY)
 #define EX_NOHIDE(exp)		((exp)->ex_flags & NFSEXP_NOHIDE)
 #define EX_WGATHER(exp)		((exp)->ex_flags & NFSEXP_GATHERED_WRITES)
 
+int nfsexp_flags(struct svc_rqst *rqstp, struct svc_export *exp);
+__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp);
 
 /*
  * Function declarations
@@ -112,13 +131,19 @@ struct svc_export *	exp_get_by_name(struct auth_domain *clp,
 					struct vfsmount *mnt,
 					struct dentry *dentry,
 					struct cache_req *reqp);
+struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
+					     struct vfsmount *,
+					     struct dentry *);
 struct svc_export *	exp_parent(struct auth_domain *clp,
 				   struct vfsmount *mnt,
 				   struct dentry *dentry,
 				   struct cache_req *reqp);
+struct svc_export *	rqst_exp_parent(struct svc_rqst *,
+					struct vfsmount *mnt,
+					struct dentry *dentry);
 int			exp_rootfh(struct auth_domain *, 
 					char *path, struct knfsd_fh *, int maxsize);
-__be32			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
+__be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);
 __be32			nfserrno(int errno);
 
 extern struct cache_detail svc_export_cache;
@@ -135,6 +160,7 @@ static inline void exp_get(struct svc_export *exp)
 extern struct svc_export *
 exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	 struct cache_req *reqp);
+struct svc_export * rqst_exp_find(struct svc_rqst *, int, u32 *);
 
 #endif /* __KERNEL__ */
 

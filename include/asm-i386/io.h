@@ -129,6 +129,7 @@ extern void iounmap(volatile void __iomem *addr);
  */
 extern void *bt_ioremap(unsigned long offset, unsigned long size);
 extern void bt_iounmap(void *addr, unsigned long size);
+extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /* Use early IO mappings for DMI because it's initialized early */
 #define dmi_ioremap bt_ioremap

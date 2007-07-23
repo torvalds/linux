@@ -175,7 +175,7 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * e
  * @param nlen Number of bytes in needle.
  * @return Pointer into haystack needle was found at, or NULL if not found.
  */
-static u8 *findstr(u8 * haystack, int hlen, u8 * needle, int nlen)
+static char *findstr(char * haystack, int hlen, char * needle, int nlen)
 {
 	int i;
 
@@ -482,7 +482,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 	}
 
 	/* check it contains the correct DVB string */
-	dvb_str = findstr(tuple, tupleLength, "DVB_CI_V", 8);
+	dvb_str = findstr((char *)tuple, tupleLength, "DVB_CI_V", 8);
 	if (dvb_str == NULL)
 		return -EINVAL;
 	if (tupleLength < ((dvb_str - (char *) tuple) + 12))
@@ -513,8 +513,8 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 			ca->slot_info[slot].config_option = tuple[0] & 0x3f;
 
 			/* OK, check it contains the correct strings */
-			if ((findstr(tuple, tupleLength, "DVB_HOST", 8) == NULL) ||
-			    (findstr(tuple, tupleLength, "DVB_CI_MODULE", 13) == NULL))
+			if ((findstr((char *)tuple, tupleLength, "DVB_HOST", 8) == NULL) ||
+			    (findstr((char *)tuple, tupleLength, "DVB_CI_MODULE", 13) == NULL))
 				break;
 
 			got_cftableentry = 1;
@@ -1300,7 +1300,7 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 	struct dvb_ca_private *ca = dvbdev->priv;
 	u8 slot, connection_id;
 	int status;
-	char fragbuf[HOST_LINK_BUF_SIZE];
+	u8 fragbuf[HOST_LINK_BUF_SIZE];
 	int fragpos = 0;
 	int fraglen;
 	unsigned long timeout;
@@ -1486,7 +1486,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 				}
 
 				if ((status = dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 2,
-								      buf + pktlen, fraglen, 1)) < 0) {
+								      (u8 *)buf + pktlen, fraglen, 1)) < 0) {
 					goto exit;
 				}
 				pktlen += fraglen;

@@ -127,6 +127,13 @@ superio_exit(int base)
 #define F71805F_REG_TEMP_HIGH(nr)	(0x54 + 2 * (nr))
 #define F71805F_REG_TEMP_HYST(nr)	(0x55 + 2 * (nr))
 #define F71805F_REG_TEMP_MODE		0x01
+/* pwm/fan pwmnr from 0 to 2, auto point apnr from 0 to 2 */
+/* map Fintek numbers to our numbers as follows: 9->0, 5->1, 1->2 */
+#define F71805F_REG_PWM_AUTO_POINT_TEMP(pwmnr, apnr) \
+					(0xA0 + 0x10 * (pwmnr) + (2 - (apnr)))
+#define F71805F_REG_PWM_AUTO_POINT_FAN(pwmnr, apnr) \
+					(0xA4 + 0x10 * (pwmnr) + \
+						2 * (2 - (apnr)))
 
 #define F71805F_REG_START		0x00
 /* status nr from 0 to 2 */
@@ -143,6 +150,11 @@ superio_exit(int base)
 /*
  * Data structures and manipulation thereof
  */
+
+struct f71805f_auto_point {
+	u8 temp[3];
+	u16 fan[3];
+};
 
 struct f71805f_data {
 	unsigned short addr;
@@ -170,6 +182,7 @@ struct f71805f_data {
 	u8 temp_hyst[3];
 	u8 temp_mode;
 	unsigned long alarms;
+	struct f71805f_auto_point auto_points[3];
 };
 
 struct f71805f_sio_data {
@@ -312,7 +325,7 @@ static void f71805f_write16(struct f71805f_data *data, u8 reg, u16 val)
 static struct f71805f_data *f71805f_update_device(struct device *dev)
 {
 	struct f71805f_data *data = dev_get_drvdata(dev);
-	int nr;
+	int nr, apnr;
 
 	mutex_lock(&data->update_lock);
 
@@ -342,6 +355,18 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 					      F71805F_REG_TEMP_HYST(nr));
 		}
 		data->temp_mode = f71805f_read8(data, F71805F_REG_TEMP_MODE);
+		for (nr = 0; nr < 3; nr++) {
+			for (apnr = 0; apnr < 3; apnr++) {
+				data->auto_points[nr].temp[apnr] =
+					f71805f_read8(data,
+					F71805F_REG_PWM_AUTO_POINT_TEMP(nr,
+									apnr));
+				data->auto_points[nr].fan[apnr] =
+					f71805f_read16(data,
+					F71805F_REG_PWM_AUTO_POINT_FAN(nr,
+								       apnr));
+			}
+		}
 
 		data->last_limits = jiffies;
 	}
@@ -705,6 +730,70 @@ static ssize_t set_pwm_freq(struct device *dev, struct device_attribute
 	return count;
 }
 
+static ssize_t show_pwm_auto_point_temp(struct device *dev,
+					struct device_attribute *devattr,
+					char* buf)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
+	int pwmnr = attr->nr;
+	int apnr = attr->index;
+
+	return sprintf(buf, "%ld\n",
+		       temp_from_reg(data->auto_points[pwmnr].temp[apnr]));
+}
+
+static ssize_t set_pwm_auto_point_temp(struct device *dev,
+				       struct device_attribute *devattr,
+				       const char* buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
+	int pwmnr = attr->nr;
+	int apnr = attr->index;
+	unsigned long val = simple_strtol(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->auto_points[pwmnr].temp[apnr] = temp_to_reg(val);
+	f71805f_write8(data, F71805F_REG_PWM_AUTO_POINT_TEMP(pwmnr, apnr),
+		       data->auto_points[pwmnr].temp[apnr]);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm_auto_point_fan(struct device *dev,
+				       struct device_attribute *devattr,
+				       char* buf)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
+	int pwmnr = attr->nr;
+	int apnr = attr->index;
+
+	return sprintf(buf, "%ld\n",
+		       fan_from_reg(data->auto_points[pwmnr].fan[apnr]));
+}
+
+static ssize_t set_pwm_auto_point_fan(struct device *dev,
+				      struct device_attribute *devattr,
+				      const char* buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
+	int pwmnr = attr->nr;
+	int apnr = attr->index;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->auto_points[pwmnr].fan[apnr] = fan_to_reg(val);
+	f71805f_write16(data, F71805F_REG_PWM_AUTO_POINT_FAN(pwmnr, apnr),
+		        data->auto_points[pwmnr].fan[apnr]);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
 static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
@@ -932,6 +1021,63 @@ static SENSOR_DEVICE_ATTR(pwm3_freq, S_IRUGO | S_IWUSR,
 			  show_pwm_freq, set_pwm_freq, 2);
 static SENSOR_DEVICE_ATTR(pwm3_mode, S_IRUGO, show_pwm_mode, NULL, 2);
 
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    0, 1);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    0, 1);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    0, 2);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    0, 2);
+
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    1, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    1, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    1, 2);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    1, 2);
+
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_temp, set_pwm_auto_point_temp,
+			    2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_fan, S_IRUGO | S_IWUSR,
+			    show_pwm_auto_point_fan, set_pwm_auto_point_fan,
+			    2, 2);
+
 static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
 static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
@@ -1013,6 +1159,25 @@ static struct attribute *f71805f_attributes[] = {
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp3_type.dev_attr.attr,
+
+	&sensor_dev_attr_pwm1_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point1_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point2_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point3_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point1_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point2_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point3_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_fan.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_fan.dev_attr.attr,
 
 	&sensor_dev_attr_in0_alarm.dev_attr.attr,
 	&sensor_dev_attr_in1_alarm.dev_attr.attr,
@@ -1242,12 +1407,12 @@ static int __devexit f71805f_remove(struct platform_device *pdev)
 	struct resource *res;
 	int i;
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -1290,15 +1455,12 @@ static int __init f71805f_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
-	pdev->dev.platform_data = kmalloc(sizeof(struct f71805f_sio_data),
-					  GFP_KERNEL);
-	if (!pdev->dev.platform_data) {
-		err = -ENOMEM;
+	err = platform_device_add_data(pdev, sio_data,
+				       sizeof(struct f71805f_sio_data));
+	if (err) {
 		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
 		goto exit_device_put;
 	}
-	memcpy(pdev->dev.platform_data, sio_data,
-	       sizeof(struct f71805f_sio_data));
 
 	err = platform_device_add(pdev);
 	if (err) {

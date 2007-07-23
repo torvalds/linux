@@ -87,7 +87,7 @@ void __init l1sram_init(void)
 	       L1_SCRATCH_LENGTH >> 10);
 
 	memset(&l1_ssram, 0x00, sizeof(l1_ssram));
-	l1_ssram[0].paddr = (void*)L1_SCRATCH_START;
+	l1_ssram[0].paddr = (void *)L1_SCRATCH_START;
 	l1_ssram[0].size = L1_SCRATCH_LENGTH;
 	l1_ssram[0].flag = SRAM_SLT_FREE;
 
@@ -126,7 +126,7 @@ void __init l1_inst_sram_init(void)
 {
 #if L1_CODE_LENGTH != 0
 	memset(&l1_inst_sram, 0x00, sizeof(l1_inst_sram));
-	l1_inst_sram[0].paddr = (void*)L1_CODE_START + (_etext_l1 - _stext_l1);
+	l1_inst_sram[0].paddr = (void *)L1_CODE_START + (_etext_l1 - _stext_l1);
 	l1_inst_sram[0].size = L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
 	l1_inst_sram[0].flag = SRAM_SLT_FREE;
 
@@ -521,10 +521,9 @@ void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 	struct sram_list_struct *lsl = NULL;
 	struct mm_struct *mm = current->mm;
 
-	lsl = kmalloc(sizeof(struct sram_list_struct), GFP_KERNEL);
+	lsl = kzalloc(sizeof(struct sram_list_struct), GFP_KERNEL);
 	if (!lsl)
 		return NULL;
-	memset(lsl, 0, sizeof(*lsl));
 
 	if (flags & L1_INST_SRAM)
 		addr = l1_inst_sram_alloc(size);

@@ -36,7 +36,8 @@ static inline void __iomem *plat_ioremap(phys_t offset, unsigned long size,
 
 static inline int plat_iounmap(const volatile void __iomem *addr)
 {
-	return (unsigned long)addr >= (unsigned long)(int)TXX9_DIRECTMAP_BASE;
+	return (unsigned long)addr >=
+		(unsigned long)(int)(TXX9_DIRECTMAP_BASE & 0xffffffff);
 }
 
 #endif /* __ASM_MACH_TX49XX_IOREMAP_H */

@@ -368,7 +368,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 	int err, pnum, scrub = 0, idx = vol_id2idx(ubi, vol_id);
 	struct ubi_vid_hdr *vid_hdr;
 	struct ubi_volume *vol = ubi->volumes[idx];
-	uint32_t crc, crc1;
+	uint32_t uninitialized_var(crc);
 
 	err = leb_read_lock(ubi, vol_id, lnum);
 	if (err)
@@ -425,10 +425,10 @@ retry:
 		} else if (err == UBI_IO_BITFLIPS)
 			scrub = 1;
 
-		ubi_assert(lnum < ubi32_to_cpu(vid_hdr->used_ebs));
-		ubi_assert(len == ubi32_to_cpu(vid_hdr->data_size));
+		ubi_assert(lnum < be32_to_cpu(vid_hdr->used_ebs));
+		ubi_assert(len == be32_to_cpu(vid_hdr->data_size));
 
-		crc = ubi32_to_cpu(vid_hdr->data_crc);
+		crc = be32_to_cpu(vid_hdr->data_crc);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 	}
 
@@ -451,7 +451,7 @@ retry:
 	}
 
 	if (check) {
-		crc1 = crc32(UBI_CRC32_INIT, buf, len);
+		uint32_t crc1 = crc32(UBI_CRC32_INIT, buf, len);
 		if (crc1 != crc) {
 			ubi_warn("CRC error: calculated %#08x, must be %#08x",
 				 crc1, crc);
@@ -518,13 +518,13 @@ retry:
 		goto out_put;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 	err = ubi_io_write_vid_hdr(ubi, new_pnum, vid_hdr);
 	if (err)
 		goto write_error;
 
 	data_size = offset + len;
-	new_buf = kmalloc(data_size, GFP_KERNEL);
+	new_buf = vmalloc(data_size);
 	if (!new_buf) {
 		err = -ENOMEM;
 		goto out_put;
@@ -535,7 +535,7 @@ retry:
 	if (offset > 0) {
 		err = ubi_io_read_data(ubi, new_buf, pnum, 0, offset);
 		if (err && err != UBI_IO_BITFLIPS) {
-			kfree(new_buf);
+			vfree(new_buf);
 			goto out_put;
 		}
 	}
@@ -544,11 +544,11 @@ retry:
 
 	err = ubi_io_write_data(ubi, new_buf, new_pnum, 0, data_size);
 	if (err) {
-		kfree(new_buf);
+		vfree(new_buf);
 		goto write_error;
 	}
 
-	kfree(new_buf);
+	vfree(new_buf);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 
 	vol->eba_tbl[lnum] = new_pnum;
@@ -634,11 +634,11 @@ int ubi_eba_write_leb(struct ubi_device *ubi, int vol_id, int lnum,
 	}
 
 	vid_hdr->vol_type = UBI_VID_DYNAMIC;
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
-	vid_hdr->vol_id = cpu_to_ubi32(vol_id);
-	vid_hdr->lnum = cpu_to_ubi32(lnum);
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->vol_id = cpu_to_be32(vol_id);
+	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
-	vid_hdr->data_pad = cpu_to_ubi32(vol->data_pad);
+	vid_hdr->data_pad = cpu_to_be32(vol->data_pad);
 
 retry:
 	pnum = ubi_wl_get_peb(ubi, dtype);
@@ -692,7 +692,7 @@ write_error:
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -748,17 +748,17 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, int vol_id, int lnum,
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
-	vid_hdr->vol_id = cpu_to_ubi32(vol_id);
-	vid_hdr->lnum = cpu_to_ubi32(lnum);
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->vol_id = cpu_to_be32(vol_id);
+	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
-	vid_hdr->data_pad = cpu_to_ubi32(vol->data_pad);
+	vid_hdr->data_pad = cpu_to_be32(vol->data_pad);
 
 	crc = crc32(UBI_CRC32_INIT, buf, data_size);
 	vid_hdr->vol_type = UBI_VID_STATIC;
-	vid_hdr->data_size = cpu_to_ubi32(data_size);
-	vid_hdr->used_ebs = cpu_to_ubi32(used_ebs);
-	vid_hdr->data_crc = cpu_to_ubi32(crc);
+	vid_hdr->data_size = cpu_to_be32(data_size);
+	vid_hdr->used_ebs = cpu_to_be32(used_ebs);
+	vid_hdr->data_crc = cpu_to_be32(crc);
 
 retry:
 	pnum = ubi_wl_get_peb(ubi, dtype);
@@ -813,7 +813,7 @@ write_error:
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -854,17 +854,17 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
-	vid_hdr->vol_id = cpu_to_ubi32(vol_id);
-	vid_hdr->lnum = cpu_to_ubi32(lnum);
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->vol_id = cpu_to_be32(vol_id);
+	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
-	vid_hdr->data_pad = cpu_to_ubi32(vol->data_pad);
+	vid_hdr->data_pad = cpu_to_be32(vol->data_pad);
 
 	crc = crc32(UBI_CRC32_INIT, buf, len);
-	vid_hdr->vol_type = UBI_VID_STATIC;
-	vid_hdr->data_size = cpu_to_ubi32(len);
+	vid_hdr->vol_type = UBI_VID_DYNAMIC;
+	vid_hdr->data_size = cpu_to_be32(len);
 	vid_hdr->copy_flag = 1;
-	vid_hdr->data_crc = cpu_to_ubi32(crc);
+	vid_hdr->data_crc = cpu_to_be32(crc);
 
 retry:
 	pnum = ubi_wl_get_peb(ubi, dtype);
@@ -891,11 +891,13 @@ retry:
 		goto write_error;
 	}
 
-	err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
-	if (err) {
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		leb_write_unlock(ubi, vol_id, lnum);
-		return err;
+	if (vol->eba_tbl[lnum] >= 0) {
+		err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
+		if (err) {
+			ubi_free_vid_hdr(ubi, vid_hdr);
+			leb_write_unlock(ubi, vol_id, lnum);
+			return err;
+		}
 	}
 
 	vol->eba_tbl[lnum] = pnum;
@@ -924,7 +926,7 @@ write_error:
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -965,19 +967,19 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	uint32_t crc;
 	void *buf, *buf1 = NULL;
 
-	vol_id = ubi32_to_cpu(vid_hdr->vol_id);
-	lnum = ubi32_to_cpu(vid_hdr->lnum);
+	vol_id = be32_to_cpu(vid_hdr->vol_id);
+	lnum = be32_to_cpu(vid_hdr->lnum);
 
 	dbg_eba("copy LEB %d:%d, PEB %d to PEB %d", vol_id, lnum, from, to);
 
 	if (vid_hdr->vol_type == UBI_VID_STATIC) {
-		data_size = ubi32_to_cpu(vid_hdr->data_size);
+		data_size = be32_to_cpu(vid_hdr->data_size);
 		aldata_size = ALIGN(data_size, ubi->min_io_size);
 	} else
 		data_size = aldata_size =
-			    ubi->leb_size - ubi32_to_cpu(vid_hdr->data_pad);
+			    ubi->leb_size - be32_to_cpu(vid_hdr->data_pad);
 
-	buf = kmalloc(aldata_size, GFP_KERNEL);
+	buf = vmalloc(aldata_size);
 	if (!buf)
 		return -ENOMEM;
 
@@ -987,7 +989,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 */
 	err = leb_write_lock(ubi, vol_id, lnum);
 	if (err) {
-		kfree(buf);
+		vfree(buf);
 		return err;
 	}
 
@@ -1054,10 +1056,10 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 */
 	if (data_size > 0) {
 		vid_hdr->copy_flag = 1;
-		vid_hdr->data_size = cpu_to_ubi32(data_size);
-		vid_hdr->data_crc = cpu_to_ubi32(crc);
+		vid_hdr->data_size = cpu_to_be32(data_size);
+		vid_hdr->data_crc = cpu_to_be32(crc);
 	}
-	vid_hdr->sqnum = cpu_to_ubi64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 
 	err = ubi_io_write_vid_hdr(ubi, to, vid_hdr);
 	if (err)
@@ -1082,7 +1084,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		 * We've written the data and are going to read it back to make
 		 * sure it was written correctly.
 		 */
-		buf1 = kmalloc(aldata_size, GFP_KERNEL);
+		buf1 = vmalloc(aldata_size);
 		if (!buf1) {
 			err = -ENOMEM;
 			goto out_unlock;
@@ -1111,15 +1113,15 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	vol->eba_tbl[lnum] = to;
 
 	leb_write_unlock(ubi, vol_id, lnum);
-	kfree(buf);
-	kfree(buf1);
+	vfree(buf);
+	vfree(buf1);
 
 	return 0;
 
 out_unlock:
 	leb_write_unlock(ubi, vol_id, lnum);
-	kfree(buf);
-	kfree(buf1);
+	vfree(buf);
+	vfree(buf1);
 	return err;
 }
 
@@ -1147,7 +1149,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	if (ubi_devices_cnt == 0) {
 		ltree_slab = kmem_cache_create("ubi_ltree_slab",
 					       sizeof(struct ltree_entry), 0,
-					       0, &ltree_entry_ctor, NULL);
+					       0, &ltree_entry_ctor);
 		if (!ltree_slab)
 			return -ENOMEM;
 	}

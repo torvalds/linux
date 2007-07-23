@@ -131,14 +131,7 @@ void __init board_setup(void)
 	/* The Pb1200 development board uses external MUX for PSC0 to
 	support SMB/SPI. bcsr->resets bit 12: 0=SMB 1=SPI
 	*/
-#if defined(CONFIG_AU1XXX_PSC_SPI) && defined(CONFIG_I2C_AU1550)
-	#error I2C and SPI are mutually exclusive. Both are physically connected to PSC0.\
-			Refer to Pb1200/Db1200 documentation.
-#elif defined( CONFIG_AU1XXX_PSC_SPI )
-	bcsr->resets |= BCSR_RESETS_PCS0MUX;
-	/*Hard Coding Value to enable Temp Sensors [bit 14] Value for SOC Au1200. Pls refer documentation*/
-	  bcsr->resets =0x900f;
-#elif defined( CONFIG_I2C_AU1550 )
+#ifdef CONFIG_I2C_AU1550
 	bcsr->resets &= (~BCSR_RESETS_PCS0MUX);
 #endif
 	au_sync();

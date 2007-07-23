@@ -485,3 +485,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IP Payload Compression Protocol (IPComp) - RFC3173");
 MODULE_AUTHOR("James Morris <jmorris@intercode.com.au>");
 
+MODULE_ALIAS_XFRM_TYPE(AF_INET, XFRM_PROTO_COMP);

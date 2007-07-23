@@ -16,7 +16,9 @@ struct kmem_cache_node {
 	unsigned long nr_partial;
 	atomic_long_t nr_slabs;
 	struct list_head partial;
+#ifdef CONFIG_SLUB_DEBUG
 	struct list_head full;
+#endif
 };
 
 /*
@@ -44,7 +46,9 @@ struct kmem_cache {
 	int align;		/* Alignment */
 	const char *name;	/* Name (only for display!) */
 	struct list_head list;	/* List of slab caches */
+#ifdef CONFIG_SLUB_DEBUG
 	struct kobject kobj;	/* For sysfs */
+#endif
 
 #ifdef CONFIG_NUMA
 	int defrag_ratio;
@@ -156,20 +160,11 @@ static inline struct kmem_cache *kmalloc_slab(size_t size)
 #define SLUB_DMA __GFP_DMA
 #else
 /* Disable DMA functionality */
-#define SLUB_DMA 0
+#define SLUB_DMA (__force gfp_t)0
 #endif
 
-
-/*
- * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
- *
- * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
- *
- * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
- * Both make kfree a no-op.
- */
-#define ZERO_SIZE_PTR ((void *)16)
-
+void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+void *__kmalloc(size_t size, gfp_t flags);
 
 static inline void *kmalloc(size_t size, gfp_t flags)
 {
@@ -184,21 +179,9 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 		return __kmalloc(size, flags);
 }
 
-static inline void *kzalloc(size_t size, gfp_t flags)
-{
-	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
-		struct kmem_cache *s = kmalloc_slab(size);
-
-		if (!s)
-			return ZERO_SIZE_PTR;
-
-		return kmem_cache_zalloc(s, flags);
-	} else
-		return __kzalloc(size, flags);
-}
-
 #ifdef CONFIG_NUMA
-extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+void *__kmalloc_node(size_t size, gfp_t flags, int node);
+void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
 
 static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {

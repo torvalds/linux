@@ -4,5 +4,6 @@
 
 obj-$(CONFIG_PCIEAER) += aerdriver.o
 
-aerdriver-objs := aerdrv_errprint.o aerdrv_core.o aerdrv.o aerdrv_acpi.o
+aerdriver-objs := aerdrv_errprint.o aerdrv_core.o aerdrv.o
+aerdriver-$(CONFIG_ACPI) += aerdrv_acpi.o
 

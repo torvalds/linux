@@ -27,7 +27,7 @@ static int saa7146_num;
 
 unsigned int saa7146_debug;
 
-module_param(saa7146_debug, int, 0644);
+module_param(saa7146_debug, uint, 0644);
 MODULE_PARM_DESC(saa7146_debug, "debug level (default: 0)");
 
 #if 0
@@ -130,10 +130,10 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 /********************************************************************************/
 /* common page table functions */
 
-char *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa7146_pgtable *pt)
+void *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa7146_pgtable *pt)
 {
 	int pages = (length+PAGE_SIZE-1)/PAGE_SIZE;
-	char *mem = vmalloc_32(length);
+	void *mem = vmalloc_32(length);
 	int slen = 0;
 
 	if (NULL == mem)
@@ -168,7 +168,7 @@ err_null:
 	return NULL;
 }
 
-void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, char *mem, struct saa7146_pgtable *pt)
+void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, void *mem, struct saa7146_pgtable *pt)
 {
 	pci_unmap_sg(pci, pt->slist, pt->nents, PCI_DMA_FROMDEVICE);
 	saa7146_pgtable_free(pci, pt);

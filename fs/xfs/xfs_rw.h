@@ -72,6 +72,34 @@ xfs_fsb_to_db_io(struct xfs_iocore *io, xfs_fsblock_t fsb)
 }
 
 /*
+ * Flags for xfs_free_eofblocks
+ */
+#define XFS_FREE_EOF_LOCK	(1<<0)
+#define XFS_FREE_EOF_NOLOCK	(1<<1)
+
+
+/*
+ * helper function to extract extent size hint from inode
+ */
+STATIC_INLINE xfs_extlen_t
+xfs_get_extsz_hint(
+	xfs_inode_t	*ip)
+{
+	xfs_extlen_t	extsz;
+
+	if (unlikely(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize
+				: ip->i_mount->m_sb.sb_rextsize;
+		ASSERT(extsz);
+	} else {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize : 0;
+	}
+	return extsz;
+}
+
+/*
  * Prototypes for functions in xfs_rw.c.
  */
 extern int xfs_write_clear_setuid(struct xfs_inode *ip);
@@ -91,10 +119,12 @@ extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 extern int xfs_rwlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
 extern void xfs_rwunlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
 extern int xfs_setattr(bhv_desc_t *, bhv_vattr_t *vap, int flags,
-		       cred_t *credp);
+			cred_t *credp);
 extern int xfs_change_file_space(bhv_desc_t *bdp, int cmd, xfs_flock64_t *bf,
-				 xfs_off_t offset, cred_t *credp, int flags);
+			xfs_off_t offset, cred_t *credp, int flags);
 extern int xfs_set_dmattrs(bhv_desc_t *bdp, u_int evmask, u_int16_t state,
-			   cred_t *credp);
+			cred_t *credp);
+extern int xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
+			int flags);
 
 #endif /* __XFS_RW_H__ */

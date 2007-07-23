@@ -76,33 +76,33 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_target *target,
 	   void *targinfo,
 	   unsigned int hook_mask)
 {
-	struct xt_connmark_target_info *matchinfo = targinfo;
+	const struct xt_connmark_target_info *matchinfo = targinfo;
 
 	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", target->family);
-		return 0;
+		return false;
 	}
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
 		if (strcmp(tablename, "mangle") != 0) {
 			printk(KERN_WARNING "CONNMARK: restore can only be "
 			       "called from \"mangle\" table, not \"%s\"\n",
 			       tablename);
-			return 0;
+			return false;
 		}
 	}
 	if (matchinfo->mark > 0xffffffff || matchinfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "CONNMARK: Only supports 32bit mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static void
@@ -121,7 +121,7 @@ struct compat_xt_connmark_target_info {
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_xt_connmark_target_info *cm = src;
+	const struct compat_xt_connmark_target_info *cm = src;
 	struct xt_connmark_target_info m = {
 		.mark	= cm->mark,
 		.mask	= cm->mask,
@@ -132,7 +132,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct xt_connmark_target_info *m = src;
+	const struct xt_connmark_target_info *m = src;
 	struct compat_xt_connmark_target_info cm = {
 		.mark	= m->mark,
 		.mask	= m->mask,
@@ -142,7 +142,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target xt_connmark_target[] = {
+static struct xt_target xt_connmark_target[] __read_mostly = {
 	{
 		.name		= "CONNMARK",
 		.family		= AF_INET,

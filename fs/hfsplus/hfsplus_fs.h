@@ -150,6 +150,7 @@ struct hfsplus_sb_info {
 #define HFSPLUS_SB_NODECOMPOSE	0x0002
 #define HFSPLUS_SB_FORCE	0x0004
 #define HFSPLUS_SB_HFSX		0x0008
+#define HFSPLUS_SB_CASEFOLD	0x0010
 
 
 struct hfsplus_inode_info {
@@ -321,6 +322,7 @@ void hfsplus_file_truncate(struct inode *);
 /* inode.c */
 extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
+extern struct dentry_operations hfsplus_dentry_operations;
 
 void hfsplus_inode_read_fork(struct inode *, struct hfsplus_fork_raw *);
 void hfsplus_inode_write_fork(struct inode *, struct hfsplus_fork_raw *);
@@ -353,6 +355,8 @@ int hfsplus_strcasecmp(const struct hfsplus_unistr *, const struct hfsplus_unist
 int hfsplus_strcmp(const struct hfsplus_unistr *, const struct hfsplus_unistr *);
 int hfsplus_uni2asc(struct super_block *, const struct hfsplus_unistr *, char *, int *);
 int hfsplus_asc2uni(struct super_block *, struct hfsplus_unistr *, const char *, int);
+int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str);
+int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *s2);
 
 /* wrapper.c */
 int hfsplus_read_wrapper(struct super_block *);

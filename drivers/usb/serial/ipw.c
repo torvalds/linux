@@ -167,11 +167,13 @@ static void ipw_read_bulk_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -369,13 +371,15 @@ static void ipw_close(struct usb_serial_port *port, struct file * filp)
 static void ipw_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
+	int status = urb->status;
 
 	dbg("%s", __FUNCTION__);
 
 	port->write_urb_busy = 0;
 
-	if (urb->status)
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status)
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 
 	usb_serial_port_softint(port);
 }

@@ -20,11 +20,6 @@ struct unx_cred {
 	gid_t			uc_gids[NFS_NGROUPS];
 };
 #define uc_uid			uc_base.cr_uid
-#define uc_count		uc_base.cr_count
-#define uc_flags		uc_base.cr_flags
-#define uc_expire		uc_base.cr_expire
-
-#define UNX_CRED_EXPIRE		(60 * HZ)
 
 #define UNX_WRITESLACK		(21 + (UNX_MAXNODENAME >> 2))
 
@@ -34,15 +29,14 @@ struct unx_cred {
 
 static struct rpc_auth		unix_auth;
 static struct rpc_cred_cache	unix_cred_cache;
-static struct rpc_credops	unix_credops;
+static const struct rpc_credops	unix_credops;
 
 static struct rpc_auth *
 unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);
-	if (atomic_inc_return(&unix_auth.au_count) == 0)
-		unix_cred_cache.nextgc = jiffies + (unix_cred_cache.expire >> 1);
+	atomic_inc(&unix_auth.au_count);
 	return &unix_auth;
 }
 
@@ -50,7 +44,7 @@ static void
 unx_destroy(struct rpc_auth *auth)
 {
 	dprintk("RPC:       destroying UNIX authenticator %p\n", auth);
-	rpcauth_free_credcache(auth);
+	rpcauth_clear_credcache(auth->au_credcache);
 }
 
 /*
@@ -74,8 +68,8 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	if (!(cred = kmalloc(sizeof(*cred), GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
 
-	atomic_set(&cred->uc_count, 1);
-	cred->uc_flags = RPCAUTH_CRED_UPTODATE;
+	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
+	cred->uc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 	if (flags & RPCAUTH_LOOKUP_ROOTCREDS) {
 		cred->uc_uid = 0;
 		cred->uc_gid = 0;
@@ -85,22 +79,34 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		if (groups > NFS_NGROUPS)
 			groups = NFS_NGROUPS;
 
-		cred->uc_uid = acred->uid;
 		cred->uc_gid = acred->gid;
 		for (i = 0; i < groups; i++)
 			cred->uc_gids[i] = GROUP_AT(acred->group_info, i);
 		if (i < NFS_NGROUPS)
 		  cred->uc_gids[i] = NOGROUP;
 	}
-	cred->uc_base.cr_ops = &unix_credops;
 
-	return (struct rpc_cred *) cred;
+	return &cred->uc_base;
+}
+
+static void
+unx_free_cred(struct unx_cred *unx_cred)
+{
+	dprintk("RPC:       unx_free_cred %p\n", unx_cred);
+	kfree(unx_cred);
+}
+
+static void
+unx_free_cred_callback(struct rcu_head *head)
+{
+	struct unx_cred *unx_cred = container_of(head, struct unx_cred, uc_base.cr_rcu);
+	unx_free_cred(unx_cred);
 }
 
 static void
 unx_destroy_cred(struct rpc_cred *cred)
 {
-	kfree(cred);
+	call_rcu(&cred->cr_rcu, unx_free_cred_callback);
 }
 
 /*
@@ -111,7 +117,7 @@ unx_destroy_cred(struct rpc_cred *cred)
 static int
 unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 {
-	struct unx_cred	*cred = (struct unx_cred *) rcred;
+	struct unx_cred	*cred = container_of(rcred, struct unx_cred, uc_base);
 	int		i;
 
 	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS)) {
@@ -142,7 +148,7 @@ static __be32 *
 unx_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
-	struct unx_cred	*cred = (struct unx_cred *) task->tk_msg.rpc_cred;
+	struct unx_cred	*cred = container_of(task->tk_msg.rpc_cred, struct unx_cred, uc_base);
 	__be32		*base, *hold;
 	int		i;
 
@@ -175,7 +181,7 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 static int
 unx_refresh(struct rpc_task *task)
 {
-	task->tk_msg.rpc_cred->cr_flags |= RPCAUTH_CRED_UPTODATE;
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
 	return 0;
 }
 
@@ -198,13 +204,18 @@ unx_validate(struct rpc_task *task, __be32 *p)
 		printk("RPC: giant verf size: %u\n", size);
 		return NULL;
 	}
-	task->tk_auth->au_rslack = (size >> 2) + 2;
+	task->tk_msg.rpc_cred->cr_auth->au_rslack = (size >> 2) + 2;
 	p += (size >> 2);
 
 	return p;
 }
 
-struct rpc_authops	authunix_ops = {
+void __init rpc_init_authunix(void)
+{
+	spin_lock_init(&unix_cred_cache.lock);
+}
+
+const struct rpc_authops authunix_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_UNIX,
 #ifdef RPC_DEBUG
@@ -218,7 +229,6 @@ struct rpc_authops	authunix_ops = {
 
 static
 struct rpc_cred_cache	unix_cred_cache = {
-	.expire		= UNX_CRED_EXPIRE,
 };
 
 static
@@ -232,7 +242,7 @@ struct rpc_auth		unix_auth = {
 };
 
 static
-struct rpc_credops	unix_credops = {
+const struct rpc_credops unix_credops = {
 	.cr_name	= "AUTH_UNIX",
 	.crdestroy	= unx_destroy_cred,
 	.crmatch	= unx_match,

@@ -17,7 +17,7 @@
  */
 static struct nf_queue_handler *queue_handler[NPROTO];
 
-static DEFINE_RWLOCK(queue_handler_lock);
+static DEFINE_MUTEX(queue_handler_mutex);
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
@@ -28,30 +28,37 @@ int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 	if (pf >= NPROTO)
 		return -EINVAL;
 
-	write_lock_bh(&queue_handler_lock);
+	mutex_lock(&queue_handler_mutex);
 	if (queue_handler[pf] == qh)
 		ret = -EEXIST;
 	else if (queue_handler[pf])
 		ret = -EBUSY;
 	else {
-		queue_handler[pf] = qh;
+		rcu_assign_pointer(queue_handler[pf], qh);
 		ret = 0;
 	}
-	write_unlock_bh(&queue_handler_lock);
+	mutex_unlock(&queue_handler_mutex);
 
 	return ret;
 }
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(int pf)
+int nf_unregister_queue_handler(int pf, struct nf_queue_handler *qh)
 {
 	if (pf >= NPROTO)
 		return -EINVAL;
 
-	write_lock_bh(&queue_handler_lock);
-	queue_handler[pf] = NULL;
-	write_unlock_bh(&queue_handler_lock);
+	mutex_lock(&queue_handler_mutex);
+	if (queue_handler[pf] != qh) {
+		mutex_unlock(&queue_handler_mutex);
+		return -EINVAL;
+	}
+
+	rcu_assign_pointer(queue_handler[pf], NULL);
+	mutex_unlock(&queue_handler_mutex);
+
+	synchronize_rcu();
 
 	return 0;
 }
@@ -61,12 +68,14 @@ void nf_unregister_queue_handlers(struct nf_queue_handler *qh)
 {
 	int pf;
 
-	write_lock_bh(&queue_handler_lock);
+	mutex_lock(&queue_handler_mutex);
 	for (pf = 0; pf < NPROTO; pf++)  {
 		if (queue_handler[pf] == qh)
-			queue_handler[pf] = NULL;
+			rcu_assign_pointer(queue_handler[pf], NULL);
 	}
-	write_unlock_bh(&queue_handler_lock);
+	mutex_unlock(&queue_handler_mutex);
+
+	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
 
@@ -89,18 +98,21 @@ static int __nf_queue(struct sk_buff *skb,
 	struct net_device *physoutdev = NULL;
 #endif
 	struct nf_afinfo *afinfo;
+	struct nf_queue_handler *qh;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
-	read_lock(&queue_handler_lock);
-	if (!queue_handler[pf]) {
-		read_unlock(&queue_handler_lock);
+	rcu_read_lock();
+
+	qh = rcu_dereference(queue_handler[pf]);
+	if (!qh) {
+		rcu_read_unlock();
 		kfree_skb(skb);
 		return 1;
 	}
 
 	afinfo = nf_get_afinfo(pf);
 	if (!afinfo) {
-		read_unlock(&queue_handler_lock);
+		rcu_read_unlock();
 		kfree_skb(skb);
 		return 1;
 	}
@@ -110,7 +122,7 @@ static int __nf_queue(struct sk_buff *skb,
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
 			       skb);
-		read_unlock(&queue_handler_lock);
+		rcu_read_unlock();
 		kfree_skb(skb);
 		return 1;
 	}
@@ -120,7 +132,7 @@ static int __nf_queue(struct sk_buff *skb,
 
 	/* If it's going away, ignore hook. */
 	if (!try_module_get(info->elem->owner)) {
-		read_unlock(&queue_handler_lock);
+		rcu_read_unlock();
 		kfree(info);
 		return 0;
 	}
@@ -138,10 +150,9 @@ static int __nf_queue(struct sk_buff *skb,
 	}
 #endif
 	afinfo->saveroute(skb, info);
-	status = queue_handler[pf]->outfn(skb, info, queuenum,
-					  queue_handler[pf]->data);
+	status = qh->outfn(skb, info, queuenum, qh->data);
 
-	read_unlock(&queue_handler_lock);
+	rcu_read_unlock();
 
 	if (status < 0) {
 		/* James M doesn't say fuck enough. */
@@ -308,18 +319,18 @@ static int seq_show(struct seq_file *s, void *v)
 	loff_t *pos = v;
 	struct nf_queue_handler *qh;
 
-	read_lock_bh(&queue_handler_lock);
-	qh = queue_handler[*pos];
+	rcu_read_lock();
+	qh = rcu_dereference(queue_handler[*pos]);
 	if (!qh)
 		ret = seq_printf(s, "%2lld NONE\n", *pos);
 	else
 		ret = seq_printf(s, "%2lld %s\n", *pos, qh->name);
-	read_unlock_bh(&queue_handler_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
 
-static struct seq_operations nfqueue_seq_ops = {
+static const struct seq_operations nfqueue_seq_ops = {
 	.start	= seq_start,
 	.next	= seq_next,
 	.stop	= seq_stop,

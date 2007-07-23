@@ -158,15 +158,11 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_4KSTACKS
-/*
- * These should really be __section__(".bss.page_aligned") as well, but
- * gcc's 3.0 and earlier don't handle that correctly.
- */
 static char softirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__aligned__(THREAD_SIZE)));
+		__attribute__((__section__(".bss.page_aligned")));
 
 static char hardirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__aligned__(THREAD_SIZE)));
+		__attribute__((__section__(".bss.page_aligned")));
 
 /*
  * allocate per-cpu stacks for hardirq and for softirq processing
@@ -257,14 +253,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_CPU_HAS_PINT_IRQ
 	init_IRQ_pint();
 #endif
-
-#ifdef CONFIG_CPU_HAS_INTC2_IRQ
-	init_IRQ_intc2();
-#endif
-
-#ifdef CONFIG_CPU_HAS_IPR_IRQ
-	init_IRQ_ipr();
-#endif
+	plat_irq_setup();
 
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)

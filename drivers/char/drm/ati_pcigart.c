@@ -73,9 +73,9 @@ static void drm_ati_free_pcigart_table(void *address, int order)
 	free_pages((unsigned long)address, order);
 }
 
-int drm_ati_pcigart_cleanup(drm_device_t *dev, drm_ati_pcigart_info *gart_info)
+int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
 {
-	drm_sg_mem_t *entry = dev->sg;
+	struct drm_sg_mem *entry = dev->sg;
 	unsigned long pages;
 	int i;
 	int order;
@@ -122,9 +122,9 @@ int drm_ati_pcigart_cleanup(drm_device_t *dev, drm_ati_pcigart_info *gart_info)
 }
 EXPORT_SYMBOL(drm_ati_pcigart_cleanup);
 
-int drm_ati_pcigart_init(drm_device_t *dev, drm_ati_pcigart_info *gart_info)
+int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
 {
-	drm_sg_mem_t *entry = dev->sg;
+	struct drm_sg_mem *entry = dev->sg;
 	void *address = NULL;
 	unsigned long pages;
 	u32 *pci_gart, page_base, bus_address = 0;

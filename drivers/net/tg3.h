@@ -1467,6 +1467,7 @@
 #define  FLASH_5755VENDOR_ATMEL_FLASH_2	 0x03400002
 #define  FLASH_5755VENDOR_ATMEL_FLASH_3	 0x03400000
 #define  FLASH_5755VENDOR_ATMEL_FLASH_4	 0x00000003
+#define  FLASH_5755VENDOR_ATMEL_FLASH_5	 0x02000003
 #define  FLASH_5755VENDOR_ATMEL_EEPROM_64KHZ	 0x03c00003
 #define  FLASH_5755VENDOR_ATMEL_EEPROM_376KHZ	 0x03c00002
 #define  FLASH_5787VENDOR_ATMEL_EEPROM_64KHZ	 0x03000003
@@ -1642,6 +1643,11 @@
 
 #define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
 
+#define MII_TG3_AUXCTL_MISC_WREN	0x8000
+#define MII_TG3_AUXCTL_MISC_FORCE_AMDIX	0x0200
+#define MII_TG3_AUXCTL_MISC_RDSEL_MISC	0x7000
+#define MII_TG3_AUXCTL_SHDWSEL_MISC		0x0007
+
 #define MII_TG3_AUX_STAT		0x19 /* auxilliary status register */
 #define MII_TG3_AUX_STAT_LPASS		0x0004
 #define MII_TG3_AUX_STAT_SPDMASK	0x0700
@@ -1666,6 +1672,9 @@
 
 #define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
 #define MII_TG3_EPHY_SHADOW_EN		0x80
+
+#define MII_TG3_EPHYTST_MISCCTRL	0x10 /* 5906 EPHY misc ctrl shadow register */
+#define MII_TG3_EPHYTST_MISCCTRL_MDIX	0x4000
 
 #define MII_TG3_TEST1			0x1e
 #define MII_TG3_TEST1_TRIM_EN		0x0010
@@ -2336,6 +2345,7 @@ struct tg3 {
 #define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
 
 	u32				led_ctrl;
+	u32				pci_cmd;
 
 	char				board_part_number[24];
 	char				fw_ver[16];

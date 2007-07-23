@@ -131,7 +131,7 @@
 #define ION_DEVICE_ID_TI_EDGEPORT_2I		0x0207	// Edgeport/2i RS422/RS485
 #define ION_DEVICE_ID_TI_EDGEPORT_421		0x020C	// Edgeport/421 4 hub 2 RS232 + Parallel (lucent on a different hub port)
 #define ION_DEVICE_ID_TI_EDGEPORT_21		0x020D	// Edgeport/21 2 RS232 + Parallel (lucent on a different hub port)
-#define ION_DEVICE_ID_TI_EDGEPORT_8		0x020F	// Edgeport/8 (single-CPU)
+#define ION_DEVICE_ID_TI_EDGEPORT_416		0x0212  // Edgeport/416
 #define ION_DEVICE_ID_TI_EDGEPORT_1		0x0215	// Edgeport/1 RS232
 #define ION_DEVICE_ID_TI_EDGEPORT_42		0x0217	// Edgeport/42 4 hub 2 RS232
 #define ION_DEVICE_ID_TI_EDGEPORT_22I  		0x021A	// Edgeport/22I is an Edgeport/4 with ports 1&2 RS422 and ports 3&4 RS232
@@ -143,12 +143,14 @@
 #define ION_DEVICE_ID_TI_EDGEPORT_21C		0x021E	// Edgeport/21c is a TI based Edgeport/2 with lucent chip
 
 // Generation 3 devices -- 3410 based edgport/1 (256 byte I2C) 
-#define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1	0x240	// Edgeport/1 RS232
-#define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1I	0x241	// Edgeport/1i- RS422 model
+#define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1	0x0240	// Edgeport/1 RS232
+#define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1I	0x0241	// Edgeport/1i- RS422 model
 
 // Ti based software switchable RS232/RS422/RS485 devices
-#define ION_DEVICE_ID_TI_EDGEPORT_4S		0x242	// Edgeport/4s - software switchable model
-#define ION_DEVICE_ID_IT_EDGEPORT_8S		0x243	// Edgeport/8s - software switchable model
+#define ION_DEVICE_ID_TI_EDGEPORT_4S		0x0242	// Edgeport/4s - software switchable model
+#define ION_DEVICE_ID_TI_EDGEPORT_8S		0x0243	// Edgeport/8s - software switchable model
+#define ION_DEVICE_ID_TI_EDGEPORT_8		0x0244	// Edgeport/8 (single-CPU)
+#define ION_DEVICE_ID_TI_EDGEPORT_416B		0x0247	// Edgeport/416
 
 
 /************************************************************************

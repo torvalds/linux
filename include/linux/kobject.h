@@ -36,15 +36,24 @@ extern char uevent_helper[];
 /* counter to tag the uevent, read only except for the kobject core */
 extern u64 uevent_seqnum;
 
-/* the actions here must match the proper string in lib/kobject_uevent.c */
-typedef int __bitwise kobject_action_t;
+/*
+ * The actions here must match the index to the string array
+ * in lib/kobject_uevent.c
+ *
+ * Do not add new actions here without checking with the driver-core
+ * maintainers. Action strings are not meant to express subsystem
+ * or device specific properties. In most cases you want to send a
+ * kobject_uevent_env(kobj, KOBJ_CHANGE, env) with additional event
+ * specific variables added to the event environment.
+ */
 enum kobject_action {
-	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* exclusive to core */
-	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* exclusive to core */
-	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* device state change */
-	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* device offline */
-	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* device online */
-	KOBJ_MOVE	= (__force kobject_action_t) 0x06,	/* device move */
+	KOBJ_ADD,
+	KOBJ_REMOVE,
+	KOBJ_CHANGE,
+	KOBJ_MOVE,
+	KOBJ_ONLINE,
+	KOBJ_OFFLINE,
+	KOBJ_MAX
 };
 
 struct kobject {
@@ -55,7 +64,7 @@ struct kobject {
 	struct kobject		* parent;
 	struct kset		* kset;
 	struct kobj_type	* ktype;
-	struct dentry		* dentry;
+	struct sysfs_dirent	* sd;
 	wait_queue_head_t	poll;
 };
 
@@ -71,13 +80,14 @@ extern void kobject_init(struct kobject *);
 extern void kobject_cleanup(struct kobject *);
 
 extern int __must_check kobject_add(struct kobject *);
-extern int __must_check kobject_shadow_add(struct kobject *, struct dentry *);
+extern int __must_check kobject_shadow_add(struct kobject *kobj,
+					   struct sysfs_dirent *shadow_parent);
 extern void kobject_del(struct kobject *);
 
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
 extern int __must_check kobject_shadow_rename(struct kobject *kobj,
-						struct dentry *new_parent,
-						const char *new_name);
+					      struct sysfs_dirent *new_parent,
+					      const char *new_name);
 extern int __must_check kobject_move(struct kobject *, struct kobject *);
 
 extern int __must_check kobject_register(struct kobject *);

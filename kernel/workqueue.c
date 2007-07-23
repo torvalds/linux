@@ -282,8 +282,8 @@ static int worker_thread(void *__cwq)
 	struct cpu_workqueue_struct *cwq = __cwq;
 	DEFINE_WAIT(wait);
 
-	if (!cwq->wq->freezeable)
-		current->flags |= PF_NOFREEZE;
+	if (cwq->wq->freezeable)
+		set_freezable();
 
 	set_user_nice(current, -5);
 
@@ -382,16 +382,16 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
 /*
- * Upon a successful return, the caller "owns" WORK_STRUCT_PENDING bit,
+ * Upon a successful return (>= 0), the caller "owns" WORK_STRUCT_PENDING bit,
  * so this work can't be re-armed in any way.
  */
 static int try_to_grab_pending(struct work_struct *work)
 {
 	struct cpu_workqueue_struct *cwq;
-	int ret = 0;
+	int ret = -1;
 
 	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work)))
-		return 1;
+		return 0;
 
 	/*
 	 * The queueing is in progress, or it is already queued. Try to
@@ -457,9 +457,27 @@ static void wait_on_work(struct work_struct *work)
 		wait_on_cpu_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 }
 
+static int __cancel_work_timer(struct work_struct *work,
+				struct timer_list* timer)
+{
+	int ret;
+
+	do {
+		ret = (timer && likely(del_timer(timer)));
+		if (!ret)
+			ret = try_to_grab_pending(work);
+		wait_on_work(work);
+	} while (unlikely(ret < 0));
+
+	work_clear_pending(work);
+	return ret;
+}
+
 /**
  * cancel_work_sync - block until a work_struct's callback has terminated
  * @work: the work which is to be flushed
+ *
+ * Returns true if @work was pending.
  *
  * cancel_work_sync() will cancel the work if it is queued. If the work's
  * callback appears to be running, cancel_work_sync() will block until it
@@ -476,31 +494,26 @@ static void wait_on_work(struct work_struct *work)
  * The caller must ensure that workqueue_struct on which this work was last
  * queued can't be destroyed before this function returns.
  */
-void cancel_work_sync(struct work_struct *work)
+int cancel_work_sync(struct work_struct *work)
 {
-	while (!try_to_grab_pending(work))
-		cpu_relax();
-	wait_on_work(work);
-	work_clear_pending(work);
+	return __cancel_work_timer(work, NULL);
 }
 EXPORT_SYMBOL_GPL(cancel_work_sync);
 
 /**
- * cancel_rearming_delayed_work - reliably kill off a delayed work.
+ * cancel_delayed_work_sync - reliably kill off a delayed work.
  * @dwork: the delayed work struct
+ *
+ * Returns true if @dwork was pending.
  *
  * It is possible to use this function if @dwork rearms itself via queue_work()
  * or queue_delayed_work(). See also the comment for cancel_work_sync().
  */
-void cancel_rearming_delayed_work(struct delayed_work *dwork)
+int cancel_delayed_work_sync(struct delayed_work *dwork)
 {
-	while (!del_timer(&dwork->timer) &&
-	       !try_to_grab_pending(&dwork->work))
-		cpu_relax();
-	wait_on_work(&dwork->work);
-	work_clear_pending(&dwork->work);
+	return __cancel_work_timer(&dwork->work, &dwork->timer);
 }
-EXPORT_SYMBOL(cancel_rearming_delayed_work);
+EXPORT_SYMBOL(cancel_delayed_work_sync);
 
 static struct workqueue_struct *keventd_wq __read_mostly;
 
@@ -739,18 +752,17 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 	if (cwq->thread == NULL)
 		return;
 
+	flush_cpu_workqueue(cwq);
 	/*
-	 * If the caller is CPU_DEAD the single flush_cpu_workqueue()
-	 * is not enough, a concurrent flush_workqueue() can insert a
-	 * barrier after us.
+	 * If the caller is CPU_DEAD and cwq->worklist was not empty,
+	 * a concurrent flush_workqueue() can insert a barrier after us.
+	 * However, in that case run_workqueue() won't return and check
+	 * kthread_should_stop() until it flushes all work_struct's.
 	 * When ->worklist becomes empty it is safe to exit because no
 	 * more work_structs can be queued on this cwq: flush_workqueue
 	 * checks list_empty(), and a "normal" queue_work() can't use
 	 * a dead CPU.
 	 */
-	while (flush_cpu_workqueue(cwq))
-		;
-
 	kthread_stop(cwq->thread);
 	cwq->thread = NULL;
 }

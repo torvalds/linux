@@ -30,73 +30,9 @@
 #include <asm/upa.h>
 #include <asm/smp.h>
 
-static struct device_node *allnodes;
+extern struct device_node *allnodes;	/* temporary while merging */
 
-/* use when traversing tree through the allnext, child, sibling,
- * or parent members of struct device_node.
- */
-static DEFINE_RWLOCK(devtree_lock);
-
-int of_device_is_compatible(const struct device_node *device,
-			    const char *compat)
-{
-	const char* cp;
-	int cplen, l;
-
-	cp = of_get_property(device, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		if (strncmp(cp, compat, strlen(compat)) == 0)
-			return 1;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(of_device_is_compatible);
-
-struct device_node *of_get_parent(const struct device_node *node)
-{
-	struct device_node *np;
-
-	if (!node)
-		return NULL;
-
-	np = node->parent;
-
-	return np;
-}
-EXPORT_SYMBOL(of_get_parent);
-
-struct device_node *of_get_next_child(const struct device_node *node,
-	struct device_node *prev)
-{
-	struct device_node *next;
-
-	next = prev ? prev->sibling : node->child;
-	for (; next != 0; next = next->sibling) {
-		break;
-	}
-
-	return next;
-}
-EXPORT_SYMBOL(of_get_next_child);
-
-struct device_node *of_find_node_by_path(const char *path)
-{
-	struct device_node *np = allnodes;
-
-	for (; np != 0; np = np->allnext) {
-		if (np->full_name != 0 && strcmp(np->full_name, path) == 0)
-			break;
-	}
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_path);
+extern rwlock_t devtree_lock;	/* temporary while merging */
 
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
@@ -110,81 +46,6 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 }
 EXPORT_SYMBOL(of_find_node_by_phandle);
 
-struct device_node *of_find_node_by_name(struct device_node *from,
-	const char *name)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != NULL; np = np->allnext)
-		if (np->name != NULL && strcmp(np->name, name) == 0)
-			break;
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_name);
-
-struct device_node *of_find_node_by_type(struct device_node *from,
-	const char *type)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->type != 0 && strcmp(np->type, type) == 0)
-			break;
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_type);
-
-struct device_node *of_find_compatible_node(struct device_node *from,
-	const char *type, const char *compatible)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext) {
-		if (type != NULL
-		    && !(np->type != 0 && strcmp(np->type, type) == 0))
-			continue;
-		if (of_device_is_compatible(np, compatible))
-			break;
-	}
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_compatible_node);
-
-struct property *of_find_property(const struct device_node *np,
-				  const char *name,
-				  int *lenp)
-{
-	struct property *pp;
-
-	for (pp = np->properties; pp != 0; pp = pp->next) {
-		if (strcasecmp(pp->name, name) == 0) {
-			if (lenp != 0)
-				*lenp = pp->length;
-			break;
-		}
-	}
-	return pp;
-}
-EXPORT_SYMBOL(of_find_property);
-
-/*
- * Find a property with a given name for a given node
- * and return the value.
- */
-const void *of_get_property(const struct device_node *np, const char *name,
-		      int *lenp)
-{
-	struct property *pp = of_find_property(np,name,lenp);
-	return pp ? pp->value : NULL;
-}
-EXPORT_SYMBOL(of_get_property);
-
 int of_getintprop_default(struct device_node *np, const char *name, int def)
 {
 	struct property *prop;
@@ -197,36 +58,6 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 	return *(int *) prop->value;
 }
 EXPORT_SYMBOL(of_getintprop_default);
-
-int of_n_addr_cells(struct device_node *np)
-{
-	const int* ip;
-	do {
-		if (np->parent)
-			np = np->parent;
-		ip = of_get_property(np, "#address-cells", NULL);
-		if (ip != NULL)
-			return *ip;
-	} while (np->parent);
-	/* No #address-cells property for the root node, default to 2 */
-	return 2;
-}
-EXPORT_SYMBOL(of_n_addr_cells);
-
-int of_n_size_cells(struct device_node *np)
-{
-	const int* ip;
-	do {
-		if (np->parent)
-			np = np->parent;
-		ip = of_get_property(np, "#size-cells", NULL);
-		if (ip != NULL)
-			return *ip;
-	} while (np->parent);
-	/* No #size-cells property for the root node, default to 1 */
-	return 1;
-}
-EXPORT_SYMBOL(of_n_size_cells);
 
 int of_set_property(struct device_node *dp, const char *name, void *val, int len)
 {
@@ -1808,11 +1639,65 @@ static void __init of_fill_in_cpu_data(void)
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
-		cpu_set(cpuid, phys_cpu_present_map);
+		cpu_set(cpuid, cpu_possible_map);
 #endif
 	}
 
 	smp_fill_in_sib_core_maps();
+}
+
+struct device_node *of_console_device;
+EXPORT_SYMBOL(of_console_device);
+
+char *of_console_path;
+EXPORT_SYMBOL(of_console_path);
+
+char *of_console_options;
+EXPORT_SYMBOL(of_console_options);
+
+static void __init of_console_init(void)
+{
+	char *msg = "OF stdout device is: %s\n";
+	struct device_node *dp;
+	const char *type;
+	phandle node;
+
+	of_console_path = prom_early_alloc(256);
+	if (prom_ihandle2path(prom_stdout, of_console_path, 256) < 0) {
+		prom_printf("Cannot obtain path of stdout.\n");
+		prom_halt();
+	}
+	of_console_options = strrchr(of_console_path, ':');
+	if (of_console_options) {
+		of_console_options++;
+		if (*of_console_options == '\0')
+			of_console_options = NULL;
+	}
+
+	node = prom_inst2pkg(prom_stdout);
+	if (!node) {
+		prom_printf("Cannot resolve stdout node from "
+			    "instance %08x.\n", prom_stdout);
+		prom_halt();
+	}
+
+	dp = of_find_node_by_phandle(node);
+	type = of_get_property(dp, "device_type", NULL);
+	if (!type) {
+		prom_printf("Console stdout lacks device_type property.\n");
+		prom_halt();
+	}
+
+	if (strcmp(type, "display") && strcmp(type, "serial")) {
+		prom_printf("Console device_type is neither display "
+			    "nor serial.\n");
+		prom_halt();
+	}
+
+	of_console_device = dp;
+
+	prom_printf(msg, of_console_path);
+	printk(msg, of_console_path);
 }
 
 void __init prom_build_devicetree(void)
@@ -1827,6 +1712,8 @@ void __init prom_build_devicetree(void)
 	allnodes->child = build_tree(allnodes,
 				     prom_getchild(allnodes->node),
 				     &nextp);
+	of_console_init();
+
 	printk("PROM: Built device tree with %u bytes of memory.\n",
 	       prom_early_allocated);
 

@@ -1237,8 +1237,10 @@ config PCI
 	  infrastructure code to support PCI bus devices.
 
 config PCI_DOMAINS
-	bool
-	default PCI
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
 
 config MPC83xx_PCI2
 	bool "Support for 2nd PCI host controller"

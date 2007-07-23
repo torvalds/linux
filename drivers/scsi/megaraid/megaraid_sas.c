@@ -433,34 +433,15 @@ megasas_make_sgl32(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	int sge_count;
 	struct scatterlist *os_sgl;
 
-	/*
-	 * Return 0 if there is no data transfer
-	 */
-	if (!scp->request_buffer || !scp->request_bufflen)
-		return 0;
+	sge_count = scsi_dma_map(scp);
+	BUG_ON(sge_count < 0);
 
-	if (!scp->use_sg) {
-		mfi_sgl->sge32[0].phys_addr = pci_map_single(instance->pdev,
-							     scp->
-							     request_buffer,
-							     scp->
-							     request_bufflen,
-							     scp->
-							     sc_data_direction);
-		mfi_sgl->sge32[0].length = scp->request_bufflen;
-
-		return 1;
+	if (sge_count) {
+		scsi_for_each_sg(scp, os_sgl, sge_count, i) {
+			mfi_sgl->sge32[i].length = sg_dma_len(os_sgl);
+			mfi_sgl->sge32[i].phys_addr = sg_dma_address(os_sgl);
+		}
 	}
-
-	os_sgl = (struct scatterlist *)scp->request_buffer;
-	sge_count = pci_map_sg(instance->pdev, os_sgl, scp->use_sg,
-			       scp->sc_data_direction);
-
-	for (i = 0; i < sge_count; i++, os_sgl++) {
-		mfi_sgl->sge32[i].length = sg_dma_len(os_sgl);
-		mfi_sgl->sge32[i].phys_addr = sg_dma_address(os_sgl);
-	}
-
 	return sge_count;
 }
 
@@ -481,35 +462,15 @@ megasas_make_sgl64(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	int sge_count;
 	struct scatterlist *os_sgl;
 
-	/*
-	 * Return 0 if there is no data transfer
-	 */
-	if (!scp->request_buffer || !scp->request_bufflen)
-		return 0;
+	sge_count = scsi_dma_map(scp);
+	BUG_ON(sge_count < 0);
 
-	if (!scp->use_sg) {
-		mfi_sgl->sge64[0].phys_addr = pci_map_single(instance->pdev,
-							     scp->
-							     request_buffer,
-							     scp->
-							     request_bufflen,
-							     scp->
-							     sc_data_direction);
-
-		mfi_sgl->sge64[0].length = scp->request_bufflen;
-
-		return 1;
+	if (sge_count) {
+		scsi_for_each_sg(scp, os_sgl, sge_count, i) {
+			mfi_sgl->sge64[i].length = sg_dma_len(os_sgl);
+			mfi_sgl->sge64[i].phys_addr = sg_dma_address(os_sgl);
+		}
 	}
-
-	os_sgl = (struct scatterlist *)scp->request_buffer;
-	sge_count = pci_map_sg(instance->pdev, os_sgl, scp->use_sg,
-			       scp->sc_data_direction);
-
-	for (i = 0; i < sge_count; i++, os_sgl++) {
-		mfi_sgl->sge64[i].length = sg_dma_len(os_sgl);
-		mfi_sgl->sge64[i].phys_addr = sg_dma_address(os_sgl);
-	}
-
 	return sge_count;
 }
 
@@ -593,7 +554,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	pthru->cdb_len = scp->cmd_len;
 	pthru->timeout = 0;
 	pthru->flags = flags;
-	pthru->data_xfer_len = scp->request_bufflen;
+	pthru->data_xfer_len = scsi_bufflen(scp);
 
 	memcpy(pthru->cdb, scp->cmnd, scp->cmd_len);
 
@@ -1195,45 +1156,6 @@ megasas_complete_abort(struct megasas_instance *instance,
 }
 
 /**
- * megasas_unmap_sgbuf -	Unmap SG buffers
- * @instance:			Adapter soft state
- * @cmd:			Completed command
- */
-static void
-megasas_unmap_sgbuf(struct megasas_instance *instance, struct megasas_cmd *cmd)
-{
-	dma_addr_t buf_h;
-	u8 opcode;
-
-	if (cmd->scmd->use_sg) {
-		pci_unmap_sg(instance->pdev, cmd->scmd->request_buffer,
-			     cmd->scmd->use_sg, cmd->scmd->sc_data_direction);
-		return;
-	}
-
-	if (!cmd->scmd->request_bufflen)
-		return;
-
-	opcode = cmd->frame->hdr.cmd;
-
-	if ((opcode == MFI_CMD_LD_READ) || (opcode == MFI_CMD_LD_WRITE)) {
-		if (IS_DMA64)
-			buf_h = cmd->frame->io.sgl.sge64[0].phys_addr;
-		else
-			buf_h = cmd->frame->io.sgl.sge32[0].phys_addr;
-	} else {
-		if (IS_DMA64)
-			buf_h = cmd->frame->pthru.sgl.sge64[0].phys_addr;
-		else
-			buf_h = cmd->frame->pthru.sgl.sge32[0].phys_addr;
-	}
-
-	pci_unmap_single(instance->pdev, buf_h, cmd->scmd->request_bufflen,
-			 cmd->scmd->sc_data_direction);
-	return;
-}
-
-/**
  * megasas_complete_cmd -	Completes a command
  * @instance:			Adapter soft state
  * @cmd:			Command to be completed
@@ -1281,7 +1203,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 
 			atomic_dec(&instance->fw_outstanding);
 
-			megasas_unmap_sgbuf(instance, cmd);
+			scsi_dma_unmap(cmd->scmd);
 			cmd->scmd->scsi_done(cmd->scmd);
 			megasas_return_cmd(instance, cmd);
 
@@ -1329,7 +1251,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 
 		atomic_dec(&instance->fw_outstanding);
 
-		megasas_unmap_sgbuf(instance, cmd);
+		scsi_dma_unmap(cmd->scmd);
 		cmd->scmd->scsi_done(cmd->scmd);
 		megasas_return_cmd(instance, cmd);
 
@@ -1714,15 +1636,13 @@ static int megasas_alloc_cmds(struct megasas_instance *instance)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	instance->cmd_list = kmalloc(sizeof(struct megasas_cmd *) * max_cmd,
-				     GFP_KERNEL);
+	instance->cmd_list = kcalloc(max_cmd, sizeof(struct megasas_cmd*), GFP_KERNEL);
 
 	if (!instance->cmd_list) {
 		printk(KERN_DEBUG "megasas: out of memory\n");
 		return -ENOMEM;
 	}
 
-	memset(instance->cmd_list, 0, sizeof(struct megasas_cmd *) * max_cmd);
 
 	for (i = 0; i < max_cmd; i++) {
 		instance->cmd_list[i] = kmalloc(sizeof(struct megasas_cmd),

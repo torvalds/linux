@@ -575,6 +575,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	level = cpuid_eax(1);
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+	if (c->x86 == 0x10)
+		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 
 	/* Enable workaround for FXSAVE leak */
 	if (c->x86 >= 6)
@@ -600,8 +602,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000008)
 		amd_detect_cmp(c);
 
-	/* Fix cpuid4 emulation for more */
-	num_cache_leaves = 3;
+	if (c->extended_cpuid_level >= 0x80000006 &&
+		(cpuid_edx(0x80000006) & 0xf000))
+		num_cache_leaves = 4;
+	else
+		num_cache_leaves = 3;
+
+	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x11)
+		set_bit(X86_FEATURE_K8, &c->x86_capability);
 
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
@@ -846,6 +854,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
+	init_scattered_cpuid_features(c);
+
 	c->apicid = phys_pkg_id(0);
 
 	/*
@@ -931,7 +941,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
 	        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
 	        "pat", "pse36", "pn", "clflush", NULL, "dts", "acpi", "mmx",
-	        "fxsr", "sse", "sse2", "ss", "ht", "tm", "ia64", NULL,
+	        "fxsr", "sse", "sse2", "ss", "ht", "tm", "ia64", "pbe",
 
 		/* AMD-defined */
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -947,10 +957,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Other (Linux-defined) */
-		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", NULL,
-		"constant_tsc", NULL, NULL,
-		"up", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"cxmmx", "k6_mtrr", "cyrix_arr", "centaur_mcr",
+		NULL, NULL, NULL, NULL,
+		"constant_tsc", "up", NULL, "arch_perfmon",
+		"pebs", "bts", NULL, "sync_rdtsc",
+		"rep_good", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Intel-defined (#2) */
@@ -961,7 +972,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 		/* VIA/Cyrix/Centaur-defined */
 		NULL, NULL, "rng", "rng_en", NULL, NULL, "ace", "ace_en",
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"ace2", "ace2_en", "phe", "phe_en", "pmm", "pmm_en", NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
@@ -970,6 +981,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"altmovcr8", "abm", "sse4a",
 		"misalignsse", "3dnowprefetch",
 		"osvw", "ibs", NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
+		/* Auxiliary (Linux-defined) */
+		"ida", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};

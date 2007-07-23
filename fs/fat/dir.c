@@ -313,7 +313,7 @@ int fat_search_long(struct inode *inode, const unsigned char *name,
 	wchar_t bufuname[14];
 	unsigned char xlate_len, nr_slots;
 	wchar_t *unicode = NULL;
-	unsigned char work[8], bufname[260];	/* 256 + 4 */
+	unsigned char work[MSDOS_NAME], bufname[260];	/* 256 + 4 */
 	int uni_xlate = sbi->options.unicode_xlate;
 	int utf8 = sbi->options.utf8;
 	int anycase = (sbi->options.name_check != 's');
@@ -351,7 +351,8 @@ parse_record:
 		if (work[0] == 0x05)
 			work[0] = 0xE5;
 		for (i = 0, j = 0, last_u = 0; i < 8;) {
-			if (!work[i]) break;
+			if (!work[i])
+				break;
 			chl = fat_shortname2uni(nls_disk, &work[i], 8 - i,
 						&bufuname[j++], opt_shortname,
 						de->lcase & CASE_LOWER_BASE);
@@ -365,13 +366,15 @@ parse_record:
 		}
 		j = last_u;
 		fat_short2uni(nls_disk, ".", 1, &bufuname[j++]);
-		for (i = 0; i < 3;) {
-			if (!de->ext[i]) break;
-			chl = fat_shortname2uni(nls_disk, &de->ext[i], 3 - i,
+		for (i = 8; i < MSDOS_NAME;) {
+			if (!work[i])
+				break;
+			chl = fat_shortname2uni(nls_disk, &work[i],
+						MSDOS_NAME - i,
 						&bufuname[j++], opt_shortname,
 						de->lcase & CASE_LOWER_EXT);
 			if (chl <= 1) {
-				if (de->ext[i] != ' ')
+				if (work[i] != ' ')
 					last_u = j;
 			} else {
 				last_u = j;
@@ -445,7 +448,7 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 	int fill_len;
 	wchar_t bufuname[14];
 	wchar_t *unicode = NULL;
-	unsigned char c, work[8], bufname[56], *ptname = bufname;
+	unsigned char c, work[MSDOS_NAME], bufname[56], *ptname = bufname;
 	unsigned long lpos, dummy, *furrfu = &lpos;
 	int uni_xlate = sbi->options.unicode_xlate;
 	int isvfat = sbi->options.isvfat;
@@ -527,7 +530,8 @@ parse_record:
 	if (work[0] == 0x05)
 		work[0] = 0xE5;
 	for (i = 0, j = 0, last = 0, last_u = 0; i < 8;) {
-		if (!(c = work[i])) break;
+		if (!(c = work[i]))
+			break;
 		chl = fat_shortname2uni(nls_disk, &work[i], 8 - i,
 					&bufuname[j++], opt_shortname,
 					de->lcase & CASE_LOWER_BASE);
@@ -549,9 +553,10 @@ parse_record:
 	j = last_u;
 	fat_short2uni(nls_disk, ".", 1, &bufuname[j++]);
 	ptname[i++] = '.';
-	for (i2 = 0; i2 < 3;) {
-		if (!(c = de->ext[i2])) break;
-		chl = fat_shortname2uni(nls_disk, &de->ext[i2], 3 - i2,
+	for (i2 = 8; i2 < MSDOS_NAME;) {
+		if (!(c = work[i2]))
+			break;
+		chl = fat_shortname2uni(nls_disk, &work[i2], MSDOS_NAME - i2,
 					&bufuname[j++], opt_shortname,
 					de->lcase & CASE_LOWER_EXT);
 		if (chl <= 1) {
@@ -563,8 +568,8 @@ parse_record:
 			}
 		} else {
 			last_u = j;
-			for (chi = 0; chi < chl && i2 < 3; chi++) {
-				ptname[i++] = de->ext[i2++];
+			for (chi = 0; chi < chl && i2 < MSDOS_NAME; chi++) {
+				ptname[i++] = work[i2++];
 				last = i;
 			}
 		}

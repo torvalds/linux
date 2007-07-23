@@ -206,7 +206,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		input_dev->id.vendor = saa->pci->vendor;
 		input_dev->id.product = saa->pci->device;
 	}
-	input_dev->cdev.dev = &saa->pci->dev;
+	input_dev->dev.parent = &saa->pci->dev;
 
 	/* Select keymap and address */
 	switch (budget_ci->budget.dev->pci->subsystem_device) {

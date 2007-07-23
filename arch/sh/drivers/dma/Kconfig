@@ -5,12 +5,13 @@ config SH_DMA_API
 
 config SH_DMA
 	bool "SuperH on-chip DMA controller (DMAC) support"
+	depends on CPU_SH3 || CPU_SH4
 	select SH_DMA_API
 	default n
 
 config NR_ONCHIP_DMA_CHANNELS
+	int
 	depends on SH_DMA
-	int "Number of on-chip DMAC channels"
 	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R
 	default "12" if CPU_SUBTYPE_SH7780
 	default "4"
@@ -35,23 +36,6 @@ config NR_DMA_CHANNELS
 	  This allows you to specify the maximum number of DMA channels to
 	  support. Setting this to a higher value allows for cascading DMACs
 	  with additional channels.
-
-config DMA_PAGE_OPS
-	bool "Use DMAC for page copy/clear"
-	depends on SH_DMA && BROKEN
-	help
-	  Selecting this option will use a dual-address mode configured channel
-	  in the SH DMAC for copy_page()/clear_page(). Primarily a performance
-	  hack.
-
-config DMA_PAGE_OPS_CHANNEL
-	depends on DMA_PAGE_OPS
-	int "DMA channel for sh memory-manager page copy/clear"
-	default "3"
-	help
-	  This allows the specification of the dual address dma channel,
-	  in case channel 3 is unavailable. On the SH4, channels 1,2, and 3
-	  are dual-address capable.
 
 config SH_DMABRG
 	bool "SH7760 DMABRG support"

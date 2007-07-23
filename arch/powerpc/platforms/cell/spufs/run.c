@@ -18,18 +18,21 @@ void spufs_stop_callback(struct spu *spu)
 	wake_up_all(&ctx->stop_wq);
 }
 
-static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
+static inline int spu_stopped(struct spu_context *ctx, u32 *stat)
 {
 	struct spu *spu;
 	u64 pte_fault;
 
 	*stat = ctx->ops->status_read(ctx);
-	if (ctx->state != SPU_STATE_RUNNABLE)
-		return 1;
+
 	spu = ctx->spu;
+	if (ctx->state != SPU_STATE_RUNNABLE ||
+	    test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
+		return 1;
 	pte_fault = spu->dsisr &
 	    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
-	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
+	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || spu->class_0_pending) ?
+		1 : 0;
 }
 
 static int spu_setup_isolated(struct spu_context *ctx)
@@ -123,8 +126,10 @@ out:
 	return ret;
 }
 
-static int spu_run_init(struct spu_context *ctx, u32 * npc)
+static int spu_run_init(struct spu_context *ctx, u32 *npc)
 {
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
 		unsigned long runcntl;
 
@@ -142,22 +147,28 @@ static int spu_run_init(struct spu_context *ctx, u32 * npc)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
 		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
-		spu_start_tick(ctx);
+		unsigned long mode = SPU_PRIVCNTL_MODE_NORMAL;
 		ctx->ops->npc_write(ctx, *npc);
+		if (test_thread_flag(TIF_SINGLESTEP))
+			mode = SPU_PRIVCNTL_MODE_SINGLE_STEP;
+		out_be64(&ctx->spu->priv2->spu_privcntl_RW, mode);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
+
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
 
 	return 0;
 }
 
-static int spu_run_fini(struct spu_context *ctx, u32 * npc,
-			       u32 * status)
+static int spu_run_fini(struct spu_context *ctx, u32 *npc,
+			       u32 *status)
 {
 	int ret = 0;
 
-	spu_stop_tick(ctx);
 	*status = ctx->ops->status_read(ctx);
 	*npc = ctx->ops->npc_read(ctx);
+
+	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -286,10 +297,10 @@ static inline int spu_process_events(struct spu_context *ctx)
 	return ret;
 }
 
-long spufs_run_spu(struct file *file, struct spu_context *ctx,
-		   u32 *npc, u32 *event)
+long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 {
 	int ret;
+	struct spu *spu;
 	u32 status;
 
 	if (mutex_lock_interruptible(&ctx->run_mutex))
@@ -298,9 +309,22 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	ctx->ops->master_start(ctx);
 	ctx->event_return = 0;
 
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return ret;
+	spu_acquire(ctx);
+	if (ctx->state == SPU_STATE_SAVED) {
+		__spu_update_sched_info(ctx);
+
+		ret = spu_activate(ctx, 0);
+		if (ret) {
+			spu_release(ctx);
+			goto out;
+		}
+	} else {
+		/*
+		 * We have to update the scheduling priority under active_mutex
+		 * to protect against find_victim().
+		 */
+		spu_update_sched_info(ctx);
+	}
 
 	ret = spu_run_init(ctx, npc);
 	if (ret) {
@@ -312,6 +336,17 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
 		if (unlikely(ret))
 			break;
+		spu = ctx->spu;
+		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
+						&ctx->sched_flags))) {
+			if (!(status & SPU_STATUS_STOPPED_BY_STOP)) {
+				spu_switch_notify(spu, ctx);
+				continue;
+			}
+		}
+
+		spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 		if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 		    (status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
 			ret = spu_process_callback(ctx);
@@ -325,16 +360,21 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
-			if (ret) {
-				spu_stop_tick(ctx);
+			if (ret)
 				goto out2;
-			}
 			continue;
 		}
 		ret = spu_process_events(ctx);
 
 	} while (!ret && !(status & (SPU_STATUS_STOPPED_BY_STOP |
-				      SPU_STATUS_STOPPED_BY_HALT)));
+				      SPU_STATUS_STOPPED_BY_HALT |
+				       SPU_STATUS_SINGLE_STEP)));
+
+	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100) &&
+	    (ctx->state == SPU_STATE_RUNNABLE))
+		ctx->stats.libassist++;
+
 
 	ctx->ops->master_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
@@ -344,10 +384,15 @@ out2:
 	if ((ret == 0) ||
 	    ((ret == -ERESTARTSYS) &&
 	     ((status & SPU_STATUS_STOPPED_BY_HALT) ||
+	      (status & SPU_STATUS_SINGLE_STEP) ||
 	      ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 	       (status >> SPU_STOP_STATUS_SHIFT != 0x2104)))))
 		ret = status;
 
+	/* Note: we don't need to force_sig SIGTRAP on single-step
+	 * since we have TIF_SINGLESTEP set, thus the kernel will do
+	 * it upon return from the syscall anyawy
+	 */
 	if ((status & SPU_STATUS_STOPPED_BY_STOP)
 	    && (status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
 		force_sig(SIGTRAP, current);

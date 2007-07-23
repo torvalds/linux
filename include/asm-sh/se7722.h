@@ -81,36 +81,32 @@
 /* IRQ */
 #define IRQ0_IRQ        32
 #define IRQ1_IRQ        33
-#define INTC_ICR0       0xA4140000UL
-#define INTC_ICR1       0xA414001CUL
-
-#define INTMSK0         0xa4140044
-#define INTMSKCLR0      0xa4140064
-#define INTC_INTPRI0    0xa4140010
 
 #define IRQ01_MODE      0xb1800000
 #define IRQ01_STS       0xb1800004
 #define IRQ01_MASK      0xb1800008
-#define EXT_BIT		(0x3fc0)        /* SH IRQ1 */
-#define MRSHPC_BIT0	(0x0004)        /* SH IRQ1 */
-#define MRSHPC_BIT1	(0x0008)        /* SH IRQ1 */
-#define MRSHPC_BIT2	(0x0010)        /* SH IRQ1 */
-#define MRSHPC_BIT3	(0x0020)        /* SH IRQ1 */
-#define SMC_BIT		(0x0002)        /* SH IRQ0 */
-#define USB_BIT		(0x0001)        /* SH IRQ0 */
 
-#define MRSHPC_IRQ3    	11
-#define MRSHPC_IRQ2    	12
-#define MRSHPC_IRQ1    	13
-#define MRSHPC_IRQ0    	14
-#define SMC_IRQ		10
-#define EXT_IRQ		5
-#define USB_IRQ		6
+/* Bits in IRQ01_* registers */
 
+#define SE7722_FPGA_IRQ_USB	0 /* IRQ0 */
+#define SE7722_FPGA_IRQ_SMC	1 /* IRQ0 */
+#define SE7722_FPGA_IRQ_MRSHPC0	2 /* IRQ1 */
+#define SE7722_FPGA_IRQ_MRSHPC1	3 /* IRQ1 */
+#define SE7722_FPGA_IRQ_MRSHPC2	4 /* IRQ1 */
+#define SE7722_FPGA_IRQ_MRSHPC3	5 /* IRQ1 */
+
+#define SE7722_FPGA_IRQ_NR	6
+#define SE7722_FPGA_IRQ_BASE	110
+
+#define MRSHPC_IRQ3    	(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_MRSHPC3)
+#define MRSHPC_IRQ2    	(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_MRSHPC2)
+#define MRSHPC_IRQ1    	(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_MRSHPC1)
+#define MRSHPC_IRQ0    	(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_MRSHPC0)
+#define SMC_IRQ		(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_SMC)
+#define USB_IRQ		(SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_USB)
 
 /* arch/sh/boards/se/7722/irq.c */
 void init_se7722_IRQ(void);
-int se7722_irq_demux(int);
 
 #define __IO_PREFIX		se7722
 #include <asm/io_generic.h>

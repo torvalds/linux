@@ -80,7 +80,7 @@ void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 
 #if __OS_HAS_AGP
 static void *agp_remap(unsigned long offset, unsigned long size,
-		       drm_device_t * dev)
+		       struct drm_device * dev)
 {
 	unsigned long *phys_addr_map, i, num_pages =
 	    PAGE_ALIGN(size) / PAGE_SIZE;
@@ -94,7 +94,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	offset -= dev->hose->mem_space->start;
 #endif
 
-	for (agpmem = dev->agp->memory; agpmem; agpmem = agpmem->next)
+	list_for_each_entry(agpmem, &dev->agp->memory, head)
 		if (agpmem->bound <= offset
 		    && (agpmem->bound + (agpmem->pages << PAGE_SHIFT)) >=
 		    (offset + size))
@@ -123,7 +123,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 /** Wrapper around agp_allocate_memory() */
-DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type)
+DRM_AGP_MEM *drm_alloc_agp(struct drm_device * dev, int pages, u32 type)
 {
 	return drm_agp_allocate_memory(dev->agp->bridge, pages, type);
 }
@@ -148,7 +148,7 @@ int drm_unbind_agp(DRM_AGP_MEM * handle)
 
 #else  /*  __OS_HAS_AGP  */
 static inline void *agp_remap(unsigned long offset, unsigned long size,
-			      drm_device_t * dev)
+			      struct drm_device * dev)
 {
 	return NULL;
 }

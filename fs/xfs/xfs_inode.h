@@ -379,6 +379,7 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 #define XFS_ISTALE	0x0010	/* inode has been staled */
 #define XFS_IRECLAIMABLE 0x0020 /* inode can be reclaimed */
 #define XFS_INEW	0x0040
+#define XFS_IFILESTREAM	0x0080	/* inode is in a filestream directory */
 
 /*
  * Flags for inode locking.
@@ -414,19 +415,22 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
  * gets a lockdep subclass of 1 and the second lock will have a lockdep
  * subclass of 0.
  *
- * XFS_I[O]LOCK_INUMORDER - for locking several inodes at the some time
+ * XFS_LOCK_INUMORDER - for locking several inodes at the some time
  * with xfs_lock_inodes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
  * So the first lock acquired will have a lockdep subclass of 2, the
- * second lock will have a lockdep subclass of 3, and so on.
+ * second lock will have a lockdep subclass of 3, and so on. It is
+ * the responsibility of the class builder to shift this to the correct
+ * portion of the lock_mode lockdep mask.
  */
+#define XFS_LOCK_PARENT		1
+#define XFS_LOCK_INUMORDER	2
+
 #define XFS_IOLOCK_SHIFT	16
-#define	XFS_IOLOCK_PARENT	(1 << XFS_IOLOCK_SHIFT)
-#define	XFS_IOLOCK_INUMORDER	(2 << XFS_IOLOCK_SHIFT)
+#define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
 
 #define XFS_ILOCK_SHIFT		24
-#define	XFS_ILOCK_PARENT	(1 << XFS_ILOCK_SHIFT)
-#define	XFS_ILOCK_INUMORDER	(2 << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
 
 #define XFS_IOLOCK_DEP_MASK	0x00ff0000
 #define XFS_ILOCK_DEP_MASK	0xff000000

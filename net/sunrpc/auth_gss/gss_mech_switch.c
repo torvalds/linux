@@ -194,6 +194,20 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 EXPORT_SYMBOL(gss_mech_get_by_pseudoflavor);
 
 u32
+gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
+{
+	int i;
+
+	for (i = 0; i < gm->gm_pf_num; i++) {
+		if (gm->gm_pfs[i].service == service) {
+			return gm->gm_pfs[i].pseudoflavor;
+		}
+	}
+	return RPC_AUTH_MAXFLAVOR; /* illegal value */
+}
+EXPORT_SYMBOL(gss_svc_to_pseudoflavor);
+
+u32
 gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
 {
 	int i;

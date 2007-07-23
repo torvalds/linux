@@ -11,7 +11,7 @@
  *
  * Written with reference to 82600 High Integration Dual PCI System
  * Controller Data Book:
- * http://www.radisys.com/files/support_downloads/007-01277-0002.82600DataBook.pdf
+ * www.radisys.com/files/support_downloads/007-01277-0002.82600DataBook.pdf
  * references to this document given in []
  */
 
@@ -20,9 +20,9 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
-#include "edac_mc.h"
+#include "edac_core.h"
 
-#define R82600_REVISION	" Ver: 2.0.1 " __DATE__
+#define R82600_REVISION	" Ver: 2.0.2 " __DATE__
 #define EDAC_MOD_STR	"r82600_edac"
 
 #define r82600_printk(level, fmt, arg...) \
@@ -131,10 +131,12 @@ struct r82600_error_info {
 	u32 eapr;
 };
 
-static unsigned int disable_hardware_scrub = 0;
+static unsigned int disable_hardware_scrub;
 
-static void r82600_get_error_info (struct mem_ctl_info *mci,
-		struct r82600_error_info *info)
+static struct edac_pci_ctl_info *r82600_pci;
+
+static void r82600_get_error_info(struct mem_ctl_info *mci,
+				struct r82600_error_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -144,18 +146,19 @@ static void r82600_get_error_info (struct mem_ctl_info *mci,
 	if (info->eapr & BIT(0))
 		/* Clear error to allow next error to be reported [p.62] */
 		pci_write_bits32(pdev, R82600_EAP,
-				((u32) BIT(0) & (u32) BIT(1)),
-				((u32) BIT(0) & (u32) BIT(1)));
+				 ((u32) BIT(0) & (u32) BIT(1)),
+				 ((u32) BIT(0) & (u32) BIT(1)));
 
 	if (info->eapr & BIT(1))
 		/* Clear error to allow next error to be reported [p.62] */
 		pci_write_bits32(pdev, R82600_EAP,
-				((u32) BIT(0) & (u32) BIT(1)),
-				((u32) BIT(0) & (u32) BIT(1)));
+				 ((u32) BIT(0) & (u32) BIT(1)),
+				 ((u32) BIT(0) & (u32) BIT(1)));
 }
 
-static int r82600_process_error_info (struct mem_ctl_info *mci,
-		struct r82600_error_info *info, int handle_errors)
+static int r82600_process_error_info(struct mem_ctl_info *mci,
+				struct r82600_error_info *info,
+				int handle_errors)
 {
 	int error_found;
 	u32 eapaddr, page;
@@ -172,25 +175,24 @@ static int r82600_process_error_info (struct mem_ctl_info *mci,
 	 * granularity (upper 19 bits only)     */
 	page = eapaddr >> PAGE_SHIFT;
 
-	if (info->eapr & BIT(0)) {  /* CE? */
+	if (info->eapr & BIT(0)) {	/* CE? */
 		error_found = 1;
 
 		if (handle_errors)
-			edac_mc_handle_ce(mci, page, 0,  /* not avail */
+			edac_mc_handle_ce(mci, page, 0,	/* not avail */
 					syndrome,
 					edac_mc_find_csrow_by_page(mci, page),
-					0,  /* channel */
-					mci->ctl_name);
+					0, mci->ctl_name);
 	}
 
-	if (info->eapr & BIT(1)) {  /* UE? */
+	if (info->eapr & BIT(1)) {	/* UE? */
 		error_found = 1;
 
 		if (handle_errors)
 			/* 82600 doesn't give enough info */
 			edac_mc_handle_ue(mci, page, 0,
-				edac_mc_find_csrow_by_page(mci, page),
-				mci->ctl_name);
+					edac_mc_find_csrow_by_page(mci, page),
+					mci->ctl_name);
 	}
 
 	return error_found;
@@ -211,11 +213,11 @@ static inline int ecc_enabled(u8 dramcr)
 }
 
 static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
-		u8 dramcr)
+			u8 dramcr)
 {
 	struct csrow_info *csrow;
 	int index;
-	u8 drbar;  /* SDRAM Row Boundry Address Register */
+	u8 drbar;		/* SDRAM Row Boundry Address Register */
 	u32 row_high_limit, row_high_limit_last;
 	u32 reg_sdram, ecc_on, row_base;
 
@@ -276,7 +278,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf2("%s(): sdram refresh rate = %#0x\n", __func__,
 		sdram_refresh_rate);
 	debugf2("%s(): DRAMC register = %#0x\n", __func__, dramcr);
-	mci = edac_mc_alloc(0, R82600_NR_CSROWS, R82600_NR_CHANS);
+	mci = edac_mc_alloc(0, R82600_NR_CSROWS, R82600_NR_CHANS, 0);
 
 	if (mci == NULL)
 		return -ENOMEM;
@@ -305,15 +307,16 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = R82600_REVISION;
 	mci->ctl_name = "R82600";
+	mci->dev_name = pci_name(pdev);
 	mci->edac_check = r82600_check;
 	mci->ctl_page_to_phys = NULL;
 	r82600_init_csrows(mci, pdev, dramcr);
-	r82600_get_error_info(mci, &discard);  /* clear counters */
+	r82600_get_error_info(mci, &discard);	/* clear counters */
 
 	/* Here we assume that we will never see multiple instances of this
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
-	if (edac_mc_add_mc(mci,0)) {
+	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
@@ -326,6 +329,17 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		pci_write_bits32(pdev, R82600_EAP, BIT(31), BIT(31));
 	}
 
+	/* allocating generic PCI control info */
+	r82600_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
+	if (!r82600_pci) {
+		printk(KERN_WARNING
+			"%s(): Unable to create PCI control\n",
+			__func__);
+		printk(KERN_WARNING
+			"%s(): PCI error report via EDAC not setup\n",
+			__func__);
+	}
+
 	debugf3("%s(): success\n", __func__);
 	return 0;
 
@@ -336,7 +350,7 @@ fail:
 
 /* returns count (>= 0), or negative on error */
 static int __devinit r82600_init_one(struct pci_dev *pdev,
-		const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	debugf0("%s()\n", __func__);
 
@@ -350,6 +364,9 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
+	if (r82600_pci)
+		edac_pci_release_generic_ctl(r82600_pci);
+
 	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
@@ -358,11 +375,11 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id r82600_pci_tbl[] __devinitdata = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_RADISYS, R82600_BRIDGE_ID)
-	},
+	 PCI_DEVICE(PCI_VENDOR_ID_RADISYS, R82600_BRIDGE_ID)
+	 },
 	{
-		0,
-	}	/* 0 terminated list. */
+	 0,
+	 }			/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, r82600_pci_tbl);
@@ -389,7 +406,7 @@ module_exit(r82600_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD Ltd. "
-	"on behalf of EADS Astrium");
+		"on behalf of EADS Astrium");
 MODULE_DESCRIPTION("MC support for Radisys 82600 memory controllers");
 
 module_param(disable_hardware_scrub, bool, 0644);

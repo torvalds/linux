@@ -113,6 +113,10 @@ config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
 endchoice
 
+if BOARD_ATSTK1000
+source "arch/avr32/boards/atstk1000/Kconfig"
+endif
+
 choice
 	prompt "Boot loader type"
 	default LOADER_U_BOOT
@@ -182,6 +186,27 @@ config CMDLINE
 	  If you don't have a boot loader capable of passing a command line string
 	  to the kernel, you may specify one here. As a minimum, you should specify
 	  the memory size and the root device (e.g., mem=8M, root=/dev/nfs).
+
+endmenu
+
+menu "Power managment options"
+
+menu "CPU Frequency scaling"
+
+source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_AT32AP
+	bool "CPU frequency driver for AT32AP"
+	depends on CPU_FREQ && PLATFORM_AT32AP
+	default n
+	help
+	  This enables the CPU frequency driver for AT32AP processors.
+
+	  For details, take a look in <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+endmenu
 
 endmenu
 

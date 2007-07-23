@@ -2,11 +2,15 @@
 # Misc strange devices
 #
 
-menu "Misc devices"
+menuconfig MISC_DEVICES
+	bool "Misc devices"
+	default y
+
+if MISC_DEVICES
 
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
-	depends on X86 && PCI && EXPERIMENTAL
+	depends on X86 && PCI && INPUT && EXPERIMENTAL
 	---help---
 	  This option enables device driver support for in-band access to the
 	  IBM RSA (Condor) service processor in eServer xSeries systems.
@@ -146,6 +150,7 @@ config THINKPAD_ACPI
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select NVRAM
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -192,4 +197,17 @@ config THINKPAD_ACPI_BAY
 
 	  If you are not sure, say Y here.
 
-endmenu
+config THINKPAD_ACPI_INPUT_ENABLED
+	bool "Enable input layer support by default"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Enables hot key handling over the input layer by default.  If unset,
+	  the driver does not enable any hot key handling by default, and also
+	  starts up with a mostly empty keymap.
+
+	  If you are not sure, say Y here.  Say N to retain the deprecated
+	  behavior of ibm-acpi, and thinkpad-acpi for kernels up to 2.6.21.
+
+
+endif # MISC_DEVICES

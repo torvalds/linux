@@ -376,11 +376,10 @@ static int cycx_wan_new_if(struct wan_device *wandev, struct net_device *dev,
 	}
 
 	/* allocate and initialize private data */
-	chan = kmalloc(sizeof(struct cycx_x25_channel), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct cycx_x25_channel), GFP_KERNEL);
 	if (!chan)
 		return -ENOMEM;
 
-	memset(chan, 0, sizeof(*chan));
 	strcpy(chan->name, conf->name);
 	chan->card = card;
 	chan->link = conf->port;

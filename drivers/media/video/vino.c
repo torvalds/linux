@@ -2077,12 +2077,10 @@ static int vino_wait_for_frame(struct vino_channel_settings *vcs)
 	init_waitqueue_entry(&wait, current);
 	/* add ourselves into wait queue */
 	add_wait_queue(&vcs->fb_queue.frame_wait_queue, &wait);
-	/* and set current state */
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	/* to ensure that schedule_timeout will return immediately
-	 * if VINO interrupt was triggred meanwhile */
-	schedule_timeout(HZ / 10);
+	 * if VINO interrupt was triggered meanwhile */
+	schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 	if (signal_pending(current))
 		err = -EINTR;

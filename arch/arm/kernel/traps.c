@@ -249,6 +249,7 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	bust_spinlocks(1);
 	__die(str, err, thread, regs);
 	bust_spinlocks(0);
+	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())

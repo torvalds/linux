@@ -409,8 +409,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 	if (!PageUptodate(page))
 		rc = ecryptfs_do_readpage(file, page, page->index);
 	if (page->index != 0) {
-		loff_t end_of_prev_pg_pos =
-			(((loff_t)page->index << PAGE_CACHE_SHIFT) - 1);
+		loff_t end_of_prev_pg_pos = page_offset(page) - 1;
 
 		if (end_of_prev_pg_pos > i_size_read(page->mapping->host)) {
 			rc = ecryptfs_truncate(file->f_path.dentry,
@@ -736,7 +735,7 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 		goto out;
 	}
 	inode->i_blocks = lower_inode->i_blocks;
-	pos = (page->index << PAGE_CACHE_SHIFT) + to;
+	pos = page_offset(page) + to;
 	if (pos > i_size_read(inode)) {
 		i_size_write(inode, pos);
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "

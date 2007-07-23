@@ -62,10 +62,9 @@ mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
 			mempool_free_t *free_fn, void *pool_data, int node_id)
 {
 	mempool_t *pool;
-	pool = kmalloc_node(sizeof(*pool), GFP_KERNEL, node_id);
+	pool = kmalloc_node(sizeof(*pool), GFP_KERNEL | __GFP_ZERO, node_id);
 	if (!pool)
 		return NULL;
-	memset(pool, 0, sizeof(*pool));
 	pool->elements = kmalloc_node(min_nr * sizeof(void *),
 					GFP_KERNEL, node_id);
 	if (!pool->elements) {
@@ -262,6 +261,9 @@ EXPORT_SYMBOL(mempool_alloc);
 void mempool_free(void *element, mempool_t *pool)
 {
 	unsigned long flags;
+
+	if (unlikely(element == NULL))
+		return;
 
 	smp_mb();
 	if (pool->curr_nr < pool->min_nr) {

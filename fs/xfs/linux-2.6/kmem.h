@@ -74,14 +74,14 @@ extern void  kmem_free(void *, size_t);
 static inline kmem_zone_t *
 kmem_zone_init(int size, char *zone_name)
 {
-	return kmem_cache_create(zone_name, size, 0, 0, NULL, NULL);
+	return kmem_cache_create(zone_name, size, 0, 0, NULL);
 }
 
 static inline kmem_zone_t *
 kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
 		     void (*construct)(void *, kmem_zone_t *, unsigned long))
 {
-	return kmem_cache_create(zone_name, size, 0, flags, construct, NULL);
+	return kmem_cache_create(zone_name, size, 0, flags, construct);
 }
 
 static inline void
@@ -99,25 +99,6 @@ kmem_zone_destroy(kmem_zone_t *zone)
 
 extern void *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
 extern void *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
-
-/*
- * Low memory cache shrinkers
- */
-
-typedef struct shrinker *kmem_shaker_t;
-typedef int (*kmem_shake_func_t)(int, gfp_t);
-
-static inline kmem_shaker_t
-kmem_shake_register(kmem_shake_func_t sfunc)
-{
-	return set_shrinker(DEFAULT_SEEKS, sfunc);
-}
-
-static inline void
-kmem_shake_deregister(kmem_shaker_t shrinker)
-{
-	remove_shrinker(shrinker);
-}
 
 static inline int
 kmem_shake_allow(gfp_t gfp_mask)

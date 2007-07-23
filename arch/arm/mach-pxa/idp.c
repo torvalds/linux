@@ -38,6 +38,7 @@
 #include <asm/arch/mmc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /* TODO:
  * - add pxa2xx_audio_ops_t device structure
@@ -152,7 +153,7 @@ static void __init idp_init(void)
 static void __init idp_init_irq(void)
 {
 
-	pxa_init_irq();
+	pxa25x_init_irq();
 
 	set_irq_type(TOUCH_PANEL_IRQ, TOUCH_PANEL_IRQ_EDGE);
 }

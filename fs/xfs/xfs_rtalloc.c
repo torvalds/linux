@@ -1882,11 +1882,13 @@ xfs_growfs_rt(
 	    (nrblocks = in->newblocks) <= sbp->sb_rblocks ||
 	    (sbp->sb_rblocks && (in->extsize != sbp->sb_rextsize)))
 		return XFS_ERROR(EINVAL);
+	if ((error = xfs_sb_validate_fsb_count(sbp, nrblocks)))
+		return error;
 	/*
 	 * Read in the last block of the device, make sure it exists.
 	 */
 	error = xfs_read_buf(mp, mp->m_rtdev_targp,
-			XFS_FSB_TO_BB(mp, in->newblocks - 1),
+			XFS_FSB_TO_BB(mp, nrblocks - 1),
 			XFS_FSB_TO_BB(mp, 1), 0, &bp);
 	if (error)
 		return error;

@@ -934,8 +934,6 @@ static void change_speed(ser_info_t *info)
 	/*
 	 * Set up parity check flag
 	 */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 	info->read_status_mask = (BD_SC_EMPTY | BD_SC_OV);
 	if (I_INPCK(info->tty))
 		info->read_status_mask |= BD_SC_FR | BD_SC_PR;
@@ -1526,11 +1524,6 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 static void rs_360_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
-
-	if (   (tty->termios->c_cflag == old_termios->c_cflag)
-	    && (   RELEVANT_IFLAG(tty->termios->c_iflag) 
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-	  return;
 
 	change_speed(info);
 

@@ -97,16 +97,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					     \
 } while (0)
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_vtime(struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);

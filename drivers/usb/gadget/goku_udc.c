@@ -20,7 +20,6 @@
  *  - DMA works with ep1 (OUT transfers) and ep2 (IN transfers).
  */
 
-#undef DEBUG
 // #define	VERBOSE		/* extra debug messages (success too) */
 // #define	USB_TRACE	/* packet-level success messages */
 
@@ -296,51 +295,6 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-/* allocating buffers this way eliminates dma mapping overhead, which
- * on some platforms will mean eliminating a per-io buffer copy.  with
- * some kinds of system caches, further tweaks may still be needed.
- */
-static void *
-goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-			dma_addr_t *dma, gfp_t gfp_flags)
-{
-	void		*retval;
-	struct goku_ep	*ep;
-
-	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep)
-		return NULL;
-	*dma = DMA_ADDR_INVALID;
-
-	if (ep->dma) {
-		/* the main problem with this call is that it wastes memory
-		 * on typical 1/N page allocations: it allocates 1-N pages.
-		 */
-#warning Using dma_alloc_coherent even with buffers smaller than a page.
-		retval = dma_alloc_coherent(&ep->dev->pdev->dev,
-				bytes, dma, gfp_flags);
-	} else
-		retval = kmalloc(bytes, gfp_flags);
-	return retval;
-}
-
-static void
-goku_free_buffer(struct usb_ep *_ep, void *buf, dma_addr_t dma, unsigned bytes)
-{
-	/* free memory into the right allocator */
-	if (dma != DMA_ADDR_INVALID) {
-		struct goku_ep	*ep;
-
-		ep = container_of(_ep, struct goku_ep, ep);
-		if (!_ep)
-			return;
-		dma_free_coherent(&ep->dev->pdev->dev, bytes, buf, dma);
-	} else
-		kfree (buf);
-}
-
-/*-------------------------------------------------------------------------*/
-
 static void
 done(struct goku_ep *ep, struct goku_request *req, int status)
 {
@@ -485,7 +439,7 @@ top:
 			/* use ep1/ep2 double-buffering for OUT */
 			if (!(size & PACKET_ACTIVE))
 				size = readl(&regs->EPxSizeLB[ep->num]);
-			if (!(size & PACKET_ACTIVE)) 	// "can't happen"
+			if (!(size & PACKET_ACTIVE))	/* "can't happen" */
 				break;
 			size &= DATASIZE;	/* EPxSizeH == 0 */
 
@@ -1026,9 +980,6 @@ static struct usb_ep_ops goku_ep_ops = {
 	.alloc_request	= goku_alloc_request,
 	.free_request	= goku_free_request,
 
-	.alloc_buffer	= goku_alloc_buffer,
-	.free_buffer	= goku_free_buffer,
-
 	.queue		= goku_queue,
 	.dequeue	= goku_dequeue,
 
@@ -1140,17 +1091,17 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		is_usb_connected
 			? ((tmp & PW_PULLUP) ? "full speed" : "powered")
 			: "disconnected",
-		({char *tmp;
+		({char *state;
 		switch(dev->ep0state){
-		case EP0_DISCONNECT:	tmp = "ep0_disconnect"; break;
-		case EP0_IDLE:		tmp = "ep0_idle"; break;
-		case EP0_IN:		tmp = "ep0_in"; break;
-		case EP0_OUT:		tmp = "ep0_out"; break;
-		case EP0_STATUS:	tmp = "ep0_status"; break;
-		case EP0_STALL:		tmp = "ep0_stall"; break;
-		case EP0_SUSPEND:	tmp = "ep0_suspend"; break;
-		default:		tmp = "ep0_?"; break;
-		} tmp; })
+		case EP0_DISCONNECT:	state = "ep0_disconnect"; break;
+		case EP0_IDLE:		state = "ep0_idle"; break;
+		case EP0_IN:		state = "ep0_in"; break;
+		case EP0_OUT:		state = "ep0_out"; break;
+		case EP0_STATUS:	state = "ep0_status"; break;
+		case EP0_STALL:		state = "ep0_stall"; break;
+		case EP0_SUSPEND:	state = "ep0_suspend"; break;
+		default:		state = "ep0_?"; break;
+		} state; })
 		);
 	size -= t;
 	next += t;
@@ -1195,7 +1146,6 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 	for (i = 0; i < 4; i++) {
 		struct goku_ep		*ep = &dev->ep [i];
 		struct goku_request	*req;
-		int			t;
 
 		if (i && !ep->desc)
 			continue;
@@ -1283,7 +1233,7 @@ done:
 static void udc_reinit (struct goku_udc *dev)
 {
 	static char *names [] = { "ep0", "ep1-bulk", "ep2-bulk", "ep3-bulk" };
-	
+
 	unsigned i;
 
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
@@ -1827,14 +1777,13 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kmalloc (sizeof *dev, GFP_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		pr_debug("enomem %s\n", pci_name(pdev));
 		retval = -ENOMEM;
 		goto done;
 	}
 
-	memset(dev, 0, sizeof *dev);
 	spin_lock_init(&dev->lock);
 	dev->pdev = pdev;
 	dev->gadget.ops = &goku_ops;
@@ -1896,9 +1845,9 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* done */
 	the_controller = dev;
-	device_register(&dev->gadget.dev);
-
-	return 0;
+	retval = device_register(&dev->gadget.dev);
+	if (retval == 0)
+		return 0;
 
 done:
 	if (dev)
@@ -1910,8 +1859,8 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static struct pci_device_id pci_ids [] = { {
-	.class = 	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
-	.class_mask = 	~0,
+	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class_mask =	~0,
 	.vendor =	0x102f,		/* Toshiba */
 	.device =	0x0107,		/* this UDC */
 	.subvendor =	PCI_ANY_ID,

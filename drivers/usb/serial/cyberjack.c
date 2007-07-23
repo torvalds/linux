@@ -305,12 +305,13 @@ static void cyberjack_read_int_callback( struct urb *urb )
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/* the urb might have been killed. */
-	if (urb->status)
+	if (status)
 		return;
 
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
@@ -365,12 +366,14 @@ static void cyberjack_read_bulk_callback (struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	short todo;
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
+
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -411,12 +414,14 @@ static void cyberjack_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	port->write_urb_busy = 0;
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 

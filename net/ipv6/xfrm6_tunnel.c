@@ -84,7 +84,7 @@ static int xfrm6_tunnel_spi_init(void)
 	xfrm6_tunnel_spi_kmem = kmem_cache_create("xfrm6_tunnel_spi",
 						  sizeof(struct xfrm6_tunnel_spi),
 						  0, SLAB_HWCACHE_ALIGN,
-						  NULL, NULL);
+						  NULL);
 	if (!xfrm6_tunnel_spi_kmem)
 		return -ENOMEM;
 
@@ -379,3 +379,4 @@ static void __exit xfrm6_tunnel_fini(void)
 module_init(xfrm6_tunnel_init);
 module_exit(xfrm6_tunnel_fini);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_IPV6);

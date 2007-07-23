@@ -161,6 +161,7 @@ struct irq_desc {
 	unsigned int		wake_depth;	/* nested wake enables */
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned int		irqs_unhandled;
+	unsigned long		last_unhandled;	/* Aging timer for unhandled count */
 	spinlock_t		lock;
 #ifdef CONFIG_SMP
 	cpumask_t		affinity;

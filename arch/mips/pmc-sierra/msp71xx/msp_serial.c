@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/serial.h>
+#include <linux/serial_8250.h>
 
 #include <msp_prom.h>
 #include <msp_int.h>

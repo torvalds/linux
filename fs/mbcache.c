@@ -100,7 +100,6 @@ struct mb_cache {
 static LIST_HEAD(mb_cache_list);
 static LIST_HEAD(mb_cache_lru_list);
 static DEFINE_SPINLOCK(mb_cache_spinlock);
-static struct shrinker *mb_shrinker;
 
 static inline int
 mb_cache_indexes(struct mb_cache *cache)
@@ -118,6 +117,10 @@ mb_cache_indexes(struct mb_cache *cache)
 
 static int mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask);
 
+static struct shrinker mb_cache_shrinker = {
+	.shrink = mb_cache_shrink_fn,
+	.seeks = DEFAULT_SEEKS,
+};
 
 static inline int
 __mb_cache_entry_is_hashed(struct mb_cache_entry *ce)
@@ -289,7 +292,7 @@ mb_cache_create(const char *name, struct mb_cache_op *cache_op,
 			INIT_LIST_HEAD(&cache->c_indexes_hash[m][n]);
 	}
 	cache->c_entry_cache = kmem_cache_create(name, entry_size, 0,
-		SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL, NULL);
+		SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
 	if (!cache->c_entry_cache)
 		goto fail;
 
@@ -662,13 +665,13 @@ mb_cache_entry_find_next(struct mb_cache_entry *prev, int index,
 
 static int __init init_mbcache(void)
 {
-	mb_shrinker = set_shrinker(DEFAULT_SEEKS, mb_cache_shrink_fn);
+	register_shrinker(&mb_cache_shrinker);
 	return 0;
 }
 
 static void __exit exit_mbcache(void)
 {
-	remove_shrinker(mb_shrinker);
+	unregister_shrinker(&mb_cache_shrinker);
 }
 
 module_init(init_mbcache)

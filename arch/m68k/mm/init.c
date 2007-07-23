@@ -44,7 +44,7 @@ pg_data_t *pg_data_table[65];
 EXPORT_SYMBOL(pg_data_table);
 #endif
 
-void m68k_setup_node(int node)
+void __init m68k_setup_node(int node)
 {
 #ifndef CONFIG_SINGLE_MEMORY_CHUNK
 	struct mem_info *info = m68k_memory + node;

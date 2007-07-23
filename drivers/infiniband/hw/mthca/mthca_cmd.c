@@ -357,8 +357,6 @@ void mthca_cmd_event(struct mthca_dev *dev,
 	context->status    = status;
 	context->out_param = out_param;
 
-	context->token += dev->cmd.token_mask + 1;
-
 	complete(&context->done);
 }
 
@@ -380,6 +378,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	spin_lock(&dev->cmd.context_lock);
 	BUG_ON(dev->cmd.free_head < 0);
 	context = &dev->cmd.context[dev->cmd.free_head];
+	context->token += dev->cmd.token_mask + 1;
 	dev->cmd.free_head = context->next;
 	spin_unlock(&dev->cmd.context_lock);
 

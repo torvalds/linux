@@ -31,7 +31,11 @@ static inline int valid_dma_direction(int dma_direction)
 		(dma_direction == DMA_FROM_DEVICE));
 }
 
+#ifdef CONFIG_HAS_DMA
 #include <asm/dma-mapping.h>
+#else
+#include <asm-generic/dma-mapping-broken.h>
+#endif
 
 /* Backwards compat, remove in 2.7.x */
 #define dma_sync_single		dma_sync_single_for_cpu

@@ -1,9 +1,10 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.12	Mar 10 2007
+ * linux/drivers/ide/pci/siimage.c		Version 1.15	Jun 29 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		MontaVista Software, Inc.
+ * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
@@ -31,6 +32,10 @@
  *  unplugging/replugging the virtual CD interface when the DRAC is reset.
  *  This often causes drivers/ide/siimage to panic but is ok with the rather
  *  smarter code in libata.
+ *
+ * TODO:
+ * - IORDY fixes
+ * - VDMA support
  */
 
 #include <linux/types.h>
@@ -160,82 +165,45 @@ out:
 }
 
 /**
- *	siimage_taskfile_timing	-	turn timing data to a mode
- *	@hwif: interface to query
- *
- *	Read the timing data for the interface and return the 
- *	mode that is being used.
- */
- 
-static byte siimage_taskfile_timing (ide_hwif_t *hwif)
-{
-	u16 timing	= 0x328a;
-	unsigned long addr = siimage_selreg(hwif, 2);
-
-	if (hwif->mmio)
-		timing = hwif->INW(addr);
-	else
-		pci_read_config_word(hwif->pci_dev, addr, &timing);
-
-	switch (timing) {
-		case 0x10c1:	return 4;
-		case 0x10c3:	return 3;
-		case 0x1104:
-		case 0x1281:	return 2;
-		case 0x2283:	return 1;
-		case 0x328a:
-		default:	return 0;
-	}
-}
-
-/**
- *	simmage_tuneproc	-	tune a drive
+ *	sil_tune_pio	-	tune a drive
  *	@drive: drive to tune
- *	@mode_wanted: the target operating mode
+ *	@pio: the desired PIO mode
  *
  *	Load the timing settings for this device mode into the
  *	controller. If we are in PIO mode 3 or 4 turn on IORDY
  *	monitoring (bit 9). The TF timing is bits 31:16
  */
- 
-static void siimage_tuneproc (ide_drive_t *drive, byte mode_wanted)
+
+static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 {
+	const u16 tf_speed[]	= { 0x328a, 0x2283, 0x1281, 0x10c3, 0x10c1 };
+	const u16 data_speed[]	= { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
+
 	ide_hwif_t *hwif	= HWIF(drive);
+	ide_drive_t *pair	= &hwif->drives[drive->dn ^ 1];
 	u32 speedt		= 0;
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
 	unsigned long tfaddr	= siimage_selreg(hwif, 0x02);
-	
-	/* cheat for now and use the docs */
-	switch (mode_wanted) {
-	case 4:
-		speedp = 0x10c1;
-		speedt = 0x10c1;
-		break;
-	case 3:
-		speedp = 0x10c3;
-		speedt = 0x10c3;
-		break;
-	case 2:
-		speedp = 0x1104;
-		speedt = 0x1281;
-		break;
-	case 1:
-		speedp = 0x2283;
-		speedt = 0x2283;
-		break;
-	case 0:
-	default:
-		speedp = 0x328a;
-		speedt = 0x328a;
-		break;
+	u8 tf_pio		= pio;
+
+	/* trim *taskfile* PIO to the slowest of the master/slave */
+	if (pair->present) {
+		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
+
+		if (pair_pio < tf_pio)
+			tf_pio = pair_pio;
 	}
+
+	/* cheat for now and use the docs */
+	speedp = data_speed[pio];
+	speedt = tf_speed[tf_pio];
 
 	if (hwif->mmio) {
 		hwif->OUTW(speedp, addr);
 		hwif->OUTW(speedt, tfaddr);
 		/* Now set up IORDY */
-		if(mode_wanted == 3 || mode_wanted == 4)
+		if (pio > 2)
 			hwif->OUTW(hwif->INW(tfaddr-2)|0x200, tfaddr-2);
 		else
 			hwif->OUTW(hwif->INW(tfaddr-2)&~0x200, tfaddr-2);
@@ -245,42 +213,17 @@ static void siimage_tuneproc (ide_drive_t *drive, byte mode_wanted)
 		pci_read_config_word(hwif->pci_dev, tfaddr-2, &speedp);
 		speedp &= ~0x200;
 		/* Set IORDY for mode 3 or 4 */
-		if(mode_wanted == 3 || mode_wanted == 4)
+		if (pio > 2)
 			speedp |= 0x200;
 		pci_write_config_word(hwif->pci_dev, tfaddr-2, speedp);
 	}
 }
 
-/**
- *	config_siimage_chipset_for_pio	-	set drive timings
- *	@drive: drive to tune
- *	@speed we want
- *
- *	Compute the best pio mode we can for a given device. Also honour
- *	the timings for the driver when dealing with mixed devices. Some
- *	of this is ugly but its all wrapped up here
- *
- *	The SI680 can also do VDMA - we need to start using that
- *
- *	FIXME: we use the BIOS channel timings to avoid driving the task
- *	files too fast at the disk. We need to compute the master/slave
- *	drive PIO mode properly so that we can up the speed on a hotplug
- *	system.
- */
- 
-static void config_siimage_chipset_for_pio (ide_drive_t *drive, byte set_speed)
+static void sil_tuneproc(ide_drive_t *drive, u8 pio)
 {
-	u8 channel_timings	= siimage_taskfile_timing(HWIF(drive));
-	u8 speed = 0, set_pio	= ide_get_best_pio_mode(drive, 4, 5, NULL);
-
-	/* WARNING PIO timing mess is going to happen b/w devices, argh */
-	if ((channel_timings != set_pio) && (set_pio > channel_timings))
-		set_pio = channel_timings;
-
-	siimage_tuneproc(drive, set_pio);
-	speed = XFER_PIO_0 + set_pio;
-	if (set_speed)
-		(void) ide_config_drive_speed(drive, speed);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
+	sil_tune_pio(drive, pio);
+	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 /**
@@ -335,7 +278,7 @@ static int siimage_tune_chipset (ide_drive_t *drive, byte xferspeed)
 		case XFER_PIO_2:
 		case XFER_PIO_1:
 		case XFER_PIO_0:
-			siimage_tuneproc(drive, (speed - XFER_PIO_0));
+			sil_tune_pio(drive, speed - XFER_PIO_0);
 			mode |= ((unit) ? 0x10 : 0x01);
 			break;
 		case XFER_MW_DMA_2:
@@ -343,7 +286,6 @@ static int siimage_tune_chipset (ide_drive_t *drive, byte xferspeed)
 		case XFER_MW_DMA_0:
 			multi = dma[speed - XFER_MW_DMA_0];
 			mode |= ((unit) ? 0x20 : 0x02);
-			config_siimage_chipset_for_pio(drive, 0);
 			break;
 		case XFER_UDMA_6:
 		case XFER_UDMA_5:
@@ -356,7 +298,6 @@ static int siimage_tune_chipset (ide_drive_t *drive, byte xferspeed)
 			ultra |= ((scsc) ? (ultra6[speed - XFER_UDMA_0]) :
 					   (ultra5[speed - XFER_UDMA_0]));
 			mode |= ((unit) ? 0x30 : 0x03);
-			config_siimage_chipset_for_pio(drive, 0);
 			break;
 		default:
 			return 1;
@@ -390,7 +331,7 @@ static int siimage_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		config_siimage_chipset_for_pio(drive, 1);
+		sil_tuneproc(drive, 255);
 
 	return -1;
 }
@@ -961,7 +902,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	
 	hwif->resetproc = &siimage_reset;
 	hwif->speedproc = &siimage_tune_chipset;
-	hwif->tuneproc	= &siimage_tuneproc;
+	hwif->tuneproc	= &sil_tuneproc;
 	hwif->reset_poll = &siimage_reset_poll;
 	hwif->pre_reset = &siimage_pre_reset;
 	hwif->udma_filter = &sil_udma_filter;
@@ -976,11 +917,11 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 			first = 0;
 		}
 	}
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+
+	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
@@ -1016,9 +957,9 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.init_iops	= init_iops_siimage,	\
 		.init_hwif	= init_hwif_siimage,	\
 		.fixup		= siimage_fixup,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.bootable	= ON_BOARD,		\
+		.pio_mask	= ATA_PIO4,		\
 	}
 
 static ide_pci_device_t siimage_chipsets[] __devinitdata = {

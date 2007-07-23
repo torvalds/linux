@@ -23,24 +23,13 @@
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	struct list_head *v;
-	loff_t n = *pos;
-
 	down_read(&crypto_alg_sem);
-	list_for_each(v, &crypto_alg_list)
-		if (!n--)
-			return list_entry(v, struct crypto_alg, cra_list);
-	return NULL;
+	return seq_list_start(&crypto_alg_list, *pos);
 }
 
 static void *c_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct list_head *v = p;
-	
-	(*pos)++;
-	v = v->next;
-	return (v == &crypto_alg_list) ?
-		NULL : list_entry(v, struct crypto_alg, cra_list);
+	return seq_list_next(p, &crypto_alg_list, pos);
 }
 
 static void c_stop(struct seq_file *m, void *p)
@@ -50,7 +39,7 @@ static void c_stop(struct seq_file *m, void *p)
 
 static int c_show(struct seq_file *m, void *p)
 {
-	struct crypto_alg *alg = (struct crypto_alg *)p;
+	struct crypto_alg *alg = list_entry(p, struct crypto_alg, cra_list);
 	
 	seq_printf(m, "name         : %s\n", alg->cra_name);
 	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);

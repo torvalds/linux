@@ -74,7 +74,7 @@ int gfs2_acl_validate_remove(struct gfs2_inode *ip, int access)
 {
 	if (!GFS2_SB(&ip->i_inode)->sd_args.ar_posix_acl)
 		return -EOPNOTSUPP;
-	if (current->fsuid != ip->i_inode.i_uid && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(&ip->i_inode))
 		return -EPERM;
 	if (S_ISLNK(ip->i_inode.i_mode))
 		return -EOPNOTSUPP;

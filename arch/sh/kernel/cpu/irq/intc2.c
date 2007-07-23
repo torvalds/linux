@@ -13,36 +13,31 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <asm/smp.h>
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7760)
-#define INTC2_BASE	0xfe080000
-#define INTC2_INTMSK	(INTC2_BASE + 0x40)
-#define INTC2_INTMSKCLR	(INTC2_BASE + 0x60)
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7785)
-#define INTC2_BASE	0xffd40000
-#define INTC2_INTMSK	(INTC2_BASE + 0x38)
-#define INTC2_INTMSKCLR	(INTC2_BASE + 0x3c)
-#endif
+static inline struct intc2_desc *get_intc2_desc(unsigned int irq)
+{
+	struct irq_chip *chip = get_irq_chip(irq);
+	return (void *)((char *)chip - offsetof(struct intc2_desc, chip));
+}
 
 static void disable_intc2_irq(unsigned int irq)
 {
 	struct intc2_data *p = get_irq_chip_data(irq);
-	ctrl_outl(1 << p->msk_shift, INTC2_INTMSK + p->msk_offset);
+	struct intc2_desc *d = get_intc2_desc(irq);
+
+	ctrl_outl(1 << p->msk_shift, d->msk_base + p->msk_offset +
+				     (hard_smp_processor_id() * 4));
 }
 
 static void enable_intc2_irq(unsigned int irq)
 {
 	struct intc2_data *p = get_irq_chip_data(irq);
-	ctrl_outl(1 << p->msk_shift, INTC2_INTMSKCLR + p->msk_offset);
-}
+	struct intc2_desc *d = get_intc2_desc(irq);
 
-static struct irq_chip intc2_irq_chip = {
-	.name		= "INTC2",
-	.mask		= disable_intc2_irq,
-	.unmask		= enable_intc2_irq,
-	.mask_ack	= disable_intc2_irq,
-};
+	ctrl_outl(1 << p->msk_shift, d->mskclr_base + p->msk_offset +
+				     (hard_smp_processor_id() * 4));
+}
 
 /*
  * Setup an INTC2 style interrupt.
@@ -56,30 +51,36 @@ static struct irq_chip intc2_irq_chip = {
  *
  * in the intc2_data table.
  */
-void make_intc2_irq(struct intc2_data *table, unsigned int nr_irqs)
+void register_intc2_controller(struct intc2_desc *desc)
 {
 	int i;
 
-	for (i = 0; i < nr_irqs; i++) {
+	desc->chip.mask = disable_intc2_irq;
+	desc->chip.unmask = enable_intc2_irq;
+	desc->chip.mask_ack = disable_intc2_irq;
+
+	for (i = 0; i < desc->nr_irqs; i++) {
 		unsigned long ipr, flags;
-		struct intc2_data *p = table + i;
+		struct intc2_data *p = desc->intc2_data + i;
 
 		disable_irq_nosync(p->irq);
 
-		/* Set the priority level */
-		local_irq_save(flags);
+		if (desc->prio_base) {
+			/* Set the priority level */
+			local_irq_save(flags);
 
-		ipr = ctrl_inl(INTC2_BASE + p->ipr_offset);
-		ipr &= ~(0xf << p->ipr_shift);
-		ipr |= p->priority << p->ipr_shift;
-		ctrl_outl(ipr, INTC2_BASE + p->ipr_offset);
+			ipr = ctrl_inl(desc->prio_base + p->ipr_offset);
+			ipr &= ~(0xf << p->ipr_shift);
+			ipr |= p->priority << p->ipr_shift;
+			ctrl_outl(ipr, desc->prio_base + p->ipr_offset);
 
-		local_irq_restore(flags);
+			local_irq_restore(flags);
+		}
 
-		set_irq_chip_and_handler_name(p->irq, &intc2_irq_chip,
+		set_irq_chip_and_handler_name(p->irq, &desc->chip,
 					      handle_level_irq, "level");
 		set_irq_chip_data(p->irq, p);
 
-		enable_intc2_irq(p->irq);
+		disable_intc2_irq(p->irq);
 	}
 }

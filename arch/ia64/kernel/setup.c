@@ -390,10 +390,6 @@ early_console_setup (char *cmdline)
 	if (!efi_setup_pcdp_console(cmdline))
 		earlycons++;
 #endif
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	if (!early_serial_console_init(cmdline))
-		earlycons++;
-#endif
 
 	return (earlycons) ? 0 : -1;
 }
@@ -982,15 +978,6 @@ cpu_init (void)
 	}
 	platform_cpu_init();
 	pm_idle = default_idle;
-}
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- */
-void sched_cacheflush(void)
-{
-	ia64_sal_cache_flush(3);
 }
 
 void __init

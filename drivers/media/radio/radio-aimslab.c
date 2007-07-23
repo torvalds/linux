@@ -63,7 +63,7 @@ struct rt_device
 static void sleep_delay(long n)
 {
 	/* Sleep nicely for 'n' uS */
-	int d=n/(1000000/HZ);
+	int d=n/msecs_to_jiffies(1000);
 	if(!d)
 		udelay(n);
 	else
@@ -392,7 +392,6 @@ static struct video_device rtrack_radio=
 	.owner		= THIS_MODULE,
 	.name		= "RadioTrack radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &rtrack_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

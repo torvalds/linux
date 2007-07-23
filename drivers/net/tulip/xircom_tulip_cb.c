@@ -524,7 +524,6 @@ static int __devinit xircom_init_one(struct pci_dev *pdev, const struct pci_devi
 	int chip_idx = id->driver_data;
 	long ioaddr;
 	int i;
-	u8 chip_rev;
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -620,9 +619,8 @@ static int __devinit xircom_init_one(struct pci_dev *pdev, const struct pci_devi
 	if (register_netdev(dev))
 		goto err_out_cleardev;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &chip_rev);
 	printk(KERN_INFO "%s: %s rev %d at %#3lx,",
-	       dev->name, xircom_tbl[chip_idx].chip_name, chip_rev, ioaddr);
+	       dev->name, xircom_tbl[chip_idx].chip_name, pdev->revision, ioaddr);
 	for (i = 0; i < 6; i++)
 		printk("%c%2.2X", i ? ':' : ' ', dev->dev_addr[i]);
 	printk(", IRQ %d.\n", dev->irq);
@@ -1242,8 +1240,8 @@ xircom_rx(struct net_device *dev)
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 #if ! defined(__alpha__)
-				eth_copy_and_sum(skb, bus_to_virt(tp->rx_ring[entry].buffer1),
-								 pkt_len, 0);
+				skb_copy_to_linear_data(skb, bus_to_virt(tp->rx_ring[entry].buffer1),
+								 pkt_len);
 				skb_put(skb, pkt_len);
 #else
 				memcpy(skb_put(skb, pkt_len),

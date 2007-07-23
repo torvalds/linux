@@ -549,7 +549,7 @@ static int handle_minor_send(struct capiminor *mp)
 		capimsg_setu8 (skb->data, 5, CAPI_REQ);
 		capimsg_setu16(skb->data, 6, mp->msgid++);
 		capimsg_setu32(skb->data, 8, mp->ncci);	/* NCCI */
-		capimsg_setu32(skb->data, 12, (u32) skb->data); /* Data32 */
+		capimsg_setu32(skb->data, 12, (u32)(long)skb->data);/* Data32 */
 		capimsg_setu16(skb->data, 16, len);	/* Data length */
 		capimsg_setu16(skb->data, 18, datahandle);
 		capimsg_setu16(skb->data, 20, 0);	/* Flags */

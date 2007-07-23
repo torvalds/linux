@@ -33,17 +33,10 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/efi.h>
-
-#if defined(__mc68000__) || defined(CONFIG_APUS)
-#include <asm/setup.h>
-#endif
-
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-
 #include <linux/fb.h>
+
+#include <asm/fb.h>
+
 
     /*
      *  Frame buffer device initialization and setup routines
@@ -411,10 +404,146 @@ static void fb_do_show_logo(struct fb_info *info, struct fb_image *image,
 	}
 }
 
+static int fb_show_logo_line(struct fb_info *info, int rotate,
+			     const struct linux_logo *logo, int y,
+			     unsigned int n)
+{
+	u32 *palette = NULL, *saved_pseudo_palette = NULL;
+	unsigned char *logo_new = NULL, *logo_rotate = NULL;
+	struct fb_image image;
+
+	/* Return if the frame buffer is not mapped or suspended */
+	if (logo == NULL || info->state != FBINFO_STATE_RUNNING ||
+	    info->flags & FBINFO_MODULE)
+		return 0;
+
+	image.depth = 8;
+	image.data = logo->data;
+
+	if (fb_logo.needs_cmapreset)
+		fb_set_logocmap(info, logo);
+
+	if (fb_logo.needs_truepalette ||
+	    fb_logo.needs_directpalette) {
+		palette = kmalloc(256 * 4, GFP_KERNEL);
+		if (palette == NULL)
+			return 0;
+
+		if (fb_logo.needs_truepalette)
+			fb_set_logo_truepalette(info, logo, palette);
+		else
+			fb_set_logo_directpalette(info, logo, palette);
+
+		saved_pseudo_palette = info->pseudo_palette;
+		info->pseudo_palette = palette;
+	}
+
+	if (fb_logo.depth <= 4) {
+		logo_new = kmalloc(logo->width * logo->height, GFP_KERNEL);
+		if (logo_new == NULL) {
+			kfree(palette);
+			if (saved_pseudo_palette)
+				info->pseudo_palette = saved_pseudo_palette;
+			return 0;
+		}
+		image.data = logo_new;
+		fb_set_logo(info, logo, logo_new, fb_logo.depth);
+	}
+
+	image.dx = 0;
+	image.dy = y;
+	image.width = logo->width;
+	image.height = logo->height;
+
+	if (rotate) {
+		logo_rotate = kmalloc(logo->width *
+				      logo->height, GFP_KERNEL);
+		if (logo_rotate)
+			fb_rotate_logo(info, logo_rotate, &image, rotate);
+	}
+
+	fb_do_show_logo(info, &image, rotate, n);
+
+	kfree(palette);
+	if (saved_pseudo_palette != NULL)
+		info->pseudo_palette = saved_pseudo_palette;
+	kfree(logo_new);
+	kfree(logo_rotate);
+	return logo->height;
+}
+
+
+#ifdef CONFIG_FB_LOGO_EXTRA
+
+#define FB_LOGO_EX_NUM_MAX 10
+static struct logo_data_extra {
+	const struct linux_logo *logo;
+	unsigned int n;
+} fb_logo_ex[FB_LOGO_EX_NUM_MAX];
+static unsigned int fb_logo_ex_num;
+
+void fb_append_extra_logo(const struct linux_logo *logo, unsigned int n)
+{
+	if (!n || fb_logo_ex_num == FB_LOGO_EX_NUM_MAX)
+		return;
+
+	fb_logo_ex[fb_logo_ex_num].logo = logo;
+	fb_logo_ex[fb_logo_ex_num].n = n;
+	fb_logo_ex_num++;
+}
+
+static int fb_prepare_extra_logos(struct fb_info *info, unsigned int height,
+				  unsigned int yres)
+{
+	unsigned int i;
+
+	/* FIXME: logo_ex supports only truecolor fb. */
+	if (info->fix.visual != FB_VISUAL_TRUECOLOR)
+		fb_logo_ex_num = 0;
+
+	for (i = 0; i < fb_logo_ex_num; i++) {
+		height += fb_logo_ex[i].logo->height;
+		if (height > yres) {
+			height -= fb_logo_ex[i].logo->height;
+			fb_logo_ex_num = i;
+			break;
+		}
+	}
+	return height;
+}
+
+static int fb_show_extra_logos(struct fb_info *info, int y, int rotate)
+{
+	unsigned int i;
+
+	for (i = 0; i < fb_logo_ex_num; i++)
+		y += fb_show_logo_line(info, rotate,
+				       fb_logo_ex[i].logo, y, fb_logo_ex[i].n);
+
+	return y;
+}
+
+#else /* !CONFIG_FB_LOGO_EXTRA */
+
+static inline int fb_prepare_extra_logos(struct fb_info *info,
+					 unsigned int height,
+					 unsigned int yres)
+{
+	return height;
+}
+
+static inline int fb_show_extra_logos(struct fb_info *info, int y, int rotate)
+{
+	return y;
+}
+
+#endif /* CONFIG_FB_LOGO_EXTRA */
+
+
 int fb_prepare_logo(struct fb_info *info, int rotate)
 {
 	int depth = fb_get_color_depth(&info->var, &info->fix);
-	int yres;
+	unsigned int yres;
 
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
@@ -456,7 +585,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	if (!fb_logo.logo) {
 		return 0;
 	}
-	
+
 	if (rotate == FB_ROTATE_UR || rotate == FB_ROTATE_UD)
 		yres = info->var.yres;
 	else
@@ -473,75 +602,20 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	else if (fb_logo.logo->type == LINUX_LOGO_VGA16)
 		fb_logo.depth = 4;
 	else
-		fb_logo.depth = 1;		
-	return fb_logo.logo->height;
+		fb_logo.depth = 1;
+
+	return fb_prepare_extra_logos(info, fb_logo.logo->height, yres);
 }
 
 int fb_show_logo(struct fb_info *info, int rotate)
 {
-	u32 *palette = NULL, *saved_pseudo_palette = NULL;
-	unsigned char *logo_new = NULL, *logo_rotate = NULL;
-	struct fb_image image;
+	int y;
 
-	/* Return if the frame buffer is not mapped or suspended */
-	if (fb_logo.logo == NULL || info->state != FBINFO_STATE_RUNNING ||
-	    info->flags & FBINFO_MODULE)
-		return 0;
+	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
+			      num_online_cpus());
+	y = fb_show_extra_logos(info, y, rotate);
 
-	image.depth = 8;
-	image.data = fb_logo.logo->data;
-
-	if (fb_logo.needs_cmapreset)
-		fb_set_logocmap(info, fb_logo.logo);
-
-	if (fb_logo.needs_truepalette || 
-	    fb_logo.needs_directpalette) {
-		palette = kmalloc(256 * 4, GFP_KERNEL);
-		if (palette == NULL)
-			return 0;
-
-		if (fb_logo.needs_truepalette)
-			fb_set_logo_truepalette(info, fb_logo.logo, palette);
-		else
-			fb_set_logo_directpalette(info, fb_logo.logo, palette);
-
-		saved_pseudo_palette = info->pseudo_palette;
-		info->pseudo_palette = palette;
-	}
-
-	if (fb_logo.depth <= 4) {
-		logo_new = kmalloc(fb_logo.logo->width * fb_logo.logo->height, 
-				   GFP_KERNEL);
-		if (logo_new == NULL) {
-			kfree(palette);
-			if (saved_pseudo_palette)
-				info->pseudo_palette = saved_pseudo_palette;
-			return 0;
-		}
-		image.data = logo_new;
-		fb_set_logo(info, fb_logo.logo, logo_new, fb_logo.depth);
-	}
-
-	image.dx = 0;
-	image.dy = 0;
-	image.width = fb_logo.logo->width;
-	image.height = fb_logo.logo->height;
-
-	if (rotate) {
-		logo_rotate = kmalloc(fb_logo.logo->width *
-				      fb_logo.logo->height, GFP_KERNEL);
-		if (logo_rotate)
-			fb_rotate_logo(info, logo_rotate, &image, rotate);
-	}
-
-	fb_do_show_logo(info, &image, rotate, num_online_cpus());
-
-	kfree(palette);
-	if (saved_pseudo_palette != NULL)
-		info->pseudo_palette = saved_pseudo_palette;
-	kfree(logo_new);
-	kfree(logo_rotate);
-	return fb_logo.logo->height;
+	return y;
 }
 #else
 int fb_prepare_logo(struct fb_info *info, int rotate) { return 0; }
@@ -1155,17 +1229,15 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 #endif
 
-static int 
+static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	int fbidx = iminor(file->f_path.dentry->d_inode);
 	struct fb_info *info = registered_fb[fbidx];
 	struct fb_ops *fb = info->fbops;
 	unsigned long off;
-#if !defined(__sparc__) || defined(__sparc_v9__)
 	unsigned long start;
 	u32 len;
-#endif
 
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
@@ -1180,12 +1252,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 		return res;
 	}
 
-#if defined(__sparc__) && !defined(__sparc_v9__)
-	/* Should never get here, all fb drivers should have their own
-	   mmap routines */
-	return -EINVAL;
-#else
-	/* !sparc32... */
 	lock_kernel();
 
 	/* frame buffer memory */
@@ -1209,50 +1275,11 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 	/* This is an IO map - tell maydump to skip this VMA */
 	vma->vm_flags |= VM_IO | VM_RESERVED;
-#if defined(__mc68000__)
-#if defined(CONFIG_SUN3)
-	pgprot_val(vma->vm_page_prot) |= SUN3_PAGE_NOCACHE;
-#elif defined(CONFIG_MMU)
-	if (CPU_IS_020_OR_030)
-		pgprot_val(vma->vm_page_prot) |= _PAGE_NOCACHE030;
-	if (CPU_IS_040_OR_060) {
-		pgprot_val(vma->vm_page_prot) &= _CACHEMASK040;
-		/* Use no-cache mode, serialized */
-		pgprot_val(vma->vm_page_prot) |= _PAGE_NOCACHE_S;
-	}
-#endif
-#elif defined(__powerpc__)
-	vma->vm_page_prot = phys_mem_access_prot(file, off >> PAGE_SHIFT,
-						 vma->vm_end - vma->vm_start,
-						 vma->vm_page_prot);
-#elif defined(__alpha__)
-	/* Caching is off in the I/O space quadrant by design.  */
-#elif defined(__i386__) || defined(__x86_64__)
-	if (boot_cpu_data.x86 > 3)
-		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-#elif defined(__mips__) || defined(__sparc_v9__)
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-#elif defined(__hppa__)
-	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-#elif defined(__arm__) || defined(__sh__) || defined(__m32r__)
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-#elif defined(__avr32__)
-	vma->vm_page_prot = __pgprot((pgprot_val(vma->vm_page_prot)
-				      & ~_PAGE_CACHABLE)
-				     | (_PAGE_BUFFER | _PAGE_DIRTY));
-#elif defined(__ia64__)
-	if (efi_range_is_wc(vma->vm_start, vma->vm_end - vma->vm_start))
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	else
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-#else
-#warning What do we have to do here??
-#endif
+	fb_pgprotect(file, vma, off);
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
 	return 0;
-#endif /* !sparc32 */
 }
 
 static int
@@ -1388,17 +1415,34 @@ register_framebuffer(struct fb_info *fb_info)
  *
  *	Returns negative errno on error, or zero for success.
  *
+ *      This function will also notify the framebuffer console
+ *      to release the driver.
+ *
+ *      This is meant to be called within a driver's module_exit()
+ *      function. If this is called outside module_exit(), ensure
+ *      that the driver implements fb_open() and fb_release() to
+ *      check that no processes are using the device.
  */
 
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
 	struct fb_event event;
-	int i;
+	int i, ret = 0;
 
 	i = fb_info->node;
-	if (!registered_fb[i])
-		return -EINVAL;
+	if (!registered_fb[i]) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	event.info = fb_info;
+	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+
+	if (ret) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
@@ -1410,7 +1454,8 @@ unregister_framebuffer(struct fb_info *fb_info)
 	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
-	return 0;
+done:
+	return ret;
 }
 
 /**

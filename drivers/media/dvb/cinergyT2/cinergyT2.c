@@ -829,7 +829,7 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 	input_dev->id.vendor = cinergyt2->udev->descriptor.idVendor;
 	input_dev->id.product = cinergyt2->udev->descriptor.idProduct;
 	input_dev->id.version = 1;
-	input_dev->cdev.dev = &cinergyt2->udev->dev;
+	input_dev->dev.parent = &cinergyt2->udev->dev;
 
 	err = input_register_device(input_dev);
 	if (err) {
@@ -905,12 +905,11 @@ static int cinergyt2_probe (struct usb_interface *intf,
 	struct cinergyt2 *cinergyt2;
 	int err;
 
-	if (!(cinergyt2 = kmalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
+	if (!(cinergyt2 = kzalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
 		dprintk(1, "out of memory?!?\n");
 		return -ENOMEM;
 	}
 
-	memset (cinergyt2, 0, sizeof (struct cinergyt2));
 	usb_set_intfdata (intf, (void *) cinergyt2);
 
 	mutex_init(&cinergyt2->sem);
@@ -1000,18 +999,15 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (cinergyt2->disconnect_pending || mutex_lock_interruptible(&cinergyt2->wq_sem))
 		return -ERESTARTSYS;
 
-	if (1) {
-		cinergyt2_suspend_rc(cinergyt2);
-		cancel_rearming_delayed_work(&cinergyt2->query_work);
+	cinergyt2_suspend_rc(cinergyt2);
+	cancel_rearming_delayed_work(&cinergyt2->query_work);
 
-		mutex_lock(&cinergyt2->sem);
-		if (cinergyt2->streaming)
-			cinergyt2_stop_stream_xfer(cinergyt2);
-		cinergyt2_sleep(cinergyt2, 1);
-		mutex_unlock(&cinergyt2->sem);
-	}
+	mutex_lock(&cinergyt2->sem);
+	if (cinergyt2->streaming)
+		cinergyt2_stop_stream_xfer(cinergyt2);
+	cinergyt2_sleep(cinergyt2, 1);
+	mutex_unlock(&cinergyt2->sem);
 
-	mutex_unlock(&cinergyt2->wq_sem);
 	return 0;
 }
 

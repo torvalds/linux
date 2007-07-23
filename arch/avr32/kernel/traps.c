@@ -56,6 +56,7 @@ void NORET_TYPE die(const char *str, struct pt_regs *regs, long err)
 	show_regs_log_lvl(regs, KERN_EMERG);
 	show_stack_log_lvl(current, regs->sp, regs, KERN_EMERG);
 	bust_spinlocks(0);
+	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())
@@ -184,7 +185,7 @@ asmlinkage void do_illegal_opcode(unsigned long ecr, struct pt_regs *regs)
 	if (!user_mode(regs) && (ecr == ECR_ILLEGAL_OPCODE)) {
 		enum bug_trap_type type;
 
-		type = report_bug(regs->pc);
+		type = report_bug(regs->pc, regs);
 		switch (type) {
 		case BUG_TRAP_TYPE_NONE:
 			break;

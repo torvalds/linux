@@ -594,19 +594,19 @@ static struct tuner_params tuner_philips_pal_mk_params[] = {
 	},
 };
 
-/* ------------ TUNER_PHILIPS_ATSC - Philips ATSC ------------ */
+/* ---- TUNER_PHILIPS_ATSC - Philips FCV1236D (ATSC/NTSC) ---- */
 
-static struct tuner_range tuner_philips_atsc_ranges[] = {
+static struct tuner_range tuner_philips_fcv1236d_ranges[] = {
 	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa0, },
-	{ 16 * 454.00 /*MHz*/, 0x8e, 0x90, },
+	{ 16 * 451.25 /*MHz*/, 0x8e, 0x90, },
 	{ 16 * 999.99        , 0x8e, 0x30, },
 };
 
-static struct tuner_params tuner_philips_atsc_params[] = {
+static struct tuner_params tuner_philips_fcv1236d_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
-		.ranges = tuner_philips_atsc_ranges,
-		.count  = ARRAY_SIZE(tuner_philips_atsc_ranges),
+		.ranges = tuner_philips_fcv1236d_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_ranges),
 	},
 };
 
@@ -1296,9 +1296,9 @@ struct tunertype tuners[] = {
 		.count  = ARRAY_SIZE(tuner_philips_pal_mk_params),
 	},
 	[TUNER_PHILIPS_ATSC] = { /* Philips ATSC */
-		.name   = "Philips 1236D ATSC/NTSC dual in",
-		.params = tuner_philips_atsc_params,
-		.count  = ARRAY_SIZE(tuner_philips_atsc_params),
+		.name   = "Philips FCV1236D ATSC/NTSC dual in",
+		.params = tuner_philips_fcv1236d_params,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_params),
 	},
 	[TUNER_PHILIPS_FM1236_MK3] = { /* Philips NTSC */
 		.name   = "Philips NTSC MK3 (FM1236MK3 or FM1236/F)",
@@ -1462,6 +1462,10 @@ struct tunertype tuners[] = {
 				This chip is part of some modern tuners */
 		.name   = "Philips TDA988[5,6,7] IF PLL Demodulator",
 		/* see tda9887.c for details */
+	},
+	[TUNER_TEA5761] = { /* Philips RADIO */
+		.name   = "Philips TEA5761 FM Radio",
+		/* see tea5767.c for details */
 	},
 };
 

@@ -187,7 +187,7 @@ char * __devinit pcibios_setup(char *str)
  *  are examined.
  */
 
-void __init pcibios_fixup_bus(struct pci_bus *b)
+void __devinit pcibios_fixup_bus(struct pci_bus *b)
 {
 	pci_read_bridge_bases(b);
 }

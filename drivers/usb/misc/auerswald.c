@@ -630,7 +630,7 @@ static int auerchain_start_wait_urb (pauerchain_t acp, struct urb *urb, int time
 	} else
 		status = urb->status;
 
-	if (actual_length)
+	if (status >= 0)
 		*actual_length = urb->actual_length;
 
   	return status;
@@ -664,7 +664,7 @@ static int auerchain_control_msg (pauerchain_t acp, struct usb_device *dev, unsi
 	int ret;
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
-        int length;
+        int uninitialized_var(length);
 
         dbg ("auerchain_control_msg");
         dr = kmalloc (sizeof (struct usb_ctrlrequest), GFP_KERNEL);
@@ -862,14 +862,16 @@ static void auerswald_ctrlread_wretcomplete (struct urb * urb)
         pauerbuf_t bp = (pauerbuf_t) urb->context;
         pauerswald_t cp;
 	int ret;
+	int status = urb->status;
+
         dbg ("auerswald_ctrlread_wretcomplete called");
-        dbg ("complete with status: %d", urb->status);
+        dbg ("complete with status: %d", status);
 	cp = ((pauerswald_t)((char *)(bp->list)-(unsigned long)(&((pauerswald_t)0)->bufctl)));
 
 	/* check if it is possible to advance */
-	if (!auerswald_status_retry (urb->status) || !cp->usbdev) {
+	if (!auerswald_status_retry(status) || !cp->usbdev) {
 		/* reuse the buffer */
-		err ("control dummy: transmission error %d, can not retry", urb->status);
+		err ("control dummy: transmission error %d, can not retry", status);
 		auerbuf_releasebuf (bp);
 		/* Wake up all processes waiting for a buffer */
 		wake_up (&cp->bufferwait);
@@ -902,21 +904,23 @@ static void auerswald_ctrlread_complete (struct urb * urb)
         pauerswald_t  cp;
         pauerscon_t   scp;
         pauerbuf_t    bp  = (pauerbuf_t) urb->context;
+	int status = urb->status;
 	int ret;
+
         dbg ("auerswald_ctrlread_complete called");
 
 	cp = ((pauerswald_t)((char *)(bp->list)-(unsigned long)(&((pauerswald_t)0)->bufctl)));
 
 	/* check if there is valid data in this urb */
-        if (urb->status) {
-		dbg ("complete with non-zero status: %d", urb->status);
+        if (status) {
+		dbg ("complete with non-zero status: %d", status);
 		/* should we do a retry? */
-		if (!auerswald_status_retry (urb->status)
+		if (!auerswald_status_retry(status)
 		 || !cp->usbdev
 		 || (cp->version < AUV_RETRY)
                  || (bp->retries >= AU_RETRIES)) {
 			/* reuse the buffer */
-			err ("control read: transmission error %d, can not retry", urb->status);
+			err ("control read: transmission error %d, can not retry", status);
 			auerbuf_releasebuf (bp);
 			/* Wake up all processes waiting for a buffer */
 			wake_up (&cp->bufferwait);
@@ -974,12 +978,13 @@ static void auerswald_int_complete (struct urb * urb)
         unsigned  int channelid;
         unsigned  int bytecount;
         int ret;
+	int status = urb->status;
         pauerbuf_t   bp = NULL;
         pauerswald_t cp = (pauerswald_t) urb->context;
 
         dbg ("%s called", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -987,10 +992,10 @@ static void auerswald_int_complete (struct urb * urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d", __FUNCTION__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d", __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -2034,11 +2039,11 @@ static void auerswald_disconnect (struct usb_interface *intf)
 	if (!cp)
 		return;
 
-	down (&cp->mutex);
-	info ("device /dev/%s now disconnecting", cp->name);
-
 	/* give back our USB minor number */
 	usb_deregister_dev(intf, &auerswald_class);
+
+	down (&cp->mutex);
+	info ("device /dev/%s now disconnecting", cp->name);
 
 	/* Stop the interrupt endpoint */
 	auerswald_int_release (cp);

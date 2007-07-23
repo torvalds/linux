@@ -27,6 +27,9 @@ unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
 static unsigned int free_huge_pages_node[MAX_NUMNODES];
+static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+unsigned long hugepages_treat_as_movable;
+
 /*
  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
  */
@@ -66,24 +69,22 @@ static void enqueue_huge_page(struct page *page)
 static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 				unsigned long address)
 {
-	int nid = numa_node_id();
+	int nid;
 	struct page *page = NULL;
-	struct zonelist *zonelist = huge_zonelist(vma, address);
+	struct zonelist *zonelist = huge_zonelist(vma, address,
+						htlb_alloc_mask);
 	struct zone **z;
 
 	for (z = zonelist->zones; *z; z++) {
 		nid = zone_to_nid(*z);
-		if (cpuset_zone_allowed_softwall(*z, GFP_HIGHUSER) &&
-		    !list_empty(&hugepage_freelists[nid]))
-			break;
-	}
-
-	if (*z) {
-		page = list_entry(hugepage_freelists[nid].next,
-				  struct page, lru);
-		list_del(&page->lru);
-		free_huge_pages--;
-		free_huge_pages_node[nid]--;
+		if (cpuset_zone_allowed_softwall(*z, htlb_alloc_mask) &&
+		    !list_empty(&hugepage_freelists[nid])) {
+			page = list_entry(hugepage_freelists[nid].next,
+					  struct page, lru);
+			list_del(&page->lru);
+			free_huge_pages--;
+			free_huge_pages_node[nid]--;
+		}
 	}
 	return page;
 }
@@ -101,13 +102,24 @@ static void free_huge_page(struct page *page)
 
 static int alloc_fresh_huge_page(void)
 {
-	static int nid = 0;
+	static int prev_nid;
 	struct page *page;
-	page = alloc_pages_node(nid, GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN,
-					HUGETLB_PAGE_ORDER);
-	nid = next_node(nid, node_online_map);
+	int nid;
+
+	/*
+	 * Copy static prev_nid to local nid, work on that, then copy it
+	 * back to prev_nid afterwards: otherwise there's a window in which
+	 * a racer might pass invalid nid MAX_NUMNODES to alloc_pages_node.
+	 * But we don't need to use a spin_lock here: it really doesn't
+	 * matter if occasionally a racer chooses the same nid as we do.
+	 */
+	nid = next_node(prev_nid, node_online_map);
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
+	prev_nid = nid;
+
+	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+					HUGETLB_PAGE_ORDER);
 	if (page) {
 		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
@@ -196,7 +208,7 @@ static void update_and_free_page(struct page *page)
 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
 				1 << PG_private | 1<< PG_writeback);
 	}
-	page[1].lru.next = NULL;
+	set_compound_page_dtor(page, NULL);
 	set_page_refcounted(page);
 	__free_pages(page, HUGETLB_PAGE_ORDER);
 }
@@ -256,6 +268,19 @@ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
 	max_huge_pages = set_max_huge_pages(max_huge_pages);
 	return 0;
 }
+
+int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
+			struct file *file, void __user *buffer,
+			size_t *length, loff_t *ppos)
+{
+	proc_dointvec(table, write, file, buffer, length, ppos);
+	if (hugepages_treat_as_movable)
+		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
+	else
+		htlb_alloc_mask = GFP_HIGHUSER;
+	return 0;
+}
+
 #endif /* CONFIG_SYSCTL */
 
 int hugetlb_report_meminfo(char *buf)
@@ -292,15 +317,14 @@ unsigned long hugetlb_total_pages(void)
  * hugegpage VMA.  do_page_fault() is supposed to trap this, so BUG is we get
  * this far.
  */
-static struct page *hugetlb_nopage(struct vm_area_struct *vma,
-				unsigned long address, int *unused)
+static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	BUG();
-	return NULL;
+	return 0;
 }
 
 struct vm_operations_struct hugetlb_vm_ops = {
-	.nopage = hugetlb_nopage,
+	.fault = hugetlb_vm_op_fault,
 };
 
 static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
@@ -446,7 +470,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	avoidcopy = (page_count(old_page) == 1);
 	if (avoidcopy) {
 		set_huge_ptep_writable(vma, address, ptep);
-		return VM_FAULT_MINOR;
+		return 0;
 	}
 
 	page_cache_get(old_page);
@@ -471,10 +495,10 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 	page_cache_release(new_page);
 	page_cache_release(old_page);
-	return VM_FAULT_MINOR;
+	return 0;
 }
 
-int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, int write_access)
 {
 	int ret = VM_FAULT_SIGBUS;
@@ -528,7 +552,7 @@ retry:
 	if (idx >= size)
 		goto backout;
 
-	ret = VM_FAULT_MINOR;
+	ret = 0;
 	if (!pte_none(*ptep))
 		goto backout;
 
@@ -579,7 +603,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		return ret;
 	}
 
-	ret = VM_FAULT_MINOR;
+	ret = 0;
 
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
@@ -618,7 +642,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			spin_unlock(&mm->page_table_lock);
 			ret = hugetlb_fault(mm, vma, vaddr, 0);
 			spin_lock(&mm->page_table_lock);
-			if (ret == VM_FAULT_MINOR)
+			if (!(ret & VM_FAULT_MAJOR))
 				continue;
 
 			remainder = 0;

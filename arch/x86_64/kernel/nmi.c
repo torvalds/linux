@@ -296,7 +296,7 @@ static DEFINE_PER_CPU(unsigned, last_irq_sum);
 static DEFINE_PER_CPU(local_t, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
-void touch_nmi_watchdog (void)
+void touch_nmi_watchdog(void)
 {
 	if (nmi_watchdog > 0) {
 		unsigned cpu;
@@ -306,8 +306,10 @@ void touch_nmi_watchdog (void)
 		 * do it ourselves because the alert count increase is not
 		 * atomic.
 		 */
-		for_each_present_cpu (cpu)
-			per_cpu(nmi_touch, cpu) = 1;
+		for_each_present_cpu(cpu) {
+			if (per_cpu(nmi_touch, cpu) != 1)
+				per_cpu(nmi_touch, cpu) = 1;
+		}
 	}
 
  	touch_softlockup_watchdog();
@@ -382,11 +384,14 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	return rc;
 }
 
+static unsigned ignore_nmis;
+
 asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	nmi_enter();
 	add_pda(__nmi_count,1);
-	default_do_nmi(regs);
+	if (!ignore_nmis)
+		default_do_nmi(regs);
 	nmi_exit();
 }
 
@@ -397,6 +402,18 @@ int do_nmi_callback(struct pt_regs * regs, int cpu)
 		return unknown_nmi_panic_callback(regs, cpu);
 #endif
 	return 0;
+}
+
+void stop_nmi(void)
+{
+	acpi_nmi_disable();
+	ignore_nmis++;
+}
+
+void restart_nmi(void)
+{
+	ignore_nmis--;
+	acpi_nmi_enable();
 }
 
 #ifdef CONFIG_SYSCTL

@@ -91,8 +91,9 @@ static int w1_f23_refresh_block(struct w1_slave *sl, struct w1_f23_data *data,
 }
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */
 
-static ssize_t w1_f23_read_bin(struct kobject *kobj, char *buf, loff_t off,
-			       size_t count)
+static ssize_t w1_f23_read_bin(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
@@ -199,8 +200,9 @@ static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 	return 0;
 }
 
-static ssize_t w1_f23_write_bin(struct kobject *kobj, char *buf, loff_t off,
-				size_t count)
+static ssize_t w1_f23_write_bin(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int addr, len, idx;
@@ -252,7 +254,6 @@ static struct bin_attribute w1_f23_bin_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = W1_EEPROM_SIZE,
 	.read = w1_f23_read_bin,
@@ -265,10 +266,9 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
 	struct w1_f23_data *data;
 
-	data = kmalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memset(data, 0, sizeof(struct w1_f23_data));
 	sl->family_data = data;
 
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */

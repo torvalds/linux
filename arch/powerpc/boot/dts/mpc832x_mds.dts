@@ -272,7 +272,13 @@
 			reg = <2200 200>;
 			interrupts = <22>;
 			interrupt-parent = < &qeic >;
-			mac-address = [ 00 04 9f 00 23 23 ];
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			mac-address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <19>;
 			tx-clock = <1a>;
 			phy-handle = < &phy3 >;
@@ -287,7 +293,13 @@
 			reg = <3000 200>;
 			interrupts = <23>;
 			interrupt-parent = < &qeic >;
-			mac-address = [ 00 11 22 33 44 55 ];
+			/*
+			 * mac-address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			mac-address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <17>;
 			tx-clock = <18>;
 			phy-handle = < &phy4 >;

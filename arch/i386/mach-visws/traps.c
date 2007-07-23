@@ -23,13 +23,13 @@ static __init void lithium_init(void)
 	set_fixmap(FIX_LI_PCIB, LI_PCI_B_PHYS);
 
 	if ((li_pcia_read16(PCI_VENDOR_ID) != PCI_VENDOR_ID_SGI) ||
-	    (li_pcia_read16(PCI_DEVICE_ID) != PCI_VENDOR_ID_SGI_LITHIUM)) {
+	    (li_pcia_read16(PCI_DEVICE_ID) != PCI_DEVICE_ID_SGI_LITHIUM)) {
 		printk(KERN_EMERG "Lithium hostbridge %c not found\n", 'A');
 		panic("This machine is not SGI Visual Workstation 320/540");
 	}
 
 	if ((li_pcib_read16(PCI_VENDOR_ID) != PCI_VENDOR_ID_SGI) ||
-	    (li_pcib_read16(PCI_DEVICE_ID) != PCI_VENDOR_ID_SGI_LITHIUM)) {
+	    (li_pcib_read16(PCI_DEVICE_ID) != PCI_DEVICE_ID_SGI_LITHIUM)) {
 		printk(KERN_EMERG "Lithium hostbridge %c not found\n", 'B');
 		panic("This machine is not SGI Visual Workstation 320/540");
 	}

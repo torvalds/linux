@@ -99,6 +99,8 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 
+#include <scsi/scsi_ioctl.h>
+
 #include <asm/byteorder.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -1258,19 +1260,25 @@ static void idefloppy_create_rw_cmd (idefloppy_floppy_t *floppy, idefloppy_pc_t 
 	set_bit(PC_DMA_RECOMMENDED, &pc->flags);
 }
 
-static int
+static void
 idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy, idefloppy_pc_t *pc, struct request *rq)
 {
-	/*
-	 * just support eject for now, it would not be hard to make the
-	 * REQ_BLOCK_PC support fully-featured
-	 */
-	if (rq->cmd[0] != IDEFLOPPY_START_STOP_CMD)
-		return 1;
-
 	idefloppy_init_pc(pc);
+	pc->callback = &idefloppy_rw_callback;
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
-	return 0;
+	pc->rq = rq;
+	pc->b_count = rq->data_len;
+	if (rq->data_len && rq_data_dir(rq) == WRITE)
+		set_bit(PC_WRITING, &pc->flags);
+	pc->buffer = rq->data;
+	if (rq->bio)
+		set_bit(PC_DMA_RECOMMENDED, &pc->flags);
+		
+	/*
+	 * possibly problematic, doesn't look like ide-floppy correctly
+	 * handled scattered requests if dma fails...
+	 */
+	pc->request_transfer = pc->buffer_size = rq->data_len;
 }
 
 /*
@@ -1317,10 +1325,7 @@ static ide_startstop_t idefloppy_do_request (ide_drive_t *drive, struct request 
 		pc = (idefloppy_pc_t *) rq->buffer;
 	} else if (blk_pc_request(rq)) {
 		pc = idefloppy_next_pc_storage(drive);
-		if (idefloppy_blockpc_cmd(floppy, pc, rq)) {
-			idefloppy_do_end_request(drive, 0, 0);
-			return ide_stopped;
-		}
+		idefloppy_blockpc_cmd(floppy, pc, rq);
 	} else {
 		blk_dump_rq_flags(rq,
 			"ide-floppy: unsupported command in queue");
@@ -2096,7 +2101,21 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
 		return idefloppy_get_format_progress(drive, argp);
 	}
-	return generic_ide_ioctl(drive, file, bdev, cmd, arg);
+
+	/*
+	 * skip SCSI_IOCTL_SEND_COMMAND (deprecated)
+	 * and CDROM_SEND_PACKET (legacy) ioctls
+	 */
+	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
+		err = scsi_cmd_ioctl(file, bdev->bd_disk->queue,
+					bdev->bd_disk, cmd, argp);
+	else
+		err = -ENOTTY;
+
+	if (err == -ENOTTY)
+		err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
+
+	return err;
 }
 
 static int idefloppy_media_changed(struct gendisk *disk)

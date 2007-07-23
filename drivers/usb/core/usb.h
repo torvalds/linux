@@ -52,8 +52,16 @@ static inline void usb_pm_unlock(struct usb_device *udev)
 
 #else
 
-#define usb_port_suspend(dev)		0
-#define usb_port_resume(dev)		0
+static inline int usb_port_suspend(struct usb_device *udev)
+{
+	return 0;
+}
+
+static inline int usb_port_resume(struct usb_device *udev)
+{
+	return 0;
+}
+
 static inline void usb_pm_lock(struct usb_device *udev) {}
 static inline void usb_pm_unlock(struct usb_device *udev) {}
 
@@ -100,11 +108,13 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 static inline void mark_active(struct usb_interface *f)
 {
 	f->is_active = 1;
+	f->dev.power.power_state.event = PM_EVENT_ON;
 }
 
 static inline void mark_quiesced(struct usb_interface *f)
 {
 	f->is_active = 0;
+	f->dev.power.power_state.event = PM_EVENT_SUSPEND;
 }
 
 static inline int is_active(const struct usb_interface *f)

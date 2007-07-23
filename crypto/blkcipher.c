@@ -336,15 +336,40 @@ static int blkcipher_walk_first(struct blkcipher_desc *desc,
 	return blkcipher_walk_next(desc, walk);
 }
 
+static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+{
+	struct blkcipher_alg *cipher = &tfm->__crt_alg->cra_blkcipher;
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	int ret;
+	u8 *buffer, *alignbuffer;
+	unsigned long absize;
+
+	absize = keylen + alignmask;
+	buffer = kmalloc(absize, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
+
+	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+	memcpy(alignbuffer, key, keylen);
+	ret = cipher->setkey(tfm, alignbuffer, keylen);
+	memset(alignbuffer, 0, absize);
+	kfree(buffer);
+	return ret;
+}
+
 static int setkey(struct crypto_tfm *tfm, const u8 *key,
 		  unsigned int keylen)
 {
 	struct blkcipher_alg *cipher = &tfm->__crt_alg->cra_blkcipher;
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
 
 	if (keylen < cipher->min_keysize || keylen > cipher->max_keysize) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
+
+	if ((unsigned long)key & alignmask)
+		return setkey_unaligned(tfm, key, keylen);
 
 	return cipher->setkey(tfm, key, keylen);
 }

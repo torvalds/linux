@@ -14,16 +14,17 @@
  *
  */
 
+#include "kvm_svm.h"
+#include "x86_emulate.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
-#include <asm/desc.h>
 
-#include "kvm_svm.h"
-#include "x86_emulate.h"
+#include <asm/desc.h>
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -378,7 +379,7 @@ static __init int svm_hardware_setup(void)
 	int cpu;
 	struct page *iopm_pages;
 	struct page *msrpm_pages;
-	void *msrpm_va;
+	void *iopm_va, *msrpm_va;
 	int r;
 
 	kvm_emulator_want_group7_invlpg();
@@ -387,8 +388,10 @@ static __init int svm_hardware_setup(void)
 
 	if (!iopm_pages)
 		return -ENOMEM;
-	memset(page_address(iopm_pages), 0xff,
-					PAGE_SIZE * (1 << IOPM_ALLOC_ORDER));
+
+	iopm_va = page_address(iopm_pages);
+	memset(iopm_va, 0xff, PAGE_SIZE * (1 << IOPM_ALLOC_ORDER));
+	clear_bit(0x80, iopm_va); /* allow direct access to PC debug port */
 	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
 
 
@@ -579,7 +582,7 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		goto out2;
 
 	vcpu->svm->vmcb = page_address(page);
-	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
+	clear_page(vcpu->svm->vmcb);
 	vcpu->svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	vcpu->svm->asid_generation = 0;
 	memset(vcpu->svm->db_regs, 0, sizeof(vcpu->svm->db_regs));
@@ -587,9 +590,9 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	fx_init(vcpu);
 	vcpu->fpu_active = 1;
-	vcpu->apic_base = 0xfee00000 |
-			/*for vcpu 0*/ MSR_IA32_APICBASE_BSP |
-			MSR_IA32_APICBASE_ENABLE;
+	vcpu->apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	if (vcpu == &vcpu->kvm->vcpus[0])
+		vcpu->apic_base |= MSR_IA32_APICBASE_BSP;
 
 	return 0;
 
@@ -955,7 +958,7 @@ static int shutdown_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 * VMCB is undefined after a SHUTDOWN intercept
 	 * so reinitialize it.
 	 */
-	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
+	clear_page(vcpu->svm->vmcb);
 	init_vmcb(vcpu->svm->vmcb);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
@@ -1113,12 +1116,7 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	vcpu->svm->next_rip = vcpu->svm->vmcb->save.rip + 1;
 	skip_emulated_instruction(vcpu);
-	if (vcpu->irq_summary)
-		return 1;
-
-	kvm_run->exit_reason = KVM_EXIT_HLT;
-	++vcpu->stat.halt_exits;
-	return 0;
+	return kvm_emulate_halt(vcpu);
 }
 
 static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -1473,6 +1471,11 @@ static void load_db_regs(unsigned long *db_regs)
 	asm volatile ("mov %0, %%dr3" : : "r"(db_regs[3]));
 }
 
+static void svm_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	force_new_asid(vcpu);
+}
+
 static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u16 fs_selector;
@@ -1481,10 +1484,19 @@ static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 again:
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		return r;
+
 	if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(vcpu, kvm_run);
 
 	clgi();
+
+	vcpu->guest_mode = 1;
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
+		    svm_flush_tlb(vcpu);
 
 	pre_svm_run(vcpu);
 
@@ -1617,6 +1629,8 @@ again:
 #endif
 		: "cc", "memory" );
 
+	vcpu->guest_mode = 0;
+
 	if (vcpu->fpu_active) {
 		fx_save(vcpu->guest_fx_image);
 		fx_restore(vcpu->host_fx_image);
@@ -1681,11 +1695,6 @@ again:
 	return r;
 }
 
-static void svm_flush_tlb(struct kvm_vcpu *vcpu)
-{
-	force_new_asid(vcpu);
-}
-
 static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 {
 	vcpu->svm->vmcb->save.cr3 = root;
@@ -1727,6 +1736,12 @@ static void svm_inject_page_fault(struct kvm_vcpu *vcpu,
 
 static int is_disabled(void)
 {
+	u64 vm_cr;
+
+	rdmsrl(MSR_VM_CR, vm_cr);
+	if (vm_cr & (1 << SVM_VM_CR_SVM_DISABLE))
+		return 1;
+
 	return 0;
 }
 

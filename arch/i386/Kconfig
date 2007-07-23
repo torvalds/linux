@@ -18,6 +18,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config CLOCKSOURCE_WATCHDOG
 	bool
 	default y
@@ -221,6 +225,8 @@ config PARAVIRT
 	  under a hypervisor, improving performance significantly.
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
+
+source "arch/i386/xen/Kconfig"
 
 config VMI
 	bool "VMI Paravirt-ops support"
@@ -542,6 +548,7 @@ config HIGHMEM4G
 config HIGHMEM64G
 	bool "64GB"
 	depends on !M386 && !M486
+	select X86_PAE
 	help
 	  Select this if you have a 32-bit processor and more than 4
 	  gigabytes of physical RAM.
@@ -571,12 +578,12 @@ choice
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
 	config VMSPLIT_3G_OPT
-		depends on !HIGHMEM
+		depends on !X86_PAE
 		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_2G_OPT
-		depends on !HIGHMEM
+		depends on !X86_PAE
 		bool "2G/2G user/kernel split (for full 2G low memory)"
 	config VMSPLIT_1G
 		bool "1G/3G user/kernel split"
@@ -596,10 +603,15 @@ config HIGHMEM
 	default y
 
 config X86_PAE
-	bool
-	depends on HIGHMEM64G
-	default y
+	bool "PAE (Physical Address Extension) Support"
+	default n
+	depends on !HIGHMEM4G
 	select RESOURCES_64BIT
+	help
+	  PAE is required for NX support, and furthermore enables
+	  larger swapspace support for non-overcommit purposes. It
+	  has the cost of more pagetable lookup overhead, and also
+	  consumes more pagetable space per process.
 
 # Common NUMA Features
 config NUMA
@@ -815,6 +827,7 @@ config CRASH_DUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	default "0x1000000" if X86_NUMAQ
 	default "0x100000"
 	help
 	  This gives the physical address where the kernel is loaded.
@@ -1212,21 +1225,26 @@ source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
-menu "Instrumentation Support"
+menuconfig INSTRUMENTATION
+	bool "Instrumentation Support"
 	depends on EXPERIMENTAL
+	default y
+
+if INSTRUMENTATION
 
 source "arch/i386/oprofile/Kconfig"
 
 config KPROBES
-	bool "Kprobes (EXPERIMENTAL)"
-	depends on KALLSYMS && EXPERIMENTAL && MODULES
+	bool "Kprobes"
+	depends on KALLSYMS && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
 	  a probepoint and specifies the callback.  Kprobes is useful
 	  for kernel debugging, non-intrusive instrumentation and testing.
 	  If in doubt, say "N".
-endmenu
+
+endif # INSTRUMENTATION
 
 source "arch/i386/Kconfig.debug"
 

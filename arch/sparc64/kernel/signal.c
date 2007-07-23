@@ -289,9 +289,7 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	struct rt_signal_frame __user *sf;
 	unsigned long tpc, tnpc, tstate;
 	__siginfo_fpu_t __user *fpu_save;
-	mm_segment_t old_fs;
 	sigset_t set;
-	stack_t st;
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -327,20 +325,13 @@ void do_rt_sigreturn(struct pt_regs *regs)
 		err |= restore_fpu_state(regs, &sf->fpu_state);
 
 	err |= __copy_from_user(&set, &sf->mask, sizeof(sigset_t));
-	err |= __copy_from_user(&st, &sf->stack, sizeof(stack_t));
-	
+	err |= do_sigaltstack(&sf->stack, NULL, (unsigned long)sf);
+
 	if (err)
 		goto segv;
-		
+
 	regs->tpc = tpc;
 	regs->tnpc = tnpc;
-	
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((const stack_t __user *) &st, NULL, (unsigned long)sf);
-	set_fs(old_fs);
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	spin_lock_irq(&current->sighand->siglock);

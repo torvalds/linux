@@ -1726,7 +1726,7 @@ static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations dn_rt_cache_seq_ops = {
+static const struct seq_operations dn_rt_cache_seq_ops = {
 	.start	= dn_rt_cache_seq_start,
 	.next	= dn_rt_cache_seq_next,
 	.stop	= dn_rt_cache_seq_stop,
@@ -1770,7 +1770,7 @@ void __init dn_route_init(void)
 
 	dn_dst_ops.kmem_cachep =
 		kmem_cache_create("dn_dst_cache", sizeof(struct dn_route), 0,
-				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	init_timer(&dn_route_timer);
 	dn_route_timer.function = dn_dst_check_expire;
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;

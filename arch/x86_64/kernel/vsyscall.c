@@ -42,6 +42,7 @@
 #include <asm/segment.h>
 #include <asm/desc.h>
 #include <asm/topology.h>
+#include <asm/vgtod.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
 #define __syscall_clobber "r11","rcx","memory"
@@ -57,26 +58,9 @@
  * - writen by timer interrupt or systcl (/proc/sys/kernel/vsyscall64)
  * Try to keep this structure as small as possible to avoid cache line ping pongs
  */
-struct vsyscall_gtod_data_t {
-	seqlock_t	lock;
-
-	/* open coded 'struct timespec' */
-	time_t		wall_time_sec;
-	u32		wall_time_nsec;
-
-	int		sysctl_enabled;
-	struct timezone sys_tz;
-	struct { /* extract of a clocksource struct */
-		cycle_t (*vread)(void);
-		cycle_t	cycle_last;
-		cycle_t	mask;
-		u32	mult;
-		u32	shift;
-	} clock;
-};
 int __vgetcpu_mode __section_vgetcpu_mode;
 
-struct vsyscall_gtod_data_t __vsyscall_gtod_data __section_vsyscall_gtod_data =
+struct vsyscall_gtod_data __vsyscall_gtod_data __section_vsyscall_gtod_data =
 {
 	.lock = SEQLOCK_UNLOCKED,
 	.sysctl_enabled = 1,
@@ -96,6 +80,8 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock)
 	vsyscall_gtod_data.wall_time_sec = wall_time->tv_sec;
 	vsyscall_gtod_data.wall_time_nsec = wall_time->tv_nsec;
 	vsyscall_gtod_data.sys_tz = sys_tz;
+	vsyscall_gtod_data.wall_time_nsec = wall_time->tv_nsec;
+	vsyscall_gtod_data.wall_to_monotonic = wall_to_monotonic;
 	write_sequnlock_irqrestore(&vsyscall_gtod_data.lock, flags);
 }
 

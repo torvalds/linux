@@ -71,7 +71,7 @@ static struct clocksource clocksource_acpi_pm = {
 	.rating		= 200,
 	.read		= acpi_pm_read,
 	.mask		= (cycle_t)ACPI_PM_MASK,
-	.mult		= 0, /*to be caluclated*/
+	.mult		= 0, /*to be calculated*/
 	.shift		= 22,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 
@@ -105,14 +105,11 @@ static inline void acpi_pm_need_workaround(void)
  */
 static void __devinit acpi_pm_check_blacklist(struct pci_dev *dev)
 {
-	u8 rev;
-
 	if (acpi_pm_good)
 		return;
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 	/* the bug has been fixed in PIIX4M */
-	if (rev < 3) {
+	if (dev->revision < 3) {
 		printk(KERN_WARNING "* Found PM-Timer Bug on the chipset."
 		       " Due to workarounds for a bug,\n"
 		       "* this clock source is slow. Consider trying"

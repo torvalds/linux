@@ -94,7 +94,7 @@ static inline int VAR_MATCH(struct fb_var_screeninfo *x, struct fb_var_screeninf
 struct fb_info_control {
 	struct fb_info		info;
 	struct fb_par_control	par;
-	u32			pseudo_palette[17];
+	u32			pseudo_palette[16];
 		
 	struct cmap_regs	__iomem *cmap_regs;
 	unsigned long		cmap_regs_phys;

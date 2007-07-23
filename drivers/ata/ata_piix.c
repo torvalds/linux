@@ -414,7 +414,7 @@ static const struct piix_map_db ich6m_map_db = {
 	 */
 	.map = {
 		/* PM   PS   SM   SS       MAP */
-		{  P0,  P2,  RV,  RV }, /* 00b */
+		{  P0,  P2,  NA,  NA }, /* 00b */
 		{ IDE, IDE,  P1,  P3 }, /* 01b */
 		{  P0,  P2, IDE, IDE }, /* 10b */
 		{  RV,  RV,  RV,  RV },
@@ -928,20 +928,18 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
-	u8 rev;
 	int no_piix_dma = 0;
 
 	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
 	{
 		/* Look for 450NX PXB. Check for problem configurations
 		   A PCI quirk checks bit 6 already */
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 		pci_read_config_word(pdev, 0x41, &cfg);
 		/* Only on the original revision: IDE DMA can hang */
-		if (rev == 0x00)
+		if (pdev->revision == 0x00)
 			no_piix_dma = 1;
 		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
-		else if (cfg & (1<<14) && rev < 5)
+		else if (cfg & (1<<14) && pdev->revision < 5)
 			no_piix_dma = 2;
 	}
 	if (no_piix_dma)

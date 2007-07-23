@@ -61,7 +61,6 @@ struct dma_mapping_ops {
 	void		(*unmap_sg)(struct device *dev, struct scatterlist *sg,
 				int nents, enum dma_data_direction direction);
 	int		(*dma_supported)(struct device *dev, u64 mask);
-	int		(*dac_dma_supported)(struct device *dev, u64 mask);
 	int		(*set_dma_mask)(struct device *dev, u64 dma_mask);
 };
 

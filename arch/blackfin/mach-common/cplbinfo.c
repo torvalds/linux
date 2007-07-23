@@ -31,11 +31,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
-
 #include <asm/cplb.h>
 #include <asm/blackfin.h>
 
@@ -92,8 +91,7 @@ static char *cplb_print_entry(char *buf, int type)
 	} else
 		buf += sprintf(buf, "Data CPLB entry:\n");
 
-	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\
-\tiCount\toCount\n");
+	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\n\tiCount\toCount\n");
 
 	while (*p_addr != 0xffffffff) {
 		entry = cplb_find_entry(cplb_addr, cplb_data, *p_addr, *p_data);
@@ -144,8 +142,7 @@ static int cplbinfo_proc_output(char *buf)
 
 	p = buf;
 
-	p += sprintf(p,
-		     "------------------ CPLB Information ------------------\n\n");
+	p += sprintf(p, "------------------ CPLB Information ------------------\n\n");
 
 	if (bfin_read_IMEM_CONTROL() & ENICPLB)
 		p = cplb_print_entry(p, CPLB_I);
@@ -191,9 +188,9 @@ static int __init cplbinfo_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	if ((entry = create_proc_entry("cplbinfo", 0, NULL)) == NULL) {
+	entry = create_proc_entry("cplbinfo", 0, NULL);
+	if (!entry)
 		return -ENOMEM;
-	}
 
 	entry->read_proc = cplbinfo_read_proc;
 	entry->write_proc = cplbinfo_write_proc;

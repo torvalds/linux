@@ -857,7 +857,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 					       pol, NULL);
 				return err;
 			}
-                }
+		}
 		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
 			hlist_for_each_entry(pol, entry,
 					     xfrm_policy_bydst[dir].table + i,
@@ -2141,7 +2141,7 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		if (last == first)
 			break;
 
-		last = last->u.next;
+		last = (struct xfrm_dst *)last->u.dst.next;
 		last->child_mtu_cached = mtu;
 	}
 
@@ -2378,7 +2378,7 @@ static void __init xfrm_policy_init(void)
 	xfrm_dst_cache = kmem_cache_create("xfrm_dst_cache",
 					   sizeof(struct xfrm_dst),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					   NULL, NULL);
+					   NULL);
 
 	hmask = 8 - 1;
 	sz = (hmask+1) * sizeof(struct hlist_head);

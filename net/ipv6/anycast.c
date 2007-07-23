@@ -539,7 +539,7 @@ static int ac6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ac6_seq_ops = {
+static const struct seq_operations ac6_seq_ops = {
 	.start	=	ac6_seq_start,
 	.next	=	ac6_seq_next,
 	.stop	=	ac6_seq_stop,

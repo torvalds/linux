@@ -129,6 +129,7 @@ MODULE_PARM_DESC(force_addr, "Initialize the base address of the i2c controller"
 
 static struct pci_driver sis5595_driver;
 static unsigned short sis5595_base;
+static struct pci_dev *sis5595_pdev;
 
 static u8 sis5595_read(u8 reg)
 {
@@ -379,6 +380,8 @@ MODULE_DEVICE_TABLE (pci, sis5595_ids);
 
 static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	int err;
+
 	if (sis5595_setup(dev)) {
 		dev_err(&dev->dev, "SIS5595 not detected, module not inserted.\n");
 		return -ENODEV;
@@ -389,20 +392,24 @@ static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_
 
 	sprintf(sis5595_adapter.name, "SMBus SIS5595 adapter at %04x",
 		sis5595_base + SMB_INDEX);
-	return i2c_add_adapter(&sis5595_adapter);
-}
+	err = i2c_add_adapter(&sis5595_adapter);
+	if (err) {
+		release_region(sis5595_base + SMB_INDEX, 2);
+		return err;
+	}
 
-static void __devexit sis5595_remove(struct pci_dev *dev)
-{
-	i2c_del_adapter(&sis5595_adapter);
-	release_region(sis5595_base + SMB_INDEX, 2);
+	/* Always return failure here.  This is to allow other drivers to bind
+	 * to this pci device.  We don't really want to have control over the
+	 * pci device, we only wanted to read as few register values from it.
+	 */
+	sis5595_pdev =  pci_dev_get(dev);
+	return -ENODEV;
 }
 
 static struct pci_driver sis5595_driver = {
 	.name		= "sis5595_smbus",
 	.id_table	= sis5595_ids,
 	.probe		= sis5595_probe,
-	.remove		= __devexit_p(sis5595_remove),
 };
 
 static int __init i2c_sis5595_init(void)
@@ -413,6 +420,12 @@ static int __init i2c_sis5595_init(void)
 static void __exit i2c_sis5595_exit(void)
 {
 	pci_unregister_driver(&sis5595_driver);
+	if (sis5595_pdev) {
+		i2c_del_adapter(&sis5595_adapter);
+		release_region(sis5595_base + SMB_INDEX, 2);
+		pci_dev_put(sis5595_pdev);
+		sis5595_pdev = NULL;
+	}
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");

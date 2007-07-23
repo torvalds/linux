@@ -29,13 +29,6 @@ static int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "Port numbers of TFTP servers");
 
-#if 0
-#define DEBUGP(format, args...) printk("%s:%s:" format, \
-				       __FILE__, __FUNCTION__ , ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 unsigned int (*nf_nat_tftp_hook)(struct sk_buff **pskb,
 				 enum ip_conntrack_info ctinfo,
 				 struct nf_conntrack_expect *exp) __read_mostly;
@@ -62,39 +55,35 @@ static int tftp_help(struct sk_buff **pskb,
 	case TFTP_OPCODE_READ:
 	case TFTP_OPCODE_WRITE:
 		/* RRQ and WRQ works the same way */
-		DEBUGP("");
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-		exp = nf_conntrack_expect_alloc(ct);
+		exp = nf_ct_expect_alloc(ct);
 		if (exp == NULL)
 			return NF_DROP;
 		tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		nf_conntrack_expect_init(exp, family,
-					 &tuple->src.u3, &tuple->dst.u3,
-					 IPPROTO_UDP,
-					 NULL, &tuple->dst.u.udp.port);
+		nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+				  IPPROTO_UDP, NULL, &tuple->dst.u.udp.port);
 
-		DEBUGP("expect: ");
+		pr_debug("expect: ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
-		NF_CT_DUMP_TUPLE(&exp->mask);
 
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_tftp(pskb, ctinfo, exp);
-		else if (nf_conntrack_expect_related(exp) != 0)
+		else if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
-		nf_conntrack_expect_put(exp);
+		nf_ct_expect_put(exp);
 		break;
 	case TFTP_OPCODE_DATA:
 	case TFTP_OPCODE_ACK:
-		DEBUGP("Data/ACK opcode\n");
+		pr_debug("Data/ACK opcode\n");
 		break;
 	case TFTP_OPCODE_ERROR:
-		DEBUGP("Error opcode\n");
+		pr_debug("Error opcode\n");
 		break;
 	default:
-		DEBUGP("Unknown opcode\n");
+		pr_debug("Unknown opcode\n");
 	}
 	return ret;
 }
@@ -128,9 +117,6 @@ static int __init nf_conntrack_tftp_init(void)
 		for (j = 0; j < 2; j++) {
 			tftp[i][j].tuple.dst.protonum = IPPROTO_UDP;
 			tftp[i][j].tuple.src.u.udp.port = htons(ports[i]);
-			tftp[i][j].mask.src.l3num = 0xFFFF;
-			tftp[i][j].mask.dst.protonum = 0xFF;
-			tftp[i][j].mask.src.u.udp.port = htons(0xFFFF);
 			tftp[i][j].max_expected = 1;
 			tftp[i][j].timeout = 5 * 60; /* 5 minutes */
 			tftp[i][j].me = THIS_MODULE;

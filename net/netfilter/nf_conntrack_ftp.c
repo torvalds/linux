@@ -51,12 +51,6 @@ unsigned int (*nf_nat_ftp_hook)(struct sk_buff **pskb,
 				struct nf_conntrack_expect *exp);
 EXPORT_SYMBOL_GPL(nf_nat_ftp_hook);
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static int try_rfc959(const char *, size_t, struct nf_conntrack_man *, char);
 static int try_eprt(const char *, size_t, struct nf_conntrack_man *, char);
 static int try_epsv_response(const char *, size_t, struct nf_conntrack_man *,
@@ -138,13 +132,13 @@ static int try_number(const char *data, size_t dlen, u_int32_t array[],
 			if (*data == term && i == array_size - 1)
 				return len;
 
-			DEBUGP("Char %u (got %u nums) `%u' unexpected\n",
-			       len, i, *data);
+			pr_debug("Char %u (got %u nums) `%u' unexpected\n",
+				 len, i, *data);
 			return 0;
 		}
 	}
-	DEBUGP("Failed to fill %u numbers separated by %c\n", array_size, sep);
-
+	pr_debug("Failed to fill %u numbers separated by %c\n",
+		 array_size, sep);
 	return 0;
 }
 
@@ -178,13 +172,13 @@ static int get_port(const char *data, int start, size_t dlen, char delim,
 			if (tmp_port == 0)
 				break;
 			*port = htons(tmp_port);
-			DEBUGP("get_port: return %d\n", tmp_port);
+			pr_debug("get_port: return %d\n", tmp_port);
 			return i + 1;
 		}
 		else if (data[i] >= '0' && data[i] <= '9')
 			tmp_port = tmp_port*10 + data[i] - '0';
 		else { /* Some other crap */
-			DEBUGP("get_port: invalid char.\n");
+			pr_debug("get_port: invalid char.\n");
 			break;
 		}
 	}
@@ -201,22 +195,22 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 	/* First character is delimiter, then "1" for IPv4 or "2" for IPv6,
 	   then delimiter again. */
 	if (dlen <= 3) {
-		DEBUGP("EPRT: too short\n");
+		pr_debug("EPRT: too short\n");
 		return 0;
 	}
 	delim = data[0];
 	if (isdigit(delim) || delim < 33 || delim > 126 || data[2] != delim) {
-		DEBUGP("try_eprt: invalid delimitter.\n");
+		pr_debug("try_eprt: invalid delimitter.\n");
 		return 0;
 	}
 
 	if ((cmd->l3num == PF_INET && data[1] != '1') ||
 	    (cmd->l3num == PF_INET6 && data[1] != '2')) {
-		DEBUGP("EPRT: invalid protocol number.\n");
+		pr_debug("EPRT: invalid protocol number.\n");
 		return 0;
 	}
 
-	DEBUGP("EPRT: Got %c%c%c\n", delim, data[1], delim);
+	pr_debug("EPRT: Got %c%c%c\n", delim, data[1], delim);
 
 	if (data[1] == '1') {
 		u_int32_t array[4];
@@ -234,7 +228,7 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 
 	if (length == 0)
 		return 0;
-	DEBUGP("EPRT: Got IP address!\n");
+	pr_debug("EPRT: Got IP address!\n");
 	/* Start offset includes initial "|1|", and trailing delimiter */
 	return get_port(data, 3 + length + 1, dlen, delim, &cmd->u.tcp.port);
 }
@@ -267,7 +261,7 @@ static int find_pattern(const char *data, size_t dlen,
 {
 	size_t i;
 
-	DEBUGP("find_pattern `%s': dlen = %u\n", pattern, dlen);
+	pr_debug("find_pattern `%s': dlen = %Zu\n", pattern, dlen);
 	if (dlen == 0)
 		return 0;
 
@@ -282,17 +276,17 @@ static int find_pattern(const char *data, size_t dlen,
 #if 0
 		size_t i;
 
-		DEBUGP("ftp: string mismatch\n");
+		pr_debug("ftp: string mismatch\n");
 		for (i = 0; i < plen; i++) {
-			DEBUGP("ftp:char %u `%c'(%u) vs `%c'(%u)\n",
-				i, data[i], data[i],
-				pattern[i], pattern[i]);
+			pr_debug("ftp:char %u `%c'(%u) vs `%c'(%u)\n",
+				 i, data[i], data[i],
+				 pattern[i], pattern[i]);
 		}
 #endif
 		return 0;
 	}
 
-	DEBUGP("Pattern matches!\n");
+	pr_debug("Pattern matches!\n");
 	/* Now we've found the constant string, try to skip
 	   to the 'skip' character */
 	for (i = plen; data[i] != skip; i++)
@@ -301,14 +295,14 @@ static int find_pattern(const char *data, size_t dlen,
 	/* Skip over the last character */
 	i++;
 
-	DEBUGP("Skipped up to `%c'!\n", skip);
+	pr_debug("Skipped up to `%c'!\n", skip);
 
 	*numoff = i;
 	*numlen = getnum(data + i, dlen - i, cmd, term);
 	if (!*numlen)
 		return -1;
 
-	DEBUGP("Match succeeded!\n");
+	pr_debug("Match succeeded!\n");
 	return 1;
 }
 
@@ -364,6 +358,7 @@ static int help(struct sk_buff **pskb,
 	unsigned int matchlen, matchoff;
 	struct nf_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
+	union nf_conntrack_address *daddr;
 	struct nf_conntrack_man cmd = {};
 	unsigned int i;
 	int found = 0, ends_in_nl;
@@ -372,7 +367,7 @@ static int help(struct sk_buff **pskb,
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED
 	    && ctinfo != IP_CT_ESTABLISHED+IP_CT_IS_REPLY) {
-		DEBUGP("ftp: Conntrackinfo = %u\n", ctinfo);
+		pr_debug("ftp: Conntrackinfo = %u\n", ctinfo);
 		return NF_ACCEPT;
 	}
 
@@ -383,8 +378,8 @@ static int help(struct sk_buff **pskb,
 	dataoff = protoff + th->doff * 4;
 	/* No data? */
 	if (dataoff >= (*pskb)->len) {
-		DEBUGP("ftp: dataoff(%u) >= skblen(%u)\n", dataoff,
-			(*pskb)->len);
+		pr_debug("ftp: dataoff(%u) >= skblen(%u)\n", dataoff,
+			 (*pskb)->len);
 		return NF_ACCEPT;
 	}
 	datalen = (*pskb)->len - dataoff;
@@ -399,11 +394,11 @@ static int help(struct sk_buff **pskb,
 	/* Look up to see if we're just after a \n. */
 	if (!find_nl_seq(ntohl(th->seq), ct_ftp_info, dir)) {
 		/* Now if this ends in \n, update ftp info. */
-		DEBUGP("nf_conntrack_ftp_help: wrong seq pos %s(%u) or %s(%u)\n",
-		       ct_ftp_info->seq_aft_nl_num[dir] > 0 ? "" : "(UNSET)",
-		       ct_ftp_info->seq_aft_nl[dir][0],
-		       ct_ftp_info->seq_aft_nl_num[dir] > 1 ? "" : "(UNSET)",
-		       ct_ftp_info->seq_aft_nl[dir][1]);
+		pr_debug("nf_conntrack_ftp: wrong seq pos %s(%u) or %s(%u)\n",
+			 ct_ftp_info->seq_aft_nl_num[dir] > 0 ? "" : "(UNSET)",
+			 ct_ftp_info->seq_aft_nl[dir][0],
+			 ct_ftp_info->seq_aft_nl_num[dir] > 1 ? "" : "(UNSET)",
+			 ct_ftp_info->seq_aft_nl[dir][1]);
 		ret = NF_ACCEPT;
 		goto out_update_nl;
 	}
@@ -441,11 +436,11 @@ static int help(struct sk_buff **pskb,
 		goto out_update_nl;
 	}
 
-	DEBUGP("conntrack_ftp: match `%.*s' (%u bytes at %u)\n",
-	       (int)matchlen, fb_ptr + matchoff,
-	       matchlen, ntohl(th->seq) + matchoff);
+	pr_debug("conntrack_ftp: match `%.*s' (%u bytes at %u)\n",
+		 matchlen, fb_ptr + matchoff,
+		 matchlen, ntohl(th->seq) + matchoff);
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
 		ret = NF_DROP;
 		goto out;
@@ -454,7 +449,7 @@ static int help(struct sk_buff **pskb,
 	/* We refer to the reverse direction ("!dir") tuples here,
 	 * because we're expecting something in the other direction.
 	 * Doesn't matter unless NAT is happening.  */
-	exp->tuple.dst.u3 = ct->tuplehash[!dir].tuple.dst.u3;
+	daddr = &ct->tuplehash[!dir].tuple.dst.u3;
 
 	/* Update the ftp info */
 	if ((cmd.l3num == ct->tuplehash[dir].tuple.src.l3num) &&
@@ -465,14 +460,16 @@ static int help(struct sk_buff **pskb,
 		   different IP address.  Simply don't record it for
 		   NAT. */
 		if (cmd.l3num == PF_INET) {
-			DEBUGP("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT " != " NIPQUAD_FMT "\n",
-			       NIPQUAD(cmd.u3.ip),
-			       NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
+			pr_debug("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT
+				 " != " NIPQUAD_FMT "\n",
+				 NIPQUAD(cmd.u3.ip),
+				 NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
 		} else {
-			DEBUGP("conntrack_ftp: NOT RECORDING: " NIP6_FMT " != " NIP6_FMT "\n",
-			       NIP6(*((struct in6_addr *)cmd.u3.ip6)),
-			       NIP6(*((struct in6_addr *)ct->tuplehash[dir]
-							.tuple.src.u3.ip6)));
+			pr_debug("conntrack_ftp: NOT RECORDING: " NIP6_FMT
+				 " != " NIP6_FMT "\n",
+				 NIP6(*((struct in6_addr *)cmd.u3.ip6)),
+				 NIP6(*((struct in6_addr *)
+					ct->tuplehash[dir].tuple.src.u3.ip6)));
 		}
 
 		/* Thanks to Cristiano Lincoln Mattos
@@ -483,37 +480,12 @@ static int help(struct sk_buff **pskb,
 			ret = NF_ACCEPT;
 			goto out_put_expect;
 		}
-		memcpy(&exp->tuple.dst.u3, &cmd.u3.all,
-		       sizeof(exp->tuple.dst.u3));
+		daddr = &cmd.u3;
 	}
 
-	exp->tuple.src.u3 = ct->tuplehash[!dir].tuple.src.u3;
-	exp->tuple.src.l3num = cmd.l3num;
-	exp->tuple.src.u.tcp.port = 0;
-	exp->tuple.dst.u.tcp.port = cmd.u.tcp.port;
-	exp->tuple.dst.protonum = IPPROTO_TCP;
-
-	exp->mask = (struct nf_conntrack_tuple)
-		    { .src = { .l3num = 0xFFFF,
-			       .u = { .tcp = { 0 }},
-			     },
-		      .dst = { .protonum = 0xFF,
-			       .u = { .tcp = { __constant_htons(0xFFFF) }},
-			     },
-		    };
-	if (cmd.l3num == PF_INET) {
-		exp->mask.src.u3.ip = htonl(0xFFFFFFFF);
-		exp->mask.dst.u3.ip = htonl(0xFFFFFFFF);
-	} else {
-		memset(exp->mask.src.u3.ip6, 0xFF,
-		       sizeof(exp->mask.src.u3.ip6));
-		memset(exp->mask.dst.u3.ip6, 0xFF,
-		       sizeof(exp->mask.src.u3.ip6));
-	}
-
-	exp->expectfn = NULL;
-	exp->helper = NULL;
-	exp->flags = 0;
+	nf_ct_expect_init(exp, cmd.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, daddr,
+			  IPPROTO_TCP, NULL, &cmd.u.tcp.port);
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
@@ -523,14 +495,14 @@ static int help(struct sk_buff **pskb,
 				 matchoff, matchlen, exp);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
-		if (nf_conntrack_expect_related(exp) != 0)
+		if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
 		else
 			ret = NF_ACCEPT;
 	}
 
 out_put_expect:
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 out_update_nl:
 	/* Now if this ends in \n, update ftp info.  Seq may have been
@@ -542,8 +514,8 @@ out_update_nl:
 	return ret;
 }
 
-static struct nf_conntrack_helper ftp[MAX_PORTS][2];
-static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")];
+static struct nf_conntrack_helper ftp[MAX_PORTS][2] __read_mostly;
+static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")] __read_mostly;
 
 /* don't make this __exit, since it's called from __init ! */
 static void nf_conntrack_ftp_fini(void)
@@ -554,9 +526,9 @@ static void nf_conntrack_ftp_fini(void)
 			if (ftp[i][j].me == NULL)
 				continue;
 
-			DEBUGP("nf_ct_ftp: unregistering helper for pf: %d "
-			       "port: %d\n",
-				ftp[i][j].tuple.src.l3num, ports[i]);
+			pr_debug("nf_ct_ftp: unregistering helper for pf: %d "
+				 "port: %d\n",
+				 ftp[i][j].tuple.src.l3num, ports[i]);
 			nf_conntrack_helper_unregister(&ftp[i][j]);
 		}
 	}
@@ -584,9 +556,6 @@ static int __init nf_conntrack_ftp_init(void)
 		for (j = 0; j < 2; j++) {
 			ftp[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			ftp[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			ftp[i][j].mask.src.l3num = 0xFFFF;
-			ftp[i][j].mask.src.u.tcp.port = htons(0xFFFF);
-			ftp[i][j].mask.dst.protonum = 0xFF;
 			ftp[i][j].max_expected = 1;
 			ftp[i][j].timeout = 5 * 60;	/* 5 Minutes */
 			ftp[i][j].me = THIS_MODULE;
@@ -598,9 +567,9 @@ static int __init nf_conntrack_ftp_init(void)
 				sprintf(tmpname, "ftp-%d", ports[i]);
 			ftp[i][j].name = tmpname;
 
-			DEBUGP("nf_ct_ftp: registering helper for pf: %d "
-			       "port: %d\n",
-				ftp[i][j].tuple.src.l3num, ports[i]);
+			pr_debug("nf_ct_ftp: registering helper for pf: %d "
+				 "port: %d\n",
+				 ftp[i][j].tuple.src.l3num, ports[i]);
 			ret = nf_conntrack_helper_register(&ftp[i][j]);
 			if (ret) {
 				printk("nf_ct_ftp: failed to register helper "

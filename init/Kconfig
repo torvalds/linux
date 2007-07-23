@@ -120,15 +120,6 @@ config SYSVIPC
 	  section 6.4 of the Linux Programmer's Guide, available from
 	  <http://www.tldp.org/guides.html>.
 
-config IPC_NS
-	bool "IPC Namespaces"
-	depends on SYSVIPC
-	default n
-	help
-	  Support ipc namespaces.  This allows containers, i.e. virtual
-	  environments, to use ipc namespaces to provide different ipc
-	  objects for different servers.  If unsure, say N.
-
 config SYSVIPC_SYSCTL
 	bool
 	depends on SYSVIPC
@@ -218,13 +209,14 @@ config TASK_IO_ACCOUNTING
 
 	  Say N if unsure.
 
-config UTS_NS
-	bool "UTS Namespaces"
+config USER_NS
+	bool "User Namespaces (EXPERIMENTAL)"
 	default n
+	depends on EXPERIMENTAL
 	help
-	  Support uts namespaces.  This allows containers, i.e.
-	  vservers, to use uts namespaces to provide different
-	  uts info for different servers.  If unsure, say N.
+	  Support user namespaces.  This allows containers, i.e.
+	  vservers, to use user namespaces to provide different
+	  user info for different servers.  If unsure, say N.
 
 config AUDIT
 	bool "Auditing support"
@@ -554,7 +546,7 @@ config SLUB_DEBUG
 
 choice
 	prompt "Choose SLAB allocator"
-	default SLAB
+	default SLUB
 	help
 	   This option allows to select a slab allocator.
 
@@ -576,7 +568,7 @@ config SLUB
 	   and has enhanced diagnostics.
 
 config SLOB
-	depends on EMBEDDED && !SPARSEMEM
+	depends on EMBEDDED
 	bool "SLOB (Simple Allocator)"
 	help
 	   SLOB replaces the SLAB allocator with a drastically simpler
@@ -602,9 +594,7 @@ config BASE_SMALL
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
 
-menu "Loadable module support"
-
-config MODULES
+menuconfig MODULES
 	bool "Enable loadable module support"
 	help
 	  Kernel modules are small pieces of compiled code which can
@@ -684,6 +674,5 @@ config STOP_MACHINE
 	depends on (SMP && MODULE_UNLOAD) || HOTPLUG_CPU
 	help
 	  Need stop_machine() primitive.
-endmenu
 
 source "block/Kconfig"

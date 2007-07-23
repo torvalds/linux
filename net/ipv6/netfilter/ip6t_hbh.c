@@ -25,12 +25,6 @@ MODULE_DESCRIPTION("IPv6 opts match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 MODULE_ALIAS("ip6t_dst");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /*
  *  (Type & 0xC0) >> 6
  *	0	-> ignorable
@@ -47,7 +41,7 @@ MODULE_ALIAS("ip6t_dst");
  *	5	-> RTALERT 2 x x
  */
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -55,45 +49,48 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
-	struct ipv6_opt_hdr _optsh, *oh;
+	struct ipv6_opt_hdr _optsh;
+	const struct ipv6_opt_hdr *oh;
 	const struct ip6t_opts *optinfo = matchinfo;
 	unsigned int temp;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
-	unsigned int ret = 0;
-	u8 _opttype, *tp = NULL;
-	u8 _optlen, *lp = NULL;
+	bool ret = false;
+	u8 _opttype;
+	u8 _optlen;
+	const u_int8_t *tp = NULL;
+	const u_int8_t *lp = NULL;
 	unsigned int optlen;
 	int err;
 
 	err = ipv6_find_hdr(skb, &ptr, match->data, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*hotdrop = 1;
-		return 0;
+			*hotdrop = true;
+		return false;
 	}
 
 	oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
 	if (oh == NULL) {
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	hdrlen = ipv6_optlen(oh);
 	if (skb->len - ptr < hdrlen) {
 		/* Packet smaller than it's length field */
-		return 0;
+		return false;
 	}
 
-	DEBUGP("IPv6 OPTS LEN %u %u ", hdrlen, oh->hdrlen);
+	pr_debug("IPv6 OPTS LEN %u %u ", hdrlen, oh->hdrlen);
 
-	DEBUGP("len %02X %04X %02X ",
-	       optinfo->hdrlen, hdrlen,
-	       (!(optinfo->flags & IP6T_OPTS_LEN) ||
-		((optinfo->hdrlen == hdrlen) ^
-		 !!(optinfo->invflags & IP6T_OPTS_INV_LEN))));
+	pr_debug("len %02X %04X %02X ",
+		 optinfo->hdrlen, hdrlen,
+		 (!(optinfo->flags & IP6T_OPTS_LEN) ||
+		  ((optinfo->hdrlen == hdrlen) ^
+		   !!(optinfo->invflags & IP6T_OPTS_INV_LEN))));
 
 	ret = (oh != NULL) &&
 	      (!(optinfo->flags & IP6T_OPTS_LEN) ||
@@ -105,10 +102,10 @@ match(const struct sk_buff *skb,
 	if (!(optinfo->flags & IP6T_OPTS_OPTS)) {
 		return ret;
 	} else if (optinfo->flags & IP6T_OPTS_NSTRICT) {
-		DEBUGP("Not strict - not implemented");
+		pr_debug("Not strict - not implemented");
 	} else {
-		DEBUGP("Strict ");
-		DEBUGP("#%d ", optinfo->optsnr);
+		pr_debug("Strict ");
+		pr_debug("#%d ", optinfo->optsnr);
 		for (temp = 0; temp < optinfo->optsnr; temp++) {
 			/* type field exists ? */
 			if (hdrlen < 1)
@@ -120,12 +117,11 @@ match(const struct sk_buff *skb,
 
 			/* Type check */
 			if (*tp != (optinfo->opts[temp] & 0xFF00) >> 8) {
-				DEBUGP("Tbad %02X %02X\n",
-				       *tp,
-				       (optinfo->opts[temp] & 0xFF00) >> 8);
-				return 0;
+				pr_debug("Tbad %02X %02X\n", *tp,
+					 (optinfo->opts[temp] & 0xFF00) >> 8);
+				return false;
 			} else {
-				DEBUGP("Tok ");
+				pr_debug("Tok ");
 			}
 			/* Length check */
 			if (*tp) {
@@ -142,23 +138,23 @@ match(const struct sk_buff *skb,
 				spec_len = optinfo->opts[temp] & 0x00FF;
 
 				if (spec_len != 0x00FF && spec_len != *lp) {
-					DEBUGP("Lbad %02X %04X\n", *lp,
-					       spec_len);
-					return 0;
+					pr_debug("Lbad %02X %04X\n", *lp,
+						 spec_len);
+					return false;
 				}
-				DEBUGP("Lok ");
+				pr_debug("Lok ");
 				optlen = *lp + 2;
 			} else {
-				DEBUGP("Pad1\n");
+				pr_debug("Pad1\n");
 				optlen = 1;
 			}
 
 			/* Step to the next */
-			DEBUGP("len%04X \n", optlen);
+			pr_debug("len%04X \n", optlen);
 
 			if ((ptr > skb->len - optlen || hdrlen < optlen) &&
-			    (temp < optinfo->optsnr - 1)) {
-				DEBUGP("new pointer is too large! \n");
+			    temp < optinfo->optsnr - 1) {
+				pr_debug("new pointer is too large! \n");
 				break;
 			}
 			ptr += optlen;
@@ -167,14 +163,14 @@ match(const struct sk_buff *skb,
 		if (temp == optinfo->optsnr)
 			return ret;
 		else
-			return 0;
+			return false;
 	}
 
-	return 0;
+	return false;
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
@@ -184,13 +180,13 @@ checkentry(const char *tablename,
 	const struct ip6t_opts *optsinfo = matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
-		DEBUGP("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
-		return 0;
+		pr_debug("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static struct xt_match opts_match[] = {
+static struct xt_match opts_match[] __read_mostly = {
 	{
 		.name		= "hbh",
 		.family		= AF_INET6,

@@ -1,10 +1,18 @@
 #
+# Generic algorithms support
+#
+config XOR_BLOCKS
+	tristate
+
+#
+# async_tx api: hardware offloaded memory transfer/transform support
+#
+source "crypto/async_tx/Kconfig"
+
+#
 # Cryptographic API Configuration
 #
-
-menu "Cryptographic options"
-
-config CRYPTO
+menuconfig CRYPTO
 	bool "Cryptographic API"
 	help
 	  This option provides the core Cryptographic API.
@@ -463,5 +471,3 @@ config CRYPTO_TEST
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
-
-endmenu

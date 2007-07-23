@@ -1127,6 +1127,34 @@ static int pcmcia_bus_uevent(struct device *dev, char **envp, int num_envp,
 
 #endif
 
+/************************ runtime PM support ***************************/
+
+static int pcmcia_dev_suspend(struct device *dev, pm_message_t state);
+static int pcmcia_dev_resume(struct device *dev);
+
+static int runtime_suspend(struct device *dev)
+{
+	int rc;
+
+	down(&dev->sem);
+	rc = pcmcia_dev_suspend(dev, PMSG_SUSPEND);
+	up(&dev->sem);
+	if (!rc)
+		dev->power.power_state.event = PM_EVENT_SUSPEND;
+	return rc;
+}
+
+static void runtime_resume(struct device *dev)
+{
+	int rc;
+
+	down(&dev->sem);
+	rc = pcmcia_dev_resume(dev);
+	up(&dev->sem);
+	if (!rc)
+		dev->power.power_state.event = PM_EVENT_ON;
+}
+
 /************************ per-device sysfs output ***************************/
 
 #define pcmcia_device_attr(field, test, format)				\
@@ -1173,9 +1201,9 @@ static ssize_t pcmcia_store_pm_state(struct device *dev, struct device_attribute
                 return -EINVAL;
 
 	if ((!p_dev->suspended) && !strncmp(buf, "off", 3))
-		ret = dpm_runtime_suspend(dev, PMSG_SUSPEND);
+		ret = runtime_suspend(dev);
 	else if (p_dev->suspended && !strncmp(buf, "on", 2))
-		dpm_runtime_resume(dev);
+		runtime_resume(dev);
 
 	return ret ? ret : count;
 }
@@ -1312,10 +1340,10 @@ static int pcmcia_bus_suspend_callback(struct device *dev, void * _data)
 	struct pcmcia_socket *skt = _data;
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 
-	if (p_dev->socket != skt)
+	if (p_dev->socket != skt || p_dev->suspended)
 		return 0;
 
-	return dpm_runtime_suspend(dev, PMSG_SUSPEND);
+	return runtime_suspend(dev);
 }
 
 static int pcmcia_bus_resume_callback(struct device *dev, void * _data)
@@ -1323,10 +1351,10 @@ static int pcmcia_bus_resume_callback(struct device *dev, void * _data)
 	struct pcmcia_socket *skt = _data;
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 
-	if (p_dev->socket != skt)
+	if (p_dev->socket != skt || !p_dev->suspended)
 		return 0;
 
-	dpm_runtime_resume(dev);
+	runtime_resume(dev);
 
 	return 0;
 }

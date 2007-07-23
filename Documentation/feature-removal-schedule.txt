@@ -26,9 +26,7 @@ Who:	Hans Verkuil <hverkuil@xs4all.nl> and
 
 ---------------------------
 
-What:	/sys/devices/.../power/state
-	dev->power.power_state
-	dpm_runtime_{suspend,resume)()
+What:	dev->power.power_state
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing
 	driver-internal runtime power management with:  mechanisms to support
@@ -38,14 +36,6 @@ Why:	Broken design for runtime control over driver power states, confusing
 	use it were broken.  Drivers should instead be exposing domain-specific
 	interfaces either to kernel or to userspace.
 Who:	Pavel Machek <pavel@suse.cz>
-
----------------------------
-
-What:	RAW driver (CONFIG_RAW_DRIVER)
-When:	December 2005
-Why:	declared obsolete since kernel 2.6.3
-	O_DIRECT can be used instead
-Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -61,6 +51,7 @@ Who:	David Miller <davem@davemloft.net>
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2006
 Files:	include/linux/video_decoder.h
+Check:	include/linux/video_decoder.h
 Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	series. The old API have lots of drawbacks and don't provide enough
 	means to work with all video and audio standards. The newer API is
@@ -94,7 +85,7 @@ Who:	Dominik Brodowski <linux@brodo.de>
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
-Funcs:	kernel_thread
+Check:	kernel_thread
 Why:	kernel_thread is a low-level implementation detail.  Drivers should
         use the <linux/kthread.h> API instead which shields them from
 	implementation details and provides a higherlevel interface that
@@ -116,13 +107,6 @@ What:   eepro100 network driver
 When:   January 2007
 Why:    replaced by the e100 driver
 Who:    Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
-What:  drivers depending on OSS_OBSOLETE_DRIVER
-When:  options in 2.6.20, code in 2.6.22
-Why:   OSS drivers with ALSA replacements
-Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -152,6 +136,15 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
+What:	vm_ops.nopage
+When:	Soon, provided in-kernel callers have been converted
+Why:	This interface is replaced by vm_ops.fault, but it has been around
+	forever, is used by a lot of drivers, and doesn't cost much to
+	maintain.
+Who:	Nick Piggin <npiggin@suse.de>
+
+---------------------------
+
 What:	Interrupt only SA_* flags
 When:	September 2007
 Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
@@ -171,15 +164,6 @@ Who:	Kay Sievers <kay.sievers@suse.de>
 
 ---------------------------
 
-What:	i2c-isa
-When:	December 2006
-Why:	i2c-isa is a non-sense and doesn't fit in the device driver
-	model. Drivers relying on it are better implemented as platform
-	drivers.
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	i2c_adapter.list
 When:	July 2007
 Why:	Superfluous, this list duplicates the one maintained by the driver
@@ -196,46 +180,11 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	ACPI hooks (X86_SPEEDSTEP_CENTRINO_ACPI) in speedstep-centrino driver
-When:	December 2006
-Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
-	functionally very much similar. They talk to ACPI in same way. Only
-	difference between them is the way they do frequency transitions.
-	One uses MSRs and the other one uses IO ports. Functionaliy of
-	speedstep_centrino with ACPI hooks is now merged into acpi-cpufreq.
-	That means one common driver will support all Intel Enhanced Speedstep
-	capable CPUs. That means less confusion over name of
-	speedstep-centrino driver (with that driver supposed to be used on
-	non-centrino platforms). That means less duplication of code and
-	less maintenance effort and no possibility of these two drivers
-	going out of sync.
-	Current users of speedstep_centrino with ACPI hooks are requested to
-	switch over to acpi-cpufreq driver. speedstep-centrino will continue
-	to work using older non-ACPI static table based scheme even after this
-	date.
-
-Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
----------------------------
-
-What:	/sys/firmware/acpi/namespace
-When:	2.6.21
-Why:	The ACPI namespace is effectively the symbol list for
-	the BIOS.  The device names are completely arbitrary
-	and have no place being exposed to user-space.
-
-	For those interested in the BIOS ACPI namespace,
-	the BIOS can be extracted and disassembled with acpidump
-	and iasl as documented in the pmtools package here:
-	http://ftp.kernel.org/pub/linux/kernel/people/lenb/acpi/utils
-Who:	Len Brown <len.brown@intel.com>
-
----------------------------
-
 What:	ACPI procfs interface
-When:	July 2007
-Why:	After ACPI sysfs conversion, ACPI attributes will be duplicated
-	in sysfs and the ACPI procfs interface should be removed.
+When:	July 2008
+Why:	ACPI sysfs conversion should be finished by January 2008.
+	ACPI procfs interface will be removed in July 2008 so that
+	there is enough time for the user space to catch up.
 Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
@@ -262,25 +211,6 @@ Who:	Richard Purdie <rpurdie@rpsys.net>
 
 ---------------------------
 
-What:	Multipath cached routing support in ipv4
-When:	in 2.6.23
-Why:	Code was merged, then submitter immediately disappeared leaving
-	us with no maintainer and lots of bugs.  The code should not have
-	been merged in the first place, and many aspects of it's
-	implementation are blocking more critical core networking
-	development.  It's marked EXPERIMENTAL and no distribution
-	enables it because it cause obscure crashes due to unfixable bugs
-	(interfaces don't return errors so memory allocation can't be
-	handled, calling contexts of these interfaces make handling
-	errors impossible too because they get called after we've
-	totally commited to creating a route object, for example).
-	This problem has existed for years and no forward progress
-	has ever been made, and nobody steps up to try and salvage
-	this code, so we're going to finally just get rid of it.
-Who:	David S. Miller <davem@davemloft.net>
-
----------------------------
-
 What:	read_dev_chars(), read_conf_data{,_lpm}() (s390 common I/O layer)
 When:	December 2007
 Why:	These functions are a leftover from 2.4 times. They have several
@@ -302,6 +232,14 @@ When:	September 2007
 Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
 	I2C-over-GPIO drivers.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	'time' kernel boot parameter
+When:	January 2008
+Why:	replaced by 'printk.time=<value>' so that printk timestamps can be
+	enabled or disabled as needed
+Who:	Randy Dunlap <randy.dunlap@oracle.com>
 
 ---------------------------
 
@@ -330,3 +268,41 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
+What:	Legacy RTC drivers (under drivers/i2c/chips)
+When:	November 2007
+Why:	Obsolete. We have a RTC subsystem with better drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	iptables SAME target
+When:	1.1. 2008
+Files:	net/ipv4/netfilter/ipt_SAME.c, include/linux/netfilter_ipv4/ipt_SAME.h
+Why:	Obsolete for multiple years now, NAT core provides the same behaviour.
+	Unfixable broken wrt. 32/64 bit cleanness.
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------
+
+What: The arch/ppc and include/asm-ppc directories
+When: Jun 2008
+Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
+      platforms.  Currently there are efforts underway to port the remaining
+      arch/ppc platforms to the merged tree.  New submissions to the arch/ppc
+      tree have been frozen with the 2.6.22 kernel release and that tree will
+      remain in bug-fix only mode until its scheduled removal.  Platforms
+      that are not ported by June 2008 will be removed due to the lack of an
+      interested maintainer.
+Who:  linuxppc-dev@ozlabs.org
+
+---------------------------
+
+What:	mthca driver's MSI support
+When:	January 2008
+Files:	drivers/infiniband/hw/mthca/*.[ch]
+Why:	All mthca hardware also supports MSI-X, which provides
+	strictly more functionality than MSI.  So there is no point in
+	having both MSI-X and MSI support in the driver.
+Who:	Roland Dreier <rolandd@cisco.com>
+
+---------------------------

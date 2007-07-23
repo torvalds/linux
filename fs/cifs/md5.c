@@ -15,9 +15,9 @@
  * will fill a supplied 16-byte array with the digest.
  */
 
-/* This code slightly modified to fit into Samba by 
-   abartlet@samba.org Jun 2001 
-   and to fit the cifs vfs by 
+/* This code slightly modified to fit into Samba by
+   abartlet@samba.org Jun 2001
+   and to fit the cifs vfs by
    Steve French sfrench@us.ibm.com */
 
 #include <linux/string.h>
@@ -106,7 +106,7 @@ MD5Update(struct MD5Context *ctx, unsigned char const *buf, unsigned len)
 }
 
 /*
- * Final wrapup - pad to 64-byte boundary with the bit pattern 
+ * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void

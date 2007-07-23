@@ -573,7 +573,7 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		break;
 	case RDMA_TRANSPORT_IWARP:
 		if (!id_priv->cm_id.iw) {
-			qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+			qp_attr->qp_access_flags = 0;
 			*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS;
 		} else
 			ret = iw_cm_init_qp_attr(id_priv->cm_id.iw, qp_attr,
@@ -2326,7 +2326,6 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 	rep.private_data_len = conn_param->private_data_len;
 	rep.responder_resources = conn_param->responder_resources;
 	rep.initiator_depth = conn_param->initiator_depth;
-	rep.target_ack_delay = CMA_CM_RESPONSE_TIMEOUT;
 	rep.failover_accepted = 0;
 	rep.flow_control = conn_param->flow_control;
 	rep.rnr_retry_count = conn_param->rnr_retry_count;

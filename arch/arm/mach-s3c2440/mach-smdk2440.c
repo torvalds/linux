@@ -31,7 +31,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-lcd.h>
 

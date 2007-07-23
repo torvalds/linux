@@ -62,8 +62,9 @@
 /* NEC v850.  */
 #define PORT_V850E_UART	40
 
-/* DZ */
-#define PORT_DZ		47
+/* DEC */
+#define PORT_DZ		46
+#define PORT_ZS		47
 
 /* Parisc type numbers. */
 #define PORT_MUX	48
@@ -141,6 +142,9 @@
 
 /* Micrel KS8695 */
 #define PORT_KS8695	76
+
+/* Broadcom SB1250, etc. SOC */
+#define PORT_SB1250_DUART	77
 
 
 #ifdef __KERNEL__

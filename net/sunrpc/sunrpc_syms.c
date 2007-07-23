@@ -28,15 +28,11 @@ EXPORT_SYMBOL(rpc_init_task);
 EXPORT_SYMBOL(rpc_sleep_on);
 EXPORT_SYMBOL(rpc_wake_up_next);
 EXPORT_SYMBOL(rpc_wake_up_task);
-EXPORT_SYMBOL(rpciod_down);
-EXPORT_SYMBOL(rpciod_up);
-EXPORT_SYMBOL(rpc_new_task);
 EXPORT_SYMBOL(rpc_wake_up_status);
 
 /* RPC client functions */
 EXPORT_SYMBOL(rpc_clone_client);
 EXPORT_SYMBOL(rpc_bind_new_program);
-EXPORT_SYMBOL(rpc_destroy_client);
 EXPORT_SYMBOL(rpc_shutdown_client);
 EXPORT_SYMBOL(rpc_killall_tasks);
 EXPORT_SYMBOL(rpc_call_sync);
@@ -61,7 +57,7 @@ EXPORT_SYMBOL(rpcauth_unregister);
 EXPORT_SYMBOL(rpcauth_create);
 EXPORT_SYMBOL(rpcauth_lookupcred);
 EXPORT_SYMBOL(rpcauth_lookup_credcache);
-EXPORT_SYMBOL(rpcauth_free_credcache);
+EXPORT_SYMBOL(rpcauth_destroy_credcache);
 EXPORT_SYMBOL(rpcauth_init_credcache);
 EXPORT_SYMBOL(put_rpccred);
 
@@ -156,6 +152,7 @@ init_sunrpc(void)
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	init_socket_xprt();
+	rpcauth_init_module();
 out:
 	return err;
 }
@@ -163,6 +160,7 @@ out:
 static void __exit
 cleanup_sunrpc(void)
 {
+	rpcauth_remove_module();
 	cleanup_socket_xprt();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();

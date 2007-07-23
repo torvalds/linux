@@ -1276,9 +1276,6 @@ static struct nf_conntrack_helper snmp_helper __read_mostly = {
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.udp.port	= __constant_htons(SNMP_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
-	.mask.src.l3num		= 0xFFFF,
-	.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-	.mask.dst.protonum	= 0xFF,
 };
 
 static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
@@ -1290,9 +1287,6 @@ static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.udp.port	= __constant_htons(SNMP_TRAP_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
-	.mask.src.l3num		= 0xFFFF,
-	.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-	.mask.dst.protonum	= 0xFF,
 };
 
 /*****************************************************************************

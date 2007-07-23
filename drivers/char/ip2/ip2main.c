@@ -425,9 +425,7 @@ cleanup_module(void)
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
 	}
 	put_tty_driver(ip2_tty_driver);
-	if ( ( err = unregister_chrdev ( IP2_IPL_MAJOR, pcIpl ) ) ) {
-		printk(KERN_ERR "IP2: failed to unregister IPL driver (%d)\n", err);
-	}
+	unregister_chrdev(IP2_IPL_MAJOR, pcIpl);
 	remove_proc_entry("ip2mem", &proc_root);
 
 	// free memory

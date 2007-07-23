@@ -1,6 +1,7 @@
 #ifndef _X86_64_PTRACE_H
 #define _X86_64_PTRACE_H
 
+#include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
 
 #ifndef __ASSEMBLY__

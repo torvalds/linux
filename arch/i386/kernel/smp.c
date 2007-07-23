@@ -22,6 +22,7 @@
 
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 #include <mach_apic.h>
 
 /*
@@ -249,13 +250,13 @@ static unsigned long flush_va;
 static DEFINE_SPINLOCK(tlbstate_lock);
 
 /*
- * We cannot call mmdrop() because we are in interrupt context, 
+ * We cannot call mmdrop() because we are in interrupt context,
  * instead update mm->cpu_vm_mask.
  *
  * We need to reload %cr3 since the page tables may be going
  * away from under us..
  */
-static inline void leave_mm (unsigned long cpu)
+void leave_mm(unsigned long cpu)
 {
 	if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_OK)
 		BUG();

@@ -56,7 +56,6 @@
 #include "ivtv-gpio.h"
 #include "ivtv-yuv.h"
 
-#include <linux/vermagic.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-chip-ident.h>
 
@@ -181,7 +180,7 @@ MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
 MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
-		 "\t\t\t(debug = 511 gives full debugging)");
+		 "\t\t\t(debug = 1023 gives full debugging)");
 MODULE_PARM_DESC(ivtv_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
@@ -276,9 +275,10 @@ int ivtv_waitq(wait_queue_head_t *waitq)
 }
 
 /* Generic utility functions */
-int ivtv_sleep_timeout(int timeout, int intr)
+int ivtv_msleep_timeout(unsigned int msecs, int intr)
 {
 	int ret;
+	int timeout = msecs_to_jiffies(msecs);
 
 	do {
 		set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
@@ -339,6 +339,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 		/* In a few cases the PCI subsystem IDs do not correctly
 		   identify the card. A better method is to check the
 		   model number from the eeprom instead. */
+		case 30012 ... 30039:  /* Low profile PVR250 */
 		case 32000 ... 32999:
 		case 48000 ... 48099:  /* 48??? range are PVR250s with a cx23415 */
 		case 48400 ... 48599:
@@ -426,7 +427,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 	if (itv->options.newi2c == -1 && tv.has_ir != -1 && tv.has_ir != 2) {
 		itv->options.newi2c = (tv.has_ir & 2) ? 1 : 0;
 		if (itv->options.newi2c) {
-		    IVTV_INFO("reopen i2c bus for IR-blaster support\n");
+		    IVTV_INFO("Reopen i2c bus for IR-blaster support\n");
 		    exit_ivtv_i2c(itv);
 		    init_ivtv_i2c(itv);
 		}
@@ -622,6 +623,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
 
+	mutex_init(&itv->serialize_lock);
 	mutex_init(&itv->i2c_bus_lock);
 	mutex_init(&itv->udma.lock);
 
@@ -949,7 +951,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	/* Make sure we've got a place for this card */
 	if (ivtv_cards_active == IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtv:  Maximum number of cards detected (%d).\n",
+		printk(KERN_ERR "ivtv:  Maximum number of cards detected (%d)\n",
 			      ivtv_cards_active);
 		spin_unlock(&ivtv_cards_lock);
 		return -ENOMEM;
@@ -964,9 +966,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	itv->dev = dev;
 	itv->num = ivtv_cards_active++;
 	snprintf(itv->name, sizeof(itv->name) - 1, "ivtv%d", itv->num);
-	if (itv->num) {
-		printk(KERN_INFO "ivtv:  ======================  NEXT CARD  ======================\n");
-	}
+	IVTV_INFO("Initializing card #%d\n", itv->num);
 
 	spin_unlock(&ivtv_cards_lock);
 
@@ -1213,7 +1213,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->has_cx23415)
 		ivtv_set_osd_alpha(itv);
 
-	IVTV_INFO("Initialized %s, card #%d\n", itv->card_name, itv->num);
+	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 
 	return 0;
 
@@ -1246,15 +1246,15 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 {
 	struct ivtv *itv = pci_get_drvdata(pci_dev);
 
-	IVTV_DEBUG_INFO("Removing Card #%d.\n", itv->num);
+	IVTV_DEBUG_INFO("Removing Card #%d\n", itv->num);
 
 	/* Stop all captures */
-	IVTV_DEBUG_INFO(" Stopping all streams.\n");
+	IVTV_DEBUG_INFO("Stopping all streams\n");
 	if (atomic_read(&itv->capturing) > 0)
 		ivtv_stop_all_captures(itv);
 
 	/* Stop all decoding */
-	IVTV_DEBUG_INFO(" Stopping decoding.\n");
+	IVTV_DEBUG_INFO("Stopping decoding\n");
 	if (atomic_read(&itv->decoding) > 0) {
 		int type;
 
@@ -1267,33 +1267,30 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 	}
 
 	/* Interrupts */
-	IVTV_DEBUG_INFO(" Disabling interrupts.\n");
+	IVTV_DEBUG_INFO("Disabling interrupts\n");
 	ivtv_set_irq_mask(itv, 0xffffffff);
 	del_timer_sync(&itv->dma_timer);
 
 	/* Stop all Work Queues */
-	IVTV_DEBUG_INFO(" Stop Work Queues.\n");
+	IVTV_DEBUG_INFO("Stop Work Queues\n");
 	flush_workqueue(itv->irq_work_queues);
 	destroy_workqueue(itv->irq_work_queues);
 
-	IVTV_DEBUG_INFO(" Stopping Firmware.\n");
+	IVTV_DEBUG_INFO("Stopping Firmware\n");
 	ivtv_halt_firmware(itv);
 
-	IVTV_DEBUG_INFO(" Unregistering v4l devices.\n");
+	IVTV_DEBUG_INFO("Unregistering v4l devices\n");
 	ivtv_streams_cleanup(itv);
-	IVTV_DEBUG_INFO(" Freeing dma resources.\n");
+	IVTV_DEBUG_INFO("Freeing dma resources\n");
 	ivtv_udma_free(itv);
 
 	exit_ivtv_i2c(itv);
 
-	IVTV_DEBUG_INFO(" Releasing irq.\n");
+	IVTV_DEBUG_INFO(" Releasing irq\n");
 	free_irq(itv->dev->irq, (void *)itv);
+	ivtv_iounmap(itv);
 
-	if (itv->dev) {
-		ivtv_iounmap(itv);
-	}
-
-	IVTV_DEBUG_INFO(" Releasing mem.\n");
+	IVTV_DEBUG_INFO(" Releasing mem\n");
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
@@ -1314,28 +1311,27 @@ static struct pci_driver ivtv_pci_driver = {
 
 static int module_start(void)
 {
-	printk(KERN_INFO "ivtv:  ==================== START INIT IVTV ====================\n");
-	printk(KERN_INFO "ivtv:  version %s (" VERMAGIC_STRING ") loading\n", IVTV_VERSION);
+	printk(KERN_INFO "ivtv:  Start initialization, version %s\n", IVTV_VERSION);
 
 	memset(ivtv_cards, 0, sizeof(ivtv_cards));
 
 	/* Validate parameters */
 	if (ivtv_first_minor < 0 || ivtv_first_minor >= IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtv:  ivtv_first_minor must be between 0 and %d. Exiting...\n",
+		printk(KERN_ERR "ivtv:  Exiting, ivtv_first_minor must be between 0 and %d\n",
 		     IVTV_MAX_CARDS - 1);
 		return -1;
 	}
 
-	if (ivtv_debug < 0 || ivtv_debug > 511) {
+	if (ivtv_debug < 0 || ivtv_debug > 1023) {
 		ivtv_debug = 0;
-		printk(KERN_INFO "ivtv:  debug value must be >= 0 and <= 511!\n");
+		printk(KERN_INFO "ivtv:  Debug value must be >= 0 and <= 1023\n");
 	}
 
 	if (pci_register_driver(&ivtv_pci_driver)) {
 		printk(KERN_ERR "ivtv:  Error detecting PCI card\n");
 		return -ENODEV;
 	}
-	printk(KERN_INFO "ivtv:  ====================  END INIT IVTV  ====================\n");
+	printk(KERN_INFO "ivtv:  End initialization\n");
 	return 0;
 }
 

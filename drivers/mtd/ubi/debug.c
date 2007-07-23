@@ -35,12 +35,12 @@
 void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 {
 	dbg_msg("erase counter header dump:");
-	dbg_msg("magic          %#08x", ubi32_to_cpu(ec_hdr->magic));
+	dbg_msg("magic          %#08x", be32_to_cpu(ec_hdr->magic));
 	dbg_msg("version        %d",    (int)ec_hdr->version);
-	dbg_msg("ec             %llu",  (long long)ubi64_to_cpu(ec_hdr->ec));
-	dbg_msg("vid_hdr_offset %d",    ubi32_to_cpu(ec_hdr->vid_hdr_offset));
-	dbg_msg("data_offset    %d",    ubi32_to_cpu(ec_hdr->data_offset));
-	dbg_msg("hdr_crc        %#08x", ubi32_to_cpu(ec_hdr->hdr_crc));
+	dbg_msg("ec             %llu",  (long long)be64_to_cpu(ec_hdr->ec));
+	dbg_msg("vid_hdr_offset %d",    be32_to_cpu(ec_hdr->vid_hdr_offset));
+	dbg_msg("data_offset    %d",    be32_to_cpu(ec_hdr->data_offset));
+	dbg_msg("hdr_crc        %#08x", be32_to_cpu(ec_hdr->hdr_crc));
 	dbg_msg("erase counter header hexdump:");
 	ubi_dbg_hexdump(ec_hdr, UBI_EC_HDR_SIZE);
 }
@@ -52,20 +52,20 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
 	dbg_msg("volume identifier header dump:");
-	dbg_msg("magic     %08x", ubi32_to_cpu(vid_hdr->magic));
+	dbg_msg("magic     %08x", be32_to_cpu(vid_hdr->magic));
 	dbg_msg("version   %d",   (int)vid_hdr->version);
 	dbg_msg("vol_type  %d",   (int)vid_hdr->vol_type);
 	dbg_msg("copy_flag %d",   (int)vid_hdr->copy_flag);
 	dbg_msg("compat    %d",   (int)vid_hdr->compat);
-	dbg_msg("vol_id    %d",   ubi32_to_cpu(vid_hdr->vol_id));
-	dbg_msg("lnum      %d",   ubi32_to_cpu(vid_hdr->lnum));
-	dbg_msg("leb_ver   %u",   ubi32_to_cpu(vid_hdr->leb_ver));
-	dbg_msg("data_size %d",   ubi32_to_cpu(vid_hdr->data_size));
-	dbg_msg("used_ebs  %d",   ubi32_to_cpu(vid_hdr->used_ebs));
-	dbg_msg("data_pad  %d",   ubi32_to_cpu(vid_hdr->data_pad));
+	dbg_msg("vol_id    %d",   be32_to_cpu(vid_hdr->vol_id));
+	dbg_msg("lnum      %d",   be32_to_cpu(vid_hdr->lnum));
+	dbg_msg("leb_ver   %u",   be32_to_cpu(vid_hdr->leb_ver));
+	dbg_msg("data_size %d",   be32_to_cpu(vid_hdr->data_size));
+	dbg_msg("used_ebs  %d",   be32_to_cpu(vid_hdr->used_ebs));
+	dbg_msg("data_pad  %d",   be32_to_cpu(vid_hdr->data_pad));
 	dbg_msg("sqnum     %llu",
-		(unsigned long long)ubi64_to_cpu(vid_hdr->sqnum));
-	dbg_msg("hdr_crc   %08x", ubi32_to_cpu(vid_hdr->hdr_crc));
+		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
+	dbg_msg("hdr_crc   %08x", be32_to_cpu(vid_hdr->hdr_crc));
 	dbg_msg("volume identifier header hexdump:");
 }
 
@@ -91,7 +91,7 @@ void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
 
 	if (vol->name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
-		dbg_msg("name          %s", vol->name);
+		dbg_msg("name            %s", vol->name);
 	} else {
 		dbg_msg("the 1st 5 characters of the name: %c%c%c%c%c",
 			vol->name[0], vol->name[1], vol->name[2],
@@ -106,30 +106,30 @@ void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
  */
 void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 {
-	int name_len = ubi16_to_cpu(r->name_len);
+	int name_len = be16_to_cpu(r->name_len);
 
 	dbg_msg("volume table record %d dump:", idx);
-	dbg_msg("reserved_pebs   %d", ubi32_to_cpu(r->reserved_pebs));
-	dbg_msg("alignment       %d", ubi32_to_cpu(r->alignment));
-	dbg_msg("data_pad        %d", ubi32_to_cpu(r->data_pad));
+	dbg_msg("reserved_pebs   %d", be32_to_cpu(r->reserved_pebs));
+	dbg_msg("alignment       %d", be32_to_cpu(r->alignment));
+	dbg_msg("data_pad        %d", be32_to_cpu(r->data_pad));
 	dbg_msg("vol_type        %d", (int)r->vol_type);
 	dbg_msg("upd_marker      %d", (int)r->upd_marker);
 	dbg_msg("name_len        %d", name_len);
 
 	if (r->name[0] == '\0') {
-		dbg_msg("name          NULL");
+		dbg_msg("name            NULL");
 		return;
 	}
 
 	if (name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(&r->name[0], name_len + 1) == name_len) {
-		dbg_msg("name          %s", &r->name[0]);
+		dbg_msg("name            %s", &r->name[0]);
 	} else {
 		dbg_msg("1st 5 characters of the name: %c%c%c%c%c",
 			r->name[0], r->name[1], r->name[2], r->name[3],
 			r->name[4]);
 	}
-	dbg_msg("crc             %#08x", ubi32_to_cpu(r->crc));
+	dbg_msg("crc             %#08x", be32_to_cpu(r->crc));
 }
 
 /**

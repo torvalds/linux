@@ -367,10 +367,8 @@ static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 static void __devinit amd8151_init(struct pci_dev *pdev, struct agp_bridge_data *bridge)
 {
 	char *revstring;
-	u8 rev_id;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-	switch (rev_id) {
+	switch (pdev->revision) {
 	case 0x01: revstring="A0"; break;
 	case 0x02: revstring="A1"; break;
 	case 0x11: revstring="B0"; break;
@@ -386,7 +384,7 @@ static void __devinit amd8151_init(struct pci_dev *pdev, struct agp_bridge_data 
 	 * Work around errata.
 	 * Chips before B2 stepping incorrectly reporting v3.5
 	 */
-	if (rev_id < 0x13) {
+	if (pdev->revision < 0x13) {
 		printk (KERN_INFO PFX "Correcting AGP revision (reports 3.5, is really 3.0)\n");
 		bridge->major_version = 3;
 		bridge->minor_version = 0;

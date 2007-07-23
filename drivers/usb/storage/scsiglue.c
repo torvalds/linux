@@ -285,10 +285,15 @@ static int device_reset(struct scsi_cmnd *srb)
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	/* lock the device pointers and do the reset */
-	mutex_lock(&(us->dev_mutex));
-	result = us->transport_reset(us);
-	mutex_unlock(&us->dev_mutex);
+	result = usb_autopm_get_interface(us->pusb_intf);
+	if (result == 0) {
+
+		/* lock the device pointers and do the reset */
+		mutex_lock(&(us->dev_mutex));
+		result = us->transport_reset(us);
+		mutex_unlock(&us->dev_mutex);
+		usb_autopm_put_interface(us->pusb_intf);
+	}
 
 	return result < 0 ? FAILED : SUCCESS;
 }
@@ -321,10 +326,14 @@ void usb_stor_report_device_reset(struct us_data *us)
 
 /* Report a driver-initiated bus reset to the SCSI layer.
  * Calling this for a SCSI-initiated reset is unnecessary but harmless.
- * The caller must own the SCSI host lock. */
+ * The caller must not own the SCSI host lock. */
 void usb_stor_report_bus_reset(struct us_data *us)
 {
-	scsi_report_bus_reset(us_to_host(us), 0);
+	struct Scsi_Host *host = us_to_host(us);
+
+	scsi_lock(host);
+	scsi_report_bus_reset(host, 0);
+	scsi_unlock(host);
 }
 
 /***********************************************************************

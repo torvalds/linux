@@ -489,6 +489,29 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 }
 
 /**
+ * gfs2_setlease - acquire/release a file lease
+ * @file: the file pointer
+ * @arg: lease type
+ * @fl: file lock
+ *
+ * Returns: errno
+ */
+
+static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
+
+	/*
+	 * We don't currently have a way to enforce a lease across the whole
+	 * cluster; until we do, disable leases (by just returning -EINVAL),
+	 * unless the administrator has requested purely local locking.
+	 */
+	if (!sdp->sd_args.ar_localflocks)
+		return -EINVAL;
+	return setlease(file, arg, fl);
+}
+
+/**
  * gfs2_lock - acquire/release a posix lock on a file
  * @file: the file pointer
  * @cmd: either modify or retrieve lock state, possibly wait
@@ -638,6 +661,7 @@ const struct file_operations gfs2_file_fops = {
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
+	.setlease	= gfs2_setlease,
 };
 
 const struct file_operations gfs2_dir_fops = {

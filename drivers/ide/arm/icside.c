@@ -18,10 +18,10 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/scatterlist.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
-#include <asm/io.h>
 
 #define ICS_IDENT_OFFSET		0x2280
 

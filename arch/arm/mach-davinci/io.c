@@ -17,6 +17,7 @@
 #include <asm/memory.h>
 
 #include <asm/mach/map.h>
+#include <asm/arch/clock.h>
 
 extern void davinci_check_revision(void);
 
@@ -48,4 +49,9 @@ void __init davinci_map_common_io(void)
 	 * IO space mapping must be initialized before we can do that.
 	 */
 	davinci_check_revision();
+}
+
+void __init davinci_init_common_hw(void)
+{
+	davinci_clk_init();
 }

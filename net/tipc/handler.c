@@ -97,7 +97,7 @@ int tipc_handler_start(void)
 {
 	tipc_queue_item_cache =
 		kmem_cache_create("tipc_queue_items", sizeof(struct queue_item),
-				  0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+				  0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!tipc_queue_item_cache)
 		return -ENOMEM;
 

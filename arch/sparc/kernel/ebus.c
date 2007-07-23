@@ -148,6 +148,7 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 {
 	const struct linux_prom_registers *regs;
 	struct linux_ebus_child *child;
+	struct dev_archdata *sd;
 	const int *irqs;
 	int i, n, len;
 	unsigned long baseaddr;
@@ -233,6 +234,10 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 			}
 		}
 	}
+
+	sd = &dev->ofdev.dev.archdata;
+	sd->prom_node = dp;
+	sd->op = &dev->ofdev;
 
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;

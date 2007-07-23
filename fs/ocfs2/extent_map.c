@@ -109,17 +109,14 @@ static int ocfs2_extent_map_lookup(struct inode *inode, unsigned int cpos,
  */
 void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
 {
-	struct list_head *p, *n;
-	struct ocfs2_extent_map_item *emi;
+	struct ocfs2_extent_map_item *emi, *n;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_extent_map *em = &oi->ip_extent_map;
 	LIST_HEAD(tmp_list);
 	unsigned int range;
 
 	spin_lock(&oi->ip_lock);
-	list_for_each_safe(p, n, &em->em_list) {
-		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
-
+	list_for_each_entry_safe(emi, n, &em->em_list, ei_list) {
 		if (emi->ei_cpos >= cpos) {
 			/* Full truncate of this record. */
 			list_move(&emi->ei_list, &tmp_list);
@@ -136,8 +133,7 @@ void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
 	}
 	spin_unlock(&oi->ip_lock);
 
-	list_for_each_safe(p, n, &tmp_list) {
-		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
+	list_for_each_entry_safe(emi, n, &tmp_list, ei_list) {
 		list_del(&emi->ei_list);
 		kfree(emi);
 	}
@@ -374,37 +370,6 @@ no_more_extents:
 	ret = 0;
 out:
 	brelse(next_eb_bh);
-	return ret;
-}
-
-/*
- * Return the index of the extent record which contains cluster #v_cluster.
- * -1 is returned if it was not found.
- *
- * Should work fine on interior and exterior nodes.
- */
-static int ocfs2_search_extent_list(struct ocfs2_extent_list *el,
-				    u32 v_cluster)
-{
-	int ret = -1;
-	int i;
-	struct ocfs2_extent_rec *rec;
-	u32 rec_end, rec_start, clusters;
-
-	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
-		rec = &el->l_recs[i];
-
-		rec_start = le32_to_cpu(rec->e_cpos);
-		clusters = ocfs2_rec_clusters(el, rec);
-
-		rec_end = rec_start + clusters;
-
-		if (v_cluster >= rec_start && v_cluster < rec_end) {
-			ret = i;
-			break;
-		}
-	}
-
 	return ret;
 }
 

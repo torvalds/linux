@@ -48,6 +48,7 @@
 #include <asm/arch/mmc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 
 #define LUB_MISC_WR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x080)
@@ -103,7 +104,7 @@ static void __init lubbock_init_irq(void)
 {
 	int irq;
 
-	pxa_init_irq();
+	pxa25x_init_irq();
 
 	/* setup extra lubbock irqs */
 	for (irq = LUBBOCK_IRQ(0); irq <= LUBBOCK_LAST_IRQ; irq++) {

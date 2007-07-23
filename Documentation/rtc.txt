@@ -385,7 +385,7 @@ test_PIE:
 		/* not all RTCs support periodic IRQs */
 		if (errno == ENOTTY) {
 			fprintf(stderr, "\nNo periodic IRQ support\n");
-			return 0;
+			goto done;
 		}
 		perror("RTC_IRQP_READ ioctl");
 		exit(errno);

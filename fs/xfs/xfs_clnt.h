@@ -99,5 +99,7 @@ struct xfs_mount_args {
  */
 #define XFSMNT2_COMPAT_IOSIZE	0x00000001	/* don't report large preferred
 						 * I/O size in stat(2) */
+#define XFSMNT2_FILESTREAMS	0x00000002	/* enable the filestreams
+						 * allocator */
 
 #endif	/* __XFS_CLNT_H__ */

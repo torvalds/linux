@@ -96,6 +96,10 @@ static int ts_open(struct inode *inode, struct file *file)
 	if (dev->empress_users)
 		goto done_up;
 
+	/* Unmute audio */
+	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
+		saa_readb(SAA7134_AUDIO_MUTE_CTRL) & ~(1 << 6));
+
 	dev->empress_users++;
 	file->private_data = dev;
 	err = 0;
@@ -120,6 +124,10 @@ static int ts_release(struct inode *inode, struct file *file)
 
 	/* stop the encoder */
 	ts_reset_encoder(dev);
+
+	/* Mute audio */
+	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
+		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
 
 	mutex_unlock(&dev->empress_tsq.lock);
 	return 0;

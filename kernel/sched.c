@@ -301,7 +301,7 @@ struct rq {
 	struct lock_class_key rq_lock_key;
 };
 
-static DEFINE_PER_CPU(struct rq, runqueues) ____cacheline_aligned_in_smp;
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 static DEFINE_MUTEX(sched_hotcpu_mutex);
 
 static inline void check_preempt_curr(struct rq *rq, struct task_struct *p)
@@ -378,6 +378,23 @@ static inline unsigned long long rq_clock(struct rq *rq)
 #define this_rq()		(&__get_cpu_var(runqueues))
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+
+/*
+ * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
+ * clock constructed from sched_clock():
+ */
+unsigned long long cpu_clock(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long long now;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	now = rq_clock(rq);
+	spin_unlock_irqrestore(&rq->lock, flags);
+
+	return now;
+}
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /* Change a task's ->cfs_rq if it moves across CPUs */
@@ -736,7 +753,9 @@ static void update_curr_load(struct rq *rq, u64 now)
  *
  * The "10% effect" is relative and cumulative: from _any_ nice level,
  * if you go up 1 level, it's -10% CPU usage, if you go down 1 level
- * it's +10% CPU usage.
+ * it's +10% CPU usage. (to achieve that we use a multiplier of 1.25.
+ * If a task goes up by ~10% and another task goes down by ~10% then
+ * the relative distance between them is ~25%.)
  */
 static const int prio_to_weight[40] = {
 /* -20 */ 88818, 71054, 56843, 45475, 36380, 29104, 23283, 18626, 14901, 11921,
@@ -746,15 +765,22 @@ static const int prio_to_weight[40] = {
 /*  10 */   110,    87,    70,    56,    45,    36,    29,    23,    18,    15,
 };
 
+/*
+ * Inverse (2^32/x) values of the prio_to_weight[] array, precalculated.
+ *
+ * In cases where the weight does not change often, we can use the
+ * precalculated inverse to speed up arithmetics by turning divisions
+ * into multiplications:
+ */
 static const u32 prio_to_wmult[40] = {
-	48356,   60446,   75558,   94446,  118058,  147573,
-	184467,  230589,  288233,  360285,  450347,
-	562979,  703746,  879575, 1099582, 1374389,
-	717986, 2147483, 2684354, 3355443, 4194304,
-	244160, 6557201, 8196502, 10250518, 12782640,
-	16025997, 19976592, 24970740, 31350126, 39045157,
-	49367440, 61356675, 76695844, 95443717, 119304647,
-	148102320, 186737708, 238609294, 286331153,
+/* -20 */     48356,     60446,     75558,     94446,    118058,
+/* -15 */    147573,    184467,    230589,    288233,    360285,
+/* -10 */    450347,    562979,    703746,    879575,   1099582,
+/*  -5 */   1374389,   1717986,   2147483,   2684354,   3355443,
+/*   0 */   4194304,   5244160,   6557201,   8196502,  10250518,
+/*   5 */  12782640,  16025997,  19976592,  24970740,  31350126,
+/*  10 */  39045157,  49367440,  61356675,  76695844,  95443717,
+/*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
 static inline void
@@ -2226,7 +2252,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 			rq = cpu_rq(i);
 
-			if (*sd_idle && !idle_cpu(i))
+			if (*sd_idle && rq->nr_running)
 				*sd_idle = 0;
 
 			/* Bias balancing toward cpus of our domain */
@@ -2248,9 +2274,11 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		/*
 		 * First idle cpu or the first cpu(busiest) in this sched group
 		 * is eligible for doing load balancing at this and above
-		 * domains.
+		 * domains. In the newly idle case, we will allow all the cpu's
+		 * to do the newly idle load balance.
 		 */
-		if (local_group && balance_cpu != this_cpu && balance) {
+		if (idle != CPU_NEWLY_IDLE && local_group &&
+		    balance_cpu != this_cpu && balance) {
 			*balance = 0;
 			goto ret;
 		}
@@ -2668,6 +2696,7 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	unsigned long imbalance;
 	int nr_moved = 0;
 	int sd_idle = 0;
+	int all_pinned = 0;
 	cpumask_t cpus = CPU_MASK_ALL;
 
 	/*
@@ -2706,10 +2735,11 @@ redo:
 		double_lock_balance(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
 					minus_1_or_zero(busiest->nr_running),
-					imbalance, sd, CPU_NEWLY_IDLE, NULL);
+					imbalance, sd, CPU_NEWLY_IDLE,
+					&all_pinned);
 		spin_unlock(&busiest->lock);
 
-		if (!nr_moved) {
+		if (unlikely(all_pinned)) {
 			cpu_clear(cpu_of(busiest), cpus);
 			if (!cpus_empty(cpus))
 				goto redo;
@@ -4647,14 +4677,14 @@ static void show_task(struct task_struct *p)
 	state = p->state ? __ffs(p->state) + 1 : 0;
 	printk("%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
-#if (BITS_PER_LONG == 32)
+#if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
-		printk(" running ");
+		printk(" running  ");
 	else
-		printk(" %08lX ", thread_saved_pc(p));
+		printk(" %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk("  running task   ");
+		printk("  running task    ");
 	else
 		printk(" %016lx ", thread_saved_pc(p));
 #endif
@@ -4666,11 +4696,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d", free, p->pid, p->parent->pid);
-	if (!p->mm)
-		printk(" (L-TLB)\n");
-	else
-		printk(" (NOTLB)\n");
+	printk("%5lu %5d %6d\n", free, p->pid, p->parent->pid);
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -4680,14 +4706,12 @@ void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
 
-#if (BITS_PER_LONG == 32)
-	printk("\n"
-	       "                         free                        sibling\n");
-	printk("  task             PC    stack   pid father child younger older\n");
+#if BITS_PER_LONG == 32
+	printk(KERN_INFO
+		"  task                PC stack   pid father\n");
 #else
-	printk("\n"
-	       "                                 free                        sibling\n");
-	printk("  task                 PC        stack   pid father child younger older\n");
+	printk(KERN_INFO
+		"  task                        PC stack   pid father\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
@@ -4778,7 +4802,7 @@ cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 static inline void sched_init_granularity(void)
 {
 	unsigned int factor = 1 + ilog2(num_online_cpus());
-	const unsigned long gran_limit = 10000000;
+	const unsigned long gran_limit = 100000000;
 
 	sysctl_sched_granularity *= factor;
 	if (sysctl_sched_granularity > gran_limit)
@@ -4908,8 +4932,6 @@ static int migration_thread(void *data)
 	while (!kthread_should_stop()) {
 		struct migration_req *req;
 		struct list_head *head;
-
-		try_to_freeze();
 
 		spin_lock_irq(&rq->lock);
 
@@ -5144,7 +5166,6 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		p = kthread_create(migration_thread, hcpu, "migration/%d", cpu);
 		if (IS_ERR(p))
 			return NOTIFY_BAD;
-		p->flags |= PF_NOFREEZE;
 		kthread_bind(p, cpu);
 		/* Must be high prio: stop_machine expects to yield to it. */
 		rq = task_rq_lock(p, &flags);

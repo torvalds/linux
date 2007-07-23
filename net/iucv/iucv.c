@@ -1494,7 +1494,10 @@ static void iucv_tasklet_fn(unsigned long ignored)
 	struct iucv_irq_list *p, *n;
 
 	/* Serialize tasklet, iucv_path_sever and iucv_path_connect. */
-	spin_lock(&iucv_table_lock);
+	if (!spin_trylock(&iucv_table_lock)) {
+		tasklet_schedule(&iucv_tasklet);
+		return;
+	}
 	iucv_active_cpu = smp_processor_id();
 
 	spin_lock_irq(&iucv_queue_lock);

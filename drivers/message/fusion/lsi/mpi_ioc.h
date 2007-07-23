@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2006 LSI Logic Corporation.
+ *  Copyright (c) 2000-2007 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_ioc.h
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    mpi_ioc.h Version:  01.05.12
+ *    mpi_ioc.h Version:  01.05.14
  *
  *  Version History
  *  ---------------
@@ -106,6 +106,13 @@
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
  *                      requests.
+ *  02-28-07  01.05.13  Added MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT for SAS
+ *                      Broadcast Event Data (replacing _RESERVED2).
+ *                      For Discovery Error Event Data DiscoveryStatus field,
+ *                      replaced _MULTPL_PATHS with _UNSUPPORTED_DEVICE and
+ *                      added _MULTI_PORT_DOMAIN.
+ *  05-24-07  01.05.14  Added Common Boot Block type to FWDownload Request.
+ *                      Added Common Boot Block type to FWUpload Request.
  *  --------------------------------------------------------------------------
  */
 
@@ -792,7 +799,7 @@ typedef struct _EVENT_DATA_SAS_BROADCAST_PRIMITIVE
 
 #define MPI_EVENT_PRIMITIVE_CHANGE              (0x01)
 #define MPI_EVENT_PRIMITIVE_EXPANDER            (0x03)
-#define MPI_EVENT_PRIMITIVE_RESERVED2           (0x04)
+#define MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT  (0x04)
 #define MPI_EVENT_PRIMITIVE_RESERVED3           (0x05)
 #define MPI_EVENT_PRIMITIVE_RESERVED4           (0x06)
 #define MPI_EVENT_PRIMITIVE_CHANGE0_RESERVED    (0x07)
@@ -857,8 +864,9 @@ typedef struct _EVENT_DATA_DISCOVERY_ERROR
 #define MPI_EVENT_DSCVRY_ERR_DS_SMP_CRC_ERROR               (0x00000100)
 #define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_SUBTRACTIVE          (0x00000200)
 #define MPI_EVENT_DSCVRY_ERR_DS_TABLE_TO_TABLE              (0x00000400)
-#define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_PATHS                (0x00000800)
+#define MPI_EVENT_DSCVRY_ERR_DS_UNSUPPORTED_DEVICE          (0x00000800)
 #define MPI_EVENT_DSCVRY_ERR_DS_MAX_SATA_TARGETS            (0x00001000)
+#define MPI_EVENT_DSCVRY_ERR_DS_MULTI_PORT_DOMAIN           (0x00002000)
 
 /* SAS SMP Error Event data */
 
@@ -990,6 +998,7 @@ typedef struct _MSG_FW_DOWNLOAD
 #define MPI_FW_DOWNLOAD_ITYPE_CONFIG_1          (0x07)
 #define MPI_FW_DOWNLOAD_ITYPE_CONFIG_2          (0x08)
 #define MPI_FW_DOWNLOAD_ITYPE_MEGARAID          (0x09)
+#define MPI_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK (0x0B)
 
 
 typedef struct _FWDownloadTCSGE
@@ -1038,17 +1047,18 @@ typedef struct _MSG_FW_UPLOAD
 } MSG_FW_UPLOAD, MPI_POINTER PTR_MSG_FW_UPLOAD,
   FWUpload_t, MPI_POINTER pFWUpload_t;
 
-#define MPI_FW_UPLOAD_ITYPE_FW_IOC_MEM      (0x00)
-#define MPI_FW_UPLOAD_ITYPE_FW_FLASH        (0x01)
-#define MPI_FW_UPLOAD_ITYPE_BIOS_FLASH      (0x02)
-#define MPI_FW_UPLOAD_ITYPE_NVDATA          (0x03)
-#define MPI_FW_UPLOAD_ITYPE_BOOTLOADER      (0x04)
-#define MPI_FW_UPLOAD_ITYPE_FW_BACKUP       (0x05)
-#define MPI_FW_UPLOAD_ITYPE_MANUFACTURING   (0x06)
-#define MPI_FW_UPLOAD_ITYPE_CONFIG_1        (0x07)
-#define MPI_FW_UPLOAD_ITYPE_CONFIG_2        (0x08)
-#define MPI_FW_UPLOAD_ITYPE_MEGARAID        (0x09)
-#define MPI_FW_UPLOAD_ITYPE_COMPLETE        (0x0A)
+#define MPI_FW_UPLOAD_ITYPE_FW_IOC_MEM          (0x00)
+#define MPI_FW_UPLOAD_ITYPE_FW_FLASH            (0x01)
+#define MPI_FW_UPLOAD_ITYPE_BIOS_FLASH          (0x02)
+#define MPI_FW_UPLOAD_ITYPE_NVDATA              (0x03)
+#define MPI_FW_UPLOAD_ITYPE_BOOTLOADER          (0x04)
+#define MPI_FW_UPLOAD_ITYPE_FW_BACKUP           (0x05)
+#define MPI_FW_UPLOAD_ITYPE_MANUFACTURING       (0x06)
+#define MPI_FW_UPLOAD_ITYPE_CONFIG_1            (0x07)
+#define MPI_FW_UPLOAD_ITYPE_CONFIG_2            (0x08)
+#define MPI_FW_UPLOAD_ITYPE_MEGARAID            (0x09)
+#define MPI_FW_UPLOAD_ITYPE_COMPLETE            (0x0A)
+#define MPI_FW_UPLOAD_ITYPE_COMMON_BOOT_BLOCK   (0x0B)
 
 typedef struct _FWUploadTCSGE
 {

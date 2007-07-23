@@ -22,10 +22,15 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <asm/atomic.h>
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
 #include "spufs.h"
+
+
+atomic_t nr_spu_contexts = ATOMIC_INIT(0);
 
 struct spu_context *alloc_spu_context(struct spu_gang *gang)
 {
@@ -51,12 +56,14 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
 	INIT_LIST_HEAD(&ctx->rq);
+	INIT_LIST_HEAD(&ctx->aff_list);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
-	ctx->rt_priority = current->rt_priority;
-	ctx->policy = current->policy;
-	ctx->prio = current->prio;
-	INIT_DELAYED_WORK(&ctx->sched_work, spu_sched_tick);
+	ctx->cpus_allowed = current->cpus_allowed;
+	spu_set_timeslice(ctx);
+	ctx->stats.util_state = SPU_UTIL_IDLE_LOADED;
+
+	atomic_inc(&nr_spu_contexts);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -75,7 +82,10 @@ void destroy_spu_context(struct kref *kref)
 	spu_fini_csa(&ctx->csa);
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
+	if (ctx->prof_priv_kref)
+		kref_put(ctx->prof_priv_kref, ctx->prof_priv_release);
 	BUG_ON(!list_empty(&ctx->rq));
+	atomic_dec(&nr_spu_contexts);
 	kfree(ctx);
 }
 
@@ -159,6 +169,39 @@ int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
 void spu_acquire_saved(struct spu_context *ctx)
 {
 	spu_acquire(ctx);
-	if (ctx->state != SPU_STATE_SAVED)
+	if (ctx->state != SPU_STATE_SAVED) {
+		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
 		spu_deactivate(ctx);
+	}
 }
+
+/**
+ * spu_release_saved - unlock spu context and return it to the runqueue
+ * @ctx:	context to unlock
+ */
+void spu_release_saved(struct spu_context *ctx)
+{
+	BUG_ON(ctx->state != SPU_STATE_SAVED);
+
+	if (test_and_clear_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags))
+		spu_activate(ctx, 0);
+
+	spu_release(ctx);
+}
+
+void spu_set_profile_private_kref(struct spu_context *ctx,
+				  struct kref *prof_info_kref,
+				  void ( * prof_info_release) (struct kref *kref))
+{
+	ctx->prof_priv_kref = prof_info_kref;
+	ctx->prof_priv_release = prof_info_release;
+}
+EXPORT_SYMBOL_GPL(spu_set_profile_private_kref);
+
+void *spu_get_profile_private_kref(struct spu_context *ctx)
+{
+	return ctx->prof_priv_kref;
+}
+EXPORT_SYMBOL_GPL(spu_get_profile_private_kref);
+
+

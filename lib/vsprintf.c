@@ -135,6 +135,103 @@ static int skip_atoi(const char **s)
 	return i;
 }
 
+/* Decimal conversion is by far the most typical, and is used
+ * for /proc and /sys data. This directly impacts e.g. top performance
+ * with many processes running. We optimize it for speed
+ * using code from
+ * http://www.cs.uiowa.edu/~jones/bcd/decimal.html
+ * (with permission from the author, Douglas W. Jones). */
+
+/* Formats correctly any integer in [0,99999].
+ * Outputs from one to five digits depending on input.
+ * On i386 gcc 4.1.2 -O2: ~250 bytes of code. */
+static char* put_dec_trunc(char *buf, unsigned q)
+{
+	unsigned d3, d2, d1, d0;
+	d1 = (q>>4) & 0xf;
+	d2 = (q>>8) & 0xf;
+	d3 = (q>>12);
+
+	d0 = 6*(d3 + d2 + d1) + (q & 0xf);
+	q = (d0 * 0xcd) >> 11;
+	d0 = d0 - 10*q;
+	*buf++ = d0 + '0'; /* least significant digit */
+	d1 = q + 9*d3 + 5*d2 + d1;
+	if (d1 != 0) {
+		q = (d1 * 0xcd) >> 11;
+		d1 = d1 - 10*q;
+		*buf++ = d1 + '0'; /* next digit */
+
+		d2 = q + 2*d2;
+		if ((d2 != 0) || (d3 != 0)) {
+			q = (d2 * 0xd) >> 7;
+			d2 = d2 - 10*q;
+			*buf++ = d2 + '0'; /* next digit */
+
+			d3 = q + 4*d3;
+			if (d3 != 0) {
+				q = (d3 * 0xcd) >> 11;
+				d3 = d3 - 10*q;
+				*buf++ = d3 + '0';  /* next digit */
+				if (q != 0)
+					*buf++ = q + '0';  /* most sign. digit */
+			}
+		}
+	}
+	return buf;
+}
+/* Same with if's removed. Always emits five digits */
+static char* put_dec_full(char *buf, unsigned q)
+{
+	/* BTW, if q is in [0,9999], 8-bit ints will be enough, */
+	/* but anyway, gcc produces better code with full-sized ints */
+	unsigned d3, d2, d1, d0;
+	d1 = (q>>4) & 0xf;
+	d2 = (q>>8) & 0xf;
+	d3 = (q>>12);
+
+	/* Possible ways to approx. divide by 10 */
+	/* gcc -O2 replaces multiply with shifts and adds */
+	// (x * 0xcd) >> 11: 11001101 - shorter code than * 0x67 (on i386)
+	// (x * 0x67) >> 10:  1100111
+	// (x * 0x34) >> 9:    110100 - same
+	// (x * 0x1a) >> 8:     11010 - same
+	// (x * 0x0d) >> 7:      1101 - same, shortest code (on i386)
+
+	d0 = 6*(d3 + d2 + d1) + (q & 0xf);
+	q = (d0 * 0xcd) >> 11;
+	d0 = d0 - 10*q;
+	*buf++ = d0 + '0';
+	d1 = q + 9*d3 + 5*d2 + d1;
+		q = (d1 * 0xcd) >> 11;
+		d1 = d1 - 10*q;
+		*buf++ = d1 + '0';
+
+		d2 = q + 2*d2;
+			q = (d2 * 0xd) >> 7;
+			d2 = d2 - 10*q;
+			*buf++ = d2 + '0';
+
+			d3 = q + 4*d3;
+				q = (d3 * 0xcd) >> 11; /* - shorter code */
+				/* q = (d3 * 0x67) >> 10; - would also work */
+				d3 = d3 - 10*q;
+				*buf++ = d3 + '0';
+					*buf++ = q + '0';
+	return buf;
+}
+/* No inlining helps gcc to use registers better */
+static noinline char* put_dec(char *buf, unsigned long long num)
+{
+	while (1) {
+		unsigned rem;
+		if (num < 100000)
+			return put_dec_trunc(buf, num);
+		rem = do_div(num, 100000);
+		buf = put_dec_full(buf, rem);
+	}
+}
+
 #define ZEROPAD	1		/* pad with zero */
 #define SIGN	2		/* unsigned/signed long */
 #define PLUS	4		/* show plus */
@@ -143,12 +240,14 @@ static int skip_atoi(const char **s)
 #define SPECIAL	32		/* 0x */
 #define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
 
-static char * number(char * buf, char * end, unsigned long long num, int base, int size, int precision, int type)
+static char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type)
 {
-	char c,sign,tmp[66];
+	char sign,tmp[66];
 	const char *digits;
-	static const char small_digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	static const char large_digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	/* we are called with base 8, 10 or 16, only, thus don't need "g..."  */
+	static const char small_digits[] = "0123456789abcdefx"; /* "ghijklmnopqrstuvwxyz"; */
+	static const char large_digits[] = "0123456789ABCDEFX"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	int need_pfx = ((type & SPECIAL) && base != 10);
 	int i;
 
 	digits = (type & LARGE) ? large_digits : small_digits;
@@ -156,7 +255,6 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 		type &= ~ZEROPAD;
 	if (base < 2 || base > 36)
 		return NULL;
-	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
 		if ((signed long long) num < 0) {
@@ -171,64 +269,85 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 			size--;
 		}
 	}
-	if (type & SPECIAL) {
+	if (need_pfx) {
+		size--;
 		if (base == 16)
-			size -= 2;
-		else if (base == 8)
 			size--;
 	}
+
+	/* generate full string in tmp[], in reverse order */
 	i = 0;
 	if (num == 0)
-		tmp[i++]='0';
-	else while (num != 0)
+		tmp[i++] = '0';
+	/* Generic code, for any base:
+	else do {
 		tmp[i++] = digits[do_div(num,base)];
+	} while (num != 0);
+	*/
+	else if (base != 10) { /* 8 or 16 */
+		int mask = base - 1;
+		int shift = 3;
+		if (base == 16) shift = 4;
+		do {
+			tmp[i++] = digits[((unsigned char)num) & mask];
+			num >>= shift;
+		} while (num);
+	} else { /* base 10 */
+		i = put_dec(tmp, num) - tmp;
+	}
+
+	/* printing 100 using %2d gives "100", not "00" */
 	if (i > precision)
 		precision = i;
+	/* leading space padding */
 	size -= precision;
-	if (!(type&(ZEROPAD+LEFT))) {
-		while(size-->0) {
+	if (!(type & (ZEROPAD+LEFT))) {
+		while(--size >= 0) {
 			if (buf < end)
 				*buf = ' ';
 			++buf;
 		}
 	}
+	/* sign */
 	if (sign) {
 		if (buf < end)
 			*buf = sign;
 		++buf;
 	}
-	if (type & SPECIAL) {
-		if (base==8) {
+	/* "0x" / "0" prefix */
+	if (need_pfx) {
+		if (buf < end)
+			*buf = '0';
+		++buf;
+		if (base == 16) {
 			if (buf < end)
-				*buf = '0';
-			++buf;
-		} else if (base==16) {
-			if (buf < end)
-				*buf = '0';
-			++buf;
-			if (buf < end)
-				*buf = digits[33];
+				*buf = digits[16]; /* for arbitrary base: digits[33]; */
 			++buf;
 		}
 	}
+	/* zero or space padding */
 	if (!(type & LEFT)) {
-		while (size-- > 0) {
+		char c = (type & ZEROPAD) ? '0' : ' ';
+		while (--size >= 0) {
 			if (buf < end)
 				*buf = c;
 			++buf;
 		}
 	}
-	while (i < precision--) {
+	/* hmm even more zero padding? */
+	while (i <= --precision) {
 		if (buf < end)
 			*buf = '0';
 		++buf;
 	}
-	while (i-- > 0) {
+	/* actual digits of result */
+	while (--i >= 0) {
 		if (buf < end)
 			*buf = tmp[i];
 		++buf;
 	}
-	while (size-- > 0) {
+	/* trailing space padding */
+	while (--size >= 0) {
 		if (buf < end)
 			*buf = ' ';
 		++buf;
@@ -276,7 +395,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	   used for unknown buffer sizes. */
 	if (unlikely((int) size < 0)) {
 		/* There can be only one.. */
-		static int warn = 1;
+		static char warn = 1;
 		WARN_ON(warn);
 		warn = 0;
 		return 0;

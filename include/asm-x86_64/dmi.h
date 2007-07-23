@@ -3,15 +3,12 @@
 
 #include <asm/io.h>
 
-extern void *dmi_ioremap(unsigned long addr, unsigned long size);
-extern void dmi_iounmap(void *addr, unsigned long size);
-
 #define DMI_MAX_DATA 2048
 
 extern int dmi_alloc_index;
 extern char dmi_alloc_data[DMI_MAX_DATA];
 
-/* This is so early that there is no good way to allocate dynamic memory. 
+/* This is so early that there is no good way to allocate dynamic memory.
    Allocate data in an BSS array. */
 static inline void *dmi_alloc(unsigned len)
 {

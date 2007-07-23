@@ -14,6 +14,7 @@
 #include "ocfs2.h"
 #include "alloc.h"
 #include "dlmglue.h"
+#include "file.h"
 #include "inode.h"
 #include "journal.h"
 
@@ -62,7 +63,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 		goto bail_unlock;
 
 	status = -EACCES;
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(inode))
 		goto bail_unlock;
 
 	if (!S_ISDIR(inode->i_mode))
@@ -115,6 +116,7 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 {
 	unsigned int flags;
 	int status;
+	struct ocfs2_space_resv sr;
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
@@ -130,6 +132,14 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 
 		return ocfs2_set_inode_attr(inode, flags,
 			OCFS2_FL_MODIFIABLE);
+	case OCFS2_IOC_RESVSP:
+	case OCFS2_IOC_RESVSP64:
+	case OCFS2_IOC_UNRESVSP:
+	case OCFS2_IOC_UNRESVSP64:
+		if (copy_from_user(&sr, (int __user *) arg, sizeof(sr)))
+			return -EFAULT;
+
+		return ocfs2_change_file_space(filp, cmd, &sr);
 	default:
 		return -ENOTTY;
 	}
@@ -147,6 +157,11 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		break;
 	case OCFS2_IOC32_SETFLAGS:
 		cmd = OCFS2_IOC_SETFLAGS;
+		break;
+	case OCFS2_IOC_RESVSP:
+	case OCFS2_IOC_RESVSP64:
+	case OCFS2_IOC_UNRESVSP:
+	case OCFS2_IOC_UNRESVSP64:
 		break;
 	default:
 		return -ENOIOCTLCMD;

@@ -47,6 +47,8 @@
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
+
 #ifdef CONFIG_SMP
 #define SMP_NOP2 "nop; nop;\n\t"
 #define SMP_NOP3 "nop; nop; nop;\n\t"
@@ -268,7 +270,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	kfree(action);
 
 	if (!sparc_irq[cpu_irq].action)
-		disable_irq(irq);
+		__disable_irq(irq);
 
 out_unlock:
 	spin_unlock_irqrestore(&irq_action_lock, flags);
@@ -464,7 +466,7 @@ int request_fast_irq(unsigned int irq,
 
 	sparc_irq[cpu_irq].action = action;
 
-	enable_irq(irq);
+	__enable_irq(irq);
 
 	ret = 0;
 out_unlock:
@@ -544,7 +546,7 @@ int request_irq(unsigned int irq,
 
 	*actionp = action;
 
-	enable_irq(irq);
+	__enable_irq(irq);
 
 	ret = 0;
 out_unlock:
@@ -554,6 +556,25 @@ out:
 }
 
 EXPORT_SYMBOL(request_irq);
+
+void disable_irq_nosync(unsigned int irq)
+{
+	return __disable_irq(irq);
+}
+EXPORT_SYMBOL(disable_irq_nosync);
+
+void disable_irq(unsigned int irq)
+{
+	return __disable_irq(irq);
+}
+EXPORT_SYMBOL(disable_irq);
+
+void enable_irq(unsigned int irq)
+{
+	return __enable_irq(irq);
+}
+
+EXPORT_SYMBOL(enable_irq);
 
 /* We really don't need these at all on the Sparc.  We only have
  * stubs here because they are exported to modules.

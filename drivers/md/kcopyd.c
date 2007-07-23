@@ -29,7 +29,7 @@
 static struct workqueue_struct *_kcopyd_wq;
 static struct work_struct _kcopyd_work;
 
-static inline void wake(void)
+static void wake(void)
 {
 	queue_work(_kcopyd_wq, &_kcopyd_work);
 }
@@ -226,10 +226,7 @@ static LIST_HEAD(_pages_jobs);
 
 static int jobs_init(void)
 {
-	_job_cache = kmem_cache_create("kcopyd-jobs",
-				       sizeof(struct kcopyd_job),
-				       __alignof__(struct kcopyd_job),
-				       0, NULL, NULL);
+	_job_cache = KMEM_CACHE(kcopyd_job, 0);
 	if (!_job_cache)
 		return -ENOMEM;
 
@@ -258,7 +255,7 @@ static void jobs_exit(void)
  * Functions to push and pop a job onto the head of a given job
  * list.
  */
-static inline struct kcopyd_job *pop(struct list_head *jobs)
+static struct kcopyd_job *pop(struct list_head *jobs)
 {
 	struct kcopyd_job *job = NULL;
 	unsigned long flags;
@@ -274,7 +271,7 @@ static inline struct kcopyd_job *pop(struct list_head *jobs)
 	return job;
 }
 
-static inline void push(struct list_head *jobs, struct kcopyd_job *job)
+static void push(struct list_head *jobs, struct kcopyd_job *job)
 {
 	unsigned long flags;
 

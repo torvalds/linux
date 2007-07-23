@@ -20,6 +20,7 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/buffer_head.h>
+#include <linux/exportfs.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>
@@ -354,8 +355,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	} else { /* not a directory */
 		inode->i_generation |= 1;
 		inode->i_mode = MSDOS_MKMODE(de->attr,
-		    ((sbi->options.showexec &&
-			!is_exec(de->ext))
+		    ((sbi->options.showexec && !is_exec(de->name + 8))
 			? S_IRUGO|S_IWUGO : S_IRWXUGO)
 		    & ~sbi->options.fs_fmask) | S_IFREG;
 		MSDOS_I(inode)->i_start = le16_to_cpu(de->start);
@@ -514,7 +514,7 @@ static int __init fat_init_inodecache(void)
 					     sizeof(struct msdos_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (fat_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

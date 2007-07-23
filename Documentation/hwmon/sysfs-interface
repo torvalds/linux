@@ -172,11 +172,10 @@ pwm[1-*]	Pulse width modulation fan control.
 		255 is max or 100%.
 
 pwm[1-*]_enable
-		Switch PWM on and off.
-		Not always present even if pwmN is.
-		0: turn off
-		1: turn on in manual mode
-		2+: turn on in automatic mode
+		Fan speed control method:
+		0: no fan speed control (i.e. fan at full speed)
+		1: manual fan speed control enabled (using pwm[1-*])
+		2+: automatic fan speed control enabled
 		Check individual chip documentation files for automatic mode
 		details.
 		RW
@@ -343,9 +342,9 @@ to notify open diodes, unconnected fans etc. where the hardware
 supports it. When this boolean has value 1, the measurement for that
 channel should not be trusted.
 
-in[0-*]_input_fault
-fan[1-*]_input_fault
-temp[1-*]_input_fault
+in[0-*]_fault
+fan[1-*]_fault
+temp[1-*]_fault
 		Input fault condition
 		0: no fault occured
 		1: fault condition

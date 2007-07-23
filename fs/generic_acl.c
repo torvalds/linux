@@ -78,7 +78,7 @@ generic_acl_set(struct inode *inode, struct generic_acl_operations *ops,
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
-	if (current->fsuid != inode->i_uid && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(inode))
 		return -EPERM;
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);

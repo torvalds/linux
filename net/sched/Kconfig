@@ -97,7 +97,7 @@ config NET_SCH_ATM
 	  select classes of this queuing discipline.  Each class maps
 	  the flow(s) it is handling to a given virtual circuit.
 
-	  See the top of <file:net/sched/sch_atm.c>) for more details.
+	  See the top of <file:net/sched/sch_atm.c> for more details.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_atm.
@@ -110,6 +110,17 @@ config NET_SCH_PRIO
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_prio.
+
+config NET_SCH_RR
+	tristate "Multi Band Round Robin Queuing (RR)"
+	select NET_SCH_PRIO
+	---help---
+	  Say Y here if you want to use an n-band round robin packet
+	  scheduler.
+
+	  The module uses sch_prio for its framework and is aliased as
+	  sch_rr, so it will load sch_prio, although it is referred
+	  to using sch_rr.
 
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
@@ -126,7 +137,7 @@ config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
 	---help---
 	  Say Y here if you want to use the Stochastic Fairness Queueing (SFQ)
-	  packet scheduling algorithm .
+	  packet scheduling algorithm.
 
 	  See the top of <file:net/sched/sch_sfq.c> for more details.
 
@@ -275,7 +286,6 @@ config CLS_U32_MARK
 config NET_CLS_RSVP
 	tristate "IPv4 Resource Reservation Protocol (RSVP)"
 	select NET_CLS
-	select NET_ESTIMATOR
 	---help---
 	  The Resource Reservation Protocol (RSVP) permits end systems to
 	  request a minimum and maximum data flow rate for a connection; this
@@ -290,14 +300,13 @@ config NET_CLS_RSVP
 config NET_CLS_RSVP6
 	tristate "IPv6 Resource Reservation Protocol (RSVP6)"
 	select NET_CLS
-	select NET_ESTIMATOR
 	---help---
 	  The Resource Reservation Protocol (RSVP) permits end systems to
 	  request a minimum and maximum data flow rate for a connection; this
 	  is important for real time data such as streaming sound or video.
 
 	  Say Y here if you want to be able to classify outgoing packets based
-	  on their RSVP requests and you are using the IPv6.
+	  on their RSVP requests and you are using the IPv6 protocol.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_rsvp6.
@@ -382,7 +391,6 @@ config NET_EMATCH_TEXT
 
 config NET_CLS_ACT
 	bool "Actions"
-	select NET_ESTIMATOR
 	---help---
 	  Say Y here if you want to use traffic control actions. Actions
 	  get attached to classifiers and are invoked after a successful
@@ -464,13 +472,12 @@ config NET_ACT_SIMP
 
 config NET_CLS_POLICE
 	bool "Traffic Policing (obsolete)"
-	depends on NET_CLS_ACT!=y
-	select NET_ESTIMATOR
+	select NET_CLS_ACT
+	select NET_ACT_POLICE
 	---help---
 	  Say Y here if you want to do traffic policing, i.e. strict
-	  bandwidth limiting. This option is obsoleted by the traffic
-	  policer implemented as action, it stays here for compatibility
-	  reasons.
+	  bandwidth limiting. This option is obsolete and just selects
+	  the option replacing it. It will be removed in the future.
 
 config NET_CLS_IND
 	bool "Incoming device classification"
@@ -479,14 +486,6 @@ config NET_CLS_IND
 	  Say Y here to extend the u32 and fw classifier to support
 	  classification based on the incoming device. This option is
 	  likely to disappear in favour of the metadata ematch.
-
-config NET_ESTIMATOR
-	bool "Rate estimator"
-	---help---
-	  Say Y here to allow using rate estimators to estimate the current
-	  rate-of-flow for network devices, queues, etc. This module is
-	  automatically selected if needed but can be selected manually for
-	  statistical purposes.
 
 endif # NET_SCHED
 

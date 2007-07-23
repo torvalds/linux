@@ -18,7 +18,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -51,7 +51,7 @@ static void wake_up_event_readers(struct service_processor *sp)
  * event readers.
  * There is no reader marker in the buffer, therefore readers are
  * responsible for keeping up with the writer, or they will loose events.
- */ 
+ */
 void ibmasm_receive_event(struct service_processor *sp, void *data, unsigned int data_size)
 {
 	struct event_buffer *buffer = sp->event_buffer;
@@ -77,13 +77,13 @@ void ibmasm_receive_event(struct service_processor *sp, void *data, unsigned int
 
 static inline int event_available(struct event_buffer *b, struct event_reader *r)
 {
-	return 	(r->next_serial_number < b->next_serial_number);
+	return (r->next_serial_number < b->next_serial_number);
 }
 
 /**
  * get_next_event
  * Called by event readers (initiated from user space through the file
- * system). 
+ * system).
  * Sleeps until a new event is available.
  */
 int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *reader)

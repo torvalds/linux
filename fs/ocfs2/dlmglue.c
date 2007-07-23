@@ -600,15 +600,13 @@ static inline int ocfs2_highest_compat_lock_level(int level)
 static void lockres_set_flags(struct ocfs2_lock_res *lockres,
 			      unsigned long newflags)
 {
-	struct list_head *pos, *tmp;
-	struct ocfs2_mask_waiter *mw;
+	struct ocfs2_mask_waiter *mw, *tmp;
 
  	assert_spin_locked(&lockres->l_lock);
 
 	lockres->l_flags = newflags;
 
-	list_for_each_safe(pos, tmp, &lockres->l_mask_waiters) {
-		mw = list_entry(pos, struct ocfs2_mask_waiter, mw_item);
+	list_for_each_entry_safe(mw, tmp, &lockres->l_mask_waiters, mw_item) {
 		if ((lockres->l_flags & mw->mw_mask) != mw->mw_goal)
 			continue;
 

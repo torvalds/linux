@@ -431,7 +431,7 @@ static int __init init_openprom_fs(void)
 					    0,
 					    (SLAB_RECLAIM_ACCOUNT |
 					     SLAB_MEM_SPREAD),
-					    op_inode_init_once, NULL);
+					    op_inode_init_once);
 	if (!op_inode_cachep)
 		return -ENOMEM;
 

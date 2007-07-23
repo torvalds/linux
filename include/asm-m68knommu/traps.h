@@ -16,6 +16,10 @@
 typedef void (*e_vector)(void);
 
 extern e_vector vectors[];
+extern void init_vectors(void);
+extern void enable_vector(unsigned int irq);
+extern void disable_vector(unsigned int irq);
+extern void ack_vector(unsigned int irq);
 
 #endif
 

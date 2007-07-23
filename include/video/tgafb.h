@@ -216,6 +216,7 @@ struct tga_par {
 	u32 pll_freq;			/* pixclock in mhz */
 	u32 bits_per_pixel;		/* bits per pixel */
 	u32 sync_on_green;		/* set if sync is on green */
+	u32 palette[16];
 };
 
 

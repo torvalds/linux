@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/apm-emulation.h>
+#include <linux/freezer.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -329,13 +330,8 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * Wait for the suspend/resume to complete.  If there
 			 * are pending acknowledges, we wait here for them.
-			 *
-			 * Note: we need to ensure that the PM subsystem does
-			 * not kick us out of the wait when it suspends the
-			 * threads.
 			 */
 			flags = current->flags;
-			current->flags |= PF_NOFREEZE;
 
 			wait_event(apm_suspend_waitqueue,
 				   as->suspend_state == SUSPEND_DONE);
@@ -365,13 +361,8 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * Wait for the suspend/resume to complete.  If there
 			 * are pending acknowledges, we wait here for them.
-			 *
-			 * Note: we need to ensure that the PM subsystem does
-			 * not kick us out of the wait when it suspends the
-			 * threads.
 			 */
 			flags = current->flags;
-			current->flags |= PF_NOFREEZE;
 
 			wait_event_interruptible(apm_suspend_waitqueue,
 					 as->suspend_state == SUSPEND_DONE);
@@ -598,7 +589,6 @@ static int __init apm_init(void)
 		kapmd_tsk = NULL;
 		return ret;
 	}
-	kapmd_tsk->flags |= PF_NOFREEZE;
 	wake_up_process(kapmd_tsk);
 
 #ifdef CONFIG_PROC_FS

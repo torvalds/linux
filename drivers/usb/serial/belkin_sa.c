@@ -255,9 +255,10 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	struct belkin_sa_private *priv;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
+	int status = urb->status;
 	unsigned long flags;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -265,10 +266,12 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d",
+		    __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -346,6 +349,7 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	unsigned long flags;
 	unsigned long control_state;
 	int bad_flow_control;
+	speed_t baud;
 	
 	if ((!port->tty) || (!port->tty->termios)) {
 		dbg ("%s - no tty or termios structure", __FUNCTION__);
@@ -361,16 +365,8 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	bad_flow_control = priv->bad_flow_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(port->tty->termios->c_iflag) == RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			return;
-		}
-		old_iflag = old_termios->c_iflag;
-		old_cflag = old_termios->c_cflag;
-	}
+	old_iflag = old_termios->c_iflag;
+	old_cflag = old_termios->c_cflag;
 
 	/* Set the baud rate */
 	if( (cflag&CBAUD) != (old_cflag&CBAUD) ) {
@@ -384,38 +380,30 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 				if (BSA_USB_CMD(BELKIN_SA_SET_RTS_REQUEST, 1) < 0)
 					err("Set RTS error");
 		}
+	}
 
-		switch(cflag & CBAUD) {
-			case B0: /* handled below */ break;
-			case B300: urb_value = BELKIN_SA_BAUD(300); break;
-			case B600: urb_value = BELKIN_SA_BAUD(600); break;
-			case B1200: urb_value = BELKIN_SA_BAUD(1200); break;
-			case B2400: urb_value = BELKIN_SA_BAUD(2400); break;
-			case B4800: urb_value = BELKIN_SA_BAUD(4800); break;
-			case B9600: urb_value = BELKIN_SA_BAUD(9600); break;
-			case B19200: urb_value = BELKIN_SA_BAUD(19200); break;
-			case B38400: urb_value = BELKIN_SA_BAUD(38400); break;
-			case B57600: urb_value = BELKIN_SA_BAUD(57600); break;
-			case B115200: urb_value = BELKIN_SA_BAUD(115200); break;
-			case B230400: urb_value = BELKIN_SA_BAUD(230400); break;
-			default: err("BELKIN USB Serial Adapter: unsupported baudrate request, using default of 9600");
-				urb_value = BELKIN_SA_BAUD(9600); break;
-		}
-		if ((cflag & CBAUD) != B0 ) {
-			if (BSA_USB_CMD(BELKIN_SA_SET_BAUDRATE_REQUEST, urb_value) < 0)
-				err("Set baudrate error");
-		} else {
-			/* Disable flow control */
-			if (BSA_USB_CMD(BELKIN_SA_SET_FLOW_CTRL_REQUEST, BELKIN_SA_FLOW_NONE) < 0)
-				err("Disable flowcontrol error");
+	baud = tty_get_baud_rate(port->tty);
+	urb_value = BELKIN_SA_BAUD(baud);
+	/* Clip to maximum speed */
+	if (urb_value == 0)
+		urb_value = 1;
+	/* Turn it back into a resulting real baud rate */
+	baud = BELKIN_SA_BAUD(urb_value);
+	/* FIXME: Once the tty updates are done then push this back to the tty */
 
-			/* Drop RTS and DTR */
-			control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-			if (BSA_USB_CMD(BELKIN_SA_SET_DTR_REQUEST, 0) < 0)
-				err("DTR LOW error");
-			if (BSA_USB_CMD(BELKIN_SA_SET_RTS_REQUEST, 0) < 0)
-				err("RTS LOW error");
-		}
+	if ((cflag & CBAUD) != B0 ) {
+		if (BSA_USB_CMD(BELKIN_SA_SET_BAUDRATE_REQUEST, urb_value) < 0)
+			err("Set baudrate error");
+	} else {
+		/* Disable flow control */
+		if (BSA_USB_CMD(BELKIN_SA_SET_FLOW_CTRL_REQUEST, BELKIN_SA_FLOW_NONE) < 0)
+			err("Disable flowcontrol error");
+		/* Drop RTS and DTR */
+		control_state &= ~(TIOCM_DTR | TIOCM_RTS);
+		if (BSA_USB_CMD(BELKIN_SA_SET_DTR_REQUEST, 0) < 0)
+			err("DTR LOW error");
+		if (BSA_USB_CMD(BELKIN_SA_SET_RTS_REQUEST, 0) < 0)
+			err("RTS LOW error");
 	}
 
 	/* set the parity */
@@ -435,7 +423,7 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 			case CS6: urb_value = BELKIN_SA_DATA_BITS(6); break;
 			case CS7: urb_value = BELKIN_SA_DATA_BITS(7); break;
 			case CS8: urb_value = BELKIN_SA_DATA_BITS(8); break;
-			default: err("CSIZE was not CS5-CS8, using default of 8");
+			default: dbg("CSIZE was not CS5-CS8, using default of 8");
 				urb_value = BELKIN_SA_DATA_BITS(8);
 				break;
 		}

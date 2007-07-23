@@ -26,12 +26,6 @@ MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP NAT helper");
 MODULE_ALIAS("ip_nat_sip");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 struct addr_map {
 	struct {
 		char		src[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
@@ -257,10 +251,12 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 	__be32 newip;
 	u_int16_t port;
 
-	DEBUGP("ip_nat_sdp():\n");
-
 	/* Connection will come from reply */
-	newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
+	if (ct->tuplehash[dir].tuple.src.u3.ip ==
+	    ct->tuplehash[!dir].tuple.dst.u3.ip)
+		newip = exp->tuple.dst.u3.ip;
+	else
+		newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 
 	exp->saved_ip = exp->tuple.dst.u3.ip;
 	exp->tuple.dst.u3.ip = newip;
@@ -274,7 +270,7 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.udp.port); port != 0; port++) {
 		exp->tuple.dst.u.udp.port = htons(port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -282,7 +278,7 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 		return NF_DROP;
 
 	if (!mangle_sdp(pskb, ctinfo, ct, newip, port, dptr)) {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}
 	return NF_ACCEPT;

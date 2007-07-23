@@ -690,9 +690,9 @@ static int lan_saa9730_rx(struct net_device *dev)
 				lp->stats.rx_packets++;
 				skb_reserve(skb, 2);	/* 16 byte align */
 				skb_put(skb, len);	/* make room */
-				eth_copy_and_sum(skb,
+				skb_copy_to_linear_data(skb,
 						 (unsigned char *) pData,
-						 len, 0);
+						 len);
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
@@ -940,15 +940,14 @@ static void lan_saa9730_set_multicast(struct net_device *dev)
 		       CAM_CONTROL_GROUP_ACC | CAM_CONTROL_BROAD_ACC,
 		       &lp->lan_saa9730_regs->CamCtl);
 	} else {
-		if (dev->flags & IFF_ALLMULTI) {
+		if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
 			/* accept all multicast packets */
-			writel(CAM_CONTROL_COMP_EN | CAM_CONTROL_GROUP_ACC |
-			       CAM_CONTROL_BROAD_ACC,
-			       &lp->lan_saa9730_regs->CamCtl);
-		} else {
 			/*
 			 * Will handle the multicast stuff later. -carstenl
 			 */
+			writel(CAM_CONTROL_COMP_EN | CAM_CONTROL_GROUP_ACC |
+			       CAM_CONTROL_BROAD_ACC,
+			       &lp->lan_saa9730_regs->CamCtl);
 		}
 	}
 

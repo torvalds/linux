@@ -330,7 +330,7 @@ static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
 #endif /* CY82C693_DEBUG_LOGS */
 
 	/* first let's calc the pio modes */
-	pio = ide_get_best_pio_mode(drive, pio, CY82C693_MAX_PIO, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, CY82C693_MAX_PIO);
 
 #if CY82C693_DEBUG_INFO
 	printk (KERN_INFO "%s: Selected PIO mode %d\n", drive->name, pio);
@@ -483,9 +483,10 @@ static ide_pci_device_t cy82c693_chipset __devinitdata = {
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
-	.channels	= 1,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_SINGLE,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)

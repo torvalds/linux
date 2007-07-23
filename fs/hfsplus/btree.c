@@ -62,8 +62,10 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 		if ((HFSPLUS_SB(sb).flags & HFSPLUS_SB_HFSX) &&
 		    (head->key_type == HFSPLUS_KEY_BINARY))
 			tree->keycmp = hfsplus_cat_bin_cmp_key;
-		else
+		else {
 			tree->keycmp = hfsplus_cat_case_cmp_key;
+			HFSPLUS_SB(sb).flags |= HFSPLUS_SB_CASEFOLD;
+		}
 	} else {
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
 		goto fail_page;

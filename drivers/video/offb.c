@@ -271,7 +271,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 		return;
 	}
 
-	size = sizeof(struct fb_info) + sizeof(u32) * 17;
+	size = sizeof(struct fb_info) + sizeof(u32) * 16;
 
 	info = kmalloc(size, GFP_ATOMIC);
 	

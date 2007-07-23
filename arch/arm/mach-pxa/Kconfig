@@ -37,6 +37,10 @@ config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	select PXA27x
 
+config MACH_EM_X270
+	bool "CompuLab EM-x270 platform"
+	select PXA27x
+
 endchoice
 
 if PXA_SHARPSL

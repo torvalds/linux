@@ -728,7 +728,7 @@ typedef struct vlsi_irda_dev {
 	struct timeval		last_rx;
 
 	spinlock_t		lock;
-	struct semaphore	sem;
+	struct mutex		mtx;
 
 	u8			resume_ok;	
 	struct proc_dir_entry	*proc_entry;

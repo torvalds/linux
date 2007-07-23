@@ -11,7 +11,7 @@ SECTIONS
   . = 0xE002000;
   _text = .;			/* Text and read-only data */
   .text : {
-	*(.head)
+	*(.text.head)
 	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT

@@ -737,8 +737,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 	struct device_attribute dev_attr_##_name = {			\
 		.attr = {						\
 			.name = __stringify(_name),			\
-			.mode = 0,					\
-			.owner = THIS_MODULE },				\
+			.mode = 0 },					\
 		.show   = NULL,						\
 		.store  = NULL,						\
 	}
@@ -980,10 +979,9 @@ static int asus_hotk_add(struct acpi_device *device)
 	printk(ASUS_NOTICE "Asus Laptop Support version %s\n",
 	       ASUS_LAPTOP_VERSION);
 
-	hotk = kmalloc(sizeof(struct asus_hotk), GFP_KERNEL);
+	hotk = kzalloc(sizeof(struct asus_hotk), GFP_KERNEL);
 	if (!hotk)
 		return -ENOMEM;
-	memset(hotk, 0, sizeof(struct asus_hotk));
 
 	hotk->handle = device->handle;
 	strcpy(acpi_device_name(device), ASUS_HOTK_DEVICE_NAME);

@@ -153,7 +153,7 @@ typedef struct drm_r128_sarea {
 
 	/* The current cliprects, or a subset thereof.
 	 */
-	drm_clip_rect_t boxes[R128_NR_SAREA_CLIPRECTS];
+	struct drm_clip_rect boxes[R128_NR_SAREA_CLIPRECTS];
 	unsigned int nbox;
 
 	/* Counters for client-side throttling of rendering clients.
@@ -161,7 +161,7 @@ typedef struct drm_r128_sarea {
 	unsigned int last_frame;
 	unsigned int last_dispatch;
 
-	drm_tex_region_t tex_list[R128_NR_TEX_HEAPS][R128_NR_TEX_REGIONS + 1];
+	struct drm_tex_region tex_list[R128_NR_TEX_HEAPS][R128_NR_TEX_REGIONS + 1];
 	unsigned int tex_age[R128_NR_TEX_HEAPS];
 	int ctx_owner;
 	int pfAllowPageFlip;	/* number of 3d windows (0,1,2 or more) */

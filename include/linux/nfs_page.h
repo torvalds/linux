@@ -16,12 +16,13 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/nfs_xdr.h>
 
-#include <asm/atomic.h>
+#include <linux/kref.h>
 
 /*
  * Valid flags for the radix tree
  */
-#define NFS_PAGE_TAG_WRITEBACK	0
+#define NFS_PAGE_TAG_LOCKED	0
+#define NFS_PAGE_TAG_COMMIT	1
 
 /*
  * Valid flags for a dirty buffer
@@ -33,8 +34,7 @@
 
 struct nfs_inode;
 struct nfs_page {
-	struct list_head	wb_list,	/* Defines state of page: */
-				*wb_list_head;	/*      read/write/commit */
+	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	atomic_t		wb_complete;	/* i/os we're waiting for */
@@ -42,7 +42,7 @@ struct nfs_page {
 	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
-	atomic_t		wb_count;	/* reference count */
+	struct kref		wb_kref;	/* reference count */
 	unsigned long		wb_flags;
 	struct nfs_writeverf	wb_verf;	/* Commit cookie */
 };
@@ -71,8 +71,8 @@ extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
-			  pgoff_t idx_start, unsigned int npages);
+extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
+			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),
@@ -84,12 +84,11 @@ extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
-extern  int nfs_set_page_writeback_locked(struct nfs_page *req);
-extern  void nfs_clear_page_writeback(struct nfs_page *req);
+extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
 
 
 /*
- * Lock the page of an asynchronous request without incrementing the wb_count
+ * Lock the page of an asynchronous request without getting a new reference
  */
 static inline int
 nfs_lock_request_dontget(struct nfs_page *req)
@@ -98,14 +97,14 @@ nfs_lock_request_dontget(struct nfs_page *req)
 }
 
 /*
- * Lock the page of an asynchronous request
+ * Lock the page of an asynchronous request and take a reference
  */
 static inline int
 nfs_lock_request(struct nfs_page *req)
 {
 	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
 		return 0;
-	atomic_inc(&req->wb_count);
+	kref_get(&req->wb_kref);
 	return 1;
 }
 
@@ -118,7 +117,6 @@ static inline void
 nfs_list_add_request(struct nfs_page *req, struct list_head *head)
 {
 	list_add_tail(&req->wb_list, head);
-	req->wb_list_head = head;
 }
 
 
@@ -132,7 +130,6 @@ nfs_list_remove_request(struct nfs_page *req)
 	if (list_empty(&req->wb_list))
 		return;
 	list_del_init(&req->wb_list);
-	req->wb_list_head = NULL;
 }
 
 static inline struct nfs_page *

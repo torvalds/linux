@@ -49,15 +49,15 @@ static inline void nf_conntrack_event(enum ip_conntrack_events event,
 		atomic_notifier_call_chain(&nf_conntrack_chain, event, ct);
 }
 
-extern struct atomic_notifier_head nf_conntrack_expect_chain;
-extern int nf_conntrack_expect_register_notifier(struct notifier_block *nb);
-extern int nf_conntrack_expect_unregister_notifier(struct notifier_block *nb);
+extern struct atomic_notifier_head nf_ct_expect_chain;
+extern int nf_ct_expect_register_notifier(struct notifier_block *nb);
+extern int nf_ct_expect_unregister_notifier(struct notifier_block *nb);
 
 static inline void
-nf_conntrack_expect_event(enum ip_conntrack_expect_events event,
-			  struct nf_conntrack_expect *exp)
+nf_ct_expect_event(enum ip_conntrack_expect_events event,
+		   struct nf_conntrack_expect *exp)
 {
-	atomic_notifier_call_chain(&nf_conntrack_expect_chain, event, exp);
+	atomic_notifier_call_chain(&nf_ct_expect_chain, event, exp);
 }
 
 #else /* CONFIG_NF_CONNTRACK_EVENTS */
@@ -67,9 +67,8 @@ static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,
 static inline void nf_conntrack_event(enum ip_conntrack_events event,
 				      struct nf_conn *ct) {}
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct) {}
-static inline void
-nf_conntrack_expect_event(enum ip_conntrack_expect_events event,
-			  struct nf_conntrack_expect *exp) {}
+static inline void nf_ct_expect_event(enum ip_conntrack_expect_events event,
+				      struct nf_conntrack_expect *exp) {}
 static inline void nf_ct_event_cache_flush(void) {}
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
 

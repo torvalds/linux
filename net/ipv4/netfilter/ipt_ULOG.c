@@ -55,13 +55,6 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 #define ULOG_NL_EVENT		111		/* Harald's favorite number */
 #define ULOG_MAXNLGROUPS	32		/* numer of nlgroups */
 
-#if 0
-#define DEBUGP(format, args...) printk("%s:%s:" format, \
-				       __FILE__, __FUNCTION__ , ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 #define PRINTR(format, args...) do { if (net_ratelimit()) printk(format , ## args); } while (0)
 
 static unsigned int nlbufsiz = NLMSG_GOODSIZE;
@@ -96,12 +89,12 @@ static void ulog_send(unsigned int nlgroupnum)
 	ulog_buff_t *ub = &ulog_buffers[nlgroupnum];
 
 	if (timer_pending(&ub->timer)) {
-		DEBUGP("ipt_ULOG: ulog_send: timer was pending, deleting\n");
+		pr_debug("ipt_ULOG: ulog_send: timer was pending, deleting\n");
 		del_timer(&ub->timer);
 	}
 
 	if (!ub->skb) {
-		DEBUGP("ipt_ULOG: ulog_send: nothing to send\n");
+		pr_debug("ipt_ULOG: ulog_send: nothing to send\n");
 		return;
 	}
 
@@ -110,8 +103,8 @@ static void ulog_send(unsigned int nlgroupnum)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;
 
 	NETLINK_CB(ub->skb).dst_group = nlgroupnum + 1;
-	DEBUGP("ipt_ULOG: throwing %d packets to netlink group %u\n",
-		ub->qlen, nlgroupnum + 1);
+	pr_debug("ipt_ULOG: throwing %d packets to netlink group %u\n",
+		 ub->qlen, nlgroupnum + 1);
 	netlink_broadcast(nflognl, ub->skb, 0, nlgroupnum + 1, GFP_ATOMIC);
 
 	ub->qlen = 0;
@@ -123,7 +116,7 @@ static void ulog_send(unsigned int nlgroupnum)
 /* timer function to flush queue in flushtimeout time */
 static void ulog_timer(unsigned long data)
 {
-	DEBUGP("ipt_ULOG: timer function called, calling ulog_send\n");
+	pr_debug("ipt_ULOG: timer function called, calling ulog_send\n");
 
 	/* lock to protect against somebody modifying our structure
 	 * from ipt_ulog_target at the same time */
@@ -179,12 +172,10 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	unsigned int groupnum = ffs(loginfo->nl_group) - 1;
 
 	/* calculate the size of the skb needed */
-	if ((loginfo->copy_range == 0) ||
-	    (loginfo->copy_range > skb->len)) {
+	if (loginfo->copy_range == 0 || loginfo->copy_range > skb->len)
 		copy_len = skb->len;
-	} else {
+	else
 		copy_len = loginfo->copy_range;
-	}
 
 	size = NLMSG_SPACE(sizeof(*pm) + copy_len);
 
@@ -206,8 +197,8 @@ static void ipt_ulog_packet(unsigned int hooknum,
 			goto alloc_failure;
 	}
 
-	DEBUGP("ipt_ULOG: qlen %d, qthreshold %d\n", ub->qlen,
-		loginfo->qthreshold);
+	pr_debug("ipt_ULOG: qlen %d, qthreshold %Zu\n", ub->qlen,
+		 loginfo->qthreshold);
 
 	/* NLMSG_PUT contains a hidden goto nlmsg_failure !!! */
 	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, ULOG_NL_EVENT,
@@ -257,9 +248,8 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		BUG();
 
 	/* check if we are building multi-part messages */
-	if (ub->qlen > 1) {
+	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_flags |= NLM_F_MULTI;
-	}
 
 	ub->lastnlh = nlh;
 
@@ -328,25 +318,25 @@ static void ipt_logfn(unsigned int pf,
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static int ipt_ulog_checkentry(const char *tablename,
-			       const void *e,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hookmask)
+static bool ipt_ulog_checkentry(const char *tablename,
+				const void *e,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hookmask)
 {
-	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
+	const struct ipt_ulog_info *loginfo = targinfo;
 
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
-		DEBUGP("ipt_ULOG: prefix term %i\n",
-		       loginfo->prefix[sizeof(loginfo->prefix) - 1]);
-		return 0;
+		pr_debug("ipt_ULOG: prefix term %i\n",
+			 loginfo->prefix[sizeof(loginfo->prefix) - 1]);
+		return false;
 	}
 	if (loginfo->qthreshold > ULOG_MAX_QLEN) {
-		DEBUGP("ipt_ULOG: queue threshold %i > MAX_QLEN\n",
-			loginfo->qthreshold);
-		return 0;
+		pr_debug("ipt_ULOG: queue threshold %Zu > MAX_QLEN\n",
+			 loginfo->qthreshold);
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT
@@ -359,7 +349,7 @@ struct compat_ipt_ulog_info {
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_ipt_ulog_info *cl = src;
+	const struct compat_ipt_ulog_info *cl = src;
 	struct ipt_ulog_info l = {
 		.nl_group	= cl->nl_group,
 		.copy_range	= cl->copy_range,
@@ -372,7 +362,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct ipt_ulog_info *l = src;
+	const struct ipt_ulog_info *l = src;
 	struct compat_ipt_ulog_info cl = {
 		.nl_group	= l->nl_group,
 		.copy_range	= l->copy_range,
@@ -384,7 +374,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target ipt_ulog_reg = {
+static struct xt_target ipt_ulog_reg __read_mostly = {
 	.name		= "ULOG",
 	.family		= AF_INET,
 	.target		= ipt_ulog_target,
@@ -408,7 +398,7 @@ static int __init ipt_ulog_init(void)
 {
 	int ret, i;
 
-	DEBUGP("ipt_ULOG: init module\n");
+	pr_debug("ipt_ULOG: init module\n");
 
 	if (nlbufsiz > 128*1024) {
 		printk("Netlink buffer has to be <= 128kB\n");
@@ -440,7 +430,7 @@ static void __exit ipt_ulog_fini(void)
 	ulog_buff_t *ub;
 	int i;
 
-	DEBUGP("ipt_ULOG: cleanup_module\n");
+	pr_debug("ipt_ULOG: cleanup_module\n");
 
 	if (nflog)
 		nf_log_unregister(&ipt_ulog_logger);
@@ -451,7 +441,7 @@ static void __exit ipt_ulog_fini(void)
 	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];
 		if (timer_pending(&ub->timer)) {
-			DEBUGP("timer was pending, deleting\n");
+			pr_debug("timer was pending, deleting\n");
 			del_timer(&ub->timer);
 		}
 

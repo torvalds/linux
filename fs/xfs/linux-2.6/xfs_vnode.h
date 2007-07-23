@@ -129,10 +129,7 @@ typedef enum bhv_vchange {
 	VCHANGE_FLAGS_IOEXCL_COUNT	= 4
 } bhv_vchange_t;
 
-typedef enum { L_FALSE, L_TRUE } lastclose_t;
-
 typedef int	(*vop_open_t)(bhv_desc_t *, struct cred *);
-typedef int	(*vop_close_t)(bhv_desc_t *, int, lastclose_t, struct cred *);
 typedef ssize_t (*vop_read_t)(bhv_desc_t *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);
@@ -200,7 +197,6 @@ typedef int	(*vop_iflush_t)(bhv_desc_t *, int);
 typedef struct bhv_vnodeops {
 	bhv_position_t  vn_position;    /* position within behavior chain */
 	vop_open_t		vop_open;
-	vop_close_t		vop_close;
 	vop_read_t		vop_read;
 	vop_write_t		vop_write;
 	vop_splice_read_t	vop_splice_read;
@@ -245,7 +241,6 @@ typedef struct bhv_vnodeops {
 #define VNHEAD(vp)	((vp)->v_bh.bh_first)
 #define VOP(op, vp)	(*((bhv_vnodeops_t *)VNHEAD(vp)->bd_ops)->op)
 #define bhv_vop_open(vp, cr)		VOP(vop_open, vp)(VNHEAD(vp),cr)
-#define bhv_vop_close(vp, f,last,cr)	VOP(vop_close, vp)(VNHEAD(vp),f,last,cr)
 #define bhv_vop_read(vp,file,iov,segs,offset,ioflags,cr)		\
 		VOP(vop_read, vp)(VNHEAD(vp),file,iov,segs,offset,ioflags,cr)
 #define bhv_vop_write(vp,file,iov,segs,offset,ioflags,cr)		\

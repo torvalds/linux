@@ -147,12 +147,12 @@ static void compute_pios(ide_drive_t *drive, u8 pio)
 	int d;
 	ide_hwif_t *hwif = HWIF(drive);
 
-	drive->drive_data = ide_get_best_pio_mode(drive, pio, OPTI621_MAX_PIO, NULL);
+	drive->drive_data = ide_get_best_pio_mode(drive, pio, OPTI621_MAX_PIO);
 	for (d = 0; d < 2; ++d) {
 		drive = &hwif->drives[d];
 		if (drive->present) {
 			if (drive->drive_data == PIO_DONT_KNOW)
-				drive->drive_data = ide_get_best_pio_mode(drive, 255, OPTI621_MAX_PIO, NULL);
+				drive->drive_data = ide_get_best_pio_mode(drive, 255, OPTI621_MAX_PIO);
 #ifdef OPTI621_DEBUG
 			printk("%s: Selected PIO mode %d\n",
 				drive->name, drive->drive_data);
@@ -350,17 +350,17 @@ static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "OPTI621",
 		.init_hwif	= init_hwif_opti621,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO3,
 	},{	/* 1 */
 		.name		= "OPTI621X",
 		.init_hwif	= init_hwif_opti621,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
+		.pio_mask	= ATA_PIO3,
 	}
 };
 

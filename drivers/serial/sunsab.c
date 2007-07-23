@@ -860,22 +860,31 @@ static int num_channels;
 static void sunsab_console_putchar(struct uart_port *port, int c)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *)port;
-	unsigned long flags;
-
-	spin_lock_irqsave(&up->port.lock, flags);
 
 	sunsab_tec_wait(up);
 	writeb(c, &up->regs->w.tic);
-
-	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static void sunsab_console_write(struct console *con, const char *s, unsigned n)
 {
 	struct uart_sunsab_port *up = &sunsab_ports[con->index];
+	unsigned long flags;
+	int locked = 1;
+
+	local_irq_save(flags);
+	if (up->port.sysrq) {
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&up->port.lock);
+	} else
+		spin_lock(&up->port.lock);
 
 	uart_console_write(&up->port, s, n, sunsab_console_putchar);
 	sunsab_tec_wait(up);
+
+	if (locked)
+		spin_unlock(&up->port.lock);
+	local_irq_restore(flags);
 }
 
 static int sunsab_console_setup(struct console *con, char *options)
@@ -959,22 +968,6 @@ static struct console sunsab_console = {
 
 static inline struct console *SUNSAB_CONSOLE(void)
 {
-	int i;
-
-	if (con_is_present())
-		return NULL;
-
-	for (i = 0; i < num_channels; i++) {
-		int this_minor = sunsab_reg.minor + i;
-
-		if ((this_minor - 64) == (serial_console - 1))
-			break;
-	}
-	if (i == num_channels)
-		return NULL;
-
-	sunsab_console.index = i;
-
 	return &sunsab_console;
 }
 #else
@@ -1071,7 +1064,12 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 		return err;
 	}
 
+	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+				&sunsab_reg, up[0].port.line);
 	uart_add_one_port(&sunsab_reg, &up[0].port);
+
+	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+				&sunsab_reg, up[1].port.line);
 	uart_add_one_port(&sunsab_reg, &up[1].port);
 
 	dev_set_drvdata(&op->dev, &up[0]);
@@ -1155,7 +1153,6 @@ static int __init sunsab_init(void)
 		}
 
 		sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
-		sunsab_reg.cons = SUNSAB_CONSOLE();
 		sunserial_current_minor += num_channels;
 	}
 

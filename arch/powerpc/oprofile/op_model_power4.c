@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM
+ * Added mmcra[slot] support:
+ * Copyright (C) 2006-2007 Will Schmidt <willschm@us.ibm.com>, IBM
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +32,7 @@ static u32 mmcr0_val;
 static u64 mmcr1_val;
 static u64 mmcra_val;
 
-static void power4_reg_setup(struct op_counter_config *ctr,
+static int power4_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
 			     int num_ctrs)
 {
@@ -58,6 +60,8 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 		mmcr0_val &= ~MMCR0_PROBLEM_DISABLE;
 	else
 		mmcr0_val |= MMCR0_PROBLEM_DISABLE;
+
+	return 0;
 }
 
 extern void ppc64_enable_pmcs(void);
@@ -82,7 +86,7 @@ static inline int mmcra_must_set_sample(void)
 	return 0;
 }
 
-static void power4_cpu_setup(struct op_counter_config *ctr)
+static int power4_cpu_setup(struct op_counter_config *ctr)
 {
 	unsigned int mmcr0 = mmcr0_val;
 	unsigned long mmcra = mmcra_val;
@@ -109,9 +113,11 @@ static void power4_cpu_setup(struct op_counter_config *ctr)
 	    mfspr(SPRN_MMCR1));
 	dbg("setup on cpu %d, mmcra %lx\n", smp_processor_id(),
 	    mfspr(SPRN_MMCRA));
+
+	return 0;
 }
 
-static void power4_start(struct op_counter_config *ctr)
+static int power4_start(struct op_counter_config *ctr)
 {
 	int i;
 	unsigned int mmcr0;
@@ -146,6 +152,7 @@ static void power4_start(struct op_counter_config *ctr)
 	oprofile_running = 1;
 
 	dbg("start on cpu %d, mmcr0 %x\n", smp_processor_id(), mmcr0);
+	return 0;
 }
 
 static void power4_stop(void)
@@ -181,17 +188,29 @@ static void __attribute_used__ kernel_unknown_bucket(void)
  * On GQ and newer the MMCRA stores the HV and PR bits at the time
  * the SIAR was sampled. We use that to work out if the SIAR was sampled in
  * the hypervisor, our exception vectors or RTAS.
+ * If the MMCRA_SAMPLE_ENABLE bit is set, we can use the MMCRA[slot] bits
+ * to more accurately identify the address of the sampled instruction. The
+ * mmcra[slot] bits represent the slot number of a sampled instruction
+ * within an instruction group.  The slot will contain a value between 1
+ * and 5 if MMCRA_SAMPLE_ENABLE is set, otherwise 0.
  */
 static unsigned long get_pc(struct pt_regs *regs)
 {
 	unsigned long pc = mfspr(SPRN_SIAR);
 	unsigned long mmcra;
+	unsigned long slot;
 
 	/* Cant do much about it */
 	if (!cur_cpu_spec->oprofile_mmcra_sihv)
 		return pc;
 
 	mmcra = mfspr(SPRN_MMCRA);
+
+	if (mmcra & MMCRA_SAMPLE_ENABLE) {
+		slot = ((mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT);
+		if (slot > 1)
+			pc += 4 * (slot - 1);
+	}
 
 	/* Were we in the hypervisor? */
 	if (firmware_has_feature(FW_FEATURE_LPAR) &&

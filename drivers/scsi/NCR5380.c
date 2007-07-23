@@ -347,7 +347,7 @@ static int NCR5380_poll_politely(struct Scsi_Host *instance, int reg, int bit, i
 		if((r & bit) == val)
 			return 0;
 		if(!in_interrupt())
-			yield();
+			cond_resched();
 		else
 			cpu_relax();
 	}
@@ -357,7 +357,7 @@ static int NCR5380_poll_politely(struct Scsi_Host *instance, int reg, int bit, i
 static struct {
 	unsigned char value;
 	const char *name;
-} phases[] = {
+} phases[] __maybe_unused = {
 	{PHASE_DATAOUT, "DATAOUT"}, 
 	{PHASE_DATAIN, "DATAIN"}, 
 	{PHASE_CMDOUT, "CMDOUT"}, 
@@ -575,7 +575,8 @@ static irqreturn_t __init probe_intr(int irq, void *dev_id)
  *	Locks: none, irqs must be enabled on entry
  */
 
-static int __init NCR5380_probe_irq(struct Scsi_Host *instance, int possible)
+static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
+						int possible)
 {
 	NCR5380_local_declare();
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
@@ -629,7 +630,8 @@ static int __init NCR5380_probe_irq(struct Scsi_Host *instance, int possible)
  *	Locks: none
  */
 
-static void __init NCR5380_print_options(struct Scsi_Host *instance)
+static void __init __maybe_unused
+NCR5380_print_options(struct Scsi_Host *instance)
 {
 	printk(" generic options"
 #ifdef AUTOPROBE_IRQ
@@ -703,8 +705,8 @@ char *lprint_command(unsigned char *cmd, char *pos, char *buffer, int len);
 static
 char *lprint_opcode(int opcode, char *pos, char *buffer, int length);
 
-static
-int NCR5380_proc_info(struct Scsi_Host *instance, char *buffer, char **start, off_t offset, int length, int inout)
+static int __maybe_unused NCR5380_proc_info(struct Scsi_Host *instance,
+	char *buffer, char **start, off_t offset, int length, int inout)
 {
 	char *pos = buffer;
 	struct NCR5380_hostdata *hostdata;

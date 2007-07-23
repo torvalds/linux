@@ -53,6 +53,7 @@ struct gianfar_platform_data {
 	u32	bus_id;
 	u32	phy_id;
 	u8	mac_addr[6];
+	phy_interface_t interface;
 };
 
 struct gianfar_mdio_data {
@@ -112,12 +113,17 @@ struct fsl_usb2_platform_data {
 struct fsl_spi_platform_data {
 	u32 	initial_spmode;	/* initial SPMODE value */
 	u16	bus_num;
-
+	bool	qe_mode;
 	/* board specific information */
 	u16	max_chipselect;
 	void	(*activate_cs)(u8 cs, u8 polarity);
 	void	(*deactivate_cs)(u8 cs, u8 polarity);
 	u32	sysclk;
+};
+
+struct mpc8xx_pcmcia_ops {
+	void(*hw_ctrl)(int slot, int enable);
+	int(*voltage_set)(int slot, int vcc, int vpp);
 };
 
 #endif /* _FSL_DEVICE_H_ */

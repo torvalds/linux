@@ -183,14 +183,7 @@ static const int zoran_num_formats =
     (sizeof(zoran_formats) / sizeof(struct zoran_format));
 
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
-#if !defined(CONFIG_BIGPHYS_AREA)
-//#undef CONFIG_BIGPHYS_AREA
-#define BUZ_USE_HIMEM
-#endif
 
-#if defined(CONFIG_BIGPHYS_AREA)
-#   include <linux/bigphysarea.h>
-#endif
 
 extern int *zr_debug;
 
@@ -250,7 +243,6 @@ static void jpg_fbuffer_free(struct file *file);
  *   Linux with the necessary memory left over).
  */
 
-#if defined(BUZ_USE_HIMEM) && !defined(CONFIG_BIGPHYS_AREA)
 static unsigned long
 get_high_mem (unsigned long size)
 {
@@ -314,7 +306,6 @@ get_high_mem (unsigned long size)
 
 	return hi_mem_ph;
 }
-#endif
 
 static int
 v4l_fbuffer_alloc (struct file *file)
@@ -323,9 +314,7 @@ v4l_fbuffer_alloc (struct file *file)
 	struct zoran *zr = fh->zr;
 	int i, off;
 	unsigned char *mem;
-#if defined(BUZ_USE_HIMEM) && !defined(CONFIG_BIGPHYS_AREA)
 	unsigned long pmem = 0;
-#endif
 
 	/* we might have old buffers lying around... */
 	if (fh->v4l_buffers.ready_to_be_freed) {
@@ -369,39 +358,6 @@ v4l_fbuffer_alloc (struct file *file)
 				ZR_DEVNAME(zr), i, (unsigned long) mem,
 				virt_to_bus(mem));
 		} else {
-#if defined(CONFIG_BIGPHYS_AREA)
-			/* Use bigphysarea_alloc_pages */
-
-			int n =
-			    (fh->v4l_buffers.buffer_size + PAGE_SIZE -
-			     1) / PAGE_SIZE;
-
-			mem =
-			    (unsigned char *) bigphysarea_alloc_pages(n, 0,
-								      GFP_KERNEL);
-			if (mem == 0) {
-				dprintk(1,
-					KERN_ERR
-					"%s: v4l_fbuffer_alloc() - bigphysarea_alloc_pages for V4L buf %d failed\n",
-					ZR_DEVNAME(zr), i);
-				v4l_fbuffer_free(file);
-				return -ENOBUFS;
-			}
-			fh->v4l_buffers.buffer[i].fbuffer = mem;
-			fh->v4l_buffers.buffer[i].fbuffer_phys =
-			    virt_to_phys(mem);
-			fh->v4l_buffers.buffer[i].fbuffer_bus =
-			    virt_to_bus(mem);
-			dprintk(4,
-				KERN_INFO
-				"%s: Bigphysarea frame %d mem 0x%x (bus: 0x%x)\n",
-				ZR_DEVNAME(zr), i, (unsigned) mem,
-				(unsigned) virt_to_bus(mem));
-
-			/* Zero out the allocated memory */
-			memset(fh->v4l_buffers.buffer[i].fbuffer, 0,
-			       fh->v4l_buffers.buffer_size);
-#elif defined(BUZ_USE_HIMEM)
 
 			/* Use high memory which has been left at boot time */
 
@@ -441,20 +397,6 @@ v4l_fbuffer_alloc (struct file *file)
 				fh->v4l_buffers.buffer[i].fbuffer_bus =
 				    pmem + i * fh->v4l_buffers.buffer_size;
 			}
-#else
-			/* No bigphysarea present, usage of high memory disabled,
-			 * but user wants buffers of more than MAX_KMALLOC_MEM */
-			dprintk(1,
-				KERN_ERR
-				"%s: v4l_fbuffer_alloc() - no bigphysarea_patch present, usage of high memory disabled,\n",
-				ZR_DEVNAME(zr));
-			dprintk(1,
-				KERN_ERR
-				"%s: v4l_fbuffer_alloc() - sorry, could not allocate %d V4L buffers of size %d KB.\n",
-				ZR_DEVNAME(zr), fh->v4l_buffers.num_buffers,
-				fh->v4l_buffers.buffer_size >> 10);
-			return -ENOBUFS;
-#endif
 		}
 	}
 
@@ -485,11 +427,6 @@ v4l_fbuffer_free (struct file *file)
 				ClearPageReserved(MAP_NR(mem + off));
 			kfree((void *) fh->v4l_buffers.buffer[i].fbuffer);
 		}
-#if defined(CONFIG_BIGPHYS_AREA)
-		else
-			bigphysarea_free_pages((void *) fh->v4l_buffers.
-					       buffer[i].fbuffer);
-#endif
 		fh->v4l_buffers.buffer[i].fbuffer = NULL;
 	}
 

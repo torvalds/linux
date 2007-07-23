@@ -55,7 +55,7 @@ static const int r300_cliprect_cntl[4] = {
 static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 			       drm_radeon_kcmd_buffer_t *cmdbuf, int n)
 {
-	drm_clip_rect_t box;
+	struct drm_clip_rect box;
 	int nr;
 	int i;
 	RING_LOCALS;
@@ -148,15 +148,16 @@ void r300_init_reg_flags(void)
 
 	/* these match cmducs() command in r300_driver/r300/r300_cmdbuf.c */
 	ADD_RANGE(R300_SE_VPORT_XSCALE, 6);
-	ADD_RANGE(0x2080, 1);
+	ADD_RANGE(R300_VAP_CNTL, 1);
 	ADD_RANGE(R300_SE_VTE_CNTL, 2);
 	ADD_RANGE(0x2134, 2);
-	ADD_RANGE(0x2140, 1);
+	ADD_RANGE(R300_VAP_CNTL_STATUS, 1);
 	ADD_RANGE(R300_VAP_INPUT_CNTL_0, 2);
 	ADD_RANGE(0x21DC, 1);
-	ADD_RANGE(0x221C, 1);
-	ADD_RANGE(0x2220, 4);
-	ADD_RANGE(0x2288, 1);
+	ADD_RANGE(R300_VAP_UNKNOWN_221C, 1);
+	ADD_RANGE(R300_VAP_CLIP_X_0, 4);
+	ADD_RANGE(R300_VAP_PVS_WAITIDLE, 1);
+	ADD_RANGE(R300_VAP_UNKNOWN_2288, 1);
 	ADD_RANGE(R300_VAP_OUTPUT_VTX_FMT_0, 2);
 	ADD_RANGE(R300_VAP_PVS_CNTL_1, 3);
 	ADD_RANGE(R300_GB_ENABLE, 1);
@@ -168,13 +169,13 @@ void r300_init_reg_flags(void)
 	ADD_RANGE(R300_RE_POINTSIZE, 1);
 	ADD_RANGE(0x4230, 3);
 	ADD_RANGE(R300_RE_LINE_CNT, 1);
-	ADD_RANGE(0x4238, 1);
+	ADD_RANGE(R300_RE_UNK4238, 1);
 	ADD_RANGE(0x4260, 3);
-	ADD_RANGE(0x4274, 4);
-	ADD_RANGE(0x4288, 5);
-	ADD_RANGE(0x42A0, 1);
+	ADD_RANGE(R300_RE_SHADE, 4);
+	ADD_RANGE(R300_RE_POLYGON_MODE, 5);
+	ADD_RANGE(R300_RE_ZBIAS_CNTL, 1);
 	ADD_RANGE(R300_RE_ZBIAS_T_FACTOR, 4);
-	ADD_RANGE(0x42B4, 1);
+	ADD_RANGE(R300_RE_OCCLUSION_CNTL, 1);
 	ADD_RANGE(R300_RE_CULL_CNTL, 1);
 	ADD_RANGE(0x42C0, 2);
 	ADD_RANGE(R300_RS_CNTL_0, 2);
@@ -190,22 +191,22 @@ void r300_init_reg_flags(void)
 	ADD_RANGE(R300_PFS_INSTR1_0, 64);
 	ADD_RANGE(R300_PFS_INSTR2_0, 64);
 	ADD_RANGE(R300_PFS_INSTR3_0, 64);
-	ADD_RANGE(0x4BC0, 1);
-	ADD_RANGE(0x4BC8, 3);
+	ADD_RANGE(R300_RE_FOG_STATE, 1);
+	ADD_RANGE(R300_FOG_COLOR_R, 3);
 	ADD_RANGE(R300_PP_ALPHA_TEST, 2);
 	ADD_RANGE(0x4BD8, 1);
 	ADD_RANGE(R300_PFS_PARAM_0_X, 64);
 	ADD_RANGE(0x4E00, 1);
 	ADD_RANGE(R300_RB3D_CBLEND, 2);
 	ADD_RANGE(R300_RB3D_COLORMASK, 1);
-	ADD_RANGE(0x4E10, 3);
+	ADD_RANGE(R300_RB3D_BLEND_COLOR, 3);
 	ADD_RANGE_MARK(R300_RB3D_COLOROFFSET0, 1, MARK_CHECK_OFFSET);	/* check offset */
 	ADD_RANGE(R300_RB3D_COLORPITCH0, 1);
 	ADD_RANGE(0x4E50, 9);
 	ADD_RANGE(0x4E88, 1);
 	ADD_RANGE(0x4EA0, 2);
 	ADD_RANGE(R300_RB3D_ZSTENCIL_CNTL_0, 3);
-	ADD_RANGE(0x4F10, 4);
+	ADD_RANGE(R300_RB3D_ZSTENCIL_FORMAT, 4);
 	ADD_RANGE_MARK(R300_RB3D_DEPTHOFFSET, 1, MARK_CHECK_OFFSET);	/* check offset */
 	ADD_RANGE(R300_RB3D_DEPTHPITCH, 1);
 	ADD_RANGE(0x4F28, 1);
@@ -224,7 +225,7 @@ void r300_init_reg_flags(void)
 	ADD_RANGE(R300_TX_BORDER_COLOR_0, 16);
 
 	/* Sporadic registers used as primitives are emitted */
-	ADD_RANGE(0x4f18, 1);
+	ADD_RANGE(R300_RB3D_ZCACHE_CTLSTAT, 1);
 	ADD_RANGE(R300_RB3D_DSTCACHE_CTLSTAT, 1);
 	ADD_RANGE(R300_VAP_INPUT_ROUTE_0_0, 8);
 	ADD_RANGE(R300_VAP_INPUT_ROUTE_1_0, 8);
@@ -692,9 +693,9 @@ static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
 
 	BEGIN_RING(6);
 	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
-	OUT_RING(0xa);
-	OUT_RING(CP_PACKET0(0x4f18, 0));
-	OUT_RING(0x3);
+	OUT_RING(R300_RB3D_DSTCACHE_UNKNOWN_0A);
+	OUT_RING(CP_PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_ZCACHE_UNKNOWN_03);
 	OUT_RING(CP_PACKET3(RADEON_CP_NOP, 0));
 	OUT_RING(0x0);
 	ADVANCE_RING();
@@ -705,7 +706,7 @@ static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
  * The actual age emit is done by r300_do_cp_cmdbuf, which is why you must
  * be careful about how this function is called.
  */
-static void r300_discard_buffer(drm_device_t * dev, drm_buf_t * buf)
+static void r300_discard_buffer(struct drm_device * dev, struct drm_buf * buf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_buf_priv_t *buf_priv = buf->dev_private;
@@ -766,8 +767,8 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 	}
 	
 	BEGIN_RING(2);
-	OUT_RING(CP_PACKET0(RADEON_SCRATCH_REG0 + header.scratch.reg * 4, 0));
-	OUT_RING(dev_priv->scratch_ages[header.scratch.reg]);
+	OUT_RING( CP_PACKET0( RADEON_SCRATCH_REG0 + header.scratch.reg * 4, 0 ) );
+	OUT_RING( dev_priv->scratch_ages[header.scratch.reg] );
 	ADVANCE_RING();
 	
 	return 0;
@@ -778,14 +779,14 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
  * commands on the DMA ring buffer.
  * Called by the ioctl handler function radeon_cp_cmdbuf.
  */
-int r300_do_cp_cmdbuf(drm_device_t *dev,
+int r300_do_cp_cmdbuf(struct drm_device *dev,
 		      DRMFILE filp,
-		      drm_file_t *filp_priv,
+		      struct drm_file *filp_priv,
 		      drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_device_dma_t *dma = dev->dma;
-	drm_buf_t *buf = NULL;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_buf *buf = NULL;
 	int emit_dispatch_age = 0;
 	int ret = 0;
 

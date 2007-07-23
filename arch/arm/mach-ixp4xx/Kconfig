@@ -41,6 +41,22 @@ config ARCH_ADI_COYOTE
 	  Engineering Coyote Gateway Reference Platform. For more
 	  information on this platform, see <file:Documentation/arm/IXP4xx>.
 
+config MACH_GATEWAY7001
+	bool "Gateway 7001"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support Gateway's
+	  7001 Access Point. For more information on this platform,
+	  see http://openwrt.org
+
+config MACH_WG302V2
+	bool "Netgear WG302 v2 / WAG302 v2"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support Netgear's
+	  WG302 v2 or WAG302 v2 Access Points. For more information
+	  on this platform, see http://openwrt.org
+
 config ARCH_IXDP425
 	bool "IXDP425"
 	help

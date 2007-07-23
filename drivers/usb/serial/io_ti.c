@@ -48,7 +48,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.7"
+#define DRIVER_VERSION "v0.7mode043006"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
 
@@ -173,8 +173,12 @@ static struct usb_device_id edgeport_2port_id_table [] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_221C) },
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_22C) },
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_21C) },
-// The 4-port shows up as two 2-port devices
+	/* The 4, 8 and 16 port devices show up as multiple 2 port devices */
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_4S) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_8) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_8S) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_416) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_416B) },
 	{ }
 };
 
@@ -209,6 +213,10 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_22C) },
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_21C) },
 	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_4S) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_8) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_8S) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_416) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_TI_EDGEPORT_416B) },
 	{ }
 };
 
@@ -231,6 +239,7 @@ static int TIStayInBootMode = 0;
 static int low_latency = EDGE_LOW_LATENCY;
 static int closing_wait = EDGE_CLOSING_WAIT;
 static int ignore_cpu_rev = 0;
+static int default_uart_mode = 0;	/* RS232 */
 
 
 static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned char *data, int length);
@@ -240,6 +249,10 @@ static int restart_read(struct edgeport_port *edge_port);
 
 static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old_termios);
 static void edge_send(struct usb_serial_port *port);
+
+/* sysfs attributes */
+static int edge_create_sysfs_attrs(struct usb_serial_port *port);
+static int edge_remove_sysfs_attrs(struct usb_serial_port *port);
 
 /* circular buffer */
 static struct edge_buf *edge_buf_alloc(unsigned int size);
@@ -1706,13 +1719,14 @@ static void edge_interrupt_callback (struct urb *urb)
 	int length = urb->actual_length;
 	int port_number;
 	int function;
-	int status;
+	int retval;
 	__u8 lsr;
 	__u8 msr;
+	int status = urb->status;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1720,10 +1734,12 @@ static void edge_interrupt_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dev_err(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __FUNCTION__, urb->status);
+		dev_err(&urb->dev->dev, "%s - nonzero urb status received: "
+			"%d\n", __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -1781,10 +1797,10 @@ static void edge_interrupt_callback (struct urb *urb)
 	}
 
 exit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, status);
+			 __FUNCTION__, retval);
 }
 
 static void edge_bulk_in_callback (struct urb *urb)
@@ -1792,12 +1808,13 @@ static void edge_bulk_in_callback (struct urb *urb)
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
-	int status = 0;
+	int retval = 0;
 	int port_number;
+	int status = urb->status;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1805,17 +1822,18 @@ static void edge_bulk_in_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
 		dev_err (&urb->dev->dev,"%s - nonzero read bulk status received: %d\n",
-		     __FUNCTION__, urb->status );
+		     __FUNCTION__, status);
 	}
 
-	if (urb->status == -EPIPE)
+	if (status == -EPIPE)
 		goto exit;
 
-	if (urb->status) {
+	if (status) {
 		dev_err(&urb->dev->dev,"%s - stopping read!\n", __FUNCTION__);
 		return;
 	}
@@ -1849,14 +1867,14 @@ exit:
 	spin_lock(&edge_port->ep_lock);
 	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING) {
 		urb->dev = edge_port->port->serial->dev;
-		status = usb_submit_urb(urb, GFP_ATOMIC);
+		retval = usb_submit_urb(urb, GFP_ATOMIC);
 	} else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING) {
 		edge_port->ep_read_urb_state = EDGE_READ_URB_STOPPED;
 	}
 	spin_unlock(&edge_port->ep_lock);
-	if (status)
+	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, status);
+			 __FUNCTION__, retval);
 }
 
 static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned char *data, int length)
@@ -1883,12 +1901,13 @@ static void edge_bulk_out_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	dbg ("%s - port %d", __FUNCTION__, port->number);
 
 	edge_port->ep_write_urb_in_use = 0;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1896,11 +1915,12 @@ static void edge_bulk_out_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dev_err (&urb->dev->dev,"%s - nonzero write bulk status received: %d\n",
-		     __FUNCTION__, urb->status);
+		dev_err(&urb->dev->dev, "%s - nonzero write bulk status "
+			"received: %d\n", __FUNCTION__, status);
 	}
 
 	/* send any buffered data */
@@ -2351,7 +2371,7 @@ static int restart_read(struct edgeport_port *edge_port)
 		urb->complete = edge_bulk_in_callback;
 		urb->context = edge_port;
 		urb->dev = edge_port->port->serial->dev;
-		status = usb_submit_urb(urb, GFP_KERNEL);
+		status = usb_submit_urb(urb, GFP_ATOMIC);
 	}
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;
 	edge_port->shadow_mcr |= MCR_RTS;
@@ -2524,14 +2544,6 @@ static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old
 	}
 
 	cflag = tty->termios->c_cflag;
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if (cflag == old_termios->c_cflag &&
-		    tty->termios->c_iflag == old_termios->c_iflag) {
-			dbg ("%s - nothing to change", __FUNCTION__);
-			return;
-		}
-	}
 
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
 	    tty->termios->c_cflag, tty->termios->c_iflag);
@@ -2758,7 +2770,7 @@ static int edge_startup (struct usb_serial *serial)
 		edge_port->port = serial->port[i];
 		edge_port->edge_serial = edge_serial;
 		usb_set_serial_port_data(serial->port[i], edge_port);
-		edge_port->bUartMode = 0;	/* Default is RS232 */
+		edge_port->bUartMode = default_uart_mode;
 	}
 	
 	return 0;
@@ -2782,16 +2794,57 @@ static void edge_shutdown (struct usb_serial *serial)
 
 	dbg ("%s", __FUNCTION__);
 
-	for (i=0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i) {
 		edge_port = usb_get_serial_port_data(serial->port[i]);
-		if (edge_port) {
-			edge_buf_free(edge_port->ep_out_buf);
-			kfree(edge_port);
-		}
+		edge_remove_sysfs_attrs(edge_port->port);
+		edge_buf_free(edge_port->ep_out_buf);
+		kfree(edge_port);
 		usb_set_serial_port_data(serial->port[i], NULL);
 	}
-	kfree (usb_get_serial_data(serial));
+	kfree(usb_get_serial_data(serial));
 	usb_set_serial_data(serial, NULL);
+}
+
+
+/* Sysfs Attributes */
+
+static ssize_t show_uart_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_serial_port *port = to_usb_serial_port(dev);
+	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+
+	return sprintf(buf, "%d\n", edge_port->bUartMode);
+}
+
+static ssize_t store_uart_mode(struct device *dev,
+	struct device_attribute *attr, const char *valbuf, size_t count)
+{
+	struct usb_serial_port *port = to_usb_serial_port(dev);
+	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+	unsigned int v = simple_strtoul(valbuf, NULL, 0);
+
+	dbg("%s: setting uart_mode = %d", __FUNCTION__, v);
+
+	if (v < 256)
+		edge_port->bUartMode = v;
+	else
+		dev_err(dev, "%s - uart_mode %d is invalid\n", __FUNCTION__, v);
+
+	return count;
+}
+
+static DEVICE_ATTR(uart_mode, S_IWUSR | S_IRUGO, show_uart_mode, store_uart_mode);
+
+static int edge_create_sysfs_attrs(struct usb_serial_port *port)
+{
+	return device_create_file(&port->dev, &dev_attr_uart_mode);
+}
+
+static int edge_remove_sysfs_attrs(struct usb_serial_port *port)
+{
+	device_remove_file(&port->dev, &dev_attr_uart_mode);
+	return 0;
 }
 
 
@@ -2991,6 +3044,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.unthrottle		= edge_unthrottle,
 	.attach			= edge_startup,
 	.shutdown		= edge_shutdown,
+	.port_probe		= edge_create_sysfs_attrs,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
@@ -3022,6 +3076,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.unthrottle		= edge_unthrottle,
 	.attach			= edge_startup,
 	.shutdown		= edge_shutdown,
+	.port_probe		= edge_create_sysfs_attrs,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
@@ -3084,4 +3139,7 @@ MODULE_PARM_DESC(closing_wait, "Maximum wait for data to drain, in .01 secs");
 
 module_param(ignore_cpu_rev, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ignore_cpu_rev, "Ignore the cpu revision when connecting to a device");
+
+module_param(default_uart_mode, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(default_uart_mode, "Default uart_mode, 0=RS232, ...");
 

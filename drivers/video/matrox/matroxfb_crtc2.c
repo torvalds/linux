@@ -163,11 +163,6 @@ static void matroxfb_dh_disable(struct matroxfb_dh_fb_info* m2info) {
 	ACCESS_FBINFO(hw).crtc2.ctl = 0x00000004;
 }
 
-static void matroxfb_dh_cfbX_init(struct matroxfb_dh_fb_info* m2info) {
-	/* no acceleration for secondary head... */
-	m2info->cmap[16] = 0xFFFFFFFF;
-}
-
 static void matroxfb_dh_pan_var(struct matroxfb_dh_fb_info* m2info,
 		struct fb_var_screeninfo* var) {
 	unsigned int pos;
@@ -385,7 +380,6 @@ static int matroxfb_dh_set_par(struct fb_info* info) {
 			}
 		}
 		up_read(&ACCESS_FBINFO(altout).lock);
-		matroxfb_dh_cfbX_init(m2info);
 	}
 	m2info->initialized = 1;
 	return 0;

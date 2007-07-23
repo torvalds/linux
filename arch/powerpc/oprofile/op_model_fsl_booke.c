@@ -244,7 +244,7 @@ static void dump_pmcs(void)
 			mfpmr(PMRN_PMLCA3), mfpmr(PMRN_PMLCB3));
 }
 
-static void fsl_booke_cpu_setup(struct op_counter_config *ctr)
+static int fsl_booke_cpu_setup(struct op_counter_config *ctr)
 {
 	int i;
 
@@ -258,9 +258,11 @@ static void fsl_booke_cpu_setup(struct op_counter_config *ctr)
 
 		set_pmc_user_kernel(i, ctr[i].user, ctr[i].kernel);
 	}
+
+	return 0;
 }
 
-static void fsl_booke_reg_setup(struct op_counter_config *ctr,
+static int fsl_booke_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
 			     int num_ctrs)
 {
@@ -276,9 +278,10 @@ static void fsl_booke_reg_setup(struct op_counter_config *ctr,
 	for (i = 0; i < num_counters; ++i)
 		reset_value[i] = 0x80000000UL - ctr[i].count;
 
+	return 0;
 }
 
-static void fsl_booke_start(struct op_counter_config *ctr)
+static int fsl_booke_start(struct op_counter_config *ctr)
 {
 	int i;
 
@@ -308,6 +311,8 @@ static void fsl_booke_start(struct op_counter_config *ctr)
 
 	pr_debug("start on cpu %d, pmgc0 %x\n", smp_processor_id(),
 			mfpmr(PMRN_PMGC0));
+
+	return 0;
 }
 
 static void fsl_booke_stop(void)

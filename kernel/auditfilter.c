@@ -304,7 +304,7 @@ int __init audit_register_class(int class, unsigned *list)
 
 int audit_match_class(int class, unsigned syscall)
 {
-	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * sizeof(__u32)))
+	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * 32))
 		return 0;
 	if (unlikely(class >= AUDIT_SYSCALL_CLASSES || !classes[class]))
 		return 0;
@@ -456,6 +456,13 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_DEVMINOR:
 		case AUDIT_EXIT:
 		case AUDIT_SUCCESS:
+			/* bit ops are only useful on syscall args */
+			if (f->op == AUDIT_BIT_MASK ||
+						f->op == AUDIT_BIT_TEST) {
+				err = -EINVAL;
+				goto exit_free;
+			}
+			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
@@ -1210,8 +1217,8 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	struct audit_entry *e;
 	struct audit_field *inode_f = entry->rule.inode_f;
 	struct audit_watch *watch = entry->rule.watch;
-	struct nameidata *ndp, *ndw;
-	int h, err, putnd_needed = 0;
+	struct nameidata *ndp = NULL, *ndw = NULL;
+	int h, err;
 #ifdef CONFIG_AUDITSYSCALL
 	int dont_count = 0;
 
@@ -1239,7 +1246,6 @@ static inline int audit_add_rule(struct audit_entry *entry,
 		err = audit_get_nd(watch->path, &ndp, &ndw);
 		if (err)
 			goto error;
-		putnd_needed = 1;
 	}
 
 	mutex_lock(&audit_filter_mutex);
@@ -1269,14 +1275,11 @@ static inline int audit_add_rule(struct audit_entry *entry,
 #endif
 	mutex_unlock(&audit_filter_mutex);
 
-	if (putnd_needed)
-		audit_put_nd(ndp, ndw);
-
+	audit_put_nd(ndp, ndw);		/* NULL args OK */
  	return 0;
 
 error:
-	if (putnd_needed)
-		audit_put_nd(ndp, ndw);
+	audit_put_nd(ndp, ndw);		/* NULL args OK */
 	if (watch)
 		audit_put_watch(watch); /* tmp watch, matches initial get */
 	return err;
@@ -1570,6 +1573,10 @@ int audit_comparator(const u32 left, const u32 op, const u32 right)
 		return (left > right);
 	case AUDIT_GREATER_THAN_OR_EQUAL:
 		return (left >= right);
+	case AUDIT_BIT_MASK:
+		return (left & right);
+	case AUDIT_BIT_TEST:
+		return ((left & right) == right);
 	}
 	BUG();
 	return 0;

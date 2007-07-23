@@ -1,5 +1,8 @@
 /* Freezer declarations */
 
+#ifndef FREEZER_H_INCLUDED
+#define FREEZER_H_INCLUDED
+
 #include <linux/sched.h>
 
 #ifdef CONFIG_PM
@@ -22,7 +25,7 @@ static inline int freezing(struct task_struct *p)
 /*
  * Request that a process be frozen
  */
-static inline void freeze(struct task_struct *p)
+static inline void set_freeze_flag(struct task_struct *p)
 {
 	set_tsk_thread_flag(p, TIF_FREEZE);
 }
@@ -30,7 +33,7 @@ static inline void freeze(struct task_struct *p)
 /*
  * Sometimes we may need to cancel the previous 'freeze' request
  */
-static inline void do_not_freeze(struct task_struct *p)
+static inline void clear_freeze_flag(struct task_struct *p)
 {
 	clear_tsk_thread_flag(p, TIF_FREEZE);
 }
@@ -53,7 +56,7 @@ static inline int thaw_process(struct task_struct *p)
 		wake_up_process(p);
 		return 1;
 	}
-	clear_tsk_thread_flag(p, TIF_FREEZE);
+	clear_freeze_flag(p);
 	task_unlock(p);
 	return 0;
 }
@@ -115,10 +118,19 @@ static inline int freezer_should_skip(struct task_struct *p)
 	return !!(p->flags & PF_FREEZER_SKIP);
 }
 
+/*
+ * Tell the freezer that the current task should be frozen by it
+ */
+static inline void set_freezable(void)
+{
+	current->flags &= ~PF_NOFREEZE;
+}
+
 #else
 static inline int frozen(struct task_struct *p) { return 0; }
 static inline int freezing(struct task_struct *p) { return 0; }
-static inline void freeze(struct task_struct *p) { BUG(); }
+static inline void set_freeze_flag(struct task_struct *p) {}
+static inline void clear_freeze_flag(struct task_struct *p) {}
 static inline int thaw_process(struct task_struct *p) { return 1; }
 
 static inline void refrigerator(void) {}
@@ -130,4 +142,7 @@ static inline int try_to_freeze(void) { return 0; }
 static inline void freezer_do_not_count(void) {}
 static inline void freezer_count(void) {}
 static inline int freezer_should_skip(struct task_struct *p) { return 0; }
+static inline void set_freezable(void) {}
 #endif
+
+#endif	/* FREEZER_H_INCLUDED */

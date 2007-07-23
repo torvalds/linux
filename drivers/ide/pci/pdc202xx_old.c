@@ -145,7 +145,7 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 
 static void pdc202xx_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	pdc202xx_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
@@ -316,14 +316,6 @@ static void pdc202xx_reset (ide_drive_t *drive)
 static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
 							const char *name)
 {
-	/* This doesn't appear needed */
-	if (dev->resource[PCI_ROM_RESOURCE].start) {
-		pci_write_config_dword(dev, PCI_ROM_ADDRESS,
-			dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
-		printk(KERN_INFO "%s: ROM enabled at 0x%08lx\n", name,
-			(unsigned long)dev->resource[PCI_ROM_RESOURCE].start);
-	}
-
 	return dev->irq;
 }
 
@@ -449,10 +441,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 16,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 1 */
 		.name		= "PDC20262",
@@ -460,10 +452,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 2 */
 		.name		= "PDC20263",
@@ -471,10 +463,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "PDC20265",
@@ -482,10 +474,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
 		.name		= "PDC20267",
@@ -493,10 +485,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };

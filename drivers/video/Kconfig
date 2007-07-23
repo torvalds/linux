@@ -12,6 +12,13 @@ config VGASTATE
        tristate
        default n
 
+config VIDEO_OUTPUT_CONTROL
+	tristate "Lowlevel video output switch controls"
+	default m
+	help
+	  This framework adds support for low-level control of the video 
+	  output switch.
+
 config FB
 	tristate "Support for frame buffer devices"
 	---help---
@@ -812,7 +819,7 @@ config FB_PVR2
 
 config FB_EPSON1355
 	bool "Epson 1355 framebuffer support"
-	depends on (FB = y) && (SUPERH || ARCH_CEIVA)
+	depends on (FB = y) && ARCH_CEIVA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -848,6 +855,16 @@ config FB_INTSRAM
 	help
 	  Say Y if you want to map Frame Buffer in internal SRAM. Say N if you want
 	  to let frame buffer in external SDRAM.
+
+config FB_ATMEL_STN
+	bool "Use a STN display with AT91/AT32 LCD Controller"
+	depends on FB_ATMEL && MACH_AT91SAM9261EK
+	default n
+	help
+	  Say Y if you want to connect a STN LCD display to the AT91/AT32 LCD
+	  Controller. Say N if you want to connect a TFT.
+
+	  If unsure, say N.
 
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
@@ -1790,19 +1807,20 @@ config FB_IBM_GXT4500
 	  adaptor, found on some IBM System P (pSeries) machines.
 
 config FB_PS3
-	bool "PS3 GPU framebuffer driver"
-	depends on (FB = y) && PS3_PS3AV
+	tristate "PS3 GPU framebuffer driver"
+	depends on FB && PS3_PS3AV
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
 	---help---
 	  Include support for the virtual frame buffer in the PS3 platform.
 
 config FB_PS3_DEFAULT_SIZE_M
 	int "PS3 default frame buffer size (in MiB)"
 	depends on FB_PS3
-	default 18
+	default 9
 	---help---
 	  This is the default size (in MiB) of the virtual frame buffer in
 	  the PS3.
@@ -1819,6 +1837,10 @@ config FB_XILINX
 	  Include support for the Xilinx ML300/ML403 reference design
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
+
+if ARCH_OMAP
+	source "drivers/video/omap/Kconfig"
+endif
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

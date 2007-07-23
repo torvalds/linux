@@ -251,7 +251,7 @@ config JBD2
 
 config JBD2_DEBUG
 	bool "JBD2 (ext4dev/ext4) debugging support"
-	depends on JBD2
+	depends on JBD2 && DEBUG_FS
 	help
 	  If you are using the ext4dev/ext4 journaled file system (or
 	  potentially any other filesystem/device using JBD2), this option
@@ -260,10 +260,10 @@ config JBD2_DEBUG
 	  By default, the debugging output will be turned off.
 
 	  If you select Y here, then you will be able to turn on debugging
-	  with "echo N > /proc/sys/fs/jbd2-debug", where N is a number between
-	  1 and 5. The higher the number, the more debugging output is
-	  generated.  To turn debugging off again, do
-	  "echo 0 > /proc/sys/fs/jbd2-debug".
+	  with "echo N > /sys/kernel/debug/jbd2/jbd2-debug", where N is a
+	  number between 1 and 5. The higher the number, the more debugging
+	  output is generated.  To turn debugging off again, do
+	  "echo 0 > /sys/kernel/debug/jbd2/jbd2-debug".
 
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)
@@ -991,7 +991,7 @@ config TMPFS_POSIX_ACL
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
-	depends on X86 || IA64 || PPC64 || SPARC64 || SUPERH || BROKEN
+	depends on X86 || IA64 || PPC64 || SPARC64 || (SUPERH && MMU) || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -1700,7 +1700,8 @@ config NFSD_V3_ACL
 
 config NFSD_V4
 	bool "Provide NFSv4 server support (EXPERIMENTAL)"
-	depends on NFSD_V3 && EXPERIMENTAL
+	depends on NFSD && NFSD_V3 && EXPERIMENTAL
+	select RPCSEC_GSS_KRB5
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and
@@ -2074,7 +2075,7 @@ config AFS_DEBUG
 
 config 9P_FS
 	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
-	depends on INET && EXPERIMENTAL
+	depends on INET && NET_9P && EXPERIMENTAL
 	help
 	  If you say Y here, you will get experimental support for
 	  Plan 9 resource sharing via the 9P2000 protocol.

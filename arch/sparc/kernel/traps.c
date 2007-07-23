@@ -101,6 +101,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 
 	printk("%s(%d): %s [#%d]\n", current->comm, current->pid, str, ++die_counter);
 	show_regs(regs);
+	add_taint(TAINT_DIE);
 
 	__SAVE; __SAVE; __SAVE; __SAVE;
 	__SAVE; __SAVE; __SAVE; __SAVE;

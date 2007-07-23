@@ -52,7 +52,7 @@
 			compatible = "fsl,8544-memory-controller";
 			reg = <2000 1000>;
 			interrupt-parent = <&mpic>;
-			interrupts = <2 2>;
+			interrupts = <12 2>;
 		};
 
 		l2-cache-controller@20000 {
@@ -61,14 +61,14 @@
 			cache-line-size = <20>;	// 32 bytes
 			cache-size = <40000>;	// L2, 256K
 			interrupt-parent = <&mpic>;
-			interrupts = <0 2>;
+			interrupts = <10 2>;
 		};
 
 		i2c@3000 {
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
-			interrupts = <1b 2>;
+			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
@@ -81,13 +81,13 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <3a 1>;
+				interrupts = <a 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <3a 1>;
+				interrupts = <a 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
@@ -101,7 +101,7 @@
 			compatible = "gianfar";
 			reg = <24000 1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <d 2 e 2 12 2>;
+			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
 		};
@@ -114,7 +114,7 @@
 			compatible = "gianfar";
 			reg = <26000 1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <f 2 10 2 11 2>;
+			interrupts = <1f 2 20 2 21 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
 		};
@@ -124,7 +124,7 @@
 			compatible = "ns16550";
 			reg = <4500 100>;
 			clock-frequency = <0>;
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -133,7 +133,7 @@
 			compatible = "ns16550";
 			reg = <4600 100>;
 			clock-frequency = <0>;
-			interrupts = <1a 2>;
+			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
 

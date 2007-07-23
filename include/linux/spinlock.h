@@ -282,6 +282,13 @@ do {						\
 	1 : ({ local_irq_restore(flags); 0; }); \
 })
 
+#define write_trylock_irqsave(lock, flags) \
+({ \
+	local_irq_save(flags); \
+	write_trylock(lock) ? \
+	1 : ({ local_irq_restore(flags); 0; }); \
+})
+
 /*
  * Locks two spinlocks l1 and l2.
  * l1_first indicates if spinlock l1 should be taken first.

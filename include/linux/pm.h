@@ -101,6 +101,7 @@ struct pm_dev
  */
 extern void (*pm_idle)(void);
 extern void (*pm_power_off)(void);
+extern void (*pm_power_off_prepare)(void);
 
 typedef int __bitwise suspend_state_t;
 
@@ -267,14 +268,9 @@ struct dev_pm_info {
 	unsigned		can_wakeup:1;
 #ifdef	CONFIG_PM
 	unsigned		should_wakeup:1;
-	pm_message_t		prev_state;
-	void			* saved_state;
-	struct device		* pm_parent;
 	struct list_head	entry;
 #endif
 };
-
-extern void device_pm_set_parent(struct device * dev, struct device * parent);
 
 extern int device_power_down(pm_message_t state);
 extern void device_power_up(void);
@@ -289,8 +285,6 @@ extern int device_prepare_suspend(pm_message_t state);
 #define device_may_wakeup(dev) \
 	(device_can_wakeup(dev) && (dev)->power.should_wakeup)
 
-extern int dpm_runtime_suspend(struct device *, pm_message_t);
-extern void dpm_runtime_resume(struct device *);
 extern void __suspend_report_result(const char *function, void *fn, int ret);
 
 #define suspend_report_result(fn, ret)					\
@@ -321,15 +315,6 @@ static inline int device_suspend(pm_message_t state)
 
 #define device_set_wakeup_enable(dev,val)	do{}while(0)
 #define device_may_wakeup(dev)			(0)
-
-static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
-{
-	return 0;
-}
-
-static inline void dpm_runtime_resume(struct device * dev)
-{
-}
 
 #define suspend_report_result(fn, ret) do { } while (0)
 

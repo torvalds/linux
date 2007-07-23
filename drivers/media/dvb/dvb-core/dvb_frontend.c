@@ -523,6 +523,7 @@ static int dvb_frontend_thread(void *data)
 
 	dvb_frontend_init(fe);
 
+	set_freezable();
 	while (1) {
 		up(&fepriv->sem);	    /* is locked when we enter the thread... */
 restart:

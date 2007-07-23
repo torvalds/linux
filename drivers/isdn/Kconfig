@@ -2,12 +2,10 @@
 # ISDN device configuration
 #
 
-menu "ISDN subsystem"
-	depends on !S390
-
-config ISDN
+menuconfig ISDN
 	tristate "ISDN support"
 	depends on NET
+	depends on !S390
 	---help---
 	  ISDN ("Integrated Services Digital Networks", called RNIS in France)
 	  is a special type of fully digital telephone service; it's mostly
@@ -21,11 +19,9 @@ config ISDN
 
 	  Select this option if you want your kernel to support ISDN.
 
+if ISDN
 
-menu "Old ISDN4Linux"
-	depends on NET && ISDN
-
-config ISDN_I4L
+menuconfig ISDN_I4L
 	tristate "Old ISDN4Linux (deprecated)"
 	---help---
 	  This driver allows you to use an ISDN adapter for networking
@@ -47,23 +43,20 @@ if ISDN_I4L
 source "drivers/isdn/i4l/Kconfig"
 endif
 
-endmenu
-
-comment "CAPI subsystem"
-	depends on NET && ISDN
-
-config ISDN_CAPI
-	tristate "CAPI2.0 support"
-	depends on ISDN
+menuconfig ISDN_CAPI
+	tristate "CAPI 2.0 subsystem"
 	help
 	  This provides the CAPI (Common ISDN Application Programming
 	  Interface, a standard making it easy for programs to access ISDN
 	  hardware, see <http://www.capi.org/>.  This is needed for AVM's set
 	  of active ISDN controllers like B1, T1, M1.
 
+if ISDN_CAPI
+
 source "drivers/isdn/capi/Kconfig"
 
 source "drivers/isdn/hardware/Kconfig"
 
-endmenu
+endif # ISDN_CAPI
 
+endif # ISDN

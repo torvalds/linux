@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/wait.h>
 #include "hcd.h"
 
 #define to_urb(d) container_of(d, struct urb, kref)
@@ -11,6 +12,10 @@
 static void urb_destroy(struct kref *kref)
 {
 	struct urb *urb = to_urb(kref);
+
+	if (urb->transfer_flags & URB_FREE_BUFFER)
+		kfree(urb->transfer_buffer);
+
 	kfree(urb);
 }
 
@@ -34,6 +39,7 @@ void usb_init_urb(struct urb *urb)
 		memset(urb, 0, sizeof(*urb));
 		kref_init(&urb->kref);
 		spin_lock_init(&urb->lock);
+		INIT_LIST_HEAD(&urb->anchor_list);
 	}
 }
 
@@ -100,8 +106,60 @@ struct urb * usb_get_urb(struct urb *urb)
 		kref_get(&urb->kref);
 	return urb;
 }
-		
-		
+
+/**
+ * usb_anchor_urb - anchors an URB while it is processed
+ * @urb: pointer to the urb to anchor
+ * @anchor: pointer to the anchor
+ *
+ * This can be called to have access to URBs which are to be executed
+ * without bothering to track them
+ */
+void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	usb_get_urb(urb);
+	list_add_tail(&urb->anchor_list, &anchor->urb_list);
+	urb->anchor = anchor;
+	spin_unlock_irqrestore(&anchor->lock, flags);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_urb);
+
+/**
+ * usb_unanchor_urb - unanchors an URB
+ * @urb: pointer to the urb to anchor
+ *
+ * Call this to stop the system keeping track of this URB
+ */
+void usb_unanchor_urb(struct urb *urb)
+{
+	unsigned long flags;
+	struct usb_anchor *anchor;
+
+	if (!urb)
+		return;
+
+	anchor = urb->anchor;
+	if (!anchor)
+		return;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	if (unlikely(anchor != urb->anchor)) {
+		/* we've lost the race to another thread */
+		spin_unlock_irqrestore(&anchor->lock, flags);
+		return;
+	}
+	urb->anchor = NULL;
+	list_del(&urb->anchor_list);
+	spin_unlock_irqrestore(&anchor->lock, flags);
+	usb_put_urb(urb);
+	if (list_empty(&anchor->urb_list))
+		wake_up(&anchor->wait);
+}
+EXPORT_SYMBOL_GPL(usb_unanchor_urb);
+
 /*-------------------------------------------------------------------*/
 
 /**
@@ -382,55 +440,57 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
  * @urb: pointer to urb describing a previously submitted request,
  *	may be NULL
  *
- * This routine cancels an in-progress request.  URBs complete only
- * once per submission, and may be canceled only once per submission.
- * Successful cancellation means the requests's completion handler will
- * be called with a status code indicating that the request has been
- * canceled (rather than any other code) and will quickly be removed
- * from host controller data structures.
+ * This routine cancels an in-progress request.  URBs complete only once
+ * per submission, and may be canceled only once per submission.
+ * Successful cancellation means termination of @urb will be expedited
+ * and the completion handler will be called with a status code
+ * indicating that the request has been canceled (rather than any other
+ * code).
  *
- * This request is always asynchronous.
- * Success is indicated by returning -EINPROGRESS,
- * at which time the URB will normally have been unlinked but not yet
- * given back to the device driver.  When it is called, the completion
- * function will see urb->status == -ECONNRESET.  Failure is indicated
- * by any other return value.  Unlinking will fail when the URB is not
- * currently "linked" (i.e., it was never submitted, or it was unlinked
- * before, or the hardware is already finished with it), even if the
- * completion handler has not yet run.
+ * This request is always asynchronous.  Success is indicated by
+ * returning -EINPROGRESS, at which time the URB will probably not yet
+ * have been given back to the device driver.  When it is eventually
+ * called, the completion function will see @urb->status == -ECONNRESET.
+ * Failure is indicated by usb_unlink_urb() returning any other value.
+ * Unlinking will fail when @urb is not currently "linked" (i.e., it was
+ * never submitted, or it was unlinked before, or the hardware is already
+ * finished with it), even if the completion handler has not yet run.
  *
  * Unlinking and Endpoint Queues:
+ *
+ * [The behaviors and guarantees described below do not apply to virtual
+ * root hubs but only to endpoint queues for physical USB devices.]
  *
  * Host Controller Drivers (HCDs) place all the URBs for a particular
  * endpoint in a queue.  Normally the queue advances as the controller
  * hardware processes each request.  But when an URB terminates with an
- * error its queue stops, at least until that URB's completion routine
- * returns.  It is guaranteed that the queue will not restart until all
- * its unlinked URBs have been fully retired, with their completion
- * routines run, even if that's not until some time after the original
- * completion handler returns.  Normally the same behavior and guarantees
- * apply when an URB terminates because it was unlinked; however if an
- * URB is unlinked before the hardware has started to execute it, then
- * its queue is not guaranteed to stop until all the preceding URBs have
- * completed.
+ * error its queue generally stops (see below), at least until that URB's
+ * completion routine returns.  It is guaranteed that a stopped queue
+ * will not restart until all its unlinked URBs have been fully retired,
+ * with their completion routines run, even if that's not until some time
+ * after the original completion handler returns.  The same behavior and
+ * guarantee apply when an URB terminates because it was unlinked.
  *
- * This means that USB device drivers can safely build deep queues for
- * large or complex transfers, and clean them up reliably after any sort
- * of aborted transfer by unlinking all pending URBs at the first fault.
+ * Bulk and interrupt endpoint queues are guaranteed to stop whenever an
+ * URB terminates with any sort of error, including -ECONNRESET, -ENOENT,
+ * and -EREMOTEIO.  Control endpoint queues behave the same way except
+ * that they are not guaranteed to stop for -EREMOTEIO errors.  Queues
+ * for isochronous endpoints are treated differently, because they must
+ * advance at fixed rates.  Such queues do not stop when an URB
+ * encounters an error or is unlinked.  An unlinked isochronous URB may
+ * leave a gap in the stream of packets; it is undefined whether such
+ * gaps can be filled in.
  *
- * Note that an URB terminating early because a short packet was received
- * will count as an error if and only if the URB_SHORT_NOT_OK flag is set.
- * Also, that all unlinks performed in any URB completion handler must
- * be asynchronous.
+ * Note that early termination of an URB because a short packet was
+ * received will generate a -EREMOTEIO error if and only if the
+ * URB_SHORT_NOT_OK flag is set.  By setting this flag, USB device
+ * drivers can build deep queues for large or complex bulk transfers
+ * and clean them up reliably after any sort of aborted transfer by
+ * unlinking all pending URBs at the first fault.
  *
- * Queues for isochronous endpoints are treated differently, because they
- * advance at fixed rates.  Such queues do not stop when an URB is unlinked.
- * An unlinked URB may leave a gap in the stream of packets.  It is undefined
- * whether such gaps can be filled in.
- *
- * When a control URB terminates with an error, it is likely that the
- * status stage of the transfer will not take place, even if it is merely
- * a soft error resulting from a short-packet with URB_SHORT_NOT_OK set.
+ * When a control URB terminates with an error other than -EREMOTEIO, it
+ * is quite likely that the status stage of the transfer will not take
+ * place.
  */
 int usb_unlink_urb(struct urb *urb)
 {
@@ -478,6 +538,48 @@ void usb_kill_urb(struct urb *urb)
 	spin_unlock_irq(&urb->lock);
 }
 
+/**
+ * usb_kill_anchored_urbs - cancel transfer requests en masse
+ * @anchor: anchor the requests are bound to
+ *
+ * this allows all outstanding URBs to be killed starting
+ * from the back of the queue
+ */
+void usb_kill_anchored_urbs(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+
+	spin_lock_irq(&anchor->lock);
+	while (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.prev, struct urb, anchor_list);
+		/* we must make sure the URB isn't freed before we kill it*/
+		usb_get_urb(victim);
+		spin_unlock_irq(&anchor->lock);
+		/* this will unanchor the URB */
+		usb_kill_urb(victim);
+		usb_put_urb(victim);
+		spin_lock_irq(&anchor->lock);
+	}
+	spin_unlock_irq(&anchor->lock);
+}
+EXPORT_SYMBOL_GPL(usb_kill_anchored_urbs);
+
+/**
+ * usb_wait_anchor_empty_timeout - wait for an anchor to be unused
+ * @anchor: the anchor you want to become unused
+ * @timeout: how long you are willing to wait in milliseconds
+ *
+ * Call this is you want to be sure all an anchor's
+ * URBs have finished
+ */
+int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
+				  unsigned int timeout)
+{
+	return wait_event_timeout(anchor->wait, list_empty(&anchor->urb_list),
+				  msecs_to_jiffies(timeout));
+}
+EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);
+
 EXPORT_SYMBOL(usb_init_urb);
 EXPORT_SYMBOL(usb_alloc_urb);
 EXPORT_SYMBOL(usb_free_urb);
@@ -485,4 +587,3 @@ EXPORT_SYMBOL(usb_get_urb);
 EXPORT_SYMBOL(usb_submit_urb);
 EXPORT_SYMBOL(usb_unlink_urb);
 EXPORT_SYMBOL(usb_kill_urb);
-

@@ -301,7 +301,7 @@ struct radeonfb_info {
 	void __iomem		*bios_seg;
 	int			fp_bios_start;
 
-	u32			pseudo_palette[17];
+	u32			pseudo_palette[16];
 	struct { u8 red, green, blue, pad; }
 				palette[256];
 

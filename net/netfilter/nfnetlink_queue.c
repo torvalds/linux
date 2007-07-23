@@ -913,9 +913,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			QDEBUG("unregistering queue handler for pf=%u\n",
 				ntohs(cmd->pf));
-			/* This is a bug and a feature.  We can unregister
-			 * other handlers(!) */
-			ret = nf_unregister_queue_handler(ntohs(cmd->pf));
+			ret = nf_unregister_queue_handler(ntohs(cmd->pf), &nfqh);
 			break;
 		default:
 			ret = -EINVAL;
@@ -1050,7 +1048,7 @@ static int seq_show(struct seq_file *s, void *v)
 			  atomic_read(&inst->use));
 }
 
-static struct seq_operations nfqnl_seq_ops = {
+static const struct seq_operations nfqnl_seq_ops = {
 	.start	= seq_start,
 	.next	= seq_next,
 	.stop	= seq_stop,

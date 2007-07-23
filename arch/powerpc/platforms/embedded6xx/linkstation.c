@@ -54,8 +54,9 @@ static struct mtd_partition linkstation_physmap_partitions[] = {
 	},
 };
 
-static int __init add_bridge(struct device_node *dev)
+static int __init linkstation_add_bridge(struct device_node *dev)
 {
+#ifdef CONFIG_PCI
 	int len;
 	struct pci_controller *hose;
 	const int *bus_range;
@@ -67,18 +68,17 @@ static int __init add_bridge(struct device_node *dev)
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 				" bus 0\n", dev->full_name);
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
 		return -ENOMEM;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-	hose->arch_data = dev;
 	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
 
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */
 	pci_process_bridge_OF_ranges(hose, dev, 1);
-
+#endif
 	return 0;
 }
 
@@ -92,7 +92,7 @@ static void __init linkstation_setup_arch(void)
 
 	/* Lookup PCI host bridges */
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		linkstation_add_bridge(np);
 
 	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
 	printk(KERN_INFO "(C) 2002-2005 BUFFALO INC.\n");

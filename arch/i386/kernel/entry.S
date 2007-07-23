@@ -409,8 +409,6 @@ restore_nocheck_notrace:
 1:	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code
@@ -1022,6 +1020,91 @@ ENTRY(kernel_thread_helper)
 	call do_exit
 	CFI_ENDPROC
 ENDPROC(kernel_thread_helper)
+
+#ifdef CONFIG_XEN
+ENTRY(xen_hypervisor_callback)
+	CFI_STARTPROC
+	pushl $0
+	CFI_ADJUST_CFA_OFFSET 4
+	SAVE_ALL
+	TRACE_IRQS_OFF
+
+	/* Check to see if we got the event in the critical
+	   region in xen_iret_direct, after we've reenabled
+	   events and checked for pending events.  This simulates
+	   iret instruction's behaviour where it delivers a
+	   pending interrupt when enabling interrupts. */
+	movl PT_EIP(%esp),%eax
+	cmpl $xen_iret_start_crit,%eax
+	jb   1f
+	cmpl $xen_iret_end_crit,%eax
+	jae  1f
+
+	call xen_iret_crit_fixup
+
+1:	mov %esp, %eax
+	call xen_evtchn_do_upcall
+	jmp  ret_from_intr
+	CFI_ENDPROC
+ENDPROC(xen_hypervisor_callback)
+
+# Hypervisor uses this for application faults while it executes.
+# We get here for two reasons:
+#  1. Fault while reloading DS, ES, FS or GS
+#  2. Fault while executing IRET
+# Category 1 we fix up by reattempting the load, and zeroing the segment
+# register if the load fails.
+# Category 2 we fix up by jumping to do_iret_error. We cannot use the
+# normal Linux return path in this case because if we use the IRET hypercall
+# to pop the stack frame we end up in an infinite loop of failsafe callbacks.
+# We distinguish between categories by maintaining a status value in EAX.
+ENTRY(xen_failsafe_callback)
+	CFI_STARTPROC
+	pushl %eax
+	CFI_ADJUST_CFA_OFFSET 4
+	movl $1,%eax
+1:	mov 4(%esp),%ds
+2:	mov 8(%esp),%es
+3:	mov 12(%esp),%fs
+4:	mov 16(%esp),%gs
+	testl %eax,%eax
+	popl %eax
+	CFI_ADJUST_CFA_OFFSET -4
+	lea 16(%esp),%esp
+	CFI_ADJUST_CFA_OFFSET -16
+	jz 5f
+	addl $16,%esp
+	jmp iret_exc		# EAX != 0 => Category 2 (Bad IRET)
+5:	pushl $0		# EAX == 0 => Category 1 (Bad segment)
+	CFI_ADJUST_CFA_OFFSET 4
+	SAVE_ALL
+	jmp ret_from_exception
+	CFI_ENDPROC
+
+.section .fixup,"ax"
+6:	xorl %eax,%eax
+	movl %eax,4(%esp)
+	jmp 1b
+7:	xorl %eax,%eax
+	movl %eax,8(%esp)
+	jmp 2b
+8:	xorl %eax,%eax
+	movl %eax,12(%esp)
+	jmp 3b
+9:	xorl %eax,%eax
+	movl %eax,16(%esp)
+	jmp 4b
+.previous
+.section __ex_table,"a"
+	.align 4
+	.long 1b,6b
+	.long 2b,7b
+	.long 3b,8b
+	.long 4b,9b
+.previous
+ENDPROC(xen_failsafe_callback)
+
+#endif	/* CONFIG_XEN */
 
 .section .rodata,"a"
 #include "syscall_table.S"

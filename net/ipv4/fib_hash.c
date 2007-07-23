@@ -771,13 +771,13 @@ struct fib_table * __init fib_hash_init(u32 id)
 		fn_hash_kmem = kmem_cache_create("ip_fib_hash",
 						 sizeof(struct fib_node),
 						 0, SLAB_HWCACHE_ALIGN,
-						 NULL, NULL);
+						 NULL);
 
 	if (fn_alias_kmem == NULL)
 		fn_alias_kmem = kmem_cache_create("ip_fib_alias",
 						  sizeof(struct fib_alias),
 						  0, SLAB_HWCACHE_ALIGN,
-						  NULL, NULL);
+						  NULL);
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct fn_hash),
 		     GFP_KERNEL);

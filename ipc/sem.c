@@ -121,7 +121,7 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
 #define sc_semopm	sem_ctls[2]
 #define sc_semmni	sem_ctls[3]
 
-static void __ipc_init __sem_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
+static void __sem_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
 {
 	ns->ids[IPC_SEM_IDS] = ids;
 	ns->sc_semmsl = SEMMSL;
@@ -132,7 +132,6 @@ static void __ipc_init __sem_init_ns(struct ipc_namespace *ns, struct ipc_ids *i
 	ipc_init_ids(ids, ns->sc_semmni);
 }
 
-#ifdef CONFIG_IPC_NS
 int sem_init_ns(struct ipc_namespace *ns)
 {
 	struct ipc_ids *ids;
@@ -164,7 +163,6 @@ void sem_exit_ns(struct ipc_namespace *ns)
 	kfree(ns->ids[IPC_SEM_IDS]);
 	ns->ids[IPC_SEM_IDS] = NULL;
 }
-#endif
 
 void __init sem_init (void)
 {
@@ -858,7 +856,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid, int semnum,
 {
 	struct sem_array *sma;
 	int err;
-	struct sem_setbuf setbuf;
+	struct sem_setbuf uninitialized_var(setbuf);
 	struct kern_ipc_perm *ipcp;
 
 	if(cmd == IPC_SET) {

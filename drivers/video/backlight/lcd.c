@@ -61,10 +61,11 @@ static inline void lcd_unregister_fb(struct lcd_device *ld)
 }
 #endif /* CONFIG_FB */
 
-static ssize_t lcd_show_power(struct class_device *cdev, char *buf)
+static ssize_t lcd_show_power(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	int rc;
-	struct lcd_device *ld = to_lcd_device(cdev);
+	struct lcd_device *ld = to_lcd_device(dev);
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->get_power)
@@ -76,11 +77,12 @@ static ssize_t lcd_show_power(struct class_device *cdev, char *buf)
 	return rc;
 }
 
-static ssize_t lcd_store_power(struct class_device *cdev, const char *buf, size_t count)
+static ssize_t lcd_store_power(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc = -ENXIO;
 	char *endp;
-	struct lcd_device *ld = to_lcd_device(cdev);
+	struct lcd_device *ld = to_lcd_device(dev);
 	int power = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
@@ -100,10 +102,11 @@ static ssize_t lcd_store_power(struct class_device *cdev, const char *buf, size_
 	return rc;
 }
 
-static ssize_t lcd_show_contrast(struct class_device *cdev, char *buf)
+static ssize_t lcd_show_contrast(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	int rc = -ENXIO;
-	struct lcd_device *ld = to_lcd_device(cdev);
+	struct lcd_device *ld = to_lcd_device(dev);
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->get_contrast)
@@ -113,11 +116,12 @@ static ssize_t lcd_show_contrast(struct class_device *cdev, char *buf)
 	return rc;
 }
 
-static ssize_t lcd_store_contrast(struct class_device *cdev, const char *buf, size_t count)
+static ssize_t lcd_store_contrast(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc = -ENXIO;
 	char *endp;
-	struct lcd_device *ld = to_lcd_device(cdev);
+	struct lcd_device *ld = to_lcd_device(dev);
 	int contrast = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
@@ -137,53 +141,45 @@ static ssize_t lcd_store_contrast(struct class_device *cdev, const char *buf, si
 	return rc;
 }
 
-static ssize_t lcd_show_max_contrast(struct class_device *cdev, char *buf)
+static ssize_t lcd_show_max_contrast(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
-	struct lcd_device *ld = to_lcd_device(cdev);
+	struct lcd_device *ld = to_lcd_device(dev);
 
 	return sprintf(buf, "%d\n", ld->props.max_contrast);
 }
 
-static void lcd_class_release(struct class_device *dev)
+struct class *lcd_class;
+
+static void lcd_device_release(struct device *dev)
 {
 	struct lcd_device *ld = to_lcd_device(dev);
 	kfree(ld);
 }
 
-static struct class lcd_class = {
-	.name = "lcd",
-	.release = lcd_class_release,
-};
-
-#define DECLARE_ATTR(_name,_mode,_show,_store)			\
-{							 	\
-	.attr	= { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },	\
-	.show	= _show,					\
-	.store	= _store,					\
-}
-
-static const struct class_device_attribute lcd_class_device_attributes[] = {
-	DECLARE_ATTR(power, 0644, lcd_show_power, lcd_store_power),
-	DECLARE_ATTR(contrast, 0644, lcd_show_contrast, lcd_store_contrast),
-	DECLARE_ATTR(max_contrast, 0444, lcd_show_max_contrast, NULL),
+static struct device_attribute lcd_device_attributes[] = {
+	__ATTR(lcd_power, 0644, lcd_show_power, lcd_store_power),
+	__ATTR(contrast, 0644, lcd_show_contrast, lcd_store_contrast),
+	__ATTR(max_contrast, 0444, lcd_show_max_contrast, NULL),
+	__ATTR_NULL,
 };
 
 /**
  * lcd_device_register - register a new object of lcd_device class.
  * @name: the name of the new object(must be the same as the name of the
  *   respective framebuffer device).
- * @devdata: an optional pointer to be stored in the class_device. The
- *   methods may retrieve it by using class_get_devdata(ld->class_dev).
+ * @devdata: an optional pointer to be stored in the device. The
+ *   methods may retrieve it by using lcd_get_data(ld).
  * @ops: the lcd operations structure.
  *
- * Creates and registers a new lcd class_device. Returns either an ERR_PTR()
+ * Creates and registers a new lcd device. Returns either an ERR_PTR()
  * or a pointer to the newly allocated device.
  */
-struct lcd_device *lcd_device_register(const char *name, void *devdata,
-				       struct lcd_ops *ops)
+struct lcd_device *lcd_device_register(const char *name, struct device *parent,
+		void *devdata, struct lcd_ops *ops)
 {
-	int i, rc;
 	struct lcd_device *new_ld;
+	int rc;
 
 	pr_debug("lcd_device_register: name=%s\n", name);
 
@@ -193,12 +189,14 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 
 	mutex_init(&new_ld->ops_lock);
 	mutex_init(&new_ld->update_lock);
-	new_ld->ops = ops;
-	new_ld->class_dev.class = &lcd_class;
-	strlcpy(new_ld->class_dev.class_id, name, KOBJ_NAME_LEN);
-	class_set_devdata(&new_ld->class_dev, devdata);
 
-	rc = class_device_register(&new_ld->class_dev);
+	new_ld->dev.class = lcd_class;
+	new_ld->dev.parent = parent;
+	new_ld->dev.release = lcd_device_release;
+	strlcpy(new_ld->dev.bus_id, name, BUS_ID_SIZE);
+	dev_set_drvdata(&new_ld->dev, devdata);
+
+	rc = device_register(&new_ld->dev);
 	if (rc) {
 		kfree(new_ld);
 		return ERR_PTR(rc);
@@ -206,22 +204,11 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 
 	rc = lcd_register_fb(new_ld);
 	if (rc) {
-		class_device_unregister(&new_ld->class_dev);
+		device_unregister(&new_ld->dev);
 		return ERR_PTR(rc);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(lcd_class_device_attributes); i++) {
-		rc = class_device_create_file(&new_ld->class_dev,
-					      &lcd_class_device_attributes[i]);
-		if (rc) {
-			while (--i >= 0)
-				class_device_remove_file(&new_ld->class_dev,
-							 &lcd_class_device_attributes[i]);
-			class_device_unregister(&new_ld->class_dev);
-			/* No need to kfree(new_ld) since release() method was called */
-			return ERR_PTR(rc);
-		}
-	}
+	new_ld->ops = ops;
 
 	return new_ld;
 }
@@ -235,33 +222,34 @@ EXPORT_SYMBOL(lcd_device_register);
  */
 void lcd_device_unregister(struct lcd_device *ld)
 {
-	int i;
-
 	if (!ld)
 		return;
-
-	pr_debug("lcd_device_unregister: name=%s\n", ld->class_dev.class_id);
-
-	for (i = 0; i < ARRAY_SIZE(lcd_class_device_attributes); i++)
-		class_device_remove_file(&ld->class_dev,
-					 &lcd_class_device_attributes[i]);
 
 	mutex_lock(&ld->ops_lock);
 	ld->ops = NULL;
 	mutex_unlock(&ld->ops_lock);
 	lcd_unregister_fb(ld);
-	class_device_unregister(&ld->class_dev);
+
+	device_unregister(&ld->dev);
 }
 EXPORT_SYMBOL(lcd_device_unregister);
 
 static void __exit lcd_class_exit(void)
 {
-	class_unregister(&lcd_class);
+	class_destroy(lcd_class);
 }
 
 static int __init lcd_class_init(void)
 {
-	return class_register(&lcd_class);
+	lcd_class = class_create(THIS_MODULE, "lcd");
+	if (IS_ERR(lcd_class)) {
+		printk(KERN_WARNING "Unable to create backlight class; errno = %ld\n",
+				PTR_ERR(lcd_class));
+		return PTR_ERR(lcd_class);
+	}
+
+	lcd_class->dev_attrs = lcd_device_attributes;
+	return 0;
 }
 
 /*

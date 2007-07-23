@@ -215,7 +215,7 @@ static int i2o_block_device_lock(struct i2o_device *dev, u32 media_id)
 	struct i2o_message *msg;
 
 	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
-	if (IS_ERR(msg) == I2O_QUEUE_EMPTY)
+	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
 	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
@@ -1171,8 +1171,7 @@ static int __init i2o_block_init(void)
 	/* Allocate request mempool and slab */
 	size = sizeof(struct i2o_block_request);
 	i2o_blk_req_pool.slab = kmem_cache_create("i2o_block_req", size, 0,
-						  SLAB_HWCACHE_ALIGN, NULL,
-						  NULL);
+						  SLAB_HWCACHE_ALIGN, NULL);
 	if (!i2o_blk_req_pool.slab) {
 		osm_err("can't init request slab\n");
 		rc = -ENOMEM;

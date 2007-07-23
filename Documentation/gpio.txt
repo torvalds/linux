@@ -75,6 +75,9 @@ using the include file:
 If you stick to this convention then it'll be easier for other developers to
 see what your code is doing, and help maintain it.
 
+Note that these operations include I/O barriers on platforms which need to
+use them; drivers don't need to add them explicitly.
+
 
 Identifying GPIOs
 -----------------

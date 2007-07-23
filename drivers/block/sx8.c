@@ -1608,7 +1608,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 #endif
 
-	host = kmalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
 	if (!host) {
 		printk(KERN_ERR DRV_NAME "(%s): memory alloc failure\n",
 		       pci_name(pdev));
@@ -1616,7 +1616,6 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_regions;
 	}
 
-	memset(host, 0, sizeof(*host));
 	host->pdev = pdev;
 	host->flags = pci_dac ? FL_DAC : 0;
 	spin_lock_init(&host->lock);

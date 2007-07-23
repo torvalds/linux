@@ -57,7 +57,7 @@ static DEFINE_SPINLOCK(limit_lock);
 
 #define CREDITS_PER_JIFFY POW2_BELOW32(MAX_CPJ)
 
-static int
+static bool
 ipt_limit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
@@ -65,9 +65,10 @@ ipt_limit_match(const struct sk_buff *skb,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
-		int *hotdrop)
+		bool *hotdrop)
 {
-	struct xt_rateinfo *r = ((struct xt_rateinfo *)matchinfo)->master;
+	struct xt_rateinfo *r =
+		((const struct xt_rateinfo *)matchinfo)->master;
 	unsigned long now = jiffies;
 
 	spin_lock_bh(&limit_lock);
@@ -79,11 +80,11 @@ ipt_limit_match(const struct sk_buff *skb,
 		/* We're not limited. */
 		r->credit -= r->cost;
 		spin_unlock_bh(&limit_lock);
-		return 1;
+		return true;
 	}
 
 	spin_unlock_bh(&limit_lock);
-	return 0;
+	return false;
 }
 
 /* Precision saver. */
@@ -98,7 +99,7 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / XT_LIMIT_SCALE;
 }
 
-static int
+static bool
 ipt_limit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
@@ -112,7 +113,7 @@ ipt_limit_checkentry(const char *tablename,
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
 		printk("Overflow in xt_limit, try lower: %u/%u\n",
 		       r->avg, r->burst);
-		return 0;
+		return false;
 	}
 
 	/* For SMP, we only want to use one set of counters. */
@@ -125,7 +126,7 @@ ipt_limit_checkentry(const char *tablename,
 		r->credit_cap = user2credits(r->avg * r->burst); /* Credits full. */
 		r->cost = user2credits(r->avg);
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT
@@ -144,7 +145,7 @@ struct compat_xt_rateinfo {
  * master pointer, which does not need to be preserved. */
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_xt_rateinfo *cm = src;
+	const struct compat_xt_rateinfo *cm = src;
 	struct xt_rateinfo m = {
 		.avg		= cm->avg,
 		.burst		= cm->burst,
@@ -158,7 +159,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct xt_rateinfo *m = src;
+	const struct xt_rateinfo *m = src;
 	struct compat_xt_rateinfo cm = {
 		.avg		= m->avg,
 		.burst		= m->burst,
@@ -172,7 +173,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_match xt_limit_match[] = {
+static struct xt_match xt_limit_match[] __read_mostly = {
 	{
 		.name		= "limit",
 		.family		= AF_INET,

@@ -82,7 +82,7 @@ EXPORT_SYMBOL(cancel_dirty_page);
 /*
  * If truncate cannot remove the fs-private metadata from the page, the page
  * becomes anonymous.  It will be left on the LRU and may even be mapped into
- * user pagetables if we're racing with filemap_nopage().
+ * user pagetables if we're racing with filemap_fault().
  *
  * We need to bale out if page->mapping is no longer equal to the original
  * mapping.  This happens a) when the VM reclaimed the page while we waited on
@@ -100,9 +100,9 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	if (PagePrivate(page))
 		do_invalidatepage(page, 0);
 
+	remove_from_page_cache(page);
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
-	remove_from_page_cache(page);
 	page_cache_release(page);	/* pagecache ref */
 }
 
@@ -192,6 +192,11 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				unlock_page(page);
 				continue;
 			}
+			if (page_mapped(page)) {
+				unmap_mapping_range(mapping,
+				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+				  PAGE_CACHE_SIZE, 0);
+			}
 			truncate_complete_page(mapping, page);
 			unlock_page(page);
 		}
@@ -229,6 +234,11 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				break;
 			lock_page(page);
 			wait_on_page_writeback(page);
+			if (page_mapped(page)) {
+				unmap_mapping_range(mapping,
+				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+				  PAGE_CACHE_SIZE, 0);
+			}
 			if (page->index > next)
 				next = page->index;
 			next++;
@@ -253,21 +263,8 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 }
 EXPORT_SYMBOL(truncate_inode_pages);
 
-/**
- * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
- * @mapping: the address_space which holds the pages to invalidate
- * @start: the offset 'from' which to invalidate
- * @end: the offset 'to' which to invalidate (inclusive)
- *
- * This function only removes the unlocked pages, if you want to
- * remove all the pages of one inode, you must call truncate_inode_pages.
- *
- * invalidate_mapping_pages() will not block on IO activity. It will not
- * invalidate pages which are dirty, locked, under writeback or mapped into
- * pagetables.
- */
-unsigned long invalidate_mapping_pages(struct address_space *mapping,
-				pgoff_t start, pgoff_t end)
+unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+				pgoff_t start, pgoff_t end, bool be_atomic)
 {
 	struct pagevec pvec;
 	pgoff_t next = start;
@@ -308,8 +305,29 @@ unlock:
 				break;
 		}
 		pagevec_release(&pvec);
+		if (likely(!be_atomic))
+			cond_resched();
 	}
 	return ret;
+}
+
+/**
+ * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
+ * @mapping: the address_space which holds the pages to invalidate
+ * @start: the offset 'from' which to invalidate
+ * @end: the offset 'to' which to invalidate (inclusive)
+ *
+ * This function only removes the unlocked pages, if you want to
+ * remove all the pages of one inode, you must call truncate_inode_pages.
+ *
+ * invalidate_mapping_pages() will not block on IO activity. It will not
+ * invalidate pages which are dirty, locked, under writeback or mapped into
+ * pagetables.
+ */
+unsigned long invalidate_mapping_pages(struct address_space *mapping,
+				pgoff_t start, pgoff_t end)
+{
+	return __invalidate_mapping_pages(mapping, start, end, false);
 }
 EXPORT_SYMBOL(invalidate_mapping_pages);
 
@@ -317,8 +335,8 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
  * This is like invalidate_complete_page(), except it ignores the page's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
  * invalidation guarantees, and cannot afford to leave pages behind because
- * shrink_list() has a temp ref on them, or because they're transiently sitting
- * in the lru_cache_add() pagevecs.
+ * shrink_page_list() has a temp ref on them, or because they're transiently
+ * sitting in the lru_cache_add() pagevecs.
  */
 static int
 invalidate_complete_page2(struct address_space *mapping, struct page *page)
@@ -397,7 +415,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				break;
 			}
 			wait_on_page_writeback(page);
-			while (page_mapped(page)) {
+			if (page_mapped(page)) {
 				if (!did_range_unmap) {
 					/*
 					 * Zap the rest of the file in one hit.
@@ -417,6 +435,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 					  PAGE_CACHE_SIZE, 0);
 				}
 			}
+			BUG_ON(page_mapped(page));
 			ret = do_launder_page(mapping, page);
 			if (ret == 0 && !invalidate_complete_page2(mapping, page))
 				ret = -EIO;

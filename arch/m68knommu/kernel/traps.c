@@ -62,8 +62,6 @@ static char const * const vec_names[] = {
 
 void __init trap_init(void)
 {
-	if (mach_trap_init)
-		mach_trap_init();
 }
 
 void die_if_kernel(char *str, struct pt_regs *fp, int nr)
@@ -82,7 +80,8 @@ void die_if_kernel(char *str, struct pt_regs *fp, int nr)
 
 	printk(KERN_EMERG "Process %s (pid: %d, stackpage=%08lx)\n",
 		current->comm, current->pid, PAGE_SIZE+(unsigned long)current);
-	show_stack(NULL, (unsigned long *)fp);
+	show_stack(NULL, (unsigned long *)(fp + 1));
+	add_taint(TAINT_DIE);
 	do_exit(SIGSEGV);
 }
 

@@ -32,6 +32,7 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/debugfs.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
@@ -486,6 +487,14 @@ int check_legacy_ioport(unsigned long base_port)
 
 	switch(base_port) {
 	case I8042_DATA_REG:
+		if (!(np = of_find_compatible_node(NULL, NULL, "pnpPNP,303")))
+			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
+		if (np) {
+			parent = of_get_parent(np);
+			of_node_put(np);
+			np = parent;
+			break;
+		}
 		np = of_find_node_by_type(NULL, "8042");
 		break;
 	case FDC_BASE: /* FDC1 */
@@ -571,3 +580,15 @@ static int __init check_cache_coherency(void)
 
 late_initcall(check_cache_coherency);
 #endif /* CONFIG_CHECK_CACHE_COHERENCY */
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *powerpc_debugfs_root;
+
+static int powerpc_debugfs_init(void)
+{
+	powerpc_debugfs_root = debugfs_create_dir("powerpc", NULL);
+
+	return powerpc_debugfs_root == NULL;
+}
+arch_initcall(powerpc_debugfs_init);
+#endif

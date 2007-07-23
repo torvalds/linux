@@ -187,9 +187,13 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		}
 #endif
 
-		if (per_failed > local->rate_ctrl_num_down) {
+		/*
+		 * XXX: Make these configurable once we have an
+		 * interface to the rate control algorithms
+		 */
+		if (per_failed > RATE_CONTROL_NUM_DOWN) {
 			rate_control_rate_dec(local, sta);
-		} else if (per_failed < local->rate_ctrl_num_up) {
+		} else if (per_failed < RATE_CONTROL_NUM_UP) {
 			rate_control_rate_inc(local, sta);
 		}
 		srctrl->tx_avg_rate_sum += status->control.rate->rate;
@@ -283,14 +287,16 @@ static void rate_control_simple_rate_init(void *priv, void *priv_sta,
 	int i;
 	sta->txrate = 0;
 	mode = local->oper_hw_mode;
-	/* TODO: what is a good starting rate for STA? About middle? Maybe not
-	 * the lowest or the highest rate.. Could consider using RSSI from
-	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
-	 * after assoc.. */
+	/* TODO: This routine should consider using RSSI from previous packets
+	 * as we need to have IEEE 802.1X auth succeed immediately after assoc..
+	 * Until that method is implemented, we will use the lowest supported rate
+	 * as a workaround, */
 	for (i = 0; i < mode->num_rates; i++) {
 		if ((sta->supp_rates & BIT(i)) &&
-		    (mode->rates[i].flags & IEEE80211_RATE_SUPPORTED))
+		    (mode->rates[i].flags & IEEE80211_RATE_SUPPORTED)) {
 			sta->txrate = i;
+			break;
+		}
 	}
 }
 

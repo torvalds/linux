@@ -205,7 +205,6 @@ static unsigned int speedstep_detect_chipset (void)
 		 * host brige. Abort on these systems.
 		 */
 		static struct pci_dev *hostbridge;
-		u8 rev = 0;
 
 		hostbridge  = pci_get_subsys(PCI_VENDOR_ID_INTEL,
 			      PCI_DEVICE_ID_INTEL_82815_MC,
@@ -216,8 +215,7 @@ static unsigned int speedstep_detect_chipset (void)
 		if (!hostbridge)
 			return 2; /* 2-M */
 
-		pci_read_config_byte(hostbridge, PCI_REVISION_ID, &rev);
-		if (rev < 5) {
+		if (hostbridge->revision < 5) {
 			dprintk("hostbridge does not support speedstep\n");
 			speedstep_chipset_dev = NULL;
 			pci_dev_put(hostbridge);

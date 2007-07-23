@@ -131,6 +131,11 @@ const struct address_space_operations hfsplus_aops = {
 	.writepages	= hfsplus_writepages,
 };
 
+struct dentry_operations hfsplus_dentry_operations = {
+	.d_hash       = hfsplus_hash_dentry,
+	.d_compare    = hfsplus_compare_dentry,
+};
+
 static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dentry,
 					  struct nameidata *nd)
 {

@@ -77,6 +77,7 @@ static struct resource cf_ide_resources[] = {
 	},
 	[2] = {
 		.start  = MRSHPC_IRQ0,
+		.end    = MRSHPC_IRQ0,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -137,12 +138,9 @@ static void __init se7722_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_se7722 __initmv = {
+static struct sh_machine_vector mv_se7722 __initmv = {
 	.mv_name                = "Solution Engine 7722" ,
 	.mv_setup               = se7722_setup ,
-	.mv_nr_irqs		= 109 ,
+	.mv_nr_irqs		= SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_NR,
 	.mv_init_irq		= init_se7722_IRQ,
-	.mv_irq_demux           = se7722_irq_demux,
-
 };
-ALIAS_MV(se7722)

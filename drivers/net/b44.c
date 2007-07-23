@@ -1519,14 +1519,13 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 	u8 *pwol_pattern;
 	u8 pwol_mask[B44_PMASK_SIZE];
 
-	pwol_pattern = kmalloc(B44_PATTERN_SIZE, GFP_KERNEL);
+	pwol_pattern = kzalloc(B44_PATTERN_SIZE, GFP_KERNEL);
 	if (!pwol_pattern) {
 		printk(KERN_ERR PFX "Memory not available for WOL\n");
 		return;
 	}
 
 	/* Ipv4 magic packet pattern - pattern 0.*/
-	memset(pwol_pattern, 0, B44_PATTERN_SIZE);
 	memset(pwol_mask, 0, B44_PMASK_SIZE);
 	plen0 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
 				  B44_ETHIPV4UDP_HLEN);

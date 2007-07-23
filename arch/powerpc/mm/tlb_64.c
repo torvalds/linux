@@ -8,7 +8,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -239,3 +238,59 @@ void pte_free_finish(void)
 	pte_free_submit(*batchp);
 	*batchp = NULL;
 }
+
+/**
+ * __flush_hash_table_range - Flush all HPTEs for a given address range
+ *                            from the hash table (and the TLB). But keeps
+ *                            the linux PTEs intact.
+ *
+ * @mm		: mm_struct of the target address space (generally init_mm)
+ * @start	: starting address
+ * @end         : ending address (not included in the flush)
+ *
+ * This function is mostly to be used by some IO hotplug code in order
+ * to remove all hash entries from a given address range used to map IO
+ * space on a removed PCI-PCI bidge without tearing down the full mapping
+ * since 64K pages may overlap with other bridges when using 64K pages
+ * with 4K HW pages on IO space.
+ *
+ * Because of that usage pattern, it's only available with CONFIG_HOTPLUG
+ * and is implemented for small size rather than speed.
+ */
+#ifdef CONFIG_HOTPLUG
+
+void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
+			      unsigned long end)
+{
+	unsigned long flags;
+
+	start = _ALIGN_DOWN(start, PAGE_SIZE);
+	end = _ALIGN_UP(end, PAGE_SIZE);
+
+	BUG_ON(!mm->pgd);
+
+	/* Note: Normally, we should only ever use a batch within a
+	 * PTE locked section. This violates the rule, but will work
+	 * since we don't actually modify the PTEs, we just flush the
+	 * hash while leaving the PTEs intact (including their reference
+	 * to being hashed). This is not the most performance oriented
+	 * way to do things but is fine for our needs here.
+	 */
+	local_irq_save(flags);
+	arch_enter_lazy_mmu_mode();
+	for (; start < end; start += PAGE_SIZE) {
+		pte_t *ptep = find_linux_pte(mm->pgd, start);
+		unsigned long pte;
+
+		if (ptep == NULL)
+			continue;
+		pte = pte_val(*ptep);
+		if (!(pte & _PAGE_HASHPTE))
+			continue;
+		hpte_need_flush(mm, start, ptep, pte, 0);
+	}
+	arch_leave_lazy_mmu_mode();
+	local_irq_restore(flags);
+}
+
+#endif /* CONFIG_HOTPLUG */

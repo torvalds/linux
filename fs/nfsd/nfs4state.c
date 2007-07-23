@@ -49,8 +49,10 @@
 #include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
 #include <linux/namei.h>
+#include <linux/swap.h>
 #include <linux/mutex.h>
 #include <linux/lockd/bind.h>
+#include <linux/module.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -149,6 +151,7 @@ get_nfs4_file(struct nfs4_file *fi)
 }
 
 static int num_delegations;
+unsigned int max_delegations;
 
 /*
  * Open owner state (share locks)
@@ -192,7 +195,9 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	struct nfs4_callback *cb = &stp->st_stateowner->so_client->cl_callback;
 
 	dprintk("NFSD alloc_init_deleg\n");
-	if (num_delegations > STATEID_HASH_SIZE * 4)
+	if (fp->fi_had_conflict)
+		return NULL;
+	if (num_delegations > max_delegations)
 		return NULL;
 	dp = kmem_cache_alloc(deleg_slab, GFP_KERNEL);
 	if (dp == NULL)
@@ -251,7 +256,7 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 	/* The following nfsd_close may not actually close the file,
 	 * but we want to remove the lease in any case. */
 	if (dp->dl_flock)
-		setlease(filp, F_UNLCK, &dp->dl_flock);
+		vfs_setlease(filp, F_UNLCK, &dp->dl_flock);
 	nfsd_close(filp);
 }
 
@@ -378,7 +383,6 @@ shutdown_callback_client(struct nfs4_client *clp)
 	if (clnt) {
 		clp->cl_callback.cb_client = NULL;
 		rpc_shutdown_client(clnt);
-		rpciod_down();
 	}
 }
 
@@ -1000,6 +1004,7 @@ alloc_init_file(struct inode *ino)
 		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
 		fp->fi_inode = igrab(ino);
 		fp->fi_id = current_fileid++;
+		fp->fi_had_conflict = false;
 		return fp;
 	}
 	return NULL;
@@ -1027,19 +1032,19 @@ static int
 nfsd4_init_slabs(void)
 {
 	stateowner_slab = kmem_cache_create("nfsd4_stateowners",
-			sizeof(struct nfs4_stateowner), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_stateowner), 0, 0, NULL);
 	if (stateowner_slab == NULL)
 		goto out_nomem;
 	file_slab = kmem_cache_create("nfsd4_files",
-			sizeof(struct nfs4_file), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_file), 0, 0, NULL);
 	if (file_slab == NULL)
 		goto out_nomem;
 	stateid_slab = kmem_cache_create("nfsd4_stateids",
-			sizeof(struct nfs4_stateid), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_stateid), 0, 0, NULL);
 	if (stateid_slab == NULL)
 		goto out_nomem;
 	deleg_slab = kmem_cache_create("nfsd4_delegations",
-			sizeof(struct nfs4_delegation), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_delegation), 0, 0, NULL);
 	if (deleg_slab == NULL)
 		goto out_nomem;
 	return 0;
@@ -1326,6 +1331,7 @@ do_recall(void *__dp)
 {
 	struct nfs4_delegation *dp = __dp;
 
+	dp->dl_file->fi_had_conflict = true;
 	nfsd4_cb_recall(dp);
 	return 0;
 }
@@ -1396,7 +1402,7 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 /*
  * Set the delegation file_lock back pointer.
  *
- * Called from __setlease() with lock_kernel() held.
+ * Called from setlease() with lock_kernel() held.
  */
 static
 void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
@@ -1410,7 +1416,7 @@ void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
 }
 
 /*
- * Called from __setlease() with lock_kernel() held
+ * Called from setlease() with lock_kernel() held
  */
 static
 int nfsd_same_client_deleg_cb(struct file_lock *onlist, struct file_lock *try)
@@ -1710,10 +1716,10 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	fl.fl_file = stp->st_vfs_file;
 	fl.fl_pid = current->tgid;
 
-	/* setlease checks to see if delegation should be handed out.
+	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callbacks fl_mylease and fl_change are used
 	 */
-	if ((status = setlease(stp->st_vfs_file,
+	if ((status = vfs_setlease(stp->st_vfs_file,
 		flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK, &flp))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
 		unhash_delegation(dp);
@@ -3191,20 +3197,49 @@ nfsd4_load_reboot_recovery_data(void)
 		printk("NFSD: Failure reading reboot recovery data\n");
 }
 
+unsigned long
+get_nfs4_grace_period(void)
+{
+	return max(user_lease_time, lease_time) * HZ;
+}
+
+/*
+ * Since the lifetime of a delegation isn't limited to that of an open, a
+ * client may quite reasonably hang on to a delegation as long as it has
+ * the inode cached.  This becomes an obvious problem the first time a
+ * client's inode cache approaches the size of the server's total memory.
+ *
+ * For now we avoid this problem by imposing a hard limit on the number
+ * of delegations, which varies according to the server's memory size.
+ */
+static void
+set_max_delegations(void)
+{
+	/*
+	 * Allow at most 4 delegations per megabyte of RAM.  Quick
+	 * estimates suggest that in the worst case (where every delegation
+	 * is for a different inode), a delegation could take about 1.5K,
+	 * giving a worst case usage of about 6% of memory.
+	 */
+	max_delegations = nr_free_buffer_pages() >> (20 - 2 - PAGE_SHIFT);
+}
+
 /* initialization to perform when the nfsd service is started: */
 
 static void
 __nfs4_state_start(void)
 {
-	time_t grace_time;
+	unsigned long grace_time;
 
 	boot_time = get_seconds();
-	grace_time = max(user_lease_time, lease_time);
+	grace_time = get_nfs_grace_period();
 	lease_time = user_lease_time;
 	in_grace = 1;
-	printk("NFSD: starting %ld-second grace period\n", grace_time);
+	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
+	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
-	queue_delayed_work(laundry_wq, &laundromat_work, grace_time*HZ);
+	queue_delayed_work(laundry_wq, &laundromat_work, grace_time);
+	set_max_delegations();
 }
 
 int

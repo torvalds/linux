@@ -239,7 +239,7 @@ struct snd_ali_image {
 
 
 struct snd_ali {
-	unsigned long	irq;
+	int		irq;
 	unsigned long	port;
 	unsigned char	revision;
 
@@ -731,8 +731,7 @@ static void snd_ali_detect_spdif_rate(struct snd_ali *codec)
 		return;
 	}
 
-	count = 0;
-	while (count++ <= 50000) {
+	for (count = 0; count <= 50000; count++) {
 		snd_ali_delay(codec, 6);
 		bval = inb(ALI_REG(codec,ALI_SPDIF_CTRL + 1));
 		R2 = bval & 0x1F;
@@ -2218,7 +2217,7 @@ static int __devinit snd_ali_create(struct snd_card *card,
 	codec->card = card;
 	codec->pci = pci;
 	codec->irq = -1;
-	pci_read_config_byte(pci, PCI_REVISION_ID, &codec->revision);
+	codec->revision = pci->revision;
 	codec->spdif_support = spdif_support;
 
 	if (pcm_streams < 1)
@@ -2343,7 +2342,7 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 	strcpy(card->driver, "ALI5451");
 	strcpy(card->shortname, "ALI 5451");
 	
-	sprintf(card->longname, "%s at 0x%lx, irq %li",
+	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, codec->port, codec->irq);
 
 	snd_ali_printk("register card.\n");

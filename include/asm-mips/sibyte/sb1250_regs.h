@@ -272,59 +272,69 @@
     ********************************************************************* */
 
 
-#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
+#if SIBYTE_HDR_FEATURE_1250_112x    /* This MC only on 1250 & 112x */
 #define R_DUART_NUM_PORTS           2
 
 #define A_DUART                     0x0010060000
 
 #define DUART_CHANREG_SPACING       0x100
-#define A_DUART_CHANREG(chan,reg)   (A_DUART + DUART_CHANREG_SPACING*(chan) + (reg))
-#define R_DUART_CHANREG(chan,reg)   (DUART_CHANREG_SPACING*(chan) + (reg))
+
+#define A_DUART_CHANREG(chan, reg)					\
+	(A_DUART + DUART_CHANREG_SPACING * ((chan) + 1) + (reg))
 #endif	/* 1250 & 112x */
 
-#define R_DUART_MODE_REG_1	    0x100
-#define R_DUART_MODE_REG_2	    0x110
-#define R_DUART_STATUS              0x120
-#define R_DUART_CLK_SEL             0x130
-#define R_DUART_CMD                 0x150
-#define R_DUART_RX_HOLD             0x160
-#define R_DUART_TX_HOLD             0x170
+#define R_DUART_MODE_REG_1	    0x000
+#define R_DUART_MODE_REG_2	    0x010
+#define R_DUART_STATUS		    0x020
+#define R_DUART_CLK_SEL		    0x030
+#define R_DUART_CMD		    0x050
+#define R_DUART_RX_HOLD		    0x060
+#define R_DUART_TX_HOLD		    0x070
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define R_DUART_FULL_CTL	    0x140
-#define R_DUART_OPCR_X		    0x180
-#define R_DUART_AUXCTL_X	    0x190
-#endif /* 1250 PASS2 || 112x PASS1 || 1480*/
+#define R_DUART_FULL_CTL	    0x040
+#define R_DUART_OPCR_X		    0x080
+#define R_DUART_AUXCTL_X	    0x090
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 
 /*
  * The IMR and ISR can't be addressed with A_DUART_CHANREG,
- * so use this macro instead.
+ * so use these macros instead.
  */
 
-#define R_DUART_AUX_CTRL            0x310
-#define R_DUART_ISR_A               0x320
-#define R_DUART_IMR_A               0x330
-#define R_DUART_ISR_B               0x340
-#define R_DUART_IMR_B               0x350
-#define R_DUART_OUT_PORT            0x360
-#define R_DUART_OPCR                0x370
-#define R_DUART_IN_PORT             0x380
+#if SIBYTE_HDR_FEATURE_1250_112x    /* This MC only on 1250 & 112x */
+#define DUART_IMRISR_SPACING	    0x20
+#define DUART_INCHNG_SPACING	    0x10
 
-#define R_DUART_SET_OPR		    0x3B0
-#define R_DUART_CLEAR_OPR	    0x3C0
+#define A_DUART_CTRLREG(reg)						\
+	(A_DUART + DUART_CHANREG_SPACING * 3 + (reg))
 
-#define DUART_IMRISR_SPACING        0x20
+#define R_DUART_IMRREG(chan)						\
+	(R_DUART_IMR_A + (chan) * DUART_IMRISR_SPACING)
+#define R_DUART_ISRREG(chan)						\
+	(R_DUART_ISR_A + (chan) * DUART_IMRISR_SPACING)
+#define R_DUART_INCHREG(chan)						\
+	(R_DUART_IN_CHNG_A + (chan) * DUART_INCHNG_SPACING)
 
-#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
-#define R_DUART_IMRREG(chan)	    (R_DUART_IMR_A + (chan)*DUART_IMRISR_SPACING)
-#define R_DUART_ISRREG(chan)	    (R_DUART_ISR_A + (chan)*DUART_IMRISR_SPACING)
-
-#define A_DUART_IMRREG(chan)	    (A_DUART + R_DUART_IMRREG(chan))
-#define A_DUART_ISRREG(chan)	    (A_DUART + R_DUART_ISRREG(chan))
+#define A_DUART_IMRREG(chan)	    A_DUART_CTRLREG(R_DUART_IMRREG(chan))
+#define A_DUART_ISRREG(chan)	    A_DUART_CTRLREG(R_DUART_ISRREG(chan))
+#define A_DUART_INCHREG(chan)	    A_DUART_CTRLREG(R_DUART_INCHREG(chan))
 #endif	/* 1250 & 112x */
 
+#define R_DUART_AUX_CTRL	    0x010
+#define R_DUART_ISR_A		    0x020
+#define R_DUART_IMR_A		    0x030
+#define R_DUART_ISR_B		    0x040
+#define R_DUART_IMR_B		    0x050
+#define R_DUART_OUT_PORT	    0x060
+#define R_DUART_OPCR		    0x070
+#define R_DUART_IN_PORT		    0x080
 
+#define R_DUART_SET_OPR		    0x0B0
+#define R_DUART_CLEAR_OPR	    0x0C0
+#define R_DUART_IN_CHNG_A	    0x0D0
+#define R_DUART_IN_CHNG_B	    0x0E0
 
 
 /*

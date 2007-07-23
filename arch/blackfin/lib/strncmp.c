@@ -6,6 +6,5 @@
 
 int strncmp(const char *cs, const char *ct, size_t count)
 {
-	        return __inline_strncmp(cs, ct, count);
+	return __inline_strncmp(cs, ct, count);
 }
-

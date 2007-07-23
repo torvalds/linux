@@ -14,7 +14,7 @@
 
 /* address in low memory of the wakeup routine. */
 unsigned long acpi_wakeup_address = 0;
-unsigned long acpi_video_flags;
+unsigned long acpi_realmode_flags;
 extern char wakeup_start, wakeup_end;
 
 extern unsigned long FASTCALL(acpi_copy_wakeup_routine(unsigned long));
@@ -68,9 +68,11 @@ static int __init acpi_sleep_setup(char *str)
 {
 	while ((str != NULL) && (*str != '\0')) {
 		if (strncmp(str, "s3_bios", 7) == 0)
-			acpi_video_flags = 1;
+			acpi_realmode_flags |= 1;
 		if (strncmp(str, "s3_mode", 7) == 0)
-			acpi_video_flags |= 2;
+			acpi_realmode_flags |= 2;
+		if (strncmp(str, "s3_beep", 7) == 0)
+			acpi_realmode_flags |= 4;
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");
@@ -80,9 +82,11 @@ static int __init acpi_sleep_setup(char *str)
 
 __setup("acpi_sleep=", acpi_sleep_setup);
 
+/* Ouch, we want to delete this. We already have better version in userspace, in
+   s2ram from suspend.sf.net project */
 static __init int reset_videomode_after_s3(struct dmi_system_id *d)
 {
-	acpi_video_flags |= 2;
+	acpi_realmode_flags |= 2;
 	return 0;
 }
 

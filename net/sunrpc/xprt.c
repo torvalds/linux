@@ -127,7 +127,7 @@ static void xprt_clear_locked(struct rpc_xprt *xprt)
 		clear_bit(XPRT_LOCKED, &xprt->state);
 		smp_mb__after_clear_bit();
 	} else
-		schedule_work(&xprt->task_cleanup);
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
 }
 
 /*
@@ -515,7 +515,7 @@ xprt_init_autodisconnect(unsigned long data)
 	if (xprt_connecting(xprt))
 		xprt_release_write(xprt, NULL);
 	else
-		schedule_work(&xprt->task_cleanup);
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
 	return;
 out_abort:
 	spin_unlock(&xprt->transport_lock);
@@ -886,27 +886,24 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
 
 /**
  * xprt_create_transport - create an RPC transport
- * @proto: requested transport protocol
- * @ap: remote peer address
- * @size: length of address
- * @to: timeout parameters
+ * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t size, struct rpc_timeout *to)
+struct rpc_xprt *xprt_create_transport(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
 
-	switch (proto) {
+	switch (args->proto) {
 	case IPPROTO_UDP:
-		xprt = xs_setup_udp(ap, size, to);
+		xprt = xs_setup_udp(args);
 		break;
 	case IPPROTO_TCP:
-		xprt = xs_setup_tcp(ap, size, to);
+		xprt = xs_setup_tcp(args);
 		break;
 	default:
 		printk(KERN_ERR "RPC: unrecognized transport protocol: %d\n",
-				proto);
+				args->proto);
 		return ERR_PTR(-EIO);
 	}
 	if (IS_ERR(xprt)) {

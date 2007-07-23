@@ -51,10 +51,10 @@ int pcf8563_open(struct inode *, struct file *);
 int pcf8563_release(struct inode *, struct file *);
 
 static const struct file_operations pcf8563_fops = {
-	owner: THIS_MODULE,
-	ioctl: pcf8563_ioctl,
-	open: pcf8563_open,
-	release: pcf8563_release,
+	.owner =	THIS_MODULE,
+	.ioctl =	pcf8563_ioctl,
+	.open =		pcf8563_open,
+	.release =	pcf8563_release,
 };
 
 unsigned char
@@ -193,9 +193,7 @@ err:
 void __exit
 pcf8563_exit(void)
 {
-	if (unregister_chrdev(PCF8563_MAJOR, DEVICE_NAME) < 0) {
-		printk(KERN_INFO "%s: Unable to unregister device.\n", PCF8563_NAME);
-	}
+	unregister_chrdev(PCF8563_MAJOR, DEVICE_NAME);
 }
 
 /*

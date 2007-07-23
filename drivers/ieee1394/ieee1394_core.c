@@ -30,6 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
 #include <linux/kdev_t.h>
+#include <linux/freezer.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/preempt.h>
@@ -1127,8 +1128,6 @@ static int hpsbpkt_thread(void *__hi)
 	struct hpsb_packet *packet, *p;
 	struct list_head tmp;
 	int may_schedule;
-
-	current->flags |= PF_NOFREEZE;
 
 	while (!kthread_should_stop()) {
 

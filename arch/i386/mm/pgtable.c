@@ -235,7 +235,7 @@ static inline void pgd_list_del(pgd_t *pgd)
 
 #if (PTRS_PER_PMD == 1)
 /* Non-PAE pgd constructor */
-void pgd_ctor(void *pgd)
+static void pgd_ctor(void *pgd)
 {
 	unsigned long flags;
 
@@ -257,7 +257,7 @@ void pgd_ctor(void *pgd)
 }
 #else  /* PTRS_PER_PMD > 1 */
 /* PAE pgd constructor */
-void pgd_ctor(void *pgd)
+static void pgd_ctor(void *pgd)
 {
 	/* PAE, kernel PMD may be shared */
 
@@ -276,7 +276,7 @@ void pgd_ctor(void *pgd)
 }
 #endif	/* PTRS_PER_PMD */
 
-void pgd_dtor(void *pgd)
+static void pgd_dtor(void *pgd)
 {
 	unsigned long flags; /* can be called from interrupt context */
 

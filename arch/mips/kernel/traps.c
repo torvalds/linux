@@ -131,7 +131,7 @@ static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 	const int field = 2 * sizeof(unsigned long);
 	long stackdata;
 	int i;
-	unsigned long *sp = (unsigned long *)regs->regs[29];
+	unsigned long __user *sp = (unsigned long __user *)regs->regs[29];
 
 	printk("Stack :");
 	i = 0;
@@ -187,7 +187,7 @@ void dump_stack(void)
 
 EXPORT_SYMBOL(dump_stack);
 
-void show_code(unsigned int *pc)
+static void show_code(unsigned int __user *pc)
 {
 	long i;
 
@@ -305,7 +305,7 @@ void show_registers(struct pt_regs *regs)
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
 	        current->comm, current->pid, current_thread_info(), current);
 	show_stacktrace(current, regs);
-	show_code((unsigned int *) regs->cp0_epc);
+	show_code((unsigned int __user *) regs->cp0_epc);
 	printk("\n");
 }
 
@@ -326,6 +326,7 @@ void __noreturn die(const char * str, struct pt_regs * regs)
 #endif /* CONFIG_MIPS_MT_SMTC */
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
+	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())
@@ -373,7 +374,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 		action = MIPS_BE_FIXUP;
 
 	if (board_be_handler)
-		action = board_be_handler(regs, fixup != 0);
+		action = board_be_handler(regs, fixup != NULL);
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -865,7 +866,7 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 		dump_tlb_all();
 	}
 
-	show_code((unsigned int *) regs->cp0_epc);
+	show_code((unsigned int __user *) regs->cp0_epc);
 
 	/*
 	 * Some chips may have other causes of machine check (e.g. SB1

@@ -123,6 +123,10 @@ typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
 					  size_t length,
 					  void *callback_data);
 
+/*
+ * Important note:  The callback must guarantee that either fw_send_response()
+ * or kfree() is called on the @request.
+ */
 typedef void (*fw_address_callback_t)(struct fw_card *card,
 				      struct fw_request *request,
 				      int tcode, int destination, int source,

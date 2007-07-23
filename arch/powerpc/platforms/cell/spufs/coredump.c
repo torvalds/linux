@@ -226,7 +226,7 @@ static void spufs_arch_write_notes(struct file *file)
 		spu_acquire_saved(ctx_info->ctx);
 		for (j = 0; j < spufs_coredump_num_notes; j++)
 			spufs_arch_write_note(ctx_info, j, file);
-		spu_release(ctx_info->ctx);
+		spu_release_saved(ctx_info->ctx);
 		list_del(&ctx_info->list);
 		kfree(ctx_info);
 	}

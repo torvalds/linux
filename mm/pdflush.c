@@ -92,6 +92,7 @@ struct pdflush_work {
 static int __pdflush(struct pdflush_work *my_work)
 {
 	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
+	set_freezable();
 	my_work->fn = NULL;
 	my_work->who = current;
 	INIT_LIST_HEAD(&my_work->list);

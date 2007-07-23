@@ -66,7 +66,7 @@ cifs_strtoUCS(__le16 * to, const char *from, int len,
 {
 	int charlen;
 	int i;
-	wchar_t * wchar_to = (wchar_t *)to; /* needed to quiet sparse */
+	wchar_t *wchar_to = (wchar_t *)to; /* needed to quiet sparse */
 
 	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
 

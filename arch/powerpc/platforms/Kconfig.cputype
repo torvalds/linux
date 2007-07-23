@@ -1,0 +1,221 @@
+config PPC64
+	bool "64-bit kernel"
+	default n
+	help
+	  This option selects whether a 32-bit or a 64-bit kernel
+	  will be built.
+
+menu "Processor support"
+choice
+	prompt "Processor Type"
+	depends on PPC32
+	default 6xx
+	help
+	  There are five families of 32 bit PowerPC chips supported.
+	  The most common ones are the desktop and server CPUs (601, 603,
+	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
+	  embedded 52xx/82xx/83xx/86xx counterparts.
+	  The other embeeded parts, namely 4xx, 8xx, e200 (55xx) and e500
+	  (85xx) each form a family of their own that is not compatible
+	  with the others.
+
+	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
+
+config 6xx
+	bool "52xx/6xx/7xx/74xx/82xx/83xx/86xx"
+	select PPC_FPU
+
+config PPC_85xx
+	bool "Freescale 85xx"
+	select E500
+	select FSL_SOC
+	select 85xx
+	select WANT_DEVICE_TREE
+
+config PPC_8xx
+	bool "Freescale 8xx"
+	select FSL_SOC
+	select 8xx
+
+config 40x
+	bool "AMCC 40x"
+	select PPC_DCR_NATIVE
+
+config 44x
+	bool "AMCC 44x"
+	select PPC_DCR_NATIVE
+	select WANT_DEVICE_TREE
+
+config E200
+	bool "Freescale e200"
+
+endchoice
+
+config POWER4_ONLY
+	bool "Optimize for POWER4"
+	depends on PPC64
+	default n
+	---help---
+	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
+	  The resulting binary will not work on POWER3 or RS64 processors
+	  when compiled with binutils 2.15 or later.
+
+config POWER3
+	bool
+	depends on PPC64
+	default y if !POWER4_ONLY
+
+config POWER4
+	depends on PPC64
+	def_bool y
+
+config 6xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 8xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 83xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 85xx
+	bool
+
+config E500
+	bool
+
+config PPC_FPU
+	bool
+	default y if PPC64
+
+config 4xx
+	bool
+	depends on 40x || 44x
+	default y
+
+config BOOKE
+	bool
+	depends on E200 || E500 || 44x
+	default y
+
+config FSL_BOOKE
+	bool
+	depends on E200 || E500
+	default y
+
+config PTE_64BIT
+	bool
+	depends on 44x || E500
+	default y if 44x
+	default y if E500 && PHYS_64BIT
+
+config PHYS_64BIT
+	bool 'Large physical address support' if E500
+	depends on 44x || E500
+	select RESOURCES_64BIT
+	default y if 44x
+	---help---
+	  This option enables kernel support for larger than 32-bit physical
+	  addresses.  This features is not be available on all e500 cores.
+
+	  If in doubt, say N here.
+
+config ALTIVEC
+	bool "AltiVec Support"
+	depends on CLASSIC32 || POWER4
+	---help---
+	  This option enables kernel support for the Altivec extensions to the
+	  PowerPC processor. The kernel currently supports saving and restoring
+	  altivec registers, and turning on the 'altivec enable' bit so user
+	  processes can execute altivec instructions.
+
+	  This option is only usefully if you have a processor that supports
+	  altivec (G4, otherwise known as 74xx series), but does not have
+	  any affect on a non-altivec cpu (it does, however add code to the
+	  kernel).
+
+	  If in doubt, say Y here.
+
+config SPE
+	bool "SPE Support"
+	depends on E200 || E500
+	default y
+	---help---
+	  This option enables kernel support for the Signal Processing
+	  Extensions (SPE) to the PowerPC processor. The kernel currently
+	  supports saving and restoring SPE registers, and turning on the
+	  'spe enable' bit so user processes can execute SPE instructions.
+
+	  This option is only useful if you have a processor that supports
+	  SPE (e500, otherwise known as 85xx series), but does not have any
+	  effect on a non-spe cpu (it does, however add code to the kernel).
+
+	  If in doubt, say Y here.
+
+config PPC_STD_MMU
+	bool
+	depends on 6xx || POWER3 || POWER4 || PPC64
+	default y
+
+config PPC_STD_MMU_32
+	def_bool y
+	depends on PPC_STD_MMU && PPC32
+
+config PPC_MM_SLICES
+	bool
+	default y if HUGETLB_PAGE
+	default n
+
+config VIRT_CPU_ACCOUNTING
+	bool "Deterministic task and CPU time accounting"
+	depends on PPC64
+	default y
+	help
+	  Select this option to enable more accurate task and CPU time
+	  accounting.  This is done by reading a CPU counter on each
+	  kernel entry and exit and on transitions within the kernel
+	  between system, softirq and hardirq state, so there is a
+	  small performance impact.  This also enables accounting of
+	  stolen time on logically-partitioned systems running on
+	  IBM POWER5-based machines.
+
+	  If in doubt, say Y here.
+
+config SMP
+	depends on PPC_STD_MMU
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.  Note that the kernel does not currently
+	  support SMP machines with 603/603e/603ev or PPC750 ("G3") processors
+	  since they have inadequate hardware support for multiprocessor
+	  operation.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on single-processor machines.
+	  On a single-processor machine, the kernel will run faster if you say
+	  N here.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-128)"
+	range 2 128
+	depends on SMP
+	default "32" if PPC64
+	default "4"
+
+config NOT_COHERENT_CACHE
+	bool
+	depends on 4xx || 8xx || E200
+	default y
+
+config CHECK_CACHE_COHERENCY
+	bool
+
+endmenu

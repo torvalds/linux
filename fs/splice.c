@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
+#include <linux/security.h>
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -264,7 +265,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			   unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
-	unsigned int loff, nr_pages;
+	unsigned int loff, nr_pages, req_pages;
 	struct page *pages[PIPE_BUFFERS];
 	struct partial_page partial[PIPE_BUFFERS];
 	struct page *page;
@@ -280,28 +281,24 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	loff = *ppos & ~PAGE_CACHE_MASK;
-	nr_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	if (nr_pages > PIPE_BUFFERS)
-		nr_pages = PIPE_BUFFERS;
-
-	/*
-	 * Don't try to 2nd guess the read-ahead logic, call into
-	 * page_cache_readahead() like the page cache reads would do.
-	 */
-	page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
+	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	nr_pages = min(req_pages, (unsigned)PIPE_BUFFERS);
 
 	/*
 	 * Lookup the (hopefully) full range of pages we need.
 	 */
 	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
+	index += spd.nr_pages;
 
 	/*
 	 * If find_get_pages_contig() returned fewer pages than we needed,
-	 * allocate the rest and fill in the holes.
+	 * readahead/allocate the rest and fill in the holes.
 	 */
+	if (spd.nr_pages < nr_pages)
+		page_cache_sync_readahead(mapping, &in->f_ra, in,
+				index, req_pages - spd.nr_pages);
+
 	error = 0;
-	index += spd.nr_pages;
 	while (spd.nr_pages < nr_pages) {
 		/*
 		 * Page could be there, find_get_pages_contig() breaks on
@@ -309,12 +306,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		page = find_get_page(mapping, index);
 		if (!page) {
-			/*
-			 * Make sure the read-ahead engine is notified
-			 * about this failure.
-			 */
-			handle_ra_miss(mapping, &in->f_ra, index);
-
 			/*
 			 * page didn't exist, allocate one.
 			 */
@@ -359,6 +350,10 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
 		page = pages[page_nr];
+
+		if (PageReadahead(page))
+			page_cache_async_readahead(mapping, &in->f_ra, in,
+					page, index, req_pages - page_nr);
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
@@ -452,6 +447,7 @@ fill_it:
 	 */
 	while (page_nr < nr_pages)
 		page_cache_release(pages[page_nr++]);
+	in->f_ra.prev_index = index;
 
 	if (spd.nr_pages)
 		return splice_to_pipe(pipe, &spd);
@@ -491,7 +487,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	ret = 0;
 	spliced = 0;
-	while (len) {
+	while (len && !spliced) {
 		ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
 
 		if (ret < 0)
@@ -598,7 +594,7 @@ find_page:
 		ret = add_to_page_cache_lru(page, mapping, index,
 					    GFP_KERNEL);
 		if (unlikely(ret))
-			goto out;
+			goto out_release;
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
@@ -654,8 +650,9 @@ find_page:
 	 */
 	mark_page_accessed(page);
 out:
-	page_cache_release(page);
 	unlock_page(page);
+out_release:
+	page_cache_release(page);
 out_ret:
 	return ret;
 }
@@ -961,6 +958,10 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(ret < 0))
 		return ret;
 
+	ret = security_file_permission(out, MAY_WRITE);
+	if (unlikely(ret < 0))
+		return ret;
+
 	return out->f_op->splice_write(pipe, out, ppos, len, flags);
 }
 
@@ -980,6 +981,10 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 		return -EBADF;
 
 	ret = rw_verify_area(READ, in, ppos, len);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = security_file_permission(in, MAY_READ);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -1051,15 +1056,11 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	sd->flags &= ~SPLICE_F_NONBLOCK;
 
 	while (len) {
-		size_t read_len, max_read_len;
+		size_t read_len;
+		loff_t pos = sd->pos;
 
-		/*
-		 * Do at most PIPE_BUFFERS pages worth of transfer:
-		 */
-		max_read_len = min(len, (size_t)(PIPE_BUFFERS*PAGE_SIZE));
-
-		ret = do_splice_to(in, &sd->pos, pipe, max_read_len, flags);
-		if (unlikely(ret < 0))
+		ret = do_splice_to(in, &pos, pipe, len, flags);
+		if (unlikely(ret <= 0))
 			goto out_release;
 
 		read_len = ret;
@@ -1071,26 +1072,18 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
-		if (unlikely(ret < 0))
+		if (unlikely(ret <= 0))
 			goto out_release;
 
 		bytes += ret;
 		len -= ret;
+		sd->pos = pos;
 
-		/*
-		 * In nonblocking mode, if we got back a short read then
-		 * that was due to either an IO error or due to the
-		 * pagecache entry not being there. In the IO error case
-		 * the _next_ splice attempt will produce a clean IO error
-		 * return value (not a short read), so in both cases it's
-		 * correct to break out of the loop here:
-		 */
-		if ((flags & SPLICE_F_NONBLOCK) && (read_len < max_read_len))
-			break;
+		if (ret < read_len)
+			goto out_release;
 	}
 
 	pipe->nrbufs = pipe->curbuf = 0;
-
 	return bytes;
 
 out_release:
@@ -1152,10 +1145,12 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		.pos		= *ppos,
 		.u.file		= out,
 	};
-	size_t ret;
+	long ret;
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
-	*ppos = sd.pos;
+	if (ret > 0)
+		*ppos += ret;
+
 	return ret;
 }
 

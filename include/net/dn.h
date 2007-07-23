@@ -3,7 +3,6 @@
 
 #include <linux/dn.h>
 #include <net/sock.h>
-#include <net/tcp.h>
 #include <asm/byteorder.h>
 
 #define dn_ntohs(x) le16_to_cpu(x)

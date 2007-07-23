@@ -63,7 +63,7 @@ obj-$(CONFIG_PROC_FS)		+= proc.o
 
 obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
 
-obj-$(CONFIG_I8253)		+= i8253.o
+obj-$(CONFIG_PCSPEAKER)		+= pcspeaker.o
 
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o

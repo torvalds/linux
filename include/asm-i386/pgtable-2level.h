@@ -57,14 +57,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
 /*
- * All present user pages are user-executable:
- */
-static inline int pte_exec(pte_t pte)
-{
-	return pte_user(pte);
-}
-
-/*
  * All present pages are kernel-executable:
  */
 static inline int pte_exec_kernel(pte_t pte)

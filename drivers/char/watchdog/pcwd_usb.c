@@ -626,12 +626,11 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
 
 	/* allocate memory for our device and initialize it */
-	usb_pcwd = kmalloc (sizeof(struct usb_pcwd_private), GFP_KERNEL);
+	usb_pcwd = kzalloc (sizeof(struct usb_pcwd_private), GFP_KERNEL);
 	if (usb_pcwd == NULL) {
 		printk(KERN_ERR PFX "Out of memory\n");
 		goto error;
 	}
-	memset (usb_pcwd, 0x00, sizeof (*usb_pcwd));
 
 	usb_pcwd_device = usb_pcwd;
 

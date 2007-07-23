@@ -64,6 +64,7 @@ extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 
  /* Ethernet (EMAC & MACB) */
 struct at91_eth_data {
+	u32		phy_mask;
 	u8		phy_irq_pin;	/* PHY IRQ */
 	u8		is_rmii;	/* using RMII interface? */
 };

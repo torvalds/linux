@@ -43,6 +43,7 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 
+#include "devices.h"
 #include "generic.h"
 
 /*
@@ -242,7 +243,7 @@ static struct resource pxamci_resources[] = {
 
 static u64 pxamci_dmamask = 0xffffffffUL;
 
-static struct platform_device pxamci_device = {
+struct platform_device pxa_device_mci = {
 	.name		= "pxa2xx-mci",
 	.id		= -1,
 	.dev		= {
@@ -255,7 +256,7 @@ static struct platform_device pxamci_device = {
 
 void __init pxa_set_mci_info(struct pxamci_platform_data *info)
 {
-	pxamci_device.dev.platform_data = info;
+	pxa_device_mci.dev.platform_data = info;
 }
 
 
@@ -281,7 +282,7 @@ static struct resource pxa2xx_udc_resources[] = {
 
 static u64 udc_dma_mask = ~(u32)0;
 
-static struct platform_device udc_device = {
+struct platform_device pxa_device_udc = {
 	.name		= "pxa2xx-udc",
 	.id		= -1,
 	.resource	= pxa2xx_udc_resources,
@@ -307,7 +308,7 @@ static struct resource pxafb_resources[] = {
 
 static u64 fb_dma_mask = ~(u64)0;
 
-static struct platform_device pxafb_device = {
+struct platform_device pxa_device_fb = {
 	.name		= "pxa2xx-fb",
 	.id		= -1,
 	.dev		= {
@@ -320,32 +321,32 @@ static struct platform_device pxafb_device = {
 
 void __init set_pxa_fb_info(struct pxafb_mach_info *info)
 {
-	pxafb_device.dev.platform_data = info;
+	pxa_device_fb.dev.platform_data = info;
 }
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
 {
-	pxafb_device.dev.parent = parent_dev;
+	pxa_device_fb.dev.parent = parent_dev;
 }
 
-static struct platform_device ffuart_device = {
+struct platform_device pxa_device_ffuart= {
 	.name		= "pxa2xx-uart",
 	.id		= 0,
 };
-static struct platform_device btuart_device = {
+struct platform_device pxa_device_btuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 1,
 };
-static struct platform_device stuart_device = {
+struct platform_device pxa_device_stuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
 };
-static struct platform_device hwuart_device = {
+struct platform_device pxa_device_hwuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 3,
 };
 
-static struct resource i2c_resources[] = {
+static struct resource pxai2c_resources[] = {
 	{
 		.start	= 0x40301680,
 		.end	= 0x403016a3,
@@ -357,40 +358,19 @@ static struct resource i2c_resources[] = {
 	},
 };
 
-static struct platform_device i2c_device = {
+struct platform_device pxa_device_i2c = {
 	.name		= "pxa2xx-i2c",
 	.id		= 0,
-	.resource	= i2c_resources,
-	.num_resources	= ARRAY_SIZE(i2c_resources),
+	.resource	= pxai2c_resources,
+	.num_resources	= ARRAY_SIZE(pxai2c_resources),
 };
-
-#ifdef CONFIG_PXA27x
-static struct resource i2c_power_resources[] = {
-	{
-		.start	= 0x40f00180,
-		.end	= 0x40f001a3,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_PWRI2C,
-		.end	= IRQ_PWRI2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device i2c_power_device = {
-	.name		= "pxa2xx-i2c",
-	.id		= 1,
-	.resource	= i2c_power_resources,
-	.num_resources	= ARRAY_SIZE(i2c_resources),
-};
-#endif
 
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
-	i2c_device.dev.platform_data = info;
+	pxa_device_i2c.dev.platform_data = info;
 }
 
-static struct resource i2s_resources[] = {
+static struct resource pxai2s_resources[] = {
 	{
 		.start	= 0x40400000,
 		.end	= 0x40400083,
@@ -402,16 +382,16 @@ static struct resource i2s_resources[] = {
 	},
 };
 
-static struct platform_device i2s_device = {
+struct platform_device pxa_device_i2s = {
 	.name		= "pxa2xx-i2s",
 	.id		= -1,
-	.resource	= i2s_resources,
-	.num_resources	= ARRAY_SIZE(i2s_resources),
+	.resource	= pxai2s_resources,
+	.num_resources	= ARRAY_SIZE(pxai2s_resources),
 };
 
 static u64 pxaficp_dmamask = ~(u32)0;
 
-static struct platform_device pxaficp_device = {
+struct platform_device pxa_device_ficp = {
 	.name		= "pxa2xx-ir",
 	.id		= -1,
 	.dev		= {
@@ -422,45 +402,10 @@ static struct platform_device pxaficp_device = {
 
 void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 {
-	pxaficp_device.dev.platform_data = info;
+	pxa_device_ficp.dev.platform_data = info;
 }
 
-static struct platform_device pxartc_device = {
+struct platform_device pxa_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
 };
-
-static struct platform_device *devices[] __initdata = {
-	&pxamci_device,
-	&udc_device,
-	&pxafb_device,
-	&ffuart_device,
-	&btuart_device,
-	&stuart_device,
-	&pxaficp_device,
-	&i2c_device,
-#ifdef CONFIG_PXA27x
-	&i2c_power_device,
-#endif
-	&i2s_device,
-	&pxartc_device,
-};
-
-static int __init pxa_init(void)
-{
-	int cpuid, ret;
-
-	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
-	if (ret)
-		return ret;
-
-	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	cpuid = read_cpuid(CPUID_ID);
-	if (((cpuid >> 4) & 0xfff) == 0x2d0 ||
-	    ((cpuid >> 4) & 0xfff) == 0x290)
-		ret = platform_device_register(&hwuart_device);
-
-	return ret;
-}
-
-subsys_initcall(pxa_init);

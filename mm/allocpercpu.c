@@ -53,12 +53,9 @@ void *percpu_populate(void *__pdata, size_t size, gfp_t gfp, int cpu)
 	int node = cpu_to_node(cpu);
 
 	BUG_ON(pdata->ptrs[cpu]);
-	if (node_online(node)) {
-		/* FIXME: kzalloc_node(size, gfp, node) */
-		pdata->ptrs[cpu] = kmalloc_node(size, gfp, node);
-		if (pdata->ptrs[cpu])
-			memset(pdata->ptrs[cpu], 0, size);
-	} else
+	if (node_online(node))
+		pdata->ptrs[cpu] = kmalloc_node(size, gfp|__GFP_ZERO, node);
+	else
 		pdata->ptrs[cpu] = kzalloc(size, gfp);
 	return pdata->ptrs[cpu];
 }

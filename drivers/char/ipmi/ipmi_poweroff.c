@@ -679,7 +679,7 @@ static int ipmi_poweroff_init (void)
 {
 	int rv;
 
-	printk ("Copyright (C) 2004 MontaVista Software -"
+	printk (KERN_INFO "Copyright (C) 2004 MontaVista Software -"
 		" IPMI Powerdown via sys_reboot.\n");
 
 	if (poweroff_powercycle)

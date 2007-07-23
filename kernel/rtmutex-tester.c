@@ -260,6 +260,7 @@ static int test_func(void *data)
 	int ret;
 
 	current->flags |= PF_MUTEX_TESTER;
+	set_freezable();
 	allow_signal(SIGHUP);
 
 	for(;;) {

@@ -5,6 +5,25 @@
 
 #ifdef __KERNEL__
 
+struct pci_sysdata {
+	int		node;		/* NUMA node */
+	void*		iommu;		/* IOMMU private data */
+};
+
+#ifdef CONFIG_CALGARY_IOMMU
+static inline void* pci_iommu(struct pci_bus *bus)
+{
+	struct pci_sysdata *sd = bus->sysdata;
+	return sd->iommu;
+}
+
+static inline void set_pci_iommu(struct pci_bus *bus, void *val)
+{
+	struct pci_sysdata *sd = bus->sysdata;
+	sd->iommu = val;
+}
+#endif /* CONFIG_CALGARY_IOMMU */
+
 #include <linux/mm.h> /* for struct page */
 
 /* Can be used to override the logic in pci_scan_bus for skipping
@@ -54,14 +73,6 @@ extern int iommu_setup(char *opt);
 
 #if defined(CONFIG_IOMMU) || defined(CONFIG_CALGARY_IOMMU)
 
-/*
- * x86-64 always supports DAC, but sometimes it is useful to force
- * devices through the IOMMU to get automatic sg list merging.
- * Optional right now.
- */
-extern int iommu_sac_force;
-#define pci_dac_dma_supported(pci_dev, mask)	(!iommu_sac_force)
-
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
 	dma_addr_t ADDR_NAME;
 #define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
@@ -78,8 +89,6 @@ extern int iommu_sac_force;
 #else
 /* No IOMMU */
 
-#define pci_dac_dma_supported(pci_dev, mask)    1
-
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
 #define DECLARE_PCI_UNMAP_LEN(LEN_NAME)
 #define pci_unmap_addr(PTR, ADDR_NAME)		(0)
@@ -90,36 +99,6 @@ extern int iommu_sac_force;
 #endif
 
 #include <asm-generic/pci-dma-compat.h>
-
-static inline dma64_addr_t
-pci_dac_page_to_dma(struct pci_dev *pdev, struct page *page, unsigned long offset, int direction)
-{
-	return ((dma64_addr_t) page_to_phys(page) +
-		(dma64_addr_t) offset);
-}
-
-static inline struct page *
-pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return virt_to_page(__va(dma_addr)); 	
-}
-
-static inline unsigned long
-pci_dac_dma_to_offset(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return (dma_addr & ~PAGE_MASK);
-}
-
-static inline void
-pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-}
-
-static inline void
-pci_dac_dma_sync_single_for_device(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
-{
-	flush_write_buffers();
-}
 
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
@@ -134,10 +113,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			       enum pci_mmap_state mmap_state, int write_combine);
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 #endif /* __KERNEL__ */
 

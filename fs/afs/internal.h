@@ -351,10 +351,18 @@ struct afs_vnode {
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
+#define AFS_VNODE_LOCKING	6		/* set if waiting for lock on vnode */
+#define AFS_VNODE_READLOCKED	7		/* set if vnode is read-locked on the server */
+#define AFS_VNODE_WRITELOCKED	8		/* set if vnode is write-locked on the server */
+#define AFS_VNODE_UNLOCKING	9		/* set if vnode is being unlocked on the server */
 
 	long			acl_order;	/* ACL check count (callback break count) */
 
 	struct list_head	writebacks;	/* alterations in pagecache that need writing */
+	struct list_head	pending_locks;	/* locks waiting to be granted */
+	struct list_head	granted_locks;	/* locks granted on this file */
+	struct delayed_work	lock_work;	/* work to be done in locking */
+	struct key		*unlock_key;	/* key to be used in unlocking */
 
 	/* outstanding callback notification on this file */
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
@@ -474,6 +482,15 @@ extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 
 /*
+ * flock.c
+ */
+extern void __exit afs_kill_lock_manager(void);
+extern void afs_lock_work(struct work_struct *);
+extern void afs_lock_may_be_available(struct afs_vnode *);
+extern int afs_lock(struct file *, int, struct file_lock *);
+extern int afs_flock(struct file *, int, struct file_lock *);
+
+/*
  * fsclient.c
  */
 extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
@@ -513,6 +530,15 @@ extern int afs_fs_get_volume_status(struct afs_server *, struct key *,
 				    struct afs_vnode *,
 				    struct afs_volume_status *,
 				    const struct afs_wait_mode *);
+extern int afs_fs_set_lock(struct afs_server *, struct key *,
+			   struct afs_vnode *, afs_lock_type_t,
+			   const struct afs_wait_mode *);
+extern int afs_fs_extend_lock(struct afs_server *, struct key *,
+			      struct afs_vnode *,
+			      const struct afs_wait_mode *);
+extern int afs_fs_release_lock(struct afs_server *, struct key *,
+			       struct afs_vnode *,
+			       const struct afs_wait_mode *);
 
 /*
  * inode.c
@@ -681,6 +707,10 @@ extern int afs_vnode_store_data(struct afs_writeback *, pgoff_t, pgoff_t,
 extern int afs_vnode_setattr(struct afs_vnode *, struct key *, struct iattr *);
 extern int afs_vnode_get_volume_status(struct afs_vnode *, struct key *,
 				       struct afs_volume_status *);
+extern int afs_vnode_set_lock(struct afs_vnode *, struct key *,
+			      afs_lock_type_t);
+extern int afs_vnode_extend_lock(struct afs_vnode *, struct key *);
+extern int afs_vnode_release_lock(struct afs_vnode *, struct key *);
 
 /*
  * volume.c

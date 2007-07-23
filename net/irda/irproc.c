@@ -84,7 +84,7 @@ void __init irda_proc_register(void)
  *    Unregister irda entry in /proc file system
  *
  */
-void __exit irda_proc_unregister(void)
+void irda_proc_unregister(void)
 {
 	int i;
 

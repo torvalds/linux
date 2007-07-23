@@ -116,8 +116,4 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 extern void pci_iounmap (struct pci_dev *dev, void __iomem *addr);
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* __V850_PCI_H__ */

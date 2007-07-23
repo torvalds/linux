@@ -174,7 +174,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	struct cr_panel *crp;
 	u8 dev_en;
 
-	crp = kzalloc(sizeof(crp), GFP_KERNEL);
+	crp = kzalloc(sizeof(*crp), GFP_KERNEL);
 	if (crp == NULL)
 		return -ENOMEM;
 
@@ -202,7 +202,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	}
 
 	crp->cr_lcd_device = lcd_device_register("cr-lcd",
-							&pdev->dev,
+							&pdev->dev, NULL,
 							&cr_lcd_ops);
 
 	if (IS_ERR(crp->cr_lcd_device)) {

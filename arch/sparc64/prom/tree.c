@@ -13,6 +13,7 @@
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
+#include <asm/ldc.h>
 
 /* Return the child of node 'node' or zero if no this node has no
  * direct descendent.
@@ -261,9 +262,17 @@ int prom_node_has_property(int node, const char *prop)
 int
 prom_setprop(int node, const char *pname, char *value, int size)
 {
-	if(size == 0) return 0;
-	if((pname == 0) || (value == 0)) return 0;
+	if (size == 0)
+		return 0;
+	if ((pname == 0) || (value == 0))
+		return 0;
 	
+#ifdef CONFIG_SUN_LDOMS
+	if (ldom_domaining_enabled) {
+		ldom_set_var(pname, value);
+		return 0;
+	}
+#endif
 	return p1275_cmd ("setprop", P1275_ARG(1,P1275_ARG_IN_STRING)|
 					  P1275_ARG(2,P1275_ARG_IN_BUF)|
 					  P1275_INOUT(4, 1), 
@@ -294,4 +303,12 @@ prom_pathtoinode(const char *path)
 	prom_devclose (inst);
 	if (node == -1) return 0;
 	return node;
+}
+
+int prom_ihandle2path(int handle, char *buffer, int bufsize)
+{
+	return p1275_cmd("instance-to-path",
+			 P1275_ARG(1,P1275_ARG_OUT_BUF)|
+			 P1275_INOUT(3, 1),
+			 handle, buffer, P1275_SIZE(bufsize));
 }

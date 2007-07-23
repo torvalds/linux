@@ -10,7 +10,7 @@
 struct screen_info {
 	u8  orig_x;		/* 0x00 */
 	u8  orig_y;		/* 0x01 */
-	u16 dontuse1;		/* 0x02 -- EXT_MEM_K sits here */
+	u16 ext_mem_k;		/* 0x02 */
 	u16 orig_video_page;	/* 0x04 */
 	u8  orig_video_mode;	/* 0x06 */
 	u8  orig_video_cols;	/* 0x07 */
@@ -27,7 +27,7 @@ struct screen_info {
 	u16 lfb_depth;		/* 0x16 */
 	u32 lfb_base;		/* 0x18 */
 	u32 lfb_size;		/* 0x1c */
-	u16 dontuse2, dontuse3;	/* 0x20 -- CL_MAGIC and CL_OFFSET here */
+	u16 cl_magic, cl_offset; /* 0x20 */
 	u16 lfb_linelength;	/* 0x24 */
 	u8  red_size;		/* 0x26 */
 	u8  red_pos;		/* 0x27 */
@@ -42,9 +42,8 @@ struct screen_info {
 	u16 pages;		/* 0x32 */
 	u16 vesa_attributes;	/* 0x34 */
 	u32 capabilities;       /* 0x36 */
-				/* 0x3a -- 0x3b reserved for future expansion */
-				/* 0x3c -- 0x3f micro stack for relocatable kernels */
-};
+	u8  _reserved[6];	/* 0x3a */
+} __attribute__((packed));
 
 extern struct screen_info screen_info;
 

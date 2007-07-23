@@ -80,6 +80,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	struct mm_struct *mm = current->mm;
 	struct siginfo si;
 	unsigned long mask;
+	int fault;
 
 	/* mmap_sem is performance critical.... */
 	prefetchw(&mm->mmap_sem);
@@ -147,26 +148,25 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	 * sure we exit gracefully rather than endlessly redo the
 	 * fault.
 	 */
-	switch (handle_mm_fault(mm, vma, address, (mask & VM_WRITE) != 0)) {
-	      case VM_FAULT_MINOR:
-		++current->min_flt;
-		break;
-	      case VM_FAULT_MAJOR:
-		++current->maj_flt;
-		break;
-	      case VM_FAULT_SIGBUS:
+	fault = handle_mm_fault(mm, vma, address, (mask & VM_WRITE) != 0);
+	if (unlikely(fault & VM_FAULT_ERROR)) {
 		/*
 		 * We ran out of memory, or some other thing happened
 		 * to us that made us unable to handle the page fault
 		 * gracefully.
 		 */
-		signal = SIGBUS;
-		goto bad_area;
-	      case VM_FAULT_OOM:
-		goto out_of_memory;
-	      default:
+		if (fault & VM_FAULT_OOM) {
+			goto out_of_memory;
+		} else if (fault & VM_FAULT_SIGBUS) {
+			signal = SIGBUS;
+			goto bad_area;
+		}
 		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	up_read(&mm->mmap_sem);
 	return;
 

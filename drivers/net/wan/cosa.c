@@ -572,13 +572,11 @@ static int cosa_probe(int base, int irq, int dma)
 	sprintf(cosa->name, "cosa%d", cosa->num);
 
 	/* Initialize the per-channel data */
-	cosa->chan = kmalloc(sizeof(struct channel_data)*cosa->nchannels,
-			     GFP_KERNEL);
+	cosa->chan = kcalloc(cosa->nchannels, sizeof(struct channel_data), GFP_KERNEL);
 	if (!cosa->chan) {
 	        err = -ENOMEM;
 		goto err_out3;
 	}
-	memset(cosa->chan, 0, sizeof(struct channel_data)*cosa->nchannels);
 	for (i=0; i<cosa->nchannels; i++) {
 		cosa->chan[i].cosa = cosa;
 		cosa->chan[i].num = i;

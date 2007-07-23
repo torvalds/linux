@@ -65,7 +65,7 @@ enum ipi_message_type {
 };
 
 /* Set to a secondary's cpuid when it comes online.  */
-static int smp_secondary_alive __initdata = 0;
+static int smp_secondary_alive __devinitdata = 0;
 
 /* Which cpus ids came online.  */
 cpumask_t cpu_online_map;
@@ -173,7 +173,7 @@ smp_callin(void)
 }
 
 /* Wait until hwrpb->txrdy is clear for cpu.  Return -1 on timeout.  */
-static int __init
+static int __devinit
 wait_for_txrdy (unsigned long cpumask)
 {
 	unsigned long timeout;
@@ -358,7 +358,7 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
 /*
  * Bring one cpu online.
  */
-static int __init
+static int __devinit
 smp_boot_one_cpu(int cpuid)
 {
 	struct task_struct *idle;

@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2004 Thomas Koeller <thomas.koeller@baslerweb.com>
+ * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  */
 #ifndef __ASM_MACH_EXCITE_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_EXCITE_CPU_FEATURE_OVERRIDES_H
@@ -27,6 +28,8 @@
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
 #define cpu_icache_snoops_remote_store	0
+#define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1

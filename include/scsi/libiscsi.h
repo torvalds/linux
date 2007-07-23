@@ -48,9 +48,8 @@ struct iscsi_nopin;
 #define debug_scsi(fmt...)
 #endif
 
-#define ISCSI_XMIT_CMDS_MAX	128	/* must be power of 2 */
-#define ISCSI_MGMT_CMDS_MAX	32	/* must be power of 2 */
-#define ISCSI_CONN_MAX			1
+#define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
+#define ISCSI_MGMT_CMDS_MAX	16	/* must be power of 2 */
 
 #define ISCSI_MGMT_ITT_OFFSET	0xa00
 
@@ -73,6 +72,8 @@ struct iscsi_nopin;
 #define ISCSI_AGE_SHIFT			28
 #define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
 
+#define ISCSI_ADDRESS_BUF_LEN		64
+
 struct iscsi_mgmt_task {
 	/*
 	 * Becuae LLDs allocate their hdr differently, this is a pointer to
@@ -80,7 +81,7 @@ struct iscsi_mgmt_task {
 	 */
 	struct iscsi_hdr	*hdr;
 	char			*data;		/* mgmt payload */
-	int			data_count;	/* counts data to be sent */
+	unsigned		data_count;	/* counts data to be sent */
 	uint32_t		itt;		/* this ITT */
 	void			*dd_data;	/* driver/transport data */
 	struct list_head	running;
@@ -90,6 +91,7 @@ enum {
 	ISCSI_TASK_COMPLETED,
 	ISCSI_TASK_PENDING,
 	ISCSI_TASK_RUNNING,
+	ISCSI_TASK_ABORTING,
 };
 
 struct iscsi_cmd_task {
@@ -99,16 +101,14 @@ struct iscsi_cmd_task {
 	 */
 	struct iscsi_cmd	*hdr;
 	int			itt;		/* this ITT */
-	int			datasn;		/* DataSN */
 
 	uint32_t		unsol_datasn;
-	int			imm_count;	/* imm-data (bytes)   */
-	int			unsol_count;	/* unsolicited (bytes)*/
+	unsigned		imm_count;	/* imm-data (bytes)   */
+	unsigned		unsol_count;	/* unsolicited (bytes)*/
 	/* offset in unsolicited stream (bytes); */
-	int			unsol_offset;
-	int			data_count;	/* remaining Data-Out */
+	unsigned		unsol_offset;
+	unsigned		data_count;	/* remaining Data-Out */
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
-	int			total_length;
 	struct iscsi_conn	*conn;		/* used connection    */
 	struct iscsi_mgmt_task	*mtask;		/* tmf mtask in progr */
 
@@ -152,18 +152,11 @@ struct iscsi_conn {
 	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
 
 	/* xmit */
-	struct kfifo		*immqueue;	/* immediate xmit queue */
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct list_head	mgmt_run_list;	/* list of control tasks */
 	struct list_head	xmitqueue;	/* data-path cmd queue */
 	struct list_head	run_list;	/* list of cmds in progress */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
-	/*
-	 * serializes connection xmit, access to kfifos:
-	 * xmitqueue, immqueue, mgmtqueue
-	 */
-	struct mutex		xmitmutex;
-
 	unsigned long		suspend_tx;	/* suspend Tx */
 	unsigned long		suspend_rx;	/* suspend Rx */
 
@@ -174,8 +167,8 @@ struct iscsi_conn {
 	int			tmabort_state;	/* see TMABORT_INITIAL, etc.*/
 
 	/* negotiated params */
-	int			max_recv_dlength; /* initiator_max_recv_dsl*/
-	int			max_xmit_dlength; /* target_max_recv_dsl */
+	unsigned		max_recv_dlength; /* initiator_max_recv_dsl*/
+	unsigned		max_xmit_dlength; /* target_max_recv_dsl */
 	int			hdrdgst_en;
 	int			datadgst_en;
 	int			ifmarker_en;
@@ -183,6 +176,12 @@ struct iscsi_conn {
 	/* values userspace uses to id a conn */
 	int			persistent_port;
 	char			*persistent_address;
+	/* remote portal currently connected to */
+	int			portal_port;
+	char			portal_address[ISCSI_ADDRESS_BUF_LEN];
+	/* local address */
+	int			local_port;
+	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
@@ -213,18 +212,25 @@ struct iscsi_session {
 
 	/* configuration */
 	int			initial_r2t_en;
-	int			max_r2t;
+	unsigned		max_r2t;
 	int			imm_data_en;
-	int			first_burst;
-	int			max_burst;
+	unsigned		first_burst;
+	unsigned		max_burst;
 	int			time2wait;
 	int			time2retain;
 	int			pdu_inorder_en;
 	int			dataseq_inorder_en;
 	int			erl;
 	int			tpgt;
+	char			*username;
+	char			*username_in;
+	char			*password;
+	char			*password_in;
 	char			*targetname;
-
+	char			*initiatorname;
+	/* hw address or netdev iscsi connection is bound to */
+	char			*hwaddress;
+	char			*netdev;
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;
@@ -255,12 +261,22 @@ extern int iscsi_eh_host_reset(struct scsi_cmnd *sc);
 extern int iscsi_queuecommand(struct scsi_cmnd *sc,
 			      void (*done)(struct scsi_cmnd *));
 
+
+/*
+ * iSCSI host helpers.
+ */
+extern int iscsi_host_set_param(struct Scsi_Host *shost,
+				enum iscsi_host_param param, char *buf,
+				int buflen);
+extern int iscsi_host_get_param(struct Scsi_Host *shost,
+				enum iscsi_host_param param, char *buf);
+
 /*
  * session management
  */
 extern struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *, struct scsi_transport_template *,
-		    int, int, uint32_t, uint32_t *);
+		    uint16_t, uint16_t, int, int, uint32_t, uint32_t *);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern struct iscsi_session *class_to_transport_session(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
@@ -289,8 +305,7 @@ extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 /*
  * pdu and task processing
  */
-extern int iscsi_check_assign_cmdsn(struct iscsi_session *,
-				    struct iscsi_nopin *);
+extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_nopin *);
 extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *,
 					struct iscsi_data *hdr);
 extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,

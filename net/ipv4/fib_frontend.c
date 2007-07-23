@@ -453,7 +453,6 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
 	[RTA_MULTIPATH]		= { .len = sizeof(struct rtnexthop) },
 	[RTA_PROTOINFO]		= { .type = NLA_U32 },
 	[RTA_FLOW]		= { .type = NLA_U32 },
-	[RTA_MP_ALGO]		= { .type = NLA_U32 },
 };
 
 static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -514,9 +513,6 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 			break;
 		case RTA_FLOW:
 			cfg->fc_flow = nla_get_u32(attr);
-			break;
-		case RTA_MP_ALGO:
-			cfg->fc_mp_alg = nla_get_u32(attr);
 			break;
 		case RTA_TABLE:
 			cfg->fc_table = nla_get_u32(attr);
@@ -821,7 +817,7 @@ static void nl_fib_input(struct sock *sk, int len)
 static void nl_fib_lookup_init(void)
 {
       netlink_kernel_create(NETLINK_FIB_LOOKUP, 0, nl_fib_input, NULL,
-      			    THIS_MODULE);
+			    THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)

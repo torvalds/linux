@@ -370,8 +370,6 @@ static int __init isapnp_read_tag(unsigned char *type, unsigned short *size)
 #if 0
 	printk(KERN_DEBUG "tag = 0x%x, type = 0x%x, size = %i\n", tag, *type, *size);
 #endif
-	if (type == 0)				/* wrong type */
-		return -1;
 	if (*type == 0xff && *size == 0xffff)	/* probably invalid data */
 		return -1;
 	return 0;

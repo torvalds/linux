@@ -459,7 +459,7 @@ static int ax_open(struct net_device *dev)
 	struct ei_device *ei_local = netdev_priv(dev);
 	int ret;
 
-	dev_dbg(ax->dev, "%s: open\n", dev->name);
+	dev_dbg(&ax->dev->dev, "%s: open\n", dev->name);
 
 	ret = request_irq(dev->irq, ax_ei_interrupt, 0, dev->name, dev);
 	if (ret)
@@ -492,7 +492,7 @@ static int ax_close(struct net_device *dev)
 	struct ax_device *ax = to_ax_dev(dev);
 	struct ei_device *ei_local = netdev_priv(dev);
 
-	dev_dbg(ax->dev, "%s: close\n", dev->name);
+	dev_dbg(&ax->dev->dev, "%s: close\n", dev->name);
 
 	/* turn the phy off */
 

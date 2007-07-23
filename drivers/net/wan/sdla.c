@@ -1196,10 +1196,9 @@ static int sdla_xfer(struct net_device *dev, struct sdla_mem __user *info, int r
 		
 	if (read)
 	{	
-		temp = kmalloc(mem.len, GFP_KERNEL);
+		temp = kzalloc(mem.len, GFP_KERNEL);
 		if (!temp)
 			return(-ENOMEM);
-		memset(temp, 0, mem.len);
 		sdla_read(dev, mem.addr, temp, mem.len);
 		if(copy_to_user(mem.data, temp, mem.len))
 		{

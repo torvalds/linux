@@ -41,6 +41,10 @@
 #include <linux/mca.h>
 #endif
 
+#if defined(CONFIG_EDAC)
+#include <linux/edac.h>
+#endif
+
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -148,7 +152,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	if (!stack) {
 		unsigned long dummy;
 		stack = &dummy;
-		if (task && task != current)
+		if (task != current)
 			stack = (unsigned long *)task->thread.esp;
 	}
 
@@ -207,6 +211,7 @@ static void print_trace_address(void *data, unsigned long addr)
 {
 	printk("%s [<%08lx>] ", (char *)data, addr);
 	print_symbol("%s\n", addr);
+	touch_nmi_watchdog();
 }
 
 static struct stacktrace_ops print_trace_ops = {
@@ -390,7 +395,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 		unsigned long esp;
 		unsigned short ss;
 
-		report_bug(regs->eip);
+		report_bug(regs->eip, regs);
 
 		printk(KERN_EMERG "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
@@ -433,6 +438,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
+	add_taint(TAINT_DIE);
 	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (!regs)
@@ -517,10 +523,12 @@ fastcall void do_##name(struct pt_regs * regs, long error_code) \
 	do_trap(trapnr, signr, str, 0, regs, error_code, NULL); \
 }
 
-#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr) \
+#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr, irq) \
 fastcall void do_##name(struct pt_regs * regs, long error_code) \
 { \
 	siginfo_t info; \
+	if (irq) \
+		local_irq_enable(); \
 	info.si_signo = signr; \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
@@ -560,13 +568,13 @@ DO_VM86_ERROR( 3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip, 0)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
-DO_ERROR_INFO(32, SIGSEGV, "iret exception", iret_error, ILL_BADSTK, 0)
+DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
+DO_ERROR_INFO(32, SIGSEGV, "iret exception", iret_error, ILL_BADSTK, 0, 1)
 
 fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 					      long error_code)
@@ -610,6 +618,13 @@ fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 
 	current->thread.error_code = error_code;
 	current->thread.trap_no = 13;
+	if (show_unhandled_signals && unhandled_signal(current, SIGSEGV) &&
+	    printk_ratelimit())
+		printk(KERN_INFO
+		    "%s[%d] general protection eip:%lx esp:%lx error:%lx\n",
+		    current->comm, current->pid,
+		    regs->eip, regs->esp, error_code);
+
 	force_sig(SIGSEGV, current);
 	return;
 
@@ -635,6 +650,14 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
 		"CPU %d.\n", reason, smp_processor_id());
 	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
+
+#if defined(CONFIG_EDAC)
+	if(edac_handler_set()) {
+		edac_atomic_assert_error();
+		return;
+	}
+#endif
+
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
 
@@ -752,6 +775,8 @@ static __kprobes void default_do_nmi(struct pt_regs * regs)
 	reassert_nmi();
 }
 
+static int ignore_nmis;
+
 fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu;
@@ -762,9 +787,22 @@ fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 
 	++nmi_count(cpu);
 
-	default_do_nmi(regs);
+	if (!ignore_nmis)
+		default_do_nmi(regs);
 
 	nmi_exit();
+}
+
+void stop_nmi(void)
+{
+	acpi_nmi_disable();
+	ignore_nmis++;
+}
+
+void restart_nmi(void)
+{
+	ignore_nmis--;
+	acpi_nmi_enable();
 }
 
 #ifdef CONFIG_KPROBES
@@ -1053,6 +1091,7 @@ asmlinkage void math_state_restore(void)
 	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
 	tsk->fpu_counter++;
 }
+EXPORT_SYMBOL_GPL(math_state_restore);
 
 #ifndef CONFIG_MATH_EMULATION
 

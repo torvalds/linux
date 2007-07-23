@@ -98,7 +98,7 @@
 #define HV_FAST_MACH_EXIT		0x00
 
 #ifndef __ASSEMBLY__
-extern void sun4v_mach_exit(unsigned long exit_core);
+extern void sun4v_mach_exit(unsigned long exit_code);
 #endif
 
 /* Domain services.  */

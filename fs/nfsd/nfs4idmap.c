@@ -587,6 +587,15 @@ idmap_lookup(struct svc_rqst *rqstp,
 	return ret;
 }
 
+static char *
+rqst_authname(struct svc_rqst *rqstp)
+{
+	struct auth_domain *clp;
+
+	clp = rqstp->rq_gssclient ? rqstp->rq_gssclient : rqstp->rq_client;
+	return clp->name;
+}
+
 static int
 idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen,
 		uid_t *id)
@@ -600,7 +609,7 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 		return -EINVAL;
 	memcpy(key.name, name, namelen);
 	key.name[namelen] = '\0';
-	strlcpy(key.authname, rqstp->rq_client->name, sizeof(key.authname));
+	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, nametoid_lookup, &key, &nametoid_cache, &item);
 	if (ret == -ENOENT)
 		ret = -ESRCH; /* nfserr_badname */
@@ -620,7 +629,7 @@ idmap_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
 	};
 	int ret;
 
-	strlcpy(key.authname, rqstp->rq_client->name, sizeof(key.authname));
+	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, idtoname_lookup, &key, &idtoname_cache, &item);
 	if (ret == -ENOENT)
 		return sprintf(name, "%u", id);

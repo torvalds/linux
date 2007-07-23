@@ -55,8 +55,8 @@ extern int xfs_lowbit64(__uint64_t v);
 /* Get high bit set out of 64-bit argument, -1 if none set */
 extern int xfs_highbit64(__uint64_t);
 
-/* Count set bits in map starting with start_bit */
-extern int xfs_count_bits(uint *map, uint size, uint start_bit);
+/* Return whether bitmap is empty (1 == empty) */
+extern int xfs_bitmap_empty(uint *map, uint size);
 
 /* Count continuous one bits in map starting with start_bit */
 extern int xfs_contig_bits(uint *map, uint size, uint start_bit);

@@ -25,16 +25,12 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
+
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/arch/gtwx5715.h>
 #include <asm/mach/pci.h>
-
-extern void ixp4xx_pci_preinit(void);
-extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);
-extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
-
 
 /*
  * The exact GPIO pins and IRQs are defined in arch-ixp4xx/gtwx5715.h

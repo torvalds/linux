@@ -383,11 +383,11 @@ struct macb {
 
 	unsigned int		rx_pending, tx_pending;
 
-	struct delayed_work	periodic_task;
-
-	struct mutex		mdio_mutex;
-	struct completion	mdio_complete;
-	struct mii_if_info	mii;
+	struct mii_bus		mii_bus;
+	struct phy_device	*phy_dev;
+	unsigned int 		link;
+	unsigned int 		speed;
+	unsigned int 		duplex;
 };
 
 #endif /* _MACB_H */

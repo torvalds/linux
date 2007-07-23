@@ -30,7 +30,7 @@ typedef sector_t chunk_t;
  * An exception is used where an old chunk of data has been
  * replaced by a new one.
  */
-struct exception {
+struct dm_snap_exception {
 	struct list_head hash_list;
 
 	chunk_t old_chunk;
@@ -58,13 +58,13 @@ struct exception_store {
 	 * Find somewhere to store the next exception.
 	 */
 	int (*prepare_exception) (struct exception_store *store,
-				  struct exception *e);
+				  struct dm_snap_exception *e);
 
 	/*
 	 * Update the metadata with this exception.
 	 */
 	void (*commit_exception) (struct exception_store *store,
-				  struct exception *e,
+				  struct dm_snap_exception *e,
 				  void (*callback) (void *, int success),
 				  void *callback_context);
 

@@ -1002,11 +1002,10 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr > 1)
 		return 0;
 
-	res = kmalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("PCI: unable to alloc resources");
 
-	memset(res, 0, sizeof(struct resource) * 2);
 
 	/* 'nr' assumptions:
 	 * ATUX is always 0

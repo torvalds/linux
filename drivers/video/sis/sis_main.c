@@ -1405,12 +1405,18 @@ sisfb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue,
 		}
 		break;
 	case 16:
+		if (regno >= 16)
+			break;
+
 		((u32 *)(info->pseudo_palette))[regno] =
 				(red & 0xf800)          |
 				((green & 0xfc00) >> 5) |
 				((blue & 0xf800) >> 11);
 		break;
 	case 32:
+		if (regno >= 16)
+			break;
+
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
@@ -5789,7 +5795,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->warncount = 0;
 	ivideo->chip_id = pdev->device;
 	ivideo->chip_vendor = pdev->vendor;
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &ivideo->revision_id);
+	ivideo->revision_id = pdev->revision;
 	ivideo->SiS_Pr.ChipRevision = ivideo->revision_id;
 	pci_read_config_word(pdev, PCI_COMMAND, &reg16);
 	ivideo->sisvga_enabled = reg16 & 0x01;

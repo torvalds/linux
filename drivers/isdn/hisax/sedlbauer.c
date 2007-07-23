@@ -451,6 +451,9 @@ Sedl_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 			spin_unlock_irqrestore(&cs->lock, flags);
 			return(0);
 		case CARD_RELEASE:
+			if (cs->hw.sedl.bus == SEDL_BUS_PCI)
+				/* disable all IRQ */
+				byteout(cs->hw.sedl.cfg_reg+ 5, 0);
 			if (cs->hw.sedl.chip == SEDL_CHIP_ISAC_ISAR) {
 				spin_lock_irqsave(&cs->lock, flags);
 				writereg(cs->hw.sedl.adr, cs->hw.sedl.hscx,
@@ -468,6 +471,9 @@ Sedl_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 			return(0);
 		case CARD_INIT:
 			spin_lock_irqsave(&cs->lock, flags);
+			if (cs->hw.sedl.bus == SEDL_BUS_PCI)
+				/* enable all IRQ */
+				byteout(cs->hw.sedl.cfg_reg+ 5, 0x02);
 			reset_sedlbauer(cs);
 			if (cs->hw.sedl.chip == SEDL_CHIP_ISAC_ISAR) {
 				clear_pending_isac_ints(cs);
@@ -667,7 +673,7 @@ setup_sedlbauer(struct IsdnCard *card)
 		byteout(cs->hw.sedl.cfg_reg, 0xff);
 		byteout(cs->hw.sedl.cfg_reg, 0x00);
 		byteout(cs->hw.sedl.cfg_reg+ 2, 0xdd);
-		byteout(cs->hw.sedl.cfg_reg+ 5, 0x02);
+		byteout(cs->hw.sedl.cfg_reg+ 5, 0); /* disable all IRQ */
 		byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_on);
 		mdelay(2);
 		byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_off);

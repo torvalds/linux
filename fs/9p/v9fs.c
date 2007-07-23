@@ -29,16 +29,12 @@
 #include <linux/sched.h>
 #include <linux/parser.h>
 #include <linux/idr.h>
-
-#include "debug.h"
+#include <net/9p/9p.h>
+#include <net/9p/transport.h>
+#include <net/9p/conn.h>
+#include <net/9p/client.h>
 #include "v9fs.h"
-#include "9p.h"
 #include "v9fs_vfs.h"
-#include "transport.h"
-#include "mux.h"
-
-/* TODO: sysfs or debugfs interface */
-int v9fs_debug_level = 0;	/* feature-rific global debug level  */
 
 /*
   * Option Parsing (code inspired by NFS code)
@@ -47,12 +43,12 @@ int v9fs_debug_level = 0;	/* feature-rific global debug level  */
 
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid, Opt_debug,
+	Opt_debug, Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid,
 	Opt_rfdno, Opt_wfdno,
 	/* String options */
 	Opt_uname, Opt_remotename,
 	/* Options that take no arguments */
-	Opt_legacy, Opt_nodevmap, Opt_unix, Opt_tcp, Opt_fd,
+	Opt_legacy, Opt_nodevmap, Opt_unix, Opt_tcp, Opt_fd, Opt_pci,
 	/* Cache options */
 	Opt_cache_loose,
 	/* Error token */
@@ -60,6 +56,7 @@ enum {
 };
 
 static match_table_t tokens = {
+	{Opt_debug, "debug=%x"},
 	{Opt_port, "port=%u"},
 	{Opt_msize, "msize=%u"},
 	{Opt_uid, "uid=%u"},
@@ -67,12 +64,14 @@ static match_table_t tokens = {
 	{Opt_afid, "afid=%u"},
 	{Opt_rfdno, "rfdno=%u"},
 	{Opt_wfdno, "wfdno=%u"},
-	{Opt_debug, "debug=%x"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
 	{Opt_unix, "proto=unix"},
 	{Opt_tcp, "proto=tcp"},
 	{Opt_fd, "proto=fd"},
+#ifdef CONFIG_PCI_9P
+	{Opt_pci, "proto=pci"},
+#endif
 	{Opt_tcp, "tcp"},
 	{Opt_unix, "unix"},
 	{Opt_fd, "fd"},
@@ -82,6 +81,8 @@ static match_table_t tokens = {
 	{Opt_cache_loose, "loose"},
 	{Opt_err, NULL}
 };
+
+extern struct p9_transport *p9pci_trans_create(void);
 
 /*
  *  Parse option string.
@@ -122,12 +123,18 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		token = match_token(p, tokens, args);
 		if (token < Opt_uname) {
 			if ((ret = match_int(&args[0], &option)) < 0) {
-				dprintk(DEBUG_ERROR,
+				P9_DPRINTK(P9_DEBUG_ERROR,
 					"integer field, but no integer?\n");
 				continue;
 			}
 		}
 		switch (token) {
+		case Opt_debug:
+			v9ses->debug = option;
+#ifdef CONFIG_NET_9P_DEBUG
+			p9_debug_level = option;
+#endif
+			break;
 		case Opt_port:
 			v9ses->port = option;
 			break;
@@ -149,14 +156,14 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		case Opt_wfdno:
 			v9ses->wfdno = option;
 			break;
-		case Opt_debug:
-			v9ses->debug = option;
-			break;
 		case Opt_tcp:
 			v9ses->proto = PROTO_TCP;
 			break;
 		case Opt_unix:
 			v9ses->proto = PROTO_UNIX;
+			break;
+		case Opt_pci:
+			v9ses->proto = PROTO_PCI;
 			break;
 		case Opt_fd:
 			v9ses->proto = PROTO_FD;
@@ -183,82 +190,6 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 }
 
 /**
- * v9fs_inode2v9ses - safely extract v9fs session info from super block
- * @inode: inode to extract information from
- *
- * Paranoid function to extract v9ses information from superblock,
- * if anything is missing it will report an error.
- *
- */
-
-struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
-{
-	return (inode->i_sb->s_fs_info);
-}
-
-/**
- * v9fs_get_idpool - allocate numeric id from pool
- * @p - pool to allocate from
- *
- * XXX - This seems to be an awful generic function, should it be in idr.c with
- *            the lock included in struct idr?
- */
-
-int v9fs_get_idpool(struct v9fs_idpool *p)
-{
-	int i = 0;
-	int error;
-
-retry:
-	if (idr_pre_get(&p->pool, GFP_KERNEL) == 0)
-		return 0;
-
-	if (down_interruptible(&p->lock) == -EINTR) {
-		eprintk(KERN_WARNING, "Interrupted while locking\n");
-		return -1;
-	}
-
-	/* no need to store exactly p, we just need something non-null */
-	error = idr_get_new(&p->pool, p, &i);
-	up(&p->lock);
-
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
-		return -1;
-
-	return i;
-}
-
-/**
- * v9fs_put_idpool - release numeric id from pool
- * @p - pool to allocate from
- *
- * XXX - This seems to be an awful generic function, should it be in idr.c with
- *            the lock included in struct idr?
- */
-
-void v9fs_put_idpool(int id, struct v9fs_idpool *p)
-{
-	if (down_interruptible(&p->lock) == -EINTR) {
-		eprintk(KERN_WARNING, "Interrupted while locking\n");
-		return;
-	}
-	idr_remove(&p->pool, id);
-	up(&p->lock);
-}
-
-/**
- * v9fs_check_idpool - check if the specified id is available
- * @id - id to check
- * @p - pool
- */
-int v9fs_check_idpool(int id, struct v9fs_idpool *p)
-{
-	return idr_find(&p->pool, id) != NULL;
-}
-
-/**
  * v9fs_session_init - initialize session
  * @v9ses: session information structure
  * @dev_name: device being mounted
@@ -266,25 +197,21 @@ int v9fs_check_idpool(int id, struct v9fs_idpool *p)
  *
  */
 
-int
-v9fs_session_init(struct v9fs_session_info *v9ses,
+struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		  const char *dev_name, char *data)
 {
-	struct v9fs_fcall *fcall = NULL;
-	struct v9fs_transport *trans_proto;
-	int n = 0;
-	int newfid = -1;
 	int retval = -EINVAL;
-	struct v9fs_str *version;
+	struct p9_transport *trans;
+	struct p9_fid *fid;
 
 	v9ses->name = __getname();
 	if (!v9ses->name)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	v9ses->remotename = __getname();
 	if (!v9ses->remotename) {
 		__putname(v9ses->name);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	strcpy(v9ses->name, V9FS_DEFUSER);
@@ -292,130 +219,60 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 
 	v9fs_parse_options(data, v9ses);
 
-	/* set global debug level */
-	v9fs_debug_level = v9ses->debug;
-
-	/* id pools that are session-dependent: fids and tags */
-	idr_init(&v9ses->fidpool.pool);
-	init_MUTEX(&v9ses->fidpool.lock);
-
 	switch (v9ses->proto) {
 	case PROTO_TCP:
-		trans_proto = &v9fs_trans_tcp;
+		trans = p9_trans_create_tcp(dev_name, v9ses->port);
 		break;
 	case PROTO_UNIX:
-		trans_proto = &v9fs_trans_unix;
+		trans = p9_trans_create_unix(dev_name);
 		*v9ses->remotename = 0;
 		break;
 	case PROTO_FD:
-		trans_proto = &v9fs_trans_fd;
+		trans = p9_trans_create_fd(v9ses->rfdno, v9ses->wfdno);
 		*v9ses->remotename = 0;
 		break;
+#ifdef CONFIG_PCI_9P
+	case PROTO_PCI:
+		trans = p9pci_trans_create();
+		*v9ses->remotename = 0;
+		break;
+#endif
 	default:
 		printk(KERN_ERR "v9fs: Bad mount protocol %d\n", v9ses->proto);
 		retval = -ENOPROTOOPT;
-		goto SessCleanUp;
+		goto error;
 	};
 
-	v9ses->transport = kmalloc(sizeof(*v9ses->transport), GFP_KERNEL);
-	if (!v9ses->transport) {
-		retval = -ENOMEM;
-		goto SessCleanUp;
+	if (IS_ERR(trans)) {
+		retval = PTR_ERR(trans);
+		trans = NULL;
+		goto error;
 	}
 
-	memmove(v9ses->transport, trans_proto, sizeof(*v9ses->transport));
+	v9ses->clnt = p9_client_create(trans, v9ses->maxdata + P9_IOHDRSZ,
+		v9ses->extended);
 
-	if ((retval = v9ses->transport->init(v9ses, dev_name, data)) < 0) {
-		eprintk(KERN_ERR, "problem initializing transport\n");
-		goto SessCleanUp;
+	if (IS_ERR(v9ses->clnt)) {
+		retval = PTR_ERR(v9ses->clnt);
+		v9ses->clnt = NULL;
+		P9_DPRINTK(P9_DEBUG_ERROR, "problem initializing 9p client\n");
+		goto error;
 	}
 
-	v9ses->inprogress = 0;
-	v9ses->shutdown = 0;
-	v9ses->session_hung = 0;
-
-	v9ses->mux = v9fs_mux_init(v9ses->transport, v9ses->maxdata + V9FS_IOHDRSZ,
-		&v9ses->extended);
-
-	if (IS_ERR(v9ses->mux)) {
-		retval = PTR_ERR(v9ses->mux);
-		v9ses->mux = NULL;
-		dprintk(DEBUG_ERROR, "problem initializing mux\n");
-		goto SessCleanUp;
+	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->name,
+							v9ses->remotename);
+	if (IS_ERR(fid)) {
+		retval = PTR_ERR(fid);
+		fid = NULL;
+		P9_DPRINTK(P9_DEBUG_ERROR, "cannot attach\n");
+		goto error;
 	}
 
-	if (v9ses->afid == ~0) {
-		if (v9ses->extended)
-			retval =
-			    v9fs_t_version(v9ses, v9ses->maxdata, "9P2000.u",
-					   &fcall);
-		else
-			retval = v9fs_t_version(v9ses, v9ses->maxdata, "9P2000",
-						&fcall);
+	return fid;
 
-		if (retval < 0) {
-			dprintk(DEBUG_ERROR, "v9fs_t_version failed\n");
-			goto FreeFcall;
-		}
-
-		version = &fcall->params.rversion.version;
-		if (version->len==8 && !memcmp(version->str, "9P2000.u", 8)) {
-			dprintk(DEBUG_9P, "9P2000 UNIX extensions enabled\n");
-			v9ses->extended = 1;
-		} else if (version->len==6 && !memcmp(version->str, "9P2000", 6)) {
-			dprintk(DEBUG_9P, "9P2000 legacy mode enabled\n");
-			v9ses->extended = 0;
-		} else {
-			retval = -EREMOTEIO;
-			goto FreeFcall;
-		}
-
-		n = fcall->params.rversion.msize;
-		kfree(fcall);
-
-		if (n < v9ses->maxdata)
-			v9ses->maxdata = n;
-	}
-
-	newfid = v9fs_get_idpool(&v9ses->fidpool);
-	if (newfid < 0) {
-		eprintk(KERN_WARNING, "couldn't allocate FID\n");
-		retval = -ENOMEM;
-		goto SessCleanUp;
-	}
-	/* it is a little bit ugly, but we have to prevent newfid */
-	/* being the same as afid, so if it is, get a new fid     */
-	if (v9ses->afid != ~0 && newfid == v9ses->afid) {
-		newfid = v9fs_get_idpool(&v9ses->fidpool);
-		if (newfid < 0) {
-			eprintk(KERN_WARNING, "couldn't allocate FID\n");
-			retval = -ENOMEM;
-			goto SessCleanUp;
-		}
-	}
-
-	if ((retval =
-	     v9fs_t_attach(v9ses, v9ses->name, v9ses->remotename, newfid,
-			   v9ses->afid, NULL))
-	    < 0) {
-		dprintk(DEBUG_ERROR, "cannot attach\n");
-		goto SessCleanUp;
-	}
-
-	if (v9ses->afid != ~0) {
-		dprintk(DEBUG_ERROR, "afid not equal to ~0\n");
-		if (v9fs_t_clunk(v9ses, v9ses->afid))
-			dprintk(DEBUG_ERROR, "clunk failed\n");
-	}
-
-	return newfid;
-
-      FreeFcall:
-	kfree(fcall);
-
-      SessCleanUp:
+error:
 	v9fs_session_close(v9ses);
-	return retval;
+	return ERR_PTR(retval);
 }
 
 /**
@@ -426,15 +283,9 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 
 void v9fs_session_close(struct v9fs_session_info *v9ses)
 {
-	if (v9ses->mux) {
-		v9fs_mux_destroy(v9ses->mux);
-		v9ses->mux = NULL;
-	}
-
-	if (v9ses->transport) {
-		v9ses->transport->close(v9ses->transport);
-		kfree(v9ses->transport);
-		v9ses->transport = NULL;
+	if (v9ses->clnt) {
+		p9_client_destroy(v9ses->clnt);
+		v9ses->clnt = NULL;
 	}
 
 	__putname(v9ses->name);
@@ -446,9 +297,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
  * 	and cancel all pending requests.
  */
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
-	dprintk(DEBUG_ERROR, "cancel session %p\n", v9ses);
-	v9ses->transport->status = Disconnected;
-	v9fs_mux_cancel(v9ses->mux, -EIO);
+	P9_DPRINTK(P9_DEBUG_ERROR, "cancel session %p\n", v9ses);
+	p9_client_disconnect(v9ses->clnt);
 }
 
 extern int v9fs_error_init(void);
@@ -460,24 +310,9 @@ extern int v9fs_error_init(void);
 
 static int __init init_v9fs(void)
 {
-	int ret;
-
-	v9fs_error_init();
-
 	printk(KERN_INFO "Installing v9fs 9p2000 file system support\n");
 
-	ret = v9fs_mux_global_init();
-	if (ret) {
-		printk(KERN_WARNING "v9fs: starting mux failed\n");
-		return ret;
-	}
-	ret = register_filesystem(&v9fs_fs_type);
-	if (ret) {
-		printk(KERN_WARNING "v9fs: registering file system failed\n");
-		v9fs_mux_global_exit();
-	}
-
-	return ret;
+	return register_filesystem(&v9fs_fs_type);
 }
 
 /**
@@ -487,13 +322,13 @@ static int __init init_v9fs(void)
 
 static void __exit exit_v9fs(void)
 {
-	v9fs_mux_global_exit();
 	unregister_filesystem(&v9fs_fs_type);
 }
 
 module_init(init_v9fs)
 module_exit(exit_v9fs)
 
+MODULE_AUTHOR("Latchesar Ionkov <lucho@ionkov.net>");
 MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
 MODULE_AUTHOR("Ron Minnich <rminnich@lanl.gov>");
 MODULE_LICENSE("GPL");

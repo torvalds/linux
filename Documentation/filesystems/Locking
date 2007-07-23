@@ -510,13 +510,24 @@ More details about quota locking can be found in fs/dquot.c.
 prototypes:
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
+	int (*fault)(struct vm_area_struct*, struct vm_fault *);
 	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int *);
+	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
 
 locking rules:
-		BKL	mmap_sem
+		BKL	mmap_sem	PageLocked(page)
 open:		no	yes
 close:		no	yes
+fault:		no	yes
 nopage:		no	yes
+page_mkwrite:	no	yes		no
+
+	->page_mkwrite() is called when a previously read-only page is
+about to become writeable. The file system is responsible for
+protecting against truncate races. Once appropriate action has been
+taking to lock out truncate, the page range should be verified to be
+within i_size. The page mapping should also be checked that it is not
+NULL.
 
 ================================================================================
 			Dubious stuff

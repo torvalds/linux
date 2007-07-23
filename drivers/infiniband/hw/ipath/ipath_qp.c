@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -336,7 +336,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
 	qp->s_busy = 0;
-	qp->s_flags &= ~IPATH_S_SIGNAL_REQ_WR;
+	qp->s_flags &= IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
@@ -507,16 +507,13 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    attr->port_num > ibqp->device->phys_port_cnt)
 			goto inval;
 
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so don't allow Path MTU
+	 * values greater than 2048.
+	 */
 	if (attr_mask & IB_QP_PATH_MTU)
-		if (attr->path_mtu > IB_MTU_4096)
-			goto inval;
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-		if (attr->max_dest_rd_atomic > 1)
-			goto inval;
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
-		if (attr->max_rd_atomic > 1)
+		if (attr->path_mtu > IB_MTU_2048)
 			goto inval;
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE)

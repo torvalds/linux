@@ -540,13 +540,12 @@ static int mgslpc_probe(struct pcmcia_device *link)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
 
-    info = kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
+    info = kzalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
     if (!info) {
 	    printk("Error can't allocate device instance data\n");
 	    return -ENOMEM;
     }
 
-    memset(info, 0, sizeof(MGSLPC_INFO));
     info->magic = MGSLPC_MAGIC;
     INIT_WORK(&info->task, bh_handler);
     info->max_frame_size = 4096;

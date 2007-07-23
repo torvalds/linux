@@ -301,10 +301,21 @@ A partial list of the supported mount options follows:
 		during the local client kernel build will be used.
 		If server does not support Unicode, this parameter is
 		unused.
-  rsize		default read size (usually 16K)
-  wsize		default write size (usually 16K, 32K is often better over GigE)
-		maximum wsize currently allowed by CIFS is 57344 (14 4096 byte
-		pages)
+  rsize		default read size (usually 16K). The client currently
+		can not use rsize larger than CIFSMaxBufSize. CIFSMaxBufSize
+		defaults to 16K and may be changed (from 8K to the maximum
+		kmalloc size allowed by your kernel) at module install time
+		for cifs.ko. Setting CIFSMaxBufSize to a very large value
+		will cause cifs to use more memory and may reduce performance
+		in some cases.  To use rsize greater than 127K (the original
+		cifs protocol maximum) also requires that the server support
+		a new Unix Capability flag (for very large read) which some
+		newer servers (e.g. Samba 3.0.26 or later) do. rsize can be
+		set from a minimum of 2048 to a maximum of 130048 (127K or
+		CIFSMaxBufSize, whichever is smaller)
+  wsize		default write size (default 57344)
+		maximum wsize currently allowed by CIFS is 57344 (fourteen
+		4096 byte pages)
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -359,7 +370,7 @@ A partial list of the supported mount options follows:
 		Note that this does not affect the normal ACL check on the
 		target machine done by the server software (of the server
 		ACL against the user name provided at mount time).
-  serverino	Use servers inode numbers instead of generating automatically
+  serverino	Use server's inode numbers instead of generating automatically
 		incrementing inode numbers on the client.  Although this will
 		make it easier to spot hardlinked files (as they will have
 		the same inode numbers) and inode numbers may be persistent,
@@ -367,12 +378,11 @@ A partial list of the supported mount options follows:
 		are unique if multiple server side mounts are exported under a
 		single share (since inode numbers on the servers might not
 		be unique if multiple filesystems are mounted under the same
-		shared higher level directory).  Note that this requires that
-		the server support the CIFS Unix Extensions as other servers
-		do not return a unique IndexNumber on SMB FindFirst (most
-		servers return zero as the IndexNumber).  Parameter has no
-		effect to Windows servers and others which do not support the
-		CIFS Unix Extensions.
+		shared higher level directory).  Note that some older
+		(e.g. pre-Windows 2000) do not support returning UniqueIDs
+		or the CIFS Unix Extensions equivalent and for those
+		this mount option will have no effect.  Exporting cifs mounts
+		under nfsd requires this mount option on the cifs mount.
   noserverino   Client generates inode numbers (rather than using the actual one
 		from the server) by default.
   setuids       If the CIFS Unix extensions are negotiated with the server
@@ -582,10 +592,10 @@ the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 
-Two other experimental features are under development and to test 
-require enabling CONFIG_CIFS_EXPERIMENTAL
+Two other experimental features are under development. To test these
+requires enabling CONFIG_CIFS_EXPERIMENTAL
 
-	More efficient write operations
+	ipv6 enablement
 
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)

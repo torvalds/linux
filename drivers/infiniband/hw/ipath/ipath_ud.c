@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -176,6 +176,8 @@ static void ipath_ud_loopback(struct ipath_qp *sqp,
 			dev->n_pkt_drops++;
 			goto bail_sge;
 		}
+		/* Make sure entry is read after head index is read. */
+		smp_rmb();
 		wqe = get_rwqe_ptr(rq, tail);
 		if (++tail >= rq->size)
 			tail = 0;
@@ -231,6 +233,8 @@ static void ipath_ud_loopback(struct ipath_qp *sqp,
 
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
 		BUG_ON(len == 0);
 		ipath_copy_sge(&rsge, sge->vaddr, len);
 		sge->vaddr += len;

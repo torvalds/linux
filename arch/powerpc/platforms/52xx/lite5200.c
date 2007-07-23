@@ -156,7 +156,7 @@ static void __init lite5200_setup_arch(void)
 
 }
 
-void lite5200_show_cpuinfo(struct seq_file *m)
+static void lite5200_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node* np = of_find_all_nodes(NULL);
 	const char *model = NULL;

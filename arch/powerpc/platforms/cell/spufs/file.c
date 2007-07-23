@@ -28,6 +28,7 @@
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/ptrace.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
@@ -38,6 +39,7 @@
 #include "spufs.h"
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
+
 
 static int
 spufs_mem_open(struct inode *inode, struct file *file)
@@ -216,12 +218,12 @@ unsigned long spufs_get_unmapped_area(struct file *file, unsigned long addr,
 #endif /* CONFIG_SPU_FS_64K_LS */
 
 static const struct file_operations spufs_mem_fops = {
-	.open	 		= spufs_mem_open,
-	.release 		= spufs_mem_release,
-	.read   		= spufs_mem_read,
-	.write   		= spufs_mem_write,
-	.llseek  		= generic_file_llseek,
-	.mmap    		= spufs_mem_mmap,
+	.open			= spufs_mem_open,
+	.release		= spufs_mem_release,
+	.read			= spufs_mem_read,
+	.write			= spufs_mem_write,
+	.llseek			= generic_file_llseek,
+	.mmap			= spufs_mem_mmap,
 #ifdef CONFIG_SPU_FS_64K_LS
 	.get_unmapped_area	= spufs_get_unmapped_area,
 #endif
@@ -368,7 +370,7 @@ spufs_regs_read(struct file *file, char __user *buffer,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_regs_read(ctx, buffer, size, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -390,7 +392,7 @@ spufs_regs_write(struct file *file, const char __user *buffer,
 	ret = copy_from_user(lscsa->gprs + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -419,7 +421,7 @@ spufs_fpcr_read(struct file *file, char __user * buffer,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_fpcr_read(ctx, buffer, size, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -441,7 +443,7 @@ spufs_fpcr_write(struct file *file, const char __user * buffer,
 	ret = copy_from_user((char *)&lscsa->fpcr + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 
@@ -866,7 +868,7 @@ static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_signal1_read(ctx, buf, len, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -932,6 +934,13 @@ static const struct file_operations spufs_signal1_fops = {
 	.mmap = spufs_signal1_mmap,
 };
 
+static const struct file_operations spufs_signal1_nosched_fops = {
+	.open = spufs_signal1_open,
+	.release = spufs_signal1_release,
+	.write = spufs_signal1_write,
+	.mmap = spufs_signal1_mmap,
+};
+
 static int spufs_signal2_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
@@ -990,7 +999,7 @@ static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_signal2_read(ctx, buf, len, pos);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1056,6 +1065,13 @@ static const struct file_operations spufs_signal2_fops = {
 	.open = spufs_signal2_open,
 	.release = spufs_signal2_release,
 	.read = spufs_signal2_read,
+	.write = spufs_signal2_write,
+	.mmap = spufs_signal2_mmap,
+};
+
+static const struct file_operations spufs_signal2_nosched_fops = {
+	.open = spufs_signal2_open,
+	.release = spufs_signal2_release,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
 };
@@ -1497,14 +1513,15 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 		if (status)
 			ret = status;
 	}
-	spu_release(ctx);
 
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	ctx->tagwait |= 1 << cmd.tag;
 	ret = size;
 
+out_unlock:
+	spu_release(ctx);
 out:
 	return ret;
 }
@@ -1515,13 +1532,13 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 	u32 free_elements, tagstatus;
 	unsigned int mask;
 
+	poll_wait(file, &ctx->mfc_wq, wait);
+
 	spu_acquire(ctx);
 	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
 	free_elements = ctx->ops->get_mfc_free_elements(ctx);
 	tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
 	spu_release(ctx);
-
-	poll_wait(file, &ctx->mfc_wq, wait);
 
 	mask = 0;
 	if (free_elements & 0xffff)
@@ -1609,7 +1626,7 @@ static void spufs_decr_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->decr.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_decr_get(void *data)
@@ -1625,7 +1642,7 @@ static u64 spufs_decr_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_decr_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_ops, spufs_decr_get, spufs_decr_set,
@@ -1634,17 +1651,21 @@ DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_ops, spufs_decr_get, spufs_decr_set,
 static void spufs_decr_status_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
-	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
-	lscsa->decr_status.slot[0] = (u32) val;
-	spu_release(ctx);
+	if (val)
+		ctx->csa.priv2.mfc_control_RW |= MFC_CNTL_DECREMENTER_RUNNING;
+	else
+		ctx->csa.priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_decr_status_get(void *data)
 {
 	struct spu_context *ctx = data;
-	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	return lscsa->decr_status.slot[0];
+	if (ctx->csa.priv2.mfc_control_RW & MFC_CNTL_DECREMENTER_RUNNING)
+		return SPU_DECR_STATUS_RUNNING;
+	else
+		return 0;
 }
 
 static u64 spufs_decr_status_get(void *data)
@@ -1653,7 +1674,7 @@ static u64 spufs_decr_status_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_decr_status_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_status_ops, spufs_decr_status_get,
@@ -1665,7 +1686,7 @@ static void spufs_event_mask_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->event_mask.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 __spufs_event_mask_get(void *data)
@@ -1681,7 +1702,7 @@ static u64 spufs_event_mask_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = __spufs_event_mask_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_mask_ops, spufs_event_mask_get,
@@ -1705,7 +1726,7 @@ static u64 spufs_event_status_get(void *data)
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_event_status_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_status_ops, spufs_event_status_get,
@@ -1717,7 +1738,7 @@ static void spufs_srr0_set(void *data, u64 val)
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	spu_acquire_saved(ctx);
 	lscsa->srr0.slot[0] = (u32) val;
-	spu_release(ctx);
+	spu_release_saved(ctx);
 }
 
 static u64 spufs_srr0_get(void *data)
@@ -1727,7 +1748,7 @@ static u64 spufs_srr0_get(void *data)
 	u64 ret;
 	spu_acquire_saved(ctx);
 	ret = lscsa->srr0.slot[0];
-	spu_release(ctx);
+	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_srr0_ops, spufs_srr0_get, spufs_srr0_set,
@@ -1783,7 +1804,7 @@ static u64 spufs_lslr_get(void *data)
 
 	spu_acquire_saved(ctx);
 	ret = __spufs_lslr_get(data);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1796,6 +1817,29 @@ static int spufs_info_open(struct inode *inode, struct file *file)
 	file->private_data = ctx;
 	return 0;
 }
+
+static int spufs_caps_show(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	if (!(ctx->flags & SPU_CREATE_NOSCHED))
+		seq_puts(s, "sched\n");
+	if (!(ctx->flags & SPU_CREATE_ISOLATE))
+		seq_puts(s, "step\n");
+	return 0;
+}
+
+static int spufs_caps_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_caps_show, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_caps_fops = {
+	.open		= spufs_caps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static ssize_t __spufs_mbox_info_read(struct spu_context *ctx,
 			char __user *buf, size_t len, loff_t *pos)
@@ -1824,7 +1868,7 @@ static ssize_t spufs_mbox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_mbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1862,7 +1906,7 @@ static ssize_t spufs_ibox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_ibox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1903,7 +1947,7 @@ static ssize_t spufs_wbox_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_wbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -1953,7 +1997,7 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_dma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -2004,7 +2048,7 @@ static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_proxydma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
-	spu_release(ctx);
+	spu_release_saved(ctx);
 
 	return ret;
 }
@@ -2014,7 +2058,117 @@ static const struct file_operations spufs_proxydma_info_fops = {
 	.read = spufs_proxydma_info_read,
 };
 
+static int spufs_show_tid(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	seq_printf(s, "%d\n", ctx->tid);
+	return 0;
+}
+
+static int spufs_tid_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_show_tid, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_tid_fops = {
+	.open		= spufs_tid_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const char *ctx_state_names[] = {
+	"user", "system", "iowait", "loaded"
+};
+
+static unsigned long long spufs_acct_time(struct spu_context *ctx,
+		enum spu_utilization_state state)
+{
+	struct timespec ts;
+	unsigned long long time = ctx->stats.times[state];
+
+	/*
+	 * In general, utilization statistics are updated by the controlling
+	 * thread as the spu context moves through various well defined
+	 * state transitions, but if the context is lazily loaded its
+	 * utilization statistics are not updated as the controlling thread
+	 * is not tightly coupled with the execution of the spu context.  We
+	 * calculate and apply the time delta from the last recorded state
+	 * of the spu context.
+	 */
+	if (ctx->spu && ctx->stats.util_state == state) {
+		ktime_get_ts(&ts);
+		time += timespec_to_ns(&ts) - ctx->stats.tstamp;
+	}
+
+	return time / NSEC_PER_MSEC;
+}
+
+static unsigned long long spufs_slb_flts(struct spu_context *ctx)
+{
+	unsigned long long slb_flts = ctx->stats.slb_flt;
+
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		slb_flts += (ctx->spu->stats.slb_flt -
+			     ctx->stats.slb_flt_base);
+	}
+
+	return slb_flts;
+}
+
+static unsigned long long spufs_class2_intrs(struct spu_context *ctx)
+{
+	unsigned long long class2_intrs = ctx->stats.class2_intr;
+
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		class2_intrs += (ctx->spu->stats.class2_intr -
+				 ctx->stats.class2_intr_base);
+	}
+
+	return class2_intrs;
+}
+
+
+static int spufs_show_stat(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	spu_acquire(ctx);
+	seq_printf(s, "%s %llu %llu %llu %llu "
+		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
+		ctx_state_names[ctx->stats.util_state],
+		spufs_acct_time(ctx, SPU_UTIL_USER),
+		spufs_acct_time(ctx, SPU_UTIL_SYSTEM),
+		spufs_acct_time(ctx, SPU_UTIL_IOWAIT),
+		spufs_acct_time(ctx, SPU_UTIL_IDLE_LOADED),
+		ctx->stats.vol_ctx_switch,
+		ctx->stats.invol_ctx_switch,
+		spufs_slb_flts(ctx),
+		ctx->stats.hash_flt,
+		ctx->stats.min_flt,
+		ctx->stats.maj_flt,
+		spufs_class2_intrs(ctx),
+		ctx->stats.libassist);
+	spu_release(ctx);
+	return 0;
+}
+
+static int spufs_stat_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_show_stat, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_stat_fops = {
+	.open		= spufs_stat_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
 struct tree_descr spufs_dir_contents[] = {
+	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
@@ -2023,8 +2177,8 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "mbox_stat", &spufs_mbox_stat_fops, 0444, },
 	{ "ibox_stat", &spufs_ibox_stat_fops, 0444, },
 	{ "wbox_stat", &spufs_wbox_stat_fops, 0444, },
-	{ "signal1", &spufs_signal1_fops, 0666, },
-	{ "signal2", &spufs_signal2_fops, 0666, },
+	{ "signal1", &spufs_signal1_nosched_fops, 0222, },
+	{ "signal2", &spufs_signal2_nosched_fops, 0222, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
 	{ "cntl", &spufs_cntl_fops,  0666, },
@@ -2046,10 +2200,13 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "wbox_info", &spufs_wbox_info_fops, 0444, },
 	{ "dma_info", &spufs_dma_info_fops, 0444, },
 	{ "proxydma_info", &spufs_proxydma_info_fops, 0444, },
+	{ "tid", &spufs_tid_fops, 0444, },
+	{ "stat", &spufs_stat_fops, 0444, },
 	{},
 };
 
 struct tree_descr spufs_dir_nosched_contents[] = {
+	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
 	{ "ibox", &spufs_ibox_fops, 0444, },
@@ -2057,8 +2214,8 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "mbox_stat", &spufs_mbox_stat_fops, 0444, },
 	{ "ibox_stat", &spufs_ibox_stat_fops, 0444, },
 	{ "wbox_stat", &spufs_wbox_stat_fops, 0444, },
-	{ "signal1", &spufs_signal1_fops, 0666, },
-	{ "signal2", &spufs_signal2_fops, 0666, },
+	{ "signal1", &spufs_signal1_nosched_fops, 0222, },
+	{ "signal2", &spufs_signal2_nosched_fops, 0222, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
 	{ "mss", &spufs_mss_fops, 0666, },
@@ -2068,6 +2225,8 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "psmap", &spufs_psmap_fops, 0666, },
 	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "object-id", &spufs_object_id_ops, 0666, },
+	{ "tid", &spufs_tid_fops, 0444, },
+	{ "stat", &spufs_stat_fops, 0444, },
 	{},
 };
 

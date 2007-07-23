@@ -51,15 +51,30 @@ struct nf_nat_multi_range_compat
 
 #ifdef __KERNEL__
 #include <linux/list.h>
+#include <linux/netfilter/nf_conntrack_pptp.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
-/* The structure embedded in the conntrack structure. */
-struct nf_nat_info
+/* per conntrack: nat application helper private data */
+union nf_conntrack_nat_help
 {
-	struct list_head bysource;
-	struct nf_nat_seq seq[IP_CT_DIR_MAX];
+	/* insert nat helper private data here */
+	struct nf_nat_pptp nat_pptp_info;
 };
 
 struct nf_conn;
+
+/* The structure embedded in the conntrack structure. */
+struct nf_conn_nat
+{
+	struct hlist_node bysource;
+	struct nf_nat_seq seq[IP_CT_DIR_MAX];
+	struct nf_conn *ct;
+	union nf_conntrack_nat_help help;
+#if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
+    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
+	int masq_index;
+#endif
+};
 
 /* Set up the info structure to map into this range. */
 extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
@@ -70,7 +85,10 @@ extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
 extern int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 			     const struct nf_conn *ignored_conntrack);
 
-extern int nf_nat_module_is_loaded;
+static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
+{
+	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
+}
 
 #else  /* !__KERNEL__: iptables wants this to compile. */
 #define nf_nat_multi_range nf_nat_multi_range_compat

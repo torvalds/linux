@@ -1,3 +1,5 @@
+#ifndef _ASM_POWERPC_OF_PLATFORM_H
+#define _ASM_POWERPC_OF_PLATFORM_H
 /*
  *    Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
@@ -9,37 +11,8 @@
  *
  */
 
-#include <asm/of_device.h>
-
-/*
- * The of_platform_bus_type is a bus type used by drivers that do not
- * attach to a macio or similar bus but still use OF probing
- * mechanism
- */
-extern struct bus_type of_platform_bus_type;
-
-/*
- * An of_platform_driver driver is attached to a basic of_device on
- * the "platform bus" (of_platform_bus_type)
- */
-struct of_platform_driver
-{
-	char			*name;
-	struct of_device_id	*match_table;
-	struct module		*owner;
-
-	int	(*probe)(struct of_device* dev,
-			 const struct of_device_id *match);
-	int	(*remove)(struct of_device* dev);
-
-	int	(*suspend)(struct of_device* dev, pm_message_t state);
-	int	(*resume)(struct of_device* dev);
-	int	(*shutdown)(struct of_device* dev);
-
-	struct device_driver	driver;
-};
-#define	to_of_platform_driver(drv) \
-	container_of(drv,struct of_platform_driver, driver)
+/* This is just here during the transition */
+#include <linux/of_platform.h>
 
 /* Platform drivers register/unregister */
 extern int of_register_platform_driver(struct of_platform_driver *drv);
@@ -56,5 +29,6 @@ extern int of_platform_bus_probe(struct device_node *root,
 				 struct of_device_id *matches,
 				 struct device *parent);
 
-extern struct of_device *of_find_device_by_node(struct device_node *np);
 extern struct of_device *of_find_device_by_phandle(phandle ph);
+
+#endif	/* _ASM_POWERPC_OF_PLATFORM_H */

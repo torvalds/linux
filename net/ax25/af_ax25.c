@@ -1262,7 +1262,7 @@ static int __must_check ax25_connect(struct socket *sock,
 
 		for (;;) {
 			prepare_to_wait(sk->sk_sleep, &wait,
-			                TASK_INTERRUPTIBLE);
+					TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
 			if (!signal_pending(current)) {
@@ -1924,7 +1924,7 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ax25_info_seqops = {
+static const struct seq_operations ax25_info_seqops = {
 	.start = ax25_info_start,
 	.next = ax25_info_next,
 	.stop = ax25_info_stop,

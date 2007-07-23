@@ -157,6 +157,8 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int oldtype = sdata->type;
 
+	dev->hard_start_xmit = ieee80211_subif_start_xmit;
+
 	sdata->type = type;
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
@@ -196,6 +198,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	}
 	case IEEE80211_IF_TYPE_MNTR:
 		dev->type = ARPHRD_IEEE80211_RADIOTAP;
+		dev->hard_start_xmit = ieee80211_monitor_start_xmit;
 		break;
 	default:
 		printk(KERN_WARNING "%s: %s: Unknown interface type 0x%x",

@@ -1661,7 +1661,7 @@ int __init scsi_init_queue(void)
 
 	scsi_io_context_cache = kmem_cache_create("scsi_io_context",
 					sizeof(struct scsi_io_context),
-					0, 0, NULL, NULL);
+					0, 0, NULL);
 	if (!scsi_io_context_cache) {
 		printk(KERN_ERR "SCSI: can't init scsi io context cache\n");
 		return -ENOMEM;
@@ -1672,7 +1672,7 @@ int __init scsi_init_queue(void)
 		int size = sgp->size * sizeof(struct scatterlist);
 
 		sgp->slab = kmem_cache_create(sgp->name, size, 0,
-				SLAB_HWCACHE_ALIGN, NULL, NULL);
+				SLAB_HWCACHE_ALIGN, NULL);
 		if (!sgp->slab) {
 			printk(KERN_ERR "SCSI: can't init sg slab %s\n",
 					sgp->name);

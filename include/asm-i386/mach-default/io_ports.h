@@ -7,11 +7,6 @@
 #ifndef _MACH_IO_PORTS_H
 #define _MACH_IO_PORTS_H
 
-/* i8253A PIT registers */
-#define PIT_MODE		0x43
-#define PIT_CH0			0x40
-#define PIT_CH2			0x42
-
 /* i8259A PIC registers */
 #define PIC_MASTER_CMD		0x20
 #define PIC_MASTER_IMR		0x21

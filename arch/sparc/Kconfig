@@ -21,6 +21,12 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
+config OF
+	def_bool y
+
 source "init/Kconfig"
 
 menu "General machine setup"
@@ -210,9 +216,15 @@ config PCI
 	  CP-1200, JavaEngine-1, Corona, Red October, and Serengeti SGSC.
 	  All of these platforms are extremely obscure, so say N if unsure.
 
+config PCI_SYSCALL
+	def_bool PCI
+
 source "drivers/pci/Kconfig"
 
 endif
+
+config NO_DMA
+	def_bool !PCI
 
 config SUN_OPENPROMFS
 	tristate "Openprom tree appears in /proc/openprom"

@@ -65,9 +65,7 @@ static int umt_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int umt_tuner_attach (struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x61;
-	adap->pll_desc = &dvb_pll_tua6034;
-	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, DVB_PLL_TUA6034);
 	return 0;
 }
 
@@ -84,8 +82,8 @@ static int umt_probe(struct usb_interface *intf,
 
 /* do not change the order of the ID table */
 static struct usb_device_id umt_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_HANFTEK,		USB_PID_HANFTEK_UMT_010_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_HANFTEK,		USB_PID_HANFTEK_UMT_010_WARM) },
+/* 00 */	{ USB_DEVICE(USB_VID_HANFTEK, USB_PID_HANFTEK_UMT_010_COLD) },
+/* 01 */	{ USB_DEVICE(USB_VID_HANFTEK, USB_PID_HANFTEK_UMT_010_WARM) },
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, umt_table);

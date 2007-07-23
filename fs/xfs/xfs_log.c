@@ -817,10 +817,8 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	SPLDECL(s);
 	int		needed = 0, gen;
 	xlog_t		*log = mp->m_log;
-	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 
-	if (vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
-	    (vfsp->vfs_flag & VFS_RDONLY))
+	if (!xfs_fs_writable(mp))
 		return 0;
 
 	s = LOG_LOCK(log);
@@ -967,14 +965,16 @@ xlog_iodone(xfs_buf_t *bp)
 	} else if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		aborted = XFS_LI_ABORTED;
 	}
+
+	/* log I/O is always issued ASYNC */
+	ASSERT(XFS_BUF_ISASYNC(bp));
 	xlog_state_done_syncing(iclog, aborted);
-	if (!(XFS_BUF_ISASYNC(bp))) {
-		/*
-		 * Corresponding psema() will be done in bwrite().  If we don't
-		 * vsema() here, panic.
-		 */
-		XFS_BUF_V_IODONESEMA(bp);
-	}
+	/*
+	 * do not reference the buffer (bp) here as we could race
+	 * with it being freed after writing the unmount record to the
+	 * log.
+	 */
+
 }	/* xlog_iodone */
 
 /*
@@ -1199,11 +1199,18 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		*iclogp = (xlog_in_core_t *)
 			  kmem_zalloc(sizeof(xlog_in_core_t), KM_SLEEP);
 		iclog = *iclogp;
-		iclog->hic_data = (xlog_in_core_2_t *)
-			  kmem_zalloc(iclogsize, KM_SLEEP | KM_LARGE);
-
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
+
+		bp = xfs_buf_get_noaddr(log->l_iclog_size, mp->m_logdev_targp);
+		if (!XFS_BUF_CPSEMA(bp))
+			ASSERT(0);
+		XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
+		XFS_BUF_SET_BDSTRAT_FUNC(bp, xlog_bdstrat_cb);
+		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
+		iclog->ic_bp = bp;
+		iclog->hic_data = bp->b_addr;
+
 		log->l_iclog_bak[i] = (xfs_caddr_t)&(iclog->ic_header);
 
 		head = &iclog->ic_header;
@@ -1216,11 +1223,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		INT_SET(head->h_fmt, ARCH_CONVERT, XLOG_FMT);
 		memcpy(&head->h_fs_uuid, &mp->m_sb.sb_uuid, sizeof(uuid_t));
 
-		bp = xfs_buf_get_empty(log->l_iclog_size, mp->m_logdev_targp);
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
-		XFS_BUF_SET_BDSTRAT_FUNC(bp, xlog_bdstrat_cb);
-		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
-		iclog->ic_bp = bp;
 
 		iclog->ic_size = XFS_BUF_SIZE(bp) - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
@@ -1432,7 +1434,7 @@ xlog_sync(xlog_t		*log,
 	} else {
 		iclog->ic_bwritecnt = 1;
 	}
-	XFS_BUF_SET_PTR(bp, (xfs_caddr_t) &(iclog->ic_header), count);
+	XFS_BUF_SET_COUNT(bp, count);
 	XFS_BUF_SET_FSPRIVATE(bp, iclog);	/* save for later */
 	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_BUSY(bp);
@@ -1528,7 +1530,6 @@ xlog_dealloc_log(xlog_t *log)
 		}
 #endif
 		next_iclog = iclog->ic_next;
-		kmem_free(iclog->hic_data, log->l_iclog_size);
 		kmem_free(iclog, sizeof(xlog_in_core_t));
 		iclog = next_iclog;
 	}

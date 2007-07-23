@@ -10,7 +10,6 @@ config RTC_LIB
 
 config RTC_CLASS
 	tristate "RTC class"
-	depends on EXPERIMENTAL
 	default n
 	select RTC_LIB
 	help
@@ -38,6 +37,9 @@ config RTC_HCTOSYS_DEVICE
 	  The RTC device that will be used to (re)initialize the system
 	  clock, usually rtc0.  Initialization is done when the system
 	  starts up, and when it resumes from a low power state.
+
+	  The driver for this RTC device must be loaded before late_initcall
+	  functions run, so it must usually be statically linked.
 
 	  This clock should be battery-backed, so that it reads the correct
 	  time when the system boots from a power-off state.  Otherwise, your
@@ -119,7 +121,7 @@ config RTC_DRV_TEST
 	  will be called rtc-test.
 
 comment "I2C RTC drivers"
-	depends on RTC_CLASS
+	depends on RTC_CLASS && I2C
 
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00"
@@ -160,11 +162,11 @@ config RTC_DRV_MAX6900
 	  will be called rtc-max6900.
 
 config RTC_DRV_RS5C372
-	tristate "Ricoh RS5C372A/B"
+	tristate "Ricoh RS5C372A/B, RV5C386, RV5C387A"
 	depends on RTC_CLASS && I2C
 	help
 	  If you say yes here you get support for the
-	  Ricoh RS5C372A and RS5C372B RTC chips.
+	  Ricoh RS5C372A, RS5C372B, RV5C386, and RV5C387A RTC chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c372.
@@ -213,12 +215,40 @@ config RTC_DRV_PCF8583
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8583.
 
+config RTC_DRV_M41T80
+	tristate "ST M41T80 series RTC"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say Y here you will get support for the
+	  ST M41T80 RTC chips series. Currently following chips are
+	  supported: M41T80, M41T81, M41T82, M41T83, M41ST84, M41ST85
+	  and M41ST87.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m41t80.
+
+config RTC_DRV_M41T80_WDT
+	bool "ST M41T80 series RTC watchdog timer"
+	depends on RTC_DRV_M41T80
+	help
+	  If you say Y here you will get support for the
+	  watchdog timer in ST M41T80 RTC chips series.
+
+config RTC_DRV_TWL92330
+	boolean "TI TWL92330/Menelaus"
+	depends on RTC_CLASS && I2C && MENELAUS
+	help
+	  If you say yes here you get support for the RTC on the
+	  TWL92330 "Menelaus" power mangement chip, used with OMAP2
+	  platforms.  The support is integrated with the rest of
+	  the Menelaus driver; it's not separate module.
+
 comment "SPI RTC drivers"
-	depends on RTC_CLASS
+	depends on RTC_CLASS && SPI_MASTER
 
 config RTC_DRV_RS5C348
 	tristate "Ricoh RS5C348A/B"
-	depends on RTC_CLASS && SPI
+	depends on RTC_CLASS && SPI_MASTER
 	help
 	  If you say yes here you get support for the
 	  Ricoh RS5C348A and RS5C348B RTC chips.
@@ -228,7 +258,7 @@ config RTC_DRV_RS5C348
 
 config RTC_DRV_MAX6902
 	tristate "Maxim 6902"
-	depends on RTC_CLASS && SPI
+	depends on RTC_CLASS && SPI_MASTER
 	help
 	  If you say yes here you will get support for the
 	  Maxim MAX6902 SPI RTC chip.
@@ -246,7 +276,7 @@ comment "Platform RTC drivers"
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
 	depends on RTC_CLASS && (X86 || ALPHA || ARM26 || ARM \
-		|| M32R || ATARI || POWERPC || MIPS)
+		|| M32R || ATARI || PPC || MIPS)
 	help
 	  Say "yes" here to get direct support for the real time clock
 	  found in every PC or ACPI-based system, and some other boards.
@@ -262,6 +292,12 @@ config RTC_DRV_CMOS
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-cmos.
 
+config RTC_DRV_DS1216
+	tristate "Dallas DS1216"
+	depends on RTC_CLASS && SNI_RM
+	help
+	  If you say yes here you get support for the Dallas DS1216 RTC chips.
+
 config RTC_DRV_DS1553
 	tristate "Dallas DS1553"
 	depends on RTC_CLASS
@@ -271,6 +307,16 @@ config RTC_DRV_DS1553
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1553.
+
+config RTC_DRV_STK17TA8
+	tristate "Simtek STK17TA8"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  Simtek STK17TA8 timekeeping chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-stk17ta8.
 
 config RTC_DRV_DS1742
 	tristate "Dallas DS1742/1743"
@@ -291,6 +337,16 @@ config RTC_DRV_M48T86
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m48t86.
+
+config RTC_DRV_M48T59
+	tristate "ST M48T59"
+	depends on RTC_CLASS
+	help
+	  If you say Y here you will get support for the
+	  ST M48T59 RTC chip.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-m48t59".
 
 config RTC_DRV_V3020
 	tristate "EM Microelectronic V3020"
@@ -351,7 +407,7 @@ config RTC_DRV_SA1100
 
 config RTC_DRV_SH
 	tristate "SuperH On-Chip RTC"
-	depends on RTC_CLASS && SUPERH
+	depends on RTC_CLASS && SUPERH && (CPU_SH3 || CPU_SH4)
 	help
 	  Say Y here to enable support for the on-chip RTC found in
 	  most SuperH processors.
@@ -378,6 +434,13 @@ config RTC_DRV_PL031
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pl031.
+
+config RTC_DRV_AT32AP700X
+	tristate "AT32AP700X series RTC"
+	depends on RTC_CLASS && PLATFORM_AT32AP
+	help
+	  Driver for the internal RTC (Realtime Clock) on Atmel AVR32
+	  AT32AP700x family processors.
 
 config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200"

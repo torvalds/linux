@@ -36,10 +36,6 @@
 #include <asm/hw_irq.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_KDB
-# include <linux/kdb.h>
-#endif
-
 #undef SIMSERIAL_DEBUG	/* define this to get some debug information */
 
 #define KEYBOARD_INTR	3	/* must match with simulator! */

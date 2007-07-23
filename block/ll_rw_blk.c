@@ -256,6 +256,7 @@ static void rq_init(request_queue_t *q, struct request *rq)
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
 	rq->completion_data = NULL;
+	rq->next_rq = NULL;
 }
 
 /**
@@ -1828,11 +1829,11 @@ request_queue_t *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
 	request_queue_t *q;
 
-	q = kmem_cache_alloc_node(requestq_cachep, gfp_mask, node_id);
+	q = kmem_cache_alloc_node(requestq_cachep,
+				gfp_mask | __GFP_ZERO, node_id);
 	if (!q)
 		return NULL;
 
-	memset(q, 0, sizeof(*q));
 	init_timer(&q->unplug_timer);
 
 	snprintf(q->kobj.name, KOBJ_NAME_LEN, "%s", "queue");
@@ -3697,13 +3698,13 @@ int __init blk_dev_init(void)
 		panic("Failed to create kblockd\n");
 
 	request_cachep = kmem_cache_create("blkdev_requests",
-			sizeof(struct request), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(struct request), 0, SLAB_PANIC, NULL);
 
 	requestq_cachep = kmem_cache_create("blkdev_queue",
-			sizeof(request_queue_t), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(request_queue_t), 0, SLAB_PANIC, NULL);
 
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
-			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
+			sizeof(struct io_context), 0, SLAB_PANIC, NULL);
 
 	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));

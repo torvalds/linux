@@ -239,7 +239,7 @@ void __init avc_init(void)
 	atomic_set(&avc_cache.lru_hint, 0);
 
 	avc_node_cachep = kmem_cache_create("avc_node", sizeof(struct avc_node),
-					     0, SLAB_PANIC, NULL, NULL);
+					     0, SLAB_PANIC, NULL);
 
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_KERNEL, "AVC INITIALIZED\n");
 }
@@ -570,10 +570,12 @@ void avc_audit(u32 ssid, u32 tsid,
 		case AVC_AUDIT_DATA_FS:
 			if (a->u.fs.dentry) {
 				struct dentry *dentry = a->u.fs.dentry;
-				if (a->u.fs.mnt)
-					audit_avc_path(dentry, a->u.fs.mnt);
-				audit_log_format(ab, " name=");
-				audit_log_untrustedstring(ab, dentry->d_name.name);
+				if (a->u.fs.mnt) {
+					audit_log_d_path(ab, "path=", dentry, a->u.fs.mnt);
+				} else {
+					audit_log_format(ab, " name=");
+					audit_log_untrustedstring(ab, dentry->d_name.name);
+				}
 				inode = dentry->d_inode;
 			} else if (a->u.fs.inode) {
 				struct dentry *dentry;
@@ -586,7 +588,7 @@ void avc_audit(u32 ssid, u32 tsid,
 				}
 			}
 			if (inode)
-				audit_log_format(ab, " dev=%s ino=%ld",
+				audit_log_format(ab, " dev=%s ino=%lu",
 						 inode->i_sb->s_id,
 						 inode->i_ino);
 			break;
@@ -624,9 +626,8 @@ void avc_audit(u32 ssid, u32 tsid,
 				case AF_UNIX:
 					u = unix_sk(sk);
 					if (u->dentry) {
-						audit_avc_path(u->dentry, u->mnt);
-						audit_log_format(ab, " name=");
-						audit_log_untrustedstring(ab, u->dentry->d_name.name);
+						audit_log_d_path(ab, "path=",
+								 u->dentry, u->mnt);
 						break;
 					}
 					if (!u->addr)
@@ -832,6 +833,7 @@ int avc_ss_reset(u32 seqno)
  * @tsid: target security identifier
  * @tclass: target security class
  * @requested: requested permissions, interpreted based on @tclass
+ * @flags:  AVC_STRICT or 0
  * @avd: access vector decisions
  *
  * Check the AVC to determine whether the @requested permissions are granted
@@ -846,8 +848,9 @@ int avc_ss_reset(u32 seqno)
  * should be released for the auditing.
  */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid,
-                         u16 tclass, u32 requested,
-                         struct av_decision *avd)
+			 u16 tclass, u32 requested,
+			 unsigned flags,
+			 struct av_decision *avd)
 {
 	struct avc_node *node;
 	struct avc_entry entry, *p_ae;
@@ -874,7 +877,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	denied = requested & ~(p_ae->avd.allowed);
 
 	if (!requested || denied) {
-		if (selinux_enforcing)
+		if (selinux_enforcing || (flags & AVC_STRICT))
 			rc = -EACCES;
 		else
 			if (node)
@@ -909,7 +912,7 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 	struct av_decision avd;
 	int rc;
 
-	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, &avd);
+	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 	avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
 	return rc;
 }

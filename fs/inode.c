@@ -145,7 +145,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 		mapping->a_ops = &empty_aops;
  		mapping->host = inode;
 		mapping->flags = 0;
-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
+		mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
 		mapping->assoc_mapping = NULL;
 		mapping->backing_dev_info = &default_backing_dev_info;
 
@@ -462,6 +462,11 @@ static int shrink_icache_memory(int nr, gfp_t gfp_mask)
 	return (inodes_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
+static struct shrinker icache_shrinker = {
+	.shrink = shrink_icache_memory,
+	.seeks = DEFAULT_SEEKS,
+};
+
 static void __wait_on_freeing_inode(struct inode *inode);
 /*
  * Called with the inode lock held.
@@ -519,7 +524,13 @@ repeat:
  *	new_inode 	- obtain an inode
  *	@sb: superblock
  *
- *	Allocates a new inode for given superblock.
+ *	Allocates a new inode for given superblock. The default gfp_mask
+ *	for allocations related to inode->i_mapping is GFP_HIGHUSER_PAGECACHE.
+ *	If HIGHMEM pages are unsuitable or it is known that pages allocated
+ *	for the page cache are not reclaimable or migratable,
+ *	mapping_set_gfp_mask() must be called with suitable flags on the
+ *	newly created inode's mapping
+ *
  */
 struct inode *new_inode(struct super_block *sb)
 {
@@ -1377,9 +1388,8 @@ void __init inode_init(unsigned long mempages)
 					 0,
 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 					 SLAB_MEM_SPREAD),
-					 init_once,
-					 NULL);
-	set_shrinker(DEFAULT_SEEKS, shrink_icache_memory);
+					 init_once);
+	register_shrinker(&icache_shrinker);
 
 	/* Hash may have been set up in inode_init_early */
 	if (!hashdist)

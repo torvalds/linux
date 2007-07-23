@@ -63,32 +63,7 @@ void __iomem * devm_ioremap(struct device *dev, unsigned long offset,
 void __iomem * devm_ioremap_nocache(struct device *dev, unsigned long offset,
 				    unsigned long size);
 void devm_iounmap(struct device *dev, void __iomem *addr);
-
-/**
- *	check_signature		-	find BIOS signatures
- *	@io_addr: mmio address to check
- *	@signature:  signature block
- *	@length: length of signature
- *
- *	Perform a signature comparison with the mmio address io_addr. This
- *	address should have been obtained by ioremap.
- *	Returns 1 on a match.
- */
-
-static inline int check_signature(const volatile void __iomem *io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
+int check_signature(const volatile void __iomem *io_addr,
+			const unsigned char *signature, int length);
 
 #endif /* _LINUX_IO_H */

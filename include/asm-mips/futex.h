@@ -29,7 +29,7 @@
 		"	.set	mips3				\n"	\
 		"2:	sc	$1, %2				\n"	\
 		"	beqzl	$1, 1b				\n"	\
-		__WEAK_ORDERING_MB					\
+		__WEAK_LLSC_MB						\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
@@ -55,7 +55,7 @@
 		"	.set	mips3				\n"	\
 		"2:	sc	$1, %2				\n"	\
 		"	beqz	$1, 1b				\n"	\
-		__WEAK_ORDERING_MB					\
+		__WEAK_LLSC_MB						\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
@@ -152,7 +152,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	mips3					\n"
 		"2:	sc	$1, %1					\n"
 		"	beqzl	$1, 1b					\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"
@@ -179,7 +179,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	mips3					\n"
 		"2:	sc	$1, %1					\n"
 		"	beqz	$1, 1b					\n"
-		__WEAK_ORDERING_MB
+		__WEAK_LLSC_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"

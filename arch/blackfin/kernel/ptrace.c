@@ -36,8 +36,8 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -122,7 +122,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 static inline int
 put_reg(struct task_struct *task, int regno, unsigned long data)
 {
-	char * reg_ptr;
+	char *reg_ptr;
 
 	struct pt_regs *regs =
 	    (struct pt_regs *)((unsigned long)task_stack_page(task) +
@@ -146,7 +146,7 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 		break;
 	default:
 		if (regno <= 216)
-		        *(long *)(reg_ptr + regno) = data;
+			*(long *)(reg_ptr + regno) = data;
 	}
 	return 0;
 }

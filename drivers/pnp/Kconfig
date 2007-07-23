@@ -2,11 +2,9 @@
 # Plug and Play configuration
 #
 
-menu "Plug and Play support"
-	depends on HAS_IOMEM
-
-config PNP
+menuconfig PNP
 	bool "Plug and Play support"
+	depends on HAS_IOMEM
 	depends on ISA || ACPI
 	---help---
 	  Plug and Play (PnP) is a standard for peripherals which allows those
@@ -22,15 +20,15 @@ config PNP
 
 	  If unsure, say Y.
 
+if PNP
+
 config PNP_DEBUG
 	bool "PnP Debug Messages"
-	depends on PNP
 	help
 	  Say Y if you want the Plug and Play Layer to print debug messages.
 	  This is useful if you are developing a PnP driver or troubleshooting.
 
 comment "Protocols"
-	depends on PNP
 
 source "drivers/pnp/isapnp/Kconfig"
 
@@ -38,5 +36,4 @@ source "drivers/pnp/pnpbios/Kconfig"
 
 source "drivers/pnp/pnpacpi/Kconfig"
 
-endmenu
-
+endif # PNP

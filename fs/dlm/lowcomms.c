@@ -1449,7 +1449,7 @@ int dlm_lowcomms_start(void)
 	error = -ENOMEM;
 	con_cache = kmem_cache_create("dlm_conn", sizeof(struct connection),
 				      __alignof__(struct connection), 0,
-				      NULL, NULL);
+				      NULL);
 	if (!con_cache)
 		goto out;
 

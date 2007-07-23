@@ -61,6 +61,7 @@ struct nforce2_smbus {
 	struct i2c_adapter adapter;
 	int base;
 	int size;
+	int blockops;
 };
 
 
@@ -80,6 +81,8 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_ADDR		(smbus->base + 0x02)	/* address */
 #define NVIDIA_SMB_CMD		(smbus->base + 0x03)	/* command */
 #define NVIDIA_SMB_DATA		(smbus->base + 0x04)	/* 32 data registers */
+#define NVIDIA_SMB_BCNT		(smbus->base + 0x24)	/* number of data
+							   bytes */
 
 #define NVIDIA_SMB_STS_DONE	0x80
 #define NVIDIA_SMB_STS_ALRM	0x40
@@ -92,6 +95,7 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_PRTCL_BYTE			0x04
 #define NVIDIA_SMB_PRTCL_BYTE_DATA		0x06
 #define NVIDIA_SMB_PRTCL_WORD_DATA		0x08
+#define NVIDIA_SMB_PRTCL_BLOCK_DATA		0x0a
 #define NVIDIA_SMB_PRTCL_PEC			0x80
 
 static struct pci_driver nforce2_driver;
@@ -103,6 +107,8 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 {
 	struct nforce2_smbus *smbus = adap->algo_data;
 	unsigned char protocol, pec, temp;
+	u8 len;
+	int i;
 
 	protocol = (read_write == I2C_SMBUS_READ) ? NVIDIA_SMB_PRTCL_READ :
 		NVIDIA_SMB_PRTCL_WRITE;
@@ -135,6 +141,25 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 				 outb_p(data->word >> 8, NVIDIA_SMB_DATA+1);
 			}
 			protocol |= NVIDIA_SMB_PRTCL_WORD_DATA | pec;
+			break;
+
+		case I2C_SMBUS_BLOCK_DATA:
+			outb_p(command, NVIDIA_SMB_CMD);
+			if (read_write == I2C_SMBUS_WRITE) {
+				len = data->block[0];
+				if ((len == 0) || (len > I2C_SMBUS_BLOCK_MAX)) {
+					dev_err(&adap->dev,
+						"Transaction failed "
+						"(requested block size: %d)\n",
+						len);
+					return -1;
+				}
+				outb_p(len, NVIDIA_SMB_BCNT);
+				for (i = 0; i < I2C_SMBUS_BLOCK_MAX; i++)
+					outb_p(data->block[i + 1],
+					       NVIDIA_SMB_DATA+i);
+			}
+			protocol |= NVIDIA_SMB_PRTCL_BLOCK_DATA | pec;
 			break;
 
 		default:
@@ -174,6 +199,14 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		case I2C_SMBUS_WORD_DATA:
 			data->word = inb_p(NVIDIA_SMB_DATA) | (inb_p(NVIDIA_SMB_DATA+1) << 8);
 			break;
+
+		case I2C_SMBUS_BLOCK_DATA:
+			len = inb_p(NVIDIA_SMB_BCNT);
+			len = min_t(u8, len, I2C_SMBUS_BLOCK_MAX);
+			for (i = 0; i < len; i++)
+				data->block[i+1] = inb_p(NVIDIA_SMB_DATA + i);
+			data->block[0] = len;
+			break;
 	}
 
 	return 0;
@@ -184,7 +217,9 @@ static u32 nforce2_func(struct i2c_adapter *adapter)
 {
 	/* other functionality might be possible, but is not tested */
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA;
+	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
+	       (((struct nforce2_smbus*)adapter->algo_data)->blockops ?
+		I2C_FUNC_SMBUS_BLOCK_DATA : 0);
 }
 
 static struct i2c_algorithm smbus_algorithm = {
@@ -267,6 +302,13 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	if (!(smbuses = kzalloc(2*sizeof(struct nforce2_smbus), GFP_KERNEL)))
 		return -ENOMEM;
 	pci_set_drvdata(dev, smbuses);
+
+	switch(dev->device) {
+	case PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS:
+	case PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS:
+		smbuses[0].blockops = 1;
+		smbuses[1].blockops = 1;
+	}
 
 	/* SMBus adapter 1 */
 	res1 = nforce2_probe_smb(dev, 4, NFORCE_PCI_SMB1, &smbuses[0], "SMB1");

@@ -1,3 +1,5 @@
 bootsect
 bzImage
 setup
+setup.bin
+setup.elf

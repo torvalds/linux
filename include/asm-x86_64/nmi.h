@@ -88,5 +88,7 @@ unsigned lapic_adjust_nmi_hz(unsigned hz);
 int lapic_watchdog_ok(void);
 void disable_lapic_nmi_watchdog(void);
 void enable_lapic_nmi_watchdog(void);
+void stop_nmi(void);
+void restart_nmi(void);
 
 #endif /* ASM_NMI_H */

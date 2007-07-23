@@ -119,7 +119,7 @@ static int mvme16x_get_hardware_list(char *buffer)
  * that the base vectors for the VMEChip2 and PCCChip2 are valid.
  */
 
-static void mvme16x_init_IRQ (void)
+static void __init mvme16x_init_IRQ (void)
 {
 	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
 }

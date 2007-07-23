@@ -18,6 +18,8 @@
 #ifndef __XFS_SUPER_H__
 #define __XFS_SUPER_H__
 
+#include <linux/exportfs.h>
+
 #ifdef CONFIG_XFS_DMAPI
 # define vfs_insertdmapi(vfs)	vfs_insertops(vfsp, &xfs_dmops)
 # define vfs_initdmapi()	dmapi_init()

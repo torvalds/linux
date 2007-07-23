@@ -142,7 +142,7 @@ static int may_attach(struct task_struct *task)
 		return -EPERM;
 	smp_rmb();
 	if (task->mm)
-		dumpable = task->mm->dumpable;
+		dumpable = get_dumpable(task->mm);
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
@@ -161,6 +161,7 @@ int ptrace_may_attach(struct task_struct *task)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
+	unsigned long flags;
 
 	audit_ptrace(task);
 
@@ -181,9 +182,7 @@ repeat:
 	 * cpu's that may have task_lock).
 	 */
 	task_lock(task);
-	local_irq_disable();
-	if (!write_trylock(&tasklist_lock)) {
-		local_irq_enable();
+	if (!write_trylock_irqsave(&tasklist_lock, flags)) {
 		task_unlock(task);
 		do {
 			cpu_relax();
@@ -211,7 +210,7 @@ repeat:
 	force_sig_specific(SIGSTOP, task);
 
 bad:
-	write_unlock_irq(&tasklist_lock);
+	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
 out:
 	return retval;
@@ -491,3 +490,22 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	return ret;
 }
 #endif /* __ARCH_SYS_PTRACE */
+
+int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data)
+{
+	unsigned long tmp;
+	int copied;
+
+	copied = access_process_vm(tsk, addr, &tmp, sizeof(tmp), 0);
+	if (copied != sizeof(tmp))
+		return -EIO;
+	return put_user(tmp, (unsigned long __user *)data);
+}
+
+int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
+{
+	int copied;
+
+	copied = access_process_vm(tsk, addr, &data, sizeof(data), 1);
+	return (copied == sizeof(data)) ? 0 : -EIO;
+}

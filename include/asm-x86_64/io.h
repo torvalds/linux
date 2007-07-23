@@ -144,6 +144,7 @@ extern void early_iounmap(void *addr, unsigned long size);
  */
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap(volatile void __iomem *addr);
+extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.

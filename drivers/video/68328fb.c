@@ -60,7 +60,7 @@ static u_long videomemory;
 static u_long videomemorysize;
 
 static struct fb_info fb_info;
-static u32 mc68x328fb_pseudo_palette[17];
+static u32 mc68x328fb_pseudo_palette[16];
 
 static struct fb_var_screeninfo mc68x328fb_default __initdata = {
 	.red =		{ 0, 8, 0 },

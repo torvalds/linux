@@ -297,11 +297,6 @@ config X86_POPAD_OK
 	depends on !M386
 	default y
 
-config X86_CMPXCHG64
-	bool
-	depends on X86_PAE
-	default y
-
 config X86_ALIGNMENT_16
 	bool
 	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
@@ -344,8 +339,8 @@ config X86_CMOV
 	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7)
 	default y
 
-config X86_MINIMUM_CPU_MODEL
+config X86_MINIMUM_CPU_FAMILY
 	int
-	default "4" if X86_XADD || X86_CMPXCHG || X86_BSWAP
-	default "0"
+	default "4" if X86_XADD || X86_CMPXCHG || X86_BSWAP || X86_WP_WORKS_OK
+	default "3"
 

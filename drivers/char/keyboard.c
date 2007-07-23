@@ -24,6 +24,7 @@
  * 21-08-02: Converted to input API, major cleanup. (Vojtech Pavlik)
  */
 
+#include <linux/consolemap.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
@@ -308,10 +309,9 @@ static void applkey(struct vc_data *vc, int key, char mode)
  * Many other routines do put_queue, but I think either
  * they produce ASCII, or they produce some user-assigned
  * string, and in both cases we might assume that it is
- * in utf-8 already. UTF-8 is defined for words of up to 31 bits,
- * but we need only 16 bits here
+ * in utf-8 already.
  */
-static void to_utf8(struct vc_data *vc, ushort c)
+static void to_utf8(struct vc_data *vc, uint c)
 {
 	if (c < 0x80)
 		/*  0******* */
@@ -320,9 +320,19 @@ static void to_utf8(struct vc_data *vc, ushort c)
 		/* 110***** 10****** */
 		put_queue(vc, 0xc0 | (c >> 6));
 		put_queue(vc, 0x80 | (c & 0x3f));
-	} else {
+    	} else if (c < 0x10000) {
+	       	if (c >= 0xD800 && c < 0xE000)
+			return;
+		if (c == 0xFFFF)
+			return;
 		/* 1110**** 10****** 10****** */
 		put_queue(vc, 0xe0 | (c >> 12));
+		put_queue(vc, 0x80 | ((c >> 6) & 0x3f));
+		put_queue(vc, 0x80 | (c & 0x3f));
+    	} else if (c < 0x110000) {
+		/* 11110*** 10****** 10****** 10****** */
+		put_queue(vc, 0xf0 | (c >> 18));
+		put_queue(vc, 0x80 | ((c >> 12) & 0x3f));
 		put_queue(vc, 0x80 | ((c >> 6) & 0x3f));
 		put_queue(vc, 0x80 | (c & 0x3f));
 	}
@@ -393,7 +403,7 @@ static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 		return d;
 
 	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, d);
+		to_utf8(vc, conv_8bit_to_uni(d));
 	else if (d < 0x100)
 		put_queue(vc, d);
 
@@ -407,7 +417,7 @@ static void fn_enter(struct vc_data *vc)
 {
 	if (diacr) {
 		if (kbd->kbdmode == VC_UNICODE)
-			to_utf8(vc, diacr);
+			to_utf8(vc, conv_8bit_to_uni(diacr));
 		else if (diacr < 0x100)
 			put_queue(vc, diacr);
 		diacr = 0;
@@ -617,7 +627,7 @@ static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag)
 		return;
 	}
 	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, value);
+		to_utf8(vc, conv_8bit_to_uni(value));
 	else if (value < 0x100)
 		put_queue(vc, value);
 }
@@ -775,7 +785,7 @@ static void k_shift(struct vc_data *vc, unsigned char value, char up_flag)
 	/* kludge */
 	if (up_flag && shift_state != old_state && npadch != -1) {
 		if (kbd->kbdmode == VC_UNICODE)
-			to_utf8(vc, npadch & 0xffff);
+			to_utf8(vc, npadch);
 		else
 			put_queue(vc, npadch & 0xff);
 		npadch = -1;

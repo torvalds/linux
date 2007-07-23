@@ -41,6 +41,8 @@ Possible debug options are
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
 	T		Trace (please only use on single slabs)
+	-		Switch all debugging off (useful if the kernel is
+			configured with CONFIG_SLUB_DEBUG_ON)
 
 F.e. in order to boot just with sanity checks and red zoning one would specify:
 
@@ -125,13 +127,20 @@ SLUB Debug output
 
 Here is a sample of slub debug output:
 
-*** SLUB kmalloc-8: Redzone Active@0xc90f6d20 slab 0xc528c530 offset=3360 flags=0x400000c3 inuse=61 freelist=0xc90f6d58
-  Bytes b4 0xc90f6d10:  00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ........ZZZZZZZZ
-    Object 0xc90f6d20:  31 30 31 39 2e 30 30 35                         1019.005
-   Redzone 0xc90f6d28:  00 cc cc cc                                     .
-FreePointer 0xc90f6d2c -> 0xc90f6d58
-Last alloc: get_modalias+0x61/0xf5 jiffies_ago=53 cpu=1 pid=554
-Filler 0xc90f6d50:  5a 5a 5a 5a 5a 5a 5a 5a                         ZZZZZZZZ
+====================================================================
+BUG kmalloc-8: Redzone overwritten
+--------------------------------------------------------------------
+
+INFO: 0xc90f6d28-0xc90f6d2b. First byte 0x00 instead of 0xcc
+INFO: Slab 0xc528c530 flags=0x400000c3 inuse=61 fp=0xc90f6d58
+INFO: Object 0xc90f6d20 @offset=3360 fp=0xc90f6d58
+INFO: Allocated in get_modalias+0x61/0xf5 age=53 cpu=1 pid=554
+
+Bytes b4 0xc90f6d10:  00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ........ZZZZZZZZ
+  Object 0xc90f6d20:  31 30 31 39 2e 30 30 35                         1019.005
+ Redzone 0xc90f6d28:  00 cc cc cc                                     .
+ Padding 0xc90f6d50:  5a 5a 5a 5a 5a 5a 5a 5a                         ZZZZZZZZ
+
   [<c010523d>] dump_trace+0x63/0x1eb
   [<c01053df>] show_trace_log_lvl+0x1a/0x2f
   [<c010601d>] show_trace+0x12/0x14
@@ -153,74 +162,108 @@ Filler 0xc90f6d50:  5a 5a 5a 5a 5a 5a 5a 5a                         ZZZZZZZZ
   [<c0104112>] sysenter_past_esp+0x5f/0x99
   [<b7f7b410>] 0xb7f7b410
   =======================
-@@@ SLUB kmalloc-8: Restoring redzone (0xcc) from 0xc90f6d28-0xc90f6d2b
 
+FIX kmalloc-8: Restoring Redzone 0xc90f6d28-0xc90f6d2b=0xcc
 
+If SLUB encounters a corrupted object (full detection requires the kernel
+to be booted with slub_debug) then the following output will be dumped
+into the syslog:
 
-If SLUB encounters a corrupted object then it will perform the following
-actions:
-
-1. Isolation and report of the issue
+1. Description of the problem encountered
 
 This will be a message in the system log starting with
 
-*** SLUB <slab cache affected>: <What went wrong>@<object address>
-offset=<offset of object into slab> flags=<slabflags>
-inuse=<objects in use in this slab> freelist=<first free object in slab>
+===============================================
+BUG <slab cache affected>: <What went wrong>
+-----------------------------------------------
 
-2. Report on how the problem was dealt with in order to ensure the continued
-operation of the system.
+INFO: <corruption start>-<corruption_end> <more info>
+INFO: Slab <address> <slab information>
+INFO: Object <address> <object information>
+INFO: Allocated in <kernel function> age=<jiffies since alloc> cpu=<allocated by
+	cpu> pid=<pid of the process>
+INFO: Freed in <kernel function> age=<jiffies since free> cpu=<freed by cpu>
+	 pid=<pid of the process>
 
-These are messages in the system log beginning with
+(Object allocation / free information is only available if SLAB_STORE_USER is
+set for the slab. slub_debug sets that option)
 
-@@@ SLUB <slab cache affected>: <corrective action taken>
+2. The object contents if an object was involved.
 
-
-In the above sample SLUB found that the Redzone of an active object has
-been overwritten. Here a string of 8 characters was written into a slab that
-has the length of 8 characters. However, a 8 character string needs a
-terminating 0. That zero has overwritten the first byte of the Redzone field.
-After reporting the details of the issue encountered the @@@ SLUB message
-tell us that SLUB has restored the redzone to its proper value and then
-system operations continue.
-
-Various types of lines can follow the @@@ SLUB line:
+Various types of lines can follow the BUG SLUB line:
 
 Bytes b4 <address> : <bytes>
-	Show a few bytes before the object where the problem was detected.
+	Shows a few bytes before the object where the problem was detected.
 	Can be useful if the corruption does not stop with the start of the
 	object.
 
 Object <address> : <bytes>
 	The bytes of the object. If the object is inactive then the bytes
-	typically contain poisoning values. Any non-poison value shows a
+	typically contain poison values. Any non-poison value shows a
 	corruption by a write after free.
 
 Redzone <address> : <bytes>
-	The redzone following the object. The redzone is used to detect
+	The Redzone following the object. The Redzone is used to detect
 	writes after the object. All bytes should always have the same
 	value. If there is any deviation then it is due to a write after
 	the object boundary.
 
-Freepointer
-	The pointer to the next free object in the slab. May become
-	corrupted if overwriting continues after the red zone.
+	(Redzone information is only available if SLAB_RED_ZONE is set.
+	slub_debug sets that option)
 
-Last alloc:
-Last free:
-	Shows the address from which the object was allocated/freed last.
-	We note the pid, the time and the CPU that did so. This is usually
-	the most useful information to figure out where things went wrong.
-	Here get_modalias() did an kmalloc(8) instead of a kmalloc(9).
-
-Filler <address> : <bytes>
+Padding <address> : <bytes>
 	Unused data to fill up the space in order to get the next object
 	properly aligned. In the debug case we make sure that there are
-	at least 4 bytes of filler. This allow for the detection of writes
+	at least 4 bytes of padding. This allows the detection of writes
 	before the object.
 
-Following the filler will be a stackdump. That stackdump describes the
-location where the error was detected. The cause of the corruption is more
-likely to be found by looking at the information about the last alloc / free.
+3. A stackdump
 
-Christoph Lameter, <clameter@sgi.com>, May 23, 2007
+The stackdump describes the location where the error was detected. The cause
+of the corruption is may be more likely found by looking at the function that
+allocated or freed the object.
+
+4. Report on how the problem was dealt with in order to ensure the continued
+operation of the system.
+
+These are messages in the system log beginning with
+
+FIX <slab cache affected>: <corrective action taken>
+
+In the above sample SLUB found that the Redzone of an active object has
+been overwritten. Here a string of 8 characters was written into a slab that
+has the length of 8 characters. However, a 8 character string needs a
+terminating 0. That zero has overwritten the first byte of the Redzone field.
+After reporting the details of the issue encountered the FIX SLUB message
+tell us that SLUB has restored the Redzone to its proper value and then
+system operations continue.
+
+Emergency operations:
+---------------------
+
+Minimal debugging (sanity checks alone) can be enabled by booting with
+
+	slub_debug=F
+
+This will be generally be enough to enable the resiliency features of slub
+which will keep the system running even if a bad kernel component will
+keep corrupting objects. This may be important for production systems.
+Performance will be impacted by the sanity checks and there will be a
+continual stream of error messages to the syslog but no additional memory
+will be used (unlike full debugging).
+
+No guarantees. The kernel component still needs to be fixed. Performance
+may be optimized further by locating the slab that experiences corruption
+and enabling debugging only for that cache
+
+I.e.
+
+	slub_debug=F,dentry
+
+If the corruption occurs by writing after the end of the object then it
+may be advisable to enable a Redzone to avoid corrupting the beginning
+of other objects.
+
+	slub_debug=FZ,dentry
+
+Christoph Lameter, <clameter@sgi.com>, May 30, 2007

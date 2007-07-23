@@ -692,6 +692,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 {
 	struct sky2_port *sky2 = netdev_priv(hw->dev[port]);
 	u16 reg;
+	u32 rx_reg;
 	int i;
 	const u8 *addr = hw->dev[port]->dev_addr;
 
@@ -768,11 +769,11 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
+	rx_reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
 	if (hw->chip_id == CHIP_ID_YUKON_EX)
-		reg |= GMF_RX_OVER_ON;
+		rx_reg |= GMF_RX_OVER_ON;
 
-	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), rx_reg);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);

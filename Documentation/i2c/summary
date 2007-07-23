@@ -67,7 +67,6 @@ i2c-proc: The /proc/sys/dev/sensors interface for device (client) drivers
 Algorithm drivers
 -----------------
 
-i2c-algo-8xx:    An algorithm for CPM's I2C device in Motorola 8xx processors (NOT BUILT BY DEFAULT)
 i2c-algo-bit:    A bit-banging algorithm
 i2c-algo-pcf:    A PCF 8584 style algorithm
 i2c-algo-ibm_ocp: An algorithm for the I2C device in IBM 4xx processors (NOT BUILT BY DEFAULT)
@@ -81,6 +80,5 @@ i2c-pcf-epp:     PCF8584 on a EPP parallel port (uses i2c-algo-pcf) (NOT mkpatch
 i2c-philips-par: Philips style parallel port adapter (uses i2c-algo-bit)
 i2c-adap-ibm_ocp: IBM 4xx processor I2C device (uses i2c-algo-ibm_ocp) (NOT BUILT BY DEFAULT)
 i2c-pport:       Primitive parallel port adapter (uses i2c-algo-bit)
-i2c-rpx:         RPX board Motorola 8xx I2C device (uses i2c-algo-8xx) (NOT BUILT BY DEFAULT)
 i2c-velleman:    Velleman K8000 parallel port adapter (uses i2c-algo-bit)
 

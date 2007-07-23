@@ -521,7 +521,7 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 
 static int sis5513_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	config_art_rwp_pio(drive, pio);
 	return ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -659,9 +659,7 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 
 		/* Special case for SiS630 : 630S/ET is ATA_100a */
 		if (SiSHostChipInfo[i].host_id == PCI_DEVICE_ID_SI_630) {
-			u8 hostrev;
-			pci_read_config_byte(host, PCI_REVISION_ID, &hostrev);
-			if (hostrev >= 0x30)
+			if (host->revision >= 0x30)
 				chipset_family = ATA_100a;
 		}
 		pci_dev_put(host);
@@ -702,7 +700,6 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 			u16 trueid;
 			u8 prefctl;
 			u8 idecfg;
-			u8 sbrev;
 
 			pci_read_config_byte(dev, 0x4a, &idecfg);
 			pci_write_config_byte(dev, 0x4a, idecfg | 0x10);
@@ -712,11 +709,10 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 			if (trueid == 0x5517) { /* SiS 961/961B */
 
 				lpc_bridge = pci_get_slot(dev->bus, 0x10); /* Bus 0, Dev 2, Fn 0 */
-				pci_read_config_byte(lpc_bridge, PCI_REVISION_ID, &sbrev);
 				pci_read_config_byte(dev, 0x49, &prefctl);
 				pci_dev_put(lpc_bridge);
 
-				if (sbrev == 0x10 && (prefctl & 0x80)) {
+				if (lpc_bridge->revision == 0x10 && (prefctl & 0x80)) {
 					printk(KERN_INFO "SIS5513: SiS 961B MuTIOL IDE UDMA133 controller\n");
 					chipset_family = ATA_133a;
 				} else {
@@ -882,10 +878,10 @@ static ide_pci_device_t sis5513_chipset __devinitdata = {
 	.name		= "SIS5513",
 	.init_chipset	= init_chipset_sis5513,
 	.init_hwif	= init_hwif_sis5513,
-	.channels	= 2,
 	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_device_id *id)

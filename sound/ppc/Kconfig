@@ -33,3 +33,23 @@ config SND_POWERMAC_AUTO_DRC
 	  option.
 
 endmenu
+
+menu "ALSA PowerPC devices"
+	depends on SND!=n && ( PPC64 || PPC32 )
+
+config SND_PS3
+	tristate "PS3 Audio support"
+	depends on SND && PS3_PS3AV
+	select SND_PCM
+	default m
+	help
+	  Say Y here to include support for audio on the PS3
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd_ps3.
+
+config SND_PS3_DEFAULT_START_DELAY
+	int "Startup delay time in ms"
+	depends on SND_PS3
+	default "2000"
+endmenu

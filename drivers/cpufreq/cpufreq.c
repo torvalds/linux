@@ -39,6 +39,10 @@
  */
 static struct cpufreq_driver *cpufreq_driver;
 static struct cpufreq_policy *cpufreq_cpu_data[NR_CPUS];
+#ifdef CONFIG_HOTPLUG_CPU
+/* This one keeps track of the previously set governor of a removed CPU */
+static struct cpufreq_governor *cpufreq_cpu_governor[NR_CPUS];
+#endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
 /*
@@ -770,9 +774,17 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	}
 	policy->user_policy.min = policy->cpuinfo.min_freq;
 	policy->user_policy.max = policy->cpuinfo.max_freq;
-	policy->user_policy.governor = policy->governor;
 
 #ifdef CONFIG_SMP
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if (cpufreq_cpu_governor[cpu]){
+		policy->governor = cpufreq_cpu_governor[cpu];
+		dprintk("Restoring governor %s for cpu %d\n",
+		       policy->governor->name, cpu);
+	}
+#endif
+
 	for_each_cpu_mask(j, policy->cpus) {
 		if (cpu == j)
 			continue;
@@ -826,13 +838,21 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
-		sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
+		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
+		if (ret)
+			goto err_out_driver_exit;
 		drv_attr++;
 	}
-	if (cpufreq_driver->get)
-		sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
-	if (cpufreq_driver->target)
-		sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+	if (cpufreq_driver->get){
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
+			goto err_out_driver_exit;
+	}
+	if (cpufreq_driver->target){
+		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+		if (ret)
+			goto err_out_driver_exit;
+	}
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_cpu_mask(j, policy->cpus) {
@@ -865,6 +885,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	/* set default policy */
 	ret = __cpufreq_set_policy(policy, &new_policy);
 	policy->user_policy.policy = policy->policy;
+	policy->user_policy.governor = policy->governor;
 
 	unlock_policy_rwsem_write(cpu);
 
@@ -961,6 +982,11 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 	}
 
 #ifdef CONFIG_SMP
+
+#ifdef CONFIG_HOTPLUG_CPU
+	cpufreq_cpu_governor[cpu] = data->governor;
+#endif
+
 	/* if we have other CPUs still registered, we need to unlink them,
 	 * or else wait_for_completion below will lock up. Clean the
 	 * cpufreq_cpu_data[] while holding the lock, and remove the sysfs
@@ -981,6 +1007,9 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 			if (j == cpu)
 				continue;
 			dprintk("removing link for cpu %u\n", j);
+#ifdef CONFIG_HOTPLUG_CPU
+			cpufreq_cpu_governor[j] = data->governor;
+#endif
 			cpu_sys_dev = get_cpu_sysdev(j);
 			sysfs_remove_link(&cpu_sys_dev->kobj, "cpufreq");
 			cpufreq_cpu_put(data);
@@ -1679,7 +1708,6 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct sys_device *sys_dev;
-	struct cpufreq_policy *policy;
 
 	sys_dev = get_cpu_sysdev(cpu);
 	if (sys_dev) {
@@ -1693,11 +1721,6 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 			if (unlikely(lock_policy_rwsem_write(cpu)))
 				BUG();
 
-			policy = cpufreq_cpu_data[cpu];
-			if (policy) {
-				__cpufreq_driver_target(policy, policy->min,
-						CPUFREQ_RELATION_H);
-			}
 			__cpufreq_remove_dev(sys_dev);
 			break;
 		case CPU_DOWN_FAILED:

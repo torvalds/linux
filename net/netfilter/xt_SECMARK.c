@@ -51,7 +51,7 @@ static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static int checkentry_selinux(struct xt_secmark_target_info *info)
+static bool checkentry_selinux(struct xt_secmark_target_info *info)
 {
 	int err;
 	struct xt_secmark_target_selinux_info *sel = &info->u.sel;
@@ -63,53 +63,53 @@ static int checkentry_selinux(struct xt_secmark_target_info *info)
 		if (err == -EINVAL)
 			printk(KERN_INFO PFX "invalid SELinux context \'%s\'\n",
 			       sel->selctx);
-		return 0;
+		return false;
 	}
 
 	if (!sel->selsid) {
 		printk(KERN_INFO PFX "unable to map SELinux context \'%s\'\n",
 		       sel->selctx);
-		return 0;
+		return false;
 	}
 
 	err = selinux_relabel_packet_permission(sel->selsid);
 	if (err) {
 		printk(KERN_INFO PFX "unable to obtain relabeling permission\n");
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
-static int checkentry(const char *tablename, const void *entry,
-		      const struct xt_target *target, void *targinfo,
-		      unsigned int hook_mask)
+static bool checkentry(const char *tablename, const void *entry,
+		       const struct xt_target *target, void *targinfo,
+		       unsigned int hook_mask)
 {
 	struct xt_secmark_target_info *info = targinfo;
 
 	if (mode && mode != info->mode) {
 		printk(KERN_INFO PFX "mode already set to %hu cannot mix with "
 		       "rules for mode %hu\n", mode, info->mode);
-		return 0;
+		return false;
 	}
 
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
 		if (!checkentry_selinux(info))
-			return 0;
+			return false;
 		break;
 
 	default:
 		printk(KERN_INFO PFX "invalid mode: %hu\n", info->mode);
-		return 0;
+		return false;
 	}
 
 	if (!mode)
 		mode = info->mode;
-	return 1;
+	return true;
 }
 
-static struct xt_target xt_secmark_target[] = {
+static struct xt_target xt_secmark_target[] __read_mostly = {
 	{
 		.name		= "SECMARK",
 		.family		= AF_INET,

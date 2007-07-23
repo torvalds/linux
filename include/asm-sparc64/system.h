@@ -115,13 +115,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 #ifndef __ASSEMBLY__
 
 extern void sun_do_break(void);
-extern int serial_console;
 extern int stop_a_enabled;
-
-static __inline__ int con_is_present(void)
-{
-	return serial_console ? 0 : 1;
-}
 
 extern void synchronize_user_stack(void);
 
@@ -203,16 +197,6 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		reset_pic();						\
 	}								\
 } while(0)
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
 
 static inline unsigned long xchg32(__volatile__ unsigned int *m, unsigned int val)
 {

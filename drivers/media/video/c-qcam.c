@@ -95,7 +95,7 @@ static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 	unsigned long oldjiffies = jiffies;
 	unsigned int i;
 
-	for (oldjiffies = jiffies; (jiffies - oldjiffies) < (HZ/25); )
+	for (oldjiffies = jiffies; (jiffies - oldjiffies) < msecs_to_jiffies(40); )
 		if (qcam_ready1(qcam) == value)
 			return 0;
 
@@ -120,7 +120,7 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 	unsigned long oldjiffies = jiffies;
 	unsigned int i;
 
-	for (oldjiffies = jiffies; (jiffies - oldjiffies) < (HZ/25); )
+	for (oldjiffies = jiffies; (jiffies - oldjiffies) < msecs_to_jiffies(40); )
 		if (qcam_ready2(qcam) == value)
 			return 0;
 

@@ -29,6 +29,7 @@
 #include <linux/bcd.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
+#include <linux/clocksource.h>
 
 #include <asm/current.h>
 #include <asm/uaccess.h>
@@ -51,7 +52,33 @@
 
 #define HPET_RANGE_SIZE		1024	/* from HPET spec */
 
+#if BITS_PER_LONG == 64
+#define	write_counter(V, MC)	writeq(V, MC)
+#define	read_counter(MC)	readq(MC)
+#else
+#define	write_counter(V, MC)	writel(V, MC)
+#define	read_counter(MC)	readl(MC)
+#endif
+
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
+
+static void __iomem *hpet_mctr;
+
+static cycle_t read_hpet(void)
+{
+	return (cycle_t)read_counter((void __iomem *)hpet_mctr);
+}
+
+static struct clocksource clocksource_hpet = {
+        .name           = "hpet",
+        .rating         = 250,
+        .read           = read_hpet,
+        .mask           = 0xffffffffffffffff,
+        .mult           = 0, /*to be caluclated*/
+        .shift          = 10,
+        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+static struct clocksource *hpet_clocksource;
 
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
@@ -79,7 +106,7 @@ struct hpets {
 	struct hpets *hp_next;
 	struct hpet __iomem *hp_hpet;
 	unsigned long hp_hpet_phys;
-	struct time_interpolator *hp_interpolator;
+	struct clocksource *hp_clocksource;
 	unsigned long long hp_tick_freq;
 	unsigned long hp_delta;
 	unsigned int hp_ntimer;
@@ -94,13 +121,6 @@ static struct hpets *hpets;
 #define	HPET_PERIODIC		0x0004
 #define	HPET_SHARED_IRQ		0x0008
 
-#if BITS_PER_LONG == 64
-#define	write_counter(V, MC)	writeq(V, MC)
-#define	read_counter(MC)	readq(MC)
-#else
-#define	write_counter(V, MC) 	writel(V, MC)
-#define	read_counter(MC)	readl(MC)
-#endif
 
 #ifndef readq
 static inline unsigned long long readq(void __iomem *addr)
@@ -737,27 +757,6 @@ static ctl_table dev_root[] = {
 
 static struct ctl_table_header *sysctl_header;
 
-static void hpet_register_interpolator(struct hpets *hpetp)
-{
-#ifdef	CONFIG_TIME_INTERPOLATION
-	struct time_interpolator *ti;
-
-	ti = kzalloc(sizeof(*ti), GFP_KERNEL);
-	if (!ti)
-		return;
-
-	ti->source = TIME_SOURCE_MMIO64;
-	ti->shift = 10;
-	ti->addr = &hpetp->hp_hpet->hpet_mc;
-	ti->frequency = hpetp->hp_tick_freq;
-	ti->drift = HPET_DRIFT;
-	ti->mask = -1;
-
-	hpetp->hp_interpolator = ti;
-	register_time_interpolator(ti);
-#endif
-}
-
 /*
  * Adjustment for when arming the timer with
  * initial conditions.  That is, main counter
@@ -909,7 +908,16 @@ int hpet_alloc(struct hpet_data *hdp)
 	}
 
 	hpetp->hp_delta = hpet_calibrate(hpetp);
-	hpet_register_interpolator(hpetp);
+
+	if (!hpet_clocksource) {
+		hpet_mctr = (void __iomem *)&hpetp->hp_hpet->hpet_mc;
+		CLKSRC_FSYS_MMIO_SET(clocksource_hpet.fsys_mmio, hpet_mctr);
+		clocksource_hpet.mult = clocksource_hz2mult(hpetp->hp_tick_freq,
+						clocksource_hpet.shift);
+		clocksource_register(&clocksource_hpet);
+		hpetp->hp_clocksource = &clocksource_hpet;
+		hpet_clocksource = &clocksource_hpet;
+	}
 
 	return 0;
 }
@@ -995,7 +1003,7 @@ static int hpet_acpi_add(struct acpi_device *device)
 
 static int hpet_acpi_remove(struct acpi_device *device, int type)
 {
-	/* XXX need to unregister interpolator, dealloc mem, etc */
+	/* XXX need to unregister clocksource, dealloc mem, etc */
 	return -EINVAL;
 }
 

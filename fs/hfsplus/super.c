@@ -283,11 +283,10 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	struct nls_table *nls = NULL;
 	int err = -EINVAL;
 
-	sbi = kmalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
-	memset(sbi, 0, sizeof(HFSPLUS_SB(sb)));
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 	hfsplus_fill_defaults(sbi);
@@ -381,6 +380,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		goto cleanup;
 	}
+	sb->s_root->d_op = &hfsplus_dentry_operations;
 
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;
@@ -479,7 +479,7 @@ static int __init init_hfsplus_fs(void)
 
 	hfsplus_inode_cachep = kmem_cache_create("hfsplus_icache",
 		HFSPLUS_INODE_SIZE, 0, SLAB_HWCACHE_ALIGN,
-		hfsplus_init_once, NULL);
+		hfsplus_init_once);
 	if (!hfsplus_inode_cachep)
 		return -ENOMEM;
 	err = register_filesystem(&hfsplus_fs_type);

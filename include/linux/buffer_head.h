@@ -209,6 +209,8 @@ int cont_prepare_write(struct page*, unsigned, unsigned, get_block_t*,
 int generic_cont_expand(struct inode *inode, loff_t size);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);
 int block_commit_write(struct page *page, unsigned from, unsigned to);
+int block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+				get_block_t get_block);
 void block_sync_page(struct page *);
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
 int generic_commit_write(struct file *, struct page *, unsigned, unsigned);

@@ -13,6 +13,7 @@
  * enhanced by Bjoern Brauel and Roman Hodek
  */
 
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -42,6 +43,9 @@ void (*atari_mouse_interrupt_hook) (char *);
 void (*atari_input_keyboard_interrupt_hook) (unsigned char, char);
 /* Hook for mouse inputdev  driver */
 void (*atari_input_mouse_interrupt_hook) (char *);
+EXPORT_SYMBOL(atari_mouse_interrupt_hook);
+EXPORT_SYMBOL(atari_input_keyboard_interrupt_hook);
+EXPORT_SYMBOL(atari_input_mouse_interrupt_hook);
 
 /* variables for IKBD self test: */
 
@@ -429,6 +433,7 @@ void ikbd_mouse_rel_pos(void)
 
 	ikbd_write(cmd, 1);
 }
+EXPORT_SYMBOL(ikbd_mouse_rel_pos);
 
 /* Set absolute mouse position reporting */
 void ikbd_mouse_abs_pos(int xmax, int ymax)
@@ -453,6 +458,7 @@ void ikbd_mouse_thresh(int x, int y)
 
 	ikbd_write(cmd, 3);
 }
+EXPORT_SYMBOL(ikbd_mouse_thresh);
 
 /* Set mouse scale */
 void ikbd_mouse_scale(int x, int y)
@@ -495,6 +501,7 @@ void ikbd_mouse_y0_top(void)
 
 	ikbd_write(cmd, 1);
 }
+EXPORT_SYMBOL(ikbd_mouse_y0_top);
 
 /* Resume */
 void ikbd_resume(void)
@@ -511,6 +518,7 @@ void ikbd_mouse_disable(void)
 
 	ikbd_write(cmd, 1);
 }
+EXPORT_SYMBOL(ikbd_mouse_disable);
 
 /* Pause output */
 void ikbd_pause(void)
@@ -695,7 +703,6 @@ int __init atari_keyb_init(void)
 	atari_keyb_done = 1;
 	return 0;
 }
-
 
 int atari_kbdrate(struct kbd_repeat *k)
 {

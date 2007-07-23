@@ -172,7 +172,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if ((!port->tty) || (!port->tty->termios)) {
+	if (!port->tty || !port->tty->termios) {
 		dbg("%s - no tty structures", __FUNCTION__);
 		return;
 	}
@@ -187,16 +187,6 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	cflag = port->tty->termios->c_cflag;
-
-	/* check that they really want us to change something: */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(port->tty->termios->c_iflag) ==
-		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			return;
-		}
-	}
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
@@ -220,7 +210,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 			dbg("setting CS7");
 			break;
 		default:
-			err("CSIZE was set but not CS5-CS8, using CS8!");
+			dbg("CSIZE was set but not CS5-CS8, using CS8!");
 			/* fall through */
 		case CS8:
 			config |= 0x03;
@@ -251,38 +241,33 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 	}
 
 	/* set baudrate */
-	baud = 0;
-	switch (cflag & CBAUD) {
-		case B0:
-			err("can't set 0 baud, using 9600 instead");
-			break;
-		case B75:	baud = 75;	break;
-		case B150:	baud = 150;	break;
-		case B300:	baud = 300;	break;
-		case B600:	baud = 600;	break;
-		case B1200:	baud = 1200;	break;
-		case B1800:	baud = 1800;	break;
-		case B2400:	baud = 2400;	break;
-		case B4800:	baud = 4800;	break;
-		case B9600:	baud = 9600;	break;
-		case B19200:	baud = 19200;	break;
-		case B38400:	baud = 38400;	break;
-		case B57600:	baud = 57600;	break;
-		case B115200:	baud = 115200;	break;
-		case B230400:	baud = 230400;	break;
-		case B460800:	baud = 460800;	break;
-		default:
-			dbg("does not support the baudrate requested (fix it)");
-			break;
-	}
+	baud = tty_get_baud_rate(port->tty);
 
-	/* set 9600 as default (if given baudrate is invalid for example) */
-	if (baud == 0)
-		baud = 9600;
+	switch (baud) {
+		case 75:
+		case 150:
+		case 300:
+		case 600:
+		case 1200:
+		case 1800:
+		case 2400:
+		case 4800:
+		case 9600:
+		case 19200:
+		case 38400:
+		case 57600:
+		case 115200:
+		case 230400:
+		case 460800:
+			break;
+		/* set 9600 as default (if given baudrate is invalid for example) */
+		default:
+			baud = 9600;
+	}
 
 	/*
 	 * found by try'n'error, be careful, maybe there are other options
-	 * for multiplicator etc!
+	 * for multiplicator etc! (3.5 for example)
 	 */
 	if (baud == 460800)
 		/* strange, for 460800 the formula is wrong

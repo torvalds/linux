@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -41,8 +41,6 @@
 #include <linux/kref.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
-
-#include "ipath_layer.h"
 
 #define IPATH_MAX_RDMA_ATOMIC	4
 
@@ -321,6 +319,7 @@ struct ipath_sge_state {
  */
 struct ipath_ack_entry {
 	u8 opcode;
+	u8 sent;
 	u32 psn;
 	union {
 		struct ipath_sge_state rdma_sge;
@@ -781,8 +780,6 @@ void ipath_update_mmap_info(struct ipath_ibdev *dev,
 
 int ipath_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
-void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev);
-
 void ipath_insert_rnr_queue(struct ipath_qp *qp);
 
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only);
@@ -805,8 +802,6 @@ void ipath_unregister_ib_device(struct ipath_ibdev *);
 void ipath_ib_rcv(struct ipath_ibdev *, void *, void *, u32);
 
 int ipath_ib_piobufavail(struct ipath_ibdev *);
-
-void ipath_ib_timer(struct ipath_ibdev *);
 
 unsigned ipath_get_npkeys(struct ipath_devdata *);
 

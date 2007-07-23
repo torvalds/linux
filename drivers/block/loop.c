@@ -68,6 +68,7 @@
 #include <linux/loop.h>
 #include <linux/compat.h>
 #include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
 #include <linux/completion.h>
@@ -599,13 +600,6 @@ static int loop_thread(void *data)
 {
 	struct loop_device *lo = data;
 	struct bio *bio;
-
-	/*
-	 * loop can be used in an encrypted device,
-	 * hence, it mustn't be stopped at all
-	 * because it could be indirectly used during suspension
-	 */
-	current->flags |= PF_NOFREEZE;
 
 	set_user_nice(current, -20);
 
@@ -1574,8 +1568,7 @@ static void __exit loop_exit(void)
 		loop_del_one(lo);
 
 	blk_unregister_region(MKDEV(LOOP_MAJOR, 0), range);
-	if (unregister_blkdev(LOOP_MAJOR, "loop"))
-		printk(KERN_WARNING "loop: cannot unregister blkdev\n");
+	unregister_blkdev(LOOP_MAJOR, "loop");
 }
 
 module_init(loop_init);

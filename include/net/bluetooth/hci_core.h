@@ -78,6 +78,7 @@ struct hci_dev {
 	__u16		voice_setting;
 
 	__u16		pkt_type;
+	__u16		esco_type;
 	__u16		link_policy;
 	__u16		link_mode;
 
@@ -109,6 +110,7 @@ struct hci_dev {
 	struct sk_buff_head	cmd_q;
 
 	struct sk_buff		*sent_cmd;
+	struct sk_buff		*reassembly[3];
 
 	struct semaphore	req_lock;
 	wait_queue_head_t	req_wait_q;
@@ -437,6 +439,8 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 	return 0;
 }
 
+int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count);
+
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
 void hci_conn_add_sysfs(struct hci_conn *conn);
@@ -449,6 +453,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
 #define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
+#define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {

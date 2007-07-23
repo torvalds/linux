@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables owner match");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -29,29 +29,29 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct ipt_owner_info *info = matchinfo;
 
 	if (!skb->sk || !skb->sk->sk_socket || !skb->sk->sk_socket->file)
-		return 0;
+		return false;
 
 	if(info->match & IPT_OWNER_UID) {
 		if ((skb->sk->sk_socket->file->f_uid != info->uid) ^
 		    !!(info->invert & IPT_OWNER_UID))
-			return 0;
+			return false;
 	}
 
 	if(info->match & IPT_OWNER_GID) {
 		if ((skb->sk->sk_socket->file->f_gid != info->gid) ^
 		    !!(info->invert & IPT_OWNER_GID))
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *ip,
 	   const struct xt_match *match,
@@ -63,12 +63,12 @@ checkentry(const char *tablename,
 	if (info->match & (IPT_OWNER_PID|IPT_OWNER_SID|IPT_OWNER_COMM)) {
 		printk("ipt_owner: pid, sid and command matching "
 		       "not supported anymore\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static struct xt_match owner_match = {
+static struct xt_match owner_match __read_mostly = {
 	.name		= "owner",
 	.family		= AF_INET,
 	.match		= match,

@@ -890,12 +890,11 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	if (lld_adp->drvr_type != DRVRTYPE_MBOX)
 		return (-EINVAL);
 
-	adapter = kmalloc(sizeof(mraid_mmadp_t), GFP_KERNEL);
+	adapter = kzalloc(sizeof(mraid_mmadp_t), GFP_KERNEL);
 
 	if (!adapter)
 		return -ENOMEM;
 
-	memset(adapter, 0, sizeof(mraid_mmadp_t));
 
 	adapter->unique_id	= lld_adp->unique_id;
 	adapter->drvr_type	= lld_adp->drvr_type;

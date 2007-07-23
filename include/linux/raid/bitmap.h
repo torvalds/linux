@@ -262,7 +262,7 @@ int  bitmap_active(struct bitmap *bitmap);
 
 char *file_path(struct file *file, char *buf, int count);
 void bitmap_print_sb(struct bitmap *bitmap);
-int bitmap_update_sb(struct bitmap *bitmap);
+void bitmap_update_sb(struct bitmap *bitmap);
 
 int  bitmap_setallbits(struct bitmap *bitmap);
 void bitmap_write_all(struct bitmap *bitmap);
@@ -278,8 +278,8 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int d
 void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);
 
-int bitmap_unplug(struct bitmap *bitmap);
-int bitmap_daemon_work(struct bitmap *bitmap);
+void bitmap_unplug(struct bitmap *bitmap);
+void bitmap_daemon_work(struct bitmap *bitmap);
 #endif
 
 #endif

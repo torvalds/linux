@@ -68,13 +68,19 @@ static int nfs4_stat_to_errno(int);
 #endif
 
 /* lock,open owner id: 
- * we currently use size 1 (u32) out of (NFS4_OPAQUE_LIMIT  >> 2)
+ * we currently use size 2 (u64) out of (NFS4_OPAQUE_LIMIT  >> 2)
  */
-#define owner_id_maxsz          (1 + 1)
+#define open_owner_id_maxsz	(1 + 4)
+#define lock_owner_id_maxsz	(1 + 4)
+#define decode_lockowner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
 #define compound_encode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define compound_decode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define op_encode_hdr_maxsz	(1)
 #define op_decode_hdr_maxsz	(2)
+#define encode_stateid_maxsz	(XDR_QUADLEN(NFS4_STATEID_SIZE))
+#define decode_stateid_maxsz	(XDR_QUADLEN(NFS4_STATEID_SIZE))
+#define encode_verifier_maxsz	(XDR_QUADLEN(NFS4_VERIFIER_SIZE))
+#define decode_verifier_maxsz	(XDR_QUADLEN(NFS4_VERIFIER_SIZE))
 #define encode_putfh_maxsz	(op_encode_hdr_maxsz + 1 + \
 				(NFS4_FHSIZE >> 2))
 #define decode_putfh_maxsz	(op_decode_hdr_maxsz)
@@ -87,12 +93,19 @@ static int nfs4_stat_to_errno(int);
 #define encode_getattr_maxsz    (op_encode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
 #define nfs4_name_maxsz		(1 + ((3 + NFS4_MAXNAMLEN) >> 2))
 #define nfs4_path_maxsz		(1 + ((3 + NFS4_MAXPATHLEN) >> 2))
+#define nfs4_owner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+#define nfs4_group_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
 /* This is based on getfattr, which uses the most attributes: */
 #define nfs4_fattr_value_maxsz	(1 + (1 + 2 + 2 + 4 + 2 + 1 + 1 + 2 + 2 + \
-				3 + 3 + 3 + 2 * nfs4_name_maxsz))
+				3 + 3 + 3 + nfs4_owner_maxsz + nfs4_group_maxsz))
 #define nfs4_fattr_maxsz	(nfs4_fattr_bitmap_maxsz + \
 				nfs4_fattr_value_maxsz)
 #define decode_getattr_maxsz    (op_decode_hdr_maxsz + nfs4_fattr_maxsz)
+#define encode_attrs_maxsz	(nfs4_fattr_bitmap_maxsz + \
+				 1 + 2 + 1 + \
+				nfs4_owner_maxsz + \
+				nfs4_group_maxsz + \
+				4 + 4)
 #define encode_savefh_maxsz     (op_encode_hdr_maxsz)
 #define decode_savefh_maxsz     (op_decode_hdr_maxsz)
 #define encode_restorefh_maxsz  (op_encode_hdr_maxsz)
@@ -116,8 +129,65 @@ static int nfs4_stat_to_errno(int);
 				3 + (NFS4_VERIFIER_SIZE >> 2))
 #define decode_setclientid_confirm_maxsz \
 				(op_decode_hdr_maxsz)
-#define encode_lookup_maxsz	(op_encode_hdr_maxsz + \
-				1 + ((3 + NFS4_FHSIZE) >> 2))
+#define encode_lookup_maxsz	(op_encode_hdr_maxsz + nfs4_name_maxsz)
+#define decode_lookup_maxsz	(op_decode_hdr_maxsz)
+#define encode_share_access_maxsz \
+				(2)
+#define encode_createmode_maxsz	(1 + encode_attrs_maxsz)
+#define encode_opentype_maxsz	(1 + encode_createmode_maxsz)
+#define encode_claim_null_maxsz	(1 + nfs4_name_maxsz)
+#define encode_open_maxsz	(op_encode_hdr_maxsz + \
+				2 + encode_share_access_maxsz + 2 + \
+				open_owner_id_maxsz + \
+				encode_opentype_maxsz + \
+				encode_claim_null_maxsz)
+#define decode_ace_maxsz	(3 + nfs4_owner_maxsz)
+#define decode_delegation_maxsz	(1 + decode_stateid_maxsz + 1 + \
+				decode_ace_maxsz)
+#define decode_change_info_maxsz	(5)
+#define decode_open_maxsz	(op_decode_hdr_maxsz + \
+				decode_stateid_maxsz + \
+				decode_change_info_maxsz + 1 + \
+				nfs4_fattr_bitmap_maxsz + \
+				decode_delegation_maxsz)
+#define encode_open_confirm_maxsz \
+				(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + 1)
+#define decode_open_confirm_maxsz \
+				(op_decode_hdr_maxsz + \
+				 decode_stateid_maxsz)
+#define encode_open_downgrade_maxsz \
+				(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + 1 + \
+				 encode_share_access_maxsz)
+#define decode_open_downgrade_maxsz \
+				(op_decode_hdr_maxsz + \
+				 decode_stateid_maxsz)
+#define encode_close_maxsz	(op_encode_hdr_maxsz + \
+				 1 + encode_stateid_maxsz)
+#define decode_close_maxsz	(op_decode_hdr_maxsz + \
+				 decode_stateid_maxsz)
+#define encode_setattr_maxsz	(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + \
+				 encode_attrs_maxsz)
+#define decode_setattr_maxsz	(op_decode_hdr_maxsz + \
+				 nfs4_fattr_bitmap_maxsz)
+#define encode_read_maxsz	(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + 3)
+#define decode_read_maxsz	(op_decode_hdr_maxsz + 2)
+#define encode_readdir_maxsz	(op_encode_hdr_maxsz + \
+				 2 + encode_verifier_maxsz + 5)
+#define decode_readdir_maxsz	(op_decode_hdr_maxsz + \
+				 decode_verifier_maxsz)
+#define encode_readlink_maxsz	(op_encode_hdr_maxsz)
+#define decode_readlink_maxsz	(op_decode_hdr_maxsz + 1)
+#define encode_write_maxsz	(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + 4)
+#define decode_write_maxsz	(op_decode_hdr_maxsz + \
+				 2 + decode_verifier_maxsz)
+#define encode_commit_maxsz	(op_encode_hdr_maxsz + 3)
+#define decode_commit_maxsz	(op_decode_hdr_maxsz + \
+				 decode_verifier_maxsz)
 #define encode_remove_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
 #define encode_rename_maxsz	(op_encode_hdr_maxsz + \
@@ -126,106 +196,142 @@ static int nfs4_stat_to_errno(int);
 #define encode_link_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
 #define decode_link_maxsz	(op_decode_hdr_maxsz + 5)
+#define encode_lock_maxsz	(op_encode_hdr_maxsz + \
+				 7 + \
+				 1 + encode_stateid_maxsz + 8)
+#define decode_lock_denied_maxsz \
+				(8 + decode_lockowner_maxsz)
+#define decode_lock_maxsz	(op_decode_hdr_maxsz + \
+				 decode_lock_denied_maxsz)
+#define encode_lockt_maxsz	(op_encode_hdr_maxsz + 12)
+#define decode_lockt_maxsz	(op_decode_hdr_maxsz + \
+				 decode_lock_denied_maxsz)
+#define encode_locku_maxsz	(op_encode_hdr_maxsz + 3 + \
+				 encode_stateid_maxsz + \
+				 4)
+#define decode_locku_maxsz	(op_decode_hdr_maxsz + \
+				 decode_stateid_maxsz)
+#define encode_access_maxsz	(op_encode_hdr_maxsz + 1)
+#define decode_access_maxsz	(op_decode_hdr_maxsz + 2)
 #define encode_symlink_maxsz	(op_encode_hdr_maxsz + \
 				1 + nfs4_name_maxsz + \
 				1 + \
 				nfs4_fattr_maxsz)
 #define decode_symlink_maxsz	(op_decode_hdr_maxsz + 8)
 #define encode_create_maxsz	(op_encode_hdr_maxsz + \
-				2 + nfs4_name_maxsz + \
-				nfs4_fattr_maxsz)
-#define decode_create_maxsz	(op_decode_hdr_maxsz + 8)
+				1 + 2 + nfs4_name_maxsz + \
+				encode_attrs_maxsz)
+#define decode_create_maxsz	(op_decode_hdr_maxsz + \
+				decode_change_info_maxsz + \
+				nfs4_fattr_bitmap_maxsz)
+#define encode_statfs_maxsz	(encode_getattr_maxsz)
+#define decode_statfs_maxsz	(decode_getattr_maxsz)
 #define encode_delegreturn_maxsz (op_encode_hdr_maxsz + 4)
 #define decode_delegreturn_maxsz (op_decode_hdr_maxsz)
+#define encode_getacl_maxsz	(encode_getattr_maxsz)
+#define decode_getacl_maxsz	(op_decode_hdr_maxsz + \
+				 nfs4_fattr_bitmap_maxsz + 1)
+#define encode_setacl_maxsz	(op_encode_hdr_maxsz + \
+				 encode_stateid_maxsz + 3)
+#define decode_setacl_maxsz	(decode_setattr_maxsz)
+#define encode_fs_locations_maxsz \
+				(encode_getattr_maxsz)
+#define decode_fs_locations_maxsz \
+				(0)
 #define NFS4_enc_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_dec_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_enc_read_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 7)
+				encode_read_maxsz)
 #define NFS4_dec_read_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 2)
+				decode_read_maxsz)
 #define NFS4_enc_readlink_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz)
+				encode_readlink_maxsz)
 #define NFS4_dec_readlink_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz)
+				decode_readlink_maxsz)
 #define NFS4_enc_readdir_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 9)
+				encode_readdir_maxsz)
 #define NFS4_dec_readdir_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 2)
+				decode_readdir_maxsz)
 #define NFS4_enc_write_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 8 + \
+				encode_write_maxsz + \
 				encode_getattr_maxsz)
 #define NFS4_dec_write_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 4 + \
+				decode_write_maxsz + \
 				decode_getattr_maxsz)
 #define NFS4_enc_commit_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 3 + \
+				encode_commit_maxsz + \
 				encode_getattr_maxsz)
 #define NFS4_dec_commit_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 2 + \
+				decode_commit_maxsz + \
 				decode_getattr_maxsz)
 #define NFS4_enc_open_sz        (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + \
-                                13 + 3 + 2 + 64 + \
-                                encode_getattr_maxsz + \
-                                encode_getfh_maxsz)
+				encode_putfh_maxsz + \
+				encode_savefh_maxsz + \
+				encode_open_maxsz + \
+				encode_getfh_maxsz + \
+				encode_getattr_maxsz + \
+				encode_restorefh_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_open_sz        (compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4 + 5 + 2 + 3 + \
-                                decode_getattr_maxsz + \
-                                decode_getfh_maxsz)
-#define NFS4_enc_open_confirm_sz      \
-                                (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 5)
-#define NFS4_dec_open_confirm_sz        (compound_decode_hdr_maxsz + \
-                                        decode_putfh_maxsz + \
-                                        op_decode_hdr_maxsz + 4)
+				decode_putfh_maxsz + \
+				decode_savefh_maxsz + \
+				decode_open_maxsz + \
+				decode_getfh_maxsz + \
+				decode_getattr_maxsz + \
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
+#define NFS4_enc_open_confirm_sz \
+				(compound_encode_hdr_maxsz + \
+				 encode_putfh_maxsz + \
+				 encode_open_confirm_maxsz)
+#define NFS4_dec_open_confirm_sz \
+				(compound_decode_hdr_maxsz + \
+				 decode_putfh_maxsz + \
+				 decode_open_confirm_maxsz)
 #define NFS4_enc_open_noattr_sz	(compound_encode_hdr_maxsz + \
 					encode_putfh_maxsz + \
-					op_encode_hdr_maxsz + \
-					11)
+					encode_open_maxsz + \
+					encode_getattr_maxsz)
 #define NFS4_dec_open_noattr_sz	(compound_decode_hdr_maxsz + \
 					decode_putfh_maxsz + \
-					op_decode_hdr_maxsz + \
-					4 + 5 + 2 + 3)
+					decode_open_maxsz + \
+					decode_getattr_maxsz)
 #define NFS4_enc_open_downgrade_sz \
 				(compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 7 + \
-				encode_getattr_maxsz)
+				 encode_putfh_maxsz + \
+				 encode_open_downgrade_maxsz + \
+				 encode_getattr_maxsz)
 #define NFS4_dec_open_downgrade_sz \
 				(compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4 + \
-				decode_getattr_maxsz)
-#define NFS4_enc_close_sz       (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 5 + \
-				encode_getattr_maxsz)
-#define NFS4_dec_close_sz       (compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4 + \
-				decode_getattr_maxsz)
-#define NFS4_enc_setattr_sz     (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 4 + \
-                                nfs4_fattr_maxsz + \
-                                encode_getattr_maxsz)
-#define NFS4_dec_setattr_sz     (compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 3 + \
-                                nfs4_fattr_maxsz)
+				 decode_putfh_maxsz + \
+				 decode_open_downgrade_maxsz + \
+				 decode_getattr_maxsz)
+#define NFS4_enc_close_sz	(compound_encode_hdr_maxsz + \
+				 encode_putfh_maxsz + \
+				 encode_close_maxsz + \
+				 encode_getattr_maxsz)
+#define NFS4_dec_close_sz	(compound_decode_hdr_maxsz + \
+				 decode_putfh_maxsz + \
+				 decode_close_maxsz + \
+				 decode_getattr_maxsz)
+#define NFS4_enc_setattr_sz	(compound_encode_hdr_maxsz + \
+				 encode_putfh_maxsz + \
+				 encode_setattr_maxsz + \
+				 encode_getattr_maxsz)
+#define NFS4_dec_setattr_sz	(compound_decode_hdr_maxsz + \
+				 decode_putfh_maxsz + \
+				 decode_setattr_maxsz + \
+				 decode_getattr_maxsz)
 #define NFS4_enc_fsinfo_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_fsinfo_maxsz)
@@ -252,39 +358,28 @@ static int nfs4_stat_to_errno(int);
 				decode_fsinfo_maxsz)
 #define NFS4_enc_lock_sz        (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_getattr_maxsz + \
-				op_encode_hdr_maxsz + \
-				1 + 1 + 2 + 2 + \
-				1 + 4 + 1 + 2 + \
-				owner_id_maxsz)
+				encode_lock_maxsz)
 #define NFS4_dec_lock_sz        (compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				decode_getattr_maxsz + \
-				op_decode_hdr_maxsz + \
-				2 + 2 + 1 + 2 + \
-				owner_id_maxsz)
+				decode_lock_maxsz)
 #define NFS4_enc_lockt_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_getattr_maxsz + \
-				op_encode_hdr_maxsz + \
-				1 + 2 + 2 + 2 + \
-				owner_id_maxsz)
-#define NFS4_dec_lockt_sz       (NFS4_dec_lock_sz)
+				encode_lockt_maxsz)
+#define NFS4_dec_lockt_sz       (compound_decode_hdr_maxsz + \
+				 decode_putfh_maxsz + \
+				 decode_lockt_maxsz)
 #define NFS4_enc_locku_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_getattr_maxsz + \
-				op_encode_hdr_maxsz + \
-				1 + 1 + 4 + 2 + 2)
+				encode_locku_maxsz)
 #define NFS4_dec_locku_sz       (compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				decode_getattr_maxsz + \
-				op_decode_hdr_maxsz + 4)
+				decode_locku_maxsz)
 #define NFS4_enc_access_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 1)
+				encode_access_maxsz)
 #define NFS4_dec_access_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 2)
+				decode_access_maxsz)
 #define NFS4_enc_getattr_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
@@ -298,7 +393,7 @@ static int nfs4_stat_to_errno(int);
 				encode_getfh_maxsz)
 #define NFS4_dec_lookup_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + \
+				decode_lookup_maxsz + \
 				decode_getattr_maxsz + \
 				decode_getfh_maxsz)
 #define NFS4_enc_lookup_root_sz (compound_encode_hdr_maxsz + \
@@ -383,10 +478,10 @@ static int nfs4_stat_to_errno(int);
 				decode_getattr_maxsz)
 #define NFS4_enc_statfs_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_getattr_maxsz)
+				encode_statfs_maxsz)
 #define NFS4_dec_statfs_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 12)
+				decode_statfs_maxsz)
 #define NFS4_enc_server_caps_sz (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
@@ -402,27 +497,26 @@ static int nfs4_stat_to_errno(int);
 				decode_getattr_maxsz)
 #define NFS4_enc_getacl_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_getattr_maxsz)
+				encode_getacl_maxsz)
 #define NFS4_dec_getacl_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + \
-				nfs4_fattr_bitmap_maxsz + 1)
+				decode_getacl_maxsz)
 #define NFS4_enc_setacl_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 4 + \
-				nfs4_fattr_bitmap_maxsz + 1)
+				encode_setacl_maxsz)
 #define NFS4_dec_setacl_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
+				decode_setacl_maxsz)
 #define NFS4_enc_fs_locations_sz \
 				(compound_encode_hdr_maxsz + \
 				 encode_putfh_maxsz + \
-				 encode_getattr_maxsz)
+				 encode_lookup_maxsz + \
+				 encode_fs_locations_maxsz)
 #define NFS4_dec_fs_locations_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_putfh_maxsz + \
-				 op_decode_hdr_maxsz + \
-				 nfs4_fattr_bitmap_maxsz)
+				 decode_lookup_maxsz + \
+				 decode_fs_locations_maxsz)
 
 static struct {
 	unsigned int	mode;
@@ -793,13 +887,14 @@ static int encode_lock(struct xdr_stream *xdr, const struct nfs_lock_args *args)
 	WRITE64(nfs4_lock_length(args->fl));
 	WRITE32(args->new_lock_owner);
 	if (args->new_lock_owner){
-		RESERVE_SPACE(4+NFS4_STATEID_SIZE+20);
+		RESERVE_SPACE(4+NFS4_STATEID_SIZE+32);
 		WRITE32(args->open_seqid->sequence->counter);
 		WRITEMEM(args->open_stateid->data, NFS4_STATEID_SIZE);
 		WRITE32(args->lock_seqid->sequence->counter);
 		WRITE64(args->lock_owner.clientid);
-		WRITE32(4);
-		WRITE32(args->lock_owner.id);
+		WRITE32(16);
+		WRITEMEM("lock id:", 8);
+		WRITE64(args->lock_owner.id);
 	}
 	else {
 		RESERVE_SPACE(NFS4_STATEID_SIZE+4);
@@ -814,14 +909,15 @@ static int encode_lockt(struct xdr_stream *xdr, const struct nfs_lockt_args *arg
 {
 	__be32 *p;
 
-	RESERVE_SPACE(40);
+	RESERVE_SPACE(52);
 	WRITE32(OP_LOCKT);
 	WRITE32(nfs4_lock_type(args->fl, 0));
 	WRITE64(args->fl->fl_start);
 	WRITE64(nfs4_lock_length(args->fl));
 	WRITE64(args->lock_owner.clientid);
-	WRITE32(4);
-	WRITE32(args->lock_owner.id);
+	WRITE32(16);
+	WRITEMEM("lock id:", 8);
+	WRITE64(args->lock_owner.id);
 
 	return 0;
 }
@@ -886,10 +982,11 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
 	WRITE32(OP_OPEN);
 	WRITE32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->open_flags);
-	RESERVE_SPACE(16);
+	RESERVE_SPACE(28);
 	WRITE64(arg->clientid);
-	WRITE32(4);
-	WRITE32(arg->id);
+	WRITE32(16);
+	WRITEMEM("open id:", 8);
+	WRITE64(arg->id);
 }
 
 static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_openargs *arg)
@@ -1071,12 +1168,10 @@ static int encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args)
 
 static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
 	uint32_t attrs[2] = {
 		FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID,
 		FATTR4_WORD1_MOUNTED_ON_FILEID,
 	};
-	int replen;
 	__be32 *p;
 
 	RESERVE_SPACE(12+NFS4_VERIFIER_SIZE+20);
@@ -1101,37 +1196,16 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 			attrs[0] & readdir->bitmask[0],
 			attrs[1] & readdir->bitmask[1]);
 
-	/* set up reply kvec
-	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
-	 *      + OP_READDIR + status + verifer(2)  = 9
-	 */
-	replen = (RPC_REPHDRSIZE + auth->au_rslack + 9) << 2;
-	xdr_inline_pages(&req->rq_rcv_buf, replen, readdir->pages,
-			 readdir->pgbase, readdir->count);
-	dprintk("%s: inlined page args = (%u, %p, %u, %u)\n",
-			__FUNCTION__, replen, readdir->pages,
-			readdir->pgbase, readdir->count);
-
 	return 0;
 }
 
 static int encode_readlink(struct xdr_stream *xdr, const struct nfs4_readlink *readlink, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
-	unsigned int replen;
 	__be32 *p;
 
 	RESERVE_SPACE(4);
 	WRITE32(OP_READLINK);
 
-	/* set up reply kvec
-	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
-	 *      + OP_READLINK + status + string length = 8
-	 */
-	replen = (RPC_REPHDRSIZE + auth->au_rslack + 8) << 2;
-	xdr_inline_pages(&req->rq_rcv_buf, replen, readlink->pages,
-			readlink->pgbase, readlink->pglen);
-	
 	return 0;
 }
 
@@ -1361,7 +1435,7 @@ out:
 /*
  * Encode REMOVE request
  */
-static int nfs4_xdr_enc_remove(struct rpc_rqst *req, __be32 *p, const struct nfs4_remove_arg *args)
+static int nfs4_xdr_enc_remove(struct rpc_rqst *req, __be32 *p, const struct nfs_removeargs *args)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -1373,7 +1447,7 @@ static int nfs4_xdr_enc_remove(struct rpc_rqst *req, __be32 *p, const struct nfs
 	encode_compound_hdr(&xdr, &hdr);
 	if ((status = encode_putfh(&xdr, args->fh)) != 0)
 		goto out;
-	if ((status = encode_remove(&xdr, args->name)) != 0)
+	if ((status = encode_remove(&xdr, &args->name)) != 0)
 		goto out;
 	status = encode_getfattr(&xdr, args->bitmask);
 out:
@@ -1697,6 +1771,8 @@ static int nfs4_xdr_enc_readlink(struct rpc_rqst *req, __be32 *p, const struct n
 	struct compound_hdr hdr = {
 		.nops = 2,
 	};
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	unsigned int replen;
 	int status;
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
@@ -1705,6 +1781,15 @@ static int nfs4_xdr_enc_readlink(struct rpc_rqst *req, __be32 *p, const struct n
 	if(status)
 		goto out;
 	status = encode_readlink(&xdr, args, req);
+
+	/* set up reply kvec
+	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
+	 *      + OP_READLINK + status + string length = 8
+	 */
+	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS4_dec_readlink_sz) << 2;
+	xdr_inline_pages(&req->rq_rcv_buf, replen, args->pages,
+			args->pgbase, args->pglen);
+
 out:
 	return status;
 }
@@ -1718,6 +1803,8 @@ static int nfs4_xdr_enc_readdir(struct rpc_rqst *req, __be32 *p, const struct nf
 	struct compound_hdr hdr = {
 		.nops = 2,
 	};
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	int replen;
 	int status;
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
@@ -1726,6 +1813,18 @@ static int nfs4_xdr_enc_readdir(struct rpc_rqst *req, __be32 *p, const struct nf
 	if(status)
 		goto out;
 	status = encode_readdir(&xdr, args, req);
+
+	/* set up reply kvec
+	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
+	 *      + OP_READDIR + status + verifer(2)  = 9
+	 */
+	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS4_dec_readdir_sz) << 2;
+	xdr_inline_pages(&req->rq_rcv_buf, replen, args->pages,
+			 args->pgbase, args->count);
+	dprintk("%s: inlined page args = (%u, %p, %u, %u)\n",
+			__FUNCTION__, replen, args->pages,
+			args->pgbase, args->count);
+
 out:
 	return status;
 }
@@ -1735,7 +1834,7 @@ out:
  */
 static int nfs4_xdr_enc_read(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.nops = 2,
@@ -1795,7 +1894,7 @@ nfs4_xdr_enc_getacl(struct rpc_rqst *req, __be32 *p,
 		struct nfs_getaclargs *args)
 {
 	struct xdr_stream xdr;
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct compound_hdr hdr = {
 		.nops   = 2,
 	};
@@ -2030,7 +2129,7 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, __be32 *p, struct nfs
 	struct compound_hdr hdr = {
 		.nops = 3,
 	};
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	int replen;
 	int status;
 
@@ -3124,11 +3223,12 @@ static int decode_getfh(struct xdr_stream *xdr, struct nfs_fh *fh)
 	uint32_t len;
 	int status;
 
+	/* Zero handle first to allow comparisons */
+	memset(fh, 0, sizeof(*fh));
+
 	status = decode_op_hdr(xdr, OP_GETFH);
 	if (status)
 		return status;
-	/* Zero handle first to allow comparisons */
-	memset(fh, 0, sizeof(*fh));
 
 	READ_BUF(4);
 	READ32(len);
@@ -3269,7 +3369,7 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
 {
         __be32 *p;
-        uint32_t bmlen;
+	uint32_t savewords, bmlen, i;
         int status;
 
         status = decode_op_hdr(xdr, OP_OPEN);
@@ -3287,7 +3387,12 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
                 goto xdr_error;
 
         READ_BUF(bmlen << 2);
-        p += bmlen;
+	savewords = min_t(uint32_t, bmlen, NFS4_BITMAP_SIZE);
+	for (i = 0; i < savewords; ++i)
+		READ32(res->attrset[i]);
+	for (; i < NFS4_BITMAP_SIZE; i++)
+		res->attrset[i] = 0;
+
 	return decode_delegation(xdr, res);
 xdr_error:
 	dprintk("%s: Bitmap too large! Length = %u\n", __FUNCTION__, bmlen);
@@ -3730,7 +3835,7 @@ out:
 /*
  * Decode REMOVE response
  */
-static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, __be32 *p, struct nfs4_remove_res *res)
+static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, __be32 *p, struct nfs_removeres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -3743,7 +3848,7 @@ static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, __be32 *p, struct nfs4_re
 		goto out;
 	if ((status = decode_remove(&xdr, &res->cinfo)) != 0)
 		goto out;
-	decode_getfattr(&xdr, res->dir_attr, res->server);
+	decode_getfattr(&xdr, &res->dir_attr, res->server);
 out:
 	return status;
 }
@@ -3988,12 +4093,11 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, __be32 *p, struct nfs_openr
         status = decode_open(&xdr, res);
         if (status)
                 goto out;
-	status = decode_getfh(&xdr, &res->fh);
-        if (status)
+	if (decode_getfh(&xdr, &res->fh) != 0)
 		goto out;
 	if (decode_getfattr(&xdr, res->f_attr, res->server) != 0)
 		goto out;
-	if ((status = decode_restorefh(&xdr)) != 0)
+	if (decode_restorefh(&xdr) != 0)
 		goto out;
 	decode_getfattr(&xdr, res->dir_attr, res->server);
 out:

@@ -12,11 +12,12 @@ Supported chips:
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/
-  * IT8716F
+  * IT8716F/IT8726F
     Prefix: 'it8716'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/product_info/file/pc/IT8716F_V0.3.ZIP
+               http://www.ite.com.tw/product_info/file/pc/IT8726F_V0.3.pdf
   * IT8718F
     Prefix: 'it8718'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -68,7 +69,7 @@ Description
 -----------
 
 This driver implements support for the IT8705F, IT8712F, IT8716F,
-IT8718F and SiS950 chips.
+IT8718F, IT8726F and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -96,6 +97,10 @@ The IT8716F and IT8718F, and late IT8712F and IT8705F also have optional
 clock divider mess) but not compatible with the older chips and
 revisions. For now, the driver only uses the 16-bit mode on the
 IT8716F and IT8718F.
+
+The IT8726F is just bit enhanced IT8716F with additional hardware
+for AMD power sequencing. Therefore the chip will appear as IT8716F
+to userspace applications.
 
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.

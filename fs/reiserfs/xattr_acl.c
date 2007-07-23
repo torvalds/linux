@@ -21,7 +21,7 @@ xattr_set_acl(struct inode *inode, int type, const void *value, size_t size)
 
 	if (!reiserfs_posixacl(inode->i_sb))
 		return -EOPNOTSUPP;
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
+	if (!is_owner_or_cap(inode))
 		return -EPERM;
 
 	if (value) {

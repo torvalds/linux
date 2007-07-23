@@ -61,7 +61,7 @@ config COSA
 #
 config LANMEDIA
 	tristate "LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards"
-	depends on PCI
+	depends on PCI && VIRT_TO_BUS
 	---help---
 	  Driver for the following Lan Media family of serial boards:
 

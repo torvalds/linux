@@ -17,12 +17,12 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
 /*
- * Parts of this code are based on an article by Jonathan Corbet 
+ * Parts of this code are based on an article by Jonathan Corbet
  * that appeared in Linux Weekly News.
  */
 
@@ -55,22 +55,22 @@
  * For each service processor the following files are created:
  *
  * command: execute dot commands
- * 	write: execute a dot command on the service processor
- * 	read: return the result of a previously executed dot command
+ *	write: execute a dot command on the service processor
+ *	read: return the result of a previously executed dot command
  *
  * events: listen for service processor events
- * 	read: sleep (interruptible) until an event occurs
+ *	read: sleep (interruptible) until an event occurs
  *      write: wakeup sleeping event listener
  *
  * reverse_heartbeat: send a heartbeat to the service processor
- * 	read: sleep (interruptible) until the reverse heartbeat fails
+ *	read: sleep (interruptible) until the reverse heartbeat fails
  *      write: wakeup sleeping heartbeat listener
  *
  * remote_video/width
  * remote_video/height
  * remote_video/width: control remote display settings
- * 	write: set value
- * 	read: read value
+ *	write: set value
+ *	read: read value
  */
 
 #include <linux/fs.h>
@@ -155,7 +155,7 @@ static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode)
 
 static struct dentry *ibmasmfs_create_file (struct super_block *sb,
 			struct dentry *parent,
-		       	const char *name,
+			const char *name,
 			const struct file_operations *fops,
 			void *data,
 			int mode)
@@ -261,7 +261,7 @@ static int command_file_close(struct inode *inode, struct file *file)
 	struct ibmasmfs_command_data *command_data = file->private_data;
 
 	if (command_data->command)
-		command_put(command_data->command);	
+		command_put(command_data->command);
 
 	kfree(command_data);
 	return 0;
@@ -348,7 +348,7 @@ static ssize_t command_file_write(struct file *file, const char __user *ubuff, s
 static int event_file_open(struct inode *inode, struct file *file)
 {
 	struct ibmasmfs_event_data *event_data;
-	struct service_processor *sp; 
+	struct service_processor *sp;
 
 	if (!inode->i_private)
 		return -ENODEV;
@@ -563,17 +563,16 @@ static ssize_t remote_settings_file_write(struct file *file, const char __user *
 	if (*offset != 0)
 		return 0;
 
-	buff = kmalloc (count + 1, GFP_KERNEL);
+	buff = kzalloc (count + 1, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
-	memset(buff, 0x0, count + 1);
 
 	if (copy_from_user(buff, ubuff, count)) {
 		kfree(buff);
 		return -EFAULT;
 	}
-	
+
 	value = simple_strtoul(buff, NULL, 10);
 	writel(value, address);
 	kfree(buff);

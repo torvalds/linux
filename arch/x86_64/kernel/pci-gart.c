@@ -28,6 +28,7 @@
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/cacheflush.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
@@ -235,7 +236,7 @@ static dma_addr_t gart_map_simple(struct device *dev, char *buf,
 }
 
 /* Map a single area into the IOMMU */
-dma_addr_t gart_map_single(struct device *dev, void *addr, size_t size, int dir)
+static dma_addr_t gart_map_single(struct device *dev, void *addr, size_t size, int dir)
 {
 	unsigned long phys_mem, bus;
 
@@ -253,7 +254,7 @@ dma_addr_t gart_map_single(struct device *dev, void *addr, size_t size, int dir)
 /*
  * Free a DMA mapping.
  */
-void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
+static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
 		      size_t size, int direction)
 {
 	unsigned long iommu_page;
@@ -275,7 +276,7 @@ void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
 /*
  * Wrapper for pci_unmap_single working with scatterlists.
  */
-void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
+static void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 {
 	int i;
 
@@ -570,6 +571,26 @@ static const struct dma_mapping_ops gart_dma_ops = {
 	.map_sg = gart_map_sg,
 	.unmap_sg = gart_unmap_sg,
 };
+
+void gart_iommu_shutdown(void)
+{
+	struct pci_dev *dev;
+	int i;
+
+	if (no_agp && (dma_ops != &gart_dma_ops))
+		return;
+
+        for (i = 0; i < num_k8_northbridges; i++) {
+                u32 ctl;
+
+                dev = k8_northbridges[i];
+                pci_read_config_dword(dev, 0x90, &ctl);
+
+                ctl &= ~1;
+
+                pci_write_config_dword(dev, 0x90, ctl);
+        }
+}
 
 void __init gart_iommu_init(void)
 { 

@@ -65,43 +65,43 @@ target_v1(struct sk_buff **pskb,
 }
 
 
-static int
+static bool
 checkentry_v0(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int hook_mask)
 {
-	struct xt_mark_target_info *markinfo = targinfo;
+	const struct xt_mark_target_info *markinfo = targinfo;
 
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static int
+static bool
 checkentry_v1(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int hook_mask)
 {
-	struct xt_mark_target_info_v1 *markinfo = targinfo;
+	const struct xt_mark_target_info_v1 *markinfo = targinfo;
 
 	if (markinfo->mode != XT_MARK_SET
 	    && markinfo->mode != XT_MARK_AND
 	    && markinfo->mode != XT_MARK_OR) {
 		printk(KERN_WARNING "MARK: unknown mode %u\n",
 		       markinfo->mode);
-		return 0;
+		return false;
 	}
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT
@@ -114,7 +114,7 @@ struct compat_xt_mark_target_info_v1 {
 
 static void compat_from_user_v1(void *dst, void *src)
 {
-	struct compat_xt_mark_target_info_v1 *cm = src;
+	const struct compat_xt_mark_target_info_v1 *cm = src;
 	struct xt_mark_target_info_v1 m = {
 		.mark	= cm->mark,
 		.mode	= cm->mode,
@@ -124,7 +124,7 @@ static void compat_from_user_v1(void *dst, void *src)
 
 static int compat_to_user_v1(void __user *dst, void *src)
 {
-	struct xt_mark_target_info_v1 *m = src;
+	const struct xt_mark_target_info_v1 *m = src;
 	struct compat_xt_mark_target_info_v1 cm = {
 		.mark	= m->mark,
 		.mode	= m->mode,
@@ -133,7 +133,7 @@ static int compat_to_user_v1(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target xt_mark_target[] = {
+static struct xt_target xt_mark_target[] __read_mostly = {
 	{
 		.name		= "MARK",
 		.family		= AF_INET,

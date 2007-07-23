@@ -219,21 +219,25 @@ void discard_lazy_cpu_state(void)
 }
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 int set_dabr(unsigned long dabr)
 {
+#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
+#endif
 
+	/* XXX should we have a CPU_FTR_HAS_DABR ? */
+#if defined(CONFIG_PPC64) || defined(CONFIG_6xx)
 	mtspr(SPRN_DABR, dabr);
+#endif
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
-static DEFINE_PER_CPU(unsigned long, current_dabr);
 #endif
+
+static DEFINE_PER_CPU(unsigned long, current_dabr);
 
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
@@ -299,12 +303,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_PPC64	/* for now */
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr)) {
 		set_dabr(new->thread.dabr);
 		__get_cpu_var(current_dabr) = new->thread.dabr;
 	}
-#endif /* CONFIG_PPC64 */
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -473,12 +475,10 @@ void flush_thread(void)
 
 	discard_lazy_cpu_state();
 
-#ifdef CONFIG_PPC64	/* for now */
 	if (current->thread.dabr) {
 		current->thread.dabr = 0;
 		set_dabr(0);
 	}
-#endif
 }
 
 void

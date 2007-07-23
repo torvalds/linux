@@ -36,7 +36,7 @@
 
 #define DEBUG_SCATTER 0
 
-void drm_sg_cleanup(drm_sg_mem_t * entry)
+void drm_sg_cleanup(struct drm_sg_mem * entry)
 {
 	struct page *page;
 	int i;
@@ -65,11 +65,11 @@ void drm_sg_cleanup(drm_sg_mem_t * entry)
 int drm_sg_alloc(struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_scatter_gather_t __user *argp = (void __user *)arg;
-	drm_scatter_gather_t request;
-	drm_sg_mem_t *entry;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_scatter_gather __user *argp = (void __user *)arg;
+	struct drm_scatter_gather request;
+	struct drm_sg_mem *entry;
 	unsigned long pages, i, j;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
@@ -201,16 +201,16 @@ int drm_sg_alloc(struct inode *inode, struct file *filp,
 int drm_sg_free(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	drm_scatter_gather_t request;
-	drm_sg_mem_t *entry;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->head->dev;
+	struct drm_scatter_gather request;
+	struct drm_sg_mem *entry;
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
 
 	if (copy_from_user(&request,
-			   (drm_scatter_gather_t __user *) arg,
+			   (struct drm_scatter_gather __user *) arg,
 			   sizeof(request)))
 		return -EFAULT;
 

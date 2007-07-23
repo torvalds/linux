@@ -1235,9 +1235,9 @@ static void pcnet32_rx_entry(struct net_device *dev,
 					    lp->rx_dma_addr[entry],
 					    pkt_len,
 					    PCI_DMA_FROMDEVICE);
-		eth_copy_and_sum(skb,
+		skb_copy_to_linear_data(skb,
 				 (unsigned char *)(lp->rx_skbuff[entry]->data),
-				 pkt_len, 0);
+				 pkt_len);
 		pci_dma_sync_single_for_device(lp->pci_dev,
 					       lp->rx_dma_addr[entry],
 					       pkt_len,

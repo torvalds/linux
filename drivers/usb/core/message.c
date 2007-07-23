@@ -34,13 +34,14 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 { 
 	struct completion done;
 	unsigned long expire;
-	int status;
+	int retval;
+	int status = urb->status;
 
 	init_completion(&done); 	
 	urb->context = &done;
 	urb->actual_length = 0;
-	status = usb_submit_urb(urb, GFP_NOIO);
-	if (unlikely(status))
+	retval = usb_submit_urb(urb, GFP_NOIO);
+	if (unlikely(retval))
 		goto out;
 
 	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
@@ -55,15 +56,15 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 			urb->transfer_buffer_length);
 
 		usb_kill_urb(urb);
-		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
+		retval = status == -ENOENT ? -ETIMEDOUT : status;
 	} else
-		status = urb->status;
+		retval = status;
 out:
 	if (actual_length)
 		*actual_length = urb->actual_length;
 
 	usb_free_urb(urb);
-	return status;
+	return retval;
 }
 
 /*-------------------------------------------------------------------*/
@@ -250,6 +251,7 @@ static void sg_clean (struct usb_sg_request *io)
 static void sg_complete (struct urb *urb)
 {
 	struct usb_sg_request	*io = urb->context;
+	int status = urb->status;
 
 	spin_lock (&io->lock);
 
@@ -265,21 +267,21 @@ static void sg_complete (struct urb *urb)
 	 */
 	if (io->status
 			&& (io->status != -ECONNRESET
-				|| urb->status != -ECONNRESET)
+				|| status != -ECONNRESET)
 			&& urb->actual_length) {
 		dev_err (io->dev->bus->controller,
 			"dev %s ep%d%s scatterlist error %d/%d\n",
 			io->dev->devpath,
 			usb_pipeendpoint (urb->pipe),
 			usb_pipein (urb->pipe) ? "in" : "out",
-			urb->status, io->status);
+			status, io->status);
 		// BUG ();
 	}
 
-	if (io->status == 0 && urb->status && urb->status != -ECONNRESET) {
-		int		i, found, status;
+	if (io->status == 0 && status && status != -ECONNRESET) {
+		int i, found, retval;
 
-		io->status = urb->status;
+		io->status = status;
 
 		/* the previous urbs, and this one, completed already.
 		 * unlink pending urbs so they won't rx/tx bad data.
@@ -290,13 +292,13 @@ static void sg_complete (struct urb *urb)
 			if (!io->urbs [i] || !io->urbs [i]->dev)
 				continue;
 			if (found) {
-				status = usb_unlink_urb (io->urbs [i]);
-				if (status != -EINPROGRESS
-						&& status != -ENODEV
-						&& status != -EBUSY)
+				retval = usb_unlink_urb (io->urbs [i]);
+				if (retval != -EINPROGRESS &&
+				    retval != -ENODEV &&
+				    retval != -EBUSY)
 					dev_err (&io->dev->dev,
 						"%s, unlink --> %d\n",
-						__FUNCTION__, status);
+						__FUNCTION__, retval);
 			} else if (urb == io->urbs [i])
 				found = 1;
 		}
@@ -404,8 +406,6 @@ int usb_sg_init (
 
 		io->urbs [i]->complete = sg_complete;
 		io->urbs [i]->context = io;
-		io->urbs [i]->status = -EINPROGRESS;
-		io->urbs [i]->actual_length = 0;
 
 		/*
 		 * Some systems need to revert to PIO when DMA is temporarily
@@ -499,7 +499,8 @@ void usb_sg_wait (struct usb_sg_request *io)
 
 	/* queue the urbs.  */
 	spin_lock_irq (&io->lock);
-	for (i = 0; i < entries && !io->status; i++) {
+	i = 0;
+	while (i < entries && !io->status) {
 		int	retval;
 
 		io->urbs [i]->dev = io->dev;
@@ -516,7 +517,6 @@ void usb_sg_wait (struct usb_sg_request *io)
 		case -ENOMEM:
 			io->urbs[i]->dev = NULL;
 			retval = 0;
-			i--;
 			yield ();
 			break;
 
@@ -527,6 +527,7 @@ void usb_sg_wait (struct usb_sg_request *io)
 			 * URBs are queued at once; N milliseconds?
 			 */
 		case 0:
+			++i;
 			cpu_relax ();
 			break;
 
@@ -1385,6 +1386,36 @@ struct device_type usb_if_device_type = {
 	.uevent =	usb_if_uevent,
 };
 
+static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
+						       struct usb_host_config *config,
+						       u8 inum)
+{
+	struct usb_interface_assoc_descriptor *retval = NULL;
+	struct usb_interface_assoc_descriptor *intf_assoc;
+	int first_intf;
+	int last_intf;
+	int i;
+
+	for (i = 0; (i < USB_MAXIADS && config->intf_assoc[i]); i++) {
+		intf_assoc = config->intf_assoc[i];
+		if (intf_assoc->bInterfaceCount == 0)
+			continue;
+
+		first_intf = intf_assoc->bFirstInterface;
+		last_intf = first_intf + (intf_assoc->bInterfaceCount - 1);
+		if (inum >= first_intf && inum <= last_intf) {
+			if (!retval)
+				retval = intf_assoc;
+			else
+				dev_err(&dev->dev, "Interface #%d referenced"
+					" by multiple IADs\n", inum);
+		}
+	}
+
+	return retval;
+}
+
+
 /*
  * usb_set_configuration - Makes a particular device setting be current
  * @dev: the device whose configuration is being updated
@@ -1531,6 +1562,7 @@ free_interfaces:
 		intfc = cp->intf_cache[i];
 		intf->altsetting = intfc->altsetting;
 		intf->num_altsetting = intfc->num_altsetting;
+		intf->intf_assoc = find_iad(dev, cp, i);
 		kref_get(&intfc->ref);
 
 		alt = usb_altnum_to_altsetting(intf, 0);

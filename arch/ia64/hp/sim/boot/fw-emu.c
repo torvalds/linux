@@ -329,11 +329,6 @@ sys_fw_init (const char *args, int arglen)
 	strcpy(sal_systab->product_id, "HP-simulator");
 #endif
 
-#ifdef CONFIG_IA64_SDV
-	strcpy(sal_systab->oem_id, "Intel");
-	strcpy(sal_systab->product_id, "SDV");
-#endif
-
 	/* fill in an entry point: */
 	sal_ed->type = SAL_DESC_ENTRY_POINT;
 	sal_ed->pal_proc = __pa(pal_desc[0]);

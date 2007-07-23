@@ -12,5 +12,5 @@
 
 static inline void do_timer_interrupt_hook(void)
 {
-	pit_interrupt_hook();
+	global_clock_event->event_handler(global_clock_event);
 }

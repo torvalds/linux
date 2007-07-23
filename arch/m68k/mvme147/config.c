@@ -89,7 +89,7 @@ static int mvme147_get_hardware_list(char *buffer)
  * the mvme147 IRQ handling routines.
  */
 
-void mvme147_init_IRQ(void)
+void __init mvme147_init_IRQ(void)
 {
 	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
 }

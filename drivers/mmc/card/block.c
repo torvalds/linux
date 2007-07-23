@@ -414,13 +414,12 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 		return ERR_PTR(-ENOSPC);
 	__set_bit(devidx, dev_use);
 
-	md = kmalloc(sizeof(struct mmc_blk_data), GFP_KERNEL);
+	md = kzalloc(sizeof(struct mmc_blk_data), GFP_KERNEL);
 	if (!md) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(md, 0, sizeof(struct mmc_blk_data));
 
 	/*
 	 * Set the read-only status based on the supported commands

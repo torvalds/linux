@@ -833,7 +833,7 @@ cmds(struct pt_regs *excp)
 			mdelay(2000);
 			return cmd;
 		case '?':
-			printf(help_string);
+			xmon_puts(help_string);
 			break;
 		case 'b':
 			bpt_cmds();
@@ -2634,7 +2634,7 @@ static int __init setup_xmon_sysrq(void)
 __initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
 
-int __initdata xmon_early, xmon_off;
+static int __initdata xmon_early, xmon_off;
 
 static int __init early_parse_xmon(char *p)
 {

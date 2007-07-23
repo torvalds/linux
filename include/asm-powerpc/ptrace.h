@@ -92,6 +92,11 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 		set_thread_flag(TIF_NOERROR); \
 	} while(0)
 
+struct task_struct;
+extern unsigned long ptrace_get_reg(struct task_struct *task, int regno);
+extern int ptrace_put_reg(struct task_struct *task, int regno,
+			  unsigned long data);
+
 /*
  * We use the least-significant bit of the trap field to indicate
  * whether we have saved the full set of registers, or only a
@@ -158,9 +163,7 @@ do {									      \
 
 #define PT_NIP	32
 #define PT_MSR	33
-#ifdef __KERNEL__
 #define PT_ORIG_R3 34
-#endif
 #define PT_CTR	35
 #define PT_LNK	36
 #define PT_XER	37
@@ -169,11 +172,12 @@ do {									      \
 #define PT_MQ	39
 #else
 #define PT_SOFTE 39
+#endif
 #define PT_TRAP	40
 #define PT_DAR	41
 #define PT_DSISR 42
 #define PT_RESULT 43
-#endif
+#define PT_REGS_COUNT 44
 
 #define PT_FPR0	48	/* each FP reg occupies 2 slots in this space */
 
@@ -229,7 +233,17 @@ do {									      \
 #define PTRACE_GET_DEBUGREG	25
 #define PTRACE_SET_DEBUGREG	26
 
-/* Additional PTRACE requests implemented on PowerPC. */
+/* (new) PTRACE requests using the same numbers as x86 and the same
+ * argument ordering. Additionally, they support more registers too
+ */
+#define PTRACE_GETREGS            12
+#define PTRACE_SETREGS            13
+#define PTRACE_GETFPREGS          14
+#define PTRACE_SETFPREGS          15
+#define PTRACE_GETREGS64	  22
+#define PTRACE_SETREGS64	  23
+
+/* (old) PTRACE requests with inverted arguments */
 #define PPC_PTRACE_GETREGS	0x99	/* Get GPRs 0 - 31 */
 #define PPC_PTRACE_SETREGS	0x98	/* Set GPRs 0 - 31 */
 #define PPC_PTRACE_GETFPREGS	0x97	/* Get FPRs 0 - 31 */

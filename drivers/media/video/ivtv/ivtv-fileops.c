@@ -218,7 +218,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			/* Process pending program info updates and pending VBI data */
 			ivtv_update_pgm_info(itv);
 
-			if (jiffies - itv->dualwatch_jiffies > HZ) {
+			if (jiffies - itv->dualwatch_jiffies > msecs_to_jiffies(1000)) {
 				itv->dualwatch_jiffies = jiffies;
 				ivtv_dualwatch(itv);
 			}
@@ -406,7 +406,7 @@ static ssize_t ivtv_read_pos(struct ivtv_stream *s, char __user *ubuf, size_t co
 	ssize_t rc = count ? ivtv_read(s, ubuf, count, non_block) : 0;
 	struct ivtv *itv = s->itv;
 
-	IVTV_DEBUG_INFO("read %zd from %s, got %zd\n", count, s->name, rc);
+	IVTV_DEBUG_HI_INFO("read %zd from %s, got %zd\n", count, s->name, rc);
 	if (rc > 0)
 		pos += rc;
 	return rc;
@@ -497,7 +497,7 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 	struct ivtv_stream *s = &itv->streams[id->type];
 	int rc;
 
-	IVTV_DEBUG_IOCTL("read %zd bytes from %s\n", count, s->name);
+	IVTV_DEBUG_HI_IOCTL("read %zd bytes from %s\n", count, s->name);
 
 	rc = ivtv_start_capture(id);
 	if (rc)
@@ -535,7 +535,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	int rc;
 	DEFINE_WAIT(wait);
 
-	IVTV_DEBUG_IOCTL("write %zd bytes to %s\n", count, s->name);
+	IVTV_DEBUG_HI_IOCTL("write %zd bytes to %s\n", count, s->name);
 
 	if (s->type != IVTV_DEC_STREAM_TYPE_MPG &&
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
@@ -643,7 +643,7 @@ retry:
 	   to transfer the rest. */
 	if (count && !(filp->f_flags & O_NONBLOCK))
 		goto retry;
-	IVTV_DEBUG_INFO("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+	IVTV_DEBUG_HI_INFO("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
 	return bytes_written;
 }
 
@@ -832,7 +832,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	if (itv == NULL) {
 		/* Couldn't find a device registered
 		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "ivtv: no ivtv device found on minor %d\n", minor);
+		printk(KERN_WARNING "ivtv:  No ivtv device found on minor %d\n", minor);
 		return -ENXIO;
 	}
 
@@ -924,7 +924,7 @@ void ivtv_unmute(struct ivtv *itv)
 	if (atomic_read(&itv->capturing) == 0)
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
-	ivtv_sleep_timeout(HZ / 10, 0);
+	ivtv_msleep_timeout(100, 0);
 
 	if (atomic_read(&itv->capturing)) {
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);

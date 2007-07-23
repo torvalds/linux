@@ -108,7 +108,7 @@ Outgoing, dev->hard_header!=NULL
 Incoming, dev->hard_header==NULL
    mac_header -> UNKNOWN position. It is very likely, that it points to ll
 		 header.  PPP makes it, that is wrong, because introduce
-                 assymetry between rx and tx paths.
+		 assymetry between rx and tx paths.
    data       -> data
 
 Outgoing, dev->hard_header==NULL
@@ -1928,7 +1928,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations packet_seq_ops = {
+static const struct seq_operations packet_seq_ops = {
 	.start	= packet_seq_start,
 	.next	= packet_seq_next,
 	.stop	= packet_seq_stop,

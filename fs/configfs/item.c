@@ -62,7 +62,6 @@ void config_item_init(struct config_item * item)
  *	dynamically allocated string that @item->ci_name points to.
  *	Otherwise, use the static @item->ci_namebuf array.
  */
-
 int config_item_set_name(struct config_item * item, const char * fmt, ...)
 {
 	int error = 0;
@@ -139,12 +138,7 @@ struct config_item * config_item_get(struct config_item * item)
 	return item;
 }
 
-/**
- *	config_item_cleanup - free config_item resources.
- *	@item:	item.
- */
-
-void config_item_cleanup(struct config_item * item)
+static void config_item_cleanup(struct config_item * item)
 {
 	struct config_item_type * t = item->ci_type;
 	struct config_group * s = item->ci_group;
@@ -179,39 +173,35 @@ void config_item_put(struct config_item * item)
 		kref_put(&item->ci_kref, config_item_release);
 }
 
-
 /**
  *	config_group_init - initialize a group for use
  *	@k:	group
  */
-
 void config_group_init(struct config_group *group)
 {
 	config_item_init(&group->cg_item);
 	INIT_LIST_HEAD(&group->cg_children);
 }
 
-
 /**
- *	config_group_find_obj - search for item in group.
+ *	config_group_find_item - search for item in group.
  *	@group:	group we're looking in.
  *	@name:	item's name.
  *
- *	Lock group via @group->cg_subsys, and iterate over @group->cg_list,
- *	looking for a matching config_item. If matching item is found
- *	take a reference and return the item.
+ *	Iterate over @group->cg_list, looking for a matching config_item.
+ *	If matching item is found take a reference and return the item.
+ *	Caller must have locked group via @group->cg_subsys->su_mtx.
  */
-
-struct config_item * config_group_find_obj(struct config_group * group, const char * name)
+struct config_item *config_group_find_item(struct config_group *group,
+					   const char *name)
 {
 	struct list_head * entry;
 	struct config_item * ret = NULL;
 
-        /* XXX LOCKING! */
 	list_for_each(entry,&group->cg_children) {
 		struct config_item * item = to_item(entry);
 		if (config_item_name(item) &&
-                    !strcmp(config_item_name(item), name)) {
+		    !strcmp(config_item_name(item), name)) {
 			ret = config_item_get(item);
 			break;
 		}
@@ -219,9 +209,8 @@ struct config_item * config_group_find_obj(struct config_group * group, const ch
 	return ret;
 }
 
-
 EXPORT_SYMBOL(config_item_init);
 EXPORT_SYMBOL(config_group_init);
 EXPORT_SYMBOL(config_item_get);
 EXPORT_SYMBOL(config_item_put);
-EXPORT_SYMBOL(config_group_find_obj);
+EXPORT_SYMBOL(config_group_find_item);

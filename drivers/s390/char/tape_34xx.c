@@ -131,10 +131,9 @@ tape_34xx_schedule_work(struct tape_device *device, enum tape_op op)
 {
 	struct tape_34xx_work *p;
 
-	if ((p = kmalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
+	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
-	memset(p, 0, sizeof(*p));
 	INIT_WORK(&p->work, tape_34xx_work_handler);
 
 	p->device = tape_get_device_reference(device);

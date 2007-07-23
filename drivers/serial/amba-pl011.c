@@ -716,7 +716,7 @@ static int pl011_probe(struct amba_device *dev, void *id)
 		goto out;
 	}
 
-	uap = kmalloc(sizeof(struct uart_amba_port), GFP_KERNEL);
+	uap = kzalloc(sizeof(struct uart_amba_port), GFP_KERNEL);
 	if (uap == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -728,7 +728,6 @@ static int pl011_probe(struct amba_device *dev, void *id)
 		goto free;
 	}
 
-	memset(uap, 0, sizeof(struct uart_amba_port));
 	uap->clk = clk_get(&dev->dev, "UARTCLK");
 	if (IS_ERR(uap->clk)) {
 		ret = PTR_ERR(uap->clk);

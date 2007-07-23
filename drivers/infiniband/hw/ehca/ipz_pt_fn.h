@@ -51,9 +51,23 @@
 #include "ehca_tools.h"
 #include "ehca_qes.h"
 
+struct ehca_pd;
+struct ipz_small_queue_page;
+
 /* struct generic ehca page */
 struct ipz_page {
 	u8 entries[EHCA_PAGESIZE];
+};
+
+#define IPZ_SPAGE_PER_KPAGE (PAGE_SIZE / 512)
+
+struct ipz_small_queue_page {
+	unsigned long page;
+	unsigned long bitmap[IPZ_SPAGE_PER_KPAGE / BITS_PER_LONG];
+	int fill;
+	void *mapped_addr;
+	u32 mmap_count;
+	struct list_head list;
 };
 
 /* struct generic queue in linux kernel virtual memory (kv) */
@@ -66,7 +80,8 @@ struct ipz_queue {
 	u32 queue_length;	/* queue length allocated in bytes */
 	u32 pagesize;
 	u32 toggle_state;	/* toggle flag - per page */
-	u32 dummy3;		/* 64 bit alignment */
+	u32 offset; /* save offset within page for small_qp */
+	struct ipz_small_queue_page *small_page;
 };
 
 /*
@@ -105,7 +120,6 @@ void *ipz_qpageit_get_inc(struct ipz_queue *queue);
  * step in struct ipz_queue, will wrap in ringbuffer
  * returns address (kv) of Queue Entry BEFORE increment
  * warning don't use in parallel with ipz_qpageit_get_inc()
- * warning unpredictable results may occur if steps>act_nr_of_queue_entries
  */
 static inline void *ipz_qeit_get_inc(struct ipz_queue *queue)
 {
@@ -121,31 +135,24 @@ static inline void *ipz_qeit_get_inc(struct ipz_queue *queue)
 }
 
 /*
+ * return a bool indicating whether current Queue Entry is valid
+ */
+static inline int ipz_qeit_is_valid(struct ipz_queue *queue)
+{
+	struct ehca_cqe *cqe = ipz_qeit_get(queue);
+	return ((cqe->cqe_flags >> 7) == (queue->toggle_state & 1));
+}
+
+/*
  * return current Queue Entry, increment Queue Entry iterator by one
  * step in struct ipz_queue, will wrap in ringbuffer
  * returns address (kv) of Queue Entry BEFORE increment
  * returns 0 and does not increment, if wrong valid state
  * warning don't use in parallel with ipz_qpageit_get_inc()
- * warning unpredictable results may occur if steps>act_nr_of_queue_entries
  */
 static inline void *ipz_qeit_get_inc_valid(struct ipz_queue *queue)
 {
-	struct ehca_cqe *cqe = ipz_qeit_get(queue);
-	u32 cqe_flags = cqe->cqe_flags;
-
-	if ((cqe_flags >> 7) != (queue->toggle_state & 1))
-		return NULL;
-
-	ipz_qeit_get_inc(queue);
-	return cqe;
-}
-
-static inline int ipz_qeit_is_valid(struct ipz_queue *queue)
-{
-	struct ehca_cqe *cqe = ipz_qeit_get(queue);
-	u32 cqe_flags = cqe->cqe_flags;
-
-	return cqe_flags >> 7 == (queue->toggle_state & 1);
+	return ipz_qeit_is_valid(queue) ? ipz_qeit_get_inc(queue) : NULL;
 }
 
 /*
@@ -196,9 +203,10 @@ struct ipz_qpt {
  * see ipz_qpt_ctor()
  * returns true if ok, false if out of memory
  */
-int ipz_queue_ctor(struct ipz_queue *queue, const u32 nr_of_pages,
-		   const u32 pagesize, const u32 qe_size,
-		   const u32 nr_of_sg);
+int ipz_queue_ctor(struct ehca_pd *pd, struct ipz_queue *queue,
+		   const u32 nr_of_pages, const u32 pagesize,
+		   const u32 qe_size, const u32 nr_of_sg,
+		   int is_small);
 
 /*
  * destructor for a ipz_queue_t
@@ -206,7 +214,7 @@ int ipz_queue_ctor(struct ipz_queue *queue, const u32 nr_of_pages,
  *  see ipz_queue_ctor()
  *  returns true if ok, false if queue was NULL-ptr of free failed
  */
-int ipz_queue_dtor(struct ipz_queue *queue);
+int ipz_queue_dtor(struct ehca_pd *pd, struct ipz_queue *queue);
 
 /*
  * constructor for a ipz_qpt_t,
@@ -248,7 +256,7 @@ void *ipz_qeit_eq_get_inc(struct ipz_queue *queue);
 static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	ipz_qeit_eq_get_inc(queue); /* this is a good one */
@@ -258,7 +266,7 @@ static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 static inline void *ipz_eqit_eq_peek_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	return ret;

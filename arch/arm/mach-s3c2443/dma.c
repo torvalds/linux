@@ -24,14 +24,14 @@
 #include <asm/plat-s3c24xx/dma.h>
 #include <asm/plat-s3c24xx/cpu.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-ac97.h>
+#include <asm/plat-s3c/regs-ac97.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/regs-sdi.h>
-#include <asm/arch/regs-iis.h>
-#include <asm/arch/regs-spi.h>
+#include <asm/plat-s3c24xx/regs-iis.h>
+#include <asm/plat-s3c24xx/regs-spi.h>
 
 #define MAP(x) { \
 		[0]	= (x) | DMA_CH_VALID,	\

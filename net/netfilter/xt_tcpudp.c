@@ -27,22 +27,19 @@ MODULE_ALIAS("ip6t_tcp");
 
 
 /* Returns 1 if the port is matched by the range, 0 otherwise */
-static inline int
-port_match(u_int16_t min, u_int16_t max, u_int16_t port, int invert)
+static inline bool
+port_match(u_int16_t min, u_int16_t max, u_int16_t port, bool invert)
 {
-	int ret;
-
-	ret = (port >= min && port <= max) ^ invert;
-	return ret;
+	return (port >= min && port <= max) ^ invert;
 }
 
-static int
+static bool
 tcp_find_option(u_int8_t option,
 		const struct sk_buff *skb,
 		unsigned int protoff,
 		unsigned int optlen,
-		int invert,
-		int *hotdrop)
+		bool invert,
+		bool *hotdrop)
 {
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
 	u_int8_t _opt[60 - sizeof(struct tcphdr)], *op;
@@ -57,8 +54,8 @@ tcp_find_option(u_int8_t option,
 	op = skb_header_pointer(skb, protoff + sizeof(struct tcphdr),
 				optlen, _opt);
 	if (op == NULL) {
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	for (i = 0; i < optlen; ) {
@@ -70,7 +67,7 @@ tcp_find_option(u_int8_t option,
 	return invert;
 }
 
-static int
+static bool
 tcp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
@@ -78,7 +75,7 @@ tcp_match(const struct sk_buff *skb,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
-	  int *hotdrop)
+	  bool *hotdrop)
 {
 	struct tcphdr _tcph, *th;
 	const struct xt_tcp *tcpinfo = matchinfo;
@@ -92,51 +89,51 @@ tcp_match(const struct sk_buff *skb,
 		*/
 		if (offset == 1) {
 			duprintf("Dropping evil TCP offset=1 frag.\n");
-			*hotdrop = 1;
+			*hotdrop = true;
 		}
 		/* Must not be a fragment. */
-		return 0;
+		return false;
 	}
 
-#define FWINVTCP(bool,invflg) ((bool) ^ !!(tcpinfo->invflags & invflg))
+#define FWINVTCP(bool, invflg) ((bool) ^ !!(tcpinfo->invflags & (invflg)))
 
 	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	if (!port_match(tcpinfo->spts[0], tcpinfo->spts[1],
 			ntohs(th->source),
 			!!(tcpinfo->invflags & XT_TCP_INV_SRCPT)))
-		return 0;
+		return false;
 	if (!port_match(tcpinfo->dpts[0], tcpinfo->dpts[1],
 			ntohs(th->dest),
 			!!(tcpinfo->invflags & XT_TCP_INV_DSTPT)))
-		return 0;
+		return false;
 	if (!FWINVTCP((((unsigned char *)th)[13] & tcpinfo->flg_mask)
 		      == tcpinfo->flg_cmp,
 		      XT_TCP_INV_FLAGS))
-		return 0;
+		return false;
 	if (tcpinfo->option) {
 		if (th->doff * 4 < sizeof(_tcph)) {
-			*hotdrop = 1;
-			return 0;
+			*hotdrop = true;
+			return false;
 		}
 		if (!tcp_find_option(tcpinfo->option, skb, protoff,
 				     th->doff*4 - sizeof(_tcph),
 				     tcpinfo->invflags & XT_TCP_INV_OPTION,
 				     hotdrop))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 tcp_checkentry(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,
@@ -149,7 +146,7 @@ tcp_checkentry(const char *tablename,
 	return !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
 }
 
-static int
+static bool
 udp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
@@ -157,22 +154,22 @@ udp_match(const struct sk_buff *skb,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
-	  int *hotdrop)
+	  bool *hotdrop)
 {
 	struct udphdr _udph, *uh;
 	const struct xt_udp *udpinfo = matchinfo;
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	uh = skb_header_pointer(skb, protoff, sizeof(_udph), &_udph);
 	if (uh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil UDP tinygram.\n");
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	return port_match(udpinfo->spts[0], udpinfo->spts[1],
@@ -184,7 +181,7 @@ udp_match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 udp_checkentry(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,
@@ -197,7 +194,7 @@ udp_checkentry(const char *tablename,
 	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
 }
 
-static struct xt_match xt_tcpudp_match[] = {
+static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "tcp",
 		.family		= AF_INET,

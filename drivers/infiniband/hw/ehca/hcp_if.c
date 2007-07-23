@@ -5,6 +5,7 @@
  *
  *  Authors: Christoph Raisch <raisch@de.ibm.com>
  *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *           Gerd Bayer <gerd.bayer@de.ibm.com>
  *           Waleri Fomin <fomin@de.ibm.com>
  *
@@ -51,16 +52,25 @@
 #define H_ALL_RES_QP_ENHANCED_OPS       EHCA_BMASK_IBM(9, 11)
 #define H_ALL_RES_QP_PTE_PIN            EHCA_BMASK_IBM(12, 12)
 #define H_ALL_RES_QP_SERVICE_TYPE       EHCA_BMASK_IBM(13, 15)
+#define H_ALL_RES_QP_STORAGE            EHCA_BMASK_IBM(16, 17)
 #define H_ALL_RES_QP_LL_RQ_CQE_POSTING  EHCA_BMASK_IBM(18, 18)
 #define H_ALL_RES_QP_LL_SQ_CQE_POSTING  EHCA_BMASK_IBM(19, 21)
 #define H_ALL_RES_QP_SIGNALING_TYPE     EHCA_BMASK_IBM(22, 23)
 #define H_ALL_RES_QP_UD_AV_LKEY_CTRL    EHCA_BMASK_IBM(31, 31)
+#define H_ALL_RES_QP_SMALL_SQ_PAGE_SIZE EHCA_BMASK_IBM(32, 35)
+#define H_ALL_RES_QP_SMALL_RQ_PAGE_SIZE EHCA_BMASK_IBM(36, 39)
 #define H_ALL_RES_QP_RESOURCE_TYPE      EHCA_BMASK_IBM(56, 63)
 
 #define H_ALL_RES_QP_MAX_OUTST_SEND_WR  EHCA_BMASK_IBM(0, 15)
 #define H_ALL_RES_QP_MAX_OUTST_RECV_WR  EHCA_BMASK_IBM(16, 31)
 #define H_ALL_RES_QP_MAX_SEND_SGE       EHCA_BMASK_IBM(32, 39)
 #define H_ALL_RES_QP_MAX_RECV_SGE       EHCA_BMASK_IBM(40, 47)
+
+#define H_ALL_RES_QP_UD_AV_LKEY         EHCA_BMASK_IBM(32, 63)
+#define H_ALL_RES_QP_SRQ_QP_TOKEN       EHCA_BMASK_IBM(0, 31)
+#define H_ALL_RES_QP_SRQ_QP_HANDLE      EHCA_BMASK_IBM(0, 64)
+#define H_ALL_RES_QP_SRQ_LIMIT          EHCA_BMASK_IBM(48, 63)
+#define H_ALL_RES_QP_SRQ_QPN            EHCA_BMASK_IBM(40, 63)
 
 #define H_ALL_RES_QP_ACT_OUTST_SEND_WR  EHCA_BMASK_IBM(16, 31)
 #define H_ALL_RES_QP_ACT_OUTST_RECV_WR  EHCA_BMASK_IBM(48, 63)
@@ -74,10 +84,7 @@
 #define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
 #define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
 
-/* direct access qp controls */
-#define DAQP_CTRL_ENABLE    0x01
-#define DAQP_CTRL_SEND_COMP 0x20
-#define DAQP_CTRL_RECV_COMP 0x40
+static DEFINE_SPINLOCK(hcall_lock);
 
 static u32 get_longbusy_msecs(int longbusy_rc)
 {
@@ -155,7 +162,7 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 {
 	long ret;
 	int i, sleep_msecs, lock_is_set = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
 		     "arg5=%lx arg6=%lx arg7=%lx arg8=%lx arg9=%lx",
@@ -284,68 +291,73 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 }
 
 u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
-			     struct ehca_qp *qp,
 			     struct ehca_alloc_qp_parms *parms)
 {
 	u64 ret;
-	u64 allocate_controls;
-	u64 max_r10_reg;
+	u64 allocate_controls, max_r10_reg, r11, r12;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
-	u16 max_nr_receive_wqes = qp->init_attr.cap.max_recv_wr + 1;
-	u16 max_nr_send_wqes = qp->init_attr.cap.max_send_wr + 1;
-	int daqp_ctrl = parms->daqp_ctrl;
 
 	allocate_controls =
-		EHCA_BMASK_SET(H_ALL_RES_QP_ENHANCED_OPS,
-			       (daqp_ctrl & DAQP_CTRL_ENABLE) ? 1 : 0)
+		EHCA_BMASK_SET(H_ALL_RES_QP_ENHANCED_OPS, parms->ext_type)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_PTE_PIN, 0)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_SERVICE_TYPE, parms->servicetype)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_SIGNALING_TYPE, parms->sigtype)
+		| EHCA_BMASK_SET(H_ALL_RES_QP_STORAGE, parms->qp_storage)
+		| EHCA_BMASK_SET(H_ALL_RES_QP_SMALL_SQ_PAGE_SIZE,
+				 parms->squeue.page_size)
+		| EHCA_BMASK_SET(H_ALL_RES_QP_SMALL_RQ_PAGE_SIZE,
+				 parms->rqueue.page_size)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_LL_RQ_CQE_POSTING,
-				 (daqp_ctrl & DAQP_CTRL_RECV_COMP) ? 1 : 0)
+				 !!(parms->ll_comp_flags & LLQP_RECV_COMP))
 		| EHCA_BMASK_SET(H_ALL_RES_QP_LL_SQ_CQE_POSTING,
-				 (daqp_ctrl & DAQP_CTRL_SEND_COMP) ? 1 : 0)
+				 !!(parms->ll_comp_flags & LLQP_SEND_COMP))
 		| EHCA_BMASK_SET(H_ALL_RES_QP_UD_AV_LKEY_CTRL,
 				 parms->ud_av_l_key_ctl)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_RESOURCE_TYPE, 1);
 
 	max_r10_reg =
 		EHCA_BMASK_SET(H_ALL_RES_QP_MAX_OUTST_SEND_WR,
-			       max_nr_send_wqes)
+			       parms->squeue.max_wr + 1)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_OUTST_RECV_WR,
-				 max_nr_receive_wqes)
+				 parms->rqueue.max_wr + 1)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_SEND_SGE,
-				 parms->max_send_sge)
+				 parms->squeue.max_sge)
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_RECV_SGE,
-				 parms->max_recv_sge);
+				 parms->rqueue.max_sge);
+
+	r11 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QP_TOKEN, parms->srq_token);
+
+	if (parms->ext_type == EQPT_SRQ)
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_LIMIT, parms->srq_limit);
+	else
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QPN, parms->srq_qpn);
 
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,	           /* r4  */
 				allocate_controls,	           /* r5  */
-				qp->send_cq->ipz_cq_handle.handle,
-				qp->recv_cq->ipz_cq_handle.handle,
-				parms->ipz_eq_handle.handle,
-				((u64)qp->token << 32) | parms->pd.value,
-				max_r10_reg,	                   /* r10 */
-				parms->ud_av_l_key_ctl,            /* r11 */
-				0);
-	qp->ipz_qp_handle.handle = outs[0];
-	qp->real_qp_num = (u32)outs[1];
-	parms->act_nr_send_wqes =
+				parms->send_cq_handle.handle,
+				parms->recv_cq_handle.handle,
+				parms->eq_handle.handle,
+				((u64)parms->token << 32) | parms->pd.value,
+				max_r10_reg, r11, r12);
+
+	parms->qp_handle.handle = outs[0];
+	parms->real_qp_num = (u32)outs[1];
+	parms->squeue.act_nr_wqes =
 		(u16)EHCA_BMASK_GET(H_ALL_RES_QP_ACT_OUTST_SEND_WR, outs[2]);
-	parms->act_nr_recv_wqes =
+	parms->rqueue.act_nr_wqes =
 		(u16)EHCA_BMASK_GET(H_ALL_RES_QP_ACT_OUTST_RECV_WR, outs[2]);
-	parms->act_nr_send_sges =
+	parms->squeue.act_nr_sges =
 		(u8)EHCA_BMASK_GET(H_ALL_RES_QP_ACT_SEND_SGE, outs[3]);
-	parms->act_nr_recv_sges =
+	parms->rqueue.act_nr_sges =
 		(u8)EHCA_BMASK_GET(H_ALL_RES_QP_ACT_RECV_SGE, outs[3]);
-	parms->nr_sq_pages =
+	parms->squeue.queue_size =
 		(u32)EHCA_BMASK_GET(H_ALL_RES_QP_SQUEUE_SIZE_PAGES, outs[4]);
-	parms->nr_rq_pages =
+	parms->rqueue.queue_size =
 		(u32)EHCA_BMASK_GET(H_ALL_RES_QP_RQUEUE_SIZE_PAGES, outs[4]);
 
 	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&qp->galpas, outs[6], outs[6]);
+		hcp_galpas_ctor(&parms->galpas, outs[6], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lx", ret);
@@ -423,7 +435,8 @@ u64 hipz_h_register_rpage(const struct ipz_adapter_handle adapter_handle,
 {
 	return ehca_plpar_hcall_norets(H_REGISTER_RPAGES,
 				       adapter_handle.handle,      /* r4  */
-				       queue_type | pagesize << 8, /* r5  */
+				       (u64)queue_type | ((u64)pagesize) << 8,
+				       /* r5  */
 				       resource_handle,	           /* r6  */
 				       logical_address_of_page,    /* r7  */
 				       count,	                   /* r8  */
@@ -492,13 +505,13 @@ u64 hipz_h_register_rpage_qp(const struct ipz_adapter_handle adapter_handle,
 			     const u64 count,
 			     const struct h_galpa galpa)
 {
-	if (count != 1) {
+	if (count > 1) {
 		ehca_gen_err("Page counter=%lx", count);
 		return H_PARAMETER;
 	}
 
-	return hipz_h_register_rpage(adapter_handle,pagesize,queue_type,
-				     qp_handle.handle,logical_address_of_page,
+	return hipz_h_register_rpage(adapter_handle, pagesize, queue_type,
+				     qp_handle.handle, logical_address_of_page,
 				     count);
 }
 
@@ -518,9 +531,9 @@ u64 hipz_h_disable_and_get_wqe(const struct ipz_adapter_handle adapter_handle,
 				qp_handle.handle,	   /* r6 */
 				0, 0, 0, 0, 0, 0);
 	if (log_addr_next_sq_wqe2processed)
-		*log_addr_next_sq_wqe2processed = (void*)outs[0];
+		*log_addr_next_sq_wqe2processed = (void *)outs[0];
 	if (log_addr_next_rq_wqe2processed)
-		*log_addr_next_rq_wqe2processed = (void*)outs[1];
+		*log_addr_next_rq_wqe2processed = (void *)outs[1];
 
 	return ret;
 }
@@ -720,6 +733,9 @@ u64 hipz_h_alloc_resource_mr(const struct ipz_adapter_handle adapter_handle,
 	u64 ret;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
 
+	ehca_gen_dbg("kernel PAGE_SIZE=%x access_ctrl=%016x "
+		     "vaddr=%lx length=%lx",
+		     (u32)PAGE_SIZE, access_ctrl, vaddr, length);
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,            /* r4 */
 				5,                                /* r5 */
@@ -742,7 +758,21 @@ u64 hipz_h_register_rpage_mr(const struct ipz_adapter_handle adapter_handle,
 			     const u64 logical_address_of_page,
 			     const u64 count)
 {
+	extern int ehca_debug_level;
 	u64 ret;
+
+	if (unlikely(ehca_debug_level >= 2)) {
+		if (count > 1) {
+			u64 *kpage;
+			int i;
+			kpage = (u64 *)abs_to_virt(logical_address_of_page);
+			for (i = 0; i < count; i++)
+				ehca_gen_dbg("kpage[%d]=%p",
+					     i, (void *)kpage[i]);
+		} else
+			ehca_gen_dbg("kpage=%p",
+				     (void *)logical_address_of_page);
+	}
 
 	if ((count > 1) && (logical_address_of_page & (EHCA_PAGESIZE-1))) {
 		ehca_gen_err("logical_address_of_page not on a 4k boundary "

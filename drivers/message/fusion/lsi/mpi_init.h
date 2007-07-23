@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2006 LSI Logic Corporation.
+ *  Copyright (c) 2000-2007 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_init.h
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.08
+ *    mpi_init.h Version:  01.05.09
  *
  *  Version History
  *  ---------------
@@ -54,6 +54,8 @@
  *                      unique in the first 32 characters.
  *  03-27-06  01.05.07  Added Task Management type of Clear ACA.
  *  10-11-06  01.05.08  Shortened define for Task Management type of Clear ACA.
+ *  02-28-07  01.05.09  Defined two new MsgFlags bits for SCSI Task Management
+ *                      Request: Do Not Send Task IU and Soft Reset Option.
  *  --------------------------------------------------------------------------
  */
 
@@ -432,9 +434,13 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_TASKTYPE_CLR_ACA               (0x08)
 
 /* MsgFlags bits */
+#define MPI_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU   (0x01)
+
 #define MPI_SCSITASKMGMT_MSGFLAGS_TARGET_RESET_OPTION   (0x00)
 #define MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION      (0x02)
 #define MPI_SCSITASKMGMT_MSGFLAGS_LIPRESET_RESET_OPTION (0x04)
+
+#define MPI_SCSITASKMGMT_MSGFLAGS_SOFT_RESET_OPTION     (0x08)
 
 /* SCSI Task Management Reply */
 typedef struct _MSG_SCSI_TASK_MGMT_REPLY

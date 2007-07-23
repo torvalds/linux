@@ -1788,7 +1788,6 @@ static void stl_offintr(struct work_struct *work)
 	if (tty == NULL)
 		return;
 
-	lock_kernel();
 	if (test_bit(ASYI_TXLOW, &portp->istate))
 		tty_wakeup(tty);
 
@@ -1802,7 +1801,6 @@ static void stl_offintr(struct work_struct *work)
 			if (portp->flags & ASYNC_CHECK_CD)
 				tty_hangup(tty);	/* FIXME: module removal race here - AKPM */
 	}
-	unlock_kernel();
 }
 
 /*****************************************************************************/
@@ -2356,9 +2354,6 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
 		goto err;
-
-	dev_info(&pdev->dev, "please, report this to LKML: %x/%x/%x\n",
-			pdev->vendor, pdev->device, pdev->class);
 
 	retval = pci_enable_device(pdev);
 	if (retval)
@@ -4800,7 +4795,6 @@ static void __exit stallion_module_exit(void)
 {
 	struct stlbrd *brdp;
 	unsigned int i, j;
-	int retval;
 
 	pr_debug("cleanup_module()\n");
 
@@ -4823,9 +4817,7 @@ static void __exit stallion_module_exit(void)
 
 	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	if ((retval = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
-		printk("STALLION: failed to un-register serial memory device, "
-			"errno=%d\n", -retval);
+	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
 	class_destroy(stallion_class);
 
 	pci_unregister_driver(&stl_pcidriver);

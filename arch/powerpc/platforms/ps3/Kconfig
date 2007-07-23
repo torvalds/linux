@@ -7,6 +7,7 @@ config PPC_PS3
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_BIG_ENDIAN_MMIO
+	select MEMORY_HOTPLUG
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.
@@ -73,18 +74,12 @@ config PS3_USE_LPAR_ADDR
 
 config PS3_VUART
 	depends on PPC_PS3
-	bool "PS3 Virtual UART support" if PS3_ADVANCED
-	default y
-	help
-	  Include support for the PS3 Virtual UART.
-
-	  This support is required for several system services
-	  including the System Manager and AV Settings.  In
-	  general, all users will say Y.
+	tristate
 
 config PS3_PS3AV
+	depends on PPC_PS3
 	tristate "PS3 AV settings driver" if PS3_ADVANCED
-	depends on PS3_VUART
+	select PS3_VUART
 	default y
 	help
 	  Include support for the PS3 AV Settings driver.
@@ -93,13 +88,54 @@ config PS3_PS3AV
 	  general, all users will say Y or M.
 
 config PS3_SYS_MANAGER
-	bool "PS3 System Manager driver" if PS3_ADVANCED
-	depends on PS3_VUART
-	default y
+	depends on PPC_PS3
+	tristate "PS3 System Manager driver" if PS3_ADVANCED
+	select PS3_VUART
+	default m
 	help
 	  Include support for the PS3 System Manager.
 
 	  This support is required for system control.  In
-	  general, all users will say Y.
+	  general, all users will say Y or M.
+
+config PS3_STORAGE
+	depends on PPC_PS3
+	tristate
+
+config PS3_DISK
+	tristate "PS3 Disk Storage Driver"
+	depends on PPC_PS3 && BLOCK
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 Disk Storage.
+
+	  This support is required to access the PS3 hard disk.
+	  In general, all users will say Y or M.
+
+config PS3_ROM
+	tristate "PS3 BD/DVD/CD-ROM Storage Driver"
+	depends on PPC_PS3 && SCSI
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 ROM Storage.
+
+	  This support is required to access the PS3 BD/DVD/CD-ROM drive.
+	  In general, all users will say Y or M.
+	  Also make sure to say Y or M to "SCSI CDROM support" later.
+
+config PS3_FLASH
+	tristate "PS3 FLASH ROM Storage Driver"
+	depends on PPC_PS3
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 FLASH ROM Storage.
+
+	  This support is required to access the PS3 FLASH ROM, which
+	  contains the boot loader and some boot options.
+	  In general, all users will say Y or M.
+
+	  As this driver needs a fixed buffer of 256 KiB of memory, it can
+	  be disabled on the kernel command line using "ps3flash=off", to
+	  not allocate this fixed buffer.
 
 endmenu

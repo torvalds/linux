@@ -180,6 +180,8 @@ static void __init glantank_init_machine(void)
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&glantank_flash_device);
 	platform_device_register(&glantank_serial_device);
+	platform_device_register(&iop3xx_dma_0_channel);
+	platform_device_register(&iop3xx_dma_1_channel);
 
 	pm_power_off = glantank_power_off;
 }

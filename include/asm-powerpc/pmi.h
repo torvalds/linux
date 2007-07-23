@@ -55,13 +55,13 @@ typedef struct {
 struct pmi_handler {
 	struct list_head node;
 	u8 type;
-	void (*handle_pmi_message) (struct of_device *, pmi_message_t);
+	void (*handle_pmi_message) (pmi_message_t);
 };
 
-void pmi_register_handler(struct of_device *, struct pmi_handler *);
-void pmi_unregister_handler(struct of_device *, struct pmi_handler *);
+int pmi_register_handler(struct pmi_handler *);
+void pmi_unregister_handler(struct pmi_handler *);
 
-void pmi_send_message(struct of_device *, pmi_message_t);
+int pmi_send_message(pmi_message_t);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PMI_H */

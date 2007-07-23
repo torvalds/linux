@@ -1,8 +1,8 @@
 /*
  * net/tipc/link.c: TIPC link code
  *
- * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2004-2006, Wind River Systems
+ * Copyright (c) 1996-2007, Ericsson AB
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1260,7 +1260,7 @@ again:
 	 * (Must not hold any locks while building message.)
 	 */
 
-	res = msg_build(hdr, msg_sect, num_sect, sender->max_pkt,
+	res = msg_build(hdr, msg_sect, num_sect, sender->publ.max_pkt,
 			!sender->user_port, &buf);
 
 	read_lock_bh(&tipc_net_lock);
@@ -1271,7 +1271,7 @@ again:
 		if (likely(l_ptr)) {
 			if (likely(buf)) {
 				res = link_send_buf_fast(l_ptr, buf,
-							 &sender->max_pkt);
+							 &sender->publ.max_pkt);
 				if (unlikely(res < 0))
 					buf_discard(buf);
 exit:
@@ -1299,12 +1299,12 @@ exit:
 			 * then re-try fast path or fragment the message
 			 */
 
-			sender->max_pkt = link_max_pkt(l_ptr);
+			sender->publ.max_pkt = link_max_pkt(l_ptr);
 			tipc_node_unlock(node);
 			read_unlock_bh(&tipc_net_lock);
 
 
-			if ((msg_hdr_sz(hdr) + res) <= sender->max_pkt)
+			if ((msg_hdr_sz(hdr) + res) <= sender->publ.max_pkt)
 				goto again;
 
 			return link_send_sections_long(sender, msg_sect,
@@ -1357,7 +1357,7 @@ static int link_send_sections_long(struct port *sender,
 
 again:
 	fragm_no = 1;
-	max_pkt = sender->max_pkt - INT_H_SIZE;
+	max_pkt = sender->publ.max_pkt - INT_H_SIZE;
 		/* leave room for tunnel header in case of link changeover */
 	fragm_sz = max_pkt - INT_H_SIZE;
 		/* leave room for fragmentation header in each fragment */
@@ -1463,7 +1463,7 @@ error:
 			goto reject;
 		}
 		if (link_max_pkt(l_ptr) < max_pkt) {
-			sender->max_pkt = link_max_pkt(l_ptr);
+			sender->publ.max_pkt = link_max_pkt(l_ptr);
 			tipc_node_unlock(node);
 			for (; buf_chain; buf_chain = buf) {
 				buf = buf_chain->next;

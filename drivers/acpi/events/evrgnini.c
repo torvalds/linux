@@ -284,6 +284,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	}
 
 	if (!pci_device_node) {
+		ACPI_FREE(pci_id);
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

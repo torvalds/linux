@@ -35,6 +35,10 @@ obj-$(CONFIG_SA1100_WATCHDOG) += sa1100_wdt.o
 obj-$(CONFIG_MPCORE_WATCHDOG) += mpcore_wdt.o
 obj-$(CONFIG_EP93XX_WATCHDOG) += ep93xx_wdt.o
 obj-$(CONFIG_PNX4008_WATCHDOG) += pnx4008_wdt.o
+obj-$(CONFIG_IOP_WATCHDOG) += iop_wdt.o
+
+# AVR32 Architecture
+obj-$(CONFIG_AT32AP700X_WDT) += at32ap700x_wdt.o
 
 # X86 (i386 + ia64 + x86_64) Architecture
 obj-$(CONFIG_ACQUIRE_WDT) += acquirewdt.o

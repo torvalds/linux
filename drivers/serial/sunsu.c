@@ -1288,7 +1288,17 @@ static void sunsu_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
 	struct uart_sunsu_port *up = &sunsu_ports[co->index];
+	unsigned long flags;
 	unsigned int ier;
+	int locked = 1;
+
+	local_irq_save(flags);
+	if (up->port.sysrq) {
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&up->port.lock);
+	} else
+		spin_lock(&up->port.lock);
 
 	/*
 	 *	First save the UER then disable the interrupts
@@ -1304,6 +1314,10 @@ static void sunsu_console_write(struct console *co, const char *s,
 	 */
 	wait_for_xmitr(up);
 	serial_out(up, UART_IER, ier);
+
+	if (locked)
+		spin_unlock(&up->port.lock);
+	local_irq_restore(flags);
 }
 
 /*
@@ -1357,28 +1371,12 @@ static struct console sunsu_console = {
  *	Register console.
  */
 
-static inline struct console *SUNSU_CONSOLE(int num_uart)
+static inline struct console *SUNSU_CONSOLE(void)
 {
-	int i;
-
-	if (con_is_present())
-		return NULL;
-
-	for (i = 0; i < num_uart; i++) {
-		int this_minor = sunsu_reg.minor + i;
-
-		if ((this_minor - 64) == (serial_console - 1))
-			break;
-	}
-	if (i == num_uart)
-		return NULL;
-
-	sunsu_console.index = i;
-
 	return &sunsu_console;
 }
 #else
-#define SUNSU_CONSOLE(num_uart)		(NULL)
+#define SUNSU_CONSOLE()			(NULL)
 #define sunsu_serial_console_init()	do { } while (0)
 #endif
 
@@ -1468,6 +1466,8 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 
 	up->port.ops = &sunsu_pops;
 
+	sunserial_console_match(SUNSU_CONSOLE(), dp,
+				&sunsu_reg, up->port.line);
 	err = uart_add_one_port(&sunsu_reg, &up->port);
 	if (err)
 		goto out_unmap;
@@ -1558,7 +1558,6 @@ static int __init sunsu_init(void)
 			return err;
 		sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
 		sunserial_current_minor += num_uart;
-		sunsu_reg.cons = SUNSU_CONSOLE(num_uart);
 	}
 
 	err = of_register_driver(&su_driver, &of_bus_type);

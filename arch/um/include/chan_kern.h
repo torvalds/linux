@@ -40,7 +40,7 @@ extern int console_open_chan(struct line *line, struct console *co);
 extern void deactivate_chan(struct list_head *chans, int irq);
 extern void reactivate_chan(struct list_head *chans, int irq);
 extern void chan_enable_winch(struct list_head *chans, struct tty_struct *tty);
-extern void enable_chan(struct line *line);
+extern int enable_chan(struct line *line);
 extern void close_chan(struct list_head *chans, int delay_free_irq);
 extern int chan_window_size(struct list_head *chans, 
 			     unsigned short *rows_out, 

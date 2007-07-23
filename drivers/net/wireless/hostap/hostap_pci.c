@@ -453,8 +453,6 @@ static struct pci_driver prism2_pci_drv_id = {
 	.suspend	= prism2_pci_suspend,
 	.resume		= prism2_pci_resume,
 #endif /* CONFIG_PM */
-	/* Linux 2.4.6 added save_state and enable_wake that are not used here
-	 */
 };
 
 

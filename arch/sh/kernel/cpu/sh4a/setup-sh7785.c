@@ -97,7 +97,21 @@ static struct intc2_data intc2_irq_table[] = {
 	{ 60, 12, 16, 0, 7, 3 },	/* SCIF5 ERI, RXI, BRI, TXI */
 };
 
-void __init init_IRQ_intc2(void)
+static struct intc2_desc intc2_irq_desc __read_mostly = {
+	.prio_base	= 0xffd40000,
+	.msk_base	= 0xffd40038,
+	.mskclr_base	= 0xffd4003c,
+
+	.intc2_data	= intc2_irq_table,
+	.nr_irqs	= ARRAY_SIZE(intc2_irq_table),
+
+	.chip = {
+		.name	= "INTC2-sh7785",
+	},
+};
+
+void __init plat_irq_setup(void)
 {
-	make_intc2_irq(intc2_irq_table, ARRAY_SIZE(intc2_irq_table));
+	register_intc2_controller(&intc2_irq_desc);
 }
+

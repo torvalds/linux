@@ -1067,7 +1067,7 @@ struct i2o_controller *i2o_iop_alloc(void)
 
 	INIT_LIST_HEAD(&c->devices);
 	spin_lock_init(&c->lock);
-	init_MUTEX(&c->lct_lock);
+	mutex_init(&c->lct_lock);
 
 	device_initialize(&c->device);
 

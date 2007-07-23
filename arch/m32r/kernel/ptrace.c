@@ -595,7 +595,6 @@ void ptrace_disable(struct task_struct *child)
 static int
 do_ptrace(long request, struct task_struct *child, long addr, long data)
 {
-	unsigned long tmp;
 	int ret;
 
 	switch (request) {
@@ -604,11 +603,7 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 	 */
 	case PTRACE_PEEKTEXT:
 	case PTRACE_PEEKDATA:
-		ret = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		if (ret == sizeof(tmp))
-			ret = put_user(tmp,(unsigned long __user *) data);
-		else
-			ret = -EIO;
+		ret = generic_ptrace_peekdata(child, addr, data);
 		break;
 
 	/*
@@ -624,15 +619,9 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 	 */
 	case PTRACE_POKETEXT:
 	case PTRACE_POKEDATA:
-		ret = access_process_vm(child, addr, &data, sizeof(data), 1);
-		if (ret == sizeof(data)) {
-			ret = 0;
-			if (request == PTRACE_POKETEXT) {
-				invalidate_cache();
-			}
-		} else {
-			ret = -EIO;
-		}
+		ret = generic_ptrace_pokedata(child, addr, data);
+		if (ret == 0 && request == PTRACE_POKETEXT)
+			invalidate_cache();
 		break;
 
 	/*

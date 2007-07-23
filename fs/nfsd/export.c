@@ -26,12 +26,15 @@
 #include <linux/mount.h>
 #include <linux/hash.h>
 #include <linux/module.h>
+#include <linux/exportfs.h>
 
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/bind.h>
+#include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/gss_api.h>
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -451,8 +454,48 @@ out_free_all:
 	return err;
 }
 
+static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
+{
+	int listsize, err;
+	struct exp_flavor_info *f;
+
+	err = get_int(mesg, &listsize);
+	if (err)
+		return err;
+	if (listsize < 0 || listsize > MAX_SECINFO_LIST)
+		return -EINVAL;
+
+	for (f = exp->ex_flavors; f < exp->ex_flavors + listsize; f++) {
+		err = get_int(mesg, &f->pseudoflavor);
+		if (err)
+			return err;
+		/*
+		 * Just a quick sanity check; we could also try to check
+		 * whether this pseudoflavor is supported, but at worst
+		 * an unsupported pseudoflavor on the export would just
+		 * be a pseudoflavor that won't match the flavor of any
+		 * authenticated request.  The administrator will
+		 * probably discover the problem when someone fails to
+		 * authenticate.
+		 */
+		if (f->pseudoflavor < 0)
+			return -EINVAL;
+		err = get_int(mesg, &f->flags);
+		if (err)
+			return err;
+		/* Only some flags are allowed to differ between flavors: */
+		if (~NFSEXP_SECINFO_FLAGS & (f->flags ^ exp->ex_flags))
+			return -EINVAL;
+	}
+	exp->ex_nflavors = listsize;
+	return 0;
+}
+
 #else /* CONFIG_NFSD_V4 */
-static inline int fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc) { return 0; }
+static inline int
+fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc){return 0;}
+static inline int
+secinfo_parse(char **mesg, char *buf, struct svc_export *exp) { return 0; }
 #endif
 
 static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
@@ -475,6 +518,9 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	exp.ex_fslocs.migrated = 0;
 
 	exp.ex_uuid = NULL;
+
+	/* secinfo */
+	exp.ex_nflavors = 0;
 
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
@@ -553,7 +599,9 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 					if (exp.ex_uuid == NULL)
 						err = -ENOMEM;
 				}
-			} else
+			} else if (strcmp(buf, "secinfo") == 0)
+				err = secinfo_parse(&mesg, buf, &exp);
+			else
 				/* quietly ignore unknown words and anything
 				 * following. Newer user-space can try to set
 				 * new values, then see what the result was.
@@ -593,6 +641,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
 		uid_t anonu, uid_t anong, struct nfsd4_fs_locations *fslocs);
+static void show_secinfo(struct seq_file *m, struct svc_export *exp);
 
 static int svc_export_show(struct seq_file *m,
 			   struct cache_detail *cd,
@@ -622,6 +671,7 @@ static int svc_export_show(struct seq_file *m,
 				seq_printf(m, "%02x", exp->ex_uuid[i]);
 			}
 		}
+		show_secinfo(m, exp);
 	}
 	seq_puts(m, ")\n");
 	return 0;
@@ -654,6 +704,7 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 {
 	struct svc_export *new = container_of(cnew, struct svc_export, h);
 	struct svc_export *item = container_of(citem, struct svc_export, h);
+	int i;
 
 	new->ex_flags = item->ex_flags;
 	new->ex_anon_uid = item->ex_anon_uid;
@@ -669,6 +720,10 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	item->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = item->ex_fslocs.migrated;
 	item->ex_fslocs.migrated = 0;
+	new->ex_nflavors = item->ex_nflavors;
+	for (i = 0; i < MAX_SECINFO_LIST; i++) {
+		new->ex_flavors[i] = item->ex_flavors[i];
+	}
 }
 
 static struct cache_head *svc_export_alloc(void)
@@ -738,16 +793,18 @@ exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
 	int err;
 	
 	if (!clp)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	key.ek_client = clp;
 	key.ek_fsidtype = fsid_type;
 	memcpy(key.ek_fsid, fsidv, key_len(fsid_type));
 
 	ek = svc_expkey_lookup(&key);
-	if (ek != NULL)
-		if ((err = cache_check(&svc_expkey_cache, &ek->h, reqp)))
-			ek = ERR_PTR(err);
+	if (ek == NULL)
+		return ERR_PTR(-ENOMEM);
+	err = cache_check(&svc_expkey_cache, &ek->h, reqp);
+	if (err)
+		return ERR_PTR(err);
 	return ek;
 }
 
@@ -808,30 +865,21 @@ exp_get_by_name(svc_client *clp, struct vfsmount *mnt, struct dentry *dentry,
 		struct cache_req *reqp)
 {
 	struct svc_export *exp, key;
+	int err;
 	
 	if (!clp)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	key.ex_client = clp;
 	key.ex_mnt = mnt;
 	key.ex_dentry = dentry;
 
 	exp = svc_export_lookup(&key);
-	if (exp != NULL)  {
-		int err;
-
-		err = cache_check(&svc_export_cache, &exp->h, reqp);
-		switch (err) {
-		case 0: break;
-		case -EAGAIN:
-		case -ETIMEDOUT:
-			exp = ERR_PTR(err);
-			break;
-		default:
-			exp = NULL;
-		}
-	}
-
+	if (exp == NULL)
+		return ERR_PTR(-ENOMEM);
+	err = cache_check(&svc_export_cache, &exp->h, reqp);
+	if (err)
+		return ERR_PTR(err);
 	return exp;
 }
 
@@ -847,7 +895,7 @@ exp_parent(svc_client *clp, struct vfsmount *mnt, struct dentry *dentry,
 	dget(dentry);
 	exp = exp_get_by_name(clp, mnt, dentry, reqp);
 
-	while (exp == NULL && !IS_ROOT(dentry)) {
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
 		struct dentry *parent;
 
 		parent = dget_parent(dentry);
@@ -900,7 +948,7 @@ static void exp_fsid_unhash(struct svc_export *exp)
 		return;
 
 	ek = exp_get_fsid_key(exp->ex_client, exp->ex_fsid);
-	if (ek && !IS_ERR(ek)) {
+	if (!IS_ERR(ek)) {
 		ek->h.expiry_time = get_seconds()-1;
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
@@ -938,7 +986,7 @@ static void exp_unhash(struct svc_export *exp)
 	struct inode *inode = exp->ex_dentry->d_inode;
 
 	ek = exp_get_key(exp->ex_client, inode->i_sb->s_dev, inode->i_ino);
-	if (ek && !IS_ERR(ek)) {
+	if (!IS_ERR(ek)) {
 		ek->h.expiry_time = get_seconds()-1;
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
@@ -989,13 +1037,12 @@ exp_export(struct nfsctl_export *nxp)
 
 	/* must make sure there won't be an ex_fsid clash */
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
-	    (fsid_key = exp_get_fsid_key(clp, nxp->ex_dev)) &&
-	    !IS_ERR(fsid_key) &&
+	    (!IS_ERR(fsid_key = exp_get_fsid_key(clp, nxp->ex_dev))) &&
 	    fsid_key->ek_mnt &&
 	    (fsid_key->ek_mnt != nd.mnt || fsid_key->ek_dentry != nd.dentry) )
 		goto finish;
 
-	if (exp) {
+	if (!IS_ERR(exp)) {
 		/* just a flags/id/fsid update */
 
 		exp_fsid_unhash(exp);
@@ -1104,7 +1151,7 @@ exp_unexport(struct nfsctl_export *nxp)
 	err = -EINVAL;
 	exp = exp_get_by_name(dom, nd.mnt, nd.dentry, NULL);
 	path_release(&nd);
-	if (!exp)
+	if (IS_ERR(exp))
 		goto out_domain;
 
 	exp_do_unexport(exp);
@@ -1149,10 +1196,6 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 		err = PTR_ERR(exp);
 		goto out;
 	}
-	if (!exp) {
-		dprintk("nfsd: exp_rootfh export not found.\n");
-		goto out;
-	}
 
 	/*
 	 * fh must be initialized before calling fh_compose
@@ -1176,17 +1219,130 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 {
 	struct svc_export *exp;
 	struct svc_expkey *ek = exp_find_key(clp, fsid_type, fsidv, reqp);
-	if (!ek || IS_ERR(ek))
+	if (IS_ERR(ek))
 		return ERR_PTR(PTR_ERR(ek));
 
 	exp = exp_get_by_name(clp, ek->ek_mnt, ek->ek_dentry, reqp);
 	cache_put(&ek->h, &svc_expkey_cache);
 
-	if (!exp || IS_ERR(exp))
+	if (IS_ERR(exp))
 		return ERR_PTR(PTR_ERR(exp));
 	return exp;
 }
 
+__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
+{
+	struct exp_flavor_info *f;
+	struct exp_flavor_info *end = exp->ex_flavors + exp->ex_nflavors;
+
+	/* legacy gss-only clients are always OK: */
+	if (exp->ex_client == rqstp->rq_gssclient)
+		return 0;
+	/* ip-address based client; check sec= export option: */
+	for (f = exp->ex_flavors; f < end; f++) {
+		if (f->pseudoflavor == rqstp->rq_flavor)
+			return 0;
+	}
+	/* defaults in absence of sec= options: */
+	if (exp->ex_nflavors == 0) {
+		if (rqstp->rq_flavor == RPC_AUTH_NULL ||
+		    rqstp->rq_flavor == RPC_AUTH_UNIX)
+			return 0;
+	}
+	return nfserr_wrongsec;
+}
+
+/*
+ * Uses rq_client and rq_gssclient to find an export; uses rq_client (an
+ * auth_unix client) if it's available and has secinfo information;
+ * otherwise, will try to use rq_gssclient.
+ *
+ * Called from functions that handle requests; functions that do work on
+ * behalf of mountd are passed a single client name to use, and should
+ * use exp_get_by_name() or exp_find().
+ */
+struct svc_export *
+rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
+		struct dentry *dentry)
+{
+	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
+
+	if (rqstp->rq_client == NULL)
+		goto gss;
+
+	/* First try the auth_unix client: */
+	exp = exp_get_by_name(rqstp->rq_client, mnt, dentry,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(exp) == -ENOENT)
+		goto gss;
+	if (IS_ERR(exp))
+		return exp;
+	/* If it has secinfo, assume there are no gss/... clients */
+	if (exp->ex_nflavors > 0)
+		return exp;
+gss:
+	/* Otherwise, try falling back on gss client */
+	if (rqstp->rq_gssclient == NULL)
+		return exp;
+	gssexp = exp_get_by_name(rqstp->rq_gssclient, mnt, dentry,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(gssexp) == -ENOENT)
+		return exp;
+	if (!IS_ERR(exp))
+		exp_put(exp);
+	return gssexp;
+}
+
+struct svc_export *
+rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
+{
+	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
+
+	if (rqstp->rq_client == NULL)
+		goto gss;
+
+	/* First try the auth_unix client: */
+	exp = exp_find(rqstp->rq_client, fsid_type, fsidv, &rqstp->rq_chandle);
+	if (PTR_ERR(exp) == -ENOENT)
+		goto gss;
+	if (IS_ERR(exp))
+		return exp;
+	/* If it has secinfo, assume there are no gss/... clients */
+	if (exp->ex_nflavors > 0)
+		return exp;
+gss:
+	/* Otherwise, try falling back on gss client */
+	if (rqstp->rq_gssclient == NULL)
+		return exp;
+	gssexp = exp_find(rqstp->rq_gssclient, fsid_type, fsidv,
+						&rqstp->rq_chandle);
+	if (PTR_ERR(gssexp) == -ENOENT)
+		return exp;
+	if (!IS_ERR(exp))
+		exp_put(exp);
+	return gssexp;
+}
+
+struct svc_export *
+rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
+		struct dentry *dentry)
+{
+	struct svc_export *exp;
+
+	dget(dentry);
+	exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
+		struct dentry *parent;
+
+		parent = dget_parent(dentry);
+		dput(dentry);
+		dentry = parent;
+		exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+	}
+	dput(dentry);
+	return exp;
+}
 
 /*
  * Called when we need the filehandle for the root of the pseudofs,
@@ -1194,8 +1350,7 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
  * export point with fsid==0
  */
 __be32
-exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
-	       struct cache_req *creq)
+exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 {
 	struct svc_export *exp;
 	__be32 rv;
@@ -1203,12 +1358,16 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	exp = exp_find(clp, FSID_NUM, fsidv, creq);
+	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
+	if (PTR_ERR(exp) == -ENOENT)
+		return nfserr_perm;
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
-	if (exp == NULL)
-		return nfserr_perm;
 	rv = fh_compose(fhp, exp, exp->ex_dentry, NULL);
+	if (rv)
+		goto out;
+	rv = check_nfsd_access(exp, rqstp);
+out:
 	exp_put(exp);
 	return rv;
 }
@@ -1296,28 +1455,62 @@ static struct flags {
 	{ 0, {"", ""}}
 };
 
-static void exp_flags(struct seq_file *m, int flag, int fsid,
-		uid_t anonu, uid_t anong, struct nfsd4_fs_locations *fsloc)
+static void show_expflags(struct seq_file *m, int flags, int mask)
 {
-	int first = 0;
 	struct flags *flg;
+	int state, first = 0;
 
 	for (flg = expflags; flg->flag; flg++) {
-		int state = (flg->flag & flag)?0:1;
+		if (flg->flag & ~mask)
+			continue;
+		state = (flg->flag & flags) ? 0 : 1;
 		if (*flg->name[state])
 			seq_printf(m, "%s%s", first++?",":"", flg->name[state]);
 	}
+}
+
+static void show_secinfo_flags(struct seq_file *m, int flags)
+{
+	seq_printf(m, ",");
+	show_expflags(m, flags, NFSEXP_SECINFO_FLAGS);
+}
+
+static void show_secinfo(struct seq_file *m, struct svc_export *exp)
+{
+	struct exp_flavor_info *f;
+	struct exp_flavor_info *end = exp->ex_flavors + exp->ex_nflavors;
+	int lastflags = 0, first = 0;
+
+	if (exp->ex_nflavors == 0)
+		return;
+	for (f = exp->ex_flavors; f < end; f++) {
+		if (first || f->flags != lastflags) {
+			if (!first)
+				show_secinfo_flags(m, lastflags);
+			seq_printf(m, ",sec=%d", f->pseudoflavor);
+			lastflags = f->flags;
+		} else {
+			seq_printf(m, ":%d", f->pseudoflavor);
+		}
+	}
+	show_secinfo_flags(m, lastflags);
+}
+
+static void exp_flags(struct seq_file *m, int flag, int fsid,
+		uid_t anonu, uid_t anong, struct nfsd4_fs_locations *fsloc)
+{
+	show_expflags(m, flag, NFSEXP_ALLFLAGS);
 	if (flag & NFSEXP_FSID)
-		seq_printf(m, "%sfsid=%d", first++?",":"", fsid);
+		seq_printf(m, ",fsid=%d", fsid);
 	if (anonu != (uid_t)-2 && anonu != (0x10000-2))
-		seq_printf(m, "%sanonuid=%d", first++?",":"", anonu);
+		seq_printf(m, ",anonuid=%u", anonu);
 	if (anong != (gid_t)-2 && anong != (0x10000-2))
-		seq_printf(m, "%sanongid=%d", first++?",":"", anong);
+		seq_printf(m, ",anongid=%u", anong);
 	if (fsloc && fsloc->locations_count > 0) {
 		char *loctype = (fsloc->migrated) ? "refer" : "replicas";
 		int i;
 
-		seq_printf(m, "%s%s=", first++?",":"", loctype);
+		seq_printf(m, ",%s=", loctype);
 		seq_escape(m, fsloc->locations[0].path, ",;@ \t\n\\");
 		seq_putc(m, '@');
 		seq_escape(m, fsloc->locations[0].hosts, ",;@ \t\n\\");

@@ -1282,7 +1282,7 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 /**
  * acpiphp_eject_slot - physically eject the slot
  */
-static int acpiphp_eject_slot(struct acpiphp_slot *slot)
+int acpiphp_eject_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
 	struct acpiphp_func *func;
@@ -1366,6 +1366,9 @@ static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
 	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
 			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
 			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
+		return;
+
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
 		return;
 
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
@@ -1502,6 +1505,37 @@ static void handle_bridge_insertion(acpi_handle handle, u32 type)
  * ACPI event handlers
  */
 
+static acpi_status
+count_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	int *count = (int *)context;
+	struct acpiphp_bridge *bridge;
+
+	bridge = acpiphp_handle_to_bridge(handle);
+	if (bridge)
+		(*count)++;
+	return AE_OK ;
+}
+
+static acpi_status
+check_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	struct acpiphp_bridge *bridge;
+	char objname[64];
+	struct acpi_buffer buffer = { .length = sizeof(objname),
+				      .pointer = objname };
+
+	bridge = acpiphp_handle_to_bridge(handle);
+	if (bridge) {
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+		dbg("%s: re-enumerating slots under %s\n",
+			__FUNCTION__, objname);
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+		acpiphp_check_bridge(bridge);
+	}
+	return AE_OK ;
+}
+
 /**
  * handle_hotplug_event_bridge - handle ACPI event on bridges
  *
@@ -1519,6 +1553,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	struct acpi_buffer buffer = { .length = sizeof(objname),
 				      .pointer = objname };
 	struct acpi_device *device;
+	int num_sub_bridges = 0;
 
 	if (acpi_bus_get_device(handle, &device)) {
 		/* This bridge must have just been physically inserted */
@@ -1527,7 +1562,12 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	}
 
 	bridge = acpiphp_handle_to_bridge(handle);
-	if (!bridge) {
+	if (type == ACPI_NOTIFY_BUS_CHECK) {
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, ACPI_UINT32_MAX,
+			count_sub_bridges, &num_sub_bridges, NULL);
+	}
+
+	if (!bridge && !num_sub_bridges) {
 		err("cannot get bridge info\n");
 		return;
 	}
@@ -1538,7 +1578,14 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* bus re-enumerate */
 		dbg("%s: Bus check notify on %s\n", __FUNCTION__, objname);
-		acpiphp_check_bridge(bridge);
+		if (bridge) {
+			dbg("%s: re-enumerating slots under %s\n",
+				__FUNCTION__, objname);
+			acpiphp_check_bridge(bridge);
+		}
+		if (num_sub_bridges)
+			acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+				ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL);
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:

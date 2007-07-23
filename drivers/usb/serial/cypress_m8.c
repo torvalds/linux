@@ -1275,10 +1275,11 @@ static void cypress_read_int_callback(struct urb *urb)
 	int bytes = 0;
 	int result;
 	int i = 0;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0: /* success */
 		break;
 	case -ECONNRESET:
@@ -1292,7 +1293,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	default:
 		/* something ugly is going on... */
 		dev_err(&urb->dev->dev,"%s - unexpected nonzero read status received: %d\n",
-			__FUNCTION__,urb->status);
+			__FUNCTION__, status);
 		cypress_set_dead(port);
 		return;
 	}
@@ -1419,10 +1420,11 @@ static void cypress_write_int_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
-	switch (urb->status) {
+
+	switch (status) {
 		case 0:
 			/* success */
 			break;
@@ -1430,7 +1432,8 @@ static void cypress_write_int_callback(struct urb *urb)
 		case -ENOENT:
 		case -ESHUTDOWN:
 			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+			dbg("%s - urb shutting down with status: %d",
+			    __FUNCTION__, status);
 			priv->write_urb_in_use = 0;
 			return;
 		case -EPIPE: /* no break needed; clear halt and resubmit */
@@ -1438,7 +1441,8 @@ static void cypress_write_int_callback(struct urb *urb)
 				break;
 			usb_clear_halt(port->serial->dev, 0x02);
 			/* error in the urb, so we have to resubmit it */
-			dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+			dbg("%s - nonzero write bulk status received: %d",
+			    __FUNCTION__, status);
 			port->interrupt_out_urb->transfer_buffer_length = 1;
 			port->interrupt_out_urb->dev = port->serial->dev;
 			result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
@@ -1450,7 +1454,7 @@ static void cypress_write_int_callback(struct urb *urb)
 			break;
 		default:
 			dev_err(&urb->dev->dev,"%s - unexpected nonzero write status received: %d\n",
-				__FUNCTION__,urb->status);
+				__FUNCTION__, status);
 			cypress_set_dead(port);
 			break;
 	}

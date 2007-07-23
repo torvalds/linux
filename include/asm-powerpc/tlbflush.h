@@ -155,6 +155,11 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 {
 }
 
+/* Private function for use by PCI IO mapping code */
+extern void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
+				     unsigned long end);
+
+
 #endif
 
 /*

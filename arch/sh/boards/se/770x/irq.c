@@ -15,46 +15,7 @@
 #include <asm/io.h>
 #include <asm/se.h>
 
-/* 
- * If the problem of make_ipr_irq is solved, 
- * this code will become unnecessary. :-) 
- */
-static void se770x_disable_ipr_irq(unsigned int irq)
-{
-	struct ipr_data *p = get_irq_chip_data(irq);
-
-	ctrl_outw(ctrl_inw(p->addr) & (0xffff ^ (0xf << p->shift)), p->addr);
-}
-
-static void se770x_enable_ipr_irq(unsigned int irq)
-{
-	struct ipr_data *p = get_irq_chip_data(irq);
-
-	ctrl_outw(ctrl_inw(p->addr) | (p->priority << p->shift), p->addr);
-}
-
-static struct irq_chip se770x_irq_chip = {
-	.name           = "MS770xSE-FPGA",
-	.mask           = se770x_disable_ipr_irq,
-	.unmask         = se770x_enable_ipr_irq,
-	.mask_ack       = se770x_disable_ipr_irq,
-};
-
-void make_se770x_irq(struct ipr_data *table, unsigned int nr_irqs)
-{
-	int i;
-
-	for (i = 0; i < nr_irqs; i++) {
-		unsigned int irq = table[i].irq;
-		disable_irq_nosync(irq);
-		set_irq_chip_and_handler_name(irq, &se770x_irq_chip,
-			handle_level_irq, "level");
-		set_irq_chip_data(irq, &table[i]);
-		se770x_enable_ipr_irq(irq);
-	}
-}
-
-static struct ipr_data se770x_ipr_map[] = {
+static struct ipr_data ipr_irq_table[] = {
 	/*
 	* Super I/O (Just mimic PC):
 	*  1: keyboard
@@ -68,44 +29,65 @@ static struct ipr_data se770x_ipr_map[] = {
 	*/
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/* This is default value */
-	{ 13, 0, 8,  0x0f-13 ,BCR_ILCRA},
-	{ 5 , 0, 4,  0x0f- 5 ,BCR_ILCRA},
-	{ 10, 0, 0,  0x0f-10, BCR_ILCRB},
-	{ 7 , 0, 4,  0x0f- 7, BCR_ILCRC},
-	{ 3 , 0, 0,  0x0f- 3, BCR_ILCRC},
-	{ 1 , 0, 12, 0x0f- 1, BCR_ILCRD},
-	{ 12, 0, 4,  0x0f-12, BCR_ILCRD}, /* LAN */
-	{ 2 , 0, 8,  0x0f- 2, BCR_ILCRE}, /* PCIRQ2 */
-	{ 6 , 0, 4,  0x0f- 6, BCR_ILCRE}, /* PCIRQ1 */
-	{ 14, 0, 0,  0x0f-14, BCR_ILCRE}, /* PCIRQ0 */
-	{ 0 , 0, 12, 0x0f   , BCR_ILCRF}, 
-	{ 4 , 0, 4,  0x0f- 4, BCR_ILCRF},
-	{ 8 , 0, 12, 0x0f- 8, BCR_ILCRG},
-	{ 9 , 0, 8,  0x0f- 9, BCR_ILCRG},
-	{ 11, 0, 4,  0x0f-11, BCR_ILCRG},
+	{ 13, 0, 8,  0x0f-13, },
+	{ 5 , 0, 4,  0x0f- 5, },
+	{ 10, 1, 0,  0x0f-10, },
+	{ 7 , 2, 4,  0x0f- 7, },
+	{ 3 , 2, 0,  0x0f- 3, },
+	{ 1 , 3, 12, 0x0f- 1, },
+	{ 12, 3, 4,  0x0f-12, }, /* LAN */
+	{ 2 , 4, 8,  0x0f- 2, }, /* PCIRQ2 */
+	{ 6 , 4, 4,  0x0f- 6, }, /* PCIRQ1 */
+	{ 14, 4, 0,  0x0f-14, }, /* PCIRQ0 */
+	{ 0 , 5, 12, 0x0f   , }, 
+	{ 4 , 5, 4,  0x0f- 4, },
+	{ 8 , 6, 12, 0x0f- 8, },
+	{ 9 , 6, 8,  0x0f- 9, },
+	{ 11, 6, 4,  0x0f-11, },
 #else
-	{ 14, 0,  8, 0x0f-14 ,BCR_ILCRA},
-	{ 12, 0,  4, 0x0f-12 ,BCR_ILCRA},
-	{  8, 0,  4, 0x0f- 8 ,BCR_ILCRB},
-	{  6, 0, 12, 0x0f- 6 ,BCR_ILCRC},
-	{  5, 0,  8, 0x0f- 5 ,BCR_ILCRC},
-	{  4, 0,  4, 0x0f- 4 ,BCR_ILCRC},
-	{  3, 0,  0, 0x0f- 3 ,BCR_ILCRC},
-	{  1, 0, 12, 0x0f- 1 ,BCR_ILCRD},
+	{ 14, 0,  8, 0x0f-14, },
+	{ 12, 0,  4, 0x0f-12, },
+	{  8, 1,  4, 0x0f- 8, },
+	{  6, 2, 12, 0x0f- 6, },
+	{  5, 2,  8, 0x0f- 5, },
+	{  4, 2,  4, 0x0f- 4, },
+	{  3, 2,  0, 0x0f- 3, },
+	{  1, 3, 12, 0x0f- 1, },
 #if defined(CONFIG_STNIC)
 	/* ST NIC */
-	{ 10, 0,  4, 0x0f-10 ,BCR_ILCRD}, 	/* LAN */
+	{ 10, 3,  4, 0x0f-10, }, 	/* LAN */
 #endif
 	/* MRSHPC IRQs setting */
-	{  0, 0, 12, 0x0f- 0 ,BCR_ILCRE},	/* PCIRQ3 */
-	{ 11, 0,  8, 0x0f-11 ,BCR_ILCRE}, 	/* PCIRQ2 */
-	{  9, 0,  4, 0x0f- 9 ,BCR_ILCRE}, 	/* PCIRQ1 */
-	{  7, 0,  0, 0x0f- 7 ,BCR_ILCRE}, 	/* PCIRQ0 */
+	{  0, 4, 12, 0x0f- 0, },	/* PCIRQ3 */
+	{ 11, 4,  8, 0x0f-11, }, 	/* PCIRQ2 */
+	{  9, 4,  4, 0x0f- 9, }, 	/* PCIRQ1 */
+	{  7, 4,  0, 0x0f- 7, }, 	/* PCIRQ0 */
 	/* #2, #13 are allocated for SLOT IRQ #1 and #2 (for now) */
 	/* NOTE: #2 and #13 are not used on PC */
-	{ 13, 0,  4, 0x0f-13 ,BCR_ILCRG}, 	/* SLOTIRQ2 */
-	{  2, 0,  0, 0x0f- 2 ,BCR_ILCRG}, 	/* SLOTIRQ1 */
+	{ 13, 6,  4, 0x0f-13, }, 	/* SLOTIRQ2 */
+	{  2, 6,  0, 0x0f- 2, }, 	/* SLOTIRQ1 */
 #endif
+};
+
+static unsigned long ipr_offsets[] = {
+	BCR_ILCRA,
+	BCR_ILCRB,
+	BCR_ILCRC,
+	BCR_ILCRD,
+	BCR_ILCRE,
+	BCR_ILCRF,
+	BCR_ILCRG,
+};
+
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
+
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+	.chip = {
+		.name	= "IPR-se770x",
+	},
 };
 
 /*
@@ -122,5 +104,5 @@ void __init init_se_IRQ(void)
 	ctrl_outw(0, BCR_ILCRF);
 	ctrl_outw(0, BCR_ILCRG);
 
-	make_se770x_irq(se770x_ipr_map, ARRAY_SIZE(se770x_ipr_map));
+	register_ipr_controller(&ipr_irq_desc);
 }

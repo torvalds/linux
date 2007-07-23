@@ -21,6 +21,7 @@
 /* #define QL_DEBUG_LEVEL_12 */ /* Output IP trace msgs */
 /* #define QL_DEBUG_LEVEL_13 */ /* Output fdmi function trace msgs */
 /* #define QL_DEBUG_LEVEL_14 */ /* Output RSCN trace msgs */
+/* #define QL_DEBUG_LEVEL_15 */ /* Output NPIV trace msgs */
 /*
  *  Local Macro Definitions.
  */
@@ -30,7 +31,8 @@
     defined(QL_DEBUG_LEVEL_7)  || defined(QL_DEBUG_LEVEL_8) || \
     defined(QL_DEBUG_LEVEL_9)  || defined(QL_DEBUG_LEVEL_10) || \
     defined(QL_DEBUG_LEVEL_11) || defined(QL_DEBUG_LEVEL_12) || \
-    defined(QL_DEBUG_LEVEL_13) || defined(QL_DEBUG_LEVEL_14)
+    defined(QL_DEBUG_LEVEL_13) || defined(QL_DEBUG_LEVEL_14) || \
+    defined(QL_DEBUG_LEVEL_15)
     #define QL_DEBUG_ROUTINES
 #endif
 
@@ -125,6 +127,12 @@
 #define DEBUG14(x)	do {} while (0)
 #endif
 
+#if defined(QL_DEBUG_LEVEL_15)
+#define DEBUG15(x)      do {x;} while (0)
+#else
+#define DEBUG15(x)	do {} while (0)
+#endif
+
 /*
  * Firmware Dump structure definition
  */
@@ -205,6 +213,43 @@ struct qla24xx_fw_dump {
 	uint32_t ext_mem[1];
 };
 
+struct qla25xx_fw_dump {
+	uint32_t host_status;
+	uint32_t host_reg[32];
+	uint32_t shadow_reg[11];
+	uint32_t risc_io_reg;
+	uint16_t mailbox_reg[32];
+	uint32_t xseq_gp_reg[128];
+	uint32_t xseq_0_reg[48];
+	uint32_t xseq_1_reg[16];
+	uint32_t rseq_gp_reg[128];
+	uint32_t rseq_0_reg[32];
+	uint32_t rseq_1_reg[16];
+	uint32_t rseq_2_reg[16];
+	uint32_t aseq_gp_reg[128];
+	uint32_t aseq_0_reg[32];
+	uint32_t aseq_1_reg[16];
+	uint32_t aseq_2_reg[16];
+	uint32_t cmd_dma_reg[16];
+	uint32_t req0_dma_reg[15];
+	uint32_t resp0_dma_reg[15];
+	uint32_t req1_dma_reg[15];
+	uint32_t xmt0_dma_reg[32];
+	uint32_t xmt1_dma_reg[32];
+	uint32_t xmt2_dma_reg[32];
+	uint32_t xmt3_dma_reg[32];
+	uint32_t xmt4_dma_reg[32];
+	uint32_t xmt_data_dma_reg[16];
+	uint32_t rcvt0_data_dma_reg[32];
+	uint32_t rcvt1_data_dma_reg[32];
+	uint32_t risc_gp_reg[128];
+	uint32_t lmc_reg[128];
+	uint32_t fpm_hdw_reg[192];
+	uint32_t fb_hdw_reg[192];
+	uint32_t code_ram[0x2000];
+	uint32_t ext_mem[1];
+};
+
 #define EFT_NUM_BUFFERS		4
 #define EFT_BYTES_PER_BUFFER	0x4000
 #define EFT_SIZE		((EFT_BYTES_PER_BUFFER) * (EFT_NUM_BUFFERS))
@@ -238,5 +283,6 @@ struct qla2xxx_fw_dump {
 		struct qla2100_fw_dump isp21;
 		struct qla2300_fw_dump isp23;
 		struct qla24xx_fw_dump isp24;
+		struct qla25xx_fw_dump isp25;
 	} isp;
 };

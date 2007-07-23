@@ -178,9 +178,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_user(pte_t pte)	{ BUG(); return 0; }
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
-static inline int pte_read(pte_t pte)	{ return pte.pte_low & _PAGE_READ; }
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
@@ -190,13 +188,6 @@ static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte.pte_low  &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
-	return pte;
-}
-
-static inline pte_t pte_rdprotect(pte_t pte)
-{
-	pte.pte_low  &= ~(_PAGE_READ | _PAGE_SILENT_READ);
-	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
 }
 
@@ -224,16 +215,6 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkread(pte_t pte)
-{
-	pte.pte_low |= _PAGE_READ;
-	if (pte.pte_low & _PAGE_ACCESSED) {
-		pte.pte_low  |= _PAGE_SILENT_READ;
-		pte.pte_high |= _PAGE_SILENT_READ;
-	}
-	return pte;
-}
-
 static inline pte_t pte_mkdirty(pte_t pte)
 {
 	pte.pte_low |= _PAGE_MODIFIED;
@@ -253,7 +234,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 #else
-static inline int pte_read(pte_t pte)	{ return pte_val(pte) & _PAGE_READ; }
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
@@ -262,12 +242,6 @@ static inline int pte_file(pte_t pte)	{ return pte_val(pte) & _PAGE_FILE; }
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
-	return pte;
-}
-
-static inline pte_t pte_rdprotect(pte_t pte)
-{
-	pte_val(pte) &= ~(_PAGE_READ | _PAGE_SILENT_READ);
 	return pte;
 }
 
@@ -288,14 +262,6 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
 		pte_val(pte) |= _PAGE_SILENT_WRITE;
-	return pte;
-}
-
-static inline pte_t pte_mkread(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_READ;
-	if (pte_val(pte) & _PAGE_ACCESSED)
-		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
 

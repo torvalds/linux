@@ -242,7 +242,7 @@ static void shmedia_free_io(struct resource *res)
 	release_resource(res);
 }
 
-static void *sh64_get_page(void)
+static __init_refok void *sh64_get_page(void)
 {
 	extern int after_bootmem;
 	void *page;

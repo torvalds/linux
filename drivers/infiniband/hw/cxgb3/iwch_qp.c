@@ -628,9 +628,9 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 	/* immediate data starts here. */
 	term = (struct terminate_message *)wqe->send.sgl;
 	build_term_codes(rsp_msg, &term->layer_etype, &term->ecode);
-	build_fw_riwrh((void *)wqe, T3_WR_SEND,
-		       T3_COMPLETION_FLAG | T3_NOTIFY_FLAG, 1,
-		       qhp->ep->hwtid, 5);
+	wqe->send.wrh.op_seop_flags = cpu_to_be32(V_FW_RIWR_OP(T3_WR_SEND) |
+			 V_FW_RIWR_FLAGS(T3_COMPLETION_FLAG | T3_NOTIFY_FLAG));
+	wqe->send.wrh.gen_tid_len = cpu_to_be32(V_FW_RIWR_TID(qhp->ep->hwtid));
 	skb->priority = CPL_PRIORITY_DATA;
 	return cxgb3_ofld_send(qhp->rhp->rdev.t3cdev_p, skb);
 }
@@ -732,6 +732,7 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_addr = qhp->wq.dma_addr;
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.flags = rqes_posted(qhp) ? RECVS_POSTED : 0;
+	init_attr.irs = qhp->ep->rcv_seq;
 	PDBG("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d "
 	     "flags 0x%x qpcaps 0x%x\n", __FUNCTION__,
 	     init_attr.rq_addr, init_attr.rq_size,

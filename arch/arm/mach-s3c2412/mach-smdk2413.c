@@ -32,12 +32,12 @@
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-lcd.h>
 
 #include <asm/arch/idle.h>
-#include <asm/arch/udc.h>
+#include <asm/plat-s3c24xx/udc.h>
 #include <asm/arch/fb.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>

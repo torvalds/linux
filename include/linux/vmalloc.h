@@ -58,6 +58,13 @@ void vmalloc_sync_all(void);
 /*
  *	Lowlevel-APIs (not for driver use!)
  */
+
+static inline size_t get_vm_area_size(const struct vm_struct *area)
+{
+	/* return actual size without guard page */
+	return area->size - PAGE_SIZE;
+}
+
 extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
 extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 					unsigned long start, unsigned long end);
@@ -65,9 +72,14 @@ extern struct vm_struct *get_vm_area_node(unsigned long size,
 					  unsigned long flags, int node,
 					  gfp_t gfp_mask);
 extern struct vm_struct *remove_vm_area(void *addr);
+
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
 			struct page ***pages);
-extern void unmap_vm_area(struct vm_struct *area);
+extern void unmap_kernel_range(unsigned long addr, unsigned long size);
+
+/* Allocate/destroy a 'vmalloc' VM area. */
+extern struct vm_struct *alloc_vm_area(size_t size);
+extern void free_vm_area(struct vm_struct *area);
 
 /*
  *	Internals.  Dont't use..

@@ -573,24 +573,6 @@ static inline unsigned long pte_exec(pte_t pte)
 	return (pte_val(pte) & mask);
 }
 
-static inline unsigned long pte_read(pte_t pte)
-{
-	unsigned long mask;
-
-	__asm__ __volatile__(
-	"\n661:	mov		%1, %0\n"
-	"	nop\n"
-	"	.section	.sun4v_2insn_patch, \"ax\"\n"
-	"	.word		661b\n"
-	"	sethi		%%uhi(%2), %0\n"
-	"	sllx		%0, 32, %0\n"
-	"	.previous\n"
-	: "=r" (mask)
-	: "i" (_PAGE_READ_4U), "i" (_PAGE_READ_4V));
-
-	return (pte_val(pte) & mask);
-}
-
 static inline unsigned long pte_file(pte_t pte)
 {
 	unsigned long val = pte_val(pte);

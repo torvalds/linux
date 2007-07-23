@@ -171,9 +171,6 @@ static struct pci_driver isicom_driver = {
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
-static DECLARE_COMPLETION(isi_timerdone);
-static char re_schedule = 1;
-
 static void isicom_tx(unsigned long _data);
 static void isicom_start(struct tty_struct *tty);
 
@@ -187,7 +184,7 @@ static signed char linuxb_to_isib[] = {
 
 struct	isi_board {
 	unsigned long		base;
-	unsigned char		irq;
+	int			irq;
 	unsigned char		port_count;
 	unsigned short		status;
 	unsigned short		port_status; /* each bit for each port */
@@ -227,7 +224,7 @@ static struct isi_port  isi_ports[PORT_COUNT];
  *	it wants to talk.
  */
 
-static inline int WaitTillCardIsFree(u16 base)
+static inline int WaitTillCardIsFree(unsigned long base)
 {
 	unsigned int count = 0;
 	unsigned int a = in_atomic(); /* do we run under spinlock? */
@@ -243,38 +240,22 @@ static inline int WaitTillCardIsFree(u16 base)
 
 static int lock_card(struct isi_board *card)
 {
-	char		retries;
 	unsigned long base = card->base;
+	unsigned int retries, a;
 
-	for (retries = 0; retries < 100; retries++) {
+	for (retries = 0; retries < 10; retries++) {
 		spin_lock_irqsave(&card->card_lock, card->flags);
-		if (inw(base + 0xe) & 0x1) {
-			return 1;
-		} else {
-			spin_unlock_irqrestore(&card->card_lock, card->flags);
-			udelay(1000);   /* 1ms */
+		for (a = 0; a < 10; a++) {
+			if (inw(base + 0xe) & 0x1)
+				return 1;
+			udelay(10);
 		}
+		spin_unlock_irqrestore(&card->card_lock, card->flags);
+		msleep(10);
 	}
 	printk(KERN_WARNING "ISICOM: Failed to lock Card (0x%lx)\n",
 		card->base);
 
-	return 0;	/* Failed to acquire the card! */
-}
-
-static int lock_card_at_interrupt(struct isi_board *card)
-{
-	unsigned char		retries;
-	unsigned long base = card->base;
-
-	for (retries = 0; retries < 200; retries++) {
-		spin_lock_irqsave(&card->card_lock, card->flags);
-
-		if (inw(base + 0xe) & 0x1)
-			return 1;
-		else
-			spin_unlock_irqrestore(&card->card_lock, card->flags);
-	}
-	/* Failing in interrupt is an acceptable event */
 	return 0;	/* Failed to acquire the card! */
 }
 
@@ -415,7 +396,9 @@ static inline int __isicom_paranoia_check(struct isi_port const *port,
 
 static void isicom_tx(unsigned long _data)
 {
-	short count = (BOARD_COUNT-1), card, base;
+	unsigned long flags, base;
+	unsigned int retries;
+	short count = (BOARD_COUNT-1), card;
 	short txcount, wrd, residue, word_count, cnt;
 	struct isi_port *port;
 	struct tty_struct *tty;
@@ -435,32 +418,34 @@ static void isicom_tx(unsigned long _data)
 	count = isi_card[card].port_count;
 	port = isi_card[card].ports;
 	base = isi_card[card].base;
+
+	spin_lock_irqsave(&isi_card[card].card_lock, flags);
+	for (retries = 0; retries < 100; retries++) {
+		if (inw(base + 0xe) & 0x1)
+			break;
+		udelay(2);
+	}
+	if (retries >= 100)
+		goto unlock;
+
 	for (;count > 0;count--, port++) {
-		if (!lock_card_at_interrupt(&isi_card[card]))
-			continue;
 		/* port not active or tx disabled to force flow control */
 		if (!(port->flags & ASYNC_INITIALIZED) ||
 				!(port->status & ISI_TXOK))
-			unlock_card(&isi_card[card]);
 			continue;
 
 		tty = port->tty;
 
-
-		if (tty == NULL) {
-			unlock_card(&isi_card[card]);
+		if (tty == NULL)
 			continue;
-		}
 
 		txcount = min_t(short, TX_SIZE, port->xmit_cnt);
-		if (txcount <= 0 || tty->stopped || tty->hw_stopped) {
-			unlock_card(&isi_card[card]);
+		if (txcount <= 0 || tty->stopped || tty->hw_stopped)
 			continue;
-		}
-		if (!(inw(base + 0x02) & (1 << port->channel))) {
-			unlock_card(&isi_card[card]);
+
+		if (!(inw(base + 0x02) & (1 << port->channel)))
 			continue;
-		}
+
 		pr_dbg("txing %d bytes, port%d.\n", txcount,
 			port->channel + 1);
 		outw((port->channel << isi_card[card].shift_count) | txcount,
@@ -508,16 +493,12 @@ static void isicom_tx(unsigned long _data)
 			port->status &= ~ISI_TXOK;
 		if (port->xmit_cnt <= WAKEUP_CHARS)
 			tty_wakeup(tty);
-		unlock_card(&isi_card[card]);
 	}
 
+unlock:
+	spin_unlock_irqrestore(&isi_card[card].card_lock, flags);
 	/*	schedule another tx for hopefully in about 10ms	*/
 sched_again:
-	if (!re_schedule) {
-		complete(&isi_timerdone);
- 		return;
-	}
-
 	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
 }
 
@@ -1749,17 +1730,13 @@ static unsigned int card_count;
 static int __devinit isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
-	unsigned int ioaddr, signature, index;
+	unsigned int signature, index;
 	int retval = -EPERM;
-	u8 pciirq;
 	struct isi_board *board = NULL;
 
 	if (card_count >= BOARD_COUNT)
 		goto err;
 
-	ioaddr = pci_resource_start(pdev, 3);
-	/* i.e at offset 0x1c in the PCI configuration register space. */
-	pciirq = pdev->irq;
 	dev_info(&pdev->dev, "ISI PCI Card(Device ID 0x%x)\n", ent->device);
 
 	/* allot the first empty slot in the array */
@@ -1770,8 +1747,8 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 		}
 
 	board->index = index;
-	board->base = ioaddr;
-	board->irq = pciirq;
+	board->base = pci_resource_start(pdev, 3);
+	board->irq = pdev->irq;
 	card_count++;
 
 	pci_set_drvdata(pdev, board);
@@ -1901,9 +1878,7 @@ error:
 
 static void __exit isicom_exit(void)
 {
-	re_schedule = 0;
-
-	wait_for_completion_timeout(&isi_timerdone, HZ);
+	del_timer_sync(&tx);
 
 	pci_unregister_driver(&isicom_driver);
 	tty_unregister_driver(isicom_normal);

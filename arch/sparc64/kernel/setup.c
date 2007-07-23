@@ -133,33 +133,6 @@ static void __init process_switch(char c)
 	}
 }
 
-static void __init process_console(char *commands)
-{
-	serial_console = 0;
-	commands += 8;
-	/* Linux-style serial */
-	if (!strncmp(commands, "ttyS", 4))
-		serial_console = simple_strtoul(commands + 4, NULL, 10) + 1;
-	else if (!strncmp(commands, "tty", 3)) {
-		char c = *(commands + 3);
-		/* Solaris-style serial */
-		if (c == 'a' || c == 'b') {
-			serial_console = c - 'a' + 1;
-			prom_printf ("Using /dev/tty%c as console.\n", c);
-		}
-		/* else Linux-style fbcon, not serial */
-	}
-#if defined(CONFIG_PROM_CONSOLE)
-	if (!strncmp(commands, "prom", 4)) {
-		char *p;
-
-		for (p = commands - 8; *p && *p != ' '; p++)
-			*p = ' ';
-		conswitchp = &prom_con;
-	}
-#endif
-}
-
 static void __init boot_flags_init(char *commands)
 {
 	while (*commands) {
@@ -176,9 +149,7 @@ static void __init boot_flags_init(char *commands)
 				process_switch(*commands++);
 			continue;
 		}
-		if (!strncmp(commands, "console=", 8)) {
-			process_console(commands);
-		} else if (!strncmp(commands, "mem=", 4)) {
+		if (!strncmp(commands, "mem=", 4)) {
 			/*
 			 * "mem=XXX[kKmM]" overrides the PROM-reported
 			 * memory size.
@@ -378,44 +349,6 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 }
 
-static int __init set_preferred_console(void)
-{
-	int idev, odev;
-
-	/* The user has requested a console so this is already set up. */
-	if (serial_console >= 0)
-		return -EBUSY;
-
-	idev = prom_query_input_device();
-	odev = prom_query_output_device();
-	if (idev == PROMDEV_IKBD && odev == PROMDEV_OSCREEN) {
-		serial_console = 0;
-	} else if (idev == PROMDEV_ITTYA && odev == PROMDEV_OTTYA) {
-		serial_console = 1;
-	} else if (idev == PROMDEV_ITTYB && odev == PROMDEV_OTTYB) {
-		serial_console = 2;
-	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
-		serial_console = 3;
-	} else if (idev == PROMDEV_IVCONS && odev == PROMDEV_OVCONS) {
-		/* sunhv_console_init() doesn't check the serial_console
-		 * value anyways...
-		 */
-		serial_console = 4;
-		return add_preferred_console("ttyHV", 0, NULL);
-	} else {
-		prom_printf("Inconsistent console: "
-			    "input %d, output %d\n",
-			    idev, odev);
-		prom_halt();
-	}
-
-	if (serial_console)
-		return add_preferred_console("ttyS", serial_console - 1, NULL);
-
-	return -ENODEV;
-}
-console_initcall(set_preferred_console);
-
 /* BUFFER is PAGE_SIZE bytes long. */
 
 extern char *sparc_cpu_type;
@@ -442,7 +375,6 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "D$ parity tl1\t: %u\n"
 		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
-		   "Cpu0Bogo\t: %lu.%02lu\n"
 		   "Cpu0ClkTck\t: %016lx\n"
 #endif
 		   ,
@@ -457,9 +389,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   dcache_parity_tl1_occurred,
 		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
-		   , cpu_data(0).udelay_val/(500000/HZ),
-		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,
-		   cpu_data(0).clock_tick
+		   , cpu_data(0).clock_tick
 #endif
 		);
 #ifdef CONFIG_SMP
@@ -511,5 +441,4 @@ void sun_do_break(void)
 	prom_cmdline();
 }
 
-int serial_console = -1;
 int stop_a_enabled = 1;

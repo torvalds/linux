@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_USB_DEBUG
@@ -80,7 +81,7 @@ MODULE_DEVICE_TABLE(usb, device_table);
 
 /* Structure to hold all of our device specific stuff */
 struct adu_device {
-	struct semaphore	sem; /* locks this structure */
+	struct mutex		mtx; /* locks this structure */
 	struct usb_device*	udev; /* save off the usb device pointer */
 	struct usb_interface*	interface;
 	unsigned char		minor; /* the starting minor number for this device */
@@ -108,8 +109,6 @@ struct adu_device {
 	struct urb*		interrupt_out_urb;
 };
 
-/* prevent races between open() and disconnect */
-static DEFINE_MUTEX(disconnect_mutex);
 static struct usb_driver adu_driver;
 
 static void adu_debug_data(int level, const char *function, int size,
@@ -180,17 +179,18 @@ static void adu_delete(struct adu_device *dev)
 static void adu_interrupt_in_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
+	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : enter, status %d", __FUNCTION__, status);
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
 
 	spin_lock(&dev->buflock);
 
-	if (urb->status != 0) {
-		if ((urb->status != -ENOENT) && (urb->status != -ECONNRESET)) {
+	if (status != 0) {
+		if ((status != -ENOENT) && (status != -ECONNRESET)) {
 			dbg(1," %s : nonzero status received: %d",
-			    __FUNCTION__, urb->status);
+			    __FUNCTION__, status);
 		}
 		goto exit;
 	}
@@ -218,21 +218,22 @@ exit:
 	wake_up_interruptible(&dev->read_wait);
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : leave, status %d", __FUNCTION__, status);
 }
 
 static void adu_interrupt_out_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
+	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : enter, status %d", __FUNCTION__, status);
 	adu_debug_data(5,__FUNCTION__, urb->actual_length, urb->transfer_buffer);
 
-	if (urb->status != 0) {
-		if ((urb->status != -ENOENT) &&
-		    (urb->status != -ECONNRESET)) {
+	if (status != 0) {
+		if ((status != -ENOENT) &&
+		    (status != -ECONNRESET)) {
 			dbg(1, " %s :nonzero status received: %d",
-			    __FUNCTION__, urb->status);
+			    __FUNCTION__, status);
 		}
 		goto exit;
 	}
@@ -242,7 +243,7 @@ exit:
 
 	adu_debug_data(5, __FUNCTION__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, urb->status);
+	dbg(4," %s : leave, status %d", __FUNCTION__, status);
 }
 
 static int adu_open(struct inode *inode, struct file *file)
@@ -255,8 +256,6 @@ static int adu_open(struct inode *inode, struct file *file)
 	dbg(2,"%s : enter", __FUNCTION__);
 
 	subminor = iminor(inode);
-
-	mutex_lock(&disconnect_mutex);
 
 	interface = usb_find_interface(&adu_driver, subminor);
 	if (!interface) {
@@ -273,8 +272,8 @@ static int adu_open(struct inode *inode, struct file *file)
 	}
 
 	/* lock this device */
-	if ((retval = down_interruptible(&dev->sem))) {
-		dbg(2, "%s : sem down failed", __FUNCTION__);
+	if ((retval = mutex_lock_interruptible(&dev->mtx))) {
+		dbg(2, "%s : mutex lock failed", __FUNCTION__);
 		goto exit_no_device;
 	}
 
@@ -303,10 +302,9 @@ static int adu_open(struct inode *inode, struct file *file)
 		if (retval)
 			--dev->open_count;
 	}
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit_no_device:
-	mutex_unlock(&disconnect_mutex);
 	dbg(2,"%s : leave, return value %d ", __FUNCTION__, retval);
 
 	return retval;
@@ -318,12 +316,6 @@ static int adu_release_internal(struct adu_device *dev)
 
 	dbg(2," %s : enter", __FUNCTION__);
 
-	if (dev->udev == NULL) {
-		/* the device was unplugged before the file was released */
-		adu_delete(dev);
-		goto exit;
-	}
-
 	/* decrement our usage count for the device */
 	--dev->open_count;
 	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
@@ -332,7 +324,6 @@ static int adu_release_internal(struct adu_device *dev)
 		dev->open_count = 0;
 	}
 
-exit:
 	dbg(2," %s : leave", __FUNCTION__);
 	return retval;
 }
@@ -359,7 +350,7 @@ static int adu_release(struct inode *inode, struct file *file)
 	}
 
 	/* lock our device */
-	down(&dev->sem); /* not interruptible */
+	mutex_lock(&dev->mtx); /* not interruptible */
 
 	if (dev->open_count <= 0) {
 		dbg(1," %s : device not opened", __FUNCTION__);
@@ -367,12 +358,19 @@ static int adu_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	/* do the work */
-	retval = adu_release_internal(dev);
+	if (dev->udev == NULL) {
+		/* the device was unplugged before the file was released */
+		mutex_unlock(&dev->mtx);
+		adu_delete(dev);
+		dev = NULL;
+	} else {
+		/* do the work */
+		retval = adu_release_internal(dev);
+	}
 
 exit:
 	if (dev)
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
 }
@@ -395,7 +393,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	dev = file->private_data;
 	dbg(2," %s : dev=%p", __FUNCTION__, dev);
 	/* lock this object */
-	if (down_interruptible(&dev->sem))
+	if (mutex_lock_interruptible(&dev->mtx))
 		return -ERESTARTSYS;
 
 	/* verify that the device wasn't unplugged */
@@ -527,7 +525,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 
 exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
@@ -548,7 +546,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	dev = file->private_data;
 
 	/* lock this object */
-	retval = down_interruptible(&dev->sem);
+	retval = mutex_lock_interruptible(&dev->mtx);
 	if (retval)
 		goto exit_nolock;
 
@@ -576,9 +574,9 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 				retval = -EINTR;
 				goto exit;
 			}
-			up(&dev->sem);
+			mutex_unlock(&dev->mtx);
 			timeout = interruptible_sleep_on_timeout(&dev->write_wait, timeout);
-			retval = down_interruptible(&dev->sem);
+			retval = mutex_lock_interruptible(&dev->mtx);
 			if (retval) {
 				retval = bytes_written ? bytes_written : retval;
 				goto exit_nolock;
@@ -643,7 +641,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 exit_nolock:
 
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
@@ -703,7 +701,7 @@ static int adu_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
 	dev->udev = udev;
 	init_waitqueue_head(&dev->read_wait);
@@ -831,12 +829,8 @@ static void adu_disconnect(struct usb_interface *interface)
 
 	dbg(2," %s : enter", __FUNCTION__);
 
-	mutex_lock(&disconnect_mutex); /* not interruptible */
-
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
-
-	down(&dev->sem); /* not interruptible */
 
 	minor = dev->minor;
 
@@ -844,17 +838,17 @@ static void adu_disconnect(struct usb_interface *interface)
 	usb_deregister_dev(interface, &adu_class);
 	dev->minor = 0;
 
+	mutex_lock(&dev->mtx); /* not interruptible */
+
 	/* if the device is not opened, then we clean up right now */
 	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
 	if (!dev->open_count) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		adu_delete(dev);
 	} else {
 		dev->udev = NULL;
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	}
-
-	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&interface->dev, "ADU device adutux%d now disconnected",
 		 (minor - ADU_MINOR_BASE));

@@ -222,12 +222,14 @@ static int wm8775_probe(struct i2c_adapter *adapter)
 
 static int wm8775_detach(struct i2c_client *client)
 {
+	struct wm8775_state *state = i2c_get_clientdata(client);
 	int err;
 
 	err = i2c_detach_client(client);
 	if (err) {
 		return err;
 	}
+	kfree(state);
 	kfree(client);
 
 	return 0;

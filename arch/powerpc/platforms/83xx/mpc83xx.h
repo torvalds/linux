@@ -3,9 +3,11 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <asm/pci-bridge.h>
 
 /* System Clock Control Register */
 #define MPC83XX_SCCR_OFFS          0xA08
+#define MPC83XX_SCCR_USB_MASK      0x00f00000
 #define MPC83XX_SCCR_USB_MPHCM_11  0x00c00000
 #define MPC83XX_SCCR_USB_MPHCM_01  0x00400000
 #define MPC83XX_SCCR_USB_MPHCM_10  0x00800000
@@ -15,21 +17,43 @@
 
 /* system i/o configuration register low */
 #define MPC83XX_SICRL_OFFS         0x114
-#define MPC83XX_SICRL_USB0         0x40000000
-#define MPC83XX_SICRL_USB1         0x20000000
+#define MPC834X_SICRL_USB_MASK     0x60000000
+#define MPC834X_SICRL_USB0         0x40000000
+#define MPC834X_SICRL_USB1         0x20000000
+#define MPC831X_SICRL_USB_MASK     0x00000c00
+#define MPC831X_SICRL_USB_ULPI     0x00000800
 
 /* system i/o configuration register high */
 #define MPC83XX_SICRH_OFFS         0x118
-#define MPC83XX_SICRH_USB_UTMI     0x00020000
+#define MPC834X_SICRH_USB_UTMI     0x00020000
+#define MPC831X_SICRH_USB_MASK     0x000000e0
+#define MPC831X_SICRH_USB_ULPI     0x000000a0
+
+/* USB Control Register */
+#define FSL_USB2_CONTROL_OFFS      0x500
+#define CONTROL_UTMI_PHY_EN        0x00000200
+#define CONTROL_REFSEL_48MHZ       0x00000080
+#define CONTROL_PHY_CLK_SEL_ULPI   0x00000400
+#define CONTROL_OTG_PORT           0x00000020
+
+/* USB PORTSC Registers */
+#define FSL_USB2_PORTSC1_OFFS      0x184
+#define FSL_USB2_PORTSC2_OFFS      0x188
+#define PORTSCX_PTW_16BIT          0x10000000
+#define PORTSCX_PTS_UTMI           0x00000000
+#define PORTSCX_PTS_ULPI           0x80000000
 
 /*
  * Declaration for the various functions exported by the
  * mpc83xx_* files. Mostly for use by mpc83xx_setup
  */
 
-extern int add_bridge(struct device_node *dev);
-extern int mpc83xx_exclude_device(u_char bus, u_char devfn);
+extern int mpc83xx_add_bridge(struct device_node *dev);
+extern int mpc83xx_exclude_device(struct pci_controller *hose,
+				  u_char bus, u_char devfn);
 extern void mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
+extern int mpc834x_usb_cfg(void);
+extern int mpc831x_usb_cfg(void);
 
 #endif				/* __MPC83XX_H__ */

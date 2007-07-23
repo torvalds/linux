@@ -41,10 +41,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#ifdef CONFIG_PPC_PS3
-#include <asm/firmware.h>
-#endif
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -201,9 +197,15 @@ static void tdi_reset (struct ehci_hcd *ehci)
 	u32 __iomem	*reg_ptr;
 	u32		tmp;
 
-	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + 0x68);
+	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
 	tmp = ehci_readl(ehci, reg_ptr);
-	tmp |= 0x3;
+	tmp |= USBMODE_CM_HC;
+	/* The default byte access to MMR space is LE after
+	 * controller reset. Set the required endian mode
+	 * for transfer buffers to match the host microprocessor
+	 */
+	if (ehci_big_endian_mmio(ehci))
+		tmp |= USBMODE_BE;
 	ehci_writel(ehci, tmp, reg_ptr);
 }
 
@@ -270,6 +272,58 @@ static void ehci_work(struct ehci_hcd *ehci);
 #include "ehci-mem.c"
 #include "ehci-q.c"
 #include "ehci-sched.c"
+
+/*-------------------------------------------------------------------------*/
+
+#ifdef CONFIG_CPU_FREQ
+
+#include <linux/cpufreq.h>
+
+static void ehci_cpufreq_pause (struct ehci_hcd *ehci)
+{
+	unsigned long	flags;
+
+	spin_lock_irqsave(&ehci->lock, flags);
+	if (!ehci->cpufreq_changing++)
+		qh_inactivate_split_intr_qhs(ehci);
+	spin_unlock_irqrestore(&ehci->lock, flags);
+}
+
+static void ehci_cpufreq_unpause (struct ehci_hcd *ehci)
+{
+	unsigned long	flags;
+
+	spin_lock_irqsave(&ehci->lock, flags);
+	if (!--ehci->cpufreq_changing)
+		qh_reactivate_split_intr_qhs(ehci);
+	spin_unlock_irqrestore(&ehci->lock, flags);
+}
+
+/*
+ * ehci_cpufreq_notifier is needed to avoid MMF errors that occur when
+ * EHCI controllers that don't cache many uframes get delayed trying to
+ * read main memory during CPU frequency transitions.  This can cause
+ * split interrupt transactions to not be completed in the required uframe.
+ * This has been observed on the Broadcom/ServerWorks HT1000 controller.
+ */
+static int ehci_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
+				 void *data)
+{
+	struct ehci_hcd *ehci = container_of(nb, struct ehci_hcd,
+					     cpufreq_transition);
+
+	switch (val) {
+	case CPUFREQ_PRECHANGE:
+		ehci_cpufreq_pause(ehci);
+		break;
+	case CPUFREQ_POSTCHANGE:
+		ehci_cpufreq_unpause(ehci);
+		break;
+	}
+	return 0;
+}
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -347,6 +401,8 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
 				is_on ? SetPortFeature : ClearPortFeature,
 				USB_PORT_FEAT_POWER,
 				port--, NULL, 0);
+	/* Flush those writes */
+	ehci_readl(ehci, &ehci->regs->command);
 	msleep(20);
 }
 
@@ -404,6 +460,10 @@ static void ehci_stop (struct usb_hcd *hcd)
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	spin_unlock_irq(&ehci->lock);
 
+#ifdef CONFIG_CPU_FREQ
+	cpufreq_unregister_notifier(&ehci->cpufreq_transition,
+				    CPUFREQ_TRANSITION_NOTIFIER);
+#endif
 	/* let companion controllers work when we aren't */
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
@@ -470,12 +530,12 @@ static int ehci_init(struct usb_hcd *hcd)
 	 * from automatically advancing to the next td after short reads.
 	 */
 	ehci->async->qh_next.qh = NULL;
-	ehci->async->hw_next = QH_NEXT(ehci->async->qh_dma);
-	ehci->async->hw_info1 = cpu_to_le32(QH_HEAD);
-	ehci->async->hw_token = cpu_to_le32(QTD_STS_HALT);
-	ehci->async->hw_qtd_next = EHCI_LIST_END;
+	ehci->async->hw_next = QH_NEXT(ehci, ehci->async->qh_dma);
+	ehci->async->hw_info1 = cpu_to_hc32(ehci, QH_HEAD);
+	ehci->async->hw_token = cpu_to_hc32(ehci, QTD_STS_HALT);
+	ehci->async->hw_qtd_next = EHCI_LIST_END(ehci);
 	ehci->async->qh_state = QH_STATE_LINKED;
-	ehci->async->hw_alt_next = QTD_NEXT(ehci->async->dummy->qtd_dma);
+	ehci->async->hw_alt_next = QTD_NEXT(ehci, ehci->async->dummy->qtd_dma);
 
 	/* clear interrupt enables, set irq latency */
 	if (log2_irq_thresh < 0 || log2_irq_thresh > 6)
@@ -509,6 +569,17 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
+#ifdef CONFIG_CPU_FREQ
+	INIT_LIST_HEAD(&ehci->split_intr_qhs);
+	/*
+	 * If the EHCI controller caches enough uframes, this probably
+	 * isn't needed unless there are so many low/full speed devices
+	 * that the controller's can't cache it all.
+	 */
+	ehci->cpufreq_transition.notifier_call = ehci_cpufreq_notifier;
+	cpufreq_register_notifier(&ehci->cpufreq_transition,
+				  CPUFREQ_TRANSITION_NOTIFIER);
+#endif
 	return 0;
 }
 
@@ -925,7 +996,7 @@ MODULE_LICENSE ("GPL");
 #define	PCI_DRIVER		ehci_pci_driver
 #endif
 
-#ifdef CONFIG_MPC834x
+#ifdef CONFIG_USB_EHCI_FSL
 #include "ehci-fsl.c"
 #define	PLATFORM_DRIVER		ehci_fsl_driver
 #endif
@@ -937,7 +1008,12 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PPC_PS3
 #include "ehci-ps3.c"
-#define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_sb_driver
+#define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_driver
+#endif
+
+#ifdef CONFIG_440EPX
+#include "ehci-ppc-soc.c"
+#define	PLATFORM_DRIVER		ehci_ppc_soc_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
@@ -971,18 +1047,15 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		retval = ps3_system_bus_driver_register(
-				&PS3_SYSTEM_BUS_DRIVER);
-		if (retval < 0) {
+	retval = ps3_ehci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
+	if (retval < 0) {
 #ifdef PLATFORM_DRIVER
-			platform_driver_unregister(&PLATFORM_DRIVER);
+		platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
 #ifdef PCI_DRIVER
-			pci_unregister_driver(&PCI_DRIVER);
+		pci_unregister_driver(&PCI_DRIVER);
 #endif
-			return retval;
-		}
+		return retval;
 	}
 #endif
 
@@ -999,8 +1072,7 @@ static void __exit ehci_hcd_cleanup(void)
 	pci_unregister_driver(&PCI_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
-		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ehci_hcd_cleanup);

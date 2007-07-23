@@ -78,6 +78,7 @@ static CLASS_DEVICE_ATTR(loading, 0644,
 			 firmware_loading_show, firmware_loading_store);
 
 static ssize_t firmware_data_read(struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
 				  char *buffer, loff_t offset, size_t count)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
@@ -88,6 +89,7 @@ static ssize_t firmware_data_read(struct kobject *kobj,
 	return count;
 }
 static ssize_t firmware_data_write(struct kobject *kobj,
+				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t offset, size_t count)
 {
 	struct class_device *class_dev = to_class_dev(kobj);

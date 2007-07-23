@@ -99,11 +99,14 @@ static inline int up_smp_call_function(void)
 static inline void smp_send_reschedule(int cpu) { }
 #define num_booting_cpus()			1
 #define smp_prepare_boot_cpu()			do {} while (0)
-static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
-					   void *info, int retry, int wait)
-{
-	return -EBUSY;
-}
+#define smp_call_function_single(cpuid, func, info, retry, wait) \
+({ \
+	WARN_ON(cpuid != 0);	\
+	local_irq_disable();	\
+	(func)(info);		\
+	local_irq_enable();	\
+	0;			\
+})
 
 #endif /* !SMP */
 

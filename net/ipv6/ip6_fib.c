@@ -1474,7 +1474,7 @@ void __init fib6_init(void)
 	fib6_node_kmem = kmem_cache_create("fib6_nodes",
 					   sizeof(struct fib6_node),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					   NULL, NULL);
+					   NULL);
 
 	fib6_tables_init();
 

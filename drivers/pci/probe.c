@@ -22,6 +22,18 @@ EXPORT_SYMBOL(pci_root_buses);
 
 LIST_HEAD(pci_devices);
 
+/*
+ * Some device drivers need know if pci is initiated.
+ * Basically, we think pci is not initiated when there
+ * is no device in list of pci_devices.
+ */
+int no_pci_devices(void)
+{
+	return list_empty(&pci_devices);
+}
+
+EXPORT_SYMBOL(no_pci_devices);
+
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_create_legacy_files - create legacy I/O port and memory files
@@ -39,7 +51,6 @@ static void pci_create_legacy_files(struct pci_bus *b)
 		b->legacy_io->attr.name = "legacy_io";
 		b->legacy_io->size = 0xffff;
 		b->legacy_io->attr.mode = S_IRUSR | S_IWUSR;
-		b->legacy_io->attr.owner = THIS_MODULE;
 		b->legacy_io->read = pci_read_legacy_io;
 		b->legacy_io->write = pci_write_legacy_io;
 		class_device_create_bin_file(&b->class_dev, b->legacy_io);
@@ -49,7 +60,6 @@ static void pci_create_legacy_files(struct pci_bus *b)
 		b->legacy_mem->attr.name = "legacy_mem";
 		b->legacy_mem->size = 1024*1024;
 		b->legacy_mem->attr.mode = S_IRUSR | S_IWUSR;
-		b->legacy_mem->attr.owner = THIS_MODULE;
 		b->legacy_mem->mmap = pci_mmap_legacy_mem;
 		class_device_create_bin_file(&b->class_dev, b->legacy_mem);
 	}
@@ -656,7 +666,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 			       pcibios_assign_all_busses() ? " " :
 			       " (try 'pci=assign-busses')");
 			printk(KERN_WARNING "Please report the result to "
-			       "linux-kernel to fix this permanently\n");
+			       "<bk@suse.de> to fix this permanently\n");
 		}
 		bus = bus->parent;
 	}
@@ -702,6 +712,7 @@ static int pci_setup_device(struct pci_dev * dev)
 		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	dev->revision = class & 0xff;
 	class >>= 8;				    /* upper 3 bytes */
 	dev->class = class;
 	class >>= 8;

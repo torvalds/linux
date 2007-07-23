@@ -258,6 +258,17 @@ static void scc_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 		 JCTSStbl[offset][idx] << 16 | JCENVTtbl[offset][idx]);
 }
 
+unsigned long scc_mode_filter(struct ata_device *adev, unsigned long mask)
+{
+	/* errata A308 workaround: limit ATAPI UDMA mode to UDMA4 */
+	if (adev->class == ATA_DEV_ATAPI &&
+	    (mask & (0xE0 << ATA_SHIFT_UDMA))) {
+		printk(KERN_INFO "%s: limit ATAPI UDMA to UDMA4\n", DRV_NAME);
+		mask &= ~(0xE0 << ATA_SHIFT_UDMA);
+	}
+	return ata_pci_default_filter(adev, mask);
+}
+
 /**
  *	scc_tf_load - send taskfile registers to host controller
  *	@ap: Port to which output is sent
@@ -352,6 +363,8 @@ static void scc_tf_read (struct ata_port *ap, struct ata_taskfile *tf)
 		tf->hob_lbal = in_be32(ioaddr->lbal_addr);
 		tf->hob_lbam = in_be32(ioaddr->lbam_addr);
 		tf->hob_lbah = in_be32(ioaddr->lbah_addr);
+		out_be32(ioaddr->ctl_addr, tf->ctl);
+		ap->last_ctl = tf->ctl;
 	}
 }
 
@@ -724,22 +737,36 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 
 static u8 scc_bmdma_status (struct ata_port *ap)
 {
-	u8 host_stat;
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
+	u8 host_stat = in_be32(mmio + SCC_DMA_STATUS);
+	u32 int_status = in_be32(mmio + SCC_DMA_INTST);
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	static int retry = 0;
 
-	host_stat = in_be32(mmio + SCC_DMA_STATUS);
+	/* return if IOS_SS is cleared */
+	if (!(in_be32(mmio + SCC_DMA_CMD) & ATA_DMA_START))
+		return host_stat;
 
-	/* Workaround for PTERADD: emulate DMA_INTR when
-	 * - IDE_STATUS[ERR] = 1
-	 * - INT_STATUS[INTRQ] = 1
-	 * - DMA_STATUS[IORACTA] = 1
-	 */
-	if (!(host_stat & ATA_DMA_INTR)) {
-		u32 int_status = in_be32(mmio + SCC_DMA_INTST);
-		if (ata_altstatus(ap) & ATA_ERR &&
-		    int_status & INTSTS_INTRQ &&
-		    host_stat & ATA_DMA_ACTIVE)
-			host_stat |= ATA_DMA_INTR;
+	/* errata A252,A308 workaround: Step4 */
+	if ((ata_altstatus(ap) & ATA_ERR) && (int_status & INTSTS_INTRQ))
+		return (host_stat | ATA_DMA_INTR);
+
+	/* errata A308 workaround Step5 */
+	if (int_status & INTSTS_IOIRQS) {
+		host_stat |= ATA_DMA_INTR;
+
+		/* We don't check ATAPI DMA because it is limited to UDMA4 */
+		if ((qc->tf.protocol == ATA_PROT_DMA &&
+		     qc->dev->xfer_mode > XFER_UDMA_4)) {
+			if (!(int_status & INTSTS_ACTEINT)) {
+				printk(KERN_WARNING "ata%u: operation failed (transfer data loss)\n",
+				       ap->print_id);
+				host_stat |= ATA_DMA_ERR;
+				if (retry++)
+					ap->udma_mask &= ~(1 << qc->dev->xfer_mode);
+			} else
+				retry = 0;
+		}
 	}
 
 	return host_stat;
@@ -892,10 +919,6 @@ static void scc_std_postreset (struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
 
-	/* re-enable interrupts */
-	if (!ap->ops->error_handler)
-		ap->ops->irq_on(ap);
-
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
 		ap->ops->dev_select(ap, 1);
@@ -1000,7 +1023,7 @@ static const struct ata_port_operations scc_pata_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= scc_set_piomode,
 	.set_dmamode		= scc_set_dmamode,
-	.mode_filter		= ata_pci_default_filter,
+	.mode_filter		= scc_mode_filter,
 
 	.tf_load		= scc_tf_load,
 	.tf_read		= scc_tf_read,

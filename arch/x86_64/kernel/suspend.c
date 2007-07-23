@@ -55,11 +55,11 @@ void __save_processor_state(struct saved_context *ctxt)
 	 * control registers 
 	 */
 	rdmsrl(MSR_EFER, ctxt->efer);
-	asm volatile ("movq %%cr0, %0" : "=r" (ctxt->cr0));
-	asm volatile ("movq %%cr2, %0" : "=r" (ctxt->cr2));
-	asm volatile ("movq %%cr3, %0" : "=r" (ctxt->cr3));
-	asm volatile ("movq %%cr4, %0" : "=r" (ctxt->cr4));
-	asm volatile ("movq %%cr8, %0" : "=r" (ctxt->cr8));
+	ctxt->cr0 = read_cr0();
+	ctxt->cr2 = read_cr2();
+	ctxt->cr3 = read_cr3();
+	ctxt->cr4 = read_cr4();
+	ctxt->cr8 = read_cr8();
 }
 
 void save_processor_state(void)
@@ -81,11 +81,11 @@ void __restore_processor_state(struct saved_context *ctxt)
 	 * control registers
 	 */
 	wrmsrl(MSR_EFER, ctxt->efer);
-	asm volatile ("movq %0, %%cr8" :: "r" (ctxt->cr8));
-	asm volatile ("movq %0, %%cr4" :: "r" (ctxt->cr4));
-	asm volatile ("movq %0, %%cr3" :: "r" (ctxt->cr3));
-	asm volatile ("movq %0, %%cr2" :: "r" (ctxt->cr2));
-	asm volatile ("movq %0, %%cr0" :: "r" (ctxt->cr0));
+	write_cr8(ctxt->cr8);
+	write_cr4(ctxt->cr4);
+	write_cr3(ctxt->cr3);
+	write_cr2(ctxt->cr2);
+	write_cr0(ctxt->cr0);
 
 	/*
 	 * now restore the descriptor tables to their proper values

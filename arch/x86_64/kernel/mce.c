@@ -18,6 +18,8 @@
 #include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
+#include <linux/poll.h>
+#include <linux/thread_info.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
 #include <linux/kdebug.h>
@@ -26,6 +28,7 @@
 #include <asm/mce.h>
 #include <asm/uaccess.h>
 #include <asm/smp.h>
+#include <asm/idle.h>
 
 #define MISC_MCELOG_MINOR 227
 #define NR_BANKS 6
@@ -34,19 +37,25 @@ atomic_t mce_entry;
 
 static int mce_dont_init;
 
-/* 0: always panic, 1: panic if deadlock possible, 2: try to avoid panic,
-   3: never panic or exit (for testing only) */
+/*
+ * Tolerant levels:
+ *   0: always panic on uncorrected errors, log corrected errors
+ *   1: panic or SIGBUS on uncorrected errors, log corrected errors
+ *   2: SIGBUS or log uncorrected errors (if possible), log corrected errors
+ *   3: never panic or SIGBUS, log all errors (for testing only)
+ */
 static int tolerant = 1;
 static int banks;
 static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
-static unsigned long console_logged;
-static int notify_user;
+static unsigned long notify_user;
 static int rip_msr;
 static int mce_bootlog = 1;
 static atomic_t mce_events;
 
 static char trigger[128];
 static char *trigger_argv[2] = { trigger, NULL };
+
+static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
 /*
  * Lockless MCE logging infrastructure.
@@ -94,8 +103,7 @@ void mce_log(struct mce *mce)
 	mcelog.entry[entry].finished = 1;
 	wmb();
 
-	if (!test_and_set_bit(0, &console_logged))
-		notify_user = 1;
+	set_bit(0, &notify_user);
 }
 
 static void print_mce(struct mce *m)
@@ -128,6 +136,7 @@ static void print_mce(struct mce *m)
 static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 { 
 	int i;
+
 	oops_begin();
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		unsigned long tsc = mcelog.entry[i].tsc;
@@ -139,10 +148,7 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 	}
 	if (backup)
 		print_mce(backup);
-	if (tolerant >= 3)
-		printk("Fake panic: %s\n", msg);
-	else
-		panic(msg);
+	panic(msg);
 } 
 
 static int mce_available(struct cpuinfo_x86 *c)
@@ -167,17 +173,6 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 	}
 }
 
-static void do_mce_trigger(void)
-{
-	static atomic_t mce_logged;
-	int events = atomic_read(&mce_events);
-	if (events != atomic_read(&mce_logged) && trigger[0]) {
-		/* Small race window, but should be harmless.  */
-		atomic_set(&mce_logged, events);
-		call_usermodehelper(trigger, trigger_argv, NULL, -1);
-	}
-}
-
 /* 
  * The actual machine check handler
  */
@@ -185,11 +180,19 @@ static void do_mce_trigger(void)
 void do_machine_check(struct pt_regs * regs, long error_code)
 {
 	struct mce m, panicm;
-	int nowayout = (tolerant < 1); 
-	int kill_it = 0;
 	u64 mcestart = 0;
 	int i;
 	int panicm_found = 0;
+	/*
+	 * If no_way_out gets set, there is no safe way to recover from this
+	 * MCE.  If tolerant is cranked up, we'll try anyway.
+	 */
+	int no_way_out = 0;
+	/*
+	 * If kill_it gets set, there might be a way to recover from this
+	 * error.
+	 */
+	int kill_it = 0;
 
 	atomic_inc(&mce_entry);
 
@@ -201,8 +204,9 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	memset(&m, 0, sizeof(struct mce));
 	m.cpu = smp_processor_id();
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	/* if the restart IP is not valid, we're done for */
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
-		kill_it = 1;
+		no_way_out = 1;
 	
 	rdtscll(mcestart);
 	barrier();
@@ -221,10 +225,18 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			continue;
 
 		if (m.status & MCI_STATUS_EN) {
-			/* In theory _OVER could be a nowayout too, but
-			   assume any overflowed errors were no fatal. */
-			nowayout |= !!(m.status & MCI_STATUS_PCC);
-			kill_it |= !!(m.status & MCI_STATUS_UC);
+			/* if PCC was set, there's no way out */
+			no_way_out |= !!(m.status & MCI_STATUS_PCC);
+			/*
+			 * If this error was uncorrectable and there was
+			 * an overflow, we're in trouble.  If no overflow,
+			 * we might get away with just killing a task.
+			 */
+			if (m.status & MCI_STATUS_UC) {
+				if (tolerant < 1 || m.status & MCI_STATUS_OVER)
+					no_way_out = 1;
+				kill_it = 1;
+			}
 		}
 
 		if (m.status & MCI_STATUS_MISCV)
@@ -235,7 +247,6 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		mce_get_rip(&m, regs);
 		if (error_code >= 0)
 			rdtscll(m.tsc);
-		wrmsrl(MSR_IA32_MC0_STATUS + i*4, 0);
 		if (error_code != -2)
 			mce_log(&m);
 
@@ -251,45 +262,59 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	}
 
 	/* Never do anything final in the polling timer */
-	if (!regs) {
-		/* Normal interrupt context here. Call trigger for any new
-		   events. */
-		do_mce_trigger();
+	if (!regs)
 		goto out;
-	}
 
 	/* If we didn't find an uncorrectable error, pick
 	   the last one (shouldn't happen, just being safe). */
 	if (!panicm_found)
 		panicm = m;
-	if (nowayout)
+
+	/*
+	 * If we have decided that we just CAN'T continue, and the user
+	 *  has not set tolerant to an insane level, give up and die.
+	 */
+	if (no_way_out && tolerant < 3)
 		mce_panic("Machine check", &panicm, mcestart);
-	if (kill_it) {
+
+	/*
+	 * If the error seems to be unrecoverable, something should be
+	 * done.  Try to kill as little as possible.  If we can kill just
+	 * one task, do that.  If the user has set the tolerance very
+	 * high, don't try to do anything at all.
+	 */
+	if (kill_it && tolerant < 3) {
 		int user_space = 0;
 
-		if (m.mcgstatus & MCG_STATUS_RIPV)
+		/*
+		 * If the EIPV bit is set, it means the saved IP is the
+		 * instruction which caused the MCE.
+		 */
+		if (m.mcgstatus & MCG_STATUS_EIPV)
 			user_space = panicm.rip && (panicm.cs & 3);
-		
-		/* When the machine was in user space and the CPU didn't get
-		   confused it's normally not necessary to panic, unless you 
-		   are paranoid (tolerant == 0)
 
-		   RED-PEN could be more tolerant for MCEs in idle,
-		   but most likely they occur at boot anyways, where
-		   it is best to just halt the machine. */
-		if ((!user_space && (panic_on_oops || tolerant < 2)) ||
-		    (unsigned)current->pid <= 1)
-			mce_panic("Uncorrected machine check", &panicm, mcestart);
-
-		/* do_exit takes an awful lot of locks and has as
-		   slight risk of deadlocking. If you don't want that
-		   don't set tolerant >= 2 */
-		if (tolerant < 3)
+		/*
+		 * If we know that the error was in user space, send a
+		 * SIGBUS.  Otherwise, panic if tolerance is low.
+		 *
+		 * do_exit() takes an awful lot of locks and has a slight
+		 * risk of deadlocking.
+		 */
+		if (user_space) {
 			do_exit(SIGBUS);
+		} else if (panic_on_oops || tolerant < 2) {
+			mce_panic("Uncorrected machine check",
+				&panicm, mcestart);
+		}
 	}
 
+	/* notify userspace ASAP */
+	set_thread_flag(TIF_MCE_NOTIFY);
+
  out:
-	/* Last thing done in the machine check exception to clear state. */
+	/* the last thing we do is clear state */
+	for (i = 0; i < banks; i++)
+		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	wrmsrl(MSR_IA32_MCG_STATUS, 0);
  out2:
 	atomic_dec(&mce_entry);
@@ -344,37 +369,69 @@ static void mcheck_timer(struct work_struct *work)
 	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
 
 	/*
-	 * It's ok to read stale data here for notify_user and
-	 * console_logged as we'll simply get the updated versions
-	 * on the next mcheck_timer execution and atomic operations
-	 * on console_logged act as synchronization for notify_user
-	 * writes.
+	 * Alert userspace if needed.  If we logged an MCE, reduce the
+	 * polling interval, otherwise increase the polling interval.
 	 */
-	if (notify_user && console_logged) {
-		static unsigned long last_print;
-		unsigned long now = jiffies;
-
-		/* if we logged an MCE, reduce the polling interval */
+	if (mce_notify_user()) {
 		next_interval = max(next_interval/2, HZ/100);
-		notify_user = 0;
-		clear_bit(0, &console_logged);
-		if (time_after_eq(now, last_print + (check_interval*HZ))) {
-			last_print = now;
-			printk(KERN_INFO "Machine check events logged\n");
-		}
 	} else {
-		next_interval = min(next_interval*2, check_interval*HZ);
+		next_interval = min(next_interval*2,
+				(int)round_jiffies_relative(check_interval*HZ));
 	}
 
 	schedule_delayed_work(&mcheck_work, next_interval);
 }
 
+/*
+ * This is only called from process context.  This is where we do
+ * anything we need to alert userspace about new MCEs.  This is called
+ * directly from the poller and also from entry.S and idle, thanks to
+ * TIF_MCE_NOTIFY.
+ */
+int mce_notify_user(void)
+{
+	clear_thread_flag(TIF_MCE_NOTIFY);
+	if (test_and_clear_bit(0, &notify_user)) {
+		static unsigned long last_print;
+		unsigned long now = jiffies;
+
+		wake_up_interruptible(&mce_wait);
+		if (trigger[0])
+			call_usermodehelper(trigger, trigger_argv, NULL,
+						UMH_NO_WAIT);
+
+		if (time_after_eq(now, last_print + (check_interval*HZ))) {
+			last_print = now;
+			printk(KERN_INFO "Machine check events logged\n");
+		}
+
+		return 1;
+	}
+	return 0;
+}
+
+/* see if the idle task needs to notify userspace */
+static int
+mce_idle_callback(struct notifier_block *nfb, unsigned long action, void *junk)
+{
+	/* IDLE_END should be safe - interrupts are back on */
+	if (action == IDLE_END && test_thread_flag(TIF_MCE_NOTIFY))
+		mce_notify_user();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mce_idle_notifier = {
+	.notifier_call = mce_idle_callback,
+};
 
 static __init int periodic_mcheck_init(void)
 { 
 	next_interval = check_interval * HZ;
 	if (next_interval)
-		schedule_delayed_work(&mcheck_work, next_interval);
+		schedule_delayed_work(&mcheck_work,
+				      round_jiffies_relative(next_interval));
+	idle_notifier_register(&mce_idle_notifier);
 	return 0;
 } 
 __initcall(periodic_mcheck_init);
@@ -465,6 +522,40 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
  * Character device to read and clear the MCE log.
  */
 
+static DEFINE_SPINLOCK(mce_state_lock);
+static int open_count;	/* #times opened */
+static int open_exclu;	/* already open exclusive? */
+
+static int mce_open(struct inode *inode, struct file *file)
+{
+	spin_lock(&mce_state_lock);
+
+	if (open_exclu || (open_count && (file->f_flags & O_EXCL))) {
+		spin_unlock(&mce_state_lock);
+		return -EBUSY;
+	}
+
+	if (file->f_flags & O_EXCL)
+		open_exclu = 1;
+	open_count++;
+
+	spin_unlock(&mce_state_lock);
+
+	return nonseekable_open(inode, file);
+}
+
+static int mce_release(struct inode *inode, struct file *file)
+{
+	spin_lock(&mce_state_lock);
+
+	open_count--;
+	open_exclu = 0;
+
+	spin_unlock(&mce_state_lock);
+
+	return 0;
+}
+
 static void collect_tscs(void *data) 
 { 
 	unsigned long *cpu_tsc = (unsigned long *)data;
@@ -532,6 +623,14 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	return err ? -EFAULT : buf - ubuf; 
 }
 
+static unsigned int mce_poll(struct file *file, poll_table *wait)
+{
+	poll_wait(file, &mce_wait, wait);
+	if (rcu_dereference(mcelog.next))
+		return POLLIN | POLLRDNORM;
+	return 0;
+}
+
 static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd, unsigned long arg)
 {
 	int __user *p = (int __user *)arg;
@@ -555,7 +654,10 @@ static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd, unsigned 
 }
 
 static const struct file_operations mce_chrdev_ops = {
+	.open = mce_open,
+	.release = mce_release,
 	.read = mce_read,
+	.poll = mce_poll,
 	.ioctl = mce_ioctl,
 };
 
@@ -564,6 +666,20 @@ static struct miscdevice mce_log_device = {
 	"mcelog",
 	&mce_chrdev_ops,
 };
+
+static unsigned long old_cr4 __initdata;
+
+void __init stop_mce(void)
+{
+	old_cr4 = read_cr4();
+	clear_in_cr4(X86_CR4_MCE);
+}
+
+void __init restart_mce(void)
+{
+	if (old_cr4 & X86_CR4_MCE)
+		set_in_cr4(X86_CR4_MCE);
+}
 
 /* 
  * Old style boot options parsing. Only for compatibility. 
@@ -620,7 +736,8 @@ static void mce_restart(void)
 	on_each_cpu(mce_init, NULL, 1, 1);       
 	next_interval = check_interval * HZ;
 	if (next_interval)
-		schedule_delayed_work(&mcheck_work, next_interval);
+		schedule_delayed_work(&mcheck_work,
+				      round_jiffies_relative(next_interval));
 }
 
 static struct sysdev_class mce_sysclass = {

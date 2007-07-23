@@ -55,94 +55,14 @@ static struct of_device_id of_default_bus_ids[] = {
 
 static atomic_t bus_no_reg_magic;
 
-/*
- *
- * OF platform device type definition & base infrastructure
- *
- */
-
-static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * of_drv = to_of_platform_driver(drv);
-	const struct of_device_id * matches = of_drv->match_table;
-
-	if (!matches)
-		return 0;
-
-	return of_match_device(matches, of_dev) != NULL;
-}
-
-static int of_platform_device_probe(struct device *dev)
-{
-	int error = -ENODEV;
-	struct of_platform_driver *drv;
-	struct of_device *of_dev;
-	const struct of_device_id *match;
-
-	drv = to_of_platform_driver(dev->driver);
-	of_dev = to_of_device(dev);
-
-	if (!drv->probe)
-		return error;
-
-	of_dev_get(of_dev);
-
-	match = of_match_device(drv->match_table, of_dev);
-	if (match)
-		error = drv->probe(of_dev, match);
-	if (error)
-		of_dev_put(of_dev);
-
-	return error;
-}
-
-static int of_platform_device_remove(struct device *dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-
-	if (dev->driver && drv->remove)
-		drv->remove(of_dev);
-	return 0;
-}
-
-static int of_platform_device_suspend(struct device *dev, pm_message_t state)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->suspend)
-		error = drv->suspend(of_dev, state);
-	return error;
-}
-
-static int of_platform_device_resume(struct device * dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->resume)
-		error = drv->resume(of_dev);
-	return error;
-}
-
 struct bus_type of_platform_bus_type = {
-       .name	= "of_platform",
-       .match	= of_platform_bus_match,
        .uevent	= of_device_uevent,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
 };
 EXPORT_SYMBOL(of_platform_bus_type);
 
 static int __init of_bus_driver_init(void)
 {
-	return bus_register(&of_platform_bus_type);
+	return of_bus_type_init(&of_platform_bus_type, "of_platform");
 }
 
 postcore_initcall(of_bus_driver_init);
@@ -222,10 +142,9 @@ struct of_device* of_platform_device_create(struct device_node *np,
 {
 	struct of_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-	memset(dev, 0, sizeof(*dev));
 
 	dev->node = of_node_get(np);
 	dev->dma_mask = 0xffffffffUL;
@@ -426,14 +345,6 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 
 	/* Process "ranges" property */
 	pci_process_bridge_OF_ranges(phb, dev->node, 0);
-
-	/* Setup IO space. We use the non-dynamic version of that code here,
-	 * which doesn't quite support unplugging. Next kernel release will
-	 * have a better fix for this.
-	 * Note also that we don't do ISA, this will also be fixed with a
-	 * more massive rework.
-	 */
-	pci_setup_phb_io(phb, pci_io_base == 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);

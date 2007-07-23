@@ -12,8 +12,8 @@
  * The idea of this driver is based on cpint from Neale Ferguson
  */
 
-#include <asm/semaphore.h>
 #include <linux/ioctl.h>
+#include <linux/mutex.h>
 
 #define VMCP_GETCODE _IOR(0x10, 1, int)
 #define VMCP_SETBUF _IOW(0x10, 2, int)
@@ -26,5 +26,5 @@ struct vmcp_session {
 	int resp_code;
 	/* As we use copy_from/to_user, which might     *
 	 * sleep and cannot use a spinlock              */
-	struct semaphore mutex;
+	struct mutex mutex;
 };

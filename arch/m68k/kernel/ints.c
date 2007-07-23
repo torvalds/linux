@@ -326,6 +326,10 @@ void disable_irq(unsigned int irq)
 
 EXPORT_SYMBOL(disable_irq);
 
+void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
+
+EXPORT_SYMBOL(disable_irq_nosync);
+
 int m68k_irq_startup(unsigned int irq)
 {
 	if (irq <= IRQ_AUTO_7)

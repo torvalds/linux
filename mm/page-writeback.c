@@ -476,15 +476,13 @@ static void wb_kupdate(unsigned long arg)
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
 int dirty_writeback_centisecs_handler(ctl_table *table, int write,
-		struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
 {
 	proc_dointvec_userhz_jiffies(table, write, file, buffer, length, ppos);
-	if (dirty_writeback_interval) {
-		mod_timer(&wb_timer,
-			jiffies + dirty_writeback_interval);
-		} else {
+	if (dirty_writeback_interval)
+		mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
+	else
 		del_timer(&wb_timer);
-	}
 	return 0;
 }
 
@@ -826,6 +824,7 @@ int __set_page_dirty_nobuffers(struct page *page)
 		mapping2 = page_mapping(page);
 		if (mapping2) { /* Race with truncate? */
 			BUG_ON(mapping2 != mapping);
+			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
 			if (mapping_cap_account_dirty(mapping)) {
 				__inc_zone_page_state(page, NR_FILE_DIRTY);
 				task_io_account_write(PAGE_CACHE_SIZE);
@@ -919,6 +918,9 @@ int clear_page_dirty_for_io(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
+	BUG_ON(!PageLocked(page));
+
+	ClearPageReclaim(page);
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		/*
 		 * Yes, Virginia, this is indeed insane.
@@ -944,14 +946,19 @@ int clear_page_dirty_for_io(struct page *page)
 		 * We basically use the page "master dirty bit"
 		 * as a serialization point for all the different
 		 * threads doing their things.
-		 *
-		 * FIXME! We still have a race here: if somebody
-		 * adds the page back to the page tables in
-		 * between the "page_mkclean()" and the "TestClearPageDirty()",
-		 * we might have it mapped without the dirty bit set.
 		 */
 		if (page_mkclean(page))
 			set_page_dirty(page);
+		/*
+		 * We carefully synchronise fault handlers against
+		 * installing a dirty pte and marking the page dirty
+		 * at this point. We do this by having them hold the
+		 * page lock at some point after installing their
+		 * pte, but before marking the page dirty.
+		 * Pages are always locked coming in here, so we get
+		 * the desired exclusion. See mm/memory.c:do_wp_page()
+		 * for more comments.
+		 */
 		if (TestClearPageDirty(page)) {
 			dec_zone_page_state(page, NR_FILE_DIRTY);
 			return 1;
@@ -980,6 +987,8 @@ int test_clear_page_writeback(struct page *page)
 	} else {
 		ret = TestClearPageWriteback(page);
 	}
+	if (ret)
+		dec_zone_page_state(page, NR_WRITEBACK);
 	return ret;
 }
 
@@ -1005,6 +1014,8 @@ int test_set_page_writeback(struct page *page)
 	} else {
 		ret = TestSetPageWriteback(page);
 	}
+	if (!ret)
+		inc_zone_page_state(page, NR_WRITEBACK);
 	return ret;
 
 }

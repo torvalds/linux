@@ -403,58 +403,9 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
-#define TICK_SIZE (tick_nsec / 1000)
-
-#define USEC_AFTER	500000
-#define USEC_BEFORE	500000
-
-static void sync_cmos_clock(unsigned long dummy);
-
-static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
-
-static void sync_cmos_clock(unsigned long dummy)
+int update_persistent_clock(struct timespec now)
 {
-	struct timeval now, next;
-	int fail = 1;
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 * This code is run on a timer.  If the clock is set, that timer
-	 * may not expire at the correct time.  Thus, we adjust...
-	 */
-	if (!ntp_synced())
-		/*
-		 * Not synced, exit, do not restart a timer (if one is
-		 * running, let it run out).
-		 */
-		return;
-
-	do_gettimeofday(&now);
-	if (now.tv_usec >= USEC_AFTER - ((unsigned) TICK_SIZE) / 2 &&
-	    now.tv_usec <= USEC_BEFORE + ((unsigned) TICK_SIZE) / 2)
-		fail = set_rtc_mmss(now.tv_sec);
-
-	next.tv_usec = USEC_AFTER - now.tv_usec;
-	if (next.tv_usec <= 0)
-		next.tv_usec += USEC_PER_SEC;
-
-	if (!fail)
-		next.tv_sec = 659;
-	else
-		next.tv_sec = 0;
-
-	if (next.tv_usec >= USEC_PER_SEC) {
-		next.tv_sec++;
-		next.tv_usec -= USEC_PER_SEC;
-	}
-	mod_timer(&sync_cmos_timer, jiffies + timeval_to_jiffies(&next));
-}
-
-void notify_arch_cmos_timer(void)
-{
-	mod_timer(&sync_cmos_timer, jiffies + 1);
+	return set_rtc_mmss(now.tv_sec);
 }
 
 /* Kick start a stopped clock (procedure from the Sun NVRAM/hostid FAQ). */
@@ -835,7 +786,7 @@ static int __init clock_init(void)
 		return 0;
 	}
 
-	return of_register_driver(&clock_driver, &of_bus_type);
+	return of_register_driver(&clock_driver, &of_platform_bus_type);
 }
 
 /* Must be after subsys_initcall() so that busses are probed.  Must
@@ -849,9 +800,6 @@ static unsigned long sparc64_init_timers(void)
 {
 	struct device_node *dp;
 	unsigned long clock;
-#ifdef CONFIG_SMP
-	extern void smp_tick_init(void);
-#endif
 
 	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
@@ -873,10 +821,6 @@ static unsigned long sparc64_init_timers(void)
 		tick_ops = &stick_operations;
 		clock = of_getintprop_default(dp, "stick-frequency", 0);
 	}
-
-#ifdef CONFIG_SMP
-	smp_tick_init();
-#endif
 
 	return clock;
 }
@@ -938,6 +882,7 @@ static void sparc64_timer_setup(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
 		break;
 
 	case CLOCK_EVT_MODE_SHUTDOWN:
@@ -1038,9 +983,30 @@ static void __init setup_clockevent_multiplier(unsigned long hz)
 	sparc64_clockevent.mult = mult;
 }
 
+static unsigned long tb_ticks_per_usec __read_mostly;
+
+void __delay(unsigned long loops)
+{
+	unsigned long bclock, now;
+
+	bclock = tick_ops->get_tick();
+	do {
+		now = tick_ops->get_tick();
+	} while ((now-bclock) < loops);
+}
+EXPORT_SYMBOL(__delay);
+
+void udelay(unsigned long usecs)
+{
+	__delay(tb_ticks_per_usec * usecs);
+}
+EXPORT_SYMBOL(udelay);
+
 void __init time_init(void)
 {
 	unsigned long clock = sparc64_init_timers();
+
+	tb_ticks_per_usec = clock / USEC_PER_SEC;
 
 	timer_ticks_per_nsec_quotient =
 		clocksource_hz2mult(clock, SPARC64_NSEC_PER_CYC_SHIFT);
@@ -1420,6 +1386,78 @@ static int bq4802_set_rtc_time(struct rtc_time *time)
 
 	return 0;
 }
+
+static void cmos_get_rtc_time(struct rtc_time *rtc_tm)
+{
+	unsigned char ctrl;
+
+	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
+	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
+	rtc_tm->tm_hour = CMOS_READ(RTC_HOURS);
+	rtc_tm->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
+	rtc_tm->tm_mon = CMOS_READ(RTC_MONTH);
+	rtc_tm->tm_year = CMOS_READ(RTC_YEAR);
+	rtc_tm->tm_wday = CMOS_READ(RTC_DAY_OF_WEEK);
+
+	ctrl = CMOS_READ(RTC_CONTROL);
+	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		BCD_TO_BIN(rtc_tm->tm_sec);
+		BCD_TO_BIN(rtc_tm->tm_min);
+		BCD_TO_BIN(rtc_tm->tm_hour);
+		BCD_TO_BIN(rtc_tm->tm_mday);
+		BCD_TO_BIN(rtc_tm->tm_mon);
+		BCD_TO_BIN(rtc_tm->tm_year);
+		BCD_TO_BIN(rtc_tm->tm_wday);
+	}
+
+	if (rtc_tm->tm_year <= 69)
+		rtc_tm->tm_year += 100;
+
+	rtc_tm->tm_mon--;
+}
+
+static int cmos_set_rtc_time(struct rtc_time *rtc_tm)
+{
+	unsigned char mon, day, hrs, min, sec;
+	unsigned char save_control, save_freq_select;
+	unsigned int yrs;
+
+	yrs = rtc_tm->tm_year;
+	mon = rtc_tm->tm_mon + 1;
+	day = rtc_tm->tm_mday;
+	hrs = rtc_tm->tm_hour;
+	min = rtc_tm->tm_min;
+	sec = rtc_tm->tm_sec;
+
+	if (yrs >= 100)
+		yrs -= 100;
+
+	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		BIN_TO_BCD(sec);
+		BIN_TO_BCD(min);
+		BIN_TO_BCD(hrs);
+		BIN_TO_BCD(day);
+		BIN_TO_BCD(mon);
+		BIN_TO_BCD(yrs);
+	}
+
+	save_control = CMOS_READ(RTC_CONTROL);
+	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
+	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
+	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
+
+	CMOS_WRITE(yrs, RTC_YEAR);
+	CMOS_WRITE(mon, RTC_MONTH);
+	CMOS_WRITE(day, RTC_DAY_OF_MONTH);
+	CMOS_WRITE(hrs, RTC_HOURS);
+	CMOS_WRITE(min, RTC_MINUTES);
+	CMOS_WRITE(sec, RTC_SECONDS);
+
+	CMOS_WRITE(save_control, RTC_CONTROL);
+	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
+
+	return 0;
+}
 #endif /* CONFIG_PCI */
 
 struct mini_rtc_ops {
@@ -1441,6 +1479,11 @@ static struct mini_rtc_ops hypervisor_rtc_ops = {
 static struct mini_rtc_ops bq4802_rtc_ops = {
 	.get_rtc_time = bq4802_get_rtc_time,
 	.set_rtc_time = bq4802_set_rtc_time,
+};
+
+static struct mini_rtc_ops cmos_rtc_ops = {
+	.get_rtc_time = cmos_get_rtc_time,
+	.set_rtc_time = cmos_set_rtc_time,
 };
 #endif /* CONFIG_PCI */
 
@@ -1569,6 +1612,8 @@ static int __init rtc_mini_init(void)
 #ifdef CONFIG_PCI
 	else if (bq4802_regs)
 		mini_rtc_ops = &bq4802_rtc_ops;
+	else if (ds1287_regs)
+		mini_rtc_ops = &cmos_rtc_ops;
 #endif /* CONFIG_PCI */
 	else
 		return -ENODEV;

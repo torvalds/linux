@@ -88,8 +88,8 @@ static struct platform_device snirm_82596_rm200_pdev = {
 
 static struct resource snirm_53c710_rm200_rsrc[] = {
 	{
-		.start = 0xb9000000,
-		.end   = 0xb90fffff,
+		.start = 0x19000000,
+		.end   = 0x190fffff,
 		.flags = IORESOURCE_MEM
 	},
 	{

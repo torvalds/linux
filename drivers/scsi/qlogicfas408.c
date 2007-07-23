@@ -265,8 +265,6 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 	unsigned int message;	/* scsi returned message */
 	unsigned int phase;	/* recorded scsi phase */
 	unsigned int reqlen;	/* total length of transfer */
-	struct scatterlist *sglist;	/* scatter-gather list pointer */
-	unsigned int sgcount;	/* sg counter */
 	char *buf;
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	int qbase = priv->qbase;
@@ -301,9 +299,10 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 	if (inb(qbase + 7) & 0x1f)	/* if some bytes in fifo */
 		outb(1, qbase + 3);	/* clear fifo */
 	/* note that request_bufflen is the total xfer size when sg is used */
-	reqlen = cmd->request_bufflen;
+	reqlen = scsi_bufflen(cmd);
 	/* note that it won't work if transfers > 16M are requested */
 	if (reqlen && !((phase = inb(qbase + 4)) & 6)) {	/* data phase */
+		struct scatterlist *sg;
 		rtrc(2)
 		outb(reqlen, qbase);	/* low-mid xfer cnt */
 		outb(reqlen >> 8, qbase + 1);	/* low-mid xfer cnt */
@@ -311,23 +310,16 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 		outb(0x90, qbase + 3);	/* command do xfer */
 		/* PIO pseudo DMA to buffer or sglist */
 		REG1;
-		if (!cmd->use_sg)
-			ql_pdma(priv, phase, cmd->request_buffer,
-				cmd->request_bufflen);
-		else {
-			sgcount = cmd->use_sg;
-			sglist = cmd->request_buffer;
-			while (sgcount--) {
-				if (priv->qabort) {
-					REG0;
-					return ((priv->qabort == 1 ?
-						DID_ABORT : DID_RESET) << 16);
-				}
-				buf = page_address(sglist->page) + sglist->offset;
-				if (ql_pdma(priv, phase, buf, sglist->length))
-					break;
-				sglist++;
+
+		scsi_for_each_sg(cmd, sg, scsi_sg_count(cmd), i) {
+			if (priv->qabort) {
+				REG0;
+				return ((priv->qabort == 1 ?
+					 DID_ABORT : DID_RESET) << 16);
 			}
+			buf = page_address(sg->page) + sg->offset;
+			if (ql_pdma(priv, phase, buf, sg->length))
+				break;
 		}
 		REG0;
 		rtrc(2)

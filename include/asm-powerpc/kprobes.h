@@ -65,20 +65,18 @@ typedef unsigned int kprobe_opcode_t;
 		} else if (name[0] != '.')				\
 			addr = *(kprobe_opcode_t **)addr;		\
 	} else {							\
-		char dot_name[KSYM_NAME_LEN+1];				\
+		char dot_name[KSYM_NAME_LEN];				\
 		dot_name[0] = '.';					\
 		dot_name[1] = '\0';					\
-		strncat(dot_name, name, KSYM_NAME_LEN);			\
+		strncat(dot_name, name, KSYM_NAME_LEN - 2);		\
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name); \
 	}								\
 }
 
-#define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
 #define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \
 			IS_TWI(instr) || IS_TDI(instr))
 #else
 /* Use stock kprobe_lookup_name since ppc32 doesn't use function descriptors */
-#define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)(pentry)
 #define is_trap(instr)	(IS_TW(instr) || IS_TWI(instr))
 #endif
 

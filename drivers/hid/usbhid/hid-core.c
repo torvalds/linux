@@ -1009,20 +1009,22 @@ static int hid_resume(struct usb_interface *intf)
 }
 
 /* Treat USB reset pretty much the same as suspend/resume */
-static void hid_pre_reset(struct usb_interface *intf)
+static int hid_pre_reset(struct usb_interface *intf)
 {
 	/* FIXME: What if the interface is already suspended? */
 	hid_suspend(intf, PMSG_ON);
+	return 0;
 }
 
-static void hid_post_reset(struct usb_interface *intf)
+/* Same routine used for post_reset and reset_resume */
+static int hid_post_reset(struct usb_interface *intf)
 {
 	struct usb_device *dev = interface_to_usbdev (intf);
 
 	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
 	/* FIXME: Any more reinitialization needed? */
 
-	hid_resume(intf);
+	return hid_resume(intf);
 }
 
 static struct usb_device_id hid_usb_ids [] = {
@@ -1039,6 +1041,7 @@ static struct usb_driver hid_driver = {
 	.disconnect =	hid_disconnect,
 	.suspend =	hid_suspend,
 	.resume =	hid_resume,
+	.reset_resume =	hid_post_reset,
 	.pre_reset =	hid_pre_reset,
 	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,

@@ -70,10 +70,10 @@ __modpost: $(modules:.ko=.o) FORCE
 	$(call cmd,modpost) $(wildcard vmlinux) $(filter-out FORCE,$^)
 
 quiet_cmd_kernel-mod = MODPOST $@
-      cmd_kernel-mod = $(cmd_modpost) $(KBUILD_VMLINUX_OBJS)
+      cmd_kernel-mod = $(cmd_modpost) $@
 
 PHONY += vmlinux
-vmlinux: FORCE
+vmlinux.o: FORCE
 	$(call cmd,kernel-mod)
 
 # Declare generated files as targets for modpost

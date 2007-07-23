@@ -155,6 +155,15 @@ config KINGSUN_DONGLE
 	  To compile it as a module, choose M here: the module will be called
 	  kingsun-sir.
 
+config EP7211_DONGLE
+	tristate "EP7211 I/R support"
+	depends on IRTTY_SIR && ARCH_EP7211 && IRDA && EXPERIMENTAL
+	help
+	  Say Y here if you want to build support for the Cirrus logic
+	  EP7211 chipset's infrared module.
+
+
+
 comment "Old SIR device drivers"
 
 config IRPORT_SIR
@@ -355,7 +364,7 @@ config WINBOND_FIR
 
 config TOSHIBA_FIR
 	tristate "Toshiba Type-O IR Port"
-	depends on IRDA && PCI && !64BIT
+	depends on IRDA && PCI && !64BIT && VIRT_TO_BUS
 	help
 	  Say Y here if you want to build support for the Toshiba Type-O IR
 	  and Donau oboe chipsets. These chipsets are used by the Toshiba

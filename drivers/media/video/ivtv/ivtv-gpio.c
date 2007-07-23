@@ -115,8 +115,7 @@ void ivtv_reset_ir_gpio(struct ivtv *itv)
 	curout = (curout & ~0xF) | 1;
 	write_reg(curout, IVTV_REG_GPIO_OUT);
 	/* We could use something else for smaller time */
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(1);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	curout |= 2;
 	write_reg(curout, IVTV_REG_GPIO_OUT);
 	curdir &= ~0x80;
@@ -131,20 +130,18 @@ int ivtv_reset_tuner_gpio(enum v4l2_tuner_type mode, void *priv, int ptr)
 
 	if (itv->card->type != IVTV_CARD_PG600V2 || itv->options.tuner != TUNER_XCEIVE_XC3028)
 		return -EINVAL;
-	IVTV_INFO("Resetting tuner.\n");
+	IVTV_INFO("Resetting tuner\n");
 	curout = read_reg(IVTV_REG_GPIO_OUT);
 	curdir = read_reg(IVTV_REG_GPIO_DIR);
 	curdir |= (1 << 12);  /* GPIO bit 12 */
 
 	curout &= ~(1 << 12);
 	write_reg(curout, IVTV_REG_GPIO_OUT);
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(1);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
 
 	curout |= (1 << 12);
 	write_reg(curout, IVTV_REG_GPIO_OUT);
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(1);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
 
 	return 0;
 }

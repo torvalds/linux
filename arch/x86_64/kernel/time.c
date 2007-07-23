@@ -33,6 +33,7 @@
 #include <acpi/acpi_bus.h>
 #endif
 #include <asm/8253pit.h>
+#include <asm/i8253.h>
 #include <asm/pgtable.h>
 #include <asm/vsyscall.h>
 #include <asm/timex.h>
@@ -44,12 +45,14 @@
 #include <asm/hpet.h>
 #include <asm/mpspec.h>
 #include <asm/nmi.h>
+#include <asm/vgtod.h>
 
 static char *timename = NULL;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
+EXPORT_SYMBOL(i8253_lock);
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
@@ -79,8 +82,9 @@ EXPORT_SYMBOL(profile_pc);
  * sheet for details.
  */
 
-static void set_rtc_mmss(unsigned long nowtime)
+static int set_rtc_mmss(unsigned long nowtime)
 {
+	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char control, freq_select;
 
@@ -120,6 +124,7 @@ static void set_rtc_mmss(unsigned long nowtime)
 	if (abs(real_minutes - cmos_minutes) >= 30) {
 		printk(KERN_WARNING "time.c: can't update CMOS clock "
 		       "from %d to %d\n", cmos_minutes, real_minutes);
+		retval = -1;
 	} else {
 		BIN_TO_BCD(real_seconds);
 		BIN_TO_BCD(real_minutes);
@@ -139,12 +144,17 @@ static void set_rtc_mmss(unsigned long nowtime)
 	CMOS_WRITE(freq_select, RTC_FREQ_SELECT);
 
 	spin_unlock(&rtc_lock);
+
+	return retval;
 }
 
+int update_persistent_clock(struct timespec now)
+{
+	return set_rtc_mmss(now.tv_sec);
+}
 
 void main_timer_handler(void)
 {
-	static unsigned long rtc_update = 0;
 /*
  * Here we are in the timer irq handler. We have irqs locally disabled (so we
  * don't need spin_lock_irqsave()) but we don't know if the timer_bh is running
@@ -172,20 +182,6 @@ void main_timer_handler(void)
 	if (!using_apic_timer)
 		smp_local_timer_interrupt();
 
-/*
- * If we have an externally synchronized Linux clock, then update CMOS clock
- * accordingly every ~11 minutes. set_rtc_mmss() will be called in the jiffy
- * closest to exactly 500 ms before the next second. If the update fails, we
- * don't care, as it'll be updated on the next turn, and the problem (time way
- * off) isn't likely to go away much sooner anyway.
- */
-
-	if (ntp_synced() && xtime.tv_sec > rtc_update &&
-		abs(xtime.tv_nsec - 500000000) <= tick_nsec / 2) {
-		set_rtc_mmss(xtime.tv_sec);
-		rtc_update = xtime.tv_sec + 660;
-	}
- 
 	write_sequnlock(&xtime_lock);
 }
 
@@ -199,7 +195,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static unsigned long get_cmos_time(void)
+unsigned long read_persistent_clock(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 	unsigned long flags;
@@ -226,7 +222,7 @@ static unsigned long get_cmos_time(void)
 	/*
 	 * We know that x86-64 always uses BCD format, no need to check the
 	 * config register.
- 	 */
+	 */
 
 	BCD_TO_BIN(sec);
 	BCD_TO_BIN(min);
@@ -239,11 +235,11 @@ static unsigned long get_cmos_time(void)
 		BCD_TO_BIN(century);
 		year += century * 100;
 		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
-	} else { 
+	} else {
 		/*
 		 * x86-64 systems only exists since 2002.
 		 * This will work up to Dec 31, 2100
-	 	 */
+		 */
 		year += 2000;
 	}
 
@@ -255,45 +251,45 @@ static unsigned long get_cmos_time(void)
 #define TICK_COUNT 100000000
 static unsigned int __init tsc_calibrate_cpu_khz(void)
 {
-       int tsc_start, tsc_now;
-       int i, no_ctr_free;
-       unsigned long evntsel3 = 0, pmc3 = 0, pmc_now = 0;
-       unsigned long flags;
+	int tsc_start, tsc_now;
+	int i, no_ctr_free;
+	unsigned long evntsel3 = 0, pmc3 = 0, pmc_now = 0;
+	unsigned long flags;
 
-       for (i = 0; i < 4; i++)
-               if (avail_to_resrv_perfctr_nmi_bit(i))
-                       break;
-       no_ctr_free = (i == 4);
-       if (no_ctr_free) {
-               i = 3;
-               rdmsrl(MSR_K7_EVNTSEL3, evntsel3);
-               wrmsrl(MSR_K7_EVNTSEL3, 0);
-               rdmsrl(MSR_K7_PERFCTR3, pmc3);
-       } else {
-               reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-               reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-       }
-       local_irq_save(flags);
-       /* start meauring cycles, incrementing from 0 */
-       wrmsrl(MSR_K7_PERFCTR0 + i, 0);
-       wrmsrl(MSR_K7_EVNTSEL0 + i, 1 << 22 | 3 << 16 | 0x76);
-       rdtscl(tsc_start);
-       do {
-               rdmsrl(MSR_K7_PERFCTR0 + i, pmc_now);
-               tsc_now = get_cycles_sync();
-       } while ((tsc_now - tsc_start) < TICK_COUNT);
+	for (i = 0; i < 4; i++)
+		if (avail_to_resrv_perfctr_nmi_bit(i))
+			break;
+	no_ctr_free = (i == 4);
+	if (no_ctr_free) {
+		i = 3;
+		rdmsrl(MSR_K7_EVNTSEL3, evntsel3);
+		wrmsrl(MSR_K7_EVNTSEL3, 0);
+		rdmsrl(MSR_K7_PERFCTR3, pmc3);
+	} else {
+		reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+		reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+	}
+	local_irq_save(flags);
+	/* start meauring cycles, incrementing from 0 */
+	wrmsrl(MSR_K7_PERFCTR0 + i, 0);
+	wrmsrl(MSR_K7_EVNTSEL0 + i, 1 << 22 | 3 << 16 | 0x76);
+	rdtscl(tsc_start);
+	do {
+		rdmsrl(MSR_K7_PERFCTR0 + i, pmc_now);
+		tsc_now = get_cycles_sync();
+	} while ((tsc_now - tsc_start) < TICK_COUNT);
 
-       local_irq_restore(flags);
-       if (no_ctr_free) {
-               wrmsrl(MSR_K7_EVNTSEL3, 0);
-               wrmsrl(MSR_K7_PERFCTR3, pmc3);
-               wrmsrl(MSR_K7_EVNTSEL3, evntsel3);
-       } else {
-               release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-               release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-       }
+	local_irq_restore(flags);
+	if (no_ctr_free) {
+		wrmsrl(MSR_K7_EVNTSEL3, 0);
+		wrmsrl(MSR_K7_PERFCTR3, pmc3);
+		wrmsrl(MSR_K7_EVNTSEL3, evntsel3);
+	} else {
+		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+	}
 
-       return pmc_now * tsc_khz / (tsc_now - tsc_start);
+	return pmc_now * tsc_khz / (tsc_now - tsc_start);
 }
 
 /*
@@ -321,7 +317,7 @@ static unsigned int __init pit_calibrate_tsc(void)
 	end = get_cycles_sync();
 
 	spin_unlock_irqrestore(&i8253_lock, flags);
-	
+
 	return (end - start) / 50;
 }
 
@@ -366,25 +362,20 @@ static struct irqaction irq0 = {
 	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_IRQPOLL,
 	.mask		= CPU_MASK_NONE,
-	.name 		= "timer"
+	.name		= "timer"
 };
 
 void __init time_init(void)
 {
 	if (nohpet)
 		hpet_address = 0;
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = 0;
-
-	set_normalized_timespec(&wall_to_monotonic,
-	                        -xtime.tv_sec, -xtime.tv_nsec);
 
 	if (hpet_arch_init())
 		hpet_address = 0;
 
 	if (hpet_use_timer) {
 		/* set tick_nsec to use the proper rate for HPET */
-	  	tick_nsec = TICK_NSEC_HPET;
+		tick_nsec = TICK_NSEC_HPET;
 		tsc_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 	} else {
@@ -415,54 +406,21 @@ void __init time_init(void)
 	setup_irq(0, &irq0);
 }
 
-
-static long clock_cmos_diff;
-static unsigned long sleep_start;
-
 /*
  * sysfs support for the timer.
  */
 
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
-	/*
-	 * Estimate time zone so that set_time can update the clock
-	 */
-	long cmos_time =  get_cmos_time();
-
-	clock_cmos_diff = -cmos_time;
-	clock_cmos_diff += get_seconds();
-	sleep_start = cmos_time;
 	return 0;
 }
 
 static int timer_resume(struct sys_device *dev)
 {
-	unsigned long flags;
-	unsigned long sec;
-	unsigned long ctime = get_cmos_time();
-	long sleep_length = (ctime - sleep_start) * HZ;
-
-	if (sleep_length < 0) {
-		printk(KERN_WARNING "Time skew detected in timer resume!\n");
-		/* The time after the resume must not be earlier than the time
-		 * before the suspend or some nasty things will happen
-		 */
-		sleep_length = 0;
-		ctime = sleep_start;
-	}
 	if (hpet_address)
 		hpet_reenable();
 	else
 		i8254_timer_resume();
-
-	sec = ctime + clock_cmos_diff;
-	write_seqlock_irqsave(&xtime_lock,flags);
-	xtime.tv_sec = sec;
-	xtime.tv_nsec = 0;
-	jiffies += sleep_length;
-	write_sequnlock_irqrestore(&xtime_lock,flags);
-	touch_softlockup_watchdog();
 	return 0;
 }
 

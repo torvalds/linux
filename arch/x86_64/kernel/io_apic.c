@@ -152,6 +152,32 @@ static inline void io_apic_modify(unsigned int apic, unsigned int value)
 	writel(value, &io_apic->data);
 }
 
+static int io_apic_level_ack_pending(unsigned int irq)
+{
+	struct irq_pin_list *entry;
+	unsigned long flags;
+	int pending = 0;
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	entry = irq_2_pin + irq;
+	for (;;) {
+		unsigned int reg;
+		int pin;
+
+		pin = entry->pin;
+		if (pin == -1)
+			break;
+		reg = io_apic_read(entry->apic, 0x10 + pin*2);
+		/* Is the remote IRR bit set? */
+		pending |= (reg >> 14) & 1;
+		if (!entry->next)
+			break;
+		entry = irq_2_pin + entry->next;
+	}
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+	return pending;
+}
+
 /*
  * Synchronize the IO-APIC and the CPU by doing
  * a dummy read from the IO-APIC
@@ -1418,9 +1444,37 @@ static void ack_apic_level(unsigned int irq)
 	ack_APIC_irq();
 
 	/* Now we can move and renable the irq */
-	move_masked_irq(irq);
-	if (unlikely(do_unmask_irq))
+	if (unlikely(do_unmask_irq)) {
+		/* Only migrate the irq if the ack has been received.
+		 *
+		 * On rare occasions the broadcast level triggered ack gets
+		 * delayed going to ioapics, and if we reprogram the
+		 * vector while Remote IRR is still set the irq will never
+		 * fire again.
+		 *
+		 * To prevent this scenario we read the Remote IRR bit
+		 * of the ioapic.  This has two effects.
+		 * - On any sane system the read of the ioapic will
+		 *   flush writes (and acks) going to the ioapic from
+		 *   this cpu.
+		 * - We get to see if the ACK has actually been delivered.
+		 *
+		 * Based on failed experiments of reprogramming the
+		 * ioapic entry from outside of irq context starting
+		 * with masking the ioapic entry and then polling until
+		 * Remote IRR was clear before reprogramming the
+		 * ioapic I don't trust the Remote IRR bit to be
+		 * completey accurate.
+		 *
+		 * However there appears to be no other way to plug
+		 * this race, so if the Remote IRR bit is not
+		 * accurate and is causing problems then it is a hardware bug
+		 * and you can go talk to the chipset vendor about it.
+		 */
+		if (!io_apic_level_ack_pending(irq))
+			move_masked_irq(irq);
 		unmask_IO_APIC_irq(irq);
+	}
 }
 
 static struct irq_chip ioapic_chip __read_mostly = {

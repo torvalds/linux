@@ -59,7 +59,4 @@ static __inline__ int irq_canonicalize(int irq)
 	return irq;
 }
 
-extern void enable_irq(unsigned int);
-extern void disable_irq(unsigned int);
-
 #endif /* _H8300_IRQ_H_ */

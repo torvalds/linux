@@ -15,11 +15,11 @@ DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 
 ###
 # The build process is as follows (targets):
-#              (xmldocs)
-# file.tmpl --> file.xml +--> file.ps   (psdocs)
-#                        +--> file.pdf  (pdfdocs)
-#                        +--> DIR=file  (htmldocs)
-#                        +--> man/      (mandocs)
+#              (xmldocs) [by docproc]
+# file.tmpl --> file.xml +--> file.ps   (psdocs)   [by db2ps or xmlto]
+#                        +--> file.pdf  (pdfdocs)  [by db2pdf or xmlto]
+#                        +--> DIR=file  (htmldocs) [by xmlto]
+#                        +--> man/      (mandocs)  [by xmlto]
 
 
 # for PDF and PS output you can choose between xmlto and docbook-utils tools

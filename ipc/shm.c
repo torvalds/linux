@@ -77,7 +77,7 @@ static void shm_destroy (struct ipc_namespace *ns, struct shmid_kernel *shp);
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
 #endif
 
-static void __ipc_init __shm_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
+static void __shm_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
 {
 	ns->ids[IPC_SHM_IDS] = ids;
 	ns->shm_ctlmax = SHMMAX;
@@ -98,7 +98,6 @@ static void do_shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *shp)
 		shm_destroy(ns, shp);
 }
 
-#ifdef CONFIG_IPC_NS
 int shm_init_ns(struct ipc_namespace *ns)
 {
 	struct ipc_ids *ids;
@@ -130,7 +129,6 @@ void shm_exit_ns(struct ipc_namespace *ns)
 	kfree(ns->ids[IPC_SHM_IDS]);
 	ns->ids[IPC_SHM_IDS] = NULL;
 }
-#endif
 
 void __init shm_init (void)
 {
@@ -226,13 +224,12 @@ static void shm_close(struct vm_area_struct *vma)
 	mutex_unlock(&shm_ids(ns).mutex);
 }
 
-static struct page *shm_nopage(struct vm_area_struct *vma,
-			       unsigned long address, int *type)
+static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 
-	return sfd->vm_ops->nopage(vma, address, type);
+	return sfd->vm_ops->fault(vma, vmf);
 }
 
 #ifdef CONFIG_NUMA
@@ -271,6 +268,7 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 	if (ret != 0)
 		return ret;
 	sfd->vm_ops = vma->vm_ops;
+	BUG_ON(!sfd->vm_ops->fault);
 	vma->vm_ops = &shm_vm_ops;
 	shm_open(vma);
 
@@ -329,7 +327,7 @@ static const struct file_operations shm_file_operations = {
 static struct vm_operations_struct shm_vm_ops = {
 	.open	= shm_open,	/* callback for a new vm-area open */
 	.close	= shm_close,	/* callback for when the vm-area is released */
-	.nopage	= shm_nopage,
+	.fault	= shm_fault,
 #if defined(CONFIG_NUMA)
 	.set_policy = shm_set_policy,
 	.get_policy = shm_get_policy,

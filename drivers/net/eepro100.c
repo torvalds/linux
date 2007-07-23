@@ -1801,7 +1801,7 @@ speedo_rx(struct net_device *dev)
 
 #if 1 || USE_IP_CSUM
 				/* Packet is in one chunk -- we can copy + cksum. */
-				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->data, pkt_len, 0);
+				skb_copy_to_linear_data(skb, sp->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
 				skb_copy_from_linear_data(sp->rx_skbuff[entry],
@@ -2292,10 +2292,15 @@ static int eepro100_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata (pdev);
 	struct speedo_private *sp = netdev_priv(dev);
 	void __iomem *ioaddr = sp->regs;
+	int rc;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
+
+	rc = pci_enable_device(pdev);
+	if (rc)
+		return rc;
+
 	pci_set_master(pdev);
 
 	if (!netif_running(dev))

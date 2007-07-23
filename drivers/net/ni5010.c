@@ -670,14 +670,10 @@ static void ni5010_set_multicast_list(struct net_device *dev)
 
 	PRINTK2((KERN_DEBUG "%s: entering set_multicast_list\n", dev->name));
 
-	if (dev->flags&IFF_PROMISC || dev->flags&IFF_ALLMULTI) {
+	if (dev->flags&IFF_PROMISC || dev->flags&IFF_ALLMULTI || dev->mc_list) {
 		dev->flags |= IFF_PROMISC;
 		outb(RMD_PROMISC, EDLC_RMODE); /* Enable promiscuous mode */
 		PRINTK((KERN_DEBUG "%s: Entering promiscuous mode\n", dev->name));
-	} else if (dev->mc_list) {
-		/* Sorry, multicast not supported */
-		PRINTK((KERN_DEBUG "%s: No multicast, entering broadcast mode\n", dev->name));
-		outb(RMD_BROADCAST, EDLC_RMODE);
 	} else {
 		PRINTK((KERN_DEBUG "%s: Entering broadcast mode\n", dev->name));
 		outb(RMD_BROADCAST, EDLC_RMODE);  /* Disable promiscuous mode, use normal mode */

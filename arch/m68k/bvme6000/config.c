@@ -97,7 +97,7 @@ static int bvme6000_get_hardware_list(char *buffer)
  * This function is called during kernel startup to initialize
  * the bvme6000 IRQ handling routines.
  */
-static void bvme6000_init_IRQ(void)
+static void __init bvme6000_init_IRQ(void)
 {
 	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
 }

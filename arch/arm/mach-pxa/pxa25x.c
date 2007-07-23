@@ -19,12 +19,17 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 
 #include <asm/hardware.h>
+#include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pm.h>
+#include <asm/arch/dma.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /*
  * Various clock factors driven by the CCCR register.
@@ -105,32 +110,138 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-int pxa_cpu_pm_prepare(suspend_state_t state)
-{
-	switch (state) {
-	case PM_SUSPEND_MEM:
-		break;
-	default:
-		return -EINVAL;
-	}
+#define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
+#define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
-	return 0;
+#define RESTORE_GPLEVEL(n) do { \
+	GPSR##n = sleep_save[SLEEP_SAVE_GPLR##n]; \
+	GPCR##n = ~sleep_save[SLEEP_SAVE_GPLR##n]; \
+} while (0)
+
+/*
+ * List of global PXA peripheral registers to preserve.
+ * More ones like CP and general purpose register values are preserved
+ * with the stack pointer in sleep.S.
+ */
+enum {	SLEEP_SAVE_START = 0,
+
+	SLEEP_SAVE_GPLR0, SLEEP_SAVE_GPLR1, SLEEP_SAVE_GPLR2,
+	SLEEP_SAVE_GPDR0, SLEEP_SAVE_GPDR1, SLEEP_SAVE_GPDR2,
+	SLEEP_SAVE_GRER0, SLEEP_SAVE_GRER1, SLEEP_SAVE_GRER2,
+	SLEEP_SAVE_GFER0, SLEEP_SAVE_GFER1, SLEEP_SAVE_GFER2,
+	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2,
+
+	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
+	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
+	SLEEP_SAVE_GAFR2_L, SLEEP_SAVE_GAFR2_U,
+
+	SLEEP_SAVE_PSTR,
+
+	SLEEP_SAVE_ICMR,
+	SLEEP_SAVE_CKEN,
+
+	SLEEP_SAVE_SIZE
+};
+
+
+static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
+{
+	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2);
+	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2);
+	SAVE(GRER0); SAVE(GRER1); SAVE(GRER2);
+	SAVE(GFER0); SAVE(GFER1); SAVE(GFER2);
+	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2);
+
+	SAVE(GAFR0_L); SAVE(GAFR0_U);
+	SAVE(GAFR1_L); SAVE(GAFR1_U);
+	SAVE(GAFR2_L); SAVE(GAFR2_U);
+
+	SAVE(ICMR);
+	SAVE(CKEN);
+	SAVE(PSTR);
 }
 
-void pxa_cpu_pm_enter(suspend_state_t state)
+static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	extern void pxa_cpu_suspend(unsigned int);
-	extern void pxa_cpu_resume(void);
+	/* restore registers */
+	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1); RESTORE_GPLEVEL(2);
+	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2);
+	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
+	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
+	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
+	RESTORE(GRER0); RESTORE(GRER1); RESTORE(GRER2);
+	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2);
+	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2);
 
+	RESTORE(CKEN);
+	RESTORE(ICMR);
+	RESTORE(PSTR);
+}
+
+static void pxa25x_cpu_pm_enter(suspend_state_t state)
+{
 	CKEN = 0;
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
 		PSPR = virt_to_phys(pxa_cpu_resume);
-		pxa_cpu_suspend(PWRMODE_SLEEP);
+		pxa25x_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
 }
 
+static struct pxa_cpu_pm_fns pxa25x_cpu_pm_fns = {
+	.save_size	= SLEEP_SAVE_SIZE,
+	.valid		= pm_valid_only_mem,
+	.save		= pxa25x_cpu_pm_save,
+	.restore	= pxa25x_cpu_pm_restore,
+	.enter		= pxa25x_cpu_pm_enter,
+};
+
+static void __init pxa25x_init_pm(void)
+{
+	pxa_cpu_pm_fns = &pxa25x_cpu_pm_fns;
+}
 #endif
+
+void __init pxa25x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_gpio(85);
+}
+
+static struct platform_device *pxa25x_devices[] __initdata = {
+	&pxa_device_mci,
+	&pxa_device_udc,
+	&pxa_device_fb,
+	&pxa_device_ffuart,
+	&pxa_device_btuart,
+	&pxa_device_stuart,
+	&pxa_device_i2c,
+	&pxa_device_i2s,
+	&pxa_device_ficp,
+	&pxa_device_rtc,
+};
+
+static int __init pxa25x_init(void)
+{
+	int ret = 0;
+
+	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+		if ((ret = pxa_init_dma(16)))
+			return ret;
+#ifdef CONFIG_PM
+		pxa25x_init_pm();
+#endif
+		ret = platform_add_devices(pxa25x_devices,
+					   ARRAY_SIZE(pxa25x_devices));
+	}
+	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
+	if (cpu_is_pxa25x())
+		ret = platform_device_register(&pxa_device_hwuart);
+
+	return ret;
+}
+
+subsys_initcall(pxa25x_init);

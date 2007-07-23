@@ -174,4 +174,13 @@ extern void __chk_io_ptr(const void __iomem *);
 # define __attribute_const__	/* unimplemented */
 #endif
 
+/*
+ * Tell gcc if a function is cold. The compiler will assume any path
+ * directly leading to the call is unlikely.
+ */
+
+#ifndef __cold
+#define __cold
+#endif
+
 #endif /* __LINUX_COMPILER_H */

@@ -541,7 +541,7 @@ static char ram_off[] __devinitdata = "OFF";
 #endif /* CONFIG_FB_ATY_CT */
 
 
-static u32 pseudo_palette[17];
+static u32 pseudo_palette[16];
 
 #ifdef CONFIG_FB_ATY_GX
 static char *aty_gx_ram[8] __devinitdata = {
@@ -2141,7 +2141,7 @@ static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 
 static int aty_bl_update_status(struct backlight_device *bd)
 {
-	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
+	struct atyfb_par *par = bl_get_data(bd);
 	unsigned int reg = aty_ld_lcd(LCD_MISC_CNTL, par);
 	int level;
 
@@ -2913,10 +2913,6 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 	int node, len, i, j, ret;
 	u32 mem, chip_id;
 
-	/* Do not attach when we have a serial console. */
-	if (!con_is_present())
-		return -ENXIO;
-
 	/*
 	 * Map memory-mapped registers.
 	 */
@@ -2937,12 +2933,11 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		/* nothing */ ;
 	j = i + 4;
 
-	par->mmap_map = kmalloc(j * sizeof(*par->mmap_map), GFP_ATOMIC);
+	par->mmap_map = kcalloc(j, sizeof(*par->mmap_map), GFP_ATOMIC);
 	if (!par->mmap_map) {
 		PRINTKE("atyfb_setup_sparc() can't alloc mmap_map\n");
 		return -ENOMEM;
 	}
-	memset(par->mmap_map, 0, j * sizeof(*par->mmap_map));
 
 	for (i = 0, j = 2; i < 6 && pdev->resource[i].start; i++) {
 		struct resource *rp = &pdev->resource[i];

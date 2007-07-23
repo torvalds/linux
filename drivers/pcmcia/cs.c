@@ -651,6 +651,7 @@ static int pccardd(void *__skt)
 	add_wait_queue(&skt->thread_wait, &wait);
 	complete(&skt->thread_done);
 
+	set_freezable();
 	for (;;) {
 		unsigned long flags;
 		unsigned int events;

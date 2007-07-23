@@ -12,6 +12,8 @@
  *  Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/module.h>
+
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
@@ -184,8 +186,8 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= (RPC_CLNT_CREATE_ONESHOT |
-				   RPC_CLNT_CREATE_NOPING),
+		.flags		= (RPC_CLNT_CREATE_NOPING |
+				   RPC_CLNT_CREATE_INTR),
 	};
 
 	((struct sockaddr_in *)srvaddr)->sin_port = htons(RPCBIND_PORT);
@@ -238,6 +240,7 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 
 	error = rpc_call_sync(rpcb_clnt, &msg, 0);
 
+	rpc_shutdown_client(rpcb_clnt);
 	if (error < 0)
 		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
@@ -246,21 +249,20 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 	return error;
 }
 
-#ifdef CONFIG_ROOT_NFS
 /**
- * rpcb_getport_external - obtain the port for an RPC service on a given host
+ * rpcb_getport_sync - obtain the port for an RPC service on a given host
  * @sin: address of remote peer
  * @prog: RPC program number to bind
  * @vers: RPC version number to bind
  * @prot: transport protocol to use to make this request
  *
  * Called from outside the RPC client in a synchronous task context.
+ * Uses default timeout parameters specified by underlying transport.
  *
- * For now, this supports only version 2 queries, but is used only by
- * mount_clnt for NFS_ROOT.
+ * XXX: Needs to support IPv6, and rpcbind versions 3 and 4
  */
-int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
-				__u32 vers, int prot)
+int rpcb_getport_sync(struct sockaddr_in *sin, __u32 prog,
+		      __u32 vers, int prot)
 {
 	struct rpcbind_args map = {
 		.r_prog		= prog,
@@ -277,15 +279,16 @@ int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
 	char hostname[40];
 	int status;
 
-	dprintk("RPC:       rpcb_getport_external(%u.%u.%u.%u, %u, %u, %d)\n",
-			NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
+	dprintk("RPC:       %s(" NIPQUAD_FMT ", %u, %u, %d)\n",
+		__FUNCTION__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
 
-	sprintf(hostname, "%u.%u.%u.%u", NIPQUAD(sin->sin_addr.s_addr));
+	sprintf(hostname, NIPQUAD_FMT, NIPQUAD(sin->sin_addr.s_addr));
 	rpcb_clnt = rpcb_create(hostname, (struct sockaddr *)sin, prot, 2, 0);
 	if (IS_ERR(rpcb_clnt))
 		return PTR_ERR(rpcb_clnt);
 
 	status = rpc_call_sync(rpcb_clnt, &msg, 0);
+	rpc_shutdown_client(rpcb_clnt);
 
 	if (status >= 0) {
 		if (map.r_port != 0)
@@ -294,16 +297,16 @@ int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
 	}
 	return status;
 }
-#endif
+EXPORT_SYMBOL_GPL(rpcb_getport_sync);
 
 /**
- * rpcb_getport - obtain the port for a given RPC service on a given host
+ * rpcb_getport_async - obtain the port for a given RPC service on a given host
  * @task: task that is waiting for portmapper request
  *
  * This one can be called for an ongoing RPC request, and can be used in
  * an async (rpciod) context.
  */
-void rpcb_getport(struct rpc_task *task)
+void rpcb_getport_async(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt = task->tk_client;
 	int bind_version;
@@ -314,17 +317,17 @@ void rpcb_getport(struct rpc_task *task)
 	struct sockaddr addr;
 	int status;
 
-	dprintk("RPC: %5u rpcb_getport(%s, %u, %u, %d)\n",
-			task->tk_pid, clnt->cl_server,
-			clnt->cl_prog, clnt->cl_vers, xprt->prot);
+	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
+		task->tk_pid, __FUNCTION__,
+		clnt->cl_server, clnt->cl_prog, clnt->cl_vers, xprt->prot);
 
 	/* Autobind on cloned rpc clients is discouraged */
 	BUG_ON(clnt->cl_parent != clnt);
 
 	if (xprt_test_and_set_binding(xprt)) {
 		status = -EACCES;		/* tell caller to check again */
-		dprintk("RPC: %5u rpcb_getport waiting for another binder\n",
-				task->tk_pid);
+		dprintk("RPC: %5u %s: waiting for another binder\n",
+			task->tk_pid, __FUNCTION__);
 		goto bailout_nowake;
 	}
 
@@ -335,27 +338,28 @@ void rpcb_getport(struct rpc_task *task)
 	/* Someone else may have bound if we slept */
 	if (xprt_bound(xprt)) {
 		status = 0;
-		dprintk("RPC: %5u rpcb_getport already bound\n", task->tk_pid);
+		dprintk("RPC: %5u %s: already bound\n",
+			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;
 	}
 
 	if (rpcb_next_version[xprt->bind_index].rpc_proc == NULL) {
 		xprt->bind_index = 0;
 		status = -EACCES;	/* tell caller to try again later */
-		dprintk("RPC: %5u rpcb_getport no more getport versions "
-				"available\n", task->tk_pid);
+		dprintk("RPC: %5u %s: no more getport versions available\n",
+			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;
 	}
 	bind_version = rpcb_next_version[xprt->bind_index].rpc_vers;
 
-	dprintk("RPC: %5u rpcb_getport trying rpcbind version %u\n",
-			task->tk_pid, bind_version);
+	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
+		task->tk_pid, __FUNCTION__, bind_version);
 
 	map = kzalloc(sizeof(struct rpcbind_args), GFP_ATOMIC);
 	if (!map) {
 		status = -ENOMEM;
-		dprintk("RPC: %5u rpcb_getport no memory available\n",
-				task->tk_pid);
+		dprintk("RPC: %5u %s: no memory available\n",
+			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;
 	}
 	map->r_prog = clnt->cl_prog;
@@ -373,16 +377,17 @@ void rpcb_getport(struct rpc_task *task)
 	rpcb_clnt = rpcb_create(clnt->cl_server, &addr, xprt->prot, bind_version, 0);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
-		dprintk("RPC: %5u rpcb_getport rpcb_create failed, error %ld\n",
-				task->tk_pid, PTR_ERR(rpcb_clnt));
+		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
+			task->tk_pid, __FUNCTION__, PTR_ERR(rpcb_clnt));
 		goto bailout;
 	}
 
 	child = rpc_run_task(rpcb_clnt, RPC_TASK_ASYNC, &rpcb_getport_ops, map);
+	rpc_release_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;
-		dprintk("RPC: %5u rpcb_getport rpc_run_task failed\n",
-				task->tk_pid);
+		dprintk("RPC: %5u %s: rpc_run_task failed\n",
+			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;
 	}
 	rpc_put_task(child);

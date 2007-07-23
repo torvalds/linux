@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/posix_acl.h>
 #include <linux/buffer_head.h>
+#include <linux/exportfs.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 
@@ -737,6 +738,7 @@ static const struct super_operations jfs_super_operations = {
 };
 
 static struct export_operations jfs_export_operations = {
+	.get_dentry	= jfs_get_dentry,
 	.get_parent	= jfs_get_parent,
 };
 
@@ -774,7 +776,7 @@ static int __init init_jfs_fs(void)
 	jfs_inode_cachep =
 	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
 			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-			    init_once, NULL);
+			    init_once);
 	if (jfs_inode_cachep == NULL)
 		return -ENOMEM;
 

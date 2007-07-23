@@ -445,6 +445,7 @@ static struct gameport *gameport_get_pending_child(struct gameport *parent)
 
 static int gameport_thread(void *nothing)
 {
+	set_freezable();
 	do {
 		gameport_handle_event();
 		wait_event_interruptible(gameport_wait,

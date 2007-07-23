@@ -153,21 +153,18 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 
 static void saa7134_input_timer(unsigned long data)
 {
-	struct saa7134_dev *dev = (struct saa7134_dev*)data;
+	struct saa7134_dev *dev = (struct saa7134_dev *)data;
 	struct card_ir *ir = dev->remote;
-	unsigned long timeout;
 
 	build_key(dev);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
 static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 {
 	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = saa7134_input_timer;
-		ir->timer.data     = (unsigned long)dev;
+		setup_timer(&ir->timer, saa7134_input_timer,
+			    (unsigned long)dev);
 		ir->timer.expires  = jiffies + HZ;
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
@@ -314,6 +311,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
 		break;
+	case SAA7134_BOARD_FLYDVBS_LR300:
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
 		ir_codes     = ir_codes_flydvb;
@@ -332,6 +330,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x00007f;
 		mask_keyup   = 0x040000;
 		polling      = 50; // ms
+		break;
+	case SAA7134_BOARD_10MOONSTVMASTER3:
+		ir_codes     = ir_codes_encore_enltv;
+		mask_keycode = 0x5f80000;
+		mask_keyup   = 0x8000000;
+		polling      = 50; //ms
 		break;
 	}
 	if (NULL == ir_codes) {
@@ -374,7 +378,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		input_dev->id.vendor  = dev->pci->vendor;
 		input_dev->id.product = dev->pci->device;
 	}
-	input_dev->cdev.dev = &dev->pci->dev;
+	input_dev->dev.parent = &dev->pci->dev;
 
 	dev->remote = ir;
 	saa7134_ir_start(dev, ir);

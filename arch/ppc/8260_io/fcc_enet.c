@@ -734,9 +734,9 @@ for (;;) {
 		}
 		else {
 			skb_put(skb,pkt_len);	/* Make room */
-			eth_copy_and_sum(skb,
+			skb_copy_to_linear_data(skb,
 				(unsigned char *)__va(bdp->cbd_bufaddr),
-				pkt_len, 0);
+				pkt_len);
 			skb->protocol=eth_type_trans(skb,dev);
 			netif_rx(skb);
 		}

@@ -20,6 +20,8 @@
 #include <linux/platform_device.h>
 #include <linux/dm9000.h>
 
+#include <net/ax88796.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -34,13 +36,13 @@
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
 
-#include <asm/arch/nand.h>
-#include <asm/arch/iic.h>
+#include <asm/plat-s3c/nand.h>
+#include <asm/plat-s3c/iic.h>
 #include <asm/arch/fb.h>
 
 #include <linux/mtd/mtd.h>
@@ -409,6 +411,61 @@ static struct s3c2410_platform_i2c bast_i2c_info = {
 	.max_freq	= 130*1000,
 };
 
+/* Asix AX88796 10/100 ethernet controller */
+
+static struct ax_plat_data bast_asix_platdata = {
+	.flags		= AXFLG_MAC_FROMDEV,
+	.wordlength	= 2,
+	.dcr_val	= 0x48,
+	.rcr_val	= 0x40,
+};
+
+static struct resource bast_asix_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5 + BAST_PA_ASIXNET,
+		.end   = S3C2410_CS5 + BAST_PA_ASIXNET + (0x18 * 0x20) - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = S3C2410_CS5 + BAST_PA_ASIXNET + (0x1f * 0x20),
+		.end   = S3C2410_CS5 + BAST_PA_ASIXNET + (0x1f * 0x20),
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start = IRQ_ASIX,
+		.end   = IRQ_ASIX,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static struct platform_device bast_device_asix = {
+	.name		= "ax88796",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(bast_asix_resource),
+	.resource	= bast_asix_resource,
+	.dev		= {
+		.platform_data = &bast_asix_platdata
+	}
+};
+
+/* Asix AX88796 10/100 ethernet controller parallel port */
+
+static struct resource bast_asixpp_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5 + BAST_PA_ASIXNET + (0x18 * 0x20),
+		.end   = S3C2410_CS5 + BAST_PA_ASIXNET + (0x1b * 0x20) - 1,
+		.flags = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device bast_device_axpp = {
+	.name		= "ax88796-pp",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(bast_asixpp_resource),
+	.resource	= bast_asixpp_resource,
+};
+
+/* LCD/VGA controller */
 
 static struct s3c2410fb_mach_info __initdata bast_lcd_info = {
 	.width		= 640,
@@ -453,6 +510,8 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_nand,
 	&bast_device_nor,
 	&bast_device_dm9k,
+	&bast_device_asix,
+	&bast_device_axpp,
 	&bast_sio,
 };
 

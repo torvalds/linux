@@ -768,8 +768,8 @@ static void ctrl_complete (struct urb *urb)
 
 		/* some faults are allowed, not required */
 		if (subcase->expected > 0 && (
-			  ((urb->status == -subcase->expected	/* happened */
-			   || urb->status == 0))))		/* didn't */
+			  ((status == -subcase->expected	/* happened */
+			   || status == 0))))			/* didn't */
 			status = 0;
 		/* sometimes more than one fault is allowed */
 		else if (subcase->number == 12 && status == -EPIPE)

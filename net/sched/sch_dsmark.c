@@ -9,7 +9,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h> /* for pkt_sched */
 #include <linux/rtnetlink.h>
 #include <net/pkt_sched.h>
 #include <net/dsfield.h>
@@ -238,25 +237,23 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		D2PRINTK("result %d class 0x%04x\n", result, res.classid);
 
 		switch (result) {
-#ifdef CONFIG_NET_CLS_POLICE
-			case TC_POLICE_SHOT:
-				kfree_skb(skb);
-				sch->qstats.drops++;
-				return NET_XMIT_POLICED;
-#if 0
-			case TC_POLICE_RECLASSIFY:
-				/* FIXME: what to do here ??? */
+#ifdef CONFIG_NET_CLS_ACT
+		case TC_ACT_QUEUED:
+		case TC_ACT_STOLEN:
+			kfree_skb(skb);
+			return NET_XMIT_SUCCESS;
+		case TC_ACT_SHOT:
+			kfree_skb(skb);
+			sch->qstats.drops++;
+			return NET_XMIT_BYPASS;
 #endif
-#endif
-			case TC_POLICE_OK:
-				skb->tc_index = TC_H_MIN(res.classid);
-				break;
-			case TC_POLICE_UNSPEC:
-				/* fall through */
-			default:
-				if (p->default_index != NO_DEFAULT_INDEX)
-					skb->tc_index = p->default_index;
-				break;
+		case TC_ACT_OK:
+			skb->tc_index = TC_H_MIN(res.classid);
+			break;
+		default:
+			if (p->default_index != NO_DEFAULT_INDEX)
+				skb->tc_index = p->default_index;
+			break;
 		}
 	}
 

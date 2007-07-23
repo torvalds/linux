@@ -88,7 +88,6 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_UMC 3
 #define X86_VENDOR_NEXGEN 4
 #define X86_VENDOR_CENTAUR 5
-#define X86_VENDOR_RISE 6
 #define X86_VENDOR_TRANSMETA 7
 #define X86_VENDOR_NSC 8
 #define X86_VENDOR_NUM 9
@@ -119,6 +118,7 @@ void __init cpu_detect(struct cpuinfo_x86 *c);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
+extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
 
@@ -168,17 +168,6 @@ static inline void clear_in_cr4 (unsigned long mask)
 	write_cr4(cr4);
 }
 
-/*
- *      NSC/Cyrix CPU indexed register access macros
- */
-
-#define getCx86(reg) ({ outb((reg), 0x22); inb(0x23); })
-
-#define setCx86(reg, data) do { \
-	outb((reg), 0x22); \
-	outb((data), 0x23); \
-} while (0)
-
 /* Stop speculative execution */
 static inline void sync_core(void)
 {
@@ -226,6 +215,10 @@ extern int bootloader_type;
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
+
+extern void hard_disable_TSC(void);
+extern void disable_TSC(void);
+extern void hard_enable_TSC(void);
 
 /*
  * Size of io_bitmap.

@@ -6,9 +6,12 @@ extra-y := init_task.o vmlinux.lds
 
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \
-	sys_bfin.o time.o traps.o irqchip.o dma-mapping.o bfin_gpio.o \
-	flat.o
+	sys_bfin.o time.o traps.o irqchip.o dma-mapping.o flat.o \
+	fixed_code.o cplbinit.o cacheinit.o
 
+obj-$(CONFIG_BF53x)		     += bfin_gpio.o
+obj-$(CONFIG_BF561)		     += bfin_gpio.o
 obj-$(CONFIG_MODULES)                += module.o
 obj-$(CONFIG_BFIN_DMA_5XX)           += bfin_dma_5xx.o
 obj-$(CONFIG_DUAL_CORE_TEST_MODULE)  += dualcore_test.o
+obj-$(CONFIG_KGDB)                   += kgdb.o

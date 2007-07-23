@@ -416,9 +416,6 @@ struct digi_port {
 	int dp_port_num;
 	int dp_out_buf_len;
 	unsigned char dp_out_buf[DIGI_OUT_BUF_SIZE];
-	int dp_in_buf_len;
-	unsigned char dp_in_buf[DIGI_IN_BUF_SIZE];
-	unsigned char dp_in_flag_buf[DIGI_IN_BUF_SIZE];
 	int dp_write_urb_in_use;
 	unsigned int dp_modem_signals;
 	wait_queue_head_t dp_modem_change_wait;
@@ -920,7 +917,6 @@ dbg( "digi_rx_throttle: TOP: port=%d", priv->dp_port_num );
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
 	priv->dp_throttled = 1;
 	priv->dp_throttle_restart = 0;
-	priv->dp_in_buf_len = 0;
 	spin_unlock_irqrestore( &priv->dp_port_lock, flags );
 
 }
@@ -930,34 +926,22 @@ static void digi_rx_unthrottle( struct usb_serial_port *port )
 {
 
 	int ret = 0;
-	int len;
 	unsigned long flags;
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty = port->tty;
-
 
 dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
 
-	/* send any buffered chars from throttle time on to tty subsystem */
-
-	len = tty_buffer_request_room(tty, priv->dp_in_buf_len);
-	if( len > 0 ) {
-		tty_insert_flip_string_flags(tty, priv->dp_in_buf, priv->dp_in_flag_buf, len);
-		tty_flip_buffer_push( tty );
-	}
+	/* turn throttle off */
+	priv->dp_throttled = 0;
+	priv->dp_throttle_restart = 0;
 
 	/* restart read chain */
 	if( priv->dp_throttle_restart ) {
 		port->read_urb->dev = port->serial->dev;
 		ret = usb_submit_urb( port->read_urb, GFP_ATOMIC );
 	}
-
-	/* turn throttle off */
-	priv->dp_throttled = 0;
-	priv->dp_in_buf_len = 0;
-	priv->dp_throttle_restart = 0;
 
 	spin_unlock_irqrestore( &priv->dp_port_lock, flags );
 
@@ -1340,19 +1324,21 @@ static void digi_write_bulk_callback( struct urb *urb )
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
 	int ret = 0;
+	int status = urb->status;
 
 
-dbg( "digi_write_bulk_callback: TOP, urb->status=%d", urb->status );
+	dbg("digi_write_bulk_callback: TOP, urb status=%d", status);
 
 	/* port and serial sanity check */
 	if( port == NULL || (priv=usb_get_serial_port_data(port)) == NULL ) {
-		err("%s: port or port->private is NULL, status=%d", __FUNCTION__,
-			urb->status );
+		err("%s: port or port->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 	serial = port->serial;
 	if( serial == NULL || (serial_priv=usb_get_serial_data(serial)) == NULL ) {
-		err("%s: serial or serial->private is NULL, status=%d", __FUNCTION__, urb->status );
+		err("%s: serial or serial->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -1687,7 +1673,6 @@ dbg( "digi_startup: TOP" );
 		spin_lock_init( &priv->dp_port_lock );
 		priv->dp_port_num = i;
 		priv->dp_out_buf_len = 0;
-		priv->dp_in_buf_len = 0;
 		priv->dp_write_urb_in_use = 0;
 		priv->dp_modem_signals = 0;
 		init_waitqueue_head( &priv->dp_modem_change_wait );
@@ -1757,25 +1742,28 @@ static void digi_read_bulk_callback( struct urb *urb )
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
 	int ret;
+	int status = urb->status;
 
 
 dbg( "digi_read_bulk_callback: TOP" );
 
 	/* port sanity check, do not resubmit if port is not valid */
 	if( port == NULL || (priv=usb_get_serial_port_data(port)) == NULL ) {
-		err("%s: port or port->private is NULL, status=%d", __FUNCTION__,
-			urb->status );
+		err("%s: port or port->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 	if( port->serial == NULL
 	|| (serial_priv=usb_get_serial_data(port->serial)) == NULL ) {
-		err("%s: serial is bad or serial->private is NULL, status=%d", __FUNCTION__, urb->status );
+		err("%s: serial is bad or serial->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 
 	/* do not resubmit urb if it has any status error */
-	if( urb->status ) {
-		err("%s: nonzero read bulk status: status=%d, port=%d", __FUNCTION__, urb->status, priv->dp_port_num );
+	if (status) {
+		err("%s: nonzero read bulk status: status=%d, port=%d",
+		    __FUNCTION__, status, priv->dp_port_num);
 		return;
 	}
 
@@ -1816,10 +1804,11 @@ static int digi_read_inb_callback( struct urb *urb )
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
-	int status = ((unsigned char *)urb->transfer_buffer)[2];
+	int port_status = ((unsigned char *)urb->transfer_buffer)[2];
 	unsigned char *data = ((unsigned char *)urb->transfer_buffer)+3;
 	int flag,throttled;
 	int i;
+	int status = urb->status;
 
 	/* do not process callbacks on closed ports */
 	/* but do continue the read chain */
@@ -1828,7 +1817,10 @@ static int digi_read_inb_callback( struct urb *urb )
 
 	/* short/multiple packet check */
 	if( urb->actual_length != len + 2 ) {
-     		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb->status=%d, port=%d, opcode=%d, len=%d, actual_length=%d, status=%d", __FUNCTION__, urb->status, priv->dp_port_num, opcode, len, urb->actual_length, status );
+		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb status=%d, "
+		    "port=%d, opcode=%d, len=%d, actual_length=%d, "
+		    "port_status=%d", __FUNCTION__, status, priv->dp_port_num,
+		    opcode, len, urb->actual_length, port_status);
 		return( -1 );
 	}
 
@@ -1843,52 +1835,37 @@ static int digi_read_inb_callback( struct urb *urb )
 	/* receive data */
 	if( opcode == DIGI_CMD_RECEIVE_DATA ) {
 
-		/* get flag from status */
+		/* get flag from port_status */
 		flag = 0;
 
 		/* overrun is special, not associated with a char */
-		if( status & DIGI_OVERRUN_ERROR ) {
+		if (port_status & DIGI_OVERRUN_ERROR) {
 			tty_insert_flip_char( tty, 0, TTY_OVERRUN );
 		}
 
 		/* break takes precedence over parity, */
 		/* which takes precedence over framing errors */
-		if( status & DIGI_BREAK_ERROR ) {
+		if (port_status & DIGI_BREAK_ERROR) {
 			flag = TTY_BREAK;
-		} else if( status & DIGI_PARITY_ERROR ) {
+		} else if (port_status & DIGI_PARITY_ERROR) {
 			flag = TTY_PARITY;
-		} else if( status & DIGI_FRAMING_ERROR ) {
+		} else if (port_status & DIGI_FRAMING_ERROR) {
 			flag = TTY_FRAME;
 		}
 
-		/* data length is len-1 (one byte of len is status) */
+		/* data length is len-1 (one byte of len is port_status) */
 		--len;
 
-		if( throttled ) {
-
-			len = min( len,
-				DIGI_IN_BUF_SIZE - priv->dp_in_buf_len );
-
-			if( len > 0 ) {
-				memcpy( priv->dp_in_buf + priv->dp_in_buf_len,
-					data, len );
-				memset( priv->dp_in_flag_buf
-					+ priv->dp_in_buf_len, flag, len );
-				priv->dp_in_buf_len += len;
+		len = tty_buffer_request_room(tty, len);
+		if( len > 0 ) {
+			/* Hot path */
+			if(flag == TTY_NORMAL)
+				tty_insert_flip_string(tty, data, len);
+			else {
+				for(i = 0; i < len; i++)
+					tty_insert_flip_char(tty, data[i], flag);
 			}
-
-		} else {
-			len = tty_buffer_request_room(tty, len);
-			if( len > 0 ) {
-				/* Hot path */
-				if(flag == TTY_NORMAL)
-					tty_insert_flip_string(tty, data, len);
-				else {
-					for(i = 0; i < len; i++)
-						tty_insert_flip_char(tty, data[i], flag);
-				}
-				tty_flip_buffer_push( tty );
-			}
+			tty_flip_buffer_push( tty );
 		}
 	}
 

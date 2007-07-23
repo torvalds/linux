@@ -251,7 +251,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 		if (file) {
 			gf = file->private_data;
 			if (test_bit(GFF_EXLOCK, &gf->f_flags))
-				/* gfs2_sharewrite_nopage has grabbed the ip->i_gl already */
+				/* gfs2_sharewrite_fault has grabbed the ip->i_gl already */
 				goto skip_lock;
 		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);

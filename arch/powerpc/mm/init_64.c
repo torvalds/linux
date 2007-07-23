@@ -5,7 +5,6 @@
  *  Modifications by Paul Mackerras (PowerMac) (paulus@cs.anu.edu.au)
  *  and Cort Dougan (PReP) (cort@cs.nmt.edu)
  *    Copyright (C) 1996 Paul Mackerras
- *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -179,7 +178,6 @@ void pgtable_cache_init(void)
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
 						     SLAB_PANIC,
-						     zero_ctor,
-						     NULL);
+						     zero_ctor);
 	}
 }

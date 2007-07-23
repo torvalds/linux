@@ -4,8 +4,8 @@
  *   Copyright (c) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   See Error Codes section of the SNIA CIFS Specification 
- *   for more information 
+ *   See Error Codes section of the SNIA CIFS Specification
+ *   for more information
  *
  *   This library is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define SUCCESS	0x00	/* The request was successful. */
@@ -110,7 +110,7 @@
 
 /* Below errors are used internally (do not come over the wire) for passthrough
    from STATUS codes to POSIX only  */
-#define ErrTooManyLinks         0xFFFE   
+#define ErrTooManyLinks         0xFFFE
 
 /* Following error codes may be generated with the ERRSRV error class.*/
 

@@ -68,6 +68,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #endif
+#include <linux/log2.h>
 
 static struct kmem_cache *revoke_record_cache;
 static struct kmem_cache *revoke_table_cache;
@@ -169,13 +170,13 @@ int __init journal_init_revoke_caches(void)
 {
 	revoke_record_cache = kmem_cache_create("revoke_record",
 					   sizeof(struct jbd_revoke_record_s),
-					   0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+					   0, SLAB_HWCACHE_ALIGN, NULL);
 	if (revoke_record_cache == 0)
 		return -ENOMEM;
 
 	revoke_table_cache = kmem_cache_create("revoke_table",
 					   sizeof(struct jbd_revoke_table_s),
-					   0, 0, NULL, NULL);
+					   0, 0, NULL);
 	if (revoke_table_cache == 0) {
 		kmem_cache_destroy(revoke_record_cache);
 		revoke_record_cache = NULL;
@@ -211,7 +212,7 @@ int journal_init_revoke(journal_t *journal, int hash_size)
 	journal->j_revoke = journal->j_revoke_table[0];
 
 	/* Check that the hash_size is a power of two */
-	J_ASSERT ((hash_size & (hash_size-1)) == 0);
+	J_ASSERT(is_power_of_2(hash_size));
 
 	journal->j_revoke->hash_size = hash_size;
 
@@ -238,7 +239,7 @@ int journal_init_revoke(journal_t *journal, int hash_size)
 	journal->j_revoke = journal->j_revoke_table[1];
 
 	/* Check that the hash_size is a power of two */
-	J_ASSERT ((hash_size & (hash_size-1)) == 0);
+	J_ASSERT(is_power_of_2(hash_size));
 
 	journal->j_revoke->hash_size = hash_size;
 

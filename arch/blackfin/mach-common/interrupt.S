@@ -34,6 +34,7 @@
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
+#include <asm/trace.h>
 
 #include <asm/mach-common/context.S>
 
@@ -170,10 +171,9 @@ ENTRY(_evt_ivhw)
 	r7.l = W[p5];
 1:
 #endif
-	p0.l = lo(TBUFCTL);
-	p0.h = hi(TBUFCTL);
-	r0 = 1;
-	[p0] = r0;
+
+	trace_buffer_stop(p0, r0);
+
 	r0 = IRQ_HWERR;
 	r1 = sp;
 

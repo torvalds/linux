@@ -633,12 +633,6 @@ void pcibios_make_OF_bus_map(void)
 {
 }
 
-/* Add sysfs properties */
-void pcibios_add_platform_entries(struct pci_dev *pdev)
-{
-}
-
-
 static int __init
 pcibios_init(void)
 {

@@ -258,8 +258,9 @@ static const struct rtc_class_ops ds1553_rtc_ops = {
 	.ioctl		= ds1553_rtc_ioctl,
 };
 
-static ssize_t ds1553_nvram_read(struct kobject *kobj, char *buf,
-				 loff_t pos, size_t size)
+static ssize_t ds1553_nvram_read(struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t size)
 {
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));
@@ -272,8 +273,9 @@ static ssize_t ds1553_nvram_read(struct kobject *kobj, char *buf,
 	return count;
 }
 
-static ssize_t ds1553_nvram_write(struct kobject *kobj, char *buf,
-				  loff_t pos, size_t size)
+static ssize_t ds1553_nvram_write(struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buf, loff_t pos, size_t size)
 {
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));
@@ -290,7 +292,6 @@ static struct bin_attribute ds1553_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = RTC_OFFSET,
 	.read = ds1553_nvram_read,
@@ -406,7 +407,7 @@ static __init int ds1553_init(void)
 
 static __exit void ds1553_exit(void)
 {
-	return platform_driver_unregister(&ds1553_rtc_driver);
+	platform_driver_unregister(&ds1553_rtc_driver);
 }
 
 module_init(ds1553_init);

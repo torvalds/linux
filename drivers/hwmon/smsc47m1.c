@@ -597,6 +597,7 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 error_remove_files:
 	sysfs_remove_group(&dev->kobj, &smsc47m1_group);
 error_free:
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 error_release:
 	release_region(res->start, SMSC_EXTENT);
@@ -608,12 +609,12 @@ static int __devexit smsc47m1_remove(struct platform_device *pdev)
 	struct smsc47m1_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &smsc47m1_group);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	release_region(res->start, SMSC_EXTENT);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	return 0;
@@ -693,15 +694,12 @@ static int __init smsc47m1_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
-	pdev->dev.platform_data = kmalloc(sizeof(struct smsc47m1_sio_data),
-					  GFP_KERNEL);
-	if (!pdev->dev.platform_data) {
-		err = -ENOMEM;
+	err = platform_device_add_data(pdev, sio_data,
+				       sizeof(struct smsc47m1_sio_data));
+	if (err) {
 		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
 		goto exit_device_put;
 	}
-	memcpy(pdev->dev.platform_data, sio_data,
-	       sizeof(struct smsc47m1_sio_data));
 
 	err = platform_device_add(pdev);
 	if (err) {

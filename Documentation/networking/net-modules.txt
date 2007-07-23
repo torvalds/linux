@@ -146,12 +146,6 @@ at1700.c:
 	irq = 0
 	(Probes ports: 0x260, 0x280, 0x2A0, 0x240, 0x340, 0x320, 0x380, 0x300)
 
-atari_bionet.c:
-	Supports full autoprobing. (m68k/Atari)
-
-atari_pamsnet.c:
-	Supports full autoprobing. (m68k/Atari)
-
 atarilance.c:
 	Supports full autoprobing. (m68k/Atari)
 

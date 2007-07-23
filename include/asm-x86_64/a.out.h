@@ -21,7 +21,8 @@ struct exec
 
 #ifdef __KERNEL__
 #include <linux/thread_info.h>
-#define STACK_TOP TASK_SIZE
+#define STACK_TOP	TASK_SIZE
+#define STACK_TOP_MAX	TASK_SIZE64
 #endif
 
 #endif /* __A_OUT_GNU_H__ */

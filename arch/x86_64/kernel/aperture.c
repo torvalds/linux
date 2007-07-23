@@ -20,7 +20,7 @@
 #include <linux/ioport.h>
 #include <asm/e820.h>
 #include <asm/io.h>
-#include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/k8.h>
@@ -214,7 +214,7 @@ void __init iommu_hole_init(void)
 	if (iommu_aperture_disabled || !fix_aperture || !early_pci_allowed())
 		return;
 
-	printk("Checking aperture...\n"); 
+	printk(KERN_INFO  "Checking aperture...\n");
 
 	fix = 0;
 	for (num = 24; num < 32; num++) {		

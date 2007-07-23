@@ -1,25 +1,3 @@
-#undef MMC_STRPCL
-#undef MMC_STAT
-#undef MMC_CLKRT
-#undef MMC_SPI
-#undef MMC_CMDAT
-#undef MMC_RESTO
-#undef MMC_RDTO
-#undef MMC_BLKLEN
-#undef MMC_NOB
-#undef MMC_PRTBUF
-#undef MMC_I_MASK
-#undef END_CMD_RES
-#undef PRG_DONE
-#undef DATA_TRAN_DONE
-#undef MMC_I_REG
-#undef MMC_CMD
-#undef MMC_ARGH
-#undef MMC_ARGL
-#undef MMC_RES
-#undef MMC_RXFIFO
-#undef MMC_TXFIFO
-
 #define MMC_STRPCL	0x0000
 #define STOP_CLOCK		(1 << 0)
 #define START_CLOCK		(2 << 0)

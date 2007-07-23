@@ -219,7 +219,7 @@ static void piix_tune_pio (ide_drive_t *drive, u8 pio)
  */
 static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 	piix_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -495,10 +495,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_piix,	\
 		.init_hwif	= init_hwif_piix,	\
-		.channels	= 2,			\
 		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.bootable	= ON_BOARD,		\
+		.pio_mask	= ATA_PIO4,		\
 		.udma_mask	= udma,			\
 	}
 
@@ -514,11 +514,11 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 		 */
 		.name		= "MPIIX",
 		.init_hwif	= init_hwif_piix,
-		.channels	= 2,
 		.autodma	= NODMA,
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
 		.bootable	= ON_BOARD,
-		.flags		= IDEPCI_FLAG_ISA_PORTS
+		.host_flags	= IDE_HFLAG_ISA_PORTS,
+		.pio_mask	= ATA_PIO4,
 	},
 
 	/*  3 */ DECLARE_PIIX_DEV("PIIX3", 0x00),	/* no udma */
@@ -572,18 +572,16 @@ static void __devinit piix_check_450nx(void)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
-	u8 rev;
 	while((pdev=pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev))!=NULL)
 	{
 		/* Look for 450NX PXB. Check for problem configurations
 		   A PCI quirk checks bit 6 already */
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 		pci_read_config_word(pdev, 0x41, &cfg);
 		/* Only on the original revision: IDE DMA can hang */
-		if(rev == 0x00)
+		if (pdev->revision == 0x00)
 			no_piix_dma = 1;
 		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
-		else if(cfg & (1<<14) && rev < 5)
+		else if (cfg & (1<<14) && pdev->revision < 5)
 			no_piix_dma = 2;
 	}
 	if(no_piix_dma)

@@ -134,19 +134,21 @@ static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
 	int err;
 
 	sys_dev = get_cpu_sysdev(cpu);
-	mutex_lock(&therm_cpu_lock);
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+		mutex_lock(&therm_cpu_lock);
 		err = thermal_throttle_add_dev(sys_dev);
+		mutex_unlock(&therm_cpu_lock);
 		WARN_ON(err);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
+		mutex_lock(&therm_cpu_lock);
 		thermal_throttle_remove_dev(sys_dev);
+		mutex_unlock(&therm_cpu_lock);
 		break;
 	}
-	mutex_unlock(&therm_cpu_lock);
 	return NOTIFY_OK;
 }
 

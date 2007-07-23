@@ -264,6 +264,7 @@ KERN_CRIT "                     ||     ||\n");
 
 	show_regs(regs);
 	dump_stack();
+	add_taint(TAINT_DIE);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
@@ -302,7 +303,7 @@ static void handle_break(struct pt_regs *regs)
 	if (unlikely(iir == PARISC_BUG_BREAK_INSN && !user_mode(regs))) {
 		/* check if a BUG() or WARN() trapped here.  */
 		enum bug_trap_type tt;
-		tt = report_bug(regs->iaoq[0] & ~3);
+		tt = report_bug(regs->iaoq[0] & ~3, regs);
 		if (tt == BUG_TRAP_TYPE_WARN) {
 			regs->iaoq[0] += 4;
 			regs->iaoq[1] += 4;

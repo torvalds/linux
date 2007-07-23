@@ -30,6 +30,7 @@ struct exec
 #ifdef __KERNEL__
 #define STACK_TOP	((current->personality == PER_LINUX_32BIT) ? \
 			 TASK_SIZE : TASK_SIZE_26)
+#define STACK_TOP_MAX	TASK_SIZE
 #endif
 
 #ifndef LIBRARY_START_TEXT

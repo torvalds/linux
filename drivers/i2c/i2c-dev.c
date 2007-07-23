@@ -283,6 +283,7 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		    (data_arg.size != I2C_SMBUS_WORD_DATA) &&
 		    (data_arg.size != I2C_SMBUS_PROC_CALL) &&
 		    (data_arg.size != I2C_SMBUS_BLOCK_DATA) &&
+		    (data_arg.size != I2C_SMBUS_I2C_BLOCK_BROKEN) &&
 		    (data_arg.size != I2C_SMBUS_I2C_BLOCK_DATA) &&
 		    (data_arg.size != I2C_SMBUS_BLOCK_PROC_CALL)) {
 			dev_dbg(&client->adapter->dev,
@@ -329,9 +330,17 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 
 		if ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
 		    (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
+		    (data_arg.size == I2C_SMBUS_I2C_BLOCK_DATA) ||
 		    (data_arg.read_write == I2C_SMBUS_WRITE)) {
 			if (copy_from_user(&temp, data_arg.data, datasize))
 				return -EFAULT;
+		}
+		if (data_arg.size == I2C_SMBUS_I2C_BLOCK_BROKEN) {
+			/* Convert old I2C block commands to the new
+			   convention. This preserves binary compatibility. */
+			data_arg.size = I2C_SMBUS_I2C_BLOCK_DATA;
+			if (data_arg.read_write == I2C_SMBUS_READ)
+				temp.block[0] = I2C_SMBUS_BLOCK_MAX;
 		}
 		res = i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 		      data_arg.read_write,

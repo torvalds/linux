@@ -184,14 +184,14 @@ out:
 	return 0;
 }
 
-static struct seq_operations llc_seq_socket_ops = {
+static const struct seq_operations llc_seq_socket_ops = {
 	.start  = llc_seq_start,
 	.next   = llc_seq_next,
 	.stop   = llc_seq_stop,
 	.show   = llc_seq_socket_show,
 };
 
-static struct seq_operations llc_seq_core_ops = {
+static const struct seq_operations llc_seq_core_ops = {
 	.start  = llc_seq_start,
 	.next   = llc_seq_next,
 	.stop   = llc_seq_stop,

@@ -742,6 +742,11 @@ void __init iSeries_pcibios_init(void)
 	/* Install IO hooks */
 	ppc_pci_io = iseries_pci_io;
 
+	/* iSeries has no IO space in the common sense, it needs to set
+	 * the IO base to 0
+	 */
+	pci_io_base = 0;
+
 	if (root == NULL) {
 		printk(KERN_CRIT "iSeries_pcibios_init: can't find root "
 				"of device tree\n");
@@ -763,7 +768,7 @@ void __init iSeries_pcibios_init(void)
 		if (phb == NULL)
 			continue;
 
-		phb->pci_mem_offset = phb->local_number = bus;
+		phb->pci_mem_offset = bus;
 		phb->first_busno = bus;
 		phb->last_busno = bus;
 		phb->ops = &iSeries_pci_ops;

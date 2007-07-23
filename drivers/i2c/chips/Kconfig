@@ -5,7 +5,7 @@
 menu "Miscellaneous I2C Chip support"
 
 config SENSORS_DS1337
-	tristate "Dallas Semiconductor DS1337 and DS1339 Real Time Clock"
+	tristate "Dallas DS1337 and DS1339 Real Time Clock (DEPRECATED)"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for Dallas Semiconductor
@@ -14,8 +14,11 @@ config SENSORS_DS1337
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1337.
 
+	  This driver is deprecated and will be dropped soon. Use
+	  rtc-ds1307 instead.
+
 config SENSORS_DS1374
-	tristate "Maxim/Dallas Semiconductor DS1374 Real Time Clock"
+	tristate "Dallas DS1374 Real Time Clock (DEPRECATED)"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for Dallas Semiconductor
@@ -23,6 +26,19 @@ config SENSORS_DS1374
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1374.
+
+	  This driver is deprecated and will be dropped soon. Use
+	  rtc-ds1374 instead.
+
+config DS1682
+	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1682 Total Elapsed Time Recorder.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1682.
 
 config SENSORS_EEPROM
 	tristate "EEPROM reader"
@@ -101,13 +117,16 @@ config TPS65010
 	  will be called tps65010.
 
 config SENSORS_M41T00
-	tristate "ST M41T00 RTC chip"
+	tristate "ST M41T00 RTC chip (DEPRECATED)"
 	depends on PPC32
 	help
 	  If you say yes here you get support for the ST M41T00 RTC chip.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called m41t00.
+
+	  This driver is deprecated and will be dropped soon. Use
+	  rtc-ds1307 or rtc-m41t80 instead.
 
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"
@@ -123,5 +142,25 @@ config SENSORS_MAX6875
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6875.
+
+config SENSORS_TSL2550
+	tristate "Taos TSL2550 ambient light sensor"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Taos TSL2550
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tsl2550.
+
+config MENELAUS
+	bool "TWL92330/Menelaus PM chip"
+	depends on I2C=y && ARCH_OMAP24XX
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TWL92330/Menelaus Power Management chip. This include voltage
+	  regulators, Dual slot memory card tranceivers, real-time clock
+	  and other features that are often used in portable devices like
+	  cell phones and PDAs.
 
 endmenu

@@ -1,7 +1,7 @@
 /*
  * LED Triggers Core
  *
- * Copyright 2005-2006 Openedhand Ltd.
+ * Copyright 2005-2007 Openedhand Ltd.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
  *
@@ -28,10 +28,10 @@
 static DEFINE_RWLOCK(triggers_list_lock);
 static LIST_HEAD(trigger_list);
 
-ssize_t led_trigger_store(struct class_device *dev, const char *buf,
-			size_t count)
+ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	char trigger_name[TRIG_NAME_MAX];
 	struct led_trigger *trig;
 	size_t len;
@@ -67,9 +67,10 @@ ssize_t led_trigger_store(struct class_device *dev, const char *buf,
 }
 
 
-ssize_t led_trigger_show(struct class_device *dev, char *buf)
+ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_trigger *trig;
 	int len = 0;
 
@@ -183,13 +184,20 @@ int led_trigger_register(struct led_trigger *trigger)
 void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 {
 	struct led_trigger *trigger;
+	int err;
 
 	trigger = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
 
 	if (trigger) {
 		trigger->name = name;
-		led_trigger_register(trigger);
-	}
+		err = led_trigger_register(trigger);
+		if (err < 0)
+			printk(KERN_WARNING "LED trigger %s failed to register"
+				" (%d)\n", name, err);
+	} else
+		printk(KERN_WARNING "LED trigger %s failed to register"
+			" (no memory)\n", name);
+
 	*tp = trigger;
 }
 
@@ -215,7 +223,8 @@ void led_trigger_unregister(struct led_trigger *trigger)
 
 void led_trigger_unregister_simple(struct led_trigger *trigger)
 {
-	led_trigger_unregister(trigger);
+	if (trigger)
+		led_trigger_unregister(trigger);
 	kfree(trigger);
 }
 

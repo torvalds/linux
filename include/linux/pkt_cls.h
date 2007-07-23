@@ -403,16 +403,13 @@ enum
  *   1..32767		Reserved for ematches inside kernel tree
  *   32768..65535	Free to use, not reliable
  */
-enum
-{
-	TCF_EM_CONTAINER,
-	TCF_EM_CMP,
-	TCF_EM_NBYTE,
-	TCF_EM_U32,
-	TCF_EM_META,
-	TCF_EM_TEXT,
-	__TCF_EM_MAX
-};
+#define	TCF_EM_CONTAINER	0
+#define	TCF_EM_CMP		1
+#define	TCF_EM_NBYTE		2
+#define	TCF_EM_U32		3
+#define	TCF_EM_META		4
+#define	TCF_EM_TEXT		5
+#define	TCF_EM_MAX		5
 
 enum
 {

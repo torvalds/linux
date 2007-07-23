@@ -70,7 +70,7 @@
 #define VQ
 #endif
 
-#define IPW2200_VERSION "1.2.0" VK VD VM VP VR VQ
+#define IPW2200_VERSION "1.2.2" VK VD VM VP VR VQ
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
@@ -1751,7 +1751,7 @@ static int ipw_radio_kill_sw(struct ipw_priv *priv, int disable_radio)
 			/* Make sure the RF_KILL check timer is running */
 			cancel_delayed_work(&priv->rf_kill);
 			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   2 * HZ);
+					   round_jiffies(2 * HZ));
 		} else
 			queue_work(priv->workqueue, &priv->up);
 	}
@@ -2506,7 +2506,7 @@ static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 		break;
 	}
 
-	param = cpu_to_le32(mode);
+	param = cpu_to_le32(param);
 	return ipw_send_cmd_pdu(priv, IPW_CMD_POWER_MODE, sizeof(param),
 				&param);
 }
@@ -4690,7 +4690,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			else if (priv->config & CFG_BACKGROUND_SCAN
 				 && priv->status & STATUS_ASSOCIATED)
 				queue_delayed_work(priv->workqueue,
-						   &priv->request_scan, HZ);
+						   &priv->request_scan,
+						   round_jiffies(HZ));
 
 			/* Send an empty event to user space.
 			 * We don't send the received data on the event because
@@ -9567,6 +9568,7 @@ static int ipw_wx_set_power(struct net_device *dev,
 		priv->power_mode = IPW_POWER_ENABLED | IPW_POWER_BATTERY;
 	else
 		priv->power_mode = IPW_POWER_ENABLED | priv->power_mode;
+
 	err = ipw_send_power_mode(priv, IPW_POWER_LEVEL(priv->power_mode));
 	if (err) {
 		IPW_DEBUG_WX("failed setting power mode.\n");
@@ -9603,22 +9605,19 @@ static int ipw_wx_set_powermode(struct net_device *dev,
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	int mode = *(int *)extra;
 	int err;
+
 	mutex_lock(&priv->mutex);
-	if ((mode < 1) || (mode > IPW_POWER_LIMIT)) {
+	if ((mode < 1) || (mode > IPW_POWER_LIMIT))
 		mode = IPW_POWER_AC;
-		priv->power_mode = mode;
-	} else {
-		priv->power_mode = IPW_POWER_ENABLED | mode;
-	}
 
-	if (priv->power_mode != mode) {
+	if (IPW_POWER_LEVEL(priv->power_mode) != mode) {
 		err = ipw_send_power_mode(priv, mode);
-
 		if (err) {
 			IPW_DEBUG_WX("failed setting power mode.\n");
 			mutex_unlock(&priv->mutex);
 			return err;
 		}
+		priv->power_mode = IPW_POWER_ENABLED | mode;
 	}
 	mutex_unlock(&priv->mutex);
 	return 0;
@@ -10554,7 +10553,7 @@ static irqreturn_t ipw_isr(int irq, void *data)
 	spin_lock(&priv->irq_lock);
 
 	if (!(priv->status & STATUS_INT_ENABLED)) {
-		/* Shared IRQ */
+		/* IRQ is disabled */
 		goto none;
 	}
 

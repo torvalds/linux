@@ -40,10 +40,10 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__attribute__ ((__section__ (".init.text")))
+#define __init		__attribute__ ((__section__ (".init.text"))) __cold
 #define __initdata	__attribute__ ((__section__ (".init.data")))
 #define __exitdata	__attribute__ ((__section__(".exit.data")))
-#define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit")))
+#define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit"))) __cold
 
 /* modpost check for section mismatches during the kernel build.
  * A section mismatch happens when there are references from a
@@ -59,9 +59,9 @@
 #define __initdata_refok          __attribute__ ((__section__ (".data.init.refok")))
 
 #ifdef MODULE
-#define __exit		__attribute__ ((__section__(".exit.text")))
+#define __exit		__attribute__ ((__section__(".exit.text"))) __cold
 #else
-#define __exit		__attribute_used__ __attribute__ ((__section__(".exit.text")))
+#define __exit		__attribute_used__ __attribute__ ((__section__(".exit.text"))) __cold
 #endif
 
 /* For assembly routines */
@@ -171,9 +171,6 @@ struct obs_kernel_param {
 #define __setup(str, fn)					\
 	__setup_param(str, fn, fn, 0)
 
-#define __obsolete_setup(str)					\
-	__setup_null_param(str, __LINE__)
-
 /* NOTE: fn is as per module_param, not __setup!  Emits warning if fn
  * returns non-zero. */
 #define early_param(str, fn)					\
@@ -239,7 +236,6 @@ void __init parse_early_param(void);
 #define __setup_param(str, unique_id, fn)	/* nothing */
 #define __setup_null_param(str, unique_id) 	/* nothing */
 #define __setup(str, func) 			/* nothing */
-#define __obsolete_setup(str) 			/* nothing */
 #endif
 
 /* Data marked not to be saved by software suspend */

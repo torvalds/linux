@@ -74,42 +74,13 @@ enum {
 	UBI_COMPAT_REJECT   = 5
 };
 
-/*
- * ubi16_t/ubi32_t/ubi64_t - 16, 32, and 64-bit integers used in UBI on-flash
- * data structures.
- */
-typedef struct {
-	uint16_t int16;
-} __attribute__ ((packed)) ubi16_t;
-
-typedef struct {
-	uint32_t int32;
-} __attribute__ ((packed)) ubi32_t;
-
-typedef struct {
-	uint64_t int64;
-} __attribute__ ((packed)) ubi64_t;
-
-/*
- * In this implementation of UBI uses the big-endian format for on-flash
- * integers. The below are the corresponding conversion macros.
- */
-#define cpu_to_ubi16(x) ((ubi16_t){__cpu_to_be16(x)})
-#define ubi16_to_cpu(x) ((uint16_t)__be16_to_cpu((x).int16))
-
-#define cpu_to_ubi32(x) ((ubi32_t){__cpu_to_be32(x)})
-#define ubi32_to_cpu(x) ((uint32_t)__be32_to_cpu((x).int32))
-
-#define cpu_to_ubi64(x) ((ubi64_t){__cpu_to_be64(x)})
-#define ubi64_to_cpu(x) ((uint64_t)__be64_to_cpu((x).int64))
-
 /* Sizes of UBI headers */
 #define UBI_EC_HDR_SIZE  sizeof(struct ubi_ec_hdr)
 #define UBI_VID_HDR_SIZE sizeof(struct ubi_vid_hdr)
 
 /* Sizes of UBI headers without the ending CRC */
-#define UBI_EC_HDR_SIZE_CRC  (UBI_EC_HDR_SIZE  - sizeof(ubi32_t))
-#define UBI_VID_HDR_SIZE_CRC (UBI_VID_HDR_SIZE - sizeof(ubi32_t))
+#define UBI_EC_HDR_SIZE_CRC  (UBI_EC_HDR_SIZE  - sizeof(__be32))
+#define UBI_VID_HDR_SIZE_CRC (UBI_VID_HDR_SIZE - sizeof(__be32))
 
 /**
  * struct ubi_ec_hdr - UBI erase counter header.
@@ -137,14 +108,14 @@ typedef struct {
  * eraseblocks.
  */
 struct ubi_ec_hdr {
-	ubi32_t magic;
-	uint8_t version;
-	uint8_t padding1[3];
-	ubi64_t ec; /* Warning: the current limit is 31-bit anyway! */
-	ubi32_t vid_hdr_offset;
-	ubi32_t data_offset;
-	uint8_t padding2[36];
-	ubi32_t hdr_crc;
+	__be32  magic;
+	__u8    version;
+	__u8    padding1[3];
+	__be64  ec; /* Warning: the current limit is 31-bit anyway! */
+	__be32  vid_hdr_offset;
+	__be32  data_offset;
+	__u8    padding2[36];
+	__be32  hdr_crc;
 } __attribute__ ((packed));
 
 /**
@@ -262,22 +233,22 @@ struct ubi_ec_hdr {
  * software (say, cramfs) on top of the UBI volume.
  */
 struct ubi_vid_hdr {
-	ubi32_t magic;
-	uint8_t version;
-	uint8_t vol_type;
-	uint8_t copy_flag;
-	uint8_t compat;
-	ubi32_t vol_id;
-	ubi32_t lnum;
-	ubi32_t leb_ver; /* obsolete, to be removed, don't use */
-	ubi32_t data_size;
-	ubi32_t used_ebs;
-	ubi32_t data_pad;
-	ubi32_t data_crc;
-	uint8_t padding1[4];
-	ubi64_t sqnum;
-	uint8_t padding2[12];
-	ubi32_t hdr_crc;
+	__be32  magic;
+	__u8    version;
+	__u8    vol_type;
+	__u8    copy_flag;
+	__u8    compat;
+	__be32  vol_id;
+	__be32  lnum;
+	__be32  leb_ver; /* obsolete, to be removed, don't use */
+	__be32  data_size;
+	__be32  used_ebs;
+	__be32  data_pad;
+	__be32  data_crc;
+	__u8    padding1[4];
+	__be64  sqnum;
+	__u8    padding2[12];
+	__be32  hdr_crc;
 } __attribute__ ((packed));
 
 /* Internal UBI volumes count */
@@ -306,7 +277,7 @@ struct ubi_vid_hdr {
 #define UBI_VTBL_RECORD_SIZE sizeof(struct ubi_vtbl_record)
 
 /* Size of the volume table record without the ending CRC */
-#define UBI_VTBL_RECORD_SIZE_CRC (UBI_VTBL_RECORD_SIZE - sizeof(ubi32_t))
+#define UBI_VTBL_RECORD_SIZE_CRC (UBI_VTBL_RECORD_SIZE - sizeof(__be32))
 
 /**
  * struct ubi_vtbl_record - a record in the volume table.
@@ -346,15 +317,15 @@ struct ubi_vid_hdr {
  * Empty records contain all zeroes and the CRC checksum of those zeroes.
  */
 struct ubi_vtbl_record {
-	ubi32_t reserved_pebs;
-	ubi32_t alignment;
-	ubi32_t data_pad;
-	uint8_t vol_type;
-	uint8_t upd_marker;
-	ubi16_t name_len;
-	uint8_t name[UBI_VOL_NAME_MAX+1];
-	uint8_t padding2[24];
-	ubi32_t crc;
+	__be32  reserved_pebs;
+	__be32  alignment;
+	__be32  data_pad;
+	__u8    vol_type;
+	__u8    upd_marker;
+	__be16  name_len;
+	__u8    name[UBI_VOL_NAME_MAX+1];
+	__u8    padding2[24];
+	__be32  crc;
 } __attribute__ ((packed));
 
 #endif /* !__UBI_HEADER_H__ */

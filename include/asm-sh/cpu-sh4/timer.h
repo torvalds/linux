@@ -1,7 +1,7 @@
 /*
  * include/asm-sh/cpu-sh4/timer.h
  *
- * Copyright (C) 2004 Lineo Solutions, Inc. 
+ * Copyright (C) 2004 Lineo Solutions, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -16,36 +16,45 @@
  *	SH7750S/SH7750R
  *	SH7751/SH7751R
  *	SH7760
+ *	SH-X3
  * ---------------------------------------------------------------------------
  */
-
-#if !defined(CONFIG_CPU_SUBTYPE_SH7760)
-#define TMU_TOCR        0xffd80000      /* Byte access */
+#ifdef CONFIG_CPU_SUBTYPE_SHX3
+#define TMU_012_BASE	0xffc10000
+#define TMU_345_BASE	0xffc20000
+#else
+#define TMU_012_BASE	0xffd80000
+#define TMU_345_BASE	0xfe100000
 #endif
-#define TMU_TSTR        0xffd80004      /* Byte access */
 
-#define TMU0_TCOR       0xffd80008      /* Long access */
-#define TMU0_TCNT       0xffd8000c      /* Long access */
-#define TMU0_TCR        0xffd80010      /* Word access */
+#define TMU_TOCR	TMU_012_BASE	/* Not supported on all CPUs */
 
-#define TMU1_TCOR       0xffd80014      /* Long access */
-#define TMU1_TCNT       0xffd80018      /* Long access */
-#define TMU1_TCR        0xffd8001c      /* Word access */
+#define TMU_012_TSTR	(TMU_012_BASE + 0x04)
+#define TMU_345_TSTR	(TMU_345_BASE + 0x04)
 
-#define TMU2_TCOR       0xffd80020      /* Long access */
-#define TMU2_TCNT       0xffd80024      /* Long access */
-#define TMU2_TCR        0xffd80028      /* Word access */
-#define TMU2_TCPR	0xffd8002c	/* Long access */
+#define TMU0_TCOR	(TMU_012_BASE + 0x08)
+#define TMU0_TCNT	(TMU_012_BASE + 0x0c)
+#define TMU0_TCR	(TMU_012_BASE + 0x10)
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7760)
-#define TMU3_TCOR       0xfe100008      /* Long access */
-#define TMU3_TCNT       0xfe10000c      /* Long access */
-#define TMU3_TCR        0xfe100010      /* Word access */
+#define TMU1_TCOR       (TMU_012_BASE + 0x14)
+#define TMU1_TCNT       (TMU_012_BASE + 0x18)
+#define TMU1_TCR        (TMU_012_BASE + 0x1c)
 
-#define TMU4_TCOR       0xfe100014      /* Long access */
-#define TMU4_TCNT       0xfe100018      /* Long access */
-#define TMU4_TCR        0xfe10001c      /* Word access */
-#endif
+#define TMU2_TCOR       (TMU_012_BASE + 0x20)
+#define TMU2_TCNT       (TMU_012_BASE + 0x24)
+#define TMU2_TCR	(TMU_012_BASE + 0x28)
+#define TMU2_TCPR	(TMU_012_BASE + 0x2c)
+
+#define TMU3_TCOR	(TMU_345_BASE + 0x08)
+#define TMU3_TCNT	(TMU_345_BASE + 0x0c)
+#define TMU3_TCR	(TMU_345_BASE + 0x10)
+
+#define TMU4_TCOR	(TMU_345_BASE + 0x14)
+#define TMU4_TCNT	(TMU_345_BASE + 0x18)
+#define TMU4_TCR	(TMU_345_BASE + 0x1c)
+
+#define TMU5_TCOR	(TMU_345_BASE + 0x20)
+#define TMU5_TCNT	(TMU_345_BASE + 0x24)
+#define TMU5_TCR	(TMU_345_BASE + 0x28)
 
 #endif /* __ASM_CPU_SH4_TIMER_H */
-

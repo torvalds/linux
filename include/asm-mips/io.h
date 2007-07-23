@@ -212,7 +212,8 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 		 */
 		if (__IS_LOW512(phys_addr) && __IS_LOW512(last_addr) &&
 		    flags == _CACHE_UNCACHED)
-			return (void __iomem *)CKSEG1ADDR(phys_addr);
+			return (void __iomem *)
+				(unsigned long)CKSEG1ADDR(phys_addr);
 	}
 
 	return __ioremap(offset, size, flags);

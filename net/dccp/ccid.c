@@ -69,7 +69,7 @@ static struct kmem_cache *ccid_kmem_cache_create(int obj_size, const char *fmt,.
 	if (slab_name == NULL)
 		return NULL;
 	slab = kmem_cache_create(slab_name, sizeof(struct ccid) + obj_size, 0,
-				 SLAB_HWCACHE_ALIGN, NULL, NULL);
+				 SLAB_HWCACHE_ALIGN, NULL);
 	if (slab == NULL)
 		kfree(slab_name);
 	return slab;

@@ -979,6 +979,7 @@ static void send_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 		struct ScsiReqBlk *srb)
 {
+	int nseg;
 	enum dma_data_direction dir = cmd->sc_data_direction;
 	dprintkdbg(DBG_0, "build_srb: (pid#%li) <%02i-%i>\n",
 		cmd->pid, dcb->target_id, dcb->target_lun);
@@ -1000,27 +1001,30 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 	srb->scsi_phase = PH_BUS_FREE;	/* initial phase */
 	srb->end_message = 0;
 
-	if (dir == PCI_DMA_NONE || !cmd->request_buffer) {
+	nseg = scsi_dma_map(cmd);
+	BUG_ON(nseg < 0);
+
+	if (dir == PCI_DMA_NONE || !nseg) {
 		dprintkdbg(DBG_0,
 			"build_srb: [0] len=%d buf=%p use_sg=%d !MAP=%08x\n",
-			cmd->bufflen, cmd->request_buffer,
-			cmd->use_sg, srb->segment_x[0].address);
-	} else if (cmd->use_sg) {
+			   cmd->bufflen, scsi_sglist(cmd), scsi_sg_count(cmd),
+			   srb->segment_x[0].address);
+	} else {
 		int i;
-		u32 reqlen = cmd->request_bufflen;
-		struct scatterlist *sl = (struct scatterlist *)
-					 cmd->request_buffer;
+		u32 reqlen = scsi_bufflen(cmd);
+		struct scatterlist *sg;
 		struct SGentry *sgp = srb->segment_x;
-		srb->sg_count = pci_map_sg(dcb->acb->dev, sl, cmd->use_sg,
-					   dir);
-		dprintkdbg(DBG_0,
-			"build_srb: [n] len=%d buf=%p use_sg=%d segs=%d\n",
-			reqlen, cmd->request_buffer, cmd->use_sg,
-			srb->sg_count);
 
-		for (i = 0; i < srb->sg_count; i++) {
-			u32 busaddr = (u32)sg_dma_address(&sl[i]);
-			u32 seglen = (u32)sl[i].length;
+		srb->sg_count = nseg;
+
+		dprintkdbg(DBG_0,
+			   "build_srb: [n] len=%d buf=%p use_sg=%d segs=%d\n",
+			   reqlen, scsi_sglist(cmd), scsi_sg_count(cmd),
+			   srb->sg_count);
+
+		scsi_for_each_sg(cmd, sg, srb->sg_count, i) {
+			u32 busaddr = (u32)sg_dma_address(sg);
+			u32 seglen = (u32)sg->length;
 			sgp[i].address = busaddr;
 			sgp[i].length = seglen;
 			srb->total_xfer_length += seglen;
@@ -1050,23 +1054,6 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 
 		dprintkdbg(DBG_SG, "build_srb: [n] map sg %p->%08x(%05x)\n",
 			srb->segment_x, srb->sg_bus_addr, SEGMENTX_LEN);
-	} else {
-		srb->total_xfer_length = cmd->request_bufflen;
-		srb->sg_count = 1;
-		srb->segment_x[0].address =
-			pci_map_single(dcb->acb->dev, cmd->request_buffer,
-				       srb->total_xfer_length, dir);
-
-		/* Fixup for WIDE padding - make sure length is even */
-		if (dcb->sync_period & WIDE_SYNC && srb->total_xfer_length % 2)
-			srb->total_xfer_length++;
-
-		srb->segment_x[0].length = srb->total_xfer_length;
-
-		dprintkdbg(DBG_0,
-			"build_srb: [1] len=%d buf=%p use_sg=%d map=%08x\n",
-			srb->total_xfer_length, cmd->request_buffer,
-			cmd->use_sg, srb->segment_x[0].address);
 	}
 
 	srb->request_length = srb->total_xfer_length;
@@ -2128,7 +2115,7 @@ static void data_out_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 		/*clear_fifo(acb, "DOP1"); */
 		/* KG: What is this supposed to be useful for? WIDE padding stuff? */
 		if (d_left_counter == 1 && dcb->sync_period & WIDE_SYNC
-		    && srb->cmd->request_bufflen % 2) {
+		    && scsi_bufflen(srb->cmd) % 2) {
 			d_left_counter = 0;
 			dprintkl(KERN_INFO,
 				"data_out_phase0: Discard 1 byte (0x%02x)\n",
@@ -2159,7 +2146,7 @@ static void data_out_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 			sg_update_list(srb, d_left_counter);
 			/* KG: Most ugly hack! Apparently, this works around a chip bug */
 			if ((srb->segment_x[srb->sg_index].length ==
-			     diff && srb->cmd->use_sg)
+			     diff && scsi_sg_count(srb->cmd))
 			    || ((oldxferred & ~PAGE_MASK) ==
 				(PAGE_SIZE - diff))
 			    ) {
@@ -2289,19 +2276,15 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 				unsigned char *virt, *base = NULL;
 				unsigned long flags = 0;
 				size_t len = left_io;
+				size_t offset = srb->request_length - left_io;
 
-				if (srb->cmd->use_sg) {
-					size_t offset = srb->request_length - left_io;
-					local_irq_save(flags);
-					/* Assumption: it's inside one page as it's at most 4 bytes and
-					   I just assume it's on a 4-byte boundary */
-					base = scsi_kmap_atomic_sg((struct scatterlist *)srb->cmd->request_buffer,
-								     srb->sg_count, &offset, &len);
-					virt = base + offset;
-				} else {
-					virt = srb->cmd->request_buffer + srb->cmd->request_bufflen - left_io;
-					len = left_io;
-				}
+				local_irq_save(flags);
+				/* Assumption: it's inside one page as it's at most 4 bytes and
+				   I just assume it's on a 4-byte boundary */
+				base = scsi_kmap_atomic_sg(scsi_sglist(srb->cmd),
+							   srb->sg_count, &offset, &len);
+				virt = base + offset;
+
 				left_io -= len;
 
 				while (len) {
@@ -2341,10 +2324,8 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 					DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2, 0);
 				}
 
-				if (srb->cmd->use_sg) {
-					scsi_kunmap_atomic_sg(base);
-					local_irq_restore(flags);
-				}
+				scsi_kunmap_atomic_sg(base);
+				local_irq_restore(flags);
 			}
 			/*printk(" %08x", *(u32*)(bus_to_virt (addr))); */
 			/*srb->total_xfer_length = 0; */
@@ -2455,7 +2436,7 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 		 */
 		srb->state |= SRB_DATA_XFER;
 		DC395x_write32(acb, TRM_S1040_DMA_XHIGHADDR, 0);
-		if (srb->cmd->use_sg) {	/* with S/G */
+		if (scsi_sg_count(srb->cmd)) {	/* with S/G */
 			io_dir |= DMACMD_SG;
 			DC395x_write32(acb, TRM_S1040_DMA_XLOWADDR,
 				       srb->sg_bus_addr +
@@ -2513,18 +2494,14 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 				unsigned char *virt, *base = NULL;
 				unsigned long flags = 0;
 				size_t len = left_io;
+				size_t offset = srb->request_length - left_io;
 
-				if (srb->cmd->use_sg) {
-					size_t offset = srb->request_length - left_io;
-					local_irq_save(flags);
-					/* Again, max 4 bytes */
-					base = scsi_kmap_atomic_sg((struct scatterlist *)srb->cmd->request_buffer,
-								     srb->sg_count, &offset, &len);
-					virt = base + offset;
-				} else {
-					virt = srb->cmd->request_buffer + srb->cmd->request_bufflen - left_io;
-					len = left_io;
-				}
+				local_irq_save(flags);
+				/* Again, max 4 bytes */
+				base = scsi_kmap_atomic_sg(scsi_sglist(srb->cmd),
+							   srb->sg_count, &offset, &len);
+				virt = base + offset;
+
 				left_io -= len;
 
 				while (len--) {
@@ -2536,10 +2513,8 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 					sg_subtract_one(srb);
 				}
 
-				if (srb->cmd->use_sg) {
-					scsi_kunmap_atomic_sg(base);
-					local_irq_restore(flags);
-				}
+				scsi_kunmap_atomic_sg(base);
+				local_irq_restore(flags);
 			}
 			if (srb->dcb->sync_period & WIDE_SYNC) {
 				if (ln % 2) {
@@ -3295,7 +3270,8 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 {
 	struct scsi_cmnd *cmd = srb->cmd;
 	enum dma_data_direction dir = cmd->sc_data_direction;
-	if (cmd->use_sg && dir != PCI_DMA_NONE) {
+
+	if (scsi_sg_count(cmd) && dir != PCI_DMA_NONE) {
 		/* unmap DC395x SG list */
 		dprintkdbg(DBG_SG, "pci_unmap_srb: list=%08x(%05x)\n",
 			srb->sg_bus_addr, SEGMENTX_LEN);
@@ -3303,16 +3279,9 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 				 SEGMENTX_LEN,
 				 PCI_DMA_TODEVICE);
 		dprintkdbg(DBG_SG, "pci_unmap_srb: segs=%i buffer=%p\n",
-			cmd->use_sg, cmd->request_buffer);
+			   scsi_sg_count(cmd), scsi_bufflen(cmd));
 		/* unmap the sg segments */
-		pci_unmap_sg(acb->dev,
-			     (struct scatterlist *)cmd->request_buffer,
-			     cmd->use_sg, dir);
-	} else if (cmd->request_buffer && dir != PCI_DMA_NONE) {
-		dprintkdbg(DBG_SG, "pci_unmap_srb: buffer=%08x(%05x)\n",
-			srb->segment_x[0].address, cmd->request_bufflen);
-		pci_unmap_single(acb->dev, srb->segment_x[0].address,
-				 cmd->request_bufflen, dir);
+		scsi_dma_unmap(cmd);
 	}
 }
 
@@ -3352,8 +3321,8 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 	dprintkdbg(DBG_1, "srb_done: (pid#%li) <%02i-%i>\n", srb->cmd->pid,
 		srb->cmd->device->id, srb->cmd->device->lun);
 	dprintkdbg(DBG_SG, "srb_done: srb=%p sg=%i(%i/%i) buf=%p\n",
-		srb, cmd->use_sg, srb->sg_index, srb->sg_count,
-		cmd->request_buffer);
+		   srb, scsi_sg_count(cmd), srb->sg_index, srb->sg_count,
+		   scsi_sgtalbe(cmd));
 	status = srb->target_status;
 	if (srb->flag & AUTO_REQSENSE) {
 		dprintkdbg(DBG_0, "srb_done: AUTO_REQSENSE1\n");
@@ -3482,16 +3451,10 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		}
 	}
 
-	if (dir != PCI_DMA_NONE) {
-		if (cmd->use_sg)
-			pci_dma_sync_sg_for_cpu(acb->dev,
-					(struct scatterlist *)cmd->
-					request_buffer, cmd->use_sg, dir);
-		else if (cmd->request_buffer)
-			pci_dma_sync_single_for_cpu(acb->dev,
-					    srb->segment_x[0].address,
-					    cmd->request_bufflen, dir);
-	}
+	if (dir != PCI_DMA_NONE && scsi_sg_count(cmd))
+		pci_dma_sync_sg_for_cpu(acb->dev, scsi_sglist(cmd),
+					scsi_sg_count(cmd), dir);
+
 	ckc_only = 0;
 /* Check Error Conditions */
       ckc_e:
@@ -3500,19 +3463,15 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		unsigned char *base = NULL;
 		struct ScsiInqData *ptr;
 		unsigned long flags = 0;
+		struct scatterlist* sg = scsi_sglist(cmd);
+		size_t offset = 0, len = sizeof(struct ScsiInqData);
 
-		if (cmd->use_sg) {
-			struct scatterlist* sg = (struct scatterlist *)cmd->request_buffer;
-			size_t offset = 0, len = sizeof(struct ScsiInqData);
-
-			local_irq_save(flags);
-			base = scsi_kmap_atomic_sg(sg, cmd->use_sg, &offset, &len);
-			ptr = (struct ScsiInqData *)(base + offset);
-		} else
-			ptr = (struct ScsiInqData *)(cmd->request_buffer);
+		local_irq_save(flags);
+		base = scsi_kmap_atomic_sg(sg, scsi_sg_count(cmd), &offset, &len);
+		ptr = (struct ScsiInqData *)(base + offset);
 
 		if (!ckc_only && (cmd->result & RES_DID) == 0
-		    && cmd->cmnd[2] == 0 && cmd->request_bufflen >= 8
+		    && cmd->cmnd[2] == 0 && scsi_bufflen(cmd) >= 8
 		    && dir != PCI_DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
 			dcb->inquiry7 = ptr->Flags;
 
@@ -3527,14 +3486,12 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 			}
 		}
 
-		if (cmd->use_sg) {
-			scsi_kunmap_atomic_sg(base);
-			local_irq_restore(flags);
-		}
+		scsi_kunmap_atomic_sg(base);
+		local_irq_restore(flags);
 	}
 
 	/* Here is the info for Doug Gilbert's sg3 ... */
-	cmd->resid = srb->total_xfer_length;
+	scsi_set_resid(cmd, srb->total_xfer_length);
 	/* This may be interpreted by sb. or not ... */
 	cmd->SCp.this_residual = srb->total_xfer_length;
 	cmd->SCp.buffers_residual = 0;

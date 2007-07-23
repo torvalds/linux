@@ -873,12 +873,12 @@ free_op:
 }
 
 const struct file_operations viotap_fops = {
-	owner: THIS_MODULE,
-	read: viotap_read,
-	write: viotap_write,
-	ioctl: viotap_ioctl,
-	open: viotap_open,
-	release: viotap_release,
+	.owner =	THIS_MODULE,
+	.read =		viotap_read,
+	.write =	viotap_write,
+	.ioctl =	viotap_ioctl,
+	.open =		viotap_open,
+	.release =	viotap_release,
 };
 
 /* Handle interrupt events for tape */
@@ -1098,15 +1098,10 @@ static int chg_state(int index, unsigned char new_state, struct file *file)
 /* Cleanup */
 static void __exit viotap_exit(void)
 {
-	int ret;
-
 	remove_proc_entry("iSeries/viotape", NULL);
 	vio_unregister_driver(&viotape_driver);
 	class_destroy(tape_class);
-	ret = unregister_chrdev(VIOTAPE_MAJOR, "viotape");
-	if (ret < 0)
-		printk(VIOTAPE_KERN_WARN "Error unregistering device: %d\n",
-				ret);
+	unregister_chrdev(VIOTAPE_MAJOR, "viotape");
 	if (viotape_unitinfo)
 		dma_free_coherent(iSeries_vio_dev,
 				sizeof(viotape_unitinfo[0]) * VIOTAPE_MAX_TAPE,

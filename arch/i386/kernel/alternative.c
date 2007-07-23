@@ -2,12 +2,17 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/kprobes.h>
+#include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
+#include <asm/mce.h>
+#include <asm/nmi.h>
 
-static int noreplace_smp     = 0;
-static int smp_alt_once      = 0;
-static int debug_alternative = 0;
+#ifdef CONFIG_HOTPLUG_CPU
+static int smp_alt_once;
 
 static int __init bootonly(char *str)
 {
@@ -15,6 +20,11 @@ static int __init bootonly(char *str)
 	return 1;
 }
 __setup("smp-alt-boot", bootonly);
+#else
+#define smp_alt_once 1
+#endif
+
+static int debug_alternative;
 
 static int __init debug_alt(char *str)
 {
@@ -22,6 +32,8 @@ static int __init debug_alt(char *str)
 	return 1;
 }
 __setup("debug-alternative", debug_alt);
+
+static int noreplace_smp;
 
 static int __init setup_noreplace_smp(char *str)
 {
@@ -144,7 +156,7 @@ static void nop_out(void *insns, unsigned int len)
 		unsigned int noplen = len;
 		if (noplen > ASM_NOP_MAX)
 			noplen = ASM_NOP_MAX;
-		memcpy(insns, noptable[noplen], noplen);
+		text_poke(insns, noptable[noplen], noplen);
 		insns += noplen;
 		len -= noplen;
 	}
@@ -196,7 +208,7 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		**ptr = 0xf0; /* lock prefix */
+		text_poke(*ptr, ((unsigned char []){0xf0}), 1); /* add lock prefix */
 	};
 }
 
@@ -354,10 +366,6 @@ void apply_paravirt(struct paravirt_patch_site *start,
 		/* Pad the rest with nops */
 		nop_out(p->instr + used, p->len - used);
 	}
-
-	/* Sync to be conservative, in case we patched following
-	 * instructions */
-	sync_core();
 }
 extern struct paravirt_patch_site __start_parainstructions[],
 	__stop_parainstructions[];
@@ -366,6 +374,14 @@ extern struct paravirt_patch_site __start_parainstructions[],
 void __init alternative_instructions(void)
 {
 	unsigned long flags;
+
+	/* The patching is not fully atomic, so try to avoid local interruptions
+	   that might execute the to be patched code.
+	   Other CPUs are not running. */
+	stop_nmi();
+#ifdef CONFIG_MCE
+	stop_mce();
+#endif
 
 	local_irq_save(flags);
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
@@ -376,8 +392,6 @@ void __init alternative_instructions(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	if (num_possible_cpus() < 2)
 		smp_alt_once = 1;
-#else
-	smp_alt_once = 1;
 #endif
 
 #ifdef CONFIG_SMP
@@ -401,4 +415,37 @@ void __init alternative_instructions(void)
 #endif
  	apply_paravirt(__parainstructions, __parainstructions_end);
 	local_irq_restore(flags);
+
+	restart_nmi();
+#ifdef CONFIG_MCE
+	restart_mce();
+#endif
+}
+
+/*
+ * Warning:
+ * When you use this code to patch more than one byte of an instruction
+ * you need to make sure that other CPUs cannot execute this code in parallel.
+ * Also no thread must be currently preempted in the middle of these instructions.
+ * And on the local CPU you need to be protected again NMI or MCE handlers
+ * seeing an inconsistent instruction while you patch.
+ */
+void __kprobes text_poke(void *oaddr, unsigned char *opcode, int len)
+{
+        u8 *addr = oaddr;
+	if (!pte_write(*lookup_address((unsigned long)addr))) {
+		struct page *p[2] = { virt_to_page(addr), virt_to_page(addr+PAGE_SIZE) };
+		addr = vmap(p, 2, VM_MAP, PAGE_KERNEL);
+		if (!addr)
+			return;
+		addr += ((unsigned long)oaddr) % PAGE_SIZE;
+	}
+	memcpy(addr, opcode, len);
+	sync_core();
+	/* Not strictly needed, but can speed CPU recovery up. Ignore cross cacheline
+	   case. */
+	if (cpu_has_clflush)
+		asm("clflush (%0) " :: "r" (oaddr) : "memory");
+	if (addr != oaddr)
+		vunmap(addr);
 }

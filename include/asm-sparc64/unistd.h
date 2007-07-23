@@ -1,4 +1,3 @@
-/* $Id: unistd.h,v 1.50 2002/02/08 03:57:18 davem Exp $ */
 #ifndef _SPARC64_UNISTD_H
 #define _SPARC64_UNISTD_H
 
@@ -9,7 +8,7 @@
  * think of right now to force the arguments into fixed registers
  * before the trap into the system call with gcc 'asm' statements.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  *
  * SunOS compatibility based upon preliminary work which is:
  *
@@ -332,8 +331,9 @@
 #define __NR_signalfd		311
 #define __NR_timerfd		312
 #define __NR_eventfd		313
+#define __NR_fallocate		314
 
-#define NR_SYSCALLS		314
+#define NR_SYSCALLS		315
 
 #ifdef __KERNEL__
 /* sysconf options, for SunOS compatibility */

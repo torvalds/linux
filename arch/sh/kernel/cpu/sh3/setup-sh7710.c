@@ -49,7 +49,7 @@ static int __init sh7710_devices_setup(void)
 }
 __initcall(sh7710_devices_setup);
 
-static struct ipr_data sh7710_ipr_map[] = {
+static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, priority */
 	{ 16, 0, 12, 2 }, /* TMU0 TUNI*/
 	{ 17, 0,  8, 2 }, /* TMU1 TUNI */
@@ -78,26 +78,30 @@ static struct ipr_data sh7710_ipr_map[] = {
 };
 
 static unsigned long ipr_offsets[] = {
-	0xA414FEE2	/* 0: IPRA */
-,	0xA414FEE4	/* 1: IPRB */
-,	0xA4140016	/* 2: IPRC */
-,	0xA4140018	/* 3: IPRD */
-,	0xA414001A	/* 4: IPRE */
-,	0xA4080000	/* 5: IPRF */
-,	0xA4080002	/* 6: IPRG */
-,	0xA4080004	/* 7: IPRH */
-,	0xA4080006	/* 8: IPRI */
+	0xA414FEE2,	/* 0: IPRA */
+	0xA414FEE4,	/* 1: IPRB */
+	0xA4140016,	/* 2: IPRC */
+	0xA4140018,	/* 3: IPRD */
+	0xA414001A,	/* 4: IPRE */
+	0xA4080000,	/* 5: IPRF */
+	0xA4080002,	/* 6: IPRG */
+	0xA4080004,	/* 7: IPRH */
+	0xA4080006,	/* 8: IPRI */
 };
 
-/* given the IPR index return the address of the IPR register */
-unsigned int map_ipridx_to_addr(int idx)
-{
-	if (idx >= ARRAY_SIZE(ipr_offsets))
-		return 0;
-	return ipr_offsets[idx];
-}
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
 
-void __init init_IRQ_ipr()
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+
+	.chip = {
+		.name	= "IPR-sh7710",
+	},
+};
+
+void __init plat_irq_setup(void)
 {
-	make_ipr_irq(sh7710_ipr_map, ARRAY_SIZE(sh7710_ipr_map));
+	register_ipr_controller(&ipr_irq_desc);
 }

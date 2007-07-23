@@ -222,6 +222,7 @@
 #include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/freezer.h>
 #include <linux/smp.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
@@ -2311,7 +2312,6 @@ static int __init apm_init(void)
 		remove_proc_entry("apm", NULL);
 		return err;
 	}
-	kapmd_task->flags |= PF_NOFREEZE;
 	wake_up_process(kapmd_task);
 
 	if (num_online_cpus() > 1 && !smp ) {

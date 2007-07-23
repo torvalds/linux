@@ -12,6 +12,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/console.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
 
@@ -420,3 +421,30 @@ error:
 	return err;
 }
 arch_initcall(mv64x60_device_setup);
+
+static int __init mv64x60_add_mpsc_console(void)
+{
+	struct device_node *np = NULL;
+	const char *prop;
+
+	prop = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (prop == NULL)
+		goto not_mpsc;
+
+	np = of_find_node_by_path(prop);
+	if (!np)
+		goto not_mpsc;
+
+	if (!of_device_is_compatible(np, "marvell,mpsc"))
+		goto not_mpsc;
+
+	prop = of_get_property(np, "block-index", NULL);
+	if (!prop)
+		goto not_mpsc;
+
+	add_preferred_console("ttyMM", *(int *)prop, NULL);
+
+not_mpsc:
+	return 0;
+}
+console_initcall(mv64x60_add_mpsc_console);

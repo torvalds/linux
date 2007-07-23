@@ -271,26 +271,58 @@ static int debug;
 static __u16 vendor = FTDI_VID;
 static __u16 product;
 
+struct ftdi_private {
+	ftdi_chip_type_t chip_type;
+				/* type of the device, either SIO or FT8U232AM */
+	int baud_base;		/* baud base clock for divisor setting */
+	int custom_divisor;	/* custom_divisor kludge, this is for baud_base (different from what goes to the chip!) */
+	__u16 last_set_data_urb_value ;
+				/* the last data state set - needed for doing a break */
+        int write_offset;       /* This is the offset in the usb data block to write the serial data -
+				 * it is different between devices
+				 */
+	int flags;		/* some ASYNC_xxxx flags are supported */
+	unsigned long last_dtr_rts;	/* saved modem control outputs */
+        wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
+	char prev_status, diff_status;        /* Used for TIOCMIWAIT */
+	__u8 rx_flags;		/* receive state flags (throttling) */
+	spinlock_t rx_lock;	/* spinlock for receive state */
+	struct delayed_work rx_work;
+	struct usb_serial_port *port;
+	int rx_processed;
+	unsigned long rx_bytes;
+
+	__u16 interface;	/* FT2232C port interface (0 for FT232/245) */
+
+	int force_baud;		/* if non-zero, force the baud rate to this value */
+	int force_rtscts;	/* if non-zero, force RTS-CTS to always be enabled */
+
+	spinlock_t tx_lock;	/* spinlock for transmit state */
+	unsigned long tx_bytes;
+	unsigned long tx_outstanding_bytes;
+	unsigned long tx_outstanding_urbs;
+};
+
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
 struct ftdi_sio_quirk {
 	int (*probe)(struct usb_serial *);
-	void (*setup)(struct usb_serial *); /* Special settings during startup. */
+	void (*port_probe)(struct ftdi_private *); /* Special settings for probed ports. */
 };
 
 static int   ftdi_olimex_probe		(struct usb_serial *serial);
-static void  ftdi_USB_UIRT_setup	(struct usb_serial *serial);
-static void  ftdi_HE_TIRA1_setup	(struct usb_serial *serial);
+static void  ftdi_USB_UIRT_setup	(struct ftdi_private *priv);
+static void  ftdi_HE_TIRA1_setup	(struct ftdi_private *priv);
 
 static struct ftdi_sio_quirk ftdi_olimex_quirk = {
 	.probe	= ftdi_olimex_probe,
 };
 
 static struct ftdi_sio_quirk ftdi_USB_UIRT_quirk = {
-	.setup = ftdi_USB_UIRT_setup,
+	.port_probe = ftdi_USB_UIRT_setup,
 };
 
 static struct ftdi_sio_quirk ftdi_HE_TIRA1_quirk = {
-	.setup = ftdi_HE_TIRA1_setup,
+	.port_probe = ftdi_HE_TIRA1_setup,
 };
 
 /*
@@ -567,38 +599,6 @@ static const char *ftdi_chip_name[] = {
 #define THROTTLED		0x01
 #define ACTUALLY_THROTTLED	0x02
 
-struct ftdi_private {
-	ftdi_chip_type_t chip_type;
-				/* type of the device, either SIO or FT8U232AM */
-	int baud_base;		/* baud base clock for divisor setting */
-	int custom_divisor;	/* custom_divisor kludge, this is for baud_base (different from what goes to the chip!) */
-	__u16 last_set_data_urb_value ;
-				/* the last data state set - needed for doing a break */
-        int write_offset;       /* This is the offset in the usb data block to write the serial data -
-				 * it is different between devices
-				 */
-	int flags;		/* some ASYNC_xxxx flags are supported */
-	unsigned long last_dtr_rts;	/* saved modem control outputs */
-        wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
-	char prev_status, diff_status;        /* Used for TIOCMIWAIT */
-	__u8 rx_flags;		/* receive state flags (throttling) */
-	spinlock_t rx_lock;	/* spinlock for receive state */
-	struct delayed_work rx_work;
-	struct usb_serial_port *port;
-	int rx_processed;
-	unsigned long rx_bytes;
-
-	__u16 interface;	/* FT2232C port interface (0 for FT232/245) */
-
-	int force_baud;		/* if non-zero, force the baud rate to this value */
-	int force_rtscts;	/* if non-zero, force RTS-CTS to always be enabled */
-
-	spinlock_t tx_lock;	/* spinlock for transmit state */
-	unsigned long tx_bytes;
-	unsigned long tx_outstanding_bytes;
-	unsigned long tx_outstanding_urbs;
-};
-
 /* Used for TIOCMIWAIT */
 #define FTDI_STATUS_B0_MASK	(FTDI_RS0_CTS | FTDI_RS0_DSR | FTDI_RS0_RI | FTDI_RS0_RLSD)
 #define FTDI_STATUS_B1_MASK	(FTDI_RS_BI)
@@ -609,7 +609,6 @@ struct ftdi_private {
 
 /* function prototypes for a FTDI serial converter */
 static int  ftdi_sio_probe	(struct usb_serial *serial, const struct usb_device_id *id);
-static int  ftdi_sio_attach		(struct usb_serial *serial);
 static void ftdi_shutdown		(struct usb_serial *serial);
 static int  ftdi_sio_port_probe	(struct usb_serial_port *port);
 static int  ftdi_sio_port_remove	(struct usb_serial_port *port);
@@ -663,7 +662,6 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.ioctl =		ftdi_ioctl,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
-	.attach =		ftdi_sio_attach,
 	.shutdown =		ftdi_shutdown,
 };
 
@@ -1149,7 +1147,9 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 		dbg("sysfs attributes for %s", ftdi_chip_name[priv->chip_type]);
 		retval = device_create_file(&port->dev, &dev_attr_event_char);
 		if ((!retval) &&
-		    (priv->chip_type == FT232BM || priv->chip_type == FT2232C)) {
+		    (priv->chip_type == FT232BM ||
+		     priv->chip_type == FT2232C ||
+		     priv->chip_type == FT232RL)) {
 			retval = device_create_file(&port->dev,
 						    &dev_attr_latency_timer);
 		}
@@ -1198,6 +1198,8 @@ static int ftdi_sio_probe (struct usb_serial *serial, const struct usb_device_id
 static int ftdi_sio_port_probe(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv;
+	struct ftdi_sio_quirk *quirk = usb_get_serial_data(port->serial);
+
 
 	dbg("%s",__FUNCTION__);
 
@@ -1213,6 +1215,9 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	/* This will push the characters through immediately rather
 	   than queue a task to deliver them */
 	priv->flags = ASYNC_LOW_LATENCY;
+
+	if (quirk && quirk->port_probe)
+		quirk->port_probe(priv);
 
 	/* Increase the size of read buffers */
 	kfree(port->bulk_in_buffer);
@@ -1244,29 +1249,13 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-/* attach subroutine */
-static int ftdi_sio_attach (struct usb_serial *serial)
-{
-	/* Check for device requiring special set up. */
-	struct ftdi_sio_quirk *quirk = usb_get_serial_data(serial);
-
-	if (quirk && quirk->setup)
-		quirk->setup(serial);
-
-	return 0;
-} /* ftdi_sio_attach */
-
-
 /* Setup for the USB-UIRT device, which requires hardwired
  * baudrate (38400 gets mapped to 312500) */
 /* Called from usbserial:serial_probe */
-static void ftdi_USB_UIRT_setup (struct usb_serial *serial)
+static void ftdi_USB_UIRT_setup (struct ftdi_private *priv)
 {
-	struct ftdi_private *priv;
-
 	dbg("%s",__FUNCTION__);
 
-	priv = usb_get_serial_port_data(serial->port[0]);
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 77;
 	priv->force_baud = B38400;
@@ -1274,13 +1263,10 @@ static void ftdi_USB_UIRT_setup (struct usb_serial *serial)
 
 /* Setup for the HE-TIRA1 device, which requires hardwired
  * baudrate (38400 gets mapped to 100000) and RTS-CTS enabled.  */
-static void ftdi_HE_TIRA1_setup (struct usb_serial *serial)
+static void ftdi_HE_TIRA1_setup (struct ftdi_private *priv)
 {
-	struct ftdi_private *priv;
-
 	dbg("%s",__FUNCTION__);
 
-	priv = usb_get_serial_port_data(serial->port[0]);
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 240;
 	priv->force_baud = B38400;
@@ -1574,14 +1560,15 @@ static void ftdi_write_bulk_callback (struct urb *urb)
 	struct ftdi_private *priv;
 	int data_offset;       /* will be 1 for the SIO and 0 otherwise */
 	unsigned long countback;
+	int status = urb->status;
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("nonzero write bulk status received: %d", urb->status);
+	if (status) {
+		dbg("nonzero write bulk status received: %d", status);
 		return;
 	}
 
@@ -1657,6 +1644,7 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 	struct ftdi_private *priv;
 	unsigned long countread;
 	unsigned long flags;
+	int status = urb->status;
 
 	if (urb->number_of_packets > 0) {
 		err("%s transfer_buffer_length %d actual_length %d number of packets %d",__FUNCTION__,
@@ -1685,9 +1673,10 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 		err("%s - Not my urb!", __FUNCTION__);
 	}
 
-	if (urb->status) {
+	if (status) {
 		/* This will happen at close every time so it is a dbg not an err */
-		dbg("(this is ok on close) nonzero read bulk status received: %d", urb->status);
+		dbg("(this is ok on close) nonzero read bulk status received: "
+		    "%d", status);
 		return;
 	}
 

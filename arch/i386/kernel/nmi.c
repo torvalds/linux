@@ -295,7 +295,7 @@ static unsigned int
 	last_irq_sums [NR_CPUS],
 	alert_counter [NR_CPUS];
 
-void touch_nmi_watchdog (void)
+void touch_nmi_watchdog(void)
 {
 	if (nmi_watchdog > 0) {
 		unsigned cpu;
@@ -304,8 +304,10 @@ void touch_nmi_watchdog (void)
 		 * Just reset the alert counters, (other CPUs might be
 		 * spinning on locks we hold):
 		 */
-		for_each_present_cpu (cpu)
-			alert_counter[cpu] = 0;
+		for_each_present_cpu(cpu) {
+			if (alert_counter[cpu])
+				alert_counter[cpu] = 0;
+		}
 	}
 
 	/*
@@ -351,7 +353,7 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	 * Take the local apic timer and PIT/HPET into account. We don't
 	 * know which one is active, when we have highres/dyntick on
 	 */
-	sum = per_cpu(irq_stat, cpu).apic_timer_irqs + kstat_irqs(0);
+	sum = per_cpu(irq_stat, cpu).apic_timer_irqs + kstat_cpu(cpu).irqs[0];
 
 	/* if the none of the timers isn't firing, this cpu isn't doing much */
 	if (!touched && last_irq_sums[cpu] == sum) {

@@ -48,17 +48,6 @@ extern struct task_struct *_switch_to(struct task_struct *, struct task_struct *
 	(last) = _switch_to(prev, next);			\
 } while(0)
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
-
 /* interrupt control */
 #define local_save_flags(x)	__asm__ __volatile__("ssm 0, %0" : "=r" (x) : : "memory")
 #define local_irq_disable()	__asm__ __volatile__("rsm %0,%%r0\n" : : "i" (PSW_I) : "memory" )

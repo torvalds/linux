@@ -18,7 +18,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -41,18 +41,16 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 	if (buffer_size > IBMASM_CMD_MAX_BUFFER_SIZE)
 		return NULL;
 
-	cmd = kmalloc(sizeof(struct command), GFP_KERNEL);
+	cmd = kzalloc(sizeof(struct command), GFP_KERNEL);
 	if (cmd == NULL)
 		return NULL;
 
-	memset(cmd, 0, sizeof(*cmd));
 
-	cmd->buffer = kmalloc(buffer_size, GFP_KERNEL);
+	cmd->buffer = kzalloc(buffer_size, GFP_KERNEL);
 	if (cmd->buffer == NULL) {
 		kfree(cmd);
 		return NULL;
 	}
-	memset(cmd->buffer, 0, buffer_size);
 	cmd->buffer_size = buffer_size;
 
 	kobject_init(&cmd->kobj);
@@ -72,7 +70,7 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 static void free_command(struct kobject *kobj)
 {
 	struct command *cmd = to_command(kobj);
- 
+
 	list_del(&cmd->queue_node);
 	atomic_dec(&command_count);
 	dbg("command count: %d\n", atomic_read(&command_count));
@@ -113,14 +111,14 @@ static inline void do_exec_command(struct service_processor *sp)
 		exec_next_command(sp);
 	}
 }
-	
+
 /**
  * exec_command
  * send a command to a service processor
  * Commands are executed sequentially. One command (sp->current_command)
  * is sent to the service processor. Once the interrupt handler gets a
  * message of type command_response, the message is copied into
- * the current commands buffer, 
+ * the current commands buffer,
  */
 void ibmasm_exec_command(struct service_processor *sp, struct command *cmd)
 {
@@ -160,7 +158,7 @@ static void exec_next_command(struct service_processor *sp)
 	}
 }
 
-/** 
+/**
  * Sleep until a command has failed or a response has been received
  * and the command status been updated by the interrupt handler.
  * (see receive_response).
@@ -182,8 +180,8 @@ void ibmasm_receive_command_response(struct service_processor *sp, void *respons
 {
 	struct command *cmd = sp->current_command;
 
-	if (!sp->current_command) 
-		return; 
+	if (!sp->current_command)
+		return;
 
 	memcpy_fromio(cmd->buffer, response, min(size, cmd->buffer_size));
 	cmd->status = IBMASM_CMD_COMPLETE;

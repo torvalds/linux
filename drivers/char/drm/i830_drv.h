@@ -84,8 +84,8 @@ typedef struct _drm_i830_ring_buffer {
 } drm_i830_ring_buffer_t;
 
 typedef struct drm_i830_private {
-	drm_map_t *sarea_map;
-	drm_map_t *mmio_map;
+	struct drm_map *sarea_map;
+	struct drm_map *mmio_map;
 
 	drm_i830_sarea_t *sarea_priv;
 	drm_i830_ring_buffer_t ring;
@@ -95,7 +95,7 @@ typedef struct drm_i830_private {
 
 	dma_addr_t dma_status_page;
 
-	drm_buf_t *mmap_buffer;
+	struct drm_buf *mmap_buffer;
 
 	u32 front_di1, back_di1, zi1;
 
@@ -132,16 +132,16 @@ extern int i830_irq_wait(struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg);
 
 extern irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS);
-extern void i830_driver_irq_preinstall(drm_device_t * dev);
-extern void i830_driver_irq_postinstall(drm_device_t * dev);
-extern void i830_driver_irq_uninstall(drm_device_t * dev);
+extern void i830_driver_irq_preinstall(struct drm_device * dev);
+extern void i830_driver_irq_postinstall(struct drm_device * dev);
+extern void i830_driver_irq_uninstall(struct drm_device * dev);
 extern int i830_driver_load(struct drm_device *, unsigned long flags);
-extern void i830_driver_preclose(drm_device_t * dev, DRMFILE filp);
-extern void i830_driver_lastclose(drm_device_t * dev);
-extern void i830_driver_reclaim_buffers_locked(drm_device_t * dev,
+extern void i830_driver_preclose(struct drm_device * dev, DRMFILE filp);
+extern void i830_driver_lastclose(struct drm_device * dev);
+extern void i830_driver_reclaim_buffers_locked(struct drm_device * dev,
 					       struct file *filp);
-extern int i830_driver_dma_quiescent(drm_device_t * dev);
-extern int i830_driver_device_is_agp(drm_device_t * dev);
+extern int i830_driver_dma_quiescent(struct drm_device * dev);
+extern int i830_driver_device_is_agp(struct drm_device * dev);
 
 #define I830_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
 #define I830_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, reg, val)
@@ -180,7 +180,7 @@ extern int i830_driver_device_is_agp(drm_device_t * dev);
 	I830_WRITE(LP_RING + RING_TAIL, outring);			\
 } while(0)
 
-extern int i830_wait_ring(drm_device_t * dev, int n, const char *caller);
+extern int i830_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))

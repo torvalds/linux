@@ -241,7 +241,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 	}
 	if (!cpus_empty(cpu_mask))
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
-
+	check_pgt_cache();
 	preempt_enable();
 }
 EXPORT_SYMBOL(flush_tlb_mm);
@@ -357,7 +357,7 @@ __smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 }
 
 /*
- * smp_call_function_single - Run a function on another CPU
+ * smp_call_function_single - Run a function on a specific CPU
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @nonatomic: Currently unused.
@@ -374,17 +374,21 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 {
 	/* prevent preemption and reschedule on another processor */
 	int me = get_cpu();
-	if (cpu == me) {
-		put_cpu();
-		return 0;
-	}
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
 
-	spin_lock_bh(&call_lock);
+	if (cpu == me) {
+		local_irq_disable();
+		func(info);
+		local_irq_enable();
+		put_cpu();
+		return 0;
+	}
+
+	spin_lock(&call_lock);
 	__smp_call_function_single(cpu, func, info, nonatomic, wait);
-	spin_unlock_bh(&call_lock);
+	spin_unlock(&call_lock);
 	put_cpu();
 	return 0;
 }

@@ -174,6 +174,13 @@ static struct device_node *cbe_get_be_node(int cpu_id)
 
 		cpu_handle = of_get_property(np, "cpus", &len);
 
+		/*
+		 * the CAB SLOF tree is non compliant, so we just assume
+		 * there is only one node
+		 */
+		if (WARN_ON_ONCE(!cpu_handle))
+			return np;
+
 		for (i=0; i<len; i++)
 			if (of_find_node_by_phandle(cpu_handle[i]) == of_get_cpu_node(cpu_id, NULL))
 				return np;

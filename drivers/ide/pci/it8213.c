@@ -82,7 +82,7 @@ static void it8213_tuneproc (ide_drive_t *drive, u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4);
 
 	spin_lock_irqsave(&tune_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
@@ -214,7 +214,7 @@ static int it8213_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	pio = ide_get_best_pio_mode(drive, 255, 4, NULL);
+	pio = ide_get_best_pio_mode(drive, 255, 4);
 	it8213_tune_chipset(drive, XFER_PIO_0 + pio);
 
 	return -1;
@@ -272,10 +272,11 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_it8213,	\
-		.channels	= 1,			\
 		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}}, \
 		.bootable	= ON_BOARD,		\
+		.host_flags	= IDE_HFLAG_SINGLE,	\
+		.pio_mask	= ATA_PIO4,		\
 	}
 
 static ide_pci_device_t it8213_chipsets[] __devinitdata = {

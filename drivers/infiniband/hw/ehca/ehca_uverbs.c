@@ -70,7 +70,7 @@ int ehca_dealloc_ucontext(struct ib_ucontext *context)
 
 static void ehca_mm_open(struct vm_area_struct *vma)
 {
-	u32 *count = (u32*)vma->vm_private_data;
+	u32 *count = (u32 *)vma->vm_private_data;
 	if (!count) {
 		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
 			     vma->vm_start, vma->vm_end);
@@ -86,7 +86,7 @@ static void ehca_mm_open(struct vm_area_struct *vma)
 
 static void ehca_mm_close(struct vm_area_struct *vma)
 {
-	u32 *count = (u32*)vma->vm_private_data;
+	u32 *count = (u32 *)vma->vm_private_data;
 	if (!count) {
 		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
 			     vma->vm_start, vma->vm_end);
@@ -149,7 +149,7 @@ static int ehca_mmap_queue(struct vm_area_struct *vma, struct ipz_queue *queue,
 			ehca_gen_err("vm_insert_page() failed rc=%x", ret);
 			return ret;
 		}
-		start +=  PAGE_SIZE;
+		start += PAGE_SIZE;
 	}
 	vma->vm_private_data = mm_count;
 	(*mm_count)++;
@@ -215,7 +215,8 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	case 2: /* qp rqueue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
 			 qp->ib_qp.qp_num);
-		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue, &qp->mm_count_rqueue);
+		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
+				      &qp->mm_count_rqueue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
 				 "ehca_mmap_queue(rq) failed rc=%x qp_num=%x",
@@ -227,7 +228,8 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	case 3: /* qp squeue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
 			 qp->ib_qp.qp_num);
-		ret = ehca_mmap_queue(vma, &qp->ipz_squeue, &qp->mm_count_squeue);
+		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
+				      &qp->mm_count_squeue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
 				 "ehca_mmap_queue(sq) failed rc=%x qp_num=%x",
@@ -253,16 +255,16 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
 	u32 cur_pid = current->tgid;
 	u32 ret;
-	unsigned long flags;
 	struct ehca_cq *cq;
 	struct ehca_qp *qp;
 	struct ehca_pd *pd;
+	struct ib_uobject *uobject;
 
 	switch (q_type) {
 	case  1: /* CQ */
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		read_unlock(&ehca_cq_idr_lock);
 
 		/* make sure this mmap really belongs to the authorized user */
 		if (!cq)
@@ -288,9 +290,9 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		break;
 
 	case 2: /* QP */
-		spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+		read_lock(&ehca_qp_idr_lock);
 		qp = idr_find(&ehca_qp_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+		read_unlock(&ehca_qp_idr_lock);
 
 		/* make sure this mmap really belongs to the authorized user */
 		if (!qp)
@@ -304,7 +306,8 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			return -ENOMEM;
 		}
 
-		if (!qp->ib_qp.uobject || qp->ib_qp.uobject->context != context)
+		uobject = IS_SRQ(qp) ? qp->ib_srq.uobject : qp->ib_qp.uobject;
+		if (!uobject || uobject->context != context)
 			return -EINVAL;
 
 		ret = ehca_mmap_qp(vma, qp, rsrc_type);

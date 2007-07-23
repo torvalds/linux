@@ -252,38 +252,38 @@ static void qd6500_tune_drive (ide_drive_t *drive, u8 pio)
 
 static void qd6580_tune_drive (ide_drive_t *drive, u8 pio)
 {
-	ide_pio_data_t d;
 	int base = HWIF(drive)->select_data;
+	unsigned int cycle_time;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
 
 	if (drive->id && !qd_find_disk_type(drive, &active_time, &recovery_time)) {
-		pio = ide_get_best_pio_mode(drive, pio, 4, &d);
+		pio = ide_get_best_pio_mode(drive, pio, 4);
+		cycle_time = ide_pio_cycle_time(drive, pio);
 
 		switch (pio) {
 			case 0: break;
 			case 3:
-				if (d.cycle_time >= 110) {
+				if (cycle_time >= 110) {
 					active_time = 86;
-					recovery_time = d.cycle_time - 102;
+					recovery_time = cycle_time - 102;
 				} else
 					printk(KERN_WARNING "%s: Strange recovery time !\n",drive->name);
 				break;
 			case 4:
-				if (d.cycle_time >= 69) {
+				if (cycle_time >= 69) {
 					active_time = 70;
-					recovery_time = d.cycle_time - 61;
+					recovery_time = cycle_time - 61;
 				} else
 					printk(KERN_WARNING "%s: Strange recovery time !\n",drive->name);
 				break;
 			default:
-				if (d.cycle_time >= 180) {
+				if (cycle_time >= 180) {
 					active_time = 110;
-					recovery_time = d.cycle_time - 120;
+					recovery_time = cycle_time - 120;
 				} else {
 					active_time = ide_pio_timings[pio].active_time;
-					recovery_time = d.cycle_time
-							-active_time;
+					recovery_time = cycle_time - active_time;
 				}
 		}
 		printk(KERN_INFO "%s: PIO mode%d\n", drive->name,pio);
@@ -346,6 +346,7 @@ static void __init qd_setup(ide_hwif_t *hwif, int base, int config,
 	hwif->drives[1].drive_data = data1;
 	hwif->drives[0].io_32bit =
 	hwif->drives[1].io_32bit = 1;
+	hwif->pio_mask = ATA_PIO4;
 	hwif->tuneproc = tuneproc;
 	probe_hwif_init(hwif);
 }

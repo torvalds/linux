@@ -36,7 +36,7 @@
 
 //#include <asm/debug-ll.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
 #include <asm/plat-s3c24xx/s3c2440.h>

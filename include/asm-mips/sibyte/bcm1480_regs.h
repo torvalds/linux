@@ -220,17 +220,25 @@
 #define A_BCM1480_DUART(chan)               ((((chan)&2) == 0)? A_BCM1480_DUART0 : A_BCM1480_DUART1)
 
 #define BCM1480_DUART_CHANREG_SPACING       0x100
-#define A_BCM1480_DUART_CHANREG(chan,reg)   (A_BCM1480_DUART(chan) \
-                                     + BCM1480_DUART_CHANREG_SPACING*((chan)&1) \
-                                     + (reg))
-#define R_BCM1480_DUART_CHANREG(chan,reg)   (BCM1480_DUART_CHANREG_SPACING*((chan)&1) + (reg))
+#define A_BCM1480_DUART_CHANREG(chan, reg)				\
+	(A_BCM1480_DUART(chan) +					\
+	 BCM1480_DUART_CHANREG_SPACING * (((chan) & 1) + 1) + (reg))
+#define A_BCM1480_DUART_CTRLREG(chan, reg)				\
+	(A_BCM1480_DUART(chan) +					\
+	 BCM1480_DUART_CHANREG_SPACING * 3 + (reg))
 
-#define R_BCM1480_DUART_IMRREG(chan)	    (R_DUART_IMR_A + ((chan)&1)*DUART_IMRISR_SPACING)
-#define R_BCM1480_DUART_ISRREG(chan)	    (R_DUART_ISR_A + ((chan)&1)*DUART_IMRISR_SPACING)
+#define R_BCM1480_DUART_IMRREG(chan)					\
+	(R_DUART_IMR_A + ((chan) & 1) * DUART_IMRISR_SPACING)
+#define R_BCM1480_DUART_ISRREG(chan)					\
+	(R_DUART_ISR_A + ((chan) & 1) * DUART_IMRISR_SPACING)
 
-#define A_BCM1480_DUART_IMRREG(chan)	    (A_BCM1480_DUART(chan) + R_BCM1480_DUART_IMRREG(chan))
-#define A_BCM1480_DUART_ISRREG(chan)	    (A_BCM1480_DUART(chan) + R_BCM1480_DUART_ISRREG(chan))
-#define A_BCM1480_DUART_IN_PORT(chan)       (A_BCM1480_DUART(chan) + R_DUART_INP_ORT)
+#define A_BCM1480_DUART_IMRREG(chan)					\
+	(A_BCM1480_DUART_CTRLREG((chan), R_BCM1480_DUART_IMRREG(chan)))
+#define A_BCM1480_DUART_ISRREG(chan)					\
+	(A_BCM1480_DUART_CTRLREG((chan), R_BCM1480_DUART_ISRREG(chan)))
+
+#define A_BCM1480_DUART_IN_PORT(chan)					\
+	(A_BCM1480_DUART_CTRLREG((chan), R_DUART_IN_PORT))
 
 /*
  * These constants are the absolute addresses.

@@ -120,23 +120,21 @@ Lreturn:
 	RESTORE_ALL
 
 /*
- * This is the main interrupt handler, responsible for calling process_int()
+ * This is the main interrupt handler, responsible for calling do_IRQ()
  */
 inthandler:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and.l	#0x3ff, %d0
 	lsr.l   #0x02,  %d0
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@- 		/*  put vector # on stack*/
-	jbsr	process_int		/*  process the IRQ*/
+	jbsr	do_IRQ			/*  process the IRQ*/
 3:     	addql	#8,%sp			/*  pop parameters off stack*/
 	bra	ret_from_interrupt
 
 ret_from_interrupt:
-	subql	#1,local_irq_count
 	jeq	1f
 2:
 	RESTORE_ALL

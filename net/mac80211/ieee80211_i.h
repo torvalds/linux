@@ -99,6 +99,12 @@ struct ieee80211_sta_bss {
 	int probe_resp;
 	unsigned long last_update;
 
+	/* during assocation, we save an ERP value from a probe response so
+	 * that we can feed ERP info to the driver when handling the
+	 * association completes. these fields probably won't be up-to-date
+	 * otherwise, you probably don't want to use them. */
+	int has_erp_value;
+	u8 erp_value;
 };
 
 
@@ -235,7 +241,6 @@ struct ieee80211_if_sta {
 	unsigned int authenticated:1;
 	unsigned int associated:1;
 	unsigned int probereq_poll:1;
-	unsigned int use_protection:1;
 	unsigned int create_ibss:1;
 	unsigned int mixed_cell:1;
 	unsigned int wmm_enabled:1;
@@ -278,6 +283,7 @@ struct ieee80211_sub_if_data {
 	int mc_count;
 	unsigned int allmulti:1;
 	unsigned int promisc:1;
+	unsigned int use_protection:1; /* CTS protect ERP frames */
 
 	struct net_device_stats stats;
 	int drop_unencrypted;
@@ -392,6 +398,7 @@ struct ieee80211_local {
 	int monitors;
 	struct iw_statistics wstats;
 	u8 wstats_flags;
+	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	enum {
 		IEEE80211_DEV_UNINITIALIZED = 0,
@@ -437,7 +444,6 @@ struct ieee80211_local {
 	int *basic_rates[NUM_IEEE80211_MODES];
 
 	int rts_threshold;
-	int cts_protect_erp_frames;
 	int fragmentation_threshold;
 	int short_retry_limit; /* dot11ShortRetryLimit */
 	int long_retry_limit; /* dot11LongRetryLimit */
@@ -512,8 +518,6 @@ struct ieee80211_local {
 		STA_ANTENNA_SEL_SW_CTRL = 1,
 		STA_ANTENNA_SEL_SW_CTRL_DEBUG = 2
 	} sta_antenna_sel;
-
-	int rate_ctrl_num_up, rate_ctrl_num_down;
 
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
@@ -719,6 +723,8 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 			     struct ieee80211_hw_mode *mode);
 void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx);
 int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr);
+int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
+int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void ieee80211_if_setup(struct net_device *dev);
 void ieee80211_if_mgmt_setup(struct net_device *dev);
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
@@ -753,7 +759,6 @@ void ieee80211_update_default_wep_only(struct ieee80211_local *local);
 /* ieee80211_ioctl.c */
 int ieee80211_set_compression(struct ieee80211_local *local,
 			      struct net_device *dev, struct sta_info *sta);
-int ieee80211_init_client(struct net_device *dev);
 int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq);
 /* ieee80211_sta.c */
 void ieee80211_sta_timer(unsigned long data);
@@ -791,6 +796,10 @@ void ieee80211_if_free(struct net_device *dev);
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata);
 int ieee80211_if_add_mgmt(struct ieee80211_local *local);
 void ieee80211_if_del_mgmt(struct ieee80211_local *local);
+
+/* regdomain.c */
+void ieee80211_regdomain_init(void);
+void ieee80211_set_default_regdomain(struct ieee80211_hw_mode *mode);
 
 /* for wiphy privid */
 extern void *mac80211_wiphy_privid;

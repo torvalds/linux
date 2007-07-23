@@ -1526,8 +1526,7 @@ static void raid1d(mddev_t *mddev)
 			blk_remove_plug(mddev->queue);
 			spin_unlock_irqrestore(&conf->device_lock, flags);
 			/* flush any pending bitmap writes to disk before proceeding w/ I/O */
-			if (bitmap_unplug(mddev->bitmap) != 0)
-				printk("%s: bitmap file write failed!\n", mdname(mddev));
+			bitmap_unplug(mddev->bitmap);
 
 			while (bio) { /* submit pending writes */
 				struct bio *next = bio->bi_next;

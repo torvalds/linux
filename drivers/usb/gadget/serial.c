@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -258,7 +259,7 @@ static const char *EP_IN_NAME;
 static const char *EP_OUT_NAME;
 static const char *EP_NOTIFY_NAME;
 
-static struct semaphore	gs_open_close_sem[GS_NUM_PORTS];
+static struct mutex gs_open_close_lock[GS_NUM_PORTS];
 
 static unsigned int read_q_size = GS_DEFAULT_READ_Q_SIZE;
 static unsigned int write_q_size = GS_DEFAULT_WRITE_Q_SIZE;
@@ -595,7 +596,7 @@ static int __init gs_module_init(void)
 	tty_set_operations(gs_tty_driver, &gs_tty_ops);
 
 	for (i=0; i < GS_NUM_PORTS; i++)
-		sema_init(&gs_open_close_sem[i], 1);
+		mutex_init(&gs_open_close_lock[i]);
 
 	retval = tty_register_driver(gs_tty_driver);
 	if (retval) {
@@ -635,7 +636,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	struct gs_port *port;
 	struct gs_dev *dev;
 	struct gs_buf *buf;
-	struct semaphore *sem;
+	struct mutex *mtx;
 	int ret;
 
 	port_num = tty->index;
@@ -656,10 +657,10 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		return -ENODEV;
 	}
 
-	sem = &gs_open_close_sem[port_num];
-	if (down_interruptible(sem)) {
+	mtx = &gs_open_close_lock[port_num];
+	if (mutex_lock_interruptible(mtx)) {
 		printk(KERN_ERR
-		"gs_open: (%d,%p,%p) interrupted waiting for semaphore\n",
+		"gs_open: (%d,%p,%p) interrupted waiting for mutex\n",
 			port_num, tty, file);
 		return -ERESTARTSYS;
 	}
@@ -754,12 +755,12 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 exit_unlock_port:
 	spin_unlock_irqrestore(&port->port_lock, flags);
-	up(sem);
+	mutex_unlock(mtx);
 	return ret;
 
 exit_unlock_dev:
 	spin_unlock_irqrestore(&dev->dev_lock, flags);
-	up(sem);
+	mutex_unlock(mtx);
 	return ret;
 
 }
@@ -781,7 +782,7 @@ exit_unlock_dev:
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
 	struct gs_port *port = tty->driver_data;
-	struct semaphore *sem;
+	struct mutex *mtx;
 
 	if (port == NULL) {
 		printk(KERN_ERR "gs_close: NULL port pointer\n");
@@ -790,8 +791,8 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	gs_debug("gs_close: (%d,%p,%p)\n", port->port_num, tty, file);
 
-	sem = &gs_open_close_sem[port->port_num];
-	down(sem);
+	mtx = &gs_open_close_lock[port->port_num];
+	mutex_lock(mtx);
 
 	spin_lock_irq(&port->port_lock);
 
@@ -846,7 +847,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 exit:
 	spin_unlock_irq(&port->port_lock);
-	up(sem);
+	mutex_unlock(mtx);
 }
 
 /*
@@ -1427,7 +1428,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		gs_acm_config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	gs_device = dev = kmalloc(sizeof(struct gs_dev), GFP_KERNEL);
+	gs_device = dev = kzalloc(sizeof(struct gs_dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
 
@@ -1435,7 +1436,6 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
-	memset(dev, 0, sizeof(struct gs_dev));
 	dev->dev_gadget = gadget;
 	spin_lock_init(&dev->dev_lock);
 	INIT_LIST_HEAD(&dev->dev_req_list);
@@ -2215,7 +2215,7 @@ static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
  *
  * Free the buffer and all associated memory.
  */
-void gs_buf_free(struct gs_buf *gb)
+static void gs_buf_free(struct gs_buf *gb)
 {
 	if (gb) {
 		kfree(gb->buf_buf);
@@ -2228,7 +2228,7 @@ void gs_buf_free(struct gs_buf *gb)
  *
  * Clear out all data in the circular buffer.
  */
-void gs_buf_clear(struct gs_buf *gb)
+static void gs_buf_clear(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		gb->buf_get = gb->buf_put;
@@ -2241,7 +2241,7 @@ void gs_buf_clear(struct gs_buf *gb)
  * Return the number of bytes of data available in the circular
  * buffer.
  */
-unsigned int gs_buf_data_avail(struct gs_buf *gb)
+static unsigned int gs_buf_data_avail(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		return (gb->buf_size + gb->buf_put - gb->buf_get) % gb->buf_size;
@@ -2255,7 +2255,7 @@ unsigned int gs_buf_data_avail(struct gs_buf *gb)
  * Return the number of bytes of space available in the circular
  * buffer.
  */
-unsigned int gs_buf_space_avail(struct gs_buf *gb)
+static unsigned int gs_buf_space_avail(struct gs_buf *gb)
 {
 	if (gb != NULL)
 		return (gb->buf_size + gb->buf_get - gb->buf_put - 1) % gb->buf_size;
@@ -2271,7 +2271,8 @@ unsigned int gs_buf_space_avail(struct gs_buf *gb)
  *
  * Return the number of bytes copied.
  */
-unsigned int gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
+static unsigned int
+gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
 {
 	unsigned int len;
 
@@ -2309,7 +2310,8 @@ unsigned int gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
  *
  * Return the number of bytes copied.
  */
-unsigned int gs_buf_get(struct gs_buf *gb, char *buf, unsigned int count)
+static unsigned int
+gs_buf_get(struct gs_buf *gb, char *buf, unsigned int count)
 {
 	unsigned int len;
 

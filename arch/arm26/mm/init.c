@@ -33,9 +33,6 @@
 
 #include <asm/map.h>
 
-
-#define TABLE_SIZE	PTRS_PER_PTE * sizeof(pte_t))
-
 struct mmu_gather mmu_gathers[NR_CPUS];
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];

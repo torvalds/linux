@@ -6,6 +6,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/fcntl.h>
+#include <xen/hvc-console.h>
 
 /* Simple VGA output */
 
@@ -242,6 +243,10 @@ static int __init setup_early_printk(char *buf)
  		simnow_init(buf + 6);
  		early_console = &simnow_console;
  		keep_early = 1;
+#ifdef CONFIG_HVC_XEN
+	} else if (!strncmp(buf, "xen", 3)) {
+		early_console = &xenboot_console;
+#endif
 	}
 
 	if (keep_early)

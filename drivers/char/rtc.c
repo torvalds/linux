@@ -82,16 +82,13 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#if defined(__i386__)
+#ifdef CONFIG_X86
 #include <asm/hpet.h>
 #endif
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC32
 #include <linux/pci.h>
 #include <asm/ebus.h>
-#ifdef __sparc_v9__
-#include <asm/isa.h>
-#endif
 
 static unsigned long rtc_port;
 static int rtc_irq = PCI_IRQ_NONE;
@@ -930,13 +927,9 @@ static int __init rtc_init(void)
 	unsigned int year, ctrl;
 	char *guess = NULL;
 #endif
-#ifdef __sparc__
+#ifdef CONFIG_SPARC32
 	struct linux_ebus *ebus;
 	struct linux_ebus_device *edev;
-#ifdef __sparc_v9__
-	struct sparc_isa_bridge *isa_br;
-	struct sparc_isa_device *isa_dev;
-#endif
 #else
 	void *r;
 #ifdef RTC_IRQ
@@ -944,7 +937,7 @@ static int __init rtc_init(void)
 #endif
 #endif
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC32
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
 			if(strcmp(edev->prom_node->name, "rtc") == 0) {
@@ -954,17 +947,6 @@ static int __init rtc_init(void)
 			}
 		}
 	}
-#ifdef __sparc_v9__
-	for_each_isa(isa_br) {
-		for_each_isadev(isa_dev, isa_br) {
-			if (strcmp(isa_dev->prom_node->name, "rtc") == 0) {
-				rtc_port = isa_dev->resource.start;
-				rtc_irq = isa_dev->irq;
-				goto found;
-			}
-		}
-	}
-#endif
 	rtc_has_irq = 0;
 	printk(KERN_ERR "rtc_init: no PC rtc found\n");
 	return -EIO;
@@ -1020,7 +1002,7 @@ no_irq:
 
 #endif
 
-#endif /* __sparc__ vs. others */
+#endif /* CONFIG_SPARC32 vs. others */
 
 	if (misc_register(&rtc_dev)) {
 #ifdef RTC_IRQ
@@ -1105,7 +1087,7 @@ static void __exit rtc_exit (void)
 	remove_proc_entry ("driver/rtc", NULL);
 	misc_deregister(&rtc_dev);
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC32
 	if (rtc_has_irq)
 		free_irq (rtc_irq, &rtc_port);
 #else
@@ -1117,7 +1099,7 @@ static void __exit rtc_exit (void)
 	if (rtc_has_irq)
 		free_irq (RTC_IRQ, NULL);
 #endif
-#endif /* __sparc__ */
+#endif /* CONFIG_SPARC32 */
 }
 
 module_init(rtc_init);
@@ -1159,7 +1141,8 @@ static void rtc_dropped_irq(unsigned long data)
 
 	spin_unlock_irq(&rtc_lock);
 
-	printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n", freq);
+	if (printk_ratelimit())
+		printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n", freq);
 
 	/* Now we have new data */
 	wake_up_interruptible(&rtc_wait);

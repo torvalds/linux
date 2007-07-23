@@ -208,6 +208,8 @@ struct irlap_cb {
 	int    xbofs_delay;   /* Nr of XBOF's used to MTT */
 	int    bofs_count;    /* Negotiated extra BOFs */
 	int    next_bofs;     /* Negotiated extra BOFs after next frame */
+
+	int    mode;     /* IrLAP mode (primary, secondary or monitor) */
 };
 
 /* 

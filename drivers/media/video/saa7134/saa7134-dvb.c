@@ -175,18 +175,6 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	return mt352_pinnacle_init(fe);
 }
 
-static int mt352_aver777_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
-{
-	if (buf_len < 5)
-		return -EINVAL;
-
-	pllbuf[0] = 0x61;
-	dvb_pll_configure(&dvb_pll_philips_td1316, pllbuf+1,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
-	return 5;
-}
-
 static struct mt352_config pinnacle_300i = {
 	.demod_address = 0x3c >> 1,
 	.adc_clock     = 20333,
@@ -443,135 +431,6 @@ static struct tda1004x_config philips_europa_config = {
 };
 
 /* ------------------------------------------------------------------ */
-
-static int philips_fmd1216_tuner_init(struct dvb_frontend *fe)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	/* this message is to set up ATC and ALC */
-	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0xa0 };
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = fmd1216_init,.len = sizeof(fmd1216_init) };
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
-		return -EIO;
-	msleep(1);
-
-	return 0;
-}
-
-static int philips_fmd1216_tuner_sleep(struct dvb_frontend *fe)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	/* this message actually turns the tuner back to analog mode */
-	u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0x60 };
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = fmd1216_init,.len = sizeof(fmd1216_init) };
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
-	msleep(1);
-	fmd1216_init[2] = 0x86;
-	fmd1216_init[3] = 0x54;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
-	msleep(1);
-	return 0;
-}
-
-static int philips_fmd1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	u8 tuner_buf[4];
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tuner_buf,.len =
-			sizeof(tuner_buf) };
-	int tuner_frequency = 0;
-	int divider = 0;
-	u8 band, mode, cp;
-
-	/* determine charge pump */
-	tuner_frequency = params->frequency + 36130000;
-	if (tuner_frequency < 87000000)
-		return -EINVAL;
-	/* low band */
-	else if (tuner_frequency < 180000000) {
-		band = 1;
-		mode = 7;
-		cp   = 0;
-	} else if (tuner_frequency < 195000000) {
-		band = 1;
-		mode = 6;
-		cp   = 1;
-	/* mid band	*/
-	} else if (tuner_frequency < 366000000) {
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
-			band = 10;
-		} else {
-			band = 2;
-		}
-		mode = 7;
-		cp   = 0;
-	} else if (tuner_frequency < 478000000) {
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
-			band = 10;
-		} else {
-			band = 2;
-		}
-		mode = 6;
-		cp   = 1;
-	/* high band */
-	} else if (tuner_frequency < 662000000) {
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
-			band = 12;
-		} else {
-			band = 4;
-		}
-		mode = 7;
-		cp   = 0;
-	} else if (tuner_frequency < 840000000) {
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
-			band = 12;
-		} else {
-			band = 4;
-		}
-		mode = 6;
-		cp   = 1;
-	} else {
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
-			band = 12;
-		} else {
-			band = 4;
-		}
-		mode = 7;
-		cp   = 1;
-
-	}
-	/* calculate divisor */
-	/* ((36166000 + Finput) / 166666) rounded! */
-	divider = (tuner_frequency + 83333) / 166667;
-
-	/* setup tuner buffer */
-	tuner_buf[0] = (divider >> 8) & 0x7f;
-	tuner_buf[1] = divider & 0xff;
-	tuner_buf[2] = 0x80 | (cp << 6) | (mode  << 3) | 4;
-	tuner_buf[3] = 0x40 | band;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		wprintk("could not write to tuner at addr: 0x%02x\n",
-			addr << 1);
-		return -EIO;
-	}
-	return 0;
-}
 
 static struct tda1004x_config medion_cardbus = {
 	.demod_address = 0x08,
@@ -958,18 +817,8 @@ static struct nxt200x_config avertvhda180 = {
 	.demod_address    = 0x0a,
 };
 
-static int nxt200x_set_pll_input(u8 *buf, int input)
-{
-	if (input)
-		buf[3] |= 0x08;
-	else
-		buf[3] &= ~0x08;
-	return 0;
-}
-
 static struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
-	.set_pll_input    = nxt200x_set_pll_input,
 };
 
 /* ==================================================================
@@ -1005,7 +854,8 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   NULL, DVB_PLL_PHILIPS_TD1316);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
@@ -1013,9 +863,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &medion_cardbus,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
-			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
-			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
+				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TOUGH:
@@ -1113,7 +962,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_tdhu2);
+				   NULL, DVB_PLL_TDHU2);
 		}
 		break;
 	case SAA7134_BOARD_KWORLD_ATSC110:
@@ -1121,7 +970,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_tuv1236d);
+				   NULL, DVB_PLL_TUV1236D);
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -1144,9 +993,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
 			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
-			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
-			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
-			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
+
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
+				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:

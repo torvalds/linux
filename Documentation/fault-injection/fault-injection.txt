@@ -103,6 +103,11 @@ configuration of fault-injection capabilities.
 	default is 'N', setting it to 'Y' will inject failures
 	only into non-sleep allocations (GFP_ATOMIC allocations).
 
+- /debug/fail_page_alloc/min-order:
+
+	specifies the minimum page allocation order to be injected
+	failures.
+
 o Boot option
 
 In order to inject faults while debugfs is not available (early boot time),
@@ -156,70 +161,77 @@ o add a hook to insert failures
 Application Examples
 --------------------
 
-o inject slab allocation failures into module init/cleanup code
+o Inject slab allocation failures into module init/exit code
 
-------------------------------------------------------------------------------
 #!/bin/bash
 
-FAILCMD=Documentation/fault-injection/failcmd.sh
-BLACKLIST="root_plug evbug"
+FAILTYPE=failslab
+echo Y > /debug/$FAILTYPE/task-filter
+echo 10 > /debug/$FAILTYPE/probability
+echo 100 > /debug/$FAILTYPE/interval
+echo -1 > /debug/$FAILTYPE/times
+echo 0 > /debug/$FAILTYPE/space
+echo 2 > /debug/$FAILTYPE/verbose
+echo 1 > /debug/$FAILTYPE/ignore-gfp-wait
 
-FAILNAME=failslab
-echo Y > /debug/$FAILNAME/task-filter
-echo 10 > /debug/$FAILNAME/probability
-echo 100 > /debug/$FAILNAME/interval
-echo -1 > /debug/$FAILNAME/times
-echo 2 > /debug/$FAILNAME/verbose
-echo 1 > /debug/$FAILNAME/ignore-gfp-wait
-
-blacklist()
+faulty_system()
 {
-	echo $BLACKLIST | grep $1 > /dev/null 2>&1
+	bash -c "echo 1 > /proc/self/make-it-fail && exec $*"
 }
 
-oops()
-{
-	dmesg | grep BUG > /dev/null 2>&1
-}
+if [ $# -eq 0 ]
+then
+	echo "Usage: $0 modulename [ modulename ... ]"
+	exit 1
+fi
 
-find /lib/modules/`uname -r` -name '*.ko' -exec basename {} .ko \; |
-	while read i
-	do
-		oops && exit 1
+for m in $*
+do
+	echo inserting $m...
+	faulty_system modprobe $m
 
-		if ! blacklist $i
-		then
-			echo inserting $i...
-			bash $FAILCMD modprobe $i
-		fi
-	done
-
-lsmod | awk '{ if ($3 == 0) { print $1 } }' |
-	while read i
-	do
-		oops && exit 1
-
-		if ! blacklist $i
-		then
-			echo removing $i...
-			bash $FAILCMD modprobe -r $i
-		fi
-	done
+	echo removing $m...
+	faulty_system modprobe -r $m
+done
 
 ------------------------------------------------------------------------------
 
-o inject slab allocation failures only for a specific module
+o Inject page allocation failures only for a specific module
 
-------------------------------------------------------------------------------
 #!/bin/bash
 
-FAILMOD=Documentation/fault-injection/failmodule.sh
+FAILTYPE=fail_page_alloc
+module=$1
 
-echo injecting errors into the module $1...
+if [ -z $module ]
+then
+	echo "Usage: $0 <modulename>"
+	exit 1
+fi
 
-modprobe $1
-bash $FAILMOD failslab $1 10
-echo 25 > /debug/failslab/probability
+modprobe $module
 
-------------------------------------------------------------------------------
+if [ ! -d /sys/module/$module/sections ]
+then
+	echo Module $module is not loaded
+	exit 1
+fi
+
+cat /sys/module/$module/sections/.text > /debug/$FAILTYPE/require-start
+cat /sys/module/$module/sections/.data > /debug/$FAILTYPE/require-end
+
+echo N > /debug/$FAILTYPE/task-filter
+echo 10 > /debug/$FAILTYPE/probability
+echo 100 > /debug/$FAILTYPE/interval
+echo -1 > /debug/$FAILTYPE/times
+echo 0 > /debug/$FAILTYPE/space
+echo 2 > /debug/$FAILTYPE/verbose
+echo 1 > /debug/$FAILTYPE/ignore-gfp-wait
+echo 1 > /debug/$FAILTYPE/ignore-gfp-highmem
+echo 10 > /debug/$FAILTYPE/stacktrace-depth
+
+trap "echo 0 > /debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
+
+echo "Injecting errors into the module $module... (interrupt to stop)"
+sleep 1000000
 

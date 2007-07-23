@@ -156,6 +156,8 @@ static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		omap_32k_timer_stop();
 		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
 	}
 }
 

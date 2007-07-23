@@ -24,7 +24,7 @@ MODULE_DESCRIPTION("iptables mac matching module");
 MODULE_ALIAS("ipt_mac");
 MODULE_ALIAS("ip6t_mac");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -32,19 +32,19 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
     const struct xt_mac_info *info = matchinfo;
 
     /* Is mac pointer valid? */
-    return (skb_mac_header(skb) >= skb->head &&
-	    (skb_mac_header(skb) + ETH_HLEN) <= skb->data
-	    /* If so, compare... */
-	    && ((!compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr))
-		^ info->invert));
+    return skb_mac_header(skb) >= skb->head &&
+	   skb_mac_header(skb) + ETH_HLEN <= skb->data
+	   /* If so, compare... */
+	   && ((!compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr))
+		^ info->invert);
 }
 
-static struct xt_match xt_mac_match[] = {
+static struct xt_match xt_mac_match[] __read_mostly = {
 	{
 		.name		= "mac",
 		.family		= AF_INET,

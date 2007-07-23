@@ -124,20 +124,28 @@ unsigned paravirt_patch_ignore(unsigned len)
 	return len;
 }
 
+struct branch {
+	unsigned char opcode;
+	u32 delta;
+} __attribute__((packed));
+
 unsigned paravirt_patch_call(void *target, u16 tgt_clobbers,
 			     void *site, u16 site_clobbers,
 			     unsigned len)
 {
 	unsigned char *call = site;
 	unsigned long delta = (unsigned long)target - (unsigned long)(call+5);
+	struct branch b;
 
 	if (tgt_clobbers & ~site_clobbers)
 		return len;	/* target would clobber too much for this site */
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	*call++ = 0xe8;		/* call */
-	*(unsigned long *)call = delta;
+	b.opcode = 0xe8; /* call */
+	b.delta = delta;
+	BUILD_BUG_ON(sizeof(b) != 5);
+	text_poke(call, (unsigned char *)&b, 5);
 
 	return 5;
 }
@@ -146,12 +154,14 @@ unsigned paravirt_patch_jmp(void *target, void *site, unsigned len)
 {
 	unsigned char *jmp = site;
 	unsigned long delta = (unsigned long)target - (unsigned long)(jmp+5);
+	struct branch b;
 
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	*jmp++ = 0xe9;		/* jmp */
-	*(unsigned long *)jmp = delta;
+	b.opcode = 0xe9;	/* jmp */
+	b.delta = delta;
+	text_poke(jmp, (unsigned char *)&b, 5);
 
 	return 5;
 }
@@ -228,6 +238,41 @@ static int __init print_banner(void)
 }
 core_initcall(print_banner);
 
+static struct resource reserve_ioports = {
+	.start = 0,
+	.end = IO_SPACE_LIMIT,
+	.name = "paravirt-ioport",
+	.flags = IORESOURCE_IO | IORESOURCE_BUSY,
+};
+
+static struct resource reserve_iomem = {
+	.start = 0,
+	.end = -1,
+	.name = "paravirt-iomem",
+	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
+};
+
+/*
+ * Reserve the whole legacy IO space to prevent any legacy drivers
+ * from wasting time probing for their hardware.  This is a fairly
+ * brute-force approach to disabling all non-virtual drivers.
+ *
+ * Note that this must be called very early to have any effect.
+ */
+int paravirt_disable_iospace(void)
+{
+	int ret;
+
+	ret = request_resource(&ioport_resource, &reserve_ioports);
+	if (ret == 0) {
+		ret = request_resource(&iomem_resource, &reserve_iomem);
+		if (ret)
+			release_resource(&reserve_ioports);
+	}
+
+	return ret;
+}
+
 struct paravirt_ops paravirt_ops = {
 	.name = "bare hardware",
 	.paravirt_enabled = 0,
@@ -267,7 +312,7 @@ struct paravirt_ops paravirt_ops = {
 	.write_msr = native_write_msr_safe,
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
-	.get_scheduled_cycles = native_read_tsc,
+	.sched_clock = native_sched_clock,
 	.get_cpu_khz = native_calculate_cpu_khz,
 	.load_tr_desc = native_load_tr_desc,
 	.set_ldt = native_set_ldt,

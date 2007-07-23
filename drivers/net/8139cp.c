@@ -26,7 +26,6 @@
 
 	TODO:
 	* Test Tx checksumming thoroughly
-	* Implement dev->tx_timeout
 
 	Low priority TODO:
 	* Complete reset on PciErr
@@ -1218,6 +1217,30 @@ static int cp_close (struct net_device *dev)
 	return 0;
 }
 
+static void cp_tx_timeout(struct net_device *dev)
+{
+	struct cp_private *cp = netdev_priv(dev);
+	unsigned long flags;
+	int rc;
+
+	printk(KERN_WARNING "%s: Transmit timeout, status %2x %4x %4x %4x\n",
+	       dev->name, cpr8(Cmd), cpr16(CpCmd),
+	       cpr16(IntrStatus), cpr16(IntrMask));
+
+	spin_lock_irqsave(&cp->lock, flags);
+
+	cp_stop_hw(cp);
+	cp_clean_rings(cp);
+	rc = cp_init_rings(cp);
+	cp_start_hw(cp);
+
+	netif_wake_queue(dev);
+
+	spin_unlock_irqrestore(&cp->lock, flags);
+
+	return;
+}
+
 #ifdef BROKEN
 static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -1799,7 +1822,6 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *regs;
 	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
-	u8 pci_rev;
 
 #ifndef MODULE
 	static int version_printed;
@@ -1807,13 +1829,11 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk("%s", version);
 #endif
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &pci_rev);
-
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
-	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pci_rev < 0x20) {
+	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pdev->revision < 0x20) {
 		dev_err(&pdev->dev,
 			   "This (id %04x:%04x rev %02x) is not an 8139C+ compatible chip\n",
-		           pdev->vendor, pdev->device, pci_rev);
+		           pdev->vendor, pdev->device, pdev->revision);
 		dev_err(&pdev->dev, "Try the \"8139too\" driver instead.\n");
 		return -ENODEV;
 	}
@@ -1923,10 +1943,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->change_mtu = cp_change_mtu;
 #endif
 	dev->ethtool_ops = &cp_ethtool_ops;
-#if 0
 	dev->tx_timeout = cp_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#endif
 
 #if CP_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;

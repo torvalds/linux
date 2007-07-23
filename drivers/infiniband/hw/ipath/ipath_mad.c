@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -103,7 +103,7 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 	/* This is already in network order */
 	nip->sys_guid = to_idev(ibdev)->sys_image_guid;
 	nip->node_guid = dd->ipath_guid;
-	nip->port_guid = nip->sys_guid;
+	nip->port_guid = dd->ipath_guid;
 	nip->partition_cap = cpu_to_be16(ipath_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->ipath_deviceid);
 	majrev = dd->ipath_majrev;
@@ -292,7 +292,12 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 	/* pip->vl_arb_high_cap; // only one VL */
 	/* pip->vl_arb_low_cap; // only one VL */
 	/* InitTypeReply = 0 */
-	pip->inittypereply_mtucap = IB_MTU_4096;
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so set the maximum value
+	 * to 2048.
+	 */
+	pip->inittypereply_mtucap = IB_MTU_2048;
 	// HCAs ignore VLStallCount and HOQLife
 	/* pip->vlstallcnt_hoqlife; */
 	pip->operationalvl_pei_peo_fpi_fpo = 0x10;	/* OVLs = 1 */

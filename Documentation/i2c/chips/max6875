@@ -99,7 +99,7 @@ And then read the data
 
   or
 
-  count = i2c_smbus_read_i2c_block_data(fd, 0x84, buffer);
+  count = i2c_smbus_read_i2c_block_data(fd, 0x84, 16, buffer);
 
 The block read should read 16 bytes.
 0x84 is the block read command.

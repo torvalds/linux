@@ -3,13 +3,15 @@
 
 #include <linux/bitops.h> /* for LOCK_PREFIX */
 
+/*
+ * Note: if you use set64_bit(), __cmpxchg64(), or their variants, you
+ *       you need to test for the feature in boot_cpu_data.
+ */
+
 #define xchg(ptr,v) ((__typeof__(*(ptr)))__xchg((unsigned long)(v),(ptr),sizeof(*(ptr))))
 
 struct __xchg_dummy { unsigned long a[100]; };
 #define __xg(x) ((struct __xchg_dummy *)(x))
-
-
-#ifdef CONFIG_X86_CMPXCHG64
 
 /*
  * The semantics of XCHGCMP8B are a bit strange, this is why
@@ -32,7 +34,7 @@ static inline void __set_64bit (unsigned long long * ptr,
 		"\n1:\t"
 		"movl (%0), %%eax\n\t"
 		"movl 4(%0), %%edx\n\t"
-		"lock cmpxchg8b (%0)\n\t"
+		LOCK_PREFIX "cmpxchg8b (%0)\n\t"
 		"jnz 1b"
 		: /* no outputs */
 		:	"D"(ptr),
@@ -64,8 +66,6 @@ static inline void __set_64bit_var (unsigned long long *ptr,
 (__builtin_constant_p(value) ? \
  __set_64bit(ptr, (unsigned int)(value), (unsigned int)((value)>>32ULL) ) : \
  __set_64bit(ptr, ll_low(value), ll_high(value)) )
-
-#endif
 
 /*
  * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
@@ -252,8 +252,6 @@ static inline unsigned long cmpxchg_386(volatile void *ptr, unsigned long old,
 })
 #endif
 
-#ifdef CONFIG_X86_CMPXCHG64
-
 static inline unsigned long long __cmpxchg64(volatile void *ptr, unsigned long long old,
 				      unsigned long long new)
 {
@@ -288,6 +286,4 @@ static inline unsigned long long __cmpxchg64_local(volatile void *ptr,
 #define cmpxchg64_local(ptr,o,n)\
 	((__typeof__(*(ptr)))__cmpxchg64_local((ptr),(unsigned long long)(o),\
 					(unsigned long long)(n)))
-#endif
-
 #endif

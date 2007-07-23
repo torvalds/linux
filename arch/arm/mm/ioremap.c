@@ -280,7 +280,10 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	if (!type)
 		return NULL;
 
-	size = PAGE_ALIGN(size);
+	/*
+	 * Page align the mapping size, taking account of any offset.
+	 */
+	size = PAGE_ALIGN(offset + size);
 
  	area = get_vm_area(size, VM_IOREMAP);
  	if (!area)
@@ -324,11 +327,6 @@ __arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 	last_addr = phys_addr + size - 1;
 	if (!size || last_addr < phys_addr)
 		return NULL;
-
-	/*
- 	 * Page align the mapping size
-	 */
-	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
  	return __arm_ioremap_pfn(pfn, offset, size, mtype);
 }

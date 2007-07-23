@@ -44,6 +44,7 @@ const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
 	.release	= afs_release,
 	.readdir	= afs_readdir,
+	.lock		= afs_lock,
 };
 
 const struct inode_operations afs_dir_inode_operations = {

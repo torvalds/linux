@@ -81,8 +81,6 @@ EXPORT_SYMBOL(__mulsi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 
-EXPORT_SYMBOL(is_in_rom);
-
 #ifdef CONFIG_COLDFIRE
 extern unsigned int *dma_device_address;
 extern unsigned long dma_base_addr, _ramend;

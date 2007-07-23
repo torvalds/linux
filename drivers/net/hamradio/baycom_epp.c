@@ -320,7 +320,7 @@ static int eppconfig(struct baycom_state *bc)
 	sprintf(portarg, "%ld", bc->pdev->port->base);
 	printk(KERN_DEBUG "%s: %s -s -p %s -m %s\n", bc_drvname, eppconfig_path, portarg, modearg);
 
-	return call_usermodehelper(eppconfig_path, argv, envp, 1);
+	return call_usermodehelper(eppconfig_path, argv, envp, UMH_WAIT_PROC);
 }
 
 /* ---------------------------------------------------------------------- */

@@ -227,6 +227,7 @@ source "net/ieee80211/Kconfig"
 endmenu
 
 source "net/rfkill/Kconfig"
+source "net/9p/Kconfig"
 
 endif   # if NET
 endmenu # Networking

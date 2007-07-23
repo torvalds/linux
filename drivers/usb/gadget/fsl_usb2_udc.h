@@ -101,6 +101,10 @@ struct usb_sys_interface {
 #define WAIT_FOR_OUT_STATUS     3
 #define DATA_STATE_RECV         4
 
+/* Device Controller Capability Parameter register */
+#define DCCPARAMS_DC				0x00000080
+#define DCCPARAMS_DEN_MASK			0x0000001f
+
 /* Frame Index Register Bit Masks */
 #define	USB_FRINDEX_MASKS			0x3fff
 /* USB CMD  Register Bit Masks */

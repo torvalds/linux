@@ -4,6 +4,7 @@
 #include <linux/types.h>
 
 #ifdef __KERNEL__
+# include <linux/cache.h>
 # include <linux/seqlock.h>
 #endif
 
@@ -36,7 +37,8 @@ struct timezone {
 #define NSEC_PER_SEC	1000000000L
 #define FSEC_PER_SEC	1000000000000000L
 
-static inline int timespec_equal(struct timespec *a, struct timespec *b)
+static inline int timespec_equal(const struct timespec *a,
+                                 const struct timespec *b)
 {
 	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
 }
@@ -93,6 +95,8 @@ extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock __attribute__((weak));
 
 extern unsigned long read_persistent_clock(void);
+extern int update_persistent_clock(struct timespec now);
+extern int no_sync_cmos_clock __read_mostly;
 void timekeeping_init(void);
 
 static inline unsigned long get_seconds(void)
@@ -116,6 +120,8 @@ extern int do_setitimer(int which, struct itimerval *value,
 extern unsigned int alarm_setitimer(unsigned int seconds);
 extern int do_getitimer(int which, struct itimerval *value);
 extern void getnstimeofday(struct timespec *tv);
+extern void getboottime(struct timespec *ts);
+extern void monotonic_to_bootbased(struct timespec *ts);
 
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 extern int timekeeping_is_continuous(void);

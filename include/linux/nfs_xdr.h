@@ -119,7 +119,7 @@ struct nfs_openargs {
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 	__u64                   clientid;
-	__u32                   id;
+	__u64                   id;
 	union {
 		struct iattr *  attrs;    /* UNCHECKED, GUARDED */
 		nfs4_verifier   verifier; /* EXCLUSIVE */
@@ -144,6 +144,7 @@ struct nfs_openres {
 	nfs4_stateid		delegation;
 	__u32			do_recall;
 	__u64			maxsize;
+	__u32			attrset[NFS4_BITMAP_SIZE];
 };
 
 /*
@@ -180,7 +181,7 @@ struct nfs_closeres {
  *   */
 struct nfs_lowner {
 	__u64			clientid;
-	u32			id;
+	__u64			id;
 };
 
 struct nfs_lock_args {
@@ -274,6 +275,21 @@ struct nfs_writeres {
 	struct nfs_writeverf *	verf;
 	__u32			count;
 	const struct nfs_server *server;
+};
+
+/*
+ * Common arguments to the unlink call
+ */
+struct nfs_removeargs {
+	const struct nfs_fh	*fh;
+	struct qstr		name;
+	const u32 *		bitmask;
+};
+
+struct nfs_removeres {
+	const struct nfs_server *server;
+	struct nfs4_change_info	cinfo;
+	struct nfs_fattr	dir_attr;
 };
 
 /*
@@ -630,18 +646,6 @@ struct nfs4_readlink {
 	struct page **			pages;   /* zero-copy data */
 };
 
-struct nfs4_remove_arg {
-	const struct nfs_fh *		fh;
-	const struct qstr *		name;
-	const u32 *			bitmask;
-};
-
-struct nfs4_remove_res {
-	const struct nfs_server *	server;
-	struct nfs4_change_info		cinfo;
-	struct nfs_fattr *		dir_attr;
-};
-
 struct nfs4_rename_arg {
 	const struct nfs_fh *		old_dir;
 	const struct nfs_fh *		new_dir;
@@ -787,9 +791,8 @@ struct nfs_rpc_ops {
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int, struct nameidata *);
 	int	(*remove)  (struct inode *, struct qstr *);
-	int	(*unlink_setup)  (struct rpc_message *,
-			    struct dentry *, struct qstr *);
-	int	(*unlink_done) (struct dentry *, struct rpc_task *);
+	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
+	int	(*unlink_done) (struct rpc_task *, struct inode *);
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
 	int	(*link)    (struct inode *, struct inode *, struct qstr *);

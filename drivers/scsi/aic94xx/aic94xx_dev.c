@@ -126,7 +126,7 @@ static inline int asd_init_sata(struct domain_device *dev)
 		if (w76 & 0x100) /* NCQ? */
 			qdepth = (w75 & 0x1F) + 1;
 		asd_ddbsite_write_dword(asd_ha, ddb, SATA_TAG_ALLOC_MASK,
-					(1<<qdepth)-1);
+					(1ULL<<qdepth)-1);
 		asd_ddbsite_write_byte(asd_ha, ddb, NUM_SATA_TAGS, qdepth);
 	}
 	if (dev->dev_type == SATA_DEV || dev->dev_type == SATA_PM ||

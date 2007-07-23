@@ -176,8 +176,6 @@ void power_supply_remove_attrs(struct power_supply *psy)
 	for (i = 0; i < psy->num_properties; i++)
 		device_remove_file(psy->dev,
 			    &power_supply_attrs[psy->properties[i]]);
-
-	return;
 }
 
 static char *kstruprdup(const char *str, gfp_t gfp)

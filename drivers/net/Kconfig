@@ -5,6 +5,7 @@
 
 menuconfig NETDEVICES
 	default y if UML
+	depends on NET
 	bool "Network device support"
 	---help---
 	  You can say N here if you don't intend to connect your Linux box to
@@ -24,6 +25,14 @@ menuconfig NETDEVICES
 # All the following symbols are dependent on NETDEVICES - do not repeat
 # that for each of the symbols.
 if NETDEVICES
+
+config NETDEVICES_MULTIQUEUE
+	bool "Netdevice multiple hardware queue support"
+	---help---
+	  Say Y here if you want to allow the network stack to use multiple
+	  hardware TX queues on an ethernet device.
+
+	  Most people will say N here.
 
 config IFB
 	tristate "Intermediate Functional Block support"
@@ -73,6 +82,16 @@ config BONDING
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bonding.
+
+config MACVLAN
+	tristate "MAC-VLAN support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	---help---
+	  This allows one to create virtual interfaces that map packets to
+	  or from specific MAC addresses to a particular interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macvlan.
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
@@ -187,7 +206,7 @@ config MII
 config MACB
 	tristate "Atmel MACB support"
 	depends on AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263
-	select MII
+	select PHYLIB
 	help
 	  The Atmel MACB ethernet interface is found on many AT32 and AT91
 	  parts. Say Y to include support for the MACB chip.
@@ -387,22 +406,6 @@ config ATARILANCE
 	  on the AMD Lance chipset: RieblCard (with or without battery), or
 	  PAMCard VME (also the version by Rhotron, with different addresses).
 
-config ATARI_BIONET
-	tristate "BioNet-100 support"
-	depends on ATARI && ATARI_ACSI && BROKEN
-	help
-	  Say Y to include support for BioData's BioNet-100 Ethernet adapter
-	  for the ACSI port. The driver works (has to work...) with a polled
-	  I/O scheme, so it's rather slow :-(
-
-config ATARI_PAMSNET
-	tristate "PAMsNet support"
-	depends on ATARI && ATARI_ACSI && BROKEN
-	help
-	  Say Y to include support for the PAMsNet Ethernet adapter for the
-	  ACSI port ("ACSI node"). The driver works (has to work...) with a
-	  polled I/O scheme, so it's rather slow :-(
-
 config SUN3LANCE
 	tristate "Sun3/Sun3x on-board LANCE support"
 	depends on SUN3 || SUN3X
@@ -585,6 +588,12 @@ config CASSINI
 	help
 	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
 	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
+
+config SUNVNET
+	tristate "Sun Virtual Network support"
+	depends on SUN_LDOMS
+	help
+	  Support for virtual network devices under Sun Logical Domains.
 
 config NET_VENDOR_3COM
 	bool "3COM cards"
@@ -830,6 +839,50 @@ config ULTRA32
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc-ultra32.
 
+config BFIN_MAC
+	tristate "Blackfin 536/537 on-chip mac support"
+	depends on NET_ETHERNET && (BF537 || BF536) && (!BF537_PORT_H)
+	select CRC32
+	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
+	help
+	  This is the driver for blackfin on-chip mac device. Say Y if you want it
+	  compiled into the kernel. This driver is also available as a module
+	  ( = code which can be inserted in and removed from the running kernel
+	  whenever you want). The module will be called bfin_mac.
+
+config BFIN_MAC_USE_L1
+	bool "Use L1 memory for rx/tx packets"
+	depends on BFIN_MAC && BF537
+	default y
+	help
+	  To get maximum network performace, you should use L1 memory as rx/tx buffers.
+	  Say N here if you want to reserve L1 memory for other uses.
+
+config BFIN_TX_DESC_NUM
+	int "Number of transmit buffer packets"
+	depends on BFIN_MAC
+	range 6 10 if BFIN_MAC_USE_L1
+	range 10 100
+	default "10"
+	help
+	  Set the number of buffer packets used in driver.
+
+config BFIN_RX_DESC_NUM
+	int "Number of receive buffer packets"
+	depends on BFIN_MAC
+	range 20 100 if BFIN_MAC_USE_L1
+	range 20 800
+	default "20"
+	help
+	  Set the number of buffer packets used in driver.
+
+config BFIN_MAC_RMII
+	bool "RMII PHY Interface (EXPERIMENTAL)"
+	depends on BFIN_MAC && EXPERIMENTAL
+	default n
+	help
+	  Use Reduced PHY MII Interface
+
 config SMC9194
 	tristate "SMC 9194 support"
 	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN)
@@ -877,7 +930,7 @@ config NET_NETX
 
 config DM9000
 	tristate "DM9000 support"
-	depends on ARM || MIPS
+	depends on ARM || BLACKFIN || MIPS
 	select CRC32
 	select MII
 	---help---
@@ -2478,6 +2531,18 @@ source "drivers/atm/Kconfig"
 
 source "drivers/s390/net/Kconfig"
 
+config XEN_NETDEV_FRONTEND
+	tristate "Xen network device frontend driver"
+	depends on XEN
+	default y
+	help
+	  The network device frontend driver allows the kernel to
+	  access network devices exported exported by a virtual
+	  machine containing a physical network device driver. The
+	  frontend driver is intended for unprivileged guest domains;
+	  if you are compiling a kernel for a Xen guest, you almost
+	  certainly want to enable this.
+
 config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"
 	depends on PPC_ISERIES
@@ -2783,6 +2848,19 @@ config PPPOATM
 	  This implementation does not yet comply with section 8 of RFC2364,
 	  which can lead to bad results if the ATM peer loses state and
 	  changes its encapsulation unilaterally.
+
+config PPPOL2TP
+	tristate "PPP over L2TP (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PPP
+	help
+	  Support for PPP-over-L2TP socket family. L2TP is a protocol
+	  used by ISPs and enterprises to tunnel PPP traffic over UDP
+	  tunnels. L2TP is replacing PPTP for VPN uses.
+
+	  This kernel component handles only L2TP data packets: a
+	  userland daemon handles L2TP the control protocol (tunnel
+	  and session setup). One such daemon is OpenL2TP
+	  (http://openl2tp.sourceforge.net/).
 
 config SLIP
 	tristate "SLIP (serial line) support"

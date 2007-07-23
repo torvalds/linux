@@ -6,7 +6,7 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/processor.h>
 #include <asm/dma.h>
 
@@ -34,7 +34,7 @@ nommu_map_single(struct device *hwdev, void *ptr, size_t size,
 	return bus;
 }
 
-void nommu_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
+static void nommu_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
 			int direction)
 {
 }
@@ -54,7 +54,7 @@ void nommu_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
  * Device ownership issues as mentioned above for pci_map_single are
  * the same here.
  */
-int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
+static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	       int nents, int direction)
 {
 	int i;
@@ -74,7 +74,7 @@ int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
  * Again, cpu read rules concerning calls here are the same as for
  * pci_unmap_single() above.
  */
-void nommu_unmap_sg(struct device *dev, struct scatterlist *sg,
+static void nommu_unmap_sg(struct device *dev, struct scatterlist *sg,
 		  int nents, int dir)
 {
 }

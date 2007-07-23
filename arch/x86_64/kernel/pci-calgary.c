@@ -1,7 +1,7 @@
 /*
  * Derived from arch/powerpc/kernel/iommu.c
  *
- * Copyright (C) IBM Corporation, 2006
+ * Copyright IBM Corporation, 2006-2007
  * Copyright (C) 2006  Jon Mason <jdmason@kudzu.us>
  *
  * Author: Jon Mason <jdmason@kudzu.us>
@@ -35,7 +35,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/calgary.h>
 #include <asm/tce.h>
 #include <asm/pci-direct.h>
@@ -50,13 +50,7 @@ int use_calgary __read_mostly = 0;
 #endif /* CONFIG_CALGARY_DEFAULT_ENABLED */
 
 #define PCI_DEVICE_ID_IBM_CALGARY 0x02a1
-#define PCI_VENDOR_DEVICE_ID_CALGARY \
-	(PCI_VENDOR_ID_IBM | PCI_DEVICE_ID_IBM_CALGARY << 16)
-
-/* we need these for register space address calculation */
-#define START_ADDRESS           0xfe000000
-#define CHASSIS_BASE            0
-#define ONE_BASED_CHASSIS_NUM   1
+#define PCI_DEVICE_ID_IBM_CALIOC2 0x0308
 
 /* register offsets inside the host bridge space */
 #define CALGARY_CONFIG_REG	0x0108
@@ -80,6 +74,12 @@ int use_calgary __read_mostly = 0;
 #define PHB_MEM_2_SIZE_LOW	0x02E0
 #define PHB_DOSHOLE_OFFSET	0x08E0
 
+/* CalIOC2 specific */
+#define PHB_SAVIOR_L2		0x0DB0
+#define PHB_PAGE_MIG_CTRL	0x0DA8
+#define PHB_PAGE_MIG_DEBUG	0x0DA0
+#define PHB_ROOT_COMPLEX_STATUS 0x0CB0
+
 /* PHB_CONFIG_RW */
 #define PHB_TCE_ENABLE		0x20000000
 #define PHB_SLOT_DISABLE	0x1C000000
@@ -92,7 +92,11 @@ int use_calgary __read_mostly = 0;
 /* CSR (Channel/DMA Status Register) */
 #define CSR_AGENT_MASK		0xffe0ffff
 /* CCR (Calgary Configuration Register) */
-#define CCR_2SEC_TIMEOUT        0x000000000000000EUL
+#define CCR_2SEC_TIMEOUT	0x000000000000000EUL
+/* PMCR/PMDR (Page Migration Control/Debug Registers */
+#define PMR_SOFTSTOP		0x80000000
+#define PMR_SOFTSTOPFAULT	0x40000000
+#define PMR_HARDSTOP		0x20000000
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
 #define MAX_NUM_CHASSIS		8 /* max number of chassis */
@@ -155,9 +159,26 @@ struct calgary_bus_info {
 	void __iomem *bbar;
 };
 
-static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
+static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
+static void calgary_tce_cache_blast(struct iommu_table *tbl);
+static void calgary_dump_error_regs(struct iommu_table *tbl);
+static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
+static void calioc2_tce_cache_blast(struct iommu_table *tbl);
+static void calioc2_dump_error_regs(struct iommu_table *tbl);
 
-static void tce_cache_blast(struct iommu_table *tbl);
+static struct cal_chipset_ops calgary_chip_ops = {
+	.handle_quirks = calgary_handle_quirks,
+	.tce_cache_blast = calgary_tce_cache_blast,
+	.dump_error_regs = calgary_dump_error_regs
+};
+
+static struct cal_chipset_ops calioc2_chip_ops = {
+	.handle_quirks = calioc2_handle_quirks,
+	.tce_cache_blast = calioc2_tce_cache_blast,
+	.dump_error_regs = calioc2_dump_error_regs
+};
+
+static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
 
 /* enable this to stress test the chip's TCE cache */
 #ifdef CONFIG_IOMMU_DEBUG
@@ -187,6 +208,7 @@ static inline unsigned long verify_bit_range(unsigned long* bitmap,
 {
 	return ~0UL;
 }
+
 #endif /* CONFIG_IOMMU_DEBUG */
 
 static inline unsigned int num_dma_pages(unsigned long dma, unsigned int dmalen)
@@ -206,11 +228,12 @@ static inline int translate_phb(struct pci_dev* dev)
 }
 
 static void iommu_range_reserve(struct iommu_table *tbl,
-        unsigned long start_addr, unsigned int npages)
+	unsigned long start_addr, unsigned int npages)
 {
 	unsigned long index;
 	unsigned long end;
 	unsigned long badbit;
+	unsigned long flags;
 
 	index = start_addr >> PAGE_SHIFT;
 
@@ -222,6 +245,8 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	if (end > tbl->it_size) /* don't go off the table */
 		end = tbl->it_size;
 
+	spin_lock_irqsave(&tbl->it_lock, flags);
+
 	badbit = verify_bit_range(tbl->it_map, 0, index, end);
 	if (badbit != ~0UL) {
 		if (printk_ratelimit())
@@ -231,23 +256,29 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	}
 
 	set_bit_string(tbl->it_map, index, npages);
+
+	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	unsigned int npages)
 {
+	unsigned long flags;
 	unsigned long offset;
 
 	BUG_ON(npages == 0);
 
+	spin_lock_irqsave(&tbl->it_lock, flags);
+
 	offset = find_next_zero_string(tbl->it_map, tbl->it_hint,
 				       tbl->it_size, npages);
 	if (offset == ~0UL) {
-		tce_cache_blast(tbl);
+		tbl->chip_ops->tce_cache_blast(tbl);
 		offset = find_next_zero_string(tbl->it_map, 0,
 					       tbl->it_size, npages);
 		if (offset == ~0UL) {
 			printk(KERN_WARNING "Calgary: IOMMU full.\n");
+			spin_unlock_irqrestore(&tbl->it_lock, flags);
 			if (panic_on_overflow)
 				panic("Calgary: fix the allocator.\n");
 			else
@@ -259,16 +290,16 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	tbl->it_hint = offset + npages;
 	BUG_ON(tbl->it_hint > tbl->it_size);
 
+	spin_unlock_irqrestore(&tbl->it_lock, flags);
+
 	return offset;
 }
 
 static dma_addr_t iommu_alloc(struct iommu_table *tbl, void *vaddr,
 	unsigned int npages, int direction)
 {
-	unsigned long entry, flags;
+	unsigned long entry;
 	dma_addr_t ret = bad_dma_address;
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
 
 	entry = iommu_range_alloc(tbl, npages);
 
@@ -282,23 +313,21 @@ static dma_addr_t iommu_alloc(struct iommu_table *tbl, void *vaddr,
 	tce_build(tbl, entry, npages, (unsigned long)vaddr & PAGE_MASK,
 		  direction);
 
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
-
 	return ret;
 
 error:
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 	printk(KERN_WARNING "Calgary: failed to allocate %u pages in "
 	       "iommu %p\n", npages, tbl);
 	return bad_dma_address;
 }
 
-static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
+static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
 	unsigned long badbit;
 	unsigned long badend;
+	unsigned long flags;
 
 	/* were we called with bad_dma_address? */
 	badend = bad_dma_address + (EMERGENCY_PAGES * PAGE_SIZE);
@@ -315,6 +344,8 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 
 	tce_free(tbl, entry, npages);
 
+	spin_lock_irqsave(&tbl->it_lock, flags);
+
 	badbit = verify_bit_range(tbl->it_map, 1, entry, entry + npages);
 	if (badbit != ~0UL) {
 		if (printk_ratelimit())
@@ -324,23 +355,40 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	}
 
 	__clear_bit_string(tbl->it_map, entry, npages);
-}
-
-static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
-	unsigned int npages)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
-
-	__iommu_free(tbl, dma_addr, npages);
 
 	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
-static void __calgary_unmap_sg(struct iommu_table *tbl,
+static inline struct iommu_table *find_iommu_table(struct device *dev)
+{
+	struct pci_dev *pdev;
+	struct pci_bus *pbus;
+	struct iommu_table *tbl;
+
+	pdev = to_pci_dev(dev);
+
+	/* is the device behind a bridge? */
+	if (unlikely(pdev->bus->parent))
+		pbus = pdev->bus->parent;
+	else
+		pbus = pdev->bus;
+
+	tbl = pci_iommu(pbus);
+
+	BUG_ON(pdev->bus->parent &&
+	       (tbl->it_busno != pdev->bus->parent->number));
+
+	return tbl;
+}
+
+static void calgary_unmap_sg(struct device *dev,
 	struct scatterlist *sglist, int nelems, int direction)
 {
+	struct iommu_table *tbl = find_iommu_table(dev);
+
+	if (!translate_phb(to_pci_dev(dev)))
+		return;
+
 	while (nelems--) {
 		unsigned int npages;
 		dma_addr_t dma = sglist->dma_address;
@@ -350,25 +398,9 @@ static void __calgary_unmap_sg(struct iommu_table *tbl,
 			break;
 
 		npages = num_dma_pages(dma, dmalen);
-		__iommu_free(tbl, dma, npages);
+		iommu_free(tbl, dma, npages);
 		sglist++;
 	}
-}
-
-void calgary_unmap_sg(struct device *dev, struct scatterlist *sglist,
-		      int nelems, int direction)
-{
-	unsigned long flags;
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
-
-	if (!translate_phb(to_pci_dev(dev)))
-		return;
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
-
-	__calgary_unmap_sg(tbl, sglist, nelems, direction);
-
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }
 
 static int calgary_nontranslate_map_sg(struct device* dev,
@@ -376,7 +408,7 @@ static int calgary_nontranslate_map_sg(struct device* dev,
 {
 	int i;
 
- 	for (i = 0; i < nelems; i++ ) {
+	for (i = 0; i < nelems; i++ ) {
 		struct scatterlist *s = &sg[i];
 		BUG_ON(!s->page);
 		s->dma_address = virt_to_bus(page_address(s->page) +s->offset);
@@ -385,11 +417,10 @@ static int calgary_nontranslate_map_sg(struct device* dev,
 	return nelems;
 }
 
-int calgary_map_sg(struct device *dev, struct scatterlist *sg,
+static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	int nelems, int direction)
 {
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
-	unsigned long flags;
+	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned long vaddr;
 	unsigned int npages;
 	unsigned long entry;
@@ -397,8 +428,6 @@ int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 
 	if (!translate_phb(to_pci_dev(dev)))
 		return calgary_nontranslate_map_sg(dev, sg, nelems, direction);
-
-	spin_lock_irqsave(&tbl->it_lock, flags);
 
 	for (i = 0; i < nelems; i++ ) {
 		struct scatterlist *s = &sg[i];
@@ -423,26 +452,23 @@ int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		s->dma_length = s->length;
 	}
 
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
-
 	return nelems;
 error:
-	__calgary_unmap_sg(tbl, sg, nelems, direction);
+	calgary_unmap_sg(dev, sg, nelems, direction);
 	for (i = 0; i < nelems; i++) {
 		sg[i].dma_address = bad_dma_address;
 		sg[i].dma_length = 0;
 	}
-	spin_unlock_irqrestore(&tbl->it_lock, flags);
 	return 0;
 }
 
-dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
+static dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
 	size_t size, int direction)
 {
 	dma_addr_t dma_handle = bad_dma_address;
 	unsigned long uaddr;
 	unsigned int npages;
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 
 	uaddr = (unsigned long)vaddr;
 	npages = num_dma_pages(uaddr, size);
@@ -455,10 +481,10 @@ dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
 	return dma_handle;
 }
 
-void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
+static void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
 	size_t size, int direction)
 {
-	struct iommu_table *tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned int npages;
 
 	if (!translate_phb(to_pci_dev(dev)))
@@ -468,15 +494,13 @@ void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
 	iommu_free(tbl, dma_handle, npages);
 }
 
-void* calgary_alloc_coherent(struct device *dev, size_t size,
+static void* calgary_alloc_coherent(struct device *dev, size_t size,
 	dma_addr_t *dma_handle, gfp_t flag)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
 	unsigned int npages, order;
-	struct iommu_table *tbl;
-
-	tbl = to_pci_dev(dev)->bus->self->sysdata;
+	struct iommu_table *tbl = find_iommu_table(dev);
 
 	size = PAGE_ALIGN(size); /* size rounded up to full pages */
 	npages = size >> PAGE_SHIFT;
@@ -552,7 +576,22 @@ static inline void __iomem* calgary_reg(void __iomem *bar, unsigned long offset)
 	return (void __iomem*)target;
 }
 
-static void tce_cache_blast(struct iommu_table *tbl)
+static inline int is_calioc2(unsigned short device)
+{
+	return (device == PCI_DEVICE_ID_IBM_CALIOC2);
+}
+
+static inline int is_calgary(unsigned short device)
+{
+	return (device == PCI_DEVICE_ID_IBM_CALGARY);
+}
+
+static inline int is_cal_pci_dev(unsigned short device)
+{
+	return (is_calgary(device) || is_calioc2(device));
+}
+
+static void calgary_tce_cache_blast(struct iommu_table *tbl)
 {
 	u64 val;
 	u32 aer;
@@ -589,6 +628,85 @@ static void tce_cache_blast(struct iommu_table *tbl)
 	(void)readl(target); /* flush */
 }
 
+static void calioc2_tce_cache_blast(struct iommu_table *tbl)
+{
+	void __iomem *bbar = tbl->bbar;
+	void __iomem *target;
+	u64 val64;
+	u32 val;
+	int i = 0;
+	int count = 1;
+	unsigned char bus = tbl->it_busno;
+
+begin:
+	printk(KERN_DEBUG "Calgary: CalIOC2 bus 0x%x entering tce cache blast "
+	       "sequence - count %d\n", bus, count);
+
+	/* 1. using the Page Migration Control reg set SoftStop */
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "1a. read 0x%x [LE] from %p\n", val, target);
+	val |= PMR_SOFTSTOP;
+	printk(KERN_DEBUG "1b. writing 0x%x [LE] to %p\n", val, target);
+	writel(cpu_to_be32(val), target);
+
+	/* 2. poll split queues until all DMA activity is done */
+	printk(KERN_DEBUG "2a. starting to poll split queues\n");
+	target = calgary_reg(bbar, split_queue_offset(bus));
+	do {
+		val64 = readq(target);
+		i++;
+	} while ((val64 & 0xff) != 0xff && i < 100);
+	if (i == 100)
+		printk(KERN_WARNING "CalIOC2: PCI bus not quiesced, "
+		       "continuing anyway\n");
+
+	/* 3. poll Page Migration DEBUG for SoftStopFault */
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DEBUG);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "3. read 0x%x [LE] from %p\n", val, target);
+
+	/* 4. if SoftStopFault - goto (1) */
+	if (val & PMR_SOFTSTOPFAULT) {
+		if (++count < 100)
+			goto begin;
+		else {
+			printk(KERN_WARNING "CalIOC2: too many SoftStopFaults, "
+			       "aborting TCE cache flush sequence!\n");
+			return; /* pray for the best */
+		}
+	}
+
+	/* 5. Slam into HardStop by reading PHB_PAGE_MIG_CTRL */
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
+	printk(KERN_DEBUG "5a. slamming into HardStop by reading %p\n", target);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "5b. read 0x%x [LE] from %p\n", val, target);
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DEBUG);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "5c. read 0x%x [LE] from %p (debug)\n", val, target);
+
+	/* 6. invalidate TCE cache */
+	printk(KERN_DEBUG "6. invalidating TCE cache\n");
+	target = calgary_reg(bbar, tar_offset(bus));
+	writeq(tbl->tar_val, target);
+
+	/* 7. Re-read PMCR */
+	printk(KERN_DEBUG "7a. Re-reading PMCR\n");
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "7b. read 0x%x [LE] from %p\n", val, target);
+
+	/* 8. Remove HardStop */
+	printk(KERN_DEBUG "8a. removing HardStop from PMCR\n");
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
+	val = 0;
+	printk(KERN_DEBUG "8b. writing 0x%x [LE] to %p\n", val, target);
+	writel(cpu_to_be32(val), target);
+	val = be32_to_cpu(readl(target));
+	printk(KERN_DEBUG "8c. read 0x%x [LE] from %p\n", val, target);
+}
+
 static void __init calgary_reserve_mem_region(struct pci_dev *dev, u64 start,
 	u64 limit)
 {
@@ -598,7 +716,7 @@ static void __init calgary_reserve_mem_region(struct pci_dev *dev, u64 start,
 	limit++;
 
 	numpages = ((limit - start) >> PAGE_SHIFT);
-	iommu_range_reserve(dev->sysdata, start, numpages);
+	iommu_range_reserve(pci_iommu(dev->bus), start, numpages);
 }
 
 static void __init calgary_reserve_peripheral_mem_1(struct pci_dev *dev)
@@ -606,7 +724,7 @@ static void __init calgary_reserve_peripheral_mem_1(struct pci_dev *dev)
 	void __iomem *target;
 	u64 low, high, sizelow;
 	u64 start, limit;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
 
@@ -630,7 +748,7 @@ static void __init calgary_reserve_peripheral_mem_2(struct pci_dev *dev)
 	u32 val32;
 	u64 low, high, sizelow, sizehigh;
 	u64 start, limit;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
 
@@ -666,14 +784,20 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 {
 	unsigned int npages;
 	u64 start;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 
 	/* reserve EMERGENCY_PAGES from bad_dma_address and up */
 	iommu_range_reserve(tbl, bad_dma_address, EMERGENCY_PAGES);
 
 	/* avoid the BIOS/VGA first 640KB-1MB region */
-	start = (640 * 1024);
-	npages = ((1024 - 640) * 1024) >> PAGE_SHIFT;
+	/* for CalIOC2 - avoid the entire first MB */
+	if (is_calgary(dev->device)) {
+		start = (640 * 1024);
+		npages = ((1024 - 640) * 1024) >> PAGE_SHIFT;
+	} else { /* calioc2 */
+		start = 0;
+		npages = (1 * 1024 * 1024) >> PAGE_SHIFT;
+	}
 	iommu_range_reserve(tbl, start, npages);
 
 	/* reserve the two PCI peripheral memory regions in IO space */
@@ -694,9 +818,16 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	if (ret)
 		return ret;
 
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
 	tce_free(tbl, 0, tbl->it_size);
+
+	if (is_calgary(dev->device))
+		tbl->chip_ops = &calgary_chip_ops;
+	else if (is_calioc2(dev->device))
+		tbl->chip_ops = &calioc2_chip_ops;
+	else
+		BUG();
 
 	calgary_reserve_regions(dev);
 
@@ -706,15 +837,15 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 
 	/* zero out all TAR bits under sw control */
 	val64 &= ~TAR_SW_BITS;
-
-	tbl = dev->sysdata;
 	table_phys = (u64)__pa(tbl->it_base);
+
 	val64 |= table_phys;
 
 	BUG_ON(specified_table_size > TCE_TABLE_SIZE_8M);
 	val64 |= (u64) specified_table_size;
 
 	tbl->tar_val = cpu_to_be64(val64);
+
 	writeq(tbl->tar_val, target);
 	readq(target); /* flush */
 
@@ -724,7 +855,7 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 static void __init calgary_free_bus(struct pci_dev *dev)
 {
 	u64 val64;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	void __iomem *target;
 	unsigned int bitmapsz;
 
@@ -739,16 +870,81 @@ static void __init calgary_free_bus(struct pci_dev *dev)
 	tbl->it_map = NULL;
 
 	kfree(tbl);
-	dev->sysdata = NULL;
+	
+	set_pci_iommu(dev->bus, NULL);
 
 	/* Can't free bootmem allocated memory after system is up :-( */
 	bus_info[dev->bus->number].tce_space = NULL;
 }
 
+static void calgary_dump_error_regs(struct iommu_table *tbl)
+{
+	void __iomem *bbar = tbl->bbar;
+	void __iomem *target;
+	u32 csr, plssr;
+
+	target = calgary_reg(bbar, phb_offset(tbl->it_busno) | PHB_CSR_OFFSET);
+	csr = be32_to_cpu(readl(target));
+
+	target = calgary_reg(bbar, phb_offset(tbl->it_busno) | PHB_PLSSR_OFFSET);
+	plssr = be32_to_cpu(readl(target));
+
+	/* If no error, the agent ID in the CSR is not valid */
+	printk(KERN_EMERG "Calgary: DMA error on Calgary PHB 0x%x, "
+	       "0x%08x@CSR 0x%08x@PLSSR\n", tbl->it_busno, csr, plssr);
+}
+
+static void calioc2_dump_error_regs(struct iommu_table *tbl)
+{
+	void __iomem *bbar = tbl->bbar;
+	u32 csr, csmr, plssr, mck, rcstat;
+	void __iomem *target;
+	unsigned long phboff = phb_offset(tbl->it_busno);
+	unsigned long erroff;
+	u32 errregs[7];
+	int i;
+
+	/* dump CSR */
+	target = calgary_reg(bbar, phboff | PHB_CSR_OFFSET);
+	csr = be32_to_cpu(readl(target));
+	/* dump PLSSR */
+	target = calgary_reg(bbar, phboff | PHB_PLSSR_OFFSET);
+	plssr = be32_to_cpu(readl(target));
+	/* dump CSMR */
+	target = calgary_reg(bbar, phboff | 0x290);
+	csmr = be32_to_cpu(readl(target));
+	/* dump mck */
+	target = calgary_reg(bbar, phboff | 0x800);
+	mck = be32_to_cpu(readl(target));
+
+	printk(KERN_EMERG "Calgary: DMA error on CalIOC2 PHB 0x%x\n",
+	       tbl->it_busno);
+
+	printk(KERN_EMERG "Calgary: 0x%08x@CSR 0x%08x@PLSSR 0x%08x@CSMR 0x%08x@MCK\n",
+	       csr, plssr, csmr, mck);
+
+	/* dump rest of error regs */
+	printk(KERN_EMERG "Calgary: ");
+	for (i = 0; i < ARRAY_SIZE(errregs); i++) {
+		/* err regs are at 0x810 - 0x870 */
+		erroff = (0x810 + (i * 0x10));
+		target = calgary_reg(bbar, phboff | erroff);
+		errregs[i] = be32_to_cpu(readl(target));
+		printk("0x%08x@0x%lx ", errregs[i], erroff);
+	}
+	printk("\n");
+
+	/* root complex status */
+	target = calgary_reg(bbar, phboff | PHB_ROOT_COMPLEX_STATUS);
+	rcstat = be32_to_cpu(readl(target));
+	printk(KERN_EMERG "Calgary: 0x%08x@0x%x\n", rcstat,
+	       PHB_ROOT_COMPLEX_STATUS);
+}
+
 static void calgary_watchdog(unsigned long data)
 {
 	struct pci_dev *dev = (struct pci_dev *)data;
-	struct iommu_table *tbl = dev->sysdata;
+	struct iommu_table *tbl = pci_iommu(dev->bus);
 	void __iomem *bbar = tbl->bbar;
 	u32 val32;
 	void __iomem *target;
@@ -758,13 +954,14 @@ static void calgary_watchdog(unsigned long data)
 
 	/* If no error, the agent ID in the CSR is not valid */
 	if (val32 & CSR_AGENT_MASK) {
-		printk(KERN_EMERG "calgary_watchdog: DMA error on PHB %#x, "
-				  "CSR = %#x\n", dev->bus->number, val32);
+		tbl->chip_ops->dump_error_regs(tbl);
+
+		/* reset error */
 		writel(0, target);
 
 		/* Disable bus that caused the error */
 		target = calgary_reg(bbar, phb_offset(tbl->it_busno) |
-					   PHB_CONFIG_RW_OFFSET);
+				     PHB_CONFIG_RW_OFFSET);
 		val32 = be32_to_cpu(readl(target));
 		val32 |= PHB_SLOT_DISABLE;
 		writel(cpu_to_be32(val32), target);
@@ -775,8 +972,8 @@ static void calgary_watchdog(unsigned long data)
 	}
 }
 
-static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
-	unsigned char busnum)
+static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
+	unsigned char busnum, unsigned long timeout)
 {
 	u64 val64;
 	void __iomem *target;
@@ -802,9 +999,38 @@ static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
 	/* zero out this PHB's timer bits */
 	mask = ~(0xFUL << phb_shift);
 	val64 &= mask;
-	val64 |= (CCR_2SEC_TIMEOUT << phb_shift);
+	val64 |= (timeout << phb_shift);
 	writeq(cpu_to_be64(val64), target);
 	readq(target); /* flush */
+}
+
+static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+{
+	unsigned char busnum = dev->bus->number;
+	void __iomem *bbar = tbl->bbar;
+	void __iomem *target;
+	u32 val;
+
+	/*
+	 * CalIOC2 designers recommend setting bit 8 in 0xnDB0 to 1
+	 */
+	target = calgary_reg(bbar, phb_offset(busnum) | PHB_SAVIOR_L2);
+	val = cpu_to_be32(readl(target));
+	val |= 0x00800000;
+	writel(cpu_to_be32(val), target);
+}
+
+static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+{
+	unsigned char busnum = dev->bus->number;
+
+	/*
+	 * Give split completion a longer timeout on bus 1 for aic94xx
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
+	 */
+	if (is_calgary(dev->device) && (busnum == 1))
+		calgary_set_split_completion_timeout(tbl->bbar, busnum,
+						     CCR_2SEC_TIMEOUT);
 }
 
 static void __init calgary_enable_translation(struct pci_dev *dev)
@@ -816,7 +1042,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	struct iommu_table *tbl;
 
 	busnum = dev->bus->number;
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	bbar = tbl->bbar;
 
 	/* enable TCE in PHB Config Register */
@@ -824,19 +1050,14 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 |= PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE;
 
-	printk(KERN_INFO "Calgary: enabling translation on PHB %#x\n", busnum);
+	printk(KERN_INFO "Calgary: enabling translation on %s PHB %#x\n",
+	       (dev->device == PCI_DEVICE_ID_IBM_CALGARY) ?
+	       "Calgary" : "CalIOC2", busnum);
 	printk(KERN_INFO "Calgary: errant DMAs will now be prevented on this "
 	       "bus.\n");
 
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
-
-	/*
-	 * Give split completion a longer timeout on bus 1 for aic94xx
-	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
-	 */
-	if (busnum == 1)
-		calgary_increase_split_completion_timeout(bbar, busnum);
 
 	init_timer(&tbl->watchdog_timer);
 	tbl->watchdog_timer.function = &calgary_watchdog;
@@ -853,7 +1074,7 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 	struct iommu_table *tbl;
 
 	busnum = dev->bus->number;
-	tbl = dev->sysdata;
+	tbl = pci_iommu(dev->bus);
 	bbar = tbl->bbar;
 
 	/* disable TCE in PHB Config Register */
@@ -871,13 +1092,19 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
 {
 	pci_dev_get(dev);
-	dev->sysdata = NULL;
-	dev->bus->self = dev;
+	set_pci_iommu(dev->bus, NULL);
+
+	/* is the device behind a bridge? */
+	if (dev->bus->parent)
+		dev->bus->parent->self = dev;
+	else
+		dev->bus->self = dev;
 }
 
 static int __init calgary_init_one(struct pci_dev *dev)
 {
 	void __iomem *bbar;
+	struct iommu_table *tbl;
 	int ret;
 
 	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
@@ -888,7 +1115,18 @@ static int __init calgary_init_one(struct pci_dev *dev)
 		goto done;
 
 	pci_dev_get(dev);
-	dev->bus->self = dev;
+
+	if (dev->bus->parent) {
+		if (dev->bus->parent->self)
+			printk(KERN_WARNING "Calgary: IEEEE, dev %p has "
+			       "bus->parent->self!\n", dev);
+		dev->bus->parent->self = dev;
+	} else
+		dev->bus->self = dev;
+
+	tbl = pci_iommu(dev->bus);
+	tbl->chip_ops->handle_quirks(tbl, dev);
+
 	calgary_enable_translation(dev);
 
 	return 0;
@@ -924,11 +1162,18 @@ static int __init calgary_locate_bbars(void)
 			target = calgary_reg(bbar, offset);
 
 			val = be32_to_cpu(readl(target));
+
 			start_bus = (u8)((val & 0x00FF0000) >> 16);
 			end_bus = (u8)((val & 0x0000FF00) >> 8);
-			for (bus = start_bus; bus <= end_bus; bus++) {
-				bus_info[bus].bbar = bbar;
-				bus_info[bus].phbid = phb;
+
+			if (end_bus) {
+				for (bus = start_bus; bus <= end_bus; bus++) {
+					bus_info[bus].bbar = bbar;
+					bus_info[bus].phbid = phb;
+				}
+			} else {
+				bus_info[start_bus].bbar = bbar;
+				bus_info[start_bus].phbid = phb;
 			}
 		}
 	}
@@ -948,22 +1193,24 @@ static int __init calgary_init(void)
 {
 	int ret;
 	struct pci_dev *dev = NULL;
+	void *tce_space;
 
 	ret = calgary_locate_bbars();
 	if (ret)
 		return ret;
 
 	do {
-		dev = pci_get_device(PCI_VENDOR_ID_IBM,
-				     PCI_DEVICE_ID_IBM_CALGARY,
-				     dev);
+		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
 		if (!dev)
 			break;
+		if (!is_cal_pci_dev(dev->device))
+			continue;
 		if (!translate_phb(dev)) {
 			calgary_init_one_nontraslated(dev);
 			continue;
 		}
-		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots)
+		tce_space = bus_info[dev->bus->number].tce_space;
+		if (!tce_space && !translate_empty_slots)
 			continue;
 
 		ret = calgary_init_one(dev);
@@ -976,10 +1223,11 @@ static int __init calgary_init(void)
 error:
 	do {
 		dev = pci_get_device_reverse(PCI_VENDOR_ID_IBM,
-					      PCI_DEVICE_ID_IBM_CALGARY,
-					      dev);
+					     PCI_ANY_ID, dev);
 		if (!dev)
 			break;
+		if (!is_cal_pci_dev(dev->device))
+			continue;
 		if (!translate_phb(dev)) {
 			pci_dev_put(dev);
 			continue;
@@ -1057,9 +1305,29 @@ static int __init build_detail_arrays(void)
 	return 0;
 }
 
+static int __init calgary_bus_has_devices(int bus, unsigned short pci_dev)
+{
+	int dev;
+	u32 val;
+
+	if (pci_dev == PCI_DEVICE_ID_IBM_CALIOC2) {
+		/*
+		 * FIXME: properly scan for devices accross the
+		 * PCI-to-PCI bridge on every CalIOC2 port.
+		 */
+		return 1;
+	}
+
+	for (dev = 1; dev < 8; dev++) {
+		val = read_pci_config(bus, dev, 0, 0);
+		if (val != 0xffffffff)
+			break;
+	}
+	return (val != 0xffffffff);
+}
+
 void __init detect_calgary(void)
 {
-	u32 val;
 	int bus;
 	void *tbl;
 	int calgary_found = 0;
@@ -1116,29 +1384,26 @@ void __init detect_calgary(void)
 	specified_table_size = determine_tce_table_size(end_pfn * PAGE_SIZE);
 
 	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {
-		int dev;
 		struct calgary_bus_info *info = &bus_info[bus];
+		unsigned short pci_device;
+		u32 val;
 
-		if (read_pci_config(bus, 0, 0, 0) != PCI_VENDOR_DEVICE_ID_CALGARY)
+		val = read_pci_config(bus, 0, 0, 0);
+		pci_device = (val & 0xFFFF0000) >> 16;
+
+		if (!is_cal_pci_dev(pci_device))
 			continue;
 
 		if (info->translation_disabled)
 			continue;
 
-		/*
-		 * Scan the slots of the PCI bus to see if there is a device present.
-		 * The parent bus will be the zero-ith device, so start at 1.
-		 */
-		for (dev = 1; dev < 8; dev++) {
-			val = read_pci_config(bus, dev, 0, 0);
-			if (val != 0xffffffff || translate_empty_slots) {
-				tbl = alloc_tce_table();
-				if (!tbl)
-					goto cleanup;
-				info->tce_space = tbl;
-				calgary_found = 1;
-				break;
-			}
+		if (calgary_bus_has_devices(bus, pci_device) ||
+		    translate_empty_slots) {
+			tbl = alloc_tce_table();
+			if (!tbl)
+				goto cleanup;
+			info->tce_space = tbl;
+			calgary_found = 1;
 		}
 	}
 
@@ -1249,3 +1514,66 @@ static int __init calgary_parse_options(char *p)
 	return 1;
 }
 __setup("calgary=", calgary_parse_options);
+
+static void __init calgary_fixup_one_tce_space(struct pci_dev *dev)
+{
+	struct iommu_table *tbl;
+	unsigned int npages;
+	int i;
+
+	tbl = pci_iommu(dev->bus);
+
+	for (i = 0; i < 4; i++) {
+		struct resource *r = &dev->resource[PCI_BRIDGE_RESOURCES + i];
+
+		/* Don't give out TCEs that map MEM resources */
+		if (!(r->flags & IORESOURCE_MEM))
+			continue;
+
+		/* 0-based? we reserve the whole 1st MB anyway */
+		if (!r->start)
+			continue;
+
+		/* cover the whole region */
+		npages = (r->end - r->start) >> PAGE_SHIFT;
+		npages++;
+
+		iommu_range_reserve(tbl, r->start, npages);
+	}
+}
+
+static int __init calgary_fixup_tce_spaces(void)
+{
+	struct pci_dev *dev = NULL;
+	void *tce_space;
+
+	if (no_iommu || swiotlb || !calgary_detected)
+		return -ENODEV;
+
+	printk(KERN_DEBUG "Calgary: fixing up tce spaces\n");
+
+	do {
+		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
+		if (!dev)
+			break;
+		if (!is_cal_pci_dev(dev->device))
+			continue;
+		if (!translate_phb(dev))
+			continue;
+
+		tce_space = bus_info[dev->bus->number].tce_space;
+		if (!tce_space)
+			continue;
+
+		calgary_fixup_one_tce_space(dev);
+
+	} while (1);
+
+	return 0;
+}
+
+/*
+ * We need to be call after pcibios_assign_resources (fs_initcall level)
+ * and before device_initcall.
+ */
+rootfs_initcall(calgary_fixup_tce_spaces);

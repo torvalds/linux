@@ -32,6 +32,10 @@ config GENERIC_TIME_VSYSCALL
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
@@ -55,6 +59,14 @@ config MMU
 config ZONE_DMA
 	bool
 	default y
+
+config QUICKLIST
+	bool
+	default y
+
+config NR_QUICK
+	int
+	default 2
 
 config ISA
 	bool
@@ -427,6 +439,10 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU requires
 	  memory in the static kernel configuration.
 
+config PHYSICAL_ALIGN
+	hex
+	default "0x200000"
+
 config HOTPLUG_CPU
 	bool "Support for suspend on SMP and hot-pluggable CPUs (EXPERIMENTAL)"
 	depends on SMP && HOTPLUG && EXPERIMENTAL
@@ -770,8 +786,8 @@ menu "Instrumentation Support"
 source "arch/x86_64/oprofile/Kconfig"
 
 config KPROBES
-	bool "Kprobes (EXPERIMENTAL)"
-	depends on KALLSYMS && EXPERIMENTAL && MODULES
+	bool "Kprobes"
+	depends on KALLSYMS && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

@@ -281,7 +281,6 @@ static ide_pci_device_t ns87415_chipset __devinitdata = {
 	.init_iops	= init_iops_ns87415,
 #endif
 	.init_hwif	= init_hwif_ns87415,
-	.channels	= 2,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
 };

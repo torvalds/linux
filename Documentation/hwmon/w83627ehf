@@ -22,9 +22,9 @@ This driver implements support for the Winbond W83627EHF, W83627EHG, and
 W83627DHG super I/O chips. We will refer to them collectively as Winbond chips.
 
 The chips implement three temperature sensors, five fan rotation
-speed sensors, ten analog voltage sensors (only nine for the 627DHG), alarms
-with beep warnings (control unimplemented), and some automatic fan regulation
-strategies (plus manual fan control mode).
+speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
+VID (6 pins), alarms with beep warnings (control unimplemented), and
+some automatic fan regulation strategies (plus manual fan control mode).
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
 degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when

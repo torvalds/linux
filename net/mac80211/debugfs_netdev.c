@@ -118,7 +118,7 @@ static ssize_t ieee80211_if_fmt_flags(
 			 sdata->u.sta.authenticated ? "AUTH\n" : "",
 			 sdata->u.sta.associated ? "ASSOC\n" : "",
 			 sdata->u.sta.probereq_poll ? "PROBEREQ POLL\n" : "",
-			 sdata->u.sta.use_protection ? "CTS prot\n" : "");
+			 sdata->use_protection ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 
@@ -397,6 +397,8 @@ static int netdev_notify(struct notifier_block * nb,
 			 void *ndev)
 {
 	struct net_device *dev = ndev;
+	struct dentry *dir;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	char buf[10+IFNAMSIZ];
 
 	if (state != NETDEV_CHANGENAME)
@@ -408,10 +410,11 @@ static int netdev_notify(struct notifier_block * nb,
 	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
 		return 0;
 
-	/* TODO
 	sprintf(buf, "netdev:%s", dev->name);
-	debugfs_rename(IEEE80211_DEV_TO_SUB_IF(dev)->debugfsdir, buf);
-	*/
+	dir = sdata->debugfsdir;
+	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
+		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
+		       "dir to %s\n", buf);
 
 	return 0;
 }

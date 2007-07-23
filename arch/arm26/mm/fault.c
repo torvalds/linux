@@ -170,20 +170,20 @@ good_area:
 	 */
 survive:
 	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, DO_COW(fsr));
-
-	/*
-	 * Handle the "normal" cases first - successful and sigbus
-	 */
-	switch (fault) {
-	case VM_FAULT_MAJOR:
-		tsk->maj_flt++;
-		return fault;
-	case VM_FAULT_MINOR:
-		tsk->min_flt++;
-	case VM_FAULT_SIGBUS:
-		return fault;
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			return fault;
+		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		tsk->maj_flt++;
+	else
+		tsk->min_flt++;
+	return fault;
 
+out_of_memory:
 	fault = -3; /* out of memory */
 	if (!is_init(tsk))
 		goto out;
@@ -225,13 +225,11 @@ int do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/*
 	 * Handle the "normal" case first
 	 */
-	switch (fault) {
-	case VM_FAULT_MINOR:
-	case VM_FAULT_MAJOR:
+	if (likely(!(fault & VM_FAULT_ERROR)))
 		return 0;
-	case VM_FAULT_SIGBUS:
+	if (fault & VM_FAULT_SIGBUS)
 		goto do_sigbus;
-	}
+	/* else VM_FAULT_OOM */
 
 	/*
 	 * If we are in kernel mode at this point, we

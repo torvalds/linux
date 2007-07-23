@@ -24,6 +24,8 @@ machine-$(CONFIG_BF533) := bf533
 machine-$(CONFIG_BF534) := bf537
 machine-$(CONFIG_BF536) := bf537
 machine-$(CONFIG_BF537) := bf537
+machine-$(CONFIG_BF548) := bf548
+machine-$(CONFIG_BF549) := bf548
 machine-$(CONFIG_BF561) := bf561
 MACHINE := $(machine-y)
 export MACHINE

@@ -27,13 +27,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Josefsson <gandalf@wlug.westbo.se>");
 MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
-static int
+static bool
 same_check(const char *tablename,
 	      const void *e,
 	      const struct xt_target *target,
@@ -46,58 +40,56 @@ same_check(const char *tablename,
 	mr->ipnum = 0;
 
 	if (mr->rangesize < 1) {
-		DEBUGP("same_check: need at least one dest range.\n");
-		return 0;
+		pr_debug("same_check: need at least one dest range.\n");
+		return false;
 	}
 	if (mr->rangesize > IPT_SAME_MAX_RANGE) {
-		DEBUGP("same_check: too many ranges specified, maximum "
-				"is %u ranges\n",
-				IPT_SAME_MAX_RANGE);
-		return 0;
+		pr_debug("same_check: too many ranges specified, maximum "
+			 "is %u ranges\n", IPT_SAME_MAX_RANGE);
+		return false;
 	}
 	for (count = 0; count < mr->rangesize; count++) {
 		if (ntohl(mr->range[count].min_ip) >
 				ntohl(mr->range[count].max_ip)) {
-			DEBUGP("same_check: min_ip is larger than max_ip in "
-				"range `%u.%u.%u.%u-%u.%u.%u.%u'.\n",
-				NIPQUAD(mr->range[count].min_ip),
-				NIPQUAD(mr->range[count].max_ip));
-			return 0;
+			pr_debug("same_check: min_ip is larger than max_ip in "
+				 "range `%u.%u.%u.%u-%u.%u.%u.%u'.\n",
+				 NIPQUAD(mr->range[count].min_ip),
+				 NIPQUAD(mr->range[count].max_ip));
+			return false;
 		}
 		if (!(mr->range[count].flags & IP_NAT_RANGE_MAP_IPS)) {
-			DEBUGP("same_check: bad MAP_IPS.\n");
-			return 0;
+			pr_debug("same_check: bad MAP_IPS.\n");
+			return false;
 		}
 		rangeip = (ntohl(mr->range[count].max_ip) -
 					ntohl(mr->range[count].min_ip) + 1);
 		mr->ipnum += rangeip;
 
-		DEBUGP("same_check: range %u, ipnum = %u\n", count, rangeip);
+		pr_debug("same_check: range %u, ipnum = %u\n", count, rangeip);
 	}
-	DEBUGP("same_check: total ipaddresses = %u\n", mr->ipnum);
+	pr_debug("same_check: total ipaddresses = %u\n", mr->ipnum);
 
 	mr->iparray = kmalloc((sizeof(u_int32_t) * mr->ipnum), GFP_KERNEL);
 	if (!mr->iparray) {
-		DEBUGP("same_check: Couldn't allocate %u bytes "
-			"for %u ipaddresses!\n",
-			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
-		return 0;
+		pr_debug("same_check: Couldn't allocate %Zu bytes "
+			 "for %u ipaddresses!\n",
+			 (sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
+		return false;
 	}
-	DEBUGP("same_check: Allocated %u bytes for %u ipaddresses.\n",
-			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
+	pr_debug("same_check: Allocated %Zu bytes for %u ipaddresses.\n",
+		 (sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
 
 	for (count = 0; count < mr->rangesize; count++) {
 		for (countess = ntohl(mr->range[count].min_ip);
 				countess <= ntohl(mr->range[count].max_ip);
 					countess++) {
 			mr->iparray[index] = countess;
-			DEBUGP("same_check: Added ipaddress `%u.%u.%u.%u' "
-				"in index %u.\n",
-				HIPQUAD(countess), index);
+			pr_debug("same_check: Added ipaddress `%u.%u.%u.%u' "
+				 "in index %u.\n", HIPQUAD(countess), index);
 			index++;
 		}
 	}
-	return 1;
+	return true;
 }
 
 static void
@@ -107,8 +99,8 @@ same_destroy(const struct xt_target *target, void *targinfo)
 
 	kfree(mr->iparray);
 
-	DEBUGP("same_destroy: Deallocated %u bytes for %u ipaddresses.\n",
-			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
+	pr_debug("same_destroy: Deallocated %Zu bytes for %u ipaddresses.\n",
+		 (sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
 }
 
 static unsigned int
@@ -146,10 +138,9 @@ same_target(struct sk_buff **pskb,
 
 	new_ip = htonl(same->iparray[aindex]);
 
-	DEBUGP("ipt_SAME: src=%u.%u.%u.%u dst=%u.%u.%u.%u, "
-			"new src=%u.%u.%u.%u\n",
-			NIPQUAD(t->src.ip), NIPQUAD(t->dst.ip),
-			NIPQUAD(new_ip));
+	pr_debug("ipt_SAME: src=%u.%u.%u.%u dst=%u.%u.%u.%u, "
+		 "new src=%u.%u.%u.%u\n",
+		 NIPQUAD(t->src.u3.ip), NIPQUAD(t->dst.u3.ip), NIPQUAD(new_ip));
 
 	/* Transfer from original range. */
 	newrange = ((struct nf_nat_range)
@@ -161,7 +152,7 @@ same_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target same_reg = {
+static struct xt_target same_reg __read_mostly = {
 	.name		= "SAME",
 	.family		= AF_INET,
 	.target		= same_target,

@@ -55,8 +55,6 @@ static void dl_done_list (struct ohci_hcd *);
 static void finish_unlinks (struct ohci_hcd *, u16);
 
 #ifdef	CONFIG_PM
-static int ohci_restart(struct ohci_hcd *ohci);
-
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
 __releases(ohci->lock)
 __acquires(ohci->lock)
@@ -191,6 +189,9 @@ __acquires(ohci->lock)
 			spin_unlock_irq (&ohci->lock);
 			(void) ohci_init (ohci);
 			status = ohci_restart (ohci);
+
+			usb_root_hub_lost_power(hcd->self.root_hub);
+
 			spin_lock_irq (&ohci->lock);
 		}
 		return status;

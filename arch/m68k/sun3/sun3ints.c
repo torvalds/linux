@@ -97,7 +97,7 @@ static struct irq_controller sun3_irq_controller = {
 	.disable	= sun3_disable_irq,
 };
 
-void sun3_init_IRQ(void)
+void __init sun3_init_IRQ(void)
 {
 	*sun3_intreg = 1;
 

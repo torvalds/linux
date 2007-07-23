@@ -75,11 +75,7 @@ static int __init cf_init_default(void)
 #if defined(CONFIG_CPU_SH4)
 	allocate_cf_area();
 #endif
-#if defined(CONFIG_SH_UNKNOWN)
-	/* This should be done in each board's init_xxx_irq. */
-	make_imask_irq(14);
-	disable_irq(14);
-#endif
+
 	return 0;
 }
 

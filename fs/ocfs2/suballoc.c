@@ -98,14 +98,6 @@ static int ocfs2_relink_block_group(handle_t *handle,
 				    u16 chain);
 static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg,
 						     u32 wanted);
-static int ocfs2_free_suballoc_bits(handle_t *handle,
-				    struct inode *alloc_inode,
-				    struct buffer_head *alloc_bh,
-				    unsigned int start_bit,
-				    u64 bg_blkno,
-				    unsigned int count);
-static inline u64 ocfs2_which_suballoc_group(u64 block,
-					     unsigned int bit);
 static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 						   u64 bg_blkno,
 						   u16 bg_bit_off);
@@ -496,13 +488,7 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 
 	(*ac)->ac_bits_wanted = ocfs2_extend_meta_needed(fe);
 	(*ac)->ac_which = OCFS2_AC_USE_META;
-
-#ifndef OCFS2_USE_ALL_METADATA_SUBALLOCATORS
-	slot = 0;
-#else
 	slot = osb->slot_num;
-#endif
-
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
@@ -1626,12 +1612,12 @@ bail:
 /*
  * expects the suballoc inode to already be locked.
  */
-static int ocfs2_free_suballoc_bits(handle_t *handle,
-				    struct inode *alloc_inode,
-				    struct buffer_head *alloc_bh,
-				    unsigned int start_bit,
-				    u64 bg_blkno,
-				    unsigned int count)
+int ocfs2_free_suballoc_bits(handle_t *handle,
+			     struct inode *alloc_inode,
+			     struct buffer_head *alloc_bh,
+			     unsigned int start_bit,
+			     u64 bg_blkno,
+			     unsigned int count)
 {
 	int status = 0;
 	u32 tmp_used;
@@ -1703,13 +1689,6 @@ bail:
 	return status;
 }
 
-static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
-{
-	u64 group = block - (u64) bit;
-
-	return group;
-}
-
 int ocfs2_free_dinode(handle_t *handle,
 		      struct inode *inode_alloc_inode,
 		      struct buffer_head *inode_alloc_bh,
@@ -1721,19 +1700,6 @@ int ocfs2_free_dinode(handle_t *handle,
 
 	return ocfs2_free_suballoc_bits(handle, inode_alloc_inode,
 					inode_alloc_bh, bit, bg_blkno, 1);
-}
-
-int ocfs2_free_extent_block(handle_t *handle,
-			    struct inode *eb_alloc_inode,
-			    struct buffer_head *eb_alloc_bh,
-			    struct ocfs2_extent_block *eb)
-{
-	u64 blk = le64_to_cpu(eb->h_blkno);
-	u16 bit = le16_to_cpu(eb->h_suballoc_bit);
-	u64 bg_blkno = ocfs2_which_suballoc_group(blk, bit);
-
-	return ocfs2_free_suballoc_bits(handle, eb_alloc_inode, eb_alloc_bh,
-					bit, bg_blkno, 1);
 }
 
 int ocfs2_free_clusters(handle_t *handle,

@@ -92,6 +92,7 @@ struct relocation_info /* used when header.a_machtype == M_SPARC */
 #include <asm/page.h>
 
 #define STACK_TOP	(PAGE_OFFSET - PAGE_SIZE)
+#define STACK_TOP_MAX	STACK_TOP
 
 #endif /* __KERNEL__ */
 

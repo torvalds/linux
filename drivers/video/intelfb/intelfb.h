@@ -302,7 +302,7 @@ struct intelfb_info {
 	u32 ring_lockup;
 
 	/* palette */
-	u32 pseudo_palette[17];
+	u32 pseudo_palette[16];
 
 	/* chip info */
 	int pci_chipset;

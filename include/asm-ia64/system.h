@@ -259,7 +259,6 @@ extern void ia64_load_extra (struct task_struct *task);
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 
 void cpu_idle_wait(void);
-void sched_cacheflush(void);
 
 #define arch_align_stack(x) (x)
 

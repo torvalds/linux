@@ -4,6 +4,7 @@
 #ifdef __KERNEL__
 
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <asm/compiler.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -90,6 +91,11 @@ static inline void * phys_to_virt(unsigned long address)
 
 #define page_to_phys(page)	page_to_pa(page)
 
+static inline dma_addr_t __deprecated isa_page_to_bus(struct page *page)
+{
+	return page_to_phys(page);
+}
+
 /* This depends on working iommu.  */
 #define BIO_VMERGE_BOUNDARY	(alpha_mv.mv_pci_tbi ? PAGE_SIZE : 0)
 
@@ -102,12 +108,12 @@ static inline void * phys_to_virt(unsigned long address)
  *
  * Note that this only works for a limited range of kernel addresses,
  * and very well may not span all memory.  Consider this interface 
- * deprecated in favour of the mapping functions in <asm/pci.h>.
+ * deprecated in favour of the DMA-mapping API.
  */
 extern unsigned long __direct_map_base;
 extern unsigned long __direct_map_size;
 
-static inline unsigned long virt_to_bus(void *address)
+static inline unsigned long __deprecated virt_to_bus(void *address)
 {
 	unsigned long phys = virt_to_phys(address);
 	unsigned long bus = phys + __direct_map_base;
@@ -115,7 +121,7 @@ static inline unsigned long virt_to_bus(void *address)
 }
 #define isa_virt_to_bus virt_to_bus
 
-static inline void *bus_to_virt(unsigned long address)
+static inline void * __deprecated bus_to_virt(unsigned long address)
 {
 	void *virt;
 
@@ -126,6 +132,7 @@ static inline void *bus_to_virt(unsigned long address)
 	virt = phys_to_virt(address);
 	return (long)address <= 0 ? NULL : virt;
 }
+#define isa_bus_to_virt bus_to_virt
 
 /*
  * There are different chipsets to interface the Alpha CPUs to the world.

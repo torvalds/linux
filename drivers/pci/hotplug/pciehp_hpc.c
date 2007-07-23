@@ -275,11 +275,19 @@ static inline int pcie_wait_cmd(struct controller *ctrl)
 	return retval;
 }
 
-static int pcie_write_cmd(struct slot *slot, u16 cmd)
+/**
+ * pcie_write_cmd - Issue controller command
+ * @slot: slot to which the command is issued
+ * @cmd:  command value written to slot control register
+ * @mask: bitmask of slot control register to be modified
+ */
+static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 {
 	struct controller *ctrl = slot->ctrl;
 	int retval = 0;
 	u16 slot_status;
+	u16 slot_ctrl;
+	unsigned long flags;
 
 	DBG_ENTER_ROUTINE 
 
@@ -299,17 +307,29 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd)
 		    __FUNCTION__);
 	}
 
-	ctrl->cmd_busy = 1;
-	retval = pciehp_writew(ctrl, SLOTCTRL, (cmd | CMD_CMPL_INTR_ENABLE));
+	spin_lock_irqsave(&ctrl->lock, flags);
+	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
 	if (retval) {
-		err("%s: Cannot write to SLOTCTRL register\n", __FUNCTION__);
-		goto out;
+		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
+		goto out_spin_unlock;
 	}
+
+	slot_ctrl &= ~mask;
+	slot_ctrl |= ((cmd & mask) | CMD_CMPL_INTR_ENABLE);
+
+	ctrl->cmd_busy = 1;
+	retval = pciehp_writew(ctrl, SLOTCTRL, slot_ctrl);
+	if (retval)
+		err("%s: Cannot write to SLOTCTRL register\n", __FUNCTION__);
+
+ out_spin_unlock:
+	spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	/*
 	 * Wait for command completion.
 	 */
-	retval = pcie_wait_cmd(ctrl);
+	if (!retval)
+		retval = pcie_wait_cmd(ctrl);
  out:
 	mutex_unlock(&ctrl->ctrl_lock);
 	DBG_LEAVE_ROUTINE 
@@ -502,25 +522,20 @@ static int hpc_get_emi_status(struct slot *slot, u8 *status)
 
 static int hpc_toggle_emi(struct slot *slot)
 {
-	struct controller *ctrl = slot->ctrl;
-	u16 slot_cmd = 0;
-	u16 slot_ctrl;
-	int rc = 0;
+	u16 slot_cmd;
+	u16 cmd_mask;
+	int rc;
 
 	DBG_ENTER_ROUTINE
 
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s : hp_register_read_word SLOT_CTRL failed\n",
-			__FUNCTION__);
-		return rc;
+	slot_cmd = EMI_CTRL;
+	cmd_mask = EMI_CTRL;
+	if (!pciehp_poll_mode) {
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask | HP_INTR_ENABLE;
 	}
 
-	slot_cmd = (slot_ctrl | EMI_CTRL);
-	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-
-	pcie_write_cmd(slot, slot_cmd);
+	rc = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	slot->last_emi_toggle = get_seconds();
 	DBG_LEAVE_ROUTINE
 	return rc;
@@ -529,35 +544,32 @@ static int hpc_toggle_emi(struct slot *slot)
 static int hpc_set_attention_status(struct slot *slot, u8 value)
 {
 	struct controller *ctrl = slot->ctrl;
-	u16 slot_cmd = 0;
-	u16 slot_ctrl;
-	int rc = 0;
+	u16 slot_cmd;
+	u16 cmd_mask;
+	int rc;
 
 	DBG_ENTER_ROUTINE
 
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return rc;
-	}
-
+	cmd_mask = ATTN_LED_CTRL;
 	switch (value) {
 		case 0 :	/* turn off */
-			slot_cmd = (slot_ctrl & ~ATTN_LED_CTRL) | 0x00C0;
+			slot_cmd = 0x00C0;
 			break;
 		case 1:		/* turn on */
-			slot_cmd = (slot_ctrl & ~ATTN_LED_CTRL) | 0x0040;
+			slot_cmd = 0x0040;
 			break;
 		case 2:		/* turn blink */
-			slot_cmd = (slot_ctrl & ~ATTN_LED_CTRL) | 0x0080;
+			slot_cmd = 0x0080;
 			break;
 		default:
 			return -1;
 	}
-	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
+	if (!pciehp_poll_mode) {
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask | HP_INTR_ENABLE;
+	}
 
-	pcie_write_cmd(slot, slot_cmd);
+	rc = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 	
@@ -570,21 +582,18 @@ static void hpc_set_green_led_on(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
-	u16 slot_ctrl;
-	int rc = 0;
+	u16 cmd_mask;
        	
 	DBG_ENTER_ROUTINE
 
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return;
+	slot_cmd = 0x0100;
+	cmd_mask = PWR_LED_CTRL;
+	if (!pciehp_poll_mode) {
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask | HP_INTR_ENABLE;
 	}
-	slot_cmd = (slot_ctrl & ~PWR_LED_CTRL) | 0x0100;
-	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
 
-	pcie_write_cmd(slot, slot_cmd);
+	pcie_write_cmd(slot, slot_cmd, cmd_mask);
 
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
@@ -596,22 +605,18 @@ static void hpc_set_green_led_off(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
-	u16 slot_ctrl;
-	int rc = 0;
+	u16 cmd_mask;
 
 	DBG_ENTER_ROUTINE
 
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return;
+	slot_cmd = 0x0300;
+	cmd_mask = PWR_LED_CTRL;
+	if (!pciehp_poll_mode) {
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask | HP_INTR_ENABLE;
 	}
 
-	slot_cmd = (slot_ctrl & ~PWR_LED_CTRL) | 0x0300;
-
-	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
-	pcie_write_cmd(slot, slot_cmd);
+	pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 
@@ -623,22 +628,18 @@ static void hpc_set_green_led_blink(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
-	u16 slot_ctrl;
-	int rc = 0; 
+	u16 cmd_mask;
 	
 	DBG_ENTER_ROUTINE
 
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return;
+	slot_cmd = 0x0200;
+	cmd_mask = PWR_LED_CTRL;
+	if (!pciehp_poll_mode) {
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask | HP_INTR_ENABLE;
 	}
 
-	slot_cmd = (slot_ctrl & ~PWR_LED_CTRL) | 0x0200;
-
-	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
-	pcie_write_cmd(slot, slot_cmd);
+	pcie_write_cmd(slot, slot_cmd, cmd_mask);
 
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
@@ -669,7 +670,8 @@ static int hpc_power_on_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
-	u16 slot_ctrl, slot_status;
+	u16 cmd_mask;
+	u16 slot_status;
 	int retval = 0;
 
 	DBG_ENTER_ROUTINE 
@@ -692,23 +694,23 @@ static int hpc_power_on_slot(struct slot * slot)
 		}
 	}
 
-	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (retval) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return retval;
-	}
-
-	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_ON;
-
+	slot_cmd = POWER_ON;
+	cmd_mask = PWR_CTRL;
 	/* Enable detection that we turned off at slot power-off time */
-	if (!pciehp_poll_mode)
+	if (!pciehp_poll_mode) {
 		slot_cmd = slot_cmd |
 		           PWR_FAULT_DETECT_ENABLE |
 		           MRL_DETECT_ENABLE |
 		           PRSN_DETECT_ENABLE |
 		           HP_INTR_ENABLE;
+		cmd_mask = cmd_mask |
+		           PWR_FAULT_DETECT_ENABLE |
+		           MRL_DETECT_ENABLE |
+		           PRSN_DETECT_ENABLE |
+		           HP_INTR_ENABLE;
+	}
 
-	retval = pcie_write_cmd(slot, slot_cmd);
+	retval = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 
 	if (retval) {
 		err("%s: Write %x command failed!\n", __FUNCTION__, slot_cmd);
@@ -726,21 +728,15 @@ static int hpc_power_off_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
-	u16 slot_ctrl;
+	u16 cmd_mask;
 	int retval = 0;
 
 	DBG_ENTER_ROUTINE 
 
 	dbg("%s: slot->hp_slot %x\n", __FUNCTION__, slot->hp_slot);
 
-	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (retval) {
-		err("%s: Cannot read SLOTCTRL register\n", __FUNCTION__);
-		return retval;
-	}
-
-	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_OFF;
-
+	slot_cmd = POWER_OFF;
+	cmd_mask = PWR_CTRL;
 	/*
 	 * If we get MRL or presence detect interrupts now, the isr
 	 * will notice the sticky power-fault bit too and issue power
@@ -748,14 +744,19 @@ static int hpc_power_off_slot(struct slot * slot)
 	 * of command completions, since the power-fault bit remains on
 	 * till the slot is powered on again.
 	 */
-	if (!pciehp_poll_mode)
+	if (!pciehp_poll_mode) {
 		slot_cmd = (slot_cmd &
 		            ~PWR_FAULT_DETECT_ENABLE &
 		            ~MRL_DETECT_ENABLE &
 		            ~PRSN_DETECT_ENABLE) | HP_INTR_ENABLE;
+		cmd_mask = cmd_mask |
+			   PWR_FAULT_DETECT_ENABLE |
+			   MRL_DETECT_ENABLE |
+			   PRSN_DETECT_ENABLE |
+			   HP_INTR_ENABLE;
+	}
 
-	retval = pcie_write_cmd(slot, slot_cmd);
-
+	retval = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
 		return -1;
@@ -775,6 +776,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	u16 temp_word;
 	int hp_slot = 0;	/* only 1 slot per PCI Express port */
 	int rc = 0;
+	unsigned long flags;
 
 	rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (rc) {
@@ -794,10 +796,12 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	dbg("%s: intr_loc %x\n", __FUNCTION__, intr_loc);
 	/* Mask Hot-plug Interrupt Enable */
 	if (!pciehp_poll_mode) {
+		spin_lock_irqsave(&ctrl->lock, flags);
 		rc = pciehp_readw(ctrl, SLOTCTRL, &temp_word);
 		if (rc) {
 			err("%s: Cannot read SLOT_CTRL register\n",
 			    __FUNCTION__);
+			spin_unlock_irqrestore(&ctrl->lock, flags);
 			return IRQ_NONE;
 		}
 
@@ -808,8 +812,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		if (rc) {
 			err("%s: Cannot write to SLOTCTRL register\n",
 			    __FUNCTION__);
+			spin_unlock_irqrestore(&ctrl->lock, flags);
 			return IRQ_NONE;
 		}
+		spin_unlock_irqrestore(&ctrl->lock, flags);
 
 		rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 		if (rc) {
@@ -859,10 +865,12 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	}
 	/* Unmask Hot-plug Interrupt Enable */
 	if (!pciehp_poll_mode) {
+		spin_lock_irqsave(&ctrl->lock, flags);
 		rc = pciehp_readw(ctrl, SLOTCTRL, &temp_word);
 		if (rc) {
 			err("%s: Cannot read SLOTCTRL register\n",
 			    __FUNCTION__);
+			spin_unlock_irqrestore(&ctrl->lock, flags);
 			return IRQ_NONE;
 		}
 
@@ -873,8 +881,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		if (rc) {
 			err("%s: Cannot write to SLOTCTRL register\n",
 			    __FUNCTION__);
+			spin_unlock_irqrestore(&ctrl->lock, flags);
 			return IRQ_NONE;
 		}
+		spin_unlock_irqrestore(&ctrl->lock, flags);
 
 		rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 		if (rc) {
@@ -1237,6 +1247,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
+	spin_lock_init(&ctrl->lock);
 
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);

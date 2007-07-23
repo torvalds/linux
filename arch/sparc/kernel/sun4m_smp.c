@@ -31,6 +31,8 @@
 #include <asm/oplib.h>
 #include <asm/cpudata.h>
 
+#include "irq.h"
+
 #define IRQ_RESCHEDULE		13
 #define IRQ_STOP_CPU		14
 #define IRQ_CROSS_CALL		15

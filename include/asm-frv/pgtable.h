@@ -377,29 +377,16 @@ static inline pmd_t *pmd_offset(pud_t *dir, unsigned long address)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_read(pte_t pte)		{ return !((pte).pte & _PAGE_SUPER); }
-static inline int pte_exec(pte_t pte)		{ return !((pte).pte & _PAGE_SUPER); }
 static inline int pte_dirty(pte_t pte)		{ return (pte).pte & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return (pte).pte & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return !((pte).pte & _PAGE_WP); }
 
-static inline pte_t pte_rdprotect(pte_t pte)	{ (pte).pte |= _PAGE_SUPER; return pte; }
-static inline pte_t pte_exprotect(pte_t pte)	{ (pte).pte |= _PAGE_SUPER; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ (pte).pte &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ (pte).pte &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_wrprotect(pte_t pte)	{ (pte).pte |= _PAGE_WP; return pte; }
-static inline pte_t pte_mkread(pte_t pte)	{ (pte).pte &= ~_PAGE_SUPER; return pte; }
-static inline pte_t pte_mkexec(pte_t pte)	{ (pte).pte &= ~_PAGE_SUPER; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte &= ~_PAGE_WP; return pte; }
-
-static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
-{
-	int i = test_and_clear_bit(_PAGE_BIT_DIRTY, ptep);
-	asm volatile("dcf %M0" :: "U"(*ptep));
-	return i;
-}
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
@@ -510,7 +497,6 @@ static inline int pte_file(pte_t pte)
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME

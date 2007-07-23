@@ -250,7 +250,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations sctp_eps_ops = {
+static const struct seq_operations sctp_eps_ops = {
 	.start = sctp_eps_seq_start,
 	.next  = sctp_eps_seq_next,
 	.stop  = sctp_eps_seq_stop,
@@ -361,7 +361,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations sctp_assoc_ops = {
+static const struct seq_operations sctp_assoc_ops = {
 	.start = sctp_assocs_seq_start,
 	.next  = sctp_assocs_seq_next,
 	.stop  = sctp_assocs_seq_stop,

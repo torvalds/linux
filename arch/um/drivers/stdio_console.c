@@ -46,8 +46,6 @@ static struct chan_opts opts = {
 	.announce 	= stdio_announce,
 	.xterm_title	= "Virtual Console #%d",
 	.raw		= 1,
-	.tramp_stack 	= 0,
-	.in_kernel 	= 1,
 };
 
 static int con_config(char *str, char **error_out);
@@ -101,7 +99,12 @@ static int con_remove(int n, char **error_out)
 
 static int con_open(struct tty_struct *tty, struct file *filp)
 {
-	return line_open(vts, tty);
+	int err = line_open(vts, tty);
+	if (err)
+		printk(KERN_ERR "Failed to open console %d, err = %d\n",
+		       tty->index, err);
+
+	return err;
 }
 
 /* Set in an initcall, checked in an exitcall */

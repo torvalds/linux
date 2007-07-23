@@ -63,6 +63,7 @@ extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
 extern void init_tsc_clocksource(void);
+int check_tsc_unstable(void);
 
 /*
  * Boot-time check whether the TSCs are synchronized across

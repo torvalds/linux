@@ -211,14 +211,17 @@ void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
  * DESCRIPTION: Get a local copy of the FADT and convert it to a common format.
  *              Performs validation on some important FADT fields.
  *
+ * NOTE:        We create a local copy of the FADT regardless of the version.
+ *
  ******************************************************************************/
 
 void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 {
 
 	/*
-	 * Check if the FADT is larger than what we know about (ACPI 2.0 version).
-	 * Truncate the table, but make some noise.
+	 * Check if the FADT is larger than the largest table that we expect
+	 * (the ACPI 2.0/3.0 version). If so, truncate the table, and issue
+	 * a warning.
 	 */
 	if (length > sizeof(struct acpi_table_fadt)) {
 		ACPI_WARNING((AE_INFO,
@@ -227,9 +230,11 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 			      sizeof(struct acpi_table_fadt)));
 	}
 
-	/* Copy the entire FADT locally. Zero first for tb_convert_fadt */
+	/* Clear the entire local FADT */
 
 	ACPI_MEMSET(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
+
+	/* Copy the original FADT, up to sizeof (struct acpi_table_fadt) */
 
 	ACPI_MEMCPY(&acpi_gbl_FADT, table,
 		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
@@ -251,7 +256,7 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  * RETURN:      None
  *
  * DESCRIPTION: Converts all versions of the FADT to a common internal format.
- *              -> Expand all 32-bit addresses to 64-bit.
+ *              Expand all 32-bit addresses to 64-bit.
  *
  * NOTE:        acpi_gbl_FADT must be of size (struct acpi_table_fadt),
  *              and must contain a copy of the actual FADT.
@@ -292,8 +297,23 @@ static void acpi_tb_convert_fadt(void)
 	}
 
 	/*
-	 * Expand the 32-bit V1.0 addresses to the 64-bit "X" generic address
-	 * structures as necessary.
+	 * For ACPI 1.0 FADTs (revision 1 or 2), ensure that reserved fields which
+	 * should be zero are indeed zero. This will workaround BIOSs that
+	 * inadvertently place values in these fields.
+	 *
+	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located at
+	 * offset 45, 55, 95, and the word located at offset 109, 110.
+	 */
+	if (acpi_gbl_FADT.header.revision < 3) {
+		acpi_gbl_FADT.preferred_profile = 0;
+		acpi_gbl_FADT.pstate_control = 0;
+		acpi_gbl_FADT.cst_control = 0;
+		acpi_gbl_FADT.boot_flags = 0;
+	}
+
+	/*
+	 * Expand the ACPI 1.0 32-bit V1.0 addresses to the ACPI 2.0 64-bit "X"
+	 * generic address structures as necessary.
 	 */
 	for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++) {
 		target =
@@ -348,18 +368,6 @@ static void acpi_tb_convert_fadt(void)
 		acpi_gbl_xpm1b_enable.space_id =
 		    acpi_gbl_FADT.xpm1a_event_block.space_id;
 
-	}
-
-	/*
-	 * For ACPI 1.0 FADTs, ensure that reserved fields (which should be zero)
-	 * are indeed zero. This will workaround BIOSs that inadvertently placed
-	 * values in these fields.
-	 */
-	if (acpi_gbl_FADT.header.revision < 3) {
-		acpi_gbl_FADT.preferred_profile = 0;
-		acpi_gbl_FADT.pstate_control = 0;
-		acpi_gbl_FADT.cst_control = 0;
-		acpi_gbl_FADT.boot_flags = 0;
 	}
 }
 

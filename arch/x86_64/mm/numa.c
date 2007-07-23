@@ -273,9 +273,6 @@ void __init numa_init_array(void)
 
 #ifdef CONFIG_NUMA_EMU
 /* Numa emulation */
-#define E820_ADDR_HOLE_SIZE(start, end)					\
-	(e820_hole_size((start) >> PAGE_SHIFT, (end) >> PAGE_SHIFT) <<	\
-	PAGE_SHIFT)
 char *cmdline __initdata;
 
 /*
@@ -319,7 +316,7 @@ static int __init split_nodes_equally(struct bootnode *nodes, u64 *addr,
 		return -1;
 	if (num_nodes > MAX_NUMNODES)
 		num_nodes = MAX_NUMNODES;
-	size = (max_addr - *addr - E820_ADDR_HOLE_SIZE(*addr, max_addr)) /
+	size = (max_addr - *addr - e820_hole_size(*addr, max_addr)) /
 	       num_nodes;
 	/*
 	 * Calculate the number of big nodes that can be allocated as a result
@@ -347,7 +344,7 @@ static int __init split_nodes_equally(struct bootnode *nodes, u64 *addr,
 		if (i == num_nodes + node_start - 1)
 			end = max_addr;
 		else
-			while (end - *addr - E820_ADDR_HOLE_SIZE(*addr, end) <
+			while (end - *addr - e820_hole_size(*addr, end) <
 			       size) {
 				end += FAKE_NODE_MIN_SIZE;
 				if (end > max_addr) {
@@ -476,18 +473,22 @@ out:
 
 	/*
 	 * We need to vacate all active ranges that may have been registered by
-	 * SRAT.
+	 * SRAT and set acpi_numa to -1 so that srat_disabled() always returns
+	 * true.  NUMA emulation has succeeded so we will not scan ACPI nodes.
 	 */
 	remove_all_active_ranges();
+#ifdef CONFIG_ACPI_NUMA
+	acpi_numa = -1;
+#endif
 	for_each_node_mask(i, node_possible_map) {
 		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
 						nodes[i].end >> PAGE_SHIFT);
  		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
+	acpi_fake_nodes(nodes, num_nodes);
  	numa_init_array();
  	return 0;
 }
-#undef E820_ADDR_HOLE_SIZE
 #endif /* CONFIG_NUMA_EMU */
 
 void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)

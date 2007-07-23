@@ -16,6 +16,7 @@
 #include <asm/system.h>
 #include <asm/spitfire.h>
 #include <asm/pstate.h>
+#include <asm/ldc.h>
 
 struct {
 	long prom_callback;			/* 0x00 */

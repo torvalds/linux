@@ -1205,8 +1205,8 @@ static int au1000_rx(struct net_device *dev)
 				continue;
 			}
 			skb_reserve(skb, 2);	/* 16 byte IP header align */
-			eth_copy_and_sum(skb,
-				(unsigned char *)pDB->vaddr, frmlen, 0);
+			skb_copy_to_linear_data(skb,
+				(unsigned char *)pDB->vaddr, frmlen);
 			skb_put(skb, frmlen);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);	/* pass the packet to upper layers */

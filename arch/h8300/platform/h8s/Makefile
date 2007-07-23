@@ -4,4 +4,4 @@
 # Reuse any files we can from the H8S
 #
 
-obj-y := entry.o ints_h8s.o ptrace_h8s.o
+obj-y := ints_h8s.o ptrace_h8s.o

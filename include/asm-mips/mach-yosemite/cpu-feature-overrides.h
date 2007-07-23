@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003, 2004 Ralf Baechle
+ * Copyright (C) 2003, 04, 07 Ralf Baechle (ralf@linux-mips.org)
  */
 #ifndef __ASM_MACH_YOSEMITE_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_YOSEMITE_CPU_FEATURE_OVERRIDES_H
@@ -26,6 +26,8 @@
 #define cpu_has_dc_aliases	0
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
+#define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 #define cpu_icache_snoops_remote_store	0
 
 #define cpu_has_nofpuex		0

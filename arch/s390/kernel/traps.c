@@ -262,6 +262,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
+	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
@@ -319,7 +320,7 @@ static void __kprobes inline do_trap(long interruption_code, int signr,
 		else {
 			enum bug_trap_type btt;
 
-			btt = report_bug(regs->psw.addr & PSW_ADDR_INSN);
+			btt = report_bug(regs->psw.addr & PSW_ADDR_INSN, regs);
 			if (btt == BUG_TRAP_TYPE_WARN)
 				return;
 			die(str, regs, interruption_code);

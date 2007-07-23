@@ -253,6 +253,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	dev->dev.bus = &usb_bus_type;
 	dev->dev.type = &usb_device_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
+	set_dev_node(&dev->dev, dev_to_node(bus->controller));
 	dev->state = USB_STATE_ATTACHED;
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
@@ -578,11 +579,12 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
  * address (through the pointer provided).
  *
  * These buffers are used with URB_NO_xxx_DMA_MAP set in urb->transfer_flags
- * to avoid behaviors like using "DMA bounce buffers", or tying down I/O
- * mapping hardware for long idle periods.  The implementation varies between
+ * to avoid behaviors like using "DMA bounce buffers", or thrashing IOMMU
+ * hardware during URB completion/resubmit.  The implementation varies between
  * platforms, depending on details of how DMA will work to this device.
- * Using these buffers also helps prevent cacheline sharing problems on
- * architectures where CPU caches are not DMA-coherent.
+ * Using these buffers also eliminates cacheline sharing problems on
+ * architectures where CPU caches are not DMA-coherent.  On systems without
+ * bus-snooping caches, these buffers are uncached.
  *
  * When the buffer is no longer used, free it with usb_buffer_free().
  */
@@ -607,7 +609,7 @@ void *usb_buffer_alloc(
  *
  * This reclaims an I/O buffer, letting it be reused.  The memory must have
  * been allocated using usb_buffer_alloc(), and the parameters must match
- * those provided in that allocation request. 
+ * those provided in that allocation request.
  */
 void usb_buffer_free(
 	struct usb_device *dev,

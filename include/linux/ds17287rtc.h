@@ -11,7 +11,6 @@
 #define __LINUX_DS17287RTC_H
 
 #include <linux/rtc.h>			/* get the user-level API */
-#include <linux/spinlock.h>		/* spinlock_t */
 #include <linux/mc146818rtc.h>
 
 /* Register A */

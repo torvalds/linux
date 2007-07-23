@@ -738,6 +738,7 @@ static void change_speed(struct async_struct *info,
 	}
 	/* If the quotient is zero refuse the change */
 	if (!quot && old_termios) {
+		/* FIXME: Will need updating for new tty in the end */
 		info->tty->termios->c_cflag &= ~CBAUD;
 		info->tty->termios->c_cflag |= (old_termios->c_cflag & CBAUD);
 		baud = tty_get_baud_rate(info->tty);
@@ -783,7 +784,6 @@ static void change_speed(struct async_struct *info,
 	/*
 	 * Set up parity check flag
 	 */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 	info->read_status_mask = UART_LSR_OE | UART_LSR_DR;
 	if (I_INPCK(info->tty))
@@ -1367,11 +1367,6 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	unsigned long flags;
 	unsigned int cflag = tty->termios->c_cflag;
 
-	if (   (cflag == old_termios->c_cflag)
-	    && (   RELEVANT_IFLAG(tty->termios->c_iflag) 
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-	  return;
-
 	change_speed(info, old_termios);
 
 	/* Handle transition to B0 status */
@@ -1726,12 +1721,11 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 		*ret_info = sstate->info;
 		return 0;
 	}
-	info = kmalloc(sizeof(struct async_struct), GFP_KERNEL);
+	info = kzalloc(sizeof(struct async_struct), GFP_KERNEL);
 	if (!info) {
 		sstate->count--;
 		return -ENOMEM;
 	}
-	memset(info, 0, sizeof(struct async_struct));
 #ifdef DECLARE_WAITQUEUE
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);

@@ -34,11 +34,12 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/rtnetlink.h>
+#include <net/rtnetlink.h>
 
 static int numdummies = 1;
 
 static int dummy_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *dummy_get_stats(struct net_device *dev);
 
 static int dummy_set_address(struct net_device *dev, void *p)
 {
@@ -56,13 +57,13 @@ static void set_multicast_list(struct net_device *dev)
 {
 }
 
-static void __init dummy_setup(struct net_device *dev)
+static void dummy_setup(struct net_device *dev)
 {
 	/* Initialize the device structure. */
-	dev->get_stats = dummy_get_stats;
 	dev->hard_start_xmit = dummy_xmit;
 	dev->set_multicast_list = set_multicast_list;
 	dev->set_mac_address = dummy_set_address;
+	dev->destructor = free_netdev;
 
 	/* Fill in device structure with ethernet-generic values. */
 	ether_setup(dev);
@@ -76,77 +77,80 @@ static void __init dummy_setup(struct net_device *dev)
 
 static int dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
-
-	stats->tx_packets++;
-	stats->tx_bytes+=skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	dev_kfree_skb(skb);
 	return 0;
 }
 
-static struct net_device_stats *dummy_get_stats(struct net_device *dev)
+static int dummy_validate(struct nlattr *tb[], struct nlattr *data[])
 {
-	return netdev_priv(dev);
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+	return 0;
 }
 
-static struct net_device **dummies;
+static struct rtnl_link_ops dummy_link_ops __read_mostly = {
+	.kind		= "dummy",
+	.setup		= dummy_setup,
+	.validate	= dummy_validate,
+};
 
 /* Number of dummy devices to be set up by this module. */
 module_param(numdummies, int, 0);
 MODULE_PARM_DESC(numdummies, "Number of dummy pseudo devices");
 
-static int __init dummy_init_one(int index)
+static int __init dummy_init_one(void)
 {
 	struct net_device *dev_dummy;
 	int err;
 
-	dev_dummy = alloc_netdev(sizeof(struct net_device_stats),
-				 "dummy%d", dummy_setup);
-
+	dev_dummy = alloc_netdev(0, "dummy%d", dummy_setup);
 	if (!dev_dummy)
 		return -ENOMEM;
 
-	if ((err = register_netdev(dev_dummy))) {
-		free_netdev(dev_dummy);
-		dev_dummy = NULL;
-	} else {
-		dummies[index] = dev_dummy;
-	}
+	err = dev_alloc_name(dev_dummy, dev_dummy->name);
+	if (err < 0)
+		goto err;
 
+	dev_dummy->rtnl_link_ops = &dummy_link_ops;
+	err = register_netdevice(dev_dummy);
+	if (err < 0)
+		goto err;
+	return 0;
+
+err:
+	free_netdev(dev_dummy);
 	return err;
-}
-
-static void dummy_free_one(int index)
-{
-	unregister_netdev(dummies[index]);
-	free_netdev(dummies[index]);
 }
 
 static int __init dummy_init_module(void)
 {
 	int i, err = 0;
-	dummies = kmalloc(numdummies * sizeof(void *), GFP_KERNEL);
-	if (!dummies)
-		return -ENOMEM;
+
+	rtnl_lock();
+	err = __rtnl_link_register(&dummy_link_ops);
+
 	for (i = 0; i < numdummies && !err; i++)
-		err = dummy_init_one(i);
-	if (err) {
-		i--;
-		while (--i >= 0)
-			dummy_free_one(i);
-	}
+		err = dummy_init_one();
+	if (err < 0)
+		__rtnl_link_unregister(&dummy_link_ops);
+	rtnl_unlock();
+
 	return err;
 }
 
 static void __exit dummy_cleanup_module(void)
 {
-	int i;
-	for (i = 0; i < numdummies; i++)
-		dummy_free_one(i);
-	kfree(dummies);
+	rtnl_link_unregister(&dummy_link_ops);
 }
 
 module_init(dummy_init_module);
 module_exit(dummy_cleanup_module);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_RTNL_LINK("dummy");

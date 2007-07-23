@@ -87,7 +87,7 @@ extern unsigned long dart_tablebase;
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
-hpte_t *htab_address;
+struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 int mmu_linear_psize = MMU_PAGE_4K;
@@ -609,7 +609,7 @@ static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	mm->context.sllp = SLB_VSID_USER | mmu_psize_defs[MMU_PAGE_4K].sllp;
 #endif /* CONFIG_PPC_MM_SLICES */
 
-#ifdef CONFIG_SPE_BASE
+#ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif
 }
@@ -744,7 +744,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
-#ifdef CONFIG_SPE_BASE
+#ifdef CONFIG_SPU_BASE
 			spu_flush_all_slbs(mm);
 #endif
 		}

@@ -31,16 +31,13 @@ MODULE_LICENSE("GPL");
 #endif
 
 /* Returns 1 if the type is matched by the range, 0 otherwise */
-static inline int
-type_match(u_int8_t min, u_int8_t max, u_int8_t type, int invert)
+static inline bool
+type_match(u_int8_t min, u_int8_t max, u_int8_t type, bool invert)
 {
-	int ret;
-
-	ret = (type >= min && type <= max) ^ invert;
-	return ret;
+	return (type >= min && type <= max) ^ invert;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
@@ -48,29 +45,30 @@ match(const struct sk_buff *skb,
 	 const void *matchinfo,
 	 int offset,
 	 unsigned int protoff,
-	 int *hotdrop)
+	 bool *hotdrop)
 {
-	struct ip6_mh _mh, *mh;
+	struct ip6_mh _mh;
+	const struct ip6_mh *mh;
 	const struct ip6t_mh *mhinfo = matchinfo;
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	mh = skb_header_pointer(skb, protoff, sizeof(_mh), &_mh);
 	if (mh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil MH tinygram.\n");
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
 		duprintf("Dropping invalid MH Payload Proto: %u\n",
 			 mh->ip6mh_proto);
-		*hotdrop = 1;
-		return 0;
+		*hotdrop = true;
+		return false;
 	}
 
 	return type_match(mhinfo->types[0], mhinfo->types[1], mh->ip6mh_type,
@@ -78,7 +76,7 @@ match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 mh_checkentry(const char *tablename,
 	      const void *entry,
 	      const struct xt_match *match,
@@ -91,7 +89,7 @@ mh_checkentry(const char *tablename,
 	return !(mhinfo->invflags & ~IP6T_MH_INV_MASK);
 }
 
-static struct xt_match mh_match = {
+static struct xt_match mh_match __read_mostly = {
 	.name		= "mh",
 	.family		= AF_INET6,
 	.checkentry	= mh_checkentry,

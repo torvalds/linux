@@ -35,7 +35,7 @@ void _insb(const volatile u8 __iomem *port, void *buf, long count)
 	asm volatile("sync");
 	do {
 		tmp = *port;
-		asm volatile("eieio");
+		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
 	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
@@ -66,7 +66,7 @@ void _insw_ns(const volatile u16 __iomem *port, void *buf, long count)
 	asm volatile("sync");
 	do {
 		tmp = *port;
-		asm volatile("eieio");
+		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
 	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
@@ -97,7 +97,7 @@ void _insl_ns(const volatile u32 __iomem *port, void *buf, long count)
 	asm volatile("sync");
 	do {
 		tmp = *port;
-		asm volatile("eieio");
+		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
 	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
@@ -155,21 +155,21 @@ void _memcpy_fromio(void *dest, const volatile void __iomem *src,
 	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && (!IO_CHECK_ALIGN(vsrc, 4) || !IO_CHECK_ALIGN(dest, 4))) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
-		__asm__ __volatile__ ("eieio" : : : "memory");
+		eieio();
 		vsrc++;
 		dest++;
 		n--;
 	}
 	while(n > 4) {
 		*((u32 *)dest) = *((volatile u32 *)vsrc);
-		__asm__ __volatile__ ("eieio" : : : "memory");
+		eieio();
 		vsrc += 4;
 		dest += 4;
 		n -= 4;
 	}
 	while(n) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
-		__asm__ __volatile__ ("eieio" : : : "memory");
+		eieio();
 		vsrc++;
 		dest++;
 		n--;

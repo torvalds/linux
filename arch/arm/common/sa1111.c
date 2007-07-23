@@ -51,6 +51,9 @@ struct sa1111 {
 	int		irq;
 	spinlock_t	lock;
 	void __iomem	*base;
+#ifdef CONFIG_PM
+	void		*saved_state;
+#endif
 };
 
 /*
@@ -822,7 +825,7 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 	save = kmalloc(sizeof(struct sa1111_save_data), GFP_KERNEL);
 	if (!save)
 		return -ENOMEM;
-	dev->dev.power.saved_state = save;
+	sachip->saved_state = save;
 
 	spin_lock_irqsave(&sachip->lock, flags);
 
@@ -878,7 +881,7 @@ static int sa1111_resume(struct platform_device *dev)
 	unsigned long flags, id;
 	void __iomem *base;
 
-	save = (struct sa1111_save_data *)dev->dev.power.saved_state;
+	save = sachip->saved_state;
 	if (!save)
 		return 0;
 
@@ -923,7 +926,7 @@ static int sa1111_resume(struct platform_device *dev)
 
 	spin_unlock_irqrestore(&sachip->lock, flags);
 
-	dev->dev.power.saved_state = NULL;
+	sachip->saved_state = NULL;
 	kfree(save);
 
 	return 0;
@@ -958,8 +961,8 @@ static int sa1111_remove(struct platform_device *pdev)
 		platform_set_drvdata(pdev, NULL);
 
 #ifdef CONFIG_PM
-		kfree(pdev->dev.power.saved_state);
-		pdev->dev.power.saved_state = NULL;
+		kfree(sachip->saved_state);
+		sachip->saved_state = NULL;
 #endif
 	}
 

@@ -9,7 +9,7 @@
  * C. Dost, Pete Zaitcev, Ted Ts'o and Alex Buell for their
  * work there.
  *
- *  Copyright (C) 2002, 2006 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2002, 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -1151,11 +1151,22 @@ sunzilog_console_write(struct console *con, const char *s, unsigned int count)
 {
 	struct uart_sunzilog_port *up = &sunzilog_port_table[con->index];
 	unsigned long flags;
+	int locked = 1;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	local_irq_save(flags);
+	if (up->port.sysrq) {
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&up->port.lock);
+	} else
+		spin_lock(&up->port.lock);
+
 	uart_console_write(&up->port, s, count, sunzilog_putchar);
 	udelay(2);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+
+	if (locked)
+		spin_unlock(&up->port.lock);
+	local_irq_restore(flags);
 }
 
 static int __init sunzilog_console_setup(struct console *con, char *options)
@@ -1215,23 +1226,6 @@ static struct console sunzilog_console_ops = {
 
 static inline struct console *SUNZILOG_CONSOLE(void)
 {
-	int i;
-
-	if (con_is_present())
-		return NULL;
-
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		int this_minor = sunzilog_reg.minor + i;
-
-		if ((this_minor - 64) == (serial_console - 1))
-			break;
-	}
-	if (i == NUM_CHANNELS)
-		return NULL;
-
-	sunzilog_console_ops.index = i;
-	sunzilog_port_table[i].flags |= SUNZILOG_FLAG_IS_CONS;
-
 	return &sunzilog_console_ops;
 }
 
@@ -1417,12 +1411,18 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 	sunzilog_init_hw(&up[1]);
 
 	if (!keyboard_mouse) {
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+					    &sunzilog_reg, up[0].port.line))
+			up->flags |= SUNZILOG_FLAG_IS_CONS;
 		err = uart_add_one_port(&sunzilog_reg, &up[0].port);
 		if (err) {
 			of_iounmap(&op->resource[0],
 				   rp, sizeof(struct zilog_layout));
 			return err;
 		}
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+					    &sunzilog_reg, up[1].port.line))
+			up->flags |= SUNZILOG_FLAG_IS_CONS;
 		err = uart_add_one_port(&sunzilog_reg, &up[1].port);
 		if (err) {
 			uart_remove_one_port(&sunzilog_reg, &up[0].port);
@@ -1520,7 +1520,6 @@ static int __init sunzilog_init(void)
 			goto out_free_tables;
 
 		sunzilog_reg.tty_driver->name_base = sunzilog_reg.minor - 64;
-		sunzilog_reg.cons = SUNZILOG_CONSOLE();
 
 		sunserial_current_minor += uart_count;
 	}

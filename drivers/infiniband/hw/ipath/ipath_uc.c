@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 QLogic, Inc. All rights reserved.
+ * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -58,7 +58,6 @@ static void complete_last_send(struct ipath_qp *qp, struct ipath_swqe *wqe,
 		wc->port_num = 0;
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 0);
 	}
-	wqe = get_swqe_ptr(qp, qp->s_last);
 }
 
 /**
@@ -87,7 +86,7 @@ int ipath_make_uc_req(struct ipath_qp *qp,
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
-	bth0 = 0;
+	bth0 = 1 << 22; /* Set M bit */
 
 	/* Get the next send request. */
 	wqe = get_swqe_ptr(qp, qp->s_last);
@@ -97,8 +96,10 @@ int ipath_make_uc_req(struct ipath_qp *qp,
 		 * Signal the completion of the last send
 		 * (if there is one).
 		 */
-		if (qp->s_last != qp->s_tail)
+		if (qp->s_last != qp->s_tail) {
 			complete_last_send(qp, wqe, &wc);
+			wqe = get_swqe_ptr(qp, qp->s_last);
+		}
 
 		/* Check if send work queue is empty. */
 		if (qp->s_tail == qp->s_head)

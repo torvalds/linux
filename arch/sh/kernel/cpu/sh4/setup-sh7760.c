@@ -96,7 +96,20 @@ static struct intc2_data intc2_irq_table[] = {
 	{109,12,  0, 4,  0,  3},	/* CMTI */
 };
 
-static struct ipr_data sh7760_ipr_map[] = {
+static struct intc2_desc intc2_irq_desc __read_mostly = {
+	.prio_base	= 0xfe080000,
+	.msk_base	= 0xfe080040,
+	.mskclr_base	= 0xfe080060,
+
+	.intc2_data	= intc2_irq_table,
+	.nr_irqs	= ARRAY_SIZE(intc2_irq_table),
+
+	.chip = {
+		.name	= "INTC2-sh7760",
+	},
+};
+
+static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, priority */
 	{ 16, 0, 12, 2 }, /* TMU0 TUNI*/
 	{ 17, 0,  8, 2 }, /* TMU1 TUNI */
@@ -133,20 +146,20 @@ static unsigned long ipr_offsets[] = {
 	0xffd00010UL,	/* 3: IPRD */
 };
 
-/* given the IPR index return the address of the IPR register */
-unsigned int map_ipridx_to_addr(int idx)
-{
-	if (idx >= ARRAY_SIZE(ipr_offsets))
-		return 0;
-	return ipr_offsets[idx];
-}
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
 
-void __init init_IRQ_intc2(void)
-{
-	make_intc2_irq(intc2_irq_table, ARRAY_SIZE(intc2_irq_table));
-}
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
 
-void __init  init_IRQ_ipr(void)
+	.chip = {
+		.name	= "IPR-sh7760",
+	},
+};
+
+void __init plat_irq_setup(void)
 {
-	make_ipr_irq(sh7760_ipr_map, ARRAY_SIZE(sh7760_ipr_map));
+	register_intc2_controller(&intc2_irq_desc);
+	register_ipr_controller(&ipr_irq_desc);
 }

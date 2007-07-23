@@ -114,7 +114,7 @@ config COMPUTONE
 
 config ROCKETPORT
 	tristate "Comtrol RocketPort support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	help
 	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
           These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
@@ -157,7 +157,7 @@ config CYZ_INTR
 
 config DIGIEPCA
 	tristate "Digiboard Intelligent Async Support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	---help---
 	  This is a driver for Digi International's Xx, Xeve, and Xem series
 	  of cards which provide multiple serial ports. You would need
@@ -185,7 +185,7 @@ config ESPSERIAL
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
 
@@ -212,8 +212,6 @@ config MOXA_SMARTIO_NEW
 
 	  This is upgraded (1.9.1) driver from original Moxa drivers with
 	  changes finally resulting in PCI probing.
-
-	  Use at your own risk.
 
 	  This driver can also be built as a module. The module will be called
 	  mxser_new. If you want to do that, say M here.
@@ -243,7 +241,7 @@ config SYNCLINK
 
 config SYNCLINKMP
 	tristate "SyncLink Multiport support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && PCI
 	help
 	  Enable support for the SyncLink Multiport (2 or 4 ports)
 	  serial adapter, running asynchronous and HDLC communications up
@@ -354,7 +352,7 @@ config STALDRV
 
 config STALLION
 	tristate "Stallion EasyIO or EC8/32 support"
-	depends on STALDRV && BROKEN_ON_SMP
+	depends on STALDRV && BROKEN_ON_SMP && (ISA || EISA || PCI)
 	help
 	  If you have an EasyIO or EasyConnection 8/32 multiport Stallion
 	  card, then this is for you; say Y.  Make sure to read
@@ -365,7 +363,7 @@ config STALLION
 
 config ISTALLION
 	tristate "Stallion EC8/64, ONboard, Brumby support"
-	depends on STALDRV && BROKEN_ON_SMP
+	depends on STALDRV && BROKEN_ON_SMP && (ISA || EISA || PCI)
 	help
 	  If you have an EasyConnection 8/64, ONboard, Brumby or Stallion
 	  serial multiport card, say Y here. Make sure to read
@@ -373,53 +371,6 @@ config ISTALLION
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.
-
-config AU1000_UART
-	bool "Enable Au1000 UART Support"
-	depends on SERIAL_NONSTANDARD && MIPS
-	help
-	  If you have an Alchemy AU1000 processor (MIPS based) and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config AU1000_SERIAL_CONSOLE
-	bool "Enable Au1000 serial console"
-	depends on AU1000_UART
-	help
-	  If you have an Alchemy AU1000 processor (MIPS based) and you want
-	  to use a console on a serial port, say Y.  Otherwise, say N.
-
-config SERIAL_DEC
-	bool "DECstation serial support"
-	depends on MACH_DECSTATION
-	default y
-	help
-	  This selects whether you want to be asked about drivers for
-	  DECstation serial ports.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about DECstation serial ports.
-
-config SERIAL_DEC_CONSOLE
-	bool "Support for console on a DECstation serial port"
-	depends on SERIAL_DEC
-	default y
-	help
-	  If you say Y here, it will be possible to use a serial port as the
-	  system console (the system console is the device which receives all
-	  kernel messages and warnings and which allows logins in single user
-	  mode).  Note that the firmware uses ttyS0 as the serial console on
-	  the Maxine and ttyS2 on the others.
-
-	  If unsure, say Y.
-
-config ZS
-	bool "Z85C30 Serial Support"
-	depends on SERIAL_DEC
-	default y
-	help
-	  Documentation on the Zilog 85C350 serial communications controller
-	  is downloadable at <http://www.zilog.com/pdfs/serial/z85c30.pdf>
 
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
@@ -653,6 +604,14 @@ config HVC_BEAT
 	help
 	  Toshiba's Cell Reference Set Beat Console device driver
 
+config HVC_XEN
+	bool "Xen Hypervisor Console support"
+	depends on XEN
+	select HVC_DRIVER
+	default y
+	help
+	  Xen virtual console device driver
+
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
 	depends on PPC_PSERIES
@@ -767,7 +726,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV && !ARM && !SUPERH && !S390
+	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC64 && (!SPARC32 || PCI) && !FRV && !ARM && !SUPERH && !S390
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -815,7 +774,7 @@ config SGI_IP27_RTC
 
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !M32R && !SPARC && !FRV && !S390 && !SUPERH
+	depends on RTC!=y && !IA64 && !ARM && !M32R && !MIPS && !SPARC && !FRV && !S390 && !SUPERH
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -993,15 +952,14 @@ config GPIO_VR41XX
 	depends on CPU_VR41XX
 
 config RAW_DRIVER
-	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+	tristate "RAW driver (/dev/raw/rawN)"
 	depends on BLOCK
 	help
-	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
-	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 
+	  The raw driver permits block devices to be bound to /dev/raw/rawN.
+	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
 	  See the raw(8) manpage for more details.
 
-          The raw driver is deprecated and will be removed soon.
-          Applications should simply open the device (eg /dev/hda1)
+          Applications should preferably open the device (eg /dev/hda1)
           with the O_DIRECT flag.
 
 config MAX_RAW_DEVS

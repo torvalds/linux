@@ -43,7 +43,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
+#define smp_wmb()	eieio()
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
@@ -183,16 +183,6 @@ extern struct task_struct *__switch_to(struct task_struct *,
 struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
 
 extern unsigned int rtas_data;
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
@@ -558,6 +548,8 @@ static inline void create_function_call(unsigned long addr, void * func)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_system_vtime(struct task_struct *);
 #endif
+
+extern struct dentry *powerpc_debugfs_root;
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

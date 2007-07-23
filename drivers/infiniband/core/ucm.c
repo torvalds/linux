@@ -823,7 +823,6 @@ static ssize_t ib_ucm_send_rep(struct ib_ucm_file *file,
 	param.private_data_len    = cmd.len;
 	param.responder_resources = cmd.responder_resources;
 	param.initiator_depth     = cmd.initiator_depth;
-	param.target_ack_delay    = cmd.target_ack_delay;
 	param.failover_accepted   = cmd.failover_accepted;
 	param.flow_control        = cmd.flow_control;
 	param.rnr_retry_count     = cmd.rnr_retry_count;

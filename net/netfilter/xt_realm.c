@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("X_tables realm match");
 MODULE_ALIAS("ipt_realm");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -29,15 +29,15 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_realm_info *info = matchinfo;
-	struct dst_entry *dst = skb->dst;
+	const struct dst_entry *dst = skb->dst;
 
 	return (info->id == (dst->tclassid & info->mask)) ^ info->invert;
 }
 
-static struct xt_match realm_match = {
+static struct xt_match realm_match __read_mostly = {
 	.name		= "realm",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_realm_info),

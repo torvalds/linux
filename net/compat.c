@@ -276,7 +276,8 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 		err = security_file_receive(fp[i]);
 		if (err)
 			break;
-		err = get_unused_fd();
+		err = get_unused_fd_flags(MSG_CMSG_CLOEXEC & kmsg->msg_flags
+					  ? O_CLOEXEC : 0);
 		if (err < 0)
 			break;
 		new_fd = err;

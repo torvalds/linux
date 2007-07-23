@@ -1121,8 +1121,6 @@ static void change_speed(struct esp_struct *info)
 	/*
 	 * Set up parity check flag
 	 */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 	info->read_status_mask = UART_LSR_OE | UART_LSR_THRE | UART_LSR_DR;
 	if (I_INPCK(info->tty))
 		info->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
@@ -1920,11 +1918,6 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	struct esp_struct *info = (struct esp_struct *)tty->driver_data;
 	unsigned long flags;
 
-	if (   (tty->termios->c_cflag == old_termios->c_cflag)
-	    && (   RELEVANT_IFLAG(tty->termios->c_iflag) 
-		== RELEVANT_IFLAG(old_termios->c_iflag)))
-		return;
-
 	change_speed(info);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -2466,7 +2459,7 @@ static int __init espserial_init(void)
 		return 1;
 	}
 
-	info = kmalloc(sizeof(struct esp_struct), GFP_KERNEL);
+	info = kzalloc(sizeof(struct esp_struct), GFP_KERNEL);
 
 	if (!info)
 	{
@@ -2476,7 +2469,6 @@ static int __init espserial_init(void)
 		return 1;
 	}
 
-	memset((void *)info, 0, sizeof(struct esp_struct));
 	spin_lock_init(&info->lock);
 	/* rx_trigger, tx_trigger are needed by autoconfig */
 	info->config.rx_trigger = rx_trigger;
@@ -2534,7 +2526,7 @@ static int __init espserial_init(void)
 		if (!dma)
 			info->stat_flags |= ESP_STAT_NEVER_DMA;
 
-		info = kmalloc(sizeof(struct esp_struct), GFP_KERNEL);
+		info = kzalloc(sizeof(struct esp_struct), GFP_KERNEL);
 		if (!info)
 		{
 			printk(KERN_ERR "Couldn't allocate memory for esp serial device information\n"); 
@@ -2543,7 +2535,6 @@ static int __init espserial_init(void)
 			return 0;
 		}
 
-		memset((void *)info, 0, sizeof(struct esp_struct));
 		/* rx_trigger, tx_trigger are needed by autoconfig */
 		info->config.rx_trigger = rx_trigger;
 		info->config.tx_trigger = tx_trigger;

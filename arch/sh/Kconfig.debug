@@ -52,6 +52,10 @@ config EARLY_PRINTK
 	  select both the EARLY_SCIF_CONSOLE and SH_STANDARD_BIOS, using
 	  the kernel command line option to toggle back and forth.
 
+config DEBUG_BOOTMEM
+	depends on DEBUG_KERNEL
+	bool "Debug BOOTMEM initialization"
+
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
@@ -82,6 +86,7 @@ config SH_KGDB
 	bool "Include KGDB kernel debugger"
 	select FRAME_POINTER
 	select DEBUG_INFO
+	depends on CPU_SH3 || CPU_SH4
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.

@@ -28,12 +28,16 @@
 #include <linux/module.h>
 #include <linux/string.h>
 
+#include <asm/errno.h>
 #include <asm/arch/imxfb.h>
 #include <asm/hardware.h>
 #include <asm/arch/imx-regs.h>
 
 #include <asm/mach/map.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/gpio.h>
+
+unsigned long imx_gpio_alloc_map[(GPIO_PORT_MAX + 1) * 32 / BITS_PER_LONG];
 
 void imx_gpio_mode(int gpio_mode)
 {
@@ -94,6 +98,120 @@ void imx_gpio_mode(int gpio_mode)
 }
 
 EXPORT_SYMBOL(imx_gpio_mode);
+
+int imx_gpio_request(unsigned gpio, const char *label)
+{
+	if(gpio >= (GPIO_PORT_MAX + 1) * 32)
+		printk(KERN_ERR "imx_gpio: Attempt to request nonexistent GPIO %d for \"%s\"\n",
+			gpio, label ? label : "?");
+		return -EINVAL;
+
+	if(test_and_set_bit(gpio, imx_gpio_alloc_map)) {
+		printk(KERN_ERR "imx_gpio: GPIO %d already used. Allocation for \"%s\" failed\n",
+			gpio, label ? label : "?");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL(imx_gpio_request);
+
+void imx_gpio_free(unsigned gpio)
+{
+	if(gpio >= (GPIO_PORT_MAX + 1) * 32)
+		return;
+
+	clear_bit(gpio, imx_gpio_alloc_map);
+}
+
+EXPORT_SYMBOL(imx_gpio_free);
+
+int imx_gpio_direction_input(unsigned gpio)
+{
+	imx_gpio_mode(gpio| GPIO_IN);
+	return 0;
+}
+
+EXPORT_SYMBOL(imx_gpio_direction_input);
+
+int imx_gpio_direction_output(unsigned gpio, int value)
+{
+	imx_gpio_set_value(gpio, value);
+	imx_gpio_mode(gpio| GPIO_OUT);
+	return 0;
+}
+
+EXPORT_SYMBOL(imx_gpio_direction_output);
+
+int imx_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
+				int alloc_mode, const char *label)
+{
+	const int *p = pin_list;
+	int i;
+	unsigned gpio;
+	unsigned mode;
+
+	for (i = 0; i < count; i++) {
+		gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
+		mode = *p & ~(GPIO_PIN_MASK | GPIO_PORT_MASK);
+
+		if (gpio >= (GPIO_PORT_MAX + 1) * 32)
+			goto setup_error;
+
+		if (alloc_mode & IMX_GPIO_ALLOC_MODE_RELEASE)
+			imx_gpio_free(gpio);
+		else if (!(alloc_mode & IMX_GPIO_ALLOC_MODE_NO_ALLOC))
+			if (imx_gpio_request(gpio, label))
+				if (!(alloc_mode & IMX_GPIO_ALLOC_MODE_TRY_ALLOC))
+					goto setup_error;
+
+		if (!(alloc_mode & (IMX_GPIO_ALLOC_MODE_ALLOC_ONLY |
+				    IMX_GPIO_ALLOC_MODE_RELEASE)))
+			imx_gpio_mode(gpio | mode);
+
+		p++;
+	}
+	return 0;
+
+setup_error:
+	if(alloc_mode & (IMX_GPIO_ALLOC_MODE_NO_ALLOC |
+		         IMX_GPIO_ALLOC_MODE_TRY_ALLOC))
+		return -EINVAL;
+
+	while (p != pin_list) {
+		p--;
+		gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
+		imx_gpio_free(gpio);
+	}
+
+	return -EINVAL;
+}
+
+EXPORT_SYMBOL(imx_gpio_setup_multiple_pins);
+
+void __imx_gpio_set_value(unsigned gpio, int value)
+{
+	imx_gpio_set_value_inline(gpio, value);
+}
+
+EXPORT_SYMBOL(__imx_gpio_set_value);
+
+int imx_gpio_to_irq(unsigned gpio)
+{
+	return IRQ_GPIOA(0) + gpio;
+}
+
+EXPORT_SYMBOL(imx_gpio_to_irq);
+
+int imx_irq_to_gpio(unsigned irq)
+{
+	if (irq < IRQ_GPIOA(0))
+		return -EINVAL;
+	return irq - IRQ_GPIOA(0);
+}
+
+EXPORT_SYMBOL(imx_irq_to_gpio);
 
 /*
  *  get the system pll clock in Hz

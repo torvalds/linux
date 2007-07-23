@@ -26,13 +26,9 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 
-#if 0
-#define DEBUGP printk
-#define DUMP_OFFSET(x)	printk("offset_before=%d, offset_after=%d, correction_pos=%u\n", x->offset_before, x->offset_after, x->correction_pos);
-#else
-#define DEBUGP(format, args...)
-#define DUMP_OFFSET(x)
-#endif
+#define DUMP_OFFSET(x) \
+	pr_debug("offset_before=%d, offset_after=%d, correction_pos=%u\n", \
+		 x->offset_before, x->offset_after, x->correction_pos);
 
 static DEFINE_SPINLOCK(nf_nat_seqofs_lock);
 
@@ -47,15 +43,15 @@ adjust_tcp_sequence(u32 seq,
 	struct nf_nat_seq *this_way, *other_way;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 
-	DEBUGP("nf_nat_resize_packet: old_size = %u, new_size = %u\n",
-		(*skb)->len, new_size);
+	pr_debug("adjust_tcp_sequence: seq = %u, sizediff = %d\n",
+		 ntohl(seq), seq);
 
 	dir = CTINFO2DIR(ctinfo);
 
-	this_way = &nat->info.seq[dir];
-	other_way = &nat->info.seq[!dir];
+	this_way = &nat->seq[dir];
+	other_way = &nat->seq[!dir];
 
-	DEBUGP("nf_nat_resize_packet: Seq_offset before: ");
+	pr_debug("nf_nat_resize_packet: Seq_offset before: ");
 	DUMP_OFFSET(this_way);
 
 	spin_lock_bh(&nf_nat_seqofs_lock);
@@ -72,7 +68,7 @@ adjust_tcp_sequence(u32 seq,
 	}
 	spin_unlock_bh(&nf_nat_seqofs_lock);
 
-	DEBUGP("nf_nat_resize_packet: Seq_offset after: ");
+	pr_debug("nf_nat_resize_packet: Seq_offset after: ");
 	DUMP_OFFSET(this_way);
 }
 
@@ -100,14 +96,12 @@ static void mangle_contents(struct sk_buff *skb,
 
 	/* update skb info */
 	if (rep_len > match_len) {
-		DEBUGP("nf_nat_mangle_packet: Extending packet by "
-		       "%u from %u bytes\n", rep_len - match_len,
-		       skb->len);
+		pr_debug("nf_nat_mangle_packet: Extending packet by "
+			 "%u from %u bytes\n", rep_len - match_len, skb->len);
 		skb_put(skb, rep_len - match_len);
 	} else {
-		DEBUGP("nf_nat_mangle_packet: Shrinking packet from "
-		       "%u from %u bytes\n", match_len - rep_len,
-		       skb->len);
+		pr_debug("nf_nat_mangle_packet: Shrinking packet from "
+			 "%u from %u bytes\n", match_len - rep_len, skb->len);
 		__skb_trim(skb, skb->len + rep_len - match_len);
 	}
 
@@ -178,7 +172,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+		    (*pskb)->dev->features & NETIF_F_V4_CSUM) {
 			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
 			(*pskb)->csum_start = skb_headroom(*pskb) +
 					      skb_network_offset(*pskb) +
@@ -190,7 +184,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 			tcph->check = 0;
 			tcph->check = tcp_v4_check(datalen,
 						   iph->saddr, iph->daddr,
-						   csum_partial((char *)tcph,
+						   csum_partial(tcph,
 								datalen, 0));
 		}
 	} else
@@ -265,7 +259,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+		    (*pskb)->dev->features & NETIF_F_V4_CSUM) {
 			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
 			(*pskb)->csum_start = skb_headroom(*pskb) +
 					      skb_network_offset(*pskb) +
@@ -278,7 +272,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 			udph->check = 0;
 			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
 							datalen, IPPROTO_UDP,
-							csum_partial((char *)udph,
+							csum_partial(udph,
 								     datalen, 0));
 			if (!udph->check)
 				udph->check = CSUM_MANGLED_0;
@@ -320,9 +314,9 @@ sack_adjust(struct sk_buff *skb,
 			new_end_seq = htonl(ntohl(sack->end_seq)
 				      - natseq->offset_before);
 
-		DEBUGP("sack_adjust: start_seq: %d->%d, end_seq: %d->%d\n",
-			ntohl(sack->start_seq), new_start_seq,
-			ntohl(sack->end_seq), new_end_seq);
+		pr_debug("sack_adjust: start_seq: %d->%d, end_seq: %d->%d\n",
+			 ntohl(sack->start_seq), new_start_seq,
+			 ntohl(sack->end_seq), new_end_seq);
 
 		nf_proto_csum_replace4(&tcph->check, skb,
 				       sack->start_seq, new_start_seq, 0);
@@ -372,8 +366,7 @@ nf_nat_sack_adjust(struct sk_buff **pskb,
 			    op[1] >= 2+TCPOLEN_SACK_PERBLOCK &&
 			    ((op[1] - 2) % TCPOLEN_SACK_PERBLOCK) == 0)
 				sack_adjust(*pskb, tcph, optoff+2,
-					    optoff+op[1],
-					    &nat->info.seq[!dir]);
+					    optoff+op[1], &nat->seq[!dir]);
 			optoff += op[1];
 		}
 	}
@@ -394,8 +387,8 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 
 	dir = CTINFO2DIR(ctinfo);
 
-	this_way = &nat->info.seq[dir];
-	other_way = &nat->info.seq[!dir];
+	this_way = &nat->seq[dir];
+	other_way = &nat->seq[!dir];
 
 	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
 		return 0;
@@ -415,9 +408,9 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	nf_proto_csum_replace4(&tcph->check, *pskb, tcph->seq, newseq, 0);
 	nf_proto_csum_replace4(&tcph->check, *pskb, tcph->ack_seq, newack, 0);
 
-	DEBUGP("Adjusting sequence number from %u->%u, ack from %u->%u\n",
-		ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),
-		ntohl(newack));
+	pr_debug("Adjusting sequence number from %u->%u, ack from %u->%u\n",
+		 ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),
+		 ntohl(newack));
 
 	tcph->seq = newseq;
 	tcph->ack_seq = newack;

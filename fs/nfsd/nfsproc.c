@@ -278,7 +278,8 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 					 *   echo thing > device-special-file-or-pipe
 					 * by doing a CREATE with type==0
 					 */
-					nfserr = nfsd_permission(newfhp->fh_export,
+					nfserr = nfsd_permission(rqstp,
+								 newfhp->fh_export,
 								 newfhp->fh_dentry,
 								 MAY_WRITE|MAY_LOCAL_ACCESS);
 					if (nfserr && nfserr != nfserr_rofs)

@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.45
+ * Version 3.46
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -203,10 +203,8 @@ static int via_set_drive(ide_drive_t *drive, u8 speed)
 
 static void via82cxxx_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	if (pio == 255) {
-		via_set_drive(drive, ide_find_best_pio_mode(drive));
-		return;
-	}
+	if (pio == 255)
+		pio = ide_get_best_pio_mode(drive, 255, 5);
 
 	via_set_drive(drive, XFER_PIO_0 + min_t(u8, pio, 5));
 }
@@ -223,12 +221,14 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 {
 	u8 speed = ide_max_dma_mode(drive);
 
-	if (speed == 0)
-		speed = ide_find_best_pio_mode(drive);
+	if (speed == 0) {
+		via82cxxx_tune_drive(drive, 255);
+		return -1;
+	}
 
 	via_set_drive(drive, speed);
 
-	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
+	if (drive->autodma)
 		return 0;
 
 	return -1;
@@ -237,16 +237,14 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 {
 	struct via_isa_bridge *via_config;
-	u8 t;
 
 	for (via_config = via_isa_bridges; via_config->id; via_config++)
 		if ((*isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(via_config->flags & VIA_BAD_ID),
 			via_config->id, NULL))) {
 
-			pci_read_config_byte(*isa, PCI_REVISION_ID, &t);
-			if (t >= via_config->rev_min &&
-			    t <= via_config->rev_max)
+			if ((*isa)->revision >= via_config->rev_min &&
+			    (*isa)->revision <= via_config->rev_max)
 				break;
 			pci_dev_put(*isa);
 		}
@@ -404,10 +402,9 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	 * Print the boot message.
 	 */
 
-	pci_read_config_byte(isa, PCI_REVISION_ID, &t);
 	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %sDMA%s "
 		"controller on pci%s\n",
-		via_config->name, t,
+		via_config->name, isa->revision,
 		via_config->udma_mask ? "U" : "MW",
 		via_dma[via_config->udma_mask ?
 			(fls(via_config->udma_mask) - 1) : 0],
@@ -501,18 +498,22 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
 		.init_hwif	= init_hwif_via82cxxx,
-		.channels	= 2,
 		.autodma	= NOAUTODMA,
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
-		.bootable	= ON_BOARD
+		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+		.pio_mask	= ATA_PIO5,
 	},{	/* 1 */
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
 		.init_hwif	= init_hwif_via82cxxx,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+		.pio_mask	= ATA_PIO5,
 	}
 };
 

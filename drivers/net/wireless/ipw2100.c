@@ -1768,7 +1768,8 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 
 		if (priv->stop_rf_kill) {
 			priv->stop_rf_kill = 0;
-			queue_delayed_work(priv->workqueue, &priv->rf_kill, HZ);
+			queue_delayed_work(priv->workqueue, &priv->rf_kill,
+					   round_jiffies(HZ));
 		}
 
 		deferred = 1;
@@ -2098,7 +2099,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	/* Make sure the RF Kill check timer is running */
 	priv->stop_rf_kill = 0;
 	cancel_delayed_work(&priv->rf_kill);
-	queue_delayed_work(priv->workqueue, &priv->rf_kill, HZ);
+	queue_delayed_work(priv->workqueue, &priv->rf_kill, round_jiffies(HZ));
 }
 
 static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
@@ -4233,7 +4234,8 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 			/* Make sure the RF_KILL check timer is running */
 			priv->stop_rf_kill = 0;
 			cancel_delayed_work(&priv->rf_kill);
-			queue_delayed_work(priv->workqueue, &priv->rf_kill, HZ);
+			queue_delayed_work(priv->workqueue, &priv->rf_kill,
+					   round_jiffies(HZ));
 		} else
 			schedule_reset(priv);
 	}
@@ -5969,7 +5971,8 @@ static void ipw2100_rf_kill(struct work_struct *work)
 	if (rf_kill_active(priv)) {
 		IPW_DEBUG_RF_KILL("RF Kill active, rescheduling GPIO check\n");
 		if (!priv->stop_rf_kill)
-			queue_delayed_work(priv->workqueue, &priv->rf_kill, HZ);
+			queue_delayed_work(priv->workqueue, &priv->rf_kill,
+					   round_jiffies(HZ));
 		goto exit_unlock;
 	}
 
@@ -7865,10 +7868,10 @@ static int ipw2100_wx_set_powermode(struct net_device *dev,
 		goto done;
 	}
 
-	if ((mode < 1) || (mode > POWER_MODES))
+	if ((mode < 0) || (mode > POWER_MODES))
 		mode = IPW_POWER_AUTO;
 
-	if (priv->power_mode != mode)
+	if (IPW_POWER_LEVEL(priv->power_mode) != mode)
 		err = ipw2100_set_power_mode(priv, mode);
       done:
 	mutex_unlock(&priv->action_mutex);
@@ -7899,7 +7902,7 @@ static int ipw2100_wx_get_powermode(struct net_device *dev,
 			break;
 		case IPW_POWER_AUTO:
 			snprintf(extra, MAX_POWER_STRING,
-				 "Power save level: %d (Auto)", 0);
+				 "Power save level: %d (Auto)", level);
 			break;
 		default:
 			timeout = timeout_duration[level - 1] / 1000;

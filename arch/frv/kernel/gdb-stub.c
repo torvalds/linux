@@ -647,17 +647,11 @@ void debug_to_serial(const char *p, int n)
 }
 #endif
 
-#ifdef CONFIG_GDBSTUB_CONSOLE
-
-static kdev_t gdbstub_console_dev(struct console *con)
-{
-	return MKDEV(1,3); /* /dev/null */
-}
+#ifdef CONFIG_GDB_CONSOLE
 
 static struct console gdbstub_console = {
 	.name	= "gdb",
 	.write	= gdbstub_console_write,	/* in break.S */
-	.device	= gdbstub_console_dev,
 	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
 };
@@ -2021,7 +2015,7 @@ void __init gdbstub_init(void)
 	ptr = mem2hex(gdbstub_banner, ptr, sizeof(gdbstub_banner) - 1, 0);
 	gdbstub_send_packet(output_buffer);
 #endif
-#if defined(CONFIG_GDBSTUB_CONSOLE) && defined(CONFIG_GDBSTUB_IMMEDIATE)
+#if defined(CONFIG_GDB_CONSOLE) && defined(CONFIG_GDBSTUB_IMMEDIATE)
 	register_console(&gdbstub_console);
 #endif
 
@@ -2031,7 +2025,7 @@ void __init gdbstub_init(void)
 /*
  * register the console at a more appropriate time
  */
-#if defined (CONFIG_GDBSTUB_CONSOLE) && !defined(CONFIG_GDBSTUB_IMMEDIATE)
+#if defined (CONFIG_GDB_CONSOLE) && !defined(CONFIG_GDBSTUB_IMMEDIATE)
 static int __init gdbstub_postinit(void)
 {
 	printk("registering console\n");

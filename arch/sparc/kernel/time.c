@@ -44,6 +44,8 @@
 #include <asm/of_device.h>
 #include <asm/irq_regs.h>
 
+#include "irq.h"
+
 DEFINE_SPINLOCK(rtc_lock);
 enum sparc_clock_type sp_clock_typ;
 DEFINE_SPINLOCK(mostek_lock);
@@ -354,7 +356,7 @@ static struct of_platform_driver clock_driver = {
 /* Probe for the mostek real time clock chip. */
 static int __init clock_init(void)
 {
-	return of_register_driver(&clock_driver, &of_bus_type);
+	return of_register_driver(&clock_driver, &of_platform_bus_type);
 }
 
 /* Must be after subsys_initcall() so that busses are probed.  Must

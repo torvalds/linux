@@ -5,9 +5,9 @@
  *	Copyright (C) 1999 - 2004
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License.
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License version
+ *	2 as published by the Free Software Foundation.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
@@ -273,7 +273,8 @@ struct visor_private {
 	int bytes_in;
 	int bytes_out;
 	int outstanding_urbs;
-	int throttled;
+	unsigned char throttled;
+	unsigned char actually_throttled;
 };
 
 /* number of outstanding urbs to prevent userspace DoS from happening */
@@ -484,16 +485,17 @@ static void visor_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
+	int status = urb->status;
 	unsigned long flags;
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
-	if (urb->status)
+
+	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
@@ -508,15 +510,16 @@ static void visor_read_bulk_callback (struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 	struct tty_struct *tty;
-	unsigned long flags;
-	int throttled;
 	int result;
+	int available_room;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -524,17 +527,20 @@ static void visor_read_bulk_callback (struct urb *urb)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length);
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+		available_room = tty_buffer_request_room(tty, urb->actual_length);
+		if (available_room) {
+			tty_insert_flip_string(tty, data, available_room);
+			tty_flip_buffer_push(tty);
+		}
+		spin_lock(&priv->lock);
+		priv->bytes_in += available_room;
+
+	} else {
+		spin_lock(&priv->lock);
 	}
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->bytes_in += urb->actual_length;
-	throttled = priv->throttled;
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Continue trying to always read if we should */
-	if (!throttled) {
+	if (!priv->throttled) {
 		usb_fill_bulk_urb (port->read_urb, port->serial->dev,
 				   usb_rcvbulkpipe(port->serial->dev,
 						   port->bulk_in_endpointAddress),
@@ -544,16 +550,19 @@ static void visor_read_bulk_callback (struct urb *urb)
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
+	} else {
+		priv->actually_throttled = 1;
 	}
-	return;
+	spin_unlock(&priv->lock);
 }
 
 static void visor_read_int_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	int status = urb->status;
 	int result;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -562,11 +571,11 @@ static void visor_read_int_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -608,6 +617,7 @@ static void visor_unthrottle (struct usb_serial_port *port)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = 0;
+	priv->actually_throttled = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	port->read_urb->dev = port->serial->dev;
@@ -938,14 +948,6 @@ static void visor_set_termios (struct usb_serial_port *port, struct ktermios *ol
 	}
 
 	cflag = port->tty->termios->c_cflag;
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(port->tty->termios->c_iflag) == RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			return;
-		}
-	}
 
 	/* get the byte size */
 	switch (cflag & CSIZE) {

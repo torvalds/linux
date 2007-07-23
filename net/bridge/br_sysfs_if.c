@@ -29,8 +29,7 @@ struct brport_attribute {
 #define BRPORT_ATTR(_name,_mode,_show,_store)		        \
 struct brport_attribute brport_attr_##_name = { 	        \
 	.attr = {.name = __stringify(_name), 			\
-		 .mode = _mode, 				\
-		 .owner = THIS_MODULE, },			\
+		 .mode = _mode },				\
 	.show	= _show,					\
 	.store	= _store,					\
 };

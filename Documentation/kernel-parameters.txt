@@ -34,7 +34,6 @@ parameter is applicable:
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
-	CD	Appropriate CD support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -238,15 +237,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
-	ad1816=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>
-			See also Documentation/sound/oss/AD1816.
-
 	ad1848=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>,<type>
-
-	adlib=		[HW,OSS]
-			Format: <io>
 
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
@@ -326,9 +318,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	autotest	[IA64]
 
-	aztcd=		[HW,CD] Aztech CD268 CDROM driver
-			Format: <io>,0x79 (?)
-
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
 
@@ -370,10 +359,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			to fix known problems, but for some CPUs it is not
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
-
-	cdu31a=		[HW,CD]
-			Format: <io>,<irq>[,PAS]
-			See header of drivers/cdrom/cdu31a.c.
 
 	chandev=	[HW,NET] Generic channel device initialisation
 
@@ -428,9 +413,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	hpet=		[IA-32,HPET] option to disable HPET and use PIT.
 			Format: disable
 
-	cm206=		[HW,CD]
-			Format: { auto | [<io>,][<irq>] }
-
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
 			<io>[,<irq>[,<nodeID>[,<backplane>[,<ckp>[,<timeout>]]]]]
@@ -462,12 +444,19 @@ and is between 256 and 4096 characters. It is defined in the file
 			Documentation/networking/netconsole.txt for an
 			alternative.
 
-		uart,io,<addr>[,options]
-		uart,mmio,<addr>[,options]
+		uart[8250],io,<addr>[,options]
+		uart[8250],mmio,<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
+
+	earlycon=	[KNL] Output early console device and options.
+		uart[8250],io,<addr>[,options]
+		uart[8250],mmio,<addr>[,options]
+			Start an early, polled-mode console on the 8250/16550
+			UART at the specified I/O port or MMIO address.
+			The options are the same as for ttyS, above.
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
@@ -660,9 +649,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT.
 
-	gscd=		[HW,CD]
-			Format: <io>
-
 	gvp11=		[HW,SCSI]
 
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
@@ -826,13 +812,36 @@ and is between 256 and 4096 characters. It is defined in the file
 			tasks in the system -- can cause problems and
 			suboptimal load balancer performance.
 
-	isp16=		[HW,CD]
-			Format: <io>,<irq>,<dma>,<setup>
-
 	iucv=		[HW,NET]
 
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
+
+	kernelcore=nn[KMG]	[KNL,IA-32,IA-64,PPC,X86-64] This parameter
+			specifies the amount of memory usable by the kernel
+			for non-movable allocations.  The requested amount is
+			spread evenly throughout all nodes in the system. The
+			remaining memory in each node is used for Movable
+			pages. In the event, a node is too small to have both
+			kernelcore and Movable pages, kernelcore pages will
+			take priority and other nodes will have a larger number
+			of kernelcore pages.  The Movable zone is used for the
+			allocation of pages that may be reclaimed or moved
+			by the page migration subsystem.  This means that
+			HugeTLB pages may not be allocated from this zone.
+			Note that allocations like PTEs-from-HighMem still
+			use the HighMem zone if it exists, and the Normal
+			zone if it does not.
+
+	movablecore=nn[KMG]	[KNL,IA-32,IA-64,PPC,X86-64] This parameter
+			is similar to kernelcore except it specifies the
+			amount of memory used for migratable allocations.
+			If both kernelcore and movablecore is specified,
+			then kernelcore will be at *least* the specified
+			value but may be more. If movablecore on its own
+			is specified, the administrator must be careful
+			that the amount of memory usable for all allocations
+			is not too small.
 
 	keepinitrd	[HW,ARM]
 
@@ -966,11 +975,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	mca-pentium	[BUGS=IA-32]
 
 	mcatest=	[IA-64]
-
-	mcd=		[HW,CD]
-			Format: <port>,<irq>,<mitsumi_bug_93_wait>
-
-	mcdx=		[HW,CD]
 
 	mce		[IA-32] Machine Check Exception
 
@@ -1150,6 +1154,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nointroute	[IA-64]
 
+	nojitter	[IA64] Disables jitter checking for ITC timers.
+
 	nolapic		[IA-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[IA-32,APIC] Do not use the local APIC timer.
@@ -1181,6 +1187,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel.
 
+	nosoftlockup	[KNL] Disable the soft-lockup detector.
+
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
 	notsc		[BUGS=IA-32] Disable Time Stamp Counter
@@ -1189,19 +1197,18 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nowb		[ARM]
 
+	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
+			one of ['zone', 'node', 'default'] can be specified
+			This can be set from sysctl after boot.
+			See Documentation/sysctl/vm.txt for details.
+
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
 	opl3=		[HW,OSS]
 			Format: <io>
 
-	opl3sa2=	[HW,OSS] Format:
-			<io>,<irq>,<dma>,<dma2>,<mss_io>,<mpu_io>,<ymode>,<loopback>[,<isapnp>,<multiple]
-
 	oprofile.timer=	[HW]
 			Use timer interrupt instead of performance counters
-
-	optcd=		[HW,CD]
-			Format: <io>
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
@@ -1381,6 +1388,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
 
+	print-fatal-signals=
+			[KNL] debug: print fatal signals
+			print-fatal-signals=1: print segfault info to
+			the kernel console.
+			default: off.
+
+	printk.time=	Show timing data prefixed to each printk message line
+			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
+
 	profile=	[KNL] Enable kernel profiling via /proc/profile
 			Format: [schedule,]<number>
 			Param: "schedule" - profile schedule points.
@@ -1493,6 +1509,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	rootfstype=	[KNL] Set root filesystem type
 
+	rootwait	[KNL] Wait (indefinitely) for root device to show up.
+			Useful for devices that are detected asynchronously
+			(e.g. USB and MMC devices).
+
 	rw		[KNL] Mount root device read-write on boot
 
 	S		[KNL] Run init in single mode
@@ -1504,11 +1524,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <io>,<irq>,<dma>,<dma2>
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
-
-	sbpcd=		[HW,CD] Soundblaster CD adapter
-			Format: <io>,<type>
-			See a comment before function sbpcd_setup() in
-			drivers/cdrom/sbpcd.c.
 
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
 			Format: <io>[,<timeout>[,<isapnp>]]
@@ -1562,41 +1577,41 @@ and is between 256 and 4096 characters. It is defined in the file
 	simeth=		[IA-64]
 	simscsi=
 
-	sjcd=		[HW,CD]
-			Format: <io>,<irq>,<dma>
-			See header of drivers/cdrom/sjcd.c.
-
 	slram=		[HW,MTD]
 
-	slub_debug	[MM, SLUB]
-			Enabling slub_debug allows one to determine the culprit
-			if slab objects become corrupted. Enabling slub_debug
-			creates guard zones around objects and poisons objects
-			when not in use. Also tracks the last alloc / free.
-			For more information see Documentation/vm/slub.txt.
+	slub_debug[=options[,slabs]]	[MM, SLUB]
+			Enabling slub_debug allows one to determine the
+			culprit if slab objects become corrupted. Enabling
+			slub_debug can create guard zones around objects and
+			may poison objects when not in use. Also tracks the
+			last alloc / free. For more information see
+			Documentation/vm/slub.txt.
 
 	slub_max_order= [MM, SLUB]
-			Determines the maximum allowed order for slabs. Setting
-			this too high may cause fragmentation.
-			For more information see Documentation/vm/slub.txt.
+			Determines the maximum allowed order for slabs.
+			A high setting may cause OOMs due to memory
+			fragmentation. For more information see
+			Documentation/vm/slub.txt.
 
 	slub_min_objects=	[MM, SLUB]
-			The minimum objects per slab. SLUB will increase the
-			slab order up to slub_max_order to generate a
-			sufficiently big slab to satisfy the number of objects.
-			The higher the number of objects the smaller the overhead
-			of tracking slabs.
+			The minimum number of objects per slab. SLUB will
+			increase the slab order up to slub_max_order to
+			generate a sufficiently large slab able to contain
+			the number of objects indicated. The higher the number
+			of objects the smaller the overhead of tracking slabs
+			and the less frequently locks need to be acquired.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_min_order=	[MM, SLUB]
 			Determines the mininum page order for slabs. Must be
-			lower than slub_max_order
+			lower than slub_max_order.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_nomerge	[MM, SLUB]
-			Disable merging of slabs of similar size. May be
+			Disable merging of slabs with similar size. May be
 			necessary if there is some reason to distinguish
-			allocs to different slabs.
+			allocs to different slabs. Debug options disable
+			merging on their own.
 			For more information see Documentation/vm/slub.txt.
 
 	smart2=		[HW]
@@ -1738,9 +1753,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	snd-ymfpci=	[HW,ALSA]
 
-	sonycd535=	[HW,CD]
-			Format: <io>[,<irq>]
-
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
 
@@ -1812,6 +1824,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Set number of hash buckets for TCP connection
 
 	time		Show timing data prefixed to each printk message line
+			[deprecated, see 'printk.time']
 
 	tipar.timeout=	[HW,PPT]
 			Set communications timeout in tenths of a second
@@ -1869,10 +1882,13 @@ and is between 256 and 4096 characters. It is defined in the file
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
-	vdso=		[IA-32,SH]
+	vdso=		[IA-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
+
+	vector=		[IA-64,SMP]
+			vector=percpu: enable percpu vector domain
 
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.

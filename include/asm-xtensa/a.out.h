@@ -17,6 +17,7 @@
 /* Note: the kernel needs the a.out definitions, even if only ELF is used. */
 
 #define STACK_TOP	TASK_SIZE
+#define STACK_TOP_MAX	STACK_TOP
 
 struct exec
 {

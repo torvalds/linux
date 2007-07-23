@@ -467,7 +467,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     above explicitly.
 
     The power-management is supported.
-    
+
+  Module snd-cs5530
+  _________________
+
+    Module for Cyrix/NatSemi Geode 5530 chip. 
+  
   Module snd-cs5535audio
   ----------------------
 
@@ -759,6 +764,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
+    probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
@@ -803,6 +809,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hp-3013	HP machines (3013-variant)
 	  fujitsu	Fujitsu S7020
 	  acer		Acer TravelMate
+	  will		Will laptops (PB V7900)
+	  replacer	Replacer 672V
 	  basic		fixed pin assignment (old default model)
 	  auto		auto-config reading BIOS (default)
 
@@ -811,9 +819,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hp-bpc	HP xw4400/6400/8400/9400 laptops
 	  hp-bpc-d7000	HP BPC D7000
 	  benq		Benq ED8
+	  benq-t31	Benq T31
 	  hippo		Hippo (ATI) with jack detection, Sony UX-90s
 	  hippo_1	Hippo (Benq) with jack detection
+	  sony-assamd	Sony ASSAMD
 	  basic		fixed pin assignment w/o SPDIF
+	  auto		auto-config reading BIOS (default)
+
+	ALC268
+	  3stack	3-stack model
+	  auto		auto-config reading BIOS (default)
+
+	ALC662
+	  3stack-dig	3-stack (2-channel) with SPDIF
+	  3stack-6ch	 3-stack (6-channel)
+	  3stack-6ch-dig 3-stack (6-channel) with SPDIF
+	  6stack-dig	 6-stack with SPDIF
+	  lenovo-101e	 Lenovo laptop
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885
@@ -821,6 +843,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
 	  macpro	MacPro support
+	  imac24	iMac 24'' with jack detection
 	  w2jc		ASUS W2JC
 	  auto		auto-config reading BIOS (default)
 
@@ -832,9 +855,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig-demo  6-jack digital for Intel demo board
 	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
 	  medion	Medion Laptops
+	  medion-md2	Medion MD2
 	  targa-dig	Targa/MSI
 	  targa-2ch-dig	Targs/MSI with 2-channel
 	  laptop-eapd   3-jack with SPDIF I/O and EAPD (Clevo M540JE, M550JE)
+	  lenovo-101e	Lenovo 101E
+	  lenovo-nb0763	Lenovo NB0763
+	  lenovo-ms7195-dig Lenovo MS7195
+	  6stack-hp	HP machines with 6stack (Nettle boards)
+	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
@@ -853,7 +882,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	3-jack with SPDIF OUT
 	  6stack-dig	6-jack with SPDIF OUT
 	  3stack-660	3-jack (for ALC660VD)
+	  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
 	  lenovo	Lenovo 3000 C200
+	  dallas	Dallas laptops
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
@@ -864,11 +895,25 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  allout	5-jack in back, 2-jack in front, SPDIF out
 	  auto		auto-config reading BIOS (default)
 
+	AD1882
+	  3stack	3-stack mode (default)
+	  6stack	6-stack mode
+
+	AD1884
+	  N/A
+
 	AD1981
 	  basic		3-jack (default)
 	  hp		HP nx6320
 	  thinkpad	Lenovo Thinkpad T60/X60/Z60
 	  toshiba	Toshiba U205
+
+	AD1983
+	  N/A
+
+	AD1984
+	  basic		default configuration
+	  thinkpad	Lenovo Thinkpad T61/X61
 
 	AD1986A
 	  6stack	6-jack, separate surrounds (default)
@@ -907,11 +952,18 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  3stack	D945 3stack
 	  5stack	D945 5stack + SPDIF
-	  macmini	Intel Mac Mini
-	  macbook	Intel Mac Book
-	  macbook-pro-v1 Intel Mac Book Pro 1st generation
-	  macbook-pro	Intel Mac Book Pro 2nd generation
-	  imac-intel	Intel iMac
+	  dell		Dell XPS M1210
+	  intel-mac-v1	Intel Mac Type 1
+	  intel-mac-v2	Intel Mac Type 2
+	  intel-mac-v3	Intel Mac Type 3
+	  intel-mac-v4	Intel Mac Type 4
+	  intel-mac-v5	Intel Mac Type 5
+	  macmini	Intel Mac Mini (equivalent with type 3)
+	  macbook	Intel Mac Book (eq. type 5)
+	  macbook-pro-v1 Intel Mac Book Pro 1st generation (eq. type 3)
+	  macbook-pro	Intel Mac Book Pro 2nd generation (eq. type 3)
+	  imac-intel	Intel iMac (eq. type 2)
+	  imac-intel-20	Intel iMac (newer version) (eq. type 3)
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config
@@ -956,6 +1008,17 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     from the irq.  Remember this is a last resort, and should be
     avoided as much as possible...
     
+    MORE NOTES ON "azx_get_response timeout" PROBLEMS:
+    On some hardwares, you may need to add a proper probe_mask option
+    to avoid the "azx_get_response timeout" problem above, instead.
+    This occurs when the access to non-existing or non-working codec slot
+    (likely a modem one) causes a stall of the communication via HD-audio
+    bus.  You can see which codec slots are probed by enabling
+    CONFIG_SND_DEBUG_DETECT, or simply from the file name of the codec
+    proc files.  Then limit the slots to probe by probe_mask option.
+    For example, probe_mask=1 means to probe only the first slot, and
+    probe_mask=4 means only the third slot.
+
     The power-management is supported.
 
   Module snd-hdsp

@@ -155,8 +155,8 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = ISCSI_XMIT_CMDS_MAX * 2;
-	params.dirty_watermark	 = ISCSI_XMIT_CMDS_MAX;
+	params.pool_size	 = ISCSI_DEF_XMIT_CMDS_MAX * 2;
+	params.dirty_watermark	 = ISCSI_DEF_XMIT_CMDS_MAX;
 	params.cache		 = 0;
 	params.flush_function	 = NULL;
 	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
@@ -308,6 +308,29 @@ static int iser_conn_state_comp_exch(struct iser_conn *ib_conn,
 		ib_conn->state = exch;
 	spin_unlock_bh(&ib_conn->lock);
 	return ret;
+}
+
+/**
+ * Frees all conn objects and deallocs conn descriptor
+ */
+static void iser_conn_release(struct iser_conn *ib_conn)
+{
+	struct iser_device  *device = ib_conn->device;
+
+	BUG_ON(ib_conn->state != ISER_CONN_DOWN);
+
+	mutex_lock(&ig.connlist_mutex);
+	list_del(&ib_conn->conn_list);
+	mutex_unlock(&ig.connlist_mutex);
+
+	iser_free_ib_conn_res(ib_conn);
+	ib_conn->device = NULL;
+	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
+	if (device != NULL)
+		iser_device_try_release(device);
+	if (ib_conn->iser_conn)
+		ib_conn->iser_conn->ib_conn = NULL;
+	kfree(ib_conn);
 }
 
 /**
@@ -548,30 +571,6 @@ connect_failure:
 	iser_conn_release(ib_conn);
 	return err;
 }
-
-/**
- * Frees all conn objects and deallocs conn descriptor
- */
-void iser_conn_release(struct iser_conn *ib_conn)
-{
-	struct iser_device  *device = ib_conn->device;
-
-	BUG_ON(ib_conn->state != ISER_CONN_DOWN);
-
-	mutex_lock(&ig.connlist_mutex);
-	list_del(&ib_conn->conn_list);
-	mutex_unlock(&ig.connlist_mutex);
-
-	iser_free_ib_conn_res(ib_conn);
-	ib_conn->device = NULL;
-	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
-	if (device != NULL)
-		iser_device_try_release(device);
-	if (ib_conn->iser_conn)
-		ib_conn->iser_conn->ib_conn = NULL;
-	kfree(ib_conn);
-}
-
 
 /**
  * iser_reg_page_vec - Register physical memory

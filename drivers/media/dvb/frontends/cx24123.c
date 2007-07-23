@@ -917,7 +917,7 @@ static int cx24123_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 static int cx24123_tune(struct dvb_frontend* fe,
 			struct dvb_frontend_parameters* params,
 			unsigned int mode_flags,
-			int *delay,
+			unsigned int *delay,
 			fe_status_t *status)
 {
 	int retval = 0;

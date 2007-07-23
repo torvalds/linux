@@ -67,7 +67,8 @@ struct device_attribute rio_dev_attrs[] = {
 };
 
 static ssize_t
-rio_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
+rio_read_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct rio_dev *dev =
 	    to_rio_dev(container_of(kobj, struct device, kobj));
@@ -137,7 +138,8 @@ rio_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 }
 
 static ssize_t
-rio_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
+rio_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+		 char *buf, loff_t off, size_t count)
 {
 	struct rio_dev *dev =
 	    to_rio_dev(container_of(kobj, struct device, kobj));
@@ -197,7 +199,6 @@ static struct bin_attribute rio_config_attr = {
 	.attr = {
 		 .name = "config",
 		 .mode = S_IRUGO | S_IWUSR,
-		 .owner = THIS_MODULE,
 		 },
 	.size = 0x200000,
 	.read = rio_read_config,

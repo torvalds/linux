@@ -1,8 +1,7 @@
-/* $Id: systbls.S,v 1.81 2002/02/08 03:57:14 davem Exp $
- * systbls.S: System call entry point tables for OS compatibility.
+/* systbls.S: System call entry point tables for OS compatibility.
  *            The native Linux system call table lives here also.
  *
- * Copyright (C) 1995, 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 1996, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  *
  * Based upon preliminary work which is:
@@ -81,7 +80,7 @@ sys_call_table32:
 	.word sys_fchmodat, sys_faccessat, compat_sys_pselect6, compat_sys_ppoll, sys_unshare
 /*300*/	.word compat_sys_set_robust_list, compat_sys_get_robust_list, compat_sys_migrate_pages, compat_sys_mbind, compat_sys_get_mempolicy
 	.word compat_sys_set_mempolicy, compat_sys_kexec_load, compat_sys_move_pages, sys_getcpu, compat_sys_epoll_pwait
-/*310*/	.word compat_sys_utimensat, compat_sys_signalfd, compat_sys_timerfd, sys_eventfd
+/*310*/	.word compat_sys_utimensat, compat_sys_signalfd, compat_sys_timerfd, sys_eventfd, compat_sys_fallocate
 
 #endif /* CONFIG_COMPAT */
 
@@ -153,7 +152,7 @@ sys_call_table:
 	.word sys_fchmodat, sys_faccessat, sys_pselect6, sys_ppoll, sys_unshare
 /*300*/	.word sys_set_robust_list, sys_get_robust_list, sys_migrate_pages, sys_mbind, sys_get_mempolicy
 	.word sys_set_mempolicy, sys_kexec_load, sys_move_pages, sys_getcpu, sys_epoll_pwait
-/*310*/	.word sys_utimensat, sys_signalfd, sys_timerfd, sys_eventfd
+/*310*/	.word sys_utimensat, sys_signalfd, sys_timerfd, sys_eventfd, sys_fallocate
 
 #if defined(CONFIG_SUNOS_EMUL) || defined(CONFIG_SOLARIS_EMUL) || \
     defined(CONFIG_SOLARIS_EMUL_MODULE)
@@ -272,6 +271,6 @@ sunos_sys_table:
 	.word sunos_nosys, sunos_nosys, sunos_nosys
 	.word sunos_nosys
 /*310*/	.word sunos_nosys, sunos_nosys, sunos_nosys
-	.word sunos_nosys
+	.word sunos_nosys, sunos_nosys
 
 #endif

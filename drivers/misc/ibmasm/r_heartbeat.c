@@ -16,7 +16,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Author: Max Asböck <amax@us.ibm.com> 
+ * Author: Max Asböck <amax@us.ibm.com>
  *
  */
 
@@ -36,10 +36,10 @@ static struct {
 	unsigned char			command[3];
 } rhb_dot_cmd = {
 	.header = {
-		.type = 	sp_read,
+		.type =		sp_read,
 		.command_size = 3,
 		.data_size =	0,
-		.status = 	0
+		.status =	0
 	},
 	.command = { 4, 3, 6 }
 };
@@ -76,9 +76,9 @@ int ibmasm_start_reverse_heartbeat(struct service_processor *sp, struct reverse_
 		if (cmd->status != IBMASM_CMD_COMPLETE)
 			times_failed++;
 
-		wait_event_interruptible_timeout(rhb->wait, 
+		wait_event_interruptible_timeout(rhb->wait,
 			rhb->stopped,
-			REVERSE_HEARTBEAT_TIMEOUT * HZ); 	
+			REVERSE_HEARTBEAT_TIMEOUT * HZ);
 
 		if (signal_pending(current) || rhb->stopped) {
 			result = -EINTR;

@@ -75,8 +75,6 @@ extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 extern void early_quirks(void);
 extern void check_efer(void);
 
-extern int unhandled_signal(struct task_struct *tsk, int sig);
-
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern unsigned long table_start, table_end;
@@ -84,24 +82,6 @@ extern unsigned long table_start, table_end;
 extern int exception_trace;
 extern unsigned cpu_khz;
 extern unsigned tsc_khz;
-
-extern void no_iommu_init(void);
-extern int force_iommu, no_iommu;
-extern int iommu_detected;
-#ifdef CONFIG_IOMMU
-extern void gart_iommu_init(void);
-extern void __init gart_parse_options(char *);
-extern void iommu_hole_init(void);
-extern int fallback_aper_order;
-extern int fallback_aper_force;
-extern int iommu_aperture;
-extern int iommu_aperture_allowed;
-extern int iommu_aperture_disabled;
-extern int fix_aperture;
-#else
-#define iommu_aperture 0
-#define iommu_aperture_allowed 0
-#endif
 
 extern int reboot_force;
 extern int notsc_setup(char *);

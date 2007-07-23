@@ -79,7 +79,8 @@ struct iscsi_transport {
 	char *name;
 	unsigned int caps;
 	/* LLD sets this to indicate what values it can export to sysfs */
-	unsigned int param_mask;
+	uint64_t param_mask;
+	uint64_t host_param_mask;
 	struct scsi_host_template *host_template;
 	/* LLD connection data size */
 	int conndata_size;
@@ -89,7 +90,8 @@ struct iscsi_transport {
 	unsigned int max_conn;
 	unsigned int max_cmd_len;
 	struct iscsi_cls_session *(*create_session) (struct iscsi_transport *it,
-		struct scsi_transport_template *t, uint32_t sn, uint32_t *hn);
+		struct scsi_transport_template *t, uint16_t, uint16_t,
+		uint32_t sn, uint32_t *hn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
@@ -105,14 +107,18 @@ struct iscsi_transport {
 			       enum iscsi_param param, char *buf);
 	int (*get_session_param) (struct iscsi_cls_session *session,
 				  enum iscsi_param param, char *buf);
+	int (*get_host_param) (struct Scsi_Host *shost,
+				enum iscsi_host_param param, char *buf);
+	int (*set_host_param) (struct Scsi_Host *shost,
+			       enum iscsi_host_param param, char *buf,
+			       int buflen);
 	int (*send_pdu) (struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
 	void (*init_cmd_task) (struct iscsi_cmd_task *ctask);
 	void (*init_mgmt_task) (struct iscsi_conn *conn,
-				struct iscsi_mgmt_task *mtask,
-				char *data, uint32_t data_size);
+				struct iscsi_mgmt_task *mtask);
 	int (*xmit_cmd_task) (struct iscsi_conn *conn,
 			      struct iscsi_cmd_task *ctask);
 	void (*cleanup_cmd_task) (struct iscsi_conn *conn,
@@ -124,7 +130,7 @@ struct iscsi_transport {
 			   uint64_t *ep_handle);
 	int (*ep_poll) (uint64_t ep_handle, int timeout_ms);
 	void (*ep_disconnect) (uint64_t ep_handle);
-	int (*tgt_dscvr) (enum iscsi_tgt_dscvr type, uint32_t host_no,
+	int (*tgt_dscvr) (struct Scsi_Host *shost, enum iscsi_tgt_dscvr type,
 			  uint32_t enable, struct sockaddr *dst_addr);
 };
 

@@ -65,7 +65,7 @@ target(struct sk_buff **pskb,
 	return mangle->target;
 }
 
-static int
+static bool
 checkentry(const char *tablename, const void *e, const struct xt_target *target,
 	   void *targinfo, unsigned int hook_mask)
 {
@@ -73,15 +73,15 @@ checkentry(const char *tablename, const void *e, const struct xt_target *target,
 
 	if (mangle->flags & ~ARPT_MANGLE_MASK ||
 	    !(mangle->flags & ARPT_MANGLE_MASK))
-		return 0;
+		return false;
 
 	if (mangle->target != NF_DROP && mangle->target != NF_ACCEPT &&
 	   mangle->target != ARPT_CONTINUE)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
-static struct arpt_target arpt_mangle_reg = {
+static struct arpt_target arpt_mangle_reg __read_mostly = {
 	.name		= "mangle",
 	.target		= target,
 	.targetsize	= sizeof(struct arpt_mangle),

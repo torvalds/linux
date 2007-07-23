@@ -657,7 +657,6 @@ static int ptrace_setcrunchregs(struct task_struct *tsk, void __user *ufp)
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	unsigned long tmp;
 	int ret;
 
 	switch (request) {
@@ -666,12 +665,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 */
 		case PTRACE_PEEKTEXT:
 		case PTRACE_PEEKDATA:
-			ret = access_process_vm(child, addr, &tmp,
-						sizeof(unsigned long), 0);
-			if (ret == sizeof(unsigned long))
-				ret = put_user(tmp, (unsigned long __user *) data);
-			else
-				ret = -EIO;
+			ret = generic_ptrace_peekdata(child, addr, data);
 			break;
 
 		case PTRACE_PEEKUSR:
@@ -683,12 +677,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 */
 		case PTRACE_POKETEXT:
 		case PTRACE_POKEDATA:
-			ret = access_process_vm(child, addr, &data,
-						sizeof(unsigned long), 1);
-			if (ret == sizeof(unsigned long))
-				ret = 0;
-			else
-				ret = -EIO;
+			ret = generic_ptrace_pokedata(child, addr, data);
 			break;
 
 		case PTRACE_POKEUSR:
