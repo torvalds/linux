@@ -1999,15 +1999,15 @@ preempted:
 		kvm_guest_debug_pre(vcpu);
 
 again:
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		goto out;
+
 	if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(vcpu, kvm_run);
 
 	vmx_save_host_state(vcpu);
 	kvm_load_guest_fpu(vcpu);
-
-	r = kvm_mmu_reload(vcpu);
-	if (unlikely(r))
-		goto out;
 
 	/*
 	 * Loading guest fpu may have cleared host cr0.ts
