@@ -69,7 +69,6 @@
 #define USBLP_DEVICE_ID_SIZE	1024
 
 /* ioctls: */
-#define LPGETSTATUS		0x060b		/* same as in drivers/char/lp.c */
 #define IOCNR_GET_DEVICE_ID		1
 #define IOCNR_GET_PROTOCOLS		2
 #define IOCNR_SET_PROTOCOL		3
@@ -159,10 +158,12 @@ struct usblp {
 	int			wstatus;	/* bytes written or error */
 	int			rstatus;	/* bytes ready or error */
 	unsigned int		quirks;			/* quirks flags */
+	unsigned int		flags;			/* mode flags */
 	unsigned char		used;			/* True if open */
 	unsigned char		present;		/* True if not disconnected */
 	unsigned char		bidir;			/* interface is bidirectional */
 	unsigned char		sleeping;		/* interface is suspended */
+	unsigned char		no_paper;		/* Paper Out happened */
 	unsigned char		*device_id_string;	/* IEEE 1284 DEVICE ID string (ptr) */
 							/* first 2 bytes are (big-endian) length */
 };
@@ -325,6 +326,7 @@ static void usblp_bulk_write(struct urb *urb)
 		usblp->wstatus = status;
 	else
 		usblp->wstatus = urb->actual_length;
+	usblp->no_paper = 0;
 	usblp->wcomplete = 1;
 	wake_up(&usblp->wwait);
 	spin_unlock(&usblp->lock);
@@ -411,18 +413,10 @@ static int usblp_open(struct inode *inode, struct file *file)
 		goto out;
 
 	/*
-	 * TODO: need to implement LP_ABORTOPEN + O_NONBLOCK as in drivers/char/lp.c ???
-	 * This is #if 0-ed because we *don't* want to fail an open
-	 * just because the printer is off-line.
+	 * We do not implement LP_ABORTOPEN/LPABORTOPEN for two reasons:
+	 *  - We do not want persistent state which close(2) does not clear
+	 *  - It is not used anyway, according to CUPS people
 	 */
-#if 0
-	if ((retval = usblp_check_status(usblp, 0))) {
-		retval = retval > 1 ? -EIO : -ENOSPC;
-		goto out;
-	}
-#else
-	retval = 0;
-#endif
 
 	retval = usb_autopm_get_interface(intf);
 	if (retval < 0)
@@ -463,6 +457,8 @@ static int usblp_release(struct inode *inode, struct file *file)
 {
 	struct usblp *usblp = file->private_data;
 
+	usblp->flags &= ~LP_ABORT;
+
 	mutex_lock (&usblp_mutex);
 	usblp->used = 0;
 	if (usblp->present) {
@@ -486,7 +482,7 @@ static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait
 	poll_wait(file, &usblp->wwait, wait);
 	spin_lock_irqsave(&usblp->lock, flags);
 	ret = ((!usblp->bidir || !usblp->rcomplete) ? 0 : POLLIN  | POLLRDNORM)
- 			       | (!usblp->wcomplete ? 0 : POLLOUT | POLLWRNORM);
+	   | ((usblp->no_paper || usblp->wcomplete) ? POLLOUT | POLLWRNORM : 0);
 	spin_unlock_irqrestore(&usblp->lock, flags);
 	return ret;
 }
@@ -675,6 +671,13 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					retval = -EFAULT;
 				break;
 
+			case LPABORT:
+				if (arg)
+					usblp->flags |= LP_ABORT;
+				else
+					usblp->flags &= ~LP_ABORT;
+				break;
+
 			default:
 				retval = -ENOTTY;
 		}
@@ -730,6 +733,7 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 		if ((rv = usb_submit_urb(writeurb, GFP_KERNEL)) < 0) {
 			usblp->wstatus = 0;
 			spin_lock_irq(&usblp->lock);
+			usblp->no_paper = 0;
 			usblp->wcomplete = 1;
 			wake_up(&usblp->wwait);
 			spin_unlock_irq(&usblp->lock);
@@ -747,12 +751,17 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 				/* Presume that it's going to complete well. */
 				writecount += transfer_length;
 			}
+			if (rv == -ENOSPC) {
+				spin_lock_irq(&usblp->lock);
+				usblp->no_paper = 1;	/* Mark for poll(2) */
+				spin_unlock_irq(&usblp->lock);
+				writecount += transfer_length;
+			}
 			/* Leave URB dangling, to be cleaned on close. */
 			goto collect_error;
 		}
 
 		if (usblp->wstatus < 0) {
-			usblp_check_status(usblp, 0);
 			rv = -EIO;
 			goto collect_error;
 		}
@@ -838,32 +847,36 @@ done:
  * when O_NONBLOCK is set. So, applications setting O_NONBLOCK must use
  * select(2) or poll(2) to wait for the buffer to drain before closing.
  * Alternatively, set blocking mode with fcntl and issue a zero-size write.
- *
- * Old v0.13 code had a non-functional timeout for wait_event(). Someone forgot
- * to check the return code for timeout expiration, so it had no effect.
- * Apparently, it was intended to check for error conditons, such as out
- * of paper. It is going to return when we settle things with CUPS. XXX
  */
 static int usblp_wwait(struct usblp *usblp, int nonblock)
 {
 	DECLARE_WAITQUEUE(waita, current);
 	int rc;
+	int err = 0;
 
 	add_wait_queue(&usblp->wwait, &waita);
 	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (mutex_lock_interruptible(&usblp->mut)) {
 			rc = -EINTR;
 			break;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
-		if ((rc = usblp_wtest(usblp, nonblock)) < 0) {
-			mutex_unlock(&usblp->mut);
-			break;
-		}
+		rc = usblp_wtest(usblp, nonblock);
 		mutex_unlock(&usblp->mut);
-		if (rc == 0)
+		if (rc <= 0)
 			break;
-		schedule();
+
+		if (usblp->flags & LP_ABORT) {
+			if (schedule_timeout(msecs_to_jiffies(5000)) == 0) {
+				err = usblp_check_status(usblp, err);
+				if (err == 1) {	/* Paper out */
+					rc = -ENOSPC;
+					break;
+				}
+			}
+		} else {
+			schedule();
+		}
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&usblp->wwait, &waita);
