@@ -45,9 +45,10 @@ int query_apm_bios(void)
 
 	/* Disconnect first, just in case */
 	ax = 0x5304;
+	bx = 0;
 	asm volatile("pushl %%ebp ; int $0x15 ; popl %%ebp"
-		     : "+a" (ax)
-		     : : "ebx", "ecx", "edx", "esi", "edi");
+		     : "+a" (ax), "+b" (bx)
+		     : : "ecx", "edx", "esi", "edi");
 
 	/* Paranoia */
 	ebx = esi = 0;
