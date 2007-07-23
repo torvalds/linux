@@ -3731,7 +3731,6 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 {
 	int status;
 	struct buffer_head *last_eb_bh = NULL;
-	struct buffer_head *bh = NULL;
 	struct ocfs2_insert_type insert = {0, };
 	struct ocfs2_extent_rec rec;
 
@@ -3783,9 +3782,6 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 		ocfs2_extent_map_insert_rec(inode, &rec);
 
 bail:
-	if (bh)
-		brelse(bh);
-
 	if (last_eb_bh)
 		brelse(last_eb_bh);
 
