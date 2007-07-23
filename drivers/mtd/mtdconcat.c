@@ -178,7 +178,7 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 
 	/* Check alignment */
 	if (mtd->writesize > 1) {
-		loff_t __to = to;
+		uint64_t __to = to;
 		if (do_div(__to, mtd->writesize) || (total_len % mtd->writesize))
 			return -EINVAL;
 	}
