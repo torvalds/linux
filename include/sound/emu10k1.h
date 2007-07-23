@@ -1456,6 +1456,7 @@ struct snd_emu1010 {
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
 	unsigned int internal_clock; /* 44100 or 48000 */
+	struct task_struct *firmware_thread;
 };
 
 struct snd_emu10k1 {
