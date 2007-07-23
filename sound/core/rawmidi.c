@@ -30,7 +30,6 @@
 #include <linux/mutex.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/wait.h>
 #include <sound/rawmidi.h>
 #include <sound/info.h>
 #include <sound/control.h>
