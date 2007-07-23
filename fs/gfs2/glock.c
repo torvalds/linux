@@ -697,8 +697,9 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state, int remot
 			}
 			return;
 		}
-	} else if (gl->gl_demote_state != LM_ST_UNLOCKED) {
-		gl->gl_demote_state = state;
+	} else if (gl->gl_demote_state != LM_ST_UNLOCKED &&
+			gl->gl_demote_state != state) {
+		gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
 	spin_unlock(&gl->gl_spin);
 }
