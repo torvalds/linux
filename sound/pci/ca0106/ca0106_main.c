@@ -170,6 +170,15 @@ MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 static struct snd_ca0106_details ca0106_chip_details[] = {
 	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
 	 /* It is really just a normal SB Live 24bit. */
+	 /* Tested:
+	  * See ALSA bug#3251
+	  */
+	 { .serial = 0x10131102,
+	   .name   = "X-Fi Extreme Audio [SBxxxx]",
+	   .gpio_type = 1,
+	   .i2c_adc = 1 } ,
+	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
+	 /* It is really just a normal SB Live 24bit. */
 	 /*
  	  * CTRL:CA0111-WTLF
 	  * ADC: WM8775SEDS
