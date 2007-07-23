@@ -1207,7 +1207,7 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+1), A_C_00000000, A_GPR(gpr+1), A_FXBUS(FXBUS_PCM_RIGHT_FRONT));
 	snd_emu10k1_init_stereo_control(&controls[nctl++], "PCM Front Playback Volume", gpr, 100);
 	gpr += 2;
-	
+
 	/* PCM Surround Playback (independent from stereo mix) */
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+2), A_C_00000000, A_GPR(gpr), A_FXBUS(FXBUS_PCM_LEFT_REAR));
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+3), A_C_00000000, A_GPR(gpr+1), A_FXBUS(FXBUS_PCM_RIGHT_REAR));
@@ -1267,8 +1267,16 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	/* emu1212 DSP 0 and DSP 1 Capture */
 	if (emu->card_capabilities->emu1010) {
-		A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_P16VIN(0x0));
-		A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_P16VIN(0x1));
+		if (emu->card_capabilities->ca0108_chip) {
+			/* Note:JCD:No longer bit shift lower 16bits to upper 16bits of 32bit value. */
+			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x0), A_C_00000001);
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_GPR(tmp));
+			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x1), A_C_00000001);
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr), A_GPR(tmp));
+		} else {
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_P16VIN(0x0));
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_P16VIN(0x1));
+		}
 		snd_emu10k1_init_stereo_control(&controls[nctl++], "EMU Capture Volume", gpr, 0);
 		gpr += 2;
 	}
@@ -1516,7 +1524,11 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		/* EMU1010 Outputs from PCM Front, Rear, Center, LFE, Side */
 		snd_printk("EMU outputs on\n");
 		for (z = 0; z < 8; z++) {
-			A_OP(icode, &ptr, iACC3, A_EMU32OUTL(z), A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_C_00000000, A_C_00000000);
+			if (emu->card_capabilities->ca0108_chip) {
+				A_OP(icode, &ptr, iACC3, A3_EMU32OUT(z), A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_C_00000000, A_C_00000000);
+			} else {
+				A_OP(icode, &ptr, iACC3, A_EMU32OUTL(z), A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_C_00000000, A_C_00000000);
+			}
 		}
 	}
 
@@ -1557,106 +1569,116 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 #endif
 
 	if (emu->card_capabilities->emu1010) {
-		snd_printk("EMU inputs on\n");
-		/* Capture 16 (originally 8) channels of S32_LE sound */
-		
-		/* printk("emufx.c: gpr=0x%x, tmp=0x%x\n",gpr, tmp); */
-		/* For the EMU1010: How to get 32bit values from the DSP. High 16bits into L, low 16bits into R. */
-		/* A_P16VIN(0) is delayed by one sample,
-		 * so all other A_P16VIN channels will need to also be delayed
-		 */
-		/* Left ADC in. 1 of 2 */
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_P16VIN(0x0), A_FXBUS2(0) );
-		/* Right ADC in 1 of 2 */
-		gpr_map[gpr++] = 0x00000000;
-		/* Delaying by one sample: instead of copying the input
-		 * value A_P16VIN to output A_FXBUS2 as in the first channel,
-		 * we use an auxiliary register, delaying the value by one
-		 * sample
-		 */
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(2) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x1), A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(4) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x2), A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(6) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x3), A_C_00000000, A_C_00000000);
-		/* For 96kHz mode */
-		/* Left ADC in. 2 of 2 */
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0x8) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x4), A_C_00000000, A_C_00000000);
-		/* Right ADC in 2 of 2 */
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xa) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x5), A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xc) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x6), A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xe) );
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x7), A_C_00000000, A_C_00000000);
-		/* Pavel Hofman - we still have voices, A_FXBUS2s, and
-		 * A_P16VINs available -
-		 * let's add 8 more capture channels - total of 16
-		 */
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x10));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x8),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x12));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x9),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x14));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xa),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x16));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xb),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x18));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xc),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x1a));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xd),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x1c));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xe),
-		     A_C_00000000, A_C_00000000);
-		gpr_map[gpr++] = 0x00000000;
-		snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
-							  bit_shifter16,
-							  A_GPR(gpr - 1),
-							  A_FXBUS2(0x1e));
-		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xf),
-		     A_C_00000000, A_C_00000000);
+		if (emu->card_capabilities->ca0108_chip) {
+			snd_printk("EMU2 inputs on\n");
+			for (z = 0; z < 0x10; z++) {
+				snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, 
+									bit_shifter16,
+									A3_EMU32IN(z),
+									A_FXBUS2(z*2) );
+			}
+		} else {
+			snd_printk("EMU inputs on\n");
+			/* Capture 16 (originally 8) channels of S32_LE sound */
+
+			/* printk("emufx.c: gpr=0x%x, tmp=0x%x\n",gpr, tmp); */
+			/* For the EMU1010: How to get 32bit values from the DSP. High 16bits into L, low 16bits into R. */
+			/* A_P16VIN(0) is delayed by one sample,
+			 * so all other A_P16VIN channels will need to also be delayed
+			 */
+			/* Left ADC in. 1 of 2 */
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_P16VIN(0x0), A_FXBUS2(0) );
+			/* Right ADC in 1 of 2 */
+			gpr_map[gpr++] = 0x00000000;
+			/* Delaying by one sample: instead of copying the input
+			 * value A_P16VIN to output A_FXBUS2 as in the first channel,
+			 * we use an auxiliary register, delaying the value by one
+			 * sample
+			 */
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(2) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x1), A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(4) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x2), A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(6) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x3), A_C_00000000, A_C_00000000);
+			/* For 96kHz mode */
+			/* Left ADC in. 2 of 2 */
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0x8) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x4), A_C_00000000, A_C_00000000);
+			/* Right ADC in 2 of 2 */
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xa) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x5), A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xc) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x6), A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xe) );
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x7), A_C_00000000, A_C_00000000);
+			/* Pavel Hofman - we still have voices, A_FXBUS2s, and
+			 * A_P16VINs available -
+			 * let's add 8 more capture channels - total of 16
+			 */
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x10));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x8),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x12));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x9),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x14));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xa),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x16));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xb),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x18));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xc),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x1a));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xd),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x1c));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xe),
+			     A_C_00000000, A_C_00000000);
+			gpr_map[gpr++] = 0x00000000;
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(icode, &ptr, tmp,
+								  bit_shifter16,
+								  A_GPR(gpr - 1),
+								  A_FXBUS2(0x1e));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0xf),
+			     A_C_00000000, A_C_00000000);
+		}
 
 #if 0
 		for (z = 4; z < 8; z++) {

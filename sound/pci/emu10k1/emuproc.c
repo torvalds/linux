@@ -385,7 +385,7 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 	int i;
 	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
 
-	for(i = 0; i < 0x30; i+=1) {
+	for(i = 0; i < 0x40; i+=1) {
 		spin_lock_irqsave(&emu->emu_lock, flags);
 		regs=i+0x40; /* 0x40 upwards are registers. */
 		outl(regs, emu->port + A_IOCFG);
@@ -555,9 +555,9 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 {
 	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
-	if ((emu->card_capabilities->emu1010) &&
-	     snd_card_proc_new(emu->card, "emu1010_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
+	if (emu->card_capabilities->emu1010) {
+		if (! snd_card_proc_new(emu->card, "emu1010_regs", &entry)) 
+			snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
 	}
 	if (! snd_card_proc_new(emu->card, "io_regs", &entry)) {
 		snd_info_set_text_ops(entry, emu, snd_emu_proc_io_reg_read);
