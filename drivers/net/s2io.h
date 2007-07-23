@@ -74,6 +74,10 @@ static int debug_level = ERR_DBG;
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
 
+#ifndef DMA_ERROR_CODE
+#define DMA_ERROR_CODE          (~(dma_addr_t)0x0)
+#endif
+
 /* Protocol assist features of the NIC */
 #define L3_CKSUM_OK 0xFFFF
 #define L4_CKSUM_OK 0xFFFF
@@ -97,6 +101,7 @@ struct swStat {
 	unsigned long long num_aggregations;
 	/* Other statistics */
 	unsigned long long mem_alloc_fail_cnt;
+	unsigned long long pci_map_fail_cnt;
 	unsigned long long watchdog_timer_cnt;
 	unsigned long long mem_allocated;
 	unsigned long long mem_freed;
