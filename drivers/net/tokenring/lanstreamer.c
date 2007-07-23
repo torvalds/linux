@@ -246,7 +246,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 	}
 
 	SET_MODULE_OWNER(dev);
-	streamer_priv = dev->priv;
+	streamer_priv = netdev_priv(dev);
 
 #if STREAMER_NETWORK_MONITOR
 #ifdef CONFIG_PROC_FS
@@ -405,7 +405,7 @@ static void __devexit streamer_remove_one(struct pci_dev *pdev)
 		return;
 	}
 
-	streamer_priv=dev->priv;
+	streamer_priv=netdev_priv(dev);
 	if (streamer_priv == NULL) {
 		printk(KERN_ERR "lanstreamer::streamer_remove_one, ERROR dev->priv is NULL\n");
 		return;
@@ -449,7 +449,7 @@ static int streamer_reset(struct net_device *dev)
 	struct sk_buff *skb = NULL;
 	__u16 misr;
 
-	streamer_priv = (struct streamer_private *) dev->priv;
+	streamer_priv = netdev_priv(dev);
 	streamer_mmio = streamer_priv->streamer_mmio;
 
 	writew(readw(streamer_mmio + BCTL) | BCTL_SOFTRESET, streamer_mmio + BCTL);
@@ -588,7 +588,7 @@ static int streamer_reset(struct net_device *dev)
 
 static int streamer_open(struct net_device *dev)
 {
-	struct streamer_private *streamer_priv = (struct streamer_private *) dev->priv;
+	struct streamer_private *streamer_priv = netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	unsigned long flags;
 	char open_error[255];
@@ -905,7 +905,7 @@ static int streamer_open(struct net_device *dev)
 static void streamer_rx(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	struct streamer_rx_desc *rx_desc;
 	int rx_ring_last_received, length, frame_length, buffer_cnt = 0;
@@ -1030,7 +1030,7 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u16 sisr;
 	__u16 misr;
@@ -1153,7 +1153,7 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	unsigned long flags ;
 
@@ -1204,7 +1204,7 @@ static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
 static int streamer_close(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	unsigned long flags;
 	int i;
@@ -1270,7 +1270,7 @@ static int streamer_close(struct net_device *dev)
 static void streamer_set_rx_mode(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u8 options = 0;
 	struct dev_mc_list *dmi;
@@ -1329,7 +1329,7 @@ static void streamer_set_rx_mode(struct net_device *dev)
 
 static void streamer_srb_bh(struct net_device *dev)
 {
-	struct streamer_private *streamer_priv = (struct streamer_private *) dev->priv;
+	struct streamer_private *streamer_priv = netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u16 srb_word;
 
@@ -1494,14 +1494,14 @@ static void streamer_srb_bh(struct net_device *dev)
 static struct net_device_stats *streamer_get_stats(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv;
-	streamer_priv = (struct streamer_private *) dev->priv;
+	streamer_priv = netdev_priv(dev);
 	return (struct net_device_stats *) &streamer_priv->streamer_stats;
 }
 
 static int streamer_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *saddr = addr;
-	struct streamer_private *streamer_priv = (struct streamer_private *) dev->priv;
+	struct streamer_private *streamer_priv = netdev_priv(dev);
 
 	if (netif_running(dev)) 
 	{
@@ -1526,7 +1526,7 @@ static int streamer_set_mac_address(struct net_device *dev, void *addr)
 static void streamer_arb_cmd(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u8 header_len;
 	__u16 frame_len, buffer_len;
@@ -1741,7 +1741,7 @@ drop_frame:
 static void streamer_asb_bh(struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 
 	if (streamer_priv->asb_queued == 1) 
@@ -1785,7 +1785,7 @@ static void streamer_asb_bh(struct net_device *dev)
 static int streamer_change_mtu(struct net_device *dev, int mtu)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u16 max_mtu;
 
 	if (streamer_priv->streamer_ring_speed == 4)
@@ -1849,7 +1849,7 @@ static int streamer_proc_info(char *buffer, char **start, off_t offset,
 static int sprintf_info(char *buffer, struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
-	    (struct streamer_private *) dev->priv;
+	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	struct streamer_adapter_addr_table sat;
 	struct streamer_parameters_table spt;

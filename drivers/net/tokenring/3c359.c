@@ -156,7 +156,7 @@ static void print_rx_state(struct net_device *dev) ;
 static void print_tx_state(struct net_device *dev)
 {
 
-	struct xl_private *xl_priv = (struct xl_private *)dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	struct xl_tx_desc *txd ; 
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	int i ; 
@@ -179,7 +179,7 @@ static void print_tx_state(struct net_device *dev)
 static void print_rx_state(struct net_device *dev)
 {
 
-	struct xl_private *xl_priv = (struct xl_private *)dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	struct xl_rx_desc *rxd ; 
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	int i ; 
@@ -213,7 +213,7 @@ static void print_rx_state(struct net_device *dev)
 
 static u16 xl_ee_read(struct net_device *dev, int ee_addr)
 { 
-    	struct xl_private *xl_priv = (struct xl_private *)dev->priv ;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 
 	/* Wait for EEProm to not be busy */
@@ -245,7 +245,7 @@ static u16 xl_ee_read(struct net_device *dev, int ee_addr)
 
 static void  xl_ee_write(struct net_device *dev, int ee_addr, u16 ee_value) 
 {
-    	struct xl_private *xl_priv = (struct xl_private *)dev->priv ;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 
 	/* Wait for EEProm to not be busy */
@@ -305,11 +305,11 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 		pci_release_regions(pdev) ; 
 		return -ENOMEM ; 
 	} 
-	xl_priv = dev->priv ; 
+	xl_priv = netdev_priv(dev);
 
 #if XL_DEBUG  
 	printk("pci_device: %p, dev:%p, dev->priv: %p, ba[0]: %10x, ba[1]:%10x\n", 
-		pdev, dev, dev->priv, (unsigned int)pdev->resource[0].start, (unsigned int)pdev->resource[1].start) ;  
+		pdev, dev, netdev_priv(dev), (unsigned int)pdev->resource[0].start, (unsigned int)pdev->resource[1].start);
 #endif 
 
 	dev->irq=pdev->irq;
@@ -365,7 +365,7 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 
 static int __devinit xl_init(struct net_device *dev) 
 {
-    	struct xl_private *xl_priv = (struct xl_private *)dev->priv ;
+	struct xl_private *xl_priv = netdev_priv(dev);
 
 	printk(KERN_INFO "%s \n", version);
 	printk(KERN_INFO "%s: I/O at %hx, MMIO at %p, using irq %d\n",
@@ -385,7 +385,7 @@ static int __devinit xl_init(struct net_device *dev)
 
 static int xl_hw_reset(struct net_device *dev) 
 { 
-    	struct xl_private *xl_priv = (struct xl_private *)dev->priv ;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	unsigned long t ; 
 	u16 i ; 
@@ -568,7 +568,7 @@ static int xl_hw_reset(struct net_device *dev)
 
 static int xl_open(struct net_device *dev) 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	u8 i ; 
 	u16 hwaddr[3] ; /* Should be u8[6] but we get word return values */
@@ -726,7 +726,7 @@ static int xl_open(struct net_device *dev)
 
 static int xl_open_hw(struct net_device *dev) 
 { 
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	u16 vsoff ;
 	char ver_str[33];  
@@ -875,7 +875,7 @@ static int xl_open_hw(struct net_device *dev)
 
 static void adv_rx_ring(struct net_device *dev) /* Advance rx_ring, cut down on bloat in xl_rx */ 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	int prev_ring_loc ; 
 
 	prev_ring_loc = (xl_priv->rx_ring_tail + XL_RX_RING_SIZE - 1) & (XL_RX_RING_SIZE - 1);
@@ -890,7 +890,7 @@ static void adv_rx_ring(struct net_device *dev) /* Advance rx_ring, cut down on 
 
 static void xl_rx(struct net_device *dev)
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	struct sk_buff *skb, *skb2 ; 
 	int frame_length = 0, copy_len = 0  ; 	
@@ -997,7 +997,7 @@ static void xl_rx(struct net_device *dev)
 
 static void xl_reset(struct net_device *dev) 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	unsigned long t; 
 
@@ -1020,7 +1020,7 @@ static void xl_reset(struct net_device *dev)
 
 static void xl_freemem(struct net_device *dev) 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv ; 
+	struct xl_private *xl_priv=netdev_priv(dev);
 	int i ; 
 
 	for (i=0;i<XL_RX_RING_SIZE;i++) {
@@ -1044,7 +1044,7 @@ static void xl_freemem(struct net_device *dev)
 static irqreturn_t xl_interrupt(int irq, void *dev_id) 
 {
 	struct net_device *dev = (struct net_device *)dev_id;
- 	struct xl_private *xl_priv =(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv =netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	u16 intstatus, macstatus  ;
 
@@ -1171,7 +1171,7 @@ static irqreturn_t xl_interrupt(int irq, void *dev_id)
 	
 static int xl_xmit(struct sk_buff *skb, struct net_device *dev) 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	struct xl_tx_desc *txd ; 
 	int tx_head, tx_tail, tx_prev ; 
 	unsigned long flags ; 	
@@ -1232,7 +1232,7 @@ static int xl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void xl_dn_comp(struct net_device *dev) 
 {
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	struct xl_tx_desc *txd ; 
 
@@ -1268,7 +1268,7 @@ static void xl_dn_comp(struct net_device *dev)
 
 static int xl_close(struct net_device *dev) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	unsigned long t ; 
 
@@ -1366,7 +1366,7 @@ static int xl_close(struct net_device *dev)
 
 static void xl_set_rx_mode(struct net_device *dev) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	struct dev_mc_list *dmi ; 
 	unsigned char dev_mc_address[4] ; 
 	u16 options ; 
@@ -1407,7 +1407,7 @@ static void xl_set_rx_mode(struct net_device *dev)
 
 static void xl_srb_bh(struct net_device *dev) 
 { 
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	u8 srb_cmd, ret_code ; 
 	int i ; 
@@ -1476,14 +1476,14 @@ static void xl_srb_bh(struct net_device *dev)
 
 static struct net_device_stats * xl_get_stats(struct net_device *dev)
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	return (struct net_device_stats *) &xl_priv->xl_stats; 
 }
 
 static int xl_set_mac_address (struct net_device *dev, void *addr) 
 {
 	struct sockaddr *saddr = addr ; 
-	struct xl_private *xl_priv = (struct xl_private *)dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 
 	if (netif_running(dev)) { 
 		printk(KERN_WARNING "%s: Cannot set mac/laa address while card is open\n", dev->name) ; 
@@ -1504,7 +1504,7 @@ static int xl_set_mac_address (struct net_device *dev, void *addr)
 
 static void xl_arb_cmd(struct net_device *dev)
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	u8 arb_cmd ; 
 	u16 lan_status, lan_status_diff ; 
@@ -1632,7 +1632,7 @@ static void xl_arb_cmd(struct net_device *dev)
 
 static void xl_asb_cmd(struct net_device *dev)
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 
 	if (xl_priv->asb_queued == 1) 
@@ -1663,7 +1663,7 @@ static void xl_asb_cmd(struct net_device *dev)
  */
 static void xl_asb_bh(struct net_device *dev) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	u8 ret_code ; 
 
@@ -1691,7 +1691,7 @@ static void xl_asb_bh(struct net_device *dev)
 
 static void xl_srb_cmd(struct net_device *dev, int srb_cmd) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 
 	switch (srb_cmd) { 
@@ -1748,7 +1748,7 @@ static void xl_srb_cmd(struct net_device *dev, int srb_cmd)
 
 static void xl_wait_misr_flags(struct net_device *dev) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv ; 
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	
 	int i  ; 
@@ -1773,7 +1773,7 @@ static void xl_wait_misr_flags(struct net_device *dev)
 
 static int xl_change_mtu(struct net_device *dev, int mtu) 
 {
-	struct xl_private *xl_priv = (struct xl_private *) dev->priv;
+	struct xl_private *xl_priv = netdev_priv(dev);
 	u16 max_mtu ; 
 
 	if (xl_priv->xl_ring_speed == 4)
@@ -1795,7 +1795,7 @@ static int xl_change_mtu(struct net_device *dev, int mtu)
 static void __devexit xl_remove_one (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct xl_private *xl_priv=(struct xl_private *)dev->priv;
+	struct xl_private *xl_priv=netdev_priv(dev);
 	
 	unregister_netdev(dev);
 	iounmap(xl_priv->xl_mmio) ; 

@@ -690,7 +690,7 @@ static int madgemc_close(struct net_device *dev)
 static int madgemc_mcaproc(char *buf, int slot, void *d) 
 {	
 	struct net_device *dev = (struct net_device *)d;
-	struct net_local *tp = dev->priv;
+	struct net_local *tp = netdev_priv(dev);
 	struct card_info *curcard = tp->tmspriv;
 	int len = 0;
 	
@@ -736,7 +736,7 @@ static int __devexit madgemc_remove(struct device *device)
 
 	BUG_ON(!dev);
 
-	tp = dev->priv;
+	tp = netdev_priv(dev);
 	card = tp->tmspriv;
 	kfree(card);
 	tp->tmspriv = NULL;

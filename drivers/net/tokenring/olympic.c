@@ -220,14 +220,14 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 		goto op_release_dev;
 	}
 
-	olympic_priv = dev->priv ;
+	olympic_priv = netdev_priv(dev) ;
 	
 	spin_lock_init(&olympic_priv->olympic_lock) ; 
 
 	init_waitqueue_head(&olympic_priv->srb_wait);
 	init_waitqueue_head(&olympic_priv->trb_wait);
 #if OLYMPIC_DEBUG  
-	printk(KERN_INFO "pci_device: %p, dev:%p, dev->priv: %p\n", pdev, dev, dev->priv);
+	printk(KERN_INFO "pci_device: %p, dev:%p, dev->priv: %p\n", pdev, dev, netdev_priv(dev));
 #endif
 	dev->irq=pdev->irq;
 	dev->base_addr=pci_resource_start(pdev, 0);
@@ -298,7 +298,7 @@ static int __devinit olympic_init(struct net_device *dev)
 	unsigned long t; 
 	unsigned int uaa_addr;
 
-    	olympic_priv=(struct olympic_private *)dev->priv;
+	olympic_priv=netdev_priv(dev);
 	olympic_mmio=olympic_priv->olympic_mmio;
 
 	printk("%s \n", version);
@@ -436,7 +436,7 @@ static int __devinit olympic_init(struct net_device *dev)
 
 static int olympic_open(struct net_device *dev) 
 {
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio,*init_srb;
 	unsigned long flags, t;
 	int i, open_finished = 1 ;
@@ -756,7 +756,7 @@ out:
  */
 static void olympic_rx(struct net_device *dev)
 {
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio;
 	struct olympic_rx_status *rx_status;
 	struct olympic_rx_desc *rx_desc ; 
@@ -898,7 +898,7 @@ static void olympic_rx(struct net_device *dev)
 
 static void olympic_freemem(struct net_device *dev) 
 { 
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	int i;
 			
 	for(i=0;i<OLYMPIC_RX_RING_SIZE;i++) {
@@ -931,7 +931,7 @@ static void olympic_freemem(struct net_device *dev)
 static irqreturn_t olympic_interrupt(int irq, void *dev_id) 
 {
 	struct net_device *dev= (struct net_device *)dev_id;
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio;
 	u32 sisr;
 	u8 __iomem *adapter_check_area ; 
@@ -1047,7 +1047,7 @@ static irqreturn_t olympic_interrupt(int irq, void *dev_id)
 
 static int olympic_xmit(struct sk_buff *skb, struct net_device *dev) 
 {
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio;
 	unsigned long flags ; 
 
@@ -1078,7 +1078,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int olympic_close(struct net_device *dev) 
 {
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio,*srb;
 	unsigned long t,flags;
 
@@ -1148,7 +1148,7 @@ static int olympic_close(struct net_device *dev)
 
 static void olympic_set_rx_mode(struct net_device *dev) 
 {
-	struct olympic_private *olympic_priv = (struct olympic_private *) dev->priv ; 
+	struct olympic_private *olympic_priv = netdev_priv(dev);
    	u8 __iomem *olympic_mmio = olympic_priv->olympic_mmio ; 
 	u8 options = 0; 
 	u8 __iomem *srb;
@@ -1216,7 +1216,7 @@ static void olympic_set_rx_mode(struct net_device *dev)
 
 static void olympic_srb_bh(struct net_device *dev) 
 { 
-	struct olympic_private *olympic_priv = (struct olympic_private *) dev->priv ; 
+	struct olympic_private *olympic_priv = netdev_priv(dev);
    	u8 __iomem *olympic_mmio = olympic_priv->olympic_mmio ; 
 	u8 __iomem *srb;
 
@@ -1362,14 +1362,14 @@ static void olympic_srb_bh(struct net_device *dev)
 static struct net_device_stats * olympic_get_stats(struct net_device *dev)
 {
 	struct olympic_private *olympic_priv ;
-	olympic_priv=(struct olympic_private *) dev->priv;
+	olympic_priv=netdev_priv(dev);
 	return (struct net_device_stats *) &olympic_priv->olympic_stats; 
 }
 
 static int olympic_set_mac_address (struct net_device *dev, void *addr) 
 {
 	struct sockaddr *saddr = addr ; 
-	struct olympic_private *olympic_priv = (struct olympic_private *)dev->priv ; 
+	struct olympic_private *olympic_priv = netdev_priv(dev);
 
 	if (netif_running(dev)) { 
 		printk(KERN_WARNING "%s: Cannot set mac/laa address while card is open\n", dev->name) ; 
@@ -1390,7 +1390,7 @@ static int olympic_set_mac_address (struct net_device *dev, void *addr)
 
 static void olympic_arb_cmd(struct net_device *dev)
 {
-	struct olympic_private *olympic_priv = (struct olympic_private *) dev->priv;
+	struct olympic_private *olympic_priv = netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio;
 	u8 __iomem *arb_block, *asb_block, *srb  ; 
 	u8 header_len ; 
@@ -1576,7 +1576,7 @@ drop_frame:
 
 static void olympic_asb_bh(struct net_device *dev) 
 {
-	struct olympic_private *olympic_priv = (struct olympic_private *) dev->priv ; 
+	struct olympic_private *olympic_priv = netdev_priv(dev);
 	u8 __iomem *arb_block, *asb_block ; 
 
 	arb_block = (olympic_priv->olympic_lap + olympic_priv->arb) ; 
@@ -1616,7 +1616,7 @@ static void olympic_asb_bh(struct net_device *dev)
  
 static int olympic_change_mtu(struct net_device *dev, int mtu) 
 {
-	struct olympic_private *olympic_priv = (struct olympic_private *) dev->priv;
+	struct olympic_private *olympic_priv = netdev_priv(dev);
 	u16 max_mtu ; 
 
 	if (olympic_priv->olympic_ring_speed == 4)
@@ -1638,7 +1638,7 @@ static int olympic_change_mtu(struct net_device *dev, int mtu)
 static int olympic_proc_info(char *buffer, char **start, off_t offset, int length, int *eof, void *data)
 {
 	struct net_device *dev = (struct net_device *)data ; 
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *oat = (olympic_priv->olympic_lap + olympic_priv->olympic_addr_table_addr) ; 
 	u8 __iomem *opt = (olympic_priv->olympic_lap + olympic_priv->olympic_parms_addr) ; 
 	int size = 0 ; 
@@ -1749,7 +1749,7 @@ static int olympic_proc_info(char *buffer, char **start, off_t offset, int lengt
 static void __devexit olympic_remove_one(struct pci_dev *pdev) 
 {
 	struct net_device *dev = pci_get_drvdata(pdev) ; 
-	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
+	struct olympic_private *olympic_priv=netdev_priv(dev);
 
 	if (olympic_priv->olympic_network_monitor) { 
 		char proc_name[20] ; 
