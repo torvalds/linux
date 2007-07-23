@@ -59,8 +59,13 @@ struct bsg_class_device {
 extern int bsg_register_queue(struct request_queue *, struct device *, const char *);
 extern void bsg_unregister_queue(struct request_queue *);
 #else
-#define bsg_register_queue(disk, dev, name)		(0)
-#define bsg_unregister_queue(disk)	do { } while (0)
+static inline int bsg_register_queue(struct request_queue * rq, struct device *dev, const char *name)
+{
+	return 0;
+}
+static inline void bsg_unregister_queue(struct request_queue *rq)
+{
+}
 #endif
 
 #endif /* __KERNEL__ */
