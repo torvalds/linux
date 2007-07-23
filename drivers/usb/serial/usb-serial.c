@@ -1077,16 +1077,17 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_serial_port *port;
 	int i, r = 0;
 
-	if (serial) {
-		for (i = 0; i < serial->num_ports; ++i) {
-			port = serial->port[i];
-			if (port)
-				kill_traffic(port);
-		}
+	if (!serial) /* device has been disconnected */
+		return 0;
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		if (port)
+			kill_traffic(port);
 	}
 
 	if (serial->type->suspend)
-		serial->type->suspend(serial, message);
+		r = serial->type->suspend(serial, message);
 
 	return r;
 }
