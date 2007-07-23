@@ -80,6 +80,11 @@ extern const void *vio_get_attribute(struct vio_dev *vdev, char *which,
 extern struct vio_dev *vio_find_node(struct device_node *vnode);
 extern int vio_enable_interrupts(struct vio_dev *dev);
 extern int vio_disable_interrupts(struct vio_dev *dev);
+#else
+static inline int vio_enable_interrupts(struct vio_dev *dev)
+{
+	return 0;
+}
 #endif
 
 static inline struct vio_driver *to_vio_driver(struct device_driver *drv)
