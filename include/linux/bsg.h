@@ -53,7 +53,6 @@ struct bsg_class_device {
 	struct class_device *class_dev;
 	struct device *dev;
 	int minor;
-	struct list_head list;
 	struct request_queue *queue;
 };
 
