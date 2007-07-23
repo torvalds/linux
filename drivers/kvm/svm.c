@@ -941,21 +941,21 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (is_external_interrupt(exit_int_info))
 		push_irq(vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
 
-	spin_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->lock);
 
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
 	r = kvm_mmu_page_fault(vcpu, fault_address, error_code);
 	if (r < 0) {
-		spin_unlock(&vcpu->kvm->lock);
+		mutex_unlock(&vcpu->kvm->lock);
 		return r;
 	}
 	if (!r) {
-		spin_unlock(&vcpu->kvm->lock);
+		mutex_unlock(&vcpu->kvm->lock);
 		return 1;
 	}
 	er = emulate_instruction(vcpu, kvm_run, fault_address, error_code);
-	spin_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->lock);
 
 	switch (er) {
 	case EMULATE_DONE:

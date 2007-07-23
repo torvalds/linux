@@ -1711,19 +1711,19 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (is_page_fault(intr_info)) {
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
 
-		spin_lock(&vcpu->kvm->lock);
+		mutex_lock(&vcpu->kvm->lock);
 		r = kvm_mmu_page_fault(vcpu, cr2, error_code);
 		if (r < 0) {
-			spin_unlock(&vcpu->kvm->lock);
+			mutex_unlock(&vcpu->kvm->lock);
 			return r;
 		}
 		if (!r) {
-			spin_unlock(&vcpu->kvm->lock);
+			mutex_unlock(&vcpu->kvm->lock);
 			return 1;
 		}
 
 		er = emulate_instruction(vcpu, kvm_run, cr2, error_code);
-		spin_unlock(&vcpu->kvm->lock);
+		mutex_unlock(&vcpu->kvm->lock);
 
 		switch (er) {
 		case EMULATE_DONE:

@@ -393,7 +393,7 @@ struct kvm_memory_slot {
 };
 
 struct kvm {
-	spinlock_t lock; /* protects everything except vcpus */
+	struct mutex lock; /* protects everything except vcpus */
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 	int nmemslots;

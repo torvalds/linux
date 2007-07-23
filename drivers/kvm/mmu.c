@@ -275,10 +275,9 @@ static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 	r = __mmu_topup_memory_caches(vcpu, GFP_NOWAIT);
 	kvm_mmu_free_some_pages(vcpu);
 	if (r < 0) {
-		spin_unlock(&vcpu->kvm->lock);
+		mutex_unlock(&vcpu->kvm->lock);
 		r = __mmu_topup_memory_caches(vcpu, GFP_KERNEL);
-		spin_lock(&vcpu->kvm->lock);
-		kvm_mmu_free_some_pages(vcpu);
+		mutex_lock(&vcpu->kvm->lock);
 	}
 	return r;
 }
@@ -1069,7 +1068,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	spin_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->lock);
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		goto out;
@@ -1077,7 +1076,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	kvm_arch_ops->set_cr3(vcpu, vcpu->mmu.root_hpa);
 	kvm_mmu_flush_tlb(vcpu);
 out:
-	spin_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_load);
