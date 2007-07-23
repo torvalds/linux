@@ -545,12 +545,14 @@ static int rq_demote(struct gfs2_glock *gl)
 		return 0;
 	}
 	set_bit(GLF_LOCK, &gl->gl_flags);
-	spin_unlock(&gl->gl_spin);
 	if (gl->gl_demote_state == LM_ST_UNLOCKED ||
-	    gl->gl_state != LM_ST_EXCLUSIVE)
+	    gl->gl_state != LM_ST_EXCLUSIVE) {
+		spin_unlock(&gl->gl_spin);
 		gfs2_glock_drop_th(gl);
-	else
+	} else {
+		spin_unlock(&gl->gl_spin);
 		gfs2_glock_xmote_th(gl, NULL);
+	}
 	spin_lock(&gl->gl_spin);
 
 	return 0;
@@ -760,10 +762,20 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 
 	if (!gh) {
 		gl->gl_stamp = jiffies;
-		if (ret & LM_OUT_CANCELED)
+		if (ret & LM_OUT_CANCELED) {
 			op_done = 0;
-		else
+		} else {
+			spin_lock(&gl->gl_spin);
+			if (gl->gl_state != gl->gl_demote_state) {
+				gl->gl_req_bh = NULL;
+				spin_unlock(&gl->gl_spin);
+				gfs2_glock_drop_th(gl);
+				gfs2_glock_put(gl);
+				return;
+			}
 			gfs2_demote_wake(gl);
+			spin_unlock(&gl->gl_spin);
+		}
 	} else {
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
@@ -817,7 +829,7 @@ out:
  *
  */
 
-void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh)
+static void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int flags = gh ? gh->gh_flags : 0;
