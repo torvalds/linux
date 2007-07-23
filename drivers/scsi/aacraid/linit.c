@@ -826,7 +826,7 @@ static ssize_t aac_show_reset_adapter(struct class_device *class_dev,
 	tmp = aac_adapter_check_health(dev);
 	if ((tmp == 0) && dev->in_reset)
 		tmp = -EBUSY;
-	len = snprintf(buf, PAGE_SIZE, "0x%x", tmp);
+	len = snprintf(buf, PAGE_SIZE, "0x%x\n", tmp);
 	return len;
 }
 
