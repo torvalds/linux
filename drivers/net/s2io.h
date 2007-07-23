@@ -875,7 +875,6 @@ struct s2io_nic {
 	u16		lro_max_aggr_per_sess;
 
 #define INTA	0
-#define MSI	1
 #define MSI_X	2
 	u8 intr_type;
 
@@ -1019,8 +1018,6 @@ static int s2io_poll(struct net_device *dev, int *budget);
 static void s2io_init_pci(struct s2io_nic * sp);
 static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
-static int s2io_enable_msi(struct s2io_nic *nic);
-static irqreturn_t s2io_msi_handle(int irq, void *dev_id);
 static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id);
 static irqreturn_t
