@@ -599,7 +599,7 @@ int kvm_write_guest(struct kvm_vcpu *vcpu,
 unsigned long segment_base(u16 selector);
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *old, const u8 *new, int bytes);
+		       const u8 *new, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);

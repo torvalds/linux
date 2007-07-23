@@ -1124,7 +1124,7 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *old, const u8 *new, int bytes)
+		       const u8 *new, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *page;

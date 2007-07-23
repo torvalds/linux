@@ -1076,7 +1076,6 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 {
 	struct page *page;
 	void *virt;
-	unsigned offset = offset_in_page(gpa);
 
 	if (((gpa + bytes - 1) >> PAGE_SHIFT) != (gpa >> PAGE_SHIFT))
 		return 0;
@@ -1085,7 +1084,7 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return 0;
 	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
-	kvm_mmu_pte_write(vcpu, gpa, virt + offset, val, bytes);
+	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
 	memcpy(virt + offset_in_page(gpa), val, bytes);
 	kunmap_atomic(virt, KM_USER0);
 	return 1;
@@ -1455,7 +1454,7 @@ static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
 
 	mark_page_dirty(vcpu->kvm, para_state_gpa >> PAGE_SHIFT);
 	para_state_page = pfn_to_page(para_state_hpa >> PAGE_SHIFT);
-	para_state = kmap_atomic(para_state_page, KM_USER0);
+	para_state = kmap(para_state_page);
 
 	printk(KERN_DEBUG "....  guest version: %d\n", para_state->guest_version);
 	printk(KERN_DEBUG "....           size: %d\n", para_state->size);
@@ -1491,7 +1490,7 @@ static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
 
 	para_state->ret = 0;
 err_kunmap_skip:
-	kunmap_atomic(para_state, KM_USER0);
+	kunmap(para_state_page);
 	return 0;
 err_gp:
 	return 1;
