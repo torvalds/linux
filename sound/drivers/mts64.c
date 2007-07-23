@@ -440,15 +440,7 @@ static void mts64_write_midi(struct mts64 *mts, u8 c,
  *********************************************************************/
 
 /* SMPTE Switch */
-static int snd_mts64_ctl_smpte_switch_info(struct snd_kcontrol *kctl,
-					   struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_mts64_ctl_smpte_switch_info		snd_ctl_boolean_mono_info
 
 static int snd_mts64_ctl_smpte_switch_get(struct snd_kcontrol* kctl,
 					  struct snd_ctl_elem_value *uctl)

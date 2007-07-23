@@ -142,15 +142,7 @@ static int snd_tea6330t_put_master_volume(struct snd_kcontrol *kcontrol,
   .info = snd_tea6330t_info_master_switch, \
   .get = snd_tea6330t_get_master_switch, .put = snd_tea6330t_put_master_switch }
 
-static int snd_tea6330t_info_master_switch(struct snd_kcontrol *kcontrol,
-					   struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_tea6330t_info_master_switch		snd_ctl_boolean_stereo_info
 
 static int snd_tea6330t_get_master_switch(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)

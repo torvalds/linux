@@ -144,14 +144,7 @@ static struct snd_kcontrol_new pcxhr_control_analog_level = {
 };
 
 /* shared */
-static int pcxhr_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define pcxhr_sw_info		snd_ctl_boolean_stereo_info
 
 static int pcxhr_audio_sw_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)

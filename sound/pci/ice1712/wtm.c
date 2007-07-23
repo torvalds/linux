@@ -71,14 +71,7 @@ static inline unsigned char stac9460_2_get(struct snd_ice1712 *ice, int reg)
 /*
  *	DAC mute control
  */
-static int stac9460_dac_mute_info(struct snd_kcontrol *kcontrol,
-	       			struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	return 0;
-}
+#define stac9460_dac_mute_info		snd_ctl_boolean_mono_info
 
 static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_value *ucontrol)
@@ -218,15 +211,7 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol,
 /*
  * ADC mute control
  */
-static int stac9460_adc_mute_info(struct snd_kcontrol *kcontrol,
-	       			struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define stac9460_adc_mute_info		snd_ctl_boolean_stereo_info
 
 static int stac9460_adc_mute_get(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_value *ucontrol)
@@ -357,15 +342,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol,
  * MIC / LINE switch fonction
  */
 
-static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
-	       			struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define stac9460_mic_sw_info		snd_ctl_boolean_mono_info
 
 static int stac9460_mic_sw_get(struct snd_kcontrol *kcontrol,
 	       		struct snd_ctl_elem_value *ucontrol)

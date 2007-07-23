@@ -486,15 +486,7 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
  * needed for any "production" models.
  */
 #ifdef CONFIG_SND_DEBUG
-static int alc_gpio_data_info(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define alc_gpio_data_info	snd_ctl_boolean_mono_info
 
 static int alc_gpio_data_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
@@ -547,15 +539,7 @@ static int alc_gpio_data_put(struct snd_kcontrol *kcontrol,
  * necessary.
  */
 #ifdef CONFIG_SND_DEBUG
-static int alc_spdif_ctrl_info(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define alc_spdif_ctrl_info	snd_ctl_boolean_mono_info
 
 static int alc_spdif_ctrl_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)

@@ -569,15 +569,7 @@ static struct snd_kcontrol_new snd_bt87x_capture_volume = {
 	.put = snd_bt87x_capture_volume_put,
 };
 
-static int snd_bt87x_capture_boost_info(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_info *info)
-{
-	info->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	info->count = 1;
-	info->value.integer.min = 0;
-	info->value.integer.max = 1;
-	return 0;
-}
+#define snd_bt87x_capture_boost_info	snd_ctl_boolean_mono_info
 
 static int snd_bt87x_capture_boost_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *value)

@@ -700,14 +700,7 @@ static struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense __devinitdata = 
  * EWS88D specific controls
  */
 
-static int snd_ice1712_ews88d_control_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ice1712_ews88d_control_info		snd_ctl_boolean_mono_info
 
 static int snd_ice1712_ews88d_control_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -812,14 +805,7 @@ static int snd_ice1712_6fire_write_pca(struct snd_ice1712 *ice, unsigned char re
 	return 0;
 }
 
-static int snd_ice1712_6fire_control_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ice1712_6fire_control_info		snd_ctl_boolean_mono_info
 
 static int snd_ice1712_6fire_control_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

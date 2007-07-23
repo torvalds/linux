@@ -1834,15 +1834,7 @@ static int hdspm_set_line_output(struct hdspm * hdspm, int out)
 	return 0;
 }
 
-static int snd_hdspm_info_line_out(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_line_out		snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_line_out(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
@@ -1897,15 +1889,7 @@ static int hdspm_set_tx_64(struct hdspm * hdspm, int out)
 	return 0;
 }
 
-static int snd_hdspm_info_tx_64(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_tx_64		snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_tx_64(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1960,15 +1944,7 @@ static int hdspm_set_c_tms(struct hdspm * hdspm, int out)
 	return 0;
 }
 
-static int snd_hdspm_info_c_tms(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_c_tms		snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_c_tms(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -2023,15 +1999,7 @@ static int hdspm_set_safe_mode(struct hdspm * hdspm, int out)
 	return 0;
 }
 
-static int snd_hdspm_info_safe_mode(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_safe_mode	snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_safe_mode(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -2086,15 +2054,7 @@ static int hdspm_set_emphasis(struct hdspm * hdspm, int emp)
 	return 0;
 }
 
-static int snd_hdspm_info_emphasis(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_emphasis		snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_emphasis(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
@@ -2149,15 +2109,7 @@ static int hdspm_set_dolby(struct hdspm * hdspm, int dol)
 	return 0;
 }
 
-static int snd_hdspm_info_dolby(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_dolby		snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_dolby(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -2212,15 +2164,7 @@ static int hdspm_set_professional(struct hdspm * hdspm, int dol)
 	return 0;
 }
 
-static int snd_hdspm_info_professional(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_hdspm_info_professional	snd_ctl_boolean_mono_info
 
 static int snd_hdspm_get_professional(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)

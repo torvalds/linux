@@ -1595,15 +1595,7 @@ static struct snd_kcontrol_new snd_echo_clock_source_switch __devinitdata = {
 #ifdef ECHOCARD_HAS_PHANTOM_POWER
 
 /******************* Phantom power switch *******************/
-static int snd_echo_phantom_power_info(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_echo_phantom_power_info	snd_ctl_boolean_mono_info
 
 static int snd_echo_phantom_power_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -1646,15 +1638,7 @@ static struct snd_kcontrol_new snd_echo_phantom_power_switch __devinitdata = {
 #ifdef ECHOCARD_HAS_DIGITAL_IN_AUTOMUTE
 
 /******************* Digital input automute switch *******************/
-static int snd_echo_automute_info(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_echo_automute_info		snd_ctl_boolean_mono_info
 
 static int snd_echo_automute_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1695,18 +1679,7 @@ static struct snd_kcontrol_new snd_echo_automute_switch __devinitdata = {
 
 
 /******************* VU-meters switch *******************/
-static int snd_echo_vumeters_switch_info(struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_info *uinfo)
-{
-	struct echoaudio *chip;
-
-	chip = snd_kcontrol_chip(kcontrol);
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_echo_vumeters_switch_info		snd_ctl_boolean_mono_info
 
 static int snd_echo_vumeters_switch_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)

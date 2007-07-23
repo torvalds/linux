@@ -94,15 +94,7 @@ struct si3054_spec {
 #define PRIVATE_REG(val) ((val>>16)&0xffff)
 #define PRIVATE_MASK(val) (val&0xffff)
 
-static int si3054_switch_info(struct snd_kcontrol *kcontrol,
-		               struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define si3054_switch_info	snd_ctl_boolean_mono_info
 
 static int si3054_switch_get(struct snd_kcontrol *kcontrol,
 		               struct snd_ctl_elem_value *uvalue)

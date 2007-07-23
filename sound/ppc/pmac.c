@@ -1035,29 +1035,6 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	return 0;
 }
 
-/*
- * exported - boolean info callbacks for ease of programming
- */
-int snd_pmac_boolean_stereo_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
-int snd_pmac_boolean_mono_info(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
 #ifdef PMAC_SUPPORT_AUTOMUTE
 /*
  * auto-mute

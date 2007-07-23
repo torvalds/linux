@@ -272,15 +272,7 @@ static struct snd_kcontrol_new volume_control = {
 	.put = tas_snd_vol_put,
 };
 
-static int tas_snd_mute_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define tas_snd_mute_info	snd_ctl_boolean_stereo_info
 
 static int tas_snd_mute_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -431,15 +423,7 @@ static struct snd_kcontrol_new drc_range_control = {
 	.put = tas_snd_drc_range_put,
 };
 
-static int tas_snd_drc_switch_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define tas_snd_drc_switch_info		snd_ctl_boolean_mono_info
 
 static int tas_snd_drc_switch_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)

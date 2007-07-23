@@ -1582,16 +1582,8 @@ static void __devinit snd_rme32_proc_init(struct rme32 * rme32)
  * control interface
  */
 
-static int
-snd_rme32_info_loopback_control(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_rme32_info_loopback_control		snd_ctl_boolean_mono_info
+
 static int
 snd_rme32_get_loopback_control(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)

@@ -80,14 +80,7 @@ static struct snd_kcontrol_new vx_control_mic_level = {
 /*
  * mic boost level control (for VXP440)
  */
-static int vx_mic_boost_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define vx_mic_boost_info		snd_ctl_boolean_mono_info
 
 static int vx_mic_boost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

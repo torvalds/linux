@@ -270,7 +270,7 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index, unsigned sho
 /*
  * DAC mute control
  */
-#define wm_pcm_mute_info	phase28_mono_bool_info
+#define wm_pcm_mute_info	snd_ctl_boolean_mono_info
 
 static int wm_pcm_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -527,13 +527,7 @@ static int wm_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value 
 /*
  * WM8770 master mute control
  */
-static int wm_master_mute_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo) {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define wm_master_mute_info		snd_ctl_boolean_stereo_info
 
 static int wm_master_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -615,20 +609,9 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 }
 
 /*
- */
-static int phase28_mono_bool_info(struct snd_kcontrol *k, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
-/*
  * Deemphasis
  */
-#define phase28_deemp_info	phase28_mono_bool_info
+#define phase28_deemp_info	snd_ctl_boolean_mono_info
 
 static int phase28_deemp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

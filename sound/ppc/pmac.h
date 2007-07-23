@@ -202,8 +202,8 @@ int snd_pmac_keywest_init(struct pmac_keywest *i2c);
 void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c);
 
 /* misc */
-int snd_pmac_boolean_stereo_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
-int snd_pmac_boolean_mono_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
+#define snd_pmac_boolean_stereo_info	snd_ctl_boolean_stereo_info
+#define snd_pmac_boolean_mono_info	snd_ctl_boolean_mono_info
 
 int snd_pmac_add_automute(struct snd_pmac *chip);
 

@@ -1443,22 +1443,7 @@ static struct snd_kcontrol_new snd_ymfpci_drec_source __devinitdata = {
   .get = snd_ymfpci_get_single, .put = snd_ymfpci_put_single, \
   .private_value = ((reg) | ((shift) << 16)) }
 
-static int snd_ymfpci_info_single(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	int reg = kcontrol->private_value & 0xffff;
-
-	switch (reg) {
-	case YDSXGR_SPDIFOUTCTRL: break;
-	case YDSXGR_SPDIFINCTRL: break;
-	default: return -EINVAL;
-	}
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_info_single		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_get_single(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1570,14 +1555,7 @@ static int snd_ymfpci_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 /*
  * 4ch duplication
  */
-static int snd_ymfpci_info_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_info_dup4ch		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_get_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1665,14 +1643,7 @@ static int snd_ymfpci_set_gpio_out(struct snd_ymfpci *chip, int pin, int enable)
 	return 0;
 }
 
-static int snd_ymfpci_gpio_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_gpio_sw_info		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_gpio_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
