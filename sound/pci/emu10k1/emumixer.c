@@ -501,17 +501,19 @@ static struct snd_kcontrol_new snd_emu1010_dac_pads[] __devinitdata = {
 static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = {
-		"44100", "48000"
+	static char *texts[4] = {
+		"44100", "48000", "SPDIF", "ADAT"
 	};
-
+		
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-                uinfo->value.enumerated.item = 1;
+	uinfo->value.enumerated.items = 4;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
 	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
 	return 0;
+	
+	
 }
 
 static int snd_emu1010_internal_clock_get(struct snd_kcontrol *kcontrol,
@@ -569,6 +571,44 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
 			break;
+			
+		case 2: /* Take clock from S/PDIF IN */
+			/* Mute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
+			/* Default fallback clock 48kHz */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
+			/* Word Clock source, sync to S/PDIF input */
+			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
+				EMU_HANA_WCLOCK_HANA_SPDIF_IN | EMU_HANA_WCLOCK_1X );
+			/* Set LEDs on Audio Dock */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
+				EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
+			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
+			/* Allow DLL to settle */
+			msleep(10);
+			/* Unmute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
+			break;
+		
+		case 3: 			
+			/* Take clock from ADAT IN */
+			/* Mute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
+			/* Default fallback clock 48kHz */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
+			/* Word Clock source, sync to ADAT input */
+			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
+				EMU_HANA_WCLOCK_HANA_ADAT_IN | EMU_HANA_WCLOCK_1X );
+			/* Set LEDs on Audio Dock */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
+			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
+			/* Allow DLL to settle */
+			msleep(10);
+			/*   Unmute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
+			 
+			
+			break;		
 		}
 	}
         return change;

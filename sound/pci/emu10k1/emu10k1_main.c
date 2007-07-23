@@ -872,8 +872,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg );
 	snd_printk(KERN_INFO "emu1010: Card options=0x%x\n",reg);
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTICAL_TYPE, &tmp ); 
-	/* ADAT input. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x01 );
+	/* Optical -> ADAT I/O  */
+	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, EMU_HANA_OPTICAL_IN_ADAT | EMU_HANA_OPTICAL_OUT_ADAT );
 	snd_emu1010_fpga_read(emu, EMU_HANA_ADC_PADS, &tmp );
 	/* Set no attenuation on Audio Dock pads. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, 0x00 );
@@ -1150,7 +1150,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	emu->emu1010.output_source[23] = 28;
 
 	/* TEMP: Select SPDIF in/out */
-	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x0); /* Output spdif */
+	//snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x0); /* Output spdif */
 
 	/* TEMP: Select 48kHz SPDIF out */
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x0); /* Mute all */
