@@ -393,12 +393,6 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 		return 1;
 	else if (sg_mapped < 0)
 		return 0;
-	else if (sg_mapped > SG_ALL) {
-		printk(KERN_ERR
-		       "ibmvscsi: More than %d mapped sg entries, got %d\n",
-		       SG_ALL, sg_mapped);
-		return 0;
-	}
 
 	set_srp_direction(cmd, srp_cmd, sg_mapped);
 
