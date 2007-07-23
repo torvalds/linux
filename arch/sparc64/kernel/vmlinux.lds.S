@@ -45,6 +45,8 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
+  NOTES
+
   . = ALIGN(PAGE_SIZE);
   __init_begin = .;
   .init.text : { 
