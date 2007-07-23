@@ -40,7 +40,7 @@ int query_apm_bios(void)
 	if (bx != 0x504d)	/* "PM" signature */
 		return -1;
 
-	if (cx & 0x02)		/* 32 bits supported? */
+	if (!(cx & 0x02))		/* 32 bits supported? */
 		return -1;
 
 	/* Disconnect first, just in case */
