@@ -9,13 +9,6 @@
  *  archive for more details.
  *
  */
-/*
- * TODO
- *	- Should this get merged, block/scsi_ioctl.c will be migrated into
- *	  this file. To keep maintenance down, it's easier to have them
- *	  seperated right now.
- *
- */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/file.h>
@@ -92,7 +85,6 @@ struct bsg_command {
 	struct bio *bidi_bio;
 	int err;
 	struct sg_io_v4 hdr;
-	struct sg_io_v4 __user *uhdr;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 };
 
@@ -620,7 +612,6 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 			break;
 		}
 
-		bc->uhdr = (struct sg_io_v4 __user *) buf;
 		if (copy_from_user(&bc->hdr, buf, sizeof(bc->hdr))) {
 			ret = -EFAULT;
 			break;
