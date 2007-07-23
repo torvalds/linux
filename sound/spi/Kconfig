@@ -1,0 +1,6 @@
+#SPI drivers
+
+menu "SPI devices"
+	depends on SND != n
+
+endmenu
