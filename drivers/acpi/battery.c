@@ -41,7 +41,6 @@
 
 #define ACPI_BATTERY_COMPONENT		0x00040000
 #define ACPI_BATTERY_CLASS		"battery"
-#define ACPI_BATTERY_HID		"PNP0C0A"
 #define ACPI_BATTERY_DEVICE_NAME	"Battery"
 #define ACPI_BATTERY_NOTIFY_STATUS	0x80
 #define ACPI_BATTERY_NOTIFY_INFO	0x81
@@ -74,10 +73,16 @@ static int acpi_battery_add(struct acpi_device *device);
 static int acpi_battery_remove(struct acpi_device *device, int type);
 static int acpi_battery_resume(struct acpi_device *device);
 
+static const struct acpi_device_id battery_device_ids[] = {
+	{"PNP0C0A", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, battery_device_ids);
+
 static struct acpi_driver acpi_battery_driver = {
 	.name = "battery",
 	.class = ACPI_BATTERY_CLASS,
-	.ids = ACPI_BATTERY_HID,
+	.ids = battery_device_ids,
 	.ops = {
 		.add = acpi_battery_add,
 		.resume = acpi_battery_resume,

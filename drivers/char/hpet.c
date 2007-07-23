@@ -1007,9 +1007,15 @@ static int hpet_acpi_remove(struct acpi_device *device, int type)
 	return -EINVAL;
 }
 
+static const struct acpi_device_id hpet_device_ids[] = {
+	{"PNP0103", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, hpet_device_ids);
+
 static struct acpi_driver hpet_acpi_driver = {
 	.name = "hpet",
-	.ids = "PNP0103",
+	.ids = hpet_device_ids,
 	.ops = {
 		.add = hpet_acpi_add,
 		.remove = hpet_acpi_remove,

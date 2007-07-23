@@ -74,10 +74,16 @@ MODULE_LICENSE("GPL");
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 
+static const struct acpi_device_id video_device_ids[] = {
+	{ACPI_VIDEO_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, video_device_ids);
+
 static struct acpi_driver acpi_video_bus = {
 	.name = "video",
 	.class = ACPI_VIDEO_CLASS,
-	.ids = ACPI_VIDEO_HID,
+	.ids = video_device_ids,
 	.ops = {
 		.add = acpi_video_bus_add,
 		.remove = acpi_video_bus_remove,
