@@ -743,6 +743,7 @@ static int tas_switch_clock(struct codec_info_item *cii, enum clock_switch clock
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /* we are controlled via i2c and assume that is always up
  * If that wasn't the case, we'd have to suspend once
  * our i2c device is suspended, and then take note of that! */
@@ -768,7 +769,6 @@ static int tas_resume(struct tas *tas)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int _tas_suspend(struct codec_info_item *cii, pm_message_t state)
 {
 	return tas_suspend(cii->codec_data);
@@ -778,7 +778,10 @@ static int _tas_resume(struct codec_info_item *cii)
 {
 	return tas_resume(cii->codec_data);
 }
-#endif
+#else /* CONFIG_PM */
+#define _tas_suspend	NULL
+#define _tas_resume	NULL
+#endif /* CONFIG_PM */
 
 static struct codec_info tas_codec_info = {
 	.transfers = tas_transfers,
@@ -791,10 +794,8 @@ static struct codec_info tas_codec_info = {
 	.owner = THIS_MODULE,
 	.usable = tas_usable,
 	.switch_clock = tas_switch_clock,
-#ifdef CONFIG_PM
 	.suspend = _tas_suspend,
 	.resume = _tas_resume,
-#endif
 };
 
 static int tas_init_codec(struct aoa_codec *codec)
