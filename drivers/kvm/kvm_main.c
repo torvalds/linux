@@ -558,6 +558,7 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		   && !load_pdptrs(vcpu, vcpu->cr3)) {
 		printk(KERN_DEBUG "set_cr4: #GP, pdptrs reserved bits\n");
 		inject_gp(vcpu);
+		return;
 	}
 
 	if (cr4 & X86_CR4_VMXE) {
