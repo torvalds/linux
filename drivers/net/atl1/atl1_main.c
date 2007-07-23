@@ -315,7 +315,7 @@ err_nomem:
 	return -ENOMEM;
 }
 
-void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
+static void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
 {
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_rfd_ring *rfd_ring = &adapter->rfd_ring;
