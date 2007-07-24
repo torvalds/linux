@@ -83,7 +83,7 @@ static int mmc_queue_thread(void *d)
  * on any queue on this host, and attempt to issue it.  This may
  * not be the queue we were asked to process.
  */
-static void mmc_request(request_queue_t *q)
+static void mmc_request(struct request_queue *q)
 {
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
@@ -211,7 +211,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 void mmc_cleanup_queue(struct mmc_queue *mq)
 {
-	request_queue_t *q = mq->queue;
+	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
 	/* Mark that we should start throwing out stragglers */
@@ -252,7 +252,7 @@ EXPORT_SYMBOL(mmc_cleanup_queue);
  */
 void mmc_queue_suspend(struct mmc_queue *mq)
 {
-	request_queue_t *q = mq->queue;
+	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
 	if (!(mq->flags & MMC_QUEUE_SUSPENDED)) {
@@ -272,7 +272,7 @@ void mmc_queue_suspend(struct mmc_queue *mq)
  */
 void mmc_queue_resume(struct mmc_queue *mq)
 {
-	request_queue_t *q = mq->queue;
+	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
 	if (mq->flags & MMC_QUEUE_SUSPENDED) {

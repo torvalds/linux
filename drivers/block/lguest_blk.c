@@ -137,7 +137,7 @@ static void do_read(struct blockdev *bd, struct request *req)
 	lguest_send_dma(bd->phys_addr, &ping);
 }
 
-static void do_lgb_request(request_queue_t *q)
+static void do_lgb_request(struct request_queue *q)
 {
 	struct blockdev *bd;
 	struct request *req;

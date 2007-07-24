@@ -144,7 +144,7 @@ struct blk_user_trace_setup {
 
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
-extern void blk_trace_shutdown(request_queue_t *);
+extern void blk_trace_shutdown(struct request_queue *);
 extern void __blk_add_trace(struct blk_trace *, sector_t, int, int, u32, int, int, void *);
 
 /**

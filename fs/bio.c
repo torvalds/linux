@@ -230,7 +230,7 @@ void bio_put(struct bio *bio)
 	}
 }
 
-inline int bio_phys_segments(request_queue_t *q, struct bio *bio)
+inline int bio_phys_segments(struct request_queue *q, struct bio *bio)
 {
 	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
 		blk_recount_segments(q, bio);
@@ -238,7 +238,7 @@ inline int bio_phys_segments(request_queue_t *q, struct bio *bio)
 	return bio->bi_phys_segments;
 }
 
-inline int bio_hw_segments(request_queue_t *q, struct bio *bio)
+inline int bio_hw_segments(struct request_queue *q, struct bio *bio)
 {
 	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
 		blk_recount_segments(q, bio);
@@ -257,7 +257,7 @@ inline int bio_hw_segments(request_queue_t *q, struct bio *bio)
  */
 void __bio_clone(struct bio *bio, struct bio *bio_src)
 {
-	request_queue_t *q = bdev_get_queue(bio_src->bi_bdev);
+	struct request_queue *q = bdev_get_queue(bio_src->bi_bdev);
 
 	memcpy(bio->bi_io_vec, bio_src->bi_io_vec,
 		bio_src->bi_max_vecs * sizeof(struct bio_vec));
@@ -303,7 +303,7 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
  */
 int bio_get_nr_vecs(struct block_device *bdev)
 {
-	request_queue_t *q = bdev_get_queue(bdev);
+	struct request_queue *q = bdev_get_queue(bdev);
 	int nr_pages;
 
 	nr_pages = ((q->max_sectors << 9) + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -315,7 +315,7 @@ int bio_get_nr_vecs(struct block_device *bdev)
 	return nr_pages;
 }
 
-static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
+static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 			  *page, unsigned int len, unsigned int offset,
 			  unsigned short max_sectors)
 {
@@ -425,7 +425,7 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
  *      smaller than PAGE_SIZE, so it is always possible to add a single
  *      page to an empty bio. This should only be used by REQ_PC bios.
  */
-int bio_add_pc_page(request_queue_t *q, struct bio *bio, struct page *page,
+int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page *page,
 		    unsigned int len, unsigned int offset)
 {
 	return __bio_add_page(q, bio, page, len, offset, q->max_hw_sectors);
@@ -523,7 +523,7 @@ int bio_uncopy_user(struct bio *bio)
  *	to/from kernel pages as necessary. Must be paired with
  *	call bio_uncopy_user() on io completion.
  */
-struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
+struct bio *bio_copy_user(struct request_queue *q, unsigned long uaddr,
 			  unsigned int len, int write_to_vm)
 {
 	unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -600,7 +600,7 @@ out_bmd:
 	return ERR_PTR(ret);
 }
 
-static struct bio *__bio_map_user_iov(request_queue_t *q,
+static struct bio *__bio_map_user_iov(struct request_queue *q,
 				      struct block_device *bdev,
 				      struct sg_iovec *iov, int iov_count,
 				      int write_to_vm)
@@ -712,7 +712,7 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 
 /**
  *	bio_map_user	-	map user address into bio
- *	@q: the request_queue_t for the bio
+ *	@q: the struct request_queue for the bio
  *	@bdev: destination block device
  *	@uaddr: start of user address
  *	@len: length in bytes
@@ -721,7 +721,7 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
  *	Map the user space address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
+struct bio *bio_map_user(struct request_queue *q, struct block_device *bdev,
 			 unsigned long uaddr, unsigned int len, int write_to_vm)
 {
 	struct sg_iovec iov;
@@ -734,7 +734,7 @@ struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
 
 /**
  *	bio_map_user_iov - map user sg_iovec table into bio
- *	@q: the request_queue_t for the bio
+ *	@q: the struct request_queue for the bio
  *	@bdev: destination block device
  *	@iov:	the iovec.
  *	@iov_count: number of elements in the iovec
@@ -743,7 +743,7 @@ struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
  *	Map the user space address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
+struct bio *bio_map_user_iov(struct request_queue *q, struct block_device *bdev,
 			     struct sg_iovec *iov, int iov_count,
 			     int write_to_vm)
 {
@@ -808,7 +808,7 @@ static int bio_map_kern_endio(struct bio *bio, unsigned int bytes_done, int err)
 }
 
 
-static struct bio *__bio_map_kern(request_queue_t *q, void *data,
+static struct bio *__bio_map_kern(struct request_queue *q, void *data,
 				  unsigned int len, gfp_t gfp_mask)
 {
 	unsigned long kaddr = (unsigned long)data;
@@ -847,7 +847,7 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
 
 /**
  *	bio_map_kern	-	map kernel address into bio
- *	@q: the request_queue_t for the bio
+ *	@q: the struct request_queue for the bio
  *	@data: pointer to buffer to map
  *	@len: length in bytes
  *	@gfp_mask: allocation flags for bio allocation
@@ -855,7 +855,7 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
  *	Map the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-struct bio *bio_map_kern(request_queue_t *q, void *data, unsigned int len,
+struct bio *bio_map_kern(struct request_queue *q, void *data, unsigned int len,
 			 gfp_t gfp_mask)
 {
 	struct bio *bio;

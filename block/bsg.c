@@ -37,7 +37,7 @@
 #define BSG_VERSION	"0.4"
 
 struct bsg_device {
-	request_queue_t *queue;
+	struct request_queue *queue;
 	spinlock_t lock;
 	struct list_head busy_list;
 	struct list_head done_list;
@@ -180,7 +180,7 @@ unlock:
 	return ret;
 }
 
-static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
+static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 				struct sg_io_v4 *hdr, int has_write_perm)
 {
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
@@ -214,7 +214,7 @@ static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
  * Check if sg_io_v4 from user is allowed and valid
  */
 static int
-bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
+bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
 {
 	int ret = 0;
 
@@ -250,7 +250,7 @@ bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
 static struct request *
 bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 {
-	request_queue_t *q = bd->queue;
+	struct request_queue *q = bd->queue;
 	struct request *rq, *next_rq = NULL;
 	int ret, rw;
 	unsigned int dxfer_len;
@@ -345,7 +345,7 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
  * do final setup of a 'bc' and submit the matching 'rq' to the block
  * layer for io
  */
-static void bsg_add_command(struct bsg_device *bd, request_queue_t *q,
+static void bsg_add_command(struct bsg_device *bd, struct request_queue *q,
 			    struct bsg_command *bc, struct request *rq)
 {
 	rq->sense = bc->sense;
@@ -611,7 +611,7 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 	bc = NULL;
 	ret = 0;
 	while (nr_commands) {
-		request_queue_t *q = bd->queue;
+		struct request_queue *q = bd->queue;
 
 		bc = bsg_alloc_command(bd);
 		if (IS_ERR(bc)) {

@@ -211,7 +211,7 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
 		)
 
 
-static int md_fail_request (request_queue_t *q, struct bio *bio)
+static int md_fail_request (struct request_queue *q, struct bio *bio)
 {
 	bio_io_error(bio, bio->bi_size);
 	return 0;

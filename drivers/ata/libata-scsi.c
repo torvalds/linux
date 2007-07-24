@@ -768,7 +768,7 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 	 * Decrement max hw segments accordingly.
 	 */
 	if (dev->class == ATA_DEV_ATAPI) {
-		request_queue_t *q = sdev->request_queue;
+		struct request_queue *q = sdev->request_queue;
 		blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
 	}
 

@@ -125,7 +125,7 @@ aoeblk_release(struct inode *inode, struct file *filp)
 }
 
 static int
-aoeblk_make_request(request_queue_t *q, struct bio *bio)
+aoeblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct aoedev *d;
 	struct buf *buf;

@@ -231,7 +231,7 @@ static void blk_trace_cleanup(struct blk_trace *bt)
 	kfree(bt);
 }
 
-static int blk_trace_remove(request_queue_t *q)
+static int blk_trace_remove(struct request_queue *q)
 {
 	struct blk_trace *bt;
 
@@ -312,7 +312,7 @@ static struct rchan_callbacks blk_relay_callbacks = {
 /*
  * Setup everything required to start tracing
  */
-static int blk_trace_setup(request_queue_t *q, struct block_device *bdev,
+static int blk_trace_setup(struct request_queue *q, struct block_device *bdev,
 			   char __user *arg)
 {
 	struct blk_user_trace_setup buts;
@@ -401,7 +401,7 @@ err:
 	return ret;
 }
 
-static int blk_trace_startstop(request_queue_t *q, int start)
+static int blk_trace_startstop(struct request_queue *q, int start)
 {
 	struct blk_trace *bt;
 	int ret;
@@ -444,7 +444,7 @@ static int blk_trace_startstop(request_queue_t *q, int start)
  **/
 int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	int ret, start = 0;
 
 	q = bdev_get_queue(bdev);
@@ -479,7 +479,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
  * @q:    the request queue associated with the device
  *
  **/
-void blk_trace_shutdown(request_queue_t *q)
+void blk_trace_shutdown(struct request_queue *q)
 {
 	if (q->blk_trace) {
 		blk_trace_startstop(q, 0);

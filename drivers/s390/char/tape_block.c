@@ -147,7 +147,7 @@ static void
 tapeblock_requeue(struct work_struct *work) {
 	struct tape_blk_data *	blkdat;
 	struct tape_device *	device;
-	request_queue_t *	queue;
+	struct request_queue *	queue;
 	int			nr_queued;
 	struct request *	req;
 	struct list_head *	l;
@@ -194,7 +194,7 @@ tapeblock_requeue(struct work_struct *work) {
  * Tape request queue function. Called from ll_rw_blk.c
  */
 static void
-tapeblock_request_fn(request_queue_t *queue)
+tapeblock_request_fn(struct request_queue *queue)
 {
 	struct tape_device *device;
 

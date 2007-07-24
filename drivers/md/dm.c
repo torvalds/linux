@@ -80,7 +80,7 @@ struct mapped_device {
 
 	unsigned long flags;
 
-	request_queue_t *queue;
+	struct request_queue *queue;
 	struct gendisk *disk;
 	char name[16];
 
@@ -792,7 +792,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
  */
-static int dm_request(request_queue_t *q, struct bio *bio)
+static int dm_request(struct request_queue *q, struct bio *bio)
 {
 	int r;
 	int rw = bio_data_dir(bio);
@@ -844,7 +844,7 @@ static int dm_request(request_queue_t *q, struct bio *bio)
 	return 0;
 }
 
-static int dm_flush_all(request_queue_t *q, struct gendisk *disk,
+static int dm_flush_all(struct request_queue *q, struct gendisk *disk,
 			sector_t *error_sector)
 {
 	struct mapped_device *md = q->queuedata;
@@ -859,7 +859,7 @@ static int dm_flush_all(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
-static void dm_unplug_all(request_queue_t *q)
+static void dm_unplug_all(struct request_queue *q)
 {
 	struct mapped_device *md = q->queuedata;
 	struct dm_table *map = dm_get_table(md);
@@ -1110,7 +1110,7 @@ static void __set_size(struct mapped_device *md, sector_t size)
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
 {
-	request_queue_t *q = md->queue;
+	struct request_queue *q = md->queue;
 	sector_t size;
 
 	size = dm_table_get_size(t);

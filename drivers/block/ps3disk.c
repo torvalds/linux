@@ -190,7 +190,7 @@ static int ps3disk_submit_flush_request(struct ps3_storage_device *dev,
 }
 
 static void ps3disk_do_request(struct ps3_storage_device *dev,
-			       request_queue_t *q)
+			       struct request_queue *q)
 {
 	struct request *req;
 
@@ -211,7 +211,7 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	}
 }
 
-static void ps3disk_request(request_queue_t *q)
+static void ps3disk_request(struct request_queue *q)
 {
 	struct ps3_storage_device *dev = q->queuedata;
 	struct ps3disk_private *priv = dev->sbd.core.driver_data;
@@ -404,7 +404,7 @@ static int ps3disk_identify(struct ps3_storage_device *dev)
 	return 0;
 }
 
-static void ps3disk_prepare_flush(request_queue_t *q, struct request *req)
+static void ps3disk_prepare_flush(struct request_queue *q, struct request *req)
 {
 	struct ps3_storage_device *dev = q->queuedata;
 
@@ -414,7 +414,7 @@ static void ps3disk_prepare_flush(request_queue_t *q, struct request *req)
 	req->cmd_type = REQ_TYPE_FLUSH;
 }
 
-static int ps3disk_issue_flush(request_queue_t *q, struct gendisk *gendisk,
+static int ps3disk_issue_flush(struct request_queue *q, struct gendisk *gendisk,
 			       sector_t *sector)
 {
 	struct ps3_storage_device *dev = q->queuedata;

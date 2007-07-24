@@ -251,7 +251,7 @@ static int irqdma_allocated;
 
 static struct request *current_req;
 static struct request_queue *floppy_queue;
-static void do_fd_request(request_queue_t * q);
+static void do_fd_request(struct request_queue * q);
 
 #ifndef fd_get_dma_residue
 #define fd_get_dma_residue() get_dma_residue(FLOPPY_DMA)
@@ -2981,7 +2981,7 @@ static void process_fd_request(void)
 	schedule_bh(redo_fd_request);
 }
 
-static void do_fd_request(request_queue_t * q)
+static void do_fd_request(struct request_queue * q)
 {
 	if (max_buffer_sectors == 0) {
 		printk("VFS: do_fd_request called on non-open device\n");

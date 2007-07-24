@@ -372,7 +372,7 @@ static int fd_test_drive_present(int drive);
 static void config_types(void);
 static int floppy_open(struct inode *inode, struct file *filp);
 static int floppy_release(struct inode *inode, struct file *filp);
-static void do_fd_request(request_queue_t *);
+static void do_fd_request(struct request_queue *);
 
 /************************* End of Prototypes **************************/
 
@@ -1271,7 +1271,7 @@ static void fd1772_checkint(void)
 	}
 }
 
-static void do_fd_request(request_queue_t* q)
+static void do_fd_request(struct request_queue* q)
 {
 	unsigned long flags;
 

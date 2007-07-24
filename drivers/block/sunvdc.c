@@ -444,7 +444,7 @@ out:
 	return err;
 }
 
-static void do_vdc_request(request_queue_t *q)
+static void do_vdc_request(struct request_queue *q)
 {
 	while (1) {
 		struct request *req = elv_next_request(q);

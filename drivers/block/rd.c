@@ -264,7 +264,7 @@ static int rd_blkdev_pagecache_IO(int rw, struct bio_vec *vec, sector_t sector,
  * 19-JAN-1998  Richard Gooch <rgooch@atnf.csiro.au>  Added devfs support
  *
  */
-static int rd_make_request(request_queue_t *q, struct bio *bio)
+static int rd_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct address_space * mapping = bdev->bd_inode->i_mapping;

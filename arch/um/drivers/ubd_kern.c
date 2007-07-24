@@ -469,7 +469,7 @@ __uml_help(fakehd,
 "    Change the ubd device name to \"hd\".\n\n"
 );
 
-static void do_ubd_request(request_queue_t * q);
+static void do_ubd_request(struct request_queue * q);
 
 /* Only changed by ubd_init, which is an initcall. */
 int thread_fd = -1;
@@ -1081,7 +1081,7 @@ static void prepare_request(struct request *req, struct io_thread_req *io_req,
 }
 
 /* Called with dev->lock held */
-static void do_ubd_request(request_queue_t *q)
+static void do_ubd_request(struct request_queue *q)
 {
 	struct io_thread_req *io_req;
 	struct request *req;

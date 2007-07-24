@@ -1327,7 +1327,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 /*
  * Passes the stuff to ide_do_request
  */
-void do_ide_request(request_queue_t *q)
+void do_ide_request(struct request_queue *q)
 {
 	ide_drive_t *drive = q->queuedata;
 

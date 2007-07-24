@@ -924,7 +924,7 @@ static void mfm_request(void)
 	DBG("mfm_request: Dropping out bottom\n");
 }
 
-static void do_mfm_request(request_queue_t *q)
+static void do_mfm_request(struct request_queue *q)
 {
 	DBG("do_mfm_request: about to mfm_request\n");
 	mfm_request();

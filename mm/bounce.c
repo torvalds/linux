@@ -190,7 +190,7 @@ static int bounce_end_io_read_isa(struct bio *bio, unsigned int bytes_done, int 
 	return 0;
 }
 
-static void __blk_queue_bounce(request_queue_t *q, struct bio **bio_orig,
+static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 			       mempool_t *pool)
 {
 	struct page *page;
@@ -275,7 +275,7 @@ static void __blk_queue_bounce(request_queue_t *q, struct bio **bio_orig,
 	*bio_orig = bio;
 }
 
-void blk_queue_bounce(request_queue_t *q, struct bio **bio_orig)
+void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 {
 	mempool_t *pool;
 

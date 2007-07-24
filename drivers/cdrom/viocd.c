@@ -398,7 +398,7 @@ static void viocd_end_request(struct request *req, int uptodate)
 
 static int rwreq;
 
-static void do_viocd_request(request_queue_t *q)
+static void do_viocd_request(struct request_queue *q)
 {
 	struct request *req;
 

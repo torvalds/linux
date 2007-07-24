@@ -624,7 +624,7 @@ static void get_sectorsize(struct scsi_cd *cd)
 	unsigned char *buffer;
 	int the_result, retries = 3;
 	int sector_size;
-	request_queue_t *queue;
+	struct request_queue *queue;
 
 	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 	if (!buffer)

@@ -529,7 +529,7 @@ static struct bio *loop_get_bio(struct loop_device *lo)
 	return bio;
 }
 
-static int loop_make_request(request_queue_t *q, struct bio *old_bio)
+static int loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct loop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
@@ -558,7 +558,7 @@ out:
 /*
  * kick off io on the underlying address space
  */
-static void loop_unplug(request_queue_t *q)
+static void loop_unplug(struct request_queue *q)
 {
 	struct loop_device *lo = q->queuedata;
 

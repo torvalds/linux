@@ -3071,7 +3071,7 @@ static inline void ide_cdrom_add_settings(ide_drive_t *drive) { ; }
 /*
  * standard prep_rq_fn that builds 10 byte cmds
  */
-static int ide_cdrom_prep_fs(request_queue_t *q, struct request *rq)
+static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 {
 	int hard_sect = queue_hardsect_size(q);
 	long block = (long)rq->hard_sector / (hard_sect >> 9);
@@ -3137,7 +3137,7 @@ static int ide_cdrom_prep_pc(struct request *rq)
 	return BLKPREP_OK;
 }
 
-static int ide_cdrom_prep_fn(request_queue_t *q, struct request *rq)
+static int ide_cdrom_prep_fn(struct request_queue *q, struct request *rq)
 {
 	if (blk_fs_request(rq))
 		return ide_cdrom_prep_fs(q, rq);
