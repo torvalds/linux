@@ -380,11 +380,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	if (data == NULL)
 		return;
 
-	DBG("blksz %04x blks %04x flags %08x\n",
-		data->blksz, data->blocks, data->flags);
-	DBG("tsac %d ms nsac %d clk\n",
-		data->timeout_ns / 1000000, data->timeout_clks);
-
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
 	BUG_ON(data->blksz > host->mmc->max_blk_size);
@@ -495,8 +490,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		data->error = MMC_ERR_FAILED;
 	}
 
-	DBG("Ending data transfer (%d bytes)\n", data->bytes_xfered);
-
 	if (data->stop) {
 		/*
 		 * The controller needs a reset of internal state machines
@@ -519,8 +512,6 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	unsigned long timeout;
 
 	WARN_ON(host->cmd);
-
-	DBG("Sending cmd (%x)\n", cmd->opcode);
 
 	/* Wait max 10 ms */
 	timeout = 10;
@@ -608,8 +599,6 @@ static void sdhci_finish_command(struct sdhci_host *host)
 	}
 
 	host->cmd->error = MMC_ERR_NONE;
-
-	DBG("Ending cmd (%x)\n", host->cmd->opcode);
 
 	if (host->cmd->data)
 		host->data = host->cmd->data;
@@ -861,8 +850,6 @@ static void sdhci_tasklet_finish(unsigned long param)
 	del_timer(&host->timer);
 
 	mrq = host->mrq;
-
-	DBG("Ending request, cmd (%x)\n", mrq->cmd->opcode);
 
 	/*
 	 * The controller needs a reset of internal state machines
