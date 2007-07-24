@@ -45,6 +45,10 @@ static void __iomem *mv64x60_wdt_regs;
 static int mv64x60_wdt_timeout;
 static unsigned int bus_clk;
 
+static int nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, int, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
 static void mv64x60_wdt_reg_write(u32 val)
 {
 	/* Allow write only to CTL1 / CTL2 fields, retaining values in
@@ -100,6 +104,9 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(MV64x60_WDOG_FLAG_OPENED, &wdt_flags))
 		return -EBUSY;
 
+	if (nowayout)
+		__module_get(THIS_MODULE);
+
 	mv64x60_wdt_service();
 	mv64x60_wdt_handler_enable();
 
@@ -110,9 +117,8 @@ static int mv64x60_wdt_release(struct inode *inode, struct file *file)
 {
 	mv64x60_wdt_service();
 
-#if !defined(CONFIG_WATCHDOG_NOWAYOUT)
-	mv64x60_wdt_handler_disable();
-#endif
+	if (!nowayout)
+		mv64x60_wdt_handler_disable();
 
 	clear_bit(MV64x60_WDOG_FLAG_OPENED, &wdt_flags);
 
