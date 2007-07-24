@@ -117,7 +117,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 	struct buffer_head *bh;
 	struct gfs2_log_descriptor *ld;
 	struct gfs2_bufdata *bd1 = NULL, *bd2;
-	unsigned int total = sdp->sd_log_num_buf;
+	unsigned int total;
 	unsigned int offset = BUF_OFFSET;
 	unsigned int limit;
 	unsigned int num;
@@ -127,12 +127,16 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 	limit = buf_limit(sdp);
 	/* for 4k blocks, limit = 503 */
 
+	gfs2_log_lock(sdp);
+	total = sdp->sd_log_num_buf;
 	bd1 = bd2 = list_prepare_entry(bd1, &sdp->sd_log_le_buf, bd_le.le_list);
 	while(total) {
 		num = total;
 		if (total > limit)
 			num = limit;
+		gfs2_log_unlock(sdp);
 		bh = gfs2_log_get_buf(sdp);
+		gfs2_log_lock(sdp);
 		ld = (struct gfs2_log_descriptor *)bh->b_data;
 		ptr = (__be64 *)(bh->b_data + offset);
 		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
@@ -152,21 +156,27 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 				break;
 		}
 
+		gfs2_log_unlock(sdp);
 		set_buffer_dirty(bh);
 		ll_rw_block(WRITE, 1, &bh);
+		gfs2_log_lock(sdp);
 
 		n = 0;
 		list_for_each_entry_continue(bd2, &sdp->sd_log_le_buf,
 					     bd_le.le_list) {
+			gfs2_log_unlock(sdp);
 			bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
+			gfs2_log_lock(sdp);
 			if (++n >= num)
 				break;
 		}
 
+		BUG_ON(total < num);
 		total -= num;
 	}
+	gfs2_log_unlock(sdp);
 }
 
 static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
@@ -524,7 +534,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	struct gfs2_log_descriptor *ld;
 	unsigned int limit;
 	unsigned int total_dbuf;
-	unsigned int total_jdata = sdp->sd_log_num_jdata;
+	unsigned int total_jdata;
 	unsigned int num, n;
 	__be64 *ptr = NULL;
 
@@ -536,6 +546,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	 */
 	gfs2_log_lock(sdp);
 	total_dbuf = sdp->sd_log_num_databuf;
+	total_jdata = sdp->sd_log_num_jdata;
 	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf,
 				       bd_le.le_list);
 	while(total_dbuf) {
@@ -621,10 +632,10 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 		gfs2_log_unlock(sdp);
 		if (bh) {
-			set_buffer_mapped(bh);
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
 			bh = NULL;
+			ptr = NULL;
 		}
 		n = 0;
 		gfs2_log_lock(sdp);
