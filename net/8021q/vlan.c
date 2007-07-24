@@ -810,6 +810,7 @@ static int vlan_ioctl_handler(void __user *arg)
 		err = -EINVAL;
 		break;
 	case GET_VLAN_REALDEV_NAME_CMD:
+		err = 0;
 		vlan_dev_get_realdev_name(dev, args.u.device2);
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args))) {
@@ -818,6 +819,7 @@ static int vlan_ioctl_handler(void __user *arg)
 		break;
 
 	case GET_VLAN_VID_CMD:
+		err = 0;
 		vlan_dev_get_vid(dev, &vid);
 		args.u.VID = vid;
 		if (copy_to_user(arg, &args,
