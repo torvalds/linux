@@ -46,7 +46,6 @@ struct glock_iter {
 	int hash;                     /* hash bucket index         */
 	struct gfs2_sbd *sdp;         /* incore superblock         */
 	struct gfs2_glock *gl;        /* current glock struct      */
-	struct hlist_head *hb_list;   /* current hash bucket ptr   */
 	struct seq_file *seq;         /* sequence file for debugfs */
 	char string[512];             /* scratch space             */
 };
@@ -1990,47 +1989,38 @@ int __init gfs2_glock_init(void)
 
 static int gfs2_glock_iter_next(struct glock_iter *gi)
 {
+	struct gfs2_glock *gl;
+
 	read_lock(gl_lock_addr(gi->hash));
-	while (1) {
-		if (!gi->hb_list) {  /* If we don't have a hash bucket yet */
-			gi->hb_list = &gl_hash_table[gi->hash].hb_list;
-			if (hlist_empty(gi->hb_list)) {
-				read_unlock(gl_lock_addr(gi->hash));
-				gi->hash++;
-				read_lock(gl_lock_addr(gi->hash));
-				gi->hb_list = NULL;
-				if (gi->hash >= GFS2_GL_HASH_SIZE) {
-					read_unlock(gl_lock_addr(gi->hash));
-					return 1;
-				}
-				else
-					continue;
-			}
-			if (!hlist_empty(gi->hb_list)) {
-				gi->gl = list_entry(gi->hb_list->first,
-						    struct gfs2_glock,
-						    gl_list);
-			}
-		} else {
-			if (gi->gl->gl_list.next == NULL) {
-				read_unlock(gl_lock_addr(gi->hash));
-				gi->hash++;
-				read_lock(gl_lock_addr(gi->hash));
-				gi->hb_list = NULL;
-				continue;
-			}
-			gi->gl = list_entry(gi->gl->gl_list.next,
-					    struct gfs2_glock, gl_list);
-		}
+	gl = gi->gl;
+	if (gl) {
+		gi->gl = hlist_entry(gl->gl_list.next, struct gfs2_glock,
+				     gl_list);
 		if (gi->gl)
-			break;
+			gfs2_glock_hold(gi->gl);
 	}
 	read_unlock(gl_lock_addr(gi->hash));
+	if (gl)
+		gfs2_glock_put(gl);
+
+	while(gi->gl == NULL) {
+		gi->hash++;
+		if (gi->hash >= GFS2_GL_HASH_SIZE)
+			return 1;
+		read_lock(gl_lock_addr(gi->hash));
+		gi->gl = hlist_entry(gl_hash_table[gi->hash].hb_list.first,
+				     struct gfs2_glock, gl_list);
+		if (gi->gl)
+			gfs2_glock_hold(gi->gl);
+		read_unlock(gl_lock_addr(gi->hash));
+	}
 	return 0;
 }
 
 static void gfs2_glock_iter_free(struct glock_iter *gi)
 {
+	if (gi->gl)
+		gfs2_glock_put(gi->gl);
 	kfree(gi);
 }
 
@@ -2044,12 +2034,17 @@ static struct glock_iter *gfs2_glock_iter_init(struct gfs2_sbd *sdp)
 
 	gi->sdp = sdp;
 	gi->hash = 0;
-	gi->gl = NULL;
-	gi->hb_list = NULL;
 	gi->seq = NULL;
 	memset(gi->string, 0, sizeof(gi->string));
 
-	if (gfs2_glock_iter_next(gi)) {
+	read_lock(gl_lock_addr(gi->hash));
+	gi->gl = hlist_entry(gl_hash_table[gi->hash].hb_list.first,
+			     struct gfs2_glock, gl_list);
+	if (gi->gl)
+		gfs2_glock_hold(gi->gl);
+	read_unlock(gl_lock_addr(gi->hash));
+
+	if (!gi->gl && gfs2_glock_iter_next(gi)) {
 		gfs2_glock_iter_free(gi);
 		return NULL;
 	}
@@ -2066,7 +2061,7 @@ static void *gfs2_glock_seq_start(struct seq_file *file, loff_t *pos)
 	if (!gi)
 		return NULL;
 
-	while (n--) {
+	while(n--) {
 		if (gfs2_glock_iter_next(gi)) {
 			gfs2_glock_iter_free(gi);
 			return NULL;
@@ -2093,7 +2088,9 @@ static void *gfs2_glock_seq_next(struct seq_file *file, void *iter_ptr,
 
 static void gfs2_glock_seq_stop(struct seq_file *file, void *iter_ptr)
 {
-	/* nothing for now */
+	struct glock_iter *gi = iter_ptr;
+	if (gi)
+		gfs2_glock_iter_free(gi);
 }
 
 static int gfs2_glock_seq_show(struct seq_file *file, void *iter_ptr)
