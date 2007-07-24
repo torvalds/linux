@@ -506,6 +506,7 @@ int c2_alloc_qp(struct c2_dev *c2dev,
 	qp->send_sgl_depth = qp_attrs->cap.max_send_sge;
 	qp->rdma_write_sgl_depth = qp_attrs->cap.max_send_sge;
 	qp->recv_sgl_depth = qp_attrs->cap.max_recv_sge;
+	init_waitqueue_head(&qp->wait);
 
 	/* Initialize the SQ MQ */
 	q_size = be32_to_cpu(reply->sq_depth);
