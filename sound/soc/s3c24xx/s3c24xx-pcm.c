@@ -158,18 +158,22 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (!dma)
 		return 0;
 
-	/* prepare DMA */
-	prtd->params = dma;
+	/* this may get called several times by oss emulation
+	 * with different params -HW */
+	if (prtd->params == NULL) {
+		/* prepare DMA */
+		prtd->params = dma;
 
-	DBG("params %p, client %p, channel %d\n", prtd->params,
-		prtd->params->client, prtd->params->channel);
+		DBG("params %p, client %p, channel %d\n", prtd->params,
+			prtd->params->client, prtd->params->channel);
 
-	ret = s3c2410_dma_request(prtd->params->channel,
-				  prtd->params->client, NULL);
+		ret = s3c2410_dma_request(prtd->params->channel,
+					  prtd->params->client, NULL);
 
-	if (ret) {
-		DBG(KERN_ERR "failed to get dma channel\n");
-		return ret;
+		if (ret) {
+			DBG(KERN_ERR "failed to get dma channel\n");
+			return ret;
+		}
 	}
 
 	/* channel needs configuring for mem=>device, increment memory addr,
