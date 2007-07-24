@@ -643,9 +643,19 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 	return -ENOENT;
 }
 
+#define ADD_CTLS(emu, ctls)						\
+	do {								\
+		int i, err;						\
+		for (i = 0; i < ARRAY_SIZE(ctls); i++) {		\
+			err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
+			if (err < 0)					\
+				return err;				\
+		}							\
+	} while (0)
+
 int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
-	int i, err;
+	int err;
         struct snd_card *card = emu->card;
 	char **c;
 	static char *ca0106_remove_ctls[] = {
@@ -692,17 +702,9 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		rename_ctl(card, c[0], c[1]);
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_ctls); i++) {
-		err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_ctls[i], emu));
-		if (err < 0)
-			return err;
-	}
+	ADD_CTLS(emu, snd_ca0106_volume_ctls);
 	if (emu->details->i2c_adc == 1) {
-		for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_i2c_adc_ctls); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_i2c_adc_ctls[i], emu));
-			if (err < 0)
-				return err;
-		}
+		ADD_CTLS(emu, snd_ca0106_volume_i2c_adc_ctls);
 		if (emu->details->gpio_type == 1)
 			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
 		else  /* gpio_type == 2 */
@@ -710,13 +712,8 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		if (err < 0)
 			return err;
 	}
-	if (emu->details->spi_dac == 1) {
-		for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_spi_dac_ctls); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_spi_dac_ctls[i], emu));
-			if (err < 0)
-				return err;
-		}
-	}
+	if (emu->details->spi_dac == 1)
+		ADD_CTLS(emu, snd_ca0106_volume_spi_dac_ctls);
         return 0;
 }
 
