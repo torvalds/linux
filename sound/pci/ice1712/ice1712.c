@@ -1745,8 +1745,6 @@ static struct snd_kcontrol_new snd_ice1712_spdif_stream __devinitdata =
 	.put =		snd_ice1712_spdif_stream_put
 };
 
-#define snd_ice1712_gpio_info		snd_ctl_boolean_mono_info
-
 int snd_ice1712_gpio_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
