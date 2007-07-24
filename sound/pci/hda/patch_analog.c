@@ -1889,16 +1889,19 @@ static int ad1988_spdif_playback_source_get(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int sel;
 
-	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
-	if (sel > 0) {
+	sel = snd_hda_codec_read(codec, 0x1d, 0, AC_VERB_GET_AMP_GAIN_MUTE,
+				 AC_AMP_GET_INPUT);
+	if (!(sel & 0x80))
+		ucontrol->value.enumerated.item[0] = 0;
+	else {
 		sel = snd_hda_codec_read(codec, 0x0b, 0,
 					 AC_VERB_GET_CONNECT_SEL, 0);
 		if (sel < 3)
 			sel++;
 		else
 			sel = 0;
+		ucontrol->value.enumerated.item[0] = sel;
 	}
-	ucontrol->value.enumerated.item[0] = sel;
 	return 0;
 }
 
@@ -1910,17 +1913,32 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	val = ucontrol->value.enumerated.item[0];
-	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
 	if (!val) {
-		change = sel != 0;
-		if (change || codec->in_resume)
-			snd_hda_codec_write(codec, 0x02, 0,
-					    AC_VERB_SET_CONNECT_SEL, 0);
+		sel = snd_hda_codec_read(codec, 0x1d, 0,
+					 AC_VERB_GET_AMP_GAIN_MUTE,
+					 AC_AMP_GET_INPUT);
+		change = sel & 0x80;
+		if (change || codec->in_resume) {
+			snd_hda_codec_write(codec, 0x1d, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_UNMUTE(0));
+			snd_hda_codec_write(codec, 0x1d, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_MUTE(1));
+		}
 	} else {
-		change = sel == 0;
-		if (change || codec->in_resume)
-			snd_hda_codec_write(codec, 0x02, 0,
-					    AC_VERB_SET_CONNECT_SEL, 1);
+		sel = snd_hda_codec_read(codec, 0x1d, 0,
+					 AC_VERB_GET_AMP_GAIN_MUTE,
+					 AC_AMP_GET_INPUT | 0x01);
+		change = sel & 0x80;
+		if (change || codec->in_resume) {
+			snd_hda_codec_write(codec, 0x1d, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_MUTE(0));
+			snd_hda_codec_write(codec, 0x1d, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_UNMUTE(1));
+		}
 		sel = snd_hda_codec_read(codec, 0x0b, 0,
 					 AC_VERB_GET_CONNECT_SEL, 0) + 1;
 		change |= sel != val;
@@ -2039,10 +2057,9 @@ static struct hda_verb ad1988_spdif_init_verbs[] = {
 	{0x02, AC_VERB_SET_CONNECT_SEL, 0x0}, /* PCM */
 	{0x0b, AC_VERB_SET_CONNECT_SEL, 0x0}, /* ADC1 */
 	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* SPDIF out pin */
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x27}, /* 0dB */
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x17}, /* 0dB */
 
 	{ }
 };
