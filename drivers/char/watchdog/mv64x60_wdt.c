@@ -27,6 +27,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#define MV64x60_WDT_WDC_OFFSET	0
+
 /* MV64x60 WDC (config) register access definitions */
 #define MV64x60_WDC_CTL1_MASK	(3 << 24)
 #define MV64x60_WDC_CTL1(val)	((val & 3) << 24)
@@ -39,7 +41,7 @@
 
 static unsigned long wdt_flags;
 static int wdt_status;
-static void __iomem *mv64x60_regs;
+static void __iomem *mv64x60_wdt_regs;
 static int mv64x60_wdt_timeout;
 
 static void mv64x60_wdt_reg_write(u32 val)
@@ -47,10 +49,10 @@ static void mv64x60_wdt_reg_write(u32 val)
 	/* Allow write only to CTL1 / CTL2 fields, retaining values in
 	 * other fields.
 	 */
-	u32 data = readl(mv64x60_regs + MV64x60_WDT_WDC);
+	u32 data = readl(mv64x60_wdt_regs + MV64x60_WDT_WDC_OFFSET);
 	data &= ~(MV64x60_WDC_CTL1_MASK | MV64x60_WDC_CTL2_MASK);
 	data |= val;
-	writel(data, mv64x60_regs + MV64x60_WDT_WDC);
+	writel(data, mv64x60_wdt_regs + MV64x60_WDT_WDC_OFFSET);
 }
 
 static void mv64x60_wdt_service(void)
@@ -185,6 +187,7 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 {
 	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
 	int bus_clk = 133;
+	struct resource *r;
 
 	mv64x60_wdt_timeout = 10;
 	if (pdata) {
@@ -192,10 +195,16 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 		bus_clk = pdata->bus_clk;
 	}
 
-	mv64x60_regs = mv64x60_get_bridge_vbase();
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!r)
+		return -ENODEV;
+
+	mv64x60_wdt_regs = ioremap(r->start, r->end - r->start + 1);
+	if (mv64x60_wdt_regs == NULL)
+		return -ENOMEM;
 
 	writel((mv64x60_wdt_timeout * (bus_clk * 1000000)) >> 8,
-	       mv64x60_regs + MV64x60_WDT_WDC);
+	       mv64x60_wdt_regs + MV64x60_WDT_WDC_OFFSET);
 
 	return misc_register(&mv64x60_wdt_miscdev);
 }
@@ -206,6 +215,8 @@ static int __devexit mv64x60_wdt_remove(struct platform_device *dev)
 
 	mv64x60_wdt_service();
 	mv64x60_wdt_handler_disable();
+
+	iounmap(mv64x60_wdt_regs);
 
 	return 0;
 }
