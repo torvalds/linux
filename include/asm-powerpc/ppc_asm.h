@@ -181,6 +181,18 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
+#define _INIT_STATIC(name) \
+	.section ".text.init.refok"; \
+	.align 2 ; \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
 #else /* 32-bit */
 
 #define _GLOBAL(n)	\
