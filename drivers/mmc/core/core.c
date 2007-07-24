@@ -102,15 +102,7 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 
 EXPORT_SYMBOL(mmc_request_done);
 
-/**
- *	mmc_start_request - start a command on a host
- *	@host: MMC host to start command on
- *	@mrq: MMC request to start
- *
- *	Queue a command on the specified host.  We expect the
- *	caller to be holding the host lock with interrupts disabled.
- */
-void
+static void
 mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
 #ifdef CONFIG_MMC_DEBUG
@@ -164,8 +156,6 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	}
 	host->ops->request(host, mrq);
 }
-
-EXPORT_SYMBOL(mmc_start_request);
 
 static void mmc_wait_done(struct mmc_request *mrq)
 {
@@ -472,6 +462,45 @@ static void mmc_power_off(struct mmc_host *host)
 }
 
 /*
+ * Cleanup when the last reference to the bus operator is dropped.
+ */
+void __mmc_release_bus(struct mmc_host *host)
+{
+	BUG_ON(!host);
+	BUG_ON(host->bus_refs);
+	BUG_ON(!host->bus_dead);
+
+	host->bus_ops = NULL;
+}
+
+/*
+ * Increase reference count of bus operator
+ */
+static inline void mmc_bus_get(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs++;
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+/*
+ * Decrease reference count of bus operator and free it if
+ * it is the last reference.
+ */
+static inline void mmc_bus_put(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs--;
+	if ((host->bus_refs == 0) && host->bus_ops)
+		__mmc_release_bus(host);
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+/*
  * Assign a mmc bus handler to a host. Only one bus handler may control a
  * host at any given time.
  */
@@ -518,18 +547,6 @@ void mmc_detach_bus(struct mmc_host *host)
 	mmc_power_off(host);
 
 	mmc_bus_put(host);
-}
-
-/*
- * Cleanup when the last reference to the bus operator is dropped.
- */
-void __mmc_release_bus(struct mmc_host *host)
-{
-	BUG_ON(!host);
-	BUG_ON(host->bus_refs);
-	BUG_ON(!host->bus_dead);
-
-	host->bus_ops = NULL;
 }
 
 /**
