@@ -215,12 +215,6 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 	s16 SFIL=0;
 	u16 NDEC = 0;
 
-	if (sr > (SYSCLK/(2*4)))
-		sr=SYSCLK/(2*4);
-
-	if (sr<870000)
-		sr=870000;
-
 	if (sr < (u32)(SYSCLK/98.40)) {
 		NDEC=3;
 		SFIL=1;
