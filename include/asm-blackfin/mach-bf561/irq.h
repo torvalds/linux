@@ -289,6 +289,8 @@
 #define IRQ_PF46		119
 #define IRQ_PF47		120
 
+#define GPIO_IRQ_BASE		IRQ_PF0
+
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #define NR_IRQS			(IRQ_PF47 + 1)
 #else

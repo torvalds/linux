@@ -337,6 +337,8 @@ Events         (highest priority)  EMU         0
 #define IRQ_PJ14	BFIN_PJ_IRQ(14)		/* N/A */
 #define IRQ_PJ15	BFIN_PJ_IRQ(15)		/* N/A */
 
+#define GPIO_IRQ_BASE	IRQ_PA0
+
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #define NR_IRQS     (IRQ_PJ15+1)
 #else

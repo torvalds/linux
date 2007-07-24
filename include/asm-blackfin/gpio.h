@@ -421,6 +421,19 @@ unsigned short gpio_get_value(unsigned short gpio);
 void gpio_direction_input(unsigned short gpio);
 void gpio_direction_output(unsigned short gpio);
 
+#include <asm-generic/gpio.h>		/* cansleep wrappers */
+#include <asm/irq.h>
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	return (gpio + GPIO_IRQ_BASE);
+}
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	return (irq - GPIO_IRQ_BASE);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ARCH_BLACKFIN_GPIO_H__ */
