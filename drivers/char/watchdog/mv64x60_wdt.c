@@ -44,6 +44,7 @@ static int wdt_status;
 static void __iomem *mv64x60_wdt_regs;
 static int mv64x60_wdt_timeout;
 static unsigned int bus_clk;
+static char expect_close;
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -115,10 +116,14 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 
 static int mv64x60_wdt_release(struct inode *inode, struct file *file)
 {
-	mv64x60_wdt_service();
-
-	if (!nowayout)
+	if (expect_close == 42)
 		mv64x60_wdt_handler_disable();
+	else {
+		printk(KERN_CRIT
+		       "mv64x60_wdt: unexpected close, not stopping timer!\n");
+		mv64x60_wdt_service();
+	}
+	expect_close = 0;
 
 	clear_bit(MV64x60_WDOG_FLAG_OPENED, &wdt_flags);
 
@@ -128,8 +133,22 @@ static int mv64x60_wdt_release(struct inode *inode, struct file *file)
 static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 				 size_t len, loff_t * ppos)
 {
-	if (len)
+	if (len) {
+		if (!nowayout) {
+			size_t i;
+
+			expect_close = 0;
+
+			for (i = 0; i != len; i++) {
+				char c;
+				if(get_user(c, data + i))
+					return -EFAULT;
+				if (c == 'V')
+					expect_close = 42;
+			}
+		}
 		mv64x60_wdt_service();
+	}
 
 	return len;
 }
@@ -142,6 +161,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
 		.options =	WDIOF_SETTIMEOUT	|
+				WDIOF_MAGICCLOSE	|
 				WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,
 		.identity = "MV64x60 watchdog",
