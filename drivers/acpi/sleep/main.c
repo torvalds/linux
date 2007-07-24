@@ -81,8 +81,8 @@ static int acpi_pm_prepare(suspend_state_t pm_state)
  *	acpi_pm_enter - Actually enter a sleep state.
  *	@pm_state: ignored
  *
- *	Flush caches and go to sleep. For STR or S2, we have to call
- *	arch-specific assembly, which in turn call acpi_enter_sleep_state().
+ *	Flush caches and go to sleep. For STR we have to call arch-specific
+ *	assembly, which in turn call acpi_enter_sleep_state().
  *	It's unfortunate, but it works. Please fix if you're feeling frisky.
  */
 
@@ -95,7 +95,7 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 	ACPI_FLUSH_CPU_CACHE();
 
 	/* Do arch specific saving of state. */
-	if (acpi_state == ACPI_STATE_S2 || acpi_state == ACPI_STATE_S3) {
+	if (acpi_state == ACPI_STATE_S3) {
 		int error = acpi_save_state_mem();
 
 		if (error) {
@@ -112,7 +112,6 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 		status = acpi_enter_sleep_state(acpi_state);
 		break;
 
-	case ACPI_STATE_S2:
 	case ACPI_STATE_S3:
 		do_suspend_lowlevel();
 		break;
@@ -129,7 +128,7 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 	printk(KERN_DEBUG "Back to C!\n");
 
 	/* restore processor state */
-	if (acpi_state == ACPI_STATE_S2 || acpi_state == ACPI_STATE_S3)
+	if (acpi_state == ACPI_STATE_S3)
 		acpi_restore_state_mem();
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
