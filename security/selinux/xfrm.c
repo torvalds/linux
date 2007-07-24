@@ -216,7 +216,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 		return -ENOMEM;
 
 	*ctxp = ctx = kmalloc(sizeof(*ctx) +
-			      uctx->ctx_len,
+			      uctx->ctx_len + 1,
 			      GFP_KERNEL);
 
 	if (!ctx)
@@ -229,6 +229,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 	memcpy(ctx->ctx_str,
 	       uctx+1,
 	       ctx->ctx_len);
+	ctx->ctx_str[ctx->ctx_len] = 0;
 	rc = security_context_to_sid(ctx->ctx_str,
 				     ctx->ctx_len,
 				     &ctx->ctx_sid);
