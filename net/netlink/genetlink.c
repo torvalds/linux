@@ -196,7 +196,7 @@ int genl_register_mc_group(struct genl_family *family,
 	genl_ctrl_event(CTRL_CMD_NEWMCAST_GRP, grp);
  out:
 	genl_unlock();
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(genl_register_mc_group);
 
