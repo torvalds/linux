@@ -182,7 +182,7 @@ static int set_spread_lpevents(char *str)
 }
 __setup("spread_lpevents=", set_spread_lpevents);
 
-void setup_hvlpevent_queue(void)
+void __init setup_hvlpevent_queue(void)
 {
 	void *eventStack;
 
