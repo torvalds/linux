@@ -87,9 +87,8 @@ struct mmc_host {
 
 #define MMC_CAP_4_BIT_DATA	(1 << 0)	/* Can the host do 4 bit transfers */
 #define MMC_CAP_MULTIWRITE	(1 << 1)	/* Can accurately report bytes sent to card on error */
-#define MMC_CAP_BYTEBLOCK	(1 << 2)	/* Can do non-log2 block sizes */
-#define MMC_CAP_MMC_HIGHSPEED	(1 << 3)	/* Can do MMC high-speed timing */
-#define MMC_CAP_SD_HIGHSPEED	(1 << 4)	/* Can do SD high-speed timing */
+#define MMC_CAP_MMC_HIGHSPEED	(1 << 2)	/* Can do MMC high-speed timing */
+#define MMC_CAP_SD_HIGHSPEED	(1 << 3)	/* Can do SD high-speed timing */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */

@@ -391,6 +391,14 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 
+	if (mrq->data && (hweight32(mrq->data->blksz) > 1)) {
+		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
+			mmc_hostname(mmc), mrq->data->blksz);
+		mrq->cmd->error = -EINVAL;
+		mmc_request_done(mmc, mrq);
+		return;
+	}
+
 	spin_lock_irq(&host->lock);
 
 	host->mrq = mrq;

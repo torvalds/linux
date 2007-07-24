@@ -626,14 +626,21 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	spin_lock_irqsave(&sock->lock, flags);
 	if (host->eject) {
-		spin_unlock_irqrestore(&sock->lock, flags);
+		mrq->cmd->error = -ENOMEDIUM;
 		goto err_out;
 	}
 
 	if (host->req) {
 		printk(KERN_ERR "%s : unfinished request detected\n",
 		       sock->dev.bus_id);
-		spin_unlock_irqrestore(&sock->lock, flags);
+		mrq->cmd->error = -ETIMEDOUT;
+		goto err_out;
+	}
+
+	if (mrq->data && (hweight32(mrq->data->blksz) > 1)) {
+		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
+			sock->dev.bus_id, mrq->data->blksz);
+		mrq->cmd->error = -EINVAL;
 		goto err_out;
 	}
 
@@ -722,7 +729,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	return;
 
 err_out:
-	mrq->cmd->error = -ETIMEDOUT;
+	spin_unlock_irqrestore(&sock->lock, flags);
 	mmc_request_done(mmc, mrq);
 }
 
