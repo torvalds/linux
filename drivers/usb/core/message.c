@@ -18,9 +18,17 @@
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
 
+struct api_context {
+	struct completion	done;
+	int			status;
+};
+
 static void usb_api_blocking_completion(struct urb *urb)
 {
-	complete((struct completion *)urb->context);
+	struct api_context *ctx = urb->context;
+
+	ctx->status = urb->status;
+	complete(&ctx->done);
 }
 
 
@@ -32,20 +40,21 @@ static void usb_api_blocking_completion(struct urb *urb)
  */
 static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 { 
-	struct completion done;
+	struct api_context ctx;
 	unsigned long expire;
 	int retval;
-	int status = urb->status;
 
-	init_completion(&done); 	
-	urb->context = &done;
+	init_completion(&ctx.done);
+	urb->context = &ctx;
 	urb->actual_length = 0;
 	retval = usb_submit_urb(urb, GFP_NOIO);
 	if (unlikely(retval))
 		goto out;
 
 	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
-	if (!wait_for_completion_timeout(&done, expire)) {
+	if (!wait_for_completion_timeout(&ctx.done, expire)) {
+		usb_kill_urb(urb);
+		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
 
 		dev_dbg(&urb->dev->dev,
 			"%s timed out on ep%d%s len=%d/%d\n",
@@ -54,11 +63,8 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 			usb_pipein(urb->pipe) ? "in" : "out",
 			urb->actual_length,
 			urb->transfer_buffer_length);
-
-		usb_kill_urb(urb);
-		retval = status == -ENOENT ? -ETIMEDOUT : status;
 	} else
-		retval = status;
+		retval = ctx.status;
 out:
 	if (actual_length)
 		*actual_length = urb->actual_length;
