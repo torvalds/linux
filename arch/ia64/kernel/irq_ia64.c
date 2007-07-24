@@ -212,9 +212,6 @@ assign_irq_vector (int irq)
 	vector = -ENOSPC;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	if (irq < 0) {
-		goto out;
-	}
 	for_each_online_cpu(cpu) {
 		domain = vector_allocation_domain(cpu);
 		vector = find_unassigned_vector(domain);
@@ -223,6 +220,8 @@ assign_irq_vector (int irq)
 	}
 	if (vector < 0)
 		goto out;
+	if (irq == AUTO_ASSIGN)
+		irq = vector;
 	BUG_ON(__bind_irq_vector(irq, vector, domain));
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
