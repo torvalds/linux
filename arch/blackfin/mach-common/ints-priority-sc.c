@@ -579,8 +579,12 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	u16 gpionr = irq - IRQ_PA0;
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 
-	if (pint_val == IRQ_NOT_AVAIL)
+	if (pint_val == IRQ_NOT_AVAIL) {
+		printk(KERN_ERR
+		"GPIO IRQ %d :Not in PINT Assign table "
+		"Reconfigure Interrupt to Port Assignemt\n", irq);
 		return -ENODEV;
+	}
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 		ret = gpio_request(gpionr, NULL);
