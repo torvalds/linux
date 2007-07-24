@@ -261,6 +261,8 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 
 	mv64x60_wdt_set_timeout(timeout);
 
+	mv64x60_wdt_handler_disable();	/* in case timer was already running */
+
 	return misc_register(&mv64x60_wdt_miscdev);
 }
 
