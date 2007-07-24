@@ -221,7 +221,7 @@ static unsigned int bf561_gpio_irq_startup(unsigned int irq)
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
-		ret = gpio_request(gpionr, NULL);
+		ret = gpio_request(gpionr, "IRQ");
 		if (ret)
 			return ret;
 
@@ -261,7 +261,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
-			ret = gpio_request(gpionr, NULL);
+			ret = gpio_request(gpionr, "IRQ");
 			if (ret)
 				return ret;
 
