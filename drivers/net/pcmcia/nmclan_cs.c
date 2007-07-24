@@ -996,7 +996,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 {
   struct net_device *dev = (struct net_device *) dev_id;
   mace_private *lp = netdev_priv(dev);
-  kio_addr_t ioaddr = dev->base_addr;
+  kio_addr_t ioaddr;
   int status;
   int IntrCnt = MACE_MAX_IR_ITERATIONS;
 
@@ -1005,6 +1005,8 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	  irq);
     return IRQ_NONE;
   }
+
+  ioaddr = dev->base_addr;
 
   if (lp->tx_irq_disabled) {
     printk(
