@@ -43,24 +43,11 @@ menuconfig ACPI
 if ACPI
 
 config ACPI_SLEEP
-	bool "Sleep States"
-	depends on X86 && (!SMP || SUSPEND_SMP)
+	bool
+	depends on X86
+	select HOTPLUG_CPU if SMP
+	select SUSPEND_SMP if SMP
 	default y
-	---help---
-	  This option adds support for ACPI suspend states. 
-
-	  With this option, you will be able to put the system "to sleep". 
-	  Sleep states are low power states for the system and devices. All
-	  of the system operating state is saved to either memory or disk
-	  (depending on the state), to allow the system to resume operation
-	  quickly at your request.
-
-	  Although this option sounds really nifty, barely any of the device
-	  drivers have been converted to the new driver model and hence few
-	  have proper power management support. 
-
-	  This option is not recommended for anyone except those doing driver
-	  power management development.
 
 config ACPI_PROCFS
 	bool "Deprecated /proc/acpi files"
