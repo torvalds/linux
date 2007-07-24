@@ -84,6 +84,7 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 			list_del(&page->lru);
 			free_huge_pages--;
 			free_huge_pages_node[nid]--;
+			break;
 		}
 	}
 	return page;
