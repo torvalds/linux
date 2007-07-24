@@ -403,7 +403,7 @@ asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len)
 	if (inode->i_op && inode->i_op->fallocate)
 		ret = inode->i_op->fallocate(inode, mode, offset, len);
 	else
-		ret = -ENOSYS;
+		ret = -EOPNOTSUPP;
 
 out_fput:
 	fput(file);
