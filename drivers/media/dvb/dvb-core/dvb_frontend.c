@@ -697,6 +697,47 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
+				struct dvb_frontend_parameters *parms)
+{
+	/* range check: frequency */
+	if ((fe->ops.info.frequency_min &&
+	     parms->frequency < fe->ops.info.frequency_min) ||
+	    (fe->ops.info.frequency_max &&
+	     parms->frequency > fe->ops.info.frequency_max)) {
+		printk(KERN_WARNING "DVB: frontend %u frequency %u out of range (%u..%u)\n",
+		       fe->dvb->num, parms->frequency,
+		       fe->ops.info.frequency_min, fe->ops.info.frequency_max);
+		return -EINVAL;
+	}
+
+	/* range check: symbol rate */
+	if (fe->ops.info.type == FE_QPSK) {
+		if ((fe->ops.info.symbol_rate_min &&
+		     parms->u.qpsk.symbol_rate < fe->ops.info.symbol_rate_min) ||
+		    (fe->ops.info.symbol_rate_max &&
+		     parms->u.qpsk.symbol_rate > fe->ops.info.symbol_rate_max)) {
+			printk(KERN_WARNING "DVB: frontend %u symbol rate %u out of range (%u..%u)\n",
+			       fe->dvb->num, parms->u.qpsk.symbol_rate,
+			       fe->ops.info.symbol_rate_min, fe->ops.info.symbol_rate_max);
+			return -EINVAL;
+		}
+
+	} else if (fe->ops.info.type == FE_QAM) {
+		if ((fe->ops.info.symbol_rate_min &&
+		     parms->u.qam.symbol_rate < fe->ops.info.symbol_rate_min) ||
+		    (fe->ops.info.symbol_rate_max &&
+		     parms->u.qam.symbol_rate > fe->ops.info.symbol_rate_max)) {
+			printk(KERN_WARNING "DVB: frontend %u symbol rate %u out of range (%u..%u)\n",
+			       fe->dvb->num, parms->u.qam.symbol_rate,
+			       fe->ops.info.symbol_rate_min, fe->ops.info.symbol_rate_max);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg)
 {
@@ -882,6 +923,11 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
+
+		if (dvb_frontend_check_parameters(fe, parg) < 0) {
+			err = -EINVAL;
+			break;
+		}
 
 		memcpy (&fepriv->parameters, parg,
 			sizeof (struct dvb_frontend_parameters));
