@@ -1480,7 +1480,7 @@ void cs46xx_dsp_destroy_pcm_channel (struct snd_cs46xx * chip,
 	if (!pcm_channel->src_scb->ref_count) {
 		cs46xx_dsp_remove_scb(chip,pcm_channel->src_scb);
 
-		snd_assert (pcm_channel->src_slot >= 0 && pcm_channel->src_slot <= DSP_MAX_SRC_NR,
+		snd_assert (pcm_channel->src_slot >= 0 && pcm_channel->src_slot < DSP_MAX_SRC_NR,
 			    return );
 
 		ins->src_scb_slots[pcm_channel->src_slot] = 0;
