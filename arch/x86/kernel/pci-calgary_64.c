@@ -35,6 +35,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 #include <asm/iommu.h>
 #include <asm/calgary.h>
 #include <asm/tce.h>
@@ -384,31 +385,32 @@ static void calgary_unmap_sg(struct device *dev,
 	struct scatterlist *sglist, int nelems, int direction)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
+	struct scatterlist *s;
+	int i;
 
 	if (!translate_phb(to_pci_dev(dev)))
 		return;
 
-	while (nelems--) {
+	for_each_sg(sglist, s, nelems, i) {
 		unsigned int npages;
-		dma_addr_t dma = sglist->dma_address;
-		unsigned int dmalen = sglist->dma_length;
+		dma_addr_t dma = s->dma_address;
+		unsigned int dmalen = s->dma_length;
 
 		if (dmalen == 0)
 			break;
 
 		npages = num_dma_pages(dma, dmalen);
 		iommu_free(tbl, dma, npages);
-		sglist++;
 	}
 }
 
 static int calgary_nontranslate_map_sg(struct device* dev,
 	struct scatterlist *sg, int nelems, int direction)
 {
+	struct scatterlist *s;
 	int i;
 
-	for (i = 0; i < nelems; i++ ) {
-		struct scatterlist *s = &sg[i];
+	for_each_sg(sg, s, nelems, i) {
 		BUG_ON(!s->page);
 		s->dma_address = virt_to_bus(page_address(s->page) +s->offset);
 		s->dma_length = s->length;
@@ -420,6 +422,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	int nelems, int direction)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
+	struct scatterlist *s;
 	unsigned long vaddr;
 	unsigned int npages;
 	unsigned long entry;
@@ -428,8 +431,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	if (!translate_phb(to_pci_dev(dev)))
 		return calgary_nontranslate_map_sg(dev, sg, nelems, direction);
 
-	for (i = 0; i < nelems; i++ ) {
-		struct scatterlist *s = &sg[i];
+	for_each_sg(sg, s, nelems, i) {
 		BUG_ON(!s->page);
 
 		vaddr = (unsigned long)page_address(s->page) + s->offset;
@@ -454,9 +456,9 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	return nelems;
 error:
 	calgary_unmap_sg(dev, sg, nelems, direction);
-	for (i = 0; i < nelems; i++) {
-		sg[i].dma_address = bad_dma_address;
-		sg[i].dma_length = 0;
+	for_each_sg(sg, s, nelems, i) {
+		sg->dma_address = bad_dma_address;
+		sg->dma_length = 0;
 	}
 	return 0;
 }
