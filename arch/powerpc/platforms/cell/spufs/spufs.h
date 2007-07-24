@@ -40,13 +40,10 @@ enum {
 struct spu_context_ops;
 struct spu_gang;
 
-enum {
-	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
-};
-
 /* ctx->sched_flags */
 enum {
 	SPU_SCHED_NOTIFY_ACTIVE,
+	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
 };
 
 struct spu_context {
