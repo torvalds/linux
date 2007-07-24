@@ -252,7 +252,7 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 
 	sg_init_one(&sg, scr, 8);
 
-	mmc_set_data_timeout(&data, card, 0);
+	mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(card->host, &mrq);
 
@@ -302,7 +302,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 
 	sg_init_one(&sg, resp, 64);
 
-	mmc_set_data_timeout(&data, card, 0);
+	mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(card->host, &mrq);
 

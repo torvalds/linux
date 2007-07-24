@@ -220,13 +220,11 @@ EXPORT_SYMBOL(mmc_wait_for_cmd);
  *	mmc_set_data_timeout - set the timeout for a data command
  *	@data: data phase for command
  *	@card: the MMC card associated with the data transfer
- *	@write: flag to differentiate reads from writes
  *
  *	Computes the data timeout parameters according to the
  *	correct algorithm given the card type.
  */
-void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
-			  int write)
+void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 {
 	unsigned int mult;
 
@@ -239,7 +237,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 	 * Scale up the multiplier (and therefore the timeout) by
 	 * the r2w factor for writes.
 	 */
-	if (write)
+	if (data->flags & MMC_DATA_WRITE)
 		mult <<= card->csd.r2w_factor;
 
 	data->timeout_ns = card->csd.tacc_ns * mult;
@@ -255,7 +253,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 		timeout_us += data->timeout_clks * 1000 /
 			(card->host->ios.clock / 1000);
 
-		if (write)
+		if (data->flags & MMC_DATA_WRITE)
 			limit_us = 250000;
 		else
 			limit_us = 100000;

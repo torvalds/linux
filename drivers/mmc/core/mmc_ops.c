@@ -214,7 +214,7 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 	sg_init_one(&sg, ext_csd, 512);
 
-	mmc_set_data_timeout(&data, card, 0);
+	mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(card->host, &mrq);
 

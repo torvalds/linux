@@ -229,8 +229,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		if (brq.data.blocks > card->host->max_blk_count)
 			brq.data.blocks = card->host->max_blk_count;
 
-		mmc_set_data_timeout(&brq.data, card, rq_data_dir(req) != READ);
-
 		/*
 		 * If the host doesn't support multiple block writes, force
 		 * block writes to single block. SD cards are excepted from
@@ -260,6 +258,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.cmd.opcode = writecmd;
 			brq.data.flags |= MMC_DATA_WRITE;
 		}
+
+		mmc_set_data_timeout(&brq.data, card);
 
 		brq.data.sg = mq->sg;
 		brq.data.sg_len = mmc_queue_map_sg(mq);
