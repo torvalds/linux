@@ -90,9 +90,7 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 	mv64x60_wdt_service();
 	mv64x60_wdt_handler_enable();
 
-	nonseekable_open(inode, file);
-
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int mv64x60_wdt_release(struct inode *inode, struct file *file)
