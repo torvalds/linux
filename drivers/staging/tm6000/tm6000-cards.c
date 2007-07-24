@@ -34,10 +34,9 @@
 #define TM5600_BOARD_GENERIC			1
 #define TM6000_BOARD_GENERIC			2
 #define TM5600_BOARD_10MOONS_UT821		3
-#define TM6000_BOARD_10MOONS_UT330		4
+#define TM5600_BOARD_10MOONS_UT330		4
 #define TM6000_BOARD_ADSTECH_DUAL_TV		5
 #define TM6000_BOARD_FREECOM_AND_SIMILAR	6
-
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -52,8 +51,8 @@ struct tm6000_board {
 
 	int             tuner_type;     /* type of the tuner */
 	int             tuner_addr;     /* tuner address */
-
-	int		gpio_addr_tun_reset;	/* GPIO used for reset tuner */
+	int             demod_addr;     /* demodulator address */
+	int		gpio_addr_tun_reset;	/* GPIO used for tuner reset */
 };
 
 
@@ -94,17 +93,16 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio_addr_tun_reset = TM6000_GPIO_1,
 	},
-	[TM6000_BOARD_10MOONS_UT330] = {
+	[TM5600_BOARD_10MOONS_UT330] = {
 		.name         = "10Moons UT 330",
-		.tuner_type   = TUNER_XC2028,
+		.tuner_type   = TUNER_PHILIPS_FQ1216AME_MK4,
 		.tuner_addr   = 0xc8,
 		.caps = {
 			.has_tuner    = 1,
-			.has_dvb      = 1,
-			.has_zl10353  = 1,
+			.has_dvb      = 0,
+			.has_zl10353  = 0,
 			.has_eeprom   = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_4,
 	},
 	[TM6000_BOARD_ADSTECH_DUAL_TV] = {
 		.name         = "ADSTECH Dual TV USB",
@@ -122,14 +120,15 @@ struct tm6000_board tm6000_boards[] = {
 		.name         = "Freecom Hybrid Stick / Moka DVB-T Receiver Dual",
 		.tuner_type   = TUNER_XC2028,
 		.tuner_addr   = 0xc2,
+		.demod_addr   = 0x1e,
 		.caps = {
 			.has_tuner    = 1,
 			.has_dvb      = 1,
 			.has_zl10353  = 1,
 			.has_eeprom   = 0,
 		},
+		.gpio_addr_tun_reset = TM6000_GPIO_4,
 	},
-
 };
 
 /* table of devices that work with this driver */
@@ -152,6 +151,9 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	/* Initializa board-specific data */
 	dev->tuner_type = tm6000_boards[dev->model].tuner_type;
 	dev->tuner_addr = tm6000_boards[dev->model].tuner_addr;
+	dev->tuner_reset_gpio = tm6000_boards[dev->model].gpio_addr_tun_reset;
+
+	dev->demod_addr = tm6000_boards[dev->model].demod_addr;
 
 	dev->caps = tm6000_boards[dev->model].caps;
 

@@ -110,8 +110,12 @@ struct tm6000_core {
 	struct tm6000_capabilities	caps;
 
 	/* Tuner configuration */
-	int				tuner_type;	/* type of the tuner */
-	int				tuner_addr;	/* tuner address */
+	int				tuner_type;		/* type of the tuner */
+	int				tuner_addr;		/* tuner address */
+	int				tuner_reset_gpio;	/* GPIO used for tuner reset */
+
+	/* Demodulator configuration */
+	int				demod_addr;	/* demodulator address */
 
 	/* i2c i/o */
 	struct i2c_adapter		i2c_adap;

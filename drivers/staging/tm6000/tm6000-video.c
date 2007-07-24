@@ -46,6 +46,10 @@
 
 #define BUFFER_TIMEOUT     msecs_to_jiffies(2000)  /* 2 seconds */
 
+/* Limits minimum and default number of buffers */
+#define TM6000_MIN_BUF 4
+#define TM6000_DEF_BUF 8
+
 /* Declare static vars that will be used as parameters */
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
@@ -696,6 +700,7 @@ static void tm6000_vid_timeout(unsigned long data)
 /* ------------------------------------------------------------------
 	Videobuf operations
    ------------------------------------------------------------------*/
+
 static int
 buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
@@ -703,9 +708,17 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 	*size = fh->fmt->depth * fh->width * fh->height >> 3;
 	if (0 == *count)
-		*count = 32;
+		*count = TM6000_DEF_BUF;
+
+	if (*count < TM6000_MIN_BUF) {
+		*count=TM6000_MIN_BUF;
+	}
+
+printk("Requesting %d buffers\n",*count);
+
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
+
 	return 0;
 }
 
