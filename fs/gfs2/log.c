@@ -83,11 +83,6 @@ static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 			gfs2_assert(sdp, bd->bd_ail == ai);
 
-			if (!bh){
-				list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
-                                continue;
-                        }
-
 			if (!buffer_busy(bh)) {
 				if (!buffer_uptodate(bh)) {
 					gfs2_log_unlock(sdp);
@@ -130,11 +125,6 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 					 bd_ail_st_list) {
 		bh = bd->bd_bh;
 
-		if (!bh){
-			list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
-			continue;
-		}
-
 		gfs2_assert(sdp, bd->bd_ail == ai);
 
 		if (buffer_busy(bh)) {
@@ -155,13 +145,14 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 
 static void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
-	struct list_head *head = &sdp->sd_ail1_list;
+	struct list_head *head;
 	u64 sync_gen;
 	struct list_head *first;
 	struct gfs2_ail *first_ai, *ai, *tmp;
 	int done = 0;
 
 	gfs2_log_lock(sdp);
+	head = &sdp->sd_ail1_list;
 	if (list_empty(head)) {
 		gfs2_log_unlock(sdp);
 		return;
