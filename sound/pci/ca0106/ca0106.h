@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.21
+ *  Version: 0.0.22
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
@@ -47,6 +47,8 @@
  *    Added GPIO info for SB Live 24bit.
  *  0.0.21
  *   Implement support for Line-in capture on SB Live 24bit.
+ *  0.0.22
+ *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
  *
  *
  *  This code was initally based on code from ALSA's emu10k1x.c which is:
@@ -552,6 +554,44 @@
 #define CONTROL_CENTER_LFE_CHANNEL 1
 #define CONTROL_UNKNOWN_CHANNEL 2
 
+
+/* Based on WM8768 Datasheet Rev 4.2 page 32 */
+#define SPI_REG_MASK	0x1ff	/* 16-bit SPI writes have a 7-bit address */
+#define SPI_REG_SHIFT	9	/* followed by 9 bits of data */
+
+/* They really do label the bit for the 4th channel "4" and not "3" */
+#define SPI_DMUTE0_REG		9
+#define SPI_DMUTE1_REG		9
+#define SPI_DMUTE2_REG		9
+#define SPI_DMUTE4_REG		15
+#define SPI_DMUTE0_BIT		3
+#define SPI_DMUTE1_BIT		4
+#define SPI_DMUTE2_BIT		5
+#define SPI_DMUTE4_BIT		2
+
+#define SPI_PHASE0_REG		3
+#define SPI_PHASE1_REG		3
+#define SPI_PHASE2_REG		3
+#define SPI_PHASE4_REG		15
+#define SPI_PHASE0_BIT		6
+#define SPI_PHASE1_BIT		7
+#define SPI_PHASE2_BIT		8
+#define SPI_PHASE4_BIT		3
+
+#define SPI_PDWN_REG		2	/* power down all DACs */
+#define SPI_PDWN_BIT		2
+#define SPI_DACD0_REG		10	/* power down individual DACs */
+#define SPI_DACD1_REG		10
+#define SPI_DACD2_REG		10
+#define SPI_DACD4_REG		15
+#define SPI_DACD0_BIT		1
+#define SPI_DACD1_BIT		2
+#define SPI_DACD2_BIT		3
+#define SPI_DACD4_BIT		1
+
+#define SPI_PWRDNALL_REG	10	/* power down everything */
+#define SPI_PWRDNALL_BIT	4
+
 #include "ca_midi.h"
 
 struct snd_ca0106;
@@ -611,6 +651,8 @@ struct snd_ca0106 {
 
 	struct snd_ca_midi midi;
 	struct snd_ca_midi midi2;
+
+	u16 spi_dac_reg[16];
 };
 
 int snd_ca0106_mixer(struct snd_ca0106 *emu);
@@ -627,4 +669,5 @@ void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
 
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu, u32 reg, u32 value);
 
-
+int snd_ca0106_spi_write(struct snd_ca0106 * emu,
+				   unsigned int data);

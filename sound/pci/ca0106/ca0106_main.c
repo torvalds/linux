@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.23
+ *  Version: 0.0.24
  *
  *  FEATURES currently supported:
  *    Front, Rear and Center/LFE.
@@ -79,6 +79,8 @@
  *    Add support for MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97. From kiksen, bug #901
  *  0.0.23
  *    Implement support for Line-in capture on SB Live 24bit.
+ *  0.0.24
+ *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-ca0106 kernel module.
@@ -1484,8 +1486,13 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 		int size, n;
 
 		size = ARRAY_SIZE(spi_dac_init);
-		for (n=0; n < size; n++)
+		for (n = 0; n < size; n++) {
+			int reg = spi_dac_init[n] >> SPI_REG_SHIFT;
+
 			snd_ca0106_spi_write(chip, spi_dac_init[n]);
+			if (reg < ARRAY_SIZE(chip->spi_dac_reg))
+				chip->spi_dac_reg[reg] = spi_dac_init[n];
+		}
 	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
