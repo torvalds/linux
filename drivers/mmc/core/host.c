@@ -100,6 +100,9 @@ int mmc_add_host(struct mmc_host *host)
 {
 	int err;
 
+	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
+		!host->ops->enable_sdio_irq);
+
 	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
 		return -ENOMEM;
 

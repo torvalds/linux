@@ -51,6 +51,7 @@ struct mmc_host_ops {
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
 	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
 	int	(*get_ro)(struct mmc_host *host);
+	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
 };
 
 struct mmc_card;
@@ -89,6 +90,7 @@ struct mmc_host {
 #define MMC_CAP_MULTIWRITE	(1 << 1)	/* Can accurately report bytes sent to card on error */
 #define MMC_CAP_MMC_HIGHSPEED	(1 << 2)	/* Can do MMC high-speed timing */
 #define MMC_CAP_SD_HIGHSPEED	(1 << 3)	/* Can do SD high-speed timing */
+#define MMC_CAP_SDIO_IRQ	(1 << 4)	/* Can signal pending SDIO IRQs */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
@@ -149,6 +151,12 @@ extern int mmc_resume_host(struct mmc_host *);
 
 extern void mmc_detect_change(struct mmc_host *, unsigned long delay);
 extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
+
+static inline void mmc_signal_sdio_irq(struct mmc_host *host)
+{
+	host->ops->enable_sdio_irq(host, 0);
+	wake_up_process(host->sdio_irq_thread);
+}
 
 #endif
 

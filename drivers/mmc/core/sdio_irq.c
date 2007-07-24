@@ -70,7 +70,8 @@ static int sdio_irq_thread(void *_host)
 	 * asynchronous notification of pending SDIO card interrupts
 	 * hence we poll for them in that case.
 	 */
-	period = msecs_to_jiffies(10);
+	period = (host->caps & MMC_CAP_SDIO_IRQ) ?
+		MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(10);
 
 	pr_debug("%s: IRQ thread started (poll period = %lu jiffies)\n",
 		 mmc_hostname(host), period);
@@ -104,10 +105,15 @@ static int sdio_irq_thread(void *_host)
 			ssleep(1);
 
 		set_task_state(current, TASK_INTERRUPTIBLE);
+		if (host->caps & MMC_CAP_SDIO_IRQ)
+			host->ops->enable_sdio_irq(host, 1);
 		if (!kthread_should_stop())
 			schedule_timeout(period);
 		set_task_state(current, TASK_RUNNING);
 	} while (!kthread_should_stop());
+
+	if (host->caps & MMC_CAP_SDIO_IRQ)
+		host->ops->enable_sdio_irq(host, 0);
 
 	pr_debug("%s: IRQ thread exiting with code %d\n",
 		 mmc_hostname(host), ret);
