@@ -28,7 +28,8 @@ unsigned long high_physmem;
 
 extern unsigned long long physmem_size;
 
-int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
+int __init init_maps(unsigned long physmem, unsigned long iomem,
+		     unsigned long highmem)
 {
 	struct page *p, *map;
 	unsigned long phys_len, phys_pages, highmem_len, highmem_pages;
@@ -47,13 +48,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 	total_pages = phys_pages + iomem_pages + highmem_pages;
 	total_len = phys_len + iomem_len + highmem_len;
 
-	if(kmalloc_ok){
-		map = kmalloc(total_len, GFP_KERNEL);
-		if(map == NULL)
-			map = vmalloc(total_len);
-	}
-	else map = alloc_bootmem_low_pages(total_len);
-
+	map = alloc_bootmem_low_pages(total_len);
 	if(map == NULL)
 		return -ENOMEM;
 
@@ -98,8 +93,8 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 
 extern int __syscall_stub_start;
 
-void setup_physmem(unsigned long start, unsigned long reserve_end,
-		   unsigned long len, unsigned long long highmem)
+void __init setup_physmem(unsigned long start, unsigned long reserve_end,
+			  unsigned long len, unsigned long long highmem)
 {
 	unsigned long reserve = reserve_end - start;
 	int pfn = PFN_UP(__pa(reserve_end));

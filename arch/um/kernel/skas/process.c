@@ -145,7 +145,7 @@ void init_idle_skas(void)
 
 extern void start_kernel(void);
 
-static int start_kernel_proc(void *unused)
+static int __init start_kernel_proc(void *unused)
 {
 	int pid;
 
@@ -165,7 +165,7 @@ extern int userspace_pid[];
 
 extern char cpu0_irqstack[];
 
-int start_uml_skas(void)
+int __init start_uml_skas(void)
 {
 	stack_protections((unsigned long) &cpu0_irqstack);
 	set_sigstack(cpu0_irqstack, THREAD_SIZE);

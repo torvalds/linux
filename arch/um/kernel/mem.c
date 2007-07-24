@@ -62,7 +62,7 @@ static void setup_highmem(unsigned long highmem_start,
 }
 #endif
 
-void mem_init(void)
+void __init mem_init(void)
 {
 	/* clear the zero-page */
 	memset((void *) empty_zero_page, 0, PAGE_SIZE);
