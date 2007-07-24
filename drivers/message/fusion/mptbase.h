@@ -186,6 +186,7 @@
  * MPT drivers.  NOTE: Users of these macro defs must
  * themselves define their own MYNAM.
  */
+#define MYIOC_s_DEBUG_FMT		KERN_DEBUG MYNAM ": %s: "
 #define MYIOC_s_INFO_FMT		KERN_INFO MYNAM ": %s: "
 #define MYIOC_s_NOTE_FMT		KERN_NOTICE MYNAM ": %s: "
 #define MYIOC_s_WARN_FMT		KERN_WARNING MYNAM ": %s: WARNING - "
@@ -543,6 +544,7 @@ typedef struct _MPT_ADAPTER
 	char			 board_tracer[16];
 	u16			 nvdata_version_persistent;
 	u16			 nvdata_version_default;
+	int			 debug_level;
 	u8			 io_missing_delay;
 	u8			 device_missing_delay;
 	SYSIF_REGS __iomem	*chip;		/* == c8817000 (mmap) */
@@ -718,171 +720,7 @@ typedef struct _mpt_sge {
 /*
  *  Funky (private) macros...
  */
-#ifdef MPT_DEBUG
-#define dprintk(x)  printk x
-#else
-#define dprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_INIT
-#define dinitprintk(x)  printk x
-#define DBG_DUMP_FW_REQUEST_FRAME(mfp) \
-	{	int  i, n = 10;						\
-		u32 *m = (u32 *)(mfp);					\
-		printk(KERN_INFO " ");					\
-		for (i=0; i<n; i++)					\
-			printk(" %08x", le32_to_cpu(m[i]));		\
-		printk("\n");						\
-	}
-#else
-#define dinitprintk(x)
-#define DBG_DUMP_FW_REQUEST_FRAME(mfp)
-#endif
-
-#ifdef MPT_DEBUG_EXIT
-#define dexitprintk(x)  printk x
-#else
-#define dexitprintk(x)
-#endif
-
-#if defined MPT_DEBUG_FAIL || defined (MPT_DEBUG_SG)
-#define dfailprintk(x) printk x
-#else
-#define dfailprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_HANDSHAKE
-#define dhsprintk(x)  printk x
-#else
-#define dhsprintk(x)
-#endif
-
-#if defined(MPT_DEBUG_EVENTS) || defined(MPT_DEBUG_VERBOSE_EVENTS)
-#define devtprintk(x)  printk x
-#else
-#define devtprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_VERBOSE_EVENTS
-#define devtverboseprintk(x)  printk x
-#else
-#define devtverboseprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_RESET
-#define drsprintk(x)  printk x
-#else
-#define drsprintk(x)
-#endif
-
-//#if defined(MPT_DEBUG) || defined(MPT_DEBUG_MSG_FRAME)
-#if defined(MPT_DEBUG_MSG_FRAME)
-#define dmfprintk(x)  printk x
-#define DBG_DUMP_REQUEST_FRAME(mfp) \
-	{	int  i, n = 24;						\
-		u32 *m = (u32 *)(mfp);					\
-		for (i=0; i<n; i++) {					\
-			if (i && ((i%8)==0))				\
-				printk("\n");				\
-			printk("%08x ", le32_to_cpu(m[i]));		\
-		}							\
-		printk("\n");						\
-	}
-#else
-#define dmfprintk(x)
-#define DBG_DUMP_REQUEST_FRAME(mfp)
-#endif
-
-#ifdef MPT_DEBUG_IRQ
-#define dirqprintk(x)  printk x
-#else
-#define dirqprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_SG
-#define dsgprintk(x)  printk x
-#else
-#define dsgprintk(x)
-#endif
-
-#if defined(MPT_DEBUG_DL) || defined(MPT_DEBUG)
-#define ddlprintk(x)  printk x
-#else
-#define ddlprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_DV
-#define ddvprintk(x)  printk x
-#else
-#define ddvprintk(x)
-#endif
-
-#if defined(MPT_DEBUG_DV) || defined(MPT_DEBUG_DV_TINY)
-#define ddvtprintk(x)  printk x
-#else
-#define ddvtprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_IOCTL
-#define dctlprintk(x) printk x
-#else
-#define dctlprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_REPLY
-#define dreplyprintk(x) printk x
-#else
-#define dreplyprintk(x)
-#endif
-
-#ifdef DMPT_DEBUG_FC
-#define dfcprintk(x) printk x
-#else
-#define dfcprintk(x)
-#endif
-
-#ifdef MPT_DEBUG_TM
-#define dtmprintk(x) printk x
-#define DBG_DUMP_TM_REQUEST_FRAME(mfp) \
-	{	u32 *m = (u32 *)(mfp);					\
-		int  i, n = 13;						\
-		printk("TM_REQUEST:\n");				\
-		for (i=0; i<n; i++) {					\
-			if (i && ((i%8)==0))				\
-				printk("\n");				\
-			printk("%08x ", le32_to_cpu(m[i]));		\
-		}							\
-		printk("\n");						\
-	}
-#define DBG_DUMP_TM_REPLY_FRAME(mfp) \
-	{	u32 *m = (u32 *)(mfp);					\
-		int  i, n = (le32_to_cpu(m[0]) & 0x00FF0000) >> 16;	\
-		printk("TM_REPLY MessageLength=%d:\n", n);		\
-		for (i=0; i<n; i++) {					\
-			if (i && ((i%8)==0))				\
-				printk("\n");				\
-			printk(" %08x", le32_to_cpu(m[i]));		\
-		}							\
-		printk("\n");						\
-	}
-#else
-#define dtmprintk(x)
-#define DBG_DUMP_TM_REQUEST_FRAME(mfp)
-#define DBG_DUMP_TM_REPLY_FRAME(mfp)
-#endif
-
-#if defined(MPT_DEBUG_CONFIG) || defined(MPT_DEBUG)
-#define dcprintk(x) printk x
-#else
-#define dcprintk(x)
-#endif
-
-#if defined(MPT_DEBUG_SCSI) || defined(MPT_DEBUG) || defined(MPT_DEBUG_MSG_FRAME)
-#define dsprintk(x) printk x
-#else
-#define dsprintk(x)
-#endif
-
+#include "mptdebug.h"
 
 #define MPT_INDEX_2_MFPTR(ioc,idx) \
 	(MPT_FRAME_HDR*)( (u8*)(ioc)->req_frames + (ioc)->req_sz * (idx) )
@@ -892,36 +730,6 @@ typedef struct _mpt_sge {
 
 #define MPT_INDEX_2_RFPTR(ioc,idx) \
 	(MPT_FRAME_HDR*)( (u8*)(ioc)->reply_frames + (ioc)->req_sz * (idx) )
-
-#if defined(MPT_DEBUG) || defined(MPT_DEBUG_MSG_FRAME)
-#define DBG_DUMP_REPLY_FRAME(mfp) \
-	{	u32 *m = (u32 *)(mfp);					\
-		int  i, n = (le32_to_cpu(m[0]) & 0x00FF0000) >> 16;	\
-		printk(KERN_INFO " ");					\
-		for (i=0; i<n; i++)					\
-			printk(" %08x", le32_to_cpu(m[i]));		\
-		printk("\n");						\
-	}
-#define DBG_DUMP_REQUEST_FRAME_HDR(mfp) \
-	{	int  i, n = 3;						\
-		u32 *m = (u32 *)(mfp);					\
-		printk(KERN_INFO " ");					\
-		for (i=0; i<n; i++)					\
-			printk(" %08x", le32_to_cpu(m[i]));		\
-		printk("\n");						\
-	}
-#else
-#define DBG_DUMP_REPLY_FRAME(mfp)
-#define DBG_DUMP_REQUEST_FRAME_HDR(mfp)
-#endif
-
-// debug sas wide ports
-#ifdef MPT_DEBUG_SAS_WIDE
-#define dsaswideprintk(x) printk x
-#else
-#define dsaswideprintk(x)
-#endif
-
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
