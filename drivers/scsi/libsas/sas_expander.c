@@ -1879,7 +1879,7 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		    struct request *req)
 {
 	struct domain_device *dev;
-	int ret, type = rphy->identify.device_type;
+	int ret, type;
 	struct request *rsp = req->next_rq;
 
 	if (!rsp) {
@@ -1888,12 +1888,13 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		return -EINVAL;
 	}
 
-	/* seems aic94xx doesn't support */
+	/* no rphy means no smp target support (ie aic94xx host) */
 	if (!rphy) {
 		printk("%s: can we send a smp request to a host?\n",
 		       __FUNCTION__);
 		return -EINVAL;
 	}
+	type = rphy->identify.device_type;
 
 	if (type != SAS_EDGE_EXPANDER_DEVICE &&
 	    type != SAS_FANOUT_EXPANDER_DEVICE) {
