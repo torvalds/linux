@@ -186,7 +186,7 @@ static void au1xmmc_tasklet_finish(unsigned long param)
 }
 
 static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
-				struct mmc_command *cmd, unsigned int flags)
+				struct mmc_command *cmd, struct mmc_data *data)
 {
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
@@ -211,16 +211,18 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 		return -EINVAL;
 	}
 
-	if (flags & MMC_DATA_READ) {
-		if (flags & MMC_DATA_MULTI)
-			mmccmd |= SD_CMD_CT_4;
-		else
-			mmccmd |= SD_CMD_CT_2;
-	} else if (flags & MMC_DATA_WRITE) {
-		if (flags & MMC_DATA_MULTI)
-			mmccmd |= SD_CMD_CT_3;
-		else
-			mmccmd |= SD_CMD_CT_1;
+	if (data) {
+		if (flags & MMC_DATA_READ) {
+			if (data->blocks > 1)
+				mmccmd |= SD_CMD_CT_4;
+			else
+				mmccmd |= SD_CMD_CT_2;
+		} else if (flags & MMC_DATA_WRITE) {
+			if (data->blocks > 1)
+				mmccmd |= SD_CMD_CT_3;
+			else
+				mmccmd |= SD_CMD_CT_1;
+		}
 	}
 
 	au_writel(cmd->arg, HOST_CMDARG(host));
@@ -673,7 +675,7 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 	}
 
 	if (!ret)
-		ret = au1xmmc_send_command(host, 0, mrq->cmd, flags);
+		ret = au1xmmc_send_command(host, 0, mrq->cmd, mrq->data);
 
 	if (ret) {
 		mrq->cmd->error = ret;

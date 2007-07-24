@@ -241,7 +241,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.data.blocks = 1;
 
 		if (brq.data.blocks > 1) {
-			brq.data.flags |= MMC_DATA_MULTI;
 			brq.mrq.stop = &brq.stop;
 			readcmd = MMC_READ_MULTIPLE_BLOCK;
 			writecmd = MMC_WRITE_MULTIPLE_BLOCK;

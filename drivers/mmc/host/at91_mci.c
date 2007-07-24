@@ -328,7 +328,7 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 	data = cmd->data;
 	if (!data) return;
 
-	if (cmd->data->flags & MMC_DATA_MULTI) {
+	if (cmd->data->blocks > 1) {
 		pr_debug("multiple write : wait for BLKE...\n");
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
 	} else
@@ -439,7 +439,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 
 		if (data->flags & MMC_DATA_STREAM)
 			cmdr |= AT91_MCI_TRTYP_STREAM;
-		if (data->flags & MMC_DATA_MULTI)
+		if (data->blocks > 1)
 			cmdr |= AT91_MCI_TRTYP_MULTIPLE;
 	}
 	else {
