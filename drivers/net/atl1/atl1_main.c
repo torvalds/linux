@@ -59,6 +59,7 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/if_ether.h>
 #include <linux/irqreturn.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
@@ -120,8 +121,8 @@ static int __devinit atl1_sw_init(struct atl1_adapter *adapter)
 	struct atl1_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
-	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
-	hw->min_frame_size = MINIMUM_ETHERNET_FRAME_SIZE;
+	hw->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	hw->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	adapter->wol = 0;
 	adapter->rx_buffer_len = (hw->max_frame_size + 7) & ~7;
@@ -314,7 +315,7 @@ err_nomem:
 	return -ENOMEM;
 }
 
-void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
+static void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
 {
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_rfd_ring *rfd_ring = &adapter->rfd_ring;
@@ -688,9 +689,9 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	int old_mtu = netdev->mtu;
-	int max_frame = new_mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	if ((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
+	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
 		dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
 		return -EINVAL;
@@ -908,8 +909,8 @@ static u32 atl1_configure(struct atl1_adapter *adapter)
 	/* config DMA Engine */
 	value = ((((u32) hw->dmar_block) & DMA_CTRL_DMAR_BURST_LEN_MASK)
 		<< DMA_CTRL_DMAR_BURST_LEN_SHIFT) |
-		((((u32) hw->dmaw_block) & DMA_CTRL_DMAR_BURST_LEN_MASK)
-		<< DMA_CTRL_DMAR_BURST_LEN_SHIFT) | DMA_CTRL_DMAR_EN |
+		((((u32) hw->dmaw_block) & DMA_CTRL_DMAW_BURST_LEN_MASK)
+		<< DMA_CTRL_DMAW_BURST_LEN_SHIFT) | DMA_CTRL_DMAR_EN |
 		DMA_CTRL_DMAW_EN;
 	value |= (u32) hw->dma_ord;
 	if (atl1_rcb_128 == hw->rcb_value)
@@ -917,7 +918,10 @@ static u32 atl1_configure(struct atl1_adapter *adapter)
 	iowrite32(value, hw->hw_addr + REG_DMA_CTRL);
 
 	/* config CMB / SMB */
-	value = hw->cmb_rrd | ((u32) hw->cmb_tpd << 16);
+	value = (hw->cmb_tpd > adapter->tpd_ring.count) ?
+		hw->cmb_tpd : adapter->tpd_ring.count;
+	value <<= 16;
+	value |= hw->cmb_rrd;
 	iowrite32(value, hw->hw_addr + REG_CMB_WRITE_TH);
 	value = hw->cmb_rx_timer | ((u32) hw->cmb_tx_timer << 16);
 	iowrite32(value, hw->hw_addr + REG_CMB_WRITE_TIMER);
@@ -1334,7 +1338,7 @@ rrd_ok:
 		skb = buffer_info->skb;
 		length = le16_to_cpu(rrd->xsz.xsum_sz.pkt_size);
 
-		skb_put(skb, length - ETHERNET_FCS_SIZE);
+		skb_put(skb, length - ETH_FCS_LEN);
 
 		/* Receive Checksum Offload */
 		atl1_rx_checksum(adapter, rrd, skb);
@@ -1422,7 +1426,7 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 		netif_wake_queue(adapter->netdev);
 }
 
-static u16 tpd_avail(struct atl1_tpd_ring *tpd_ring)
+static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
 {
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 next_to_use = atomic_read(&tpd_ring->next_to_use);
@@ -1453,7 +1457,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
 				iph->daddr, 0, IPPROTO_TCP, 0);
 			ipofst = skb_network_offset(skb);
-			if (ipofst != ENET_HEADER_SIZE) /* 802.3 frame */
+			if (ipofst != ETH_HLEN) /* 802.3 frame */
 				tso->tsopl |= 1 << TSO_PARAM_ETHTYPE_SHIFT;
 
 			tso->tsopl |= (iph->ihl &
@@ -1708,7 +1712,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_LOCKED;
 	}
 
-	if (tpd_avail(&adapter->tpd_ring) < count) {
+	if (atl1_tpd_avail(&adapter->tpd_ring) < count) {
 		/* not enough descriptors */
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&adapter->lock, flags);

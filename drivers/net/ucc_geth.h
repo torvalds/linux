@@ -30,6 +30,10 @@
 
 #include "ucc_geth_mii.h"
 
+#define DRV_DESC "QE UCC Gigabit Ethernet Controller"
+#define DRV_NAME "ucc_geth"
+#define DRV_VERSION "1.1"
+
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8
 #define NUM_BDS_IN_PREFETCHED_BDS       4
@@ -896,6 +900,7 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_TX_VTAG_TABLE_ENTRY_MAX        8
 #define UCC_GETH_RX_BD_RING_SIZE_MIN            8
 #define UCC_GETH_TX_BD_RING_SIZE_MIN            2
+#define UCC_GETH_BD_RING_SIZE_MAX		0xffff
 
 #define UCC_GETH_SIZE_OF_BD                     QE_SIZEOF_BD
 
@@ -1135,6 +1140,7 @@ struct ucc_geth_info {
 	int bro;
 	int ecm;
 	int receiveFlowControl;
+	int transmitFlowControl;
 	u8 maxGroupAddrInHash;
 	u8 maxIndAddrInHash;
 	u8 prel;

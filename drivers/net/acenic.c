@@ -3128,12 +3128,6 @@ static int __devinit read_eeprom_byte(struct net_device *dev,
 	int result = 0;
 	short i;
 
-	if (!dev) {
-		printk(KERN_ERR "No device!\n");
-		result = -ENODEV;
-		goto out;
-	}
-
 	/*
 	 * Don't take interrupts on this CPU will bit banging
 	 * the %#%#@$ I2C device
