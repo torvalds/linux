@@ -2153,7 +2153,7 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 	src = buf->ops->map(pipe, buf, 1);
 	dst = kmap_atomic(page, KM_USER1);
 	memcpy(dst + offset, src + buf->offset, count);
-	kunmap_atomic(page, KM_USER1);
+	kunmap_atomic(dst, KM_USER1);
 	buf->ops->unmap(pipe, buf, src);
 
 	copied = ocfs2_write_end(file, file->f_mapping, sd->pos, count, count,
