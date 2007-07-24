@@ -79,7 +79,7 @@ static unsigned char backplane_pci_irq[4][4] = {
 				     TX4927_IRQ_IOC_PCIC}
 };
 
-int pci_get_irq(struct pci_dev *dev, int pin)
+static int pci_get_irq(const struct pci_dev *dev, int pin)
 {
 	unsigned char irq = pin;
 

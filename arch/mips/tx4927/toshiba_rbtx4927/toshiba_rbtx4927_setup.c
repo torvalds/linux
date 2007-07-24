@@ -159,58 +159,6 @@ int tx4927_pci66 = 0;		/* 0:auto */
 char *toshiba_name = "";
 
 #ifdef CONFIG_PCI
-static void tx4927_pcierr_interrupt(int irq, void *dev_id)
-{
-#ifdef CONFIG_BLK_DEV_IDEPCI
-	/* ignore MasterAbort for ide probing... */
-	if (irq == TX4927_IRQ_IRC_PCIERR &&
-	    ((tx4927_pcicptr->pcistatus >> 16) & 0xf900) ==
-	    PCI_STATUS_REC_MASTER_ABORT) {
-		tx4927_pcicptr->pcistatus =
-		    (tx4927_pcicptr->
-		     pcistatus & 0x0000ffff) | (PCI_STATUS_REC_MASTER_ABORT
-						<< 16);
-
-		return;
-	}
-#endif
-	printk("PCI error interrupt (irq 0x%x).\n", irq);
-
-	printk("pcistat:%04x, g2pstatus:%08lx, pcicstatus:%08lx\n",
-	       (unsigned short) (tx4927_pcicptr->pcistatus >> 16),
-	       tx4927_pcicptr->g2pstatus, tx4927_pcicptr->pcicstatus);
-	printk("ccfg:%08lx, tear:%02lx_%08lx\n",
-	       (unsigned long) tx4927_ccfgptr->ccfg,
-	       (unsigned long) (tx4927_ccfgptr->tear >> 32),
-	       (unsigned long) tx4927_ccfgptr->tear);
-	show_regs(get_irq_regs());
-}
-
-void __init toshiba_rbtx4927_pci_irq_init(void)
-{
-	return;
-}
-
-void tx4927_reset_pci_pcic(void)
-{
-	/* Reset PCI Bus */
-	*tx4927_pcireset_ptr = 1;
-	/* Reset PCIC */
-	tx4927_ccfgptr->clkctr |= TX4927_CLKCTR_PCIRST;
-	udelay(10000);
-	/* clear PCIC reset */
-	tx4927_ccfgptr->clkctr &= ~TX4927_CLKCTR_PCIRST;
-	*tx4927_pcireset_ptr = 0;
-}
-#endif /* CONFIG_PCI */
-
-#ifdef CONFIG_PCI
-void print_pci_status(void)
-{
-	printk("PCI STATUS %lx\n", tx4927_pcicptr->pcistatus);
-	printk("PCIC STATUS %lx\n", tx4927_pcicptr->pcicstatus);
-}
-
 extern struct pci_controller tx4927_controller;
 
 static struct pci_dev *fake_pci_dev(struct pci_controller *hose,
@@ -239,10 +187,8 @@ static int early_##rw##_config_##size(struct pci_controller *hose,      \
 }
 
 EARLY_PCI_OP(read, byte, u8 *)
-EARLY_PCI_OP(read, word, u16 *)
 EARLY_PCI_OP(read, dword, u32 *)
 EARLY_PCI_OP(write, byte, u8)
-EARLY_PCI_OP(write, word, u16)
 EARLY_PCI_OP(write, dword, u32)
 
 static int __init tx4927_pcibios_init(void)
@@ -269,7 +215,9 @@ static int __init tx4927_pcibios_init(void)
 			u8 v08_64;
 			u32 v32_b0;
 			u8 v08_e1;
+#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
 			char *s = " sb/isa --";
+#endif
 
 			TOSHIBA_RBTX4927_SETUP_DPRINTK
 			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s beg\n",
@@ -354,7 +302,9 @@ static int __init tx4927_pcibios_init(void)
 			u8 v08_41;
 			u8 v08_43;
 			u8 v08_5c;
+#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
 			char *s = " sb/ide --";
+#endif
 
 			TOSHIBA_RBTX4927_SETUP_DPRINTK
 			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s beg\n",
