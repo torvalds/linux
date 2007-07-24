@@ -149,7 +149,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->write_partial = 0;
 		break;
 	default:
-		printk("%s: unrecognised CSD structure version %d\n",
+		printk(KERN_ERR "%s: unrecognised CSD structure version %d\n",
 			mmc_hostname(card->host), csd_struct);
 		return -EINVAL;
 	}
@@ -173,7 +173,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 
 	scr_struct = UNSTUFF_BITS(resp, 60, 4);
 	if (scr_struct != 0) {
-		printk("%s: unrecognised SCR structure version %d\n",
+		printk(KERN_ERR "%s: unrecognised SCR structure version %d\n",
 			mmc_hostname(card->host), scr_struct);
 		return -EINVAL;
 	}
@@ -206,9 +206,8 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status) {
-		printk("%s: could not allocate a buffer for switch "
-		       "capabilities.\n",
-			mmc_hostname(card->host));
+		printk(KERN_ERR "%s: could not allocate a buffer for "
+			"switch capabilities.\n", mmc_hostname(card->host));
 		return err;
 	}
 
@@ -254,9 +253,8 @@ static int mmc_switch_hs(struct mmc_card *card)
 
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status) {
-		printk("%s: could not allocate a buffer for switch "
-		       "capabilities.\n",
-			mmc_hostname(card->host));
+		printk(KERN_ERR "%s: could not allocate a buffer for "
+			"switch capabilities.\n", mmc_hostname(card->host));
 		return err;
 	}
 
