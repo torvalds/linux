@@ -43,6 +43,7 @@ static unsigned long wdt_flags;
 static int wdt_status;
 static void __iomem *mv64x60_wdt_regs;
 static int mv64x60_wdt_timeout;
+static unsigned int bus_clk;
 
 static void mv64x60_wdt_reg_write(u32 val)
 {
@@ -82,6 +83,18 @@ static void mv64x60_wdt_handler_enable(void)
 	}
 }
 
+static void mv64x60_wdt_set_timeout(int timeout)
+{
+	/* maximum bus cycle count is 0xFFFFFFFF */
+	if (timeout > 0xFFFFFFFF / bus_clk)
+		timeout = 0xFFFFFFFF / bus_clk;
+
+	mv64x60_wdt_timeout = timeout;
+	writel((timeout * bus_clk) >> 8,
+	       mv64x60_wdt_regs + MV64x60_WDT_WDC_OFFSET);
+	mv64x60_wdt_service();
+}
+
 static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(MV64x60_WDOG_FLAG_OPENED, &wdt_flags))
@@ -118,9 +131,11 @@ static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
+	int timeout;
 	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
-		.options = WDIOF_KEEPALIVEPING,
+		.options =	WDIOF_SETTIMEOUT	|
+				WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,
 		.identity = "MV64x60 watchdog",
 	};
@@ -150,7 +165,10 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		return -EOPNOTSUPP;
+		if (get_user(timeout, (int __user *)argp))
+			return -EFAULT;
+		mv64x60_wdt_set_timeout(timeout);
+		/* Fall through */
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(mv64x60_wdt_timeout, (int __user *)argp))
@@ -182,14 +200,21 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 {
 	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
-	int bus_clk = 133;
 	struct resource *r;
+	int timeout = 10;
 
-	mv64x60_wdt_timeout = 10;
+	bus_clk = 133;			/* in MHz */
 	if (pdata) {
-		mv64x60_wdt_timeout = pdata->timeout;
+		timeout = pdata->timeout;
 		bus_clk = pdata->bus_clk;
 	}
+
+	/* Since bus_clk is truncated MHz, actual frequency could be
+	 * up to 1MHz higher.  Round up, since it's better to time out
+	 * too late than too soon.
+	 */
+	bus_clk++;
+	bus_clk *= 1000000;		/* convert to Hz */
 
 	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!r)
@@ -199,8 +224,7 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 	if (mv64x60_wdt_regs == NULL)
 		return -ENOMEM;
 
-	writel((mv64x60_wdt_timeout * (bus_clk * 1000000)) >> 8,
-	       mv64x60_wdt_regs + MV64x60_WDT_WDC_OFFSET);
+	mv64x60_wdt_set_timeout(timeout);
 
 	return misc_register(&mv64x60_wdt_miscdev);
 }
