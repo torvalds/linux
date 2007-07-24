@@ -724,6 +724,8 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_LINKACTIVE    0x200
 		/* link current state is unknown */
 #define IPATH_LINKUNK       0x400
+		/* Write combining flush needed for PIO */
+#define IPATH_PIO_FLUSH_WC  0x1000
 		/* no IB cable, or no device on IB cable */
 #define IPATH_NOCABLE       0x4000
 		/* Supports port zero per packet receive interrupts via

@@ -446,19 +446,21 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 			   dd->ipath_unit, plen - 1, pbufn);
 
 	if (dp.pbc_wd == 0)
-		/* Legacy operation, use computed pbc_wd */
 		dp.pbc_wd = plen;
-
-	/* we have to flush after the PBC for correctness on some cpus
-	 * or WC buffer can be written out of order */
 	writeq(dp.pbc_wd, piobuf);
-	ipath_flush_wc();
-	/* copy all by the trigger word, then flush, so it's written
+	/*
+	 * Copy all by the trigger word, then flush, so it's written
 	 * to chip before trigger word, then write trigger word, then
-	 * flush again, so packet is sent. */
-	__iowrite32_copy(piobuf + 2, tmpbuf, clen - 1);
-	ipath_flush_wc();
-	__raw_writel(tmpbuf[clen - 1], piobuf + clen + 1);
+	 * flush again, so packet is sent.
+	 */
+	if (dd->ipath_flags & IPATH_PIO_FLUSH_WC) {
+		ipath_flush_wc();
+		__iowrite32_copy(piobuf + 2, tmpbuf, clen - 1);
+		ipath_flush_wc();
+		__raw_writel(tmpbuf[clen - 1], piobuf + clen + 1);
+	} else
+		__iowrite32_copy(piobuf + 2, tmpbuf, clen);
+
 	ipath_flush_wc();
 
 	ret = sizeof(dp);

@@ -1273,6 +1273,8 @@ static void ipath_pe_tidtemplate(struct ipath_devdata *dd)
 static int ipath_pe_early_init(struct ipath_devdata *dd)
 {
 	dd->ipath_flags |= IPATH_4BYTE_TID;
+	if (ipath_unordered_wc())
+		dd->ipath_flags |= IPATH_PIO_FLUSH_WC;
 
 	/*
 	 * For openfabrics, we need to be able to handle an IB header of

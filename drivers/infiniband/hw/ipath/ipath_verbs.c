@@ -631,7 +631,7 @@ static inline u32 clear_upper_bytes(u32 data, u32 n, u32 off)
 #endif
 
 static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
-		    u32 length)
+		    u32 length, unsigned flush_wc)
 {
 	u32 extra = 0;
 	u32 data = 0;
@@ -757,11 +757,14 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 	}
 	/* Update address before sending packet. */
 	update_sge(ss, length);
-	/* must flush early everything before trigger word */
-	ipath_flush_wc();
-	__raw_writel(last, piobuf);
-	/* be sure trigger word is written */
-	ipath_flush_wc();
+	if (flush_wc) {
+		/* must flush early everything before trigger word */
+		ipath_flush_wc();
+		__raw_writel(last, piobuf);
+		/* be sure trigger word is written */
+		ipath_flush_wc();
+	} else
+		__raw_writel(last, piobuf);
 }
 
 /**
@@ -776,6 +779,7 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 		     u32 *hdr, u32 len, struct ipath_sge_state *ss)
 {
 	u32 __iomem *piobuf;
+	unsigned flush_wc;
 	u32 plen;
 	int ret;
 
@@ -799,47 +803,55 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 	 * or WC buffer can be written out of order.
 	 */
 	writeq(plen, piobuf);
-	ipath_flush_wc();
 	piobuf += 2;
+
+	flush_wc = dd->ipath_flags & IPATH_PIO_FLUSH_WC;
 	if (len == 0) {
 		/*
 		 * If there is just the header portion, must flush before
 		 * writing last word of header for correctness, and after
 		 * the last header word (trigger word).
 		 */
-		__iowrite32_copy(piobuf, hdr, hdrwords - 1);
-		ipath_flush_wc();
-		__raw_writel(hdr[hdrwords - 1], piobuf + hdrwords - 1);
-		ipath_flush_wc();
-		ret = 0;
-		goto bail;
+		if (flush_wc) {
+			ipath_flush_wc();
+			__iowrite32_copy(piobuf, hdr, hdrwords - 1);
+			ipath_flush_wc();
+			__raw_writel(hdr[hdrwords - 1], piobuf + hdrwords - 1);
+			ipath_flush_wc();
+		} else
+			__iowrite32_copy(piobuf, hdr, hdrwords);
+		goto done;
 	}
 
+	if (flush_wc)
+		ipath_flush_wc();
 	__iowrite32_copy(piobuf, hdr, hdrwords);
 	piobuf += hdrwords;
 
 	/* The common case is aligned and contained in one segment. */
 	if (likely(ss->num_sge == 1 && len <= ss->sge.length &&
 		   !((unsigned long)ss->sge.vaddr & (sizeof(u32) - 1)))) {
-		u32 w;
+		u32 dwords;
 		u32 *addr = (u32 *) ss->sge.vaddr;
 
 		/* Update address before sending packet. */
 		update_sge(ss, len);
 		/* Need to round up for the last dword in the packet. */
-		w = (len + 3) >> 2;
-		__iowrite32_copy(piobuf, addr, w - 1);
-		/* must flush early everything before trigger word */
-		ipath_flush_wc();
-		__raw_writel(addr[w - 1], piobuf + w - 1);
-		/* be sure trigger word is written */
-		ipath_flush_wc();
-		ret = 0;
-		goto bail;
+		dwords = (len + 3) >> 2;
+		if (flush_wc) {
+			__iowrite32_copy(piobuf, addr, dwords - 1);
+			/* must flush early everything before trigger word */
+			ipath_flush_wc();
+			__raw_writel(addr[dwords - 1], piobuf + dwords - 1);
+			/* be sure trigger word is written */
+			ipath_flush_wc();
+		} else
+			__iowrite32_copy(piobuf, addr, dwords);
+		goto done;
 	}
-	copy_io(piobuf, ss, len);
+	copy_io(piobuf, ss, len, flush_wc);
+done:
 	ret = 0;
-
 bail:
 	return ret;
 }
