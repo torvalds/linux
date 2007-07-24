@@ -184,7 +184,7 @@ int genl_register_mc_group(struct genl_family *family,
 	}
 
 	err = netlink_change_ngroups(genl_sock,
-				     sizeof(unsigned long) * NETLINK_GENERIC);
+				     mc_groups_longs * BITS_PER_LONG);
 	if (err)
 		goto out;
 
