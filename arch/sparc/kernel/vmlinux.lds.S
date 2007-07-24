@@ -35,6 +35,8 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
+  NOTES
+
   . = ALIGN(4096);
   __init_begin = .;
   _sinittext = .;

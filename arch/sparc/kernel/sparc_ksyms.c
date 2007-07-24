@@ -161,6 +161,8 @@ EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_one));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_sgl));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_one));
 
+EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
+
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_root);
 EXPORT_SYMBOL(dma_chain);
@@ -260,6 +262,7 @@ EXPORT_SYMBOL(__memmove);
 /* Moving data to/from userspace. */
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__strncpy_from_user);
+EXPORT_SYMBOL(__strnlen_user);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(__csum_partial_copy_sparc_generic);
