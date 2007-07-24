@@ -440,15 +440,15 @@ ENTRY(_bfin_reset)
 	SSYNC;
 
 	/* make sure SYSCR is set to use BMODE */
-	P0.h = hi(SICA_SYSCR);
-	P0.l = lo(SICA_SYSCR);
-	R0.l = 0x20;
+	P0.h = hi(SYSCR);
+	P0.l = lo(SYSCR);
+	R0.l = 0x20;		/* on BF561, disable core b */
 	W[P0] = R0.l;
 	SSYNC;
 
 	/* issue a system soft reset */
-	P1.h = hi(SICA_SWRST);
-	P1.l = lo(SICA_SWRST);
+	P1.h = hi(SWRST);
+	P1.l = lo(SWRST);
 	R1.l = 0x0007;
 	W[P1] = R1;
 	SSYNC;

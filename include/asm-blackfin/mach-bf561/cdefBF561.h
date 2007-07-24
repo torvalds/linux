@@ -81,6 +81,12 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
 #define bfin_read_CHIPID()                   bfin_read32(CHIPID)
 
+/* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
+#define bfin_read_SWRST()                    bfin_read_SICA_SWRST()
+#define bfin_write_SWRST()                   bfin_write_SICA_SWRST()
+#define bfin_read_SYSCR()                    bfin_read_SICA_SYSCR()
+#define bfin_write_SYSCR()                   bfin_write_SICA_SYSCR()
+
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
 #define bfin_read_SICA_SWRST()               bfin_read16(SICA_SWRST)
 #define bfin_write_SICA_SWRST(val)           bfin_write16(SICA_SWRST,val)
