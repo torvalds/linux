@@ -164,7 +164,7 @@ static int cpu5wdt_ioctl(struct inode *inode, struct file *file, unsigned int cm
 			break;
 		case WDIOC_GETBOOTSTATUS:
 			if ( copy_to_user(argp, &value, sizeof(int)) )
-				retrun -EFAULT;
+				return -EFAULT;
 			break;
 		case WDIOC_GETSUPPORT:
 			if ( copy_to_user(argp, &ident, sizeof(ident)) )
