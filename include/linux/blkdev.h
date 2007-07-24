@@ -37,6 +37,7 @@
 struct scsi_ioctl_command;
 
 struct request_queue;
+typedef struct request_queue request_queue_t __deprecated;
 struct elevator_queue;
 typedef struct elevator_queue elevator_t;
 struct request_pm_state;
