@@ -56,7 +56,7 @@ static const int elv_hash_shift = 6;
  */
 static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
 {
-	request_queue_t *q = rq->q;
+	struct request_queue *q = rq->q;
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_allow_merge_fn)
@@ -141,12 +141,13 @@ static struct elevator_type *elevator_get(const char *name)
 	return e;
 }
 
-static void *elevator_init_queue(request_queue_t *q, struct elevator_queue *eq)
+static void *elevator_init_queue(struct request_queue *q,
+				 struct elevator_queue *eq)
 {
 	return eq->ops->elevator_init_fn(q);
 }
 
-static void elevator_attach(request_queue_t *q, struct elevator_queue *eq,
+static void elevator_attach(struct request_queue *q, struct elevator_queue *eq,
 			   void *data)
 {
 	q->elevator = eq;
@@ -172,7 +173,8 @@ __setup("elevator=", elevator_setup);
 
 static struct kobj_type elv_ktype;
 
-static elevator_t *elevator_alloc(request_queue_t *q, struct elevator_type *e)
+static elevator_t *elevator_alloc(struct request_queue *q,
+				  struct elevator_type *e)
 {
 	elevator_t *eq;
 	int i;
@@ -212,7 +214,7 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-int elevator_init(request_queue_t *q, char *name)
+int elevator_init(struct request_queue *q, char *name)
 {
 	struct elevator_type *e = NULL;
 	struct elevator_queue *eq;
@@ -264,7 +266,7 @@ void elevator_exit(elevator_t *e)
 
 EXPORT_SYMBOL(elevator_exit);
 
-static void elv_activate_rq(request_queue_t *q, struct request *rq)
+static void elv_activate_rq(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -272,7 +274,7 @@ static void elv_activate_rq(request_queue_t *q, struct request *rq)
 		e->ops->elevator_activate_req_fn(q, rq);
 }
 
-static void elv_deactivate_rq(request_queue_t *q, struct request *rq)
+static void elv_deactivate_rq(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -285,13 +287,13 @@ static inline void __elv_rqhash_del(struct request *rq)
 	hlist_del_init(&rq->hash);
 }
 
-static void elv_rqhash_del(request_queue_t *q, struct request *rq)
+static void elv_rqhash_del(struct request_queue *q, struct request *rq)
 {
 	if (ELV_ON_HASH(rq))
 		__elv_rqhash_del(rq);
 }
 
-static void elv_rqhash_add(request_queue_t *q, struct request *rq)
+static void elv_rqhash_add(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -299,13 +301,13 @@ static void elv_rqhash_add(request_queue_t *q, struct request *rq)
 	hlist_add_head(&rq->hash, &e->hash[ELV_HASH_FN(rq_hash_key(rq))]);
 }
 
-static void elv_rqhash_reposition(request_queue_t *q, struct request *rq)
+static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
 {
 	__elv_rqhash_del(rq);
 	elv_rqhash_add(q, rq);
 }
 
-static struct request *elv_rqhash_find(request_queue_t *q, sector_t offset)
+static struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
 {
 	elevator_t *e = q->elevator;
 	struct hlist_head *hash_list = &e->hash[ELV_HASH_FN(offset)];
@@ -391,7 +393,7 @@ EXPORT_SYMBOL(elv_rb_find);
  * entry.  rq is sort insted into the dispatch queue. To be used by
  * specific elevators.
  */
-void elv_dispatch_sort(request_queue_t *q, struct request *rq)
+void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 {
 	sector_t boundary;
 	struct list_head *entry;
@@ -449,7 +451,7 @@ void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
 
 EXPORT_SYMBOL(elv_dispatch_add_tail);
 
-int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
+int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 {
 	elevator_t *e = q->elevator;
 	struct request *__rq;
@@ -481,7 +483,7 @@ int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	return ELEVATOR_NO_MERGE;
 }
 
-void elv_merged_request(request_queue_t *q, struct request *rq, int type)
+void elv_merged_request(struct request_queue *q, struct request *rq, int type)
 {
 	elevator_t *e = q->elevator;
 
@@ -494,7 +496,7 @@ void elv_merged_request(request_queue_t *q, struct request *rq, int type)
 	q->last_merge = rq;
 }
 
-void elv_merge_requests(request_queue_t *q, struct request *rq,
+void elv_merge_requests(struct request_queue *q, struct request *rq,
 			     struct request *next)
 {
 	elevator_t *e = q->elevator;
@@ -509,7 +511,7 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 	q->last_merge = rq;
 }
 
-void elv_requeue_request(request_queue_t *q, struct request *rq)
+void elv_requeue_request(struct request_queue *q, struct request *rq)
 {
 	/*
 	 * it already went through dequeue, we need to decrement the
@@ -526,7 +528,7 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
 
-static void elv_drain_elevator(request_queue_t *q)
+static void elv_drain_elevator(struct request_queue *q)
 {
 	static int printed;
 	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
@@ -540,7 +542,7 @@ static void elv_drain_elevator(request_queue_t *q)
 	}
 }
 
-void elv_insert(request_queue_t *q, struct request *rq, int where)
+void elv_insert(struct request_queue *q, struct request *rq, int where)
 {
 	struct list_head *pos;
 	unsigned ordseq;
@@ -638,7 +640,7 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 	}
 }
 
-void __elv_add_request(request_queue_t *q, struct request *rq, int where,
+void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		       int plug)
 {
 	if (q->ordcolor)
@@ -676,7 +678,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 
 EXPORT_SYMBOL(__elv_add_request);
 
-void elv_add_request(request_queue_t *q, struct request *rq, int where,
+void elv_add_request(struct request_queue *q, struct request *rq, int where,
 		     int plug)
 {
 	unsigned long flags;
@@ -688,7 +690,7 @@ void elv_add_request(request_queue_t *q, struct request *rq, int where,
 
 EXPORT_SYMBOL(elv_add_request);
 
-static inline struct request *__elv_next_request(request_queue_t *q)
+static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
 
@@ -704,7 +706,7 @@ static inline struct request *__elv_next_request(request_queue_t *q)
 	}
 }
 
-struct request *elv_next_request(request_queue_t *q)
+struct request *elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
 	int ret;
@@ -770,7 +772,7 @@ struct request *elv_next_request(request_queue_t *q)
 
 EXPORT_SYMBOL(elv_next_request);
 
-void elv_dequeue_request(request_queue_t *q, struct request *rq)
+void elv_dequeue_request(struct request_queue *q, struct request *rq)
 {
 	BUG_ON(list_empty(&rq->queuelist));
 	BUG_ON(ELV_ON_HASH(rq));
@@ -788,7 +790,7 @@ void elv_dequeue_request(request_queue_t *q, struct request *rq)
 
 EXPORT_SYMBOL(elv_dequeue_request);
 
-int elv_queue_empty(request_queue_t *q)
+int elv_queue_empty(struct request_queue *q)
 {
 	elevator_t *e = q->elevator;
 
@@ -803,7 +805,7 @@ int elv_queue_empty(request_queue_t *q)
 
 EXPORT_SYMBOL(elv_queue_empty);
 
-struct request *elv_latter_request(request_queue_t *q, struct request *rq)
+struct request *elv_latter_request(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -812,7 +814,7 @@ struct request *elv_latter_request(request_queue_t *q, struct request *rq)
 	return NULL;
 }
 
-struct request *elv_former_request(request_queue_t *q, struct request *rq)
+struct request *elv_former_request(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -821,7 +823,7 @@ struct request *elv_former_request(request_queue_t *q, struct request *rq)
 	return NULL;
 }
 
-int elv_set_request(request_queue_t *q, struct request *rq, gfp_t gfp_mask)
+int elv_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 {
 	elevator_t *e = q->elevator;
 
@@ -832,7 +834,7 @@ int elv_set_request(request_queue_t *q, struct request *rq, gfp_t gfp_mask)
 	return 0;
 }
 
-void elv_put_request(request_queue_t *q, struct request *rq)
+void elv_put_request(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -840,7 +842,7 @@ void elv_put_request(request_queue_t *q, struct request *rq)
 		e->ops->elevator_put_req_fn(rq);
 }
 
-int elv_may_queue(request_queue_t *q, int rw)
+int elv_may_queue(struct request_queue *q, int rw)
 {
 	elevator_t *e = q->elevator;
 
@@ -850,7 +852,7 @@ int elv_may_queue(request_queue_t *q, int rw)
 	return ELV_MQUEUE_MAY;
 }
 
-void elv_completed_request(request_queue_t *q, struct request *rq)
+void elv_completed_request(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;
 
@@ -1006,7 +1008,7 @@ EXPORT_SYMBOL_GPL(elv_unregister);
  * need for the new one. this way we have a chance of going back to the old
  * one, if the new one fails init for some reason.
  */
-static int elevator_switch(request_queue_t *q, struct elevator_type *new_e)
+static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
 	elevator_t *old_elevator, *e;
 	void *data;
@@ -1078,7 +1080,8 @@ fail_register:
 	return 0;
 }
 
-ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
+ssize_t elv_iosched_store(struct request_queue *q, const char *name,
+			  size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
 	size_t len;
@@ -1107,7 +1110,7 @@ ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 	return count;
 }
 
-ssize_t elv_iosched_show(request_queue_t *q, char *name)
+ssize_t elv_iosched_show(struct request_queue *q, char *name)
 {
 	elevator_t *e = q->elevator;
 	struct elevator_type *elv = e->elevator_type;
@@ -1127,7 +1130,8 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 	return len;
 }
 
-struct request *elv_rb_former_request(request_queue_t *q, struct request *rq)
+struct request *elv_rb_former_request(struct request_queue *q,
+				      struct request *rq)
 {
 	struct rb_node *rbprev = rb_prev(&rq->rb_node);
 
@@ -1139,7 +1143,8 @@ struct request *elv_rb_former_request(request_queue_t *q, struct request *rq)
 
 EXPORT_SYMBOL(elv_rb_former_request);
 
-struct request *elv_rb_latter_request(request_queue_t *q, struct request *rq)
+struct request *elv_rb_latter_request(struct request_queue *q,
+				      struct request *rq)
 {
 	struct rb_node *rbnext = rb_next(&rq->rb_node);
 

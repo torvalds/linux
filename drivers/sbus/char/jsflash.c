@@ -185,7 +185,7 @@ static void jsfd_read(char *buf, unsigned long p, size_t togo) {
 	}
 }
 
-static void jsfd_do_request(request_queue_t *q)
+static void jsfd_do_request(struct request_queue *q)
 {
 	struct request *req;
 

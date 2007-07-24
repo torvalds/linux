@@ -64,7 +64,7 @@ static void reset_ctrl(void);
 
 static int ps2esdi_geninit(void);
 
-static void do_ps2esdi_request(request_queue_t * q);
+static void do_ps2esdi_request(struct request_queue * q);
 
 static void ps2esdi_readwrite(int cmd, struct request *req);
 
@@ -473,7 +473,7 @@ static void __init ps2esdi_get_device_cfg(void)
 }
 
 /* strategy routine that handles most of the IO requests */
-static void do_ps2esdi_request(request_queue_t * q)
+static void do_ps2esdi_request(struct request_queue * q)
 {
 	struct request *req;
 	/* since, this routine is called with interrupts cleared - they 

@@ -138,7 +138,7 @@ struct aoedev {
 	u16 maxbcnt;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
-	request_queue_t blkq;
+	struct request_queue blkq;
 	struct hd_geometry geo; 
 	sector_t ssize;
 	struct timer_list timer;

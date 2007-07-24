@@ -458,7 +458,7 @@ static inline void ace_fsm_yieldirq(struct ace_device *ace)
 }
 
 /* Get the next read/write request; ending requests that we don't handle */
-struct request *ace_get_next_request(request_queue_t * q)
+struct request *ace_get_next_request(struct request_queue * q)
 {
 	struct request *req;
 
@@ -825,7 +825,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 /* ---------------------------------------------------------------------
  * Block ops
  */
-static void ace_request(request_queue_t * q)
+static void ace_request(struct request_queue * q)
 {
 	struct request *req;
 	struct ace_device *ace;

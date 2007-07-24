@@ -49,22 +49,22 @@ static int sg_get_version(int __user *p)
 	return put_user(sg_version_num, p);
 }
 
-static int scsi_get_idlun(request_queue_t *q, int __user *p)
+static int scsi_get_idlun(struct request_queue *q, int __user *p)
 {
 	return put_user(0, p);
 }
 
-static int scsi_get_bus(request_queue_t *q, int __user *p)
+static int scsi_get_bus(struct request_queue *q, int __user *p)
 {
 	return put_user(0, p);
 }
 
-static int sg_get_timeout(request_queue_t *q)
+static int sg_get_timeout(struct request_queue *q)
 {
 	return q->sg_timeout / (HZ / USER_HZ);
 }
 
-static int sg_set_timeout(request_queue_t *q, int __user *p)
+static int sg_set_timeout(struct request_queue *q, int __user *p)
 {
 	int timeout, err = get_user(timeout, p);
 
@@ -74,14 +74,14 @@ static int sg_set_timeout(request_queue_t *q, int __user *p)
 	return err;
 }
 
-static int sg_get_reserved_size(request_queue_t *q, int __user *p)
+static int sg_get_reserved_size(struct request_queue *q, int __user *p)
 {
 	unsigned val = min(q->sg_reserved_size, q->max_sectors << 9);
 
 	return put_user(val, p);
 }
 
-static int sg_set_reserved_size(request_queue_t *q, int __user *p)
+static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 {
 	int size, err = get_user(size, p);
 
@@ -101,7 +101,7 @@ static int sg_set_reserved_size(request_queue_t *q, int __user *p)
  * will always return that we are ATAPI even for a real SCSI drive, I'm not
  * so sure this is worth doing anything about (why would you care??)
  */
-static int sg_emulated_host(request_queue_t *q, int __user *p)
+static int sg_emulated_host(struct request_queue *q, int __user *p)
 {
 	return put_user(1, p);
 }
@@ -214,7 +214,7 @@ int blk_verify_command(unsigned char *cmd, int has_write_perm)
 }
 EXPORT_SYMBOL_GPL(blk_verify_command);
 
-static int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
+static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 			     struct sg_io_hdr *hdr, int has_write_perm)
 {
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
@@ -286,7 +286,7 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	return r;
 }
 
-static int sg_io(struct file *file, request_queue_t *q,
+static int sg_io(struct file *file, struct request_queue *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
 	unsigned long start_time;
@@ -519,7 +519,8 @@ error:
 EXPORT_SYMBOL_GPL(sg_scsi_ioctl);
 
 /* Send basic block requests */
-static int __blk_send_generic(request_queue_t *q, struct gendisk *bd_disk, int cmd, int data)
+static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
+			      int cmd, int data)
 {
 	struct request *rq;
 	int err;
@@ -539,7 +540,8 @@ static int __blk_send_generic(request_queue_t *q, struct gendisk *bd_disk, int c
 	return err;
 }
 
-static inline int blk_send_start_stop(request_queue_t *q, struct gendisk *bd_disk, int data)
+static inline int blk_send_start_stop(struct request_queue *q,
+				      struct gendisk *bd_disk, int data)
 {
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }

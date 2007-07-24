@@ -679,7 +679,7 @@ static ide_proc_entry_t idedisk_proc[] = {
 };
 #endif	/* CONFIG_IDE_PROC_FS */
 
-static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
+static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
 
@@ -697,7 +697,7 @@ static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
 	rq->buffer = rq->cmd;
 }
 
-static int idedisk_issue_flush(request_queue_t *q, struct gendisk *disk,
+static int idedisk_issue_flush(struct request_queue *q, struct gendisk *disk,
 			       sector_t *error_sector)
 {
 	ide_drive_t *drive = q->queuedata;

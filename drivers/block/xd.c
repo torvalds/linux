@@ -298,7 +298,7 @@ static u_char __init xd_detect (u_char *controller, unsigned int *address)
 }
 
 /* do_xd_request: handle an incoming request */
-static void do_xd_request (request_queue_t * q)
+static void do_xd_request (struct request_queue * q)
 {
 	struct request *req;
 

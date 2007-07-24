@@ -125,7 +125,7 @@ static void unplug_slaves(mddev_t *mddev)
 		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)
 		    && atomic_read(&rdev->nr_pending)) {
-			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
+			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
 
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
@@ -140,13 +140,13 @@ static void unplug_slaves(mddev_t *mddev)
 	rcu_read_unlock();
 }
 
-static void multipath_unplug(request_queue_t *q)
+static void multipath_unplug(struct request_queue *q)
 {
 	unplug_slaves(q->queuedata);
 }
 
 
-static int multipath_make_request (request_queue_t *q, struct bio * bio)
+static int multipath_make_request (struct request_queue *q, struct bio * bio)
 {
 	mddev_t *mddev = q->queuedata;
 	multipath_conf_t *conf = mddev_to_conf(mddev);
@@ -199,7 +199,7 @@ static void multipath_status (struct seq_file *seq, mddev_t *mddev)
 	seq_printf (seq, "]");
 }
 
-static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
+static int multipath_issue_flush(struct request_queue *q, struct gendisk *disk,
 				 sector_t *error_sector)
 {
 	mddev_t *mddev = q->queuedata;
@@ -211,7 +211,7 @@ static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
 		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct block_device *bdev = rdev->bdev;
-			request_queue_t *r_queue = bdev_get_queue(bdev);
+			struct request_queue *r_queue = bdev_get_queue(bdev);
 
 			if (!r_queue->issue_flush_fn)
 				ret = -EOPNOTSUPP;
@@ -238,7 +238,7 @@ static int multipath_congested(void *data, int bits)
 	for (i = 0; i < mddev->raid_disks ; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			request_queue_t *q = bdev_get_queue(rdev->bdev);
+			struct request_queue *q = bdev_get_queue(rdev->bdev);
 
 			ret |= bdi_congested(&q->backing_dev_info, bits);
 			/* Just like multipath_map, we just check the

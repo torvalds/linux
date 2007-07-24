@@ -945,7 +945,7 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
  */
 static int ide_init_queue(ide_drive_t *drive)
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	ide_hwif_t *hwif = HWIF(drive);
 	int max_sectors = 256;
 	int max_sg_entries = PRD_ENTRIES;

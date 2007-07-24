@@ -159,7 +159,7 @@ static int i2o_block_device_flush(struct i2o_device *dev)
  *	Returns 0 on success or negative error code on failure.
  */
 
-static int i2o_block_issue_flush(request_queue_t * queue, struct gendisk *disk,
+static int i2o_block_issue_flush(struct request_queue * queue, struct gendisk *disk,
 				 sector_t * error_sector)
 {
 	struct i2o_block_device *i2o_blk_dev = queue->queuedata;
@@ -445,7 +445,7 @@ static void i2o_block_end_request(struct request *req, int uptodate,
 {
 	struct i2o_block_request *ireq = req->special;
 	struct i2o_block_device *dev = ireq->i2o_blk_dev;
-	request_queue_t *q = req->q;
+	struct request_queue *q = req->q;
 	unsigned long flags;
 
 	if (end_that_request_chunk(req, uptodate, nr_bytes)) {

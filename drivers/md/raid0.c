@@ -25,7 +25,7 @@
 #define MD_DRIVER
 #define MD_PERSONALITY
 
-static void raid0_unplug(request_queue_t *q)
+static void raid0_unplug(struct request_queue *q)
 {
 	mddev_t *mddev = q->queuedata;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
@@ -33,14 +33,14 @@ static void raid0_unplug(request_queue_t *q)
 	int i;
 
 	for (i=0; i<mddev->raid_disks; i++) {
-		request_queue_t *r_queue = bdev_get_queue(devlist[i]->bdev);
+		struct request_queue *r_queue = bdev_get_queue(devlist[i]->bdev);
 
 		if (r_queue->unplug_fn)
 			r_queue->unplug_fn(r_queue);
 	}
 }
 
-static int raid0_issue_flush(request_queue_t *q, struct gendisk *disk,
+static int raid0_issue_flush(struct request_queue *q, struct gendisk *disk,
 			     sector_t *error_sector)
 {
 	mddev_t *mddev = q->queuedata;
@@ -50,7 +50,7 @@ static int raid0_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
 		struct block_device *bdev = devlist[i]->bdev;
-		request_queue_t *r_queue = bdev_get_queue(bdev);
+		struct request_queue *r_queue = bdev_get_queue(bdev);
 
 		if (!r_queue->issue_flush_fn)
 			ret = -EOPNOTSUPP;
@@ -68,7 +68,7 @@ static int raid0_congested(void *data, int bits)
 	int i, ret = 0;
 
 	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
-		request_queue_t *q = bdev_get_queue(devlist[i]->bdev);
+		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
 
 		ret |= bdi_congested(&q->backing_dev_info, bits);
 	}
@@ -268,7 +268,7 @@ static int create_strip_zones (mddev_t *mddev)
  *
  *	Return amount of bytes we can accept at this offset
  */
-static int raid0_mergeable_bvec(request_queue_t *q, struct bio *bio, struct bio_vec *biovec)
+static int raid0_mergeable_bvec(struct request_queue *q, struct bio *bio, struct bio_vec *biovec)
 {
 	mddev_t *mddev = q->queuedata;
 	sector_t sector = bio->bi_sector + get_start_sect(bio->bi_bdev);
@@ -408,7 +408,7 @@ static int raid0_stop (mddev_t *mddev)
 	return 0;
 }
 
-static int raid0_make_request (request_queue_t *q, struct bio *bio)
+static int raid0_make_request (struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
 	unsigned int sect_in_chunk, chunksize_bits,  chunk_size, chunk_sects;

@@ -2094,7 +2094,7 @@ out:
 static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			       int lba, int nframes)
 {
-	request_queue_t *q = cdi->disk->queue;
+	struct request_queue *q = cdi->disk->queue;
 	struct request *rq;
 	struct bio *bio;
 	unsigned int len;

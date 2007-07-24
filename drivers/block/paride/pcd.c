@@ -183,7 +183,7 @@ static int pcd_packet(struct cdrom_device_info *cdi,
 static int pcd_detect(void);
 static void pcd_probe_capabilities(void);
 static void do_pcd_read_drq(void);
-static void do_pcd_request(request_queue_t * q);
+static void do_pcd_request(struct request_queue * q);
 static void do_pcd_read(void);
 
 struct pcd_unit {
@@ -713,7 +713,7 @@ static int pcd_detect(void)
 /* I/O request processing */
 static struct request_queue *pcd_queue;
 
-static void do_pcd_request(request_queue_t * q)
+static void do_pcd_request(struct request_queue * q)
 {
 	if (pcd_busy)
 		return;

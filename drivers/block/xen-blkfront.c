@@ -241,7 +241,7 @@ static inline void flush_requests(struct blkfront_info *info)
  * do_blkif_request
  *  read a block; request is in a request queue
  */
-static void do_blkif_request(request_queue_t *rq)
+static void do_blkif_request(struct request_queue *rq)
 {
 	struct blkfront_info *info = NULL;
 	struct request *req;
@@ -287,7 +287,7 @@ wait:
 
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 {
-	request_queue_t *rq;
+	struct request_queue *rq;
 
 	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
 	if (rq == NULL)

@@ -293,7 +293,7 @@ struct dasd_uid {
 struct dasd_device {
 	/* Block device stuff. */
 	struct gendisk *gdp;
-	request_queue_t *request_queue;
+	struct request_queue *request_queue;
 	spinlock_t request_queue_lock;
 	struct block_device *bdev;
         unsigned int devindex;

@@ -100,7 +100,7 @@ static const char *nbdcmd_to_ascii(int cmd)
 static void nbd_end_request(struct request *req)
 {
 	int uptodate = (req->errors == 0) ? 1 : 0;
-	request_queue_t *q = req->q;
+	struct request_queue *q = req->q;
 	unsigned long flags;
 
 	dprintk(DBG_BLKDEV, "%s: request %p: %s\n", req->rq_disk->disk_name,
@@ -410,7 +410,7 @@ static void nbd_clear_que(struct nbd_device *lo)
  *   { printk( "Warning: Ignoring result!\n"); nbd_end_request( req ); }
  */
 
-static void do_nbd_request(request_queue_t * q)
+static void do_nbd_request(struct request_queue * q)
 {
 	struct request *req;
 	

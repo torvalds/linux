@@ -139,7 +139,7 @@ static struct board_type products[] = {
 
 static ctlr_info_t *hba[MAX_CTLR];
 
-static void do_cciss_request(request_queue_t *q);
+static void do_cciss_request(struct request_queue *q);
 static irqreturn_t do_cciss_intr(int irq, void *dev_id);
 static int cciss_open(struct inode *inode, struct file *filep);
 static int cciss_release(struct inode *inode, struct file *filep);
@@ -1584,7 +1584,7 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 	 */
 	if (h->gendisk[0] != disk) {
 		if (disk) {
-			request_queue_t *q = disk->queue;
+			struct request_queue *q = disk->queue;
 			if (disk->flags & GENHD_FL_UP)
 				del_gendisk(disk);
 			if (q) {
@@ -2511,7 +2511,7 @@ after_error_processing:
 /*
  * Get a request and submit it to the controller.
  */
-static void do_cciss_request(request_queue_t *q)
+static void do_cciss_request(struct request_queue *q)
 {
 	ctlr_info_t *h = q->queuedata;
 	CommandList_struct *c;
@@ -3380,7 +3380,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	do {
 		drive_info_struct *drv = &(hba[i]->drv[j]);
 		struct gendisk *disk = hba[i]->gendisk[j];
-		request_queue_t *q;
+		struct request_queue *q;
 
 		/* Check if the disk was allocated already */
 		if (!disk){
@@ -3523,7 +3523,7 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	for (j = 0; j < CISS_MAX_LUN; j++) {
 		struct gendisk *disk = hba[i]->gendisk[j];
 		if (disk) {
-			request_queue_t *q = disk->queue;
+			struct request_queue *q = disk->queue;
 
 			if (disk->flags & GENHD_FL_UP)
 				del_gendisk(disk);

@@ -161,7 +161,7 @@ static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, 
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io);
 
-static void do_ida_request(request_queue_t *q);
+static void do_ida_request(struct request_queue *q);
 static void start_io(ctlr_info_t *h);
 
 static inline void addQ(cmdlist_t **Qptr, cmdlist_t *c);
@@ -391,7 +391,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 /* pdev is NULL for eisa */
 static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	int j;
 
 	/* 
@@ -886,7 +886,7 @@ static inline cmdlist_t *removeQ(cmdlist_t **Qptr, cmdlist_t *c)
  * are in here (either via the dummy do_ida_request functions or by being
  * called from the interrupt handler
  */
-static void do_ida_request(request_queue_t *q)
+static void do_ida_request(struct request_queue *q)
 {
 	ctlr_info_t *h = q->queuedata;
 	cmdlist_t *c;
