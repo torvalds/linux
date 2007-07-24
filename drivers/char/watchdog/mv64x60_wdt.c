@@ -219,40 +219,16 @@ static struct platform_driver mv64x60_wdt_driver = {
 	},
 };
 
-static struct platform_device *mv64x60_wdt_dev;
-
 static int __init mv64x60_wdt_init(void)
 {
-	int ret;
-
 	printk(KERN_INFO "MV64x60 watchdog driver\n");
 
-	mv64x60_wdt_dev = platform_device_alloc(MV64x60_WDT_NAME, -1);
-	if (!mv64x60_wdt_dev) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = platform_device_add(mv64x60_wdt_dev);
-	if (ret) {
-		platform_device_put(mv64x60_wdt_dev);
-		goto out;
-	}
-
-	ret = platform_driver_register(&mv64x60_wdt_driver);
-	if (ret) {
-		platform_device_unregister(mv64x60_wdt_dev);
-		goto out;
-	}
-
- out:
-	return ret;
+	return platform_driver_register(&mv64x60_wdt_driver);
 }
 
 static void __exit mv64x60_wdt_exit(void)
 {
 	platform_driver_unregister(&mv64x60_wdt_driver);
-	platform_device_unregister(mv64x60_wdt_dev);
 }
 
 module_init(mv64x60_wdt_init);

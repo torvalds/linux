@@ -121,7 +121,7 @@ extern spinlock_t mv64x60_lock;
 #define	MV64x60_64BIT_WIN_COUNT			24
 
 /* Watchdog Platform Device, Driver Data */
-#define	MV64x60_WDT_NAME			"wdt"
+#define	MV64x60_WDT_NAME			"mv64x60_wdt"
 
 struct mv64x60_wdt_pdata {
 	int	timeout;	/* watchdog expiry in seconds, default 10 */
