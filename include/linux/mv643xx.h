@@ -1302,4 +1302,12 @@ struct mv643xx_eth_platform_data {
 	u8		mac_addr[6];	/* mac address if non-zero*/
 };
 
+/* Watchdog Platform Device, Driver Data */
+#define	MV64x60_WDT_NAME			"mv64x60_wdt"
+
+struct mv64x60_wdt_pdata {
+	int	timeout;	/* watchdog expiry in seconds, default 10 */
+	int	bus_clk;	/* bus clock in MHz, default 133 */
+};
+
 #endif /* __ASM_MV643XX_H */

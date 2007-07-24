@@ -23,7 +23,7 @@
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 
-#include <asm/mv64x60.h>
+#include <linux/mv643xx.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
