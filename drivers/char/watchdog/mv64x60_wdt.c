@@ -132,6 +132,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
 	int timeout;
+	int options;
 	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
 		.options =	WDIOF_SETTIMEOUT	|
@@ -157,7 +158,15 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 		return -EOPNOTSUPP;
 
 	case WDIOC_SETOPTIONS:
-		return -EOPNOTSUPP;
+		if (get_user(options, (int __user *)argp))
+			return -EFAULT;
+
+		if (options & WDIOS_DISABLECARD)
+			mv64x60_wdt_handler_disable();
+
+		if (options & WDIOS_ENABLECARD)
+			mv64x60_wdt_handler_enable();
+		break;
 
 	case WDIOC_KEEPALIVE:
 		mv64x60_wdt_service();
