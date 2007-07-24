@@ -118,7 +118,6 @@ static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
-	int timeout;
 	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
 		.options = WDIOF_KEEPALIVEPING,
@@ -154,8 +153,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 		return -EOPNOTSUPP;
 
 	case WDIOC_GETTIMEOUT:
-		timeout = mv64x60_wdt_timeout * HZ;
-		if (put_user(timeout, (int __user *)argp))
+		if (put_user(mv64x60_wdt_timeout, (int __user *)argp))
 			return -EFAULT;
 		break;
 
