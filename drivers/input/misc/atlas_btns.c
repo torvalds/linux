@@ -31,7 +31,6 @@
 
 #define ACPI_ATLAS_NAME			"Atlas ACPI"
 #define ACPI_ATLAS_CLASS		"Atlas"
-#define ACPI_ATLAS_BUTTON_HID		"ASIM0000"
 
 static struct input_dev *input_dev;
 
@@ -130,10 +129,16 @@ static int atlas_acpi_button_remove(struct acpi_device *device, int type)
 	return status;
 }
 
+static const struct acpi_device_id atlas_device_ids[] = {
+	{"ASIM0000", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, atlas_device_ids);
+
 static struct acpi_driver atlas_acpi_driver = {
 	.name	= ACPI_ATLAS_NAME,
 	.class	= ACPI_ATLAS_CLASS,
-	.ids	= ACPI_ATLAS_BUTTON_HID,
+	.ids	= atlas_device_ids,
 	.ops	= {
 		.add	= atlas_acpi_button_add,
 		.remove	= atlas_acpi_button_remove,

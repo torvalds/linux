@@ -12,7 +12,7 @@ extern int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 					      resource_size_t, resource_size_t),
 				  void *alignf_data);
 /* Firmware callbacks */
-extern int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
+extern pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
 extern int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t state);
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);

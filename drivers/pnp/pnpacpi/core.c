@@ -21,7 +21,10 @@
 
 #include <linux/acpi.h>
 #include <linux/pnp.h>
+#include <linux/mod_devicetable.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/actypes.h>
+
 #include "pnpacpi.h"
 
 static int num = 0;
@@ -33,15 +36,17 @@ static int num = 0;
  * have irqs (PIC, Timer) because we call acpi_register_gsi.
  * Finaly only devices that have a CRS method need to be in this list.
  */
-static char __initdata excluded_id_list[] =
-	"PNP0C09," /* EC */
-	"PNP0C0F," /* Link device */
-	"PNP0000," /* PIC */
-	"PNP0100," /* Timer */
-	;
+static __initdata struct acpi_device_id excluded_id_list[] ={
+	{"PNP0C09", 0}, /* EC */
+	{"PNP0C0F", 0}, /* Link device */
+	{"PNP0000", 0}, /* PIC */
+	{"PNP0100", 0}, /* Timer */
+	{"", 0},
+};
+
 static inline int is_exclusive_device(struct acpi_device *dev)
 {
-	return (!acpi_match_ids(dev, excluded_id_list));
+	return (!acpi_match_device_ids(dev, excluded_id_list));
 }
 
 /*
@@ -119,11 +124,25 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
 
+static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
+{
+	return acpi_bus_set_power((acpi_handle)dev->data,
+		acpi_pm_device_sleep_state(&dev->dev,
+		device_may_wakeup(&dev->dev), NULL));
+}
+
+static int pnpacpi_resume(struct pnp_dev *dev)
+{
+	return acpi_bus_set_power((acpi_handle)dev->data, ACPI_STATE_D0);
+}
+
 static struct pnp_protocol pnpacpi_protocol = {
 	.name	= "Plug and Play ACPI",
 	.get	= pnpacpi_get_resources,
 	.set	= pnpacpi_set_resources,
 	.disable = pnpacpi_disable_resources,
+	.suspend = pnpacpi_suspend,
+	.resume = pnpacpi_resume,
 };
 
 static int __init pnpacpi_add_device(struct acpi_device *device)

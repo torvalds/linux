@@ -290,6 +290,14 @@ static int do_serio_entry(const char *filename,
 	return 1;
 }
 
+/* looks like: "acpi:ACPI0003 or acpi:PNP0C0B" or "acpi:LNXVIDEO" */
+static int do_acpi_entry(const char *filename,
+			struct acpi_device_id *id, char *alias)
+{
+	sprintf(alias, "acpi*:%s:", id->id);
+	return 1;
+}
+
 /* looks like: "pnp:dD" */
 static int do_pnp_entry(const char *filename,
 			struct pnp_device_id *id, char *alias)
@@ -551,6 +559,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct serio_device_id), "serio",
 			 do_serio_entry, mod);
+	else if (sym_is(symname, "__mod_acpi_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct acpi_device_id), "acpi",
+			 do_acpi_entry, mod);
 	else if (sym_is(symname, "__mod_pnp_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct pnp_device_id), "pnp",

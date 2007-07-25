@@ -34,16 +34,21 @@
 #define ACPI_BUS_COMPONENT		0x00010000
 #define ACPI_SYSTEM_COMPONENT		0x02000000
 
-/* _HID definitions */
+/*
+ * _HID definitions
+ * HIDs must conform to ACPI spec(6.1.4)
+ * Linux specific HIDs do not apply to this and begin with LNX:
+ */
 
-#define ACPI_POWER_HID			"power_resource"
+#define ACPI_POWER_HID			"LNXPOWER"
 #define ACPI_PROCESSOR_HID		"ACPI0007"
-#define ACPI_SYSTEM_HID			"acpi_system"
-#define ACPI_THERMAL_HID		"thermal"
-#define ACPI_BUTTON_HID_POWERF		"button_power"
-#define ACPI_BUTTON_HID_SLEEPF		"button_sleep"
-#define ACPI_VIDEO_HID			"video"
-#define ACPI_BAY_HID			"bay"
+#define ACPI_SYSTEM_HID			"LNXSYSTM"
+#define ACPI_THERMAL_HID		"LNXTHERM"
+#define ACPI_BUTTON_HID_POWERF		"LNXPWRBN"
+#define ACPI_BUTTON_HID_SLEEPF		"LNXSLPBN"
+#define ACPI_VIDEO_HID			"LNXVIDEO"
+#define ACPI_BAY_HID			"LNXIOBAY"
+
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */
@@ -142,10 +147,6 @@ static inline void unregister_hotplug_dock_device(acpi_handle handle)
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
   -------------------------------------------------------------------------- */
-#ifdef CONFIG_ACPI_SLEEP
 extern int acpi_sleep_init(void);
-#else
-#define acpi_sleep_init() do {} while (0)
-#endif
 
 #endif /*__ACPI_DRIVERS_H__*/

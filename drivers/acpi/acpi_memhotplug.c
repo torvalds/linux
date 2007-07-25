@@ -53,10 +53,16 @@ static int acpi_memory_device_add(struct acpi_device *device);
 static int acpi_memory_device_remove(struct acpi_device *device, int type);
 static int acpi_memory_device_start(struct acpi_device *device);
 
+static const struct acpi_device_id memory_device_ids[] = {
+	{ACPI_MEMORY_DEVICE_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, memory_device_ids);
+
 static struct acpi_driver acpi_memory_device_driver = {
 	.name = "acpi_memhotplug",
 	.class = ACPI_MEMORY_DEVICE_CLASS,
-	.ids = ACPI_MEMORY_DEVICE_HID,
+	.ids = memory_device_ids,
 	.ops = {
 		.add = acpi_memory_device_add,
 		.remove = acpi_memory_device_remove,

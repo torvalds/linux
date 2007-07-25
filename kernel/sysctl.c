@@ -689,7 +689,7 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
-#ifdef CONFIG_ACPI_SLEEP
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
 	{
 		.ctl_name	= KERN_ACPI_VIDEO_FLAGS,
 		.procname	= "acpi_video_flags",

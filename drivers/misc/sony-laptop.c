@@ -1124,10 +1124,22 @@ static int sony_nc_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+static const struct acpi_device_id sony_device_ids[] = {
+	{SONY_NC_HID, 0},
+	{SONY_PIC_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, sony_device_ids);
+
+static const struct acpi_device_id sony_nc_device_ids[] = {
+	{SONY_NC_HID, 0},
+	{"", 0},
+};
+
 static struct acpi_driver sony_nc_driver = {
 	.name = SONY_NC_DRIVER_NAME,
 	.class = SONY_NC_CLASS,
-	.ids = SONY_NC_HID,
+	.ids = sony_nc_device_ids,
 	.owner = THIS_MODULE,
 	.ops = {
 		.add = sony_nc_add,
@@ -2470,10 +2482,15 @@ static int sony_pic_resume(struct acpi_device *device)
 	return 0;
 }
 
+static const struct acpi_device_id sony_pic_device_ids[] = {
+	{SONY_PIC_HID, 0},
+	{"", 0},
+};
+
 static struct acpi_driver sony_pic_driver = {
 	.name = SONY_PIC_DRIVER_NAME,
 	.class = SONY_PIC_CLASS,
-	.ids = SONY_PIC_HID,
+	.ids = sony_pic_device_ids,
 	.owner = THIS_MODULE,
 	.ops = {
 		.add = sony_pic_add,

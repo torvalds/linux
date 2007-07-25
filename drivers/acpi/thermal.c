@@ -92,10 +92,16 @@ static int acpi_thermal_polling_open_fs(struct inode *inode, struct file *file);
 static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
 					  size_t, loff_t *);
 
+static const struct acpi_device_id  thermal_device_ids[] = {
+	{ACPI_THERMAL_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, thermal_device_ids);
+
 static struct acpi_driver acpi_thermal_driver = {
 	.name = "thermal",
 	.class = ACPI_THERMAL_CLASS,
-	.ids = ACPI_THERMAL_HID,
+	.ids = thermal_device_ids,
 	.ops = {
 		.add = acpi_thermal_add,
 		.remove = acpi_thermal_remove,

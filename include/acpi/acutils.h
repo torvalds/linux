@@ -354,7 +354,7 @@ acpi_ut_evaluate_numeric_object(char *object_name,
 
 acpi_status
 acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
-		    struct acpi_device_id *hid);
+		    struct acpica_device_id *hid);
 
 acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
@@ -366,7 +366,7 @@ acpi_ut_execute_STA(struct acpi_namespace_node *device_node,
 
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
-		    struct acpi_device_id *uid);
+		    struct acpica_device_id *uid);
 
 acpi_status
 acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest);

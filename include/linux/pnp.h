@@ -335,6 +335,10 @@ struct pnp_protocol {
 	int (*set)(struct pnp_dev *dev, struct pnp_resource_table *res);
 	int (*disable)(struct pnp_dev *dev);
 
+	/* protocol specific suspend/resume */
+	int (*suspend)(struct pnp_dev *dev, pm_message_t state);
+	int (*resume)(struct pnp_dev *dev);
+
 	/* used by pnp layer only (look but don't touch) */
 	unsigned char		number;		/* protocol number*/
 	struct device		dev;		/* link to driver model */

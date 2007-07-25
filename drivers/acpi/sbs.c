@@ -38,7 +38,6 @@
 #define ACPI_SBS_CLASS			"sbs"
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_BATTERY_CLASS		"battery"
-#define ACPI_SBS_HID			"ACPI0002"
 #define ACPI_SBS_DEVICE_NAME		"Smart Battery System"
 #define ACPI_SBS_FILE_INFO		"info"
 #define ACPI_SBS_FILE_STATE		"state"
@@ -124,10 +123,17 @@ static int acpi_sbs_add(struct acpi_device *device);
 static int acpi_sbs_remove(struct acpi_device *device, int type);
 static int acpi_sbs_resume(struct acpi_device *device);
 
+static const struct acpi_device_id sbs_device_ids[] = {
+	{"ACPI0001", 0},
+	{"ACPI0005", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, sbs_device_ids);
+
 static struct acpi_driver acpi_sbs_driver = {
 	.name = "sbs",
 	.class = ACPI_SBS_CLASS,
-	.ids = "ACPI0001,ACPI0005",
+	.ids = sbs_device_ids,
 	.ops = {
 		.add = acpi_sbs_add,
 		.remove = acpi_sbs_remove,

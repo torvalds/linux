@@ -33,6 +33,7 @@
 #endif
 
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
