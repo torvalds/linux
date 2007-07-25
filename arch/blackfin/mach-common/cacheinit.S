@@ -43,8 +43,8 @@
 ENTRY(_bfin_write_IMEM_CONTROL)
 
 	/* Enable Instruction Cache */
-	P0.l = (IMEM_CONTROL & 0xFFFF);
-	P0.h = (IMEM_CONTROL >> 16);
+	P0.l = LO(IMEM_CONTROL);
+	P0.h = HI(IMEM_CONTROL);
 
 	/* Anomaly 05000125 */
 	CLI R1;
