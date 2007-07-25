@@ -297,9 +297,6 @@ static struct kvm *kvm_create_vm(void)
 	kvm_io_bus_init(&kvm->pio_bus);
 	spin_lock_init(&kvm->lock);
 	INIT_LIST_HEAD(&kvm->active_mmu_pages);
-	spin_lock(&kvm_lock);
-	list_add(&kvm->vm_list, &vm_list);
-	spin_unlock(&kvm_lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
@@ -309,6 +306,9 @@ static struct kvm *kvm_create_vm(void)
 		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
 	}
+	spin_lock(&kvm_lock);
+	list_add(&kvm->vm_list, &vm_list);
+	spin_unlock(&kvm_lock);
 	return kvm;
 }
 
@@ -1070,18 +1070,16 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return 0;
 	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
-	if (memcmp(virt + offset_in_page(gpa), val, bytes)) {
-		kvm_mmu_pte_write(vcpu, gpa, virt + offset, val, bytes);
-		memcpy(virt + offset_in_page(gpa), val, bytes);
-	}
+	kvm_mmu_pte_write(vcpu, gpa, virt + offset, val, bytes);
+	memcpy(virt + offset_in_page(gpa), val, bytes);
 	kunmap_atomic(virt, KM_USER0);
 	return 1;
 }
 
-static int emulator_write_emulated(unsigned long addr,
-				   const void *val,
-				   unsigned int bytes,
-				   struct x86_emulate_ctxt *ctxt)
+static int emulator_write_emulated_onepage(unsigned long addr,
+					   const void *val,
+					   unsigned int bytes,
+					   struct x86_emulate_ctxt *ctxt)
 {
 	struct kvm_vcpu      *vcpu = ctxt->vcpu;
 	struct kvm_io_device *mmio_dev;
@@ -1111,6 +1109,26 @@ static int emulator_write_emulated(unsigned long addr,
 	memcpy(vcpu->mmio_data, val, bytes);
 
 	return X86EMUL_CONTINUE;
+}
+
+static int emulator_write_emulated(unsigned long addr,
+				   const void *val,
+				   unsigned int bytes,
+				   struct x86_emulate_ctxt *ctxt)
+{
+	/* Crossing a page boundary? */
+	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
+		int rc, now;
+
+		now = -addr & ~PAGE_MASK;
+		rc = emulator_write_emulated_onepage(addr, val, now, ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		addr += now;
+		val += now;
+		bytes -= now;
+	}
+	return emulator_write_emulated_onepage(addr, val, bytes, ctxt);
 }
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
@@ -2414,9 +2432,9 @@ static void cpuid_fix_nx_cap(struct kvm_vcpu *vcpu)
 			break;
 		}
 	}
-	if (entry && (entry->edx & EFER_NX) && !(efer & EFER_NX)) {
+	if (entry && (entry->edx & (1 << 20)) && !(efer & EFER_NX)) {
 		entry->edx &= ~(1 << 20);
-		printk(KERN_INFO ": guest NX capability removed\n");
+		printk(KERN_INFO "kvm: guest NX capability removed\n");
 	}
 }
 
