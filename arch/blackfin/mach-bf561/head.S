@@ -106,14 +106,13 @@ ENTRY(__start)
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
-	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
@@ -125,13 +124,13 @@ ENTRY(__start)
 	R0 = R0 & R1;
 
 	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
@@ -220,7 +219,7 @@ ENTRY(__start)
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
 	reti = p0;
-#if defined(ANOMALY_05000281)
+#if ANOMALY_05000281
 	nop; nop; nop;
 #endif
 	rti;

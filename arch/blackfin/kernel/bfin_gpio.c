@@ -330,7 +330,7 @@ EXPORT_SYMBOL(set_gpio_ ## name);
 SET_GPIO_SC(maska)
 SET_GPIO_SC(maskb)
 
-#if defined(ANOMALY_05000311)
+#if ANOMALY_05000311
 void set_gpio_data(unsigned short gpio, unsigned short arg)
 {
 	unsigned long flags;
@@ -349,7 +349,7 @@ SET_GPIO_SC(data)
 #endif
 
 
-#if defined(ANOMALY_05000311)
+#if ANOMALY_05000311
 void set_gpio_toggle(unsigned short gpio)
 {
 	unsigned long flags;
@@ -387,7 +387,7 @@ SET_GPIO_P(maska)
 SET_GPIO_P(maskb)
 
 
-#if defined(ANOMALY_05000311)
+#if ANOMALY_05000311
 void set_gpiop_data(unsigned short gpio, unsigned short arg)
 {
 	unsigned long flags;
@@ -421,7 +421,7 @@ GET_GPIO(maska)
 GET_GPIO(maskb)
 
 
-#if defined(ANOMALY_05000311)
+#if ANOMALY_05000311
 unsigned short get_gpio_data(unsigned short gpio)
 {
 	unsigned long flags;
@@ -455,7 +455,7 @@ GET_GPIO_P(both)
 GET_GPIO_P(maska)
 GET_GPIO_P(maskb)
 
-#if defined(ANOMALY_05000311)
+#if ANOMALY_05000311
 unsigned short get_gpiop_data(unsigned short gpio)
 {
 	unsigned long flags;

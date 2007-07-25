@@ -33,80 +33,76 @@
 
 #include <asm/mach/anomaly.h>
 
-/*#if !defined(__ADSPLPBLACKFIN__)
-#warning def_LPBlackfin.h should only be included for 532 compatible chips.
-#endif
-*/
-
 #define MK_BMSK_(x) (1<<x)
 
-#if defined(ANOMALY_05000198)
+#ifndef __ASSEMBLY__
 
-#define bfin_read8(addr) ({ unsigned char __v; \
-		__asm__ __volatile__ ("NOP;\n\t" \
-			"%0 = b[%1] (z);\n\t" \
-			: "=d"(__v) : "a"(addr)); \
-		__v; })
+#include <linux/types.h>
 
-#define bfin_read16(addr) ({ unsigned __v; \
-                       __asm__ __volatile__ ("NOP;\n\t"\
-	         			     			"%0 = w[%1] (z);\n\t"\
-  : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
-
-#define bfin_read32(addr) ({ unsigned __v; \
-                      __asm__ __volatile__ ("NOP;\n\t"\
-                                            "%0 = [%1];\n\t"\
-  : "=d"(__v) : "a"(addr)); __v; })
-
-#define bfin_write8(addr, val) ({ \
-		__asm__ __volatile__ ("NOP;\n\t" \
-			"b[%0] = %1;\n\t" \
-			: : "a"(addr), "d"(val) : "memory");})
-
-#define bfin_write16(addr,val) ({\
-                      __asm__ __volatile__ ("NOP;\n\t"\
-                                            "w[%0] = %1;\n\t"\
-  : : "a"(addr) , "d"(val) : "memory");})
-
-#define bfin_write32(addr,val) ({\
-                      __asm__ __volatile__ ("NOP;\n\t"\
-                                            "[%0] = %1;\n\t"\
-  : : "a"(addr) , "d"(val) : "memory");})
-
+#if ANOMALY_05000198
+# define NOP_PAD_ANOMALY_05000198 "nop;"
 #else
-
-#define bfin_read8(addr) ({ unsigned char __v; \
-		__asm__ __volatile__ ( \
-			"%0 = b[%1] (z);\n\t" \
-			:"=d"(__v) : "a"(addr)); \
-		__v; })
-
-#define bfin_read16(addr) ({ unsigned __v; \
-                       __asm__ __volatile__ (\
-	         			     			"%0 = w[%1] (z);\n\t"\
-  : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
-
-#define bfin_read32(addr) ({ unsigned __v; \
-                      __asm__ __volatile__ (\
-                                            "%0 = [%1];\n\t"\
-  : "=d"(__v) : "a"(addr)); __v; })
-
-#define bfin_write8(addr, val) ({ \
-		__asm__ __volatile__ ( \
-			"b[%0] = %1; \n\t" \
-			::"a"(addr), "d"(val) : "memory");})
-
-#define bfin_write16(addr,val) ({\
-                      __asm__ __volatile__ (\
-                                            "w[%0] = %1;\n\t"\
-  : : "a"(addr) , "d"(val) : "memory");})
-
-#define bfin_write32(addr,val) ({\
-                      __asm__ __volatile__ (\
-                                            "[%0] = %1;\n\t"\
-  : : "a"(addr) , "d"(val) : "memory");})
-
+# define NOP_PAD_ANOMALY_05000198
 #endif
+
+#define bfin_read8(addr) ({ \
+	uint8_t __v; \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"%0 = b[%1] (z);" \
+		: "=d" (__v) \
+		: "a" (addr) \
+	); \
+	__v; })
+
+#define bfin_read16(addr) ({ \
+	uint16_t __v; \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"%0 = w[%1] (z);" \
+		: "=d" (__v) \
+		: "a" (addr) \
+	); \
+	__v; })
+
+#define bfin_read32(addr) ({ \
+	uint32_t __v; \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"%0 = [%1];" \
+		: "=d" (__v) \
+		: "a" (addr) \
+	); \
+	__v; })
+
+#define bfin_write8(addr, val) \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"b[%0] = %1;" \
+		: \
+		: "a" (addr), "d" (val) \
+		: "memory" \
+	)
+
+#define bfin_write16(addr, val) \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"w[%0] = %1;" \
+		: \
+		: "a" (addr), "d" (val) \
+		: "memory" \
+	)
+
+#define bfin_write32(addr, val) \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000198 \
+		"[%0] = %1;" \
+		: \
+		: "a" (addr), "d" (val) \
+		: "memory" \
+	)
+
+#endif /* __ASSEMBLY__ */
 
 /**************************************************
  * System Register Bits

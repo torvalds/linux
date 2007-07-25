@@ -38,7 +38,7 @@
 
 .text
 
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 #if defined(CONFIG_BLKFIN_CACHE)
 ENTRY(_bfin_write_IMEM_CONTROL)
 

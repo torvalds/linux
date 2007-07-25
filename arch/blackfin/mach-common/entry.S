@@ -69,7 +69,7 @@
  * patch up CPLB misses on the kernel stack.
  */
 ENTRY(_ex_dcplb)
-#if defined(ANOMALY_05000261)
+#if ANOMALY_05000261
 	/*
 	 * Work around an anomaly: if we see a new DCPLB fault, return
 	 * without doing anything.  Then, if we get the same fault again,
@@ -137,7 +137,7 @@ ENTRY(_ex_single_step)
 
 _return_from_exception:
 	DEBUG_START_HWTRACE(p5, r7)
-#ifdef ANOMALY_05000257
+#if ANOMALY_05000257
 	R7=LC0;
 	LC0=R7;
 	R7=LC1;
@@ -634,7 +634,7 @@ ENTRY(_return_from_int)
 	p1.h = _schedule_and_signal_from_int;
 	[p0] = p1;
 	csync;
-#if defined(ANOMALY_05000281)
+#if ANOMALY_05000281
 	r0.l = lo(CONFIG_BOOT_LOAD);
 	r0.h = hi(CONFIG_BOOT_LOAD);
 	reti = r0;
@@ -648,7 +648,7 @@ ENTRY(_return_from_int)
 ENDPROC(_return_from_int)
 
 ENTRY(_lower_to_irq14)
-#if defined(ANOMALY_05000281)
+#if ANOMALY_05000281
 	r0.l = lo(CONFIG_BOOT_LOAD);
 	r0.h = hi(CONFIG_BOOT_LOAD);
 	reti = r0;
@@ -1184,7 +1184,7 @@ _exception_stack:
 	.endr
 _exception_stack_top:
 
-#if defined(ANOMALY_05000261)
+#if ANOMALY_05000261
 /* Used by the assembly entry point to work around an anomaly.  */
 _last_cplb_fault_retx:
 	.long 0;

@@ -172,7 +172,7 @@ ENTRY(__stext)
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
 	reti = p0;
-#if defined (ANOMALY_05000281)
+#if ANOMALY_05000281
 	nop;
 	nop;
 	nop;

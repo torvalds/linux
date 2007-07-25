@@ -179,14 +179,16 @@ void __init setup_arch(char **cmdline_p)
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-#if !defined(CONFIG_BFIN_KERNEL_CLOCK) && defined(ANOMALY_05000273)
-	if (cclk == sclk)
+#if !defined(CONFIG_BFIN_KERNEL_CLOCK)
+	if (ANOMALY_05000273 && cclk == sclk)
 		panic("ANOMALY 05000273, SCLK can not be same as CCLK");
 #endif
 
-#if defined(ANOMALY_05000266)
-	bfin_read_IMDMA_D0_IRQ_STATUS();
-	bfin_read_IMDMA_D1_IRQ_STATUS();
+#ifdef BF561_FAMILY
+	if (ANOMALY_05000266) {
+		bfin_read_IMDMA_D0_IRQ_STATUS();
+		bfin_read_IMDMA_D1_IRQ_STATUS();
+	}
 #endif
 
 #ifdef DEBUG_SERIAL_EARLY_INIT
@@ -260,7 +262,7 @@ void __init setup_arch(char **cmdline_p)
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#  if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+#  if (defined(CONFIG_BLKFIN_CACHE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -289,7 +291,7 @@ void __init setup_arch(char **cmdline_p)
 	_ebss = memory_mtd_start;	/* define _ebss for compatible */
 #endif				/* CONFIG_MTD_UCLINUX */
 
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+#if (defined(CONFIG_BLKFIN_CACHE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -337,10 +339,8 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       cclk / 1000000,  sclk / 1000000);
 
-#if defined(ANOMALY_05000273)
-	if ((cclk >> 1) <= sclk)
+	if (ANOMALY_05000273 && (cclk >> 1) <= sclk)
 		printk("\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
-#endif
 
 	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end >> 20);
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);

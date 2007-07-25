@@ -230,8 +230,8 @@ static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_en
 				cplb_data[i].psize,
 				cplb_data[i].i_conf);
 	} else {
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
-		if (i == SDRAM_KERN) {
+#if defined(CONFIG_BLKFIN_CACHE)
+		if (ANOMALY_05000263 && i == SDRAM_KERN) {
 			fill_cplbtab(t,
 					cplb_data[i].start,
 					cplb_data[i].end,

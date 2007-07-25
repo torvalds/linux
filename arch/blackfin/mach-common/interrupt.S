@@ -140,7 +140,7 @@ __common_int_entry:
 	fp = 0;
 #endif
 
-#if defined (ANOMALY_05000283) || defined (ANOMALY_05000315)
+#if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;
@@ -163,7 +163,7 @@ ENTRY(_evt_ivhw)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-#ifdef	ANOMALY_05000283
+#if ANOMALY_05000283
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;
@@ -207,7 +207,7 @@ ENTRY(_evt_evt2)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-#ifdef	ANOMALY_05000283
+#if ANOMALY_05000283
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;

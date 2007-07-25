@@ -226,7 +226,7 @@
 #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
-#if defined(ANOMALY_05000273) && (CONFIG_CCLK_DIV == 1)
+#if ANOMALY_05000273 && (CONFIG_CCLK_DIV == 1)
 #error ANOMALY 05000273, please make sure CCLK is at least 2x SCLK
 #endif
 

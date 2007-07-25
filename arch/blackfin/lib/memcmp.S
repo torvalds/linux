@@ -61,7 +61,7 @@ ENTRY(_memcmp)
 
 	LSETUP (.Lquad_loop_s, .Lquad_loop_e) LC0=P1;
 .Lquad_loop_s:
-#ifdef ANOMALY_05000202
+#if ANOMALY_05000202
 	R0 = [P0++];
 	R1 = [I0++];
 #else

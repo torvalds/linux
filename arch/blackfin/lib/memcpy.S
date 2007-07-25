@@ -98,7 +98,7 @@ ENTRY(_memcpy)
 	R0 = R1;
 	I1 = P1;
 	R3 = [I1++];
-#ifdef ANOMALY_05000202
+#if ANOMALY_05000202
 .Lword_loops:
 	[P0++] = R3;
 .Lword_loope:
