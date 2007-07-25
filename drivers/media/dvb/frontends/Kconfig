@@ -322,6 +322,13 @@ config DVB_TUNER_MT2060
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
 
+config DVB_TUNER_MT2266
+	tristate "Microtune MT2266 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2266 from Microtune.
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 

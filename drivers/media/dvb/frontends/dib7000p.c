@@ -112,6 +112,11 @@ static int dib7000p_set_output_mode(struct dib7000p_state *state, int mode)
 			break;
 	}
 
+	if (state->cfg.hostbus_diversity) {
+		ret |= dib7000p_write_word(state,  204, 1); // Diversity ?
+		ret |= dib7000p_write_word(state,  205, 0); // Diversity ?
+	}
+
 	if (state->cfg.output_mpeg2_in_188_bytes)
 		smo_mode |= (1 << 5) ;
 

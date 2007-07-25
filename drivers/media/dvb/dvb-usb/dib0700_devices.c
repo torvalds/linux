@@ -12,6 +12,7 @@
 #include "dib7000m.h"
 #include "dib7000p.h"
 #include "mt2060.h"
+#include "mt2266.h"
 
 static int force_lna_activation;
 module_param(force_lna_activation, int, 0644);
@@ -95,6 +96,228 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 	return dvb_attach(mt2060_attach,adap->fe, tun_i2c, &bristol_mt2060_config[adap->id],
 		st->mt2060_if1[adap->id]) == NULL ? -ENODEV : 0;
 }
+
+/* STK7700D: Pinnacle Dual DVB-T Diversity */
+
+static struct dibx000_agc_config stk7700d_7000p_mt2266_agc_config = {
+	BAND_UHF/* | BAND_VHF*/,
+	0xE64, // setup
+	2372, // inv_gain
+	21,  // time_stabiliz
+
+	0,   // alpha_level
+	118, // thlock
+
+	0,    // wbd_inv
+	0,    // wbd_ref
+	0,    // wbd_sel
+	0,    // wbd_alpha
+
+	65535, // agc1_max
+	0,     // agc1_min
+	65535, // agc2_max
+	23592, // agc2_min
+	0,     // agc1_pt1
+	128,   // agc1_pt2
+	128,   // agc1_pt3
+	128,   // agc1_slope1
+	0,     // agc1_slope2
+	128,   // agc2_pt1
+	253,   // agc2_pt2
+	81,    // agc2_slope1
+	 0,    // agc2_slope2
+
+	17, // alpha_mant
+	27, // alpha_exp
+
+	23, // beta_mant
+	51, // beta_exp
+
+	0, // perform_agc_softsplit : 1 en vrai!
+};
+
+static struct dibx000_bandwidth_config stk7700d_mt2266_pll_config = {
+	60000, 30000, // internal, sampling
+	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
+	0, 0, 1, 1, 2, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
+	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
+	0, // ifreq
+	20452225, // timf
+};
+
+static struct dib7000p_config stk7700d_dib7000p_mt2266_config[] = {
+	{	.output_mpeg2_in_188_bytes = 1,
+		.hostbus_diversity = 1,
+		.tuner_is_baseband = 1,
+
+		.agc = &stk7700d_7000p_mt2266_agc_config,
+		.bw  = &stk7700d_mt2266_pll_config,
+
+		.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
+		.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
+		.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+	},
+	{	.output_mpeg2_in_188_bytes = 1,
+		.hostbus_diversity = 1,
+		.tuner_is_baseband = 1,
+
+		.agc = &stk7700d_7000p_mt2266_agc_config,
+		.bw  = &stk7700d_mt2266_pll_config,
+
+		.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
+		.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
+		.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+	}
+};
+
+static struct mt2266_config stk7700d_mt2266_config[2] = {
+	{	.i2c_address = 0x60
+	},
+	{	.i2c_address = 0x60
+	}
+};
+
+static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	if (adap->id == 0) {
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
+		dib7000p_i2c_enumeration(&adap->dev->i2c_adap,2,18,stk7700d_dib7000p_mt2266_config);
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
+				&stk7700d_dib7000p_mt2266_config[adap->id]);
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+static int stk7700d_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct i2c_adapter *tun_i2c;
+	tun_i2c = dib7000p_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
+	return dvb_attach(mt2266_attach, adap->fe, tun_i2c,
+		&stk7700d_mt2266_config[adap->id]) == NULL ? -ENODEV : 0;;
+}
+
+#define DEFAULT_RC_INTERVAL 150
+
+static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
+
+int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+{
+	u8 key[4];
+	int i;
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct dib0700_state *st = d->priv;
+	*event = 0;
+	*state = REMOTE_NO_KEY_PRESSED;
+	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
+	if (i<=0) {
+		err("stk7700d:RC Query Failed\n");
+		return 0;
+	}
+	if (key[0]==0 && key[1]==0 && key[2]==0 && key[3]==0) return 0;
+	if (key[1]!=st->rc_toggle) {
+		for (i=0;i<d->props.rc_key_map_size; i++) {
+			if (keymap[i].custom == key[2] && keymap[i].data == key[3]) {
+				*event = keymap[i].event;
+				*state = REMOTE_KEY_PRESSED;
+				st->rc_toggle=key[1];
+				return 0;
+			}
+		}
+		err("stk7700d:Unknown remote controller key : %2X %2X\n",(int)key[2],(int)key[3]);
+	}
+	return 0;
+}
+
+#define KEY_MAP_SIZE (25+48)
+
+struct dvb_usb_rc_key stk7700d_rc_keys[] = {
+	/* Key codes for the tiny Pinnacle remote*/
+	{ 0x07, 0x00, KEY_MUTE },
+	{ 0x07, 0x01, KEY_MENU }, // Pinnacle logo
+	{ 0x07, 0x39, KEY_POWER },
+	{ 0x07, 0x03, KEY_VOLUMEUP },
+	{ 0x07, 0x09, KEY_VOLUMEDOWN },
+	{ 0x07, 0x06, KEY_CHANNELUP },
+	{ 0x07, 0x0c, KEY_CHANNELDOWN },
+	{ 0x07, 0x0f, KEY_1 },
+	{ 0x07, 0x15, KEY_2 },
+	{ 0x07, 0x10, KEY_3 },
+	{ 0x07, 0x18, KEY_4 },
+	{ 0x07, 0x1b, KEY_5 },
+	{ 0x07, 0x1e, KEY_6 },
+	{ 0x07, 0x11, KEY_7 },
+	{ 0x07, 0x21, KEY_8 },
+	{ 0x07, 0x12, KEY_9 },
+	{ 0x07, 0x27, KEY_0 },
+	{ 0x07, 0x24, KEY_SCREEN }, // 'Square' key
+	{ 0x07, 0x2a, KEY_TEXT },   // 'T' key
+	{ 0x07, 0x2d, KEY_REWIND },
+	{ 0x07, 0x30, KEY_PLAY },
+	{ 0x07, 0x33, KEY_FASTFORWARD },
+	{ 0x07, 0x36, KEY_RECORD },
+	{ 0x07, 0x3c, KEY_STOP },
+	{ 0x07, 0x3f, KEY_CANCEL }, // '?' key
+	/* Key codes for the Terratec Cinergy DT XS Diversity, similar to cinergyT2.c */
+	{ 0xeb, 0x01, KEY_POWER },
+	{ 0xeb, 0x02, KEY_1 },
+	{ 0xeb, 0x03, KEY_2 },
+	{ 0xeb, 0x04, KEY_3 },
+	{ 0xeb, 0x05, KEY_4 },
+	{ 0xeb, 0x06, KEY_5 },
+	{ 0xeb, 0x07, KEY_6 },
+	{ 0xeb, 0x08, KEY_7 },
+	{ 0xeb, 0x09, KEY_8 },
+	{ 0xeb, 0x0a, KEY_9 },
+	{ 0xeb, 0x0b, KEY_VIDEO },
+	{ 0xeb, 0x0c, KEY_0 },
+	{ 0xeb, 0x0d, KEY_REFRESH },
+	{ 0xeb, 0x0f, KEY_EPG },
+	{ 0xeb, 0x10, KEY_UP },
+	{ 0xeb, 0x11, KEY_LEFT },
+	{ 0xeb, 0x12, KEY_OK },
+	{ 0xeb, 0x13, KEY_RIGHT },
+	{ 0xeb, 0x14, KEY_DOWN },
+	{ 0xeb, 0x16, KEY_INFO },
+	{ 0xeb, 0x17, KEY_RED },
+	{ 0xeb, 0x18, KEY_GREEN },
+	{ 0xeb, 0x19, KEY_YELLOW },
+	{ 0xeb, 0x1a, KEY_BLUE },
+	{ 0xeb, 0x1b, KEY_CHANNELUP },
+	{ 0xeb, 0x1c, KEY_VOLUMEUP },
+	{ 0xeb, 0x1d, KEY_MUTE  },
+	{ 0xeb, 0x1e, KEY_VOLUMEDOWN },
+	{ 0xeb, 0x1f, KEY_CHANNELDOWN },
+	{ 0xeb, 0x40, KEY_PAUSE },
+	{ 0xeb, 0x41, KEY_HOME },
+	{ 0xeb, 0x42, KEY_MENU }, /* DVD Menu */
+	{ 0xeb, 0x43, KEY_SUBTITLE },
+	{ 0xeb, 0x44, KEY_TEXT }, /* Teletext */
+	{ 0xeb, 0x45, KEY_DELETE },
+	{ 0xeb, 0x46, KEY_TV },
+	{ 0xeb, 0x47, KEY_DVD },
+	{ 0xeb, 0x48, KEY_STOP },
+	{ 0xeb, 0x49, KEY_VIDEO },
+	{ 0xeb, 0x4a, KEY_AUDIO }, /* Music */
+	{ 0xeb, 0x4b, KEY_SCREEN }, /* Pic */
+	{ 0xeb, 0x4c, KEY_PLAY },
+	{ 0xeb, 0x4d, KEY_BACK },
+	{ 0xeb, 0x4e, KEY_REWIND },
+	{ 0xeb, 0x4f, KEY_FASTFORWARD },
+	{ 0xeb, 0x54, KEY_PREVIOUS },
+	{ 0xeb, 0x58, KEY_RECORD },
+	{ 0xeb, 0x5c, KEY_NEXT }
+	};
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
 static struct dibx000_agc_config stk7700p_7000m_mt2060_agc_config = {
@@ -280,6 +503,9 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_2) },
 		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_2) },
+		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV2000E) },
+		{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY) },
+		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -372,6 +598,42 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		}
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 2,
+		.adapter = {
+			{
+				.frontend_attach  = stk7700d_frontend_attach,
+				.tuner_attach     = stk7700d_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+			}, {
+				.frontend_attach  = stk7700d_frontend_attach,
+				.tuner_attach     = stk7700d_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
+			}
+		},
+
+		.num_device_descs = 3,
+		.devices = {
+			{   "Pinnacle PCTV 2000e",
+				{ &dib0700_usb_id_table[11], NULL },
+				{ NULL },
+			},
+			{   "Terratec Cinergy DT XS Diversity",
+				{ &dib0700_usb_id_table[12], NULL },
+				{ NULL },
+			},
+			{   "Haupauge Nova-TD Stick",
+				{ &dib0700_usb_id_table[13], NULL },
+				{ NULL },
+			},
+		},
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = stk7700d_rc_keys,
+		.rc_key_map_size  = KEY_MAP_SIZE,
+		.rc_query         = stk7700d_rc_query
 	}
 };
 

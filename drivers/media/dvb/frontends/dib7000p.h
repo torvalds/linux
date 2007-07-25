@@ -35,7 +35,7 @@ struct dib7000p_config {
 extern struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg);
 extern struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 extern int dib7000pc_detection(struct i2c_adapter *i2c_adap);
-
+extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[]);
 /* TODO
 extern INT dib7000p_set_gpio(struct dibDemod *demod, UCHAR num, UCHAR dir, UCHAR val);
 extern INT dib7000p_enable_vbg_voltage(struct dibDemod *demod);
