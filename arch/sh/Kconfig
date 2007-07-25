@@ -172,9 +172,6 @@ config SPECULATIVE_EXECUTION
 config CPU_HAS_INTEVT
 	bool
 
-config CPU_HAS_PINT_IRQ
-	bool
-
 config CPU_HAS_MASKREG_IRQ
 	bool
 
