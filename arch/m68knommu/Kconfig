@@ -354,6 +354,18 @@ config SOM5282EM
 	depends on M528x
 	help
 	  Support for the EMAC.Inc SOM5282EM module.  
+	  
+config WILDFIRE
+	bool "Intec Automation Inc. WildFire board support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire.
+	  
+config WILDFIREMOD
+	bool "Intec Automation Inc. WildFire module support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire module.
 
 config ARN5307
 	bool "Arnewsh 5307 board support"
