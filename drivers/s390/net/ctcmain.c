@@ -674,7 +674,7 @@ ch_action_txdone(fsm_instance * fi, int event, void *arg)
 	int first = 1;
 	int i;
 	unsigned long duration;
-	struct timespec done_stamp = xtime;
+	struct timespec done_stamp = current_kernel_time();
 
 	DBF_TEXT(trace, 4, __FUNCTION__);
 
@@ -730,7 +730,7 @@ ch_action_txdone(fsm_instance * fi, int event, void *arg)
 		spin_unlock(&ch->collect_lock);
 		ch->ccw[1].count = ch->trans_skb->len;
 		fsm_addtimer(&ch->timer, CTC_TIMEOUT_5SEC, CH_EVENT_TIMER, ch);
-		ch->prof.send_stamp = xtime;
+		ch->prof.send_stamp = current_kernel_time();
 		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
 				      (unsigned long) ch, 0xff, 0);
 		ch->prof.doios_multi++;
@@ -2281,7 +2281,7 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 		fsm_newstate(ch->fsm, CH_STATE_TX);
 		fsm_addtimer(&ch->timer, CTC_TIMEOUT_5SEC, CH_EVENT_TIMER, ch);
 		spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-		ch->prof.send_stamp = xtime;
+		ch->prof.send_stamp = current_kernel_time();
 		rc = ccw_device_start(ch->cdev, &ch->ccw[ccw_idx],
 				      (unsigned long) ch, 0xff, 0);
 		spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);

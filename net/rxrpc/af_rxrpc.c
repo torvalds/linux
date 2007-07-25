@@ -787,7 +787,7 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof(dummy_skb->cb));
 
-	rxrpc_epoch = htonl(xtime.tv_sec);
+	rxrpc_epoch = htonl(get_seconds());
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(

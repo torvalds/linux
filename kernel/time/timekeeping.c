@@ -509,3 +509,19 @@ void monotonic_to_bootbased(struct timespec *ts)
 {
 	ts->tv_sec += total_sleep_time;
 }
+
+struct timespec current_kernel_time(void)
+{
+	struct timespec now;
+	unsigned long seq;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+
+		now = xtime;
+	} while (read_seqretry(&xtime_lock, seq));
+
+	return now;
+}
+
+EXPORT_SYMBOL(current_kernel_time);
