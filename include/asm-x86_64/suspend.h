@@ -44,7 +44,6 @@ extern unsigned long saved_context_eflags;
 
 extern void fix_processor_context(void);
 
-#ifdef CONFIG_ACPI_SLEEP
 extern unsigned long saved_rip;
 extern unsigned long saved_rsp;
 extern unsigned long saved_rbp;
@@ -54,4 +53,3 @@ extern unsigned long saved_rdi;
 
 /* routines for saving/restoring kernel state */
 extern int acpi_save_state_mem(void);
-#endif

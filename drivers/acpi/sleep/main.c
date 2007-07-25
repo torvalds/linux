@@ -136,10 +136,12 @@ static int acpi_pm_finish(suspend_state_t pm_state)
 	/* reset firmware waking vector */
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
 
+#ifdef CONFIG_X86
 	if (init_8259A_after_S1) {
 		printk("Broken toshiba laptop -> kicking interrupts\n");
 		init_8259A(0);
 	}
+#endif
 	return 0;
 }
 

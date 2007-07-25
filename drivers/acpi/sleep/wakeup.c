@@ -17,7 +17,6 @@ ACPI_MODULE_NAME("wakeup_devices")
 extern struct list_head acpi_wakeup_device_list;
 extern spinlock_t acpi_device_lock;
 
-#ifdef CONFIG_ACPI_SLEEP
 /**
  * acpi_enable_wakeup_device_prep - prepare wakeup devices
  *	@sleep_state:	ACPI state
@@ -180,7 +179,6 @@ static int __init acpi_wakeup_device_init(void)
 }
 
 late_initcall(acpi_wakeup_device_init);
-#endif
 
 /*
  * Disable all wakeup GPEs before entering requested sleep state.

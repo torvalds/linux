@@ -121,19 +121,6 @@ static inline void acpi_disable_pci(void)
 }
 extern int acpi_irq_balance_set(char *str);
 
-#else	/* !CONFIG_ACPI */
-
-#define acpi_lapic 0
-#define acpi_ioapic 0
-static inline void acpi_noirq_set(void) { }
-static inline void acpi_disable_pci(void) { }
-static inline void disable_acpi(void) { }
-
-#endif	/* !CONFIG_ACPI */
-
-
-#ifdef CONFIG_ACPI_SLEEP
-
 /* routines for saving/restoring kernel state */
 extern int acpi_save_state_mem(void);
 extern void acpi_restore_state_mem(void);
@@ -143,7 +130,15 @@ extern unsigned long acpi_wakeup_address;
 /* early initialization routine */
 extern void acpi_reserve_bootmem(void);
 
-#endif /*CONFIG_ACPI_SLEEP*/
+#else	/* !CONFIG_ACPI */
+
+#define acpi_lapic 0
+#define acpi_ioapic 0
+static inline void acpi_noirq_set(void) { }
+static inline void acpi_disable_pci(void) { }
+static inline void disable_acpi(void) { }
+
+#endif	/* !CONFIG_ACPI */
 
 #define ARCH_HAS_POWER_INIT	1
 
