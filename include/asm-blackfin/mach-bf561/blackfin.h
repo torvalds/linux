@@ -38,7 +38,7 @@
 #include "defBF561.h"
 #include "anomaly.h"
 
-#if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
+#if !defined(__ASSEMBLY__)
 #include "cdefBF561.h"
 #endif
 

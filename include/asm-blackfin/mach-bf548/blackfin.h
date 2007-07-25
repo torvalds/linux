@@ -54,7 +54,7 @@
 #include "defBF549.h"
 #endif
 
-#if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
+#if !defined(__ASSEMBLY__)
 #ifdef CONFIG_BF542
 #include "cdefBF542.h"
 #endif
