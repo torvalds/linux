@@ -641,6 +641,8 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	newsctp6sk = (struct sctp6_sock *)newsk;
 	inet_sk(newsk)->pinet6 = &newsctp6sk->inet6;
 
+	sctp_sk(newsk)->v4mapped = sctp_sk(sk)->v4mapped;
+
 	newinet = inet_sk(newsk);
 	newnp = inet6_sk(newsk);
 
