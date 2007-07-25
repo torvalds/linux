@@ -922,20 +922,17 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 		return;
 	}
 
-	if (intmask & SDHCI_INT_RESPONSE)
-		sdhci_finish_command(host);
-	else {
-		if (intmask & SDHCI_INT_TIMEOUT)
-			host->cmd->error = MMC_ERR_TIMEOUT;
-		else if (intmask & SDHCI_INT_CRC)
-			host->cmd->error = MMC_ERR_BADCRC;
-		else if (intmask & (SDHCI_INT_END_BIT | SDHCI_INT_INDEX))
-			host->cmd->error = MMC_ERR_FAILED;
-		else
-			host->cmd->error = MMC_ERR_INVALID;
+	if (intmask & SDHCI_INT_TIMEOUT)
+		host->cmd->error = MMC_ERR_TIMEOUT;
+	else if (intmask & SDHCI_INT_CRC)
+		host->cmd->error = MMC_ERR_BADCRC;
+	else if (intmask & (SDHCI_INT_END_BIT | SDHCI_INT_INDEX))
+		host->cmd->error = MMC_ERR_FAILED;
 
+	if (host->cmd->error != MMC_ERR_NONE)
 		tasklet_schedule(&host->finish_tasklet);
-	}
+	else if (intmask & SDHCI_INT_RESPONSE)
+		sdhci_finish_command(host);
 }
 
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
