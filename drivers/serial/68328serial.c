@@ -33,7 +33,6 @@
 #include <linux/keyboard.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 
@@ -1324,59 +1323,6 @@ static void show_serial_version(void)
 	printk("MC68328 serial driver version 1.00\n");
 }
 
-#ifdef CONFIG_PM_LEGACY
-/* Serial Power management
- *  The console (currently fixed at line 0) is a special case for power
- *  management because the kernel is so chatty. The console will be 
- *  explicitly disabled my our power manager as the last minute, so we won't
- *  mess with it here.
- */
-static struct pm_dev *serial_pm[NR_PORTS];
-
-static int serial_pm_callback(struct pm_dev *dev, pm_request_t request, void *data)
-{
-	struct m68k_serial *info = (struct m68k_serial *)dev->data;
-
-	if(info == NULL)
-		return -1;
-
-	/* special case for line 0 - pm restores it */
-	if(info->line == 0)
-		return 0; 
-
-	switch (request) {
-	case PM_SUSPEND:
-		shutdown(info);
-		break;
-
-	case PM_RESUME:
-		startup(info);
-		break;
-	}
-	return 0;
-}
-
-void shutdown_console(void)
-{
-	struct m68k_serial *info = &m68k_soft[0];
-
-	/* HACK: wait a bit for any pending printk's to be dumped */
-	{
-		int i = 10000;
-		while(i--);
-	}
-
-	shutdown(info);
-}
-
-void startup_console(void)
-{
-	struct m68k_serial *info = &m68k_soft[0];
-	startup(info);
-}
-#endif /* CONFIG_PM_LEGACY */
-
-
 static const struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
@@ -1467,11 +1413,6 @@ rs68328_init(void)
 			    IRQ_FLG_STD,
 			    "M68328_UART", NULL))
                 panic("Unable to attach 68328 serial interrupt\n");
-#ifdef CONFIG_PM_LEGACY
-	    serial_pm[i] = pm_register(PM_SYS_DEV, PM_SYS_COM, serial_pm_callback);
-	    if (serial_pm[i])
-		    serial_pm[i]->data = info;
-#endif
 	}
 	local_irq_restore(flags);
 	return 0;
