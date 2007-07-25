@@ -181,7 +181,7 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 	}
 	iounmap(reg);
 
-	setup_indirect_pci(hose, r.start + 0xf8000, r.start + 0xf8010);
+	setup_indirect_pci(hose, r.start + 0xf8000, r.start + 0xf8010, 0);
 }
 
 /* Marvell Discovery II based Pegasos 2 */
@@ -277,13 +277,14 @@ chrp_find_bridges(void)
 			hose->cfg_data = p;
 			gg2_pci_config_base = p;
 		} else if (is_pegasos == 1) {
-			setup_indirect_pci(hose, 0xfec00cf8, 0xfee00cfc);
+			setup_indirect_pci(hose, 0xfec00cf8, 0xfee00cfc, 0);
 		} else if (is_pegasos == 2) {
 			setup_peg2(hose, dev);
 		} else if (!strncmp(model, "IBM,CPC710", 10)) {
 			setup_indirect_pci(hose,
 					   r.start + 0x000f8000,
-					   r.start + 0x000f8010);
+					   r.start + 0x000f8010,
+					   0);
 			if (index == 0) {
 				dma = of_get_property(dev, "system-dma-base",
 							&len);

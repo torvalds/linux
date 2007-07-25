@@ -20,12 +20,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 
-#ifdef CONFIG_PPC_INDIRECT_PCI_BE
-#define PCI_CFG_OUT out_be32
-#else
-#define PCI_CFG_OUT out_le32
-#endif
-
 static int
 indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		     int len, u32 *val)
@@ -35,10 +29,17 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	u8 cfg_type = 0;
 	u32 bus_no, reg;
 
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
+		if (bus->number != hose->first_busno)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		if (devfn != 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
-	
+
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
 		if (bus->number != hose->first_busno)
 			cfg_type = 1;
@@ -51,9 +52,12 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	else
 		reg = offset & 0xfc;
 
-	PCI_CFG_OUT(hose->cfg_addr,
-		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | reg | cfg_type));
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
+	else
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
 
 	/*
 	 * Note: the caller has already checked that offset is
@@ -83,6 +87,13 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	u8 cfg_type = 0;
 	u32 bus_no, reg;
 
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
+		if (bus->number != hose->first_busno)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		if (devfn != 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -99,9 +110,12 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	else
 		reg = offset & 0xfc;
 
-	PCI_CFG_OUT(hose->cfg_addr,
-		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | reg | cfg_type));
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
+	else
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+			 (devfn << 8) | reg | cfg_type));
 
 	/* surpress setting of PCI_PRIMARY_BUS */
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS)
@@ -135,24 +149,15 @@ static struct pci_ops indirect_pci_ops =
 };
 
 void __init
-setup_indirect_pci_nomap(struct pci_controller* hose, void __iomem * cfg_addr,
-	void __iomem * cfg_data)
-{
-	hose->cfg_addr = cfg_addr;
-	hose->cfg_data = cfg_data;
-	hose->ops = &indirect_pci_ops;
-}
-
-void __init
-setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data)
+setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data, u32 flags)
 {
 	unsigned long base = cfg_addr & PAGE_MASK;
-	void __iomem *mbase, *addr, *data;
+	void __iomem *mbase;
 
 	mbase = ioremap(base, PAGE_SIZE);
-	addr = mbase + (cfg_addr & ~PAGE_MASK);
+	hose->cfg_addr = mbase + (cfg_addr & ~PAGE_MASK);
 	if ((cfg_data & PAGE_MASK) != base)
 		mbase = ioremap(cfg_data & PAGE_MASK, PAGE_SIZE);
-	data = mbase + (cfg_data & ~PAGE_MASK);
-	setup_indirect_pci_nomap(hose, addr, data);
+	hose->cfg_data = mbase + (cfg_data & ~PAGE_MASK);
+	hose->ops = &indirect_pci_ops;
 }

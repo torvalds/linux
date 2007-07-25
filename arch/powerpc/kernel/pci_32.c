@@ -415,15 +415,13 @@ probe_resource(struct pci_bus *parent, struct resource *pr,
 	return 0;
 }
 
-static void __init
-update_bridge_base(struct pci_bus *bus, int i)
+void __init
+update_bridge_resource(struct pci_dev *dev, struct resource *res)
 {
-	struct resource *res = bus->resource[i];
 	u8 io_base_lo, io_limit_lo;
 	u16 mem_base, mem_limit;
 	u16 cmd;
 	unsigned long start, end, off;
-	struct pci_dev *dev = bus->self;
 	struct pci_controller *hose = dev->sysdata;
 
 	if (!hose) {
@@ -467,10 +465,18 @@ update_bridge_base(struct pci_bus *bus, int i)
 		pci_write_config_word(dev, PCI_PREF_MEMORY_LIMIT, mem_limit);
 
 	} else {
-		DBG(KERN_ERR "PCI: ugh, bridge %s res %d has flags=%lx\n",
-		    pci_name(dev), i, res->flags);
+		DBG(KERN_ERR "PCI: ugh, bridge %s res has flags=%lx\n",
+		    pci_name(dev), res->flags);
 	}
 	pci_write_config_word(dev, PCI_COMMAND, cmd);
+}
+
+static void __init
+update_bridge_base(struct pci_bus *bus, int i)
+{
+	struct resource *res = bus->resource[i];
+	struct pci_dev *dev = bus->self;
+	update_bridge_resource(dev, res);
 }
 
 static inline void alloc_resource(struct pci_dev *dev, int idx)
@@ -1468,3 +1474,10 @@ EARLY_PCI_OP(read, dword, u32 *)
 EARLY_PCI_OP(write, byte, u8)
 EARLY_PCI_OP(write, word, u16)
 EARLY_PCI_OP(write, dword, u32)
+
+extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
+int early_find_capability(struct pci_controller *hose, int bus, int devfn,
+			  int cap)
+{
+	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
+}

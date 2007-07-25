@@ -31,6 +31,7 @@
 
 #include <asm/mpic.h>
 
+#include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
 
 #include "mpc86xx.h"
@@ -344,8 +345,14 @@ mpc86xx_hpcn_setup_arch(void)
 	}
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		mpc86xx_add_bridge(np);
+	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
+		struct resource rsrc;
+		of_address_to_resource(np, 0, &rsrc);
+		if ((rsrc.start & 0xfffff) == 0x8000)
+			fsl_add_bridge(np, 1);
+		else
+			fsl_add_bridge(np, 0);
+	}
 #endif
 
 	printk("MPC86xx HPCN board from Freescale Semiconductor\n");
@@ -424,7 +431,6 @@ mpc86xx_time_init(void)
 	return 0;
 }
 
-
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",
 	.probe			= mpc86xx_hpcn_probe,
@@ -436,4 +442,5 @@ define_machine(mpc86xx_hpcn) {
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 };

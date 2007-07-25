@@ -144,7 +144,7 @@ static int __init mv64x60_add_bridge(struct device_node *dev)
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	setup_indirect_pci(hose, rsrc.start, rsrc.start + 4);
+	setup_indirect_pci(hose, rsrc.start, rsrc.start + 4, 0);
 	hose->self_busno = hose->first_busno;
 
 	printk(KERN_INFO "Found MV64x60 PCI host bridge at 0x%016llx. "
