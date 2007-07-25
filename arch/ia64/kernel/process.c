@@ -499,7 +499,8 @@ copy_thread (int nr, unsigned long clone_flags,
 
 		/* Copy partially mapped page list */
 		if (!retval)
-			retval = ia32_copy_partial_page_list(p, clone_flags);
+			retval = ia32_copy_ia64_partial_page_list(p,
+								clone_flags);
 	}
 #endif
 
@@ -728,7 +729,7 @@ flush_thread (void)
 	ia64_drop_fpu(current);
 #ifdef CONFIG_IA32_SUPPORT
 	if (IS_IA32_PROCESS(task_pt_regs(current))) {
-		ia32_drop_partial_page_list(current);
+		ia32_drop_ia64_partial_page_list(current);
 		current->thread.task_size = IA32_PAGE_OFFSET;
 		set_fs(USER_DS);
 	}
@@ -754,7 +755,7 @@ exit_thread (void)
 		pfm_release_debug_registers(current);
 #endif
 	if (IS_IA32_PROCESS(task_pt_regs(current)))
-		ia32_drop_partial_page_list(current);
+		ia32_drop_ia64_partial_page_list(current);
 }
 
 unsigned long

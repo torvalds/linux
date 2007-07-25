@@ -487,7 +487,7 @@ struct create_idle {
 	int cpu;
 };
 
-void
+void __cpuinit
 do_fork_idle(struct work_struct *work)
 {
 	struct create_idle *c_idle =
@@ -497,7 +497,7 @@ do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
-static int __devinit
+static int __cpuinit
 do_boot_cpu (int sapicid, int cpu)
 {
 	int timeout;
@@ -808,7 +808,7 @@ set_cpu_sibling_map(int cpu)
 	}
 }
 
-int __devinit
+int __cpuinit
 __cpu_up (unsigned int cpu)
 {
 	int ret;

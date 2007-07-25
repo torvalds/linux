@@ -249,11 +249,11 @@ ia32_init (void)
 
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
 	{
-		extern struct kmem_cache *partial_page_cachep;
+		extern struct kmem_cache *ia64_partial_page_cachep;
 
-		partial_page_cachep = kmem_cache_create("partial_page_cache",
-						sizeof(struct partial_page),
-						0, SLAB_PANIC, NULL);
+		ia64_partial_page_cachep = kmem_cache_create("ia64_partial_page_cache",
+					sizeof(struct ia64_partial_page),
+					0, SLAB_PANIC, NULL);
 	}
 #endif
 	return 0;

@@ -491,11 +491,16 @@ setup_arch (char **cmdline_p)
 	efi_init();
 	io_port_init();
 
-	parse_early_param();
-
 #ifdef CONFIG_IA64_GENERIC
-	machvec_init(NULL);
+	/* machvec needs to be parsed from the command line
+	 * before parse_early_param() is called to ensure
+	 * that ia64_mv is initialised before any command line
+	 * settings may cause console setup to occur
+	 */
+	machvec_init_from_cmdline(*cmdline_p);
 #endif
+
+	parse_early_param();
 
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();

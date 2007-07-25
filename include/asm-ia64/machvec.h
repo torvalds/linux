@@ -275,6 +275,7 @@ struct ia64_machine_vector {
 
 extern struct ia64_machine_vector ia64_mv;
 extern void machvec_init (const char *name);
+extern void machvec_init_from_cmdline(const char *cmdline);
 
 # else
 #  error Unknown configuration.  Update asm-ia64/machvec.h.

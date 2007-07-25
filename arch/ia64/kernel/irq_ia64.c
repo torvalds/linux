@@ -85,8 +85,8 @@ DEFINE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq) = {
 	[0 ... IA64_NUM_VECTORS - 1] = IA64_SPURIOUS_INT_VECTOR
 };
 
-static cpumask_t vector_table[IA64_MAX_DEVICE_VECTORS] = {
-	[0 ... IA64_MAX_DEVICE_VECTORS - 1] = CPU_MASK_NONE
+static cpumask_t vector_table[IA64_NUM_VECTORS] = {
+	[0 ... IA64_NUM_VECTORS - 1] = CPU_MASK_NONE
 };
 
 static int irq_status[NR_IRQS] = {
@@ -123,17 +123,18 @@ static inline int find_unassigned_irq(void)
 static inline int find_unassigned_vector(cpumask_t domain)
 {
 	cpumask_t mask;
-	int pos;
+	int pos, vector;
 
 	cpus_and(mask, domain, cpu_online_map);
 	if (cpus_empty(mask))
 		return -EINVAL;
 
 	for (pos = 0; pos < IA64_NUM_DEVICE_VECTORS; pos++) {
-		cpus_and(mask, domain, vector_table[pos]);
+		vector = IA64_FIRST_DEVICE_VECTOR + pos;
+		cpus_and(mask, domain, vector_table[vector]);
 		if (!cpus_empty(mask))
 			continue;
-		return IA64_FIRST_DEVICE_VECTOR + pos;
+		return vector;
 	}
 	return -ENOSPC;
 }
@@ -141,7 +142,7 @@ static inline int find_unassigned_vector(cpumask_t domain)
 static int __bind_irq_vector(int irq, int vector, cpumask_t domain)
 {
 	cpumask_t mask;
-	int cpu, pos;
+	int cpu;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
 	cpus_and(mask, domain, cpu_online_map);
@@ -156,8 +157,7 @@ static int __bind_irq_vector(int irq, int vector, cpumask_t domain)
 	cfg->vector = vector;
 	cfg->domain = domain;
 	irq_status[irq] = IRQ_USED;
-	pos = vector - IA64_FIRST_DEVICE_VECTOR;
-	cpus_or(vector_table[pos], vector_table[pos], domain);
+	cpus_or(vector_table[vector], vector_table[vector], domain);
 	return 0;
 }
 
@@ -174,7 +174,7 @@ int bind_irq_vector(int irq, int vector, cpumask_t domain)
 
 static void __clear_irq_vector(int irq)
 {
-	int vector, cpu, pos;
+	int vector, cpu;
 	cpumask_t mask;
 	cpumask_t domain;
 	struct irq_cfg *cfg = &irq_cfg[irq];
@@ -189,8 +189,7 @@ static void __clear_irq_vector(int irq)
 	cfg->vector = IRQ_VECTOR_UNASSIGNED;
 	cfg->domain = CPU_MASK_NONE;
 	irq_status[irq] = IRQ_UNUSED;
-	pos = vector - IA64_FIRST_DEVICE_VECTOR;
-	cpus_andnot(vector_table[pos], vector_table[pos], domain);
+	cpus_andnot(vector_table[vector], vector_table[vector], domain);
 }
 
 static void clear_irq_vector(int irq)
@@ -212,9 +211,6 @@ assign_irq_vector (int irq)
 	vector = -ENOSPC;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	if (irq < 0) {
-		goto out;
-	}
 	for_each_online_cpu(cpu) {
 		domain = vector_allocation_domain(cpu);
 		vector = find_unassigned_vector(domain);
@@ -223,6 +219,8 @@ assign_irq_vector (int irq)
 	}
 	if (vector < 0)
 		goto out;
+	if (irq == AUTO_ASSIGN)
+		irq = vector;
 	BUG_ON(__bind_irq_vector(irq, vector, domain));
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
