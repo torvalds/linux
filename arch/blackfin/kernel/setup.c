@@ -425,6 +425,7 @@ void __init setup_arch(char **cmdline_p)
 	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
 	       != ATOMIC_XOR32 - FIXED_CODE_START);
 
+	init_exception_vectors();
 	bf53x_cache_init();
 }
 
