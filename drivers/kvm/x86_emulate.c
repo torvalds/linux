@@ -1278,8 +1278,6 @@ twobyte_insn:
 		src.orig_val = src.val;
 		src.val = _regs[VCPU_REGS_RAX];
 		emulate_2op_SrcV("cmp", src, dst, _eflags);
-		/* Always write back. The question is: where to? */
-		d |= Mov;
 		if (_eflags & EFLG_ZF) {
 			/* Success: write back to memory. */
 			dst.val = src.orig_val;
