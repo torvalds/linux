@@ -68,7 +68,7 @@ static inline unsigned int ctr_read(void)
 	unsigned int tmp;
 
 	tmp = bfin_read_PFCTL();
-	__builtin_bfin_csync();
+	CSYNC();
 
 	return tmp;
 }
@@ -76,21 +76,21 @@ static inline unsigned int ctr_read(void)
 static inline void ctr_write(unsigned int val)
 {
 	bfin_write_PFCTL(val);
-	__builtin_bfin_csync();
+	CSYNC();
 }
 
 static inline void count_read(unsigned int *count)
 {
 	count[0] = bfin_read_PFCNTR0();
 	count[1] = bfin_read_PFCNTR1();
-	__builtin_bfin_csync();
+	CSYNC();
 }
 
 static inline void count_write(unsigned int *count)
 {
 	bfin_write_PFCNTR0(count[0]);
 	bfin_write_PFCNTR1(count[1]);
-	__builtin_bfin_csync();
+	CSYNC();
 }
 
 extern int pm_overflow_handler(int irq, struct pt_regs *regs);

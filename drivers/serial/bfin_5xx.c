@@ -173,12 +173,12 @@ void kgdb_put_debug_char(int chr)
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
 	
 	while (!(UART_GET_LSR(uart) & THRE)) {
-		__builtin_bfin_ssync();
+		SSYNC();
 	}
 	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
-	__builtin_bfin_ssync();
+	SSYNC();
 	UART_PUT_CHAR(uart, (unsigned char)chr);
-	__builtin_bfin_ssync();
+	SSYNC();
 }
 
 int kgdb_get_debug_char(void)
@@ -192,12 +192,12 @@ int kgdb_get_debug_char(void)
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
 	
 	while(!(UART_GET_LSR(uart) & DR)) {
-		__builtin_bfin_ssync();
+		SSYNC();
 	}
 	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
-	__builtin_bfin_ssync();
+	SSYNC();
 	chr = UART_GET_CHAR(uart);
-	__builtin_bfin_ssync();
+	SSYNC();
 
 	return chr;
 }
@@ -1203,7 +1203,7 @@ static int __init bfin_serial_init(void)
 			IRQF_DISABLED, "BFIN_UART_RX", uart);
 		pr_info("Request irq for kgdb uart port\n");
 		UART_PUT_IER(uart, UART_GET_IER(uart) | ERBFI);
-		__builtin_bfin_ssync();
+		SSYNC();
 		t.c_cflag = CS8|B57600;
 		t.c_iflag = 0;
 		t.c_oflag = 0;
