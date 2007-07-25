@@ -1013,6 +1013,11 @@ static int ivtvfb_init_io(struct ivtv *itv)
 {
 	struct osd_info *oi = itv->osd_info;
 
+	if (ivtv_init_on_first_open(itv)) {
+		IVTV_FB_ERR("Failed to initialize ivtv\n");
+		return -ENXIO;
+	}
+
 	ivtv_fb_get_framebuffer(itv, &oi->video_rbase, &oi->video_buffer_size);
 
 	/* The osd buffer size depends on the number of video buffers allocated

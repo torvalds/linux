@@ -1189,6 +1189,12 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	int fw_retry_count = 3;
 	int video_input;
 
+	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
+		return -ENXIO;
+
+	if (test_and_set_bit(IVTV_F_I_INITED, &itv->i_flags))
+		return 0;
+
 	while (--fw_retry_count > 0) {
 		/* load firmware */
 		if (ivtv_firmware_init(itv) == 0)
@@ -1196,9 +1202,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 		if (fw_retry_count > 1)
 			IVTV_WARN("Retry loading firmware\n");
 	}
+
 	if (fw_retry_count == 0) {
-		IVTV_ERR("Error initializing firmware\n");
-		return -1;
+		set_bit(IVTV_F_I_FAILED, &itv->i_flags);
+		return -ENXIO;
 	}
 
 	/* Try and get firmware versions */
@@ -1381,6 +1388,7 @@ EXPORT_SYMBOL(ivtv_udma_setup);
 EXPORT_SYMBOL(ivtv_udma_unmap);
 EXPORT_SYMBOL(ivtv_udma_alloc);
 EXPORT_SYMBOL(ivtv_udma_prepare);
+EXPORT_SYMBOL(ivtv_init_on_first_open);
 
 module_init(module_start);
 module_exit(module_cleanup);

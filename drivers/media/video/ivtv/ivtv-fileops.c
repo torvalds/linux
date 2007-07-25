@@ -846,16 +846,12 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	if (itv == NULL) {
 		/* Couldn't find a device registered
 		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "ivtv:  No ivtv device found on minor %d\n", minor);
+		IVTV_WARN("No ivtv device found on minor %d\n", minor);
 		return -ENXIO;
 	}
 
-	if (!test_and_set_bit(IVTV_F_I_INITED, &itv->i_flags))
-		if (ivtv_init_on_first_open(itv))
-			set_bit(IVTV_F_I_FAILED, &itv->i_flags);
-
-	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags)) {
-		printk(KERN_WARNING "ivtv:  failed to initialize on minor %d\n", minor);
+	if (ivtv_init_on_first_open(itv)) {
+		IVTV_ERR("Failed to initialize on minor %d\n", minor);
 		return -ENXIO;
 	}
 
