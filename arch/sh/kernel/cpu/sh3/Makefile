@@ -6,10 +6,10 @@ obj-y	:= ex.o probe.o entry.o
 
 # CPU subtype setup
 obj-$(CONFIG_CPU_SUBTYPE_SH7705)	+= setup-sh7705.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7706)	+= setup-sh7709.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7707)	+= setup-sh7709.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7708)	+= setup-sh7708.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7709)	+= setup-sh7709.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7706)	+= setup-sh770x.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7707)	+= setup-sh770x.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7708)	+= setup-sh770x.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7709)	+= setup-sh770x.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7710)	+= setup-sh7710.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7712)	+= setup-sh7710.o
 
