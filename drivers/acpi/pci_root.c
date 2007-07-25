@@ -38,16 +38,21 @@
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
-#define ACPI_PCI_ROOT_HID		"PNP0A03"
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
 static int acpi_pci_root_add(struct acpi_device *device);
 static int acpi_pci_root_remove(struct acpi_device *device, int type);
 static int acpi_pci_root_start(struct acpi_device *device);
 
+static struct acpi_device_id root_device_ids[] = {
+	{"PNP0A03", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, root_device_ids);
+
 static struct acpi_driver acpi_pci_root_driver = {
 	.name = "pci_root",
 	.class = ACPI_PCI_ROOT_CLASS,
-	.ids = ACPI_PCI_ROOT_HID,
+	.ids = root_device_ids,
 	.ops = {
 		.add = acpi_pci_root_add,
 		.remove = acpi_pci_root_remove,

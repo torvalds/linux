@@ -41,7 +41,6 @@
 #include <acpi/actypes.h>
 
 #define ACPI_EC_CLASS			"embedded_controller"
-#define ACPI_EC_HID			"PNP0C09"
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 
@@ -82,10 +81,15 @@ static int acpi_ec_start(struct acpi_device *device);
 static int acpi_ec_stop(struct acpi_device *device, int type);
 static int acpi_ec_add(struct acpi_device *device);
 
+static const struct acpi_device_id ec_device_ids[] = {
+	{"PNP0C09", 0},
+	{"", 0},
+};
+
 static struct acpi_driver acpi_ec_driver = {
 	.name = "ec",
 	.class = ACPI_EC_CLASS,
-	.ids = ACPI_EC_HID,
+	.ids = ec_device_ids,
 	.ops = {
 		.add = acpi_ec_add,
 		.remove = acpi_ec_remove,

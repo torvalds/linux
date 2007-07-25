@@ -407,7 +407,7 @@ acpi_ut_copy_id_string(char *destination, char *source, acpi_size max_length)
 
 acpi_status
 acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
-		    struct acpi_device_id *hid)
+		    struct acpica_device_id *hid)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
@@ -609,7 +609,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
-		    struct acpi_device_id *uid)
+		    struct acpica_device_id *uid)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;

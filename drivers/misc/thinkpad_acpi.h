@@ -193,7 +193,7 @@ static void thinkpad_acpi_module_exit(void);
 struct ibm_struct;
 
 struct tp_acpi_drv_struct {
-	char *hid;
+	const struct acpi_device_id *hid;
 	struct acpi_driver *driver;
 
 	void (*notify) (struct ibm_struct *, u32);

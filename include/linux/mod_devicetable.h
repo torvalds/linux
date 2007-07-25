@@ -159,6 +159,12 @@ struct ap_device_id {
 
 #define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
 
+#define ACPI_ID_LEN	9
+
+struct acpi_device_id {
+	__u8 id[ACPI_ID_LEN];
+	kernel_ulong_t driver_data;
+};
 
 #define PNP_ID_LEN	8
 #define PNP_MAX_DEVICES	8
