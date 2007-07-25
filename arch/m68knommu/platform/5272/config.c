@@ -113,10 +113,7 @@ void config_BSP(char *commandp, int size)
 
 	mcf_disableall();
 
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-	commandp[size-1] = 0;
-#elif defined(CONFIG_NETtel) || defined(CONFIG_SCALES)
+#if defined(CONFIG_NETtel) || defined(CONFIG_SCALES)
 	/* Copy command line from FLASH to local buffer... */
 	memcpy(commandp, (char *) 0xf0004000, size);
 	commandp[size-1] = 0;
@@ -128,8 +125,6 @@ void config_BSP(char *commandp, int size)
 	/* Copy command line from FLASH to local buffer... */
 	memcpy(commandp, (char *) 0xf0010000, size);
 	commandp[size-1] = 0;
-#else
-	memset(commandp, 0, size);
 #endif
 
 	mcf_timervector = 69;

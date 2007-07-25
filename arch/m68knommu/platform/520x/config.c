@@ -48,13 +48,6 @@ void mcf_autovector(unsigned int vec)
 
 void config_BSP(char *commandp, int size)
 {
-#ifdef CONFIG_BOOTPARAM
-    strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-    commandp[size-1] = 0;
-#else
-    memset(commandp, 0, size);
-#endif
-
     mach_sched_init = coldfire_pit_init;
     mach_tick = coldfire_pit_tick;
     mach_gettimeoffset = coldfire_pit_offset;

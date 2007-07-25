@@ -132,6 +132,11 @@ void setup_arch(char **cmdline_p)
 
 	config_BSP(&command_line[0], sizeof(command_line));
 
+#if defined(CONFIG_BOOTPARAM)
+	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
+	command_line[sizeof(command_line) - 1] = 0;
+#endif
+
 	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU "\n");
 
 #ifdef CONFIG_UCDIMM

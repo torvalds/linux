@@ -111,10 +111,7 @@ void config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
 
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-	commandp[size-1] = 0;
-#elif defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
+#if defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
       defined(CONFIG_DISKtel) || defined(CONFIG_SECUREEDGEMP3) || \
       defined(CONFIG_CLEOPATRA)
 	/* Copy command line from FLASH to local buffer... */
@@ -124,8 +121,6 @@ void config_BSP(char *commandp, int size)
 	mcf_timervector = 30;
 	mcf_profilevector = 31;
 	mcf_timerlevel = 6;
-#else
-	memset(commandp, 0, size);
 #endif
 
 	mach_sched_init = coldfire_timer_init;

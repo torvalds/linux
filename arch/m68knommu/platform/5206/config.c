@@ -98,14 +98,6 @@ int mcf_timerirqpending(int timer)
 void config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
-
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-	commandp[size-1] = 0;
-#else
-	memset(commandp, 0, size);
-#endif
-
 	mach_sched_init = coldfire_timer_init;
 	mach_tick = coldfire_tick;
 	mach_gettimeoffset = coldfire_timer_offset;
