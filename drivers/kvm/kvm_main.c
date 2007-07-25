@@ -442,30 +442,32 @@ static int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	gfn_t pdpt_gfn = cr3 >> PAGE_SHIFT;
 	unsigned offset = ((cr3 & (PAGE_SIZE-1)) >> 5) << 2;
 	int i;
-	u64 pdpte;
 	u64 *pdpt;
 	int ret;
 	struct page *page;
+	u64 pdpte[ARRAY_SIZE(vcpu->pdptrs)];
 
 	spin_lock(&vcpu->kvm->lock);
 	page = gfn_to_page(vcpu->kvm, pdpt_gfn);
-	/* FIXME: !page - emulate? 0xff? */
-	pdpt = kmap_atomic(page, KM_USER0);
+	if (!page) {
+		ret = 0;
+		goto out;
+	}
 
-	ret = 1;
-	for (i = 0; i < 4; ++i) {
-		pdpte = pdpt[offset + i];
-		if ((pdpte & 1) && (pdpte & 0xfffffff0000001e6ull)) {
+	pdpt = kmap_atomic(page, KM_USER0);
+	memcpy(pdpte, pdpt+offset, sizeof(pdpte));
+	kunmap_atomic(pdpt, KM_USER0);
+
+	for (i = 0; i < ARRAY_SIZE(pdpte); ++i) {
+		if ((pdpte[i] & 1) && (pdpte[i] & 0xfffffff0000001e6ull)) {
 			ret = 0;
 			goto out;
 		}
 	}
+	ret = 1;
 
-	for (i = 0; i < 4; ++i)
-		vcpu->pdptrs[i] = pdpt[offset + i];
-
+	memcpy(vcpu->pdptrs, pdpte, sizeof(vcpu->pdptrs));
 out:
-	kunmap_atomic(pdpt, KM_USER0);
 	spin_unlock(&vcpu->kvm->lock);
 
 	return ret;
