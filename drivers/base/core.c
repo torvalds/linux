@@ -678,8 +678,7 @@ static int device_add_class_symlinks(struct device *dev)
 		if (error)
 			goto out_subsys;
 	}
-	/* only bus-device parents get a "device"-link */
-	if (dev->parent && dev->parent->bus) {
+	if (dev->parent) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
 					  "device");
 		if (error)
