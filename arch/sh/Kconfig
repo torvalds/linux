@@ -134,8 +134,8 @@ config SH_FPU_EMU
 
 config SH_DSP
 	bool "DSP support"
-	default y if SH4AL_DSP || !CPU_SH4
-	default n
+	depends on CPU_HAS_DSP
+	default y
 	help
 	  Selecting this option will enable support for SH processors that
 	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
@@ -197,6 +197,9 @@ config CPU_HAS_SR_RB
 	  information on SR.RB and register banking in the kernel in general.
 
 config CPU_HAS_PTEA
+	bool
+
+config CPU_HAS_DSP
 	bool
 
 endmenu
