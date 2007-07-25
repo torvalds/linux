@@ -1325,27 +1325,39 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 	return ret;
 }
 
-static int nfs_write_mapping(struct address_space *mapping, int how)
+static int __nfs_write_mapping(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
-	struct writeback_control wbc = {
-		.bdi = mapping->backing_dev_info,
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.for_writepages = 1,
-		.range_cyclic = 1,
-	};
 	int ret;
 
-	ret = nfs_writepages(mapping, &wbc);
+	ret = nfs_writepages(mapping, wbc);
 	if (ret < 0)
 		goto out;
-	ret = nfs_sync_mapping_wait(mapping, &wbc, how);
+	ret = nfs_sync_mapping_wait(mapping, wbc, how);
 	if (ret < 0)
 		goto out;
 	return 0;
 out:
 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	return ret;
+}
+
+/* Two pass sync: first using WB_SYNC_NONE, then WB_SYNC_ALL */
+static int nfs_write_mapping(struct address_space *mapping, int how)
+{
+	struct writeback_control wbc = {
+		.bdi = mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_NONE,
+		.nr_to_write = LONG_MAX,
+		.for_writepages = 1,
+		.range_cyclic = 1,
+	};
+	int ret;
+
+	ret = __nfs_write_mapping(mapping, &wbc, how);
+	if (ret < 0)
+		return ret;
+	wbc.sync_mode = WB_SYNC_ALL;
+	return __nfs_write_mapping(mapping, &wbc, how);
 }
 
 /*
