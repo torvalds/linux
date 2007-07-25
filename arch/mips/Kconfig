@@ -1772,7 +1772,7 @@ config KEXEC
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS && BROKEN
+	depends on PROC_FS
 	default y
 	help
 	  This kernel feature is useful for number crunching applications

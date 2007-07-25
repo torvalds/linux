@@ -775,7 +775,7 @@ static void mt_ase_fp_affinity(void)
 			cpus_and(tmask, current->thread.user_cpus_allowed,
 			         mt_fpu_cpumask);
 			set_cpus_allowed(current, tmask);
-			current->thread.mflags |= MF_FPUBOUND;
+			set_thread_flag(TIF_FPUBOUND);
 		}
 	}
 #endif /* CONFIG_MIPS_MT_FPAFF */

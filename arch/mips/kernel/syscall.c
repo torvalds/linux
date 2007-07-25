@@ -281,16 +281,24 @@ asmlinkage int sys_set_thread_area(unsigned long addr)
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 {
-	int	tmp;
-
-	switch(cmd) {
+	switch (cmd) {
 	case MIPS_ATOMIC_SET:
 		printk(KERN_CRIT "How did I get here?\n");
 		return -EINVAL;
 
 	case MIPS_FIXADE:
-		tmp = current->thread.mflags & ~3;
-		current->thread.mflags = tmp | (arg1 & 3);
+		if (arg1 & ~3)
+			return -EINVAL;
+
+		if (arg1 & 1)
+			set_thread_flag(TIF_FIXADE);
+		else
+			clear_thread_flag(TIF_FIXADE);
+		if (arg1 & 2)
+			set_thread_flag(TIF_LOGADE);
+		else
+			clear_thread_flag(TIF_FIXADE);
+
 		return 0;
 
 	case FLUSH_CACHE:

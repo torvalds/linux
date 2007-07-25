@@ -186,7 +186,7 @@ struct input_event_compat {
 #elif defined(CONFIG_S390)
 #  define COMPAT_TEST test_thread_flag(TIF_31BIT)
 #elif defined(CONFIG_MIPS)
-#  define COMPAT_TEST (current->thread.mflags & MF_32BIT_ADDR)
+#  define COMPAT_TEST test_thread_flag(TIF_32BIT_ADDR)
 #else
 #  define COMPAT_TEST test_thread_flag(TIF_32BIT)
 #endif
