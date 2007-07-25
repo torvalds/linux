@@ -77,6 +77,9 @@ struct nfs_open_context {
 	struct nfs4_state *state;
 	fl_owner_t lockowner;
 	int mode;
+
+	unsigned long flags;
+#define NFS_CONTEXT_ERROR_WRITE		(0)
 	int error;
 
 	struct list_head list;
