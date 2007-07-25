@@ -99,11 +99,7 @@ extern int update_persistent_clock(struct timespec now);
 extern int no_sync_cmos_clock __read_mostly;
 void timekeeping_init(void);
 
-static inline unsigned long get_seconds(void)
-{
-	return xtime.tv_sec;
-}
-
+unsigned long get_seconds(void);
 struct timespec current_kernel_time(void);
 
 #define CURRENT_TIME		(current_kernel_time())

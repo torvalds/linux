@@ -141,11 +141,7 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
-#ifdef CONFIG_NO_HZ
-		getnstimeofday(&xts);
-#else
 		xts = current_kernel_time();
-#endif
 		tom = wall_to_monotonic;
 	} while (read_seqretry(&xtime_lock, seq));
 

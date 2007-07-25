@@ -47,9 +47,21 @@ EXPORT_SYMBOL(xtime_lock);
 struct timespec xtime __attribute__ ((aligned (16)));
 struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 static unsigned long total_sleep_time;		/* seconds */
-
 EXPORT_SYMBOL(xtime);
 
+
+#ifdef CONFIG_NO_HZ
+static struct timespec xtime_cache __attribute__ ((aligned (16)));
+static inline void update_xtime_cache(u64 nsec)
+{
+	xtime_cache = xtime;
+	timespec_add_ns(&xtime_cache, nsec);
+}
+#else
+#define xtime_cache xtime
+/* We do *not* want to evaluate the argument for this case */
+#define update_xtime_cache(n) do { } while (0)
+#endif
 
 static struct clocksource *clock; /* pointer to current clocksource */
 
@@ -478,6 +490,8 @@ void update_wall_time(void)
 	xtime.tv_nsec = (s64)clock->xtime_nsec >> clock->shift;
 	clock->xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
 
+	update_xtime_cache(cyc2ns(clock, offset));
+
 	/* check to see if there is a new clocksource to use */
 	change_clocksource();
 	update_vsyscall(&xtime, clock);
@@ -510,6 +524,13 @@ void monotonic_to_bootbased(struct timespec *ts)
 	ts->tv_sec += total_sleep_time;
 }
 
+unsigned long get_seconds(void)
+{
+	return xtime_cache.tv_sec;
+}
+EXPORT_SYMBOL(get_seconds);
+
+
 struct timespec current_kernel_time(void)
 {
 	struct timespec now;
@@ -518,10 +539,9 @@ struct timespec current_kernel_time(void)
 	do {
 		seq = read_seqbegin(&xtime_lock);
 
-		now = xtime;
+		now = xtime_cache;
 	} while (read_seqretry(&xtime_lock, seq));
 
 	return now;
 }
-
 EXPORT_SYMBOL(current_kernel_time);
