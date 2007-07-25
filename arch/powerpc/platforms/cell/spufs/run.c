@@ -312,6 +312,7 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	spu_acquire(ctx);
 	if (ctx->state == SPU_STATE_SAVED) {
 		__spu_update_sched_info(ctx);
+		spu_set_timeslice(ctx);
 
 		ret = spu_activate(ctx, 0);
 		if (ret) {
@@ -322,6 +323,9 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 		/*
 		 * We have to update the scheduling priority under active_mutex
 		 * to protect against find_victim().
+		 *
+		 * No need to update the timeslice ASAP, it will get updated
+		 * once the current one has expired.
 		 */
 		spu_update_sched_info(ctx);
 	}
