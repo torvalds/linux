@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.24
+ *  Version: 0.0.25
  *
  *  FEATURES currently supported:
  *    Front, Rear and Center/LFE.
@@ -81,6 +81,8 @@
  *    Implement support for Line-in capture on SB Live 24bit.
  *  0.0.24
  *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
+ *  0.0.25
+ *    Powerdown SPI DAC channels when not in use
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-ca0106 kernel module.
@@ -458,6 +460,19 @@ static void snd_ca0106_pcm_free_substream(struct snd_pcm_runtime *runtime)
 	kfree(runtime->private_data);
 }
 
+static const int spi_dacd_reg[] = {
+	[PCM_FRONT_CHANNEL]	= SPI_DACD4_REG,
+	[PCM_REAR_CHANNEL]	= SPI_DACD0_REG,
+	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_REG,
+	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_REG,
+};
+static const int spi_dacd_bit[] = {
+	[PCM_FRONT_CHANNEL]	= 1<<SPI_DACD4_BIT,
+	[PCM_REAR_CHANNEL]	= 1<<SPI_DACD0_BIT,
+	[PCM_CENTER_LFE_CHANNEL]= 1<<SPI_DACD2_BIT,
+	[PCM_UNKNOWN_CHANNEL]	= 1<<SPI_DACD1_BIT,
+};
+
 /* open_playback callback */
 static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substream,
 						int channel_id)
@@ -492,6 +507,16 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
                 return err;
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
                 return err;
+
+	if (chip->details->spi_dac && channel_id != PCM_FRONT_CHANNEL) {
+		const int reg = spi_dacd_reg[channel_id];
+
+		/* Power up dac */
+		chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
+		err = snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -502,6 +527,14 @@ static int snd_ca0106_pcm_close_playback(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
         struct snd_ca0106_pcm *epcm = runtime->private_data;
 	chip->playback_channels[epcm->channel_id].use = 0;
+
+	if (chip->details->spi_dac && epcm->channel_id != PCM_FRONT_CHANNEL) {
+		const int reg = spi_dacd_reg[epcm->channel_id];
+
+		/* Power down DAC */
+		chip->spi_dac_reg[reg] |= spi_dacd_bit[epcm->channel_id];
+		snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	}
 	/* FIXME: maybe zero others */
 	return 0;
 }
@@ -1246,7 +1279,7 @@ static unsigned int spi_dac_init[] = {
 	0x0530,
 	0x0602,
 	0x0622,
-	0x1400,
+	0x140e,
 };
 
 static unsigned int i2c_adc_init[][2] = {

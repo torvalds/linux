@@ -587,7 +587,7 @@
 #define SPI_DACD0_BIT		1
 #define SPI_DACD1_BIT		2
 #define SPI_DACD2_BIT		3
-#define SPI_DACD4_BIT		1
+#define SPI_DACD4_BIT		0	/* datasheet error says it's 1 */
 
 #define SPI_PWRDNALL_REG	10	/* power down everything */
 #define SPI_PWRDNALL_BIT	4
