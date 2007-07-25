@@ -86,12 +86,6 @@
 # define PBCR 0xa4050102
 # define SCSCR_INIT(port)          0x3B
 # define SCIF_ONLY
-#elif defined(CONFIG_CPU_SUBTYPE_SH73180)
-# define SCPDR  0xA4050138        /* 16 bit SCIF */
-# define SCSPTR2 SCPDR
-# define SCIF_ORER 0x0001   /* overrun error bit */
-# define SCSCR_INIT(port)  0x0038 /* TIE=0,RIE=0,TE=1,RE=1 */
-# define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7343)
 # define SCSPTR0 0xffe00010	/* 16 bit SCIF */
 # define SCSPTR1 0xffe10010	/* 16 bit SCIF */
@@ -568,11 +562,6 @@ static inline int sci_rxd_in(struct uart_port *port)
         if (port->mapbase == 0xa4430000)
                 return ctrl_inb(SCPDR)&0x01 ? 1 : 0; /* SCIF0 */
         return 1;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH73180)
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	return ctrl_inb(SCPDR)&0x01 ? 1 : 0; /* SCIF0 */
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7343)
 static inline int sci_rxd_in(struct uart_port *port)

@@ -202,10 +202,6 @@ config CPU_SUBTYPE_SHX3
 
 # SH4AL-DSP Processor Support
 
-config CPU_SUBTYPE_SH73180
-	bool "Support SH73180 processor"
-	select CPU_SH4AL_DSP
-
 config CPU_SUBTYPE_SH7343
 	bool "Support SH7343 processor"
 	select CPU_SH4AL_DSP

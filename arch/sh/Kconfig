@@ -274,14 +274,6 @@ config SH_7343_SOLUTION_ENGINE
 	  Select 7343 SolutionEngine if configuring for a Hitachi
 	  SH7343 (SH-Mobile 3AS) evaluation board.
 
-config SH_73180_SOLUTION_ENGINE
-	bool "SolutionEngine73180"
-	select SOLUTION_ENGINE
-	depends on CPU_SUBTYPE_SH73180
-	help
-	  Select 73180 SolutionEngine if configuring for a Hitachi
-	  SH73180(SH-Mobile 3) evaluation board.
-
 config SH_7751_SYSTEMH
 	bool "SystemH7751R"
 	depends on CPU_SUBTYPE_SH7751R
@@ -445,7 +437,7 @@ config SH_TIMER_IRQ
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "27000000" if CPU_SUBTYPE_SH7343
 	default "31250000" if CPU_SUBTYPE_SH7619
 	default "32000000" if CPU_SUBTYPE_SH7722
 	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
