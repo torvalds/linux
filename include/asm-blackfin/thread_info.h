@@ -39,6 +39,11 @@
  */
 #define ALIGN_PAGE_MASK         0xffffe000
 
+/*
+ * Size of kernel stack for each process. This must be a power of 2...
+ */
+#define THREAD_SIZE		8192	/* 2 pages */
+
 #ifndef __ASSEMBLY__
 
 typedef unsigned long mm_segment_t;
@@ -76,11 +81,6 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
-/*
- * Size of kernel stack for each process. This must be a power of 2...
- */
-#define THREAD_SIZE		8192	/* 2 pages */
-
 /* How to get the thread information struct from C */
 
 static inline struct thread_info *current_thread_info(void)
@@ -94,7 +94,7 @@ static inline struct thread_info *current_thread_info(void)
 	struct thread_info *ti;
       __asm__("%0 = sp;": "=&d"(ti):
 	);
-	return (struct thread_info *)((long)ti & ~8191UL);
+	return (struct thread_info *)((long)ti & ~((long)THREAD_SIZE-1));
 }
 
 /* thread information allocation */
