@@ -219,6 +219,7 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 {
 	struct list_head *head = &ai->ai_ail2_list;
 	struct gfs2_bufdata *bd;
+	struct gfs2_inode *bh_ip;
 
 	while (!list_empty(head)) {
 		bd = list_entry(head->prev, struct gfs2_bufdata,
@@ -228,6 +229,8 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		list_del(&bd->bd_ail_st_list);
 		list_del(&bd->bd_ail_gl_list);
 		atomic_dec(&bd->bd_gl->gl_ail_count);
+		bh_ip = GFS2_I(bd->bd_bh->b_page->mapping->host);
+		gfs2_meta_cache_flush(bh_ip);
 		brelse(bd->bd_bh);
 	}
 }
