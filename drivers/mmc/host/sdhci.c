@@ -34,6 +34,7 @@ static unsigned int debug_quirks = 0;
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -76,6 +77,24 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD_2,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
 	},
 
 	{	/* Generic SD host controller */
@@ -758,6 +777,14 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl &= ~SDHCI_CTRL_HISPD;
 
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
+
+	/*
+	 * Some (ENE) controllers go apeshit on some ios operation,
+	 * signalling timeout and CRC errors even on CMD0. Resetting
+	 * it on each ios seems to solve the problem.
+	 */
+	if(host->chip->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
+		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
