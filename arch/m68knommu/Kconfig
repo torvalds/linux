@@ -216,6 +216,18 @@ config XCOPILOT_BUGS
 	help
 	  Support the bugs of Xcopilot.
 
+config UC5272
+        bool 'Arcturus Networks uC5272 dimm board support'
+        depends on M5272
+        help
+          Support for the Arcturus Networks uC5272 dimm board.
+
+config UC5282
+       bool "Arcturus Networks uC5282 board support"
+          depends on M528x
+       help
+          Support for the Arcturus Networks uC5282 dimm board.
+
 config UCSIMM
 	bool "uCsimm module support"
 	depends on M68EZ328
