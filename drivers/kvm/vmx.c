@@ -751,7 +751,10 @@ static __init int vmx_disabled_by_bios(void)
 	u64 msr;
 
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, msr);
-	return (msr & 5) == 1; /* locked but not enabled */
+	return (msr & (MSR_IA32_FEATURE_CONTROL_LOCKED |
+		       MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
+	    == MSR_IA32_FEATURE_CONTROL_LOCKED;
+	/* locked but not enabled */
 }
 
 static void hardware_enable(void *garbage)
@@ -761,9 +764,14 @@ static void hardware_enable(void *garbage)
 	u64 old;
 
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, old);
-	if ((old & 5) != 5)
+	if ((old & (MSR_IA32_FEATURE_CONTROL_LOCKED |
+		    MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
+	    != (MSR_IA32_FEATURE_CONTROL_LOCKED |
+		MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
 		/* enable and lock */
-		wrmsrl(MSR_IA32_FEATURE_CONTROL, old | 5);
+		wrmsrl(MSR_IA32_FEATURE_CONTROL, old |
+		       MSR_IA32_FEATURE_CONTROL_LOCKED |
+		       MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED);
 	write_cr4(read_cr4() | X86_CR4_VMXE); /* FIXME: not cpu hotplug safe */
 	asm volatile (ASM_VMX_VMXON_RAX : : "a"(&phys_addr), "m"(phys_addr)
 		      : "memory", "cc");
@@ -1326,7 +1334,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 			       CPU_BASED_HLT_EXITING         /* 20.6.2 */
 			       | CPU_BASED_CR8_LOAD_EXITING    /* 20.6.2 */
 			       | CPU_BASED_CR8_STORE_EXITING   /* 20.6.2 */
-			       | CPU_BASED_ACTIVATE_IO_BITMAP  /* 20.6.2 */
+			       | CPU_BASED_USE_IO_BITMAPS  /* 20.6.2 */
 			       | CPU_BASED_MOV_DR_EXITING
 			       | CPU_BASED_USE_TSC_OFFSETING   /* 21.3 */
 			);
