@@ -21,7 +21,7 @@ struct saved_context {
 	unsigned long return_address;
 } __attribute__((packed));
 
-#ifdef CONFIG_ACPI_SLEEP
+#ifdef CONFIG_ACPI
 extern unsigned long saved_eip;
 extern unsigned long saved_esp;
 extern unsigned long saved_ebp;

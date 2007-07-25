@@ -120,7 +120,7 @@ ident_complete:
 	addq	%rbp, trampoline_level4_pgt + 0(%rip)
 	addq	%rbp, trampoline_level4_pgt + (511*8)(%rip)
 #endif
-#ifdef CONFIG_ACPI_SLEEP
+#ifdef CONFIG_ACPI
 	addq	%rbp, wakeup_level4_pgt + 0(%rip)
 	addq	%rbp, wakeup_level4_pgt + (511*8)(%rip)
 #endif

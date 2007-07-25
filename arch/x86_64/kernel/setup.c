@@ -333,7 +333,7 @@ void __init setup_arch(char **cmdline_p)
 	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, 2*PAGE_SIZE);
 #endif
 
-#ifdef CONFIG_ACPI_SLEEP
+#ifdef CONFIG_ACPI
        /*
         * Reserve low memory region for sleep support.
         */

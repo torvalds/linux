@@ -422,7 +422,7 @@ void __init setup_bootmem_allocator(void)
 	 */
 	reserve_bootmem(PAGE_SIZE, PAGE_SIZE);
 #endif
-#ifdef CONFIG_ACPI_SLEEP
+#ifdef CONFIG_ACPI
 	/*
 	 * Reserve low memory region for sleep support.
 	 */

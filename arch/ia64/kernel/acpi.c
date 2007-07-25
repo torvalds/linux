@@ -67,6 +67,8 @@ EXPORT_SYMBOL(pm_power_off);
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
+unsigned long acpi_wakeup_address = 0;
+
 const char __init *
 acpi_get_sysname(void)
 {
@@ -985,5 +987,22 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 }
 
 EXPORT_SYMBOL(acpi_unregister_ioapic);
+
+/*
+ * acpi_save_state_mem() - save kernel state
+ *
+ * TBD when when IA64 starts to support suspend...
+ */
+int acpi_save_state_mem(void) { return 0; } 
+
+/*
+ * acpi_restore_state()
+ */
+void acpi_restore_state_mem(void) {}
+
+/*
+ * do_suspend_lowlevel()
+ */
+void do_suspend_lowlevel(void) {}
 
 #endif				/* CONFIG_ACPI */
