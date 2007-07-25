@@ -586,6 +586,54 @@ static int strrcmp(const char *s, const char *sub)
         return memcmp(s + slen - sublen, sub, sublen);
 }
 
+/*
+ * Functions used only during module init is marked __init and is stored in
+ * a .init.text section. Likewise data is marked __initdata and stored in
+ * a .init.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ */
+static int init_section(const char *name)
+{
+	if (strcmp(name, ".init") == 0)
+		return 1;
+	if (strncmp(name, ".init.", strlen(".init.")) == 0)
+		return 1;
+	return 0;
+}
+
+/*
+ * Functions used only during module exit is marked __exit and is stored in
+ * a .exit.text section. Likewise data is marked __exitdata and stored in
+ * a .exit.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ **/
+static int exit_section(const char *name)
+{
+	if (strcmp(name, ".exit.text") == 0)
+		return 1;
+	if (strcmp(name, ".exit.data") == 0)
+		return 1;
+	return 0;
+
+}
+
+/*
+ * Data sections are named like this:
+ * .data | .data.rel | .data.rel.*
+ * Return 1 if the specified section is a data section
+ */
+static int data_section(const char *name)
+{
+	if ((strcmp(name, ".data") == 0) ||
+	    (strcmp(name, ".data.rel") == 0) ||
+	    (strncmp(name, ".data.rel.", strlen(".data.rel.")) == 0))
+		return 1;
+	else
+		return 0;
+}
+
 /**
  * Whitelist to allow certain references to pass with no warning.
  *
@@ -1108,21 +1156,6 @@ static int initexit_section_ref_ok(const char *name)
 	return 0;
 }
 
-/**
- * Functions used only during module init is marked __init and is stored in
- * a .init.text section. Likewise data is marked __initdata and stored in
- * a .init.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int init_section(const char *name)
-{
-	if (strcmp(name, ".init") == 0)
-		return 1;
-	if (strncmp(name, ".init.", strlen(".init.")) == 0)
-		return 1;
-	return 0;
-}
 
 /*
  * Identify sections from which references to a .init section is OK.
@@ -1177,23 +1210,6 @@ static int init_section_ref_ok(const char *name)
 	if (strrcmp(name, ".init") == 0)
 		return 1;
 	return 0;
-}
-
-/*
- * Functions used only during module exit is marked __exit and is stored in
- * a .exit.text section. Likewise data is marked __exitdata and stored in
- * a .exit.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int exit_section(const char *name)
-{
-	if (strcmp(name, ".exit.text") == 0)
-		return 1;
-	if (strcmp(name, ".exit.data") == 0)
-		return 1;
-	return 0;
-
 }
 
 /*
