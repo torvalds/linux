@@ -400,9 +400,9 @@ irqreturn_t rs_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void do_softint(void *private)
+static void do_softint(struct work_struct *work)
 {
-	struct m68k_serial	*info = (struct m68k_serial *) private;
+	struct m68k_serial	*info = container_of(work, struct m68k_serial, tqueue);
 	struct tty_struct	*tty;
 	
 	tty = info->tty;
@@ -424,9 +424,9 @@ static void do_softint(void *private)
  * 	do_serial_hangup() -> tty->hangup() -> rs_hangup()
  * 
  */
-static void do_serial_hangup(void *private)
+static void do_serial_hangup(struct work_struct *work)
 {
-	struct m68k_serial	*info = (struct m68k_serial *) private;
+	struct m68k_serial	*info = container_of(work, struct m68k_serial, tqueue_hangup);
 	struct tty_struct	*tty;
 	
 	tty = info->tty;
@@ -1390,8 +1390,8 @@ rs68328_init(void)
 	    info->event = 0;
 	    info->count = 0;
 	    info->blocked_open = 0;
-	    INIT_WORK(&info->tqueue, do_softint, info);
-	    INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info);
+	    INIT_WORK(&info->tqueue, do_softint);
+	    INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 	    init_waitqueue_head(&info->open_wait);
 	    init_waitqueue_head(&info->close_wait);
 	    info->line = i;
