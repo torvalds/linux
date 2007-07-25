@@ -213,7 +213,6 @@ static void *i8xx_alloc_pages(void)
 	}
 	global_flush_tlb();
 	get_page(page);
-	SetPageLocked(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
 	return page_address(page);
 }
@@ -229,7 +228,6 @@ static void i8xx_destroy_pages(void *addr)
 	change_page_attr(page, 4, PAGE_KERNEL);
 	global_flush_tlb();
 	put_page(page);
-	unlock_page(page);
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
 }
