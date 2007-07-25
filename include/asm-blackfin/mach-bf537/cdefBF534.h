@@ -32,6 +32,8 @@
 #ifndef _CDEF_BF534_H
 #define _CDEF_BF534_H
 
+#include <asm/blackfin.h>
+
 /* Include all Core registers and bit definitions 									*/
 #include "defBF534.h"
 

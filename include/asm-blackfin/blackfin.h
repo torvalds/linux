@@ -11,8 +11,7 @@
 #define HI(con32) (((con32) >> 16) & 0xFFFF)
 #define hi(con32) (((con32) >> 16) & 0xFFFF)
 
-#include <asm/mach/blackfin.h>
-#include <asm/bfin-global.h>
+#include <asm/mach/anomaly.h>
 
 #ifndef __ASSEMBLY__
 
@@ -104,5 +103,8 @@ static inline void CSYNC(void)
 #endif /* ANOMALY_05000312 & ANOMALY_05000244 handling */
 
 #endif /* __ASSEMBLY__ */
+
+#include <asm/mach/blackfin.h>
+#include <asm/bfin-global.h>
 
 #endif				/* _BLACKFIN_H_ */

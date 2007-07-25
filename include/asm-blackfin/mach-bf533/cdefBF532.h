@@ -30,11 +30,9 @@
 
 #ifndef _CDEF_BF532_H
 #define _CDEF_BF532_H
-/*
-#if !defined(__ADSPLPBLACKFIN__)
-#warning cdefBF532.h should only be included for 532 compatible chips.
-#endif
-*/
+
+#include <asm/blackfin.h>
+
 /*include all Core registers and bit definitions*/
 #include "defBF532.h"
 

@@ -31,6 +31,8 @@
 #ifndef _CDEF_BF54X_H
 #define _CDEF_BF54X_H
 
+#include <asm/blackfin.h>
+
 #include "defBF54x_base.h"
 #include <asm/system.h>
 
