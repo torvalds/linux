@@ -599,7 +599,7 @@ static struct snd_kcontrol_new snd_ca0106_volume_i2c_adc_ctls[] __devinitdata = 
 	.info	= spi_mute_info,				\
 	.get	= spi_mute_get,					\
 	.put	= spi_mute_put,					\
-	.private_value = (reg<<SPI_REG_SHIFT) | (1<<bit)	\
+	.private_value = (reg<<SPI_REG_SHIFT) | (bit)		\
 }
 
 static struct snd_kcontrol_new snd_ca0106_volume_spi_dac_ctls[]

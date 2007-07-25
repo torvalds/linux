@@ -467,10 +467,10 @@ static const int spi_dacd_reg[] = {
 	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_REG,
 };
 static const int spi_dacd_bit[] = {
-	[PCM_FRONT_CHANNEL]	= 1<<SPI_DACD4_BIT,
-	[PCM_REAR_CHANNEL]	= 1<<SPI_DACD0_BIT,
-	[PCM_CENTER_LFE_CHANNEL]= 1<<SPI_DACD2_BIT,
-	[PCM_UNKNOWN_CHANNEL]	= 1<<SPI_DACD1_BIT,
+	[PCM_FRONT_CHANNEL]	= SPI_DACD4_BIT,
+	[PCM_REAR_CHANNEL]	= SPI_DACD0_BIT,
+	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_BIT,
+	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_BIT,
 };
 
 /* open_playback callback */
@@ -1258,28 +1258,29 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device, struct s
 	return 0;
 }
 
+#define SPI_REG(reg, value)	(((reg) << SPI_REG_SHIFT) | (value))
 static unsigned int spi_dac_init[] = {
-	0x00ff,
-	0x02ff,
-	0x0400,
-	0x0520,
-	0x0620, /* Set 24 bit. Was 0x0600 */
-	0x08ff,
-	0x0aff,
-	0x0cff,
-	0x0eff,
-	0x10ff,
-	0x1200,
-	0x1400,
-	0x1480,
-	0x1800,
-	0x1aff,
-	0x1cff,
-	0x1e00,
-	0x0530,
-	0x0602,
-	0x0622,
-	0x140e,
+	SPI_REG(SPI_LDA1_REG,	SPI_DA_BIT_0dB), /* 0dB dig. attenuation */
+	SPI_REG(SPI_RDA1_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_PL_REG,	0x00),
+	SPI_REG(SPI_PL_REG,	SPI_PL_BIT_L_L | SPI_PL_BIT_R_R),
+	SPI_REG(SPI_FMT_REG,	SPI_FMT_BIT_RJ | SPI_IWL_BIT_24),
+	SPI_REG(SPI_LDA2_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA2_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_LDA3_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA3_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_MASTDA_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(9,		0x00),
+	SPI_REG(SPI_MS_REG,	0x00),
+	SPI_REG(SPI_MS_REG,	SPI_RATE_BIT_256),
+	SPI_REG(12,		0x00),
+	SPI_REG(SPI_LDA4_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA4_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(15,		0x00),
+	SPI_REG(SPI_PL_REG,	SPI_PL_BIT_L_L | SPI_PL_BIT_R_R | SPI_IZD_BIT),
+	SPI_REG(SPI_FMT_REG,	SPI_FMT_BIT_I2S),
+	SPI_REG(SPI_FMT_REG,	SPI_FMT_BIT_I2S | SPI_IWL_BIT_24),
+	SPI_REG(SPI_MS_REG,	SPI_DACD0_BIT | SPI_DACD1_BIT | SPI_DACD2_BIT),
 };
 
 static unsigned int i2c_adc_init[][2] = {
