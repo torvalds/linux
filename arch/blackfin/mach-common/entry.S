@@ -731,6 +731,75 @@ ENTRY(_init_exception_buff)
 	rts;
 ENDPROC(_init_exception_buff)
 
+/* We handle this 100% in exception space - to reduce overhead
+ * Only potiential problem is if the software buffer gets swapped out of the
+ * CPLB table - then double fault. - so we don't let this happen in other places
+ */
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+ENTRY(_ex_trace_buff_full)
+	[--sp] = P3;
+	[--sp] = P2;
+	[--sp] = LC0;
+	[--sp] = LT0;
+	[--sp] = LB0;
+	P5.L = _trace_buff_offset;
+	P5.H = _trace_buff_offset;
+	P3 = [P5];              /* trace_buff_offset */
+	P5.L = lo(TBUFSTAT);
+	P5.H = hi(TBUFSTAT);
+	R7 = [P5];
+	R7 <<= 1;               /* double, since we need to read twice */
+	LC0 = R7;
+	R7 <<= 2;               /* need to shift over again,
+				 * to get the number of bytes */
+	P5.L = lo(TBUF);
+	P5.H = hi(TBUF);
+	R6 = ((1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN)*1024) - 1;
+
+	P2 = R7;
+	P3 = P3 + P2;
+	R7 = P3;
+	R7 = R7 & R6;
+	P3 = R7;
+	P2.L = _trace_buff_offset;
+	P2.H = _trace_buff_offset;
+	[P2] = P3;
+
+	P2.L = _software_trace_buff;
+	P2.H = _software_trace_buff;
+
+	LSETUP (.Lstart, .Lend) LC0;
+.Lstart:
+	R7 = [P5];      /* read TBUF */
+	P4 = P3 + P2;
+	[P4] = R7;
+	P3 += -4;
+	R7 = P3;
+	R7 = R7 & R6;
+.Lend:
+	P3 = R7;
+
+	LB0 = [sp++];
+	LT0 = [sp++];
+	LC0 = [sp++];
+	P2 = [sp++];
+	P3 = [sp++];
+	jump _return_from_exception;
+
+#if CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN == 4
+.data
+#else
+.section .l1.data.B
+#endif
+ENTRY(_trace_buff_offset)
+        .long 0;
+ALIGN
+ENTRY(_software_trace_buff)
+	.rept ((1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN)*256);
+	.long 0
+	.endr
+#endif
+
 /*
  * Put these in the kernel data section - that should always be covered by
  * a CPLB. This is needed to ensure we don't get double fault conditions
@@ -764,7 +833,11 @@ _extable:
 	.long _ex_trap_c        /* 0x0E - User Defined */
 	.long _ex_trap_c        /* 0x0F - User Defined */
 	.long _ex_single_step   /* 0x10 - HW Single step */
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	.long _ex_trace_buff_full /* 0x11 - Trace Buffer Full */
+#else
 	.long _ex_trap_c        /* 0x11 - Trace Buffer Full */
+#endif
 	.long _ex_trap_c        /* 0x12 - Reserved */
 	.long _ex_trap_c        /* 0x13 - Reserved */
 	.long _ex_trap_c        /* 0x14 - Reserved */

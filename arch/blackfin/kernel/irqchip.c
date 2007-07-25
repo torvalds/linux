@@ -34,6 +34,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <asm/trace.h>
 
 static unsigned long irq_err_count;
 static spinlock_t irq_controller_lock;
@@ -144,4 +145,12 @@ void __init init_IRQ(void)
 	}
 
 	init_arch_irq();
+
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	/* Now that evt_ivhw is set up, turn this on */
+	trace_buff_offset = 0;
+	bfin_write_TBUFCTL(BFIN_TRACE_ON);
+	printk(KERN_INFO "Hardware Trace expanded to %ik\n",
+	  1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN);
+#endif
 }

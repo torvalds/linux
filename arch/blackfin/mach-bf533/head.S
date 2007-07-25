@@ -98,7 +98,7 @@ ENTRY(__start)
 	M2 = r0;
 	M3 = r0;
 
-	trace_buffer_start(p0,r0);
+	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
 

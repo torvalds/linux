@@ -55,6 +55,7 @@ asmlinkage void trap_c(struct pt_regs *fp);
 
 int kstack_depth_to_print = 48;
 
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 static int printk_address(unsigned long address)
 {
 	struct vm_list_struct *vml;
@@ -131,10 +132,14 @@ static int printk_address(unsigned long address)
 	/* we were unable to find this address anywhere */
 	return printk("[<0x%p>]", (void *)address);
 }
+#endif
 
 asmlinkage void trap_c(struct pt_regs *fp)
 {
-	int j, sig = 0;
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+	int j;
+#endif
+	int sig = 0;
 	siginfo_t info;
 	unsigned long trapnr = fp->seqstat & SEQSTAT_EXCAUSE;
 
@@ -429,24 +434,56 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 /* Typical exception handling routines	*/
 
+#define EXPAND_LEN ((1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN) * 256 - 1)
+
 void dump_bfin_trace_buffer(void)
 {
-	int tflags;
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+	int tflags, i = 0;
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	int j, index;
+#endif
+
 	trace_buffer_save(tflags);
 
+	printk(KERN_EMERG "Hardware Trace:\n");
+
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
-		int i;
-		printk(KERN_EMERG "Hardware Trace:\n");
-		for (i = 0; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
-			printk(KERN_EMERG "%2i Target : ", i);
+		for (; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
+			printk(KERN_EMERG "%4i Target : ", i);
 			printk_address((unsigned long)bfin_read_TBUF());
-			printk("\n" KERN_EMERG "   Source : ");
+			printk("\n" KERN_EMERG "     Source : ");
 			printk_address((unsigned long)bfin_read_TBUF());
 			printk("\n");
 		}
 	}
 
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	if (trace_buff_offset)
+		index = trace_buff_offset/4 - 1;
+	else
+		index = EXPAND_LEN;
+
+	j = (1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN) * 128;
+	while (j) {
+		printk(KERN_EMERG "%4i Target : ", i);
+		printk_address(software_trace_buff[index]);
+		index -= 1;
+		if (index < 0 )
+			index = EXPAND_LEN;
+		printk("\n" KERN_EMERG "     Source : ");
+		printk_address(software_trace_buff[index]);
+		index -= 1;
+		if (index < 0)
+			index = EXPAND_LEN;
+		printk("\n");
+		j--;
+		i++;
+	}
+#endif
+
 	trace_buffer_restore(tflags);
+#endif
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
@@ -510,7 +547,9 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 void dump_stack(void)
 {
 	unsigned long stack;
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int tflags;
+#endif
 	trace_buffer_save(tflags);
 	dump_bfin_trace_buffer();
 	show_stack(current, &stack);
