@@ -18,5 +18,5 @@ KERNELDIR := /lib/modules/`uname -r`/build
 all::
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules
 clean::
-	rm *.o btrfs.ko
+	$(MAKE) -C $(KERNELDIR) M=`pwd` clean
 endif
