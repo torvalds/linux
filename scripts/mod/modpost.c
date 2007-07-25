@@ -640,7 +640,7 @@ static int data_section(const char *name)
  * Pattern 0:
  *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
  *   The pattern is identified by:
- *   fromsec = .text.init.refok | .data.init.refok
+ *   fromsec = .text.init.refok* | .data.init.refok*
  *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
@@ -675,11 +675,18 @@ static int data_section(const char *name)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
+ * Pattern 5:
+ *   Xtensa uses literal sections for constants that are accessed PC-relative.
+ *   Literal sections may safely reference their text sections.
+ *   (Note that the name for the literal section omits any trailing '.text')
+ *   tosec = <section>[.text]
+ *   fromsec = <section>.literal
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
 			    const char *refsymname)
 {
+	int len;
 	const char **s;
 	const char *pat2sym[] = {
 		"driver",
@@ -701,8 +708,8 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	};
 
 	/* Check for pattern 0 */
-	if ((strcmp(fromsec, ".text.init.refok") == 0) ||
-	    (strcmp(fromsec, ".data.init.refok") == 0))
+	if ((strncmp(fromsec, ".text.init.refok", strlen(".text.init.refok")) == 0) ||
+	    (strncmp(fromsec, ".data.init.refok", strlen(".data.init.refok")) == 0))
 		return 1;
 
 	/* Check for pattern 1 */
@@ -727,6 +734,15 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	for (s = pat3refsym; *s; s++)
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
+
+	/* Check for pattern 5 */
+	if (strrcmp(tosec, ".text") == 0)
+		len = strlen(tosec) - strlen(".text");
+	else
+		len = strlen(tosec);
+	if ((strncmp(tosec, fromsec, len) == 0) && (strlen(fromsec) > len) &&
+	    (strcmp(fromsec + len, ".literal") == 0))
+		return 1;
 
 	return 0;
 }
@@ -856,9 +872,9 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		refsymname = elf->strtab + refsym->st_name;
 
 	/* check whitelist - we may ignore it */
-	if (before &&
-	    secref_whitelist(modname, secname, fromsec,
-			     elf->strtab + before->st_name, refsymname))
+	if (secref_whitelist(modname, secname, fromsec,
+			     before ? elf->strtab + before->st_name : "",
+	                     refsymname))
 		return;
 
 	if (before && after) {
@@ -1111,6 +1127,8 @@ static int initexit_section_ref_ok(const char *name)
 		".smp_locks",
 		".stab",
 		".m68k_fixup",
+		".xt.prop",		/* xtensa informational section */
+		".xt.lit",		/* xtensa informational section */
 		NULL
 	};
 	/* Start of section names */
