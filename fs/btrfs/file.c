@@ -30,6 +30,7 @@
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
+#include <linux/version.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -713,8 +714,12 @@ out:
 }
 
 static struct vm_operations_struct btrfs_file_vm_ops = {
-	.nopage		= filemap_nopage,
-	.populate	= filemap_populate,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+	.nopage         = filemap_nopage,
+	.populate       = filemap_populate,
+#else
+	.fault		= filemap_fault,
+#endif
 	.page_mkwrite	= btrfs_page_mkwrite,
 };
 

@@ -31,6 +31,7 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
+#include <linux/version.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -2323,42 +2324,43 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 }
 
+static struct kmem_cache *cache_create(const char *name, size_t size,
+				       unsigned long extra_flags,
+				       void (*ctor)(void *, struct kmem_cache *,
+						    unsigned long))
+{
+	return kmem_cache_create(name, size, 0, (SLAB_RECLAIM_ACCOUNT |
+				 SLAB_MEM_SPREAD | extra_flags), ctor
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+				 ,NULL
+#endif
+				);
+}
+
 int btrfs_init_cachep(void)
 {
-	btrfs_inode_cachep = kmem_cache_create("btrfs_inode_cache",
-					     sizeof(struct btrfs_inode),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+	btrfs_inode_cachep = cache_create("btrfs_inode_cache",
+					  sizeof(struct btrfs_inode),
+					  0, init_once);
 	if (!btrfs_inode_cachep)
 		goto fail;
-	btrfs_trans_handle_cachep = kmem_cache_create("btrfs_trans_handle_cache",
+	btrfs_trans_handle_cachep = cache_create("btrfs_trans_handle_cache",
 					     sizeof(struct btrfs_trans_handle),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
-					     NULL, NULL);
+					     0, NULL);
 	if (!btrfs_trans_handle_cachep)
 		goto fail;
-	btrfs_transaction_cachep = kmem_cache_create("btrfs_transaction_cache",
+	btrfs_transaction_cachep = cache_create("btrfs_transaction_cache",
 					     sizeof(struct btrfs_transaction),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
-					     NULL, NULL);
+					     0, NULL);
 	if (!btrfs_transaction_cachep)
 		goto fail;
-	btrfs_path_cachep = kmem_cache_create("btrfs_path_cache",
-					     sizeof(struct btrfs_transaction),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
-					     NULL, NULL);
+	btrfs_path_cachep = cache_create("btrfs_path_cache",
+					 sizeof(struct btrfs_transaction),
+					 0, NULL);
 	if (!btrfs_path_cachep)
 		goto fail;
-	btrfs_bit_radix_cachep = kmem_cache_create("btrfs_radix",
-					     256,
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD |
-						SLAB_DESTROY_BY_RCU),
-					     NULL, NULL);
+	btrfs_bit_radix_cachep = cache_create("btrfs_radix", 256,
+					      SLAB_DESTROY_BY_RCU, NULL);
 	if (!btrfs_bit_radix_cachep)
 		goto fail;
 	return 0;
