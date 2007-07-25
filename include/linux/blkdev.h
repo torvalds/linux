@@ -483,8 +483,8 @@ struct request_queue
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
 #define QUEUE_FLAG_STOPPED	2	/* queue is stopped */
-#define	QUEUE_FLAG_READFULL	3	/* write queue has been filled */
-#define QUEUE_FLAG_WRITEFULL	4	/* read queue has been filled */
+#define	QUEUE_FLAG_READFULL	3	/* read queue has been filled */
+#define QUEUE_FLAG_WRITEFULL	4	/* write queue has been filled */
 #define QUEUE_FLAG_DEAD		5	/* queue being torn down */
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
