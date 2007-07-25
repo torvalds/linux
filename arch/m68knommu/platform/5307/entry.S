@@ -213,15 +213,11 @@ ENTRY(ret_from_interrupt)
  * Beware - when entering resume, prev (the current task) is
  * in a0, next (the new task) is in a1,so don't change these
  * registers until their contents are no longer needed.
+ * This is always called in supervisor mode, so don't bother to save
+ * and restore sr; user's process sr is actually in the stack.
  */
 ENTRY(resume)
 	movel	%a0, %d1			/* get prev thread in d1 */
-
-	movew	%sr,%d0				/* save thread status reg */
-	movew	%d0,%a0@(TASK_THREAD+THREAD_SR)
-
-	oril	#0x700,%d0			/* disable interrupts */
-	move	%d0,%sr
 
 	movel	sw_usp,%d0			/* save usp */
 	movel	%d0,%a0@(TASK_THREAD+THREAD_USP)
@@ -233,7 +229,4 @@ ENTRY(resume)
 
 	movel	%a1@(TASK_THREAD+THREAD_USP),%a0 /* restore thread user stack */
 	movel	%a0, sw_usp
-
-	movew	%a1@(TASK_THREAD+THREAD_SR),%d0	/* restore thread status reg */
-	movew	%d0, %sr
 	rts
