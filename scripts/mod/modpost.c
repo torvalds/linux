@@ -23,6 +23,8 @@ int have_vmlinux = 0;
 static int all_versions = 0;
 /* If we are modposting external module set to 1 */
 static int external_module = 0;
+/* Warn about section mismatch in vmlinux if set to 1 */
+static int vmlinux_section_warnings = 1;
 /* Only warn about unresolved symbols */
 static int warn_unresolved = 0;
 /* How a symbol is exported */
@@ -584,13 +586,61 @@ static int strrcmp(const char *s, const char *sub)
         return memcmp(s + slen - sublen, sub, sublen);
 }
 
+/*
+ * Functions used only during module init is marked __init and is stored in
+ * a .init.text section. Likewise data is marked __initdata and stored in
+ * a .init.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ */
+static int init_section(const char *name)
+{
+	if (strcmp(name, ".init") == 0)
+		return 1;
+	if (strncmp(name, ".init.", strlen(".init.")) == 0)
+		return 1;
+	return 0;
+}
+
+/*
+ * Functions used only during module exit is marked __exit and is stored in
+ * a .exit.text section. Likewise data is marked __exitdata and stored in
+ * a .exit.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ **/
+static int exit_section(const char *name)
+{
+	if (strcmp(name, ".exit.text") == 0)
+		return 1;
+	if (strcmp(name, ".exit.data") == 0)
+		return 1;
+	return 0;
+
+}
+
+/*
+ * Data sections are named like this:
+ * .data | .data.rel | .data.rel.*
+ * Return 1 if the specified section is a data section
+ */
+static int data_section(const char *name)
+{
+	if ((strcmp(name, ".data") == 0) ||
+	    (strcmp(name, ".data.rel") == 0) ||
+	    (strncmp(name, ".data.rel.", strlen(".data.rel.")) == 0))
+		return 1;
+	else
+		return 0;
+}
+
 /**
  * Whitelist to allow certain references to pass with no warning.
  *
  * Pattern 0:
  *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
  *   The pattern is identified by:
- *   fromsec = .text.init.refok | .data.init.refok
+ *   fromsec = .text.init.refok* | .data.init.refok*
  *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
@@ -608,8 +658,8 @@ static int strrcmp(const char *s, const char *sub)
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
- *   tosec   = .init.text | .exit.text | .init.data
- *   fromsec = .data | .data.rel | .data.rel.*
+ *   tosec   = init or exit section
+ *   fromsec = data section
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console, *_timer
  *
  * Pattern 3:
@@ -625,12 +675,18 @@ static int strrcmp(const char *s, const char *sub)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
+ * Pattern 5:
+ *   Xtensa uses literal sections for constants that are accessed PC-relative.
+ *   Literal sections may safely reference their text sections.
+ *   (Note that the name for the literal section omits any trailing '.text')
+ *   tosec = <section>[.text]
+ *   fromsec = <section>.literal
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
 			    const char *refsymname)
 {
-	int f1 = 1, f2 = 1;
+	int len;
 	const char **s;
 	const char *pat2sym[] = {
 		"driver",
@@ -652,36 +708,21 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	};
 
 	/* Check for pattern 0 */
-	if ((strcmp(fromsec, ".text.init.refok") == 0) ||
-	    (strcmp(fromsec, ".data.init.refok") == 0))
+	if ((strncmp(fromsec, ".text.init.refok", strlen(".text.init.refok")) == 0) ||
+	    (strncmp(fromsec, ".data.init.refok", strlen(".data.init.refok")) == 0))
 		return 1;
 
 	/* Check for pattern 1 */
-	if (strcmp(tosec, ".init.data") != 0)
-		f1 = 0;
-	if (strncmp(fromsec, ".data", strlen(".data")) != 0)
-		f1 = 0;
-	if (strncmp(atsym, "__param", strlen("__param")) != 0)
-		f1 = 0;
-
-	if (f1)
-		return f1;
+	if ((strcmp(tosec, ".init.data") == 0) &&
+	    (strncmp(fromsec, ".data", strlen(".data")) == 0) &&
+	    (strncmp(atsym, "__param", strlen("__param")) == 0))
+		return 1;
 
 	/* Check for pattern 2 */
-	if ((strcmp(tosec, ".init.text") != 0) &&
-	    (strcmp(tosec, ".exit.text") != 0) &&
-	    (strcmp(tosec, ".init.data") != 0))
-		f2 = 0;
-	if ((strcmp(fromsec, ".data") != 0) &&
-	    (strcmp(fromsec, ".data.rel") != 0) &&
-	    (strncmp(fromsec, ".data.rel.", strlen(".data.rel.")) != 0))
-		f2 = 0;
-
-	for (s = pat2sym; *s; s++)
-		if (strrcmp(atsym, *s) == 0)
-			f1 = 1;
-	if (f1 && f2)
-		return 1;
+	if ((init_section(tosec) || exit_section(tosec)) && data_section(fromsec))
+		for (s = pat2sym; *s; s++)
+			if (strrcmp(atsym, *s) == 0)
+				return 1;
 
 	/* Check for pattern 3 */
 	if ((strcmp(fromsec, ".text.head") == 0) &&
@@ -693,6 +734,15 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	for (s = pat3refsym; *s; s++)
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
+
+	/* Check for pattern 5 */
+	if (strrcmp(tosec, ".text") == 0)
+		len = strlen(tosec) - strlen(".text");
+	else
+		len = strlen(tosec);
+	if ((strncmp(tosec, fromsec, len) == 0) && (strlen(fromsec) > len) &&
+	    (strcmp(fromsec + len, ".literal") == 0))
+		return 1;
 
 	return 0;
 }
@@ -822,9 +872,9 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		refsymname = elf->strtab + refsym->st_name;
 
 	/* check whitelist - we may ignore it */
-	if (before &&
-	    secref_whitelist(modname, secname, fromsec,
-			     elf->strtab + before->st_name, refsymname))
+	if (secref_whitelist(modname, secname, fromsec,
+			     before ? elf->strtab + before->st_name : "",
+	                     refsymname))
 		return;
 
 	if (before && after) {
@@ -1077,6 +1127,8 @@ static int initexit_section_ref_ok(const char *name)
 		".smp_locks",
 		".stab",
 		".m68k_fixup",
+		".xt.prop",		/* xtensa informational section */
+		".xt.lit",		/* xtensa informational section */
 		NULL
 	};
 	/* Start of section names */
@@ -1106,21 +1158,6 @@ static int initexit_section_ref_ok(const char *name)
 	return 0;
 }
 
-/**
- * Functions used only during module init is marked __init and is stored in
- * a .init.text section. Likewise data is marked __initdata and stored in
- * a .init.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int init_section(const char *name)
-{
-	if (strcmp(name, ".init") == 0)
-		return 1;
-	if (strncmp(name, ".init.", strlen(".init.")) == 0)
-		return 1;
-	return 0;
-}
 
 /*
  * Identify sections from which references to a .init section is OK.
@@ -1175,23 +1212,6 @@ static int init_section_ref_ok(const char *name)
 	if (strrcmp(name, ".init") == 0)
 		return 1;
 	return 0;
-}
-
-/*
- * Functions used only during module exit is marked __exit and is stored in
- * a .exit.text section. Likewise data is marked __exitdata and stored in
- * a .exit.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int exit_section(const char *name)
-{
-	if (strcmp(name, ".exit.text") == 0)
-		return 1;
-	if (strcmp(name, ".exit.data") == 0)
-		return 1;
-	return 0;
-
 }
 
 /*
@@ -1257,8 +1277,10 @@ static void read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
-	check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	if (is_vmlinux(modname) && vmlinux_section_warnings) {
+		check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
+		check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	}
 
 	version = get_modinfo(info.modinfo, info.modinfo_len, "version");
 	if (version)
@@ -1626,7 +1648,7 @@ int main(int argc, char **argv)
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:mo:aw")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:mso:aw")) != -1) {
 		switch(opt) {
 			case 'i':
 				kernel_read = optarg;
@@ -1643,6 +1665,9 @@ int main(int argc, char **argv)
 				break;
 			case 'a':
 				all_versions = 1;
+				break;
+			case 's':
+				vmlinux_section_warnings = 0;
 				break;
 			case 'w':
 				warn_unresolved = 1;
