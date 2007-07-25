@@ -98,9 +98,6 @@ void __init p3_cache_init(void)
 	}
 
 	emit_cache_params();
-
-	if (ioremap_page_range(P3SEG, P3SEG + (PAGE_SIZE * 4), 0, PAGE_KERNEL))
-		panic("%s failed.", __FUNCTION__);
 }
 
 /*
