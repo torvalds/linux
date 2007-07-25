@@ -296,7 +296,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 			cur_addr += tc;
 			cur_len -= tc;
 		}
-		sg++;
+		sg = sg_next(sg);
 		i--;
 	}
 
