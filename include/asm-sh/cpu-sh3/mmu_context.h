@@ -30,7 +30,6 @@
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709) || \
     defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7300) || \
     defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7712) || \
     defined(CONFIG_CPU_SUBTYPE_SH7710)

@@ -63,10 +63,6 @@ config CPU_SUBTYPE_SH7206
 
 # SH-3 Processor Support
 
-config CPU_SUBTYPE_SH7300
-	bool "Support SH7300 processor"
-	select CPU_SH3
-
 config CPU_SUBTYPE_SH7705
 	bool "Support SH7705 processor"
 	select CPU_SH3

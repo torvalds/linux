@@ -1,7 +1,7 @@
 /*
- * arch/sh/kernel/cpu/sh3/clock-sh7300.c
+ * arch/sh/kernel/cpu/sh3/clock-sh7710.c
  *
- * SH7300 support for the clock framework
+ * SH7710 support for the clock framework
  *
  *  Copyright (C) 2005  Paul Mundt
  *
@@ -29,7 +29,7 @@ static void master_clk_init(struct clk *clk)
 	clk->rate *= md_table[ctrl_inw(FRQCR) & 0x0007];
 }
 
-static struct clk_ops sh7300_master_clk_ops = {
+static struct clk_ops sh7710_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
@@ -39,7 +39,7 @@ static void module_clk_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate / md_table[idx];
 }
 
-static struct clk_ops sh7300_module_clk_ops = {
+static struct clk_ops sh7710_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
@@ -49,7 +49,7 @@ static void bus_clk_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate / md_table[idx];
 }
 
-static struct clk_ops sh7300_bus_clk_ops = {
+static struct clk_ops sh7710_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
@@ -59,20 +59,20 @@ static void cpu_clk_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate / md_table[idx];
 }
 
-static struct clk_ops sh7300_cpu_clk_ops = {
+static struct clk_ops sh7710_cpu_clk_ops = {
 	.recalc		= cpu_clk_recalc,
 };
 
-static struct clk_ops *sh7300_clk_ops[] = {
-	&sh7300_master_clk_ops,
-	&sh7300_module_clk_ops,
-	&sh7300_bus_clk_ops,
-	&sh7300_cpu_clk_ops,
+static struct clk_ops *sh7710_clk_ops[] = {
+	&sh7710_master_clk_ops,
+	&sh7710_module_clk_ops,
+	&sh7710_bus_clk_ops,
+	&sh7710_cpu_clk_ops,
 };
 
 void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 {
-	if (idx < ARRAY_SIZE(sh7300_clk_ops))
-		*ops = sh7300_clk_ops[idx];
+	if (idx < ARRAY_SIZE(sh7710_clk_ops))
+		*ops = sh7710_clk_ops[idx];
 }
 

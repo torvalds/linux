@@ -29,7 +29,7 @@ static void __init check_bugs(void)
 		*p++ = '2';
 		*p++ = 'a';
 		break;
-	case CPU_SH7705 ... CPU_SH7300:
+	case CPU_SH7705 ... CPU_SH7729:
 		*p++ = '3';
 		break;
 	case CPU_SH7750 ... CPU_SH4_501:
