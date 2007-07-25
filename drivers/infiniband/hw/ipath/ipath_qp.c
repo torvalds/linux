@@ -338,6 +338,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_busy = 0;
 	qp->s_flags &= IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
+	qp->s_wqe = NULL;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
 	qp->r_msn = 0;
@@ -751,6 +752,9 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	switch (init_attr->qp_type) {
 	case IB_QPT_UC:
 	case IB_QPT_RC:
+	case IB_QPT_UD:
+	case IB_QPT_SMI:
+	case IB_QPT_GSI:
 		sz = sizeof(struct ipath_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct ipath_swqe);
@@ -759,10 +763,6 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
 		}
-		/* FALLTHROUGH */
-	case IB_QPT_UD:
-	case IB_QPT_SMI:
-	case IB_QPT_GSI:
 		sz = sizeof(*qp);
 		if (init_attr->srq) {
 			struct ipath_srq *srq = to_isrq(init_attr->srq);
@@ -805,8 +805,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		spin_lock_init(&qp->r_rq.lock);
 		atomic_set(&qp->refcount, 0);
 		init_waitqueue_head(&qp->wait);
-		tasklet_init(&qp->s_task, ipath_do_ruc_send,
-			     (unsigned long)qp);
+		tasklet_init(&qp->s_task, ipath_do_send, (unsigned long)qp);
 		INIT_LIST_HEAD(&qp->piowait);
 		INIT_LIST_HEAD(&qp->timerwait);
 		qp->state = IB_QPS_RESET;
