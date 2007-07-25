@@ -91,6 +91,8 @@ SECTIONS
   . = ALIGN(8192);
   .data.init_task : { *(.data.init_task) }
 
+  NOTES
+
   . = ALIGN(4096);
   __init_begin = .;
   .init.text : {
