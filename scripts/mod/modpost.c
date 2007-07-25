@@ -658,8 +658,8 @@ static int data_section(const char *name)
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
- *   tosec   = .init.text | .exit.text | .init.data
- *   fromsec = .data | .data.rel | .data.rel.*
+ *   tosec   = init or exit section
+ *   fromsec = data section
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console, *_timer
  *
  * Pattern 3:
@@ -680,7 +680,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
 			    const char *refsymname)
 {
-	int f1 = 1, f2 = 1;
 	const char **s;
 	const char *pat2sym[] = {
 		"driver",
@@ -707,31 +706,16 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		return 1;
 
 	/* Check for pattern 1 */
-	if (strcmp(tosec, ".init.data") != 0)
-		f1 = 0;
-	if (strncmp(fromsec, ".data", strlen(".data")) != 0)
-		f1 = 0;
-	if (strncmp(atsym, "__param", strlen("__param")) != 0)
-		f1 = 0;
-
-	if (f1)
-		return f1;
+	if ((strcmp(tosec, ".init.data") == 0) &&
+	    (strncmp(fromsec, ".data", strlen(".data")) == 0) &&
+	    (strncmp(atsym, "__param", strlen("__param")) == 0))
+		return 1;
 
 	/* Check for pattern 2 */
-	if ((strcmp(tosec, ".init.text") != 0) &&
-	    (strcmp(tosec, ".exit.text") != 0) &&
-	    (strcmp(tosec, ".init.data") != 0))
-		f2 = 0;
-	if ((strcmp(fromsec, ".data") != 0) &&
-	    (strcmp(fromsec, ".data.rel") != 0) &&
-	    (strncmp(fromsec, ".data.rel.", strlen(".data.rel.")) != 0))
-		f2 = 0;
-
-	for (s = pat2sym; *s; s++)
-		if (strrcmp(atsym, *s) == 0)
-			f1 = 1;
-	if (f1 && f2)
-		return 1;
+	if ((init_section(tosec) || exit_section(tosec)) && data_section(fromsec))
+		for (s = pat2sym; *s; s++)
+			if (strrcmp(atsym, *s) == 0)
+				return 1;
 
 	/* Check for pattern 3 */
 	if ((strcmp(fromsec, ".text.head") == 0) &&
