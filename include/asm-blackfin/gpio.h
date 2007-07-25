@@ -144,6 +144,24 @@
 
 #ifdef BF533_FAMILY
 #define MAX_BLACKFIN_GPIOS 16
+
+#define	GPIO_PF0	0
+#define	GPIO_PF1	1
+#define	GPIO_PF2	2
+#define	GPIO_PF3	3
+#define	GPIO_PF4	4
+#define	GPIO_PF5	5
+#define	GPIO_PF6	6
+#define	GPIO_PF7	7
+#define	GPIO_PF8	8
+#define	GPIO_PF9	9
+#define	GPIO_PF10	10
+#define	GPIO_PF11	11
+#define	GPIO_PF12	12
+#define	GPIO_PF13	13
+#define	GPIO_PF14	14
+#define	GPIO_PF15	15
+
 #endif
 
 #ifdef BF537_FAMILY
