@@ -219,15 +219,6 @@ static void ei_tx_timeout(struct net_device *dev)
 	int txsr, isr, tickssofar = jiffies - dev->trans_start;
 	unsigned long flags;
 
-#if defined(CONFIG_M32R) && defined(CONFIG_SMP)
-	unsigned long icucr;
-
-	local_irq_save(flags);
-	icucr = inl(M32R_ICU_CR1_PORTL);
-	icucr |= M32R_ICUCR_ISMOD11;
-	outl(icucr, M32R_ICU_CR1_PORTL);
-	local_irq_restore(flags);
-#endif
 	ei_local->stat.tx_errors++;
 
 	spin_lock_irqsave(&ei_local->page_lock, flags);
