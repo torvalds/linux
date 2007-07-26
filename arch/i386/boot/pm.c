@@ -80,7 +80,7 @@ static void move_kernel_around(void)
  */
 static void mask_all_interrupts(void)
 {
-	outb(0xff, 0xa1);	/* Mask all interrupts on the seconday PIC */
+	outb(0xff, 0xa1);	/* Mask all interrupts on the secondary PIC */
 	io_delay();
 	outb(0xfb, 0x21);	/* Mask all but cascade on the primary PIC */
 	io_delay();

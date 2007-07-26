@@ -225,7 +225,7 @@ start_of_setup:
 	int	$0x13
 #endif
 
-# We will have entired with %cs = %ds+0x20, normalize %cs so
+# We will have entered with %cs = %ds+0x20, normalize %cs so
 # it is on par with the other segments.
 	pushw	%ds
 	pushw	$setup2
