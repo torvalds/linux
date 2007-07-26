@@ -79,7 +79,7 @@
 		_EMIT_BUG_ENTRY					\
 		: : "i" (__FILE__), "i" (__LINE__), "i" (0),	\
 		  "i" (sizeof(struct bug_entry)),		\
-		  "r" ((long)(x)));				\
+		  "r" ((__force long)(x)));			\
 	}							\
 } while (0)
 
