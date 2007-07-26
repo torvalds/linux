@@ -107,7 +107,7 @@ void __init setup_pci_cmd(struct pci_controller *hose)
 	}
 }
 
-static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
+static void __init quirk_fsl_pcie_transparent(struct pci_dev *dev)
 {
 	struct resource *res;
 	int i, res_idx = PCI_BRIDGE_RESOURCES;
