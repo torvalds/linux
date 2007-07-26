@@ -283,7 +283,7 @@ struct pci_ops celleb_epci_ops = {
 };
 
 /* to be moved in FW */
-static int __devinit celleb_epci_init(struct pci_controller *hose)
+static int __init celleb_epci_init(struct pci_controller *hose)
 {
 	u32 val;
 	volatile void __iomem *reg, *epci_base;
@@ -403,7 +403,7 @@ static int __devinit celleb_epci_init(struct pci_controller *hose)
 	return 0;
 }
 
-int __devinit celleb_setup_epci(struct device_node *node,
+int __init celleb_setup_epci(struct device_node *node,
 				struct pci_controller *hose)
 {
 	struct resource r;

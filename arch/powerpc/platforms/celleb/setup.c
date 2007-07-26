@@ -73,7 +73,7 @@ static void celleb_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
-static int celleb_machine_type_hack(char *ptr)
+static int __init celleb_machine_type_hack(char *ptr)
 {
 	strncpy(celleb_machine_type, ptr, sizeof(celleb_machine_type));
 	celleb_machine_type[sizeof(celleb_machine_type)-1] = 0;
@@ -135,7 +135,7 @@ static void celleb_kexec_cpu_down(int crash, int secondary)
 }
 #endif
 
-static struct of_device_id celleb_bus_ids[] = {
+static struct of_device_id celleb_bus_ids[] __initdata = {
 	{ .type = "scc", },
 	{ .type = "ioif", },	/* old style */
 	{},
