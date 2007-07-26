@@ -125,6 +125,9 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 static inline void register_nosave_region(unsigned long b, unsigned long e)
 {
 }
+static inline void register_nosave_region_late(unsigned long b, unsigned long e)
+{
+}
 #endif
 
 #endif /* _LINUX_SWSUSP_H */
