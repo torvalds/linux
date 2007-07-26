@@ -1,17 +1,17 @@
 choice
 	prompt "82xx Board Type"
 	depends on PPC_82xx
-	default MPC82xx_ADS
+	default MPC8272_ADS
 
-config MPC82xx_ADS
-	bool "Freescale MPC82xx ADS"
+config MPC8272_ADS
+	bool "Freescale MPC8272 ADS"
 	select DEFAULT_UIMAGE
 	select PQ2ADS
 	select 8272
 	select 8260
 	select FSL_SOC
 	help
-	This option enables support for the MPC8272 ADS board
+	  This option enables support for the MPC8272 ADS board
 
 endchoice
 
