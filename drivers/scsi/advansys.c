@@ -1,20 +1,23 @@
-#define ASC_VERSION "3.3K"	/* AdvanSys Driver Version */
+#define ASC_VERSION "3.4"	/* AdvanSys Driver Version */
 
 /*
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *
  * Copyright (c) 1995-2000 Advanced System Products, Inc.
  * Copyright (c) 2000-2001 ConnectCom Solutions, Inc.
+ * Copyright (c) 2007 Matthew Wilcox <matthew@wil.cx>
  * All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that redistributions of source
- * code retain the above copyright notice and this comment without
- * modification.
- *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+/*
  * As of March 8, 2000 Advanced System Products, Inc. (AdvanSys)
  * changed its name to ConnectCom Solutions, Inc.
- *
+ * On June 18, 2001 Initio Corp. acquired ConnectCom's SCSI assets
  */
 
 /*
@@ -755,11 +758,6 @@
  */
 
 #include <linux/module.h>
-
-#if defined(CONFIG_X86) && !defined(CONFIG_ISA)
-#define CONFIG_ISA
-#endif /* CONFIG_X86 && !CONFIG_ISA */
-
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -771,13 +769,19 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <linux/stat.h>
+#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/dma.h>
+
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_tcq.h>
+#include <scsi/scsi.h>
+#include <scsi/scsi_host.h>
 
 /* FIXME: (by jejb@steeleye.com) This warning is present for two
  * reasons:
@@ -792,15 +796,6 @@
  * altered to fix this.
  */
 #warning this driver is still not properly converted to the DMA API
-
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#ifdef CONFIG_PCI
-#include <linux/pci.h>
-#endif /* CONFIG_PCI */
 
 /*
  * --- Driver Options
@@ -17772,8 +17767,6 @@ static void AdvInquiryHandling(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
 	}
 }
 
-MODULE_LICENSE("Dual BSD/GPL");
-
 static struct Scsi_Host *__devinit
 advansys_board_found(int iop, struct device *dev, int bus_type)
 {
@@ -19029,3 +19022,5 @@ static struct pci_device_id advansys_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, advansys_pci_tbl);
 #endif /* CONFIG_PCI */
+
+MODULE_LICENSE("GPL");

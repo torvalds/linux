@@ -288,6 +288,12 @@ P:	Colin Leroy
 M:	colin@colino.net
 S:	Maintained
 
+ADVANSYS SCSI DRIVER
+P:	Matthew Wilcox
+M:	matthew@wil.cx
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
 AEDSP16 DRIVER
 P:	Riccardo Facchetti
 M:	fizban@tin.it
