@@ -39,7 +39,10 @@
  *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
  *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
  *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
- *	6300ESB  (6300ESB)   : document number 300641-003,
+ *	82801IB  (ICH9)      : document number 316972-001, 316973-001,
+ *	82801IR  (ICH9R)     : document number 316972-001, 316973-001,
+ *	82801IH  (ICH9DH)    : document number 316972-001, 316973-001,
+ *	6300ESB  (6300ESB)   : document number 300641-003, 300884-010,
  *	631xESB  (631xESB)   : document number 313082-001, 313075-005,
  *	632xESB  (632xESB)   : document number 313082-001, 313075-005
  */
@@ -50,8 +53,8 @@
 
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
-#define DRV_VERSION     "1.01"
-#define DRV_RELDATE     "21-Jan-2007"
+#define DRV_VERSION     "1.02"
+#define DRV_RELDATE     "26-Jul-2007"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -94,6 +97,9 @@ enum iTCO_chipsets {
 	TCO_ICH8,	/* ICH8 & ICH8R */
 	TCO_ICH8DH,	/* ICH8DH */
 	TCO_ICH8DO,	/* ICH8DO */
+	TCO_ICH9,	/* ICH9 */
+	TCO_ICH9R,	/* ICH9R */
+	TCO_ICH9DH,	/* ICH9DH */
 	TCO_631XESB,	/* 631xESB/632xESB */
 };
 
@@ -121,6 +127,9 @@ static struct {
 	{"ICH8 or ICH8R", 2},
 	{"ICH8DH", 2},
 	{"ICH8DO", 2},
+	{"ICH9", 2},
+	{"ICH9R", 2},
+	{"ICH9DH", 2},
 	{"631xESB/632xESB", 2},
 	{NULL,0}
 };
@@ -152,6 +161,9 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DH  },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_3,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DO  },
+	{ PCI_VENDOR_ID_INTEL, 0x2918,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9    },
+	{ PCI_VENDOR_ID_INTEL, 0x2916,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9R    },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9DH    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
 	{ PCI_VENDOR_ID_INTEL, 0x2671,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
 	{ PCI_VENDOR_ID_INTEL, 0x2672,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
