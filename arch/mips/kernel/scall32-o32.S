@@ -662,6 +662,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_signalfd		3
 	sys	sys_timerfd		4
 	sys	sys_eventfd		1
+	sys	sys_fallocate		6	/* 4320 */
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

@@ -477,4 +477,5 @@ sys_call_table:
 	PTR	sys_signalfd
 	PTR	sys_timerfd
 	PTR	sys_eventfd
+	PTR	sys_fallocate
 	.size	sys_call_table,.-sys_call_table
