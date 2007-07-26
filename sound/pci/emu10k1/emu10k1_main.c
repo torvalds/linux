@@ -752,6 +752,12 @@ int emu1010_firmware_thread(void *data) {
 			snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp );
 			snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2 );
 			snd_printk("Audio Dock ver:%d.%d\n",tmp ,tmp2);
+			/* Sync clocking between 1010 and Dock */
+			/* Allow DLL to settle */
+			msleep(10);
+			/* Unmute all. Default is muted after a firmware load */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
+			break;
 		}
 	}
 	return 0;
