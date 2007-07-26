@@ -11,9 +11,6 @@ menuconfig ACPI
 	depends on PCI
 	depends on PM
 	select PNP
-	# for sleep
-	select HOTPLUG_CPU if X86 && SMP
-	select SUSPEND_SMP if X86 && SMP
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 
