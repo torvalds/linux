@@ -673,7 +673,7 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 
 	ec->handle = handle;
 
-	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx",
+	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
 			  ec->gpe, ec->command_addr, ec->data_addr);
 
 	return AE_CTRL_TERMINATE;
