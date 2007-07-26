@@ -3339,6 +3339,14 @@ M:	thomas@winischhofer.net
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 
+SLAB ALLOCATOR
+P:	Christoph Lameter
+M:	clameter@sgi.com
+P:	Pekka Enberg
+M:	penberg@cs.helsinki.fi
+L:	linux-mm@kvack.org
+S:	Maintained
+
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
