@@ -422,10 +422,15 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->multifunction = 0;		/* maybe a lie? */
 
 	if (host_controller) {
-		dev->vendor = 0x108e;
-		dev->device = 0x8000;
-		dev->subsystem_vendor = 0x0000;
-		dev->subsystem_device = 0x0000;
+		if (tlb_type != hypervisor) {
+			pci_read_config_word(dev, PCI_VENDOR_ID,
+					     &dev->vendor);
+			pci_read_config_word(dev, PCI_DEVICE_ID,
+					     &dev->device);
+		} else {
+			dev->vendor = PCI_VENDOR_ID_SUN;
+			dev->device = 0x80f0;
+		}
 		dev->cfg_size = 256;
 		dev->class = PCI_CLASS_BRIDGE_HOST << 8;
 		sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
@@ -818,7 +823,7 @@ int pci_host_bridge_read_pci_cfg(struct pci_bus *bus_dev,
 {
 	static u8 fake_pci_config[] = {
 		0x8e, 0x10, /* Vendor: 0x108e (Sun) */
-		0x00, 0x80, /* Device: 0x8000 (PBM) */
+		0xf0, 0x80, /* Device: 0x80f0 (Fire) */
 		0x46, 0x01, /* Command: 0x0146 (SERR, PARITY, MASTER, MEM) */
 		0xa0, 0x22, /* Status: 0x02a0 (DEVSEL_MED, FB2B, 66MHZ) */
 		0x00, 0x00, 0x00, 0x06, /* Class: 0x06000000 host bridge */
