@@ -1656,6 +1656,7 @@ static void __always_inline slab_free(struct kmem_cache *s,
 	unsigned long flags;
 
 	local_irq_save(flags);
+	debug_check_no_locks_freed(object, s->objsize);
 	if (likely(page == s->cpu_slab[smp_processor_id()] &&
 						!SlabDebug(page))) {
 		object[page->offset] = page->lockless_freelist;
