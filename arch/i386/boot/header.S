@@ -280,4 +280,4 @@ die:
 	.section ".initdata", "a"
 setup_corrupt:
 	.byte	7
-	.string	"No setup signature found..."
+	.string	"No setup signature found...\n"
