@@ -48,6 +48,5 @@ extern char *mach_sysrq_xlate;
 
 extern void config_BSP(char *command, int len);
 extern void (*mach_tick)(void);
-extern void (*mach_trap_init)(void);
 
 #endif /* _M68KNOMMU_MACHDEP_H */

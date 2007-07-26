@@ -42,8 +42,6 @@ EXPORT_SYMBOL(memory_end);
 
 char __initdata command_line[COMMAND_LINE_SIZE];
 
-void (*mach_trap_init)(void);
-
 /* machine dependent timer functions */
 void (*mach_sched_init)(irq_handler_t handler);
 void (*mach_tick)(void);
