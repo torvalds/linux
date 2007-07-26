@@ -119,6 +119,11 @@ static void pic_update_irq(struct kvm_pic *s)
 		s->irq_request(s->irq_request_opaque, 0);
 }
 
+void kvm_pic_update_irq(struct kvm_pic *s)
+{
+	pic_update_irq(s);
+}
+
 void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;

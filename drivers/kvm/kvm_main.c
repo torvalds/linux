@@ -897,6 +897,53 @@ out:
 	return r;
 }
 
+static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
+{
+	int r;
+
+	r = 0;
+	switch (chip->chip_id) {
+	case KVM_IRQCHIP_PIC_MASTER:
+		memcpy (&chip->chip.pic,
+			&pic_irqchip(kvm)->pics[0],
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_PIC_SLAVE:
+		memcpy (&chip->chip.pic,
+			&pic_irqchip(kvm)->pics[1],
+			sizeof(struct kvm_pic_state));
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
+static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
+{
+	int r;
+
+	r = 0;
+	switch (chip->chip_id) {
+	case KVM_IRQCHIP_PIC_MASTER:
+		memcpy (&pic_irqchip(kvm)->pics[0],
+			&chip->chip.pic,
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_PIC_SLAVE:
+		memcpy (&pic_irqchip(kvm)->pics[1],
+			&chip->chip.pic,
+			sizeof(struct kvm_pic_state));
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	kvm_pic_update_irq(pic_irqchip(kvm));
+	return r;
+}
+
 static gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
@@ -2833,6 +2880,41 @@ static long kvm_vm_ioctl(struct file *filp,
 			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
+		break;
+	}
+	case KVM_GET_IRQCHIP: {
+		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
+		struct kvm_irqchip chip;
+
+		r = -EFAULT;
+		if (copy_from_user(&chip, argp, sizeof chip))
+			goto out;
+		r = -ENXIO;
+		if (!irqchip_in_kernel(kvm))
+			goto out;
+		r = kvm_vm_ioctl_get_irqchip(kvm, &chip);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &chip, sizeof chip))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_IRQCHIP: {
+		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
+		struct kvm_irqchip chip;
+
+		r = -EFAULT;
+		if (copy_from_user(&chip, argp, sizeof chip))
+			goto out;
+		r = -ENXIO;
+		if (!irqchip_in_kernel(kvm))
+			goto out;
+		r = kvm_vm_ioctl_set_irqchip(kvm, &chip);
+		if (r)
+			goto out;
+		r = 0;
 		break;
 	}
 	default:

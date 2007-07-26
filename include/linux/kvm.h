@@ -45,6 +45,40 @@ struct kvm_irq_level {
 	__u32 level;
 };
 
+/* for KVM_GET_IRQCHIP / KVM_SET_IRQCHIP */
+struct kvm_pic_state {
+	__u8 last_irr;	/* edge detection */
+	__u8 irr;		/* interrupt request register */
+	__u8 imr;		/* interrupt mask register */
+	__u8 isr;		/* interrupt service register */
+	__u8 priority_add;	/* highest irq priority */
+	__u8 irq_base;
+	__u8 read_reg_select;
+	__u8 poll;
+	__u8 special_mask;
+	__u8 init_state;
+	__u8 auto_eoi;
+	__u8 rotate_on_auto_eoi;
+	__u8 special_fully_nested_mode;
+	__u8 init4;		/* true if 4 byte init */
+	__u8 elcr;		/* PIIX edge/trigger selection */
+	__u8 elcr_mask;
+};
+
+enum kvm_irqchip_id {
+	KVM_IRQCHIP_PIC_MASTER	 = 0,
+	KVM_IRQCHIP_PIC_SLAVE	 = 1,
+};
+
+struct kvm_irqchip {
+	__u32 chip_id;
+	__u32 pad;
+        union {
+		char dummy[512];  /* reserving space */
+		struct kvm_pic_state pic;
+	} chip;
+};
+
 enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
 	KVM_EXIT_EXCEPTION        = 1,
@@ -299,6 +333,8 @@ struct kvm_signal_mask {
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
+#define KVM_GET_IRQCHIP		  _IOWR(KVMIO, 0x62, struct kvm_irqchip)
+#define KVM_SET_IRQCHIP		  _IOR(KVMIO,  0x63, struct kvm_irqchip)
 
 /*
  * ioctls for vcpu fds
