@@ -433,7 +433,7 @@ out:
  *
  * Only sctp_setsockopt_bindx() is supposed to call this function.
  */
-int sctp_bindx_add(struct sock *sk, struct sockaddr *addrs, int addrcnt)
+static int sctp_bindx_add(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 {
 	int cnt;
 	int retval = 0;
@@ -602,7 +602,7 @@ out:
  *
  * Only sctp_setsockopt_bindx() is supposed to call this function.
  */
-int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
+static int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_endpoint *ep = sp->ep;
@@ -5964,7 +5964,7 @@ static int sctp_wait_for_accept(struct sock *sk, long timeo)
 	return err;
 }
 
-void sctp_wait_for_close(struct sock *sk, long timeout)
+static void sctp_wait_for_close(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
 
