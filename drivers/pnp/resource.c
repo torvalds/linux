@@ -3,7 +3,6 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@suse.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
- *
  */
 
 #include <linux/module.h>
@@ -20,10 +19,10 @@
 #include <linux/pnp.h>
 #include "base.h"
 
-static int pnp_reserve_irq[16] = {[0...15] = -1 };	/* reserve (don't use) some IRQ */
-static int pnp_reserve_dma[8] = {[0...7] = -1 };	/* reserve (don't use) some DMA */
-static int pnp_reserve_io[16] = {[0...15] = -1 };	/* reserve (don't use) some I/O region */
-static int pnp_reserve_mem[16] = {[0...15] = -1 };	/* reserve (don't use) some memory region */
+static int pnp_reserve_irq[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some IRQ */
+static int pnp_reserve_dma[8] = {[0 ... 7] = -1 };	/* reserve (don't use) some DMA */
+static int pnp_reserve_io[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some I/O region */
+static int pnp_reserve_mem[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some memory region */
 
 /*
  * option registration
@@ -33,7 +32,6 @@ static struct pnp_option *pnp_build_option(int priority)
 {
 	struct pnp_option *option = pnp_alloc(sizeof(struct pnp_option));
 
-	/* check if pnp_alloc ran out of memory */
 	if (!option)
 		return NULL;
 
@@ -48,6 +46,7 @@ static struct pnp_option *pnp_build_option(int priority)
 struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev)
 {
 	struct pnp_option *option;
+
 	if (!dev)
 		return NULL;
 
@@ -64,6 +63,7 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 						 int priority)
 {
 	struct pnp_option *option;
+
 	if (!dev)
 		return NULL;
 
@@ -82,6 +82,7 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 int pnp_register_irq_resource(struct pnp_option *option, struct pnp_irq *data)
 {
 	struct pnp_irq *ptr;
+
 	if (!option)
 		return -EINVAL;
 	if (!data)
@@ -110,6 +111,7 @@ int pnp_register_irq_resource(struct pnp_option *option, struct pnp_irq *data)
 int pnp_register_dma_resource(struct pnp_option *option, struct pnp_dma *data)
 {
 	struct pnp_dma *ptr;
+
 	if (!option)
 		return -EINVAL;
 	if (!data)
@@ -129,6 +131,7 @@ int pnp_register_dma_resource(struct pnp_option *option, struct pnp_dma *data)
 int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
 {
 	struct pnp_port *ptr;
+
 	if (!option)
 		return -EINVAL;
 	if (!data)
@@ -148,6 +151,7 @@ int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
 int pnp_register_mem_resource(struct pnp_option *option, struct pnp_mem *data)
 {
 	struct pnp_mem *ptr;
+
 	if (!option)
 		return -EINVAL;
 	if (!data)
@@ -240,6 +244,7 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 	int tmp;
 	struct pnp_dev *tdev;
 	resource_size_t *port, *end, *tport, *tend;
+
 	port = &dev->res.port_resource[idx].start;
 	end = &dev->res.port_resource[idx].end;
 
@@ -297,6 +302,7 @@ int pnp_check_mem(struct pnp_dev *dev, int idx)
 	int tmp;
 	struct pnp_dev *tdev;
 	resource_size_t *addr, *end, *taddr, *tend;
+
 	addr = &dev->res.mem_resource[idx].start;
 	end = &dev->res.mem_resource[idx].end;
 
@@ -474,22 +480,12 @@ int pnp_check_dma(struct pnp_dev *dev, int idx)
 
 	return 1;
 #else
-	/* IA64 hasn't legacy DMA */
+	/* IA64 does not have legacy DMA */
 	return 0;
 #endif
 }
 
-#if 0
-EXPORT_SYMBOL(pnp_register_dependent_option);
-EXPORT_SYMBOL(pnp_register_independent_option);
-EXPORT_SYMBOL(pnp_register_irq_resource);
-EXPORT_SYMBOL(pnp_register_dma_resource);
-EXPORT_SYMBOL(pnp_register_port_resource);
-EXPORT_SYMBOL(pnp_register_mem_resource);
-#endif /*  0  */
-
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
-
 static int __init pnp_setup_reserve_irq(char *str)
 {
 	int i;
@@ -503,7 +499,6 @@ static int __init pnp_setup_reserve_irq(char *str)
 __setup("pnp_reserve_irq=", pnp_setup_reserve_irq);
 
 /* format is: pnp_reserve_dma=dma1[,dma2] .... */
-
 static int __init pnp_setup_reserve_dma(char *str)
 {
 	int i;
@@ -517,7 +512,6 @@ static int __init pnp_setup_reserve_dma(char *str)
 __setup("pnp_reserve_dma=", pnp_setup_reserve_dma);
 
 /* format is: pnp_reserve_io=io1,size1[,io2,size2] .... */
-
 static int __init pnp_setup_reserve_io(char *str)
 {
 	int i;
@@ -531,7 +525,6 @@ static int __init pnp_setup_reserve_io(char *str)
 __setup("pnp_reserve_io=", pnp_setup_reserve_io);
 
 /* format is: pnp_reserve_mem=mem1,size1[,mem2,size2] .... */
-
 static int __init pnp_setup_reserve_mem(char *str)
 {
 	int i;

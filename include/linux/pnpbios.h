@@ -134,7 +134,7 @@ struct pnp_bios_node {
 extern struct pnp_dev_node_info node_info;
 
 extern int pnp_bios_dev_node_info(struct pnp_dev_node_info *data);
-extern int pnp_bios_get_dev_node(u8 * nodenum, char config,
+extern int pnp_bios_get_dev_node(u8 *nodenum, char config,
 				 struct pnp_bios_node *data);
 extern int pnp_bios_set_dev_node(u8 nodenum, char config,
 				 struct pnp_bios_node *data);
@@ -143,14 +143,6 @@ extern int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data);
 extern int pnp_bios_escd_info(struct escd_info_struc *data);
 extern int pnp_bios_read_escd(char *data, u32 nvram_base);
 extern int pnp_bios_dock_station_info(struct pnp_docking_station_info *data);
-#define needed 0
-#if needed
-extern int pnp_bios_get_event(u16 * message);
-extern int pnp_bios_send_message(u16 message);
-extern int pnp_bios_set_stat_res(char *info);
-extern int pnp_bios_apm_id_table(char *table, u16 * size);
-extern int pnp_bios_write_escd(char *data, u32 nvram_base);
-#endif
 
 #endif /* CONFIG_PNPBIOS */
 

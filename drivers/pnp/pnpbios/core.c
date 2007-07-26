@@ -100,25 +100,24 @@ static struct completion unload_sem;
 /*
  * (Much of this belongs in a shared routine somewhere)
  */
-
 static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 {
 	char *argv[3], **envp, *buf, *scratch;
 	int i = 0, value;
 
-	if (!current->fs->root) {
+	if (!current->fs->root)
 		return -EAGAIN;
-	}
-	if (!(envp = kcalloc(20, sizeof(char *), GFP_KERNEL))) {
+	if (!(envp = kcalloc(20, sizeof(char *), GFP_KERNEL)))
 		return -ENOMEM;
-	}
 	if (!(buf = kzalloc(256, GFP_KERNEL))) {
 		kfree(envp);
 		return -ENOMEM;
 	}
 
-	/* FIXME: if there are actual users of this, it should be integrated into
-	 * the driver core and use the usual infrastructure like sysfs and uevents */
+	/* FIXME: if there are actual users of this, it should be
+	 * integrated into the driver core and use the usual infrastructure
+	 * like sysfs and uevents
+	 */
 	argv[0] = "/sbin/pnpbios";
 	argv[1] = "dock";
 	argv[2] = NULL;
@@ -146,7 +145,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 			   info->location_id, info->serial, info->capabilities);
 	envp[i] = NULL;
 
-	value = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
+	value = call_usermodehelper(argv [0], argv, envp, UMH_WAIT_EXEC);
 	kfree(buf);
 	kfree(envp);
 	return 0;
@@ -159,6 +158,7 @@ static int pnp_dock_thread(void *unused)
 {
 	static struct pnp_docking_station_info now;
 	int docked = -1, d = 0;
+
 	set_freezable();
 	while (!unloading) {
 		int status;
@@ -203,7 +203,7 @@ static int pnp_dock_thread(void *unused)
 	complete_and_exit(&unload_sem, 0);
 }
 
-#endif /* CONFIG_HOTPLUG */
+#endif				/* CONFIG_HOTPLUG */
 
 static int pnpbios_get_resources(struct pnp_dev *dev,
 				 struct pnp_resource_table *res)
@@ -211,7 +211,6 @@ static int pnpbios_get_resources(struct pnp_dev *dev,
 	u8 nodenum = dev->number;
 	struct pnp_bios_node *node;
 
-	/* just in case */
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
@@ -235,7 +234,6 @@ static int pnpbios_set_resources(struct pnp_dev *dev,
 	struct pnp_bios_node *node;
 	int ret;
 
-	/* just in case */
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
@@ -263,6 +261,7 @@ static void pnpbios_zero_data_stream(struct pnp_bios_node *node)
 	unsigned char *end = (char *)(node->data + node->size);
 	unsigned int len;
 	int i;
+
 	while ((char *)p < (char *)end) {
 		if (p[0] & 0x80) {	/* large tag */
 			len = (p[2] << 8) | p[1];
@@ -287,7 +286,6 @@ static int pnpbios_disable_resources(struct pnp_dev *dev)
 	u8 nodenum = dev->number;
 	int ret;
 
-	/* just in case */
 	if (dev->flags & PNPBIOS_NO_DISABLE || !pnpbios_is_dynamic(dev))
 		return -EPERM;
 
@@ -418,8 +416,8 @@ static void __init build_devlist(void)
  *
  */
 
-static int pnpbios_disabled;	/* = 0 */
-int pnpbios_dont_use_current_config;	/* = 0 */
+static int pnpbios_disabled;
+int pnpbios_dont_use_current_config;
 
 #ifndef MODULE
 static int __init pnpbios_setup(char *str)
@@ -551,7 +549,7 @@ static int __init pnpbios_init(void)
 		printk(KERN_INFO "PnPBIOS: Disabled by ACPI PNP\n");
 		return -ENODEV;
 	}
-#endif /* CONFIG_ACPI */
+#endif				/* CONFIG_ACPI */
 
 	/* scan the system for pnpbios support */
 	if (!pnpbios_probe_system())

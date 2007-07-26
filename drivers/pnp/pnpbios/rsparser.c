@@ -1,6 +1,5 @@
 /*
  * rsparser.c - parses and encodes pnpbios resource data streams
- *
  */
 
 #include <linux/ctype.h>
@@ -15,7 +14,7 @@
 inline void pcibios_penalize_isa_irq(int irq, int active)
 {
 }
-#endif /* CONFIG_PCI */
+#endif				/* CONFIG_PCI */
 
 #include "pnpbios.h"
 
@@ -54,10 +53,11 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
  * Allocated Resources
  */
 
-static void
-pnpbios_parse_allocated_irqresource(struct pnp_resource_table *res, int irq)
+static void pnpbios_parse_allocated_irqresource(struct pnp_resource_table *res,
+						int irq)
 {
 	int i = 0;
+
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET)
 	       && i < PNP_MAX_IRQ)
 		i++;
@@ -73,10 +73,11 @@ pnpbios_parse_allocated_irqresource(struct pnp_resource_table *res, int irq)
 	}
 }
 
-static void
-pnpbios_parse_allocated_dmaresource(struct pnp_resource_table *res, int dma)
+static void pnpbios_parse_allocated_dmaresource(struct pnp_resource_table *res,
+						int dma)
 {
 	int i = 0;
+
 	while (i < PNP_MAX_DMA &&
 	       !(res->dma_resource[i].flags & IORESOURCE_UNSET))
 		i++;
@@ -91,11 +92,11 @@ pnpbios_parse_allocated_dmaresource(struct pnp_resource_table *res, int dma)
 	}
 }
 
-static void
-pnpbios_parse_allocated_ioresource(struct pnp_resource_table *res, int io,
-				   int len)
+static void pnpbios_parse_allocated_ioresource(struct pnp_resource_table *res,
+					       int io, int len)
 {
 	int i = 0;
+
 	while (!(res->port_resource[i].flags & IORESOURCE_UNSET)
 	       && i < PNP_MAX_PORT)
 		i++;
@@ -110,11 +111,11 @@ pnpbios_parse_allocated_ioresource(struct pnp_resource_table *res, int io,
 	}
 }
 
-static void
-pnpbios_parse_allocated_memresource(struct pnp_resource_table *res, int mem,
-				    int len)
+static void pnpbios_parse_allocated_memresource(struct pnp_resource_table *res,
+						int mem, int len)
 {
 	int i = 0;
+
 	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET)
 	       && i < PNP_MAX_MEM)
 		i++;
@@ -261,10 +262,11 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
  * Resource Configuration Options
  */
 
-static void
-pnpbios_parse_mem_option(unsigned char *p, int size, struct pnp_option *option)
+static void pnpbios_parse_mem_option(unsigned char *p, int size,
+				     struct pnp_option *option)
 {
 	struct pnp_mem *mem;
+
 	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
@@ -274,14 +276,13 @@ pnpbios_parse_mem_option(unsigned char *p, int size, struct pnp_option *option)
 	mem->size = ((p[11] << 8) | p[10]) << 8;
 	mem->flags = p[3];
 	pnp_register_mem_resource(option, mem);
-	return;
 }
 
-static void
-pnpbios_parse_mem32_option(unsigned char *p, int size,
-			   struct pnp_option *option)
+static void pnpbios_parse_mem32_option(unsigned char *p, int size,
+				       struct pnp_option *option)
 {
 	struct pnp_mem *mem;
+
 	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
@@ -291,12 +292,10 @@ pnpbios_parse_mem32_option(unsigned char *p, int size,
 	mem->size = (p[19] << 24) | (p[18] << 16) | (p[17] << 8) | p[16];
 	mem->flags = p[3];
 	pnp_register_mem_resource(option, mem);
-	return;
 }
 
-static void
-pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
-				 struct pnp_option *option)
+static void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
+					     struct pnp_option *option)
 {
 	struct pnp_mem *mem;
 	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
@@ -307,11 +306,10 @@ pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
 	mem->align = 0;
 	mem->flags = p[3];
 	pnp_register_mem_resource(option, mem);
-	return;
 }
 
-static void
-pnpbios_parse_irq_option(unsigned char *p, int size, struct pnp_option *option)
+static void pnpbios_parse_irq_option(unsigned char *p, int size,
+				     struct pnp_option *option)
 {
 	struct pnp_irq *irq;
 	unsigned long bits;
@@ -326,26 +324,26 @@ pnpbios_parse_irq_option(unsigned char *p, int size, struct pnp_option *option)
 	else
 		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
 	pnp_register_irq_resource(option, irq);
-	return;
 }
 
-static void
-pnpbios_parse_dma_option(unsigned char *p, int size, struct pnp_option *option)
+static void pnpbios_parse_dma_option(unsigned char *p, int size,
+				     struct pnp_option *option)
 {
 	struct pnp_dma *dma;
+
 	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
 	if (!dma)
 		return;
 	dma->map = p[1];
 	dma->flags = p[2];
 	pnp_register_dma_resource(option, dma);
-	return;
 }
 
-static void
-pnpbios_parse_port_option(unsigned char *p, int size, struct pnp_option *option)
+static void pnpbios_parse_port_option(unsigned char *p, int size,
+				      struct pnp_option *option)
 {
 	struct pnp_port *port;
+
 	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
@@ -355,14 +353,13 @@ pnpbios_parse_port_option(unsigned char *p, int size, struct pnp_option *option)
 	port->size = p[7];
 	port->flags = p[1] ? PNP_PORT_FLAG_16BITADDR : 0;
 	pnp_register_port_resource(option, port);
-	return;
 }
 
-static void
-pnpbios_parse_fixed_port_option(unsigned char *p, int size,
-				struct pnp_option *option)
+static void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
+					    struct pnp_option *option)
 {
 	struct pnp_port *port;
+
 	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
@@ -371,7 +368,6 @@ pnpbios_parse_fixed_port_option(unsigned char *p, int size,
 	port->align = 0;
 	port->flags = PNP_PORT_FLAG_FIXED;
 	pnp_register_port_resource(option, port);
-	return;
 }
 
 static unsigned char *pnpbios_parse_resource_option_data(unsigned char *p,
@@ -498,7 +494,6 @@ static unsigned char *pnpbios_parse_resource_option_data(unsigned char *p,
 
 #define HEX(id,a) hex[((id)>>a) & 15]
 #define CHAR(id,a) (0x40 + (((id)>>a) & 31))
-//
 
 void pnpid32_to_pnpid(u32 id, char *str)
 {
@@ -513,11 +508,8 @@ void pnpid32_to_pnpid(u32 id, char *str)
 	str[5] = HEX(id, 4);
 	str[6] = HEX(id, 0);
 	str[7] = '\0';
-
-	return;
 }
 
-//
 #undef CHAR
 #undef HEX
 
@@ -598,19 +590,20 @@ static void pnpbios_encode_mem(unsigned char *p, struct resource *res)
 {
 	unsigned long base = res->start;
 	unsigned long len = res->end - res->start + 1;
+
 	p[4] = (base >> 8) & 0xff;
 	p[5] = ((base >> 8) >> 8) & 0xff;
 	p[6] = (base >> 8) & 0xff;
 	p[7] = ((base >> 8) >> 8) & 0xff;
 	p[10] = (len >> 8) & 0xff;
 	p[11] = ((len >> 8) >> 8) & 0xff;
-	return;
 }
 
 static void pnpbios_encode_mem32(unsigned char *p, struct resource *res)
 {
 	unsigned long base = res->start;
 	unsigned long len = res->end - res->start + 1;
+
 	p[4] = base & 0xff;
 	p[5] = (base >> 8) & 0xff;
 	p[6] = (base >> 16) & 0xff;
@@ -623,13 +616,13 @@ static void pnpbios_encode_mem32(unsigned char *p, struct resource *res)
 	p[17] = (len >> 8) & 0xff;
 	p[18] = (len >> 16) & 0xff;
 	p[19] = (len >> 24) & 0xff;
-	return;
 }
 
 static void pnpbios_encode_fixed_mem32(unsigned char *p, struct resource *res)
 {
 	unsigned long base = res->start;
 	unsigned long len = res->end - res->start + 1;
+
 	p[4] = base & 0xff;
 	p[5] = (base >> 8) & 0xff;
 	p[6] = (base >> 16) & 0xff;
@@ -638,46 +631,45 @@ static void pnpbios_encode_fixed_mem32(unsigned char *p, struct resource *res)
 	p[9] = (len >> 8) & 0xff;
 	p[10] = (len >> 16) & 0xff;
 	p[11] = (len >> 24) & 0xff;
-	return;
 }
 
 static void pnpbios_encode_irq(unsigned char *p, struct resource *res)
 {
 	unsigned long map = 0;
+
 	map = 1 << res->start;
 	p[1] = map & 0xff;
 	p[2] = (map >> 8) & 0xff;
-	return;
 }
 
 static void pnpbios_encode_dma(unsigned char *p, struct resource *res)
 {
 	unsigned long map = 0;
+
 	map = 1 << res->start;
 	p[1] = map & 0xff;
-	return;
 }
 
 static void pnpbios_encode_port(unsigned char *p, struct resource *res)
 {
 	unsigned long base = res->start;
 	unsigned long len = res->end - res->start + 1;
+
 	p[2] = base & 0xff;
 	p[3] = (base >> 8) & 0xff;
 	p[4] = base & 0xff;
 	p[5] = (base >> 8) & 0xff;
 	p[7] = len & 0xff;
-	return;
 }
 
 static void pnpbios_encode_fixed_port(unsigned char *p, struct resource *res)
 {
 	unsigned long base = res->start;
 	unsigned long len = res->end - res->start + 1;
+
 	p[1] = base & 0xff;
 	p[2] = (base >> 8) & 0xff;
 	p[3] = len & 0xff;
-	return;
 }
 
 static unsigned char *pnpbios_encode_allocated_resource_data(unsigned char *p,
@@ -792,6 +784,7 @@ int pnpbios_parse_data_stream(struct pnp_dev *dev, struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
+
 	p = pnpbios_parse_allocated_resource_data(p, end, &dev->res);
 	if (!p)
 		return -EIO;
@@ -804,24 +797,24 @@ int pnpbios_parse_data_stream(struct pnp_dev *dev, struct pnp_bios_node *node)
 	return 0;
 }
 
-int
-pnpbios_read_resources_from_node(struct pnp_resource_table *res,
-				 struct pnp_bios_node *node)
+int pnpbios_read_resources_from_node(struct pnp_resource_table *res,
+				     struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
+
 	p = pnpbios_parse_allocated_resource_data(p, end, res);
 	if (!p)
 		return -EIO;
 	return 0;
 }
 
-int
-pnpbios_write_resources_to_node(struct pnp_resource_table *res,
-				struct pnp_bios_node *node)
+int pnpbios_write_resources_to_node(struct pnp_resource_table *res,
+				    struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
+
 	p = pnpbios_encode_allocated_resource_data(p, end, res);
 	if (!p)
 		return -EIO;

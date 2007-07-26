@@ -2,7 +2,6 @@
  *  ISA Plug & Play support
  *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
  *
- *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -139,11 +137,12 @@ static int __exit isapnp_proc_detach_bus(struct pnp_card *bus)
 	remove_proc_entry(name, isapnp_proc_bus_dir);
 	return 0;
 }
-#endif /* MODULE */
+#endif				/* MODULE */
 
 int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
+
 	isapnp_proc_bus_dir = proc_mkdir("isapnp", proc_bus);
 	protocol_for_each_dev(&isapnp_protocol, dev) {
 		isapnp_proc_attach_device(dev);
@@ -167,4 +166,4 @@ int __exit isapnp_proc_done(void)
 		remove_proc_entry("isapnp", proc_bus);
 	return 0;
 }
-#endif /* MODULE */
+#endif				/* MODULE */

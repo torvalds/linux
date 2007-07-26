@@ -3,7 +3,6 @@
  *
  * Some code, especially possible resource dumping is based on isapnp_proc.c (c) Jaroslav Kysela <perex@suse.cz>
  * Copyright 2002 Adam Belay <ambx1@neo.rr.com>
- *
  */
 
 #include <linux/pnp.h>
@@ -488,6 +487,7 @@ static DEVICE_ATTR(id, S_IRUGO, pnp_show_current_ids, NULL);
 int pnp_interface_attach_device(struct pnp_dev *dev)
 {
 	int rc = device_create_file(&dev->dev, &dev_attr_options);
+
 	if (rc)
 		goto err;
 	rc = device_create_file(&dev->dev, &dev_attr_resources);

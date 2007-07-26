@@ -2,7 +2,6 @@
  * driver.c - device id matching, driver model, etc.
  *
  * Copyright 2002 Adam Belay <ambx1@neo.rr.com>
- *
  */
 
 #include <linux/string.h>
@@ -16,6 +15,7 @@
 static int compare_func(const char *ida, const char *idb)
 {
 	int i;
+
 	/* we only need to compare the last 4 chars */
 	for (i = 3; i < 7; i++) {
 		if (ida[i] != 'X' &&
@@ -44,6 +44,7 @@ static const struct pnp_device_id *match_device(struct pnp_driver *drv,
 						struct pnp_dev *dev)
 {
 	const struct pnp_device_id *drv_id = drv->id_table;
+
 	if (!drv_id)
 		return NULL;
 
@@ -140,6 +141,7 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
 	struct pnp_driver *pnp_drv = to_pnp_driver(drv);
+
 	if (match_device(pnp_drv, pnp_dev) == NULL)
 		return 0;
 	return 1;
@@ -197,12 +199,12 @@ static int pnp_bus_resume(struct device *dev)
 }
 
 struct bus_type pnp_bus_type = {
-	.name = "pnp",
-	.match = pnp_bus_match,
-	.probe = pnp_device_probe,
-	.remove = pnp_device_remove,
+	.name    = "pnp",
+	.match   = pnp_bus_match,
+	.probe   = pnp_device_probe,
+	.remove  = pnp_device_remove,
 	.suspend = pnp_bus_suspend,
-	.resume = pnp_bus_resume,
+	.resume  = pnp_bus_resume,
 };
 
 int pnp_register_driver(struct pnp_driver *drv)
@@ -225,12 +227,11 @@ void pnp_unregister_driver(struct pnp_driver *drv)
  * pnp_add_id - adds an EISA id to the specified device
  * @id: pointer to a pnp_id structure
  * @dev: pointer to the desired device
- *
  */
-
 int pnp_add_id(struct pnp_id *id, struct pnp_dev *dev)
 {
 	struct pnp_id *ptr;
+
 	if (!id)
 		return -EINVAL;
 	if (!dev)
@@ -248,8 +249,5 @@ int pnp_add_id(struct pnp_id *id, struct pnp_dev *dev)
 
 EXPORT_SYMBOL(pnp_register_driver);
 EXPORT_SYMBOL(pnp_unregister_driver);
-#if 0
-EXPORT_SYMBOL(pnp_add_id);
-#endif
 EXPORT_SYMBOL(pnp_device_attach);
 EXPORT_SYMBOL(pnp_device_detach);

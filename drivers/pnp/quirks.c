@@ -105,7 +105,6 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 	if (changed)
 		printk(KERN_INFO
 		       "pnp: SB audio device quirk - increasing port range\n");
-	return;
 }
 
 static int quirk_smc_fir_enabled(struct pnp_dev *dev)

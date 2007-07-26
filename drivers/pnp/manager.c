@@ -3,7 +3,6 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@suse.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
- *
  */
 
 #include <linux/errno.h>
@@ -222,11 +221,11 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 /**
  * pnp_init_resources - Resets a resource table to default values.
  * @table: pointer to the desired resource table
- *
  */
 void pnp_init_resource_table(struct pnp_resource_table *table)
 {
 	int idx;
+
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
 		table->irq_resource[idx].name = NULL;
 		table->irq_resource[idx].start = -1;
@@ -260,11 +259,11 @@ void pnp_init_resource_table(struct pnp_resource_table *table)
 /**
  * pnp_clean_resources - clears resources that were not manually set
  * @res: the resources to clean
- *
  */
 static void pnp_clean_resource_table(struct pnp_resource_table *res)
 {
 	int idx;
+
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
 		if (!(res->irq_resource[idx].flags & IORESOURCE_AUTO))
 			continue;
@@ -410,6 +409,7 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 {
 	int i;
 	struct pnp_resource_table *bak;
+
 	if (!dev || !res)
 		return -EINVAL;
 	if (!pnp_can_configure(dev))
@@ -454,7 +454,6 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 /**
  * pnp_auto_config_dev - automatically assigns resources to a device
  * @dev: pointer to the desired device
- *
  */
 int pnp_auto_config_dev(struct pnp_dev *dev)
 {
@@ -491,9 +490,8 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
  * pnp_start_dev - low-level start of the PnP device
  * @dev: pointer to the desired device
  *
- * assumes that resources have alread been allocated
+ * assumes that resources have already been allocated
  */
-
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
@@ -508,7 +506,6 @@ int pnp_start_dev(struct pnp_dev *dev)
 	}
 
 	pnp_info("Device %s activated.", dev->dev.bus_id);
-
 	return 0;
 }
 
@@ -518,7 +515,6 @@ int pnp_start_dev(struct pnp_dev *dev)
  *
  * does not free resources
  */
-
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
@@ -532,7 +528,6 @@ int pnp_stop_dev(struct pnp_dev *dev)
 	}
 
 	pnp_info("Device %s disabled.", dev->dev.bus_id);
-
 	return 0;
 }
 
@@ -548,9 +543,8 @@ int pnp_activate_dev(struct pnp_dev *dev)
 
 	if (!dev)
 		return -EINVAL;
-	if (dev->active) {
+	if (dev->active)
 		return 0;	/* the device is already active */
-	}
 
 	/* ensure resources are allocated */
 	if (pnp_auto_config_dev(dev))
@@ -561,7 +555,6 @@ int pnp_activate_dev(struct pnp_dev *dev)
 		return error;
 
 	dev->active = 1;
-
 	return 1;
 }
 
@@ -577,9 +570,8 @@ int pnp_disable_dev(struct pnp_dev *dev)
 
 	if (!dev)
 		return -EINVAL;
-	if (!dev->active) {
+	if (!dev->active)
 		return 0;	/* the device is already disabled */
-	}
 
 	error = pnp_stop_dev(dev);
 	if (error)
@@ -600,7 +592,6 @@ int pnp_disable_dev(struct pnp_dev *dev)
  * @resource: pointer to resource to be changed
  * @start: start of region
  * @size: size of region
- *
  */
 void pnp_resource_change(struct resource *resource, resource_size_t start,
 			 resource_size_t size)
@@ -613,9 +604,6 @@ void pnp_resource_change(struct resource *resource, resource_size_t start,
 }
 
 EXPORT_SYMBOL(pnp_manual_config_dev);
-#if 0
-EXPORT_SYMBOL(pnp_auto_config_dev);
-#endif
 EXPORT_SYMBOL(pnp_start_dev);
 EXPORT_SYMBOL(pnp_stop_dev);
 EXPORT_SYMBOL(pnp_activate_dev);

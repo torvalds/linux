@@ -45,8 +45,7 @@ static void reserve_range(const char *pnpid, resource_size_t start,
 	 * example do reserve stuff they know about too, so we may well
 	 * have double reservations.
 	 */
-	printk(KERN_INFO
-	       "pnp: %s: %s range 0x%llx-0x%llx %s reserved\n",
+	printk(KERN_INFO "pnp: %s: %s range 0x%llx-0x%llx %s reserved\n",
 	       pnpid, port ? "ioport" : "iomem",
 	       (unsigned long long)start, (unsigned long long)end,
 	       NULL != res ? "has been" : "could not be");
@@ -85,8 +84,6 @@ static void reserve_resources_of_dev(const struct pnp_dev *dev)
 		reserve_range(dev->dev.bus_id, pnp_mem_start(dev, i),
 			      pnp_mem_end(dev, i), 0);
 	}
-
-	return;
 }
 
 static int system_pnp_probe(struct pnp_dev *dev,
@@ -97,11 +94,10 @@ static int system_pnp_probe(struct pnp_dev *dev,
 }
 
 static struct pnp_driver system_pnp_driver = {
-	.name = "system",
+	.name     = "system",
 	.id_table = pnp_dev_table,
-	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
-	.probe = system_pnp_probe,
-	.remove = NULL,
+	.flags    = PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.probe    = system_pnp_probe,
 };
 
 static int __init pnp_system_init(void)

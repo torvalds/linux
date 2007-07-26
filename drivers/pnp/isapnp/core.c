@@ -252,7 +252,6 @@ static inline void isapnp_set_rdp(void)
  *	Perform an isolation. The port selection code now tries to avoid
  *	"dangerous to read" ports.
  */
-
 static int __init isapnp_isolate_rdp_select(void)
 {
 	isapnp_wait();
@@ -281,7 +280,6 @@ static int __init isapnp_isolate_rdp_select(void)
 /*
  *  Isolate (assign uniqued CSN) to all ISA PnP devices.
  */
-
 static int __init isapnp_isolate(void)
 {
 	unsigned char checksum = 0x6a;
@@ -352,7 +350,6 @@ static int __init isapnp_isolate(void)
 /*
  *  Read one tag from stream.
  */
-
 static int __init isapnp_read_tag(unsigned char *type, unsigned short *size)
 {
 	unsigned char tag, tmp[2];
@@ -380,7 +377,6 @@ static int __init isapnp_read_tag(unsigned char *type, unsigned short *size)
 /*
  *  Skip specified number of bytes from stream.
  */
-
 static void __init isapnp_skip_bytes(int count)
 {
 	isapnp_peek(NULL, count);
@@ -389,11 +385,11 @@ static void __init isapnp_skip_bytes(int count)
 /*
  *  Parse EISA id.
  */
-
 static void isapnp_parse_id(struct pnp_dev *dev, unsigned short vendor,
 			    unsigned short device)
 {
 	struct pnp_id *id;
+
 	if (!dev)
 		return;
 	id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
@@ -411,7 +407,6 @@ static void isapnp_parse_id(struct pnp_dev *dev, unsigned short vendor,
 /*
  *  Parse logical device tag.
  */
-
 static struct pnp_dev *__init isapnp_parse_device(struct pnp_card *card,
 						  int size, int number)
 {
@@ -440,7 +435,6 @@ static struct pnp_dev *__init isapnp_parse_device(struct pnp_card *card,
 /*
  *  Add IRQ resource to resources list.
  */
-
 static void __init isapnp_parse_irq_resource(struct pnp_option *option,
 					     int size)
 {
@@ -459,13 +453,11 @@ static void __init isapnp_parse_irq_resource(struct pnp_option *option,
 	else
 		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
 	pnp_register_irq_resource(option, irq);
-	return;
 }
 
 /*
  *  Add DMA resource to resources list.
  */
-
 static void __init isapnp_parse_dma_resource(struct pnp_option *option,
 					     int size)
 {
@@ -479,13 +471,11 @@ static void __init isapnp_parse_dma_resource(struct pnp_option *option,
 	dma->map = tmp[0];
 	dma->flags = tmp[1];
 	pnp_register_dma_resource(option, dma);
-	return;
 }
 
 /*
  *  Add port resource to resources list.
  */
-
 static void __init isapnp_parse_port_resource(struct pnp_option *option,
 					      int size)
 {
@@ -502,13 +492,11 @@ static void __init isapnp_parse_port_resource(struct pnp_option *option,
 	port->size = tmp[6];
 	port->flags = tmp[0] ? PNP_PORT_FLAG_16BITADDR : 0;
 	pnp_register_port_resource(option, port);
-	return;
 }
 
 /*
  *  Add fixed port resource to resources list.
  */
-
 static void __init isapnp_parse_fixed_port_resource(struct pnp_option *option,
 						    int size)
 {
@@ -524,13 +512,11 @@ static void __init isapnp_parse_fixed_port_resource(struct pnp_option *option,
 	port->align = 0;
 	port->flags = PNP_PORT_FLAG_FIXED;
 	pnp_register_port_resource(option, port);
-	return;
 }
 
 /*
  *  Add memory resource to resources list.
  */
-
 static void __init isapnp_parse_mem_resource(struct pnp_option *option,
 					     int size)
 {
@@ -547,13 +533,11 @@ static void __init isapnp_parse_mem_resource(struct pnp_option *option,
 	mem->size = ((tmp[8] << 8) | tmp[7]) << 8;
 	mem->flags = tmp[0];
 	pnp_register_mem_resource(option, mem);
-	return;
 }
 
 /*
  *  Add 32-bit memory resource to resources list.
  */
-
 static void __init isapnp_parse_mem32_resource(struct pnp_option *option,
 					       int size)
 {
@@ -577,7 +561,6 @@ static void __init isapnp_parse_mem32_resource(struct pnp_option *option,
 /*
  *  Add 32-bit fixed memory resource to resources list.
  */
-
 static void __init isapnp_parse_fixed_mem32_resource(struct pnp_option *option,
 						     int size)
 {
@@ -599,7 +582,6 @@ static void __init isapnp_parse_fixed_mem32_resource(struct pnp_option *option,
 /*
  *  Parse card name for ISA PnP device.
  */
-
 static void __init
 isapnp_parse_name(char *name, unsigned int name_max, unsigned short *size)
 {
@@ -619,7 +601,6 @@ isapnp_parse_name(char *name, unsigned int name_max, unsigned short *size)
 /*
  *  Parse resource map for logical device.
  */
-
 static int __init isapnp_create_device(struct pnp_card *card,
 				       unsigned short size)
 {
@@ -627,6 +608,7 @@ static int __init isapnp_create_device(struct pnp_card *card,
 	unsigned char type, tmp[17];
 	struct pnp_option *option;
 	struct pnp_dev *dev;
+
 	if ((dev = isapnp_parse_device(card, size, number++)) == NULL)
 		return 1;
 	option = pnp_register_independent_option(dev);
@@ -761,7 +743,6 @@ static int __init isapnp_create_device(struct pnp_card *card,
 /*
  *  Parse resource map for ISA PnP card.
  */
-
 static void __init isapnp_parse_resource_map(struct pnp_card *card)
 {
 	unsigned char type, tmp[17];
@@ -816,7 +797,6 @@ static void __init isapnp_parse_resource_map(struct pnp_card *card)
 /*
  *  Compute ISA PnP checksum for first eight bytes.
  */
-
 static unsigned char __init isapnp_checksum(unsigned char *data)
 {
 	int i, j;
@@ -839,11 +819,11 @@ static unsigned char __init isapnp_checksum(unsigned char *data)
 /*
  *  Parse EISA id for ISA PnP card.
  */
-
 static void isapnp_parse_card_id(struct pnp_card *card, unsigned short vendor,
 				 unsigned short device)
 {
 	struct pnp_id *id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+
 	if (!id)
 		return;
 	sprintf(id->id, "%c%c%c%x%x%x%x",
@@ -858,7 +838,6 @@ static void isapnp_parse_card_id(struct pnp_card *card, unsigned short vendor,
 /*
  *  Build device list for all present ISA PnP devices.
  */
-
 static int __init isapnp_build_device_list(void)
 {
 	int csn;
@@ -911,6 +890,7 @@ static int __init isapnp_build_device_list(void)
 int isapnp_present(void)
 {
 	struct pnp_card *card;
+
 	pnp_for_each_card(card) {
 		if (card->protocol == &isapnp_protocol)
 			return 1;
@@ -953,7 +933,7 @@ int isapnp_cfg_end(void)
 }
 
 /*
- *  Inititialization.
+ *  Initialization.
  */
 
 EXPORT_SYMBOL(isapnp_protocol);

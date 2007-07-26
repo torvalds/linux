@@ -1,6 +1,5 @@
 /*
  * bioscalls.c - the lowlevel layer of the PnPBIOS driver
- *
  */
 
 #include <linux/types.h>
@@ -52,7 +51,8 @@ __asm__(".text			\n"
 	"	pushl %eax	\n"
 	"	lcallw *pnp_bios_callpoint\n"
 	"	addl $16, %esp	\n"
-	"	lret		\n" ".previous		\n");
+	"	lret		\n"
+	".previous		\n");
 
 #define Q2_SET_SEL(cpu, selname, address, size) \
 do { \
@@ -125,7 +125,8 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 			     "popl %%es\n\t"
 			     "popl %%ds\n\t"
 			     "popl %%esi\n\t"
-			     "popl %%edi\n\t" "popl %%ebp\n\t":"=a"(status)
+			     "popl %%edi\n\t"
+			     "popl %%ebp\n\t":"=a"(status)
 			     :"0"((func) | (((u32) arg1) << 16)),
 			     "b"((arg2) | (((u32) arg3) << 16)),
 			     "c"((arg4) | (((u32) arg5) << 16)),
@@ -253,12 +254,12 @@ void pnpbios_print_status(const char *module, u16 status)
 static int __pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_NUM_SYS_DEV_NODES, 0, PNP_TS1, 2, PNP_TS1,
-			  PNP_DS, 0, 0, data, sizeof(struct pnp_dev_node_info),
-			  NULL, 0);
+	status = call_pnp_bios(PNP_GET_NUM_SYS_DEV_NODES, 0, PNP_TS1, 2,
+			       PNP_TS1, PNP_DS, 0, 0, data,
+			       sizeof(struct pnp_dev_node_info), NULL, 0);
 	data->no_nodes &= 0xff;
 	return status;
 }
@@ -266,6 +267,7 @@ static int __pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
 int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
 {
 	int status = __pnp_bios_dev_node_info(data);
+
 	if (status)
 		pnpbios_print_status("dev_node_info", status);
 	return status;
@@ -285,27 +287,28 @@ int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
  *               or volatile current (0) config
  * Output: *nodenum=next node or 0xff if no more nodes
  */
-static int __pnp_bios_get_dev_node(u8 * nodenum, char boot,
+static int __pnp_bios_get_dev_node(u8 *nodenum, char boot,
 				   struct pnp_bios_node *data)
 {
 	u16 status;
 	u16 tmp_nodenum;
+
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	tmp_nodenum = *nodenum;
-	status =
-	    call_pnp_bios(PNP_GET_SYS_DEV_NODE, 0, PNP_TS1, 0, PNP_TS2,
-			  boot ? 2 : 1, PNP_DS, 0, &tmp_nodenum,
-			  sizeof(tmp_nodenum), data, 65536);
+	status = call_pnp_bios(PNP_GET_SYS_DEV_NODE, 0, PNP_TS1, 0, PNP_TS2,
+			       boot ? 2 : 1, PNP_DS, 0, &tmp_nodenum,
+			       sizeof(tmp_nodenum), data, 65536);
 	*nodenum = tmp_nodenum;
 	return status;
 }
 
-int pnp_bios_get_dev_node(u8 * nodenum, char boot, struct pnp_bios_node *data)
+int pnp_bios_get_dev_node(u8 *nodenum, char boot, struct pnp_bios_node *data)
 {
 	int status;
+
 	status = __pnp_bios_get_dev_node(nodenum, boot, data);
 	if (status)
 		pnpbios_print_status("get_dev_node", status);
@@ -322,19 +325,21 @@ static int __pnp_bios_set_dev_node(u8 nodenum, char boot,
 				   struct pnp_bios_node *data)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_SET_SYS_DEV_NODE, nodenum, 0, PNP_TS1,
-			  boot ? 2 : 1, PNP_DS, 0, 0, data, 65536, NULL, 0);
+	status = call_pnp_bios(PNP_SET_SYS_DEV_NODE, nodenum, 0, PNP_TS1,
+			       boot ? 2 : 1, PNP_DS, 0, 0, data, 65536, NULL,
+			       0);
 	return status;
 }
 
 int pnp_bios_set_dev_node(u8 nodenum, char boot, struct pnp_bios_node *data)
 {
 	int status;
+
 	status = __pnp_bios_set_dev_node(nodenum, boot, data);
 	if (status) {
 		pnpbios_print_status("set_dev_node", status);
@@ -348,68 +353,21 @@ int pnp_bios_set_dev_node(u8 nodenum, char boot, struct pnp_bios_node *data)
 	return status;
 }
 
-#if needed
-/*
- * Call PnP BIOS with function 0x03, "get event"
- */
-static int pnp_bios_get_event(u16 * event)
-{
-	u16 status;
-	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status = call_pnp_bios(PNP_GET_EVENT, 0, PNP_TS1, PNP_DS, 0, 0, 0, 0,
-			       event, sizeof(u16), NULL, 0);
-	return status;
-}
-#endif
-
-#if needed
-/*
- * Call PnP BIOS with function 0x04, "send message"
- */
-static int pnp_bios_send_message(u16 message)
-{
-	u16 status;
-	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_SEND_MESSAGE, message, PNP_DS, 0, 0, 0, 0, 0, 0,
-			  0, 0, 0);
-	return status;
-}
-#endif
-
 /*
  * Call PnP BIOS with function 0x05, "get docking station information"
  */
 int pnp_bios_dock_station_info(struct pnp_docking_station_info *data)
 {
 	u16 status;
-	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_DOCKING_STATION_INFORMATION, 0, PNP_TS1,
-			  PNP_DS, 0, 0, 0, 0, data,
-			  sizeof(struct pnp_docking_station_info), NULL, 0);
-	return status;
-}
 
-#if needed
-/*
- * Call PnP BIOS with function 0x09, "set statically allocated resource
- * information"
- */
-static int pnp_bios_set_stat_res(char *info)
-{
-	u16 status;
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_SET_STATIC_ALLOCED_RES_INFO, 0, PNP_TS1, PNP_DS,
-			  0, 0, 0, 0, info, *((u16 *) info), 0, 0);
+	status = call_pnp_bios(PNP_GET_DOCKING_STATION_INFORMATION, 0, PNP_TS1,
+			       PNP_DS, 0, 0, 0, 0, data,
+			       sizeof(struct pnp_docking_station_info), NULL,
+			       0);
 	return status;
 }
-#endif
 
 /*
  * Call PnP BIOS with function 0x0a, "get statically allocated resource
@@ -418,38 +376,23 @@ static int pnp_bios_set_stat_res(char *info)
 static int __pnp_bios_get_stat_res(char *info)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_STATIC_ALLOCED_RES_INFO, 0, PNP_TS1, PNP_DS,
-			  0, 0, 0, 0, info, 65536, NULL, 0);
+	status = call_pnp_bios(PNP_GET_STATIC_ALLOCED_RES_INFO, 0, PNP_TS1,
+			       PNP_DS, 0, 0, 0, 0, info, 65536, NULL, 0);
 	return status;
 }
 
 int pnp_bios_get_stat_res(char *info)
 {
 	int status;
+
 	status = __pnp_bios_get_stat_res(info);
 	if (status)
 		pnpbios_print_status("get_stat_res", status);
 	return status;
 }
-
-#if needed
-/*
- * Call PnP BIOS with function 0x0b, "get APM id table"
- */
-static int pnp_bios_apm_id_table(char *table, u16 * size)
-{
-	u16 status;
-	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_APM_ID_TABLE, 0, PNP_TS2, 0, PNP_TS1, PNP_DS,
-			  0, 0, table, *size, size, sizeof(u16));
-	return status;
-}
-#endif
 
 /*
  * Call PnP BIOS with function 0x40, "get isa pnp configuration structure"
@@ -457,18 +400,19 @@ static int pnp_bios_apm_id_table(char *table, u16 * size)
 static int __pnp_bios_isapnp_config(struct pnp_isa_config_struc *data)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_PNP_ISA_CONFIG_STRUC, 0, PNP_TS1, PNP_DS, 0,
-			  0, 0, 0, data, sizeof(struct pnp_isa_config_struc),
-			  NULL, 0);
+	status = call_pnp_bios(PNP_GET_PNP_ISA_CONFIG_STRUC, 0, PNP_TS1, PNP_DS,
+			       0, 0, 0, 0, data,
+			       sizeof(struct pnp_isa_config_struc), NULL, 0);
 	return status;
 }
 
 int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data)
 {
 	int status;
+
 	status = __pnp_bios_isapnp_config(data);
 	if (status)
 		pnpbios_print_status("isapnp_config", status);
@@ -481,18 +425,19 @@ int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data)
 static int __pnp_bios_escd_info(struct escd_info_struc *data)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return ESCD_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_GET_ESCD_INFO, 0, PNP_TS1, 2, PNP_TS1, 4, PNP_TS1,
-			  PNP_DS, data, sizeof(struct escd_info_struc), NULL,
-			  0);
+	status = call_pnp_bios(PNP_GET_ESCD_INFO, 0, PNP_TS1, 2, PNP_TS1, 4,
+			       PNP_TS1, PNP_DS, data,
+			       sizeof(struct escd_info_struc), NULL, 0);
 	return status;
 }
 
 int pnp_bios_escd_info(struct escd_info_struc *data)
 {
 	int status;
+
 	status = __pnp_bios_escd_info(data);
 	if (status)
 		pnpbios_print_status("escd_info", status);
@@ -506,46 +451,28 @@ int pnp_bios_escd_info(struct escd_info_struc *data)
 static int __pnp_bios_read_escd(char *data, u32 nvram_base)
 {
 	u16 status;
+
 	if (!pnp_bios_present())
 		return ESCD_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_READ_ESCD, 0, PNP_TS1, PNP_TS2, PNP_DS, 0, 0, 0,
-			  data, 65536, __va(nvram_base), 65536);
+	status = call_pnp_bios(PNP_READ_ESCD, 0, PNP_TS1, PNP_TS2, PNP_DS, 0, 0,
+			       0, data, 65536, __va(nvram_base), 65536);
 	return status;
 }
 
 int pnp_bios_read_escd(char *data, u32 nvram_base)
 {
 	int status;
+
 	status = __pnp_bios_read_escd(data, nvram_base);
 	if (status)
 		pnpbios_print_status("read_escd", status);
 	return status;
 }
 
-#if needed
-/*
- * Call PnP BIOS function 0x43, "write ESCD"
- */
-static int pnp_bios_write_escd(char *data, u32 nvram_base)
-{
-	u16 status;
-	if (!pnp_bios_present())
-		return ESCD_FUNCTION_NOT_SUPPORTED;
-	status =
-	    call_pnp_bios(PNP_WRITE_ESCD, 0, PNP_TS1, PNP_TS2, PNP_DS, 0, 0, 0,
-			  data, 65536, __va(nvram_base), 65536);
-	return status;
-}
-#endif
-
-/*
- * Initialization
- */
-
 void pnpbios_calls_init(union pnp_bios_install_struct *header)
 {
 	int i;
+
 	spin_lock_init(&pnp_bios_lock);
 	pnp_bios_callpoint.offset = header->fields.pm16offset;
 	pnp_bios_callpoint.segment = PNP_CS16;

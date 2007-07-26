@@ -18,9 +18,6 @@
  * The other files are human-readable.
  */
 
-//#include <pcmcia/config.h>
-//#include <pcmcia/k_compat.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -297,6 +294,4 @@ void __exit pnpbios_proc_exit(void)
 	remove_proc_entry("devices", proc_pnp);
 	remove_proc_entry("boot", proc_pnp);
 	remove_proc_entry("pnp", proc_bus);
-
-	return;
 }

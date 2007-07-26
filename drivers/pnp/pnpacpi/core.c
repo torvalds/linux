@@ -34,9 +34,9 @@ static int num = 0;
  * used by the kernel (PCI root, ...), as it is harmless and there were
  * already present in pnpbios. But there is an exception for devices that
  * have irqs (PIC, Timer) because we call acpi_register_gsi.
- * Finaly only devices that have a CRS method need to be in this list.
+ * Finally, only devices that have a CRS method need to be in this list.
  */
-static __initdata struct acpi_device_id excluded_id_list[] = {
+static struct __initdata acpi_device_id excluded_id_list[] = {
 	{"PNP0C09", 0},		/* EC */
 	{"PNP0C0F", 0},		/* Link device */
 	{"PNP0000", 0},		/* PIC */
@@ -88,6 +88,7 @@ static int pnpacpi_get_resources(struct pnp_dev *dev,
 				 struct pnp_resource_table *res)
 {
 	acpi_status status;
+
 	status = pnpacpi_parse_allocated_resource((acpi_handle) dev->data,
 						  &dev->res);
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
@@ -141,9 +142,9 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 }
 
 static struct pnp_protocol pnpacpi_protocol = {
-	.name = "Plug and Play ACPI",
-	.get = pnpacpi_get_resources,
-	.set = pnpacpi_set_resources,
+	.name	 = "Plug and Play ACPI",
+	.get	 = pnpacpi_get_resources,
+	.set	 = pnpacpi_set_resources,
 	.disable = pnpacpi_disable_resources,
 	.suspend = pnpacpi_suspend,
 	.resume = pnpacpi_resume,
@@ -168,7 +169,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		return -ENOMEM;
 	}
 	dev->data = device->handle;
-	/* .enabled means if the device can decode the resources */
+	/* .enabled means the device can decode the resources */
 	dev->active = device->status.enabled;
 	status = acpi_get_handle(device->handle, "_SRS", &temp);
 	if (ACPI_SUCCESS(status))
@@ -200,8 +201,8 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 
 	if (dev->active) {
 		/* parse allocated resource */
-		status =
-		    pnpacpi_parse_allocated_resource(device->handle, &dev->res);
+		status = pnpacpi_parse_allocated_resource(device->handle,
+							  &dev->res);
 		if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 			pnp_err("PnPACPI: METHOD_NAME__CRS failure for %s",
 				dev_id->id);
@@ -294,7 +295,7 @@ static int __init acpi_pnp_find_device(struct device *dev, acpi_handle * handle)
  * pnpdev->dev.archdata.acpi_handle point to its ACPI sibling.
  */
 static struct acpi_bus_type __initdata acpi_pnp_bus = {
-	.bus = &pnp_bus_type,
+	.bus	     = &pnp_bus_type,
 	.find_device = acpi_pnp_find_device,
 };
 
@@ -327,7 +328,3 @@ static int __init pnpacpi_setup(char *str)
 }
 
 __setup("pnpacpi=", pnpacpi_setup);
-
-#if 0
-EXPORT_SYMBOL(pnpacpi_protocol);
-#endif
