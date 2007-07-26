@@ -31,20 +31,12 @@
 static DEFINE_MUTEX(edac_pci_ctls_mutex);
 static struct list_head edac_pci_list = LIST_HEAD_INIT(edac_pci_list);
 
-static inline void edac_lock_pci_list(void)
-{
-	mutex_lock(&edac_pci_ctls_mutex);
-}
-
-static inline void edac_unlock_pci_list(void)
-{
-	mutex_unlock(&edac_pci_ctls_mutex);
-}
-
 /*
- * The alloc() and free() functions for the 'edac_pci' control info
- * structure. The chip driver will allocate one of these for each
- * edac_pci it is going to control/register with the EDAC CORE.
+ * edac_pci_alloc_ctl_info
+ *
+ *	The alloc() function for the 'edac_pci' control info
+ *	structure. The chip driver will allocate one of these for each
+ *	edac_pci it is going to control/register with the EDAC CORE.
  */
 struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 						const char *edac_pci_name)
@@ -53,47 +45,59 @@ struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 	void *pvt;
 	unsigned int size;
 
+	debugf1("%s()\n", __func__);
+
 	pci = (struct edac_pci_ctl_info *)0;
 	pvt = edac_align_ptr(&pci[1], sz_pvt);
 	size = ((unsigned long)pvt) + sz_pvt;
 
-	if ((pci = kzalloc(size, GFP_KERNEL)) == NULL)
+	/* Alloc the needed control struct memory */
+	pci = kzalloc(size, GFP_KERNEL);
+	if (pci  == NULL)
 		return NULL;
 
+	/* Now much private space */
 	pvt = sz_pvt ? ((char *)pci) + ((unsigned long)pvt) : NULL;
 
 	pci->pvt_info = pvt;
-
 	pci->op_state = OP_ALLOC;
 
 	snprintf(pci->name, strlen(edac_pci_name) + 1, "%s", edac_pci_name);
 
 	return pci;
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
 
 /*
  * edac_pci_free_ctl_info()
- * 	frees the memory allocated by edac_pci_alloc_ctl_info() function
+ *
+ *	Last action on the pci control structure.
+ *
+ *	call the remove sysfs informaton, which will unregister
+ *	this control struct's kobj. When that kobj's ref count
+ *	goes to zero, its release function will be call and then
+ *	kfree() the memory.
  */
 void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci)
 {
-	kfree(pci);
-}
+	debugf1("%s()\n", __func__);
 
+	edac_pci_remove_sysfs(pci);
+}
 EXPORT_SYMBOL_GPL(edac_pci_free_ctl_info);
 
 /*
  * find_edac_pci_by_dev()
  * 	scans the edac_pci list for a specific 'struct device *'
+ *
+ *	return NULL if not found, or return control struct pointer
  */
 static struct edac_pci_ctl_info *find_edac_pci_by_dev(struct device *dev)
 {
 	struct edac_pci_ctl_info *pci;
 	struct list_head *item;
 
-	debugf3("%s()\n", __func__);
+	debugf1("%s()\n", __func__);
 
 	list_for_each(item, &edac_pci_list) {
 		pci = list_entry(item, struct edac_pci_ctl_info, link);
@@ -118,10 +122,13 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 	struct list_head *item, *insert_before;
 	struct edac_pci_ctl_info *rover;
 
+	debugf1("%s()\n", __func__);
+
 	insert_before = &edac_pci_list;
 
 	/* Determine if already on the list */
-	if (unlikely((rover = find_edac_pci_by_dev(pci->dev)) != NULL))
+	rover = find_edac_pci_by_dev(pci->dev);
+	if (unlikely(rover != NULL))
 		goto fail0;
 
 	/* Insert in ascending order by 'pci_idx', so find position */
@@ -157,6 +164,8 @@ fail1:
 
 /*
  * complete_edac_pci_list_del
+ *
+ *	RCU completion callback to indicate item is deleted
  */
 static void complete_edac_pci_list_del(struct rcu_head *head)
 {
@@ -169,6 +178,8 @@ static void complete_edac_pci_list_del(struct rcu_head *head)
 
 /*
  * del_edac_pci_from_global_list
+ *
+ *	remove the PCI control struct from the global list
  */
 static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 {
@@ -207,35 +218,52 @@ struct edac_pci_ctl_info *edac_pci_find(int idx)
 
 	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_find);
 
 /*
  * edac_pci_workq_function()
- * 	performs the operation scheduled by a workq request
+ *
+ * 	periodic function that performs the operation
+ *	scheduled by a workq request, for a given PCI control struct
  */
 static void edac_pci_workq_function(struct work_struct *work_req)
 {
 	struct delayed_work *d_work = (struct delayed_work *)work_req;
 	struct edac_pci_ctl_info *pci = to_edac_pci_ctl_work(d_work);
+	int msec;
+	unsigned long delay;
 
-	edac_lock_pci_list();
+	debugf3("%s() checking\n", __func__);
 
-	if ((pci->op_state == OP_RUNNING_POLL) &&
-		(pci->edac_check != NULL) && (edac_pci_get_check_errors()))
-		pci->edac_check(pci);
+	mutex_lock(&edac_pci_ctls_mutex);
 
-	edac_unlock_pci_list();
+	if (pci->op_state == OP_RUNNING_POLL) {
+		/* we might be in POLL mode, but there may NOT be a poll func
+		 */
+		if ((pci->edac_check != NULL) && edac_pci_get_check_errors())
+			pci->edac_check(pci);
 
-	/* Reschedule */
-	queue_delayed_work(edac_workqueue, &pci->work,
-			msecs_to_jiffies(edac_pci_get_poll_msec()));
+		/* if we are on a one second period, then use round */
+		msec = edac_pci_get_poll_msec();
+		if (msec == 1000)
+			delay = round_jiffies(msecs_to_jiffies(msec));
+		else
+			delay = msecs_to_jiffies(msec);
+
+		/* Reschedule only if we are in POLL mode */
+		queue_delayed_work(edac_workqueue, &pci->work, delay);
+	}
+
+	mutex_unlock(&edac_pci_ctls_mutex);
 }
 
 /*
  * edac_pci_workq_setup()
  * 	initialize a workq item for this edac_pci instance
  * 	passing in the new delay period in msec
+ *
+ *	locking model:
+ *		called when 'edac_pci_ctls_mutex' is locked
  */
 static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 				 unsigned int msec)
@@ -255,6 +283,8 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 {
 	int status;
 
+	debugf0("%s()\n", __func__);
+
 	status = cancel_delayed_work(&pci->work);
 	if (status == 0)
 		flush_workqueue(edac_workqueue);
@@ -262,19 +292,25 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 
 /*
  * edac_pci_reset_delay_period
+ *
+ *	called with a new period value for the workq period
+ *	a) stop current workq timer
+ *	b) restart workq timer with new value
  */
 void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
 				 unsigned long value)
 {
-	edac_lock_pci_list();
+	debugf0("%s()\n", __func__);
 
 	edac_pci_workq_teardown(pci);
 
+	/* need to lock for the setup */
+	mutex_lock(&edac_pci_ctls_mutex);
+
 	edac_pci_workq_setup(pci, value);
 
-	edac_unlock_pci_list();
+	mutex_unlock(&edac_pci_ctls_mutex);
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_reset_delay_period);
 
 /*
@@ -294,13 +330,12 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 	debugf0("%s()\n", __func__);
 
 	pci->pci_idx = edac_idx;
+	pci->start_time = jiffies;
 
-	edac_lock_pci_list();
+	mutex_lock(&edac_pci_ctls_mutex);
 
 	if (add_edac_pci_to_global_list(pci))
 		goto fail0;
-
-	pci->start_time = jiffies;
 
 	if (edac_pci_create_sysfs(pci)) {
 		edac_pci_printk(pci, KERN_WARNING,
@@ -323,16 +358,16 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 			pci->ctl_name,
 			dev_name(pci), edac_op_state_to_string(pci->op_state));
 
-	edac_unlock_pci_list();
+	mutex_unlock(&edac_pci_ctls_mutex);
 	return 0;
 
+	/* error unwind stack */
 fail1:
 	del_edac_pci_from_global_list(pci);
 fail0:
-	edac_unlock_pci_list();
+	mutex_unlock(&edac_pci_ctls_mutex);
 	return 1;
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_add_device);
 
 /*
@@ -354,22 +389,25 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	debugf0("%s()\n", __func__);
 
-	edac_lock_pci_list();
+	mutex_lock(&edac_pci_ctls_mutex);
 
-	if ((pci = find_edac_pci_by_dev(dev)) == NULL) {
-		edac_unlock_pci_list();
+	/* ensure the control struct is on the global list
+	 * if not, then leave
+	 */
+	pci = find_edac_pci_by_dev(dev);
+	if (pci  == NULL) {
+		mutex_unlock(&edac_pci_ctls_mutex);
 		return NULL;
 	}
 
 	pci->op_state = OP_OFFLINE;
 
-	edac_pci_workq_teardown(pci);
-
-	edac_pci_remove_sysfs(pci);
-
 	del_edac_pci_from_global_list(pci);
 
-	edac_unlock_pci_list();
+	mutex_unlock(&edac_pci_ctls_mutex);
+
+	/* stop the workq timer */
+	edac_pci_workq_teardown(pci);
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",
@@ -377,14 +415,20 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	return pci;
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_del_device);
 
+/*
+ * edac_pci_generic_check
+ *
+ *	a Generic parity check API
+ */
 void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
 {
+	debugf4("%s()\n", __func__);
 	edac_pci_do_parity_check();
 }
 
+/* free running instance index counter */
 static int edac_pci_idx;
 #define EDAC_PCI_GENCTL_NAME	"EDAC PCI controller"
 
@@ -392,6 +436,17 @@ struct edac_pci_gen_data {
 	int edac_idx;
 };
 
+/*
+ * edac_pci_create_generic_ctl
+ *
+ *	A generic constructor for a PCI parity polling device
+ *	Some systems have more than one domain of PCI busses.
+ *	For systems with one domain, then this API will
+ *	provide for a generic poller.
+ *
+ *	This routine calls the edac_pci_alloc_ctl_info() for
+ *	the generic device, with default values
+ */
 struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 						const char *mod_name)
 {
@@ -421,13 +476,18 @@ struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 
 	return pci;
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_create_generic_ctl);
 
+/*
+ * edac_pci_release_generic_ctl
+ *
+ *	The release function of a generic EDAC PCI polling device
+ */
 void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci)
 {
+	debugf0("%s() pci mod=%s\n", __func__, pci->mod_name);
+
 	edac_pci_del_device(pci->dev);
 	edac_pci_free_ctl_info(pci);
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_release_generic_ctl);

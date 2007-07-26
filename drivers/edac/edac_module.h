@@ -66,6 +66,10 @@ extern int edac_sysfs_pci_setup(void);
 extern void edac_sysfs_pci_teardown(void);
 extern int edac_pci_get_check_errors(void);
 extern int edac_pci_get_poll_msec(void);
+extern void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci);
+extern void edac_pci_handle_pe(struct edac_pci_ctl_info *pci, const char *msg);
+extern void edac_pci_handle_npe(struct edac_pci_ctl_info *pci,
+				const char *msg);
 #else				/* CONFIG_PCI */
 /* pre-process these away */
 #define edac_pci_do_parity_check()
@@ -74,6 +78,8 @@ extern int edac_pci_get_poll_msec(void);
 #define edac_sysfs_pci_teardown()
 #define edac_pci_get_check_errors()
 #define edac_pci_get_poll_msec()
+#define edac_pci_handle_pe()
+#define edac_pci_handle_npe()
 #endif				/* CONFIG_PCI */
 
 #endif				/* __EDAC_MODULE_H__ */
