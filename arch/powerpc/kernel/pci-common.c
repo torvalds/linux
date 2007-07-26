@@ -65,7 +65,7 @@ static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 	spin_unlock(&hose_spinlock);
 }
 
-struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
+__init_refok struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 

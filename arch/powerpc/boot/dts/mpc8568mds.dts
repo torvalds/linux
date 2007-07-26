@@ -170,6 +170,12 @@
 			interrupt-parent = <&mpic>;
 		};
 
+		global-utilities@e0000 {	//global utilities block
+			compatible = "fsl,mpc8548-guts";
+			reg = <e0000 1000>;
+			fsl,has-rstcr;
+		};
+
 		pci@8000 {
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
