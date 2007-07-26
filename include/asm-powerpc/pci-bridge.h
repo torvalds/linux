@@ -71,6 +71,14 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return bus->sysdata;
 }
 
+static inline int isa_vaddr_is_ioport(void __iomem *address)
+{
+	/* No specific ISA handling on ppc32 at this stage, it
+	 * all goes through PCI
+	 */
+	return 0;
+}
+
 /* These are used for config access before all the PCI probing
    has been done. */
 int early_read_config_byte(struct pci_controller *hose, int bus, int dev_fn,
@@ -241,6 +249,13 @@ extern void pcibios_free_controller(struct pci_controller *phb);
 
 extern void isa_bridge_find_early(struct pci_controller *hose);
 
+static inline int isa_vaddr_is_ioport(void __iomem *address)
+{
+	/* Check if address hits the reserved legacy IO range */
+	unsigned long ea = (unsigned long)address;
+	return ea >= ISA_IO_BASE && ea < ISA_IO_END;
+}
+
 extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);
 
@@ -271,10 +286,15 @@ extern struct pci_controller *
 pcibios_alloc_controller(struct device_node *dev);
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
+extern int pcibios_vaddr_is_ioport(void __iomem *address);
 #else
 static inline unsigned long pci_address_to_pio(phys_addr_t address)
 {
 	return (unsigned long)-1;
+}
+static inline int pcibios_vaddr_is_ioport(void __iomem *address)
+{
+	return 0;
 }
 #endif
 

@@ -101,6 +101,29 @@ void pcibios_free_controller(struct pci_controller *phb)
 		kfree(phb);
 }
 
+int pcibios_vaddr_is_ioport(void __iomem *address)
+{
+	int ret = 0;
+	struct pci_controller *hose;
+	unsigned long size;
+
+	spin_lock(&hose_spinlock);
+	list_for_each_entry(hose, &hose_list, list_node) {
+#ifdef CONFIG_PPC64
+		size = hose->pci_io_size;
+#else
+		size = hose->io_resource.end - hose->io_resource.start + 1;
+#endif
+		if (address >= hose->io_base_virt &&
+		    address < (hose->io_base_virt + size)) {
+			ret = 1;
+			break;
+		}
+	}
+	spin_unlock(&hose_spinlock);
+	return ret;
+}
+
 /*
  * Return the domain number for this bus.
  */
