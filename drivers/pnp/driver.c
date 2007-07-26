@@ -17,11 +17,9 @@ static int compare_func(const char *ida, const char *idb)
 {
 	int i;
 	/* we only need to compare the last 4 chars */
-	for (i=3; i<7; i++)
-	{
+	for (i = 3; i < 7; i++) {
 		if (ida[i] != 'X' &&
-		    idb[i] != 'X' &&
-		    toupper(ida[i]) != toupper(idb[i]))
+		    idb[i] != 'X' && toupper(ida[i]) != toupper(idb[i]))
 			return 0;
 	}
 	return 1;
@@ -31,18 +29,19 @@ int compare_pnp_id(struct pnp_id *pos, const char *id)
 {
 	if (!pos || !id || (strlen(id) != 7))
 		return 0;
-	if (memcmp(id,"ANYDEVS",7)==0)
+	if (memcmp(id, "ANYDEVS", 7) == 0)
 		return 1;
-	while (pos){
-		if (memcmp(pos->id,id,3)==0)
-			if (compare_func(pos->id,id)==1)
+	while (pos) {
+		if (memcmp(pos->id, id, 3) == 0)
+			if (compare_func(pos->id, id) == 1)
 				return 1;
 		pos = pos->next;
 	}
 	return 0;
 }
 
-static const struct pnp_device_id * match_device(struct pnp_driver *drv, struct pnp_dev *dev)
+static const struct pnp_device_id *match_device(struct pnp_driver *drv,
+						struct pnp_dev *dev)
 {
 	const struct pnp_device_id *drv_id = drv->id_table;
 	if (!drv_id)
@@ -59,7 +58,7 @@ static const struct pnp_device_id * match_device(struct pnp_driver *drv, struct 
 int pnp_device_attach(struct pnp_dev *pnp_dev)
 {
 	spin_lock(&pnp_lock);
-	if(pnp_dev->status != PNP_READY){
+	if (pnp_dev->status != PNP_READY) {
 		spin_unlock(&pnp_lock);
 		return -EBUSY;
 	}
@@ -86,7 +85,8 @@ static int pnp_device_probe(struct device *dev)
 	pnp_dev = to_pnp_dev(dev);
 	pnp_drv = to_pnp_driver(dev->driver);
 
-	pnp_dbg("match found with the PnP device '%s' and the driver '%s'", dev->bus_id,pnp_drv->name);
+	pnp_dbg("match found with the PnP device '%s' and the driver '%s'",
+		dev->bus_id, pnp_drv->name);
 
 	error = pnp_device_attach(pnp_dev);
 	if (error < 0)
@@ -99,7 +99,7 @@ static int pnp_device_probe(struct device *dev)
 				return error;
 		}
 	} else if ((pnp_drv->flags & PNP_DRIVER_RES_DISABLE)
-		    == PNP_DRIVER_RES_DISABLE) {
+		   == PNP_DRIVER_RES_DISABLE) {
 		error = pnp_disable_dev(pnp_dev);
 		if (error < 0)
 			return error;
@@ -110,22 +110,22 @@ static int pnp_device_probe(struct device *dev)
 		if (dev_id != NULL)
 			error = pnp_drv->probe(pnp_dev, dev_id);
 	}
-	if (error >= 0){
+	if (error >= 0) {
 		pnp_dev->driver = pnp_drv;
 		error = 0;
 	} else
 		goto fail;
 	return error;
 
-fail:
+      fail:
 	pnp_device_detach(pnp_dev);
 	return error;
 }
 
 static int pnp_device_remove(struct device *dev)
 {
-	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
-	struct pnp_driver * drv = pnp_dev->driver;
+	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver *drv = pnp_dev->driver;
 
 	if (drv) {
 		if (drv->remove)
@@ -138,8 +138,8 @@ static int pnp_device_remove(struct device *dev)
 
 static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
-	struct pnp_driver * pnp_drv = to_pnp_driver(drv);
+	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver *pnp_drv = to_pnp_driver(drv);
 	if (match_device(pnp_drv, pnp_dev) == NULL)
 		return 0;
 	return 1;
@@ -147,8 +147,8 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 
 static int pnp_bus_suspend(struct device *dev, pm_message_t state)
 {
-	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
-	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver *pnp_drv = pnp_dev->driver;
 	int error;
 
 	if (!pnp_drv)
@@ -162,9 +162,9 @@ static int pnp_bus_suspend(struct device *dev, pm_message_t state)
 
 	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE) &&
 	    pnp_can_disable(pnp_dev)) {
-	    	error = pnp_stop_dev(pnp_dev);
-	    	if (error)
-	    		return error;
+		error = pnp_stop_dev(pnp_dev);
+		if (error)
+			return error;
 	}
 
 	if (pnp_dev->protocol && pnp_dev->protocol->suspend)
@@ -174,8 +174,8 @@ static int pnp_bus_suspend(struct device *dev, pm_message_t state)
 
 static int pnp_bus_resume(struct device *dev)
 {
-	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
-	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver *pnp_drv = pnp_dev->driver;
 	int error;
 
 	if (!pnp_drv)
@@ -197,10 +197,10 @@ static int pnp_bus_resume(struct device *dev)
 }
 
 struct bus_type pnp_bus_type = {
-	.name	= "pnp",
-	.match	= pnp_bus_match,
-	.probe	= pnp_device_probe,
-	.remove	= pnp_device_remove,
+	.name = "pnp",
+	.match = pnp_bus_match,
+	.probe = pnp_device_probe,
+	.remove = pnp_device_remove,
 	.suspend = pnp_bus_suspend,
 	.resume = pnp_bus_resume,
 };

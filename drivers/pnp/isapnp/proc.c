@@ -54,7 +54,8 @@ static loff_t isapnp_proc_bus_lseek(struct file *file, loff_t off, int whence)
 	return (file->f_pos = new);
 }
 
-static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
+				    size_t nbytes, loff_t * ppos)
 {
 	struct inode *ino = file->f_path.dentry->d_inode;
 	struct proc_dir_entry *dp = PDE(ino);
@@ -74,7 +75,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t 
 		return -EINVAL;
 
 	isapnp_cfg_begin(dev->card->number, dev->number);
-	for ( ; pos < 256 && cnt > 0; pos++, buf++, cnt--) {
+	for (; pos < 256 && cnt > 0; pos++, buf++, cnt--) {
 		unsigned char val;
 		val = isapnp_read_byte(pos);
 		__put_user(val, buf);
@@ -85,10 +86,9 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t 
 	return nbytes;
 }
 
-static const struct file_operations isapnp_proc_bus_file_operations =
-{
-	.llseek		= isapnp_proc_bus_lseek,
-	.read		= isapnp_proc_bus_read,
+static const struct file_operations isapnp_proc_bus_file_operations = {
+	.llseek = isapnp_proc_bus_lseek,
+	.read = isapnp_proc_bus_read,
 };
 
 static int isapnp_proc_attach_device(struct pnp_dev *dev)
@@ -145,7 +145,7 @@ int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
 	isapnp_proc_bus_dir = proc_mkdir("isapnp", proc_bus);
-	protocol_for_each_dev(&isapnp_protocol,dev) {
+	protocol_for_each_dev(&isapnp_protocol, dev) {
 		isapnp_proc_attach_device(dev);
 	}
 	return 0;
