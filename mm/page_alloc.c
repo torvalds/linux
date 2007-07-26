@@ -2775,11 +2775,11 @@ unsigned long __meminit __absent_pages_in_range(int nid,
 	if (i == -1)
 		return 0;
 
+	prev_end_pfn = min(early_node_map[i].start_pfn, range_end_pfn);
+
 	/* Account for ranges before physical memory on this node */
 	if (early_node_map[i].start_pfn > range_start_pfn)
-		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
-
-	prev_end_pfn = early_node_map[i].start_pfn;
+		hole_pages = prev_end_pfn - range_start_pfn;
 
 	/* Find all holes for the zone within the node */
 	for (; i != -1; i = next_active_region_index_in_nid(i, nid)) {
