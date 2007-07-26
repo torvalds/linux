@@ -71,7 +71,7 @@ struct nfs_access_entry {
 
 struct nfs4_state;
 struct nfs_open_context {
-	struct kref kref;
+	atomic_t count;
 	struct path path;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
