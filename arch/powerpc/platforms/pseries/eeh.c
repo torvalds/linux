@@ -169,6 +169,8 @@ static void rtas_slot_error_detail(struct pci_dn *pdn, int severity,
  */
 static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 {
+	struct device_node *dn;
+	struct pci_dev *dev = pdn->pcidev;
 	u32 cfg;
 	int cap, i;
 	int n = 0;
@@ -183,6 +185,17 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 	rtas_read_config(pdn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
 	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
+
+	/* Gather bridge-specific registers */
+	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
+		rtas_read_config(pdn, PCI_SEC_STATUS, 2, &cfg);
+		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
+		printk(KERN_WARNING "EEH: Bridge secondary status: %04x\n", cfg);
+
+		rtas_read_config(pdn, PCI_BRIDGE_CONTROL, 2, &cfg);
+		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
+		printk(KERN_WARNING "EEH: Bridge control: %04x\n", cfg);
+	}
 
 	/* Dump out the PCI-X command and status regs */
 	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_PCIX);
@@ -209,7 +222,7 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
 
-		cap = pci_find_ext_capability(pdn->pcidev,PCI_EXT_CAP_ID_ERR);
+		cap = pci_find_ext_capability(pdn->pcidev, PCI_EXT_CAP_ID_ERR);
 		if (cap) {
 			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
 			printk(KERN_WARNING
@@ -222,6 +235,18 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 			}
 		}
 	}
+
+	/* Gather status on devices under the bridge */
+	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
+		dn = pdn->node->child;
+		while (dn) {
+			pdn = PCI_DN(dn);
+			if (pdn)
+				n += gather_pci_data(pdn, buf+n, len-n);
+			dn = dn->sibling;
+		}
+	}
+
 	return n;
 }
 
