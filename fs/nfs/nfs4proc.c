@@ -332,11 +332,9 @@ static int can_open_cached(struct nfs4_state *state, int mode)
 	switch (mode & (FMODE_READ|FMODE_WRITE|O_EXCL)) {
 		case FMODE_READ:
 			ret |= test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0;
-			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
 			break;
 		case FMODE_WRITE:
 			ret |= test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0;
-			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
 			break;
 		case FMODE_READ|FMODE_WRITE:
 			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
@@ -1260,7 +1258,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	nfs_increment_open_seqid(task->tk_status, calldata->arg.seqid);
 	switch (task->tk_status) {
 		case 0:
-			nfs_set_open_stateid(state, &calldata->res.stateid, calldata->arg.open_flags);
+			nfs_set_open_stateid(state, &calldata->res.stateid, 0);
 			renew_lease(server, calldata->timestamp);
 			break;
 		case -NFS4ERR_STALE_STATEID:
@@ -1286,23 +1284,19 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		.rpc_cred = state->owner->so_cred,
 	};
 	int clear_rd, clear_wr, clear_rdwr;
-	int mode;
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
 
-	mode = FMODE_READ|FMODE_WRITE;
 	clear_rd = clear_wr = clear_rdwr = 0;
 	spin_lock(&state->owner->so_lock);
 	/* Calculate the change in open mode */
 	if (state->n_rdwr == 0) {
 		if (state->n_rdonly == 0) {
-			mode &= ~FMODE_READ;
 			clear_rd |= test_and_clear_bit(NFS_O_RDONLY_STATE, &state->flags);
 			clear_rdwr |= test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags);
 		}
 		if (state->n_wronly == 0) {
-			mode &= ~FMODE_WRITE;
 			clear_wr |= test_and_clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 			clear_rdwr |= test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags);
 		}
@@ -1314,9 +1308,13 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		return;
 	}
 	nfs_fattr_init(calldata->res.fattr);
-	if (mode != 0)
+	if (test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0) {
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-	calldata->arg.open_flags = mode;
+		calldata->arg.open_flags = FMODE_READ;
+	} else if (test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0) {
+		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
+		calldata->arg.open_flags = FMODE_WRITE;
+	}
 	calldata->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 }
