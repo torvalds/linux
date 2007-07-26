@@ -3,7 +3,7 @@
 /*
  *	timers.c -- generic ColdFire hardware timer support.
  *
- *	Copyright (C) 1999-2006, Greg Ungerer (gerg@snapgear.com)
+ *	Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  */
 
 /***************************************************************************/
@@ -13,8 +13,8 @@
 #include <linux/param.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
@@ -62,17 +62,24 @@ void coldfire_tick(void)
 
 /***************************************************************************/
 
+static struct irqaction coldfire_timer_irq = {
+        .name    = "timer",
+        .flags   = IRQF_DISABLED | IRQF_TIMER,
+};
+
 static int ticks_per_intr;
 
 void coldfire_timer_init(irq_handler_t handler)
 {
+	coldfire_timer_irq.handler = handler;
+	setup_irq(mcf_timervector, &coldfire_timer_irq);
+
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
 	ticks_per_intr = (MCF_BUSCLK / 16) / HZ;
 	__raw_writetrr(ticks_per_intr - 1, TA(MCFTIMER_TRR));
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
-	request_irq(mcf_timervector, handler, IRQF_DISABLED, "timer", NULL);
 	mcf_settimericr(1, mcf_timerlevel);
 
 #ifdef CONFIG_HIGHPROFILE
