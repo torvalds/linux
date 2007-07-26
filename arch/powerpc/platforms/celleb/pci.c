@@ -288,8 +288,8 @@ static inline void celleb_setup_pci_base_addrs(struct pci_controller *hose,
 	celleb_config_write_fake(config, PCI_COMMAND, 2, val);
 }
 
-static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
-						  struct pci_controller *hose)
+static int __init celleb_setup_fake_pci_device(struct device_node *node,
+					       struct pci_controller *hose)
 {
 	unsigned int rlen;
 	int num_base_addr = 0;
@@ -418,8 +418,8 @@ error:
 	return 1;
 }
 
-static int __devinit phb_set_bus_ranges(struct device_node *dev,
-					struct pci_controller *phb)
+static int __init phb_set_bus_ranges(struct device_node *dev,
+				     struct pci_controller *phb)
 {
 	const int *bus_range;
 	unsigned int len;
@@ -434,7 +434,7 @@ static int __devinit phb_set_bus_ranges(struct device_node *dev,
 	return 0;
 }
 
-static void __devinit celleb_alloc_private_mem(struct pci_controller *hose)
+static void __init celleb_alloc_private_mem(struct pci_controller *hose)
 {
 	if (mem_init_done)
 		hose->private_data =
@@ -444,7 +444,7 @@ static void __devinit celleb_alloc_private_mem(struct pci_controller *hose)
 			alloc_bootmem(sizeof(struct celleb_pci_private));
 }
 
-int __devinit celleb_setup_phb(struct pci_controller *phb)
+int __init celleb_setup_phb(struct pci_controller *phb)
 {
 	const char *name;
 	struct device_node *dev = phb->arch_data;
