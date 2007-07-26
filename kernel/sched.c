@@ -383,13 +383,12 @@ static inline unsigned long long rq_clock(struct rq *rq)
  */
 unsigned long long cpu_clock(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
 	unsigned long long now;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rq->lock, flags);
-	now = rq_clock(rq);
-	spin_unlock_irqrestore(&rq->lock, flags);
+	local_irq_save(flags);
+	now = rq_clock(cpu_rq(cpu));
+	local_irq_restore(flags);
 
 	return now;
 }
