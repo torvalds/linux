@@ -145,6 +145,9 @@ static int __bind_irq_vector(int irq, int vector, cpumask_t domain)
 	int cpu;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
+	BUG_ON((unsigned)irq >= NR_IRQS);
+	BUG_ON((unsigned)vector >= IA64_NUM_VECTORS);
+
 	cpus_and(mask, domain, cpu_online_map);
 	if (cpus_empty(mask))
 		return -EINVAL;
