@@ -244,6 +244,30 @@ unsigned long get_dma_buffer(struct lguest *lg, unsigned long key,
 /* hypercalls.c: */
 void do_hypercalls(struct lguest *lg);
 
+/*L:035
+ * Let's step aside for the moment, to study one important routine that's used
+ * widely in the Host code.
+ *
+ * There are many cases where the Guest does something invalid, like pass crap
+ * to a hypercall.  Since only the Guest kernel can make hypercalls, it's quite
+ * acceptable to simply terminate the Guest and give the Launcher a nicely
+ * formatted reason.  It's also simpler for the Guest itself, which doesn't
+ * need to check most hypercalls for "success"; if you're still running, it
+ * succeeded.
+ *
+ * Once this is called, the Guest will never run again, so most Host code can
+ * call this then continue as if nothing had happened.  This means many
+ * functions don't have to explicitly return an error code, which keeps the
+ * code simple.
+ *
+ * It also means that this can be called more than once: only the first one is
+ * remembered.  The only trick is that we still need to kill the Guest even if
+ * we can't allocate memory to store the reason.  Linux has a neat way of
+ * packing error codes into invalid pointers, so we use that here.
+ *
+ * Like any macro which uses an "if", it is safely wrapped in a run-once "do {
+ * } while(0)".
+ */
 #define kill_guest(lg, fmt...)					\
 do {								\
 	if (!(lg)->dead) {					\
@@ -252,6 +276,7 @@ do {								\
 			(lg)->dead = ERR_PTR(-ENOMEM);		\
 	}							\
 } while(0)
+/* (End of aside) :*/
 
 static inline unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
 {

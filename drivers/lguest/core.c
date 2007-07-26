@@ -208,24 +208,39 @@ static int emulate_insn(struct lguest *lg)
 	return 1;
 }
 
+/*L:305
+ * Dealing With Guest Memory.
+ *
+ * When the Guest gives us (what it thinks is) a physical address, we can use
+ * the normal copy_from_user() & copy_to_user() on that address: remember,
+ * Guest physical == Launcher virtual.
+ *
+ * But we can't trust the Guest: it might be trying to access the Launcher
+ * code.  We have to check that the range is below the pfn_limit the Launcher
+ * gave us.  We have to make sure that addr + len doesn't give us a false
+ * positive by overflowing, too. */
 int lguest_address_ok(const struct lguest *lg,
 		      unsigned long addr, unsigned long len)
 {
 	return (addr+len) / PAGE_SIZE < lg->pfn_limit && (addr+len >= addr);
 }
 
-/* Just like get_user, but don't let guest access lguest binary. */
+/* This is a convenient routine to get a 32-bit value from the Guest (a very
+ * common operation).  Here we can see how useful the kill_lguest() routine we
+ * met in the Launcher can be: we return a random value (0) instead of needing
+ * to return an error. */
 u32 lgread_u32(struct lguest *lg, unsigned long addr)
 {
 	u32 val = 0;
 
-	/* Don't let them access lguest binary */
+	/* Don't let them access lguest binary. */
 	if (!lguest_address_ok(lg, addr, sizeof(val))
 	    || get_user(val, (u32 __user *)addr) != 0)
 		kill_guest(lg, "bad read address %#lx", addr);
 	return val;
 }
 
+/* Same thing for writing a value. */
 void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val)
 {
 	if (!lguest_address_ok(lg, addr, sizeof(val))
@@ -233,6 +248,9 @@ void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val)
 		kill_guest(lg, "bad write address %#lx", addr);
 }
 
+/* This routine is more generic, and copies a range of Guest bytes into a
+ * buffer.  If the copy_from_user() fails, we fill the buffer with zeroes, so
+ * the caller doesn't end up using uninitialized kernel memory. */
 void lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
@@ -243,6 +261,7 @@ void lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
 	}
 }
 
+/* Similarly, our generic routine to copy into a range of Guest bytes. */
 void lgwrite(struct lguest *lg, unsigned long addr, const void *b,
 	     unsigned bytes)
 {
@@ -250,6 +269,7 @@ void lgwrite(struct lguest *lg, unsigned long addr, const void *b,
 	    || copy_to_user((void __user *)addr, b, bytes) != 0)
 		kill_guest(lg, "bad write address %#lx len %u", addr, bytes);
 }
+/* (end of memory access helper routines) :*/
 
 static void set_ts(void)
 {
