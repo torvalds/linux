@@ -444,6 +444,13 @@ A partial list of the supported mount options follows:
  noposixpaths   If CIFS Unix extensions are supported, do not request
 		posix path name support (this may cause servers to
 		reject creatingfile with certain reserved characters).
+ nounix         Disable the CIFS Unix Extensions for this mount (tree
+		connection). This is rarely needed, but it may be useful
+		in order to turn off multiple settings all at once (ie
+		posix acls, posix locks, posix paths, symlink support
+		and retrieving uids/gids/mode from the server) or to
+		work around a bug in server which implement the Unix
+		Extensions.
  nobrl          Do not send byte range lock requests to the server.
 		This is necessary for certain applications that break
 		with cifs style mandatory byte range locks (and most
