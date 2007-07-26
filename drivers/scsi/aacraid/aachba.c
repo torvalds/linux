@@ -194,8 +194,7 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 	struct scsi_device *device;
 
 	if (unlikely(!scsicmd || !scsicmd->scsi_done )) {
-		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"))
-;
+		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"));
                 aac_fib_complete(fibptr);
                 aac_fib_free(fibptr);
                 return 0;

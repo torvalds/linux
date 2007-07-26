@@ -1126,9 +1126,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 static void aac_shutdown(struct pci_dev *dev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(dev);
-	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 	scsi_block_requests(shost);
-	__aac_shutdown(aac);
+	__aac_shutdown((struct aac_dev *)shost->hostdata);
 }
 
 static void __devexit aac_remove_one(struct pci_dev *pdev)
