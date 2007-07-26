@@ -1,5 +1,5 @@
 /*
- * linux/drivers/mmc/au1xmmc.c - AU1XX0 MMC driver
+ * linux/drivers/mmc/host/au1xmmc.c - AU1XX0 MMC driver
  *
  *  Copyright (c) 2005, Advanced Micro Devices, Inc.
  *

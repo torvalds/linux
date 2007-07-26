@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc_ops.h
+ *  linux/drivers/mmc/core/mmc_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
  *

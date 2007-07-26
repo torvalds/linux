@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/pxa.c - PXA MMCI driver
+ *  linux/drivers/mmc/host/pxa.c - PXA MMCI driver
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *

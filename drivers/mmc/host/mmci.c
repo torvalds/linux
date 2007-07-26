@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmci.c - ARM PrimeCell MMCI PL180/1 driver
+ *  linux/drivers/mmc/host/mmci.c - ARM PrimeCell MMCI PL180/1 driver
  *
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *

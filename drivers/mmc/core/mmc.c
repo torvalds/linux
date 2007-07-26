@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc.c
+ *  linux/drivers/mmc/core/mmc.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
@@ -100,7 +100,7 @@ static int mmc_decode_cid(struct mmc_card *card)
 		break;
 
 	default:
-		printk("%s: card has unknown MMCA version %d\n",
+		printk(KERN_ERR "%s: card has unknown MMCA version %d\n",
 			mmc_hostname(card->host), card->csd.mmca_vsn);
 		return -EINVAL;
 	}
@@ -123,7 +123,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 	 */
 	csd_struct = UNSTUFF_BITS(resp, 126, 2);
 	if (csd_struct != 1 && csd_struct != 2) {
-		printk("%s: unrecognised CSD structure version %d\n",
+		printk(KERN_ERR "%s: unrecognised CSD structure version %d\n",
 			mmc_hostname(card->host), csd_struct);
 		return -EINVAL;
 	}
@@ -499,14 +499,17 @@ static void mmc_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-
 	err = mmc_init_card(host, host->ocr, host->card);
+	mmc_release_host(host);
+
 	if (err != MMC_ERR_NONE) {
 		mmc_remove(host);
+
+		mmc_claim_host(host);
 		mmc_detach_bus(host);
+		mmc_release_host(host);
 	}
 
-	mmc_release_host(host);
 }
 
 #else
@@ -553,8 +556,10 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	/*
 	 * Can we support the voltage of the card?
 	 */
-	if (!host->ocr)
+	if (!host->ocr) {
+		err = -EINVAL;
 		goto err;
+	}
 
 	/*
 	 * Detect and init the card.
@@ -567,17 +572,20 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 
 	err = mmc_add_card(host->card);
 	if (err)
-		goto reclaim_host;
+		goto remove_card;
 
 	return 0;
 
-reclaim_host:
-	mmc_claim_host(host);
+remove_card:
 	mmc_remove_card(host->card);
 	host->card = NULL;
+	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
 	mmc_release_host(host);
+
+	printk(KERN_ERR "%s: error %d whilst initialising MMC card\n",
+		mmc_hostname(host), err);
 
 	return 0;
 }

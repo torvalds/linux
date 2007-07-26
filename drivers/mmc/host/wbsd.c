@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/wbsd.c - Winbond W83L51xD SD/MMC driver
+ *  linux/drivers/mmc/host/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
  *  Copyright (C) 2004-2007 Pierre Ossman, All Rights Reserved.
  *
@@ -207,8 +207,6 @@ static void wbsd_request_end(struct wbsd_host *host, struct mmc_request *mrq)
 {
 	unsigned long dmaflags;
 
-	DBGF("Ending request, cmd (%x)\n", mrq->cmd->opcode);
-
 	if (host->dma >= 0) {
 		/*
 		 * Release ISA DMA controller.
@@ -360,8 +358,6 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 	int i;
 	u8 status, isr;
 
-	DBGF("Sending cmd (%x)\n", cmd->opcode);
-
 	/*
 	 * Clear accumulated ISR. The interrupt routine
 	 * will fill this one with events that occur during
@@ -411,8 +407,6 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 				wbsd_get_short_reply(host, cmd);
 		}
 	}
-
-	DBGF("Sent cmd (%x), res %d\n", cmd->opcode, cmd->error);
 }
 
 /*
@@ -549,11 +543,6 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 	u8 setup;
 	unsigned long dmaflags;
 	unsigned int size;
-
-	DBGF("blksz %04x blks %04x flags %08x\n",
-		data->blksz, data->blocks, data->flags);
-	DBGF("tsac %d ms nsac %d clk\n",
-		data->timeout_ns / 1000000, data->timeout_clks);
 
 	/*
 	 * Calculate size.
@@ -751,8 +740,6 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 				data->bytes_xfered -= data->blksz;
 		}
 	}
-
-	DBGF("Ending data transfer (%d bytes)\n", data->bytes_xfered);
 
 	wbsd_request_end(host, host->mrq);
 }

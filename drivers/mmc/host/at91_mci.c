@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/at91_mci.c - ATMEL AT91 MCI Driver
+ *  linux/drivers/mmc/host/at91_mci.c - ATMEL AT91 MCI Driver
  *
  *  Copyright (C) 2005 Cougar Creek Computing Devices Ltd, All Rights Reserved
  *
