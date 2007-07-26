@@ -36,15 +36,15 @@ extern void __iounmap(void *addr, unsigned long size);
 #define in_be32(addr) \
     ({ u32 __v = (*(__force volatile u32 *) (addr)); __v; })
 #define in_le16(addr) \
-    ({ u16 __v = le16_to_cpu(*(__force volatile u16 *) (addr)); __v; })
+    ({ u16 __v = le16_to_cpu(*(__force volatile __le16 *) (addr)); __v; })
 #define in_le32(addr) \
-    ({ u32 __v = le32_to_cpu(*(__force volatile u32 *) (addr)); __v; })
+    ({ u32 __v = le32_to_cpu(*(__force volatile __le32 *) (addr)); __v; })
 
 #define out_8(addr,b) (void)((*(__force volatile u8 *) (addr)) = (b))
 #define out_be16(addr,w) (void)((*(__force volatile u16 *) (addr)) = (w))
 #define out_be32(addr,l) (void)((*(__force volatile u32 *) (addr)) = (l))
-#define out_le16(addr,w) (void)((*(__force volatile u16 *) (addr)) = cpu_to_le16(w))
-#define out_le32(addr,l) (void)((*(__force volatile u32 *) (addr)) = cpu_to_le32(l))
+#define out_le16(addr,w) (void)((*(__force volatile __le16 *) (addr)) = cpu_to_le16(w))
+#define out_le32(addr,l) (void)((*(__force volatile __le32 *) (addr)) = cpu_to_le32(l))
 
 #define raw_inb in_8
 #define raw_inw in_be16
