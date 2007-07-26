@@ -786,6 +786,22 @@ extern int partition_sched_domains(cpumask_t *partition1,
 
 #endif	/* CONFIG_SMP */
 
+/*
+ * A runqueue laden with a single nice 0 task scores a weighted_cpuload of
+ * SCHED_LOAD_SCALE. This function returns 1 if any cpu is laden with a
+ * task of nice 0 or enough lower priority tasks to bring up the
+ * weighted_cpuload
+ */
+static inline int above_background_load(void)
+{
+	unsigned long cpu;
+
+	for_each_online_cpu(cpu) {
+		if (weighted_cpuload(cpu) >= SCHED_LOAD_SCALE)
+			return 1;
+	}
+	return 0;
+}
 
 struct io_context;			/* See blkdev.h */
 struct cpuset;
