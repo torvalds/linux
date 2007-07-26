@@ -316,7 +316,9 @@ struct device_reg_2xxx {
 	} u;
 
 	uint16_t fpm_diag_config;
-	uint16_t unused_5[0x6];		/* Gap */
+	uint16_t unused_5[0x4];		/* Gap */
+	uint16_t risc_hw;
+	uint16_t unused_5_1;		/* Gap */
 	uint16_t pcr;			/* Processor Control Register. */
 	uint16_t unused_6[0x5];		/* Gap */
 	uint16_t mctr;			/* Memory Configuration and Timing. */
