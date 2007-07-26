@@ -352,7 +352,7 @@ read_rtc:
 		/* oscillator fault?  clear flag, and warn */
 		if (ds1307->regs[DS1307_REG_CONTROL] & DS1338_BIT_OSF) {
 			i2c_smbus_write_byte_data(client, DS1307_REG_CONTROL,
-					ds1307->regs[DS1337_REG_CONTROL]
+					ds1307->regs[DS1307_REG_CONTROL]
 					& ~DS1338_BIT_OSF);
 			dev_warn(&client->dev, "SET TIME!\n");
 			goto read_rtc;
