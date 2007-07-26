@@ -1461,8 +1461,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	uint16_t        cnt;
 	uint8_t         *dptr1, *dptr2;
 	init_cb_t       *icb = ha->init_cb;
-	nvram_t         *nv = (nvram_t *)ha->request_ring;
-	uint8_t         *ptr = (uint8_t *)ha->request_ring;
+	nvram_t         *nv = ha->nvram;
+	uint8_t         *ptr = ha->nvram;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	rval = QLA_SUCCESS;
@@ -1480,8 +1480,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		chksum += *ptr++;
 
 	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", ha->host_no));
-	DEBUG5(qla2x00_dump_buffer((uint8_t *)ha->request_ring,
-	    ha->nvram_size));
+	DEBUG5(qla2x00_dump_buffer((uint8_t *)nv, ha->nvram_size));
 
 	/* Bad NVRAM data, set defaults parameters. */
 	if (chksum || nv->id[0] != 'I' || nv->id[1] != 'S' ||
@@ -3500,7 +3499,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 
 	rval = QLA_SUCCESS;
 	icb = (struct init_cb_24xx *)ha->init_cb;
-	nv = (struct nvram_24xx *)ha->request_ring;
+	nv = ha->nvram;
 
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_24xx);
@@ -3512,7 +3511,12 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
 	}
 
-	/* Get NVRAM data and calculate checksum. */
+	/* Get VPD data into cache */
+	ha->vpd = ha->nvram + VPD_OFFSET;
+	ha->isp_ops->read_nvram(ha, (uint8_t *)ha->vpd,
+	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
+
+	/* Get NVRAM data into cache and calculate checksum. */
 	dptr = (uint32_t *)nv;
 	ha->isp_ops->read_nvram(ha, (uint8_t *)dptr, ha->nvram_base,
 	    ha->nvram_size);
@@ -3520,8 +3524,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		chksum += le32_to_cpu(*dptr++);
 
 	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", ha->host_no));
-	DEBUG5(qla2x00_dump_buffer((uint8_t *)ha->request_ring,
-	    ha->nvram_size));
+	DEBUG5(qla2x00_dump_buffer((uint8_t *)nv, ha->nvram_size));
 
 	/* Bad NVRAM data, set defaults parameters. */
 	if (chksum || nv->id[0] != 'I' || nv->id[1] != 'S' || nv->id[2] != 'P'
