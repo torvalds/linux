@@ -393,46 +393,89 @@ static void set_ts(void)
 		write_cr0(cr0|8);
 }
 
+/*S:010
+ * We are getting close to the Switcher.
+ *
+ * Remember that each CPU has two pages which are visible to the Guest when it
+ * runs on that CPU.  This has to contain the state for that Guest: we copy the
+ * state in just before we run the Guest.
+ *
+ * Each Guest has "changed" flags which indicate what has changed in the Guest
+ * since it last ran.  We saw this set in interrupts_and_traps.c and
+ * segments.c.
+ */
 static void copy_in_guest_info(struct lguest *lg, struct lguest_pages *pages)
 {
+	/* Copying all this data can be quite expensive.  We usually run the
+	 * same Guest we ran last time (and that Guest hasn't run anywhere else
+	 * meanwhile).  If that's not the case, we pretend everything in the
+	 * Guest has changed. */
 	if (__get_cpu_var(last_guest) != lg || lg->last_pages != pages) {
 		__get_cpu_var(last_guest) = lg;
 		lg->last_pages = pages;
 		lg->changed = CHANGED_ALL;
 	}
 
-	/* These are pretty cheap, so we do them unconditionally. */
+	/* These copies are pretty cheap, so we do them unconditionally: */
+	/* Save the current Host top-level page directory. */
 	pages->state.host_cr3 = __pa(current->mm->pgd);
+	/* Set up the Guest's page tables to see this CPU's pages (and no
+	 * other CPU's pages). */
 	map_switcher_in_guest(lg, pages);
+	/* Set up the two "TSS" members which tell the CPU what stack to use
+	 * for traps which do directly into the Guest (ie. traps at privilege
+	 * level 1). */
 	pages->state.guest_tss.esp1 = lg->esp1;
 	pages->state.guest_tss.ss1 = lg->ss1;
 
-	/* Copy direct trap entries. */
+	/* Copy direct-to-Guest trap entries. */
 	if (lg->changed & CHANGED_IDT)
 		copy_traps(lg, pages->state.guest_idt, default_idt_entries);
 
-	/* Copy all GDT entries but the TSS. */
+	/* Copy all GDT entries which the Guest can change. */
 	if (lg->changed & CHANGED_GDT)
 		copy_gdt(lg, pages->state.guest_gdt);
 	/* If only the TLS entries have changed, copy them. */
 	else if (lg->changed & CHANGED_GDT_TLS)
 		copy_gdt_tls(lg, pages->state.guest_gdt);
 
+	/* Mark the Guest as unchanged for next time. */
 	lg->changed = 0;
 }
 
+/* Finally: the code to actually call into the Switcher to run the Guest. */
 static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
 {
+	/* This is a dummy value we need for GCC's sake. */
 	unsigned int clobber;
 
+	/* Copy the guest-specific information into this CPU's "struct
+	 * lguest_pages". */
 	copy_in_guest_info(lg, pages);
 
-	/* Put eflags on stack, lcall does rest: suitable for iret return. */
+	/* Now: we push the "eflags" register on the stack, then do an "lcall".
+	 * This is how we change from using the kernel code segment to using
+	 * the dedicated lguest code segment, as well as jumping into the
+	 * Switcher.
+	 *
+	 * The lcall also pushes the old code segment (KERNEL_CS) onto the
+	 * stack, then the address of this call.  This stack layout happens to
+	 * exactly match the stack of an interrupt... */
 	asm volatile("pushf; lcall *lguest_entry"
+		     /* This is how we tell GCC that %eax ("a") and %ebx ("b")
+		      * are changed by this routine.  The "=" means output. */
 		     : "=a"(clobber), "=b"(clobber)
+		     /* %eax contains the pages pointer.  ("0" refers to the
+		      * 0-th argument above, ie "a").  %ebx contains the
+		      * physical address of the Guest's top-level page
+		      * directory. */
 		     : "0"(pages), "1"(__pa(lg->pgdirs[lg->pgdidx].pgdir))
+		     /* We tell gcc that all these registers could change,
+		      * which means we don't have to save and restore them in
+		      * the Switcher. */
 		     : "memory", "%edx", "%ecx", "%edi", "%esi");
 }
+/*:*/
 
 /*H:030 Let's jump straight to the the main loop which runs the Guest.
  * Remember, this is called by the Launcher reading /dev/lguest, and we keep
