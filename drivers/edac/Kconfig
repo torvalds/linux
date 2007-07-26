@@ -8,7 +8,7 @@ menuconfig EDAC
 	bool "EDAC - error detection and reporting (EXPERIMENTAL)"
 	depends on HAS_IOMEM
 	depends on EXPERIMENTAL
-	depends on X86 || MIPS || PPC
+	depends on X86 || PPC
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
