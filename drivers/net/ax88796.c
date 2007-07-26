@@ -819,7 +819,7 @@ static int ax_probe(struct platform_device *pdev)
 	}
 
 	ei_status.mem = ioremap(res->start, size);
-	dev->base_addr = (long)ei_status.mem;
+	dev->base_addr = (unsigned long)ei_status.mem;
 
 	if (ei_status.mem == NULL) {
 		dev_err(&pdev->dev, "Cannot ioremap area (%08zx,%08zx)\n",
