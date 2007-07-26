@@ -65,8 +65,6 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-extern struct kmem_cache *sctp_chunk_cachep;
-
 SCTP_STATIC
 struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
 				   __u8 type, __u8 flags, int paylen);
