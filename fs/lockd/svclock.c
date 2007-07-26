@@ -335,10 +335,10 @@ static void nlmsvc_freegrantargs(struct nlm_rqst *call)
 /*
  * Deferred lock request handling for non-blocking lock
  */
-static u32
+static __be32
 nlmsvc_defer_lock_rqst(struct svc_rqst *rqstp, struct nlm_block *block)
 {
-	u32 status = nlm_lck_denied_nolocks;
+	__be32 status = nlm_lck_denied_nolocks;
 
 	block->b_flags |= B_QUEUED;
 
@@ -352,7 +352,7 @@ nlmsvc_defer_lock_rqst(struct svc_rqst *rqstp, struct nlm_block *block)
 			status = nlm_drop_reply;
 	}
 	dprintk("lockd: nlmsvc_defer_lock_rqst block %p flags %d status %d\n",
-		block, block->b_flags, status);
+		block, block->b_flags, ntohl(status));
 
 	return status;
 }
