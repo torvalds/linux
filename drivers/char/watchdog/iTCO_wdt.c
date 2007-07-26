@@ -39,7 +39,9 @@
  *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
  *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
  *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
- *	6300ESB  (6300ESB)   : document number 300641-003
+ *	6300ESB  (6300ESB)   : document number 300641-003,
+ *	631xESB  (631xESB)   : document number 313082-001, 313075-005,
+ *	632xESB  (632xESB)   : document number 313082-001, 313075-005
  */
 
 /*
@@ -92,6 +94,7 @@ enum iTCO_chipsets {
 	TCO_ICH8,	/* ICH8 & ICH8R */
 	TCO_ICH8DH,	/* ICH8DH */
 	TCO_ICH8DO,	/* ICH8DO */
+	TCO_631XESB,	/* 631xESB/632xESB */
 };
 
 static struct {
@@ -118,6 +121,7 @@ static struct {
 	{"ICH8 or ICH8R", 2},
 	{"ICH8DH", 2},
 	{"ICH8DO", 2},
+	{"631xESB/632xESB", 2},
 	{NULL,0}
 };
 
@@ -148,6 +152,7 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DH  },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_3,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DO  },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE (pci, iTCO_wdt_pci_tbl);
