@@ -8001,34 +8001,6 @@ AscGetChipVersion(PortAddr iop_base, unsigned short bus_type)
 	return AscGetChipVerNo(iop_base);
 }
 
-static ushort __devinit AscGetChipBusType(PortAddr iop_base)
-{
-	ushort chip_ver;
-
-	chip_ver = AscGetChipVerNo(iop_base);
-	if ((chip_ver >= ASC_CHIP_MIN_VER_VL)
-	    && (chip_ver <= ASC_CHIP_MAX_VER_VL)
-	    ) {
-		if (((iop_base & 0x0C30) == 0x0C30)
-		    || ((iop_base & 0x0C50) == 0x0C50)
-		    ) {
-			return (ASC_IS_EISA);
-		}
-		return (ASC_IS_VL);
-	}
-	if ((chip_ver >= ASC_CHIP_MIN_VER_ISA) &&
-	    (chip_ver <= ASC_CHIP_MAX_VER_ISA)) {
-		if (chip_ver >= ASC_CHIP_MIN_VER_ISA_PNP) {
-			return (ASC_IS_ISAPNP);
-		}
-		return (ASC_IS_ISA);
-	} else if ((chip_ver >= ASC_CHIP_MIN_VER_PCI) &&
-		   (chip_ver <= ASC_CHIP_MAX_VER_PCI)) {
-		return (ASC_IS_PCI);
-	}
-	return (0);
-}
-
 static ASC_DCNT
 AscLoadMicroCode(PortAddr iop_base,
 		 ushort s_addr, uchar *mcode_buf, ushort mcode_size)
@@ -10468,12 +10440,12 @@ static ushort __devinit AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 	}
 
 	asc_dvc->cfg->isa_dma_speed = ASC_DEF_ISA_DMA_SPEED;
-	if (AscGetChipBusType(iop_base) == ASC_IS_ISAPNP) {
-		AscSetChipIFC(iop_base, IFC_INIT_DEFAULT);
-		asc_dvc->bus_type = ASC_IS_ISAPNP;
-	}
 #ifdef CONFIG_ISA
 	if ((asc_dvc->bus_type & ASC_IS_ISA) != 0) {
+		if (chip_version >= ASC_CHIP_MIN_VER_ISA_PNP) {
+			AscSetChipIFC(iop_base, IFC_INIT_DEFAULT);
+			asc_dvc->bus_type = ASC_IS_ISAPNP;
+		}
 		asc_dvc->cfg->isa_dma_channel =
 		    (uchar)AscGetIsaDmaChannel(iop_base);
 	}
