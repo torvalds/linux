@@ -551,8 +551,8 @@ static int setup_mmio_scc (struct pci_dev *dev, const char *name)
 	unsigned long dma_base = pci_resource_start(dev, 1);
 	unsigned long ctl_size = pci_resource_len(dev, 0);
 	unsigned long dma_size = pci_resource_len(dev, 1);
-	void *ctl_addr;
-	void *dma_addr;
+	void __iomem *ctl_addr;
+	void __iomem *dma_addr;
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
