@@ -71,7 +71,7 @@ struct rxrpc_conn_bundle *rxrpc_get_bundle(struct rxrpc_sock *rx,
 	struct rb_node *p, *parent, **pp;
 
 	_enter("%p{%x},%x,%hx,",
-	       rx, key_serial(key), trans->debug_id, ntohl(service_id));
+	       rx, key_serial(key), trans->debug_id, ntohs(service_id));
 
 	if (rx->trans == trans && rx->bundle) {
 		atomic_inc(&rx->bundle->usage);
