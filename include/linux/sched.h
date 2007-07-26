@@ -681,7 +681,7 @@ enum cpu_idle_type {
 #define SCHED_LOAD_SHIFT	10
 #define SCHED_LOAD_SCALE	(1L << SCHED_LOAD_SHIFT)
 
-#define SCHED_LOAD_SCALE_FUZZ	(SCHED_LOAD_SCALE >> 5)
+#define SCHED_LOAD_SCALE_FUZZ	(SCHED_LOAD_SCALE >> 1)
 
 #ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
