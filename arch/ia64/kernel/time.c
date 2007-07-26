@@ -255,7 +255,7 @@ ia64_init_itm (void)
 	}
 }
 
-static cycle_t itc_get_cycles()
+static cycle_t itc_get_cycles(void)
 {
 	u64 lcycle, now, ret;
 
