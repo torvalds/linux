@@ -203,6 +203,7 @@ parse_solaris_x86(struct parsed_partitions *state, struct block_device *bdev,
 	Sector sect;
 	struct solaris_x86_vtoc *v;
 	int i;
+	short max_nparts;
 
 	v = (struct solaris_x86_vtoc *)read_dev_sector(bdev, offset+1, &sect);
 	if (!v)
@@ -218,7 +219,9 @@ parse_solaris_x86(struct parsed_partitions *state, struct block_device *bdev,
 		put_dev_sector(sect);
 		return;
 	}
-	for (i=0; i<SOLARIS_X86_NUMSLICE && state->next<state->limit; i++) {
+	/* Ensure we can handle previous case of VTOC with 8 entries gracefully */
+	max_nparts = le16_to_cpu (v->v_nparts) > 8 ? SOLARIS_X86_NUMSLICE : 8;
+	for (i=0; i<max_nparts && state->next<state->limit; i++) {
 		struct solaris_x86_slice *s = &v->v_slice[i];
 		if (s->s_size == 0)
 			continue;
