@@ -4,10 +4,8 @@
 #
 
 snd-opl3-lib-objs := opl3_lib.o opl3_synth.o
-snd-opl3-synth-objs := opl3_seq.o opl3_midi.o opl3_drums.o
-ifeq ($(CONFIG_SND_SEQUENCER_OSS),y)
-snd-opl3-synth-objs += opl3_oss.o
-endif
+snd-opl3-synth-y := opl3_seq.o opl3_midi.o opl3_drums.o
+snd-opl3-synth-$(CONFIG_SND_SEQUENCER_OSS) += opl3_oss.o
 
 #
 # this function returns:
