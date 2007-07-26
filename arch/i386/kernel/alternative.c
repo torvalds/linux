@@ -430,22 +430,12 @@ void __init alternative_instructions(void)
  * And on the local CPU you need to be protected again NMI or MCE handlers
  * seeing an inconsistent instruction while you patch.
  */
-void __kprobes text_poke(void *oaddr, unsigned char *opcode, int len)
+void __kprobes text_poke(void *addr, unsigned char *opcode, int len)
 {
-        u8 *addr = oaddr;
-	if (!pte_write(*lookup_address((unsigned long)addr))) {
-		struct page *p[2] = { virt_to_page(addr), virt_to_page(addr+PAGE_SIZE) };
-		addr = vmap(p, 2, VM_MAP, PAGE_KERNEL);
-		if (!addr)
-			return;
-		addr += ((unsigned long)oaddr) % PAGE_SIZE;
-	}
 	memcpy(addr, opcode, len);
 	sync_core();
 	/* Not strictly needed, but can speed CPU recovery up. Ignore cross cacheline
 	   case. */
 	if (cpu_has_clflush)
-		asm("clflush (%0) " :: "r" (oaddr) : "memory");
-	if (addr != oaddr)
-		vunmap(addr);
+		asm("clflush (%0) " :: "r" (addr) : "memory");
 }
