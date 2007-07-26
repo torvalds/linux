@@ -1,3 +1,16 @@
+/*P:800 Interrupts (traps) are complicated enough to earn their own file.
+ * There are three classes of interrupts:
+ *
+ * 1) Real hardware interrupts which occur while we're running the Guest,
+ * 2) Interrupts for virtual devices attached to the Guest, and
+ * 3) Traps and faults from the Guest.
+ *
+ * Real hardware interrupts must be delivered to the Host, not the Guest.
+ * Virtual interrupts must be delivered to the Guest, but we make them look
+ * just like real hardware would deliver them.  Traps from the Guest can be set
+ * up to go directly back into the Guest, but sometimes the Host wants to see
+ * them first, so we also have a way of "reflecting" them into the Guest as if
+ * they had been delivered to it directly. :*/
 #include <linux/uaccess.h>
 #include "lg.h"
 

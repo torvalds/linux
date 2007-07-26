@@ -1,4 +1,9 @@
-/* Userspace control of the guest, via /dev/lguest. */
+/*P:200 This contains all the /dev/lguest code, whereby the userspace launcher
+ * controls and communicates with the Guest.  For example, the first write will
+ * tell us the memory size, pagetable, entry point and kernel address offset.
+ * A read will run the Guest until a signal is pending (-EINTR), or the Guest
+ * does a DMA out to the Launcher.  Writes are also used to get a DMA buffer
+ * registered by the Guest and to send the Guest an interrupt. :*/
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>

@@ -1,3 +1,6 @@
+/*P:050 Lguest guests use a very simple bus for devices.  It's a simple array
+ * of device descriptors contained just above the top of normal memory.  The
+ * lguest bus is 80% tedious boilerplate code. :*/
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/lguest_bus.h>

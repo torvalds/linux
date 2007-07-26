@@ -1,5 +1,10 @@
-/* Simple program to layout "physical" memory for new lguest guest.
- * Linked high to avoid likely physical memory.  */
+/*P:100 This is the Launcher code, a simple program which lays out the
+ * "physical" memory for the new Guest by mapping the kernel image and the
+ * virtual devices, then reads repeatedly from /dev/lguest to run the Guest.
+ *
+ * The only trick: the Makefile links it at a high address so it will be clear
+ * of the guest memory region.  It means that each Guest cannot have more than
+ * about 2.5G of memory on a normally configured Host. :*/
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <stdio.h>

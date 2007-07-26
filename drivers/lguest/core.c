@@ -1,5 +1,8 @@
-/* World's simplest hypervisor, to test paravirt_ops and show
- * unbelievers that virtualization is the future.  Plus, it's fun! */
+/*P:400 This contains run_guest() which actually calls into the Host<->Guest
+ * Switcher and analyzes the return, such as determining if the Guest wants the
+ * Host to do something.  This file also contains useful helper routines, and a
+ * couple of non-obvious setup and teardown pieces which were implemented after
+ * days of debugging pain. :*/
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include <linux/stddef.h>

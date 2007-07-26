@@ -1,5 +1,11 @@
-/* Shadow page table operations.
- * Copyright (C) Rusty Russell IBM Corporation 2006.
+/*P:700 The pagetable code, on the other hand, still shows the scars of
+ * previous encounters.  It's functional, and as neat as it can be in the
+ * circumstances, but be wary, for these things are subtle and break easily.
+ * The Guest provides a virtual to physical mapping, but we can neither trust
+ * it nor use it: we verify and convert it here to point the hardware to the
+ * actual Guest pages when running the Guest. :*/
+
+/* Copyright (C) Rusty Russell IBM Corporation 2006.
  * GPL v2 and any later version */
 #include <linux/mm.h>
 #include <linux/types.h>

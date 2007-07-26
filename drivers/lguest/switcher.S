@@ -1,10 +1,11 @@
-/* This code sits at 0xFFC00000 to do the low-level guest<->host switch.
+/*P:900 This is the Switcher: code which sits at 0xFFC00000 to do the low-level
+ * Guest<->Host switch.  It is as simple as it can be made, but it's naturally
+ * very specific to x86.
+ *
+ * You have now completed Preparation.  If this has whet your appetite; if you
+ * are feeling invigorated and refreshed then the next, more challenging stage
+ * can be found in "make Guest". :*/
 
-   There is are two pages above us for this CPU (struct lguest_pages).
-   The second page (struct lguest_ro_state) becomes read-only after the
-   context switch.  The first page (the stack for traps) remains writable,
-   but while we're in here, the guest cannot be running.
-*/
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include "lg.h"

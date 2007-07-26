@@ -1,3 +1,14 @@
+/*P:600 The x86 architecture has segments, which involve a table of descriptors
+ * which can be used to do funky things with virtual address interpretation.
+ * We originally used to use segments so the Guest couldn't alter the
+ * Guest<->Host Switcher, and then we had to trim Guest segments, and restore
+ * for userspace per-thread segments, but trim again for on userspace->kernel
+ * transitions...  This nightmarish creation was contained within this file,
+ * where we knew not to tread without heavy armament and a change of underwear.
+ *
+ * In these modern times, the segment handling code consists of simple sanity
+ * checks, and the worst you'll experience reading this code is butterfly-rash
+ * from frolicking through its parklike serenity. :*/
 #include "lg.h"
 
 static int desc_ok(const struct desc_struct *gdt)

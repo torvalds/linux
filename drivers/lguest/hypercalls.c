@@ -1,5 +1,10 @@
-/*  Actual hypercalls, which allow guests to actually do something.
-    Copyright (C) 2006 Rusty Russell IBM Corporation
+/*P:500 Just as userspace programs request kernel operations through a system
+ * call, the Guest requests Host operations through a "hypercall".  You might
+ * notice this nomenclature doesn't really follow any logic, but the name has
+ * been around for long enough that we're stuck with it.  As you'd expect, this
+ * code is basically a one big switch statement. :*/
+
+/*  Copyright (C) 2006 Rusty Russell IBM Corporation
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

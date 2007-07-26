@@ -1,6 +1,32 @@
-/*
- * Lguest specific paravirt-ops implementation
+/*P:010
+ * A hypervisor allows multiple Operating Systems to run on a single machine.
+ * To quote David Wheeler: "Any problem in computer science can be solved with
+ * another layer of indirection."
  *
+ * We keep things simple in two ways.  First, we start with a normal Linux
+ * kernel and insert a module (lg.ko) which allows us to run other Linux
+ * kernels the same way we'd run processes.  We call the first kernel the Host,
+ * and the others the Guests.  The program which sets up and configures Guests
+ * (such as the example in Documentation/lguest/lguest.c) is called the
+ * Launcher.
+ *
+ * Secondly, we only run specially modified Guests, not normal kernels.  When
+ * you set CONFIG_LGUEST to 'y' or 'm', this automatically sets
+ * CONFIG_LGUEST_GUEST=y, which compiles this file into the kernel so it knows
+ * how to be a Guest.  This means that you can use the same kernel you boot
+ * normally (ie. as a Host) as a Guest.
+ *
+ * These Guests know that they cannot do privileged operations, such as disable
+ * interrupts, and that they have to ask the Host to do such things explicitly.
+ * This file consists of all the replacements for such low-level native
+ * hardware operations: these special Guest versions call the Host.
+ *
+ * So how does the kernel know it's a Guest?  The Guest starts at a special
+ * entry point marked with a magic string, which sets up a few things then
+ * calls here.  We replace the native functions in "struct paravirt_ops"
+ * with our Guest versions, then boot like normal. :*/
+
+/*
  * Copyright (C) 2006, Rusty Russell <rusty@rustcorp.com.au> IBM Corporation.
  *
  * This program is free software; you can redistribute it and/or modify

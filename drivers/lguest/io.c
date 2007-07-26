@@ -1,5 +1,9 @@
-/* Simple I/O model for guests, based on shared memory.
- * Copyright (C) 2006 Rusty Russell IBM Corporation
+/*P:300 The I/O mechanism in lguest is simple yet flexible, allowing the Guest
+ * to talk to the Launcher or directly to another Guest.  It uses familiar
+ * concepts of DMA and interrupts, plus some neat code stolen from
+ * futexes... :*/
+
+/* Copyright (C) 2006 Rusty Russell IBM Corporation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
