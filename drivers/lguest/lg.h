@@ -58,9 +58,18 @@ struct lguest_dma_info
 	u8 interrupt; 	/* 0 when not registered */
 };
 
-/* We have separate types for the guest's ptes & pgds and the shadow ptes &
- * pgds.  Since this host might use three-level pagetables and the guest and
- * shadow pagetables don't, we can't use the normal pte_t/pgd_t. */
+/*H:310 The page-table code owes a great debt of gratitude to Andi Kleen.  He
+ * reviewed the original code which used "u32" for all page table entries, and
+ * insisted that it would be far clearer with explicit typing.  I thought it
+ * was overkill, but he was right: it is much clearer than it was before.
+ *
+ * We have separate types for the Guest's ptes & pgds and the shadow ptes &
+ * pgds.  There's already a Linux type for these (pte_t and pgd_t) but they
+ * change depending on kernel config options (PAE). */
+
+/* Each entry is identical: lower 12 bits of flags and upper 20 bits for the
+ * "page frame number" (0 == first physical page, etc).  They are different
+ * types so the compiler will warn us if we mix them improperly. */
 typedef union {
 	struct { unsigned flags:12, pfn:20; };
 	struct { unsigned long val; } raw;
@@ -77,8 +86,12 @@ typedef union {
 	struct { unsigned flags:12, pfn:20; };
 	struct { unsigned long val; } raw;
 } gpte_t;
+
+/* We have two convenient macros to convert a "raw" value as handed to us by
+ * the Guest into the correct Guest PGD or PTE type. */
 #define mkgpte(_val) ((gpte_t){.raw.val = _val})
 #define mkgpgd(_val) ((gpgd_t){.raw.val = _val})
+/*:*/
 
 struct pgdir
 {
