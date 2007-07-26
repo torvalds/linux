@@ -1,5 +1,5 @@
 /*
- * MPC82xx_ads setup and early boot code plus other random bits.
+ * MPC8272_ads setup and early boot code plus other random bits.
  *
  * Author: Vitaly Bordug <vbordug@ru.mvista.com>
  * m82xx_restart fix by Wade Farnsworth <wfarnsworth@mvista.com>
@@ -63,7 +63,7 @@ static unsigned long pci_int_base;
 static struct irq_host *pci_pic_host;
 #endif
 
-static void __init mpc82xx_ads_pic_init(void)
+static void __init mpc8272_ads_pic_init(void)
 {
 	struct device_node *np = of_find_compatible_node(NULL, "cpm-pic", "CPM2");
 	struct resource r;
@@ -553,14 +553,14 @@ static void __init mpc82xx_add_bridge(struct device_node *np)
 /*
  * Setup the architecture
  */
-static void __init mpc82xx_ads_setup_arch(void)
+static void __init mpc8272_ads_setup_arch(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
 #endif
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc82xx_ads_setup_arch()", 0);
+		ppc_md.progress("mpc8272_ads_setup_arch()", 0);
 	cpm2_reset();
 
 	/* Map I/O region to a 256MB BAT */
@@ -582,13 +582,13 @@ static void __init mpc82xx_ads_setup_arch(void)
 #endif
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc82xx_ads_setup_arch(), finish", 0);
+		ppc_md.progress("mpc8272_ads_setup_arch(), finish", 0);
 }
 
 /*
  * Called very early, device-tree isn't unflattened
  */
-static int __init mpc82xx_ads_probe(void)
+static int __init mpc8272_ads_probe(void)
 {
 	/* We always match for now, eventually we should look at
 	 * the flat dev tree to ensure this is the board we are
@@ -612,13 +612,13 @@ static void m82xx_restart(char *cmd)
 	while (1) ;
 }
 
-define_machine(mpc82xx_ads)
+define_machine(mpc8272_ads)
 {
-	.name = "MPC82xx ADS",
-	.probe = mpc82xx_ads_probe,
-	.setup_arch =    mpc82xx_ads_setup_arch,
-	.init_IRQ =    mpc82xx_ads_pic_init,
-	.get_irq =    cpm2_get_irq,
+ 	.name = "MPC8272 ADS",
+ 	.probe = mpc8272_ads_probe,
+ 	.setup_arch = mpc8272_ads_setup_arch,
+ 	.init_IRQ = mpc8272_ads_pic_init,
+ 	.get_irq = cpm2_get_irq,
 	.calibrate_decr = generic_calibrate_decr,
 	.restart = m82xx_restart,
 };
