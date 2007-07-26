@@ -1452,7 +1452,6 @@ no_hmac:
 		do_gettimeofday(&tv);
 
 	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
-		__u16 len;
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *

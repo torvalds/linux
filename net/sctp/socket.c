@@ -1529,7 +1529,6 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			goto out_unlock;
 		}
 		if (sinfo_flags & SCTP_ABORT) {
-			struct sctp_chunk *chunk;
 
 			chunk = sctp_make_abort_user(asoc, msg, msg_len);
 			if (!chunk) {
