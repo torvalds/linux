@@ -3382,23 +3382,8 @@ static void s2io_reset(struct s2io_nic * sp)
 	/* Back up  the PCI-X CMD reg, dont want to lose MMRBC, OST settings */
 	pci_read_config_word(sp->pdev, PCIX_COMMAND_REGISTER, &(pci_cmd));
 
-	if (sp->device_type == XFRAME_II_DEVICE) {
-		int ret;
-		ret = pci_set_power_state(sp->pdev, 3);
-		if (!ret)
-			ret = pci_set_power_state(sp->pdev, 0);
-		else {
-			DBG_PRINT(ERR_DBG,"%s PME based SW_Reset failed!\n",
-					__FUNCTION__);
-			goto old_way;
-		}
-		msleep(20);
-		goto new_way;
-	}
-old_way:
 	val64 = SW_RESET_ALL;
 	writeq(val64, &bar0->sw_reset);
-new_way:
 	if (strstr(sp->product_name, "CX4")) {
 		msleep(750);
 	}
