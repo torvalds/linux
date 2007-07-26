@@ -80,7 +80,7 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 
 	return jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
+		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
 	       nf_ct_expect_hsize;
 }
 
@@ -259,8 +259,8 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 	}
 
 	if (src) {
-		exp->tuple.src.u.all = (__force u16)*src;
-		exp->mask.src.u.all = 0xFFFF;
+		exp->tuple.src.u.all = *src;
+		exp->mask.src.u.all = htons(0xFFFF);
 	} else {
 		exp->tuple.src.u.all = 0;
 		exp->mask.src.u.all = 0;
@@ -272,7 +272,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 		memset((void *)&exp->tuple.dst.u3 + len, 0x00,
 		       sizeof(exp->tuple.dst.u3) - len);
 
-	exp->tuple.dst.u.all = (__force u16)*dst;
+	exp->tuple.dst.u.all = *dst;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_init);
 

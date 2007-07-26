@@ -39,7 +39,7 @@ static int nf_ct_helper_vmalloc;
 static unsigned int helper_hash(const struct nf_conntrack_tuple *tuple)
 {
 	return (((tuple->src.l3num << 8) | tuple->dst.protonum) ^
-		tuple->src.u.all) % nf_ct_helper_hsize;
+		(__force __u16)tuple->src.u.all) % nf_ct_helper_hsize;
 }
 
 struct nf_conntrack_helper *

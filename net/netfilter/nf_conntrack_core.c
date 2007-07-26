@@ -79,7 +79,8 @@ static u_int32_t __hash_conntrack(const struct nf_conntrack_tuple *tuple,
 	a = jhash2(tuple->src.u3.all, ARRAY_SIZE(tuple->src.u3.all),
 		   (tuple->src.l3num << 16) | tuple->dst.protonum);
 	b = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
-		   (tuple->src.u.all << 16) | tuple->dst.u.all);
+		   ((__force __u16)tuple->src.u.all << 16) |
+		    (__force __u16)tuple->dst.u.all);
 
 	return jhash_2words(a, b, rnd) % size;
 }
