@@ -53,6 +53,7 @@
 #include <linux/percpu.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
+#include <linux/sysctl.h>
 #include <linux/syscalls.h>
 #include <linux/times.h>
 #include <linux/tsacct_kern.h>
@@ -263,8 +264,6 @@ struct rq {
 	unsigned int clock_warps, clock_overflows;
 	unsigned int clock_unstable_events;
 
-	struct sched_class *load_balance_class;
-
 	atomic_t nr_iowait;
 
 #ifdef CONFIG_SMP
@@ -385,13 +384,12 @@ static inline unsigned long long rq_clock(struct rq *rq)
  */
 unsigned long long cpu_clock(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
 	unsigned long long now;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rq->lock, flags);
-	now = rq_clock(rq);
-	spin_unlock_irqrestore(&rq->lock, flags);
+	local_irq_save(flags);
+	now = rq_clock(cpu_rq(cpu));
+	local_irq_restore(flags);
 
 	return now;
 }
@@ -1592,6 +1590,10 @@ static void __sched_fork(struct task_struct *p)
 	INIT_LIST_HEAD(&p->run_list);
 	p->se.on_rq = 0;
 
+#ifdef CONFIG_PREEMPT_NOTIFIERS
+	INIT_HLIST_HEAD(&p->preempt_notifiers);
+#endif
+
 	/*
 	 * We mark the process as running here, but have not actually
 	 * inserted it onto the runqueue yet. This guarantees that
@@ -1673,6 +1675,63 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	task_rq_unlock(rq, &flags);
 }
 
+#ifdef CONFIG_PREEMPT_NOTIFIERS
+
+/**
+ * preempt_notifier_register - tell me when current is being being preempted
+ *                         and rescheduled
+ */
+void preempt_notifier_register(struct preempt_notifier *notifier)
+{
+	hlist_add_head(&notifier->link, &current->preempt_notifiers);
+}
+EXPORT_SYMBOL_GPL(preempt_notifier_register);
+
+/**
+ * preempt_notifier_unregister - no longer interested in preemption notifications
+ *
+ * This is safe to call from within a preemption notifier.
+ */
+void preempt_notifier_unregister(struct preempt_notifier *notifier)
+{
+	hlist_del(&notifier->link);
+}
+EXPORT_SYMBOL_GPL(preempt_notifier_unregister);
+
+static void fire_sched_in_preempt_notifiers(struct task_struct *curr)
+{
+	struct preempt_notifier *notifier;
+	struct hlist_node *node;
+
+	hlist_for_each_entry(notifier, node, &curr->preempt_notifiers, link)
+		notifier->ops->sched_in(notifier, raw_smp_processor_id());
+}
+
+static void
+fire_sched_out_preempt_notifiers(struct task_struct *curr,
+				 struct task_struct *next)
+{
+	struct preempt_notifier *notifier;
+	struct hlist_node *node;
+
+	hlist_for_each_entry(notifier, node, &curr->preempt_notifiers, link)
+		notifier->ops->sched_out(notifier, next);
+}
+
+#else
+
+static void fire_sched_in_preempt_notifiers(struct task_struct *curr)
+{
+}
+
+static void
+fire_sched_out_preempt_notifiers(struct task_struct *curr,
+				 struct task_struct *next)
+{
+}
+
+#endif
+
 /**
  * prepare_task_switch - prepare to switch tasks
  * @rq: the runqueue preparing to switch
@@ -1685,8 +1744,11 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
  * prepare_task_switch sets up locking and calls architecture specific
  * hooks.
  */
-static inline void prepare_task_switch(struct rq *rq, struct task_struct *next)
+static inline void
+prepare_task_switch(struct rq *rq, struct task_struct *prev,
+		    struct task_struct *next)
 {
+	fire_sched_out_preempt_notifiers(prev, next);
 	prepare_lock_switch(rq, next);
 	prepare_arch_switch(next);
 }
@@ -1728,6 +1790,7 @@ static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	prev_state = prev->state;
 	finish_arch_switch(prev);
 	finish_lock_switch(rq, prev);
+	fire_sched_in_preempt_notifiers(current);
 	if (mm)
 		mmdrop(mm);
 	if (unlikely(prev_state == TASK_DEAD)) {
@@ -1768,7 +1831,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 {
 	struct mm_struct *mm, *oldmm;
 
-	prepare_task_switch(rq, next);
+	prepare_task_switch(rq, prev, next);
 	mm = next->mm;
 	oldmm = prev->active_mm;
 	/*
@@ -5140,9 +5203,128 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 		if (!next)
 			break;
 		migrate_dead(dead_cpu, next);
+
 	}
 }
 #endif /* CONFIG_HOTPLUG_CPU */
+
+#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_SYSCTL)
+
+static struct ctl_table sd_ctl_dir[] = {
+	{CTL_UNNUMBERED, "sched_domain", NULL, 0, 0755, NULL, },
+	{0,},
+};
+
+static struct ctl_table sd_ctl_root[] = {
+	{CTL_UNNUMBERED, "kernel", NULL, 0, 0755, sd_ctl_dir, },
+	{0,},
+};
+
+static struct ctl_table *sd_alloc_ctl_entry(int n)
+{
+	struct ctl_table *entry =
+		kmalloc(n * sizeof(struct ctl_table), GFP_KERNEL);
+
+	BUG_ON(!entry);
+	memset(entry, 0, n * sizeof(struct ctl_table));
+
+	return entry;
+}
+
+static void
+set_table_entry(struct ctl_table *entry, int ctl_name,
+		const char *procname, void *data, int maxlen,
+		mode_t mode, proc_handler *proc_handler)
+{
+	entry->ctl_name = ctl_name;
+	entry->procname = procname;
+	entry->data = data;
+	entry->maxlen = maxlen;
+	entry->mode = mode;
+	entry->proc_handler = proc_handler;
+}
+
+static struct ctl_table *
+sd_alloc_ctl_domain_table(struct sched_domain *sd)
+{
+	struct ctl_table *table = sd_alloc_ctl_entry(14);
+
+	set_table_entry(&table[0], 1, "min_interval", &sd->min_interval,
+		sizeof(long), 0644, proc_doulongvec_minmax);
+	set_table_entry(&table[1], 2, "max_interval", &sd->max_interval,
+		sizeof(long), 0644, proc_doulongvec_minmax);
+	set_table_entry(&table[2], 3, "busy_idx", &sd->busy_idx,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[3], 4, "idle_idx", &sd->idle_idx,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[4], 5, "newidle_idx", &sd->newidle_idx,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[5], 6, "wake_idx", &sd->wake_idx,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[6], 7, "forkexec_idx", &sd->forkexec_idx,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[7], 8, "busy_factor", &sd->busy_factor,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[8], 9, "imbalance_pct", &sd->imbalance_pct,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[9], 10, "cache_hot_time", &sd->cache_hot_time,
+		sizeof(long long), 0644, proc_doulongvec_minmax);
+	set_table_entry(&table[10], 11, "cache_nice_tries",
+		&sd->cache_nice_tries,
+		sizeof(int), 0644, proc_dointvec_minmax);
+	set_table_entry(&table[12], 13, "flags", &sd->flags,
+		sizeof(int), 0644, proc_dointvec_minmax);
+
+	return table;
+}
+
+static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
+{
+	struct ctl_table *entry, *table;
+	struct sched_domain *sd;
+	int domain_num = 0, i;
+	char buf[32];
+
+	for_each_domain(cpu, sd)
+		domain_num++;
+	entry = table = sd_alloc_ctl_entry(domain_num + 1);
+
+	i = 0;
+	for_each_domain(cpu, sd) {
+		snprintf(buf, 32, "domain%d", i);
+		entry->ctl_name = i + 1;
+		entry->procname = kstrdup(buf, GFP_KERNEL);
+		entry->mode = 0755;
+		entry->child = sd_alloc_ctl_domain_table(sd);
+		entry++;
+		i++;
+	}
+	return table;
+}
+
+static struct ctl_table_header *sd_sysctl_header;
+static void init_sched_domain_sysctl(void)
+{
+	int i, cpu_num = num_online_cpus();
+	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
+	char buf[32];
+
+	sd_ctl_dir[0].child = entry;
+
+	for (i = 0; i < cpu_num; i++, entry++) {
+		snprintf(buf, 32, "cpu%d", i);
+		entry->ctl_name = i + 1;
+		entry->procname = kstrdup(buf, GFP_KERNEL);
+		entry->mode = 0755;
+		entry->child = sd_alloc_ctl_cpu_table(i);
+	}
+	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
+}
+#else
+static void init_sched_domain_sysctl(void)
+{
+}
+#endif
 
 /*
  * migration_call - callback that gets triggered when a CPU is added.
@@ -6249,6 +6431,8 @@ void __init sched_init_smp(void)
 	/* XXX: Theoretical race here - CPU may be hotplugged now */
 	hotcpu_notifier(update_sched_domains, 0);
 
+	init_sched_domain_sysctl();
+
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed(current, non_isolated_cpus) < 0)
 		BUG();
@@ -6334,6 +6518,10 @@ void __init sched_init(void)
 	}
 
 	set_load_weight(&init_task);
+
+#ifdef CONFIG_PREEMPT_NOTIFIERS
+	INIT_HLIST_HEAD(&init_task.preempt_notifiers);
+#endif
 
 #ifdef CONFIG_SMP
 	nr_cpu_ids = highest_cpu + 1;
