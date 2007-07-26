@@ -289,7 +289,7 @@ static int __init parse_vector_domain(char *arg)
 		vector_domain_type = VECTOR_DOMAIN_PERCPU;
 		no_int_routing = 1;
 	}
-	return 1;
+	return 0;
 }
 early_param("vector", parse_vector_domain);
 #else
