@@ -2718,9 +2718,11 @@ int __dev_addr_add(struct dev_addr_list **list, int *count,
 /**
  *	dev_unicast_delete	- Release secondary unicast address.
  *	@dev: device
+ *	@addr: address to delete
+ *	@alen: length of @addr
  *
  *	Release reference to a secondary unicast address and remove it
- *	from the device if the reference count drop to zero.
+ *	from the device if the reference count drops to zero.
  *
  * 	The caller must hold the rtnl_mutex.
  */
@@ -2742,6 +2744,8 @@ EXPORT_SYMBOL(dev_unicast_delete);
 /**
  *	dev_unicast_add		- add a secondary unicast address
  *	@dev: device
+ *	@addr: address to delete
+ *	@alen: length of @addr
  *
  *	Add a secondary unicast address to the device or increase
  *	the reference count if it already exists.
@@ -3830,9 +3834,11 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 
 #ifdef CONFIG_NET_DMA
 /**
- * net_dma_rebalance -
- * This is called when the number of channels allocated to the net_dma_client
- * changes.  The net_dma_client tries to have one DMA channel per CPU.
+ * net_dma_rebalance - try to maintain one DMA channel per CPU
+ * @net_dma: DMA client and associated data (lock, channels, channel_mask)
+ *
+ * This is called when the number of channels allocated to the net_dma client
+ * changes.  The net_dma client tries to have one DMA channel per CPU.
  */
 
 static void net_dma_rebalance(struct net_dma *net_dma)
@@ -3869,7 +3875,7 @@ static void net_dma_rebalance(struct net_dma *net_dma)
  * netdev_dma_event - event callback for the net_dma_client
  * @client: should always be net_dma_client
  * @chan: DMA channel for the event
- * @event: event type
+ * @state: DMA state to be handled
  */
 static enum dma_state_client
 netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
