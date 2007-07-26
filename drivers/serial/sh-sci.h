@@ -23,13 +23,10 @@
 #endif
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7708)
-# define SCSPTR 0xffffff7c /* 8 bit */
-# define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
-# define SCI_ONLY
-#elif defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7706)
+#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7708) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7709)
 # define SCPCR  0xA4000116 /* 16 bit SCI and SCIF */
 # define SCPDR  0xA4000136 /* 8  bit SCI and SCIF */
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
@@ -479,16 +476,10 @@ static const struct __attribute__((packed)) {
 };
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7708)
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	if (port->mapbase == 0xfffffe80)
-		return ctrl_inb(SCSPTR)&0x01 ? 1 : 0; /* SCI */
-	return 1;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7706)
+#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7708) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7709)
 static inline int sci_rxd_in(struct uart_port *port)
 {
 	if (port->mapbase == 0xfffffe80)
