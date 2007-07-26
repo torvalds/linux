@@ -2054,7 +2054,7 @@ end:
  */
 static int pppol2tp_tunnel_getsockopt(struct sock *sk,
 				      struct pppol2tp_tunnel *tunnel,
-				      int optname, int __user *val)
+				      int optname, int *val)
 {
 	int err = 0;
 
@@ -2077,7 +2077,7 @@ static int pppol2tp_tunnel_getsockopt(struct sock *sk,
  */
 static int pppol2tp_session_getsockopt(struct sock *sk,
 				       struct pppol2tp_session *session,
-				       int optname, int __user *val)
+				       int optname, int *val)
 {
 	int err = 0;
 
