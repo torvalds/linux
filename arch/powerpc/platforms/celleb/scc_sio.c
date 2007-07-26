@@ -39,7 +39,7 @@ static struct {
 	{ 0x800, 1 }	/* 0xFF2800 */
 };
 
-static int txx9_serial_init(void)
+static int __init txx9_serial_init(void)
 {
 	extern int early_serial_txx9_setup(struct uart_port *port);
 	struct device_node *node;
