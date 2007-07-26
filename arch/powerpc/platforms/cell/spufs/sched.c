@@ -927,10 +927,6 @@ int __init spu_sched_init(void)
 		INIT_LIST_HEAD(&spu_prio->runq[i]);
 		__clear_bit(i, spu_prio->bitmap);
 	}
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		mutex_init(&cbe_spu_info[i].list_mutex);
-		INIT_LIST_HEAD(&cbe_spu_info[i].spus);
-	}
 	spin_lock_init(&spu_prio->runq_lock);
 
 	setup_timer(&spusched_timer, spusched_wake, 0);

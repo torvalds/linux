@@ -160,4 +160,5 @@ setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data, u32 
 		mbase = ioremap(cfg_data & PAGE_MASK, PAGE_SIZE);
 	hose->cfg_data = mbase + (cfg_data & ~PAGE_MASK);
 	hose->ops = &indirect_pci_ops;
+	hose->indirect_type = flags;
 }

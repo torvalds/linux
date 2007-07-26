@@ -490,6 +490,9 @@ static int __init maple_add_bridge(struct device_node *dev)
 	/* Fixup "bus-range" OF property */
 	fixup_bus_range(dev);
 
+	/* Check for legacy IOs */
+	isa_bridge_find_early(hose);
+
 	return 0;
 }
 

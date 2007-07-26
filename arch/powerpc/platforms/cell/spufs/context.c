@@ -59,7 +59,8 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	INIT_LIST_HEAD(&ctx->aff_list);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
-	ctx->cpus_allowed = current->cpus_allowed;
+
+	__spu_update_sched_info(ctx);
 	spu_set_timeslice(ctx);
 	ctx->stats.util_state = SPU_UTIL_IDLE_LOADED;
 

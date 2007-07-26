@@ -104,6 +104,7 @@
 			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		ethernet@26000 {
@@ -117,6 +118,7 @@
 			interrupts = <1f 2 20 2 21 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		serial@4500 {
@@ -346,6 +348,12 @@
 				};
 			};
 
+		};
+
+		global-utilities@e0000 {	//global utilities block
+			compatible = "fsl,mpc8548-guts";
+			reg = <e0000 1000>;
+			fsl,has-rstcr;
 		};
 
 		mpic: pic@40000 {

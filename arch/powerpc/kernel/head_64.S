@@ -809,8 +809,9 @@ system_reset_iSeries:
 	mtmsrd	r24			/* RI on */
 	lhz	r24,PACAPACAINDEX(r13)	/* Get processor # */
 	cmpwi	0,r24,0			/* Are we processor 0? */
-	beq	.__start_initialization_iSeries	/* Start up the first processor */
-	mfspr	r4,SPRN_CTRLF
+	bne	1f
+	b	.__start_initialization_iSeries	/* Start up the first processor */
+1:	mfspr	r4,SPRN_CTRLF
 	li	r5,CTRL_RUNLATCH	/* Turn off the run light */
 	andc	r4,r4,r5
 	mtspr	SPRN_CTRLT,r4
@@ -1611,7 +1612,7 @@ _GLOBAL(generic_secondary_smp_init)
 #endif
 
 #ifdef CONFIG_PPC_ISERIES
-_STATIC(__start_initialization_iSeries)
+_INIT_STATIC(__start_initialization_iSeries)
 	/* Clear out the BSS */
 	LOAD_REG_IMMEDIATE(r11,__bss_stop)
 	LOAD_REG_IMMEDIATE(r8,__bss_start)
