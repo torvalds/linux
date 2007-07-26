@@ -1283,7 +1283,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		}
 		inode_table = ext4_inode_table(sb, gdp);
 		if (inode_table < first_block ||
-		    inode_table + sbi->s_itb_per_group > last_block)
+		    inode_table + sbi->s_itb_per_group - 1 > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
 				    "Inode table for group %d"

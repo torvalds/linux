@@ -1221,7 +1221,7 @@ static int ext3_check_descriptors (struct super_block * sb)
 			return 0;
 		}
 		if (le32_to_cpu(gdp->bg_inode_table) < first_block ||
-		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group >
+		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group - 1 >
 		    last_block)
 		{
 			ext3_error (sb, "ext3_check_descriptors",
