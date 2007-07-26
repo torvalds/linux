@@ -553,6 +553,16 @@ void release_all_dma(struct lguest *lg)
 	up_read(&lg->mm->mmap_sem);
 }
 
+/*M:007 We only return a single DMA buffer to the Launcher, but it would be
+ * more efficient to return a pointer to the entire array of DMA buffers, which
+ * it can cache and choose one whenever it wants.
+ *
+ * Currently the Launcher uses a write to /dev/lguest, and the return value is
+ * the address of the DMA structure with the interrupt number placed in
+ * dma->used_len.  If we wanted to return the entire array, we need to return
+ * the address, array size and interrupt number: this seems to require an
+ * ioctl(). :*/
+
 /*L:320 This routine looks for a DMA buffer registered by the Guest on the
  * given key (using the BIND_DMA hypercall). */
 unsigned long get_dma_buffer(struct lguest *lg,

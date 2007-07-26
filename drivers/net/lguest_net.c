@@ -35,6 +35,25 @@
 #define MAX_LANS		4
 #define NUM_SKBS		8
 
+/*M:011 Network code master Jeff Garzik points out numerous shortcomings in
+ * this driver if it aspires to greatness.
+ *
+ * Firstly, it doesn't use "NAPI": the networking's New API, and is poorer for
+ * it.  As he says "NAPI means system-wide load leveling, across multiple
+ * network interfaces.  Lack of NAPI can mean competition at higher loads."
+ *
+ * He also points out that we don't implement set_mac_address, so users cannot
+ * change the devices hardware address.  When I asked why one would want to:
+ * "Bonding, and situations where you /do/ want the MAC address to "leak" out
+ * of the host onto the wider net."
+ *
+ * Finally, he would like module unloading: "It is not unrealistic to think of
+ * [un|re|]loading the net support module in an lguest guest.  And, adding
+ * module support makes the programmer more responsible, because they now have
+ * to learn to clean up after themselves.  Any driver that cannot clean up
+ * after itself is an incomplete driver in my book."
+ :*/
+
 /*D:530 The "struct lguestnet_info" contains all the information we need to
  * know about the network device. */
 struct lguestnet_info

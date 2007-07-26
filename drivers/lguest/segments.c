@@ -94,6 +94,10 @@ static void check_segment_use(struct lguest *lg, unsigned int desc)
 	    || lg->regs->ss / 8 == desc)
 		kill_guest(lg, "Removed live GDT entry %u", desc);
 }
+/*:*/
+/*M:009 We wouldn't need to check for removal of in-use segments if we handled
+ * faults in the Switcher.  However, it's probably not a worthwhile
+ * optimization. :*/
 
 /*H:610 Once the GDT has been changed, we look through the changed entries and
  * see if they're OK.  If not, we'll call kill_guest() and the Guest will never

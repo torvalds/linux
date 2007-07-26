@@ -231,6 +231,20 @@ static int direct_trap(const struct lguest *lg,
 	 * go direct, of course 8) */
 	return idt_type(trap->a, trap->b) == 0xF;
 }
+/*:*/
+
+/*M:005 The Guest has the ability to turn its interrupt gates into trap gates,
+ * if it is careful.  The Host will let trap gates can go directly to the
+ * Guest, but the Guest needs the interrupts atomically disabled for an
+ * interrupt gate.  It can do this by pointing the trap gate at instructions
+ * within noirq_start and noirq_end, where it can safely disable interrupts. */
+
+/*M:006 The Guests do not use the sysenter (fast system call) instruction,
+ * because it's hardcoded to enter privilege level 0 and so can't go direct.
+ * It's about twice as fast as the older "int 0x80" system call, so it might
+ * still be worthwhile to handle it in the Switcher and lcall down to the
+ * Guest.  The sysenter semantics are hairy tho: search for that keyword in
+ * entry.S :*/
 
 /*H:260 When we make traps go directly into the Guest, we need to make sure
  * the kernel stack is valid (ie. mapped in the page tables).  Otherwise, the

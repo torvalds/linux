@@ -250,6 +250,14 @@ static void irq_enable(void)
 {
 	lguest_data.irq_enabled = X86_EFLAGS_IF;
 }
+/*:*/
+/*M:003 Note that we don't check for outstanding interrupts when we re-enable
+ * them (or when we unmask an interrupt).  This seems to work for the moment,
+ * since interrupts are rare and we'll just get the interrupt on the next timer
+ * tick, but when we turn on CONFIG_NO_HZ, we should revisit this.  One way
+ * would be to put the "irq_enabled" field in a page by itself, and have the
+ * Host write-protect it when an interrupt comes in when irqs are disabled.
+ * There will then be a page fault as soon as interrupts are re-enabled. :*/
 
 /*G:034
  * The Interrupt Descriptor Table (IDT).

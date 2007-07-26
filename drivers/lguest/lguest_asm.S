@@ -39,6 +39,20 @@ LGUEST_PATCH(pushf, movl lguest_data+LGUEST_DATA_irq_enabled, %eax)
 .global lguest_noirq_start
 .global lguest_noirq_end
 
+/*M:004 When the Host reflects a trap or injects an interrupt into the Guest,
+ * it sets the eflags interrupt bit on the stack based on
+ * lguest_data.irq_enabled, so the Guest iret logic does the right thing when
+ * restoring it.  However, when the Host sets the Guest up for direct traps,
+ * such as system calls, the processor is the one to push eflags onto the
+ * stack, and the interrupt bit will be 1 (in reality, interrupts are always
+ * enabled in the Guest).
+ *
+ * This turns out to be harmless: the only trap which should happen under Linux
+ * with interrupts disabled is Page Fault (due to our lazy mapping of vmalloc
+ * regions), which has to be reflected through the Host anyway.  If another
+ * trap *does* go off when interrupts are disabled, the Guest will panic, and
+ * we'll never get to this iret! :*/
+
 /*G:045 There is one final paravirt_op that the Guest implements, and glancing
  * at it you can see why I left it to last.  It's *cool*!  It's in *assembler*!
  *

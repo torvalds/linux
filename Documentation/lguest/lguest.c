@@ -1510,3 +1510,15 @@ int main(int argc, char *argv[])
 	/* Finally, run the Guest.  This doesn't return. */
 	run_guest(lguest_fd, &device_list);
 }
+/*:*/
+
+/*M:999
+ * Mastery is done: you now know everything I do.
+ *
+ * But surely you have seen code, features and bugs in your wanderings which
+ * you now yearn to attack?  That is the real game, and I look forward to you
+ * patching and forking lguest into the Your-Name-Here-visor.
+ *
+ * Farewell, and good coding!
+ * Rusty Russell.
+ */

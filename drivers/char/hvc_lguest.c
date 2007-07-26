@@ -13,6 +13,9 @@
  * functions.
  :*/
 
+/*M:002 The console can be flooded: while the Guest is processing input the
+ * Host can send more.  Buffering in the Host could alleviate this, but it is a
+ * difficult problem in general. :*/
 /* Copyright (C) 2006 Rusty Russell, IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify

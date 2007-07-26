@@ -15,6 +15,11 @@
 #include <asm/tlbflush.h>
 #include "lg.h"
 
+/*M:008 We hold reference to pages, which prevents them from being swapped.
+ * It'd be nice to have a callback in the "struct mm_struct" when Linux wants
+ * to swap out.  If we had this, and a shrinker callback to trim PTE pages, we
+ * could probably consider launching Guests as non-root. :*/
+
 /*H:300
  * The Page Table Code
  *
