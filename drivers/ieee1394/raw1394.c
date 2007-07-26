@@ -2677,7 +2677,7 @@ static long raw1394_iso_xmit_recv_packets32(struct file *file, unsigned int cmd,
                                           struct raw1394_iso_packets32 __user *arg)
 {
 	compat_uptr_t infos32;
-	void *infos;
+	void __user *infos;
 	long err = -EFAULT;
 	struct raw1394_iso_packets __user *dst = compat_alloc_user_space(sizeof(struct raw1394_iso_packets));
 
