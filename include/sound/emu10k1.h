@@ -1456,6 +1456,8 @@ struct snd_emu1010 {
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
 	unsigned int internal_clock; /* 44100 or 48000 */
+	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
+	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
 	struct task_struct *firmware_thread;
 };
 
@@ -1600,9 +1602,9 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, 
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
 int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
-int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value);
-int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value);
-int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, int dst, int src);
+int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value);
+int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value);
+int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, u32 dst, u32 src);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);

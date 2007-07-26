@@ -873,7 +873,15 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	snd_printk(KERN_INFO "emu1010: Card options=0x%x\n",reg);
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTICAL_TYPE, &tmp ); 
 	/* Optical -> ADAT I/O  */
-	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, EMU_HANA_OPTICAL_IN_ADAT | EMU_HANA_OPTICAL_OUT_ADAT );
+	/* 0 : SPDIF
+	 * 1 : ADAT
+	 */
+	emu->emu1010.optical_in = 1; /* IN_ADAT */
+	emu->emu1010.optical_out = 1; /* IN_ADAT */
+	tmp = 0;
+	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
+		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp );
 	snd_emu1010_fpga_read(emu, EMU_HANA_ADC_PADS, &tmp );
 	/* Set no attenuation on Audio Dock pads. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, 0x00 );
