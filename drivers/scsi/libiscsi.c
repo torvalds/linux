@@ -1473,6 +1473,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
 	struct module *owner = cls_session->transport->owner;
 
+	iscsi_unblock_session(cls_session);
 	scsi_remove_host(shost);
 
 	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
