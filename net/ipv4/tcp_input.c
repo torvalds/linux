@@ -2490,12 +2490,23 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk);
 
-		/* Is the ACK triggering packet unambiguous? */
-		if (acked & FLAG_RETRANS_DATA_ACKED)
-			last_ackt = net_invalid_timestamp();
+		if (ca_ops->pkts_acked) {
+			s32 rtt_us = -1;
 
-		if (ca_ops->pkts_acked)
-			ca_ops->pkts_acked(sk, pkts_acked, last_ackt);
+			/* Is the ACK triggering packet unambiguous? */
+			if (!(acked & FLAG_RETRANS_DATA_ACKED)) {
+				/* High resolution needed and available? */
+				if (ca_ops->flags & TCP_CONG_RTT_STAMP &&
+				    !ktime_equal(last_ackt,
+						 net_invalid_timestamp()))
+					rtt_us = ktime_us_delta(ktime_get_real(),
+								last_ackt);
+				else if (seq_rtt > 0)
+					rtt_us = jiffies_to_usecs(seq_rtt);
+			}
+
+			ca_ops->pkts_acked(sk, pkts_acked, rtt_us);
+		}
 	}
 
 #if FASTRETRANS_DEBUG > 0
