@@ -365,6 +365,7 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/* Reset pre-scaler & stop RTC */
 	tmp = readb(rtc->regbase + RCR2);
 	tmp |= RCR2_RESET;
+	tmp &= ~RCR2_START;
 	writeb(tmp, rtc->regbase + RCR2);
 
 	writeb(BIN2BCD(tm->tm_sec),  rtc->regbase + RSECCNT);
