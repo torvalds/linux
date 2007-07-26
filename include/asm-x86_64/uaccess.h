@@ -100,7 +100,7 @@ struct exception_table_entry
 	case 8:  __get_user_x(8,__ret_gu,__val_gu,ptr); break;		\
 	default: __get_user_bad(); break;				\
 	}								\
-	(x) = (typeof(*(ptr)))__val_gu;				\
+	(x) = (__force typeof(*(ptr)))__val_gu;				\
 	__ret_gu;							\
 })
 
@@ -192,7 +192,7 @@ struct __large_struct { unsigned long buf[100]; };
 	int __gu_err;						\
 	unsigned long __gu_val;					\
 	__get_user_size(__gu_val,(ptr),(size),__gu_err);	\
-	(x) = (typeof(*(ptr)))__gu_val;			\
+	(x) = (__force typeof(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
