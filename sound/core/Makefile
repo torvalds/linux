@@ -14,7 +14,8 @@ endif
 snd-pcm-objs := pcm.o pcm_native.o pcm_lib.o pcm_timer.o pcm_misc.o \
 		pcm_memory.o
 
-snd-page-alloc-objs := memalloc.o sgbuf.o
+snd-page-alloc-y := memalloc.o
+snd-page-alloc-$(CONFIG_HAS_DMA) += sgbuf.o
 
 snd-rawmidi-objs  := rawmidi.o
 snd-timer-objs    := timer.o
