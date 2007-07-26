@@ -2284,9 +2284,12 @@ static void ahd_linux_set_period(struct scsi_target *starget, int period)
 	if (period < 8)
 		period = 8;
 	if (period < 10) {
-		ppr_options |= MSG_EXT_PPR_DT_REQ;
-		if (period == 8)
-			ppr_options |= MSG_EXT_PPR_IU_REQ;
+		if (spi_max_width(starget)) {
+			ppr_options |= MSG_EXT_PPR_DT_REQ;
+			if (period == 8)
+				ppr_options |= MSG_EXT_PPR_IU_REQ;
+		} else
+			period = 10;
 	}
 
 	dt = ppr_options & MSG_EXT_PPR_DT_REQ;
@@ -2365,7 +2368,7 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 		printf("%s: %s DT\n", ahd_name(ahd), 
 		       dt ? "enabling" : "disabling");
 #endif
-	if (dt) {
+	if (dt && spi_max_width(starget)) {
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
 		if (!width)
 			ahd_linux_set_width(starget, 1);
@@ -2447,7 +2450,7 @@ static void ahd_linux_set_iu(struct scsi_target *starget, int iu)
 		       iu ? "enabling" : "disabling");
 #endif
 
-	if (iu) {
+	if (iu && spi_max_width(starget)) {
 		ppr_options |= MSG_EXT_PPR_IU_REQ;
 		ppr_options |= MSG_EXT_PPR_DT_REQ; /* IU requires DT */
 	}
@@ -2487,7 +2490,7 @@ static void ahd_linux_set_rd_strm(struct scsi_target *starget, int rdstrm)
 		       rdstrm  ? "enabling" : "disabling");
 #endif
 
-	if (rdstrm)
+	if (rdstrm && spi_max_width(starget))
 		ppr_options |= MSG_EXT_PPR_RD_STRM;
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
@@ -2523,7 +2526,7 @@ static void ahd_linux_set_wr_flow(struct scsi_target *starget, int wrflow)
 		       wrflow ? "enabling" : "disabling");
 #endif
 
-	if (wrflow)
+	if (wrflow && spi_max_width(starget))
 		ppr_options |= MSG_EXT_PPR_WR_FLOW;
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
@@ -2567,7 +2570,7 @@ static void ahd_linux_set_rti(struct scsi_target *starget, int rti)
 		       rti ? "enabling" : "disabling");
 #endif
 
-	if (rti)
+	if (rti && spi_max_width(starget))
 		ppr_options |= MSG_EXT_PPR_RTI;
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
@@ -2603,7 +2606,7 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 		       pcomp ? "Enable" : "Disable");
 #endif
 
-	if (pcomp) {
+	if (pcomp && spi_max_width(starget)) {
 		uint8_t precomp;
 
 		if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
@@ -2647,7 +2650,7 @@ static void ahd_linux_set_hold_mcs(struct scsi_target *starget, int hold)
 	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
 	unsigned long flags;
 
-	if (hold)
+	if (hold && spi_max_width(starget))
 		ppr_options |= MSG_EXT_PPR_HOLD_MCS;
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
