@@ -741,16 +741,15 @@ int __init acpi_boot_init(void)
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
-	int vector;
+	int tmp;
 
 	if (has_8259 && gsi < 16)
 		*irq = isa_irq_to_vector(gsi);
 	else {
-		vector = gsi_to_vector(gsi);
-		if (vector == -1)
+		tmp = gsi_to_irq(gsi);
+		if (tmp == -1)
 			return -1;
-
-		*irq = vector;
+		*irq = tmp;
 	}
 	return 0;
 }
