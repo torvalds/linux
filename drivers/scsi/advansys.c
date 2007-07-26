@@ -4031,9 +4031,7 @@ static int
 advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		   off_t offset, int length, int inout)
 {
-	struct Scsi_Host *shp;
 	asc_board_t *boardp;
-	int i;
 	char *cp;
 	int cplen;
 	int cnt;
@@ -4058,18 +4056,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 * User read of /proc/scsi/advansys/[0...] file.
 	 */
 
-	/* Find the specified board. */
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i]->host_no == shost->host_no) {
-			break;
-		}
-	}
-	if (i == asc_board_count) {
-		return (-ENOENT);
-	}
-
-	shp = asc_host[i];
-	boardp = ASC_BOARDP(shp);
+	boardp = ASC_BOARDP(shost);
 
 	/* Copy read data starting at the beginning of the buffer. */
 	*start = buffer;
@@ -4083,7 +4070,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 *
 	 * advansys_info() returns the board string from its own static buffer.
 	 */
-	cp = (char *)advansys_info(shp);
+	cp = (char *)advansys_info(shost);
 	strcat(cp, "\n");
 	cplen = strlen(cp);
 	/* Copy board information. */
@@ -4102,7 +4089,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 */
 	if (ASC_WIDE_BOARD(boardp)) {
 		cp = boardp->prtbuf;
-		cplen = asc_prt_adv_bios(shp, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_adv_bios(shost, cp, ASC_PRTBUF_SIZE);
 		ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
 		cnt =
 		    asc_proc_copy(advoffset, offset, curbuf, leftlen, cp,
@@ -4121,7 +4108,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 * Display driver information for each device attached to the board.
 	 */
 	cp = boardp->prtbuf;
-	cplen = asc_prt_board_devices(shp, cp, ASC_PRTBUF_SIZE);
+	cplen = asc_prt_board_devices(shost, cp, ASC_PRTBUF_SIZE);
 	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
 	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
 	totcnt += cnt;
@@ -4138,9 +4125,9 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 */
 	cp = boardp->prtbuf;
 	if (ASC_NARROW_BOARD(boardp)) {
-		cplen = asc_prt_asc_board_eeprom(shp, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_asc_board_eeprom(shost, cp, ASC_PRTBUF_SIZE);
 	} else {
-		cplen = asc_prt_adv_board_eeprom(shp, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_adv_board_eeprom(shost, cp, ASC_PRTBUF_SIZE);
 	}
 	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
 	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
@@ -4157,7 +4144,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 * Display driver configuration and information for the board.
 	 */
 	cp = boardp->prtbuf;
-	cplen = asc_prt_driver_conf(shp, cp, ASC_PRTBUF_SIZE);
+	cplen = asc_prt_driver_conf(shost, cp, ASC_PRTBUF_SIZE);
 	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
 	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
 	totcnt += cnt;
@@ -4174,7 +4161,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 * Display driver statistics for the board.
 	 */
 	cp = boardp->prtbuf;
-	cplen = asc_prt_board_stats(shp, cp, ASC_PRTBUF_SIZE);
+	cplen = asc_prt_board_stats(shost, cp, ASC_PRTBUF_SIZE);
 	ASC_ASSERT(cplen <= ASC_PRTBUF_SIZE);
 	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
 	totcnt += cnt;
@@ -4191,7 +4178,8 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 */
 	for (tgt_id = 0; tgt_id <= ADV_MAX_TID; tgt_id++) {
 		cp = boardp->prtbuf;
-		cplen = asc_prt_target_stats(shp, tgt_id, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_target_stats(shost, tgt_id, cp,
+							ASC_PRTBUF_SIZE);
 		ASC_ASSERT(cplen <= ASC_PRTBUF_SIZE);
 		cnt =
 		    asc_proc_copy(advoffset, offset, curbuf, leftlen, cp,
@@ -4213,9 +4201,9 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	 */
 	cp = boardp->prtbuf;
 	if (ASC_NARROW_BOARD(boardp)) {
-		cplen = asc_prt_asc_board_info(shp, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_asc_board_info(shost, cp, ASC_PRTBUF_SIZE);
 	} else {
-		cplen = asc_prt_adv_board_info(shp, cp, ASC_PRTBUF_SIZE);
+		cplen = asc_prt_adv_board_info(shost, cp, ASC_PRTBUF_SIZE);
 	}
 	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
 	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
