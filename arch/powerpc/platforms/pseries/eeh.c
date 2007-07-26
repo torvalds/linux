@@ -750,12 +750,12 @@ int rtas_set_slot_reset(struct pci_dn *pdn)
 			return 0;
 
 		if (rc < 0) {
-			printk (KERN_ERR "EEH: unrecoverable slot failure %s\n",
-			        pdn->node->full_name);
+			printk(KERN_ERR "EEH: unrecoverable slot failure %s\n",
+			       pdn->node->full_name);
 			return -1;
 		}
-		printk (KERN_ERR "EEH: bus reset %d failed on slot %s\n",
-		        i+1, pdn->node->full_name);
+		printk(KERN_ERR "EEH: bus reset %d failed on slot %s, rc=%d\n",
+		       i+1, pdn->node->full_name, rc);
 	}
 
 	return -1;
