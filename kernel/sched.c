@@ -263,8 +263,6 @@ struct rq {
 	unsigned int clock_warps, clock_overflows;
 	unsigned int clock_unstable_events;
 
-	struct sched_class *load_balance_class;
-
 	atomic_t nr_iowait;
 
 #ifdef CONFIG_SMP
