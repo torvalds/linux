@@ -1,5 +1,5 @@
 /*
- * SH7710 Setup
+ * SH3 Setup code for SH7710, SH7712
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2007  Nobuhiro Iwamatsu
@@ -45,7 +45,9 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(SCIF1_ERI, 0x900), INTC_VECT(SCIF1_RXI, 0x920),
 	INTC_VECT(SCIF1_BRI, 0x940), INTC_VECT(SCIF1_TXI, 0x960),
 	INTC_VECT(DMAC_DEI4, 0xb80), INTC_VECT(DMAC_DEI5, 0xba0),
+#ifdef CONFIG_CPU_SUBTYPE_SH7710
 	INTC_VECT(IPSEC, 0xbe0),
+#endif
 	INTC_VECT(EDMAC0, 0xc00), INTC_VECT(EDMAC1, 0xc20),
 	INTC_VECT(EDMAC2, 0xc40),
 	INTC_VECT(SIOF0_ERI, 0xe00), INTC_VECT(SIOF0_TXI, 0xe20),
@@ -88,7 +90,10 @@ static struct intc_prio_reg prio_registers[] = {
 	{ 0xa4000016, 16, 4, /* IPRC */ { IRQ3, IRQ2, IRQ1, IRQ0 } },
 	{ 0xa4000018, 16, 4, /* IPRD */ { 0, 0, IRQ4, IRQ5 } },
 	{ 0xa400001a, 16, 4, /* IPRE */ { DMAC1, SCIF0, SCIF1 } },
-	{ 0xa4080000, 16, 4, /* IPRF */ { IPSEC, DMAC2 } },
+	{ 0xa4080000, 16, 4, /* IPRF */ { 0, DMAC2 } },
+#ifdef CONFIG_CPU_SUBTYPE_SH7710
+	{ 0xa4080000, 16, 4, /* IPRF */ { IPSEC } },
+#endif
 	{ 0xa4080002, 16, 4, /* IPRG */ { EDMAC0, EDMAC1, EDMAC2 } },
 	{ 0xa4080004, 16, 4, /* IPRH */ { 0, 0, 0, SIOF0 } },
 	{ 0xa4080006, 16, 4, /* IPRI */ { 0, 0, SIOF1 } },
