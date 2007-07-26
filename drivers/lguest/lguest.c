@@ -66,6 +66,12 @@
 #include <asm/mce.h>
 #include <asm/io.h>
 
+/*G:010 Welcome to the Guest!
+ *
+ * The Guest in our tale is a simple creature: identical to the Host but
+ * behaving in simplified but equivalent ways.  In particular, the Guest is the
+ * same kernel as the Host (or at least, built from the same source code). :*/
+
 /* Declarations for definitions in lguest_guest.S */
 extern char lguest_noirq_start[], lguest_noirq_end[];
 extern const char lgstart_cli[], lgend_cli[];
@@ -84,7 +90,26 @@ struct lguest_data lguest_data = {
 struct lguest_device_desc *lguest_devices;
 static cycle_t clock_base;
 
-static enum paravirt_lazy_mode lazy_mode;
+/*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
+ * real optimization trick!
+ *
+ * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
+ * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
+ * are reasonably expensive, batching them up makes sense.  For example, a
+ * large mmap might update dozens of page table entries: that code calls
+ * lguest_lazy_mode(PARAVIRT_LAZY_MMU), does the dozen updates, then calls
+ * lguest_lazy_mode(PARAVIRT_LAZY_NONE).
+ *
+ * So, when we're in lazy mode, we call async_hypercall() to store the call for
+ * future processing.  When lazy mode is turned off we issue a hypercall to
+ * flush the stored calls.
+ *
+ * There's also a hack where "mode" is set to "PARAVIRT_LAZY_FLUSH" which
+ * indicates we're to flush any outstanding calls immediately.  This is used
+ * when an interrupt handler does a kmap_atomic(): the page table changes must
+ * happen immediately even if we're in the middle of a batch.  Usually we're
+ * not, though, so there's nothing to do. */
+static enum paravirt_lazy_mode lazy_mode; /* Note: not SMP-safe! */
 static void lguest_lazy_mode(enum paravirt_lazy_mode mode)
 {
 	if (mode == PARAVIRT_LAZY_FLUSH) {
@@ -108,6 +133,16 @@ static void lazy_hcall(unsigned long call,
 		async_hcall(call, arg1, arg2, arg3);
 }
 
+/* async_hcall() is pretty simple: I'm quite proud of it really.  We have a
+ * ring buffer of stored hypercalls which the Host will run though next time we
+ * do a normal hypercall.  Each entry in the ring has 4 slots for the hypercall
+ * arguments, and a "hcall_status" word which is 0 if the call is ready to go,
+ * and 255 once the Host has finished with it.
+ *
+ * If we come around to a slot which hasn't been finished, then the table is
+ * full and we just make the hypercall directly.  This has the nice side
+ * effect of causing the Host to run all the stored calls in the ring buffer
+ * which empties it for next time! */
 void async_hcall(unsigned long call,
 		 unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
@@ -115,6 +150,9 @@ void async_hcall(unsigned long call,
 	static unsigned int next_call;
 	unsigned long flags;
 
+	/* Disable interrupts if not already disabled: we don't want an
+	 * interrupt handler making a hypercall while we're already doing
+	 * one! */
 	local_irq_save(flags);
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
@@ -124,7 +162,7 @@ void async_hcall(unsigned long call,
 		lguest_data.hcalls[next_call].edx = arg1;
 		lguest_data.hcalls[next_call].ebx = arg2;
 		lguest_data.hcalls[next_call].ecx = arg3;
-		/* Make sure host sees arguments before "valid" flag. */
+		/* Arguments must all be written before we mark it to go */
 		wmb();
 		lguest_data.hcall_status[next_call] = 0;
 		if (++next_call == LHCALL_RING_SIZE)
@@ -132,9 +170,14 @@ void async_hcall(unsigned long call,
 	}
 	local_irq_restore(flags);
 }
+/*:*/
 
+/* Wrappers for the SEND_DMA and BIND_DMA hypercalls.  This is mainly because
+ * Jeff Garzik complained that __pa() should never appear in drivers, and this
+ * helps remove most of them.   But also, it wraps some ugliness. */
 void lguest_send_dma(unsigned long key, struct lguest_dma *dma)
 {
+	/* The hcall might not write this if something goes wrong */
 	dma->used_len = 0;
 	hcall(LHCALL_SEND_DMA, key, __pa(dma), 0);
 }
@@ -142,11 +185,16 @@ void lguest_send_dma(unsigned long key, struct lguest_dma *dma)
 int lguest_bind_dma(unsigned long key, struct lguest_dma *dmas,
 		    unsigned int num, u8 irq)
 {
+	/* This is the only hypercall which actually wants 5 arguments, and we
+	 * only support 4.  Fortunately the interrupt number is always less
+	 * than 256, so we can pack it with the number of dmas in the final
+	 * argument.  */
 	if (!hcall(LHCALL_BIND_DMA, key, __pa(dmas), (num << 8) | irq))
 		return -ENOMEM;
 	return 0;
 }
 
+/* Unbinding is the same hypercall as binding, but with 0 num & irq. */
 void lguest_unbind_dma(unsigned long key, struct lguest_dma *dmas)
 {
 	hcall(LHCALL_BIND_DMA, key, __pa(dmas), 0);
@@ -164,35 +212,65 @@ void lguest_unmap(void *addr)
 	iounmap((__force void __iomem *)addr);
 }
 
+/*G:033
+ * Here are our first native-instruction replacements: four functions for
+ * interrupt control.
+ *
+ * The simplest way of implementing these would be to have "turn interrupts
+ * off" and "turn interrupts on" hypercalls.  Unfortunately, this is too slow:
+ * these are by far the most commonly called functions of those we override.
+ *
+ * So instead we keep an "irq_enabled" field inside our "struct lguest_data",
+ * which the Guest can update with a single instruction.  The Host knows to
+ * check there when it wants to deliver an interrupt.
+ */
+
+/* save_flags() is expected to return the processor state (ie. "eflags").  The
+ * eflags word contains all kind of stuff, but in practice Linux only cares
+ * about the interrupt flag.  Our "save_flags()" just returns that. */
 static unsigned long save_fl(void)
 {
 	return lguest_data.irq_enabled;
 }
 
+/* "restore_flags" just sets the flags back to the value given. */
 static void restore_fl(unsigned long flags)
 {
-	/* FIXME: Check if interrupt pending... */
 	lguest_data.irq_enabled = flags;
 }
 
+/* Interrupts go off... */
 static void irq_disable(void)
 {
 	lguest_data.irq_enabled = 0;
 }
 
+/* Interrupts go on... */
 static void irq_enable(void)
 {
-	/* FIXME: Check if interrupt pending... */
 	lguest_data.irq_enabled = X86_EFLAGS_IF;
 }
 
+/*G:034
+ * The Interrupt Descriptor Table (IDT).
+ *
+ * The IDT tells the processor what to do when an interrupt comes in.  Each
+ * entry in the table is a 64-bit descriptor: this holds the privilege level,
+ * address of the handler, and... well, who cares?  The Guest just asks the
+ * Host to make the change anyway, because the Host controls the real IDT.
+ */
 static void lguest_write_idt_entry(struct desc_struct *dt,
 				   int entrynum, u32 low, u32 high)
 {
+	/* Keep the local copy up to date. */
 	write_dt_entry(dt, entrynum, low, high);
+	/* Tell Host about this new entry. */
 	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high);
 }
 
+/* Changing to a different IDT is very rare: we keep the IDT up-to-date every
+ * time it is written, so we can simply loop through all entries and tell the
+ * Host about them. */
 static void lguest_load_idt(const struct Xgt_desc_struct *desc)
 {
 	unsigned int i;
@@ -202,12 +280,29 @@ static void lguest_load_idt(const struct Xgt_desc_struct *desc)
 		hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
 }
 
+/*
+ * The Global Descriptor Table.
+ *
+ * The Intel architecture defines another table, called the Global Descriptor
+ * Table (GDT).  You tell the CPU where it is (and its size) using the "lgdt"
+ * instruction, and then several other instructions refer to entries in the
+ * table.  There are three entries which the Switcher needs, so the Host simply
+ * controls the entire thing and the Guest asks it to make changes using the
+ * LOAD_GDT hypercall.
+ *
+ * This is the opposite of the IDT code where we have a LOAD_IDT_ENTRY
+ * hypercall and use that repeatedly to load a new IDT.  I don't think it
+ * really matters, but wouldn't it be nice if they were the same?
+ */
 static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
 {
 	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
 	hcall(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES, 0);
 }
 
+/* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
+ * then tell the Host to reload the entire thing.  This operation is so rare
+ * that this naive implementation is reasonable. */
 static void lguest_write_gdt_entry(struct desc_struct *dt,
 				   int entrynum, u32 low, u32 high)
 {
@@ -215,19 +310,58 @@ static void lguest_write_gdt_entry(struct desc_struct *dt,
 	hcall(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES, 0);
 }
 
+/* OK, I lied.  There are three "thread local storage" GDT entries which change
+ * on every context switch (these three entries are how glibc implements
+ * __thread variables).  So we have a hypercall specifically for this case. */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {
 	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
 }
+/*:*/
 
+/*G:038 That's enough excitement for now, back to ploughing through each of
+ * the paravirt_ops (we're about 1/3 of the way through).
+ *
+ * This is the Local Descriptor Table, another weird Intel thingy.  Linux only
+ * uses this for some strange applications like Wine.  We don't do anything
+ * here, so they'll get an informative and friendly Segmentation Fault. */
 static void lguest_set_ldt(const void *addr, unsigned entries)
 {
 }
 
+/* This loads a GDT entry into the "Task Register": that entry points to a
+ * structure called the Task State Segment.  Some comments scattered though the
+ * kernel code indicate that this used for task switching in ages past, along
+ * with blood sacrifice and astrology.
+ *
+ * Now there's nothing interesting in here that we don't get told elsewhere.
+ * But the native version uses the "ltr" instruction, which makes the Host
+ * complain to the Guest about a Segmentation Fault and it'll oops.  So we
+ * override the native version with a do-nothing version. */
 static void lguest_load_tr_desc(void)
 {
 }
 
+/* The "cpuid" instruction is a way of querying both the CPU identity
+ * (manufacturer, model, etc) and its features.  It was introduced before the
+ * Pentium in 1993 and keeps getting extended by both Intel and AMD.  As you
+ * might imagine, after a decade and a half this treatment, it is now a giant
+ * ball of hair.  Its entry in the current Intel manual runs to 28 pages.
+ *
+ * This instruction even it has its own Wikipedia entry.  The Wikipedia entry
+ * has been translated into 4 languages.  I am not making this up!
+ *
+ * We could get funky here and identify ourselves as "GenuineLguest", but
+ * instead we just use the real "cpuid" instruction.  Then I pretty much turned
+ * off feature bits until the Guest booted.  (Don't say that: you'll damage
+ * lguest sales!)  Shut up, inner voice!  (Hey, just pointing out that this is
+ * hardly future proof.)  Noone's listening!  They don't like you anyway,
+ * parenthetic weirdo!
+ *
+ * Replacing the cpuid so we can turn features off is great for the kernel, but
+ * anyone (including userspace) can just use the raw "cpuid" instruction and
+ * the Host won't even notice since it isn't privileged.  So we try not to get
+ * too worked up about it. */
 static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
 			 unsigned int *ecx, unsigned int *edx)
 {
@@ -240,21 +374,43 @@ static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
 		*ecx &= 0x00002201;
 		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
 		*edx &= 0x07808101;
-		/* Host wants to know when we flush kernel pages: set PGE. */
+		/* The Host can do a nice optimization if it knows that the
+		 * kernel mappings (addresses above 0xC0000000 or whatever
+		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
+		 * flush_tlb_user() for both user and kernel mappings unless
+		 * the Page Global Enable (PGE) feature bit is set. */
 		*edx |= 0x00002000;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
-		 * processor information, limit it to known fields. */
+		 * processor information there is, limit it to known fields. */
 		if (*eax > 0x80000008)
 			*eax = 0x80000008;
 		break;
 	}
 }
 
+/* Intel has four control registers, imaginatively named cr0, cr2, cr3 and cr4.
+ * I assume there's a cr1, but it hasn't bothered us yet, so we'll not bother
+ * it.  The Host needs to know when the Guest wants to change them, so we have
+ * a whole series of functions like read_cr0() and write_cr0().
+ *
+ * We start with CR0.  CR0 allows you to turn on and off all kinds of basic
+ * features, but Linux only really cares about one: the horrifically-named Task
+ * Switched (TS) bit at bit 3 (ie. 8)
+ *
+ * What does the TS bit do?  Well, it causes the CPU to trap (interrupt 7) if
+ * the floating point unit is used.  Which allows us to restore FPU state
+ * lazily after a task switch, and Linux uses that gratefully, but wouldn't a
+ * name like "FPUTRAP bit" be a little less cryptic?
+ *
+ * We store cr0 (and cr3) locally, because the Host never changes it.  The
+ * Guest sometimes wants to read it and we'd prefer not to bother the Host
+ * unnecessarily. */
 static unsigned long current_cr0, current_cr3;
 static void lguest_write_cr0(unsigned long val)
 {
+	/* 8 == TS bit. */
 	lazy_hcall(LHCALL_TS, val & 8, 0, 0);
 	current_cr0 = val;
 }
@@ -264,17 +420,25 @@ static unsigned long lguest_read_cr0(void)
 	return current_cr0;
 }
 
+/* Intel provided a special instruction to clear the TS bit for people too cool
+ * to use write_cr0() to do it.  This "clts" instruction is faster, because all
+ * the vowels have been optimized out. */
 static void lguest_clts(void)
 {
 	lazy_hcall(LHCALL_TS, 0, 0, 0);
 	current_cr0 &= ~8U;
 }
 
+/* CR2 is the virtual address of the last page fault, which the Guest only ever
+ * reads.  The Host kindly writes this into our "struct lguest_data", so we
+ * just read it out of there. */
 static unsigned long lguest_read_cr2(void)
 {
 	return lguest_data.cr2;
 }
 
+/* CR3 is the current toplevel pagetable page: the principle is the same as
+ * cr0.  Keep a local copy, and tell the Host when it changes. */
 static void lguest_write_cr3(unsigned long cr3)
 {
 	lazy_hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0);
@@ -286,7 +450,7 @@ static unsigned long lguest_read_cr3(void)
 	return current_cr3;
 }
 
-/* Used to enable/disable PGE, but we don't care. */
+/* CR4 is used to enable and disable PGE, but we don't care. */
 static unsigned long lguest_read_cr4(void)
 {
 	return 0;
@@ -296,6 +460,59 @@ static void lguest_write_cr4(unsigned long val)
 {
 }
 
+/*
+ * Page Table Handling.
+ *
+ * Now would be a good time to take a rest and grab a coffee or similarly
+ * relaxing stimulant.  The easy parts are behind us, and the trek gradually
+ * winds uphill from here.
+ *
+ * Quick refresher: memory is divided into "pages" of 4096 bytes each.  The CPU
+ * maps virtual addresses to physical addresses using "page tables".  We could
+ * use one huge index of 1 million entries: each address is 4 bytes, so that's
+ * 1024 pages just to hold the page tables.   But since most virtual addresses
+ * are unused, we use a two level index which saves space.  The CR3 register
+ * contains the physical address of the top level "page directory" page, which
+ * contains physical addresses of up to 1024 second-level pages.  Each of these
+ * second level pages contains up to 1024 physical addresses of actual pages,
+ * or Page Table Entries (PTEs).
+ *
+ * Here's a diagram, where arrows indicate physical addresses:
+ *
+ * CR3 ---> +---------+
+ *	    |  	   --------->+---------+
+ *	    |	      |	     | PADDR1  |
+ *	  Top-level   |	     | PADDR2  |
+ *	  (PMD) page  |	     | 	       |
+ *	    |	      |	   Lower-level |
+ *	    |	      |	   (PTE) page  |
+ *	    |	      |	     |	       |
+ *	      ....    	     	 ....
+ *
+ * So to convert a virtual address to a physical address, we look up the top
+ * level, which points us to the second level, which gives us the physical
+ * address of that page.  If the top level entry was not present, or the second
+ * level entry was not present, then the virtual address is invalid (we
+ * say "the page was not mapped").
+ *
+ * Put another way, a 32-bit virtual address is divided up like so:
+ *
+ *  1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ * |<---- 10 bits ---->|<---- 10 bits ---->|<------ 12 bits ------>|
+ *    Index into top     Index into second      Offset within page
+ *  page directory page    pagetable page
+ *
+ * The kernel spends a lot of time changing both the top-level page directory
+ * and lower-level pagetable pages.  The Guest doesn't know physical addresses,
+ * so while it maintains these page tables exactly like normal, it also needs
+ * to keep the Host informed whenever it makes a change: the Host will create
+ * the real page tables based on the Guests'.
+ */
+
+/* The Guest calls this to set a second-level entry (pte), ie. to map a page
+ * into a process' address space.  We set the entry then tell the Host the
+ * toplevel and address this corresponds to.  The Guest uses one pagetable per
+ * process, so we need to tell the Host which one we're changing (mm->pgd). */
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
@@ -303,7 +520,9 @@ static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	lazy_hcall(LHCALL_SET_PTE, __pa(mm->pgd), addr, pteval.pte_low);
 }
 
-/* We only support two-level pagetables at the moment. */
+/* The Guest calls this to set a top-level entry.  Again, we set the entry then
+ * tell the Host which top-level page we changed, and the index of the entry we
+ * changed. */
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	*pmdp = pmdval;
@@ -311,7 +530,15 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 		   (__pa(pmdp)&(PAGE_SIZE-1))/4, 0);
 }
 
-/* FIXME: Eliminate all callers of this. */
+/* There are a couple of legacy places where the kernel sets a PTE, but we
+ * don't know the top level any more.  This is useless for us, since we don't
+ * know which pagetable is changing or what address, so we just tell the Host
+ * to forget all of them.  Fortunately, this is very rare.
+ *
+ * ... except in early boot when the kernel sets up the initial pagetables,
+ * which makes booting astonishingly slow.  So we don't even tell the Host
+ * anything changed until we've done the first page table switch.
+ */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
@@ -320,22 +547,51 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
 }
 
+/* Unfortunately for Lguest, the paravirt_ops for page tables were based on
+ * native page table operations.  On native hardware you can set a new page
+ * table entry whenever you want, but if you want to remove one you have to do
+ * a TLB flush (a TLB is a little cache of page table entries kept by the CPU).
+ *
+ * So the lguest_set_pte_at() and lguest_set_pmd() functions above are only
+ * called when a valid entry is written, not when it's removed (ie. marked not
+ * present).  Instead, this is where we come when the Guest wants to remove a
+ * page table entry: we tell the Host to set that entry to 0 (ie. the present
+ * bit is zero). */
 static void lguest_flush_tlb_single(unsigned long addr)
 {
-	/* Simply set it to zero, and it will fault back in. */
+	/* Simply set it to zero: if it was not, it will fault back in. */
 	lazy_hcall(LHCALL_SET_PTE, current_cr3, addr, 0);
 }
 
+/* This is what happens after the Guest has removed a large number of entries.
+ * This tells the Host that any of the page table entries for userspace might
+ * have changed, ie. virtual addresses below PAGE_OFFSET. */
 static void lguest_flush_tlb_user(void)
 {
 	lazy_hcall(LHCALL_FLUSH_TLB, 0, 0, 0);
 }
 
+/* This is called when the kernel page tables have changed.  That's not very
+ * common (unless the Guest is using highmem, which makes the Guest extremely
+ * slow), so it's worth separating this from the user flushing above. */
 static void lguest_flush_tlb_kernel(void)
 {
 	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
 }
 
+/*
+ * The Unadvanced Programmable Interrupt Controller.
+ *
+ * This is an attempt to implement the simplest possible interrupt controller.
+ * I spent some time looking though routines like set_irq_chip_and_handler,
+ * set_irq_chip_and_handler_name, set_irq_chip_data and set_phasers_to_stun and
+ * I *think* this is as simple as it gets.
+ *
+ * We can tell the Host what interrupts we want blocked ready for using the
+ * lguest_data.interrupts bitmap, so disabling (aka "masking") them is as
+ * simple as setting a bit.  We don't actually "ack" interrupts as such, we
+ * just mask and unmask them.  I wonder if we should be cleverer?
+ */
 static void disable_lguest_irq(unsigned int irq)
 {
 	set_bit(irq, lguest_data.blocked_interrupts);
@@ -344,9 +600,9 @@ static void disable_lguest_irq(unsigned int irq)
 static void enable_lguest_irq(unsigned int irq)
 {
 	clear_bit(irq, lguest_data.blocked_interrupts);
-	/* FIXME: If it's pending? */
 }
 
+/* This structure describes the lguest IRQ controller. */
 static struct irq_chip lguest_irq_controller = {
 	.name		= "lguest",
 	.mask		= disable_lguest_irq,
@@ -354,6 +610,10 @@ static struct irq_chip lguest_irq_controller = {
 	.unmask		= enable_lguest_irq,
 };
 
+/* This sets up the Interrupt Descriptor Table (IDT) entry for each hardware
+ * interrupt (except 128, which is used for system calls), and then tells the
+ * Linux infrastructure that each interrupt is controlled by our level-based
+ * lguest interrupt controller. */
 static void __init lguest_init_IRQ(void)
 {
 	unsigned int i;
@@ -366,14 +626,24 @@ static void __init lguest_init_IRQ(void)
 						 handle_level_irq);
 		}
 	}
+	/* This call is required to set up for 4k stacks, where we have
+	 * separate stacks for hard and soft interrupts. */
 	irq_ctx_init(smp_processor_id());
 }
 
+/*
+ * Time.
+ *
+ * It would be far better for everyone if the Guest had its own clock, but
+ * until then it must ask the Host for the time.
+ */
 static unsigned long lguest_get_wallclock(void)
 {
 	return hcall(LHCALL_GET_WALLCLOCK, 0, 0, 0);
 }
 
+/* If the Host tells us we can trust the TSC, we use that, otherwise we simply
+ * use the imprecise but reliable "jiffies" counter. */
 static cycle_t lguest_clock_read(void)
 {
 	if (lguest_data.tsc_khz)
@@ -454,12 +724,19 @@ static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
 	local_irq_restore(flags);
 }
 
+/* At some point in the boot process, we get asked to set up our timing
+ * infrastructure.  The kernel doesn't expect timer interrupts before this, but
+ * we cleverly initialized the "blocked_interrupts" field of "struct
+ * lguest_data" so that timer interrupts were blocked until now. */
 static void lguest_time_init(void)
 {
+	/* Set up the timer interrupt (0) to go to our simple timer routine */
 	set_irq_handler(0, lguest_time_irq);
 
-	/* We use the TSC if the Host tells us we can, otherwise a dumb
-	 * jiffies-based clock. */
+	/* Our clock structure look like arch/i386/kernel/tsc.c if we can use
+	 * the TSC, otherwise it looks like kernel/time/jiffies.c.  Either way,
+	 * the "rating" is initialized so high that it's always chosen over any
+	 * other clocksource. */
 	if (lguest_data.tsc_khz) {
 		lguest_clock.shift = 22;
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
@@ -475,13 +752,30 @@ static void lguest_time_init(void)
 	clock_base = lguest_clock_read();
 	clocksource_register(&lguest_clock);
 
-	/* We can't set cpumask in the initializer: damn C limitations! */
+	/* We can't set cpumask in the initializer: damn C limitations!  Set it
+	 * here and register our timer device. */
 	lguest_clockevent.cpumask = cpumask_of_cpu(0);
 	clockevents_register_device(&lguest_clockevent);
 
+	/* Finally, we unblock the timer interrupt. */
 	enable_lguest_irq(0);
 }
 
+/*
+ * Miscellaneous bits and pieces.
+ *
+ * Here is an oddball collection of functions which the Guest needs for things
+ * to work.  They're pretty simple.
+ */
+
+/* The Guest needs to tell the host what stack it expects traps to use.  For
+ * native hardware, this is part of the Task State Segment mentioned above in
+ * lguest_load_tr_desc(), but to help hypervisors there's this special call.
+ *
+ * We tell the Host the segment we want to use (__KERNEL_DS is the kernel data
+ * segment), the privilege level (we're privilege level 1, the Host is 0 and
+ * will not tolerate us trying to use that), the stack pointer, and the number
+ * of pages in the stack. */
 static void lguest_load_esp0(struct tss_struct *tss,
 				     struct thread_struct *thread)
 {
@@ -489,15 +783,31 @@ static void lguest_load_esp0(struct tss_struct *tss,
 		   THREAD_SIZE/PAGE_SIZE);
 }
 
+/* Let's just say, I wouldn't do debugging under a Guest. */
 static void lguest_set_debugreg(int regno, unsigned long value)
 {
 	/* FIXME: Implement */
 }
 
+/* There are times when the kernel wants to make sure that no memory writes are
+ * caught in the cache (that they've all reached real hardware devices).  This
+ * doesn't matter for the Guest which has virtual hardware.
+ *
+ * On the Pentium 4 and above, cpuid() indicates that the Cache Line Flush
+ * (clflush) instruction is available and the kernel uses that.  Otherwise, it
+ * uses the older "Write Back and Invalidate Cache" (wbinvd) instruction.
+ * Unlike clflush, wbinvd can only be run at privilege level 0.  So we can
+ * ignore clflush, but replace wbinvd.
+ */
 static void lguest_wbinvd(void)
 {
 }
 
+/* If the Guest expects to have an Advanced Programmable Interrupt Controller,
+ * we play dumb by ignoring writes and returning 0 for reads.  So it's no
+ * longer Programmable nor Controlling anything, and I don't think 8 lines of
+ * code qualifies for Advanced.  It will also never interrupt anything.  It
+ * does, however, allow us to get through the Linux boot code. */
 #ifdef CONFIG_X86_LOCAL_APIC
 static void lguest_apic_write(unsigned long reg, unsigned long v)
 {
@@ -509,19 +819,32 @@ static unsigned long lguest_apic_read(unsigned long reg)
 }
 #endif
 
+/* STOP!  Until an interrupt comes in. */
 static void lguest_safe_halt(void)
 {
 	hcall(LHCALL_HALT, 0, 0, 0);
 }
 
+/* Perhaps CRASH isn't the best name for this hypercall, but we use it to get a
+ * message out when we're crashing as well as elegant termination like powering
+ * off.
+ *
+ * Note that the Host always prefers that the Guest speak in physical addresses
+ * rather than virtual addresses, so we use __pa() here. */
 static void lguest_power_off(void)
 {
 	hcall(LHCALL_CRASH, __pa("Power down"), 0, 0);
 }
 
+/*
+ * Panicing.
+ *
+ * Don't.  But if you did, this is what happens.
+ */
 static int lguest_panic(struct notifier_block *nb, unsigned long l, void *p)
 {
 	hcall(LHCALL_CRASH, __pa(p), 0, 0);
+	/* The hcall won't return, but to keep gcc happy, we're "done". */
 	return NOTIFY_DONE;
 }
 
@@ -529,15 +852,45 @@ static struct notifier_block paniced = {
 	.notifier_call = lguest_panic
 };
 
+/* Setting up memory is fairly easy. */
 static __init char *lguest_memory_setup(void)
 {
-	/* We do this here because lockcheck barfs if before start_kernel */
+	/* We do this here and not earlier because lockcheck barfs if we do it
+	 * before start_kernel() */
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
+	/* The Linux bootloader header contains an "e820" memory map: the
+	 * Launcher populated the first entry with our memory limit. */
 	add_memory_region(E820_MAP->addr, E820_MAP->size, E820_MAP->type);
+
+	/* This string is for the boot messages. */
 	return "LGUEST";
 }
 
+/*G:050
+ * Patching (Powerfully Placating Performance Pedants)
+ *
+ * We have already seen that "struct paravirt_ops" lets us replace simple
+ * native instructions with calls to the appropriate back end all throughout
+ * the kernel.  This allows the same kernel to run as a Guest and as a native
+ * kernel, but it's slow because of all the indirect branches.
+ *
+ * Remember that David Wheeler quote about "Any problem in computer science can
+ * be solved with another layer of indirection"?  The rest of that quote is
+ * "... But that usually will create another problem."  This is the first of
+ * those problems.
+ *
+ * Our current solution is to allow the paravirt back end to optionally patch
+ * over the indirect calls to replace them with something more efficient.  We
+ * patch the four most commonly called functions: disable interrupts, enable
+ * interrupts, restore interrupts and save interrupts.  We usually have 10
+ * bytes to patch into: the Guest versions of these operations are small enough
+ * that we can fit comfortably.
+ *
+ * First we need assembly templates of each of the patchable Guest operations,
+ * and these are in lguest_asm.S. */
+
+/*G:060 We construct a table from the assembler templates: */
 static const struct lguest_insns
 {
 	const char *start, *end;
@@ -547,35 +900,52 @@ static const struct lguest_insns
 	[PARAVIRT_PATCH(restore_fl)] = { lgstart_popf, lgend_popf },
 	[PARAVIRT_PATCH(save_fl)] = { lgstart_pushf, lgend_pushf },
 };
+
+/* Now our patch routine is fairly simple (based on the native one in
+ * paravirt.c).  If we have a replacement, we copy it in and return how much of
+ * the available space we used. */
 static unsigned lguest_patch(u8 type, u16 clobber, void *insns, unsigned len)
 {
 	unsigned int insn_len;
 
-	/* Don't touch it if we don't have a replacement */
+	/* Don't do anything special if we don't have a replacement */
 	if (type >= ARRAY_SIZE(lguest_insns) || !lguest_insns[type].start)
 		return paravirt_patch_default(type, clobber, insns, len);
 
 	insn_len = lguest_insns[type].end - lguest_insns[type].start;
 
-	/* Similarly if we can't fit replacement. */
+	/* Similarly if we can't fit replacement (shouldn't happen, but let's
+	 * be thorough). */
 	if (len < insn_len)
 		return paravirt_patch_default(type, clobber, insns, len);
 
+	/* Copy in our instructions. */
 	memcpy(insns, lguest_insns[type].start, insn_len);
 	return insn_len;
 }
 
+/*G:030 Once we get to lguest_init(), we know we're a Guest.  The paravirt_ops
+ * structure in the kernel provides a single point for (almost) every routine
+ * we have to override to avoid privileged instructions. */
 __init void lguest_init(void *boot)
 {
-	/* Copy boot parameters first. */
+	/* Copy boot parameters first: the Launcher put the physical location
+	 * in %esi, and head.S converted that to a virtual address and handed
+	 * it to us. */
 	memcpy(&boot_params, boot, PARAM_SIZE);
+	/* The boot parameters also tell us where the command-line is: save
+	 * that, too. */
 	memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
 	       COMMAND_LINE_SIZE);
 
+	/* We're under lguest, paravirt is enabled, and we're running at
+	 * privilege level 1, not 0 as normal. */
 	paravirt_ops.name = "lguest";
 	paravirt_ops.paravirt_enabled = 1;
 	paravirt_ops.kernel_rpl = 1;
 
+	/* We set up all the lguest overrides for sensitive operations.  These
+	 * are detailed with the operations themselves. */
 	paravirt_ops.save_fl = save_fl;
 	paravirt_ops.restore_fl = restore_fl;
 	paravirt_ops.irq_disable = irq_disable;
@@ -619,20 +989,45 @@ __init void lguest_init(void *boot)
 	paravirt_ops.set_lazy_mode = lguest_lazy_mode;
 	paravirt_ops.wbinvd = lguest_wbinvd;
 	paravirt_ops.sched_clock = lguest_sched_clock;
+	/* Now is a good time to look at the implementations of these functions
+	 * before returning to the rest of lguest_init(). */
 
+	/*G:070 Now we've seen all the paravirt_ops, we return to
+	 * lguest_init() where the rest of the fairly chaotic boot setup
+	 * occurs.
+	 *
+	 * The Host expects our first hypercall to tell it where our "struct
+	 * lguest_data" is, so we do that first. */
 	hcall(LHCALL_LGUEST_INIT, __pa(&lguest_data), 0, 0);
 
-	/* We use top of mem for initial pagetables. */
+	/* The native boot code sets up initial page tables immediately after
+	 * the kernel itself, and sets init_pg_tables_end so they're not
+	 * clobbered.  The Launcher places our initial pagetables somewhere at
+	 * the top of our physical memory, so we don't need extra space: set
+	 * init_pg_tables_end to the end of the kernel. */
 	init_pg_tables_end = __pa(pg0);
 
+	/* Load the %fs segment register (the per-cpu segment register) with
+	 * the normal data segment to get through booting. */
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
+	/* The Host uses the top of the Guest's virtual address space for the
+	 * Host<->Guest Switcher, and it tells us how much it needs in
+	 * lguest_data.reserve_mem, set up on the LGUEST_INIT hypercall. */
 	reserve_top_address(lguest_data.reserve_mem);
 
+	/* If we don't initialize the lock dependency checker now, it crashes
+	 * paravirt_disable_iospace. */
 	lockdep_init();
 
+	/* The IDE code spends about 3 seconds probing for disks: if we reserve
+	 * all the I/O ports up front it can't get them and so doesn't probe.
+	 * Other device drivers are similar (but less severe).  This cuts the
+	 * kernel boot time on my machine from 4.1 seconds to 0.45 seconds. */
 	paravirt_disable_iospace();
 
+	/* This is messy CPU setup stuff which the native boot code does before
+	 * start_kernel, so we have to do, too: */
 	cpu_detect(&new_cpu_data);
 	/* head.S usually sets up the first capability word, so do it here. */
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
@@ -643,14 +1038,27 @@ __init void lguest_init(void *boot)
 #ifdef CONFIG_X86_MCE
 	mce_disabled = 1;
 #endif
-
 #ifdef CONFIG_ACPI
 	acpi_disabled = 1;
 	acpi_ht = 0;
 #endif
 
+	/* We set the perferred console to "hvc".  This is the "hypervisor
+	 * virtual console" driver written by the PowerPC people, which we also
+	 * adapted for lguest's use. */
 	add_preferred_console("hvc", 0, NULL);
 
+	/* Last of all, we set the power management poweroff hook to point to
+	 * the Guest routine to power off. */
 	pm_power_off = lguest_power_off;
+
+	/* Now we're set up, call start_kernel() in init/main.c and we proceed
+	 * to boot as normal.  It never returns. */
 	start_kernel();
 }
+/*
+ * This marks the end of stage II of our journey, The Guest.
+ *
+ * It is now time for us to explore the nooks and crannies of the three Guest
+ * devices and complete our understanding of the Guest in "make Drivers".
+ */
