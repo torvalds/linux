@@ -126,7 +126,7 @@ config EDAC_I5000
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
 	depends on EDAC_MM_EDAC && PCI
-	depends on PPC
+	depends on PPC_PASEMI
 	help
 	  Support for error detection and correction on PA Semi
 	  PWRficient.
