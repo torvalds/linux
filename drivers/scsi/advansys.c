@@ -1911,7 +1911,6 @@ static int AscIsrChipHalted(ASC_DVC_VAR *);
 static uchar _AscCopyLramScsiDoneQ(PortAddr, ushort,
 				   ASC_QDONE_INFO *, ASC_DCNT);
 static int AscIsrQDone(ASC_DVC_VAR *);
-static int AscCompareString(uchar *, uchar *, int);
 #ifdef CONFIG_ISA
 static ushort AscGetEisaChipCfg(PortAddr);
 #endif /* CONFIG_ISA */
@@ -10998,8 +10997,7 @@ AscAsyncFix(ASC_DVC_VAR *asc_dvc, uchar tid_no, ASC_SCSI_INQUIRY *inq)
 	if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_ASYN_USE_SYN) {
 		if (!(asc_dvc->init_sdtr & tid_bits)) {
 			if ((dvc_type == TYPE_ROM) &&
-			    (AscCompareString((uchar *)inq->vendor_id,
-					      (uchar *)"HP ", 3) == 0)) {
+			    (strncmp(inq->vendor_id, "HP ", 3) == 0)) {
 				asc_dvc->pci_fix_asyn_xfer_always |= tid_bits;
 			}
 			asc_dvc->pci_fix_asyn_xfer |= tid_bits;
@@ -11022,10 +11020,8 @@ AscAsyncFix(ASC_DVC_VAR *asc_dvc, uchar tid_no, ASC_SCSI_INQUIRY *inq)
 static int AscTagQueuingSafe(ASC_SCSI_INQUIRY *inq)
 {
 	if ((inq->add_len >= 32) &&
-	    (AscCompareString((uchar *)inq->vendor_id,
-			      (uchar *)"QUANTUM XP34301", 15) == 0) &&
-	    (AscCompareString((uchar *)inq->product_rev_level,
-			      (uchar *)"1071", 4) == 0)) {
+	    (strncmp(inq->vendor_id, "QUANTUM XP34301", 15) == 0) &&
+	    (strncmp(inq->product_rev_level, "1071", 4) == 0)) {
 		return 0;
 	}
 	return 1;
@@ -11074,19 +11070,6 @@ AscInquiryHandling(ASC_DVC_VAR *asc_dvc, uchar tid_no, ASC_SCSI_INQUIRY *inq)
 		AscAsyncFix(asc_dvc, tid_no, inq);
 	}
 	return;
-}
-
-static int AscCompareString(uchar *str1, uchar *str2, int len)
-{
-	int i;
-	int diff;
-
-	for (i = 0; i < len; i++) {
-		diff = (int)(str1[i] - str2[i]);
-		if (diff != 0)
-			return (diff);
-	}
-	return (0);
 }
 
 static uchar AscReadLramByte(PortAddr iop_base, ushort addr)
