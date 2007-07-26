@@ -29,6 +29,7 @@ enum {
 	SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI,
 	SCI_ERI, SCI_RXI, SCI_TXI, SCI_TEI,
 	ADC_ADI,
+	LCDC, PCC0, PCC1,
 	TMU0, TMU1, TMU2_TUNI, TMU2_TICPI,
 	RTC_ATI, RTC_PRI, RTC_CUI,
 	WDT,
@@ -64,6 +65,10 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(SCIF0_ERI, 0x880), INTC_VECT(SCIF0_RXI, 0x8a0),
 	INTC_VECT(SCIF0_BRI, 0x8c0), INTC_VECT(SCIF0_TXI, 0x8e0),
 #endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7707)
+	INTC_VECT(LCDC, 0x9a0),
+	INTC_VECT(PCC0, 0x9c0), INTC_VECT(PCC1, 0x9e0),
+#endif
 };
 
 static struct intc_group groups[] = {
@@ -97,6 +102,9 @@ static struct intc_prio_reg prio_registers[] = {
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 	{ 0xa4000018, 16, 4, /* IPRD */ { PINT07, PINT815, } },
 	{ 0xa400001a, 16, 4, /* IPRE */ { 0, SCIF0 } },
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7707)
+	{ 0xa400001c, 16, 4, /* IPRF */ { 0, LCDC, PCC0, PCC1, } },
 #endif
 };
 
