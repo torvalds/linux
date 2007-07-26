@@ -548,6 +548,7 @@ iscsi_iser_ep_disconnect(__u64 ep_handle)
 }
 
 static struct scsi_host_template iscsi_iser_sht = {
+	.module                 = THIS_MODULE,
 	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
 	.queuecommand           = iscsi_queuecommand,
 	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
