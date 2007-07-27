@@ -109,21 +109,12 @@ static void lite5200_resume_finish(void __iomem *mbar)
 
 static void __init lite5200_setup_arch(void)
 {
+#ifdef CONFIG_PCI
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("lite5200_setup_arch()", 0);
-
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np) {
-		const unsigned int *fp =
-			of_get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
 
 	/* CPU & Port mux setup */
 	mpc52xx_setup_cpu();	/* Generic */
