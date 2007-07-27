@@ -175,6 +175,13 @@ void maybe_do_interrupt(struct lguest *lg)
 		 * the stack as well: virtual interrupts never do. */
 		set_guest_interrupt(lg, idt->a, idt->b, 0);
 	}
+
+	/* Every time we deliver an interrupt, we update the timestamp in the
+	 * Guest's lguest_data struct.  It would be better for the Guest if we
+	 * did this more often, but it can actually be quite slow: doing it
+	 * here is a compromise which means at least it gets updated every
+	 * timer interrupt. */
+	write_timestamp(lg);
 }
 
 /*H:220 Now we've got the routines to deliver interrupts, delivering traps

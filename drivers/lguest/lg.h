@@ -256,6 +256,7 @@ unsigned long get_dma_buffer(struct lguest *lg, unsigned long key,
 
 /* hypercalls.c: */
 void do_hypercalls(struct lguest *lg);
+void write_timestamp(struct lguest *lg);
 
 /*L:035
  * Let's step aside for the moment, to study one important routine that's used

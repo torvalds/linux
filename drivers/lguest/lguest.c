@@ -643,21 +643,42 @@ static void __init lguest_init_IRQ(void)
  * Time.
  *
  * It would be far better for everyone if the Guest had its own clock, but
- * until then it must ask the Host for the time.
+ * until then the Host gives us the time on every interrupt.
  */
 static unsigned long lguest_get_wallclock(void)
 {
-	return hcall(LHCALL_GET_WALLCLOCK, 0, 0, 0);
+	return lguest_data.time.tv_sec;
 }
 
-/* If the Host tells us we can trust the TSC, we use that, otherwise we simply
- * use the imprecise but reliable "jiffies" counter. */
 static cycle_t lguest_clock_read(void)
 {
+	unsigned long sec, nsec;
+
+	/* If the Host tells the TSC speed, we can trust that. */
 	if (lguest_data.tsc_khz)
 		return native_read_tsc();
-	else
-		return jiffies;
+
+	/* If we can't use the TSC, we read the time value written by the Host.
+	 * Since it's in two parts (seconds and nanoseconds), we risk reading
+	 * it just as it's changing from 99 & 0.999999999 to 100 and 0, and
+	 * getting 99 and 0.  As Linux tends to come apart under the stress of
+	 * time travel, we must be careful: */
+	do {
+		/* First we read the seconds part. */
+		sec = lguest_data.time.tv_sec;
+		/* This read memory barrier tells the compiler and the CPU that
+		 * this can't be reordered: we have to complete the above
+		 * before going on. */
+		rmb();
+		/* Now we read the nanoseconds part. */
+		nsec = lguest_data.time.tv_nsec;
+		/* Make sure we've done that. */
+		rmb();
+		/* Now if the seconds part has changed, try again. */
+	} while (unlikely(lguest_data.time.tv_sec != sec));
+
+	/* Our non-TSC clock is in real nanoseconds. */
+	return sec*1000000000ULL + nsec;
 }
 
 /* This is what we tell the kernel is our clocksource.  */
@@ -665,8 +686,11 @@ static struct clocksource lguest_clock = {
 	.name		= "lguest",
 	.rating		= 400,
 	.read		= lguest_clock_read,
+	.mask		= CLOCKSOURCE_MASK(64),
+	.mult		= 1,
 };
 
+/* The "scheduler clock" is just our real clock, adjusted to start at zero */
 static unsigned long long lguest_sched_clock(void)
 {
 	return cyc2ns(&lguest_clock, lguest_clock_read() - clock_base);
@@ -742,23 +766,20 @@ static void lguest_time_init(void)
 	set_irq_handler(0, lguest_time_irq);
 
 	/* Our clock structure look like arch/i386/kernel/tsc.c if we can use
-	 * the TSC, otherwise it looks like kernel/time/jiffies.c.  Either way,
-	 * the "rating" is initialized so high that it's always chosen over any
-	 * other clocksource. */
+	 * the TSC, otherwise it's a dumb nanosecond-resolution clock.  Either
+	 * way, the "rating" is initialized so high that it's always chosen
+	 * over any other clocksource. */
 	if (lguest_data.tsc_khz) {
 		lguest_clock.shift = 22;
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
 							 lguest_clock.shift);
-		lguest_clock.mask = CLOCKSOURCE_MASK(64);
 		lguest_clock.flags = CLOCK_SOURCE_IS_CONTINUOUS;
-	} else {
-		/* To understand this, start at kernel/time/jiffies.c... */
-		lguest_clock.shift = 8;
-		lguest_clock.mult = (((u64)NSEC_PER_SEC<<8)/ACTHZ) << 8;
-		lguest_clock.mask = CLOCKSOURCE_MASK(32);
 	}
 	clock_base = lguest_clock_read();
 	clocksource_register(&lguest_clock);
+
+	/* Now we've set up our clock, we can use it as the scheduler clock */
+	paravirt_ops.sched_clock = lguest_sched_clock;
 
 	/* We can't set cpumask in the initializer: damn C limitations!  Set it
 	 * here and register our timer device. */
@@ -996,7 +1017,6 @@ __init void lguest_init(void *boot)
 	paravirt_ops.time_init = lguest_time_init;
 	paravirt_ops.set_lazy_mode = lguest_lazy_mode;
 	paravirt_ops.wbinvd = lguest_wbinvd;
-	paravirt_ops.sched_clock = lguest_sched_clock;
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */
 

@@ -64,14 +64,6 @@ static void do_hcall(struct lguest *lg, struct lguest_regs *regs)
 		else
 			guest_pagetable_flush_user(lg);
 		break;
-	case LHCALL_GET_WALLCLOCK: {
-		/* The Guest wants to know the real time in seconds since 1970,
-		 * in good Unix tradition. */
-		struct timespec ts;
-		ktime_get_real_ts(&ts);
-		regs->eax = ts.tv_sec;
-		break;
-	}
 	case LHCALL_BIND_DMA:
 		/* BIND_DMA really wants four arguments, but it's the only call
 		 * which does.  So the Guest packs the number of buffers and
@@ -235,6 +227,9 @@ static void initialize(struct lguest *lg)
 	    || put_user(lg->guestid, &lg->lguest_data->guestid))
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 
+	/* We write the current time into the Guest's data page once now. */
+	write_timestamp(lg);
+
 	/* This is the one case where the above accesses might have been the
 	 * first write to a Guest page.  This may have caused a copy-on-write
 	 * fault, but the Guest might be referring to the old (read-only)
@@ -292,4 +287,14 @@ void do_hypercalls(struct lguest *lg)
 		/* The hypercall is done. */
 		clear_hcall(lg);
 	}
+}
+
+/* This routine supplies the Guest with time: it's used for wallclock time at
+ * initial boot and as a rough time source if the TSC isn't available. */
+void write_timestamp(struct lguest *lg)
+{
+	struct timespec now;
+	ktime_get_real_ts(&now);
+	if (put_user(now, &lg->lguest_data->time))
+		kill_guest(lg, "Writing timestamp");
 }

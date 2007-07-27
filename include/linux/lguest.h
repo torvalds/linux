@@ -17,7 +17,6 @@
 #define LHCALL_TS		8
 #define LHCALL_SET_CLOCKEVENT	9
 #define LHCALL_HALT		10
-#define LHCALL_GET_WALLCLOCK	11
 #define LHCALL_BIND_DMA		12
 #define LHCALL_SEND_DMA		13
 #define LHCALL_SET_PTE		14
@@ -87,6 +86,9 @@ struct lguest_data
 	 * which saves the Guest a hypercall.  CR2 is the native register where
 	 * this address would normally be found. */
 	unsigned long cr2;
+
+	/* Wallclock time set by the Host. */
+	struct timespec time;
 
 	/* Async hypercall ring.  Instead of directly making hypercalls, we can
 	 * place them in here for processing the next time the Host wants.
