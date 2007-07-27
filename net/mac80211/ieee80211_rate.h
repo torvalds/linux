@@ -141,4 +141,10 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 #endif
 }
 
+
+/* functions for rate control related to a device */
+int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
+				 const char *name);
+void rate_control_deinitialize(struct ieee80211_local *local);
+
 #endif /* IEEE80211_RATE_H */

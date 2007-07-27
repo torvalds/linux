@@ -1542,47 +1542,6 @@ void ieee80211_if_mgmt_setup(struct net_device *dev)
 	dev->destructor = ieee80211_if_free;
 }
 
-int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
-				 const char *name)
-{
-	struct rate_control_ref *ref, *old;
-
-	ASSERT_RTNL();
-	if (local->open_count || netif_running(local->mdev) ||
-	    (local->apdev && netif_running(local->apdev)))
-		return -EBUSY;
-
-	ref = rate_control_alloc(name, local);
-	if (!ref) {
-		printk(KERN_WARNING "%s: Failed to select rate control "
-		       "algorithm\n", local->mdev->name);
-		return -ENOENT;
-	}
-
-	old = local->rate_ctrl;
-	local->rate_ctrl = ref;
-	if (old) {
-		rate_control_put(old);
-		sta_info_flush(local, NULL);
-	}
-
-	printk(KERN_DEBUG "%s: Selected rate control "
-	       "algorithm '%s'\n", local->mdev->name,
-	       ref->ops->name);
-
-
-	return 0;
-}
-
-static void rate_control_deinitialize(struct ieee80211_local *local)
-{
-	struct rate_control_ref *ref;
-
-	ref = local->rate_ctrl;
-	local->rate_ctrl = NULL;
-	rate_control_put(ref);
-}
-
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
