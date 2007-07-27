@@ -4,7 +4,7 @@
  *	under the terms of the GNU General Public License as published by the Free
  *	Software Foundation, version 2.
  *
- *  Copyright (C) 2005-6 DiBcom, SA
+ *  Copyright (C) 2005-7 DiBcom, SA
  */
 #include "dib0700.h"
 
@@ -99,41 +99,87 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 
 /* STK7700D: Pinnacle Dual DVB-T Diversity */
 
-static struct dibx000_agc_config stk7700d_7000p_mt2266_agc_config = {
-	BAND_UHF/* | BAND_VHF*/,
-	0xE64, // setup
-	2372, // inv_gain
-	21,  // time_stabiliz
+/* MT226x */
+static struct dibx000_agc_config stk7700d_7000p_mt2266_agc_config[2] = {
+	{
+		BAND_UHF, // band_caps
 
-	0,   // alpha_level
-	118, // thlock
+		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=1, P_agc_inv_pwm2=1,
+		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
+		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
 
-	0,    // wbd_inv
-	0,    // wbd_ref
-	0,    // wbd_sel
-	0,    // wbd_alpha
+		1130,  // inv_gain
+		21,  // time_stabiliz
 
-	65535, // agc1_max
-	0,     // agc1_min
-	65535, // agc2_max
-	23592, // agc2_min
-	0,     // agc1_pt1
-	128,   // agc1_pt2
-	128,   // agc1_pt3
-	128,   // agc1_slope1
-	0,     // agc1_slope2
-	128,   // agc2_pt1
-	253,   // agc2_pt2
-	81,    // agc2_slope1
-	 0,    // agc2_slope2
+		0,  // alpha_level
+		118,  // thlock
 
-	17, // alpha_mant
-	27, // alpha_exp
+		0,     // wbd_inv
+		3530,  // wbd_ref
+		1,     // wbd_sel
+		0,     // wbd_alpha
 
-	23, // beta_mant
-	51, // beta_exp
+		65535,  // agc1_max
+		33770,  // agc1_min
+		65535,  // agc2_max
+		23592,  // agc2_min
 
-	0, // perform_agc_softsplit : 1 en vrai!
+		0,    // agc1_pt1
+		62,   // agc1_pt2
+		255,  // agc1_pt3
+		64,   // agc1_slope1
+		64,   // agc1_slope2
+		132,  // agc2_pt1
+		192,  // agc2_pt2
+		80,   // agc2_slope1
+		80,   // agc2_slope2
+
+		17,  // alpha_mant
+		27,  // alpha_exp
+		23,  // beta_mant
+		51,  // beta_exp
+
+		1,  // perform_agc_softsplit
+	}, {
+		BAND_VHF | BAND_LBAND, // band_caps
+
+		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=1, P_agc_inv_pwm2=1,
+		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
+		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0), // setup
+
+		2372, // inv_gain
+		21,   // time_stabiliz
+
+		0,    // alpha_level
+		118,  // thlock
+
+		0,    // wbd_inv
+		3530, // wbd_ref
+		1,     // wbd_sel
+		0,    // wbd_alpha
+
+		65535, // agc1_max
+		0,     // agc1_min
+		65535, // agc2_max
+		23592, // agc2_min
+
+		0,    // agc1_pt1
+		128,  // agc1_pt2
+		128,  // agc1_pt3
+		128,  // agc1_slope1
+		0,    // agc1_slope2
+		128,  // agc2_pt1
+		253,  // agc2_pt2
+		81,   // agc2_slope1
+		0,    // agc2_slope2
+
+		17,  // alpha_mant
+		27,  // alpha_exp
+		23,  // beta_mant
+		51,  // beta_exp
+
+		1,  // perform_agc_softsplit
+	}
 };
 
 static struct dibx000_bandwidth_config stk7700d_mt2266_pll_config = {
@@ -150,23 +196,25 @@ static struct dib7000p_config stk7700d_dib7000p_mt2266_config[] = {
 		.hostbus_diversity = 1,
 		.tuner_is_baseband = 1,
 
-		.agc = &stk7700d_7000p_mt2266_agc_config,
+		.agc_config_count = 2,
+		.agc = stk7700d_7000p_mt2266_agc_config,
 		.bw  = &stk7700d_mt2266_pll_config,
 
-		.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
-		.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
-		.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
+		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
+		.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
 	},
 	{	.output_mpeg2_in_188_bytes = 1,
 		.hostbus_diversity = 1,
 		.tuner_is_baseband = 1,
 
-		.agc = &stk7700d_7000p_mt2266_agc_config,
+		.agc_config_count = 2,
+		.agc = stk7700d_7000p_mt2266_agc_config,
 		.bw  = &stk7700d_mt2266_pll_config,
 
-		.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
-		.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
-		.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
+		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
+		.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
 	}
 };
 
@@ -211,7 +259,7 @@ static int stk7700d_tuner_attach(struct dvb_usb_adapter *adap)
 
 static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 
-int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[4];
 	int i;
@@ -241,7 +289,7 @@ int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 #define KEY_MAP_SIZE (25+48)
 
-struct dvb_usb_rc_key stk7700d_rc_keys[] = {
+static struct dvb_usb_rc_key stk7700d_rc_keys[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x07, 0x00, KEY_MUTE },
 	{ 0x07, 0x01, KEY_MENU }, // Pinnacle logo
@@ -436,6 +484,7 @@ static struct dib7000m_config stk7700p_dib7000m_config = {
 static struct dib7000p_config stk7700p_dib7000p_config = {
 	.output_mpeg2_in_188_bytes = 1,
 
+	.agc_config_count = 1,
 	.agc = &stk7700p_7000p_mt2060_agc_config,
 	.bw  = &stk7700p_pll_config,
 
@@ -506,6 +555,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV2000E) },
 		{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK) },
+		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700D) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -615,7 +665,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{   "Pinnacle PCTV 2000e",
 				{ &dib0700_usb_id_table[11], NULL },
@@ -627,6 +677,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Haupauge Nova-TD Stick",
 				{ &dib0700_usb_id_table[13], NULL },
+				{ NULL },
+			},
+			{   "DiBcom STK7700D",
+				{ &dib0700_usb_id_table[14], NULL },
 				{ NULL },
 			},
 		},

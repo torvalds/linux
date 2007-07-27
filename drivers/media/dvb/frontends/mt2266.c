@@ -159,7 +159,7 @@ static int mt2266_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	b[3] = tune >> 13;
 	mt2266_writeregs(priv,b,4);
 
-	dprintk("set_parms: tune=%d band=%d\n",(int)tune,(int)lnaband);
+	dprintk("set_parms: tune=%d band=%d",(int)tune,(int)lnaband);
 	dprintk("set_parms: [1..3]: %2x %2x %2x",(int)b[1],(int)b[2],(int)b[3]);
 
 	b[0] = 0x05;
@@ -176,7 +176,7 @@ static int mt2266_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 		msleep(10);
 		i++;
 	} while (i<10);
-	dprintk("Lock when i=%i\n",(int)i);
+	dprintk("Lock when i=%i",(int)i);
 	return ret;
 }
 
