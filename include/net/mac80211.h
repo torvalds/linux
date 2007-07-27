@@ -697,6 +697,14 @@ struct ieee80211_ops {
 	void (*sta_table_notification)(struct ieee80211_hw *hw,
 				       int num_sta);
 
+	/* Handle ERP IE change notifications. Must be atomic. */
+	void (*erp_ie_changed)(struct ieee80211_hw *hw, u8 changes,
+			       int cts_protection, int preamble);
+
+	/* Flags for the erp_ie_changed changes parameter */
+#define IEEE80211_ERP_CHANGE_PROTECTION (1<<0) /* protection flag changed */
+#define IEEE80211_ERP_CHANGE_PREAMBLE (1<<1) /* barker preamble mode changed */
+
 	/* Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
 	 * bursting) for a hardware TX queue.
 	 * queue = IEEE80211_TX_QUEUE_*.

@@ -788,6 +788,8 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 					 u8 *addr);
 int ieee80211_sta_deauthenticate(struct net_device *dev, u16 reason);
 int ieee80211_sta_disassociate(struct net_device *dev, u16 reason);
+void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes);
+void ieee80211_reset_erp_info(struct net_device *dev);
 
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,

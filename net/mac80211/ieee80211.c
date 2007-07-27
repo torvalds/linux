@@ -464,8 +464,10 @@ static int ieee80211_open(struct net_device *dev)
 	if (sdata->type == IEEE80211_IF_TYPE_MNTR) {
 		local->monitors++;
 		local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-	} else
+	} else {
 		ieee80211_if_config(dev);
+		ieee80211_reset_erp_info(dev);
+	}
 
 	if (sdata->type == IEEE80211_IF_TYPE_STA &&
 	    !local->user_space_mlme)
@@ -746,6 +748,27 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 		ret = local->ops->config(local_to_hw(local), &local->hw.conf);
 
 	return ret;
+}
+
+void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (local->ops->erp_ie_changed)
+		local->ops->erp_ie_changed(local_to_hw(local), changes,
+					   sdata->use_protection,
+					   !sdata->short_preamble);
+}
+
+void ieee80211_reset_erp_info(struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	sdata->short_preamble = 0;
+	sdata->use_protection = 0;
+	ieee80211_erp_info_change_notify(dev,
+					 IEEE80211_ERP_CHANGE_PROTECTION |
+					 IEEE80211_ERP_CHANGE_PREAMBLE);
 }
 
 struct dev_mc_list *ieee80211_get_mc_list_item(struct ieee80211_hw *hw,

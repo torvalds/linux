@@ -319,6 +319,7 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	int use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
 	int preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
+	u8 changes = 0;
 
 	if (use_protection != sdata->use_protection) {
 		if (net_ratelimit()) {
@@ -329,6 +330,7 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 			       MAC_ARG(ifsta->bssid));
 		}
 		sdata->use_protection = use_protection;
+		changes |= IEEE80211_ERP_CHANGE_PROTECTION;
 	}
 
 	if (!preamble_mode != sdata->short_preamble) {
@@ -341,7 +343,11 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 			       MAC_ARG(ifsta->bssid));
 		}
 		sdata->short_preamble = !preamble_mode;
+		changes |= IEEE80211_ERP_CHANGE_PREAMBLE;
 	}
+
+	if (changes)
+		ieee80211_erp_info_change_notify(dev, changes);
 }
 
 
@@ -400,7 +406,6 @@ static void ieee80211_set_associated(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta, int assoc)
 {
 	union iwreq_data wrqu;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (ifsta->associated == assoc)
 		return;
@@ -428,8 +433,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
 		netif_carrier_off(dev);
-		sdata->short_preamble = 0;
-		sdata->use_protection = 0;
+		ieee80211_reset_erp_info(dev);
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;

@@ -1054,17 +1054,21 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		if (sdata->type != IEEE80211_IF_TYPE_AP)
+		if (sdata->type == IEEE80211_IF_TYPE_AP) {
+			sdata->use_protection = !!value;
+			ieee80211_erp_info_change_notify(dev, IEEE80211_ERP_CHANGE_PROTECTION);
+		} else {
 			ret = -ENOENT;
-		else
-			sdata->use_protection = value;
+		}
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
-		if (sdata->type != IEEE80211_IF_TYPE_AP)
+		if (sdata->type != IEEE80211_IF_TYPE_AP) {
+			sdata->short_preamble = !!value;
+			ieee80211_erp_info_change_notify(dev, IEEE80211_ERP_CHANGE_PREAMBLE);
+		} else {
 			ret = -ENOENT;
-		else
-			sdata->short_preamble = value;
+		}
 		break;
 
 	case PRISM2_PARAM_STAT_TIME:
