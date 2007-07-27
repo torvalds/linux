@@ -255,4 +255,13 @@ enum ieee80211_radiotap_type {
 	(((x) == 14) ? 2484 : ((x) * 5) + 2407) : \
 	((x) + 1000) * 5)
 
+/* helpers */
+static inline int ieee80211_get_radiotap_len(unsigned char *data)
+{
+	struct ieee80211_radiotap_header *hdr =
+		(struct ieee80211_radiotap_header *)data;
+
+	return le16_to_cpu(hdr->it_len);
+}
+
 #endif				/* IEEE80211_RADIOTAP_H */

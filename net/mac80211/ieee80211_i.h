@@ -21,6 +21,7 @@
 #include <linux/workqueue.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/etherdevice.h>
 #include <net/wireless.h>
 #include "ieee80211_key.h"
 #include "sta_info.h"
@@ -707,6 +708,13 @@ static inline int ieee80211_is_erp_rate(int phymode, int rate)
 	return 0;
 }
 
+static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
+{
+	return compare_ether_addr(raddr, addr) == 0 ||
+	       is_broadcast_ether_addr(raddr);
+}
+
+
 /* ieee80211.c */
 int ieee80211_hw_config(struct ieee80211_local *local);
 int ieee80211_if_config(struct net_device *dev);
@@ -730,6 +738,16 @@ void ieee80211_if_mgmt_setup(struct net_device *dev);
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name);
 struct net_device_stats *ieee80211_dev_stats(struct net_device *dev);
+struct ieee80211_rate *ieee80211_get_rate(struct ieee80211_local *local,
+					  int phymode, int hwrate);
+void ieee80211_key_threshold_notify(struct net_device *dev,
+				    struct ieee80211_key *key,
+				    struct sta_info *sta);
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len);
+int ieee80211_is_eapol(const struct sk_buff *skb);
+
+extern const unsigned char rfc1042_header[];
+extern const unsigned char bridge_tunnel_header[];
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
@@ -800,6 +818,10 @@ void ieee80211_if_del_mgmt(struct ieee80211_local *local);
 /* regdomain.c */
 void ieee80211_regdomain_init(void);
 void ieee80211_set_default_regdomain(struct ieee80211_hw_mode *mode);
+
+/* rx handling */
+extern ieee80211_rx_handler ieee80211_rx_pre_handlers[];
+extern ieee80211_rx_handler ieee80211_rx_handlers[];
 
 /* for wiphy privid */
 extern void *mac80211_wiphy_privid;
