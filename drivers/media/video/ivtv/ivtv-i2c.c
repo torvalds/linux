@@ -109,6 +109,7 @@ static const u8 hw_driverids[] = {
 	I2C_DRIVERID_UPD64083,
 	I2C_DRIVERID_SAA717X,
 	I2C_DRIVERID_WM8739,
+	I2C_DRIVERID_VP27SMPX,
 	0 		/* IVTV_HW_GPIO dummy driver ID */
 };
 
@@ -128,6 +129,7 @@ static const char * const hw_drivernames[] = {
 	"upd64083",
 	"saa717x",
 	"wm8739",
+	"vp27smpx",
 	"gpio",
 };
 

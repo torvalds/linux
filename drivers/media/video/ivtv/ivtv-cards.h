@@ -33,7 +33,8 @@
 #define IVTV_HW_UPD6408X  (1 << 11)
 #define IVTV_HW_SAA717X   (1 << 12)
 #define IVTV_HW_WM8739    (1 << 13)
-#define IVTV_HW_GPIO      (1 << 14)
+#define IVTV_HW_VP27SMPX  (1 << 14)
+#define IVTV_HW_GPIO      (1 << 15)
 
 #define IVTV_HW_SAA711X   (IVTV_HW_SAA7115 | IVTV_HW_SAA7114)
 

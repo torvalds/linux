@@ -854,6 +854,10 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	if (hw & IVTV_HW_MSP34XX)
 		ivtv_request_module(itv, "msp3400");
 #endif
+#ifndef CONFIG_VIDEO_VP27SMPX
+	if (hw & IVTV_HW_VP27SMPX)
+		ivtv_request_module(itv, "vp27smpx");
+#endif
 	if (hw & IVTV_HW_TVAUDIO)
 		ivtv_request_module(itv, "tvaudio");
 #ifndef CONFIG_VIDEO_WM8775

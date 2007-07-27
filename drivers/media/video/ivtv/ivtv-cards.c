@@ -616,7 +616,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx = {
 	.hw_video = IVTV_HW_SAA7115 | IVTV_HW_UPD64031A | IVTV_HW_UPD6408X,
 	.hw_audio = IVTV_HW_GPIO,
 	.hw_audio_ctrl = IVTV_HW_WM8739,
-	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TVAUDIO |
+	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_VP27SMPX |
 		  IVTV_HW_TUNER | IVTV_HW_WM8739 |
 		  IVTV_HW_UPD64031A | IVTV_HW_UPD6408X,
 	.video_inputs = {
@@ -654,7 +654,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx2e = {
 	.hw_audio = IVTV_HW_GPIO,
 	.hw_audio_ctrl = IVTV_HW_WM8739,
 	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TUNER |
-		  IVTV_HW_TVAUDIO | IVTV_HW_WM8739,
+		  IVTV_HW_VP27SMPX | IVTV_HW_WM8739,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },

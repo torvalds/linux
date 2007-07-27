@@ -14,6 +14,7 @@ config VIDEO_IVTV
 	select VIDEO_CS53L32A
 	select VIDEO_WM8775
 	select VIDEO_WM8739
+	select VIDEO_VP27SMPX
 	select VIDEO_UPD64031A
 	select VIDEO_UPD64083
 	---help---
