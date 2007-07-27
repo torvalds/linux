@@ -199,7 +199,9 @@ enum {
 #define AC_AMPCAP_OFFSET_SHIFT		0
 #define AC_AMPCAP_NUM_STEPS		(0x7f<<8)  /* number of steps */
 #define AC_AMPCAP_NUM_STEPS_SHIFT	8
-#define AC_AMPCAP_STEP_SIZE		(0x7f<<16) /* step size 0-32dB in 0.25dB */
+#define AC_AMPCAP_STEP_SIZE		(0x7f<<16) /* step size 0-32dB
+						    * in 0.25dB
+						    */
 #define AC_AMPCAP_STEP_SIZE_SHIFT	16
 #define AC_AMPCAP_MUTE			(1<<31)    /* mute capable */
 #define AC_AMPCAP_MUTE_SHIFT		31
@@ -436,7 +438,8 @@ struct hda_bus {
 
 	/* codec linked list */
 	struct list_head codec_list;
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1]; /* caddr -> codec */
+	/* link caddr -> codec */
+	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
 
 	struct mutex cmd_mutex;
 
@@ -499,7 +502,7 @@ struct hda_pcm_ops {
 
 /* PCM information for each substream */
 struct hda_pcm_stream {
-	unsigned int substreams;	/* number of substreams, 0 = not exist */
+	unsigned int substreams;	/* number of substreams, 0 = not exist*/
 	unsigned int channels_min;	/* min. number of channels */
 	unsigned int channels_max;	/* max. number of channels */
 	hda_nid_t nid;	/* default NID to query rates/formats/bps, or set up */
@@ -582,13 +585,17 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 /*
  * low level functions
  */
-unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid, int direct,
+unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
+				int direct,
 				unsigned int verb, unsigned int parm);
 int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 			unsigned int verb, unsigned int parm);
-#define snd_hda_param_read(codec, nid, param) snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
-int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *start_id);
-int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *conn_list, int max_conns);
+#define snd_hda_param_read(codec, nid, param) \
+	snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
+int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
+			  hda_nid_t *start_id);
+int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
+			    hda_nid_t *conn_list, int max_conns);
 
 struct hda_verb {
 	hda_nid_t nid;
@@ -596,7 +603,8 @@ struct hda_verb {
 	u32 param;
 };
 
-void snd_hda_sequence_write(struct hda_codec *codec, const struct hda_verb *seq);
+void snd_hda_sequence_write(struct hda_codec *codec,
+			    const struct hda_verb *seq);
 
 /* unsolicited event */
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
@@ -610,10 +618,13 @@ int snd_hda_build_controls(struct hda_bus *bus);
  * PCM
  */
 int snd_hda_build_pcms(struct hda_bus *bus);
-void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stream_tag,
+void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+				u32 stream_tag,
 				int channel_id, int format);
-unsigned int snd_hda_calc_stream_format(unsigned int rate, unsigned int channels,
-					unsigned int format, unsigned int maxbps);
+unsigned int snd_hda_calc_stream_format(unsigned int rate,
+					unsigned int channels,
+					unsigned int format,
+					unsigned int maxbps);
 int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
