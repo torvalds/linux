@@ -649,6 +649,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 		if (tx->skb->len + FCS_LEN > tx->local->rts_threshold &&
 		    tx->local->rts_threshold < IEEE80211_MAX_RTS_THRESHOLD) {
 			control->flags |= IEEE80211_TXCTL_USE_RTS_CTS;
+			control->flags |= IEEE80211_TXCTL_LONG_RETRY_LIMIT;
 			control->retry_limit =
 				tx->local->long_retry_limit;
 		} else {

@@ -192,9 +192,15 @@ struct ieee80211_tx_control {
 #define IEEE80211_TXCTL_FIRST_FRAGMENT	(1<<8) /* this is a first fragment of
 						* the frame */
 #define IEEE80211_TXCTL_TKIP_NEW_PHASE1_KEY (1<<9)
+#define IEEE80211_TXCTL_LONG_RETRY_LIMIT (1<<10) /* this frame should be send
+						  * using the through
+						  * set_retry_limit configured
+						  * long retry value */
 	u32 flags;			       /* tx control flags defined
 						* above */
-	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, .. */
+	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
+				 * This could be used when set_retry_limit
+				 * is not implemented by the driver */
 	u8 power_level;		/* per-packet transmit power level, in dBm */
 	u8 antenna_sel_tx; 	/* 0 = default/diversity, 1 = Ant0, 2 = Ant1 */
 	s8 key_idx;		/* -1 = do not encrypt, >= 0 keyidx from
