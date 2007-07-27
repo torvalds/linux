@@ -210,7 +210,7 @@
 #define CS4231_HW_CS4239	0x0404	/* CS4239 - Crystal Clear (tm) stereo enhancement */
 /* compatible, but clones */
 #define CS4231_HW_INTERWAVE     0x1000	/* InterWave chip */
-#define CS4231_HW_OPL3SA2       0x1001	/* OPL3-SA2 chip */
+#define CS4231_HW_OPL3SA2       0x1101	/* OPL3-SA2 chip, similar to cs4231 */
 
 /* defines for codec.hwshare */
 #define CS4231_HWSHARE_IRQ	(1<<0)

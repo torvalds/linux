@@ -253,6 +253,7 @@ static int __devinit snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
 		/* 0x03 - YM715B */
 		/* 0x04 - YM719 - OPL-SA4? */
 		/* 0x05 - OPL3-SA3 - Libretto 100 */
+		/* 0x07 - unknown - Neomagic MagicWave 3D */
 		break;
 	}
 	str[0] = chip->version + '0';

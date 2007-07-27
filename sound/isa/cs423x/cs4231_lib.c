@@ -555,6 +555,8 @@ static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 			snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT, chip->image[CS4231_PLAYBK_FORMAT] = pdfr);
 		}
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
+		if (chip->hardware == CS4231_HW_OPL3SA2)
+			udelay(100);	/* this seems to help */
 		snd_cs4231_mce_down(chip);
 	}
 	snd_cs4231_calibrate_mute(chip, 0);
