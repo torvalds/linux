@@ -67,6 +67,7 @@ struct rtl8187_priv {
 	struct rtl818x_csr *map;
 	void (*rf_init)(struct ieee80211_hw *);
 	int mode;
+	int if_id;
 
 	/* rtl8187 specific */
 	struct ieee80211_channel channels[14];

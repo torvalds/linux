@@ -173,7 +173,7 @@ static u16 ieee80211_duration(struct ieee80211_txrx_data *tx, int group_addr,
 	 * to closest integer */
 
 	dur = ieee80211_frame_duration(local, 10, rate, erp,
-				       local->short_preamble);
+				       tx->sdata->short_preamble);
 
 	if (next_frag_len) {
 		/* Frame is fragmented: duration increases with time needed to
@@ -182,7 +182,7 @@ static u16 ieee80211_duration(struct ieee80211_txrx_data *tx, int group_addr,
 		/* next fragment */
 		dur += ieee80211_frame_duration(local, next_frag_len,
 						txrate->rate, erp,
-						local->short_preamble);
+						tx->sdata->short_preamble);
 	}
 
 	return dur;
@@ -627,12 +627,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 		tx->u.tx.control->rate = tx->u.tx.rate;
 	}
 	tx->u.tx.control->tx_rate = tx->u.tx.rate->val;
-	if ((tx->u.tx.rate->flags & IEEE80211_RATE_PREAMBLE2) &&
-	    tx->local->short_preamble &&
-	    (!tx->sta || (tx->sta->flags & WLAN_STA_SHORT_PREAMBLE))) {
-		tx->u.tx.short_preamble = 1;
-		tx->u.tx.control->tx_rate = tx->u.tx.rate->val2;
-	}
 
 	return TXRX_CONTINUE;
 }
@@ -641,6 +635,7 @@ static ieee80211_txrx_result
 ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
+	u16 fc = le16_to_cpu(hdr->frame_control);
 	u16 dur;
 	struct ieee80211_tx_control *control = tx->u.tx.control;
 	struct ieee80211_hw_mode *mode = tx->u.tx.mode;
@@ -676,6 +671,16 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	    tx->u.tx.unicast && tx->sdata->use_protection &&
 	    !(control->flags & IEEE80211_TXCTL_USE_RTS_CTS))
 		control->flags |= IEEE80211_TXCTL_USE_CTS_PROTECT;
+
+	/* Transmit data frames using short preambles if the driver supports
+	 * short preambles at the selected rate and short preambles are
+	 * available on the network at the current point in time. */
+	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	    (tx->u.tx.rate->flags & IEEE80211_RATE_PREAMBLE2) &&
+	    tx->sdata->short_preamble &&
+	    (!tx->sta || (tx->sta->flags & WLAN_STA_SHORT_PREAMBLE))) {
+		tx->u.tx.control->tx_rate = tx->u.tx.rate->val2;
+	}
 
 	/* Setup duration field for the first fragment of the frame. Duration
 	 * for remaining fragments will be updated when they are being sent
@@ -1750,7 +1755,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 			return NULL;
 		}
 
-		control->tx_rate = (local->short_preamble &&
+		control->tx_rate = (sdata->short_preamble &&
 				    (rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
 			rate->val2 : rate->val;
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
@@ -1765,7 +1770,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 }
 EXPORT_SYMBOL(ieee80211_beacon_get);
 
-void ieee80211_rts_get(struct ieee80211_hw *hw,
+void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
 		       const void *frame, size_t frame_len,
 		       const struct ieee80211_tx_control *frame_txctl,
 		       struct ieee80211_rts *rts)
@@ -1775,13 +1780,13 @@ void ieee80211_rts_get(struct ieee80211_hw *hw,
 
 	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS;
 	rts->frame_control = cpu_to_le16(fctl);
-	rts->duration = ieee80211_rts_duration(hw, frame_len, frame_txctl);
+	rts->duration = ieee80211_rts_duration(hw, if_id, frame_len, frame_txctl);
 	memcpy(rts->ra, hdr->addr1, sizeof(rts->ra));
 	memcpy(rts->ta, hdr->addr2, sizeof(rts->ta));
 }
 EXPORT_SYMBOL(ieee80211_rts_get);
 
-void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
+void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
 			     const void *frame, size_t frame_len,
 			     const struct ieee80211_tx_control *frame_txctl,
 			     struct ieee80211_cts *cts)
@@ -1791,7 +1796,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
 
 	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS;
 	cts->frame_control = cpu_to_le16(fctl);
-	cts->duration = ieee80211_ctstoself_duration(hw, frame_len, frame_txctl);
+	cts->duration = ieee80211_ctstoself_duration(hw, if_id, frame_len, frame_txctl);
 	memcpy(cts->ra, hdr->addr1, sizeof(cts->ra));
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_get);

@@ -96,7 +96,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
 		tmp |= RTL8187_TX_FLAG_RTS;
 		hdr->rts_duration =
-			ieee80211_rts_duration(dev, skb->len, control);
+			ieee80211_rts_duration(dev, priv->if_id, skb->len, control);
 	}
 	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
 		tmp |= RTL8187_TX_FLAG_CTS;
@@ -509,6 +509,8 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev, int if_id,
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
+
+	priv->if_id = if_id;
 
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);

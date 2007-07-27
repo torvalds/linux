@@ -318,6 +318,7 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	int use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
+	int preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
 
 	if (use_protection != sdata->use_protection) {
 		if (net_ratelimit()) {
@@ -328,6 +329,18 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 			       MAC_ARG(ifsta->bssid));
 		}
 		sdata->use_protection = use_protection;
+	}
+
+	if (!preamble_mode != sdata->short_preamble) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: switched to %s barker preamble"
+			       " (BSSID=" MAC_FMT ")\n",
+			       dev->name,
+			       (preamble_mode == WLAN_ERP_PREAMBLE_SHORT) ?
+					"short" : "long",
+			       MAC_ARG(ifsta->bssid));
+		}
+		sdata->short_preamble = !preamble_mode;
 	}
 }
 
@@ -415,6 +428,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
 		netif_carrier_off(dev);
+		sdata->short_preamble = 0;
 		sdata->use_protection = 0;
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
@@ -2281,7 +2295,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
-		control.tx_rate = (local->short_preamble &&
+		control.tx_rate = (sdata->short_preamble &&
 				   (rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
 			rate->val2 : rate->val;
 		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;

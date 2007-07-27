@@ -314,30 +314,45 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 }
 
 /* Exported duration function for driver use */
-__le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
+__le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw, int if_id,
 					size_t frame_len, int rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct net_device *bdev = dev_get_by_index(if_id);
+	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
 	int erp;
 
+	if (unlikely(!bdev))
+		return 0;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
 	erp = ieee80211_is_erp_rate(hw->conf.phymode, rate);
 	dur = ieee80211_frame_duration(local, frame_len, rate,
-				       erp, local->short_preamble);
+				       erp, sdata->short_preamble);
 
+	dev_put(bdev);
 	return cpu_to_le16(dur);
 }
 EXPORT_SYMBOL(ieee80211_generic_frame_duration);
 
-__le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
+__le16 ieee80211_rts_duration(struct ieee80211_hw *hw, int if_id,
 			      size_t frame_len,
 			      const struct ieee80211_tx_control *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	int short_preamble = local->short_preamble;
+	struct net_device *bdev = dev_get_by_index(if_id);
+	struct ieee80211_sub_if_data *sdata;
+	int short_preamble;
 	int erp;
 	u16 dur;
+
+	if (unlikely(!bdev))
+		return 0;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
+	short_preamble = sdata->short_preamble;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);
@@ -352,19 +367,28 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	dur += ieee80211_frame_duration(local, 10, rate->rate,
 					erp, short_preamble);
 
+	dev_put(bdev);
 	return cpu_to_le16(dur);
 }
 EXPORT_SYMBOL(ieee80211_rts_duration);
 
-__le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
+__le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw, int if_id,
 				    size_t frame_len,
 				    const struct ieee80211_tx_control *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	int short_preamble = local->short_preamble;
+	struct net_device *bdev = dev_get_by_index(if_id);
+	struct ieee80211_sub_if_data *sdata;
+	int short_preamble;
 	int erp;
 	u16 dur;
+
+	if (unlikely(!bdev))
+		return 0;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
+	short_preamble = sdata->short_preamble;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);
@@ -378,6 +402,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 						erp, short_preamble);
 	}
 
+	dev_put(bdev);
 	return cpu_to_le16(dur);
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_duration);

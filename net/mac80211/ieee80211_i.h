@@ -127,7 +127,6 @@ struct ieee80211_txrx_data {
 			struct ieee80211_tx_control *control;
 			unsigned int unicast:1;
 			unsigned int ps_buffered:1;
-			unsigned int short_preamble:1;
 			unsigned int probe_last_frag:1;
 			struct ieee80211_hw_mode *mode;
 			struct ieee80211_rate *rate;
@@ -285,6 +284,11 @@ struct ieee80211_sub_if_data {
 	unsigned int allmulti:1;
 	unsigned int promisc:1;
 	unsigned int use_protection:1; /* CTS protect ERP frames */
+
+	/* use short preamble with IEEE 802.11b: this flag is set when the AP
+	 * or beacon generator reports that there are no present stations that
+	 * cannot support short preambles */
+	unsigned int short_preamble:1;
 
 	struct net_device_stats stats;
 	int drop_unencrypted;
@@ -447,7 +451,6 @@ struct ieee80211_local {
 	int fragmentation_threshold;
 	int short_retry_limit; /* dot11ShortRetryLimit */
 	int long_retry_limit; /* dot11LongRetryLimit */
-	int short_preamble; /* use short preamble with IEEE 802.11b */
 
 	struct crypto_blkcipher *wep_tx_tfm;
 	struct crypto_blkcipher *wep_rx_tfm;
