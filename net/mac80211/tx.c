@@ -1270,27 +1270,32 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	struct ieee80211_tx_packet_data *pkt_data;
 	struct ieee80211_radiotap_header *prthdr =
 		(struct ieee80211_radiotap_header *)skb->data;
-	u16 len;
+	u16 len_rthdr;
 
-	/*
-	 * there must be a radiotap header at the
-	 * start in this case
-	 */
-	if (unlikely(prthdr->it_version)) {
-		/* only version 0 is supported */
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
+	/* check for not even having the fixed radiotap header part */
+	if (unlikely(skb->len < sizeof(struct ieee80211_radiotap_header)))
+		goto fail; /* too short to be possibly valid */
+
+	/* is it a header version we can trust to find length from? */
+	if (unlikely(prthdr->it_version))
+		goto fail; /* only version 0 is supported */
+
+	/* then there must be a radiotap header with a length we can use */
+	len_rthdr = ieee80211_get_radiotap_len(skb->data);
+
+	/* does the skb contain enough to deliver on the alleged length? */
+	if (unlikely(skb->len < len_rthdr))
+		goto fail; /* skb too short for claimed rt header extent */
 
 	skb->dev = local->mdev;
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(*pkt_data));
+	/* needed because we set skb device to master */
 	pkt_data->ifindex = dev->ifindex;
+
 	pkt_data->mgmt_iface = 0;
 	pkt_data->do_not_encrypt = 1;
-
-	/* above needed because we set skb device to master */
 
 	/*
 	 * fix up the pointers accounting for the radiotap
@@ -1298,18 +1303,21 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * a precooked IEEE80211 header so no need for
 	 * normal processing
 	 */
-	len = le16_to_cpu(get_unaligned(&prthdr->it_len));
-	skb_set_mac_header(skb, len);
-	skb_set_network_header(skb, len + sizeof(struct ieee80211_hdr));
-	skb_set_transport_header(skb, len + sizeof(struct ieee80211_hdr));
-
+	skb_set_mac_header(skb, len_rthdr);
 	/*
-	 * pass the radiotap header up to
-	 * the next stage intact
+	 * these are just fixed to the end of the rt area since we
+	 * don't have any better information and at this point, nobody cares
 	 */
-	dev_queue_xmit(skb);
+	skb_set_network_header(skb, len_rthdr);
+	skb_set_transport_header(skb, len_rthdr);
 
+	/* pass the radiotap header up to the next stage intact */
+	dev_queue_xmit(skb);
 	return NETDEV_TX_OK;
+
+fail:
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK; /* meaning, we dealt with the skb */
 }
 
 /**
