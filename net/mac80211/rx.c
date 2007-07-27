@@ -234,7 +234,6 @@ static ieee80211_txrx_result
 ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr;
-	int always_sta_key;
 	hdr = (struct ieee80211_hdr *) rx->skb->data;
 
 	/* Drop duplicate 802.11 retransmissions (IEEE 802.11 Chap. 9.2.9) */
@@ -301,6 +300,16 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 				  ieee80211_msg_sta_not_assoc);
 		return TXRX_QUEUED;
 	}
+
+	return TXRX_CONTINUE;
+}
+
+
+static ieee80211_txrx_result
+ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
+	int always_sta_key;
 
 	if (rx->sdata->type == IEEE80211_IF_TYPE_STA)
 		always_sta_key = 0;
@@ -1208,6 +1217,7 @@ ieee80211_rx_handler ieee80211_rx_handlers[] =
 	ieee80211_rx_h_monitor,
 	ieee80211_rx_h_passive_scan,
 	ieee80211_rx_h_check,
+	ieee80211_rx_h_load_key,
 	ieee80211_rx_h_sta_process,
 	ieee80211_rx_h_ccmp_decrypt,
 	ieee80211_rx_h_tkip_decrypt,
