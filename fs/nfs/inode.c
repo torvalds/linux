@@ -656,7 +656,7 @@ int nfs_attribute_timeout(struct inode *inode)
 
 	if (nfs_have_delegation(inode, FMODE_READ))
 		return 0;
-	return time_after(jiffies, nfsi->read_cache_jiffies+nfsi->attrtimeo);
+	return !time_in_range(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
 /**
@@ -1055,7 +1055,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
-	} else if (time_after(now, nfsi->attrtimeo_timestamp+nfsi->attrtimeo)) {
+	} else if (!time_in_range(now, nfsi->attrtimeo_timestamp, nfsi->attrtimeo_timestamp + nfsi->attrtimeo)) {
 		if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
 			nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;

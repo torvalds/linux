@@ -1855,7 +1855,7 @@ int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs
 	cache = nfs_access_search_rbtree(inode, cred);
 	if (cache == NULL)
 		goto out;
-	if (time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode)))
+	if (!time_in_range(jiffies, cache->jiffies, cache->jiffies + NFS_ATTRTIMEO(inode)))
 		goto out_stale;
 	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
