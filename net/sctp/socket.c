@@ -4350,7 +4350,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 						space_left, &bytes_copied);
 			if (cnt < 0) {
 				err = cnt;
-				goto error;
+				goto error_lock;
 			}
 			goto copy_getaddrs;
 		}
@@ -4364,7 +4364,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
 		if (space_left < addrlen) {
 			err =  -ENOMEM; /*fixme: right error?*/
-			goto error;
+			goto error_lock;
 		}
 		memcpy(buf, &temp, addrlen);
 		buf += addrlen;
@@ -4378,15 +4378,21 @@ copy_getaddrs:
 
 	if (copy_to_user(to, addrs, bytes_copied)) {
 		err = -EFAULT;
-		goto error;
+		goto out;
 	}
 	if (put_user(cnt, &((struct sctp_getaddrs __user *)optval)->addr_num)) {
 		err = -EFAULT;
-		goto error;
+		goto out;
 	}
 	if (put_user(bytes_copied, optlen))
 		err = -EFAULT;
-error:
+
+	goto out;
+
+error_lock:
+	sctp_read_unlock(addr_lock);
+
+out:
 	kfree(addrs);
 	return err;
 }
