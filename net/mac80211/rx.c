@@ -28,6 +28,8 @@
 /* pre-rx handlers
  *
  * these don't have dev/sdata fields in the rx data
+ * The sta value should also not be used because it may
+ * be NULL even though a STA (in IBSS mode) will be added.
  */
 
 static ieee80211_txrx_result
@@ -50,12 +52,11 @@ ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
 			tid = 0; /* 802.1d - Best Effort */
 		}
 	}
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+
 	I802_DEBUG_INC(rx->local->wme_rx_queue[tid]);
-	if (rx->sta) {
+	/* only a debug counter, sta might not be assigned properly yet */
+	if (rx->sta)
 		I802_DEBUG_INC(rx->sta->wme_rx_queue[tid]);
-	}
-#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
 
 	rx->u.rx.queue = tid;
 	/* Set skb->priority to 1d tag if highest order bit of TID is not set.
@@ -110,8 +111,6 @@ ieee80211_rx_h_load_stats(struct ieee80211_txrx_data *rx)
 	/* Divide channel_use by 8 to avoid wrapping around the counter */
 	load >>= CHAN_UTIL_SHIFT;
 	local->channel_use_raw += load;
-	if (rx->sta)
-		rx->sta->channel_use_raw += load;
 	rx->u.rx.load = load;
 
 	return TXRX_CONTINUE;
@@ -129,6 +128,8 @@ ieee80211_rx_handler ieee80211_rx_pre_handlers[] =
 static ieee80211_txrx_result
 ieee80211_rx_h_if_stats(struct ieee80211_txrx_data *rx)
 {
+	if (rx->sta)
+		rx->sta->channel_use_raw += rx->u.rx.load;
 	rx->sdata->channel_use_raw += rx->u.rx.load;
 	return TXRX_CONTINUE;
 }
