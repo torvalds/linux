@@ -973,10 +973,10 @@ static int piix_pci_device_resume(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 
 		/* PCI device wasn't disabled during suspend.  Use
-		 * __pci_reenable_device() to avoid affecting the
-		 * enable count.
+		 * pci_reenable_device() to avoid affecting the enable
+		 * count.
 		 */
-		rc = __pci_reenable_device(pdev);
+		rc = pci_reenable_device(pdev);
 		if (rc)
 			dev_printk(KERN_ERR, &pdev->dev, "failed to enable "
 				   "device after resume (%d)\n", rc);
