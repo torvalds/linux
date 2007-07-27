@@ -731,8 +731,6 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 			     struct ieee80211_hw_mode *mode);
 void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx);
 int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr);
-int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
-int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void ieee80211_if_setup(struct net_device *dev);
 void ieee80211_if_mgmt_setup(struct net_device *dev);
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
@@ -746,8 +744,11 @@ void ieee80211_key_threshold_notify(struct net_device *dev,
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len);
 int ieee80211_is_eapol(const struct sk_buff *skb);
 
-extern const unsigned char rfc1042_header[];
-extern const unsigned char bridge_tunnel_header[];
+extern const unsigned char rfc1042_header[6];
+extern const unsigned char bridge_tunnel_header[6];
+
+int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
+			     int rate, int erp, int short_preamble);
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
@@ -822,6 +823,15 @@ void ieee80211_set_default_regdomain(struct ieee80211_hw_mode *mode);
 /* rx handling */
 extern ieee80211_rx_handler ieee80211_rx_pre_handlers[];
 extern ieee80211_rx_handler ieee80211_rx_handlers[];
+
+/* tx handling */
+extern ieee80211_tx_handler ieee80211_tx_handlers[];
+void ieee80211_clear_tx_pending(struct ieee80211_local *local);
+void ieee80211_tx_pending(unsigned long data);
+int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
+int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
+int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
+int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* for wiphy privid */
 extern void *mac80211_wiphy_privid;

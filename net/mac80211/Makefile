@@ -19,4 +19,5 @@ mac80211-objs := \
 	aes_ccm.o \
 	ieee80211_cfg.o \
 	rx.o \
+	tx.o \
 	$(mac80211-objs-y)
