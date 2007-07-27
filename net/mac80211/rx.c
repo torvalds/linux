@@ -1387,21 +1387,35 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		if (!prepres)
 			continue;
 
-		if (prev) {
-			skb_new = skb_copy(skb, GFP_ATOMIC);
-			if (!skb_new) {
-				if (net_ratelimit())
-					printk(KERN_DEBUG "%s: failed to copy "
-					       "multicast frame for %s",
-					       local->mdev->name, prev->dev->name);
-				continue;
-			}
-			rx.skb = skb_new;
-			rx.dev = prev->dev;
-			rx.sdata = prev;
-			ieee80211_invoke_rx_handlers(local, local->rx_handlers,
-						     &rx, sta);
+		/*
+		 * frame is destined for this interface, but if it's not
+		 * also for the previous one we handle that after the
+		 * loop to avoid copying the SKB once too much
+		 */
+
+		if (!prev) {
+			prev = sdata;
+			continue;
 		}
+
+		/*
+		 * frame was destined for the previous interface
+		 * so invoke RX handlers for it
+		 */
+
+		skb_new = skb_copy(skb, GFP_ATOMIC);
+		if (!skb_new) {
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: failed to copy "
+				       "multicast frame for %s",
+				       local->mdev->name, prev->dev->name);
+			continue;
+		}
+		rx.skb = skb_new;
+		rx.dev = prev->dev;
+		rx.sdata = prev;
+		ieee80211_invoke_rx_handlers(local, local->rx_handlers,
+					     &rx, sta);
 		prev = sdata;
 	}
 	if (prev) {
