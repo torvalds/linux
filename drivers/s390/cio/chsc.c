@@ -990,14 +990,18 @@ out:
 	return ret;
 }
 
-static int __init
-chsc_alloc_sei_area(void)
+int __init chsc_alloc_sei_area(void)
 {
 	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sei_page)
 		CIO_MSG_EVENT(0, "Can't allocate page for processing of "
 			      "chsc machine checks!\n");
 	return (sei_page ? 0 : -ENOMEM);
+}
+
+void __init chsc_free_sei_area(void)
+{
+	kfree(sei_page);
 }
 
 int __init
@@ -1050,8 +1054,6 @@ chsc_enable_facility(int operation_code)
 	free_page((unsigned long)sda_area);
 	return ret;
 }
-
-subsys_initcall(chsc_alloc_sei_area);
 
 struct css_general_char css_general_characteristics;
 struct css_chsc_char css_chsc_characteristics;

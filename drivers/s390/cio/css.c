@@ -377,8 +377,6 @@ static int __init slow_subchannel_init(void)
 	return 0;
 }
 
-subsys_initcall(slow_subchannel_init);
-
 static void css_slow_path_func(struct work_struct *unused)
 {
 	struct subchannel_id schid;
@@ -641,8 +639,19 @@ init_channel_subsystem (void)
 {
 	int ret, i;
 
-	if (chsc_determine_css_characteristics() == 0)
+	ret = chsc_determine_css_characteristics();
+	if (ret == -ENOMEM)
+		goto out; /* No need to continue. */
+	if (ret == 0)
 		css_characteristics_avail = 1;
+
+	ret = chsc_alloc_sei_area();
+	if (ret)
+		goto out;
+
+	ret = slow_subchannel_init();
+	if (ret)
+		goto out;
 
 	if ((ret = bus_register(&css_bus_type)))
 		goto out;
@@ -709,6 +718,10 @@ out_unregister:
 out_bus:
 	bus_unregister(&css_bus_type);
 out:
+	chsc_free_sei_area();
+	kfree(slow_subchannel_set);
+	printk(KERN_WARNING"cio: failed to initialize css driver (%d)!\n",
+	       ret);
 	return ret;
 }
 
