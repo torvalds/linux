@@ -2092,8 +2092,10 @@ static void arcmsr_iop_reset(struct AdapterControlBlock *acb)
 	if (atomic_read(&acb->ccboutstandingcount) != 0) {
 		/* talk to iop 331 outstanding command aborted */
 		arcmsr_abort_allcmd(acb);
+
 		/* wait for 3 sec for all command aborted*/
 		ssleep(3);
+
 		/* disable all outbound interrupt */
 		intmask_org = arcmsr_disable_outbound_ints(acb);
 		/* clear all outbound posted Q */
