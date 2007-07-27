@@ -20,8 +20,6 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/rtnetlink.h>
-#include <net/iw_handler.h>
-#include <linux/compiler.h>
 #include <linux/bitmap.h>
 #include <net/cfg80211.h>
 
@@ -29,8 +27,6 @@
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "wep.h"
-#include "wpa.h"
-#include "tkip.h"
 #include "wme.h"
 #include "aes_ccm.h"
 #include "ieee80211_led.h"
