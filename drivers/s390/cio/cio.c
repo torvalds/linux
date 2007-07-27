@@ -47,8 +47,8 @@ cio_setup (char *parm)
 	else if (!strcmp (parm, "no"))
 		cio_show_msg = 0;
 	else
-		printk (KERN_ERR "cio_setup : invalid cio_msg parameter '%s'",
-			parm);
+		printk(KERN_ERR "cio: cio_setup: "
+		       "invalid cio_msg parameter '%s'", parm);
 	return 1;
 }
 
@@ -80,7 +80,6 @@ cio_debug_init (void)
 		goto out_unregister;
 	debug_register_view (cio_debug_crw_id, &debug_sprintf_view);
 	debug_set_level (cio_debug_crw_id, 2);
-	pr_debug("debugging initialized\n");
 	return 0;
 
 out_unregister:
@@ -90,7 +89,7 @@ out_unregister:
 		debug_unregister (cio_debug_trace_id);
 	if (cio_debug_crw_id)
 		debug_unregister (cio_debug_crw_id);
-	pr_debug("could not initialize debugging\n");
+	printk(KERN_WARNING"cio: could not initialize debugging\n");
 	return -1;
 }
 
@@ -568,7 +567,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	 */
 	if (sch->st != 0) {
 		CIO_DEBUG(KERN_INFO, 0,
-			  "Subchannel 0.%x.%04x reports "
+			  "cio: Subchannel 0.%x.%04x reports "
 			  "non-I/O subchannel type %04X\n",
 			  sch->schid.ssid, sch->schid.sch_no, sch->st);
 		/* We stop here for non-io subchannels. */
@@ -601,7 +600,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,
-		  "Detected device %04x on subchannel 0.%x.%04X"
+		  "cio: Detected device %04x on subchannel 0.%x.%04X"
 		  " - PIM = %02X, PAM = %02X, POM = %02X\n",
 		  sch->schib.pmcw.dev, sch->schid.ssid,
 		  sch->schid.sch_no, sch->schib.pmcw.pim,
@@ -766,7 +765,7 @@ cio_get_console_sch_no(void)
 		/* unlike in 2.4, we cannot autoprobe here, since
 		 * the channel subsystem is not fully initialized.
 		 * With some luck, the HWC console can take over */
-		printk(KERN_WARNING "No ccw console found!\n");
+		printk(KERN_WARNING "cio: No ccw console found!\n");
 		return -1;
 	}
 	return console_irq;

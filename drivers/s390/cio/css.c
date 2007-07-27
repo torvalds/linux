@@ -184,8 +184,8 @@ static int css_register_subchannel(struct subchannel *sch)
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
 	if (ret) {
-		printk (KERN_WARNING "%s: could not register %s\n",
-			__func__, sch->dev.bus_id);
+		CIO_MSG_EVENT(0, "Could not register sch 0.%x.%04x: %d\n",
+			      sch->schid.ssid, sch->schid.sch_no, ret);
 		return ret;
 	}
 	return ret;
@@ -371,8 +371,7 @@ static int __init slow_subchannel_init(void)
 	spin_lock_init(&slow_subchannel_lock);
 	slow_subchannel_set = idset_sch_new();
 	if (!slow_subchannel_set) {
-		printk(KERN_WARNING "cio: could not allocate slow subchannel "
-		       "set\n");
+		CIO_MSG_EVENT(0, "could not allocate slow subchannel set\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -425,8 +424,8 @@ static int reprobe_subchannel(struct subchannel_id schid, void *data)
 	struct subchannel *sch;
 	int ret;
 
-	CIO_DEBUG(KERN_INFO, 6, "cio: reprobe 0.%x.%04x\n",
-		  schid.ssid, schid.sch_no);
+	CIO_MSG_EVENT(6, "cio: reprobe 0.%x.%04x\n",
+		      schid.ssid, schid.sch_no);
 	if (need_reprobe)
 		return -EAGAIN;
 
