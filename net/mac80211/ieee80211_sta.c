@@ -1187,8 +1187,10 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		printk(KERN_DEBUG "%s: AP denied association (code=%d)\n",
 		       dev->name, status_code);
-		if (status_code == WLAN_STATUS_REASSOC_NO_ASSOC)
-			ifsta->prev_bssid_set = 0;
+		/* if this was a reassociation, ensure we try a "full"
+		 * association next time. This works around some broken APs
+		 * which do not correctly reject reassociation requests. */
+		ifsta->prev_bssid_set = 0;
 		return;
 	}
 

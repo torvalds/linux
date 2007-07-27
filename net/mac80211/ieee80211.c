@@ -375,6 +375,18 @@ static void ieee80211_start_hard_monitor(struct ieee80211_local *local)
 	}
 }
 
+static void ieee80211_if_open(struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
+		sdata->u.sta.prev_bssid_set = 0;
+		break;
+	}
+}
+
 static int ieee80211_open(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata, *nsdata;
@@ -408,6 +420,7 @@ static int ieee80211_open(struct net_device *dev)
 		local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
 		return 0;
 	}
+	ieee80211_if_open(dev);
 	ieee80211_start_soft_monitor(local);
 
 	conf.if_id = dev->ifindex;
