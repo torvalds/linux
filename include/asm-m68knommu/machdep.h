@@ -11,7 +11,7 @@ struct hwclk_time;
 struct gendisk;
 struct buffer_head;
 
-extern void (*mach_sched_init) (irqreturn_t (*handler)(int, void *, struct pt_regs *));
+extern void (*mach_sched_init) (irq_handler_t handler);
 /* machine dependent keyboard functions */
 extern int (*mach_keyb_init) (void);
 extern int (*mach_kbdrate) (struct kbd_repeat *);
