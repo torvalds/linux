@@ -101,7 +101,7 @@ simscsi_interrupt (unsigned long val)
 {
 	struct scsi_cmnd *sc;
 
-	while ((sc = queue[rd].sc) != 0) {
+	while ((sc = queue[rd].sc) != NULL) {
 		atomic_dec(&num_reqs);
 		queue[rd].sc = NULL;
 		if (DBG)
