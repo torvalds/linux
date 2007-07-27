@@ -306,7 +306,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	}
 	read_unlock(&local->sub_if_lock);
 
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	list_for_each_entry(sta, &local->sta_list, list) {
 		skb = skb_dequeue(&sta->ps_tx_buf);
 		if (skb) {
@@ -315,7 +315,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		}
 		total += skb_queue_len(&sta->ps_tx_buf);
 	}
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 
 	local->total_ps_buffered = total;
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
@@ -1629,7 +1629,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 
 	/* Generate bitmap for TIM only if there are any STAs in power save
 	 * mode. */
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	if (atomic_read(&bss->num_sta_ps) > 0)
 		/* in the hope that this is faster than
 		 * checking byte-for-byte */
@@ -1680,7 +1680,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 		*pos++ = aid0; /* Bitmap control */
 		*pos++ = 0; /* Part Virt Bitmap */
 	}
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 }
 
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,

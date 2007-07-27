@@ -628,8 +628,8 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 	/* Remove STA entry for the old peer */
 	sta = sta_info_get(local, sdata->u.wds.remote_addr);
 	if (sta) {
+		sta_info_free(sta);
 		sta_info_put(sta);
-		sta_info_free(sta, 0);
 	} else {
 		printk(KERN_DEBUG "%s: could not find STA entry for WDS link "
 		       "peer " MAC_FMT "\n",
@@ -776,13 +776,13 @@ static void ieee80211_stat_refresh(unsigned long data)
 		return;
 
 	/* go through all stations */
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	list_for_each_entry(sta, &local->sta_list, list) {
 		sta->channel_use = (sta->channel_use_raw / local->stat_time) /
 			CHAN_UTIL_PER_10MS;
 		sta->channel_use_raw = 0;
 	}
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 
 	/* go through all subinterfaces */
 	read_lock(&local->sub_if_lock);

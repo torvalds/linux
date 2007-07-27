@@ -98,9 +98,6 @@ struct sta_info {
 				  * filtering; used only if sta->key is not
 				  * set */
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	int debugfs_registered;
-#endif
 	int assoc_ap; /* whether this is an AP that we are
 		       * associated with as a client */
 
@@ -149,12 +146,18 @@ struct sta_info {
  */
 #define STA_INFO_CLEANUP_INTERVAL (10 * HZ)
 
+static inline void __sta_info_get(struct sta_info *sta)
+{
+	kref_get(&sta->kref);
+}
+
 struct sta_info * sta_info_get(struct ieee80211_local *local, u8 *addr);
 int sta_info_min_txrate_get(struct ieee80211_local *local);
 void sta_info_put(struct sta_info *sta);
 struct sta_info * sta_info_add(struct ieee80211_local *local,
 			       struct net_device *dev, u8 *addr, gfp_t gfp);
-void sta_info_free(struct sta_info *sta, int locked);
+void sta_info_remove(struct sta_info *sta);
+void sta_info_free(struct sta_info *sta);
 void sta_info_init(struct ieee80211_local *local);
 int sta_info_start(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);

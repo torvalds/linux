@@ -272,8 +272,8 @@ void ieee80211_if_reinit(struct net_device *dev)
 	case IEEE80211_IF_TYPE_WDS:
 		sta = sta_info_get(local, sdata->u.wds.remote_addr);
 		if (sta) {
+			sta_info_free(sta);
 			sta_info_put(sta);
-			sta_info_free(sta, 0);
 		} else {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			printk(KERN_DEBUG "%s: Someone had deleted my STA "

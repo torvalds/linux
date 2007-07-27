@@ -626,8 +626,7 @@ struct ieee80211_ops {
 	 * station hwaddr for individual keys. aid of the station is given
 	 * to help low-level driver in selecting which key->hw_key_idx to use
 	 * for this key. TX control data will use the hw_key_idx selected by
-	 * the low-level driver.
-	 * Must be atomic. */
+	 * the low-level driver. */
 	int (*set_key)(struct ieee80211_hw *hw, set_key_cmd cmd,
 		       u8 *addr, struct ieee80211_key_conf *key, int aid);
 

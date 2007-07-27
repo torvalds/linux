@@ -417,10 +417,9 @@ struct ieee80211_local {
 	struct sk_buff_head skb_queue_unreliable;
 
 	/* Station data structures */
-	spinlock_t sta_lock; /* mutex for STA data structures */
+	rwlock_t sta_lock; /* protects STA data structures */
 	int num_sta; /* number of stations in sta_list */
 	struct list_head sta_list;
-	struct list_head deleted_sta_list;
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
@@ -669,9 +668,9 @@ static inline void __bss_tim_set(struct ieee80211_if_ap *bss, int aid)
 static inline void bss_tim_set(struct ieee80211_local *local,
 			       struct ieee80211_if_ap *bss, int aid)
 {
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	__bss_tim_set(bss, aid);
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 }
 
 static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, int aid)
@@ -686,9 +685,9 @@ static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, int aid)
 static inline void bss_tim_clear(struct ieee80211_local *local,
 				 struct ieee80211_if_ap *bss, int aid)
 {
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	__bss_tim_clear(bss, aid);
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 }
 
 /**

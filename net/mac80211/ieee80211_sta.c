@@ -773,7 +773,7 @@ static void ieee80211_associated(struct net_device *dev,
 				       "range\n",
 				       dev->name, MAC_ARG(ifsta->bssid));
 				disassoc = 1;
-				sta_info_free(sta, 0);
+				sta_info_free(sta);
 				ifsta->probereq_poll = 0;
 			} else {
 				ieee80211_send_probe_req(dev, ifsta->bssid,
@@ -1890,7 +1890,7 @@ static int ieee80211_sta_active_ibss(struct net_device *dev)
 	int active = 0;
 	struct sta_info *sta;
 
-	spin_lock_bh(&local->sta_lock);
+	read_lock_bh(&local->sta_lock);
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sta->dev == dev &&
 		    time_after(sta->last_rx + IEEE80211_IBSS_MERGE_INTERVAL,
@@ -1899,7 +1899,7 @@ static int ieee80211_sta_active_ibss(struct net_device *dev)
 			break;
 		}
 	}
-	spin_unlock_bh(&local->sta_lock);
+	read_unlock_bh(&local->sta_lock);
 
 	return active;
 }
@@ -1909,16 +1909,24 @@ static void ieee80211_sta_expire(struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta, *tmp;
+	LIST_HEAD(tmp_list);
 
-	spin_lock_bh(&local->sta_lock);
+	write_lock_bh(&local->sta_lock);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
 		if (time_after(jiffies, sta->last_rx +
 			       IEEE80211_IBSS_INACTIVITY_LIMIT)) {
 			printk(KERN_DEBUG "%s: expiring inactive STA " MAC_FMT
 			       "\n", dev->name, MAC_ARG(sta->addr));
-			sta_info_free(sta, 1);
+			__sta_info_get(sta);
+			sta_info_remove(sta);
+			list_add(&sta->list, &tmp_list);
 		}
-	spin_unlock_bh(&local->sta_lock);
+	write_unlock_bh(&local->sta_lock);
+
+	list_for_each_entry_safe(sta, tmp, &tmp_list, list) {
+		sta_info_free(sta);
+		sta_info_put(sta);
+	}
 }
 
 
