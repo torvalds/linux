@@ -40,6 +40,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
+#include <asm/unaligned.h>
 
 /* Radiotap header version (from official NetBSD feed) */
 #define IEEE80211RADIOTAP_VERSION	"1.5"
@@ -261,7 +262,7 @@ static inline int ieee80211_get_radiotap_len(unsigned char *data)
 	struct ieee80211_radiotap_header *hdr =
 		(struct ieee80211_radiotap_header *)data;
 
-	return le16_to_cpu(hdr->it_len);
+	return le16_to_cpu(get_unaligned(&hdr->it_len));
 }
 
 #endif				/* IEEE80211_RADIOTAP_H */
