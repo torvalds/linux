@@ -975,7 +975,12 @@ static void ipi_irq_dispatch(void)
 	do_IRQ(cpu_ipi_irq);
 }
 
-static struct irqaction irq_ipi;
+static struct irqaction irq_ipi = {
+	.handler	= ipi_interrupt,
+	.flags		= IRQF_DISABLED,
+	.name		= "SMTC_IPI",
+	.flags		= IRQF_PERCPU
+};
 
 static void setup_cross_vpe_interrupts(unsigned int nvpe)
 {
@@ -987,13 +992,8 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 
 	set_vi_handler(MIPS_CPU_IPI_IRQ, ipi_irq_dispatch);
 
-	irq_ipi.handler = ipi_interrupt;
-	irq_ipi.flags = IRQF_DISABLED;
-	irq_ipi.name = "SMTC_IPI";
-
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
-	irq_desc[cpu_ipi_irq].status |= IRQ_PER_CPU;
 	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 
