@@ -271,9 +271,11 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-#define DEBUGFS_DEL(name, type)\
-	debugfs_remove(sdata->debugfs.type.name);\
-	sdata->debugfs.type.name = NULL;
+#define DEBUGFS_DEL(name, type)					\
+	do {							\
+		debugfs_remove(sdata->debugfs.type.name);	\
+		sdata->debugfs.type.name = NULL;		\
+	} while (0)
 
 static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
