@@ -1079,21 +1079,24 @@ static inline ieee80211_txrx_result __ieee80211_invoke_rx_handlers(
 
 	for (handler = handlers; *handler != NULL; handler++) {
 		res = (*handler)(rx);
-		if (res != TXRX_CONTINUE) {
-			if (res == TXRX_DROP) {
-				I802_DEBUG_INC(local->rx_handlers_drop);
-				if (sta)
-					sta->rx_dropped++;
-			}
-			if (res == TXRX_QUEUED)
-				I802_DEBUG_INC(local->rx_handlers_queued);
+
+		switch (res) {
+		case TXRX_CONTINUE:
+			continue;
+		case TXRX_DROP:
+			I802_DEBUG_INC(local->rx_handlers_drop);
+			if (sta)
+				sta->rx_dropped++;
+			break;
+		case TXRX_QUEUED:
+			I802_DEBUG_INC(local->rx_handlers_queued);
 			break;
 		}
+		break;
 	}
 
-	if (res == TXRX_DROP) {
+	if (res == TXRX_DROP)
 		dev_kfree_skb(rx->skb);
-	}
 	return res;
 }
 
@@ -1242,6 +1245,9 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u16 type;
 	int multicast;
 	int radiotap_len = 0;
+	struct ieee80211_sub_if_data *prev = NULL;
+	struct sk_buff *skb_new;
+	u8 *bssid;
 
 	if (status->flag & RX_FLAG_RADIOTAP) {
 		radiotap_len = ieee80211_get_radiotap_len(skb->data);
@@ -1289,108 +1295,106 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		rx.u.rx.ra_match = 1;
 		ieee80211_invoke_rx_handlers(local, local->rx_handlers, &rx,
 					     sta);
-	} else {
-		struct ieee80211_sub_if_data *prev = NULL;
-		struct sk_buff *skb_new;
-		u8 *bssid = ieee80211_get_bssid(hdr, skb->len - radiotap_len);
+		sta_info_put(sta);
+		return;
+	}
 
-		read_lock(&local->sub_if_lock);
-		list_for_each_entry(sdata, &local->sub_if_list, list) {
-			rx.u.rx.ra_match = 1;
-			switch (sdata->type) {
-			case IEEE80211_IF_TYPE_STA:
-				if (!bssid)
-					continue;
-				if (!ieee80211_bssid_match(bssid,
-							sdata->u.sta.bssid)) {
-					if (!rx.u.rx.in_scan)
-						continue;
-					rx.u.rx.ra_match = 0;
-				} else if (!multicast &&
-					   compare_ether_addr(sdata->dev->dev_addr,
-							      hdr->addr1) != 0) {
-					if (!sdata->promisc)
-						continue;
-					rx.u.rx.ra_match = 0;
-				}
-				break;
-			case IEEE80211_IF_TYPE_IBSS:
-				if (!bssid)
-					continue;
-				if (!ieee80211_bssid_match(bssid,
-							sdata->u.sta.bssid)) {
-					if (!rx.u.rx.in_scan)
-						continue;
-					rx.u.rx.ra_match = 0;
-				} else if (!multicast &&
-					   compare_ether_addr(sdata->dev->dev_addr,
-							      hdr->addr1) != 0) {
-					if (!sdata->promisc)
-						continue;
-					rx.u.rx.ra_match = 0;
-				} else if (!sta)
-					sta = rx.sta =
-						ieee80211_ibss_add_sta(sdata->dev,
-								       skb, bssid,
-								       hdr->addr2);
-				break;
-			case IEEE80211_IF_TYPE_AP:
-				if (!bssid) {
-					if (compare_ether_addr(sdata->dev->dev_addr,
-							       hdr->addr1) != 0)
-						continue;
-				} else if (!ieee80211_bssid_match(bssid,
-							sdata->dev->dev_addr)) {
-					if (!rx.u.rx.in_scan)
-						continue;
-					rx.u.rx.ra_match = 0;
-				}
-				if (sdata->dev == local->mdev &&
-				    !rx.u.rx.in_scan)
-					/* do not receive anything via
-					 * master device when not scanning */
-					continue;
-				break;
-			case IEEE80211_IF_TYPE_WDS:
-				if (bssid ||
-				    (rx.fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
-					continue;
-				if (compare_ether_addr(sdata->u.wds.remote_addr,
-						       hdr->addr2) != 0)
-					continue;
-				break;
-			}
+	bssid = ieee80211_get_bssid(hdr, skb->len - radiotap_len);
 
-			if (prev) {
-				skb_new = skb_copy(skb, GFP_ATOMIC);
-				if (!skb_new) {
-					if (net_ratelimit())
-						printk(KERN_DEBUG "%s: failed to copy "
-						       "multicast frame for %s",
-						       local->mdev->name, prev->dev->name);
+	read_lock(&local->sub_if_lock);
+	list_for_each_entry(sdata, &local->sub_if_list, list) {
+		rx.u.rx.ra_match = 1;
+		switch (sdata->type) {
+		case IEEE80211_IF_TYPE_STA:
+			if (!bssid)
+				continue;
+			if (!ieee80211_bssid_match(bssid,
+						   sdata->u.sta.bssid)) {
+				if (!rx.u.rx.in_scan)
 					continue;
-				}
-				rx.skb = skb_new;
-				rx.dev = prev->dev;
-				rx.sdata = prev;
-				ieee80211_invoke_rx_handlers(local,
-							     local->rx_handlers,
-							     &rx, sta);
+				rx.u.rx.ra_match = 0;
+			} else if (!multicast &&
+				   compare_ether_addr(sdata->dev->dev_addr,
+						      hdr->addr1) != 0) {
+				if (!sdata->promisc)
+					continue;
+				rx.u.rx.ra_match = 0;
 			}
-			prev = sdata;
+			break;
+		case IEEE80211_IF_TYPE_IBSS:
+			if (!bssid)
+				continue;
+			if (!ieee80211_bssid_match(bssid,
+						sdata->u.sta.bssid)) {
+				if (!rx.u.rx.in_scan)
+					continue;
+				rx.u.rx.ra_match = 0;
+			} else if (!multicast &&
+				   compare_ether_addr(sdata->dev->dev_addr,
+						      hdr->addr1) != 0) {
+				if (!sdata->promisc)
+					continue;
+				rx.u.rx.ra_match = 0;
+			} else if (!sta)
+				sta = rx.sta =
+					ieee80211_ibss_add_sta(sdata->dev,
+							       skb, bssid,
+							       hdr->addr2);
+			break;
+		case IEEE80211_IF_TYPE_AP:
+			if (!bssid) {
+				if (compare_ether_addr(sdata->dev->dev_addr,
+						       hdr->addr1))
+					continue;
+			} else if (!ieee80211_bssid_match(bssid,
+						sdata->dev->dev_addr)) {
+				if (!rx.u.rx.in_scan)
+					continue;
+				rx.u.rx.ra_match = 0;
+			}
+			if (sdata->dev == local->mdev && !rx.u.rx.in_scan)
+				/* do not receive anything via
+				 * master device when not scanning */
+				continue;
+			break;
+		case IEEE80211_IF_TYPE_WDS:
+			if (bssid ||
+			    (rx.fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
+				continue;
+			if (compare_ether_addr(sdata->u.wds.remote_addr,
+					       hdr->addr2))
+				continue;
+			break;
 		}
+
 		if (prev) {
-			rx.skb = skb;
+			skb_new = skb_copy(skb, GFP_ATOMIC);
+			if (!skb_new) {
+				if (net_ratelimit())
+					printk(KERN_DEBUG "%s: failed to copy "
+					       "multicast frame for %s",
+					       local->mdev->name, prev->dev->name);
+				continue;
+			}
+			rx.skb = skb_new;
 			rx.dev = prev->dev;
 			rx.sdata = prev;
 			ieee80211_invoke_rx_handlers(local, local->rx_handlers,
 						     &rx, sta);
-		} else
-			dev_kfree_skb(skb);
-		read_unlock(&local->sub_if_lock);
+		}
+		prev = sdata;
 	}
+	if (prev) {
+		rx.skb = skb;
+		rx.dev = prev->dev;
+		rx.sdata = prev;
+		ieee80211_invoke_rx_handlers(local, local->rx_handlers,
+					     &rx, sta);
+	} else
+		dev_kfree_skb(skb);
+	read_unlock(&local->sub_if_lock);
 
-  end:
+ end:
 	if (sta)
 		sta_info_put(sta);
 }
