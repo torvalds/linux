@@ -509,7 +509,7 @@ check_name(struct xdr_netobj name) {
 	if (name.len == 0) 
 		return 0;
 	if (name.len > NFS4_OPAQUE_LIMIT) {
-		printk("NFSD: check_name: name too long(%d)!\n", name.len);
+		dprintk("NFSD: check_name: name too long(%d)!\n", name.len);
 		return 0;
 	}
 	return 1;
@@ -1742,7 +1742,7 @@ out:
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS
 			&& flag == NFS4_OPEN_DELEGATE_NONE
 			&& open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
-		printk("NFSD: WARNING: refusing delegation reclaim\n");
+		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
 	open->op_delegate_type = flag;
 }
 
@@ -2151,7 +2151,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	*sopp = NULL;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
-		printk("NFSD: preprocess_seqid_op: magic stateid!\n");
+		dprintk("NFSD: preprocess_seqid_op: magic stateid!\n");
 		return nfserr_bad_stateid;
 	}
 
@@ -2202,7 +2202,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	}
 
 	if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp)) {
-		printk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
+		dprintk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
 		return nfserr_bad_stateid;
 	}
 
@@ -2218,22 +2218,22 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		goto check_replay;
 
 	if (sop->so_confirmed && flags & CONFIRM) {
-		printk("NFSD: preprocess_seqid_op: expected"
+		dprintk("NFSD: preprocess_seqid_op: expected"
 				" unconfirmed stateowner!\n");
 		return nfserr_bad_stateid;
 	}
 	if (!sop->so_confirmed && !(flags & CONFIRM)) {
-		printk("NFSD: preprocess_seqid_op: stateowner not"
+		dprintk("NFSD: preprocess_seqid_op: stateowner not"
 				" confirmed yet!\n");
 		return nfserr_bad_stateid;
 	}
 	if (stateid->si_generation > stp->st_stateid.si_generation) {
-		printk("NFSD: preprocess_seqid_op: future stateid?!\n");
+		dprintk("NFSD: preprocess_seqid_op: future stateid?!\n");
 		return nfserr_bad_stateid;
 	}
 
 	if (stateid->si_generation < stp->st_stateid.si_generation) {
-		printk("NFSD: preprocess_seqid_op: old stateid!\n");
+		dprintk("NFSD: preprocess_seqid_op: old stateid!\n");
 		return nfserr_old_stateid;
 	}
 	renew_client(sop->so_client);
@@ -2245,7 +2245,7 @@ check_replay:
 		/* indicate replay to calling function */
 		return nfserr_replay_me;
 	}
-	printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
+	dprintk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
 			sop->so_seqid, seqid);
 	*sopp = NULL;
 	return nfserr_bad_seqid;
@@ -2858,7 +2858,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			file_lock.fl_type = F_WRLCK;
 		break;
 		default:
-			printk("NFSD: nfs4_lockt: bad lock type!\n");
+			dprintk("NFSD: nfs4_lockt: bad lock type!\n");
 			status = nfserr_inval;
 		goto out;
 	}
