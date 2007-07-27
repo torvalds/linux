@@ -343,8 +343,8 @@ static int af9005_reset_pre_viterbi(struct dvb_frontend *fe)
 				       1 & 0xff);
 	if (ret)
 		return ret;
-	af9005_write_ofdm_register(state->d, xd_p_fec_super_frm_unit_15_8,
-				   1 >> 8);
+	ret = af9005_write_ofdm_register(state->d, xd_p_fec_super_frm_unit_15_8,
+					 1 >> 8);
 	if (ret)
 		return ret;
 	/* reset pre viterbi error count */
@@ -879,10 +879,8 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 	     af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
 					reg_ofdm_rst_pos, reg_ofdm_rst_len, 1)))
 		return ret;
-	if ((ret =
-	     af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
-					reg_ofdm_rst_pos, reg_ofdm_rst_len, 0)))
-		return ret;
+	ret = af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
+					 reg_ofdm_rst_pos, reg_ofdm_rst_len, 0);
 
 	if (ret)
 		return ret;
