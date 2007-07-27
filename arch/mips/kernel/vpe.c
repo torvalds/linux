@@ -64,6 +64,10 @@ typedef void *vpe_handle;
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
+/*
+ * The number of TCs and VPEs physically available on the core
+ */
+static int hw_tcs, hw_vpes;
 static char module_name[] = "vpe";
 static int major;
 static const int minor = 1;	/* fixed for now  */
@@ -126,6 +130,8 @@ struct vpe {
 
 	/* the list of who wants to know when something major happens */
 	struct list_head notify;
+
+	unsigned int ntcs;
 };
 
 struct tc {
@@ -738,6 +744,7 @@ static int vpe_run(struct vpe * v)
 	 * here...  Or set $a3 to zero and define DFLT_STACK_SIZE and
 	 * DFLT_HEAP_SIZE when you compile your program
 	 */
+	mttgpr(6, v->ntcs);
 	mttgpr(7, physical_memsize);
 
 	/* set up VPE1 */
@@ -1333,16 +1340,60 @@ static void kspd_sp_exit( int sp_id)
 }
 #endif
 
-static struct device *vpe_dev;
+static ssize_t show_ntcs(struct class_device *cd, char *buf)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+
+	return sprintf(buf, "%d\n", vpe->ntcs);
+}
+
+static ssize_t store_ntcs(struct class_device *dev, const char *buf, size_t len)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+	unsigned long new;
+	char *endp;
+
+	new = simple_strtoul(buf, &endp, 0);
+	if (endp == buf)
+		goto out_einval;
+
+	if (new == 0 || new > (hw_tcs - tclimit))
+		goto out_einval;
+
+	vpe->ntcs = new;
+
+	return len;
+
+out_einval:
+	return -EINVAL;;
+}
+
+static struct class_device_attribute vpe_class_attributes[] = {
+	__ATTR(ntcs, S_IRUGO | S_IWUSR, show_ntcs, store_ntcs),
+	{}
+};
+
+static void vpe_class_device_release(struct class_device *cd)
+{
+	kfree(cd);
+}
+
+struct class vpe_class = {
+	.name = "vpe",
+	.owner = THIS_MODULE,
+	.release = vpe_class_device_release,
+	.class_dev_attrs = vpe_class_attributes,
+};
+
+struct class_device vpe_device;
 
 static int __init vpe_module_init(void)
 {
 	unsigned int mtflags, vpflags;
-	int hw_tcs, hw_vpes, tc, err = 0;
 	unsigned long flags, val;
 	struct vpe *v = NULL;
-	struct device *dev;
 	struct tc *t;
+	int tc, err;
 
 	if (!cpu_has_mipsmt) {
 		printk("VPE loader: not a MIPS MT capable processor\n");
@@ -1371,13 +1422,22 @@ static int __init vpe_module_init(void)
 		return major;
 	}
 
-	dev = device_create(mt_class, NULL, MKDEV(major, minor),
-	                    "vpe%d", minor);
-	if (IS_ERR(dev)) {
-		err = PTR_ERR(dev);
+	err = class_register(&vpe_class);
+	if (err) {
+		printk(KERN_ERR "vpe_class registration failed\n");
 		goto out_chrdev;
 	}
-	vpe_dev = dev;
+
+	class_device_initialize(&vpe_device);
+	vpe_device.class	= &vpe_class,
+	vpe_device.parent	= NULL,
+	strlcpy(vpe_device.class_id, "vpe1", BUS_ID_SIZE);
+	vpe_device.devt = MKDEV(major, minor);
+	err = class_device_add(&vpe_device);
+	if (err) {
+		printk(KERN_ERR "Adding vpe_device failed\n");
+		goto out_class;
+	}
 
 	local_irq_save(flags);
 	mtflags = dmt();
@@ -1421,6 +1481,8 @@ static int __init vpe_module_init(void)
 
 				goto out_reenable;
 			}
+
+			v->ntcs = hw_tcs - tclimit;
 
 			/* add the tc to the list of this vpe's tc's. */
 			list_add(&t->tc, &v->tc);
@@ -1497,6 +1559,8 @@ out_reenable:
 #endif
 	return 0;
 
+out_class:
+	class_unregister(&vpe_class);
 out_chrdev:
 	unregister_chrdev(major, module_name);
 
@@ -1514,7 +1578,7 @@ static void __exit vpe_module_exit(void)
 		}
 	}
 
-	device_destroy(mt_class, MKDEV(major, minor));
+	class_device_del(&vpe_device);
 	unregister_chrdev(major, module_name);
 }
 
