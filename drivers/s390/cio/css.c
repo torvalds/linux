@@ -109,7 +109,7 @@ css_subchannel_release(struct device *dev)
 	}
 }
 
-int css_sch_device_register(struct subchannel *sch)
+static int css_sch_device_register(struct subchannel *sch)
 {
 	int ret;
 
