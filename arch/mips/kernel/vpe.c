@@ -1340,6 +1340,23 @@ static void kspd_sp_exit( int sp_id)
 }
 #endif
 
+static ssize_t store_kill(struct class_device *dev, const char *buf, size_t len)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+	struct vpe_notifications *not;
+
+	list_for_each_entry(not, &vpe->notify, list) {
+		not->stop(tclimit);
+	}
+
+	release_progmem(vpe->load_addr);
+	cleanup_tc(get_tc(tclimit));
+	vpe_stop(vpe);
+	vpe_free(vpe);
+
+	return len;
+}
+
 static ssize_t show_ntcs(struct class_device *cd, char *buf)
 {
 	struct vpe *vpe = get_vpe(tclimit);
@@ -1369,6 +1386,7 @@ out_einval:
 }
 
 static struct class_device_attribute vpe_class_attributes[] = {
+	__ATTR(kill, S_IWUSR, NULL, store_kill),
 	__ATTR(ntcs, S_IRUGO | S_IWUSR, show_ntcs, store_ntcs),
 	{}
 };
