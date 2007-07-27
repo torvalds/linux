@@ -31,6 +31,7 @@
 #include <sound/tlv.h>
 #include <sound/initval.h>
 #include "hda_local.h"
+#include <sound/hda_hwdep.h>
 
 
 /*
@@ -594,6 +595,9 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		init_unsol_queue(bus);
 
 	snd_hda_codec_proc_new(codec);
+#ifdef CONFIG_SND_HDA_HWDEP
+	snd_hda_create_hwdep(codec);
+#endif
 
 	sprintf(component, "HDA:%08x", codec->vendor_id);
 	snd_component_add(codec->bus->card, component);

@@ -500,6 +500,15 @@ config SND_HDA_INTEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
 
+config SND_HDA_HWDEP
+	bool "Build hwdep interface for HD-audio driver"
+	depends on SND_HDA_INTEL
+	select SND_HWDEP
+	help
+	  Say Y here to build a hwdep interface for HD-audio driver.
+	  This interface can be used for out-of-bound communication
+	  with codesc for debugging purposes.
+
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
 	depends on SND

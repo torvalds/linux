@@ -313,4 +313,9 @@ static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 
+/*
+ * hwdep interface
+ */
+int snd_hda_create_hwdep(struct hda_codec *codec);
+
 #endif /* __SOUND_HDA_LOCAL_H */
