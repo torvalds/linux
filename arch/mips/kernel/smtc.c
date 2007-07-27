@@ -168,9 +168,9 @@ static int __init tintq(char *str)
 
 __setup("tintq=", tintq);
 
-int imstuckcount[2][8];
+static int imstuckcount[2][8];
 /* vpemask represents IM/IE bits of per-VPE Status registers, low-to-high */
-int vpemask[2][8] = {
+static int vpemask[2][8] = {
 	{0, 0, 1, 0, 0, 0, 0, 1},
 	{0, 0, 0, 0, 0, 0, 0, 1}
 };
