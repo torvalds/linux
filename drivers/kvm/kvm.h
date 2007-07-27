@@ -300,10 +300,8 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev);
 
 struct kvm_vcpu {
-	int valid;
 	struct kvm *kvm;
 	int vcpu_id;
-	void *_priv;
 	struct mutex mutex;
 	int   cpu;
 	u64 host_tsc;
@@ -404,8 +402,7 @@ struct kvm {
 	struct list_head active_mmu_pages;
 	int n_free_mmu_pages;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
-	int nvcpus;
-	struct kvm_vcpu vcpus[KVM_MAX_VCPUS];
+	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	int memory_config_version;
 	int busy;
 	unsigned long rmap_overflow;
@@ -428,7 +425,8 @@ struct kvm_arch_ops {
 	int (*hardware_setup)(void);               /* __init */
 	void (*hardware_unsetup)(void);            /* __exit */
 
-	int (*vcpu_create)(struct kvm_vcpu *vcpu);
+	/* Create, but do not attach this VCPU */
+	struct kvm_vcpu *(*vcpu_create)(struct kvm *kvm, unsigned id);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 
 	void (*vcpu_load)(struct kvm_vcpu *vcpu);
@@ -470,7 +468,6 @@ struct kvm_arch_ops {
 	void (*inject_gp)(struct kvm_vcpu *vcpu, unsigned err_code);
 
 	int (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
-	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
@@ -480,6 +477,9 @@ extern struct kvm_arch_ops *kvm_arch_ops;
 
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
+
+int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
+void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module);
 void kvm_exit_arch(void);

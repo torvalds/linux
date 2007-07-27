@@ -39,7 +39,7 @@ struct vmcs {
 };
 
 struct vcpu_vmx {
-	struct kvm_vcpu      *vcpu;
+	struct kvm_vcpu       vcpu;
 	int                   launched;
 	struct kvm_msr_entry *guest_msrs;
 	struct kvm_msr_entry *host_msrs;
@@ -60,7 +60,7 @@ struct vcpu_vmx {
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
-	return (struct vcpu_vmx*)vcpu->_priv;
+	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
 
 static int init_rmode_tss(struct kvm *kvm);
@@ -2302,46 +2302,62 @@ static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
 	vmx_free_vmcs(vcpu);
+	kfree(vmx->host_msrs);
+	kfree(vmx->guest_msrs);
+	kvm_vcpu_uninit(vcpu);
+	kfree(vmx);
 }
 
-static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
+static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 {
-	struct vcpu_vmx *vmx;
+	int err;
+	struct vcpu_vmx *vmx = kzalloc(sizeof(*vmx), GFP_KERNEL);
 
-	vmx = kzalloc(sizeof(*vmx), GFP_KERNEL);
 	if (!vmx)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+
+	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
+	if (err)
+		goto free_vcpu;
 
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!vmx->guest_msrs)
-		goto out_free;
+	if (!vmx->guest_msrs) {
+		err = -ENOMEM;
+		goto uninit_vcpu;
+	}
 
 	vmx->host_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!vmx->host_msrs)
-		goto out_free;
+		goto free_guest_msrs;
 
 	vmx->vmcs = alloc_vmcs();
 	if (!vmx->vmcs)
-		goto out_free;
+		goto free_msrs;
 
 	vmcs_clear(vmx->vmcs);
 
-	vmx->vcpu   = vcpu;
-	vcpu->_priv = vmx;
+	vmx_vcpu_load(&vmx->vcpu);
+	err = vmx_vcpu_setup(&vmx->vcpu);
+	vmx_vcpu_put(&vmx->vcpu);
+	if (err)
+		goto free_vmcs;
 
-	return 0;
+	return &vmx->vcpu;
 
-out_free:
-	if (vmx->host_msrs)
-		kfree(vmx->host_msrs);
-
-	if (vmx->guest_msrs)
-		kfree(vmx->guest_msrs);
-
+free_vmcs:
+	free_vmcs(vmx->vmcs);
+free_msrs:
+	kfree(vmx->host_msrs);
+free_guest_msrs:
+	kfree(vmx->guest_msrs);
+uninit_vcpu:
+	kvm_vcpu_uninit(&vmx->vcpu);
+free_vcpu:
 	kfree(vmx);
-
-	return -ENOMEM;
+	return ERR_PTR(err);
 }
 
 static struct kvm_arch_ops vmx_arch_ops = {
@@ -2389,7 +2405,6 @@ static struct kvm_arch_ops vmx_arch_ops = {
 
 	.run = vmx_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
-	.vcpu_setup = vmx_vcpu_setup,
 	.patch_hypercall = vmx_patch_hypercall,
 };
 

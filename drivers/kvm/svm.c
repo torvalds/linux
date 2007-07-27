@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL");
 
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
-	return (struct vcpu_svm*)vcpu->_priv;
+	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
 unsigned long iopm_base;
@@ -466,11 +466,6 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->base = 0;
 }
 
-static int svm_vcpu_setup(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
 static void init_vmcb(struct vmcb *vmcb)
 {
 	struct vmcb_control_area *control = &vmcb->control;
@@ -576,19 +571,27 @@ static void init_vmcb(struct vmcb *vmcb)
 	/* rdx = ?? */
 }
 
-static int svm_create_vcpu(struct kvm_vcpu *vcpu)
+static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 {
 	struct vcpu_svm *svm;
 	struct page *page;
-	int r;
+	int err;
 
-	r = -ENOMEM;
 	svm = kzalloc(sizeof *svm, GFP_KERNEL);
-	if (!svm)
-		goto out1;
+	if (!svm) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = kvm_vcpu_init(&svm->vcpu, kvm, id);
+	if (err)
+		goto free_svm;
+
 	page = alloc_page(GFP_KERNEL);
-	if (!page)
-		goto out2;
+	if (!page) {
+		err = -ENOMEM;
+		goto uninit;
+	}
 
 	svm->vmcb = page_address(page);
 	clear_page(svm->vmcb);
@@ -597,33 +600,29 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	memset(svm->db_regs, 0, sizeof(svm->db_regs));
 	init_vmcb(svm->vmcb);
 
-	svm->vcpu   = vcpu;
-	vcpu->_priv = svm;
+	fx_init(&svm->vcpu);
+	svm->vcpu.fpu_active = 1;
+	svm->vcpu.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	if (svm->vcpu.vcpu_id == 0)
+		svm->vcpu.apic_base |= MSR_IA32_APICBASE_BSP;
 
-	fx_init(vcpu);
-	vcpu->fpu_active = 1;
-	vcpu->apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
-	if (vcpu->vcpu_id == 0)
-		vcpu->apic_base |= MSR_IA32_APICBASE_BSP;
+	return &svm->vcpu;
 
-	return 0;
-
-out2:
+uninit:
+	kvm_vcpu_uninit(&svm->vcpu);
+free_svm:
 	kfree(svm);
-out1:
-	return r;
+out:
+	return ERR_PTR(err);
 }
 
 static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (!svm)
-		return;
-	if (svm->vmcb)
-		__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
+	__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
+	kvm_vcpu_uninit(vcpu);
 	kfree(svm);
-	vcpu->_priv = NULL;
 }
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu)
@@ -1591,34 +1590,33 @@ again:
 #endif
 
 #ifdef CONFIG_X86_64
-		"mov %c[rbx](%[vcpu]), %%rbx \n\t"
-		"mov %c[rcx](%[vcpu]), %%rcx \n\t"
-		"mov %c[rdx](%[vcpu]), %%rdx \n\t"
-		"mov %c[rsi](%[vcpu]), %%rsi \n\t"
-		"mov %c[rdi](%[vcpu]), %%rdi \n\t"
-		"mov %c[rbp](%[vcpu]), %%rbp \n\t"
-		"mov %c[r8](%[vcpu]),  %%r8  \n\t"
-		"mov %c[r9](%[vcpu]),  %%r9  \n\t"
-		"mov %c[r10](%[vcpu]), %%r10 \n\t"
-		"mov %c[r11](%[vcpu]), %%r11 \n\t"
-		"mov %c[r12](%[vcpu]), %%r12 \n\t"
-		"mov %c[r13](%[vcpu]), %%r13 \n\t"
-		"mov %c[r14](%[vcpu]), %%r14 \n\t"
-		"mov %c[r15](%[vcpu]), %%r15 \n\t"
+		"mov %c[rbx](%[svm]), %%rbx \n\t"
+		"mov %c[rcx](%[svm]), %%rcx \n\t"
+		"mov %c[rdx](%[svm]), %%rdx \n\t"
+		"mov %c[rsi](%[svm]), %%rsi \n\t"
+		"mov %c[rdi](%[svm]), %%rdi \n\t"
+		"mov %c[rbp](%[svm]), %%rbp \n\t"
+		"mov %c[r8](%[svm]),  %%r8  \n\t"
+		"mov %c[r9](%[svm]),  %%r9  \n\t"
+		"mov %c[r10](%[svm]), %%r10 \n\t"
+		"mov %c[r11](%[svm]), %%r11 \n\t"
+		"mov %c[r12](%[svm]), %%r12 \n\t"
+		"mov %c[r13](%[svm]), %%r13 \n\t"
+		"mov %c[r14](%[svm]), %%r14 \n\t"
+		"mov %c[r15](%[svm]), %%r15 \n\t"
 #else
-		"mov %c[rbx](%[vcpu]), %%ebx \n\t"
-		"mov %c[rcx](%[vcpu]), %%ecx \n\t"
-		"mov %c[rdx](%[vcpu]), %%edx \n\t"
-		"mov %c[rsi](%[vcpu]), %%esi \n\t"
-		"mov %c[rdi](%[vcpu]), %%edi \n\t"
-		"mov %c[rbp](%[vcpu]), %%ebp \n\t"
+		"mov %c[rbx](%[svm]), %%ebx \n\t"
+		"mov %c[rcx](%[svm]), %%ecx \n\t"
+		"mov %c[rdx](%[svm]), %%edx \n\t"
+		"mov %c[rsi](%[svm]), %%esi \n\t"
+		"mov %c[rdi](%[svm]), %%edi \n\t"
+		"mov %c[rbp](%[svm]), %%ebp \n\t"
 #endif
 
 #ifdef CONFIG_X86_64
 		/* Enter guest mode */
 		"push %%rax \n\t"
-		"mov %c[svm](%[vcpu]), %%rax \n\t"
-		"mov %c[vmcb](%%rax), %%rax \n\t"
+		"mov %c[vmcb](%[svm]), %%rax \n\t"
 		SVM_VMLOAD "\n\t"
 		SVM_VMRUN "\n\t"
 		SVM_VMSAVE "\n\t"
@@ -1626,8 +1624,7 @@ again:
 #else
 		/* Enter guest mode */
 		"push %%eax \n\t"
-		"mov %c[svm](%[vcpu]), %%eax \n\t"
-		"mov %c[vmcb](%%eax), %%eax \n\t"
+		"mov %c[vmcb](%[svm]), %%eax \n\t"
 		SVM_VMLOAD "\n\t"
 		SVM_VMRUN "\n\t"
 		SVM_VMSAVE "\n\t"
@@ -1636,55 +1633,54 @@ again:
 
 		/* Save guest registers, load host registers */
 #ifdef CONFIG_X86_64
-		"mov %%rbx, %c[rbx](%[vcpu]) \n\t"
-		"mov %%rcx, %c[rcx](%[vcpu]) \n\t"
-		"mov %%rdx, %c[rdx](%[vcpu]) \n\t"
-		"mov %%rsi, %c[rsi](%[vcpu]) \n\t"
-		"mov %%rdi, %c[rdi](%[vcpu]) \n\t"
-		"mov %%rbp, %c[rbp](%[vcpu]) \n\t"
-		"mov %%r8,  %c[r8](%[vcpu]) \n\t"
-		"mov %%r9,  %c[r9](%[vcpu]) \n\t"
-		"mov %%r10, %c[r10](%[vcpu]) \n\t"
-		"mov %%r11, %c[r11](%[vcpu]) \n\t"
-		"mov %%r12, %c[r12](%[vcpu]) \n\t"
-		"mov %%r13, %c[r13](%[vcpu]) \n\t"
-		"mov %%r14, %c[r14](%[vcpu]) \n\t"
-		"mov %%r15, %c[r15](%[vcpu]) \n\t"
+		"mov %%rbx, %c[rbx](%[svm]) \n\t"
+		"mov %%rcx, %c[rcx](%[svm]) \n\t"
+		"mov %%rdx, %c[rdx](%[svm]) \n\t"
+		"mov %%rsi, %c[rsi](%[svm]) \n\t"
+		"mov %%rdi, %c[rdi](%[svm]) \n\t"
+		"mov %%rbp, %c[rbp](%[svm]) \n\t"
+		"mov %%r8,  %c[r8](%[svm]) \n\t"
+		"mov %%r9,  %c[r9](%[svm]) \n\t"
+		"mov %%r10, %c[r10](%[svm]) \n\t"
+		"mov %%r11, %c[r11](%[svm]) \n\t"
+		"mov %%r12, %c[r12](%[svm]) \n\t"
+		"mov %%r13, %c[r13](%[svm]) \n\t"
+		"mov %%r14, %c[r14](%[svm]) \n\t"
+		"mov %%r15, %c[r15](%[svm]) \n\t"
 
 		"pop  %%r15; pop  %%r14; pop  %%r13; pop  %%r12;"
 		"pop  %%r11; pop  %%r10; pop  %%r9;  pop  %%r8;"
 		"pop  %%rbp; pop  %%rdi; pop  %%rsi;"
 		"pop  %%rdx; pop  %%rcx; pop  %%rbx; \n\t"
 #else
-		"mov %%ebx, %c[rbx](%[vcpu]) \n\t"
-		"mov %%ecx, %c[rcx](%[vcpu]) \n\t"
-		"mov %%edx, %c[rdx](%[vcpu]) \n\t"
-		"mov %%esi, %c[rsi](%[vcpu]) \n\t"
-		"mov %%edi, %c[rdi](%[vcpu]) \n\t"
-		"mov %%ebp, %c[rbp](%[vcpu]) \n\t"
+		"mov %%ebx, %c[rbx](%[svm]) \n\t"
+		"mov %%ecx, %c[rcx](%[svm]) \n\t"
+		"mov %%edx, %c[rdx](%[svm]) \n\t"
+		"mov %%esi, %c[rsi](%[svm]) \n\t"
+		"mov %%edi, %c[rdi](%[svm]) \n\t"
+		"mov %%ebp, %c[rbp](%[svm]) \n\t"
 
 		"pop  %%ebp; pop  %%edi; pop  %%esi;"
 		"pop  %%edx; pop  %%ecx; pop  %%ebx; \n\t"
 #endif
 		:
-		: [vcpu]"a"(vcpu),
-		  [svm]"i"(offsetof(struct kvm_vcpu, _priv)),
+		: [svm]"a"(svm),
 		  [vmcb]"i"(offsetof(struct vcpu_svm, vmcb_pa)),
-		  [rbx]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RBX])),
-		  [rcx]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RCX])),
-		  [rdx]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RDX])),
-		  [rsi]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RSI])),
-		  [rdi]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RDI])),
-		  [rbp]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RBP]))
+		  [rbx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RBX])),
+		  [rcx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RCX])),
+		  [rdx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RDX])),
+		  [rsi]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RSI])),
+		  [rdi]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RDI])),
+		  [rbp]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RBP]))
 #ifdef CONFIG_X86_64
-		  ,[r8 ]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R8 ])),
-		  [r9 ]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R9 ])),
-		  [r10]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R10])),
-		  [r11]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R11])),
-		  [r12]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R12])),
-		  [r13]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R13])),
-		  [r14]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R14])),
-		  [r15]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R15]))
+		  ,[r8 ]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R8])),
+		  [r9 ]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R9 ])),
+		  [r10]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R10])),
+		  [r11]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R11])),
+		  [r12]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R12])),
+		  [r13]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R13])),
+		  [r14]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R14])),
+		  [r15]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R15]))
 #endif
 		: "cc", "memory" );
 
@@ -1865,7 +1861,6 @@ static struct kvm_arch_ops svm_arch_ops = {
 
 	.run = svm_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
-	.vcpu_setup = svm_vcpu_setup,
 	.patch_hypercall = svm_patch_hypercall,
 };
 

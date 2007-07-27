@@ -266,8 +266,10 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	atomic_set(&completed, 0);
 	cpus_clear(cpus);
 	needed = 0;
-	for (i = 0; i < kvm->nvcpus; ++i) {
-		vcpu = &kvm->vcpus[i];
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		vcpu = kvm->vcpus[i];
+		if (!vcpu)
+			continue;
 		if (test_and_set_bit(KVM_TLB_FLUSH, &vcpu->requests))
 			continue;
 		cpu = vcpu->cpu;
@@ -291,10 +293,61 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	}
 }
 
+int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
+{
+	struct page *page;
+	int r;
+
+	mutex_init(&vcpu->mutex);
+	vcpu->cpu = -1;
+	vcpu->mmu.root_hpa = INVALID_PAGE;
+	vcpu->kvm = kvm;
+	vcpu->vcpu_id = id;
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page) {
+		r = -ENOMEM;
+		goto fail;
+	}
+	vcpu->run = page_address(page);
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page) {
+		r = -ENOMEM;
+		goto fail_free_run;
+	}
+	vcpu->pio_data = page_address(page);
+
+	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
+					   FX_IMAGE_ALIGN);
+	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
+
+	r = kvm_mmu_create(vcpu);
+	if (r < 0)
+		goto fail_free_pio_data;
+
+	return 0;
+
+fail_free_pio_data:
+	free_page((unsigned long)vcpu->pio_data);
+fail_free_run:
+	free_page((unsigned long)vcpu->run);
+fail:
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_init);
+
+void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	kvm_mmu_destroy(vcpu);
+	free_page((unsigned long)vcpu->pio_data);
+	free_page((unsigned long)vcpu->run);
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_uninit);
+
 static struct kvm *kvm_create_vm(void)
 {
 	struct kvm *kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
-	int i;
 
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
@@ -303,14 +356,6 @@ static struct kvm *kvm_create_vm(void)
 	spin_lock_init(&kvm->lock);
 	INIT_LIST_HEAD(&kvm->active_mmu_pages);
 	kvm_io_bus_init(&kvm->mmio_bus);
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
-
-		mutex_init(&vcpu->mutex);
-		vcpu->cpu = -1;
-		vcpu->kvm = kvm;
-		vcpu->mmu.root_hpa = INVALID_PAGE;
-	}
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
@@ -367,28 +412,9 @@ static void free_pio_guest_pages(struct kvm_vcpu *vcpu)
 
 static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->valid)
-		return;
-
 	vcpu_load(vcpu);
 	kvm_mmu_unload(vcpu);
 	vcpu_put(vcpu);
-}
-
-static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
-{
-	if (!vcpu->valid)
-		return;
-
-	vcpu_load(vcpu);
-	kvm_mmu_destroy(vcpu);
-	vcpu_put(vcpu);
-	kvm_arch_ops->vcpu_free(vcpu);
-	free_page((unsigned long)vcpu->run);
-	vcpu->run = NULL;
-	free_page((unsigned long)vcpu->pio_data);
-	vcpu->pio_data = NULL;
-	free_pio_guest_pages(vcpu);
 }
 
 static void kvm_free_vcpus(struct kvm *kvm)
@@ -399,9 +425,15 @@ static void kvm_free_vcpus(struct kvm *kvm)
 	 * Unpin any mmu pages first.
 	 */
 	for (i = 0; i < KVM_MAX_VCPUS; ++i)
-		kvm_unload_vcpu_mmu(&kvm->vcpus[i]);
-	for (i = 0; i < KVM_MAX_VCPUS; ++i)
-		kvm_free_vcpu(&kvm->vcpus[i]);
+		if (kvm->vcpus[i])
+			kvm_unload_vcpu_mmu(kvm->vcpus[i]);
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (kvm->vcpus[i]) {
+			kvm_arch_ops->vcpu_free(kvm->vcpus[i]);
+			kvm->vcpus[i] = NULL;
+		}
+	}
+
 }
 
 static int kvm_dev_release(struct inode *inode, struct file *filp)
@@ -2372,77 +2404,47 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 {
 	int r;
 	struct kvm_vcpu *vcpu;
-	struct page *page;
 
-	r = -EINVAL;
 	if (!valid_vcpu(n))
-		goto out;
+		return -EINVAL;
 
-	vcpu = &kvm->vcpus[n];
-	vcpu->vcpu_id = n;
+	vcpu = kvm_arch_ops->vcpu_create(kvm, n);
+	if (IS_ERR(vcpu))
+		return PTR_ERR(vcpu);
 
-	mutex_lock(&vcpu->mutex);
-
-	if (vcpu->valid) {
-		mutex_unlock(&vcpu->mutex);
-		return -EEXIST;
-	}
-
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	r = -ENOMEM;
-	if (!page)
-		goto out_unlock;
-	vcpu->run = page_address(page);
-
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	r = -ENOMEM;
-	if (!page)
-		goto out_free_run;
-	vcpu->pio_data = page_address(page);
-
-	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
-					   FX_IMAGE_ALIGN);
-	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
-	vcpu->cr0 = 0x10;
-
-	r = kvm_arch_ops->vcpu_create(vcpu);
-	if (r < 0)
-		goto out_free_vcpus;
-
-	r = kvm_mmu_create(vcpu);
-	if (r < 0)
-		goto out_free_vcpus;
-
-	kvm_arch_ops->vcpu_load(vcpu);
+	vcpu_load(vcpu);
 	r = kvm_mmu_setup(vcpu);
-	if (r >= 0)
-		r = kvm_arch_ops->vcpu_setup(vcpu);
 	vcpu_put(vcpu);
-
 	if (r < 0)
-		goto out_free_vcpus;
+		goto free_vcpu;
 
+	spin_lock(&kvm->lock);
+	if (kvm->vcpus[n]) {
+		r = -EEXIST;
+		spin_unlock(&kvm->lock);
+		goto mmu_unload;
+	}
+	kvm->vcpus[n] = vcpu;
+	spin_unlock(&kvm->lock);
+
+	/* Now it's all set up, let userspace reach it */
 	r = create_vcpu_fd(vcpu);
 	if (r < 0)
-		goto out_free_vcpus;
-
-	spin_lock(&kvm_lock);
-	if (n >= kvm->nvcpus)
-		kvm->nvcpus = n + 1;
-	spin_unlock(&kvm_lock);
-
-	vcpu->valid = 1;
-
+		goto unlink;
 	return r;
 
-out_free_vcpus:
-	kvm_free_vcpu(vcpu);
-out_free_run:
-	free_page((unsigned long)vcpu->run);
-	vcpu->run = NULL;
-out_unlock:
-	mutex_unlock(&vcpu->mutex);
-out:
+unlink:
+	spin_lock(&kvm->lock);
+	kvm->vcpus[n] = NULL;
+	spin_unlock(&kvm->lock);
+
+mmu_unload:
+	vcpu_load(vcpu);
+	kvm_mmu_unload(vcpu);
+	vcpu_put(vcpu);
+
+free_vcpu:
+	kvm_arch_ops->vcpu_free(vcpu);
 	return r;
 }
 
@@ -2935,9 +2937,12 @@ static void decache_vcpus_on_cpu(int cpu)
 	int i;
 
 	spin_lock(&kvm_lock);
-	list_for_each_entry(vm, &vm_list, vm_list)
+	list_for_each_entry(vm, &vm_list, vm_list) {
+		spin_lock(&vm->lock);
 		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = &vm->vcpus[i];
+			vcpu = vm->vcpus[i];
+			if (!vcpu)
+				continue;
 			/*
 			 * If the vcpu is locked, then it is running on some
 			 * other cpu and therefore it is not cached on the
@@ -2954,6 +2959,8 @@ static void decache_vcpus_on_cpu(int cpu)
 				mutex_unlock(&vcpu->mutex);
 			}
 		}
+		spin_unlock(&vm->lock);
+	}
 	spin_unlock(&kvm_lock);
 }
 
@@ -3078,8 +3085,9 @@ static u64 stat_get(void *_offset)
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = &kvm->vcpus[i];
-			total += *(u32 *)((void *)vcpu + offset);
+			vcpu = kvm->vcpus[i];
+			if (vcpu)
+				total += *(u32 *)((void *)vcpu + offset);
 		}
 	spin_unlock(&kvm_lock);
 	return total;

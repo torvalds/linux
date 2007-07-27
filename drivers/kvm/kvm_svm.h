@@ -23,7 +23,7 @@ static const u32 host_save_user_msrs[] = {
 struct kvm_vcpu;
 
 struct vcpu_svm {
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
 	unsigned long vmcb_pa;
 	struct svm_cpu_data *svm_data;
