@@ -388,6 +388,13 @@ int __devinit snd_hda_bus_new(struct snd_card *card,
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_GENERIC
+#define is_generic_config(codec) \
+	(codec->bus->modelname && !strcmp(codec->bus->modelname, "generic"))
+#else
+#define is_generic_config(codec)	0
+#endif
+
 /*
  * find a matching codec preset
  */
@@ -396,7 +403,7 @@ find_codec_preset(struct hda_codec *codec)
 {
 	const struct hda_codec_preset **tbl, *preset;
 
-	if (codec->bus->modelname && !strcmp(codec->bus->modelname, "generic"))
+	if (is_generic_config(codec))
 		return NULL; /* use the generic parser */
 
 	for (tbl = hda_preset_tables; *tbl; tbl++) {
@@ -582,10 +589,26 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		snd_hda_get_codec_name(codec, bus->card->mixername,
 				       sizeof(bus->card->mixername));
 
-	if (codec->preset && codec->preset->patch)
-		err = codec->preset->patch(codec);
-	else
+#ifdef CONFIG_SND_HDA_GENERIC
+	if (is_generic_config(codec)) {
 		err = snd_hda_parse_generic_codec(codec);
+		goto patched;
+	}
+#endif
+	if (codec->preset && codec->preset->patch) {
+		err = codec->preset->patch(codec);
+		goto patched;
+	}
+
+	/* call the default parser */
+#ifdef CONFIG_SND_HDA_GENERIC
+	err = snd_hda_parse_generic_codec(codec);
+#else
+	printk(KERN_ERR "hda-codec: No codec parser is available\n");
+	err = -ENODEV;
+#endif
+
+ patched:
 	if (err < 0) {
 		snd_hda_codec_free(codec);
 		return err;
