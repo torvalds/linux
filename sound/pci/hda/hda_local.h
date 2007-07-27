@@ -102,6 +102,53 @@ int snd_hda_mixer_bind_switch_get(struct snd_kcontrol *kcontrol,
 int snd_hda_mixer_bind_switch_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol);
 
+/* more generic bound controls */
+struct hda_ctl_ops {
+	snd_kcontrol_info_t *info;
+	snd_kcontrol_get_t *get;
+	snd_kcontrol_put_t *put;
+	snd_kcontrol_tlv_rw_t *tlv;
+};
+
+extern struct hda_ctl_ops snd_hda_bind_vol;	/* for bind-volume with TLV */
+extern struct hda_ctl_ops snd_hda_bind_sw;	/* for bind-switch */
+
+struct hda_bind_ctls {
+	struct hda_ctl_ops *ops;
+	long values[];
+};
+
+int snd_hda_mixer_bind_ctls_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo);
+int snd_hda_mixer_bind_ctls_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+int snd_hda_mixer_bind_ctls_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+int snd_hda_mixer_bind_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			   unsigned int size, unsigned int __user *tlv);
+
+#define HDA_BIND_VOL(xname, bindrec) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	  .name = xname, \
+	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |\
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+			  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,\
+	  .info = snd_hda_mixer_bind_ctls_info,\
+	  .get =  snd_hda_mixer_bind_ctls_get,\
+	  .put = snd_hda_mixer_bind_ctls_put,\
+	  .tlv = { .c = snd_hda_mixer_bind_tlv },\
+	  .private_value = (long) (bindrec) }
+#define HDA_BIND_SW(xname, bindrec) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,\
+	  .name = xname, \
+	  .info = snd_hda_mixer_bind_ctls_info,\
+	  .get =  snd_hda_mixer_bind_ctls_get,\
+	  .put = snd_hda_mixer_bind_ctls_put,\
+	  .private_value = (long) (bindrec) }
+
+/*
+ * SPDIF I/O
+ */
 int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);
 

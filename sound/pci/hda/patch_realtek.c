@@ -7140,28 +7140,18 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 	{ } /* end */
 };
 
-static int alc262_sony_sw_put(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
-{
-	unsigned long private_save = kcontrol->private_value;
-	int change;
-	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT);
-	change = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
-	kcontrol->private_value = private_save;
-	change |= snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
-	return change;
-}
+static struct hda_bind_ctls alc262_sony_bind_sw = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+		0,
+	},
+};
 
 static struct snd_kcontrol_new alc262_sony_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Front Playback Switch",
-		.info = snd_hda_mixer_amp_switch_info,
-		.get = snd_hda_mixer_amp_switch_get,
-		.put = alc262_sony_sw_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_SW("Front Playback Switch", &alc262_sony_bind_sw),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
