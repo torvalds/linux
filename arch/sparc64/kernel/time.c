@@ -1460,6 +1460,74 @@ static int cmos_set_rtc_time(struct rtc_time *rtc_tm)
 }
 #endif /* CONFIG_PCI */
 
+static void mostek_get_rtc_time(struct rtc_time *rtc_tm)
+{
+	void __iomem *regs = mstk48t02_regs;
+	u8 tmp;
+
+	spin_lock_irq(&mostek_lock);
+
+	tmp = mostek_read(regs + MOSTEK_CREG);
+	tmp |= MSTK_CREG_READ;
+	mostek_write(regs + MOSTEK_CREG, tmp);
+
+	rtc_tm->tm_sec = MSTK_REG_SEC(regs);
+	rtc_tm->tm_min = MSTK_REG_MIN(regs);
+	rtc_tm->tm_hour = MSTK_REG_HOUR(regs);
+	rtc_tm->tm_mday = MSTK_REG_DOM(regs);
+	rtc_tm->tm_mon = MSTK_REG_MONTH(regs);
+	rtc_tm->tm_year = MSTK_CVT_YEAR( MSTK_REG_YEAR(regs) );
+	rtc_tm->tm_wday = MSTK_REG_DOW(regs);
+
+	tmp = mostek_read(regs + MOSTEK_CREG);
+	tmp &= ~MSTK_CREG_READ;
+	mostek_write(regs + MOSTEK_CREG, tmp);
+
+	spin_unlock_irq(&mostek_lock);
+
+	rtc_tm->tm_mon--;
+	rtc_tm->tm_wday--;
+	rtc_tm->tm_year -= 1900;
+}
+
+static int mostek_set_rtc_time(struct rtc_time *rtc_tm)
+{
+	unsigned char mon, day, hrs, min, sec, wday;
+	void __iomem *regs = mstk48t02_regs;
+	unsigned int yrs;
+	u8 tmp;
+
+	yrs = rtc_tm->tm_year + 1900;
+	mon = rtc_tm->tm_mon + 1;
+	day = rtc_tm->tm_mday;
+	wday = rtc_tm->tm_wday + 1;
+	hrs = rtc_tm->tm_hour;
+	min = rtc_tm->tm_min;
+	sec = rtc_tm->tm_sec;
+
+	spin_lock_irq(&mostek_lock);
+
+	tmp = mostek_read(regs + MOSTEK_CREG);
+	tmp |= MSTK_CREG_WRITE;
+	mostek_write(regs + MOSTEK_CREG, tmp);
+
+	MSTK_SET_REG_SEC(regs, sec);
+	MSTK_SET_REG_MIN(regs, min);
+	MSTK_SET_REG_HOUR(regs, hrs);
+	MSTK_SET_REG_DOW(regs, wday);
+	MSTK_SET_REG_DOM(regs, day);
+	MSTK_SET_REG_MONTH(regs, mon);
+	MSTK_SET_REG_YEAR(regs, yrs - MSTK_YEAR_ZERO);
+
+	tmp = mostek_read(regs + MOSTEK_CREG);
+	tmp &= ~MSTK_CREG_WRITE;
+	mostek_write(regs + MOSTEK_CREG, tmp);
+
+	spin_unlock_irq(&mostek_lock);
+
+	return 0;
+}
+
 struct mini_rtc_ops {
 	void (*get_rtc_time)(struct rtc_time *);
 	int (*set_rtc_time)(struct rtc_time *);
@@ -1486,6 +1554,11 @@ static struct mini_rtc_ops cmos_rtc_ops = {
 	.set_rtc_time = cmos_set_rtc_time,
 };
 #endif /* CONFIG_PCI */
+
+static struct mini_rtc_ops mostek_rtc_ops = {
+	.get_rtc_time = mostek_get_rtc_time,
+	.set_rtc_time = mostek_set_rtc_time,
+};
 
 static struct mini_rtc_ops *mini_rtc_ops;
 
@@ -1615,6 +1688,8 @@ static int __init rtc_mini_init(void)
 	else if (ds1287_regs)
 		mini_rtc_ops = &cmos_rtc_ops;
 #endif /* CONFIG_PCI */
+	else if (mstk48t02_regs)
+		mini_rtc_ops = &mostek_rtc_ops;
 	else
 		return -ENODEV;
 
