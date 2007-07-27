@@ -26,7 +26,6 @@
 #define __MXC_BOOT_UNCOMPRESS
 
 #include <asm/hardware.h>
-#include <asm/processor.h>
 
 #define UART(x) (*(volatile unsigned long *)(serial_port + (x)))
 
@@ -62,7 +61,7 @@ static void putc(int ch)
 	}
 
 	while (!(UART(USR2) & USR2_TXFE))
-		cpu_relax();
+		barrier();
 
 	UART(TXR) = ch;
 }
