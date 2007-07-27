@@ -363,7 +363,7 @@ static void ieee80211_sta_send_associnfo(struct net_device *dev,
 		return;
 
 	buf = kmalloc(50 + 2 * (ifsta->assocreq_ies_len +
-				ifsta->assocresp_ies_len), GFP_ATOMIC);
+				ifsta->assocresp_ies_len), GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -644,7 +644,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 
 	kfree(ifsta->assocreq_ies);
 	ifsta->assocreq_ies_len = (skb->data + skb->len) - ies;
-	ifsta->assocreq_ies = kmalloc(ifsta->assocreq_ies_len, GFP_ATOMIC);
+	ifsta->assocreq_ies = kmalloc(ifsta->assocreq_ies_len, GFP_KERNEL);
 	if (ifsta->assocreq_ies)
 		memcpy(ifsta->assocreq_ies, ies, ifsta->assocreq_ies_len);
 
@@ -1244,7 +1244,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 
 	kfree(ifsta->assocresp_ies);
 	ifsta->assocresp_ies_len = len - (pos - (u8 *) mgmt);
-	ifsta->assocresp_ies = kmalloc(ifsta->assocresp_ies_len, GFP_ATOMIC);
+	ifsta->assocresp_ies = kmalloc(ifsta->assocresp_ies_len, GFP_KERNEL);
 	if (ifsta->assocresp_ies)
 		memcpy(ifsta->assocresp_ies, pos, ifsta->assocresp_ies_len);
 
@@ -1254,7 +1254,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	sta = sta_info_get(local, ifsta->bssid);
 	if (!sta) {
 		struct ieee80211_sta_bss *bss;
-		sta = sta_info_add(local, dev, ifsta->bssid, GFP_ATOMIC);
+		sta = sta_info_add(local, dev, ifsta->bssid, GFP_KERNEL);
 		if (!sta) {
 			printk(KERN_DEBUG "%s: failed to add STA entry for the"
 			       " AP\n", dev->name);
@@ -1771,7 +1771,7 @@ static void ieee80211_rx_mgmt_probe_req(struct net_device *dev,
 	}
 
 	/* Reply with ProbeResp */
-	skb = skb_copy(ifsta->probe_resp, GFP_ATOMIC);
+	skb = skb_copy(ifsta->probe_resp, GFP_KERNEL);
 	if (!skb)
 		return;
 
