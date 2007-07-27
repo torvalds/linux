@@ -32,8 +32,8 @@ static const char *firmware_INIT1      = "tm_xc3028_68M_MTS_init1.fw";
 
 /* Standard-specific firmwares */
 static const char *firmware_6M         = "tm_xc3028_DTV_6M.fw";
-static const char *firmware_7M         = "tm_xc3028_7M.fw";
-static const char *firmware_8M         = "tm_xc3028_8M.fw";
+static const char *firmware_7M         = "tm_xc3028_DTV_7M.fw";
+static const char *firmware_8M         = "tm_xc3028_DTV_8M.fw";
 static const char *firmware_B          = "tm_xc3028_B_PAL.fw";
 static const char *firmware_DK         = "tm_xc3028_DK_PAL_MTS.fw";
 static const char *firmware_MN         = "tm_xc3028_MN_BTSC.fw";
