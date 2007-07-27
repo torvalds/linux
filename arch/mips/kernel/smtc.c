@@ -86,24 +86,10 @@ unsigned int smtc_status = 0;
 
 /* Boot command line configuration overrides */
 
-static int vpelimit = 0;
-static int tclimit = 0;
 static int ipibuffers = 0;
 static int nostlb = 0;
 static int asidmask = 0;
 unsigned long smtc_asid_mask = 0xff;
-
-static int __init maxvpes(char *str)
-{
-	get_option(&str, &vpelimit);
-	return 1;
-}
-
-static int __init maxtcs(char *str)
-{
-	get_option(&str, &tclimit);
-	return 1;
-}
 
 static int __init ipibufs(char *str)
 {
@@ -137,8 +123,6 @@ static int __init asidmask_set(char *str)
 	return 1;
 }
 
-__setup("maxvpes=", maxvpes);
-__setup("maxtcs=", maxtcs);
 __setup("ipibufs=", ipibufs);
 __setup("nostlb", stlb_disable);
 __setup("asidmask=", asidmask_set);
