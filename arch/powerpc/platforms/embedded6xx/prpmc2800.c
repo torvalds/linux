@@ -44,7 +44,6 @@ static void __init prpmc2800_setup_arch(void)
 	struct device_node *np;
 	phys_addr_t paddr;
 	const unsigned int *reg;
-	const unsigned int *prop;
 
 	/*
 	 * ioremap mpp and gpp registers in case they are later
@@ -61,12 +60,6 @@ static void __init prpmc2800_setup_arch(void)
 	paddr = of_translate_address(np, reg);
 	of_node_put(np);
 	mv64x60_gpp_reg_base = ioremap(paddr, reg[1]);
-
-	np = of_find_node_by_type(NULL, "cpu");
-	prop = of_get_property(np, "clock-frequency", NULL);
-	if (prop)
-		loops_per_jiffy = *prop / HZ;
-	of_node_put(np);
 
 #ifdef CONFIG_PCI
 	mv64x60_pci_init();
