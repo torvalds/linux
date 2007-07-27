@@ -211,22 +211,6 @@ Who:	Richard Purdie <rpurdie@rpsys.net>
 
 ---------------------------
 
-What:	read_dev_chars(), read_conf_data{,_lpm}() (s390 common I/O layer)
-When:	December 2007
-Why:	These functions are a leftover from 2.4 times. They have several
-	problems:
-	- Duplication of checks that are done in the device driver's
-	  interrupt handler
-	- common I/O layer can't do device specific error recovery
-	- device driver can't be notified for conditions happening during
-	  execution of the function
-	Device drivers should issue the read device characteristics and read
-	configuration data ccws and do the appropriate error handling
-	themselves.
-Who:	Cornelia Huck <cornelia.huck@de.ibm.com>
-
----------------------------
-
 What:	i2c-ixp2000, i2c-ixp4xx and scx200_i2c drivers
 When:	September 2007
 Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
