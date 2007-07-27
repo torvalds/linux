@@ -141,7 +141,6 @@ static int __devinit of_physmap_probe(struct of_device *dev, const struct of_dev
 		err = -ENOMEM;
 		goto err_out;
 	}
-	memset(info, 0, sizeof(*info));
 
 	dev_set_drvdata(&dev->dev, info);
 
@@ -213,10 +212,6 @@ static int __devinit of_physmap_probe(struct of_device *dev, const struct of_dev
 err_out:
 	of_physmap_remove(dev);
 	return err;
-
-	return 0;
-
-
 }
 
 static struct of_device_id of_physmap_match[] = {
