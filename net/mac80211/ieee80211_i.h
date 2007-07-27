@@ -733,14 +733,6 @@ struct ieee80211_rate *ieee80211_get_rate(struct ieee80211_local *local,
 void ieee80211_key_threshold_notify(struct net_device *dev,
 				    struct ieee80211_key *key,
 				    struct sta_info *sta);
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len);
-int ieee80211_is_eapol(const struct sk_buff *skb);
-
-extern const unsigned char rfc1042_header[6];
-extern const unsigned char bridge_tunnel_header[6];
-
-int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
-			     int rate, int erp, int short_preamble);
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
@@ -833,7 +825,13 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 					  int idx, size_t key_len, gfp_t flags);
 void ieee80211_key_free(struct ieee80211_key *key);
 
-/* for wiphy privid */
-extern void *mac80211_wiphy_privid;
+/* utility functions/constants */
+extern void *mac80211_wiphy_privid; /* for wiphy privid */
+extern const unsigned char rfc1042_header[6];
+extern const unsigned char bridge_tunnel_header[6];
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len);
+int ieee80211_is_eapol(const struct sk_buff *skb);
+int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
+			     int rate, int erp, int short_preamble);
 
 #endif /* IEEE80211_I_H */

@@ -21,4 +21,5 @@ mac80211-objs := \
 	rx.o \
 	tx.o \
 	key.o \
+	util.o \
 	$(mac80211-objs-y)
