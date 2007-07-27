@@ -406,20 +406,6 @@ int platform_device_skip(const char *model, int id)
 
 static void __init mpc885ads_setup_arch(void)
 {
-	struct device_node *cpu;
-
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(cpu);
-	}
-
 	cpm_reset();
 
 	mpc885ads_board_setup();
