@@ -876,7 +876,7 @@ void deferred_smtc_ipi(void)
  * Send clock tick to all TCs except the one executing the funtion
  */
 
-void smtc_timer_broadcast(int vpe)
+void smtc_timer_broadcast(void)
 {
 	int cpu;
 	int myTC = cpu_data[smp_processor_id()].tc_id;
