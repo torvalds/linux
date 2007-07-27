@@ -916,9 +916,17 @@ static int piix_broken_suspend(void)
 		},
 		{ }
 	};
+	static const char *oemstrs[] = {
+		"Tecra M3,",
+	};
+	int i;
 
 	if (dmi_check_system(sysids))
 		return 1;
+
+	for (i = 0; i < ARRAY_SIZE(oemstrs); i++)
+		if (dmi_find_device(DMI_DEV_TYPE_OEM_STRING, oemstrs[i], NULL))
+			return 1;
 
 	return 0;
 }
