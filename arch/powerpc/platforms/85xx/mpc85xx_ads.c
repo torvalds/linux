@@ -192,25 +192,12 @@ void init_fcc_ioports(struct fs_platform_info *fpi)
 
 static void __init mpc85xx_ads_setup_arch(void)
 {
-	struct device_node *cpu;
 #ifdef CONFIG_PCI
 	struct device_node *np;
 #endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ads_setup_arch()", 0);
-
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(cpu);
-	}
 
 #ifdef CONFIG_CPM2
 	cpm2_reset();
