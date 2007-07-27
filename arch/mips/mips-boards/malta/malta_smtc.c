@@ -58,7 +58,7 @@ void prom_init_secondary(void)
  * but it may be multithreaded.
  */
 
-void plat_smp_setup(void)
+void __cpuinit plat_smp_setup(void)
 {
 	if (read_c0_config3() & (1<<2))
 		mipsmt_build_cpu_map(0);
