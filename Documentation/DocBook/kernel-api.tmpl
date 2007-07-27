@@ -704,14 +704,23 @@ X!Idrivers/video/console/fonts.c
 
   <chapter id="splice">
       <title>splice API</title>
-  <para>)
+  <para>
 	splice is a method for moving blocks of data around inside the
-	kernel, without continually transferring it between the kernel
+	kernel, without continually transferring them between the kernel
 	and user space.
   </para>
 !Iinclude/linux/splice.h
 !Ffs/splice.c
   </chapter>
 
+  <chapter id="pipes">
+      <title>pipes API</title>
+  <para>
+	Pipe interfaces are all for in-kernel (builtin image) use.
+	They are not exported for use by modules.
+  </para>
+!Iinclude/linux/pipe_fs_i.h
+!Ffs/pipe.c
+  </chapter>
 
 </book>
