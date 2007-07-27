@@ -15,7 +15,6 @@
 #include <linux/mm.h>
 #include <asm/signal.h>
 
-#include "vmx.h"
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
@@ -139,14 +138,6 @@ struct kvm_mmu_page {
 		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
 	};
 };
-
-struct vmcs {
-	u32 revision_id;
-	u32 abort;
-	char data[0];
-};
-
-#define vmx_msr_entry kvm_msr_entry
 
 struct kvm_vcpu;
 
@@ -309,15 +300,12 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev);
 
 struct kvm_vcpu {
+	int valid;
 	struct kvm *kvm;
 	int vcpu_id;
-	union {
-		struct vmcs *vmcs;
-		struct vcpu_svm *svm;
-	};
+	void *_priv;
 	struct mutex mutex;
 	int   cpu;
-	int   launched;
 	u64 host_tsc;
 	struct kvm_run *run;
 	int interrupt_window_open;
@@ -340,14 +328,6 @@ struct kvm_vcpu {
 	u64 shadow_efer;
 	u64 apic_base;
 	u64 ia32_misc_enable_msr;
-	int nmsrs;
-	int save_nmsrs;
-	int msr_offset_efer;
-#ifdef CONFIG_X86_64
-	int msr_offset_kernel_gs_base;
-#endif
-	struct vmx_msr_entry *guest_msrs;
-	struct vmx_msr_entry *host_msrs;
 
 	struct kvm_mmu mmu;
 
@@ -366,11 +346,6 @@ struct kvm_vcpu {
 	char *guest_fx_image;
 	int fpu_active;
 	int guest_fpu_loaded;
-	struct vmx_host_state {
-		int loaded;
-		u16 fs_sel, gs_sel, ldt_sel;
-		int fs_gs_ldt_reload_needed;
-	} vmx_host_state;
 
 	int mmio_needed;
 	int mmio_read_completed;
@@ -579,8 +554,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 
 void fx_init(struct kvm_vcpu *vcpu);
 
-void load_msrs(struct vmx_msr_entry *e, int n);
-void save_msrs(struct vmx_msr_entry *e, int n);
 void kvm_resched(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);

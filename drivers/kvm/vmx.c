@@ -32,6 +32,37 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+struct vmcs {
+	u32 revision_id;
+	u32 abort;
+	char data[0];
+};
+
+struct vcpu_vmx {
+	struct kvm_vcpu      *vcpu;
+	int                   launched;
+	struct kvm_msr_entry *guest_msrs;
+	struct kvm_msr_entry *host_msrs;
+	int                   nmsrs;
+	int                   save_nmsrs;
+	int                   msr_offset_efer;
+#ifdef CONFIG_X86_64
+	int                   msr_offset_kernel_gs_base;
+#endif
+	struct vmcs          *vmcs;
+	struct {
+		int           loaded;
+		u16           fs_sel, gs_sel, ldt_sel;
+		int           fs_gs_ldt_reload_needed;
+	}host_state;
+
+};
+
+static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
+{
+	return (struct vcpu_vmx*)vcpu->_priv;
+}
+
 static int init_rmode_tss(struct kvm *kvm);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
@@ -89,16 +120,33 @@ static const u32 vmx_msr_index[] = {
 };
 #define NR_VMX_MSR ARRAY_SIZE(vmx_msr_index)
 
-static inline u64 msr_efer_save_restore_bits(struct vmx_msr_entry msr)
+static void load_msrs(struct kvm_msr_entry *e, int n)
+{
+	int i;
+
+	for (i = 0; i < n; ++i)
+		wrmsrl(e[i].index, e[i].data);
+}
+
+static void save_msrs(struct kvm_msr_entry *e, int n)
+{
+	int i;
+
+	for (i = 0; i < n; ++i)
+		rdmsrl(e[i].index, e[i].data);
+}
+
+static inline u64 msr_efer_save_restore_bits(struct kvm_msr_entry msr)
 {
 	return (u64)msr.data & EFER_SAVE_RESTORE_BITS;
 }
 
 static inline int msr_efer_need_save_restore(struct kvm_vcpu *vcpu)
 {
-	int efer_offset = vcpu->msr_offset_efer;
-	return msr_efer_save_restore_bits(vcpu->host_msrs[efer_offset]) !=
-		msr_efer_save_restore_bits(vcpu->guest_msrs[efer_offset]);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int efer_offset = vmx->msr_offset_efer;
+	return msr_efer_save_restore_bits(vmx->host_msrs[efer_offset]) !=
+		msr_efer_save_restore_bits(vmx->guest_msrs[efer_offset]);
 }
 
 static inline int is_page_fault(u32 intr_info)
@@ -123,21 +171,23 @@ static inline int is_external_interrupt(u32 intr_info)
 
 static int __find_msr_index(struct kvm_vcpu *vcpu, u32 msr)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int i;
 
-	for (i = 0; i < vcpu->nmsrs; ++i)
-		if (vcpu->guest_msrs[i].index == msr)
+	for (i = 0; i < vmx->nmsrs; ++i)
+		if (vmx->guest_msrs[i].index == msr)
 			return i;
 	return -1;
 }
 
-static struct vmx_msr_entry *find_msr_entry(struct kvm_vcpu *vcpu, u32 msr)
+static struct kvm_msr_entry *find_msr_entry(struct kvm_vcpu *vcpu, u32 msr)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int i;
 
 	i = __find_msr_index(vcpu, msr);
 	if (i >= 0)
-		return &vcpu->guest_msrs[i];
+		return &vmx->guest_msrs[i];
 	return NULL;
 }
 
@@ -157,11 +207,12 @@ static void vmcs_clear(struct vmcs *vmcs)
 static void __vcpu_clear(void *arg)
 {
 	struct kvm_vcpu *vcpu = arg;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int cpu = raw_smp_processor_id();
 
 	if (vcpu->cpu == cpu)
-		vmcs_clear(vcpu->vmcs);
-	if (per_cpu(current_vmcs, cpu) == vcpu->vmcs)
+		vmcs_clear(vmx->vmcs);
+	if (per_cpu(current_vmcs, cpu) == vmx->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
 	rdtscll(vcpu->host_tsc);
 }
@@ -172,7 +223,7 @@ static void vcpu_clear(struct kvm_vcpu *vcpu)
 		smp_call_function_single(vcpu->cpu, __vcpu_clear, vcpu, 0, 1);
 	else
 		__vcpu_clear(vcpu);
-	vcpu->launched = 0;
+	to_vmx(vcpu)->launched = 0;
 }
 
 static unsigned long vmcs_readl(unsigned long field)
@@ -285,80 +336,81 @@ static void reload_tss(void)
 static void load_transition_efer(struct kvm_vcpu *vcpu)
 {
 	u64 trans_efer;
-	int efer_offset = vcpu->msr_offset_efer;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int efer_offset = vmx->msr_offset_efer;
 
-	trans_efer = vcpu->host_msrs[efer_offset].data;
+	trans_efer = vmx->host_msrs[efer_offset].data;
 	trans_efer &= ~EFER_SAVE_RESTORE_BITS;
-	trans_efer |= msr_efer_save_restore_bits(
-				vcpu->guest_msrs[efer_offset]);
+	trans_efer |= msr_efer_save_restore_bits(vmx->guest_msrs[efer_offset]);
 	wrmsrl(MSR_EFER, trans_efer);
 	vcpu->stat.efer_reload++;
 }
 
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
-	struct vmx_host_state *hs = &vcpu->vmx_host_state;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (hs->loaded)
+	if (vmx->host_state.loaded)
 		return;
 
-	hs->loaded = 1;
+	vmx->host_state.loaded = 1;
 	/*
 	 * Set host fs and gs selectors.  Unfortunately, 22.2.3 does not
 	 * allow segment selectors with cpl > 0 or ti == 1.
 	 */
-	hs->ldt_sel = read_ldt();
-	hs->fs_gs_ldt_reload_needed = hs->ldt_sel;
-	hs->fs_sel = read_fs();
-	if (!(hs->fs_sel & 7))
-		vmcs_write16(HOST_FS_SELECTOR, hs->fs_sel);
+	vmx->host_state.ldt_sel = read_ldt();
+	vmx->host_state.fs_gs_ldt_reload_needed = vmx->host_state.ldt_sel;
+	vmx->host_state.fs_sel = read_fs();
+	if (!(vmx->host_state.fs_sel & 7))
+		vmcs_write16(HOST_FS_SELECTOR, vmx->host_state.fs_sel);
 	else {
 		vmcs_write16(HOST_FS_SELECTOR, 0);
-		hs->fs_gs_ldt_reload_needed = 1;
+		vmx->host_state.fs_gs_ldt_reload_needed = 1;
 	}
-	hs->gs_sel = read_gs();
-	if (!(hs->gs_sel & 7))
-		vmcs_write16(HOST_GS_SELECTOR, hs->gs_sel);
+	vmx->host_state.gs_sel = read_gs();
+	if (!(vmx->host_state.gs_sel & 7))
+		vmcs_write16(HOST_GS_SELECTOR, vmx->host_state.gs_sel);
 	else {
 		vmcs_write16(HOST_GS_SELECTOR, 0);
-		hs->fs_gs_ldt_reload_needed = 1;
+		vmx->host_state.fs_gs_ldt_reload_needed = 1;
 	}
 
 #ifdef CONFIG_X86_64
 	vmcs_writel(HOST_FS_BASE, read_msr(MSR_FS_BASE));
 	vmcs_writel(HOST_GS_BASE, read_msr(MSR_GS_BASE));
 #else
-	vmcs_writel(HOST_FS_BASE, segment_base(hs->fs_sel));
-	vmcs_writel(HOST_GS_BASE, segment_base(hs->gs_sel));
+	vmcs_writel(HOST_FS_BASE, segment_base(vmx->host_state.fs_sel));
+	vmcs_writel(HOST_GS_BASE, segment_base(vmx->host_state.gs_sel));
 #endif
 
 #ifdef CONFIG_X86_64
 	if (is_long_mode(vcpu)) {
-		save_msrs(vcpu->host_msrs + vcpu->msr_offset_kernel_gs_base, 1);
+		save_msrs(vmx->host_msrs +
+			  vmx->msr_offset_kernel_gs_base, 1);
 	}
 #endif
-	load_msrs(vcpu->guest_msrs, vcpu->save_nmsrs);
+	load_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	if (msr_efer_need_save_restore(vcpu))
 		load_transition_efer(vcpu);
 }
 
 static void vmx_load_host_state(struct kvm_vcpu *vcpu)
 {
-	struct vmx_host_state *hs = &vcpu->vmx_host_state;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!hs->loaded)
+	if (!vmx->host_state.loaded)
 		return;
 
-	hs->loaded = 0;
-	if (hs->fs_gs_ldt_reload_needed) {
-		load_ldt(hs->ldt_sel);
-		load_fs(hs->fs_sel);
+	vmx->host_state.loaded = 0;
+	if (vmx->host_state.fs_gs_ldt_reload_needed) {
+		load_ldt(vmx->host_state.ldt_sel);
+		load_fs(vmx->host_state.fs_sel);
 		/*
 		 * If we have to reload gs, we must take care to
 		 * preserve our gs base.
 		 */
 		local_irq_disable();
-		load_gs(hs->gs_sel);
+		load_gs(vmx->host_state.gs_sel);
 #ifdef CONFIG_X86_64
 		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
 #endif
@@ -366,10 +418,10 @@ static void vmx_load_host_state(struct kvm_vcpu *vcpu)
 
 		reload_tss();
 	}
-	save_msrs(vcpu->guest_msrs, vcpu->save_nmsrs);
-	load_msrs(vcpu->host_msrs, vcpu->save_nmsrs);
+	save_msrs(vmx->guest_msrs, vmx->save_nmsrs);
+	load_msrs(vmx->host_msrs, vmx->save_nmsrs);
 	if (msr_efer_need_save_restore(vcpu))
-		load_msrs(vcpu->host_msrs + vcpu->msr_offset_efer, 1);
+		load_msrs(vmx->host_msrs + vmx->msr_offset_efer, 1);
 }
 
 /*
@@ -378,7 +430,8 @@ static void vmx_load_host_state(struct kvm_vcpu *vcpu)
  */
 static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 {
-	u64 phys_addr = __pa(vcpu->vmcs);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 phys_addr = __pa(vmx->vmcs);
 	int cpu;
 	u64 tsc_this, delta;
 
@@ -387,16 +440,16 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 	if (vcpu->cpu != cpu)
 		vcpu_clear(vcpu);
 
-	if (per_cpu(current_vmcs, cpu) != vcpu->vmcs) {
+	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
 		u8 error;
 
-		per_cpu(current_vmcs, cpu) = vcpu->vmcs;
+		per_cpu(current_vmcs, cpu) = vmx->vmcs;
 		asm volatile (ASM_VMX_VMPTRLD_RAX "; setna %0"
 			      : "=g"(error) : "a"(&phys_addr), "m"(phys_addr)
 			      : "cc");
 		if (error)
 			printk(KERN_ERR "kvm: vmptrld %p/%llx fail\n",
-			       vcpu->vmcs, phys_addr);
+			       vmx->vmcs, phys_addr);
 	}
 
 	if (vcpu->cpu != cpu) {
@@ -503,13 +556,15 @@ static void vmx_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
  */
 void move_msr_up(struct kvm_vcpu *vcpu, int from, int to)
 {
-	struct vmx_msr_entry tmp;
-	tmp = vcpu->guest_msrs[to];
-	vcpu->guest_msrs[to] = vcpu->guest_msrs[from];
-	vcpu->guest_msrs[from] = tmp;
-	tmp = vcpu->host_msrs[to];
-	vcpu->host_msrs[to] = vcpu->host_msrs[from];
-	vcpu->host_msrs[from] = tmp;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct kvm_msr_entry tmp;
+
+	tmp = vmx->guest_msrs[to];
+	vmx->guest_msrs[to] = vmx->guest_msrs[from];
+	vmx->guest_msrs[from] = tmp;
+	tmp = vmx->host_msrs[to];
+	vmx->host_msrs[to] = vmx->host_msrs[from];
+	vmx->host_msrs[from] = tmp;
 }
 
 /*
@@ -519,6 +574,7 @@ void move_msr_up(struct kvm_vcpu *vcpu, int from, int to)
  */
 static void setup_msrs(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int save_nmsrs;
 
 	save_nmsrs = 0;
@@ -547,13 +603,13 @@ static void setup_msrs(struct kvm_vcpu *vcpu)
 			move_msr_up(vcpu, index, save_nmsrs++);
 	}
 #endif
-	vcpu->save_nmsrs = save_nmsrs;
+	vmx->save_nmsrs = save_nmsrs;
 
 #ifdef CONFIG_X86_64
-	vcpu->msr_offset_kernel_gs_base =
+	vmx->msr_offset_kernel_gs_base =
 		__find_msr_index(vcpu, MSR_KERNEL_GS_BASE);
 #endif
-	vcpu->msr_offset_efer = __find_msr_index(vcpu, MSR_EFER);
+	vmx->msr_offset_efer = __find_msr_index(vcpu, MSR_EFER);
 }
 
 /*
@@ -589,7 +645,7 @@ static void guest_write_tsc(u64 guest_tsc)
 static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 {
 	u64 data;
-	struct vmx_msr_entry *msr;
+	struct kvm_msr_entry *msr;
 
 	if (!pdata) {
 		printk(KERN_ERR "BUG: get_msr called with NULL pdata\n");
@@ -639,14 +695,15 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
  */
 static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 {
-	struct vmx_msr_entry *msr;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct kvm_msr_entry *msr;
 	int ret = 0;
 
 	switch (msr_index) {
 #ifdef CONFIG_X86_64
 	case MSR_EFER:
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
-		if (vcpu->vmx_host_state.loaded)
+		if (vmx->host_state.loaded)
 			load_transition_efer(vcpu);
 		break;
 	case MSR_FS_BASE:
@@ -672,8 +729,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		msr = find_msr_entry(vcpu, msr_index);
 		if (msr) {
 			msr->data = data;
-			if (vcpu->vmx_host_state.loaded)
-				load_msrs(vcpu->guest_msrs, vcpu->save_nmsrs);
+			if (vmx->host_state.loaded)
+				load_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 			break;
 		}
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
@@ -1053,7 +1110,7 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
-	struct vmx_msr_entry *msr = find_msr_entry(vcpu, MSR_EFER);
+	struct kvm_msr_entry *msr = find_msr_entry(vcpu, MSR_EFER);
 
 	vcpu->shadow_efer = efer;
 	if (efer & EFER_LMA) {
@@ -1244,6 +1301,7 @@ static void seg_setup(int seg)
  */
 static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 host_sysenter_cs;
 	u32 junk;
 	unsigned long a;
@@ -1385,18 +1443,18 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 		u32 index = vmx_msr_index[i];
 		u32 data_low, data_high;
 		u64 data;
-		int j = vcpu->nmsrs;
+		int j = vmx->nmsrs;
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
 			continue;
 		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
 		data = data_low | ((u64)data_high << 32);
-		vcpu->host_msrs[j].index = index;
-		vcpu->host_msrs[j].reserved = 0;
-		vcpu->host_msrs[j].data = data;
-		vcpu->guest_msrs[j] = vcpu->host_msrs[j];
-		++vcpu->nmsrs;
+		vmx->host_msrs[j].index = index;
+		vmx->host_msrs[j].reserved = 0;
+		vmx->host_msrs[j].data = data;
+		vmx->guest_msrs[j] = vmx->host_msrs[j];
+		++vmx->nmsrs;
 	}
 
 	setup_msrs(vcpu);
@@ -1999,6 +2057,7 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 
 static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u8 fail;
 	int r;
 
@@ -2123,7 +2182,7 @@ again:
 #endif
 		"setbe %0 \n\t"
 	      : "=q" (fail)
-	      : "r"(vcpu->launched), "d"((unsigned long)HOST_RSP),
+	      : "r"(vmx->launched), "d"((unsigned long)HOST_RSP),
 		"c"(vcpu),
 		[rax]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RAX])),
 		[rbx]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RBX])),
@@ -2167,7 +2226,7 @@ again:
 	if (unlikely(prof_on == KVM_PROFILING))
 		profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
 
-	vcpu->launched = 1;
+	vmx->launched = 1;
 	r = kvm_handle_exit(kvm_run, vcpu);
 	if (r > 0) {
 		/* Give scheduler a change to reschedule. */
@@ -2232,10 +2291,12 @@ static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,
 
 static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->vmcs) {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (vmx->vmcs) {
 		on_each_cpu(__vcpu_clear, vcpu, 0, 1);
-		free_vmcs(vcpu->vmcs);
-		vcpu->vmcs = NULL;
+		free_vmcs(vmx->vmcs);
+		vmx->vmcs = NULL;
 	}
 }
 
@@ -2246,33 +2307,39 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 
 static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct vmcs *vmcs;
+	struct vcpu_vmx *vmx;
 
-	vcpu->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!vcpu->guest_msrs)
+	vmx = kzalloc(sizeof(*vmx), GFP_KERNEL);
+	if (!vmx)
 		return -ENOMEM;
 
-	vcpu->host_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!vcpu->host_msrs)
-		goto out_free_guest_msrs;
+	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!vmx->guest_msrs)
+		goto out_free;
 
-	vmcs = alloc_vmcs();
-	if (!vmcs)
-		goto out_free_msrs;
+	vmx->host_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!vmx->host_msrs)
+		goto out_free;
 
-	vmcs_clear(vmcs);
-	vcpu->vmcs = vmcs;
-	vcpu->launched = 0;
+	vmx->vmcs = alloc_vmcs();
+	if (!vmx->vmcs)
+		goto out_free;
+
+	vmcs_clear(vmx->vmcs);
+
+	vmx->vcpu   = vcpu;
+	vcpu->_priv = vmx;
 
 	return 0;
 
-out_free_msrs:
-	kfree(vcpu->host_msrs);
-	vcpu->host_msrs = NULL;
+out_free:
+	if (vmx->host_msrs)
+		kfree(vmx->host_msrs);
 
-out_free_guest_msrs:
-	kfree(vcpu->guest_msrs);
-	vcpu->guest_msrs = NULL;
+	if (vmx->guest_msrs)
+		kfree(vmx->guest_msrs);
+
+	kfree(vmx);
 
 	return -ENOMEM;
 }
