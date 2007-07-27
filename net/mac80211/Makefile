@@ -20,4 +20,5 @@ mac80211-objs := \
 	ieee80211_cfg.o \
 	rx.o \
 	tx.o \
+	key.o \
 	$(mac80211-objs-y)

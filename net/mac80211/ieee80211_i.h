@@ -719,12 +719,6 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 int ieee80211_hw_config(struct ieee80211_local *local);
 int ieee80211_if_config(struct net_device *dev);
 int ieee80211_if_config_beacon(struct net_device *dev);
-struct ieee80211_key_conf *
-ieee80211_key_data2conf(struct ieee80211_local *local,
-			const struct ieee80211_key *data);
-struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
-					  int idx, size_t key_len, gfp_t flags);
-void ieee80211_key_free(struct ieee80211_key *key);
 void ieee80211_rx_mgmt(struct ieee80211_local *local, struct sk_buff *skb,
 		       struct ieee80211_rx_status *status, u32 msg_type);
 void ieee80211_prepare_rates(struct ieee80211_local *local,
@@ -832,6 +826,14 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev);
+
+/* key handling */
+struct ieee80211_key_conf *
+ieee80211_key_data2conf(struct ieee80211_local *local,
+			const struct ieee80211_key *data);
+struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
+					  int idx, size_t key_len, gfp_t flags);
+void ieee80211_key_free(struct ieee80211_key *key);
 
 /* for wiphy privid */
 extern void *mac80211_wiphy_privid;
