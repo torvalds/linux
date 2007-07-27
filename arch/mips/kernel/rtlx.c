@@ -471,7 +471,7 @@ static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
 static char register_chrdev_failed[] __initdata =
 	KERN_ERR "rtlx_module_init: unable to register device\n";
 
-static int rtlx_module_init(void)
+static int __init rtlx_module_init(void)
 {
 	struct device *dev;
 	int i, err;
