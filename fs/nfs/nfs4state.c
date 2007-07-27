@@ -341,8 +341,6 @@ nfs4_state_set_mode_locked(struct nfs4_state *state, mode_t mode)
 		else
 			list_move_tail(&state->open_states, &state->owner->so_states);
 	}
-	if (mode == 0)
-		list_del_init(&state->inode_states);
 	state->state = mode;
 }
 
@@ -415,8 +413,7 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	if (!atomic_dec_and_lock(&state->count, &owner->so_lock))
 		return;
 	spin_lock(&inode->i_lock);
-	if (!list_empty(&state->inode_states))
-		list_del(&state->inode_states);
+	list_del(&state->inode_states);
 	list_del(&state->open_states);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
