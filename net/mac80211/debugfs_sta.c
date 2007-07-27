@@ -157,7 +157,7 @@ static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 	struct sta_info *sta = file->private_data;
 	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 		p += scnprintf(p, sizeof(buf)+buf-p, "%x ",
-			       sta->last_seq_ctrl[i]);
+			       le16_to_cpu(sta->last_seq_ctrl[i]));
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n");
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
