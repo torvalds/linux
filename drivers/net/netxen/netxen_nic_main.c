@@ -335,7 +335,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->ahw.pdev = pdev;
 	adapter->ahw.pci_func  = pci_func_id;
 	spin_lock_init(&adapter->tx_lock);
-	spin_lock_init(&adapter->lock);
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
@@ -1228,15 +1227,12 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 {
 	struct netxen_adapter *adapter = 
 		container_of(work, struct netxen_adapter, tx_timeout_task);
-	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
 	netxen_nic_close(adapter->netdev);
 	netxen_nic_open(adapter->netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
 	adapter->netdev->trans_start = jiffies;
 	netif_wake_queue(adapter->netdev);
 }
