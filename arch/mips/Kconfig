@@ -595,7 +595,7 @@ config TOSHIBA_JMR3927
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config TOSHIBA_RBTX4927
-	bool "Toshiba TBTX49[23]7 board"
+	bool "Toshiba RBTX49[23]7 board"
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
