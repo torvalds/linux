@@ -621,8 +621,7 @@ sclp_vt220_flush_buffer(struct tty_struct *tty)
 /*
  * Initialize all relevant components and register driver with system.
  */
-static int
-__sclp_vt220_init(int early)
+static int __init_refok __sclp_vt220_init(int early)
 {
 	void *page;
 	int i;
