@@ -1019,6 +1019,11 @@ __init void lguest_init(void *boot)
 	 * the normal data segment to get through booting. */
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
+	/* Clear the part of the kernel data which is expected to be zero.
+	 * Normally it will be anyway, but if we're loading from a bzImage with
+	 * CONFIG_RELOCATALE=y, the relocations will be sitting here. */
+	memset(__bss_start, 0, __bss_stop - __bss_start);
+
 	/* The Host uses the top of the Guest's virtual address space for the
 	 * Host<->Guest Switcher, and it tells us how much it needs in
 	 * lguest_data.reserve_mem, set up on the LGUEST_INIT hypercall. */
