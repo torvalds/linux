@@ -50,7 +50,7 @@ config AGP_ATI
 
 config AGP_AMD
 	tristate "AMD Irongate, 761, and 762 chipset support"
-	depends on AGP && X86_32
+	depends on AGP && (X86_32 || ALPHA)
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on AMD Irongate, 761, and 762 chipsets.
