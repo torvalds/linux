@@ -31,6 +31,41 @@
  */
 
 static ieee80211_txrx_result
+ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
+{
+	u8 *data = rx->skb->data;
+	int tid;
+
+	/* does the frame have a qos control field? */
+	if (WLAN_FC_IS_QOS_DATA(rx->fc)) {
+		u8 *qc = data + ieee80211_get_hdrlen(rx->fc) - QOS_CONTROL_LEN;
+		/* frame has qos control */
+		tid = qc[0] & QOS_CONTROL_TID_MASK;
+	} else {
+		if (unlikely((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)) {
+			/* Separate TID for management frames */
+			tid = NUM_RX_DATA_QUEUES - 1;
+		} else {
+			/* no qos control present */
+			tid = 0; /* 802.1d - Best Effort */
+		}
+	}
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+	I802_DEBUG_INC(rx->local->wme_rx_queue[tid]);
+	if (rx->sta) {
+		I802_DEBUG_INC(rx->sta->wme_rx_queue[tid]);
+	}
+#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
+
+	rx->u.rx.queue = tid;
+	/* Set skb->priority to 1d tag if highest order bit of TID is not set.
+	 * For now, set skb->priority to 0 for other cases. */
+	rx->skb->priority = (tid > 7) ? 0 : tid;
+
+	return TXRX_CONTINUE;
+}
+
+static ieee80211_txrx_result
 ieee80211_rx_h_load_stats(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_local *local = rx->local;
@@ -762,6 +797,26 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 	dev_kfree_skb(rx->skb);
 
 	return TXRX_QUEUED;
+}
+
+static ieee80211_txrx_result
+ieee80211_rx_h_remove_qos_control(struct ieee80211_txrx_data *rx)
+{
+	u16 fc = rx->fc;
+	u8 *data = rx->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) data;
+
+	if (!WLAN_FC_IS_QOS_DATA(fc))
+		return TXRX_CONTINUE;
+
+	/* remove the qos control field, update frame type and meta-data */
+	memmove(data + 2, data, ieee80211_get_hdrlen(fc) - 2);
+	hdr = (struct ieee80211_hdr *) skb_pull(rx->skb, 2);
+	/* change frame type to non QOS */
+	rx->fc = fc &= ~IEEE80211_STYPE_QOS_DATA;
+	hdr->frame_control = cpu_to_le16(fc);
+
+	return TXRX_CONTINUE;
 }
 
 static ieee80211_txrx_result
