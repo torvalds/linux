@@ -117,7 +117,7 @@ read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 * val)
 	unsigned int data = 0;
 	int err;
 
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	err = config_access(PCI_CMD_CONFIG_READ, bus, devfn, where, ~(1 << (where & 3)), &data);
@@ -145,7 +145,7 @@ read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 * val)
 	unsigned int data = 0;
 	int err;
 
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	if (where & 0x01)
@@ -168,7 +168,7 @@ static int
 read_config_dword(struct pci_bus *bus, unsigned int devfn, int where, u32 * val)
 {
 	int err;
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	if (where & 0x03)
@@ -185,7 +185,7 @@ write_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 val)
 	unsigned int data = (unsigned int)val;
 	int err;
 
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	switch (where & 0x03) {
@@ -213,7 +213,7 @@ write_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 val)
 	unsigned int data = (unsigned int)val;
 	int err;
 
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	if (where & 0x01)
@@ -235,7 +235,7 @@ static int
 write_config_dword(struct pci_bus *bus, unsigned int devfn, int where, u32 val)
 {
 	int err;
-	if (bus == 0)
+	if (bus == NULL)
 		return -1;
 
 	if (where & 0x03)
