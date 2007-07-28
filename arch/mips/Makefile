@@ -67,6 +67,8 @@ cflags-y		+= $(call cc-option,-msym32)
 endif
 endif
 
+all-$(CONFIG_BOOT_ELF32)	:= $(vmlinux-32)
+all-$(CONFIG_BOOT_ELF64)	:= $(vmlinux-64)
 
 #
 # GCC uses -G 0 -mabicalls -fpic as default.  We don't want PIC in the kernel
@@ -309,6 +311,7 @@ core-$(CONFIG_MIPS_ATLAS)	+= arch/mips/mips-boards/atlas/
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-atlas
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
 
 #
 # MIPS Malta board
@@ -316,6 +319,7 @@ load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_MALTA)	:= vmlinux.srec
 
 #
 # MIPS SEAD board
@@ -323,6 +327,7 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
 cflags-$(CONFIG_MIPS_SEAD)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_SEAD)		:= vmlinux.srec
 
 #
 # MIPS SIM
@@ -363,6 +368,7 @@ load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 core-$(CONFIG_QEMU)		+= arch/mips/qemu/
 cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
 load-$(CONFIG_QEMU)		+= 0xffffffff80010000
+all-$(CONFIG_QEMU)		:= vmlinux.bin
 
 #
 # Basler eXcite
@@ -554,6 +560,7 @@ load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
 cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
+all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 
 #
 # Toshiba JMR-TX3927 board
@@ -647,33 +654,7 @@ vmlinux.64: vmlinux
 
 makeboot =$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) $(1)
 
-ifdef CONFIG_BOOT_ELF32
-all:	$(vmlinux-32)
-endif
-
-ifdef CONFIG_BOOT_ELF64
-all:	$(vmlinux-64)
-endif
-
-ifdef CONFIG_MIPS_ATLAS
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_MIPS_MALTA
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_MIPS_SEAD
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_QEMU
-all:	vmlinux.bin
-endif
-
-ifdef CONFIG_SNI_RM
-all:	vmlinux.ecoff
-endif
+all:	$(all-y)
 
 vmlinux.bin: $(vmlinux-32)
 	+@$(call makeboot,$@)
