@@ -214,6 +214,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		s->SGarray[idx].src = cpu_to_le32(offset);
 		s->SGarray[idx].size = cpu_to_le32(s->buf_size);
 		buf->bytesused = (size < s->buf_size) ? size : s->buf_size;
+		buf->dma_xfer_cnt = s->dma_xfer_cnt;
 
 		s->q_predma.bytesused += buf->bytesused;
 		size -= buf->bytesused;
@@ -286,7 +287,7 @@ static void dma_post(struct ivtv_stream *s)
 		/* flag byteswap ABCD -> DCBA for MPG & VBI data outside irq */
 		if (s->type == IVTV_ENC_STREAM_TYPE_MPG ||
 		    s->type == IVTV_ENC_STREAM_TYPE_VBI)
-			set_bit(IVTV_F_B_NEED_BUF_SWAP, &buf->b_flags);
+			buf->b_flags |= IVTV_F_B_NEED_BUF_SWAP;
 	}
 	if (buf)
 		buf->bytesused += s->dma_last_offset;
@@ -396,12 +397,14 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		}
 		itv->vbi.dma_offset = s_vbi->dma_offset;
 		s_vbi->SG_length = 0;
+		s_vbi->dma_xfer_cnt++;
 		set_bit(IVTV_F_S_DMA_HAS_VBI, &s->s_flags);
 		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s->name);
 	}
 
 	/* Mark last buffer size for Interrupt flag */
 	s->SGarray[s->SG_length - 1].size |= cpu_to_le32(0x80000000);
+	s->dma_xfer_cnt++;
 
 	if (s->type == IVTV_ENC_STREAM_TYPE_VBI)
 		set_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);

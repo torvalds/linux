@@ -60,6 +60,7 @@ void ivtv_enqueue(struct ivtv_stream *s, struct ivtv_buffer *buf, struct ivtv_qu
 		buf->bytesused = 0;
 		buf->readpos = 0;
 		buf->b_flags = 0;
+		buf->dma_xfer_cnt = 0;
 	}
 	spin_lock_irqsave(&s->qlock, flags);
 	list_add_tail(&buf->list, &q->list);
@@ -87,7 +88,7 @@ struct ivtv_buffer *ivtv_dequeue(struct ivtv_stream *s, struct ivtv_queue *q)
 }
 
 static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
-		struct ivtv_queue *to, int clear, int full)
+		struct ivtv_queue *to, int clear)
 {
 	struct ivtv_buffer *buf = list_entry(from->list.next, struct ivtv_buffer, list);
 
@@ -97,13 +98,7 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
 	from->bytesused -= buf->bytesused - buf->readpos;
 	/* special handling for q_free */
 	if (clear)
-		buf->bytesused = buf->readpos = buf->b_flags = 0;
-	else if (full) {
-		/* special handling for stolen buffers, assume
-		   all bytes are used. */
-		buf->bytesused = s->buf_size;
-		buf->readpos = buf->b_flags = 0;
-	}
+		buf->bytesused = buf->readpos = buf->b_flags = buf->dma_xfer_cnt = 0;
 	to->buffers++;
 	to->length += s->buf_size;
 	to->bytesused += buf->bytesused - buf->readpos;
@@ -112,7 +107,7 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
 /* Move 'needed_bytes' worth of buffers from queue 'from' into queue 'to'.
    If 'needed_bytes' == 0, then move all buffers from 'from' into 'to'.
    If 'steal' != NULL, then buffers may also taken from that queue if
-   needed.
+   needed, but only if 'from' is the free queue.
 
    The buffer is automatically cleared if it goes to the free queue. It is
    also cleared if buffers need to be taken from the 'steal' queue and
@@ -133,7 +128,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 	int rc = 0;
 	int from_free = from == &s->q_free;
 	int to_free = to == &s->q_free;
-	int bytes_available;
+	int bytes_available, bytes_steal;
 
 	spin_lock_irqsave(&s->qlock, flags);
 	if (needed_bytes == 0) {
@@ -142,32 +137,47 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 	}
 
 	bytes_available = from_free ? from->length : from->bytesused;
-	bytes_available += steal ? steal->length : 0;
+	bytes_steal = (from_free && steal) ? steal->length : 0;
 
-	if (bytes_available < needed_bytes) {
+	if (bytes_available + bytes_steal < needed_bytes) {
 		spin_unlock_irqrestore(&s->qlock, flags);
 		return -ENOMEM;
+	}
+	while (bytes_available < needed_bytes) {
+		struct ivtv_buffer *buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
+		u16 dma_xfer_cnt = buf->dma_xfer_cnt;
+
+		/* move buffers from the tail of the 'steal' queue to the tail of the
+		   'from' queue. Always copy all the buffers with the same dma_xfer_cnt
+		   value, this ensures that you do not end up with partial frame data
+		   if one frame is stored in multiple buffers. */
+		while (dma_xfer_cnt == buf->dma_xfer_cnt) {
+			list_move_tail(steal->list.prev, &from->list);
+			rc++;
+			steal->buffers--;
+			steal->length -= s->buf_size;
+			steal->bytesused -= buf->bytesused - buf->readpos;
+			buf->bytesused = buf->readpos = buf->b_flags = buf->dma_xfer_cnt = 0;
+			from->buffers++;
+			from->length += s->buf_size;
+			bytes_available += s->buf_size;
+			if (list_empty(&steal->list))
+				break;
+			buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
+		}
 	}
 	if (from_free) {
 		u32 old_length = to->length;
 
 		while (to->length - old_length < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 		/* keep track of 'stolen' buffers */
-			ivtv_queue_move_buf(s, from, to, 1, 0);
+			ivtv_queue_move_buf(s, from, to, 1);
 		}
 	}
 	else {
 		u32 old_bytesused = to->bytesused;
 
 		while (to->bytesused - old_bytesused < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 		/* keep track of 'stolen' buffers */
-			ivtv_queue_move_buf(s, from, to, to_free, rc);
+			ivtv_queue_move_buf(s, from, to, to_free);
 		}
 	}
 	spin_unlock_irqrestore(&s->qlock, flags);

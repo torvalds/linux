@@ -247,8 +247,9 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		/* do we have new data? */
 		buf = ivtv_dequeue(s, &s->q_full);
 		if (buf) {
-			if (!test_and_clear_bit(IVTV_F_B_NEED_BUF_SWAP, &buf->b_flags))
+			if ((buf->b_flags & IVTV_F_B_NEED_BUF_SWAP) == 0)
 				return buf;
+			buf->b_flags &= ~IVTV_F_B_NEED_BUF_SWAP;
 			if (s->type == IVTV_ENC_STREAM_TYPE_MPG)
 				/* byteswap MPG data */
 				ivtv_buf_swap(buf);

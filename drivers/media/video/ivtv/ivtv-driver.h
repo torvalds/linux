@@ -356,7 +356,7 @@ struct ivtv_mailbox_data {
 };
 
 /* per-buffer bit flags */
-#define IVTV_F_B_NEED_BUF_SWAP  0	/* this buffer should be byte swapped */
+#define IVTV_F_B_NEED_BUF_SWAP  (1 << 0)	/* this buffer should be byte swapped */
 
 /* per-stream, s_flags */
 #define IVTV_F_S_DMA_PENDING	0	/* this stream has pending DMA */
@@ -437,7 +437,8 @@ struct ivtv_dma_page_info {
 struct ivtv_buffer {
 	struct list_head list;
 	dma_addr_t dma_handle;
-	unsigned long b_flags;
+	unsigned short b_flags;
+	unsigned short dma_xfer_cnt;
 	char *buf;
 
 	u32 bytesused;
@@ -486,6 +487,10 @@ struct ivtv_stream {
 	struct ivtv_queue q_io;		/* waiting for I/O */
 	struct ivtv_queue q_dma;	/* waiting for DMA */
 	struct ivtv_queue q_predma;	/* waiting for DMA */
+
+	/* DMA xfer counter, buffers belonging to the same DMA
+	   xfer will have the same dma_xfer_cnt. */
+	u16 dma_xfer_cnt;
 
 	/* Base Dev SG Array for cx23415/6 */
 	struct ivtv_SG_element *SGarray;
