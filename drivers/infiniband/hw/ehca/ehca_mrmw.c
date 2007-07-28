@@ -40,9 +40,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rdma/ib_umem.h>
-
 #include <asm/current.h>
+
+#include <rdma/ib_umem.h>
 
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
