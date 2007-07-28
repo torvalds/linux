@@ -386,6 +386,19 @@ static const struct file_operations proc_reg_file_ops = {
 	.release	= proc_reg_release,
 };
 
+#ifdef CONFIG_COMPAT
+static const struct file_operations proc_reg_file_ops_no_compat = {
+	.llseek		= proc_reg_llseek,
+	.read		= proc_reg_read,
+	.write		= proc_reg_write,
+	.poll		= proc_reg_poll,
+	.unlocked_ioctl	= proc_reg_unlocked_ioctl,
+	.mmap		= proc_reg_mmap,
+	.open		= proc_reg_open,
+	.release	= proc_reg_release,
+};
+#endif
+
 struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 				struct proc_dir_entry *de)
 {
@@ -413,8 +426,15 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
 		if (de->proc_fops) {
-			if (S_ISREG(inode->i_mode))
-				inode->i_fop = &proc_reg_file_ops;
+			if (S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_COMPAT
+				if (!de->proc_fops->compat_ioctl)
+					inode->i_fop =
+						&proc_reg_file_ops_no_compat;
+				else
+#endif
+					inode->i_fop = &proc_reg_file_ops;
+			}
 			else
 				inode->i_fop = de->proc_fops;
 		}
