@@ -32,7 +32,8 @@ config SCSI_SAS_LIBSAS
 
 config SCSI_SAS_ATA
 	bool "ATA support for libsas (requires libata)"
-	depends on SCSI_SAS_LIBSAS && ATA
+	depends on SCSI_SAS_LIBSAS
+	depends on ATA = y || ATA = SCSI_SAS_LIBSAS
 	help
 		Builds in ATA support into libsas.  Will necessitate
 		the loading of libata along with libsas.
