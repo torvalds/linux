@@ -1153,8 +1153,6 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 			pdg->sz++;
 			lh = find_partial_datagram(pdgl, dgl);
 		} else {
-			struct partial_datagram *pd;
-
 			pd = list_entry(lh, struct partial_datagram, list);
 
 			if (fragment_overlap(&pd->frag_info, fg_off, fg_len)) {
