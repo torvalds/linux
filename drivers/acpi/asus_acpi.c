@@ -1192,6 +1192,7 @@ static int asus_hotk_get_info(void)
 			break;
 		default:
 			kfree(model);
+			model = NULL;
 			break;
 		}
 	}
