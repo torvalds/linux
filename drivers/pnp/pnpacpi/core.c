@@ -127,6 +127,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
 
+#ifdef CONFIG_ACPI_SLEEP
 static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 {
 	return acpi_bus_set_power((acpi_handle) dev->data,
@@ -140,14 +141,17 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 {
 	return acpi_bus_set_power((acpi_handle) dev->data, ACPI_STATE_D0);
 }
+#endif
 
 static struct pnp_protocol pnpacpi_protocol = {
 	.name	 = "Plug and Play ACPI",
 	.get	 = pnpacpi_get_resources,
 	.set	 = pnpacpi_set_resources,
 	.disable = pnpacpi_disable_resources,
+#ifdef CONFIG_ACPI_SLEEP
 	.suspend = pnpacpi_suspend,
 	.resume = pnpacpi_resume,
+#endif
 };
 
 static int __init pnpacpi_add_device(struct acpi_device *device)

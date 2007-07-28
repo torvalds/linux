@@ -220,6 +220,7 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 }
 EXPORT_SYMBOL(pci_osc_control_set);
 
+#ifdef CONFIG_ACPI_SLEEP
 /*
  * _SxD returns the D-state with the highest power
  * (lowest D-state number) supported in the S-state "x".
@@ -267,6 +268,7 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,
 	}
 	return PCI_POWER_ERROR;
 }
+#endif
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -340,7 +342,9 @@ static int __init acpi_pci_init(void)
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
+#ifdef	CONFIG_ACPI_SLEEP
 	platform_pci_choose_state = acpi_pci_choose_state;
+#endif
 	platform_pci_set_power_state = acpi_pci_set_power_state;
 	return 0;
 }

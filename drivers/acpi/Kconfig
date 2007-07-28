@@ -42,6 +42,11 @@ menuconfig ACPI
 
 if ACPI
 
+config ACPI_SLEEP
+	bool
+	depends on PM_SLEEP
+	default y
+
 config ACPI_PROCFS
 	bool "Deprecated /proc/acpi files"
 	depends on PROC_FS

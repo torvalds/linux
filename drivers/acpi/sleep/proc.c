@@ -78,7 +78,7 @@ acpi_system_write_sleep(struct file *file,
 }
 #endif				/* CONFIG_ACPI_PROCFS_SLEEP */
 
-#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || !defined(CONFIG_X86)
 /* use /sys/class/rtc/rtcX/wakealarm instead; it's not ACPI-specific */
 #else
 #define	HAVE_ACPI_LEGACY_ALARM
