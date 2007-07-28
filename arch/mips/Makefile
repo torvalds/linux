@@ -681,6 +681,14 @@ endif
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
 
+define archhelp
+	echo '  vmlinux.ecoff        - ECOFF boot image'
+	echo '  vmlinux.bin          - Raw binary boot image'
+	echo '  vmlinux.srec         - SREC boot image'
+	echo
+	echo '  These will be default as apropriate for a configured platform.'
+endef
+
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \
 	       vmlinux.ecoff
