@@ -382,7 +382,6 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_RADIO_USER	   5 	/* The radio tuner is selected */
 #define IVTV_F_I_DIG_RST	   6 	/* Reset digitizer */
 #define IVTV_F_I_DEC_YUV	   7 	/* YUV instead of MPG is being decoded */
-#define IVTV_F_I_ENC_VBI	   8 	/* VBI DMA */
 #define IVTV_F_I_UPDATE_CC	   9  	/* CC should be updated */
 #define IVTV_F_I_UPDATE_WSS	   10 	/* WSS should be updated */
 #define IVTV_F_I_UPDATE_VPS	   11 	/* VPS should be updated */
@@ -405,7 +404,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_EV_VSYNC_ENABLED  31 	/* VSYNC event enabled */
 
 /* Scatter-Gather array element, used in DMA transfers */
-struct ivtv_SG_element {
+struct ivtv_sg_element {
 	u32 src;
 	u32 dst;
 	u32 size;
@@ -417,7 +416,7 @@ struct ivtv_user_dma {
 	struct page *map[IVTV_DMA_SG_OSD_ENT];
 
 	/* Base Dev SG Array for cx23415/6 */
-	struct ivtv_SG_element SGarray[IVTV_DMA_SG_OSD_ENT];
+	struct ivtv_sg_element SGarray[IVTV_DMA_SG_OSD_ENT];
 	dma_addr_t SG_handle;
 	int SG_length;
 
@@ -468,6 +467,10 @@ struct ivtv_stream {
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or
 				   PCI_DMA_NONE */
+	u32 pending_offset;
+	u32 pending_backup;
+	u64 pending_pts;
+
 	u32 dma_offset;
 	u32 dma_backup;
 	u64 dma_pts;
@@ -493,10 +496,13 @@ struct ivtv_stream {
 	u16 dma_xfer_cnt;
 
 	/* Base Dev SG Array for cx23415/6 */
-	struct ivtv_SG_element *SGarray;
-	struct ivtv_SG_element *PIOarray;
-	dma_addr_t SG_handle;
-	int SG_length;
+	struct ivtv_sg_element *sg_pending;
+	struct ivtv_sg_element *sg_processing;
+	struct ivtv_sg_element *sg_dma;
+	dma_addr_t sg_handle;
+	int sg_pending_size;
+	int sg_processing_size;
+	int sg_processed;
 
 	/* SG List of Buffers */
 	struct scatterlist *SGlist;
@@ -637,7 +643,6 @@ struct vbi_info {
 	u32 enc_start, enc_size;
 	int fpi;
 	u32 frame;
-	u32 dma_offset;
 	u8 cc_data_odd[256];
 	u8 cc_data_even[256];
 	int cc_pos;
@@ -724,6 +729,7 @@ struct ivtv {
 	int cur_pio_stream;	/* index of stream doing PIO */
 	u32 dma_data_req_offset;
 	u32 dma_data_req_size;
+	int dma_retries;
 	int output_mode;        /* NONE, MPG, YUV, UDMA YUV, passthrough */
 	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;

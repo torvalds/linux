@@ -154,7 +154,7 @@ static void ivtv_stream_init(struct ivtv *itv, int type)
 	spin_lock_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
-	s->SG_handle = IVTV_DMA_UNMAPPED;
+	s->sg_handle = IVTV_DMA_UNMAPPED;
 	ivtv_queue_init(&s->q_free);
 	ivtv_queue_init(&s->q_full);
 	ivtv_queue_init(&s->q_dma);

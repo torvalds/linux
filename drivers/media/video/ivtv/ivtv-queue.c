@@ -195,7 +195,7 @@ void ivtv_flush_queues(struct ivtv_stream *s)
 int ivtv_stream_alloc(struct ivtv_stream *s)
 {
 	struct ivtv *itv = s->itv;
-	int SGsize = sizeof(struct ivtv_SG_element) * s->buffers;
+	int SGsize = sizeof(struct ivtv_sg_element) * s->buffers;
 	int i;
 
 	if (s->buffers == 0)
@@ -205,27 +205,33 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		s->dma != PCI_DMA_NONE ? "DMA " : "",
 		s->name, s->buffers, s->buf_size, s->buffers * s->buf_size / 1024);
 
-	if (ivtv_might_use_pio(s)) {
-		s->PIOarray = (struct ivtv_SG_element *)kzalloc(SGsize, GFP_KERNEL);
-		if (s->PIOarray == NULL) {
-			IVTV_ERR("Could not allocate PIOarray for %s stream\n", s->name);
-			return -ENOMEM;
-		}
-	}
-
-	/* Allocate DMA SG Arrays */
-	s->SGarray = (struct ivtv_SG_element *)kzalloc(SGsize, GFP_KERNEL);
-	if (s->SGarray == NULL) {
-		IVTV_ERR("Could not allocate SGarray for %s stream\n", s->name);
-		if (ivtv_might_use_pio(s)) {
-			kfree(s->PIOarray);
-			s->PIOarray = NULL;
-		}
+	s->sg_pending = (struct ivtv_sg_element *)kzalloc(SGsize, GFP_KERNEL);
+	if (s->sg_pending == NULL) {
+		IVTV_ERR("Could not allocate sg_pending for %s stream\n", s->name);
 		return -ENOMEM;
 	}
-	s->SG_length = 0;
+	s->sg_pending_size = 0;
+
+	s->sg_processing = (struct ivtv_sg_element *)kzalloc(SGsize, GFP_KERNEL);
+	if (s->sg_processing == NULL) {
+		IVTV_ERR("Could not allocate sg_processing for %s stream\n", s->name);
+		kfree(s->sg_pending);
+		s->sg_pending = NULL;
+		return -ENOMEM;
+	}
+	s->sg_processing_size = 0;
+
+	s->sg_dma = (struct ivtv_sg_element *)kzalloc(sizeof(struct ivtv_sg_element), GFP_KERNEL);
+	if (s->sg_dma == NULL) {
+		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
+		kfree(s->sg_pending);
+		s->sg_pending = NULL;
+		kfree(s->sg_processing);
+		s->sg_processing = NULL;
+		return -ENOMEM;
+	}
 	if (ivtv_might_use_dma(s)) {
-		s->SG_handle = pci_map_single(itv->dev, s->SGarray, SGsize, s->dma);
+		s->sg_handle = pci_map_single(itv->dev, s->sg_dma, sizeof(struct ivtv_sg_element), s->dma);
 		ivtv_stream_sync_for_cpu(s);
 	}
 
@@ -272,16 +278,19 @@ void ivtv_stream_free(struct ivtv_stream *s)
 	}
 
 	/* Free SG Array/Lists */
-	if (s->SGarray != NULL) {
-		if (s->SG_handle != IVTV_DMA_UNMAPPED) {
-			pci_unmap_single(s->itv->dev, s->SG_handle,
-				 sizeof(struct ivtv_SG_element) * s->buffers, PCI_DMA_TODEVICE);
-			s->SG_handle = IVTV_DMA_UNMAPPED;
+	if (s->sg_dma != NULL) {
+		if (s->sg_handle != IVTV_DMA_UNMAPPED) {
+			pci_unmap_single(s->itv->dev, s->sg_handle,
+				 sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
+			s->sg_handle = IVTV_DMA_UNMAPPED;
 		}
-		kfree(s->SGarray);
-		kfree(s->PIOarray);
-		s->PIOarray = NULL;
-		s->SGarray = NULL;
-		s->SG_length = 0;
+		kfree(s->sg_pending);
+		kfree(s->sg_processing);
+		kfree(s->sg_dma);
+		s->sg_pending = NULL;
+		s->sg_processing = NULL;
+		s->sg_dma = NULL;
+		s->sg_pending_size = 0;
+		s->sg_processing_size = 0;
 	}
 }
