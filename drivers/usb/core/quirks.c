@@ -34,6 +34,8 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04a5, 0x207e), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Benq S2W 3300U */
 	{ USB_DEVICE(0x04a5, 0x20b0), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Canon, Inc. CanoScan N1240U/LiDE30 */
+	{ USB_DEVICE(0x04a9, 0x220e), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Canon, Inc. CanoScan N650U/N656U */
 	{ USB_DEVICE(0x04a9, 0x2206), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Canon, Inc. CanoScan 1220U */
