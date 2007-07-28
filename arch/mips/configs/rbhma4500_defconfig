@@ -20,7 +20,6 @@ CONFIG_ZONE_DMA=y
 # CONFIG_MIPS_SEAD is not set
 # CONFIG_WR_PPMC is not set
 # CONFIG_MIPS_SIM is not set
-# CONFIG_MOMENCO_OCELOT is not set
 # CONFIG_PNX8550_JBS is not set
 # CONFIG_PNX8550_STB810 is not set
 # CONFIG_DDB5477 is not set

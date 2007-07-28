@@ -227,24 +227,6 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config MOMENCO_OCELOT
-	bool "Momentum Ocelot board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select PCI_GT64XXX_PCI0
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	help
-	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
 config DDB5477
 	bool "NEC DDB Vrc-5477"
 	select DDB5XXX_COMMON

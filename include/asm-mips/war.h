@@ -182,9 +182,8 @@
  * exceptions.
  */
 #if defined(CONFIG_BASLER_EXCITE) || defined(CONFIG_MIPS_ATLAS) || \
-    defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MOMENCO_OCELOT) || \
-    defined(CONFIG_PMC_YOSEMITE) || defined(CONFIG_SGI_IP32) || \
-    defined(CONFIG_WR_PPMC)
+    defined(CONFIG_MIPS_MALTA) || defined(CONFIG_PMC_YOSEMITE) || \
+    defined(CONFIG_SGI_IP32) || defined(CONFIG_WR_PPMC)
 #define ICACHE_REFILLS_WORKAROUND_WAR	1
 #endif
 

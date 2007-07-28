@@ -337,17 +337,6 @@ cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-mipssim
 load-$(CONFIG_MIPS_SIM)		+= 0x80100000
 
 #
-# Momentum Ocelot board
-#
-# The Ocelot setup.o must be linked early - it does the ioremap() for the
-# mips_io_port_base.
-#
-core-$(CONFIG_MOMENCO_OCELOT)	+= arch/mips/gt64120/common/ \
-				   arch/mips/gt64120/momenco_ocelot/
-cflags-$(CONFIG_MOMENCO_OCELOT)	+= -Iinclude/asm-mips/mach-ocelot
-load-$(CONFIG_MOMENCO_OCELOT)	+= 0xffffffff80100000
-
-#
 # PMC-Sierra MSP SOCs
 #
 core-$(CONFIG_PMC_MSP)		+= arch/mips/pmc-sierra/msp71xx/
