@@ -23,6 +23,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/r4kcache.h>
+#include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/war.h>
@@ -1010,7 +1011,6 @@ static void __init probe_pcache(void)
  */
 static int __init probe_scache(void)
 {
-	extern unsigned long stext;
 	unsigned long flags, addr, begin, end, pow2;
 	unsigned int config = read_c0_config();
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1019,7 +1019,7 @@ static int __init probe_scache(void)
 	if (config & CONF_SC)
 		return 0;
 
-	begin = (unsigned long) &stext;
+	begin = (unsigned long) &_stext;
 	begin &= ~((4 * 1024 * 1024) - 1);
 	end = begin + (4 * 1024 * 1024);
 
