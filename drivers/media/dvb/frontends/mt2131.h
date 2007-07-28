@@ -44,6 +44,11 @@ static inline struct dvb_frontend* mt2131_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;
 }
-#endif // CONFIG_DVB_TUNER_MT2131
+#endif /* CONFIG_DVB_TUNER_MT2131 */
 
-#endif // __MT2131_H__
+#endif /* __MT2131_H__ */
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */

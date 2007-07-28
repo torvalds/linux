@@ -53,8 +53,10 @@ static u8 mt2131_config2[] = {
 static int mt2131_readreg(struct mt2131_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address, .flags = 0,        .buf = &reg, .len = 1 },
-		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .buf = val,  .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = 0,
+		  .buf = &reg, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD,
+		  .buf = val,  .len = 1 },
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
@@ -67,7 +69,8 @@ static int mt2131_readreg(struct mt2131_priv *priv, u8 reg, u8 *val)
 static int mt2131_writereg(struct mt2131_priv *priv, u8 reg, u8 val)
 {
 	u8 buf[2] = { reg, val };
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2 };
+	struct i2c_msg msg = { .addr = priv->cfg->i2c_address, .flags = 0,
+			       .buf = buf, .len = 2 };
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "mt2131 I2C write failed\n");
@@ -78,10 +81,12 @@ static int mt2131_writereg(struct mt2131_priv *priv, u8 reg, u8 val)
 
 static int mt2131_writeregs(struct mt2131_priv *priv,u8 *buf, u8 len)
 {
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = len };
+	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+			       .flags = 0, .buf = buf, .len = len };
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		printk(KERN_WARNING "mt2131 I2C write failed (len=%i)\n",(int)len);
+		printk(KERN_WARNING "mt2131 I2C write failed (len=%i)\n",
+		       (int)len);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -98,14 +103,15 @@ static int mt2131_set_gpo(struct dvb_frontend *fe, u8 val)
 	return 0;
 }
 
-static int mt2131_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int mt2131_set_params(struct dvb_frontend *fe,
+			     struct dvb_frontend_parameters *params)
 {
 	struct mt2131_priv *priv;
 	int ret=0, i;
 	u32 freq;
 	u8  if_band_center;
-	u32 f_lo1,f_lo2;
-	u32 div1,num1,div2,num2;
+	u32 f_lo1, f_lo2;
+	u32 div1, num1, div2, num2;
 	u8  b[8];
 	u8 lockval = 0;
 
@@ -231,7 +237,8 @@ static int mt2131_init(struct dvb_frontend *fe)
 	int ret;
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	if ((ret = mt2131_writeregs(priv, mt2131_config1, sizeof(mt2131_config1))) < 0)
+	if ((ret = mt2131_writeregs(priv, mt2131_config1,
+				    sizeof(mt2131_config1))) < 0)
 		return ret;
 
 	mt2131_writereg(priv, 0x0b, 0x09);
@@ -239,7 +246,8 @@ static int mt2131_init(struct dvb_frontend *fe)
 	mt2131_writereg(priv, 0x07, 0xf2);
 	mt2131_writereg(priv, 0x0b, 0x01);
 
-	if ((ret = mt2131_writeregs(priv, mt2131_config2, sizeof(mt2131_config2))) < 0)
+	if ((ret = mt2131_writeregs(priv, mt2131_config2,
+				    sizeof(mt2131_config2))) < 0)
 		return ret;
 
 	return ret;
@@ -270,7 +278,9 @@ static const struct dvb_tuner_ops mt2131_tuner_ops = {
 	.get_status    = mt2131_get_status
 };
 
-struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt2131_config *cfg, u16 if1)
+struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe,
+				    struct i2c_adapter *i2c,
+				    struct mt2131_config *cfg, u16 if1)
 {
 	struct mt2131_priv *priv = NULL;
 	u8 id = 0;
@@ -290,13 +300,16 @@ struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe, struct i2c_adapter 
 		return NULL;
 	}
 	if ( (id != 0x3E) && (id != 0x3F) ) {
-		printk(KERN_ERR "MT2131: Device not found at addr 0x%02x\n", cfg->i2c_address);
+		printk(KERN_ERR "MT2131: Device not found at addr 0x%02x\n",
+		       cfg->i2c_address);
 		kfree(priv);
 		return NULL;
 	}
 
-	printk(KERN_INFO "MT2131: successfully identified at address 0x%02x\n", cfg->i2c_address);
-	memcpy(&fe->ops.tuner_ops, &mt2131_tuner_ops, sizeof(struct dvb_tuner_ops));
+	printk(KERN_INFO "MT2131: successfully identified at address 0x%02x\n",
+	       cfg->i2c_address);
+	memcpy(&fe->ops.tuner_ops, &mt2131_tuner_ops,
+	       sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
 	return fe;
@@ -306,3 +319,8 @@ EXPORT_SYMBOL(mt2131_attach);
 MODULE_AUTHOR("Steven Toth");
 MODULE_DESCRIPTION("Microtune MT2131 silicon tuner driver");
 MODULE_LICENSE("GPL");
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */

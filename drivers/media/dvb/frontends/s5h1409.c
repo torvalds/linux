@@ -296,13 +296,14 @@ static int s5h1409_writereg(struct s5h1409_state* state, u8 reg, u16 data)
 	int ret;
 	u8 buf [] = { reg, data >> 8,  data & 0xff };
 
-	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 3 };
+	struct i2c_msg msg = { .addr = state->config->demod_address,
+			       .flags = 0, .buf = buf, .len = 3 };
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk("%s: writereg error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
-			__FUNCTION__, reg, data, ret);
+		printk("%s: writereg error (reg == 0x%02x, val == 0x%04x, "
+		       "ret == %i)\n", __FUNCTION__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -314,14 +315,15 @@ static u16 s5h1409_readreg(struct s5h1409_state* state, u8 reg)
 	u8 b1 [] = { 0, 0 };
 
 	struct i2c_msg msg [] = {
-		{ .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 1 },
-		{ .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
+		{ .addr = state->config->demod_address, .flags = 0,
+		  .buf = b0, .len = 1 },
+		{ .addr = state->config->demod_address, .flags = I2C_M_RD,
+		  .buf = b1, .len = 2 } };
 
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2)
-		printk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret)
-			;
+		printk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
 	return (b1[0] << 8) | b1[1];
 }
 
@@ -343,8 +345,7 @@ static int s5h1409_set_if_freq(struct dvb_frontend* fe, int KHz)
 
 	dprintk("%s(%d KHz)\n", __FUNCTION__, KHz);
 
-	if( (KHz == 44000) || (KHz == 5380) )
-	{
+	if( (KHz == 44000) || (KHz == 5380) ) {
 		s5h1409_writereg(state, 0x87, 0x01be);
 		s5h1409_writereg(state, 0x88, 0x0436);
 		s5h1409_writereg(state, 0x89, 0x054d);
@@ -368,7 +369,8 @@ static int s5h1409_set_spectralinversion(struct dvb_frontend* fe, int inverted)
 		return s5h1409_writereg(state, 0x1b, 0x0110); /* Normal */
 }
 
-static int s5h1409_enable_modulation(struct dvb_frontend* fe, fe_modulation_t m)
+static int s5h1409_enable_modulation(struct dvb_frontend* fe,
+				     fe_modulation_t m)
 {
 	struct s5h1409_state* state = fe->demodulator_priv;
 
@@ -443,7 +445,8 @@ static int s5h1409_register_reset(struct dvb_frontend* fe)
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
-static int s5h1409_set_frontend (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int s5h1409_set_frontend (struct dvb_frontend* fe,
+				 struct dvb_frontend_parameters *p)
 {
 	struct s5h1409_state* state = fe->demodulator_priv;
 
@@ -521,11 +524,13 @@ static int s5h1409_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	case S5H1409_TUNERLOCKING:
 		/* Get the tuner status */
 		if (fe->ops.tuner_ops.get_status) {
-			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 1);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 1);
 
 			fe->ops.tuner_ops.get_status(fe, &tuner_status);
 
-			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 		if (tuner_status)
 			*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
@@ -605,7 +610,8 @@ static int s5h1409_read_snr(struct dvb_frontend* fe, u16* snr)
 	return -EINVAL;
 }
 
-static int s5h1409_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
+static int s5h1409_read_signal_strength(struct dvb_frontend* fe,
+					u16* signal_strength)
 {
 	return s5h1409_read_snr(fe, signal_strength);
 }
@@ -624,7 +630,8 @@ static int s5h1409_read_ber(struct dvb_frontend* fe, u32* ber)
 	return s5h1409_read_ucblocks(fe, ber);
 }
 
-static int s5h1409_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int s5h1409_get_frontend(struct dvb_frontend* fe,
+				struct dvb_frontend_parameters *p)
 {
 	struct s5h1409_state* state = fe->demodulator_priv;
 
@@ -634,7 +641,8 @@ static int s5h1409_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	return 0;
 }
 
-static int s5h1409_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
+static int s5h1409_get_tune_settings(struct dvb_frontend* fe,
+				     struct dvb_frontend_tune_settings *tune)
 {
 	tune->min_delay_ms = 1000;
 	return 0;
@@ -668,7 +676,8 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 		goto error;
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &s5h1409_ops, sizeof(struct dvb_frontend_ops));
+	memcpy(&state->frontend.ops, &s5h1409_ops,
+	       sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
 	/* Note: Leaving the I2C gate open here. */
@@ -713,3 +722,8 @@ MODULE_AUTHOR("Steven Toth");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(s5h1409_attach);
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */

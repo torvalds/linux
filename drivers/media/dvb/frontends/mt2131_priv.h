@@ -19,8 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef MT2131_PRIV_H
-#define MT2131_PRIV_H
+#ifndef __MT2131_PRIV_H__
+#define __MT2131_PRIV_H__
 
 /* Regs */
 #define MT2131_PWR              0x07
@@ -41,4 +41,9 @@ struct mt2131_priv {
 	u32 bandwidth;
 };
 
-#endif
+#endif /* __MT2131_PRIV_H__ */
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */

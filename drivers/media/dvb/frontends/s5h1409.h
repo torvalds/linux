@@ -19,8 +19,8 @@
 
 */
 
-#ifndef S5H1409_H
-#define S5H1409_H
+#ifndef __S5H1409_H__
+#define __S5H1409_H__
 
 #include <linux/dvb/frontend.h>
 
@@ -58,11 +58,16 @@ extern struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 					   struct i2c_adapter* i2c);
 #else
 static inline struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
-					   struct i2c_adapter* i2c)
+						  struct i2c_adapter* i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;
 }
-#endif // CONFIG_DVB_S5H1409
+#endif /* CONFIG_DVB_S5H1409 */
 
-#endif // S5H1409_H
+#endif /* __S5H1409_H__ */
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */
