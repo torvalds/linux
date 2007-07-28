@@ -49,8 +49,6 @@ config LSF
 
 	  If unsure, say Y.
 
-endif # BLOCK
-
 config BLK_DEV_BSG
 	bool "Block layer SG support v4 (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -63,5 +61,7 @@ config BLK_DEV_BSG
 	with bidirectional data transfers and generic request/response
 	protocols (e.g. Task Management Functions and SMP in Serial
 	Attached SCSI).
+
+endif # BLOCK
 
 source block/Kconfig.iosched
