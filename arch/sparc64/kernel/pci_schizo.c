@@ -1148,14 +1148,14 @@ static void schizo_pbm_strbuf_init(struct pci_pbm_info *pbm)
 #define SCHIZO_IOMMU_FLUSH		(0x00210UL)
 #define SCHIZO_IOMMU_CTXFLUSH		(0x00218UL)
 
-static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
+static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct iommu *iommu = pbm->iommu;
 	unsigned long i, tagbase, database;
 	struct property *prop;
 	u32 vdma[2], dma_mask;
+	int tsbsize, err;
 	u64 control;
-	int tsbsize;
 
 	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
 	if (prop) {
@@ -1195,6 +1195,7 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	iommu->iommu_control  = pbm->pbm_regs + SCHIZO_IOMMU_CONTROL;
 	iommu->iommu_tsbbase  = pbm->pbm_regs + SCHIZO_IOMMU_TSBBASE;
 	iommu->iommu_flush    = pbm->pbm_regs + SCHIZO_IOMMU_FLUSH;
+	iommu->iommu_tags     = iommu->iommu_flush + (0xa580UL - 0x0210UL);
 	iommu->iommu_ctxflush = pbm->pbm_regs + SCHIZO_IOMMU_CTXFLUSH;
 
 	/* We use the main control/status register of SCHIZO as the write
@@ -1219,7 +1220,9 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
-	pci_iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
+	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
+	if (err)
+		return err;
 
 	schizo_write(iommu->iommu_tsbbase, __pa(iommu->page_table));
 
@@ -1236,6 +1239,8 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 
 	control |= SCHIZO_IOMMU_CTRL_ENAB;
 	schizo_write(iommu->iommu_control, control);
+
+	return 0;
 }
 
 #define SCHIZO_PCI_IRQ_RETRY	(0x1a00UL)
@@ -1328,14 +1333,14 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static void schizo_pbm_init(struct pci_controller_info *p,
-			    struct device_node *dp, u32 portid,
-			    int chip_type)
+static int schizo_pbm_init(struct pci_controller_info *p,
+			   struct device_node *dp, u32 portid,
+			   int chip_type)
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
-	int is_pbm_a;
+	int is_pbm_a, err;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1406,8 +1411,13 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 
 	pci_get_pbm_props(pbm);
 
-	schizo_pbm_iommu_init(pbm);
+	err = schizo_pbm_iommu_init(pbm);
+	if (err)
+		return err;
+
 	schizo_pbm_strbuf_init(pbm);
+
+	return 0;
 }
 
 static inline int portid_compare(u32 x, u32 y, int chip_type)
@@ -1431,34 +1441,38 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (portid_compare(pbm->portid, portid, chip_type)) {
-			schizo_pbm_init(pbm->parent, dp, portid, chip_type);
+			if (schizo_pbm_init(pbm->parent, dp,
+					    portid, chip_type))
+				goto fatal_memory_error;
 			return;
 		}
 	}
 
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p)
-		goto memfail;
+		goto fatal_memory_error;
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
-		goto memfail;
+		goto fatal_memory_error;
 
 	p->pbm_A.iommu = iommu;
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
-		goto memfail;
+		goto fatal_memory_error;
 
 	p->pbm_B.iommu = iommu;
 
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */
 	pci_memspace_mask = 0x7fffffffUL;
 
-	schizo_pbm_init(p, dp, portid, chip_type);
+	if (schizo_pbm_init(p, dp, portid, chip_type))
+		goto fatal_memory_error;
+
 	return;
 
-memfail:
+fatal_memory_error:
 	prom_printf("SCHIZO: Fatal memory allocation error.\n");
 	prom_halt();
 }

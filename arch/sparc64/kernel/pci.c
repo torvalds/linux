@@ -283,12 +283,6 @@ int __init pcic_present(void)
 	return pci_controller_scan(pci_is_controller);
 }
 
-const struct pci_iommu_ops *pci_iommu_ops;
-EXPORT_SYMBOL(pci_iommu_ops);
-
-extern const struct pci_iommu_ops pci_sun4u_iommu_ops,
-	pci_sun4v_iommu_ops;
-
 /* Find each controller in the system, attach and initialize
  * software state structure for each and link into the
  * pci_pbm_root.  Setup the controller enough such
@@ -296,11 +290,6 @@ extern const struct pci_iommu_ops pci_sun4u_iommu_ops,
  */
 static void __init pci_controller_probe(void)
 {
-	if (tlb_type == hypervisor)
-		pci_iommu_ops = &pci_sun4v_iommu_ops;
-	else
-		pci_iommu_ops = &pci_sun4u_iommu_ops;
-
 	printk("PCI: Probing for controllers.\n");
 
 	pci_controller_scan(pci_controller_init);
@@ -405,6 +394,10 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->prom_node = node;
 	sd->op = of_find_device_by_node(node);
 	sd->msi_num = 0xffffffff;
+
+	sd = &sd->op->dev.archdata;
+	sd->iommu = pbm->iommu;
+	sd->stc = &pbm->stc;
 
 	type = of_get_property(node, "device_type", NULL);
 	if (type == NULL)
@@ -1225,5 +1218,52 @@ struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 	return pdev->dev.archdata.prom_node;
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
+
+static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
+{
+	struct pci_dev *ali_isa_bridge;
+	u8 val;
+
+	/* ALI sound chips generate 31-bits of DMA, a special register
+	 * determines what bit 31 is emitted as.
+	 */
+	ali_isa_bridge = pci_get_device(PCI_VENDOR_ID_AL,
+					 PCI_DEVICE_ID_AL_M1533,
+					 NULL);
+
+	pci_read_config_byte(ali_isa_bridge, 0x7e, &val);
+	if (set_bit)
+		val |= 0x01;
+	else
+		val &= ~0x01;
+	pci_write_config_byte(ali_isa_bridge, 0x7e, val);
+	pci_dev_put(ali_isa_bridge);
+}
+
+int pci_dma_supported(struct pci_dev *pdev, u64 device_mask)
+{
+	u64 dma_addr_mask;
+
+	if (pdev == NULL) {
+		dma_addr_mask = 0xffffffff;
+	} else {
+		struct iommu *iommu = pdev->dev.archdata.iommu;
+
+		dma_addr_mask = iommu->dma_addr_mask;
+
+		if (pdev->vendor == PCI_VENDOR_ID_AL &&
+		    pdev->device == PCI_DEVICE_ID_AL_M5451 &&
+		    device_mask == 0x7fffffff) {
+			ali_sound_dma_hack(pdev,
+					   (dma_addr_mask & 0x80000000) != 0);
+			return 1;
+		}
+	}
+
+	if (device_mask >= (1UL << 32UL))
+		return 0;
+
+	return (device_mask & dma_addr_mask) == dma_addr_mask;
+}
 
 #endif /* !(CONFIG_PCI) */

@@ -210,6 +210,10 @@ static void __init walk_children(struct device_node *dp, struct sbus_dev *parent
 
 			sdev->bus = sbus;
 			sdev->parent = parent;
+			sdev->ofdev.dev.archdata.iommu =
+				sbus->ofdev.dev.archdata.iommu;
+			sdev->ofdev.dev.archdata.stc =
+				sbus->ofdev.dev.archdata.stc;
 
 			fill_sbus_device(dp, sdev);
 
@@ -269,6 +273,11 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 
 			sdev->bus = sbus;
 			sdev->parent = NULL;
+			sdev->ofdev.dev.archdata.iommu =
+				sbus->ofdev.dev.archdata.iommu;
+			sdev->ofdev.dev.archdata.stc =
+				sbus->ofdev.dev.archdata.stc;
+
 			fill_sbus_device(dev_dp, sdev);
 
 			walk_children(dev_dp, sdev, sbus);
