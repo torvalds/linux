@@ -765,7 +765,6 @@ static int lynx_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
                 } else {
                         struct ti_pcl pcl;
                         u32 ack;
-                        struct hpsb_packet *packet;
 
                         PRINT(KERN_INFO, lynx->id, "cancelling async packet, that was already in PCL");
 
@@ -1470,8 +1469,6 @@ static int __devinit add_card(struct pci_dev *dev,
                         if (i2c_transfer(i2c_ad, msg, 2) < 0) {
                                 PRINT(KERN_ERR, lynx->id, "unable to read bus info block from i2c");
                         } else {
-                                int i;
-
                                 PRINT(KERN_INFO, lynx->id, "got bus info block from serial eeprom");
 				/* FIXME: probably we shoud rewrite the max_rec, max_ROM(1394a),
 				 * generation(1394a) and link_spd(1394a) field and recalculate
