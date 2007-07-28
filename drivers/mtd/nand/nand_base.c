@@ -7,7 +7,7 @@
  *   Basic support for AG-AND chips is provided.
  *
  *	Additional technical information is available on
- *	http://www.linux-mtd.infradead.org/tech/nand.html
+ *	http://www.linux-mtd.infradead.org/doc/nand.html
  *
  *  Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *		  2002-2006 Thomas Gleixner (tglx@linutronix.de)
