@@ -32,7 +32,6 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
-#include <linux/module.h>
 #include <linux/timer.h>
 
 #include <asm/io.h>

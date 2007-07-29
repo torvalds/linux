@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/types.h>
-#include <linux/irq.h>
 
 #include <asm/processor.h>
 #include <asm/machdep.h>
