@@ -751,6 +751,9 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		stopmode = 1;
 	}
 
+	/* ensure these actions are done only once */
+	mutex_lock(&itv->serialize_lock);
+
 	/* end_capture */
 	/* when: 0 =  end of GOP  1 = NOW!, type: 0 = mpeg, subtype: 3 = video+audio */
 	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, stopmode, cap_type, s->subtype);
@@ -802,9 +805,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 
 	/* Clear capture and no-read bits */
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
-
-	/* ensure these global cleanup actions are done only once */
-	mutex_lock(&itv->serialize_lock);
 
 	if (s->type == IVTV_ENC_STREAM_TYPE_VBI)
 		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VBI_CAP);
