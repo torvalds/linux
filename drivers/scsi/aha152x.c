@@ -552,13 +552,10 @@ struct aha152x_hostdata {
 struct aha152x_scdata {
 	Scsi_Cmnd *next;	/* next sc in queue */
 	struct completion *done;/* semaphore to block on */
-	unsigned char cmd_len;
-	unsigned char cmnd[MAX_COMMAND_SIZE];
-	unsigned short use_sg;
-	unsigned request_bufflen;
-	void *request_buffer;
+	unsigned char aha_orig_cmd_len;
+	unsigned char aha_orig_cmnd[MAX_COMMAND_SIZE];
+	int aha_orig_resid;
 };
-
 
 /* access macros for hostdata */
 
@@ -997,20 +994,11 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 			return FAILED;
 		}
 	} else {
-		struct aha152x_scdata *sc;
-
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
 		if(SCpnt->host_scribble==0) {
 			printk(ERR_LEAD "allocation failed\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
-
-		sc = SCDATA(SCpnt);
-		memcpy(sc->cmnd, SCpnt->cmnd, sizeof(sc->cmnd));
-		sc->request_buffer  = SCpnt->request_buffer;
-		sc->request_bufflen = SCpnt->request_bufflen;
-		sc->use_sg          = SCpnt->use_sg;
-		sc->cmd_len         = SCpnt->cmd_len;
 	}
 
 	SCNEXT(SCpnt)		= NULL;
@@ -1023,10 +1011,16 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 	   SCp.buffers_residual : left buffers in list
 	   SCp.phase            : current state of the command */
 
-	if(phase & resetting) {
-		SCpnt->SCp.ptr           = NULL;
-		SCpnt->SCp.this_residual = 0;
-		SCpnt->resid             = 0;
+	if (phase & (check_condition|resetting)) {
+		if (phase & check_condition) {
+			SCpnt->SCp.ptr           = SCpnt->sense_buffer;
+			SCpnt->SCp.this_residual = sizeof(SCpnt->sense_buffer);
+			SCpnt->resid             = sizeof(SCpnt->sense_buffer);
+		} else {
+			SCpnt->SCp.ptr           = NULL;
+			SCpnt->SCp.this_residual = 0;
+			SCpnt->resid             = 0;
+		}
 		SCpnt->SCp.buffer           = NULL;
 		SCpnt->SCp.buffers_residual = 0;
 	} else {
@@ -1568,11 +1562,9 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 			/* restore old command */
-			memcpy(cmd->cmnd, sc->cmnd, sizeof(sc->cmnd));
-			cmd->request_buffer  = sc->request_buffer;
-			cmd->request_bufflen = sc->request_bufflen;
-			cmd->use_sg          = sc->use_sg;
-			cmd->cmd_len         = sc->cmd_len;
+			memcpy(cmd->cmnd, sc->aha_orig_cmnd, sizeof(cmd->cmnd));
+			cmd->cmd_len = sc->aha_orig_cmd_len;
+			cmd->resid = sc->aha_orig_resid;
 
 			cmd->SCp.Status = SAM_STAT_CHECK_CONDITION;
 
@@ -1588,11 +1580,21 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 			if(!(DONE_SC->SCp.phase & not_issued)) {
+				struct aha152x_scdata *sc;
 				Scsi_Cmnd *ptr = DONE_SC;
 				DONE_SC=NULL;
 #if 0
 				DPRINTK(debug_eh, ERR_LEAD "requesting sense\n", CMDINFO(ptr));
 #endif
+
+				/* save old command */
+				sc = SCDATA(ptr);
+				/* It was allocated in aha152x_internal_queue? */
+				BUG_ON(!sc);
+				memcpy(sc->aha_orig_cmnd, ptr->cmnd,
+				                            sizeof(ptr->cmnd));
+				sc->aha_orig_cmd_len = ptr->cmd_len;
+				sc->aha_orig_resid = ptr->resid;
 
 				ptr->cmnd[0]         = REQUEST_SENSE;
 				ptr->cmnd[1]         = 0;
@@ -1601,10 +1603,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 				ptr->cmnd[4]         = sizeof(ptr->sense_buffer);
 				ptr->cmnd[5]         = 0;
 				ptr->cmd_len         = 6;
-				ptr->use_sg          = 0; 
-				ptr->request_buffer  = ptr->sense_buffer;
-				ptr->request_bufflen = sizeof(ptr->sense_buffer);
-			
+
 				DO_UNLOCK(flags);
 				aha152x_internal_queue(ptr, NULL, check_condition, ptr->scsi_done);
 				DO_LOCK(flags);
