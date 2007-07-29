@@ -691,8 +691,9 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 
 /* Sensor settings are stored 1 byte per offset with the bytes
    placed add consecutive offsets. */
-int abituguru3_read_increment_offset(struct abituguru3_data *data, u8 bank,
-	u8 offset, u8 count, u8 *buf, int offset_count)
+static int abituguru3_read_increment_offset(struct abituguru3_data *data,
+					    u8 bank, u8 offset, u8 count,
+					    u8 *buf, int offset_count)
 {
 	int i, x;
 
