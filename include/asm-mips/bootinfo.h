@@ -145,9 +145,6 @@
 #define  MACH_TOSHIBA_RBTX4937	5
 #define  MACH_TOSHIBA_RBTX4938	6
 
-#define GROUP_TOSHIBA_NAMES	{ "Pallas", "TopasCE", "JMR", "JMR TX3927", \
-				  "RBTX4927", "RBTX4937" }
-
 /*
  * Valid machtype for group Alchemy
  */
