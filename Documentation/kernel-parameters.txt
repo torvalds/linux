@@ -30,6 +30,7 @@ the beginning of each description states the restrictions within which a
 parameter is applicable:
 
 	ACPI	ACPI support is enabled.
+	AGP	AGP (Accelerated Graphics Port) is enabled.
 	ALSA	ALSA sound support is enabled.
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
@@ -226,6 +227,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Override the pmtimer bug detection: force the kernel
 			to assume that this machine's pmtimer latches its value
 			and always returns good values.
+
+	agp=		[AGP]
+			{ off | try_unsupported }
+			off: disable AGP support
+			try_unsupported: try to drive unsupported chipsets
+				(may crash computer or cause data corruption)
 
 	enable_timer_pin_1 [i386,x86-64]
 			Enable PIN 1 of APIC timer

@@ -123,21 +123,16 @@ static int ati_create_gatt_pages(int nr_tables)
 
 	for (i = 0; i < nr_tables; i++) {
 		entry = kzalloc(sizeof(struct ati_page_map), GFP_KERNEL);
+		tables[i] = entry;
 		if (entry == NULL) {
-			while (i > 0) {
-				kfree(tables[i-1]);
-				i--;
-			}
-			kfree(tables);
 			retval = -ENOMEM;
 			break;
 		}
-		tables[i] = entry;
 		retval = ati_create_page_map(entry);
 		if (retval != 0)
 			break;
 	}
-	ati_generic_private.num_tables = nr_tables;
+	ati_generic_private.num_tables = i;
 	ati_generic_private.gatt_pages = tables;
 
 	if (retval != 0)
