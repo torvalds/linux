@@ -1754,7 +1754,6 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn, struct sk_buff *sk
 		len  -= L2CAP_CMD_HDR_SIZE;
 
 		cmd_len = le16_to_cpu(cmd.len);
-		cmd.len = cmd_len;
 
 		BT_DBG("code 0x%2.2x len %d id 0x%2.2x", cmd.code, cmd_len, cmd.ident);
 
