@@ -748,7 +748,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		write_lock_bh(&l2cap_sk_list.lock);
 
 		for (psm = 0x1001; psm < 0x1100; psm += 2)
-			if (!__l2cap_get_sock_by_addr(psm, src)) {
+			if (!__l2cap_get_sock_by_addr(htobs(psm), src)) {
 				l2cap_pi(sk)->psm   = htobs(psm);
 				l2cap_pi(sk)->sport = htobs(psm);
 				err = 0;
