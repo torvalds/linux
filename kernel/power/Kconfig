@@ -72,8 +72,8 @@ config PM_TRACE
 	CAUTION: this option will cause your machine's real-time clock to be
 	set to an invalid time after a resume.
 
-config SOFTWARE_SUSPEND
-	bool "Software Suspend (Hibernation)"
+config HIBERNATION
+	bool "Hibernation"
 	depends on PM && SWAP && (((X86 || PPC64_SWSUSP) && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP))
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
@@ -112,7 +112,7 @@ config SOFTWARE_SUSPEND
 
 config PM_STD_PARTITION
 	string "Default resume partition"
-	depends on SOFTWARE_SUSPEND
+	depends on HIBERNATION
 	default ""
 	---help---
 	  The default resume partition is the partition that the suspend-

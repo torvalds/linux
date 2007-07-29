@@ -55,7 +55,7 @@ struct hibernation_ops {
 };
 
 #ifdef CONFIG_PM
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
 extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
 static inline void register_nosave_region(unsigned long b, unsigned long e)
@@ -73,14 +73,14 @@ extern unsigned long get_safe_page(gfp_t gfp_mask);
 
 extern void hibernation_set_ops(struct hibernation_ops *ops);
 extern int hibernate(void);
-#else /* CONFIG_SOFTWARE_SUSPEND */
+#else /* CONFIG_HIBERNATION */
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
 
 static inline void hibernation_set_ops(struct hibernation_ops *ops) {}
 static inline int hibernate(void) { return -ENOSYS; }
-#endif /* CONFIG_SOFTWARE_SUSPEND */
+#endif /* CONFIG_HIBERNATION */
 
 void save_processor_state(void);
 void restore_processor_state(void);
@@ -121,7 +121,7 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
 #endif /* CONFIG_PM */
 
-#if !defined CONFIG_SOFTWARE_SUSPEND || !defined(CONFIG_PM)
+#if !defined CONFIG_HIBERNATION || !defined(CONFIG_PM)
 static inline void register_nosave_region(unsigned long b, unsigned long e)
 {
 }

@@ -292,7 +292,7 @@ static ssize_t state_show(struct kset *kset, char *buf)
 		if (pm_states[i] && valid_state(i))
 			s += sprintf(s,"%s ", pm_states[i]);
 	}
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 	s += sprintf(s, "%s\n", "disk");
 #else
 	if (s != buf)

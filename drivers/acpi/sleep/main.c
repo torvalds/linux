@@ -202,7 +202,7 @@ static struct pm_ops acpi_pm_ops = {
 	.finish = acpi_pm_finish,
 };
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 static int acpi_hibernation_prepare(void)
 {
 	return acpi_sleep_prepare(ACPI_STATE_S4);
@@ -254,7 +254,7 @@ static struct hibernation_ops acpi_hibernation_ops = {
 	.pre_restore = acpi_hibernation_pre_restore,
 	.restore_cleanup = acpi_hibernation_restore_cleanup,
 };
-#endif				/* CONFIG_SOFTWARE_SUSPEND */
+#endif				/* CONFIG_HIBERNATION */
 
 /**
  *	acpi_pm_device_sleep_state - return preferred power state of ACPI device
@@ -374,7 +374,7 @@ int __init acpi_sleep_init(void)
 
 	pm_set_ops(&acpi_pm_ops);
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 	if (sleep_states[ACPI_STATE_S4])
 		hibernation_set_ops(&acpi_hibernation_ops);
 #else
