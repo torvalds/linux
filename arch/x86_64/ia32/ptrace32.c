@@ -15,6 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/ptrace.h>
 #include <asm/ptrace.h>
 #include <asm/compat.h>

@@ -17,6 +17,7 @@
 
 #include <linux/oom.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 #include <linux/timex.h>

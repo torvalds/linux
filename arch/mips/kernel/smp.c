@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
+#include <linux/err.h>
 
 #include <asm/atomic.h>
 #include <asm/cpu.h>

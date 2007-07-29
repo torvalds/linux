@@ -20,6 +20,7 @@
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/dcookies.h>
 #include <linux/mutex.h>
