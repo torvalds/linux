@@ -726,7 +726,7 @@ static void __drain_pages(unsigned int cpu)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_HIBERNATION
 
 void mark_free_pages(struct zone *zone)
 {
@@ -772,7 +772,7 @@ void drain_local_pages(void)
 	__drain_pages(smp_processor_id());
 	local_irq_restore(flags);	
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_HIBERNATION */
 
 /*
  * Free a 0-order page

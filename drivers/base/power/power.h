@@ -5,7 +5,7 @@
 extern void device_shutdown(void);
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 /*
  * main.c
@@ -62,7 +62,7 @@ extern int resume_device(struct device *);
  */
 extern int suspend_device(struct device *, pm_message_t);
 
-#else /* CONFIG_PM */
+#else /* CONFIG_PM_SLEEP */
 
 
 static inline int device_pm_add(struct device * dev)

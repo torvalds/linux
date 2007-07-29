@@ -25,10 +25,12 @@
 
 BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
-/*This is just an arbitrary number */
-#define FREE_PAGE_NUMBER (100)
-
 DEFINE_MUTEX(pm_mutex);
+
+#ifdef CONFIG_SUSPEND
+
+/* This is just an arbitrary number */
+#define FREE_PAGE_NUMBER (100)
 
 struct pm_ops *pm_ops;
 
@@ -269,6 +271,8 @@ int pm_suspend(suspend_state_t state)
 
 EXPORT_SYMBOL(pm_suspend);
 
+#endif /* CONFIG_SUSPEND */
+
 decl_subsys(power,NULL,NULL);
 
 
@@ -285,13 +289,15 @@ decl_subsys(power,NULL,NULL);
 
 static ssize_t state_show(struct kset *kset, char *buf)
 {
+	char *s = buf;
+#ifdef CONFIG_SUSPEND
 	int i;
-	char * s = buf;
 
 	for (i = 0; i < PM_SUSPEND_MAX; i++) {
 		if (pm_states[i] && valid_state(i))
 			s += sprintf(s,"%s ", pm_states[i]);
 	}
+#endif
 #ifdef CONFIG_HIBERNATION
 	s += sprintf(s, "%s\n", "disk");
 #else
@@ -304,11 +310,13 @@ static ssize_t state_show(struct kset *kset, char *buf)
 
 static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 {
+#ifdef CONFIG_SUSPEND
 	suspend_state_t state = PM_SUSPEND_STANDBY;
 	const char * const *s;
+#endif
 	char *p;
-	int error;
 	int len;
+	int error = -EINVAL;
 
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
@@ -316,17 +324,19 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 	/* First, check if we are requested to hibernate */
 	if (len == 4 && !strncmp(buf, "disk", len)) {
 		error = hibernate();
-		return error ? error : n;
+  goto Exit;
 	}
 
+#ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
 		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
 			break;
 	}
 	if (state < PM_SUSPEND_MAX && *s)
 		error = enter_state(state);
-	else
-		error = -EINVAL;
+#endif
+
+ Exit:
 	return error ? error : n;
 }
 

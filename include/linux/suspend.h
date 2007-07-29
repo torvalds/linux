@@ -24,7 +24,7 @@ struct pbe {
 extern void drain_local_pages(void);
 extern void mark_free_pages(struct zone *zone);
 
-#if defined(CONFIG_PM) && defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
 #else
@@ -54,7 +54,6 @@ struct hibernation_ops {
 	void (*restore_cleanup)(void);
 };
 
-#ifdef CONFIG_PM
 #ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
 extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
@@ -82,6 +81,7 @@ static inline void hibernation_set_ops(struct hibernation_ops *ops) {}
 static inline int hibernate(void) { return -ENOSYS; }
 #endif /* CONFIG_HIBERNATION */
 
+#ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);
 void restore_processor_state(void);
 struct saved_context;
@@ -106,7 +106,7 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 		{ .notifier_call = fn, .priority = pri };	\
 	register_pm_notifier(&fn##_nb);			\
 }
-#else /* CONFIG_PM */
+#else /* !CONFIG_PM_SLEEP */
 
 static inline int register_pm_notifier(struct notifier_block *nb)
 {
@@ -119,9 +119,9 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 }
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
-#endif /* CONFIG_PM */
+#endif /* !CONFIG_PM_SLEEP */
 
-#if !defined CONFIG_HIBERNATION || !defined(CONFIG_PM)
+#ifndef CONFIG_HIBERNATION
 static inline void register_nosave_region(unsigned long b, unsigned long e)
 {
 }

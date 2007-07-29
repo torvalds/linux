@@ -46,7 +46,7 @@ config PM_VERBOSE
 
 config DISABLE_CONSOLE_SUSPEND
 	bool "Keep console(s) enabled during suspend/resume (DANGEROUS)"
-	depends on PM_DEBUG
+	depends on PM_DEBUG && PM_SLEEP
 	default n
 	---help---
 	This option turns off the console suspend mechanism that prevents
@@ -57,7 +57,7 @@ config DISABLE_CONSOLE_SUSPEND
 
 config PM_TRACE
 	bool "Suspend/resume event tracing"
-	depends on PM_DEBUG && X86 && EXPERIMENTAL
+	depends on PM_DEBUG && X86 && PM_SLEEP && EXPERIMENTAL
 	default n
 	---help---
 	This enables some cheesy code to save the last PM event point in the
@@ -72,9 +72,37 @@ config PM_TRACE
 	CAUTION: this option will cause your machine's real-time clock to be
 	set to an invalid time after a resume.
 
+config SUSPEND_SMP_POSSIBLE
+	bool
+	depends on (X86 && !X86_VOYAGER) || (PPC64 && (PPC_PSERIES || PPC_PMAC))
+	depends on SMP
+	default y
+
+config SUSPEND_SMP
+	bool
+	depends on SUSPEND_SMP_POSSIBLE && PM_SLEEP
+	select HOTPLUG_CPU
+	default y
+
+config PM_SLEEP
+	bool
+	depends on SUSPEND || HIBERNATION
+	default y
+
+config SUSPEND
+	bool "Suspend to RAM and standby"
+	depends on PM
+	depends on !SMP || SUSPEND_SMP_POSSIBLE
+	default y
+	---help---
+	  Allow the system to enter sleep states in which main memory is
+	  powered and thus its contents are preserved, such as the
+	  suspend-to-RAM state (i.e. the ACPI S3 state).
+
 config HIBERNATION
-	bool "Hibernation"
-	depends on PM && SWAP && (((X86 || PPC64_SWSUSP) && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP))
+	bool "Hibernation (aka 'suspend to disk')"
+	depends on PM && SWAP
+	depends on ((X86 || PPC64_SWSUSP || FRV || PPC32) && !SMP) || SUSPEND_SMP_POSSIBLE
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
@@ -131,11 +159,6 @@ config PM_STD_PARTITION
 	  Note there is currently not a way to specify which device to save the
 	  suspended image to. It will simply pick the first available swap 
 	  device.
-
-config SUSPEND_SMP
-	bool
-	depends on HOTPLUG_CPU && (X86 || PPC64) && PM
-	default y
 
 config APM_EMULATION
 	tristate "Advanced Power Management Emulation"

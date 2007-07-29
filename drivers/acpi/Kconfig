@@ -63,6 +63,14 @@ config ACPI_PROCFS
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
 
+config ACPI_PROCFS_SLEEP
+	bool "/proc/acpi/sleep (deprecated)"
+	depends on PM_SLEEP && ACPI_PROCFS
+	default n
+	---help---
+	  Create /proc/acpi/sleep
+	  Deprecated by /sys/power/state
+
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86

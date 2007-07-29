@@ -21,6 +21,9 @@
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
 
+static u32 acpi_target_sleep_state = ACPI_STATE_S0;
+
+#ifdef CONFIG_SUSPEND
 static struct pm_ops acpi_pm_ops;
 
 extern void do_suspend_lowlevel(void);
@@ -33,11 +36,6 @@ static u32 acpi_suspend_states[] = {
 };
 
 static int init_8259A_after_S1;
-
-extern int acpi_sleep_prepare(u32 acpi_state);
-extern void acpi_power_off(void);
-
-static u32 acpi_target_sleep_state = ACPI_STATE_S0;
 
 /**
  *	acpi_pm_set_target - Set the target system sleep state to the state
@@ -163,21 +161,6 @@ static int acpi_pm_finish(suspend_state_t pm_state)
 	return 0;
 }
 
-int acpi_suspend(u32 acpi_state)
-{
-	suspend_state_t states[] = {
-		[1] = PM_SUSPEND_STANDBY,
-		[3] = PM_SUSPEND_MEM,
-		[5] = PM_SUSPEND_MAX
-	};
-
-	if (acpi_state < 6 && states[acpi_state])
-		return pm_suspend(states[acpi_state]);
-	if (acpi_state == 4)
-		return hibernate();
-	return -EINVAL;
-}
-
 static int acpi_pm_state_valid(suspend_state_t pm_state)
 {
 	u32 acpi_state;
@@ -201,6 +184,27 @@ static struct pm_ops acpi_pm_ops = {
 	.enter = acpi_pm_enter,
 	.finish = acpi_pm_finish,
 };
+
+/*
+ * Toshiba fails to preserve interrupts over S1, reinitialization
+ * of 8259 is needed after S1 resume.
+ */
+static int __init init_ints_after_s1(struct dmi_system_id *d)
+{
+	printk(KERN_WARNING "%s with broken S1 detected.\n", d->ident);
+	init_8259A_after_S1 = 1;
+	return 0;
+}
+
+static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
+	{
+	 .callback = init_ints_after_s1,
+	 .ident = "Toshiba Satellite 4030cdt",
+	 .matches = {DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),},
+	 },
+	{},
+};
+#endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_HIBERNATION
 static int acpi_hibernation_prepare(void)
@@ -255,6 +259,21 @@ static struct hibernation_ops acpi_hibernation_ops = {
 	.restore_cleanup = acpi_hibernation_restore_cleanup,
 };
 #endif				/* CONFIG_HIBERNATION */
+
+int acpi_suspend(u32 acpi_state)
+{
+	suspend_state_t states[] = {
+		[1] = PM_SUSPEND_STANDBY,
+		[3] = PM_SUSPEND_MEM,
+		[5] = PM_SUSPEND_MAX
+	};
+
+	if (acpi_state < 6 && states[acpi_state])
+		return pm_suspend(states[acpi_state]);
+	if (acpi_state == 4)
+		return hibernate();
+	return -EINVAL;
+}
 
 /**
  *	acpi_pm_device_sleep_state - return preferred power state of ACPI device
@@ -331,39 +350,22 @@ int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
 	return d_max;
 }
 
-/*
- * Toshiba fails to preserve interrupts over S1, reinitialization
- * of 8259 is needed after S1 resume.
- */
-static int __init init_ints_after_s1(struct dmi_system_id *d)
-{
-	printk(KERN_WARNING "%s with broken S1 detected.\n", d->ident);
-	init_8259A_after_S1 = 1;
-	return 0;
-}
-
-static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
-	{
-	 .callback = init_ints_after_s1,
-	 .ident = "Toshiba Satellite 4030cdt",
-	 .matches = {DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),},
-	 },
-	{},
-};
-
 int __init acpi_sleep_init(void)
 {
+	acpi_status status;
+	u8 type_a, type_b;
+#ifdef CONFIG_SUSPEND
 	int i = 0;
 
 	dmi_check_system(acpisleep_dmi_table);
+#endif
 
 	if (acpi_disabled)
 		return 0;
 
+#ifdef CONFIG_SUSPEND
 	printk(KERN_INFO PREFIX "(supports");
-	for (i = 0; i < ACPI_S_STATE_COUNT; i++) {
-		acpi_status status;
-		u8 type_a, type_b;
+	for (i = ACPI_STATE_S0; i < ACPI_STATE_S4; i++) {
 		status = acpi_get_sleep_type_data(i, &type_a, &type_b);
 		if (ACPI_SUCCESS(status)) {
 			sleep_states[i] = 1;
@@ -373,10 +375,14 @@ int __init acpi_sleep_init(void)
 	printk(")\n");
 
 	pm_set_ops(&acpi_pm_ops);
+#endif
 
 #ifdef CONFIG_HIBERNATION
-	if (sleep_states[ACPI_STATE_S4])
+	status = acpi_get_sleep_type_data(ACPI_STATE_S4, &type_a, &type_b);
+	if (ACPI_SUCCESS(status)) {
 		hibernation_set_ops(&acpi_hibernation_ops);
+		sleep_states[ACPI_STATE_S4] = 1;
+	}
 #else
 	sleep_states[ACPI_STATE_S4] = 0;
 #endif

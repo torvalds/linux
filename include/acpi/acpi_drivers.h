@@ -147,6 +147,10 @@ static inline void unregister_hotplug_dock_device(acpi_handle handle)
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
   -------------------------------------------------------------------------- */
+#ifdef CONFIG_PM_SLEEP
 extern int acpi_sleep_init(void);
+#else
+static inline int acpi_sleep_init(void) { return 0; }
+#endif
 
 #endif /*__ACPI_DRIVERS_H__*/
