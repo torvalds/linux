@@ -986,7 +986,7 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 	SCpnt->scsi_done	= done;
 	SCpnt->resid 		= SCpnt->request_bufflen;
 	SCpnt->SCp.phase	= not_issued | phase;
-	SCpnt->SCp.Status	= CHECK_CONDITION;
+	SCpnt->SCp.Status	= 0x1; /* Ilegal status by SCSI standard */
 	SCpnt->SCp.Message	= 0;
 	SCpnt->SCp.have_data_in	= 0;
 	SCpnt->SCp.sent_command	= 0;
@@ -1574,12 +1574,12 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			cmd->use_sg          = sc->use_sg;
 			cmd->cmd_len         = sc->cmd_len;
 
-			cmd->SCp.Status = 0x02;
+			cmd->SCp.Status = SAM_STAT_CHECK_CONDITION;
 
 			HOSTDATA(shpnt)->commands--;
 			if (!HOSTDATA(shpnt)->commands)
 				SETPORT(PORTA, 0);	/* turn led off */
-		} else if(DONE_SC->SCp.Status==0x02) {
+		} else if(DONE_SC->SCp.Status==SAM_STAT_CHECK_CONDITION) {
 #if defined(AHA152X_STAT)
 			HOSTDATA(shpnt)->busfree_with_check_condition++;
 #endif
@@ -1587,7 +1587,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			DPRINTK(debug_eh, ERR_LEAD "CHECK CONDITION found\n", CMDINFO(DONE_SC));
 #endif
 
-			if(!(DONE_SC->SCp.Status & not_issued)) {
+			if(!(DONE_SC->SCp.phase & not_issued)) {
 				Scsi_Cmnd *ptr = DONE_SC;
 				DONE_SC=NULL;
 #if 0
