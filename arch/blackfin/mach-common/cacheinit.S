@@ -60,6 +60,9 @@ ENDPROC(_bfin_write_IMEM_CONTROL)
 
 #if defined(CONFIG_BLKFIN_DCACHE)
 ENTRY(_bfin_write_DMEM_CONTROL)
+	P0.l = (DMEM_CONTROL & 0xFFFF);
+	P0.h = (DMEM_CONTROL >> 16);
+
 	CLI R1;
 	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;

@@ -402,11 +402,7 @@ void __init setup_arch(char **cmdline_p)
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 data memory overflow\n");
 
-#ifdef BF561_FAMILY
-	_bfin_swrst = bfin_read_SICA_SWRST();
-#else
 	_bfin_swrst = bfin_read_SWRST();
-#endif
 
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */
@@ -429,6 +425,7 @@ void __init setup_arch(char **cmdline_p)
 	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
 	       != ATOMIC_XOR32 - FIXED_CODE_START);
 
+	init_exception_vectors();
 	bf53x_cache_init();
 }
 

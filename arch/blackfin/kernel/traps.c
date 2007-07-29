@@ -140,7 +140,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #ifdef CONFIG_KGDB
 # define CHK_DEBUGGER_TRAP() \
 	do { \
-		CHK_DEBUGGER(trapnr, sig, info.si_code, fp); \
+		CHK_DEBUGGER(trapnr, sig, info.si_code, fp, ); \
 	} while (0)
 # define CHK_DEBUGGER_TRAP_MAYBE() \
 	do { \

@@ -579,8 +579,12 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	u16 gpionr = irq - IRQ_PA0;
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 
-	if (pint_val == IRQ_NOT_AVAIL)
+	if (pint_val == IRQ_NOT_AVAIL) {
+		printk(KERN_ERR
+		"GPIO IRQ %d :Not in PINT Assign table "
+		"Reconfigure Interrupt to Port Assignemt\n", irq);
 		return -ENODEV;
+	}
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 		ret = gpio_request(gpionr, NULL);
@@ -713,6 +717,29 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 }
 #endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
 
+void __init init_exception_vectors(void)
+{
+	SSYNC();
+
+#ifndef CONFIG_KGDB
+	bfin_write_EVT0(evt_emulation);
+#endif
+	bfin_write_EVT2(evt_evt2);
+	bfin_write_EVT3(trap);
+	bfin_write_EVT5(evt_ivhw);
+	bfin_write_EVT6(evt_timer);
+	bfin_write_EVT7(evt_evt7);
+	bfin_write_EVT8(evt_evt8);
+	bfin_write_EVT9(evt_evt9);
+	bfin_write_EVT10(evt_evt10);
+	bfin_write_EVT11(evt_evt11);
+	bfin_write_EVT12(evt_evt12);
+	bfin_write_EVT13(evt_evt13);
+	bfin_write_EVT14(evt14_softirq);
+	bfin_write_EVT15(evt_system_call);
+	CSYNC();
+}
+
 /*
  * This function should be called during kernel startup to initialize
  * the BFin IRQ handling routines.
@@ -733,28 +760,9 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 #endif
-
 	SSYNC();
 
 	local_irq_disable();
-
-#ifndef CONFIG_KGDB
-	bfin_write_EVT0(evt_emulation);
-#endif
-	bfin_write_EVT2(evt_evt2);
-	bfin_write_EVT3(trap);
-	bfin_write_EVT5(evt_ivhw);
-	bfin_write_EVT6(evt_timer);
-	bfin_write_EVT7(evt_evt7);
-	bfin_write_EVT8(evt_evt8);
-	bfin_write_EVT9(evt_evt9);
-	bfin_write_EVT10(evt_evt10);
-	bfin_write_EVT11(evt_evt11);
-	bfin_write_EVT12(evt_evt12);
-	bfin_write_EVT13(evt_evt13);
-	bfin_write_EVT14(evt14_softirq);
-	bfin_write_EVT15(evt_system_call);
-	CSYNC();
 
 #if defined(CONFIG_IRQCHIP_DEMUX_GPIO) && defined(CONFIG_BF54x)
 #ifdef CONFIG_PINTx_REASSIGN

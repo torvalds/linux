@@ -52,6 +52,10 @@
 #define PLL_LOCKCNT            0xFFC00010	/* PLL Lock Count register (16-bit) */
 #define CHIPID                 0xFFC00014       /* Chip ID Register */
 
+/* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
+#define SWRST                   SICA_SWRST
+#define SYSCR                   SICA_SYSCR
+
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
 #define SICA_SWRST              0xFFC00100	/* Software Reset register */
 #define SICA_SYSCR              0xFFC00104	/* System Reset Configuration register */
