@@ -106,7 +106,7 @@ void prom_smp_finish(void)
 {
 }
 
-asmlinkage void titan_mailbox_irq(void)
+void titan_mailbox_irq(void)
 {
 	int cpu = smp_processor_id();
 	unsigned long status;
