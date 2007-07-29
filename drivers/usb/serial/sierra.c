@@ -45,7 +45,7 @@ enum devicetype {
 	DEVICE_INSTALLER =	2,
 };
 
-int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
+static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 {
 	int result;
 	dev_dbg(&udev->dev, "%s", "SET POWER STATE");
@@ -60,7 +60,7 @@ int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 	return result;
 }
 
-int sierra_set_ms_mode(struct usb_device *udev, __u16 eSocMode)
+static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSocMode)
 {
 	int result;
 	dev_dbg(&udev->dev, "%s", "DEVICE MODE SWITCH");
@@ -75,7 +75,8 @@ int sierra_set_ms_mode(struct usb_device *udev, __u16 eSocMode)
 	return result;
 }
 
-int sierra_probe(struct usb_interface *iface, const struct usb_device_id *id)
+static int sierra_probe(struct usb_interface *iface,
+			const struct usb_device_id *id)
 {
 	int result;
 	struct usb_device *udev;
