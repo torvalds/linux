@@ -46,7 +46,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 			func->class, func->vendor, func->device);
 }
 
-struct device_attribute sdio_dev_attrs[] = {
+static struct device_attribute sdio_dev_attrs[] = {
 	__ATTR_RO(class),
 	__ATTR_RO(vendor),
 	__ATTR_RO(device),
