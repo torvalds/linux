@@ -15,14 +15,18 @@ struct sg_io_v4 {
 
 	__u32 request_len;	/* [i] in bytes */
 	__u64 request;		/* [i], [*i] {SCSI: cdb} */
+	__u64 request_tag;	/* [i] {SCSI: task tag (only if flagged)} */
 	__u32 request_attr;	/* [i] {SCSI: task attribute} */
-	__u32 request_tag;	/* [i] {SCSI: task tag (only if flagged)} */
 	__u32 request_priority;	/* [i] {SCSI: task priority} */
+	__u32 request_extra;	/* [i] {spare, for padding} */
 	__u32 max_response_len;	/* [i] in bytes */
 	__u64 response;		/* [i], [*o] {SCSI: (auto)sense data} */
 
-	/* "din_" for data in (from device); "dout_" for data out (to device) */
+        /* "dout_": data out (to device); "din_": data in (from device) */
+	__u32 dout_iovec_count;	/* [i] 0 -> "flat" dout transfer else
+				   dout_xfer points to array of iovec */
 	__u32 dout_xfer_len;	/* [i] bytes to be transferred to device */
+	__u32 din_iovec_count;	/* [i] 0 -> "flat" din transfer */
 	__u32 din_xfer_len;	/* [i] bytes to be transferred from device */
 	__u64 dout_xferp;	/* [i], [*i] */
 	__u64 din_xferp;	/* [i], [*o] */
@@ -39,8 +43,9 @@ struct sg_io_v4 {
 	__u32 info;		/* [o] additional information */
 	__u32 duration;		/* [o] time to complete, in milliseconds */
 	__u32 response_len;	/* [o] bytes of response actually written */
-	__s32 din_resid;	/* [o] actual_din_xfer_len - din_xfer_len */
-	__u32 generated_tag;	/* [o] {SCSI: task tag that transport chose} */
+	__s32 din_resid;	/* [o] din_xfer_len - actual_din_xfer_len */
+	__s32 dout_resid;	/* [o] dout_xfer_len - actual_dout_xfer_len */
+	__u64 generated_tag;	/* [o] {SCSI: transport generated task tag} */
 	__u32 spare_out;	/* [o] */
 
 	__u32 padding;
