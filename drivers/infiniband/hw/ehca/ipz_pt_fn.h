@@ -54,6 +54,8 @@
 struct ehca_pd;
 struct ipz_small_queue_page;
 
+extern struct kmem_cache *small_qp_cache;
+
 /* struct generic ehca page */
 struct ipz_page {
 	u8 entries[EHCA_PAGESIZE];

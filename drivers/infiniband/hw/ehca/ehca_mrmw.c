@@ -64,8 +64,6 @@ enum ehca_mr_pgsize {
 	EHCA_MR_PGSIZE16M = 0x1000000L
 };
 
-extern int ehca_mr_largepage;
-
 static u32 ehca_encode_hwpage_size(u32 pgsize)
 {
 	u32 idx = 0;
