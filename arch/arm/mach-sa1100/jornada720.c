@@ -3,6 +3,7 @@
  *
  * HP Jornada720 init code
  *
+ * Copyright (C) 2007 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
  * Copyright (C) 2006 Filip Zyzniewski <filip.zyzniewski@tefnet.pl>
  *  Copyright (C) 2005 Michael Gernoth <michael@gernoth.net>
  *
@@ -220,14 +221,16 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 };
 
-static struct platform_device jornada720_mcu_device = {
-	.name		= "jornada720_mcu",
-	.id		= -1,
+static struct platform_device jornada_ssp_device = {
+	.name           = "jornada_ssp",
+	.id             = -1,
 };
 
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
-	&jornada720_mcu_device,
+#ifdef CONFIG_SA1100_JORNADA720_SSP
+	&jornada_ssp_device,
+#endif
 	&s1d13xxxfb_device,
 };
 
@@ -236,19 +239,19 @@ static int __init jornada720_init(void)
 	int ret = -ENODEV;
 
 	if (machine_is_jornada720()) {
-		GPDR |= GPIO_GPIO20;
-		/* oscillator setup (line 116 of HP's doc) */
+		/* we want to use gpio20 as input to drive the clock of our uart 3 */
+		GPDR |= GPIO_GPIO20;	/* Clear gpio20 pin as input */
 		TUCR = TUCR_VAL;
-		/* resetting SA1111 (line 118 of HP's doc) */
-		GPSR = GPIO_GPIO20;
+		GPSR = GPIO_GPIO20;	/* start gpio20 pin */
 		udelay(1);
-		GPCR = GPIO_GPIO20;
+		GPCR = GPIO_GPIO20;	/* stop gpio20 */
 		udelay(1);
-		GPSR = GPIO_GPIO20;
-		udelay(20);
+		GPSR = GPIO_GPIO20;	/* restart gpio20 */
+		udelay(20);		/* give it some time to restart */
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
+
 	return ret;
 }
 
@@ -345,7 +348,7 @@ static void __init jornada720_mach_init(void)
 }
 
 MACHINE_START(JORNADA720, "HP Jornada 720")
-	/* Maintainer: Michael Gernoth <michael@gernoth.net> */
+	/* Maintainer: Kristoffer Ericson <Kristoffer.Ericson@gmail.com> */
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
