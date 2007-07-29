@@ -78,7 +78,7 @@ struct onenand_info {
 	struct onenand_flash	flash;
 };
 
-struct onenand_info *info;
+static struct onenand_info *info;
 
 #define DPRINTK(format, args...)					\
 do {									\
