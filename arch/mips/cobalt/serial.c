@@ -55,9 +55,9 @@ static __init int cobalt_uart_add(void)
 	int retval;
 
 	/*
-	 * Cobalt Qube1 and RAQ1 have no UART.
+	 * Cobalt Qube1 has no UART.
 	 */
-	if (cobalt_board_id <= COBALT_BRD_ID_RAQ1)
+	if (cobalt_board_id == COBALT_BRD_ID_QUBE1)
 		return 0;
 
 	pdev = platform_device_alloc("serial8250", -1);
