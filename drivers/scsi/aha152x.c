@@ -1022,6 +1022,14 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 	   SCp.buffer           : next buffer
 	   SCp.buffers_residual : left buffers in list
 	   SCp.phase            : current state of the command */
+
+	if(phase & resetting) {
+		SCpnt->SCp.ptr           = NULL;
+		SCpnt->SCp.this_residual = 0;
+		SCpnt->resid             = 0;
+		SCpnt->SCp.buffer           = NULL;
+		SCpnt->SCp.buffers_residual = 0;
+	} else {
 	if (SCpnt->use_sg) {
 		SCpnt->SCp.buffer           = (struct scatterlist *) SCpnt->request_buffer;
 		SCpnt->SCp.ptr              = SG_ADDRESS(SCpnt->SCp.buffer);
@@ -1032,6 +1040,7 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 		SCpnt->SCp.this_residual    = SCpnt->request_bufflen;
 		SCpnt->SCp.buffer           = NULL;
 		SCpnt->SCp.buffers_residual = 0;
+	}
 	}
 
 	DO_LOCK(flags);
@@ -1150,9 +1159,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DECLARE_COMPLETION(done);
 	int ret, issued, disconnected;
 	unsigned char old_cmd_len = SCpnt->cmd_len;
-	unsigned short old_use_sg = SCpnt->use_sg;
-	void *old_buffer = SCpnt->request_buffer;
-	unsigned old_bufflen = SCpnt->request_bufflen;
 	unsigned long flags;
 	unsigned long timeleft;
 
@@ -1174,9 +1180,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DO_UNLOCK(flags);
 
 	SCpnt->cmd_len         = 0;
-	SCpnt->use_sg          = 0;
-	SCpnt->request_buffer  = NULL;
-	SCpnt->request_bufflen = 0;
 
 	aha152x_internal_queue(SCpnt, &done, resetting, reset_done);
 
@@ -1189,9 +1192,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	}
 
 	SCpnt->cmd_len         = old_cmd_len;
-	SCpnt->use_sg          = old_use_sg;
-  	SCpnt->request_buffer  = old_buffer;
-       	SCpnt->request_bufflen = old_bufflen;
 
 	DO_LOCK(flags);
 
