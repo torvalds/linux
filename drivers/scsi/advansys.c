@@ -5506,7 +5506,6 @@ static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
 	asc_board_t *boardp;
 	struct scsi_cmnd *scp;
 	struct Scsi_Host *shost;
-	int i;
 
 	ASC_DBG2(1, "asc_isr_callback: asc_dvc_varp 0x%lx, qdonep 0x%lx\n",
 		 (ulong)asc_dvc_varp, (ulong)qdonep);
@@ -5525,23 +5524,7 @@ static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
 	}
 	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
 
-	/*
-	 * If the request's host pointer is not valid, display a
-	 * message and return.
-	 */
 	shost = scp->device->host;
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i] == shost) {
-			break;
-		}
-	}
-	if (i == asc_board_count) {
-		ASC_PRINT2
-		    ("asc_isr_callback: scp 0x%lx has bad host pointer, host 0x%lx\n",
-		     (ulong)scp, (ulong)shost);
-		return;
-	}
-
 	ASC_STATS(shost, callback);
 	ASC_DBG1(1, "asc_isr_callback: shost 0x%lx\n", (ulong)shost);
 
@@ -5680,7 +5663,6 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	adv_sgblk_t *sgblkp;
 	struct scsi_cmnd *scp;
 	struct Scsi_Host *shost;
-	int i;
 	ADV_DCNT resid_cnt;
 
 	ASC_DBG2(1, "adv_isr_callback: adv_dvc_varp 0x%lx, scsiqp 0x%lx\n",
@@ -5716,27 +5698,7 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	}
 	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
 
-	/*
-	 * If the request's host pointer is not valid, display a message
-	 * and return.
-	 */
 	shost = scp->device->host;
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i] == shost) {
-			break;
-		}
-	}
-	/*
-	 * Note: If the host structure is not found, the adv_req_t request
-	 * structure and adv_sgblk_t structure, if any, is dropped.
-	 */
-	if (i == asc_board_count) {
-		ASC_PRINT2
-		    ("adv_isr_callback: scp 0x%lx has bad host pointer, host 0x%lx\n",
-		     (ulong)scp, (ulong)shost);
-		return;
-	}
-
 	ASC_STATS(shost, callback);
 	ASC_DBG1(1, "adv_isr_callback: shost 0x%lx\n", (ulong)shost);
 
