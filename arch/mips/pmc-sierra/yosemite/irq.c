@@ -58,6 +58,7 @@
 
 extern void titan_mailbox_irq(void);
 
+#ifdef CONFIG_HYPERTRANSPORT
 /*
  * Handle hypertransport & SMP interrupts. The interrupt lines are scarce.
  * For interprocessor interrupts, the best thing to do is to use the INTMSG
@@ -109,6 +110,7 @@ static void ll_ht_smp_irq_handler(int irq)
 
 	do_IRQ(irq);
 }
+#endif
 
 asmlinkage void plat_irq_dispatch(void)
 {
