@@ -120,7 +120,7 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		data.finished = CPU_MASK_NONE;
 
-	spin_lock_bh(&call_lock);
+	spin_lock(&call_lock);
 	call_data = &data;
 
 	for_each_cpu_mask(cpu, map)
@@ -129,18 +129,16 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	/* Wait for response */
 	while (!cpus_equal(map, data.started))
 		cpu_relax();
-
 	if (wait)
 		while (!cpus_equal(map, data.finished))
 			cpu_relax();
-
-	spin_unlock_bh(&call_lock);
-
+	spin_unlock(&call_lock);
 out:
-	local_irq_disable();
-	if (local)
+	if (local) {
+		local_irq_disable();
 		func(info);
-	local_irq_enable();
+		local_irq_enable();
+	}
 }
 
 /*
@@ -170,30 +168,28 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 EXPORT_SYMBOL(smp_call_function);
 
 /*
- * smp_call_function_on:
+ * smp_call_function_single:
+ * @cpu: the CPU where func should run
  * @func: the function to run; this must be fast and non-blocking
  * @info: an arbitrary pointer to pass to the function
  * @nonatomic: unused
  * @wait: if true, wait (atomically) until function has completed on other CPUs
- * @cpu: the CPU where func should run
  *
  * Run a function on one processor.
  *
  * You must not call this function with disabled interrupts, from a
  * hardware interrupt handler or from a bottom half.
  */
-int smp_call_function_on(void (*func) (void *info), void *info, int nonatomic,
-			 int wait, int cpu)
+int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+			     int nonatomic, int wait)
 {
-	cpumask_t map = CPU_MASK_NONE;
-
 	preempt_disable();
-	cpu_set(cpu, map);
-	__smp_call_function_map(func, info, nonatomic, wait, map);
+	__smp_call_function_map(func, info, nonatomic, wait,
+				cpumask_of_cpu(cpu));
 	preempt_enable();
 	return 0;
 }
-EXPORT_SYMBOL(smp_call_function_on);
+EXPORT_SYMBOL(smp_call_function_single);
 
 static void do_send_stop(void)
 {

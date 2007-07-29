@@ -624,9 +624,11 @@ io_work_loop:
 # _TIF_MCCK_PENDING is set, call handler
 #
 io_mcck_pending:
+	TRACE_IRQS_OFF
 	l	%r1,BASED(.Ls390_handle_mcck)
-	la	%r14,BASED(io_work_loop)
-	br	%r1			# TIF bit will be cleared by handler
+	basr	%r14,%r1		# TIF bit will be cleared by handler
+	TRACE_IRQS_ON
+	b	BASED(io_work_loop)
 
 #
 # _TIF_NEED_RESCHED is set, call schedule

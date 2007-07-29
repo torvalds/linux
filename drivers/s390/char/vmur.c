@@ -486,7 +486,7 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 		}
 		if (rc)
 			goto fail;
-		if (reclen)
+		if (reclen && (copied == 0) && (*offs < PAGE_SIZE))
 			*((u16 *) &buf[FILE_RECLEN_OFFSET]) = reclen;
 		len = min(count - copied, PAGE_SIZE - res);
 		if (copy_to_user(ubuf + copied, buf + res, len)) {

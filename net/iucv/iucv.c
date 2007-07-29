@@ -479,7 +479,8 @@ static void iucv_setmask_mp(void)
 		/* Enable all cpus with a declared buffer. */
 		if (cpu_isset(cpu, iucv_buffer_cpumask) &&
 		    !cpu_isset(cpu, iucv_irq_cpumask))
-			smp_call_function_on(iucv_allow_cpu, NULL, 0, 1, cpu);
+			smp_call_function_single(cpu, iucv_allow_cpu,
+						 NULL, 0, 1);
 	preempt_enable();
 }
 
@@ -497,7 +498,7 @@ static void iucv_setmask_up(void)
 	cpumask = iucv_irq_cpumask;
 	cpu_clear(first_cpu(iucv_irq_cpumask), cpumask);
 	for_each_cpu_mask(cpu, cpumask)
-		smp_call_function_on(iucv_block_cpu, NULL, 0, 1, cpu);
+		smp_call_function_single(cpu, iucv_block_cpu, NULL, 0, 1);
 }
 
 /**
@@ -522,7 +523,7 @@ static int iucv_enable(void)
 	rc = -EIO;
 	preempt_disable();
 	for_each_online_cpu(cpu)
-		smp_call_function_on(iucv_declare_cpu, NULL, 0, 1, cpu);
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
 	preempt_enable();
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
@@ -578,7 +579,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		smp_call_function_on(iucv_declare_cpu, NULL, 0, 1, cpu);
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -587,10 +588,10 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		if (cpus_empty(cpumask))
 			/* Can't offline last IUCV enabled cpu. */
 			return NOTIFY_BAD;
-		smp_call_function_on(iucv_retrieve_cpu, NULL, 0, 1, cpu);
+		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 0, 1);
 		if (cpus_empty(iucv_irq_cpumask))
-			smp_call_function_on(iucv_allow_cpu, NULL, 0, 1,
-					     first_cpu(iucv_buffer_cpumask));
+			smp_call_function_single(first_cpu(iucv_buffer_cpumask),
+						 iucv_allow_cpu, NULL, 0, 1);
 		break;
 	}
 	return NOTIFY_OK;
