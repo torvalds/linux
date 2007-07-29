@@ -56,6 +56,8 @@
 #define HYPERTRANSPORT_INTC     0x7a		/* INTC# */
 #define HYPERTRANSPORT_INTD     0x7b		/* INTD# */
 
+extern void titan_mailbox_irq(void);
+
 /*
  * Handle hypertransport & SMP interrupts. The interrupt lines are scarce.
  * For interprocessor interrupts, the best thing to do is to use the INTMSG
