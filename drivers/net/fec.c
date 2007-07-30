@@ -47,6 +47,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
+#include <asm/cacheflush.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || \
     defined(CONFIG_M5272) || defined(CONFIG_M528x) || \
