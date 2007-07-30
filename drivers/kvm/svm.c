@@ -1557,8 +1557,8 @@ again:
 	}
 
 	if (vcpu->fpu_active) {
-		fx_save(vcpu->host_fx_image);
-		fx_restore(vcpu->guest_fx_image);
+		fx_save(&vcpu->host_fx_image);
+		fx_restore(&vcpu->guest_fx_image);
 	}
 
 	asm volatile (
@@ -1670,8 +1670,8 @@ again:
 	vcpu->guest_mode = 0;
 
 	if (vcpu->fpu_active) {
-		fx_save(vcpu->guest_fx_image);
-		fx_restore(vcpu->host_fx_image);
+		fx_save(&vcpu->guest_fx_image);
+		fx_restore(&vcpu->host_fx_image);
 	}
 
 	if ((svm->vmcb->save.dr7 & 0xff))

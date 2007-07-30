@@ -45,10 +45,6 @@
 #define KVM_REFILL_PAGES 25
 #define KVM_MAX_CPUID_ENTRIES 40
 
-#define FX_IMAGE_SIZE 512
-#define FX_IMAGE_ALIGN 16
-#define FX_BUF_SIZE (2 * FX_IMAGE_SIZE + FX_IMAGE_ALIGN)
-
 #define DE_VECTOR 0
 #define NM_VECTOR 7
 #define DF_VECTOR 8
@@ -342,9 +338,8 @@ struct kvm_vcpu {
 
 	struct kvm_guest_debug guest_debug;
 
-	char fx_buf[FX_BUF_SIZE];
-	char *host_fx_image;
-	char *guest_fx_image;
+	struct i387_fxsave_struct host_fx_image;
+	struct i387_fxsave_struct guest_fx_image;
 	int fpu_active;
 	int guest_fpu_loaded;
 
@@ -704,12 +699,12 @@ static inline unsigned long read_msr(unsigned long msr)
 }
 #endif
 
-static inline void fx_save(void *image)
+static inline void fx_save(struct i387_fxsave_struct *image)
 {
 	asm ("fxsave (%0)":: "r" (image));
 }
 
-static inline void fx_restore(void *image)
+static inline void fx_restore(struct i387_fxsave_struct *image)
 {
 	asm ("fxrstor (%0)":: "r" (image));
 }

@@ -154,8 +154,8 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu->guest_fpu_loaded = 1;
-	fx_save(vcpu->host_fx_image);
-	fx_restore(vcpu->guest_fx_image);
+	fx_save(&vcpu->host_fx_image);
+	fx_restore(&vcpu->guest_fx_image);
 }
 EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
 
@@ -165,8 +165,8 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu->guest_fpu_loaded = 0;
-	fx_save(vcpu->guest_fx_image);
-	fx_restore(vcpu->host_fx_image);
+	fx_save(&vcpu->guest_fx_image);
+	fx_restore(&vcpu->host_fx_image);
 }
 EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
 
@@ -261,10 +261,6 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 		goto fail_free_run;
 	}
 	vcpu->pio_data = page_address(page);
-
-	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
-					   FX_IMAGE_ALIGN);
-	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
 
 	r = kvm_mmu_create(vcpu);
 	if (r < 0)
@@ -615,30 +611,20 @@ EXPORT_SYMBOL_GPL(set_cr8);
 
 void fx_init(struct kvm_vcpu *vcpu)
 {
-	struct __attribute__ ((__packed__)) fx_image_s {
-		u16 control; //fcw
-		u16 status; //fsw
-		u16 tag; // ftw
-		u16 opcode; //fop
-		u64 ip; // fpu ip
-		u64 operand;// fpu dp
-		u32 mxcsr;
-		u32 mxcsr_mask;
-
-	} *fx_image;
+	unsigned after_mxcsr_mask;
 
 	/* Initialize guest FPU by resetting ours and saving into guest's */
 	preempt_disable();
-	fx_save(vcpu->host_fx_image);
+	fx_save(&vcpu->host_fx_image);
 	fpu_init();
-	fx_save(vcpu->guest_fx_image);
-	fx_restore(vcpu->host_fx_image);
+	fx_save(&vcpu->guest_fx_image);
+	fx_restore(&vcpu->host_fx_image);
 	preempt_enable();
 
-	fx_image = (struct fx_image_s *)vcpu->guest_fx_image;
-	fx_image->mxcsr = 0x1f80;
-	memset(vcpu->guest_fx_image + sizeof(struct fx_image_s),
-	       0, FX_IMAGE_SIZE - sizeof(struct fx_image_s));
+	after_mxcsr_mask = offsetof(struct i387_fxsave_struct, st_space);
+	vcpu->guest_fx_image.mxcsr = 0x1f80;
+	memset((void *)&vcpu->guest_fx_image + after_mxcsr_mask,
+	       0, sizeof(struct i387_fxsave_struct) - after_mxcsr_mask);
 }
 EXPORT_SYMBOL_GPL(fx_init);
 
@@ -2356,6 +2342,9 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 
 	preempt_notifier_init(&vcpu->preempt_notifier, &kvm_preempt_ops);
 
+	/* We do fxsave: this must be aligned. */
+	BUG_ON((unsigned long)&vcpu->host_fx_image & 0xF);
+
 	vcpu_load(vcpu);
 	r = kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
@@ -2468,7 +2457,7 @@ struct fxsave {
 
 static int kvm_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	struct fxsave *fxsave = (struct fxsave *)vcpu->guest_fx_image;
+	struct fxsave *fxsave = (struct fxsave *)&vcpu->guest_fx_image;
 
 	vcpu_load(vcpu);
 
@@ -2488,7 +2477,7 @@ static int kvm_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 
 static int kvm_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	struct fxsave *fxsave = (struct fxsave *)vcpu->guest_fx_image;
+	struct fxsave *fxsave = (struct fxsave *)&vcpu->guest_fx_image;
 
 	vcpu_load(vcpu);
 
