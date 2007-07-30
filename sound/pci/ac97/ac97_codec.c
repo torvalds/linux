@@ -2436,7 +2436,7 @@ EXPORT_SYMBOL(snd_ac97_suspend);
 /*
  * restore ac97 status
  */
-void snd_ac97_restore_status(struct snd_ac97 *ac97)
+static void snd_ac97_restore_status(struct snd_ac97 *ac97)
 {
 	int i;
 
@@ -2457,7 +2457,7 @@ void snd_ac97_restore_status(struct snd_ac97 *ac97)
 /*
  * restore IEC958 status
  */
-void snd_ac97_restore_iec958(struct snd_ac97 *ac97)
+static void snd_ac97_restore_iec958(struct snd_ac97 *ac97)
 {
 	if (ac97->ext_id & AC97_EI_SPDIF) {
 		if (ac97->regs[AC97_EXTENDED_STATUS] & AC97_EA_SPDIF) {
