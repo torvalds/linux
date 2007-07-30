@@ -22,7 +22,7 @@ struct callvectors {
 	char*	(*gets) (char*);
 	union {
 		int	(*smpfork) (unsigned long cp, char *sp);
-		int	(*cpustart) (long, long, long, long);
+		int	(*cpustart) (long, void (*)(void), void *, long);
 	} _s;
 	int	(*semlock) (int sem);
 	void	(*semunlock) (int sem);
