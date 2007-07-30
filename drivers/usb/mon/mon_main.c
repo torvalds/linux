@@ -154,8 +154,8 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
 		 * This should not happen.
 		 * At this point we do not even know the bus number...
 		 */
-		printk(KERN_ERR TAG ": Null mon bus in URB, pipe 0x%x\n",
-		    urb->pipe);
+		printk(KERN_ERR TAG ": Null mon bus in URB, address %p\n",
+		    urb);
 		return;
 	}
 
