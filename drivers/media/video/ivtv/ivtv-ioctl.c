@@ -285,6 +285,10 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 
 		if (ivtv_set_output_mode(itv, OUT_MPG) != OUT_MPG)
 			return -EBUSY;
+		if (test_and_clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags)) {
+			/* forces ivtv_set_speed to be called */
+			itv->speed = 0;
+		}
 		return ivtv_start_decoding(id, vc->play.speed);
 	}
 
@@ -309,6 +313,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		if (atomic_read(&itv->decoding) > 0) {
 			ivtv_vapi(itv, CX2341X_DEC_PAUSE_PLAYBACK, 1,
 				(vc->flags & VIDEO_CMD_FREEZE_TO_BLACK) ? 1 : 0);
+			set_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags);
 		}
 		break;
 
@@ -317,8 +322,10 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		if (try) break;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
-		if (atomic_read(&itv->decoding) > 0) {
-			ivtv_vapi(itv, CX2341X_DEC_START_PLAYBACK, 2, 0, 0);
+		if (test_and_clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags)) {
+			int speed = itv->speed;
+			itv->speed = 0;
+			return ivtv_start_decoding(id, speed);
 		}
 		break;
 

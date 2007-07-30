@@ -29,8 +29,6 @@
 
 struct af9005_fe_state {
 	struct dvb_usb_device *d;
-	struct dvb_frontend *tuner;
-
 	fe_status_t stat;
 
 	/* retraining parameters */
@@ -345,8 +343,8 @@ static int af9005_reset_pre_viterbi(struct dvb_frontend *fe)
 				       1 & 0xff);
 	if (ret)
 		return ret;
-	af9005_write_ofdm_register(state->d, xd_p_fec_super_frm_unit_15_8,
-				   1 >> 8);
+	ret = af9005_write_ofdm_register(state->d, xd_p_fec_super_frm_unit_15_8,
+					 1 >> 8);
 	if (ret)
 		return ret;
 	/* reset pre viterbi error count */
@@ -447,7 +445,7 @@ static int af9005_fe_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 	u8 temp;
 	int ret;
 
-	if (state->tuner == NULL)
+	if (fe->ops.tuner_ops.release == NULL)
 		return -ENODEV;
 
 	*stat = 0;
@@ -493,7 +491,7 @@ static int af9005_fe_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 static int af9005_fe_read_ber(struct dvb_frontend *fe, u32 * ber)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
-	if (state->tuner == NULL)
+	if (fe->ops.tuner_ops.release  == NULL)
 		return -ENODEV;
 	af9005_fe_refresh_state(fe);
 	*ber = state->ber;
@@ -503,7 +501,7 @@ static int af9005_fe_read_ber(struct dvb_frontend *fe, u32 * ber)
 static int af9005_fe_read_unc_blocks(struct dvb_frontend *fe, u32 * unc)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
-	if (state->tuner == NULL)
+	if (fe->ops.tuner_ops.release == NULL)
 		return -ENODEV;
 	af9005_fe_refresh_state(fe);
 	*unc = state->unc;
@@ -517,7 +515,7 @@ static int af9005_fe_read_signal_strength(struct dvb_frontend *fe,
 	int ret;
 	u8 if_gain, rf_gain;
 
-	if (state->tuner == NULL)
+	if (fe->ops.tuner_ops.release == NULL)
 		return -ENODEV;
 	ret =
 	    af9005_read_ofdm_register(state->d, xd_r_reg_aagc_rf_gain,
@@ -881,10 +879,8 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 	     af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
 					reg_ofdm_rst_pos, reg_ofdm_rst_len, 1)))
 		return ret;
-	if ((ret =
-	     af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
-					reg_ofdm_rst_pos, reg_ofdm_rst_len, 0)))
-		return ret;
+	ret = af9005_write_register_bits(state->d, xd_I2C_reg_ofdm_rst,
+					 reg_ofdm_rst_pos, reg_ofdm_rst_len, 0);
 
 	if (ret)
 		return ret;
@@ -1041,7 +1037,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 		return ret;
 
 	/* attach tuner and init */
-	if (state->tuner == NULL) {
+	if (fe->ops.tuner_ops.release == NULL) {
 		/* read tuner and board id from eeprom */
 		ret = af9005_read_eeprom(adap->dev, 0xc6, buf, 2);
 		if (ret) {
@@ -1058,20 +1054,16 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 				return ret;
 			}
 			if1 = (u16) (buf[0] << 8) + buf[1];
-			state->tuner =
-			    dvb_attach(mt2060_attach, fe, &adap->dev->i2c_adap,
-				       &af9005_mt2060_config, if1);
-			if (state->tuner == NULL) {
+			if (dvb_attach(mt2060_attach, fe, &adap->dev->i2c_adap,
+					 &af9005_mt2060_config, if1) == NULL) {
 				deb_info("MT2060 attach failed\n");
 				return -ENODEV;
 			}
 			break;
 		case 3:	/* QT1010 */
 		case 9:	/* QT1010B */
-			state->tuner =
-			    dvb_attach(qt1010_attach, fe, &adap->dev->i2c_adap,
-				       &af9005_qt1010_config);
-			if (state->tuner == NULL) {
+			if (dvb_attach(qt1010_attach, fe, &adap->dev->i2c_adap,
+					&af9005_qt1010_config) ==NULL) {
 				deb_info("QT1010 attach failed\n");
 				return -ENODEV;
 			}
@@ -1080,7 +1072,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 			err("Unsupported tuner type %d", buf[0]);
 			return -ENODEV;
 		}
-		ret = state->tuner->ops.tuner_ops.init(state->tuner);
+		ret = fe->ops.tuner_ops.init(fe);
 		if (ret)
 			return ret;
 	}
@@ -1118,7 +1110,7 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe,
 
 	deb_info("af9005_fe_set_frontend freq %d bw %d\n", fep->frequency,
 		 fep->u.ofdm.bandwidth);
-	if (state->tuner == NULL) {
+	if (fe->ops.tuner_ops.release == NULL) {
 		err("Tuner not attached");
 		return -ENODEV;
 	}
@@ -1199,7 +1191,7 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe,
 		return ret;
 	/* set tuner */
 	deb_info("set tuner\n");
-	ret = state->tuner->ops.tuner_ops.set_params(state->tuner, fep);
+	ret = fe->ops.tuner_ops.set_params(fe, fep);
 	if (ret)
 		return ret;
 
@@ -1435,12 +1427,6 @@ static void af9005_fe_release(struct dvb_frontend *fe)
 {
 	struct af9005_fe_state *state =
 	    (struct af9005_fe_state *)fe->demodulator_priv;
-	if (state->tuner != NULL && state->tuner->ops.tuner_ops.release != NULL) {
-		state->tuner->ops.tuner_ops.release(state->tuner);
-#ifdef CONFIG_DVB_CORE_ATTACH
-		symbol_put_addr(state->tuner->ops.tuner_ops.release);
-#endif
-	}
 	kfree(state);
 }
 
@@ -1458,7 +1444,6 @@ struct dvb_frontend *af9005_fe_attach(struct dvb_usb_device *d)
 	deb_info("attaching frontend af9005\n");
 
 	state->d = d;
-	state->tuner = NULL;
 	state->opened = 0;
 
 	memcpy(&state->frontend.ops, &af9005_fe_ops,

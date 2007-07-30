@@ -757,6 +757,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	    itv->output_mode = OUT_NONE;
 
 	itv->speed = 0;
+	clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags);
 	ivtv_release_stream(s);
 }
 
@@ -799,7 +800,16 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		ivtv_unmute(itv);
 		ivtv_release_stream(s);
 	} else if (s->type >= IVTV_DEC_STREAM_TYPE_MPG) {
+		struct ivtv_stream *s_vout = &itv->streams[IVTV_DEC_STREAM_TYPE_VOUT];
+
 		ivtv_stop_decoding(id, VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
+
+		/* If all output streams are closed, and if the user doesn't have
+		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable VBI on TV-out. */
+		if (itv->output_mode == OUT_NONE && !test_bit(IVTV_F_S_APPL_IO, &s_vout->s_flags)) {
+			/* disable VBI on TV-out */
+			ivtv_disable_vbi(itv);
+		}
 	} else {
 		ivtv_stop_capture(id, 0);
 	}

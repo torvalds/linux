@@ -501,7 +501,7 @@ static struct dvb_pll_desc dvb_pll_opera1 = {
 
 /* Philips FCV1236D
  */
-struct dvb_pll_desc dvb_pll_fcv1236d = {
+static struct dvb_pll_desc dvb_pll_fcv1236d = {
 /* Bit_0: RF Input select
  * Bit_1: 0=digital, 1=analog
  */

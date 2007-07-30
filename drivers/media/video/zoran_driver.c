@@ -99,88 +99,103 @@
 
 #include <asm/byteorder.h>
 
+#if defined(CONFIG_VIDEO_V4L2) && defined(CONFIG_VIDEO_V4L1_COMPAT)
+#define ZFMT(pal, fcc, cs) \
+	.palette = (pal), .fourcc = (fcc), .colorspace = (cs)
+#elif defined(CONFIG_VIDEO_V4L2)
+#define ZFMT(pal, fcc, cs) \
+	.fourcc = (fcc), .colorspace = (cs)
+#else
+#define ZFMT(pal, fcc, cs) \
+	.palette = (pal)
+#endif
+
 const struct zoran_format zoran_formats[] = {
 	{
-		.name = "15-bit RGB",
-		.palette = VIDEO_PALETTE_RGB555,
-#ifdef CONFIG_VIDEO_V4L2
-#ifdef __LITTLE_ENDIAN
-		.fourcc = V4L2_PIX_FMT_RGB555,
-#else
-		.fourcc = V4L2_PIX_FMT_RGB555X,
-#endif
-		.colorspace = V4L2_COLORSPACE_SRGB,
-#endif
+		.name = "15-bit RGB LE",
+		ZFMT(VIDEO_PALETTE_RGB555,
+		     V4L2_PIX_FMT_RGB555, V4L2_COLORSPACE_SRGB),
 		.depth = 15,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB555|ZR36057_VFESPFR_ErrDif|
+			   ZR36057_VFESPFR_LittleEndian,
 	}, {
-		.name = "16-bit RGB",
-		.palette = VIDEO_PALETTE_RGB565,
-#ifdef CONFIG_VIDEO_V4L2
-#ifdef __LITTLE_ENDIAN
-		.fourcc = V4L2_PIX_FMT_RGB565,
-#else
-		.fourcc = V4L2_PIX_FMT_RGB565X,
-#endif
-		.colorspace = V4L2_COLORSPACE_SRGB,
-#endif
+		.name = "15-bit RGB BE",
+		ZFMT(-1,
+		     V4L2_PIX_FMT_RGB555X, V4L2_COLORSPACE_SRGB),
+		.depth = 15,
+		.flags = ZORAN_FORMAT_CAPTURE |
+			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB555|ZR36057_VFESPFR_ErrDif,
+	}, {
+		.name = "16-bit RGB LE",
+		ZFMT(VIDEO_PALETTE_RGB565,
+		     V4L2_PIX_FMT_RGB565, V4L2_COLORSPACE_SRGB),
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB565|ZR36057_VFESPFR_ErrDif|
+			   ZR36057_VFESPFR_LittleEndian,
+	}, {
+		.name = "16-bit RGB BE",
+		ZFMT(-1,
+		     V4L2_PIX_FMT_RGB565, V4L2_COLORSPACE_SRGB),
+		.depth = 16,
+		.flags = ZORAN_FORMAT_CAPTURE |
+			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB565|ZR36057_VFESPFR_ErrDif,
 	}, {
 		.name = "24-bit RGB",
-		.palette = VIDEO_PALETTE_RGB24,
-#ifdef CONFIG_VIDEO_V4L2
-#ifdef __LITTLE_ENDIAN
-		.fourcc = V4L2_PIX_FMT_BGR24,
-#else
-		.fourcc = V4L2_PIX_FMT_RGB24,
-#endif
-		.colorspace = V4L2_COLORSPACE_SRGB,
-#endif
+		ZFMT(VIDEO_PALETTE_RGB24,
+		     V4L2_PIX_FMT_BGR24, V4L2_COLORSPACE_SRGB),
 		.depth = 24,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB888|ZR36057_VFESPFR_Pack24,
 	}, {
-		.name = "32-bit RGB",
-		.palette = VIDEO_PALETTE_RGB32,
-#ifdef CONFIG_VIDEO_V4L2
-#ifdef __LITTLE_ENDIAN
-		.fourcc = V4L2_PIX_FMT_BGR32,
-#else
-		.fourcc = V4L2_PIX_FMT_RGB32,
-#endif
-		.colorspace = V4L2_COLORSPACE_SRGB,
-#endif
+		.name = "32-bit RGB LE",
+		ZFMT(VIDEO_PALETTE_RGB32,
+		     V4L2_PIX_FMT_BGR32, V4L2_COLORSPACE_SRGB),
 		.depth = 32,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB888|ZR36057_VFESPFR_LittleEndian,
+	}, {
+		.name = "32-bit RGB BE",
+		ZFMT(-1,
+		     V4L2_PIX_FMT_RGB32, V4L2_COLORSPACE_SRGB),
+		.depth = 32,
+		.flags = ZORAN_FORMAT_CAPTURE |
+			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_RGB888,
 	}, {
 		.name = "4:2:2, packed, YUYV",
-		.palette = VIDEO_PALETTE_YUV422,
-#ifdef CONFIG_VIDEO_V4L2
-		.fourcc = V4L2_PIX_FMT_YUYV,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
-#endif
+		ZFMT(VIDEO_PALETTE_YUV422,
+		     V4L2_PIX_FMT_YUYV, V4L2_COLORSPACE_SMPTE170M),
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_YUV422,
+	}, {
+		.name = "4:2:2, packed, UYVY",
+		ZFMT(VIDEO_PALETTE_UYVY,
+		     V4L2_PIX_FMT_UYVY, V4L2_COLORSPACE_SMPTE170M),
+		.depth = 16,
+		.flags = ZORAN_FORMAT_CAPTURE |
+			 ZORAN_FORMAT_OVERLAY,
+		.vfespfr = ZR36057_VFESPFR_YUV422|ZR36057_VFESPFR_LittleEndian,
 	}, {
 		.name = "Hardware-encoded Motion-JPEG",
-		.palette = -1,
-#ifdef CONFIG_VIDEO_V4L2
-		.fourcc = V4L2_PIX_FMT_MJPEG,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
-#endif
+		ZFMT(-1,
+		     V4L2_PIX_FMT_MJPEG, V4L2_COLORSPACE_SMPTE170M),
 		.depth = 0,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_PLAYBACK |
 			 ZORAN_FORMAT_COMPRESSED,
 	}
 };
-static const int zoran_num_formats =
-    (sizeof(zoran_formats) / sizeof(struct zoran_format));
+#define NUM_FORMATS ARRAY_SIZE(zoran_formats)
 
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
 
@@ -768,13 +783,13 @@ v4l_grab (struct file       *file,
 	struct zoran *zr = fh->zr;
 	int res = 0, i;
 
-	for (i = 0; i < zoran_num_formats; i++) {
+	for (i = 0; i < NUM_FORMATS; i++) {
 		if (zoran_formats[i].palette == mp->format &&
 		    zoran_formats[i].flags & ZORAN_FORMAT_CAPTURE &&
 		    !(zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED))
 			break;
 	}
-	if (i == zoran_num_formats || zoran_formats[i].depth == 0) {
+	if (i == NUM_FORMATS || zoran_formats[i].depth == 0) {
 		dprintk(1,
 			KERN_ERR
 			"%s: v4l_grab() - wrong bytes-per-pixel format\n",
@@ -1173,10 +1188,14 @@ zoran_close_end_session (struct file *file)
 
 	/* v4l capture */
 	if (fh->v4l_buffers.active != ZORAN_FREE) {
+		long flags;
+
+		spin_lock_irqsave(&zr->spinlock, flags);
 		zr36057_set_memgrab(zr, 0);
 		zr->v4l_buffers.allocated = 0;
 		zr->v4l_buffers.active = fh->v4l_buffers.active =
 		    ZORAN_FREE;
+		spin_unlock_irqrestore(&zr->spinlock, flags);
 	}
 
 	/* v4l buffers */
@@ -2107,7 +2126,7 @@ zoran_do_ioctl (struct inode *inode,
 			vpict->colour, vpict->contrast, vpict->depth,
 			vpict->palette);
 
-		for (i = 0; i < zoran_num_formats; i++) {
+		for (i = 0; i < NUM_FORMATS; i++) {
 			const struct zoran_format *fmt = &zoran_formats[i];
 
 			if (fmt->palette != -1 &&
@@ -2116,7 +2135,7 @@ zoran_do_ioctl (struct inode *inode,
 			    fmt->depth == vpict->depth)
 				break;
 		}
-		if (i == zoran_num_formats) {
+		if (i == NUM_FORMATS) {
 			dprintk(1,
 				KERN_ERR
 				"%s: VIDIOCSPICT - Invalid palette %d\n",
@@ -2220,10 +2239,10 @@ zoran_do_ioctl (struct inode *inode,
 			ZR_DEVNAME(zr), vbuf->base, vbuf->width,
 			vbuf->height, vbuf->depth, vbuf->bytesperline);
 
-		for (i = 0; i < zoran_num_formats; i++)
+		for (i = 0; i < NUM_FORMATS; i++)
 			if (zoran_formats[i].depth == vbuf->depth)
 				break;
-		if (i == zoran_num_formats) {
+		if (i == NUM_FORMATS) {
 			dprintk(1,
 				KERN_ERR
 				"%s: VIDIOCSFBUF - invalid fbuf depth %d\n",
@@ -2672,14 +2691,14 @@ zoran_do_ioctl (struct inode *inode,
 			return -EINVAL;
 		}
 
-		for (i = 0; i < zoran_num_formats; i++) {
+		for (i = 0; i < NUM_FORMATS; i++) {
 			if (zoran_formats[i].flags & flag)
 				num++;
 			if (num == fmt->index)
 				break;
 		}
 		if (fmt->index < 0 /* late, but not too late */  ||
-		    i == zoran_num_formats)
+		    i == NUM_FORMATS)
 			return -EINVAL;
 
 		memset(fmt, 0, sizeof(*fmt));
@@ -2737,7 +2756,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.height =
 				    fh->v4l_settings.height;
 				fmt->fmt.pix.sizeimage =
-				    fh->v4l_buffers.buffer_size;
+				    fh->v4l_settings.bytesperline *
+				    fh->v4l_settings.height;
 				fmt->fmt.pix.pixelformat =
 				    fh->v4l_settings.format->fourcc;
 				fmt->fmt.pix.colorspace =
@@ -2941,11 +2961,11 @@ zoran_do_ioctl (struct inode *inode,
 			sfmtjpg_unlock_and_return:
 				mutex_unlock(&zr->resource_lock);
 			} else {
-				for (i = 0; i < zoran_num_formats; i++)
+				for (i = 0; i < NUM_FORMATS; i++)
 					if (fmt->fmt.pix.pixelformat ==
 					    zoran_formats[i].fourcc)
 						break;
-				if (i == zoran_num_formats) {
+				if (i == NUM_FORMATS) {
 					dprintk(1,
 						KERN_ERR
 						"%s: VIDIOC_S_FMT - unknown/unsupported format 0x%x (%4.4s)\n",
@@ -2984,8 +3004,9 @@ zoran_do_ioctl (struct inode *inode,
 
 				/* tell the user the
 				 * results/missing stuff */
-				fmt->fmt.pix.sizeimage = fh->v4l_buffers.buffer_size	/*zr->gbpl * zr->gheight */
-				    ;
+				fmt->fmt.pix.sizeimage =
+					fh->v4l_settings.height *
+					fh->v4l_settings.bytesperline;
 				if (BUZ_MAX_HEIGHT <
 				    (fh->v4l_settings.height * 2))
 					fmt->fmt.pix.field =
@@ -3053,10 +3074,10 @@ zoran_do_ioctl (struct inode *inode,
 			fb->fmt.bytesperline, fb->fmt.pixelformat,
 			(char *) &printformat);
 
-		for (i = 0; i < zoran_num_formats; i++)
+		for (i = 0; i < NUM_FORMATS; i++)
 			if (zoran_formats[i].fourcc == fb->fmt.pixelformat)
 				break;
-		if (i == zoran_num_formats) {
+		if (i == NUM_FORMATS) {
 			dprintk(1,
 				KERN_ERR
 				"%s: VIDIOC_S_FBUF - format=0x%x (%4.4s) not allowed\n",
@@ -3439,8 +3460,13 @@ zoran_do_ioctl (struct inode *inode,
 				goto strmoff_unlock_and_return;
 
 			/* unload capture */
-			if (zr->v4l_memgrab_active)
+			if (zr->v4l_memgrab_active) {
+				long flags;
+
+				spin_lock_irqsave(&zr->spinlock, flags);
 				zr36057_set_memgrab(zr, 0);
+				spin_unlock_irqrestore(&zr->spinlock, flags);
+			}
 
 			for (i = 0; i < fh->v4l_buffers.num_buffers; i++)
 				zr->v4l_buffers.buffer[i].state =
@@ -3704,11 +3730,11 @@ zoran_do_ioctl (struct inode *inode,
 		dprintk(3, KERN_DEBUG "%s: VIDIOC_S_STD - norm=0x%llx\n",
 			ZR_DEVNAME(zr), (unsigned long long)*std);
 
-		if (*std == V4L2_STD_PAL)
+		if ((*std & V4L2_STD_PAL) && !(*std & ~V4L2_STD_PAL))
 			norm = VIDEO_MODE_PAL;
-		else if (*std == V4L2_STD_NTSC)
+		else if ((*std & V4L2_STD_NTSC) && !(*std & ~V4L2_STD_NTSC))
 			norm = VIDEO_MODE_NTSC;
-		else if (*std == V4L2_STD_SECAM)
+		else if ((*std & V4L2_STD_SECAM) && !(*std & ~V4L2_STD_SECAM))
 			norm = VIDEO_MODE_SECAM;
 		else if (*std == V4L2_STD_ALL)
 			norm = VIDEO_MODE_AUTO;
@@ -4149,11 +4175,11 @@ zoran_do_ioctl (struct inode *inode,
 				   V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 				int i;
 
-				for (i = 0; i < zoran_num_formats; i++)
+				for (i = 0; i < NUM_FORMATS; i++)
 					if (zoran_formats[i].fourcc ==
 					    fmt->fmt.pix.pixelformat)
 						break;
-				if (i == zoran_num_formats) {
+				if (i == NUM_FORMATS) {
 					res = -EINVAL;
 					goto tryfmt_unlock_and_return;
 				}
@@ -4213,8 +4239,8 @@ zoran_poll (struct file *file,
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	wait_queue_head_t *queue = NULL;
 	int res = 0, frame;
+	unsigned long flags;
 
 	/* we should check whether buffers are ready to be synced on
 	 * (w/o waits - O_NONBLOCK) here
@@ -4228,51 +4254,58 @@ zoran_poll (struct file *file,
 
 	switch (fh->map_mode) {
 	case ZORAN_MAP_MODE_RAW:
-		if (fh->v4l_buffers.active == ZORAN_FREE ||
-		    zr->v4l_pend_head == zr->v4l_pend_tail) {
-			dprintk(1,
-				"%s: zoran_poll() - no buffers queued\n",
-				ZR_DEVNAME(zr));
-			res = POLLNVAL;
-			goto poll_unlock_and_return;
-		}
-		queue = &zr->v4l_capq;
-		frame = zr->v4l_pend[zr->v4l_pend_tail & V4L_MASK_FRAME];
-		poll_wait(file, queue, wait);
-		if (fh->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
+		poll_wait(file, &zr->v4l_capq, wait);
+		frame = zr->v4l_pend[zr->v4l_sync_tail & V4L_MASK_FRAME];
+
+		spin_lock_irqsave(&zr->spinlock, flags);
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() raw - active=%c, sync_tail=%lu/%c, pend_tail=%lu, pend_head=%lu\n",
+			ZR_DEVNAME(zr), __FUNCTION__,
+			"FAL"[fh->v4l_buffers.active], zr->v4l_sync_tail,
+			"UPMD"[zr->v4l_buffers.buffer[frame].state],
+			zr->v4l_pend_tail, zr->v4l_pend_head);
+		/* Process is the one capturing? */
+		if (fh->v4l_buffers.active != ZORAN_FREE &&
+		    /* Buffer ready to DQBUF? */
+		    zr->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
 			res = POLLIN | POLLRDNORM;
+		spin_unlock_irqrestore(&zr->spinlock, flags);
+
 		break;
 
 	case ZORAN_MAP_MODE_JPG_REC:
 	case ZORAN_MAP_MODE_JPG_PLAY:
-		if (fh->jpg_buffers.active == ZORAN_FREE ||
-		    zr->jpg_que_head == zr->jpg_que_tail) {
-			dprintk(1,
-				"%s: zoran_poll() - no buffers queued\n",
-				ZR_DEVNAME(zr));
-			res = POLLNVAL;
-			goto poll_unlock_and_return;
-		}
-		queue = &zr->jpg_capq;
+		poll_wait(file, &zr->jpg_capq, wait);
 		frame = zr->jpg_pend[zr->jpg_que_tail & BUZ_MASK_FRAME];
-		poll_wait(file, queue, wait);
-		if (fh->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
+
+		spin_lock_irqsave(&zr->spinlock, flags);
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() jpg - active=%c, que_tail=%lu/%c, que_head=%lu, dma=%lu/%lu\n",
+			ZR_DEVNAME(zr), __FUNCTION__,
+			"FAL"[fh->jpg_buffers.active], zr->jpg_que_tail,
+			"UPMD"[zr->jpg_buffers.buffer[frame].state],
+			zr->jpg_que_head, zr->jpg_dma_tail, zr->jpg_dma_head);
+		if (fh->jpg_buffers.active != ZORAN_FREE &&
+		    zr->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
 			if (fh->map_mode == ZORAN_MAP_MODE_JPG_REC)
 				res = POLLIN | POLLRDNORM;
 			else
 				res = POLLOUT | POLLWRNORM;
 		}
+		spin_unlock_irqrestore(&zr->spinlock, flags);
+
 		break;
 
 	default:
 		dprintk(1,
+			KERN_ERR
 			"%s: zoran_poll() - internal error, unknown map_mode=%d\n",
 			ZR_DEVNAME(zr), fh->map_mode);
 		res = POLLNVAL;
-		goto poll_unlock_and_return;
 	}
 
-poll_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 
 	return res;
@@ -4368,11 +4401,15 @@ zoran_vm_close (struct vm_area_struct *vma)
 				mutex_lock(&zr->resource_lock);
 
 				if (fh->v4l_buffers.active != ZORAN_FREE) {
+					long flags;
+
+					spin_lock_irqsave(&zr->spinlock, flags);
 					zr36057_set_memgrab(zr, 0);
 					zr->v4l_buffers.allocated = 0;
 					zr->v4l_buffers.active =
 					    fh->v4l_buffers.active =
 					    ZORAN_FREE;
+					spin_unlock_irqrestore(&zr->spinlock, flags);
 				}
 				//v4l_fbuffer_free(file);
 				fh->v4l_buffers.allocated = 0;

@@ -517,6 +517,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 		    __FUNCTION__, errCode);
 		return errCode;
 	}
+	reg->val = errCode;
 	return 0;
 }
 
@@ -531,8 +532,8 @@ static int vidioc_s_register (struct file *file, void *priv,
 	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return -EINVAL;
 	/* NT100x has a 8-bit register space */
-	reg->val = (u8)usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
-	if (reg->val < 0) {
+	errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
+	if (errCode < 0) {
 		err("%s: VIDIOC_DBG_S_REGISTER failed: error %d",
 		    __FUNCTION__, errCode);
 		return errCode;
