@@ -277,9 +277,10 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
-	int			pipe, temp, max;
-	struct usb_device	*dev;
-	int			is_out;
+	int				xfertype, max;
+	struct usb_device		*dev;
+	struct usb_host_endpoint	*ep;
+	int				is_out;
 
 	if (!urb || urb->hcpriv || !urb->complete)
 		return -EINVAL;
@@ -291,30 +292,34 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			|| dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
 
+	/* For now, get the endpoint from the pipe.  Eventually drivers
+	 * will be required to set urb->ep directly and we will eliminate
+	 * urb->pipe.
+	 */
+	ep = (usb_pipein(urb->pipe) ? dev->ep_in : dev->ep_out)
+			[usb_pipeendpoint(urb->pipe)];
+	if (!ep)
+		return -ENOENT;
+
+	urb->ep = ep;
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
 
 	/* Lots of sanity checks, so HCDs can rely on clean data
 	 * and don't need to duplicate tests
 	 */
-	pipe = urb->pipe;
-	temp = usb_pipetype(pipe);
-	is_out = usb_pipeout(pipe);
+	xfertype = usb_endpoint_type(&ep->desc);
+	is_out = usb_pipeout(urb->pipe);
 
-	if (!usb_pipecontrol(pipe) && dev->state < USB_STATE_CONFIGURED)
+	if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
+			dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
 
-	/* FIXME there should be a sharable lock protecting us against
-	 * config/altsetting changes and disconnects, kicking in here.
-	 * (here == before maxpacket, and eventually endpoint type,
-	 * checks get made.)
-	 */
-
-	max = usb_maxpacket(dev, pipe, is_out);
+	max = le16_to_cpu(ep->desc.wMaxPacketSize);
 	if (max <= 0) {
 		dev_dbg(&dev->dev,
 			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
-			usb_pipeendpoint(pipe), is_out ? "out" : "in",
+			usb_endpoint_num(&ep->desc), is_out ? "out" : "in",
 			__FUNCTION__, max);
 		return -EMSGSIZE;
 	}
@@ -323,7 +328,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * but drivers only control those sizes for ISO.
 	 * while we're checking, initialize return status.
 	 */
-	if (temp == PIPE_ISOCHRONOUS) {
+	if (xfertype == USB_ENDPOINT_XFER_ISOC) {
 		int	n, len;
 
 		/* "high bandwidth" mode, 1-3 packets/uframe? */
@@ -359,19 +364,19 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
 			URB_NO_INTERRUPT);
-	switch (temp) {
-	case PIPE_BULK:
+	switch (xfertype) {
+	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
 		/* FALLTHROUGH */
-	case PIPE_CONTROL:
+	case USB_ENDPOINT_XFER_CONTROL:
 		allowed |= URB_NO_FSBR;	/* only affects UHCI */
 		/* FALLTHROUGH */
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;
 		break;
-	case PIPE_ISOCHRONOUS:
+	case USB_ENDPOINT_XFER_ISOC:
 		allowed |= URB_ISO_ASAP;
 		break;
 	}
@@ -393,9 +398,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * supports different values... this uses EHCI/UHCI defaults (and
 	 * EHCI can use smaller non-default values).
 	 */
-	switch (temp) {
-	case PIPE_ISOCHRONOUS:
-	case PIPE_INTERRUPT:
+	switch (xfertype) {
+	case USB_ENDPOINT_XFER_ISOC:
+	case USB_ENDPOINT_XFER_INT:
 		/* too small? */
 		if (urb->interval <= 0)
 			return -EINVAL;
@@ -405,29 +410,29 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			// NOTE usb handles 2^15
 			if (urb->interval > (1024 * 8))
 				urb->interval = 1024 * 8;
-			temp = 1024 * 8;
+			max = 1024 * 8;
 			break;
 		case USB_SPEED_FULL:	/* units are frames/msec */
 		case USB_SPEED_LOW:
-			if (temp == PIPE_INTERRUPT) {
+			if (xfertype == USB_ENDPOINT_XFER_INT) {
 				if (urb->interval > 255)
 					return -EINVAL;
 				// NOTE ohci only handles up to 32
-				temp = 128;
+				max = 128;
 			} else {
 				if (urb->interval > 1024)
 					urb->interval = 1024;
 				// NOTE usb and ohci handle up to 2^15
-				temp = 1024;
+				max = 1024;
 			}
 			break;
 		default:
 			return -EINVAL;
 		}
 		/* power of two? */
-		while (temp > urb->interval)
-			temp >>= 1;
-		urb->interval = temp;
+		while (max > urb->interval)
+			max >>= 1;
+		urb->interval = max;
 	}
 
 	return usb_hcd_submit_urb(urb, mem_flags);

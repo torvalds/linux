@@ -555,6 +555,29 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
 /*-------------------------------------------------------------------------*/
 
 /**
+ * usb_endpoint_num - get the endpoint's number
+ * @epd: endpoint to be checked
+ *
+ * Returns @epd's number: 0 to 15.
+ */
+static inline int usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
+{
+	return epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+}
+
+/**
+ * usb_endpoint_type - get the endpoint's transfer type
+ * @epd: endpoint to be checked
+ *
+ * Returns one of USB_ENDPOINT_XFER_{CONTROL, ISOC, BULK, INT} according
+ * to @epd's transfer type.
+ */
+static inline int usb_endpoint_type(const struct usb_endpoint_descriptor *epd)
+{
+	return epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+}
+
+/**
  * usb_endpoint_dir_in - check if the endpoint has IN direction
  * @epd: endpoint to be checked
  *
@@ -1037,6 +1060,8 @@ typedef void (*usb_complete_t)(struct urb *);
  * @urb_list: For use by current owner of the URB.
  * @anchor_list: membership in the list of an anchor
  * @anchor: to anchor URBs to a common mooring
+ * @ep: Points to the endpoint's data structure.  Will eventually
+ *	replace @pipe.
  * @pipe: Holds endpoint number, direction, type, and more.
  *	Create these values with the eight macros available;
  *	usb_{snd,rcv}TYPEpipe(dev,endpoint), where the TYPE is "ctrl"
@@ -1212,6 +1237,7 @@ struct urb
 	struct list_head anchor_list;	/* the URB may be anchored by the driver */
 	struct usb_anchor *anchor;
 	struct usb_device *dev; 	/* (in) pointer to associated device */
+	struct usb_host_endpoint *ep;	/* (internal) pointer to endpoint struct */
 	unsigned int pipe;		/* (in) pipe information */
 	int status;			/* (return) non-ISO status */
 	unsigned int transfer_flags;	/* (in) URB_SHORT_NOT_OK | ...*/

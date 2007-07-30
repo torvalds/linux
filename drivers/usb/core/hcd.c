@@ -962,14 +962,14 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	spin_lock_irqsave(&hcd_urb_list_lock, flags);
 	ep = (usb_pipein(urb->pipe) ? urb->dev->ep_in : urb->dev->ep_out)
 			[usb_pipeendpoint(urb->pipe)];
-	if (unlikely (!ep))
+	if (unlikely(ep != urb->ep))
 		status = -ENOENT;
 	else if (unlikely (urb->reject))
 		status = -EPERM;
 	else switch (hcd->state) {
 	case HC_STATE_RUNNING:
 	case HC_STATE_RESUMING:
-		list_add_tail (&urb->urb_list, &ep->urb_list);
+		list_add_tail (&urb->urb_list, &urb->ep->urb_list);
 		status = 0;
 		break;
 	default:
@@ -1022,7 +1022,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 					    : DMA_TO_DEVICE);
 	}
 
-	status = hcd->driver->urb_enqueue (hcd, ep, urb, mem_flags);
+	status = hcd->driver->urb_enqueue (hcd, urb->ep, urb, mem_flags);
 done:
 	if (unlikely (status)) {
 		urb_unlink(hcd, urb);
@@ -1071,7 +1071,6 @@ unlink1 (struct usb_hcd *hcd, struct urb *urb)
  */
 int usb_hcd_unlink_urb (struct urb *urb, int status)
 {
-	struct usb_host_endpoint	*ep;
 	struct usb_hcd			*hcd = NULL;
 	struct device			*sys = NULL;
 	unsigned long			flags;
@@ -1081,10 +1080,6 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 	if (!urb)
 		return -EINVAL;
 	if (!urb->dev || !urb->dev->bus)
-		return -ENODEV;
-	ep = (usb_pipein(urb->pipe) ? urb->dev->ep_in : urb->dev->ep_out)
-			[usb_pipeendpoint(urb->pipe)];
-	if (!ep)
 		return -ENODEV;
 
 	/*
@@ -1109,7 +1104,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 	}
 
 	/* insist the urb is still queued */
-	list_for_each(tmp, &ep->urb_list) {
+	list_for_each(tmp, &urb->ep->urb_list) {
 		if (tmp == &urb->urb_list)
 			break;
 	}
