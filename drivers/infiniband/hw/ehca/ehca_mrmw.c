@@ -40,9 +40,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rdma/ib_umem.h>
-
 #include <asm/current.h>
+
+#include <rdma/ib_umem.h>
 
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
@@ -63,8 +63,6 @@ enum ehca_mr_pgsize {
 	EHCA_MR_PGSIZE1M  = 0x100000L,
 	EHCA_MR_PGSIZE16M = 0x1000000L
 };
-
-extern int ehca_mr_largepage;
 
 static u32 ehca_encode_hwpage_size(u32 pgsize)
 {

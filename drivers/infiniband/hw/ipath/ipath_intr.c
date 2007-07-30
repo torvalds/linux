@@ -303,7 +303,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		 * Flush all queued sends when link went to DOWN or INIT,
 		 * to be sure that they don't block SMA and other MAD packets
 		 */
-		ipath_cancel_sends(dd);
+		ipath_cancel_sends(dd, 1);
 	}
 	else if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
 	    lstate == IPATH_IBSTATE_ACTIVE) {
@@ -517,10 +517,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	supp_msgs = handle_frequent_errors(dd, errs, msg, &noprint);
 
-	/*
-	 * don't report errors that are masked (includes those always
-	 * ignored)
-	 */
+	/* don't report errors that are masked */
 	errs &= ~dd->ipath_maskederrs;
 
 	/* do these first, they are most important */
@@ -566,19 +563,19 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * ones on this particular interrupt, which also isn't great
 		 */
 		dd->ipath_maskederrs |= dd->ipath_lasterror | errs;
+		dd->ipath_errormask &= ~dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-				 ~dd->ipath_maskederrs);
+			dd->ipath_errormask);
 		s_iserr = ipath_decode_err(msg, sizeof msg,
-				 (dd->ipath_maskederrs & ~dd->
-				  ipath_ignorederrs));
+			dd->ipath_maskederrs);
 
-		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
+		if (dd->ipath_maskederrs &
 			~(INFINIPATH_E_RRCVEGRFULL |
 			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Temporarily disabling "
 			    "error(s) %llx reporting; too frequent (%s)\n",
-				(unsigned long long) (dd->ipath_maskederrs &
-				~dd->ipath_ignorederrs), msg);
+				(unsigned long long)dd->ipath_maskederrs,
+				msg);
 		else {
 			/*
 			 * rcvegrfull and rcvhdrqfull are "normal",
@@ -793,19 +790,22 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
 
+	/* also disable interrupts; errormask is sometimes overwriten */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, 0ULL);
+
 	/*
 	 * clear all sends, because they have may been
 	 * completed by usercode while in freeze mode, and
 	 * therefore would not be sent, and eventually
 	 * might cause the process to run out of bufs
 	 */
-	ipath_cancel_sends(dd);
+	ipath_cancel_sends(dd, 0);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 			 dd->ipath_control);
 
 	/* ensure pio avail updates continue */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		 dd->ipath_sendctrl & ~IPATH_S_PIOBUFAVAILUPD);
+		 dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 		 dd->ipath_sendctrl);
@@ -817,7 +817,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	for (i = 0; i < dd->ipath_pioavregs; i++) {
 		/* deal with 6110 chip bug */
 		im = i > 3 ? ((i&1) ? i-1 : i+1) : i;
-		val = ipath_read_kreg64(dd, 0x1000+(im*sizeof(u64)));
+		val = ipath_read_kreg64(dd, (0x1000/sizeof(u64))+im);
 		dd->ipath_pioavailregs_dma[i] = dd->ipath_pioavailshadow[i]
 			= le64_to_cpu(val);
 	}
@@ -832,7 +832,8 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
 		E_SPKT_ERRS_IGNORE);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-		~dd->ipath_maskederrs);
+		dd->ipath_errormask);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, -1LL);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, 0ULL);
 }
 
@@ -1002,7 +1003,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 	u32 istat, chk0rcv = 0;
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
-	u32 oldhead, curtail;
 	static unsigned unexpected = 0;
 	static const u32 port0rbits = (1U<<INFINIPATH_I_RCVAVAIL_SHIFT) |
 		 (1U<<INFINIPATH_I_RCVURG_SHIFT);
@@ -1033,36 +1033,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 		ipath_bad_intr(dd, &unexpected);
 		ret = IRQ_NONE;
 		goto bail;
-	}
-
-	/*
-	 * We try to avoid reading the interrupt status register, since
-	 * that's a PIO read, and stalls the processor for up to about
-	 * ~0.25 usec. The idea is that if we processed a port0 packet,
-	 * we blindly clear the  port 0 receive interrupt bits, and nothing
-	 * else, then return.  If other interrupts are pending, the chip
-	 * will re-interrupt us as soon as we write the intclear register.
-	 * We then won't process any more kernel packets (if not the 2nd
-	 * time, then the 3rd or 4th) and we'll then handle the other
-	 * interrupts.   We clear the interrupts first so that we don't
-	 * lose intr for later packets that arrive while we are processing.
-	 */
-	oldhead = dd->ipath_port0head;
-	curtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
-	if (oldhead != curtail) {
-		if (dd->ipath_flags & IPATH_GPIO_INTR) {
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					 (u64) (1 << IPATH_GPIO_PORT0_BIT));
-			istat = port0rbits | INFINIPATH_I_GPIO;
-		}
-		else
-			istat = port0rbits;
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
-		ipath_kreceive(dd);
-		if (oldhead != dd->ipath_port0head) {
-			ipath_stats.sps_fastrcvint++;
-			goto done;
-		}
 	}
 
 	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
@@ -1225,7 +1195,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 		handle_layer_pioavail(dd);
 	}
 
-done:
 	ret = IRQ_HANDLED;
 
 bail:

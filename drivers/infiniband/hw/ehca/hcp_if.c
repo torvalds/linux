@@ -758,7 +758,6 @@ u64 hipz_h_register_rpage_mr(const struct ipz_adapter_handle adapter_handle,
 			     const u64 logical_address_of_page,
 			     const u64 count)
 {
-	extern int ehca_debug_level;
 	u64 ret;
 
 	if (unlikely(ehca_debug_level >= 2)) {

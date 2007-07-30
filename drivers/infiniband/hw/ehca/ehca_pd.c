@@ -88,7 +88,6 @@ int ehca_dealloc_pd(struct ib_pd *pd)
 	u32 cur_pid = current->tgid;
 	struct ehca_pd *my_pd = container_of(pd, struct ehca_pd, ib_pd);
 	int i, leftovers = 0;
-	extern struct kmem_cache *small_qp_cache;
 	struct ipz_small_queue_page *page, *tmp;
 
 	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&

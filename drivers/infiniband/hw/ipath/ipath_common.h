@@ -100,8 +100,7 @@ struct infinipath_stats {
 	__u64 sps_hwerrs;
 	/* number of times IB link changed state unexpectedly */
 	__u64 sps_iblink;
-	/* kernel receive interrupts that didn't read intstat */
-	__u64 sps_fastrcvint;
+	__u64 sps_unused; /* was fastrcvint, no longer implemented */
 	/* number of kernel (port0) packets received */
 	__u64 sps_port0pkts;
 	/* number of "ethernet" packets sent by driver */
