@@ -67,6 +67,8 @@ static struct hid_ff_initializer inits[] = {
 #ifdef CONFIG_THRUSTMASTER_FF
 	{ 0x44f, 0xb300, hid_tmff_init },
 	{ 0x44f, 0xb304, hid_tmff_init },
+	{ 0x44f, 0xb651, hid_tmff_init }, /* FGT Rumble Force Wheel */
+	{ 0x44f, 0xb654, hid_tmff_init }, /* FGT Force Feedback Wheel */
 #endif
 #ifdef CONFIG_ZEROPLUS_FF
 	{ 0xc12, 0x0005, hid_zpff_init },
