@@ -748,7 +748,7 @@ void usb_buffer_unmap(struct urb *urb)
 /**
  * usb_buffer_map_sg - create scatterlist DMA mapping(s) for an endpoint
  * @dev: device to which the scatterlist will be mapped
- * @pipe: endpoint defining the mapping direction
+ * @is_in: mapping transfer direction
  * @sg: the scatterlist to map
  * @nents: the number of entries in the scatterlist
  *
@@ -771,14 +771,13 @@ void usb_buffer_unmap(struct urb *urb)
  *
  * Reverse the effect of this call with usb_buffer_unmap_sg().
  */
-int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
+int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 		      struct scatterlist *sg, int nents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
 
 	if (!dev
-			|| usb_pipecontrol(pipe)
 			|| !(bus = dev->bus)
 			|| !(controller = bus->controller)
 			|| !controller->dma_mask)
@@ -786,7 +785,7 @@ int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
 
 	// FIXME generic api broken like pci, can't report errors
 	return dma_map_sg(controller, sg, nents,
-			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /* XXX DISABLED, no users currently.  If you wish to re-enable this
@@ -799,14 +798,14 @@ int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
 /**
  * usb_buffer_dmasync_sg - synchronize DMA and CPU view of scatterlist buffer(s)
  * @dev: device to which the scatterlist will be mapped
- * @pipe: endpoint defining the mapping direction
+ * @is_in: mapping transfer direction
  * @sg: the scatterlist to synchronize
  * @n_hw_ents: the positive return value from usb_buffer_map_sg
  *
  * Use this when you are re-using a scatterlist's data buffers for
  * another USB request.
  */
-void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
+void usb_buffer_dmasync_sg(const struct usb_device *dev, int is_in,
 			   struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
@@ -819,20 +818,20 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
 		return;
 
 	dma_sync_sg(controller, sg, n_hw_ents,
-			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 #endif
 
 /**
  * usb_buffer_unmap_sg - free DMA mapping(s) for a scatterlist
  * @dev: device to which the scatterlist will be mapped
- * @pipe: endpoint defining the mapping direction
+ * @is_in: mapping transfer direction
  * @sg: the scatterlist to unmap
  * @n_hw_ents: the positive return value from usb_buffer_map_sg
  *
  * Reverses the effect of usb_buffer_map_sg().
  */
-void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
+void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 			 struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
@@ -845,7 +844,7 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
 		return;
 
 	dma_unmap_sg(controller, sg, n_hw_ents,
-			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /* format to disable USB on kernel command line is: nousb */

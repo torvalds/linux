@@ -59,8 +59,8 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 		dev_dbg(&urb->dev->dev,
 			"%s timed out on ep%d%s len=%d/%d\n",
 			current->comm,
-			usb_pipeendpoint(urb->pipe),
-			usb_pipein(urb->pipe) ? "in" : "out",
+			usb_endpoint_num(&urb->ep->desc),
+			usb_urb_dir_in(urb) ? "in" : "out",
 			urb->actual_length,
 			urb->transfer_buffer_length);
 	} else
@@ -250,7 +250,8 @@ static void sg_clean (struct usb_sg_request *io)
 		io->urbs = NULL;
 	}
 	if (io->dev->dev.dma_mask != NULL)
-		usb_buffer_unmap_sg (io->dev, io->pipe, io->sg, io->nents);
+		usb_buffer_unmap_sg (io->dev, usb_pipein(io->pipe),
+				io->sg, io->nents);
 	io->dev = NULL;
 }
 
@@ -278,8 +279,8 @@ static void sg_complete (struct urb *urb)
 		dev_err (io->dev->bus->controller,
 			"dev %s ep%d%s scatterlist error %d/%d\n",
 			io->dev->devpath,
-			usb_pipeendpoint (urb->pipe),
-			usb_pipein (urb->pipe) ? "in" : "out",
+			usb_endpoint_num(&urb->ep->desc),
+			usb_urb_dir_in(urb) ? "in" : "out",
 			status, io->status);
 		// BUG ();
 	}
@@ -379,7 +380,8 @@ int usb_sg_init (
 	 */
 	dma = (dev->dev.dma_mask != NULL);
 	if (dma)
-		io->entries = usb_buffer_map_sg (dev, pipe, sg, nents);
+		io->entries = usb_buffer_map_sg(dev, usb_pipein(pipe),
+				sg, nents);
 	else
 		io->entries = nents;
 

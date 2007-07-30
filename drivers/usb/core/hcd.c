@@ -635,9 +635,9 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 
 static int rh_urb_enqueue (struct usb_hcd *hcd, struct urb *urb)
 {
-	if (usb_pipeint (urb->pipe))
+	if (usb_endpoint_xfer_int(&urb->ep->desc))
 		return rh_queue_status (hcd, urb);
-	if (usb_pipecontrol (urb->pipe))
+	if (usb_endpoint_xfer_control(&urb->ep->desc))
 		return rh_call_control (hcd, urb);
 	return -EINVAL;
 }
@@ -651,7 +651,7 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 {
 	unsigned long	flags;
 
-	if (usb_pipeendpoint(urb->pipe) == 0) {	/* Control URB */
+	if (usb_endpoint_num(&urb->ep->desc) == 0) {	/* Control URB */
 		;	/* Do nothing */
 
 	} else {				/* Status URB */
@@ -918,7 +918,7 @@ static void urb_unlink(struct usb_hcd *hcd, struct urb *urb)
 	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
 
 	if (hcd->self.uses_dma && !is_root_hub(urb->dev)) {
-		if (usb_pipecontrol (urb->pipe)
+		if (usb_endpoint_xfer_control(&urb->ep->desc)
 			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 			dma_unmap_single (hcd->self.controller, urb->setup_dma,
 					sizeof (struct usb_ctrlrequest),
@@ -1001,7 +1001,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	 * unless it uses pio or talks to another transport.
 	 */
 	if (hcd->self.uses_dma) {
-		if (usb_pipecontrol (urb->pipe)
+		if (usb_endpoint_xfer_control(&urb->ep->desc)
 			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 			urb->setup_dma = dma_map_single (
 					hcd->self.controller,
@@ -1201,11 +1201,13 @@ rescan:
 	spin_lock(&hcd_urb_list_lock);
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
 		int	tmp;
+		int	is_in;
 
 		/* the urb may already have been unlinked */
 		if (urb->status != -EINPROGRESS)
 			continue;
 		usb_get_urb (urb);
+		is_in = usb_urb_dir_in(urb);
 		spin_unlock(&hcd_urb_list_lock);
 
 		spin_lock (&urb->lock);
@@ -1216,19 +1218,25 @@ rescan:
 
 		/* kick hcd unless it's already returning this */
 		if (tmp == -EINPROGRESS) {
-			tmp = urb->pipe;
 			unlink1 (hcd, urb);
 			dev_dbg (hcd->self.controller,
-				"shutdown urb %p pipe %08x ep%d%s%s\n",
-				urb, tmp, usb_pipeendpoint (tmp),
-				(tmp & USB_DIR_IN) ? "in" : "out",
-				({ char *s; \
-				 switch (usb_pipetype (tmp)) { \
-				 case PIPE_CONTROL:	s = ""; break; \
-				 case PIPE_BULK:	s = "-bulk"; break; \
-				 case PIPE_INTERRUPT:	s = "-intr"; break; \
-				 default: 		s = "-iso"; break; \
-				}; s;}));
+				"shutdown urb %p ep%d%s%s\n",
+				urb, usb_endpoint_num(&ep->desc),
+				is_in ? "in" : "out",
+				({	char *s;
+
+					switch (usb_endpoint_type(&ep->desc)) {
+					case USB_ENDPOINT_XFER_CONTROL:
+						s = ""; break;
+					case USB_ENDPOINT_XFER_BULK:
+						s = "-bulk"; break;
+					case USB_ENDPOINT_XFER_INT:
+						s = "-intr"; break;
+					default:
+				 		s = "-iso"; break;
+					};
+					s;
+				}));
 		}
 		usb_put_urb (urb);
 
