@@ -839,8 +839,12 @@ int dev_change_name(struct net_device *dev, char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 	device_rename(&dev->dev, dev->name);
+
+	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
 	hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
+	write_unlock_bh(&dev_base_lock);
+
 	raw_notifier_call_chain(&netdev_chain, NETDEV_CHANGENAME, dev);
 
 	return err;
