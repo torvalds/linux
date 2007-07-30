@@ -948,8 +948,10 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 /*
  * ata_eh_info helpers
  */
-extern void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
-extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
+extern void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 
 static inline void ata_ehi_schedule_probe(struct ata_eh_info *ehi)
