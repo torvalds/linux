@@ -28,11 +28,9 @@
  * SCSI interface function Prototypes
  */
 
-static int adpt_detect(struct scsi_host_template * sht);
 static int adpt_queue(struct scsi_cmnd * cmd, void (*cmdcomplete) (struct scsi_cmnd *));
 static int adpt_abort(struct scsi_cmnd * cmd);
 static int adpt_reset(struct scsi_cmnd* cmd);
-static int adpt_release(struct Scsi_Host *host);
 static int adpt_slave_configure(struct scsi_device *);
 
 static const char *adpt_info(struct Scsi_Host *pSHost);
@@ -48,8 +46,6 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
  */
 
 #define DPT_DRIVER_NAME	"Adaptec I2O RAID"
-
-#ifndef HOSTS_C
 
 #include "dpt/sys_info.h"
 #include <linux/wait.h>
@@ -289,7 +285,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba);
 static s32 adpt_i2o_hrt_get(adpt_hba* pHba);
 static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_device* dptdevice);
 static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd);
-static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht);
+static s32 adpt_scsi_register(adpt_hba* pHba);
 static s32 adpt_hba_reset(adpt_hba* pHba);
 static s32 adpt_i2o_reset_hba(adpt_hba* pHba);
 static s32 adpt_rescan(adpt_hba* pHba);
@@ -299,7 +295,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba);
 static void adpt_inquiry(adpt_hba* pHba);
 static void adpt_fail_posted_scbs(adpt_hba* pHba);
 static struct adpt_device* adpt_find_device(adpt_hba* pHba, u32 chan, u32 id, u32 lun);
-static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev) ;
+static int adpt_install_hba(struct pci_dev* pDev) ;
 static int adpt_i2o_online_hba(adpt_hba* pHba);
 static void adpt_i2o_post_wait_complete(u32, int);
 static int adpt_i2o_systab_send(adpt_hba* pHba);
@@ -343,5 +339,4 @@ static void adpt_i386_info(sysInfo_S* si);
 #define FW_DEBUG_BLED_OFFSET       8
 
 #define FW_DEBUG_FLAGS_NO_HEADERS_B    0x01
-#endif				/* !HOSTS_C */
 #endif				/* _DPT_H */
