@@ -2500,14 +2500,10 @@ int kmem_cache_shrink(struct kmem_cache *s)
 				slab_unlock(page);
 				discard_slab(s, page);
 			} else {
-				if (n->nr_partial > MAX_PARTIAL)
-					list_move(&page->lru,
-					slabs_by_inuse + page->inuse);
+				list_move(&page->lru,
+				slabs_by_inuse + page->inuse);
 			}
 		}
-
-		if (n->nr_partial <= MAX_PARTIAL)
-			goto out;
 
 		/*
 		 * Rebuild the partial list with the slabs filled up most
@@ -2516,7 +2512,6 @@ int kmem_cache_shrink(struct kmem_cache *s)
 		for (i = s->objects - 1; i >= 0; i--)
 			list_splice(slabs_by_inuse + i, n->partial.prev);
 
-	out:
 		spin_unlock_irqrestore(&n->list_lock, flags);
 	}
 
