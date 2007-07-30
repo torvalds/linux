@@ -1270,7 +1270,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR3);
 	*icrp = 0x00000ddd;
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = (*icrp & 0x70777777) | 0x0d000000;
+	*icrp = 0x0d000000;
 }
 
 static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_private *fep)
@@ -1332,7 +1332,7 @@ static void __inline__ fec_disable_phy_intr(void)
 {
 	volatile unsigned long *icrp;
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = (*icrp & 0x70777777) | 0x08000000;
+	*icrp = 0x08000000;
 }
 
 static void __inline__ fec_phy_ack_intr(void)
@@ -1340,7 +1340,7 @@ static void __inline__ fec_phy_ack_intr(void)
 	volatile unsigned long *icrp;
 	/* Acknowledge the interrupt */
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = (*icrp & 0x77777777) | 0x08000000;
+	*icrp = 0x0d000000;
 }
 
 static void __inline__ fec_localhw_setup(void)
