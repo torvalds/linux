@@ -928,7 +928,7 @@ static void urb_unlink(struct usb_hcd *hcd, struct urb *urb)
 			dma_unmap_single (hcd->self.controller,
 					urb->transfer_dma,
 					urb->transfer_buffer_length,
-					usb_pipein (urb->pipe)
+					usb_urb_dir_in(urb)
 					    ? DMA_FROM_DEVICE
 					    : DMA_TO_DEVICE);
 	}
@@ -1014,7 +1014,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 					hcd->self.controller,
 					urb->transfer_buffer,
 					urb->transfer_buffer_length,
-					usb_pipein (urb->pipe)
+					usb_urb_dir_in(urb)
 					    ? DMA_FROM_DEVICE
 					    : DMA_TO_DEVICE);
 	}

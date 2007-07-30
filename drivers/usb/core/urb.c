@@ -309,7 +309,21 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * and don't need to duplicate tests
 	 */
 	xfertype = usb_endpoint_type(&ep->desc);
-	is_out = usb_pipeout(urb->pipe);
+	if (xfertype == USB_ENDPOINT_XFER_CONTROL) {
+		struct usb_ctrlrequest *setup =
+				(struct usb_ctrlrequest *) urb->setup_packet;
+
+		if (!setup)
+			return -ENOEXEC;
+		is_out = !(setup->bRequestType & USB_DIR_IN) ||
+				!setup->wLength;
+	} else {
+		is_out = usb_endpoint_dir_out(&ep->desc);
+	}
+
+	/* Cache the direction for later use */
+	urb->transfer_flags = (urb->transfer_flags & ~URB_DIR_MASK) |
+			(is_out ? URB_DIR_OUT : URB_DIR_IN);
 
 	if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
 			dev->state < USB_STATE_CONFIGURED)
@@ -363,7 +377,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
-			URB_NO_INTERRUPT);
+			URB_NO_INTERRUPT | URB_DIR_MASK);
 	switch (xfertype) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)

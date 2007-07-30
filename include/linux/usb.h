@@ -1021,6 +1021,8 @@ extern int usb_disabled(void);
 
 /*
  * urb->transfer_flags:
+ *
+ * Note: URB_DIR_IN/OUT is automatically set in usb_submit_urb().
  */
 #define URB_SHORT_NOT_OK	0x0001	/* report short reads as errors */
 #define URB_ISO_ASAP		0x0002	/* iso-only, urb->start_frame
@@ -1032,6 +1034,10 @@ extern int usb_disabled(void);
 #define URB_NO_INTERRUPT	0x0080	/* HINT: no non-error interrupt
 					 * needed */
 #define URB_FREE_BUFFER		0x0100	/* Free transfer buffer with the URB */
+
+#define URB_DIR_IN		0x0200	/* Transfer from device to host */
+#define URB_DIR_OUT		0
+#define URB_DIR_MASK		URB_DIR_IN
 
 struct usb_iso_packet_descriptor {
 	unsigned int offset;
@@ -1379,6 +1385,30 @@ extern void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor);
 extern void usb_unanchor_urb(struct urb *urb);
 extern int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
 					 unsigned int timeout);
+
+/**
+ * usb_urb_dir_in - check if an URB describes an IN transfer
+ * @urb: URB to be checked
+ *
+ * Returns 1 if @urb describes an IN transfer (device-to-host),
+ * otherwise 0.
+ */
+static inline int usb_urb_dir_in(struct urb *urb)
+{
+	return (urb->transfer_flags & URB_DIR_MASK) != URB_DIR_OUT;
+}
+
+/**
+ * usb_urb_dir_out - check if an URB describes an OUT transfer
+ * @urb: URB to be checked
+ *
+ * Returns 1 if @urb describes an OUT transfer (host-to-device),
+ * otherwise 0.
+ */
+static inline int usb_urb_dir_out(struct urb *urb)
+{
+	return (urb->transfer_flags & URB_DIR_MASK) == URB_DIR_OUT;
+}
 
 void *usb_buffer_alloc (struct usb_device *dev, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
