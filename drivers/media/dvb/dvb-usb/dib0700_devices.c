@@ -264,7 +264,7 @@ static int stk7700d_tuner_attach(struct dvb_usb_adapter *adap)
 
 static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 
-static int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[4];
 	int i;
@@ -274,7 +274,7 @@ static int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
 	if (i<=0) {
-		err("stk7700d:RC Query Failed\n");
+		err("RC Query Failed\n");
 		return 0;
 	}
 	if (key[0]==0 && key[1]==0 && key[2]==0 && key[3]==0) return 0;
@@ -287,14 +287,12 @@ static int stk7700d_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 				return 0;
 			}
 		}
-		err("stk7700d:Unknown remote controller key : %2X %2X\n",(int)key[2],(int)key[3]);
+		err("Unknown remote controller key : %2X %2X\n",(int)key[2],(int)key[3]);
 	}
 	return 0;
 }
 
-#define KEY_MAP_SIZE (25+48)
-
-static struct dvb_usb_rc_key stk7700d_rc_keys[] = {
+static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x07, 0x00, KEY_MUTE },
 	{ 0x07, 0x01, KEY_MENU }, // Pinnacle logo
@@ -370,7 +368,7 @@ static struct dvb_usb_rc_key stk7700d_rc_keys[] = {
 	{ 0xeb, 0x54, KEY_PREVIOUS },
 	{ 0xeb, 0x58, KEY_RECORD },
 	{ 0xeb, 0x5c, KEY_NEXT }
-	};
+};
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
 static struct dibx000_agc_config stk7700p_7000m_mt2060_agc_config = {
@@ -864,7 +862,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[2], &dib0700_usb_id_table[3], NULL },
 				{ NULL },
 			},
-		}
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = sizeof(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -901,10 +904,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
+
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = stk7700d_rc_keys,
-		.rc_key_map_size  = KEY_MAP_SIZE,
-		.rc_query         = stk7700d_rc_query
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = sizeof(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
