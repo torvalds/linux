@@ -190,6 +190,8 @@ struct fec_enet_private {
 	/* Hardware registers of the FEC device */
 	volatile fec_t	*hwp;
 
+	struct net_device *netdev;
+
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct	sk_buff* tx_skbuff[TX_RING_SIZE];
@@ -1939,9 +1941,10 @@ static void mii_display_status(struct net_device *dev)
 	printk(".\n");
 }
 
-static void mii_display_config(struct net_device *dev)
+static void mii_display_config(struct work_struct *work)
 {
-	struct fec_enet_private *fep = netdev_priv(dev);
+	struct fec_enet_private *fep = container_of(work, struct fec_enet_private, phy_task);
+	struct net_device *dev = fep->netdev;
 	uint status = fep->phy_status;
 
 	/*
@@ -1975,9 +1978,10 @@ static void mii_display_config(struct net_device *dev)
 	fep->sequence_done = 1;
 }
 
-static void mii_relink(struct net_device *dev)
+static void mii_relink(struct work_struct *work)
 {
-	struct fec_enet_private *fep = netdev_priv(dev);
+	struct fec_enet_private *fep = container_of(work, struct fec_enet_private, phy_task);
+	struct net_device *dev = fep->netdev;
 	int duplex;
 
 	/*
@@ -2021,7 +2025,7 @@ static void mii_queue_relink(uint mii_reg, struct net_device *dev)
 		return;
 
 	fep->mii_phy_task_queued = 1;
-	INIT_WORK(&fep->phy_task, (void*)mii_relink, dev);
+	INIT_WORK(&fep->phy_task, mii_relink);
 	schedule_work(&fep->phy_task);
 }
 
@@ -2034,7 +2038,7 @@ static void mii_queue_config(uint mii_reg, struct net_device *dev)
 		return;
 
 	fep->mii_phy_task_queued = 1;
-	INIT_WORK(&fep->phy_task, (void*)mii_display_config, dev);
+	INIT_WORK(&fep->phy_task, mii_display_config);
 	schedule_work(&fep->phy_task);
 }
 
@@ -2329,6 +2333,7 @@ int __init fec_enet_init(struct net_device *dev)
 
 	fep->index = index;
 	fep->hwp = fecp;
+	fep->netdev = dev;
 
 	/* Whack a reset.  We should wait for this.
 	*/
