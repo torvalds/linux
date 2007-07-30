@@ -1218,26 +1218,6 @@ out:
 }
 EXPORT_SYMBOL(generic_file_aio_read);
 
-int file_send_actor(read_descriptor_t * desc, struct page *page, unsigned long offset, unsigned long size)
-{
-	ssize_t written;
-	unsigned long count = desc->count;
-	struct file *file = desc->arg.data;
-
-	if (size > count)
-		size = count;
-
-	written = file->f_op->sendpage(file, page, offset,
-				       size, &file->f_pos, size<count);
-	if (written < 0) {
-		desc->error = written;
-		written = 0;
-	}
-	desc->count = count - written;
-	desc->written += written;
-	return written;
-}
-
 static ssize_t
 do_readahead(struct address_space *mapping, struct file *filp,
 	     unsigned long index, unsigned long nr)
