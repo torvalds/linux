@@ -646,6 +646,8 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 		if (snd_pcm_stream_linked(subs)) {
 			struct snd_pcxhr *chip = snd_pcm_substream_chip(subs);
 			snd_pcm_group_for_each_entry(s, subs) {
+				if (snd_pcm_substream_chip(s) != chip)
+					continue;
 				stream = s->runtime->private_data;
 				stream->status =
 					PCXHR_STREAM_STATUS_SCHEDULE_RUN;

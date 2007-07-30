@@ -448,6 +448,9 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		break;
 	}
         snd_pcm_group_for_each_entry(s, substream) {
+		if (snd_pcm_substream_chip(s) != emu ||
+		    s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+			continue;
 		runtime = s->runtime;
 		epcm = runtime->private_data;
 		channel = substream->pcm->device-emu->p16v_device_offset;

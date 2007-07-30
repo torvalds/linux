@@ -341,10 +341,12 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	what = 0;
 	snd_pcm_group_for_each_entry(s, substream) {
-		const struct vt1724_pcm_reg *reg;
-		reg = s->runtime->private_data;
-		what |= reg->start;
-		snd_pcm_trigger_done(s, substream);
+		if (snd_pcm_substream_chip(s) == ice) {
+			const struct vt1724_pcm_reg *reg;
+			reg = s->runtime->private_data;
+			what |= reg->start;
+			snd_pcm_trigger_done(s, substream);
+		}
 	}
 
 	switch (cmd) {
