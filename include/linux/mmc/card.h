@@ -65,8 +65,16 @@ struct sdio_cccr {
 				high_speed:1;
 };
 
+struct sdio_cis {
+	unsigned short		vendor;
+	unsigned short		device;
+	unsigned short		blksize;
+	unsigned int		max_dtr;
+};
+
 struct mmc_host;
 struct sdio_func;
+struct sdio_func_tuple;
 
 #define SDIO_MAX_FUNCS		7
 
@@ -98,7 +106,9 @@ struct mmc_card {
 
 	unsigned int		sdio_funcs;	/* number of SDIO functions */
 	struct sdio_cccr	cccr;		/* common card info */
+	struct sdio_cis		cis;		/* common tuple info */
 	struct sdio_func	*sdio_func[SDIO_MAX_FUNCS]; /* SDIO functions (devices) */
+	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
 };
 
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)

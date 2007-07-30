@@ -95,7 +95,7 @@ static void sdio_release_func(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 
-	sdio_free_cis(func);
+	sdio_free_func_cis(func);
 
 	kfree(func);
 }

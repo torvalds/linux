@@ -66,7 +66,7 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 	if (ret)
 		goto fail;
 
-	ret = sdio_read_cis(func);
+	ret = sdio_read_func_cis(func);
 	if (ret)
 		goto fail;
 
@@ -283,6 +283,13 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 * Read the common registers.
 	 */
 	err = sdio_read_cccr(card);
+	if (err)
+		goto remove;
+
+	/*
+	 * Read the common CIS tuples.
+	 */
+	err = sdio_read_common_cis(card);
 	if (err)
 		goto remove;
 

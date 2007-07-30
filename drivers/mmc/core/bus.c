@@ -19,6 +19,7 @@
 
 #include "sysfs.h"
 #include "core.h"
+#include "sdio_cis.h"
 #include "bus.h"
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
@@ -180,6 +181,8 @@ EXPORT_SYMBOL(mmc_unregister_driver);
 static void mmc_release_card(struct device *dev)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
+
+	sdio_free_common_cis(card);
 
 	kfree(card);
 }

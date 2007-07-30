@@ -36,6 +36,8 @@ struct sdio_func {
 	unsigned short		vendor;		/* vendor id */
 	unsigned short		device;		/* device id */
 
+	unsigned short		blksize;	/* maximum block size */
+
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
 
