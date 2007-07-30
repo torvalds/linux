@@ -506,8 +506,8 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	nfs_show_mount_options(m, nfss, 0);
 
-	seq_puts(m, ",addr=");
-	seq_escape(m, nfss->nfs_client->cl_hostname, " \t\n\\");
+	seq_printf(m, ",addr="NIPQUAD_FMT,
+		NIPQUAD(nfss->nfs_client->cl_addr.sin_addr));
 
 	return 0;
 }
