@@ -146,74 +146,6 @@ static inline int valid_vcpu(int n)
 	return likely(n >= 0 && n < KVM_MAX_VCPUS);
 }
 
-int kvm_read_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
-		   void *dest)
-{
-	unsigned char *host_buf = dest;
-	unsigned long req_size = size;
-
-	while (size) {
-		hpa_t paddr;
-		unsigned now;
-		unsigned offset;
-		hva_t guest_buf;
-
-		paddr = gva_to_hpa(vcpu, addr);
-
-		if (is_error_hpa(paddr))
-			break;
-
-		guest_buf = (hva_t)kmap_atomic(
-					pfn_to_page(paddr >> PAGE_SHIFT),
-					KM_USER0);
-		offset = addr & ~PAGE_MASK;
-		guest_buf |= offset;
-		now = min(size, PAGE_SIZE - offset);
-		memcpy(host_buf, (void*)guest_buf, now);
-		host_buf += now;
-		addr += now;
-		size -= now;
-		kunmap_atomic((void *)(guest_buf & PAGE_MASK), KM_USER0);
-	}
-	return req_size - size;
-}
-EXPORT_SYMBOL_GPL(kvm_read_guest);
-
-int kvm_write_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
-		    void *data)
-{
-	unsigned char *host_buf = data;
-	unsigned long req_size = size;
-
-	while (size) {
-		hpa_t paddr;
-		unsigned now;
-		unsigned offset;
-		hva_t guest_buf;
-		gfn_t gfn;
-
-		paddr = gva_to_hpa(vcpu, addr);
-
-		if (is_error_hpa(paddr))
-			break;
-
-		gfn = vcpu->mmu.gva_to_gpa(vcpu, addr) >> PAGE_SHIFT;
-		mark_page_dirty(vcpu->kvm, gfn);
-		guest_buf = (hva_t)kmap_atomic(
-				pfn_to_page(paddr >> PAGE_SHIFT), KM_USER0);
-		offset = addr & ~PAGE_MASK;
-		guest_buf |= offset;
-		now = min(size, PAGE_SIZE - offset);
-		memcpy((void*)guest_buf, host_buf, now);
-		host_buf += now;
-		addr += now;
-		size -= now;
-		kunmap_atomic((void *)(guest_buf & PAGE_MASK), KM_USER0);
-	}
-	return req_size - size;
-}
-EXPORT_SYMBOL_GPL(kvm_write_guest);
-
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu->fpu_active || vcpu->guest_fpu_loaded)
@@ -1017,7 +949,7 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 	}
 }
 
-static int emulator_read_std(unsigned long addr,
+int emulator_read_std(unsigned long addr,
 			     void *val,
 			     unsigned int bytes,
 			     struct kvm_vcpu *vcpu)
@@ -1051,6 +983,7 @@ static int emulator_read_std(unsigned long addr,
 
 	return X86EMUL_CONTINUE;
 }
+EXPORT_SYMBOL_GPL(emulator_read_std);
 
 static int emulator_write_std(unsigned long addr,
 			      const void *val,
@@ -1169,7 +1102,7 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 	return X86EMUL_CONTINUE;
 }
 
-static int emulator_write_emulated(unsigned long addr,
+int emulator_write_emulated(unsigned long addr,
 				   const void *val,
 				   unsigned int bytes,
 				   struct kvm_vcpu *vcpu)
@@ -1188,6 +1121,7 @@ static int emulator_write_emulated(unsigned long addr,
 	}
 	return emulator_write_emulated_onepage(addr, val, bytes, vcpu);
 }
+EXPORT_SYMBOL_GPL(emulator_write_emulated);
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
 				     const void *old,

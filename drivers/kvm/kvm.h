@@ -561,15 +561,14 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 
-int kvm_read_guest(struct kvm_vcpu *vcpu,
-	       gva_t addr,
-	       unsigned long size,
-	       void *dest);
-
-int kvm_write_guest(struct kvm_vcpu *vcpu,
-		gva_t addr,
-		unsigned long size,
-		void *data);
+int emulator_read_std(unsigned long addr,
+                      void *val,
+		      unsigned int bytes,
+		      struct kvm_vcpu *vcpu);
+int emulator_write_emulated(unsigned long addr,
+			    const void *val,
+			    unsigned int bytes,
+			    struct kvm_vcpu *vcpu);
 
 unsigned long segment_base(u16 selector);
 

@@ -16,6 +16,7 @@
  */
 
 #include "kvm.h"
+#include "x86_emulate.h"
 #include "vmx.h"
 #include "segment_descriptor.h"
 
@@ -1553,8 +1554,8 @@ static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
 		return;
 	}
 
-	if (kvm_read_guest(vcpu, irq * sizeof(ent), sizeof(ent), &ent) !=
-								sizeof(ent)) {
+	if (emulator_read_std(irq * sizeof(ent), &ent, sizeof(ent), vcpu) !=
+							X86EMUL_CONTINUE) {
 		vcpu_printf(vcpu, "%s: read guest err\n", __FUNCTION__);
 		return;
 	}
@@ -1564,9 +1565,9 @@ static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
 	ip =  vmcs_readl(GUEST_RIP);
 
 
-	if (kvm_write_guest(vcpu, ss_base + sp - 2, 2, &flags) != 2 ||
-	    kvm_write_guest(vcpu, ss_base + sp - 4, 2, &cs) != 2 ||
-	    kvm_write_guest(vcpu, ss_base + sp - 6, 2, &ip) != 2) {
+	if (emulator_write_emulated(ss_base + sp - 2, &flags, 2, vcpu) != X86EMUL_CONTINUE ||
+	    emulator_write_emulated(ss_base + sp - 4, &cs, 2, vcpu) != X86EMUL_CONTINUE ||
+	    emulator_write_emulated(ss_base + sp - 6, &ip, 2, vcpu) != X86EMUL_CONTINUE) {
 		vcpu_printf(vcpu, "%s: write guest err\n", __FUNCTION__);
 		return;
 	}
@@ -1767,7 +1768,7 @@ static int get_io_count(struct kvm_vcpu *vcpu, unsigned long *count)
 	u64 inst;
 	gva_t rip;
 	int countr_size;
-	int i, n;
+	int i;
 
 	if ((vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_VM)) {
 		countr_size = 2;
@@ -1782,9 +1783,11 @@ static int get_io_count(struct kvm_vcpu *vcpu, unsigned long *count)
 	if (countr_size != 8)
 		rip += vmcs_readl(GUEST_CS_BASE);
 
-	n = kvm_read_guest(vcpu, rip, sizeof(inst), &inst);
+	if (emulator_read_std(rip, &inst, sizeof(inst), vcpu) !=
+							X86EMUL_CONTINUE)
+		return 0;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < sizeof(inst); i++) {
 		switch (((u8*)&inst)[i]) {
 		case 0xf0:
 		case 0xf2:

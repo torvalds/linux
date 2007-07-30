@@ -1019,7 +1019,8 @@ static int io_get_override(struct vcpu_svm *svm,
 		       svm->vmcb->control.exit_info_2,
 		       ins_length);
 
-	if (kvm_read_guest(&svm->vcpu, rip, ins_length, inst) != ins_length)
+	if (emulator_read_std(rip, inst, ins_length, &svm->vcpu)
+	    != X86EMUL_CONTINUE)
 		/* #PF */
 		return 0;
 
