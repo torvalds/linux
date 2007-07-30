@@ -99,8 +99,6 @@ static unsigned char	fec_mac_default[] = {
 #define	FEC_FLASHMAC	0xf0006006
 #elif defined(CONFIG_GILBARCONAP) || defined(CONFIG_SCALES)
 #define	FEC_FLASHMAC	0xf0006000
-#elif defined (CONFIG_MTD_KeyTechnology)
-#define	FEC_FLASHMAC	0xffe04000
 #elif defined(CONFIG_CANCam)
 #define	FEC_FLASHMAC	0xf0020000
 #elif defined (CONFIG_M5272C3)
