@@ -877,6 +877,7 @@ fail:
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbout);
 	usb_free_urb(usbhid->urbctrl);
+	kfree(usbhid);
 fail_no_usbhid:
 	hid_free_buffers(dev, hid);
 	hid_free_device(hid);
@@ -912,6 +913,7 @@ static void hid_disconnect(struct usb_interface *intf)
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbctrl);
 	usb_free_urb(usbhid->urbout);
+	kfree(usbhid);
 
 	hid_free_buffers(hid_to_usb_dev(hid), hid);
 	hid_free_device(hid);
