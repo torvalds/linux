@@ -241,7 +241,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		printk(KERN_DEBUG "%s: NOP\n", __FUNCTION__);
 		return;
 	}
-	if (svm->next_rip - svm->vmcb->save.rip > 15) {
+	if (svm->next_rip - svm->vmcb->save.rip > MAX_INST_SIZE) {
 		printk(KERN_ERR "%s: ip 0x%llx next 0x%llx\n",
 		       __FUNCTION__,
 		       svm->vmcb->save.rip,
