@@ -1427,6 +1427,29 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 		*gpio_pehlpar = 0xc0;
 	}
 #endif
+
+#if defined(CONFIG_M527x)
+	/* Set up gpio outputs for MII lines */
+	{
+		volatile u8 *gpio_par_fec;
+		volatile u16 *gpio_par_feci2c;
+
+		gpio_par_feci2c = (volatile u16 *)(MCF_IPSBAR + 0x100082);
+		/* Set up gpio outputs for FEC0 MII lines */
+		gpio_par_fec = (volatile u8 *)(MCF_IPSBAR + 0x100078);
+
+		*gpio_par_feci2c |= 0x0f00;
+		*gpio_par_fec |= 0xc0;
+
+#if defined(CONFIG_FEC2)
+		/* Set up gpio outputs for FEC1 MII lines */
+		gpio_par_fec = (volatile u8 *)(MCF_IPSBAR + 0x100079);
+
+		*gpio_par_feci2c |= 0x00a0;
+		*gpio_par_fec |= 0xc0;
+#endif /* CONFIG_FEC2 */
+	}
+#endif /* CONFIG_M527x */
 }
 
 static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_private *fep)
