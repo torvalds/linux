@@ -220,7 +220,7 @@
 #define ESP_BUSID_RESELID     0x10
 #define ESP_BUSID_CTR32BIT    0x40
 
-#define ESP_BUS_TIMEOUT        275     /* In milli-seconds */
+#define ESP_BUS_TIMEOUT        250     /* In milli-seconds */
 #define ESP_TIMEO_CONST       8192
 #define ESP_NEG_DEFP(mhz, cfact) \
         ((ESP_BUS_TIMEOUT * ((mhz) / 1000)) / (8192 * (cfact)))
