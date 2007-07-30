@@ -653,7 +653,8 @@ set_source_sink_config (struct zero_dev *dev, gfp_t gfp_flags)
 			result = usb_ep_enable (ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
-				if (source_sink_start_ep (ep, gfp_flags) != 0) {
+				if (source_sink_start_ep(ep, gfp_flags)
+						!= NULL) {
 					dev->in_ep = ep;
 					continue;
 				}
@@ -667,7 +668,8 @@ set_source_sink_config (struct zero_dev *dev, gfp_t gfp_flags)
 			result = usb_ep_enable (ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
-				if (source_sink_start_ep (ep, gfp_flags) != 0) {
+				if (source_sink_start_ep(ep, gfp_flags)
+						!= NULL) {
 					dev->out_ep = ep;
 					continue;
 				}
