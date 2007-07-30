@@ -693,10 +693,13 @@ void fx_init(struct kvm_vcpu *vcpu)
 
 	} *fx_image;
 
+	/* Initialize guest FPU by resetting ours and saving into guest's */
+	preempt_disable();
 	fx_save(vcpu->host_fx_image);
 	fpu_init();
 	fx_save(vcpu->guest_fx_image);
 	fx_restore(vcpu->host_fx_image);
+	preempt_enable();
 
 	fx_image = (struct fx_image_s *)vcpu->guest_fx_image;
 	fx_image->mxcsr = 0x1f80;
