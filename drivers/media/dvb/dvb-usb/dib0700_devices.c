@@ -818,6 +818,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DVB_T_FLASH) },
 		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7070PD) },
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
+		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -874,7 +875,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 			{   "Compro Videomate U500",
-				{ &dib0700_usb_id_table[6], NULL },
+				{ &dib0700_usb_id_table[6], &dib0700_usb_id_table[19] },
 				{ NULL },
 			},
 			{   "Uniwill STK7700P based (Hama and others)",
