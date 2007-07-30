@@ -36,9 +36,9 @@ struct dib7000p_state {
 	struct dibx000_agc_config *current_agc;
 	u32 timf;
 
-	uint8_t div_force_off : 1;
-	uint8_t div_state : 1;
-	uint16_t div_sync_wait;
+	u8 div_force_off : 1;
+	u8 div_state : 1;
+	u16 div_sync_wait;
 
 	u8 agc_state;
 
@@ -156,7 +156,7 @@ static int dib7000p_set_diversity_in(struct dvb_frontend *demod, int onoff)
 		dprintk( "diversity combination deactivated - forced by COFDM parameters");
 		onoff = 0;
 	}
-	state->div_state = (uint8_t)onoff;
+	state->div_state = (u8)onoff;
 
 	if (onoff) {
 		dib7000p_write_word(state, 204, 6);
@@ -294,6 +294,16 @@ static int dib7000p_sad_calib(struct dib7000p_state *state)
 	return 0;
 }
 
+int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
+{
+	struct dib7000p_state *state = demod->demodulator_priv;
+	if (value > 4095)
+		value = 4095;
+	state->wbd_ref = value;
+	return dib7000p_write_word(state, 105, (dib7000p_read_word(state, 105) & 0xf000) | value);
+}
+
+EXPORT_SYMBOL(dib7000p_set_wbd_ref);
 static void dib7000p_reset_pll(struct dib7000p_state *state)
 {
 	struct dibx000_bandwidth_config *bw = &state->cfg.bw[0];
@@ -335,6 +345,28 @@ static int dib7000p_reset_gpio(struct dib7000p_state *st)
 	return 0;
 }
 
+static int dib7000p_cfg_gpio(struct dib7000p_state *st, u8 num, u8 dir, u8 val)
+{
+	st->gpio_dir = dib7000p_read_word(st, 1029);
+	st->gpio_dir &= ~(1 << num);         /* reset the direction bit */
+	st->gpio_dir |=  (dir & 0x1) << num; /* set the new direction */
+	dib7000p_write_word(st, 1029, st->gpio_dir);
+
+	st->gpio_val = dib7000p_read_word(st, 1030);
+	st->gpio_val &= ~(1 << num);          /* reset the direction bit */
+	st->gpio_val |=  (val & 0x01) << num; /* set the new value */
+	dib7000p_write_word(st, 1030, st->gpio_val);
+
+	return 0;
+}
+
+int dib7000p_set_gpio(struct dvb_frontend *demod, u8 num, u8 dir, u8 val)
+{
+	struct dib7000p_state *state = demod->demodulator_priv;
+	return dib7000p_cfg_gpio(state, num, dir, val);
+}
+
+EXPORT_SYMBOL(dib7000p_set_gpio);
 static u16 dib7000p_defaults[] =
 
 {
@@ -501,7 +533,7 @@ static int dib7000p_update_lna(struct dib7000p_state *state)
 
 	// when there is no LNA to program return immediatly
 	if (state->cfg.update_lna) {
-		// read dyn_gain here (because it is demod-dependent and not tuner)
+		// read dyn_gain here (because it is demod-dependent and not fe)
 		dyn_gain = dib7000p_read_word(state, 394);
 		if (state->cfg.update_lna(&state->demod,dyn_gain)) { // LNA has changed
 			dib7000p_restart_agc(state);
@@ -617,7 +649,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod, struct dvb_frontend_
 			break;
 
 	case 3: /* split search ended */
-			agc_split = (uint8_t)dib7000p_read_word(state, 396); /* store the split value for the next time */
+			agc_split = (u8)dib7000p_read_word(state, 396); /* store the split value for the next time */
 			dib7000p_write_word(state, 78, dib7000p_read_word(state, 394)); /* set AGC gain start value */
 
 			dib7000p_write_word(state, 75,  state->current_agc->setup);   /* std AGC loop */

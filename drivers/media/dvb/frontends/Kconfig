@@ -344,6 +344,15 @@ config DVB_TUNER_MT2131
 	help
 	  A driver for the silicon baseband tuner MT2131 from Microtune.
 
+config DVB_TUNER_DIB0070
+	tristate "DiBcom DiB0070 silicon base-band tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
+	  This device is only used inside a SiP called togther with a
+	  demodulator for now.
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 

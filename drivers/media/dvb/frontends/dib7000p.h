@@ -40,12 +40,7 @@ extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u
 
 extern struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 extern int dib7000pc_detection(struct i2c_adapter *i2c_adap);
-
-/* TODO
-extern INT dib7000p_set_gpio(struct dibDemod *demod, UCHAR num, UCHAR dir, UCHAR val);
-extern INT dib7000p_enable_vbg_voltage(struct dibDemod *demod);
-extern void dib7000p_set_hostbus_diversity(struct dibDemod *demod, UCHAR onoff);
-extern USHORT dib7000p_get_current_agc_global(struct dibDemod *demod);
-*/
+extern int dib7000p_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
+extern int dib7000p_set_wbd_ref(struct dvb_frontend *, u16 value);
 
 #endif

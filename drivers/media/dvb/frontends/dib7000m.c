@@ -42,9 +42,9 @@ struct dib7000m_state {
 	u32 timf_default;
 	u32 internal_clk;
 
-	uint8_t div_force_off : 1;
-	uint8_t div_state : 1;
-	uint16_t div_sync_wait;
+	u8 div_force_off : 1;
+	u8 div_state : 1;
+	u16 div_sync_wait;
 
 	u16 revision;
 
@@ -302,7 +302,7 @@ static int dib7000m_set_diversity_in(struct dvb_frontend *demod, int onoff)
 		dprintk( "diversity combination deactivated - forced by COFDM parameters");
 		onoff = 0;
 	}
-	state->div_state = (uint8_t)onoff;
+	state->div_state = (u8)onoff;
 
 	if (onoff) {
 		dib7000m_write_word(state, 263 + state->reg_offs, 6);
@@ -620,7 +620,7 @@ static int dib7000m_update_lna(struct dib7000m_state *state)
 	u16 dyn_gain;
 
 	if (state->cfg.update_lna) {
-		// read dyn_gain here (because it is demod-dependent and not tuner)
+		// read dyn_gain here (because it is demod-dependent and not fe)
 		dyn_gain = dib7000m_read_word(state, 390);
 
 		if (state->cfg.update_lna(&state->demod,dyn_gain)) { // LNA has changed
@@ -754,7 +754,7 @@ static int dib7000m_agc_startup(struct dvb_frontend *demod, struct dvb_frontend_
 			break;
 
 	case 3: /* split search ended */
-			agc_split = (uint8_t)dib7000m_read_word(state, 392); /* store the split value for the next time */
+			agc_split = (u8)dib7000m_read_word(state, 392); /* store the split value for the next time */
 			dib7000m_write_word(state, 75, dib7000m_read_word(state, 390)); /* set AGC gain start value */
 
 			dib7000m_write_word(state, 72,  cfg_72 & ~(1 << 4));   /* std AGC loop */

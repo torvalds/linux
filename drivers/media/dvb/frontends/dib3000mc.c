@@ -593,7 +593,7 @@ static int dib3000mc_tune(struct dvb_frontend *demod, struct dvb_frontend_parame
 	// activates isi
 	dib3000mc_write_word(state, 29, 0x1073);
 
-	dib3000mc_set_adp_cfg(state, (uint8_t)ch->u.ofdm.constellation);
+	dib3000mc_set_adp_cfg(state, (u8)ch->u.ofdm.constellation);
 	if (ch->u.ofdm.transmission_mode == TRANSMISSION_MODE_8K) {
 		dib3000mc_write_word(state, 26, 38528);
 		dib3000mc_write_word(state, 33, 8);
