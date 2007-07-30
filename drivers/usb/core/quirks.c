@@ -54,6 +54,8 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04b8, 0x011f), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* EPSON Perfection 2480 */
 	{ USB_DEVICE(0x04b8, 0x0121), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Seiko Epson Corp.*/
+	{ USB_DEVICE(0x04b8, 0x0122), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Samsung ML-2510 Series printer */
 	{ USB_DEVICE(0x04e8, 0x327e), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Elsa MicroLink 56k (V.250) */
