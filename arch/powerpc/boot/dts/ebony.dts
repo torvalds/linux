@@ -175,6 +175,7 @@
 				fpga@7,0 {
 					compatible = "Ebony-FPGA";
 					reg = <7 0 10>;
+					virtual-reg = <e8300000>;
 				};
 			};
 
