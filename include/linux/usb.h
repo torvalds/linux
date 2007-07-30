@@ -94,6 +94,7 @@ enum usb_interface_condition {
  * 	endpoint configurations.  They will be in no particular order.
  * @num_altsetting: number of altsettings defined.
  * @cur_altsetting: the current altsetting.
+ * @intf_assoc: interface association descriptor
  * @driver: the USB driver that is bound to this interface.
  * @minor: the minor number assigned to this interface, if this
  *	interface is bound to a driver that uses the USB major number.
@@ -213,6 +214,7 @@ struct usb_interface_cache {
  * @desc: the device's configuration descriptor.
  * @string: pointer to the cached version of the iConfiguration string, if
  *	present for this configuration.
+ * @intf_assoc: list of any interface association descriptors in this config
  * @interface: array of pointers to usb_interface structures, one for each
  *	interface in the configuration.  The number of interfaces is stored
  *	in desc.bNumInterfaces.  These pointers are valid only while the

@@ -1299,7 +1299,7 @@ static int m66592_queue(struct usb_ep *_ep, struct usb_request *_req,
 	req->req.actual = 0;
 	req->req.status = -EINPROGRESS;
 
-	if (ep->desc == 0)	/* control */
+	if (ep->desc == NULL)	/* control */
 		start_ep0(ep, req);
 	else {
 		if (request && !ep->busy)

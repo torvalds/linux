@@ -50,7 +50,7 @@ usb_descriptor_fillbuf(void *buf, unsigned buflen,
 		return -EINVAL;
 
 	/* fill buffer from src[] until null descriptor ptr */
-	for (; 0 != *src; src++) {
+	for (; NULL != *src; src++) {
 		unsigned		len = (*src)->bLength;
 
 		if (len > buflen)
