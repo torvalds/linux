@@ -210,6 +210,9 @@ struct iscsi_session {
 	uint32_t		exp_cmdsn;
 	uint32_t		max_cmdsn;
 
+	/* This tracks the reqs queued into the initiator */
+	uint32_t		queued_cmdsn;
+
 	/* configuration */
 	int			initial_r2t_en;
 	unsigned		max_r2t;

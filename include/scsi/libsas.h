@@ -348,7 +348,7 @@ struct sas_ha_struct {
 
 /* public: */
 	char *sas_ha_name;
-	struct pci_dev *pcidev;	  /* should be set */
+	struct device *dev;	  /* should be set */
 	struct module *lldd_module; /* should be set */
 
 	u8 *sas_addr;		  /* must be set */

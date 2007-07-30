@@ -194,8 +194,7 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 	struct scsi_device *device;
 
 	if (unlikely(!scsicmd || !scsicmd->scsi_done )) {
-		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"))
-;
+		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"));
                 aac_fib_complete(fibptr);
                 aac_fib_free(fibptr);
                 return 0;
@@ -1689,23 +1688,23 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 	if (!aac_valid_context(cmd, fibptr))
 		return;
 
-	dprintk((KERN_DEBUG "synchronize_callback[cpu %d]: t = %ld.\n", 
+	dprintk((KERN_DEBUG "synchronize_callback[cpu %d]: t = %ld.\n",
 				smp_processor_id(), jiffies));
 	BUG_ON(fibptr == NULL);
 
 
 	synchronizereply = fib_data(fibptr);
 	if (le32_to_cpu(synchronizereply->status) == CT_OK)
-		cmd->result = DID_OK << 16 | 
+		cmd->result = DID_OK << 16 |
 			COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 	else {
 		struct scsi_device *sdev = cmd->device;
 		struct aac_dev *dev = fibptr->dev;
 		u32 cid = sdev_id(sdev);
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 		     "synchronize_callback: synchronize failed, status = %d\n",
 		     le32_to_cpu(synchronizereply->status));
-		cmd->result = DID_OK << 16 | 
+		cmd->result = DID_OK << 16 |
 			COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
 		set_sense((u8 *)&dev->fsa_dev[cid].sense_data,
 				    HARDWARE_ERROR,
@@ -1713,7 +1712,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 				    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
 				    0, 0);
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
-		  min(sizeof(dev->fsa_dev[cid].sense_data), 
+		  min(sizeof(dev->fsa_dev[cid].sense_data),
 			  sizeof(cmd->sense_buffer)));
 	}
 
@@ -1731,6 +1730,9 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	struct scsi_device *sdev = scsicmd->device;
 	int active = 0;
 	struct aac_dev *aac;
+	u64 lba = ((u64)scsicmd->cmnd[2] << 24) | (scsicmd->cmnd[3] << 16) |
+		(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
+	u32 count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
 	unsigned long flags;
 
 	/*
@@ -1739,7 +1741,51 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	 */
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(cmd, &sdev->cmd_list, list)
-		if (cmd != scsicmd && cmd->SCp.phase == AAC_OWNER_FIRMWARE) {
+		if (cmd->SCp.phase == AAC_OWNER_FIRMWARE) {
+			u64 cmnd_lba;
+			u32 cmnd_count;
+
+			if (cmd->cmnd[0] == WRITE_6) {
+				cmnd_lba = ((cmd->cmnd[1] & 0x1F) << 16) |
+					(cmd->cmnd[2] << 8) |
+					cmd->cmnd[3];
+				cmnd_count = cmd->cmnd[4];
+				if (cmnd_count == 0)
+					cmnd_count = 256;
+			} else if (cmd->cmnd[0] == WRITE_16) {
+				cmnd_lba = ((u64)cmd->cmnd[2] << 56) |
+					((u64)cmd->cmnd[3] << 48) |
+					((u64)cmd->cmnd[4] << 40) |
+					((u64)cmd->cmnd[5] << 32) |
+					((u64)cmd->cmnd[6] << 24) |
+					(cmd->cmnd[7] << 16) |
+					(cmd->cmnd[8] << 8) |
+					cmd->cmnd[9];
+				cmnd_count = (cmd->cmnd[10] << 24) |
+					(cmd->cmnd[11] << 16) |
+					(cmd->cmnd[12] << 8) |
+					cmd->cmnd[13];
+			} else if (cmd->cmnd[0] == WRITE_12) {
+				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
+					(cmd->cmnd[3] << 16) |
+					(cmd->cmnd[4] << 8) |
+					cmd->cmnd[5];
+				cmnd_count = (cmd->cmnd[6] << 24) |
+					(cmd->cmnd[7] << 16) |
+					(cmd->cmnd[8] << 8) |
+					cmd->cmnd[9];
+			} else if (cmd->cmnd[0] == WRITE_10) {
+				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
+					(cmd->cmnd[3] << 16) |
+					(cmd->cmnd[4] << 8) |
+					cmd->cmnd[5];
+				cmnd_count = (cmd->cmnd[7] << 8) |
+					cmd->cmnd[8];
+			} else
+				continue;
+			if (((cmnd_lba + cmnd_count) < lba) ||
+			  (count && ((lba + count) < cmnd_lba)))
+				continue;
 			++active;
 			break;
 		}
@@ -1768,7 +1814,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	synchronizecmd->command = cpu_to_le32(VM_ContainerConfig);
 	synchronizecmd->type = cpu_to_le32(CT_FLUSH_CACHE);
 	synchronizecmd->cid = cpu_to_le32(scmd_id(scsicmd));
-	synchronizecmd->count = 
+	synchronizecmd->count =
 	     cpu_to_le32(sizeof(((struct aac_synchronize_reply *)NULL)->data));
 
 	/*
@@ -1790,7 +1836,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 		return 0;
 	}
 
-	printk(KERN_WARNING 
+	printk(KERN_WARNING
 		"aac_synchronize: aac_fib_send failed with status: %d.\n", status);
 	aac_fib_complete(cmd_fibcontext);
 	aac_fib_free(cmd_fibcontext);

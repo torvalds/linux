@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/pci.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_eh.h>
@@ -170,7 +169,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 		if (res) {
 			printk("sas: driver on pcidev %s cannot handle "
 			       "device %llx, error:%d\n",
-			       pci_name(sas_ha->pcidev),
+			       sas_ha->dev->bus_id,
 			       SAS_ADDR(dev->sas_addr), res);
 		}
 	}

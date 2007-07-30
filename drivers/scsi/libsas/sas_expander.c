@@ -507,13 +507,20 @@ static int sas_dev_present_in_domain(struct asd_sas_port *port,
 int sas_smp_get_phy_events(struct sas_phy *phy)
 {
 	int res;
+	u8 *req;
+	u8 *resp;
 	struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
 	struct domain_device *dev = sas_find_dev_by_rphy(rphy);
-	u8 *req = alloc_smp_req(RPEL_REQ_SIZE);
-	u8 *resp = kzalloc(RPEL_RESP_SIZE, GFP_KERNEL);
 
-	if (!resp)
+	req = alloc_smp_req(RPEL_REQ_SIZE);
+	if (!req)
 		return -ENOMEM;
+
+	resp = alloc_smp_resp(RPEL_RESP_SIZE);
+	if (!resp) {
+		kfree(req);
+		return -ENOMEM;
+	}
 
 	req[1] = SMP_REPORT_PHY_ERR_LOG;
 	req[9] = phy->number;
@@ -1879,7 +1886,7 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		    struct request *req)
 {
 	struct domain_device *dev;
-	int ret, type = rphy->identify.device_type;
+	int ret, type;
 	struct request *rsp = req->next_rq;
 
 	if (!rsp) {
@@ -1888,12 +1895,13 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		return -EINVAL;
 	}
 
-	/* seems aic94xx doesn't support */
+	/* no rphy means no smp target support (ie aic94xx host) */
 	if (!rphy) {
 		printk("%s: can we send a smp request to a host?\n",
 		       __FUNCTION__);
 		return -EINVAL;
 	}
+	type = rphy->identify.device_type;
 
 	if (type != SAS_EDGE_EXPANDER_DEVICE &&
 	    type != SAS_FANOUT_EXPANDER_DEVICE) {

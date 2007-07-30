@@ -472,7 +472,7 @@ static int aac_rx_restart_adapter(struct aac_dev *dev, int bled)
 		else {
 			bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
 			  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
-			if (!bled && (var != 0x00000001))
+			if (!bled && (var != 0x00000001) && (var != 0x3803000F))
 				bled = -EINVAL;
 		}
 		if (bled && (bled != -ETIMEDOUT))

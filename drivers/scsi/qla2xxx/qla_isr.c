@@ -1068,7 +1068,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			 * values.
 			 */
 			if (resid &&
-			    ((unsigned)(cp->request_bufflen - resid) <
+			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			     cp->underflow)) {
 				DEBUG2(qla_printk(KERN_INFO, ha,
 				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
@@ -1076,7 +1076,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 				    "error status.\n", ha->host_no,
 				    cp->device->channel, cp->device->id,
 				    cp->device->lun, resid,
-				    cp->request_bufflen));
+				    scsi_bufflen(cp)));
 
 				cp->result = DID_ERROR << 16 | lscsi_status;
 			}

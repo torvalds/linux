@@ -586,7 +586,7 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 		goto Err;
 	}
 	asd_ha->pcidev = dev;
-	asd_ha->sas_ha.pcidev = asd_ha->pcidev;
+	asd_ha->sas_ha.dev = &asd_ha->pcidev->dev;
 	asd_ha->sas_ha.lldd_ha = asd_ha;
 
 	asd_ha->name = asd_dev->name;
@@ -604,8 +604,6 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 		scsi_host_put(shost);
 		goto Err_free;
 	}
-
-
 
 	err = asd_dev->setup(asd_ha);
 	if (err)

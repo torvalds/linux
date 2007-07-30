@@ -2317,8 +2317,13 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 
 	if (period < 9)
 		period = 9;	/* 12.5ns is our minimum */
-	if (period == 9)
-		ppr_options |= MSG_EXT_PPR_DT_REQ;
+	if (period == 9) {
+		if (spi_max_width(starget))
+			ppr_options |= MSG_EXT_PPR_DT_REQ;
+		else
+			/* need wide for DT and need DT for 12.5 ns */
+			period = 10;
+	}
 
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
@@ -2381,7 +2386,7 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
-	if (dt) {
+	if (dt && spi_max_width(starget)) {
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
 		if (!width)
 			ahc_linux_set_width(starget, 1);
