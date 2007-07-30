@@ -367,17 +367,6 @@ cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
-# NEC DDB
-#
-core-$(CONFIG_DDB5XXX_COMMON)	+= arch/mips/ddb5xxx/common/
-
-#
-# NEC DDB Vrc-5477
-#
-core-$(CONFIG_DDB5477)		+= arch/mips/ddb5xxx/ddb5477/
-load-$(CONFIG_DDB5477)		+= 0xffffffff80100000
-
-#
 # Common VR41xx
 #
 core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/

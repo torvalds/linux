@@ -86,16 +86,6 @@
 #define  MACH_COBALT_27		0	/* Proto "27" hardware		*/
 
 /*
- * Valid machtype for group NEC DDB
- */
-#define MACH_GROUP_NEC_DDB	8	/* NEC DDB			*/
-#define  MACH_NEC_DDB5074	0	/* NEC DDB Vrc-5074 */
-#define  MACH_NEC_DDB5476	1	/* NEC DDB Vrc-5476 */
-#define  MACH_NEC_DDB5477	2	/* NEC DDB Vrc-5477 */
-#define  MACH_NEC_ROCKHOPPER	3	/* Rockhopper base board */
-#define  MACH_NEC_ROCKHOPPERII	4	/* Rockhopper II base board */
-
-/*
  * Valid machtype for group BAGET
  */
 #define MACH_GROUP_BAGET	9	/* Baget			*/

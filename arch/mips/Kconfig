@@ -227,26 +227,6 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config DDB5477
-	bool "NEC DDB Vrc-5477"
-	select DDB5XXX_COMMON
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select I8259
-	select IRQ_CPU
-	select SYS_HAS_CPU_R5432
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_KGDB
-	select SYS_SUPPORTS_KGDB
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This enables support for the R5432-based NEC DDB Vrc-5477,
-	  or Rockhopper/SolutionGear boards with R5432/R5500 CPUs.
-
-	  Features : kernel debugging, serial terminal, NFS root fs, on-board
-	  ether port USB, AC97, PCI, etc.
-
 config MARKEINS
 	bool "NEC EMMA2RH Mark-eins"
 	select DMA_NONCOHERENT
@@ -617,7 +597,6 @@ config WR_PPMC
 endchoice
 
 source "arch/mips/au1000/Kconfig"
-source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
@@ -788,10 +767,6 @@ config IRQ_MSP_SLP
 
 config IRQ_MSP_CIC
 	bool
-
-config DDB5XXX_COMMON
-	bool
-	select SYS_SUPPORTS_KGDB
 
 config MIPS_BOARDS_GEN
 	bool

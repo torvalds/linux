@@ -36,7 +36,6 @@ CONFIG_BASLER_EXCITE=y
 # CONFIG_MIPS_XXS1500 is not set
 # CONFIG_PNX8550_JBS is not set
 # CONFIG_PNX8550_STB810 is not set
-# CONFIG_DDB5477 is not set
 # CONFIG_MACH_VR41XX is not set
 # CONFIG_PMC_YOSEMITE is not set
 # CONFIG_QEMU is not set
