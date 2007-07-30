@@ -25,14 +25,6 @@
 #define BUFFER_SIZE	2048	/* buffer for the variables */
 #define NUM_ENVP	32	/* number of env pointers */
 
-#if defined(CONFIG_HOTPLUG)
-u64 uevent_seqnum;
-char uevent_helper[UEVENT_HELPER_PATH_LEN] = "/sbin/hotplug";
-static DEFINE_SPINLOCK(sequence_lock);
-#if defined(CONFIG_NET)
-static struct sock *uevent_sock;
-#endif
-
 /* the strings here must match the enum in include/linux/kobject.h */
 const char *kobject_actions[] = {
 	"add",
@@ -42,6 +34,14 @@ const char *kobject_actions[] = {
 	"online",
 	"offline",
 };
+
+#if defined(CONFIG_HOTPLUG)
+u64 uevent_seqnum;
+char uevent_helper[UEVENT_HELPER_PATH_LEN] = "/sbin/hotplug";
+static DEFINE_SPINLOCK(sequence_lock);
+#if defined(CONFIG_NET)
+static struct sock *uevent_sock;
+#endif
 
 /**
  * kobject_uevent_env - send an uevent with environmental data
