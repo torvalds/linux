@@ -35,6 +35,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -142,7 +143,7 @@ struct dvb_fe_events {
 	int			  eventr;
 	int			  overflow;
 	wait_queue_head_t	  wait_queue;
-	struct semaphore	  sem;
+	struct mutex		  mtx;
 };
 
 struct dvb_frontend {

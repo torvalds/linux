@@ -138,7 +138,7 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (down_interruptible (&events->sem))
+	if (mutex_lock_interruptible (&events->mtx))
 		return;
 
 	wp = (events->eventw + 1) % MAX_EVENT;
@@ -159,7 +159,7 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 
 	events->eventw = wp;
 
-	up (&events->sem);
+	mutex_unlock(&events->mtx);
 
 	e->status = status;
 
@@ -197,7 +197,7 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 			return ret;
 	}
 
-	if (down_interruptible (&events->sem))
+	if (mutex_lock_interruptible (&events->mtx))
 		return -ERESTARTSYS;
 
 	memcpy (event, &events->events[events->eventr],
@@ -205,7 +205,7 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 
 	events->eventr = (events->eventr + 1) % MAX_EVENT;
 
-	up (&events->sem);
+	mutex_unlock(&events->mtx);
 
 	return 0;
 }
@@ -1126,7 +1126,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	init_MUTEX (&fepriv->sem);
 	init_waitqueue_head (&fepriv->wait_queue);
 	init_waitqueue_head (&fepriv->events.wait_queue);
-	init_MUTEX (&fepriv->events.sem);
+	mutex_init(&fepriv->events.mtx);
 	fe->dvb = dvb;
 	fepriv->inversion = INVERSION_OFF;
 
