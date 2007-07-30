@@ -101,6 +101,7 @@ int v4l2_int_device_register(struct v4l2_int_device *d)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(v4l2_int_device_register);
 
 void v4l2_int_device_unregister(struct v4l2_int_device *d)
 {
@@ -114,6 +115,7 @@ void v4l2_int_device_unregister(struct v4l2_int_device *d)
 	}
 	mutex_unlock(&mutex);
 }
+EXPORT_SYMBOL_GPL(v4l2_int_device_unregister);
 
 /* Adapted from search_extable in extable.c. */
 static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd,
