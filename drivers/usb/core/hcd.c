@@ -943,7 +943,6 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 {
 	int			status;
 	struct usb_hcd		*hcd = bus_to_hcd(urb->dev->bus);
-	struct usb_host_endpoint *ep;
 	unsigned long		flags;
 
 	if (!hcd)
@@ -960,9 +959,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	// FIXME:  verify that quiescing hc works right (RH cleans up)
 
 	spin_lock_irqsave(&hcd_urb_list_lock, flags);
-	ep = (usb_pipein(urb->pipe) ? urb->dev->ep_in : urb->dev->ep_out)
-			[usb_pipeendpoint(urb->pipe)];
-	if (unlikely(ep != urb->ep))
+	if (unlikely(!urb->ep->enabled))
 		status = -ENOENT;
 	else if (unlikely (urb->reject))
 		status = -EPERM;

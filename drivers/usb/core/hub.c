@@ -1999,7 +1999,7 @@ static void ep0_reinit(struct usb_device *udev)
 {
 	usb_disable_endpoint(udev, 0 + USB_DIR_IN);
 	usb_disable_endpoint(udev, 0 + USB_DIR_OUT);
-	udev->ep_in[0] = udev->ep_out[0] = &udev->ep0;
+	usb_enable_endpoint(udev, &udev->ep0);
 }
 
 #define usb_sndaddr0pipe()	(PIPE_CONTROL << 30)

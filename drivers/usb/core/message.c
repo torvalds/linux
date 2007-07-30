@@ -1013,8 +1013,10 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
 		ep = dev->ep_in[epnum];
 		dev->ep_in[epnum] = NULL;
 	}
-	if (ep && dev->bus)
+	if (ep) {
+		ep->enabled = 0;
 		usb_hcd_endpoint_disable(dev, ep);
+	}
 }
 
 /**
@@ -1096,23 +1098,21 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
  * Resets the endpoint toggle, and sets dev->ep_{in,out} pointers.
  * For control endpoints, both the input and output sides are handled.
  */
-static void
-usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep)
+void usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep)
 {
-	unsigned int epaddr = ep->desc.bEndpointAddress;
-	unsigned int epnum = epaddr & USB_ENDPOINT_NUMBER_MASK;
-	int is_control;
+	int epnum = usb_endpoint_num(&ep->desc);
+	int is_out = usb_endpoint_dir_out(&ep->desc);
+	int is_control = usb_endpoint_xfer_control(&ep->desc);
 
-	is_control = ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			== USB_ENDPOINT_XFER_CONTROL);
-	if (usb_endpoint_out(epaddr) || is_control) {
+	if (is_out || is_control) {
 		usb_settoggle(dev, epnum, 1, 0);
 		dev->ep_out[epnum] = ep;
 	}
-	if (!usb_endpoint_out(epaddr) || is_control) {
+	if (!is_out || is_control) {
 		usb_settoggle(dev, epnum, 0, 0);
 		dev->ep_in[epnum] = ep;
 	}
+	ep->enabled = 1;
 }
 
 /*

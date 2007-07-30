@@ -52,6 +52,7 @@ struct ep_device;
  * @ep_dev: ep_device for sysfs info
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
+ * @enabled: URBs may be submitted to this endpoint
  *
  * USB requests are always queued to a given endpoint, identified by a
  * descriptor within an active interface in a given USB configuration.
@@ -64,6 +65,7 @@ struct usb_host_endpoint {
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
+	int enabled;
 };
 
 /* host-side wrapper for one interface setting's parsed descriptors */

@@ -8,6 +8,8 @@ extern int usb_create_ep_files(struct device *parent, struct usb_host_endpoint *
 				struct usb_device *udev);
 extern void usb_remove_ep_files(struct usb_host_endpoint *endpoint);
 
+extern void usb_enable_endpoint(struct usb_device *dev,
+		struct usb_host_endpoint *ep);
 extern void usb_disable_endpoint (struct usb_device *dev, unsigned int epaddr);
 extern void usb_disable_interface (struct usb_device *dev,
 		struct usb_interface *intf);
