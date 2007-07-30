@@ -1020,9 +1020,8 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 static int emulator_read_std(unsigned long addr,
 			     void *val,
 			     unsigned int bytes,
-			     struct x86_emulate_ctxt *ctxt)
+			     struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = ctxt->vcpu;
 	void *data = val;
 
 	while (bytes) {
@@ -1056,7 +1055,7 @@ static int emulator_read_std(unsigned long addr,
 static int emulator_write_std(unsigned long addr,
 			      const void *val,
 			      unsigned int bytes,
-			      struct x86_emulate_ctxt *ctxt)
+			      struct kvm_vcpu *vcpu)
 {
 	printk(KERN_ERR "emulator_write_std: addr %lx n %d\n",
 	       addr, bytes);
@@ -1083,9 +1082,8 @@ static struct kvm_io_device *vcpu_find_pio_dev(struct kvm_vcpu *vcpu,
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
 				  unsigned int bytes,
-				  struct x86_emulate_ctxt *ctxt)
+				  struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu      *vcpu = ctxt->vcpu;
 	struct kvm_io_device *mmio_dev;
 	gpa_t                 gpa;
 
@@ -1093,7 +1091,7 @@ static int emulator_read_emulated(unsigned long addr,
 		memcpy(val, vcpu->mmio_data, bytes);
 		vcpu->mmio_read_completed = 0;
 		return X86EMUL_CONTINUE;
-	} else if (emulator_read_std(addr, val, bytes, ctxt)
+	} else if (emulator_read_std(addr, val, bytes, vcpu)
 		   == X86EMUL_CONTINUE)
 		return X86EMUL_CONTINUE;
 
@@ -1140,9 +1138,8 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 static int emulator_write_emulated_onepage(unsigned long addr,
 					   const void *val,
 					   unsigned int bytes,
-					   struct x86_emulate_ctxt *ctxt)
+					   struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu      *vcpu = ctxt->vcpu;
 	struct kvm_io_device *mmio_dev;
 	gpa_t                 gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 
@@ -1175,28 +1172,28 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 static int emulator_write_emulated(unsigned long addr,
 				   const void *val,
 				   unsigned int bytes,
-				   struct x86_emulate_ctxt *ctxt)
+				   struct kvm_vcpu *vcpu)
 {
 	/* Crossing a page boundary? */
 	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
 		int rc, now;
 
 		now = -addr & ~PAGE_MASK;
-		rc = emulator_write_emulated_onepage(addr, val, now, ctxt);
+		rc = emulator_write_emulated_onepage(addr, val, now, vcpu);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		addr += now;
 		val += now;
 		bytes -= now;
 	}
-	return emulator_write_emulated_onepage(addr, val, bytes, ctxt);
+	return emulator_write_emulated_onepage(addr, val, bytes, vcpu);
 }
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
 				     const void *old,
 				     const void *new,
 				     unsigned int bytes,
-				     struct x86_emulate_ctxt *ctxt)
+				     struct kvm_vcpu *vcpu)
 {
 	static int reported;
 
@@ -1204,7 +1201,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 		reported = 1;
 		printk(KERN_WARNING "kvm: emulating exchange as write\n");
 	}
-	return emulator_write_emulated(addr, new, bytes, ctxt);
+	return emulator_write_emulated(addr, new, bytes, vcpu);
 }
 
 static unsigned long get_segment_base(struct kvm_vcpu *vcpu, int seg)
@@ -1266,7 +1263,7 @@ static void report_emulation_failure(struct x86_emulate_ctxt *ctxt)
 	if (reported)
 		return;
 
-	emulator_read_std(rip_linear, (void *)opcodes, 4, ctxt);
+	emulator_read_std(rip_linear, (void *)opcodes, 4, ctxt->vcpu);
 
 	printk(KERN_ERR "emulation failed but !mmio_needed?"
 	       " rip %lx %02x %02x %02x %02x\n",

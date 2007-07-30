@@ -420,7 +420,7 @@ struct operand {
 #define insn_fetch(_type, _size, _eip)                                  \
 ({	unsigned long _x;						\
 	rc = ops->read_std((unsigned long)(_eip) + ctxt->cs_base, &_x,	\
-                                                  (_size), ctxt);       \
+                                                  (_size), ctxt->vcpu); \
 	if ( rc != 0 )							\
 		goto done;						\
 	(_eip) += (_size);						\
@@ -469,10 +469,12 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (op_bytes == 2)
 		op_bytes = 3;
 	*address = 0;
-	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2, ctxt);
+	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2,
+			   ctxt->vcpu);
 	if (rc)
 		return rc;
-	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes, ctxt);
+	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes,
+			   ctxt->vcpu);
 	return rc;
 }
 
@@ -780,7 +782,7 @@ done_prefixes:
 		src.type = OP_MEM;
 		src.ptr = (unsigned long *)cr2;
 		if ((rc = ops->read_emulated((unsigned long)src.ptr,
-					     &src.val, src.bytes, ctxt)) != 0)
+					     &src.val, src.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		src.orig_val = src.val;
 		break;
@@ -850,7 +852,7 @@ done_prefixes:
 		}
 		if (!(d & Mov) && /* optimisation - avoid slow emulated read */
 		    ((rc = ops->read_emulated((unsigned long)dst.ptr,
-					      &dst.val, dst.bytes, ctxt)) != 0))
+					      &dst.val, dst.bytes, ctxt->vcpu)) != 0))
 			goto done;
 		break;
 	}
@@ -963,7 +965,7 @@ done_prefixes:
 			dst.bytes = 8;
 		if ((rc = ops->read_std(register_address(ctxt->ss_base,
 							 _regs[VCPU_REGS_RSP]),
-					&dst.val, dst.bytes, ctxt)) != 0)
+					&dst.val, dst.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
 		break;
@@ -1048,7 +1050,7 @@ done_prefixes:
 				dst.bytes = 8;
 				if ((rc = ops->read_std((unsigned long)dst.ptr,
 							&dst.val, 8,
-							ctxt)) != 0)
+							ctxt->vcpu)) != 0)
 					goto done;
 			}
 			register_address_increment(_regs[VCPU_REGS_RSP],
@@ -1056,7 +1058,7 @@ done_prefixes:
 			if ((rc = ops->write_std(
 				     register_address(ctxt->ss_base,
 						      _regs[VCPU_REGS_RSP]),
-				     &dst.val, dst.bytes, ctxt)) != 0)
+				     &dst.val, dst.bytes, ctxt->vcpu)) != 0)
 				goto done;
 			no_wb = 1;
 			break;
@@ -1091,11 +1093,11 @@ writeback:
 				rc = ops->cmpxchg_emulated((unsigned long)dst.
 							   ptr, &dst.orig_val,
 							   &dst.val, dst.bytes,
-							   ctxt);
+							   ctxt->vcpu);
 			else
 				rc = ops->write_emulated((unsigned long)dst.ptr,
 							 &dst.val, dst.bytes,
-							 ctxt);
+							 ctxt->vcpu);
 			if (rc != 0)
 				goto done;
 		default:
@@ -1130,7 +1132,7 @@ special_insn:
 							_regs[VCPU_REGS_RDI]);
 		if ((rc = ops->read_emulated(register_address(
 		      override_base ? *override_base : ctxt->ds_base,
-		      _regs[VCPU_REGS_RSI]), &dst.val, dst.bytes, ctxt)) != 0)
+		      _regs[VCPU_REGS_RSI]), &dst.val, dst.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSI],
 			     (_eflags & EFLG_DF) ? -dst.bytes : dst.bytes);
@@ -1152,7 +1154,8 @@ special_insn:
 		dst.type = OP_REG;
 		dst.bytes = (d & ByteOp) ? 1 : op_bytes;
 		dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
-		if ((rc = ops->read_emulated(cr2, &dst.val, dst.bytes, ctxt)) != 0)
+		if ((rc = ops->read_emulated(cr2, &dst.val, dst.bytes,
+					     ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSI],
 			   (_eflags & EFLG_DF) ? -dst.bytes : dst.bytes);
@@ -1171,7 +1174,8 @@ special_insn:
 
 pop_instruction:
 		if ((rc = ops->read_std(register_address(ctxt->ss_base,
-			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt)) != 0)
+			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt->vcpu))
+			!= 0)
 			goto done;
 
 		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
@@ -1378,7 +1382,8 @@ twobyte_special_insn:
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		{
 			u64 old, new;
-			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt)) != 0)
+			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt->vcpu))
+									!= 0)
 				goto done;
 			if (((u32) (old >> 0) != (u32) _regs[VCPU_REGS_RAX]) ||
 			    ((u32) (old >> 32) != (u32) _regs[VCPU_REGS_RDX])) {
@@ -1389,7 +1394,7 @@ twobyte_special_insn:
 				new = ((u64)_regs[VCPU_REGS_RCX] << 32)
 					| (u32) _regs[VCPU_REGS_RBX];
 				if ((rc = ops->cmpxchg_emulated(cr2, &old,
-							  &new, 8, ctxt)) != 0)
+							  &new, 8, ctxt->vcpu)) != 0)
 					goto done;
 				_eflags |= EFLG_ZF;
 			}

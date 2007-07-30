@@ -60,7 +60,7 @@ struct x86_emulate_ops {
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
 	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct x86_emulate_ctxt * ctxt);
+			unsigned int bytes, struct kvm_vcpu *vcpu);
 
 	/*
 	 * write_std: Write bytes of standard (non-emulated/special) memory.
@@ -71,7 +71,7 @@ struct x86_emulate_ops {
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
 	int (*write_std)(unsigned long addr, const void *val,
-			 unsigned int bytes, struct x86_emulate_ctxt * ctxt);
+			 unsigned int bytes, struct kvm_vcpu *vcpu);
 
 	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
@@ -82,7 +82,7 @@ struct x86_emulate_ops {
 	int (*read_emulated) (unsigned long addr,
 			      void *val,
 			      unsigned int bytes,
-			      struct x86_emulate_ctxt * ctxt);
+			      struct kvm_vcpu *vcpu);
 
 	/*
 	 * write_emulated: Read bytes from emulated/special memory area.
@@ -94,7 +94,7 @@ struct x86_emulate_ops {
 	int (*write_emulated) (unsigned long addr,
 			       const void *val,
 			       unsigned int bytes,
-			       struct x86_emulate_ctxt * ctxt);
+			       struct kvm_vcpu *vcpu);
 
 	/*
 	 * cmpxchg_emulated: Emulate an atomic (LOCKed) CMPXCHG operation on an
@@ -108,7 +108,7 @@ struct x86_emulate_ops {
 				 const void *old,
 				 const void *new,
 				 unsigned int bytes,
-				 struct x86_emulate_ctxt * ctxt);
+				 struct kvm_vcpu *vcpu);
 
 };
 
