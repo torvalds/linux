@@ -938,7 +938,7 @@ source "drivers/acpi/Kconfig"
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on PM && !X86_VISWS
+	depends on PM_SLEEP && !X86_VISWS
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
