@@ -1123,7 +1123,7 @@ vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		if (res_locked(fh->dev))
 			return -EBUSY;
-		return videobuf_read_one(&fh->vb_vidq, data, count, ppos,
+		return videobuf_read_stream(&fh->vb_vidq, data, count, ppos, 0,
 					file->f_flags & O_NONBLOCK);
 	}
 	return 0;
