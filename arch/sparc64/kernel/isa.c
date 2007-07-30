@@ -90,6 +90,8 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 		sd = &isa_dev->ofdev.dev.archdata;
 		sd->prom_node = dp;
 		sd->op = &isa_dev->ofdev;
+		sd->iommu = isa_br->ofdev.dev.parent->archdata.iommu;
+		sd->stc = isa_br->ofdev.dev.parent->archdata.stc;
 
 		isa_dev->ofdev.node = dp;
 		isa_dev->ofdev.dev.parent = &isa_br->ofdev.dev;

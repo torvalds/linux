@@ -653,135 +653,120 @@ static void cg6_chip_init(struct fb_info *info)
 	sbus_writel(info->var.yres - 1, &fbc->clipmaxy);
 }
 
-struct all_info {
-	struct fb_info info;
-	struct cg6_par par;
-};
-
-static void cg6_unmap_regs(struct of_device *op, struct all_info *all)
+static void cg6_unmap_regs(struct of_device *op, struct fb_info *info,
+			   struct cg6_par *par)
 {
-	if (all->par.fbc)
-		of_iounmap(&op->resource[0], all->par.fbc, 4096);
-	if (all->par.tec)
-		of_iounmap(&op->resource[0],
-			   all->par.tec, sizeof(struct cg6_tec));
-	if (all->par.thc)
-		of_iounmap(&op->resource[0],
-			   all->par.thc, sizeof(struct cg6_thc));
-	if (all->par.bt)
-		of_iounmap(&op->resource[0],
-			   all->par.bt, sizeof(struct bt_regs));
-	if (all->par.fhc)
-		of_iounmap(&op->resource[0],
-			   all->par.fhc, sizeof(u32));
+	if (par->fbc)
+		of_iounmap(&op->resource[0], par->fbc, 4096);
+	if (par->tec)
+		of_iounmap(&op->resource[0], par->tec, sizeof(struct cg6_tec));
+	if (par->thc)
+		of_iounmap(&op->resource[0], par->thc, sizeof(struct cg6_thc));
+	if (par->bt)
+		of_iounmap(&op->resource[0], par->bt, sizeof(struct bt_regs));
+	if (par->fhc)
+		of_iounmap(&op->resource[0], par->fhc, sizeof(u32));
 
-	if (all->info.screen_base)
-		of_iounmap(&op->resource[0],
-			   all->info.screen_base, all->par.fbsize);
+	if (info->screen_base)
+		of_iounmap(&op->resource[0], info->screen_base, par->fbsize);
 }
 
-static int __devinit cg6_init_one(struct of_device *op)
+static int __devinit cg6_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct all_info *all;
+	struct fb_info *info;
+	struct cg6_par *par;
 	int linebytes, err;
 
-	all = kzalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
-		return -ENOMEM;
+	info = framebuffer_alloc(sizeof(struct cg6_par), &op->dev);
 
-	spin_lock_init(&all->par.lock);
+	err = -ENOMEM;
+	if (!info)
+		goto out_err;
+	par = info->par;
 
-	all->par.physbase = op->resource[0].start;
-	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
+	spin_lock_init(&par->lock);
 
-	sbusfb_fill_var(&all->info.var, dp->node, 8);
-	all->info.var.red.length = 8;
-	all->info.var.green.length = 8;
-	all->info.var.blue.length = 8;
+	par->physbase = op->resource[0].start;
+	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
+
+	sbusfb_fill_var(&info->var, dp->node, 8);
+	info->var.red.length = 8;
+	info->var.green.length = 8;
+	info->var.blue.length = 8;
 
 	linebytes = of_getintprop_default(dp, "linebytes",
-					  all->info.var.xres);
-	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
+					  info->var.xres);
+	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
 	if (of_find_property(dp, "dblbuf", NULL))
-		all->par.fbsize *= 4;
+		par->fbsize *= 4;
 
-	all->par.fbc = of_ioremap(&op->resource[0], CG6_FBC_OFFSET,
+	par->fbc = of_ioremap(&op->resource[0], CG6_FBC_OFFSET,
 				  4096, "cgsix fbc");
-	all->par.tec = of_ioremap(&op->resource[0], CG6_TEC_OFFSET,
+	par->tec = of_ioremap(&op->resource[0], CG6_TEC_OFFSET,
 				  sizeof(struct cg6_tec), "cgsix tec");
-	all->par.thc = of_ioremap(&op->resource[0], CG6_THC_OFFSET,
+	par->thc = of_ioremap(&op->resource[0], CG6_THC_OFFSET,
 				  sizeof(struct cg6_thc), "cgsix thc");
-	all->par.bt = of_ioremap(&op->resource[0], CG6_BROOKTREE_OFFSET,
+	par->bt = of_ioremap(&op->resource[0], CG6_BROOKTREE_OFFSET,
 				 sizeof(struct bt_regs), "cgsix dac");
-	all->par.fhc = of_ioremap(&op->resource[0], CG6_FHC_OFFSET,
+	par->fhc = of_ioremap(&op->resource[0], CG6_FHC_OFFSET,
 				  sizeof(u32), "cgsix fhc");
 
-	all->info.flags = FBINFO_DEFAULT | FBINFO_HWACCEL_IMAGEBLIT |
+	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_IMAGEBLIT |
                           FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
-	all->info.fbops = &cg6_ops;
+	info->fbops = &cg6_ops;
 
-	all->info.screen_base =  of_ioremap(&op->resource[0], CG6_RAM_OFFSET,
-					    all->par.fbsize, "cgsix ram");
-	if (!all->par.fbc || !all->par.tec || !all->par.thc ||
-	    !all->par.bt || !all->par.fhc || !all->info.screen_base) {
-		cg6_unmap_regs(op, all);
-		kfree(all);
-		return -ENOMEM;
-	}
+	info->screen_base =  of_ioremap(&op->resource[0], CG6_RAM_OFFSET,
+					    par->fbsize, "cgsix ram");
+	if (!par->fbc || !par->tec || !par->thc ||
+	    !par->bt || !par->fhc || !info->screen_base)
+		goto out_unmap_regs;
 
-	all->info.par = &all->par;
+	info->var.accel_flags = FB_ACCELF_TEXT;
 
-	all->info.var.accel_flags = FB_ACCELF_TEXT;
+	cg6_bt_init(par);
+	cg6_chip_init(info);
+	cg6_blank(0, info);
 
-	cg6_bt_init(&all->par);
-	cg6_chip_init(&all->info);
-	cg6_blank(0, &all->info);
+	if (fb_alloc_cmap(&info->cmap, 256, 0))
+		goto out_unmap_regs;
 
-	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		cg6_unmap_regs(op, all);
-		kfree(all);
-		return -ENOMEM;
-	}
+	fb_set_cmap(&info->cmap, info);
+	cg6_init_fix(info, linebytes);
 
-	fb_set_cmap(&all->info.cmap, &all->info);
-	cg6_init_fix(&all->info, linebytes);
+	err = register_framebuffer(info);
+	if (err < 0)
+		goto out_dealloc_cmap;
 
-	err = register_framebuffer(&all->info);
-	if (err < 0) {
-		cg6_unmap_regs(op, all);
-		fb_dealloc_cmap(&all->info.cmap);
-		kfree(all);
-		return err;
-	}
-
-	dev_set_drvdata(&op->dev, all);
+	dev_set_drvdata(&op->dev, info);
 
 	printk("%s: CGsix [%s] at %lx:%lx\n",
-	       dp->full_name,
-	       all->info.fix.id,
-	       all->par.which_io, all->par.physbase);
+	       dp->full_name, info->fix.id,
+	       par->which_io, par->physbase);
 
 	return 0;
-}
 
-static int __devinit cg6_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
+out_dealloc_cmap:
+	fb_dealloc_cmap(&info->cmap);
 
-	return cg6_init_one(op);
+out_unmap_regs:
+	cg6_unmap_regs(op, info, par);
+
+out_err:
+	return err;
 }
 
 static int __devexit cg6_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&op->dev);
+	struct fb_info *info = dev_get_drvdata(&op->dev);
+	struct cg6_par *par = info->par;
 
-	unregister_framebuffer(&all->info);
-	fb_dealloc_cmap(&all->info.cmap);
+	unregister_framebuffer(info);
+	fb_dealloc_cmap(&info->cmap);
 
-	cg6_unmap_regs(op, all);
+	cg6_unmap_regs(op, info, par);
 
-	kfree(all);
+	framebuffer_release(info);
 
 	dev_set_drvdata(&op->dev, NULL);
 

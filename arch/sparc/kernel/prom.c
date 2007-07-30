@@ -415,7 +415,7 @@ static void __init of_console_init(void)
 	unsigned long flags;
 	const char *type;
 	phandle node;
-	int skip, fd;
+	int skip, tmp, fd;
 
 	of_console_path = prom_early_alloc(256);
 
@@ -442,8 +442,9 @@ static void __init of_console_init(void)
 			prom_halt();
 		}
 
+		tmp = skip;
 		for_each_node_by_type(dp, type) {
-			if (!skip--)
+			if (!tmp--)
 				break;
 		}
 		if (!dp) {

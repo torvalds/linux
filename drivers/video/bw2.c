@@ -279,90 +279,91 @@ static void __devinit bw2_do_default_mode(struct bw2_par *par,
 	}
 }
 
-struct all_info {
-	struct fb_info info;
-	struct bw2_par par;
-};
-
-static int __devinit bw2_init_one(struct of_device *op)
+static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct all_info *all;
+	struct fb_info *info;
+	struct bw2_par *par;
 	int linebytes, err;
 
-	all = kzalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
-		return -ENOMEM;
+	info = framebuffer_alloc(sizeof(struct bw2_par), &op->dev);
 
-	spin_lock_init(&all->par.lock);
+	err = -ENOMEM;
+	if (!info)
+		goto out_err;
+	par = info->par;
 
-	all->par.physbase = op->resource[0].start;
-	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
+	spin_lock_init(&par->lock);
 
-	sbusfb_fill_var(&all->info.var, dp->node, 1);
+	par->physbase = op->resource[0].start;
+	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
+
+	sbusfb_fill_var(&info->var, dp->node, 1);
 	linebytes = of_getintprop_default(dp, "linebytes",
-					  all->info.var.xres);
+					  info->var.xres);
 
-	all->info.var.red.length = all->info.var.green.length =
-		all->info.var.blue.length = all->info.var.bits_per_pixel;
-	all->info.var.red.offset = all->info.var.green.offset =
-		all->info.var.blue.offset = 0;
+	info->var.red.length = info->var.green.length =
+		info->var.blue.length = info->var.bits_per_pixel;
+	info->var.red.offset = info->var.green.offset =
+		info->var.blue.offset = 0;
 
-	all->par.regs = of_ioremap(&op->resource[0], BWTWO_REGISTER_OFFSET,
-				   sizeof(struct bw2_regs), "bw2 regs");
+	par->regs = of_ioremap(&op->resource[0], BWTWO_REGISTER_OFFSET,
+			       sizeof(struct bw2_regs), "bw2 regs");
+	if (!par->regs)
+		goto out_release_fb;
 
 	if (!of_find_property(dp, "width", NULL))
-		bw2_do_default_mode(&all->par, &all->info, &linebytes);
+		bw2_do_default_mode(par, info, &linebytes);
 
-	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
+	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
 
-	all->info.flags = FBINFO_DEFAULT;
-	all->info.fbops = &bw2_ops;
+	info->flags = FBINFO_DEFAULT;
+	info->fbops = &bw2_ops;
 
-	all->info.screen_base =
-		of_ioremap(&op->resource[0], 0, all->par.fbsize, "bw2 ram");
-	all->info.par = &all->par;
+	info->screen_base = of_ioremap(&op->resource[0], 0,
+				       par->fbsize, "bw2 ram");
+	if (!info->screen_base)
+		goto out_unmap_regs;
 
-	bw2_blank(0, &all->info);
+	bw2_blank(0, info);
 
-	bw2_init_fix(&all->info, linebytes);
+	bw2_init_fix(info, linebytes);
 
-	err= register_framebuffer(&all->info);
-	if (err < 0) {
-		of_iounmap(&op->resource[0],
-			   all->par.regs, sizeof(struct bw2_regs));
-		of_iounmap(&op->resource[0],
-			   all->info.screen_base, all->par.fbsize);
-		kfree(all);
-		return err;
-	}
+	err = register_framebuffer(info);
+	if (err < 0)
+		goto out_unmap_screen;
 
-	dev_set_drvdata(&op->dev, all);
+	dev_set_drvdata(&op->dev, info);
 
 	printk("%s: bwtwo at %lx:%lx\n",
-	       dp->full_name,
-	       all->par.which_io, all->par.physbase);
+	       dp->full_name, par->which_io, par->physbase);
 
 	return 0;
-}
 
-static int __devinit bw2_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
+out_unmap_screen:
+	of_iounmap(&op->resource[0], info->screen_base, par->fbsize);
 
-	return bw2_init_one(op);
+out_unmap_regs:
+	of_iounmap(&op->resource[0], par->regs, sizeof(struct bw2_regs));
+
+out_release_fb:
+	framebuffer_release(info);
+
+out_err:
+	return err;
 }
 
 static int __devexit bw2_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&op->dev);
+	struct fb_info *info = dev_get_drvdata(&op->dev);
+	struct bw2_par *par = info->par;
 
-	unregister_framebuffer(&all->info);
+	unregister_framebuffer(info);
 
-	of_iounmap(&op->resource[0], all->par.regs, sizeof(struct bw2_regs));
-	of_iounmap(&op->resource[0], all->info.screen_base, all->par.fbsize);
+	of_iounmap(&op->resource[0], par->regs, sizeof(struct bw2_regs));
+	of_iounmap(&op->resource[0], info->screen_base, par->fbsize);
 
-	kfree(all);
+	framebuffer_release(info);
 
 	dev_set_drvdata(&op->dev, NULL);
 
