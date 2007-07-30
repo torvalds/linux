@@ -294,6 +294,12 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 		goto remove;
 
 	/*
+	 * No support for high-speed yet, so just set
+	 * the card's maximum speed.
+	 */
+	mmc_set_clock(host, card->cis.max_dtr);
+
+	/*
 	 * Initialize (but don't add) all present functions.
 	 */
 	for (i = 0;i < funcs;i++) {
