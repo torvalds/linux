@@ -768,10 +768,12 @@ done:
 static void write_bulk_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
-	struct net_device *net = pegasus->net;
+	struct net_device *net;
 
 	if (!pegasus)
 		return;
+
+	net = pegasus->net;
 
 	if (!netif_device_present(net) || !netif_running(net))
 		return;

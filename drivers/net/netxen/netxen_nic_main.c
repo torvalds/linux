@@ -335,7 +335,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->ahw.pdev = pdev;
 	adapter->ahw.pci_func  = pci_func_id;
 	spin_lock_init(&adapter->tx_lock);
-	spin_lock_init(&adapter->lock);
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
@@ -895,8 +894,6 @@ static int netxen_nic_open(struct net_device *netdev)
 
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
-	if (adapter->macaddr_set)
-		adapter->macaddr_set(adapter, netdev->dev_addr);
 	if (adapter->init_port
 	    && adapter->init_port(adapter, adapter->portnum) != 0) {
 	    del_timer_sync(&adapter->watchdog_timer);
@@ -904,6 +901,8 @@ static int netxen_nic_open(struct net_device *netdev)
 				netxen_nic_driver_name, adapter->portnum);
 		return -EIO;
 	}
+	if (adapter->macaddr_set)
+		adapter->macaddr_set(adapter, netdev->dev_addr);
 
 	netxen_nic_set_link_parameters(adapter);
 
@@ -929,6 +928,8 @@ static int netxen_nic_close(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
+
+	netxen_nic_disable_int(adapter);
 
 	cmd_buff = adapter->cmd_buf_arr;
 	for (i = 0; i < adapter->max_tx_desc_count; i++) {
@@ -1226,15 +1227,12 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 {
 	struct netxen_adapter *adapter = 
 		container_of(work, struct netxen_adapter, tx_timeout_task);
-	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
 	netxen_nic_close(adapter->netdev);
 	netxen_nic_open(adapter->netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
 	adapter->netdev->trans_start = jiffies;
 	netif_wake_queue(adapter->netdev);
 }
@@ -1243,27 +1241,11 @@ static int
 netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	u32 ret = 0;
-	u32 our_int = 0;
 
 	DPRINTK(INFO, "Entered handle ISR\n");
 	adapter->stats.ints++;
 
-	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		/* not our interrupt */
-		if ((our_int & (0x80 << adapter->portnum)) == 0)
-			return ret;
-	}
-
 	netxen_nic_disable_int(adapter);
-
-	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
-		/* claim interrupt */
-		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
-			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		}
-	}
 
 	if (netxen_nic_rx_has_work(adapter) || netxen_nic_tx_has_work(adapter)) {
 		if (netif_rx_schedule_prep(netdev)) {
@@ -1298,6 +1280,7 @@ irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter;
 	struct net_device *netdev;
+	u32 our_int = 0;
 
 	if (unlikely(!irq)) {
 		return IRQ_NONE;	/* Not our interrupt */
@@ -1305,7 +1288,22 @@ irqreturn_t netxen_intr(int irq, void *data)
 
 	adapter = (struct netxen_adapter *)data;
 	netdev  = adapter->netdev;
-	/* process our status queue (for all 4 ports) */
+
+	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		/* not our interrupt */
+		if ((our_int & (0x80 << adapter->portnum)) == 0)
+			return IRQ_NONE;
+	}
+
+	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+		/* claim interrupt */
+		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
+			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		}
+	}
+
 	if (netif_running(netdev))
 		netxen_handle_int(adapter, netdev);
 

@@ -74,6 +74,10 @@ static int debug_level = ERR_DBG;
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
 
+#ifndef DMA_ERROR_CODE
+#define DMA_ERROR_CODE          (~(dma_addr_t)0x0)
+#endif
+
 /* Protocol assist features of the NIC */
 #define L3_CKSUM_OK 0xFFFF
 #define L4_CKSUM_OK 0xFFFF
@@ -97,6 +101,7 @@ struct swStat {
 	unsigned long long num_aggregations;
 	/* Other statistics */
 	unsigned long long mem_alloc_fail_cnt;
+	unsigned long long pci_map_fail_cnt;
 	unsigned long long watchdog_timer_cnt;
 	unsigned long long mem_allocated;
 	unsigned long long mem_freed;
@@ -575,8 +580,7 @@ struct RxD_block {
 #define SIZE_OF_BLOCK	4096
 
 #define RXD_MODE_1	0 /* One Buffer mode */
-#define RXD_MODE_3A	1 /* Three Buffer mode */
-#define RXD_MODE_3B	2 /* Two Buffer mode */
+#define RXD_MODE_3B	1 /* Two Buffer mode */
 
 /* Structure to hold virtual addresses of Buf0 and Buf1 in
  * 2buf mode. */
@@ -876,7 +880,6 @@ struct s2io_nic {
 	u16		lro_max_aggr_per_sess;
 
 #define INTA	0
-#define MSI	1
 #define MSI_X	2
 	u8 intr_type;
 
@@ -1020,8 +1023,6 @@ static int s2io_poll(struct net_device *dev, int *budget);
 static void s2io_init_pci(struct s2io_nic * sp);
 static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
-static int s2io_enable_msi(struct s2io_nic *nic);
-static irqreturn_t s2io_msi_handle(int irq, void *dev_id);
 static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id);
 static irqreturn_t

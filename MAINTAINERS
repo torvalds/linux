@@ -3674,11 +3674,9 @@ W:	http://www.auk.cx/tms380tr/
 S:	Maintained
 
 TULIP NETWORK DRIVER
-P:	Valerie Henson
-M:	val@nmt.edu
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
-S:	Maintained
+S:	Orphan
 
 TUN/TAP driver
 P:	Maxim Krasnyansky

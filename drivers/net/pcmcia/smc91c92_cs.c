@@ -1368,6 +1368,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     kio_addr_t ioaddr = dev->base_addr;
     u_short num_pages;
     short time_out, ir;
+    unsigned long flags;
 
     netif_stop_queue(dev);
 
@@ -1395,6 +1396,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* A packet is now waiting. */
     smc->packets_waiting++;
 
+    spin_lock_irqsave(&smc->lock, flags);
     SMC_SELECT_BANK(2);	/* Paranoia, we should always be in window 2 */
 
     /* need MC_RESET to keep the memory consistent. errata? */
@@ -1411,6 +1413,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    /* Acknowledge the interrupt, send the packet. */
 	    outw((ir&0xff00) | IM_ALLOC_INT, ioaddr + INTERRUPT);
 	    smc_hardware_send_packet(dev);	/* Send the packet now.. */
+	    spin_unlock_irqrestore(&smc->lock, flags);
 	    return 0;
 	}
     }
@@ -1418,6 +1421,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* Otherwise defer until the Tx-space-allocated interrupt. */
     DEBUG(2, "%s: memory allocation deferred.\n", dev->name);
     outw((IM_ALLOC_INT << 8) | (ir & 0xff00), ioaddr + INTERRUPT);
+    spin_unlock_irqrestore(&smc->lock, flags);
 
     return 0;
 }
@@ -1523,6 +1527,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
     DEBUG(3, "%s: SMC91c92 interrupt %d at %#x.\n", dev->name,
 	  irq, ioaddr);
 
+    spin_lock(&smc->lock);
     smc->watchdog = 0;
     saved_bank = inw(ioaddr + BANK_SELECT);
     if ((saved_bank & 0xff00) != 0x3300) {
@@ -1620,6 +1625,7 @@ irq_done:
 	readb(smc->base+MEGAHERTZ_ISR);
     }
 #endif
+    spin_unlock(&smc->lock);
     return IRQ_RETVAL(handled);
 }
 
@@ -1902,6 +1908,9 @@ static void media_check(u_long arg)
     kio_addr_t ioaddr = dev->base_addr;
     u_short i, media, saved_bank;
     u_short link;
+    unsigned long flags;
+
+    spin_lock_irqsave(&smc->lock, flags);
 
     saved_bank = inw(ioaddr + BANK_SELECT);
 
@@ -1934,6 +1943,7 @@ static void media_check(u_long arg)
 	smc->media.expires = jiffies + HZ/100;
 	add_timer(&smc->media);
 	SMC_SELECT_BANK(saved_bank);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return;
     }
 
@@ -2007,6 +2017,7 @@ reschedule:
     smc->media.expires = jiffies + HZ;
     add_timer(&smc->media);
     SMC_SELECT_BANK(saved_bank);
+    spin_unlock_irqrestore(&smc->lock, flags);
 }
 
 static int smc_link_ok(struct net_device *dev)
@@ -2094,14 +2105,14 @@ static int smc_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
 
-	SMC_SELECT_BANK(3);
 	spin_lock_irq(&smc->lock);
+	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_gset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_get_ecmd(dev, ecmd);
-	spin_unlock_irq(&smc->lock);
 	SMC_SELECT_BANK(saved_bank);
+	spin_unlock_irq(&smc->lock);
 	return ret;
 }
 
@@ -2112,14 +2123,14 @@ static int smc_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
 
-	SMC_SELECT_BANK(3);
 	spin_lock_irq(&smc->lock);
+	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_sset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_set_ecmd(dev, ecmd);
-	spin_unlock_irq(&smc->lock);
 	SMC_SELECT_BANK(saved_bank);
+	spin_unlock_irq(&smc->lock);
 	return ret;
 }
 
@@ -2130,11 +2141,11 @@ static u32 smc_get_link(struct net_device *dev)
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	u32 ret;
 
-	SMC_SELECT_BANK(3);
 	spin_lock_irq(&smc->lock);
+	SMC_SELECT_BANK(3);
 	ret = smc_link_ok(dev);
-	spin_unlock_irq(&smc->lock);
 	SMC_SELECT_BANK(saved_bank);
+	spin_unlock_irq(&smc->lock);
 	return ret;
 }
 
