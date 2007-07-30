@@ -1481,6 +1481,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		case 0:
 			/* TRSTRCY = 10 ms; plus some extra */
 			msleep(10 + 40);
+		  	udev->devnum = 0;	/* Device now at address 0 */
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
@@ -2005,20 +2006,21 @@ static void ep0_reinit(struct usb_device *udev)
 #define usb_sndaddr0pipe()	(PIPE_CONTROL << 30)
 #define usb_rcvaddr0pipe()	((PIPE_CONTROL << 30) | USB_DIR_IN)
 
-static int hub_set_address(struct usb_device *udev)
+static int hub_set_address(struct usb_device *udev, int devnum)
 {
 	int retval;
 
-	if (udev->devnum == 0)
+	if (devnum <= 1)
 		return -EINVAL;
 	if (udev->state == USB_STATE_ADDRESS)
 		return 0;
 	if (udev->state != USB_STATE_DEFAULT)
 		return -EINVAL;
 	retval = usb_control_msg(udev, usb_sndaddr0pipe(),
-		USB_REQ_SET_ADDRESS, 0, udev->devnum, 0,
+		USB_REQ_SET_ADDRESS, 0, devnum, 0,
 		NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval == 0) {
+		udev->devnum = devnum;	/* Device now using proper address */
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		ep0_reinit(udev);
 	}
@@ -2045,6 +2047,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
 	char 			*speed, *type;
+	int			devnum = udev->devnum;
 
 	/* root hub ports have a slightly longer reset period
 	 * (from USB 2.0 spec, section 7.1.7.5)
@@ -2074,7 +2077,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 	}
 	oldspeed = udev->speed;
-  
+
 	/* USB 2.0 section 5.5.3 talks about ep0 maxpacket ...
 	 * it's fixed size except for full speed devices.
 	 * For Wireless USB devices, ep0 max packet is always 512 (tho
@@ -2115,7 +2118,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	dev_info (&udev->dev,
 		  "%s %s speed %sUSB device using %s and address %d\n",
 		  (udev->config) ? "reset" : "new", speed, type,
-		  udev->bus->controller->driver->name, udev->devnum);
+		  udev->bus->controller->driver->name, devnum);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -2202,7 +2205,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		}
 
 		for (j = 0; j < SET_ADDRESS_TRIES; ++j) {
-			retval = hub_set_address(udev);
+			retval = hub_set_address(udev, devnum);
 			if (retval >= 0)
 				break;
 			msleep(200);
@@ -2210,7 +2213,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		if (retval < 0) {
 			dev_err(&udev->dev,
 				"device not accepting address %d, error %d\n",
-				udev->devnum, retval);
+				devnum, retval);
 			goto fail;
 		}
  
@@ -2263,8 +2266,10 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	retval = 0;
 
 fail:
-	if (retval)
+	if (retval) {
 		hub_port_disable(hub, port1, 0);
+		udev->devnum = devnum;	/* for disconnect processing */
+	}
 	mutex_unlock(&usb_address0_mutex);
 	return retval;
 }

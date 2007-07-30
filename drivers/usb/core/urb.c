@@ -284,9 +284,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	if (!urb || urb->hcpriv || !urb->complete)
 		return -EINVAL;
-	if (!(dev = urb->dev) ||
-	    (dev->state < USB_STATE_DEFAULT) ||
-	    (!dev->bus) || (dev->devnum <= 0))
+	if (!(dev = urb->dev) || dev->state < USB_STATE_DEFAULT)
 		return -ENODEV;
 	if (dev->bus->controller->power.power_state.event != PM_EVENT_ON
 			|| dev->state == USB_STATE_SUSPENDED)
