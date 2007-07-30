@@ -53,6 +53,8 @@ static LIST_HEAD(vm_list);
 static cpumask_t cpus_hardware_enabled;
 
 struct kvm_arch_ops *kvm_arch_ops;
+struct kmem_cache *kvm_vcpu_cache;
+EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
@@ -3104,7 +3106,8 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 	kvm_arch_ops->vcpu_put(vcpu);
 }
 
-int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
+int kvm_init_arch(struct kvm_arch_ops *ops, unsigned int vcpu_size,
+		  struct module *module)
 {
 	int r;
 
@@ -3142,6 +3145,14 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	if (r)
 		goto out_free_3;
 
+	/* A kmem cache lets us meet the alignment requirements of fx_save. */
+	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size,
+					   __alignof__(struct kvm_vcpu), 0, 0);
+	if (!kvm_vcpu_cache) {
+		r = -ENOMEM;
+		goto out_free_4;
+	}
+
 	kvm_chardev_ops.owner = module;
 
 	r = misc_register(&kvm_dev);
@@ -3156,6 +3167,8 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	return r;
 
 out_free:
+	kmem_cache_destroy(kvm_vcpu_cache);
+out_free_4:
 	sysdev_unregister(&kvm_sysdev);
 out_free_3:
 	sysdev_class_unregister(&kvm_sysdev_class);
@@ -3173,6 +3186,7 @@ out:
 void kvm_exit_arch(void)
 {
 	misc_deregister(&kvm_dev);
+	kmem_cache_destroy(kvm_vcpu_cache);
 	sysdev_unregister(&kvm_sysdev);
 	sysdev_class_unregister(&kvm_sysdev_class);
 	unregister_reboot_notifier(&kvm_reboot_notifier);

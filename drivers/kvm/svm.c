@@ -577,7 +577,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	struct page *page;
 	int err;
 
-	svm = kzalloc(sizeof *svm, GFP_KERNEL);
+	svm = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!svm) {
 		err = -ENOMEM;
 		goto out;
@@ -1849,7 +1849,8 @@ static struct kvm_arch_ops svm_arch_ops = {
 
 static int __init svm_init(void)
 {
-	return kvm_init_arch(&svm_arch_ops, THIS_MODULE);
+	return kvm_init_arch(&svm_arch_ops, sizeof(struct vcpu_svm),
+			      THIS_MODULE);
 }
 
 static void __exit svm_exit(void)

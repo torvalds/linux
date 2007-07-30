@@ -141,6 +141,7 @@ struct kvm_mmu_page {
 };
 
 struct kvm_vcpu;
+extern struct kmem_cache *kvm_vcpu_cache;
 
 /*
  * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
@@ -483,7 +484,8 @@ extern struct kvm_arch_ops *kvm_arch_ops;
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
-int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module);
+int kvm_init_arch(struct kvm_arch_ops *ops, unsigned int vcpu_size,
+		  struct module *module);
 void kvm_exit_arch(void);
 
 int kvm_mmu_module_init(void);
