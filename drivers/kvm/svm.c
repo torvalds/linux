@@ -1060,7 +1060,7 @@ static int io_get_override(struct vcpu_svm *svm,
 	return 0;
 }
 
-static unsigned long io_adress(struct vcpu_svm *svm, int ins, gva_t *address)
+static unsigned long io_address(struct vcpu_svm *svm, int ins, gva_t *address)
 {
 	unsigned long addr_mask;
 	unsigned long *reg;
@@ -1124,7 +1124,7 @@ static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (string) {
 		unsigned addr_mask;
 
-		addr_mask = io_adress(svm, in, &address);
+		addr_mask = io_address(svm, in, &address);
 		if (!addr_mask) {
 			printk(KERN_DEBUG "%s: get io address failed\n",
 			       __FUNCTION__);
@@ -1419,7 +1419,7 @@ static void pre_svm_run(struct vcpu_svm *svm)
 }
 
 
-static inline void kvm_do_inject_irq(struct vcpu_svm *svm)
+static inline void inject_irq(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control;
 
@@ -1430,7 +1430,7 @@ static inline void kvm_do_inject_irq(struct vcpu_svm *svm)
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 }
 
-static void kvm_reput_irq(struct vcpu_svm *svm)
+static void reput_irq(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
 
@@ -1456,7 +1456,7 @@ static void do_interrupt_requests(struct vcpu_svm *svm,
 		/*
 		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
 		 */
-		kvm_do_inject_irq(svm);
+		inject_irq(svm);
 
 	/*
 	 * Interrupts blocked.  Wait for unblock.
@@ -1698,7 +1698,7 @@ again:
 
 	stgi();
 
-	kvm_reput_irq(svm);
+	reput_irq(svm);
 
 	svm->next_rip = 0;
 
