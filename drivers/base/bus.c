@@ -568,32 +568,29 @@ static void remove_bind_files(struct device_driver *drv)
 	driver_remove_file(drv, &driver_attr_unbind);
 }
 
+static BUS_ATTR(drivers_probe, S_IWUSR, NULL, store_drivers_probe);
+static BUS_ATTR(drivers_autoprobe, S_IWUSR | S_IRUGO,
+		show_drivers_autoprobe, store_drivers_autoprobe);
+
 static int add_probe_files(struct bus_type *bus)
 {
 	int retval;
 
-	bus->drivers_probe_attr.attr.name = "drivers_probe";
-	bus->drivers_probe_attr.attr.mode = S_IWUSR;
-	bus->drivers_probe_attr.store = store_drivers_probe;
-	retval = bus_create_file(bus, &bus->drivers_probe_attr);
+	retval = bus_create_file(bus, &bus_attr_drivers_probe);
 	if (retval)
 		goto out;
 
-	bus->drivers_autoprobe_attr.attr.name = "drivers_autoprobe";
-	bus->drivers_autoprobe_attr.attr.mode = S_IWUSR | S_IRUGO;
-	bus->drivers_autoprobe_attr.show = show_drivers_autoprobe;
-	bus->drivers_autoprobe_attr.store = store_drivers_autoprobe;
-	retval = bus_create_file(bus, &bus->drivers_autoprobe_attr);
+	retval = bus_create_file(bus, &bus_attr_drivers_autoprobe);
 	if (retval)
-		bus_remove_file(bus, &bus->drivers_probe_attr);
+		bus_remove_file(bus, &bus_attr_drivers_probe);
 out:
 	return retval;
 }
 
 static void remove_probe_files(struct bus_type *bus)
 {
-	bus_remove_file(bus, &bus->drivers_autoprobe_attr);
-	bus_remove_file(bus, &bus->drivers_probe_attr);
+	bus_remove_file(bus, &bus_attr_drivers_autoprobe);
+	bus_remove_file(bus, &bus_attr_drivers_probe);
 }
 #else
 static inline int add_bind_files(struct device_driver *drv) { return 0; }
