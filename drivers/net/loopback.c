@@ -229,7 +229,12 @@ struct net_device loopback_dev = {
 /* Setup and register the loopback device. */
 static int __init loopback_init(void)
 {
-	return register_netdev(&loopback_dev);
+	int err = register_netdev(&loopback_dev);
+
+	if (err)
+		panic("loopback: Failed to register netdevice: %d\n", err);
+
+	return err;
 };
 
 module_init(loopback_init);
