@@ -1312,11 +1312,137 @@ mptsas_get_bay_identifier(struct sas_rphy *rphy)
 	return rc;
 }
 
+static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
+			      struct request *req)
+{
+	MPT_ADAPTER *ioc = ((MPT_SCSI_HOST *) shost->hostdata)->ioc;
+	MPT_FRAME_HDR *mf;
+	SmpPassthroughRequest_t *smpreq;
+	struct request *rsp = req->next_rq;
+	int ret;
+	int flagsLength;
+	unsigned long timeleft;
+	char *psge;
+	dma_addr_t dma_addr_in = 0;
+	dma_addr_t dma_addr_out = 0;
+	u64 sas_address = 0;
+
+	if (!rsp) {
+		printk(KERN_ERR "%s: the smp response space is missing\n",
+		       __FUNCTION__);
+		return -EINVAL;
+	}
+
+	/* do we need to support multiple segments? */
+	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
+		printk(KERN_ERR "%s: multiple segments req %u %u, rsp %u %u\n",
+		       __FUNCTION__, req->bio->bi_vcnt, req->data_len,
+		       rsp->bio->bi_vcnt, rsp->data_len);
+		return -EINVAL;
+	}
+
+	ret = mutex_lock_interruptible(&ioc->sas_mgmt.mutex);
+	if (ret)
+		goto out;
+
+	mf = mpt_get_msg_frame(mptsasMgmtCtx, ioc);
+	if (!mf) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	smpreq = (SmpPassthroughRequest_t *)mf;
+	memset(smpreq, 0, sizeof(*smpreq));
+
+	smpreq->RequestDataLength = cpu_to_le16(req->data_len - 4);
+	smpreq->Function = MPI_FUNCTION_SMP_PASSTHROUGH;
+
+	if (rphy)
+		sas_address = rphy->identify.sas_address;
+	else {
+		struct mptsas_portinfo *port_info;
+
+		mutex_lock(&ioc->sas_topology_mutex);
+		port_info = mptsas_find_portinfo_by_handle(ioc, ioc->handle);
+		if (port_info && port_info->phy_info)
+			sas_address =
+				port_info->phy_info[0].phy->identify.sas_address;
+		mutex_unlock(&ioc->sas_topology_mutex);
+	}
+
+	*((u64 *)&smpreq->SASAddress) = cpu_to_le64(sas_address);
+
+	psge = (char *)
+		(((int *) mf) + (offsetof(SmpPassthroughRequest_t, SGL) / 4));
+
+	/* request */
+	flagsLength = (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
+		       MPI_SGE_FLAGS_END_OF_BUFFER |
+		       MPI_SGE_FLAGS_DIRECTION |
+		       mpt_addr_size()) << MPI_SGE_FLAGS_SHIFT;
+	flagsLength |= (req->data_len - 4);
+
+	dma_addr_out = pci_map_single(ioc->pcidev, bio_data(req->bio),
+				      req->data_len, PCI_DMA_BIDIRECTIONAL);
+	if (!dma_addr_out)
+		goto put_mf;
+	mpt_add_sge(psge, flagsLength, dma_addr_out);
+	psge += (sizeof(u32) + sizeof(dma_addr_t));
+
+	/* response */
+	flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ;
+	flagsLength |= rsp->data_len + 4;
+	dma_addr_in =  pci_map_single(ioc->pcidev, bio_data(rsp->bio),
+				      rsp->data_len, PCI_DMA_BIDIRECTIONAL);
+	if (!dma_addr_in)
+		goto unmap;
+	mpt_add_sge(psge, flagsLength, dma_addr_in);
+
+	mpt_put_msg_frame(mptsasMgmtCtx, ioc, mf);
+
+	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done, 10 * HZ);
+	if (!timeleft) {
+		printk(KERN_ERR "%s: smp timeout!\n", __FUNCTION__);
+		/* On timeout reset the board */
+		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		ret = -ETIMEDOUT;
+		goto unmap;
+	}
+	mf = NULL;
+
+	if (ioc->sas_mgmt.status & MPT_IOCTL_STATUS_RF_VALID) {
+		SmpPassthroughReply_t *smprep;
+
+		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
+		memcpy(req->sense, smprep, sizeof(*smprep));
+		req->sense_len = sizeof(*smprep);
+	} else {
+		printk(KERN_ERR "%s: smp passthru reply failed to be returned\n",
+		       __FUNCTION__);
+		ret = -ENXIO;
+	}
+unmap:
+	if (dma_addr_out)
+		pci_unmap_single(ioc->pcidev, dma_addr_out, req->data_len,
+				 PCI_DMA_BIDIRECTIONAL);
+	if (dma_addr_in)
+		pci_unmap_single(ioc->pcidev, dma_addr_in, rsp->data_len,
+				 PCI_DMA_BIDIRECTIONAL);
+put_mf:
+	if (mf)
+		mpt_free_msg_frame(ioc, mf);
+out_unlock:
+	mutex_unlock(&ioc->sas_mgmt.mutex);
+out:
+	return ret;
+}
+
 static struct sas_function_template mptsas_transport_functions = {
 	.get_linkerrors		= mptsas_get_linkerrors,
 	.get_enclosure_identifier = mptsas_get_enclosure_identifier,
 	.get_bay_identifier	= mptsas_get_bay_identifier,
 	.phy_reset		= mptsas_phy_reset,
+	.smp_handler		= mptsas_smp_handler,
 };
 
 static struct scsi_transport_template *mptsas_transport_template;
