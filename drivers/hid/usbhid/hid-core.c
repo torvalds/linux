@@ -743,7 +743,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->quirks = quirks;
 
 	if (!(usbhid = kzalloc(sizeof(struct usbhid_device), GFP_KERNEL)))
-		goto fail;
+		goto fail_no_usbhid;
 
 	hid->driver_data = usbhid;
 	usbhid->hid = hid;
@@ -877,6 +877,7 @@ fail:
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbout);
 	usb_free_urb(usbhid->urbctrl);
+fail_no_usbhid:
 	hid_free_buffers(dev, hid);
 	hid_free_device(hid);
 
