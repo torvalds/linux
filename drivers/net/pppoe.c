@@ -108,19 +108,24 @@ static inline int cmp_addr(struct pppoe_addr *a, unsigned long sid, char *addr)
 		(memcmp(a->remote,addr,ETH_ALEN) == 0));
 }
 
-static int hash_item(unsigned long sid, unsigned char *addr)
+#if 8%PPPOE_HASH_BITS
+#error 8 must be a multiple of PPPOE_HASH_BITS
+#endif
+
+static int hash_item(unsigned int sid, unsigned char *addr)
 {
-	char hash = 0;
-	int i, j;
+	unsigned char hash = 0;
+	unsigned int i;
 
-	for (i = 0; i < ETH_ALEN ; ++i) {
-		for (j = 0; j < 8/PPPOE_HASH_BITS ; ++j) {
-			hash ^= addr[i] >> ( j * PPPOE_HASH_BITS );
-		}
+	for (i = 0 ; i < ETH_ALEN ; i++) {
+		hash ^= addr[i];
 	}
-
-	for (i = 0; i < (sizeof(unsigned long)*8) / PPPOE_HASH_BITS ; ++i)
-		hash ^= sid >> (i*PPPOE_HASH_BITS);
+	for (i = 0 ; i < sizeof(sid_t)*8 ; i += 8 ){
+		hash ^= sid>>i;
+	}
+	for (i = 8 ; (i>>=1) >= PPPOE_HASH_BITS ; ) {
+		hash ^= hash>>i;
+	}
 
 	return hash & ( PPPOE_HASH_SIZE - 1 );
 }
