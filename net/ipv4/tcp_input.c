@@ -2112,7 +2112,10 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int is_dupack = (tp->snd_una == prior_snd_una && !(flag&FLAG_NOT_DUP));
+	int is_dupack = (tp->snd_una == prior_snd_una &&
+			 (!(flag&FLAG_NOT_DUP) ||
+			  ((flag&FLAG_DATA_SACKED) &&
+			   (tp->fackets_out > tp->reordering))));
 
 	/* Some technical things:
 	 * 1. Reno does not count dupacks (sacked_out) automatically. */
