@@ -73,13 +73,16 @@ int __init init_msp_flash(void)
 		return -ENXIO;
 
 	printk(KERN_NOTICE "Found %d PMC flash devices\n", fcnt);
-	msp_flash = (struct mtd_info **)kmalloc(
-			fcnt * sizeof(struct map_info *), GFP_KERNEL);
-	msp_parts = (struct mtd_partition **)kmalloc(
-			fcnt * sizeof(struct mtd_partition *), GFP_KERNEL);
-	msp_maps = (struct map_info *)kmalloc(
-			fcnt * sizeof(struct mtd_info), GFP_KERNEL);
-	memset(msp_maps, 0, fcnt * sizeof(struct mtd_info));
+
+	msp_flash = kmalloc(fcnt * sizeof(struct map_info *), GFP_KERNEL);
+	msp_parts = kmalloc(fcnt * sizeof(struct mtd_partition *), GFP_KERNEL);
+	msp_maps = kcalloc(fcnt, sizeof(struct mtd_info), GFP_KERNEL);
+	if (!msp_flash || !msp_parts || !msp_maps) {
+		kfree(msp_maps);
+		kfree(msp_parts);
+		kfree(msp_flash);
+		return -ENOMEM;
+	}
 
 	/* loop over the flash devices, initializing each */
 	for (i = 0; i < fcnt; i++) {
@@ -95,9 +98,8 @@ int __init init_msp_flash(void)
 			continue;
 		}
 
-		msp_parts[i] = (struct mtd_partition *)kmalloc(
-			pcnt * sizeof(struct mtd_partition), GFP_KERNEL);
-		memset(msp_parts[i], 0, pcnt * sizeof(struct mtd_partition));
+		msp_parts[i] = kcalloc(pcnt, sizeof(struct mtd_partition),
+				       GFP_KERNEL);
 
 		/* now initialize the devices proper */
 		flash_name[5] = '0' + i;
