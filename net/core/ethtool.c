@@ -95,18 +95,6 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-int ethtool_op_get_perm_addr(struct net_device *dev, struct ethtool_perm_addr *addr, u8 *data)
-{
-	unsigned char len = dev->addr_len;
-	if ( addr->size < len )
-		return -ETOOSMALL;
-
-	addr->size = len;
-	memcpy(data, dev->perm_addr, len);
-	return 0;
-}
-
-
 u32 ethtool_op_get_ufo(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_UFO) != 0;
@@ -779,34 +767,20 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_perm_addr epaddr;
-	u8 *data;
-	int ret;
 
-	if (!dev->ethtool_ops->get_perm_addr)
-		return -EOPNOTSUPP;
-
-	if (copy_from_user(&epaddr,useraddr,sizeof(epaddr)))
+	if (copy_from_user(&epaddr, useraddr, sizeof(epaddr)))
 		return -EFAULT;
 
-	data = kmalloc(epaddr.size, GFP_USER);
-	if (!data)
-		return -ENOMEM;
+	if (epaddr.size < dev->addr_len)
+		return -ETOOSMALL;
+	epaddr.size = dev->addr_len;
 
-	ret = dev->ethtool_ops->get_perm_addr(dev,&epaddr,data);
-	if (ret)
-		return ret;
-
-	ret = -EFAULT;
 	if (copy_to_user(useraddr, &epaddr, sizeof(epaddr)))
-		goto out;
+		return -EFAULT;
 	useraddr += sizeof(epaddr);
-	if (copy_to_user(useraddr, data, epaddr.size))
-		goto out;
-	ret = 0;
-
- out:
-	kfree(data);
-	return ret;
+	if (copy_to_user(useraddr, dev->perm_addr, epaddr.size))
+		return -EFAULT;
+	return 0;
 }
 
 /* The main entry point in this file.  Called from net/core/dev.c */
@@ -976,7 +950,6 @@ int dev_ethtool(struct ifreq *ifr)
 
 EXPORT_SYMBOL(dev_ethtool);
 EXPORT_SYMBOL(ethtool_op_get_link);
-EXPORT_SYMBOL_GPL(ethtool_op_get_perm_addr);
 EXPORT_SYMBOL(ethtool_op_get_sg);
 EXPORT_SYMBOL(ethtool_op_get_tso);
 EXPORT_SYMBOL(ethtool_op_get_tx_csum);

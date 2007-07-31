@@ -1586,7 +1586,6 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
-	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

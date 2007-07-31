@@ -1904,7 +1904,6 @@ static void ql_get_pauseparam(struct net_device *ndev,
 static const struct ethtool_ops ql3xxx_ethtool_ops = {
 	.get_settings = ql_get_settings,
 	.get_drvinfo = ql_get_drvinfo,
-	.get_perm_addr = ethtool_op_get_perm_addr,
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,

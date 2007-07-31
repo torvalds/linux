@@ -580,7 +580,6 @@ static const struct ethtool_ops ax_ethtool_ops = {
 	.set_settings		= ax_set_settings,
 	.nway_reset		= ax_nway_reset,
 	.get_link		= ax_get_link,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 /* setup code */

@@ -2033,7 +2033,6 @@ static const struct ethtool_ops b44_ethtool_ops = {
 	.get_strings		= b44_get_strings,
 	.get_stats_count	= b44_get_stats_count,
 	.get_ethtool_stats	= b44_get_ethtool_stats,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)

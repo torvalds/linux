@@ -906,7 +906,6 @@ static const struct ethtool_ops vnet_ethtool_ops = {
 	.get_msglevel		= vnet_get_msglevel,
 	.set_msglevel		= vnet_set_msglevel,
 	.get_link		= ethtool_op_get_link,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static void vnet_port_free_tx_bufs(struct vnet_port *port)

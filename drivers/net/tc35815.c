@@ -2198,7 +2198,6 @@ static const struct ethtool_ops tc35815_ethtool_ops = {
 	.get_strings		= tc35815_get_strings,
 	.get_stats_count	= tc35815_get_stats_count,
 	.get_ethtool_stats	= tc35815_get_ethtool_stats,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

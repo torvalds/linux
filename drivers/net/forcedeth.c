@@ -4707,7 +4707,6 @@ static const struct ethtool_ops ops = {
 	.get_regs_len = nv_get_regs_len,
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
-	.get_perm_addr = ethtool_op_get_perm_addr,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = nv_set_tso,
 	.get_ringparam = nv_get_ringparam,

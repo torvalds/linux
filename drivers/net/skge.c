@@ -821,7 +821,6 @@ static const struct ethtool_ops skge_ethtool_ops = {
 	.phys_id	= skge_phys_id,
 	.get_stats_count = skge_get_stats_count,
 	.get_ethtool_stats = skge_get_ethtool_stats,
-	.get_perm_addr	= ethtool_op_get_perm_addr,
 };
 
 /*

@@ -1578,7 +1578,6 @@ static const struct ethtool_ops cp_ethtool_ops = {
 	.set_wol		= cp_set_wol,
 	.get_strings		= cp_get_strings,
 	.get_ethtool_stats	= cp_get_ethtool_stats,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 	.get_eeprom_len		= cp_get_eeprom_len,
 	.get_eeprom		= cp_get_eeprom,
 	.set_eeprom		= cp_set_eeprom,
