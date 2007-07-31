@@ -79,7 +79,7 @@
 /*
  * Here are the default fb_fix_screeninfo and fb_var_screeninfo structures
  */
-static struct fb_fix_screeninfo xilinx_fb_fix __initdata = {
+static struct fb_fix_screeninfo xilinx_fb_fix = {
 	.id =		"Xilinx",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -88,7 +88,7 @@ static struct fb_fix_screeninfo xilinx_fb_fix __initdata = {
 	.accel =	FB_ACCEL_NONE
 };
 
-static struct fb_var_screeninfo xilinx_fb_var __initdata = {
+static struct fb_var_screeninfo xilinx_fb_var = {
 	.xres =			XRES,
 	.yres =			YRES,
 	.xres_virtual =		XRES_VIRTUAL,
