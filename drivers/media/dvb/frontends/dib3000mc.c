@@ -13,10 +13,6 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-//#include <linux/init.h>
-//#include <linux/delay.h>
-//#include <linux/string.h>
-//#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 
@@ -25,6 +21,10 @@
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
+
+static int buggy_sfn_workaround;
+module_param(buggy_sfn_workaround, int, 0644);
+MODULE_PARM_DESC(debug, "Enable work-around for buggy SFNs (default: 0)");
 
 #define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB3000MC/P:"); printk(args); printk("\n"); } } while (0)
 
@@ -42,6 +42,8 @@ struct dib3000mc_state {
 	fe_bandwidth_t current_bandwidth;
 
 	u16 dev_id;
+
+	u8 sfn_workaround_active :1;
 };
 
 static u16 dib3000mc_read_word(struct dib3000mc_state *state, u16 reg)
@@ -591,7 +593,14 @@ static int dib3000mc_tune(struct dvb_frontend *demod, struct dvb_frontend_parame
 	dib3000mc_set_channel_cfg(state, ch, 0);
 
 	// activates isi
-	dib3000mc_write_word(state, 29, 0x1073);
+	if (state->sfn_workaround_active) {
+		dprintk("SFN workaround is active\n");
+		dib3000mc_write_word(state, 29, 0x1273);
+		dib3000mc_write_word(state, 108, 0x4000); // P_pha3_force_pha_shift
+	} else {
+		dib3000mc_write_word(state, 29, 0x1073);
+		dib3000mc_write_word(state, 108, 0x0000); // P_pha3_force_pha_shift
+	}
 
 	dib3000mc_set_adp_cfg(state, (u8)ch->u.ofdm.constellation);
 	if (ch->u.ofdm.transmission_mode == TRANSMISSION_MODE_8K) {
@@ -678,6 +687,9 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
 	dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
+
+	/* maybe the parameter has been changed */
+	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe, fep);

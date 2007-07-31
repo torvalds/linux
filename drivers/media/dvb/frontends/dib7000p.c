@@ -18,6 +18,10 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
+static int buggy_sfn_workaround;
+module_param(buggy_sfn_workaround, int, 0644);
+MODULE_PARM_DESC(debug, "Enable work-around for buggy SFNs (default: 0)");
+
 #define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB7000P: "); printk(args); printk("\n"); } } while (0)
 
 struct dib7000p_state {
@@ -44,6 +48,8 @@ struct dib7000p_state {
 
 	u16 gpio_dir;
 	u16 gpio_val;
+
+	u8 sfn_workaround_active :1;
 };
 
 enum dib7000p_power_mode {
@@ -751,8 +757,8 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 
 	/* offset loop parameters */
 	dib7000p_write_word(state, 26, 0x6680); // timf(6xxx)
-	dib7000p_write_word(state, 29, 0x1273); // isi inh1273 on1073
 	dib7000p_write_word(state, 32, 0x0003); // pha_off_max(xxx3)
+	dib7000p_write_word(state, 29, 0x1273); // isi
 	dib7000p_write_word(state, 33, 0x0005); // sfreq(xxx5)
 
 	/* P_dvsy_sync_wait */
@@ -959,7 +965,15 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	msleep(45);
 
 	/* P_ctrl_inh_cor=0, P_ctrl_alpha_cor=4, P_ctrl_inh_isi=0, P_ctrl_alpha_isi=3, P_ctrl_inh_cor4=1, P_ctrl_alpha_cor4=3 */
-	dib7000p_write_word(state, 29, (0 << 14) | (4 << 10) | (0 << 9) | (3 << 5) | (1 << 4) | (0x3));
+	tmp = (0 << 14) | (4 << 10) | (0 << 9) | (3 << 5) | (1 << 4) | (0x3);
+	if (state->sfn_workaround_active) {
+		dprintk( "SFN workaround is active");
+		tmp |= (1 << 9);
+		dib7000p_write_word(state, 166, 0x4000); // P_pha3_force_pha_shift
+	} else {
+		dib7000p_write_word(state, 166, 0x0000); // P_pha3_force_pha_shift
+	}
+	dib7000p_write_word(state, 29, tmp);
 
 	// never achieved a lock with that bandwidth so far - wait for osc-freq to update
 	if (state->timf == 0)
@@ -1118,6 +1132,9 @@ static int dib7000p_set_frontend(struct dvb_frontend* fe,
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
 	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
+
+	/* maybe the parameter has been changed */
+	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe, fep);
