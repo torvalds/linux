@@ -2159,8 +2159,7 @@ static inline int f_pick(struct pktgen_dev *pkt_dev)
 /* If there was already an IPSEC SA, we keep it as is, else
  * we go look for it ...
 */
-inline
-void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
+static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 {
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	if (!x) {
