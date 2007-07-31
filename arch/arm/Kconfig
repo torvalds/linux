@@ -991,8 +991,6 @@ source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
 
-source "drivers/acorn/block/Kconfig"
-
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
 	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
