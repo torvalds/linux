@@ -508,7 +508,7 @@ static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
 	 */
 	if (!sdp->sd_args.ar_localflocks)
 		return -EINVAL;
-	return setlease(file, arg, fl);
+	return generic_setlease(file, arg, fl);
 }
 
 /**
