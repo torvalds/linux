@@ -46,6 +46,8 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/kref.h>
+#include <linux/list.h>
+#include <linux/rwsem.h>
 
 #include <asm/atomic.h>
 #include <asm/scatterlist.h>
