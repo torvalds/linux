@@ -219,7 +219,6 @@ enum {
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
-#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
 #include <net/inet_sock.h>
 
 static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
@@ -272,6 +271,10 @@ struct tcp6_request_sock {
 	struct tcp_request_sock	  tcp6rsk_tcp;
 	struct inet6_request_sock tcp6rsk_inet6;
 };
+
+struct ipv6_mc_socklist;
+struct ipv6_ac_socklist;
+struct ipv6_fl_socklist;
 
 /**
  * struct ipv6_pinfo - ipv6 private area
