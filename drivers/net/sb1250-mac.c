@@ -780,10 +780,8 @@ static void sbdma_initctx(sbmacdma_t *d,
 	 * And context table
 	 */
 
-	d->sbdma_ctxtable = (struct sk_buff **)
-		kmalloc(d->sbdma_maxdescr*sizeof(struct sk_buff *), GFP_KERNEL);
-
-	memset(d->sbdma_ctxtable,0,d->sbdma_maxdescr*sizeof(struct sk_buff *));
+	d->sbdma_ctxtable = kcalloc(d->sbdma_maxdescr,
+				    sizeof(struct sk_buff *), GFP_KERNEL);
 
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
