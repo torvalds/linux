@@ -39,6 +39,8 @@
 #if !defined( IB_MAD_H )
 #define IB_MAD_H
 
+#include <linux/list.h>
+
 #include <rdma/ib_verbs.h>
 
 /* Management base version */
