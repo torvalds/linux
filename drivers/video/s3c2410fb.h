@@ -30,6 +30,9 @@ struct s3c2410fb_info {
 	struct device		*dev;
 	struct clk		*clk;
 
+	struct resource		*mem;
+	void __iomem		*io;
+
 	struct s3c2410fb_mach_info *mach_info;
 
 	/* raw memory addresses */
