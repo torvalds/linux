@@ -468,25 +468,19 @@ config FUTEX
 	  run glibc-based applications correctly.
 
 config ANON_INODES
-	bool "Enable anonymous inode source" if EMBEDDED
-	default y
-	help
-	  Anonymous inode source for pseudo-files like epoll, signalfd,
-	  timerfd and eventfd.
-
-	  If unsure, say Y.
+	bool
 
 config EPOLL
 	bool "Enable eventpoll support" if EMBEDDED
 	default y
-	depends on ANON_INODES
+	select ANON_INODES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for epoll family of system calls.
 
 config SIGNALFD
 	bool "Enable signalfd() system call" if EMBEDDED
-	depends on ANON_INODES
+	select ANON_INODES
 	default y
 	help
 	  Enable the signalfd() system call that allows to receive signals
@@ -496,7 +490,7 @@ config SIGNALFD
 
 config TIMERFD
 	bool "Enable timerfd() system call" if EMBEDDED
-	depends on ANON_INODES
+	select ANON_INODES
 	default y
 	help
 	  Enable the timerfd() system call that allows to receive timer
@@ -506,7 +500,7 @@ config TIMERFD
 
 config EVENTFD
 	bool "Enable eventfd() system call" if EMBEDDED
-	depends on ANON_INODES
+	select ANON_INODES
 	default y
 	help
 	  Enable the eventfd() system call that allows to receive both
