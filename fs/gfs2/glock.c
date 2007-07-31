@@ -2103,7 +2103,7 @@ static int gfs2_glock_seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static struct seq_operations gfs2_glock_seq_ops = {
+static const struct seq_operations gfs2_glock_seq_ops = {
 	.start = gfs2_glock_seq_start,
 	.next  = gfs2_glock_seq_next,
 	.stop  = gfs2_glock_seq_stop,

@@ -22,9 +22,9 @@ struct gfs2_eattr_operations {
 
 unsigned int gfs2_ea_name2type(const char *name, const char **truncated_name);
 
-extern struct gfs2_eattr_operations gfs2_system_eaops;
+extern const struct gfs2_eattr_operations gfs2_system_eaops;
 
-extern struct gfs2_eattr_operations *gfs2_ea_ops[];
+extern const struct gfs2_eattr_operations *gfs2_ea_ops[];
 
 #endif /* __EAOPS_DOT_H__ */
 

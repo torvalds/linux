@@ -200,28 +200,28 @@ static int security_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	return gfs2_ea_remove_i(ip, er);
 }
 
-static struct gfs2_eattr_operations gfs2_user_eaops = {
+static const struct gfs2_eattr_operations gfs2_user_eaops = {
 	.eo_get = user_eo_get,
 	.eo_set = user_eo_set,
 	.eo_remove = user_eo_remove,
 	.eo_name = "user",
 };
 
-struct gfs2_eattr_operations gfs2_system_eaops = {
+const struct gfs2_eattr_operations gfs2_system_eaops = {
 	.eo_get = system_eo_get,
 	.eo_set = system_eo_set,
 	.eo_remove = system_eo_remove,
 	.eo_name = "system",
 };
 
-static struct gfs2_eattr_operations gfs2_security_eaops = {
+static const struct gfs2_eattr_operations gfs2_security_eaops = {
 	.eo_get = security_eo_get,
 	.eo_set = security_eo_set,
 	.eo_remove = security_eo_remove,
 	.eo_name = "security",
 };
 
-struct gfs2_eattr_operations *gfs2_ea_ops[] = {
+const struct gfs2_eattr_operations *gfs2_ea_ops[] = {
 	NULL,
 	&gfs2_user_eaops,
 	&gfs2_system_eaops,
