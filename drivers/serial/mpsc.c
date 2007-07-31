@@ -1363,8 +1363,6 @@ mpsc_start_rx(struct mpsc_port_info *pi)
 {
 	pr_debug("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
 
-	/* Issue a Receive Abort to clear any receive errors */
-	writel(MPSC_CHR_2_RA, pi->mpsc_base + MPSC_CHR_2);
 	if (pi->rcv_data) {
 		mpsc_enter_hunt(pi);
 		mpsc_sdma_cmd(pi, SDMA_SDCM_ERD);
@@ -1378,6 +1376,20 @@ mpsc_stop_rx(struct uart_port *port)
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
 	pr_debug("mpsc_stop_rx[%d]: Stopping...\n", port->line);
+
+	if (pi->mirror_regs) {
+		writel(pi->MPSC_CHR_2_m | MPSC_CHR_2_RA,
+				pi->mpsc_base + MPSC_CHR_2);
+		/* Erratum prevents reading CHR_2 so just delay for a while */
+		udelay(100);
+	}
+	else {
+		writel(readl(pi->mpsc_base + MPSC_CHR_2) | MPSC_CHR_2_RA,
+			pi->mpsc_base + MPSC_CHR_2);
+
+		while (readl(pi->mpsc_base + MPSC_CHR_2) & MPSC_CHR_2_RA)
+			udelay(10);
+	}
 
 	mpsc_sdma_cmd(pi, SDMA_SDCM_AR);
 	return;
