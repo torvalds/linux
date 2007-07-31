@@ -274,7 +274,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
 	if (i<=0) {
-		err("RC Query Failed\n");
+		err("RC Query Failed");
 		return 0;
 	}
 	if (key[0]==0 && key[1]==0 && key[2]==0 && key[3]==0) return 0;
@@ -287,7 +287,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 				return 0;
 			}
 		}
-		err("Unknown remote controller key : %2X %2X\n",(int)key[2],(int)key[3]);
+		err("Unknown remote controller key : %2X %2X",(int)key[2],(int)key[3]);
 	}
 	return 0;
 }
