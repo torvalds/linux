@@ -139,6 +139,32 @@ struct spi_message;
 
 
 
+/**
+ * struct spi_driver - Host side "protocol" driver
+ * @probe: Binds this driver to the spi device.  Drivers can verify
+ *	that the device is actually present, and may need to configure
+ *	characteristics (such as bits_per_word) which weren't needed for
+ *	the initial configuration done during system setup.
+ * @remove: Unbinds this driver from the spi device
+ * @shutdown: Standard shutdown callback used during system state
+ *	transitions such as powerdown/halt and kexec
+ * @suspend: Standard suspend callback used during system state transitions
+ * @resume: Standard resume callback used during system state transitions
+ * @driver: SPI device drivers should initialize the name and owner
+ *	field of this structure.
+ *
+ * This represents the kind of device driver that uses SPI messages to
+ * interact with the hardware at the other end of a SPI link.  It's called
+ * a "protocol" driver because it works through messages rather than talking
+ * directly to SPI hardware (which is what the underlying SPI controller
+ * driver does to pass those messages).  These protocols are defined in the
+ * specification for the device(s) supported by the driver.
+ *
+ * As a rule, those device protocols represent the lowest level interface
+ * supported by a driver, and it will support upper level interfaces too.
+ * Examples of such upper levels include frameworks like MTD, networking,
+ * MMC, RTC, filesystem character device nodes, and hardware monitoring.
+ */
 struct spi_driver {
 	int			(*probe)(struct spi_device *spi);
 	int			(*remove)(struct spi_device *spi);
@@ -668,7 +694,37 @@ static inline ssize_t spi_w8r16(struct spi_device *spi, u8 cmd)
  * parport adapters, or microcontrollers acting as USB-to-SPI bridges.
  */
 
-/* board-specific information about each SPI device */
+/**
+ * struct spi_board_info - board-specific template for a SPI device
+ * @modalias: Initializes spi_device.modalias; identifies the driver.
+ * @platform_data: Initializes spi_device.platform_data; the particular
+ *	data stored there is driver-specific.
+ * @controller_data: Initializes spi_device.controller_data; some
+ *	controllers need hints about hardware setup, e.g. for DMA.
+ * @irq: Initializes spi_device.irq; depends on how the board is wired.
+ * @max_speed_hz: Initializes spi_device.max_speed_hz; based on limits
+ *	from the chip datasheet and board-specific signal quality issues.
+ * @bus_num: Identifies which spi_master parents the spi_device; unused
+ *	by spi_new_device(), and otherwise depends on board wiring.
+ * @chip_select: Initializes spi_device.chip_select; depends on how
+ *	the board is wired.
+ * @mode: Initializes spi_device.mode; based on the chip datasheet, board
+ *	wiring (some devices support both 3WIRE and standard modes), and
+ *	possibly presence of an inverter in the chipselect path.
+ *
+ * When adding new SPI devices to the device tree, these structures serve
+ * as a partial device template.  They hold information which can't always
+ * be determined by drivers.  Information that probe() can establish (such
+ * as the default transfer wordsize) is not included here.
+ *
+ * These structures are used in two places.  Their primary role is to
+ * be stored in tables of board-specific device descriptors, which are
+ * declared early in board initialization and then used (much later) to
+ * populate a controller's device tree after the that controller's driver
+ * initializes.  A secondary (and atypical) role is as a parameter to
+ * spi_new_device() call, which happens after those controller drivers
+ * are active in some dynamic board configuration models.
+ */
 struct spi_board_info {
 	/* the device name and module name are coupled, like platform_bus;
 	 * "modalias" is normally the driver name.
