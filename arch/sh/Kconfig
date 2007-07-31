@@ -258,7 +258,6 @@ config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
 	select SYS_SUPPORTS_PCI
-	select CPU_HAS_INTC2_IRQ
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
