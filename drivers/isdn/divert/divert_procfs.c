@@ -70,6 +70,8 @@ put_info_buffer(char *cp)
 	wake_up_interruptible(&(rd_queue));
 }				/* put_info_buffer */
 
+#ifdef CONFIG_PROC_FS
+
 /**********************************/
 /* deflection device read routine */
 /**********************************/
@@ -253,8 +255,6 @@ isdn_divert_ioctl(struct inode *inode, struct file *file,
 	return copy_to_user((void __user *)arg, &dioctl, sizeof(dioctl)) ? -EFAULT : 0;
 }				/* isdn_divert_ioctl */
 
-
-#ifdef CONFIG_PROC_FS
 static const struct file_operations isdn_fops =
 {
 	.owner          = THIS_MODULE,
