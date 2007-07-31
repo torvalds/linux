@@ -366,11 +366,13 @@ static int udf_parse_options(char *options, struct udf_options *uopt)
 			if (match_int(args, &option))
 				return 0;
 			uopt->gid = option;
+			uopt->flags |= (1 << UDF_FLAG_GID_SET);
 			break;
 		case Opt_uid:
 			if (match_int(args, &option))
 				return 0;
 			uopt->uid = option;
+			uopt->flags |= (1 << UDF_FLAG_UID_SET);
 			break;
 		case Opt_umask:
 			if (match_octal(args, &option))
