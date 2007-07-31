@@ -1191,7 +1191,7 @@ config SERIAL_VR41XX
 
 config SERIAL_VR41XX_CONSOLE
 	bool "Enable NEC VR4100 series Serial Interface Unit console"
-	depends on SERIAL_VR41XX
+	depends on SERIAL_VR41XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have a NEC VR4100 series processor and you want to use
