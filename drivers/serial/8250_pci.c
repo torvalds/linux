@@ -976,7 +976,6 @@ enum pci_board_num_t {
 	pbn_oxsemi,
 	pbn_intel_i960,
 	pbn_sgi_ioc3,
-	pbn_nec_nile4,
 	pbn_computone_4,
 	pbn_computone_6,
 	pbn_computone_8,
@@ -1440,18 +1439,6 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.uart_offset	= 8,
 		.reg_shift	= 0,
 		.first_offset	= 0x20178,
-	},
-
-	/*
-	 * NEC Vrc-5074 (Nile 4) builtin UART.
-	 */
-	[pbn_nec_nile4] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 1,
-		.base_baud	= 520833,
-		.uart_offset	= 8 << 3,
-		.reg_shift	= 3,
-		.first_offset	= 0x300,
 	},
 
 	/*
@@ -2344,13 +2331,6 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_DIVA_AUX,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b2_1_115200 },
-
-	/*
-	 * NEC Vrc-5074 (Nile 4) builtin UART.
-	 */
-	{	PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_NILE4,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		pbn_nec_nile4 },
 
 	{	PCI_VENDOR_ID_DCI, PCI_DEVICE_ID_DCI_PCCOM2,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
