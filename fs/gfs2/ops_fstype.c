@@ -28,6 +28,7 @@
 #include "lm.h"
 #include "mount.h"
 #include "ops_fstype.h"
+#include "ops_dentry.h"
 #include "ops_super.h"
 #include "recovery.h"
 #include "rgrp.h"
@@ -37,8 +38,6 @@
 
 #define DO 0
 #define UNDO 1
-
-extern struct dentry_operations gfs2_dops;
 
 static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
