@@ -238,11 +238,13 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 	/* If we're multiqueue, make sure the number of incoming bands
 	 * matches the number of queues on the device we're associating with.
 	 * If the number of bands requested is zero, then set q->bands to
-	 * dev->egress_subqueue_count.
+	 * dev->egress_subqueue_count.  Also, the root qdisc must be the
+	 * only one that is enabled for multiqueue, since it's the only one
+	 * that interacts with the underlying device.
 	 */
 	q->mq = RTA_GET_FLAG(tb[TCA_PRIO_MQ - 1]);
 	if (q->mq) {
-		if (sch->handle != TC_H_ROOT)
+		if (sch->parent != TC_H_ROOT)
 			return -EINVAL;
 		if (netif_is_multiqueue(sch->dev)) {
 			if (q->bands == 0)
