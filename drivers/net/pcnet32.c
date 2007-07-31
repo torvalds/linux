@@ -1515,7 +1515,6 @@ static const struct ethtool_ops pcnet32_ethtool_ops = {
 	.phys_id		= pcnet32_phys_id,
 	.get_regs_len		= pcnet32_get_regs_len,
 	.get_regs		= pcnet32_get_regs,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 /* only probes for non-PCI devices, the rest are handled by

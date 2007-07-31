@@ -9294,7 +9294,6 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
 	.set_coalesce		= tg3_set_coalesce,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)

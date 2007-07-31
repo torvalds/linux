@@ -29,35 +29,24 @@
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
  *
- * Need to simulate user ioctl because not all device's that support
- * ethtool, use ethtool_ops.  Also, since driver might sleep need to
- * not be holding any locks.
+ * Since driver might sleep need to not be holding any locks.
  */
 static int port_cost(struct net_device *dev)
 {
-	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
-	struct ifreq ifr;
-	mm_segment_t old_fs;
-	int err;
-
-	strncpy(ifr.ifr_name, dev->name, IFNAMSIZ);
-	ifr.ifr_data = (void __user *) &ecmd;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = dev_ethtool(&ifr);
-	set_fs(old_fs);
-
-	if (!err) {
-		switch(ecmd.speed) {
-		case SPEED_100:
-			return 19;
-		case SPEED_1000:
-			return 4;
-		case SPEED_10000:
-			return 2;
-		case SPEED_10:
-			return 100;
+	if (dev->ethtool_ops->get_settings) {
+		struct ethtool_cmd ecmd = { ETHTOOL_GSET };
+		int err = dev->ethtool_ops->get_settings(dev, &ecmd);
+		if (!err) {
+			switch(ecmd.speed) {
+			case SPEED_100:
+				return 19;
+			case SPEED_1000:
+				return 4;
+			case SPEED_10000:
+				return 2;
+			case SPEED_10:
+				return 100;
+			}
 		}
 	}
 

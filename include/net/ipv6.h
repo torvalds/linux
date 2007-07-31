@@ -17,6 +17,7 @@
 
 #include <linux/ipv6.h>
 #include <linux/hardirq.h>
+#include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
 #include <net/snmp.h>

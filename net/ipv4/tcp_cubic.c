@@ -246,37 +246,11 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 		ca->cnt = 1;
 }
 
-
-/* Keep track of minimum rtt */
-static inline void measure_delay(struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-	u32 delay;
-
-	/* No time stamp */
-	if (!(tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr) ||
-	     /* Discard delay samples right after fast recovery */
-	    (s32)(tcp_time_stamp - ca->epoch_start) < HZ)
-		return;
-
-	delay = (tcp_time_stamp - tp->rx_opt.rcv_tsecr)<<3;
-	if (delay == 0)
-		delay = 1;
-
-	/* first time call or link delay decreases */
-	if (ca->delay_min == 0 || ca->delay_min > delay)
-		ca->delay_min = delay;
-}
-
 static void bictcp_cong_avoid(struct sock *sk, u32 ack,
 			      u32 in_flight, int data_acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
-
-	if (data_acked)
-		measure_delay(sk);
 
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
@@ -334,17 +308,33 @@ static void bictcp_state(struct sock *sk, u8 new_state)
 /* Track delayed acknowledgment ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
-static void bictcp_acked(struct sock *sk, u32 cnt, ktime_t last)
+static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct bictcp *ca = inet_csk_ca(sk);
+	u32 delay;
 
 	if (cnt > 0 && icsk->icsk_ca_state == TCP_CA_Open) {
-		struct bictcp *ca = inet_csk_ca(sk);
 		cnt -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ca->delayed_ack += cnt;
 	}
-}
 
+	/* Some calls are for duplicates without timetamps */
+	if (rtt_us < 0)
+		return;
+
+	/* Discard delay samples right after fast recovery */
+	if ((s32)(tcp_time_stamp - ca->epoch_start) < HZ)
+		return;
+
+	delay = usecs_to_jiffies(rtt_us) << 3;
+	if (delay == 0)
+		delay = 1;
+
+	/* first time call or link delay decreases */
+	if (ca->delay_min == 0 || ca->delay_min > delay)
+		ca->delay_min = delay;
+}
 
 static struct tcp_congestion_ops cubictcp = {
 	.init		= bictcp_init,

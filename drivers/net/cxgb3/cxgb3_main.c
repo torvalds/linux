@@ -1583,7 +1583,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_wol = get_wol,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
-	.get_perm_addr = ethtool_op_get_perm_addr
 };
 
 static int in_range(int val, int lo, int hi)
