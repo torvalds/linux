@@ -1071,14 +1071,12 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 
 static int velocity_init_rd_ring(struct velocity_info *vptr)
 {
-	int ret = -ENOMEM;
-	unsigned int rsize = sizeof(struct velocity_rd_info) *
-					vptr->options.numrx;
+	int ret;
 
-	vptr->rd_info = kmalloc(rsize, GFP_KERNEL);
-	if(vptr->rd_info == NULL)
-		goto out;
-	memset(vptr->rd_info, 0, rsize);
+	vptr->rd_info = kcalloc(vptr->options.numrx,
+				sizeof(struct velocity_rd_info), GFP_KERNEL);
+	if (!vptr->rd_info)
+		return -ENOMEM;
 
 	vptr->rd_filled = vptr->rd_dirty = vptr->rd_curr = 0;
 
@@ -1088,7 +1086,7 @@ static int velocity_init_rd_ring(struct velocity_info *vptr)
 			"%s: failed to allocate RX buffer.\n", vptr->dev->name);
 		velocity_free_rd_ring(vptr);
 	}
-out:
+
 	return ret;
 }
 
@@ -1142,21 +1140,19 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 	dma_addr_t curr;
 	struct tx_desc *td;
 	struct velocity_td_info *td_info;
-	unsigned int tsize = sizeof(struct velocity_td_info) *
-					vptr->options.numtx;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->num_txq; j++) {
 		curr = vptr->td_pool_dma[j];
 
-		vptr->td_infos[j] = kmalloc(tsize, GFP_KERNEL);
-		if(vptr->td_infos[j] == NULL)
-		{
+		vptr->td_infos[j] = kcalloc(vptr->options.numtx,
+					    sizeof(struct velocity_td_info),
+					    GFP_KERNEL);
+		if (!vptr->td_infos[j])	{
 			while(--j >= 0)
 				kfree(vptr->td_infos[j]);
 			return -ENOMEM;
 		}
-		memset(vptr->td_infos[j], 0, tsize);
 
 		for (i = 0; i < vptr->options.numtx; i++, curr += sizeof(struct tx_desc)) {
 			td = &(vptr->td_rings[j][i]);
