@@ -120,7 +120,6 @@ enum zone_type {
 	 * ---------------------------
 	 * parisc, ia64, sparc	<4G
 	 * s390			<2G
-	 * arm26		<48M
 	 * arm			Various
 	 * alpha		Unlimited or 0-16MB.
 	 *

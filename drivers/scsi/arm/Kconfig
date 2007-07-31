@@ -74,15 +74,6 @@ config SCSI_CUMANA_1
 	  This enables support for the Cumana SCSI I card. If you have an
 	  Acorn system with one of these, say Y. If unsure, say N.
 
-config SCSI_ECOSCSI
-	tristate "EcoScsi support (EXPERIMENTAL)"
-	depends on ARCH_ACORN && EXPERIMENTAL && (ARCH_ARC || ARCH_A5K) && SCSI
-	select SCSI_SPI_ATTRS
-	help
-	  This enables support for the EcoSCSI card -- a small card that sits
-	  in the Econet socket. If you have an Acorn system with one of these,
-	  say Y. If unsure, say N.
-
 config SCSI_OAK1
 	tristate "Oak SCSI support (EXPERIMENTAL)"
 	depends on ARCH_ACORN && EXPERIMENTAL && SCSI

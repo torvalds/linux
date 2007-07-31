@@ -387,21 +387,6 @@ P:	Jaya Kumar
 M:	jayalk@intworks.biz
 S:	Maintained
 
-ARM26 ARCHITECTURE
-P:	Ian Molton
-M:	spyro@f2s.com
-S:	Maintained
-
-ARM26/ARCHIMEDES
-P:	Ian Molton
-M:	spyro@f2s.com
-S:	Maintained
-
-ARM26/A5000
-P:	John Appleby
-M:	john@dnsworld.co.uk
-S:	Maintained
-
 ARM MFM AND FLOPPY DRIVERS
 P:	Ian Molton
 M:	spyro@f2s.com

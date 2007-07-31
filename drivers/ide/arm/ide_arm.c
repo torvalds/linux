@@ -1,5 +1,5 @@
 /*
- * ARM/ARM26 default IDE host driver
+ * ARM default IDE host driver
  *
  * Copyright (C) 2004 Bartlomiej Zolnierkiewicz
  * Based on code by: Russell King, Ian Molton and Alexander Schulz.
@@ -14,12 +14,6 @@
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
-#ifdef CONFIG_ARM26
-# define IDE_ARM_HOST	(machine_is_a5k())
-#else
-# define IDE_ARM_HOST	(1)
-#endif
-
 #ifdef CONFIG_ARCH_CLPS7500
 # include <asm/arch/hardware.h>
 #
@@ -32,12 +26,10 @@
 
 void __init ide_arm_init(void)
 {
-	if (IDE_ARM_HOST) {
-		hw_regs_t hw;
+	hw_regs_t hw;
 
-		memset(&hw, 0, sizeof(hw));
-		ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
-		hw.irq = IDE_ARM_IRQ;
-		ide_register_hw(&hw, 1, NULL);
-	}
+	memset(&hw, 0, sizeof(hw));
+	ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
+	hw.irq = IDE_ARM_IRQ;
+	ide_register_hw(&hw, 1, NULL);
 }

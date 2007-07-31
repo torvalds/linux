@@ -275,7 +275,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on RTC_CLASS && (X86 || ALPHA || ARM26 || ARM \
+	depends on RTC_CLASS && (X86 || ALPHA || ARM \
 		|| M32R || ATARI || PPC || MIPS)
 	help
 	  Say "yes" here to get direct support for the real time clock

@@ -833,7 +833,7 @@ config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        depends on BLK_DEV_IDE_AU1XXX
 
 config IDE_ARM
-	def_bool ARM && (ARCH_A5K || ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	def_bool ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
 
 config BLK_DEV_IDE_ICSIDE
 	tristate "ICS IDE interface support"
