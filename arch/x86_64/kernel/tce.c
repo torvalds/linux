@@ -131,7 +131,7 @@ done:
 	return ret;
 }
 
-int build_tce_table(struct pci_dev *dev, void __iomem *bbar)
+int __init build_tce_table(struct pci_dev *dev, void __iomem *bbar)
 {
 	struct iommu_table *tbl;
 	int ret;

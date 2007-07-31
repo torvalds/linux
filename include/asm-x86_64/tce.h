@@ -41,8 +41,8 @@ struct iommu_table;
 extern void tce_build(struct iommu_table *tbl, unsigned long index,
         unsigned int npages, unsigned long uaddr, int direction);
 extern void tce_free(struct iommu_table *tbl, long index, unsigned int npages);
-extern void* alloc_tce_table(void);
-extern void free_tce_table(void *tbl);
-extern int build_tce_table(struct pci_dev *dev, void __iomem *bbar);
+extern void * __init alloc_tce_table(void);
+extern void __init free_tce_table(void *tbl);
+extern int __init build_tce_table(struct pci_dev *dev, void __iomem *bbar);
 
 #endif /* _ASM_X86_64_TCE_H */
