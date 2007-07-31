@@ -3,10 +3,12 @@
  * Copyright (c) 2003 Matthew Wilcox <matthew@wil.cx>
  *
  * This file is where we call all the ethtool_ops commands to get
- * the information ethtool needs.  We fall back to calling do_ioctl()
- * for drivers which haven't been converted to ethtool_ops yet.
+ * the information ethtool needs.
  *
- * It's GPL, stupid.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -821,7 +823,7 @@ int dev_ethtool(struct ifreq *ifr)
 		return -ENODEV;
 
 	if (!dev->ethtool_ops)
-		goto ioctl;
+		return -EOPNOTSUPP;
 
 	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
 		return -EFAULT;
@@ -960,7 +962,7 @@ int dev_ethtool(struct ifreq *ifr)
 		rc = ethtool_set_gso(dev, useraddr);
 		break;
 	default:
-		rc =  -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 
 	if (dev->ethtool_ops->complete)
@@ -970,15 +972,6 @@ int dev_ethtool(struct ifreq *ifr)
 		netdev_features_change(dev);
 
 	return rc;
-
- ioctl:
-	/* Keep existing behaviour for the moment.	 */
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->do_ioctl)
-		return dev->do_ioctl(dev, ifr, SIOCETHTOOL);
-	return -EOPNOTSUPP;
 }
 
 EXPORT_SYMBOL(dev_ethtool);

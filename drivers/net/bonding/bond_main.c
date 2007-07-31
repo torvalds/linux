@@ -613,38 +613,20 @@ down:
 static int bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
-	static int (* ioctl)(struct net_device *, struct ifreq *, int);
-	struct ifreq ifr;
 	struct ethtool_cmd etool;
+	int res;
 
 	/* Fake speed and duplex */
 	slave->speed = SPEED_100;
 	slave->duplex = DUPLEX_FULL;
 
-	if (slave_dev->ethtool_ops) {
-		int res;
-
-		if (!slave_dev->ethtool_ops->get_settings) {
-			return -1;
-		}
-
-		res = slave_dev->ethtool_ops->get_settings(slave_dev, &etool);
-		if (res < 0) {
-			return -1;
-		}
-
-		goto verify;
-	}
-
-	ioctl = slave_dev->do_ioctl;
-	strncpy(ifr.ifr_name, slave_dev->name, IFNAMSIZ);
-	etool.cmd = ETHTOOL_GSET;
-	ifr.ifr_data = (char*)&etool;
-	if (!ioctl || (IOCTL(slave_dev, &ifr, SIOCETHTOOL) < 0)) {
+	if (!slave_dev->ethtool_ops || !slave_dev->ethtool_ops->get_settings)
 		return -1;
-	}
 
-verify:
+	res = slave_dev->ethtool_ops->get_settings(slave_dev, &etool);
+	if (res < 0)
+		return -1;
+
 	switch (etool.speed) {
 	case SPEED_10:
 	case SPEED_100:
@@ -690,7 +672,6 @@ static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_de
 	static int (* ioctl)(struct net_device *, struct ifreq *, int);
 	struct ifreq ifr;
 	struct mii_ioctl_data *mii;
-	struct ethtool_value etool;
 
 	if (bond->params.use_carrier) {
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
@@ -721,9 +702,10 @@ static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_de
 		}
 	}
 
-	/* try SIOCETHTOOL ioctl, some drivers cache ETHTOOL_GLINK */
-	/* for a period of time so we attempt to get link status   */
-	/* from it last if the above MII ioctls fail...            */
+	/*
+	 * Some drivers cache ETHTOOL_GLINK for a period of time so we only
+	 * attempt to get link status from it if the above MII ioctls fail.
+	 */
 	if (slave_dev->ethtool_ops) {
 		if (slave_dev->ethtool_ops->get_link) {
 			u32 link;
@@ -734,23 +716,9 @@ static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_de
 		}
 	}
 
-	if (ioctl) {
-		strncpy(ifr.ifr_name, slave_dev->name, IFNAMSIZ);
-		etool.cmd = ETHTOOL_GLINK;
-		ifr.ifr_data = (char*)&etool;
-		if (IOCTL(slave_dev, &ifr, SIOCETHTOOL) == 0) {
-			if (etool.data == 1) {
-				return BMSR_LSTATUS;
-			} else {
-				dprintk("SIOCETHTOOL shows link down\n");
-				return 0;
-			}
-		}
-	}
-
 	/*
 	 * If reporting, report that either there's no dev->do_ioctl,
-	 * or both SIOCGMIIREG and SIOCETHTOOL failed (meaning that we
+	 * or both SIOCGMIIREG and get_link failed (meaning that we
 	 * cannot report link status).  If not reporting, pretend
 	 * we're ok.
 	 */
