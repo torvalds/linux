@@ -145,7 +145,7 @@ repeat:
 
 	ctrl_outl(vpn | PMB_V, mk_pmb_addr(pos));
 
-#ifdef CONFIG_SH_WRITETHROUGH
+#ifdef CONFIG_CACHE_WRITETHROUGH
 	/*
 	 * When we are in 32-bit address extended mode, CCR.CB becomes
 	 * invalid, so care must be taken to manually adjust cacheable

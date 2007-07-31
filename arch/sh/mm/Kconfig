@@ -2,7 +2,6 @@
 # Processor families
 #
 config CPU_SH2
-	select SH_WRITETHROUGH if !CPU_SH2A
 	bool
 
 config CPU_SH2A
@@ -414,8 +413,17 @@ config SH_DIRECT_MAPPED
 	  Turn this option off for platforms that do not have a direct-mapped
 	  cache, and you have no need to run the caches in such a configuration.
 
-config SH_WRITETHROUGH
-	bool "Use write-through caching"
+choice
+	prompt "Cache mode"
+	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4
+	default CACHE_WRITETHROUGH if (CPU_SH2 && !CPU_SH2A)
+
+config CACHE_WRITEBACK
+	bool "Write-back"
+	depends on CPU_SH2A || CPU_SH3 || CPU_SH4
+
+config CACHE_WRITETHROUGH
+	bool "Write-through"
 	help
 	  Selecting this option will configure the caches in write-through
 	  mode, as opposed to the default write-back configuration.
@@ -425,5 +433,10 @@ config SH_WRITETHROUGH
 	  be implemented to deal with aliasing.
 
 	  If unsure, say N.
+
+config CACHE_OFF
+	bool "Off"
+
+endchoice
 
 endmenu

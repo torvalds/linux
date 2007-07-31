@@ -34,22 +34,27 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	unsigned long flags;
 	unsigned long pteval;
 	unsigned long vpn;
-	struct page *page;
-	unsigned long pfn;
 
 	/* Ptrace may call this routine. */
 	if (vma && current->active_mm != vma->vm_mm)
 		return;
 
-	pfn = pte_pfn(pte);
-	if (pfn_valid(pfn)) {
-		page = pfn_to_page(pfn);
-		if (!test_bit(PG_mapped, &page->flags)) {
-			unsigned long phys = pte_val(pte) & PTE_PHYS_MASK;
-			__flush_wback_region((void *)P1SEGADDR(phys), PAGE_SIZE);
-			__set_bit(PG_mapped, &page->flags);
+#ifndef CONFIG_CACHE_OFF
+	{
+		unsigned long pfn = pte_pfn(pte);
+
+		if (pfn_valid(pfn)) {
+			struct page *page = pfn_to_page(pfn);
+
+			if (!test_bit(PG_mapped, &page->flags)) {
+				unsigned long phys = pte_val(pte) & PTE_PHYS_MASK;
+				__flush_wback_region((void *)P1SEGADDR(phys),
+						     PAGE_SIZE);
+				__set_bit(PG_mapped, &page->flags);
+			}
 		}
 	}
+#endif
 
 	local_irq_save(flags);
 
@@ -66,7 +71,7 @@ void update_mmu_cache(struct vm_area_struct * vma,
 
 	/* Set PTEL register */
 	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
-#ifdef CONFIG_SH_WRITETHROUGH
+#ifdef CONFIG_CACHE_WRITETHROUGH
 	pteval |= _PAGE_WT;
 #endif
 	/* conveniently, we want all the software flags to be 0 anyway */

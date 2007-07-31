@@ -143,12 +143,15 @@ static void __init cache_init(void)
 		flags &= ~CCR_CACHE_EMODE;
 #endif
 
-#ifdef CONFIG_SH_WRITETHROUGH
-	/* Turn on Write-through caching */
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+	/* Write-through */
 	flags |= CCR_CACHE_WT;
-#else
-	/* .. or default to Write-back */
+#elif defined(CONFIG_CACHE_WRITEBACK)
+	/* Write-back */
 	flags |= CCR_CACHE_CB;
+#else
+	/* Off */
+	flags &= ~CCR_CACHE_ENABLE;
 #endif
 
 	ctrl_outl(flags, CCR);

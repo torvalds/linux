@@ -128,7 +128,8 @@ DECLARE_EXPORT(__movstrSI12_i4);
 #endif /* __GNUC__ == 4 */
 #endif
 
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
+#if !defined(CONFIG_CACHE_OFF) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
 /* needed by some modules */
 EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_cache_range);
@@ -136,8 +137,8 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_purge_region);
 #endif
 
-#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
-	defined(CONFIG_SH7705_CACHE_32KB))
+#if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
+	(defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB))
 EXPORT_SYMBOL(clear_user_page);
 #endif
 
