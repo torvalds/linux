@@ -817,7 +817,9 @@ int dev_alloc_name(struct net_device *dev, const char *name)
  */
 int dev_change_name(struct net_device *dev, char *newname)
 {
+	char oldname[IFNAMSIZ];
 	int err = 0;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -826,6 +828,8 @@ int dev_change_name(struct net_device *dev, char *newname)
 
 	if (!dev_valid_name(newname))
 		return -EINVAL;
+
+	memcpy(oldname, dev->name, IFNAMSIZ);
 
 	if (strchr(newname, '%')) {
 		err = dev_alloc_name(dev, newname);
@@ -838,6 +842,7 @@ int dev_change_name(struct net_device *dev, char *newname)
 	else
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
+rollback:
 	device_rename(&dev->dev, dev->name);
 
 	write_lock_bh(&dev_base_lock);
@@ -845,7 +850,20 @@ int dev_change_name(struct net_device *dev, char *newname)
 	hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
 	write_unlock_bh(&dev_base_lock);
 
-	raw_notifier_call_chain(&netdev_chain, NETDEV_CHANGENAME, dev);
+	ret = raw_notifier_call_chain(&netdev_chain, NETDEV_CHANGENAME, dev);
+	ret = notifier_to_errno(ret);
+
+	if (ret) {
+		if (err) {
+			printk(KERN_ERR
+			       "%s: name change rollback failed: %d.\n",
+			       dev->name, ret);
+		} else {
+			err = ret;
+			memcpy(dev->name, oldname, IFNAMSIZ);
+			goto rollback;
+		}
+	}
 
 	return err;
 }
@@ -1058,20 +1076,43 @@ int dev_close(struct net_device *dev)
 int register_netdevice_notifier(struct notifier_block *nb)
 {
 	struct net_device *dev;
+	struct net_device *last;
 	int err;
 
 	rtnl_lock();
 	err = raw_notifier_chain_register(&netdev_chain, nb);
-	if (!err) {
-		for_each_netdev(dev) {
-			nb->notifier_call(nb, NETDEV_REGISTER, dev);
+	if (err)
+		goto unlock;
 
-			if (dev->flags & IFF_UP)
-				nb->notifier_call(nb, NETDEV_UP, dev);
-		}
+	for_each_netdev(dev) {
+		err = nb->notifier_call(nb, NETDEV_REGISTER, dev);
+		err = notifier_to_errno(err);
+		if (err)
+			goto rollback;
+
+		if (!(dev->flags & IFF_UP))
+			continue;
+
+		nb->notifier_call(nb, NETDEV_UP, dev);
 	}
+
+unlock:
 	rtnl_unlock();
 	return err;
+
+rollback:
+	last = dev;
+	for_each_netdev(dev) {
+		if (dev == last)
+			break;
+
+		if (dev->flags & IFF_UP) {
+			nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
+			nb->notifier_call(nb, NETDEV_DOWN, dev);
+		}
+		nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
+	}
+	goto unlock;
 }
 
 /**
@@ -3434,9 +3475,10 @@ int register_netdevice(struct net_device *dev)
 	write_unlock_bh(&dev_base_lock);
 
 	/* Notify protocols, that a new device appeared. */
-	raw_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
-
-	ret = 0;
+	ret = raw_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		unregister_netdevice(dev);
 
 out:
 	return ret;
