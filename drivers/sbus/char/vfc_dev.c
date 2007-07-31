@@ -248,6 +248,7 @@ static int vfc_debug(struct vfc_dev *dev, int cmd, void __user *argp)
 					buffer,inout.len);
 
 		if (copy_to_user(argp,&inout,sizeof(inout))) {
+			vfc_unlock_device(dev);
 			kfree(buffer);
 			return -EFAULT;
 		}
