@@ -133,8 +133,8 @@ const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
 	if ((yres < 400) == (f->height <= 8))
 	    c += 1000;
 
-	if (!(font_w & (1 << (f->width - 1))) ||
-	    !(font_w & (1 << (f->height - 1))))
+	if ((font_w & (1 << (f->width - 1))) &&
+	    (font_h & (1 << (f->height - 1))))
 	    c += 1000;
 
 	if (c > cc) {
