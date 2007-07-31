@@ -1121,6 +1121,7 @@ static int initexit_section_ref_ok(const char *name)
 		".machvec",		/* ia64 + powerpc uses these */
 		".machine.desc",
 		".opd",			/* See comment [OPD] */
+		"__dbe_table",
 		".parainstructions",
 		".pdr",
 		".plt",			/* seen on ARCH=um build on x86_64. Harmless */
