@@ -2,7 +2,7 @@
  * code16gcc.h
  *
  * This file is -include'd when compiling 16-bit C code.
- * Note: this asm() needs to be emitted before gcc omits any code.
+ * Note: this asm() needs to be emitted before gcc emits any code.
  * Depending on gcc version, this requires -fno-unit-at-a-time or
  * -fno-toplevel-reorder.
  *
