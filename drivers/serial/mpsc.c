@@ -1520,7 +1520,6 @@ mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 	mpsc_set_baudrate(pi, baud);
 
 	/* Characters/events to read */
-	pi->rcv_data = 1;
 	pi->port.read_status_mask = SDMA_DESC_CMDSTAT_OR;
 
 	if (termios->c_iflag & INPCK)
@@ -1544,11 +1543,15 @@ mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 			pi->port.ignore_status_mask |= SDMA_DESC_CMDSTAT_OR;
 	}
 
-	/* Ignore all chars if CREAD not set */
-	if (!(termios->c_cflag & CREAD))
+	if ((termios->c_cflag & CREAD)) {
+		if (!pi->rcv_data) {
+			pi->rcv_data = 1;
+			mpsc_start_rx(pi);
+		}
+	} else if (pi->rcv_data) {
+		mpsc_stop_rx(port);
 		pi->rcv_data = 0;
-	else
-		mpsc_start_rx(pi);
+	}
 
 	spin_unlock_irqrestore(&pi->port.lock, flags);
 	return;
