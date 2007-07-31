@@ -43,11 +43,7 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  */
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
-#ifdef CONFIG_64BIT_PHYS_ADDR
-#define PGDIR_SHIFT	21
-#else
-#define PGDIR_SHIFT	22
-#endif
+#define PGDIR_SHIFT	(2 * PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
