@@ -153,7 +153,8 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 			len = len - 1;
 
 		/* mask out bits we are going to set */
-		regval &= ~0x38ff0000;
+		regval &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH |
+			    SPMODE_LEN(0xF) | SPMODE_DIV16 | SPMODE_PM(0xF));
 
 		if (spi->mode & SPI_CPHA)
 			regval |= SPMODE_CP_BEGIN_EDGECLK;
@@ -248,7 +249,7 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	regval = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 
 	/* Mask out bits_per_wordgth */
-	regval &= 0xff0fffff;
+	regval &= ~SPMODE_LEN(0xF);
 	regval |= SPMODE_LEN(bits_per_word);
 
 	/* Turn off SPI unit prior changing mode */
