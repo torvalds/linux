@@ -726,9 +726,6 @@ ncp_del_file_or_subdir2(struct ncp_server *server,
 	__le32 dirent;
 
 	if (!inode) {
-#ifdef CONFIG_NCPFS_DEBUGDENTRY
-		PRINTK("ncpfs: ncpdel2: dentry->d_inode == NULL\n");
-#endif
 		return 0xFF;	/* Any error */
 	}
 	volnum = NCP_FINFO(inode)->volNumber;
