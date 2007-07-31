@@ -803,11 +803,14 @@ static int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	if (copy_to_user(log->dirty_bitmap, memslot->dirty_bitmap, n))
 		goto out;
 
-	mutex_lock(&kvm->lock);
-	kvm_mmu_slot_remove_write_access(kvm, log->slot);
-	kvm_flush_remote_tlbs(kvm);
-	memset(memslot->dirty_bitmap, 0, n);
-	mutex_unlock(&kvm->lock);
+	/* If nothing is dirty, don't bother messing with page tables. */
+	if (any) {
+		mutex_lock(&kvm->lock);
+		kvm_mmu_slot_remove_write_access(kvm, log->slot);
+		kvm_flush_remote_tlbs(kvm);
+		memset(memslot->dirty_bitmap, 0, n);
+		mutex_unlock(&kvm->lock);
+	}
 
 	r = 0;
 
