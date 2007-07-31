@@ -792,7 +792,7 @@ int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
  * @scontext: security context
  * @scontext_len: length in bytes
  * @sid: security identifier, SID
- * @def_sid: default SID to assign on errror
+ * @def_sid: default SID to assign on error
  *
  * Obtains a SID associated with the security context that
  * has the string representation specified by @scontext.

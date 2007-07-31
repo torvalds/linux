@@ -555,7 +555,7 @@ dasd_eckd_read_conf(struct dasd_device *device)
 			if (conf_data == NULL) {
 				MESSAGE(KERN_WARNING, "%s", "No configuration "
 					"data retrieved");
-				continue;	/* no errror */
+				continue;	/* no error */
 			}
 			if (conf_len != sizeof (struct dasd_eckd_confdata)) {
 				MESSAGE(KERN_WARNING,
@@ -564,7 +564,7 @@ dasd_eckd_read_conf(struct dasd_device *device)
 					conf_len,
 					sizeof (struct dasd_eckd_confdata));
 				kfree(conf_data);
-				continue;	/* no errror */
+				continue;	/* no error */
 			}
 			/* save first valid configuration data */
 			if (!conf_data_saved){
