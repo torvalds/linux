@@ -782,7 +782,7 @@ static void siu_console_write(struct console *con, const char *s, unsigned count
 	siu_write(port, UART_IER, ier);
 }
 
-static int siu_console_setup(struct console *con, char *options)
+static int __init siu_console_setup(struct console *con, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
