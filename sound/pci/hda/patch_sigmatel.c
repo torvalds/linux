@@ -95,6 +95,8 @@ struct sigmatel_spec {
 	unsigned int hp_detect: 1;
 	unsigned int gpio_mute: 1;
 
+	unsigned int gpio_mask, gpio_data;
+
 	/* playback */
 	struct hda_multi_out multiout;
 	hda_nid_t dac_nids[5];
@@ -854,20 +856,20 @@ static void stac92xx_set_config_regs(struct hda_codec *codec)
 					spec->pin_configs[i]);
 }
 
-static void stac92xx_enable_gpio_mask(struct hda_codec *codec,
-				      int gpio_mask, int gpio_data)
+static void stac92xx_enable_gpio_mask(struct hda_codec *codec)
 {
+	struct sigmatel_spec *spec = codec->spec;
 	/* Configure GPIOx as output */
 	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DIRECTION, gpio_mask);
+			    AC_VERB_SET_GPIO_DIRECTION, spec->gpio_mask);
 	/* Configure GPIOx as CMOS */
 	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0x00000000);
 	/* Assert GPIOx */
 	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DATA, gpio_data);
+			    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	/* Enable GPIOx */
 	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_MASK, gpio_mask);
+			    AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
 }
 
 /*
@@ -1935,8 +1937,10 @@ static int stac92xx_resume(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 	int i;
 
-	stac92xx_init(codec);
 	stac92xx_set_config_regs(codec);
+	if (spec->gpio_mask && spec->gpio_data)
+		stac92xx_enable_gpio_mask(codec);
+	stac92xx_init(codec);
 	snd_hda_resume_ctls(codec, spec->mixer);
 	for (i = 0; i < spec->num_mixers; i++)
 		snd_hda_resume_ctls(codec, spec->mixers[i]);
@@ -2240,7 +2244,8 @@ static int patch_stac927x(struct hda_codec *codec)
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	/* GPIO0 High = Enable EAPD */
-	stac92xx_enable_gpio_mask(codec, 0x00000001, 0x00000001);
+	spec->gpio_mask = spec->gpio_data = 0x00000001;
+	stac92xx_enable_gpio_mask(codec); 
 	
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
 	if (!err) {
@@ -2265,7 +2270,7 @@ static int patch_stac927x(struct hda_codec *codec)
 static int patch_stac9205(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	int err, gpio_mask, gpio_data;
+	int err;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -2308,15 +2313,16 @@ static int patch_stac9205(struct hda_codec *codec)
 		stac92xx_set_config_reg(codec, 0x1f, 0x01441030);
 		stac92xx_set_config_reg(codec, 0x20, 0x1c410030);
 
-		gpio_mask = 0x00000007; /* GPIO0-2 */
+		spec->gpio_mask = 0x00000007; /* GPIO0-2 */
 		/* GPIO0 High = EAPD, GPIO1 Low = DRM,
 		 * GPIO2 High = Headphone Mute
 		 */
-		gpio_data = 0x00000005;
+		spec->gpio_data = 0x00000005;
 	} else
-		gpio_mask = gpio_data = 0x00000001; /* GPIO0 High = EAPD */
+		spec->gpio_mask = spec->gpio_data =
+			0x00000001; /* GPIO0 High = EAPD */
 
-	stac92xx_enable_gpio_mask(codec, gpio_mask, gpio_data);
+	stac92xx_enable_gpio_mask(codec);
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
 	if (!err) {
 		if (spec->board_config < 0) {
