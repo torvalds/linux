@@ -193,7 +193,8 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 		cpu_relax();
 	}
 	if (!loop_count)
-		printk(KERN_EMERG "qlogicpti: mbox_command loop timeout #1\n");
+		printk(KERN_EMERG "qlogicpti%d: mbox_command loop timeout #1\n",
+		       qpti->qpti_id);
 
 	/* Write mailbox command registers. */
 	switch (mbox_param[param[0]] >> 4) {
@@ -224,8 +225,8 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	       (sbus_readw(qpti->qregs + HCCTRL) & HCCTRL_CRIRQ))
 		udelay(20);
 	if (!loop_count)
-		printk(KERN_EMERG "qlogicpti: mbox_command[%04x] loop timeout #2\n",
-		       param[0]);
+		printk(KERN_EMERG "qlogicpti%d: mbox_command[%04x] loop timeout #2\n",
+		       qpti->qpti_id, param[0]);
 
 	/* Wait for SBUS semaphore to get set. */
 	loop_count = DEFAULT_LOOP_COUNT;
@@ -238,16 +239,16 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 			break;
 	}
 	if (!loop_count)
-		printk(KERN_EMERG "qlogicpti: mbox_command[%04x] loop timeout #3\n",
-		       param[0]);
+		printk(KERN_EMERG "qlogicpti%d: mbox_command[%04x] loop timeout #3\n",
+		       qpti->qpti_id, param[0]);
 
 	/* Wait for MBOX busy condition to go away. */
 	loop_count = DEFAULT_LOOP_COUNT;
 	while (--loop_count && (sbus_readw(qpti->qregs + MBOX0) == 0x04))
 		udelay(20);
 	if (!loop_count)
-		printk(KERN_EMERG "qlogicpti: mbox_command[%04x] loop timeout #4\n",
-		       param[0]);
+		printk(KERN_EMERG "qlogicpti%d: mbox_command[%04x] loop timeout #4\n",
+		       qpti->qpti_id, param[0]);
 
 	/* Read back output parameters. */
 	switch (mbox_param[param[0]] & 0xf) {
@@ -342,7 +343,8 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	while (--loop_count && ((sbus_readw(qpti->qregs + MBOX0) & 0xff) == 0x04))
 		udelay(20);
 	if (!loop_count)
-		printk(KERN_EMERG "qlogicpti: reset_hardware loop timeout\n");
+		printk(KERN_EMERG "qlogicpti%d: reset_hardware loop timeout\n",
+		       qpti->qpti_id);
 
 	sbus_writew(HCCTRL_PAUSE, qpti->qregs + HCCTRL);
 	set_sbus_cfg1(qpti);
@@ -721,12 +723,12 @@ static int __init qpti_register_irq(struct qlogicpti *qpti)
 			IRQF_SHARED, "Qlogic/PTI", qpti))
 		goto fail;
 
-	printk("qpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);
+	printk("qlogicpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);
 
 	return 0;
 
 fail:
-	printk("qpti%d: Cannot acquire irq line\n", qpti->qpti_id);
+	printk("qlogicpti%d: Cannot acquire irq line\n", qpti->qpti_id);
 	return -1;
 }
 
@@ -1210,7 +1212,7 @@ static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 		host_status = DID_OK;
 		break;
 	      default:
-		printk(KERN_EMERG "qpti%d: unknown completion status 0x%04x\n",
+		printk(KERN_EMERG "qlogicpti%d: unknown completion status 0x%04x\n",
 		       id, sts->completion_status);
 		host_status = DID_ERROR;
 		break;
@@ -1329,8 +1331,8 @@ static int qlogicpti_abort(struct scsi_cmnd *Cmnd)
 	u32 cmd_cookie;
 	int i;
 
-	printk(KERN_WARNING "qlogicpti : Aborting cmd for tgt[%d] lun[%d]\n",
-	       (int)Cmnd->device->id, (int)Cmnd->device->lun);
+	printk(KERN_WARNING "qlogicpti%d: Aborting cmd for tgt[%d] lun[%d]\n",
+	       qpti->qpti_id, (int)Cmnd->device->id, (int)Cmnd->device->lun);
 
 	qlogicpti_disable_irqs(qpti);
 
@@ -1348,7 +1350,8 @@ static int qlogicpti_abort(struct scsi_cmnd *Cmnd)
 	param[3] = cmd_cookie & 0xffff;
 	if (qlogicpti_mbox_command(qpti, param, 0) ||
 	    (param[0] != MBOX_COMMAND_COMPLETE)) {
-		printk(KERN_EMERG "qlogicpti : scsi abort failure: %x\n", param[0]);
+		printk(KERN_EMERG "qlogicpti%d: scsi abort failure: %x\n",
+		       qpti->qpti_id, param[0]);
 		return_status = FAILED;
 	}
 
@@ -1364,7 +1367,8 @@ static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 	int return_status = SUCCESS;
 
-	printk(KERN_WARNING "qlogicpti : Resetting SCSI bus!\n");
+	printk(KERN_WARNING "qlogicpti%d: Resetting SCSI bus!\n",
+	       qpti->qpti_id);
 
 	qlogicpti_disable_irqs(qpti);
 
@@ -1372,7 +1376,8 @@ static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 	param[1] = qpti->host_param.bus_reset_delay;
 	if (qlogicpti_mbox_command(qpti, param, 0) ||
 	   (param[0] != MBOX_COMMAND_COMPLETE)) {
-		printk(KERN_EMERG "qlogicisp : scsi bus reset failure: %x\n", param[0]);
+		printk(KERN_EMERG "qlogicisp%d: scsi bus reset failure: %x\n",
+		       qpti->qpti_id, param[0]);
 		return_status = FAILED;
 	}
 
@@ -1454,21 +1459,24 @@ static int __devinit qpti_sbus_probe(struct of_device *dev, const struct of_devi
 	if (qlogicpti_reset_hardware(host))
 		goto fail_unmap_queues;
 
-	if (scsi_add_host(host, &dev->dev))
-		goto fail_unmap_queues;
-
 	printk("(Firmware v%d.%d.%d)", qpti->fware_majrev,
 	       qpti->fware_minrev, qpti->fware_micrev);
 
 	fcode = of_get_property(dp, "isp-fcode", NULL);
 	if (fcode && fcode[0])
-		printk("(Firmware %s)", fcode);
+		printk("(FCode %s)", fcode);
 	if (of_find_property(dp, "differential", NULL) != NULL)
 		qpti->differential = 1;
 			
-	printk (" [%s Wide, using %s interface]\n",
+	printk("\nqlogicpti%d: [%s Wide, using %s interface]\n",
+		qpti->qpti_id,
 		(qpti->ultra ? "Ultra" : "Fast"),
 		(qpti->differential ? "differential" : "single ended"));
+
+	if (scsi_add_host(host, &dev->dev)) {
+		printk("qlogicpti%d: Failed scsi_add_host\n", qpti->qpti_id);
+		goto fail_unmap_queues;
+	}
 
 	dev_set_drvdata(&sdev->ofdev.dev, qpti);
 
