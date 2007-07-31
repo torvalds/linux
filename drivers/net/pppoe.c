@@ -774,6 +774,7 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct net_device *dev;
 	char *start;
 
+	lock_sock(sk);
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED)) {
 		error = -ENOTCONN;
 		goto end;
@@ -783,8 +784,6 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	hdr.type = 1;
 	hdr.code = 0;
 	hdr.sid = po->num;
-
-	lock_sock(sk);
 
 	dev = po->pppoe_dev;
 
