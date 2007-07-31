@@ -511,7 +511,6 @@ acpi_cpufreq_guess_freq(struct acpi_cpufreq_data *data, unsigned int cpu)
 static int acpi_cpufreq_early_init(void)
 {
 	struct acpi_processor_performance *data;
-	cpumask_t covered;
 	unsigned int i, j;
 
 	dprintk("acpi_cpufreq_early_init\n");
@@ -520,14 +519,13 @@ static int acpi_cpufreq_early_init(void)
 		data = kzalloc(sizeof(struct acpi_processor_performance),
 			       GFP_KERNEL);
 		if (!data) {
-			for_each_cpu_mask(j, covered) {
+			for_each_possible_cpu(j) {
 				kfree(acpi_perf_data[j]);
 				acpi_perf_data[j] = NULL;
 			}
 			return -ENOMEM;
 		}
 		acpi_perf_data[i] = data;
-		cpu_set(i, covered);
 	}
 
 	/* Do initialization in ACPI core */
