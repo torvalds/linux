@@ -3,6 +3,8 @@
 
 #include <asm/kdebug.h>
 
+struct notifier_block;
+
 struct die_args {
 	struct pt_regs *regs;
 	const char *str;
