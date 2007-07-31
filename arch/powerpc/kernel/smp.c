@@ -212,11 +212,6 @@ int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
 		atomic_set(&data.finished, 0);
 
 	spin_lock(&call_lock);
-	/* Must grab online cpu count with preempt disabled, otherwise
-	 * it can change. */
-	num_cpus = num_online_cpus() - 1;
-	if (!num_cpus)
-		goto done;
 
 	/* remove 'self' from the map */
 	if (cpu_isset(smp_processor_id(), map))
@@ -224,7 +219,9 @@ int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
 
 	/* sanity check the map, remove any non-online processors. */
 	cpus_and(map, map, cpu_online_map);
-	if (cpus_empty(map))
+
+	num_cpus = cpus_weight(map);
+	if (!num_cpus)
 		goto done;
 
 	call_data = &data;
