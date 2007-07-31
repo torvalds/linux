@@ -35,7 +35,7 @@
 struct m48t59_private {
 	void __iomem *ioaddr;
 	unsigned int size; /* iomem size */
-	unsigned int irq;
+	int irq;
 	struct rtc_device *rtc;
 	spinlock_t lock; /* serialize the NVRAM and RTC access */
 };
