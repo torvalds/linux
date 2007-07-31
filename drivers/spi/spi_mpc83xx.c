@@ -237,6 +237,14 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	} else
 		return -EINVAL;
 
+	if (mpc83xx_spi->qe_mode && spi->mode & SPI_LSB_FIRST) {
+		mpc83xx_spi->tx_shift = 0;
+		if (bits_per_word <= 8)
+			mpc83xx_spi->rx_shift = 8;
+		else
+			mpc83xx_spi->rx_shift = 0;
+	}
+
 	/* nsecs = (clock period)/2 */
 	if (!hz)
 		hz = spi->max_speed_hz;
