@@ -7,7 +7,7 @@ config DEFCONFIG_LIST
 	default "/boot/config-$UNAME_RELEASE"
 	default "arch/$ARCH/defconfig"
 
-menu "Code maturity level options"
+menu "General setup"
 
 config EXPERIMENTAL
 	bool "Prompt for development and/or incomplete code/drivers"
@@ -61,9 +61,6 @@ config INIT_ENV_ARG_LIMIT
 	  Maximum of each of the number of arguments and environment
 	  variables passed to init from the kernel command line.
 
-endmenu
-
-menu "General setup"
 
 config LOCALVERSION
 	string "Local version - append to kernel release"
