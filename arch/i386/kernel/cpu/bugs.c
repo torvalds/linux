@@ -11,6 +11,7 @@
  */
 #include <linux/init.h>
 #include <linux/utsname.h>
+#include <asm/bugs.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
