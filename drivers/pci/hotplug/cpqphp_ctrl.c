@@ -973,15 +973,12 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
 	struct pci_func *new_slot;
 	struct pci_func *next;
 
-	new_slot = kmalloc(sizeof(*new_slot), GFP_KERNEL);
-
+	new_slot = kzalloc(sizeof(*new_slot), GFP_KERNEL);
 	if (new_slot == NULL) {
 		/* I'm not dead yet!
 		 * You will be. */
 		return new_slot;
 	}
-
-	memset(new_slot, 0, sizeof(struct pci_func));
 
 	new_slot->next = NULL;
 	new_slot->configured = 1;
