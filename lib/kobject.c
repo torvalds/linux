@@ -44,11 +44,11 @@ static int populate_dir(struct kobject * kobj)
 	return error;
 }
 
-static int create_dir(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
+static int create_dir(struct kobject * kobj)
 {
 	int error = 0;
 	if (kobject_name(kobj)) {
-		error = sysfs_create_dir(kobj, shadow_parent);
+		error = sysfs_create_dir(kobj);
 		if (!error) {
 			if ((error = populate_dir(kobj)))
 				sysfs_remove_dir(kobj);
@@ -157,12 +157,11 @@ static void unlink(struct kobject * kobj)
 }
 
 /**
- *	kobject_shadow_add - add an object to the hierarchy.
+ *	kobject_add - add an object to the hierarchy.
  *	@kobj:	object.
- *	@shadow_parent: sysfs directory to add to.
  */
 
-int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
+int kobject_add(struct kobject * kobj)
 {
 	int error = 0;
 	struct kobject * parent;
@@ -194,7 +193,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 		kobj->parent = parent;
 	}
 
-	error = create_dir(kobj, shadow_parent);
+	error = create_dir(kobj);
 	if (error) {
 		/* unlink does the kobject_put() for us */
 		unlink(kobj);
@@ -214,16 +213,6 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 
 	return error;
 }
-
-/**
- *	kobject_add - add an object to the hierarchy.
- *	@kobj:	object.
- */
-int kobject_add(struct kobject * kobj)
-{
-	return kobject_shadow_add(kobj, NULL);
-}
-
 
 /**
  *	kobject_register - initialize and add an object.
@@ -334,7 +323,7 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	/* Note : if we want to send the new name alone, not the full path,
 	 * we could probably use kobject_name(kobj); */
 
-	error = sysfs_rename_dir(kobj, kobj->parent->sd, new_name);
+	error = sysfs_rename_dir(kobj, new_name);
 
 	/* This function is mostly/only used for network interface.
 	 * Some hotplug package track interfaces by their name and
@@ -345,27 +334,6 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 out:
 	kfree(devpath_string);
 	kfree(devpath);
-	kobject_put(kobj);
-
-	return error;
-}
-
-/**
- *	kobject_rename - change the name of an object
- *	@kobj:	object in question.
- *	@new_parent: object's new parent
- *	@new_name: object's new name
- */
-
-int kobject_shadow_rename(struct kobject *kobj,
-			  struct sysfs_dirent *new_parent, const char *new_name)
-{
-	int error = 0;
-
-	kobj = kobject_get(kobj);
-	if (!kobj)
-		return -EINVAL;
-	error = sysfs_rename_dir(kobj, new_parent, new_name);
 	kobject_put(kobj);
 
 	return error;

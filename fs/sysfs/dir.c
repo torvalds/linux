@@ -569,9 +569,6 @@ static void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	spin_unlock(&dcache_lock);
 	spin_unlock(&sysfs_assoc_lock);
 
-	/* dentries for shadowed inodes are pinned, unpin */
-	if (dentry && sysfs_is_shadowed_inode(dentry->d_inode))
-		dput(dentry);
 	dput(dentry);
 
 	/* adjust nlink and update timestamp */
@@ -723,19 +720,15 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 /**
  *	sysfs_create_dir - create a directory for an object.
  *	@kobj:		object we're creating directory for. 
- *	@shadow_parent:	parent object.
  */
-int sysfs_create_dir(struct kobject *kobj,
-		     struct sysfs_dirent *shadow_parent_sd)
+int sysfs_create_dir(struct kobject * kobj)
 {
 	struct sysfs_dirent *parent_sd, *sd;
 	int error = 0;
 
 	BUG_ON(!kobj);
 
-	if (shadow_parent_sd)
-		parent_sd = shadow_parent_sd;
-	else if (kobj->parent)
+	if (kobj->parent)
 		parent_sd = kobj->parent->sd;
 	else if (sysfs_mount && sysfs_mount->mnt_sb)
 		parent_sd = sysfs_mount->mnt_sb->s_root->d_fsdata;
@@ -890,45 +883,44 @@ void sysfs_remove_dir(struct kobject * kobj)
 	__sysfs_remove_dir(sd);
 }
 
-int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
-		     const char *new_name)
+int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 {
-	struct sysfs_dirent *sd = kobj->sd;
-	struct dentry *new_parent = NULL;
+	struct sysfs_dirent *sd;
+	struct dentry *parent = NULL;
 	struct dentry *old_dentry = NULL, *new_dentry = NULL;
+	struct sysfs_dirent *parent_sd;
 	const char *dup_name = NULL;
 	int error;
 
+	if (!kobj->parent)
+		return -EINVAL;
+
 	/* get dentries */
+	sd = kobj->sd;
 	old_dentry = sysfs_get_dentry(sd);
 	if (IS_ERR(old_dentry)) {
 		error = PTR_ERR(old_dentry);
 		goto out_dput;
 	}
 
-	new_parent = sysfs_get_dentry(new_parent_sd);
-	if (IS_ERR(new_parent)) {
-		error = PTR_ERR(new_parent);
+	parent_sd = kobj->parent->sd;
+	parent = sysfs_get_dentry(parent_sd);
+	if (IS_ERR(parent)) {
+		error = PTR_ERR(parent);
 		goto out_dput;
 	}
 
-	/* lock new_parent and get dentry for new name */
-	mutex_lock(&new_parent->d_inode->i_mutex);
+	/* lock parent and get dentry for new name */
+	mutex_lock(&parent->d_inode->i_mutex);
 
-	new_dentry = lookup_one_len(new_name, new_parent, strlen(new_name));
+	new_dentry = lookup_one_len(new_name, parent, strlen(new_name));
 	if (IS_ERR(new_dentry)) {
 		error = PTR_ERR(new_dentry);
 		goto out_unlock;
 	}
 
-	/* By allowing two different directories with the same
-	 * d_parent we allow this routine to move between different
-	 * shadows of the same directory
-	 */
 	error = -EINVAL;
-	if (old_dentry->d_parent->d_inode != new_parent->d_inode ||
-	    new_dentry->d_parent->d_inode != new_parent->d_inode ||
-	    old_dentry == new_dentry)
+	if (old_dentry == new_dentry)
 		goto out_unlock;
 
 	error = -EEXIST;
@@ -955,9 +947,9 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
 	d_move(sd->s_dentry, new_dentry);
 
 	sysfs_unlink_sibling(sd);
-	sysfs_get(new_parent_sd);
+	sysfs_get(parent_sd);
 	sysfs_put(sd->s_parent);
-	sd->s_parent = new_parent_sd;
+	sd->s_parent = parent_sd;
 	sysfs_link_sibling(sd);
 
 	mutex_unlock(&sysfs_mutex);
@@ -968,10 +960,10 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
  out_drop:
 	d_drop(new_dentry);
  out_unlock:
-	mutex_unlock(&new_parent->d_inode->i_mutex);
+	mutex_unlock(&parent->d_inode->i_mutex);
  out_dput:
 	kfree(dup_name);
-	dput(new_parent);
+	dput(parent);
 	dput(old_dentry);
 	dput(new_dentry);
 	return error;
@@ -1190,121 +1182,6 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 	}
 
 	return offset;
-}
-
-
-/**
- *	sysfs_make_shadowed_dir - Setup so a directory can be shadowed
- *	@kobj:	object we're creating shadow of.
- */
-
-int sysfs_make_shadowed_dir(struct kobject *kobj,
-	void * (*follow_link)(struct dentry *, struct nameidata *))
-{
-	struct dentry *dentry;
-	struct inode *inode;
-	struct inode_operations *i_op;
-
-	/* get dentry for @kobj->sd, dentry of a shadowed dir is pinned */
-	dentry = sysfs_get_dentry(kobj->sd);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-
-	inode = dentry->d_inode;
-	if (inode->i_op != &sysfs_dir_inode_operations) {
-		dput(dentry);
-		return -EINVAL;
-	}
-
-	i_op = kmalloc(sizeof(*i_op), GFP_KERNEL);
-	if (!i_op)
-		return -ENOMEM;
-
-	memcpy(i_op, &sysfs_dir_inode_operations, sizeof(*i_op));
-	i_op->follow_link = follow_link;
-
-	/* Locking of inode->i_op?
-	 * Since setting i_op is a single word write and they
-	 * are atomic we should be ok here.
-	 */
-	inode->i_op = i_op;
-	return 0;
-}
-
-/**
- *	sysfs_create_shadow_dir - create a shadow directory for an object.
- *	@kobj:	object we're creating directory for.
- *
- *	sysfs_make_shadowed_dir must already have been called on this
- *	directory.
- */
-
-struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj)
-{
-	struct sysfs_dirent *parent_sd = kobj->sd->s_parent;
-	struct dentry *dir, *parent, *shadow;
-	struct inode *inode;
-	struct sysfs_dirent *sd;
-	struct sysfs_addrm_cxt acxt;
-
-	dir = sysfs_get_dentry(kobj->sd);
-	if (IS_ERR(dir)) {
-		sd = (void *)dir;
-		goto out;
-	}
-	parent = dir->d_parent;
-
-	inode = dir->d_inode;
-	sd = ERR_PTR(-EINVAL);
-	if (!sysfs_is_shadowed_inode(inode))
-		goto out_dput;
-
-	shadow = d_alloc(parent, &dir->d_name);
-	if (!shadow)
-		goto nomem;
-
-	sd = sysfs_new_dirent("_SHADOW_", inode->i_mode, SYSFS_DIR);
-	if (!sd)
-		goto nomem;
-	sd->s_elem.dir.kobj = kobj;
-
-	sysfs_addrm_start(&acxt, parent_sd);
-
-	/* add but don't link into children list */
-	sysfs_add_one(&acxt, sd);
-
-	/* attach and instantiate dentry */
-	sysfs_attach_dentry(sd, shadow);
-	d_instantiate(shadow, igrab(inode));
-	inc_nlink(inode);	/* tj: synchronization? */
-
-	sysfs_addrm_finish(&acxt);
-
-	dget(shadow);		/* Extra count - pin the dentry in core */
-
-	goto out_dput;
-
- nomem:
-	dput(shadow);
-	sd = ERR_PTR(-ENOMEM);
- out_dput:
-	dput(dir);
- out:
-	return sd;
-}
-
-/**
- *	sysfs_remove_shadow_dir - remove an object's directory.
- *	@shadow_sd: sysfs_dirent of shadow directory
- *
- *	The only thing special about this is that we remove any files in
- *	the directory before we remove the directory, and we've inlined
- *	what used to be sysfs_rmdir() below, instead of calling separately.
- */
-
-void sysfs_remove_shadow_dir(struct sysfs_dirent *shadow_sd)
-{
-	__sysfs_remove_dir(shadow_sd);
 }
 
 const struct file_operations sysfs_dir_operations = {

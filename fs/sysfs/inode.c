@@ -33,16 +33,6 @@ static const struct inode_operations sysfs_inode_operations ={
 	.setattr	= sysfs_setattr,
 };
 
-void sysfs_delete_inode(struct inode *inode)
-{
-	/* Free the shadowed directory inode operations */
-	if (sysfs_is_shadowed_inode(inode)) {
-		kfree(inode->i_op);
-		inode->i_op = NULL;
-	}
-	return generic_delete_inode(inode);
-}
-
 int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 {
 	struct inode * inode = dentry->d_inode;

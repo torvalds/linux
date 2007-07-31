@@ -70,7 +70,6 @@ extern void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
 			     struct sysfs_dirent *sd);
 extern int sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
-extern void sysfs_delete_inode(struct inode *inode);
 extern struct inode * sysfs_get_inode(struct sysfs_dirent *sd);
 extern void sysfs_instantiate(struct dentry *dentry, struct inode *inode);
 
@@ -120,9 +119,4 @@ static inline void sysfs_put(struct sysfs_dirent * sd)
 {
 	if (sd && atomic_dec_and_test(&sd->s_count))
 		release_sysfs_dirent(sd);
-}
-
-static inline int sysfs_is_shadowed_inode(struct inode *inode)
-{
-	return S_ISDIR(inode->i_mode) && inode->i_op->follow_link;
 }
