@@ -268,7 +268,9 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 	if (ret != 0)
 		return ret;
 	sfd->vm_ops = vma->vm_ops;
+#ifdef CONFIG_MMU
 	BUG_ON(!sfd->vm_ops->fault);
+#endif
 	vma->vm_ops = &shm_vm_ops;
 	shm_open(vma);
 
