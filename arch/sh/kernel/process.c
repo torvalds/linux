@@ -18,6 +18,7 @@
 #include <linux/kdebug.h>
 #include <linux/tick.h>
 #include <linux/reboot.h>
+#include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>

@@ -8,6 +8,7 @@
  */
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/fs.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
