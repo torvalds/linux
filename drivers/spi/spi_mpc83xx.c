@@ -153,13 +153,16 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 			len = len - 1;
 
 		/* mask out bits we are going to set */
-		regval &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH |
-			    SPMODE_LEN(0xF) | SPMODE_DIV16 | SPMODE_PM(0xF));
+		regval &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH
+				| SPMODE_LEN(0xF) | SPMODE_DIV16
+				| SPMODE_PM(0xF) | SPMODE_REV);
 
 		if (spi->mode & SPI_CPHA)
 			regval |= SPMODE_CP_BEGIN_EDGECLK;
 		if (spi->mode & SPI_CPOL)
 			regval |= SPMODE_CI_INACTIVEHIGH;
+		if (!(spi->mode & SPI_LSB_FIRST))
+			regval |= SPMODE_REV;
 
 		regval |= SPMODE_LEN(len);
 
@@ -248,9 +251,11 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	regval = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 
-	/* Mask out bits_per_wordgth */
-	regval &= ~SPMODE_LEN(0xF);
+	/* mask out bits we are going to set */
+	regval &= ~(SPMODE_LEN(0xF) | SPMODE_REV);
 	regval |= SPMODE_LEN(bits_per_word);
+	if (!(spi->mode & SPI_LSB_FIRST))
+		regval |= SPMODE_REV;
 
 	/* Turn off SPI unit prior changing mode */
 	mpc83xx_spi_write_reg(&mpc83xx_spi->base->mode, 0);
@@ -260,7 +265,7 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 }
 
 /* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
+#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST)
 
 static int mpc83xx_spi_setup(struct spi_device *spi)
 {
