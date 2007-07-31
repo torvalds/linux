@@ -949,8 +949,6 @@ static void free_kvm_area(void)
 		free_vmcs(per_cpu(vmxarea, cpu));
 }
 
-extern struct vmcs *alloc_vmcs_cpu(int cpu);
-
 static __init int alloc_kvm_area(void)
 {
 	int cpu;
