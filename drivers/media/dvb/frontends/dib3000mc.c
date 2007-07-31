@@ -24,7 +24,7 @@ MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
 static int buggy_sfn_workaround;
 module_param(buggy_sfn_workaround, int, 0644);
-MODULE_PARM_DESC(debug, "Enable work-around for buggy SFNs (default: 0)");
+MODULE_PARM_DESC(buggy_sfn_workaround, "Enable work-around for buggy SFNs (default: 0)");
 
 #define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB3000MC/P:"); printk(args); printk("\n"); } } while (0)
 
