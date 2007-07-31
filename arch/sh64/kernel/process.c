@@ -21,6 +21,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
