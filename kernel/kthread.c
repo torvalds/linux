@@ -214,23 +214,15 @@ int kthread_stop(struct task_struct *k)
 }
 EXPORT_SYMBOL(kthread_stop);
 
-
-static noinline __init_refok void kthreadd_setup(void)
+int kthreadd(void *unused)
 {
 	struct task_struct *tsk = current;
 
+	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
-
 	ignore_signals(tsk);
-
 	set_user_nice(tsk, -5);
 	set_cpus_allowed(tsk, CPU_MASK_ALL);
-}
-
-int kthreadd(void *unused)
-{
-	/* Setup a clean context for our children to inherit. */
-	kthreadd_setup();
 
 	current->flags |= PF_NOFREEZE;
 
