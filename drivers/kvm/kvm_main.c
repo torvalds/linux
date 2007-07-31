@@ -579,7 +579,6 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		}
 	}
 
-	vcpu->cr3 = cr3;
 	mutex_lock(&vcpu->kvm->lock);
 	/*
 	 * Does the new cr3 value map to physical memory? (Note, we
@@ -592,8 +591,10 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	 */
 	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
 		inject_gp(vcpu);
-	else
+	else {
+		vcpu->cr3 = cr3;
 		vcpu->mmu.new_cr3(vcpu);
+	}
 	mutex_unlock(&vcpu->kvm->lock);
 }
 EXPORT_SYMBOL_GPL(set_cr3);
