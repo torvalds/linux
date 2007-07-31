@@ -840,13 +840,13 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 
 	/* Ensure minimum (required) set of control bits are supported. */
 	if (ctl_min & ~ctl)
-		return -1;
+		return -EIO;
 
 	*result = ctl;
 	return 0;
 }
 
-static __init int setup_vmcs_config(void)
+static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 {
 	u32 vmx_msr_low, vmx_msr_high;
 	u32 min, opt;
@@ -859,7 +859,7 @@ static __init int setup_vmcs_config(void)
 	opt = 0;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
 				&_pin_based_exec_control) < 0)
-		return -1;
+		return -EIO;
 
 	min = CPU_BASED_HLT_EXITING |
 #ifdef CONFIG_X86_64
@@ -872,7 +872,7 @@ static __init int setup_vmcs_config(void)
 	opt = 0;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
 				&_cpu_based_exec_control) < 0)
-		return -1;
+		return -EIO;
 
 	min = 0;
 #ifdef CONFIG_X86_64
@@ -881,37 +881,37 @@ static __init int setup_vmcs_config(void)
 	opt = 0;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0)
-		return -1;
+		return -EIO;
 
 	min = opt = 0;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_ENTRY_CTLS,
 				&_vmentry_control) < 0)
-		return -1;
+		return -EIO;
 
 	rdmsr(MSR_IA32_VMX_BASIC, vmx_msr_low, vmx_msr_high);
 
 	/* IA-32 SDM Vol 3B: VMCS size is never greater than 4kB. */
 	if ((vmx_msr_high & 0x1fff) > PAGE_SIZE)
-		return -1;
+		return -EIO;
 
 #ifdef CONFIG_X86_64
 	/* IA-32 SDM Vol 3B: 64-bit CPUs always have VMX_BASIC_MSR[48]==0. */
 	if (vmx_msr_high & (1u<<16))
-		return -1;
+		return -EIO;
 #endif
 
 	/* Require Write-Back (WB) memory type for VMCS accesses. */
 	if (((vmx_msr_high >> 18) & 15) != 6)
-		return -1;
+		return -EIO;
 
-	vmcs_config.size = vmx_msr_high & 0x1fff;
-	vmcs_config.order = get_order(vmcs_config.size);
-	vmcs_config.revision_id = vmx_msr_low;
+	vmcs_conf->size = vmx_msr_high & 0x1fff;
+	vmcs_conf->order = get_order(vmcs_config.size);
+	vmcs_conf->revision_id = vmx_msr_low;
 
-	vmcs_config.pin_based_exec_ctrl = _pin_based_exec_control;
-	vmcs_config.cpu_based_exec_ctrl = _cpu_based_exec_control;
-	vmcs_config.vmexit_ctrl         = _vmexit_control;
-	vmcs_config.vmentry_ctrl        = _vmentry_control;
+	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
+	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
+	vmcs_conf->vmexit_ctrl         = _vmexit_control;
+	vmcs_conf->vmentry_ctrl        = _vmentry_control;
 
 	return 0;
 }
@@ -971,8 +971,8 @@ static __init int alloc_kvm_area(void)
 
 static __init int hardware_setup(void)
 {
-	if (setup_vmcs_config() < 0)
-		return -1;
+	if (setup_vmcs_config(&vmcs_config) < 0)
+		return -EIO;
 	return alloc_kvm_area();
 }
 
@@ -2414,11 +2414,26 @@ free_vcpu:
 	return ERR_PTR(err);
 }
 
+static void __init vmx_check_processor_compat(void *rtn)
+{
+	struct vmcs_config vmcs_conf;
+
+	*(int *)rtn = 0;
+	if (setup_vmcs_config(&vmcs_conf) < 0)
+		*(int *)rtn = -EIO;
+	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config)) != 0) {
+		printk(KERN_ERR "kvm: CPU %d feature inconsistency!\n",
+				smp_processor_id());
+		*(int *)rtn = -EIO;
+	}
+}
+
 static struct kvm_arch_ops vmx_arch_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
 	.hardware_setup = hardware_setup,
 	.hardware_unsetup = hardware_unsetup,
+	.check_processor_compatibility = vmx_check_processor_compat,
 	.hardware_enable = hardware_enable,
 	.hardware_disable = hardware_disable,
 

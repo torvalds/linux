@@ -3102,6 +3102,7 @@ int kvm_init_arch(struct kvm_arch_ops *ops, unsigned int vcpu_size,
 		  struct module *module)
 {
 	int r;
+	int cpu;
 
 	if (kvm_arch_ops) {
 		printk(KERN_ERR "kvm: already loaded the other module\n");
@@ -3122,6 +3123,14 @@ int kvm_init_arch(struct kvm_arch_ops *ops, unsigned int vcpu_size,
 	r = kvm_arch_ops->hardware_setup();
 	if (r < 0)
 		goto out;
+
+	for_each_online_cpu(cpu) {
+		smp_call_function_single(cpu,
+				kvm_arch_ops->check_processor_compatibility,
+				&r, 0, 1);
+		if (r < 0)
+			goto out_free_0;
+	}
 
 	on_each_cpu(hardware_enable, NULL, 0, 1);
 	r = register_cpu_notifier(&kvm_cpu_notifier);
@@ -3169,6 +3178,7 @@ out_free_2:
 	unregister_cpu_notifier(&kvm_cpu_notifier);
 out_free_1:
 	on_each_cpu(hardware_disable, NULL, 0, 1);
+out_free_0:
 	kvm_arch_ops->hardware_unsetup();
 out:
 	kvm_arch_ops = NULL;
