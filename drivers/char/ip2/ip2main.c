@@ -500,7 +500,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 {
 	int i, j, box;
 	int err = 0;
-	int status = 0;
 	static int loaded;
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
@@ -588,6 +587,8 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		case PCI:
 #ifdef CONFIG_PCI
 			{
+				int status;
+
 				pci_dev_i = pci_get_device(PCI_VENDOR_ID_COMPUTONE,
 							  PCI_DEVICE_ID_COMPUTONE_IP2EX, pci_dev_i);
 				if (pci_dev_i != NULL) {
