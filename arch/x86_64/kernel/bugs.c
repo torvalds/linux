@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <asm/alternative.h>
+#include <asm/bugs.h>
 #include <asm/processor.h>
 #include <asm/mtrr.h>
 
