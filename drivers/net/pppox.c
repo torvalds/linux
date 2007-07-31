@@ -73,7 +73,7 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po = pppox_sk(sk);
-	int rc = 0;
+	int rc;
 
 	lock_sock(sk);
 
@@ -94,12 +94,9 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	default:
-		if (pppox_protos[sk->sk_protocol]->ioctl)
-			rc = pppox_protos[sk->sk_protocol]->ioctl(sock, cmd,
-								  arg);
-
-		break;
-	};
+		rc = pppox_protos[sk->sk_protocol]->ioctl ?
+			pppox_protos[sk->sk_protocol]->ioctl(sock, cmd, arg) : -ENOTTY;
+	}
 
 	release_sock(sk);
 	return rc;

@@ -664,8 +664,8 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 {
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po = pppox_sk(sk);
-	int val = 0;
-	int err = 0;
+	int val;
+	int err;
 
 	switch (cmd) {
 	case PPPIOCGMRU:
@@ -754,8 +754,9 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		err = 0;
 		break;
 
-	default:;
-	};
+	default:
+		err = -ENOTTY;
+	}
 
 	return err;
 }
