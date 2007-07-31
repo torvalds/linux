@@ -359,8 +359,8 @@ err_1:
 
 }
 
-static int set_msr_interception(u32 *msrpm, unsigned msr,
-				int read, int write)
+static void set_msr_interception(u32 *msrpm, unsigned msr,
+				 int read, int write)
 {
 	int i;
 
@@ -375,11 +375,10 @@ static int set_msr_interception(u32 *msrpm, unsigned msr,
 			u32 mask = ((write) ? 0 : 2) | ((read) ? 0 : 1);
 			*base = (*base & ~(0x3 << msr_shift)) |
 				(mask << msr_shift);
-			return 1;
+			return;
 		}
 	}
-	printk(KERN_DEBUG "%s: not found 0x%x\n", __FUNCTION__, msr);
-	return 0;
+	BUG();
 }
 
 static __init int svm_hardware_setup(void)
