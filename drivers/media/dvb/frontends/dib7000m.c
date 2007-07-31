@@ -1344,6 +1344,8 @@ struct dvb_frontend * dib7000m_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	demod->demodulator_priv = st;
 	memcpy(&st->demod.ops, &dib7000m_ops, sizeof(struct dvb_frontend_ops));
 
+	st->timf_default = cfg->bw->timf;
+
 	if (dib7000m_identify(st) != 0)
 		goto error;
 

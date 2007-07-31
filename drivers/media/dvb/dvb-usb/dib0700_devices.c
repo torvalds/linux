@@ -515,6 +515,7 @@ static struct dibx000_bandwidth_config stk7700p_pll_config = {
 	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
 	60258167, // ifreq
 	20452225, // timf
+	30000000, // xtal
 };
 
 static struct dib7000m_config stk7700p_dib7000m_config = {
