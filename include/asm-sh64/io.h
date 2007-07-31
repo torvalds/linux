@@ -31,10 +31,6 @@
 #include <asm/page.h>
 #include <asm-generic/iomap.h>
 
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
-#define page_to_bus page_to_phys
-
 /*
  * Nothing overly special here.. instead of doing the same thing
  * over and over again, we just define a set of sh64_in/out functions

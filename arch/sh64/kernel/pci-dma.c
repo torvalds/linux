@@ -30,7 +30,7 @@ void *consistent_alloc(struct pci_dev *hwdev, size_t size,
 
 	if (vp != NULL) {
 		memset(vp, 0, size);
-		*dma_handle = virt_to_bus(ret);
+		*dma_handle = virt_to_phys(ret);
 		dma_cache_wback_inv((unsigned long)ret, size);
 	}
 
@@ -42,7 +42,7 @@ void consistent_free(struct pci_dev *hwdev, size_t size,
 {
 	void *alloc;
 
-	alloc = bus_to_virt((unsigned long)dma_handle);
+	alloc = phys_to_virt((unsigned long)dma_handle);
 	free_pages((unsigned long)alloc, get_order(size));
 
 	iounmap(vaddr);
