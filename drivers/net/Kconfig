@@ -2851,7 +2851,7 @@ config PPPOATM
 
 config PPPOL2TP
 	tristate "PPP over L2TP (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PPP
+	depends on EXPERIMENTAL && PPP && INET
 	help
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
