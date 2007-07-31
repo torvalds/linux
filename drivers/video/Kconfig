@@ -1645,18 +1645,6 @@ config FB_MAXINE
 	  DECstation series (Personal DECstation 5000/20, /25, /33, /50,
 	  Codename "Maxine").
 
-config FB_TX3912
-	bool "TMPTX3912/PR31700 frame buffer support"
-	depends on (FB = y) && NINO
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  The TX3912 is a Toshiba RISC processor based on the MIPS 3900 core
-	  see <http://www.toshiba.com/taec/components/Generic/risc/tx3912.htm>.
-
-	  Say Y here to enable kernel support for the on-board framebuffer.
-
 config FB_G364
 	bool "G364 frame buffer support"
 	depends on (FB = y) && (MIPS_MAGNUM_4000 || OLIVETTI_M700)
