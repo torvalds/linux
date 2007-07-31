@@ -1678,8 +1678,8 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 
 /**
- * preempt_notifier_register - tell me when current is being being preempted
- *                         and rescheduled
+ * preempt_notifier_register - tell me when current is being being preempted & rescheduled
+ * @notifier: notifier struct to register
  */
 void preempt_notifier_register(struct preempt_notifier *notifier)
 {
@@ -1689,6 +1689,7 @@ EXPORT_SYMBOL_GPL(preempt_notifier_register);
 
 /**
  * preempt_notifier_unregister - no longer interested in preemption notifications
+ * @notifier: notifier struct to unregister
  *
  * This is safe to call from within a preemption notifier.
  */
@@ -1735,6 +1736,7 @@ fire_sched_out_preempt_notifiers(struct task_struct *curr,
 /**
  * prepare_task_switch - prepare to switch tasks
  * @rq: the runqueue preparing to switch
+ * @prev: the current task that is being switched out
  * @next: the task we are going to switch to.
  *
  * This is called with the rq lock held and interrupts off. It must
