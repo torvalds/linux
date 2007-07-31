@@ -116,7 +116,7 @@ static void print_error_data(struct ehca_shca *shca, void *data,
 	}
 	default:
 		ehca_err(&shca->ib_device,
-			 "Unknown errror type: %lx on %s.",
+			 "Unknown error type: %lx on %s.",
 			 type, shca->ib_device.name);
 		break;
 	}
