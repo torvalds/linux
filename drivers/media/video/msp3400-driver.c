@@ -813,8 +813,9 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	int msp_rom;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (client == NULL)
+	if (!client)
 		return -ENOMEM;
+
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
@@ -826,14 +827,14 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 		return 0;
 	}
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (state == NULL) {
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state) {
 		kfree(client);
 		return -ENOMEM;
 	}
+
 	i2c_set_clientdata(client, state);
 
-	memset(state, 0, sizeof(*state));
 	state->v4l2_std = V4L2_STD_NTSC;
 	state->audmode = V4L2_TUNER_MODE_STEREO;
 	state->volume = 58880;	/* 0db gain */
