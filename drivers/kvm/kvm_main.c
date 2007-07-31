@@ -916,28 +916,18 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
+/* WARNING: Does not work on aliased pages. */
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 {
-	int i;
 	struct kvm_memory_slot *memslot;
-	unsigned long rel_gfn;
 
-	for (i = 0; i < kvm->nmemslots; ++i) {
-		memslot = &kvm->memslots[i];
+	memslot = __gfn_to_memslot(kvm, gfn);
+	if (memslot && memslot->dirty_bitmap) {
+		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
-		if (gfn >= memslot->base_gfn
-		    && gfn < memslot->base_gfn + memslot->npages) {
-
-			if (!memslot->dirty_bitmap)
-				return;
-
-			rel_gfn = gfn - memslot->base_gfn;
-
-			/* avoid RMW */
-			if (!test_bit(rel_gfn, memslot->dirty_bitmap))
-				set_bit(rel_gfn, memslot->dirty_bitmap);
-			return;
-		}
+		/* avoid RMW */
+		if (!test_bit(rel_gfn, memslot->dirty_bitmap))
+			set_bit(rel_gfn, memslot->dirty_bitmap);
 	}
 }
 
