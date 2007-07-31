@@ -275,19 +275,19 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
 	if (i<=0) {
 		err("RC Query Failed");
-		return 0;
+		return -1;
 	}
 	if (key[0]==0 && key[1]==0 && key[2]==0 && key[3]==0) return 0;
-	if (key[1]!=st->rc_toggle) {
+	if (key[3-1]!=st->rc_toggle) {
 		for (i=0;i<d->props.rc_key_map_size; i++) {
-			if (keymap[i].custom == key[2] && keymap[i].data == key[3]) {
+			if (keymap[i].custom == key[3-2] && keymap[i].data == key[3-3]) {
 				*event = keymap[i].event;
 				*state = REMOTE_KEY_PRESSED;
-				st->rc_toggle=key[1];
+				st->rc_toggle=key[3-1];
 				return 0;
 			}
 		}
-		err("Unknown remote controller key : %2X %2X",(int)key[2],(int)key[3]);
+		err("Unknown remote controller key : %2X %2X",(int)key[3-2],(int)key[3-3]);
 	}
 	return 0;
 }

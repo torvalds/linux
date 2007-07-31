@@ -30,6 +30,7 @@ extern int dvb_usb_dib0700_debug;
 	// 1 Byte: 4MSB(1 = enable streaming, 0 = disable streaming) 4LSB(Video Mode: 0 = MPEG2 188Bytes, 1 = Analog)
 	// 2 Byte: MPEG2 mode:  4MSB(1 = Master Mode, 0 = Slave Mode) 4LSB(Channel 1 = bit0, Channel 2 = bit1)
 	// 2 Byte: Analog mode: 4MSB(0 = 625 lines, 1 = 525 lines)    4LSB(     "                "           )
+#define REQUEST_SET_RC       0x11
 #define REQUEST_GET_VERSION  0x15
 
 struct dib0700_state {
