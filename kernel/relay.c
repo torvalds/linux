@@ -1,7 +1,7 @@
 /*
  * Public API and common code for kernel->userspace relay file support.
  *
- * See Documentation/filesystems/relayfs.txt for an overview of relayfs.
+ * See Documentation/filesystems/relay.txt for an overview.
  *
  * Copyright (C) 2002-2005 - Tom Zanussi (zanussi@us.ibm.com), IBM Corp
  * Copyright (C) 1999-2005 - Karim Yaghmour (karim@opersys.com)
@@ -426,6 +426,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan, unsigned int cpu)
 
 free_buf:
  	relay_destroy_buf(buf);
+ 	buf = NULL;
 free_name:
  	kfree(tmpname);
 end:
