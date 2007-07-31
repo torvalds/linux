@@ -846,6 +846,15 @@ root_found:
 		goto out_no_root;
 	if (!inode->i_op)
 		goto out_bad_root;
+
+	/* Make sure the root inode is a directory */
+	if (!S_ISDIR(inode->i_mode)) {
+		printk(KERN_WARNING
+			"isofs_fill_super: root inode is not a directory. "
+			"Corrupted media?\n");
+		goto out_iput;
+	}
+
 	/* get the root dentry */
 	s->s_root = d_alloc_root(inode);
 	if (!(s->s_root))
