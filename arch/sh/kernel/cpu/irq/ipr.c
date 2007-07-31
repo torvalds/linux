@@ -8,7 +8,7 @@
  *
  * Supported system:
  *	On-chip supporting modules (TMU, RTC, etc.).
- *	On-chip supporting modules for SH7709/SH7709A/SH7729/SH7300.
+ *	On-chip supporting modules for SH7709/SH7709A/SH7729.
  *	Hitachi SolutionEngine external I/O:
  *		MS7709SE01, MS7709ASE01, and MS7750SE01
  *

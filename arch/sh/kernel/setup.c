@@ -276,7 +276,6 @@ void __init setup_arch(char **cmdline_p)
 
 static const char *cpu_name[] = {
 	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",
-	[CPU_SH7300]	= "SH7300",
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
 	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
 	[CPU_SH7709]	= "SH7709",	[CPU_SH7710]	= "SH7710",
@@ -284,7 +283,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7729]	= "SH7729",	[CPU_SH7750]	= "SH7750",
 	[CPU_SH7750S]	= "SH7750S",	[CPU_SH7750R]	= "SH7750R",
 	[CPU_SH7751]	= "SH7751",	[CPU_SH7751R]	= "SH7751R",
-	[CPU_SH7760]	= "SH7760",	[CPU_SH73180]	= "SH73180",
+	[CPU_SH7760]	= "SH7760",
 	[CPU_ST40RA]	= "ST40RA",	[CPU_ST40GX1]	= "ST40GX1",
 	[CPU_SH4_202]	= "SH4-202",	[CPU_SH4_501]	= "SH4-501",
 	[CPU_SH7770]	= "SH7770",	[CPU_SH7780]	= "SH7780",
