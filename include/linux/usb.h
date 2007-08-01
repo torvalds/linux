@@ -346,6 +346,11 @@ struct usb_tt;
  *
  * Usbcore drivers should not set usbdev->state directly.  Instead use
  * usb_set_device_state().
+ *
+ * @authorized: (user space) policy determines if we authorize this
+ *              device to be used or not. By default, wired USB
+ *              devices are authorized. WUSB devices are not, until we
+ *              authorize them from user space. FIXME -- complete doc
  */
 struct usb_device {
 	int		devnum;		/* Address on USB bus */
@@ -380,6 +385,8 @@ struct usb_device {
 
 	unsigned discon_suspended:1;	/* Disconnected while suspended */
 	unsigned have_langid:1;		/* whether string_langid is valid */
+	unsigned authorized:1;		/* Policy has determined we can use it */
+	unsigned wusb:1;		/* Device is Wireless USB */
 	int string_langid;		/* language ID for strings */
 
 	/* static strings from the device */
