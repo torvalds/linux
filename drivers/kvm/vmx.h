@@ -268,9 +268,6 @@ enum vmcs_field {
 /* segment AR */
 #define SEGMENT_AR_L_MASK (1 << 13)
 
-/* entry controls */
-#define VM_ENTRY_CONTROLS_IA32E_MASK (1 << 9)
-
 #define AR_TYPE_ACCESSES_MASK 1
 #define AR_TYPE_READABLE_MASK (1 << 1)
 #define AR_TYPE_WRITEABLE_MASK (1 << 2)

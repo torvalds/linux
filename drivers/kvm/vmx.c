@@ -1111,7 +1111,7 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 	find_msr_entry(to_vmx(vcpu), MSR_EFER)->data |= EFER_LMA | EFER_LME;
 	vmcs_write32(VM_ENTRY_CONTROLS,
 		     vmcs_read32(VM_ENTRY_CONTROLS)
-		     | VM_ENTRY_CONTROLS_IA32E_MASK);
+		     | VM_ENTRY_IA32E_MODE);
 }
 
 static void exit_lmode(struct kvm_vcpu *vcpu)
@@ -1120,7 +1120,7 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 	vmcs_write32(VM_ENTRY_CONTROLS,
 		     vmcs_read32(VM_ENTRY_CONTROLS)
-		     & ~VM_ENTRY_CONTROLS_IA32E_MASK);
+		     & ~VM_ENTRY_IA32E_MODE);
 }
 
 #endif
@@ -1185,13 +1185,13 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	if (efer & EFER_LMA) {
 		vmcs_write32(VM_ENTRY_CONTROLS,
 				     vmcs_read32(VM_ENTRY_CONTROLS) |
-				     VM_ENTRY_CONTROLS_IA32E_MASK);
+				     VM_ENTRY_IA32E_MODE);
 		msr->data = efer;
 
 	} else {
 		vmcs_write32(VM_ENTRY_CONTROLS,
 				     vmcs_read32(VM_ENTRY_CONTROLS) &
-				     ~VM_ENTRY_CONTROLS_IA32E_MASK);
+				     ~VM_ENTRY_IA32E_MODE);
 
 		msr->data = efer & ~EFER_LME;
 	}
