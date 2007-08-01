@@ -575,35 +575,34 @@ struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		/* GPIO[2] = audio source for analog audio out connector
+		 *  0 = analog audio input connector
+		 *  1 = CX88 audio DACs
+		 *
+		 * GPIO[7] = input to CX88's audio/chroma ADC
+		 *  0 = FM 10.7 MHz IF
+		 *  1 = Sound 4.5 MHz IF
+		 *
+		 * GPIO[1,5,6] = Oren 51132 pins 27,35,28 respectively
+		 *
+		 * GPIO[16] = Remote control input
+		 */
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00008484,
-			.gpio1  = 0x00000000,
-			.gpio2  = 0x00000000,
-			.gpio3  = 0x00000000,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00008400,
-			.gpio1  = 0x00000000,
-			.gpio2  = 0x00000000,
-			.gpio3  = 0x00000000,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00008400,
-			.gpio1  = 0x00000000,
-			.gpio2  = 0x00000000,
-			.gpio3  = 0x00000000,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
-			.vmux   = 2,
-			.gpio0  = 0x00008400,
-			.gpio1  = 0x00000000,
-			.gpio2  = 0x00000000,
-			.gpio3  = 0x00000000,
+			.gpio0  = 0x00008404,
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
