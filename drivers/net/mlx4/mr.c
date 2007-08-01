@@ -349,58 +349,57 @@ err_table:
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_enable);
 
-static int mlx4_WRITE_MTT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
-			  int num_mtt)
+static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
+				int start_index, int npages, u64 *page_list)
 {
-	return mlx4_cmd(dev, mailbox->dma, num_mtt, 0, MLX4_CMD_WRITE_MTT,
-			MLX4_CMD_TIME_CLASS_B);
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	__be64 *mtts;
+	dma_addr_t dma_handle;
+	int i;
+	int s = start_index * sizeof (u64);
+
+	/* All MTTs must fit in the same page */
+	if (start_index / (PAGE_SIZE / sizeof (u64)) !=
+	    (start_index + npages - 1) / (PAGE_SIZE / sizeof (u64)))
+		return -EINVAL;
+
+	if (start_index & (MLX4_MTT_ENTRY_PER_SEG - 1))
+		return -EINVAL;
+
+	mtts = mlx4_table_find(&priv->mr_table.mtt_table, mtt->first_seg +
+				s / dev->caps.mtt_entry_sz, &dma_handle);
+	if (!mtts)
+		return -ENOMEM;
+
+	for (i = 0; i < npages; ++i)
+		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, dma_handle, npages * sizeof (u64), DMA_TO_DEVICE);
+
+	return 0;
 }
 
 int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   int start_index, int npages, u64 *page_list)
 {
-	struct mlx4_cmd_mailbox *mailbox;
-	__be64 *mtt_entry;
-	int i;
-	int err = 0;
+	int chunk;
+	int err;
 
 	if (mtt->order < 0)
 		return -EINVAL;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-
-	mtt_entry = mailbox->buf;
-
 	while (npages > 0) {
-		mtt_entry[0] = cpu_to_be64(mlx4_mtt_addr(dev, mtt) + start_index * 8);
-		mtt_entry[1] = 0;
-
-		for (i = 0; i < npages && i < MLX4_MAILBOX_SIZE / 8 - 2; ++i)
-			mtt_entry[i + 2] = cpu_to_be64(page_list[i] |
-						       MLX4_MTT_FLAG_PRESENT);
-
-		/*
-		 * If we have an odd number of entries to write, add
-		 * one more dummy entry for firmware efficiency.
-		 */
-		if (i & 1)
-			mtt_entry[i + 2] = 0;
-
-		err = mlx4_WRITE_MTT(dev, mailbox, (i + 1) & ~1);
+		chunk = min_t(int, PAGE_SIZE / sizeof(u64), npages);
+		err = mlx4_write_mtt_chunk(dev, mtt, start_index, chunk, page_list);
 		if (err)
-			goto out;
+			return err;
 
-		npages      -= i;
-		start_index += i;
-		page_list   += i;
+		npages      -= chunk;
+		start_index += chunk;
+		page_list   += chunk;
 	}
 
-out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
-
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_write_mtt);
 

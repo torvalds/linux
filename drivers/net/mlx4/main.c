@@ -300,6 +300,17 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 		goto err_unmap_cmpt;
 	}
 
+	/*
+	 * Reserved MTT entries must be aligned up to a cacheline
+	 * boundary, since the FW will write to them, while the driver
+	 * writes to all other MTT entries. (The variable
+	 * dev->caps.mtt_entry_sz below is really the MTT segment
+	 * size, not the raw entry size)
+	 */
+	dev->caps.reserved_mtts =
+		ALIGN(dev->caps.reserved_mtts * dev->caps.mtt_entry_sz,
+		      dma_get_cache_alignment()) / dev->caps.mtt_entry_sz;
+
 	err = mlx4_init_icm_table(dev, &priv->mr_table.mtt_table,
 				  init_hca->mtt_base,
 				  dev->caps.mtt_entry_sz,

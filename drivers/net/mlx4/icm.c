@@ -301,9 +301,9 @@ void mlx4_table_put(struct mlx4_dev *dev, struct mlx4_icm_table *table, int obj)
 	mutex_unlock(&table->mutex);
 }
 
-void *mlx4_table_find(struct mlx4_icm_table *table, int obj)
+void *mlx4_table_find(struct mlx4_icm_table *table, int obj, dma_addr_t *dma_handle)
 {
-	int idx, offset, i;
+	int idx, offset, dma_offset, i;
 	struct mlx4_icm_chunk *chunk;
 	struct mlx4_icm *icm;
 	struct page *page = NULL;
@@ -313,15 +313,26 @@ void *mlx4_table_find(struct mlx4_icm_table *table, int obj)
 
 	mutex_lock(&table->mutex);
 
-	idx = obj & (table->num_obj - 1);
-	icm = table->icm[idx / (MLX4_TABLE_CHUNK_SIZE / table->obj_size)];
-	offset = idx % (MLX4_TABLE_CHUNK_SIZE / table->obj_size);
+	idx = (obj & (table->num_obj - 1)) * table->obj_size;
+	icm = table->icm[idx / MLX4_TABLE_CHUNK_SIZE];
+	dma_offset = offset = idx % MLX4_TABLE_CHUNK_SIZE;
 
 	if (!icm)
 		goto out;
 
 	list_for_each_entry(chunk, &icm->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i) {
+			if (dma_handle && dma_offset >= 0) {
+				if (sg_dma_len(&chunk->mem[i]) > dma_offset)
+					*dma_handle = sg_dma_address(&chunk->mem[i]) +
+						dma_offset;
+				dma_offset -= sg_dma_len(&chunk->mem[i]);
+			}
+			/*
+			 * DMA mapping can merge pages but not split them,
+			 * so if we found the page, dma_handle has already
+			 * been assigned to.
+			 */
 			if (chunk->mem[i].length > offset) {
 				page = chunk->mem[i].page;
 				goto out;

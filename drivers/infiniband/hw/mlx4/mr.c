@@ -96,11 +96,10 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
 					umem->page_size * k;
 				/*
-				 * Be friendly to WRITE_MTT firmware
-				 * command, and pass it chunks of
-				 * appropriate size.
+				 * Be friendly to mlx4_write_mtt() and
+				 * pass it chunks of appropriate size.
 				 */
-				if (i == PAGE_SIZE / sizeof (u64) - 2) {
+				if (i == PAGE_SIZE / sizeof (u64)) {
 					err = mlx4_write_mtt(dev->dev, mtt, n,
 							     i, pages);
 					if (err)
