@@ -975,7 +975,7 @@ static int __sctp_connect(struct sock* sk,
 	int err = 0;
 	int addrcnt = 0;
 	int walk_size = 0;
-	union sctp_addr *sa_addr;
+	union sctp_addr *sa_addr = NULL;
 	void *addr_buf;
 	unsigned short port;
 	unsigned int f_flags = 0;
@@ -1009,7 +1009,10 @@ static int __sctp_connect(struct sock* sk,
 			goto out_free;
 		}
 
-		err = sctp_verify_addr(sk, sa_addr, af->sockaddr_len);
+		/* Save current address so we can work with it */
+		memcpy(&to, sa_addr, af->sockaddr_len);
+
+		err = sctp_verify_addr(sk, &to, af->sockaddr_len);
 		if (err)
 			goto out_free;
 
@@ -1019,12 +1022,11 @@ static int __sctp_connect(struct sock* sk,
 		if (asoc && asoc->peer.port && asoc->peer.port != port)
 			goto out_free;
 
-		memcpy(&to, sa_addr, af->sockaddr_len);
 
 		/* Check if there already is a matching association on the
 		 * endpoint (other than the one created here).
 		 */
-		asoc2 = sctp_endpoint_lookup_assoc(ep, sa_addr, &transport);
+		asoc2 = sctp_endpoint_lookup_assoc(ep, &to, &transport);
 		if (asoc2 && asoc2 != asoc) {
 			if (asoc2->state >= SCTP_STATE_ESTABLISHED)
 				err = -EISCONN;
@@ -1037,7 +1039,7 @@ static int __sctp_connect(struct sock* sk,
 		 * make sure that there is no peeled-off association matching
 		 * the peer address even on another socket.
 		 */
-		if (sctp_endpoint_is_peeled_off(ep, sa_addr)) {
+		if (sctp_endpoint_is_peeled_off(ep, &to)) {
 			err = -EADDRNOTAVAIL;
 			goto out_free;
 		}
@@ -1068,7 +1070,7 @@ static int __sctp_connect(struct sock* sk,
 				}
 			}
 
-			scope = sctp_scope(sa_addr);
+			scope = sctp_scope(&to);
 			asoc = sctp_association_new(ep, sk, scope, GFP_KERNEL);
 			if (!asoc) {
 				err = -ENOMEM;
@@ -1077,7 +1079,7 @@ static int __sctp_connect(struct sock* sk,
 		}
 
 		/* Prime the peer's transport structures.  */
-		transport = sctp_assoc_add_peer(asoc, sa_addr, GFP_KERNEL,
+		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL,
 						SCTP_UNKNOWN);
 		if (!transport) {
 			err = -ENOMEM;
@@ -1101,8 +1103,8 @@ static int __sctp_connect(struct sock* sk,
 
 	/* Initialize sk's dport and daddr for getpeername() */
 	inet_sk(sk)->dport = htons(asoc->peer.port);
-	af = sctp_get_af_specific(to.sa.sa_family);
-	af->to_sk_daddr(&to, sk);
+	af = sctp_get_af_specific(sa_addr->sa.sa_family);
+	af->to_sk_daddr(sa_addr, sk);
 	sk->sk_err = 0;
 
 	/* in-kernel sockets don't generally have a file allocated to them
