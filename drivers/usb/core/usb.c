@@ -223,6 +223,15 @@ static void ksuspend_usb_cleanup(void)
 
 #endif	/* CONFIG_PM */
 
+
+/* Returns 1 if @usb_bus is WUSB, 0 otherwise */
+static unsigned usb_bus_is_wusb(struct usb_bus *bus)
+{
+	struct usb_hcd *hcd = container_of(bus, struct usb_hcd, self);
+	return hcd->wireless;
+}
+
+
 /**
  * usb_alloc_dev - usb device constructor (usbcore-internal)
  * @parent: hub to which device is connected; null to allocate a root hub
@@ -239,6 +248,8 @@ struct usb_device *
 usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 {
 	struct usb_device *dev;
+	struct usb_hcd *usb_hcd = container_of(bus, struct usb_hcd, self);
+	unsigned root_hub = 0;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -275,6 +286,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 
 		dev->dev.parent = bus->controller;
 		sprintf(&dev->dev.bus_id[0], "usb%d", bus->busnum);
+		root_hub = 1;
 	} else {
 		/* match any labeling on the hubs; it's one-based */
 		if (parent->devpath[0] == '0')
@@ -301,6 +313,12 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
 	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
 #endif
+	if (root_hub)	/* Root hub always ok [and always wired] */
+		dev->authorized = 1;
+	else {
+		dev->authorized = usb_hcd->authorized_default;
+		dev->wusb = usb_bus_is_wusb(bus)? 1 : 0;
+	}
 	return dev;
 }
 
