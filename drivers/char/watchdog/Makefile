@@ -22,6 +22,8 @@ obj-$(CONFIG_WDTPCI) += wdt_pci.o
 # USB-based Watchdog Cards
 obj-$(CONFIG_USBPCWATCHDOG) += pcwd_usb.o
 
+# ALPHA Architecture
+
 # ARM Architecture
 obj-$(CONFIG_AT91RM9200_WATCHDOG) += at91rm9200_wdt.o
 obj-$(CONFIG_OMAP_WATCHDOG) += omap_wdt.o
@@ -36,9 +38,21 @@ obj-$(CONFIG_MPCORE_WATCHDOG) += mpcore_wdt.o
 obj-$(CONFIG_EP93XX_WATCHDOG) += ep93xx_wdt.o
 obj-$(CONFIG_PNX4008_WATCHDOG) += pnx4008_wdt.o
 obj-$(CONFIG_IOP_WATCHDOG) += iop_wdt.o
+obj-$(CONFIG_DAVINCI_WATCHDOG) += davinci_wdt.o
+
+# ARM26 Architecture
 
 # AVR32 Architecture
 obj-$(CONFIG_AT32AP700X_WDT) += at32ap700x_wdt.o
+
+# BLACKFIN Architecture
+obj-$(CONFIG_BFIN_WDT) += bfin_wdt.o
+
+# CRIS Architecture
+
+# FRV Architecture
+
+# H8300 Architecture
 
 # X86 (i386 + ia64 + x86_64) Architecture
 obj-$(CONFIG_ACQUIRE_WDT) += acquirewdt.o
@@ -66,8 +80,22 @@ obj-$(CONFIG_W83977F_WDT) += w83977f_wdt.o
 obj-$(CONFIG_MACHZ_WDT) += machzwd.o
 obj-$(CONFIG_SBC_EPX_C3_WATCHDOG) += sbc_epx_c3.o
 
-# PowerPC Architecture
+# M32R Architecture
+
+# M68K Architecture
+
+# M68KNOMMU Architecture
+
+# MIPS Architecture
+obj-$(CONFIG_INDYDOG) += indydog.o
+obj-$(CONFIG_WDT_MTX1)	+= mtx-1_wdt.o
+obj-$(CONFIG_WDT_RM9K_GPI) += rm9k_wdt.o
+
+# PARISC Architecture
+
+# POWERPC Architecture
 obj-$(CONFIG_8xx_WDT) += mpc8xx_wdt.o
+obj-$(CONFIG_MPC5200_WDT) += mpc5200_wdt.o
 obj-$(CONFIG_83xx_WDT) += mpc83xx_wdt.o
 obj-$(CONFIG_MV64X60_WDT) += mv64x60_wdt.o
 obj-$(CONFIG_BOOKE_WDT) += booke_wdt.o
@@ -75,17 +103,18 @@ obj-$(CONFIG_BOOKE_WDT) += booke_wdt.o
 # PPC64 Architecture
 obj-$(CONFIG_WATCHDOG_RTAS) += wdrtas.o
 
-# MIPS Architecture
-obj-$(CONFIG_INDYDOG) += indydog.o
-obj-$(CONFIG_WDT_MTX1)	+= mtx-1_wdt.o
-obj-$(CONFIG_WDT_RM9K_GPI) += rm9k_wdt.o
-
 # S390 Architecture
 
-# SUPERH Architecture
+# SUPERH (sh + sh64) Architecture
 obj-$(CONFIG_SH_WDT) += shwdt.o
 
+# SPARC Architecture
+
 # SPARC64 Architecture
+
+# V850 Architecture
+
+# XTENSA Architecture
 
 # Architecture Independant
 obj-$(CONFIG_SOFT_WATCHDOG) += softdog.o

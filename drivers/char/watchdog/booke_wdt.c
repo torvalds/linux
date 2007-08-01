@@ -144,7 +144,7 @@ static int booke_wdt_open (struct inode *inode, struct file *file)
 				booke_wdt_period);
 	}
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static const struct file_operations booke_wdt_fops = {

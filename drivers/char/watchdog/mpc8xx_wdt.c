@@ -57,7 +57,7 @@ static int mpc8xx_wdt_open(struct inode *inode, struct file *file)
 	m8xx_wdt_reset();
 	mpc8xx_wdt_handler_disable();
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int mpc8xx_wdt_release(struct inode *inode, struct file *file)

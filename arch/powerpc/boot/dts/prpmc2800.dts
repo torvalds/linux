@@ -207,6 +207,12 @@
 			interrupt-parent = <&/mv64x60/pic>;
 		};
 
+		wdt@b410 {			/* watchdog timer */
+			compatible = "marvell,mv64x60-wdt";
+			reg = <b410 8>;
+			timeout = <a>;		/* wdt timeout in seconds */
+		};
+
 		i2c@c000 {
 			device_type = "i2c";
 			compatible = "marvell,mv64x60-i2c";

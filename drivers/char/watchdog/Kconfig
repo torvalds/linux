@@ -55,6 +55,8 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+# ALPHA Architecture
+
 # ARM Architecture
 
 config AT91RM9200_WATCHDOG
@@ -189,7 +191,7 @@ config PNX4008_WATCHDOG
 
 config IOP_WATCHDOG
 	tristate "IOP Watchdog"
-	depends on WATCHDOG && PLAT_IOP
+	depends on PLAT_IOP
 	select WATCHDOG_NOWAYOUT if (ARCH_IOP32X || ARCH_IOP33X)
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -203,14 +205,47 @@ config IOP_WATCHDOG
 	  operating as an Root Complex and/or Central Resource, the PCI-X
 	  and/or PCIe busses will also be reset.  THIS IS A VERY BIG HAMMER.
 
+config DAVINCI_WATCHDOG
+	tristate "DaVinci watchdog"
+	depends on ARCH_DAVINCI
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the DaVinci DM644x/DM646x processors.
+	  To compile this driver as a module, choose M here: the
+	  module will be called davinci_wdt.
+
+	  NOTE: once enabled, this timer cannot be disabled.
+	  Say N if you are unsure.
+
+# ARM26 Architecture
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
 	tristate "AT32AP700x watchdog"
-	depends on WATCHDOG && CPU_AT32AP7000
+	depends on CPU_AT32AP7000
 	help
 	  Watchdog timer embedded into AT32AP700x devices. This will reboot
 	  your system when the timeout is reached.
+
+# BLACKFIN Architecture
+
+config BFIN_WDT
+	tristate "Blackfin On-Chip Watchdog Timer"
+	depends on BLACKFIN
+	---help---
+	  If you say yes here you will get support for the Blackfin On-Chip
+	  Watchdog Timer. If you have one of these processors and wish to
+	  have watchdog support enabled, say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_wdt.
+
+# CRIS Architecture
+
+# FRV Architecture
+
+# H8300 Architecture
 
 # X86 (i386 + ia64 + x86_64) Architecture
 
@@ -540,7 +575,47 @@ config SBC_EPX_C3_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc_epx_c3.
 
-# PowerPC Architecture
+# M32R Architecture
+
+# M68K Architecture
+
+# M68KNOMMU Architecture
+
+# MIPS Architecture
+
+config INDYDOG
+	tristate "Indy/I2 Hardware Watchdog"
+	depends on SGI_IP22
+	help
+	  Hardware driver for the Indy's/I2's watchdog. This is a
+	  watchdog timer that will reboot the machine after a 60 second
+	  timer expired and no process has written to /dev/watchdog during
+	  that time.
+
+config WDT_MTX1
+	tristate "MTX-1 Hardware Watchdog"
+	depends on MIPS_MTX1
+	help
+	  Hardware driver for the MTX-1 boards. This is a watchdog timer that
+	  will reboot the machine after a 100 seconds timer expired.
+
+config WDT_RM9K_GPI
+	tristate "RM9000/GPI hardware watchdog"
+	depends on CPU_RM9000
+	help
+	  Watchdog implementation using the GPI hardware found on
+	  PMC-Sierra RM9xxx CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rm9k_wdt.
+
+# PARISC Architecture
+
+# POWERPC Architecture
+
+config MPC5200_WDT
+	tristate "MPC5200 Watchdog Timer"
+	depends on PPC_MPC52xx
 
 config 8xx_WDT
 	tristate "MPC8xx Watchdog Timer"
@@ -572,34 +647,6 @@ config WATCHDOG_RTAS
 	  To compile this driver as a module, choose M here. The module
 	  will be called wdrtas.
 
-# MIPS Architecture
-
-config INDYDOG
-	tristate "Indy/I2 Hardware Watchdog"
-	depends on SGI_IP22
-	help
-	  Hardware driver for the Indy's/I2's watchdog. This is a
-	  watchdog timer that will reboot the machine after a 60 second
-	  timer expired and no process has written to /dev/watchdog during
-	  that time.
-
-config WDT_MTX1
-	tristate "MTX-1 Hardware Watchdog"
-	depends on MIPS_MTX1
-	help
-	  Hardware driver for the MTX-1 boards. This is a watchdog timer that
-	  will reboot the machine after a 100 seconds timer expired.
-
-config WDT_RM9K_GPI
-	tristate "RM9000/GPI hardware watchdog"
-	depends on CPU_RM9000
-	help
-	  Watchdog implementation using the GPI hardware found on
-	  PMC-Sierra RM9xxx CPUs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rm9k_wdt.
-
 # S390 Architecture
 
 config ZVM_WATCHDOG
@@ -614,7 +661,7 @@ config ZVM_WATCHDOG
 	  To compile this driver as a module, choose M here. The module
 	  will be called vmwatchdog.
 
-# SUPERH Architecture
+# SUPERH (sh + sh64) Architecture
 
 config SH_WDT
 	tristate "SuperH Watchdog"
@@ -641,6 +688,8 @@ config SH_WDT_MMAP
 	  If you say Y here, user applications will be able to mmap the
 	  WDT/CPG registers.
 
+# SPARC Architecture
+
 # SPARC64 Architecture
 
 config WATCHDOG_CP1XXX
@@ -664,6 +713,10 @@ config WATCHDOG_RIO
 	  Say Y here to support the hardware watchdog capability on Sun RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
+
+# V850 Architecture
+
+# XTENSA Architecture
 
 #
 # ISA-based Watchdog Cards

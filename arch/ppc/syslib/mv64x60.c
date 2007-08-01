@@ -441,6 +441,32 @@ static struct platform_device i2c_device = {
 };
 #endif
 
+#ifdef CONFIG_WATCHDOG
+static struct mv64x60_wdt_pdata mv64x60_wdt_pdata = {
+	.timeout		= 10,  /* default watchdog expiry in seconds */
+	.bus_clk		= 133, /* default bus clock in MHz */
+};
+
+static struct resource mv64x60_wdt_resources[] = {
+	[0] = {
+		.name	= "mv64x60 wdt base",
+		.start	= MV64x60_WDT_WDC,
+		.end	= MV64x60_WDT_WDC + 8 - 1, /* two 32-bit registers */
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device wdt_device = {
+	.name		= MV64x60_WDT_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mv64x60_wdt_resources),
+	.resource	= mv64x60_wdt_resources,
+	.dev = {
+		.platform_data = &mv64x60_wdt_pdata,
+	},
+};
+#endif
+
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
 static struct mv64xxx_pdata mv64xxx_pdata = {
 	.hs_reg_valid	= 0,
@@ -475,6 +501,9 @@ static struct platform_device *mv64x60_pd_devs[] __initdata = {
 #endif
 #ifdef	CONFIG_I2C_MV64XXX
 	&i2c_device,
+#endif
+#ifdef	CONFIG_MV64X60_WDT
+	&wdt_device,
 #endif
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
 	&mv64xxx_device,
