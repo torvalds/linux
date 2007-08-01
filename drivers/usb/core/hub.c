@@ -1399,6 +1399,87 @@ fail:
 	return err;
 }
 
+
+/**
+ * Similar to usb_disconnect()
+ *
+ * We share a lock (that we have) with device_del(), so we need to
+ * defer its call.
+ */
+int usb_deauthorize_device(struct usb_device *usb_dev)
+{
+	unsigned cnt;
+	usb_lock_device(usb_dev);
+	if (usb_dev->authorized == 0)
+		goto out_unauthorized;
+	usb_dev->authorized = 0;
+	usb_set_configuration(usb_dev, -1);
+	usb_dev->product = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	usb_dev->manufacturer = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	usb_dev->serial = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	kfree(usb_dev->config);
+	usb_dev->config = NULL;
+	for (cnt = 0; cnt < usb_dev->descriptor.bNumConfigurations; cnt++)
+		kfree(usb_dev->rawdescriptors[cnt]);
+	usb_dev->descriptor.bNumConfigurations = 0;
+	kfree(usb_dev->rawdescriptors);
+out_unauthorized:
+	usb_unlock_device(usb_dev);
+	return 0;
+}
+
+
+int usb_authorize_device(struct usb_device *usb_dev)
+{
+	int result = 0, c;
+	usb_lock_device(usb_dev);
+	if (usb_dev->authorized == 1)
+		goto out_authorized;
+	kfree(usb_dev->product);
+	usb_dev->product = NULL;
+	kfree(usb_dev->manufacturer);
+	usb_dev->manufacturer = NULL;
+	kfree(usb_dev->serial);
+	usb_dev->serial = NULL;
+	result = usb_autoresume_device(usb_dev);
+	if (result < 0) {
+		dev_err(&usb_dev->dev,
+			"can't autoresume for authorization: %d\n", result);
+		goto error_autoresume;
+	}
+	result = usb_get_device_descriptor(usb_dev, sizeof(usb_dev->descriptor));
+	if (result < 0) {
+		dev_err(&usb_dev->dev, "can't re-read device descriptor for "
+			"authorization: %d\n", result);
+		goto error_device_descriptor;
+	}
+	usb_dev->authorized = 1;
+	result = usb_configure_device(usb_dev);
+	if (result < 0)
+		goto error_configure;
+	/* Choose and set the configuration.  This registers the interfaces
+	 * with the driver core and lets interface drivers bind to them.
+	 */
+	c = choose_configuration(usb_dev);
+	if (c >= 0) {
+		result = usb_set_configuration(usb_dev, c);
+		if (result) {
+			dev_err(&usb_dev->dev,
+				"can't set config #%d, error %d\n", c, result);
+			/* This need not be fatal.  The user can try to
+			 * set other configurations. */
+		}
+	}
+	dev_info(&usb_dev->dev, "authorized to connect\n");
+error_configure:
+error_device_descriptor:
+error_autoresume:
+out_authorized:
+	usb_unlock_device(usb_dev);	// complements locktree
+	return result;
+}
+
+
 static int hub_port_status(struct usb_hub *hub, int port1,
 			       u16 *status, u16 *change)
 {

@@ -40,7 +40,7 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 		&& desc->bInterfaceProtocol == 1;
 }
 
-static int choose_configuration(struct usb_device *udev)
+int choose_configuration(struct usb_device *udev)
 {
 	int i;
 	int num_configs;
