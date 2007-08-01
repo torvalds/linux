@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.50	Jun 10, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.51	Jul 6, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -109,7 +109,7 @@ static int no_piix_dma;
  *	piix_dma_2_pio		-	return the PIO mode matching DMA
  *	@xfer_rate: transfer speed
  *
- *	Returns the nearest equivalent PIO timing for the PIO or DMA
+ *	Returns the nearest equivalent PIO timing for the DMA
  *	mode requested by the controller.
  */
  
@@ -123,20 +123,14 @@ static u8 piix_dma_2_pio (u8 xfer_rate) {
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
 		case XFER_MW_DMA_2:
-		case XFER_PIO_4:
 			return 4;
 		case XFER_MW_DMA_1:
-		case XFER_PIO_3:
 			return 3;
 		case XFER_SW_DMA_2:
-		case XFER_PIO_2:
 			return 2;
 		case XFER_MW_DMA_0:
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-		case XFER_PIO_SLOW:
 		default:
 			return 0;
 	}
@@ -269,6 +263,7 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_PIO_4:
 		case XFER_PIO_3:
 		case XFER_PIO_2:
+		case XFER_PIO_1:
 		case XFER_PIO_0:	break;
 		default:		return -1;
 	}
@@ -299,7 +294,11 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	piix_tune_pio(drive, piix_dma_2_pio(speed));
+	if (speed > XFER_PIO_4)
+		piix_tune_pio(drive, piix_dma_2_pio(speed));
+	else
+		piix_tune_pio(drive, speed - XFER_PIO_0);
+
 	return ide_config_drive_speed(drive, speed);
 }
 
