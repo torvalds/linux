@@ -240,7 +240,21 @@ ia64_init_itm (void)
 		if (!nojitter)
 			itc_jitter_data.itc_jitter = 1;
 #endif
-	}
+	} else
+		/*
+		 * ITC is drifty and we have not synchronized the ITCs in smpboot.c.
+		 * ITC values may fluctuate significantly between processors.
+		 * Clock should not be used for hrtimers. Mark itc as only
+		 * useful for boot and testing.
+		 *
+		 * Note that jitter compensation is off! There is no point of
+		 * synchronizing ITCs since they may be large differentials
+		 * that change over time.
+		 *
+		 * The only way to fix this would be to repeatedly sync the
+		 * ITCs. Until that time we have to avoid ITC.
+		 */
+		clocksource_itc.rating = 50;
 
 	/* Setup the CPU local timer tick */
 	ia64_cpu_local_tick();
