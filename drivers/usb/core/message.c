@@ -1483,6 +1483,9 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
  * channels are available independently; and choosing between open
  * standard device protocols (like CDC) or proprietary ones.
  *
+ * Note that a non-authorized device (dev->authorized == 0) will only
+ * be put in unconfigured mode.
+ *
  * Note that USB has an additional level of device configurability,
  * associated with interfaces.  That configurability is accessed using
  * usb_set_interface().
@@ -1504,7 +1507,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	struct usb_interface **new_interfaces = NULL;
 	int n, nintf;
 
-	if (configuration == -1)
+	if (dev->authorized == 0 || configuration == -1)
 		configuration = 0;
 	else {
 		for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
