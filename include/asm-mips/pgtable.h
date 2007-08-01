@@ -168,9 +168,9 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 #define set_pud(pudptr, pudval) do { *(pudptr) = (pudval); } while(0)
 #endif
 
-#define PGD_T_LOG2	ffz(~sizeof(pgd_t))
-#define PMD_T_LOG2	ffz(~sizeof(pmd_t))
-#define PTE_T_LOG2	ffz(~sizeof(pte_t))
+#define PGD_T_LOG2	(__builtin_ffs(sizeof(pgd_t)) - 1)
+#define PMD_T_LOG2	(__builtin_ffs(sizeof(pmd_t)) - 1)
+#define PTE_T_LOG2	(__builtin_ffs(sizeof(pte_t)) - 1)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
