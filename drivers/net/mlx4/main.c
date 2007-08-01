@@ -168,7 +168,7 @@ static int __devinit mlx4_load_fw(struct mlx4_dev *dev)
 	int err;
 
 	priv->fw.fw_icm = mlx4_alloc_icm(dev, priv->fw.fw_pages,
-					 GFP_HIGHUSER | __GFP_NOWARN);
+					 GFP_HIGHUSER | __GFP_NOWARN, 0);
 	if (!priv->fw.fw_icm) {
 		mlx4_err(dev, "Couldn't allocate FW area, aborting.\n");
 		return -ENOMEM;
@@ -192,7 +192,7 @@ err_unmap_fa:
 	mlx4_UNMAP_FA(dev);
 
 err_free:
-	mlx4_free_icm(dev, priv->fw.fw_icm);
+	mlx4_free_icm(dev, priv->fw.fw_icm, 0);
 	return err;
 }
 
@@ -207,7 +207,7 @@ static int __devinit mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  ((u64) (MLX4_CMPT_TYPE_QP *
 					  cmpt_entry_sz) << MLX4_CMPT_SHIFT),
 				  cmpt_entry_sz, dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0);
+				  dev->caps.reserved_qps, 0, 0);
 	if (err)
 		goto err;
 
@@ -216,7 +216,7 @@ static int __devinit mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  ((u64) (MLX4_CMPT_TYPE_SRQ *
 					  cmpt_entry_sz) << MLX4_CMPT_SHIFT),
 				  cmpt_entry_sz, dev->caps.num_srqs,
-				  dev->caps.reserved_srqs, 0);
+				  dev->caps.reserved_srqs, 0, 0);
 	if (err)
 		goto err_qp;
 
@@ -225,7 +225,7 @@ static int __devinit mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  ((u64) (MLX4_CMPT_TYPE_CQ *
 					  cmpt_entry_sz) << MLX4_CMPT_SHIFT),
 				  cmpt_entry_sz, dev->caps.num_cqs,
-				  dev->caps.reserved_cqs, 0);
+				  dev->caps.reserved_cqs, 0, 0);
 	if (err)
 		goto err_srq;
 
@@ -236,7 +236,7 @@ static int __devinit mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  cmpt_entry_sz,
 				  roundup_pow_of_two(MLX4_NUM_EQ +
 						     dev->caps.reserved_eqs),
-				  MLX4_NUM_EQ + dev->caps.reserved_eqs, 0);
+				  MLX4_NUM_EQ + dev->caps.reserved_eqs, 0, 0);
 	if (err)
 		goto err_cq;
 
@@ -275,7 +275,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 		 (unsigned long long) aux_pages << 2);
 
 	priv->fw.aux_icm = mlx4_alloc_icm(dev, aux_pages,
-					  GFP_HIGHUSER | __GFP_NOWARN);
+					  GFP_HIGHUSER | __GFP_NOWARN, 0);
 	if (!priv->fw.aux_icm) {
 		mlx4_err(dev, "Couldn't allocate aux memory, aborting.\n");
 		return -ENOMEM;
@@ -303,7 +303,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->mtt_base,
 				  dev->caps.mtt_entry_sz,
 				  dev->caps.num_mtt_segs,
-				  dev->caps.reserved_mtts, 1);
+				  dev->caps.reserved_mtts, 1, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map MTT context memory, aborting.\n");
 		goto err_unmap_eq;
@@ -313,7 +313,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->dmpt_base,
 				  dev_cap->dmpt_entry_sz,
 				  dev->caps.num_mpts,
-				  dev->caps.reserved_mrws, 1);
+				  dev->caps.reserved_mrws, 1, 1);
 	if (err) {
 		mlx4_err(dev, "Failed to map dMPT context memory, aborting.\n");
 		goto err_unmap_mtt;
@@ -323,7 +323,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->qpc_base,
 				  dev_cap->qpc_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0);
+				  dev->caps.reserved_qps, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map QP context memory, aborting.\n");
 		goto err_unmap_dmpt;
@@ -333,7 +333,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->auxc_base,
 				  dev_cap->aux_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0);
+				  dev->caps.reserved_qps, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map AUXC context memory, aborting.\n");
 		goto err_unmap_qp;
@@ -343,7 +343,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->altc_base,
 				  dev_cap->altc_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0);
+				  dev->caps.reserved_qps, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map ALTC context memory, aborting.\n");
 		goto err_unmap_auxc;
@@ -353,7 +353,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->rdmarc_base,
 				  dev_cap->rdmarc_entry_sz << priv->qp_table.rdmarc_shift,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0);
+				  dev->caps.reserved_qps, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map RDMARC context memory, aborting\n");
 		goto err_unmap_altc;
@@ -363,7 +363,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->cqc_base,
 				  dev_cap->cqc_entry_sz,
 				  dev->caps.num_cqs,
-				  dev->caps.reserved_cqs, 0);
+				  dev->caps.reserved_cqs, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map CQ context memory, aborting.\n");
 		goto err_unmap_rdmarc;
@@ -373,7 +373,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->srqc_base,
 				  dev_cap->srq_entry_sz,
 				  dev->caps.num_srqs,
-				  dev->caps.reserved_srqs, 0);
+				  dev->caps.reserved_srqs, 0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map SRQ context memory, aborting.\n");
 		goto err_unmap_cq;
@@ -388,7 +388,7 @@ static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
 				  init_hca->mc_base, MLX4_MGM_ENTRY_SIZE,
 				  dev->caps.num_mgms + dev->caps.num_amgms,
 				  dev->caps.num_mgms + dev->caps.num_amgms,
-				  0);
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map MCG context memory, aborting.\n");
 		goto err_unmap_srq;
@@ -433,7 +433,7 @@ err_unmap_aux:
 	mlx4_UNMAP_ICM_AUX(dev);
 
 err_free_aux:
-	mlx4_free_icm(dev, priv->fw.aux_icm);
+	mlx4_free_icm(dev, priv->fw.aux_icm, 0);
 
 	return err;
 }
@@ -458,7 +458,7 @@ static void mlx4_free_icms(struct mlx4_dev *dev)
 	mlx4_unmap_eq_icm(dev);
 
 	mlx4_UNMAP_ICM_AUX(dev);
-	mlx4_free_icm(dev, priv->fw.aux_icm);
+	mlx4_free_icm(dev, priv->fw.aux_icm, 0);
 }
 
 static void mlx4_close_hca(struct mlx4_dev *dev)
@@ -466,7 +466,7 @@ static void mlx4_close_hca(struct mlx4_dev *dev)
 	mlx4_CLOSE_HCA(dev, 0);
 	mlx4_free_icms(dev);
 	mlx4_UNMAP_FA(dev);
-	mlx4_free_icm(dev, mlx4_priv(dev)->fw.fw_icm);
+	mlx4_free_icm(dev, mlx4_priv(dev)->fw.fw_icm, 0);
 }
 
 static int __devinit mlx4_init_hca(struct mlx4_dev *dev)
@@ -537,7 +537,7 @@ err_free_icm:
 
 err_stop_fw:
 	mlx4_UNMAP_FA(dev);
-	mlx4_free_icm(dev, priv->fw.fw_icm);
+	mlx4_free_icm(dev, priv->fw.fw_icm, 0);
 
 	return err;
 }

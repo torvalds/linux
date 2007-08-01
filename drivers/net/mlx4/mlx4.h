@@ -129,6 +129,7 @@ struct mlx4_icm_table {
 	int			num_obj;
 	int			obj_size;
 	int			lowmem;
+	int			coherent;
 	struct mutex		mutex;
 	struct mlx4_icm	      **icm;
 };
