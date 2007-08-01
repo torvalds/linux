@@ -42,10 +42,11 @@ void prom_init_secondary(void)
 	myvpe = read_c0_tcbind() & TCBIND_CURVPE;
 	if (myvpe != 0) {
 		/* Ideally, this should be done only once per VPE, but... */
-		clear_c0_status(STATUSF_IP2);
-		set_c0_status(STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP3
-				| STATUSF_IP4 | STATUSF_IP5 | STATUSF_IP6
-				| STATUSF_IP7);
+		clear_c0_status(ST0_IM);
+		set_c0_status((0x100 << cp0_compare_irq)
+				| (0x100 << MIPS_CPU_IPI_IRQ));
+		if (cp0_perfcount_irq >= 0)
+			set_c0_status(0x100 << cp0_perfcount_irq);
 	}
 
         smtc_init_secondary();
