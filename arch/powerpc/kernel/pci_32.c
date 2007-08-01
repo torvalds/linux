@@ -581,8 +581,11 @@ pcibios_assign_resources(void)
 			if ((r->flags & IORESOURCE_UNSET) && r->end &&
 			    (!ppc_md.pcibios_enable_device_hook ||
 			     !ppc_md.pcibios_enable_device_hook(dev, 1))) {
+				int rc;
+
 				r->flags &= ~IORESOURCE_UNSET;
-				pci_assign_resource(dev, idx);
+				rc = pci_assign_resource(dev, idx);
+				BUG_ON(rc);
 			}
 		}
 
