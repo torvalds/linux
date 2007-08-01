@@ -55,7 +55,7 @@ unsigned long cpu_khz;
 
 static int mips_cpu_timer_irq;
 extern int cp0_perfcount_irq;
-extern void smtc_timer_broadcast(int);
+extern void smtc_timer_broadcast(void);
 
 static void mips_timer_dispatch(void)
 {
@@ -131,7 +131,7 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id)
 			                 (mips_hpt_frequency/HZ));
 			local_timer_interrupt(irq, dev_id);
 		}
-		smtc_timer_broadcast(cpu_data[cpu].vpe_id);
+		smtc_timer_broadcast();
 	}
 #else /* CONFIG_MIPS_MT_SMTC */
 	int r2 = cpu_has_mips_r2;

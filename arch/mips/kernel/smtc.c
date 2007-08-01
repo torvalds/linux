@@ -86,24 +86,10 @@ unsigned int smtc_status = 0;
 
 /* Boot command line configuration overrides */
 
-static int vpelimit = 0;
-static int tclimit = 0;
 static int ipibuffers = 0;
 static int nostlb = 0;
 static int asidmask = 0;
 unsigned long smtc_asid_mask = 0xff;
-
-static int __init maxvpes(char *str)
-{
-	get_option(&str, &vpelimit);
-	return 1;
-}
-
-static int __init maxtcs(char *str)
-{
-	get_option(&str, &tclimit);
-	return 1;
-}
 
 static int __init ipibufs(char *str)
 {
@@ -137,8 +123,6 @@ static int __init asidmask_set(char *str)
 	return 1;
 }
 
-__setup("maxvpes=", maxvpes);
-__setup("maxtcs=", maxtcs);
 __setup("ipibufs=", ipibufs);
 __setup("nostlb", stlb_disable);
 __setup("asidmask=", asidmask_set);
@@ -168,9 +152,9 @@ static int __init tintq(char *str)
 
 __setup("tintq=", tintq);
 
-int imstuckcount[2][8];
+static int imstuckcount[2][8];
 /* vpemask represents IM/IE bits of per-VPE Status registers, low-to-high */
-int vpemask[2][8] = {
+static int vpemask[2][8] = {
 	{0, 0, 1, 0, 0, 0, 0, 1},
 	{0, 0, 0, 0, 0, 0, 0, 1}
 };
@@ -540,7 +524,7 @@ void mipsmt_prepare_cpus(void)
  * (unsigned long)idle->thread_info the gp
  *
  */
-void smtc_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
 {
 	extern u32 kernelsp[NR_CPUS];
 	long flags;
@@ -876,7 +860,7 @@ void deferred_smtc_ipi(void)
  * Send clock tick to all TCs except the one executing the funtion
  */
 
-void smtc_timer_broadcast(int vpe)
+void smtc_timer_broadcast(void)
 {
 	int cpu;
 	int myTC = cpu_data[smp_processor_id()].tc_id;
@@ -975,7 +959,12 @@ static void ipi_irq_dispatch(void)
 	do_IRQ(cpu_ipi_irq);
 }
 
-static struct irqaction irq_ipi;
+static struct irqaction irq_ipi = {
+	.handler	= ipi_interrupt,
+	.flags		= IRQF_DISABLED,
+	.name		= "SMTC_IPI",
+	.flags		= IRQF_PERCPU
+};
 
 static void setup_cross_vpe_interrupts(unsigned int nvpe)
 {
@@ -987,13 +976,8 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 
 	set_vi_handler(MIPS_CPU_IPI_IRQ, ipi_irq_dispatch);
 
-	irq_ipi.handler = ipi_interrupt;
-	irq_ipi.flags = IRQF_DISABLED;
-	irq_ipi.name = "SMTC_IPI";
-
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
-	irq_desc[cpu_ipi_irq].status |= IRQ_PER_CPU;
 	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 

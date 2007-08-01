@@ -62,8 +62,9 @@ extern unsigned int vced_count, vcei_count;
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	((current->thread.mflags & MF_32BIT_ADDR) ? \
-	PAGE_ALIGN(TASK_SIZE32 / 3) : PAGE_ALIGN(TASK_SIZE / 3))
+#define TASK_UNMAPPED_BASE						\
+	(test_thread_flag(TIF_32BIT_ADDR) ?				\
+		PAGE_ALIGN(TASK_SIZE32 / 3) : PAGE_ALIGN(TASK_SIZE / 3))
 #endif
 
 #define NUM_FPU_REGS	32
@@ -132,21 +133,10 @@ struct thread_struct {
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
 	unsigned long trap_no;
-#define MF_FIXADE	1		/* Fix address errors in software */
-#define MF_LOGADE	2		/* Log address errors to syslog */
-#define MF_32BIT_REGS	4		/* also implies 16/32 fprs */
-#define MF_32BIT_ADDR	8		/* 32-bit address space (o32/n32) */
-#define MF_FPUBOUND	0x10		/* thread bound to FPU-full CPU set */
-	unsigned long mflags;
 	unsigned long irix_trampoline;  /* Wheee... */
 	unsigned long irix_oldctx;
 	struct mips_abi *abi;
 };
-
-#define MF_ABI_MASK	(MF_32BIT_REGS | MF_32BIT_ADDR)
-#define MF_O32		(MF_32BIT_REGS | MF_32BIT_ADDR)
-#define MF_N32		MF_32BIT_ADDR
-#define MF_N64		0
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 #define FPAFF_INIT						\
@@ -200,10 +190,6 @@ struct thread_struct {
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
 	.trap_no		= 0,				\
-	/*							\
-	 * For now the default is to fix address errors		\
-	 */							\
-	.mflags			= MF_FIXADE,			\
 	.irix_trampoline	= 0,				\
 	.irix_oldctx		= 0,				\
 }

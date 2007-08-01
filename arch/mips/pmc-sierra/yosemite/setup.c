@@ -59,7 +59,7 @@ unsigned char titan_ge_mac_addr_base[6] = {
 	0x00, 0xe0, 0x04, 0x00, 0x00, 0x21
 };
 
-unsigned long cpu_clock;
+unsigned long cpu_clock_freq;
 unsigned long yosemite_base;
 
 static struct m48t37_rtc *m48t37_base;
@@ -140,7 +140,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 
 void yosemite_time_init(void)
 {
-	mips_hpt_frequency = cpu_clock / 2;
+	mips_hpt_frequency = cpu_clock_freq / 2;
 mips_hpt_frequency = 33000000 * 3 * 5;
 }
 

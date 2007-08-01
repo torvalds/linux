@@ -657,7 +657,7 @@ void __init tx4938_board_setup(void)
 
 	/* clocks */
 	if (txx9_master_clock) {
-		/* calculate gbus_clock and cpu_clock from master_clock */
+		/* calculate gbus_clock and cpu_clock_freq from master_clock */
 		divmode = (unsigned long)tx4938_ccfgptr->ccfg & TX4938_CCFG_DIVMODE_MASK;
 		switch (divmode) {
 		case TX4938_CCFG_DIVMODE_8:
@@ -691,7 +691,7 @@ void __init tx4938_board_setup(void)
 		if (txx9_cpu_clock == 0) {
 			txx9_cpu_clock = 300000000;	/* 300MHz */
 		}
-		/* calculate gbus_clock and master_clock from cpu_clock */
+		/* calculate gbus_clock and master_clock from cpu_clock_freq */
 		cpuclk = txx9_cpu_clock;
 		divmode = (unsigned long)tx4938_ccfgptr->ccfg & TX4938_CCFG_DIVMODE_MASK;
 		switch (divmode) {

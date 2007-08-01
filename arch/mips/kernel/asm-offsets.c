@@ -132,7 +132,6 @@ void output_thread_defines(void)
 	offset("#define THREAD_ECODE   ", struct task_struct, \
 	       thread.error_code);
 	offset("#define THREAD_TRAPNO  ", struct task_struct, thread.trap_no);
-	offset("#define THREAD_MFLAGS  ", struct task_struct, thread.mflags);
 	offset("#define THREAD_TRAMP   ", struct task_struct, \
 	       thread.irix_trampoline);
 	offset("#define THREAD_OLDCTX  ", struct task_struct, \

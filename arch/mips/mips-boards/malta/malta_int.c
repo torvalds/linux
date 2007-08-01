@@ -330,6 +330,18 @@ void __init arch_init_irq(void)
 			(0x100 << MIPSCPU_INT_I8259A));
 		setup_irq_smtc (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
 			&corehi_irqaction, (0x100 << MIPSCPU_INT_COREHI));
+		/*
+		 * Temporary hack to ensure that the subsidiary device
+		 * interrupts coing in via the i8259A, but associated
+		 * with low IRQ numbers, will restore the Status.IM
+		 * value associated with the i8259A.
+		 */
+		{
+			int i;
+
+			for (i = 0; i < 16; i++)
+				irq_hwmask[i] = (0x100 << MIPSCPU_INT_I8259A);
+		}
 #else /* Not SMTC */
 		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
 		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);

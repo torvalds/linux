@@ -138,7 +138,6 @@
 	.fill	0x400
 #endif
 
-EXPORT(stext)					# used for profiling
 EXPORT(_stext)
 
 #ifndef CONFIG_BOOT_RAW

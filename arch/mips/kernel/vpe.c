@@ -27,7 +27,6 @@
  * To load and run, simply cat a SP 'program file' to /dev/vpe1.
  * i.e cat spapp >/dev/vpe1.
  */
-
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -54,6 +53,7 @@
 #include <asm/system.h>
 #include <asm/vpe.h>
 #include <asm/kspd.h>
+#include <asm/mips_mt.h>
 
 typedef void *vpe_handle;
 
@@ -64,6 +64,10 @@ typedef void *vpe_handle;
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
+/*
+ * The number of TCs and VPEs physically available on the core
+ */
+static int hw_tcs, hw_vpes;
 static char module_name[] = "vpe";
 static int major;
 static const int minor = 1;	/* fixed for now  */
@@ -126,20 +130,17 @@ struct vpe {
 
 	/* the list of who wants to know when something major happens */
 	struct list_head notify;
+
+	unsigned int ntcs;
 };
 
 struct tc {
 	enum tc_state state;
 	int index;
 
-	/* parent VPE */
-	struct vpe *pvpe;
-
-	/* The list of TC's with this VPE */
-	struct list_head tc;
-
-	/* The global list of tc's */
-	struct list_head list;
+	struct vpe *pvpe;	/* parent VPE */
+	struct list_head tc;	/* The list of TC's with this VPE */
+	struct list_head list;	/* The global list of tc's */
 };
 
 struct {
@@ -217,18 +218,17 @@ struct vpe *alloc_vpe(int minor)
 /* allocate a tc. At startup only tc0 is running, all other can be halted. */
 struct tc *alloc_tc(int index)
 {
-	struct tc *t;
+	struct tc *tc;
 
-	if ((t = kzalloc(sizeof(struct tc), GFP_KERNEL)) == NULL) {
-		return NULL;
-	}
+	if ((tc = kzalloc(sizeof(struct tc), GFP_KERNEL)) == NULL)
+		goto out;
 
-	INIT_LIST_HEAD(&t->tc);
-	list_add_tail(&t->list, &vpecontrol.tc_list);
+	INIT_LIST_HEAD(&tc->tc);
+	tc->index = index;
+	list_add_tail(&tc->list, &vpecontrol.tc_list);
 
-	t->index = index;
-
-	return t;
+out:
+	return tc;
 }
 
 /* clean up and free everything */
@@ -663,66 +663,48 @@ static void dump_elfsymbols(Elf_Shdr * sechdrs, unsigned int symindex,
 }
 #endif
 
-static void dump_tc(struct tc *t)
-{
-  	unsigned long val;
-
-  	settc(t->index);
- 	printk(KERN_DEBUG "VPE loader: TC index %d targtc %ld "
- 	       "TCStatus 0x%lx halt 0x%lx\n",
-  	       t->index, read_c0_vpecontrol() & VPECONTROL_TARGTC,
-  	       read_tc_c0_tcstatus(), read_tc_c0_tchalt());
-
- 	printk(KERN_DEBUG " tcrestart 0x%lx\n", read_tc_c0_tcrestart());
- 	printk(KERN_DEBUG " tcbind 0x%lx\n", read_tc_c0_tcbind());
-
-  	val = read_c0_vpeconf0();
- 	printk(KERN_DEBUG " VPEConf0 0x%lx MVP %ld\n", val,
-  	       (val & VPECONF0_MVP) >> VPECONF0_MVP_SHIFT);
-
- 	printk(KERN_DEBUG " c0 status 0x%lx\n", read_vpe_c0_status());
- 	printk(KERN_DEBUG " c0 cause 0x%lx\n", read_vpe_c0_cause());
-
- 	printk(KERN_DEBUG " c0 badvaddr 0x%lx\n", read_vpe_c0_badvaddr());
- 	printk(KERN_DEBUG " c0 epc 0x%lx\n", read_vpe_c0_epc());
-}
-
-static void dump_tclist(void)
-{
-	struct tc *t;
-
-	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		dump_tc(t);
-	}
-}
-
 /* We are prepared so configure and start the VPE... */
 static int vpe_run(struct vpe * v)
 {
+	unsigned long flags, val, dmt_flag;
 	struct vpe_notifications *n;
-	unsigned long val, dmt_flag;
+	unsigned int vpeflags;
 	struct tc *t;
 
 	/* check we are the Master VPE */
+	local_irq_save(flags);
 	val = read_c0_vpeconf0();
 	if (!(val & VPECONF0_MVP)) {
 		printk(KERN_WARNING
 		       "VPE loader: only Master VPE's are allowed to configure MT\n");
+		local_irq_restore(flags);
+
 		return -1;
 	}
 
-	/* disable MT (using dvpe) */
-	dvpe();
+	dmt_flag = dmt();
+	vpeflags = dvpe();
 
 	if (!list_empty(&v->tc)) {
 		if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
-			printk(KERN_WARNING "VPE loader: TC %d is already in use.\n",
-			       t->index);
+			evpe(vpeflags);
+			emt(dmt_flag);
+			local_irq_restore(flags);
+
+			printk(KERN_WARNING
+			       "VPE loader: TC %d is already in use.\n",
+                               t->index);
 			return -ENOEXEC;
 		}
 	} else {
-		printk(KERN_WARNING "VPE loader: No TC's associated with VPE %d\n",
+		evpe(vpeflags);
+		emt(dmt_flag);
+		local_irq_restore(flags);
+
+		printk(KERN_WARNING
+		       "VPE loader: No TC's associated with VPE %d\n",
 		       v->minor);
+
 		return -ENOEXEC;
 	}
 
@@ -733,21 +715,20 @@ static int vpe_run(struct vpe * v)
 
 	/* should check it is halted, and not activated */
 	if ((read_tc_c0_tcstatus() & TCSTATUS_A) || !(read_tc_c0_tchalt() & TCHALT_H)) {
-		printk(KERN_WARNING "VPE loader: TC %d is already doing something!\n",
+		evpe(vpeflags);
+		emt(dmt_flag);
+		local_irq_restore(flags);
+
+		printk(KERN_WARNING "VPE loader: TC %d is already active!\n",
 		       t->index);
-		dump_tclist();
+
 		return -ENOEXEC;
 	}
-
-	/*
-	 * Disable multi-threaded execution whilst we activate, clear the
-	 * halt bit and bound the tc to the other VPE...
-	 */
-	dmt_flag = dmt();
 
 	/* Write the address we want it to start running from in the TCPC register. */
 	write_tc_c0_tcrestart((unsigned long)v->__start);
 	write_tc_c0_tccontext((unsigned long)0);
+
 	/*
 	 * Mark the TC as activated, not interrupt exempt and not dynamically
 	 * allocatable
@@ -763,15 +744,15 @@ static int vpe_run(struct vpe * v)
 	 * here...  Or set $a3 to zero and define DFLT_STACK_SIZE and
 	 * DFLT_HEAP_SIZE when you compile your program
 	 */
- 	mttgpr(7, physical_memsize);
-
+	mttgpr(6, v->ntcs);
+	mttgpr(7, physical_memsize);
 
 	/* set up VPE1 */
 	/*
 	 * bind the TC to VPE 1 as late as possible so we only have the final
 	 * VPE registers to set up, and so an EJTAG probe can trigger on it
 	 */
- 	write_tc_c0_tcbind((read_tc_c0_tcbind() & ~TCBIND_CURVPE) | v->minor);
+	write_tc_c0_tcbind((read_tc_c0_tcbind() & ~TCBIND_CURVPE) | 1);
 
 	write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() & ~(VPECONF0_VPA));
 
@@ -793,15 +774,16 @@ static int vpe_run(struct vpe * v)
 	/* take system out of configuration state */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
-	/* now safe to re-enable multi-threading */
-	emt(dmt_flag);
-
-	/* set it running */
+#ifdef CONFIG_SMP
 	evpe(EVPE_ENABLE);
+#else
+	evpe(vpeflags);
+#endif
+	emt(dmt_flag);
+	local_irq_restore(flags);
 
-	list_for_each_entry(n, &v->notify, list) {
-		n->start(v->minor);
-	}
+	list_for_each_entry(n, &v->notify, list)
+		n->start(minor);
 
 	return 0;
 }
@@ -1023,23 +1005,15 @@ static int vpe_elfload(struct vpe * v)
 	return 0;
 }
 
-void __used dump_vpe(struct vpe * v)
-{
-	struct tc *t;
-
-	settc(v->minor);
-
-	printk(KERN_DEBUG "VPEControl 0x%lx\n", read_vpe_c0_vpecontrol());
-	printk(KERN_DEBUG "VPEConf0 0x%lx\n", read_vpe_c0_vpeconf0());
-
-	list_for_each_entry(t, &vpecontrol.tc_list, list)
-		dump_tc(t);
-}
-
 static void cleanup_tc(struct tc *tc)
 {
+	unsigned long flags;
+	unsigned int mtflags, vpflags;
 	int tmp;
 
+	local_irq_save(flags);
+	mtflags = dmt();
+	vpflags = dvpe();
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
@@ -1054,9 +1028,12 @@ static void cleanup_tc(struct tc *tc)
 	write_tc_c0_tchalt(TCHALT_H);
 
 	/* bind it to anything other than VPE1 */
-	write_tc_c0_tcbind(read_tc_c0_tcbind() & ~TCBIND_CURVPE); // | TCBIND_CURVPE
+//	write_tc_c0_tcbind(read_tc_c0_tcbind() & ~TCBIND_CURVPE); // | TCBIND_CURVPE
 
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
+	evpe(vpflags);
+	emt(mtflags);
+	local_irq_restore(flags);
 }
 
 static int getcwd(char *buff, int size)
@@ -1077,36 +1054,32 @@ static int getcwd(char *buff, int size)
 /* checks VPE is unused and gets ready to load program  */
 static int vpe_open(struct inode *inode, struct file *filp)
 {
-	int minor, ret;
 	enum vpe_state state;
-	struct vpe *v;
 	struct vpe_notifications *not;
+	struct vpe *v;
+	int ret;
 
-	/* assume only 1 device at the mo. */
-	if ((minor = iminor(inode)) != 1) {
+	if (minor != iminor(inode)) {
+		/* assume only 1 device at the moment. */
 		printk(KERN_WARNING "VPE loader: only vpe1 is supported\n");
 		return -ENODEV;
 	}
 
-	if ((v = get_vpe(minor)) == NULL) {
+	if ((v = get_vpe(tclimit)) == NULL) {
 		printk(KERN_WARNING "VPE loader: unable to get vpe\n");
 		return -ENODEV;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
 	if (state != VPE_STATE_UNUSED) {
-		dvpe();
-
 		printk(KERN_DEBUG "VPE loader: tc in use dumping regs\n");
 
-		dump_tc(get_tc(minor));
-
 		list_for_each_entry(not, &v->notify, list) {
-			not->stop(minor);
+			not->stop(tclimit);
 		}
 
 		release_progmem(v->load_addr);
-		cleanup_tc(get_tc(minor));
+		cleanup_tc(get_tc(tclimit));
 	}
 
 	/* this of-course trashes what was there before... */
@@ -1133,26 +1106,25 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 	v->shared_ptr = NULL;
 	v->__start = 0;
+
 	return 0;
 }
 
 static int vpe_release(struct inode *inode, struct file *filp)
 {
-	int minor, ret = 0;
 	struct vpe *v;
 	Elf_Ehdr *hdr;
+	int ret = 0;
 
-	minor = iminor(inode);
-	if ((v = get_vpe(minor)) == NULL)
+	v = get_vpe(tclimit);
+	if (v == NULL)
 		return -ENODEV;
-
-	// simple case of fire and forget, so tell the VPE to run...
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
 	if (memcmp(hdr->e_ident, ELFMAG, 4) == 0) {
-		if (vpe_elfload(v) >= 0)
+		if (vpe_elfload(v) >= 0) {
 			vpe_run(v);
-		else {
+		} else {
  			printk(KERN_WARNING "VPE loader: ELF load failed.\n");
 			ret = -ENOEXEC;
 		}
@@ -1179,12 +1151,14 @@ static int vpe_release(struct inode *inode, struct file *filp)
 static ssize_t vpe_write(struct file *file, const char __user * buffer,
 			 size_t count, loff_t * ppos)
 {
-	int minor;
 	size_t ret = count;
 	struct vpe *v;
 
-	minor = iminor(file->f_path.dentry->d_inode);
-	if ((v = get_vpe(minor)) == NULL)
+	if (iminor(file->f_path.dentry->d_inode) != minor)
+		return -ENODEV;
+
+	v = get_vpe(tclimit);
+	if (v == NULL)
 		return -ENODEV;
 
 	if (v->pbuffer == NULL) {
@@ -1366,18 +1340,97 @@ static void kspd_sp_exit( int sp_id)
 }
 #endif
 
-static struct device *vpe_dev;
+static ssize_t store_kill(struct class_device *dev, const char *buf, size_t len)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+	struct vpe_notifications *not;
+
+	list_for_each_entry(not, &vpe->notify, list) {
+		not->stop(tclimit);
+	}
+
+	release_progmem(vpe->load_addr);
+	cleanup_tc(get_tc(tclimit));
+	vpe_stop(vpe);
+	vpe_free(vpe);
+
+	return len;
+}
+
+static ssize_t show_ntcs(struct class_device *cd, char *buf)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+
+	return sprintf(buf, "%d\n", vpe->ntcs);
+}
+
+static ssize_t store_ntcs(struct class_device *dev, const char *buf, size_t len)
+{
+	struct vpe *vpe = get_vpe(tclimit);
+	unsigned long new;
+	char *endp;
+
+	new = simple_strtoul(buf, &endp, 0);
+	if (endp == buf)
+		goto out_einval;
+
+	if (new == 0 || new > (hw_tcs - tclimit))
+		goto out_einval;
+
+	vpe->ntcs = new;
+
+	return len;
+
+out_einval:
+	return -EINVAL;;
+}
+
+static struct class_device_attribute vpe_class_attributes[] = {
+	__ATTR(kill, S_IWUSR, NULL, store_kill),
+	__ATTR(ntcs, S_IRUGO | S_IWUSR, show_ntcs, store_ntcs),
+	{}
+};
+
+static void vpe_class_device_release(struct class_device *cd)
+{
+	kfree(cd);
+}
+
+struct class vpe_class = {
+	.name = "vpe",
+	.owner = THIS_MODULE,
+	.release = vpe_class_device_release,
+	.class_dev_attrs = vpe_class_attributes,
+};
+
+struct class_device vpe_device;
 
 static int __init vpe_module_init(void)
 {
+	unsigned int mtflags, vpflags;
+	unsigned long flags, val;
 	struct vpe *v = NULL;
-	struct device *dev;
 	struct tc *t;
-	unsigned long val;
-	int i, err;
+	int tc, err;
 
 	if (!cpu_has_mipsmt) {
 		printk("VPE loader: not a MIPS MT capable processor\n");
+		return -ENODEV;
+	}
+
+	if (vpelimit == 0) {
+		printk(KERN_WARNING "No VPEs reserved for AP/SP, not "
+		       "initializing VPE loader.\nPass maxvpes=<n> argument as "
+		       "kernel argument\n");
+
+		return -ENODEV;
+	}
+
+	if (tclimit == 0) {
+		printk(KERN_WARNING "No TCs reserved for AP/SP, not "
+		       "initializing VPE loader.\nPass maxtcs=<n> argument as "
+		       "kernel argument\n");
+
 		return -ENODEV;
 	}
 
@@ -1387,41 +1440,73 @@ static int __init vpe_module_init(void)
 		return major;
 	}
 
-	dev = device_create(mt_class, NULL, MKDEV(major, minor),
-	                    "tc%d", minor);
-	if (IS_ERR(dev)) {
-		err = PTR_ERR(dev);
+	err = class_register(&vpe_class);
+	if (err) {
+		printk(KERN_ERR "vpe_class registration failed\n");
 		goto out_chrdev;
 	}
-	vpe_dev = dev;
 
-	dmt();
-	dvpe();
+	class_device_initialize(&vpe_device);
+	vpe_device.class	= &vpe_class,
+	vpe_device.parent	= NULL,
+	strlcpy(vpe_device.class_id, "vpe1", BUS_ID_SIZE);
+	vpe_device.devt = MKDEV(major, minor);
+	err = class_device_add(&vpe_device);
+	if (err) {
+		printk(KERN_ERR "Adding vpe_device failed\n");
+		goto out_class;
+	}
+
+	local_irq_save(flags);
+	mtflags = dmt();
+	vpflags = dvpe();
 
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
 	/* dump_mtregs(); */
 
-
 	val = read_c0_mvpconf0();
-	for (i = 0; i < ((val & MVPCONF0_PTC) + 1); i++) {
-		t = alloc_tc(i);
+	hw_tcs = (val & MVPCONF0_PTC) + 1;
+	hw_vpes = ((val & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
+
+	for (tc = tclimit; tc < hw_tcs; tc++) {
+		/*
+		 * Must re-enable multithreading temporarily or in case we
+		 * reschedule send IPIs or similar we might hang.
+		 */
+		clear_c0_mvpcontrol(MVPCONTROL_VPC);
+		evpe(vpflags);
+		emt(mtflags);
+		local_irq_restore(flags);
+		t = alloc_tc(tc);
+		if (!t) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		local_irq_save(flags);
+		mtflags = dmt();
+		vpflags = dvpe();
+		set_c0_mvpcontrol(MVPCONTROL_VPC);
 
 		/* VPE's */
-		if (i < ((val & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1) {
-			settc(i);
+		if (tc < hw_tcs) {
+			settc(tc);
 
-			if ((v = alloc_vpe(i)) == NULL) {
+			if ((v = alloc_vpe(tc)) == NULL) {
 				printk(KERN_WARNING "VPE: unable to allocate VPE\n");
-				return -ENODEV;
+
+				goto out_reenable;
 			}
+
+			v->ntcs = hw_tcs - tclimit;
 
 			/* add the tc to the list of this vpe's tc's. */
 			list_add(&t->tc, &v->tc);
 
 			/* deactivate all but vpe0 */
-			if (i != 0) {
+			if (tc >= tclimit) {
 				unsigned long tmp = read_vpe_c0_vpeconf0();
 
 				tmp &= ~VPECONF0_VPA;
@@ -1434,7 +1519,7 @@ static int __init vpe_module_init(void)
 			/* disable multi-threading with TC's */
 			write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() & ~VPECONTROL_TE);
 
-			if (i != 0) {
+			if (tc >= vpelimit) {
 				/*
 				 * Set config to be the same as vpe0,
 				 * particularly kseg0 coherency alg
@@ -1446,10 +1531,10 @@ static int __init vpe_module_init(void)
 		/* TC's */
 		t->pvpe = v;	/* set the parent vpe */
 
-		if (i != 0) {
+		if (tc >= tclimit) {
 			unsigned long tmp;
 
-			settc(i);
+			settc(tc);
 
 			/* Any TC that is bound to VPE0 gets left as is - in case
 			   we are running SMTC on VPE0. A TC that is bound to any
@@ -1479,17 +1564,25 @@ static int __init vpe_module_init(void)
 		}
 	}
 
+out_reenable:
 	/* release config state */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
+
+	evpe(vpflags);
+	emt(mtflags);
+	local_irq_restore(flags);
 
 #ifdef CONFIG_MIPS_APSP_KSPD
 	kspd_events.kspd_sp_exit = kspd_sp_exit;
 #endif
 	return 0;
 
+out_class:
+	class_unregister(&vpe_class);
 out_chrdev:
 	unregister_chrdev(major, module_name);
 
+out:
 	return err;
 }
 
@@ -1503,7 +1596,7 @@ static void __exit vpe_module_exit(void)
 		}
 	}
 
-	device_destroy(mt_class, MKDEV(major, minor));
+	class_device_del(&vpe_device);
 	unregister_chrdev(major, module_name);
 }
 

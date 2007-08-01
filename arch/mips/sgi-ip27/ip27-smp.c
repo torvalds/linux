@@ -181,7 +181,7 @@ void __init prom_boot_secondary(int cpu, struct task_struct *idle)
 		0, (void *) sp, (void *) gp);
 }
 
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 	per_cpu_init();
 	local_irq_enable();

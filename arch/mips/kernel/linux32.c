@@ -566,6 +566,13 @@ asmlinkage long sys32_fadvise64_64(int fd, int __pad,
 			flags);
 }
 
+asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
+	unsigned offset_a3, unsigned len_a4, unsigned len_a5)
+{
+	return sys_fallocate(fd, mode, merge_64(offset_a2, offset_a3),
+	                     merge_64(len_a4, len_a5));
+}
+
 save_static_function(sys32_clone);
 static int noinline __used
 _sys32_clone(nabi_no_regargs struct pt_regs regs)
