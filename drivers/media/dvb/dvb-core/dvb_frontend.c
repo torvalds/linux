@@ -748,7 +748,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (!fe || fepriv->exit)
+	if (fepriv->exit)
 		return -ENODEV;
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY &&
