@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/setup_mappi.c
+ *  linux/arch/m32r/platforms/mappi/setup.c
  *
  *  Setup routines for Renesas MAPPI Board
  *

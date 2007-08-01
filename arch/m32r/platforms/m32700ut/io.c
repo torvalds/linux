@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/io_m32700ut.c
+ *  linux/arch/m32r/platforms/m32700ut/io.c
  *
  *  Typical I/O routines for M32700UT board.
  *

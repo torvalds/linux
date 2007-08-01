@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/setup_usrv.c
+ *  linux/arch/m32r/platforms/usrv/setup.c
  *
  *  Setup routines for MITSUBISHI uServer
  *
@@ -198,7 +198,7 @@ void __init init_IRQ(void)
 #endif  /* CONFIG_SERIAL_M32R_SIO */
 
 	/* INT#67-#71: CFC#0 IREQ on PLD */
-	for (i = 0 ; i < CONFIG_CFC_NUM ; i++ ) {
+	for (i = 0 ; i < CONFIG_M32R_CFC_NUM ; i++ ) {
 		irq_desc[PLD_IRQ_CF0 + i].status = IRQ_DISABLED;
 		irq_desc[PLD_IRQ_CF0 + i].chip = &m32700ut_pld_irq_type;
 		irq_desc[PLD_IRQ_CF0 + i].action = 0;
@@ -246,4 +246,3 @@ void __init init_IRQ(void)
 	icu_data[M32R_IRQ_INT1].icucr = M32R_ICUCR_ISMOD11;
 	enable_mappi_irq(M32R_IRQ_INT1);
 }
-

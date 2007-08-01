@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/io_oaks32r.c
+ *  linux/arch/m32r/platforms/oaks32r/io.c
  *
  *  Typical I/O routines for OAKS32R board.
  *

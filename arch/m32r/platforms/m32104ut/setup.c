@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/setup_m32104ut.c
+ *  linux/arch/m32r/platforms/m32104ut/setup.c
  *
  *  Setup routines for M32104UT Board
  *

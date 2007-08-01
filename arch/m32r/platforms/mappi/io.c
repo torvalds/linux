@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/io_mappi.c
+ *  linux/arch/m32r/platforms/mappi/io.c
  *
  *  Typical I/O routines for Mappi board.
  *

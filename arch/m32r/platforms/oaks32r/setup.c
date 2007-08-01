@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m32r/kernel/setup_oaks32r.c
+ *  linux/arch/m32r/platforms/oaks32r/setup.c
  *
  *  Setup routines for OAKS32R Board
  *
