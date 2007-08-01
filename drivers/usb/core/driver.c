@@ -202,6 +202,11 @@ static int usb_probe_interface(struct device *dev)
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
 
+ 	if (udev->authorized == 0) {
+ 		dev_err(&intf->dev, "Device is not authorized for usage\n");
+ 		return -ENODEV;
+ 	}
+
 	id = usb_match_id(intf, driver->id_table);
 	if (!id)
 		id = usb_match_dynamic_id(intf, driver);
