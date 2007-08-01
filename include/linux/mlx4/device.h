@@ -214,6 +214,17 @@ struct mlx4_mr {
 	int			enabled;
 };
 
+struct mlx4_fmr {
+	struct mlx4_mr		mr;
+	struct mlx4_mpt_entry  *mpt;
+	__be64		       *mtts;
+	dma_addr_t		dma_handle;
+	int			max_pages;
+	int			max_maps;
+	int			maps;
+	u8			page_shift;
+};
+
 struct mlx4_uar {
 	unsigned long		pfn;
 	int			index;
@@ -336,5 +347,15 @@ int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
+
+int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list,
+		      int npages, u64 iova, u32 *lkey, u32 *rkey);
+int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
+		   int max_maps, u8 page_shift, struct mlx4_fmr *fmr);
+int mlx4_fmr_enable(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
+void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
+		    u32 *lkey, u32 *rkey);
+int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
+int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 
 #endif /* MLX4_DEVICE_H */

@@ -93,6 +93,11 @@ struct mlx4_ib_mr {
 	struct ib_umem	       *umem;
 };
 
+struct mlx4_ib_fmr {
+	struct ib_fmr           ibfmr;
+	struct mlx4_fmr         mfmr;
+};
+
 struct mlx4_ib_wq {
 	u64		       *wrid;
 	spinlock_t		lock;
@@ -199,6 +204,10 @@ static inline struct mlx4_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx4_ib_mr, ibmr);
 }
 
+static inline struct mlx4_ib_fmr *to_mfmr(struct ib_fmr *ibfmr)
+{
+	return container_of(ibfmr, struct mlx4_ib_fmr, ibfmr);
+}
 static inline struct mlx4_ib_qp *to_mqp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct mlx4_ib_qp, ibqp);
@@ -283,6 +292,13 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
 			struct ib_mad *in_mad, struct ib_mad *out_mad);
 int mlx4_ib_mad_init(struct mlx4_ib_dev *dev);
 void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev);
+
+struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int mr_access_flags,
+				  struct ib_fmr_attr *fmr_attr);
+int mlx4_ib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list, int npages,
+			 u64 iova);
+int mlx4_ib_unmap_fmr(struct list_head *fmr_list);
+int mlx4_ib_fmr_dealloc(struct ib_fmr *fmr);
 
 static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {

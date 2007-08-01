@@ -607,6 +607,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 
+	ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
+	ibdev->ib_dev.map_phys_fmr	= mlx4_ib_map_phys_fmr;
+	ibdev->ib_dev.unmap_fmr		= mlx4_ib_unmap_fmr;
+	ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
+
 	if (init_node_data(ibdev))
 		goto err_map;
 
