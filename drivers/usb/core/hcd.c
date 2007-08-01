@@ -792,27 +792,23 @@ static void usb_bus_init (struct usb_bus *bus)
  */
 static int usb_register_bus(struct usb_bus *bus)
 {
+	int result = -E2BIG;
 	int busnum;
 
 	mutex_lock(&usb_bus_list_lock);
 	busnum = find_next_zero_bit (busmap.busmap, USB_MAXBUS, 1);
-	if (busnum < USB_MAXBUS) {
-		set_bit (busnum, busmap.busmap);
-		bus->busnum = busnum;
-	} else {
+	if (busnum >= USB_MAXBUS) {
 		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
-		mutex_unlock(&usb_bus_list_lock);
-		return -E2BIG;
+		goto error_find_busnum;
 	}
-
+	set_bit (busnum, busmap.busmap);
+	bus->busnum = busnum;
 	bus->class_dev = class_device_create(usb_host_class, NULL, MKDEV(0,0),
-					     bus->controller, "usb_host%d", busnum);
-	if (IS_ERR(bus->class_dev)) {
-		clear_bit(busnum, busmap.busmap);
-		mutex_unlock(&usb_bus_list_lock);
-		return PTR_ERR(bus->class_dev);
-	}
-
+					     bus->controller, "usb_host%d",
+					     busnum);
+	result = PTR_ERR(bus->class_dev);
+	if (IS_ERR(bus->class_dev))
+		goto error_create_class_dev;
 	class_set_devdata(bus->class_dev, bus);
 
 	/* Add it to the local list of buses */
@@ -821,8 +817,15 @@ static int usb_register_bus(struct usb_bus *bus)
 
 	usb_notify_add_bus(bus);
 
-	dev_info (bus->controller, "new USB bus registered, assigned bus number %d\n", bus->busnum);
+	dev_info (bus->controller, "new USB bus registered, assigned bus "
+		  "number %d\n", bus->busnum);
 	return 0;
+
+error_create_class_dev:
+	clear_bit(busnum, busmap.busmap);
+error_find_busnum:
+	mutex_unlock(&usb_bus_list_lock);
+	return result;
 }
 
 /**
