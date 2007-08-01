@@ -234,7 +234,7 @@ struct lm93_data {
 	struct {
 		u8 min;
 		u8 max;
-	} temp_lim[3];
+	} temp_lim[4];
 
 	/* vin1 - vin16: low and high limits */
 	struct {
