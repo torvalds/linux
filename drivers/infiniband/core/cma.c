@@ -52,6 +52,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
+#define CMA_CM_MRA_SETTING (IB_CM_MRA_FLAG_DELAY | 24)
 
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device);
@@ -1090,6 +1091,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.param.ud.private_data_len =
 				IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE - offset;
 	} else {
+		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		conn_id = cma_new_conn_id(&listen_id->id, ib_event);
 		cma_set_req_event_data(&event, &ib_event->param.req_rcvd,
 				       ib_event->private_data, offset);
