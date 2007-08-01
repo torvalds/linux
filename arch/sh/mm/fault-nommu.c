@@ -1,47 +1,33 @@
-/* 
+/*
  * arch/sh/mm/fault-nommu.c
  *
- * Copyright (C) 2002 Paul Mundt
+ * Copyright (C) 2002 - 2007 Paul Mundt
  *
  * Based on linux/arch/sh/mm/fault.c:
  *  Copyright (C) 1999  Niibe Yutaka
  *
  * Released under the terms of the GNU GPL v2.0.
  */
-
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/interrupt.h>
-
+#include <linux/hardirq.h>
+#include <linux/kprobes.h>
 #include <asm/system.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/pgalloc.h>
-#include <asm/mmu_context.h>
-#include <asm/cacheflush.h>
-
-#if defined(CONFIG_SH_KGDB)
+#include <asm/ptrace.h>
 #include <asm/kgdb.h>
-#endif
-
-extern void die(const char *,struct pt_regs *,long);
 
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
-			      unsigned long address)
+asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+					unsigned long writeaccess,
+					unsigned long address)
 {
+	trace_hardirqs_on();
+	local_irq_enable();
+
 #if defined(CONFIG_SH_KGDB)
 	if (kgdb_nofault && kgdb_bus_err_hook)
 		kgdb_bus_err_hook();
@@ -65,17 +51,14 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	do_exit(SIGKILL);
 }
 
-asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
-			       unsigned long address)
+asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
+					 unsigned long writeaccess,
+					 unsigned long address)
 {
 #if defined(CONFIG_SH_KGDB)
 	if (kgdb_nofault && kgdb_bus_err_hook)
 		kgdb_bus_err_hook();
 #endif
 
-	if (address >= TASK_SIZE)
-		return 1;
-
-	return 0;
+	return (address >= TASK_SIZE);
 }
-
