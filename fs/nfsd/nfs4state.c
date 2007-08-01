@@ -1021,7 +1021,7 @@ nfsd4_free_slab(struct kmem_cache **slab)
 	*slab = NULL;
 }
 
-static void
+void
 nfsd4_free_slabs(void)
 {
 	nfsd4_free_slab(&stateowner_slab);
@@ -3152,11 +3152,14 @@ nfs4_check_open_reclaim(clientid_t *clid)
 
 /* initialization to perform at module load time: */
 
-void
+int
 nfs4_state_init(void)
 {
-	int i;
+	int i, status;
 
+	status = nfsd4_init_slabs();
+	if (status)
+		return status;
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&conf_id_hashtbl[i]);
 		INIT_LIST_HEAD(&conf_str_hashtbl[i]);
@@ -3185,6 +3188,7 @@ nfs4_state_init(void)
 	for (i = 0; i < CLIENT_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
 	reclaim_str_hashtbl_size = 0;
+	return 0;
 }
 
 static void
@@ -3245,20 +3249,15 @@ __nfs4_state_start(void)
 	set_max_delegations();
 }
 
-int
+void
 nfs4_state_start(void)
 {
-	int status;
-
 	if (nfs4_init)
-		return 0;
-	status = nfsd4_init_slabs();
-	if (status)
-		return status;
+		return;
 	nfsd4_load_reboot_recovery_data();
 	__nfs4_state_start();
 	nfs4_init = 1;
-	return 0;
+	return;
 }
 
 int
@@ -3316,7 +3315,6 @@ nfs4_state_shutdown(void)
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
-	nfsd4_free_slabs();
 	nfs4_unlock_state();
 }
 
