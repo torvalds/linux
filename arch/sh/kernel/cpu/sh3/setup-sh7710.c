@@ -88,7 +88,7 @@ static struct intc_prio_reg prio_registers[] = {
 	{ 0xfffffee2, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xfffffee4, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
 	{ 0xa4000016, 16, 4, /* IPRC */ { IRQ3, IRQ2, IRQ1, IRQ0 } },
-	{ 0xa4000018, 16, 4, /* IPRD */ { 0, 0, IRQ4, IRQ5 } },
+	{ 0xa4000018, 16, 4, /* IPRD */ { 0, 0, IRQ5, IRQ4 } },
 	{ 0xa400001a, 16, 4, /* IPRE */ { DMAC1, SCIF0, SCIF1 } },
 	{ 0xa4080000, 16, 4, /* IPRF */ { 0, DMAC2 } },
 #ifdef CONFIG_CPU_SUBTYPE_SH7710
