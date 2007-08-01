@@ -191,7 +191,7 @@ static unsigned long __init xpram_highest_page_index(void)
 /*
  * Block device make request function.
  */
-static int xpram_make_request(request_queue_t *q, struct bio *bio)
+static int xpram_make_request(struct request_queue *q, struct bio *bio)
 {
 	xpram_device_t *xdev = bio->bi_bdev->bd_disk->private_data;
 	struct bio_vec *bvec;

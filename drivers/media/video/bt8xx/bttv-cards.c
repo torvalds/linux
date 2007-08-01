@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
+#include <net/checksum.h>
 
 #include <asm/io.h>
 
@@ -45,7 +46,7 @@ static void boot_msp34xx(struct bttv *btv, int pin);
 static void boot_bt832(struct bttv *btv);
 static void hauppauge_eeprom(struct bttv *btv);
 static void avermedia_eeprom(struct bttv *btv);
-static void osprey_eeprom(struct bttv *btv);
+static void osprey_eeprom(struct bttv *btv, const u8 ee[256]);
 static void modtec_eeprom(struct bttv *btv);
 static void init_PXC200(struct bttv *btv);
 static void init_RTV24(struct bttv *btv);
@@ -2843,13 +2844,28 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote     = 1,
 	},
 		/* ---- card 0x8c ---------------------------------- */
+	/* Has four Bt878 chips behind a PCI bridge, each chip has:
+	     one external BNC composite input (mux 2)
+	     three internal composite inputs (unknown muxes)
+	     an 18-bit stereo A/D (CS5331A), which has:
+	       one external stereo unblanced (RCA) audio connection
+	       one (or 3?) internal stereo balanced (XLR) audio connection
+	       input is selected via gpio to a 14052B mux
+		 (mask=0x300, unbal=0x000, bal=0x100, ??=0x200,0x300)
+	       gain is controlled via an X9221A chip on the I2C bus @0x28
+	       sample rate is controlled via gpio to an MK1413S
+		 (mask=0x3, 32kHz=0x0, 44.1kHz=0x1, 48kHz=0x2, ??=0x3)
+	     There is neither a tuner nor an svideo input. */
 	[BTTV_BOARD_OSPREY440]  = {
 		.name           = "Osprey 440",
-		.video_inputs   = 1,
-		.audio_inputs   = 1,
+		.video_inputs   = 4,
+		.audio_inputs   = 2, /* this is meaningless */
 		.tuner          = UNSET,
-		.svhs           = 1,
-		.muxsel         = { 2 },
+		.svhs           = UNSET,
+		.muxsel         = { 2, 3, 0, 1 }, /* 3,0,1 are guesses */
+		.gpiomask	= 0x303,
+		.gpiomute	= 0x000, /* int + 32kHz */
+		.gpiomux	= { 0, 0, 0x000, 0x100},
 		.pll            = PLL_28,
 		.tuner_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
@@ -3453,11 +3469,12 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case BTTV_BOARD_OSPREY2xx:
 	case BTTV_BOARD_OSPREY2x0_SVID:
 	case BTTV_BOARD_OSPREY2x0:
+	case BTTV_BOARD_OSPREY440:
 	case BTTV_BOARD_OSPREY500:
 	case BTTV_BOARD_OSPREY540:
 	case BTTV_BOARD_OSPREY2000:
 		bttv_readee(btv,eeprom_data,0xa0);
-		osprey_eeprom(btv);
+		osprey_eeprom(btv, eeprom_data);
 		break;
 	case BTTV_BOARD_IDS_EAGLE:
 		init_ids_eagle(btv);
@@ -3748,106 +3765,119 @@ static int __devinit pvr_boot(struct bttv *btv)
 /* ----------------------------------------------------------------------- */
 /* some osprey specific stuff                                              */
 
-static void __devinit osprey_eeprom(struct bttv *btv)
+static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
 {
-       int i = 0;
-       unsigned char *ee = eeprom_data;
-       unsigned long serial = 0;
+	int i;
+	u32 serial = 0;
+	int cardid = -1;
 
-       if (btv->c.type == 0) {
-	       /* this might be an antique... check for MMAC label in eeprom */
-	       if ((ee[0]=='M') && (ee[1]=='M') && (ee[2]=='A') && (ee[3]=='C')) {
-		       unsigned char checksum = 0;
-		       for (i = 0; i < 21; i++)
-			       checksum += ee[i];
-		       if (checksum != ee[21])
-			       return;
-		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
-		       for (i = 12; i < 21; i++)
-			       serial *= 10, serial += ee[i] - '0';
-	       }
+	/* This code will nevery actually get called in this case.... */
+	if (btv->c.type == BTTV_BOARD_UNKNOWN) {
+		/* this might be an antique... check for MMAC label in eeprom */
+		if (!strncmp(ee, "MMAC", 4)) {
+			u8 checksum = 0;
+			for (i = 0; i < 21; i++)
+				checksum += ee[i];
+			if (checksum != ee[21])
+				return;
+			cardid = BTTV_BOARD_OSPREY1x0_848;
+			for (i = 12; i < 21; i++)
+				serial *= 10, serial += ee[i] - '0';
+		}
        } else {
-	       unsigned short type;
-	       int offset = 4*16;
+		unsigned short type;
 
-	       for (; offset < 8*16; offset += 16) {
-		       unsigned short checksum = 0;
-		       /* verify the checksum */
-		       for (i = 0; i < 14; i++)
-				checksum += ee[i+offset];
-			checksum = ~checksum;  /* no idea why */
-			if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
-				   ((checksum & 0x0FF) == ee[offset+15])) {
-			       break;
-		       }
-	       }
+		for (i = 4*16; i < 8*16; i += 16) {
+			u16 checksum = ip_compute_csum(ee + i, 16);
 
-	       if (offset >= 8*16)
-		       return;
+			if ((checksum&0xff) + (checksum>>8) == 0xff)
+				break;
+		}
+		if (i >= 8*16)
+			return;
+		ee += i;
 
-	       /* found a valid descriptor */
-	       type = (ee[offset+4]<<8) | (ee[offset+5]);
+		/* found a valid descriptor */
+		type = be16_to_cpup((u16*)(ee+4));
 
-	       switch(type) {
-	       /* 848 based */
-	       case 0x0004:
-		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
-		       break;
-	       case 0x0005:
-		       btv->c.type = BTTV_BOARD_OSPREY101_848;
-		       break;
+		switch(type) {
+		/* 848 based */
+		case 0x0004:
+			cardid = BTTV_BOARD_OSPREY1x0_848;
+			break;
+		case 0x0005:
+			cardid = BTTV_BOARD_OSPREY101_848;
+			break;
 
-	       /* 878 based */
-	       case 0x0012:
-	       case 0x0013:
-		       btv->c.type = BTTV_BOARD_OSPREY1x0;
-		       break;
-	       case 0x0014:
-	       case 0x0015:
-		       btv->c.type = BTTV_BOARD_OSPREY1x1;
-		       break;
-	       case 0x0016:
-	       case 0x0017:
-	       case 0x0020:
-		       btv->c.type = BTTV_BOARD_OSPREY1x1_SVID;
-		       break;
-	       case 0x0018:
-	       case 0x0019:
-	       case 0x001E:
-	       case 0x001F:
-		       btv->c.type = BTTV_BOARD_OSPREY2xx;
-		       break;
-	       case 0x001A:
-	       case 0x001B:
-		       btv->c.type = BTTV_BOARD_OSPREY2x0_SVID;
-		       break;
-	       case 0x0040:
-		       btv->c.type = BTTV_BOARD_OSPREY500;
-		       break;
-	       case 0x0050:
-	       case 0x0056:
-		       btv->c.type = BTTV_BOARD_OSPREY540;
-		       /* bttv_osprey_540_init(btv); */
-		       break;
-	       case 0x0060:
-	       case 0x0070:
-	       case 0x00A0:
-		       btv->c.type = BTTV_BOARD_OSPREY2x0;
-		       /* enable output on select control lines */
-		       gpio_inout(0xffffff,0x000303);
-		       break;
-	       default:
-		       /* unknown...leave generic, but get serial # */
-		       break;
-	       }
-	       serial =  (ee[offset+6] << 24)
-		       | (ee[offset+7] << 16)
-		       | (ee[offset+8] <<  8)
-		       | (ee[offset+9]);
-       }
+		/* 878 based */
+		case 0x0012:
+		case 0x0013:
+			cardid = BTTV_BOARD_OSPREY1x0;
+			break;
+		case 0x0014:
+		case 0x0015:
+			cardid = BTTV_BOARD_OSPREY1x1;
+			break;
+		case 0x0016:
+		case 0x0017:
+		case 0x0020:
+			cardid = BTTV_BOARD_OSPREY1x1_SVID;
+			break;
+		case 0x0018:
+		case 0x0019:
+		case 0x001E:
+		case 0x001F:
+			cardid = BTTV_BOARD_OSPREY2xx;
+			break;
+		case 0x001A:
+		case 0x001B:
+			cardid = BTTV_BOARD_OSPREY2x0_SVID;
+			break;
+		case 0x0040:
+			cardid = BTTV_BOARD_OSPREY500;
+			break;
+		case 0x0050:
+		case 0x0056:
+			cardid = BTTV_BOARD_OSPREY540;
+			/* bttv_osprey_540_init(btv); */
+			break;
+		case 0x0060:
+		case 0x0070:
+		case 0x00A0:
+			cardid = BTTV_BOARD_OSPREY2x0;
+			/* enable output on select control lines */
+			gpio_inout(0xffffff,0x000303);
+			break;
+		case 0x00D8:
+			cardid = BTTV_BOARD_OSPREY440;
+			break;
+		default:
+			/* unknown...leave generic, but get serial # */
+			printk(KERN_INFO "bttv%d: "
+			       "osprey eeprom: unknown card type 0x%04x\n",
+			       btv->c.nr, type);
+			break;
+		}
+		serial = be32_to_cpup((u32*)(ee+6));
+	}
 
-       printk(KERN_INFO "bttv%d: osprey eeprom: card=%d name=%s serial=%ld\n",
-	      btv->c.nr, btv->c.type, bttv_tvcards[btv->c.type].name,serial);
+	printk(KERN_INFO "bttv%d: osprey eeprom: card=%d '%s' serial=%u\n",
+	       btv->c.nr, cardid,
+	       cardid>0 ? bttv_tvcards[cardid].name : "Unknown", serial);
+
+	if (cardid<0 || btv->c.type == cardid)
+		return;
+
+	/* card type isn't set correctly */
+	if (card[btv->c.nr] < bttv_num_tvcards) {
+		printk(KERN_WARNING "bttv%d: osprey eeprom: "
+		       "Not overriding user specified card type\n", btv->c.nr);
+	} else {
+		printk(KERN_INFO "bttv%d: osprey eeprom: "
+		       "Changing card type from %d to %d\n", btv->c.nr,
+		       btv->c.type, cardid);
+		btv->c.type = cardid;
+	}
 }
 
 /* ----------------------------------------------------------------------- */

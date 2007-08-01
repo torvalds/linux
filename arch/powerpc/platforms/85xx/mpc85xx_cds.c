@@ -24,6 +24,7 @@
 #include <linux/seq_file.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
 
 #include <asm/system.h>
@@ -45,6 +46,7 @@
 #include <asm/i8259.h>
 
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pci.h>
 #include "mpc85xx.h"
 
 static int cds_pci_slot = 2;
@@ -58,8 +60,6 @@ static volatile u8 *cadmus;
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				  u_char bus, u_char devfn)
 {
-	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
 	/* We explicitly do not go past the Tundra 320 Bridge */
 	if ((bus == 1) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -67,6 +67,37 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	else
 		return PCIBIOS_SUCCESSFUL;
+}
+
+static void mpc85xx_cds_restart(char *cmd)
+{
+	struct pci_dev *dev;
+	u_char tmp;
+
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686,
+					NULL))) {
+
+		/* Use the VIA Super Southbridge to force a PCI reset */
+		pci_read_config_byte(dev, 0x47, &tmp);
+		pci_write_config_byte(dev, 0x47, tmp | 1);
+
+		/* Flush the outbound PCI write queues */
+		pci_read_config_byte(dev, 0x47, &tmp);
+
+		/*
+		 *  At this point, the harware reset should have triggered.
+		 *  However, if it doesn't work for some mysterious reason,
+		 *  just fall through to the default reset below.
+		 */
+
+		pci_dev_put(dev);
+	}
+
+	/*
+	 *  If we can't find the VIA chip (maybe the P2P bridge is disabled)
+	 *  or the VIA chip reset didn't work, just use the default reset.
+	 */
+	mpc85xx_restart(NULL);
 }
 
 static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
@@ -98,7 +129,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 		/* There are two USB controllers.
 		 * Identify them by functon number
 		 */
-			if (PCI_FUNC(dev->devfn))
+			if (PCI_FUNC(dev->devfn) == 3)
 				dev->irq = 11;
 			else
 				dev->irq = 10;
@@ -109,17 +140,41 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 	}
 }
 
+static void __devinit skip_fake_bridge(struct pci_dev *dev)
+{
+	/* Make it an error to skip the fake bridge
+	 * in pci_setup_device() in probe.c */
+	dev->hdr_type = 0x7f;
+}
+DECLARE_PCI_FIXUP_EARLY(0x1957, 0x3fff, skip_fake_bridge);
+DECLARE_PCI_FIXUP_EARLY(0x3fff, 0x1957, skip_fake_bridge);
+DECLARE_PCI_FIXUP_EARLY(0xff3f, 0x5719, skip_fake_bridge);
+
 #ifdef CONFIG_PPC_I8259
-#warning The i8259 PIC support is currently broken
-static void mpc85xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void mpc85xx_8259_cascade_handler(unsigned int irq,
+					 struct irq_desc *desc)
 {
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
+		/* handle an interrupt from the 8259 */
 		generic_handle_irq(cascade_irq);
 
-	desc->chip->eoi(irq);
+	/* check for any interrupts from the shared IRQ line */
+	handle_fasteoi_irq(irq, desc);
 }
+
+static irqreturn_t mpc85xx_8259_cascade_action(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static struct irqaction mpc85xxcds_8259_irqaction = {
+	.handler = mpc85xx_8259_cascade_action,
+	.flags = IRQF_SHARED,
+	.mask = CPU_MASK_NONE,
+	.name = "8259 cascade",
+};
 #endif /* PPC_I8259 */
 #endif /* CONFIG_PCI */
 
@@ -128,10 +183,6 @@ static void __init mpc85xx_cds_pic_init(void)
 	struct mpic *mpic;
 	struct resource r;
 	struct device_node *np = NULL;
-#ifdef CONFIG_PPC_I8259
-	struct device_node *cascade_node = NULL;
-	int cascade_irq;
-#endif
 
 	np = of_find_node_by_type(np, "open-pic");
 
@@ -155,8 +206,19 @@ static void __init mpc85xx_cds_pic_init(void)
 	of_node_put(np);
 
 	mpic_init(mpic);
+}
 
-#ifdef CONFIG_PPC_I8259
+#if defined(CONFIG_PPC_I8259) && defined(CONFIG_PCI)
+static int mpc85xx_cds_8259_attach(void)
+{
+	int ret;
+	struct device_node *np = NULL;
+	struct device_node *cascade_node = NULL;
+	int cascade_irq;
+
+	if (!machine_is(mpc85xx_cds))
+		return 0;
+
 	/* Initialize the i8259 controller */
 	for_each_node_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
@@ -166,21 +228,38 @@ static void __init mpc85xx_cds_pic_init(void)
 
 	if (cascade_node == NULL) {
 		printk(KERN_DEBUG "Could not find i8259 PIC\n");
-		return;
+		return -ENODEV;
 	}
 
 	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
 	if (cascade_irq == NO_IRQ) {
 		printk(KERN_ERR "Failed to map cascade interrupt\n");
-		return;
+		return -ENXIO;
 	}
 
 	i8259_init(cascade_node, 0);
 	of_node_put(cascade_node);
 
-	set_irq_chained_handler(cascade_irq, mpc85xx_8259_cascade);
-#endif /* CONFIG_PPC_I8259 */
+	/*
+	 *  Hook the interrupt to make sure desc->action is never NULL.
+	 *  This is required to ensure that the interrupt does not get
+	 *  disabled when the last user of the shared IRQ line frees their
+	 *  interrupt.
+	 */
+	if ((ret = setup_irq(cascade_irq, &mpc85xxcds_8259_irqaction))) {
+		printk(KERN_ERR "Failed to setup cascade interrupt\n");
+		return ret;
+	}
+
+	/* Success. Connect our low-level cascade handler. */
+	set_irq_handler(cascade_irq, mpc85xx_8259_cascade_handler);
+
+	return 0;
 }
+
+device_initcall(mpc85xx_cds_8259_attach);
+
+#endif /* CONFIG_PPC_I8259 */
 
 /*
  * Setup the architecture
@@ -218,9 +297,14 @@ static void __init mpc85xx_cds_setup_arch(void)
 	}
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		mpc85xx_add_bridge(np);
-
+	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
+		struct resource rsrc;
+		of_address_to_resource(np, 0, &rsrc);
+		if ((rsrc.start & 0xfffff) == 0x8000)
+			fsl_add_bridge(np, 1);
+		else
+			fsl_add_bridge(np, 0);
+	}
 	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
@@ -265,7 +349,12 @@ define_machine(mpc85xx_cds) {
 	.init_IRQ	= mpc85xx_cds_pic_init,
 	.show_cpuinfo	= mpc85xx_cds_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
+#ifdef CONFIG_PCI
+	.restart	= mpc85xx_cds_restart,
+#else
 	.restart	= mpc85xx_restart,
+#endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 };

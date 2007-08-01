@@ -138,8 +138,8 @@ void __init lmb_analyze(void)
 static long __init lmb_add_region(struct lmb_region *rgn, unsigned long base,
 				  unsigned long size)
 {
-	unsigned long i, coalesced = 0;
-	long adjacent;
+	unsigned long coalesced = 0;
+	long adjacent, i;
 
 	/* First try and coalesce this LMB with another. */
 	for (i=0; i < rgn->cnt; i++) {

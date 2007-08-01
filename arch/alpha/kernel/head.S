@@ -10,6 +10,7 @@
 #include <asm/system.h>
 #include <asm/asm-offsets.h>
 
+.section .text.head, "ax"
 .globl swapper_pg_dir
 .globl _stext
 swapper_pg_dir=SWAPPER_PGD

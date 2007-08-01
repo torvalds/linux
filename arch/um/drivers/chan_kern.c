@@ -157,7 +157,7 @@ static void tty_receive_char(struct tty_struct *tty, char ch)
 
 static int open_one_chan(struct chan *chan)
 {
-	int fd;
+	int fd, err;
 
 	if(chan->opened)
 		return 0;
@@ -168,6 +168,13 @@ static int open_one_chan(struct chan *chan)
 				     chan->data, &chan->dev);
 	if(fd < 0)
 		return fd;
+
+	err = os_set_fd_block(fd, 0);
+	if (err) {
+		(*chan->ops->close)(fd, chan->data);
+		return err;
+	}
+
 	chan->fd = fd;
 
 	chan->opened = 1;

@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sd_ops.h
+ *  linux/drivers/mmc/core/sd_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
  *
@@ -21,11 +21,40 @@
 #include "core.h"
 #include "sd_ops.h"
 
+static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
+{
+	int err;
+	struct mmc_command cmd;
+
+	BUG_ON(!host);
+	BUG_ON(card && (card->host != host));
+
+	cmd.opcode = MMC_APP_CMD;
+
+	if (card) {
+		cmd.arg = card->rca << 16;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		cmd.arg = 0;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_BCR;
+	}
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	if (err != MMC_ERR_NONE)
+		return err;
+
+	/* Check that card supported application commands */
+	if (!(cmd.resp[0] & R1_APP_CMD))
+		return MMC_ERR_FAILED;
+
+	return MMC_ERR_NONE;
+}
+
 /**
  *	mmc_wait_for_app_cmd - start an application command and wait for
  			       completion
  *	@host: MMC host to start command
- *	@rca: RCA to send MMC_APP_CMD to
+ *	@card: Card to send MMC_APP_CMD to
  *	@cmd: MMC command to start
  *	@retries: maximum number of retries
  *
@@ -76,35 +105,6 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 }
 
 EXPORT_SYMBOL(mmc_wait_for_app_cmd);
-
-int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
-{
-	int err;
-	struct mmc_command cmd;
-
-	BUG_ON(!host);
-	BUG_ON(card && (card->host != host));
-
-	cmd.opcode = MMC_APP_CMD;
-
-	if (card) {
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	} else {
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_BCR;
-	}
-
-	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err != MMC_ERR_NONE)
-		return err;
-
-	/* Check that card supported application commands */
-	if (!(cmd.resp[0] & R1_APP_CMD))
-		return MMC_ERR_FAILED;
-
-	return MMC_ERR_NONE;
-}
 
 int mmc_app_set_bus_width(struct mmc_card *card, int width)
 {

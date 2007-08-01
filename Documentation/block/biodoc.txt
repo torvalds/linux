@@ -740,12 +740,12 @@ Block now offers some simple generic functionality to help support command
 queueing (typically known as tagged command queueing), ie manage more than
 one outstanding command on a queue at any given time.
 
-	blk_queue_init_tags(request_queue_t *q, int depth)
+	blk_queue_init_tags(struct request_queue *q, int depth)
 
 	Initialize internal command tagging structures for a maximum
 	depth of 'depth'.
 
-	blk_queue_free_tags((request_queue_t *q)
+	blk_queue_free_tags((struct request_queue *q)
 
 	Teardown tag info associated with the queue. This will be done
 	automatically by block if blk_queue_cleanup() is called on a queue
@@ -754,7 +754,7 @@ one outstanding command on a queue at any given time.
 The above are initialization and exit management, the main helpers during
 normal operations are:
 
-	blk_queue_start_tag(request_queue_t *q, struct request *rq)
+	blk_queue_start_tag(struct request_queue *q, struct request *rq)
 
 	Start tagged operation for this request. A free tag number between
 	0 and 'depth' is assigned to the request (rq->tag holds this number),
@@ -762,7 +762,7 @@ normal operations are:
 	for this queue is already achieved (or if the tag wasn't started for
 	some other reason), 1 is returned. Otherwise 0 is returned.
 
-	blk_queue_end_tag(request_queue_t *q, struct request *rq)
+	blk_queue_end_tag(struct request_queue *q, struct request *rq)
 
 	End tagged operation on this request. 'rq' is removed from the internal
 	book keeping structures.
@@ -781,7 +781,7 @@ queue. For instance, on IDE any tagged request error needs to clear both
 the hardware and software block queue and enable the driver to sanely restart
 all the outstanding requests. There's a third helper to do that:
 
-	blk_queue_invalidate_tags(request_queue_t *q)
+	blk_queue_invalidate_tags(struct request_queue *q)
 
 	Clear the internal block tag queue and re-add all the pending requests
 	to the request queue. The driver will receive them again on the

@@ -209,9 +209,29 @@ struct mmc_card *mmc_alloc_card(struct mmc_host *host)
 int mmc_add_card(struct mmc_card *card)
 {
 	int ret;
+	const char *type;
 
 	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
 		 "%s:%04x", mmc_hostname(card->host), card->rca);
+
+	switch (card->type) {
+	case MMC_TYPE_MMC:
+		type = "MMC";
+		break;
+	case MMC_TYPE_SD:
+		type = "SD";
+		if (mmc_card_blockaddr(card))
+			type = "SDHC";
+		break;
+	default:
+		type = "?";
+		break;
+	}
+
+	printk(KERN_INFO "%s: new %s%s card at address %04x\n",
+		mmc_hostname(card->host),
+		mmc_card_highspeed(card) ? "high speed " : "",
+		type, card->rca);
 
 	card->dev.uevent_suppress = 1;
 
@@ -243,6 +263,9 @@ int mmc_add_card(struct mmc_card *card)
 void mmc_remove_card(struct mmc_card *card)
 {
 	if (mmc_card_present(card)) {
+		printk(KERN_INFO "%s: card %04x removed\n",
+			mmc_hostname(card->host), card->rca);
+
 		if (card->host->bus_ops->sysfs_remove)
 			card->host->bus_ops->sysfs_remove(card->host, card);
 		device_del(&card->dev);

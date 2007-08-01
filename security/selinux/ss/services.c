@@ -792,7 +792,7 @@ int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
  * @scontext: security context
  * @scontext_len: length in bytes
  * @sid: security identifier, SID
- * @def_sid: default SID to assign on errror
+ * @def_sid: default SID to assign on error
  *
  * Obtains a SID associated with the security context that
  * has the string representation specified by @scontext.
@@ -2417,8 +2417,10 @@ static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
 
 	cache->type = NETLBL_CACHE_T_MLS;
 	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
-			&ctx->range.level[0].cat) != 0)
+			&ctx->range.level[0].cat) != 0) {
+		kfree(cache);
 		return;
+	}
 	cache->data.mls_label.level[1].cat.highbit =
 		cache->data.mls_label.level[0].cat.highbit;
 	cache->data.mls_label.level[1].cat.node =

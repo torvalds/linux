@@ -38,6 +38,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/slab.h>

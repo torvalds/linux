@@ -19,11 +19,13 @@
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
+
 struct ist_info {
-	unsigned long	signature;
-	unsigned long	command;
-	unsigned long	event;
-	unsigned long	perf_level;
+	u32 signature;
+	u32 command;
+	u32 event;
+	u32 perf_level;
 };
 
 extern struct ist_info ist_info;

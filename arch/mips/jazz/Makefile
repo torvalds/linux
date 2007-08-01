@@ -3,3 +3,5 @@
 #
 
 obj-y	 	:= irq.o jazzdma.o jazz-platform.o reset.o setup.o
+
+EXTRA_CFLAGS += -Werror

@@ -814,7 +814,7 @@ static int sd_issue_flush(struct device *dev, sector_t *error_sector)
 	return ret;
 }
 
-static void sd_prepare_flush(request_queue_t *q, struct request *rq)
+static void sd_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
@@ -1285,7 +1285,7 @@ got_data:
 		 */
 		int hard_sector = sector_size;
 		sector_t sz = (sdkp->capacity/2) * (hard_sector/256);
-		request_queue_t *queue = sdp->request_queue;
+		struct request_queue *queue = sdp->request_queue;
 		sector_t mb = sz;
 
 		blk_queue_hardsect_size(queue, hard_sector);

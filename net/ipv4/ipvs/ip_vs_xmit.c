@@ -128,7 +128,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 #define IP_VS_XMIT(skb, rt)				\
 do {							\
 	(skb)->ipvs_property = 1;			\
-	(skb)->ip_summed = CHECKSUM_NONE;		\
+	skb_forward_csum(skb);				\
 	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, (skb), NULL,	\
 		(rt)->u.dst.dev, dst_output);		\
 } while (0)

@@ -75,7 +75,8 @@ static ssize_t ds1682_show(struct device *dev, struct device_attribute *attr,
 	/* Special case: the 32 bit regs are time values with 1/4s
 	 * resolution, scale them up to milliseconds */
 	if (sattr->nr == 4)
-		return sprintf(buf, "%llu\n", ((u64) le32_to_cpu(val)) * 250);
+		return sprintf(buf, "%llu\n",
+			((unsigned long long)le32_to_cpu(val)) * 250);
 
 	/* Format the output string and return # of bytes */
 	return sprintf(buf, "%li\n", (long)le32_to_cpu(val));

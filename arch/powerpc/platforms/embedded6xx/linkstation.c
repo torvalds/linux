@@ -73,7 +73,7 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
+	setup_indirect_pci(hose, 0xfec00000, 0xfee00000, 0);
 
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */

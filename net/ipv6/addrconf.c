@@ -2256,14 +2256,14 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 	struct net_device *dev = (struct net_device *) data;
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	int run_pending = 0;
+	int err;
 
 	switch(event) {
 	case NETDEV_REGISTER:
 		if (!idev && dev->mtu >= IPV6_MIN_MTU) {
 			idev = ipv6_add_dev(dev);
 			if (!idev)
-				printk(KERN_WARNING "IPv6: add_dev failed for %s\n",
-					dev->name);
+				return notifier_from_errno(-ENOMEM);
 		}
 		break;
 	case NETDEV_UP:
@@ -2373,7 +2373,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 					      NULL);
 			addrconf_sysctl_register(idev, &idev->cnf);
 #endif
-			snmp6_register_dev(idev);
+			err = snmp6_register_dev(idev);
+			if (err)
+				return notifier_from_errno(err);
 		}
 		break;
 	}

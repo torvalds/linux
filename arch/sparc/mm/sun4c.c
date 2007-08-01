@@ -1999,6 +1999,9 @@ void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, p
 	unsigned long flags;
 	int pseg;
 
+	if (vma->vm_mm->context == NO_CONTEXT)
+		return;
+
 	local_irq_save(flags);
 	address &= PAGE_MASK;
 	if ((pseg = sun4c_get_segmap(address)) == invalid_segment) {

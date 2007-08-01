@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003, 2004 Ralf Baechle <ralf@linux-mips.org>
+ * Copyright (C) 2003, 04, 07 Ralf Baechle <ralf@linux-mips.org>
  * Copyright (C) MIPS Technologies, Inc.
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
@@ -22,6 +22,11 @@ static inline void name(void)						\
 {									\
 	__asm__ __volatile__ (#name);					\
 }
+
+/*
+ * MIPS R2 instruction hazard barrier.   Needs to be called as a subroutine.
+ */
+extern void mips_ihb(void);
 
 #endif
 

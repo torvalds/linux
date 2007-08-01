@@ -216,6 +216,7 @@ int hibernation_platform_enter(void)
 		 * sleep state after all
 		 */
 		error = hibernation_ops->prepare();
+		sysdev_shutdown();
 		if (!error)
 			error = hibernation_ops->enter();
 	} else {

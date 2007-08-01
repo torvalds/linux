@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/elf.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/module.h>
 
 #include <asm/cpufeature.h>

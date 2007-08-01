@@ -146,7 +146,7 @@ void fix_processor_context(void)
 
 }
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 /* Defined in arch/x86_64/kernel/suspend_asm.S */
 extern int restore_image(void);
 
@@ -236,4 +236,4 @@ int pfn_is_nosave(unsigned long pfn)
 	unsigned long nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
 	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
 }
-#endif /* CONFIG_SOFTWARE_SUSPEND */
+#endif /* CONFIG_HIBERNATION */

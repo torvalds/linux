@@ -214,6 +214,13 @@ void edac_mc_free(struct mem_ctl_info *mci)
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
+
+/*
+ * find_mci_by_dev
+ *
+ *	scan list of controllers looking for the one that manages
+ *	the 'dev' device
+ */
 static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 {
 	struct mem_ctl_info *mci;
@@ -268,12 +275,6 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 	if (edac_mc_assert_error_check_and_clear() && (mci->edac_check != NULL))
 		mci->edac_check(mci);
 
-	/*
-	 * FIXME: temp place holder for PCI checks,
-	 * goes away when we break out PCI
-	 */
-	edac_pci_do_parity_check();
-
 	mutex_unlock(&mem_ctls_mutex);
 
 	/* Reschedule */
@@ -314,35 +315,54 @@ static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
 {
 	int status;
 
-	/* if not running POLL, leave now */
-	if (mci->op_state == OP_RUNNING_POLL) {
-		status = cancel_delayed_work(&mci->work);
-		if (status == 0) {
-			debugf0("%s() not canceled, flush the queue\n",
-				__func__);
+	status = cancel_delayed_work(&mci->work);
+	if (status == 0) {
+		debugf0("%s() not canceled, flush the queue\n",
+			__func__);
 
-			/* workq instance might be running, wait for it */
-			flush_workqueue(edac_workqueue);
-		}
+		/* workq instance might be running, wait for it */
+		flush_workqueue(edac_workqueue);
 	}
 }
 
 /*
- * edac_reset_delay_period
+ * edac_mc_reset_delay_period(unsigned long value)
+ *
+ *	user space has updated our poll period value, need to
+ *	reset our workq delays
  */
-static void edac_reset_delay_period(struct mem_ctl_info *mci, unsigned long value)
+void edac_mc_reset_delay_period(int value)
 {
-	/* cancel the current workq request */
-	edac_mc_workq_teardown(mci);
+	struct mem_ctl_info *mci;
+	struct list_head *item;
 
-	/* lock the list of devices for the new setup */
 	mutex_lock(&mem_ctls_mutex);
 
-	/* restart the workq request, with new delay value */
-	edac_mc_workq_setup(mci, value);
+	/* scan the list and turn off all workq timers, doing so under lock
+	 */
+	list_for_each(item, &mc_devices) {
+		mci = list_entry(item, struct mem_ctl_info, link);
+
+		if (mci->op_state == OP_RUNNING_POLL)
+			cancel_delayed_work(&mci->work);
+	}
+
+	mutex_unlock(&mem_ctls_mutex);
+
+
+	/* re-walk the list, and reset the poll delay */
+	mutex_lock(&mem_ctls_mutex);
+
+	list_for_each(item, &mc_devices) {
+		mci = list_entry(item, struct mem_ctl_info, link);
+
+		edac_mc_workq_setup(mci, (unsigned long) value);
+	}
 
 	mutex_unlock(&mem_ctls_mutex);
 }
+
+
 
 /* Return 0 on success, 1 on failure.
  * Before calling this function, caller must

@@ -1,6 +1,6 @@
 config LGUEST
 	tristate "Linux hypervisor example code"
-	depends on X86 && PARAVIRT && NET && EXPERIMENTAL && !X86_PAE
+	depends on X86 && PARAVIRT && EXPERIMENTAL && !X86_PAE
 	select LGUEST_GUEST
 	select HVC_DRIVER
 	---help---
@@ -18,3 +18,11 @@ config LGUEST_GUEST
 	  The guest needs code built-in, even if the host has lguest
 	  support as a module.  The drivers are tiny, so we build them
 	  in too.
+
+config LGUEST_NET
+	tristate
+	depends on LGUEST_GUEST && NET
+
+config LGUEST_BLOCK
+	tristate
+	depends on LGUEST_GUEST && BLOCK

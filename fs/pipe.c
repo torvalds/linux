@@ -255,7 +255,7 @@ void generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 
 /**
  * generic_pipe_buf_confirm - verify contents of the pipe buffer
- * @pipe:	the pipe that the buffer belongs to
+ * @info:	the pipe that the buffer belongs to
  * @buf:	the buffer to confirm
  *
  * Description:

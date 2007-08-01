@@ -1851,19 +1851,22 @@ static inline u32 tcp_cwnd_min(const struct sock *sk)
 }
 
 /* Decrease cwnd each second ack. */
-static void tcp_cwnd_down(struct sock *sk)
+static void tcp_cwnd_down(struct sock *sk, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int decr = tp->snd_cwnd_cnt + 1;
 
-	tp->snd_cwnd_cnt = decr&1;
-	decr >>= 1;
+	if ((flag&FLAG_FORWARD_PROGRESS) ||
+	    (IsReno(tp) && !(flag&FLAG_NOT_DUP))) {
+		tp->snd_cwnd_cnt = decr&1;
+		decr >>= 1;
 
-	if (decr && tp->snd_cwnd > tcp_cwnd_min(sk))
-		tp->snd_cwnd -= decr;
+		if (decr && tp->snd_cwnd > tcp_cwnd_min(sk))
+			tp->snd_cwnd -= decr;
 
-	tp->snd_cwnd = min(tp->snd_cwnd, tcp_packets_in_flight(tp)+1);
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+		tp->snd_cwnd = min(tp->snd_cwnd, tcp_packets_in_flight(tp)+1);
+		tp->snd_cwnd_stamp = tcp_time_stamp;
+	}
 }
 
 /* Nothing was retransmitted or returned timestamp is less
@@ -2060,7 +2063,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 		}
 		tcp_moderate_cwnd(tp);
 	} else {
-		tcp_cwnd_down(sk);
+		tcp_cwnd_down(sk, flag);
 	}
 }
 
@@ -2109,7 +2112,10 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int is_dupack = (tp->snd_una == prior_snd_una && !(flag&FLAG_NOT_DUP));
+	int is_dupack = (tp->snd_una == prior_snd_una &&
+			 (!(flag&FLAG_NOT_DUP) ||
+			  ((flag&FLAG_DATA_SACKED) &&
+			   (tp->fackets_out > tp->reordering))));
 
 	/* Some technical things:
 	 * 1. Reno does not count dupacks (sacked_out) automatically. */
@@ -2260,7 +2266,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 
 	if (is_dupack || tcp_head_timedout(sk))
 		tcp_update_scoreboard(sk);
-	tcp_cwnd_down(sk);
+	tcp_cwnd_down(sk, flag);
 	tcp_xmit_retransmit_queue(sk);
 }
 
@@ -2490,12 +2496,23 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk);
 
-		/* Is the ACK triggering packet unambiguous? */
-		if (acked & FLAG_RETRANS_DATA_ACKED)
-			last_ackt = net_invalid_timestamp();
+		if (ca_ops->pkts_acked) {
+			s32 rtt_us = -1;
 
-		if (ca_ops->pkts_acked)
-			ca_ops->pkts_acked(sk, pkts_acked, last_ackt);
+			/* Is the ACK triggering packet unambiguous? */
+			if (!(acked & FLAG_RETRANS_DATA_ACKED)) {
+				/* High resolution needed and available? */
+				if (ca_ops->flags & TCP_CONG_RTT_STAMP &&
+				    !ktime_equal(last_ackt,
+						 net_invalid_timestamp()))
+					rtt_us = ktime_us_delta(ktime_get_real(),
+								last_ackt);
+				else if (seq_rtt > 0)
+					rtt_us = jiffies_to_usecs(seq_rtt);
+			}
+
+			ca_ops->pkts_acked(sk, pkts_acked, rtt_us);
+		}
 	}
 
 #if FASTRETRANS_DEBUG > 0

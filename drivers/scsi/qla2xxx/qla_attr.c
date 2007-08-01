@@ -91,18 +91,20 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	unsigned long	flags;
+	int		size = ha->nvram_size;
+	char		*nvram_cache = ha->nvram;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0)
+	if (!capable(CAP_SYS_ADMIN) || off > size || count == 0)
 		return 0;
+	if (off + count > size) {
+		size -= off;
+		count = size;
+	}
 
-	/* Read NVRAM. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->isp_ops->read_nvram(ha, (uint8_t *)buf, ha->nvram_base,
-	    ha->nvram_size);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	/* Read NVRAM data from cache. */
+	memcpy(buf, &nvram_cache[off], count);
 
-	return ha->nvram_size;
+	return count;
 }
 
 static ssize_t
@@ -144,6 +146,8 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 	/* Write NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->isp_ops->write_nvram(ha, (uint8_t *)buf, ha->nvram_base, count);
+	ha->isp_ops->read_nvram(ha, (uint8_t *)&ha->nvram, ha->nvram_base,
+	    count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
@@ -298,18 +302,20 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	unsigned long flags;
+	int           size = ha->vpd_size;
+	char          *vpd_cache = ha->vpd;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0)
+	if (!capable(CAP_SYS_ADMIN) || off > size || count == 0)
 		return 0;
+	if (off + count > size) {
+		size -= off;
+		count = size;
+	}
 
-	/* Read NVRAM. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->isp_ops->read_nvram(ha, (uint8_t *)buf, ha->vpd_base,
-	    ha->vpd_size);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	/* Read NVRAM data from cache. */
+	memcpy(buf, &vpd_cache[off], count);
 
-	return ha->vpd_size;
+	return count;
 }
 
 static ssize_t
@@ -327,6 +333,7 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	/* Write NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->isp_ops->write_nvram(ha, (uint8_t *)buf, ha->vpd_base, count);
+	ha->isp_ops->read_nvram(ha, (uint8_t *)ha->vpd, ha->vpd_base, count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return count;

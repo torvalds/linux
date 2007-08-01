@@ -321,7 +321,7 @@ static int __init request_standard_resources(void)
 
 subsys_initcall(request_standard_resources);
 
-#if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
+#if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
 /**
  * e820_mark_nosave_regions - Find the ranges of physical addresses that do not
  * correspond to e820 RAM areas and mark the corresponding pages as nosave for

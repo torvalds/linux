@@ -82,6 +82,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
 #include <linux/firmware.h>

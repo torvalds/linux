@@ -67,7 +67,7 @@ static DEFINE_SPINLOCK(z2ram_lock);
 static struct block_device_operations z2_fops;
 static struct gendisk *z2ram_gendisk;
 
-static void do_z2_request(request_queue_t *q)
+static void do_z2_request(struct request_queue *q)
 {
 	struct request *req;
 	while ((req = elv_next_request(q)) != NULL) {

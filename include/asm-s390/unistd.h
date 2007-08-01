@@ -251,7 +251,7 @@
 #define __NR_getcpu		311
 #define __NR_epoll_pwait	312
 #define __NR_utimes		313
-/* Number 314 is reserved for new sys_fallocate */
+#define __NR_fallocate		314
 #define __NR_utimensat		315
 #define __NR_signalfd		316
 #define __NR_timerfd		317

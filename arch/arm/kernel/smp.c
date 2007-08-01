@@ -17,6 +17,7 @@
 #include <linux/profile.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/seq_file.h>
@@ -630,7 +631,7 @@ void smp_send_stop(void)
 /*
  * not supported here
  */
-int __init setup_profiling_timer(unsigned int multiplier)
+int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
 }

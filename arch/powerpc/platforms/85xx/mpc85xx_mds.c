@@ -46,6 +46,7 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pci.h>
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
@@ -94,9 +95,8 @@ static void __init mpc85xx_mds_setup_arch(void)
 	}
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
-		mpc85xx_add_bridge(np);
-	}
+	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+		fsl_add_bridge(np, 1);
 	of_node_put(np);
 #endif
 
@@ -208,4 +208,5 @@ define_machine(mpc85xx_mds) {
 	.restart	= mpc85xx_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 };

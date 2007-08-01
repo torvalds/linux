@@ -16,7 +16,7 @@ ACPI_MODULE_NAME("scan");
 extern struct acpi_device *acpi_root;
 
 #define ACPI_BUS_CLASS			"system_bus"
-#define ACPI_BUS_HID			"ACPI_BUS"
+#define ACPI_BUS_HID			"LNXSYBUS"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"
 
 static LIST_HEAD(acpi_device_list);
@@ -29,6 +29,62 @@ struct acpi_device_bus_id{
 	unsigned int instance_no;
 	struct list_head node;
 };
+
+/*
+ * Creates hid/cid(s) string needed for modalias and uevent
+ * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
+ * char *modalias: "acpi:IBM0001:ACPI0001"
+*/
+int create_modalias(struct acpi_device *acpi_dev, char *modalias, int size){
+
+	int len;
+
+	if (!acpi_dev->flags.hardware_id)
+		return -ENODEV;
+
+	len = snprintf(modalias, size, "acpi:%s:",
+		       acpi_dev->pnp.hardware_id);
+	if (len < 0 || len >= size)
+		return -EINVAL;
+	size -= len;
+
+	if (acpi_dev->flags.compatible_ids) {
+		struct acpi_compatible_id_list *cid_list;
+		int i;
+		int count;
+
+		cid_list = acpi_dev->pnp.cid_list;
+		for (i = 0; i < cid_list->count; i++) {
+			count = snprintf(&modalias[len], size, "%s:",
+					 cid_list->id[i].value);
+			if (count < 0 || count >= size) {
+				printk(KERN_ERR "acpi: %s cid[%i] exceeds event buffer size",
+				       acpi_dev->pnp.device_name, i);
+				break;
+			}
+			len += count;
+			size -= count;
+		}
+	}
+
+	modalias[len] = '\0';
+	return len;
+}
+
+static ssize_t
+acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	int len;
+
+	/* Device has no HID and no CID or string is >1024 */
+	len = create_modalias(acpi_dev, buf, 1024);
+	if (len <= 0)
+		return 0;
+	buf[len++] = '\n';
+	return len;
+}
+static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
+
 static int acpi_eject_operation(acpi_handle handle, int lockable)
 {
 	struct acpi_object_list arg_list;
@@ -154,6 +210,12 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
+	if (dev->flags.hardware_id || dev->flags.compatible_ids){
+		result = device_create_file(&dev->dev, &dev_attr_modalias);
+		if(result)
+			goto end;
+	}
+
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
@@ -178,6 +240,9 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
+	if (dev->flags.hardware_id || dev->flags.compatible_ids)
+		device_remove_file(&dev->dev, &dev_attr_modalias);
+
 	if(dev->flags.hardware_id)
 		device_remove_file(&dev->dev, &dev_attr_hid);
 	if(dev->handle)
@@ -186,6 +251,37 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 /* --------------------------------------------------------------------------
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
+
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids)
+{
+	const struct acpi_device_id *id;
+
+	if (device->flags.hardware_id) {
+		for (id = ids; id->id[0]; id++) {
+			if (!strcmp((char*)id->id, device->pnp.hardware_id))
+				return 0;
+		}
+	}
+
+	if (device->flags.compatible_ids) {
+		struct acpi_compatible_id_list *cid_list = device->pnp.cid_list;
+		int i;
+
+		for (id = ids; id->id[0]; id++) {
+			/* compare multiple _CID entries against driver ids */
+			for (i = 0; i < cid_list->count; i++) {
+				if (!strcmp((char*)id->id,
+					    cid_list->id[i].value))
+					return 0;
+			}
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(acpi_match_device_ids);
+
 static void acpi_device_release(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -219,37 +315,19 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
-	return !acpi_match_ids(acpi_dev, acpi_drv->ids);
+	return !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
 }
 
 static int acpi_device_uevent(struct device *dev, char **envp, int num_envp,
-	char *buffer, int buffer_size)
+			      char *buffer, int buffer_size)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	int i = 0, length = 0, ret = 0;
 
-	if (acpi_dev->flags.hardware_id)
-		ret = add_uevent_var(envp, num_envp, &i,
-			buffer, buffer_size, &length,
-			"HWID=%s", acpi_dev->pnp.hardware_id);
-	if (ret)
-		return -ENOMEM;
-	if (acpi_dev->flags.compatible_ids) {
-		int j;
-		struct acpi_compatible_id_list *cid_list;
-
-		cid_list = acpi_dev->pnp.cid_list;
-
-		for (j = 0; j < cid_list->count; j++) {
-			ret = add_uevent_var(envp, num_envp, &i, buffer,
-				buffer_size, &length, "COMPTID=%s",
-				cid_list->id[j].value);
-			if (ret)
-				return -ENOMEM;
-		}
+	strcpy(buffer, "MODALIAS=");
+	if (create_modalias(acpi_dev, buffer + 9, buffer_size - 9) > 0) {
+		envp[0] = buffer;
+		envp[1] = NULL;
 	}
-
-	envp[i] = NULL;
 	return 0;
 }
 
@@ -543,25 +621,6 @@ void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context)
 	return;
 }
 
-int acpi_match_ids(struct acpi_device *device, char *ids)
-{
-	if (device->flags.hardware_id)
-		if (strstr(ids, device->pnp.hardware_id))
-			return 0;
-
-	if (device->flags.compatible_ids) {
-		struct acpi_compatible_id_list *cid_list = device->pnp.cid_list;
-		int i;
-
-		/* compare multiple _CID entries against driver ids */
-		for (i = 0; i < cid_list->count; i++) {
-			if (strstr(ids, cid_list->id[i].value))
-				return 0;
-		}
-	}
-	return -ENOENT;
-}
-
 static int acpi_bus_get_perf_flags(struct acpi_device *device)
 {
 	device->performance.state = ACPI_STATE_UNKNOWN;
@@ -624,6 +683,13 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
 
+	struct acpi_device_id button_device_ids[] = {
+		{"PNP0C0D", 0},
+		{"PNP0C0C", 0},
+		{"PNP0C0E", 0},
+		{"", 0},
+	};
+
 
 	/* _PRW */
 	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
@@ -643,7 +709,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 
 	device->wakeup.flags.valid = 1;
 	/* Power button, Lid switch always enable wakeup */
-	if (!acpi_match_ids(device, "PNP0C0D,PNP0C0C,PNP0C0E"))
+	if (!acpi_match_device_ids(device, button_device_ids))
 		device->wakeup.flags.run_wake = 1;
 
       end:

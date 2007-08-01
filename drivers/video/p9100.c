@@ -255,107 +255,95 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 	info->fix.accel = FB_ACCEL_SUN_CGTHREE;
 }
 
-struct all_info {
-	struct fb_info info;
-	struct p9100_par par;
-};
-
-static int __devinit p9100_init_one(struct of_device *op)
+static int __devinit p9100_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct all_info *all;
+	struct fb_info *info;
+	struct p9100_par *par;
 	int linebytes, err;
 
-	all = kzalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
-		return -ENOMEM;
+	info = framebuffer_alloc(sizeof(struct p9100_par), &op->dev);
 
-	spin_lock_init(&all->par.lock);
+	err = -ENOMEM;
+	if (!info)
+		goto out_err;
+	par = info->par;
+
+	spin_lock_init(&par->lock);
 
 	/* This is the framebuffer and the only resource apps can mmap.  */
-	all->par.physbase = op->resource[2].start;
-	all->par.which_io = op->resource[2].flags & IORESOURCE_BITS;
+	par->physbase = op->resource[2].start;
+	par->which_io = op->resource[2].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&all->info.var, dp->node, 8);
-	all->info.var.red.length = 8;
-	all->info.var.green.length = 8;
-	all->info.var.blue.length = 8;
+	sbusfb_fill_var(&info->var, dp->node, 8);
+	info->var.red.length = 8;
+	info->var.green.length = 8;
+	info->var.blue.length = 8;
 
-	linebytes = of_getintprop_default(dp, "linebytes",
-					  all->info.var.xres);
-	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
+	linebytes = of_getintprop_default(dp, "linebytes", info->var.xres);
+	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
 
-	all->par.regs = of_ioremap(&op->resource[0], 0,
-				   sizeof(struct p9100_regs), "p9100 regs");
-	if (!all->par.regs) {
-		kfree(all);
-		return -ENOMEM;
-	}
+	par->regs = of_ioremap(&op->resource[0], 0,
+			       sizeof(struct p9100_regs), "p9100 regs");
+	if (!par->regs)
+		goto out_release_fb;
 
-	all->info.flags = FBINFO_DEFAULT;
-	all->info.fbops = &p9100_ops;
-	all->info.screen_base = of_ioremap(&op->resource[2], 0,
-					   all->par.fbsize, "p9100 ram");
-	if (!all->info.screen_base) {
-		of_iounmap(&op->resource[0],
-			   all->par.regs, sizeof(struct p9100_regs));
-		kfree(all);
-		return -ENOMEM;
-	}
-	all->info.par = &all->par;
+	info->flags = FBINFO_DEFAULT;
+	info->fbops = &p9100_ops;
+	info->screen_base = of_ioremap(&op->resource[2], 0,
+				       par->fbsize, "p9100 ram");
+	if (!info->screen_base)
+		goto out_unmap_regs;
 
-	p9100_blank(0, &all->info);
+	p9100_blank(0, info);
 
-	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		of_iounmap(&op->resource[0],
-			   all->par.regs, sizeof(struct p9100_regs));
-		of_iounmap(&op->resource[2],
-			   all->info.screen_base, all->par.fbsize);
-		kfree(all);
-		return -ENOMEM;
-	}
+	if (fb_alloc_cmap(&info->cmap, 256, 0))
+		goto out_unmap_screen;
 
-	p9100_init_fix(&all->info, linebytes, dp);
+	p9100_init_fix(info, linebytes, dp);
 
-	err = register_framebuffer(&all->info);
-	if (err < 0) {
-		fb_dealloc_cmap(&all->info.cmap);
-		of_iounmap(&op->resource[0],
-			   all->par.regs, sizeof(struct p9100_regs));
-		of_iounmap(&op->resource[2],
-			   all->info.screen_base, all->par.fbsize);
-		kfree(all);
-		return err;
-	}
-	fb_set_cmap(&all->info.cmap, &all->info);
+	err = register_framebuffer(info);
+	if (err < 0)
+		goto out_dealloc_cmap;
 
-	dev_set_drvdata(&op->dev, all);
+	fb_set_cmap(&info->cmap, info);
+
+	dev_set_drvdata(&op->dev, info);
 
 	printk("%s: p9100 at %lx:%lx\n",
 	       dp->full_name,
-	       all->par.which_io, all->par.physbase);
+	       par->which_io, par->physbase);
 
 	return 0;
-}
 
-static int __devinit p9100_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
+out_dealloc_cmap:
+	fb_dealloc_cmap(&info->cmap);
 
-	return p9100_init_one(op);
+out_unmap_screen:
+	of_iounmap(&op->resource[2], info->screen_base, par->fbsize);
+
+out_unmap_regs:
+	of_iounmap(&op->resource[0], par->regs, sizeof(struct p9100_regs));
+
+out_release_fb:
+	framebuffer_release(info);
+
+out_err:
+	return err;
 }
 
 static int __devexit p9100_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&op->dev);
+	struct fb_info *info = dev_get_drvdata(&op->dev);
+	struct p9100_par *par = info->par;
 
-	unregister_framebuffer(&all->info);
-	fb_dealloc_cmap(&all->info.cmap);
+	unregister_framebuffer(info);
+	fb_dealloc_cmap(&info->cmap);
 
-	of_iounmap(&op->resource[0], all->par.regs, sizeof(struct p9100_regs));
-	of_iounmap(&op->resource[2], all->info.screen_base, all->par.fbsize);
+	of_iounmap(&op->resource[0], par->regs, sizeof(struct p9100_regs));
+	of_iounmap(&op->resource[2], info->screen_base, par->fbsize);
 
-	kfree(all);
+	framebuffer_release(info);
 
 	dev_set_drvdata(&op->dev, NULL);
 

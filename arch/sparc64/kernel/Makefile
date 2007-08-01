@@ -8,14 +8,14 @@ EXTRA_CFLAGS := -Werror
 extra-y		:= head.o init_task.o vmlinux.lds
 
 obj-y		:= process.o setup.o cpu.o idprom.o \
-		   traps.o auxio.o una_asm.o sysfs.o \
+		   traps.o auxio.o una_asm.o sysfs.o iommu.o \
 		   irq.o ptrace.o time.o sys_sparc.o signal.o \
 		   unaligned.o central.o pci.o starfire.o semaphore.o \
 		   power.o sbus.o iommu_common.o sparc64_ksyms.o chmc.o \
 		   visemul.o prom.o of_device.o hvapi.o sstate.o mdesc.o
 
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
-obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o pci_iommu.o \
+obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o \
 			    pci_psycho.o pci_sabre.o pci_schizo.o \
 			    pci_sun4v.o pci_sun4v_asm.o pci_fire.o
 obj-$(CONFIG_SMP)	 += smp.o trampoline.o hvtramp.o

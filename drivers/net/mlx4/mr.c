@@ -255,10 +255,8 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 	int err;
 
 	index = mlx4_bitmap_alloc(&priv->mr_table.mpt_bitmap);
-	if (index == -1) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (index == -1)
+		return -ENOMEM;
 
 	mr->iova       = iova;
 	mr->size       = size;
@@ -269,15 +267,8 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 
 	err = mlx4_mtt_init(dev, npages, page_shift, &mr->mtt);
 	if (err)
-		goto err_index;
+		mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index);
 
-	return 0;
-
-err_index:
-	mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index);
-
-err:
-	kfree(mr);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_alloc);

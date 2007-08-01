@@ -161,7 +161,7 @@ static int __init jornada_ssp_probe(struct platform_device *dev)
 	ret = jornada_ssp_inout(GETBRIGHTNESS);
 
 	/* seems like it worked, just feed it with TxDummy to get rid of data */
-	if (ret == TxDummy)
+	if (ret == TXDUMMY)
 		jornada_ssp_inout(TXDUMMY);
 
 	jornada_ssp_end();

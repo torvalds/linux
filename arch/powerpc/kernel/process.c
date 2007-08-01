@@ -423,7 +423,11 @@ void show_regs(struct pt_regs * regs)
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
+#else
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
+#endif
 	printk("TASK = %p[%d] '%s' THREAD: %p",
 	       current, current->pid, current->comm, task_thread_info(current));
 

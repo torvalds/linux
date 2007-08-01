@@ -12,6 +12,7 @@
  *   Modified to support multiple serial ports. Stuart Menefy (May 2000).
  *   Modified to support SecureEdge. David McCullough (2002)
  *   Modified to support SH7300 SCIF. Takashi Kusuda (Jun 2003).
+ *   Removed SH7300 support (Jul 2007).
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -289,13 +290,7 @@ static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 #endif
 
 #if defined(SCIF_ONLY) || defined(SCI_AND_SCIF)
-#if defined(CONFIG_CPU_SUBTYPE_SH7300) 
-/* SH7300 doesn't use RTS/CTS */
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
-{
-	sci_out(port, SCFCR, 0);
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+#if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
 {
 	unsigned int fcr_val = 0;

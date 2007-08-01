@@ -699,7 +699,7 @@ static int do_cr(struct t3cdev *dev, struct sk_buff *skb)
  * the buffer.
  */
 static struct sk_buff *cxgb3_get_cpl_reply_skb(struct sk_buff *skb, size_t len,
-					       int gfp)
+					       gfp_t gfp)
 {
 	if (likely(!skb_cloned(skb))) {
 		BUG_ON(skb->len < len);

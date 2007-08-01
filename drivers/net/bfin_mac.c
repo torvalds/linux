@@ -798,6 +798,7 @@ static void bf537mac_shutdown(struct net_device *dev)
  */
 static int bf537mac_open(struct net_device *dev)
 {
+	int retval;
 	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
 
 	/*
@@ -811,7 +812,10 @@ static int bf537mac_open(struct net_device *dev)
 	}
 
 	/* initial rx and tx list */
-	desc_list_init();
+	retval = desc_list_init();
+
+	if (retval)
+		return retval;
 
 	bf537mac_setphy(dev);
 	setup_system_regs(dev);

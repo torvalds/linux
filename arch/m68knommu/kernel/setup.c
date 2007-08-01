@@ -42,8 +42,6 @@ EXPORT_SYMBOL(memory_end);
 
 char __initdata command_line[COMMAND_LINE_SIZE];
 
-void (*mach_trap_init)(void);
-
 /* machine dependent timer functions */
 void (*mach_sched_init)(irq_handler_t handler);
 void (*mach_tick)(void);
@@ -131,6 +129,11 @@ void setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) 0;
 
 	config_BSP(&command_line[0], sizeof(command_line));
+
+#if defined(CONFIG_BOOTPARAM)
+	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
+	command_line[sizeof(command_line) - 1] = 0;
+#endif
 
 	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU "\n");
 

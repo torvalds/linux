@@ -413,12 +413,12 @@ static void *bpq_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 
 	if (v == SEQ_START_TOKEN)
-		p = bpq_devices.next;
+		p = rcu_dereference(bpq_devices.next);
 	else
-		p = ((struct bpqdev *)v)->bpq_list.next;
+		p = rcu_dereference(((struct bpqdev *)v)->bpq_list.next);
 
 	return (p == &bpq_devices) ? NULL 
-		: rcu_dereference(list_entry(p, struct bpqdev, bpq_list));
+		: list_entry(p, struct bpqdev, bpq_list);
 }
 
 static void bpq_seq_stop(struct seq_file *seq, void *v)

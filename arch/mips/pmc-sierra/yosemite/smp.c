@@ -106,23 +106,28 @@ void prom_smp_finish(void)
 {
 }
 
-asmlinkage void titan_mailbox_irq(void)
+void titan_mailbox_irq(void)
 {
 	int cpu = smp_processor_id();
 	unsigned long status;
 
-	if (cpu == 0) {
+	switch (cpu) {
+	case 0:
 		status = OCD_READ(RM9000x2_OCD_INTP0STATUS3);
 		OCD_WRITE(RM9000x2_OCD_INTP0CLEAR3, status);
-	}
 
-	if (cpu == 1) {
+		if (status & 0x2)
+			smp_call_function_interrupt();
+		break;
+
+	case 1:
 		status = OCD_READ(RM9000x2_OCD_INTP1STATUS3);
 		OCD_WRITE(RM9000x2_OCD_INTP1CLEAR3, status);
-	}
 
-	if (status & 0x2)
-		smp_call_function_interrupt();
+		if (status & 0x2)
+			smp_call_function_interrupt();
+		break;
+	}
 }
 
 /*

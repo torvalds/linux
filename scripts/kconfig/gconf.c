@@ -38,9 +38,6 @@ static gboolean show_all = FALSE;
 static gboolean show_debug = FALSE;
 static gboolean resizeable = FALSE;
 
-static char nohelp_text[] =
-    N_("Sorry, no help available for this option yet.\n");
-
 GtkWidget *main_wnd = NULL;
 GtkWidget *tree1_w = NULL;	// left  frame
 GtkWidget *tree2_w = NULL;	// right frame
@@ -462,12 +459,9 @@ static void text_insert_help(struct menu *menu)
 	GtkTextIter start, end;
 	const char *prompt = menu_get_prompt(menu);
 	gchar *name;
-	const char *help = _(nohelp_text);
+	const char *help;
 
-	if (!menu->sym)
-		help = "";
-	else if (menu->sym->help)
-		help = _(menu->sym->help);
+	help = _(menu_get_help(menu));
 
 	if (menu->sym && menu->sym->name)
 		name = g_strdup_printf(_(menu->sym->name));

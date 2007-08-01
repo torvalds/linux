@@ -186,7 +186,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-void sysrq_sched_debug_show(void)
+static void sysrq_sched_debug_show(void)
 {
 	sched_debug_show(NULL, NULL);
 }
@@ -200,7 +200,7 @@ static struct file_operations sched_debug_fops = {
 	.open		= sched_debug_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int __init init_sched_debug_procfs(void)

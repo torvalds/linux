@@ -54,8 +54,8 @@
 #define vdbg(format, arg...) do {} while(0)
 #endif
 
-#define DRV_DESC "QE UCC Ethernet Controller MII Bus"
-#define DRV_NAME "fsl-uec_mdio"
+#define MII_DRV_DESC "QE UCC Ethernet Controller MII Bus"
+#define MII_DRV_NAME "fsl-uec_mdio"
 
 /* Write value to the PHY for this device to the register at regnum, */
 /* waiting until the write is done before it returns.  All PHY */
@@ -261,7 +261,7 @@ static struct of_device_id uec_mdio_match[] = {
 };
 
 static struct of_platform_driver uec_mdio_driver = {
-	.name	= DRV_NAME,
+	.name	= MII_DRV_NAME,
 	.probe	= uec_mdio_probe,
 	.remove	= uec_mdio_remove,
 	.match_table	= uec_mdio_match,

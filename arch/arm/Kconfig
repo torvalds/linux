@@ -341,6 +341,7 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Intel's PXA2XX processor line.
 
@@ -989,8 +990,6 @@ source "drivers/parport/Kconfig"
 source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
-
-source "drivers/acorn/block/Kconfig"
 
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \

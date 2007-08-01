@@ -60,6 +60,24 @@ LIST_HEAD(hose_list);
 static int pci_bus_count;
 
 static void
+fixup_hide_host_resource_fsl(struct pci_dev* dev)
+{
+	int i, class = dev->class >> 8;
+
+	if ((class == PCI_CLASS_PROCESSOR_POWERPC) &&
+		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
+		(dev->bus->parent == NULL)) {
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			dev->resource[i].start = 0;
+			dev->resource[i].end = 0;
+			dev->resource[i].flags = 0;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl); 
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl); 
+
+static void
 fixup_broken_pcnet32(struct pci_dev* dev)
 {
 	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {
@@ -415,15 +433,13 @@ probe_resource(struct pci_bus *parent, struct resource *pr,
 	return 0;
 }
 
-static void __init
-update_bridge_base(struct pci_bus *bus, int i)
+void __init
+update_bridge_resource(struct pci_dev *dev, struct resource *res)
 {
-	struct resource *res = bus->resource[i];
 	u8 io_base_lo, io_limit_lo;
 	u16 mem_base, mem_limit;
 	u16 cmd;
 	unsigned long start, end, off;
-	struct pci_dev *dev = bus->self;
 	struct pci_controller *hose = dev->sysdata;
 
 	if (!hose) {
@@ -467,10 +483,18 @@ update_bridge_base(struct pci_bus *bus, int i)
 		pci_write_config_word(dev, PCI_PREF_MEMORY_LIMIT, mem_limit);
 
 	} else {
-		DBG(KERN_ERR "PCI: ugh, bridge %s res %d has flags=%lx\n",
-		    pci_name(dev), i, res->flags);
+		DBG(KERN_ERR "PCI: ugh, bridge %s res has flags=%lx\n",
+		    pci_name(dev), res->flags);
 	}
 	pci_write_config_word(dev, PCI_COMMAND, cmd);
+}
+
+static void __init
+update_bridge_base(struct pci_bus *bus, int i)
+{
+	struct resource *res = bus->resource[i];
+	struct pci_dev *dev = bus->self;
+	update_bridge_resource(dev, res);
 }
 
 static inline void alloc_resource(struct pci_dev *dev, int idx)
@@ -1223,7 +1247,7 @@ pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
 	unsigned long io_offset;
@@ -1468,3 +1492,10 @@ EARLY_PCI_OP(read, dword, u32 *)
 EARLY_PCI_OP(write, byte, u8)
 EARLY_PCI_OP(write, word, u16)
 EARLY_PCI_OP(write, dword, u32)
+
+extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
+int early_find_capability(struct pci_controller *hose, int bus, int devfn,
+			  int cap)
+{
+	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
+}

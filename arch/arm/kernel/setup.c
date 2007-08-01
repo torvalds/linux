@@ -23,6 +23,7 @@
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
+#include <linux/fs.h>
 
 #include <asm/cpu.h>
 #include <asm/elf.h>

@@ -499,7 +499,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
-int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
+pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
  
 /**
  * pci_choose_state - Choose the power state of a PCI device
@@ -513,15 +513,15 @@ int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
 
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
-	int ret;
+	pci_power_t ret;
 
 	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
 		return PCI_D0;
 
 	if (platform_pci_choose_state) {
 		ret = platform_pci_choose_state(dev, state);
-		if (ret >= 0)
-			state.event = ret;
+		if (ret != PCI_POWER_ERROR)
+			return ret;
 	}
 
 	switch (state.event) {
@@ -1517,7 +1517,7 @@ EXPORT_SYMBOL(pcie_get_readrq);
 /**
  * pcie_set_readrq - set PCI Express maximum memory read request
  * @dev: PCI device to query
- * @count: maximum memory read count in bytes
+ * @rq: maximum memory read count in bytes
  *    valid values are 128, 256, 512, 1024, 2048, 4096
  *
  * If possible sets maximum read byte count
@@ -1604,6 +1604,7 @@ early_param("pci", pci_setup);
 device_initcall(pci_init);
 
 EXPORT_SYMBOL_GPL(pci_restore_bars);
+EXPORT_SYMBOL(__pci_reenable_device);
 EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device);
 EXPORT_SYMBOL(pcim_enable_device);

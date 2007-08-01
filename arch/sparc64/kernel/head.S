@@ -1,15 +1,15 @@
-/* $Id: head.S,v 1.87 2002/02/09 19:49:31 davem Exp $
- * head.S: Initial boot code for the Sparc64 port of Linux.
+/* head.S: Initial boot code for the Sparc64 port of Linux.
  *
- * Copyright (C) 1996,1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 1997, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 David Sitsky (David.Sitsky@anu.edu.au)
- * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
+ * Copyright (C) 1997, 1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */
 
 #include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <asm/thread_info.h>
 #include <asm/asi.h>
 #include <asm/pstate.h>
@@ -374,6 +374,7 @@ jump_to_sun4u_init:
 	jmpl    %g2 + %g0, %g0
 	 nop
 
+	.section	.text.init.refok
 sun4u_init:
 	BRANCH_IF_SUN4V(g1, sun4v_init)
 
@@ -528,6 +529,8 @@ tlb_fixup_done:
 	call	start_kernel
 	 nop
 	/* Not reached... */
+
+	.previous
 
 	/* This is meant to allow the sharing of this code between
 	 * boot processor invocation (via setup_tba() below) and

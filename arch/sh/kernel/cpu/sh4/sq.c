@@ -208,7 +208,6 @@ EXPORT_SYMBOL(sq_remap);
 void sq_unmap(unsigned long vaddr)
 {
 	struct sq_mapping **p, *map;
-	struct vm_struct *vma;
 	int page;
 
 	for (p = &sq_mapping_list; (map = *p); p = &map->next)
@@ -225,11 +224,18 @@ void sq_unmap(unsigned long vaddr)
 	bitmap_release_region(sq_bitmap, page, get_order(map->size));
 
 #ifdef CONFIG_MMU
-	vma = remove_vm_area((void *)(map->sq_addr & PAGE_MASK));
-	if (!vma) {
-		printk(KERN_ERR "%s: bad address 0x%08lx\n",
-		       __FUNCTION__, map->sq_addr);
-		return;
+	{
+		/*
+		 * Tear down the VMA in the MMU case.
+		 */
+		struct vm_struct *vma;
+
+		vma = remove_vm_area((void *)(map->sq_addr & PAGE_MASK));
+		if (!vma) {
+			printk(KERN_ERR "%s: bad address 0x%08lx\n",
+			       __FUNCTION__, map->sq_addr);
+			return;
+		}
 	}
 #endif
 

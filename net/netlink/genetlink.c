@@ -184,7 +184,7 @@ int genl_register_mc_group(struct genl_family *family,
 	}
 
 	err = netlink_change_ngroups(genl_sock,
-				     sizeof(unsigned long) * NETLINK_GENERIC);
+				     mc_groups_longs * BITS_PER_LONG);
 	if (err)
 		goto out;
 
@@ -196,9 +196,21 @@ int genl_register_mc_group(struct genl_family *family,
 	genl_ctrl_event(CTRL_CMD_NEWMCAST_GRP, grp);
  out:
 	genl_unlock();
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(genl_register_mc_group);
+
+static void __genl_unregister_mc_group(struct genl_family *family,
+				       struct genl_multicast_group *grp)
+{
+	BUG_ON(grp->family != family);
+	netlink_clear_multicast_users(genl_sock, grp->id);
+	clear_bit(grp->id, mc_groups);
+	list_del(&grp->list);
+	genl_ctrl_event(CTRL_CMD_DELMCAST_GRP, grp);
+	grp->id = 0;
+	grp->family = NULL;
+}
 
 /**
  * genl_unregister_mc_group - unregister a multicast group
@@ -217,14 +229,8 @@ EXPORT_SYMBOL(genl_register_mc_group);
 void genl_unregister_mc_group(struct genl_family *family,
 			      struct genl_multicast_group *grp)
 {
-	BUG_ON(grp->family != family);
 	genl_lock();
-	netlink_clear_multicast_users(genl_sock, grp->id);
-	clear_bit(grp->id, mc_groups);
-	list_del(&grp->list);
-	genl_ctrl_event(CTRL_CMD_DELMCAST_GRP, grp);
-	grp->id = 0;
-	grp->family = NULL;
+	__genl_unregister_mc_group(family, grp);
 	genl_unlock();
 }
 
@@ -232,8 +238,10 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 {
 	struct genl_multicast_group *grp, *tmp;
 
+	genl_lock();
 	list_for_each_entry_safe(grp, tmp, &family->mcast_groups, list)
-		genl_unregister_mc_group(family, grp);
+		__genl_unregister_mc_group(family, grp);
+	genl_unlock();
 }
 
 /**

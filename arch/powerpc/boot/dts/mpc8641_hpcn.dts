@@ -211,8 +211,8 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		pci@8000 {
-			compatible = "86xx";
+		pcie@8000 {
+			compatible = "fsl,mpc8641-pcie";
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -399,8 +399,8 @@
 
 		};
 
-		pci@9000 {
-			compatible = "86xx";
+		pcie@9000 {
+			compatible = "fsl,mpc8641-pcie";
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;

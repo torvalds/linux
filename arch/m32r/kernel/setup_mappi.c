@@ -45,7 +45,8 @@ static void mask_and_ack_mappi(unsigned int irq)
 
 static void end_mappi_irq(unsigned int irq)
 {
-	enable_mappi_irq(irq);
+	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+		enable_mappi_irq(irq);
 }
 
 static unsigned int startup_mappi_irq(unsigned int irq)
@@ -88,7 +89,7 @@ void __init init_IRQ(void)
 	irq_desc[M32R_IRQ_INT0].chip = &mappi_irq_type;
 	irq_desc[M32R_IRQ_INT0].action = NULL;
 	irq_desc[M32R_IRQ_INT0].depth = 1;
-	icu_data[M32R_IRQ_INT0].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
+	icu_data[M32R_IRQ_INT0].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD11;
 	disable_mappi_irq(M32R_IRQ_INT0);
 #endif /* CONFIG_M32R_NE2000 */
 

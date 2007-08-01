@@ -580,7 +580,6 @@ static const struct ethtool_ops ax_ethtool_ops = {
 	.set_settings		= ax_set_settings,
 	.nway_reset		= ax_nway_reset,
 	.get_link		= ax_get_link,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 /* setup code */
@@ -819,7 +818,7 @@ static int ax_probe(struct platform_device *pdev)
 	}
 
 	ei_status.mem = ioremap(res->start, size);
-	dev->base_addr = (long)ei_status.mem;
+	dev->base_addr = (unsigned long)ei_status.mem;
 
 	if (ei_status.mem == NULL) {
 		dev_err(&pdev->dev, "Cannot ioremap area (%08zx,%08zx)\n",

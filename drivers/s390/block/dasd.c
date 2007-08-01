@@ -1187,7 +1187,7 @@ dasd_end_request_cb(struct dasd_ccw_req * cqr, void *data)
 static void
 __dasd_process_blk_queue(struct dasd_device * device)
 {
-	request_queue_t *queue;
+	struct request_queue *queue;
 	struct request *req;
 	struct dasd_ccw_req *cqr;
 	int nr_queued;
@@ -1740,7 +1740,7 @@ dasd_cancel_req(struct dasd_ccw_req *cqr)
  * Dasd request queue function. Called from ll_rw_blk.c
  */
 static void
-do_dasd_request(request_queue_t * queue)
+do_dasd_request(struct request_queue * queue)
 {
 	struct dasd_device *device;
 

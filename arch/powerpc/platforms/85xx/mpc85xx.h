@@ -15,4 +15,3 @@
  */
 
 extern void mpc85xx_restart(char *);
-extern int mpc85xx_add_bridge(struct device_node *dev);

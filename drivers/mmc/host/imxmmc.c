@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/imxmmc.c - Motorola i.MX MMCI driver
+ *  linux/drivers/mmc/host/imxmmc.c - Motorola i.MX MMCI driver
  *
  *  Copyright (C) 2004 Sascha Hauer, Pengutronix <sascha@saschahauer.de>
  *  Copyright (C) 2006 Pavel Pisa, PiKRON <ppisa@pikron.com>

@@ -112,6 +112,7 @@ Events         (highest priority)  EMU         0
 #define IRQ_ATAPI_TX	BFIN_IRQ(44)	/* ATAPI TX (DMA11) Interrupt */
 #define IRQ_TWI0	BFIN_IRQ(45)	/* TWI0 Interrupt */
 #define IRQ_TWI1	BFIN_IRQ(46)	/* TWI1 Interrupt */
+#define IRQ_TWI		IRQ_TWI0	/* TWI Interrupt */
 #define IRQ_CAN0_RX	BFIN_IRQ(47)	/* CAN0 Receive Interrupt */
 #define IRQ_CAN0_TX	BFIN_IRQ(48)	/* CAN0 Transmit Interrupt */
 #define IRQ_MDMAS2	BFIN_IRQ(49)	/* MDMA Stream 2 Interrupt */

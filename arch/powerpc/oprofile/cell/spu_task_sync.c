@@ -21,6 +21,7 @@
 #include <linux/dcookies.h>
 #include <linux/kref.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/numa.h>

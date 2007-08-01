@@ -10,6 +10,8 @@
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
+#include <linux/types.h>
+
 typedef void (*ext_int_handler_t)(__u16 code);
 
 /*

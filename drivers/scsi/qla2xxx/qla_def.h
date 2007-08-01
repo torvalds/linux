@@ -2340,10 +2340,14 @@ typedef struct scsi_qla_host {
 	uint8_t		serial2;
 
 	/* NVRAM configuration data */
+#define MAX_NVRAM_SIZE	4096
+#define VPD_OFFSET	MAX_NVRAM_SIZE / 2
 	uint16_t	nvram_size;
 	uint16_t	nvram_base;
+	void		*nvram;
 	uint16_t	vpd_size;
 	uint16_t	vpd_base;
+	void		*vpd;
 
 	uint16_t	loop_reset_delay;
 	uint8_t		retry_count;

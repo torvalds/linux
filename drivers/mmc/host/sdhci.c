@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sdhci.c - Secure Digital Host Controller Interface driver
+ *  linux/drivers/mmc/host/sdhci.c - Secure Digital Host Controller Interface driver
  *
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *
@@ -34,6 +34,7 @@ static unsigned int debug_quirks = 0;
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -76,6 +77,24 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD_2,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
 	},
 
 	{	/* Generic SD host controller */
@@ -361,11 +380,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	if (data == NULL)
 		return;
 
-	DBG("blksz %04x blks %04x flags %08x\n",
-		data->blksz, data->blocks, data->flags);
-	DBG("tsac %d ms nsac %d clk\n",
-		data->timeout_ns / 1000000, data->timeout_clks);
-
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
 	BUG_ON(data->blksz > host->mmc->max_blk_size);
@@ -476,8 +490,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		data->error = MMC_ERR_FAILED;
 	}
 
-	DBG("Ending data transfer (%d bytes)\n", data->bytes_xfered);
-
 	if (data->stop) {
 		/*
 		 * The controller needs a reset of internal state machines
@@ -500,8 +512,6 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	unsigned long timeout;
 
 	WARN_ON(host->cmd);
-
-	DBG("Sending cmd (%x)\n", cmd->opcode);
 
 	/* Wait max 10 ms */
 	timeout = 10;
@@ -589,8 +599,6 @@ static void sdhci_finish_command(struct sdhci_host *host)
 	}
 
 	host->cmd->error = MMC_ERR_NONE;
-
-	DBG("Ending cmd (%x)\n", host->cmd->opcode);
 
 	if (host->cmd->data)
 		host->data = host->cmd->data;
@@ -759,6 +767,14 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
+	/*
+	 * Some (ENE) controllers go apeshit on some ios operation,
+	 * signalling timeout and CRC errors even on CMD0. Resetting
+	 * it on each ios seems to solve the problem.
+	 */
+	if(host->chip->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
+		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -834,8 +850,6 @@ static void sdhci_tasklet_finish(unsigned long param)
 	del_timer(&host->timer);
 
 	mrq = host->mrq;
-
-	DBG("Ending request, cmd (%x)\n", mrq->cmd->opcode);
 
 	/*
 	 * The controller needs a reset of internal state machines
@@ -922,20 +936,17 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 		return;
 	}
 
-	if (intmask & SDHCI_INT_RESPONSE)
-		sdhci_finish_command(host);
-	else {
-		if (intmask & SDHCI_INT_TIMEOUT)
-			host->cmd->error = MMC_ERR_TIMEOUT;
-		else if (intmask & SDHCI_INT_CRC)
-			host->cmd->error = MMC_ERR_BADCRC;
-		else if (intmask & (SDHCI_INT_END_BIT | SDHCI_INT_INDEX))
-			host->cmd->error = MMC_ERR_FAILED;
-		else
-			host->cmd->error = MMC_ERR_INVALID;
+	if (intmask & SDHCI_INT_TIMEOUT)
+		host->cmd->error = MMC_ERR_TIMEOUT;
+	else if (intmask & SDHCI_INT_CRC)
+		host->cmd->error = MMC_ERR_BADCRC;
+	else if (intmask & (SDHCI_INT_END_BIT | SDHCI_INT_INDEX))
+		host->cmd->error = MMC_ERR_FAILED;
 
+	if (host->cmd->error != MMC_ERR_NONE)
 		tasklet_schedule(&host->finish_tasklet);
-	}
+	else if (intmask & SDHCI_INT_RESPONSE)
+		sdhci_finish_command(host);
 }
 
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)

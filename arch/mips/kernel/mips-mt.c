@@ -21,6 +21,28 @@
 #include <asm/r4kcache.h>
 #include <asm/cacheflush.h>
 
+int vpelimit;
+
+static int __init maxvpes(char *str)
+{
+	get_option(&str, &vpelimit);
+
+	return 1;
+}
+
+__setup("maxvpes=", maxvpes);
+
+int tclimit;
+
+static int __init maxtcs(char *str)
+{
+	get_option(&str, &tclimit);
+
+	return 1;
+}
+
+__setup("maxtcs=", maxtcs);
+
 /*
  * Dump new MIPS MT state for the core. Does not leave TCs halted.
  * Takes an argument which taken to be a pre-call MVPControl value.

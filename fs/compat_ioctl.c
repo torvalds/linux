@@ -115,6 +115,10 @@
 #include <linux/dvb/video.h>
 #include <linux/lp.h>
 
+#ifdef CONFIG_SPARC
+#include <asm/fbio.h>
+#endif
+
 static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
 			      unsigned long arg, struct file *f)
 {
@@ -3493,6 +3497,22 @@ IGNORE_IOCTL(VFAT_IOCTL_READDIR_SHORT32)
 
 /* loop */
 IGNORE_IOCTL(LOOP_CLR_FD)
+
+#ifdef CONFIG_SPARC
+/* Sparc framebuffers, handled in sbusfb_compat_ioctl() */
+IGNORE_IOCTL(FBIOGTYPE)
+IGNORE_IOCTL(FBIOSATTR)
+IGNORE_IOCTL(FBIOGATTR)
+IGNORE_IOCTL(FBIOSVIDEO)
+IGNORE_IOCTL(FBIOGVIDEO)
+IGNORE_IOCTL(FBIOSCURPOS)
+IGNORE_IOCTL(FBIOGCURPOS)
+IGNORE_IOCTL(FBIOGCURMAX)
+IGNORE_IOCTL(FBIOPUTCMAP32)
+IGNORE_IOCTL(FBIOGETCMAP32)
+IGNORE_IOCTL(FBIOSCURSOR32)
+IGNORE_IOCTL(FBIOGCURSOR32)
+#endif
 };
 
 #define IOCTL_HASHSIZE 256

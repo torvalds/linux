@@ -262,8 +262,6 @@ u32 bit2num(u32 num)
 int toshiba_rbtx4927_irq_nested(int sw_irq)
 {
 	u32 level3;
-	u32 level4;
-	u32 level5;
 
 	level3 = reg_rd08(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
 	if (level3) {
@@ -275,6 +273,8 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 #ifdef CONFIG_TOSHIBA_FPCIB0
 	{
 		if (tx4927_using_backplane) {
+			u32 level4;
+			u32 level5;
 			outb(0x0A, 0x20);
 			level4 = inb(0x20) & 0xff;
 			if (level4) {

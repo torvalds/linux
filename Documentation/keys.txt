@@ -859,9 +859,8 @@ payload contents" for more information.
 	void unregister_key_type(struct key_type *type);
 
 
-Under some circumstances, it may be desirable to desirable to deal with a
-bundle of keys.  The facility provides access to the keyring type for managing
-such a bundle:
+Under some circumstances, it may be desirable to deal with a bundle of keys.
+The facility provides access to the keyring type for managing such a bundle:
 
 	struct key_type key_type_keyring;
 

@@ -73,7 +73,7 @@ static struct clocksource clocksource_hpet = {
         .name           = "hpet",
         .rating         = 250,
         .read           = read_hpet,
-        .mask           = 0xffffffffffffffff,
+        .mask           = CLOCKSOURCE_MASK(64),
         .mult           = 0, /*to be caluclated*/
         .shift          = 10,
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
@@ -1007,9 +1007,15 @@ static int hpet_acpi_remove(struct acpi_device *device, int type)
 	return -EINVAL;
 }
 
+static const struct acpi_device_id hpet_device_ids[] = {
+	{"PNP0103", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, hpet_device_ids);
+
 static struct acpi_driver hpet_acpi_driver = {
 	.name = "hpet",
-	.ids = "PNP0103",
+	.ids = hpet_device_ids,
 	.ops = {
 		.add = hpet_acpi_add,
 		.remove = hpet_acpi_remove,

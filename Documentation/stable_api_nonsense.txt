@@ -10,7 +10,7 @@ kernel to userspace interfaces.  The kernel to userspace interface is
 the one that application programs use, the syscall interface.  That
 interface is _very_ stable over time, and will not break.  I have old
 programs that were built on a pre 0.9something kernel that still work
-just fine on the latest 2.6 kernel release.  This interface is the one
+just fine on the latest 2.6 kernel release.  That interface is the one
 that users and application programmers can count on being stable.
 
 

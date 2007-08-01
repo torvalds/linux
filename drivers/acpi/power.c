@@ -59,10 +59,16 @@ static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_resume(struct acpi_device *device);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
+static struct acpi_device_id power_device_ids[] = {
+	{ACPI_POWER_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, power_device_ids);
+
 static struct acpi_driver acpi_power_driver = {
 	.name = "power",
 	.class = ACPI_POWER_CLASS,
-	.ids = ACPI_POWER_HID,
+	.ids = power_device_ids,
 	.ops = {
 		.add = acpi_power_add,
 		.remove = acpi_power_remove,

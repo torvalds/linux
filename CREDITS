@@ -966,6 +966,7 @@ N: Pekka Enberg
 E: penberg@cs.helsinki.fi
 W: http://www.cs.helsinki.fi/u/penberg/
 D: Various kernel hacks, fixes, and cleanups.
+D: Slab allocators
 S: Finland
 
 N: David Engebretsen
@@ -1939,8 +1940,8 @@ D: for Menuconfig's lxdialog.
 N: Christoph Lameter
 E: christoph@lameter.com
 D: Digiboard PC/Xe and PC/Xi, Digiboard EPCA
-D: Early protocol filter for bridging code
-D: Bug fixes
+D: NUMA support, Slab allocators, Page migration
+D: Scalability, Time subsystem
 
 N: Paul Laufer
 E: paul@laufernet.com

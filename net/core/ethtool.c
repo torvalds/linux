@@ -3,10 +3,12 @@
  * Copyright (c) 2003 Matthew Wilcox <matthew@wil.cx>
  *
  * This file is where we call all the ethtool_ops commands to get
- * the information ethtool needs.  We fall back to calling do_ioctl()
- * for drivers which haven't been converted to ethtool_ops yet.
+ * the information ethtool needs.
  *
- * It's GPL, stupid.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -92,18 +94,6 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data)
 
 	return 0;
 }
-
-int ethtool_op_get_perm_addr(struct net_device *dev, struct ethtool_perm_addr *addr, u8 *data)
-{
-	unsigned char len = dev->addr_len;
-	if ( addr->size < len )
-		return -ETOOSMALL;
-
-	addr->size = len;
-	memcpy(data, dev->perm_addr, len);
-	return 0;
-}
-
 
 u32 ethtool_op_get_ufo(struct net_device *dev)
 {
@@ -777,34 +767,20 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_perm_addr epaddr;
-	u8 *data;
-	int ret;
 
-	if (!dev->ethtool_ops->get_perm_addr)
-		return -EOPNOTSUPP;
-
-	if (copy_from_user(&epaddr,useraddr,sizeof(epaddr)))
+	if (copy_from_user(&epaddr, useraddr, sizeof(epaddr)))
 		return -EFAULT;
 
-	data = kmalloc(epaddr.size, GFP_USER);
-	if (!data)
-		return -ENOMEM;
+	if (epaddr.size < dev->addr_len)
+		return -ETOOSMALL;
+	epaddr.size = dev->addr_len;
 
-	ret = dev->ethtool_ops->get_perm_addr(dev,&epaddr,data);
-	if (ret)
-		return ret;
-
-	ret = -EFAULT;
 	if (copy_to_user(useraddr, &epaddr, sizeof(epaddr)))
-		goto out;
+		return -EFAULT;
 	useraddr += sizeof(epaddr);
-	if (copy_to_user(useraddr, data, epaddr.size))
-		goto out;
-	ret = 0;
-
- out:
-	kfree(data);
-	return ret;
+	if (copy_to_user(useraddr, dev->perm_addr, epaddr.size))
+		return -EFAULT;
+	return 0;
 }
 
 /* The main entry point in this file.  Called from net/core/dev.c */
@@ -821,7 +797,7 @@ int dev_ethtool(struct ifreq *ifr)
 		return -ENODEV;
 
 	if (!dev->ethtool_ops)
-		goto ioctl;
+		return -EOPNOTSUPP;
 
 	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
 		return -EFAULT;
@@ -960,7 +936,7 @@ int dev_ethtool(struct ifreq *ifr)
 		rc = ethtool_set_gso(dev, useraddr);
 		break;
 	default:
-		rc =  -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 
 	if (dev->ethtool_ops->complete)
@@ -970,20 +946,10 @@ int dev_ethtool(struct ifreq *ifr)
 		netdev_features_change(dev);
 
 	return rc;
-
- ioctl:
-	/* Keep existing behaviour for the moment.	 */
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->do_ioctl)
-		return dev->do_ioctl(dev, ifr, SIOCETHTOOL);
-	return -EOPNOTSUPP;
 }
 
 EXPORT_SYMBOL(dev_ethtool);
 EXPORT_SYMBOL(ethtool_op_get_link);
-EXPORT_SYMBOL_GPL(ethtool_op_get_perm_addr);
 EXPORT_SYMBOL(ethtool_op_get_sg);
 EXPORT_SYMBOL(ethtool_op_get_tso);
 EXPORT_SYMBOL(ethtool_op_get_tx_csum);

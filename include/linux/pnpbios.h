@@ -99,32 +99,32 @@
 
 #pragma pack(1)
 struct pnp_dev_node_info {
-	__u16	no_nodes;
-	__u16	max_node_size;
+	__u16 no_nodes;
+	__u16 max_node_size;
 };
 struct pnp_docking_station_info {
-	__u32	location_id;
-	__u32	serial;
-	__u16	capabilities;
+	__u32 location_id;
+	__u32 serial;
+	__u16 capabilities;
 };
 struct pnp_isa_config_struc {
-	__u8	revision;
-	__u8	no_csns;
-	__u16	isa_rd_data_port;
-	__u16	reserved;
+	__u8 revision;
+	__u8 no_csns;
+	__u16 isa_rd_data_port;
+	__u16 reserved;
 };
 struct escd_info_struc {
-	__u16	min_escd_write_size;
-	__u16	escd_size;
-	__u32	nv_storage_base;
+	__u16 min_escd_write_size;
+	__u16 escd_size;
+	__u32 nv_storage_base;
 };
 struct pnp_bios_node {
-	__u16	size;
-	__u8	handle;
-	__u32	eisa_id;
-	__u8	type_code[3];
-	__u16	flags;
-	__u8	data[0];
+	__u16 size;
+	__u8 handle;
+	__u32 eisa_id;
+	__u8 type_code[3];
+	__u16 flags;
+	__u8 data[0];
 };
 #pragma pack()
 
@@ -133,22 +133,16 @@ struct pnp_bios_node {
 /* non-exported */
 extern struct pnp_dev_node_info node_info;
 
-extern int pnp_bios_dev_node_info (struct pnp_dev_node_info *data);
-extern int pnp_bios_get_dev_node (u8 *nodenum, char config, struct pnp_bios_node *data);
-extern int pnp_bios_set_dev_node (u8 nodenum, char config, struct pnp_bios_node *data);
-extern int pnp_bios_get_stat_res (char *info);
-extern int pnp_bios_isapnp_config (struct pnp_isa_config_struc *data);
-extern int pnp_bios_escd_info (struct escd_info_struc *data);
-extern int pnp_bios_read_escd (char *data, u32 nvram_base);
+extern int pnp_bios_dev_node_info(struct pnp_dev_node_info *data);
+extern int pnp_bios_get_dev_node(u8 *nodenum, char config,
+				 struct pnp_bios_node *data);
+extern int pnp_bios_set_dev_node(u8 nodenum, char config,
+				 struct pnp_bios_node *data);
+extern int pnp_bios_get_stat_res(char *info);
+extern int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data);
+extern int pnp_bios_escd_info(struct escd_info_struc *data);
+extern int pnp_bios_read_escd(char *data, u32 nvram_base);
 extern int pnp_bios_dock_station_info(struct pnp_docking_station_info *data);
-#define needed 0
-#if needed
-extern int pnp_bios_get_event (u16 *message);
-extern int pnp_bios_send_message (u16 message);
-extern int pnp_bios_set_stat_res (char *info);
-extern int pnp_bios_apm_id_table (char *table, u16 *size);
-extern int pnp_bios_write_escd (char *data, u32 nvram_base);
-#endif
 
 #endif /* CONFIG_PNPBIOS */
 

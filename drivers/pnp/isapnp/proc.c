@@ -2,7 +2,6 @@
  *  ISA Plug & Play support
  *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
  *
- *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -54,7 +52,8 @@ static loff_t isapnp_proc_bus_lseek(struct file *file, loff_t off, int whence)
 	return (file->f_pos = new);
 }
 
-static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
+				    size_t nbytes, loff_t * ppos)
 {
 	struct inode *ino = file->f_path.dentry->d_inode;
 	struct proc_dir_entry *dp = PDE(ino);
@@ -74,7 +73,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t 
 		return -EINVAL;
 
 	isapnp_cfg_begin(dev->card->number, dev->number);
-	for ( ; pos < 256 && cnt > 0; pos++, buf++, cnt--) {
+	for (; pos < 256 && cnt > 0; pos++, buf++, cnt--) {
 		unsigned char val;
 		val = isapnp_read_byte(pos);
 		__put_user(val, buf);
@@ -85,10 +84,9 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t 
 	return nbytes;
 }
 
-static const struct file_operations isapnp_proc_bus_file_operations =
-{
-	.llseek		= isapnp_proc_bus_lseek,
-	.read		= isapnp_proc_bus_read,
+static const struct file_operations isapnp_proc_bus_file_operations = {
+	.llseek = isapnp_proc_bus_lseek,
+	.read = isapnp_proc_bus_read,
 };
 
 static int isapnp_proc_attach_device(struct pnp_dev *dev)
@@ -139,13 +137,14 @@ static int __exit isapnp_proc_detach_bus(struct pnp_card *bus)
 	remove_proc_entry(name, isapnp_proc_bus_dir);
 	return 0;
 }
-#endif /* MODULE */
+#endif				/* MODULE */
 
 int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
+
 	isapnp_proc_bus_dir = proc_mkdir("isapnp", proc_bus);
-	protocol_for_each_dev(&isapnp_protocol,dev) {
+	protocol_for_each_dev(&isapnp_protocol, dev) {
 		isapnp_proc_attach_device(dev);
 	}
 	return 0;
@@ -167,4 +166,4 @@ int __exit isapnp_proc_done(void)
 		remove_proc_entry("isapnp", proc_bus);
 	return 0;
 }
-#endif /* MODULE */
+#endif				/* MODULE */

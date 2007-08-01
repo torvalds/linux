@@ -138,17 +138,6 @@ static struct pixclock arc_clocks[] = {
 	{  41250,  42083, VIDC_CTRL_DIV1,   VID_CTL_24MHz },	/* 24.000MHz */
 };
 
-#ifdef CONFIG_ARCH_A5K
-static struct pixclock a5k_clocks[] = {
-	{ 117974, 120357, VIDC_CTRL_DIV3,   VID_CTL_25MHz },	/*  8.392MHz */
-	{  78649,  80238, VIDC_CTRL_DIV2,   VID_CTL_25MHz },	/* 12.588MHz */
-	{  58987,  60178, VIDC_CTRL_DIV1_5, VID_CTL_25MHz },	/* 16.588MHz */
-	{  55000,  56111, VIDC_CTRL_DIV2,   VID_CTL_36MHz },	/* 18.000MHz */
-	{  39325,  40119, VIDC_CTRL_DIV1,   VID_CTL_25MHz },	/* 25.175MHz */
-	{  27500,  28055, VIDC_CTRL_DIV1,   VID_CTL_36MHz },	/* 36.000MHz */
-};
-#endif
-
 static struct pixclock *
 acornfb_valid_pixrate(struct fb_var_screeninfo *var)
 {
@@ -162,15 +151,6 @@ acornfb_valid_pixrate(struct fb_var_screeninfo *var)
 		if (pixclock > arc_clocks[i].min_clock &&
 		    pixclock < arc_clocks[i].max_clock)
 			return arc_clocks + i;
-
-#ifdef CONFIG_ARCH_A5K
-	if (machine_is_a5k()) {
-		for (i = 0; i < ARRAY_SIZE(a5k_clocks); i++)
-			if (pixclock > a5k_clocks[i].min_clock &&
-			    pixclock < a5k_clocks[i].max_clock)
-				return a5k_clocks + i;
-	}
-#endif
 
 	return NULL;
 }

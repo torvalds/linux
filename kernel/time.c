@@ -215,22 +215,6 @@ asmlinkage long sys_adjtimex(struct timex __user *txc_p)
 	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
 }
 
-inline struct timespec current_kernel_time(void)
-{
-        struct timespec now;
-        unsigned long seq;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		
-		now = xtime;
-	} while (read_seqretry(&xtime_lock, seq));
-
-	return now; 
-}
-
-EXPORT_SYMBOL(current_kernel_time);
-
 /**
  * current_fs_time - Return FS time
  * @sb: Superblock.

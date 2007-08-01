@@ -58,9 +58,18 @@ struct lguest_dma_info
 	u8 interrupt; 	/* 0 when not registered */
 };
 
-/* We have separate types for the guest's ptes & pgds and the shadow ptes &
- * pgds.  Since this host might use three-level pagetables and the guest and
- * shadow pagetables don't, we can't use the normal pte_t/pgd_t. */
+/*H:310 The page-table code owes a great debt of gratitude to Andi Kleen.  He
+ * reviewed the original code which used "u32" for all page table entries, and
+ * insisted that it would be far clearer with explicit typing.  I thought it
+ * was overkill, but he was right: it is much clearer than it was before.
+ *
+ * We have separate types for the Guest's ptes & pgds and the shadow ptes &
+ * pgds.  There's already a Linux type for these (pte_t and pgd_t) but they
+ * change depending on kernel config options (PAE). */
+
+/* Each entry is identical: lower 12 bits of flags and upper 20 bits for the
+ * "page frame number" (0 == first physical page, etc).  They are different
+ * types so the compiler will warn us if we mix them improperly. */
 typedef union {
 	struct { unsigned flags:12, pfn:20; };
 	struct { unsigned long val; } raw;
@@ -77,8 +86,12 @@ typedef union {
 	struct { unsigned flags:12, pfn:20; };
 	struct { unsigned long val; } raw;
 } gpte_t;
+
+/* We have two convenient macros to convert a "raw" value as handed to us by
+ * the Guest into the correct Guest PGD or PTE type. */
 #define mkgpte(_val) ((gpte_t){.raw.val = _val})
 #define mkgpgd(_val) ((gpgd_t){.raw.val = _val})
+/*:*/
 
 struct pgdir
 {
@@ -243,7 +256,32 @@ unsigned long get_dma_buffer(struct lguest *lg, unsigned long key,
 
 /* hypercalls.c: */
 void do_hypercalls(struct lguest *lg);
+void write_timestamp(struct lguest *lg);
 
+/*L:035
+ * Let's step aside for the moment, to study one important routine that's used
+ * widely in the Host code.
+ *
+ * There are many cases where the Guest does something invalid, like pass crap
+ * to a hypercall.  Since only the Guest kernel can make hypercalls, it's quite
+ * acceptable to simply terminate the Guest and give the Launcher a nicely
+ * formatted reason.  It's also simpler for the Guest itself, which doesn't
+ * need to check most hypercalls for "success"; if you're still running, it
+ * succeeded.
+ *
+ * Once this is called, the Guest will never run again, so most Host code can
+ * call this then continue as if nothing had happened.  This means many
+ * functions don't have to explicitly return an error code, which keeps the
+ * code simple.
+ *
+ * It also means that this can be called more than once: only the first one is
+ * remembered.  The only trick is that we still need to kill the Guest even if
+ * we can't allocate memory to store the reason.  Linux has a neat way of
+ * packing error codes into invalid pointers, so we use that here.
+ *
+ * Like any macro which uses an "if", it is safely wrapped in a run-once "do {
+ * } while(0)".
+ */
 #define kill_guest(lg, fmt...)					\
 do {								\
 	if (!(lg)->dead) {					\
@@ -252,6 +290,7 @@ do {								\
 			(lg)->dead = ERR_PTR(-ENOMEM);		\
 	}							\
 } while(0)
+/* (End of aside) :*/
 
 static inline unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
 {

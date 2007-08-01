@@ -261,18 +261,10 @@ struct ipath_devdata {
 	 * limiting of hwerror reporting
 	 */
 	ipath_err_t ipath_lasthwerror;
-	/*
-	 * errors masked because they occur too fast, also includes errors
-	 * that are always ignored (ipath_ignorederrs)
-	 */
+	/* errors masked because they occur too fast */
 	ipath_err_t ipath_maskederrs;
 	/* time in jiffies at which to re-enable maskederrs */
 	unsigned long ipath_unmasktime;
-	/*
-	 * errors always ignored (masked), at least for a given
-	 * chip/device, because they are wrong or not useful
-	 */
-	ipath_err_t ipath_ignorederrs;
 	/* count of egrfull errors, combined for all ports */
 	u64 ipath_last_tidfull;
 	/* for ipath_qcheck() */
@@ -436,6 +428,7 @@ struct ipath_devdata {
 	u64 ipath_lastibcstat;
 	/* hwerrmask shadow */
 	ipath_err_t ipath_hwerrmask;
+	ipath_err_t ipath_errormask; /* errormask shadow */
 	/* interrupt config reg shadow */
 	u64 ipath_intconfig;
 	/* kr_sendpiobufbase value */
@@ -683,7 +676,7 @@ int ipath_unordered_wc(void);
 
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
-void ipath_cancel_sends(struct ipath_devdata *);
+void ipath_cancel_sends(struct ipath_devdata *, int);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
 void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);

@@ -26,6 +26,8 @@ platform-$(CONFIG_M5407)	:= 5407
 PLATFORM := $(platform-y)
 
 board-$(CONFIG_PILOT)		:= pilot
+board-$(CONFIG_UC5272)          := UC5272
+board-$(CONFIG_UC5282)          := UC5282
 board-$(CONFIG_UCSIMM)		:= ucsimm
 board-$(CONFIG_UCDIMM)		:= ucdimm
 board-$(CONFIG_UCQUICC)		:= uCquicc

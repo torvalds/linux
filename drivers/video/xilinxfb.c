@@ -79,7 +79,7 @@
 /*
  * Here are the default fb_fix_screeninfo and fb_var_screeninfo structures
  */
-static struct fb_fix_screeninfo xilinx_fb_fix __initdata = {
+static struct fb_fix_screeninfo xilinx_fb_fix = {
 	.id =		"Xilinx",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -88,7 +88,7 @@ static struct fb_fix_screeninfo xilinx_fb_fix __initdata = {
 	.accel =	FB_ACCEL_NONE
 };
 
-static struct fb_var_screeninfo xilinx_fb_var __initdata = {
+static struct fb_var_screeninfo xilinx_fb_var = {
 	.xres =			XRES,
 	.yres =			YRES,
 	.xres_virtual =		XRES_VIRTUAL,
@@ -212,11 +212,6 @@ xilinxfb_drv_probe(struct device *dev)
 	pdev = to_platform_device(dev);
 	pdata = pdev->dev.platform_data;
 
-	if (pdata == NULL) {
-		printk(KERN_ERR "Couldn't find platform data.\n");
-		return -EFAULT;
-	}
-
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata) {
 		printk(KERN_ERR "Couldn't allocate device private record\n");
@@ -258,11 +253,9 @@ xilinxfb_drv_probe(struct device *dev)
 	xilinx_fb_out_be32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
 
 	/* Turn on the display */
-	if (pdata->rotate_screen) {
-		drvdata->reg_ctrl_default = REG_CTRL_ENABLE | REG_CTRL_ROTATE;
-	} else {
-		drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
-	}
+	drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
+	if (pdata && pdata->rotate_screen)
+		drvdata->reg_ctrl_default |= REG_CTRL_ROTATE;
 	xilinx_fb_out_be32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
 
 	/* Fill struct fb_info */
@@ -281,8 +274,10 @@ xilinxfb_drv_probe(struct device *dev)
 	}
 
 	drvdata->info.flags = FBINFO_DEFAULT;
-	xilinx_fb_var.height = pdata->screen_height_mm;
-	xilinx_fb_var.width = pdata->screen_width_mm;
+	if (pdata) {
+		xilinx_fb_var.height = pdata->screen_height_mm;
+		xilinx_fb_var.width = pdata->screen_width_mm;
+	}
 	drvdata->info.var = xilinx_fb_var;
 
 	/* Register new frame buffer */

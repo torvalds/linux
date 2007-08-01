@@ -72,17 +72,18 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei)
 	u32 mbrsig;
 	u32 buf_base, mbr_base;
 	extern char _end[];
-	static char mbr_buf[1024];
 
 	sector_size = ei->params.bytes_per_sector;
 	if (!sector_size)
 		sector_size = 512; /* Best available guess */
 
+	/* Produce a naturally aligned buffer on the heap */
 	buf_base = (ds() << 4) + (u32)&_end;
 	mbr_base = (buf_base+sector_size-1) & ~(sector_size-1);
-	mbrbuf_ptr = mbr_buf + (mbr_base-buf_base);
+	mbrbuf_ptr = _end + (mbr_base-buf_base);
 	mbrbuf_end = mbrbuf_ptr + sector_size;
 
+	/* Make sure we actually have space on the heap... */
 	if (!(boot_params.hdr.loadflags & CAN_USE_HEAP))
 		return 0;
 	if (mbrbuf_end > (char *)(size_t)boot_params.hdr.heap_end_ptr)

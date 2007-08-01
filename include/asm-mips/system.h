@@ -46,10 +46,12 @@ struct task_struct;
 
 #define __mips_mt_fpaff_switch_to(prev)					\
 do {									\
+	struct thread_info *__prev_ti = task_thread_info(prev);		\
+									\
 	if (cpu_has_fpu &&						\
-	    (prev->thread.mflags & MF_FPUBOUND) &&			\
-	     (!(KSTK_STATUS(prev) & ST0_CU1))) {			\
-		prev->thread.mflags &= ~MF_FPUBOUND;			\
+	    test_ti_thread_flag(__prev_ti, TIF_FPUBOUND) &&		\
+	    (!(KSTK_STATUS(prev) & ST0_CU1))) {				\
+		clear_ti_thread_flag(__prev_ti, TIF_FPUBOUND);		\
 		prev->cpus_allowed = prev->thread.user_cpus_allowed;	\
 	}								\
 	next->thread.emulated_fp = 0;					\

@@ -13,22 +13,25 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
+/* Turn off this whole feature if PCI is not configured */
 #ifdef CONFIG_PCI
 
 #define EDAC_PCI_SYMLINK	"device"
 
-static int check_pci_errors;	/* default YES check PCI parity */
-static int edac_pci_panic_on_pe;	/* default no panic on PCI Parity */
-static int edac_pci_log_pe = 1;	/* log PCI parity errors */
+/* data variables exported via sysfs */
+static int check_pci_errors;		/* default NO check PCI parity */
+static int edac_pci_panic_on_pe;	/* default NO panic on PCI Parity */
+static int edac_pci_log_pe = 1;		/* log PCI parity errors */
 static int edac_pci_log_npe = 1;	/* log PCI non-parity error errors */
+static int edac_pci_poll_msec = 1000;	/* one second workq period */
+
 static atomic_t pci_parity_count = ATOMIC_INIT(0);
 static atomic_t pci_nonparity_count = ATOMIC_INIT(0);
-static int edac_pci_poll_msec = 1000;
 
-static struct kobject edac_pci_kobj;	/* /sys/devices/system/edac/pci */
-static struct completion edac_pci_kobj_complete;
+static struct kobject edac_pci_top_main_kobj;
 static atomic_t edac_pci_sysfs_refcount = ATOMIC_INIT(0);
 
+/* getter functions for the data variables */
 int edac_pci_get_check_errors(void)
 {
 	return check_pci_errors;
@@ -74,17 +77,22 @@ static void edac_pci_instance_release(struct kobject *kobj)
 {
 	struct edac_pci_ctl_info *pci;
 
-	debugf1("%s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
+	/* Form pointer to containing struct, the pci control struct */
 	pci = to_instance(kobj);
-	complete(&pci->kobj_complete);
+
+	/* decrement reference count on top main kobj */
+	kobject_put(&edac_pci_top_main_kobj);
+
+	kfree(pci);	/* Free the control struct */
 }
 
 /* instance specific attribute structure */
 struct instance_attribute {
 	struct attribute attr;
-	 ssize_t(*show) (struct edac_pci_ctl_info *, char *);
-	 ssize_t(*store) (struct edac_pci_ctl_info *, const char *, size_t);
+	ssize_t(*show) (struct edac_pci_ctl_info *, char *);
+	ssize_t(*store) (struct edac_pci_ctl_info *, const char *, size_t);
 };
 
 /* Function to 'show' fields from the edac_pci 'instance' structure */
@@ -112,6 +120,7 @@ static ssize_t edac_pci_instance_store(struct kobject *kobj,
 	return -EIO;
 }
 
+/* fs_ops table */
 static struct sysfs_ops pci_instance_ops = {
 	.show = edac_pci_instance_show,
 	.store = edac_pci_instance_store
@@ -134,48 +143,82 @@ static struct instance_attribute *pci_instance_attr[] = {
 	NULL
 };
 
-/* the ktype for pci instance */
+/* the ktype for a pci instance */
 static struct kobj_type ktype_pci_instance = {
 	.release = edac_pci_instance_release,
 	.sysfs_ops = &pci_instance_ops,
 	.default_attrs = (struct attribute **)pci_instance_attr,
 };
 
+/*
+ * edac_pci_create_instance_kobj
+ *
+ *	construct one EDAC PCI instance's kobject for use
+ */
 static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 {
+	struct kobject *main_kobj;
 	int err;
 
-	pci->kobj.parent = &edac_pci_kobj;
+	debugf0("%s()\n", __func__);
+
+	/* Set the parent and the instance's ktype */
+	pci->kobj.parent = &edac_pci_top_main_kobj;
 	pci->kobj.ktype = &ktype_pci_instance;
 
 	err = kobject_set_name(&pci->kobj, "pci%d", idx);
 	if (err)
 		return err;
 
+	/* First bump the ref count on the top main kobj, which will
+	 * track the number of PCI instances we have, and thus nest
+	 * properly on keeping the module loaded
+	 */
+	main_kobj = kobject_get(&edac_pci_top_main_kobj);
+	if (!main_kobj) {
+		err = -ENODEV;
+		goto error_out;
+	}
+
+	/* And now register this new kobject under the main kobj */
 	err = kobject_register(&pci->kobj);
 	if (err != 0) {
 		debugf2("%s() failed to register instance pci%d\n",
 			__func__, idx);
-		return err;
+		kobject_put(&edac_pci_top_main_kobj);
+		goto error_out;
 	}
 
 	debugf1("%s() Register instance 'pci%d' kobject\n", __func__, idx);
 
 	return 0;
+
+	/* Error unwind statck */
+error_out:
+	return err;
 }
 
-static void
-edac_pci_delete_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
+/*
+ * edac_pci_unregister_sysfs_instance_kobj
+ *
+ *	unregister the kobj for the EDAC PCI instance
+ */
+void edac_pci_unregister_sysfs_instance_kobj(struct edac_pci_ctl_info *pci)
 {
-	init_completion(&pci->kobj_complete);
+	debugf0("%s()\n", __func__);
+
+	/* Unregister the instance kobject and allow its release
+	 * function release the main reference count and then
+	 * kfree the memory
+	 */
 	kobject_unregister(&pci->kobj);
-	wait_for_completion(&pci->kobj_complete);
 }
 
 /***************************** EDAC PCI sysfs root **********************/
 #define to_edacpci(k) container_of(k, struct edac_pci_ctl_info, kobj)
 #define to_edacpci_attr(a) container_of(a, struct edac_pci_attr, attr)
 
+/* simple show/store functions for attributes */
 static ssize_t edac_pci_int_show(void *ptr, char *buffer)
 {
 	int *value = ptr;
@@ -267,118 +310,189 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
 	NULL,
 };
 
-/* No memory to release */
-static void edac_pci_release(struct kobject *kobj)
+/*
+ * edac_pci_release_main_kobj
+ *
+ *	This release function is called when the reference count to the
+ *	passed kobj goes to zero.
+ *
+ *	This kobj is the 'main' kobject that EDAC PCI instances
+ *	link to, and thus provide for proper nesting counts
+ */
+static void edac_pci_release_main_kobj(struct kobject *kobj)
 {
-	struct edac_pci_ctl_info *pci;
 
-	pci = to_edacpci(kobj);
+	debugf0("%s() here to module_put(THIS_MODULE)\n", __func__);
 
-	debugf1("%s()\n", __func__);
-	complete(&pci->kobj_complete);
+	/* last reference to top EDAC PCI kobject has been removed,
+	 * NOW release our ref count on the core module
+	 */
+	module_put(THIS_MODULE);
 }
 
-static struct kobj_type ktype_edac_pci = {
-	.release = edac_pci_release,
+/* ktype struct for the EDAC PCI main kobj */
+static struct kobj_type ktype_edac_pci_main_kobj = {
+	.release = edac_pci_release_main_kobj,
 	.sysfs_ops = &edac_pci_sysfs_ops,
 	.default_attrs = (struct attribute **)edac_pci_attr,
 };
 
 /**
- * edac_sysfs_pci_setup()
+ * edac_pci_main_kobj_setup()
  *
  *	setup the sysfs for EDAC PCI attributes
  *	assumes edac_class has already been initialized
  */
-int edac_pci_register_main_kobj(void)
+int edac_pci_main_kobj_setup(void)
 {
 	int err;
 	struct sysdev_class *edac_class;
 
-	debugf1("%s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
+	/* check and count if we have already created the main kobject */
+	if (atomic_inc_return(&edac_pci_sysfs_refcount) != 1)
+		return 0;
+
+	/* First time, so create the main kobject and its
+	 * controls and atributes
+	 */
 	edac_class = edac_get_edac_class();
 	if (edac_class == NULL) {
 		debugf1("%s() no edac_class\n", __func__);
-		return -ENODEV;
+		err = -ENODEV;
+		goto decrement_count_fail;
 	}
 
-	edac_pci_kobj.ktype = &ktype_edac_pci;
+	/* Need the kobject hook ups, and name setting */
+	edac_pci_top_main_kobj.ktype = &ktype_edac_pci_main_kobj;
+	edac_pci_top_main_kobj.parent = &edac_class->kset.kobj;
 
-	edac_pci_kobj.parent = &edac_class->kset.kobj;
-
-	err = kobject_set_name(&edac_pci_kobj, "pci");
+	err = kobject_set_name(&edac_pci_top_main_kobj, "pci");
 	if (err)
-		return err;
+		goto decrement_count_fail;
+
+	/* Bump the reference count on this module to ensure the
+	 * modules isn't unloaded until we deconstruct the top
+	 * level main kobj for EDAC PCI
+	 */
+	if (!try_module_get(THIS_MODULE)) {
+		debugf1("%s() try_module_get() failed\n", __func__);
+		err = -ENODEV;
+		goto decrement_count_fail;
+	}
 
 	/* Instanstiate the pci object */
 	/* FIXME: maybe new sysdev_create_subdir() */
-	err = kobject_register(&edac_pci_kobj);
-
+	err = kobject_register(&edac_pci_top_main_kobj);
 	if (err) {
 		debugf1("Failed to register '.../edac/pci'\n");
-		return err;
+		goto kobject_register_fail;
 	}
 
+	/* At this point, to 'release' the top level kobject
+	 * for EDAC PCI, then edac_pci_main_kobj_teardown()
+	 * must be used, for resources to be cleaned up properly
+	 */
 	debugf1("Registered '.../edac/pci' kobject\n");
 
 	return 0;
+
+	/* Error unwind statck */
+kobject_register_fail:
+	module_put(THIS_MODULE);
+
+decrement_count_fail:
+	/* if are on this error exit, nothing to tear down */
+	atomic_dec(&edac_pci_sysfs_refcount);
+
+	return err;
 }
 
 /*
- * edac_pci_unregister_main_kobj()
+ * edac_pci_main_kobj_teardown()
  *
- *	perform the sysfs teardown for the PCI attributes
+ *	if no longer linked (needed) remove the top level EDAC PCI
+ *	kobject with its controls and attributes
  */
-void edac_pci_unregister_main_kobj(void)
+static void edac_pci_main_kobj_teardown(void)
 {
 	debugf0("%s()\n", __func__);
-	init_completion(&edac_pci_kobj_complete);
-	kobject_unregister(&edac_pci_kobj);
-	wait_for_completion(&edac_pci_kobj_complete);
+
+	/* Decrement the count and only if no more controller instances
+	 * are connected perform the unregisteration of the top level
+	 * main kobj
+	 */
+	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
+		debugf0("%s() called kobject_unregister on main kobj\n",
+			__func__);
+		kobject_unregister(&edac_pci_top_main_kobj);
+	}
 }
 
+/*
+ *
+ * edac_pci_create_sysfs
+ *
+ *	Create the controls/attributes for the specified EDAC PCI device
+ */
 int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci)
 {
 	int err;
 	struct kobject *edac_kobj = &pci->kobj;
 
-	if (atomic_inc_return(&edac_pci_sysfs_refcount) == 1) {
-		err = edac_pci_register_main_kobj();
-		if (err) {
-			atomic_dec(&edac_pci_sysfs_refcount);
-			return err;
-		}
-	}
-
-	err = edac_pci_create_instance_kobj(pci, pci->pci_idx);
-	if (err) {
-		if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0)
-			edac_pci_unregister_main_kobj();
-	}
-
 	debugf0("%s() idx=%d\n", __func__, pci->pci_idx);
+
+	/* create the top main EDAC PCI kobject, IF needed */
+	err = edac_pci_main_kobj_setup();
+	if (err)
+		return err;
+
+	/* Create this instance's kobject under the MAIN kobject */
+	err = edac_pci_create_instance_kobj(pci, pci->pci_idx);
+	if (err)
+		goto unregister_cleanup;
 
 	err = sysfs_create_link(edac_kobj, &pci->dev->kobj, EDAC_PCI_SYMLINK);
 	if (err) {
 		debugf0("%s() sysfs_create_link() returned err= %d\n",
 			__func__, err);
-		return err;
+		goto symlink_fail;
 	}
 
 	return 0;
+
+	/* Error unwind stack */
+symlink_fail:
+	edac_pci_unregister_sysfs_instance_kobj(pci);
+
+unregister_cleanup:
+	edac_pci_main_kobj_teardown();
+
+	return err;
 }
 
+/*
+ * edac_pci_remove_sysfs
+ *
+ *	remove the controls and attributes for this EDAC PCI device
+ */
 void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci)
 {
-	debugf0("%s()\n", __func__);
+	debugf0("%s() index=%d\n", __func__, pci->pci_idx);
 
-	edac_pci_delete_instance_kobj(pci, pci->pci_idx);
-
+	/* Remove the symlink */
 	sysfs_remove_link(&pci->kobj, EDAC_PCI_SYMLINK);
 
-	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0)
-		edac_pci_unregister_main_kobj();
+	/* remove this PCI instance's sysfs entries */
+	edac_pci_unregister_sysfs_instance_kobj(pci);
+
+	/* Call the main unregister function, which will determine
+	 * if this 'pci' is the last instance.
+	 * If it is, the main kobject will be unregistered as a result
+	 */
+	debugf0("%s() calling edac_pci_main_kobj_teardown()\n", __func__);
+	edac_pci_main_kobj_teardown();
 }
 
 /************************ PCI error handling *************************/
@@ -414,12 +528,13 @@ static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
 	return status;
 }
 
-typedef void (*pci_parity_check_fn_t) (struct pci_dev * dev);
 
 /* Clear any PCI parity errors logged by this device. */
 static void edac_pci_dev_parity_clear(struct pci_dev *dev)
 {
 	u8 header_type;
+
+	debugf0("%s()\n", __func__);
 
 	get_pci_parity_status(dev, 0);
 
@@ -433,17 +548,28 @@ static void edac_pci_dev_parity_clear(struct pci_dev *dev)
 /*
  *  PCI Parity polling
  *
+ *	Fucntion to retrieve the current parity status
+ *	and decode it
+ *
  */
 static void edac_pci_dev_parity_test(struct pci_dev *dev)
 {
+	unsigned long flags;
 	u16 status;
 	u8 header_type;
 
-	/* read the STATUS register on this device
-	 */
+	/* stop any interrupts until we can acquire the status */
+	local_irq_save(flags);
+
+	/* read the STATUS register on this device */
 	status = get_pci_parity_status(dev, 0);
 
-	debugf2("PCI STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
+	/* read the device TYPE, looking for bridges */
+	pci_read_config_byte(dev, PCI_HEADER_TYPE, &header_type);
+
+	local_irq_restore(flags);
+
+	debugf4("PCI STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
 
 	/* check the status reg for errors */
 	if (status) {
@@ -471,16 +597,14 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 		}
 	}
 
-	/* read the device TYPE, looking for bridges */
-	pci_read_config_byte(dev, PCI_HEADER_TYPE, &header_type);
 
-	debugf2("PCI HEADER TYPE= 0x%02x %s\n", header_type, dev->dev.bus_id);
+	debugf4("PCI HEADER TYPE= 0x%02x %s\n", header_type, dev->dev.bus_id);
 
 	if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
 		/* On bridges, need to examine secondary status register  */
 		status = get_pci_parity_status(dev, 1);
 
-		debugf2("PCI SEC_STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
+		debugf4("PCI SEC_STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
 
 		/* check the secondary status reg for errors */
 		if (status) {
@@ -510,9 +634,12 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 	}
 }
 
+/* reduce some complexity in definition of the iterator */
+typedef void (*pci_parity_check_fn_t) (struct pci_dev *dev);
+
 /*
  * pci_dev parity list iterator
- *	Scan the PCI device list for one iteration, looking for SERRORs
+ *	Scan the PCI device list for one pass, looking for SERRORs
  *	Master Parity ERRORS or Parity ERRORs on primary or secondary devices
  */
 static inline void edac_pci_dev_parity_iterator(pci_parity_check_fn_t fn)
@@ -535,22 +662,22 @@ static inline void edac_pci_dev_parity_iterator(pci_parity_check_fn_t fn)
  */
 void edac_pci_do_parity_check(void)
 {
-	unsigned long flags;
 	int before_count;
 
 	debugf3("%s()\n", __func__);
 
+	/* if policy has PCI check off, leave now */
 	if (!check_pci_errors)
 		return;
 
 	before_count = atomic_read(&pci_parity_count);
 
 	/* scan all PCI devices looking for a Parity Error on devices and
-	 * bridges
+	 * bridges.
+	 * The iterator calls pci_get_device() which might sleep, thus
+	 * we cannot disable interrupts in this scan.
 	 */
-	local_irq_save(flags);
 	edac_pci_dev_parity_iterator(edac_pci_dev_parity_test);
-	local_irq_restore(flags);
 
 	/* Only if operator has selected panic on PCI Error */
 	if (edac_pci_get_panic_on_pe()) {
@@ -560,6 +687,12 @@ void edac_pci_do_parity_check(void)
 	}
 }
 
+/*
+ * edac_pci_clear_parity_errors
+ *
+ *	function to perform an iteration over the PCI devices
+ *	and clearn their current status
+ */
 void edac_pci_clear_parity_errors(void)
 {
 	/* Clear any PCI bus parity errors that devices initially have logged
@@ -567,6 +700,12 @@ void edac_pci_clear_parity_errors(void)
 	 */
 	edac_pci_dev_parity_iterator(edac_pci_dev_parity_clear);
 }
+
+/*
+ * edac_pci_handle_pe
+ *
+ *	Called to handle a PARITY ERROR event
+ */
 void edac_pci_handle_pe(struct edac_pci_ctl_info *pci, const char *msg)
 {
 
@@ -584,9 +723,14 @@ void edac_pci_handle_pe(struct edac_pci_ctl_info *pci, const char *msg)
 	 */
 	edac_pci_do_parity_check();
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_handle_pe);
 
+
+/*
+ * edac_pci_handle_npe
+ *
+ *	Called to handle a NON-PARITY ERROR event
+ */
 void edac_pci_handle_npe(struct edac_pci_ctl_info *pci, const char *msg)
 {
 
@@ -604,7 +748,6 @@ void edac_pci_handle_npe(struct edac_pci_ctl_info *pci, const char *msg)
 	 */
 	edac_pci_do_parity_check();
 }
-
 EXPORT_SYMBOL_GPL(edac_pci_handle_npe);
 
 /*

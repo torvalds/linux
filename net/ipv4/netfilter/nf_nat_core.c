@@ -77,7 +77,8 @@ static inline unsigned int
 hash_by_src(const struct nf_conntrack_tuple *tuple)
 {
 	/* Original src, to ensure we map it consistently if poss. */
-	return jhash_3words((__force u32)tuple->src.u3.ip, tuple->src.u.all,
+	return jhash_3words((__force u32)tuple->src.u3.ip,
+			    (__force u32)tuple->src.u.all,
 			    tuple->dst.protonum, 0) % nf_nat_htable_size;
 }
 

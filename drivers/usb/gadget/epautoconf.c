@@ -71,7 +71,7 @@ ep_matches (
 	u16		max;
 
 	/* endpoint already claimed? */
-	if (0 != ep->driver_data)
+	if (NULL != ep->driver_data)
 		return 0;
 
 	/* only support ep0 for portable CONTROL traffic */

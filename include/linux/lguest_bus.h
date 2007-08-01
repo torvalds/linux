@@ -15,11 +15,14 @@ struct lguest_device {
 	void *private;
 };
 
-/* By convention, each device can use irq index+1 if it wants to. */
+/*D:380 Since interrupt numbers are arbitrary, we use a convention: each device
+ * can use the interrupt number corresponding to its index.  The +1 is because
+ * interrupt 0 is not usable (it's actually the timer interrupt). */
 static inline int lgdev_irq(const struct lguest_device *dev)
 {
 	return dev->index + 1;
 }
+/*:*/
 
 /* dma args must not be vmalloced! */
 void lguest_send_dma(unsigned long key, struct lguest_dma *dma);

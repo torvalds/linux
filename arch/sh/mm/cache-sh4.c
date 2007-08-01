@@ -77,16 +77,8 @@ static void __init emit_cache_params(void)
 /*
  * SH-4 has virtually indexed and physically tagged cache.
  */
-
-/* Worst case assumed to be 64k cache, direct-mapped i.e. 4 synonym bits. */
-#define MAX_P3_MUTEXES 16
-
-struct mutex p3map_mutex[MAX_P3_MUTEXES];
-
 void __init p3_cache_init(void)
 {
-	int i;
-
 	compute_alias(&current_cpu_data.icache);
 	compute_alias(&current_cpu_data.dcache);
 
@@ -106,12 +98,6 @@ void __init p3_cache_init(void)
 	}
 
 	emit_cache_params();
-
-	if (ioremap_page_range(P3SEG, P3SEG + (PAGE_SIZE * 4), 0, PAGE_KERNEL))
-		panic("%s failed.", __FUNCTION__);
-
-	for (i = 0; i < current_cpu_data.dcache.n_aliases; i++)
-		mutex_init(&p3map_mutex[i]);
 }
 
 /*

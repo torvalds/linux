@@ -27,7 +27,6 @@
 void coldfire_tick(void);
 void coldfire_timer_init(irq_handler_t handler);
 unsigned long coldfire_timer_offset(void);
-void coldfire_trap_init(void);
 void coldfire_reset(void);
 
 /***************************************************************************/
@@ -96,18 +95,9 @@ int mcf_timerirqpending(int timer)
 void config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
-
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-	commandp[size-1] = 0;
-#else
-	memset(commandp, 0, size);
-#endif
-
 	mach_sched_init = coldfire_timer_init;
 	mach_tick = coldfire_tick;
 	mach_gettimeoffset = coldfire_timer_offset;
-	mach_trap_init = coldfire_trap_init;
 	mach_reset = coldfire_reset;
 }
 

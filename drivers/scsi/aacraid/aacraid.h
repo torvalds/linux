@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2447
+# define AAC_DRIVER_BUILD 2449
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -1807,10 +1807,10 @@ struct aac_aifcmd {
  *  	accounting for the fact capacity could be a 64 bit value
  *
  */
-static inline u32 cap_to_cyls(sector_t capacity, u32 divisor)
+static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 {
 	sector_div(capacity, divisor);
-	return (u32)capacity;
+	return capacity;
 }
 
 /* SCp.phase values */

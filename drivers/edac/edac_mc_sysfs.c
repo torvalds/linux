@@ -122,6 +122,23 @@ static ssize_t memctrl_int_store(void *ptr, const char *buffer, size_t count)
 	return count;
 }
 
+/*
+ * mc poll_msec time value
+ */
+static ssize_t poll_msec_int_store(void *ptr, const char *buffer, size_t count)
+{
+	int *value = (int *)ptr;
+
+	if (isdigit(*buffer)) {
+		*value = simple_strtoul(buffer, NULL, 0);
+
+		/* notify edac_mc engine to reset the poll period */
+		edac_mc_reset_delay_period(*value);
+	}
+
+	return count;
+}
+
 
 /* EDAC sysfs CSROW data structures and methods
  */
@@ -704,7 +721,7 @@ MEMCTRL_ATTR(edac_mc_log_ce,
 	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
 
 MEMCTRL_ATTR(edac_mc_poll_msec,
-	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
+	S_IRUGO | S_IWUSR, memctrl_int_show, poll_msec_int_store);
 
 /* Base Attributes of the memory ECC object */
 static struct memctrl_dev_attribute *memctrl_attr[] = {

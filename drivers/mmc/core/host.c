@@ -93,6 +93,10 @@ EXPORT_SYMBOL(mmc_alloc_host);
 /**
  *	mmc_add_host - initialise host hardware
  *	@host: mmc host
+ *
+ *	Register the host with the driver model. The host must be
+ *	prepared to start servicing requests before this function
+ *	completes.
  */
 int mmc_add_host(struct mmc_host *host)
 {
@@ -126,7 +130,8 @@ EXPORT_SYMBOL(mmc_add_host);
  *	@host: mmc host
  *
  *	Unregister and remove all cards associated with this host,
- *	and power down the MMC bus.
+ *	and power down the MMC bus. No new requests will be issued
+ *	after this function has returned.
  */
 void mmc_remove_host(struct mmc_host *host)
 {

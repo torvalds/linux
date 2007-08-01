@@ -359,7 +359,6 @@ ccwgroup_probe (struct device *dev)
 	if ((ret = device_create_file(dev, &dev_attr_online)))
 		return ret;
 
-	pr_debug("%s: device %s\n", __func__, gdev->dev.bus_id);
 	ret = gdrv->probe ? gdrv->probe(gdev) : -ENODEV;
 	if (ret)
 		device_remove_file(dev, &dev_attr_online);
@@ -375,8 +374,6 @@ ccwgroup_remove (struct device *dev)
 
 	gdev = to_ccwgroupdev(dev);
 	gdrv = to_ccwgroupdrv(dev->driver);
-
-	pr_debug("%s: device %s\n", __func__, gdev->dev.bus_id);
 
 	device_remove_file(dev, &dev_attr_online);
 

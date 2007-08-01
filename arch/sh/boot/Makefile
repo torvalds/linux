@@ -32,9 +32,10 @@ $(obj)/zImage: $(obj)/compressed/vmlinux FORCE
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
-KERNEL_LOAD	:= $(shell printf "0x%8x" $$[$(CONFIG_PAGE_OFFSET)  + \
-					     $(CONFIG_MEMORY_START) + \
-					     $(CONFIG_ZERO_PAGE_OFFSET)+0x1000])
+KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%8x" \
+		     $$[$(CONFIG_PAGE_OFFSET)  + \
+			$(CONFIG_MEMORY_START) + \
+			$(CONFIG_ZERO_PAGE_OFFSET)+0x1000]')
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \

@@ -1,17 +1,17 @@
 NOTE:
-This is a Japanese translated version of
-"Documentation/stable_api_nonsense.txt".
-This one is maintained by
-IKEDA, Munehiro <m-ikeda@ds.jp.nec.com>
-and JF Project team <http://www.linux.or.jp/JF/>.
-If you find difference with original file or problem in translation,
+This is a version of Documentation/stable_api_nonsense.txt into Japanese.
+This document is maintained by IKEDA, Munehiro <m-ikeda@ds.jp.nec.com>
+and the JF Project team <http://www.linux.or.jp/JF/>.
+If you find any difference between this document and the original file
+or a problem with the translation,
 please contact the maintainer of this file or JF project.
 
-Please also note that purpose of this file is easier to read for non
-English natives and not to be intended to fork. So, if you have any
-comments or updates of this file, please try to update
-Original(English) file at first.
+Please also note that the purpose of this file is to be easier to read
+for non English (read: Japanese) speakers and is not intended as a
+fork. So if you have any comments or updates of this file, please try
+to update the original English file first.
 
+Last Updated: 2007/07/18
 ==================================
 これは、
 linux-2.6.22-rc4/Documentation/stable_api_nonsense.txt の和訳

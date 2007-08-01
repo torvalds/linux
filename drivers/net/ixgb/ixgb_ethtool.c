@@ -724,7 +724,6 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.phys_id = ixgb_phys_id,
 	.get_stats_count = ixgb_get_stats_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
-	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 void ixgb_set_ethtool_ops(struct net_device *netdev)

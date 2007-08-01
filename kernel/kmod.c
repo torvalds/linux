@@ -351,11 +351,11 @@ static inline void register_pm_notifier_callback(void) {}
 
 /**
  * call_usermodehelper_setup - prepare to call a usermode helper
- * @path - path to usermode executable
- * @argv - arg vector for process
- * @envp - environment for process
+ * @path: path to usermode executable
+ * @argv: arg vector for process
+ * @envp: environment for process
  *
- * Returns either NULL on allocation failure, or a subprocess_info
+ * Returns either %NULL on allocation failure, or a subprocess_info
  * structure.  This should be passed to call_usermodehelper_exec to
  * exec the process and free the structure.
  */

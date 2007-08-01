@@ -275,7 +275,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	unsigned char *c0dra = dra, *c1dra = &dra[I3000_RANKS_PER_CHANNEL / 2];
 	unsigned char *c0drb = drb, *c1drb = &drb[I3000_RANKS_PER_CHANNEL];
 	unsigned long mchbar;
-	void *window;
+	void __iomem *window;
 
 	debugf0("MC: %s()\n", __func__);
 

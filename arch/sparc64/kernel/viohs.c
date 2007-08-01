@@ -702,7 +702,7 @@ u32 vio_send_sid(struct vio_driver_state *vio)
 }
 EXPORT_SYMBOL(vio_send_sid);
 
-extern int vio_ldc_alloc(struct vio_driver_state *vio,
+int vio_ldc_alloc(struct vio_driver_state *vio,
 			 struct ldc_channel_config *base_cfg,
 			 void *event_arg)
 {

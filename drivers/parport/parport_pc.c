@@ -3445,7 +3445,6 @@ static void __exit parport_pc_exit(void)
 		pnp_unregister_driver (&parport_pc_pnp_driver);
 	platform_driver_unregister(&parport_pc_platform_driver);
 
-	spin_lock(&ports_lock);
 	while (!list_empty(&ports_list)) {
 		struct parport_pc_private *priv;
 		struct parport *port;
@@ -3455,11 +3454,8 @@ static void __exit parport_pc_exit(void)
 		if (port->dev && port->dev->bus == &platform_bus_type)
 			platform_device_unregister(
 				to_platform_device(port->dev));
-		spin_unlock(&ports_lock);
 		parport_pc_unregister_port(port);
-		spin_lock(&ports_lock);
 	}
-	spin_unlock(&ports_lock);
 }
 
 MODULE_AUTHOR("Phil Blundell, Tim Waugh, others");

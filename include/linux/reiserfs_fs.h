@@ -81,14 +81,16 @@ void reiserfs_warning(struct super_block *s, const char *fmt, ...);
 /* assertions handling */
 
 /** always check a condition and panic if it's false. */
-#define RASSERT( cond, format, args... )					\
+#define __RASSERT( cond, scond, format, args... )					\
 if( !( cond ) ) 								\
-  reiserfs_panic( NULL, "reiserfs[%i]: assertion " #cond " failed at "	\
+  reiserfs_panic( NULL, "reiserfs[%i]: assertion " scond " failed at "	\
 		  __FILE__ ":%i:%s: " format "\n",		\
 		  in_interrupt() ? -1 : current -> pid, __LINE__ , __FUNCTION__ , ##args )
 
+#define RASSERT(cond, format, args...) __RASSERT(cond, #cond, format, ##args)
+
 #if defined( CONFIG_REISERFS_CHECK )
-#define RFALSE( cond, format, args... ) RASSERT( !( cond ), format, ##args )
+#define RFALSE(cond, format, args...) __RASSERT(!(cond), "!(" #cond ")", format, ##args)
 #else
 #define RFALSE( cond, format, args... ) do {;} while( 0 )
 #endif

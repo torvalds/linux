@@ -258,7 +258,8 @@ static const struct rtc_class_ops stk17ta8_rtc_ops = {
 	.ioctl		= stk17ta8_rtc_ioctl,
 };
 
-static ssize_t stk17ta8_nvram_read(struct kobject *kobj, char *buf,
+static ssize_t stk17ta8_nvram_read(struct kobject *kobj,
+				 struct bin_attribute *attr, char *buf,
 				 loff_t pos, size_t size)
 {
 	struct platform_device *pdev =
@@ -272,7 +273,8 @@ static ssize_t stk17ta8_nvram_read(struct kobject *kobj, char *buf,
 	return count;
 }
 
-static ssize_t stk17ta8_nvram_write(struct kobject *kobj, char *buf,
+static ssize_t stk17ta8_nvram_write(struct kobject *kobj,
+				  struct bin_attribute *attr, char *buf,
 				  loff_t pos, size_t size)
 {
 	struct platform_device *pdev =

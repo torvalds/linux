@@ -824,11 +824,13 @@ static void audit_log_execve_info(struct audit_buffer *ab,
 {
 	int i;
 	long len, ret;
-	const char __user *p = (const char __user *)axi->mm->arg_start;
+	const char __user *p;
 	char *buf;
 
 	if (axi->mm != current->mm)
 		return; /* execve failed, no additional info */
+
+	p = (const char __user *)axi->mm->arg_start;
 
 	for (i = 0; i < axi->argc; i++, p += len) {
 		len = strnlen_user(p, MAX_ARG_STRLEN);
@@ -855,7 +857,7 @@ static void audit_log_execve_info(struct audit_buffer *ab,
 		 * copied them here, and the mm hasn't been exposed to user-
 		 * space yet.
 		 */
-		if (!ret) {
+		if (ret) {
 			WARN_ON(1);
 			send_sig(SIGKILL, current, 0);
 		}

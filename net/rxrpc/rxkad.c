@@ -916,7 +916,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 		issue = be32_to_cpu(stamp);
 	}
 	p += 4;
-	now = xtime.tv_sec;
+	now = get_seconds();
 	_debug("KIV ISSUE: %lx [%lx]", issue, now);
 
 	/* check the ticket is in date */

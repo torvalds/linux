@@ -134,8 +134,8 @@ typedef struct skb_frag_struct skb_frag_t;
 
 struct skb_frag_struct {
 	struct page *page;
-	__u16 page_offset;
-	__u16 size;
+	__u32 page_offset;
+	__u32 size;
 };
 
 /* This data is invariant across clones and lives at

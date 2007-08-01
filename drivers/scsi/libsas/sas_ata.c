@@ -382,7 +382,7 @@ int sas_ata_init_host_and_port(struct domain_device *found_dev,
 	struct ata_port *ap;
 
 	ata_host_init(&found_dev->sata_dev.ata_host,
-		      &ha->pcidev->dev,
+		      ha->dev,
 		      sata_port_info.flags,
 		      &sas_sata_ops);
 	ap = ata_sas_port_alloc(&found_dev->sata_dev.ata_host,
@@ -448,10 +448,10 @@ static void sas_disc_task_done(struct sas_task *task)
  * @task: the task to be executed
  * @buffer: pointer to buffer to do I/O
  * @size: size of @buffer
- * @pci_dma_dir: PCI_DMA_...
+ * @dma_dir: DMA direction.  DMA_xxx
  */
 static int sas_execute_task(struct sas_task *task, void *buffer, int size,
-			    int pci_dma_dir)
+			    enum dma_data_direction dma_dir)
 {
 	int res = 0;
 	struct scatterlist *scatter = NULL;
@@ -461,7 +461,7 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 	struct sas_internal *i =
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 
-	if (pci_dma_dir != PCI_DMA_NONE) {
+	if (dma_dir != DMA_NONE) {
 		scatter = kzalloc(sizeof(*scatter), GFP_KERNEL);
 		if (!scatter)
 			goto out;
@@ -474,11 +474,11 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 	task->scatter = scatter;
 	task->num_scatter = num_scatter;
 	task->total_xfer_len = size;
-	task->data_dir = pci_dma_dir;
+	task->data_dir = dma_dir;
 	task->task_done = sas_disc_task_done;
-	if (pci_dma_dir != PCI_DMA_NONE &&
+	if (dma_dir != DMA_NONE &&
 	    sas_protocol_ata(task->task_proto)) {
-		task->num_scatter = pci_map_sg(task->dev->port->ha->pcidev,
+		task->num_scatter = dma_map_sg(task->dev->port->ha->dev,
 					       task->scatter,
 					       task->num_scatter,
 					       task->data_dir);
@@ -565,9 +565,9 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 		}
 	}
 ex_err:
-	if (pci_dma_dir != PCI_DMA_NONE) {
+	if (dma_dir != DMA_NONE) {
 		if (sas_protocol_ata(task->task_proto))
-			pci_unmap_sg(task->dev->port->ha->pcidev,
+			dma_unmap_sg(task->dev->port->ha->dev,
 				     task->scatter, task->num_scatter,
 				     task->data_dir);
 		kfree(scatter);
@@ -628,11 +628,11 @@ static void sas_get_ata_command_set(struct domain_device *dev)
  * @features: the features register
  * @buffer: pointer to buffer to do I/O
  * @size: size of @buffer
- * @pci_dma_dir: PCI_DMA_...
+ * @dma_dir: DMA direction.  DMA_xxx
  */
 static int sas_issue_ata_cmd(struct domain_device *dev, u8 command,
 			     u8 features, void *buffer, int size,
-			     int pci_dma_dir)
+			     enum dma_data_direction dma_dir)
 {
 	int res = 0;
 	struct sas_task *task;
@@ -652,7 +652,7 @@ static int sas_issue_ata_cmd(struct domain_device *dev, u8 command,
 	task->ata_task.fis.device = d2h_fis->device;
 	task->ata_task.retry_count = 1;
 
-	res = sas_execute_task(task, buffer, size, pci_dma_dir);
+	res = sas_execute_task(task, buffer, size, dma_dir);
 
 	sas_free_task(task);
 out:
@@ -707,7 +707,7 @@ static int sas_discover_sata_dev(struct domain_device *dev)
 	}
 
 	res = sas_issue_ata_cmd(dev, command, 0, identify_x, 512,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 	if (res)
 		goto out_err;
 
@@ -720,13 +720,13 @@ static int sas_discover_sata_dev(struct domain_device *dev)
 			goto cont1;
 		res = sas_issue_ata_cmd(dev, ATA_SET_FEATURES,
 					ATA_FEATURE_PUP_STBY_SPIN_UP,
-					NULL, 0, PCI_DMA_NONE);
+					NULL, 0, DMA_NONE);
 		if (res)
 			goto cont1;
 
 		schedule_timeout_interruptible(5*HZ); /* More time? */
 		res = sas_issue_ata_cmd(dev, command, 0, identify_x, 512,
-					PCI_DMA_FROMDEVICE);
+					DMA_FROM_DEVICE);
 		if (res)
 			goto out_err;
 	}

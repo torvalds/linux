@@ -33,12 +33,10 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 		PowerPC,603e { /* Really 8241 */
 			device_type = "cpu";
 			reg = <0>;
-			clock-frequency = <fdad680>;	/* Fixed by bootwrapper */
-			timebase-frequency = <1F04000>; /* Fixed by bootwrapper */
-			bus-frequency = <0>;		/* From bootloader */
+			clock-frequency = <fdad680>;	/* Fixed by bootloader */
+			timebase-frequency = <1F04000>; /* Fixed by bootloader */
+			bus-frequency = <0>;		/* Fixed by bootloader */
 			/* Following required by dtc but not used */
-			i-cache-line-size = <0>;
-			d-cache-line-size = <0>;
 			i-cache-size = <4000>;
 			d-cache-size = <4000>;
 		};
@@ -64,11 +62,19 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 			  fef00000 fef00000 00100000>;	/* pci iack */
 
 		i2c@80003000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <80003000 1000>;
 			interrupts = <5 2>;
 			interrupt-parent = <&mpic>;
+
+			rtc@32 {
+				device_type = "rtc";
+				compatible = "ricoh,rs5c372b";
+				reg = <32>;
+			};
 		};
 
 		serial@80004500 {
@@ -91,8 +97,7 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 			interrupt-parent = <&mpic>;
 		};
 
-		mpic: pic@80040000 {
-			interrupt-parent = <&mpic>;
+		mpic: interrupt-controller@80040000 {
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
 			device_type = "open-pic";

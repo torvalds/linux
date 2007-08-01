@@ -2886,7 +2886,6 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.set_settings           = vortex_set_settings,
 	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 #ifdef CONFIG_PCI

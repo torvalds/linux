@@ -43,6 +43,9 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 #include <asm/tx4927/tx4927.h>
+#ifdef CONFIG_TOSHIBA_RBTX4927
+#include <asm/tx4927/toshiba_rbtx4927.h>
+#endif
 
 /*
  * DEBUG

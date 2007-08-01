@@ -52,7 +52,7 @@ static struct clocksource clocksource_itc = {
         .name           = "itc",
         .rating         = 350,
         .read           = itc_get_cycles,
-        .mask           = 0xffffffffffffffff,
+        .mask           = CLOCKSOURCE_MASK(64),
         .mult           = 0, /*to be caluclated*/
         .shift          = 16,
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
@@ -255,7 +255,7 @@ ia64_init_itm (void)
 	}
 }
 
-static cycle_t itc_get_cycles()
+static cycle_t itc_get_cycles(void)
 {
 	u64 lcycle, now, ret;
 

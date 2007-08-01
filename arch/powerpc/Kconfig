@@ -411,11 +411,6 @@ config PPC_INDIRECT_PCI
 	default y if 40x || 44x
 	default n
 
-config PPC_INDIRECT_PCI_BE
-	bool
-	depends PPC_INDIRECT_PCI
-	default n
-
 config EISA
 	bool
 
@@ -424,6 +419,10 @@ config SBUS
 
 config FSL_SOC
 	bool
+
+config FSL_PCI
+ 	bool
+	select PPC_INDIRECT_PCI
 
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA

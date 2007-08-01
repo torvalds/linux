@@ -90,6 +90,9 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
 source "init/Kconfig"
 
 menu "System type"
@@ -134,8 +137,8 @@ config SH_FPU_EMU
 
 config SH_DSP
 	bool "DSP support"
-	default y if SH4AL_DSP || !CPU_SH4
-	default n
+	depends on CPU_HAS_DSP
+	default y
 	help
 	  Selecting this option will enable support for SH processors that
 	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
@@ -172,9 +175,6 @@ config SPECULATIVE_EXECUTION
 config CPU_HAS_INTEVT
 	bool
 
-config CPU_HAS_PINT_IRQ
-	bool
-
 config CPU_HAS_MASKREG_IRQ
 	bool
 
@@ -200,6 +200,9 @@ config CPU_HAS_SR_RB
 	  information on SR.RB and register banking in the kernel in general.
 
 config CPU_HAS_PTEA
+	bool
+
+config CPU_HAS_DSP
 	bool
 
 endmenu
@@ -261,14 +264,6 @@ config SH_7780_SOLUTION_ENGINE
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
 	  evaluation board.
 
-config SH_7300_SOLUTION_ENGINE
-	bool "SolutionEngine7300"
-	select SOLUTION_ENGINE
-	depends on CPU_SUBTYPE_SH7300
-	help
-	  Select 7300 SolutionEngine if configuring for a Hitachi
-	  SH7300(SH-Mobile V) evaluation board.
-
 config SH_7343_SOLUTION_ENGINE
 	bool "SolutionEngine7343"
 	select SOLUTION_ENGINE
@@ -276,14 +271,6 @@ config SH_7343_SOLUTION_ENGINE
 	help
 	  Select 7343 SolutionEngine if configuring for a Hitachi
 	  SH7343 (SH-Mobile 3AS) evaluation board.
-
-config SH_73180_SOLUTION_ENGINE
-	bool "SolutionEngine73180"
-	select SOLUTION_ENGINE
-	depends on CPU_SUBTYPE_SH73180
-	help
-	  Select 73180 SolutionEngine if configuring for a Hitachi
-	  SH73180(SH-Mobile 3) evaluation board.
 
 config SH_7751_SYSTEMH
 	bool "SystemH7751R"
@@ -448,10 +435,10 @@ config SH_TIMER_IRQ
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "27000000" if CPU_SUBTYPE_SH7343
 	default "31250000" if CPU_SUBTYPE_SH7619
 	default "32000000" if CPU_SUBTYPE_SH7722
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+	default "33333333" if CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7206
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R

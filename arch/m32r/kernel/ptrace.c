@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/errno.h>

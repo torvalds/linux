@@ -849,7 +849,7 @@ tgafb_clut_imageblit(struct fb_info *info, const struct fb_image *image)
 	u32 *palette = ((u32 *)info->pseudo_palette);
 	unsigned long pos, line_length, i, j;
 	const unsigned char *data;
-	void *regs_base, *fb_base;
+	void __iomem *regs_base, *fb_base;
 
 	dx = image->dx;
 	dy = image->dy;

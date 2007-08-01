@@ -782,8 +782,8 @@ static int process_msg(void)
 		msg->u.watch.vec = split(body, msg->hdr.len,
 					 &msg->u.watch.vec_size);
 		if (IS_ERR(msg->u.watch.vec)) {
-			kfree(msg);
 			err = PTR_ERR(msg->u.watch.vec);
+			kfree(msg);
 			goto out;
 		}
 

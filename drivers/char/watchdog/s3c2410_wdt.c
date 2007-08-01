@@ -52,10 +52,10 @@
 
 #include <asm/arch/map.h>
 
-#undef S3C24XX_VA_WATCHDOG
-#define S3C24XX_VA_WATCHDOG (0)
+#undef S3C_VA_WATCHDOG
+#define S3C_VA_WATCHDOG (0)
 
-#include <asm/arch/regs-watchdog.h>
+#include <asm/plat-s3c/regs-watchdog.h>
 
 #define PFX "s3c2410-wdt: "
 

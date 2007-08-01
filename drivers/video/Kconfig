@@ -1571,7 +1571,14 @@ config FB_PM3
 
 config FB_AU1100
 	bool "Au1100 LCD Driver"
-	depends on (FB = y) && EXPERIMENTAL && PCI && MIPS && MIPS_PB1100=y
+	depends on (FB = y) && MIPS && SOC_AU1100
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer driver for the AMD Au1100 SOC.  It can drive
+	  various panels and CRTs by passing in kernel cmd line option
+	  au1100fb:panel=<name>.
 
 config FB_AU1200
 	bool "Au1200 LCD Driver"
@@ -1637,18 +1644,6 @@ config FB_MAXINE
 	  Support for the onboard framebuffer (1024x768x8) in the Personal
 	  DECstation series (Personal DECstation 5000/20, /25, /33, /50,
 	  Codename "Maxine").
-
-config FB_TX3912
-	bool "TMPTX3912/PR31700 frame buffer support"
-	depends on (FB = y) && NINO
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  The TX3912 is a Toshiba RISC processor based on the MIPS 3900 core
-	  see <http://www.toshiba.com/taec/components/Generic/risc/tx3912.htm>.
-
-	  Say Y here to enable kernel support for the on-board framebuffer.
 
 config FB_G364
 	bool "G364 frame buffer support"

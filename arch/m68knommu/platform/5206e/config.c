@@ -20,14 +20,12 @@
 #include <asm/mcftimer.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfdma.h>
-#include <asm/irq.h>
 
 /***************************************************************************/
 
 void coldfire_tick(void);
 void coldfire_timer_init(irq_handler_t handler);
 unsigned long coldfire_timer_offset(void);
-void coldfire_trap_init(void);
 void coldfire_reset(void);
 
 /***************************************************************************/
@@ -98,21 +96,15 @@ void config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
 
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(commandp, CONFIG_BOOTPARAM_STRING, size);
-	commandp[size-1] = 0;
-#elif defined(CONFIG_NETtel)
+#if defined(CONFIG_NETtel)
 	/* Copy command line from FLASH to local buffer... */
 	memcpy(commandp, (char *) 0xf0004000, size);
 	commandp[size-1] = 0;
-#else
-	memset(commandp, 0, size);
 #endif /* CONFIG_NETtel */
 
 	mach_sched_init = coldfire_timer_init;
 	mach_tick = coldfire_tick;
 	mach_gettimeoffset = coldfire_timer_offset;
-	mach_trap_init = coldfire_trap_init;
 	mach_reset = coldfire_reset;
 }
 

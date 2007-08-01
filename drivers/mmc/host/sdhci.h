@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sdhci.h - Secure Digital Host Controller Interface driver
+ *  linux/drivers/mmc/host/sdhci.h - Secure Digital Host Controller Interface driver
  *
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *

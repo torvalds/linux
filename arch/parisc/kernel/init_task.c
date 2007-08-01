@@ -23,6 +23,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>

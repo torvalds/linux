@@ -1,7 +1,6 @@
-/* $Id: sbus.h,v 1.14 2000/02/18 13:50:55 davem Exp $
- * sbus.h: Defines for the Sun SBus.
+/* sbus.h: Defines for the Sun SBus.
  *
- * Copyright (C) 1996, 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1996, 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef _SPARC64_SBUS_H
@@ -69,7 +68,6 @@ struct sbus_dev {
 /* This struct describes the SBus(s) found on this machine. */
 struct sbus_bus {
 	struct of_device	ofdev;
-	void			*iommu;		/* Opaque IOMMU cookie	*/
 	struct sbus_dev		*devices;	/* Tree of SBUS devices	*/
 	struct sbus_bus		*next;		/* Next SBUS in system	*/
 	int			prom_node;      /* OBP node of SBUS	*/
@@ -102,9 +100,18 @@ extern struct sbus_bus *sbus_root;
 extern void sbus_set_sbus64(struct sbus_dev *, int);
 extern void sbus_fill_device_irq(struct sbus_dev *);
 
-/* These yield IOMMU mappings in consistent mode. */
-extern void *sbus_alloc_consistent(struct sbus_dev *, size_t, dma_addr_t *dma_addrp);
-extern void sbus_free_consistent(struct sbus_dev *, size_t, void *, dma_addr_t);
+static inline void *sbus_alloc_consistent(struct sbus_dev *sdev , size_t size,
+					  dma_addr_t *dma_handle)
+{
+	return dma_alloc_coherent(&sdev->ofdev.dev, size,
+				  dma_handle, GFP_ATOMIC);
+}
+
+static inline void sbus_free_consistent(struct sbus_dev *sdev, size_t size,
+					void *vaddr, dma_addr_t dma_handle)
+{
+	return dma_free_coherent(&sdev->ofdev.dev, size, vaddr, dma_handle);
+}
 
 #define SBUS_DMA_BIDIRECTIONAL	DMA_BIDIRECTIONAL
 #define SBUS_DMA_TODEVICE	DMA_TO_DEVICE
@@ -112,18 +119,67 @@ extern void sbus_free_consistent(struct sbus_dev *, size_t, void *, dma_addr_t);
 #define	SBUS_DMA_NONE		DMA_NONE
 
 /* All the rest use streaming mode mappings. */
-extern dma_addr_t sbus_map_single(struct sbus_dev *, void *, size_t, int);
-extern void sbus_unmap_single(struct sbus_dev *, dma_addr_t, size_t, int);
-extern int sbus_map_sg(struct sbus_dev *, struct scatterlist *, int, int);
-extern void sbus_unmap_sg(struct sbus_dev *, struct scatterlist *, int, int);
+static inline dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *ptr,
+					 size_t size, int direction)
+{
+	return dma_map_single(&sdev->ofdev.dev, ptr, size,
+			      (enum dma_data_direction) direction);
+}
+
+static inline void sbus_unmap_single(struct sbus_dev *sdev,
+				     dma_addr_t dma_addr, size_t size,
+				     int direction)
+{
+	dma_unmap_single(&sdev->ofdev.dev, dma_addr, size,
+			 (enum dma_data_direction) direction);
+}
+
+static inline int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg,
+			      int nents, int direction)
+{
+	return dma_map_sg(&sdev->ofdev.dev, sg, nents,
+			  (enum dma_data_direction) direction);
+}
+
+static inline void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg,
+				 int nents, int direction)
+{
+	dma_unmap_sg(&sdev->ofdev.dev, sg, nents,
+		     (enum dma_data_direction) direction);
+}
 
 /* Finally, allow explicit synchronization of streamable mappings. */
-extern void sbus_dma_sync_single_for_cpu(struct sbus_dev *, dma_addr_t, size_t, int);
+static inline void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev,
+						dma_addr_t dma_handle,
+						size_t size, int direction)
+{
+	dma_sync_single_for_cpu(&sdev->ofdev.dev, dma_handle, size,
+				(enum dma_data_direction) direction);
+}
 #define sbus_dma_sync_single sbus_dma_sync_single_for_cpu
-extern void sbus_dma_sync_single_for_device(struct sbus_dev *, dma_addr_t, size_t, int);
-extern void sbus_dma_sync_sg_for_cpu(struct sbus_dev *, struct scatterlist *, int, int);
+
+static inline void sbus_dma_sync_single_for_device(struct sbus_dev *sdev,
+						   dma_addr_t dma_handle,
+						   size_t size, int direction)
+{
+	/* No flushing needed to sync cpu writes to the device.  */
+}
+
+static inline void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev,
+					    struct scatterlist *sg,
+					    int nents, int direction)
+{
+	dma_sync_sg_for_cpu(&sdev->ofdev.dev, sg, nents,
+			    (enum dma_data_direction) direction);
+}
 #define sbus_dma_sync_sg sbus_dma_sync_sg_for_cpu
-extern void sbus_dma_sync_sg_for_device(struct sbus_dev *, struct scatterlist *, int, int);
+
+static inline void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev,
+					       struct scatterlist *sg,
+					       int nents, int direction)
+{
+	/* No flushing needed to sync cpu writes to the device.  */
+}
 
 extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
 extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);

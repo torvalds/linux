@@ -296,7 +296,7 @@ cmpxchg(volatile int *p, int old, int new)
 ({						\
 	unsigned char volatile *reset;		\
 	asm("move.w	#0x2700, %sr");		\
-	reset = ((volatile unsigned short *)(MCF_IPSBAR + 0x110000));	\
+	reset = ((volatile unsigned char *)(MCF_IPSBAR + 0x110000));	\
 	while(1)				\
 	*reset |= (0x01 << 7);\
 })
@@ -318,7 +318,7 @@ cmpxchg(volatile int *p, int old, int new)
 ({					\
 	unsigned char volatile *reset;	\
 	asm("move.w     #0x2700, %sr");	\
-	reset = ((volatile unsigned short *)(MCF_IPSBAR + 0xA0000));	\
+	reset = ((volatile unsigned char *)(MCF_IPSBAR + 0xA0000));	\
 	while(1)			\
 		*reset |= 0x80;		\
 })

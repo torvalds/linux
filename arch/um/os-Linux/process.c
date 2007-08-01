@@ -194,7 +194,7 @@ int os_unmap_memory(void *addr, int len)
 #define MADV_REMOVE KERNEL_MADV_REMOVE
 #endif
 
-int __init os_drop_memory(void *addr, int length)
+int os_drop_memory(void *addr, int length)
 {
 	int err;
 

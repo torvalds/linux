@@ -131,7 +131,7 @@ struct acpi_device_ops {
 struct acpi_driver {
 	char name[80];
 	char class[80];
-	char *ids;		/* Supported Hardware IDs */
+	const struct acpi_device_id *ids; /* Supported Hardware IDs */
 	struct acpi_device_ops ops;
 	struct device_driver drv;
 	struct module *owner;
@@ -341,7 +341,8 @@ int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 int acpi_bus_start(struct acpi_device *device);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
-int acpi_match_ids(struct acpi_device *device, char *ids);
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
 
@@ -364,6 +365,17 @@ struct device *acpi_get_physical_device(acpi_handle);
 acpi_handle acpi_get_child(acpi_handle, acpi_integer);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->archdata.acpi_handle))
+
+#ifdef CONFIG_PM_SLEEP
+int acpi_pm_device_sleep_state(struct device *, int, int *);
+#else /* !CONFIG_PM_SLEEP */
+static inline int acpi_pm_device_sleep_state(struct device *d, int w, int *p)
+{
+	if (p)
+		*p = ACPI_STATE_D0;
+	return ACPI_STATE_D3;
+}
+#endif /* !CONFIG_PM_SLEEP */
 
 #endif				/* CONFIG_ACPI */
 

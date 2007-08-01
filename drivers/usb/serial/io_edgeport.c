@@ -2366,9 +2366,8 @@ static int send_cmd_write_baud_rate (struct edgeport_port *edge_port, int baudRa
 	int status;
 	unsigned char number = edge_port->port->number - edge_port->port->serial->minor;
 
-	if ((!edge_serial->is_epic) ||
-	    ((edge_serial->is_epic) &&
-	     (!edge_serial->epic_descriptor.Supports.IOSPSetBaudRate))) {
+	if (edge_serial->is_epic &&
+	    !edge_serial->epic_descriptor.Supports.IOSPSetBaudRate) {
 		dbg("SendCmdWriteBaudRate - NOT Setting baud rate for port = %d, baud = %d",
 		    edge_port->port->number, baudRate);
 		return 0;
@@ -2461,18 +2460,16 @@ static int send_cmd_write_uart_register (struct edgeport_port *edge_port, __u8 r
 
 	dbg("%s - write to %s register 0x%02x", (regNum == MCR) ? "MCR" : "LCR", __FUNCTION__, regValue);
 
-	if ((!edge_serial->is_epic) ||
-	    ((edge_serial->is_epic) &&
-	     (!edge_serial->epic_descriptor.Supports.IOSPWriteMCR) &&
-	     (regNum == MCR))) {
+	if (edge_serial->is_epic &&
+	    !edge_serial->epic_descriptor.Supports.IOSPWriteMCR &&
+	    regNum == MCR) {
 		dbg("SendCmdWriteUartReg - Not writing to MCR Register");
 		return 0;
 	}
 
-	if ((!edge_serial->is_epic) ||
-	    ((edge_serial->is_epic) &&
-	     (!edge_serial->epic_descriptor.Supports.IOSPWriteLCR) &&
-	     (regNum == LCR))) {
+	if (edge_serial->is_epic &&
+	    !edge_serial->epic_descriptor.Supports.IOSPWriteLCR &&
+	    regNum == LCR) {
 		dbg ("SendCmdWriteUartReg - Not writing to LCR Register");
 		return 0;
 	}

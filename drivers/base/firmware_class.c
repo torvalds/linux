@@ -232,6 +232,7 @@ fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 /**
  * firmware_data_write - write method for firmware
  * @kobj: kobject for the device
+ * @bin_attr: bin_attr structure
  * @buffer: buffer being written
  * @offset: buffer offset for write in total data store area
  * @count: buffer size

@@ -1723,7 +1723,8 @@ rx_submit (struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 		size += sizeof (struct rndis_packet_msg_type);
 	size -= size % dev->out_ep->maxpacket;
 
-	if ((skb = alloc_skb (size + NET_IP_ALIGN, gfp_flags)) == 0) {
+	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
+	if (skb == NULL) {
 		DEBUG (dev, "no rx skb\n");
 		goto enomem;
 	}

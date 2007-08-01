@@ -25,8 +25,8 @@
  * partially mapped pages provide precise accounting of which 4k sub pages
  * are mapped and which ones are not, thereby improving IA-32 compatibility.
  */
-struct partial_page {
-	struct partial_page	*next; /* linked list, sorted by address */
+struct ia64_partial_page {
+	struct ia64_partial_page *next; /* linked list, sorted by address */
 	struct rb_node		pp_rb;
 	/* 64K is the largest "normal" page supported by ia64 ABI. So 4K*64
 	 * should suffice.*/
@@ -34,17 +34,17 @@ struct partial_page {
 	unsigned int		base;
 };
 
-struct partial_page_list {
-	struct partial_page	*pp_head; /* list head, points to the lowest
+struct ia64_partial_page_list {
+	struct ia64_partial_page *pp_head; /* list head, points to the lowest
 					   * addressed partial page */
 	struct rb_root		ppl_rb;
-	struct partial_page	*pp_hint; /* pp_hint->next is the last
+	struct ia64_partial_page *pp_hint; /* pp_hint->next is the last
 					   * accessed partial page */
 	atomic_t		pp_count; /* reference count */
 };
 
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
-struct partial_page_list* ia32_init_pp_list (void);
+struct ia64_partial_page_list* ia32_init_pp_list (void);
 #else
 # define ia32_init_pp_list()	0
 #endif

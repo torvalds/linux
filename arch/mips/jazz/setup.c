@@ -34,8 +34,6 @@
 extern asmlinkage void jazz_handle_int(void);
 
 extern void jazz_machine_restart(char *command);
-extern void jazz_machine_halt(void);
-extern void jazz_machine_power_off(void);
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
@@ -95,8 +93,6 @@ void __init plat_mem_setup(void)
 	/* The RTC is outside the port address space */
 
 	_machine_restart = jazz_machine_restart;
-	_machine_halt = jazz_machine_halt;
-	pm_power_off = jazz_machine_power_off;
 
 	screen_info = (struct screen_info) {
 		0, 0,		/* orig-x, orig-y */

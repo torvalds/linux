@@ -167,7 +167,7 @@ struct vt8231_data {
 
 static struct pci_dev *s_bridge;
 static int vt8231_probe(struct platform_device *pdev);
-static int vt8231_remove(struct platform_device *pdev);
+static int __devexit vt8231_remove(struct platform_device *pdev);
 static struct vt8231_data *vt8231_update_device(struct device *dev);
 static void vt8231_init_device(struct vt8231_data *data);
 
@@ -751,7 +751,7 @@ exit_release:
 	return err;
 }
 
-static int vt8231_remove(struct platform_device *pdev)
+static int __devexit vt8231_remove(struct platform_device *pdev)
 {
 	struct vt8231_data *data = platform_get_drvdata(pdev);
 	int i;

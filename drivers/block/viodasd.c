@@ -400,7 +400,7 @@ error_ret:
 /*
  * This is the external request processing routine
  */
-static void do_viodasd_request(request_queue_t *q)
+static void do_viodasd_request(struct request_queue *q)
 {
 	struct request *req;
 

@@ -24,6 +24,8 @@
 #define UDF_FLAG_UID_IGNORE     12    /* use sb uid instead of on disk uid */
 #define UDF_FLAG_GID_FORGET     13
 #define UDF_FLAG_GID_IGNORE     14
+#define UDF_FLAG_UID_SET	15
+#define UDF_FLAG_GID_SET	16
 
 #define UDF_PART_FLAG_UNALLOC_BITMAP	0x0001
 #define UDF_PART_FLAG_UNALLOC_TABLE	0x0002

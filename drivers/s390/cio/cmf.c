@@ -1185,12 +1185,12 @@ static ssize_t cmb_enable_store(struct device *dev, struct device_attribute *att
 	case '0':
 		ret = disable_cmf(cdev);
 		if (ret)
-			printk(KERN_INFO "disable_cmf failed (%d)\n", ret);
+			dev_info(&cdev->dev, "disable_cmf failed (%d)\n", ret);
 		break;
 	case '1':
 		ret = enable_cmf(cdev);
 		if (ret && ret != -EBUSY)
-			printk(KERN_INFO "enable_cmf failed (%d)\n", ret);
+			dev_info(&cdev->dev, "enable_cmf failed (%d)\n", ret);
 		break;
 	}
 
@@ -1280,10 +1280,10 @@ init_cmf(void)
 		format_string = "basic";
 		cmbops = &cmbops_basic;
 		if (cmb_area.num_channels > 4096 || cmb_area.num_channels < 1) {
-			printk(KERN_ERR "Basic channel measurement facility"
-					" can only use 1 to 4096 devices\n"
+			printk(KERN_ERR "cio: Basic channel measurement "
+			       "facility can only use 1 to 4096 devices\n"
 			       KERN_ERR "when the cmf driver is built"
-					" as a loadable module\n");
+			       " as a loadable module\n");
 			return 1;
 		}
 		break;
@@ -1292,13 +1292,13 @@ init_cmf(void)
 		cmbops = &cmbops_extended;
 		break;
 	default:
-		printk(KERN_ERR "Invalid format %d for channel "
+		printk(KERN_ERR "cio: Invalid format %d for channel "
 			"measurement facility\n", format);
 		return 1;
 	}
 
-	printk(KERN_INFO "Channel measurement facility using %s format (%s)\n",
-		format_string, detect_string);
+	printk(KERN_INFO "cio: Channel measurement facility using %s "
+	       "format (%s)\n", format_string, detect_string);
 	return 0;
 }
 

@@ -91,6 +91,7 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include <linux/dmi.h>
 
 #define DRV_NAME	"ata_piix"
 #define DRV_VERSION	"2.11"
@@ -140,6 +141,9 @@ enum {
 	RV			= -3, /* reserved */
 
 	PIIX_AHCI_DEVICE	= 6,
+
+	/* host->flags bits */
+	PIIX_HOST_BROKEN_SUSPEND = (1 << 24),
 };
 
 struct piix_map_db {
@@ -159,6 +163,10 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev);
 static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
+#ifdef CONFIG_PM
+static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
+static int piix_pci_device_resume(struct pci_dev *pdev);
+#endif
 
 static unsigned int in_module_init = 1;
 
@@ -255,8 +263,8 @@ static struct pci_driver piix_pci_driver = {
 	.probe			= piix_init_one,
 	.remove			= ata_pci_remove_one,
 #ifdef CONFIG_PM
-	.suspend		= ata_pci_device_suspend,
-	.resume			= ata_pci_device_resume,
+	.suspend		= piix_pci_device_suspend,
+	.resume			= piix_pci_device_resume,
 #endif
 };
 
@@ -880,6 +888,107 @@ static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
 	do_pata_set_dmamode(ap, adev, 1);
 }
+
+#ifdef CONFIG_PM
+static struct dmi_system_id piix_broken_suspend_dmi_table[] = {
+	{
+		.ident = "TECRA M5",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TECRA M5"),
+		},
+	},
+	{
+		.ident = "Satellite U200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite U200"),
+		},
+	},
+	{
+		.ident = "Satellite U205",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite U205"),
+		},
+	},
+	{
+		.ident = "Portege M500",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M500"),
+		},
+	},
+	{ }
+};
+
+static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	unsigned long flags;
+	int rc = 0;
+
+	rc = ata_host_suspend(host, mesg);
+	if (rc)
+		return rc;
+
+	/* Some braindamaged ACPI suspend implementations expect the
+	 * controller to be awake on entry; otherwise, it burns cpu
+	 * cycles and power trying to do something to the sleeping
+	 * beauty.
+	 */
+	if (dmi_check_system(piix_broken_suspend_dmi_table) &&
+	    mesg.event == PM_EVENT_SUSPEND) {
+		pci_save_state(pdev);
+
+		/* mark its power state as "unknown", since we don't
+		 * know if e.g. the BIOS will change its device state
+		 * when we suspend.
+		 */
+		if (pdev->current_state == PCI_D0)
+			pdev->current_state = PCI_UNKNOWN;
+
+		/* tell resume that it's waking up from broken suspend */
+		spin_lock_irqsave(&host->lock, flags);
+		host->flags |= PIIX_HOST_BROKEN_SUSPEND;
+		spin_unlock_irqrestore(&host->lock, flags);
+	} else
+		ata_pci_device_do_suspend(pdev, mesg);
+
+	return 0;
+}
+
+static int piix_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	unsigned long flags;
+	int rc;
+
+	if (host->flags & PIIX_HOST_BROKEN_SUSPEND) {
+		spin_lock_irqsave(&host->lock, flags);
+		host->flags &= ~PIIX_HOST_BROKEN_SUSPEND;
+		spin_unlock_irqrestore(&host->lock, flags);
+
+		pci_set_power_state(pdev, PCI_D0);
+		pci_restore_state(pdev);
+
+		/* PCI device wasn't disabled during suspend.  Use
+		 * __pci_reenable_device() to avoid affecting the
+		 * enable count.
+		 */
+		rc = __pci_reenable_device(pdev);
+		if (rc)
+			dev_printk(KERN_ERR, &pdev->dev, "failed to enable "
+				   "device after resume (%d)\n", rc);
+	} else
+		rc = ata_pci_device_do_resume(pdev);
+
+	if (rc == 0)
+		ata_host_resume(host);
+
+	return rc;
+}
+#endif
 
 #define AHCI_PCI_BAR 5
 #define AHCI_GLOBAL_CTL 0x04

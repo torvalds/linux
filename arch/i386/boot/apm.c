@@ -40,14 +40,15 @@ int query_apm_bios(void)
 	if (bx != 0x504d)	/* "PM" signature */
 		return -1;
 
-	if (cx & 0x02)		/* 32 bits supported? */
+	if (!(cx & 0x02))		/* 32 bits supported? */
 		return -1;
 
 	/* Disconnect first, just in case */
 	ax = 0x5304;
+	bx = 0;
 	asm volatile("pushl %%ebp ; int $0x15 ; popl %%ebp"
-		     : "+a" (ax)
-		     : : "ebx", "ecx", "edx", "esi", "edi");
+		     : "+a" (ax), "+b" (bx)
+		     : : "ecx", "edx", "esi", "edi");
 
 	/* Paranoia */
 	ebx = esi = 0;

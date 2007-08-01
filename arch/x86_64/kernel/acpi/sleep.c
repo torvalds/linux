@@ -51,8 +51,6 @@
                               Low-Level Sleep Support
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_SLEEP
-
 /* address in low memory of the wakeup routine. */
 unsigned long acpi_wakeup_address = 0;
 unsigned long acpi_realmode_flags;
@@ -116,8 +114,6 @@ static int __init acpi_sleep_setup(char *str)
 }
 
 __setup("acpi_sleep=", acpi_sleep_setup);
-
-#endif				/*CONFIG_ACPI_SLEEP */
 
 void acpi_pci_link_exit(void)
 {

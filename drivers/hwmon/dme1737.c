@@ -750,7 +750,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 		res = (data->alarms >> DME1737_BIT_ALARM_TEMP[ix]) & 0x01;
 		break;
 	case SYS_TEMP_FAULT:
-		res = (data->temp[ix] == 0x0800);
+		res = (((u16)data->temp[ix] & 0xff00) == 0x8000);
 		break;
 	default:
 		res = 0;

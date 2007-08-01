@@ -44,7 +44,7 @@ static int set_bios_mode(u8 mode)
 		     : "+a" (ax)
 		     : : "ebx", "ecx", "edx", "esi", "edi");
 
-	do_restore = 1;		/* Assume video contents was lost */
+	do_restore = 1;		/* Assume video contents were lost */
 	new_mode = ax & 0x7f;	/* Not all BIOSes are clean with the top bit */
 
 	if (new_mode == mode)

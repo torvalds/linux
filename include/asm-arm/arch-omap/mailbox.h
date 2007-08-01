@@ -37,7 +37,7 @@ struct omap_mbox_ops {
 
 struct omap_mbox_queue {
 	spinlock_t		lock;
-	request_queue_t		*queue;
+	struct request_queue	*queue;
 	struct work_struct	work;
 	int	(*callback)(void *);
 	struct omap_mbox	*mbox;

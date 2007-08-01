@@ -322,6 +322,13 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 	x->props.family = p->family;
 	memcpy(&x->props.saddr, &p->saddr, sizeof(x->props.saddr));
 	x->props.flags = p->flags;
+
+	/*
+	 * Set inner address family if the KM left it as zero.
+	 * See comment in validate_tmpl.
+	 */
+	if (!x->sel.family)
+		x->sel.family = p->family;
 }
 
 /*

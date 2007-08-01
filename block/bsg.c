@@ -9,13 +9,6 @@
  *  archive for more details.
  *
  */
-/*
- * TODO
- *	- Should this get merged, block/scsi_ioctl.c will be migrated into
- *	  this file. To keep maintenance down, it's easier to have them
- *	  seperated right now.
- *
- */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/file.h>
@@ -24,6 +17,7 @@
 #include <linux/cdev.h>
 #include <linux/percpu.h>
 #include <linux/uio.h>
+#include <linux/idr.h>
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
@@ -37,7 +31,7 @@
 #define BSG_VERSION	"0.4"
 
 struct bsg_device {
-	request_queue_t *queue;
+	struct request_queue *queue;
 	spinlock_t lock;
 	struct list_head busy_list;
 	struct list_head done_list;
@@ -70,13 +64,12 @@ enum {
 #endif
 
 static DEFINE_MUTEX(bsg_mutex);
-static int bsg_device_nr, bsg_minor_idx;
+static DEFINE_IDR(bsg_minor_idr);
 
 #define BSG_LIST_ARRAY_SIZE	8
 static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
 
 static struct class *bsg_class;
-static LIST_HEAD(bsg_class_list);
 static int bsg_major;
 
 static struct kmem_cache *bsg_cmd_cachep;
@@ -92,7 +85,6 @@ struct bsg_command {
 	struct bio *bidi_bio;
 	int err;
 	struct sg_io_v4 hdr;
-	struct sg_io_v4 __user *uhdr;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 };
 
@@ -180,7 +172,7 @@ unlock:
 	return ret;
 }
 
-static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
+static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 				struct sg_io_v4 *hdr, int has_write_perm)
 {
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
@@ -214,7 +206,7 @@ static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
  * Check if sg_io_v4 from user is allowed and valid
  */
 static int
-bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
+bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
 {
 	int ret = 0;
 
@@ -250,7 +242,7 @@ bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
 static struct request *
 bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 {
-	request_queue_t *q = bd->queue;
+	struct request_queue *q = bd->queue;
 	struct request *rq, *next_rq = NULL;
 	int ret, rw;
 	unsigned int dxfer_len;
@@ -345,7 +337,7 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
  * do final setup of a 'bc' and submit the matching 'rq' to the block
  * layer for io
  */
-static void bsg_add_command(struct bsg_device *bd, request_queue_t *q,
+static void bsg_add_command(struct bsg_device *bd, struct request_queue *q,
 			    struct bsg_command *bc, struct request *rq)
 {
 	rq->sense = bc->sense;
@@ -611,7 +603,7 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 	bc = NULL;
 	ret = 0;
 	while (nr_commands) {
-		request_queue_t *q = bd->queue;
+		struct request_queue *q = bd->queue;
 
 		bc = bsg_alloc_command(bd);
 		if (IS_ERR(bc)) {
@@ -620,7 +612,6 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 			break;
 		}
 
-		bc->uhdr = (struct sg_io_v4 __user *) buf;
 		if (copy_from_user(&bc->hdr, buf, sizeof(bc->hdr))) {
 			ret = -EFAULT;
 			break;
@@ -781,23 +772,18 @@ static struct bsg_device *__bsg_get_device(int minor)
 
 static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 {
-	struct bsg_device *bd = __bsg_get_device(iminor(inode));
-	struct bsg_class_device *bcd, *__bcd;
+	struct bsg_device *bd;
+	struct bsg_class_device *bcd;
 
+	bd = __bsg_get_device(iminor(inode));
 	if (bd)
 		return bd;
 
 	/*
 	 * find the class device
 	 */
-	bcd = NULL;
 	mutex_lock(&bsg_mutex);
-	list_for_each_entry(__bcd, &bsg_class_list, list) {
-		if (__bcd->minor == iminor(inode)) {
-			bcd = __bcd;
-			break;
-		}
-	}
+	bcd = idr_find(&bsg_minor_idr, iminor(inode));
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
@@ -936,13 +922,12 @@ void bsg_unregister_queue(struct request_queue *q)
 		return;
 
 	mutex_lock(&bsg_mutex);
+	idr_remove(&bsg_minor_idr, bcd->minor);
 	sysfs_remove_link(&q->kobj, "bsg");
 	class_device_unregister(bcd->class_dev);
 	put_device(bcd->dev);
 	bcd->class_dev = NULL;
 	bcd->dev = NULL;
-	list_del_init(&bcd->list);
-	bsg_device_nr--;
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
@@ -950,9 +935,9 @@ EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 int bsg_register_queue(struct request_queue *q, struct device *gdev,
 		       const char *name)
 {
-	struct bsg_class_device *bcd, *__bcd;
+	struct bsg_class_device *bcd;
 	dev_t dev;
-	int ret = -EMFILE;
+	int ret, minor;
 	struct class_device *class_dev = NULL;
 	const char *devname;
 
@@ -969,28 +954,26 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 
 	bcd = &q->bsg_dev;
 	memset(bcd, 0, sizeof(*bcd));
-	INIT_LIST_HEAD(&bcd->list);
 
 	mutex_lock(&bsg_mutex);
-	if (bsg_device_nr == BSG_MAX_DEVS) {
+
+	ret = idr_pre_get(&bsg_minor_idr, GFP_KERNEL);
+	if (!ret) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = idr_get_new(&bsg_minor_idr, bcd, &minor);
+	if (ret < 0)
+		goto unlock;
+
+	if (minor >= BSG_MAX_DEVS) {
 		printk(KERN_ERR "bsg: too many bsg devices\n");
-		goto err;
+		ret = -EINVAL;
+		goto remove_idr;
 	}
 
-retry:
-	list_for_each_entry(__bcd, &bsg_class_list, list) {
-		if (__bcd->minor == bsg_minor_idx) {
-			bsg_minor_idx++;
-			if (bsg_minor_idx == BSG_MAX_DEVS)
-				bsg_minor_idx = 0;
-			goto retry;
-		}
-	}
-
-	bcd->minor = bsg_minor_idx++;
-	if (bsg_minor_idx == BSG_MAX_DEVS)
-		bsg_minor_idx = 0;
-
+	bcd->minor = minor;
 	bcd->queue = q;
 	bcd->dev = get_device(gdev);
 	dev = MKDEV(bsg_major, bcd->minor);
@@ -998,27 +981,26 @@ retry:
 					devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
-		goto err_put;
+		goto put_dev;
 	}
 	bcd->class_dev = class_dev;
 
 	if (q->kobj.sd) {
 		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
 		if (ret)
-			goto err_unregister;
+			goto unregister_class_dev;
 	}
-
-	list_add_tail(&bcd->list, &bsg_class_list);
-	bsg_device_nr++;
 
 	mutex_unlock(&bsg_mutex);
 	return 0;
 
-err_unregister:
+unregister_class_dev:
 	class_device_unregister(class_dev);
-err_put:
+put_dev:
 	put_device(gdev);
-err:
+remove_idr:
+	idr_remove(&bsg_minor_idr, minor);
+unlock:
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }

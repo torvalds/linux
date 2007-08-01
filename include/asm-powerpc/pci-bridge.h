@@ -45,10 +45,17 @@ struct pci_controller {
 	 *   on Freescale PCI-e controllers since they used the PCI_PRIMARY_BUS
 	 *   to determine which bus number to match on when generating type0
 	 *   config cycles
+	 *  NO_PCIE_LINK - the Freescale PCI-e controllers have issues with
+	 *   hanging if we don't have link and try to do config cycles to
+	 *   anything but the PHB.  Only allow talking to the PHB if this is
+	 *   set.
+	 *  BIG_ENDIAN - cfg_addr is a big endian register
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		(0x00000001)
 #define PPC_INDIRECT_TYPE_EXT_REG		(0x00000002)
 #define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	(0x00000004)
+#define PPC_INDIRECT_TYPE_NO_PCIE_LINK		(0x00000008)
+#define PPC_INDIRECT_TYPE_BIG_ENDIAN		(0x00000010)
 	u32 indirect_type;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
@@ -62,6 +69,14 @@ struct pci_controller {
 static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 {
 	return bus->sysdata;
+}
+
+static inline int isa_vaddr_is_ioport(void __iomem *address)
+{
+	/* No specific ISA handling on ppc32 at this stage, it
+	 * all goes through PCI
+	 */
+	return 0;
 }
 
 /* These are used for config access before all the PCI probing
@@ -79,11 +94,14 @@ int early_write_config_word(struct pci_controller *hose, int bus, int dev_fn,
 int early_write_config_dword(struct pci_controller *hose, int bus, int dev_fn,
 			     int where, u32 val);
 
-extern void setup_indirect_pci_nomap(struct pci_controller* hose,
-			       void __iomem *cfg_addr, void __iomem *cfg_data);
+extern int early_find_capability(struct pci_controller *hose, int bus,
+				 int dev_fn, int cap);
+
 extern void setup_indirect_pci(struct pci_controller* hose,
-			       u32 cfg_addr, u32 cfg_data);
+			       u32 cfg_addr, u32 cfg_data, u32 flags);
 extern void setup_grackle(struct pci_controller *hose);
+extern void __init update_bridge_resource(struct pci_dev *dev,
+					  struct resource *res);
 
 #else
 
@@ -231,6 +249,13 @@ extern void pcibios_free_controller(struct pci_controller *phb);
 
 extern void isa_bridge_find_early(struct pci_controller *hose);
 
+static inline int isa_vaddr_is_ioport(void __iomem *address)
+{
+	/* Check if address hits the reserved legacy IO range */
+	unsigned long ea = (unsigned long)address;
+	return ea >= ISA_IO_BASE && ea < ISA_IO_END;
+}
+
 extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);
 
@@ -261,10 +286,15 @@ extern struct pci_controller *
 pcibios_alloc_controller(struct device_node *dev);
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
+extern int pcibios_vaddr_is_ioport(void __iomem *address);
 #else
 static inline unsigned long pci_address_to_pio(phys_addr_t address)
 {
 	return (unsigned long)-1;
+}
+static inline int pcibios_vaddr_is_ioport(void __iomem *address)
+{
+	return 0;
 }
 #endif
 

@@ -99,8 +99,7 @@ static char lancestr[] = "LANCE";
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/sbus.h>
-#include <asm/openprom.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/auxio.h>		/* For tpe-link-test? setting */
 #include <asm/irq.h>
 
@@ -1326,6 +1325,7 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 					   struct sbus_dev *lebuffer)
 {
 	static unsigned version_printed;
+	struct device_node *dp = sdev->ofdev.node;
 	struct net_device *dev;
 	struct lance_private *lp;
 	int    i;
@@ -1389,53 +1389,45 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 		lp->rx = lance_rx_dvma;
 		lp->tx = lance_tx_dvma;
 	}
-	lp->busmaster_regval = prom_getintdefault(sdev->prom_node,
-						  "busmaster-regval",
-						  (LE_C3_BSWP | LE_C3_ACON |
-						   LE_C3_BCON));
+	lp->busmaster_regval = of_getintprop_default(dp,  "busmaster-regval",
+						     (LE_C3_BSWP |
+						      LE_C3_ACON |
+						      LE_C3_BCON));
 
 	lp->name = lancestr;
 	lp->ledma = ledma;
 
 	lp->burst_sizes = 0;
 	if (lp->ledma) {
-		char prop[6];
+		struct device_node *ledma_dp = ledma->sdev->ofdev.node;
+		const char *prop;
 		unsigned int sbmask;
 		u32 csr;
 
 		/* Find burst-size property for ledma */
-		lp->burst_sizes = prom_getintdefault(ledma->sdev->prom_node,
-						     "burst-sizes", 0);
+		lp->burst_sizes = of_getintprop_default(ledma_dp,
+							"burst-sizes", 0);
 
 		/* ledma may be capable of fast bursts, but sbus may not. */
-		sbmask = prom_getintdefault(ledma->sdev->bus->prom_node,
-					    "burst-sizes", DMA_BURSTBITS);
+		sbmask = of_getintprop_default(ledma_dp, "burst-sizes",
+					       DMA_BURSTBITS);
 		lp->burst_sizes &= sbmask;
 
 		/* Get the cable-selection property */
-		memset(prop, 0, sizeof(prop));
-		prom_getstring(ledma->sdev->prom_node, "cable-selection",
-			       prop, sizeof(prop));
-		if (prop[0] == 0) {
-			int topnd, nd;
+		prop = of_get_property(ledma_dp, "cable-selection", NULL);
+		if (!prop || prop[0] == '\0') {
+			struct device_node *nd;
 
-			printk(KERN_INFO "SunLance: using auto-carrier-detection.\n");
+			printk(KERN_INFO "SunLance: using "
+			       "auto-carrier-detection.\n");
 
-			/* Is this found at /options .attributes in all
-			 * Prom versions? XXX
-			 */
-			topnd = prom_getchild(prom_root_node);
-
-			nd = prom_searchsiblings(topnd, "options");
+			nd = of_find_node_by_path("/options");
 			if (!nd)
 				goto no_link_test;
 
-			if (!prom_node_has_property(nd, "tpe-link-test?"))
+			prop = of_get_property(nd, "tpe-link-test?", NULL);
+			if (!prop)
 				goto no_link_test;
-
-			memset(prop, 0, sizeof(prop));
-			prom_getstring(nd, "tpe-link-test?", prop,
-				       sizeof(prop));
 
 			if (strcmp(prop, "true")) {
 				printk(KERN_NOTICE "SunLance: warning: overriding option "

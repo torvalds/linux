@@ -321,6 +321,8 @@ static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
 
 static int ipath_pe_txe_recover(struct ipath_devdata *);
+static void ipath_pe_put_tid_2(struct ipath_devdata *, u64 __iomem *,
+			       u32, unsigned long);
 
 /**
  * ipath_pe_handle_hwerrors - display hardware errors.
@@ -555,8 +557,11 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 		ipath_dev_err(dd, "Unsupported InfiniPath hardware revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;
-	} else
+	} else {
 		ret = 0;
+		if (dd->ipath_minrev >= 2)
+			dd->ipath_f_put_tid = ipath_pe_put_tid_2;
+	}
 
 	return ret;
 }
@@ -1220,7 +1225,7 @@ static void ipath_pe_clear_tids(struct ipath_devdata *dd, unsigned port)
 		 port * dd->ipath_rcvtidcnt * sizeof(*tidbase));
 
 	for (i = 0; i < dd->ipath_rcvtidcnt; i++)
-		ipath_pe_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EXPECTED,
+		dd->ipath_f_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EXPECTED,
 				 tidinv);
 
 	tidbase = (u64 __iomem *)
@@ -1229,7 +1234,7 @@ static void ipath_pe_clear_tids(struct ipath_devdata *dd, unsigned port)
 		 port * dd->ipath_rcvegrcnt * sizeof(*tidbase));
 
 	for (i = 0; i < dd->ipath_rcvegrcnt; i++)
-		ipath_pe_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EAGER,
+		dd->ipath_f_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EAGER,
 				 tidinv);
 }
 
@@ -1395,10 +1400,11 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_quiet_serdes = ipath_pe_quiet_serdes;
 	dd->ipath_f_bringup_serdes = ipath_pe_bringup_serdes;
 	dd->ipath_f_clear_tids = ipath_pe_clear_tids;
-	if (dd->ipath_minrev >= 2)
-		dd->ipath_f_put_tid = ipath_pe_put_tid_2;
-	else
-		dd->ipath_f_put_tid = ipath_pe_put_tid;
+	/*
+	 * this may get changed after we read the chip revision,
+	 * but we start with the safe version for all revs
+	 */
+	dd->ipath_f_put_tid = ipath_pe_put_tid;
 	dd->ipath_f_cleanup = ipath_setup_pe_cleanup;
 	dd->ipath_f_setextled = ipath_setup_pe_setextled;
 	dd->ipath_f_get_base_info = ipath_pe_get_base_info;

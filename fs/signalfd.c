@@ -320,7 +320,7 @@ asmlinkage long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemas
 
 	if (sizemask != sizeof(sigset_t) ||
 	    copy_from_user(&sigmask, user_mask, sizeof(sigmask)))
-		return error = -EINVAL;
+		return -EINVAL;
 	sigdelsetmask(&sigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
 	signotset(&sigmask);
 

@@ -164,7 +164,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
  * @spd:	data to fill
  *
  * Description:
- *    @spd contains a map of pages and len/offset tupples, a long with
+ *    @spd contains a map of pages and len/offset tuples, along with
  *    the struct pipe_buf_operations associated with these pages. This
  *    function will link that data to the pipe.
  *
@@ -1000,7 +1000,7 @@ static long do_splice_to(struct file *in, loff_t *ppos,
  * Description:
  *    This is a special case helper to splice directly between two
  *    points, without requiring an explicit pipe. Internally an allocated
- *    pipe is cached in the process, and reused during the life time of
+ *    pipe is cached in the process, and reused during the lifetime of
  *    that process.
  *
  */

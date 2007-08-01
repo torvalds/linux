@@ -3548,7 +3548,6 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 	.phys_id	= sky2_phys_id,
 	.get_stats_count = sky2_get_stats_count,
 	.get_ethtool_stats = sky2_get_ethtool_stats,
-	.get_perm_addr	= ethtool_op_get_perm_addr,
 };
 
 #ifdef CONFIG_SKY2_DEBUG

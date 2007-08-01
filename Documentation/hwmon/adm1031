@@ -6,13 +6,13 @@ Supported chips:
     Prefix: 'adm1030'
     Addresses scanned: I2C 0x2c to 0x2e
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADM1030
+               http://www.analog.com/en/prod/0%2C2877%2CADM1030%2C00.html
 
   * Analog Devices ADM1031
     Prefix: 'adm1031'
     Addresses scanned: I2C 0x2c to 0x2e
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADM1031
+               http://www.analog.com/en/prod/0%2C2877%2CADM1031%2C00.html
 
 Authors:
         Alexandre d'Alton <alex@alexdalton.org>

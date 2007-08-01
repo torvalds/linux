@@ -107,28 +107,26 @@ static inline struct thread_info *current_thread_info(void)
  * thread information flag bit numbers
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
-#define TIF_SIGPENDING		2	/* signal pending */
-#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-#define TIF_POLLING_NRFLAG	4	/* true if poll_idle() is polling
+#define TIF_SIGPENDING		1	/* signal pending */
+#define TIF_NEED_RESCHED	2	/* rescheduling necessary */
+#define TIF_POLLING_NRFLAG	3	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
-#define TIF_32BIT		5	/* 32 bit binary */
-#define TIF_PERFMON_WORK	6	/* work for pfm_handle_work() */
-#define TIF_PERFMON_CTXSW	7	/* perfmon needs ctxsw calls */
-#define TIF_SYSCALL_AUDIT	8	/* syscall auditing active */
-#define TIF_SINGLESTEP		9	/* singlestepping active */
-#define TIF_MEMDIE		10
-#define TIF_SECCOMP		11	/* secure computing */
-#define TIF_RESTOREALL		12	/* Restore all regs (implies NOERROR) */
-#define TIF_NOERROR		14	/* Force successful syscall return */
-#define TIF_RESTORE_SIGMASK	15	/* Restore signal mask in do_signal */
-#define TIF_FREEZE		16	/* Freezing for suspend */
-#define TIF_RUNLATCH		17	/* Is the runlatch enabled? */
-#define TIF_ABI_PENDING		18	/* 32/64 bit switch needed */
+#define TIF_32BIT		4	/* 32 bit binary */
+#define TIF_PERFMON_WORK	5	/* work for pfm_handle_work() */
+#define TIF_PERFMON_CTXSW	6	/* perfmon needs ctxsw calls */
+#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
+#define TIF_SINGLESTEP		8	/* singlestepping active */
+#define TIF_MEMDIE		9
+#define TIF_SECCOMP		10	/* secure computing */
+#define TIF_RESTOREALL		11	/* Restore all regs (implies NOERROR) */
+#define TIF_NOERROR		12	/* Force successful syscall return */
+#define TIF_RESTORE_SIGMASK	13	/* Restore signal mask in do_signal */
+#define TIF_FREEZE		14	/* Freezing for suspend */
+#define TIF_RUNLATCH		15	/* Is the runlatch enabled? */
+#define TIF_ABI_PENDING		16	/* 32/64 bit switch needed */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
@@ -146,7 +144,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
 #define _TIF_SYSCALL_T_OR_A	(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP)
 
-#define _TIF_USER_WORK_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \
+#define _TIF_USER_WORK_MASK	( _TIF_SIGPENDING | \
 				 _TIF_NEED_RESCHED | _TIF_RESTORE_SIGMASK)
 #define _TIF_PERSYSCALL_MASK	(_TIF_RESTOREALL|_TIF_NOERROR)
 

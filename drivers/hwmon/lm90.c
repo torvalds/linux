@@ -585,7 +585,7 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 			 * those of the man_id register.
 			 */
 			if (chip_id == man_id
-			 && (address == 0x4F || address == 0x4D)
+			 && (address == 0x4C || address == 0x4D)
 			 && (reg_config1 & 0x1F) == (man_id & 0x0F)
 			 && reg_convrate <= 0x09) {
 			 	kind = max6657;
