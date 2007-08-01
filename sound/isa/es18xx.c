@@ -2028,6 +2028,7 @@ static int pnpc_registered;
 
 static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 	{ .id = "ESS1869" },
+	{ .id = "ESS1879" },
 	{ .id = "" }		/* end */
 };
 
