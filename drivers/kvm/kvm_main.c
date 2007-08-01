@@ -302,11 +302,6 @@ static struct kvm *kvm_create_vm(void)
 	return kvm;
 }
 
-static int kvm_dev_open(struct inode *inode, struct file *filp)
-{
-	return 0;
-}
-
 /*
  * Free any memory in @free but not in @dont.
  */
@@ -374,11 +369,6 @@ static void kvm_free_vcpus(struct kvm *kvm)
 		}
 	}
 
-}
-
-static int kvm_dev_release(struct inode *inode, struct file *filp)
-{
-	return 0;
 }
 
 static void kvm_destroy_vm(struct kvm *kvm)
@@ -2841,8 +2831,6 @@ out:
 }
 
 static struct file_operations kvm_chardev_ops = {
-	.open		= kvm_dev_open,
-	.release        = kvm_dev_release,
 	.unlocked_ioctl = kvm_dev_ioctl,
 	.compat_ioctl   = kvm_dev_ioctl,
 };
