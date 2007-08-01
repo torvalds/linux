@@ -733,11 +733,6 @@ struct ib_udata {
 	size_t       outlen;
 };
 
-#define IB_UMEM_MAX_PAGE_CHUNK						\
-	((PAGE_SIZE - offsetof(struct ib_umem_chunk, page_list)) /	\
-	 ((void *) &((struct ib_umem_chunk *) 0)->page_list[1] -	\
-	  (void *) &((struct ib_umem_chunk *) 0)->page_list[0]))
-
 struct ib_pd {
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
