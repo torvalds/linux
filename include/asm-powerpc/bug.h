@@ -93,7 +93,7 @@
 } while (0)
 
 #define WARN_ON(x) ({						\
-	typeof(x) __ret_warn_on = (x);				\
+	int __ret_warn_on = !!(x);				\
 	if (__builtin_constant_p(__ret_warn_on)) {		\
 		if (__ret_warn_on)				\
 			__WARN();				\
