@@ -3017,11 +3017,7 @@ static u64 stat_get(void *_offset)
 	return total;
 }
 
-static void stat_set(void *offset, u64 val)
-{
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(stat_fops, stat_get, stat_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(stat_fops, stat_get, NULL, "%llu\n");
 
 static __init void kvm_init_debug(void)
 {
