@@ -232,6 +232,10 @@ void output_mm_defines(void)
 	constant("#define _PMD_T_LOG2    ", PMD_T_LOG2);
 	constant("#define _PTE_T_LOG2    ", PTE_T_LOG2);
 	linefeed;
+	constant("#define _PGD_ORDER     ", PGD_ORDER);
+	constant("#define _PMD_ORDER     ", PMD_ORDER);
+	constant("#define _PTE_ORDER     ", PTE_ORDER);
+	linefeed;
 	constant("#define _PMD_SHIFT     ", PMD_SHIFT);
 	constant("#define _PGDIR_SHIFT   ", PGDIR_SHIFT);
 	linefeed;
