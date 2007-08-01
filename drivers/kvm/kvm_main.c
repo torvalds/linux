@@ -1776,8 +1776,6 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		return 1;
 	}
 
-	now = min(count, PAGE_SIZE / size);
-
 	if (!down)
 		in_page = PAGE_SIZE - offset_in_page(address);
 	else
