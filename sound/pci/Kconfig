@@ -507,7 +507,7 @@ config SND_HDA_HWDEP
 	help
 	  Say Y here to build a hwdep interface for HD-audio driver.
 	  This interface can be used for out-of-bound communication
-	  with codesc for debugging purposes.
+	  with codecs for debugging purposes.
 
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
