@@ -1220,54 +1220,14 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 #endif
 
 /**
- * usb_new_device - perform initial device setup (usbcore-internal)
+ * usb_configure_device_otg - FIXME (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
  *
- * This is called with devices which have been enumerated, but not yet
- * configured.  The device descriptor is available, but not descriptors
- * for any device configuration.  The caller must have locked either
- * the parent hub (if udev is a normal device) or else the
- * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
- * udev has already been installed, but udev is not yet visible through
- * sysfs or other filesystem code.
- *
- * It will return if the device is configured properly or not.  Zero if
- * the interface was registered with the driver core; else a negative
- * errno value.
- *
- * This call is synchronous, and may not be used in an interrupt context.
- *
- * Only the hub driver or root-hub registrar should ever call this.
+ * Do configuration for On-The-Go devices
  */
-int usb_new_device(struct usb_device *udev)
+static int usb_configure_device_otg(struct usb_device *udev)
 {
-	int err;
-
-	/* Determine quirks */
-	usb_detect_quirks(udev);
-
-	err = usb_get_configuration(udev);
-	if (err < 0) {
-		dev_err(&udev->dev, "can't read configurations, error %d\n",
-			err);
-		goto fail;
-	}
-
-	/* read the standard strings and cache them if present */
-	udev->product = usb_cache_string(udev, udev->descriptor.iProduct);
-	udev->manufacturer = usb_cache_string(udev,
-			udev->descriptor.iManufacturer);
-	udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
-
-	/* Tell the world! */
-	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
-			"SerialNumber=%d\n",
-			udev->descriptor.iManufacturer,
-			udev->descriptor.iProduct,
-			udev->descriptor.iSerialNumber);
-	show_string(udev, "Product", udev->product);
-	show_string(udev, "Manufacturer", udev->manufacturer);
-	show_string(udev, "SerialNumber", udev->serial);
+	int err = 0;
 
 #ifdef	CONFIG_USB_OTG
 	/*
@@ -1329,8 +1289,82 @@ int usb_new_device(struct usb_device *udev)
 		err = -ENOTSUPP;
 		goto fail;
 	}
+fail:
 #endif
+	return err;
+}
 
+
+/**
+ * usb_configure_device - Detect and probe device intfs/otg (usbcore-internal)
+ * @udev: newly addressed device (in ADDRESS state)
+ *
+ * This is only called by usb_new_device() and usb_authorize_device()
+ * and FIXME -- all comments that apply to them apply here wrt to
+ * environment.
+ *
+ * If the device is WUSB and not authorized, we don't attempt to read
+ * the string descriptors, as they will be errored out by the device
+ * until it has been authorized.
+ */
+static int usb_configure_device(struct usb_device *udev)
+{
+	int err;
+
+	if (udev->config == NULL) {
+		err = usb_get_configuration(udev);
+		if (err < 0) {
+			dev_err(&udev->dev, "can't read configurations, error %d\n",
+				err);
+			goto fail;
+		}
+	}
+	if (udev->wusb == 1 && udev->authorized == 0) {
+		udev->product = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+		udev->manufacturer = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+		udev->serial = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	}
+	else {
+		/* read the standard strings and cache them if present */
+		udev->product = usb_cache_string(udev, udev->descriptor.iProduct);
+		udev->manufacturer = usb_cache_string(udev,
+						      udev->descriptor.iManufacturer);
+		udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
+	}
+	err = usb_configure_device_otg(udev);
+fail:
+	return err;
+}
+
+
+/**
+ * usb_new_device - perform initial device setup (usbcore-internal)
+ * @udev: newly addressed device (in ADDRESS state)
+ *
+ * This is called with devices which have been enumerated, but not yet
+ * configured.  The device descriptor is available, but not descriptors
+ * for any device configuration.  The caller must have locked either
+ * the parent hub (if udev is a normal device) or else the
+ * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
+ * udev has already been installed, but udev is not yet visible through
+ * sysfs or other filesystem code.
+ *
+ * It will return if the device is configured properly or not.  Zero if
+ * the interface was registered with the driver core; else a negative
+ * errno value.
+ *
+ * This call is synchronous, and may not be used in an interrupt context.
+ *
+ * Only the hub driver or root-hub registrar should ever call this.
+ */
+int usb_new_device(struct usb_device *udev)
+{
+	int err;
+
+	usb_detect_quirks(udev);		/* Determine quirks */
+	err = usb_configure_device(udev);	/* detect & probe dev/intfs */
+	if (err < 0)
+		goto fail;
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
@@ -1346,17 +1380,23 @@ int usb_new_device(struct usb_device *udev)
 	err = device_add(&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
-		if (udev->parent)
-			usb_autosuspend_device(udev->parent);
 		goto fail;
 	}
 
-exit:
+	/* Tell the world! */
+	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
+		"SerialNumber=%d\n",
+		udev->descriptor.iManufacturer,
+		udev->descriptor.iProduct,
+		udev->descriptor.iSerialNumber);
+	show_string(udev, "Product", udev->product);
+	show_string(udev, "Manufacturer", udev->manufacturer);
+	show_string(udev, "SerialNumber", udev->serial);
 	return err;
 
 fail:
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
-	goto exit;
+	return err;
 }
 
 static int hub_port_status(struct usb_hub *hub, int port1,
