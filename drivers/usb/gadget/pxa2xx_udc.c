@@ -967,7 +967,7 @@ static int pxa2xx_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	udc = container_of(_gadget, struct pxa2xx_udc, gadget);
 
 	/* not all boards support pullup control */
-	if (!udc->mach->udc_command)
+	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
 		return -EOPNOTSUPP;
 
 	is_active = (is_active != 0);
@@ -2309,7 +2309,7 @@ static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (!udc->mach->udc_command)
+	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
 		WARN("USB host won't detect disconnect!\n");
 	pullup(udc, 0);
 
