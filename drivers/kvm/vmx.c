@@ -2359,7 +2359,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	kfree(vmx->host_msrs);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
-	kfree(vmx);
+	kmem_cache_free(kvm_vcpu_cache, vmx);
 }
 
 static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
@@ -2410,7 +2410,7 @@ free_guest_msrs:
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:
-	kfree(vmx);
+	kmem_cache_free(kvm_vcpu_cache, vmx);
 	return ERR_PTR(err);
 }
 

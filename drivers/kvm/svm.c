@@ -610,7 +610,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 uninit:
 	kvm_vcpu_uninit(&svm->vcpu);
 free_svm:
-	kfree(svm);
+	kmem_cache_free(kvm_vcpu_cache, svm);
 out:
 	return ERR_PTR(err);
 }
@@ -621,7 +621,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 
 	__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
 	kvm_vcpu_uninit(vcpu);
-	kfree(svm);
+	kmem_cache_free(kvm_vcpu_cache, svm);
 }
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
