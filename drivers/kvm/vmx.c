@@ -544,6 +544,7 @@ static void vmx_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
 /*
  * Swap MSR entry in host/guest MSR entry array.
  */
+#ifdef CONFIG_X86_64
 static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 {
 	struct kvm_msr_entry tmp;
@@ -555,6 +556,7 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 	vmx->host_msrs[to] = vmx->host_msrs[from];
 	vmx->host_msrs[from] = tmp;
 }
+#endif
 
 /*
  * Set up the vmcs to automatically save and restore system
