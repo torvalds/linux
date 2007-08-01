@@ -291,10 +291,17 @@ source "drivers/scsi/libsas/Kconfig"
 
 config SCSI_SRP_ATTRS
 	tristate "SRP Transport Attributes"
-	depends on SCSI && SCSI_TGT
+	depends on SCSI
 	help
 	  If you wish to export transport-specific information about
 	  each attached SRP device to sysfs, say Y.
+
+config SCSI_SRP_TGT_ATTRS
+	bool "SCSI target support for SRP Transport Attributes"
+	depends on SCSI_SRP_ATTRS
+	depends on SCSI_TGT = y || SCSI_TGT = SCSI_SRP_ATTRS
+	help
+		If you want to use SCSI target mode drivers enable this option.
 
 endmenu
 
@@ -848,7 +855,7 @@ config SCSI_IBMVSCSI
 
 config SCSI_IBMVSCSIS
 	tristate "IBM Virtual SCSI Server support"
-	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP && SCSI_SRP_ATTRS
+	depends on PPC_PSERIES && SCSI_SRP && SCSI_SRP_TGT_ATTRS
 	help
 	  This is the SRP target driver for IBM pSeries virtual environments.
 

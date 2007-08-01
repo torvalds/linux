@@ -30,7 +30,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_srp.h>
-#include <scsi/scsi_tgt.h>
+#include "scsi_transport_srp_internal.h"
 
 struct srp_host_attrs {
 	atomic_t next_port_id;
@@ -223,8 +223,8 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 	}
 
 	if (ids->roles == SRP_RPORT_ROLE_INITIATOR) {
-		ret = scsi_tgt_it_nexus_create(shost, (unsigned long)rport,
-					       rport->port_id);
+		ret = srp_tgt_it_nexus_create(shost, (unsigned long)rport,
+					      rport->port_id);
 		if (ret) {
 			device_del(&rport->dev);
 			transport_destroy_device(&rport->dev);
@@ -251,8 +251,8 @@ void srp_rport_del(struct srp_rport *rport)
 	struct device *dev = &rport->dev;
 
 	if (rport->roles == SRP_RPORT_ROLE_INITIATOR)
-		scsi_tgt_it_nexus_destroy(dev_to_shost(dev->parent),
-					  (unsigned long)rport);
+		srp_tgt_it_nexus_destroy(dev_to_shost(dev->parent),
+					 (unsigned long)rport);
 
 	transport_remove_device(dev);
 	device_del(dev);
