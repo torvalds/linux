@@ -1920,7 +1920,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		break;
 	}
 	kvm_run->exit_reason = 0;
-	printk(KERN_ERR "kvm: unhandled control register: op %d cr %d\n",
+	pr_unimpl(vcpu, "unhandled control register: op %d cr %d\n",
 	       (int)(exit_qualification >> 4) & 3, cr);
 	return 0;
 }

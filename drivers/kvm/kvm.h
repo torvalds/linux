@@ -474,6 +474,14 @@ struct kvm_arch_ops {
 
 extern struct kvm_arch_ops *kvm_arch_ops;
 
+/* The guest did something we don't support. */
+#define pr_unimpl(vcpu, fmt, ...)					\
+ do {									\
+	if (printk_ratelimit())						\
+		printk(KERN_ERR "kvm: %i: cpu%i " fmt,			\
+		       current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__); \
+ } while(0)
+
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
 

@@ -962,8 +962,7 @@ static int emulator_write_std(unsigned long addr,
 			      unsigned int bytes,
 			      struct kvm_vcpu *vcpu)
 {
-	printk(KERN_ERR "emulator_write_std: addr %lx n %d\n",
-	       addr, bytes);
+	pr_unimpl(vcpu, "emulator_write_std: addr %lx n %d\n", addr, bytes);
 	return X86EMUL_UNHANDLEABLE;
 }
 
@@ -1138,8 +1137,7 @@ int emulator_get_dr(struct x86_emulate_ctxt* ctxt, int dr, unsigned long *dest)
 		*dest = kvm_arch_ops->get_dr(vcpu, dr);
 		return X86EMUL_CONTINUE;
 	default:
-		printk(KERN_DEBUG "%s: unexpected dr %u\n",
-		       __FUNCTION__, dr);
+		pr_unimpl(vcpu, "%s: unexpected dr %u\n", __FUNCTION__, dr);
 		return X86EMUL_UNHANDLEABLE;
 	}
 }
@@ -1488,7 +1486,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		break;
 #endif
 	default:
-		printk(KERN_ERR "kvm: unhandled rdmsr: 0x%x\n", msr);
+		pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
 		return 1;
 	}
 	*pdata = data;
@@ -1543,11 +1541,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		break;
 #endif
 	case MSR_IA32_MC0_STATUS:
-		printk(KERN_WARNING "%s: MSR_IA32_MC0_STATUS 0x%llx, nop\n",
+		pr_unimpl(vcpu, "%s: MSR_IA32_MC0_STATUS 0x%llx, nop\n",
 		       __FUNCTION__, data);
 		break;
 	case MSR_IA32_MCG_STATUS:
-		printk(KERN_WARNING "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
+		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
 			__FUNCTION__, data);
 		break;
 	case MSR_IA32_UCODE_REV:
@@ -1567,7 +1565,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		return vcpu_register_para(vcpu, data);
 
 	default:
-		printk(KERN_ERR "kvm: unhandled wrmsr: 0x%x\n", msr);
+		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x\n", msr);
 		return 1;
 	}
 	return 0;
@@ -1798,7 +1796,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		/*
 		 * String I/O in reverse.  Yuck.  Kill the guest, fix later.
 		 */
-		printk(KERN_ERR "kvm: guest string pio down\n");
+		pr_unimpl(vcpu, "guest string pio down\n");
 		inject_gp(vcpu);
 		return 1;
 	}
@@ -1829,7 +1827,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 				ret = 1;
 		}
 	} else if (pio_dev)
-		printk(KERN_ERR "no string pio read support yet, "
+		pr_unimpl(vcpu, "no string pio read support yet, "
 		       "port %x size %d count %ld\n",
 			port, size, count);
 

@@ -1167,7 +1167,7 @@ static int invalid_op_interception(struct vcpu_svm *svm,
 static int task_switch_interception(struct vcpu_svm *svm,
 				    struct kvm_run *kvm_run)
 {
-	printk(KERN_DEBUG "%s: task swiche is unsupported\n", __FUNCTION__);
+	pr_unimpl(&svm->vcpu, "%s: task switch is unsupported\n", __FUNCTION__);
 	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
 	return 0;
 }
@@ -1183,7 +1183,7 @@ static int emulate_on_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
 	if (emulate_instruction(&svm->vcpu, NULL, 0, 0) != EMULATE_DONE)
-		printk(KERN_ERR "%s: failed\n", __FUNCTION__);
+		pr_unimpl(&svm->vcpu, "%s: failed\n", __FUNCTION__);
 	return 1;
 }
 
