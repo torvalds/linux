@@ -99,7 +99,7 @@ static void __init linkstation_setup_arch(void)
 }
 
 /*
- * Interrupt setup and service.  Interrrupts on the linkstation come
+ * Interrupt setup and service.  Interrupts on the linkstation come
  * from the four PCI slots plus onboard 8241 devices: I2C, DUART.
  */
 static void __init linkstation_init_IRQ(void)

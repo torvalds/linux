@@ -135,7 +135,7 @@ static void __init holly_setup_arch(void)
 }
 
 /*
- * Interrupt setup and service.  Interrrupts on the holly come
+ * Interrupt setup and service.  Interrupts on the holly come
  * from the four external INT pins, PCI interrupts are routed via
  * PCI interrupt control registers, it generates internal IRQ23
  *

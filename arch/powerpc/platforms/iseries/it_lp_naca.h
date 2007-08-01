@@ -60,7 +60,7 @@ struct ItLpNaca {
 	u8	xRsvd2_0[128];		// Reserved			x00-x7F
 
 // CACHE_LINE_3-6 0x0100 - 0x02FF Contains LP Queue indicators
-// NB: Padding required to keep xInterrruptHdlr at x300 which is required
+// NB: Padding required to keep xInterruptHdlr at x300 which is required
 // for v4r4 PLIC.
 	u8	xOldLpQueue[128];	// LP Queue needed for v4r4	100-17F
 	u8	xRsvd3_0[384];		// Reserved			180-2FF
