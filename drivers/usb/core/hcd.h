@@ -51,6 +51,12 @@
  *
  * Since "struct usb_bus" is so thin, you can't share much code in it.
  * This framework is a layer over that, and should be more sharable.
+ *
+ * @authorized_default: Specifies if new devices are authorized to
+ *                      connect by default or they require explicit
+ *                      user space authorization; this bit is settable
+ *                      through /sys/class/usb_host/X/authorized_default.
+ *                      For the rest is RO, so we don't lock to r/w it.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -90,6 +96,7 @@ struct usb_hcd {
 	unsigned		poll_rh:1;	/* poll for rh status? */
 	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
+	unsigned		authorized_default:1;
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */

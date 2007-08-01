@@ -679,6 +679,66 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 	return 0;
 }
 
+
+
+/*
+ * Show & store the current value of authorized_default
+ */
+static ssize_t usb_host_authorized_default_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct usb_device *rh_usb_dev = to_usb_device(dev);
+	struct usb_bus *usb_bus = rh_usb_dev->bus;
+	struct usb_hcd *usb_hcd;
+
+	if (usb_bus == NULL)	/* FIXME: not sure if this case is possible */
+		return -ENODEV;
+	usb_hcd = bus_to_hcd(usb_bus);
+	return snprintf(buf, PAGE_SIZE, "%u\n", usb_hcd->authorized_default);
+}
+
+static ssize_t usb_host_authorized_default_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t size)
+{
+	ssize_t result;
+	unsigned val;
+	struct usb_device *rh_usb_dev = to_usb_device(dev);
+	struct usb_bus *usb_bus = rh_usb_dev->bus;
+	struct usb_hcd *usb_hcd;
+
+	if (usb_bus == NULL)	/* FIXME: not sure if this case is possible */
+		return -ENODEV;
+	usb_hcd = bus_to_hcd(usb_bus);
+	result = sscanf(buf, "%u\n", &val);
+	if (result == 1) {
+		usb_hcd->authorized_default = val? 1 : 0;
+		result = size;
+	}
+	else
+		result = -EINVAL;
+	return result;
+}
+
+static DEVICE_ATTR(authorized_default, 0644,
+	    usb_host_authorized_default_show,
+	    usb_host_authorized_default_store);
+
+
+/* Group all the USB bus attributes */
+static struct attribute *usb_bus_attrs[] = {
+		&dev_attr_authorized_default.attr,
+		NULL,
+};
+
+static struct attribute_group usb_bus_attr_group = {
+	.name = NULL,	/* we want them in the same directory */
+	.attrs = usb_bus_attrs,
+};
+
+
+
 /*-------------------------------------------------------------------------*/
 
 static struct class *usb_host_class;
@@ -1542,7 +1602,6 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	hcd->driver = driver;
 	hcd->product_desc = (driver->product_desc) ? driver->product_desc :
 			"USB Host Controller";
-
 	return hcd;
 }
 EXPORT_SYMBOL (usb_create_hcd);
@@ -1587,6 +1646,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 
 	dev_info(hcd->self.controller, "%s\n", hcd->product_desc);
 
+	hcd->authorized_default = hcd->wireless? 0 : 1;
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* HC is in reset state, but accessible.  Now do the one-time init,
@@ -1663,10 +1723,20 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if ((retval = register_root_hub(hcd)) != 0)
 		goto err_register_root_hub;
 
+	retval = sysfs_create_group(&rhdev->dev.kobj, &usb_bus_attr_group);
+	if (retval < 0) {
+		printk(KERN_ERR "Cannot register USB bus sysfs attributes: %d\n",
+		       retval);
+		goto error_create_attr_group;
+	}
 	if (hcd->uses_new_polling && hcd->poll_rh)
 		usb_hcd_poll_rh_status(hcd);
 	return retval;
 
+error_create_attr_group:
+	mutex_lock(&usb_bus_list_lock);
+	usb_disconnect(&hcd->self.root_hub);
+	mutex_unlock(&usb_bus_list_lock);
 err_register_root_hub:
 	hcd->driver->stop(hcd);
 err_hcd_driver_start:
@@ -1708,6 +1778,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 
+	sysfs_remove_group(&hcd->self.root_hub->dev.kobj, &usb_bus_attr_group);
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);
 	mutex_unlock(&usb_bus_list_lock);
