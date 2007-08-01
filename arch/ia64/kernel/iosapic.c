@@ -794,8 +794,9 @@ iosapic_register_intr (unsigned int gsi,
 	err = register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY,
 			    polarity, trigger);
 	if (err < 0) {
+		spin_unlock(&irq_desc[irq].lock);
 		irq = err;
-		goto unlock_all;
+		goto unlock_iosapic_lock;
 	}
 
 	/*
@@ -811,7 +812,7 @@ iosapic_register_intr (unsigned int gsi,
 	       gsi, (trigger == IOSAPIC_EDGE ? "edge" : "level"),
 	       (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
 	       cpu_logical_id(dest), dest, irq_to_vector(irq));
- unlock_all:
+
 	spin_unlock(&irq_desc[irq].lock);
  unlock_iosapic_lock:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
