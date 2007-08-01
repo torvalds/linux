@@ -160,14 +160,6 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	if (undo)
 		goto fail_trans;
 
-	p = kthread_run(gfs2_scand, sdp, "gfs2_scand");
-	error = IS_ERR(p);
-	if (error) {
-		fs_err(sdp, "can't start scand thread: %d\n", error);
-		return error;
-	}
-	sdp->sd_scand_process = p;
-
 	for (sdp->sd_glockd_num = 0;
 	     sdp->sd_glockd_num < sdp->sd_args.ar_num_glockd;
 	     sdp->sd_glockd_num++) {
@@ -228,7 +220,6 @@ fail:
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
 
-	kthread_stop(sdp->sd_scand_process);
 	return error;
 }
 

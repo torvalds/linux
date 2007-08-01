@@ -92,7 +92,6 @@ static void gfs2_put_super(struct super_block *sb)
 	kthread_stop(sdp->sd_recoverd_process);
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
-	kthread_stop(sdp->sd_scand_process);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		error = gfs2_make_fs_ro(sdp);

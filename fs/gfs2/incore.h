@@ -429,7 +429,6 @@ struct gfs2_tune {
 	unsigned int gt_log_flush_secs;
 	unsigned int gt_jindex_refresh_secs; /* Check for new journal index */
 
-	unsigned int gt_scand_secs;
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
 	unsigned int gt_quotad_secs;
@@ -574,7 +573,6 @@ struct gfs2_sbd {
 
 	/* Daemon stuff */
 
-	struct task_struct *sd_scand_process;
 	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;

@@ -25,6 +25,8 @@
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -58,6 +60,8 @@ static void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh);
 static void gfs2_glock_drop_th(struct gfs2_glock *gl);
 static DECLARE_RWSEM(gfs2_umount_flush_sem);
 static struct dentry *gfs2_root;
+static struct task_struct *scand_process;
+static unsigned int scand_secs = 5;
 
 #define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
@@ -1627,7 +1631,7 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 		goto out;
 	gl = list_entry(head->first, struct gfs2_glock, gl_list);
 	while(1) {
-		if (gl->gl_sbd == sdp) {
+		if (!sdp || gl->gl_sbd == sdp) {
 			gfs2_glock_hold(gl);
 			read_unlock(gl_lock_addr(hash));
 			if (prev)
@@ -1645,6 +1649,7 @@ out:
 	read_unlock(gl_lock_addr(hash));
 	if (prev)
 		gfs2_glock_put(prev);
+	cond_resched();
 	return has_entries;
 }
 
@@ -1670,20 +1675,6 @@ static void scan_glock(struct gfs2_glock *gl)
 out_schedule:
 	gfs2_glmutex_unlock(gl);
 	gfs2_glock_schedule_for_reclaim(gl);
-}
-
-/**
- * gfs2_scand_internal - Look for glocks and inodes to toss from memory
- * @sdp: the filesystem
- *
- */
-
-void gfs2_scand_internal(struct gfs2_sbd *sdp)
-{
-	unsigned int x;
-
-	for (x = 0; x < GFS2_GL_HASH_SIZE; x++)
-		examine_bucket(scan_glock, sdp, x);
 }
 
 /**
@@ -1973,6 +1964,35 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 	return error;
 }
 
+/**
+ * gfs2_scand - Look for cached glocks and inodes to toss from memory
+ * @sdp: Pointer to GFS2 superblock
+ *
+ * One of these daemons runs, finding candidates to add to sd_reclaim_list.
+ * See gfs2_glockd()
+ */
+
+static int gfs2_scand(void *data)
+{
+	unsigned x;
+	unsigned delay;
+
+	while (!kthread_should_stop()) {
+		for (x = 0; x < GFS2_GL_HASH_SIZE; x++)
+			examine_bucket(scan_glock, NULL, x);
+		if (freezing(current))
+			refrigerator();
+		delay = scand_secs;
+		if (delay < 1)
+			delay = 1;
+		schedule_timeout_interruptible(delay * HZ);
+	}
+
+	return 0;
+}
+
+
+
 int __init gfs2_glock_init(void)
 {
 	unsigned i;
@@ -1984,8 +2004,21 @@ int __init gfs2_glock_init(void)
 		rwlock_init(&gl_hash_locks[i]);
 	}
 #endif
+
+	scand_process = kthread_run(gfs2_scand, NULL, "gfs2_scand");
+	if (IS_ERR(scand_process))
+		return PTR_ERR(scand_process);
+
 	return 0;
 }
+
+void gfs2_glock_exit(void)
+{
+	kthread_stop(scand_process);
+}
+
+module_param(scand_secs, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(scand_secs, "The number of seconds between scand runs");
 
 static int gfs2_glock_iter_next(struct glock_iter *gi)
 {

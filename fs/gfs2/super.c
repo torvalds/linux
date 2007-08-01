@@ -58,7 +58,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_incore_log_blocks = 1024;
 	gt->gt_log_flush_secs = 60;
 	gt->gt_jindex_refresh_secs = 60;
-	gt->gt_scand_secs = 15;
 	gt->gt_recoverd_secs = 60;
 	gt->gt_logd_secs = 1;
 	gt->gt_quotad_secs = 5;
