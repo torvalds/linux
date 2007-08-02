@@ -159,7 +159,8 @@ done:
 		skb_orphan(skb);
 		/* stop processing outgoing pkts */
 		netif_stop_queue(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_stop_queue(priv->mesh_dev);
 		/* freeze any packets already in our queues */
 		priv->adapter->TxLockFlag = 1;
 	} else {
@@ -198,10 +199,12 @@ static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
 	adapter->tx_queue_ps[adapter->tx_queue_idx++] = skb;
 	if (adapter->tx_queue_idx == NR_TX_QUEUE) {
 		netif_stop_queue(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_stop_queue(priv->mesh_dev);
 	} else {
 		netif_start_queue(priv->dev);
-		netif_start_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_start_queue(priv->mesh_dev);
 	}
 
 	spin_unlock(&adapter->txqueue_lock);
@@ -285,7 +288,8 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	priv->adapter->TxLockFlag = 0;
 	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_wake_queue(priv->mesh_dev);
 	}
 }
 EXPORT_SYMBOL_GPL(libertas_send_tx_feedback);

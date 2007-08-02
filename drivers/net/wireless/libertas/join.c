@@ -739,8 +739,10 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
 
-	netif_carrier_on(priv->mesh_dev);
-	netif_wake_queue(priv->mesh_dev);
+	if (priv->mesh_dev) {
+		netif_carrier_on(priv->mesh_dev);
+		netif_wake_queue(priv->mesh_dev);
+	}
 
 	lbs_deb_join("ASSOC_RESP: Associated \n");
 
@@ -827,8 +829,10 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
 
-	netif_carrier_on(priv->mesh_dev);
-	netif_wake_queue(priv->mesh_dev);
+	if (priv->mesh_dev) {
+		netif_carrier_on(priv->mesh_dev);
+		netif_wake_queue(priv->mesh_dev);
+	}
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);

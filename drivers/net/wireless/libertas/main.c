@@ -298,10 +298,12 @@ static int libertas_dev_open(struct net_device *dev)
 
 	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_carrier_on(priv->dev);
-		netif_carrier_on(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_carrier_on(priv->mesh_dev);
 	} else {
 		netif_carrier_off(priv->dev);
-		netif_carrier_off(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_carrier_off(priv->mesh_dev);
 	}
 
 	lbs_deb_leave(LBS_DEB_NET);
@@ -408,7 +410,8 @@ static int libertas_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netif_stop_queue(priv->dev);
-	netif_stop_queue(priv->mesh_dev);
+	if (priv->mesh_dev)
+		netif_stop_queue(priv->mesh_dev);
 
 	if (libertas_process_tx(priv, skb) == 0)
 		dev->trans_start = jiffies;
@@ -474,7 +477,8 @@ static void libertas_tx_timeout(struct net_device *dev)
 			wake_up_interruptible(&priv->waitq);
 	} else if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_wake_queue(priv->mesh_dev);
 	}
 
 	lbs_deb_leave(LBS_DEB_TX);
@@ -1254,7 +1258,6 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	ret = 0;
 	goto done;
 
-
 err_unregister:
 	unregister_netdev(mesh_dev);
 
@@ -1454,7 +1457,8 @@ void libertas_interrupt(struct net_device *dev)
 	if (priv->adapter->psstate == PS_STATE_SLEEP) {
 		priv->adapter->psstate = PS_STATE_AWAKE;
 		netif_wake_queue(dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_wake_queue(priv->mesh_dev);
 	}
 
 	wake_up_interruptible(&priv->waitq);

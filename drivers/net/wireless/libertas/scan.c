@@ -793,8 +793,10 @@ int wlan_scan_networks(wlan_private * priv,
 	if (!scancurrentchanonly) {
 		netif_stop_queue(priv->dev);
 		netif_carrier_off(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
-		netif_carrier_off(priv->mesh_dev);
+		if (priv->mesh_dev) {
+			netif_stop_queue(priv->mesh_dev);
+			netif_carrier_off(priv->mesh_dev);
+		}
 	}
 
 	ret = wlan_scan_channel_list(priv,
@@ -820,8 +822,10 @@ int wlan_scan_networks(wlan_private * priv,
 	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_wake_queue(priv->dev);
-		netif_carrier_on(priv->mesh_dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev) {
+			netif_carrier_on(priv->mesh_dev);
+			netif_wake_queue(priv->mesh_dev);
+		}
 	}
 
 out:
