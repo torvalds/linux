@@ -151,7 +151,6 @@ unsigned long mips_memory_upper;
 static int tx4927_ccfg_toeon = 1;
 static int tx4927_pcic_trdyto = 0;	/* default: disabled */
 unsigned long tx4927_ce_base[8];
-void tx4927_pci_setup(void);
 void tx4927_reset_pci_pcic(void);
 int tx4927_pci66 = 0;		/* 0:auto */
 #endif
@@ -442,7 +441,7 @@ arch_initcall(tx4927_pcibios_init);
 extern struct resource pci_io_resource;
 extern struct resource pci_mem_resource;
 
-void tx4927_pci_setup(void)
+void __init tx4927_pci_setup(void)
 {
 	static int called = 0;
 	extern unsigned int tx4927_get_mem_size(void);
@@ -748,12 +747,6 @@ void __init toshiba_rbtx4927_setup(void)
 	}
 #endif
 
-	/* setup irq stuff */
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":Setting up tx4927 pic.\n");
-	TX4927_WR(0xff1ff604, 0x00000400);	/* irq trigger */
-	TX4927_WR(0xff1ff608, 0x00000000);	/* irq trigger */
-
 	/* setup serial stuff */
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
 				       ":Setting up tx4927 sio.\n");
@@ -915,7 +908,7 @@ void __init toshiba_rbtx4927_setup(void)
 			req.iotype = UPIO_MEM;
 			req.membase = (char *)(0xff1ff300 + i * 0x100);
 			req.mapbase = 0xff1ff300 + i * 0x100;
-			req.irq = 32 + i;
+			req.irq = TX4927_IRQ_PIC_BEG + 8 + i;
 			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
 			req.uartclk = 50000000;
 			early_serial_txx9_setup(&req);

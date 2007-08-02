@@ -14,6 +14,7 @@
 
 #include <asm/addrspace.h>
 #include <asm/tx4938/tx4938.h>
+#include <asm/txx9irq.h>
 
 /* CS */
 #define RBTX4938_CE0	0x1c000000	/* 64M */
@@ -123,21 +124,11 @@
 #define RBTX4938_NR_IRQ_IRC	32	/* On-Chip IRC */
 #define RBTX4938_NR_IRQ_IOC	8
 
-#define MI8259_IRQ_ISA_RAW_BEG   0	/* optional backplane i8259 */
-#define MI8259_IRQ_ISA_RAW_END  15
-#define TX4938_IRQ_CP0_RAW_BEG   0	/* tx4938 cpu built-in cp0 */
-#define TX4938_IRQ_CP0_RAW_END   7
-#define TX4938_IRQ_PIC_RAW_BEG   0	/* tx4938 cpu build-in pic */
-#define TX4938_IRQ_PIC_RAW_END  31
+#define TX4938_IRQ_CP0_BEG  MIPS_CPU_IRQ_BASE
+#define TX4938_IRQ_CP0_END  (MIPS_CPU_IRQ_BASE + 8 - 1)
 
-#define MI8259_IRQ_ISA_BEG                          MI8259_IRQ_ISA_RAW_BEG	/*  0 */
-#define MI8259_IRQ_ISA_END                          MI8259_IRQ_ISA_RAW_END	/* 15 */
-
-#define TX4938_IRQ_CP0_BEG  ((MI8259_IRQ_ISA_END+1)+TX4938_IRQ_CP0_RAW_BEG)	/* 16 */
-#define TX4938_IRQ_CP0_END  ((MI8259_IRQ_ISA_END+1)+TX4938_IRQ_CP0_RAW_END)	/* 23 */
-
-#define TX4938_IRQ_PIC_BEG  ((TX4938_IRQ_CP0_END+1)+TX4938_IRQ_PIC_RAW_BEG)	/* 24 */
-#define TX4938_IRQ_PIC_END  ((TX4938_IRQ_CP0_END+1)+TX4938_IRQ_PIC_RAW_END)	/* 55 */
+#define TX4938_IRQ_PIC_BEG  TXX9_IRQ_BASE
+#define TX4938_IRQ_PIC_END  (TXX9_IRQ_BASE + TXx9_MAX_IR - 1)
 #define TX4938_IRQ_NEST_EXT_ON_PIC  (TX4938_IRQ_PIC_BEG+2)
 #define TX4938_IRQ_NEST_PIC_ON_CP0  (TX4938_IRQ_CP0_BEG+2)
 #define TX4938_IRQ_USER0            (TX4938_IRQ_CP0_BEG+0)
@@ -191,11 +182,5 @@
 
 #define RBTX4938_RTL_8019_BASE (RBTX4938_ETHER_ADDR - mips_io_port_base)
 #define RBTX4938_RTL_8019_IRQ  (RBTX4938_IRQ_ETHER)
-
-/* IRCR : Int. Control */
-#define TX4938_IRCR_LOW  0x00000000
-#define TX4938_IRCR_HIGH 0x00000001
-#define TX4938_IRCR_DOWN 0x00000002
-#define TX4938_IRCR_UP   0x00000003
 
 #endif /* __ASM_TX_BOARDS_RBTX4938_H */

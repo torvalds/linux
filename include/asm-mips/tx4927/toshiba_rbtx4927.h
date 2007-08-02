@@ -50,7 +50,7 @@
 
 
 #define RBTX4927_RTL_8019_BASE (0x1c020280-TBTX4927_ISA_IO_OFFSET)
-#define RBTX4927_RTL_8019_IRQ  (29)
+#define RBTX4927_RTL_8019_IRQ  (TX4927_IRQ_PIC_BEG + 5)
 
 int toshiba_rbtx4927_irq_nested(int sw_irq);
 

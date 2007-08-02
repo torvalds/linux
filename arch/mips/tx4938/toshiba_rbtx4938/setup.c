@@ -773,10 +773,6 @@ void __init tx4938_board_setup(void)
 		 txboard_add_phys_region(base, size);
 	}
 
-	/* IRC */
-	/* disable interrupt control */
-	tx4938_ircptr->cer = 0;
-
 	/* TMR */
 	/* disable all timers */
 	for (i = 0; i < TX4938_NR_TMR; i++) {
@@ -875,9 +871,6 @@ void __init toshiba_rbtx4938_setup(void)
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 25000000; /* 25MHz */
 	tx4938_board_setup();
-	/* setup irq stuff */
-	TX4938_WR(TX4938_MKA(TX4938_IRC_IRDM0), 0x00000000);	/* irq trigger */
-	TX4938_WR(TX4938_MKA(TX4938_IRC_IRDM1), 0x00000000);	/* irq trigger */
 	/* setup serial stuff */
 	TX4938_WR(0xff1ff314, 0x00000000);	/* h/w flow control off */
 	TX4938_WR(0xff1ff414, 0x00000000);	/* h/w flow control off */
@@ -897,7 +890,7 @@ void __init toshiba_rbtx4938_setup(void)
 			req.iotype = UPIO_MEM;
 			req.membase = (char *)(0xff1ff300 + i * 0x100);
 			req.mapbase = 0xff1ff300 + i * 0x100;
-			req.irq = 32 + i;
+			req.irq = RBTX4938_IRQ_IRC_SIO(i);
 			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
 			req.uartclk = 50000000;
 			early_serial_txx9_setup(&req);

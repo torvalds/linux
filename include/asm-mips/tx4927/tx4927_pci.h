@@ -48,7 +48,7 @@
 #define TX4927_PCI_CLK_ACK      0x04
 #define TX4927_PCI_CLK_ACE      0x02
 #define TX4927_PCI_CLK_ENDIAN   0x01
-#define TX4927_NR_IRQ_LOCAL     (8+16)
+#define TX4927_NR_IRQ_LOCAL     TX4927_IRQ_PIC_BEG
 #define TX4927_NR_IRQ_IRC       32      /* On-Chip IRC */
 
 #define TX4927_IR_PCIC  	16
@@ -97,21 +97,6 @@ struct tx4927_ccfg_reg {
         volatile unsigned long long unused1;
         volatile unsigned long long unused2;
         volatile unsigned long long ramp;
-};
-
-struct tx4927_irc_reg {
-        volatile unsigned long cer;
-        volatile unsigned long cr[2];
-        volatile unsigned long unused0;
-        volatile unsigned long ilr[8];
-        volatile unsigned long unused1[4];
-        volatile unsigned long imr;
-        volatile unsigned long unused2[7];
-        volatile unsigned long scr;
-        volatile unsigned long unused3[7];
-        volatile unsigned long ssr;
-        volatile unsigned long unused4[7];
-        volatile unsigned long csr;
 };
 
 struct tx4927_pcic_reg {
@@ -181,11 +166,6 @@ struct tx4927_pcic_reg {
 };
 
 #endif /* _LANGUAGE_ASSEMBLY */
-
-/* IRCSR : Int. Current Status */
-#define TX4927_IRCSR_IF         0x00010000
-#define TX4927_IRCSR_ILV_MASK   0x00000700
-#define TX4927_IRCSR_IVL_MASK   0x0000001f
 
 /*
  * PCIC
@@ -278,7 +258,6 @@ struct tx4927_pcic_reg {
 #define tx4927_pcicptr          ((struct tx4927_pcic_reg *)TX4927_PCIC_REG)
 #define tx4927_ccfgptr          ((struct tx4927_ccfg_reg *)TX4927_CCFG_REG)
 #define tx4927_ebuscptr         ((struct tx4927_ebusc_reg *)TX4927_EBUSC_REG)
-#define tx4927_ircptr           ((struct tx4927_irc_reg *)TX4927_IRC_REG)
 
 #endif /* _LANGUAGE_ASSEMBLY */
 

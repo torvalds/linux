@@ -45,9 +45,6 @@
 #error JMR3927_IRQ_END > NR_IRQS
 #endif
 
-#define irc_dlevel	0
-#define irc_elevel	1
-
 static unsigned char irc_level[TX3927_NUM_IR] = {
 	5, 5, 5, 5, 5, 5,	/* INT[5:0] */
 	7, 7,			/* SIO */
@@ -78,34 +75,6 @@ static void unmask_irq_ioc(unsigned int irq)
 	jmr3927_ioc_reg_out(imask | bit, JMR3927_IOC_INTM_ADDR);
 	/* flush write buffer */
 	(void)jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR);
-}
-
-static void mask_irq_irc(unsigned int irq)
-{
-	unsigned int irq_nr = irq - JMR3927_IRQ_IRC;
-	volatile unsigned long *ilrp = &tx3927_ircptr->ilr[irq_nr / 2];
-	if (irq_nr & 1)
-		*ilrp = (*ilrp & 0x00ff) | (irc_dlevel << 8);
-	else
-		*ilrp = (*ilrp & 0xff00) | irc_dlevel;
-	/* update IRCSR */
-	tx3927_ircptr->imr = 0;
-	tx3927_ircptr->imr = irc_elevel;
-	/* flush write buffer */
-	(void)tx3927_ircptr->ssr;
-}
-
-static void unmask_irq_irc(unsigned int irq)
-{
-	unsigned int irq_nr = irq - JMR3927_IRQ_IRC;
-	volatile unsigned long *ilrp = &tx3927_ircptr->ilr[irq_nr / 2];
-	if (irq_nr & 1)
-		*ilrp = (*ilrp & 0x00ff) | (irc_level[irq_nr] << 8);
-	else
-		*ilrp = (*ilrp & 0xff00) | irc_level[irq_nr];
-	/* update IRCSR */
-	tx3927_ircptr->imr = 0;
-	tx3927_ircptr->imr = irc_elevel;
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -168,10 +137,6 @@ void __init arch_init_irq(void)
 	/* clear PCI Reset interrupts */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 
-	/* enable interrupt control */
-	tx3927_ircptr->cer = TX3927_IRCER_ICE;
-	tx3927_ircptr->imr = irc_elevel;
-
 	jmr3927_irq_init();
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
@@ -193,20 +158,13 @@ static struct irq_chip jmr3927_irq_ioc = {
 	.unmask = unmask_irq_ioc,
 };
 
-static struct irq_chip jmr3927_irq_irc = {
-	.name = "jmr3927_irc",
-	.ack = mask_irq_irc,
-	.mask = mask_irq_irc,
-	.mask_ack = mask_irq_irc,
-	.unmask = unmask_irq_irc,
-};
-
 static void __init jmr3927_irq_init(void)
 {
 	u32 i;
 
-	for (i = JMR3927_IRQ_IRC; i < JMR3927_IRQ_IRC + JMR3927_NR_IRQ_IRC; i++)
-		set_irq_chip_and_handler(i, &jmr3927_irq_irc, handle_level_irq);
+	txx9_irq_init(TX3927_IRC_REG);
+	for (i = 0; i < TXx9_MAX_IR; i++)
+		txx9_irq_set_pri(i, irc_level[i]);
 	for (i = JMR3927_IRQ_IOC; i < JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC; i++)
 		set_irq_chip_and_handler(i, &jmr3927_irq_ioc, handle_level_irq);
 }

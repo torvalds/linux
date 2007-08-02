@@ -50,21 +50,6 @@ struct tx3927_dma_reg {
 	volatile unsigned long unused0;
 };
 
-struct tx3927_irc_reg {
-	volatile unsigned long cer;
-	volatile unsigned long cr[2];
-	volatile unsigned long unused0;
-	volatile unsigned long ilr[8];
-	volatile unsigned long unused1[4];
-	volatile unsigned long imr;
-	volatile unsigned long unused2[7];
-	volatile unsigned long scr;
-	volatile unsigned long unused3[7];
-	volatile unsigned long ssr;
-	volatile unsigned long unused4[7];
-	volatile unsigned long csr;
-};
-
 #include <asm/byteorder.h>
 
 #ifdef __BIG_ENDIAN
@@ -225,26 +210,6 @@ struct tx3927_ccfg_reg {
 /*
  * IRC
  */
-#define TX3927_IR_MAX_LEVEL	7
-
-/* IRCER : Int. Control Enable */
-#define TX3927_IRCER_ICE	0x00000001
-
-/* IRCR : Int. Control */
-#define TX3927_IRCR_LOW	0x00000000
-#define TX3927_IRCR_HIGH	0x00000001
-#define TX3927_IRCR_DOWN	0x00000002
-#define TX3927_IRCR_UP	0x00000003
-
-/* IRSCR : Int. Status Control */
-#define TX3927_IRSCR_EIClrE	0x00000100
-#define TX3927_IRSCR_EIClr_MASK	0x0000000f
-
-/* IRCSR : Int. Current Status */
-#define TX3927_IRCSR_IF	0x00010000
-#define TX3927_IRCSR_ILV_MASK	0x00000700
-#define TX3927_IRCSR_IVL_MASK	0x0000001f
-
 #define TX3927_IR_INT0	0
 #define TX3927_IR_INT1	1
 #define TX3927_IR_INT2	2
@@ -347,7 +312,6 @@ struct tx3927_ccfg_reg {
 #define tx3927_sdramcptr	((struct tx3927_sdramc_reg *)TX3927_SDRAMC_REG)
 #define tx3927_romcptr		((struct tx3927_romc_reg *)TX3927_ROMC_REG)
 #define tx3927_dmaptr		((struct tx3927_dma_reg *)TX3927_DMA_REG)
-#define tx3927_ircptr		((struct tx3927_irc_reg *)TX3927_IRC_REG)
 #define tx3927_pcicptr		((struct tx3927_pcic_reg *)TX3927_PCIC_REG)
 #define tx3927_ccfgptr		((struct tx3927_ccfg_reg *)TX3927_CCFG_REG)
 #define tx3927_tmrptr(ch)	((struct txx927_tmr_reg *)TX3927_TMR_REG(ch))
