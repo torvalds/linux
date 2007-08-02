@@ -491,9 +491,16 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  *
  *	LOCKING:
  *	Determined by sysfs_addrm_start().
+ *
+ *	RETURNS:
+ *	0 on success, -EEXIST if entry with the given name already
+ *	exists.
  */
-void sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
+	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
+		return -EEXIST;
+
 	sd->s_parent = sysfs_get(acxt->parent_sd);
 
 	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
@@ -502,6 +509,8 @@ void sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	acxt->cnt++;
 
 	sysfs_link_sibling(sd);
+
+	return 0;
 }
 
 /**
@@ -691,6 +700,7 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
+	int rc;
 
 	/* allocate */
 	sd = sysfs_new_dirent(name, mode, SYSFS_DIR);
@@ -700,17 +710,15 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 
 	/* link in */
 	sysfs_addrm_start(&acxt, parent_sd);
+	rc = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_finish(&acxt);
 
-	if (!sysfs_find_dirent(parent_sd, name))
-		sysfs_add_one(&acxt, sd);
-
-	if (!sysfs_addrm_finish(&acxt)) {
+	if (rc == 0)
+		*p_sd = sd;
+	else
 		sysfs_put(sd);
-		return -EEXIST;
-	}
 
-	*p_sd = sd;
-	return 0;
+	return rc;
 }
 
 int sysfs_create_subdir(struct kobject *kobj, const char *name,

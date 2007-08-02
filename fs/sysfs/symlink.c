@@ -91,14 +91,11 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
 	sysfs_addrm_start(&acxt, parent_sd);
+	error = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_finish(&acxt);
 
-	if (!sysfs_find_dirent(parent_sd, name))
-		sysfs_add_one(&acxt, sd);
-
-	if (!sysfs_addrm_finish(&acxt)) {
-		error = -EEXIST;
+	if (error)
 		goto out_put;
-	}
 
 	return 0;
 

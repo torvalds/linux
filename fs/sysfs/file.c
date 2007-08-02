@@ -397,6 +397,7 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
+	int rc;
 
 	sd = sysfs_new_dirent(attr->name, mode, type);
 	if (!sd)
@@ -404,16 +405,13 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 	sd->s_elem.attr.attr = (void *)attr;
 
 	sysfs_addrm_start(&acxt, dir_sd);
+	rc = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_finish(&acxt);
 
-	if (!sysfs_find_dirent(dir_sd, attr->name))
-		sysfs_add_one(&acxt, sd);
-
-	if (!sysfs_addrm_finish(&acxt)) {
+	if (rc)
 		sysfs_put(sd);
-		return -EEXIST;
-	}
 
-	return 0;
+	return rc;
 }
 
 

@@ -62,7 +62,7 @@ extern struct sysfs_dirent *sysfs_get_active_two(struct sysfs_dirent *sd);
 extern void sysfs_put_active_two(struct sysfs_dirent *sd);
 extern void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 			      struct sysfs_dirent *parent_sd);
-extern void sysfs_add_one(struct sysfs_addrm_cxt *acxt,
+extern int sysfs_add_one(struct sysfs_addrm_cxt *acxt,
 			  struct sysfs_dirent *sd);
 extern void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
 			     struct sysfs_dirent *sd);
