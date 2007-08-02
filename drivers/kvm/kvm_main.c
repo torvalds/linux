@@ -2145,8 +2145,12 @@ static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->efer = vcpu->shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
-	memcpy(sregs->interrupt_bitmap, vcpu->irq_pending,
-	       sizeof sregs->interrupt_bitmap);
+	if (irqchip_in_kernel(vcpu->kvm))
+		memset(sregs->interrupt_bitmap, 0,
+		       sizeof sregs->interrupt_bitmap);
+	else
+		memcpy(sregs->interrupt_bitmap, vcpu->irq_pending,
+		       sizeof sregs->interrupt_bitmap);
 
 	vcpu_put(vcpu);
 
@@ -2200,12 +2204,14 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	if (mmu_reset_needed)
 		kvm_mmu_reset_context(vcpu);
 
-	memcpy(vcpu->irq_pending, sregs->interrupt_bitmap,
-	       sizeof vcpu->irq_pending);
-	vcpu->irq_summary = 0;
-	for (i = 0; i < ARRAY_SIZE(vcpu->irq_pending); ++i)
-		if (vcpu->irq_pending[i])
-			__set_bit(i, &vcpu->irq_summary);
+	if (!irqchip_in_kernel(vcpu->kvm)) {
+		memcpy(vcpu->irq_pending, sregs->interrupt_bitmap,
+		       sizeof vcpu->irq_pending);
+		vcpu->irq_summary = 0;
+		for (i = 0; i < ARRAY_SIZE(vcpu->irq_pending); ++i)
+			if (vcpu->irq_pending[i])
+				__set_bit(i, &vcpu->irq_summary);
+	}
 
 	set_segment(vcpu, &sregs->cs, VCPU_SREG_CS);
 	set_segment(vcpu, &sregs->ds, VCPU_SREG_DS);
