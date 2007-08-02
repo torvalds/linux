@@ -45,7 +45,7 @@ struct lpfc_sli2_slim;
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
 
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
-#define LPFC_HB_MBOX_TIMEOUT    30 	/* Heart beat timeout  in seconds. */
+#define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -381,7 +381,7 @@ struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
 	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
-#define LPFC_SLI3_ENABLED 	 0x01
+#define LPFC_SLI3_ENABLED	 0x01
 #define LPFC_SLI3_HBQ_ENABLED	 0x02
 #define LPFC_SLI3_NPIV_ENABLED	 0x04
 #define LPFC_SLI3_VPORT_TEARDOWN 0x08
@@ -390,7 +390,7 @@ struct lpfc_hba {
 
 	enum hba_state link_state;
 	uint32_t link_flag;	/* link state flags */
-#define LS_LOOPBACK_MODE      0x1 	/* NPort is in Loopback mode */
+#define LS_LOOPBACK_MODE      0x1	/* NPort is in Loopback mode */
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */

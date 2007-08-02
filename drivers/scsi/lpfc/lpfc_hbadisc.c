@@ -349,7 +349,7 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 
 }
 
-void
+static void
 lpfc_work_done(struct lpfc_hba *phba)
 {
 	struct lpfc_sli_ring *pring;
@@ -1591,7 +1591,7 @@ lpfc_nlp_state_name(char *buffer, size_t size, int state)
 		[NLP_STE_NPR_NODE] = "NPR",
 	};
 
-	if (state < ARRAY_SIZE(states) && states[state])
+	if (state < NLP_STE_MAX_STATE && states[state])
 		strlcpy(buffer, states[state], size);
 	else
 		snprintf(buffer, size, "unknown (%d)", state);
@@ -2815,32 +2815,6 @@ lpfc_findnode_wwpn(struct lpfc_vport *vport, struct lpfc_name *wwpn)
 }
 
 void
-lpfc_dev_loss_delay(unsigned long ptr)
-{
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) ptr;
-	struct lpfc_vport *vport = ndlp->vport;
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_work_evt  *evtp = &ndlp->dev_loss_evt;
-	unsigned long flags;
-
-	evtp = &ndlp->dev_loss_evt;
-
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (!list_empty(&evtp->evt_listp)) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return;
-	}
-
-	evtp->evt_arg1  = ndlp;
-	evtp->evt       = LPFC_EVT_DEV_LOSS_DELAY;
-	list_add_tail(&evtp->evt_listp, &phba->work_list);
-	if (phba->work_wait)
-		lpfc_worker_wake_up(phba);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-	return;
-}
-
-void
 lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      uint32_t did)
 {
@@ -2863,7 +2837,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return;
 }
 
-void
+static void
 lpfc_nlp_release(struct kref *kref)
 {
 	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,

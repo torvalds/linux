@@ -53,10 +53,6 @@ static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
 static DEFINE_IDR(lpfc_hba_index);
 
-
-
-extern struct lpfc_hbq_init *lpfc_hbq_defs[];
-
 /************************************************************************/
 /*                                                                      */
 /*    lpfc_config_port_prep                                             */

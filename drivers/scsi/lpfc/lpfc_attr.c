@@ -430,7 +430,7 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 		return -EIO;
 }
 
-int
+static int
 lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mxri, uint32_t *axri,
 		  uint32_t *mrpi, uint32_t *arpi,

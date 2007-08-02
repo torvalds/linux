@@ -112,10 +112,8 @@ struct lpfc_debug {
 	int  len;
 };
 
-extern struct lpfc_hbq_init *lpfc_hbq_defs[];
-
-atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
-unsigned long lpfc_debugfs_start_time = 0L;
+static atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
+static unsigned long lpfc_debugfs_start_time = 0L;
 
 static int
 lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
@@ -201,7 +199,7 @@ lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 	return len;
 }
 
-int lpfc_debugfs_last_hbq = -1;
+static int lpfc_debugfs_last_hbq = -1;
 
 static int
 lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)

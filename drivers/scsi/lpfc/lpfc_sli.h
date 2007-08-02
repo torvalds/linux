@@ -143,7 +143,7 @@ struct lpfc_sli_ring {
 	uint16_t numCiocb;	/* number of command iocb's per ring */
 	uint16_t numRiocb;	/* number of rsp iocb's per ring */
 	uint16_t sizeCiocb;	/* Size of command iocb's in this ring */
-	uint16_t sizeRiocb; 	/* Size of response iocb's in this ring */
+	uint16_t sizeRiocb;	/* Size of response iocb's in this ring */
 
 	uint32_t fast_iotag;	/* max fastlookup based iotag           */
 	uint32_t iotag_ctr;	/* keeps track of the next iotag to use */

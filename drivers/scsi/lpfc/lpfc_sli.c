@@ -363,7 +363,7 @@ lpfc_sli_next_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 			if (psli->iocbq_lookup)
 				memcpy(new_arr, old_arr,
 				       ((psli->last_iotag  + 1) *
-	 				sizeof (struct lpfc_iocbq *)));
+					sizeof (struct lpfc_iocbq *)));
 			psli->iocbq_lookup = new_arr;
 			psli->iocbq_lookup_len = new_len;
 			psli->last_iotag = iotag;
@@ -623,7 +623,7 @@ struct lpfc_hbq_init *lpfc_hbq_defs[] = {
 	&lpfc_extra_hbq,
 };
 
-int
+static int
 lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 {
 	uint32_t i, start, end;

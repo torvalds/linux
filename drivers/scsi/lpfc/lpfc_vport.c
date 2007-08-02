@@ -331,7 +331,7 @@ error_out:
 	return rc;
 }
 
-int
+static int
 disable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
@@ -376,7 +376,7 @@ disable_vport(struct fc_vport *fc_vport)
 	return VPORT_OK;
 }
 
-int
+static int
 enable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;

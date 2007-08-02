@@ -278,6 +278,7 @@ extern void lpfc_debugfs_disc_trc(struct lpfc_vport *, int, char *, uint32_t,
 	uint32_t, uint32_t);
 extern void lpfc_debugfs_slow_ring_trc(struct lpfc_hba *, char *, uint32_t,
 	uint32_t, uint32_t);
+extern struct lpfc_hbq_init *lpfc_hbq_defs[];
 
 /* Interface exported by fabric iocb scheduler */
 int lpfc_issue_fabric_iocb(struct lpfc_hba *, struct lpfc_iocbq *);
