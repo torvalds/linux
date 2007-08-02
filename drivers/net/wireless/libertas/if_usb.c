@@ -15,6 +15,7 @@
 #include "defs.h"
 #include "dev.h"
 #include "if_usb.h"
+#include "decl.h"
 
 #define MESSAGE_HEADER_LEN	4
 
@@ -44,7 +45,6 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
-static int if_usb_reset_device(wlan_private *priv);
 static int if_usb_register_dev(wlan_private * priv);
 static int if_usb_unregister_dev(wlan_private *);
 static int if_usb_prog_firmware(wlan_private *);
@@ -355,17 +355,20 @@ static int if_prog_firmware(wlan_private * priv)
 	return 0;
 }
 
-static int libertas_do_reset(wlan_private *priv)
+static int if_usb_reset_device(wlan_private *priv)
 {
 	int ret;
 	struct usb_card_rec *cardp = priv->card;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
+	/* Try a USB port reset first, if that fails send the reset
+	 * command to the firmware.
+	 */
 	ret = usb_reset_device(cardp->udev);
 	if (!ret) {
 		msleep(10);
-		if_usb_reset_device(priv);
+		ret = libertas_reset_device(priv);
 		msleep(10);
 	}
 
@@ -753,19 +756,6 @@ static int if_usb_read_event_cause(wlan_private * priv)
 	return 0;
 }
 
-static int if_usb_reset_device(wlan_private *priv)
-{
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_USB);
-	ret = libertas_prepare_and_send_command(priv, CMD_802_11_RESET,
-				    CMD_ACT_HALT, 0, 0, NULL);
-	msleep_interruptible(10);
-
-	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
-	return ret;
-}
-
 static int if_usb_unregister_dev(wlan_private * priv)
 {
 	int ret = 0;
@@ -775,7 +765,7 @@ static int if_usb_unregister_dev(wlan_private * priv)
 	 * again.
 	 */
 	if (priv)
-		if_usb_reset_device(priv);
+		libertas_reset_device(priv);
 
 	return ret;
 }
@@ -862,7 +852,7 @@ restart:
 
 	if (cardp->bootcmdresp == 0) {
 		if (--reset_count >= 0) {
-			libertas_do_reset(priv);
+			if_usb_reset_device(priv);
 			goto restart;
 		}
 		return -1;
@@ -892,7 +882,7 @@ restart:
 	if (!cardp->fwdnldover) {
 		lbs_pr_info("failed to load fw, resetting device!\n");
 		if (--reset_count >= 0) {
-			libertas_do_reset(priv);
+			if_usb_reset_device(priv);
 			goto restart;
 		}
 
@@ -995,7 +985,7 @@ static void if_usb_exit_module(void)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list)
-		if_usb_reset_device((wlan_private *) cardp->priv);
+		libertas_reset_device((wlan_private *) cardp->priv);
 
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);

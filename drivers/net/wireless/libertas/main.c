@@ -1157,6 +1157,20 @@ void libertas_interrupt(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(libertas_interrupt);
 
+int libertas_reset_device(wlan_private *priv)
+{
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_RESET,
+				    CMD_ACT_HALT, 0, 0, NULL);
+	msleep_interruptible(10);
+
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(libertas_reset_device);
+
 static int libertas_init_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);

@@ -86,6 +86,6 @@ int libertas_activate_card(wlan_private *priv, char *fw_name);
 int libertas_remove_card(wlan_private *priv);
 int libertas_add_mesh(wlan_private *priv, struct device *dev);
 void libertas_remove_mesh(wlan_private *priv);
-
+int libertas_reset_device(wlan_private *priv);
 
 #endif				/* _WLAN_DECL_H_ */
