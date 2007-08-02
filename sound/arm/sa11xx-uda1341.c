@@ -79,12 +79,6 @@
 #include <asm/mach-types.h>
 #include <asm/dma.h>
 
-#ifdef CONFIG_H3600_HAL
-#include <asm/semaphore.h>
-#include <asm/uaccess.h>
-#include <asm/arch/h3600_hal.h>
-#endif
-
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -100,9 +94,6 @@
  * We use DMA stuff from 2.4.18-rmk3-hh24 here to be able to compile this
  * module for Familiar 0.6.1
  */
-#ifdef CONFIG_H3600_HAL
-#define HH_VERSION 1
-#endif
 
 /* {{{ Type definitions */
 
@@ -238,11 +229,8 @@ static void sa11xx_uda1341_set_samplerate(struct sa11xx_uda1341 *sa11xx_uda1341,
 		rate = 8000;
 
 	/* Set the external clock generator */
-#ifdef CONFIG_H3600_HAL
-	h3600_audio_clock(rate);
-#else	
+	
 	sa11xx_uda1341_set_audio_clock(rate);
-#endif
 
 	/* Select the clock divisor */
 	switch (rate) {
@@ -307,13 +295,10 @@ static void sa11xx_uda1341_audio_init(struct sa11xx_uda1341 *sa11xx_uda1341)
 	local_irq_restore(flags);
 
 	/* Enable the audio power */
-#ifdef CONFIG_H3600_HAL
-	h3600_audio_power(AUDIO_RATE_DEFAULT);
-#else
+
 	clr_sa11xx_uda1341_egpio(IPAQ_EGPIO_CODEC_NRESET);
 	set_sa11xx_uda1341_egpio(IPAQ_EGPIO_AUDIO_ON);
 	set_sa11xx_uda1341_egpio(IPAQ_EGPIO_QMUTE);
-#endif
  
 	/* Wait for the UDA1341 to wake up */
 	mdelay(1); //FIXME - was removed by Perex - Why?
@@ -331,21 +316,13 @@ static void sa11xx_uda1341_audio_init(struct sa11xx_uda1341 *sa11xx_uda1341)
 	/* make the left and right channels unswapped (flip the WS latch) */
 	Ser4SSDR = 0;
 
-#ifdef CONFIG_H3600_HAL
-	h3600_audio_mute(0);
-#else	
-	clr_sa11xx_uda1341_egpio(IPAQ_EGPIO_QMUTE);        
-#endif     
+	clr_sa11xx_uda1341_egpio(IPAQ_EGPIO_QMUTE);
 }
 
 static void sa11xx_uda1341_audio_shutdown(struct sa11xx_uda1341 *sa11xx_uda1341)
 {
 	/* mute on */
-#ifdef CONFIG_H3600_HAL
-	h3600_audio_mute(1);
-#else	
 	set_sa11xx_uda1341_egpio(IPAQ_EGPIO_QMUTE);
-#endif
 	
 	/* disable the audio power and all signals leading to the audio chip */
 	l3_close(sa11xx_uda1341->uda1341);
@@ -354,13 +331,9 @@ static void sa11xx_uda1341_audio_shutdown(struct sa11xx_uda1341 *sa11xx_uda1341)
 
 	/* power off and mute off */
 	/* FIXME - is muting off necesary??? */
-#ifdef CONFIG_H3600_HAL
-	h3600_audio_power(0);
-	h3600_audio_mute(0);
-#else	
+
 	clr_sa11xx_uda1341_egpio(IPAQ_EGPIO_AUDIO_ON);
 	clr_sa11xx_uda1341_egpio(IPAQ_EGPIO_QMUTE);
-#endif	
 }
 
 /* }}} */
