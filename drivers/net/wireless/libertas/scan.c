@@ -361,7 +361,6 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 			    u8 * pfilteredscan,
 			    u8 * pscancurrentonly)
 {
-	wlan_adapter *adapter = priv->adapter;
 	struct mrvlietypes_numprobes *pnumprobestlv;
 	struct mrvlietypes_ssidparamset *pssidtlv;
 	struct wlan_scan_cmd_config * pscancfgout = NULL;
@@ -412,8 +411,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 
 		/* Set the bss type scan filter, use adapter setting if unset */
 		pscancfgout->bsstype =
-		    (puserscanin->bsstype ? puserscanin->bsstype : adapter->
-		     scanmode);
+		    puserscanin->bsstype ? puserscanin->bsstype : CMD_BSS_TYPE_ANY;
 
 		/* Set the number of probes to send, use adapter setting if unset */
 		numprobes = puserscanin->numprobes ? puserscanin->numprobes : 0;
@@ -448,7 +446,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 			*pfilteredscan = 1;
 		}
 	} else {
-		pscancfgout->bsstype = adapter->scanmode;
+		pscancfgout->bsstype = CMD_BSS_TYPE_ANY;
 		numprobes = 0;
 	}
 

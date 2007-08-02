@@ -263,7 +263,6 @@ struct _wlan_adapter {
 	struct bss_descriptor *networks;
 
 	u8 scantype;
-	u32 scanmode;
 
 	u8 adhoccreate;
 

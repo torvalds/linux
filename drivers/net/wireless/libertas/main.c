@@ -1004,9 +1004,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	/* scan type */
 	adapter->scantype = CMD_SCAN_TYPE_ACTIVE;
 
-	/* scan mode */
-	adapter->scanmode = CMD_BSS_TYPE_ANY;
-
 	/* 802.11 specific */
 	adapter->secinfo.wep_enabled = 0;
 	for (i = 0; i < sizeof(adapter->wep_keys) / sizeof(adapter->wep_keys[0]);
