@@ -968,6 +968,11 @@ int libertas_process_event(wlan_private * priv)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
+		/* Ignore spurious autostart events if autostart is disabled */
+		if (!priv->mesh_autostart_enabled) {
+			lbs_pr_info("EVENT: MESH_AUTO_STARTED (ignoring)\n");
+			break;
+		}
 		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
 		adapter->connect_status = LIBERTAS_CONNECTED;
 		if (priv->mesh_open == 1) {
