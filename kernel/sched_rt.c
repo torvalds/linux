@@ -18,8 +18,8 @@ static inline void update_curr_rt(struct rq *rq, u64 now)
 	delta_exec = now - curr->se.exec_start;
 	if (unlikely((s64)delta_exec < 0))
 		delta_exec = 0;
-	if (unlikely(delta_exec > curr->se.exec_max))
-		curr->se.exec_max = delta_exec;
+
+	schedstat_set(curr->se.exec_max, max(curr->se.exec_max, delta_exec));
 
 	curr->se.sum_exec_runtime += delta_exec;
 	curr->se.exec_start = now;

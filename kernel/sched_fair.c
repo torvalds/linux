@@ -349,7 +349,7 @@ static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	se->wait_start_fair = cfs_rq->fair_clock;
-	se->wait_start = now;
+	schedstat_set(se->wait_start, now);
 }
 
 /*
@@ -447,7 +447,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	}
 
 	se->wait_start_fair = 0;
-	se->wait_start = 0;
+	schedstat_set(se->wait_start, 0);
 }
 
 static inline void

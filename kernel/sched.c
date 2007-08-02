@@ -983,18 +983,21 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	u64 clock_offset, fair_clock_offset;
 
 	clock_offset = old_rq->clock - new_rq->clock;
-	fair_clock_offset = old_rq->cfs.fair_clock -
-						 new_rq->cfs.fair_clock;
-	if (p->se.wait_start)
-		p->se.wait_start -= clock_offset;
+	fair_clock_offset = old_rq->cfs.fair_clock - new_rq->cfs.fair_clock;
+
 	if (p->se.wait_start_fair)
 		p->se.wait_start_fair -= fair_clock_offset;
+	if (p->se.sleep_start_fair)
+		p->se.sleep_start_fair -= fair_clock_offset;
+
+#ifdef CONFIG_SCHEDSTATS
+	if (p->se.wait_start)
+		p->se.wait_start -= clock_offset;
 	if (p->se.sleep_start)
 		p->se.sleep_start -= clock_offset;
 	if (p->se.block_start)
 		p->se.block_start -= clock_offset;
-	if (p->se.sleep_start_fair)
-		p->se.sleep_start_fair -= fair_clock_offset;
+#endif
 
 	__set_task_cpu(p, new_cpu);
 }
@@ -1555,17 +1558,19 @@ int fastcall wake_up_state(struct task_struct *p, unsigned int state)
 static void __sched_fork(struct task_struct *p)
 {
 	p->se.wait_start_fair		= 0;
-	p->se.wait_start		= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.delta_exec		= 0;
 	p->se.delta_fair_run		= 0;
 	p->se.delta_fair_sleep		= 0;
 	p->se.wait_runtime		= 0;
+	p->se.sleep_start_fair		= 0;
+
+#ifdef CONFIG_SCHEDSTATS
+	p->se.wait_start		= 0;
 	p->se.sum_wait_runtime		= 0;
 	p->se.sum_sleep_runtime		= 0;
 	p->se.sleep_start		= 0;
-	p->se.sleep_start_fair		= 0;
 	p->se.block_start		= 0;
 	p->se.sleep_max			= 0;
 	p->se.block_max			= 0;
@@ -1573,6 +1578,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.wait_max			= 0;
 	p->se.wait_runtime_overruns	= 0;
 	p->se.wait_runtime_underruns	= 0;
+#endif
 
 	INIT_LIST_HEAD(&p->run_list);
 	p->se.on_rq = 0;
@@ -6579,12 +6585,14 @@ void normalize_rt_tasks(void)
 	do_each_thread(g, p) {
 		p->se.fair_key			= 0;
 		p->se.wait_runtime		= 0;
-		p->se.wait_start_fair		= 0;
-		p->se.wait_start		= 0;
 		p->se.exec_start		= 0;
-		p->se.sleep_start		= 0;
+		p->se.wait_start_fair		= 0;
 		p->se.sleep_start_fair		= 0;
+#ifdef CONFIG_SCHEDSTATS
+		p->se.wait_start		= 0;
+		p->se.sleep_start		= 0;
 		p->se.block_start		= 0;
+#endif
 		task_rq(p)->cfs.fair_clock	= 0;
 		task_rq(p)->clock		= 0;
 
