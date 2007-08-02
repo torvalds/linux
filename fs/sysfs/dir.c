@@ -883,14 +883,10 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	struct sysfs_dirent *sd;
 	struct dentry *parent = NULL;
 	struct dentry *old_dentry = NULL, *new_dentry = NULL;
-	struct sysfs_dirent *parent_sd;
 	const char *dup_name = NULL;
 	int error;
 
-	if (!kobj->parent)
-		return -EINVAL;
-
-	/* get dentries */
+	/* get the original dentry */
 	sd = kobj->sd;
 	old_dentry = sysfs_get_dentry(sd);
 	if (IS_ERR(old_dentry)) {
@@ -898,12 +894,7 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 		goto out_dput;
 	}
 
-	parent_sd = kobj->parent->sd;
-	parent = sysfs_get_dentry(parent_sd);
-	if (IS_ERR(parent)) {
-		error = PTR_ERR(parent);
-		goto out_dput;
-	}
+	parent = old_dentry->d_parent;
 
 	/* lock parent and get dentry for new name */
 	mutex_lock(&parent->d_inode->i_mutex);
@@ -933,21 +924,13 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 		goto out_drop;
 
 	mutex_lock(&sysfs_mutex);
-
 	dup_name = sd->s_name;
 	sd->s_name = new_name;
+	mutex_unlock(&sysfs_mutex);
 
-	/* move under the new parent */
+	/* rename */
 	d_add(new_dentry, NULL);
 	d_move(sd->s_dentry, new_dentry);
-
-	sysfs_unlink_sibling(sd);
-	sysfs_get(parent_sd);
-	sysfs_put(sd->s_parent);
-	sd->s_parent = parent_sd;
-	sysfs_link_sibling(sd);
-
-	mutex_unlock(&sysfs_mutex);
 
 	error = 0;
 	goto out_unlock;
@@ -958,7 +941,6 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	mutex_unlock(&parent->d_inode->i_mutex);
  out_dput:
 	kfree(dup_name);
-	dput(parent);
 	dput(old_dentry);
 	dput(new_dentry);
 	return error;
