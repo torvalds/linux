@@ -187,9 +187,9 @@ static ssize_t libertas_anycast_get(struct device * dev,
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	libertas_prepare_and_send_command(to_net_dev(dev)->priv,
-			cmd_mesh_access,
-			cmd_act_mesh_get_anycast,
-			cmd_option_waitforrsp, 0, (void *)&mesh_access);
+			CMD_MESH_ACCESS,
+			CMD_ACT_MESH_GET_ANYCAST,
+			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
 
 	return snprintf(buf, 12, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
 }
@@ -208,9 +208,9 @@ static ssize_t libertas_anycast_set(struct device * dev,
 	mesh_access.data[0] = cpu_to_le32(datum);
 
 	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
-			cmd_mesh_access,
-			cmd_act_mesh_set_anycast,
-			cmd_option_waitforrsp, 0, (void *)&mesh_access);
+			CMD_MESH_ACCESS,
+			CMD_ACT_MESH_SET_ANYCAST,
+			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
 	return strlen(buf);
 }
 
@@ -264,7 +264,7 @@ static int wlan_dev_open(struct net_device *dev)
 
 	priv->open = 1;
 
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_carrier_on(priv->mesh_dev);
 	} else {
@@ -439,7 +439,7 @@ static void wlan_tx_timeout(struct net_device *dev)
 			libertas_send_tx_feedback(priv);
 		} else
 			wake_up_interruptible(&priv->mainthread.waitq);
-	} else if (priv->adapter->connect_status == libertas_connected) {
+	} else if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
 		netif_wake_queue(priv->mesh_dev);
 	}
@@ -480,9 +480,9 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 	lbs_dbg_hex("addr:", phwaddr->sa_data, ETH_ALEN);
 	memcpy(adapter->current_addr, phwaddr->sa_data, ETH_ALEN);
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_mac_address,
-				    cmd_act_set,
-				    cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_MAC_ADDRESS,
+				    CMD_ACT_SET,
+				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret) {
 		lbs_deb_net("set MAC address failed\n");
@@ -528,36 +528,36 @@ static void wlan_set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		lbs_deb_net("enable promiscuous mode\n");
 		adapter->currentpacketfilter |=
-		    cmd_act_mac_promiscuous_enable;
+		    CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 		adapter->currentpacketfilter &=
-		    ~(cmd_act_mac_all_multicast_enable |
-		      cmd_act_mac_multicast_enable);
+		    ~(CMD_ACT_MAC_ALL_MULTICAST_ENABLE |
+		      CMD_ACT_MAC_MULTICAST_ENABLE);
 	} else {
 		/* Multicast */
 		adapter->currentpacketfilter &=
-		    ~cmd_act_mac_promiscuous_enable;
+		    ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 
 		if (dev->flags & IFF_ALLMULTI || dev->mc_count >
 		    MRVDRV_MAX_MULTICAST_LIST_SIZE) {
 			lbs_deb_net( "enabling all multicast\n");
 			adapter->currentpacketfilter |=
-			    cmd_act_mac_all_multicast_enable;
+			    CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
 			adapter->currentpacketfilter &=
-			    ~cmd_act_mac_multicast_enable;
+			    ~CMD_ACT_MAC_MULTICAST_ENABLE;
 		} else {
 			adapter->currentpacketfilter &=
-			    ~cmd_act_mac_all_multicast_enable;
+			    ~CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
 
 			if (!dev->mc_count) {
 				lbs_deb_net("no multicast addresses, "
 				       "disabling multicast\n");
 				adapter->currentpacketfilter &=
-				    ~cmd_act_mac_multicast_enable;
+				    ~CMD_ACT_MAC_MULTICAST_ENABLE;
 			} else {
 				int i;
 
 				adapter->currentpacketfilter |=
-				    cmd_act_mac_multicast_enable;
+				    CMD_ACT_MAC_MULTICAST_ENABLE;
 
 				adapter->nr_of_multicastmacaddr =
 				    wlan_copy_multicast_address(adapter, dev);
@@ -577,8 +577,8 @@ static void wlan_set_multicast_list(struct net_device *dev)
 				}
 				/* send multicast addresses to firmware */
 				libertas_prepare_and_send_command(priv,
-						      cmd_mac_multicast_adr,
-						      cmd_act_set, 0, 0,
+						      CMD_MAC_MULTICAST_ADR,
+						      CMD_ACT_SET, 0, 0,
 						      NULL);
 			}
 		}
@@ -711,7 +711,7 @@ static int wlan_service_main_thread(void *data)
 		if (adapter->psstate == PS_STATE_PRE_SLEEP) {
 			if (!priv->dnld_sent && !adapter->cur_cmd) {
 				if (adapter->connect_status ==
-				    libertas_connected) {
+				    LIBERTAS_CONNECTED) {
 					lbs_deb_thread(
 					       "main_thread: PRE_SLEEP--intcounter=%d currenttxskb=%p "
 					       "dnld_sent=%d cur_cmd=%p, confirm now\n",
@@ -1005,9 +1005,9 @@ int libertas_remove_card(wlan_private *priv)
 	cancel_delayed_work(&priv->assoc_work);
 	destroy_workqueue(priv->assoc_thread);
 
-	if (adapter->psmode == wlan802_11powermodemax_psp) {
-		adapter->psmode = wlan802_11powermodecam;
-		libertas_ps_wakeup(priv, cmd_option_waitforrsp);
+	if (adapter->psmode == WLAN802_11POWERMODEMAX_PSP) {
+		adapter->psmode = WLAN802_11POWERMODECAM;
+		libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 	}
 
 	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);

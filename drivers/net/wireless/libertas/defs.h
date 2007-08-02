@@ -286,11 +286,11 @@ enum SNRNF_DATA {
 
 /** WLAN_802_11_POWER_MODE */
 enum WLAN_802_11_POWER_MODE {
-	wlan802_11powermodecam,
-	wlan802_11powermodemax_psp,
-	wlan802_11Powermodefast_psp,
+	WLAN802_11POWERMODECAM,
+	WLAN802_11POWERMODEMAX_PSP,
+	WLAN802_11POWERMODEFAST_PSP,
 	/*not a real mode, defined as an upper bound */
-	wlan802_11powemodemax
+	WLAN802_11POWEMODEMAX
 };
 
 /** PS_STATE */
@@ -310,14 +310,14 @@ enum DNLD_STATE {
 
 /** WLAN_MEDIA_STATE */
 enum WLAN_MEDIA_STATE {
-	libertas_connected,
-	libertas_disconnected
+	LIBERTAS_CONNECTED,
+	LIBERTAS_DISCONNECTED
 };
 
 /** WLAN_802_11_PRIVACY_FILTER */
 enum WLAN_802_11_PRIVACY_FILTER {
-	wlan802_11privfilteracceptall,
-	wlan802_11privfilter8021xWEP
+	WLAN802_11PRIVFILTERACCEPTALL,
+	WLAN802_11PRIVFILTER8021XWEP
 };
 
 /** mv_ms_type */
@@ -330,23 +330,23 @@ enum mv_ms_type {
 
 /** SNMP_MIB_INDEX_e */
 enum SNMP_MIB_INDEX_e {
-	desired_bsstype_i = 0,
-	op_rateset_i,
-	bcnperiod_i,
-	dtimperiod_i,
-	assocrsp_timeout_i,
-	rtsthresh_i,
-	short_retrylim_i,
-	long_retrylim_i,
-	fragthresh_i,
-	dot11d_i,
-	dot11h_i,
-	manufid_i,
-	prodID_i,
-	manuf_oui_i,
-	manuf_name_i,
-	manuf_prodname_i,
-	manuf_prodver_i,
+	DESIRED_BSSTYPE_I = 0,
+	OP_RATESET_I,
+	BCNPERIOD_I,
+	DTIMPERIOD_I,
+	ASSOCRSP_TIMEOUT_I,
+	RTSTHRESH_I,
+	SHORT_RETRYLIM_I,
+	LONG_RETRYLIM_I,
+	FRAGTHRESH_I,
+	DOT11D_I,
+	DOT11H_I,
+	MANUFID_I,
+	PRODID_I,
+	MANUF_OUI_I,
+	MANUF_NAME_I,
+	MANUF_PRODNAME_I,
+	MANUF_PRODVER_I,
 };
 
 /** KEY_TYPE_ID */

@@ -422,13 +422,13 @@ done:
 u8 libertas_get_scan_type_11d(u8 chan,
 			  struct parsed_region_chan_11d * parsed_region_chan)
 {
-	u8 scan_type = cmd_scan_type_passive;
+	u8 scan_type = CMD_SCAN_TYPE_PASSIVE;
 
 	lbs_deb_enter(LBS_DEB_11D);
 
 	if (wlan_channel_known_11d(chan, parsed_region_chan)) {
 		lbs_deb_11d("11D: Found and do Active Scan\n");
-		scan_type = cmd_scan_type_active;
+		scan_type = CMD_SCAN_TYPE_ACTIVE;
 	} else {
 		lbs_deb_11d("11D: Not Find and do Passive Scan\n");
 	}
@@ -454,9 +454,9 @@ static int wlan_enable_11d(wlan_private * priv, u8 flag)
 
 	/* send cmd to FW to enable/disable 11D function in FW */
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_snmp_mib,
-				    cmd_act_set,
-				    cmd_option_waitforrsp,
+				    CMD_802_11_SNMP_MIB,
+				    CMD_ACT_SET,
+				    CMD_OPTION_WAITFORRSP,
 				    OID_802_11D_ENABLE,
 				    &priv->adapter->enable11d);
 	if (ret)
@@ -479,9 +479,9 @@ static int set_domain_info_11d(wlan_private * priv)
 		return 0;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11d_domain_info,
-				    cmd_act_set,
-				    cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11D_DOMAIN_INFO,
+				    CMD_ACT_SET,
+				    CMD_OPTION_WAITFORRSP, 0, NULL);
 	if (ret)
 		lbs_deb_11d("11D: Fail to dnld domain Info\n");
 
@@ -541,7 +541,7 @@ int libertas_cmd_802_11d_domain_info(wlan_private * priv,
 
 	cmd->command = cpu_to_le16(cmdno);
 	pdomaininfo->action = cpu_to_le16(cmdoption);
-	if (cmdoption == cmd_act_get) {
+	if (cmdoption == CMD_ACT_GET) {
 		cmd->size =
 		    cpu_to_le16(sizeof(pdomaininfo->action) + S_DS_GEN);
 		lbs_dbg_hex("11D: 802_11D_DOMAIN_INFO:", (u8 *) cmd,
@@ -633,10 +633,10 @@ int libertas_ret_802_11d_domain_info(wlan_private * priv,
 	}
 
 	switch (action) {
-	case cmd_act_set:	/*Proc Set action */
+	case CMD_ACT_SET:	/*Proc Set action */
 		break;
 
-	case cmd_act_get:
+	case CMD_ACT_GET:
 		break;
 	default:
 		lbs_deb_11d("Invalid action:%d\n", domaininfo->action);

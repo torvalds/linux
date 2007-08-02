@@ -255,7 +255,7 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 
 	for (rgnidx = 0; rgnidx < ARRAY_SIZE(adapter->region_channel); rgnidx++) {
 		if (priv->adapter->enable11d &&
-		    adapter->connect_status != libertas_connected) {
+		    adapter->connect_status != LIBERTAS_CONNECTED) {
 			/* Scan all the supported chan for the first scan */
 			if (!adapter->universal_channel[rgnidx].valid)
 				continue;
@@ -287,11 +287,11 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 			case BAND_G:
 			default:
 				scanchanlist[chanidx].radiotype =
-				    cmd_scan_radio_type_bg;
+				    CMD_SCAN_RADIO_TYPE_BG;
 				break;
 			}
 
-			if (scantype == cmd_scan_type_passive) {
+			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
 				scanchanlist[chanidx].maxscantime =
 				    cpu_to_le16(MRVDRV_PASSIVE_SCAN_CHAN_TIME);
 				scanchanlist[chanidx].chanscanmode.passivescan =
@@ -486,7 +486,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 
 			scantype = puserscanin->chanlist[chanidx].scantype;
 
-			if (scantype == cmd_scan_type_passive) {
+			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
 				(pscanchanlist +
 				 chanidx)->chanscanmode.passivescan = 1;
 			} else {
@@ -498,7 +498,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 				scandur =
 				    puserscanin->chanlist[chanidx].scantime;
 			} else {
-				if (scantype == cmd_scan_type_passive) {
+				if (scantype == CMD_SCAN_TYPE_PASSIVE) {
 					scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
 				} else {
 					scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
@@ -668,7 +668,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		}
 
 		/* Send the scan command to the firmware with the specified cfg */
-		ret = libertas_prepare_and_send_command(priv, cmd_802_11_scan, 0,
+		ret = libertas_prepare_and_send_command(priv, CMD_802_11_SCAN, 0,
 					    0, 0, pscancfgout);
 		if (scanned >= 2 && !full_scan) {
 			ret = 0;
@@ -816,7 +816,7 @@ int wlan_scan_networks(wlan_private * priv,
 	mutex_unlock(&adapter->lock);
 #endif
 
-	if (priv->adapter->connect_status == libertas_connected) {
+	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_wake_queue(priv->dev);
 		netif_carrier_on(priv->mesh_dev);
@@ -1603,8 +1603,8 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
 	if ((adapter->mode == IW_MODE_ADHOC) && adapter->adhoccreate) {
-		libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
-					cmd_option_waitforrsp, 0, NULL);
+		libertas_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+					CMD_OPTION_WAITFORRSP, 0, NULL);
 	}
 
 	mutex_lock(&adapter->lock);
@@ -1680,7 +1680,7 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 	memcpy(pscan->bssid, pscancfg->bssid, ETH_ALEN);
 	memcpy(pscan->tlvbuffer, pscancfg->tlvbuffer, pscancfg->tlvbufferlen);
 
-	cmd->command = cpu_to_le16(cmd_802_11_scan);
+	cmd->command = cpu_to_le16(CMD_802_11_SCAN);
 
 	/* size is equal to the sizeof(fixed portions) + the TLV len + header */
 	cmd->size = cpu_to_le16(sizeof(pscan->bsstype) + ETH_ALEN

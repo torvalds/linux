@@ -78,7 +78,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		/* Wake main thread if commands are pending */
 		if (!adapter->cur_cmd)
 			wake_up_interruptible(&priv->mainthread.waitq);
-		if ((adapter->connect_status == libertas_connected)) {
+		if ((adapter->connect_status == LIBERTAS_CONNECTED)) {
 			netif_wake_queue(dev);
 			netif_wake_queue(priv->mesh_dev);
 		}
@@ -758,8 +758,8 @@ static int if_usb_reset_device(wlan_private *priv)
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_USB);
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_reset,
-				    cmd_act_halt, 0, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_RESET,
+				    CMD_ACT_HALT, 0, 0, NULL);
 	msleep_interruptible(10);
 
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);

@@ -125,9 +125,9 @@ static ssize_t libertas_sleepparams_write(struct file *file,
 	priv->adapter->sp.sp_reserved = p6;
 
         res = libertas_prepare_and_send_command(priv,
-				cmd_802_11_sleep_params,
-				cmd_act_set,
-				cmd_option_waitforrsp, 0, NULL);
+				CMD_802_11_SLEEP_PARAMS,
+				CMD_ACT_SET,
+				CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (!res)
 		res = count;
@@ -150,9 +150,9 @@ static ssize_t libertas_sleepparams_read(struct file *file, char __user *userbuf
 	char *buf = (char *)addr;
 
         res = libertas_prepare_and_send_command(priv,
-				cmd_802_11_sleep_params,
-				cmd_act_get,
-				cmd_option_waitforrsp, 0, NULL);
+				CMD_802_11_SLEEP_PARAMS,
+				CMD_ACT_GET,
+				CMD_OPTION_WAITFORRSP, 0, NULL);
 	if (res) {
 		res = -EFAULT;
 		goto out_unlock;
@@ -386,7 +386,7 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 			struct cmd_ctrl_node **cmdnode,
 			struct cmd_ds_command **cmd)
 {
-	u16 wait_option = cmd_option_waitforrsp;
+	u16 wait_option = CMD_OPTION_WAITFORRSP;
 
 	if (!(*cmdnode = libertas_get_free_cmd_ctrl_node(priv))) {
 		lbs_deb_debugfs("failed libertas_get_free_cmd_ctrl_node\n");
@@ -402,7 +402,7 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 	(*cmdnode)->cmdflags |= CMD_F_HOSTCMD;
 	(*cmdnode)->cmdwaitqwoken = 0;
 	*cmd = (struct cmd_ds_command *)(*cmdnode)->bufvirtualaddr;
-	(*cmd)->command = cpu_to_le16(cmd_802_11_subscribe_event);
+	(*cmd)->command = cpu_to_le16(CMD_802_11_SUBSCRIBE_EVENT);
 	(*cmd)->seqnum = cpu_to_le16(++priv->adapter->seqnum);
 	(*cmd)->result = 0;
 	return 0;
@@ -429,7 +429,7 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -447,7 +447,7 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -493,7 +493,7 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 		return res;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -511,7 +511,7 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != CMD_RET_802_11_SUBSCRIBE_EVENT) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;
@@ -559,7 +559,7 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_rssithreshold));
@@ -591,7 +591,7 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -625,7 +625,7 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -644,7 +644,7 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -712,7 +712,7 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_snrthreshold));
@@ -743,7 +743,7 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -778,7 +778,7 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size =	cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -797,7 +797,7 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -864,7 +864,7 @@ static ssize_t libertas_failcount_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_failurecount));
@@ -895,7 +895,7 @@ static ssize_t libertas_failcount_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -929,7 +929,7 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -948,7 +948,7 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -1015,7 +1015,7 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_beaconsmissed));
@@ -1045,7 +1045,7 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -1079,7 +1079,7 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -1098,7 +1098,7 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1166,7 +1166,7 @@ static ssize_t libertas_highrssi_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_rssithreshold));
@@ -1196,7 +1196,7 @@ static ssize_t libertas_highrssi_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;
@@ -1229,7 +1229,7 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_get);
+	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
@@ -1248,7 +1248,7 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1316,7 +1316,7 @@ static ssize_t libertas_highsnr_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cpu_to_le16(cmd_act_set);
+	event->action = cpu_to_le16(CMD_ACT_SET);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_snrthreshold));
@@ -1347,7 +1347,7 @@ static ssize_t libertas_highsnr_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1375,8 +1375,8 @@ static ssize_t libertas_rdmac_read(struct file *file, char __user *userbuf,
 	offval.value = 0;
 
 	ret = libertas_prepare_and_send_command(priv,
-				cmd_mac_reg_access, 0,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_MAC_REG_ACCESS, 0,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "MAC[0x%x] = 0x%08x\n",
 				priv->mac_offset, adapter->offsetvalue.value);
@@ -1433,8 +1433,8 @@ static ssize_t libertas_wrmac_write(struct file *file,
 	offval.offset = offset;
 	offval.value = value;
 	res = libertas_prepare_and_send_command(priv,
-				cmd_mac_reg_access, 1,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_MAC_REG_ACCESS, 1,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 
 	res = count;
@@ -1458,8 +1458,8 @@ static ssize_t libertas_rdbbp_read(struct file *file, char __user *userbuf,
 	offval.value = 0;
 
 	ret = libertas_prepare_and_send_command(priv,
-				cmd_bbp_reg_access, 0,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_BBP_REG_ACCESS, 0,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "BBP[0x%x] = 0x%08x\n",
 				priv->bbp_offset, adapter->offsetvalue.value);
@@ -1517,8 +1517,8 @@ static ssize_t libertas_wrbbp_write(struct file *file,
 	offval.offset = offset;
 	offval.value = value;
 	res = libertas_prepare_and_send_command(priv,
-				cmd_bbp_reg_access, 1,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_BBP_REG_ACCESS, 1,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 
 	res = count;
@@ -1542,8 +1542,8 @@ static ssize_t libertas_rdrf_read(struct file *file, char __user *userbuf,
 	offval.value = 0;
 
 	ret = libertas_prepare_and_send_command(priv,
-				cmd_rf_reg_access, 0,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_RF_REG_ACCESS, 0,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "RF[0x%x] = 0x%08x\n",
 				priv->rf_offset, adapter->offsetvalue.value);
@@ -1601,8 +1601,8 @@ static ssize_t libertas_wrrf_write(struct file *file,
 	offval.offset = offset;
 	offval.value = value;
 	res = libertas_prepare_and_send_command(priv,
-				cmd_rf_reg_access, 1,
-				cmd_option_waitforrsp, 0, &offval);
+				CMD_RF_REG_ACCESS, 1,
+				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 
 	res = count;

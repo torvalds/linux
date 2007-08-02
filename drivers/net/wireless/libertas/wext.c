@@ -177,9 +177,9 @@ int wlan_radio_ioctl(wlan_private * priv, u8 option)
 		adapter->radioon = option;
 
 		ret = libertas_prepare_and_send_command(priv,
-					    cmd_802_11_radio_control,
-					    cmd_act_set,
-					    cmd_option_waitforrsp, 0, NULL);
+					    CMD_802_11_RADIO_CONTROL,
+					    CMD_ACT_SET,
+					    CMD_OPTION_WAITFORRSP, 0, NULL);
 	}
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -221,7 +221,7 @@ static int get_active_data_rates(wlan_adapter * adapter,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status != libertas_connected) {
+	if (adapter->connect_status != LIBERTAS_CONNECTED) {
 		if (adapter->mode == IW_MODE_INFRA) {
 			lbs_deb_wext("infra\n");
 			k = copyrates(rates, k, libertas_supported_rates,
@@ -305,7 +305,7 @@ static int wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		memcpy(awrq->sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	} else {
 		memset(awrq->sa_data, 0, ETH_ALEN);
@@ -382,7 +382,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	/* Use nickname to indicate that mesh is on */
 
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		strncpy(extra, "Mesh", 12);
 		extra[12] = '\0';
 		dwrq->length = strlen(extra) + 1;
@@ -414,8 +414,8 @@ static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 		adapter->rtsthsd = rthr;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_set, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_RTS_THRESHOLD, &rthr);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -432,8 +432,8 @@ static int wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	adapter->rtsthsd = 0;
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_RTS_THRESHOLD, NULL);
 	if (ret)
 		goto out;
@@ -467,8 +467,8 @@ static int wlan_set_frag(struct net_device *dev, struct iw_request_info *info,
 		adapter->fragthsd = fthr;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_set, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_FRAGMENTATION_THRESHOLD, &fthr);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -486,8 +486,8 @@ static int wlan_get_frag(struct net_device *dev, struct iw_request_info *info,
 
 	adapter->fragthsd = 0;
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+				    CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_FRAGMENTATION_THRESHOLD, NULL);
 	if (ret)
 		goto out;
@@ -539,9 +539,9 @@ static int wlan_get_txpow(struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_rf_tx_power,
-				    cmd_act_tx_power_opt_get,
-				    cmd_option_waitforrsp, 0, NULL);
+				    CMD_802_11_RF_TX_POWER,
+				    CMD_ACT_TX_POWER_OPT_GET,
+				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret)
 		goto out;
@@ -581,9 +581,9 @@ static int wlan_set_retry(struct net_device *dev, struct iw_request_info *info,
 		/* Adding 1 to convert retry count to try count */
 		adapter->txretrycount = vwrq->value + 1;
 
-		ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-					    cmd_act_set,
-					    cmd_option_waitforrsp,
+		ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+					    CMD_ACT_SET,
+					    CMD_OPTION_WAITFORRSP,
 					    OID_802_11_TX_RETRYCOUNT, NULL);
 
 		if (ret)
@@ -608,8 +608,8 @@ static int wlan_get_retry(struct net_device *dev, struct iw_request_info *info,
 
 	adapter->txretrycount = 0;
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+				    CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_TX_RETRYCOUNT, NULL);
 	if (ret)
 		goto out;
@@ -698,7 +698,7 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 
 	range->num_frequency = 0;
 	if (priv->adapter->enable11d &&
-	    adapter->connect_status == libertas_connected) {
+	    adapter->connect_status == LIBERTAS_CONNECTED) {
 		u8 chan_no;
 		u8 band;
 
@@ -858,9 +858,9 @@ static int wlan_set_power(struct net_device *dev, struct iw_request_info *info,
 	 */
 
 	if (vwrq->disabled) {
-		adapter->psmode = wlan802_11powermodecam;
+		adapter->psmode = WLAN802_11POWERMODECAM;
 		if (adapter->psstate != PS_STATE_FULL_POWER) {
-			libertas_ps_wakeup(priv, cmd_option_waitforrsp);
+			libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 		}
 
 		return 0;
@@ -875,14 +875,14 @@ static int wlan_set_power(struct net_device *dev, struct iw_request_info *info,
 		return -EINVAL;
 	}
 
-	if (adapter->psmode != wlan802_11powermodecam) {
+	if (adapter->psmode != WLAN802_11POWERMODECAM) {
 		return 0;
 	}
 
-	adapter->psmode = wlan802_11powermodemax_psp;
+	adapter->psmode = WLAN802_11POWERMODEMAX_PSP;
 
-	if (adapter->connect_status == libertas_connected) {
-		libertas_ps_sleep(priv, cmd_option_waitforrsp);
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
+		libertas_ps_sleep(priv, CMD_OPTION_WAITFORRSP);
 	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
@@ -900,8 +900,8 @@ static int wlan_get_power(struct net_device *dev, struct iw_request_info *info,
 
 	mode = adapter->psmode;
 
-	if ((vwrq->disabled = (mode == wlan802_11powermodecam))
-	    || adapter->connect_status == libertas_disconnected)
+	if ((vwrq->disabled = (mode == WLAN802_11POWERMODECAM))
+	    || adapter->connect_status == LIBERTAS_DISCONNECTED)
 	{
 		goto out;
 	}
@@ -937,7 +937,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	priv->wstats.status = adapter->mode;
 
 	/* If we're not associated, all quality values are meaningless */
-	if (adapter->connect_status != libertas_connected)
+	if (adapter->connect_status != LIBERTAS_CONNECTED)
 		goto out;
 
 	/* Quality by RSSI */
@@ -1000,9 +1000,9 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	stats_valid = 1;
 
 	/* update stats asynchronously for future calls */
-	libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
+	libertas_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
 					0, 0, NULL);
-	libertas_prepare_and_send_command(priv, cmd_802_11_get_log, 0,
+	libertas_prepare_and_send_command(priv, CMD_802_11_GET_LOG, 0,
 					0, 0, NULL);
 out:
 	if (!stats_valid) {
@@ -1128,7 +1128,7 @@ static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_wext("vwrq->value %d\n", vwrq->value);
 
 	if (vwrq->value == -1) {
-		action = cmd_act_set_tx_auto;	// Auto
+		action = CMD_ACT_SET_tx_auto;	// Auto
 		adapter->is_datarate_auto = 1;
 		adapter->datarate = 0;
 	} else {
@@ -1155,12 +1155,12 @@ static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 		}
 
 		adapter->datarate = data_rate;
-		action = cmd_act_set_tx_fix_rate;
+		action = CMD_ACT_SET_tx_fix_rate;
 		adapter->is_datarate_auto = 0;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_data_rate,
-				    action, cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
+				    action, CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
@@ -1976,7 +1976,7 @@ static int wlan_set_txpow(struct net_device *dev, struct iw_request_info *info,
 		return 0;
 	}
 
-	adapter->preamble = cmd_type_auto_preamble;
+	adapter->preamble = CMD_TYPE_AUTO_PREAMBLE;
 
 	wlan_radio_ioctl(priv, RADIO_ON);
 
@@ -1993,9 +1993,9 @@ static int wlan_set_txpow(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_wext("txpower set %d dbm\n", dbm);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_rf_tx_power,
-				    cmd_act_tx_power_opt_set_low,
-				    cmd_option_waitforrsp, 0, (void *)&dbm);
+				    CMD_802_11_RF_TX_POWER,
+				    CMD_ACT_TX_POWER_OPT_SET_LOW,
+				    CMD_OPTION_WAITFORRSP, 0, (void *)&dbm);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
@@ -2017,7 +2017,7 @@ static int wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 	/*
 	 * Get the current SSID
 	 */
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		memcpy(extra, adapter->curbssparams.ssid,
 		       adapter->curbssparams.ssid_len);
 		extra[adapter->curbssparams.ssid_len] = '\0';

@@ -108,7 +108,7 @@ struct cmd_ds_gen {
 
 #define S_DS_GEN sizeof(struct cmd_ds_gen)
 /*
- * Define data structure for cmd_get_hw_spec
+ * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command
  */
 struct cmd_ds_get_hw_spec {
@@ -155,7 +155,7 @@ struct cmd_ds_802_11_subscribe_event {
 
 /*
  * This scan handle Country Information IE(802.11d compliant)
- * Define data structure for cmd_802_11_scan
+ * Define data structure for CMD_802_11_SCAN
  */
 struct cmd_ds_802_11_scan {
 	u8 bsstype;

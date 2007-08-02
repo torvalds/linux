@@ -88,7 +88,7 @@ int libertas_send_deauth(wlan_private * priv)
 	int ret = 0;
 
 	if (adapter->mode == IW_MODE_INFRA &&
-	    adapter->connect_status == libertas_connected)
+	    adapter->connect_status == LIBERTAS_CONNECTED)
 		ret = libertas_send_deauthentication(priv);
 	else
 		ret = -ENOTSUPP;
@@ -111,8 +111,8 @@ int wlan_associate(wlan_private * priv, struct assoc_request * assoc_req)
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_authenticate,
-				    0, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_AUTHENTICATE,
+				    0, CMD_OPTION_WAITFORRSP,
 				    0, assoc_req->bss.bssid);
 
 	if (ret)
@@ -121,14 +121,14 @@ int wlan_associate(wlan_private * priv, struct assoc_request * assoc_req)
 	/* set preamble to firmware */
 	if (   (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 	    && (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
-		adapter->preamble = cmd_type_short_preamble;
+		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	else
-		adapter->preamble = cmd_type_long_preamble;
+		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
 
 	libertas_set_radio_control(priv);
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_associate,
-				    0, cmd_option_waitforrsp, 0, assoc_req);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_ASSOCIATE,
+				    0, CMD_OPTION_WAITFORRSP, 0, assoc_req);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
@@ -151,10 +151,10 @@ int libertas_start_adhoc_network(wlan_private * priv, struct assoc_request * ass
 
 	if (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocStart: Short preamble\n");
-		adapter->preamble = cmd_type_short_preamble;
+		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	} else {
 		lbs_deb_join("AdhocStart: Long preamble\n");
-		adapter->preamble = cmd_type_long_preamble;
+		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
 	}
 
 	libertas_set_radio_control(priv);
@@ -162,8 +162,8 @@ int libertas_start_adhoc_network(wlan_private * priv, struct assoc_request * ass
 	lbs_deb_join("AdhocStart: channel = %d\n", assoc_req->channel);
 	lbs_deb_join("AdhocStart: band = %d\n", assoc_req->band);
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_ad_hoc_start,
-				    0, cmd_option_waitforrsp, 0, assoc_req);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_AD_HOC_START,
+				    0, CMD_OPTION_WAITFORRSP, 0, assoc_req);
 
 	return ret;
 }
@@ -209,10 +209,10 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 	if (   !(bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 	    || !(adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
 		lbs_deb_join("AdhocJoin: Long preamble\n");
-		adapter->preamble = cmd_type_long_preamble;
+		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
 	} else {
 		lbs_deb_join("AdhocJoin: Short preamble\n");
-		adapter->preamble = cmd_type_short_preamble;
+		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	}
 
 	libertas_set_radio_control(priv);
@@ -222,8 +222,8 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 
 	adapter->adhoccreate = 0;
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_ad_hoc_join,
-				    0, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_AD_HOC_JOIN,
+				    0, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_SSID, assoc_req);
 
 	return ret;
@@ -231,8 +231,8 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 
 int libertas_stop_adhoc_network(wlan_private * priv)
 {
-	return libertas_prepare_and_send_command(priv, cmd_802_11_ad_hoc_stop,
-				     0, cmd_option_waitforrsp, 0, NULL);
+	return libertas_prepare_and_send_command(priv, CMD_802_11_AD_HOC_STOP,
+				     0, CMD_OPTION_WAITFORRSP, 0, NULL);
 }
 
 /**
@@ -243,8 +243,8 @@ int libertas_stop_adhoc_network(wlan_private * priv)
  */
 int libertas_send_deauthentication(wlan_private * priv)
 {
-	return libertas_prepare_and_send_command(priv, cmd_802_11_deauthenticate,
-				     0, cmd_option_waitforrsp, 0, NULL);
+	return libertas_prepare_and_send_command(priv, CMD_802_11_DEAUTHENTICATE,
+				     0, CMD_OPTION_WAITFORRSP, 0, NULL);
 }
 
 /**
@@ -267,7 +267,7 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	cmd->command = cpu_to_le16(cmd_802_11_authenticate);
+	cmd->command = cpu_to_le16(CMD_802_11_AUTHENTICATE);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
 	                        + S_DS_GEN);
 
@@ -307,7 +307,7 @@ int libertas_cmd_80211_deauthenticate(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	cmd->command = cpu_to_le16(cmd_802_11_deauthenticate);
+	cmd->command = cpu_to_le16(CMD_802_11_DEAUTHENTICATE);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_deauthenticate) +
 			     S_DS_GEN);
 
@@ -349,7 +349,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 		goto done;
 	}
 
-	cmd->command = cpu_to_le16(cmd_802_11_associate);
+	cmd->command = cpu_to_le16(CMD_802_11_ASSOCIATE);
 
 	memcpy(passo->peerstaaddr, bss->bssid, sizeof(passo->peerstaaddr));
 	pos += sizeof(passo->peerstaaddr);
@@ -465,7 +465,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 		goto done;
 	}
 
-	cmd->command = cpu_to_le16(cmd_802_11_ad_hoc_start);
+	cmd->command = cpu_to_le16(CMD_802_11_AD_HOC_START);
 
 	/*
 	 * Fill in the parameters for 2 data structures:
@@ -487,7 +487,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	             assoc_req->ssid_len);
 
 	/* set the BSS type */
-	adhs->bsstype = cmd_bss_type_ibss;
+	adhs->bsstype = CMD_BSS_TYPE_IBSS;
 	adapter->mode = IW_MODE_ADHOC;
 	adhs->beaconperiod = cpu_to_le16(adapter->beaconperiod);
 
@@ -524,7 +524,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->capability = cpu_to_le16(tmpcap);
 
 	/* probedelay */
-	adhs->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
+	adhs->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
 	memset(adhs->datarate, 0, sizeof(adhs->datarate));
 
@@ -569,7 +569,7 @@ done:
 int libertas_cmd_80211_ad_hoc_stop(wlan_private * priv,
 				struct cmd_ds_command *cmd)
 {
-	cmd->command = cpu_to_le16(cmd_802_11_ad_hoc_stop);
+	cmd->command = cpu_to_le16(CMD_802_11_AD_HOC_STOP);
 	cmd->size = cpu_to_le16(S_DS_GEN);
 
 	return 0;
@@ -590,9 +590,9 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	cmd->command = cpu_to_le16(cmd_802_11_ad_hoc_join);
+	cmd->command = cpu_to_le16(CMD_802_11_AD_HOC_JOIN);
 
-	join_cmd->bss.type = cmd_bss_type_ibss;
+	join_cmd->bss.type = CMD_BSS_TYPE_IBSS;
 	join_cmd->bss.beaconperiod = cpu_to_le16(bss->beaconperiod);
 
 	memcpy(&join_cmd->bss.bssid, &bss->bssid, ETH_ALEN);
@@ -617,7 +617,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	join_cmd->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
 
 	/* probedelay */
-	join_cmd->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
+	join_cmd->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
 	/* Copy Data rates from the rates recorded in scan response */
 	memset(join_cmd->bss.datarates, 0, sizeof(join_cmd->bss.datarates));
@@ -659,14 +659,14 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 		join_cmd->bss.capability = cpu_to_le16(tmp);
 	}
 
-	if (adapter->psmode == wlan802_11powermodemax_psp) {
+	if (adapter->psmode == WLAN802_11POWERMODEMAX_PSP) {
 		/* wake up first */
 		__le32 Localpsmode;
 
-		Localpsmode = cpu_to_le32(wlan802_11powermodecam);
+		Localpsmode = cpu_to_le32(WLAN802_11POWERMODECAM);
 		ret = libertas_prepare_and_send_command(priv,
-					    cmd_802_11_ps_mode,
-					    cmd_act_set,
+					    CMD_802_11_PS_MODE,
+					    CMD_ACT_SET,
 					    0, 0, &Localpsmode);
 
 		if (ret) {
@@ -722,7 +722,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 		le16_to_cpu(resp->size) - S_DS_GEN);
 
 	/* Send a Media Connected event, according to the Spec */
-	adapter->connect_status = libertas_connected;
+	adapter->connect_status = LIBERTAS_CONNECTED;
 
 	lbs_deb_join("ASSOC_RESP: assocated to '%s'\n",
 	             escape_essid(bss->ssid, bss->ssid_len));
@@ -802,7 +802,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	 */
 	if (result) {
 		lbs_deb_join("ADHOC_RESP: failed\n");
-		if (adapter->connect_status == libertas_connected) {
+		if (adapter->connect_status == LIBERTAS_CONNECTED) {
 			libertas_mac_event_disconnected(priv);
 		}
 		ret = -1;
@@ -817,9 +817,9 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	             escape_essid(bss->ssid, bss->ssid_len));
 
 	/* Send a Media Connected event, according to the Spec */
-	adapter->connect_status = libertas_connected;
+	adapter->connect_status = LIBERTAS_CONNECTED;
 
-	if (command == cmd_ret_802_11_ad_hoc_start) {
+	if (command == CMD_RET_802_11_AD_HOC_START) {
 		/* Update the created network descriptor with the new BSSID */
 		memcpy(bss->bssid, padhocresult->bssid, ETH_ALEN);
 	}

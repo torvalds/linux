@@ -72,9 +72,9 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	       regctrl.action, regctrl.offset, regctrl.NOB);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_eeprom_access,
+				    CMD_802_11_EEPROM_ACCESS,
 				    regctrl.action,
-				    cmd_option_waitforrsp, 0,
+				    CMD_OPTION_WAITFORRSP, 0,
 				    &regctrl);
 
 	if (ret) {
@@ -138,8 +138,8 @@ static int libertas_ethtool_get_stats_count(struct net_device * dev)
 
 	/* Get Mesh Statistics */
 	ret = libertas_prepare_and_send_command(priv,
-			cmd_mesh_access, cmd_act_mesh_get_stats,
-			cmd_option_waitforrsp, 0, &mesh_access);
+			CMD_MESH_ACCESS, CMD_ACT_MESH_GET_STATS,
+			CMD_OPTION_WAITFORRSP, 0, &mesh_access);
 
 	if (ret) {
 		ret = 0;

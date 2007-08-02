@@ -283,7 +283,7 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	libertas_upload_rx_packet(priv, adapter->currenttxskb);
 	adapter->currenttxskb = NULL;
 	priv->adapter->TxLockFlag = 0;
-	if (priv->adapter->connect_status == libertas_connected) {
+	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
 		netif_wake_queue(priv->mesh_dev);
 	}

@@ -99,8 +99,8 @@ static int wlan_setup_station_hw(wlan_private * priv, char *fw_name)
 	 */
 	memset(adapter->current_addr, 0xff, ETH_ALEN);
 
-	ret = libertas_prepare_and_send_command(priv, cmd_get_hw_spec,
-				    0, cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_GET_HW_SPEC,
+				    0, CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret) {
 		ret = -1;
@@ -110,9 +110,9 @@ static int wlan_setup_station_hw(wlan_private * priv, char *fw_name)
 	libertas_set_mac_packet_filter(priv);
 
 	/* Get the supported Data rates */
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_data_rate,
-				    cmd_act_get_tx_rate,
-				    cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
+				    CMD_ACT_GET_tx_rate,
+				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret) {
 		ret = -1;
@@ -145,12 +145,12 @@ static int wlan_allocate_adapter(wlan_private * priv)
 	memset(&adapter->libertas_ps_confirm_sleep, 0, sizeof(struct PS_CMD_ConfirmSleep));
 	adapter->libertas_ps_confirm_sleep.seqnum = cpu_to_le16(++adapter->seqnum);
 	adapter->libertas_ps_confirm_sleep.command =
-	    cpu_to_le16(cmd_802_11_ps_mode);
+	    cpu_to_le16(CMD_802_11_PS_MODE);
 	adapter->libertas_ps_confirm_sleep.size =
 	    cpu_to_le16(sizeof(struct PS_CMD_ConfirmSleep));
 	adapter->libertas_ps_confirm_sleep.result = 0;
 	adapter->libertas_ps_confirm_sleep.action =
-	    cpu_to_le16(cmd_subcmd_sleep_confirmed);
+	    cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
 
 	return 0;
 }
@@ -168,14 +168,14 @@ static void wlan_init_adapter(wlan_private * priv)
 	/* ATIM params */
 	adapter->atimwindow = 0;
 
-	adapter->connect_status = libertas_disconnected;
+	adapter->connect_status = LIBERTAS_DISCONNECTED;
 	memset(adapter->current_addr, 0xff, ETH_ALEN);
 
 	/* scan type */
-	adapter->scantype = cmd_scan_type_active;
+	adapter->scantype = CMD_SCAN_TYPE_ACTIVE;
 
 	/* scan mode */
-	adapter->scanmode = cmd_bss_type_any;
+	adapter->scanmode = CMD_BSS_TYPE_ANY;
 
 	/* 802.11 specific */
 	adapter->secinfo.wep_enabled = 0;
@@ -208,7 +208,7 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->surpriseremoved = 0;
 
 	adapter->currentpacketfilter =
-	    cmd_act_mac_rx_on | cmd_act_mac_tx_on;
+	    CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 
 	adapter->radioon = RADIO_ON;
 	adapter->txantenna = RF_ANTENNA_2;
@@ -220,7 +220,7 @@ static void wlan_init_adapter(wlan_private * priv)
 	// set default capabilities
 	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 
-	adapter->psmode = wlan802_11powermodecam;
+	adapter->psmode = WLAN802_11POWERMODECAM;
 	adapter->multipledtim = MRVDRV_DEFAULT_MULTIPLE_DTIM;
 
 	adapter->listeninterval = MRVDRV_DEFAULT_LISTEN_INTERVAL;
