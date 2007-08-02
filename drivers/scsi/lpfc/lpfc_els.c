@@ -196,9 +196,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		bpl->tus.w = le32_to_cpu(bpl->tus.w);
 	}
 
-	/* Save for completion so we can release these resources */
-	if (elscmd != ELS_CMD_LS_RJT)
-		elsiocb->context1 = lpfc_nlp_get(ndlp);
+	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	elsiocb->context2 = pcmd;
 	elsiocb->context3 = pbuflist;
 	elsiocb->retry = retry;
@@ -1809,8 +1807,10 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						 "retrying...\n");
 				lpfc_mbx_unreg_vpi(vport);
 				retry = 1;
-				/* Always retry for this case */
-				cmdiocb->retry = 0;
+				/* FDISC retry policy */
+				maxretry = 48;
+				if (cmdiocb->retry >= 32)
+					delay = 1000;
 			}
 			break;
 
@@ -1886,8 +1886,10 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				delay = 1000;
 				maxretry = 48;
 			} else if (cmd == ELS_CMD_FDISC) {
-				/* Always retry for this case */
-				cmdiocb->retry = 0;
+				/* FDISC retry policy */
+				maxretry = 48;
+				if (cmdiocb->retry >= 32)
+					delay = 1000;
 			}
 			retry = 1;
 			break;
@@ -2121,9 +2123,9 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
-		"ACC cmpl:        status:x%x/x%x did:x%x",
+		"ELS rsp cmpl:    status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
-		irsp->un.rcvels.remoteID);
+		cmdiocb->iocb.un.elsreq64.remoteID);
 	/* ELS response tag <ulpIoTag> completes */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0110 ELS response tag x%x completes "
@@ -2184,7 +2186,7 @@ out:
 int
 lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 		 struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp,
-		 LPFC_MBOXQ_t *mbox, uint8_t newnode)
+		 LPFC_MBOXQ_t *mbox)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -2270,11 +2272,6 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	default:
 		return 1;
 	}
-
-	if (newnode) {
-		lpfc_nlp_put(ndlp);
-		elsiocb->context1 = NULL;
-	}
 	/* Xmit ELS ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0128 Xmit ELS ACC response tag x%x, XRI: x%x, "
@@ -2333,10 +2330,8 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	pcmd += sizeof(uint32_t);
 	*((uint32_t *) (pcmd)) = rejectError;
 
-	if (mbox) {
+	if (mbox)
 		elsiocb->context_un.mbox = mbox;
-		elsiocb->context1 = lpfc_nlp_get(ndlp);
-	}
 
 	/* Xmit ELS RJT <err> response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -2353,6 +2348,15 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	phba->fc_stat.elsXmitLSRJT++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+
+	/* If the node is in the UNUSED state, and we are sending
+	 * a reject, we are done with it.  Release driver reference
+	 * count here.  The outstanding els will release its reference on
+	 * completion and the node can be freed then.
+	 */
+	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+		lpfc_nlp_put(ndlp);
+
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
@@ -2747,7 +2751,7 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 
 static int
 lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp, uint8_t newnode)
+		  struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -2781,8 +2785,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			"RCV RSCN ignore: did:x%x/ste:x%x flg:x%x",
 			ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
-		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL,
-				 newnode);
+		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 		return 0;
 	}
 
@@ -2814,7 +2817,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				ndlp->nlp_flag);
 
 			lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb,
-				ndlp, NULL, newnode);
+				ndlp, NULL);
 			return 0;
 		}
 	}
@@ -2870,8 +2873,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 vport->port_state);
 		}
 		/* Send back ACC */
-		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL,
-								newnode);
+		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 
 		/* send RECOVERY event for ALL nodes that match RSCN payload */
 		lpfc_rscn_recovery_check(vport);
@@ -2896,7 +2898,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lpfc_set_disctmo(vport);
 
 	/* Send back ACC */
-	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL, newnode);
+	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 
 	/* send RECOVERY event for ALL nodes that match RSCN payload */
 	lpfc_rscn_recovery_check(vport);
@@ -2965,7 +2967,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 
 static int
 lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		   struct lpfc_nodelist *ndlp, uint8_t newnode)
+		   struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -3048,7 +3050,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* Send back ACC */
-	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL, newnode);
+	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL);
 
 	return 0;
 }
@@ -3409,7 +3411,7 @@ lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0600 FARP-RSP received from DID x%x\n", did);
 	/* ACCEPT the Farp resp request */
-	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL, 0);
+	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 
 	return 0;
 }
@@ -3791,7 +3793,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 
 		phba->fc_stat.elsRcvFLOGI++;
-		lpfc_els_rcv_flogi(vport, elsiocb, ndlp, newnode);
+		lpfc_els_rcv_flogi(vport, elsiocb, ndlp);
 		if (newnode)
 			lpfc_drop_node(vport, ndlp);
 		break;
@@ -3821,7 +3823,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		break;
 	case ELS_CMD_RSCN:
 		phba->fc_stat.elsRcvRSCN++;
-		lpfc_els_rcv_rscn(vport, elsiocb, ndlp, newnode);
+		lpfc_els_rcv_rscn(vport, elsiocb, ndlp);
 		if (newnode)
 			lpfc_drop_node(vport, ndlp);
 		break;
@@ -3951,8 +3953,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, elsiocb, ndlp,
 			NULL);
-		if (newnode)
-			lpfc_drop_node(vport, ndlp);
 	}
 
 	return;

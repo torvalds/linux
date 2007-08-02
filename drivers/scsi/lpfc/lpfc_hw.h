@@ -150,7 +150,11 @@ struct lpfc_sli_ct_request {
 		struct gff_acc {
 			uint8_t fbits[128];
 		} gff_acc;
+#ifdef __BIG_ENDIAN_BITFIELD
+#define FCP_TYPE_FEATURE_OFFSET 7
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define FCP_TYPE_FEATURE_OFFSET 4
+#endif
 		struct rff {
 			uint32_t PortId;
 			uint8_t reserved[2];

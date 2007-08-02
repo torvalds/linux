@@ -78,6 +78,7 @@ struct lpfc_dma_pool {
 
 struct hbq_dmabuf {
 	struct lpfc_dmabuf dbuf;
+	uint32_t size;
 	uint32_t tag;
 };
 
@@ -329,15 +330,7 @@ struct lpfc_vport {
 #define FC_LOADING		0x1	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
 	char  *vname;		        /* Application assigned name */
-	struct fc_vport *fc_vport;
 
-#ifdef CONFIG_LPFC_DEBUG_FS
-	struct dentry *debug_disc_trc;
-	struct dentry *debug_nodelist;
-	struct dentry *vport_debugfs_root;
-	struct lpfc_debugfs_trc *disc_trc;
-	atomic_t disc_trc_cnt;
-#endif
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;
@@ -353,6 +346,16 @@ struct lpfc_vport {
 	uint32_t cfg_max_luns;
 
 	uint32_t dev_loss_tmo_changed;
+
+	struct fc_vport *fc_vport;
+
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct dentry *debug_disc_trc;
+	struct dentry *debug_nodelist;
+	struct dentry *vport_debugfs_root;
+	struct lpfc_debugfs_trc *disc_trc;
+	atomic_t disc_trc_cnt;
+#endif
 };
 
 struct hbq_s {
@@ -360,11 +363,19 @@ struct hbq_s {
 	uint32_t next_hbqPutIdx;  /* Index to next HBQ slot to use */
 	uint32_t hbqPutIdx;	  /* HBQ slot to use */
 	uint32_t local_hbqGetIdx; /* Local copy of Get index from Port */
+	void    *hbq_virt;	  /* Virtual ptr to this hbq */
+	struct list_head hbq_buffer_list;  /* buffers assigned to this HBQ */
+				  /* Callback for HBQ buffer allocation */
+	struct hbq_dmabuf *(*hbq_alloc_buffer) (struct lpfc_hba *);
+				  /* Callback for HBQ buffer free */
+	void               (*hbq_free_buffer) (struct lpfc_hba *,
+					       struct hbq_dmabuf *);
 };
 
-#define LPFC_MAX_HBQS  16
-/* this matches the possition in the lpfc_hbq_defs array */
+#define LPFC_MAX_HBQS  4
+/* this matches the position in the lpfc_hbq_defs array */
 #define LPFC_ELS_HBQ	0
+#define LPFC_EXTRA_HBQ	1
 
 struct lpfc_hba {
 	struct lpfc_sli sli;
@@ -460,7 +471,6 @@ struct lpfc_hba {
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
 
-	struct list_head hbq_buffer_list;
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
@@ -529,6 +539,7 @@ struct lpfc_hba {
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
+	uint8_t using_msi;
 
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */

@@ -257,6 +257,10 @@ lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
 {
 	struct lpfc_dmabuf *buf_ptr;
 
+	if (ctiocb->context_un.ndlp) {
+		lpfc_nlp_put(ctiocb->context_un.ndlp);
+		ctiocb->context_un.ndlp = NULL;
+	}
 	if (ctiocb->context1) {
 		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context1;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
@@ -314,6 +318,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	/* Save for completion so we can release these resources */
 	geniocb->context1 = (uint8_t *) inp;
 	geniocb->context2 = (uint8_t *) outp;
+	geniocb->context_un.ndlp = ndlp;
 
 	/* Fill in payload, bp points to frame payload */
 	icmd->ulpCommand = CMD_GEN_REQUEST64_CR;
@@ -548,7 +553,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
+	struct lpfc_nodelist *ndlp;
 	int rc;
+
+	/* First save ndlp, before we overwrite it */
+	ndlp = cmdiocb->context_un.ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
@@ -674,6 +683,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_disc_start(vport);
 	}
 out:
+	cmdiocb->context_un.ndlp = ndlp; /* Now restore ndlp for free */
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
@@ -776,9 +786,13 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *outp;
 	IOCB_t *irsp;
 	struct lpfc_sli_ct_request *CTrsp;
+	struct lpfc_nodelist *ndlp;
 	int cmdcode, rc;
 	uint8_t retry;
 	uint32_t latt;
+
+	/* First save ndlp, before we overwrite it */
+	ndlp = cmdiocb->context_un.ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
@@ -828,6 +842,7 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
+	cmdiocb->context_un.ndlp = ndlp; /* Now restore ndlp for free */
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
@@ -1066,6 +1081,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		cmpl = lpfc_cmpl_ct_cmd_rff_id;
 		break;
 	}
+	lpfc_nlp_get(ndlp);
 
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry)) {
 		/* On success, The cmpl function will free the buffers */
@@ -1076,6 +1092,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	}
 
 	rc=6;
+	lpfc_nlp_put(ndlp);
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 ns_cmd_free_bmp:
 	kfree(bmp);
@@ -1501,10 +1518,12 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 	bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
 	cmpl = lpfc_cmpl_ct_cmd_fdmi;
+	lpfc_nlp_get(ndlp);
 
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, FC_MAX_NS_RSP, 0))
 		return 0;
 
+	lpfc_nlp_put(ndlp);
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 fdmi_cmd_free_bmp:
 	kfree(bmp);

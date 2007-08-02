@@ -152,7 +152,6 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 			}
 		}
 	lpfc_destroy_vport_work_array(vports);
-	spin_unlock_irq(&phba->hbalock);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }
@@ -1195,14 +1194,12 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	 * Unfortunately, some targets do not abide by this forcing the driver
 	 * to double check.
 	 */
-	cnt = lpfc_sli_sum_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
-				cmnd->device->id, cmnd->device->lun,
+	cnt = lpfc_sli_sum_iocb(vport, cmnd->device->id, cmnd->device->lun,
 				LPFC_CTX_LUN);
 	if (cnt)
-		lpfc_sli_abort_iocb(phba,
-				    &phba->sli.ring[phba->sli.fcp_ring],
+		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
 				    cmnd->device->id, cmnd->device->lun,
-				    0, LPFC_CTX_LUN);
+				    LPFC_CTX_LUN);
 	loopcnt = 0;
 	while(cnt) {
 		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
@@ -1211,10 +1208,8 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 		    > (2 * vport->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
-		cnt = lpfc_sli_sum_iocb(phba,
-					&phba->sli.ring[phba->sli.fcp_ring],
-					cmnd->device->id, cmnd->device->lun,
-					LPFC_CTX_LUN);
+		cnt = lpfc_sli_sum_iocb(vport, cmnd->device->id,
+					cmnd->device->lun, LPFC_CTX_LUN);
 	}
 
 	if (cnt) {
@@ -1304,11 +1299,10 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	 * the targets.  Unfortunately, some targets do not abide by
 	 * this forcing the driver to double check.
 	 */
-	cnt = lpfc_sli_sum_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
-				0, 0, LPFC_CTX_HOST);
+	cnt = lpfc_sli_sum_iocb(vport, 0, 0, LPFC_CTX_HOST);
 	if (cnt)
-		lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
-				    0, 0, 0, LPFC_CTX_HOST);
+		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
+				    0, 0, LPFC_CTX_HOST);
 	loopcnt = 0;
 	while(cnt) {
 		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
@@ -1317,9 +1311,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		    > (2 * vport->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
-		cnt = lpfc_sli_sum_iocb(phba,
-					&phba->sli.ring[phba->sli.fcp_ring],
-					0, 0, LPFC_CTX_HOST);
+		cnt = lpfc_sli_sum_iocb(vport, 0, 0, LPFC_CTX_HOST);
 	}
 
 	if (cnt) {

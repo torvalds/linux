@@ -545,7 +545,8 @@ lpfc_sli_next_hbq_slot(struct lpfc_hba *phba, uint32_t hbqno)
 			return NULL;
 	}
 
-	return (struct lpfc_hbq_entry *) phba->hbqslimp.virt + hbqp->hbqPutIdx;
+	return (struct lpfc_hbq_entry *) phba->hbqs[hbqno].hbq_virt +
+			hbqp->hbqPutIdx;
 }
 
 void
@@ -553,18 +554,21 @@ lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
 {
 	struct lpfc_dmabuf *dmabuf, *next_dmabuf;
 	struct hbq_dmabuf *hbq_buf;
+	int i, hbq_count;
 
+	hbq_count = lpfc_sli_hbq_count();
 	/* Return all memory used by all HBQs */
-	list_for_each_entry_safe(dmabuf, next_dmabuf,
-				 &phba->hbq_buffer_list, list) {
-		hbq_buf = container_of(dmabuf, struct hbq_dmabuf, dbuf);
-		list_del(&hbq_buf->dbuf.list);
-		lpfc_hbq_free(phba, hbq_buf->dbuf.virt, hbq_buf->dbuf.phys);
-		kfree(hbq_buf);
+	for (i = 0; i < hbq_count; ++i) {
+		list_for_each_entry_safe(dmabuf, next_dmabuf,
+				&phba->hbqs[i].hbq_buffer_list, list) {
+			hbq_buf = container_of(dmabuf, struct hbq_dmabuf, dbuf);
+			list_del(&hbq_buf->dbuf.list);
+			(phba->hbqs[i].hbq_free_buffer)(phba, hbq_buf);
+		}
 	}
 }
 
-static void
+static struct lpfc_hbq_entry *
 lpfc_sli_hbq_to_firmware(struct lpfc_hba *phba, uint32_t hbqno,
 			 struct hbq_dmabuf *hbq_buf)
 {
@@ -578,7 +582,7 @@ lpfc_sli_hbq_to_firmware(struct lpfc_hba *phba, uint32_t hbqno,
 
 		hbqe->bde.addrHigh = le32_to_cpu(putPaddrHigh(physaddr));
 		hbqe->bde.addrLow  = le32_to_cpu(putPaddrLow(physaddr));
-		hbqe->bde.tus.f.bdeSize = FCELSSIZE;
+		hbqe->bde.tus.f.bdeSize = hbq_buf->size;
 		hbqe->bde.tus.f.bdeFlags = 0;
 		hbqe->bde.tus.w = le32_to_cpu(hbqe->bde.tus.w);
 		hbqe->buffer_tag = le32_to_cpu(hbq_buf->tag);
@@ -587,8 +591,9 @@ lpfc_sli_hbq_to_firmware(struct lpfc_hba *phba, uint32_t hbqno,
 		writel(hbqp->hbqPutIdx, phba->hbq_put + hbqno);
 				/* flush */
 		readl(phba->hbq_put + hbqno);
-		list_add_tail(&hbq_buf->dbuf.list, &phba->hbq_buffer_list);
+		list_add_tail(&hbq_buf->dbuf.list, &hbqp->hbq_buffer_list);
 	}
+	return hbqe;
 }
 
 static struct lpfc_hbq_init lpfc_els_hbq = {
@@ -596,14 +601,26 @@ static struct lpfc_hbq_init lpfc_els_hbq = {
 	.entry_count = 200,
 	.mask_count = 0,
 	.profile = 0,
-	.ring_mask = 1 << LPFC_ELS_RING,
+	.ring_mask = (1 << LPFC_ELS_RING),
 	.buffer_count = 0,
 	.init_count = 20,
 	.add_count = 5,
 };
 
+static struct lpfc_hbq_init lpfc_extra_hbq = {
+	.rn = 1,
+	.entry_count = 200,
+	.mask_count = 0,
+	.profile = 0,
+	.ring_mask = (1 << LPFC_EXTRA_RING),
+	.buffer_count = 0,
+	.init_count = 0,
+	.add_count = 5,
+};
+
 struct lpfc_hbq_init *lpfc_hbq_defs[] = {
 	&lpfc_els_hbq,
+	&lpfc_extra_hbq,
 };
 
 int
@@ -611,6 +628,10 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 {
 	uint32_t i, start, end;
 	struct hbq_dmabuf *hbq_buffer;
+
+	if (!phba->hbqs[hbqno].hbq_alloc_buffer) {
+		return 0;
+	}
 
 	start = lpfc_hbq_defs[hbqno]->buffer_count;
 	end = count + lpfc_hbq_defs[hbqno]->buffer_count;
@@ -620,17 +641,14 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 
 	/* Populate HBQ entries */
 	for (i = start; i < end; i++) {
-		hbq_buffer = kmalloc(sizeof(struct hbq_dmabuf),
-				     GFP_KERNEL);
+		hbq_buffer = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
 		if (!hbq_buffer)
 			return 1;
-		hbq_buffer->dbuf.virt = lpfc_hbq_alloc(phba, MEM_PRI,
-							&hbq_buffer->dbuf.phys);
-		if (hbq_buffer->dbuf.virt == NULL)
-			return 1;
 		hbq_buffer->tag = (i | (hbqno << 16));
-		lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer);
-		lpfc_hbq_defs[hbqno]->buffer_count++;
+		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer))
+			lpfc_hbq_defs[hbqno]->buffer_count++;
+		else
+			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
 	return 0;
 }
@@ -654,10 +672,15 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 {
 	struct lpfc_dmabuf *d_buf;
 	struct hbq_dmabuf *hbq_buf;
+	uint32_t hbqno;
 
-	list_for_each_entry(d_buf, &phba->hbq_buffer_list, list) {
+	hbqno = tag >> 16;
+	if (hbqno > LPFC_MAX_HBQS)
+		return NULL;
+
+	list_for_each_entry(d_buf, &phba->hbqs[hbqno].hbq_buffer_list, list) {
 		hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
-		if ((hbq_buf->tag & 0xffff) == tag) {
+		if (hbq_buf->tag == tag) {
 			return hbq_buf;
 		}
 	}
@@ -668,13 +691,15 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 }
 
 void
-lpfc_sli_free_hbq(struct lpfc_hba *phba, struct hbq_dmabuf *sp)
+lpfc_sli_free_hbq(struct lpfc_hba *phba, struct hbq_dmabuf *hbq_buffer)
 {
 	uint32_t hbqno;
 
-	if (sp) {
-		hbqno = sp->tag >> 16;
-		lpfc_sli_hbq_to_firmware(phba, hbqno, sp);
+	if (hbq_buffer) {
+		hbqno = hbq_buffer->tag >> 16;
+		if (!lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer)) {
+			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
+		}
 	}
 }
 
@@ -904,21 +929,26 @@ static struct lpfc_dmabuf *
 lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 {
 	struct hbq_dmabuf *hbq_entry, *new_hbq_entry;
+	uint32_t hbqno;
+	void *virt;		/* virtual address ptr */
+	dma_addr_t phys;	/* mapped address */
 
 	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
 	if (hbq_entry == NULL)
 		return NULL;
 	list_del(&hbq_entry->dbuf.list);
-	new_hbq_entry = kmalloc(sizeof(struct hbq_dmabuf), GFP_ATOMIC);
+
+	hbqno = tag >> 16;
+	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
 	if (new_hbq_entry == NULL)
 		return &hbq_entry->dbuf;
-	new_hbq_entry->dbuf = hbq_entry->dbuf;
 	new_hbq_entry->tag = -1;
-	hbq_entry->dbuf.virt = lpfc_hbq_alloc(phba, 0, &hbq_entry->dbuf.phys);
-	if (hbq_entry->dbuf.virt == NULL) {
-		kfree(new_hbq_entry);
-		return &hbq_entry->dbuf;
-	}
+	phys = new_hbq_entry->dbuf.phys;
+	virt = new_hbq_entry->dbuf.virt;
+	new_hbq_entry->dbuf.phys = hbq_entry->dbuf.phys;
+	new_hbq_entry->dbuf.virt = hbq_entry->dbuf.virt;
+	hbq_entry->dbuf.phys = phys;
+	hbq_entry->dbuf.virt = virt;
 	lpfc_sli_free_hbq(phba, hbq_entry);
 	return &new_hbq_entry->dbuf;
 }
@@ -964,7 +994,7 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						irsp->un.ulpWord[3]);
 		if (irsp->ulpBdeCount == 2)
 			saveq->context3 = lpfc_sli_replace_hbqbuff(phba,
-						irsp->un.ulpWord[15]);
+						irsp->unsli3.sli3Words[7]);
 	}
 
 	/* unSolicited Responses */
@@ -2189,8 +2219,8 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
 		phba->hbqs[hbqno].local_hbqGetIdx   = 0;
 		phba->hbqs[hbqno].entry_count =
 			lpfc_hbq_defs[hbqno]->entry_count;
-		lpfc_config_hbq(phba, lpfc_hbq_defs[hbqno], hbq_entry_index,
-				pmb);
+		lpfc_config_hbq(phba, hbqno, lpfc_hbq_defs[hbqno],
+			hbq_entry_index, pmb);
 		hbq_entry_index += phba->hbqs[hbqno].entry_count;
 
 		if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
@@ -3433,8 +3463,8 @@ abort_iotag_exit:
 }
 
 static int
-lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, uint16_t tgt_id,
-			   uint64_t lun_id, uint32_t ctx,
+lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, struct lpfc_vport *vport,
+			   uint16_t tgt_id, uint64_t lun_id,
 			   lpfc_ctx_cmd ctx_cmd)
 {
 	struct lpfc_scsi_buf *lpfc_cmd;
@@ -3442,6 +3472,9 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, uint16_t tgt_id,
 	int rc = 1;
 
 	if (!(iocbq->iocb_flag &  LPFC_IO_FCP))
+		return rc;
+
+	if (iocbq->vport != vport)
 		return rc;
 
 	lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
@@ -3460,10 +3493,6 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, uint16_t tgt_id,
 		if (cmnd->device->id == tgt_id)
 			rc = 0;
 		break;
-	case LPFC_CTX_CTX:
-		if (iocbq->iocb.ulpContext == ctx)
-			rc = 0;
-		break;
 	case LPFC_CTX_HOST:
 		rc = 0;
 		break;
@@ -3477,17 +3506,18 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, uint16_t tgt_id,
 }
 
 int
-lpfc_sli_sum_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-		  uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd ctx_cmd)
+lpfc_sli_sum_iocb(struct lpfc_vport *vport, uint16_t tgt_id, uint64_t lun_id,
+		  lpfc_ctx_cmd ctx_cmd)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *iocbq;
 	int sum, i;
 
 	for (i = 1, sum = 0; i <= phba->sli.last_iotag; i++) {
 		iocbq = phba->sli.iocbq_lookup[i];
 
-		if (lpfc_sli_validate_fcp_iocb (iocbq, tgt_id, lun_id,
-						0, ctx_cmd) == 0)
+		if (lpfc_sli_validate_fcp_iocb (iocbq, vport, tgt_id, lun_id,
+						ctx_cmd) == 0)
 			sum++;
 	}
 
@@ -3503,10 +3533,10 @@ lpfc_sli_abort_fcp_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 }
 
 int
-lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-		    uint16_t tgt_id, uint64_t lun_id, uint32_t ctx,
-		    lpfc_ctx_cmd abort_cmd)
+lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
+		    uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd abort_cmd)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_iocbq *abtsiocb;
 	IOCB_t *cmd = NULL;
@@ -3516,7 +3546,7 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	for (i = 1; i <= phba->sli.last_iotag; i++) {
 		iocbq = phba->sli.iocbq_lookup[i];
 
-		if (lpfc_sli_validate_fcp_iocb(iocbq, tgt_id, lun_id, 0,
+		if (lpfc_sli_validate_fcp_iocb(iocbq, vport, tgt_id, lun_id,
 					       abort_cmd) != 0)
 			continue;
 

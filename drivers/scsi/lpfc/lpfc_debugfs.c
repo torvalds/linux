@@ -71,7 +71,7 @@
  * lpfc_debugfs_mask_disc_trc=Y  Where Y is an event mask as defined in
  *                               lpfc_debugfs.h .
  */
-static int lpfc_debugfs_enable = 0;
+static int lpfc_debugfs_enable = 1;
 module_param(lpfc_debugfs_enable, int, 0);
 MODULE_PARM_DESC(lpfc_debugfs_enable, "Enable debugfs services");
 
@@ -113,7 +113,6 @@ struct lpfc_debug {
 };
 
 extern struct lpfc_hbq_init *lpfc_hbq_defs[];
-extern int lpfc_sli_hbq_count(void);
 
 atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
 unsigned long lpfc_debugfs_start_time = 0L;
@@ -233,8 +232,9 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 
 	len +=  snprintf(buf+len, size-len, "HBQ %d Info\n", i);
 
+	hbqs =  &phba->hbqs[i];
 	posted = 0;
-	list_for_each_entry(d_buf, &phba->hbq_buffer_list, list)
+	list_for_each_entry(d_buf, &hbqs->hbq_buffer_list, list)
 		posted++;
 
 	hip =  lpfc_hbq_defs[i];
@@ -243,7 +243,6 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 		hip->hbq_index, hip->profile, hip->rn,
 		hip->buffer_count, hip->init_count, hip->add_count, posted);
 
-	hbqs =  &phba->hbqs[i];
 	raw_index = phba->hbq_get[i];
 	getidx = le32_to_cpu(raw_index);
 	len +=  snprintf(buf+len, size-len,
@@ -251,7 +250,7 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 		hbqs->entry_count, hbqs->hbqPutIdx, hbqs->next_hbqPutIdx,
 		hbqs->local_hbqGetIdx, getidx);
 
-	hbqe = (struct lpfc_hbq_entry *) phba->hbqslimp.virt;
+	hbqe = (struct lpfc_hbq_entry *) phba->hbqs[i].hbq_virt;
 	for (j=0; j<hbqs->entry_count; j++) {
 		len +=  snprintf(buf+len, size-len,
 			"%03d: %08x %04x %05x ", j,
@@ -277,7 +276,7 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 		}
 
 		/* Get the Buffer info for the posted buffer */
-		list_for_each_entry(d_buf, &phba->hbq_buffer_list, list) {
+		list_for_each_entry(d_buf, &hbqs->hbq_buffer_list, list) {
 			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 			phys = ((uint64_t)hbq_buf->dbuf.phys & 0xffffffff);
 			if (phys == hbqe->bde.addrLow) {

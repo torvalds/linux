@@ -432,8 +432,29 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	long timeout;
-	int rc = VPORT_ERROR;
 
+	if (vport->port_type == LPFC_PHYSICAL_PORT) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+				 "1812 vport_delete failed: Cannot delete "
+				 "physical host\n");
+		return VPORT_ERROR;
+	}
+	/*
+	 * If we are not unloading the driver then prevent the vport_delete
+	 * from happening until after this vport's discovery is finished.
+	 */
+	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+		int check_count = 0;
+		while (check_count < ((phba->fc_ratov * 3) + 3) &&
+		       vport->port_state > LPFC_VPORT_FAILED &&
+		       vport->port_state < LPFC_VPORT_READY) {
+			check_count++;
+			msleep(1000);
+		}
+		if (vport->port_state > LPFC_VPORT_FAILED &&
+		    vport->port_state < LPFC_VPORT_READY)
+			return -EAGAIN;
+	}
 	/*
 	 * This is a bit of a mess.  We want to ensure the shost doesn't get
 	 * torn down until we're done with the embedded lpfc_vport structure.
@@ -451,16 +472,9 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 */
 	if (!scsi_host_get(shost) || !scsi_host_get(shost))
 		return VPORT_INVAL;
-
-	if (vport->port_type == LPFC_PHYSICAL_PORT) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
-				 "1812 vport_delete failed: Cannot delete "
-				 "physical host\n");
-		goto out;
-	}
-
+	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
-
+	spin_unlock_irq(&phba->hbalock);
 	kfree(vport->vname);
 	lpfc_debugfs_terminate(vport);
 	fc_remove_host(lpfc_shost_from_vport(vport));
@@ -514,10 +528,8 @@ skip_logo:
 	spin_unlock_irq(&phba->hbalock);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 			 "1828 Vport Deleted.\n");
-	rc = VPORT_OK;
-out:
 	scsi_host_put(shost);
-	return rc;
+	return VPORT_OK;
 }
 
 EXPORT_SYMBOL(lpfc_vport_create);
@@ -536,7 +548,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
 		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
-			lpfc_printf_vlog(port_iterator, KERN_ERR, LOG_VPORT,
+			lpfc_printf_vlog(port_iterator, KERN_WARNING, LOG_VPORT,
 					 "1801 Create vport work array FAILED: "
 					 "cannot do scsi_host_get\n");
 			continue;

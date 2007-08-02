@@ -83,10 +83,17 @@ lpfc_terminate_rport_io(struct fc_rport *rport)
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	if (ndlp->nlp_sid != NLP_NO_SID) {
-		lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
-			ndlp->nlp_sid, 0, 0, LPFC_CTX_TGT);
+		lpfc_sli_abort_iocb(ndlp->vport,
+			&phba->sli.ring[phba->sli.fcp_ring],
+			ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
 
+	/*
+	 * A device is normally blocked for rediscovery and unblocked when
+	 * devloss timeout happens.  In case a vport is removed or driver
+	 * unloaded before devloss timeout happens, we need to unblock here.
+	 */
+	scsi_target_unblock(&rport->dev);
 	return;
 }
 
@@ -194,8 +201,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_sid != NLP_NO_SID) {
 		warn_on = 1;
 		/* flush the target */
-		lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
-				    ndlp->nlp_sid, 0, 0, LPFC_CTX_TGT);
+		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
+				    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
 	if (vport->load_flag & FC_UNLOADING)
 		warn_on = 0;
@@ -348,6 +355,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 	struct lpfc_sli_ring *pring;
 	uint32_t ha_copy, status, control, work_port_events;
 	struct lpfc_vport **vports;
+	struct lpfc_vport *vport;
 	int i;
 
 	spin_lock_irq(&phba->hbalock);
@@ -365,12 +373,22 @@ lpfc_work_done(struct lpfc_hba *phba)
 		lpfc_handle_latt(phba);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
-			work_port_events = vports[i]->work_port_events;
+		for(i = 0; i < LPFC_MAX_VPORTS; i++) {
+			/*
+			 * We could have no vports in array if unloading, so if
+			 * this happens then just use the pport
+			 */
+			if (vports[i] == NULL && i == 0)
+				vport = phba->pport;
+			else
+				vport = vports[i];
+			if (vport == NULL)
+				break;
+			work_port_events = vport->work_port_events;
 			if (work_port_events & WORKER_DISC_TMO)
-				lpfc_disc_timeout_handler(vports[i]);
+				lpfc_disc_timeout_handler(vport);
 			if (work_port_events & WORKER_ELS_TMO)
-				lpfc_els_timeout_handler(vports[i]);
+				lpfc_els_timeout_handler(vport);
 			if (work_port_events & WORKER_HB_TMO)
 				lpfc_hb_timeout_handler(phba);
 			if (work_port_events & WORKER_MBOX_TMO)
@@ -378,14 +396,14 @@ lpfc_work_done(struct lpfc_hba *phba)
 			if (work_port_events & WORKER_FABRIC_BLOCK_TMO)
 				lpfc_unblock_fabric_iocbs(phba);
 			if (work_port_events & WORKER_FDMI_TMO)
-				lpfc_fdmi_timeout_handler(vports[i]);
+				lpfc_fdmi_timeout_handler(vport);
 			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_RAMP_UP_QUEUE)
 				lpfc_ramp_up_queue_handler(phba);
-			spin_lock_irq(&vports[i]->work_port_lock);
-			vports[i]->work_port_events &= ~work_port_events;
-			spin_unlock_irq(&vports[i]->work_port_lock);
+			spin_lock_irq(&vport->work_port_lock);
+			vport->work_port_events &= ~work_port_events;
+			spin_unlock_irq(&vport->work_port_lock);
 		}
 	lpfc_destroy_vport_work_array(vports);
 
@@ -1638,16 +1656,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 void
 lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-
-	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)
-		lpfc_cancel_retry_delay_tmo(vport, ndlp);
-	if (ndlp->nlp_state && !list_empty(&ndlp->nlp_listp))
-		lpfc_nlp_counters(vport, ndlp->nlp_state, -1);
-	spin_lock_irq(shost->host_lock);
-	list_del_init(&ndlp->nlp_listp);
-	ndlp->nlp_flag &= ~NLP_TARGET_REMOVE;
-	spin_unlock_irq(shost->host_lock);
+	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 	lpfc_nlp_put(ndlp);
 }
 

@@ -1027,8 +1027,8 @@ static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
 static ssize_t
 lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
 			(unsigned long long)phba->cfg_soft_wwnn);
 }
@@ -1037,8 +1037,8 @@ lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
 static ssize_t
 lpfc_soft_wwnn_store(struct class_device *cdev, const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	unsigned int i, j, cnt=count;
 	u8 wwnn[8];
 
@@ -1153,24 +1153,15 @@ lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 static void
 lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
-	struct lpfc_vport **vports;
 	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
-	int i;
 
-	vports = lpfc_create_vport_work_array(vport->phba);
-	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
-			shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
-			list_for_each_entry(ndlp, &vports[i]->fc_nodes,
-					    nlp_listp)
-			if (ndlp->rport)
-				ndlp->rport->dev_loss_tmo =
-						vport->cfg_devloss_tmo;
-			spin_unlock_irq(shost->host_lock);
-		}
-	lpfc_destroy_vport_work_array(vports);
+	shost = lpfc_shost_from_vport(vport);
+	spin_lock_irq(shost->host_lock);
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+		if (ndlp->rport)
+			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
+	spin_unlock_irq(shost->host_lock);
 }
 
 static int
