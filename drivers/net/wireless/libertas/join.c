@@ -821,7 +821,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 
 	if (command == cmd_ret_802_11_ad_hoc_start) {
 		/* Update the created network descriptor with the new BSSID */
-		memcpy(bss->bssid, padhocresult->BSSID, ETH_ALEN);
+		memcpy(bss->bssid, padhocresult->bssid, ETH_ALEN);
 	}
 
 	/* Set the BSSID from the joined/started descriptor */

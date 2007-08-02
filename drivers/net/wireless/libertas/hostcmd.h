@@ -237,8 +237,8 @@ struct cmd_ds_802_11_associate_rsp {
 };
 
 struct cmd_ds_802_11_ad_hoc_result {
-	u8 PAD[3];
-	u8 BSSID[ETH_ALEN];
+	u8 pad[3];
+	u8 bssid[ETH_ALEN];
 };
 
 struct cmd_ds_802_11_set_wep {
