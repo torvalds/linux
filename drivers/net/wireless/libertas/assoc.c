@@ -556,7 +556,8 @@ void libertas_association_worker(struct work_struct *work)
 	if (test_bit(ASSOC_FLAG_MODE, &assoc_req->flags)) {
 		ret = assoc_helper_mode(priv, assoc_req);
 		if (ret) {
-lbs_deb_assoc("ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
+			lbs_deb_assoc("ASSOC(:%d) mode: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
@@ -574,7 +575,8 @@ lbs_deb_assoc("ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
 	    || test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
 		ret = assoc_helper_wep_keys(priv, assoc_req);
 		if (ret) {
-lbs_deb_assoc("ASSOC(:%d) wep_keys: ret = %d\n", __LINE__, ret);
+			lbs_deb_assoc("ASSOC(:%d) wep_keys: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
@@ -582,7 +584,8 @@ lbs_deb_assoc("ASSOC(:%d) wep_keys: ret = %d\n", __LINE__, ret);
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		ret = assoc_helper_secinfo(priv, assoc_req);
 		if (ret) {
-lbs_deb_assoc("ASSOC(:%d) secinfo: ret = %d\n", __LINE__, ret);
+			lbs_deb_assoc("ASSOC(:%d) secinfo: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
@@ -590,7 +593,8 @@ lbs_deb_assoc("ASSOC(:%d) secinfo: ret = %d\n", __LINE__, ret);
 	if (test_bit(ASSOC_FLAG_WPA_IE, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_ie(priv, assoc_req);
 		if (ret) {
-lbs_deb_assoc("ASSOC(:%d) wpa_ie: ret = %d\n", __LINE__, ret);
+			lbs_deb_assoc("ASSOC(:%d) wpa_ie: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
@@ -599,7 +603,8 @@ lbs_deb_assoc("ASSOC(:%d) wpa_ie: ret = %d\n", __LINE__, ret);
 	    || test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_keys(priv, assoc_req);
 		if (ret) {
-lbs_deb_assoc("ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
+			lbs_deb_assoc("ASSOC(:%d) wpa_keys: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
