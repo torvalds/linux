@@ -157,7 +157,6 @@ struct bss_descriptor {
 	/* zero-terminated array of supported data rates */
 	u8 rates[MAX_RATES + 1];
 
-	__le64 timestamp;	//!< TSF value included in the beacon/probe response
 	unsigned long last_scanned;
 
 	union ieeetypes_phyparamset phyparamset;

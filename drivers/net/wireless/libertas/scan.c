@@ -903,7 +903,6 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	pos++;
 
 	/* time stamp is 8 bytes long */
-	bss->timestamp = le64_to_cpup((void *) pos);
 	pos += 8;
 
 	/* beacon interval is 2 bytes long */
