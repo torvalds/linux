@@ -271,15 +271,20 @@ static ssize_t libertas_autostart_enabled_set(struct device * dev,
 {
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
+	wlan_private * priv = (to_net_dev(dev))->priv;
+	int ret;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	sscanf(buf, "%d", &datum);
 	mesh_access.data[0] = cpu_to_le32(datum);
 
-	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
+	ret = libertas_prepare_and_send_command(priv,
 			CMD_MESH_ACCESS,
 			CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
 			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+	if (ret == 0)
+		priv->mesh_autostart_enabled = datum ? 1 : 0;
+
 	return strlen(buf);
 }
 
@@ -853,6 +858,7 @@ static int wlan_setup_station_hw(wlan_private * priv)
 {
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
+	struct cmd_ds_mesh_access mesh_access;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
@@ -887,6 +893,21 @@ static int wlan_setup_station_hw(wlan_private * priv)
 	if (ret) {
 		ret = -1;
 		goto done;
+	}
+
+	/* Disable mesh autostart */
+	if (priv->mesh_dev) {
+		memset(&mesh_access, 0, sizeof(mesh_access));
+		mesh_access.data[0] = cpu_to_le32(0);
+		ret = libertas_prepare_and_send_command(priv,
+				CMD_MESH_ACCESS,
+				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
+				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+		if (ret) {
+			ret = -1;
+			goto done;
+		}
+		priv->mesh_autostart_enabled = 0;
 	}
 
 	ret = 0;

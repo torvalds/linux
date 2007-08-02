@@ -103,6 +103,7 @@ struct _wlan_private {
 	int open;
 	int mesh_open;
 	int infra_open;
+	int mesh_autostart_enabled;
 
 	char name[DEV_NAME_LEN];
 
