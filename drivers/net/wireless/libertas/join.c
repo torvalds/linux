@@ -369,7 +369,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	pos += sizeof(passo->peerstaaddr);
 
 	/* set the listen interval */
-	passo->listeninterval = cpu_to_le16(adapter->listeninterval);
+	passo->listeninterval = cpu_to_le16(MRVDRV_DEFAULT_LISTEN_INTERVAL);
 
 	pos += sizeof(passo->capability);
 	pos += sizeof(passo->listeninterval);

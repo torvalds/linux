@@ -1051,8 +1051,6 @@ static void wlan_init_adapter(wlan_private * priv)
 
 	adapter->psmode = WLAN802_11POWERMODECAM;
 
-	adapter->listeninterval = MRVDRV_DEFAULT_LISTEN_INTERVAL;
-
 	adapter->psstate = PS_STATE_FULL_POWER;
 	adapter->needtowakeup = 0;
 
