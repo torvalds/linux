@@ -356,9 +356,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	const u8	*bufp = tbuf;
 	int		len = 0;
 	int		patch_wakeup = 0;
-	unsigned long	flags;
 	int		status = 0;
 	int		n;
+
+	might_sleep();
 
 	cmd = (struct usb_ctrlrequest *) urb->setup_packet;
 	typeReq  = (cmd->bRequestType << 8) | cmd->bRequest;
@@ -523,13 +524,21 @@ error:
 	}
 
 	/* any errors get returned through the urb completion */
-	local_irq_save (flags);
-	spin_lock (&urb->lock);
+	spin_lock_irq(&hcd_root_hub_lock);
+	spin_lock(&urb->lock);
 	if (urb->status == -EINPROGRESS)
 		urb->status = status;
-	spin_unlock (&urb->lock);
-	usb_hcd_giveback_urb (hcd, urb);
-	local_irq_restore (flags);
+	spin_unlock(&urb->lock);
+
+	/* This peculiar use of spinlocks echoes what real HC drivers do.
+	 * Avoiding calls to local_irq_disable/enable makes the code
+	 * RT-friendly.
+	 */
+	spin_unlock(&hcd_root_hub_lock);
+	usb_hcd_giveback_urb(hcd, urb);
+	spin_lock(&hcd_root_hub_lock);
+
+	spin_unlock_irq(&hcd_root_hub_lock);
 	return 0;
 }
 
@@ -559,8 +568,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	if (length > 0) {
 
 		/* try to complete the status urb */
-		local_irq_save (flags);
-		spin_lock(&hcd_root_hub_lock);
+		spin_lock_irqsave(&hcd_root_hub_lock, flags);
 		urb = hcd->status_urb;
 		if (urb) {
 			spin_lock(&urb->lock);
@@ -574,16 +582,16 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			} else		/* urb has been unlinked */
 				length = 0;
 			spin_unlock(&urb->lock);
+
+			spin_unlock(&hcd_root_hub_lock);
+			usb_hcd_giveback_urb(hcd, urb);
+			spin_lock(&hcd_root_hub_lock);
 		} else
 			length = 0;
-		spin_unlock(&hcd_root_hub_lock);
 
-		/* local irqs are always blocked in completions */
-		if (length > 0)
-			usb_hcd_giveback_urb (hcd, urb);
-		else
+		if (length <= 0)
 			hcd->poll_pending = 1;
-		local_irq_restore (flags);
+		spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	}
 
 	/* The USB 2.0 spec says 256 ms.  This is close enough and won't
@@ -651,25 +659,23 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 {
 	unsigned long	flags;
 
+	spin_lock_irqsave(&hcd_root_hub_lock, flags);
 	if (usb_endpoint_num(&urb->ep->desc) == 0) {	/* Control URB */
 		;	/* Do nothing */
 
 	} else {				/* Status URB */
 		if (!hcd->uses_new_polling)
 			del_timer (&hcd->rh_timer);
-		local_irq_save (flags);
-		spin_lock (&hcd_root_hub_lock);
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
 			urb->hcpriv = NULL;
-		} else
-			urb = NULL;		/* wasn't fully queued */
-		spin_unlock (&hcd_root_hub_lock);
-		if (urb)
-			usb_hcd_giveback_urb (hcd, urb);
-		local_irq_restore (flags);
-	}
 
+			spin_unlock(&hcd_root_hub_lock);
+			usb_hcd_giveback_urb(hcd, urb);
+			spin_lock(&hcd_root_hub_lock);
+		}
+	}
+	spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	return 0;
 }
 
