@@ -767,6 +767,9 @@ config IRQ_MSP_SLP
 config IRQ_MSP_CIC
 	bool
 
+config IRQ_TXX9
+	bool
+
 config MIPS_BOARDS_GEN
 	bool
 
