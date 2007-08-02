@@ -343,7 +343,6 @@ struct _wlan_adapter {
 	u8 rawNF[DEFAULT_DATA_AVG_FACTOR];
 	u16 nextSNRNF;
 	u16 numSNRNF;
-	u16 rxpd_rate;
 
 	u8 radioon;
 	u32 preamble;

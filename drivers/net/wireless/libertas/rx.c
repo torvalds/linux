@@ -117,8 +117,6 @@ static void wlan_compute_rssi(wlan_private * priv, struct rxpd *p_rx_pd)
 	adapter->NF[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->nf;
 	wlan_save_rawSNRNF(priv, p_rx_pd);
 
-	adapter->rxpd_rate = p_rx_pd->rx_rate;
-
 	adapter->SNR[TYPE_RXPD][TYPE_AVG] = wlan_getavgsnr(priv) * AVG_SCALE;
 	adapter->NF[TYPE_RXPD][TYPE_AVG] = wlan_getavgnf(priv) * AVG_SCALE;
 	lbs_deb_rx("after computing SNR: SNR-avg = %d, NF-avg = %d\n",

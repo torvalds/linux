@@ -60,7 +60,6 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	memset(adapter->rawNF, 0x00, sizeof(adapter->rawNF));
 	adapter->nextSNRNF = 0;
 	adapter->numSNRNF = 0;
-	adapter->rxpd_rate = 0;
 	lbs_deb_cmd("current SSID '%s', length %u\n",
 	            escape_essid(adapter->curbssparams.ssid,
 	                         adapter->curbssparams.ssid_len),
