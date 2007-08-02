@@ -216,7 +216,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_get_int_status = if_usb_get_int_status;
 	priv->hw_read_event_cause = if_usb_read_event_cause;
 
-	if (libertas_activate_card(priv, libertas_fw_name))
+	if (libertas_activate_card(priv))
 		goto err_activate_card;
 
 	list_add_tail(&cardp->list, &usb_devices);
@@ -819,7 +819,7 @@ static int if_usb_issue_boot_command(wlan_private *priv, int ivalue)
 }
 
 
-static int if_usb_prog_firmware(wlan_private * priv)
+static int if_usb_do_prog_firmware(wlan_private * priv)
 {
 	struct usb_card_rec *cardp = priv->card;
 	int i = 0;
@@ -902,6 +902,80 @@ done:
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 	return ret;
 }
+
+/**
+ *  @brief This function checks the validity of Boot2/FW image.
+ *
+ *  @param data              pointer to image
+ *         len               image length
+ *  @return     0 or -1
+ */
+static int check_fwfile_format(u8 *data, u32 totlen)
+{
+	u32 bincmd, exit;
+	u32 blksize, offset, len;
+	int ret;
+
+	ret = 1;
+	exit = len = 0;
+
+	do {
+		struct fwheader *fwh = (void *)data;
+
+		bincmd = le32_to_cpu(fwh->dnldcmd);
+		blksize = le32_to_cpu(fwh->datalength);
+		switch (bincmd) {
+		case FW_HAS_DATA_TO_RECV:
+			offset = sizeof(struct fwheader) + blksize;
+			data += offset;
+			len += offset;
+			if (len >= totlen)
+				exit = 1;
+			break;
+		case FW_HAS_LAST_BLOCK:
+			exit = 1;
+			ret = 0;
+			break;
+		default:
+			exit = 1;
+			break;
+		}
+	} while (!exit);
+
+	if (ret)
+		lbs_pr_err("firmware file format check FAIL\n");
+	else
+		lbs_deb_fw("firmware file format check PASS\n");
+
+	return ret;
+}
+
+
+static int if_usb_prog_firmware(wlan_private *priv)
+{
+	int ret = -1;
+
+	lbs_deb_enter(LBS_DEB_FW);
+
+	if ((ret = request_firmware(&priv->firmware, libertas_fw_name,
+				    priv->hotplug_device)) < 0) {
+		lbs_pr_err("request_firmware() failed with %#x\n", ret);
+		lbs_pr_err("firmware %s not found\n", libertas_fw_name);
+		goto done;
+	}
+
+	if (check_fwfile_format(priv->firmware->data, priv->firmware->size)) {
+		release_firmware(priv->firmware);
+		goto done;
+	}
+
+	ret = if_usb_do_prog_firmware(priv);
+
+	release_firmware(priv->firmware);
+done:
+	return ret;
+}
+
 
 #ifdef CONFIG_PM
 static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
