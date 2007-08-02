@@ -131,12 +131,12 @@ int au1xxx_gpio_direction_input(unsigned gpio)
 {
 	if (gpio >= AU1XXX_GPIO_BASE)
 #if defined(CONFIG_SOC_AU1000)
-		;
+		return -ENODEV;
 #else
 		return au1xxx_gpio2_direction_input(gpio);
 #endif
-	else
-		return au1xxx_gpio1_direction_input(gpio);
+
+	return au1xxx_gpio1_direction_input(gpio);
 }
 
 EXPORT_SYMBOL(au1xxx_gpio_direction_input);
@@ -145,12 +145,12 @@ int au1xxx_gpio_direction_output(unsigned gpio, int value)
 {
 	if (gpio >= AU1XXX_GPIO_BASE)
 #if defined(CONFIG_SOC_AU1000)
-		;
+		return -ENODEV;
 #else
 		return au1xxx_gpio2_direction_output(gpio, value);
 #endif
-	else
-		return au1xxx_gpio1_direction_output(gpio, value);
+
+	return au1xxx_gpio1_direction_output(gpio, value);
 }
 
 EXPORT_SYMBOL(au1xxx_gpio_direction_output);
