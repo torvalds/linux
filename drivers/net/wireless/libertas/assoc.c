@@ -622,7 +622,7 @@ void libertas_association_worker(struct work_struct *work)
 		}
 
 		if (adapter->connect_status != LIBERTAS_CONNECTED) {
-			lbs_deb_assoc("ASSOC: assoication attempt unsuccessful, "
+			lbs_deb_assoc("ASSOC: association attempt unsuccessful, "
 				"not connected.\n");
 			success = 0;
 		}
