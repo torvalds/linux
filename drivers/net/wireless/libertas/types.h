@@ -7,8 +7,6 @@
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
 
-#define CAPINFO_MASK	(~(0x00da))
-
 struct ieeetypes_cfparamset {
 	u8 elementid;
 	u8 len;
