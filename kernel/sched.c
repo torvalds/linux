@@ -657,7 +657,7 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 		tmp = (tmp * lw->inv_weight) >> WMULT_SHIFT;
 	}
 
-	return (unsigned long)min(tmp, (u64)sysctl_sched_runtime_limit);
+	return (unsigned long)min(tmp, (u64)(unsigned long)LONG_MAX);
 }
 
 static inline unsigned long
