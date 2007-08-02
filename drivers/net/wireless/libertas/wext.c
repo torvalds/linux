@@ -1128,7 +1128,7 @@ static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_wext("vwrq->value %d\n", vwrq->value);
 
 	if (vwrq->value == -1) {
-		action = CMD_ACT_SET_tx_auto;	// Auto
+		action = CMD_ACT_SET_TX_AUTO;	// Auto
 		adapter->is_datarate_auto = 1;
 		adapter->datarate = 0;
 	} else {
@@ -1155,7 +1155,7 @@ static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 		}
 
 		adapter->datarate = data_rate;
-		action = CMD_ACT_SET_tx_fix_rate;
+		action = CMD_ACT_SET_TX_FIX_RATE;
 		adapter->is_datarate_auto = 0;
 	}
 

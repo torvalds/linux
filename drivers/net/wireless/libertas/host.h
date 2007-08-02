@@ -262,16 +262,16 @@
 #define CMD_ACT_TX_POWER_INDEX_LOW          0x0000
 
 /* Define action or option for CMD_802_11_DATA_RATE */
-#define CMD_ACT_SET_tx_auto                 0x0000
-#define CMD_ACT_SET_tx_fix_rate             0x0001
-#define CMD_ACT_GET_tx_rate                 0x0002
+#define CMD_ACT_SET_TX_AUTO                 0x0000
+#define CMD_ACT_SET_TX_FIX_RATE             0x0001
+#define CMD_ACT_GET_TX_RATE                 0x0002
 
-#define CMD_ACT_SET_rx                      0x0001
-#define CMD_ACT_SET_tx                      0x0002
-#define CMD_ACT_SET_both                    0x0003
-#define CMD_ACT_GET_rx                      0x0004
-#define CMD_ACT_GET_tx                      0x0008
-#define CMD_ACT_GET_both                    0x000c
+#define CMD_ACT_SET_RX                      0x0001
+#define CMD_ACT_SET_TX                      0x0002
+#define CMD_ACT_SET_BOTH                    0x0003
+#define CMD_ACT_GET_RX                      0x0004
+#define CMD_ACT_GET_TX                      0x0008
+#define CMD_ACT_GET_BOTH                    0x000c
 
 /* Define action or option for CMD_802_11_PS_MODE */
 #define CMD_TYPE_CAM                        0x0000
@@ -279,7 +279,7 @@
 #define CMD_TYPE_FAST_PSP                   0x0002
 
 /* Define action or option for CMD_BT_ACCESS */
-enum CMD_BT_ACCESS_opts {
+enum cmd_bt_access_opts {
 	/* The bt commands start at 5 instead of 1 because the old dft commands
 	 * are mapped to 1-4.  These old commands are no longer maintained and
 	 * should not be called.
@@ -293,7 +293,7 @@ enum CMD_BT_ACCESS_opts {
 };
 
 /* Define action or option for CMD_FWT_ACCESS */
-enum CMD_FWT_ACCESS_opts {
+enum cmd_fwt_access_opts {
 	CMD_ACT_FWT_ACCESS_ADD = 1,
 	CMD_ACT_FWT_ACCESS_DEL,
 	CMD_ACT_FWT_ACCESS_LOOKUP,
@@ -306,7 +306,7 @@ enum CMD_FWT_ACCESS_opts {
 };
 
 /* Define action or option for CMD_MESH_ACCESS */
-enum CMD_MESH_ACCESS_opts {
+enum cmd_mesh_access_opts {
 	CMD_ACT_MESH_GET_TTL = 1,
 	CMD_ACT_MESH_SET_TTL,
 	CMD_ACT_MESH_GET_STATS,

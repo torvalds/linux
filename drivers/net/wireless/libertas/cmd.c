@@ -566,7 +566,7 @@ static int wlan_cmd_802_11_rf_antenna(wlan_private * priv,
 				S_DS_GEN);
 
 	rant->action = cpu_to_le16(cmd_action);
-	if ((cmd_action == CMD_ACT_SET_rx) || (cmd_action == CMD_ACT_SET_tx)) {
+	if ((cmd_action == CMD_ACT_SET_RX) || (cmd_action == CMD_ACT_SET_TX)) {
 		rant->antennamode = cpu_to_le16((u16) (*(u32 *) pdata_buf));
 	}
 
@@ -614,11 +614,11 @@ static int wlan_cmd_802_11_data_rate(wlan_private * priv,
 
 	pdatarate->action = cpu_to_le16(cmd_action);
 
-	if (cmd_action == CMD_ACT_SET_tx_fix_rate) {
+	if (cmd_action == CMD_ACT_SET_TX_FIX_RATE) {
 		pdatarate->datarate[0] = libertas_data_rate_to_index(adapter->datarate);
 		lbs_deb_cmd("Setting FW for fixed rate 0x%02X\n",
 		       adapter->datarate);
-	} else if (cmd_action == CMD_ACT_SET_tx_auto) {
+	} else if (cmd_action == CMD_ACT_SET_TX_AUTO) {
 		lbs_deb_cmd("Setting FW for AUTO rate\n");
 	}
 

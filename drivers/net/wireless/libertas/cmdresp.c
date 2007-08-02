@@ -396,10 +396,10 @@ static int wlan_ret_802_11_rf_antenna(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(pAntenna->action);
 
-	if (action == CMD_ACT_GET_rx)
+	if (action == CMD_ACT_GET_RX)
 		adapter->rxantennamode = le16_to_cpu(pAntenna->antennamode);
 
-	if (action == CMD_ACT_GET_tx)
+	if (action == CMD_ACT_GET_TX)
 		adapter->txantennamode = le16_to_cpu(pAntenna->antennamode);
 
 	lbs_deb_cmd("RF_ANT_RESP: action = 0x%x, mode = 0x%04x\n",
@@ -438,7 +438,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 		(u8 *) pdatarate, sizeof(struct cmd_ds_802_11_data_rate));
 
 	dot11datarate = pdatarate->datarate[0];
-	if (pdatarate->action == cpu_to_le16(CMD_ACT_GET_tx_rate)) {
+	if (pdatarate->action == cpu_to_le16(CMD_ACT_GET_TX_RATE)) {
 		memcpy(adapter->libertas_supported_rates, pdatarate->datarate,
 		       sizeof(adapter->libertas_supported_rates));
 	}

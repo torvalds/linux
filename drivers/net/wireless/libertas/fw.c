@@ -111,7 +111,7 @@ static int wlan_setup_station_hw(wlan_private * priv, char *fw_name)
 
 	/* Get the supported Data rates */
 	ret = libertas_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
-				    CMD_ACT_GET_tx_rate,
+				    CMD_ACT_GET_TX_RATE,
 				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret) {
