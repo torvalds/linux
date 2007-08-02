@@ -132,6 +132,8 @@ struct netlbl_lsm_secattr_catmap {
 #define NETLBL_SECATTR_CACHE            0x00000002
 #define NETLBL_SECATTR_MLS_LVL          0x00000004
 #define NETLBL_SECATTR_MLS_CAT          0x00000008
+#define NETLBL_SECATTR_CACHEABLE        (NETLBL_SECATTR_MLS_LVL | \
+					 NETLBL_SECATTR_MLS_CAT)
 struct netlbl_lsm_secattr {
 	u32 flags;
 
