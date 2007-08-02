@@ -127,7 +127,7 @@ static int get_edd_info(u8 devno, struct edd_info *ei)
 	ax = 0x4800;
 	dx = devno;
 	asm("pushfl; int $0x13; popfl"
-	    : "+a" (ax), "+d" (dx)
+	    : "+a" (ax), "+d" (dx), "=m" (ei->params)
 	    : "S" (&ei->params)
 	    : "ebx", "ecx", "edi");
 
