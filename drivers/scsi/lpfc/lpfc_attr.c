@@ -1060,19 +1060,24 @@ lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
 static void
 lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
 {
-	struct lpfc_vport *vport;
+	struct lpfc_vport **vports;
 	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
+	int i;
 
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		shost = lpfc_shost_from_vport(vport);
-		spin_lock_irq(shost->host_lock);
-		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			spin_lock_irq(shost->host_lock);
+			list_for_each_entry(ndlp, &vports[i]->fc_nodes,
+					    nlp_listp)
 			if (ndlp->rport)
 				ndlp->rport->dev_loss_tmo =
-					phba->cfg_devloss_tmo;
-		spin_unlock_irq(shost->host_lock);
-	}
+						phba->cfg_devloss_tmo;
+			spin_unlock_irq(shost->host_lock);
+		}
+	lpfc_destroy_vport_work_array(vports);
 }
 
 static int

@@ -119,42 +119,40 @@ lpfc_rampup_queue_depth(struct lpfc_hba *phba,
 void
 lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 {
-	struct lpfc_vport *vport;
-	struct Scsi_Host  *host;
+	struct lpfc_vport **vports;
+	struct Scsi_Host  *shost;
 	struct scsi_device *sdev;
 	unsigned long new_queue_depth;
 	unsigned long num_rsrc_err, num_cmd_success;
+	int i;
 
 	num_rsrc_err = atomic_read(&phba->num_rsrc_err);
 	num_cmd_success = atomic_read(&phba->num_cmd_success);
 
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		host = lpfc_shost_from_vport(vport);
-		if (!scsi_host_get(host))
-			continue;
-
-		spin_unlock_irq(&phba->hbalock);
-
-		shost_for_each_device(sdev, host) {
-			new_queue_depth = sdev->queue_depth * num_rsrc_err /
-			(num_rsrc_err + num_cmd_success);
-			if (!new_queue_depth)
-				new_queue_depth = sdev->queue_depth - 1;
-			else
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			shost_for_each_device(sdev, shost) {
 				new_queue_depth =
-					sdev->queue_depth - new_queue_depth;
-
-			if (sdev->ordered_tags)
-				scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
-					new_queue_depth);
-			else
-				scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
-					new_queue_depth);
+					sdev->queue_depth * num_rsrc_err /
+					(num_rsrc_err + num_cmd_success);
+				if (!new_queue_depth)
+					new_queue_depth = sdev->queue_depth - 1;
+				else
+					new_queue_depth = sdev->queue_depth -
+								new_queue_depth;
+				if (sdev->ordered_tags)
+					scsi_adjust_queue_depth(sdev,
+							MSG_ORDERED_TAG,
+							new_queue_depth);
+				else
+					scsi_adjust_queue_depth(sdev,
+							MSG_SIMPLE_TAG,
+							new_queue_depth);
+			}
 		}
-		spin_lock_irq(&phba->hbalock);
-		scsi_host_put(host);
-	}
+	lpfc_destroy_vport_work_array(vports);
 	spin_unlock_irq(&phba->hbalock);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
@@ -163,29 +161,27 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 void
 lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 {
-	struct lpfc_vport *vport;
-	struct Scsi_Host  *host;
+	struct lpfc_vport **vports;
+	struct Scsi_Host  *shost;
 	struct scsi_device *sdev;
+	int i;
 
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		host = lpfc_shost_from_vport(vport);
-		if (!scsi_host_get(host))
-			continue;
-
-		spin_unlock_irq(&phba->hbalock);
-		shost_for_each_device(sdev, host) {
-			if (sdev->ordered_tags)
-				scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
-					sdev->queue_depth+1);
-			else
-				scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
-					sdev->queue_depth+1);
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			shost_for_each_device(sdev, shost) {
+				if (sdev->ordered_tags)
+					scsi_adjust_queue_depth(sdev,
+							MSG_ORDERED_TAG,
+							sdev->queue_depth+1);
+				else
+					scsi_adjust_queue_depth(sdev,
+							MSG_SIMPLE_TAG,
+							sdev->queue_depth+1);
+			}
 		}
-		spin_lock_irq(&phba->hbalock);
-		scsi_host_put(host);
-	}
-	spin_unlock_irq(&phba->hbalock);
+	lpfc_destroy_vport_work_array(vports);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }

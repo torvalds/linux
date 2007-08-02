@@ -390,17 +390,19 @@ lpfc_ct_cmd(struct lpfc_vport *vport, struct lpfc_dmabuf *inmp,
 	return 0;
 }
 
-static struct lpfc_vport *
+struct lpfc_vport *
 lpfc_find_vport_by_did(struct lpfc_hba *phba, uint32_t did) {
-
 	struct lpfc_vport *vport_curr;
+	unsigned long flags;
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport_curr, &phba->port_list, listentry) {
-		if ((vport_curr->fc_myDID) &&
-			(vport_curr->fc_myDID == did))
+		if ((vport_curr->fc_myDID) && (vport_curr->fc_myDID == did)) {
+			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return vport_curr;
+		}
 	}
-
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return NULL;
 }
 

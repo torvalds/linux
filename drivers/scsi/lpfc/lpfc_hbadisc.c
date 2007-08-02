@@ -349,7 +349,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 {
 	struct lpfc_sli_ring *pring;
 	uint32_t ha_copy, status, control, work_port_events;
-	struct lpfc_vport *vport;
+	struct lpfc_vport **vports;
+	int i;
 
 	spin_lock_irq(&phba->hbalock);
 	ha_copy = phba->work_ha;
@@ -364,48 +365,31 @@ lpfc_work_done(struct lpfc_hba *phba)
 
 	if (ha_copy & HA_LATT)
 		lpfc_handle_latt(phba);
-
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-
-		if (!scsi_host_get(shost)) {
-			continue;
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			work_port_events = vports[i]->work_port_events;
+			if (work_port_events & WORKER_DISC_TMO)
+				lpfc_disc_timeout_handler(vports[i]);
+			if (work_port_events & WORKER_ELS_TMO)
+				lpfc_els_timeout_handler(vports[i]);
+			if (work_port_events & WORKER_HB_TMO)
+				lpfc_hb_timeout_handler(phba);
+			if (work_port_events & WORKER_MBOX_TMO)
+				lpfc_mbox_timeout_handler(phba);
+			if (work_port_events & WORKER_FABRIC_BLOCK_TMO)
+				lpfc_unblock_fabric_iocbs(phba);
+			if (work_port_events & WORKER_FDMI_TMO)
+				lpfc_fdmi_timeout_handler(vports[i]);
+			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
+				lpfc_ramp_down_queue_handler(phba);
+			if (work_port_events & WORKER_RAMP_UP_QUEUE)
+				lpfc_ramp_up_queue_handler(phba);
+			spin_lock_irq(&vports[i]->work_port_lock);
+			vports[i]->work_port_events &= ~work_port_events;
+			spin_unlock_irq(&vports[i]->work_port_lock);
 		}
-		spin_unlock_irq(&phba->hbalock);
-		work_port_events = vport->work_port_events;
-
-		if (work_port_events & WORKER_DISC_TMO)
-			lpfc_disc_timeout_handler(vport);
-
-		if (work_port_events & WORKER_ELS_TMO)
-			lpfc_els_timeout_handler(vport);
-
-		if (work_port_events & WORKER_HB_TMO)
-			lpfc_hb_timeout_handler(phba);
-
-		if (work_port_events & WORKER_MBOX_TMO)
-			lpfc_mbox_timeout_handler(phba);
-
-		if (work_port_events & WORKER_FABRIC_BLOCK_TMO)
-			lpfc_unblock_fabric_iocbs(phba);
-
-		if (work_port_events & WORKER_FDMI_TMO)
-			lpfc_fdmi_timeout_handler(vport);
-
-		if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
-			lpfc_ramp_down_queue_handler(phba);
-
-		if (work_port_events & WORKER_RAMP_UP_QUEUE)
-			lpfc_ramp_up_queue_handler(phba);
-
-		spin_lock_irq(&vport->work_port_lock);
-		vport->work_port_events &= ~work_port_events;
-		spin_unlock_irq(&vport->work_port_lock);
-		scsi_host_put(shost);
-		spin_lock_irq(&phba->hbalock);
-	}
-	spin_unlock_irq(&phba->hbalock);
+	lpfc_destroy_vport_work_array(vports);
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
@@ -448,32 +432,22 @@ static int
 check_work_wait_done(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport;
-	struct lpfc_sli_ring *pring;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	int rc = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport->work_port_events) {
 			rc = 1;
-			goto exit;
+			break;
 		}
 	}
-
-	if (phba->work_ha || (!list_empty(&phba->work_list)) ||
-	    kthread_should_stop()) {
+	if (rc || phba->work_ha || (!list_empty(&phba->work_list)) ||
+	    kthread_should_stop() || pring->flag & LPFC_DEFERRED_RING_EVENT) {
 		rc = 1;
-		goto exit;
-	}
-
-	pring = &phba->sli.ring[LPFC_ELS_RING];
-	if (pring->flag & LPFC_DEFERRED_RING_EVENT)
-		rc = 1;
-exit:
-	if (rc)
 		phba->work_found++;
-	else
+	} else
 		phba->work_found = 0;
-
 	spin_unlock_irq(&phba->hbalock);
 	return rc;
 }
@@ -601,7 +575,6 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 
 	/* free any ndlp's on unused list */
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp)
-				/* free any ndlp's in unused state */
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			lpfc_drop_node(vport, ndlp);
 
@@ -614,8 +587,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport = phba->pport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_vport *port_iterator;
+	struct lpfc_vport **vports;
 	LPFC_MBOXQ_t          *mb;
+	int i;
 
 	if (phba->link_state == LPFC_LINK_DOWN) {
 		return 0;
@@ -626,13 +600,13 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		phba->pport->fc_flag &= ~FC_LBIT;
 	}
 	spin_unlock_irq(&phba->hbalock);
-
-	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
-
-				/* Issue a LINK DOWN event to all nodes */
-		lpfc_linkdown_port(port_iterator);
-	}
-
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			/* Issue a LINK DOWN event to all nodes */
+			lpfc_linkdown_port(vports[i]);
+		}
+	lpfc_destroy_vport_work_array(vports);
 	/* Clean up any firmware default rpi's */
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
@@ -733,7 +707,8 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 static int
 lpfc_linkup(struct lpfc_hba *phba)
 {
-	struct lpfc_vport *vport;
+	struct lpfc_vport **vports;
+	int i;
 
 	phba->link_state = LPFC_LINK_UP;
 
@@ -741,9 +716,11 @@ lpfc_linkup(struct lpfc_hba *phba)
 	clear_bit(FABRIC_COMANDS_BLOCKED, &phba->bit_flags);
 	del_timer_sync(&phba->fabric_block_timer);
 
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		lpfc_linkup_port(vport);
-	}
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++)
+			lpfc_linkup_port(vports[i]);
+	lpfc_destroy_vport_work_array(vports);
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 		lpfc_issue_clear_la(phba, phba->pport);
 
@@ -1298,15 +1275,15 @@ void
 lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
-	struct lpfc_vport *next_vport;
 	MAILBOX_t *mb = &pmb->mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp;
-	ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_vport **vports;
+	int i;
 
+	ndlp = (struct lpfc_nodelist *) pmb->context2;
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
-
 	if (mb->mbxStatus) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
@@ -1337,21 +1314,27 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_nlp_put(ndlp);	/* Drop the reference from the mbox */
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		list_for_each_entry(next_vport, &phba->port_list, listentry) {
-			if (next_vport->port_type == LPFC_PHYSICAL_PORT)
-				continue;
-
-			if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
-				lpfc_initial_fdisc(next_vport);
-			else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-				lpfc_vport_set_state(vport,
-						     FC_VPORT_NO_FABRIC_SUPP);
-				lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-						"%d (%d):0259 No NPIV Fabric "
-						"support\n",
-						phba->brd_no, vport->vpi);
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports != NULL)
+			for(i = 0;
+			    i < LPFC_MAX_VPORTS && vports[i] != NULL;
+			    i++) {
+				if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
+					continue;
+				if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
+					lpfc_initial_fdisc(vports[i]);
+				else if (phba->sli3_options &
+						LPFC_SLI3_NPIV_ENABLED) {
+					lpfc_vport_set_state(vports[i],
+						FC_VPORT_NO_FABRIC_SUPP);
+					lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+							"%d (%d):0259 No NPIV "
+							"Fabric support\n",
+							phba->brd_no,
+							vports[i]->vpi);
+				}
 			}
-		}
+		lpfc_destroy_vport_work_array(vports);
 		lpfc_do_scr_ns_plogi(phba, vport);
 	}
 

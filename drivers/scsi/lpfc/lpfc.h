@@ -528,10 +528,11 @@ struct lpfc_hba {
 	struct fc_host_statistics link_stats;
 
 	struct list_head port_list;
-	struct lpfc_vport *pport; /* physical lpfc_vport pointer */
-	uint16_t max_vpi;	/* Maximum virtual nports */
-#define LPFC_MAX_VPI 100  /* Max number of VPorts supported */
-	unsigned long *vpi_bmask; /* vpi allocation table */
+	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
+	uint16_t max_vpi;		/* Maximum virtual nports */
+#define LPFC_MAX_VPI 100		/* Max number of VPI supported */
+#define LPFC_MAX_VPORTS (LPFC_MAX_VPI+1)/* Max number of VPorts supported */
+	unsigned long *vpi_bmask;	/* vpi allocation table */
 
 	/* Data structure used by fabric iocb scheduler */
 	struct list_head fabric_iocb_list;

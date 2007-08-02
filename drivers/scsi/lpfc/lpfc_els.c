@@ -2800,7 +2800,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
-	struct lpfc_vport *next_vport;
 	uint32_t *lp, *datap;
 	IOCB_t *icmd;
 	uint32_t payload_len, length, nportid, *cmd;
@@ -2850,13 +2849,8 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			nportid = ((be32_to_cpu(nportid)) & Mask_DID);
 			i -= sizeof(uint32_t);
 			rscn_id++;
-			list_for_each_entry(next_vport, &phba->port_list,
-				listentry) {
-				if (nportid == next_vport->fc_myDID) {
-					hba_id++;
-					break;
-				}
-			}
+			if (lpfc_find_vport_by_did(phba, nportid))
+				hba_id++;
 		}
 		if (rscn_id == hba_id) {
 			/* ALL NPortIDs in RSCN are on HBA */
@@ -3740,6 +3734,50 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	return;
 }
 
+void
+lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
+{
+	LIST_HEAD(completions);
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
+	struct lpfc_iocbq *tmp_iocb, *piocb;
+	IOCB_t *cmd = NULL;
+
+	lpfc_fabric_abort_hba(phba);
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
+		cmd = &piocb->iocb;
+		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
+			continue;
+		/* Do not flush out the QUE_RING and ABORT/CLOSE iocbs */
+		if (cmd->ulpCommand == CMD_QUE_RING_BUF_CN ||
+		    cmd->ulpCommand == CMD_QUE_RING_BUF64_CN ||
+		    cmd->ulpCommand == CMD_CLOSE_XRI_CN ||
+		    cmd->ulpCommand == CMD_ABORT_XRI_CN)
+			continue;
+		list_move_tail(&piocb->list, &completions);
+		pring->txq_cnt--;
+	}
+	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
+		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
+			continue;
+		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
+	}
+	spin_unlock_irq(&phba->hbalock);
+	while (!list_empty(&completions)) {
+		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		cmd = &piocb->iocb;
+		list_del_init(&piocb->list);
+		if (!piocb->iocb_cmpl)
+			lpfc_sli_release_iocbq(phba, piocb);
+		else {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			(piocb->iocb_cmpl) (phba, piocb, piocb);
+		}
+	}
+	return;
+}
+
 static void
 lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		      struct lpfc_vport *vport, struct lpfc_iocbq *elsiocb)
@@ -4009,11 +4047,16 @@ static struct lpfc_vport *
 lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;
+	unsigned long flags;
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->vpi == vpi)
+		if (vport->vpi == vpi) {
+			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return vport;
+		}
 	}
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return NULL;
 }
 

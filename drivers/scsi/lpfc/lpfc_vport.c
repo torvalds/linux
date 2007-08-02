@@ -176,16 +176,21 @@ static int
 lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 {
 	struct lpfc_vport *vport;
+	unsigned long flags;
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport == new_vport)
 			continue;
 		/* If they match, return not unique */
 		if (memcmp(&vport->fc_sparam.portName,
-			&new_vport->fc_sparam.portName,
-			sizeof(struct lpfc_name)) == 0)
+			   &new_vport->fc_sparam.portName,
+			   sizeof(struct lpfc_name)) == 0) {
+			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return 0;
+		}
 	}
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 1;
 }
 
@@ -524,6 +529,36 @@ out:
 	return rc;
 }
 
-
 EXPORT_SYMBOL(lpfc_vport_create);
 EXPORT_SYMBOL(lpfc_vport_delete);
+
+struct lpfc_vport **
+lpfc_create_vport_work_array(struct lpfc_hba *phba)
+{
+	struct lpfc_vport *port_iterator;
+	struct lpfc_vport **vports;
+	int index = 0;
+	vports = kzalloc(LPFC_MAX_VPORTS * sizeof(struct lpfc_vport *),
+			 GFP_KERNEL);
+	if (vports == NULL)
+		return NULL;
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
+		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator)))
+			continue;
+		vports[index++] = port_iterator;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	return vports;
+}
+
+void
+lpfc_destroy_vport_work_array(struct lpfc_vport **vports)
+{
+	int i;
+	if (vports == NULL)
+		return;
+	for (i=0; vports[i] != NULL && i < LPFC_MAX_VPORTS; i++)
+		scsi_host_put(lpfc_shost_from_vport(vports[i]));
+	kfree(vports);
+}
