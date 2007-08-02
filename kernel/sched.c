@@ -782,13 +782,13 @@ dec_load(struct rq *rq, const struct task_struct *p, u64 now)
 	update_load_sub(&rq->ls.load, p->se.load.weight);
 }
 
-static inline void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
 {
 	rq->nr_running++;
 	inc_load(rq, p, now);
 }
 
-static inline void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
 {
 	rq->nr_running--;
 	dec_load(rq, p, now);
