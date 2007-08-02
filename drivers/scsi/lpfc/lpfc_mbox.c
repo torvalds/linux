@@ -275,11 +275,8 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
 		/* READ_SPARAM: no buffers */
-		lpfc_printf_log(phba,
-			        KERN_WARNING,
-			        LOG_MBOX,
-			        "%d:0301 READ_SPARAM: no buffers\n",
-			        phba->brd_no);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+			        "0301 READ_SPARAM: no buffers\n");
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
@@ -378,9 +375,8 @@ lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-				"%d (%d):0302 REG_LOGIN: no buffers, DID x%x, "
-				"flag x%x\n",
-				phba->brd_no, vpi, did, flag);
+				"0302 REG_LOGIN: no buffers, VPI:%d DID:x%x, "
+				"flag x%x\n", vpi, did, flag);
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);

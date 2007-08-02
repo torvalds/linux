@@ -133,15 +133,15 @@ lpfc_check_sparm(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memcpy(&ndlp->nlp_portname, &sp->portName, sizeof (struct lpfc_name));
 	return 1;
 bad_service_param:
-	lpfc_printf_log(vport->phba, KERN_ERR, LOG_DISCOVERY,
-			"%d (%d):0207 Device %x "
-			"(%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x) sent "
-			"invalid service parameters.  Ignoring device.\n",
-			vport->phba->brd_no, ndlp->vport->vpi, ndlp->nlp_DID,
-			sp->nodeName.u.wwn[0], sp->nodeName.u.wwn[1],
-			sp->nodeName.u.wwn[2], sp->nodeName.u.wwn[3],
-			sp->nodeName.u.wwn[4], sp->nodeName.u.wwn[5],
-			sp->nodeName.u.wwn[6], sp->nodeName.u.wwn[7]);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			 "0207 Device %x "
+			 "(%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x) sent "
+			 "invalid service parameters.  Ignoring device.\n",
+			 ndlp->nlp_DID,
+			 sp->nodeName.u.wwn[0], sp->nodeName.u.wwn[1],
+			 sp->nodeName.u.wwn[2], sp->nodeName.u.wwn[3],
+			 sp->nodeName.u.wwn[4], sp->nodeName.u.wwn[5],
+			 sp->nodeName.u.wwn[6], sp->nodeName.u.wwn[7]);
 	return 0;
 }
 
@@ -194,11 +194,11 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	IOCB_t *cmd;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0205 Abort outstanding I/O on NPort x%x "
-			"Data: x%x x%x x%x\n",
-			phba->brd_no, ndlp->vport->vpi, ndlp->nlp_DID,
-			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_DISCOVERY,
+			 "0205 Abort outstanding I/O on NPort x%x "
+			 "Data: x%x x%x x%x\n",
+			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
+			 ndlp->nlp_rpi);
 
 	lpfc_fabric_abort_nport(ndlp);
 
@@ -298,11 +298,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd = &cmdiocb->iocb;
 
 	/* PLOGI chkparm OK */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d (%d):0114 PLOGI chkparm OK Data: x%x x%x x%x x%x\n",
-			phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, ndlp->nlp_state, ndlp->nlp_flag,
-			ndlp->nlp_rpi);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "0114 PLOGI chkparm OK Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, ndlp->nlp_state, ndlp->nlp_flag,
+			 ndlp->nlp_rpi);
 
 	if (vport->cfg_fcp_class == 2 && sp->cls2.classValid)
 		ndlp->nlp_fcp_info |= CLASS2;
@@ -582,12 +581,11 @@ static uint32_t
 lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		  void *arg, uint32_t evt)
 {
-	lpfc_printf_log(vport->phba, KERN_ERR, LOG_DISCOVERY,
-			"%d (%d):0253 Illegal State Transition: node x%x "
-			"event x%x, state x%x Data: x%x x%x\n",
-			vport->phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
-			ndlp->nlp_flag);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			 "0253 Illegal State Transition: node x%x "
+			 "event x%x, state x%x Data: x%x x%x\n",
+			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
+			 ndlp->nlp_flag);
 	return ndlp->nlp_state;
 }
 
@@ -777,15 +775,11 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
 	if (!lpfc_check_sparm(vport, ndlp, sp, CLASS3))
 		goto out;
-
 	/* PLOGI chkparm OK */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d (%d):0121 PLOGI chkparm OK "
-			"Data: x%x x%x x%x x%x\n",
-			phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, ndlp->nlp_state,
-			ndlp->nlp_flag, ndlp->nlp_rpi);
-
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "0121 PLOGI chkparm OK Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, ndlp->nlp_state,
+			 ndlp->nlp_flag, ndlp->nlp_rpi);
 	if (vport->cfg_fcp_class == 2 && (sp->cls2.classValid))
 		ndlp->nlp_fcp_info |= CLASS2;
 	else
@@ -805,10 +799,9 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"%d (%d):0133 PLOGI: no memory for reg_login "
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			"0133 PLOGI: no memory for reg_login "
 			"Data: x%x x%x x%x x%x\n",
-			phba->brd_no, vport->vpi,
 			ndlp->nlp_DID, ndlp->nlp_state,
 			ndlp->nlp_flag, ndlp->nlp_rpi);
 		goto out;
@@ -843,30 +836,27 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		kfree(mp);
 		mempool_free(mbox, phba->mbox_mem_pool);
 
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"%d (%d):0134 PLOGI: cannot issue reg_login "
-			"Data: x%x x%x x%x x%x\n",
-			phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, ndlp->nlp_state,
-			ndlp->nlp_flag, ndlp->nlp_rpi);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0134 PLOGI: cannot issue reg_login "
+				 "Data: x%x x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_state,
+				 ndlp->nlp_flag, ndlp->nlp_rpi);
 	} else {
 		mempool_free(mbox, phba->mbox_mem_pool);
 
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"%d (%d):0135 PLOGI: cannot format reg_login "
-			"Data: x%x x%x x%x x%x\n",
-			phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, ndlp->nlp_state,
-			ndlp->nlp_flag, ndlp->nlp_rpi);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0135 PLOGI: cannot format reg_login "
+				 "Data: x%x x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_state,
+				 ndlp->nlp_flag, ndlp->nlp_rpi);
 	}
 
 
 out:
 	if (ndlp->nlp_DID == NameServer_DID) {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"%d (%d):0261 Cannot Register NameServer login\n",
-			phba->brd_no, vport->vpi);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0261 Cannot Register NameServer login\n");
 	}
 
 	/* Free this node since the driver cannot login or has the wrong
@@ -1188,19 +1178,15 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 				  uint32_t evt)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
 	MAILBOX_t *mb = &pmb->mb;
 	uint32_t did  = mb->un.varWords[1];
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-				"%d (%d):0246 RegLogin failed Data: x%x x%x "
-				"x%x\n",
-				phba->brd_no, vport->vpi,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				"0246 RegLogin failed Data: x%x x%x x%x\n",
 				did, mb->mbxStatus, vport->port_state);
-
 		/*
 		 * If RegLogin failed due to lack of HBA resources do not
 		 * retry discovery.
@@ -2046,7 +2032,6 @@ int
 lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			void *arg, uint32_t evt)
 {
-	struct lpfc_hba  *phba = vport->phba;
 	uint32_t cur_state, rc;
 	uint32_t(*func) (struct lpfc_vport *, struct lpfc_nodelist *, void *,
 			 uint32_t);
@@ -2055,11 +2040,10 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	cur_state = ndlp->nlp_state;
 
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0211 DSM in event x%x on NPort x%x in "
-			"state %d Data: x%x\n",
-			phba->brd_no, vport->vpi,
-			evt, ndlp->nlp_DID, cur_state, ndlp->nlp_flag);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "0211 DSM in event x%x on NPort x%x in "
+			 "state %d Data: x%x\n",
+			 evt, ndlp->nlp_DID, cur_state, ndlp->nlp_flag);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 		 "DSM in:          evt:%d ste:%d did:x%x",
@@ -2069,11 +2053,9 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	rc = (func) (vport, ndlp, arg, evt);
 
 	/* DSM out state <rc> on NPort <nlp_DID> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0212 DSM out state %d on NPort x%x "
-			"Data: x%x\n",
-			phba->brd_no, vport->vpi,
-			rc, ndlp->nlp_DID, ndlp->nlp_flag);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "0212 DSM out state %d on NPort x%x Data: x%x\n",
+			 rc, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 		 "DSM out:         ste:%d did:x%x flg:x%x",

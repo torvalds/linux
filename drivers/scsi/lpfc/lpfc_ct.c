@@ -341,11 +341,11 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	}
 
 	/* Issue GEN REQ IOCB for NPORT <did> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d (%d):0119 Issue GEN REQ IOCB to NPORT x%x "
-			"Data: x%x x%x\n", phba->brd_no, vport->vpi,
-			ndlp->nlp_DID, icmd->ulpIoTag,
-			vport->port_state);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "0119 Issue GEN REQ IOCB to NPORT x%x "
+			 "Data: x%x x%x\n",
+			 ndlp->nlp_DID, icmd->ulpIoTag,
+			 vport->port_state);
 	geniocb->iocb_cmpl = cmpl;
 	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
 	geniocb->vport = vport;
@@ -464,14 +464,13 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						Did, ndlp->nlp_flag,
 						vport->fc_flag);
 
-						lpfc_printf_log(phba, KERN_INFO,
+						lpfc_printf_vlog(vport,
+							KERN_INFO,
 							LOG_DISCOVERY,
-							"%d (%d):0238 Process "
+							"0238 Process "
 							"x%x NameServer Rsp"
 							"Data: x%x x%x x%x\n",
-							phba->brd_no,
-							vport->vpi, Did,
-							ndlp->nlp_flag,
+							Did, ndlp->nlp_flag,
 							vport->fc_flag,
 							vport->fc_rscn_id_cnt);
 					} else {
@@ -482,14 +481,13 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						Did, vport->fc_flag,
 						vport->fc_rscn_id_cnt);
 
-						lpfc_printf_log(phba, KERN_INFO,
+						lpfc_printf_vlog(vport,
+							KERN_INFO,
 							LOG_DISCOVERY,
-							"%d (%d):0239 Skip x%x "
+							"0239 Skip x%x "
 							"NameServer Rsp Data: "
 							"x%x x%x\n",
-							phba->brd_no,
-							vport->vpi, Did,
-							vport->fc_flag,
+							Did, vport->fc_flag,
 							vport->fc_rscn_id_cnt);
 					}
 
@@ -516,14 +514,13 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						Did, vport->fc_flag,
 						vport->fc_rscn_id_cnt);
 
-						lpfc_printf_log(phba, KERN_INFO,
+						lpfc_printf_vlog(vport,
+							KERN_INFO,
 							LOG_DISCOVERY,
-							"%d (%d):0245 Skip x%x "
+							"0245 Skip x%x "
 							"NameServer Rsp Data: "
 							"x%x x%x\n",
-							phba->brd_no,
-							vport->vpi, Did,
-							vport->fc_flag,
+							Did, vport->fc_flag,
 							vport->fc_rscn_id_cnt);
 					}
 				}
@@ -570,9 +567,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 
 	if (lpfc_els_chk_latt(vport) || lpfc_error_lost_link(irsp)) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-				"%d (%d):0216 Link event during NS query\n",
-				phba->brd_no, vport->vpi);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0216 Link event during NS query\n");
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
@@ -590,20 +586,17 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				goto out;
 		}
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"%d (%d):0257 GID_FT Query error: 0x%x 0x%x\n",
-			phba->brd_no, vport->vpi, irsp->ulpStatus,
-			vport->fc_ns_retry);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0257 GID_FT Query error: 0x%x 0x%x\n",
+				 irsp->ulpStatus, vport->fc_ns_retry);
 	} else {
 		/* Good status, continue checking */
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC)) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-					"%d (%d):0208 NameServer Rsp "
-					"Data: x%x\n",
-					phba->brd_no, vport->vpi,
-					vport->fc_flag);
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "0208 NameServer Rsp Data: x%x\n",
+					 vport->fc_flag);
 			lpfc_ns_rsp(vport, outp,
 				    (uint32_t) (irsp->un.genreq64.bdl.bdeSize));
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
@@ -611,10 +604,10 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			/* NameServer Rsp Error */
 			if ((CTrsp->ReasonCode == SLI_CT_UNABLE_TO_PERFORM_REQ)
 			    && (CTrsp->Explanation == SLI_CT_NO_FC4_TYPES)) {
-				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-					"%d (%d):0269 No NameServer Entries "
+				lpfc_printf_vlog(vport, KERN_INFO,
+					LOG_DISCOVERY,
+					"0269 No NameServer Entries "
 					"Data: x%x x%x x%x x%x\n",
-					phba->brd_no, vport->vpi,
 					CTrsp->CommandResponse.bits.CmdRsp,
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
@@ -625,12 +618,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
-			}
-			else {
-				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-					"%d (%d):0240 NameServer Rsp Error "
+			} else {
+				lpfc_printf_vlog(vport, KERN_INFO,
+					LOG_DISCOVERY,
+					"0240 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
-					phba->brd_no, vport->vpi,
 					CTrsp->CommandResponse.bits.CmdRsp,
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
@@ -646,10 +638,9 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		} else {
 			/* NameServer Rsp Error */
-			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-					"%d (%d):0241 NameServer Rsp Error "
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+					"0241 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
-					phba->brd_no, vport->vpi,
 					CTrsp->CommandResponse.bits.CmdRsp,
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
@@ -717,40 +708,37 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC)) {
 			if ((fbits & FC4_FEATURE_INIT) &&
 			    !(fbits & FC4_FEATURE_TARGET)) {
-				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-						"%d (%d):0270 Skip x%x GFF "
-						"NameServer Rsp Data: (init) "
-						"x%x x%x\n", phba->brd_no,
-						vport->vpi, did, fbits,
-						vport->fc_rscn_id_cnt);
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY,
+						 "0270 Skip x%x GFF "
+						 "NameServer Rsp Data: (init) "
+						 "x%x x%x\n", did, fbits,
+						 vport->fc_rscn_id_cnt);
 				goto out;
 			}
 		}
 	}
 	else {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-				"%d (%d):0267 NameServer GFF Rsp"
-				" x%x Error (%d %d) Data: x%x x%x\n",
-				phba->brd_no, vport->vpi, did,
-				irsp->ulpStatus, irsp->un.ulpWord[4],
-				vport->fc_flag, vport->fc_rscn_id_cnt)
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				 "0267 NameServer GFF Rsp "
+				 "x%x Error (%d %d) Data: x%x x%x\n",
+				 did, irsp->ulpStatus, irsp->un.ulpWord[4],
+				 vport->fc_flag, vport->fc_rscn_id_cnt)
 	}
 
 	/* This is a target port, unregistered port, or the GFF_ID failed */
 	ndlp = lpfc_setup_disc_node(vport, did);
 	if (ndlp) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-				"%d (%d):0242 Process x%x GFF "
-				"NameServer Rsp Data: x%x x%x x%x\n",
-				phba->brd_no, vport->vpi,
-				did, ndlp->nlp_flag, vport->fc_flag,
-				vport->fc_rscn_id_cnt);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0242 Process x%x GFF "
+				 "NameServer Rsp Data: x%x x%x x%x\n",
+				 did, ndlp->nlp_flag, vport->fc_flag,
+				 vport->fc_rscn_id_cnt);
 	} else {
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-				"%d (%d):0243 Skip x%x GFF "
-				"NameServer Rsp Data: x%x x%x\n",
-				phba->brd_no, vport->vpi, did,
-				vport->fc_flag,	vport->fc_rscn_id_cnt);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0243 Skip x%x GFF "
+				 "NameServer Rsp Data: x%x x%x\n", did,
+				 vport->fc_flag, vport->fc_rscn_id_cnt);
 	}
 out:
 	/* Link up / RSCN discovery */
@@ -806,22 +794,21 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	latt = lpfc_els_chk_latt(vport);
 
 	/* RFT request completes status <ulpStatus> CmdRsp <CmdRsp> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0209 RFT request completes, latt %d, "
-			"ulpStatus x%x CmdRsp x%x, Context x%x, Tag x%x\n",
-			phba->brd_no, vport->vpi, latt, irsp->ulpStatus,
-			CTrsp->CommandResponse.bits.CmdRsp,
-			cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "0209 RFT request completes, latt %d, "
+			 "ulpStatus x%x CmdRsp x%x, Context x%x, Tag x%x\n",
+			 latt, irsp->ulpStatus,
+			 CTrsp->CommandResponse.bits.CmdRsp,
+			 cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"CT cmd cmpl:     status:x%x/x%x cmd:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], cmdcode);
 
 	if (irsp->ulpStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"%d (%d):0268 NS cmd %x Error (%d %d)\n",
-			phba->brd_no, vport->vpi, cmdcode,
-			irsp->ulpStatus, irsp->un.ulpWord[4]);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				 "0268 NS cmd %x Error (%d %d)\n",
+				 cmdcode, irsp->ulpStatus, irsp->un.ulpWord[4]);
 
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			((irsp->un.ulpWord[4] == IOERR_SLI_DOWN) ||
@@ -833,9 +820,8 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto out;
 
 		retry++;
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-				"%d (%d):0216 Retrying NS cmd %x\n",
-				phba->brd_no, vport->vpi, cmdcode);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0216 Retrying NS cmd %x\n", cmdcode);
 		rc = lpfc_ns_cmd(vport, cmdcode, retry, 0);
 		if (rc == 0)
 			goto out;
@@ -979,10 +965,9 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	}
 
 	/* NameServer Req */
-	lpfc_printf_log(phba, KERN_INFO ,LOG_DISCOVERY,
-			"%d (%d):0236 NameServer Req Data: x%x x%x x%x\n",
-			phba->brd_no, vport->vpi, cmdcode, vport->fc_flag,
-			vport->fc_rscn_id_cnt);
+	lpfc_printf_vlog(vport, KERN_INFO ,LOG_DISCOVERY,
+			 "0236 NameServer Req Data: x%x x%x x%x\n",
+			 cmdcode, vport->fc_flag, vport->fc_rscn_id_cnt);
 
 	bpl = (struct ulp_bde64 *) bmp->virt;
 	memset(bpl, 0, sizeof(struct ulp_bde64));
@@ -1099,10 +1084,9 @@ ns_cmd_free_mpvirt:
 ns_cmd_free_mp:
 	kfree(mp);
 ns_cmd_exit:
-	lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-		"%d (%d):0266 Issue NameServer Req x%x err %d Data: x%x x%x\n",
-			phba->brd_no, vport->vpi, cmdcode, rc, vport->fc_flag,
-			vport->fc_rscn_id_cnt);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			 "0266 Issue NameServer Req x%x err %d Data: x%x x%x\n",
+			 cmdcode, rc, vport->fc_flag, vport->fc_rscn_id_cnt);
 	return 1;
 }
 
@@ -1128,12 +1112,11 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], latt);
 
 	if (latt || irsp->ulpStatus) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			        "%d (%d):0229 FDMI cmd %04x failed, latt = %d "
-				"ulpStatus: x%x, rid x%x\n",
-			        phba->brd_no, vport->vpi,
-				be16_to_cpu(fdmi_cmd), latt, irsp->ulpStatus,
-				irsp->un.ulpWord[4]);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0229 FDMI cmd %04x failed, latt = %d "
+				 "ulpStatus: x%x, rid x%x\n",
+				 be16_to_cpu(fdmi_cmd), latt, irsp->ulpStatus,
+				 irsp->un.ulpWord[4]);
 		lpfc_ct_free_iocb(phba, cmdiocb);
 		return;
 	}
@@ -1141,10 +1124,9 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
-		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			        "%d (%d):0220 FDMI rsp failed Data: x%x\n",
-			        phba->brd_no, vport->vpi,
-				be16_to_cpu(fdmi_cmd));
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0220 FDMI rsp failed Data: x%x\n",
+				 be16_to_cpu(fdmi_cmd));
 	}
 
 	switch (be16_to_cpu(fdmi_cmd)) {
@@ -1207,11 +1189,9 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 	INIT_LIST_HEAD(&bmp->list);
 
 	/* FDMI request */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0218 FDMI Request Data: x%x x%x x%x\n",
-			phba->brd_no, vport->vpi, vport->fc_flag,
-			vport->port_state, cmdcode);
-
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "0218 FDMI Request Data: x%x x%x x%x\n",
+			 vport->fc_flag, vport->port_state, cmdcode);
 	CtReq = (struct lpfc_sli_ct_request *) mp->virt;
 
 	memset(CtReq, 0, sizeof(struct lpfc_sli_ct_request));
@@ -1534,9 +1514,9 @@ fdmi_cmd_free_mp:
 	kfree(mp);
 fdmi_cmd_exit:
 	/* Issue FDMI request failed */
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-		        "%d (%d):0244 Issue FDMI request failed Data: x%x\n",
-		        phba->brd_no, vport->vpi, cmdcode);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "0244 Issue FDMI request failed Data: x%x\n",
+			 cmdcode);
 	return 1;
 }
 

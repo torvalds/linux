@@ -107,10 +107,9 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-					"%d:0324 Config Port initialization "
+					"0324 Config Port initialization "
 					"error, mbxCmd x%x READ_NVPARM, "
 					"mbxStatus x%x\n",
-					phba->brd_no,
 					mb->mbxCommand, mb->mbxStatus);
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -ERESTART;
@@ -128,9 +127,8 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0439 Adapter failed to init, mbxCmd x%x "
+				"0439 Adapter failed to init, mbxCmd x%x "
 				"READ_REV, mbxStatus x%x\n",
-				phba->brd_no,
 				mb->mbxCommand, mb->mbxStatus);
 		mempool_free( pmb, phba->mbox_mem_pool);
 		return -ERESTART;
@@ -144,9 +142,8 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	if (mb->un.varRdRev.rr == 0) {
 		vp->rev.rBit = 0;
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0440 Adapter failed to init, READ_REV has "
-				"missing revision information.\n",
-				phba->brd_no);
+				"0440 Adapter failed to init, READ_REV has "
+				"missing revision information.\n");
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -ERESTART;
 	}
@@ -197,9 +194,8 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"%d:0441 VPD not present on adapter, "
+					"0441 VPD not present on adapter, "
 					"mbxCmd x%x DUMP VPD, mbxStatus x%x\n",
-					phba->brd_no,
 					mb->mbxCommand, mb->mbxStatus);
 			mb->un.varDmp.word_cnt = 0;
 		}
@@ -253,9 +249,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0448 Adapter failed init, mbxCmd x%x "
+				"0448 Adapter failed init, mbxCmd x%x "
 				"READ_SPARM mbxStatus x%x\n",
-				phba->brd_no,
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
 		mp = (struct lpfc_dmabuf *) pmb->context1;
@@ -312,9 +307,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0453 Adapter failed to init, mbxCmd x%x "
+				"0453 Adapter failed to init, mbxCmd x%x "
 				"READ_CONFIG, mbxStatus x%x\n",
-				phba->brd_no,
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
 		mempool_free( pmb, phba->mbox_mem_pool);
@@ -344,9 +338,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		&& !(phba->lmt & LMT_10Gb))) {
 		/* Reset link speed to auto */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LINK_EVENT,
-			"%d:1302 Invalid speed for this board: "
+			"1302 Invalid speed for this board: "
 			"Reset link speed to auto: x%x\n",
-			phba->brd_no,
 			phba->cfg_link_speed);
 			phba->cfg_link_speed = LINK_SPEED_AUTO;
 	}
@@ -402,9 +395,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_set_loopback_flag(phba);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0454 Adapter failed to init, mbxCmd x%x "
+				"0454 Adapter failed to init, mbxCmd x%x "
 				"INIT_LINK, mbxStatus x%x\n",
-				phba->brd_no,
 				mb->mbxCommand, mb->mbxStatus);
 
 		/* Clear all interrupt enable conditions */
@@ -588,8 +580,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		 * need to take the HBA offline.
 		 */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0459 Adapter heartbeat failure, taking "
-			"this port offline.\n", phba->brd_no);
+				"0459 Adapter heartbeat failure, taking "
+				"this port offline.\n");
 
 		spin_lock_irq(&phba->hbalock);
 		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
@@ -631,9 +623,9 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	    phba->work_hs & HS_FFER5) {
 		/* Re-establishing Link */
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
-				"%d:1301 Re-establishing Link "
+				"1301 Re-establishing Link "
 				"Data: x%x x%x x%x\n",
-				phba->brd_no, phba->work_hs,
+				phba->work_hs,
 				phba->work_status[0], phba->work_status[1]);
 		vports = lpfc_create_vport_work_array(phba);
 		if (vports != NULL)
@@ -679,9 +671,9 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 		 *  twice. This is the adapter hardware error path.
 		 */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0457 Adapter Hardware Error "
+				"0457 Adapter Hardware Error "
 				"Data: x%x x%x x%x\n",
-				phba->brd_no, phba->work_hs,
+				phba->work_hs,
 				phba->work_status[0], phba->work_status[1]);
 
 		event_data = FC_REG_DUMP_EVENT;
@@ -777,8 +769,7 @@ lpfc_handle_latt_err_exit:
 	/* The other case is an error from issue_mbox */
 	if (rc == -ENOMEM)
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-			        "%d:0300 READ_LA: no buffers\n",
-				phba->brd_no);
+			        "0300 READ_LA: no buffers\n");
 
 	return;
 }
@@ -803,8 +794,7 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 
 	/* Vital Product */
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"%d:0455 Vital Product Data: x%x x%x x%x x%x\n",
-			phba->brd_no,
+			"0455 Vital Product Data: x%x x%x x%x x%x\n",
 			(uint32_t) vpd[0], (uint32_t) vpd[1], (uint32_t) vpd[2],
 			(uint32_t) vpd[3]);
 	while (!finished && (index < (len - 4))) {
@@ -1323,10 +1313,9 @@ lpfc_establish_link_tmo(unsigned long ptr)
 
 	/* Re-establishing Link, timer expired */
 	lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-			"%d:1300 Re-establishing Link, timer expired "
+			"1300 Re-establishing Link, timer expired "
 			"Data: x%x x%x\n",
-			phba->brd_no,  phba->pport->fc_flag,
-			phba->pport->port_state);
+			phba->pport->fc_flag, phba->pport->port_state);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
 		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
@@ -1382,8 +1371,7 @@ lpfc_online(struct lpfc_hba *phba)
 		return 0;
 
 	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-		       "%d:0458 Bring Adapter online\n",
-		       phba->brd_no);
+			"0458 Bring Adapter online\n");
 
 	lpfc_block_mgmt_io(phba);
 
@@ -1468,8 +1456,7 @@ lpfc_offline(struct lpfc_hba *phba)
 	/* stop all timers associated with this hba */
 	lpfc_stop_phba_timers(phba);
 	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-		       "%d:0460 Bring Adapter offline\n",
-		       phba->brd_no);
+			"0460 Bring Adapter offline\n");
 	/* Bring down the SLI Layer and cleanup.  The HBA is offline
 	   now.  */
 	lpfc_sli_hba_down(phba);
@@ -1648,17 +1635,15 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	}
 	if (time >= 30 * HZ) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"%d:0461 Scanning longer than 30 "
-				"seconds.  Continuing initialization\n",
-				phba->brd_no);
+				"0461 Scanning longer than 30 "
+				"seconds.  Continuing initialization\n");
 		stat = 1;
 		goto finished;
 	}
 	if (time >= 15 * HZ && phba->link_state <= LPFC_LINK_DOWN) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"%d:0465 Link down longer than 15 "
-				"seconds.  Continuing initialization\n",
-				phba->brd_no);
+				"0465 Link down longer than 15 "
+				"seconds.  Continuing initialization\n");
 		stat = 1;
 		goto finished;
 	}
@@ -1910,17 +1895,16 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (phba->cfg_use_msi) {
 		error = pci_enable_msi(phba->pcidev);
 		if (error)
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT, "%d:0452 "
-					"Enable MSI failed, continuing with "
-					"IRQ\n", phba->brd_no);
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"0452 Enable MSI failed, continuing "
+					"with IRQ\n");
 	}
 
 	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
 			    LPFC_DRIVER_NAME, phba);
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0451 Enable interrupt handler failed\n",
-			phba->brd_no);
+			"0451 Enable interrupt handler failed\n");
 		goto out_disable_msi;
 	}
 

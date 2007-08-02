@@ -349,6 +349,7 @@ struct lpfc_vport {
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_fdmi_on;
 	uint32_t cfg_discovery_threads;
+	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
 
 	uint32_t dev_loss_tmo_changed;
@@ -446,8 +447,6 @@ struct lpfc_hba {
 	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
 
-	/* Config paramters that should be in the vport */
-	uint32_t cfg_log_verbose;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
