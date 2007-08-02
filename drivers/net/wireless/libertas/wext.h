@@ -4,9 +4,6 @@
 #ifndef	_WLAN_WEXT_H_
 #define	_WLAN_WEXT_H_
 
-#define SUBCMD_OFFSET			4
-#define SUBCMD_DATA(x)			*((int *)(x->u.name + SUBCMD_OFFSET))
-
 /** wlan_ioctl_regrdwr */
 struct wlan_ioctl_regrdwr {
 	/** Which register to access */
@@ -25,6 +22,5 @@ struct wlan_ioctl_regrdwr {
 
 extern struct iw_handler_def libertas_handler_def;
 extern struct iw_handler_def mesh_handler_def;
-int wlan_radio_ioctl(wlan_private * priv, u8 option);
 
 #endif				/* _WLAN_WEXT_H_ */

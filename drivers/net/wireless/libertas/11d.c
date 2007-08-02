@@ -446,25 +446,6 @@ void libertas_init_11d(wlan_private * priv)
 	return;
 }
 
-static int wlan_enable_11d(wlan_private * priv, u8 flag)
-{
-	int ret;
-
-	priv->adapter->enable11d = flag;
-
-	/* send cmd to FW to enable/disable 11D function in FW */
-	ret = libertas_prepare_and_send_command(priv,
-				    CMD_802_11_SNMP_MIB,
-				    CMD_ACT_SET,
-				    CMD_OPTION_WAITFORRSP,
-				    OID_802_11D_ENABLE,
-				    &priv->adapter->enable11d);
-	if (ret)
-		lbs_deb_11d("11D: Fail to enable 11D \n");
-
-	return 0;
-}
-
 /**
  *  @brief This function sets DOMAIN INFO to FW
  *  @param priv       pointer to wlan_private
@@ -573,31 +554,6 @@ int libertas_cmd_802_11d_domain_info(wlan_private * priv,
 	lbs_dbg_hex("11D:802_11D_DOMAIN_INFO:", (u8 *) cmd, le16_to_cpu(cmd->size));
 
 done:
-	lbs_deb_enter(LBS_DEB_11D);
-	return 0;
-}
-
-/**
- *  @brief This function implements private cmd: enable/disable 11D
- *  @param priv    pointer to wlan_private
- *  @param wrq     pointer to user data
- *  @return 	   0 or -1
- */
-int libertas_cmd_enable_11d(wlan_private * priv, struct iwreq *wrq)
-{
-	int data = 0;
-	int *val;
-
-	lbs_deb_enter(LBS_DEB_11D);
-	data = SUBCMD_DATA(wrq);
-
-	lbs_deb_11d("enable 11D: %s\n",
-	       (data == 1) ? "enable" : "Disable");
-
-	wlan_enable_11d(priv, data);
-	val = (int *)wrq->u.name;
-	*val = priv->adapter->enable11d;
-
 	lbs_deb_enter(LBS_DEB_11D);
 	return 0;
 }

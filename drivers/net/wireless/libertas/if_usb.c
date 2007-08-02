@@ -22,7 +22,7 @@
 static const char usbdriver_name[] = "usb8xxx";
 static u8 *default_fw_name = "usb8388.bin";
 
-char *libertas_fw_name = NULL;
+static char *libertas_fw_name = NULL;
 module_param_named(fw_name, libertas_fw_name, charp, 0644);
 
 /*
@@ -51,6 +51,8 @@ static int if_usb_prog_firmware(wlan_private *);
 static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb);
 static int if_usb_get_int_status(wlan_private * priv, u8 *);
 static int if_usb_read_event_cause(wlan_private *);
+static int usb_tx_block(wlan_private *priv, u8 *payload, u16 nb);
+static void if_usb_free(struct usb_card_rec *cardp);
 
 /**
  *  @brief  call back function to handle the status of the URB
@@ -92,7 +94,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
  *  @param cardp	pointer usb_card_rec
  *  @return 	   	N/A
  */
-void if_usb_free(struct usb_card_rec *cardp)
+static void if_usb_free(struct usb_card_rec *cardp)
 {
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -384,7 +386,7 @@ static int if_usb_reset_device(wlan_private *priv)
  *  @param nb		data length
  *  @return 	   	0 or -1
  */
-int usb_tx_block(wlan_private * priv, u8 * payload, u16 nb)
+static int usb_tx_block(wlan_private * priv, u8 * payload, u16 nb)
 {
 	/* pointer to card structure */
 	struct usb_card_rec *cardp = priv->card;

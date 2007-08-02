@@ -15,14 +15,9 @@ struct wlan_private;
 struct sk_buff;
 struct net_device;
 
-extern char *libertas_fw_name;
-
-void libertas_free_adapter(wlan_private * priv);
 int libertas_set_mac_packet_filter(wlan_private * priv);
 
-int libertas_send_null_packet(wlan_private * priv, u8 pwr_mgmt);
 void libertas_send_tx_feedback(wlan_private * priv);
-u8 libertas_check_last_packet_indication(wlan_private * priv);
 
 int libertas_free_cmd_buffer(wlan_private * priv);
 struct cmd_ctrl_node;
@@ -53,8 +48,6 @@ void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb);
 /** The proc fs interface */
 int libertas_process_rx_command(wlan_private * priv);
 int libertas_process_tx(wlan_private * priv, struct sk_buff *skb);
-void libertas_cleanup_and_insert_cmd(wlan_private * priv,
-					struct cmd_ctrl_node *ptempcmd);
 void __libertas_cleanup_and_insert_cmd(wlan_private * priv,
 					struct cmd_ctrl_node *ptempcmd);
 

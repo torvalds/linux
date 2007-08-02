@@ -890,6 +890,31 @@ static void command_timer_fn(unsigned long data)
 	return;
 }
 
+static void libertas_free_adapter(wlan_private * priv)
+{
+	wlan_adapter *adapter = priv->adapter;
+
+	if (!adapter) {
+		lbs_deb_fw("why double free adapter?\n");
+		return;
+	}
+
+	lbs_deb_fw("free command buffer\n");
+	libertas_free_cmd_buffer(priv);
+
+	lbs_deb_fw("free command_timer\n");
+	del_timer(&adapter->command_timer);
+
+	lbs_deb_fw("free scan results table\n");
+	kfree(adapter->networks);
+	adapter->networks = NULL;
+
+	/* Free the adapter object itself */
+	lbs_deb_fw("free adapter\n");
+	kfree(adapter);
+	priv->adapter = NULL;
+}
+
 static int wlan_allocate_adapter(wlan_private * priv)
 {
 	size_t bufsize;
@@ -1007,31 +1032,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	spin_lock_init(&adapter->txqueue_lock);
 
 	return;
-}
-
-void libertas_free_adapter(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-
-	if (!adapter) {
-		lbs_deb_fw("why double free adapter?\n");
-		return;
-	}
-
-	lbs_deb_fw("free command buffer\n");
-	libertas_free_cmd_buffer(priv);
-
-	lbs_deb_fw("free command_timer\n");
-	del_timer(&adapter->command_timer);
-
-	lbs_deb_fw("free scan results table\n");
-	kfree(adapter->networks);
-	adapter->networks = NULL;
-
-	/* Free the adapter object itself */
-	lbs_deb_fw("free adapter\n");
-	kfree(adapter);
-	priv->adapter = NULL;
 }
 
 static int libertas_init_fw(wlan_private * priv)

@@ -112,20 +112,6 @@ void libertas_unset_basic_rate_flags(u8 * rates, size_t len)
 }
 
 
-int libertas_send_deauth(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
-
-	if (adapter->mode == IW_MODE_INFRA &&
-	    adapter->connect_status == LIBERTAS_CONNECTED)
-		ret = libertas_send_deauthentication(priv);
-	else
-		ret = -ENOTSUPP;
-
-	return ret;
-}
-
 /**
  *  @brief Associate to a specific BSS discovered in a scan
  *

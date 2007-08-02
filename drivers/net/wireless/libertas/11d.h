@@ -83,8 +83,6 @@ u8 libertas_get_scan_type_11d(u8 chan,
 
 u32 libertas_chan_2_freq(u8 chan, u8 band);
 
-enum state_11d libertas_get_state_11d(wlan_private * priv);
-
 void libertas_init_11d(wlan_private * priv);
 
 int libertas_set_universaltable(wlan_private * priv, u8 band);
@@ -92,8 +90,6 @@ int libertas_set_universaltable(wlan_private * priv, u8 band);
 int libertas_cmd_802_11d_domain_info(wlan_private * priv,
 				 struct cmd_ds_command *cmd, u16 cmdno,
 				 u16 cmdOption);
-
-int libertas_cmd_enable_11d(wlan_private * priv, struct iwreq *wrq);
 
 int libertas_ret_802_11d_domain_info(wlan_private * priv,
 				 struct cmd_ds_command *resp);

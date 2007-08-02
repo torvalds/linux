@@ -175,31 +175,26 @@ struct bss_descriptor {
 	struct list_head list;
 };
 
-extern int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
+int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
 
 struct bss_descriptor * libertas_find_ssid_in_list(wlan_adapter * adapter,
 			u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 			int channel);
 
-struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
-			u8 mode);
-
-extern struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
+struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
 			u8 * bssid, u8 mode);
 
 int libertas_find_best_network_ssid(wlan_private * priv, u8 *out_ssid,
 			u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode);
 
-extern int libertas_send_specific_ssid_scan(wlan_private * priv, u8 *ssid,
+int libertas_send_specific_ssid_scan(wlan_private * priv, u8 *ssid,
 				u8 ssid_len, u8 clear_ssid);
-extern int libertas_send_specific_bssid_scan(wlan_private * priv,
-				 u8 * bssid, u8 clear_bssid);
 
-extern int libertas_cmd_80211_scan(wlan_private * priv,
+int libertas_cmd_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *cmd,
 				void *pdata_buf);
 
-extern int libertas_ret_80211_scan(wlan_private * priv,
+int libertas_ret_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *resp);
 
 int wlan_scan_networks(wlan_private * priv,
@@ -211,9 +206,9 @@ struct ifreq;
 struct iw_point;
 struct iw_param;
 struct iw_request_info;
-extern int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
+int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra);
-extern int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
+int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra);
 
 #endif				/* _WLAN_SCAN_H */

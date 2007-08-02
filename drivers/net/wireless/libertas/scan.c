@@ -1254,7 +1254,7 @@ out:
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
+static struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
 		u8 mode)
 {
 	u8 bestrssi = 0;
@@ -1384,39 +1384,6 @@ int libertas_send_specific_ssid_scan(wlan_private * priv,
 out:
 	lbs_deb_leave(LBS_DEB_ASSOC);
 	return ret;
-}
-
-/**
- *  @brief scan an AP with specific BSSID
- *
- *  @param priv             A pointer to wlan_private structure
- *  @param bssid            A pointer to AP's bssid
- *  @param keeppreviousscan Flag used to save/clear scan table before scan
- *
- *  @return          0-success, otherwise fail
- */
-int libertas_send_specific_bssid_scan(wlan_private * priv, u8 * bssid, u8 clear_bssid)
-{
-	struct wlan_ioctl_user_scan_cfg scancfg;
-
-	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	if (bssid == NULL)
-		goto out;
-
-	memset(&scancfg, 0x00, sizeof(scancfg));
-	memcpy(scancfg.bssid, bssid, ETH_ALEN);
-	scancfg.clear_bssid = clear_bssid;
-
-	wlan_scan_networks(priv, &scancfg, 1);
-	if (priv->adapter->surpriseremoved)
-		return -1;
-	wait_event_interruptible(priv->adapter->cmd_pending,
-		!priv->adapter->nr_cmd_pending);
-
-out:
-	lbs_deb_leave(LBS_DEB_ASSOC);
-	return 0;
 }
 
 static inline char *libertas_translate_scan(wlan_private *priv,

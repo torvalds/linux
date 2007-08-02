@@ -1045,7 +1045,7 @@ done:
 	return;
 }
 
-void libertas_cleanup_and_insert_cmd(wlan_private * priv, struct cmd_ctrl_node *ptempcmd)
+static void libertas_cleanup_and_insert_cmd(wlan_private * priv, struct cmd_ctrl_node *ptempcmd)
 {
 	unsigned long flags;
 

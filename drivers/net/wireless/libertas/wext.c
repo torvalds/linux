@@ -157,7 +157,7 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(wlan_adapter * adapter,
  *  @option 			Radio Option
  *  @return 	   		0 --success, otherwise fail
  */
-int wlan_radio_ioctl(wlan_private * priv, u8 option)
+static int wlan_radio_ioctl(wlan_private * priv, u8 option)
 {
 	int ret = 0;
 	wlan_adapter *adapter = priv->adapter;
