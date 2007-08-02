@@ -637,7 +637,7 @@ static u64 div64_likely32(u64 divident, unsigned long divisor)
 
 #define WMULT_SHIFT	32
 
-static inline unsigned long
+static unsigned long
 calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 		struct load_weight *lw)
 {
