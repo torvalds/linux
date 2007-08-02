@@ -890,37 +890,46 @@ static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 }
 
 #ifdef CONFIG_PM
-static struct dmi_system_id piix_broken_suspend_dmi_table[] = {
-	{
-		.ident = "TECRA M5",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "TECRA M5"),
+static int piix_broken_suspend(void)
+{
+	static struct dmi_system_id sysids[] = {
+		{
+			.ident = "TECRA M5",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "TECRA M5"),
+			},
 		},
-	},
-	{
-		.ident = "Satellite U200",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite U200"),
+		{
+			.ident = "Satellite U205",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "Satellite U205"),
+			},
 		},
-	},
-	{
-		.ident = "Satellite U205",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite U205"),
+		{
+			.ident = "Portege M500",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M500"),
+			},
 		},
-	},
-	{
-		.ident = "Portege M500",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M500"),
-		},
-	},
-	{ }
-};
+		{ }
+	};
+	static const char *oemstrs[] = {
+		"Tecra M3,",
+	};
+	int i;
+
+	if (dmi_check_system(sysids))
+		return 1;
+
+	for (i = 0; i < ARRAY_SIZE(oemstrs); i++)
+		if (dmi_find_device(DMI_DEV_TYPE_OEM_STRING, oemstrs[i], NULL))
+			return 1;
+
+	return 0;
+}
 
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
@@ -937,8 +946,7 @@ static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	 * cycles and power trying to do something to the sleeping
 	 * beauty.
 	 */
-	if (dmi_check_system(piix_broken_suspend_dmi_table) &&
-	    mesg.event == PM_EVENT_SUSPEND) {
+	if (piix_broken_suspend() && mesg.event == PM_EVENT_SUSPEND) {
 		pci_save_state(pdev);
 
 		/* mark its power state as "unknown", since we don't
@@ -973,10 +981,10 @@ static int piix_pci_device_resume(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 
 		/* PCI device wasn't disabled during suspend.  Use
-		 * __pci_reenable_device() to avoid affecting the
-		 * enable count.
+		 * pci_reenable_device() to avoid affecting the enable
+		 * count.
 		 */
-		rc = __pci_reenable_device(pdev);
+		rc = pci_reenable_device(pdev);
 		if (rc)
 			dev_printk(KERN_ERR, &pdev->dev, "failed to enable "
 				   "device after resume (%d)\n", rc);
