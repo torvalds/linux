@@ -292,10 +292,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 		return;
 
 	delta_exec = curr->delta_exec;
-#ifdef CONFIG_SCHEDSTATS
-	if (unlikely(delta_exec > curr->exec_max))
-		curr->exec_max = delta_exec;
-#endif
+	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
 	cfs_rq->exec_clock += delta_exec;
@@ -425,13 +422,7 @@ __update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	unsigned long delta_fair = se->delta_fair_run;
 
-#ifdef CONFIG_SCHEDSTATS
-	{
-		s64 delta_wait = now - se->wait_start;
-		if (unlikely(delta_wait > se->wait_max))
-			se->wait_max = delta_wait;
-	}
-#endif
+	schedstat_set(se->wait_max, max(se->wait_max, now - se->wait_start));
 
 	if (unlikely(se->load.weight != NICE_0_LOAD))
 		delta_fair = calc_weighted(delta_fair, se->load.weight,
