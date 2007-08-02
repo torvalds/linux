@@ -700,6 +700,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	union iwreq_data wrqu;
 	struct ieeetypes_assocrsp *passocrsp;
 	struct bss_descriptor * bss;
+	u16 status_code;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -712,12 +713,56 @@ int libertas_ret_80211_associate(wlan_private * priv,
 
 	passocrsp = (struct ieeetypes_assocrsp *) & resp->params;
 
-	if (le16_to_cpu(passocrsp->statuscode)) {
+	/*
+	 * Older FW versions map the IEEE 802.11 Status Code in the association
+	 * response to the following values returned in passocrsp->statuscode:
+	 *
+	 *    IEEE Status Code                Marvell Status Code
+	 *    0                       ->      0x0000 ASSOC_RESULT_SUCCESS
+	 *    13                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    14                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    15                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    16                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    others                  ->      0x0003 ASSOC_RESULT_REFUSED
+	 *
+	 * Other response codes:
+	 *    0x0001 -> ASSOC_RESULT_INVALID_PARAMETERS (unused)
+	 *    0x0002 -> ASSOC_RESULT_TIMEOUT (internal timer expired waiting for
+	 *                                    association response from the AP)
+	 */
+
+	status_code = le16_to_cpu(passocrsp->statuscode);
+	switch (status_code) {
+	case 0x00:
+		lbs_deb_join("ASSOC_RESP: Association succeeded\n");
+		break;
+	case 0x01:
+		lbs_deb_join("ASSOC_RESP: Association failed; invalid "
+		             "parameters (status code %d)\n", status_code);
+		break;
+	case 0x02:
+		lbs_deb_join("ASSOC_RESP: Association failed; internal timer "
+		             "expired while waiting for the AP (status code %d)"
+		             "\n", status_code);
+		break;
+	case 0x03:
+		lbs_deb_join("ASSOC_RESP: Association failed; association "
+		             "was refused by the AP (status code %d)\n",
+		             status_code);
+		break;
+	case 0x04:
+		lbs_deb_join("ASSOC_RESP: Association failed; authentication "
+		             "was refused by the AP (status code %d)\n",
+		             status_code);
+		break;
+	default:
+		lbs_deb_join("ASSOC_RESP: Association failed; reason unknown "
+		             "(status code %d)\n", status_code);
+		break;
+	}
+
+	if (status_code) {
 		libertas_mac_event_disconnected(priv);
-
-		lbs_deb_join("ASSOC_RESP: Association failed, status code = %d\n",
-			     le16_to_cpu(passocrsp->statuscode));
-
 		ret = -1;
 		goto done;
 	}
