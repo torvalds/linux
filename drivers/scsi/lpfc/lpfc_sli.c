@@ -602,7 +602,7 @@ static struct lpfc_hbq_init lpfc_els_hbq = {
 	.add_count = 5,
 };
 
-static struct lpfc_hbq_init *lpfc_hbq_defs[] = {
+struct lpfc_hbq_init *lpfc_hbq_defs[] = {
 	&lpfc_els_hbq,
 };
 
@@ -2136,7 +2136,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 	return 0;
 }
 
-static int
+int
 lpfc_sli_hbq_count(void)
 {
 	return ARRAY_SIZE(lpfc_hbq_defs);
@@ -2309,7 +2309,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 
 	switch (lpfc_sli_mode) {
 	case 2:
-		if (phba->cfg_npiv_enable) {
+		if (phba->cfg_enable_npiv) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
 				"1824 NPIV enabled: Override lpfc_sli_mode "
 				"parameter (%d) to auto (0).\n",

@@ -430,7 +430,7 @@ struct lpfc_hba {
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
-	uint32_t cfg_npiv_enable;
+	uint32_t cfg_enable_npiv;
 	uint32_t cfg_topology;
 	uint32_t cfg_link_speed;
 	uint32_t cfg_cr_delay;
@@ -551,6 +551,7 @@ struct lpfc_hba {
 #ifdef CONFIG_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
+	struct dentry *debug_hbqinfo;
 	struct dentry *debug_dumpslim;
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;

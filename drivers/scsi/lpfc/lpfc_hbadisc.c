@@ -990,7 +990,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		}
 	} else {
 		if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
-			if (phba->max_vpi && phba->cfg_npiv_enable &&
+			if (phba->max_vpi && phba->cfg_enable_npiv &&
 			   (phba->sli_rev == 3))
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}

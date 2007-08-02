@@ -68,12 +68,6 @@ lpfc_drvr_version_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-management_version_show(struct class_device *cdev, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, DFC_API_VERSION "\n");
-}
-
-static ssize_t
 lpfc_info_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -904,8 +898,6 @@ static CLASS_DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 static CLASS_DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
 			 NULL);
-static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
-			 NULL);
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
 static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
@@ -1110,7 +1102,7 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-LPFC_ATTR_R(npiv_enable, 0, 0, 1, "Enable NPIV functionality");
+LPFC_ATTR_R(enable_npiv, 0, 0, 1, "Enable NPIV functionality");
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1530,9 +1522,8 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
-	&class_device_attr_lpfc_npiv_enable,
+	&class_device_attr_lpfc_enable_npiv,
 	&class_device_attr_nport_evt_cnt,
-	&class_device_attr_management_version,
 	&class_device_attr_board_mode,
 	&class_device_attr_max_vpi,
 	&class_device_attr_used_vpi,
@@ -1569,7 +1560,6 @@ struct class_device_attribute *lpfc_vport_attrs[] = {
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
-	&class_device_attr_management_version,
 	&class_device_attr_npiv_info,
 	NULL,
 };
@@ -2413,7 +2403,6 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.get_starget_port_name = lpfc_get_starget_port_name,
 	.show_starget_port_name = 1,
 
-	.issue_fc_host_lip = lpfc_issue_lip,
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
@@ -2432,7 +2421,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_topology_init(phba, lpfc_topology);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
-	lpfc_npiv_enable_init(phba, lpfc_npiv_enable);
+	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;

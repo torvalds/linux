@@ -688,7 +688,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.max_hbq = 1; /* Requesting 2 HBQs */
-		if (phba->max_vpi && phba->cfg_npiv_enable &&
+		if (phba->max_vpi && phba->cfg_enable_npiv &&
 		    phba->vpd.sli3Feat.cmv) {
 			mb->un.varCfgPort.max_vpi = phba->max_vpi;
 			mb->un.varCfgPort.cmv = 1;

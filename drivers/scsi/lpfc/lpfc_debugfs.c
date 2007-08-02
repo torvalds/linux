@@ -101,13 +101,19 @@ MODULE_PARM_DESC(lpfc_debugfs_mask_disc_trc,
 #define LPFC_NODELIST_SIZE 8192
 #define LPFC_NODELIST_ENTRY_SIZE 120
 
-/* dump_slim output buffer size */
+/* dumpslim output buffer size */
 #define LPFC_DUMPSLIM_SIZE 4096
+
+/* hbqinfo output buffer size */
+#define LPFC_HBQINFO_SIZE 8192
 
 struct lpfc_debug {
 	char *buffer;
 	int  len;
 };
+
+extern struct lpfc_hbq_init *lpfc_hbq_defs[];
+extern int lpfc_sli_hbq_count(void);
 
 atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
 unsigned long lpfc_debugfs_start_time = 0L;
@@ -193,6 +199,105 @@ lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 	}
 
 	lpfc_debugfs_enable = enable;
+	return len;
+}
+
+int lpfc_debugfs_last_hbq = -1;
+
+static int
+lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	int len = 0;
+	int cnt, i, j, found, posted, low;
+	uint32_t phys, raw_index, getidx;
+	struct lpfc_hbq_init *hip;
+	struct hbq_s *hbqs;
+	struct lpfc_hbq_entry *hbqe;
+	struct lpfc_dmabuf *d_buf;
+	struct hbq_dmabuf *hbq_buf;
+
+	cnt = LPFC_HBQINFO_SIZE;
+	spin_lock_irq(&phba->hbalock);
+
+	/* toggle between multiple hbqs, if any */
+	i = lpfc_sli_hbq_count();
+	if (i > 1) {
+		 lpfc_debugfs_last_hbq++;
+		 if (lpfc_debugfs_last_hbq >= i)
+			lpfc_debugfs_last_hbq = 0;
+	}
+	else
+		lpfc_debugfs_last_hbq = 0;
+
+	i = lpfc_debugfs_last_hbq;
+
+	len +=  snprintf(buf+len, size-len, "HBQ %d Info\n", i);
+
+	posted = 0;
+	list_for_each_entry(d_buf, &phba->hbq_buffer_list, list)
+		posted++;
+
+	hip =  lpfc_hbq_defs[i];
+	len +=  snprintf(buf+len, size-len,
+		"idx:%d prof:%d rn:%d bufcnt:%d icnt:%d acnt:%d posted %d\n",
+		hip->hbq_index, hip->profile, hip->rn,
+		hip->buffer_count, hip->init_count, hip->add_count, posted);
+
+	hbqs =  &phba->hbqs[i];
+	raw_index = phba->hbq_get[i];
+	getidx = le32_to_cpu(raw_index);
+	len +=  snprintf(buf+len, size-len,
+		"entrys:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
+		hbqs->entry_count, hbqs->hbqPutIdx, hbqs->next_hbqPutIdx,
+		hbqs->local_hbqGetIdx, getidx);
+
+	hbqe = (struct lpfc_hbq_entry *) phba->hbqslimp.virt;
+	for (j=0; j<hbqs->entry_count; j++) {
+		len +=  snprintf(buf+len, size-len,
+			"%03d: %08x %04x %05x ", j,
+			hbqe->bde.addrLow, hbqe->bde.tus.w, hbqe->buffer_tag);
+
+		i = 0;
+		found = 0;
+
+		/* First calculate if slot has an associated posted buffer */
+		low = hbqs->hbqPutIdx - posted;
+		if (low >= 0) {
+			if ((j >= hbqs->hbqPutIdx) || (j < low)) {
+				len +=  snprintf(buf+len, size-len, "Unused\n");
+				goto skipit;
+			}
+		}
+		else {
+			if ((j >= hbqs->hbqPutIdx) &&
+				(j < (hbqs->entry_count+low))) {
+				len +=  snprintf(buf+len, size-len, "Unused\n");
+				goto skipit;
+			}
+		}
+
+		/* Get the Buffer info for the posted buffer */
+		list_for_each_entry(d_buf, &phba->hbq_buffer_list, list) {
+			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
+			phys = ((uint64_t)hbq_buf->dbuf.phys & 0xffffffff);
+			if (phys == hbqe->bde.addrLow) {
+				len +=  snprintf(buf+len, size-len,
+					"Buf%d: %p %06x\n", i,
+					hbq_buf->dbuf.virt, hbq_buf->tag);
+				found = 1;
+				break;
+			}
+			i++;
+		}
+		if (!found) {
+			len +=  snprintf(buf+len, size-len, "No DMAinfo?\n");
+		}
+skipit:
+		hbqe++;
+		if (len > LPFC_HBQINFO_SIZE - 54)
+			break;
+	}
+	spin_unlock_irq(&phba->hbalock);
 	return len;
 }
 
@@ -492,6 +597,33 @@ out:
 }
 
 static int
+lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	debug->buffer = kmalloc(LPFC_HBQINFO_SIZE, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = lpfc_debugfs_hbqinfo_data(phba, debug->buffer,
+		LPFC_HBQINFO_SIZE);
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static int
 lpfc_debugfs_dumpslim_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
@@ -604,6 +736,15 @@ static struct file_operations lpfc_debugfs_op_nodelist = {
 	.release =      lpfc_debugfs_release,
 };
 
+#undef lpfc_debugfs_op_hbqinfo
+static struct file_operations lpfc_debugfs_op_hbqinfo = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_hbqinfo_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_release,
+};
+
 #undef lpfc_debugfs_op_dumpslim
 static struct file_operations lpfc_debugfs_op_dumpslim = {
 	.owner =        THIS_MODULE,
@@ -662,6 +803,18 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 		atomic_inc(&lpfc_debugfs_hba_count);
 		atomic_set(&phba->debugfs_vport_count, 0);
+
+		/* Setup hbqinfo */
+		snprintf(name, sizeof(name), "hbqinfo");
+		phba->debug_hbqinfo =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_hbqinfo);
+		if (!phba->debug_hbqinfo) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0409 Cannot create debugfs hbqinfo\n");
+			goto debug_failed;
+		}
 
 		/* Setup dumpslim */
 		snprintf(name, sizeof(name), "dumpslim");
@@ -819,6 +972,10 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 	}
 	if (atomic_read(&phba->debugfs_vport_count) == 0) {
 
+		if (phba->debug_hbqinfo) {
+			debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
+			phba->debug_hbqinfo = NULL;
+		}
 		if (phba->debug_dumpslim) {
 			debugfs_remove(phba->debug_dumpslim); /* dumpslim */
 			phba->debug_dumpslim = NULL;
