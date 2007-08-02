@@ -73,8 +73,7 @@ static int wlan_cmd_802_11_ps_mode(wlan_private * priv,
 
 		psm->locallisteninterval =
 		    cpu_to_le16(adapter->locallisteninterval);
-		psm->nullpktinterval =
-		    cpu_to_le16(adapter->nullpktinterval);
+		psm->nullpktinterval = 0;
 		psm->multipledtim =
 		    cpu_to_le16(priv->adapter->multipledtim);
 		break;
