@@ -44,8 +44,8 @@ int libertas_execute_next_command(wlan_private * priv);
 int libertas_process_event(wlan_private * priv);
 void libertas_interrupt(struct net_device *);
 int libertas_set_radio_control(wlan_private * priv);
-u32 libertas_index_to_data_rate(u8 index);
-u8 libertas_data_rate_to_index(u32 rate);
+u32 libertas_fw_index_to_data_rate(u8 index);
+u8 libertas_data_rate_to_fw_index(u32 rate);
 void libertas_get_fwversion(wlan_adapter * adapter, char *fwversion, int maxlen);
 
 void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb);

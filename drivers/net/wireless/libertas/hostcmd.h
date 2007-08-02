@@ -428,8 +428,8 @@ struct PS_CMD_ConfirmSleep {
 
 struct cmd_ds_802_11_data_rate {
 	__le16 action;
-	__le16 reserverd;
-	u8 datarate[G_SUPPORTED_RATES];
+	__le16 reserved;
+	u8 rates[MAX_RATES];
 };
 
 struct cmd_ds_802_11_rate_adapt_rateset {
@@ -447,7 +447,7 @@ struct cmd_ds_802_11_ad_hoc_start {
 	union ieeetypes_phyparamset phyparamset;
 	__le16 probedelay;
 	__le16 capability;
-	u8 datarate[G_SUPPORTED_RATES];
+	u8 rates[MAX_RATES];
 	u8 tlv_memory_size_pad[100];
 } __attribute__ ((packed));
 
@@ -462,7 +462,7 @@ struct adhoc_bssdesc {
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
 	__le16 capability;
-	u8 datarates[G_SUPPORTED_RATES];
+	u8 rates[MAX_RATES];
 
 	/* DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
 	 * Adhoc join command and will cause a binary layout mismatch with

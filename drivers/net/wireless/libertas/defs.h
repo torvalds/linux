@@ -246,10 +246,7 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
                         ((((int)(AVG) * (N -1)) + ((u16)(SNRNF) * \
                         AVG_SCALE))  / N))
 
-#define B_SUPPORTED_RATES		8
-#define G_SUPPORTED_RATES		14
-
-#define	WLAN_SUPPORTED_RATES		14
+#define MAX_RATES			14
 
 #define	MAX_LEDS			8
 
@@ -263,11 +260,7 @@ typedef struct _wlan_adapter wlan_adapter;
 extern const char libertas_driver_version[];
 extern u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE];
 
-extern u8 libertas_supported_rates[G_SUPPORTED_RATES];
-
-extern u8 libertas_adhoc_rates_g[G_SUPPORTED_RATES];
-
-extern u8 libertas_adhoc_rates_b[4];
+extern u8 libertas_bg_rates[MAX_RATES];
 
 /** ENUM definition*/
 /** SNRNF_TYPE */

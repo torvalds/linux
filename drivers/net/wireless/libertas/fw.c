@@ -214,7 +214,10 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->txantenna = RF_ANTENNA_2;
 	adapter->rxantenna = RF_ANTENNA_AUTO;
 
-	adapter->is_datarate_auto = 1;
+	adapter->auto_rate = 1;
+	adapter->cur_rate = 0;
+	adapter->adhoc_grate_enabled = 0;
+
 	adapter->beaconperiod = MRVDRV_BEACON_INTERVAL;
 
 	// set default capabilities
@@ -228,10 +231,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->psstate = PS_STATE_FULL_POWER;
 	adapter->needtowakeup = 0;
 	adapter->locallisteninterval = 0;	/* default value in firmware will be used */
-
-	adapter->datarate = 0;	// Initially indicate the rate as auto
-
-	adapter->adhoc_grate_enabled = 0;
 
 	adapter->intcounter = 0;
 

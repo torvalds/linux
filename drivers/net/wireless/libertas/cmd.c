@@ -607,17 +607,14 @@ static int wlan_cmd_802_11_data_rate(wlan_private * priv,
 
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_data_rate) +
 			     S_DS_GEN);
-
 	cmd->command = cpu_to_le16(CMD_802_11_DATA_RATE);
-
 	memset(pdatarate, 0, sizeof(struct cmd_ds_802_11_data_rate));
-
 	pdatarate->action = cpu_to_le16(cmd_action);
 
 	if (cmd_action == CMD_ACT_SET_TX_FIX_RATE) {
-		pdatarate->datarate[0] = libertas_data_rate_to_index(adapter->datarate);
+		pdatarate->rates[0] = libertas_data_rate_to_fw_index(adapter->cur_rate);
 		lbs_deb_cmd("Setting FW for fixed rate 0x%02X\n",
-		       adapter->datarate);
+		       adapter->cur_rate);
 	} else if (cmd_action == CMD_ACT_SET_TX_AUTO) {
 		lbs_deb_cmd("Setting FW for AUTO rate\n");
 	}

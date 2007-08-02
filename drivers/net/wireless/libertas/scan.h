@@ -152,14 +152,14 @@ struct bss_descriptor {
 	u32 atimwindow;
 
 	u8 mode;
-	u8 libertas_supported_rates[WLAN_SUPPORTED_RATES];
+	/* zero-terminated array of supported data rates */
+	u8 rates[MAX_RATES + 1];
 
 	__le64 timestamp;	//!< TSF value included in the beacon/probe response
 	unsigned long last_scanned;
 
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
-	u8 datarates[WLAN_SUPPORTED_RATES];
 
 	u64 networktsf;		//!< TSF timestamp from the current firmware TSF
 

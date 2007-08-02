@@ -430,21 +430,18 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 {
 	struct cmd_ds_802_11_data_rate *pdatarate = &resp->params.drate;
 	wlan_adapter *adapter = priv->adapter;
-	u8 dot11datarate;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_dbg_hex("DATA_RATE_RESP: data_rate- ",
-		(u8 *) pdatarate, sizeof(struct cmd_ds_802_11_data_rate));
+	lbs_dbg_hex("DATA_RATE_RESP: data_rate- ", (u8 *) pdatarate,
+		sizeof(struct cmd_ds_802_11_data_rate));
 
-	dot11datarate = pdatarate->datarate[0];
-	if (pdatarate->action == cpu_to_le16(CMD_ACT_GET_TX_RATE)) {
-		memcpy(adapter->libertas_supported_rates, pdatarate->datarate,
-		       sizeof(adapter->libertas_supported_rates));
-	}
-	adapter->datarate = libertas_index_to_data_rate(dot11datarate);
+	/* FIXME: get actual rates FW can do if this command actually returns
+	 * all data rates supported.
+	 */
+	adapter->cur_rate = libertas_fw_index_to_data_rate(pdatarate->rates[0]);
 
-	lbs_deb_enter(LBS_DEB_CMD);
+	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
 }
 

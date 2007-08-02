@@ -260,8 +260,8 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (adapter->is_datarate_auto)
-		adapter->datarate = libertas_index_to_data_rate(p_rx_pd->rx_rate);
+	if (adapter->auto_rate)
+		adapter->cur_rate = libertas_fw_index_to_data_rate(p_rx_pd->rx_rate);
 
 	wlan_compute_rssi(priv, p_rx_pd);
 
@@ -424,9 +424,8 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (adapter->is_datarate_auto) {
-		adapter->datarate = libertas_index_to_data_rate(prxpd->rx_rate);
-	}
+	if (adapter->auto_rate)
+		adapter->cur_rate = libertas_fw_index_to_data_rate(prxpd->rx_rate);
 
 	wlan_compute_rssi(priv, prxpd);
 

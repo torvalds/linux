@@ -53,4 +53,6 @@ extern int libertas_do_adhocstop_ioctl(wlan_private * priv);
 
 int wlan_associate(wlan_private * priv, struct assoc_request * assoc_req);
 
+void libertas_unset_basic_rate_flags(u8 * rates, size_t len);
+
 #endif

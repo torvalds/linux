@@ -22,14 +22,6 @@
 
 
 /**
- * the rates supported by the card
- */
-static u8 libertas_wlan_data_rates[WLAN_SUPPORTED_RATES] =
-    { 0x02, 0x04, 0x0B, 0x16, 0x00, 0x0C, 0x12,
-      0x18, 0x24, 0x30, 0x48, 0x60, 0x6C, 0x00
-};
-
-/**
  *  @brief Convert mw value to dbm value
  *
  *  @param mw	   the value of mw
@@ -187,57 +179,21 @@ int wlan_radio_ioctl(wlan_private * priv, u8 option)
 }
 
 /**
- *  @brief Copy rates
- *
- *  @param dest                 A pointer to Dest Buf
- *  @param src		        A pointer to Src Buf
- *  @param len                  The len of Src Buf
- *  @return 	   	        Number of rates copyed
- */
-static inline int copyrates(u8 * dest, int pos, u8 * src, int len)
-{
-	int i;
-
-	for (i = 0; i < len && src[i]; i++, pos++) {
-		if (pos >= sizeof(u8) * WLAN_SUPPORTED_RATES)
-			break;
-		dest[pos] = src[i];
-	}
-
-	return pos;
-}
-
-/**
- *  @brief Get active data rates
+ *  @brief Copy active data rates based on adapter mode and status
  *
  *  @param adapter              A pointer to wlan_adapter structure
  *  @param rate		        The buf to return the active rates
- *  @return 	   	        The number of rates
  */
-static int get_active_data_rates(wlan_adapter * adapter,
-				 u8* rates)
+static void copy_active_data_rates(wlan_adapter * adapter, u8 * rates)
 {
-	int k = 0;
-
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status != LIBERTAS_CONNECTED) {
-		if (adapter->mode == IW_MODE_INFRA) {
-			lbs_deb_wext("infra\n");
-			k = copyrates(rates, k, libertas_supported_rates,
-				      sizeof(libertas_supported_rates));
-		} else {
-			lbs_deb_wext("Adhoc G\n");
-			k = copyrates(rates, k, libertas_adhoc_rates_g,
-				      sizeof(libertas_adhoc_rates_g));
-		}
-	} else {
-		k = copyrates(rates, 0, adapter->curbssparams.datarates,
-			      adapter->curbssparams.numofrates);
-	}
+	if (adapter->connect_status != LIBERTAS_CONNECTED)
+		memcpy(rates, libertas_bg_rates, MAX_RATES);
+	else
+		memcpy(rates, adapter->curbssparams.rates, MAX_RATES);
 
-	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", k);
-	return k;
+	lbs_deb_leave(LBS_DEB_WEXT);
 }
 
 static int wlan_get_name(struct net_device *dev, struct iw_request_info *info,
@@ -673,7 +629,7 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 	wlan_adapter *adapter = priv->adapter;
 	struct iw_range *range = (struct iw_range *)extra;
 	struct chan_freq_power *cfp;
-	u8 rates[WLAN_SUPPORTED_RATES];
+	u8 rates[MAX_RATES + 1];
 
 	u8 flag = 0;
 
@@ -686,12 +642,10 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 	range->max_nwid = 0;
 
 	memset(rates, 0, sizeof(rates));
-	range->num_bitrates = get_active_data_rates(adapter, rates);
-
-	for (i = 0; i < min_t(__u8, range->num_bitrates, IW_MAX_BITRATES) && rates[i];
-	     i++) {
-		range->bitrate[i] = (rates[i] & 0x7f) * 500000;
-	}
+	copy_active_data_rates(adapter, rates);
+	range->num_bitrates = strnlen(rates, IW_MAX_BITRATES);
+	for (i = 0; i < range->num_bitrates; i++)
+		range->bitrate[i] = rates[i] * 500000;
 	range->num_bitrates = i;
 	lbs_deb_wext("IW_MAX_BITRATES %d, num_bitrates %d\n", IW_MAX_BITRATES,
 	       range->num_bitrates);
@@ -1080,88 +1034,46 @@ out:
 	return ret;
 }
 
-/**
- *  @brief use index to get the data rate
- *
- *  @param index                The index of data rate
- *  @return 	   		data rate or 0
- */
-u32 libertas_index_to_data_rate(u8 index)
-{
-	if (index >= sizeof(libertas_wlan_data_rates))
-		index = 0;
-
-	return libertas_wlan_data_rates[index];
-}
-
-/**
- *  @brief use rate to get the index
- *
- *  @param rate                 data rate
- *  @return 	   		index or 0
- */
-u8 libertas_data_rate_to_index(u32 rate)
-{
-	u8 *ptr;
-
-	if (rate)
-		if ((ptr = memchr(libertas_wlan_data_rates, (u8) rate,
-				  sizeof(libertas_wlan_data_rates))))
-			return (ptr - libertas_wlan_data_rates);
-
-	return 0;
-}
-
 static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
-	u32 data_rate;
+	u32 new_rate;
 	u16 action;
-	int ret = 0;
-	u8 rates[WLAN_SUPPORTED_RATES];
-	u8 *rate;
+	int ret = -EINVAL;
+	u8 rates[MAX_RATES + 1];
 
 	lbs_deb_enter(LBS_DEB_WEXT);
-
 	lbs_deb_wext("vwrq->value %d\n", vwrq->value);
 
+	/* Auto rate? */
 	if (vwrq->value == -1) {
-		action = CMD_ACT_SET_TX_AUTO;	// Auto
-		adapter->is_datarate_auto = 1;
-		adapter->datarate = 0;
+		action = CMD_ACT_SET_TX_AUTO;
+		adapter->auto_rate = 1;
+		adapter->cur_rate = 0;
 	} else {
-		if (vwrq->value % 100000) {
-			return -EINVAL;
-		}
-
-		data_rate = vwrq->value / 500000;
+		if (vwrq->value % 100000)
+			goto out;
 
 		memset(rates, 0, sizeof(rates));
-		get_active_data_rates(adapter, rates);
-		rate = rates;
-		while (*rate) {
-			lbs_deb_wext("rate=0x%X, wanted data_rate 0x%X\n", *rate,
-			       data_rate);
-			if ((*rate & 0x7f) == (data_rate & 0x7f))
-				break;
-			rate++;
-		}
-		if (!*rate) {
-			lbs_pr_alert("fixed data rate 0x%X out "
-			       "of range\n", data_rate);
-			return -EINVAL;
+		copy_active_data_rates(adapter, rates);
+		new_rate = vwrq->value / 500000;
+		if (!memchr(rates, new_rate, sizeof(rates))) {
+			lbs_pr_alert("fixed data rate 0x%X out of range\n",
+				new_rate);
+			goto out;
 		}
 
-		adapter->datarate = data_rate;
+		adapter->cur_rate = new_rate;
 		action = CMD_ACT_SET_TX_FIX_RATE;
-		adapter->is_datarate_auto = 0;
+		adapter->auto_rate = 0;
 	}
 
 	ret = libertas_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
 				    action, CMD_OPTION_WAITFORRSP, 0, NULL);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
@@ -1174,13 +1086,18 @@ static int wlan_get_rate(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->is_datarate_auto) {
-		vwrq->fixed = 0;
-	} else {
-		vwrq->fixed = 1;
-	}
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
+		vwrq->value = adapter->cur_rate * 500000;
 
-	vwrq->value = adapter->datarate * 500000;
+		if (adapter->auto_rate)
+			vwrq->fixed = 0;
+		else
+			vwrq->fixed = 1;
+
+	} else {
+		vwrq->fixed = 0;
+		vwrq->value = 0;
+	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;

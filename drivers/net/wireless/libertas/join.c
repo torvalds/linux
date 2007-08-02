@@ -17,8 +17,12 @@
 #include "dev.h"
 #include "assoc.h"
 
+/* Supported rates for ad-hoc B mode */
+u8 adhoc_rates_b[5] = { 0x02, 0x04, 0x0b, 0x16, 0x00 };
+
+
 /**
- *  @brief This function finds out the common rates between rate1 and rate2.
+ *  @brief This function finds common rates between rate1 and card rates.
  *
  * It will fill common rates in rate1 as output if found.
  *
@@ -27,60 +31,86 @@
  *
  *  @param adapter     A pointer to wlan_adapter structure
  *  @param rate1       the buffer which keeps input and output
- *  @param rate1_size  the size of rate1 buffer
- *  @param rate2       the buffer which keeps rate2
- *  @param rate2_size  the size of rate2 buffer.
+ *  @param rate1_size  the size of rate1 buffer; new size of buffer on return
  *
  *  @return            0 or -1
  */
-static int get_common_rates(wlan_adapter * adapter, u8 * rate1,
-			    int rate1_size, u8 * rate2, int rate2_size)
+static int get_common_rates(wlan_adapter * adapter, u8 * rates, u16 *rates_size)
 {
-	u8 *ptr = rate1;
-	int ret = 0;
+	u8 *card_rates = libertas_bg_rates;
+	size_t num_card_rates = sizeof(libertas_bg_rates);
+	int ret = 0, i, j;
 	u8 tmp[30];
-	int i;
+	size_t tmp_size = 0;
 
-	memset(&tmp, 0, sizeof(tmp));
-	memcpy(&tmp, rate1, min_t(size_t, rate1_size, sizeof(tmp)));
-	memset(rate1, 0, rate1_size);
-
-	/* Mask the top bit of the original values */
-	for (i = 0; tmp[i] && i < sizeof(tmp); i++)
-		tmp[i] &= 0x7F;
-
-	for (i = 0; rate2[i] && i < rate2_size; i++) {
-		/* Check for Card Rate in tmp, excluding the top bit */
-		if (strchr(tmp, rate2[i] & 0x7F)) {
-			/* values match, so copy the Card Rate to rate1 */
-			*rate1++ = rate2[i];
+	/* For each rate in card_rates that exists in rate1, copy to tmp */
+	for (i = 0; card_rates[i] && (i < num_card_rates); i++) {
+		for (j = 0; rates[j] && (j < *rates_size); j++) {
+			if (rates[j] == card_rates[i])
+				tmp[tmp_size++] = card_rates[i];
 		}
 	}
 
-	lbs_dbg_hex("rate1 (AP) rates:", tmp, sizeof(tmp));
-	lbs_dbg_hex("rate2 (Card) rates:", rate2, rate2_size);
-	lbs_dbg_hex("Common rates:", ptr, rate1_size);
-	lbs_deb_join("Tx datarate is set to 0x%X\n", adapter->datarate);
+	lbs_dbg_hex("rate1 (AP) rates:", rates, *rates_size);
+	lbs_dbg_hex("rate2 (Card) rates:", card_rates, num_card_rates);
+	lbs_dbg_hex("Common rates:", tmp, tmp_size);
+	lbs_deb_join("Tx datarate is currently 0x%X\n", adapter->cur_rate);
 
-	if (!adapter->is_datarate_auto) {
-		while (*ptr) {
-			if ((*ptr & 0x7f) == adapter->datarate) {
-				ret = 0;
+	if (!adapter->auto_rate) {
+		for (i = 0; i < tmp_size; i++) {
+			if (tmp[i] == adapter->cur_rate)
 				goto done;
-			}
-			ptr++;
 		}
-		lbs_pr_alert( "Previously set fixed data rate %#x isn't "
-		       "compatible with the network.\n", adapter->datarate);
-
+		lbs_pr_alert("Previously set fixed data rate %#x isn't "
+		       "compatible with the network.\n", adapter->cur_rate);
 		ret = -1;
 		goto done;
 	}
-
 	ret = 0;
+
 done:
+	memset(rates, 0, *rates_size);
+	*rates_size = min_t(int, tmp_size, *rates_size);
+	memcpy(rates, tmp, *rates_size);
 	return ret;
 }
+
+
+/**
+ *  @brief Sets the MSB on basic rates as the firmware requires
+ *
+ * Scan through an array and set the MSB for basic data rates.
+ *
+ *  @param rates     buffer of data rates
+ *  @param len       size of buffer
+ */
+static void libertas_set_basic_rate_flags(u8 * rates, size_t len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (rates[i] == 0x02 || rates[i] == 0x04 ||
+		    rates[i] == 0x0b || rates[i] == 0x16)
+			rates[i] |= 0x80;
+	}
+}
+
+/**
+ *  @brief Unsets the MSB on basic rates
+ *
+ * Scan through an array and unset the MSB for basic data rates.
+ *
+ *  @param rates     buffer of data rates
+ *  @param len       size of buffer
+ */
+void libertas_unset_basic_rate_flags(u8 * rates, size_t len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		rates[i] &= 0x7f;
+}
+
 
 int libertas_send_deauth(wlan_private * priv)
 {
@@ -330,9 +360,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	int ret = 0;
 	struct assoc_request * assoc_req = pdata_buf;
 	struct bss_descriptor * bss = &assoc_req->bss;
-	u8 *card_rates;
 	u8 *pos;
-	int card_rates_size;
 	u16 tmpcap, tmplen;
 	struct mrvlietypes_ssidparamset *ssid;
 	struct mrvlietypes_phyparamset *phy;
@@ -386,23 +414,24 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 
 	rates = (struct mrvlietypes_ratesparamset *) pos;
 	rates->header.type = cpu_to_le16(TLV_TYPE_RATES);
-
-	memcpy(&rates->rates, &bss->libertas_supported_rates, WLAN_SUPPORTED_RATES);
-
-	card_rates = libertas_supported_rates;
-	card_rates_size = sizeof(libertas_supported_rates);
-
-	if (get_common_rates(adapter, rates->rates, WLAN_SUPPORTED_RATES,
-			     card_rates, card_rates_size)) {
+	memcpy(&rates->rates, &bss->rates, MAX_RATES);
+	tmplen = MAX_RATES;
+	if (get_common_rates(adapter, rates->rates, &tmplen)) {
 		ret = -1;
 		goto done;
 	}
-
-	tmplen = min_t(size_t, strlen(rates->rates), WLAN_SUPPORTED_RATES);
-	adapter->curbssparams.numofrates = tmplen;
-
 	pos += sizeof(rates->header) + tmplen;
 	rates->header.len = cpu_to_le16(tmplen);
+	lbs_deb_join("ASSOC_CMD: num rates = %u\n", tmplen);
+
+	/* Copy the infra. association rates into Current BSS state structure */
+	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
+	memcpy(&adapter->curbssparams.rates, &rates->rates, tmplen);
+
+	/* Set MSB on basic rates as the firmware requires, but _after_
+	 * copying to current bss rates.
+	 */
+	libertas_set_basic_rate_flags(rates->rates, tmplen);
 
 	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
 		rsn = (struct mrvlietypes_rsnparamset *) pos;
@@ -418,14 +447,6 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 
 	/* update curbssparams */
 	adapter->curbssparams.channel = bss->phyparamset.dsparamset.currentchan;
-
-	/* Copy the infra. association rates into Current BSS state structure */
-	memcpy(&adapter->curbssparams.datarates, &rates->rates,
-	       min_t(size_t, sizeof(adapter->curbssparams.datarates),
-		     cpu_to_le16(rates->header.len)));
-
-	lbs_deb_join("ASSOC_CMD: rates->header.len = %d\n",
-		     cpu_to_le16(rates->header.len));
 
 	if (libertas_parse_dnld_countryinfo_11d(priv, bss)) {
 		ret = -1;
@@ -454,9 +475,9 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	struct cmd_ds_802_11_ad_hoc_start *adhs = &cmd->params.ads;
 	int ret = 0;
 	int cmdappendsize = 0;
-	int i;
 	struct assoc_request * assoc_req = pdata_buf;
 	u16 tmpcap = 0;
+	size_t ratesize = 0;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -526,28 +547,26 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	/* probedelay */
 	adhs->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
-	memset(adhs->datarate, 0, sizeof(adhs->datarate));
-
+	memset(adhs->rates, 0, sizeof(adhs->rates));
 	if (adapter->adhoc_grate_enabled) {
-		memcpy(adhs->datarate, libertas_adhoc_rates_g,
-		       min(sizeof(adhs->datarate), sizeof(libertas_adhoc_rates_g)));
+		ratesize = min(sizeof(adhs->rates), sizeof(libertas_bg_rates));
+		memcpy(adhs->rates, libertas_bg_rates, ratesize);
 	} else {
-		memcpy(adhs->datarate, libertas_adhoc_rates_b,
-		       min(sizeof(adhs->datarate), sizeof(libertas_adhoc_rates_b)));
+		ratesize = min(sizeof(adhs->rates), sizeof(adhoc_rates_b));
+		memcpy(adhs->rates, adhoc_rates_b, ratesize);
 	}
 
-	/* Find the last non zero */
-	for (i = 0; i < sizeof(adhs->datarate) && adhs->datarate[i]; i++) ;
-
-	adapter->curbssparams.numofrates = i;
-
 	/* Copy the ad-hoc creating rates into Current BSS state structure */
-	memcpy(&adapter->curbssparams.datarates,
-	       &adhs->datarate, adapter->curbssparams.numofrates);
+	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
+	memcpy(&adapter->curbssparams.rates, &adhs->rates, ratesize);
+
+	/* Set MSB on basic rates as the firmware requires, but _after_
+	 * copying to current bss rates.
+	 */
+	libertas_set_basic_rate_flags(adhs->rates, ratesize);
 
 	lbs_deb_join("ADHOC_S_CMD: rates=%02x %02x %02x %02x \n",
-	       adhs->datarate[0], adhs->datarate[1],
-	       adhs->datarate[2], adhs->datarate[3]);
+	       adhs->rates[0], adhs->rates[1], adhs->rates[2], adhs->rates[3]);
 
 	lbs_deb_join("ADHOC_S_CMD: AD HOC Start command is ready\n");
 
@@ -584,9 +603,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	struct bss_descriptor *bss = &assoc_req->bss;
 	int cmdappendsize = 0;
 	int ret = 0;
-	u8 *card_rates;
-	int card_rates_size;
-	int i;
+	u16 ratesize = 0;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -619,36 +636,26 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	/* probedelay */
 	join_cmd->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
-	/* Copy Data rates from the rates recorded in scan response */
-	memset(join_cmd->bss.datarates, 0, sizeof(join_cmd->bss.datarates));
-	memcpy(join_cmd->bss.datarates, bss->datarates,
-	       min(sizeof(join_cmd->bss.datarates), sizeof(bss->datarates)));
-
-	card_rates = libertas_supported_rates;
-	card_rates_size = sizeof(libertas_supported_rates);
-
 	adapter->curbssparams.channel = bss->channel;
 
-	if (get_common_rates(adapter, join_cmd->bss.datarates,
-			     sizeof(join_cmd->bss.datarates),
-			     card_rates, card_rates_size)) {
+	/* Copy Data rates from the rates recorded in scan response */
+	memset(join_cmd->bss.rates, 0, sizeof(join_cmd->bss.rates));
+	ratesize = min_t(u16, sizeof(join_cmd->bss.rates), MAX_RATES);
+	memcpy(join_cmd->bss.rates, bss->rates, ratesize);
+	if (get_common_rates(adapter, join_cmd->bss.rates, &ratesize)) {
 		lbs_deb_join("ADHOC_J_CMD: get_common_rates returns error.\n");
 		ret = -1;
 		goto done;
 	}
 
-	/* Find the last non zero */
-	for (i = 0; i < sizeof(join_cmd->bss.datarates)
-	     && join_cmd->bss.datarates[i]; i++) ;
+	/* Copy the ad-hoc creating rates into Current BSS state structure */
+	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
+	memcpy(&adapter->curbssparams.rates, join_cmd->bss.rates, ratesize);
 
-	adapter->curbssparams.numofrates = i;
-
-	/*
-	 * Copy the adhoc joining rates to Current BSS State structure
+	/* Set MSB on basic rates as the firmware requires, but _after_
+	 * copying to current bss rates.
 	 */
-	memcpy(adapter->curbssparams.datarates,
-	       join_cmd->bss.datarates,
-	       adapter->curbssparams.numofrates);
+	libertas_set_basic_rate_flags(join_cmd->bss.rates, ratesize);
 
 	join_cmd->bss.ssparamset.ibssparamset.atimwindow =
 	    cpu_to_le16(bss->atimwindow);

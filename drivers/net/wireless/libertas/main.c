@@ -150,29 +150,60 @@ static struct region_cfp_table region_cfp_table[] = {
 };
 
 /**
- * the rates supported
- */
-u8 libertas_supported_rates[G_SUPPORTED_RATES] =
-    { 0x82, 0x84, 0x8b, 0x96, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
-0 };
-
-/**
- * the rates supported for ad-hoc G mode
- */
-u8 libertas_adhoc_rates_g[G_SUPPORTED_RATES] =
-    { 0x82, 0x84, 0x8b, 0x96, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
-0 };
-
-/**
- * the rates supported for ad-hoc B mode
- */
-u8 libertas_adhoc_rates_b[4] = { 0x82, 0x84, 0x8b, 0x96 };
-
-/**
  * the table to keep region code
  */
 u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
     { 0x10, 0x20, 0x30, 0x31, 0x32, 0x40 };
+
+/**
+ * 802.11b/g supported bitrates (in 500Kb/s units)
+ */
+u8 libertas_bg_rates[MAX_RATES] =
+    { 0x02, 0x04, 0x0b, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
+0x00, 0x00 };
+
+/**
+ * FW rate table.  FW refers to rates by their index in this table, not by the
+ * rate value itself.  Values of 0x00 are
+ * reserved positions.
+ */
+static u8 fw_data_rates[MAX_RATES] =
+    { 0x02, 0x04, 0x0B, 0x16, 0x00, 0x0C, 0x12,
+      0x18, 0x24, 0x30, 0x48, 0x60, 0x6C, 0x00
+};
+
+/**
+ *  @brief use index to get the data rate
+ *
+ *  @param idx                The index of data rate
+ *  @return 	   		data rate or 0
+ */
+u32 libertas_fw_index_to_data_rate(u8 idx)
+{
+	if (idx >= sizeof(fw_data_rates))
+		idx = 0;
+	return fw_data_rates[idx];
+}
+
+/**
+ *  @brief use rate to get the index
+ *
+ *  @param rate                 data rate
+ *  @return 	   		index or 0
+ */
+u8 libertas_data_rate_to_fw_index(u32 rate)
+{
+	u8 i;
+
+	if (!rate)
+		return 0;
+
+	for (i = 0; i < sizeof(fw_data_rates); i++) {
+		if (rate == fw_data_rates[i])
+			return i;
+	}
+	return 0;
+}
 
 /**
  * Attributes exported through sysfs

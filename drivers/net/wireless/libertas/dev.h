@@ -72,10 +72,8 @@ struct current_bss_params {
 	u8 band;
 	/** channel */
 	u8 channel;
-	/** number of rates supported */
-	int numofrates;
-	/** supported rates*/
-	u8 datarates[WLAN_SUPPORTED_RATES];
+	/** zero-terminated array of supported data rates */
+	u8 rates[MAX_RATES + 1];
 };
 
 /** sleep_params */
@@ -296,9 +294,6 @@ struct _wlan_adapter {
 	u32 fragthsd;
 	u32 rtsthsd;
 
-	u32 datarate;
-	u8 is_datarate_auto;
-
 	u16 listeninterval;
 	u16 prescan;
 	u8 txretrycount;
@@ -364,10 +359,9 @@ struct _wlan_adapter {
 	u8 radioon;
 	u32 preamble;
 
-	/** Multi bands Parameter*/
-	u8 libertas_supported_rates[G_SUPPORTED_RATES];
-
-	/** Blue Tooth Co-existence Arbitration */
+	/** data rate stuff */
+	u8 cur_rate;
+	u8 auto_rate;
 
 	/** sleep_params */
 	struct sleep_params sp;

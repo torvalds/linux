@@ -17,6 +17,7 @@
 #include "decl.h"
 #include "dev.h"
 #include "scan.h"
+#include "join.h"
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
 #define MAX_SCAN_CELL_SIZE  (IW_EV_ADDR_LEN             \
@@ -904,21 +905,13 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	struct ieeetypes_dsparamset *pDS;
 	struct ieeetypes_cfparamset *pCF;
 	struct ieeetypes_ibssparamset *pibss;
-	u8 *pos, *end;
-	u8 *pRate;
-	u8 bytestocopy;
-	u8 ratesize;
-	u16 beaconsize;
-	u8 founddatarateie;
+	struct ieeetypes_countryinfoset *pcountryinfo;
+	u8 *pos, *end, *p;
+	u8 n_ex_rates = 0, got_basic_rates = 0, n_basic_rates = 0;
+	u16 beaconsize = 0;
 	int ret;
 
-	struct ieeetypes_countryinfoset *pcountryinfo;
-
 	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	founddatarateie = 0;
-	ratesize = 0;
-	beaconsize = 0;
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
@@ -1005,11 +998,9 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 			break;
 
 		case MFIE_TYPE_RATES:
-			memcpy(bss->datarates, elem->data, elem->len);
-			memmove(bss->libertas_supported_rates, elem->data,
-				elem->len);
-			ratesize = elem->len;
-			founddatarateie = 1;
+			n_basic_rates = min_t(u8, MAX_RATES, elem->len);
+			memcpy(bss->rates, elem->data, n_basic_rates);
+			got_basic_rates = 1;
 			break;
 
 		case MFIE_TYPE_FH_SET:
@@ -1070,22 +1061,15 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 			 * already found. Data rate IE should come before
 			 * extended supported rate IE
 			 */
-			if (!founddatarateie)
+			if (!got_basic_rates)
 				break;
 
-			if ((elem->len + ratesize) > WLAN_SUPPORTED_RATES) {
-				bytestocopy =
-				    (WLAN_SUPPORTED_RATES - ratesize);
-			} else {
-				bytestocopy = elem->len;
-			}
+			n_ex_rates = elem->len;
+			if (n_basic_rates + n_ex_rates > MAX_RATES)
+				n_ex_rates = MAX_RATES - n_basic_rates;
 
-			pRate = (u8 *) bss->datarates;
-			pRate += ratesize;
-			memmove(pRate, elem->data, bytestocopy);
-			pRate = (u8 *) bss->libertas_supported_rates;
-			pRate += ratesize;
-			memmove(pRate, elem->data, bytestocopy);
+			p = bss->rates + n_basic_rates;
+			memcpy(p, elem->data, n_ex_rates);
 			break;
 
 		case MFIE_TYPE_GENERIC:
@@ -1123,6 +1107,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 	/* Timestamp */
 	bss->last_scanned = jiffies;
+	libertas_unset_basic_rate_flags(bss->rates, sizeof(bss->rates));
 
 	ret = 0;
 
@@ -1530,12 +1515,9 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = 0;
 
-	for (j = 0; j < sizeof(bss->libertas_supported_rates); j++) {
-		u8 rate = bss->libertas_supported_rates[j];
-		if (rate == 0)
-			break; /* no more rates */
-		/* Bit rate given in 500 kb/s units (+ 0x80) */
-		iwe.u.bitrate.value = (rate & 0x7f) * 500000;
+	for (j = 0; bss->rates[j] && (j < sizeof(bss->rates)); j++) {
+		/* Bit rate given in 500 kb/s units */
+		iwe.u.bitrate.value = bss->rates[j] * 500000;
 		current_val = iwe_stream_add_value(start, current_val,
 					 stop, &iwe, IW_EV_PARAM_LEN);
 	}
