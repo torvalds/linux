@@ -1368,13 +1368,6 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 					   S_DS_GEN);
 		ret = 0;
 		break;
-	case CMD_802_11_TX_RATE_QUERY:
-		cmdptr->command = cpu_to_le16(CMD_802_11_TX_RATE_QUERY);
-		cmdptr->size = cpu_to_le16(sizeof(struct cmd_tx_rate_query) +
-					   S_DS_GEN);
-		adapter->txrate = 0;
-		ret = 0;
-		break;
 	default:
 		lbs_deb_host("PREP_CMD: unknown command 0x%04x\n", cmd_no);
 		ret = -1;

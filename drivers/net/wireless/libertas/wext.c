@@ -949,7 +949,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	priv->wstats.discard.misc = le16_to_cpu(adapter->logmsg.ackfailure);
 
 	/* Calculate quality */
-	priv->wstats.qual.qual = min_t(u32, quality, 100);
+	priv->wstats.qual.qual = min_t(u8, quality, 100);
 	priv->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	stats_valid = 1;
 

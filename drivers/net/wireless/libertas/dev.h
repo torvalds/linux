@@ -376,7 +376,6 @@ struct _wlan_adapter {
 
 	struct cmd_ds_802_11_get_log logmsg;
 
-	u16 txrate;
 	u32 linkmode;
 	u32 radiomode;
 	u8 fw_ready;

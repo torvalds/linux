@@ -702,9 +702,6 @@ static inline int handle_cmd_response(u16 respcmd,
 			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.mesh,
 			       sizeof(resp->params.mesh));
 		break;
-	case CMD_RET(CMD_802_11_TX_RATE_QUERY):
-		priv->adapter->txrate = resp->params.txrate.txrate;
-		break;
 	default:
 		lbs_deb_host("CMD_RESP: unknown cmd response 0x%04x\n",
 			    resp->command);
