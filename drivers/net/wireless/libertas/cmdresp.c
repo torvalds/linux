@@ -179,7 +179,6 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
 		/* use the region code to search for the index */
 		if (adapter->regioncode == libertas_region_code_to_index[i]) {
-			adapter->regiontableindex = (u16) i;
 			break;
 		}
 	}
@@ -187,7 +186,6 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	/* if it's unidentified region code, use the default (USA) */
 	if (i >= MRVDRV_MAX_REGION_CODE) {
 		adapter->regioncode = 0x10;
-		adapter->regiontableindex = 0;
 		lbs_pr_info("unidentified region code; using the default (USA)\n");
 	}
 

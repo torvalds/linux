@@ -298,7 +298,6 @@ struct _wlan_adapter {
 	u16 currentpacketfilter;
 	u32 connect_status;
 	u16 regioncode;
-	u16 regiontableindex;
 	u16 txpowerlevel;
 
 	/** POWER MANAGEMENT AND PnP SUPPORT */
