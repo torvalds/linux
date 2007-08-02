@@ -181,15 +181,13 @@ static int wlan_cmd_802_11_set_wep(wlan_private * priv,
 
 			switch (pkey->len) {
 			case KEY_LEN_WEP_40:
-				wep->keytype[i] =
-					cpu_to_le16(CMD_TYPE_WEP_40_BIT);
+				wep->keytype[i] = (u8)CMD_TYPE_WEP_40_BIT;
 				memmove(&wep->keymaterial[i], pkey->key,
 				        pkey->len);
 				lbs_deb_cmd("SET_WEP: add key %d (40 bit)\n", i);
 				break;
 			case KEY_LEN_WEP_104:
-				wep->keytype[i] =
-					cpu_to_le16(CMD_TYPE_WEP_104_BIT);
+				wep->keytype[i] = (u8)CMD_TYPE_WEP_104_BIT;
 				memmove(&wep->keymaterial[i], pkey->key,
 				        pkey->len);
 				lbs_deb_cmd("SET_WEP: add key %d (104 bit)\n", i);
