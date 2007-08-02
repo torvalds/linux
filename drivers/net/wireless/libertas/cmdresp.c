@@ -65,17 +65,8 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	            escape_essid(adapter->curbssparams.ssid,
 	                         adapter->curbssparams.ssid_len),
 	            adapter->curbssparams.ssid_len);
-	lbs_deb_cmd("previous SSID '%s', length %u\n",
-	            escape_essid(adapter->prev_ssid, adapter->prev_ssid_len),
-	            adapter->prev_ssid_len);
 
 	adapter->connect_status = LIBERTAS_DISCONNECTED;
-
-	/* Save previous SSID and BSSID for possible reassociation */
-	memcpy(&adapter->prev_ssid, &adapter->curbssparams.ssid,
-	       IW_ESSID_MAX_SIZE);
-	adapter->prev_ssid_len = adapter->curbssparams.ssid_len;
-	memcpy(adapter->prev_bssid, adapter->curbssparams.bssid, ETH_ALEN);
 
 	/* Clear out associated SSID and BSSID since connection is
 	 * no longer valid.

@@ -257,10 +257,6 @@ struct _wlan_adapter {
 	/* IW_MODE_* */
 	u8 mode;
 
-	u8 prev_ssid[IW_ESSID_MAX_SIZE + 1];
-	u8 prev_ssid_len;
-	u8 prev_bssid[ETH_ALEN];
-
 	/* Scan results list */
 	struct list_head network_list;
 	struct list_head network_free_list;
