@@ -416,8 +416,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 		     scanmode);
 
 		/* Set the number of probes to send, use adapter setting if unset */
-		numprobes = (puserscanin->numprobes ? puserscanin->numprobes :
-			     adapter->scanprobes);
+		numprobes = puserscanin->numprobes ? puserscanin->numprobes : 0;
 
 		/*
 		 * Set the BSSID filter to the incoming configuration,
@@ -450,7 +449,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 		}
 	} else {
 		pscancfgout->bsstype = adapter->scanmode;
-		numprobes = adapter->scanprobes;
+		numprobes = 0;
 	}
 
 	/* If the input config or adapter has the number of Probes set, add tlv */

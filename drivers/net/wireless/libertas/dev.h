@@ -375,7 +375,6 @@ struct _wlan_adapter {
 	struct wlan_offset_value offsetvalue;
 
 	struct cmd_ds_802_11_get_log logmsg;
-	u16 scanprobes;
 
 	u32 pkttxctrl;
 

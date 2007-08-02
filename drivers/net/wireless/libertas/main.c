@@ -998,8 +998,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	int i;
 
-	adapter->scanprobes = 0;
-
 	adapter->bcn_avg_factor = DEFAULT_BCN_AVG_FACTOR;
 	adapter->data_avg_factor = DEFAULT_DATA_AVG_FACTOR;
 
