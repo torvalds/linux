@@ -58,7 +58,6 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
  */
 static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 {
-	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct txpd localtxpd;
 	struct txpd *plocaltxpd = &localtxpd;
@@ -86,9 +85,6 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	/* offset of actual data */
 	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 
-	/* TxCtrl set by user or default */
-	plocaltxpd->tx_control = cpu_to_le32(adapter->pkttxctrl);
-
 	p802x_hdr = skb->data;
 	if (priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
 
@@ -99,7 +95,6 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 		new_rate = convert_radiotap_rate_to_mv(pradiotap_hdr->rate);
 		if (new_rate != 0) {
 			/* use new tx_control[4:0] */
-			new_rate |= (adapter->pkttxctrl & ~0x1f);
 			plocaltxpd->tx_control = cpu_to_le32(new_rate);
 		}
 

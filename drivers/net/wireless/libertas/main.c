@@ -1067,7 +1067,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->intcounter = 0;
 
 	adapter->currenttxskb = NULL;
-	adapter->pkttxctrl = 0;
 
 	memset(&adapter->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
 	adapter->tx_queue_idx = 0;
