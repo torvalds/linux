@@ -284,9 +284,6 @@ struct _wlan_adapter {
 	/** control G rates */
 	u8 adhoc_grate_enabled;
 
-	u32 txantenna;
-	u32 rxantenna;
-
 	u32 fragthsd;
 	u32 rtsthsd;
 
@@ -336,9 +333,6 @@ struct _wlan_adapter {
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
-
-	u16 rxantennamode;
-	u16 txantennamode;
 
 	/** Requested Signal Strength*/
 	u16 bcn_avg_factor;

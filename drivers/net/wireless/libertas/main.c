@@ -1049,8 +1049,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	    CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 
 	adapter->radioon = RADIO_ON;
-	adapter->txantenna = RF_ANTENNA_2;
-	adapter->rxantenna = RF_ANTENNA_AUTO;
 
 	adapter->auto_rate = 1;
 	adapter->cur_rate = 0;

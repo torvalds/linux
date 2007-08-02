@@ -570,26 +570,6 @@ static int wlan_cmd_802_11_rf_tx_power(wlan_private * priv,
 	return 0;
 }
 
-static int wlan_cmd_802_11_rf_antenna(wlan_private * priv,
-				      struct cmd_ds_command *cmd,
-				      u16 cmd_action, void *pdata_buf)
-{
-	struct cmd_ds_802_11_rf_antenna *rant = &cmd->params.rant;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_RF_ANTENNA);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_rf_antenna) +
-				S_DS_GEN);
-
-	rant->action = cpu_to_le16(cmd_action);
-	if ((cmd_action == CMD_ACT_SET_RX) || (cmd_action == CMD_ACT_SET_TX)) {
-		rant->antennamode = cpu_to_le16((u16) (*(u32 *) pdata_buf));
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int wlan_cmd_802_11_rate_adapt_rateset(wlan_private * priv,
 					      struct cmd_ds_command *cmd,
 					      u16 cmd_action)
@@ -1250,11 +1230,6 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	case CMD_802_11_RADIO_CONTROL:
 		ret = wlan_cmd_802_11_radio_control(priv, cmdptr, cmd_action);
-		break;
-
-	case CMD_802_11_RF_ANTENNA:
-		ret = wlan_cmd_802_11_rf_antenna(priv, cmdptr,
-						 cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_DATA_RATE:

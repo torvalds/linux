@@ -383,27 +383,6 @@ static int wlan_ret_802_11_rf_tx_power(wlan_private * priv,
 	return 0;
 }
 
-static int wlan_ret_802_11_rf_antenna(wlan_private * priv,
-				      struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_rf_antenna *pAntenna = &resp->params.rant;
-	wlan_adapter *adapter = priv->adapter;
-	u16 action = le16_to_cpu(pAntenna->action);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	if (action == CMD_ACT_GET_RX)
-		adapter->rxantennamode = le16_to_cpu(pAntenna->antennamode);
-
-	if (action == CMD_ACT_GET_TX)
-		adapter->txantennamode = le16_to_cpu(pAntenna->antennamode);
-
-	lbs_deb_cmd("RF_ANT_RESP: action 0x%x, mode 0x%04x\n",
-	       action, le16_to_cpu(pAntenna->antennamode));
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int wlan_ret_802_11_rate_adapt_rateset(wlan_private * priv,
 					      struct cmd_ds_command *resp)
 {
@@ -619,9 +598,6 @@ static inline int handle_cmd_response(u16 respcmd,
 			sizeof(struct cmd_ds_802_11_afc));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
-		break;
-	case CMD_RET(CMD_802_11_RF_ANTENNA):
-		ret = wlan_ret_802_11_rf_antenna(priv, resp);
 		break;
 
 	case CMD_RET(CMD_MAC_MULTICAST_ADR):
