@@ -711,20 +711,20 @@ static int libertas_thread(void *data)
 		       adapter->currenttxskb, priv->dnld_sent);
 
 		/* command response? */
-		if (adapter->hisregcpy & his_cmdupldrdy) {
+		if (adapter->hisregcpy & MRVDRV_CMD_UPLD_RDY) {
 			lbs_deb_thread("main-thread: cmd response ready\n");
 
-			adapter->hisregcpy &= ~his_cmdupldrdy;
+			adapter->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
 			spin_unlock_irq(&adapter->driver_lock);
 			libertas_process_rx_command(priv);
 			spin_lock_irq(&adapter->driver_lock);
 		}
 
 		/* Any Card Event */
-		if (adapter->hisregcpy & his_cardevent) {
+		if (adapter->hisregcpy & MRVDRV_CARDEVENT) {
 			lbs_deb_thread("main-thread: Card Event Activity\n");
 
-			adapter->hisregcpy &= ~his_cardevent;
+			adapter->hisregcpy &= ~MRVDRV_CARDEVENT;
 
 			if (priv->hw_read_event_cause(priv)) {
 				lbs_pr_alert(

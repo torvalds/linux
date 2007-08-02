@@ -159,9 +159,11 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define MARVELL_MESH_IE_LENGTH		9
 
 /** INT status Bit Definition*/
-#define his_cmddnldrdy			0x01
-#define his_cardevent			0x02
-#define his_cmdupldrdy			0x04
+#define MRVDRV_TX_DNLD_RDY		0x0001
+#define MRVDRV_RX_UPLD_RDY		0x0002
+#define MRVDRV_CMD_DNLD_RDY		0x0004
+#define MRVDRV_CMD_UPLD_RDY		0x0008
+#define MRVDRV_CARDEVENT		0x0010
 
 #define SBI_EVENT_CAUSE_SHIFT		3
 

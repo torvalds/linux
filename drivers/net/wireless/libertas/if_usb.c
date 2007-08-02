@@ -601,11 +601,11 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	 * data to clear the interrupt */
 	if (!priv->adapter->cur_cmd) {
 		cmdbuf = priv->upld_buf;
-		priv->adapter->hisregcpy &= ~his_cmdupldrdy;
+		priv->adapter->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
 	} else
 		cmdbuf = priv->adapter->cur_cmd->bufvirtualaddr;
 
-	cardp->usb_int_cause |= his_cmdupldrdy;
+	cardp->usb_int_cause |= MRVDRV_CMD_UPLD_RDY;
 	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
 	memcpy(cmdbuf, recvbuff + MESSAGE_HEADER_LEN,
 	       priv->upld_len);
@@ -682,7 +682,7 @@ static void if_usb_receive(struct urb *urb)
 			break;
 		}
 		cardp->usb_event_cause <<= 3;
-		cardp->usb_int_cause |= his_cardevent;
+		cardp->usb_int_cause |= MRVDRV_CARDEVENT;
 		kfree_skb(skb);
 		libertas_interrupt(priv->dev);
 		spin_unlock(&priv->adapter->driver_lock);
