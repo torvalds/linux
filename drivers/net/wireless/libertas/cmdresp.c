@@ -173,14 +173,12 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 
 	memcpy(adapter->fwreleasenumber, hwspec->fwreleasenumber, 4);
 
-	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion- %u.%u.%u.p%u\n",
+	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion: %u.%u.%u.p%u\n",
 		    adapter->fwreleasenumber[2], adapter->fwreleasenumber[1],
 		    adapter->fwreleasenumber[0], adapter->fwreleasenumber[3]);
-	lbs_deb_cmd("GET_HW_SPEC: Permanent addr- %2x:%2x:%2x:%2x:%2x:%2x\n",
-	       hwspec->permanentaddr[0], hwspec->permanentaddr[1],
-	       hwspec->permanentaddr[2], hwspec->permanentaddr[3],
-	       hwspec->permanentaddr[4], hwspec->permanentaddr[5]);
-	lbs_deb_cmd("GET_HW_SPEC: hwifversion=0x%X  version=0x%X\n",
+	lbs_deb_cmd("GET_HW_SPEC: Permanent addr: " MAC_FMT "\n",
+	       MAC_ARG(hwspec->permanentaddr));
+	lbs_deb_cmd("GET_HW_SPEC: hwifversion: 0x%x version:0x%x\n",
 	       hwspec->hwifversion, hwspec->version);
 
 	adapter->regioncode = le16_to_cpu(hwspec->regioncode);
