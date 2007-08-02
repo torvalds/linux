@@ -18,7 +18,7 @@
 #include "assoc.h"
 
 /* Supported rates for ad-hoc B mode */
-u8 adhoc_rates_b[5] = { 0x02, 0x04, 0x0b, 0x16, 0x00 };
+static u8 adhoc_rates_b[5] = { 0x02, 0x04, 0x0b, 0x16, 0x00 };
 
 
 /**
