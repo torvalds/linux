@@ -307,7 +307,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 	/* Copy WEP keys into adapter wep key fields */
 	for (i = 0; i < 4; i++) {
 		memcpy(&adapter->wep_keys[i], &assoc_req->wep_keys[i],
-			sizeof(struct WLAN_802_11_KEY));
+			sizeof(struct enc_key));
 	}
 	adapter->wep_tx_keyidx = assoc_req->wep_tx_keyidx;
 
@@ -703,7 +703,7 @@ struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
 		int i;
 		for (i = 0; i < 4; i++) {
 			memcpy(&assoc_req->wep_keys[i], &adapter->wep_keys[i],
-				sizeof(struct WLAN_802_11_KEY));
+				sizeof(struct enc_key));
 		}
 	}
 
@@ -712,12 +712,12 @@ struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
 
 	if (!test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
 		memcpy(&assoc_req->wpa_mcast_key, &adapter->wpa_mcast_key,
-			sizeof(struct WLAN_802_11_KEY));
+			sizeof(struct enc_key));
 	}
 
 	if (!test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		memcpy(&assoc_req->wpa_unicast_key, &adapter->wpa_unicast_key,
-			sizeof(struct WLAN_802_11_KEY));
+			sizeof(struct enc_key));
 	}
 
 	if (!test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {

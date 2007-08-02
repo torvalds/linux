@@ -321,11 +321,12 @@ static int wlan_ret_802_11_key_material(wlan_private * priv,
 		while (buf_ptr < resp_end) {
 			struct MrvlIEtype_keyParamSet * pkeyparamset =
 			    (struct MrvlIEtype_keyParamSet *) buf_ptr;
-			struct WLAN_802_11_KEY * pkey;
-			u16 key_info = le16_to_cpu(pkeyparamset->keyinfo);
+			struct enc_key * pkey;
 			u16 param_set_len = le16_to_cpu(pkeyparamset->length);
-			u8 * end;
 			u16 key_len = le16_to_cpu(pkeyparamset->keylen);
+			u16 key_flags = le16_to_cpu(pkeyparamset->keyinfo);
+			u16 key_type = le16_to_cpu(pkeyparamset->keytypeid);
+			u8 * end;
 
 			end = (u8 *) pkeyparamset + sizeof (pkeyparamset->type)
 			                          + sizeof (pkeyparamset->length)
@@ -334,20 +335,20 @@ static int wlan_ret_802_11_key_material(wlan_private * priv,
 			if (end > resp_end)
 				break;
 
-			if (key_info & KEY_INFO_WPA_UNICAST)
+			if (key_flags & KEY_INFO_WPA_UNICAST)
 				pkey = &adapter->wpa_unicast_key;
-			else if (key_info & KEY_INFO_WPA_MCAST)
+			else if (key_flags & KEY_INFO_WPA_MCAST)
 				pkey = &adapter->wpa_mcast_key;
 			else
 				break;
 
 			/* Copy returned key into driver */
-			memset(pkey, 0, sizeof(struct WLAN_802_11_KEY));
+			memset(pkey, 0, sizeof(struct enc_key));
 			if (key_len > sizeof(pkey->key))
 				break;
-			pkey->type = le16_to_cpu(pkeyparamset->keytypeid);
-			pkey->flags = le16_to_cpu(pkeyparamset->keyinfo);
-			pkey->len = le16_to_cpu(pkeyparamset->keylen);
+			pkey->type = key_type;
+			pkey->flags = key_flags;
+			pkey->len = key_len;
 			memcpy(pkey->key, pkeyparamset->key, pkey->len);
 
 			buf_ptr = end + 1;

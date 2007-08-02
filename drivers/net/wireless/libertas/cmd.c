@@ -181,7 +181,7 @@ static int wlan_cmd_802_11_set_wep(wlan_private * priv,
 
 		/* Copy key types and material to host command structure */
 		for (i = 0; i < 4; i++) {
-			struct WLAN_802_11_KEY * pkey = &assoc_req->wep_keys[i];
+			struct enc_key * pkey = &assoc_req->wep_keys[i];
 
 			switch (pkey->len) {
 			case KEY_LEN_WEP_40:
@@ -249,10 +249,8 @@ static int wlan_cmd_802_11_enable_rsn(wlan_private * priv,
 
 
 static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
-                            struct WLAN_802_11_KEY * pkey)
+                            struct enc_key * pkey)
 {
-	pkeyparamset->keytypeid = cpu_to_le16(pkey->type);
-
 	if (pkey->flags & KEY_INFO_WPA_ENABLED) {
 		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
 	}
@@ -264,6 +262,7 @@ static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
 	}
 
 	pkeyparamset->type = cpu_to_le16(TLV_TYPE_KEY_MATERIAL);
+	pkeyparamset->keytypeid = cpu_to_le16(pkey->type);
 	pkeyparamset->keylen = cpu_to_le16(pkey->len);
 	memcpy(pkeyparamset->key, pkey->key, pkey->len);
 	pkeyparamset->length = cpu_to_le16(  sizeof(pkeyparamset->keytypeid)

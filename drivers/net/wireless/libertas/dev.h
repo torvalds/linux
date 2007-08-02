@@ -188,12 +188,12 @@ struct assoc_request {
 	u8 bssid[ETH_ALEN];
 
 	/** WEP keys */
-	struct WLAN_802_11_KEY wep_keys[4];
+	struct enc_key wep_keys[4];
 	u16 wep_tx_keyidx;
 
 	/** WPA keys */
-	struct WLAN_802_11_KEY wpa_mcast_key;
-	struct WLAN_802_11_KEY wpa_unicast_key;
+	struct enc_key wpa_mcast_key;
+	struct enc_key wpa_unicast_key;
 
 	struct wlan_802_11_security secinfo;
 
@@ -335,12 +335,12 @@ struct _wlan_adapter {
 	struct wlan_802_11_security secinfo;
 
 	/** WEP keys */
-	struct WLAN_802_11_KEY wep_keys[4];
+	struct enc_key wep_keys[4];
 	u16 wep_tx_keyidx;
 
 	/** WPA keys */
-	struct WLAN_802_11_KEY wpa_mcast_key;
-	struct WLAN_802_11_KEY wpa_unicast_key;
+	struct enc_key wpa_mcast_key;
+	struct enc_key wpa_unicast_key;
 
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];

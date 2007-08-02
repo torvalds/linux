@@ -181,7 +181,7 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->secinfo.wep_enabled = 0;
 	for (i = 0; i < sizeof(adapter->wep_keys) / sizeof(adapter->wep_keys[0]);
 	     i++)
-		memset(&adapter->wep_keys[i], 0, sizeof(struct WLAN_802_11_KEY));
+		memset(&adapter->wep_keys[i], 0, sizeof(struct enc_key));
 	adapter->wep_tx_keyidx = 0;
 	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	adapter->mode = IW_MODE_INFRA;

@@ -1325,7 +1325,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 			    int set_tx_key)
 {
 	int ret = 0;
-	struct WLAN_802_11_KEY *pkey;
+	struct enc_key *pkey;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1344,7 +1344,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 	pkey = &assoc_req->wep_keys[index];
 
 	if (key_length > 0) {
-		memset(pkey, 0, sizeof(struct WLAN_802_11_KEY));
+		memset(pkey, 0, sizeof(struct enc_key));
 		pkey->type = KEY_TYPE_ID_WEP;
 
 		/* Standardize the key length */
@@ -1412,11 +1412,11 @@ static void disable_wpa(struct assoc_request *assoc_req)
 {
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	memset(&assoc_req->wpa_mcast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	memset(&assoc_req->wpa_mcast_key, 0, sizeof (struct enc_key));
 	assoc_req->wpa_mcast_key.flags = KEY_INFO_WPA_MCAST;
 	set_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
 
-	memset(&assoc_req->wpa_unicast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	memset(&assoc_req->wpa_unicast_key, 0, sizeof (struct enc_key));
 	assoc_req->wpa_unicast_key.flags = KEY_INFO_WPA_UNICAST;
 	set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 
@@ -1567,7 +1567,7 @@ static int wlan_get_encodeext(struct net_device *dev,
 		           && (adapter->secinfo.WPAenabled ||
 		               adapter->secinfo.WPA2enabled)) {
 			/* WPA */
-			struct WLAN_802_11_KEY * pkey = NULL;
+			struct enc_key * pkey = NULL;
 
 			if (   adapter->wpa_mcast_key.len
 			    && (adapter->wpa_mcast_key.flags & KEY_INFO_WPA_ENABLED))
@@ -1679,7 +1679,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 		if (set_tx_key)
 			set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
 	} else if ((alg == IW_ENCODE_ALG_TKIP) || (alg == IW_ENCODE_ALG_CCMP)) {
-		struct WLAN_802_11_KEY * pkey;
+		struct enc_key * pkey;
 
 		/* validate key length */
 		if (((alg == IW_ENCODE_ALG_TKIP)
@@ -1702,7 +1702,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 			set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 		}
 
-		memset(pkey, 0, sizeof (struct WLAN_802_11_KEY));
+		memset(pkey, 0, sizeof (struct enc_key));
 		memcpy(pkey->key, ext->key, ext->key_len);
 		pkey->len = ext->key_len;
 		if (pkey->len)

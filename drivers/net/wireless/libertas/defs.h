@@ -218,9 +218,6 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define	CMD_F_HOSTCMD		(1 << 0)
 #define FW_CAPINFO_WPA  	(1 << 0)
 
-/** WPA key LENGTH*/
-#define MRVL_MAX_KEY_WPA_KEY_LENGTH     32
-
 #define KEY_LEN_WPA_AES			16
 #define KEY_LEN_WPA_TKIP		32
 #define KEY_LEN_WEP_104			13

@@ -83,16 +83,12 @@ struct cmd_ctrl_node {
 	wait_queue_head_t cmdwait_q;
 };
 
-/* WLAN_802_11_KEY
- *
- * Generic structure to hold all key types.  key type (WEP40, WEP104, TKIP, AES)
- * is determined from the keylength field.
- */
-struct WLAN_802_11_KEY {
-	__le32 len;
-	__le32 flags;  /* KEY_INFO_* from wlan_defs.h */
-	u8 key[MRVL_MAX_KEY_WPA_KEY_LENGTH];
-	__le16 type; /* KEY_TYPE_* from wlan_defs.h */
+/* Generic structure to hold all key types. */
+struct enc_key {
+	u16 len;
+	u16 flags;  /* KEY_INFO_* from wlan_defs.h */
+	u16 type; /* KEY_TYPE_* from wlan_defs.h */
+	u8 key[32];
 };
 
 struct IE_WPA {
