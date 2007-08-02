@@ -727,19 +727,6 @@ static void update_curr_load(struct rq *rq, u64 now)
  * slice expiry etc.
  */
 
-/*
- * Assume: static_prio_timeslice(NICE_TO_PRIO(0)) == DEF_TIMESLICE
- * If static_prio_timeslice() is ever changed to break this assumption then
- * this code will need modification
- */
-#define TIME_SLICE_NICE_ZERO DEF_TIMESLICE
-#define load_weight(lp) \
-	(((lp) * SCHED_LOAD_SCALE) / TIME_SLICE_NICE_ZERO)
-#define PRIO_TO_LOAD_WEIGHT(prio) \
-	load_weight(static_prio_timeslice(prio))
-#define RTPRIO_TO_LOAD_WEIGHT(rp) \
-	(PRIO_TO_LOAD_WEIGHT(MAX_RT_PRIO) + load_weight(rp))
-
 #define WEIGHT_IDLEPRIO		2
 #define WMULT_IDLEPRIO		(1 << 31)
 
@@ -2908,8 +2895,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 		schedstat_inc(sd, alb_cnt);
 
 		if (move_tasks(target_rq, target_cpu, busiest_rq, 1,
-			       RTPRIO_TO_LOAD_WEIGHT(100), sd, CPU_IDLE,
-			       NULL))
+			       ULONG_MAX, sd, CPU_IDLE, NULL))
 			schedstat_inc(sd, alb_pushed);
 		else
 			schedstat_inc(sd, alb_failed);
