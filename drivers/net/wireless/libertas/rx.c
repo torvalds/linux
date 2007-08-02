@@ -85,12 +85,12 @@ static u8 wlan_getavgnf(wlan_private * priv)
 static void wlan_save_rawSNRNF(wlan_private * priv, struct rxpd *p_rx_pd)
 {
 	wlan_adapter *adapter = priv->adapter;
-	if (adapter->numSNRNF < adapter->data_avg_factor)
+	if (adapter->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
 		adapter->numSNRNF++;
 	adapter->rawSNR[adapter->nextSNRNF] = p_rx_pd->snr;
 	adapter->rawNF[adapter->nextSNRNF] = p_rx_pd->nf;
 	adapter->nextSNRNF++;
-	if (adapter->nextSNRNF >= adapter->data_avg_factor)
+	if (adapter->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
 		adapter->nextSNRNF = 0;
 	return;
 }

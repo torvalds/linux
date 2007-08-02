@@ -671,7 +671,7 @@ static int wlan_cmd_802_11_rssi(wlan_private * priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_RSSI);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_rssi) + S_DS_GEN);
-	cmd->params.rssi.N = cpu_to_le16(priv->adapter->bcn_avg_factor);
+	cmd->params.rssi.N = cpu_to_le16(DEFAULT_BCN_AVG_FACTOR);
 
 	/* reset Beacon SNR/NF/RSSI values */
 	adapter->SNR[TYPE_BEACON][TYPE_NOAVG] = 0;

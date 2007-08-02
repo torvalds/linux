@@ -334,8 +334,6 @@ struct _wlan_adapter {
 	u8 wpa_ie_len;
 
 	/** Requested Signal Strength*/
-	u16 bcn_avg_factor;
-	u16 data_avg_factor;
 	u16 SNR[MAX_TYPE_B][MAX_TYPE_AVG];
 	u16 NF[MAX_TYPE_B][MAX_TYPE_AVG];
 	u8 RSSI[MAX_TYPE_B][MAX_TYPE_AVG];
