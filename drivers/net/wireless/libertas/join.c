@@ -845,7 +845,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
 	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->curbssparams.channel);
 	lbs_deb_join("ADHOC_RESP: BSSID = " MAC_FMT "\n",
-	       MAC_ARG(padhocresult->BSSID));
+	       MAC_ARG(padhocresult->bssid));
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
