@@ -256,7 +256,7 @@ static int pre_open_check(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int wlan_dev_open(struct net_device *dev)
+static int libertas_dev_open(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 	wlan_adapter *adapter = priv->adapter;
@@ -282,7 +282,7 @@ static int wlan_dev_open(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int mesh_open(struct net_device *dev)
+static int libertas_mesh_open(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv ;
 
@@ -291,7 +291,7 @@ static int mesh_open(struct net_device *dev)
 	priv->mesh_open = 1 ;
 	netif_wake_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
-		return wlan_dev_open(priv->dev) ;
+		return libertas_dev_open(priv->dev) ;
 	return 0;
 }
 
@@ -301,7 +301,7 @@ static int mesh_open(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int wlan_open(struct net_device *dev)
+static int libertas_open(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv ;
 
@@ -310,11 +310,11 @@ static int wlan_open(struct net_device *dev)
 	priv->infra_open = 1 ;
 	netif_wake_queue(priv->dev);
 	if (priv->open == 0)
-		return wlan_dev_open(priv->dev) ;
+		return libertas_dev_open(priv->dev) ;
 	return 0;
 }
 
-static int wlan_dev_close(struct net_device *dev)
+static int libertas_dev_close(struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 
@@ -333,14 +333,14 @@ static int wlan_dev_close(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int mesh_close(struct net_device *dev)
+static int libertas_mesh_close(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) (dev->priv);
 
 	priv->mesh_open = 0;
 	netif_stop_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
-		return wlan_dev_close(dev);
+		return libertas_dev_close(dev);
 	else
 		return 0;
 }
@@ -351,20 +351,20 @@ static int mesh_close(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int wlan_close(struct net_device *dev)
+static int libertas_close(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 
 	netif_stop_queue(dev);
 	priv->infra_open = 0;
 	if (priv->mesh_open == 0)
-		return wlan_dev_close(dev);
+		return libertas_dev_close(dev);
 	else
 		return 0;
 }
 
 
-static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int libertas_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int ret = 0;
 	wlan_private *priv = dev->priv;
@@ -387,10 +387,11 @@ done:
 }
 
 /**
- * @brief Mark mesh packets and handover them to wlan_hard_start_xmit
+ * @brief Mark mesh packets and handover them to libertas_hard_start_xmit
  *
  */
-static int mesh_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int libertas_mesh_pre_start_xmit(struct sk_buff *skb,
+		struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 	int ret;
@@ -399,16 +400,16 @@ static int mesh_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	SET_MESH_FRAME(skb);
 
-	ret = wlan_hard_start_xmit(skb, priv->dev);
+	ret = libertas_hard_start_xmit(skb, priv->dev);
 	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
 	return ret;
 }
 
 /**
- * @brief Mark non-mesh packets and handover them to wlan_hard_start_xmit
+ * @brief Mark non-mesh packets and handover them to libertas_hard_start_xmit
  *
  */
-static int wlan_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int libertas_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int ret;
 
@@ -416,12 +417,12 @@ static int wlan_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	UNSET_MESH_FRAME(skb);
 
-	ret = wlan_hard_start_xmit(skb, dev);
+	ret = libertas_hard_start_xmit(skb, dev);
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
-static void wlan_tx_timeout(struct net_device *dev)
+static void libertas_tx_timeout(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 
@@ -454,14 +455,14 @@ static void wlan_tx_timeout(struct net_device *dev)
  *  @param dev     A pointer to wlan_private structure
  *  @return 	   A pointer to net_device_stats structure
  */
-static struct net_device_stats *wlan_get_stats(struct net_device *dev)
+static struct net_device_stats *libertas_get_stats(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 
 	return &priv->stats;
 }
 
-static int wlan_set_mac_address(struct net_device *dev, void *addr)
+static int libertas_set_mac_address(struct net_device *dev, void *addr)
 {
 	int ret = 0;
 	wlan_private *priv = (wlan_private *) dev->priv;
@@ -501,7 +502,7 @@ done:
 	return ret;
 }
 
-static int wlan_copy_multicast_address(wlan_adapter * adapter,
+static int libertas_copy_multicast_address(wlan_adapter * adapter,
 				     struct net_device *dev)
 {
 	int i = 0;
@@ -516,7 +517,7 @@ static int wlan_copy_multicast_address(wlan_adapter * adapter,
 
 }
 
-static void wlan_set_multicast_list(struct net_device *dev)
+static void libertas_set_multicast_list(struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
@@ -561,7 +562,7 @@ static void wlan_set_multicast_list(struct net_device *dev)
 				    CMD_ACT_MAC_MULTICAST_ENABLE;
 
 				adapter->nr_of_multicastmacaddr =
-				    wlan_copy_multicast_address(adapter, dev);
+				    libertas_copy_multicast_address(adapter, dev);
 
 				lbs_deb_net("multicast addresses: %d\n",
 				       dev->mc_count);
@@ -796,12 +797,12 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	SET_MODULE_OWNER(dev);
 
 	/* Setup the OS Interface to our functions */
-	dev->open = wlan_open;
-	dev->hard_start_xmit = wlan_pre_start_xmit;
-	dev->stop = wlan_close;
-	dev->set_mac_address = wlan_set_mac_address;
-	dev->tx_timeout = wlan_tx_timeout;
-	dev->get_stats = wlan_get_stats;
+	dev->open = libertas_open;
+	dev->hard_start_xmit = libertas_pre_start_xmit;
+	dev->stop = libertas_close;
+	dev->set_mac_address = libertas_set_mac_address;
+	dev->tx_timeout = libertas_tx_timeout;
+	dev->get_stats = libertas_get_stats;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->ethtool_ops = &libertas_ethtool_ops;
 #ifdef	WIRELESS_EXT
@@ -810,7 +811,7 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 #define NETIF_F_DYNALLOC 16
 	dev->features |= NETIF_F_DYNALLOC;
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
-	dev->set_multicast_list = wlan_set_multicast_list;
+	dev->set_multicast_list = libertas_set_multicast_list;
 
 	SET_NETDEV_DEV(dev, dmdev);
 
@@ -917,11 +918,11 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 
 	SET_MODULE_OWNER(mesh_dev);
 
-	mesh_dev->open = mesh_open;
-	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
-	mesh_dev->stop = mesh_close;
-	mesh_dev->get_stats = wlan_get_stats;
-	mesh_dev->set_mac_address = wlan_set_mac_address;
+	mesh_dev->open = libertas_mesh_open;
+	mesh_dev->hard_start_xmit = libertas_mesh_pre_start_xmit;
+	mesh_dev->stop = libertas_mesh_close;
+	mesh_dev->get_stats = libertas_get_stats;
+	mesh_dev->set_mac_address = libertas_set_mac_address;
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
 	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
 			sizeof(priv->dev->dev_addr));
