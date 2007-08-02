@@ -7,29 +7,6 @@
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
 
-/** IEEE type definitions  */
-enum ieeetypes_elementid {
-	SSID = 0,
-	SUPPORTED_RATES,
-	FH_PARAM_SET,
-	DS_PARAM_SET,
-	CF_PARAM_SET,
-	TIM,
-	IBSS_PARAM_SET,
-	COUNTRY_INFO = 7,
-
-	CHALLENGE_TEXT = 16,
-
-	EXTENDED_SUPPORTED_RATES = 50,
-
-	VENDOR_SPECIFIC_221 = 221,
-
-	WPA_IE = 221,
-	WPA2_IE = 48,
-
-	EXTRA_IE = 133,
-} __attribute__ ((packed));
-
 #define CAPINFO_MASK	(~(0x00da))
 
 struct ieeetypes_cfparamset {

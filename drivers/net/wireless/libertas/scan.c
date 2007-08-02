@@ -74,8 +74,8 @@ static inline int match_bss_no_security(struct wlan_802_11_security * secinfo,
 	if (   !secinfo->wep_enabled
 	    && !secinfo->WPAenabled
 	    && !secinfo->WPA2enabled
-	    && match_bss->wpa_ie[0] != WPA_IE
-	    && match_bss->rsn_ie[0] != WPA2_IE
+	    && match_bss->wpa_ie[0] != MFIE_TYPE_GENERIC
+	    && match_bss->rsn_ie[0] != MFIE_TYPE_RSN
 	    && !(match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
@@ -99,7 +99,7 @@ static inline int match_bss_wpa(struct wlan_802_11_security * secinfo,
 {
 	if (  !secinfo->wep_enabled
 	   && secinfo->WPAenabled
-	   && (match_bss->wpa_ie[0] == WPA_IE)
+	   && (match_bss->wpa_ie[0] == MFIE_TYPE_GENERIC)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 	    */
@@ -114,7 +114,7 @@ static inline int match_bss_wpa2(struct wlan_802_11_security * secinfo,
 {
 	if (  !secinfo->wep_enabled
 	   && secinfo->WPA2enabled
-	   && (match_bss->rsn_ie[0] == WPA2_IE)
+	   && (match_bss->rsn_ie[0] == MFIE_TYPE_RSN)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 	    */
@@ -130,8 +130,8 @@ static inline int match_bss_dynamic_wep(struct wlan_802_11_security * secinfo,
 	if (  !secinfo->wep_enabled
 	   && !secinfo->WPAenabled
 	   && !secinfo->WPA2enabled
-	   && (match_bss->wpa_ie[0] != WPA_IE)
-	   && (match_bss->rsn_ie[0] != WPA2_IE)
+	   && (match_bss->wpa_ie[0] != MFIE_TYPE_GENERIC)
+	   && (match_bss->rsn_ie[0] != MFIE_TYPE_RSN)
 	   && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
@@ -900,23 +900,17 @@ void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
 static int libertas_process_bss(struct bss_descriptor * bss,
 				u8 ** pbeaconinfo, int *bytesleft)
 {
-	enum ieeetypes_elementid elemID;
 	struct ieeetypes_fhparamset *pFH;
 	struct ieeetypes_dsparamset *pDS;
 	struct ieeetypes_cfparamset *pCF;
 	struct ieeetypes_ibssparamset *pibss;
-	u8 *pcurrentptr;
+	u8 *pos, *end;
 	u8 *pRate;
-	u8 elemlen;
 	u8 bytestocopy;
 	u8 ratesize;
 	u16 beaconsize;
 	u8 founddatarateie;
-	int bytesleftforcurrentbeacon;
 	int ret;
-
-	struct IE_WPA *pIe;
-	const u8 oui01[4] = { 0x00, 0x50, 0xf2, 0x01 };
 
 	struct ieeetypes_countryinfoset *pcountryinfo;
 
@@ -934,29 +928,24 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	}
 
 	if (beaconsize == 0 || beaconsize > *bytesleft) {
-
 		*pbeaconinfo += *bytesleft;
 		*bytesleft = 0;
-
 		return -1;
 	}
 
 	/* Initialize the current working beacon pointer for this BSS iteration */
-	pcurrentptr = *pbeaconinfo;
+	pos = *pbeaconinfo;
+	end = pos + beaconsize;
 
 	/* Advance the return beacon pointer past the current beacon */
 	*pbeaconinfo += beaconsize;
 	*bytesleft -= beaconsize;
 
-	bytesleftforcurrentbeacon = beaconsize;
-
-	memcpy(bss->bssid, pcurrentptr, ETH_ALEN);
+	memcpy(bss->bssid, pos, ETH_ALEN);
 	lbs_deb_scan("process_bss: AP BSSID " MAC_FMT "\n", MAC_ARG(bss->bssid));
+	pos += ETH_ALEN;
 
-	pcurrentptr += ETH_ALEN;
-	bytesleftforcurrentbeacon -= ETH_ALEN;
-
-	if (bytesleftforcurrentbeacon < 12) {
+	if ((end - pos) < 12) {
 		lbs_deb_scan("process_bss: Not enough bytes left\n");
 		return -1;
 	}
@@ -967,26 +956,22 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	 */
 
 	/* RSSI is 1 byte long */
-	bss->rssi = *pcurrentptr;
-	lbs_deb_scan("process_bss: RSSI=%02X\n", *pcurrentptr);
-	pcurrentptr += 1;
-	bytesleftforcurrentbeacon -= 1;
+	bss->rssi = *pos;
+	lbs_deb_scan("process_bss: RSSI=%02X\n", *pos);
+	pos++;
 
 	/* time stamp is 8 bytes long */
-	bss->timestamp = le64_to_cpup((void *)pcurrentptr);
-	pcurrentptr += 8;
-	bytesleftforcurrentbeacon -= 8;
+	bss->timestamp = le64_to_cpup((void *) pos);
+	pos += 8;
 
 	/* beacon interval is 2 bytes long */
-	bss->beaconperiod = le16_to_cpup((void *)pcurrentptr);
-	pcurrentptr += 2;
-	bytesleftforcurrentbeacon -= 2;
+	bss->beaconperiod = le16_to_cpup((void *) pos);
+	pos += 2;
 
 	/* capability information is 2 bytes long */
-	bss->capability = le16_to_cpup((void *)pcurrentptr);
+	bss->capability = le16_to_cpup((void *) pos);
 	lbs_deb_scan("process_bss: capabilities = 0x%4X\n", bss->capability);
-	pcurrentptr += 2;
-	bytesleftforcurrentbeacon -= 2;
+	pos += 2;
 
 	if (bss->capability & WLAN_CAPABILITY_PRIVACY)
 		lbs_deb_scan("process_bss: AP WEP enabled\n");
@@ -996,47 +981,39 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 		bss->mode = IW_MODE_INFRA;
 
 	/* rest of the current buffer are IE's */
-	lbs_deb_scan("process_bss: IE length for this AP = %d\n",
-	       bytesleftforcurrentbeacon);
-
-	lbs_dbg_hex("process_bss: IE info", (u8 *) pcurrentptr,
-		bytesleftforcurrentbeacon);
+	lbs_deb_scan("process_bss: IE length for this AP = %zd\n", end - pos);
+	lbs_dbg_hex("process_bss: IE info", pos, end - pos);
 
 	/* process variable IE */
-	while (bytesleftforcurrentbeacon >= 2) {
-		elemID = (enum ieeetypes_elementid) (*((u8 *) pcurrentptr));
-		elemlen = *((u8 *) pcurrentptr + 1);
+	while (pos <= end - 2) {
+		struct ieee80211_info_element * elem =
+			(struct ieee80211_info_element *) pos;
 
-		if (bytesleftforcurrentbeacon < elemlen) {
+		if (pos + elem->len > end) {
 			lbs_deb_scan("process_bss: error in processing IE, "
 			       "bytes left < IE length\n");
-			bytesleftforcurrentbeacon = 0;
-			continue;
+			break;
 		}
 
-		switch (elemID) {
-		case SSID:
-			bss->ssid_len = elemlen;
-			memcpy(bss->ssid, (pcurrentptr + 2), elemlen);
+		switch (elem->id) {
+		case MFIE_TYPE_SSID:
+			bss->ssid_len = elem->len;
+			memcpy(bss->ssid, elem->data, elem->len);
 			lbs_deb_scan("ssid '%s', ssid length %u\n",
 			             escape_essid(bss->ssid, bss->ssid_len),
 			             bss->ssid_len);
 			break;
 
-		case SUPPORTED_RATES:
-			memcpy(bss->datarates, (pcurrentptr + 2), elemlen);
-			memmove(bss->libertas_supported_rates, (pcurrentptr + 2),
-				elemlen);
-			ratesize = elemlen;
+		case MFIE_TYPE_RATES:
+			memcpy(bss->datarates, elem->data, elem->len);
+			memmove(bss->libertas_supported_rates, elem->data,
+				elem->len);
+			ratesize = elem->len;
 			founddatarateie = 1;
 			break;
 
-		case EXTRA_IE:
-			lbs_deb_scan("process_bss: EXTRA_IE Found!\n");
-			break;
-
-		case FH_PARAM_SET:
-			pFH = (struct ieeetypes_fhparamset *) pcurrentptr;
+		case MFIE_TYPE_FH_SET:
+			pFH = (struct ieeetypes_fhparamset *) pos;
 			memmove(&bss->phyparamset.fhparamset, pFH,
 				sizeof(struct ieeetypes_fhparamset));
 #if 0 /* I think we can store these LE */
@@ -1045,21 +1022,21 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 #endif
 			break;
 
-		case DS_PARAM_SET:
-			pDS = (struct ieeetypes_dsparamset *) pcurrentptr;
+		case MFIE_TYPE_DS_SET:
+			pDS = (struct ieeetypes_dsparamset *) pos;
 			bss->channel = pDS->currentchan;
 			memcpy(&bss->phyparamset.dsparamset, pDS,
 			       sizeof(struct ieeetypes_dsparamset));
 			break;
 
-		case CF_PARAM_SET:
-			pCF = (struct ieeetypes_cfparamset *) pcurrentptr;
+		case MFIE_TYPE_CF_SET:
+			pCF = (struct ieeetypes_cfparamset *) pos;
 			memcpy(&bss->ssparamset.cfparamset, pCF,
 			       sizeof(struct ieeetypes_cfparamset));
 			break;
 
-		case IBSS_PARAM_SET:
-			pibss = (struct ieeetypes_ibssparamset *) pcurrentptr;
+		case MFIE_TYPE_IBSS_SET:
+			pibss = (struct ieeetypes_ibssparamset *) pos;
 			bss->atimwindow = le32_to_cpu(pibss->atimwindow);
 			memmove(&bss->ssparamset.ibssparamset, pibss,
 				sizeof(struct ieeetypes_ibssparamset));
@@ -1069,9 +1046,8 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 #endif
 			break;
 
-			/* Handle Country Info IE */
-		case COUNTRY_INFO:
-			pcountryinfo = (struct ieeetypes_countryinfoset *) pcurrentptr;
+		case MFIE_TYPE_COUNTRY:
+			pcountryinfo = (struct ieeetypes_countryinfoset *) pos;
 			if (pcountryinfo->len < sizeof(pcountryinfo->countrycode)
 			    || pcountryinfo->len > 254) {
 				lbs_deb_scan("process_bss: 11D- Err "
@@ -1089,62 +1065,55 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 				(u32) (pcountryinfo->len + 2));
 			break;
 
-		case EXTENDED_SUPPORTED_RATES:
-			/*
-			 * only process extended supported rate
-			 * if data rate is already found.
-			 * data rate IE should come before
+		case MFIE_TYPE_RATES_EX:
+			/* only process extended supported rate if data rate is
+			 * already found. Data rate IE should come before
 			 * extended supported rate IE
 			 */
-			if (founddatarateie) {
-				if ((elemlen + ratesize) > WLAN_SUPPORTED_RATES) {
-					bytestocopy =
-					    (WLAN_SUPPORTED_RATES - ratesize);
-				} else {
-					bytestocopy = elemlen;
-				}
+			if (!founddatarateie)
+				break;
 
-				pRate = (u8 *) bss->datarates;
-				pRate += ratesize;
-				memmove(pRate, (pcurrentptr + 2), bytestocopy);
-				pRate = (u8 *) bss->libertas_supported_rates;
-				pRate += ratesize;
-				memmove(pRate, (pcurrentptr + 2), bytestocopy);
+			if ((elem->len + ratesize) > WLAN_SUPPORTED_RATES) {
+				bytestocopy =
+				    (WLAN_SUPPORTED_RATES - ratesize);
+			} else {
+				bytestocopy = elem->len;
+			}
+
+			pRate = (u8 *) bss->datarates;
+			pRate += ratesize;
+			memmove(pRate, elem->data, bytestocopy);
+			pRate = (u8 *) bss->libertas_supported_rates;
+			pRate += ratesize;
+			memmove(pRate, elem->data, bytestocopy);
+			break;
+
+		case MFIE_TYPE_GENERIC:
+			if (elem->len >= 4 &&
+			    elem->data[0] == 0x00 &&
+			    elem->data[1] == 0x50 &&
+			    elem->data[2] == 0xf2 &&
+			    elem->data[3] == 0x01) {
+				bss->wpa_ie_len = min(elem->len + 2,
+				                      MAX_WPA_IE_LEN);
+				memcpy(bss->wpa_ie, elem, bss->wpa_ie_len);
+				lbs_dbg_hex("process_bss: WPA IE", bss->wpa_ie,
+				            elem->len);
 			}
 			break;
 
-		case VENDOR_SPECIFIC_221:
-#define IE_ID_LEN_FIELDS_BYTES 2
-			pIe = (struct IE_WPA *)pcurrentptr;
-
-			if (memcmp(pIe->oui, oui01, sizeof(oui01)))
-				break;
-
-			bss->wpa_ie_len = min(elemlen + IE_ID_LEN_FIELDS_BYTES,
-				MAX_WPA_IE_LEN);
-			memcpy(bss->wpa_ie, pcurrentptr, bss->wpa_ie_len);
-			lbs_dbg_hex("process_bss: WPA IE", bss->wpa_ie, elemlen);
-			break;
-		case WPA2_IE:
-			pIe = (struct IE_WPA *)pcurrentptr;
-			bss->rsn_ie_len = min(elemlen + IE_ID_LEN_FIELDS_BYTES,
-				MAX_WPA_IE_LEN);
-			memcpy(bss->rsn_ie, pcurrentptr, bss->rsn_ie_len);
-			lbs_dbg_hex("process_bss: RSN_IE", bss->rsn_ie, elemlen);
-			break;
-		case TIM:
+		case MFIE_TYPE_RSN:
+			bss->rsn_ie_len = min(elem->len + 2, MAX_WPA_IE_LEN);
+			memcpy(bss->rsn_ie, elem, bss->rsn_ie_len);
+			lbs_dbg_hex("process_bss: RSN_IE", bss->rsn_ie, elem->len);
 			break;
 
-		case CHALLENGE_TEXT:
+		default:
 			break;
 		}
 
-		pcurrentptr += elemlen + 2;
-
-		/* need to account for IE ID and IE len */
-		bytesleftforcurrentbeacon -= (elemlen + 2);
-
-	}			/* while (bytesleftforcurrentbeacon > 2) */
+		pos += elem->len + 2;
+	}
 
 	/* Timestamp */
 	bss->last_scanned = jiffies;

@@ -91,23 +91,10 @@ struct enc_key {
 	u8 key[32];
 };
 
-struct IE_WPA {
-	u8 elementid;
-	u8 len;
-	u8 oui[4];
-	__le16 version;
-};
-
 /* wlan_offset_value */
 struct wlan_offset_value {
 	u32 offset;
 	u32 value;
-};
-
-struct WLAN_802_11_VARIABLE_IEs {
-	u8 elementid;
-	u8 length;
-	u8 data[1];
 };
 
 /* Define general data structure */
