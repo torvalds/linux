@@ -38,6 +38,7 @@ obj-$(CONFIG_USB_EMI26)		+= misc/
 obj-$(CONFIG_USB_EMI62)		+= misc/
 obj-$(CONFIG_USB_FTDI_ELAN)	+= misc/
 obj-$(CONFIG_USB_IDMOUSE)	+= misc/
+obj-$(CONFIG_USB_IOWARRIOR)	+= misc/
 obj-$(CONFIG_USB_LCD)		+= misc/
 obj-$(CONFIG_USB_LD)		+= misc/
 obj-$(CONFIG_USB_LED)		+= misc/
