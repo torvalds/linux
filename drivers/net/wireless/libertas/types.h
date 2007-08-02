@@ -30,47 +30,7 @@ enum ieeetypes_elementid {
 	EXTRA_IE = 133,
 } __attribute__ ((packed));
 
-#ifdef __BIG_ENDIAN
-#define CAPINFO_MASK	(~(0xda00))
-#else
 #define CAPINFO_MASK	(~(0x00da))
-#endif
-
-struct ieeetypes_capinfo {
-#ifdef __BIG_ENDIAN_BITFIELD
-	u8 chanagility:1;
-	u8 pbcc:1;
-	u8 shortpreamble:1;
-	u8 privacy:1;
-	u8 cfpollrqst:1;
-	u8 cfpollable:1;
-	u8 ibss:1;
-	u8 ess:1;
-	u8 rsrvd1:2;
-	u8 dsssofdm:1;
-	u8 rsvrd2:1;
-	u8 apsd:1;
-	u8 shortslottime:1;
-	u8 rsrvd3:1;
-	u8 spectrummgmt:1;
-#else
-	u8 ess:1;
-	u8 ibss:1;
-	u8 cfpollable:1;
-	u8 cfpollrqst:1;
-	u8 privacy:1;
-	u8 shortpreamble:1;
-	u8 pbcc:1;
-	u8 chanagility:1;
-	u8 spectrummgmt:1;
-	u8 rsrvd3:1;
-	u8 shortslottime:1;
-	u8 apsd:1;
-	u8 rsvrd2:1;
-	u8 dsssofdm:1;
-	u8 rsrvd1:2;
-#endif
-} __attribute__ ((packed));
 
 struct ieeetypes_cfparamset {
 	u8 elementid;
@@ -114,7 +74,7 @@ union ieeetypes_phyparamset {
 } __attribute__ ((packed));
 
 struct ieeetypes_assocrsp {
-	struct ieeetypes_capinfo capability;
+	__le16 capability;
 	__le16 statuscode;
 	__le16 aid;
 	u8 iebuffer[1];

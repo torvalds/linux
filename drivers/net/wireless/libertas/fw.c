@@ -217,10 +217,8 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->is_datarate_auto = 1;
 	adapter->beaconperiod = MRVDRV_BEACON_INTERVAL;
 
-	// set default value of capinfo.
-#define SHORT_PREAMBLE_ALLOWED		1
-	memset(&adapter->capinfo, 0, sizeof(adapter->capinfo));
-	adapter->capinfo.shortpreamble = SHORT_PREAMBLE_ALLOWED;
+	// set default capabilities
+	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 
 	adapter->psmode = wlan802_11powermodecam;
 	adapter->multipledtim = MRVDRV_DEFAULT_MULTIPLE_DTIM;

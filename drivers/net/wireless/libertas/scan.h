@@ -140,8 +140,7 @@ struct bss_descriptor {
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 
-	/* WEP encryption requirement */
-	u32 privacy;
+	u16 capability;
 
 	/* receive signal strength in dBm */
 	long rssi;
@@ -160,7 +159,6 @@ struct bss_descriptor {
 
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
-	struct ieeetypes_capinfo cap;
 	u8 datarates[WLAN_SUPPORTED_RATES];
 
 	u64 networktsf;		//!< TSF timestamp from the current firmware TSF

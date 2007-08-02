@@ -108,12 +108,6 @@ struct wlan_offset_value {
 	u32 value;
 };
 
-struct WLAN_802_11_FIXED_IEs {
-	__le64 timestamp;
-	__le16 beaconinterval;
-	u16 capabilities; /* Actually struct ieeetypes_capinfo */
-};
-
 struct WLAN_802_11_VARIABLE_IEs {
 	u8 elementid;
 	u8 length;
@@ -237,7 +231,7 @@ struct cmd_ds_802_11_deauthenticate {
 
 struct cmd_ds_802_11_associate {
 	u8 peerstaaddr[6];
-	struct ieeetypes_capinfo capinfo;
+	__le16 capability;
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
@@ -469,22 +463,22 @@ struct cmd_ds_802_11_ad_hoc_start {
 	union IEEEtypes_ssparamset ssparamset;
 	union ieeetypes_phyparamset phyparamset;
 	__le16 probedelay;
-	struct ieeetypes_capinfo cap;
+	__le16 capability;
 	u8 datarate[G_SUPPORTED_RATES];
 	u8 tlv_memory_size_pad[100];
 } __attribute__ ((packed));
 
 struct adhoc_bssdesc {
-	u8 BSSID[6];
-	u8 SSID[32];
-	u8 bsstype;
+	u8 bssid[6];
+	u8 ssid[32];
+	u8 type;
 	__le16 beaconperiod;
 	u8 dtimperiod;
 	__le64 timestamp;
 	__le64 localtime;
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
-	struct ieeetypes_capinfo cap;
+	__le16 capability;
 	u8 datarates[G_SUPPORTED_RATES];
 
 	/* DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
@@ -494,7 +488,7 @@ struct adhoc_bssdesc {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_ad_hoc_join {
-	struct adhoc_bssdesc bssdescriptor;
+	struct adhoc_bssdesc bss;
 	__le16 failtimeout;
 	__le16 probedelay;
 

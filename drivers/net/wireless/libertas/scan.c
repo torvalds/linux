@@ -76,7 +76,7 @@ static inline int match_bss_no_security(struct wlan_802_11_security * secinfo,
 	    && !secinfo->WPA2enabled
 	    && match_bss->wpa_ie[0] != WPA_IE
 	    && match_bss->rsn_ie[0] != WPA2_IE
-	    && !match_bss->privacy) {
+	    && !(match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -88,7 +88,7 @@ static inline int match_bss_static_wep(struct wlan_802_11_security * secinfo,
 	if ( secinfo->wep_enabled
 	   && !secinfo->WPAenabled
 	   && !secinfo->WPA2enabled
-	   && match_bss->privacy) {
+	   && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -101,7 +101,8 @@ static inline int match_bss_wpa(struct wlan_802_11_security * secinfo,
 	   && secinfo->WPAenabled
 	   && (match_bss->wpa_ie[0] == WPA_IE)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
-	      && bss->privacy */
+	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
+	    */
 	   ) {
 		return 1;
 	}
@@ -115,7 +116,8 @@ static inline int match_bss_wpa2(struct wlan_802_11_security * secinfo,
 	   && secinfo->WPA2enabled
 	   && (match_bss->rsn_ie[0] == WPA2_IE)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
-	      && bss->privacy */
+	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
+	    */
 	   ) {
 		return 1;
 	}
@@ -130,7 +132,7 @@ static inline int match_bss_dynamic_wep(struct wlan_802_11_security * secinfo,
 	   && !secinfo->WPA2enabled
 	   && (match_bss->wpa_ie[0] != WPA_IE)
 	   && (match_bss->rsn_ie[0] != WPA2_IE)
-	   && match_bss->privacy) {
+	   && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -177,7 +179,7 @@ static int is_network_compatible(wlan_adapter * adapter,
 		       adapter->secinfo.wep_enabled ? "e" : "d",
 		       adapter->secinfo.WPAenabled ? "e" : "d",
 		       adapter->secinfo.WPA2enabled ? "e" : "d",
-		       bss->privacy);
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	} else if ((matched = match_bss_wpa2(&adapter->secinfo, bss))) {
 		lbs_deb_scan(
@@ -187,15 +189,14 @@ static int is_network_compatible(wlan_adapter * adapter,
 		       adapter->secinfo.wep_enabled ? "e" : "d",
 		       adapter->secinfo.WPAenabled ? "e" : "d",
 		       adapter->secinfo.WPA2enabled ? "e" : "d",
-		       bss->privacy);
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	} else if ((matched = match_bss_dynamic_wep(&adapter->secinfo, bss))) {
 		lbs_deb_scan(
 		       "is_network_compatible() dynamic WEP: "
 		       "wpa_ie=%#x wpa2_ie=%#x privacy=%#x\n",
-		       bss->wpa_ie[0],
-		       bss->rsn_ie[0],
-		       bss->privacy);
+		       bss->wpa_ie[0], bss->rsn_ie[0],
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	}
 
@@ -207,7 +208,7 @@ static int is_network_compatible(wlan_adapter * adapter,
 	       adapter->secinfo.wep_enabled ? "e" : "d",
 	       adapter->secinfo.WPAenabled ? "e" : "d",
 	       adapter->secinfo.WPA2enabled ? "e" : "d",
-	       bss->privacy);
+	       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 
 done:
 	lbs_deb_leave(LBS_DEB_SCAN);
@@ -904,8 +905,6 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	struct ieeetypes_dsparamset *pDS;
 	struct ieeetypes_cfparamset *pCF;
 	struct ieeetypes_ibssparamset *pibss;
-	struct ieeetypes_capinfo *pcap;
-	struct WLAN_802_11_FIXED_IEs fixedie;
 	u8 *pcurrentptr;
 	u8 *pRate;
 	u8 elemlen;
@@ -974,23 +973,27 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	bytesleftforcurrentbeacon -= 1;
 
 	/* time stamp is 8 bytes long */
-	fixedie.timestamp = bss->timestamp = le64_to_cpup((void *)pcurrentptr);
+	bss->timestamp = le64_to_cpup((void *)pcurrentptr);
 	pcurrentptr += 8;
 	bytesleftforcurrentbeacon -= 8;
 
 	/* beacon interval is 2 bytes long */
-	fixedie.beaconinterval = bss->beaconperiod = le16_to_cpup((void *)pcurrentptr);
+	bss->beaconperiod = le16_to_cpup((void *)pcurrentptr);
 	pcurrentptr += 2;
 	bytesleftforcurrentbeacon -= 2;
 
 	/* capability information is 2 bytes long */
-        memcpy(&fixedie.capabilities, pcurrentptr, 2);
-	lbs_deb_scan("process_bss: fixedie.capabilities=0x%X\n",
-	       fixedie.capabilities);
-	pcap = (struct ieeetypes_capinfo *) & fixedie.capabilities;
-	memcpy(&bss->cap, pcap, sizeof(struct ieeetypes_capinfo));
+	bss->capability = le16_to_cpup((void *)pcurrentptr);
+	lbs_deb_scan("process_bss: capabilities = 0x%4X\n", bss->capability);
 	pcurrentptr += 2;
 	bytesleftforcurrentbeacon -= 2;
+
+	if (bss->capability & WLAN_CAPABILITY_PRIVACY)
+		lbs_deb_scan("process_bss: AP WEP enabled\n");
+	if (bss->capability & WLAN_CAPABILITY_IBSS)
+		bss->mode = IW_MODE_ADHOC;
+	else
+		bss->mode = IW_MODE_INFRA;
 
 	/* rest of the current buffer are IE's */
 	lbs_deb_scan("process_bss: IE length for this AP = %d\n",
@@ -998,19 +1001,6 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 	lbs_dbg_hex("process_bss: IE info", (u8 *) pcurrentptr,
 		bytesleftforcurrentbeacon);
-
-	if (pcap->privacy) {
-		lbs_deb_scan("process_bss: AP WEP enabled\n");
-		bss->privacy = wlan802_11privfilter8021xWEP;
-	} else {
-		bss->privacy = wlan802_11privfilteracceptall;
-	}
-
-	if (pcap->ibss == 1) {
-		bss->mode = IW_MODE_ADHOC;
-	} else {
-		bss->mode = IW_MODE_INFRA;
-	}
 
 	/* process variable IE */
 	while (bytesleftforcurrentbeacon >= 2) {
@@ -1550,7 +1540,7 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
-	if (bss->privacy) {
+	if (bss->capability & WLAN_CAPABILITY_PRIVACY) {
 		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 	} else {
 		iwe.u.data.flags = IW_ENCODE_DISABLED;

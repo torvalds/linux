@@ -17,8 +17,6 @@
 #include "dev.h"
 #include "assoc.h"
 
-#define AD_HOC_CAP_PRIVACY_ON 1
-
 /**
  *  @brief This function finds out the common rates between rate1 and rate2.
  *
@@ -121,7 +119,8 @@ int wlan_associate(wlan_private * priv, struct assoc_request * assoc_req)
 		goto done;
 
 	/* set preamble to firmware */
-	if (adapter->capinfo.shortpreamble && assoc_req->bss.cap.shortpreamble)
+	if (   (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+	    && (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
 		adapter->preamble = cmd_type_short_preamble;
 	else
 		adapter->preamble = cmd_type_long_preamble;
@@ -150,12 +149,12 @@ int libertas_start_adhoc_network(wlan_private * priv, struct assoc_request * ass
 
 	adapter->adhoccreate = 1;
 
-	if (!adapter->capinfo.shortpreamble) {
-		lbs_deb_join("AdhocStart: Long preamble\n");
-		adapter->preamble = cmd_type_long_preamble;
-	} else {
+	if (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocStart: Short preamble\n");
 		adapter->preamble = cmd_type_short_preamble;
+	} else {
+		lbs_deb_join("AdhocStart: Long preamble\n");
+		adapter->preamble = cmd_type_long_preamble;
 	}
 
 	libertas_set_radio_control(priv);
@@ -205,9 +204,10 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 		return -1;
 	}
 
-	/*Use shortpreamble only when both creator and card supports
+	/* Use shortpreamble only when both creator and card supports
 	   short preamble */
-	if (!bss->cap.shortpreamble || !adapter->capinfo.shortpreamble) {
+	if (   !(bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+	    || !(adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
 		lbs_deb_join("AdhocJoin: Long preamble\n");
 		adapter->preamble = cmd_type_long_preamble;
 	} else {
@@ -357,7 +357,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	/* set the listen interval */
 	passo->listeninterval = cpu_to_le16(adapter->listeninterval);
 
-	pos += sizeof(passo->capinfo);
+	pos += sizeof(passo->capability);
 	pos += sizeof(passo->listeninterval);
 	pos += sizeof(passo->bcnperiod);
 	pos += sizeof(passo->dtimperiod);
@@ -427,12 +427,6 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	lbs_deb_join("ASSOC_CMD: rates->header.len = %d\n",
 		     cpu_to_le16(rates->header.len));
 
-	/* set IBSS field */
-	if (bss->mode == IW_MODE_INFRA) {
-#define CAPINFO_ESS_MODE 1
-		passo->capinfo.ess = CAPINFO_ESS_MODE;
-	}
-
 	if (libertas_parse_dnld_countryinfo_11d(priv, bss)) {
 		ret = -1;
 		goto done;
@@ -440,12 +434,13 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 
 	cmd->size = cpu_to_le16((u16) (pos - (u8 *) passo) + S_DS_GEN);
 
-	/* set the capability info at last */
-	memcpy(&tmpcap, &bss->cap, sizeof(passo->capinfo));
-	tmpcap &= CAPINFO_MASK;
-	lbs_deb_join("ASSOC_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
+	/* set the capability info */
+	tmpcap = (bss->capability & CAPINFO_MASK);
+	if (bss->mode == IW_MODE_INFRA)
+		tmpcap |= WLAN_CAPABILITY_ESS;
+	passo->capability = cpu_to_le16(tmpcap);
+	lbs_deb_join("ASSOC_CMD: capability=%4X CAPINFO_MASK=%4X\n",
 		     tmpcap, CAPINFO_MASK);
-	memcpy(&passo->capinfo, &tmpcap, sizeof(passo->capinfo));
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
@@ -461,6 +456,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	int cmdappendsize = 0;
 	int i;
 	struct assoc_request * assoc_req = pdata_buf;
+	u16 tmpcap = 0;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -518,19 +514,17 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->ssparamset.ibssparamset.atimwindow = cpu_to_le16(adapter->atimwindow);
 
 	/* set capability info */
-	adhs->cap.ess = 0;
-	adhs->cap.ibss = 1;
-
-	/* probedelay */
-	adhs->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
-
-	/* set up privacy in adapter->scantable[i] */
+	tmpcap = WLAN_CAPABILITY_IBSS;
 	if (assoc_req->secinfo.wep_enabled) {
 		lbs_deb_join("ADHOC_S_CMD: WEP enabled, setting privacy on\n");
-		adhs->cap.privacy = AD_HOC_CAP_PRIVACY_ON;
+		tmpcap |= WLAN_CAPABILITY_PRIVACY;
 	} else {
 		lbs_deb_join("ADHOC_S_CMD: WEP disabled, setting privacy off\n");
 	}
+	adhs->capability = cpu_to_le16(tmpcap);
+
+	/* probedelay */
+	adhs->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
 
 	memset(adhs->datarate, 0, sizeof(adhs->datarate));
 
@@ -585,67 +579,58 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 				struct cmd_ds_command *cmd, void *pdata_buf)
 {
 	wlan_adapter *adapter = priv->adapter;
-	struct cmd_ds_802_11_ad_hoc_join *padhocjoin = &cmd->params.adj;
+	struct cmd_ds_802_11_ad_hoc_join *join_cmd = &cmd->params.adj;
 	struct assoc_request * assoc_req = pdata_buf;
 	struct bss_descriptor *bss = &assoc_req->bss;
 	int cmdappendsize = 0;
 	int ret = 0;
 	u8 *card_rates;
 	int card_rates_size;
-	u16 tmpcap;
 	int i;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
 	cmd->command = cpu_to_le16(cmd_802_11_ad_hoc_join);
 
-	padhocjoin->bssdescriptor.bsstype = cmd_bss_type_ibss;
+	join_cmd->bss.type = cmd_bss_type_ibss;
+	join_cmd->bss.beaconperiod = cpu_to_le16(bss->beaconperiod);
 
-	padhocjoin->bssdescriptor.beaconperiod = cpu_to_le16(bss->beaconperiod);
+	memcpy(&join_cmd->bss.bssid, &bss->bssid, ETH_ALEN);
+	memcpy(&join_cmd->bss.ssid, &bss->ssid, bss->ssid_len);
 
-	memcpy(&padhocjoin->bssdescriptor.BSSID, &bss->bssid, ETH_ALEN);
-	memcpy(&padhocjoin->bssdescriptor.SSID, &bss->ssid, bss->ssid_len);
+	memcpy(&join_cmd->bss.phyparamset, &bss->phyparamset,
+	       sizeof(union ieeetypes_phyparamset));
 
-	memcpy(&padhocjoin->bssdescriptor.phyparamset,
-	       &bss->phyparamset, sizeof(union ieeetypes_phyparamset));
+	memcpy(&join_cmd->bss.ssparamset, &bss->ssparamset,
+	       sizeof(union IEEEtypes_ssparamset));
 
-	memcpy(&padhocjoin->bssdescriptor.ssparamset,
-	       &bss->ssparamset, sizeof(union IEEEtypes_ssparamset));
-
-	memcpy(&tmpcap, &bss->cap, sizeof(struct ieeetypes_capinfo));
-	tmpcap &= CAPINFO_MASK;
-
+	join_cmd->bss.capability = cpu_to_le16(bss->capability & CAPINFO_MASK);
 	lbs_deb_join("ADHOC_J_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
-	       tmpcap, CAPINFO_MASK);
-	memcpy(&padhocjoin->bssdescriptor.cap, &tmpcap,
-	       sizeof(struct ieeetypes_capinfo));
+	       bss->capability, CAPINFO_MASK);
 
 	/* information on BSSID descriptor passed to FW */
 	lbs_deb_join(
 	       "ADHOC_J_CMD: BSSID = " MAC_FMT ", SSID = '%s'\n",
-	       MAC_ARG(padhocjoin->bssdescriptor.BSSID),
-	       padhocjoin->bssdescriptor.SSID);
+	       MAC_ARG(join_cmd->bss.bssid), join_cmd->bss.ssid);
 
 	/* failtimeout */
-	padhocjoin->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
+	join_cmd->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
 
 	/* probedelay */
-	padhocjoin->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
+	join_cmd->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
 
 	/* Copy Data rates from the rates recorded in scan response */
-	memset(padhocjoin->bssdescriptor.datarates, 0,
-	       sizeof(padhocjoin->bssdescriptor.datarates));
-	memcpy(padhocjoin->bssdescriptor.datarates, bss->datarates,
-	       min(sizeof(padhocjoin->bssdescriptor.datarates),
-		   sizeof(bss->datarates)));
+	memset(join_cmd->bss.datarates, 0, sizeof(join_cmd->bss.datarates));
+	memcpy(join_cmd->bss.datarates, bss->datarates,
+	       min(sizeof(join_cmd->bss.datarates), sizeof(bss->datarates)));
 
 	card_rates = libertas_supported_rates;
 	card_rates_size = sizeof(libertas_supported_rates);
 
 	adapter->curbssparams.channel = bss->channel;
 
-	if (get_common_rates(adapter, padhocjoin->bssdescriptor.datarates,
-			     sizeof(padhocjoin->bssdescriptor.datarates),
+	if (get_common_rates(adapter, join_cmd->bss.datarates,
+			     sizeof(join_cmd->bss.datarates),
 			     card_rates, card_rates_size)) {
 		lbs_deb_join("ADHOC_J_CMD: get_common_rates returns error.\n");
 		ret = -1;
@@ -653,8 +638,8 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	}
 
 	/* Find the last non zero */
-	for (i = 0; i < sizeof(padhocjoin->bssdescriptor.datarates)
-	     && padhocjoin->bssdescriptor.datarates[i]; i++) ;
+	for (i = 0; i < sizeof(join_cmd->bss.datarates)
+	     && join_cmd->bss.datarates[i]; i++) ;
 
 	adapter->curbssparams.numofrates = i;
 
@@ -662,14 +647,16 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	 * Copy the adhoc joining rates to Current BSS State structure
 	 */
 	memcpy(adapter->curbssparams.datarates,
-	       padhocjoin->bssdescriptor.datarates,
+	       join_cmd->bss.datarates,
 	       adapter->curbssparams.numofrates);
 
-	padhocjoin->bssdescriptor.ssparamset.ibssparamset.atimwindow =
+	join_cmd->bss.ssparamset.ibssparamset.atimwindow =
 	    cpu_to_le16(bss->atimwindow);
 
 	if (assoc_req->secinfo.wep_enabled) {
-		padhocjoin->bssdescriptor.cap.privacy = AD_HOC_CAP_PRIVACY_ON;
+		u16 tmp = le16_to_cpu(join_cmd->bss.capability);
+		tmp |= WLAN_CAPABILITY_PRIVACY;
+		join_cmd->bss.capability = cpu_to_le16(tmp);
 	}
 
 	if (adapter->psmode == wlan802_11powermodemax_psp) {

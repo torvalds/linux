@@ -275,7 +275,7 @@ struct _wlan_adapter {
 	u8 adhoccreate;
 
 	/** capability Info used in Association, start, join */
-	struct ieeetypes_capinfo capinfo;
+	u16 capability;
 
 	/** MAC address information */
 	u8 current_addr[ETH_ALEN];
