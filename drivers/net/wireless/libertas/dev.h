@@ -14,7 +14,6 @@
 
 #include "defs.h"
 #include "scan.h"
-#include "thread.h"
 
 extern struct ethtool_ops libertas_ethtool_ops;
 
@@ -146,7 +145,8 @@ struct _wlan_private {
 	struct device *hotplug_device;
 
 	/** thread to service interrupts */
-	struct wlan_thread mainthread;
+	struct task_struct *main_thread;
+	wait_queue_head_t waitq;
 
 	struct delayed_work assoc_work;
 	struct workqueue_struct *assoc_thread;

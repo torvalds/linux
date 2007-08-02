@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
+#include <linux/kthread.h>
 
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -438,7 +439,7 @@ static void wlan_tx_timeout(struct net_device *dev)
 			priv->adapter->eventcause = 0x01000000;
 			libertas_send_tx_feedback(priv);
 		} else
-			wake_up_interruptible(&priv->mainthread.waitq);
+			wake_up_interruptible(&priv->waitq);
 	} else if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
 		netif_wake_queue(priv->mesh_dev);
@@ -599,28 +600,25 @@ static void wlan_set_multicast_list(struct net_device *dev)
  *  @param data    A pointer to wlan_thread structure
  *  @return 	   0
  */
-static int wlan_service_main_thread(void *data)
+static int libertas_thread(void *data)
 {
-	struct wlan_thread *thread = data;
-	wlan_private *priv = thread->priv;
+	struct net_device *dev = data;
+	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	wait_queue_t wait;
 	u8 ireg = 0;
 
 	lbs_deb_enter(LBS_DEB_THREAD);
 
-	wlan_activate_thread(thread);
-
 	init_waitqueue_entry(&wait, current);
 
-	set_freezable();
 	for (;;) {
 		lbs_deb_thread( "main-thread 111: intcounter=%d "
 		       "currenttxskb=%p dnld_sent=%d\n",
 		       adapter->intcounter,
 		       adapter->currenttxskb, priv->dnld_sent);
 
-		add_wait_queue(&thread->waitq, &wait);
+		add_wait_queue(&priv->waitq, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_lock_irq(&adapter->driver_lock);
 		if ((adapter->psstate == PS_STATE_SLEEP) ||
@@ -643,7 +641,7 @@ static int wlan_service_main_thread(void *data)
 		       adapter->currenttxskb, priv->dnld_sent);
 
 		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&thread->waitq, &wait);
+		remove_wait_queue(&priv->waitq, &wait);
 		try_to_freeze();
 
 		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p "
@@ -758,7 +756,6 @@ static int wlan_service_main_thread(void *data)
 	del_timer(&adapter->command_timer);
 	adapter->nr_cmd_pending = 0;
 	wake_up_all(&adapter->cmd_pending);
-	wlan_deactivate_thread(thread);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
@@ -841,10 +838,13 @@ int libertas_activate_card(wlan_private *priv, char *fw_name)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	lbs_deb_thread("Starting kthread...\n");
-	priv->mainthread.priv = priv;
-	wlan_create_thread(wlan_service_main_thread,
-			   &priv->mainthread, "wlan_main_service");
+	lbs_deb_thread("Starting main thread...\n");
+	init_waitqueue_head(&priv->waitq);
+	priv->main_thread = kthread_run(libertas_thread, dev, "libertas_main");
+	if (IS_ERR(priv->main_thread)) {
+		lbs_deb_thread("Error creating main thread.\n");
+		goto done;
+	}
 
 	priv->assoc_thread =
 		create_singlethread_workqueue("libertas_assoc");
@@ -884,8 +884,8 @@ err_init_fw:
 err_registerdev:
 	destroy_workqueue(priv->assoc_thread);
 	/* Stop the thread servicing the interrupts */
-	wake_up_interruptible(&priv->mainthread.waitq);
-	wlan_terminate_thread(&priv->mainthread);
+	wake_up_interruptible(&priv->waitq);
+	kthread_stop(priv->main_thread);
 done:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
@@ -1017,7 +1017,7 @@ int libertas_remove_card(wlan_private *priv)
 	adapter->surpriseremoved = 1;
 
 	/* Stop the thread servicing the interrupts */
-	wlan_terminate_thread(&priv->mainthread);
+	kthread_stop(priv->main_thread);
 
 	libertas_debugfs_remove_one(priv);
 
@@ -1151,7 +1151,7 @@ void libertas_interrupt(struct net_device *dev)
 		netif_wake_queue(priv->mesh_dev);
 	}
 
-	wake_up_interruptible(&priv->mainthread.waitq);
+	wake_up_interruptible(&priv->waitq);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 }

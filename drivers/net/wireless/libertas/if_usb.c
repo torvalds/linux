@@ -77,7 +77,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		priv->dnld_sent = DNLD_RES_RECEIVED;
 		/* Wake main thread if commands are pending */
 		if (!adapter->cur_cmd)
-			wake_up_interruptible(&priv->mainthread.waitq);
+			wake_up_interruptible(&priv->waitq);
 		if ((adapter->connect_status == LIBERTAS_CONNECTED)) {
 			netif_wake_queue(dev);
 			netif_wake_queue(priv->mesh_dev);

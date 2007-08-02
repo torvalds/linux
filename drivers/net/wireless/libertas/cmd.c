@@ -1134,7 +1134,7 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 		lbs_deb_cmd("PREP_CMD: No free cmdnode\n");
 
 		/* Wake up main thread to execute next command */
-		wake_up_interruptible(&priv->mainthread.waitq);
+		wake_up_interruptible(&priv->waitq);
 		ret = -1;
 		goto done;
 	}
@@ -1402,7 +1402,7 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	libertas_queue_cmd(adapter, cmdnode, 1);
 	adapter->nr_cmd_pending++;
-	wake_up_interruptible(&priv->mainthread.waitq);
+	wake_up_interruptible(&priv->waitq);
 
 	if (wait_option & CMD_OPTION_WAITFORRSP) {
 		lbs_deb_cmd("PREP_CMD: Wait for CMD response\n");

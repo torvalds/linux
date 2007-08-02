@@ -341,7 +341,7 @@ static void command_timer_fn(unsigned long data)
 	lbs_deb_fw("re-sending same command because of timeout\n");
 	libertas_queue_cmd(adapter, ptempnode, 0);
 
-	wake_up_interruptible(&priv->mainthread.waitq);
+	wake_up_interruptible(&priv->waitq);
 
 	return;
 }
