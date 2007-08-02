@@ -1559,6 +1559,14 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 		ipath_dev_err(dd, "Unsupported InfiniPath serial "
 			      "number %.16s!\n", dd->ipath_serial);
 
+	if (dd->ipath_minrev >= 4) {
+		/* Rev4+ reports extra errors via internal GPIO pins */
+		dd->ipath_flags |= IPATH_GPIO_ERRINTRS;
+		dd->ipath_gpio_mask |= IPATH_GPIO_ERRINTR_MASK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
+				 dd->ipath_gpio_mask);
+	}
+
 	return 0;
 }
 

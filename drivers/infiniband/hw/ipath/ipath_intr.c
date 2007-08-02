@@ -1085,8 +1085,8 @@ irqreturn_t ipath_intr(int irq, void *data)
 		 * GPIO_2 indicates (on some HT4xx boards) that a packet
 		 *        has arrived for Port 0. Checking for this
 		 *        is controlled by flag IPATH_GPIO_INTR.
-		 * GPIO_3..5 on IBA6120 Rev2 chips indicate errors
-		 *        that we need to count. Checking for this
+		 * GPIO_3..5 on IBA6120 Rev2 and IBA6110 Rev4 chips indicate
+		 *        errors that we need to count. Checking for this
 		 *        is controlled by flag IPATH_GPIO_ERRINTRS.
 		 */
 		u32 gpiostatus;
