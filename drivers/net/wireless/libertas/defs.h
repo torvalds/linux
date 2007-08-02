@@ -149,9 +149,6 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define	MRVDRV_CHANNELS_PER_SCAN		4
 #define	MRVDRV_MAX_CHANNELS_PER_SCAN		14
 
-#define MRVDRV_DEBUG_RX_PATH		0x00000001
-#define MRVDRV_DEBUG_TX_PATH		0x00000002
-
 #define MRVDRV_MIN_BEACON_INTERVAL		20
 #define MRVDRV_MAX_BEACON_INTERVAL		1000
 #define MRVDRV_BEACON_INTERVAL			100

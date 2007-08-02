@@ -393,7 +393,6 @@ struct _wlan_adapter {
 	u16 txrate;
 	u32 linkmode;
 	u32 radiomode;
-	u32 debugmode;
 	u8 fw_ready;
 
 	u8 last_scanned_channel;

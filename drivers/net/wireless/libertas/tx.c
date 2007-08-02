@@ -72,10 +72,6 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	if (priv->adapter->surpriseremoved)
 		return -1;
 
-	if ((priv->adapter->debugmode & MRVDRV_DEBUG_TX_PATH) != 0)
-		lbs_dbg_hex("TX packet: ", skb->data,
-			 min_t(unsigned int, skb->len, 100));
-
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
 		lbs_deb_tx("tx err: skb length %d 0 or > %zd\n",
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
@@ -266,10 +262,6 @@ void libertas_send_tx_feedback(wlan_private * priv)
 		return;
 
 	radiotap_hdr = (struct tx_radiotap_hdr *)adapter->currenttxskb->data;
-
-	if ((adapter->debugmode & MRVDRV_DEBUG_TX_PATH) != 0)
-		lbs_dbg_hex("TX feedback: ", (u8 *) radiotap_hdr,
-			min_t(unsigned int, adapter->currenttxskb->len, 100));
 
 	txfail = (status >> 24);
 

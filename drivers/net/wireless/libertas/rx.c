@@ -172,10 +172,6 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 
 	lbs_deb_enter(LBS_DEB_RX);
 
-	if (priv->adapter->debugmode & MRVDRV_DEBUG_RX_PATH)
-		lbs_dbg_hex("RX packet: ", skb->data,
-			 min_t(unsigned int, skb->len, 100));
-
 	if (priv->adapter->linkmode == WLAN_LINKMODE_802_11)
 		return process_rxed_802_11_packet(priv, skb);
 
