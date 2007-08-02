@@ -1677,15 +1677,14 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 
 	/* Set fixed field variables in scan command */
 	pscan->bsstype = pscancfg->bsstype;
-	memcpy(pscan->BSSID, pscancfg->bssid, sizeof(pscan->BSSID));
+	memcpy(pscan->bssid, pscancfg->bssid, ETH_ALEN);
 	memcpy(pscan->tlvbuffer, pscancfg->tlvbuffer, pscancfg->tlvbufferlen);
 
 	cmd->command = cpu_to_le16(cmd_802_11_scan);
 
 	/* size is equal to the sizeof(fixed portions) + the TLV len + header */
-	cmd->size = cpu_to_le16(sizeof(pscan->bsstype)
-				     + sizeof(pscan->BSSID)
-				     + pscancfg->tlvbufferlen + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(pscan->bsstype) + ETH_ALEN
+				+ pscancfg->tlvbufferlen + S_DS_GEN);
 
 	lbs_deb_scan("SCAN_CMD: command=%x, size=%x, seqnum=%x\n",
 		     le16_to_cpu(cmd->command), le16_to_cpu(cmd->size),

@@ -159,7 +159,7 @@ struct cmd_ds_802_11_subscribe_event {
  */
 struct cmd_ds_802_11_scan {
 	u8 bsstype;
-	u8 BSSID[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	u8 tlvbuffer[1];
 #if 0
 	mrvlietypes_ssidparamset_t ssidParamSet;
