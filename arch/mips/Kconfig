@@ -558,9 +558,7 @@ config TOSHIBA_RBTX4927
 
 config TOSHIBA_RBTX4938
 	bool "Toshiba RBTX4938 board"
-	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
-	select GENERIC_ISA_DMA
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select IRQ_CPU
