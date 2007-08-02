@@ -1395,7 +1395,7 @@ extern int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
  */
 static inline int usb_urb_dir_in(struct urb *urb)
 {
-	return (urb->transfer_flags & URB_DIR_MASK) != URB_DIR_OUT;
+	return (urb->transfer_flags & URB_DIR_MASK) == URB_DIR_IN;
 }
 
 /**

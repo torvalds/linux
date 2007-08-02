@@ -3,6 +3,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include "hcd.h"
@@ -441,10 +442,8 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		default:
 			return -EINVAL;
 		}
-		/* power of two? */
-		while (max > urb->interval)
-			max >>= 1;
-		urb->interval = max;
+		/* Round down to a power of 2, no more than max */
+		urb->interval = min(max, 1 << ilog2(urb->interval));
 	}
 
 	return usb_hcd_submit_urb(urb, mem_flags);
@@ -513,8 +512,10 @@ int usb_unlink_urb(struct urb *urb)
 {
 	if (!urb)
 		return -EINVAL;
-	if (!(urb->dev && urb->dev->bus))
+	if (!urb->dev)
 		return -ENODEV;
+	if (!urb->ep)
+		return -EIDRM;
 	return usb_hcd_unlink_urb(urb, -ECONNRESET);
 }
 
@@ -541,7 +542,7 @@ int usb_unlink_urb(struct urb *urb)
 void usb_kill_urb(struct urb *urb)
 {
 	might_sleep();
-	if (!(urb && urb->dev && urb->dev->bus))
+	if (!(urb && urb->dev && urb->ep))
 		return;
 	spin_lock_irq(&urb->lock);
 	++urb->reject;

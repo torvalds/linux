@@ -1074,11 +1074,6 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 	struct list_head		*tmp;
 	int				retval;
 
-	if (!urb)
-		return -EINVAL;
-	if (!urb->dev || !urb->dev->bus)
-		return -ENODEV;
-
 	/*
 	 * we contend for urb->status with the hcd core,
 	 * which changes it while returning the urb.
