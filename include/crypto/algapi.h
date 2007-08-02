@@ -160,6 +160,11 @@ static inline void *crypto_ablkcipher_ctx(struct crypto_ablkcipher *tfm)
 	return crypto_tfm_ctx(&tfm->base);
 }
 
+static inline void *crypto_ablkcipher_ctx_aligned(struct crypto_ablkcipher *tfm)
+{
+	return crypto_tfm_ctx_aligned(&tfm->base);
+}
+
 static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
 	struct crypto_spawn *spawn)
 {
