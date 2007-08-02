@@ -48,7 +48,7 @@ struct sun_flpy_controller {
 
 /* You'll only ever find one controller on a SparcStation anyways. */
 static struct sun_flpy_controller *sun_fdc = NULL;
-volatile unsigned char *fdc_status;
+extern volatile unsigned char *fdc_status;
 
 struct sun_floppy_ops {
 	unsigned char (*fd_inb)(int port);
@@ -225,13 +225,13 @@ static void sun_82077_fd_outb(unsigned char value, int port)
  * underruns.  If non-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
-char *pdma_vaddr;
-unsigned long pdma_size;
-volatile int doing_pdma = 0;
+extern char *pdma_vaddr;
+extern unsigned long pdma_size;
+extern volatile int doing_pdma;
 
 /* This is software state */
-char *pdma_base = NULL;
-unsigned long pdma_areasize;
+extern char *pdma_base;
+extern unsigned long pdma_areasize;
 
 /* Common routines to all controller types on the Sparc. */
 static __inline__ void virtual_dma_init(void)
@@ -281,7 +281,8 @@ static __inline__ void sun_fd_enable_dma(void)
 }
 
 /* Our low-level entry point in arch/sparc/kernel/entry.S */
-irqreturn_t floppy_hardint(int irq, void *unused);
+extern int sparc_floppy_request_irq(int irq, unsigned long flags,
+				    irqreturn_t (*irq_handler)(int irq, void *));
 
 static int sun_fd_request_irq(void)
 {
@@ -290,8 +291,9 @@ static int sun_fd_request_irq(void)
 
 	if(!once) {
 		once = 1;
-		error = request_fast_irq(FLOPPY_IRQ, floppy_hardint,
-					 IRQF_DISABLED, "floppy");
+		error = sparc_floppy_request_irq(FLOPPY_IRQ,
+						 IRQF_DISABLED,
+						 floppy_interrupt);
 		return ((error == 0) ? 0 : -1);
 	} else return 0;
 }
