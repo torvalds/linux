@@ -288,7 +288,6 @@ struct _wlan_adapter {
 	u32 rtsthsd;
 
 	u16 listeninterval;
-	u16 prescan;
 	u8 txretrycount;
 
 	/** Tx-related variables (for single packet tx) */

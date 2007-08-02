@@ -1037,8 +1037,6 @@ static void wlan_init_adapter(wlan_private * priv)
 
 	mutex_init(&adapter->lock);
 
-	adapter->prescan = 1;
-
 	memset(&adapter->curbssparams, 0, sizeof(adapter->curbssparams));
 	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
 

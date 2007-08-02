@@ -57,10 +57,8 @@ static int assoc_helper_essid(wlan_private *priv,
 	lbs_deb_assoc("New SSID requested: '%s'\n",
 	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
-		if (adapter->prescan) {
-			libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
-				assoc_req->ssid_len, 0);
-		}
+		libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
+			assoc_req->ssid_len, 0);
 
 		bss = libertas_find_ssid_in_list(adapter, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_INFRA, channel);
