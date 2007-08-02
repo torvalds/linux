@@ -22,7 +22,7 @@
 #include "debugfs.h"
 #include "assoc.h"
 
-#define DRIVER_RELEASE_VERSION "322.p0"
+#define DRIVER_RELEASE_VERSION "322.p1"
 const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
 #ifdef  DEBUG
     "-dbg"
