@@ -1269,9 +1269,10 @@ int libertas_activate_card(wlan_private *priv)
 		goto done;
 	}
 
-	priv->assoc_thread =
-		create_singlethread_workqueue("libertas_assoc");
+	priv->work_thread = create_singlethread_workqueue("libertas_worker");
 	INIT_DELAYED_WORK(&priv->assoc_work, libertas_association_worker);
+	INIT_DELAYED_WORK(&priv->scan_work, libertas_scan_worker);
+
 	INIT_WORK(&priv->sync_channel, libertas_sync_channel);
 
 	/*
@@ -1305,7 +1306,7 @@ int libertas_activate_card(wlan_private *priv)
 err_init_fw:
 	priv->hw_unregister_dev(priv);
 err_registerdev:
-	destroy_workqueue(priv->assoc_thread);
+	destroy_workqueue(priv->work_thread);
 	/* Stop the thread servicing the interrupts */
 	wake_up_interruptible(&priv->waitq);
 	kthread_stop(priv->main_thread);
@@ -1426,8 +1427,9 @@ int libertas_remove_card(wlan_private *priv)
 
 	unregister_netdev(dev);
 
+	cancel_delayed_work(&priv->scan_work);
 	cancel_delayed_work(&priv->assoc_work);
-	destroy_workqueue(priv->assoc_thread);
+	destroy_workqueue(priv->work_thread);
 
 	if (adapter->psmode == WLAN802_11POWERMODEMAX_PSP) {
 		adapter->psmode = WLAN802_11POWERMODECAM;

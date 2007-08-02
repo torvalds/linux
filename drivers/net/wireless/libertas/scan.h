@@ -210,4 +210,6 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra);
 
+void libertas_scan_worker(struct work_struct *work);
+
 #endif				/* _WLAN_SCAN_H */

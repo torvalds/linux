@@ -148,9 +148,10 @@ struct _wlan_private {
 	/** thread to service interrupts */
 	struct task_struct *main_thread;
 	wait_queue_head_t waitq;
+	struct workqueue_struct *work_thread;
 
+	struct delayed_work scan_work;
 	struct delayed_work assoc_work;
-	struct workqueue_struct *assoc_thread;
 	struct work_struct sync_channel;
 
 	/** Hardware access */

@@ -314,6 +314,16 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 	}
 }
 
+
+/* Delayed partial scan worker */
+void libertas_scan_worker(struct work_struct *work)
+{
+	wlan_private *priv = container_of(work, wlan_private, scan_work.work);
+
+	wlan_scan_networks(priv, NULL, 0);
+}
+
+
 /**
  *  @brief Construct a wlan_scan_cmd_config structure to use in issue scan cmds
  *
@@ -408,7 +418,6 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	*pscancurrentonly = 0;
 
 	if (puserscanin) {
-
 		/* Set the bss type scan filter, use adapter setting if unset */
 		pscancfgout->bsstype =
 		    puserscanin->bsstype ? puserscanin->bsstype : CMD_BSS_TYPE_ANY;
@@ -468,59 +477,57 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	 */
 	*ppchantlvout = (struct mrvlietypes_chanlistparamset *) ptlvpos;
 
-	if (puserscanin && puserscanin->chanlist[0].channumber) {
-
-		lbs_deb_scan("Scan: Using supplied channel list\n");
-
-		for (chanidx = 0;
-		     chanidx < WLAN_IOCTL_USER_SCAN_CHAN_MAX
-		     && puserscanin->chanlist[chanidx].channumber; chanidx++) {
-
-			channel = puserscanin->chanlist[chanidx].channumber;
-			(pscanchanlist + chanidx)->channumber = channel;
-
-			radiotype = puserscanin->chanlist[chanidx].radiotype;
-			(pscanchanlist + chanidx)->radiotype = radiotype;
-
-			scantype = puserscanin->chanlist[chanidx].scantype;
-
-			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
-				(pscanchanlist +
-				 chanidx)->chanscanmode.passivescan = 1;
-			} else {
-				(pscanchanlist +
-				 chanidx)->chanscanmode.passivescan = 0;
-			}
-
-			if (puserscanin->chanlist[chanidx].scantime) {
-				scandur =
-				    puserscanin->chanlist[chanidx].scantime;
-			} else {
-				if (scantype == CMD_SCAN_TYPE_PASSIVE) {
-					scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
-				} else {
-					scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
-				}
-			}
-
-			(pscanchanlist + chanidx)->minscantime =
-			    cpu_to_le16(scandur);
-			(pscanchanlist + chanidx)->maxscantime =
-			    cpu_to_le16(scandur);
-		}
-
-		/* Check if we are only scanning the current channel */
-		if ((chanidx == 1) && (puserscanin->chanlist[0].channumber
-				       ==
-				       priv->adapter->curbssparams.channel)) {
-			*pscancurrentonly = 1;
-			lbs_deb_scan("Scan: Scanning current channel only");
-		}
-
-	} else {
+	if (!puserscanin || !puserscanin->chanlist[0].channumber) {
+		/* Create a default channel scan list */
 		lbs_deb_scan("Scan: Creating full region channel list\n");
 		wlan_scan_create_channel_list(priv, pscanchanlist,
 					      *pfilteredscan);
+		goto out;
+	}
+
+	lbs_deb_scan("Scan: Using supplied channel list\n");
+	for (chanidx = 0;
+	     chanidx < WLAN_IOCTL_USER_SCAN_CHAN_MAX
+	     && puserscanin->chanlist[chanidx].channumber; chanidx++) {
+
+		channel = puserscanin->chanlist[chanidx].channumber;
+		(pscanchanlist + chanidx)->channumber = channel;
+
+		radiotype = puserscanin->chanlist[chanidx].radiotype;
+		(pscanchanlist + chanidx)->radiotype = radiotype;
+
+		scantype = puserscanin->chanlist[chanidx].scantype;
+
+		if (scantype == CMD_SCAN_TYPE_PASSIVE) {
+			(pscanchanlist +
+			 chanidx)->chanscanmode.passivescan = 1;
+		} else {
+			(pscanchanlist +
+			 chanidx)->chanscanmode.passivescan = 0;
+		}
+
+		if (puserscanin->chanlist[chanidx].scantime) {
+			scandur = puserscanin->chanlist[chanidx].scantime;
+		} else {
+			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
+				scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
+			} else {
+				scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
+			}
+		}
+
+		(pscanchanlist + chanidx)->minscantime =
+		    cpu_to_le16(scandur);
+		(pscanchanlist + chanidx)->maxscantime =
+		    cpu_to_le16(scandur);
+	}
+
+	/* Check if we are only scanning the current channel */
+	if ((chanidx == 1) &&
+	    (puserscanin->chanlist[0].channumber ==
+			       priv->adapter->curbssparams.channel)) {
+		*pscancurrentonly = 1;
+		lbs_deb_scan("Scan: Scanning current channel only");
 	}
 
 out:
@@ -604,12 +611,12 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		while (tlvidx < maxchanperscan && ptmpchan->channumber
 		       && !doneearly && scanned < 2) {
 
-            lbs_deb_scan(
-                    "Scan: Chan(%3d), Radio(%d), mode(%d,%d), Dur(%d)\n",
-                ptmpchan->channumber, ptmpchan->radiotype,
-                ptmpchan->chanscanmode.passivescan,
-                ptmpchan->chanscanmode.disablechanfilt,
-                ptmpchan->maxscantime);
+			lbs_deb_scan("Scan: Chan(%3d), Radio(%d), mode(%d,%d), "
+			             "Dur(%d)\n",
+			             ptmpchan->channumber, ptmpchan->radiotype,
+			             ptmpchan->chanscanmode.passivescan,
+			             ptmpchan->chanscanmode.disablechanfilt,
+			             ptmpchan->maxscantime);
 
 			/* Copy the current channel TLV to the command being prepared */
 			memcpy(pchantlvout->chanscanparam + tlvidx,
@@ -678,9 +685,18 @@ static int wlan_scan_channel_list(wlan_private * priv,
 done:
 	priv->adapter->last_scanned_channel = ptmpchan->channumber;
 
-	/* Tell userspace the scan table has been updated */
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
+	if (priv->adapter->last_scanned_channel) {
+		/* Schedule the next part of the partial scan */
+		if (!full_scan && !priv->adapter->surpriseremoved) {
+			cancel_delayed_work(&priv->scan_work);
+			queue_delayed_work(priv->work_thread, &priv->scan_work,
+			                   msecs_to_jiffies(300));
+		}
+	} else {
+		/* All done, tell userspace the scan table has been updated */
+		memset(&wrqu, 0, sizeof(union iwreq_data));
+		wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
+	}
 
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
@@ -747,8 +763,8 @@ clear_selected_scan_list_entries(wlan_adapter * adapter,
  *  @return              0 or < 0 if error
  */
 int wlan_scan_networks(wlan_private * priv,
-			      const struct wlan_ioctl_user_scan_cfg * puserscanin,
-			      int full_scan)
+                       const struct wlan_ioctl_user_scan_cfg * puserscanin,
+                       int full_scan)
 {
 	wlan_adapter * adapter = priv->adapter;
 	struct mrvlietypes_chanlistparamset *pchantlvout;
@@ -763,7 +779,13 @@ int wlan_scan_networks(wlan_private * priv,
 	int i = 0;
 #endif
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter(LBS_DEB_SCAN);
+
+	/* Cancel any partial outstanding partial scans if this scan
+	 * is a full scan.
+	 */
+	if (full_scan && delayed_work_pending(&priv->scan_work))
+		cancel_delayed_work(&priv->scan_work);
 
 	scan_chan_list = kzalloc(sizeof(struct chanscanparamset) *
 				WLAN_IOCTL_USER_SCAN_CHAN_MAX, GFP_KERNEL);
@@ -1289,7 +1311,10 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	wlan_scan_networks(priv, NULL, 0);
+	if (!delayed_work_pending(&priv->scan_work)) {
+		queue_delayed_work(priv->work_thread, &priv->scan_work,
+		                   msecs_to_jiffies(50));
+	}
 
 	if (adapter->surpriseremoved)
 		return -1;
@@ -1507,10 +1532,6 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	struct bss_descriptor * safe;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	/* If we've got an uncompleted scan, schedule the next part */
-	if (!adapter->nr_cmd_pending && adapter->last_scanned_channel)
-		wlan_scan_networks(priv, NULL, 0);
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
 	if ((adapter->mode == IW_MODE_ADHOC) && adapter->adhoccreate) {
