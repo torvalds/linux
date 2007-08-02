@@ -56,7 +56,6 @@ static int wlan_cmd_802_11_ps_mode(wlan_private * priv,
 				   u16 cmd_action)
 {
 	struct cmd_ds_802_11_ps_mode *psm = &cmd->params.psmode;
-	wlan_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -68,11 +67,8 @@ static int wlan_cmd_802_11_ps_mode(wlan_private * priv,
 	switch (cmd_action) {
 	case CMD_SUBCMD_ENTER_PS:
 		lbs_deb_cmd("PS command:" "SubCode- Enter PS\n");
-		lbs_deb_cmd("locallisteninterval %d\n",
-		       adapter->locallisteninterval);
 
-		psm->locallisteninterval =
-		    cpu_to_le16(adapter->locallisteninterval);
+		psm->locallisteninterval = 0;
 		psm->nullpktinterval = 0;
 		psm->multipledtim =
 		    cpu_to_le16(priv->adapter->multipledtim);

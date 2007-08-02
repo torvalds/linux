@@ -312,7 +312,6 @@ struct _wlan_adapter {
 	u8 needtowakeup;
 
 	struct PS_CMD_ConfirmSleep libertas_ps_confirm_sleep;
-	u16 locallisteninterval;
 
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;

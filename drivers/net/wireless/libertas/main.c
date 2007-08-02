@@ -1059,7 +1059,6 @@ static void wlan_init_adapter(wlan_private * priv)
 
 	adapter->psstate = PS_STATE_FULL_POWER;
 	adapter->needtowakeup = 0;
-	adapter->locallisteninterval = 0;	/* default value in firmware will be used */
 
 	adapter->intcounter = 0;
 
