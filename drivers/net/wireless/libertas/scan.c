@@ -1334,6 +1334,8 @@ out:
 	return ret;
 }
 
+#define MAX_CUSTOM_LEN 64
+
 static inline char *libertas_translate_scan(wlan_private *priv,
 					char *start, char *stop,
 					struct bss_descriptor *bss)
@@ -1465,6 +1467,18 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->rsn_ie_len;
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
+	}
+
+	if (bss->mesh) {
+		char custom[MAX_CUSTOM_LEN];
+		char *p = custom;
+
+		iwe.cmd = IWEVCUSTOM;
+		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+		              "mesh-type: olpc");
+		iwe.u.data.length = p - custom;
+		if (iwe.u.data.length)
+			start = iwe_stream_add_point(start, stop, &iwe, custom);
 	}
 
 	return start;
