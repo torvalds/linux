@@ -678,46 +678,6 @@ static void update_load_sub(struct load_weight *lw, unsigned long dec)
 	lw->inv_weight = 0;
 }
 
-static void __update_curr_load(struct rq *rq, struct load_stat *ls)
-{
-	if (rq->curr != rq->idle && ls->load.weight) {
-		ls->delta_exec += ls->delta_stat;
-		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
-		ls->delta_stat = 0;
-	}
-}
-
-/*
- * Update delta_exec, delta_fair fields for rq.
- *
- * delta_fair clock advances at a rate inversely proportional to
- * total load (rq->ls.load.weight) on the runqueue, while
- * delta_exec advances at the same rate as wall-clock (provided
- * cpu is not idle).
- *
- * delta_exec / delta_fair is a measure of the (smoothened) load on this
- * runqueue over any given interval. This (smoothened) load is used
- * during load balance.
- *
- * This function is called /before/ updating rq->ls.load
- * and when switching tasks.
- */
-static void update_curr_load(struct rq *rq, u64 now)
-{
-	struct load_stat *ls = &rq->ls;
-	u64 start;
-
-	start = ls->load_update_start;
-	ls->load_update_start = now;
-	ls->delta_stat += now - start;
-	/*
-	 * Stagger updates to ls->delta_fair. Very frequent updates
-	 * can be expensive.
-	 */
-	if (ls->delta_stat >= sysctl_sched_stat_granularity)
-		__update_curr_load(rq, ls);
-}
-
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
  * of tasks with abnormal "nice" values across CPUs the contribution that
@@ -768,32 +728,6 @@ static const u32 prio_to_wmult[40] = {
 /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
-static inline void
-inc_load(struct rq *rq, const struct task_struct *p, u64 now)
-{
-	update_curr_load(rq, now);
-	update_load_add(&rq->ls.load, p->se.load.weight);
-}
-
-static inline void
-dec_load(struct rq *rq, const struct task_struct *p, u64 now)
-{
-	update_curr_load(rq, now);
-	update_load_sub(&rq->ls.load, p->se.load.weight);
-}
-
-static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
-{
-	rq->nr_running++;
-	inc_load(rq, p, now);
-}
-
-static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
-{
-	rq->nr_running--;
-	dec_load(rq, p, now);
-}
-
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup);
 
 /*
@@ -823,6 +757,72 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 #endif
 
 #define sched_class_highest (&rt_sched_class)
+
+static void __update_curr_load(struct rq *rq, struct load_stat *ls)
+{
+	if (rq->curr != rq->idle && ls->load.weight) {
+		ls->delta_exec += ls->delta_stat;
+		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
+		ls->delta_stat = 0;
+	}
+}
+
+/*
+ * Update delta_exec, delta_fair fields for rq.
+ *
+ * delta_fair clock advances at a rate inversely proportional to
+ * total load (rq->ls.load.weight) on the runqueue, while
+ * delta_exec advances at the same rate as wall-clock (provided
+ * cpu is not idle).
+ *
+ * delta_exec / delta_fair is a measure of the (smoothened) load on this
+ * runqueue over any given interval. This (smoothened) load is used
+ * during load balance.
+ *
+ * This function is called /before/ updating rq->ls.load
+ * and when switching tasks.
+ */
+static void update_curr_load(struct rq *rq, u64 now)
+{
+	struct load_stat *ls = &rq->ls;
+	u64 start;
+
+	start = ls->load_update_start;
+	ls->load_update_start = now;
+	ls->delta_stat += now - start;
+	/*
+	 * Stagger updates to ls->delta_fair. Very frequent updates
+	 * can be expensive.
+	 */
+	if (ls->delta_stat >= sysctl_sched_stat_granularity)
+		__update_curr_load(rq, ls);
+}
+
+static inline void
+inc_load(struct rq *rq, const struct task_struct *p, u64 now)
+{
+	update_curr_load(rq, now);
+	update_load_add(&rq->ls.load, p->se.load.weight);
+}
+
+static inline void
+dec_load(struct rq *rq, const struct task_struct *p, u64 now)
+{
+	update_curr_load(rq, now);
+	update_load_sub(&rq->ls.load, p->se.load.weight);
+}
+
+static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+{
+	rq->nr_running++;
+	inc_load(rq, p, now);
+}
+
+static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+{
+	rq->nr_running--;
+	dec_load(rq, p, now);
+}
 
 static void set_load_weight(struct task_struct *p)
 {
