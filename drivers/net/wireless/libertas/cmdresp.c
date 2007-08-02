@@ -124,7 +124,7 @@ static int wlan_ret_reg_access(wlan_private * priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	switch (type) {
-	case CMD_RET_MAC_REG_ACCESS:
+	case CMD_RET(CMD_MAC_REG_ACCESS):
 		{
 			struct cmd_ds_mac_reg_access *reg = &resp->params.macreg;
 
@@ -133,7 +133,7 @@ static int wlan_ret_reg_access(wlan_private * priv,
 			break;
 		}
 
-	case CMD_RET_BBP_REG_ACCESS:
+	case CMD_RET(CMD_BBP_REG_ACCESS):
 		{
 			struct cmd_ds_bbp_reg_access *reg = &resp->params.bbpreg;
 
@@ -142,7 +142,7 @@ static int wlan_ret_reg_access(wlan_private * priv,
 			break;
 		}
 
-	case CMD_RET_RF_REG_ACCESS:
+	case CMD_RET(CMD_RF_REG_ACCESS):
 		{
 			struct cmd_ds_rf_reg_access *reg = &resp->params.rfreg;
 
@@ -560,134 +560,135 @@ static inline int handle_cmd_response(u16 respcmd,
 	wlan_adapter *adapter = priv->adapter;
 
 	switch (respcmd) {
-	case CMD_RET_MAC_REG_ACCESS:
-	case CMD_RET_BBP_REG_ACCESS:
-	case CMD_RET_RF_REG_ACCESS:
+	case CMD_RET(CMD_MAC_REG_ACCESS):
+	case CMD_RET(CMD_BBP_REG_ACCESS):
+	case CMD_RET(CMD_RF_REG_ACCESS):
 		ret = wlan_ret_reg_access(priv, respcmd, resp);
 		break;
 
-	case CMD_RET_HW_SPEC_INFO:
+	case CMD_RET(CMD_GET_HW_SPEC):
 		ret = wlan_ret_get_hw_spec(priv, resp);
 		break;
 
-	case CMD_RET_802_11_SCAN:
+	case CMD_RET(CMD_802_11_SCAN):
 		ret = libertas_ret_80211_scan(priv, resp);
 		break;
 
-	case CMD_RET_802_11_GET_LOG:
+	case CMD_RET(CMD_802_11_GET_LOG):
 		ret = wlan_ret_get_log(priv, resp);
 		break;
 
 	case CMD_RET_802_11_ASSOCIATE:
-	case CMD_RET_802_11_REASSOCIATE:
+	case CMD_RET(CMD_802_11_ASSOCIATE):
+	case CMD_RET(CMD_802_11_REASSOCIATE):
 		ret = libertas_ret_80211_associate(priv, resp);
 		break;
 
-	case CMD_RET_802_11_DISASSOCIATE:
-	case CMD_RET_802_11_DEAUTHENTICATE:
+	case CMD_RET(CMD_802_11_DISASSOCIATE):
+	case CMD_RET(CMD_802_11_DEAUTHENTICATE):
 		ret = libertas_ret_80211_disassociate(priv, resp);
 		break;
 
-	case CMD_RET_802_11_AD_HOC_START:
-	case CMD_RET_802_11_AD_HOC_JOIN:
+	case CMD_RET(CMD_802_11_AD_HOC_START):
+	case CMD_RET(CMD_802_11_AD_HOC_JOIN):
 		ret = libertas_ret_80211_ad_hoc_start(priv, resp);
 		break;
 
-	case CMD_RET_802_11_STAT:
+	case CMD_RET(CMD_802_11_GET_STAT):
 		ret = wlan_ret_802_11_stat(priv, resp);
 		break;
 
-	case CMD_RET_802_11_SNMP_MIB:
+	case CMD_RET(CMD_802_11_SNMP_MIB):
 		ret = wlan_ret_802_11_snmp_mib(priv, resp);
 		break;
 
-	case CMD_RET_802_11_RF_TX_POWER:
+	case CMD_RET(CMD_802_11_RF_TX_POWER):
 		ret = wlan_ret_802_11_rf_tx_power(priv, resp);
 		break;
 
-	case CMD_RET_802_11_SET_AFC:
-	case CMD_RET_802_11_GET_AFC:
+	case CMD_RET(CMD_802_11_SET_AFC):
+	case CMD_RET(CMD_802_11_GET_AFC):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memmove(adapter->cur_cmd->pdata_buf, &resp->params.afc,
 			sizeof(struct cmd_ds_802_11_afc));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
 		break;
-	case CMD_RET_802_11_RF_ANTENNA:
+	case CMD_RET(CMD_802_11_RF_ANTENNA):
 		ret = wlan_ret_802_11_rf_antenna(priv, resp);
 		break;
 
-	case CMD_RET_MAC_MULTICAST_ADR:
-	case CMD_RET_MAC_CONTROL:
-	case CMD_RET_802_11_SET_WEP:
-	case CMD_RET_802_11_RESET:
-	case CMD_RET_802_11_AUTHENTICATE:
-	case CMD_RET_802_11_RADIO_CONTROL:
-	case CMD_RET_802_11_BEACON_STOP:
+	case CMD_RET(CMD_MAC_MULTICAST_ADR):
+	case CMD_RET(CMD_MAC_CONTROL):
+	case CMD_RET(CMD_802_11_SET_WEP):
+	case CMD_RET(CMD_802_11_RESET):
+	case CMD_RET(CMD_802_11_AUTHENTICATE):
+	case CMD_RET(CMD_802_11_RADIO_CONTROL):
+	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;
 
-	case CMD_RET_802_11_ENABLE_RSN:
+	case CMD_RET(CMD_802_11_ENABLE_RSN):
 		ret = libertas_ret_802_11_enable_rsn(priv, resp);
 		break;
 
-	case CMD_RET_802_11_DATA_RATE:
+	case CMD_RET(CMD_802_11_DATA_RATE):
 		ret = wlan_ret_802_11_data_rate(priv, resp);
 		break;
-	case CMD_RET_802_11_RATE_ADAPT_RATESET:
+	case CMD_RET(CMD_802_11_RATE_ADAPT_RATESET):
 		ret = wlan_ret_802_11_rate_adapt_rateset(priv, resp);
 		break;
-	case CMD_RET_802_11_RF_CHANNEL:
+	case CMD_RET(CMD_802_11_RF_CHANNEL):
 		ret = wlan_ret_802_11_rf_channel(priv, resp);
 		break;
 
-	case CMD_RET_802_11_RSSI:
+	case CMD_RET(CMD_802_11_RSSI):
 		ret = wlan_ret_802_11_rssi(priv, resp);
 		break;
 
-	case CMD_RET_802_11_MAC_ADDRESS:
+	case CMD_RET(CMD_802_11_MAC_ADDRESS):
 		ret = wlan_ret_802_11_mac_address(priv, resp);
 		break;
 
-	case CMD_RET_802_11_AD_HOC_STOP:
+	case CMD_RET(CMD_802_11_AD_HOC_STOP):
 		ret = libertas_ret_80211_ad_hoc_stop(priv, resp);
 		break;
 
-	case CMD_RET_802_11_KEY_MATERIAL:
+	case CMD_RET(CMD_802_11_KEY_MATERIAL):
 		lbs_deb_cmd("CMD_RESP: KEY_MATERIAL command response\n");
 		ret = wlan_ret_802_11_key_material(priv, resp);
 		break;
 
-	case CMD_RET_802_11_EEPROM_ACCESS:
+	case CMD_RET(CMD_802_11_EEPROM_ACCESS):
 		ret = wlan_ret_802_11_eeprom_access(priv, resp);
 		break;
 
-	case CMD_RET_802_11D_DOMAIN_INFO:
+	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
 		ret = libertas_ret_802_11d_domain_info(priv, resp);
 		break;
 
-	case CMD_RET_802_11_SLEEP_PARAMS:
+	case CMD_RET(CMD_802_11_SLEEP_PARAMS):
 		ret = wlan_ret_802_11_sleep_params(priv, resp);
 		break;
-	case CMD_RET_802_11_INACTIVITY_TIMEOUT:
+	case CMD_RET(CMD_802_11_INACTIVITY_TIMEOUT):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		*((u16 *) adapter->cur_cmd->pdata_buf) =
 		    le16_to_cpu(resp->params.inactivity_timeout.timeout);
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
 
-	case CMD_RET_802_11_TPC_CFG:
+	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memmove(adapter->cur_cmd->pdata_buf, &resp->params.tpccfg,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
-	case CMD_RET_802_11_LED_GPIO_CTRL:
+	case CMD_RET(CMD_802_11_LED_GPIO_CTRL):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memmove(adapter->cur_cmd->pdata_buf, &resp->params.ledgpio,
 			sizeof(struct cmd_ds_802_11_led_ctrl));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
-	case CMD_RET_802_11_PWR_CFG:
+	case CMD_RET(CMD_802_11_PWR_CFG):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memmove(adapter->cur_cmd->pdata_buf, &resp->params.pwrcfg,
 			sizeof(struct cmd_ds_802_11_pwr_cfg));
@@ -695,32 +696,32 @@ static inline int handle_cmd_response(u16 respcmd,
 
 		break;
 
-	case CMD_RET_GET_TSF:
+	case CMD_RET(CMD_GET_TSF):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memcpy(priv->adapter->cur_cmd->pdata_buf,
 		       &resp->params.gettsf.tsfvalue, sizeof(u64));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
-	case CMD_RET_BT_ACCESS:
+	case CMD_RET(CMD_BT_ACCESS):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		if (adapter->cur_cmd->pdata_buf)
 			memcpy(adapter->cur_cmd->pdata_buf,
 			       &resp->params.bt.addr1, 2 * ETH_ALEN);
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
-	case CMD_RET_FWT_ACCESS:
+	case CMD_RET(CMD_FWT_ACCESS):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		if (adapter->cur_cmd->pdata_buf)
 			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.fwt,
 			       sizeof(resp->params.fwt));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
-	case CMD_RET_MESH_ACCESS:
+	case CMD_RET(CMD_MESH_ACCESS):
 		if (adapter->cur_cmd->pdata_buf)
 			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.mesh,
 			       sizeof(resp->params.mesh));
 		break;
-	case CMD_RTE_802_11_TX_RATE_QUERY:
+	case CMD_RET(CMD_802_11_TX_RATE_QUERY):
 		priv->adapter->txrate = resp->params.txrate.txrate;
 		break;
 	default:
@@ -782,7 +783,7 @@ int libertas_process_rx_command(wlan_private * priv)
 	/* Store the response code to cur_cmd_retcode. */
 	adapter->cur_cmd_retcode = result;;
 
-	if (respcmd == CMD_RET_802_11_PS_MODE) {
+	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
 		struct cmd_ds_802_11_ps_mode *psmode = &resp->params.psmode;
 		u16 action = le16_to_cpu(psmode->action);
 
@@ -852,8 +853,8 @@ int libertas_process_rx_command(wlan_private * priv)
 		 * Handling errors here
 		 */
 		switch (respcmd) {
-		case CMD_RET_HW_SPEC_INFO:
-		case CMD_RET_802_11_RESET:
+		case CMD_RET(CMD_GET_HW_SPEC):
+		case CMD_RET(CMD_802_11_RESET):
 			lbs_deb_cmd("CMD_RESP: Reset command failed\n");
 			break;
 

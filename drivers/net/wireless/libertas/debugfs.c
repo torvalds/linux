@@ -447,7 +447,7 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -511,7 +511,7 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 		return 0;
 	}
 
-	if (pcmdptr->command != CMD_RET_802_11_SUBSCRIBE_EVENT) {
+	if (pcmdptr->command != CMD_RET(CMD_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;
@@ -591,7 +591,7 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -644,7 +644,7 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -743,7 +743,7 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -797,7 +797,7 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -895,7 +895,7 @@ static ssize_t libertas_failcount_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -948,7 +948,7 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -1045,7 +1045,7 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -1098,7 +1098,7 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1196,7 +1196,7 @@ static ssize_t libertas_highrssi_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;
@@ -1248,7 +1248,7 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1347,7 +1347,7 @@ static ssize_t libertas_highsnr_write(struct file *file,
 		return 0;
 	}
 
-	if (pcmdptr->command != cpu_to_le16(CMD_RET_802_11_SUBSCRIBE_EVENT)) {
+	if (pcmdptr->command != cpu_to_le16(CMD_RET(CMD_802_11_SUBSCRIBE_EVENT))) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);

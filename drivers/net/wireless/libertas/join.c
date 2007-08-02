@@ -814,7 +814,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	/* Send a Media Connected event, according to the Spec */
 	adapter->connect_status = LIBERTAS_CONNECTED;
 
-	if (command == CMD_RET_802_11_AD_HOC_START) {
+	if (command == CMD_RET(CMD_802_11_AD_HOC_START)) {
 		/* Update the created network descriptor with the new BSSID */
 		memcpy(bss->bssid, padhocresult->bssid, ETH_ALEN);
 	}

@@ -22,7 +22,17 @@
 
 #define CMD_OPTION_WAITFORRSP             0x0002
 
-/** Host command ID */
+/** Host command IDs */
+
+/* Return command are almost always the same as the host command, but with
+ * bit 15 set high.  There are a few exceptions, though...
+ */
+#define CMD_RET(cmd)			(0x8000 | cmd)
+
+/* Return command convention exceptions: */
+#define CMD_RET_802_11_ASSOCIATE      0x8012
+
+/* Command codes */
 #define CMD_CODE_DNLD                 0x0002
 #define CMD_GET_HW_SPEC               0x0003
 #define CMD_EEPROM_UPDATE             0x0004
@@ -97,13 +107,10 @@
 #define CMD_GET_TSF                      0x0080
 
 #define CMD_BT_ACCESS                 0x0087
-#define CMD_RET_BT_ACCESS                 0x8087
 
 #define CMD_FWT_ACCESS                0x0095
-#define CMD_RET_FWT_ACCESS                0x8095
 
 #define CMD_MESH_ACCESS               0x009b
-#define CMD_RET_MESH_ACCESS               0x809b
 
 /* For the IEEE Power Save */
 #define CMD_SUBCMD_ENTER_PS               0x0030
@@ -111,46 +118,6 @@
 #define CMD_SUBCMD_SLEEP_CONFIRMED        0x0034
 #define CMD_SUBCMD_FULL_POWERDOWN         0x0035
 #define CMD_SUBCMD_FULL_POWERUP           0x0036
-
-/* command RET code, MSB is set to 1 */
-#define CMD_RET_HW_SPEC_INFO              0x8003
-#define CMD_RET_EEPROM_UPDATE             0x8004
-#define CMD_RET_802_11_RESET              0x8005
-#define CMD_RET_802_11_SCAN               0x8006
-#define CMD_RET_802_11_GET_LOG            0x800b
-#define CMD_RET_MAC_CONTROL               0x8028
-#define CMD_RET_MAC_MULTICAST_ADR         0x8010
-#define CMD_RET_802_11_AUTHENTICATE       0x8011
-#define CMD_RET_802_11_DEAUTHENTICATE     0x8024
-#define CMD_RET_802_11_ASSOCIATE          0x8012
-#define CMD_RET_802_11_REASSOCIATE        0x8025
-#define CMD_RET_802_11_DISASSOCIATE       0x8026
-#define CMD_RET_802_11_SET_WEP            0x8013
-#define CMD_RET_802_11_STAT               0x8014
-#define CMD_RET_802_3_STAT                0x8015
-#define CMD_RET_802_11_SNMP_MIB           0x8016
-#define CMD_RET_MAC_REG_MAP               0x8017
-#define CMD_RET_BBP_REG_MAP               0x8018
-#define CMD_RET_RF_REG_MAP                0x8023
-#define CMD_RET_MAC_REG_ACCESS            0x8019
-#define CMD_RET_BBP_REG_ACCESS            0x801a
-#define CMD_RET_RF_REG_ACCESS             0x801b
-#define CMD_RET_802_11_RADIO_CONTROL      0x801c
-#define CMD_RET_802_11_RF_CHANNEL         0x801d
-#define CMD_RET_802_11_RSSI               0x801f
-#define CMD_RET_802_11_RF_TX_POWER        0x801e
-#define CMD_RET_802_11_RF_ANTENNA         0x8020
-#define CMD_RET_802_11_PS_MODE            0x8021
-#define CMD_RET_802_11_DATA_RATE          0x8022
-
-#define CMD_RET_802_11_AD_HOC_START       0x802B
-#define CMD_RET_802_11_AD_HOC_JOIN        0x802C
-
-#define CMD_RET_802_11_QUERY_TKIP_REPLY_CNTRS  0x802e
-#define CMD_RET_802_11_ENABLE_RSN              0x802f
-#define CMD_RET_802_11_PAIRWISE_TSC       0x8036
-#define CMD_RET_802_11_GROUP_TSC          0x8037
-#define CMD_RET_802_11_KEY_MATERIAL       0x805e
 
 #define CMD_ENABLE_RSN                    0x0001
 #define CMD_DISABLE_RSN                   0x0000
@@ -161,38 +128,6 @@
 #define CMD_ACT_GET_AES                   (CMD_ACT_GET + 2)
 #define CMD_ACT_SET_AES                   (CMD_ACT_SET + 2)
 #define CMD_ACT_REMOVE_AES                (CMD_ACT_SET + 3)
-
-#define CMD_RET_802_11_SET_AFC            0x803c
-#define CMD_RET_802_11_GET_AFC            0x803d
-
-#define CMD_RET_802_11_AD_HOC_STOP        0x8040
-
-#define CMD_RET_802_11_BEACON_STOP        0x8049
-
-#define CMD_RET_802_11_MAC_ADDRESS        0x804D
-#define CMD_RET_802_11_EEPROM_ACCESS      0x8059
-
-#define CMD_RET_802_11_BAND_CONFIG        0x8058
-
-#define CMD_RET_802_11_SLEEP_PARAMS          0x8066
-
-#define CMD_RET_802_11_INACTIVITY_TIMEOUT    0x8067
-
-#define CMD_RET_802_11D_DOMAIN_INFO      (0x8000 |                  \
-                                              CMD_802_11D_DOMAIN_INFO)
-
-#define CMD_RET_802_11_TPC_CFG        (CMD_802_11_TPC_CFG | 0x8000)
-#define CMD_RET_802_11_PWR_CFG        (CMD_802_11_PWR_CFG | 0x8000)
-
-#define CMD_RET_802_11_LED_GPIO_CTRL     0x804e
-
-#define CMD_RET_802_11_SUBSCRIBE_EVENT	(CMD_802_11_SUBSCRIBE_EVENT | 0x8000)
-
-#define CMD_RET_802_11_RATE_ADAPT_RATESET	(CMD_802_11_RATE_ADAPT_RATESET | 0x8000)
-
-#define CMD_RTE_802_11_TX_RATE_QUERY 	(CMD_802_11_TX_RATE_QUERY | 0x8000)
-
-#define CMD_RET_GET_TSF             0x8080
 
 /* Define action or option for CMD_802_11_SET_WEP */
 #define CMD_ACT_ADD                         0x0002
