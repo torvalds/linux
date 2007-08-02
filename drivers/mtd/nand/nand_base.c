@@ -24,6 +24,7 @@
  *	if we have HW ecc support.
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
+ *	BBT table is not serialized, has to be fixed
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -360,6 +361,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		/* We write two bytes, so we dont have to mess with 16 bit
 		 * access
 		 */
+		nand_get_device(chip, mtd, FL_WRITING);
 		ofs += mtd->oobsize;
 		chip->ops.len = chip->ops.ooblen = 2;
 		chip->ops.datbuf = NULL;
@@ -367,9 +369,11 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		chip->ops.ooboffs = chip->badblockpos & ~0x01;
 
 		ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+		nand_release_device(mtd);
 	}
 	if (!ret)
 		mtd->ecc_stats.badblocks++;
+
 	return ret;
 }
 
@@ -768,7 +772,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *p = buf;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	uint8_t *ecc_code = chip->buffers->ecccode;
-	int *eccpos = chip->ecc.layout->eccpos;
+	uint32_t *eccpos = chip->ecc.layout->eccpos;
 
 	chip->ecc.read_page_raw(mtd, chip, buf);
 
@@ -810,7 +814,7 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *p = buf;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	uint8_t *ecc_code = chip->buffers->ecccode;
-	int *eccpos = chip->ecc.layout->eccpos;
+	uint32_t *eccpos = chip->ecc.layout->eccpos;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		chip->ecc.hwctl(mtd, NAND_ECC_READ);
@@ -1416,7 +1420,7 @@ static void nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	const uint8_t *p = buf;
-	int *eccpos = chip->ecc.layout->eccpos;
+	uint32_t *eccpos = chip->ecc.layout->eccpos;
 
 	/* Software ecc calculation */
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
@@ -1442,7 +1446,7 @@ static void nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	const uint8_t *p = buf;
-	int *eccpos = chip->ecc.layout->eccpos;
+	uint32_t *eccpos = chip->ecc.layout->eccpos;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);

@@ -74,7 +74,7 @@ static struct mtd_partition partition_info[] = {
 /*
  *	hardware specific access to control-lines
  *
- *	NAND_NCE: bit 0 -> bit 7
+ *	NAND_NCE: bit 0 -> bit 6 (bit 7 = 1)
  *	NAND_CLE: bit 1 -> bit 4
  *	NAND_ALE: bit 2 -> bit 5
  */
@@ -83,12 +83,12 @@ static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	struct nand_chip *chip = mtd->priv;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		unsigned char bits;
+		unsigned char bits = 0x80;
 
-		bits = (ctrl & (NAND_CLE | NAND_ALE)) << 3;
-		bits = (ctrl & NAND_NCE) << 7;
+		bits |= (ctrl & (NAND_CLE | NAND_ALE)) << 3;
+		bits |= (ctrl & NAND_NCE) ? 0x00 : 0x40;
 
-		clps_writeb((clps_readb(ep7312_pxdr)  & 0xB0) | 0x10,
+		clps_writeb((clps_readb(ep7312_pxdr)  & 0xF0) | bits,
 			    ep7312_pxdr);
 	}
 	if (cmd != NAND_CMD_NONE)

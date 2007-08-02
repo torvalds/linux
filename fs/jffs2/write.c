@@ -173,6 +173,12 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 		flash_ofs |= REF_NORMAL;
 	}
 	fn->raw = jffs2_add_physical_node_ref(c, flash_ofs, PAD(sizeof(*ri)+datalen), f->inocache);
+	if (IS_ERR(fn->raw)) {
+		void *hold_err = fn->raw;
+		/* Release the full_dnode which is now useless, and return */
+		jffs2_free_full_dnode(fn);
+		return ERR_PTR(PTR_ERR(hold_err));
+	}
 	fn->ofs = je32_to_cpu(ri->offset);
 	fn->size = je32_to_cpu(ri->dsize);
 	fn->frags = 0;
@@ -290,7 +296,14 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 		return ERR_PTR(ret?ret:-EIO);
 	}
 	/* Mark the space used */
-	fd->raw = jffs2_add_physical_node_ref(c, flash_ofs | REF_PRISTINE, PAD(sizeof(*rd)+namelen), f->inocache);
+	fd->raw = jffs2_add_physical_node_ref(c, flash_ofs | dirent_node_state(rd),
+					      PAD(sizeof(*rd)+namelen), f->inocache);
+	if (IS_ERR(fd->raw)) {
+		void *hold_err = fd->raw;
+		/* Release the full_dirent which is now useless, and return */
+		jffs2_free_full_dirent(fd);
+		return ERR_PTR(PTR_ERR(hold_err));
+	}
 
 	if (retried) {
 		jffs2_dbg_acct_sanity_check(c,NULL);
