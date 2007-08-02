@@ -217,17 +217,11 @@
  */
 
 
-#undef DEBUG
-#undef VERBOSE
+/* #define VERBOSE_DEBUG */
 #undef DUMP_MSGS
 
 
-#include <asm/system.h>
-#include <asm/uaccess.h>
-
-#include <linux/bitops.h>
 #include <linux/blkdev.h>
-#include <linux/compiler.h>
 #include <linux/completion.h>
 #include <linux/dcache.h>
 #include <linux/delay.h>
@@ -235,18 +229,10 @@
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/kthread.h>
 #include <linux/limits.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/pagemap.h>
 #include <linux/rwsem.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -289,56 +275,50 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 /*-------------------------------------------------------------------------*/
 
-#define xprintk(f,level,fmt,args...) \
-	dev_printk(level , &(f)->gadget->dev , fmt , ## args)
 #define yprintk(l,level,fmt,args...) \
 	dev_printk(level , &(l)->dev , fmt , ## args)
 
 #ifdef DEBUG
-#define DBG(fsg,fmt,args...) \
-	xprintk(fsg , KERN_DEBUG , fmt , ## args)
 #define LDBG(lun,fmt,args...) \
 	yprintk(lun , KERN_DEBUG , fmt , ## args)
 #define MDBG(fmt,args...) \
 	printk(KERN_DEBUG DRIVER_NAME ": " fmt , ## args)
 #else
-#define DBG(fsg,fmt,args...) \
-	do { } while (0)
 #define LDBG(lun,fmt,args...) \
 	do { } while (0)
 #define MDBG(fmt,args...) \
 	do { } while (0)
-#undef VERBOSE
+#undef VERBOSE_DEBUG
 #undef DUMP_MSGS
 #endif /* DEBUG */
 
-#ifdef VERBOSE
-#define VDBG	DBG
+#ifdef VERBOSE_DEBUG
 #define VLDBG	LDBG
 #else
-#define VDBG(fsg,fmt,args...) \
-	do { } while (0)
 #define VLDBG(lun,fmt,args...) \
 	do { } while (0)
-#endif /* VERBOSE */
+#endif /* VERBOSE_DEBUG */
 
-#define ERROR(fsg,fmt,args...) \
-	xprintk(fsg , KERN_ERR , fmt , ## args)
 #define LERROR(lun,fmt,args...) \
 	yprintk(lun , KERN_ERR , fmt , ## args)
-
-#define WARN(fsg,fmt,args...) \
-	xprintk(fsg , KERN_WARNING , fmt , ## args)
 #define LWARN(lun,fmt,args...) \
 	yprintk(lun , KERN_WARNING , fmt , ## args)
-
-#define INFO(fsg,fmt,args...) \
-	xprintk(fsg , KERN_INFO , fmt , ## args)
 #define LINFO(lun,fmt,args...) \
 	yprintk(lun , KERN_INFO , fmt , ## args)
 
 #define MINFO(fmt,args...) \
 	printk(KERN_INFO DRIVER_NAME ": " fmt , ## args)
+
+#define DBG(d, fmt, args...) \
+	dev_dbg(&(d)->gadget->dev , fmt , ## args)
+#define VDBG(d, fmt, args...) \
+	dev_vdbg(&(d)->gadget->dev , fmt , ## args)
+#define ERROR(d, fmt, args...) \
+	dev_err(&(d)->gadget->dev , fmt , ## args)
+#define WARN(d, fmt, args...) \
+	dev_warn(&(d)->gadget->dev , fmt , ## args)
+#define INFO(d, fmt, args...) \
+	dev_info(&(d)->gadget->dev , fmt , ## args)
 
 
 /*-------------------------------------------------------------------------*/
@@ -350,8 +330,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 static struct {
 	char		*file[MAX_LUNS];
 	int		ro[MAX_LUNS];
-	int		num_filenames;
-	int		num_ros;
+	unsigned int	num_filenames;
+	unsigned int	num_ros;
 	unsigned int	nluns;
 
 	int		removable;
@@ -950,8 +930,6 @@ static const struct usb_descriptor_header *fs_function[] = {
 #define FS_FUNCTION_PRE_EP_ENTRIES	2
 
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-
 /*
  * USB 2.0 devices need to expose both high speed and full speed
  * descriptors, unless they only run at full speed.
@@ -1014,14 +992,14 @@ static const struct usb_descriptor_header *hs_function[] = {
 #define HS_FUNCTION_PRE_EP_ENTRIES	2
 
 /* Maxpacket and other transfer characteristics vary by speed. */
-#define ep_desc(g,fs,hs)	(((g)->speed==USB_SPEED_HIGH) ? (hs) : (fs))
-
-#else
-
-/* If there's no high speed support, always use the full-speed descriptor. */
-#define ep_desc(g,fs,hs)	fs
-
-#endif	/* !CONFIG_USB_GADGET_DUALSPEED */
+static inline struct usb_endpoint_descriptor *
+ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
+		struct usb_endpoint_descriptor *hs)
+{
+	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
+		return hs;
+	return fs;
+}
 
 
 /* The CBI specification limits the serial string to 12 uppercase hexadecimal
@@ -1053,26 +1031,22 @@ static struct usb_gadget_strings	stringtab = {
 static int populate_config_buf(struct usb_gadget *gadget,
 		u8 *buf, u8 type, unsigned index)
 {
-#ifdef CONFIG_USB_GADGET_DUALSPEED
 	enum usb_device_speed			speed = gadget->speed;
-#endif
 	int					len;
 	const struct usb_descriptor_header	**function;
 
 	if (index > 0)
 		return -EINVAL;
 
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	if (type == USB_DT_OTHER_SPEED_CONFIG)
+	if (gadget_is_dualspeed(gadget) && type == USB_DT_OTHER_SPEED_CONFIG)
 		speed = (USB_SPEED_FULL + USB_SPEED_HIGH) - speed;
-	if (speed == USB_SPEED_HIGH)
+	if (gadget_is_dualspeed(gadget) && speed == USB_SPEED_HIGH)
 		function = hs_function;
 	else
-#endif
 		function = fs_function;
 
 	/* for now, don't advertise srp-only devices */
-	if (!gadget->is_otg)
+	if (!gadget_is_otg(gadget))
 		function++;
 
 	len = usb_gadget_config_buf(&config_desc, buf, EP0_BUFSIZE, function);
@@ -1394,10 +1368,9 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			value = sizeof device_desc;
 			memcpy(req->buf, &device_desc, value);
 			break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
 		case USB_DT_DEVICE_QUALIFIER:
 			VDBG(fsg, "get device qualifier\n");
-			if (!fsg->gadget->is_dualspeed)
+			if (!gadget_is_dualspeed(fsg->gadget))
 				break;
 			value = sizeof dev_qualifier;
 			memcpy(req->buf, &dev_qualifier, value);
@@ -1405,15 +1378,12 @@ static int standard_setup_req(struct fsg_dev *fsg,
 
 		case USB_DT_OTHER_SPEED_CONFIG:
 			VDBG(fsg, "get other-speed config descriptor\n");
-			if (!fsg->gadget->is_dualspeed)
+			if (!gadget_is_dualspeed(fsg->gadget))
 				break;
 			goto get_config;
-#endif
 		case USB_DT_CONFIG:
 			VDBG(fsg, "get configuration descriptor\n");
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-		get_config:
-#endif
+get_config:
 			value = populate_config_buf(fsg->gadget,
 					req->buf,
 					w_value >> 8,
@@ -3859,7 +3829,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	/* Find out how many LUNs there should be */
 	i = mod_data.nluns;
 	if (i == 0)
-		i = max(mod_data.num_filenames, 1);
+		i = max(mod_data.num_filenames, 1u);
 	if (i > MAX_LUNS) {
 		ERROR(fsg, "invalid number of LUNs: %d\n", i);
 		rc = -EINVAL;
@@ -3944,21 +3914,23 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	intf_desc.bInterfaceProtocol = mod_data.transport_type;
 	fs_function[i + FS_FUNCTION_PRE_EP_ENTRIES] = NULL;
 
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	hs_function[i + HS_FUNCTION_PRE_EP_ENTRIES] = NULL;
+	if (gadget_is_dualspeed(gadget)) {
+		hs_function[i + HS_FUNCTION_PRE_EP_ENTRIES] = NULL;
 
-	/* Assume ep0 uses the same maxpacket value for both speeds */
-	dev_qualifier.bMaxPacketSize0 = fsg->ep0->maxpacket;
+		/* Assume ep0 uses the same maxpacket value for both speeds */
+		dev_qualifier.bMaxPacketSize0 = fsg->ep0->maxpacket;
 
-	/* Assume that all endpoint addresses are the same for both speeds */
-	hs_bulk_in_desc.bEndpointAddress = fs_bulk_in_desc.bEndpointAddress;
-	hs_bulk_out_desc.bEndpointAddress = fs_bulk_out_desc.bEndpointAddress;
-	hs_intr_in_desc.bEndpointAddress = fs_intr_in_desc.bEndpointAddress;
-#endif
-
-	if (gadget->is_otg) {
-		otg_desc.bmAttributes |= USB_OTG_HNP;
+		/* Assume endpoint addresses are the same for both speeds */
+		hs_bulk_in_desc.bEndpointAddress =
+				fs_bulk_in_desc.bEndpointAddress;
+		hs_bulk_out_desc.bEndpointAddress =
+				fs_bulk_out_desc.bEndpointAddress;
+		hs_intr_in_desc.bEndpointAddress =
+				fs_intr_in_desc.bEndpointAddress;
 	}
+
+	if (gadget_is_otg(gadget))
+		otg_desc.bmAttributes |= USB_OTG_HNP;
 
 	rc = -ENOMEM;
 
