@@ -439,7 +439,7 @@ struct cmd_ds_802_11_rate_adapt_rateset {
 };
 
 struct cmd_ds_802_11_ad_hoc_start {
-	u8 SSID[IW_ESSID_MAX_SIZE];
+	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 bsstype;
 	__le16 beaconperiod;
 	u8 dtimperiod;

@@ -479,8 +479,8 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	 *   and operational rates.
 	 */
 
-	memset(adhs->SSID, 0, IW_ESSID_MAX_SIZE);
-	memcpy(adhs->SSID, assoc_req->ssid, assoc_req->ssid_len);
+	memset(adhs->ssid, 0, IW_ESSID_MAX_SIZE);
+	memcpy(adhs->ssid, assoc_req->ssid, assoc_req->ssid_len);
 
 	lbs_deb_join("ADHOC_S_CMD: SSID '%s', ssid length %u\n",
 	             escape_essid(assoc_req->ssid, assoc_req->ssid_len),
