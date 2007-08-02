@@ -138,12 +138,15 @@ void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb)
 {
 	lbs_deb_rx("skb->data %p\n", skb->data);
 
-	if (priv->mesh_dev && IS_MESH_FRAME(skb))
-		skb->protocol = eth_type_trans(skb, priv->mesh_dev);
-	else
-		skb->protocol = eth_type_trans(skb, priv->dev);
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+		skb->protocol = eth_type_trans(skb, priv->rtap_net_dev);
+	} else {
+		if (priv->mesh_dev && IS_MESH_FRAME(skb))
+			skb->protocol = eth_type_trans(skb, priv->mesh_dev);
+		else
+			skb->protocol = eth_type_trans(skb, priv->dev);
+	}
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-
 	netif_rx(skb);
 }
 
@@ -170,7 +173,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 
 	lbs_deb_enter(LBS_DEB_RX);
 
-	if (priv->adapter->linkmode == WLAN_LINKMODE_802_11)
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;
@@ -290,21 +293,22 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
 		return 11;
 	case 3:		/*  11 Mbps */
 		return 22;
-	case 4:		/*   6 Mbps */
+	/* case 4: reserved */
+	case 5:		/*   6 Mbps */
 		return 12;
-	case 5:		/*   9 Mbps */
+	case 6:		/*   9 Mbps */
 		return 18;
-	case 6:		/*  12 Mbps */
+	case 7:		/*  12 Mbps */
 		return 24;
-	case 7:		/*  18 Mbps */
+	case 8:		/*  18 Mbps */
 		return 36;
-	case 8:		/*  24 Mbps */
+	case 9:		/*  24 Mbps */
 		return 48;
-	case 9:		/*  36 Mbps */
+	case 10:		/*  36 Mbps */
 		return 72;
-	case 10:		/*  48 Mbps */
+	case 11:		/*  48 Mbps */
 		return 96;
-	case 11:		/*  54 Mbps */
+	case 12:		/*  54 Mbps */
 		return 108;
 	}
 	lbs_pr_alert("Invalid Marvell WLAN rate %i\n", rate);
@@ -355,14 +359,13 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
 	/* create the exported radio header */
-	switch (priv->adapter->radiomode) {
-	case WLAN_RADIOMODE_NONE:
+	if(priv->adapter->monitormode == WLAN_MONITOR_OFF) {
 		/* no radio header */
 		/* chop the rxpd */
 		skb_pull(skb, sizeof(struct rxpd));
-		break;
+	}
 
-	case WLAN_RADIOMODE_RADIOTAP:
+	else {
 		/* radiotap header */
 		radiotap_hdr.hdr.it_version = 0;
 		/* XXX must check this value for pad */
@@ -400,16 +403,6 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 							    rx_radiotap_hdr));
 		memcpy(pradiotap_hdr, &radiotap_hdr,
 		       sizeof(struct rx_radiotap_hdr));
-		break;
-
-	default:
-		/* unknown header */
-		lbs_pr_alert("Unknown radiomode %i\n",
-		       priv->adapter->radiomode);
-		/* don't export any header */
-		/* chop the rxpd */
-		skb_pull(skb, sizeof(struct rxpd));
-		break;
 	}
 
 	/* Take the data rate from the rxpd structure

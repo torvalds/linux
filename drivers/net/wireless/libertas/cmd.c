@@ -565,6 +565,26 @@ static int wlan_cmd_802_11_rf_tx_power(wlan_private * priv,
 	return 0;
 }
 
+static int wlan_cmd_802_11_monitor_mode(wlan_private * priv,
+				      struct cmd_ds_command *cmd,
+				      u16 cmd_action, void *pdata_buf)
+{
+	struct cmd_ds_802_11_monitor_mode *monitor = &cmd->params.monitor;
+
+	cmd->command = cpu_to_le16(CMD_802_11_MONITOR_MODE);
+	cmd->size =
+	    cpu_to_le16(sizeof(struct cmd_ds_802_11_monitor_mode) +
+			     S_DS_GEN);
+
+	monitor->action = cpu_to_le16(cmd_action);
+	if (cmd_action == CMD_ACT_SET) {
+		monitor->mode =
+		    cpu_to_le16((u16) (*(u32 *) pdata_buf));
+	}
+
+	return 0;
+}
+
 static int wlan_cmd_802_11_rate_adapt_rateset(wlan_private * priv,
 					      struct cmd_ds_command *cmd,
 					      u16 cmd_action)
@@ -1237,6 +1257,11 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	case CMD_MAC_MULTICAST_ADR:
 		ret = wlan_cmd_mac_multicast_adr(priv, cmdptr, cmd_action);
+		break;
+
+	case CMD_802_11_MONITOR_MODE:
+		ret = wlan_cmd_802_11_monitor_mode(priv, cmdptr,
+				          cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_AD_HOC_JOIN:

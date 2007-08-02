@@ -208,6 +208,8 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!(priv = libertas_add_card(cardp, &udev->dev)))
 		goto dealloc;
 
+	udev->dev.driver_data = priv;
+
 	if (libertas_add_mesh(priv, &udev->dev))
 		goto err_add_mesh;
 

@@ -21,6 +21,7 @@
 #include "wext.h"
 #include "debugfs.h"
 #include "assoc.h"
+#include "join.h"
 
 #define DRIVER_RELEASE_VERSION "322.p1"
 const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
@@ -245,6 +246,66 @@ static ssize_t libertas_anycast_set(struct device * dev,
 			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
 	return strlen(buf);
 }
+
+int libertas_add_rtap(wlan_private *priv);
+void libertas_remove_rtap(wlan_private *priv);
+
+/**
+ * Get function for sysfs attribute rtap
+ */
+static ssize_t libertas_rtap_get(struct device * dev,
+		struct device_attribute *attr, char * buf)
+{
+	wlan_private *priv = (wlan_private *) dev->driver_data;
+	wlan_adapter *adapter = priv->adapter;
+	return snprintf(buf, 5, "0x%X\n", adapter->monitormode);
+}
+
+/**
+ *  Set function for sysfs attribute rtap
+ */
+static ssize_t libertas_rtap_set(struct device * dev,
+		struct device_attribute *attr, const char * buf, size_t count)
+{
+	int monitor_mode;
+	wlan_private *priv = (wlan_private *) dev->driver_data;
+	wlan_adapter *adapter = priv->adapter;
+
+	sscanf(buf, "%x", &monitor_mode);
+	if (monitor_mode != WLAN_MONITOR_OFF) {
+		if(adapter->monitormode == monitor_mode)
+			return strlen(buf);
+		if (adapter->monitormode == WLAN_MONITOR_OFF) {
+			if (adapter->mode == IW_MODE_INFRA)
+				libertas_send_deauthentication(priv);
+			else if (adapter->mode == IW_MODE_ADHOC)
+				libertas_stop_adhoc_network(priv);
+			libertas_add_rtap(priv);
+		}
+		adapter->monitormode = monitor_mode;
+	}
+
+	else {
+		if(adapter->monitormode == WLAN_MONITOR_OFF)
+			return strlen(buf);
+		adapter->monitormode = WLAN_MONITOR_OFF;
+		libertas_remove_rtap(priv);
+		netif_wake_queue(priv->dev);
+		netif_wake_queue(priv->mesh_dev);
+	}
+
+	libertas_prepare_and_send_command(priv,
+			CMD_802_11_MONITOR_MODE, CMD_ACT_SET,
+			CMD_OPTION_WAITFORRSP, 0, &adapter->monitormode);
+	return strlen(buf);
+}
+
+/**
+ * libertas_rtap attribute to be exported per mshX interface
+ * through sysfs (/sys/class/net/mshX/libertas-rtap)
+ */
+static DEVICE_ATTR(libertas_rtap, 0644, libertas_rtap_get,
+		libertas_rtap_set );
 
 /**
  * anycast_mask attribute to be exported per mshX interface
@@ -480,6 +541,10 @@ static int libertas_mesh_pre_start_xmit(struct sk_buff *skb,
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_MESH);
+	if(priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+		netif_stop_queue(dev);
+		return -EOPNOTSUPP;
+	}
 
 	SET_MESH_FRAME(skb);
 
@@ -494,9 +559,15 @@ static int libertas_mesh_pre_start_xmit(struct sk_buff *skb,
  */
 static int libertas_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	wlan_private *priv = dev->priv;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_NET);
+
+	if(priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+		netif_stop_queue(dev);
+		return -EOPNOTSUPP;
+	}
 
 	UNSET_MESH_FRAME(skb);
 
@@ -517,7 +588,7 @@ static void libertas_tx_timeout(struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	if (priv->adapter->currenttxskb) {
-		if (priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
+		if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
 			/* If we are here, we have not received feedback from
 			   the previous packet.  Assume TX_FAIL and move on. */
 			priv->adapter->eventcause = 0x01000000;
@@ -1169,6 +1240,9 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	spin_lock_init(&priv->adapter->driver_lock);
 	init_waitqueue_head(&priv->adapter->cmd_pending);
 	priv->adapter->nr_cmd_pending = 0;
+	priv->rtap_net_dev = NULL;
+	if (device_create_file(dmdev, &dev_attr_libertas_rtap))
+		goto err_kzalloc;
 	goto done;
 
 err_kzalloc:
@@ -1333,6 +1407,7 @@ int libertas_remove_card(wlan_private *priv)
 
 	lbs_deb_enter(LBS_DEB_NET);
 
+	libertas_remove_rtap(priv);
 	if (!priv)
 		goto out;
 
@@ -1342,6 +1417,7 @@ int libertas_remove_card(wlan_private *priv)
 		goto out;
 
 	dev = priv->dev;
+	device_remove_file(priv->hotplug_device, &dev_attr_libertas_rtap);
 
 	netif_stop_queue(priv->dev);
 	netif_carrier_off(priv->dev);
@@ -1536,6 +1612,81 @@ static void libertas_exit_module(void)
 
 	lbs_deb_leave(LBS_DEB_MAIN);
 }
+
+/*
+ * rtap interface support fuctions
+ */
+
+static int libertas_rtap_open(struct net_device *dev)
+{
+        netif_carrier_off(dev);
+        netif_stop_queue(dev);
+        return 0;
+}
+
+static int libertas_rtap_stop(struct net_device *dev)
+{
+        return 0;
+}
+
+static int libertas_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+        netif_stop_queue(dev);
+        return -EOPNOTSUPP;
+}
+
+static struct net_device_stats *libertas_rtap_get_stats(struct net_device *dev)
+{
+	wlan_private *priv = dev->priv;
+	return &priv->ieee->stats;
+}
+
+
+void libertas_remove_rtap(wlan_private *priv)
+{
+	if (priv->rtap_net_dev == NULL)
+		return;
+	unregister_netdev(priv->rtap_net_dev);
+	free_ieee80211(priv->rtap_net_dev);
+	priv->rtap_net_dev = NULL;
+}
+
+int libertas_add_rtap(wlan_private *priv)
+{
+	int rc = 0;
+
+	if (priv->rtap_net_dev)
+		return -EPERM;
+
+	priv->rtap_net_dev = alloc_ieee80211(0);
+	if (priv->rtap_net_dev == NULL)
+		return -ENOMEM;
+
+
+	priv->ieee = netdev_priv(priv->rtap_net_dev);
+
+	strcpy(priv->rtap_net_dev->name, "rtap%d");
+
+	priv->rtap_net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
+	priv->rtap_net_dev->open = libertas_rtap_open;
+	priv->rtap_net_dev->stop = libertas_rtap_stop;
+	priv->rtap_net_dev->get_stats = libertas_rtap_get_stats;
+	priv->rtap_net_dev->hard_start_xmit = libertas_rtap_hard_start_xmit;
+	priv->rtap_net_dev->set_multicast_list = libertas_set_multicast_list;
+	priv->rtap_net_dev->priv = priv;
+
+	priv->ieee->iw_mode = IW_MODE_MONITOR;
+
+	rc = register_netdev(priv->rtap_net_dev);
+	if (rc) {
+		free_ieee80211(priv->rtap_net_dev);
+		priv->rtap_net_dev = NULL;
+		return rc;
+	}
+
+	return 0;
+}
+
 
 module_init(libertas_init_module);
 module_exit(libertas_exit_module);

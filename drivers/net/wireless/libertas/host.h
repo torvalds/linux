@@ -110,6 +110,8 @@
 
 #define CMD_FWT_ACCESS                0x0095
 
+#define CMD_802_11_MONITOR_MODE       0x0098
+
 #define CMD_MESH_ACCESS               0x009b
 
 /* For the IEEE Power Save */

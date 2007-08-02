@@ -405,6 +405,11 @@ struct cmd_ds_802_11_rf_antenna {
 
 };
 
+struct cmd_ds_802_11_monitor_mode {
+	u16 action;
+	u16 mode;
+};
+
 struct cmd_ds_802_11_ps_mode {
 	__le16 action;
 	__le16 nullpktinterval;
@@ -623,6 +628,7 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_snmp_mib smib;
 		struct cmd_ds_802_11_rf_tx_power txp;
 		struct cmd_ds_802_11_rf_antenna rant;
+		struct cmd_ds_802_11_monitor_mode monitor;
 		struct cmd_ds_802_11_data_rate drate;
 		struct cmd_ds_802_11_rate_adapt_rateset rateset;
 		struct cmd_ds_mac_multicast_adr madr;

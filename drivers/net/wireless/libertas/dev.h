@@ -112,7 +112,9 @@ struct _wlan_private {
 	struct net_device *dev;
 
 	struct net_device_stats stats;
-	struct net_device *mesh_dev ; /* Virtual device */
+	struct net_device *mesh_dev; /* Virtual device */
+	struct net_device *rtap_net_dev;
+	struct ieee80211_device *ieee;
 
 	struct iw_statistics wstats;
 	struct wlan_mesh_stats mstats;
@@ -362,8 +364,7 @@ struct _wlan_adapter {
 
 	struct cmd_ds_802_11_get_log logmsg;
 
-	u32 linkmode;
-	u32 radiomode;
+	u32 monitormode;
 	u8 fw_ready;
 
 	u8 last_scanned_channel;

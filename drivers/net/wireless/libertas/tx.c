@@ -86,7 +86,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 
 	p802x_hdr = skb->data;
-	if (priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
 
 		/* locate radiotap header */
 		pradiotap_hdr = (struct tx_radiotap_hdr *)skb->data;
@@ -106,7 +106,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	}
 	/* copy destination address from 802.3 or 802.11 header */
-	if (priv->adapter->linkmode == WLAN_LINKMODE_802_11)
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr + 4, ETH_ALEN);
 	else
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
@@ -144,7 +144,7 @@ done:
 		priv->stats.tx_errors++;
 	}
 
-	if (!ret && priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
+	if (!ret && priv->adapter->monitormode != WLAN_MONITOR_OFF) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
@@ -252,7 +252,7 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	int txfail;
 	int try_count;
 
-	if (adapter->radiomode != WLAN_RADIOMODE_RADIOTAP ||
+	if (adapter->monitormode == WLAN_MONITOR_OFF ||
 	    adapter->currenttxskb == NULL)
 		return;
 
