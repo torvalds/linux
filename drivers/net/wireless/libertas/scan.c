@@ -1099,6 +1099,12 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 				memcpy(bss->wpa_ie, elem, bss->wpa_ie_len);
 				lbs_dbg_hex("process_bss: WPA IE", bss->wpa_ie,
 				            elem->len);
+			} else if (elem->len >= MARVELL_MESH_IE_LENGTH &&
+			    elem->data[0] == 0x00 &&
+			    elem->data[1] == 0x50 &&
+			    elem->data[2] == 0x43 &&
+			    elem->data[3] == 0x04) {
+				bss->mesh = 1;
 			}
 			break;
 
@@ -1610,6 +1616,10 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			err = -E2BIG;
 			break;
 		}
+
+		/* For mesh device, list only mesh networks */
+		if (dev == priv->mesh_dev && !iter_bss->mesh)
+			continue;
 
 		/* Prune old an old scan result */
 		stale_time = iter_bss->last_scanned + DEFAULT_MAX_SCAN_AGE;

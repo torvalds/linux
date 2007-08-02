@@ -170,6 +170,8 @@ struct bss_descriptor {
 	u8 rsn_ie[MAX_WPA_IE_LEN];
 	size_t rsn_ie_len;
 
+	u8 mesh;
+
 	struct list_head list;
 };
 
