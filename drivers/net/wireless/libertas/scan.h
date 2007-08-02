@@ -151,7 +151,9 @@ struct bss_descriptor {
 
 	u32 atimwindow;
 
+	/* IW_MODE_AUTO, IW_MODE_ADHOC, IW_MODE_INFRA */
 	u8 mode;
+
 	/* zero-terminated array of supported data rates */
 	u8 rates[MAX_RATES + 1];
 
@@ -160,8 +162,6 @@ struct bss_descriptor {
 
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
-
-	u64 networktsf;		//!< TSF timestamp from the current firmware TSF
 
 	struct ieeetypes_countryinfofullset countryinfo;
 

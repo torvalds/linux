@@ -837,58 +837,6 @@ out:
 }
 
 /**
- *  @brief Inspect the scan response buffer for pointers to expected TLVs
- *
- *  TLVs can be included at the end of the scan response BSS information.
- *    Parse the data in the buffer for pointers to TLVs that can potentially
- *    be passed back in the response
- *
- *  @param ptlv        Pointer to the start of the TLV buffer to parse
- *  @param tlvbufsize  size of the TLV buffer
- *  @param ptsftlv     Output parameter: Pointer to the TSF TLV if found
- *
- *  @return            void
- */
-static
-void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
-				       int tlvbufsize,
-				       struct mrvlietypes_tsftimestamp ** ptsftlv)
-{
-	struct mrvlietypes_data *pcurrenttlv;
-	int tlvbufleft;
-	u16 tlvtype;
-	u16 tlvlen;
-
-	pcurrenttlv = ptlv;
-	tlvbufleft = tlvbufsize;
-	*ptsftlv = NULL;
-
-	lbs_deb_scan("SCAN_RESP: tlvbufsize = %d\n", tlvbufsize);
-	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_RESP: TLV Buf", (u8 *) ptlv, tlvbufsize);
-
-	while (tlvbufleft >= sizeof(struct mrvlietypesheader)) {
-		tlvtype = le16_to_cpu(pcurrenttlv->header.type);
-		tlvlen = le16_to_cpu(pcurrenttlv->header.len);
-
-		switch (tlvtype) {
-		case TLV_TYPE_TSFTIMESTAMP:
-			*ptsftlv = (struct mrvlietypes_tsftimestamp *) pcurrenttlv;
-			break;
-
-		default:
-			lbs_deb_scan("SCAN_RESP: Unhandled TLV = %d\n",
-			       tlvtype);
-			/* Give up, this seems corrupted */
-			return;
-		}		/* switch */
-
-		tlvbufleft -= (sizeof(ptlv->header) + tlvlen);
-		pcurrenttlv =
-		    (struct mrvlietypes_data *) (pcurrenttlv->Data + tlvlen);
-	}			/* while */
-}
-
-/**
  *  @brief Interpret a BSS scan response returned from the firmware
  *
  *  Parse the various fixed fields and IEs passed back for a a BSS probe
@@ -1684,8 +1632,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_scan_rsp *pscan;
-	struct mrvlietypes_data *ptlv;
-	struct mrvlietypes_tsftimestamp *ptsftlv;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
 	u8 *pbssinfo;
@@ -1733,11 +1679,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 	tlvbufsize = scanrespsize - (bytesleft + sizeof(pscan->bssdescriptsize)
 				     + sizeof(pscan->nr_sets)
 				     + S_DS_GEN);
-
-	ptlv = (struct mrvlietypes_data *) (pscan->bssdesc_and_tlvbuffer + bytesleft);
-
-	/* Search the TLV buffer space in the scan response for any valid TLVs */
-	wlan_ret_802_11_scan_get_tlv_ptrs(ptlv, tlvbufsize, &ptsftlv);
 
 	/*
 	 *  Process each scan response returned (pscan->nr_sets).  Save
@@ -1790,16 +1731,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		lbs_deb_scan("SCAN_RESP: BSSID = " MAC_FMT "\n",
 		       new.bssid[0], new.bssid[1], new.bssid[2],
 		       new.bssid[3], new.bssid[4], new.bssid[5]);
-
-		/*
-		 * If the TSF TLV was appended to the scan results, save the
-		 *   this entries TSF value in the networktsf field.  The
-		 *   networktsf is the firmware's TSF value at the time the
-		 *   beacon or probe response was received.
-		 */
-		if (ptsftlv) {
-			new.networktsf = le64_to_cpup(&ptsftlv->tsftable[idx]);
-		}
 
 		/* Copy the locally created newbssentry to the scan table */
 		memcpy(found, &new, offsetof(struct bss_descriptor, list));

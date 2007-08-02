@@ -66,7 +66,7 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	struct bss_descriptor * iter_bss;
 
 	pos += snprintf(buf+pos, len-pos,
-		"# | ch  | ss  |       bssid       |   cap    |    TSF   | Qual | SSID \n");
+		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID \n");
 
 	mutex_lock(&priv->adapter->lock);
 	list_for_each_entry (iter_bss, &priv->adapter->network_list, list) {
@@ -75,15 +75,14 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %03ld | " MAC_FMT " |",
+			"%02u| %03d | %04ld | " MAC_FMT " |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
 			MAC_ARG(iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
 				ibss ? 'A' : 'I', privacy ? 'P' : ' ',
 				spectrum_mgmt ? 'S' : ' ');
-		pos += snprintf(buf+pos, len-pos, " %08llx |", iter_bss->networktsf);
-		pos += snprintf(buf+pos, len-pos, " %d |", SCAN_RSSI(iter_bss->rssi));
+		pos += snprintf(buf+pos, len-pos, " %04d |", SCAN_RSSI(iter_bss->rssi));
 		pos += snprintf(buf+pos, len-pos, " %s\n",
 		                escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 
