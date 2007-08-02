@@ -1325,8 +1325,7 @@ static struct snd_kcontrol_new dig_mixes[] = {
  *
  * Returns 0 if successful, or a negative error code.
  */
-int __devinit snd_hda_create_spdif_out_ctls(struct hda_codec *codec,
-					    hda_nid_t nid)
+int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 {
 	int err;
 	struct snd_kcontrol *kctl;
@@ -1424,8 +1423,7 @@ static struct snd_kcontrol_new dig_in_ctls[] = {
  *
  * Returns 0 if successful, or a negative error code.
  */
-int __devinit snd_hda_create_spdif_in_ctls(struct hda_codec *codec,
-					   hda_nid_t nid)
+int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 {
 	int err;
 	struct snd_kcontrol *kctl;
@@ -1895,9 +1893,9 @@ int __devinit snd_hda_build_pcms(struct hda_bus *bus)
  *
  * If no entries are matching, the function returns a negative value.
  */
-int __devinit snd_hda_check_board_config(struct hda_codec *codec,
-					 int num_configs, const char **models,
-					 const struct snd_pci_quirk *tbl)
+int snd_hda_check_board_config(struct hda_codec *codec,
+			       int num_configs, const char **models,
+			       const struct snd_pci_quirk *tbl)
 {
 	if (codec->bus->modelname && models) {
 		int i;
@@ -1947,8 +1945,7 @@ int __devinit snd_hda_check_board_config(struct hda_codec *codec,
  *
  * Returns 0 if successful, or a negative error code.
  */
-int __devinit snd_hda_add_new_ctls(struct hda_codec *codec,
-				   struct snd_kcontrol_new *knew)
+int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 {
 	int err;
 
@@ -2224,7 +2221,7 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
  * Helper for automatic ping configuration
  */
 
-static int __devinit is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
+static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
 {
 	for (; *list; list++)
 		if (*list == nid)
@@ -2275,9 +2272,9 @@ static void sort_pins_by_sequence(hda_nid_t * pins, short * sequences,
  * The digital input/output pins are assigned to dig_in_pin and dig_out_pin,
  * respectively.
  */
-int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
-					   struct auto_pin_cfg *cfg,
-					   hda_nid_t *ignore_nids)
+int snd_hda_parse_pin_def_config(struct hda_codec *codec,
+				 struct auto_pin_cfg *cfg,
+				 hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, nid_start;
 	int nodes;
