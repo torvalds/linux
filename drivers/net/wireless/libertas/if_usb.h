@@ -104,6 +104,5 @@ struct fwsyncheader {
 
 int usb_tx_block(wlan_private *priv, u8 *payload, u16 nb);
 void if_usb_free(struct usb_card_rec *cardp);
-int if_usb_issue_boot_command(wlan_private *priv, int ivalue);
 
 #endif

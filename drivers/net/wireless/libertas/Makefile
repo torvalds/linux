@@ -5,7 +5,6 @@ libertas-objs := main.o fw.o wext.o \
 		debugfs.o	  \
 		ethtool.o assoc.o
 
-usb8xxx-objs += if_bootcmd.o
 usb8xxx-objs += if_usb.o
 
 obj-$(CONFIG_LIBERTAS)     += libertas.o
