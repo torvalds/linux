@@ -190,7 +190,7 @@ scc_ide_outsl(unsigned long port, void *addr, u32 count)
 }
 
 /**
- *	scc_tuneproc	-	tune a drive PIO mode
+ *	scc_tune_pio	-	tune a drive PIO mode
  *	@drive: drive to tune
  *	@mode_wanted: the target operating mode
  *
@@ -198,7 +198,7 @@ scc_ide_outsl(unsigned long port, void *addr, u32 count)
  *	controller.
  */
 
-static void scc_tuneproc(ide_drive_t *drive, byte mode_wanted)
+static void scc_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
@@ -207,28 +207,7 @@ static void scc_tuneproc(ide_drive_t *drive, byte mode_wanted)
 	unsigned long piosht_port = ctl_base + 0x000;
 	unsigned long pioct_port = ctl_base + 0x004;
 	unsigned long reg;
-	unsigned char speed = XFER_PIO_0;
 	int offset;
-
-	mode_wanted = ide_get_best_pio_mode(drive, mode_wanted, 4);
-	switch (mode_wanted) {
-	case 4:
-		speed = XFER_PIO_4;
-		break;
-	case 3:
-		speed = XFER_PIO_3;
-		break;
-	case 2:
-		speed = XFER_PIO_2;
-		break;
-	case 1:
-		speed = XFER_PIO_1;
-		break;
-	case 0:
-	default:
-		speed = XFER_PIO_0;
-		break;
-	}
 
 	reg = in_be32((void __iomem *)cckctrl_port);
 	if (reg & CCKCTRL_ATACLKOEN) {
@@ -236,12 +215,17 @@ static void scc_tuneproc(ide_drive_t *drive, byte mode_wanted)
 	} else {
 		offset = 0; /* 100MHz */
 	}
-	reg = JCHSTtbl[offset][mode_wanted] << 16 | JCHHTtbl[offset][mode_wanted];
+	reg = JCHSTtbl[offset][pio] << 16 | JCHHTtbl[offset][pio];
 	out_be32((void __iomem *)piosht_port, reg);
-	reg = JCHCTtbl[offset][mode_wanted];
+	reg = JCHCTtbl[offset][pio];
 	out_be32((void __iomem *)pioct_port, reg);
+}
 
-	ide_config_drive_speed(drive, speed);
+static void scc_tuneproc(ide_drive_t *drive, u8 pio)
+{
+	pio = ide_get_best_pio_mode(drive, pio, 4);
+	scc_tune_pio(drive, pio);
+	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 /**
@@ -280,26 +264,21 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
 
 	switch (speed) {
 	case XFER_UDMA_6:
-		idx = 6;
-		break;
 	case XFER_UDMA_5:
-		idx = 5;
-		break;
 	case XFER_UDMA_4:
-		idx = 4;
-		break;
 	case XFER_UDMA_3:
-		idx = 3;
-		break;
 	case XFER_UDMA_2:
-		idx = 2;
-		break;
 	case XFER_UDMA_1:
-		idx = 1;
-		break;
 	case XFER_UDMA_0:
-		idx = 0;
+		idx = speed - XFER_UDMA_0;
 		break;
+	case XFER_PIO_4:
+	case XFER_PIO_3:
+	case XFER_PIO_2:
+	case XFER_PIO_1:
+	case XFER_PIO_0:
+		scc_tune_pio(drive, speed - XFER_PIO_0);
+		return ide_config_drive_speed(drive, speed);
 	default:
 		return 1;
 	}
@@ -329,7 +308,7 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
  *	required.
  *      If the drive isn't suitable for DMA or we hit other problems
  *      then we will drop down to PIO and set up PIO appropriately.
- *      (return 1)
+ *      (return -1)
  */
 
 static int scc_config_drive_for_dma(ide_drive_t *drive)
@@ -338,7 +317,7 @@ static int scc_config_drive_for_dma(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		scc_tuneproc(drive, 4);
+		scc_tuneproc(drive, 255);
 
 	return -1;
 }
