@@ -958,7 +958,7 @@ static int DownloadcommandToStation(wlan_private * priv,
 	unsigned long flags;
 	struct cmd_ds_command *cmdptr;
 	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
+	int ret = -1;
 	u16 cmdsize;
 	u16 command;
 
@@ -966,12 +966,6 @@ static int DownloadcommandToStation(wlan_private * priv,
 
 	if (!adapter || !cmdnode) {
 		lbs_deb_host("DNLD_CMD: adapter or cmdmode is NULL\n");
-		if (cmdnode) {
-			spin_lock_irqsave(&adapter->driver_lock, flags);
-			__libertas_cleanup_and_insert_cmd(priv, cmdnode);
-			spin_unlock_irqrestore(&adapter->driver_lock, flags);
-		}
-		ret = -1;
 		goto done;
 	}
 
@@ -982,7 +976,6 @@ static int DownloadcommandToStation(wlan_private * priv,
 		lbs_deb_host("DNLD_CMD: cmdptr is NULL or zero\n");
 		__libertas_cleanup_and_insert_cmd(priv, cmdnode);
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
-		ret = -1;
 		goto done;
 	}
 
@@ -1008,7 +1001,6 @@ static int DownloadcommandToStation(wlan_private * priv,
 		__libertas_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
-		ret = -1;
 		goto done;
 	}
 
