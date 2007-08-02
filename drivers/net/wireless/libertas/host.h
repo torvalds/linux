@@ -114,6 +114,8 @@
 
 #define CMD_MESH_ACCESS               0x009b
 
+#define CMD_SET_BOOT2_VER                 0x00a5
+
 /* For the IEEE Power Save */
 #define CMD_SUBCMD_ENTER_PS               0x0030
 #define CMD_SUBCMD_EXIT_PS                0x0031

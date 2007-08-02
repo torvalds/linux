@@ -104,6 +104,7 @@ struct _wlan_private {
 	int mesh_open;
 	int infra_open;
 	int mesh_autostart_enabled;
+	__le16 boot2_version;
 
 	char name[DEV_NAME_LEN];
 

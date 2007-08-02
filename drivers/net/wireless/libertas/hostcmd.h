@@ -410,6 +410,11 @@ struct cmd_ds_802_11_monitor_mode {
 	u16 mode;
 };
 
+struct cmd_ds_set_boot2_ver {
+	u16 action;
+	u16 version;
+};
+
 struct cmd_ds_802_11_ps_mode {
 	__le16 action;
 	__le16 nullpktinterval;
@@ -660,6 +665,7 @@ struct cmd_ds_command {
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 		struct cmd_ds_mesh_access mesh;
+		struct cmd_ds_set_boot2_ver boot2_ver;
 		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_subscribe_event subscribe_event;
 	} params;

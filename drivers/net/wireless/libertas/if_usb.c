@@ -219,6 +219,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_host_to_card = if_usb_host_to_card;
 	priv->hw_get_int_status = if_usb_get_int_status;
 	priv->hw_read_event_cause = if_usb_read_event_cause;
+	priv->boot2_version = udev->descriptor.bcdDevice;
 
 	if (libertas_activate_card(priv))
 		goto err_activate_card;

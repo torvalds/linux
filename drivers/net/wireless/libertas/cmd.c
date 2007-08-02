@@ -901,6 +901,17 @@ static int wlan_cmd_mesh_access(wlan_private * priv,
 	return 0;
 }
 
+static int wlan_cmd_set_boot2_ver(wlan_private * priv,
+				struct cmd_ds_command *cmd,
+				u16 cmd_action, void *pdata_buf)
+{
+	struct cmd_ds_set_boot2_ver *boot2_ver = &cmd->params.boot2_ver;
+	cmd->command = cpu_to_le16(CMD_SET_BOOT2_VER);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_set_boot2_ver) + S_DS_GEN);
+	boot2_ver->version = priv->boot2_version;
+	return 0;
+}
+
 void libertas_queue_cmd(wlan_adapter * adapter, struct cmd_ctrl_node *cmdnode, u8 addtail)
 {
 	unsigned long flags;
@@ -1370,6 +1381,10 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	case CMD_MESH_ACCESS:
 		ret = wlan_cmd_mesh_access(priv, cmdptr, cmd_action, pdata_buf);
+		break;
+
+	case CMD_SET_BOOT2_VER:
+		ret = wlan_cmd_set_boot2_ver(priv, cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_GET_TSF:
