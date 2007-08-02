@@ -31,7 +31,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd64x"
-#define DRV_VERSION "0.2.3"
+#define DRV_VERSION "0.2.4"
 
 /*
  * CMD64x specific registers definition.
@@ -397,7 +397,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
-			.udma_mask = ATA_UDMA1,
+			.udma_mask = ATA_UDMA2,
 			.port_ops = &cmd64x_port_ops
 		},
 		{	/* CMD 646 rev 1  */
@@ -412,7 +412,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
-			.udma_mask = ATA_UDMA2,
+			.udma_mask = ATA_UDMA4,
 			.port_ops = &cmd648_port_ops
 		},
 		{	/* CMD 649 */
@@ -420,7 +420,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
-			.udma_mask = ATA_UDMA3,
+			.udma_mask = ATA_UDMA5,
 			.port_ops = &cmd648_port_ops
 		}
 	};

@@ -2195,9 +2195,10 @@ void xfrm_audit_log(uid_t auid, u32 sid, int type, int result,
 	}
 
 	if (sid != 0 &&
-		security_secid_to_secctx(sid, &secctx, &secctx_len) == 0)
+	    security_secid_to_secctx(sid, &secctx, &secctx_len) == 0) {
 		audit_log_format(audit_buf, " subj=%s", secctx);
-	else
+		security_release_secctx(secctx, secctx_len);
+	} else
 		audit_log_task_context(audit_buf);
 
 	if (xp) {

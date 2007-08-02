@@ -18,8 +18,8 @@ static inline void update_curr_rt(struct rq *rq, u64 now)
 	delta_exec = now - curr->se.exec_start;
 	if (unlikely((s64)delta_exec < 0))
 		delta_exec = 0;
-	if (unlikely(delta_exec > curr->se.exec_max))
-		curr->se.exec_max = delta_exec;
+
+	schedstat_set(curr->se.exec_max, max(curr->se.exec_max, delta_exec));
 
 	curr->se.sum_exec_runtime += delta_exec;
 	curr->se.exec_start = now;
@@ -229,15 +229,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	requeue_task_rt(rq, p);
 }
 
-/*
- * No parent/child timeslice management necessary for RT tasks,
- * just activate them:
- */
-static void task_new_rt(struct rq *rq, struct task_struct *p)
-{
-	activate_task(rq, p, 1);
-}
-
 static struct sched_class rt_sched_class __read_mostly = {
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
@@ -251,5 +242,4 @@ static struct sched_class rt_sched_class __read_mostly = {
 	.load_balance		= load_balance_rt,
 
 	.task_tick		= task_tick_rt,
-	.task_new		= task_new_rt,
 };

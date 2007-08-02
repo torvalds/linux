@@ -637,7 +637,7 @@ static u64 div64_likely32(u64 divident, unsigned long divisor)
 
 #define WMULT_SHIFT	32
 
-static inline unsigned long
+static unsigned long
 calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 		struct load_weight *lw)
 {
@@ -657,7 +657,7 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 		tmp = (tmp * lw->inv_weight) >> WMULT_SHIFT;
 	}
 
-	return (unsigned long)min(tmp, (u64)sysctl_sched_runtime_limit);
+	return (unsigned long)min(tmp, (u64)(unsigned long)LONG_MAX);
 }
 
 static inline unsigned long
@@ -678,46 +678,6 @@ static void update_load_sub(struct load_weight *lw, unsigned long dec)
 	lw->inv_weight = 0;
 }
 
-static void __update_curr_load(struct rq *rq, struct load_stat *ls)
-{
-	if (rq->curr != rq->idle && ls->load.weight) {
-		ls->delta_exec += ls->delta_stat;
-		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
-		ls->delta_stat = 0;
-	}
-}
-
-/*
- * Update delta_exec, delta_fair fields for rq.
- *
- * delta_fair clock advances at a rate inversely proportional to
- * total load (rq->ls.load.weight) on the runqueue, while
- * delta_exec advances at the same rate as wall-clock (provided
- * cpu is not idle).
- *
- * delta_exec / delta_fair is a measure of the (smoothened) load on this
- * runqueue over any given interval. This (smoothened) load is used
- * during load balance.
- *
- * This function is called /before/ updating rq->ls.load
- * and when switching tasks.
- */
-static void update_curr_load(struct rq *rq, u64 now)
-{
-	struct load_stat *ls = &rq->ls;
-	u64 start;
-
-	start = ls->load_update_start;
-	ls->load_update_start = now;
-	ls->delta_stat += now - start;
-	/*
-	 * Stagger updates to ls->delta_fair. Very frequent updates
-	 * can be expensive.
-	 */
-	if (ls->delta_stat >= sysctl_sched_stat_granularity)
-		__update_curr_load(rq, ls);
-}
-
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
  * of tasks with abnormal "nice" values across CPUs the contribution that
@@ -726,19 +686,6 @@ static void update_curr_load(struct rq *rq, u64 now)
  * scaled version of the new time slice allocation that they receive on time
  * slice expiry etc.
  */
-
-/*
- * Assume: static_prio_timeslice(NICE_TO_PRIO(0)) == DEF_TIMESLICE
- * If static_prio_timeslice() is ever changed to break this assumption then
- * this code will need modification
- */
-#define TIME_SLICE_NICE_ZERO DEF_TIMESLICE
-#define load_weight(lp) \
-	(((lp) * SCHED_LOAD_SCALE) / TIME_SLICE_NICE_ZERO)
-#define PRIO_TO_LOAD_WEIGHT(prio) \
-	load_weight(static_prio_timeslice(prio))
-#define RTPRIO_TO_LOAD_WEIGHT(rp) \
-	(PRIO_TO_LOAD_WEIGHT(MAX_RT_PRIO) + load_weight(rp))
 
 #define WEIGHT_IDLEPRIO		2
 #define WMULT_IDLEPRIO		(1 << 31)
@@ -781,32 +728,6 @@ static const u32 prio_to_wmult[40] = {
 /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
-static inline void
-inc_load(struct rq *rq, const struct task_struct *p, u64 now)
-{
-	update_curr_load(rq, now);
-	update_load_add(&rq->ls.load, p->se.load.weight);
-}
-
-static inline void
-dec_load(struct rq *rq, const struct task_struct *p, u64 now)
-{
-	update_curr_load(rq, now);
-	update_load_sub(&rq->ls.load, p->se.load.weight);
-}
-
-static inline void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
-{
-	rq->nr_running++;
-	inc_load(rq, p, now);
-}
-
-static inline void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
-{
-	rq->nr_running--;
-	dec_load(rq, p, now);
-}
-
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup);
 
 /*
@@ -836,6 +757,72 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 #endif
 
 #define sched_class_highest (&rt_sched_class)
+
+static void __update_curr_load(struct rq *rq, struct load_stat *ls)
+{
+	if (rq->curr != rq->idle && ls->load.weight) {
+		ls->delta_exec += ls->delta_stat;
+		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
+		ls->delta_stat = 0;
+	}
+}
+
+/*
+ * Update delta_exec, delta_fair fields for rq.
+ *
+ * delta_fair clock advances at a rate inversely proportional to
+ * total load (rq->ls.load.weight) on the runqueue, while
+ * delta_exec advances at the same rate as wall-clock (provided
+ * cpu is not idle).
+ *
+ * delta_exec / delta_fair is a measure of the (smoothened) load on this
+ * runqueue over any given interval. This (smoothened) load is used
+ * during load balance.
+ *
+ * This function is called /before/ updating rq->ls.load
+ * and when switching tasks.
+ */
+static void update_curr_load(struct rq *rq, u64 now)
+{
+	struct load_stat *ls = &rq->ls;
+	u64 start;
+
+	start = ls->load_update_start;
+	ls->load_update_start = now;
+	ls->delta_stat += now - start;
+	/*
+	 * Stagger updates to ls->delta_fair. Very frequent updates
+	 * can be expensive.
+	 */
+	if (ls->delta_stat >= sysctl_sched_stat_granularity)
+		__update_curr_load(rq, ls);
+}
+
+static inline void
+inc_load(struct rq *rq, const struct task_struct *p, u64 now)
+{
+	update_curr_load(rq, now);
+	update_load_add(&rq->ls.load, p->se.load.weight);
+}
+
+static inline void
+dec_load(struct rq *rq, const struct task_struct *p, u64 now)
+{
+	update_curr_load(rq, now);
+	update_load_sub(&rq->ls.load, p->se.load.weight);
+}
+
+static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+{
+	rq->nr_running++;
+	inc_load(rq, p, now);
+}
+
+static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+{
+	rq->nr_running--;
+	dec_load(rq, p, now);
+}
 
 static void set_load_weight(struct task_struct *p)
 {
@@ -996,18 +983,21 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	u64 clock_offset, fair_clock_offset;
 
 	clock_offset = old_rq->clock - new_rq->clock;
-	fair_clock_offset = old_rq->cfs.fair_clock -
-						 new_rq->cfs.fair_clock;
-	if (p->se.wait_start)
-		p->se.wait_start -= clock_offset;
+	fair_clock_offset = old_rq->cfs.fair_clock - new_rq->cfs.fair_clock;
+
 	if (p->se.wait_start_fair)
 		p->se.wait_start_fair -= fair_clock_offset;
+	if (p->se.sleep_start_fair)
+		p->se.sleep_start_fair -= fair_clock_offset;
+
+#ifdef CONFIG_SCHEDSTATS
+	if (p->se.wait_start)
+		p->se.wait_start -= clock_offset;
 	if (p->se.sleep_start)
 		p->se.sleep_start -= clock_offset;
 	if (p->se.block_start)
 		p->se.block_start -= clock_offset;
-	if (p->se.sleep_start_fair)
-		p->se.sleep_start_fair -= fair_clock_offset;
+#endif
 
 	__set_task_cpu(p, new_cpu);
 }
@@ -1568,17 +1558,19 @@ int fastcall wake_up_state(struct task_struct *p, unsigned int state)
 static void __sched_fork(struct task_struct *p)
 {
 	p->se.wait_start_fair		= 0;
-	p->se.wait_start		= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.delta_exec		= 0;
 	p->se.delta_fair_run		= 0;
 	p->se.delta_fair_sleep		= 0;
 	p->se.wait_runtime		= 0;
+	p->se.sleep_start_fair		= 0;
+
+#ifdef CONFIG_SCHEDSTATS
+	p->se.wait_start		= 0;
 	p->se.sum_wait_runtime		= 0;
 	p->se.sum_sleep_runtime		= 0;
 	p->se.sleep_start		= 0;
-	p->se.sleep_start_fair		= 0;
 	p->se.block_start		= 0;
 	p->se.sleep_max			= 0;
 	p->se.block_max			= 0;
@@ -1586,6 +1578,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.wait_max			= 0;
 	p->se.wait_runtime_overruns	= 0;
 	p->se.wait_runtime_underruns	= 0;
+#endif
 
 	INIT_LIST_HEAD(&p->run_list);
 	p->se.on_rq = 0;
@@ -1654,22 +1647,27 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	unsigned long flags;
 	struct rq *rq;
 	int this_cpu;
+	u64 now;
 
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
 	this_cpu = smp_processor_id(); /* parent's CPU */
+	now = rq_clock(rq);
 
 	p->prio = effective_prio(p);
 
-	if (!sysctl_sched_child_runs_first || (clone_flags & CLONE_VM) ||
-			task_cpu(p) != this_cpu || !current->se.on_rq) {
+	if (!p->sched_class->task_new || !sysctl_sched_child_runs_first ||
+			(clone_flags & CLONE_VM) || task_cpu(p) != this_cpu ||
+			!current->se.on_rq) {
+
 		activate_task(rq, p, 0);
 	} else {
 		/*
 		 * Let the scheduling class do new task startup
 		 * management (if any):
 		 */
-		p->sched_class->task_new(rq, p);
+		p->sched_class->task_new(rq, p, now);
+		inc_nr_running(p, rq, now);
 	}
 	check_preempt_curr(rq, p);
 	task_rq_unlock(rq, &flags);
@@ -2908,8 +2906,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 		schedstat_inc(sd, alb_cnt);
 
 		if (move_tasks(target_rq, target_cpu, busiest_rq, 1,
-			       RTPRIO_TO_LOAD_WEIGHT(100), sd, CPU_IDLE,
-			       NULL))
+			       ULONG_MAX, sd, CPU_IDLE, NULL))
 			schedstat_inc(sd, alb_pushed);
 		else
 			schedstat_inc(sd, alb_failed);
@@ -5269,8 +5266,6 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 		sizeof(int), 0644, proc_dointvec_minmax);
 	set_table_entry(&table[8], 9, "imbalance_pct", &sd->imbalance_pct,
 		sizeof(int), 0644, proc_dointvec_minmax);
-	set_table_entry(&table[9], 10, "cache_hot_time", &sd->cache_hot_time,
-		sizeof(long long), 0644, proc_doulongvec_minmax);
 	set_table_entry(&table[10], 11, "cache_nice_tries",
 		&sd->cache_nice_tries,
 		sizeof(int), 0644, proc_dointvec_minmax);
@@ -6590,12 +6585,14 @@ void normalize_rt_tasks(void)
 	do_each_thread(g, p) {
 		p->se.fair_key			= 0;
 		p->se.wait_runtime		= 0;
-		p->se.wait_start_fair		= 0;
-		p->se.wait_start		= 0;
 		p->se.exec_start		= 0;
-		p->se.sleep_start		= 0;
+		p->se.wait_start_fair		= 0;
 		p->se.sleep_start_fair		= 0;
+#ifdef CONFIG_SCHEDSTATS
+		p->se.wait_start		= 0;
+		p->se.sleep_start		= 0;
 		p->se.block_start		= 0;
+#endif
 		task_rq(p)->cfs.fair_clock	= 0;
 		task_rq(p)->clock		= 0;
 

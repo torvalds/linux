@@ -573,6 +573,10 @@ int ata_pci_init_bmdma(struct ata_host *host)
 	struct pci_dev *pdev = to_pci_dev(gdev);
 	int i, rc;
 
+	/* No BAR4 allocation: No DMA */
+	if (pci_resource_start(pdev, 4) == 0)
+		return 0;
+
 	/* TODO: If we get no DMA mask we should fall back to PIO */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)

@@ -101,15 +101,6 @@ int check_irq_used(int irq)
 	return -1;
 }
 
-static void reserve_irq(unsigned int irq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&vector_lock, flags);
-	irq_status[irq] = IRQ_RSVD;
-	spin_unlock_irqrestore(&vector_lock, flags);
-}
-
 static inline int find_unassigned_irq(void)
 {
 	int irq;
@@ -302,10 +293,14 @@ static cpumask_t vector_allocation_domain(int cpu)
 
 void destroy_and_reserve_irq(unsigned int irq)
 {
+	unsigned long flags;
+
 	dynamic_irq_cleanup(irq);
 
-	clear_irq_vector(irq);
-	reserve_irq(irq);
+	spin_lock_irqsave(&vector_lock, flags);
+	__clear_irq_vector(irq);
+	irq_status[irq] = IRQ_RSVD;
+	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
 static int __reassign_irq_vector(int irq, int cpu)

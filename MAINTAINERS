@@ -3754,7 +3754,7 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.linux-usb.org/gadget
 S:	Maintained
 
-USB HID/HIDBP DRIVERS
+USB HID/HIDBP DRIVERS (USB KEYBOARDS, MICE, REMOTE CONTROLS, ...)
 P:	Jiri Kosina
 M:	jkosina@suse.cz
 L:	linux-usb-devel@lists.sourceforge.net

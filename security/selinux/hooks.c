@@ -4658,8 +4658,7 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 static void selinux_release_secctx(char *secdata, u32 seclen)
 {
-	if (secdata)
-		kfree(secdata);
+	kfree(secdata);
 }
 
 #ifdef CONFIG_KEYS
