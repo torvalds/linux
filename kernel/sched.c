@@ -1641,22 +1641,27 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	unsigned long flags;
 	struct rq *rq;
 	int this_cpu;
+	u64 now;
 
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
 	this_cpu = smp_processor_id(); /* parent's CPU */
+	now = rq_clock(rq);
 
 	p->prio = effective_prio(p);
 
-	if (!sysctl_sched_child_runs_first || (clone_flags & CLONE_VM) ||
-			task_cpu(p) != this_cpu || !current->se.on_rq) {
+	if (!p->sched_class->task_new || !sysctl_sched_child_runs_first ||
+			(clone_flags & CLONE_VM) || task_cpu(p) != this_cpu ||
+			!current->se.on_rq) {
+
 		activate_task(rq, p, 0);
 	} else {
 		/*
 		 * Let the scheduling class do new task startup
 		 * management (if any):
 		 */
-		p->sched_class->task_new(rq, p);
+		p->sched_class->task_new(rq, p, now);
+		inc_nr_running(p, rq, now);
 	}
 	check_preempt_curr(rq, p);
 	task_rq_unlock(rq, &flags);

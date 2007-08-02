@@ -874,7 +874,7 @@ struct sched_class {
 
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p);
-	void (*task_new) (struct rq *rq, struct task_struct *p);
+	void (*task_new) (struct rq *rq, struct task_struct *p, u64 now);
 };
 
 struct load_weight {

@@ -1041,11 +1041,10 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
  * monopolize the CPU. Note: the parent runqueue is locked,
  * the child is not running yet.
  */
-static void task_new_fair(struct rq *rq, struct task_struct *p)
+static void task_new_fair(struct rq *rq, struct task_struct *p, u64 now)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 	struct sched_entity *se = &p->se;
-	u64 now = rq_clock(rq);
 
 	sched_info_queued(p);
 
@@ -1072,7 +1071,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		p->se.wait_runtime = -(sysctl_sched_granularity / 2);
 
 	__enqueue_entity(cfs_rq, se);
-	inc_nr_running(p, rq, now);
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
