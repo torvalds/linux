@@ -262,8 +262,6 @@ struct _wlan_adapter {
 	struct list_head network_free_list;
 	struct bss_descriptor *networks;
 
-	u8 scantype;
-
 	u8 adhoccreate;
 
 	/** capability Info used in Association, start, join */

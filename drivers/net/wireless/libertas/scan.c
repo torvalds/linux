@@ -252,7 +252,7 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 	 *   be changed to passive on a per channel basis if restricted by
 	 *   regulatory requirements (11d or 11h)
 	 */
-	scantype = adapter->scantype;
+	scantype = CMD_SCAN_TYPE_ACTIVE;
 
 	for (rgnidx = 0; rgnidx < ARRAY_SIZE(adapter->region_channel); rgnidx++) {
 		if (priv->adapter->enable11d &&

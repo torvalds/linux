@@ -1001,9 +1001,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->connect_status = LIBERTAS_DISCONNECTED;
 	memset(adapter->current_addr, 0xff, ETH_ALEN);
 
-	/* scan type */
-	adapter->scantype = CMD_SCAN_TYPE_ACTIVE;
-
 	/* 802.11 specific */
 	adapter->secinfo.wep_enabled = 0;
 	for (i = 0; i < sizeof(adapter->wep_keys) / sizeof(adapter->wep_keys[0]);
