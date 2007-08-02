@@ -209,15 +209,26 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 	             bss->ssid_len);
 
 	/* check if the requested SSID is already joined */
-	if (adapter->curbssparams.ssid_len
+	if (   adapter->curbssparams.ssid_len
 	    && !libertas_ssid_cmp(adapter->curbssparams.ssid,
 	                          adapter->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)
-	    && (adapter->mode == IW_MODE_ADHOC)) {
-		lbs_deb_join(
-		       "ADHOC_J_CMD: New ad-hoc SSID is the same as current, "
-		       "not attempting to re-join");
-		return -1;
+	    && (adapter->mode == IW_MODE_ADHOC)
+	    && (adapter->connect_status == LIBERTAS_CONNECTED)) {
+		union iwreq_data wrqu;
+
+		lbs_deb_join("ADHOC_J_CMD: New ad-hoc SSID is the same as "
+		             "current, not attempting to re-join");
+
+		/* Send the re-association event though, because the association
+		 * request really was successful, even if just a null-op.
+		 */
+		memset(&wrqu, 0, sizeof(wrqu));
+		memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid,
+		       ETH_ALEN);
+		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+		goto out;
 	}
 
 	/* Use shortpreamble only when both creator and card supports
@@ -242,6 +253,7 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 				    0, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_SSID, assoc_req);
 
+out:
 	return ret;
 }
 
