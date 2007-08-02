@@ -395,6 +395,14 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 */
 	nextiocb->iocb.ulpIoTag = (nextiocb->iocb_cmpl) ? nextiocb->iotag : 0;
 
+	if (pring->ringno == LPFC_ELS_RING) {
+		lpfc_debugfs_slow_ring_trc(phba,
+			"IOCB cmd ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
+			*(((uint32_t *) &nextiocb->iocb) + 4),
+			*(((uint32_t *) &nextiocb->iocb) + 6),
+			*(((uint32_t *) &nextiocb->iocb) + 7));
+	}
+
 	/*
 	 * Issue iocb command to adapter
 	 */
@@ -1541,6 +1549,14 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 
 		if (++pring->rspidx >= portRspMax)
 			pring->rspidx = 0;
+
+		if (pring->ringno == LPFC_ELS_RING) {
+			lpfc_debugfs_slow_ring_trc(phba,
+			"IOCB rsp ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
+				*(((uint32_t *) irsp) + 4),
+				*(((uint32_t *) irsp) + 6),
+				*(((uint32_t *) irsp) + 7));
+		}
 
 		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
@@ -3850,11 +3866,32 @@ lpfc_intr_handler(int irq, void *dev_id)
 			if (status & HA_RXMASK) {
 				spin_lock(&phba->hbalock);
 				control = readl(phba->HCregaddr);
+
+				lpfc_debugfs_slow_ring_trc(phba,
+				"ISR slow ring:   ctl:x%x stat:x%x isrcnt:x%x",
+				control, status,
+				(uint32_t)phba->sli.slistat.sli_intr);
+
 				if (control & (HC_R0INT_ENA << LPFC_ELS_RING)) {
+					lpfc_debugfs_slow_ring_trc(phba,
+						"ISR Disable ring:"
+						"pwork:x%x hawork:x%x wait:x%x",
+						phba->work_ha, work_ha_copy,
+						(uint32_t)((unsigned long)
+						phba->work_wait));
+
 					control &=
 					    ~(HC_R0INT_ENA << LPFC_ELS_RING);
 					writel(control, phba->HCregaddr);
 					readl(phba->HCregaddr); /* flush */
+				}
+				else {
+					lpfc_debugfs_slow_ring_trc(phba,
+						"ISR slow ring:   pwork:"
+						"x%x hawork:x%x wait:x%x",
+						phba->work_ha, work_ha_copy,
+						(uint32_t)((unsigned long)
+						phba->work_wait));
 				}
 				spin_unlock(&phba->hbalock);
 			}

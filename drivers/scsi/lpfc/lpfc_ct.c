@@ -607,7 +607,25 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
 			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 			/* NameServer Rsp Error */
-			lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+			if ((CTrsp->ReasonCode == SLI_CT_UNABLE_TO_PERFORM_REQ)
+			    && (CTrsp->Explanation == SLI_CT_NO_FC4_TYPES)) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+					"%d (%d):0269 No NameServer Entries "
+					"Data: x%x x%x x%x x%x\n",
+					phba->brd_no, vport->vpi,
+					CTrsp->CommandResponse.bits.CmdRsp,
+					(uint32_t) CTrsp->ReasonCode,
+					(uint32_t) CTrsp->Explanation,
+					vport->fc_flag);
+
+				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"GID_FT no entry  cmd:x%x rsn:x%x exp:x%x",
+				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				(uint32_t) CTrsp->ReasonCode,
+				(uint32_t) CTrsp->Explanation);
+			}
+			else {
+				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 					"%d (%d):0240 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
 					phba->brd_no, vport->vpi,
@@ -616,11 +634,13 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT rsp err1  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
+			}
+
 
 		} else {
 			/* NameServer Rsp Error */
@@ -696,7 +716,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if ((fbits & FC4_FEATURE_INIT) &&
 			    !(fbits & FC4_FEATURE_TARGET)) {
 				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-						"%d (%d):0245 Skip x%x GFF "
+						"%d (%d):0270 Skip x%x GFF "
 						"NameServer Rsp Data: (init) "
 						"x%x x%x\n", phba->brd_no,
 						vport->vpi, did, fbits,

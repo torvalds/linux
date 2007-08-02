@@ -326,6 +326,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	rc = VPORT_OK;
 
 out:
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+			"1825 Vport Created.\n");
 	lpfc_host_attrib_init(lpfc_shost_from_vport(vport));
 error_out:
 	return rc;
@@ -371,6 +373,8 @@ disable_vport(struct fc_vport *fc_vport)
 	lpfc_mbx_unreg_vpi(vport);
 
 	lpfc_vport_set_state(vport, FC_VPORT_DISABLED);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+			 "1826 Vport Disabled.\n");
 	return VPORT_OK;
 }
 
@@ -408,7 +412,8 @@ enable_vport(struct fc_vport *fc_vport)
 	} else {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	}
-
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+			 "1827 Vport Enabled.\n");
 	return VPORT_OK;
 }
 
@@ -511,7 +516,8 @@ skip_logo:
 	spin_lock_irq(&phba->hbalock);
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->hbalock);
-
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+			 "1828 Vport Deleted.\n");
 	rc = VPORT_OK;
 out:
 	scsi_host_put(shost);

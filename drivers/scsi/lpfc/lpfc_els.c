@@ -2033,12 +2033,11 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* No retry ELS command <elsCmd> to remote NPORT <did> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d (%d):0108 No retry ELS command x%x to remote "
-			"NPORT x%x Data: x%x\n",
-			phba->brd_no, vport->vpi,
-			cmd, did, cmdiocb->retry);
-
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			 "0108 No retry ELS command x%x to remote "
+			 "NPORT x%x Retried:%d Error:x%x/%x\n",
+			 cmd, did, cmdiocb->retry, irsp->ulpStatus,
+			 irsp->un.ulpWord[4]);
 	return 0;
 }
 

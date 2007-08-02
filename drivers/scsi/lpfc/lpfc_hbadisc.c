@@ -426,9 +426,18 @@ lpfc_work_done(struct lpfc_hba *phba)
 		spin_lock_irq(&phba->hbalock);
 		control = readl(phba->HCregaddr);
 		if (!(control & (HC_R0INT_ENA << LPFC_ELS_RING))) {
+			lpfc_debugfs_slow_ring_trc(phba,
+				"WRK Enable ring: cntl:x%x hacopy:x%x",
+				control, ha_copy, 0);
+
 			control |= (HC_R0INT_ENA << LPFC_ELS_RING);
 			writel(control, phba->HCregaddr);
 			readl(phba->HCregaddr); /* flush */
+		}
+		else {
+			lpfc_debugfs_slow_ring_trc(phba,
+				"WRK Ring ok:     cntl:x%x hacopy:x%x",
+				control, ha_copy, 0);
 		}
 		spin_unlock_irq(&phba->hbalock);
 	}

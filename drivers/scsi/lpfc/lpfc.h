@@ -335,7 +335,7 @@ struct lpfc_vport {
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
 	struct dentry *vport_debugfs_root;
-	struct lpfc_disc_trc *disc_trc;
+	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
 };
@@ -547,6 +547,10 @@ struct lpfc_hba {
 #ifdef CONFIG_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
+	struct dentry *debug_dumpslim;
+	struct dentry *debug_slow_ring_trc;
+	struct lpfc_debugfs_trc *slow_ring_trc;
+	atomic_t slow_ring_trc_cnt;
 #endif
 
 	/* Fields used for heart beat. */
