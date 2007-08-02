@@ -867,11 +867,11 @@ int libertas_process_event(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	u32 eventcause;
 
+	lbs_deb_enter(LBS_DEB_CMD);
+
 	spin_lock_irq(&adapter->driver_lock);
 	eventcause = adapter->eventcause;
 	spin_unlock_irq(&adapter->driver_lock);
-
-	lbs_deb_enter(LBS_DEB_CMD);
 
 	lbs_deb_cmd("event cause 0x%x\n", eventcause);
 
@@ -988,6 +988,6 @@ int libertas_process_event(wlan_private * priv)
 	adapter->eventcause = 0;
 	spin_unlock_irq(&adapter->driver_lock);
 
-	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
