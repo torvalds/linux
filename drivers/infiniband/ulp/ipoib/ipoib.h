@@ -113,7 +113,27 @@ struct ipoib_pseudoheader {
 	u8  hwaddr[INFINIBAND_ALEN];
 };
 
-struct ipoib_mcast;
+/* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
+struct ipoib_mcast {
+	struct ib_sa_mcmember_rec mcmember;
+	struct ib_sa_multicast	 *mc;
+	struct ipoib_ah          *ah;
+
+	struct rb_node    rb_node;
+	struct list_head  list;
+
+	unsigned long created;
+	unsigned long backoff;
+
+	unsigned long flags;
+	unsigned char logcount;
+
+	struct list_head  neigh_list;
+
+	struct sk_buff_head pkt_queue;
+
+	struct net_device *dev;
+};
 
 struct ipoib_rx_buf {
 	struct sk_buff *skb;

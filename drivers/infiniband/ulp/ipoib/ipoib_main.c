@@ -468,9 +468,10 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	INIT_LIST_HEAD(&path->neigh_list);
 
 	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
-	path->pathrec.sgid      = priv->local_gid;
-	path->pathrec.pkey      = cpu_to_be16(priv->pkey);
-	path->pathrec.numb_path = 1;
+	path->pathrec.sgid          = priv->local_gid;
+	path->pathrec.pkey          = cpu_to_be16(priv->pkey);
+	path->pathrec.numb_path     = 1;
+	path->pathrec.traffic_class = priv->broadcast->mcmember.traffic_class;
 
 	return path;
 }
@@ -491,6 +492,7 @@ static int path_rec_start(struct net_device *dev,
 				   IB_SA_PATH_REC_DGID		|
 				   IB_SA_PATH_REC_SGID		|
 				   IB_SA_PATH_REC_NUMB_PATH	|
+				   IB_SA_PATH_REC_TRAFFIC_CLASS |
 				   IB_SA_PATH_REC_PKEY,
 				   1000, GFP_ATOMIC,
 				   path_rec_completion,
