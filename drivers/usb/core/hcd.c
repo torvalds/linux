@@ -914,99 +914,117 @@ EXPORT_SYMBOL (usb_calc_bus_time);
 
 /*-------------------------------------------------------------------------*/
 
-static void urb_unlink(struct usb_hcd *hcd, struct urb *urb)
+static int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
+{
+	unsigned long	flags;
+	int		rc = 0;
+
+	spin_lock_irqsave(&hcd_urb_list_lock, flags);
+
+	/* Check that the URB isn't being killed */
+	if (unlikely(urb->reject)) {
+		rc = -EPERM;
+		goto done;
+	}
+
+	if (unlikely(!urb->ep->enabled)) {
+		rc = -ENOENT;
+		goto done;
+	}
+
+	/*
+	 * Check the host controller's state and add the URB to the
+	 * endpoint's queue.
+	 */
+	switch (hcd->state) {
+	case HC_STATE_RUNNING:
+	case HC_STATE_RESUMING:
+		list_add_tail(&urb->urb_list, &urb->ep->urb_list);
+		break;
+	default:
+		rc = -ESHUTDOWN;
+		goto done;
+	}
+ done:
+	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
+	return rc;
+}
+
+static int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
+		int status)
+{
+	unsigned long		flags;
+	struct list_head	*tmp;
+	int			rc = 0;
+
+	/*
+	 * we contend for urb->status with the hcd core,
+	 * which changes it while returning the urb.
+	 *
+	 * Caller guaranteed that the urb pointer hasn't been freed, and
+	 * that it was submitted.  But as a rule it can't know whether or
+	 * not it's already been unlinked ... so we respect the reversed
+	 * lock sequence needed for the usb_hcd_giveback_urb() code paths
+	 * (urb lock, then hcd_urb_list_lock) in case some other CPU is now
+	 * unlinking it.
+	 */
+	spin_lock_irqsave(&urb->lock, flags);
+	spin_lock(&hcd_urb_list_lock);
+
+	/* insist the urb is still queued */
+	list_for_each(tmp, &urb->ep->urb_list) {
+		if (tmp == &urb->urb_list)
+			break;
+	}
+	if (tmp != &urb->urb_list) {
+		rc = -EIDRM;
+		goto done;
+	}
+
+	/* Any status except -EINPROGRESS means something already started to
+	 * unlink this URB from the hardware.  So there's no more work to do.
+	 */
+	if (urb->status != -EINPROGRESS) {
+		rc = -EBUSY;
+		goto done;
+	}
+	urb->status = status;
+
+	/* IRQ setup can easily be broken so that USB controllers
+	 * never get completion IRQs ... maybe even the ones we need to
+	 * finish unlinking the initial failed usb_set_address()
+	 * or device descriptor fetch.
+	 */
+	if (!test_bit(HCD_FLAG_SAW_IRQ, &hcd->flags) &&
+			!is_root_hub(urb->dev)) {
+		dev_warn(hcd->self.controller, "Unlink after no-IRQ?  "
+			"Controller is probably using the wrong IRQ.\n");
+		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+	}
+
+ done:
+	spin_unlock(&hcd_urb_list_lock);
+	spin_unlock_irqrestore (&urb->lock, flags);
+	return rc;
+}
+
+static void usb_hcd_unlink_urb_from_ep(struct usb_hcd *hcd, struct urb *urb)
 {
 	unsigned long		flags;
 
 	/* clear all state linking urb to this dev (and hcd) */
 	spin_lock_irqsave(&hcd_urb_list_lock, flags);
-	list_del_init (&urb->urb_list);
+	list_del_init(&urb->urb_list);
 	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
-
-	if (hcd->self.uses_dma && !is_root_hub(urb->dev)) {
-		if (usb_endpoint_xfer_control(&urb->ep->desc)
-			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
-			dma_unmap_single (hcd->self.controller, urb->setup_dma,
-					sizeof (struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
-		if (urb->transfer_buffer_length != 0
-			&& !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
-			dma_unmap_single (hcd->self.controller,
-					urb->transfer_dma,
-					urb->transfer_buffer_length,
-					usb_urb_dir_in(urb)
-					    ? DMA_FROM_DEVICE
-					    : DMA_TO_DEVICE);
-	}
 }
 
-/* may be called in any context with a valid urb->dev usecount
- * caller surrenders "ownership" of urb
- * expects usb_submit_urb() to have sanity checked and conditioned all
- * inputs in the urb
- */
-int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
+static void map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
-	int			status;
-	struct usb_hcd		*hcd = bus_to_hcd(urb->dev->bus);
-	unsigned long		flags;
-
-	if (!hcd)
-		return -ENODEV;
-
-	usbmon_urb_submit(&hcd->self, urb);
-
-	/*
-	 * Atomically queue the urb,  first to our records, then to the HCD.
-	 * Access to urb->status is controlled by urb->lock ... changes on
-	 * i/o completion (normal or fault) or unlinking.
-	 */
-
-	// FIXME:  verify that quiescing hc works right (RH cleans up)
-
-	spin_lock_irqsave(&hcd_urb_list_lock, flags);
-	if (unlikely(!urb->ep->enabled))
-		status = -ENOENT;
-	else if (unlikely (urb->reject))
-		status = -EPERM;
-	else switch (hcd->state) {
-	case HC_STATE_RUNNING:
-	case HC_STATE_RESUMING:
-		list_add_tail (&urb->urb_list, &urb->ep->urb_list);
-		status = 0;
-		break;
-	default:
-		status = -ESHUTDOWN;
-		break;
-	}
-	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
-	if (status) {
-		INIT_LIST_HEAD (&urb->urb_list);
-		usbmon_urb_submit_error(&hcd->self, urb, status);
-		return status;
-	}
-
-	/* increment urb's reference count as part of giving it to the HCD
-	 * (which now controls it).  HCD guarantees that it either returns
-	 * an error or calls giveback(), but not both.
-	 */
-	urb = usb_get_urb (urb);
-	atomic_inc (&urb->use_count);
-
-	if (is_root_hub(urb->dev)) {
-		/* NOTE:  requirement on hub callers (usbfs and the hub
-		 * driver, for now) that URBs' urb->transfer_buffer be
-		 * valid and usb_buffer_{sync,unmap}() not be needed, since
-		 * they could clobber root hub response data.
-		 */
-		status = rh_urb_enqueue (hcd, urb);
-		goto done;
-	}
-
-	/* lower level hcd code should use *_dma exclusively,
+	/* Map the URB's buffers for DMA access.
+	 * Lower level HCD code should use *_dma exclusively,
 	 * unless it uses pio or talks to another transport.
 	 */
-	if (hcd->self.uses_dma) {
+	if (hcd->self.uses_dma && !is_root_hub(urb->dev)) {
 		if (usb_endpoint_xfer_control(&urb->ep->desc)
 			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 			urb->setup_dma = dma_map_single (
@@ -1024,16 +1042,73 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 					    ? DMA_FROM_DEVICE
 					    : DMA_TO_DEVICE);
 	}
+}
 
-	status = hcd->driver->urb_enqueue (hcd, urb->ep, urb, mem_flags);
-done:
-	if (unlikely (status)) {
-		urb_unlink(hcd, urb);
-		atomic_dec (&urb->use_count);
-		if (urb->reject)
-			wake_up (&usb_kill_urb_queue);
+static void unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
+{
+	if (hcd->self.uses_dma && !is_root_hub(urb->dev)) {
+		if (usb_endpoint_xfer_control(&urb->ep->desc)
+			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
+			dma_unmap_single(hcd->self.controller, urb->setup_dma,
+					sizeof(struct usb_ctrlrequest),
+					DMA_TO_DEVICE);
+		if (urb->transfer_buffer_length != 0
+			&& !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
+			dma_unmap_single(hcd->self.controller,
+					urb->transfer_dma,
+					urb->transfer_buffer_length,
+					usb_urb_dir_in(urb)
+					    ? DMA_FROM_DEVICE
+					    : DMA_TO_DEVICE);
+	}
+}
+
+/*-------------------------------------------------------------------------*/
+
+/* may be called in any context with a valid urb->dev usecount
+ * caller surrenders "ownership" of urb
+ * expects usb_submit_urb() to have sanity checked and conditioned all
+ * inputs in the urb
+ */
+int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
+{
+	int			status;
+	struct usb_hcd		*hcd = bus_to_hcd(urb->dev->bus);
+
+	/* increment urb's reference count as part of giving it to the HCD
+	 * (which will control it).  HCD guarantees that it either returns
+	 * an error or calls giveback(), but not both.
+	 */
+	usb_get_urb(urb);
+	atomic_inc(&urb->use_count);
+	usbmon_urb_submit(&hcd->self, urb);
+
+	/* NOTE requirements on root-hub callers (usbfs and the hub
+	 * driver, for now):  URBs' urb->transfer_buffer must be
+	 * valid and usb_buffer_{sync,unmap}() not be needed, since
+	 * they could clobber root hub response data.  Also, control
+	 * URBs must be submitted in process context with interrupts
+	 * enabled.
+	 */
+	status = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (!status) {
+		map_urb_for_dma(hcd, urb);
+		if (is_root_hub(urb->dev))
+			status = rh_urb_enqueue(hcd, urb);
+		else
+			status = hcd->driver->urb_enqueue(hcd, urb->ep, urb,
+					mem_flags);
+	}
+
+	if (unlikely(status)) {
 		usbmon_urb_submit_error(&hcd->self, urb, status);
-		usb_put_urb (urb);
+		unmap_urb_for_dma(hcd, urb);
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		INIT_LIST_HEAD(&urb->urb_list);
+		atomic_dec(&urb->use_count);
+		if (urb->reject)
+			wake_up(&usb_kill_urb_queue);
+		usb_put_urb(urb);
 	}
 	return status;
 }
@@ -1074,78 +1149,20 @@ unlink1 (struct usb_hcd *hcd, struct urb *urb)
  */
 int usb_hcd_unlink_urb (struct urb *urb, int status)
 {
-	struct usb_hcd			*hcd = NULL;
-	struct device			*sys = NULL;
-	unsigned long			flags;
-	struct list_head		*tmp;
-	int				retval;
+	struct usb_hcd		*hcd;
+	int			retval;
 
-	/*
-	 * we contend for urb->status with the hcd core,
-	 * which changes it while returning the urb.
-	 *
-	 * Caller guaranteed that the urb pointer hasn't been freed, and
-	 * that it was submitted.  But as a rule it can't know whether or
-	 * not it's already been unlinked ... so we respect the reversed
-	 * lock sequence needed for the usb_hcd_giveback_urb() code paths
-	 * (urb lock, then hcd_urb_list_lock) in case some other CPU is now
-	 * unlinking it.
-	 */
-	spin_lock_irqsave (&urb->lock, flags);
-	spin_lock(&hcd_urb_list_lock);
-
-	sys = &urb->dev->dev;
 	hcd = bus_to_hcd(urb->dev->bus);
-	if (hcd == NULL) {
-		retval = -ENODEV;
-		goto done;
-	}
 
-	/* insist the urb is still queued */
-	list_for_each(tmp, &urb->ep->urb_list) {
-		if (tmp == &urb->urb_list)
-			break;
-	}
-	if (tmp != &urb->urb_list) {
-		retval = -EIDRM;
-		goto done;
-	}
+	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (!retval)
+		retval = unlink1(hcd, urb);
 
-	/* Any status except -EINPROGRESS means something already started to
-	 * unlink this URB from the hardware.  So there's no more work to do.
-	 */
-	if (urb->status != -EINPROGRESS) {
-		retval = -EBUSY;
-		goto done;
-	}
-
-	/* IRQ setup can easily be broken so that USB controllers
-	 * never get completion IRQs ... maybe even the ones we need to
-	 * finish unlinking the initial failed usb_set_address()
-	 * or device descriptor fetch.
-	 */
-	if (!test_bit(HCD_FLAG_SAW_IRQ, &hcd->flags) &&
-			!is_root_hub(urb->dev)) {
-		dev_warn (hcd->self.controller, "Unlink after no-IRQ?  "
-			"Controller is probably using the wrong IRQ.\n");
-		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
-	}
-
-	urb->status = status;
-
-	spin_unlock(&hcd_urb_list_lock);
-	spin_unlock_irqrestore (&urb->lock, flags);
-
-	retval = unlink1 (hcd, urb);
 	if (retval == 0)
 		retval = -EINPROGRESS;
-	return retval;
-
-done:
-	spin_unlock(&hcd_urb_list_lock);
-	spin_unlock_irqrestore (&urb->lock, flags);
-	if (retval != -EIDRM && sys && sys->driver)
-		dev_dbg (sys, "hcd_unlink_urb %p fail %d\n", urb, retval);
+	else if (retval != -EIDRM)
+		dev_dbg(&urb->dev->dev, "hcd_unlink_urb %p fail %d\n",
+				urb, retval);
 	return retval;
 }
 
@@ -1165,7 +1182,8 @@ done:
  */
 void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 {
-	urb_unlink(hcd, urb);
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
+	unmap_urb_for_dma(hcd, urb);
 	usbmon_urb_complete (&hcd->self, urb);
 	usb_unanchor_urb(urb);
 
@@ -1194,12 +1212,12 @@ void usb_hcd_endpoint_disable (struct usb_device *udev,
 	struct usb_hcd		*hcd;
 	struct urb		*urb;
 
+	might_sleep();
 	hcd = bus_to_hcd(udev->bus);
-	local_irq_disable ();
 
 	/* ep is already gone from udev->ep_{in,out}[]; no more submits */
 rescan:
-	spin_lock(&hcd_urb_list_lock);
+	spin_lock_irq(&hcd_urb_list_lock);
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
 		int	tmp;
 		int	is_in;
@@ -1244,13 +1262,11 @@ rescan:
 		/* list contents may have changed */
 		goto rescan;
 	}
-	spin_unlock(&hcd_urb_list_lock);
-	local_irq_enable ();
+	spin_unlock_irq(&hcd_urb_list_lock);
 
 	/* synchronize with the hardware, so old configuration state
 	 * clears out immediately (and will be freed).
 	 */
-	might_sleep ();
 	if (hcd->driver->endpoint_disable)
 		hcd->driver->endpoint_disable (hcd, ep);
 
