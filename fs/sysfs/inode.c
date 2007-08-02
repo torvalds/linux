@@ -200,7 +200,10 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 	if (sd)
 		sysfs_remove_one(&acxt, sd);
 
-	if (sysfs_addrm_finish(&acxt))
+	sysfs_addrm_finish(&acxt);
+
+	if (sd)
 		return 0;
-	return -ENOENT;
+	else
+		return -ENOENT;
 }

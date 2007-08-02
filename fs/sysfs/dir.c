@@ -609,11 +609,8 @@ static void sysfs_drop_dentry(struct sysfs_dirent *sd)
  *
  *	LOCKING:
  *	All mutexes acquired by sysfs_addrm_start() are released.
- *
- *	RETURNS:
- *	Number of added/removed sysfs_dirents since sysfs_addrm_start().
  */
-int sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
+void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 {
 	/* release resources acquired by sysfs_addrm_start() */
 	mutex_unlock(&sysfs_mutex);
@@ -639,8 +636,6 @@ int sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 		sysfs_deactivate(sd);
 		sysfs_put(sd);
 	}
-
-	return acxt->cnt;
 }
 
 /**
