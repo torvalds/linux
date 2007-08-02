@@ -23,16 +23,14 @@
 
 extern unsigned long sn_rtc_cycles_per_second;
 
-static void __iomem *sn2_mc;
-
 static cycle_t read_sn2(void)
 {
-	return (cycle_t)readq(sn2_mc);
+	return (cycle_t)readq(RTC_COUNTER_ADDR);
 }
 
 static struct clocksource clocksource_sn2 = {
         .name           = "sn2_rtc",
-        .rating         = 300,
+        .rating         = 450,
         .read           = read_sn2,
         .mask           = (1LL << 55) - 1,
         .mult           = 0,
@@ -58,7 +56,6 @@ ia64_sn_udelay (unsigned long usecs)
 
 void __init sn_timer_init(void)
 {
-	sn2_mc = RTC_COUNTER_ADDR;
 	clocksource_sn2.fsys_mmio = RTC_COUNTER_ADDR;
 	clocksource_sn2.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
 							clocksource_sn2.shift);
