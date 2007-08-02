@@ -250,10 +250,13 @@ const char* lpfc_info(struct Scsi_Host *);
 int lpfc_scan_finished(struct Scsi_Host *, unsigned long);
 
 void lpfc_get_cfgparam(struct lpfc_hba *);
+void lpfc_get_vport_cfgparam(struct lpfc_vport *);
 int lpfc_alloc_sysfs_attr(struct lpfc_vport *);
 void lpfc_free_sysfs_attr(struct lpfc_vport *);
 extern struct class_device_attribute *lpfc_hba_attrs[];
+extern struct class_device_attribute *lpfc_vport_attrs[];
 extern struct scsi_host_template lpfc_template;
+extern struct scsi_host_template lpfc_vport_template;
 extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
 extern int lpfc_sli_mode;
@@ -262,7 +265,7 @@ int  lpfc_vport_symbolic_node_name(struct lpfc_vport *, char *, size_t);
 void lpfc_terminate_rport_io(struct fc_rport *);
 void lpfc_dev_loss_tmo_callbk(struct fc_rport *rport);
 
-struct lpfc_vport *lpfc_create_port(struct lpfc_hba *, int, struct fc_vport *);
+struct lpfc_vport *lpfc_create_port(struct lpfc_hba *, int, struct device *);
 int  lpfc_vport_disable(struct fc_vport *fc_vport, bool disable);
 void lpfc_mbx_unreg_vpi(struct lpfc_vport *);
 void destroy_port(struct lpfc_vport *);

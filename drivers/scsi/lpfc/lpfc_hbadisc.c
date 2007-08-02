@@ -2200,7 +2200,7 @@ lpfc_disc_list_loopmap(struct lpfc_vport *vport)
 			/* If cfg_scan_down is set, start from highest
 			 * ALPA (0xef) to lowest (0x1).
 			 */
-			if (phba->cfg_scan_down)
+			if (vport->cfg_scan_down)
 				index = j;
 			else
 				index = FC_MAXLOOP - j - 1;
@@ -2749,7 +2749,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * fdmi-on=2 (supporting RPA/hostnmae)
 	 */
 
-	if (phba->cfg_fdmi_on == 1)
+	if (vport->cfg_fdmi_on == 1)
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 	else
 		mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);

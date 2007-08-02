@@ -198,8 +198,8 @@ int
 lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 {
 	struct lpfc_nodelist *ndlp;
-	struct lpfc_vport *pport =
-		(struct lpfc_vport *) fc_vport->shost->hostdata;
+	struct Scsi_Host *shost = fc_vport->shost;
+	struct lpfc_vport *pport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = pport->phba;
 	struct lpfc_vport *vport = NULL;
 	int instance;
@@ -237,7 +237,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
-	vport = lpfc_create_port(phba, instance, fc_vport);
+	vport = lpfc_create_port(phba, instance, &fc_vport->dev);
 	if (!vport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 				"%d:1811 Create VPORT failed: vpi x%x\n",

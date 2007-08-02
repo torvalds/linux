@@ -518,7 +518,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * alpa map would take too long otherwise.
 		 */
 		if (phba->alpa_map[0] == 0) {
-			phba->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
+			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
 		}
 
 		/* FLOGI failure */
@@ -2640,7 +2640,7 @@ lpfc_els_disc_adisc(struct lpfc_vport *vport)
 			sentadisc++;
 			vport->num_disc_nodes++;
 			if (vport->num_disc_nodes >=
-			    vport->phba->cfg_discovery_threads) {
+			    vport->cfg_discovery_threads) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag |= FC_NLP_MORE;
 				spin_unlock_irq(shost->host_lock);
@@ -2675,7 +2675,7 @@ lpfc_els_disc_plogi(struct lpfc_vport *vport)
 			sentplogi++;
 			vport->num_disc_nodes++;
 			if (vport->num_disc_nodes >=
-			    vport->phba->cfg_discovery_threads) {
+			    vport->cfg_discovery_threads) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag |= FC_NLP_MORE;
 				spin_unlock_irq(shost->host_lock);
@@ -2841,7 +2841,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	 * just ACC and ignore it.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
-		!(phba->cfg_peer_port_login)) {
+		!(vport->cfg_peer_port_login)) {
 		i = payload_len;
 		datap = lp;
 		while (i > 0) {
@@ -4170,7 +4170,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if (phba->cfg_fdmi_on) {
+	if (vport->cfg_fdmi_on) {
 		ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
 					  GFP_KERNEL);
 		if (ndlp_fdmi) {

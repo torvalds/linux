@@ -451,10 +451,10 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 			 */
 			if ((Did != vport->fc_myDID) &&
 			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
-			     phba->cfg_peer_port_login)) {
+			     vport->cfg_peer_port_login)) {
 				if ((vport->port_type != LPFC_NPIV_PORT) ||
 				    (vport->fc_flag & FC_RFF_NOT_SUPPORTED) ||
-				    (!phba->cfg_vport_restrict_login)) {
+				    (!vport->cfg_restrict_login)) {
 					ndlp = lpfc_setup_disc_node(vport, Did);
 					if (ndlp) {
 						lpfc_debugfs_disc_trc(vport,
@@ -1471,7 +1471,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			pab->ab.EntryCnt++;
 			size += FOURBYTES + len;
 
-			if (phba->cfg_fdmi_on == 2) {
+			if (vport->cfg_fdmi_on == 2) {
 				/* #6 Port attribute entry */
 				ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) pab +
 							  size);

@@ -1524,13 +1524,18 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 }
 
 struct lpfc_vport *
-lpfc_create_port(struct lpfc_hba *phba, int instance, struct fc_vport *fc_vport)
+lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 {
 	struct lpfc_vport *vport;
 	struct Scsi_Host  *shost;
 	int error = 0;
 
-	shost = scsi_host_alloc(&lpfc_template, sizeof(struct lpfc_vport));
+	if (dev != &phba->pcidev->dev)
+		shost = scsi_host_alloc(&lpfc_vport_template,
+					sizeof(struct lpfc_vport));
+	else
+		shost = scsi_host_alloc(&lpfc_template,
+					sizeof(struct lpfc_vport));
 	if (!shost)
 		goto out;
 
@@ -1540,9 +1545,10 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct fc_vport *fc_vport)
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 
+	lpfc_get_vport_cfgparam(vport);
 	shost->unique_id = instance;
 	shost->max_id = LPFC_MAX_TARGET;
-	shost->max_lun = phba->cfg_max_luns;
+	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
 	/*
@@ -1551,7 +1557,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct fc_vport *fc_vport)
 	 * max xri value determined in hba setup.
 	 */
 	shost->can_queue = phba->cfg_hba_queue_depth - 10;
-	if (fc_vport != NULL) {
+	if (dev != &phba->pcidev->dev) {
 		shost->transportt = lpfc_vport_transport_template;
 		vport->port_type = LPFC_NPIV_PORT;
 	} else {
@@ -1575,11 +1581,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct fc_vport *fc_vport)
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
 
-	if (fc_vport != NULL) {
-		error = scsi_add_host(shost, &fc_vport->dev);
-	} else {
-		error = scsi_add_host(shost, &phba->pcidev->dev);
-	}
+	error = scsi_add_host(shost, dev);
 	if (error)
 		goto out_put_shost;
 
@@ -1895,7 +1897,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Initialize list of fabric iocbs */
 	INIT_LIST_HEAD(&phba->fabric_iocb_list);
 
-	vport = lpfc_create_port(phba, phba->brd_no, NULL);
+	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		goto out_kthread_stop;
 

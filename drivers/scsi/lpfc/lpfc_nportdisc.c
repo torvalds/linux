@@ -304,7 +304,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp->nlp_DID, ndlp->nlp_state, ndlp->nlp_flag,
 			ndlp->nlp_rpi);
 
-	if (phba->cfg_fcp_class == 2 && sp->cls2.classValid)
+	if (vport->cfg_fcp_class == 2 && sp->cls2.classValid)
 		ndlp->nlp_fcp_info |= CLASS2;
 	else
 		ndlp->nlp_fcp_info |= CLASS3;
@@ -392,7 +392,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 
 	if ((vport->port_type == LPFC_NPIV_PORT &&
-	      phba->cfg_vport_restrict_login)) {
+	     vport->cfg_restrict_login)) {
 
 		/* In order to preserve RPIs, we want to cleanup
 		 * the default RPI the firmware created to rcv
@@ -564,10 +564,9 @@ static uint32_t
 lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba  *phba = vport->phba;
 
 	/* Check config parameter use-adisc or FCP-2 */
-	if ((phba->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
+	if ((vport->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
 	    ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_ADISC;
@@ -787,7 +786,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 			ndlp->nlp_DID, ndlp->nlp_state,
 			ndlp->nlp_flag, ndlp->nlp_rpi);
 
-	if (phba->cfg_fcp_class == 2 && (sp->cls2.classValid))
+	if (vport->cfg_fcp_class == 2 && (sp->cls2.classValid))
 		ndlp->nlp_fcp_info |= CLASS2;
 	else
 		ndlp->nlp_fcp_info |= CLASS3;
@@ -1358,7 +1357,7 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
 		if ((vport->port_type == LPFC_NPIV_PORT) &&
-			phba->cfg_vport_restrict_login) {
+		    vport->cfg_restrict_login) {
 			goto out;
 		}
 		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
@@ -1380,7 +1379,7 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 	if (!(ndlp->nlp_type & NLP_FCP_TARGET) &&
 	    (vport->port_type == LPFC_NPIV_PORT) &&
-	     phba->cfg_vport_restrict_login) {
+	     vport->cfg_restrict_login) {
 out:
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_TARGET_REMOVE;

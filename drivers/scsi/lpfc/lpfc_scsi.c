@@ -84,22 +84,21 @@ lpfc_adjust_queue_depth(struct lpfc_hba *phba)
  * SCSI command completion.
  */
 static inline void
-lpfc_rampup_queue_depth(struct lpfc_hba *phba,
+lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
 			struct scsi_device *sdev)
 {
 	unsigned long flags;
+	struct lpfc_hba *phba = vport->phba;
 	atomic_inc(&phba->num_cmd_success);
 
-	if (phba->cfg_lun_queue_depth <= sdev->queue_depth)
+	if (vport->cfg_lun_queue_depth <= sdev->queue_depth)
 		return;
-
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (((phba->last_ramp_up_time + QUEUE_RAMP_UP_INTERVAL) > jiffies) ||
 	 ((phba->last_rsrc_error_time + QUEUE_RAMP_UP_INTERVAL ) > jiffies)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
 	}
-
 	phba->last_ramp_up_time = jiffies;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
@@ -627,16 +626,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 
 	if (!result)
-		lpfc_rampup_queue_depth(phba, sdev);
+		lpfc_rampup_queue_depth(vport, sdev);
 
 	if (!result && pnode != NULL &&
 	   ((jiffies - pnode->last_ramp_up_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
 	   ((jiffies - pnode->last_q_full_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
-	   (phba->cfg_lun_queue_depth > sdev->queue_depth)) {
+	   (vport->cfg_lun_queue_depth > sdev->queue_depth)) {
 		shost_for_each_device(tmp_sdev, sdev->host) {
-			if (phba->cfg_lun_queue_depth > tmp_sdev->queue_depth) {
+			if (vport->cfg_lun_queue_depth > tmp_sdev->queue_depth){
 				if (tmp_sdev->id != sdev->id)
 					continue;
 				if (tmp_sdev->ordered_tags)
@@ -1099,7 +1098,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 		schedule_timeout_uninterruptible(LPFC_ABORT_WAIT * HZ);
 		if (++loop_count
-		    > (2 * phba->cfg_devloss_tmo)/LPFC_ABORT_WAIT)
+		    > (2 * vport->cfg_devloss_tmo)/LPFC_ABORT_WAIT)
 			break;
 	}
 
@@ -1154,7 +1153,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 			loopcnt++;
 			rdata = cmnd->device->hostdata;
 			if (!rdata ||
-				(loopcnt > ((phba->cfg_devloss_tmo * 2) + 1))) {
+				(loopcnt > ((vport->cfg_devloss_tmo * 2) + 1))){
 				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 						"%d (%d):0721 LUN Reset rport "
 						"failure: cnt x%x rdata x%p\n",
@@ -1230,7 +1229,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
 
 		if (++loopcnt
-		    > (2 * phba->cfg_devloss_tmo)/LPFC_RESET_WAIT)
+		    > (2 * vport->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
 		cnt = lpfc_sli_sum_iocb(phba,
@@ -1339,7 +1338,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
 
 		if (++loopcnt
-		    > (2 * phba->cfg_devloss_tmo)/LPFC_RESET_WAIT)
+		    > (2 * vport->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
 		cnt = lpfc_sli_sum_iocb(phba,
@@ -1386,7 +1385,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	 * extra.  This list of scsi bufs exists for the lifetime of the driver.
 	 */
 	total = phba->total_scsi_bufs;
-	num_to_alloc = phba->cfg_lun_queue_depth + 2;
+	num_to_alloc = vport->cfg_lun_queue_depth + 2;
 
 	/* Allow some exchanges to be available always to complete discovery */
 	if (total >= phba->cfg_hba_queue_depth - LPFC_DISC_IOCB_BUFF_COUNT ) {
@@ -1435,9 +1434,9 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct fc_rport   *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, phba->cfg_lun_queue_depth);
+		scsi_activate_tcq(sdev, vport->cfg_lun_queue_depth);
 	else
-		scsi_deactivate_tcq(sdev, phba->cfg_lun_queue_depth);
+		scsi_deactivate_tcq(sdev, vport->cfg_lun_queue_depth);
 
 	/*
 	 * Initialize the fc transport attributes for the target
@@ -1445,7 +1444,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	 * target pointer is stored in the starget_data for the
 	 * driver's sysfs entry point functions.
 	 */
-	rport->dev_loss_tmo = phba->cfg_devloss_tmo;
+	rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_poll_fcp_ring(phba);
@@ -1481,5 +1480,25 @@ struct scsi_host_template lpfc_template = {
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
+	.max_sectors		= 0xFFFF,
+};
+
+struct scsi_host_template lpfc_vport_template = {
+	.module			= THIS_MODULE,
+	.name			= LPFC_DRIVER_NAME,
+	.info			= lpfc_info,
+	.queuecommand		= lpfc_queuecommand,
+	.eh_abort_handler	= lpfc_abort_handler,
+	.eh_device_reset_handler= lpfc_device_reset_handler,
+	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
+	.slave_alloc		= lpfc_slave_alloc,
+	.slave_configure	= lpfc_slave_configure,
+	.slave_destroy		= lpfc_slave_destroy,
+	.scan_finished		= lpfc_scan_finished,
+	.this_id		= -1,
+	.sg_tablesize		= LPFC_SG_SEG_CNT,
+	.cmd_per_lun		= LPFC_CMD_PER_LUN,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
 };

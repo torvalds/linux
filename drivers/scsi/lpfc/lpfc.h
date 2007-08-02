@@ -338,6 +338,20 @@ struct lpfc_vport {
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
+	/* Vport Config Parameters */
+	uint32_t cfg_scan_down;
+	uint32_t cfg_lun_queue_depth;
+	uint32_t cfg_nodev_tmo;
+	uint32_t cfg_devloss_tmo;
+	uint32_t cfg_restrict_login;
+	uint32_t cfg_peer_port_login;
+	uint32_t cfg_fcp_class;
+	uint32_t cfg_use_adisc;
+	uint32_t cfg_fdmi_on;
+	uint32_t cfg_discovery_threads;
+	uint32_t cfg_max_luns;
+
+	uint32_t dev_loss_tmo_changed;
 };
 
 struct hbq_s {
@@ -413,28 +427,16 @@ struct lpfc_hba {
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
 
-	uint32_t cfg_log_verbose;
-	uint32_t cfg_lun_queue_depth;
-	uint32_t cfg_nodev_tmo;
-	uint32_t cfg_devloss_tmo;
-	uint32_t cfg_hba_queue_depth;
-	uint32_t cfg_peer_port_login;
-	uint32_t cfg_vport_restrict_login;
-	uint32_t cfg_npiv_enable;
-	uint32_t cfg_fcp_class;
-	uint32_t cfg_use_adisc;
+	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
+	uint32_t cfg_npiv_enable;
 	uint32_t cfg_topology;
-	uint32_t cfg_scan_down;
 	uint32_t cfg_link_speed;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
 	uint32_t cfg_multi_ring_support;
 	uint32_t cfg_multi_ring_rctl;
 	uint32_t cfg_multi_ring_type;
-	uint32_t cfg_fdmi_on;
-	uint32_t cfg_discovery_threads;
-	uint32_t cfg_max_luns;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
@@ -442,8 +444,10 @@ struct lpfc_hba {
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
+	uint32_t cfg_hba_queue_depth;
 
-	uint32_t dev_loss_tmo_changed;
+	/* Config paramters that should be in the vport */
+	uint32_t cfg_log_verbose;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
