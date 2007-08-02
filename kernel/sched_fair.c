@@ -292,10 +292,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 		return;
 
 	delta_exec = curr->delta_exec;
-#ifdef CONFIG_SCHEDSTATS
-	if (unlikely(delta_exec > curr->exec_max))
-		curr->exec_max = delta_exec;
-#endif
+	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
 	cfs_rq->exec_clock += delta_exec;
@@ -352,7 +349,7 @@ static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	se->wait_start_fair = cfs_rq->fair_clock;
-	se->wait_start = now;
+	schedstat_set(se->wait_start, now);
 }
 
 /*
@@ -425,13 +422,7 @@ __update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	unsigned long delta_fair = se->delta_fair_run;
 
-#ifdef CONFIG_SCHEDSTATS
-	{
-		s64 delta_wait = now - se->wait_start;
-		if (unlikely(delta_wait > se->wait_max))
-			se->wait_max = delta_wait;
-	}
-#endif
+	schedstat_set(se->wait_max, max(se->wait_max, now - se->wait_start));
 
 	if (unlikely(se->load.weight != NICE_0_LOAD))
 		delta_fair = calc_weighted(delta_fair, se->load.weight,
@@ -456,7 +447,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	}
 
 	se->wait_start_fair = 0;
-	se->wait_start = 0;
+	schedstat_set(se->wait_start, 0);
 }
 
 static inline void
@@ -1041,11 +1032,10 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
  * monopolize the CPU. Note: the parent runqueue is locked,
  * the child is not running yet.
  */
-static void task_new_fair(struct rq *rq, struct task_struct *p)
+static void task_new_fair(struct rq *rq, struct task_struct *p, u64 now)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 	struct sched_entity *se = &p->se;
-	u64 now = rq_clock(rq);
 
 	sched_info_queued(p);
 
@@ -1072,7 +1062,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		p->se.wait_runtime = -(sysctl_sched_granularity / 2);
 
 	__enqueue_entity(cfs_rq, se);
-	inc_nr_running(p, rq, now);
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED

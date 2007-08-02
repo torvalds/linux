@@ -185,7 +185,6 @@
 	.max_interval		= 64*num_online_cpus(),	\
 	.busy_factor		= 128,			\
 	.imbalance_pct		= 133,			\
-	.cache_hot_time		= (10*1000000),		\
 	.cache_nice_tries	= 1,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 3,			\
