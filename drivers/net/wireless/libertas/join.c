@@ -534,13 +534,8 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
 	memset(adhs->rates, 0, sizeof(adhs->rates));
-	if (adapter->adhoc_grate_enabled) {
-		ratesize = min(sizeof(adhs->rates), sizeof(libertas_bg_rates));
-		memcpy(adhs->rates, libertas_bg_rates, ratesize);
-	} else {
-		ratesize = min(sizeof(adhs->rates), sizeof(adhoc_rates_b));
-		memcpy(adhs->rates, adhoc_rates_b, ratesize);
-	}
+	ratesize = min(sizeof(adhs->rates), sizeof(adhoc_rates_b));
+	memcpy(adhs->rates, adhoc_rates_b, ratesize);
 
 	/* Copy the ad-hoc creating rates into Current BSS state structure */
 	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));

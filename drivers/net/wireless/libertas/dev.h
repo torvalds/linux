@@ -281,8 +281,6 @@ struct _wlan_adapter {
 
 	u16 enablehwauto;
 	u16 ratebitmap;
-	/** control G rates */
-	u8 adhoc_grate_enabled;
 
 	u32 fragthsd;
 	u32 rtsthsd;
