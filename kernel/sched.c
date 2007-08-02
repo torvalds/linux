@@ -5269,8 +5269,6 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 		sizeof(int), 0644, proc_dointvec_minmax);
 	set_table_entry(&table[8], 9, "imbalance_pct", &sd->imbalance_pct,
 		sizeof(int), 0644, proc_dointvec_minmax);
-	set_table_entry(&table[9], 10, "cache_hot_time", &sd->cache_hot_time,
-		sizeof(long long), 0644, proc_doulongvec_minmax);
 	set_table_entry(&table[10], 11, "cache_nice_tries",
 		&sd->cache_nice_tries,
 		sizeof(int), 0644, proc_dointvec_minmax);
