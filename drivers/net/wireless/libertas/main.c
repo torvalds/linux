@@ -998,9 +998,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	int i;
 
-	/* ATIM params */
-	adapter->atimwindow = 0;
-
 	adapter->connect_status = LIBERTAS_DISCONNECTED;
 	memset(adapter->current_addr, 0xff, ETH_ALEN);
 

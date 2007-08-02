@@ -518,7 +518,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	adhs->ssparamset.ibssparamset.elementid = IBSS_PARA_IE_ID;
 	adhs->ssparamset.ibssparamset.len = IBSS_PARA_IE_LEN;
-	adhs->ssparamset.ibssparamset.atimwindow = cpu_to_le16(adapter->atimwindow);
+	adhs->ssparamset.ibssparamset.atimwindow = 0;
 
 	/* set capability info */
 	tmpcap = WLAN_CAPABILITY_IBSS;
