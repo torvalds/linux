@@ -92,10 +92,8 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 	sysfs_addrm_start(&acxt, parent_sd);
 
-	if (!sysfs_find_dirent(parent_sd, name)) {
+	if (!sysfs_find_dirent(parent_sd, name))
 		sysfs_add_one(&acxt, sd);
-		sysfs_link_sibling(sd);
-	}
 
 	if (!sysfs_addrm_finish(&acxt)) {
 		error = -EEXIST;

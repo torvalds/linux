@@ -189,25 +189,16 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
-	struct sysfs_dirent **pos, *sd;
+	struct sysfs_dirent *sd;
 
 	if (!dir_sd)
 		return -ENOENT;
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	for (pos = &dir_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
-		sd = *pos;
-
-		if (!sysfs_type(sd))
-			continue;
-		if (!strcmp(sd->s_name, name)) {
-			*pos = sd->s_sibling;
-			sd->s_sibling = NULL;
-			sysfs_remove_one(&acxt, sd);
-			break;
-		}
-	}
+	sd = sysfs_find_dirent(dir_sd, name);
+	if (sd)
+		sysfs_remove_one(&acxt, sd);
 
 	if (sysfs_addrm_finish(&acxt))
 		return 0;

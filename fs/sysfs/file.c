@@ -405,10 +405,8 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	if (!sysfs_find_dirent(dir_sd, attr->name)) {
+	if (!sysfs_find_dirent(dir_sd, attr->name))
 		sysfs_add_one(&acxt, sd);
-		sysfs_link_sibling(sd);
-	}
 
 	if (!sysfs_addrm_finish(&acxt)) {
 		sysfs_put(sd);

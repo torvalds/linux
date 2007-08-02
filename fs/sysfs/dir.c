@@ -30,7 +30,7 @@ static DEFINE_IDA(sysfs_ino_ida);
  *	Locking:
  *	mutex_lock(sysfs_mutex)
  */
-void sysfs_link_sibling(struct sysfs_dirent *sd)
+static void sysfs_link_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *parent_sd = sd->s_parent;
 
@@ -49,7 +49,7 @@ void sysfs_link_sibling(struct sysfs_dirent *sd)
  *	Locking:
  *	mutex_lock(sysfs_mutex)
  */
-void sysfs_unlink_sibling(struct sysfs_dirent *sd)
+static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent **pos;
 
@@ -500,6 +500,8 @@ void sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 		inc_nlink(acxt->parent_inode);
 
 	acxt->cnt++;
+
+	sysfs_link_sibling(sd);
 }
 
 /**
@@ -521,7 +523,9 @@ void sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  */
 void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
-	BUG_ON(sd->s_sibling || (sd->s_flags & SYSFS_FLAG_REMOVED));
+	BUG_ON(sd->s_flags & SYSFS_FLAG_REMOVED);
+
+	sysfs_unlink_sibling(sd);
 
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
 	sd->s_sibling = acxt->removed;
@@ -697,10 +701,8 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	/* link in */
 	sysfs_addrm_start(&acxt, parent_sd);
 
-	if (!sysfs_find_dirent(parent_sd, name)) {
+	if (!sysfs_find_dirent(parent_sd, name))
 		sysfs_add_one(&acxt, sd);
-		sysfs_link_sibling(sd);
-	}
 
 	if (!sysfs_addrm_finish(&acxt)) {
 		sysfs_put(sd);
@@ -821,7 +823,6 @@ static void remove_dir(struct sysfs_dirent *sd)
 	struct sysfs_addrm_cxt acxt;
 
 	sysfs_addrm_start(&acxt, sd->s_parent);
-	sysfs_unlink_sibling(sd);
 	sysfs_remove_one(&acxt, sd);
 	sysfs_addrm_finish(&acxt);
 }
@@ -846,11 +847,9 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 	while (*pos) {
 		struct sysfs_dirent *sd = *pos;
 
-		if (sysfs_type(sd) && sysfs_type(sd) != SYSFS_DIR) {
-			*pos = sd->s_sibling;
-			sd->s_sibling = NULL;
+		if (sysfs_type(sd) && sysfs_type(sd) != SYSFS_DIR)
 			sysfs_remove_one(&acxt, sd);
-		} else
+		else
 			pos = &(*pos)->s_sibling;
 	}
 	sysfs_addrm_finish(&acxt);
