@@ -1007,13 +1007,13 @@ int libertas_process_event(wlan_private * priv)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
-		lbs_pr_alert("EVENT: MESH_AUTO_STARTED\n");
-		adapter->connect_status = LIBERTAS_CONNECTED ;
+		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
+		adapter->connect_status = LIBERTAS_CONNECTED;
 		if (priv->mesh_open == 1) {
-			netif_wake_queue(priv->mesh_dev) ;
-			netif_carrier_on(priv->mesh_dev) ;
+			netif_wake_queue(priv->mesh_dev);
+			netif_carrier_on(priv->mesh_dev);
 		}
-		adapter->mode = IW_MODE_ADHOC ;
+		adapter->mode = IW_MODE_ADHOC;
 		schedule_work(&priv->sync_channel);
 		break;
 
