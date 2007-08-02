@@ -15,11 +15,6 @@
 #ifndef	_SKFBI_H_
 #define	_SKFBI_H_
 
-#ifdef SYNC
-#define exist_board_far			exist_board
-#define get_board_para_far		get_board_para
-#endif
-
 /*
  * FDDI-Fx (x := {I(SA), P(CI)})
  *	address calculation & function defines

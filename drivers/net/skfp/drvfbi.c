@@ -537,46 +537,6 @@ int set_oi_id_def(struct s_smc *smc)
 }
 #endif	/* MULT_OEM */
 
-#ifdef PCI
-#ifdef USE_BIOS_FUN
-int exist_board(struct s_smc *smc, int slot)
-{
-	u_short dev_id ;
-	u_short ven_id ;
-	int found ; 
-	int i ;
-
-	found = FALSE ;		/* make sure we returned with adatper not found*/
-				/* if an empty oemids.h was included */
-
-#ifdef MULT_OEM
-        smc->hw.oem_id = (struct s_oem_ids *) &oem_ids[0] ;
-	for (; smc->hw.oem_id->oi_status != OI_STAT_LAST; smc->hw.oem_id++) {
-		if (smc->hw.oem_id->oi_status < smc->hw.oem_min_status)
-			continue ;
-#endif
-		ven_id = OEMID(smc,0) + (OEMID(smc,1) << 8) ; 
-		dev_id = OEMID(smc,2) + (OEMID(smc,3) << 8) ; 
-		for (i = 0; i < slot; i++) {
-			if (pci_find_device(i,&smc->hw.pci_handle,
-				dev_id,ven_id) != 0) {
-
-				found = FALSE ;
-			} else {
-				found = TRUE ;
-			}
-		}
-		if (found) {
-			return(1) ;	/* adapter was found */
-		}
-#ifdef MULT_OEM
-	}
-#endif
-	return(0) ;	/* adapter was not found */
-}
-#endif	/* PCI */
-#endif	/* USE_BIOS_FUNC */
-
 void driver_get_bia(struct s_smc *smc, struct fddi_addr *bia_addr)
 {
 	int i ;
