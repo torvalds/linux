@@ -1053,7 +1053,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 
 	adapter->psmode = WLAN802_11POWERMODECAM;
-	adapter->multipledtim = MRVDRV_DEFAULT_MULTIPLE_DTIM;
 
 	adapter->listeninterval = MRVDRV_DEFAULT_LISTEN_INTERVAL;
 

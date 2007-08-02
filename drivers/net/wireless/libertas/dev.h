@@ -307,7 +307,6 @@ struct _wlan_adapter {
 
 	u16 psmode;		/* Wlan802_11PowermodeCAM=disable
 				   Wlan802_11PowermodeMAX_PSP=enable */
-	u16 multipledtim;
 	u32 psstate;
 	u8 needtowakeup;
 

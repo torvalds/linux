@@ -71,7 +71,7 @@ static int wlan_cmd_802_11_ps_mode(wlan_private * priv,
 		psm->locallisteninterval = 0;
 		psm->nullpktinterval = 0;
 		psm->multipledtim =
-		    cpu_to_le16(priv->adapter->multipledtim);
+		    cpu_to_le16(MRVDRV_DEFAULT_MULTIPLE_DTIM);
 		break;
 
 	case CMD_SUBCMD_EXIT_PS:
