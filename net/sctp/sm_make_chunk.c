@@ -113,15 +113,12 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 		      const void *payload, size_t paylen)
 {
 	sctp_errhdr_t err;
-	int padlen;
 	__u16 len;
 
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
 	len = sizeof(sctp_errhdr_t) + paylen;
-	padlen = len % 4;
 	err.length  = htons(len);
-	len += padlen;
 	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
 	sctp_addto_chunk(chunk, paylen, payload);
 }
