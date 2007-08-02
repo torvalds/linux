@@ -496,7 +496,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	/* set the BSS type */
 	adhs->bsstype = CMD_BSS_TYPE_IBSS;
 	adapter->mode = IW_MODE_ADHOC;
-	adhs->beaconperiod = cpu_to_le16(adapter->beaconperiod);
+	adhs->beaconperiod = cpu_to_le16(MRVDRV_BEACON_INTERVAL);
 
 	/* set Physical param set */
 #define DS_PARA_IE_ID   3

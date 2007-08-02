@@ -1043,8 +1043,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->auto_rate = 1;
 	adapter->cur_rate = 0;
 
-	adapter->beaconperiod = MRVDRV_BEACON_INTERVAL;
-
 	// set default capabilities
 	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 

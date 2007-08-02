@@ -265,7 +265,6 @@ struct _wlan_adapter {
 	u8 scantype;
 	u32 scanmode;
 
-	u16 beaconperiod;
 	u8 adhoccreate;
 
 	/** capability Info used in Association, start, join */
