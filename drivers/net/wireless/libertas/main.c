@@ -1319,7 +1319,7 @@ static void wake_pending_cmdnodes(wlan_private *priv)
 	struct cmd_ctrl_node *cmdnode;
 	unsigned long flags;
 
-	lbs_deb_enter(LBS_DEB_CMD);
+	lbs_deb_enter(LBS_DEB_HOST);
 
 	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
 	list_for_each_entry(cmdnode, &priv->adapter->cmdpendingq, list) {
