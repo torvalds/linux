@@ -252,6 +252,50 @@ static ssize_t libertas_anycast_set(struct device * dev,
  */
 static DEVICE_ATTR(anycast_mask, 0644, libertas_anycast_get, libertas_anycast_set);
 
+static ssize_t libertas_autostart_enabled_get(struct device * dev,
+		struct device_attribute *attr, char * buf)
+{
+	struct cmd_ds_mesh_access mesh_access;
+
+	memset(&mesh_access, 0, sizeof(mesh_access));
+	libertas_prepare_and_send_command(to_net_dev(dev)->priv,
+			CMD_MESH_ACCESS,
+			CMD_ACT_MESH_GET_AUTOSTART_ENABLED,
+			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+
+	return sprintf(buf, "%d\n", le32_to_cpu(mesh_access.data[0]));
+}
+
+static ssize_t libertas_autostart_enabled_set(struct device * dev,
+		struct device_attribute *attr, const char * buf, size_t count)
+{
+	struct cmd_ds_mesh_access mesh_access;
+	uint32_t datum;
+
+	memset(&mesh_access, 0, sizeof(mesh_access));
+	sscanf(buf, "%d", &datum);
+	mesh_access.data[0] = cpu_to_le32(datum);
+
+	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
+			CMD_MESH_ACCESS,
+			CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
+			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+	return strlen(buf);
+}
+
+static DEVICE_ATTR(autostart_enabled, 0644,
+		libertas_autostart_enabled_get, libertas_autostart_enabled_set);
+
+static struct attribute *libertas_mesh_sysfs_entries[] = {
+	&dev_attr_anycast_mask.attr,
+	&dev_attr_autostart_enabled.attr,
+	NULL,
+};
+
+static struct attribute_group libertas_mesh_attr_group = {
+	.attrs = libertas_mesh_sysfs_entries,
+};
+
 /**
  *  @brief Check if the device can be open and wait if necessary.
  *
@@ -1250,7 +1294,7 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 		goto err_free;
 	}
 
-	ret = device_create_file(&(mesh_dev->dev), &dev_attr_anycast_mask);
+	ret = sysfs_create_group(&(mesh_dev->dev.kobj), &libertas_mesh_attr_group);
 	if (ret)
 		goto err_unregister;
 
@@ -1359,7 +1403,7 @@ void libertas_remove_mesh(wlan_private *priv)
 	netif_stop_queue(mesh_dev);
 	netif_carrier_off(priv->mesh_dev);
 
-	device_remove_file(&(mesh_dev->dev), &dev_attr_anycast_mask);
+	sysfs_remove_group(&(mesh_dev->dev.kobj), &libertas_mesh_attr_group);
 	unregister_netdev(mesh_dev);
 
 	priv->mesh_dev = NULL ;
