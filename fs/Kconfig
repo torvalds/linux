@@ -1319,11 +1319,12 @@ config JFFS2_LZO
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	depends on JFFS2_FS
-	default y
+	default n
 	help
 	  minilzo-based compression. Generally works better than Zlib.
 
-	  Say 'Y' if unsure.
+	  This feature was added in July, 2007. Say 'N' if you need
+	  compatibility with older bootloaders or kernels.
 
 config JFFS2_RTIME
 	bool "JFFS2 RTIME compression support" if JFFS2_COMPRESSION_OPTIONS
