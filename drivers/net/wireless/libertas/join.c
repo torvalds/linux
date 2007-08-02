@@ -51,9 +51,9 @@ static int get_common_rates(wlan_adapter * adapter, u8 * rates, u16 *rates_size)
 		}
 	}
 
-	lbs_dbg_hex("rate1 (AP) rates:", rates, *rates_size);
-	lbs_dbg_hex("rate2 (Card) rates:", card_rates, num_card_rates);
-	lbs_dbg_hex("Common rates:", tmp, tmp_size);
+	lbs_deb_hex(LBS_DEB_JOIN, "AP rates    ", rates, *rates_size);
+	lbs_deb_hex(LBS_DEB_JOIN, "card rates  ", card_rates, num_card_rates);
+	lbs_deb_hex(LBS_DEB_JOIN, "common rates", tmp, tmp_size);
 	lbs_deb_join("Tx datarate is currently 0x%X\n", adapter->cur_rate);
 
 	if (!adapter->auto_rate) {
@@ -426,7 +426,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 		tmplen = (u16) assoc_req->wpa_ie[1];
 		rsn->header.len = cpu_to_le16(tmplen);
 		memcpy(rsn->rsnie, &assoc_req->wpa_ie[2], tmplen);
-		lbs_dbg_hex("ASSOC_CMD: RSN IE", (u8 *) rsn,
+		lbs_deb_hex(LBS_DEB_JOIN, "ASSOC_CMD: RSN IE", (u8 *) rsn,
 			sizeof(rsn->header) + tmplen);
 		pos += sizeof(rsn->header) + tmplen;
 	}
@@ -711,7 +711,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 		goto done;
 	}
 
-	lbs_dbg_hex("ASSOC_RESP:", (void *)&resp->params,
+	lbs_deb_hex(LBS_DEB_JOIN, "ASSOC_RESP", (void *)&resp->params,
 		le16_to_cpu(resp->size) - S_DS_GEN);
 
 	/* Send a Media Connected event, according to the Spec */

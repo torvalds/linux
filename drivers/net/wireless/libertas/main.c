@@ -556,9 +556,9 @@ static int libertas_set_mac_address(struct net_device *dev, void *addr)
 	memset(adapter->current_addr, 0, ETH_ALEN);
 
 	/* dev->dev_addr is 8 bytes */
-	lbs_dbg_hex("dev->dev_addr:", dev->dev_addr, ETH_ALEN);
+	lbs_deb_hex(LBS_DEB_NET, "dev->dev_addr", dev->dev_addr, ETH_ALEN);
 
-	lbs_dbg_hex("addr:", phwaddr->sa_data, ETH_ALEN);
+	lbs_deb_hex(LBS_DEB_NET, "addr", phwaddr->sa_data, ETH_ALEN);
 	memcpy(adapter->current_addr, phwaddr->sa_data, ETH_ALEN);
 
 	ret = libertas_prepare_and_send_command(priv, CMD_802_11_MAC_ADDRESS,
@@ -571,7 +571,7 @@ static int libertas_set_mac_address(struct net_device *dev, void *addr)
 		goto done;
 	}
 
-	lbs_dbg_hex("adapter->macaddr:", adapter->current_addr, ETH_ALEN);
+	lbs_deb_hex(LBS_DEB_NET, "adapter->macaddr", adapter->current_addr, ETH_ALEN);
 	memcpy(dev->dev_addr, adapter->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
 		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);

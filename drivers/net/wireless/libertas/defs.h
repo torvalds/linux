@@ -43,43 +43,43 @@
 extern unsigned int libertas_debug;
 
 #ifdef DEBUG
-#define LBS_DEB_LL(grp, fmt, args...) \
+#define LBS_DEB_LL(grp, grpnam, fmt, args...) \
 do { if ((libertas_debug & (grp)) == (grp)) \
-  printk(KERN_DEBUG DRV_NAME "%s: " fmt, \
+  printk(KERN_DEBUG DRV_NAME grpnam "%s: " fmt, \
          in_interrupt() ? " (INT)" : "", ## args); } while (0)
 #else
-#define LBS_DEB_LL(grp, fmt, args...) do {} while (0)
+#define LBS_DEB_LL(grp, grpnam, fmt, args...) do {} while (0)
 #endif
 
 #define lbs_deb_enter(grp) \
-  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s():%d enter\n", __FUNCTION__, __LINE__);
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, " enter", "%s():%d\n", __FUNCTION__, __LINE__);
 #define lbs_deb_enter_args(grp, fmt, args...) \
-  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s(" fmt "):%d\n", __FUNCTION__, ## args, __LINE__);
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, " enter", "%s(" fmt "):%d\n", __FUNCTION__, ## args, __LINE__);
 #define lbs_deb_leave(grp) \
-  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave\n", __FUNCTION__, __LINE__);
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, " leave", "%s():%d\n", __FUNCTION__, __LINE__);
 #define lbs_deb_leave_args(grp, fmt, args...) \
-  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave, " fmt "\n", \
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, " leave", "%s():%d, " fmt "\n", \
   __FUNCTION__, __LINE__, ##args);
-#define lbs_deb_main(fmt, args...)      LBS_DEB_LL(LBS_DEB_MAIN, fmt, ##args)
-#define lbs_deb_net(fmt, args...)       LBS_DEB_LL(LBS_DEB_NET, fmt, ##args)
-#define lbs_deb_mesh(fmt, args...)      LBS_DEB_LL(LBS_DEB_MESH, fmt, ##args)
-#define lbs_deb_wext(fmt, args...)      LBS_DEB_LL(LBS_DEB_WEXT, fmt, ##args)
-#define lbs_deb_ioctl(fmt, args...)     LBS_DEB_LL(LBS_DEB_IOCTL, fmt, ##args)
-#define lbs_deb_scan(fmt, args...)      LBS_DEB_LL(LBS_DEB_SCAN, fmt, ##args)
-#define lbs_deb_assoc(fmt, args...)     LBS_DEB_LL(LBS_DEB_ASSOC, fmt, ##args)
-#define lbs_deb_join(fmt, args...)      LBS_DEB_LL(LBS_DEB_JOIN, fmt, ##args)
-#define lbs_deb_11d(fmt, args...)       LBS_DEB_LL(LBS_DEB_11D, fmt, ##args)
-#define lbs_deb_debugfs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEBUGFS, fmt, ##args)
-#define lbs_deb_ethtool(fmt, args...)   LBS_DEB_LL(LBS_DEB_ETHTOOL, fmt, ##args)
-#define lbs_deb_host(fmt, args...)      LBS_DEB_LL(LBS_DEB_HOST, fmt, ##args)
-#define lbs_deb_cmd(fmt, args...)       LBS_DEB_LL(LBS_DEB_CMD, fmt, ##args)
-#define lbs_deb_rx(fmt, args...)        LBS_DEB_LL(LBS_DEB_RX, fmt, ##args)
-#define lbs_deb_tx(fmt, args...)        LBS_DEB_LL(LBS_DEB_TX, fmt, ##args)
-#define lbs_deb_fw(fmt, args...)        LBS_DEB_LL(LBS_DEB_FW, fmt, ##args)
-#define lbs_deb_usb(fmt, args...)       LBS_DEB_LL(LBS_DEB_USB, fmt, ##args)
-#define lbs_deb_usbd(dev, fmt, args...) LBS_DEB_LL(LBS_DEB_USB, "%s:" fmt, (dev)->bus_id, ##args)
-#define lbs_deb_cs(fmt, args...)        LBS_DEB_LL(LBS_DEB_CS, fmt, ##args)
-#define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, fmt, ##args)
+#define lbs_deb_main(fmt, args...)      LBS_DEB_LL(LBS_DEB_MAIN, " main", fmt, ##args)
+#define lbs_deb_net(fmt, args...)       LBS_DEB_LL(LBS_DEB_NET, " net", fmt, ##args)
+#define lbs_deb_mesh(fmt, args...)      LBS_DEB_LL(LBS_DEB_MESH, " mesh", fmt, ##args)
+#define lbs_deb_wext(fmt, args...)      LBS_DEB_LL(LBS_DEB_WEXT, " wext", fmt, ##args)
+#define lbs_deb_ioctl(fmt, args...)     LBS_DEB_LL(LBS_DEB_IOCTL, " ioctl", fmt, ##args)
+#define lbs_deb_scan(fmt, args...)      LBS_DEB_LL(LBS_DEB_SCAN, " scan", fmt, ##args)
+#define lbs_deb_assoc(fmt, args...)     LBS_DEB_LL(LBS_DEB_ASSOC, " assoc", fmt, ##args)
+#define lbs_deb_join(fmt, args...)      LBS_DEB_LL(LBS_DEB_JOIN, " join", fmt, ##args)
+#define lbs_deb_11d(fmt, args...)       LBS_DEB_LL(LBS_DEB_11D, " 11d", fmt, ##args)
+#define lbs_deb_debugfs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEBUGFS, " debugfs", fmt, ##args)
+#define lbs_deb_ethtool(fmt, args...)   LBS_DEB_LL(LBS_DEB_ETHTOOL, " ethtool", fmt, ##args)
+#define lbs_deb_host(fmt, args...)      LBS_DEB_LL(LBS_DEB_HOST, " host", fmt, ##args)
+#define lbs_deb_cmd(fmt, args...)       LBS_DEB_LL(LBS_DEB_CMD, " cmd", fmt, ##args)
+#define lbs_deb_rx(fmt, args...)        LBS_DEB_LL(LBS_DEB_RX, " rx", fmt, ##args)
+#define lbs_deb_tx(fmt, args...)        LBS_DEB_LL(LBS_DEB_TX, " tx", fmt, ##args)
+#define lbs_deb_fw(fmt, args...)        LBS_DEB_LL(LBS_DEB_FW, " fw", fmt, ##args)
+#define lbs_deb_usb(fmt, args...)       LBS_DEB_LL(LBS_DEB_USB, " usb", fmt, ##args)
+#define lbs_deb_usbd(dev, fmt, args...) LBS_DEB_LL(LBS_DEB_USB, " usbd", "%s:" fmt, (dev)->bus_id, ##args)
+#define lbs_deb_cs(fmt, args...)        LBS_DEB_LL(LBS_DEB_CS, " cs", fmt, ##args)
+#define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, " thread", fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
@@ -89,22 +89,28 @@ do { if ((libertas_debug & (grp)) == (grp)) \
 	printk(KERN_ALERT DRV_NAME": " format, ## args)
 
 #ifdef DEBUG
-static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
+static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, int len)
 {
 	int i = 0;
 
-	if (!(libertas_debug & LBS_DEB_HEX))
-		return;
-
-	printk(KERN_DEBUG "%s: ", prompt);
-	for (i = 1; i <= len; i++) {
-		printk("%02x ", (u8) * buf);
-		buf++;
+	if (len &&
+	    (libertas_debug & LBS_DEB_HEX) &&
+	    (libertas_debug & grp))
+	{
+		for (i = 1; i <= len; i++) {
+			if ((i & 0xf) == 1) {
+				if (i != 1)
+					printk("\n");
+				printk(DRV_NAME " %s: ", prompt);
+			}
+			printk("%02x ", (u8) * buf);
+			buf++;
+		}
+		printk("\n");
 	}
-	printk("\n");
 }
 #else
-#define lbs_dbg_hex(x,y,z)				do {} while (0)
+#define lbs_deb_hex(grp,prompt,buf,len)	do {} while (0)
 #endif
 
 

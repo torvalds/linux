@@ -867,7 +867,7 @@ void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
 	*ptsftlv = NULL;
 
 	lbs_deb_scan("SCAN_RESP: tlvbufsize = %d\n", tlvbufsize);
-	lbs_dbg_hex("SCAN_RESP: TLV Buf", (u8 *) ptlv, tlvbufsize);
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_RESP: TLV Buf", (u8 *) ptlv, tlvbufsize);
 
 	while (tlvbufleft >= sizeof(struct mrvlietypesheader)) {
 		tlvtype = le16_to_cpu(pcurrenttlv->header.type);
@@ -979,7 +979,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 	/* rest of the current buffer are IE's */
 	lbs_deb_scan("process_bss: IE length for this AP = %zd\n", end - pos);
-	lbs_dbg_hex("process_bss: IE info", pos, end - pos);
+	lbs_deb_hex(LBS_DEB_SCAN, "process_bss: IE info", pos, end - pos);
 
 	/* process variable IE */
 	while (pos <= end - 2) {
@@ -1055,7 +1055,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 			memcpy(&bss->countryinfo,
 			       pcountryinfo, pcountryinfo->len + 2);
-			lbs_dbg_hex("process_bss: 11D- CountryInfo:",
+			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: 11d countryinfo",
 				(u8 *) pcountryinfo,
 				(u32) (pcountryinfo->len + 2));
 			break;
@@ -1085,7 +1085,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 				bss->wpa_ie_len = min(elem->len + 2,
 				                      MAX_WPA_IE_LEN);
 				memcpy(bss->wpa_ie, elem, bss->wpa_ie_len);
-				lbs_dbg_hex("process_bss: WPA IE", bss->wpa_ie,
+				lbs_deb_hex(LBS_DEB_SCAN, "process_bss: WPA IE", bss->wpa_ie,
 				            elem->len);
 			} else if (elem->len >= MARVELL_MESH_IE_LENGTH &&
 			    elem->data[0] == 0x00 &&
@@ -1099,7 +1099,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 		case MFIE_TYPE_RSN:
 			bss->rsn_ie_len = min(elem->len + 2, MAX_WPA_IE_LEN);
 			memcpy(bss->rsn_ie, elem, bss->rsn_ie_len);
-			lbs_dbg_hex("process_bss: RSN_IE", bss->rsn_ie, elem->len);
+			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: RSN_IE", bss->rsn_ie, elem->len);
 			break;
 
 		default:
@@ -1154,7 +1154,7 @@ struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
 	if (!bssid)
 		return NULL;
 
-	lbs_dbg_hex("libertas_find_BSSID_in_list: looking for ",
+	lbs_deb_hex(LBS_DEB_SCAN, "looking for",
 		bssid, ETH_ALEN);
 
 	/* Look through the scan table for a compatible match.  The loop will

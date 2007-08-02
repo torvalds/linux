@@ -431,7 +431,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_dbg_hex("DATA_RATE_RESP: data_rate- ", (u8 *) pdatarate,
+	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP: data_rate- ", (u8 *) pdatarate,
 		sizeof(struct cmd_ds_802_11_data_rate));
 
 	/* FIXME: get actual rates FW can do if this command actually returns
@@ -512,7 +512,7 @@ static int wlan_ret_802_11_eeprom_access(wlan_private * priv,
 
 		memcpy(&pbuf->value, (u8 *) & resp->params.rdeeprom.value,
 		       le16_to_cpu(resp->params.rdeeprom.bytecount));
-		lbs_dbg_hex("adapter", (char *)&pbuf->value,
+		lbs_deb_hex(LBS_DEB_CMD, "adapter", (char *)&pbuf->value,
 			le16_to_cpu(resp->params.rdeeprom.bytecount));
 	}
 	return 0;
@@ -758,7 +758,7 @@ int libertas_process_rx_command(wlan_private * priv)
 	}
 	resp = (struct cmd_ds_command *)(adapter->cur_cmd->bufvirtualaddr);
 
-	lbs_dbg_hex("CMD_RESP:", adapter->cur_cmd->bufvirtualaddr,
+	lbs_deb_hex(LBS_DEB_CMD, "CMD_RESP", adapter->cur_cmd->bufvirtualaddr,
 		    priv->upld_len);
 
 	respcmd = le16_to_cpu(resp->command);

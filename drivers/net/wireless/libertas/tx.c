@@ -116,7 +116,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	else
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
 
-	lbs_dbg_hex("txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
+	lbs_deb_hex(LBS_DEB_TX, "txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
 
 	if (IS_MESH_FRAME(skb)) {
 		plocaltxpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
@@ -126,7 +126,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	ptr += sizeof(struct txpd);
 
-	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
+	lbs_deb_hex(LBS_DEB_TX, "Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
 	memcpy(ptr, p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
 	ret = priv->hw_host_to_card(priv, MVMS_DAT,
 				    priv->adapter->tmptxbuf,
@@ -218,7 +218,7 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 	int ret = -1;
 
 	lbs_deb_enter(LBS_DEB_TX);
-	lbs_dbg_hex("TX Data", skb->data, min_t(unsigned int, skb->len, 100));
+	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
 	if (priv->dnld_sent) {
 		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",

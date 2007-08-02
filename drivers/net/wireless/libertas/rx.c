@@ -182,7 +182,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 	else
 		UNSET_MESH_FRAME(skb);
 
-	lbs_dbg_hex("RX Data: Before chop rxpd", skb->data,
+	lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data,
 		 min_t(unsigned int, skb->len, 100));
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
@@ -206,9 +206,9 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 	lbs_deb_rx("rx data: skb->len-sizeof(RxPd) = %d-%zd = %zd\n",
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
-	lbs_dbg_hex("RX Data: Dest", p_rx_pkt->eth803_hdr.dest_addr,
+	lbs_deb_hex(LBS_DEB_RX, "RX Data: Dest", p_rx_pkt->eth803_hdr.dest_addr,
 		sizeof(p_rx_pkt->eth803_hdr.dest_addr));
-	lbs_dbg_hex("RX Data: Src", p_rx_pkt->eth803_hdr.src_addr,
+	lbs_deb_hex(LBS_DEB_RX, "RX Data: Src", p_rx_pkt->eth803_hdr.src_addr,
 		sizeof(p_rx_pkt->eth803_hdr.src_addr));
 
 	if (memcmp(&p_rx_pkt->rfc1042_hdr,
@@ -240,7 +240,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 		 */
 		hdrchop = (u8 *) p_ethhdr - (u8 *) p_rx_pkt;
 	} else {
-		lbs_dbg_hex("RX Data: LLC/SNAP",
+		lbs_deb_hex(LBS_DEB_RX, "RX Data: LLC/SNAP",
 			(u8 *) & p_rx_pkt->rfc1042_hdr,
 			sizeof(p_rx_pkt->rfc1042_hdr));
 
@@ -336,7 +336,7 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	p_rx_pkt = (struct rx80211packethdr *) skb->data;
 	prxpd = &p_rx_pkt->rx_pd;
 
-	// lbs_dbg_hex("RX Data: Before chop rxpd", skb->data, min(skb->len, 100));
+	// lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data, min(skb->len, 100));
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received wit bad length\n");
@@ -385,8 +385,6 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 			radiotap_hdr.rx_flags |= IEEE80211_RADIOTAP_F_RX_BADFCS;
 		//memset(radiotap_hdr.pad, 0x11, IEEE80211_RADIOTAP_HDRLEN - 18);
 
-		// lbs_dbg_hex1("RX radiomode packet BEF: ", skb->data, min(skb->len, 100));
-
 		/* chop the rxpd */
 		skb_pull(skb, sizeof(struct rxpd));
 
@@ -404,7 +402,6 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 							    rx_radiotap_hdr));
 		memcpy(pradiotap_hdr, &radiotap_hdr,
 		       sizeof(struct rx_radiotap_hdr));
-		//lbs_dbg_hex1("RX radiomode packet AFT: ", skb->data, min(skb->len, 100));
 		break;
 
 	default:

@@ -773,7 +773,7 @@ static int wlan_cmd_802_11_mac_address(wlan_private * priv,
 	if (cmd_action == CMD_ACT_SET) {
 		memcpy(cmd->params.macadd.macadd,
 		       adapter->current_addr, ETH_ALEN);
-		lbs_dbg_hex("SET_CMD: MAC ADDRESS-", adapter->current_addr, 6);
+		lbs_deb_hex(LBS_DEB_CMD, "SET_CMD: MAC addr", adapter->current_addr, 6);
 	}
 
 	return 0;
@@ -815,11 +815,11 @@ static int wlan_cmd_bt_access(wlan_private * priv,
 	switch (cmd_action) {
 	case CMD_ACT_BT_ACCESS_ADD:
 		memcpy(bt_access->addr1, pdata_buf, 2 * ETH_ALEN);
-		lbs_dbg_hex("BT_ADD: blinded mac address-", bt_access->addr1, 6);
+		lbs_deb_hex(LBS_DEB_MESH, "BT_ADD: blinded MAC addr", bt_access->addr1, 6);
 		break;
 	case CMD_ACT_BT_ACCESS_DEL:
 		memcpy(bt_access->addr1, pdata_buf, 1 * ETH_ALEN);
-		lbs_dbg_hex("BT_DEL: blinded mac address-", bt_access->addr1, 6);
+		lbs_deb_hex(LBS_DEB_MESH, "BT_DEL: blinded MAC addr", bt_access->addr1, 6);
 		break;
 	case CMD_ACT_BT_ACCESS_LIST:
 		bt_access->id = cpu_to_le32(*(u32 *) pdata_buf);
@@ -993,8 +993,8 @@ static int DownloadcommandToStation(wlan_private * priv,
 		goto done;
 	}
 
-	lbs_deb_cmd("DNLD_CMD: Sent command 0x%x @ %lu\n", command, jiffies);
-	lbs_dbg_hex("DNLD_CMD: command", cmdnode->bufvirtualaddr, cmdsize);
+	lbs_deb_cmd("DNLD_CMD: sent command 0x%x, jiffies %lu\n", command, jiffies);
+	lbs_deb_hex(LBS_DEB_CMD, "command", cmdnode->bufvirtualaddr, cmdsize);
 
 	/* Setup the timer after transmit command */
 	if (command == CMD_802_11_SCAN || command == CMD_802_11_AUTHENTICATE
@@ -1801,7 +1801,7 @@ static int sendconfirmsleep(wlan_private * priv, u8 * cmdptr, u16 size)
 	lbs_deb_cmd("SEND_SLEEPC_CMD: Before download, size of cmd = %d\n",
 	       size);
 
-	lbs_dbg_hex("SEND_SLEEPC_CMD: Sleep confirm command", cmdptr, size);
+	lbs_deb_hex(LBS_DEB_CMD, "sleep confirm command", cmdptr, size);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
 	priv->dnld_sent = DNLD_RES_RECEIVED;
