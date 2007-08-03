@@ -677,6 +677,7 @@ static int __devinit cg6_probe(struct of_device *op, const struct of_device_id *
 	struct fb_info *info;
 	struct cg6_par *par;
 	int linebytes, err;
+	int dblbuf;
 
 	info = framebuffer_alloc(sizeof(struct cg6_par), &op->dev);
 
@@ -698,7 +699,9 @@ static int __devinit cg6_probe(struct of_device *op, const struct of_device_id *
 	linebytes = of_getintprop_default(dp, "linebytes",
 					  info->var.xres);
 	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
-	if (of_find_property(dp, "dblbuf", NULL))
+
+	dblbuf = of_getintprop_default(dp, "dblbuf", 0);
+	if (dblbuf)
 		par->fbsize *= 4;
 
 	par->fbc = of_ioremap(&op->resource[0], CG6_FBC_OFFSET,

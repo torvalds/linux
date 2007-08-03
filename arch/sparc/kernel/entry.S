@@ -1,7 +1,6 @@
-/* $Id: entry.S,v 1.170 2001/11/13 00:57:05 davem Exp $
- * arch/sparc/kernel/entry.S:  Sparc trap low-level entry points.
+/* arch/sparc/kernel/entry.S:  Sparc trap low-level entry points.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Eddie C. Dost   (ecd@skynet.be)
  * Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  * Copyright (C) 1996-1999 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
@@ -129,7 +128,7 @@ trap_low:
 	RESTORE_ALL
 #endif
 
-#ifdef CONFIG_BLK_DEV_FD
+#if defined(CONFIG_BLK_DEV_FD) || defined(CONFIG_BLK_DEV_FD_MODULE)
 	.text
 	.align	4
 	.globl	floppy_hardint
