@@ -33,7 +33,7 @@
 #include <linux/videodev.h>
 #endif
 #include <linux/interrupt.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
@@ -145,7 +145,6 @@ struct vivi_buffer {
 	struct videobuf_buffer vb;
 
 	struct vivi_fmt        *fmt;
-
 };
 
 struct vivi_dmaqueue {
@@ -326,28 +325,21 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	int hmax  = buf->vb.height;
 	int wmax  = buf->vb.width;
 	struct timeval ts;
-	char *tmpbuf;
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+	char *tmpbuf = kmalloc(wmax*2,GFP_KERNEL);
+	void *vbuf=videobuf_to_vmalloc (&buf->vb);
 
-
-	if (dma->varea) {
-		tmpbuf=kmalloc (wmax*2, GFP_KERNEL);
-	} else {
-		tmpbuf=dma->vmalloc;
-	}
-
+	if (!tmpbuf)
+		return;
 
 	for (h=0;h<hmax;h++) {
-		if (dma->varea) {
-			gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
-			/* FIXME: replacing to __copy_to_user */
-			if (copy_to_user(dma->varea+pos,tmpbuf,wmax*2)!=0)
-				dprintk(2,"vivifill copy_to_user failed.\n");
-		} else {
-			gen_line(tmpbuf,pos,wmax,hmax,h,dev->timestr);
-		}
+		gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
+		/* FIXME: replacing to __copy_to_user */
+		if (copy_to_user(vbuf+pos,tmpbuf,wmax*2)!=0)
+			dprintk(2,"vivifill copy_to_user failed.\n");
 		pos += wmax*2;
 	}
+
+	kfree(tmpbuf);
 
 	/* Updates stream time */
 
@@ -371,7 +363,7 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 			dev->h,dev->m,dev->s,(dev->us+500)/1000);
 
 	dprintk(2,"vivifill at %s: Buffer 0x%08lx size= %d\n",dev->timestr,
-			(unsigned long)dma->varea,pos);
+			(unsigned long)tmpbuf,pos);
 
 	/* Advice that buffer was filled */
 	buf->vb.state = STATE_DONE;
@@ -610,17 +602,13 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 {
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
-
 	dprintk(1,"%s\n",__FUNCTION__);
 
 	if (in_interrupt())
 		BUG();
 
-
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(vq, dma);
-	videobuf_dma_free(dma);
+	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 
@@ -725,7 +713,6 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 
 	free_buffer(vq,buf);
 }
-
 
 static struct videobuf_queue_ops vivi_video_qops = {
 	.buf_setup      = buffer_setup,
@@ -1092,12 +1079,11 @@ static int vivi_open(struct inode *inode, struct file *file)
 	sprintf(dev->timestr,"%02d:%02d:%02d:%03d",
 			dev->h,dev->m,dev->s,(dev->us+500)/1000);
 
-	videobuf_queue_pci_init(&fh->vb_vidq, &vivi_video_qops,
+	videobuf_queue_vmalloc_init(&fh->vb_vidq, &vivi_video_qops,
 			NULL, NULL,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
 			sizeof(struct vivi_buffer),fh);
-
 
 	return 0;
 }
@@ -1192,7 +1178,7 @@ static const struct file_operations vivi_fops = {
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
-	.mmap		= vivi_mmap,
+	.mmap           = vivi_mmap,
 	.llseek         = no_llseek,
 };
 
