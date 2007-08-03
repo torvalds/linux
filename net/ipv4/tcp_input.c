@@ -103,6 +103,7 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_SLOWPATH		0x100 /* Do not skip RFC checks for window update.*/
 #define FLAG_ONLY_ORIG_SACKED	0x200 /* SACKs only non-rexmit sent before RTO */
 #define FLAG_SND_UNA_ADVANCED	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
+#define FLAG_DSACKING_ACK	0x800 /* SACK blocks contained DSACK info */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
 #define FLAG_NOT_DUP		(FLAG_DATA|FLAG_WIN_UPDATE|FLAG_ACKED)
@@ -966,12 +967,14 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 	/* Check for D-SACK. */
 	if (before(ntohl(sp[0].start_seq), TCP_SKB_CB(ack_skb)->ack_seq)) {
+		flag |= FLAG_DSACKING_ACK;
 		found_dup_sack = 1;
 		tp->rx_opt.sack_ok |= 4;
 		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
 	} else if (num_sacks > 1 &&
 			!after(ntohl(sp[0].end_seq), ntohl(sp[1].end_seq)) &&
 			!before(ntohl(sp[0].start_seq), ntohl(sp[1].start_seq))) {
+		flag |= FLAG_DSACKING_ACK;
 		found_dup_sack = 1;
 		tp->rx_opt.sack_ok |= 4;
 		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
@@ -1858,7 +1861,7 @@ static void tcp_cwnd_down(struct sock *sk, int flag)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int decr = tp->snd_cwnd_cnt + 1;
 
-	if ((flag&FLAG_ANY_PROGRESS) ||
+	if ((flag&(FLAG_ANY_PROGRESS|FLAG_DSACKING_ACK)) ||
 	    (IsReno(tp) && !(flag&FLAG_NOT_DUP))) {
 		tp->snd_cwnd_cnt = decr&1;
 		decr >>= 1;
