@@ -76,7 +76,10 @@ static u32 find_khz_freq_from_fid(u32 fid)
 /* Return a frequency in MHz, given an input fid and did */
 static u32 find_freq_from_fiddid(u32 fid, u32 did)
 {
-	return 100 * (fid + 0x10) >> did;
+	if (current_cpu_data.x86 == 0x10)
+		return 100 * (fid + 0x10) >> did;
+	else
+		return 100 * (fid + 0x8) >> did;
 }
 
 static u32 find_khz_freq_from_fiddid(u32 fid, u32 did)
