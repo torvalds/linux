@@ -6,24 +6,6 @@
 
 extern atomic_t irq_err_count;
 
-struct intc2_data {
-	unsigned short irq;
-	unsigned char ipr_offset, ipr_shift;
-	unsigned char msk_offset, msk_shift;
-	unsigned char priority;
-};
-
-struct intc2_desc {
-	unsigned long prio_base;
-	unsigned long msk_base;
-	unsigned long mskclr_base;
-	struct intc2_data *intc2_data;
-	unsigned int nr_irqs;
-	struct irq_chip chip;
-};
-
-void register_intc2_controller(struct intc2_desc *);
-
 struct ipr_data {
 	unsigned char irq;
 	unsigned char ipr_idx;		/* Index for the IPR registered */

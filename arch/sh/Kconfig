@@ -181,9 +181,6 @@ config CPU_HAS_MASKREG_IRQ
 config CPU_HAS_INTC_IRQ
 	bool
 
-config CPU_HAS_INTC2_IRQ
-	bool
-
 config CPU_HAS_IPR_IRQ
 	bool
 

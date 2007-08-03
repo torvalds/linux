@@ -31,7 +31,6 @@ config CPU_SH4AL_DSP
 config CPU_SUBTYPE_ST40
 	bool
 	select CPU_SH4
-	select CPU_HAS_INTC2_IRQ
 
 config CPU_SHX2
 	bool
