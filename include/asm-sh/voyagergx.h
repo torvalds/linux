@@ -27,13 +27,35 @@
 #define VOYAGER_UART_BASE		(0x30000 + VOYAGER_BASE)
 #define	VOYAGER_AC97_BASE		(0xa0000 + VOYAGER_BASE)
 
-#define VOYAGER_IRQ_NUM			32
-#define VOYAGER_IRQ_BASE		50
-#define VOYAGER_USBH_IRQ		VOYAGER_IRQ_BASE + 6
-#define VOYAGER_8051_IRQ		VOYAGER_IRQ_BASE + 10
-#define VOYAGER_UART0_IRQ		VOYAGER_IRQ_BASE + 12
-#define VOYAGER_UART1_IRQ		VOYAGER_IRQ_BASE + 13
-#define	VOYAGER_AC97_IRQ		VOYAGER_IRQ_BASE + 17
+#define VOYAGER_IRQ_NUM			26
+#define VOYAGER_IRQ_BASE		200
+
+#define IRQ_SM501_UP			(VOYAGER_IRQ_BASE + 0)
+#define IRQ_SM501_G54			(VOYAGER_IRQ_BASE + 1)
+#define IRQ_SM501_G53			(VOYAGER_IRQ_BASE + 2)
+#define IRQ_SM501_G52			(VOYAGER_IRQ_BASE + 3)
+#define IRQ_SM501_G51			(VOYAGER_IRQ_BASE + 4)
+#define IRQ_SM501_G50			(VOYAGER_IRQ_BASE + 5)
+#define IRQ_SM501_G49			(VOYAGER_IRQ_BASE + 6)
+#define IRQ_SM501_G48			(VOYAGER_IRQ_BASE + 7)
+#define IRQ_SM501_I2C			(VOYAGER_IRQ_BASE + 8)
+#define IRQ_SM501_PW			(VOYAGER_IRQ_BASE + 9)
+#define IRQ_SM501_DMA			(VOYAGER_IRQ_BASE + 10)
+#define IRQ_SM501_PCI			(VOYAGER_IRQ_BASE + 11)
+#define IRQ_SM501_I2S			(VOYAGER_IRQ_BASE + 12)
+#define IRQ_SM501_AC			(VOYAGER_IRQ_BASE + 13)
+#define IRQ_SM501_US			(VOYAGER_IRQ_BASE + 14)
+#define IRQ_SM501_U1			(VOYAGER_IRQ_BASE + 15)
+#define IRQ_SM501_U0			(VOYAGER_IRQ_BASE + 16)
+#define IRQ_SM501_CV			(VOYAGER_IRQ_BASE + 17)
+#define IRQ_SM501_MC			(VOYAGER_IRQ_BASE + 18)
+#define IRQ_SM501_S1			(VOYAGER_IRQ_BASE + 19)
+#define IRQ_SM501_S0			(VOYAGER_IRQ_BASE + 20)
+#define IRQ_SM501_UH			(VOYAGER_IRQ_BASE + 21)
+#define IRQ_SM501_2D			(VOYAGER_IRQ_BASE + 22)
+#define IRQ_SM501_ZD			(VOYAGER_IRQ_BASE + 23)
+#define IRQ_SM501_PV			(VOYAGER_IRQ_BASE + 24)
+#define IRQ_SM501_CI			(VOYAGER_IRQ_BASE + 25)
 
 /* ----- MISC controle  register ------------------------------ */
 #define MISC_CTRL			(0x000004 + VOYAGER_BASE)
@@ -312,5 +334,8 @@
 /* arch/sh/cchips/voyagergx/consistent.c */
 void *voyagergx_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
 int voyagergx_consistent_free(struct device *, size_t, void *, dma_addr_t);
+
+/* arch/sh/cchips/voyagergx/irq.c */
+void setup_voyagergx_irq(void);
 
 #endif /* _VOYAGER_GX_REG_H */

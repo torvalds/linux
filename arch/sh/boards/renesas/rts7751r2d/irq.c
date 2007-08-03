@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <asm/voyagergx.h>
 #include <asm/rts7751r2d.h>
 
 #if defined(CONFIG_RTS7751R2D_REV11)
@@ -20,9 +21,6 @@ static int mask_pos[] = {11, 9, 8, 12, 10, 6, 5, 4, 7, 14, 13, 0, 0, 0, 0};
 #else
 static int mask_pos[] = {6, 11, 9, 8, 12, 10, 5, 4, 7, 14, 13, 0, 0, 0, 0};
 #endif
-
-extern int voyagergx_irq_demux(int irq);
-extern void setup_voyagergx_irq(void);
 
 static void enable_rts7751r2d_irq(unsigned int irq)
 {
@@ -39,7 +37,7 @@ static void disable_rts7751r2d_irq(unsigned int irq)
 
 int rts7751r2d_irq_demux(int irq)
 {
-	return voyagergx_irq_demux(irq);
+	return irq;
 }
 
 static struct irq_chip rts7751r2d_irq_chip __read_mostly = {

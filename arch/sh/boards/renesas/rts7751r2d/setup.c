@@ -82,7 +82,7 @@ static struct plat_serial8250_port uart_platform_data[] = {
 		.membase	= (void __iomem *)VOYAGER_UART_BASE,
 		.mapbase	= VOYAGER_UART_BASE,
 		.iotype		= UPIO_MEM,
-		.irq		= VOYAGER_UART0_IRQ,
+		.irq		= IRQ_SM501_U0,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.regshift	= 2,
 		.uartclk	= (9600 * 16),
@@ -125,7 +125,7 @@ static struct resource sm501_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2]	= {
-		.start	= 32,
+		.start	= IRQ_SM501_CV,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -187,7 +187,6 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_name		= "RTS7751R2D",
 	.mv_setup		= rts7751r2d_setup,
-	.mv_nr_irqs		= 72,
 
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 	.mv_irq_demux		= rts7751r2d_irq_demux,
