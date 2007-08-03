@@ -118,9 +118,14 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 
 static unsigned short reserved_gpio_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short reserved_peri_map[gpio_bank(MAX_BLACKFIN_GPIOS + 16)];
-char *str_ident = NULL;
 
-#define RESOURCE_LABEL_SIZE 16
+#define MAX_RESOURCES 		256
+#define RESOURCE_LABEL_SIZE 	16
+
+struct str_ident {
+	char name[RESOURCE_LABEL_SIZE];
+} *str_ident;
+
 
 #ifdef CONFIG_PM
 static unsigned short wakeup_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
@@ -152,10 +157,9 @@ static void set_label(unsigned short ident, const char *label)
 {
 
 	if (label && str_ident) {
-		strncpy(str_ident + ident * RESOURCE_LABEL_SIZE, label,
+		strncpy(str_ident[ident].name, label,
 			 RESOURCE_LABEL_SIZE);
-		str_ident[ident * RESOURCE_LABEL_SIZE +
-			 RESOURCE_LABEL_SIZE - 1] = 0;
+		str_ident[ident].name[RESOURCE_LABEL_SIZE - 1] = 0;
 	}
 }
 
@@ -164,14 +168,13 @@ static char *get_label(unsigned short ident)
 	if (!str_ident)
 		return "UNKNOWN";
 
-	return (str_ident[ident * RESOURCE_LABEL_SIZE] ?
-		(str_ident + ident * RESOURCE_LABEL_SIZE) : "UNKNOWN");
+	return (*str_ident[ident].name ? str_ident[ident].name : "UNKNOWN");
 }
 
 static int cmp_label(unsigned short ident, const char *label)
 {
 	if (label && str_ident)
-		return strncmp(str_ident + ident * RESOURCE_LABEL_SIZE,
+		return strncmp(str_ident[ident].name,
 				 label, strlen(label));
 	else
 		return -EINVAL;
@@ -194,37 +197,63 @@ static void port_setup(unsigned short gpio, unsigned short usage)
 
 #ifdef BF537_FAMILY
 
-#define PMUX_LUT_RES		0
-#define PMUX_LUT_OFFSET		1
-#define PMUX_LUT_ENTRIES	41
-#define PMUX_LUT_SIZE		2
-
-static unsigned short port_mux_lut[PMUX_LUT_ENTRIES][PMUX_LUT_SIZE] = {
-	{P_PPI0_D13, 11}, {P_PPI0_D14, 11}, {P_PPI0_D15, 11},
-	{P_SPORT1_TFS, 11}, {P_SPORT1_TSCLK, 11}, {P_SPORT1_DTPRI, 11},
-	{P_PPI0_D10, 10}, {P_PPI0_D11, 10}, {P_PPI0_D12, 10},
-	{P_SPORT1_RSCLK, 10}, {P_SPORT1_RFS, 10}, {P_SPORT1_DRPRI, 10},
-	{P_PPI0_D8, 9}, {P_PPI0_D9, 9}, {P_SPORT1_DRSEC, 9},
-	{P_SPORT1_DTSEC, 9}, {P_TMR2, 8}, {P_PPI0_FS3, 8}, {P_TMR3, 7},
-	{P_SPI0_SSEL4, 7}, {P_TMR4, 6}, {P_SPI0_SSEL5, 6}, {P_TMR5, 5},
-	{P_SPI0_SSEL6, 5}, {P_UART1_RX, 4}, {P_UART1_TX, 4}, {P_TMR6, 4},
-	{P_TMR7, 4}, {P_UART0_RX, 3}, {P_UART0_TX, 3}, {P_DMAR0, 3},
-	{P_DMAR1, 3}, {P_SPORT0_DTSEC, 1}, {P_SPORT0_DRSEC, 1},
-	{P_CAN0_RX, 1}, {P_CAN0_TX, 1}, {P_SPI0_SSEL7, 1},
-	{P_SPORT0_TFS, 0}, {P_SPORT0_DTPRI, 0}, {P_SPI0_SSEL2, 0},
-	{P_SPI0_SSEL3, 0}
+static struct {
+	unsigned short res;
+	unsigned short offset;
+} port_mux_lut[] = {
+	{.res = P_PPI0_D13, .offset = 11},
+	{.res = P_PPI0_D14, .offset = 11},
+	{.res = P_PPI0_D15, .offset = 11},
+	{.res = P_SPORT1_TFS, .offset = 11},
+	{.res = P_SPORT1_TSCLK, .offset = 11},
+	{.res = P_SPORT1_DTPRI, .offset = 11},
+	{.res = P_PPI0_D10, .offset = 10},
+	{.res = P_PPI0_D11, .offset = 10},
+	{.res = P_PPI0_D12, .offset = 10},
+	{.res = P_SPORT1_RSCLK, .offset = 10},
+	{.res = P_SPORT1_RFS, .offset = 10},
+	{.res = P_SPORT1_DRPRI, .offset = 10},
+	{.res = P_PPI0_D8, .offset = 9},
+	{.res = P_PPI0_D9, .offset = 9},
+	{.res = P_SPORT1_DRSEC, .offset = 9},
+	{.res = P_SPORT1_DTSEC, .offset = 9},
+	{.res = P_TMR2, .offset = 8},
+	{.res = P_PPI0_FS3, .offset = 8},
+	{.res = P_TMR3, .offset = 7},
+	{.res = P_SPI0_SSEL4, .offset = 7},
+	{.res = P_TMR4, .offset = 6},
+	{.res = P_SPI0_SSEL5, .offset = 6},
+	{.res = P_TMR5, .offset = 5},
+	{.res = P_SPI0_SSEL6, .offset = 5},
+	{.res = P_UART1_RX, .offset = 4},
+	{.res = P_UART1_TX, .offset = 4},
+	{.res = P_TMR6, .offset = 4},
+	{.res = P_TMR7, .offset = 4},
+	{.res = P_UART0_RX, .offset = 3},
+	{.res = P_UART0_TX, .offset = 3},
+	{.res = P_DMAR0, .offset = 3},
+	{.res = P_DMAR1, .offset = 3},
+	{.res = P_SPORT0_DTSEC, .offset = 1},
+	{.res = P_SPORT0_DRSEC, .offset = 1},
+	{.res = P_CAN0_RX, .offset = 1},
+	{.res = P_CAN0_TX, .offset = 1},
+	{.res = P_SPI0_SSEL7, .offset = 1},
+	{.res = P_SPORT0_TFS, .offset = 0},
+	{.res = P_SPORT0_DTPRI, .offset = 0},
+	{.res = P_SPI0_SSEL2, .offset = 0},
+	{.res = P_SPI0_SSEL3, .offset = 0},
 };
 
 static void portmux_setup(unsigned short per, unsigned short function)
 {
-	u16 y, muxreg, offset;
+	u16 y, offset, muxreg;
 
-	for (y = 0; y < PMUX_LUT_ENTRIES; y++) {
-		if (port_mux_lut[y][PMUX_LUT_RES] == per) {
+	for (y = 0; y < ARRAY_SIZE(port_mux_lut); y++) {
+		if (port_mux_lut[y].res == per) {
 
 			/* SET PORTMUX REG */
 
-			offset = port_mux_lut[y][PMUX_LUT_OFFSET];
+			offset = port_mux_lut[y].offset;
 			muxreg = bfin_read_PORT_MUX();
 
 			if (offset != 1) {
@@ -262,17 +291,18 @@ static void default_gpio(unsigned short gpio)
 
 static int __init bfin_gpio_init(void)
 {
-
-	str_ident = kzalloc(RESOURCE_LABEL_SIZE * 256, GFP_KERNEL);
-	if (!str_ident)
+	str_ident = kcalloc(MAX_RESOURCES,
+				 sizeof(struct str_ident), GFP_KERNEL);
+	if (str_ident == NULL)
 		return -ENOMEM;
+
+	memset(str_ident, 0, MAX_RESOURCES * sizeof(struct str_ident));
 
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
 	return 0;
 
 }
-
 arch_initcall(bfin_gpio_init);
 
 
@@ -680,7 +710,7 @@ int peripheral_request(unsigned short per, const char *label)
 
 			printk(KERN_ERR
 			       "%s: Peripheral %d function %d is already"
-			       "reserved by %s !\n",
+			       " reserved by %s !\n",
 			       __FUNCTION__, ident, P_FUNCT2MUX(per),
 				get_label(ident));
 			dump_stack();

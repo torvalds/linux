@@ -49,9 +49,13 @@ static struct gpio_port_t *gpio_array[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 
 static unsigned short reserved_gpio_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short reserved_peri_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
-char *str_ident = NULL;
 
-#define RESOURCE_LABEL_SIZE 16
+#define MAX_RESOURCES 		256
+#define RESOURCE_LABEL_SIZE 	16
+
+struct str_ident {
+	char name[RESOURCE_LABEL_SIZE];
+} *str_ident;
 
 inline int check_gpio(unsigned short gpio)
 {
@@ -96,9 +100,12 @@ static void port_setup(unsigned short gpio, unsigned short usage)
 static int __init bfin_gpio_init(void)
 {
 
-	str_ident = kzalloc(RESOURCE_LABEL_SIZE * 256, GFP_KERNEL);
-	if (!str_ident)
+	str_ident = kcalloc(MAX_RESOURCES,
+				 sizeof(struct str_ident), GFP_KERNEL);
+	if (str_ident == NULL)
 		return -ENOMEM;
+
+	memset(str_ident, 0, MAX_RESOURCES * sizeof(struct str_ident));
 
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
@@ -111,10 +118,9 @@ static void set_label(unsigned short ident, const char *label)
 {
 
 	if (label && str_ident) {
-		strncpy(str_ident + ident * RESOURCE_LABEL_SIZE, label,
+		strncpy(str_ident[ident].name, label,
 			 RESOURCE_LABEL_SIZE);
-		str_ident[ident * RESOURCE_LABEL_SIZE +
-			 RESOURCE_LABEL_SIZE - 1] = 0;
+		str_ident[ident].name[RESOURCE_LABEL_SIZE - 1] = 0;
 	}
 }
 
@@ -123,14 +129,13 @@ static char *get_label(unsigned short ident)
 	if (!str_ident)
 		return "UNKNOWN";
 
-	return (str_ident[ident * RESOURCE_LABEL_SIZE] ?
-		(str_ident + ident * RESOURCE_LABEL_SIZE) : "UNKNOWN");
+	return (*str_ident[ident].name ? str_ident[ident].name : "UNKNOWN");
 }
 
 static int cmp_label(unsigned short ident, const char *label)
 {
 	if (label && str_ident)
-		return strncmp(str_ident + ident * RESOURCE_LABEL_SIZE,
+		return strncmp(str_ident[ident].name,
 				 label, strlen(label));
 	else
 		return -EINVAL;
