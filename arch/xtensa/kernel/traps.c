@@ -83,7 +83,7 @@ typedef struct {
 	void* handler;
 } dispatch_init_table_t;
 
-dispatch_init_table_t __init dispatch_init_table[] = {
+static dispatch_init_table_t __initdata dispatch_init_table[] = {
 
 { EXCCAUSE_ILLEGAL_INSTRUCTION,	0,	   do_illegal_instruction},
 { EXCCAUSE_SYSTEM_CALL,		KRNL,	   fast_syscall_kernel },
@@ -305,7 +305,7 @@ do_debug(struct pt_regs *regs)
 
 #define set_handler(idx,handler) (exc_table[idx] = (unsigned long) (handler))
 
-void trap_init(void)
+void __init trap_init(void)
 {
 	int i;
 
