@@ -282,13 +282,19 @@ void __init plat_irq_setup(void)
 #define INTC_ICR	0xffd00000UL
 #define INTC_ICR_IRLM   (1<<7)
 
-/* enable individual interrupt mode for external interupts */
-void __init ipr_irq_enable_irlm(void)
+void __init plat_irq_setup_pins(int mode)
 {
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7091)
 	BUG(); /* impossible to mask interrupts on SH7750 and SH7091 */
+	return;
 #endif
-	register_intc_controller(&intc_desc_irlm);
 
-	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
+	switch (mode) {
+	case IRQ_MODE_IRQ: /* individual interrupt mode for IRL3-0 */
+		ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
+		register_intc_controller(&intc_desc_irlm);
+		break;
+	default:
+		BUG();
+	}
 }

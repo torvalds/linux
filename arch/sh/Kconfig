@@ -308,7 +308,7 @@ config SH_MPC1211
 
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
-	depends on CPU_SUBTYPE_SH7751 && BROKEN
+	depends on CPU_SUBTYPE_SH7751
 	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
