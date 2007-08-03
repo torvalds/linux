@@ -1280,23 +1280,27 @@ const char * buf, size_t count)
 			int i;
 			/* Make sure there is a buffer pool with buffers that
 			   can hold a packet of the size of the MTU */
-			for(i = 0; i<IbmVethNumBufferPools; i++) {
+			for (i = 0; i < IbmVethNumBufferPools; i++) {
 				if (pool == &adapter->rx_buff_pool[i])
 					continue;
 				if (!adapter->rx_buff_pool[i].active)
 					continue;
-				if (mtu < adapter->rx_buff_pool[i].buff_size) {
-					pool->active = 0;
-					h_free_logical_lan_buffer(adapter->
-								  vdev->
-								  unit_address,
-								  pool->
-								  buff_size);
-				}
+				if (mtu <= adapter->rx_buff_pool[i].buff_size)
+					break;
 			}
-			if (pool->active) {
+
+			if (i == IbmVethNumBufferPools) {
 				ibmveth_error_printk("no active pool >= MTU\n");
 				return -EPERM;
+			}
+
+			pool->active = 0;
+			if (netif_running(netdev)) {
+				adapter->pool_config = 1;
+				ibmveth_close(netdev);
+				adapter->pool_config = 0;
+				if ((rc = ibmveth_open(netdev)))
+					return rc;
 			}
 		}
 	} else if (attr == &veth_num_attr) {

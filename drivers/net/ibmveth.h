@@ -73,9 +73,6 @@ static inline long h_send_logical_lan(unsigned long unit_address,
 #define h_change_logical_lan_mac(ua, mac) \
   plpar_hcall_norets(H_CHANGE_LOGICAL_LAN_MAC, ua, mac)
 
-#define h_free_logical_lan_buffer(ua, bufsize) \
-  plpar_hcall_norets(H_FREE_LOGICAL_LAN_BUFFER, ua, bufsize)
-
 #define IbmVethNumBufferPools 5
 #define IBMVETH_BUFF_OH 22 /* Overhead: 14 ethernet header + 8 opaque handle */
 #define IBMVETH_MAX_MTU 68
