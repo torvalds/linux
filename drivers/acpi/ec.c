@@ -471,7 +471,6 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 		}
 	}
 	mutex_unlock(&ec->lock);
-	printk(KERN_ERR PREFIX "Handler for query 0x%x is not found!\n", value);
 }
 
 static u32 acpi_ec_gpe_handler(void *data)
