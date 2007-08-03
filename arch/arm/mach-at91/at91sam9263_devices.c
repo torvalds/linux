@@ -14,6 +14,8 @@
 
 #include <linux/platform_device.h>
 
+#include <video/atmel_lcdc.h>
+
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91sam9263.h>
