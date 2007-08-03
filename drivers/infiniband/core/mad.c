@@ -1916,12 +1916,11 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 			response->header.recv_wc.recv_buf.mad = &response->mad.mad;
 			response->header.recv_wc.recv_buf.grh = &response->grh;
 
-			if (!agent_send_response(&response->mad.mad,
-						 &response->grh, wc,
-						 port_priv->device,
-						 smi_get_fwd_port(&recv->mad.smp),
-						 qp_info->qp->qp_num))
-				response = NULL;
+			agent_send_response(&response->mad.mad,
+					    &response->grh, wc,
+					    port_priv->device,
+					    smi_get_fwd_port(&recv->mad.smp),
+					    qp_info->qp->qp_num);
 
 			goto out;
 		}
