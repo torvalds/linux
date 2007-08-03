@@ -1,7 +1,7 @@
 /*
  * SH7705 Setup
  *
- *  Copyright (C) 2006  Paul Mundt
+ *  Copyright (C) 2006, 2007  Paul Mundt
  *  Copyright (C) 2007  Nobuhiro Iwamatsu
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -13,8 +13,9 @@
 #include <linux/irq.h>
 #include <linux/serial.h>
 #include <asm/sci.h>
+#include <asm/rtc.h>
 
-enum{ 
+enum {
 	UNUSED = 0,
 
 	/* interrupt sources */
@@ -138,11 +139,18 @@ static struct resource rtc_resources[] = {
 	},
 };
 
+static struct sh_rtc_platform_info rtc_info = {
+	.capabilities	= RTC_CAP_4_DIGIT_YEAR,
+};
+
 static struct platform_device rtc_device = {
 	.name		= "sh-rtc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
+	.dev		= {
+		.platform_data = &rtc_info,
+	},
 };
 
 static struct platform_device *sh7705_devices[] __initdata = {
