@@ -2514,7 +2514,7 @@ static int __init serial8250_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static int __init serial8250_console_early_setup(void)
+static int serial8250_console_early_setup(void)
 {
 	return serial8250_find_port_for_earlycon();
 }

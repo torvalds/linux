@@ -227,7 +227,7 @@ int __init setup_early_serial8250_console(char *cmdline)
 	return 0;
 }
 
-int __init serial8250_find_port_for_earlycon(void)
+int serial8250_find_port_for_earlycon(void)
 {
 	struct early_serial8250_device *device = &early_device;
 	struct uart_port *port = &device->port;

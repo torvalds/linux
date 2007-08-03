@@ -732,7 +732,7 @@ int __init add_preferred_console(char *name, int idx, char *options)
 	return 0;
 }
 
-int __init update_console_cmdline(char *name, int idx, char *name_new, int idx_new, char *options)
+int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, char *options)
 {
 	struct console_cmdline *c;
 	int i;
