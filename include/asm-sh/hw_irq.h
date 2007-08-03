@@ -49,6 +49,7 @@ struct intc_vect {
 };
 
 #define INTC_VECT(enum_id, vect) { enum_id, vect }
+#define INTC_IRQ(enum_id, irq) INTC_VECT(enum_id, irq2evt(irq))
 
 struct intc_prio {
 	intc_enum enum_id;

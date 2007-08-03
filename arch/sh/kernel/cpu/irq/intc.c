@@ -87,40 +87,71 @@ static void enable_prio_32(struct intc_desc *desc, unsigned int data)
 	ctrl_outl(set_prio_field(desc, ctrl_inl(addr), prio, data), addr);
 }
 
-static void disable_mask_8(struct intc_desc *desc, unsigned int data)
+static void write_set_reg_8(struct intc_desc *desc, unsigned int data)
 {
 	ctrl_outb(1 << _INTC_BIT(data),
 		  _INTC_PTR(desc, mask_regs, data)->set_reg);
 }
 
-static void enable_mask_8(struct intc_desc *desc, unsigned int data)
+static void write_clr_reg_8(struct intc_desc *desc, unsigned int data)
 {
 	ctrl_outb(1 << _INTC_BIT(data),
 		  _INTC_PTR(desc, mask_regs, data)->clr_reg);
 }
 
-static void disable_mask_32(struct intc_desc *desc, unsigned int data)
+static void write_set_reg_32(struct intc_desc *desc, unsigned int data)
 {
 	ctrl_outl(1 << _INTC_BIT(data),
 		  _INTC_PTR(desc, mask_regs, data)->set_reg);
 }
 
-static void enable_mask_32(struct intc_desc *desc, unsigned int data)
+static void write_clr_reg_32(struct intc_desc *desc, unsigned int data)
 {
 	ctrl_outl(1 << _INTC_BIT(data),
 		  _INTC_PTR(desc, mask_regs, data)->clr_reg);
+}
+
+static void or_set_reg_16(struct intc_desc *desc, unsigned int data)
+{
+	unsigned long addr = _INTC_PTR(desc, mask_regs, data)->set_reg;
+
+	ctrl_outw(ctrl_inw(addr) | 1 << _INTC_BIT(data), addr);
+}
+
+static void and_set_reg_16(struct intc_desc *desc, unsigned int data)
+{
+	unsigned long addr = _INTC_PTR(desc, mask_regs, data)->set_reg;
+
+	ctrl_outw(ctrl_inw(addr) & ~(1 << _INTC_BIT(data)), addr);
+}
+
+static void or_set_reg_32(struct intc_desc *desc, unsigned int data)
+{
+	unsigned long addr = _INTC_PTR(desc, mask_regs, data)->set_reg;
+
+	ctrl_outl(ctrl_inl(addr) | 1 << _INTC_BIT(data), addr);
+}
+
+static void and_set_reg_32(struct intc_desc *desc, unsigned int data)
+{
+	unsigned long addr = _INTC_PTR(desc, mask_regs, data)->set_reg;
+
+	ctrl_outl(ctrl_inl(addr) & ~(1 << _INTC_BIT(data)), addr);
 }
 
 enum {	REG_FN_ERROR=0,
-	REG_FN_MASK_8, REG_FN_MASK_32,
+	REG_FN_DUAL_8, REG_FN_DUAL_32,
+	REG_FN_ENA_16, REG_FN_ENA_32,
 	REG_FN_PRIO_16, REG_FN_PRIO_32 };
 
 static struct {
 	void (*enable)(struct intc_desc *, unsigned int);
 	void (*disable)(struct intc_desc *, unsigned int);
 } intc_reg_fns[] = {
-	[REG_FN_MASK_8] = { enable_mask_8, disable_mask_8 },
-	[REG_FN_MASK_32] = { enable_mask_32, disable_mask_32 },
+	[REG_FN_DUAL_8] = { write_clr_reg_8, write_set_reg_8 },
+	[REG_FN_DUAL_32] = { write_clr_reg_32, write_set_reg_32 },
+	[REG_FN_ENA_16] = { or_set_reg_16, and_set_reg_16 },
+	[REG_FN_ENA_32] = { or_set_reg_32, and_set_reg_32 },
 	[REG_FN_PRIO_16] = { enable_prio_16, disable_prio_16 },
 	[REG_FN_PRIO_32] = { enable_prio_32, disable_prio_32 },
 };
@@ -218,13 +249,13 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 	return -EINVAL;
 }
 
-static unsigned int __init intc_find_mask_handler(unsigned int width)
+static unsigned int __init intc_find_dual_handler(unsigned int width)
 {
 	switch (width) {
 	case 8:
-		return REG_FN_MASK_8;
+		return REG_FN_DUAL_8;
 	case 32:
-		return REG_FN_MASK_32;
+		return REG_FN_DUAL_32;
 	}
 
 	BUG();
@@ -238,6 +269,19 @@ static unsigned int __init intc_find_prio_handler(unsigned int width)
 		return REG_FN_PRIO_16;
 	case 32:
 		return REG_FN_PRIO_32;
+	}
+
+	BUG();
+	return REG_FN_ERROR;
+}
+
+static unsigned int __init intc_find_ena_handler(unsigned int width)
+{
+	switch (width) {
+	case 16:
+		return REG_FN_ENA_16;
+	case 32:
+		return REG_FN_ENA_32;
 	}
 
 	BUG();
@@ -301,7 +345,14 @@ static unsigned int __init intc_mask_data(struct intc_desc *desc,
 			if (mr->enum_ids[j] != enum_id)
 				continue;
 
-			fn = intc_find_mask_handler(mr->reg_width);
+			switch (mr->clr_reg) {
+			case 1: /* 1 = enabled interrupt - "enable" register */
+				fn = intc_find_ena_handler(mr->reg_width);
+				break;
+			default:
+				fn = intc_find_dual_handler(mr->reg_width);
+			}
+
 			if (fn == REG_FN_ERROR)
 				return 0;
 
