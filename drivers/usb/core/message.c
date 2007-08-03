@@ -1330,7 +1330,7 @@ int usb_reset_configuration(struct usb_device *dev)
 	return 0;
 }
 
-void usb_release_interface(struct device *dev)
+static void usb_release_interface(struct device *dev)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_interface_cache *intfc =
