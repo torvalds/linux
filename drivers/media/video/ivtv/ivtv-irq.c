@@ -698,17 +698,21 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
 
-	if (((frame ^ itv->yuv_info.lace_sync_field) == 0 && ((itv->lastVsyncFrame & 1) ^ itv->yuv_info.lace_sync_field)) ||
+	if (((frame ^ itv->yuv_info.sync_field[last_dma_frame]) == 0 &&
+		((itv->lastVsyncFrame & 1) ^ itv->yuv_info.sync_field[last_dma_frame])) ||
 			(frame != (itv->lastVsyncFrame & 1) && !itv->yuv_info.frame_interlaced)) {
 		int next_dma_frame = last_dma_frame;
 
-		if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&itv->yuv_info.next_fill_frame)) {
-			write_reg(yuv_offset[next_dma_frame] >> 4, 0x82c);
-			write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
-			write_reg(yuv_offset[next_dma_frame] >> 4, 0x834);
-			write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
-			next_dma_frame = (next_dma_frame + 1) & 0x3;
-			atomic_set(&itv->yuv_info.next_dma_frame, next_dma_frame);
+		if (!(itv->yuv_info.frame_interlaced && itv->yuv_info.field_delay[next_dma_frame] && itv->yuv_info.fields_lapsed < 1)) {
+			if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&itv->yuv_info.next_fill_frame)) {
+				write_reg(yuv_offset[next_dma_frame] >> 4, 0x82c);
+				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
+				write_reg(yuv_offset[next_dma_frame] >> 4, 0x834);
+				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
+				next_dma_frame = (next_dma_frame + 1) & 0x3;
+				atomic_set(&itv->yuv_info.next_dma_frame, next_dma_frame);
+				itv->yuv_info.fields_lapsed = -1;
+			}
 		}
 	}
 	if (frame != (itv->lastVsyncFrame & 1)) {
@@ -749,6 +753,8 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 				set_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags);
 			}
 		}
+
+		itv->yuv_info.fields_lapsed ++;
 	}
 }
 

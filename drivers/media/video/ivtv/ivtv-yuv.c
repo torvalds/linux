@@ -612,7 +612,6 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *wi
 		itv->yuv_info.v_filter_2 = v_filter_2;
 	}
 
-	itv->yuv_info.frame_interlaced_last = itv->yuv_info.frame_interlaced;
 }
 
 /* Modify the supplied coordinate information to fit the visible osd area */
@@ -799,6 +798,7 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 	    (itv->yuv_info.old_frame_info.src_y != window->src_y) ||
 	    (itv->yuv_info.old_frame_info.pan_y != window->pan_y) ||
 	    (itv->yuv_info.old_frame_info.vis_h != window->vis_h) ||
+	    (itv->yuv_info.old_frame_info.lace_mode != window->lace_mode) ||
 	    (itv->yuv_info.old_frame_info.interlaced_y != window->interlaced_y) ||
 	    (itv->yuv_info.old_frame_info.interlaced_uv != window->interlaced_uv)) {
 		yuv_update |= IVTV_YUV_UPDATE_VERTICAL;
@@ -970,6 +970,9 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	itv->yuv_info.new_frame_info[frame].tru_w = args->src_width;
 	itv->yuv_info.new_frame_info[frame].tru_h = args->src_height;
 
+	/* Snapshot field order */
+	itv->yuv_info.sync_field[frame] = itv->yuv_info.lace_sync_field;
+
 	/* Are we going to offset the Y plane */
 	if (args->src.height + args->src.top < 512-16)
 		itv->yuv_info.new_frame_info[frame].offset_y = 1;
@@ -985,6 +988,7 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	itv->yuv_info.new_frame_info[frame].update = 0;
 	itv->yuv_info.new_frame_info[frame].interlaced_y = 0;
 	itv->yuv_info.new_frame_info[frame].interlaced_uv = 0;
+	itv->yuv_info.new_frame_info[frame].lace_mode = itv->yuv_info.lace_mode;
 
 	if (memcmp (&itv->yuv_info.old_frame_info_args, &itv->yuv_info.new_frame_info[frame],
 	    sizeof (itv->yuv_info.new_frame_info[frame]))) {
@@ -994,6 +998,12 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	}
 
 	itv->yuv_info.new_frame_info[frame].update |= register_update;
+
+	/* Should this frame be delayed ? */
+	if (itv->yuv_info.sync_field[frame] != itv->yuv_info.sync_field[(frame - 1) & 3])
+		itv->yuv_info.field_delay[frame] = 1;
+	else
+		itv->yuv_info.field_delay[frame] = 0;
 
 	/* DMA the frame */
 	mutex_lock(&itv->udma.lock);

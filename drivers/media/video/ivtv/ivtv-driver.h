@@ -531,6 +531,7 @@ struct yuv_frame_info
 	u32 tru_w;
 	u32 tru_h;
 	u32 offset_y;
+	int lace_mode;
 };
 
 #define IVTV_YUV_MODE_INTERLACED	0x00
@@ -603,7 +604,6 @@ struct yuv_playback_info
 	int decode_height;
 
 	int frame_interlaced;
-	int frame_interlaced_last;
 
 	int lace_mode;
 	int lace_threshold;
@@ -614,6 +614,11 @@ struct yuv_playback_info
 
 	u32 yuv_forced_update;
 	int update_frame;
+
+	int sync_field[4];  /* Field to sync on */
+	int field_delay[4]; /* Flag to extend duration of previous frame */
+	u8 fields_lapsed;   /* Counter used when delaying a frame */
+
 	struct yuv_frame_info new_frame_info[4];
 	struct yuv_frame_info old_frame_info;
 	struct yuv_frame_info old_frame_info_args;
