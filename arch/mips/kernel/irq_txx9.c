@@ -105,13 +105,9 @@ static void txx9_irq_mask_ack(unsigned int irq)
 	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
 
 	txx9_irq_mask(irq);
-	if (TXx9_IRCR_EDGE(txx9irq[irq_nr].mode)) {
-		/* clear edge detection */
-		u32 cr = __raw_readl(&txx9_ircptr->cr[irq_nr / 8]);
-		cr = (cr >> ((irq_nr & (8 - 1)) * 2)) & 3;
-		__raw_writel(TXx9_IRSCR_EIClrE | irq_nr,
-			     &txx9_ircptr->scr);
-	}
+	/* clear edge detection */
+	if (unlikely(TXx9_IRCR_EDGE(txx9irq[irq_nr].mode)))
+		__raw_writel(TXx9_IRSCR_EIClrE | irq_nr, &txx9_ircptr->scr);
 }
 
 static int txx9_irq_set_type(unsigned int irq, unsigned int flow_type)
