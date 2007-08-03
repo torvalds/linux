@@ -164,11 +164,6 @@ MODULE_LICENSE("GPL");
 #define IVTV_OSD_BPP_32     0x04
 
 struct osd_info {
-	/* Timing info for modes */
-	u32 pixclock;
-	u32 hlimit;
-	u32 vlimit;
-
 	/* Physical base address */
 	unsigned long video_pbase;
 	/* Relative base address (relative to start of decoder memory) */
@@ -579,9 +574,24 @@ static int ivtvfb_get_fix(struct ivtv *itv, struct fb_fix_screeninfo *fix)
 static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 {
 	struct osd_info *oi = itv->osd_info;
-	int osd_height_limit = itv->is_50hz ? 576 : 480;
+	int osd_height_limit;
+	u32 pixclock, hlimit, vlimit;
 
 	IVTV_FB_DEBUG_INFO("ivtvfb_check_var\n");
+
+	/* Set base references for mode calcs. */
+	if (itv->is_50hz) {
+		pixclock = 84316;
+		hlimit = 776;
+		vlimit = 591;
+		osd_height_limit = 576;
+	}
+	else {
+		pixclock = 83926;
+		hlimit = 776;
+		vlimit = 495;
+		osd_height_limit = 480;
+	}
 
 	/* Check the bits per pixel */
 	if (osd_compat) {
@@ -723,8 +733,8 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	}
 
 	/* Maintain overall 'size' for a constant refresh rate */
-	var->right_margin = oi->hlimit - var->left_margin - var->xres;
-	var->lower_margin = oi->vlimit - var->upper_margin - var->yres;
+	var->right_margin = hlimit - var->left_margin - var->xres;
+	var->lower_margin = vlimit - var->upper_margin - var->yres;
 
 	/* Fixed sync times */
 	var->hsync_len = 24;
@@ -733,9 +743,10 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	/* Non-interlaced / interlaced mode is used to switch the OSD filter
 	   on or off. Adjust the clock timings to maintain a constant
 	   vertical refresh rate. */
-	var->pixclock = oi->pixclock;
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED)
-		var->pixclock /= 2;
+		var->pixclock = pixclock / 2;
+	else
+		var->pixclock = pixclock;
 
 	IVTV_FB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
@@ -874,18 +885,6 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	struct osd_info *oi = itv->osd_info;
 	struct v4l2_rect start_window;
 	int max_height;
-
-	/* Set base references for mode calcs. */
-	if (itv->is_50hz) {
-		oi->pixclock = 84316;
-		oi->hlimit = 776;
-		oi->vlimit = 591;
-	}
-	else {
-		oi->pixclock = 83926;
-		oi->hlimit = 776;
-		oi->vlimit = 495;
-	}
 
 	/* Color mode */
 
