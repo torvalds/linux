@@ -134,6 +134,10 @@ config VIDEOBUF_DMA_SG
 	select VIDEOBUF_GEN
 	tristate
 
+config VIDEOBUF_VMALLOC
+	select VIDEOBUF_GEN
+	tristate
+
 config VIDEO_BUF_DVB
 	tristate
 

@@ -89,6 +89,7 @@ obj-$(CONFIG_TUNER_TEA5761) += tea5761.o
 
 obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o
+obj-$(CONFIG_VIDEOBUF_VMALLOC) += videobuf-vmalloc.o
 obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
 obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
