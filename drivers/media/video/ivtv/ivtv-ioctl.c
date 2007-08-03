@@ -1235,7 +1235,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		IVTV_INFO("Tuner: %s\n",
 			test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
 		cx2341x_log_status(&itv->params, itv->name);
-		IVTV_INFO("Status flags: 0x%08lx\n", itv->i_flags);
+		IVTV_INFO("Version: %s Status flags: 0x%08lx\n", IVTV_VERSION, itv->i_flags);
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 			struct ivtv_stream *s = &itv->streams[i];
 
