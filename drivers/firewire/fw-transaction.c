@@ -734,7 +734,7 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
-const struct fw_address_region topology_map_region =
+static const struct fw_address_region topology_map_region =
 	{ .start = 0xfffff0001000ull, .end = 0xfffff0001400ull, };
 
 static void
@@ -772,7 +772,7 @@ static struct fw_address_handler topology_map = {
 	.address_callback	= handle_topology_map,
 };
 
-const struct fw_address_region registers_region =
+static const struct fw_address_region registers_region =
 	{ .start = 0xfffff0000000ull, .end = 0xfffff0000400ull, };
 
 static void

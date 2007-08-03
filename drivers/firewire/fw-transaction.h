@@ -231,7 +231,7 @@ struct fw_card {
 	unsigned long reset_jiffies;
 
 	unsigned long long guid;
-	int max_receive;
+	unsigned max_receive;
 	int link_speed;
 	int config_rom_generation;
 
