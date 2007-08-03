@@ -46,30 +46,6 @@
 
 .align 4 	/* just in case */
 
-/*
- * initial interrupt handlers
- */
-
-#ifndef CONFIG_KGDB
- 	/* interrupt routine for emulation - 0 */
-	/* Currently used only if GDB stub is not in - invalid */
-	/* gdb-stub set the evt itself */
-	/* save registers for post-mortem only */
-ENTRY(_evt_emulation)
-	SAVE_ALL_SYS
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = IRQ_EMU;
-	r1 = sp;
-	SP += -12;
-	call _irq_panic;
-	SP += 12;
-	/* - GDB stub fills this in by itself (if defined) */
-	rte;
-ENDPROC(_evt_emulation)
-#endif
-
 /* Common interrupt entry code.	 First we do CLI, then push
  * RETI, to keep interrupts disabled, but to allow this state to be changed
  * by local_bh_enable.

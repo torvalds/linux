@@ -721,9 +721,6 @@ void __init init_exception_vectors(void)
 {
 	SSYNC();
 
-#ifndef CONFIG_KGDB
-	bfin_write_EVT0(evt_emulation);
-#endif
 	bfin_write_EVT2(evt_evt2);
 	bfin_write_EVT3(trap);
 	bfin_write_EVT5(evt_ivhw);

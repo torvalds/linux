@@ -2,7 +2,6 @@
 #define _IRQ_HANDLER_H
 
 /* BASE LEVEL interrupt handler routines */
-asmlinkage void evt_emulation(void);
 asmlinkage void evt_exception(void);
 asmlinkage void trap(void);
 asmlinkage void evt_ivhw(void);
