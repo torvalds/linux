@@ -898,8 +898,21 @@ static void ivtv_yuv_init (struct ivtv *itv)
 		itv->yuv_info.decode_height = 480;
 
 	/* If no visible size set, assume full size */
-	if (!itv->yuv_info.osd_vis_w) itv->yuv_info.osd_vis_w = 720 - itv->yuv_info.osd_x_offset;
-	if (!itv->yuv_info.osd_vis_h) itv->yuv_info.osd_vis_h = itv->yuv_info.decode_height - itv->yuv_info.osd_y_offset;
+	if (!itv->yuv_info.osd_vis_w)
+		itv->yuv_info.osd_vis_w = 720 - itv->yuv_info.osd_x_offset;
+
+	if (!itv->yuv_info.osd_vis_h) {
+		itv->yuv_info.osd_vis_h = itv->yuv_info.decode_height - itv->yuv_info.osd_y_offset;
+	} else {
+		/* If output video standard has changed, requested height may
+		not be legal */
+		if (itv->yuv_info.osd_vis_h + itv->yuv_info.osd_y_offset > itv->yuv_info.decode_height) {
+			IVTV_DEBUG_WARN("Clipping yuv output - fb size (%d) exceeds video standard limit (%d)\n",
+					itv->yuv_info.osd_vis_h + itv->yuv_info.osd_y_offset,
+					itv->yuv_info.decode_height);
+			itv->yuv_info.osd_vis_h = itv->yuv_info.decode_height - itv->yuv_info.osd_y_offset;
+		}
+	}
 
 	/* We need a buffer for blanking when Y plane is offset - non-fatal if we can't get one */
 	itv->yuv_info.blanking_ptr = kzalloc(720*16,GFP_KERNEL);
