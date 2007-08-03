@@ -606,6 +606,60 @@ int setup_irq_smtc(unsigned int irq, struct irqaction * new,
 	return setup_irq(irq, new);
 }
 
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+/*
+ * Support for IRQ affinity to TCs
+ */
+
+void smtc_set_irq_affinity(unsigned int irq, cpumask_t affinity)
+{
+	/*
+	 * If a "fast path" cache of quickly decodable affinity state
+	 * is maintained, this is where it gets done, on a call up
+	 * from the platform affinity code.
+	 */
+}
+
+void smtc_forward_irq(unsigned int irq)
+{
+	int target;
+
+	/*
+	 * OK wise guy, now figure out how to get the IRQ
+	 * to be serviced on an authorized "CPU".
+	 *
+	 * Ideally, to handle the situation where an IRQ has multiple
+	 * eligible CPUS, we would maintain state per IRQ that would
+	 * allow a fair distribution of service requests.  Since the
+	 * expected use model is any-or-only-one, for simplicity
+	 * and efficiency, we just pick the easiest one to find.
+	 */
+
+	target = first_cpu(irq_desc[irq].affinity);
+
+	/*
+	 * We depend on the platform code to have correctly processed
+	 * IRQ affinity change requests to ensure that the IRQ affinity
+	 * mask has been purged of bits corresponding to nonexistent and
+	 * offline "CPUs", and to TCs bound to VPEs other than the VPE
+	 * connected to the physical interrupt input for the interrupt
+	 * in question.  Otherwise we have a nasty problem with interrupt
+	 * mask management.  This is best handled in non-performance-critical
+	 * platform IRQ affinity setting code,  to minimize interrupt-time
+	 * checks.
+	 */
+
+	/* If no one is eligible, service locally */
+	if (target >= NR_CPUS) {
+		do_IRQ_no_affinity(irq);
+		return;
+	}
+
+	smtc_send_ipi(target, IRQ_AFFINITY_IPI, irq);
+}
+
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
+
 /*
  * IPI model for SMTC is tricky, because interrupts aren't TC-specific.
  * Within a VPE one TC can interrupt another by different approaches.
@@ -830,6 +884,15 @@ void ipi_decode(struct smtc_ipi *pipi)
 			break;
 		}
 		break;
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+	case IRQ_AFFINITY_IPI:
+		/*
+		 * Accept a "forwarded" interrupt that was initially
+		 * taken by a TC who doesn't have affinity for the IRQ.
+		 */
+		do_IRQ_no_affinity((int)arg_copy);
+		break;
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
 	default:
 		printk("Impossible SMTC IPI Type 0x%x\n", type_copy);
 		break;

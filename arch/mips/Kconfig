@@ -1378,6 +1378,19 @@ config MIPS_MT_SMTC_IM_BACKSTOP
 	  impact on interrupt service overhead. Disable it only if you know
 	  what you are doing.
 
+config MIPS_MT_SMTC_IRQAFF
+	bool "Support IRQ affinity API"
+	depends on MIPS_MT_SMTC
+	default n
+	help
+	  Enables SMP IRQ affinity API (/proc/irq/*/smp_affinity, etc.)
+	  for SMTC Linux kernel. Requires platform support, of which
+	  an example can be found in the MIPS kernel i8259 and Malta
+	  platform code.  It is recommended that MIPS_MT_SMTC_INSTANT_REPLAY
+	  be enabled if MIPS_MT_SMTC_IRQAFF is used. Adds overhead to
+	  interrupt dispatch, and should be used only if you know what
+	  you are doing.
+
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
 	depends on MIPS_VPE_LOADER
