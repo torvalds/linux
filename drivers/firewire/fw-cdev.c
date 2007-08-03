@@ -621,20 +621,19 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 	     size_t header_length, void *header, void *data)
 {
 	struct client *client = data;
-	struct iso_interrupt *interrupt;
+	struct iso_interrupt *irq;
 
-	interrupt = kzalloc(sizeof(*interrupt) + header_length, GFP_ATOMIC);
-	if (interrupt == NULL)
+	irq = kzalloc(sizeof(*irq) + header_length, GFP_ATOMIC);
+	if (irq == NULL)
 		return;
 
-	interrupt->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
-	interrupt->interrupt.closure   = client->iso_closure;
-	interrupt->interrupt.cycle     = cycle;
-	interrupt->interrupt.header_length = header_length;
-	memcpy(interrupt->interrupt.header, header, header_length);
-	queue_event(client, &interrupt->event,
-		    &interrupt->interrupt,
-		    sizeof(interrupt->interrupt) + header_length, NULL, 0);
+	irq->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
+	irq->interrupt.closure   = client->iso_closure;
+	irq->interrupt.cycle     = cycle;
+	irq->interrupt.header_length = header_length;
+	memcpy(irq->interrupt.header, header, header_length);
+	queue_event(client, &irq->event, &irq->interrupt,
+		    sizeof(irq->interrupt) + header_length, NULL, 0);
 }
 
 static int ioctl_create_iso_context(struct client *client, void *buffer)
