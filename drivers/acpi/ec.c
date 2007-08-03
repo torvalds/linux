@@ -679,6 +679,14 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
+static void ec_remove_handlers(struct acpi_ec *ec)
+{
+	acpi_remove_address_space_handler(ec->handle,
+					  ACPI_ADR_SPACE_EC,
+					  &acpi_ec_space_handler);
+	acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
+}
+
 static int acpi_ec_add(struct acpi_device *device)
 {
 	struct acpi_ec *ec = NULL;
@@ -702,16 +710,15 @@ static int acpi_ec_add(struct acpi_device *device)
 	/* Check if we found the boot EC */
 	if (boot_ec) {
 		if (boot_ec->gpe == ec->gpe) {
-			/* We might have incorrect info for GL at boot time */
 			mutex_lock(&boot_ec->lock);
-			boot_ec->global_lock = ec->global_lock;
-			/* Copy handlers from new ec into boot ec */
-			list_splice(&ec->list, &boot_ec->list);
+			ec_remove_handlers(boot_ec);
 			mutex_unlock(&boot_ec->lock);
-			kfree(ec);
-			ec = boot_ec;
+			mutex_destroy(&boot_ec->lock);
+			kfree(boot_ec);
+			first_ec = boot_ec = NULL;
 		}
-	} else
+	}
+	if (!first_ec)
 		first_ec = ec;
 	ec->handle = device->handle;
 	acpi_driver_data(device) = ec;
@@ -740,9 +747,6 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 	if (ec == first_ec)
 		first_ec = NULL;
 
-	/* Don't touch boot EC */
-	if (boot_ec != ec)
-		kfree(ec);
 	return 0;
 }
 
@@ -806,9 +810,7 @@ static int acpi_ec_start(struct acpi_device *device)
 	if (!ec)
 		return -EINVAL;
 
-	/* Boot EC is already working */
-	if (ec != boot_ec)
-		ret = ec_install_handlers(ec);
+	ret = ec_install_handlers(ec);
 
 	/* EC is fully operational, allow queries */
 	atomic_set(&ec->query_pending, 0);
@@ -818,7 +820,6 @@ static int acpi_ec_start(struct acpi_device *device)
 
 static int acpi_ec_stop(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct acpi_ec *ec;
 
 	if (!device)
@@ -827,21 +828,7 @@ static int acpi_ec_stop(struct acpi_device *device, int type)
 	ec = acpi_driver_data(device);
 	if (!ec)
 		return -EINVAL;
-
-	/* Don't touch boot EC */
-	if (ec == boot_ec)
-		return 0;
-
-	status = acpi_remove_address_space_handler(ec->handle,
-						   ACPI_ADR_SPACE_EC,
-						   &acpi_ec_space_handler);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	status = acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
+	ec_remove_handlers(ec);
 	return 0;
 }
 
