@@ -402,53 +402,68 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	u8 buffer[4];
 	u16 div;
 	int rc, j;
-	enum param_type desired_type = TUNER_PARAM_TYPE_RADIO;
 	struct tuner_params *params;
 
 	tun = &tuners[t->type];
 
-	for (j = 0; j < tun->count-1; j++) {
-		if (desired_type != tun->params[j].type)
-			continue;
-		break;
-	}
-	/* use default tuner_params if desired_type not available */
-	if (desired_type != tun->params[j].type)
-		j = 0;
-
-	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
+	for (j = tun->count-1; j > 0; j--)
+		if (tun->params[j].type == TUNER_PARAM_TYPE_RADIO)
+			break;
+	/* default params (j=0) will be used if desired type wasn't found */
 	params = &tun->params[j];
-	buffer[2] = (params->ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
+	/* Select Radio 1st IF used */
+	switch (params->radio_if) {
+	case 0: /* 10.7 MHz */
+		freq += (unsigned int)(10.7*16000);
+		break;
+	case 1: /* 33.3 MHz */
+		freq += (unsigned int)(33.3*16000);
+		break;
+	case 2: /* 41.3 MHz */
+		freq += (unsigned int)(41.3*16000);
+		break;
+	default:
+		tuner_warn("Unsupported radio_if value %d\n", params->radio_if);
+		return;
+	}
+
+	/* Bandswitch byte */
 	switch (t->type) {
 	case TUNER_TENA_9533_DI:
 	case TUNER_YMEC_TVF_5533MF:
-		tuner_dbg ("This tuner doesn't have FM. Most cards has a TEA5767 for FM\n");
+		tuner_dbg ("This tuner doesn't have FM. Most cards have a TEA5767 for FM\n");
 		return;
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
 	case TUNER_LG_NTSC_TAPE:
+	case TUNER_PHILIPS_FM1256_IH3:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
 		buffer[3] = 0x11;
 		break;
-	case TUNER_PHILIPS_FM1256_IH3:
-		div = (20 * freq) / 16000 + (int)(33.3 * 20);  /* IF 33.3 MHz */
-		buffer[3] = 0x19;
-		break;
 	case TUNER_LG_PAL_FM:
 		buffer[3] = 0xa5;
 		break;
-	case TUNER_MICROTUNE_4049FM5:
-		div = (20 * freq) / 16000 + (int)(33.3 * 20); /* IF 33.3 MHz */
-		buffer[3] = 0xa4;
+	case TUNER_THOMSON_DTT761X:
+		buffer[3] = 0x39;
 		break;
+	case TUNER_MICROTUNE_4049FM5:
 	default:
 		buffer[3] = 0xa4;
 		break;
 	}
+
+	buffer[2] = (params->ranges[0].config & ~TUNER_RATIO_MASK) |
+		    TUNER_RATIO_SELECT_50; /* 50 kHz step */
+
+	/* Convert from 1/16 kHz V4L steps to 1/20 MHz (=50 kHz) PLL steps
+	   freq * (1 Mhz / 16000 V4L steps) * (20 PLL steps / 1 MHz) =
+	   freq * (1/800) */
+	div = (freq + 400) / 800;
+
 	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
@@ -475,6 +490,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			config &= ~TDA9887_PORT1_ACTIVE;*/
 		if (params->fm_gain_normal)
 			config |= TDA9887_GAIN_NORMAL;
+		if (params->radio_if == 2)
+			config |= TDA9887_RIF_41_3;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	if (4 != (rc = i2c_master_send(c,buffer,4)))

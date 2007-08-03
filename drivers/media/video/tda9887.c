@@ -97,6 +97,8 @@ struct tvnorm {
 #define cAudioIF_6_5             0x03    // bit e0:1
 
 
+#define cVideoIFMask		0x1c	// bit e2:4
+/* Video IF selection in TV Mode (bit B3=0) */
 #define cVideoIF_58_75           0x00    // bit e2:4
 #define cVideoIF_45_75           0x04    // bit e2:4
 #define cVideoIF_38_90           0x08    // bit e2:4
@@ -106,6 +108,13 @@ struct tvnorm {
 #define cRadioIF_45_75           0x18    // bit e2:4
 #define cRadioIF_38_90           0x1C    // bit e2:4
 
+/* IF1 selection in Radio Mode (bit B3=1) */
+#define cRadioIF_33_30		0x00	// bit e2,4 (also 0x10,0x14)
+#define cRadioIF_41_30		0x04	// bit e2,4
+
+/* Output of AFC pin in radio mode when bit E7=1 */
+#define cRadioAGC_SIF		0x00	// bit e3
+#define cRadioAGC_FM		0x08	// bit e3
 
 #define cTunerGainNormal         0x00    // bit e5
 #define cTunerGainLow            0x20    // bit e5
@@ -487,9 +496,13 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 	if (t->tda9887_config & TDA9887_GATING_18)
 		buf[3] &= ~cGating_36;
 
-	if (t->tda9887_config & TDA9887_GAIN_NORMAL) {
-		radio_stereo.e &= ~cTunerGainLow;
-		radio_mono.e &= ~cTunerGainLow;
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->tda9887_config & TDA9887_RIF_41_3) {
+			buf[3] &= ~cVideoIFMask;
+			buf[3] |= cRadioIF_41_30;
+		}
+		if (t->tda9887_config & TDA9887_GAIN_NORMAL)
+			buf[3] &= ~cTunerGainLow;
 	}
 
 	return 0;
