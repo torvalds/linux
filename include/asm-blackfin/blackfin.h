@@ -19,7 +19,7 @@
 static inline void SSYNC(void)
 {
 	int _tmp;
-	if (ANOMALY_05000312 && ANOMALY_05000244)
+	if (ANOMALY_05000312)
 		__asm__ __volatile__(
 			"cli %0;"
 			"nop;"
@@ -28,14 +28,7 @@ static inline void SSYNC(void)
 			"sti %0;"
 			: "=d" (_tmp)
 		);
-	else if (ANOMALY_05000312 && !ANOMALY_05000244)
-		__asm__ __volatile__(
-			"cli %0;"
-			"ssync;"
-			"sti %0;"
-			: "=d" (_tmp)
-		);
-	else if (!ANOMALY_05000312 && ANOMALY_05000244)
+	else if (ANOMALY_05000244)
 		__asm__ __volatile__(
 			"nop;"
 			"nop;"
@@ -50,7 +43,7 @@ static inline void SSYNC(void)
 static inline void CSYNC(void)
 {
 	int _tmp;
-	if (ANOMALY_05000312 && ANOMALY_05000244)
+	if (ANOMALY_05000312)
 		__asm__ __volatile__(
 			"cli %0;"
 			"nop;"
@@ -59,14 +52,7 @@ static inline void CSYNC(void)
 			"sti %0;"
 			: "=d" (_tmp)
 		);
-	else if (ANOMALY_05000312 && !ANOMALY_05000244)
-		__asm__ __volatile__(
-			"cli %0;"
-			"csync;"
-			"sti %0;"
-			: "=d" (_tmp)
-		);
-	else if (!ANOMALY_05000312 && ANOMALY_05000244)
+	else if (ANOMALY_05000244)
 		__asm__ __volatile__(
 			"nop;"
 			"nop;"
@@ -84,19 +70,15 @@ static inline void CSYNC(void)
 #define ssync(x) SSYNC(x)
 #define csync(x) CSYNC(x)
 
-#if ANOMALY_05000312 && ANOMALY_05000244
+#if ANOMALY_05000312
 #define SSYNC(scratch) cli scratch; nop; nop; SSYNC; sti scratch;
 #define CSYNC(scratch) cli scratch; nop; nop; CSYNC; sti scratch;
 
-#elif ANOMALY_05000312 && !ANOMALY_05000244
-#define SSYNC(scratch) cli scratch; nop; nop; SSYNC; sti scratch;
-#define CSYNC(scratch) cli scratch; nop; nop; CSYNC; sti scratch;
-
-#elif !ANOMALY_05000312 && ANOMALY_05000244
+#elif ANOMALY_05000244
 #define SSYNC(scratch) nop; nop; nop; SSYNC;
 #define CSYNC(scratch) nop; nop; nop; CSYNC;
 
-#elif !ANOMALY_05000312 && !ANOMALY_05000244
+#else
 #define SSYNC(scratch) SSYNC;
 #define CSYNC(scratch) CSYNC;
 
