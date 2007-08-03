@@ -161,7 +161,7 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 					 __u16 *start, __u16 *end)
 {
 	int started, ended;
-	__u16 _start, _end, offset;
+	__u16 start_, end_, offset;
 
 	/* We haven't found a gap yet.  */
 	started = ended = 0;
@@ -175,7 +175,7 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 
 		offset = iter->start - map->base_tsn;
 		sctp_tsnmap_find_gap_ack(map->tsn_map, offset, map->len, 0,
-					 &started, &_start, &ended, &_end);
+					 &started, &start_, &ended, &end_);
 	}
 
 	/* Do we need to check the overflow map? */
@@ -193,8 +193,8 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 					 offset,
 					 map->len,
 					 map->len,
-					 &started, &_start,
-					 &ended, &_end);
+					 &started, &start_,
+					 &ended, &end_);
 	}
 
 	/* The Gap Ack Block happens to end at the end of the
@@ -202,7 +202,7 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 	 */
 	if (started && !ended) {
 		ended++;
-		_end = map->len + map->len - 1;
+		end_ = map->len + map->len - 1;
 	}
 
 	/* If we found a Gap Ack Block, return the start and end and
@@ -215,8 +215,8 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 		int gap = map->cumulative_tsn_ack_point -
 			map->base_tsn;
 
-		*start = _start - gap;
-		*end = _end - gap;
+		*start = start_ - gap;
+		*end = end_ - gap;
 
 		/* Move the iterator forward.  */
 		iter->start = map->cumulative_tsn_ack_point + *end + 1;

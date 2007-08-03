@@ -97,7 +97,21 @@ static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
 					   const struct sctp_association *asoc,
 					   struct sctp_transport *transport);
 
+static sctp_disposition_t sctp_sf_abort_violation(
+				     const struct sctp_association *asoc,
+				     void *arg,
+				     sctp_cmd_seq_t *commands,
+				     const __u8 *payload,
+				     const size_t paylen);
+
 static sctp_disposition_t sctp_sf_violation_chunklen(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands);
+
+static sctp_disposition_t sctp_sf_violation_ctsn(
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
 				     const sctp_subtype_t type,
@@ -2880,6 +2894,13 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(const struct sctp_endpoint *ep,
 		return SCTP_DISPOSITION_DISCARD;
 	}
 
+	/* If Cumulative TSN Ack beyond the max tsn currently
+	 * send, terminating the association and respond to the
+	 * sender with an ABORT.
+	 */
+	if (!TSN_lt(ctsn, asoc->next_tsn))
+		return sctp_sf_violation_ctsn(ep, asoc, type, arg, commands);
+
 	/* Return this SACK for further processing.  */
 	sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK, SCTP_SACKH(sackh));
 
@@ -3691,40 +3712,21 @@ sctp_disposition_t sctp_sf_violation(const struct sctp_endpoint *ep,
 	return SCTP_DISPOSITION_VIOLATION;
 }
 
-
 /*
- * Handle a protocol violation when the chunk length is invalid.
- * "Invalid" length is identified as smaller then the minimal length a
- * given chunk can be.  For example, a SACK chunk has invalid length
- * if it's length is set to be smaller then the size of sctp_sack_chunk_t.
- *
- * We inform the other end by sending an ABORT with a Protocol Violation
- * error code.
- *
- * Section: Not specified
- * Verification Tag:  Nothing to do
- * Inputs
- * (endpoint, asoc, chunk)
- *
- * Outputs
- * (reply_msg, msg_up, counters)
- *
- * Generate an  ABORT chunk and terminate the association.
+ * Common function to handle a protocol violation.
  */
-static sctp_disposition_t sctp_sf_violation_chunklen(
-				     const struct sctp_endpoint *ep,
+static sctp_disposition_t sctp_sf_abort_violation(
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
 				     void *arg,
-				     sctp_cmd_seq_t *commands)
+				     sctp_cmd_seq_t *commands,
+				     const __u8 *payload,
+				     const size_t paylen)
 {
 	struct sctp_chunk *chunk =  arg;
 	struct sctp_chunk *abort = NULL;
-	char 		   err_str[]="The following chunk had invalid length:";
 
 	/* Make the abort chunk. */
-	abort = sctp_make_abort_violation(asoc, chunk, err_str,
-					  sizeof(err_str));
+	abort = sctp_make_abort_violation(asoc, chunk, payload, paylen);
 	if (!abort)
 		goto nomem;
 
@@ -3754,6 +3756,57 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 
 nomem:
 	return SCTP_DISPOSITION_NOMEM;
+}
+
+/*
+ * Handle a protocol violation when the chunk length is invalid.
+ * "Invalid" length is identified as smaller then the minimal length a
+ * given chunk can be.  For example, a SACK chunk has invalid length
+ * if it's length is set to be smaller then the size of sctp_sack_chunk_t.
+ *
+ * We inform the other end by sending an ABORT with a Protocol Violation
+ * error code.
+ *
+ * Section: Not specified
+ * Verification Tag:  Nothing to do
+ * Inputs
+ * (endpoint, asoc, chunk)
+ *
+ * Outputs
+ * (reply_msg, msg_up, counters)
+ *
+ * Generate an  ABORT chunk and terminate the association.
+ */
+static sctp_disposition_t sctp_sf_violation_chunklen(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands)
+{
+	char err_str[]="The following chunk had invalid length:";
+
+	return sctp_sf_abort_violation(asoc, arg, commands, err_str,
+					sizeof(err_str));
+}
+
+/* Handle a protocol violation when the peer trying to advance the
+ * cumulative tsn ack to a point beyond the max tsn currently sent.
+ *
+ * We inform the other end by sending an ABORT with a Protocol Violation
+ * error code.
+ */
+static sctp_disposition_t sctp_sf_violation_ctsn(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands)
+{
+	char err_str[]="The cumulative tsn ack beyond the max tsn currently sent:";
+
+	return sctp_sf_abort_violation(asoc, arg, commands, err_str,
+					sizeof(err_str));
 }
 
 /***************************************************************************

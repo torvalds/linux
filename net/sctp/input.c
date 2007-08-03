@@ -590,7 +590,7 @@ out_unlock:
  * Return 0 - If further processing is needed.
  * Return 1 - If the packet can be discarded right away.
  */
-int sctp_rcv_ootb(struct sk_buff *skb)
+static int sctp_rcv_ootb(struct sk_buff *skb)
 {
 	sctp_chunkhdr_t *ch;
 	__u8 *ch_end;

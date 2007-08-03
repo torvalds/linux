@@ -65,8 +65,6 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-extern struct kmem_cache *sctp_chunk_cachep;
-
 SCTP_STATIC
 struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
 				   __u8 type, __u8 flags, int paylen);
@@ -115,15 +113,12 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 		      const void *payload, size_t paylen)
 {
 	sctp_errhdr_t err;
-	int padlen;
 	__u16 len;
 
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
 	len = sizeof(sctp_errhdr_t) + paylen;
-	padlen = len % 4;
 	err.length  = htons(len);
-	len += padlen;
 	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
 	sctp_addto_chunk(chunk, paylen, payload);
 }
@@ -1454,7 +1449,6 @@ no_hmac:
 		do_gettimeofday(&tv);
 
 	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
-		__u16 len;
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *

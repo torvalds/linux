@@ -241,8 +241,6 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
 		char addr_string[16];
 
 		if (n_ptr->link_cnt >= 2) {
-			char addr_string[16];
-
 			err("Attempt to create third link to %s\n",
 			    addr_string_fill(addr_string, n_ptr->addr));
 			return NULL;
