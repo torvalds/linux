@@ -73,6 +73,11 @@ static int __init blackfin_dma_init(void)
 	/* Mark MEMDMA Channel 0 as requested since we're using it internally */
 	dma_ch[CH_MEM_STREAM0_DEST].chan_status = DMA_CHANNEL_REQUESTED;
 	dma_ch[CH_MEM_STREAM0_SRC].chan_status = DMA_CHANNEL_REQUESTED;
+
+#if defined(CONFIG_DEB_DMA_URGENT)
+	bfin_write_EBIU_DDRQUE(bfin_read_EBIU_DDRQUE()
+			 | DEB1_URGENT | DEB2_URGENT | DEB3_URGENT);
+#endif
 	return 0;
 }
 
