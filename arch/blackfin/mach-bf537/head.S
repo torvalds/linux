@@ -33,6 +33,7 @@
 #include <asm/trace.h>
 
 #if CONFIG_BFIN_KERNEL_CLOCK
+#include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
 #endif
 

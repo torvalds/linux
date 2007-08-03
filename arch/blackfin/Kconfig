@@ -323,7 +323,7 @@ config CMDLINE
 	  to the kernel, you may specify one here. As a minimum, you should specify
 	  the memory size and the root device (e.g., mem=8M, root=/dev/nfs).
 
-comment "Board Setup"
+comment "Clock/PLL Setup"
 
 config CLKIN_HZ
 	int "Crystal Frequency in Hz"
@@ -334,6 +334,118 @@ config CLKIN_HZ
 	default "24576000" if PNAV10
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
+
+config BFIN_KERNEL_CLOCK
+	bool "Re-program Clocks while Kernel boots?"
+	default n
+	help
+	  This option decides if kernel clocks are re-programed from the
+	  bootloader settings. If the clocks are not set, the SDRAM settings
+	  are also not changed, and the Bootloader does 100% of the hardware
+	  configuration.
+
+config PLL_BYPASS
+        bool "Bypass PLL"
+        depends on BFIN_KERNEL_CLOCK
+        default n
+
+config CLKIN_HALF
+	bool "Half Clock In"
+	depends on BFIN_KERNEL_CLOCK && (! PLL_BYPASS)
+	default n
+	help
+	  If this is set the clock will be divided by 2, before it goes to the PLL.
+
+config VCO_MULT
+	int "VCO Multiplier"
+	depends on BFIN_KERNEL_CLOCK && (! PLL_BYPASS)
+	range 1 64
+	default "22" if BFIN533_EZKIT
+	default "45" if BFIN533_STAMP
+	default "20" if BFIN537_STAMP
+	default "22" if BFIN533_BLUETECHNIX_CM
+	default "20" if BFIN537_BLUETECHNIX_CM
+	default "20" if BFIN561_BLUETECHNIX_CM
+	default "20" if BFIN561_EZKIT
+	help
+	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
+	  PLL Frequency = (Crystal Frequency) * (this setting)
+
+choice
+	prompt "Core Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
+	default CCLK_DIV_1
+	help
+	  This sets the frequency of the core. It can be 1, 2, 4 or 8
+	  Core Frequency = (PLL frequency) / (this setting)
+
+config CCLK_DIV_1
+	bool "1"
+
+config CCLK_DIV_2
+	bool "2"
+
+config CCLK_DIV_4
+	bool "4"
+
+config CCLK_DIV_8
+	bool "8"
+endchoice
+
+config SCLK_DIV
+	int "System Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
+	range 1 15
+	default 5 if BFIN533_EZKIT
+	default 5 if BFIN533_STAMP
+	default 4 if BFIN537_STAMP
+	default 5 if BFIN533_BLUETECHNIX_CM
+	default 4 if BFIN537_BLUETECHNIX_CM
+	default 4 if BFIN561_BLUETECHNIX_CM
+	default 5 if BFIN561_EZKIT
+	help
+	  This sets the frequency of the system clock (including SDRAM or DDR).
+	  This can be between 1 and 15
+	  System Clock = (PLL frequency) / (this setting)
+
+#
+# Max & Min Speeds for various Chips
+#
+config MAX_VCO_HZ
+	int
+	default 600000000 if BF522
+	default 600000000 if BF525
+	default 600000000 if BF527
+	default 400000000 if BF531
+	default 400000000 if BF532
+	default 750000000 if BF533
+	default 500000000 if BF534
+	default 400000000 if BF536
+	default 600000000 if BF537
+	default 533000000 if BF538
+	default 533000000 if BF539
+	default 600000000 if BF542
+	default 533000000 if BF544
+	default 533000000 if BF549
+	default 600000000 if BF561
+
+config MIN_VCO_HZ
+	int
+	default 50000000
+
+config MAX_SCLK_HZ
+	int
+	default 133000000
+
+config MIN_SCLK_HZ
+	int
+	default 27000000
+
+comment "Kernel Timer/Scheduler"
+
+source kernel/Kconfig.hz
+
+comment "Memory Setup"
 
 config MEM_SIZE
 	int "SDRAM Memory Size in MBytes"
@@ -447,10 +559,6 @@ endmenu
 
 
 menu "Blackfin Kernel Optimizations"
-
-comment "Timer Tick"
-
-source kernel/Kconfig.hz
 
 comment "Memory Optimizations"
 
@@ -671,63 +779,6 @@ config L1_MAX_PIECE
 	help
 	  Set the max memory pieces for the L1 SRAM allocation algorithm.
 	  Min value is 16. Max value is 1024.
-
-menu "Clock Settings"
-
-
-config BFIN_KERNEL_CLOCK
-	bool "Re-program Clocks while Kernel boots?"
-	default n
-	help
-	  This option decides if kernel clocks are re-programed from the
-	  bootloader settings. If the clocks are not set, the SDRAM settings
-	  are also not changed, and the Bootloader does 100% of the hardware
-	  configuration.
-
-config VCO_MULT
-	int "VCO Multiplier"
-	depends on BFIN_KERNEL_CLOCK
-	default "22" if BFIN533_EZKIT
-	default "45" if BFIN533_STAMP
-	default "20" if BFIN537_STAMP
-	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if BFIN537_BLUETECHNIX_CM
-	default "20" if BFIN561_BLUETECHNIX_CM
-	default "20" if BFIN561_EZKIT
-
-config CCLK_DIV
-	int "Core Clock Divider"
-	depends on BFIN_KERNEL_CLOCK
-	default 1 if BFIN533_EZKIT
-	default 1 if BFIN533_STAMP
-	default 1 if BFIN537_STAMP
-	default 1 if BFIN533_BLUETECHNIX_CM
-	default 1 if BFIN537_BLUETECHNIX_CM
-	default 1 if BFIN561_BLUETECHNIX_CM
-	default 1 if BFIN561_EZKIT
-
-config SCLK_DIV
-	int "System Clock Divider"
-	depends on BFIN_KERNEL_CLOCK
-	default 5 if BFIN533_EZKIT
-	default 5 if BFIN533_STAMP
-	default 4 if BFIN537_STAMP
-	default 5 if BFIN533_BLUETECHNIX_CM
-	default 4 if BFIN537_BLUETECHNIX_CM
-	default 4 if BFIN561_BLUETECHNIX_CM
-	default 5 if BFIN561_EZKIT
-
-config CLKIN_HALF
-	bool "Half ClockIn"
-	depends on BFIN_KERNEL_CLOCK
-	default n
-
-config PLL_BYPASS
-	bool "Bypass PLL"
-	depends on BFIN_KERNEL_CLOCK
-	default n
-
-endmenu
 
 comment "Asynchonous Memory Configuration"
 
