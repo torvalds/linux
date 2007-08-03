@@ -3424,7 +3424,7 @@ static void prism2_suspend(struct net_device *dev)
 	struct local_info *local;
 	union iwreq_data wrqu;
 
-	iface = dev->priv;
+	iface = netdev_priv(dev);
 	local = iface->local;
 
 	/* Send disconnect event, e.g., to trigger reassociation after resume

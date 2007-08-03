@@ -3088,7 +3088,7 @@ static int prism2_ioctl_priv_download(local_info_t *local, struct iw_point *p)
 static int prism2_set_genericelement(struct net_device *dev, u8 *elem,
 				     size_t len)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	u8 *buf;
 
@@ -3116,7 +3116,7 @@ static int prism2_ioctl_siwauth(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_param *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 
 	switch (data->flags & IW_AUTH_INDEX) {
@@ -3182,7 +3182,7 @@ static int prism2_ioctl_giwauth(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_param *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 
 	switch (data->flags & IW_AUTH_INDEX) {
@@ -3221,7 +3221,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
 	int i, ret = 0;
@@ -3395,7 +3395,7 @@ static int prism2_ioctl_giwencodeext(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct ieee80211_crypt_data **crypt;
 	void *sta_ptr;
@@ -3716,7 +3716,7 @@ static int prism2_ioctl_giwgenie(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	int len = local->generic_elem_len - 2;
 
@@ -3755,7 +3755,7 @@ static int prism2_ioctl_siwmlme(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_point *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
 	u16 reason;

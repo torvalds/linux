@@ -2572,7 +2572,7 @@ static struct strip *strip_alloc(void)
 		return NULL;	/* If no more memory, return */
 
 
-	strip_info = dev->priv;
+	strip_info = netdev_priv(dev);
 	strip_info->dev = dev;
 
 	strip_info->magic = STRIP_MAGIC;

@@ -1753,7 +1753,7 @@ prism54_get_oid(struct net_device *ndev, struct iw_request_info *info,
 	int rvalue;
 	enum oid_num_t n = dwrq->flags;
 
-	rvalue = mgt_get_request((islpci_private *) ndev->priv, n, 0, NULL, &r);
+	rvalue = mgt_get_request(netdev_priv(ndev), n, 0, NULL, &r);
 	dwrq->length = mgt_response_to_str(n, &r, extra);
 	if ((isl_oid[n].flags & OID_FLAG_TYPE) != OID_TYPE_U32)
 		kfree(r.ptr);
@@ -1766,7 +1766,7 @@ prism54_set_u32(struct net_device *ndev, struct iw_request_info *info,
 {
 	u32 oid = uwrq[0], u = uwrq[1];
 
-	return mgt_set_request((islpci_private *) ndev->priv, oid, 0, &u);
+	return mgt_set_request(netdev_priv(ndev), oid, 0, &u);
 }
 
 static int
@@ -1775,7 +1775,7 @@ prism54_set_raw(struct net_device *ndev, struct iw_request_info *info,
 {
 	u32 oid = dwrq->flags;
 
-	return mgt_set_request((islpci_private *) ndev->priv, oid, 0, extra);
+	return mgt_set_request(netdev_priv(ndev), oid, 0, extra);
 }
 
 void

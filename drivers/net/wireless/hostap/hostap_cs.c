@@ -272,7 +272,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 {
 	int res, ret = 0;
 	conf_reg_t reg;
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	tuple_t tuple;
 	cisparse_t *parse = NULL;
