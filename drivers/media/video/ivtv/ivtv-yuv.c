@@ -940,6 +940,7 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	int rc = 0;
 	int got_sig = 0;
 	int frame, next_fill_frame, last_fill_frame;
+	int register_update = 0;
 
 	IVTV_DEBUG_INFO("yuv_prep_frame\n");
 
@@ -953,6 +954,7 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 		/* Buffers are full - Overwrite the last frame */
 		next_fill_frame = frame;
 		frame = (frame - 1) & 3;
+		register_update = itv->yuv_info.new_frame_info[frame].update;
 	}
 
 	/* Take a snapshot of the yuv coordinate information */
@@ -990,6 +992,8 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 		itv->yuv_info.new_frame_info[frame].update = 1;
 /*		IVTV_DEBUG_YUV ("Requesting register update for frame %d\n",frame); */
 	}
+
+	itv->yuv_info.new_frame_info[frame].update |= register_update;
 
 	/* DMA the frame */
 	mutex_lock(&itv->udma.lock);
