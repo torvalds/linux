@@ -16,6 +16,7 @@
 #define O_LARGEFILE	0x40000
 #define O_DIRECT        0x100000 /* direct disk access hint */
 #define O_NOATIME	0x200000
+#define O_CLOEXEC	0x400000
 
 #define F_GETOWN	5	/*  for sockets. */
 #define F_SETOWN	6	/*  for sockets. */
@@ -31,6 +32,5 @@
 #define __ARCH_FLOCK_PAD	short __unused;
 #define __ARCH_FLOCK64_PAD	short __unused;
 
-#include <asm-generic/fcntl.h>
 
 #endif
