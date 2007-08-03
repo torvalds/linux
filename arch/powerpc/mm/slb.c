@@ -53,7 +53,8 @@ static inline unsigned long mk_vsid_data(unsigned long ea, unsigned long flags)
 	return (get_kernel_vsid(ea) << SLB_VSID_SHIFT) | flags;
 }
 
-static inline void slb_shadow_update(unsigned long esid, unsigned long vsid,
+static inline void slb_shadow_update(unsigned long ea,
+				     unsigned long flags,
 				     unsigned long entry)
 {
 	/*
@@ -61,11 +62,11 @@ static inline void slb_shadow_update(unsigned long esid, unsigned long vsid,
 	 * updating it.
 	 */
 	get_slb_shadow()->save_area[entry].esid = 0;
-	barrier();
-	get_slb_shadow()->save_area[entry].vsid = vsid;
-	barrier();
-	get_slb_shadow()->save_area[entry].esid = esid;
-
+	smp_wmb();
+	get_slb_shadow()->save_area[entry].vsid = mk_vsid_data(ea, flags);
+	smp_wmb();
+	get_slb_shadow()->save_area[entry].esid = mk_esid_data(ea, entry);
+	smp_wmb();
 }
 
 static inline void create_shadowed_slbe(unsigned long ea, unsigned long flags,
@@ -76,8 +77,7 @@ static inline void create_shadowed_slbe(unsigned long ea, unsigned long flags,
 	 * we don't get a stale entry here if we get preempted by PHYP
 	 * between these two statements.
 	 */
-	slb_shadow_update(mk_esid_data(ea, entry), mk_vsid_data(ea, flags),
-			  entry);
+	slb_shadow_update(ea, flags, entry);
 
 	asm volatile("slbmte  %0,%1" :
 		     : "r" (mk_vsid_data(ea, flags)),
@@ -104,8 +104,7 @@ void slb_flush_and_rebolt(void)
 		ksp_esid_data &= ~SLB_ESID_V;
 
 	/* Only third entry (stack) may change here so only resave that */
-	slb_shadow_update(ksp_esid_data,
-			  mk_vsid_data(ksp_esid_data, lflags), 2);
+	slb_shadow_update(get_paca()->kstack, lflags, 2);
 
 	/* We need to do this all in asm, so we're sure we don't touch
 	 * the stack between the slbia and rebolting it. */
@@ -121,6 +120,15 @@ void slb_flush_and_rebolt(void)
 		        "r"(mk_vsid_data(ksp_esid_data, lflags)),
 		        "r"(ksp_esid_data)
 		     : "memory");
+}
+
+void slb_vmalloc_update(void)
+{
+	unsigned long vflags;
+
+	vflags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_vmalloc_psize].sllp;
+	slb_shadow_update(VMALLOC_START, vflags, 1);
+	slb_flush_and_rebolt();
 }
 
 /* Flush all user entries from the segment table of the current processor. */

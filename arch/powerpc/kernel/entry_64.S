@@ -389,8 +389,11 @@ BEGIN_FTR_SECTION
 	ld	r9,PACA_SLBSHADOWPTR(r13)
 	li	r12,0
 	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
+	eieio
 	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
+	eieio
 	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
+	eieio
 
 	slbie	r6
 	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
