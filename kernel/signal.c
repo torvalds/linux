@@ -1561,10 +1561,6 @@ static inline int may_ptrace_stop(void)
 		    (current->ptrace & PT_ATTACHED)))
 		return 0;
 
-	if (unlikely(current->signal == current->parent->signal) &&
-	    unlikely(current->signal->flags & SIGNAL_GROUP_EXIT))
-		return 0;
-
 	/*
 	 * Are we in the middle of do_coredump?
 	 * If so and our tracer is also part of the coredump stopping
