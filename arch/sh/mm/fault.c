@@ -184,8 +184,7 @@ no_context:
 		printk(KERN_ALERT "pc = %08lx\n", regs->pc);
 		page = (unsigned long)get_TTB();
 		if (page) {
-			page = ((__typeof__(page) *) __va(page))[address >>
-								 PGDIR_SHIFT];
+			page = ((__typeof__(page) *)page)[address >> PGDIR_SHIFT];
 			printk(KERN_ALERT "*pde = %08lx\n", page);
 			if (page & _PAGE_PRESENT) {
 				page &= PAGE_MASK;

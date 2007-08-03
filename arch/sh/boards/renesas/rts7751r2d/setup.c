@@ -140,12 +140,19 @@ static struct platform_device sm501_device = {
 static struct platform_device *rts7751r2d_devices[] __initdata = {
 	&uart_device,
 	&heartbeat_device,
-	&cf_ide_device,
 	&sm501_device,
 };
 
 static int __init rts7751r2d_devices_setup(void)
 {
+	int ret;
+
+	if (ctrl_inw(PA_BVERREG) == 0x10) { /* only working on R2D-PLUS */
+		ret = platform_device_register(&cf_ide_device);
+		if (ret)
+			return ret;
+	}
+
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
