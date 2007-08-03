@@ -639,11 +639,13 @@ static void if_usb_receive(struct urb *urb)
 
 	int recvlength = urb->actual_length;
 	u8 *recvbuff = NULL;
-	u32 recvtype;
+	u32 recvtype = 0;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
 	if (recvlength) {
+		__le32 tmp;
+
 		if (urb->status) {
 			lbs_deb_usbd(&cardp->udev->dev,
 				    "URB status is failed\n");
@@ -652,17 +654,13 @@ static void if_usb_receive(struct urb *urb)
 		}
 
 		recvbuff = skb->data + IPFIELD_ALIGN_OFFSET;
-		memcpy(&recvtype, recvbuff, sizeof(u32));
+		memcpy(&tmp, recvbuff, sizeof(u32));
+		recvtype = le32_to_cpu(tmp);
 		lbs_deb_usbd(&cardp->udev->dev,
-			    "Recv length = 0x%x\n", recvlength);
-		lbs_deb_usbd(&cardp->udev->dev,
-			    "Receive type = 0x%X\n", recvtype);
-		recvtype = le32_to_cpu(recvtype);
-		lbs_deb_usbd(&cardp->udev->dev,
-			    "Receive type after = 0x%X\n", recvtype);
+			    "Recv length = 0x%x, Recv type = 0x%X\n",
+			    recvlength, recvtype);
 	} else if (urb->status)
 		goto rx_exit;
-
 
 	switch (recvtype) {
 	case CMD_TYPE_DATA:
@@ -691,6 +689,8 @@ static void if_usb_receive(struct urb *urb)
 		spin_unlock(&priv->adapter->driver_lock);
 		goto rx_exit;
 	default:
+		lbs_deb_usbd(&cardp->udev->dev, "Unknown command type 0x%X\n",
+		             recvtype);
 		kfree_skb(skb);
 		break;
 	}
@@ -711,21 +711,19 @@ rx_exit:
  */
 static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
 {
-	int ret = -1;
-	u32 tmp;
 	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
 	lbs_deb_usbd(&cardp->udev->dev,"*** type = %u\n", type);
 	lbs_deb_usbd(&cardp->udev->dev,"size after = %d\n", nb);
 
 	if (type == MVMS_CMD) {
-		tmp = cpu_to_le32(CMD_TYPE_REQUEST);
+		__le32 tmp = cpu_to_le32(CMD_TYPE_REQUEST);
 		priv->dnld_sent = DNLD_CMD_SENT;
 		memcpy(cardp->bulk_out_buffer, (u8 *) & tmp,
 		       MESSAGE_HEADER_LEN);
 
 	} else {
-		tmp = cpu_to_le32(CMD_TYPE_DATA);
+		__le32 tmp = cpu_to_le32(CMD_TYPE_DATA);
 		priv->dnld_sent = DNLD_DATA_SENT;
 		memcpy(cardp->bulk_out_buffer, (u8 *) & tmp,
 		       MESSAGE_HEADER_LEN);
@@ -733,10 +731,8 @@ static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 n
 
 	memcpy((cardp->bulk_out_buffer + MESSAGE_HEADER_LEN), payload, nb);
 
-	ret =
-	    usb_tx_block(priv, cardp->bulk_out_buffer, nb + MESSAGE_HEADER_LEN);
-
-	return ret;
+	return usb_tx_block(priv, cardp->bulk_out_buffer,
+	                    nb + MESSAGE_HEADER_LEN);
 }
 
 /* called with adapter->driver_lock held */

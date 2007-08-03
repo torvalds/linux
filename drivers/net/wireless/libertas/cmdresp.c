@@ -812,8 +812,8 @@ int libertas_process_rx_command(wlan_private * priv)
 
 	if (adapter->cur_cmd->cmdflags & CMD_F_HOSTCMD) {
 		/* Copy the response back to response buffer */
-		memcpy(adapter->cur_cmd->pdata_buf, resp, resp->size);
-
+		memcpy(adapter->cur_cmd->pdata_buf, resp,
+		       le16_to_cpu(resp->size));
 		adapter->cur_cmd->cmdflags &= ~CMD_F_HOSTCMD;
 	}
 

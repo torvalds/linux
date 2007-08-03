@@ -370,8 +370,8 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 		radiotap_hdr.hdr.it_version = 0;
 		/* XXX must check this value for pad */
 		radiotap_hdr.hdr.it_pad = 0;
-		radiotap_hdr.hdr.it_len = sizeof(struct rx_radiotap_hdr);
-		radiotap_hdr.hdr.it_present = RX_RADIOTAP_PRESENT;
+		radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
+		radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
 		/* unknown values */
 		radiotap_hdr.flags = 0;
 		radiotap_hdr.chan_freq = 0;

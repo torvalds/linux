@@ -510,7 +510,7 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 		return 0;
 	}
 
-	if (pcmdptr->command != CMD_RET(CMD_802_11_SUBSCRIBE_EVENT)) {
+	if (le16_to_cpu(pcmdptr->command) != CMD_RET(CMD_802_11_SUBSCRIBE_EVENT)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;

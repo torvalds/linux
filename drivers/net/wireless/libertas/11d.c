@@ -543,7 +543,7 @@ int libertas_cmd_802_11d_domain_info(wlan_private * priv,
 		       nr_subband * sizeof(struct ieeetypes_subbandset));
 
 		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
-					     domain->header.len +
+					     le16_to_cpu(domain->header.len) +
 					     sizeof(struct mrvlietypesheader) +
 					     S_DS_GEN);
 	} else {
