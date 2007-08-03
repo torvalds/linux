@@ -351,7 +351,8 @@ static void aff_set_ref_point_location(struct spu_gang *gang)
 		lowest_offset = ctx->aff_offset;
 	}
 
-	gang->aff_ref_spu = aff_ref_location(ctx, mem_aff, gs, lowest_offset);
+	gang->aff_ref_spu = aff_ref_location(gang->aff_ref_ctx, mem_aff, gs,
+							lowest_offset);
 }
 
 static struct spu *ctx_location(struct spu *ref, int offset, int node)

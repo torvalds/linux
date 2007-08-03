@@ -262,6 +262,7 @@ extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
 extern void stab_initialize(unsigned long stab);
 
+extern void slb_vmalloc_update(void);
 #endif /* __ASSEMBLY__ */
 
 /*

@@ -826,13 +826,15 @@ core99_ata100_enable(struct device_node *node, long value)
 
 	if (value) {
 		if (pci_device_from_OF_node(node, &pbus, &pid) == 0)
-			pdev = pci_find_slot(pbus, pid);
+			pdev = pci_get_bus_and_slot(pbus, pid);
 		if (pdev == NULL)
 			return 0;
 		rc = pci_enable_device(pdev);
+		if (rc == 0)
+			pci_set_master(pdev);
+		pci_dev_put(pdev);
 		if (rc)
 			return rc;
-		pci_set_master(pdev);
 	}
 	return 0;
 }
