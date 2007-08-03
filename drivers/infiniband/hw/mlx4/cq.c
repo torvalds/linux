@@ -389,7 +389,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 			wc->opcode    = IB_WC_SEND;
 			break;
 		case MLX4_OPCODE_RDMA_READ:
-			wc->opcode    = IB_WC_SEND;
+			wc->opcode    = IB_WC_RDMA_READ;
 			wc->byte_len  = be32_to_cpu(cqe->byte_cnt);
 			break;
 		case MLX4_OPCODE_ATOMIC_CS:
