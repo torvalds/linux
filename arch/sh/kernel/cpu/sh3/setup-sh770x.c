@@ -201,12 +201,16 @@ static int __init sh770x_devices_setup(void)
 }
 __initcall(sh770x_devices_setup);
 
+#define INTC_ICR1		0xa4000010UL
+#define INTC_ICR1_IRQLVL	(1<<14)
+
 void __init plat_irq_setup_pins(int mode)
 {
 	if (mode == IRQ_MODE_IRQ) {
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
+		ctrl_outw(ctrl_inw(INTC_ICR1) & ~INTC_ICR1_IRQLVL, INTC_ICR1);
 		register_intc_controller(&intc_desc_irq);
 		return;
 #endif
