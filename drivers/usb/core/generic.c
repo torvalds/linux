@@ -40,7 +40,7 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 		&& desc->bInterfaceProtocol == 1;
 }
 
-int choose_configuration(struct usb_device *udev)
+int usb_choose_configuration(struct usb_device *udev)
 {
 	int i;
 	int num_configs;
@@ -164,7 +164,7 @@ static int generic_probe(struct usb_device *udev)
 	if (udev->authorized == 0)
 		dev_err(&udev->dev, "Device is not authorized for usage\n");
 	else {
-		c = choose_configuration(udev);
+		c = usb_choose_configuration(udev);
 		if (c >= 0) {
 			err = usb_set_configuration(udev, c);
 			if (err) {

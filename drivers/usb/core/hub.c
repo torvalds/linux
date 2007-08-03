@@ -1460,7 +1460,7 @@ int usb_authorize_device(struct usb_device *usb_dev)
 	/* Choose and set the configuration.  This registers the interfaces
 	 * with the driver core and lets interface drivers bind to them.
 	 */
-	c = choose_configuration(usb_dev);
+	c = usb_choose_configuration(usb_dev);
 	if (c >= 0) {
 		result = usb_set_configuration(usb_dev, c);
 		if (result) {
