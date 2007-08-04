@@ -26,7 +26,6 @@
 unsigned int sni_brd_type;
 
 extern void sni_machine_restart(char *command);
-extern void sni_machine_halt(void);
 extern void sni_machine_power_off(void);
 
 static void __init sni_display_setup(void)
@@ -87,7 +86,6 @@ void __init plat_mem_setup(void)
 	}
 
 	_machine_restart = sni_machine_restart;
-	_machine_halt = sni_machine_halt;
 	pm_power_off = sni_machine_power_off;
 
 	sni_display_setup();
