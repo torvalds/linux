@@ -414,10 +414,16 @@ static int __init ps3_enumerate_spus(int (*fn)(void *data))
 	return num_resource_id;
 }
 
+static int ps3_init_affinity(void)
+{
+	return 0;
+}
+
 const struct spu_management_ops spu_management_ps3_ops = {
 	.enumerate_spus = ps3_enumerate_spus,
 	.create_spu = ps3_create_spu,
 	.destroy_spu = ps3_destroy_spu,
+	.init_affinity = ps3_init_affinity,
 };
 
 /* spu_priv1_ops */
