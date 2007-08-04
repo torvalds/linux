@@ -339,8 +339,8 @@ __SYSCALL(148, sys_setpgid, 2)
 __SYSCALL(149, sys_getpgid, 1)
 #define __NR_getppid 				150
 __SYSCALL(150, sys_getppid, 0)
-#define __NR_available151			151
-__SYSCALL(151, sys_ni_syscall, 0)
+#define __NR_getpgrp				151
+__SYSCALL(151, sys_getpgrp, 0)
 
 #define __NR_reserved152 			152	/* set_thread_area */
 __SYSCALL(152, sys_ni_syscall, 0)
