@@ -1209,6 +1209,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		int i;
 
 		IVTV_INFO("=================  START STATUS CARD #%d  =================\n", itv->num);
+		IVTV_INFO("Version: %s Card: %s\n", IVTV_VERSION, itv->card_name);
 		if (itv->hw_flags & IVTV_HW_TVEEPROM) {
 			struct tveeprom tv;
 
@@ -1242,7 +1243,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		IVTV_INFO("Tuner: %s\n",
 			test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
 		cx2341x_log_status(&itv->params, itv->name);
-		IVTV_INFO("Version: %s Status flags: 0x%08lx\n", IVTV_VERSION, itv->i_flags);
+		IVTV_INFO("Status flags: 0x%08lx\n", itv->i_flags);
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 			struct ivtv_stream *s = &itv->streams[i];
 
