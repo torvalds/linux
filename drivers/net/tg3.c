@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.79"
-#define DRV_MODULE_RELDATE	"July 18, 2007"
+#define DRV_MODULE_VERSION	"3.80"
+#define DRV_MODULE_RELDATE	"August 2, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -12111,6 +12111,12 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
 
+	/* PCI register 4 needs to be saved whether netif_running() or not.
+	 * MSI address and data need to be saved if using MSI and
+	 * netif_running().
+	 */
+	pci_save_state(pdev);
+
 	if (!netif_running(dev))
 		return 0;
 
@@ -12129,9 +12135,6 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_full_unlock(tp);
-
-	/* Save MSI address and data for resume.  */
-	pci_save_state(pdev);
 
 	err = tg3_set_power_state(tp, pci_choose_state(pdev, state));
 	if (err) {
@@ -12160,10 +12163,10 @@ static int tg3_resume(struct pci_dev *pdev)
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
 
+	pci_restore_state(tp->pdev);
+
 	if (!netif_running(dev))
 		return 0;
-
-	pci_restore_state(tp->pdev);
 
 	err = tg3_set_power_state(tp, PCI_D0);
 	if (err)
