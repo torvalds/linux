@@ -179,7 +179,7 @@ static void cx25836_initialize(struct i2c_client *client)
 	cx25840_and_or(client, 0x15b, ~0x1e, 0x10);
 }
 
-static void cx25840_initialize(struct i2c_client *client, int loadfw)
+static void cx25840_initialize(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
@@ -197,8 +197,7 @@ static void cx25840_initialize(struct i2c_client *client, int loadfw)
 	cx25840_write(client, 0x13c, 0x01);
 	cx25840_write(client, 0x13c, 0x00);
 	/* 5. */
-	if (loadfw)
-		cx25840_loadfw(client);
+	cx25840_loadfw(client);
 	/* 6. */
 	cx25840_write(client, 0x115, 0x8c);
 	cx25840_write(client, 0x116, 0x07);
@@ -638,7 +637,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		if (state->is_cx25836)
 			cx25836_initialize(client);
 		else
-			cx25840_initialize(client, 1);
+			cx25840_initialize(client);
 	}
 
 	switch (cmd) {
@@ -841,7 +840,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		if (state->is_cx25836)
 			cx25836_initialize(client);
 		else
-			cx25840_initialize(client, 0);
+			cx25840_initialize(client);
 		break;
 
 	case VIDIOC_G_CHIP_IDENT:
