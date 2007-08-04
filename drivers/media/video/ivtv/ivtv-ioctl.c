@@ -681,9 +681,17 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		break;
 	}
 
-	case VIDIOC_INT_RESET:
-		ivtv_reset_ir_gpio(itv);
+	case VIDIOC_INT_RESET: {
+		u32 val = *(u32 *)arg;
+
+		if ((val == 0 && itv->options.newi2c) || (val & 0x01)) {
+			ivtv_reset_ir_gpio(itv);
+		}
+		if (val & 0x02) {
+			itv->video_dec_func(itv, cmd, 0);
+		}
 		break;
+	}
 
 	default:
 		return -EINVAL;
