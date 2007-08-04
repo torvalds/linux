@@ -21,7 +21,6 @@ struct bcache_ops {
 };
 
 extern void indy_sc_init(void);
-extern void sni_pcimt_sc_init(void);
 
 #ifdef CONFIG_BOARD_SCACHE
 
