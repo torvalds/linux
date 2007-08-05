@@ -152,6 +152,7 @@ struct dma_channel {
 /* functions to set register mode */
 void set_dma_start_addr(unsigned int channel, unsigned long addr);
 void set_dma_next_desc_addr(unsigned int channel, unsigned long addr);
+void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr);
 void set_dma_x_count(unsigned int channel, unsigned short x_count);
 void set_dma_x_modify(unsigned int channel, short x_modify);
 void set_dma_y_count(unsigned int channel, unsigned short y_count);

@@ -270,9 +270,22 @@ void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
 
 	dma_ch[channel].regs->next_desc_ptr = addr;
 	SSYNC();
-	pr_debug("set_dma_start_addr() : END\n");
+	pr_debug("set_dma_next_desc_addr() : END\n");
 }
 EXPORT_SYMBOL(set_dma_next_desc_addr);
+
+void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr)
+{
+	pr_debug("set_dma_curr_desc_addr() : BEGIN \n");
+
+	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
+
+	dma_ch[channel].regs->curr_desc_ptr = addr;
+	SSYNC();
+	pr_debug("set_dma_curr_desc_addr() : END\n");
+}
+EXPORT_SYMBOL(set_dma_curr_desc_addr);
 
 void set_dma_x_count(unsigned int channel, unsigned short x_count)
 {
