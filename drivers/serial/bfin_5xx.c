@@ -231,11 +231,9 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status, ch, flg;
+	static int in_break = 0;
 #ifdef CONFIG_KGDB_UART
 	struct pt_regs *regs = get_irq_regs();
-#endif
-#ifdef BF533_FAMILY
-	static int in_break = 0;
 #endif
 
 	status = UART_GET_LSR(uart);
@@ -262,29 +260,30 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		}
 	}
 #endif
- 
-#ifdef BF533_FAMILY
-	/* The BF533 family of processors have a nice misbehavior where
-	 * they continuously generate characters for a "single" break.
-	 * We have to basically ignore this flood until the "next" valid
-	 * character comes across.  All other Blackfin families operate
-	 * properly though.
-	 */
-	if (in_break) {
-		if (ch != 0) {
-			in_break = 0;
-			ch = UART_GET_CHAR(uart);
-			if (bfin_revid() < 5)
+
+	if (ANOMALY_05000230) {
+		/* The BF533 family of processors have a nice misbehavior where
+		 * they continuously generate characters for a "single" break.
+		 * We have to basically ignore this flood until the "next" valid
+		 * character comes across.  All other Blackfin families operate
+		 * properly though.
+		 * Note: While Anomaly 05000230 does not directly address this,
+		 *       the changes that went in for it also fixed this issue.
+		 */
+		if (in_break) {
+			if (ch != 0) {
+				in_break = 0;
+				ch = UART_GET_CHAR(uart);
+				if (bfin_revid() < 5)
+					return;
+			} else
 				return;
-		} else
-			return;
+		}
 	}
-#endif
 
 	if (status & BI) {
-#ifdef BF533_FAMILY
-		in_break = 1;
-#endif
+		if (ANOMALY_05000230)
+			in_break = 1;
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
