@@ -28,6 +28,8 @@ asmlinkage long sys_rt_sigaction(int,
 				 struct sigaction __user *,
 				 size_t);
 asmlinkage long xtensa_shmat(int, char __user *, int);
+asmlinkage long xtensa_fadvise64_64(int, int,
+				    unsigned long long, unsigned long long);
 
 /* Should probably move to linux/syscalls.h */
 struct pollfd;

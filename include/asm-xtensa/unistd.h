@@ -151,7 +151,7 @@ __SYSCALL( 61, sys_fcntl64, 3)
 #define __NR_available62			 62
 __SYSCALL( 62, sys_ni_syscall, 0)
 #define __NR_fadvise64_64 			 63
-__SYSCALL( 63, sys_fadvise64_64, 6)
+__SYSCALL( 63, xtensa_fadvise64_64, 6)
 #define __NR_utime				 64	/* glibc 2.3.3 ?? */
 __SYSCALL( 64, sys_utime, 2)
 #define __NR_utimes 				 65
