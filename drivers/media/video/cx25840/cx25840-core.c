@@ -915,6 +915,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->audclk_freq = 48000;
 	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->unmute_volume = -1;
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
@@ -1066,9 +1067,10 @@ static void log_audio_status(struct i2c_client *client)
 	}
 	v4l_info(client, "Detected audio standard:   %s\n", p);
 	v4l_info(client, "Audio muted:               %s\n",
-		    (mute_ctl & 0x2) ? "yes" : "no");
+		    (state->unmute_volume >= 0) ? "yes" : "no");
 	v4l_info(client, "Audio microcontroller:     %s\n",
-		    (download_ctl & 0x10) ? "running" : "stopped");
+		    (download_ctl & 0x10) ?
+				((mute_ctl & 0x2) ? "detecting" : "running") : "stopped");
 
 	switch (audio_config >> 4) {
 	case 0x00: p = "undefined"; break;
