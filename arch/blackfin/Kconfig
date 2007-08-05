@@ -476,15 +476,16 @@ config ENET_FLASH_PIN
 config BOOT_LOAD
 	hex "Kernel load address for booting"
 	default "0x1000"
+	range 0x1000 0x20000000
 	help
 	  This option allows you to set the load address of the kernel.
 	  This can be useful if you are on a board which has a small amount
 	  of memory or you wish to reserve some memory at the beginning of
 	  the address space.
 
-	  Note that you generally want to keep this value at or above 4k
-	  (0x1000) as this will allow the kernel to capture NULL pointer
-	  references.
+	  Note that you need to keep this value above 4k (0x1000) as this
+	  memory region is used to capture NULL pointer references as well
+	  as some core kernel functions.
 
 comment "LED Status Indicators"
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
