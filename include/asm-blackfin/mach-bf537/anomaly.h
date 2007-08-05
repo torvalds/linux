@@ -44,8 +44,6 @@
 #define ANOMALY_05000122 (1)
 /* Killed 32-bit MMR write leads to next system MMR access thinking it should be 32-bit */
 #define ANOMALY_05000157 (__SILICON_REVISION__ < 2)
-/* PPI Data Lengths Between 8 and 16 do not zero out upper bits*/
-#define ANOMALY_05000166 (1)	/* XXX: deleted from BF537 sheet ? */
 /* PPI_DELAY not functional in PPI modes with 0 frame syncs */
 #define ANOMALY_05000180 (1)
 /* Instruction Cache Is Not Functional */

@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision B, April 6, 2007; ADSP-BF549 Silicon Anomaly List
+ *  - Revision C, July 16, 2007; ADSP-BF549 Silicon Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -21,14 +21,14 @@
 #define ANOMALY_05000122 (1)
 /* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
-/* Entering Hibernate State with RTC Seconds Interrupt Not Functional */
-#define ANOMALY_05000255 (1)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
 /* False Hardware Error Exception when ISR context is not restored */
 #define ANOMALY_05000281 (1)
+/* SSYNCs After Writes To CAN/DMA MMR Registers Are Not Always Handled Correctly */
+#define ANOMALY_05000304 (1)
 /* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
@@ -55,6 +55,18 @@
 #define ANOMALY_05000337 (1)
 /* Slave-Mode SPI0 MISO Failure With CPHA = 0 */
 #define ANOMALY_05000338 (1)
+/* If Memory Reads Are Enabled on SDH or HOSTDP, Other DMAC1 Peripherals Cannot Read */
+#define ANOMALY_05000340 (1)
+/* Boot Host Wait (HWAIT) and Boot Host Wait Alternate (HWAITA) Signals Are Swapped */
+#define ANOMALY_05000344 (1)
+/* USB Calibration Value Is Not Intialized */
+#define ANOMALY_05000346 (1)
+/* Boot ROM Kernel Incorrectly Alters Reset Value of USB Register */
+#define ANOMALY_05000347 (1)
+/* Data Lost when Core Reads SDH Data FIFO */
+#define ANOMALY_05000349 (1)
+/* PLL Status Register Is Inaccurate */
+#define ANOMALY_05000351 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)

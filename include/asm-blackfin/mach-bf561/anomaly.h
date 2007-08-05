@@ -248,6 +248,7 @@
 #define ANOMALY_05000333 (__SILICON_REVISION__ < 5)
 
 /* Anomalies that don't exist on this proc */
+#define ANOMALY_05000158 (0)
 #define ANOMALY_05000183 (0)
 #define ANOMALY_05000273 (0)
 #define ANOMALY_05000311 (0)
