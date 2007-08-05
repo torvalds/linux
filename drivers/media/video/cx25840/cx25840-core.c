@@ -251,7 +251,11 @@ static void input_change(struct i2c_client *client)
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
 
-	if (std & V4L2_STD_525_60) {
+	if (state->radio) {
+		cx25840_write(client, 0x808, 0xf9);
+		cx25840_write(client, 0x80b, 0x00);
+	}
+	else if (std & V4L2_STD_525_60) {
 		/* Certain Hauppauge PVR150 models have a hardware bug
 		   that causes audio to drop out. For these models the
 		   audio standard must be set explicitly.
