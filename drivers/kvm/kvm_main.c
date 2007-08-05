@@ -1221,7 +1221,10 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	emulate_ctxt.fs_base = get_segment_base(vcpu, VCPU_SREG_FS);
 
 	vcpu->mmio_is_write = 0;
+	vcpu->pio.string = 0;
 	r = x86_emulate_memop(&emulate_ctxt, &emulate_ops);
+	if (vcpu->pio.string)
+		return EMULATE_DO_MMIO;
 
 	if ((r || vcpu->mmio_is_write) && run) {
 		run->exit_reason = KVM_EXIT_MMIO;

@@ -103,9 +103,12 @@ static u8 opcode_table[256] = {
 	/* 0x58 - 0x5F */
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	/* 0x60 - 0x6F */
+	/* 0x60 - 0x6B */
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x6C - 0x6F */
+	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
+	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x80 - 0x87 */
@@ -428,10 +431,11 @@ struct operand {
 })
 
 /* Access/update address held in a register, based on addressing mode. */
+#define address_mask(reg)						\
+	((ad_bytes == sizeof(unsigned long)) ? 				\
+		(reg) :	((reg) & ((1UL << (ad_bytes << 3)) - 1)))
 #define register_address(base, reg)                                     \
-	((base) + ((ad_bytes == sizeof(unsigned long)) ? (reg) :	\
-		   ((reg) & ((1UL << (ad_bytes << 3)) - 1))))
-
+	((base) + address_mask(reg))
 #define register_address_increment(reg, inc)                            \
 	do {								\
 		/* signed type ensures sign extension to long */        \
@@ -1116,6 +1120,41 @@ done:
 special_insn:
 	if (twobyte)
 		goto twobyte_special_insn;
+	switch(b) {
+	case 0x6c:		/* insb */
+	case 0x6d:		/* insw/insd */
+		 if (kvm_setup_pio(ctxt->vcpu, NULL,
+				1, 					/* in */
+				(d & ByteOp) ? 1 : op_bytes, 		/* size */
+				rep_prefix ?
+				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
+				1, 					/* strings */
+				(_eflags & EFLG_DF),			/* down */
+				register_address(ctxt->es_base,
+						 _regs[VCPU_REGS_RDI]),	/* address */
+				rep_prefix,
+				_regs[VCPU_REGS_RDX]			/* port */
+				) == 0)
+			return -1;
+		return 0;
+	case 0x6e:		/* outsb */
+	case 0x6f:		/* outsw/outsd */
+		if (kvm_setup_pio(ctxt->vcpu, NULL,
+				0, 					/* in */
+				(d & ByteOp) ? 1 : op_bytes, 		/* size */
+				rep_prefix ?
+				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
+				1, 					/* strings */
+				(_eflags & EFLG_DF),			/* down */
+				register_address(override_base ?
+						 *override_base : ctxt->ds_base,
+						 _regs[VCPU_REGS_RSI]),	/* address */
+				rep_prefix,
+				_regs[VCPU_REGS_RDX]			/* port */
+				) == 0)
+			return -1;
+		return 0;
+	}
 	if (rep_prefix) {
 		if (_regs[VCPU_REGS_RCX] == 0) {
 			ctxt->vcpu->rip = _eip;

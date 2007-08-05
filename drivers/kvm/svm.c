@@ -98,20 +98,6 @@ static inline u32 svm_has(u32 feat)
 	return svm_features & feat;
 }
 
-static unsigned get_addr_size(struct vcpu_svm *svm)
-{
-	struct vmcb_save_area *sa = &svm->vmcb->save;
-	u16 cs_attrib;
-
-	if (!(sa->cr0 & X86_CR0_PE) || (sa->rflags & X86_EFLAGS_VM))
-		return 2;
-
-	cs_attrib = sa->cs.attrib;
-
-	return (cs_attrib & SVM_SELECTOR_L_MASK) ? 8 :
-				(cs_attrib & SVM_SELECTOR_DB_MASK) ? 4 : 2;
-}
-
 static inline u8 pop_irq(struct kvm_vcpu *vcpu)
 {
 	int word_index = __ffs(vcpu->irq_summary);
@@ -995,147 +981,32 @@ static int shutdown_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 0;
 }
 
-static int io_get_override(struct vcpu_svm *svm,
-			  struct vmcb_seg **seg,
-			  int *addr_override)
-{
-	u8 inst[MAX_INST_SIZE];
-	unsigned ins_length;
-	gva_t rip;
-	int i;
-
-	rip =  svm->vmcb->save.rip;
-	ins_length = svm->next_rip - rip;
-	rip += svm->vmcb->save.cs.base;
-
-	if (ins_length > MAX_INST_SIZE)
-		printk(KERN_DEBUG
-		       "%s: inst length err, cs base 0x%llx rip 0x%llx "
-		       "next rip 0x%llx ins_length %u\n",
-		       __FUNCTION__,
-		       svm->vmcb->save.cs.base,
-		       svm->vmcb->save.rip,
-		       svm->vmcb->control.exit_info_2,
-		       ins_length);
-
-	if (emulator_read_std(rip, inst, ins_length, &svm->vcpu)
-	    != X86EMUL_CONTINUE)
-		/* #PF */
-		return 0;
-
-	*addr_override = 0;
-	*seg = NULL;
-	for (i = 0; i < ins_length; i++)
-		switch (inst[i]) {
-		case 0xf0:
-		case 0xf2:
-		case 0xf3:
-		case 0x66:
-			continue;
-		case 0x67:
-			*addr_override = 1;
-			continue;
-		case 0x2e:
-			*seg = &svm->vmcb->save.cs;
-			continue;
-		case 0x36:
-			*seg = &svm->vmcb->save.ss;
-			continue;
-		case 0x3e:
-			*seg = &svm->vmcb->save.ds;
-			continue;
-		case 0x26:
-			*seg = &svm->vmcb->save.es;
-			continue;
-		case 0x64:
-			*seg = &svm->vmcb->save.fs;
-			continue;
-		case 0x65:
-			*seg = &svm->vmcb->save.gs;
-			continue;
-		default:
-			return 1;
-		}
-	printk(KERN_DEBUG "%s: unexpected\n", __FUNCTION__);
-	return 0;
-}
-
-static unsigned long io_address(struct vcpu_svm *svm, int ins, gva_t *address)
-{
-	unsigned long addr_mask;
-	unsigned long *reg;
-	struct vmcb_seg *seg;
-	int addr_override;
-	struct vmcb_save_area *save_area = &svm->vmcb->save;
-	u16 cs_attrib = save_area->cs.attrib;
-	unsigned addr_size = get_addr_size(svm);
-
-	if (!io_get_override(svm, &seg, &addr_override))
-		return 0;
-
-	if (addr_override)
-		addr_size = (addr_size == 2) ? 4: (addr_size >> 1);
-
-	if (ins) {
-		reg = &svm->vcpu.regs[VCPU_REGS_RDI];
-		seg = &svm->vmcb->save.es;
-	} else {
-		reg = &svm->vcpu.regs[VCPU_REGS_RSI];
-		seg = (seg) ? seg : &svm->vmcb->save.ds;
-	}
-
-	addr_mask = ~0ULL >> (64 - (addr_size * 8));
-
-	if ((cs_attrib & SVM_SELECTOR_L_MASK) &&
-	    !(svm->vmcb->save.rflags & X86_EFLAGS_VM)) {
-		*address = (*reg & addr_mask);
-		return addr_mask;
-	}
-
-	if (!(seg->attrib & SVM_SELECTOR_P_SHIFT)) {
-		svm_inject_gp(&svm->vcpu, 0);
-		return 0;
-	}
-
-	*address = (*reg & addr_mask) + seg->base;
-	return addr_mask;
-}
-
 static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	u32 io_info = svm->vmcb->control.exit_info_1; //address size bug?
 	int size, down, in, string, rep;
 	unsigned port;
-	unsigned long count;
-	gva_t address = 0;
 
 	++svm->vcpu.stat.io_exits;
 
 	svm->next_rip = svm->vmcb->control.exit_info_2;
 
+	string = (io_info & SVM_IOIO_STR_MASK) != 0;
+
+	if (string) {
+		if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0) == EMULATE_DO_MMIO)
+			return 0;
+		return 1;
+	}
+
 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
-	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	rep = (io_info & SVM_IOIO_REP_MASK) != 0;
-	count = 1;
 	down = (svm->vmcb->save.rflags & X86_EFLAGS_DF) != 0;
 
-	if (string) {
-		unsigned addr_mask;
-
-		addr_mask = io_address(svm, in, &address);
-		if (!addr_mask) {
-			printk(KERN_DEBUG "%s: get io address failed\n",
-			       __FUNCTION__);
-			return 1;
-		}
-
-		if (rep)
-			count = svm->vcpu.regs[VCPU_REGS_RCX] & addr_mask;
-	}
-	return kvm_setup_pio(&svm->vcpu, kvm_run, in, size, count, string,
-			     down, address, rep, port);
+	return kvm_setup_pio(&svm->vcpu, kvm_run, in, size, 1, 0,
+			     down, 0, rep, port);
 }
 
 static int nop_on_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)

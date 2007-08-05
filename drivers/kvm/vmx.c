@@ -1763,82 +1763,30 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
-static int get_io_count(struct kvm_vcpu *vcpu, unsigned long *count)
-{
-	u64 inst;
-	gva_t rip;
-	int countr_size;
-	int i;
-
-	if ((vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_VM)) {
-		countr_size = 2;
-	} else {
-		u32 cs_ar = vmcs_read32(GUEST_CS_AR_BYTES);
-
-		countr_size = (cs_ar & AR_L_MASK) ? 8:
-			      (cs_ar & AR_DB_MASK) ? 4: 2;
-	}
-
-	rip =  vmcs_readl(GUEST_RIP);
-	if (countr_size != 8)
-		rip += vmcs_readl(GUEST_CS_BASE);
-
-	if (emulator_read_std(rip, &inst, sizeof(inst), vcpu) !=
-							X86EMUL_CONTINUE)
-		return 0;
-
-	for (i = 0; i < sizeof(inst); i++) {
-		switch (((u8*)&inst)[i]) {
-		case 0xf0:
-		case 0xf2:
-		case 0xf3:
-		case 0x2e:
-		case 0x36:
-		case 0x3e:
-		case 0x26:
-		case 0x64:
-		case 0x65:
-		case 0x66:
-			break;
-		case 0x67:
-			countr_size = (countr_size == 2) ? 4: (countr_size >> 1);
-		default:
-			goto done;
-		}
-	}
-	return 0;
-done:
-	countr_size *= 8;
-	*count = vcpu->regs[VCPU_REGS_RCX] & (~0ULL >> (64 - countr_size));
-	//printk("cx: %lx\n", vcpu->regs[VCPU_REGS_RCX]);
-	return 1;
-}
-
 static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
 	int size, down, in, string, rep;
 	unsigned port;
-	unsigned long count;
-	gva_t address;
 
 	++vcpu->stat.io_exits;
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
-	in = (exit_qualification & 8) != 0;
-	size = (exit_qualification & 7) + 1;
 	string = (exit_qualification & 16) != 0;
+
+	if (string) {
+		if (emulate_instruction(vcpu, kvm_run, 0, 0) == EMULATE_DO_MMIO)
+			return 0;
+		return 1;
+	}
+
+	size = (exit_qualification & 7) + 1;
+	in = (exit_qualification & 8) != 0;
 	down = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_DF) != 0;
-	count = 1;
 	rep = (exit_qualification & 32) != 0;
 	port = exit_qualification >> 16;
-	address = 0;
-	if (string) {
-		if (rep && !get_io_count(vcpu, &count))
-			return 1;
-		address = vmcs_readl(GUEST_LINEAR_ADDRESS);
-	}
-	return kvm_setup_pio(vcpu, kvm_run, in, size, count, string, down,
-			     address, rep, port);
+
+	return kvm_setup_pio(vcpu, kvm_run, in, size, 1, 0, down,
+			     0, rep, port);
 }
 
 static void
