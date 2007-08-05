@@ -1165,7 +1165,7 @@
 #define GM			0x0008	/* Get More (When RDBR Full, Overwrite/Discard*)        */
 #define PSSE		0x0010	/* Slave-Select Input Enable                                            */
 #define EMISO		0x0020	/* Enable MISO As Output                                                        */
-#define SPI_SIZE	0x0100	/* Size of Words (16/8* Bits)                                           */
+#define SIZE		0x0100	/* Size of Words (16/8* Bits)                                           */
 #define LSBF		0x0200	/* LSB First                                                                            */
 #define CPHA		0x0400	/* Clock Phase                                                                          */
 #define CPOL		0x0800	/* Clock Polarity                                                                       */

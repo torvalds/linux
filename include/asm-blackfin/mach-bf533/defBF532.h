@@ -928,7 +928,7 @@
 #define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
 #define PSSE                   0x00000010	/* Enable (=1) Slave-Select input for Master. */
 #define EMISO                  0x00000020	/* Enable (=1) MISO pin as an output. */
-#define SPI_LEN                0x00000100	/* Word length (0 => 8 bits, 1 => 16 bits) */
+#define SIZE                   0x00000100	/* Word length (0 => 8 bits, 1 => 16 bits) */
 #define LSBF                   0x00000200	/* Data format (0 => MSB sent/received first 1 => LSB sent/received first) */
 #define CPHA                   0x00000400	/* Clock phase (0 => SPICLK starts toggling in middle of xfer, 1 => SPICLK toggles at the beginning of xfer. */
 #define CPOL                   0x00000800	/* Clock polarity (0 => active-high, 1 => active-low) */
