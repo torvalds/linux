@@ -114,7 +114,7 @@ static struct class_interface sg_interface = {
 
 typedef struct sg_scatter_hold { /* holding area for scsi scatter gather info */
 	unsigned short k_use_sg; /* Count of kernel scatter-gather pieces */
-	unsigned short sglist_len; /* size of malloc'd scatter-gather list ++ */
+	unsigned sglist_len; /* size of malloc'd scatter-gather list ++ */
 	unsigned bufflen;	/* Size of (aggregate) data buffer */
 	unsigned b_malloc_len;	/* actual len malloc'ed in buffer */
 	struct scatterlist *buffer;/* scatter list */
