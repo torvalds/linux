@@ -924,21 +924,13 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 
 void ivtv_mute(struct ivtv *itv)
 {
-	struct v4l2_control ctrl = { V4L2_CID_AUDIO_MUTE, 1 };
-
-	/* Mute sound to avoid pop */
-	ivtv_control_ioctls(itv, VIDIOC_S_CTRL, &ctrl);
-
 	if (atomic_read(&itv->capturing))
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 1);
-
 	IVTV_DEBUG_INFO("Mute\n");
 }
 
 void ivtv_unmute(struct ivtv *itv)
 {
-	struct v4l2_control ctrl = { V4L2_CID_AUDIO_MUTE, 0 };
-
 	/* initialize or refresh input */
 	if (atomic_read(&itv->capturing) == 0)
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
@@ -949,8 +941,5 @@ void ivtv_unmute(struct ivtv *itv)
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 0);
 	}
-
-	/* Unmute */
-	ivtv_control_ioctls(itv, VIDIOC_S_CTRL, &ctrl);
 	IVTV_DEBUG_INFO("Unmute\n");
 }
