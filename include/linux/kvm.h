@@ -45,7 +45,7 @@ struct kvm_irq_level {
 	__u32 level;
 };
 
-/* for KVM_GET_IRQCHIP / KVM_SET_IRQCHIP */
+/* for KVM_GET_IRQCHIP and KVM_SET_IRQCHIP */
 struct kvm_pic_state {
 	__u8 last_irr;	/* edge detection */
 	__u8 irr;		/* interrupt request register */
@@ -65,9 +65,35 @@ struct kvm_pic_state {
 	__u8 elcr_mask;
 };
 
+#define KVM_IOAPIC_NUM_PINS  24
+struct kvm_ioapic_state {
+	__u64 base_address;
+	__u32 ioregsel;
+	__u32 id;
+	__u32 irr;
+	__u32 pad;
+	union {
+		__u64 bits;
+		struct {
+			__u8 vector;
+			__u8 delivery_mode:3;
+			__u8 dest_mode:1;
+			__u8 delivery_status:1;
+			__u8 polarity:1;
+			__u8 remote_irr:1;
+			__u8 trig_mode:1;
+			__u8 mask:1;
+			__u8 reserve:7;
+			__u8 reserved[4];
+			__u8 dest_id;
+		} fields;
+	} redirtbl[KVM_IOAPIC_NUM_PINS];
+};
+
 enum kvm_irqchip_id {
 	KVM_IRQCHIP_PIC_MASTER	 = 0,
 	KVM_IRQCHIP_PIC_SLAVE	 = 1,
+	KVM_IRQCHIP_IOAPIC       = 2,
 };
 
 struct kvm_irqchip {
@@ -76,6 +102,7 @@ struct kvm_irqchip {
         union {
 		char dummy[512];  /* reserving space */
 		struct kvm_pic_state pic;
+		struct kvm_ioapic_state ioapic;
 	} chip;
 };
 

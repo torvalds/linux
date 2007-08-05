@@ -61,7 +61,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
-#define IOAPIC_NUM_PINS  24
+#define IOAPIC_NUM_PINS  KVM_IOAPIC_NUM_PINS
 #define IOAPIC_VERSION_ID 0x11	/* IOAPIC version */
 #define IOAPIC_EDGE_TRIG  0
 #define IOAPIC_LEVEL_TRIG 1
