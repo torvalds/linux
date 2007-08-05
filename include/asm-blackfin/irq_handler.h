@@ -20,5 +20,13 @@ asmlinkage void evt_evt13(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void evt_system_call(void);
 asmlinkage void init_exception_buff(void);
+asmlinkage void trap_c(struct pt_regs *fp);
+asmlinkage void ex_replaceable(void);
+
+extern void *ex_table[];
+extern void return_from_exception(void);
+
+extern int bfin_request_exception(unsigned int exception, void (*handler)(void));
+extern int bfin_free_exception(unsigned int exception, void (*handler)(void));
 
 #endif

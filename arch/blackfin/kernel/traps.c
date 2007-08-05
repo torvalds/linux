@@ -51,8 +51,6 @@ void __init trap_init(void)
 	CSYNC();
 }
 
-asmlinkage void trap_c(struct pt_regs *fp);
-
 int kstack_depth_to_print = 48;
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
@@ -692,6 +690,42 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 	local_irq_enable();
 	return ret;
 }
+
+int bfin_request_exception(unsigned int exception, void (*handler)(void))
+{
+	void (*curr_handler)(void);
+
+	if (exception > 0x3F)
+		return -EINVAL;
+
+	curr_handler = ex_table[exception];
+
+	if (curr_handler != ex_replaceable)
+		return -EBUSY;
+
+	ex_table[exception] = handler;
+
+	return 0;
+}
+EXPORT_SYMBOL(bfin_request_exception);
+
+int bfin_free_exception(unsigned int exception, void (*handler)(void))
+{
+	void (*curr_handler)(void);
+
+	if (exception > 0x3F)
+		return -EINVAL;
+
+	curr_handler = ex_table[exception];
+
+	if (curr_handler != handler)
+		return -EBUSY;
+
+	ex_table[exception] = ex_replaceable;
+
+	return 0;
+}
+EXPORT_SYMBOL(bfin_free_exception);
 
 void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 {

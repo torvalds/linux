@@ -143,7 +143,7 @@ ENTRY(_ex_single_step)
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
 
-_return_from_exception:
+ENTRY(_return_from_exception)
 	DEBUG_START_HWTRACE(p5, r7)
 #if ANOMALY_05000257
 	R7=LC0;
@@ -170,6 +170,9 @@ ENTRY(_handle_bad_cplb)
 	RESTORE_ALL_SYS
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
+
+ENTRY(_ex_replaceable)
+	nop;
 
 ENTRY(_ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
@@ -298,8 +301,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
-	p5.h = _extable;
-	p5.l = _extable;
+	p5.h = _ex_table;
+	p5.l = _ex_table;
 	p4 = r7;
 	p5 = p5 + (p4 << 2);
 	p4 = [p5];
@@ -818,28 +821,27 @@ ENTRY(_software_trace_buff)
 #else
 .data
 #endif
-ALIGN
-_extable:
+ENTRY(_ex_table)
 	/* entry for each EXCAUSE[5:0]
 	 * This table must be in sync with the table in ./kernel/traps.c
 	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined
 	 */
-	.long _ex_syscall;      /* 0x00 - User Defined - Linux Syscall */
+	.long _ex_syscall       /* 0x00 - User Defined - Linux Syscall */
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
-	.long _ex_trap_c        /* 0x02 - User Defined */
+	.long _ex_replaceable   /* 0x02 - User Defined */
 	.long _ex_trap_c        /* 0x03 - User Defined - userspace stack overflow */
-	.long _ex_trap_c        /* 0x04 - User Defined */
-	.long _ex_trap_c        /* 0x05 - User Defined */
-	.long _ex_trap_c        /* 0x06 - User Defined */
-	.long _ex_trap_c        /* 0x07 - User Defined */
-	.long _ex_trap_c        /* 0x08 - User Defined */
-	.long _ex_trap_c        /* 0x09 - User Defined */
-	.long _ex_trap_c        /* 0x0A - User Defined */
-	.long _ex_trap_c        /* 0x0B - User Defined */
-	.long _ex_trap_c        /* 0x0C - User Defined */
-	.long _ex_trap_c        /* 0x0D - User Defined */
-	.long _ex_trap_c        /* 0x0E - User Defined */
-	.long _ex_trap_c        /* 0x0F - User Defined */
+	.long _ex_replaceable   /* 0x04 - User Defined */
+	.long _ex_replaceable   /* 0x05 - User Defined */
+	.long _ex_replaceable   /* 0x06 - User Defined */
+	.long _ex_replaceable   /* 0x07 - User Defined */
+	.long _ex_replaceable   /* 0x08 - User Defined */
+	.long _ex_replaceable   /* 0x09 - User Defined */
+	.long _ex_replaceable   /* 0x0A - User Defined */
+	.long _ex_replaceable   /* 0x0B - User Defined */
+	.long _ex_replaceable   /* 0x0C - User Defined */
+	.long _ex_replaceable   /* 0x0D - User Defined */
+	.long _ex_replaceable   /* 0x0E - User Defined */
+	.long _ex_replaceable   /* 0x0F - User Defined */
 	.long _ex_single_step   /* 0x10 - HW Single step */
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	.long _ex_trace_buff_full /* 0x11 - Trace Buffer Full */
@@ -893,8 +895,8 @@ _extable:
 	.long _ex_trap_c        /* 0x3D - Reserved */
 	.long _ex_trap_c        /* 0x3E - Reserved */
 	.long _ex_trap_c        /* 0x3F - Reserved */
+END(_ex_table)
 
-ALIGN
 ENTRY(_sys_call_table)
 	.long _sys_restart_syscall	/* 0 */
 	.long _sys_exit
