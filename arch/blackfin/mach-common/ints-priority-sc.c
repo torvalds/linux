@@ -721,7 +721,11 @@ void __init init_exception_vectors(void)
 {
 	SSYNC();
 
-	bfin_write_EVT2(evt_evt2);
+	/* cannot program in software:
+	 * evt0 - emulation (jtag)
+	 * evt1 - reset
+	 */
+	bfin_write_EVT2(evt_nmi);
 	bfin_write_EVT3(trap);
 	bfin_write_EVT5(evt_ivhw);
 	bfin_write_EVT6(evt_timer);

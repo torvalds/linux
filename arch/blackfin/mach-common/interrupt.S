@@ -177,27 +177,15 @@ ENTRY(_evt_ivhw)
 	jump .Lcommon_restore_context;
 #endif
 
-/* interrupt routine for evt2 - 2.  This is NMI.  */
-ENTRY(_evt_evt2)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-#if ANOMALY_05000283
-	cc = r7 == r7;
-	p5.h = 0xffc0;
-	p5.l = 0x0014;
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
-	r0 = IRQ_NMI;
-	r1 =  sp;
-	SP += -12;
-	call _asm_do_IRQ;
-	SP += 12;
-	RESTORE_CONTEXT
+/* Interrupt routine for evt2 (NMI).
+ * We don't actually use this, so just return.
+ * For inner circle type details, please see:
+ * http://docs.blackfin.uclinux.org/doku.php?id=linux:nmi
+ */
+ENTRY(_evt_nmi)
+.weak _evt_nmi
 	rtn;
+ENDPROC(_evt_nmi)
 
 /* interrupt routine for core timer - 6 */
 ENTRY(_evt_timer)

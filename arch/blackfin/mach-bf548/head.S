@@ -50,9 +50,13 @@ ENTRY(__start)
 ENTRY(__stext)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register */
-	R0 = 0x36;
-	SYSCFG = R0;   /*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	/* Enable Cycle Counter and Nesting Of Interrupts */
+#ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
+	R0 = SYSCFG_SNEN;
+#else
+	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
+#endif
+	SYSCFG = R0;
 	R0 = 0;
 
 	/* Clear Out All the data and pointer  Registers*/

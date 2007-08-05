@@ -521,6 +521,52 @@ config BFIN_IDLE_LED_NUM
 	help
 	  Select the LED (marked on the board) for you to blink.
 
+choice
+	prompt "Blackfin Exception Scratch Register"
+	default BFIN_SCRATCH_REG_RETN
+	help
+	  Select the resource to reserve for the Exception handler:
+	    - RETN: Non-Maskable Interrupt (NMI)
+	    - RETE: Exception Return (JTAG/ICE)
+	    - CYCLES: Performance counter
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_RETN
+	bool "RETN"
+	help
+	  Use the RETN register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use NMI on the Blackfin while running Linux, but
+	  you can debug the system with a JTAG ICE and use the
+	  CYCLES performance registers.
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_RETE
+	bool "RETE"
+	help
+	  Use the RETE register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use a JTAG ICE while debugging a Blackfin board,
+	  but you can safely use the CYCLES performance registers
+	  and the NMI.
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_CYCLES
+	bool "CYCLES"
+	help
+	  Use the CYCLES register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use the CYCLES performance registers on a Blackfin
+	  board at anytime, but you can debug the system with a JTAG
+	  ICE and use the NMI.
+
+	  If you are unsure, please select "RETN".
+
+endchoice
+
 #
 # Sorry - but you need to put the hex address here -
 #

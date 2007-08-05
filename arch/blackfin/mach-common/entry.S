@@ -58,6 +58,14 @@
 
 #include <asm/mach-common/context.S>
 
+#if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
+# define EX_SCRATCH_REG RETN
+#elif defined(CONFIG_BFIN_SCRATCH_REG_RETE)
+# define EX_SCRATCH_REG RETE
+#else
+# define EX_SCRATCH_REG CYCLES
+#endif
+
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
 #else
@@ -93,7 +101,7 @@ ENTRY(_ex_icplb)
 	call __cplb_hdr;
 	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
-	SP = RETN;
+	SP = EX_SCRATCH_REG;
 	rtx;
 ENDPROC(_ex_icplb)
 
@@ -102,7 +110,7 @@ ENTRY(_ex_syscall)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
-	sp = retn;
+	sp = EX_SCRATCH_REG;
 	rtx
 ENDPROC(_ex_syscall)
 
@@ -145,7 +153,7 @@ _return_from_exception:
 #endif
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
-	sp = retn;
+	sp = EX_SCRATCH_REG;
 	rtx;
 ENDPROC(_ex_soft_bp)
 
@@ -204,7 +212,7 @@ ENTRY(_ex_trap_c)
 	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
-	SP = RETN;
+	SP = EX_SCRATCH_REG;
 	raise 5;
 	rtx;
 ENDPROC(_ex_trap_c)
@@ -279,7 +287,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 * covered by a CPLB.  Switch to an exception stack; use RETN as a
 	 * scratch register (for want of a better option).
 	 */
-	retn = sp;
+	EX_SCRATCH_REG = sp;
 	sp.l = _exception_stack_top;
 	sp.h = _exception_stack_top;
 	/* Try to deal with syscalls quickly.  */
