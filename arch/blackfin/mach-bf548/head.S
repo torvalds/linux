@@ -379,6 +379,7 @@ ENTRY(_bfin_reset)
 	CLI R6;
 	SSYNC;
 
+#if 0 /* Need to determine later if this is here necessary for BF54x */
 #if defined(CONFIG_MTD_M25P80)
 /*
  * The following code fix the SPI flash reboot issue,
@@ -413,6 +414,7 @@ _delay_lab0_end:
 	nop;
 _delay_lab1_end:
 	nop;
+#endif
 #endif
 
 	/* Clear the bits 13-15 in SWRST if they werent cleared */
