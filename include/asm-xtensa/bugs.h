@@ -13,10 +13,6 @@
 #ifndef _XTENSA_BUGS_H
 #define _XTENSA_BUGS_H
 
-#include <asm/processor.h>
-
-static void __init check_bugs(void)
-{
-}
+static void check_bugs(void) { }
 
 #endif /* _XTENSA_BUGS_H */
