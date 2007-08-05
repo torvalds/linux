@@ -1217,11 +1217,13 @@ twobyte_insn:
 		}
 		break;
 	case 0x21: /* mov from dr to reg */
+		no_wb = 1;
 		if (modrm_mod != 3)
 			goto cannot_emulate;
 		rc = emulator_get_dr(ctxt, modrm_reg, &_regs[modrm_rm]);
 		break;
 	case 0x23: /* mov from reg to dr */
+		no_wb = 1;
 		if (modrm_mod != 3)
 			goto cannot_emulate;
 		rc = emulator_set_dr(ctxt, modrm_reg, _regs[modrm_rm]);
