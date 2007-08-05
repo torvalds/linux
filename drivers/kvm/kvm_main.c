@@ -1735,8 +1735,39 @@ static void pio_string_write(struct kvm_io_device *pio_dev,
 	}
 }
 
-int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
-		  int size, unsigned long count, int string, int down,
+int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+		  int size, unsigned port)
+{
+	struct kvm_io_device *pio_dev;
+
+	vcpu->run->exit_reason = KVM_EXIT_IO;
+	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
+	vcpu->run->io.size = vcpu->pio.size = size;
+	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
+	vcpu->run->io.count = vcpu->pio.count = vcpu->pio.cur_count = 1;
+	vcpu->run->io.port = vcpu->pio.port = port;
+	vcpu->pio.in = in;
+	vcpu->pio.string = 0;
+	vcpu->pio.down = 0;
+	vcpu->pio.guest_page_offset = 0;
+	vcpu->pio.rep = 0;
+
+	kvm_arch_ops->cache_regs(vcpu);
+	memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
+	kvm_arch_ops->decache_regs(vcpu);
+
+	pio_dev = vcpu_find_pio_dev(vcpu, port);
+	if (pio_dev) {
+		kernel_pio(pio_dev, vcpu, vcpu->pio_data);
+		complete_pio(vcpu);
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_pio);
+
+int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+		  int size, unsigned long count, int down,
 		  gva_t address, int rep, unsigned port)
 {
 	unsigned now, in_page;
@@ -1747,32 +1778,15 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 
 	vcpu->run->exit_reason = KVM_EXIT_IO;
 	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
-	vcpu->run->io.size = size;
+	vcpu->run->io.size = vcpu->pio.size = size;
 	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
-	vcpu->run->io.count = count;
-	vcpu->run->io.port = port;
-	vcpu->pio.count = count;
-	vcpu->pio.cur_count = count;
-	vcpu->pio.size = size;
+	vcpu->run->io.count = vcpu->pio.count = vcpu->pio.cur_count = count;
+	vcpu->run->io.port = vcpu->pio.port = port;
 	vcpu->pio.in = in;
-	vcpu->pio.port = port;
-	vcpu->pio.string = string;
+	vcpu->pio.string = 1;
 	vcpu->pio.down = down;
 	vcpu->pio.guest_page_offset = offset_in_page(address);
 	vcpu->pio.rep = rep;
-
-	pio_dev = vcpu_find_pio_dev(vcpu, port);
-	if (!string) {
-		kvm_arch_ops->cache_regs(vcpu);
-		memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
-		kvm_arch_ops->decache_regs(vcpu);
-		if (pio_dev) {
-			kernel_pio(pio_dev, vcpu, vcpu->pio_data);
-			complete_pio(vcpu);
-			return 1;
-		}
-		return 0;
-	}
 
 	if (!count) {
 		kvm_arch_ops->skip_emulated_instruction(vcpu);
@@ -1818,6 +1832,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		}
 	}
 
+	pio_dev = vcpu_find_pio_dev(vcpu, port);
 	if (!vcpu->pio.in) {
 		/* string PIO write */
 		ret = pio_copy_data(vcpu);
@@ -1834,7 +1849,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kvm_setup_pio);
+EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
 
 static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {

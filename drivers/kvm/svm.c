@@ -1005,8 +1005,7 @@ static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	rep = (io_info & SVM_IOIO_REP_MASK) != 0;
 	down = (svm->vmcb->save.rflags & X86_EFLAGS_DF) != 0;
 
-	return kvm_setup_pio(&svm->vcpu, kvm_run, in, size, 1, 0,
-			     down, 0, rep, port);
+	return kvm_emulate_pio(&svm->vcpu, kvm_run, in, size, port);
 }
 
 static int nop_on_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)

@@ -539,9 +539,11 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 
 struct x86_emulate_ctxt;
 
-int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
-		  int size, unsigned long count, int string, int down,
-		  gva_t address, int rep, unsigned port);
+int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+		     int size, unsigned port);
+int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+			   int size, unsigned long count, int down,
+			    gva_t address, int rep, unsigned port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);

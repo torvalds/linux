@@ -1123,12 +1123,11 @@ special_insn:
 	switch(b) {
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
-		 if (kvm_setup_pio(ctxt->vcpu, NULL,
+		 if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
 				1, 					/* in */
 				(d & ByteOp) ? 1 : op_bytes, 		/* size */
 				rep_prefix ?
 				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
-				1, 					/* strings */
 				(_eflags & EFLG_DF),			/* down */
 				register_address(ctxt->es_base,
 						 _regs[VCPU_REGS_RDI]),	/* address */
@@ -1139,12 +1138,11 @@ special_insn:
 		return 0;
 	case 0x6e:		/* outsb */
 	case 0x6f:		/* outsw/outsd */
-		if (kvm_setup_pio(ctxt->vcpu, NULL,
+		if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
 				0, 					/* in */
 				(d & ByteOp) ? 1 : op_bytes, 		/* size */
 				rep_prefix ?
 				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
-				1, 					/* strings */
 				(_eflags & EFLG_DF),			/* down */
 				register_address(override_base ?
 						 *override_base : ctxt->ds_base,
