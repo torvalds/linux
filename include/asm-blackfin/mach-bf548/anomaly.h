@@ -70,6 +70,7 @@
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)
+#define ANOMALY_05000158 (0)
 #define ANOMALY_05000183 (0)
 #define ANOMALY_05000198 (0)
 #define ANOMALY_05000244 (0)
