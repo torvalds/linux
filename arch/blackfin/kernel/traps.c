@@ -598,8 +598,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		unsigned short x = 0;
 		for (; i < ((unsigned int)retaddr & 0xFFFFFFF0) + 32; i += 2) {
 			if (!(i & 0xF))
-				printk(KERN_EMERG "\n" KERN_EMERG
-					"0x%08x: ", i);
+				printk("\n" KERN_EMERG "0x%08x: ", i);
 
 			if (get_user(x, (unsigned short *)i))
 				break;
