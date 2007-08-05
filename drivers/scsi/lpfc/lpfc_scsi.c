@@ -499,7 +499,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 					 "0717 FCP command x%x residual "
 					 "underrun converted to error "
 					 "Data: x%x x%x x%x\n",
-					 cmnd->cmnd[0], cmnd->request_bufflen,
+					 cmnd->cmnd[0], scsi_bufflen(cmnd),
 					 scsi_get_resid(cmnd), cmnd->underflow);
 			host_status = DID_ERROR;
 		}
