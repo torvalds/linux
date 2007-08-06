@@ -1227,7 +1227,7 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	}
 }
 
-static int xs_bind(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
@@ -1255,8 +1255,9 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 		else
 			port--;
 	} while (err == -EADDRINUSE && port != transport->port);
-	dprintk("RPC:       xs_bind "NIPQUAD_FMT":%u: %s (%d)\n",
-		NIPQUAD(myaddr.sin_addr), port, err ? "failed" : "ok", err);
+	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
+			__FUNCTION__, NIPQUAD(myaddr.sin_addr),
+			port, err ? "failed" : "ok", err);
 	return err;
 }
 
@@ -1315,7 +1316,7 @@ static void xs_udp_connect_worker(struct work_struct *work)
 	}
 	xs_reclassify_socket(sock);
 
-	if (xs_bind(transport, sock)) {
+	if (xs_bind4(transport, sock)) {
 		sock_release(sock);
 		goto out;
 	}
@@ -1402,7 +1403,7 @@ static void xs_tcp_connect_worker(struct work_struct *work)
 		}
 		xs_reclassify_socket(sock);
 
-		if (xs_bind(transport, sock)) {
+		if (xs_bind4(transport, sock)) {
 			sock_release(sock);
 			goto out;
 		}
