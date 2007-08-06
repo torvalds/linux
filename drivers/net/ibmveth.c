@@ -963,7 +963,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 {
 	int rc, i;
 	struct net_device *netdev;
-	struct ibmveth_adapter *adapter = NULL;
+	struct ibmveth_adapter *adapter;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -997,7 +997,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	SET_MODULE_OWNER(netdev);
 
 	adapter = netdev->priv;
-	memset(adapter, 0, sizeof(adapter));
 	dev->dev.driver_data = netdev;
 
 	adapter->vdev = dev;
