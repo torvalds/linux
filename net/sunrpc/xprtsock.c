@@ -296,6 +296,20 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 			xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
 	}
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+
+	buf = kzalloc(10, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 10, "%02x%02x%02x%02x",
+				NIPQUAD(addr->sin_addr.s_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%4hx",
+				ntohs(addr->sin_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
