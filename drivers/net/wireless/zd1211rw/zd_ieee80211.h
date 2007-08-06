@@ -43,21 +43,25 @@ struct ofdm_plcp_header {
 	__le16 service;
 } __attribute__((packed));
 
-static inline u8 zd_ofdm_plcp_header_rate(
-	const struct ofdm_plcp_header *header)
+static inline u8 zd_ofdm_plcp_header_rate(const struct ofdm_plcp_header *header)
 {
 	return header->prefix[0] & 0xf;
 }
 
-/* These are referred to as zd_rates */
-#define ZD_OFDM_RATE_6M		0xb
-#define ZD_OFDM_RATE_9M		0xf
-#define ZD_OFDM_RATE_12M	0xa
-#define ZD_OFDM_RATE_18M	0xe
-#define ZD_OFDM_RATE_24M	0x9
-#define ZD_OFDM_RATE_36M	0xd
-#define ZD_OFDM_RATE_48M	0x8
-#define ZD_OFDM_RATE_54M	0xc
+/* The following defines give the encoding of the 4-bit rate field in the
+ * OFDM (802.11a/802.11g) PLCP header. Notify that these values are used to
+ * define the zd-rate values for OFDM.
+ *
+ * See the struct zd_ctrlset definition in zd_mac.h.
+ */
+#define ZD_OFDM_PLCP_RATE_6M		0xb
+#define ZD_OFDM_PLCP_RATE_9M		0xf
+#define ZD_OFDM_PLCP_RATE_12M	0xa
+#define ZD_OFDM_PLCP_RATE_18M	0xe
+#define ZD_OFDM_PLCP_RATE_24M	0x9
+#define ZD_OFDM_PLCP_RATE_36M	0xd
+#define ZD_OFDM_PLCP_RATE_48M	0x8
+#define ZD_OFDM_PLCP_RATE_54M	0xc
 
 struct cck_plcp_header {
 	u8 signal;
@@ -66,15 +70,22 @@ struct cck_plcp_header {
 	__le16 crc16;
 } __attribute__((packed));
 
-static inline u8 zd_cck_plcp_header_rate(const struct cck_plcp_header *header)
+static inline u8 zd_cck_plcp_header_signal(const struct cck_plcp_header *header)
 {
 	return header->signal;
 }
 
-#define ZD_CCK_SIGNAL_1M	0x0a
-#define ZD_CCK_SIGNAL_2M	0x14
-#define ZD_CCK_SIGNAL_5M5	0x37
-#define ZD_CCK_SIGNAL_11M	0x6e
+/* These defines give the encodings of the signal field in the 802.11b PLCP
+ * header. The signal field gives the bit rate of the following packet. Even
+ * if technically wrong we use CCK here also for the 1 MBit/s and 2 MBit/s
+ * rate to stay consistent with Zydas and our use of the term.
+ *
+ * Notify that these values are *not* used in the zd-rates.
+ */
+#define ZD_CCK_PLCP_SIGNAL_1M	0x0a
+#define ZD_CCK_PLCP_SIGNAL_2M	0x14
+#define ZD_CCK_PLCP_SIGNAL_5M5	0x37
+#define ZD_CCK_PLCP_SIGNAL_11M	0x6e
 
 enum ieee80211_std {
 	IEEE80211B = 0x01,

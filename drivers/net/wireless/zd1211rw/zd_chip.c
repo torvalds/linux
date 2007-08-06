@@ -1009,19 +1009,19 @@ int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
 	u32 value = 0;
 
 	/* Modulation bit */
-	if (ZD_CS_TYPE(rts_rate) == ZD_CS_OFDM)
+	if (ZD_MODULATION_TYPE(rts_rate) == ZD_OFDM)
 		rts_mod = ZD_RX_OFDM;
 
 	dev_dbg_f(zd_chip_dev(chip), "rts_rate=%x preamble=%x\n",
 		rts_rate, preamble);
 
-	value |= rts_rate << RTSCTS_SH_RTS_RATE;
+	value |= ZD_PURE_RATE(rts_rate) << RTSCTS_SH_RTS_RATE;
 	value |= rts_mod << RTSCTS_SH_RTS_MOD_TYPE;
 	value |= preamble << RTSCTS_SH_RTS_PMB_TYPE;
 	value |= preamble << RTSCTS_SH_CTS_PMB_TYPE;
 
 	/* We always send 11M self-CTS messages, like the vendor driver. */
-	value |= ZD_CCK_RATE_11M << RTSCTS_SH_CTS_RATE;
+	value |= ZD_PURE_RATE(ZD_CCK_RATE_11M) << RTSCTS_SH_CTS_RATE;
 	value |= ZD_RX_CCK << RTSCTS_SH_CTS_MOD_TYPE;
 
 	return zd_iowrite32_locked(chip, value, CR_RTS_CTS_RATE);
@@ -1328,7 +1328,7 @@ int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates)
 	return zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
 }
 
-static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
+static int ofdm_qual_db(u8 status_quality, u8 zd_rate, unsigned int size)
 {
 	static const u16 constants[] = {
 		715, 655, 585, 540, 470, 410, 360, 315,
@@ -1342,7 +1342,7 @@ static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
 	/* It seems that their quality parameter is somehow per signal
 	 * and is now transferred per bit.
 	 */
-	switch (rate) {
+	switch (zd_rate) {
 	case ZD_OFDM_RATE_6M:
 	case ZD_OFDM_RATE_12M:
 	case ZD_OFDM_RATE_24M:
@@ -1369,7 +1369,7 @@ static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
 			break;
 	}
 
-	switch (rate) {
+	switch (zd_rate) {
 	case ZD_OFDM_RATE_6M:
 	case ZD_OFDM_RATE_9M:
 		i += 3;
@@ -1393,11 +1393,11 @@ static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
 	return i;
 }
 
-static int ofdm_qual_percent(u8 status_quality, u8 rate, unsigned int size)
+static int ofdm_qual_percent(u8 status_quality, u8 zd_rate, unsigned int size)
 {
 	int r;
 
-	r = ofdm_qual_db(status_quality, rate, size);
+	r = ofdm_qual_db(status_quality, zd_rate, size);
 	ZD_ASSERT(r >= 0);
 	if (r < 0)
 		r = 0;
@@ -1458,12 +1458,17 @@ static int cck_qual_percent(u8 status_quality)
 	return r <= 100 ? r : 100;
 }
 
+static inline u8 zd_rate_from_ofdm_plcp_header(const void *rx_frame)
+{
+	return ZD_OFDM | zd_ofdm_plcp_header_rate(rx_frame);
+}
+
 u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 	              const struct rx_status *status)
 {
 	return (status->frame_status&ZD_RX_OFDM) ?
 		ofdm_qual_percent(status->signal_quality_ofdm,
-			          zd_ofdm_plcp_header_rate(rx_frame),
+					  zd_rate_from_ofdm_plcp_header(rx_frame),
 			          size) :
 		cck_qual_percent(status->signal_quality_cck);
 }
@@ -1479,32 +1484,32 @@ u8 zd_rx_strength_percent(u8 rssi)
 u16 zd_rx_rate(const void *rx_frame, const struct rx_status *status)
 {
 	static const u16 ofdm_rates[] = {
-		[ZD_OFDM_RATE_6M]  = 60,
-		[ZD_OFDM_RATE_9M]  = 90,
-		[ZD_OFDM_RATE_12M] = 120,
-		[ZD_OFDM_RATE_18M] = 180,
-		[ZD_OFDM_RATE_24M] = 240,
-		[ZD_OFDM_RATE_36M] = 360,
-		[ZD_OFDM_RATE_48M] = 480,
-		[ZD_OFDM_RATE_54M] = 540,
+		[ZD_OFDM_PLCP_RATE_6M]  = 60,
+		[ZD_OFDM_PLCP_RATE_9M]  = 90,
+		[ZD_OFDM_PLCP_RATE_12M] = 120,
+		[ZD_OFDM_PLCP_RATE_18M] = 180,
+		[ZD_OFDM_PLCP_RATE_24M] = 240,
+		[ZD_OFDM_PLCP_RATE_36M] = 360,
+		[ZD_OFDM_PLCP_RATE_48M] = 480,
+		[ZD_OFDM_PLCP_RATE_54M] = 540,
 	};
 	u16 rate;
 	if (status->frame_status & ZD_RX_OFDM) {
+		/* Deals with PLCP OFDM rate (not zd_rates) */
 		u8 ofdm_rate = zd_ofdm_plcp_header_rate(rx_frame);
 		rate = ofdm_rates[ofdm_rate & 0xf];
 	} else {
-		u8 cck_rate = zd_cck_plcp_header_rate(rx_frame);
-		switch (cck_rate) {
-		case ZD_CCK_SIGNAL_1M:
+		switch (zd_cck_plcp_header_signal(rx_frame)) {
+		case ZD_CCK_PLCP_SIGNAL_1M:
 			rate = 10;
 			break;
-		case ZD_CCK_SIGNAL_2M:
+		case ZD_CCK_PLCP_SIGNAL_2M:
 			rate = 20;
 			break;
-		case ZD_CCK_SIGNAL_5M5:
+		case ZD_CCK_PLCP_SIGNAL_5M5:
 			rate = 55;
 			break;
-		case ZD_CCK_SIGNAL_11M:
+		case ZD_CCK_PLCP_SIGNAL_11M:
 			rate = 110;
 			break;
 		default:

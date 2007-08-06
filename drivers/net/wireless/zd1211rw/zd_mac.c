@@ -610,28 +610,6 @@ u8 zd_mac_get_channel(struct zd_mac *mac)
 	return channel;
 }
 
-/* If wrong rate is given, we are falling back to the slowest rate: 1MBit/s */
-static u8 zd_rate_typed(u8 zd_rate)
-{
-	static const u8 typed_rates[16] = {
-		[ZD_CCK_RATE_1M]	= ZD_CS_CCK|ZD_CCK_RATE_1M,
-		[ZD_CCK_RATE_2M]	= ZD_CS_CCK|ZD_CCK_RATE_2M,
-		[ZD_CCK_RATE_5_5M]	= ZD_CS_CCK|ZD_CCK_RATE_5_5M,
-		[ZD_CCK_RATE_11M]	= ZD_CS_CCK|ZD_CCK_RATE_11M,
-		[ZD_OFDM_RATE_6M]	= ZD_CS_OFDM|ZD_OFDM_RATE_6M,
-		[ZD_OFDM_RATE_9M]	= ZD_CS_OFDM|ZD_OFDM_RATE_9M,
-		[ZD_OFDM_RATE_12M]	= ZD_CS_OFDM|ZD_OFDM_RATE_12M,
-		[ZD_OFDM_RATE_18M]	= ZD_CS_OFDM|ZD_OFDM_RATE_18M,
-		[ZD_OFDM_RATE_24M]	= ZD_CS_OFDM|ZD_OFDM_RATE_24M,
-		[ZD_OFDM_RATE_36M]	= ZD_CS_OFDM|ZD_OFDM_RATE_36M,
-		[ZD_OFDM_RATE_48M]	= ZD_CS_OFDM|ZD_OFDM_RATE_48M,
-		[ZD_OFDM_RATE_54M]	= ZD_CS_OFDM|ZD_OFDM_RATE_54M,
-	};
-
-	ZD_ASSERT(ZD_CS_RATE_MASK == 0x0f);
-	return typed_rates[zd_rate & ZD_CS_RATE_MASK];
-}
-
 int zd_mac_set_mode(struct zd_mac *mac, u32 mode)
 {
 	struct ieee80211_device *ieee;
@@ -739,25 +717,30 @@ int zd_mac_get_range(struct zd_mac *mac, struct iw_range *range)
 
 static int zd_calc_tx_length_us(u8 *service, u8 zd_rate, u16 tx_length)
 {
+	/* ZD_PURE_RATE() must be used to remove the modulation type flag of
+	 * the zd-rate values. */
 	static const u8 rate_divisor[] = {
-		[ZD_CCK_RATE_1M]	=  1,
-		[ZD_CCK_RATE_2M]	=  2,
-		[ZD_CCK_RATE_5_5M]	= 11, /* bits must be doubled */
-		[ZD_CCK_RATE_11M]	= 11,
-		[ZD_OFDM_RATE_6M]	=  6,
-		[ZD_OFDM_RATE_9M]	=  9,
-		[ZD_OFDM_RATE_12M]	= 12,
-		[ZD_OFDM_RATE_18M]	= 18,
-		[ZD_OFDM_RATE_24M]	= 24,
-		[ZD_OFDM_RATE_36M]	= 36,
-		[ZD_OFDM_RATE_48M]	= 48,
-		[ZD_OFDM_RATE_54M]	= 54,
+		[ZD_PURE_RATE(ZD_CCK_RATE_1M)]		=  1,
+		[ZD_PURE_RATE(ZD_CCK_RATE_2M)]		=  2,
+
+		/* bits must be doubled */
+		[ZD_PURE_RATE(ZD_CCK_RATE_5_5M)]	= 11,
+
+		[ZD_PURE_RATE(ZD_CCK_RATE_11M)]		= 11,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_6M)]		=  6,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_9M)]		=  9,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_12M)]	= 12,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_18M)]	= 18,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_24M)]	= 24,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_36M)]	= 36,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_48M)]	= 48,
+		[ZD_PURE_RATE(ZD_OFDM_RATE_54M)]	= 54,
 	};
 
 	u32 bits = (u32)tx_length * 8;
 	u32 divisor;
 
-	divisor = rate_divisor[zd_rate];
+	divisor = rate_divisor[ZD_PURE_RATE(zd_rate)];
 	if (divisor == 0)
 		return -EINVAL;
 
@@ -780,52 +763,24 @@ static int zd_calc_tx_length_us(u8 *service, u8 zd_rate, u16 tx_length)
 	return bits/divisor;
 }
 
-enum {
-	R2M_SHORT_PREAMBLE = 0x01,
-	R2M_11A		   = 0x02,
-};
-
-static u8 zd_rate_to_modulation(u8 zd_rate, int flags)
-{
-	u8 modulation;
-
-	modulation = zd_rate_typed(zd_rate);
-	if (flags & R2M_SHORT_PREAMBLE) {
-		switch (ZD_CS_RATE(modulation)) {
-		case ZD_CCK_RATE_2M:
-		case ZD_CCK_RATE_5_5M:
-		case ZD_CCK_RATE_11M:
-			modulation |= ZD_CS_CCK_PREA_SHORT;
-			return modulation;
-		}
-	}
-	if (flags & R2M_11A) {
-		if (ZD_CS_TYPE(modulation) == ZD_CS_OFDM)
-			modulation |= ZD_CS_OFDM_MODE_11A;
-	}
-	return modulation;
-}
-
 static void cs_set_modulation(struct zd_mac *mac, struct zd_ctrlset *cs,
 	                      struct ieee80211_hdr_4addr *hdr)
 {
 	struct ieee80211softmac_device *softmac = ieee80211_priv(mac->netdev);
 	u16 ftype = WLAN_FC_GET_TYPE(le16_to_cpu(hdr->frame_ctl));
-	u8 rate, zd_rate;
+	u8 rate;
 	int is_mgt = (ftype == IEEE80211_FTYPE_MGMT) != 0;
 	int is_multicast = is_multicast_ether_addr(hdr->addr1);
 	int short_preamble = ieee80211softmac_short_preamble_ok(softmac,
 		is_multicast, is_mgt);
-	int flags = 0;
 
-	/* FIXME: 802.11a? */
 	rate = ieee80211softmac_suggest_txrate(softmac, is_multicast, is_mgt);
+	cs->modulation = rate_to_zd_rate(rate);
 
-	if (short_preamble)
-		flags |= R2M_SHORT_PREAMBLE;
-
-	zd_rate = rate_to_zd_rate(rate);
-	cs->modulation = zd_rate_to_modulation(zd_rate, flags);
+	/* Set short preamble bit when appropriate */
+	if (short_preamble && ZD_MODULATION_TYPE(cs->modulation) == ZD_CCK
+	    && cs->modulation != ZD_CCK_RATE_1M)
+		cs->modulation |= ZD_CCK_PREA_SHORT;
 }
 
 static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
@@ -864,7 +819,7 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 		cs->control |= ZD_CS_RTS;
 
 	/* Use CTS-to-self protection if required */
-	if (ZD_CS_TYPE(cs->modulation) == ZD_CS_OFDM &&
+	if (ZD_MODULATION_TYPE(cs->modulation) == ZD_OFDM &&
 			ieee80211softmac_protection_needed(softmac)) {
 		/* FIXME: avoid sending RTS *and* self-CTS, is that correct? */
 		cs->control &= ~ZD_CS_RTS;
@@ -925,7 +880,7 @@ static int fill_ctrlset(struct zd_mac *mac,
 	 * - see line 53 of zdinlinef.h
 	 */
 	cs->service = 0;
-	r = zd_calc_tx_length_us(&cs->service, ZD_CS_RATE(cs->modulation),
+	r = zd_calc_tx_length_us(&cs->service, ZD_RATE(cs->modulation),
 		                 le16_to_cpu(cs->tx_length));
 	if (r < 0)
 		return r;
@@ -934,7 +889,7 @@ static int fill_ctrlset(struct zd_mac *mac,
 	if (next_frag_len == 0) {
 		cs->next_frame_length = 0;
 	} else {
-		r = zd_calc_tx_length_us(NULL, ZD_CS_RATE(cs->modulation),
+		r = zd_calc_tx_length_us(NULL, ZD_RATE(cs->modulation),
 			                 next_frag_len);
 		if (r < 0)
 			return r;
