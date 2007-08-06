@@ -211,6 +211,7 @@ out_free_cq:
 
 out_free_mr:
 	ib_dereg_mr(priv->mr);
+	ipoib_cm_dev_cleanup(dev);
 
 out_free_pd:
 	ib_dealloc_pd(priv->pd);
