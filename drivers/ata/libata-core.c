@@ -3332,7 +3332,7 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* handle link resume */
 	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
-	    (ap->flags & ATA_FLAG_HRST_TO_RESUME))
+	    (link->flags & ATA_LFLAG_HRST_TO_RESUME))
 		ehc->i.action |= ATA_EH_HARDRESET;
 
 	/* if we're about to do hardreset, nothing more to do */
@@ -3351,7 +3351,7 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 	/* Wait for !BSY if the controller can wait for the first D2H
 	 * Reg FIS and we don't know that no device is attached.
 	 */
-	if (!(ap->flags & ATA_FLAG_SKIP_D2H_BSY) && !ata_link_offline(link)) {
+	if (!(link->flags & ATA_LFLAG_SKIP_D2H_BSY) && !ata_link_offline(link)) {
 		rc = ata_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
@@ -6269,6 +6269,7 @@ struct ata_host *ata_host_alloc_pinfo(struct device *dev,
 		ap->mwdma_mask = pi->mwdma_mask;
 		ap->udma_mask = pi->udma_mask;
 		ap->flags |= pi->flags;
+		ap->link.flags |= pi->link_flags;
 		ap->ops = pi->port_ops;
 
 		if (!host->ops && (pi->port_ops != &ata_dummy_port_ops))

@@ -156,6 +156,11 @@ enum {
 	ATA_DEV_ATAPI_UNSUP	= 4,	/* ATAPI device (unsupported) */
 	ATA_DEV_NONE		= 5,	/* no device */
 
+	/* struct ata_link flags */
+	ATA_LFLAG_HRST_TO_RESUME = (1 << 0), /* hardreset to resume link */
+	ATA_LFLAG_SKIP_D2H_BSY	= (1 << 1), /* can't wait for the first D2H
+					     * Register FIS clearing BSY */
+
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
 					    /* (doesn't imply presence) */
@@ -170,9 +175,6 @@ enum {
 	ATA_FLAG_PIO_POLLING	= (1 << 9), /* use polling PIO if LLD
 					     * doesn't handle PIO interrupts */
 	ATA_FLAG_NCQ		= (1 << 10), /* host supports NCQ */
-	ATA_FLAG_HRST_TO_RESUME	= (1 << 11), /* hardreset to resume phy */
-	ATA_FLAG_SKIP_D2H_BSY	= (1 << 12), /* can't wait for the first D2H
-					      * Register FIS clearing BSY */
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
 	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* ignore SIMPLEX */
 	ATA_FLAG_NO_IORDY	= (1 << 16), /* controller lacks iordy */
@@ -517,6 +519,8 @@ struct ata_link {
 	unsigned int		active_tag;	/* active tag on this link */
 	u32			sactive;	/* active NCQ commands */
 
+	unsigned int		flags;		/* ATA_LFLAG_xxx */
+
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;
 	unsigned int		sata_spd;	/* current SATA PHY speed */
@@ -654,6 +658,7 @@ struct ata_port_operations {
 struct ata_port_info {
 	struct scsi_host_template	*sht;
 	unsigned long		flags;
+	unsigned long		link_flags;
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;

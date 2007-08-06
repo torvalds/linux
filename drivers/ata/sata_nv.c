@@ -455,8 +455,8 @@ static const struct ata_port_info nv_port_info[] = {
 	/* generic */
 	{
 		.sht		= &nv_sht,
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_HRST_TO_RESUME,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.link_flags	= ATA_LFLAG_HRST_TO_RESUME,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -466,8 +466,8 @@ static const struct ata_port_info nv_port_info[] = {
 	/* nforce2/3 */
 	{
 		.sht		= &nv_sht,
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_HRST_TO_RESUME,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.link_flags	= ATA_LFLAG_HRST_TO_RESUME,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -477,8 +477,8 @@ static const struct ata_port_info nv_port_info[] = {
 	/* ck804 */
 	{
 		.sht		= &nv_sht,
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_HRST_TO_RESUME,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.link_flags	= ATA_LFLAG_HRST_TO_RESUME,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -489,8 +489,8 @@ static const struct ata_port_info nv_port_info[] = {
 	{
 		.sht		= &nv_adma_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_HRST_TO_RESUME |
 				  ATA_FLAG_MMIO | ATA_FLAG_NCQ,
+		.link_flags	= ATA_LFLAG_HRST_TO_RESUME,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,

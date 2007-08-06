@@ -178,8 +178,8 @@ enum {
 
 	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 					  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-					  ATA_FLAG_SKIP_D2H_BSY |
 					  ATA_FLAG_ACPI_SATA,
+	AHCI_LFLAG_COMMON		= ATA_LFLAG_SKIP_D2H_BSY,
 };
 
 struct ahci_cmd_hdr {
@@ -333,6 +333,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci */
 	{
 		.flags		= AHCI_FLAG_COMMON,
+		.link_flags	= AHCI_LFLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
@@ -340,14 +341,15 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci_pi */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_HONOR_PI,
+		.link_flags	= AHCI_LFLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_vt8251 */
 	{
-		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_HRST_TO_RESUME |
-				  AHCI_FLAG_NO_NCQ,
+		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_NO_NCQ,
+		.link_flags	= AHCI_LFLAG_COMMON | ATA_LFLAG_HRST_TO_RESUME,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_vt8251_ops,
@@ -355,6 +357,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci_ign_iferr */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_IGN_IRQ_IF_ERR,
+		.link_flags	= AHCI_LFLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
@@ -364,6 +367,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.flags		= AHCI_FLAG_COMMON |
 				  AHCI_FLAG_IGN_SERR_INTERNAL |
 				  AHCI_FLAG_32BIT_ONLY,
+		.link_flags	= AHCI_LFLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
@@ -373,9 +377,9 @@ static const struct ata_port_info ahci_port_info[] = {
 		.sht		= &ahci_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  ATA_FLAG_SKIP_D2H_BSY | AHCI_FLAG_HONOR_PI |
-				  AHCI_FLAG_NO_NCQ | AHCI_FLAG_NO_MSI |
-				  AHCI_FLAG_MV_PATA,
+				  AHCI_FLAG_HONOR_PI | AHCI_FLAG_NO_NCQ |
+				  AHCI_FLAG_NO_MSI | AHCI_FLAG_MV_PATA,
+		.link_flags	= AHCI_LFLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
