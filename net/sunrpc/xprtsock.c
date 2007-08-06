@@ -1393,6 +1393,47 @@ out:
 	xprt_clear_connecting(xprt);
 }
 
+/**
+ * xs_udp_connect_worker6 - set up a UDP socket
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_udp_connect_worker6(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	/* Start by resetting any existing state */
+	xs_close(xprt);
+
+	if ((err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
+		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+		goto out;
+	}
+	xs_reclassify_socket(sock);
+
+	if (xs_bind6(transport, sock) < 0) {
+		sock_release(sock);
+		goto out;
+	}
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	xs_udp_finish_connecting(xprt, sock);
+	status = 0;
+out:
+	xprt_wake_pending_tasks(xprt, status);
+	xprt_clear_connecting(xprt);
+}
+
 /*
  * We need to preserve the port number so the reply cache on the server can
  * find our cached RPC replies when we get around to reconnecting.
@@ -1497,6 +1538,66 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
+	if (status < 0) {
+		switch (status) {
+			case -EINPROGRESS:
+			case -EALREADY:
+				goto out_clear;
+			case -ECONNREFUSED:
+			case -ECONNRESET:
+				/* retry with existing socket, after a delay */
+				break;
+			default:
+				/* get rid of existing socket, and retry */
+				xs_close(xprt);
+				break;
+		}
+	}
+out:
+	xprt_wake_pending_tasks(xprt, status);
+out_clear:
+	xprt_clear_connecting(xprt);
+}
+
+/**
+ * xs_tcp_connect_worker6 - connect a TCP socket to a remote endpoint
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_tcp_connect_worker6(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	if (!sock) {
+		/* start from scratch */
+		if ((err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+			dprintk("RPC:       can't create TCP transport socket (%d).\n", -err);
+			goto out;
+		}
+		xs_reclassify_socket(sock);
+
+		if (xs_bind6(transport, sock) < 0) {
+			sock_release(sock);
+			goto out;
+		}
+	} else
+		/* "close" the socket, preserving the local port */
+		xs_tcp_reuse_connection(xprt);
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	status = xs_tcp_finish_connecting(xprt, sock);
+	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
+			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
 	if (status < 0) {
 		switch (status) {
 			case -EINPROGRESS:
