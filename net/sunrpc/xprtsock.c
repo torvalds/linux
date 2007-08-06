@@ -523,7 +523,8 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
-	int status, retry = 0;
+	int status;
+	unsigned int retry = 0;
 
 	xs_encode_tcp_record_marker(&req->rq_snd_buf);
 
