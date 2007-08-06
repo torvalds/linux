@@ -69,7 +69,7 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc);
 static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long mask);
 static int pdc2027x_cable_detect(struct ata_port *ap);
-static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed);
+static int pdc2027x_set_mode(struct ata_link *link, struct ata_device **r_failed);
 
 /*
  * ATA Timing Tables based on 133MHz controller clock.
@@ -470,23 +470,24 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 /**
  *	pdc2027x_set_mode - Set the timing registers back to correct values.
- *	@ap: Port to configure
+ *	@link: link to configure
  *	@r_failed: Returned device for failure
  *
  *	The pdc2027x hardware will look at "SET FEATURES" and change the timing registers
  *	automatically. The values set by the hardware might be incorrect, under 133Mhz PLL.
  *	This function overwrites the possibly incorrect values set by the hardware to be correct.
  */
-static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed)
+static int pdc2027x_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
+	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 	int rc;
 
-	rc = ata_do_set_mode(ap, r_failed);
+	rc = ata_do_set_mode(link, r_failed);
 	if (rc < 0)
 		return rc;
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 
 			pdc2027x_set_piomode(ap, dev);

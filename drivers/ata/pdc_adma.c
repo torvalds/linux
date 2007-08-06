@@ -297,15 +297,16 @@ static void adma_thaw(struct ata_port *ap)
 	adma_reinit_engine(ap);
 }
 
-static int adma_prereset(struct ata_port *ap, unsigned long deadline)
+static int adma_prereset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct adma_port_priv *pp = ap->private_data;
 
 	if (pp->state != adma_state_idle) /* healthy paranoia */
 		pp->state = adma_state_mmio;
 	adma_reinit_engine(ap);
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 static void adma_error_handler(struct ata_port *ap)

@@ -1201,7 +1201,7 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 
 /**
  *	ata_eh_analyze_serror - analyze SError for a failed port
- *	@ap: ATA port to analyze SError for
+ *	@link: ATA link to analyze SError for
  *
  *	Analyze SError if available and further determine cause of
  *	failure.
@@ -1209,9 +1209,9 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
  *	LOCKING:
  *	None.
  */
-static void ata_eh_analyze_serror(struct ata_port *ap)
+static void ata_eh_analyze_serror(struct ata_link *link)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_eh_context *ehc = &link->eh_context;
 	u32 serror = ehc->i.serror;
 	unsigned int err_mask = 0, action = 0;
 
@@ -1241,7 +1241,7 @@ static void ata_eh_analyze_serror(struct ata_port *ap)
 
 /**
  *	ata_eh_analyze_ncq_error - analyze NCQ error
- *	@ap: ATA port to analyze NCQ error for
+ *	@link: ATA link to analyze NCQ error for
  *
  *	Read log page 10h, determine the offending qc and acquire
  *	error status TF.  For NCQ device errors, all LLDDs have to do
@@ -1251,10 +1251,11 @@ static void ata_eh_analyze_serror(struct ata_port *ap)
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-static void ata_eh_analyze_ncq_error(struct ata_port *ap)
+static void ata_eh_analyze_ncq_error(struct ata_link *link)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
-	struct ata_device *dev = ap->link.device;
+	struct ata_port *ap = link->ap;
+	struct ata_eh_context *ehc = &link->eh_context;
+	struct ata_device *dev = link->device;
 	struct ata_queued_cmd *qc;
 	struct ata_taskfile tf;
 	int tag, rc;
@@ -1264,7 +1265,7 @@ static void ata_eh_analyze_ncq_error(struct ata_port *ap)
 		return;
 
 	/* is it NCQ device error? */
-	if (!ap->link.sactive || !(ehc->i.err_mask & AC_ERR_DEV))
+	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV))
 		return;
 
 	/* has LLDD analyzed already? */
@@ -1281,13 +1282,13 @@ static void ata_eh_analyze_ncq_error(struct ata_port *ap)
 	/* okay, this error is ours */
 	rc = ata_eh_read_log_10h(dev, &tag, &tf);
 	if (rc) {
-		ata_port_printk(ap, KERN_ERR, "failed to read log page 10h "
+		ata_link_printk(link, KERN_ERR, "failed to read log page 10h "
 				"(errno=%d)\n", rc);
 		return;
 	}
 
-	if (!(ap->link.sactive & (1 << tag))) {
-		ata_port_printk(ap, KERN_ERR, "log page 10h reported "
+	if (!(link->sactive & (1 << tag))) {
+		ata_link_printk(link, KERN_ERR, "log page 10h reported "
 				"inactive tag %d\n", tag);
 		return;
 	}
@@ -1551,18 +1552,18 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
 
 /**
  *	ata_eh_autopsy - analyze error and determine recovery action
- *	@ap: ATA port to perform autopsy on
+ *	@link: ATA link to perform autopsy on
  *
- *	Analyze why @ap failed and determine which recovery action is
- *	needed.  This function also sets more detailed AC_ERR_* values
- *	and fills sense data for ATAPI CHECK SENSE.
+ *	Analyze why @link failed and determine which recovery actions
+ *	are needed.  This function also sets more detailed AC_ERR_*
+ *	values and fills sense data for ATAPI CHECK SENSE.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-static void ata_eh_autopsy(struct ata_port *ap)
+static void ata_eh_autopsy(struct ata_link *link)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
@@ -1578,7 +1579,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	rc = sata_scr_read(link, SCR_ERROR, &serror);
 	if (rc == 0) {
 		ehc->i.serror |= serror;
-		ata_eh_analyze_serror(ap);
+		ata_eh_analyze_serror(link);
 	} else if (rc != -EOPNOTSUPP) {
 		/* SError read failed, force hardreset and probing */
 		ata_ehi_schedule_probe(&ehc->i);
@@ -1587,7 +1588,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	}
 
 	/* analyze NCQ failure */
-	ata_eh_analyze_ncq_error(ap);
+	ata_eh_analyze_ncq_error(link);
 
 	/* any real error trumps AC_ERR_OTHER */
 	if (ehc->i.err_mask & ~AC_ERR_OTHER)
@@ -1598,7 +1599,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!(qc->flags & ATA_QCFLAG_FAILED) || qc->dev->link != link)
 			continue;
 
 		/* inherit upper level err_mask */
@@ -1653,16 +1654,17 @@ static void ata_eh_autopsy(struct ata_port *ap)
 
 /**
  *	ata_eh_report - report error handling to user
- *	@ap: ATA port EH is going on
+ *	@link: ATA link EH is going on
  *
  *	Report EH to user.
  *
  *	LOCKING:
  *	None.
  */
-static void ata_eh_report(struct ata_port *ap)
+static void ata_eh_report(struct ata_link *link)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_port *ap = link->ap;
+	struct ata_eh_context *ehc = &link->eh_context;
 	const char *frozen, *desc;
 	int tag, nr_failed = 0;
 
@@ -1673,7 +1675,7 @@ static void ata_eh_report(struct ata_port *ap)
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!(qc->flags & ATA_QCFLAG_FAILED) || qc->dev->link != link)
 			continue;
 		if (qc->flags & ATA_QCFLAG_SENSE_VALID && !qc->err_mask)
 			continue;
@@ -1691,17 +1693,17 @@ static void ata_eh_report(struct ata_port *ap)
 	if (ehc->i.dev) {
 		ata_dev_printk(ehc->i.dev, KERN_ERR, "exception Emask 0x%x "
 			       "SAct 0x%x SErr 0x%x action 0x%x%s\n",
-			       ehc->i.err_mask, ap->link.sactive,
+			       ehc->i.err_mask, link->sactive,
 			       ehc->i.serror, ehc->i.action, frozen);
 		if (desc)
 			ata_dev_printk(ehc->i.dev, KERN_ERR, "%s\n", desc);
 	} else {
-		ata_port_printk(ap, KERN_ERR, "exception Emask 0x%x "
+		ata_link_printk(link, KERN_ERR, "exception Emask 0x%x "
 				"SAct 0x%x SErr 0x%x action 0x%x%s\n",
-				ehc->i.err_mask, ap->link.sactive,
+				ehc->i.err_mask, link->sactive,
 				ehc->i.serror, ehc->i.action, frozen);
 		if (desc)
-			ata_port_printk(ap, KERN_ERR, "%s\n", desc);
+			ata_link_printk(link, KERN_ERR, "%s\n", desc);
 	}
 
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
@@ -1714,7 +1716,8 @@ static void ata_eh_report(struct ata_port *ap)
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 		struct ata_taskfile *cmd = &qc->tf, *res = &qc->result_tf;
 
-		if (!(qc->flags & ATA_QCFLAG_FAILED) || !qc->err_mask)
+		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		    qc->dev->link != link || !qc->err_mask)
 			continue;
 
 		ata_dev_printk(qc->dev, KERN_ERR,
@@ -1936,10 +1939,11 @@ static int ata_eh_reset(struct ata_link *link, int classify,
 	return rc;
 }
 
-static int ata_eh_revalidate_and_attach(struct ata_port *ap,
+static int ata_eh_revalidate_and_attach(struct ata_link *link,
 					struct ata_device **r_failed_dev)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_port *ap = link->ap;
+	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev;
 	unsigned int new_mask = 0;
 	unsigned long flags;
@@ -1951,7 +1955,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	 * be done backwards such that PDIAG- is released by the slave
 	 * device before the master device is identified.
 	 */
-	ata_link_for_each_dev_reverse(dev, &ap->link) {
+	ata_link_for_each_dev_reverse(dev, link) {
 		unsigned int action = ata_eh_dev_action(dev);
 		unsigned int readid_flags = 0;
 
@@ -1959,17 +1963,17 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			readid_flags |= ATA_READID_POSTRESET;
 
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
-			if (ata_link_offline(&ap->link)) {
+			if (ata_link_offline(link)) {
 				rc = -EIO;
 				goto err;
 			}
 
-			ata_eh_about_to_do(&ap->link, dev, ATA_EH_REVALIDATE);
+			ata_eh_about_to_do(link, dev, ATA_EH_REVALIDATE);
 			rc = ata_dev_revalidate(dev, readid_flags);
 			if (rc)
 				goto err;
 
-			ata_eh_done(&ap->link, dev, ATA_EH_REVALIDATE);
+			ata_eh_done(link, dev, ATA_EH_REVALIDATE);
 
 			/* Configuration may have changed, reconfigure
 			 * transfer mode.
@@ -2011,7 +2015,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	/* Configure new devices forward such that user doesn't see
 	 * device detection messages backwards.
 	 */
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (!(new_mask & (1 << dev->devno)))
 			continue;
 
@@ -2037,40 +2041,40 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	return rc;
 }
 
-static int ata_port_nr_enabled(struct ata_port *ap)
+static int ata_link_nr_enabled(struct ata_link *link)
 {
 	struct ata_device *dev;
 	int cnt = 0;
 
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_link_for_each_dev(dev, link)
 		if (ata_dev_enabled(dev))
 			cnt++;
 	return cnt;
 }
 
-static int ata_port_nr_vacant(struct ata_port *ap)
+static int ata_link_nr_vacant(struct ata_link *link)
 {
 	struct ata_device *dev;
 	int cnt = 0;
 
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_link_for_each_dev(dev, link)
 		if (dev->class == ATA_DEV_UNKNOWN)
 			cnt++;
 	return cnt;
 }
 
-static int ata_eh_skip_recovery(struct ata_port *ap)
+static int ata_eh_skip_recovery(struct ata_link *link)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev;
 
 	/* thaw frozen port, resume link and recover failed devices */
-	if ((ap->pflags & ATA_PFLAG_FROZEN) ||
-	    (ehc->i.flags & ATA_EHI_RESUME_LINK) || ata_port_nr_enabled(ap))
+	if ((link->ap->pflags & ATA_PFLAG_FROZEN) ||
+	    (ehc->i.flags & ATA_EHI_RESUME_LINK) || ata_link_nr_enabled(link))
 		return 0;
 
 	/* skip if class codes for all vacant slots are ATA_DEV_NONE */
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (dev->class == ATA_DEV_UNKNOWN &&
 		    ehc->classes[dev->devno] != ATA_DEV_NONE)
 			return 0;
@@ -2154,14 +2158,15 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			  ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			  ata_postreset_fn_t postreset)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_link *link = &ap->link;
+	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev;
 	int rc;
 
 	DPRINTK("ENTER\n");
 
 	/* prep for recovery */
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
 		/* collect port action mask recorded in dev actions */
@@ -2191,20 +2196,20 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		goto out;
 
 	/* skip EH if possible. */
-	if (ata_eh_skip_recovery(ap))
+	if (ata_eh_skip_recovery(link))
 		ehc->i.action = 0;
 
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_link_for_each_dev(dev, link)
 		ehc->classes[dev->devno] = ATA_DEV_UNKNOWN;
 
 	/* reset */
 	if (ehc->i.action & ATA_EH_RESET_MASK) {
 		ata_eh_freeze_port(ap);
 
-		rc = ata_eh_reset(&ap->link, ata_port_nr_vacant(ap), prereset,
+		rc = ata_eh_reset(link, ata_link_nr_vacant(link), prereset,
 				  softreset, hardreset, postreset);
 		if (rc) {
-			ata_port_printk(ap, KERN_ERR,
+			ata_link_printk(link, KERN_ERR,
 					"reset failed, giving up\n");
 			goto out;
 		}
@@ -2213,13 +2218,13 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	}
 
 	/* revalidate existing devices and attach new ones */
-	rc = ata_eh_revalidate_and_attach(ap, &dev);
+	rc = ata_eh_revalidate_and_attach(link, &dev);
 	if (rc)
 		goto dev_fail;
 
 	/* configure transfer mode if necessary */
 	if (ehc->i.flags & ATA_EHI_SETMODE) {
-		rc = ata_set_mode(ap, &dev);
+		rc = ata_set_mode(link, &dev);
 		if (rc)
 			goto dev_fail;
 		ehc->i.flags &= ~ATA_EHI_SETMODE;
@@ -2230,8 +2235,8 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
  dev_fail:
 	ata_eh_handle_dev_fail(dev, rc);
 
-	if (ata_port_nr_enabled(ap)) {
-		ata_port_printk(ap, KERN_WARNING, "failed to recover some "
+	if (ata_link_nr_enabled(link)) {
+		ata_link_printk(link, KERN_WARNING, "failed to recover some "
 				"devices, retrying in 5 secs\n");
 		ssleep(5);
 	} else {
@@ -2243,7 +2248,7 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
  out:
 	if (rc) {
-		ata_link_for_each_dev(dev, &ap->link);
+		ata_link_for_each_dev(dev, link);
 			ata_dev_disable(dev);
 	}
 
@@ -2310,8 +2315,8 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 	       ata_postreset_fn_t postreset)
 {
-	ata_eh_autopsy(ap);
-	ata_eh_report(ap);
+	ata_eh_autopsy(&ap->link);
+	ata_eh_report(&ap->link);
 	ata_eh_recover(ap, prereset, softreset, hardreset, postreset);
 	ata_eh_finish(ap);
 }

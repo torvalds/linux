@@ -117,7 +117,7 @@ static int sil_pci_device_resume(struct pci_dev *pdev);
 static void sil_dev_config(struct ata_device *dev);
 static int sil_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int sil_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
-static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed);
+static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
 
@@ -290,27 +290,27 @@ static unsigned char sil_get_device_cache_line(struct pci_dev *pdev)
 
 /**
  *	sil_set_mode		-	wrap set_mode functions
- *	@ap: port to set up
+ *	@link: link to set up
  *	@r_failed: returned device when we fail
  *
  *	Wrap the libata method for device setup as after the setup we need
  *	to inspect the results and do some configuration work
  */
 
-static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed)
+static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
-	struct ata_host *host = ap->host;
-	struct ata_device *dev;
-	void __iomem *mmio_base = host->iomap[SIL_MMIO_BAR];
+	struct ata_port *ap = link->ap;
+	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
 	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
+	struct ata_device *dev;
 	u32 tmp, dev_mode[2] = { };
 	int rc;
 
-	rc = ata_do_set_mode(ap, r_failed);
+	rc = ata_do_set_mode(link, r_failed);
 	if (rc)
 		return rc;
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (!ata_dev_enabled(dev))
 			dev_mode[dev->devno] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)

@@ -26,11 +26,11 @@
 #define DRV_NAME	"pata_ixp4xx_cf"
 #define DRV_VERSION	"0.2"
 
-static int ixp4xx_set_mode(struct ata_port *ap, struct ata_device **error)
+static int ixp4xx_set_mode(struct ata_link *link, struct ata_device **error)
 {
 	struct ata_device *dev;
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			ata_dev_printk(dev, KERN_INFO, "configured for PIO0\n");
 			dev->pio_mode = XFER_PIO_0;

@@ -56,7 +56,7 @@ struct ata_pcmcia_info {
 
 /**
  *	pcmcia_set_mode	-	PCMCIA specific mode setup
- *	@ap: Port
+ *	@link: link
  *	@r_failed_dev: Return pointer for failed device
  *
  *	Perform the tuning and setup of the devices and timings, which
@@ -65,13 +65,13 @@ struct ata_pcmcia_info {
  *	decode, which alas is embarrassingly common in the PC world
  */
 
-static int pcmcia_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 {
-	struct ata_device *master = &ap->link.device[0];
-	struct ata_device *slave = &ap->link.device[1];
+	struct ata_device *master = &link->device[0];
+	struct ata_device *slave = &link->device[1];
 
 	if (!ata_dev_enabled(master) || !ata_dev_enabled(slave))
-		return ata_do_set_mode(ap, r_failed_dev);
+		return ata_do_set_mode(link, r_failed_dev);
 
 	if (memcmp(master->id + ATA_ID_FW_REV,  slave->id + ATA_ID_FW_REV,
 			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0)
@@ -84,7 +84,7 @@ static int pcmcia_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev
 			ata_dev_disable(slave);
 		}
 	}
-	return ata_do_set_mode(ap, r_failed_dev);
+	return ata_do_set_mode(link, r_failed_dev);
 }
 
 static struct scsi_host_template pcmcia_sht = {

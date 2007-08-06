@@ -26,7 +26,7 @@
 
 /**
  *	rz1000_set_mode		-	mode setting function
- *	@ap: ATA interface
+ *	@link: ATA link
  *	@unused: returned device on set_mode failure
  *
  *	Use a non standard set_mode function. We don't want to be tuned. We
@@ -34,11 +34,11 @@
  *	whacked out.
  */
 
-static int rz1000_set_mode(struct ata_port *ap, struct ata_device **unused)
+static int rz1000_set_mode(struct ata_link *link, struct ata_device **unused)
 {
 	struct ata_device *dev;
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;

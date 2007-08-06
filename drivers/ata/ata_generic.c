@@ -34,7 +34,7 @@
 
 /**
  *	generic_set_mode	-	mode setting
- *	@ap: interface to set up
+ *	@link: link to set up
  *	@unused: returned device on error
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
@@ -43,8 +43,9 @@
  *	and respect them.
  */
 
-static int generic_set_mode(struct ata_port *ap, struct ata_device **unused)
+static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 {
+	struct ata_port *ap = link->ap;
 	int dma_enabled = 0;
 	struct ata_device *dev;
 
@@ -52,7 +53,7 @@ static int generic_set_mode(struct ata_port *ap, struct ata_device **unused)
 	if (ap->ioaddr.bmdma_addr)
 		dma_enabled = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;

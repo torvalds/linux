@@ -2171,7 +2171,7 @@ int ata_bus_probe(struct ata_port *ap)
 	}
 
 	/* configure transfer mode */
-	rc = ata_set_mode(ap, &dev);
+	rc = ata_set_mode(&ap->link, &dev);
 	if (rc)
 		goto fail;
 
@@ -2782,7 +2782,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 
 /**
  *	ata_do_set_mode - Program timings and issue SET FEATURES - XFER
- *	@ap: port on which timings will be programmed
+ *	@link: link on which timings will be programmed
  *	@r_failed_dev: out paramter for failed device
  *
  *	Standard implementation of the function used to tune and set
@@ -2797,9 +2797,9 @@ static int ata_dev_set_mode(struct ata_device *dev)
  *	0 on success, negative errno otherwise
  */
 
-int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 	int rc = 0, used_dma = 0, found = 0;
 
@@ -2877,7 +2877,7 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 
 /**
  *	ata_set_mode - Program timings and issue SET FEATURES - XFER
- *	@ap: port on which timings will be programmed
+ *	@link: link on which timings will be programmed
  *	@r_failed_dev: out paramter for failed device
  *
  *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
@@ -2890,12 +2890,14 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 {
+	struct ata_port *ap = link->ap;
+
 	/* has private set_mode? */
 	if (ap->ops->set_mode)
-		return ap->ops->set_mode(ap, r_failed_dev);
-	return ata_do_set_mode(ap, r_failed_dev);
+		return ap->ops->set_mode(link, r_failed_dev);
+	return ata_do_set_mode(link, r_failed_dev);
 }
 
 /**
