@@ -1211,11 +1211,20 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
-	struct sockaddr_in *sap = (struct sockaddr_in *) &xprt->addr;
+	struct sockaddr *addr = (struct sockaddr *) &xprt->addr;
 
 	dprintk("RPC:       setting port for xprt %p to %u\n", xprt, port);
 
-	sap->sin_port = htons(port);
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)addr)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
+		break;
+	default:
+		BUG();
+	}
 }
 
 static int xs_bind(struct sock_xprt *transport, struct socket *sock)
