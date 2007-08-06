@@ -3196,7 +3196,7 @@ zoran_do_ioctl (struct inode *inode,
 			"%s: VIDIOC_QUERYBUF - index=%d, type=%d\n",
 			ZR_DEVNAME(zr), buf->index, buf->type);
 
-		memset(buf, 0, sizeof(buf));
+		memset(buf, 0, sizeof(*buf));
 		buf->type = type;
 		buf->index = index;
 
