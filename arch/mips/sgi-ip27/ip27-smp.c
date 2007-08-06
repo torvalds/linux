@@ -171,7 +171,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * set sp to the kernel stack of the newly created idle process, gp to the proc
  * struct so that current_thread_info() will work.
  */
-void __init prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long)task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
@@ -191,7 +191,7 @@ void __init prom_cpus_done(void)
 {
 }
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 }
 

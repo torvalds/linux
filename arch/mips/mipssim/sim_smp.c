@@ -53,7 +53,7 @@ void core_send_ipi(int cpu, unsigned int action)
  * Platform "CPU" startup hook
  */
 
-void prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	smtc_boot_secondary(cpu, idle);
@@ -64,7 +64,7 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
  * Post-config but pre-boot cleanup entry point
  */
 
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	void smtc_init_secondary(void);
@@ -103,7 +103,7 @@ void plat_prepare_cpus(unsigned int max_cpus)
  * SMP initialization finalization entry point
  */
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	smtc_smp_finish();

@@ -287,7 +287,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-void prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
@@ -321,7 +321,7 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 	evpe(EVPE_ENABLE);
 }
 
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 	/* Enable per-cpu interrupts */
 
@@ -330,7 +330,7 @@ void prom_init_secondary(void)
 	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP6 | STATUSF_IP7));
 }
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
 
