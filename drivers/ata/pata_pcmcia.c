@@ -67,8 +67,8 @@ struct ata_pcmcia_info {
 
 static int pcmcia_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
-	struct ata_device *master = &ap->device[0];
-	struct ata_device *slave = &ap->device[1];
+	struct ata_device *master = &ap->link.device[0];
+	struct ata_device *slave = &ap->link.device[1];
 
 	if (!ata_dev_enabled(master) || !ata_dev_enabled(slave))
 		return ata_do_set_mode(ap, r_failed_dev);

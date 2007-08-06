@@ -1064,7 +1064,7 @@ static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
 		ata_port_printk(ap, KERN_WARNING,
 				"failed to reset engine (errno=%d)", rc);
 
-	ata_tf_init(ap->device, &tf);
+	ata_tf_init(ap->link.device, &tf);
 
 	/* issue the first D2H Register FIS */
 	msecs = 0;
@@ -1132,7 +1132,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
 	ahci_stop_engine(ap);
 
 	/* clear D2H reception area to properly wait for D2H FIS */
-	ata_tf_init(ap->device, &tf);
+	ata_tf_init(ap->link.device, &tf);
 	tf.command = 0x80;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
@@ -1159,7 +1159,7 @@ static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
 
 	ahci_stop_engine(ap);
 
-	rc = sata_port_hardreset(ap, sata_ehc_deb_timing(&ap->eh_context),
+	rc = sata_port_hardreset(ap, sata_ehc_deb_timing(&ap->link.eh_context),
 				 deadline);
 
 	/* vt8251 needs SError cleared for the port to operate */
@@ -1278,7 +1278,7 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 {
 	struct ahci_port_priv *pp = ap->private_data;
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned int err_mask = 0, action = 0;
 	struct ata_queued_cmd *qc;
 	u32 serror;
@@ -1332,7 +1332,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	ehi->serror |= serror;
 	ehi->action |= action;
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc)
 		qc->err_mask |= err_mask;
 	else
@@ -1347,7 +1347,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 static void ahci_port_intr(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	struct ahci_port_priv *pp = ap->private_data;
 	u32 status, qc_active;
 	int rc, known_irq = 0;
@@ -1360,7 +1360,7 @@ static void ahci_port_intr(struct ata_port *ap)
 		return;
 	}
 
-	if (ap->sactive)
+	if (ap->link.sactive)
 		qc_active = readl(port_mmio + PORT_SCR_ACT);
 	else
 		qc_active = readl(port_mmio + PORT_CMD_ISSUE);
@@ -1380,7 +1380,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	/* if !NCQ, ignore.  No modern ATA device has broken HSM
 	 * implementation for non-NCQ commands.
 	 */
-	if (!ap->sactive)
+	if (!ap->link.sactive)
 		return;
 
 	if (status & PORT_IRQ_D2H_REG_FIS) {
@@ -1433,7 +1433,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	if (!known_irq)
 		ata_port_printk(ap, KERN_INFO, "spurious interrupt "
 				"(irq_stat 0x%x active_tag 0x%x sactive 0x%x)\n",
-				status, ap->active_tag, ap->sactive);
+				status, ap->link.active_tag, ap->link.sactive);
 }
 
 static void ahci_irq_clear(struct ata_port *ap)

@@ -296,7 +296,7 @@ static void svia_noop_freeze(struct ata_port *ap)
  */
 static int vt6420_prereset(struct ata_port *ap, unsigned long deadline)
 {
-	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_eh_context *ehc = &ap->link.eh_context;
 	unsigned long timeout = jiffies + (HZ * 5);
 	u32 sstatus, scontrol;
 	int online;

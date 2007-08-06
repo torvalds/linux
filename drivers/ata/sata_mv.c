@@ -1415,7 +1415,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	unsigned int edma_enabled = (pp->pp_flags & MV_PP_FLAG_EDMA_EN);
 	unsigned int action = 0, err_mask = 0;
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 
 	ata_ehi_clear_desc(ehi);
 
@@ -1508,7 +1508,7 @@ static void mv_intr_pio(struct ata_port *ap)
 		return;
 
 	/* get active ATA command */
-	qc = ata_qc_from_tag(ap, ap->active_tag);
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (unlikely(!qc))			/* no active tag */
 		return;
 	if (qc->tf.flags & ATA_TFLAG_POLLING)	/* polling; we don't own qc */
@@ -1543,7 +1543,7 @@ static void mv_intr_edma(struct ata_port *ap)
 
 		/* 50xx: get active ATA command */
 		if (IS_GEN_I(hpriv))
-			tag = ap->active_tag;
+			tag = ap->link.active_tag;
 
 		/* Gen II/IIE: get active ATA command via tag, to enable
 		 * support for queueing.  this works transparently for
@@ -1646,7 +1646,7 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 		if (unlikely(have_err_bits)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
 				continue;
 
@@ -1688,14 +1688,14 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 	for (i = 0; i < host->n_ports; i++) {
 		ap = host->ports[i];
 		if (!ata_port_offline(ap)) {
-			ehi = &ap->eh_info;
+			ehi = &ap->link.eh_info;
 			ata_ehi_clear_desc(ehi);
 			if (!printed++)
 				ata_ehi_push_desc(ehi,
 					"PCI err cause 0x%08x", err_cause);
 			err_mask = AC_ERR_HOST_BUS;
 			ehi->action = ATA_EH_HARDRESET;
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc)
 				qc->err_mask |= err_mask;
 			else
@@ -2269,7 +2269,7 @@ comreset_retry:
 static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 {
 	struct mv_port_priv *pp	= ap->private_data;
-	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_eh_context *ehc = &ap->link.eh_context;
 	int rc;
 
 	rc = mv_stop_dma(ap);

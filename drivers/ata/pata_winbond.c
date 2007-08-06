@@ -94,7 +94,7 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void winbond_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned int buflen, int write_data)
 {
-	struct ata_port *ap = adev->ap;
+	struct ata_port *ap = adev->link->ap;
 	int slop = buflen & 3;
 
 	if (ata_id_has_dword_io(adev->id)) {

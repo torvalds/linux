@@ -285,7 +285,7 @@ static void inic_irq_clear(struct ata_port *ap)
 static void inic_host_intr(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	u8 irq_stat;
 
 	/* fetch and clear irq */
@@ -293,7 +293,8 @@ static void inic_host_intr(struct ata_port *ap)
 	writeb(irq_stat, port_base + PORT_IRQ_STAT);
 
 	if (likely(!(irq_stat & PIRQ_ERR))) {
-		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+		struct ata_queued_cmd *qc =
+			ata_qc_from_tag(ap, ap->link.active_tag);
 
 		if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 			ata_chk_status(ap);	/* clear ATA interrupt */
@@ -421,7 +422,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 {
 	void __iomem *port_base = inic_port_base(ap);
 	void __iomem *idma_ctl = port_base + PORT_IDMA_CTL;
-	const unsigned long *timing = sata_ehc_deb_timing(&ap->eh_context);
+	const unsigned long *timing = sata_ehc_deb_timing(&ap->link.eh_context);
 	u16 val;
 	int rc;
 

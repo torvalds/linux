@@ -126,7 +126,7 @@ static unsigned int qdi_qc_issue_prot(struct ata_queued_cmd *qc)
 
 static void qdi_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned int buflen, int write_data)
 {
-	struct ata_port *ap = adev->ap;
+	struct ata_port *ap = adev->link->ap;
 	int slop = buflen & 3;
 
 	if (ata_id_has_dword_io(adev->id)) {

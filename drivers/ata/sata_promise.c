@@ -626,7 +626,7 @@ static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)
 static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   u32 port_status, u32 err_mask)
 {
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned int ac_err_mask = 0;
 
 	ata_ehi_clear_desc(ehi);
@@ -773,7 +773,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 		tmp = hotplug_status & (0x11 << ata_no);
 		if (tmp && ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct ata_eh_info *ehi = &ap->eh_info;
+			struct ata_eh_info *ehi = &ap->link.eh_info;
 			ata_ehi_clear_desc(ehi);
 			ata_ehi_hotplugged(ehi);
 			ata_ehi_push_desc(ehi, "hotplug_status %#x", tmp);
@@ -788,7 +788,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += pdc_host_intr(ap, qc);
 		}

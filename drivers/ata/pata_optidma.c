@@ -340,8 +340,8 @@ static int optidma_set_mode(struct ata_port *ap, struct ata_device **r_failed)
 		pci_read_config_byte(pdev, 0x43, &r);
 
 		r &= (0x0F << nybble);
-		r |= (optidma_make_bits43(&ap->device[0]) +
-		     (optidma_make_bits43(&ap->device[0]) << 2)) << nybble;
+		r |= (optidma_make_bits43(&ap->link.device[0]) +
+		     (optidma_make_bits43(&ap->link.device[0]) << 2)) << nybble;
 		pci_write_config_byte(pdev, 0x43, r);
 	}
 	return rc;

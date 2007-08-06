@@ -486,7 +486,7 @@ static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed)
 		return i;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+		struct ata_device *dev = &ap->link.device[i];
 
 		if (ata_dev_enabled(dev)) {
 

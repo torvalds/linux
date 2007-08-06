@@ -240,7 +240,7 @@ static void vsc_port_intr(u8 port_status, struct ata_port *ap)
 		return;
 	}
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && likely(!(qc->tf.flags & ATA_TFLAG_POLLING)))
 		handled = ata_host_intr(ap, qc);
 

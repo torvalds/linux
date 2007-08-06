@@ -456,7 +456,7 @@ static int sil24_tag(int tag)
 
 static void sil24_dev_config(struct ata_device *dev)
 {
-	void __iomem *port = dev->ap->ioaddr.cmd_addr;
+	void __iomem *port = dev->link->ap->ioaddr.cmd_addr;
 
 	if (dev->cdb_len == 16)
 		writel(PORT_CS_CDB16, port + PORT_CTRL_STAT);
@@ -609,7 +609,7 @@ static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
 	if (time_after(deadline, jiffies))
 		timeout_msec = jiffies_to_msecs(deadline - jiffies);
 
-	ata_tf_init(ap->device, &tf);	/* doesn't really matter */
+	ata_tf_init(ap->link.device, &tf);	/* doesn't really matter */
 	rc = sil24_exec_polled_cmd(ap, pmp, &tf, 0, PRB_CTRL_SRST,
 				   timeout_msec);
 	if (rc == -EBUSY) {
@@ -804,7 +804,7 @@ static void sil24_error_intr(struct ata_port *ap)
 {
 	void __iomem *port = ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	int freeze = 0;
 	u32 irq_stat;
 
@@ -856,7 +856,7 @@ static void sil24_error_intr(struct ata_port *ap)
 		}
 
 		/* record error info */
-		qc = ata_qc_from_tag(ap, ap->active_tag);
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc) {
 			sil24_read_tf(ap, qc->tag, &pp->tf);
 			qc->err_mask |= err_mask;
@@ -910,7 +910,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 	if (rc > 0)
 		return;
 	if (rc < 0) {
-		struct ata_eh_info *ehi = &ap->eh_info;
+		struct ata_eh_info *ehi = &ap->link.eh_info;
 		ehi->err_mask |= AC_ERR_HSM;
 		ehi->action |= ATA_EH_SOFTRESET;
 		ata_port_freeze(ap);
@@ -921,7 +921,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 	if (!(ap->flags & SIL24_FLAG_PCIX_IRQ_WOC) && ata_ratelimit())
 		ata_port_printk(ap, KERN_INFO, "spurious interrupt "
 			"(slot_stat 0x%x active_tag %d sactive 0x%x)\n",
-			slot_stat, ap->active_tag, ap->sactive);
+			slot_stat, ap->link.active_tag, ap->link.sactive);
 }
 
 static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
@@ -963,7 +963,7 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 
 static void sil24_error_handler(struct ata_port *ap)
 {
-	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_eh_context *ehc = &ap->link.eh_context;
 
 	if (sil24_init_port(ap)) {
 		ata_eh_freeze_port(ap);

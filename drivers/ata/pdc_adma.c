@@ -485,7 +485,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host *host)
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
-		qc = ata_qc_from_tag(ap, ap->active_tag);
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 			if (status & aPERR)
 				qc->err_mask |= AC_ERR_HOST_BUS;
@@ -500,7 +500,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host *host)
 			if (!qc->err_mask)
 				ata_qc_complete(qc);
 			else {
-				struct ata_eh_info *ehi = &ap->eh_info;
+				struct ata_eh_info *ehi = &ap->link.eh_info;
 				ata_ehi_clear_desc(ehi);
 				ata_ehi_push_desc(ehi,
 					"ADMA-status 0x%02X", status);
@@ -529,7 +529,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 			struct adma_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != adma_state_mmio)
 				continue;
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
@@ -545,7 +545,8 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 				if (!qc->err_mask)
 					ata_qc_complete(qc);
 				else {
-					struct ata_eh_info *ehi = &ap->eh_info;
+					struct ata_eh_info *ehi =
+						&ap->link.eh_info;
 					ata_ehi_clear_desc(ehi);
 					ata_ehi_push_desc(ehi,
 						"status 0x%02X", status);

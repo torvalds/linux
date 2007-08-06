@@ -44,7 +44,8 @@ static void ata_acpi_associate_sata_port(struct ata_port *ap)
 {
 	acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
 
-	ap->device->acpi_handle = acpi_get_child(ap->host->acpi_handle, adr);
+	ap->link.device->acpi_handle =
+		acpi_get_child(ap->host->acpi_handle, adr);
 }
 
 static void ata_acpi_associate_ide_port(struct ata_port *ap)
@@ -60,7 +61,7 @@ static void ata_acpi_associate_ide_port(struct ata_port *ap)
 		max_devices++;
 
 	for (i = 0; i < max_devices; i++) {
-		struct ata_device *dev = &ap->device[i];
+		struct ata_device *dev = &ap->link.device[i];
 
 		dev->acpi_handle = acpi_get_child(ap->acpi_handle, i);
 	}
@@ -182,10 +183,10 @@ static int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm)
 	/* Buffers for id may need byteswapping ? */
 	in_params[1].type = ACPI_TYPE_BUFFER;
 	in_params[1].buffer.length = 512;
-	in_params[1].buffer.pointer = (u8 *)ap->device[0].id;
+	in_params[1].buffer.pointer = (u8 *)ap->link.device[0].id;
 	in_params[2].type = ACPI_TYPE_BUFFER;
 	in_params[2].buffer.length = 512;
-	in_params[2].buffer.pointer = (u8 *)ap->device[1].id;
+	in_params[2].buffer.pointer = (u8 *)ap->link.device[1].id;
 
 	input.count = 3;
 	input.pointer = in_params;
@@ -226,7 +227,7 @@ static int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm)
 static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 			   void **ptr_to_free)
 {
-	struct ata_port *ap = dev->ap;
+	struct ata_port *ap = dev->link->ap;
 	acpi_status status;
 	struct acpi_buffer output;
 	union acpi_object *out_obj;
@@ -320,7 +321,7 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 static int taskfile_load_raw(struct ata_device *dev,
 			      const struct ata_acpi_gtf *gtf)
 {
-	struct ata_port *ap = dev->ap;
+	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf, rtf;
 	unsigned int err_mask;
 
@@ -424,7 +425,7 @@ static int ata_acpi_exec_tfs(struct ata_device *dev)
  */
 static int ata_acpi_push_id(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->ap;
+	struct ata_port *ap = dev->link->ap;
 	int err;
 	acpi_status status;
 	struct acpi_object_list input;
@@ -519,7 +520,7 @@ void ata_acpi_on_resume(struct ata_port *ap)
 
 	/* schedule _GTF */
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ap->device[i].flags |= ATA_DFLAG_ACPI_PENDING;
+		ap->link.device[i].flags |= ATA_DFLAG_ACPI_PENDING;
 }
 
 /**
@@ -538,8 +539,8 @@ void ata_acpi_on_resume(struct ata_port *ap)
  */
 int ata_acpi_on_devcfg(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->ap;
-	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_port *ap = dev->link->ap;
+	struct ata_eh_context *ehc = &ap->link.eh_context;
 	int acpi_sata = ap->flags & ATA_FLAG_ACPI_SATA;
 	int rc;
 

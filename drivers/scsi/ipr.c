@@ -4988,14 +4988,14 @@ static void ipr_ata_phy_reset(struct ata_port *ap)
 	switch(res->cfgte.proto) {
 	case IPR_PROTO_SATA:
 	case IPR_PROTO_SAS_STP:
-		ap->device[0].class = ATA_DEV_ATA;
+		ap->link.device[0].class = ATA_DEV_ATA;
 		break;
 	case IPR_PROTO_SATA_ATAPI:
 	case IPR_PROTO_SAS_STP_ATAPI:
-		ap->device[0].class = ATA_DEV_ATAPI;
+		ap->link.device[0].class = ATA_DEV_ATAPI;
 		break;
 	default:
-		ap->device[0].class = ATA_DEV_UNKNOWN;
+		ap->link.device[0].class = ATA_DEV_UNKNOWN;
 		ap->ops->port_disable(ap);
 		break;
 	};

@@ -594,7 +594,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		/* Not a proper libata device, ignore */
 		return rc;
 
-	if (ap->device[sdev->id].class == ATA_DEV_ATAPI) {
+	if (ap->link.device[sdev->id].class == ATA_DEV_ATAPI) {
 		/*
 		 * NVIDIA reports that ADMA mode does not support ATAPI commands.
 		 * Therefore ATAPI commands are sent through the legacy interface.
@@ -711,7 +711,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 		     flags & (NV_CPB_RESP_ATA_ERR |
 			      NV_CPB_RESP_CMD_ERR |
 			      NV_CPB_RESP_CPB_ERR)))) {
-		struct ata_eh_info *ehi = &ap->eh_info;
+		struct ata_eh_info *ehi = &ap->link.eh_info;
 		int freeze = 0;
 
 		ata_ehi_clear_desc(ehi);
@@ -747,7 +747,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 			DPRINTK("Completing qc from tag %d\n",cpb_num);
 			ata_qc_complete(qc);
 		} else {
-			struct ata_eh_info *ehi = &ap->eh_info;
+			struct ata_eh_info *ehi = &ap->link.eh_info;
 			/* Notifier bits set without a command may indicate the drive
 			   is misbehaving. Raise host state machine violation on this
 			   condition. */
@@ -764,7 +764,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 
 static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 {
-	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
 
 	/* freeze if hotplugged */
 	if (unlikely(irq_stat & (NV_INT_ADDED | NV_INT_REMOVED))) {
@@ -817,7 +817,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
 				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
 					>> (NV_INT_PORT_SHIFT * i);
-				if(ata_tag_valid(ap->active_tag))
+				if(ata_tag_valid(ap->link.active_tag))
 					/** NV_INT_DEV indication seems unreliable at times
 					    at least in ADMA mode. Force it on always when a
 					    command is active, to prevent losing interrupts. */
@@ -852,7 +852,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 					       NV_ADMA_STAT_HOTUNPLUG |
 					       NV_ADMA_STAT_TIMEOUT |
 					       NV_ADMA_STAT_SERROR))) {
-				struct ata_eh_info *ehi = &ap->eh_info;
+				struct ata_eh_info *ehi = &ap->link.eh_info;
 
 				ata_ehi_clear_desc(ehi);
 				__ata_ehi_push_desc(ehi, "ADMA status 0x%08x: ", status );
@@ -879,10 +879,10 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				u32 check_commands;
 				int pos, error = 0;
 
-				if(ata_tag_valid(ap->active_tag))
-					check_commands = 1 << ap->active_tag;
+				if(ata_tag_valid(ap->link.active_tag))
+					check_commands = 1 << ap->link.active_tag;
 				else
-					check_commands = ap->sactive;
+					check_commands = ap->link.sactive;
 
 				/** Check CPBs for completed commands */
 				while ((pos = ffs(check_commands)) && !error) {
@@ -1333,7 +1333,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += ata_host_intr(ap, qc);
 			else
@@ -1485,7 +1485,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		int i;
 		u16 tmp;
 
-		if(ata_tag_valid(ap->active_tag) || ap->sactive) {
+		if(ata_tag_valid(ap->link.active_tag) || ap->link.sactive) {
 			u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
 			u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
 			u32 gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
@@ -1501,8 +1501,8 @@ static void nv_adma_error_handler(struct ata_port *ap)
 
 			for( i=0;i<NV_ADMA_MAX_CPBS;i++) {
 				struct nv_adma_cpb *cpb = &pp->cpb[i];
-				if( (ata_tag_valid(ap->active_tag) && i == ap->active_tag) ||
-				    ap->sactive & (1 << i) )
+				if( (ata_tag_valid(ap->link.active_tag) && i == ap->link.active_tag) ||
+				    ap->link.sactive & (1 << i) )
 					ata_port_printk(ap, KERN_ERR,
 						"CPB %d: ctl_flags 0x%x, resp_flags 0x%x\n",
 						i, cpb->ctl_flags, cpb->resp_flags);
