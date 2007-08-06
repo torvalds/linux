@@ -260,7 +260,7 @@ struct sock_xprt {
 #define TCP_RCV_COPY_XID	(1UL << 2)
 #define TCP_RCV_COPY_DATA	(1UL << 3)
 
-static void xs_format_peer_addresses(struct rpc_xprt *xprt)
+static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
 	char *buf;
@@ -1600,7 +1600,7 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
-	xs_format_peer_addresses(xprt);
+	xs_format_ipv4_peer_addresses(xprt);
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
@@ -1642,7 +1642,7 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
 
-	xs_format_peer_addresses(xprt);
+	xs_format_ipv4_peer_addresses(xprt);
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
