@@ -13,6 +13,9 @@
  *  (C) 1999 Trond Myklebust <trond.myklebust@fys.uio.no>
  *
  * IP socket transport implementation, (C) 2005 Chuck Lever <cel@netapp.com>
+ *
+ * IPv6 support contributed by Gilles Quillard, Bull Open Source, 2005.
+ *   <gilles.quillard@bull.net>
  */
 
 #include <linux/types.h>
@@ -1780,6 +1783,7 @@ static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned
  */
 struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 {
+	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
@@ -1788,15 +1792,11 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
-		xprt_set_bound(xprt);
-
 	xprt->prot = IPPROTO_UDP;
 	xprt->tsh_size = 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_udp_connect_worker4);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1809,7 +1809,28 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
-	xs_format_ipv4_peer_addresses(xprt);
+	switch (addr->sa_family) {
+	case AF_INET:
+		if (((struct sockaddr_in *)addr)->sin_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_udp_connect_worker4);
+		xs_format_ipv4_peer_addresses(xprt);
+		break;
+	case AF_INET6:
+		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_udp_connect_worker6);
+		xs_format_ipv6_peer_addresses(xprt);
+		break;
+	default:
+		kfree(xprt);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
@@ -1823,6 +1844,7 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
  */
 struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 {
+	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
@@ -1831,14 +1853,10 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
-		xprt_set_bound(xprt);
-
 	xprt->prot = IPPROTO_TCP;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
@@ -1851,7 +1869,26 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
 
-	xs_format_ipv4_peer_addresses(xprt);
+	switch (addr->sa_family) {
+	case AF_INET:
+		if (((struct sockaddr_in *)addr)->sin_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
+		xs_format_ipv4_peer_addresses(xprt);
+		break;
+	case AF_INET6:
+		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker6);
+		xs_format_ipv6_peer_addresses(xprt);
+		break;
+	default:
+		kfree(xprt);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
