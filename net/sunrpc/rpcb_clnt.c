@@ -16,6 +16,8 @@
 
 #include <linux/types.h>
 #include <linux/socket.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 
@@ -137,10 +139,13 @@ struct rpcbind_args {
 static struct rpc_procinfo rpcb_procedures2[];
 static struct rpc_procinfo rpcb_procedures3[];
 
-static struct rpcb_info {
+struct rpcb_info {
 	int			rpc_vers;
 	struct rpc_procinfo *	rpc_proc;
-} rpcb_next_version[];
+};
+
+static struct rpcb_info rpcb_next_version[];
+static struct rpcb_info rpcb_next_version6[];
 
 static void rpcb_getport_prepare(struct rpc_task *task, void *calldata)
 {
@@ -190,7 +195,17 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 				   RPC_CLNT_CREATE_INTR),
 	};
 
-	((struct sockaddr_in *)srvaddr)->sin_port = htons(RPCBIND_PORT);
+	switch (srvaddr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)srvaddr)->sin_port = htons(RPCBIND_PORT);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)srvaddr)->sin6_port = htons(RPCBIND_PORT);
+		break;
+	default:
+		return NULL;
+	}
+
 	if (!privileged)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 	return rpc_create(&args);
@@ -316,6 +331,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	struct rpc_task	*child;
 	struct sockaddr addr;
 	int status;
+	struct rpcb_info *info;
 
 	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
 		task->tk_pid, __FUNCTION__,
@@ -343,14 +359,30 @@ void rpcb_getport_async(struct rpc_task *task)
 		goto bailout_nofree;
 	}
 
-	if (rpcb_next_version[xprt->bind_index].rpc_proc == NULL) {
+	rpc_peeraddr(clnt, (void *)&addr, sizeof(addr));
+
+	/* Don't ever use rpcbind v2 for AF_INET6 requests */
+	switch (addr.sa_family) {
+	case AF_INET:
+		info = rpcb_next_version;
+		break;
+	case AF_INET6:
+		info = rpcb_next_version6;
+		break;
+	default:
+		status = -EAFNOSUPPORT;
+		dprintk("RPC: %5u %s: bad address family\n",
+				task->tk_pid, __FUNCTION__);
+		goto bailout_nofree;
+	}
+	if (info[xprt->bind_index].rpc_proc == NULL) {
 		xprt->bind_index = 0;
 		status = -EACCES;	/* tell caller to try again later */
 		dprintk("RPC: %5u %s: no more getport versions available\n",
 			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;
 	}
-	bind_version = rpcb_next_version[xprt->bind_index].rpc_vers;
+	bind_version = info[xprt->bind_index].rpc_vers;
 
 	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
 		task->tk_pid, __FUNCTION__, bind_version);
@@ -373,7 +405,6 @@ void rpcb_getport_async(struct rpc_task *task)
 			sizeof(map->r_addr));
 	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
 
-	rpc_peeraddr(clnt, (void *)&addr, sizeof(addr));
 	rpcb_clnt = rpcb_create(clnt->cl_server, &addr, xprt->prot, bind_version, 0);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
@@ -591,6 +622,14 @@ static struct rpcb_info rpcb_next_version[] = {
 	{ 3, &rpcb_procedures3[RPCBPROC_GETADDR] },
 #endif
 	{ 2, &rpcb_procedures2[RPCBPROC_GETPORT] },
+	{ 0, NULL },
+};
+
+static struct rpcb_info rpcb_next_version6[] = {
+#ifdef CONFIG_SUNRPC_BIND34
+	{ 4, &rpcb_procedures4[RPCBPROC_GETVERSADDR] },
+	{ 3, &rpcb_procedures3[RPCBPROC_GETADDR] },
+#endif
 	{ 0, NULL },
 };
 
