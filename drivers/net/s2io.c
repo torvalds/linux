@@ -3892,6 +3892,12 @@ static int s2io_open(struct net_device *dev)
 		}
 	}
 
+	/* NAPI doesn't work well with MSI(X) */
+	 if (sp->intr_type != INTA) {
+		if(sp->config.napi)
+			sp->config.napi = 0;
+	}
+
 	/* Initialize H/W and enable interrupts */
 	err = s2io_card_up(sp);
 	if (err) {
@@ -6471,6 +6477,7 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 {
 	int cnt = 0;
 	struct net_device *dev = sp->dev;
+	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
 	if (sp->intr_type == MSI_X) {
 		int i;
@@ -6483,6 +6490,16 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 
 			free_irq(vector, arg);
 		}
+
+		kfree(sp->entries);
+		stats->mem_freed +=
+			(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+		kfree(sp->s2io_entries);
+		stats->mem_freed +=
+			(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+		sp->entries = NULL;
+		sp->s2io_entries = NULL;
+
 		pci_read_config_word(sp->pdev, 0x42, &msi_control);
 		msi_control &= 0xFFFE; /* Disable MSI */
 		pci_write_config_word(sp->pdev, 0x42, msi_control);
@@ -7377,6 +7394,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->addr_len = ETH_ALEN;
 	memcpy(dev->dev_addr, sp->def_mac_addr, ETH_ALEN);
 
+	 /* Store the values of the MSIX table in the s2io_nic structure */
+	store_xmsi_data(sp);
 	/* reset Nic and bring it to known state */
 	s2io_reset(sp);
 

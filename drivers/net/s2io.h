@@ -415,6 +415,7 @@ struct config_param {
 #define INTA	0
 #define MSI_X	2
 	u8 intr_type;
+	u8 napi;
 
 	/* Specifies if Tx Intr is UTILZ or PER_LIST type. */
 
