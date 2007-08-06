@@ -36,24 +36,24 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p, u64 now)
 	else
 		SEQ_printf(m, " ");
 
-	SEQ_printf(m, "%15s %5d %15Ld %13Ld %13Ld %9Ld %5d "
-		      "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
+	SEQ_printf(m, "%15s %5d %15Ld %13Ld %13Ld %9Ld %5d ",
 		p->comm, p->pid,
 		(long long)p->se.fair_key,
 		(long long)(p->se.fair_key - rq->cfs.fair_clock),
 		(long long)p->se.wait_runtime,
 		(long long)(p->nvcsw + p->nivcsw),
-		p->prio,
+		p->prio);
 #ifdef CONFIG_SCHEDSTATS
+	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
 		(long long)p->se.sum_exec_runtime,
 		(long long)p->se.sum_wait_runtime,
 		(long long)p->se.sum_sleep_runtime,
 		(long long)p->se.wait_runtime_overruns,
-		(long long)p->se.wait_runtime_underruns
+		(long long)p->se.wait_runtime_underruns);
 #else
-		0LL, 0LL, 0LL, 0LL, 0LL
+	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
+		0LL, 0LL, 0LL, 0LL, 0LL);
 #endif
-	);
 }
 
 static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu, u64 now)
