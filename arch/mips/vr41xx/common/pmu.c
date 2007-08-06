@@ -1,7 +1,7 @@
 /*
  *  pmu.c, Power Management Unit routines for NEC VR4100 series.
  *
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2003-2007  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,12 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/pm.h>
-#include <linux/smp.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 
 #include <asm/cpu.h>
 #include <asm/io.h>
+#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/system.h>
 
@@ -43,6 +44,18 @@ static void __iomem *pmu_base;
 
 #define pmu_read(offset)		readw(pmu_base + (offset))
 #define pmu_write(offset, value)	writew((value), pmu_base + (offset))
+
+static void vr41xx_cpu_wait(void)
+{
+	local_irq_disable();
+	if (!need_resched())
+		/*
+		 * "standby" sets IE bit of the CP0_STATUS to 1.
+		 */
+		__asm__("standby;\n");
+	else
+		local_irq_enable();
+}
 
 static inline void software_reset(void)
 {
@@ -113,6 +126,7 @@ static int __init vr41xx_pmu_init(void)
 		return -EBUSY;
 	}
 
+	cpu_wait = vr41xx_cpu_wait;
 	_machine_restart = vr41xx_restart;
 	_machine_halt = vr41xx_halt;
 	pm_power_off = vr41xx_power_off;
