@@ -6604,6 +6604,7 @@ int ata_host_activate(struct ata_host *host, int irq,
 void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
+	struct ata_link *link;
 	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
@@ -6621,8 +6622,10 @@ void ata_port_detach(struct ata_port *ap)
 	 */
 	spin_lock_irqsave(ap->lock, flags);
 
-	ata_link_for_each_dev(dev, &ap->link)
-		ata_dev_disable(dev);
+	ata_port_for_each_link(link, ap) {
+		ata_link_for_each_dev(dev, link)
+			ata_dev_disable(dev);
+	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
