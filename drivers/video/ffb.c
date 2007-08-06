@@ -171,17 +171,17 @@ static struct fb_ops ffb_ops = {
 #define FFB_PPC_CS_VAR		0x000002
 #define FFB_PPC_CS_CONST	0x000003
 
-#define FFB_ROP_NEW                  0x83
-#define FFB_ROP_OLD                  0x85
-#define FFB_ROP_NEW_XOR_OLD          0x86
+#define FFB_ROP_NEW		0x83
+#define FFB_ROP_OLD		0x85
+#define FFB_ROP_NEW_XOR_OLD	0x86
 
-#define FFB_UCSR_FIFO_MASK     0x00000fff
-#define FFB_UCSR_FB_BUSY       0x01000000
-#define FFB_UCSR_RP_BUSY       0x02000000
-#define FFB_UCSR_ALL_BUSY      (FFB_UCSR_RP_BUSY|FFB_UCSR_FB_BUSY)
-#define FFB_UCSR_READ_ERR      0x40000000
-#define FFB_UCSR_FIFO_OVFL     0x80000000
-#define FFB_UCSR_ALL_ERRORS    (FFB_UCSR_READ_ERR|FFB_UCSR_FIFO_OVFL)
+#define FFB_UCSR_FIFO_MASK	0x00000fff
+#define FFB_UCSR_FB_BUSY	0x01000000
+#define FFB_UCSR_RP_BUSY	0x02000000
+#define FFB_UCSR_ALL_BUSY	(FFB_UCSR_RP_BUSY|FFB_UCSR_FB_BUSY)
+#define FFB_UCSR_READ_ERR	0x40000000
+#define FFB_UCSR_FIFO_OVFL	0x80000000
+#define FFB_UCSR_ALL_ERRORS	(FFB_UCSR_READ_ERR|FFB_UCSR_FIFO_OVFL)
 
 struct ffb_fbc {
 	/* Next vertex registers */
@@ -197,7 +197,7 @@ struct ffb_fbc {
 	u32	ryf;
 	u32	rxf;
 	u32	xxx3[2];
-	
+
 	u32	dmyf;
 	u32	dmxf;
 	u32	xxx4[2];
@@ -211,13 +211,13 @@ struct ffb_fbc {
 	u32	bh;
 	u32	bw;
 	u32	xxx6[2];
-	
+
 	u32	xxx7[32];
-	
+
 	/* Setup unit vertex state register */
 	u32	suvtx;
 	u32	xxx8[63];
-	
+
 	/* Control registers */
 	u32	ppc;
 	u32	wid;
@@ -235,7 +235,7 @@ struct ffb_fbc {
 	u32	dcsb;
 	u32	dczf;
 	u32	dczb;
-	
+
 	u32	xxx9;
 	u32	blendc;
 	u32	blendc1;
@@ -252,7 +252,7 @@ struct ffb_fbc {
 	u32	fbcfg1;
 	u32	fbcfg2;
 	u32	fbcfg3;
-	
+
 	u32	ppcfg;
 	u32	pick;
 	u32	fillmode;
@@ -269,7 +269,7 @@ struct ffb_fbc {
 	u32	clip2max;
 	u32	clip3min;
 	u32	clip3max;
-	
+
 	/* New 3dRAM III support regs */
 	u32	rawblend2;
 	u32	rawpreblend;
@@ -287,7 +287,7 @@ struct ffb_fbc {
 	u32	rawcmp;
 	u32	rawwac;
 	u32	fbramid;
-	
+
 	u32	drawop;
 	u32	xxx10[2];
 	u32	fontlpat;
@@ -302,7 +302,7 @@ struct ffb_fbc {
 	u32	stencil;
 	u32	stencilctl;
 
-	u32	xxx13[4];	
+	u32	xxx13[4];
 	u32	dcss1;
 	u32	dcss2;
 	u32	dcss3;
@@ -315,17 +315,17 @@ struct ffb_fbc {
 	u32	dcd3;
 	u32	dcd4;
 	u32	xxx15;
-	
+
 	u32	pattern[32];
-	
+
 	u32	xxx16[256];
-	
+
 	u32	devid;
 	u32	xxx17[63];
-	
+
 	u32	ucsr;
 	u32	xxx18[31];
-	
+
 	u32	mer;
 };
 
@@ -336,20 +336,20 @@ struct ffb_dac {
 	u32	value2;
 };
 
-#define FFB_DAC_UCTRL	0x1001 /* User Control */
-#define  FFB_DAC_UCTRL_MANREV	0x00000f00 /* 4-bit Manufacturing Revision */
-#define  FFB_DAC_UCTRL_MANREV_SHIFT 8
-#define FFB_DAC_TGEN	0x6000 /* Timing Generator */
-#define  FFB_DAC_TGEN_VIDE	0x00000001 /* Video Enable */
-#define FFB_DAC_DID	0x8000 /* Device Identification */
-#define  FFB_DAC_DID_PNUM	0x0ffff000 /* Device Part Number */
-#define  FFB_DAC_DID_PNUM_SHIFT 12
-#define  FFB_DAC_DID_REV	0xf0000000 /* Device Revision */
-#define  FFB_DAC_DID_REV_SHIFT 28
+#define FFB_DAC_UCTRL		0x1001 /* User Control */
+#define FFB_DAC_UCTRL_MANREV	0x00000f00 /* 4-bit Manufacturing Revision */
+#define FFB_DAC_UCTRL_MANREV_SHIFT 8
+#define FFB_DAC_TGEN		0x6000 /* Timing Generator */
+#define FFB_DAC_TGEN_VIDE	0x00000001 /* Video Enable */
+#define FFB_DAC_DID		0x8000 /* Device Identification */
+#define FFB_DAC_DID_PNUM	0x0ffff000 /* Device Part Number */
+#define FFB_DAC_DID_PNUM_SHIFT	12
+#define FFB_DAC_DID_REV		0xf0000000 /* Device Revision */
+#define FFB_DAC_DID_REV_SHIFT	28
 
 #define FFB_DAC_CUR_CTRL	0x100
-#define  FFB_DAC_CUR_CTRL_P0	0x00000001
-#define  FFB_DAC_CUR_CTRL_P1	0x00000002
+#define FFB_DAC_CUR_CTRL_P0	0x00000001
+#define FFB_DAC_CUR_CTRL_P1	0x00000002
 
 struct ffb_par {
 	spinlock_t		lock;
@@ -382,7 +382,9 @@ static void FFBFifo(struct ffb_par *par, int n)
 
 	if (cache - n < 0) {
 		fbc = par->fbc;
-		do {	cache = (upa_readl(&fbc->ucsr) & FFB_UCSR_FIFO_MASK) - 8;
+		do {
+			cache = (upa_readl(&fbc->ucsr) & FFB_UCSR_FIFO_MASK);
+			cache -= 8;
 		} while (cache - n < 0);
 	}
 	par->fifo_cache = cache - n;
@@ -401,12 +403,12 @@ static void FFBWait(struct ffb_par *par)
 			upa_writel(FFB_UCSR_ALL_ERRORS, &fbc->ucsr);
 		}
 		udelay(10);
-	} while(--limit > 0);
+	} while (--limit > 0);
 }
 
 static int ffb_sync(struct fb_info *p)
 {
-	struct ffb_par *par = (struct ffb_par *) p->par;
+	struct ffb_par *par = (struct ffb_par *)p->par;
 
 	FFBWait(par);
 	return 0;
@@ -431,8 +433,8 @@ static void ffb_switch_from_graph(struct ffb_par *par)
 	FFBWait(par);
 	par->fifo_cache = 0;
 	FFBFifo(par, 7);
-	upa_writel(FFB_PPC_VCE_DISABLE|FFB_PPC_TBE_OPAQUE|
-		   FFB_PPC_APE_DISABLE|FFB_PPC_CS_CONST,
+	upa_writel(FFB_PPC_VCE_DISABLE | FFB_PPC_TBE_OPAQUE |
+		   FFB_PPC_APE_DISABLE | FFB_PPC_CS_CONST,
 		   &fbc->ppc);
 	upa_writel(0x2000707f, &fbc->fbc);
 	upa_writel(par->rop_cache, &fbc->rop);
@@ -455,7 +457,7 @@ static void ffb_switch_from_graph(struct ffb_par *par)
 
 static int ffb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 
 	/* We just use this to catch switches out of
 	 * graphics mode.
@@ -468,16 +470,14 @@ static int ffb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 }
 
 /**
- *      ffb_fillrect - REQUIRED function. Can use generic routines if 
- *                     non acclerated hardware and packed pixel based.
- *                     Draws a rectangle on the screen.               
+ *	ffb_fillrect - Draws a rectangle on the screen.
  *
- *      @info: frame buffer structure that represents a single frame buffer
- *      @rect: structure defining the rectagle and operation.
+ *	@info: frame buffer structure that represents a single frame buffer
+ *	@rect: structure defining the rectagle and operation.
  */
 static void ffb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 	struct ffb_fbc __iomem *fbc = par->fbc;
 	unsigned long flags;
 	u32 fg;
@@ -494,9 +494,9 @@ static void ffb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		par->fg_cache = fg;
 	}
 
-	ffb_rop(par, (rect->rop == ROP_COPY ?
-		      FFB_ROP_NEW :
-		      FFB_ROP_NEW_XOR_OLD));
+	ffb_rop(par, rect->rop == ROP_COPY ?
+		     FFB_ROP_NEW :
+		     FFB_ROP_NEW_XOR_OLD);
 
 	FFBFifo(par, 5);
 	upa_writel(FFB_DRAWOP_RECTANGLE, &fbc->drawop);
@@ -509,18 +509,15 @@ static void ffb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 }
 
 /**
- *      ffb_copyarea - REQUIRED function. Can use generic routines if
- *                     non acclerated hardware and packed pixel based.
- *                     Copies on area of the screen to another area.
+ *	ffb_copyarea - Copies on area of the screen to another area.
  *
- *      @info: frame buffer structure that represents a single frame buffer
- *      @area: structure defining the source and destination.
+ *	@info: frame buffer structure that represents a single frame buffer
+ *	@area: structure defining the source and destination.
  */
 
-static void
-ffb_copyarea(struct fb_info *info, const struct fb_copyarea *area) 
+static void ffb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 	struct ffb_fbc __iomem *fbc = par->fbc;
 	unsigned long flags;
 
@@ -547,16 +544,14 @@ ffb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 }
 
 /**
- *      ffb_imageblit - REQUIRED function. Can use generic routines if
- *                      non acclerated hardware and packed pixel based.
- *                      Copies a image from system memory to the screen. 
+ *	ffb_imageblit - Copies a image from system memory to the screen.
  *
- *      @info: frame buffer structure that represents a single frame buffer
- *      @image: structure defining the image.
+ *	@info: frame buffer structure that represents a single frame buffer
+ *	@image: structure defining the image.
  */
 static void ffb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 	struct ffb_fbc __iomem *fbc = par->fbc;
 	const u8 *data = image->data;
 	unsigned long flags;
@@ -644,13 +639,14 @@ static void ffb_fixup_var_rgb(struct fb_var_screeninfo *var)
 }
 
 /**
- *      ffb_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
- *      @red: frame buffer colormap structure
- *      @green: The green value which can be up to 16 bits wide
- *      @blue:  The blue value which can be up to 16 bits wide.
- *      @transp: If supported the alpha value which can be up to 16 bits wide.
- *      @info: frame buffer info structure
+ *	ffb_setcolreg - Sets a color register.
+ *
+ *	@regno: boolean, 0 copy local, 1 get_user() function
+ *	@red: frame buffer colormap structure
+ *	@green: The green value which can be up to 16 bits wide
+ *	@blue:  The blue value which can be up to 16 bits wide.
+ *	@transp: If supported the alpha value which can be up to 16 bits wide.
+ *	@info: frame buffer info structure
  */
 static int ffb_setcolreg(unsigned regno,
 			 unsigned red, unsigned green, unsigned blue,
@@ -672,14 +668,13 @@ static int ffb_setcolreg(unsigned regno,
 }
 
 /**
- *      ffb_blank - Optional function.  Blanks the display.
- *      @blank_mode: the blank mode we want.
- *      @info: frame buffer structure that represents a single frame buffer
+ *	ffb_blank - Optional function.  Blanks the display.
+ *	@blank_mode: the blank mode we want.
+ *	@info: frame buffer structure that represents a single frame buffer
  */
-static int
-ffb_blank(int blank, struct fb_info *info)
+static int ffb_blank(int blank, struct fb_info *info)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 	struct ffb_dac __iomem *dac = par->dac;
 	unsigned long flags;
 	u32 val;
@@ -867,7 +862,7 @@ static int ffb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 static int ffb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
-	struct ffb_par *par = (struct ffb_par *) info->par;
+	struct ffb_par *par = (struct ffb_par *)info->par;
 
 	return sbusfb_ioctl_helper(cmd, arg, info,
 				   FBTYPE_CREATOR, 24, par->fbsize);
@@ -877,8 +872,7 @@ static int ffb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  *  Initialisation
  */
 
-static void
-ffb_init_fix(struct fb_info *info)
+static void ffb_init_fix(struct fb_info *info)
 {
 	struct ffb_par *par = (struct ffb_par *)info->par;
 	const char *ffb_type_name;
@@ -902,7 +896,8 @@ ffb_init_fix(struct fb_info *info)
 	info->fix.accel = FB_ACCEL_SUN_CREATOR;
 }
 
-static int __devinit ffb_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit ffb_probe(struct of_device *op,
+			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
 	struct ffb_fbc __iomem *fbc;
