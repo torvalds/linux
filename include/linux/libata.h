@@ -515,6 +515,7 @@ struct ata_acpi_gtm {
 
 struct ata_link {
 	struct ata_port		*ap;
+	int			pmp;		/* port multiplier port # */
 
 	unsigned int		active_tag;	/* active tag on this link */
 	u32			sactive;	/* active NCQ commands */
@@ -562,6 +563,9 @@ struct ata_port {
 	unsigned int		qc_active;
 
 	struct ata_link		link;	/* host default link */
+
+	int			nr_pmp_links;	/* nr of available PMP links */
+	struct ata_link		*pmp_link;	/* array of PMP links */
 
 	struct ata_port_stats	stats;
 	struct ata_host		*host;
@@ -926,11 +930,17 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 #define ata_port_printk(ap, lv, fmt, args...) \
 	printk(lv"ata%u: "fmt, (ap)->print_id , ##args)
 
-#define ata_link_printk(link, lv, fmt, args...) \
-	printk(lv"ata%u: "fmt, (link)->ap->print_id , ##args)
+#define ata_link_printk(link, lv, fmt, args...) do { \
+	if ((link)->ap->nr_pmp_links) \
+		printk(lv"ata%u.%02u: "fmt, (link)->ap->print_id, \
+		       (link)->pmp , ##args); \
+	else \
+		printk(lv"ata%u: "fmt, (link)->ap->print_id , ##args); \
+	} while(0)
 
 #define ata_dev_printk(dev, lv, fmt, args...) \
-	printk(lv"ata%u.%02u: "fmt, (dev)->link->ap->print_id, (dev)->devno , ##args)
+	printk(lv"ata%u.%02u: "fmt, (dev)->link->ap->print_id, \
+	       (dev)->link->pmp + (dev)->devno , ##args)
 
 /*
  * ata_eh_info helpers
@@ -1039,15 +1049,46 @@ static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 /*
  * link helpers
  */
+static inline int ata_is_host_link(const struct ata_link *link)
+{
+	return link == &link->ap->link;
+}
+
 static inline int ata_link_max_devices(const struct ata_link *link)
 {
-	if (link->ap->flags & ATA_FLAG_SLAVE_POSS)
+	if (ata_is_host_link(link) && link->ap->flags & ATA_FLAG_SLAVE_POSS)
 		return 2;
 	return 1;
 }
 
-#define ata_port_for_each_link(lk, ap) \
-	for ((lk) = &(ap)->link; (lk); (lk) = NULL)
+static inline struct ata_link *ata_port_first_link(struct ata_port *ap)
+{
+	if (ap->nr_pmp_links)
+		return ap->pmp_link;
+	return &ap->link;
+}
+
+static inline struct ata_link *ata_port_next_link(struct ata_link *link)
+{
+	struct ata_port *ap = link->ap;
+
+	if (link == &ap->link) {
+		if (!ap->nr_pmp_links)
+			return NULL;
+		return ap->pmp_link;
+	}
+
+	if (++link - ap->pmp_link < ap->nr_pmp_links)
+		return link;
+	return NULL;
+}
+
+#define __ata_port_for_each_link(lk, ap) \
+	for ((lk) = &(ap)->link; (lk); (lk) = ata_port_next_link(lk))
+
+#define ata_port_for_each_link(link, ap) \
+	for ((link) = ata_port_first_link(ap); (link); \
+	     (link) = ata_port_next_link(link))
 
 #define ata_link_for_each_dev(dev, link) \
 	for ((dev) = (link)->device; \

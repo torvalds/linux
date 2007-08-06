@@ -6064,13 +6064,14 @@ void ata_dev_init(struct ata_device *dev)
  *	ata_link_init - Initialize an ata_link structure
  *	@ap: ATA port link is attached to
  *	@link: Link structure to initialize
+ *	@pmp: Port multiplier port number
  *
  *	Initialize @link.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-static void ata_link_init(struct ata_port *ap, struct ata_link *link)
+static void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 {
 	int i;
 
@@ -6078,6 +6079,7 @@ static void ata_link_init(struct ata_port *ap, struct ata_link *link)
 	memset(link, 0, offsetof(struct ata_link, device[0]));
 
 	link->ap = ap;
+	link->pmp = pmp;
 	link->active_tag = ATA_TAG_POISON;
 	link->hw_sata_spd_limit = UINT_MAX;
 
@@ -6173,7 +6175,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	ap->cbl = ATA_CBL_NONE;
 
-	ata_link_init(ap, &ap->link);
+	ata_link_init(ap, &ap->link, 0);
 
 #ifdef ATA_IRQ_TRAP
 	ap->stats.unhandled_irq = 1;
