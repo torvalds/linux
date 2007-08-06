@@ -313,6 +313,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
+	dev->dma_mask = 0xffffffff;
 
 	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
 		/* a PCI-PCI bridge */
