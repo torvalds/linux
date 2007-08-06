@@ -1483,7 +1483,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	struct snd_kcontrol *kctl;
 	char **namelist;
 
-	if (! num_ins || desc[0] < 6 + num_ins) {
+	if (! num_ins || desc[0] < 5 + num_ins) {
 		snd_printk(KERN_ERR "invalid SELECTOR UNIT descriptor %d\n", unitid);
 		return -EINVAL;
 	}
