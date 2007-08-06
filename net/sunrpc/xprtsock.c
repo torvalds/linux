@@ -267,7 +267,7 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 
 	buf = kzalloc(20, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 20, "%u.%u.%u.%u",
+		snprintf(buf, 20, NIPQUAD_FMT,
 				NIPQUAD(addr->sin_addr.s_addr));
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
@@ -286,7 +286,7 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 48, "addr=%u.%u.%u.%u port=%u proto=%s",
+		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
 			NIPQUAD(addr->sin_addr.s_addr),
 			ntohs(addr->sin_port),
 			xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
