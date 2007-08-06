@@ -2126,6 +2126,7 @@ static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				    struct kvm_sregs *sregs)
 {
 	struct descriptor_table dt;
+	int pending_vec;
 
 	vcpu_load(vcpu);
 
@@ -2155,10 +2156,13 @@ static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->efer = vcpu->shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
-	if (irqchip_in_kernel(vcpu->kvm))
+	if (irqchip_in_kernel(vcpu->kvm)) {
 		memset(sregs->interrupt_bitmap, 0,
 		       sizeof sregs->interrupt_bitmap);
-	else
+		pending_vec = kvm_arch_ops->get_irq(vcpu);
+		if (pending_vec >= 0)
+			set_bit(pending_vec, (unsigned long *)sregs->interrupt_bitmap);
+	} else
 		memcpy(sregs->interrupt_bitmap, vcpu->irq_pending,
 		       sizeof sregs->interrupt_bitmap);
 
@@ -2177,7 +2181,7 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				    struct kvm_sregs *sregs)
 {
 	int mmu_reset_needed = 0;
-	int i;
+	int i, pending_vec, max_bits;
 	struct descriptor_table dt;
 
 	vcpu_load(vcpu);
@@ -2221,6 +2225,16 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 		for (i = 0; i < ARRAY_SIZE(vcpu->irq_pending); ++i)
 			if (vcpu->irq_pending[i])
 				__set_bit(i, &vcpu->irq_summary);
+	} else {
+		max_bits = (sizeof sregs->interrupt_bitmap) << 3;
+		pending_vec = find_first_bit(
+			(const unsigned long *)sregs->interrupt_bitmap,
+			max_bits);
+		/* Only pending external irq is handled here */
+		if (pending_vec < max_bits) {
+			kvm_arch_ops->set_irq(vcpu, pending_vec);
+			printk("Set back pending irq %d\n", pending_vec);
+		}
 	}
 
 	set_segment(vcpu, &sregs->cs, VCPU_SREG_CS);

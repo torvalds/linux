@@ -790,6 +790,20 @@ static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
 	return 0;
 }
 
+static int vmx_get_irq(struct kvm_vcpu *vcpu)
+{
+	u32 idtv_info_field;
+
+	idtv_info_field = vmcs_read32(IDT_VECTORING_INFO_FIELD);
+	if (idtv_info_field & INTR_INFO_VALID_MASK) {
+		if (is_external_interrupt(idtv_info_field))
+			return idtv_info_field & VECTORING_INFO_VECTOR_MASK;
+		else
+			printk("pending exception: not handled yet\n");
+	}
+	return -1;
+}
+
 static __init int cpu_has_kvm_support(void)
 {
 	unsigned long ecx = cpuid_ecx(1);
@@ -2500,6 +2514,8 @@ static struct kvm_arch_ops vmx_arch_ops = {
 	.run = vmx_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = vmx_patch_hypercall,
+	.get_irq = vmx_get_irq,
+	.set_irq = vmx_inject_irq,
 };
 
 static int __init vmx_init(void)

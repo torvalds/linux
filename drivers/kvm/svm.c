@@ -843,6 +843,16 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
 	return -EOPNOTSUPP;
 }
 
+static int svm_get_irq(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 exit_int_info = svm->vmcb->control.exit_int_info;
+
+	if (is_external_interrupt(exit_int_info))
+		return exit_int_info & SVM_EVTINJ_VEC_MASK;
+	return -1;
+}
+
 static void load_host_msrs(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
@@ -1308,6 +1318,13 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
 	control->int_ctl |= V_IRQ_MASK |
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
+}
+
+static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm_inject_irq(svm, irq);
 }
 
 static void svm_intr_assist(struct vcpu_svm *svm)
@@ -1783,6 +1800,8 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.run = svm_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = svm_patch_hypercall,
+	.get_irq = svm_get_irq,
+	.set_irq = svm_set_irq,
 };
 
 static int __init svm_init(void)

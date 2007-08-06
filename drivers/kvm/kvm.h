@@ -490,6 +490,8 @@ struct kvm_arch_ops {
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
+	int (*get_irq)(struct kvm_vcpu *vcpu);
+	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
 };
 
 extern struct kvm_arch_ops *kvm_arch_ops;
