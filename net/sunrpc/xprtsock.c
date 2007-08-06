@@ -1353,12 +1353,12 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 }
 
 /**
- * xs_udp_connect_worker - set up a UDP socket
+ * xs_udp_connect_worker4 - set up a UDP socket
  * @work: RPC transport to connect
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_udp_connect_worker(struct work_struct *work)
+static void xs_udp_connect_worker4(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
@@ -1458,12 +1458,12 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 }
 
 /**
- * xs_tcp_connect_worker - connect a TCP socket to a remote endpoint
+ * xs_tcp_connect_worker4 - connect a TCP socket to a remote endpoint
  * @work: RPC transport to connect
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_connect_worker(struct work_struct *work)
+static void xs_tcp_connect_worker4(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
@@ -1695,7 +1695,7 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_udp_connect_worker);
+	INIT_DELAYED_WORK(&transport->connect_worker, xs_udp_connect_worker4);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1737,7 +1737,7 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker);
+	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
