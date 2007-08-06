@@ -417,12 +417,13 @@ static void inic_thaw(struct ata_port *ap)
  * SRST and SControl hardreset don't give valid signature on this
  * controller.  Only controller specific hardreset mechanism works.
  */
-static int inic_hardreset(struct ata_port *ap, unsigned int *class,
+static int inic_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	void __iomem *port_base = inic_port_base(ap);
 	void __iomem *idma_ctl = port_base + PORT_IDMA_CTL;
-	const unsigned long *timing = sata_ehc_deb_timing(&ap->link.eh_context);
+	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	u16 val;
 	int rc;
 
@@ -435,15 +436,15 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 	msleep(1);
 	writew(val & ~IDMA_CTL_RST_ATA, idma_ctl);
 
-	rc = sata_link_resume(&ap->link, timing, deadline);
+	rc = sata_link_resume(link, timing, deadline);
 	if (rc) {
-		ata_port_printk(ap, KERN_WARNING, "failed to resume "
+		ata_link_printk(link, KERN_WARNING, "failed to resume "
 				"link after reset (errno=%d)\n", rc);
 		return rc;
 	}
 
 	*class = ATA_DEV_NONE;
-	if (ata_link_online(&ap->link)) {
+	if (ata_link_online(link)) {
 		struct ata_taskfile tf;
 
 		/* wait a while before checking status */
@@ -452,7 +453,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 		rc = ata_wait_ready(ap, deadline);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
-			ata_port_printk(ap, KERN_WARNING, "device not ready "
+			ata_link_printk(link, KERN_WARNING, "device not ready "
 					"after hardreset (errno=%d)\n", rc);
 			return rc;
 		}

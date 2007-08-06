@@ -29,7 +29,7 @@ typedef enum {
 
 /**
  *	jmicron_pre_reset	-	check for 40/80 pin
- *	@ap: Port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the PATA port setup we need.
@@ -39,9 +39,9 @@ typedef enum {
  *	and setup here. We assume that has been done by init_one and the
  *	BIOS.
  */
-
-static int jmicron_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 control;
 	u32 control5;
@@ -103,7 +103,7 @@ static int jmicron_pre_reset(struct ata_port *ap, unsigned long deadline)
 		ap->cbl = ATA_CBL_SATA;
 		break;
 	}
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**

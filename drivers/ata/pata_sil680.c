@@ -95,15 +95,16 @@ static int sil680_cable_detect(struct ata_port *ap) {
 
 /**
  *	sil680_bus_reset	-	reset the SIL680 bus
- *	@ap: ATA port to reset
+ *	@link: ATA link to reset
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the SIL680 housekeeping when doing an ATA bus reset
  */
 
-static int sil680_bus_reset(struct ata_port *ap,unsigned int *classes,
+static int sil680_bus_reset(struct ata_link *link, unsigned int *classes,
 			    unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long addr = sil680_selreg(ap, 0);
 	u8 reset;
@@ -112,7 +113,7 @@ static int sil680_bus_reset(struct ata_port *ap,unsigned int *classes,
 	pci_write_config_byte(pdev, addr, reset | 0x03);
 	udelay(25);
 	pci_write_config_byte(pdev, addr, reset);
-	return ata_std_softreset(ap, classes, deadline);
+	return ata_std_softreset(link, classes, deadline);
 }
 
 static void sil680_error_handler(struct ata_port *ap)

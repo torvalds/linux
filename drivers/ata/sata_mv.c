@@ -2266,10 +2266,11 @@ comreset_retry:
 	VPRINTK("EXIT\n");
 }
 
-static int mv_prereset(struct ata_port *ap, unsigned long deadline)
+static int mv_prereset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct mv_port_priv *pp	= ap->private_data;
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_eh_context *ehc = &link->eh_context;
 	int rc;
 
 	rc = mv_stop_dma(ap);
@@ -2285,7 +2286,7 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
 
-	if (ata_link_online(&ap->link))
+	if (ata_link_online(link))
 		rc = ata_wait_ready(ap, deadline);
 	else
 		rc = -ENODEV;
@@ -2293,9 +2294,10 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	return rc;
 }
 
-static int mv_hardreset(struct ata_port *ap, unsigned int *class,
+static int mv_hardreset(struct ata_link *link, unsigned int *class,
 			unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 
@@ -2308,16 +2310,17 @@ static int mv_hardreset(struct ata_port *ap, unsigned int *class,
 	return 0;
 }
 
-static void mv_postreset(struct ata_port *ap, unsigned int *classes)
+static void mv_postreset(struct ata_link *link, unsigned int *classes)
 {
+	struct ata_port *ap = link->ap;
 	u32 serr;
 
 	/* print link status */
-	sata_print_link_status(&ap->link);
+	sata_print_link_status(link);
 
 	/* clear SError */
-	sata_scr_read(&ap->link, SCR_ERROR, &serr);
-	sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
+	sata_scr_read(link, SCR_ERROR, &serr);
+	sata_scr_write_flush(link, SCR_ERROR, serr);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {

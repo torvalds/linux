@@ -1042,9 +1042,10 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return 0;
 }
 
-static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
+static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 			     int pmp, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	const char *reason = NULL;
 	unsigned long now, msecs;
 	struct ata_taskfile tf;
@@ -1052,7 +1053,7 @@ static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_link_offline(&ap->link)) {
+	if (ata_link_offline(link)) {
 		DPRINTK("PHY reports no device\n");
 		*class = ATA_DEV_NONE;
 		return 0;
@@ -1061,10 +1062,10 @@ static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
 	/* prepare for SRST (AHCI-1.1 10.4.1) */
 	rc = ahci_kick_engine(ap, 1);
 	if (rc)
-		ata_port_printk(ap, KERN_WARNING,
+		ata_link_printk(link, KERN_WARNING,
 				"failed to reset engine (errno=%d)", rc);
 
-	ata_tf_init(ap->link.device, &tf);
+	ata_tf_init(link->device, &tf);
 
 	/* issue the first D2H Register FIS */
 	msecs = 0;
@@ -1109,19 +1110,20 @@ static int ahci_do_softreset(struct ata_port *ap, unsigned int *class,
 	return 0;
 
  fail:
-	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
+	ata_link_printk(link, KERN_ERR, "softreset failed (%s)\n", reason);
 	return rc;
 }
 
-static int ahci_softreset(struct ata_port *ap, unsigned int *class,
+static int ahci_softreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
-	return ahci_do_softreset(ap, class, 0, deadline);
+	return ahci_do_softreset(link, class, 0, deadline);
 }
 
-static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
+static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
@@ -1132,15 +1134,15 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
 	ahci_stop_engine(ap);
 
 	/* clear D2H reception area to properly wait for D2H FIS */
-	ata_tf_init(ap->link.device, &tf);
+	ata_tf_init(link->device, &tf);
 	tf.command = 0x80;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
-	rc = sata_std_hardreset(ap, class, deadline);
+	rc = sata_std_hardreset(link, class, deadline);
 
 	ahci_start_engine(ap);
 
-	if (rc == 0 && ata_link_online(&ap->link))
+	if (rc == 0 && ata_link_online(link))
 		*class = ahci_dev_classify(ap);
 	if (*class == ATA_DEV_UNKNOWN)
 		*class = ATA_DEV_NONE;
@@ -1149,9 +1151,10 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class,
 	return rc;
 }
 
-static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
+static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	u32 serror;
 	int rc;
 
@@ -1159,7 +1162,7 @@ static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
 
 	ahci_stop_engine(ap);
 
-	rc = sata_port_hardreset(ap, sata_ehc_deb_timing(&ap->link.eh_context),
+	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
 				 deadline);
 
 	/* vt8251 needs SError cleared for the port to operate */
@@ -1176,12 +1179,13 @@ static int ahci_vt8251_hardreset(struct ata_port *ap, unsigned int *class,
 	return rc ?: -EAGAIN;
 }
 
-static void ahci_postreset(struct ata_port *ap, unsigned int *class)
+static void ahci_postreset(struct ata_link *link, unsigned int *class)
 {
+	struct ata_port *ap = link->ap;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 new_tmp, tmp;
 
-	ata_std_postreset(ap, class);
+	ata_std_postreset(link, class);
 
 	/* Make sure port's ATAPI bit is set appropriately */
 	new_tmp = tmp = readl(port_mmio + PORT_CMD);

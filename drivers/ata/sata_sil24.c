@@ -583,9 +583,10 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return rc;
 }
 
-static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
+static int sil24_do_softreset(struct ata_link *link, unsigned int *class,
 			      int pmp, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	unsigned long timeout_msec = 0;
 	struct ata_taskfile tf;
 	const char *reason;
@@ -593,7 +594,7 @@ static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_link_offline(&ap->link)) {
+	if (ata_link_offline(link)) {
 		DPRINTK("PHY reports no device\n");
 		*class = ATA_DEV_NONE;
 		goto out;
@@ -609,7 +610,7 @@ static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
 	if (time_after(deadline, jiffies))
 		timeout_msec = jiffies_to_msecs(deadline - jiffies);
 
-	ata_tf_init(ap->link.device, &tf);	/* doesn't really matter */
+	ata_tf_init(link->device, &tf);	/* doesn't really matter */
 	rc = sil24_exec_polled_cmd(ap, pmp, &tf, 0, PRB_CTRL_SRST,
 				   timeout_msec);
 	if (rc == -EBUSY) {
@@ -631,29 +632,30 @@ static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
 	return 0;
 
  err:
-	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
+	ata_link_printk(link, KERN_ERR, "softreset failed (%s)\n", reason);
 	return -EIO;
 }
 
-static int sil24_softreset(struct ata_port *ap, unsigned int *class,
+static int sil24_softreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline)
 {
-	return sil24_do_softreset(ap, class, 0, deadline);
+	return sil24_do_softreset(link, class, 0, deadline);
 }
 
-static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
+static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	void __iomem *port = ap->ioaddr.cmd_addr;
 	const char *reason;
 	int tout_msec, rc;
 	u32 tmp;
 
 	/* sil24 does the right thing(tm) without any protection */
-	sata_set_spd(&ap->link);
+	sata_set_spd(link);
 
 	tout_msec = 100;
-	if (ata_link_online(&ap->link))
+	if (ata_link_online(link))
 		tout_msec = 5000;
 
 	writel(PORT_CS_DEV_RST, port + PORT_CTRL_STAT);
@@ -663,14 +665,14 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
 	/* SStatus oscillates between zero and valid status after
 	 * DEV_RST, debounce it.
 	 */
-	rc = sata_link_debounce(&ap->link, sata_deb_timing_long, deadline);
+	rc = sata_link_debounce(link, sata_deb_timing_long, deadline);
 	if (rc) {
 		reason = "PHY debouncing failed";
 		goto err;
 	}
 
 	if (tmp & PORT_CS_DEV_RST) {
-		if (ata_link_offline(&ap->link))
+		if (ata_link_offline(link))
 			return 0;
 		reason = "link not ready";
 		goto err;
@@ -685,7 +687,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
 	return -EAGAIN;
 
  err:
-	ata_port_printk(ap, KERN_ERR, "hardreset failed (%s)\n", reason);
+	ata_link_printk(link, KERN_ERR, "hardreset failed (%s)\n", reason);
 	return -EIO;
 }
 

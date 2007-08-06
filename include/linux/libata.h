@@ -333,14 +333,15 @@ enum ata_completion_errors {
 struct scsi_device;
 struct ata_port_operations;
 struct ata_port;
+struct ata_link;
 struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
-typedef int (*ata_prereset_fn_t)(struct ata_port *ap, unsigned long deadline);
-typedef int (*ata_reset_fn_t)(struct ata_port *ap, unsigned int *classes,
+typedef int (*ata_prereset_fn_t)(struct ata_link *link, unsigned long deadline);
+typedef int (*ata_reset_fn_t)(struct ata_link *link, unsigned int *classes,
 			      unsigned long deadline);
-typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *classes);
+typedef void (*ata_postreset_fn_t)(struct ata_link *link, unsigned int *classes);
 
 struct ata_ioports {
 	void __iomem		*cmd_addr;
@@ -706,14 +707,14 @@ extern int sata_link_debounce(struct ata_link *link,
 			const unsigned long *params, unsigned long deadline);
 extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
 			    unsigned long deadline);
-extern int ata_std_prereset(struct ata_port *ap, unsigned long deadline);
-extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
+extern int ata_std_prereset(struct ata_link *link, unsigned long deadline);
+extern int ata_std_softreset(struct ata_link *link, unsigned int *classes,
 			     unsigned long deadline);
-extern int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing,
-			       unsigned long deadline);
-extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
+extern int sata_link_hardreset(struct ata_link *link,
+			const unsigned long *timing, unsigned long deadline);
+extern int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 			      unsigned long deadline);
-extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
+extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI

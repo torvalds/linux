@@ -3306,10 +3306,10 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 
 /**
  *	ata_std_prereset - prepare for reset
- *	@ap: ATA port to be reset
+ *	@link: ATA link to be reset
  *	@deadline: deadline jiffies for the operation
  *
- *	@ap is about to be reset.  Initialize it.  Failure from
+ *	@link is about to be reset.  Initialize it.  Failure from
  *	prereset makes libata abort whole reset sequence and give up
  *	that port, so prereset should be best-effort.  It does its
  *	best to prepare for reset sequence but if things go wrong, it
@@ -3321,9 +3321,9 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
+int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
@@ -3342,7 +3342,7 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 		rc = sata_link_resume(link, timing, deadline);
 		/* whine about phy resume failure but proceed */
 		if (rc && rc != -EOPNOTSUPP)
-			ata_port_printk(ap, KERN_WARNING, "failed to resume "
+			ata_link_printk(link, KERN_WARNING, "failed to resume "
 					"link for reset (errno=%d)\n", rc);
 	}
 
@@ -3352,7 +3352,7 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 	if (!(ap->flags & ATA_FLAG_SKIP_D2H_BSY) && !ata_link_offline(link)) {
 		rc = ata_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV) {
-			ata_port_printk(ap, KERN_WARNING, "device not ready "
+			ata_link_printk(link, KERN_WARNING, "device not ready "
 					"(errno=%d), forcing hardreset\n", rc);
 			ehc->i.action |= ATA_EH_HARDRESET;
 		}
@@ -3363,7 +3363,7 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 
 /**
  *	ata_std_softreset - reset host port via ATA SRST
- *	@ap: port to reset
+ *	@link: ATA link to reset
  *	@classes: resulting classes of attached devices
  *	@deadline: deadline jiffies for the operation
  *
@@ -3375,10 +3375,10 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
+int ata_std_softreset(struct ata_link *link, unsigned int *classes,
 		      unsigned long deadline)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	unsigned int devmask = 0;
 	int rc;
@@ -3405,7 +3405,7 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
 	rc = ata_bus_softreset(ap, devmask, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
-		ata_port_printk(ap, KERN_ERR, "SRST failed (errno=%d)\n", rc);
+		ata_link_printk(link, KERN_ERR, "SRST failed (errno=%d)\n", rc);
 		return rc;
 	}
 
@@ -3420,12 +3420,12 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
 }
 
 /**
- *	sata_port_hardreset - reset port via SATA phy reset
- *	@ap: port to reset
+ *	sata_link_hardreset - reset link via SATA phy reset
+ *	@link: link to reset
  *	@timing: timing parameters { interval, duratinon, timeout } in msec
  *	@deadline: deadline jiffies for the operation
  *
- *	SATA phy-reset host port using DET bits of SControl register.
+ *	SATA phy-reset @link using DET bits of SControl register.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -3433,10 +3433,9 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing,
+int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 			unsigned long deadline)
 {
-	struct ata_link *link = &ap->link;
 	u32 scontrol;
 	int rc;
 
@@ -3482,7 +3481,7 @@ int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing,
 
 /**
  *	sata_std_hardreset - reset host port via SATA phy reset
- *	@ap: port to reset
+ *	@link: link to reset
  *	@class: resulting class of attached device
  *	@deadline: deadline jiffies for the operation
  *
@@ -3495,19 +3494,19 @@ int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
+int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	int rc;
 
 	DPRINTK("ENTER\n");
 
 	/* do hardreset */
-	rc = sata_port_hardreset(ap, timing, deadline);
+	rc = sata_link_hardreset(link, timing, deadline);
 	if (rc) {
-		ata_port_printk(ap, KERN_ERR,
+		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
 		return rc;
 	}
@@ -3525,7 +3524,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
 	rc = ata_wait_ready(ap, deadline);
 	/* link occupied, -ENODEV too is an error */
 	if (rc) {
-		ata_port_printk(ap, KERN_ERR,
+		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
 		return rc;
 	}
@@ -3540,7 +3539,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
 
 /**
  *	ata_std_postreset - standard postreset callback
- *	@ap: the target ata_port
+ *	@link: the target ata_link
  *	@classes: classes of attached devices
  *
  *	This function is invoked after a successful reset.  Note that
@@ -3550,9 +3549,9 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
+void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 {
-	struct ata_link *link = &ap->link;
+	struct ata_port *ap = link->ap;
 	u32 serror;
 
 	DPRINTK("ENTER\n");
@@ -6946,7 +6945,7 @@ EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(ata_std_softreset);
-EXPORT_SYMBOL_GPL(sata_port_hardreset);
+EXPORT_SYMBOL_GPL(sata_link_hardreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_dev_classify);

@@ -1737,16 +1737,16 @@ static void ata_eh_report(struct ata_port *ap)
 	}
 }
 
-static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
+static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 			unsigned int *classes, unsigned long deadline)
 {
 	struct ata_device *dev;
 	int rc;
 
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_link_for_each_dev(dev, link)
 		classes[dev->devno] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, classes, deadline);
+	rc = reset(link, classes, deadline);
 	if (rc)
 		return rc;
 
@@ -1754,12 +1754,12 @@ static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 	 * is complete and convert all ATA_DEV_UNKNOWN to
 	 * ATA_DEV_NONE.
 	 */
-	ata_link_for_each_dev(dev, &ap->link)
+	ata_link_for_each_dev(dev, link)
 		if (classes[dev->devno] != ATA_DEV_UNKNOWN)
 			break;
 
 	if (dev) {
-		ata_link_for_each_dev(dev, &ap->link) {
+		ata_link_for_each_dev(dev, link) {
 			if (classes[dev->devno] == ATA_DEV_UNKNOWN)
 				classes[dev->devno] = ATA_DEV_NONE;
 		}
@@ -1780,11 +1780,10 @@ static int ata_eh_followup_srst_needed(int rc, int classify,
 	return 0;
 }
 
-static int ata_eh_reset(struct ata_port *ap, int classify,
+static int ata_eh_reset(struct ata_link *link, int classify,
 			ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 			ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
-	struct ata_link *link = &ap->link;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int *classes = ehc->classes;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
@@ -1810,10 +1809,10 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		ehc->i.action |= ATA_EH_HARDRESET;
 
 	if (prereset) {
-		rc = prereset(ap, jiffies + ATA_EH_PRERESET_TIMEOUT);
+		rc = prereset(link, jiffies + ATA_EH_PRERESET_TIMEOUT);
 		if (rc) {
 			if (rc == -ENOENT) {
-				ata_port_printk(ap, KERN_DEBUG,
+				ata_link_printk(link, KERN_DEBUG,
 						"port disabled. ignoring.\n");
 				ehc->i.action &= ~ATA_EH_RESET_MASK;
 
@@ -1822,7 +1821,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 
 				rc = 0;
 			} else
-				ata_port_printk(ap, KERN_ERR,
+				ata_link_printk(link, KERN_ERR,
 					"prereset failed (errno=%d)\n", rc);
 			goto out;
 		}
@@ -1854,7 +1853,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 
 	/* shut up during boot probing */
 	if (verbose)
-		ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
+		ata_link_printk(link, KERN_INFO, "%s resetting link\n",
 				reset == softreset ? "soft" : "hard");
 
 	/* mark that this EH session started with reset */
@@ -1863,7 +1862,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	else
 		ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
-	rc = ata_do_reset(ap, reset, classes, deadline);
+	rc = ata_do_reset(link, reset, classes, deadline);
 
 	if (reset == hardreset &&
 	    ata_eh_followup_srst_needed(rc, classify, classes)) {
@@ -1871,7 +1870,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		reset = softreset;
 
 		if (!reset) {
-			ata_port_printk(ap, KERN_ERR,
+			ata_link_printk(link, KERN_ERR,
 					"follow-up softreset required "
 					"but no softreset avaliable\n");
 			rc = -EINVAL;
@@ -1879,11 +1878,11 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		}
 
 		ata_eh_about_to_do(link, NULL, ATA_EH_RESET_MASK);
-		rc = ata_do_reset(ap, reset, classes, deadline);
+		rc = ata_do_reset(link, reset, classes, deadline);
 
 		if (rc == 0 && classify &&
 		    classes[0] == ATA_DEV_UNKNOWN) {
-			ata_port_printk(ap, KERN_ERR,
+			ata_link_printk(link, KERN_ERR,
 					"classification failed\n");
 			rc = -EINVAL;
 			goto out;
@@ -1896,7 +1895,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		if (time_before(now, deadline)) {
 			unsigned long delta = deadline - jiffies;
 
-			ata_port_printk(ap, KERN_WARNING, "reset failed "
+			ata_link_printk(link, KERN_WARNING, "reset failed "
 				"(errno=%d), retrying in %u secs\n",
 				rc, (jiffies_to_msecs(delta) + 999) / 1000);
 
@@ -1925,7 +1924,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			link->sata_spd = (sstatus >> 4) & 0xf;
 
 		if (postreset)
-			postreset(ap, classes);
+			postreset(link, classes);
 
 		/* reset successful, schedule revalidation */
 		ata_eh_done(link, NULL, ehc->i.action & ATA_EH_RESET_MASK);
@@ -2202,7 +2201,7 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (ehc->i.action & ATA_EH_RESET_MASK) {
 		ata_eh_freeze_port(ap);
 
-		rc = ata_eh_reset(ap, ata_port_nr_vacant(ap), prereset,
+		rc = ata_eh_reset(&ap->link, ata_port_nr_vacant(ap), prereset,
 				  softreset, hardreset, postreset);
 		if (rc) {
 			ata_port_printk(ap, KERN_ERR,

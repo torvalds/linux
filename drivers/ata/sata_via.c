@@ -276,7 +276,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 
 /**
  *	vt6420_prereset - prereset for vt6420
- *	@ap: target ATA port
+ *	@link: target ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	SCR registers on vt6420 are pieces of shit and may hang the
@@ -294,8 +294,9 @@ static void svia_noop_freeze(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-static int vt6420_prereset(struct ata_port *ap, unsigned long deadline)
+static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &ap->link.eh_context;
 	unsigned long timeout = jiffies + (HZ * 5);
 	u32 sstatus, scontrol;

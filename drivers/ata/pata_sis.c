@@ -133,19 +133,20 @@ static int sis_66_cable_detect(struct ata_port *ap)
 
 /**
  *	sis_pre_reset		-	probe begin
- *	@ap: ATA port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int sis_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits sis_enable_bits[] = {
 		{ 0x4aU, 1U, 0x02UL, 0x02UL },	/* port 0 */
 		{ 0x4aU, 1U, 0x04UL, 0x04UL },	/* port 1 */
 	};
 
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no]))
@@ -154,7 +155,7 @@ static int sis_pre_reset(struct ata_port *ap, unsigned long deadline)
 	/* Clear the FIFO settings. We can't enable the FIFO until
 	   we know we are poking at a disk */
 	pci_write_config_byte(pdev, 0x4B, 0);
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 
