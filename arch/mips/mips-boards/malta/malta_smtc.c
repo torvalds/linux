@@ -1,6 +1,7 @@
 /*
  * Malta Platform-specific hooks for SMP operation
  */
+#include <linux/irq.h>
 #include <linux/init.h>
 
 #include <asm/mipsregs.h>
