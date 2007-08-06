@@ -1261,6 +1261,39 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 	return err;
 }
 
+static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
+{
+	struct sockaddr_in6 myaddr = {
+		.sin6_family = AF_INET6,
+	};
+	struct sockaddr_in6 *sa;
+	int err;
+	unsigned short port = transport->port;
+
+	if (!transport->xprt.resvport)
+		port = 0;
+	sa = (struct sockaddr_in6 *)&transport->addr;
+	myaddr.sin6_addr = sa->sin6_addr;
+	do {
+		myaddr.sin6_port = htons(port);
+		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
+						sizeof(myaddr));
+		if (!transport->xprt.resvport)
+			break;
+		if (err == 0) {
+			transport->port = port;
+			break;
+		}
+		if (port <= xprt_min_resvport)
+			port = xprt_max_resvport;
+		else
+			port--;
+	} while (err == -EADDRINUSE && port != transport->port);
+	dprintk("RPC:       xs_bind6 "NIP6_FMT":%u: %s (%d)\n",
+		NIP6(myaddr.sin6_addr), port, err ? "failed" : "ok", err);
+	return err;
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key xs_key[2];
 static struct lock_class_key xs_slock_key[2];
