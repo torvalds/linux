@@ -37,6 +37,7 @@ static void cg6_fillrect(struct fb_info *, const struct fb_fillrect *);
 static int cg6_sync(struct fb_info *);
 static int cg6_mmap(struct fb_info *, struct vm_area_struct *);
 static int cg6_ioctl(struct fb_info *, unsigned int, unsigned long);
+static void cg6_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 
 /*
  *  Frame buffer operations
@@ -47,7 +48,7 @@ static struct fb_ops cg6_ops = {
 	.fb_setcolreg		= cg6_setcolreg,
 	.fb_blank		= cg6_blank,
 	.fb_fillrect		= cg6_fillrect,
-	.fb_copyarea		= cfb_copyarea,
+	.fb_copyarea		= cg6_copyarea,
 	.fb_imageblit		= cg6_imageblit,
 	.fb_sync		= cg6_sync,
 	.fb_mmap		= cg6_mmap,
@@ -292,10 +293,12 @@ static void cg6_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	unsigned long flags;
 	s32 val;
 
-	/* XXX doesn't handle ROP_XOR */
+	/* CG6 doesn't handle ROP_XOR */
 
 	spin_lock_irqsave(&par->lock, flags);
+
 	cg6_sync(info);
+
 	sbus_writel(rect->color, &fbc->fg);
 	sbus_writel(~(u32)0, &fbc->pixelm);
 	sbus_writel(0xea80ff00, &fbc->alu);
@@ -309,6 +312,48 @@ static void cg6_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	do {
 		val = sbus_readl(&fbc->draw);
 	} while (val < 0 && (val & 0x20000000));
+	spin_unlock_irqrestore(&par->lock, flags);
+}
+
+/**
+ *	cg6_copyarea - Copies one area of the screen to another area.
+ *
+ *	@info: frame buffer structure that represents a single frame buffer
+ *	@area: Structure providing the data to copy the framebuffer contents
+ *		from one region to another.
+ *
+ *	This drawing operation copies a rectangular area from one area of the
+ *	screen to another area.
+ */
+static void cg6_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+{
+	struct cg6_par *par = (struct cg6_par *)info->par;
+	struct cg6_fbc __iomem *fbc = par->fbc;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&par->lock, flags);
+
+	cg6_sync(info);
+
+	sbus_writel(0xff, &fbc->fg);
+	sbus_writel(0x00, &fbc->bg);
+	sbus_writel(~0, &fbc->pixelm);
+	sbus_writel(0xe880cccc, &fbc->alu);
+	sbus_writel(0, &fbc->s);
+	sbus_writel(0, &fbc->clip);
+
+	sbus_writel(area->sy, &fbc->y0);
+	sbus_writel(area->sx, &fbc->x0);
+	sbus_writel(area->sy + area->height - 1, &fbc->y1);
+	sbus_writel(area->sx + area->width - 1, &fbc->x1);
+	sbus_writel(area->dy, &fbc->y2);
+	sbus_writel(area->dx, &fbc->x2);
+	sbus_writel(area->dy + area->height - 1, &fbc->y3);
+	sbus_writel(area->dx + area->width - 1, &fbc->x3);
+	do {
+		i = sbus_readl(&fbc->blit);
+	} while (i < 0 && (i & 0x20000000));
 	spin_unlock_irqrestore(&par->lock, flags);
 }
 
@@ -708,7 +753,8 @@ static int __devinit cg6_probe(struct of_device *op,
 				sizeof(u32), "cgsix fhc");
 
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_IMAGEBLIT |
-			FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
+			FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
+			FBINFO_READS_FAST;
 	info->fbops = &cg6_ops;
 
 	info->screen_base = of_ioremap(&op->resource[0], CG6_RAM_OFFSET,
