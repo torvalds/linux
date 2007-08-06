@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.25.1"
+#define DRV_VERSION "2.0.26.1"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -6201,13 +6201,10 @@ static void s2io_set_link(struct work_struct *work)
 				netif_stop_queue(dev);
 			}
 		}
-		val64 = readq(&bar0->adapter_status);
-		if (!LINK_IS_UP(val64)) {
-			DBG_PRINT(ERR_DBG, "%s:", dev->name);
-			DBG_PRINT(ERR_DBG, " Link down after enabling ");
-			DBG_PRINT(ERR_DBG, "device \n");
-		} else
-			s2io_link(nic, LINK_UP);
+		val64 = readq(&bar0->adapter_control);
+		val64 |= ADAPTER_LED_ON;
+		writeq(val64, &bar0->adapter_control);
+		s2io_link(nic, LINK_UP);
 	} else {
 		if (CARDS_WITH_FAULTY_LINK_INDICATORS(nic->device_type,
 						      subid)) {
@@ -6216,6 +6213,10 @@ static void s2io_set_link(struct work_struct *work)
 			writeq(val64, &bar0->gpio_control);
 			val64 = readq(&bar0->gpio_control);
 		}
+		/* turn off LED */
+		val64 = readq(&bar0->adapter_control);
+		val64 = val64 &(~ADAPTER_LED_ON);
+		writeq(val64, &bar0->adapter_control);
 		s2io_link(nic, LINK_DOWN);
 	}
 	clear_bit(0, &(nic->link_state));
