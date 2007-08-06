@@ -1833,7 +1833,7 @@ int sctp_verify_init(const struct sctp_association *asoc,
 	 * VIOLATION error.  We build the ERROR chunk here and let the normal
 	 * error handling code build and send the packet.
 	 */
-	if (param.v < (void*)chunk->chunk_end - sizeof(sctp_paramhdr_t)) {
+	if (param.v != (void*)chunk->chunk_end) {
 		sctp_process_inv_paramlength(asoc, param.p, chunk, errp);
 		return 0;
 	}
