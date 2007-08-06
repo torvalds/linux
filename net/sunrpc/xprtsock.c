@@ -312,6 +312,58 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
 }
 
+static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
+{
+	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) &xprt->addr;
+	char *buf;
+
+	buf = kzalloc(40, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 40, NIP6_FMT,
+				NIP6(addr->sin6_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%u",
+				ntohs(addr->sin6_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		if (xprt->prot == IPPROTO_UDP)
+			snprintf(buf, 8, "udp");
+		else
+			snprintf(buf, 8, "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
+
+	buf = kzalloc(64, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 64, "addr="NIP6_FMT" port=%u proto=%s",
+				NIP6(addr->sin6_addr),
+				ntohs(addr->sin6_port),
+				xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+
+	buf = kzalloc(36, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 36, NIP6_SEQFMT,
+				NIP6(addr->sin6_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%4hx",
+				ntohs(addr->sin6_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
+}
+
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 {
 	int i;
