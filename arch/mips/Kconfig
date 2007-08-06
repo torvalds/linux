@@ -192,8 +192,7 @@ config MIPS_MALTA
 	  board.
 
 config MIPS_SEAD
-	bool "MIPS SEAD board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "MIPS SEAD board"
 	select IRQ_CPU
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
