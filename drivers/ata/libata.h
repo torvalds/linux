@@ -78,8 +78,8 @@ extern int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 extern int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags);
 extern int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags);
 extern int ata_dev_configure(struct ata_device *dev);
-extern int sata_down_spd_limit(struct ata_port *ap);
-extern int sata_set_spd_needed(struct ata_port *ap);
+extern int sata_down_spd_limit(struct ata_link *link);
+extern int sata_set_spd_needed(struct ata_link *link);
 extern int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel);
 extern int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 extern void ata_sg_clean(struct ata_queued_cmd *qc);

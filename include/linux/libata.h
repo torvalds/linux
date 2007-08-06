@@ -696,16 +696,16 @@ static inline int ata_port_is_dummy(struct ata_port *ap)
 	return ap->ops == &ata_dummy_port_ops;
 }
 
-extern void sata_print_link_status(struct ata_port *ap);
+extern void sata_print_link_status(struct ata_link *link);
 extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
-extern int sata_set_spd(struct ata_port *ap);
-extern int sata_phy_debounce(struct ata_port *ap, const unsigned long *param,
-			     unsigned long deadline);
-extern int sata_phy_resume(struct ata_port *ap, const unsigned long *param,
-			   unsigned long deadline);
+extern int sata_set_spd(struct ata_link *link);
+extern int sata_link_debounce(struct ata_link *link,
+			const unsigned long *params, unsigned long deadline);
+extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
+			    unsigned long deadline);
 extern int ata_std_prereset(struct ata_port *ap, unsigned long deadline);
 extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
 			     unsigned long deadline);
@@ -753,12 +753,12 @@ extern int ata_sas_slave_configure(struct scsi_device *, struct ata_port *);
 extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
 			    struct ata_port *ap);
 extern unsigned int ata_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
-extern int sata_scr_valid(struct ata_port *ap);
-extern int sata_scr_read(struct ata_port *ap, int reg, u32 *val);
-extern int sata_scr_write(struct ata_port *ap, int reg, u32 val);
-extern int sata_scr_write_flush(struct ata_port *ap, int reg, u32 val);
-extern int ata_port_online(struct ata_port *ap);
-extern int ata_port_offline(struct ata_port *ap);
+extern int sata_scr_valid(struct ata_link *link);
+extern int sata_scr_read(struct ata_link *link, int reg, u32 *val);
+extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
+extern int sata_scr_write_flush(struct ata_link *link, int reg, u32 val);
+extern int ata_link_online(struct ata_link *link);
+extern int ata_link_offline(struct ata_link *link);
 #ifdef CONFIG_PM
 extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
 extern void ata_host_resume(struct ata_host *host);

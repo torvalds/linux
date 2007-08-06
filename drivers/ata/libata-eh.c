@@ -1501,7 +1501,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
 	/* speed down? */
 	if (verdict & ATA_EH_SPDN_SPEED_DOWN) {
 		/* speed down SATA link speed if possible */
-		if (sata_down_spd_limit(dev->link->ap) == 0) {
+		if (sata_down_spd_limit(dev->link) == 0) {
 			action |= ATA_EH_HARDRESET;
 			goto done;
 		}
@@ -1561,7 +1561,8 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
  */
 static void ata_eh_autopsy(struct ata_port *ap)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_link *link = &ap->link;
+	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
 	u32 serror;
@@ -1573,7 +1574,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		return;
 
 	/* obtain and analyze SError */
-	rc = sata_scr_read(ap, SCR_ERROR, &serror);
+	rc = sata_scr_read(link, SCR_ERROR, &serror);
 	if (rc == 0) {
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(ap);
@@ -1782,7 +1783,8 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 			ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
-	struct ata_eh_context *ehc = &ap->link.eh_context;
+	struct ata_link *link = &ap->link;
+	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int *classes = ehc->classes;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
 	int try = 0;
@@ -1800,7 +1802,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	 */
 	action = ehc->i.action;
 	ehc->i.action &= ~ATA_EH_RESET_MASK;
-	if (softreset && (!hardreset || (!sata_set_spd_needed(ap) &&
+	if (softreset && (!hardreset || (!sata_set_spd_needed(link) &&
 					 !(action & ATA_EH_HARDRESET))))
 		ehc->i.action |= ATA_EH_SOFTRESET;
 	else
@@ -1814,7 +1816,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 						"port disabled. ignoring.\n");
 				ehc->i.action &= ~ATA_EH_RESET_MASK;
 
-				ata_link_for_each_dev(dev, &ap->link)
+				ata_link_for_each_dev(dev, link)
 					classes[dev->devno] = ATA_DEV_NONE;
 
 				rc = 0;
@@ -1832,7 +1834,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		reset = softreset;
 	else {
 		/* prereset told us not to reset, bang classes and return */
-		ata_link_for_each_dev(dev, &ap->link)
+		ata_link_for_each_dev(dev, link)
 			classes[dev->devno] = ATA_DEV_NONE;
 		rc = 0;
 		goto out;
@@ -1902,7 +1904,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 
 		if (rc == -EPIPE ||
 		    try == ARRAY_SIZE(ata_eh_reset_timeouts) - 1)
-			sata_down_spd_limit(ap);
+			sata_down_spd_limit(link);
 		if (hardreset)
 			reset = hardreset;
 		goto retry;
@@ -1914,12 +1916,12 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		/* After the reset, the device state is PIO 0 and the
 		 * controller state is undefined.  Record the mode.
 		 */
-		ata_link_for_each_dev(dev, &ap->link)
+		ata_link_for_each_dev(dev, link)
 			dev->pio_mode = XFER_PIO_0;
 
 		/* record current link speed */
-		if (sata_scr_read(ap, SCR_STATUS, &sstatus) == 0)
-			ap->link.sata_spd = (sstatus >> 4) & 0xf;
+		if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0)
+			link->sata_spd = (sstatus >> 4) & 0xf;
 
 		if (postreset)
 			postreset(ap, classes);
@@ -1957,7 +1959,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			readid_flags |= ATA_READID_POSTRESET;
 
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
-			if (ata_port_offline(ap)) {
+			if (ata_link_offline(&ap->link)) {
 				rc = -EIO;
 				goto err;
 			}
@@ -2079,7 +2081,6 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 
 static void ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 {
-	struct ata_port *ap = dev->link->ap;
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 
 	ehc->tries[dev->devno]--;
@@ -2096,7 +2097,7 @@ static void ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
-			sata_down_spd_limit(ap);
+			sata_down_spd_limit(dev->link);
 			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
 		}
 	}
@@ -2106,7 +2107,7 @@ static void ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 		ata_dev_disable(dev);
 
 		/* detach if offline */
-		if (ata_port_offline(ap))
+		if (ata_link_offline(dev->link))
 			ata_eh_detach_dev(dev);
 
 		/* probe if requested */

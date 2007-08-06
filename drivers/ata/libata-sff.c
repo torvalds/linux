@@ -500,7 +500,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (sata_scr_valid(ap))
+	if (sata_scr_valid(&ap->link))
 		hardreset = sata_std_hardreset;
 
 	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,

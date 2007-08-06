@@ -475,7 +475,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	buf32[2] = 0;				/* no next-packet */
 
 	/* select drive */
-	if (sata_scr_valid(ap)) {
+	if (sata_scr_valid(&ap->link)) {
 		dev_sel = PDC_DEVICE_SATA;
 	} else {
 		dev_sel = ATA_DEVICE_OBS;
@@ -643,7 +643,7 @@ static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   | PDC_PCI_SYS_ERR | PDC1_PCI_PARITY_ERR))
 		ac_err_mask |= AC_ERR_HOST_BUS;
 
-	if (sata_scr_valid(ap)) {
+	if (sata_scr_valid(&ap->link)) {
 		u32 serror;
 
 		pdc_sata_scr_read(ap, SCR_ERROR, &serror);

@@ -593,7 +593,7 @@ static int sil24_do_softreset(struct ata_port *ap, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_port_offline(ap)) {
+	if (ata_link_offline(&ap->link)) {
 		DPRINTK("PHY reports no device\n");
 		*class = ATA_DEV_NONE;
 		goto out;
@@ -650,10 +650,10 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
 	u32 tmp;
 
 	/* sil24 does the right thing(tm) without any protection */
-	sata_set_spd(ap);
+	sata_set_spd(&ap->link);
 
 	tout_msec = 100;
-	if (ata_port_online(ap))
+	if (ata_link_online(&ap->link))
 		tout_msec = 5000;
 
 	writel(PORT_CS_DEV_RST, port + PORT_CTRL_STAT);
@@ -663,14 +663,14 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class,
 	/* SStatus oscillates between zero and valid status after
 	 * DEV_RST, debounce it.
 	 */
-	rc = sata_phy_debounce(ap, sata_deb_timing_long, deadline);
+	rc = sata_link_debounce(&ap->link, sata_deb_timing_long, deadline);
 	if (rc) {
 		reason = "PHY debouncing failed";
 		goto err;
 	}
 
 	if (tmp & PORT_CS_DEV_RST) {
-		if (ata_port_offline(ap))
+		if (ata_link_offline(&ap->link))
 			return 0;
 		reason = "link not ready";
 		goto err;

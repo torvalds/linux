@@ -435,7 +435,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 	msleep(1);
 	writew(val & ~IDMA_CTL_RST_ATA, idma_ctl);
 
-	rc = sata_phy_resume(ap, timing, deadline);
+	rc = sata_link_resume(&ap->link, timing, deadline);
 	if (rc) {
 		ata_port_printk(ap, KERN_WARNING, "failed to resume "
 				"link after reset (errno=%d)\n", rc);
@@ -443,7 +443,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 	}
 
 	*class = ATA_DEV_NONE;
-	if (ata_port_online(ap)) {
+	if (ata_link_online(&ap->link)) {
 		struct ata_taskfile tf;
 
 		/* wait a while before checking status */

@@ -612,7 +612,7 @@ static int scc_std_softreset (struct ata_port *ap, unsigned int *classes,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_port_offline(ap)) {
+	if (ata_link_offline(&ap->link)) {
 		classes[0] = ATA_DEV_NONE;
 		goto out;
 	}

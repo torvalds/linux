@@ -1423,8 +1423,8 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		/* just a guess: do we need to do this? should we
 		 * expand this, and do it in all cases?
 		 */
-		sata_scr_read(ap, SCR_ERROR, &serr);
-		sata_scr_write_flush(ap, SCR_ERROR, serr);
+		sata_scr_read(&ap->link, SCR_ERROR, &serr);
+		sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 	}
 
 	edma_err_cause = readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
@@ -1468,8 +1468,8 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		}
 
 		if (edma_err_cause & EDMA_ERR_SERR) {
-			sata_scr_read(ap, SCR_ERROR, &serr);
-			sata_scr_write_flush(ap, SCR_ERROR, serr);
+			sata_scr_read(&ap->link, SCR_ERROR, &serr);
+			sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 			err_mask = AC_ERR_ATA_BUS;
 			action |= ATA_EH_HARDRESET;
 		}
@@ -1687,7 +1687,7 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 
 	for (i = 0; i < host->n_ports; i++) {
 		ap = host->ports[i];
-		if (!ata_port_offline(ap)) {
+		if (!ata_link_offline(&ap->link)) {
 			ehi = &ap->link.eh_info;
 			ata_ehi_clear_desc(ehi);
 			if (!printed++)
@@ -2198,14 +2198,14 @@ static void mv_phy_reset(struct ata_port *ap, unsigned int *class,
 
 	/* Issue COMRESET via SControl */
 comreset_retry:
-	sata_scr_write_flush(ap, SCR_CONTROL, 0x301);
+	sata_scr_write_flush(&ap->link, SCR_CONTROL, 0x301);
 	msleep(1);
 
-	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
+	sata_scr_write_flush(&ap->link, SCR_CONTROL, 0x300);
 	msleep(20);
 
 	do {
-		sata_scr_read(ap, SCR_STATUS, &sstatus);
+		sata_scr_read(&ap->link, SCR_STATUS, &sstatus);
 		if (((sstatus & 0x3) == 3) || ((sstatus & 0x3) == 0))
 			break;
 
@@ -2230,7 +2230,7 @@ comreset_retry:
 	}
 #endif
 
-	if (ata_port_offline(ap)) {
+	if (ata_link_offline(&ap->link)) {
 		*class = ATA_DEV_NONE;
 		return;
 	}
@@ -2285,7 +2285,7 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
 
-	if (ata_port_online(ap))
+	if (ata_link_online(&ap->link))
 		rc = ata_wait_ready(ap, deadline);
 	else
 		rc = -ENODEV;
@@ -2313,11 +2313,11 @@ static void mv_postreset(struct ata_port *ap, unsigned int *classes)
 	u32 serr;
 
 	/* print link status */
-	sata_print_link_status(ap);
+	sata_print_link_status(&ap->link);
 
 	/* clear SError */
-	sata_scr_read(ap, SCR_ERROR, &serr);
-	sata_scr_write_flush(ap, SCR_ERROR, serr);
+	sata_scr_read(&ap->link, SCR_ERROR, &serr);
+	sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
