@@ -263,9 +263,24 @@ struct sock_xprt {
 #define TCP_RCV_COPY_XID	(1UL << 2)
 #define TCP_RCV_COPY_DATA	(1UL << 3)
 
+static inline struct sockaddr *xs_addr(struct rpc_xprt *xprt)
+{
+	return (struct sockaddr *) &xprt->addr;
+}
+
+static inline struct sockaddr_in *xs_addr_in(struct rpc_xprt *xprt)
+{
+	return (struct sockaddr_in *) &xprt->addr;
+}
+
+static inline struct sockaddr_in6 *xs_addr_in6(struct rpc_xprt *xprt)
+{
+	return (struct sockaddr_in6 *) &xprt->addr;
+}
+
 static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
+	struct sockaddr_in *addr = xs_addr_in(xprt);
 	char *buf;
 
 	buf = kzalloc(20, GFP_KERNEL);
@@ -317,7 +332,7 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 
 static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) &xprt->addr;
+	struct sockaddr_in6 *addr = xs_addr_in6(xprt);
 	char *buf;
 
 	buf = kzalloc(40, GFP_KERNEL);
@@ -537,7 +552,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 
 	req->rq_xtime = jiffies;
 	status = xs_sendpages(transport->sock,
-			      (struct sockaddr *) &xprt->addr,
+			      xs_addr(xprt),
 			      xprt->addrlen, xdr,
 			      req->rq_bytes_sent);
 
@@ -1214,7 +1229,7 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
-	struct sockaddr *addr = (struct sockaddr *) &xprt->addr;
+	struct sockaddr *addr = xs_addr(xprt);
 
 	dprintk("RPC:       setting port for xprt %p to %u\n", xprt, port);
 
@@ -1497,8 +1512,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
-	return kernel_connect(sock, (struct sockaddr *) &xprt->addr,
-			xprt->addrlen, O_NONBLOCK);
+	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
 }
 
 /**
