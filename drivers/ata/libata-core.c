@@ -6061,6 +6061,68 @@ void ata_dev_init(struct ata_device *dev)
 }
 
 /**
+ *	ata_link_init - Initialize an ata_link structure
+ *	@ap: ATA port link is attached to
+ *	@link: Link structure to initialize
+ *
+ *	Initialize @link.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+static void ata_link_init(struct ata_port *ap, struct ata_link *link)
+{
+	int i;
+
+	/* clear everything except for devices */
+	memset(link, 0, offsetof(struct ata_link, device[0]));
+
+	link->ap = ap;
+	link->active_tag = ATA_TAG_POISON;
+	link->hw_sata_spd_limit = UINT_MAX;
+
+	/* can't use iterator, ap isn't initialized yet */
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &link->device[i];
+
+		dev->link = link;
+		dev->devno = dev - link->device;
+		ata_dev_init(dev);
+	}
+}
+
+/**
+ *	sata_link_init_spd - Initialize link->sata_spd_limit
+ *	@link: Link to configure sata_spd_limit for
+ *
+ *	Initialize @link->[hw_]sata_spd_limit to the currently
+ *	configured value.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
+ */
+static int sata_link_init_spd(struct ata_link *link)
+{
+	u32 scontrol, spd;
+	int rc;
+
+	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	if (rc)
+		return rc;
+
+	spd = (scontrol >> 4) & 0xf;
+	if (spd)
+		link->hw_sata_spd_limit &= (1 << spd) - 1;
+
+	link->sata_spd_limit = link->hw_sata_spd_limit;
+
+	return 0;
+}
+
+/**
  *	ata_port_alloc - allocate and initialize basic ATA port resources
  *	@host: ATA host this allocated port belongs to
  *
@@ -6075,7 +6137,6 @@ void ata_dev_init(struct ata_device *dev)
 struct ata_port *ata_port_alloc(struct ata_host *host)
 {
 	struct ata_port *ap;
-	unsigned int i;
 
 	DPRINTK("ENTER\n");
 
@@ -6090,9 +6151,6 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->ctl = ATA_DEVCTL_OBS;
 	ap->host = host;
 	ap->dev = host->dev;
-
-	ap->link.hw_sata_spd_limit = UINT_MAX;
-	ap->link.active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
 #if defined(ATA_VERBOSE_DEBUG)
@@ -6115,15 +6173,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	ap->cbl = ATA_CBL_NONE;
 
-	ap->link.ap = ap;
-
-	/* can't use iterator, ap isn't initialized yet */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->link.device[i];
-		dev->link = &ap->link;
-		dev->devno = i;
-		ata_dev_init(dev);
-	}
+	ata_link_init(ap, &ap->link);
 
 #ifdef ATA_IRQ_TRAP
 	ap->stats.unhandled_irq = 1;
@@ -6406,7 +6456,6 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		int irq_line;
-		u32 scontrol;
 		unsigned long xfer_mask;
 
 		/* set SATA cable type if still unset */
@@ -6414,12 +6463,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			ap->cbl = ATA_CBL_SATA;
 
 		/* init sata_spd_limit to the current value */
-		if (sata_scr_read(&ap->link, SCR_CONTROL, &scontrol) == 0) {
-			int spd = (scontrol >> 4) & 0xf;
-			if (spd)
-				ap->link.hw_sata_spd_limit &= (1 << spd) - 1;
-		}
-		ap->link.sata_spd_limit = ap->link.hw_sata_spd_limit;
+		sata_link_init_spd(&ap->link);
 
 		/* report the secondary IRQ for second channel legacy */
 		irq_line = host->irq;
