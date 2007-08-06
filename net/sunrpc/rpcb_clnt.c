@@ -490,10 +490,11 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 			       unsigned short *portp)
 {
 	char *addr;
-	int addr_len, c, i, f, first, val;
+	u32 addr_len;
+	int c, i, f, first, val;
 
 	*portp = 0;
-	addr_len = (unsigned int) ntohl(*p++);
+	addr_len = ntohl(*p++);
 	if (addr_len > RPCB_MAXADDRLEN)			/* sanity */
 		return -EINVAL;
 
