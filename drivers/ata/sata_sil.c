@@ -303,22 +303,20 @@ static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed)
 	struct ata_device *dev;
 	void __iomem *mmio_base = host->iomap[SIL_MMIO_BAR];
 	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
-	u32 tmp, dev_mode[2];
-	unsigned int i;
+	u32 tmp, dev_mode[2] = { };
 	int rc;
 
 	rc = ata_do_set_mode(ap, r_failed);
 	if (rc)
 		return rc;
 
-	for (i = 0; i < 2; i++) {
-		dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (!ata_dev_enabled(dev))
-			dev_mode[i] = 0;	/* PIO0/1/2 */
+			dev_mode[dev->devno] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
-			dev_mode[i] = 1;	/* PIO3/4 */
+			dev_mode[dev->devno] = 1;	/* PIO3/4 */
 		else
-			dev_mode[i] = 3;	/* UDMA */
+			dev_mode[dev->devno] = 3;	/* UDMA */
 		/* value 2 indicates MDMA */
 	}
 

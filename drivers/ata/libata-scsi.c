@@ -2425,7 +2425,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 
 static struct ata_device * ata_find_dev(struct ata_port *ap, int id)
 {
-	if (likely(id < ATA_MAX_DEVICES))
+	if (likely(id < ata_link_max_devices(&ap->link)))
 		return &ap->link.device[id];
 	return NULL;
 }
@@ -2952,21 +2952,18 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	int tries = 5;
 	struct ata_device *last_failed_dev = NULL;
 	struct ata_device *dev;
-	unsigned int i;
 
 	if (ap->flags & ATA_FLAG_DISABLED)
 		return;
 
  repeat:
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+	ata_link_for_each_dev(dev, &ap->link) {
 		struct scsi_device *sdev;
-
-		dev = &ap->link.device[i];
 
 		if (!ata_dev_enabled(dev) || dev->sdev)
 			continue;
 
-		sdev = __scsi_add_device(ap->scsi_host, 0, i, 0, NULL);
+		sdev = __scsi_add_device(ap->scsi_host, 0, dev->devno, 0, NULL);
 		if (!IS_ERR(sdev)) {
 			dev->sdev = sdev;
 			scsi_device_put(sdev);
@@ -2977,12 +2974,11 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	 * failure occurred, scan would have failed silently.  Check
 	 * whether all devices are attached.
 	 */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (ata_dev_enabled(dev) && !dev->sdev)
 			break;
 	}
-	if (i == ATA_MAX_DEVICES)
+	if (!dev)
 		return;
 
 	/* we're missing some SCSI devices */
@@ -3112,7 +3108,7 @@ void ata_scsi_hotplug(struct work_struct *work)
 {
 	struct ata_port *ap =
 		container_of(work, struct ata_port, hotplug_task.work);
-	int i;
+	struct ata_device *dev;
 
 	if (ap->pflags & ATA_PFLAG_UNLOADING) {
 		DPRINTK("ENTER/EXIT - unloading\n");
@@ -3122,8 +3118,7 @@ void ata_scsi_hotplug(struct work_struct *work)
 	DPRINTK("ENTER\n");
 
 	/* unplug detached devices */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, &ap->link) {
 		unsigned long flags;
 
 		if (!(dev->flags & ATA_DFLAG_DETACHED))
@@ -3176,7 +3171,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	spin_lock_irqsave(ap->lock, flags);
 
 	if (id == SCAN_WILD_CARD) {
-		ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
+		ehi->probe_mask |= (1 << ata_link_max_devices(&ap->link)) - 1;
 		ehi->action |= ATA_EH_SOFTRESET;
 	} else {
 		struct ata_device *dev = ata_find_dev(ap, id);
@@ -3215,13 +3210,12 @@ void ata_scsi_dev_rescan(struct work_struct *work)
 {
 	struct ata_port *ap =
 		container_of(work, struct ata_port, scsi_rescan_task);
+	struct ata_device *dev;
 	unsigned long flags;
-	unsigned int i;
 
 	spin_lock_irqsave(ap->lock, flags);
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, &ap->link) {
 		struct scsi_device *sdev = dev->sdev;
 
 		if (!ata_dev_enabled(dev) || !sdev)

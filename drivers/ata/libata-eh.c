@@ -200,23 +200,24 @@ static unsigned int ata_eh_dev_action(struct ata_device *dev)
 	return ehc->i.action | ehc->i.dev_action[dev->devno];
 }
 
-static void ata_eh_clear_action(struct ata_device *dev,
+static void ata_eh_clear_action(struct ata_link *link, struct ata_device *dev,
 				struct ata_eh_info *ehi, unsigned int action)
 {
-	int i;
+	struct ata_device *tdev;
 
 	if (!dev) {
 		ehi->action &= ~action;
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ehi->dev_action[i] &= ~action;
+		ata_link_for_each_dev(tdev, link)
+			ehi->dev_action[tdev->devno] &= ~action;
 	} else {
 		/* doesn't make sense for port-wide EH actions */
 		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
 
 		/* break ehi->action into ehi->dev_action */
 		if (ehi->action & action) {
-			for (i = 0; i < ATA_MAX_DEVICES; i++)
-				ehi->dev_action[i] |= ehi->action & action;
+			ata_link_for_each_dev(tdev, link)
+				ehi->dev_action[tdev->devno] |=
+					ehi->action & action;
 			ehi->action &= ~action;
 		}
 
@@ -922,7 +923,8 @@ void ata_eh_qc_retry(struct ata_queued_cmd *qc)
  */
 static void ata_eh_detach_dev(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
 	unsigned long flags;
 
 	ata_dev_disable(dev);
@@ -937,8 +939,8 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 	}
 
 	/* clear per-dev EH actions */
-	ata_eh_clear_action(dev, &dev->link->eh_info, ATA_EH_PERDEV_MASK);
-	ata_eh_clear_action(dev, &dev->link->eh_context.i, ATA_EH_PERDEV_MASK);
+	ata_eh_clear_action(link, dev, &link->eh_info, ATA_EH_PERDEV_MASK);
+	ata_eh_clear_action(link, dev, &link->eh_context.i, ATA_EH_PERDEV_MASK);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 }
@@ -978,7 +980,7 @@ static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
 		ehi->flags &= ~ATA_EHI_RESET_MODIFIER_MASK;
 	}
 
-	ata_eh_clear_action(dev, ehi, action);
+	ata_eh_clear_action(&ap->link, dev, ehi, action);
 
 	if (!(ehc->i.flags & ATA_EHI_QUIET))
 		ap->pflags |= ATA_PFLAG_RECOVERED;
@@ -1009,7 +1011,7 @@ static void ata_eh_done(struct ata_port *ap, struct ata_device *dev,
 		ehc->i.flags &= ~ATA_EHI_RESET_MODIFIER_MASK;
 	}
 
-	ata_eh_clear_action(dev, &ehc->i, action);
+	ata_eh_clear_action(&ap->link, dev, &ehc->i, action);
 }
 
 /**
@@ -1736,10 +1738,11 @@ static void ata_eh_report(struct ata_port *ap)
 static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 			unsigned int *classes, unsigned long deadline)
 {
-	int i, rc;
+	struct ata_device *dev;
+	int rc;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		classes[i] = ATA_DEV_UNKNOWN;
+	ata_link_for_each_dev(dev, &ap->link)
+		classes[dev->devno] = ATA_DEV_UNKNOWN;
 
 	rc = reset(ap, classes, deadline);
 	if (rc)
@@ -1749,14 +1752,16 @@ static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 	 * is complete and convert all ATA_DEV_UNKNOWN to
 	 * ATA_DEV_NONE.
 	 */
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		if (classes[i] != ATA_DEV_UNKNOWN)
+	ata_link_for_each_dev(dev, &ap->link)
+		if (classes[dev->devno] != ATA_DEV_UNKNOWN)
 			break;
 
-	if (i < ATA_MAX_DEVICES)
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			if (classes[i] == ATA_DEV_UNKNOWN)
-				classes[i] = ATA_DEV_NONE;
+	if (dev) {
+		ata_link_for_each_dev(dev, &ap->link) {
+			if (classes[dev->devno] == ATA_DEV_UNKNOWN)
+				classes[dev->devno] = ATA_DEV_NONE;
+		}
+	}
 
 	return 0;
 }
@@ -1781,10 +1786,11 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	unsigned int *classes = ehc->classes;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
 	int try = 0;
+	struct ata_device *dev;
 	unsigned long deadline;
 	unsigned int action;
 	ata_reset_fn_t reset;
-	int i, rc;
+	int rc;
 
 	/* about to reset */
 	ata_eh_about_to_do(ap, NULL, ehc->i.action & ATA_EH_RESET_MASK);
@@ -1808,8 +1814,8 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 						"port disabled. ignoring.\n");
 				ehc->i.action &= ~ATA_EH_RESET_MASK;
 
-				for (i = 0; i < ATA_MAX_DEVICES; i++)
-					classes[i] = ATA_DEV_NONE;
+				ata_link_for_each_dev(dev, &ap->link)
+					classes[dev->devno] = ATA_DEV_NONE;
 
 				rc = 0;
 			} else
@@ -1826,8 +1832,8 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		reset = softreset;
 	else {
 		/* prereset told us not to reset, bang classes and return */
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			classes[i] = ATA_DEV_NONE;
+		ata_link_for_each_dev(dev, &ap->link)
+			classes[dev->devno] = ATA_DEV_NONE;
 		rc = 0;
 		goto out;
 	}
@@ -1908,8 +1914,8 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		/* After the reset, the device state is PIO 0 and the
 		 * controller state is undefined.  Record the mode.
 		 */
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ap->link.device[i].pio_mode = XFER_PIO_0;
+		ata_link_for_each_dev(dev, &ap->link)
+			dev->pio_mode = XFER_PIO_0;
 
 		/* record current link speed */
 		if (sata_scr_read(ap, SCR_STATUS, &sstatus) == 0)
@@ -1935,7 +1941,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	struct ata_device *dev;
 	unsigned int new_mask = 0;
 	unsigned long flags;
-	int i, rc = 0;
+	int rc = 0;
 
 	DPRINTK("ENTER\n");
 
@@ -1943,11 +1949,9 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	 * be done backwards such that PDIAG- is released by the slave
 	 * device before the master device is identified.
 	 */
-	for (i = ATA_MAX_DEVICES - 1; i >= 0; i--) {
-		unsigned int action, readid_flags = 0;
-
-		dev = &ap->link.device[i];
-		action = ata_eh_dev_action(dev);
+	ata_link_for_each_dev_reverse(dev, &ap->link) {
+		unsigned int action = ata_eh_dev_action(dev);
+		unsigned int readid_flags = 0;
 
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
@@ -1981,7 +1985,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 					     dev->id);
 			switch (rc) {
 			case 0:
-				new_mask |= 1 << i;
+				new_mask |= 1 << dev->devno;
 				break;
 			case -ENOENT:
 				/* IDENTIFY was issued to non-existent
@@ -2005,10 +2009,8 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	/* Configure new devices forward such that user doesn't see
 	 * device detection messages backwards.
 	 */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
-
-		if (!(new_mask & (1 << i)))
+	ata_link_for_each_dev(dev, &ap->link) {
+		if (!(new_mask & (1 << dev->devno)))
 			continue;
 
 		ehc->i.flags |= ATA_EHI_PRINTINFO;
@@ -2035,20 +2037,22 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 
 static int ata_port_nr_enabled(struct ata_port *ap)
 {
-	int i, cnt = 0;
+	struct ata_device *dev;
+	int cnt = 0;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		if (ata_dev_enabled(&ap->link.device[i]))
+	ata_link_for_each_dev(dev, &ap->link)
+		if (ata_dev_enabled(dev))
 			cnt++;
 	return cnt;
 }
 
 static int ata_port_nr_vacant(struct ata_port *ap)
 {
-	int i, cnt = 0;
+	struct ata_device *dev;
+	int cnt = 0;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		if (ap->link.device[i].class == ATA_DEV_UNKNOWN)
+	ata_link_for_each_dev(dev, &ap->link)
+		if (dev->class == ATA_DEV_UNKNOWN)
 			cnt++;
 	return cnt;
 }
@@ -2056,7 +2060,7 @@ static int ata_port_nr_vacant(struct ata_port *ap)
 static int ata_eh_skip_recovery(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->link.eh_context;
-	int i;
+	struct ata_device *dev;
 
 	/* thaw frozen port, resume link and recover failed devices */
 	if ((ap->pflags & ATA_PFLAG_FROZEN) ||
@@ -2064,9 +2068,7 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 		return 0;
 
 	/* skip if class codes for all vacant slots are ATA_DEV_NONE */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (dev->class == ATA_DEV_UNKNOWN &&
 		    ehc->classes[dev->devno] != ATA_DEV_NONE)
 			return 0;
@@ -2153,19 +2155,18 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_eh_context *ehc = &ap->link.eh_context;
 	struct ata_device *dev;
-	int i, rc;
+	int rc;
 
 	DPRINTK("ENTER\n");
 
 	/* prep for recovery */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, &ap->link) {
 		ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
 		/* collect port action mask recorded in dev actions */
-		ehc->i.action |= ehc->i.dev_action[i] & ~ATA_EH_PERDEV_MASK;
-		ehc->i.dev_action[i] &= ATA_EH_PERDEV_MASK;
+		ehc->i.action |=
+			ehc->i.dev_action[dev->devno] & ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[dev->devno] &= ATA_EH_PERDEV_MASK;
 
 		/* process hotplug request */
 		if (dev->flags & ATA_DFLAG_DETACH)
@@ -2192,8 +2193,8 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (ata_eh_skip_recovery(ap))
 		ehc->i.action = 0;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ehc->classes[i] = ATA_DEV_UNKNOWN;
+	ata_link_for_each_dev(dev, &ap->link)
+		ehc->classes[dev->devno] = ATA_DEV_UNKNOWN;
 
 	/* reset */
 	if (ehc->i.action & ATA_EH_RESET_MASK) {
@@ -2241,8 +2242,8 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
  out:
 	if (rc) {
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ata_dev_disable(&ap->link.device[i]);
+		ata_link_for_each_dev(dev, &ap->link);
+			ata_dev_disable(dev);
 	}
 
 	DPRINTK("EXIT, rc=%d\n", rc);

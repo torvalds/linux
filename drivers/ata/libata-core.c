@@ -2105,21 +2105,19 @@ int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
 	int tries[ATA_MAX_DEVICES];
-	int i, rc;
+	int rc;
 	struct ata_device *dev;
 
 	ata_port_probe(ap);
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		tries[i] = ATA_PROBE_MAX_TRIES;
+	ata_link_for_each_dev(dev, &ap->link)
+		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
 
  retry:
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (!(ap->flags & ATA_FLAG_DISABLED) &&
 		    dev->class != ATA_DEV_UNKNOWN)
 			classes[dev->devno] = dev->class;
@@ -2134,18 +2132,16 @@ int ata_bus_probe(struct ata_port *ap)
 	/* after the reset the device state is PIO 0 and the controller
 	   state is undefined. Record the mode */
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ap->link.device[i].pio_mode = XFER_PIO_0;
+	ata_link_for_each_dev(dev, &ap->link)
+		dev->pio_mode = XFER_PIO_0;
 
 	/* read IDENTIFY page and configure devices. We have to do the identify
 	   specific sequence bass-ackwards so that PDIAG- is released by
 	   the slave device */
 
-	for (i = ATA_MAX_DEVICES - 1; i >=  0; i--) {
-		dev = &ap->link.device[i];
-
-		if (tries[i])
-			dev->class = classes[i];
+	ata_link_for_each_dev(dev, &ap->link) {
+		if (tries[dev->devno])
+			dev->class = classes[dev->devno];
 
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -2163,8 +2159,7 @@ int ata_bus_probe(struct ata_port *ap)
 	/* After the identify sequence we can now set up the devices. We do
 	   this in the normal order so that the user doesn't get confused */
 
-	for(i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (!ata_dev_enabled(dev))
 			continue;
 
@@ -2180,8 +2175,8 @@ int ata_bus_probe(struct ata_port *ap)
 	if (rc)
 		goto fail;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		if (ata_dev_enabled(&ap->link.device[i]))
+	ata_link_for_each_dev(dev, &ap->link)
+		if (ata_dev_enabled(dev))
 			return 0;
 
 	/* no device present, disable port */
@@ -2803,15 +2798,13 @@ static int ata_dev_set_mode(struct ata_device *dev)
 
 int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
+	struct ata_link *link = &ap->link;
 	struct ata_device *dev;
-	int i, rc = 0, used_dma = 0, found = 0;
-
+	int rc = 0, used_dma = 0, found = 0;
 
 	/* step 1: calculate xfer_mask */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+	ata_link_for_each_dev(dev, link) {
 		unsigned int pio_mask, dma_mask;
-
-		dev = &ap->link.device[i];
 
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -2831,8 +2824,7 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		goto out;
 
 	/* step 2: always set host PIO timings */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
+	ata_link_for_each_dev(dev, link) {
 		if (!ata_dev_enabled(dev))
 			continue;
 
@@ -2849,9 +2841,7 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	}
 
 	/* step 3: set host DMA timings */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, link) {
 		if (!ata_dev_enabled(dev) || !dev->dma_mode)
 			continue;
 
@@ -2862,9 +2852,7 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	}
 
 	/* step 4: update devices' xfer mode */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, link) {
 		/* don't update suspended devices' xfer mode */
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -6113,6 +6101,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	ap->link.ap = ap;
 
+	/* can't use iterator, ap isn't initialized yet */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->link.device[i];
 		dev->link = &ap->link;
@@ -6453,7 +6442,8 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			/* kick EH for boot probing */
 			spin_lock_irqsave(ap->lock, flags);
 
-			ehi->probe_mask = (1 << ATA_MAX_DEVICES) - 1;
+			ehi->probe_mask =
+				(1 << ata_link_max_devices(&ap->link)) - 1;
 			ehi->action |= ATA_EH_SOFTRESET;
 			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
@@ -6551,7 +6541,7 @@ int ata_host_activate(struct ata_host *host, int irq,
 void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
-	int i;
+	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
 		goto skip_eh;
@@ -6568,8 +6558,8 @@ void ata_port_detach(struct ata_port *ap)
 	 */
 	spin_lock_irqsave(ap->lock, flags);
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ata_dev_disable(&ap->link.device[i]);
+	ata_link_for_each_dev(dev, &ap->link)
+		ata_dev_disable(dev);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 

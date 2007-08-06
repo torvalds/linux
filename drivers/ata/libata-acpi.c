@@ -509,7 +509,7 @@ int ata_acpi_on_suspend(struct ata_port *ap)
  */
 void ata_acpi_on_resume(struct ata_port *ap)
 {
-	int i;
+	struct ata_device *dev;
 
 	if (ap->acpi_handle && (ap->pflags & ATA_PFLAG_GTM_VALID)) {
 		BUG_ON(ap->flags & ATA_FLAG_ACPI_SATA);
@@ -519,8 +519,8 @@ void ata_acpi_on_resume(struct ata_port *ap)
 	}
 
 	/* schedule _GTF */
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ap->link.device[i].flags |= ATA_DFLAG_ACPI_PENDING;
+	ata_link_for_each_dev(dev, &ap->link)
+		dev->flags |= ATA_DFLAG_ACPI_PENDING;
 }
 
 /**

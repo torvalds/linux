@@ -479,15 +479,14 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  */
 static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed)
 {
-	int i;
+	struct ata_device *dev;
+	int rc;
 
-	i = ata_do_set_mode(ap, r_failed);
-	if (i < 0)
-		return i;
+	rc = ata_do_set_mode(ap, r_failed);
+	if (rc < 0)
+		return rc;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->link.device[i];
-
+	ata_link_for_each_dev(dev, &ap->link) {
 		if (ata_dev_enabled(dev)) {
 
 			pdc2027x_set_piomode(ap, dev);

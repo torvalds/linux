@@ -1030,15 +1030,26 @@ static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 }
 
 /*
- * port helpers
+ * link helpers
  */
-static inline int ata_port_max_devices(const struct ata_port *ap)
+static inline int ata_link_max_devices(const struct ata_link *link)
 {
-	if (ap->flags & ATA_FLAG_SLAVE_POSS)
+	if (link->ap->flags & ATA_FLAG_SLAVE_POSS)
 		return 2;
 	return 1;
 }
 
+#define ata_port_for_each_link(lk, ap) \
+	for ((lk) = &(ap)->link; (lk); (lk) = NULL)
+
+#define ata_link_for_each_dev(dev, link) \
+	for ((dev) = (link)->device; \
+	     (dev) < (link)->device + ata_link_max_devices(link) || ((dev) = NULL); \
+	     (dev)++)
+
+#define ata_link_for_each_dev_reverse(dev, link) \
+	for ((dev) = (link)->device + ata_link_max_devices(link) - 1; \
+	     (dev) >= (link)->device || ((dev) = NULL); (dev)--)
 
 static inline u8 ata_chk_status(struct ata_port *ap)
 {
