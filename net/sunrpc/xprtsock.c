@@ -279,10 +279,14 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
 
-	if (xprt->prot == IPPROTO_UDP)
-		xprt->address_strings[RPC_DISPLAY_PROTO] = "udp";
-	else
-		xprt->address_strings[RPC_DISPLAY_PROTO] = "tcp";
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		if (xprt->prot == IPPROTO_UDP)
+			snprintf(buf, 8, "udp");
+		else
+			snprintf(buf, 8, "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
@@ -296,9 +300,10 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 {
-	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
+	int i;
+
+	for (i = 0; i < RPC_DISPLAY_MAX; i++)
+		kfree(xprt->address_strings[i]);
 }
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
