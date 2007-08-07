@@ -59,7 +59,6 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
-void ubi_dbg_hexdump(const void *buf, int size);
 
 #else
 
@@ -72,7 +71,6 @@ void ubi_dbg_hexdump(const void *buf, int size);
 #define ubi_dbg_dump_sv(sv)              ({})
 #define ubi_dbg_dump_seb(seb, type)      ({})
 #define ubi_dbg_dump_mkvol_req(req)      ({})
-#define ubi_dbg_hexdump(buf, size)       ({})
 
 #endif /* CONFIG_MTD_UBI_DEBUG_MSG */
 
