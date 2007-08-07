@@ -121,7 +121,7 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 			"tsac %d ms nsac %d\n",
 			mmc_hostname(host), mrq->data->blksz,
 			mrq->data->blocks, mrq->data->flags,
-			mrq->data->timeout_ns / 10000000,
+			mrq->data->timeout_ns / 1000000,
 			mrq->data->timeout_clks);
 	}
 
