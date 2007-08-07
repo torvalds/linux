@@ -32,5 +32,6 @@
 #define __ARCH_FLOCK_PAD	short __unused;
 #define __ARCH_FLOCK64_PAD	short __unused;
 
+#include <asm-generic/fcntl.h>
 
 #endif
