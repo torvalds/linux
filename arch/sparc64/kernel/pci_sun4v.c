@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/log2.h>
+#include <linux/scatterlist.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
@@ -373,7 +374,7 @@ static inline long fill_sg(long entry, struct device *dev,
 			   int nused, int nelems, unsigned long prot)
 {
 	struct scatterlist *dma_sg = sg;
-	struct scatterlist *sg_end = sg + nelems;
+	struct scatterlist *sg_end = sg_last(sg, nelems);
 	unsigned long flags;
 	int i;
 
@@ -413,7 +414,7 @@ static inline long fill_sg(long entry, struct device *dev,
 					len -= (IO_PAGE_SIZE - (tmp & (IO_PAGE_SIZE - 1UL)));
 					break;
 				}
-				sg++;
+				sg = sg_next(sg);
 			}
 
 			pteval = (pteval & IOPTE_PAGE);
@@ -431,24 +432,25 @@ static inline long fill_sg(long entry, struct device *dev,
 			}
 
 			pteval = (pteval & IOPTE_PAGE) + len;
-			sg++;
+			sg = sg_next(sg);
 
 			/* Skip over any tail mappings we've fully mapped,
 			 * adjusting pteval along the way.  Stop when we
 			 * detect a page crossing event.
 			 */
-			while (sg < sg_end &&
-			       (pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
+			while ((pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
 			       (pteval == SG_ENT_PHYS_ADDRESS(sg)) &&
 			       ((pteval ^
 				 (SG_ENT_PHYS_ADDRESS(sg) + sg->length - 1UL)) >> IO_PAGE_SHIFT) == 0UL) {
 				pteval += sg->length;
-				sg++;
+				if (sg == sg_end)
+					break;
+				sg = sg_next(sg);
 			}
 			if ((pteval << (64 - IO_PAGE_SHIFT)) == 0UL)
 				pteval = ~0UL;
 		} while (dma_npages != 0);
-		dma_sg++;
+		dma_sg = sg_next(dma_sg);
 	}
 
 	if (unlikely(iommu_batch_end() < 0L))
@@ -510,7 +512,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	sgtmp = sglist;
 	while (used && sgtmp->dma_length) {
 		sgtmp->dma_address += dma_base;
-		sgtmp++;
+		sgtmp = sg_next(sgtmp);
 		used--;
 	}
 	used = nelems - used;
@@ -545,6 +547,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	unsigned long flags, i, npages;
+	struct scatterlist *sg, *sgprv;
 	long entry;
 	u32 devhandle, bus_addr;
 
@@ -558,12 +561,15 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	devhandle = pbm->devhandle;
 	
 	bus_addr = sglist->dma_address & IO_PAGE_MASK;
-
-	for (i = 1; i < nelems; i++)
-		if (sglist[i].dma_length == 0)
+	sgprv = NULL;
+	for_each_sg(sglist, sg, nelems, i) {
+		if (sg->dma_length == 0)
 			break;
-	i--;
-	npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length) -
+
+		sgprv = sg;
+	}
+
+	npages = (IO_PAGE_ALIGN(sgprv->dma_address + sgprv->dma_length) -
 		  bus_addr) >> IO_PAGE_SHIFT;
 
 	entry = ((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
