@@ -554,7 +554,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 				 &alloc_hint);
 	if (ret)
 		goto out;
-	ret = btrfs_alloc_extent(trans, root, inode->i_ino, 1,
+	ret = btrfs_alloc_extent(trans, root, inode->i_ino, 1, 0,
 				 alloc_hint, (u64)-1, &ins, 1);
 	if (ret)
 		goto out;
@@ -1360,7 +1360,7 @@ not_found:
 	if (create & BTRFS_GET_BLOCK_CREATE) {
 		struct btrfs_key ins;
 		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
-					 1, alloc_hint, (u64)-1,
+					 1, 0, alloc_hint, (u64)-1,
 					 &ins, 1);
 		if (ret) {
 			err = ret;
@@ -1998,7 +1998,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 
-	subvol = btrfs_alloc_free_block(trans, root, 0);
+	subvol = btrfs_alloc_free_block(trans, root, 0, 0);
 	if (IS_ERR(subvol))
 		return PTR_ERR(subvol);
 	leaf = btrfs_buffer_leaf(subvol);
@@ -2159,7 +2159,9 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_vol_args vol_args;
+	struct btrfs_trans_handle *trans;
 	int ret = 0;
+	int err;
 	struct btrfs_dir_item *di;
 	int namelen;
 	struct btrfs_path *path;
@@ -2195,6 +2197,31 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 			ret = create_subvol(root, vol_args.name, namelen);
 		else
 			ret = create_snapshot(root, vol_args.name, namelen);
+		break;
+
+	case BTRFS_IOC_DEFRAG:
+		mutex_lock(&root->fs_info->fs_mutex);
+		trans = btrfs_start_transaction(root, 1);
+		memset(&root->defrag_progress, 0,
+		       sizeof(root->defrag_progress));
+		while (1) {
+			root->defrag_running = 1;
+			err = btrfs_defrag_leaves(trans, root, 0);
+
+			btrfs_end_transaction(trans, root);
+			mutex_unlock(&root->fs_info->fs_mutex);
+
+			btrfs_btree_balance_dirty(root);
+
+			mutex_lock(&root->fs_info->fs_mutex);
+			trans = btrfs_start_transaction(root, 1);
+			if (err != -EAGAIN)
+				break;
+		}
+		root->defrag_running = 0;
+		btrfs_end_transaction(trans, root);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		ret = 0;
 		break;
 	default:
 		return -ENOTTY;

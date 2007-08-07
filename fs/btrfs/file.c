@@ -512,7 +512,7 @@ static int prepare_pages(struct btrfs_root *root,
 	if (isize >= PAGE_CACHE_SIZE || pos + write_bytes < inode->i_size ||
 	    pos + write_bytes - start_pos > BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		err = btrfs_alloc_extent(trans, root, inode->i_ino,
-					 num_blocks, hint_block, (u64)-1,
+					 num_blocks, 0, hint_block, (u64)-1,
 					 &ins, 1);
 		if (err)
 			goto failed_truncate;

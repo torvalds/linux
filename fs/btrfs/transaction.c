@@ -29,6 +29,7 @@ extern struct kmem_cache *btrfs_transaction_cachep;
 static struct workqueue_struct *trans_wq;
 
 #define BTRFS_ROOT_TRANS_TAG 0
+#define BTRFS_ROOT_DEFRAG_TAG 1
 
 static void put_transaction(struct btrfs_transaction *transaction)
 {
@@ -69,35 +70,41 @@ static int join_transaction(struct btrfs_root *root)
 	return 0;
 }
 
+static int record_root_in_trans(struct btrfs_root *root)
+{
+	u64 running_trans_id = root->fs_info->running_transaction->transid;
+	if (root->ref_cows && root->last_trans < running_trans_id) {
+		WARN_ON(root == root->fs_info->extent_root);
+		if (root->root_item.refs != 0) {
+			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
+				   (unsigned long)root->root_key.objectid,
+				   BTRFS_ROOT_TRANS_TAG);
+			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
+				   (unsigned long)root->root_key.objectid,
+				   BTRFS_ROOT_DEFRAG_TAG);
+			root->commit_root = root->node;
+			get_bh(root->node);
+		} else {
+			WARN_ON(1);
+		}
+		root->last_trans = running_trans_id;
+	}
+	return 0;
+}
+
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_blocks)
 {
 	struct btrfs_trans_handle *h =
 		kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	int ret;
-	u64 running_trans_id;
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	ret = join_transaction(root);
 	BUG_ON(ret);
-	running_trans_id = root->fs_info->running_transaction->transid;
 
-	if (root != root->fs_info->tree_root && root->last_trans <
-	    running_trans_id) {
-		WARN_ON(root == root->fs_info->extent_root);
-		WARN_ON(root->ref_cows != 1);
-		if (root->root_item.refs != 0) {
-			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
-					   (unsigned long)root->root_key.objectid,
-					   BTRFS_ROOT_TRANS_TAG);
-			root->commit_root = root->node;
-			get_bh(root->node);
-		} else {
-			WARN_ON(1);
-		}
-	}
-	root->last_trans = running_trans_id;
-	h->transid = running_trans_id;
+	record_root_in_trans(root);
+	h->transid = root->fs_info->running_transaction->transid;
 	h->transaction = root->fs_info->running_transaction;
 	h->blocks_reserved = num_blocks;
 	h->blocks_used = 0;
@@ -155,6 +162,15 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 					      gang[i]);
 			if (!page)
 				continue;
+			if (PageWriteback(page)) {
+				if (PageDirty(page))
+					wait_on_page_writeback(page);
+				else {
+					unlock_page(page);
+					page_cache_release(page);
+					continue;
+				}
+			}
 			err = write_one_page(page, 0);
 			if (err)
 				werr = err;
@@ -296,6 +312,58 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			}
 		}
 	}
+	return err;
+}
+
+int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
+{
+	struct btrfs_root *gang[1];
+	struct btrfs_root *root;
+	struct btrfs_root *tree_root = info->tree_root;
+	struct btrfs_trans_handle *trans;
+	int i;
+	int ret;
+	int err = 0;
+	u64 last = 0;
+
+	trans = btrfs_start_transaction(tree_root, 1);
+	while(1) {
+		ret = radix_tree_gang_lookup_tag(&info->fs_roots_radix,
+						 (void **)gang, last,
+						 ARRAY_SIZE(gang),
+						 BTRFS_ROOT_DEFRAG_TAG);
+		if (ret == 0)
+			break;
+		for (i = 0; i < ret; i++) {
+			root = gang[i];
+			last = root->root_key.objectid + 1;
+			radix_tree_tag_clear(&info->fs_roots_radix,
+				     (unsigned long)root->root_key.objectid,
+				     BTRFS_ROOT_DEFRAG_TAG);
+			if (root->defrag_running)
+				continue;
+
+			while (1) {
+				mutex_lock(&root->fs_info->trans_mutex);
+				record_root_in_trans(root);
+				mutex_unlock(&root->fs_info->trans_mutex);
+
+				root->defrag_running = 1;
+				err = btrfs_defrag_leaves(trans, root, 1);
+				btrfs_end_transaction(trans, tree_root);
+				mutex_unlock(&info->fs_mutex);
+
+				btrfs_btree_balance_dirty(root);
+
+				mutex_lock(&info->fs_mutex);
+				trans = btrfs_start_transaction(tree_root, 1);
+				if (err != -EAGAIN)
+					break;
+			}
+			root->defrag_running = 0;
+		}
+	}
+	btrfs_end_transaction(trans, tree_root);
 	return err;
 }
 
@@ -475,6 +543,7 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 		goto out;
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
+	btrfs_defrag_dirty_roots(root->fs_info);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 out:

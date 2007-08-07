@@ -178,6 +178,7 @@ struct btrfs_path {
 	struct buffer_head *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
 	int reada;
+	int lowest_level;
 };
 
 /*
@@ -338,6 +339,9 @@ struct btrfs_root {
 	u64 highest_inode;
 	u64 last_inode_alloc;
 	int ref_cows;
+	struct btrfs_key defrag_progress;
+	int defrag_running;
+	int defrag_level;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -1031,10 +1035,11 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root, u64 hint);
+					    struct btrfs_root *root, u64 hint,
+					    u64 empty_size);
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
-		       u64 num_blocks, u64 search_start,
+		       u64 num_blocks, u64 empty_size, u64 search_start,
 		       u64 search_end, struct btrfs_key *ins, int data);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);
@@ -1051,6 +1056,10 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_read_block_groups(struct btrfs_root *root);
 /* ctree.c */
+int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
+			   *root, struct buffer_head *buf, struct buffer_head
+			   *parent, int parent_slot, struct buffer_head
+			   **cow_ret);
 int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, u32 data_size);
 int btrfs_truncate_item(struct btrfs_trans_handle *trans,
@@ -1060,6 +1069,9 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);
+int btrfs_realloc_node(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct buffer_head *parent,
+		       int cache_only);
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
@@ -1171,4 +1183,7 @@ extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 *hint_block);
+/* tree-defrag.c */
+int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, int cache_only);
 #endif

@@ -23,7 +23,8 @@
 #include "transaction.h"
 
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *orig_root, u64 num_blocks, u64 search_start,
+			    *orig_root, u64 num_blocks, u64 empty_size,
+			    u64 search_start,
 			    u64 search_end, u64 hint_block,
 			    struct btrfs_key *ins, u64 exclude_start,
 			    u64 exclude_nr, int data);
@@ -379,7 +380,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	ret = find_free_extent(trans, root->fs_info->extent_root, 0, 0,
+	ret = find_free_extent(trans, root->fs_info->extent_root, 0, 0, 0,
 			       (u64)-1, 0, &ins, 0, 0, 0);
 	if (ret) {
 		btrfs_free_path(path);
@@ -533,7 +534,7 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_item *bi;
 	struct btrfs_key ins;
 
-	ret = find_free_extent(trans, extent_root, 0, 0, (u64)-1, 0, &ins,
+	ret = find_free_extent(trans, extent_root, 0, 0, 0, (u64)-1, 0, &ins,
 			       0, 0, 0);
 	/* FIXME, set bit to recalc cache groups on next mount */
 	if (ret)
@@ -708,6 +709,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 static int try_remove_page(struct address_space *mapping, unsigned long index)
 {
 	int ret;
+	return 0;
 	ret = invalidate_mapping_pages(mapping, index, index);
 	return ret;
 }
@@ -866,7 +868,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!path)
 		return -ENOMEM;
 
-	ret = find_free_extent(trans, root, 0, 0, (u64)-1, 0, &ins, 0, 0, 0);
+	ret = find_free_extent(trans, root, 0, 0, 0, (u64)-1, 0, &ins, 0, 0, 0);
 	if (ret) {
 		btrfs_free_path(path);
 		return ret;
@@ -983,8 +985,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
  * Any available blocks before search_start are skipped.
  */
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *orig_root, u64 num_blocks, u64 search_start, u64
-			    search_end, u64 hint_block,
+			    *orig_root, u64 num_blocks, u64 empty_size,
+			    u64 search_start, u64 search_end, u64 hint_block,
 			    struct btrfs_key *ins, u64 exclude_start,
 			    u64 exclude_nr, int data)
 {
@@ -1042,6 +1044,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 						     data, 1);
 	}
 
+	total_needed += empty_size;
 	path = btrfs_alloc_path();
 
 check_failed:
@@ -1157,9 +1160,11 @@ check_pending:
 			goto error;
 		}
 		search_start = orig_search_start;
-		if (wrapped)
+		if (wrapped) {
+			if (!full_scan)
+				total_needed -= empty_size;
 			full_scan = 1;
-		else
+		} else
 			wrapped = 1;
 		goto new_group;
 	}
@@ -1238,9 +1243,11 @@ new_group:
 			ret = -ENOSPC;
 			goto error;
 		}
-		if (wrapped)
+		if (wrapped) {
+			if (!full_scan)
+				total_needed -= empty_size;
 			full_scan = 1;
-		else
+		} else
 			wrapped = 1;
 	}
 	block_group = btrfs_lookup_block_group(info, search_start);
@@ -1264,7 +1271,7 @@ error:
  */
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
-		       u64 num_blocks, u64 hint_block,
+		       u64 num_blocks, u64 empty_size, u64 hint_block,
 		       u64 search_end, struct btrfs_key *ins, int data)
 {
 	int ret;
@@ -1303,7 +1310,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	 * in the correct block group.
 	 */
 	if (data) {
-		ret = find_free_extent(trans, root, 0, 0,
+		ret = find_free_extent(trans, root, 0, 0, 0,
 				       search_end, 0, &prealloc_key, 0, 0, 0);
 		BUG_ON(ret);
 		if (ret)
@@ -1313,8 +1320,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	}
 
 	/* do the real allocation */
-	ret = find_free_extent(trans, root, num_blocks, search_start,
-			       search_end, hint_block, ins,
+	ret = find_free_extent(trans, root, num_blocks, empty_size,
+			       search_start, search_end, hint_block, ins,
 			       exclude_start, exclude_nr, data);
 	BUG_ON(ret);
 	if (ret)
@@ -1333,7 +1340,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		exclude_start = ins->objectid;
 		exclude_nr = ins->offset;
 		hint_block = exclude_start + exclude_nr;
-		ret = find_free_extent(trans, root, 0, search_start,
+		ret = find_free_extent(trans, root, 0, 0, search_start,
 				       search_end, hint_block,
 				       &prealloc_key, exclude_start,
 				       exclude_nr, 0);
@@ -1368,14 +1375,16 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
  * returns the tree buffer or NULL.
  */
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					   struct btrfs_root *root, u64 hint)
+					   struct btrfs_root *root, u64 hint,
+					   u64 empty_size)
 {
 	struct btrfs_key ins;
 	int ret;
 	struct buffer_head *buf;
 
 	ret = btrfs_alloc_extent(trans, root, root->root_key.objectid,
-				 1, hint, (unsigned long)-1, &ins, 0);
+				 1, empty_size, hint,
+				 (unsigned long)-1, &ins, 0);
 	if (ret) {
 		BUG_ON(ret > 0);
 		return ERR_PTR(ret);
@@ -1385,6 +1394,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		btrfs_free_extent(trans, root, ins.objectid, 1, 0);
 		return ERR_PTR(-ENOMEM);
 	}
+	WARN_ON(buffer_dirty(buf));
 	set_buffer_uptodate(buf);
 	set_buffer_checked(buf);
 	set_radix_bit(&trans->transaction->dirty_pages, buf->b_page->index);
@@ -1591,13 +1601,15 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		struct btrfs_key key;
 		struct btrfs_disk_key *found_key;
 		struct btrfs_node *node;
+
 		btrfs_disk_key_to_cpu(&key, &root_item->drop_progress);
+		level = root_item->drop_level;
+		path->lowest_level = level;
 		wret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-		if (ret < 0) {
+		if (wret < 0) {
 			ret = wret;
 			goto out;
 		}
-		level = root_item->drop_level;
 		node = btrfs_buffer_node(path->nodes[level]);
 		found_key = &node->ptrs[path->slots[level]].key;
 		WARN_ON(memcmp(found_key, &root_item->drop_progress,
@@ -1617,8 +1629,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			ret = wret;
 		num_walks++;
 		if (num_walks > 10) {
-			struct btrfs_key key;
-			btrfs_disk_key_to_cpu(&key, &root_item->drop_progress);
 			ret = -EAGAIN;
 			get_bh(root->node);
 			break;
@@ -1627,6 +1637,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
 			btrfs_block_release(root, path->nodes[i]);
+			path->nodes[i] = 0;
 		}
 	}
 out:

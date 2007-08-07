@@ -273,7 +273,9 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct buffer_head *buf)
 {
 	WARN_ON(atomic_read(&buf->b_count) == 0);
+	lock_buffer(buf);
 	clear_buffer_dirty(buf);
+	unlock_buffer(buf);
 	return 0;
 }
 
@@ -294,6 +296,9 @@ static int __setup_root(int blocksize,
 	root->last_inode_alloc = 0;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
+	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
+	root->defrag_running = 0;
+	root->defrag_level = 0;
 	root->root_key.objectid = objectid;
 	return 0;
 }
@@ -585,6 +590,7 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 1;
 	btrfs_transaction_flush_work(root);
 	mutex_lock(&fs_info->fs_mutex);
+	btrfs_defrag_dirty_roots(root->fs_info);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	/* run commit again to  drop the original snapshot */
@@ -616,7 +622,9 @@ void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 {
 	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
 	u64 transid = btrfs_header_generation(btrfs_buffer_header(bh));
+
 	WARN_ON(!atomic_read(&bh->b_count));
+
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
 			(unsigned long long)bh->b_blocknr,

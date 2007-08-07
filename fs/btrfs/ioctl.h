@@ -28,6 +28,6 @@ struct btrfs_ioctl_vol_args {
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
 				   struct btrfs_ioctl_vol_args)
-#define BTRFS_IOC_ADD_DISK _IOW(BTRFS_IOCTL_MAGIC, 2, \
+#define BTRFS_IOC_DEFRAG _IOW(BTRFS_IOCTL_MAGIC, 2, \
 				   struct btrfs_ioctl_vol_args)
 #endif
