@@ -232,6 +232,15 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	unsigned int mult;
 
 	/*
+	 * SDIO cards only define an upper 1 s limit on access.
+	 */
+	if (mmc_card_sdio(card)) {
+		data->timeout_ns = 1000000000;
+		data->timeout_clks = 0;
+		return;
+	}
+
+	/*
 	 * SD cards use a 100 multiplier rather than 10
 	 */
 	mult = mmc_card_sd(card) ? 100 : 10;
