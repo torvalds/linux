@@ -28,6 +28,7 @@ header-y += xt_policy.h
 header-y += xt_realm.h
 header-y += xt_sctp.h
 header-y += xt_state.h
+header-y += xt_statistic.h
 header-y += xt_string.h
 header-y += xt_tcpmss.h
 header-y += xt_tcpudp.h
