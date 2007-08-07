@@ -35,7 +35,7 @@ static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key, unsign
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = cipher->setkey(tfm, alignbuffer, keylen);
-	memset(alignbuffer, 0, absize);
+	memset(alignbuffer, 0, keylen);
 	kfree(buffer);
 	return ret;
 }
