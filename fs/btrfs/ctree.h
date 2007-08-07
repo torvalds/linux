@@ -333,10 +333,10 @@ struct btrfs_root {
 	u64 objectid;
 	u64 last_trans;
 	u32 blocksize;
-	int ref_cows;
 	u32 type;
 	u64 highest_inode;
 	u64 last_inode_alloc;
+	int ref_cows;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -1073,7 +1073,7 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct btrfs_leaf *leaf);
 int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
-			*root, struct buffer_head *snap);
+			*root);
 /* root-item.c */
 int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_key *key);

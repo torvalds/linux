@@ -213,10 +213,7 @@ static int wait_for_commit(struct btrfs_root *root,
 
 struct dirty_root {
 	struct list_head list;
-	struct btrfs_key snap_key;
-	struct buffer_head *commit_root;
 	struct btrfs_root *root;
-	int free_on_drop;
 };
 
 int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
@@ -226,10 +223,7 @@ int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
 	dirty = kmalloc(sizeof(*dirty), GFP_NOFS);
 	if (!dirty)
 		return -ENOMEM;
-	memcpy(&dirty->snap_key, &root->root_key, sizeof(root->root_key));
-	dirty->commit_root = root->node;
 	dirty->root = root;
-	dirty->free_on_drop = 1;
 	list_add(&dirty->list, dead_list);
 	return 0;
 }
@@ -241,7 +235,6 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 	struct dirty_root *dirty;
 	struct btrfs_root *gang[8];
 	struct btrfs_root *root;
-	struct btrfs_root_item tmp_item;
 	int i;
 	int ret;
 	int err = 0;
@@ -267,13 +260,16 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			}
 			dirty = kmalloc(sizeof(*dirty), GFP_NOFS);
 			BUG_ON(!dirty);
-			memcpy(&dirty->snap_key, &root->root_key,
-			       sizeof(root->root_key));
-			dirty->commit_root = root->commit_root;
+			dirty->root = kmalloc(sizeof(*dirty->root), GFP_NOFS);
+			BUG_ON(!dirty->root);
+
+			memset(&root->root_item.drop_progress, 0,
+			       sizeof(struct btrfs_disk_key));
+			root->root_item.drop_level = 0;
+
+			memcpy(dirty->root, root, sizeof(*root));
+			dirty->root->node = root->commit_root;
 			root->commit_root = NULL;
-			dirty->root = root;
-			dirty->free_on_drop = 0;
-			memcpy(&tmp_item, &root->root_item, sizeof(tmp_item));
 
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_blocknr(&root->root_item,
@@ -283,17 +279,21 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 						&root->root_item);
 			if (err)
 				break;
-			refs = btrfs_root_refs(&tmp_item);
-			btrfs_set_root_refs(&tmp_item, refs - 1);
+
+			refs = btrfs_root_refs(&dirty->root->root_item);
+			btrfs_set_root_refs(&dirty->root->root_item, refs - 1);
 			err = btrfs_update_root(trans, root->fs_info->tree_root,
-						&dirty->snap_key,
-						&tmp_item);
+						&dirty->root->root_key,
+						&dirty->root->root_item);
 
 			BUG_ON(err);
-			if (refs == 1)
+			if (refs == 1) {
 				list_add(&dirty->list, list);
-			else
+			} else {
+				WARN_ON(1);
+				kfree(dirty->root);
 				kfree(dirty);
+			}
 		}
 	}
 	return err;
@@ -305,23 +305,36 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
+	int err;
+
 	while(!list_empty(list)) {
 		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 
-		trans = btrfs_start_transaction(tree_root, 1);
-		ret = btrfs_drop_snapshot(trans, dirty->root,
-					  dirty->commit_root);
+		while(1) {
+			trans = btrfs_start_transaction(tree_root, 1);
+			ret = btrfs_drop_snapshot(trans, dirty->root);
+			if (ret != -EAGAIN) {
+				break;
+			}
+			err = btrfs_update_root(trans,
+					tree_root,
+					&dirty->root->root_key,
+					&dirty->root->root_item);
+			if (err)
+				ret = err;
+			ret = btrfs_end_transaction(trans, tree_root);
+			BUG_ON(ret);
+		}
 		BUG_ON(ret);
-		ret = btrfs_del_root(trans, tree_root, &dirty->snap_key);
+		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
 		if (ret)
 			break;
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 
-		if (dirty->free_on_drop)
-			kfree(dirty->root);
+		kfree(dirty->root);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
 		btrfs_btree_balance_dirty(tree_root);

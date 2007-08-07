@@ -1561,12 +1561,21 @@ static int walk_up_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 	int i;
 	int slot;
 	int ret;
+	struct btrfs_root_item *root_item = &root->root_item;
+
 	for(i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
 		slot = path->slots[i];
 		if (slot < btrfs_header_nritems(
 		    btrfs_buffer_header(path->nodes[i])) - 1) {
+			struct btrfs_node *node;
+			node = btrfs_buffer_node(path->nodes[i]);
 			path->slots[i]++;
 			*level = i;
+			WARN_ON(*level == 0);
+			memcpy(&root_item->drop_progress,
+			       &node->ptrs[path->slots[i]].key,
+			       sizeof(root_item->drop_progress));
+			root_item->drop_level = i;
 			return 0;
 		} else {
 			ret = btrfs_free_extent(trans, root,
@@ -1587,7 +1596,7 @@ static int walk_up_tree(struct btrfs_trans_handle *trans, struct btrfs_root
  * decremented.
  */
 int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
-			*root, struct buffer_head *snap)
+			*root)
 {
 	int ret = 0;
 	int wret;
@@ -1595,14 +1604,33 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_path *path;
 	int i;
 	int orig_level;
+	int num_walks = 0;
+	struct btrfs_root_item *root_item = &root->root_item;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
-	level = btrfs_header_level(btrfs_buffer_header(snap));
+	level = btrfs_header_level(btrfs_buffer_header(root->node));
 	orig_level = level;
-	path->nodes[level] = snap;
-	path->slots[level] = 0;
+	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
+		path->nodes[level] = root->node;
+		path->slots[level] = 0;
+	} else {
+		struct btrfs_key key;
+		struct btrfs_disk_key *found_key;
+		struct btrfs_node *node;
+		btrfs_disk_key_to_cpu(&key, &root_item->drop_progress);
+		wret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		if (ret < 0) {
+			ret = wret;
+			goto out;
+		}
+		level = root_item->drop_level;
+		node = btrfs_buffer_node(path->nodes[level]);
+		found_key = &node->ptrs[path->slots[level]].key;
+		WARN_ON(memcmp(found_key, &root_item->drop_progress,
+			       sizeof(*found_key)));
+	}
 	while(1) {
 		wret = walk_down_tree(trans, root, path, &level);
 		if (wret > 0)
@@ -1615,12 +1643,21 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
+		num_walks++;
+		if (num_walks > 10) {
+			struct btrfs_key key;
+			btrfs_disk_key_to_cpu(&key, &root_item->drop_progress);
+			ret = -EAGAIN;
+			get_bh(root->node);
+			break;
+		}
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
 			btrfs_block_release(root, path->nodes[i]);
 		}
 	}
+out:
 	btrfs_free_path(path);
 	return ret;
 }

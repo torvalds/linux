@@ -659,9 +659,16 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct buffer_head *b;
 	struct buffer_head *cow_buf;
 	struct btrfs_node *c;
+	struct btrfs_root_item *root_item = &root->root_item;
 	int slot;
 	int ret;
 	int level;
+	u8 lowest_level = 0;
+
+	if (btrfs_root_refs(root_item) == 0 && root->ref_cows) {
+		lowest_level = root_item->drop_level;
+		WARN_ON(ins_len || cow);
+	}
 
 	WARN_ON(p->nodes[0] != NULL);
 	WARN_ON(!mutex_is_locked(&root->fs_info->fs_mutex));
@@ -718,6 +725,9 @@ again:
 				slot = p->slots[level];
 				BUG_ON(btrfs_header_nritems(&c->header) == 1);
 			}
+			/* this is only true while dropping a snapshot */
+			if (level == lowest_level)
+				break;
 			b = read_tree_block(root, btrfs_node_blockptr(c, slot));
 		} else {
 			struct btrfs_leaf *l = (struct btrfs_leaf *)c;
