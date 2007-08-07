@@ -12,6 +12,7 @@ extern unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 static inline unsigned long unwind_stack(struct task_struct *task,
 	unsigned long *sp, unsigned long pc, unsigned long *ra)
 {
+	return 0;
 }
 #endif
 
