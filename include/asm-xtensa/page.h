@@ -1,11 +1,11 @@
 /*
- * linux/include/asm-xtensa/page.h
+ * include/asm-xtensa/page.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version2 as
  * published by the Free Software Foundation.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2007 Tensilica Inc.
  */
 
 #ifndef _XTENSA_PAGE_H
@@ -14,6 +14,11 @@
 #ifdef __KERNEL__
 
 #include <asm/processor.h>
+#include <asm/types.h>
+
+/*
+ * Fixed TLB translations in the processor.
+ */
 
 #define XCHAL_KSEG_CACHED_VADDR 0xd0000000
 #define XCHAL_KSEG_BYPASS_VADDR 0xd8000000
@@ -26,13 +31,13 @@
  */
 
 #define PAGE_SHIFT		12
-#define PAGE_SIZE		(1 << PAGE_SHIFT)
+#define PAGE_SIZE		(__XTENSA_UL_CONST(1) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE - 1) & PAGE_MASK)
 
 #define PAGE_OFFSET		XCHAL_KSEG_CACHED_VADDR
-#define MAX_MEM_PFN             XCHAL_KSEG_SIZE
-#define PGTABLE_START           0x80000000
+#define MAX_MEM_PFN		XCHAL_KSEG_SIZE
+#define PGTABLE_START		0x80000000
 
 #ifdef __ASSEMBLY__
 
@@ -58,34 +63,23 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 /*
  * Pure 2^n version of get_order
+ * Use 'nsau' instructions if supported by the processor or the generic version.
  */
 
-static inline int get_order(unsigned long size)
+#if XCHAL_HAVE_NSA
+
+static inline __attribute_const__ int get_order(unsigned long size)
 {
-	int order;
-#ifndef XCHAL_HAVE_NSU
-	unsigned long x1, x2, x4, x8, x16;
-
-	size = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	x1  = size & 0xAAAAAAAA;
-	x2  = size & 0xCCCCCCCC;
-	x4  = size & 0xF0F0F0F0;
-	x8  = size & 0xFF00FF00;
-	x16 = size & 0xFFFF0000;
-	order = x2 ? 2 : 0;
-	order += (x16 != 0) * 16;
-	order += (x8 != 0) * 8;
-	order += (x4 != 0) * 4;
-	order += (x1 != 0);
-
-	return order;
-#else
-	size = (size - 1) >> PAGE_SHIFT;
-	asm ("nsau %0, %1" : "=r" (order) : "r" (size));
-	return 32 - order;
-#endif
+	int lz;
+	asm ("nsau %0, %1" : "=r" (lz) : "r" ((size - 1) >> PAGE_SHIFT));
+	return 32 - lz;
 }
 
+#else
+
+# include <asm-generic/page.h>
+
+#endif
 
 struct page;
 extern void clear_page(void *page);
