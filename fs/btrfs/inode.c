@@ -375,40 +375,6 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
 }
 
 /*
- * truncates go from a high offset to a low offset.  So, walk
- * from hi to lo in the node and issue readas.  Stop when you find
- * keys from a different objectid
- */
-static void reada_truncate(struct btrfs_root *root, struct btrfs_path *path,
-			   u64 objectid)
-{
-	struct btrfs_node *node;
-	int i;
-	int nritems;
-	u64 item_objectid;
-	u64 blocknr;
-	int slot;
-	int ret;
-
-	if (!path->nodes[1])
-		return;
-	node = btrfs_buffer_node(path->nodes[1]);
-	slot = path->slots[1];
-	if (slot == 0)
-		return;
-	nritems = btrfs_header_nritems(&node->header);
-	for (i = slot - 1; i >= 0; i--) {
-		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
-		if (item_objectid != objectid)
-			break;
-		blocknr = btrfs_node_blockptr(node, i);
-		ret = readahead_tree_block(root, blocknr);
-		if (ret)
-			break;
-	}
-}
-
-/*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
  * any higher than i_size.
@@ -434,6 +400,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	int del_item;
 
 	path = btrfs_alloc_path();
+	path->reada = -1;
 	BUG_ON(!path);
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	key.objectid = inode->i_ino;
@@ -450,7 +417,6 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 			BUG_ON(path->slots[0] == 0);
 			path->slots[0]--;
 		}
-		reada_truncate(root, path, inode->i_ino);
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		found_key = &leaf->items[path->slots[0]].key;
 		found_type = btrfs_disk_key_type(found_key);
@@ -827,36 +793,6 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-/*
- * readahead one full node of leaves as long as their keys include
- * the objectid supplied
- */
-static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path,
-			 u64 objectid)
-{
-	struct btrfs_node *node;
-	int i;
-	u32 nritems;
-	u64 item_objectid;
-	u64 blocknr;
-	int slot;
-	int ret;
-
-	if (!path->nodes[1])
-		return;
-	node = btrfs_buffer_node(path->nodes[1]);
-	slot = path->slots[1];
-	nritems = btrfs_header_nritems(&node->header);
-	for (i = slot + 1; i < nritems; i++) {
-		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
-		if (item_objectid != objectid)
-			break;
-		blocknr = btrfs_node_blockptr(node, i);
-		ret = readahead_tree_block(root, blocknr);
-		if (ret)
-			break;
-	}
-}
 static unsigned char btrfs_filetype_table[] = {
 	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
 };
@@ -890,18 +826,17 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
 	path = btrfs_alloc_path();
+	path->reada = 1;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
 	advance = 0;
-	reada_leaves(root, path, inode->i_ino);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
 		slot = path->slots[0];
 		if (advance || slot >= nritems) {
 			if (slot >= nritems -1) {
-				reada_leaves(root, path, inode->i_ino);
 				ret = btrfs_next_leaf(root, path);
 				if (ret)
 					break;

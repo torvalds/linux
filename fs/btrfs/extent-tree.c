@@ -32,33 +32,6 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *extent_root);
 
-static void reada_extent_leaves(struct btrfs_root *root,
-				struct btrfs_path *path, u64 limit)
-{
-	struct btrfs_node *node;
-	int i;
-	int nritems;
-	u64 item_objectid;
-	u64 blocknr;
-	int slot;
-	int ret;
-
-	if (!path->nodes[1])
-		return;
-	node = btrfs_buffer_node(path->nodes[1]);
-	slot = path->slots[1] + 1;
-	nritems = btrfs_header_nritems(&node->header);
-	for (i = slot; i < nritems && i < slot + 8; i++) {
-		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
-		if (item_objectid > limit)
-			break;
-		blocknr = btrfs_node_blockptr(node, i);
-		ret = readahead_tree_block(root, blocknr);
-		if (ret)
-			break;
-	}
-}
-
 static int cache_block_group(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group)
 {
@@ -84,6 +57,7 @@ static int cache_block_group(struct btrfs_root *root,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->reada = 1;
 	key.objectid = block_group->key.objectid;
 	key.flags = 0;
 	key.offset = 0;
@@ -94,12 +68,10 @@ static int cache_block_group(struct btrfs_root *root,
 	if (ret && path->slots[0] > 0)
 		path->slots[0]--;
 	limit = block_group->key.objectid + block_group->key.offset;
-	reada_extent_leaves(root, path, limit);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(&leaf->header)) {
-			reada_extent_leaves(root, path, limit);
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
 				goto err;

@@ -177,6 +177,7 @@ struct btrfs_node {
 struct btrfs_path {
 	struct buffer_head *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
+	int reada;
 };
 
 /*

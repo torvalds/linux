@@ -640,6 +640,73 @@ static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * readahead one full node of leaves
+ */
+static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
+			     int slot)
+{
+	struct btrfs_node *node;
+	int i;
+	u32 nritems;
+	u64 item_objectid;
+	u64 blocknr;
+	u64 search;
+	u64 cluster_start;
+	int ret;
+	int nread = 0;
+	int direction = path->reada;
+	struct radix_tree_root found;
+	unsigned long gang[8];
+	struct buffer_head *bh;
+
+	if (!path->nodes[1])
+		return;
+
+	node = btrfs_buffer_node(path->nodes[1]);
+	search = btrfs_node_blockptr(node, slot);
+	bh = btrfs_find_tree_block(root, search);
+	if (bh) {
+		brelse(bh);
+		return;
+	}
+
+	init_bit_radix(&found);
+	nritems = btrfs_header_nritems(&node->header);
+	for (i = slot; i < nritems; i++) {
+		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
+		blocknr = btrfs_node_blockptr(node, i);
+		set_radix_bit(&found, blocknr);
+	}
+	if (direction > 0) {
+		cluster_start = search - 4;
+		if (cluster_start > search)
+			cluster_start = 0;
+	} else
+		cluster_start = search + 4;
+	while(1) {
+		ret = find_first_radix_bit(&found, gang, 0, ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			blocknr = gang[i];
+			clear_radix_bit(&found, blocknr);
+			if (nread > 64)
+				continue;
+			if (direction > 0 && cluster_start <= blocknr &&
+			    cluster_start + 8 > blocknr) {
+				cluster_start = blocknr;
+				readahead_tree_block(root, blocknr);
+				nread++;
+			} else if (direction < 0 && cluster_start >= blocknr &&
+				   blocknr + 8 > cluster_start) {
+				cluster_start = blocknr;
+				readahead_tree_block(root, blocknr);
+				nread++;
+			}
+		}
+	}
+}
+/*
  * look for key in the tree.  path is filled in with nodes along the way
  * if key is found, we return zero and you can find the item in the leaf
  * level of the path (level 0)
@@ -660,9 +727,11 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct buffer_head *cow_buf;
 	struct btrfs_node *c;
 	struct btrfs_root_item *root_item = &root->root_item;
+	u64 blocknr;
 	int slot;
 	int ret;
 	int level;
+	int should_reada = p->reada;
 	u8 lowest_level = 0;
 
 	if (btrfs_root_refs(root_item) == 0 && root->ref_cows) {
@@ -728,7 +797,11 @@ again:
 			/* this is only true while dropping a snapshot */
 			if (level == lowest_level)
 				break;
+			blocknr = btrfs_node_blockptr(c, slot);
+			if (level == 1 && should_reada)
+				reada_for_search(root, p, slot);
 			b = read_tree_block(root, btrfs_node_blockptr(c, slot));
+
 		} else {
 			struct btrfs_leaf *l = (struct btrfs_leaf *)c;
 			p->slots[level] = slot;
@@ -1915,6 +1988,8 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		blocknr = btrfs_node_blockptr(c_node, slot);
 		if (next)
 			btrfs_block_release(root, next);
+		if (level == 1 && path->reada)
+			reada_for_search(root, path, slot);
 		next = read_tree_block(root, blocknr);
 		break;
 	}
@@ -1927,6 +2002,8 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		path->slots[level] = 0;
 		if (!level)
 			break;
+		if (level == 1 && path->reada)
+			reada_for_search(root, path, slot);
 		next = read_tree_block(root,
 		       btrfs_node_blockptr(btrfs_buffer_node(next), 0));
 	}
