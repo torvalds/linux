@@ -68,7 +68,8 @@ struct acpi_cpufreq_data {
 };
 
 static struct acpi_cpufreq_data *drv_data[NR_CPUS];
-static struct acpi_processor_performance *acpi_perf_data[NR_CPUS];
+/* acpi_perf_data is a pointer to percpu data. */
+static struct acpi_processor_performance *acpi_perf_data;
 
 static struct cpufreq_driver acpi_cpufreq_driver;
 
@@ -508,24 +509,14 @@ acpi_cpufreq_guess_freq(struct acpi_cpufreq_data *data, unsigned int cpu)
  * do _PDC and _PSD and find out the processor dependency for the
  * actual init that will happen later...
  */
-static int acpi_cpufreq_early_init(void)
+static int __init acpi_cpufreq_early_init(void)
 {
-	struct acpi_processor_performance *data;
-	unsigned int i, j;
-
 	dprintk("acpi_cpufreq_early_init\n");
 
-	for_each_possible_cpu(i) {
-		data = kzalloc(sizeof(struct acpi_processor_performance),
-			       GFP_KERNEL);
-		if (!data) {
-			for_each_possible_cpu(j) {
-				kfree(acpi_perf_data[j]);
-				acpi_perf_data[j] = NULL;
-			}
-			return -ENOMEM;
-		}
-		acpi_perf_data[i] = data;
+	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
+	if (!acpi_perf_data) {
+		dprintk("Memory allocation error for acpi_perf_data.\n");
+		return -ENOMEM;
 	}
 
 	/* Do initialization in ACPI core */
@@ -574,14 +565,11 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	dprintk("acpi_cpufreq_cpu_init\n");
 
-	if (!acpi_perf_data[cpu])
-		return -ENODEV;
-
 	data = kzalloc(sizeof(struct acpi_cpufreq_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->acpi_data = acpi_perf_data[cpu];
+	data->acpi_data = percpu_ptr(acpi_perf_data, cpu);
 	drv_data[cpu] = data;
 
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC))
@@ -778,24 +766,25 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 
 static int __init acpi_cpufreq_init(void)
 {
+	int ret;
+
 	dprintk("acpi_cpufreq_init\n");
 
-	acpi_cpufreq_early_init();
+	ret = acpi_cpufreq_early_init();
+	if (ret)
+		return ret;
 
 	return cpufreq_register_driver(&acpi_cpufreq_driver);
 }
 
 static void __exit acpi_cpufreq_exit(void)
 {
-	unsigned int i;
 	dprintk("acpi_cpufreq_exit\n");
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
-	for_each_possible_cpu(i) {
-		kfree(acpi_perf_data[i]);
-		acpi_perf_data[i] = NULL;
-	}
+	free_percpu(acpi_perf_data);
+
 	return;
 }
 
