@@ -24,9 +24,23 @@ static u32 usecs_per_tick;
 static irqreturn_t
 ns9xxx_timer_interrupt(int irq, void *dev_id)
 {
+	int timerno = irq - IRQ_TIMER0;
+	u32 tc;
+
 	write_seqlock(&xtime_lock);
 	timer_tick();
 	write_sequnlock(&xtime_lock);
+
+	/* clear irq */
+	tc = SYS_TC(timerno);
+	if (REGGET(tc, SYS_TCx, REN) == SYS_TCx_REN_DIS) {
+		REGSET(tc, SYS_TCx, TEN, DIS);
+		SYS_TC(timerno) = tc;
+	}
+	REGSET(tc, SYS_TCx, INTC, SET);
+	SYS_TC(timerno) = tc;
+	REGSET(tc, SYS_TCx, INTC, UNSET);
+	SYS_TC(timerno) = tc;
 
 	return IRQ_HANDLED;
 }
