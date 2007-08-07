@@ -1572,10 +1572,12 @@ ENTRY(fast_second_level_miss)
 	l32i	a0, a1, TASK_MM		# tsk->mm
 	beqz	a0, 9f
 
-8:	rsr	a1, EXCVADDR		# fault address
-	_PGD_OFFSET(a0, a1, a1)
+
+	/* We deliberately destroy a3 that holds the exception table. */
+
+8:	rsr	a3, EXCVADDR		# fault address
+	_PGD_OFFSET(a0, a3, a1)
 	l32i	a0, a0, 0		# read pmdval
-	//beqi	a0, _PAGE_USER, 2f
 	beqz	a0, 2f
 
 	/* Read ptevaddr and convert to top of page-table page.
@@ -1596,20 +1598,34 @@ ENTRY(fast_second_level_miss)
 	extui	a1, a0, 0, PAGE_SHIFT	# ... & PAGE_MASK
 	xor	a0, a0, a1
 
-
-	movi	a1, PAGE_DIRECTORY
+	movi	a1, _PAGE_DIRECTORY
 	or	a0, a0, a1		# ... | PAGE_DIRECTORY
 
-	rsr	a1, PTEVADDR
-	srli	a1, a1, PAGE_SHIFT
-	slli	a1, a1, PAGE_SHIFT	# ptevaddr & PAGE_MASK
-	addi	a1, a1, DTLB_WAY_PGD	# ... + way_number
+	/*
+	 * We utilize all three wired-ways (7-9( to hold pmd translations.
+	 * Memory regions are mapped to the DTLBs according to bits 28 and 29.
+	 * This allows to map the three most common regions to three different
+	 * DTLBs:
+	 *  0,1 -> way 7	program (0040.0000) and virtual (c000.0000)
+	 *  2   -> way 8	shared libaries (2000.0000)
+	 *  3   -> way 0	stack (3000.0000)
+	 */
 
-	wdtlb	a0, a1
+	extui	a3, a3, 28, 2		# addr. bit 28 and 29	0,1,2,3
+	rsr	a1, PTEVADDR
+	addx2	a3, a3, a3		# ->			0,3,6,9
+	srli	a1, a1, PAGE_SHIFT
+	extui	a3, a3, 2, 2		# ->			0,0,1,2
+	slli	a1, a1, PAGE_SHIFT	# ptevaddr & PAGE_MASK
+	addi	a3, a3, DTLB_WAY_PGD
+	add	a1, a1, a3		# ... + way_number
+
+3:	wdtlb	a0, a1
 	dsync
 
 	/* Exit critical section. */
 
+4:	movi	a3, exc_table		# restore a3
 	movi	a0, 0
 	s32i	a0, a3, EXC_TABLE_FIXUP
 
@@ -1638,6 +1654,7 @@ ENTRY(fast_second_level_miss)
 
 2:	/* Invalid PGD, default exception handling */
 
+	movi	a3, exc_table
 	rsr	a1, DEPC
 	xsr	a3, EXCSAVE_1
 	s32i	a1, a2, PT_AREG2
@@ -1682,15 +1699,15 @@ ENTRY(fast_store_prohibited)
 8:	rsr	a1, EXCVADDR		# fault address
 	_PGD_OFFSET(a0, a1, a4)
 	l32i	a0, a0, 0
-	//beqi	a0, _PAGE_USER, 2f	# FIXME use _PAGE_INVALID
 	beqz	a0, 2f
+
+	/* Note that we assume _PAGE_WRITABLE_BIT is only set if pte is valid.*/
 
 	_PTE_OFFSET(a0, a1, a4)
 	l32i	a4, a0, 0		# read pteval
-	movi	a1, _PAGE_VALID | _PAGE_RW
-	bnall	a4, a1, 2f
+	bbci.l	a4, _PAGE_WRITABLE_BIT, 2f
 
-	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_WRENABLE
+	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE
 	or	a4, a4, a1
 	rsr	a1, EXCVADDR
 	s32i	a4, a0, 0
@@ -1700,10 +1717,7 @@ ENTRY(fast_store_prohibited)
 	dhwb	a0, 0
 #endif
 	pdtlb	a0, a1
-	beqz	a0, 1f
-	idtlb	a0		// FIXME do we need this?
 	wdtlb	a4, a0
-1:
 
 	/* Exit critical section. */
 
