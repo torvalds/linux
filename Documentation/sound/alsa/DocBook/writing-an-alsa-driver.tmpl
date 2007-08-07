@@ -1333,7 +1333,7 @@
           <programlisting>
 <![CDATA[
   if (request_irq(pci->irq, snd_mychip_interrupt,
-                  IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
+                  IRQF_SHARED, "My Chip", chip)) {
           printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
           snd_mychip_free(chip);
           return -EBUSY;
