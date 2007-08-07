@@ -80,6 +80,7 @@ enum {
 	STAC_D965_REF,
 	STAC_D965_3ST,
 	STAC_D965_5ST,
+	STAC_DELL_3ST,
 	STAC_927X_MODELS
 };
 
@@ -719,16 +720,25 @@ static unsigned int d965_5st_pin_configs[14] = {
 	0x40000100, 0x40000100
 };
 
+static unsigned int dell_3st_pin_configs[14] = {
+	0x02211230, 0x02a11220, 0x01a19040, 0x01114210,
+	0x01111212, 0x01116211, 0x01813050, 0x01112214,
+	0x403003fa, 0x40000100, 0x40000100, 0x404003fb,
+	0x40c003fc, 0x40000100
+};
+
 static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_D965_REF] = ref927x_pin_configs,
 	[STAC_D965_3ST] = d965_3st_pin_configs,
 	[STAC_D965_5ST] = d965_5st_pin_configs,
+	[STAC_DELL_3ST] = dell_3st_pin_configs,
 };
 
 static const char *stac927x_models[STAC_927X_MODELS] = {
 	[STAC_D965_REF]	= "ref",
 	[STAC_D965_3ST]	= "3stack",
 	[STAC_D965_5ST] = "5stack",
+	[STAC_DELL_3ST]	= "dell-3stack",
 };
 
 static struct snd_pci_quirk stac927x_cfg_tbl[] = {
@@ -755,6 +765,10 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2003, "Intel D965", STAC_D965_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2002, "Intel D965", STAC_D965_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2001, "Intel D965", STAC_D965_3ST),
+	/* Dell 3 stack systems */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01dd, "Dell E520", STAC_DELL_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01ed, "Dell     ", STAC_DELL_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f4, "Dell     ", STAC_DELL_3ST),
 	/* 965 based 5 stack systems */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2301, "Intel D965", STAC_D965_5ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2302, "Intel D965", STAC_D965_5ST),

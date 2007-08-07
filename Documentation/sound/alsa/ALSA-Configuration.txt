@@ -975,6 +975,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  3stack	D965 3stack
 	  5stack	D965 5stack + SPDIF
+	  dell-3stack	Dell E520
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
