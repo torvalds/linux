@@ -218,7 +218,7 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 		break;
 	}
 
-	if (!enum_id || !value)
+	if (!enum_id || !value || !desc->sense_regs)
 		return -EINVAL;
 
 	value ^= VALID(0);
