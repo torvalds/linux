@@ -3047,6 +3047,10 @@ static inline void blk_partition_remap(struct bio *bio)
 
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
+
+		blk_add_trace_remap(bdev_get_queue(bio->bi_bdev), bio,
+				    bdev->bd_dev, bio->bi_sector,
+				    bio->bi_sector - p->start_sect);
 	}
 }
 

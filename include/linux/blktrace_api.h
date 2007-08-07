@@ -105,7 +105,7 @@ struct blk_io_trace {
  */
 struct blk_io_trace_remap {
 	__be32 device;
-	u32 __pad;
+	__be32 device_from;
 	__be64 sector;
 };
 
@@ -272,6 +272,7 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 		return;
 
 	r.device = cpu_to_be32(dev);
+	r.device_from = cpu_to_be32(bio->bi_bdev->bd_dev);
 	r.sector = cpu_to_be64(to);
 
 	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
