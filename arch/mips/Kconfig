@@ -697,6 +697,10 @@ config GENERIC_ISA_DMA
 	bool
 	select ZONE_DMA
 
+config HOTPLUG_CPU
+	bool
+	default n
+
 config I8259
 	bool
 
