@@ -61,7 +61,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 #ifdef CONFIG_PCI_MSI
 
-static int msi_x = 0;
+static int msi_x = 1;
 module_param(msi_x, int, 0444);
 MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
@@ -833,14 +833,19 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 
 	err = mthca_NOP(dev, &status);
 	if (err || status) {
-		mthca_err(dev, "NOP command failed to generate interrupt (IRQ %d), aborting.\n",
-			  dev->mthca_flags & MTHCA_FLAG_MSI_X ?
-			  dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector :
-			  dev->pdev->irq);
-		if (dev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X))
-			mthca_err(dev, "Try again with MSI/MSI-X disabled.\n");
-		else
+		if (dev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X)) {
+			mthca_warn(dev, "NOP command failed to generate interrupt "
+				   "(IRQ %d).\n",
+				   dev->mthca_flags & MTHCA_FLAG_MSI_X ?
+				   dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector :
+				   dev->pdev->irq);
+			mthca_warn(dev, "Trying again with MSI/MSI-X disabled.\n");
+		} else {
+			mthca_err(dev, "NOP command failed to generate interrupt "
+				  "(IRQ %d), aborting.\n",
+				  dev->pdev->irq);
 			mthca_err(dev, "BIOS or ACPI interrupt routing problem?\n");
+		}
 
 		goto err_cmd_poll;
 	}
@@ -1115,24 +1120,6 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 		goto err_free_dev;
 	}
 
-	if (msi_x && !mthca_enable_msi_x(mdev))
-		mdev->mthca_flags |= MTHCA_FLAG_MSI_X;
-	else if (msi) {
-		static int warned;
-
-		if (!warned) {
-			printk(KERN_WARNING PFX "WARNING: MSI support will be "
-			       "removed from the ib_mthca driver in January 2008.\n");
-			printk(KERN_WARNING "    If you are using MSI and cannot "
-			       "switch to MSI-X, please tell "
-			       "<general@lists.openfabrics.org>.\n");
-			++warned;
-		}
-
-		if (!pci_enable_msi(pdev))
-			mdev->mthca_flags |= MTHCA_FLAG_MSI;
-	}
-
 	if (mthca_cmd_init(mdev)) {
 		mthca_err(mdev, "Failed to init command interface, aborting.\n");
 		goto err_free_dev;
@@ -1156,7 +1143,35 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 		mthca_warn(mdev, "If you have problems, try updating your HCA FW.\n");
 	}
 
+	if (msi_x && !mthca_enable_msi_x(mdev))
+		mdev->mthca_flags |= MTHCA_FLAG_MSI_X;
+	else if (msi) {
+		static int warned;
+
+		if (!warned) {
+			printk(KERN_WARNING PFX "WARNING: MSI support will be "
+			       "removed from the ib_mthca driver in January 2008.\n");
+			printk(KERN_WARNING "    If you are using MSI and cannot "
+			       "switch to MSI-X, please tell "
+			       "<general@lists.openfabrics.org>.\n");
+			++warned;
+		}
+
+		if (!pci_enable_msi(pdev))
+			mdev->mthca_flags |= MTHCA_FLAG_MSI;
+	}
+
 	err = mthca_setup_hca(mdev);
+	if (err == -EBUSY && (mdev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X))) {
+		if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
+			pci_disable_msix(pdev);
+		if (mdev->mthca_flags & MTHCA_FLAG_MSI)
+			pci_disable_msi(pdev);
+		mdev->mthca_flags &= ~(MTHCA_FLAG_MSI_X | MTHCA_FLAG_MSI);
+
+		err = mthca_setup_hca(mdev);
+	}
+
 	if (err)
 		goto err_close;
 
@@ -1192,17 +1207,17 @@ err_cleanup:
 	mthca_cleanup_uar_table(mdev);
 
 err_close:
+	if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
+		pci_disable_msix(pdev);
+	if (mdev->mthca_flags & MTHCA_FLAG_MSI)
+		pci_disable_msi(pdev);
+
 	mthca_close_hca(mdev);
 
 err_cmd:
 	mthca_cmd_cleanup(mdev);
 
 err_free_dev:
-	if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
-		pci_disable_msix(pdev);
-	if (mdev->mthca_flags & MTHCA_FLAG_MSI)
-		pci_disable_msi(pdev);
-
 	ib_dealloc_device(&mdev->ib_dev);
 
 err_free_res:
