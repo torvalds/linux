@@ -241,7 +241,6 @@ static struct scsi_driver sd_template = {
 	},
 	.rescan			= sd_rescan,
 	.init_command		= sd_init_command,
-	.issue_flush		= sd_issue_flush,
 };
 
 /*
@@ -800,10 +799,17 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 	return 0;
 }
 
-static int sd_issue_flush(struct device *dev, sector_t *error_sector)
+static int sd_issue_flush(struct request_queue *q, struct gendisk *disk,
+			  sector_t *error_sector)
 {
 	int ret = 0;
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+	struct scsi_device *sdp = q->queuedata;
+	struct scsi_disk *sdkp;
+
+	if (sdp->sdev_state != SDEV_RUNNING)
+		return -ENXIO;
+
+	sdkp = scsi_disk_get_from_dev(&sdp->sdev_gendev);
 
 	if (!sdkp)
                return -ENODEV;
@@ -1662,6 +1668,8 @@ static int sd_probe(struct device *dev)
 	gd->queue = sdkp->device->request_queue;
 
 	sd_revalidate_disk(gd);
+
+	blk_queue_issue_flush_fn(sdp->request_queue, sd_issue_flush);
 
 	gd->driverfs_dev = &sdp->sdev_gendev;
 	gd->flags = GENHD_FL_DRIVERFS;

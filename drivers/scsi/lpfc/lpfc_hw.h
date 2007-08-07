@@ -150,7 +150,11 @@ struct lpfc_sli_ct_request {
 		struct gff_acc {
 			uint8_t fbits[128];
 		} gff_acc;
+#ifdef __BIG_ENDIAN_BITFIELD
+#define FCP_TYPE_FEATURE_OFFSET 7
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define FCP_TYPE_FEATURE_OFFSET 4
+#endif
 		struct rff {
 			uint32_t PortId;
 			uint8_t reserved[2];
@@ -805,7 +809,7 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 	} un;
 } RNID;
 
-typedef struct  _RPS {  	/* Structure is in Big Endian format */
+typedef struct  _RPS {		/* Structure is in Big Endian format */
 	union {
 		uint32_t portNum;
 		struct lpfc_name portName;
@@ -823,7 +827,7 @@ typedef struct  _RPS_RSP {	/* Structure is in Big Endian format */
 	uint32_t crcCnt;
 } RPS_RSP;
 
-typedef struct  _RPL {  	/* Structure is in Big Endian format */
+typedef struct  _RPL {		/* Structure is in Big Endian format */
 	uint32_t maxsize;
 	uint32_t index;
 } RPL;
@@ -834,7 +838,7 @@ typedef struct  _PORT_NUM_BLK {
 	struct lpfc_name portName;
 } PORT_NUM_BLK;
 
-typedef struct  _RPL_RSP { 	/* Structure is in Big Endian format */
+typedef struct  _RPL_RSP {	/* Structure is in Big Endian format */
 	uint32_t listLen;
 	uint32_t index;
 	PORT_NUM_BLK port_num_blk;
@@ -2613,8 +2617,8 @@ typedef union {
 	LOAD_SM_VAR varLdSM;		/* cmd =  1 (LOAD_SM)        */
 	READ_NV_VAR varRDnvp;		/* cmd =  2 (READ_NVPARMS)   */
 	WRITE_NV_VAR varWTnvp;		/* cmd =  3 (WRITE_NVPARMS)  */
-	BIU_DIAG_VAR varBIUdiag; 	/* cmd =  4 (RUN_BIU_DIAG)   */
-	INIT_LINK_VAR varInitLnk; 	/* cmd =  5 (INIT_LINK)      */
+	BIU_DIAG_VAR varBIUdiag;	/* cmd =  4 (RUN_BIU_DIAG)   */
+	INIT_LINK_VAR varInitLnk;	/* cmd =  5 (INIT_LINK)      */
 	DOWN_LINK_VAR varDwnLnk;	/* cmd =  6 (DOWN_LINK)      */
 	CONFIG_LINK varCfgLnk;		/* cmd =  7 (CONFIG_LINK)    */
 	PART_SLIM_VAR varSlim;		/* cmd =  8 (PART_SLIM)      */

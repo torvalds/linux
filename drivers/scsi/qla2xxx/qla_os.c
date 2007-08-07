@@ -2154,6 +2154,19 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 			}
 		}
 
+		/* Get memory for cached NVRAM */
+		ha->nvram = kzalloc(MAX_NVRAM_SIZE, GFP_KERNEL);
+		if (ha->nvram == NULL) {
+			/* error */
+			qla_printk(KERN_WARNING, ha,
+			    "Memory Allocation failed - nvram cache\n");
+
+			qla2x00_mem_free(ha);
+			msleep(100);
+
+			continue;
+		}
+
 		/* Done all allocations without any error. */
 		status = 0;
 
@@ -2266,6 +2279,7 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	ha->fw_dump_reading = 0;
 
 	vfree(ha->optrom_buffer);
+	kfree(ha->nvram);
 }
 
 /*
