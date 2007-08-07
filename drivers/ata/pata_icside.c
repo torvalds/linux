@@ -330,17 +330,12 @@ static void ata_dummy_noret(struct ata_port *port)
 {
 }
 
-/*
- * We need to shut down unused ports to prevent spurious interrupts.
- * FIXME: the libata core doesn't call this function for PATA interfaces.
- */
-static void pata_icside_port_disable(struct ata_port *ap)
+static void pata_icside_postreset(struct ata_port *ap, unsigned int *classes)
 {
 	struct pata_icside_state *state = ap->host->private_data;
 
-	ata_port_printk(ap, KERN_ERR, "disabling icside port\n");
-
-	ata_port_disable(ap);
+	if (classes[0] != ATA_DEV_NONE || classes[1] != ATA_DEV_NONE)
+		return ata_std_postreset(ap, classes);
 
 	state->port[ap->port_no].disabled = 1;
 
@@ -354,6 +349,12 @@ static void pata_icside_port_disable(struct ata_port *ap)
 				(ap->port_no ? ICS_ARCIN_V6_INTROFFSET_2 : ICS_ARCIN_V6_INTROFFSET_1);
 		readb(irq_port);
 	}
+}
+
+static void pata_icside_error_handler(struct ata_port *ap)
+{
+	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, NULL,
+			   pata_icside_postreset);
 }
 
 static u8 pata_icside_irq_ack(struct ata_port *ap, unsigned int chk_drq)
@@ -374,7 +375,7 @@ static u8 pata_icside_irq_ack(struct ata_port *ap, unsigned int chk_drq)
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
-	.port_disable		= pata_icside_port_disable,
+	.port_disable		= ata_port_disable,
 
 	.set_dmamode		= pata_icside_set_dmamode,
 
@@ -397,7 +398,7 @@ static struct ata_port_operations pata_icside_port_ops = {
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
+	.error_handler		= pata_icside_error_handler,
 	.post_internal_cmd	= pata_icside_bmdma_stop,
 
 	.irq_clear		= ata_dummy_noret,
@@ -483,13 +484,6 @@ static int __devinit pata_icside_register_v6(struct pata_icside_info *info)
 	state->ioc_base = ioc_base;
 	state->port[0].port_sel = sel;
 	state->port[1].port_sel = sel | 1;
-
-	/*
-	 * FIXME: work around libata's aversion to calling port_disable.
-	 * This permanently disables interrupts on port 0 - bad luck if
-	 * you have a drive on that port.
-	 */
-	state->port[0].disabled = 1;
 
 	info->base = easi_base;
 	info->irqops = &pata_icside_ops_arcin_v6;
