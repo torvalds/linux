@@ -61,7 +61,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 #ifdef CONFIG_PCI_MSI
 
-static int msi_x;
+static int msi_x = 1;
 module_param(msi_x, int, 0444);
 MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
@@ -599,13 +599,17 @@ static int __devinit mlx4_setup_hca(struct mlx4_dev *dev)
 
 	err = mlx4_NOP(dev);
 	if (err) {
-		mlx4_err(dev, "NOP command failed to generate interrupt "
-			 "(IRQ %d), aborting.\n",
-			 priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
-		if (dev->flags & MLX4_FLAG_MSI_X)
-			mlx4_err(dev, "Try again with MSI-X disabled.\n");
-		else
+		if (dev->flags & MLX4_FLAG_MSI_X) {
+			mlx4_warn(dev, "NOP command failed to generate MSI-X "
+				  "interrupt IRQ %d).\n",
+				  priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
+			mlx4_warn(dev, "Trying again without MSI-X.\n");
+		} else {
+			mlx4_err(dev, "NOP command failed to generate interrupt "
+				 "(IRQ %d), aborting.\n",
+				 priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
 			mlx4_err(dev, "BIOS or ACPI interrupt routing problem?\n");
+		}
 
 		goto err_cmd_poll;
 	}
@@ -803,8 +807,6 @@ static int __devinit mlx4_init_one(struct pci_dev *pdev,
 		goto err_free_dev;
 	}
 
-	mlx4_enable_msi_x(dev);
-
 	if (mlx4_cmd_init(dev)) {
 		mlx4_err(dev, "Failed to init command interface, aborting.\n");
 		goto err_free_dev;
@@ -814,7 +816,15 @@ static int __devinit mlx4_init_one(struct pci_dev *pdev,
 	if (err)
 		goto err_cmd;
 
+	mlx4_enable_msi_x(dev);
+
 	err = mlx4_setup_hca(dev);
+	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X)) {
+		dev->flags &= ~MLX4_FLAG_MSI_X;
+		pci_disable_msix(pdev);
+		err = mlx4_setup_hca(dev);
+	}
+
 	if (err)
 		goto err_close;
 
@@ -838,15 +848,15 @@ err_cleanup:
 	mlx4_cleanup_uar_table(dev);
 
 err_close:
+	if (dev->flags & MLX4_FLAG_MSI_X)
+		pci_disable_msix(pdev);
+
 	mlx4_close_hca(dev);
 
 err_cmd:
 	mlx4_cmd_cleanup(dev);
 
 err_free_dev:
-	if (dev->flags & MLX4_FLAG_MSI_X)
-		pci_disable_msix(pdev);
-
 	kfree(priv);
 
 err_release_bar2:
