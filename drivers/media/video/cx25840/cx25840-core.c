@@ -250,6 +250,7 @@ static void input_change(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
+	cx25840_and_or(client, 0x810, ~0x01, 1);
 
 	if (state->radio) {
 		cx25840_write(client, 0x808, 0xf9);
@@ -284,11 +285,7 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x80b, 0x10);
 	}
 
-	if (cx25840_read(client, 0x803) & 0x10) {
-		/* restart audio decoder microcontroller */
-		cx25840_and_or(client, 0x803, ~0x10, 0x00);
-		cx25840_and_or(client, 0x803, ~0x10, 0x10);
-	}
+	cx25840_and_or(client, 0x810, ~0x01, 0);
 }
 
 static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,

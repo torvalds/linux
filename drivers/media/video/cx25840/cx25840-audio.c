@@ -157,12 +157,11 @@ void cx25840_audio_set_path(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
+	/* assert soft reset */
+	cx25840_and_or(client, 0x810, ~0x1, 0x01);
+
 	/* stop microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0);
-
-	/* assert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x01);
 
 	/* Mute everything to prevent the PFFT! */
 	cx25840_write(client, 0x8d3, 0x1f);
@@ -181,15 +180,14 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 	set_audclk_freq(client, state->audclk_freq);
 
-	/* deassert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x00);
-
 	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		/* When the microcontroller detects the
 		 * audio format, it will unmute the lines */
 		cx25840_and_or(client, 0x803, ~0x10, 0x10);
 	}
+
+	/* deassert soft reset */
+	cx25840_and_or(client, 0x810, ~0x1, 0x00);
 }
 
 static int get_volume(struct i2c_client *client)
@@ -330,18 +328,18 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 1);
 		if (state->aud_input != CX25840_AUDIO_SERIAL) {
 			cx25840_and_or(client, 0x803, ~0x10, 0);
 			cx25840_write(client, 0x8d3, 0x1f);
 		}
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 1);
 		retval = set_audclk_freq(client, *(u32 *)arg);
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 0);
 		if (state->aud_input != CX25840_AUDIO_SERIAL) {
 			cx25840_and_or(client, 0x803, ~0x10, 0x10);
 		}
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 0);
 		return retval;
 
 	case VIDIOC_G_CTRL:
