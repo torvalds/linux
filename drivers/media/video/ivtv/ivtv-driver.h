@@ -651,7 +651,6 @@ struct vbi_info {
 	struct v4l2_format in;
 	/* convenience pointer to sliced struct in vbi_in union */
 	struct v4l2_sliced_vbi_format *sliced_in;
-	u32 service_set_in;
 	int insert_mpeg;
 
 	/* Buffer for the maximum of 2 * 18 * packet_size sliced VBI lines.
