@@ -53,7 +53,8 @@ static unsigned int rtas_event_scan_rate;
 
 static int full_rtas_msgs = 0;
 
-extern int no_logging;
+/* Stop logging to nvram after first fatal error */
+static int no_more_logging;
 
 volatile int error_log_cnt = 0;
 
@@ -216,7 +217,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	}
 
 	/* Write error to NVRAM */
-	if (!no_logging && !(err_type & ERR_FLAG_BOOT))
+	if (!no_more_logging && !(err_type & ERR_FLAG_BOOT))
 		nvram_write_error_log(buf, len, err_type);
 
 	/*
@@ -228,8 +229,8 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		printk_log_rtas(buf, len);
 
 	/* Check to see if we need to or have stopped logging */
-	if (fatal || no_logging) {
-		no_logging = 1;
+	if (fatal || no_more_logging) {
+		no_more_logging = 1;
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -301,7 +302,7 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 
 	spin_lock_irqsave(&rtasd_log_lock, s);
 	/* if it's 0, then we know we got the last one (the one in NVRAM) */
-	if (rtas_log_size == 0 && !no_logging)
+	if (rtas_log_size == 0 && !no_more_logging)
 		nvram_clear_error_log();
 	spin_unlock_irqrestore(&rtasd_log_lock, s);
 
@@ -412,9 +413,6 @@ static int rtasd(void *unused)
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
 	rc = nvram_read_error_log(logdata, rtas_error_log_max, &err_type);
-
-	/* We can use rtas_log_buf now */
-	no_logging = 0;
 
 	if (!rc) {
 		if (err_type != ERR_FLAG_ALREADY_LOGGED) {

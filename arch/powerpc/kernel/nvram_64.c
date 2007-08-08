@@ -38,10 +38,6 @@ static struct nvram_partition * nvram_part;
 static long nvram_error_log_index = -1;
 static long nvram_error_log_size = 0;
 
-int no_logging = 1; 	/* Until we initialize everything,
-			 * make sure we don't try logging
-			 * anything */
-
 extern volatile int error_log_cnt;
 
 struct err_log_info {
@@ -637,10 +633,6 @@ int nvram_write_error_log(char * buff, int length, unsigned int err_type)
 	loff_t tmp_index;
 	struct err_log_info info;
 	
-	if (no_logging) {
-		return -EPERM;
-	}
-
 	if (nvram_error_log_index == -1) {
 		return -ESPIPE;
 	}
