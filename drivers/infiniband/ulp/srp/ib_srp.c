@@ -285,6 +285,7 @@ static int srp_lookup_path(struct srp_target_port *target)
 						   target->srp_host->dev->dev,
 						   target->srp_host->port,
 						   &target->path,
+						   IB_SA_PATH_REC_SERVICE_ID	|
 						   IB_SA_PATH_REC_DGID		|
 						   IB_SA_PATH_REC_SGID		|
 						   IB_SA_PATH_REC_NUMB_PATH	|
@@ -1692,6 +1693,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				goto out;
 			}
 			target->service_id = cpu_to_be64(simple_strtoull(p, NULL, 16));
+			target->path.service_id = target->service_id;
 			kfree(p);
 			break;
 
