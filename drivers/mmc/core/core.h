@@ -48,5 +48,7 @@ void mmc_rescan(struct work_struct *work);
 void mmc_start_host(struct mmc_host *host);
 void mmc_stop_host(struct mmc_host *host);
 
+extern int use_spi_crc;
+
 #endif
 

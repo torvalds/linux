@@ -30,15 +30,31 @@ int mmc_send_io_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 	cmd.opcode = SD_IO_SEND_OP_COND;
 	cmd.arg = ocr;
-	cmd.flags = MMC_RSP_R4 | MMC_CMD_BCR;
+	cmd.flags = MMC_RSP_SPI_R4 | MMC_RSP_R4 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 		if (err)
 			break;
 
-		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
+		/* if we're just probing, do a single pass */
+		if (ocr == 0)
 			break;
+
+		/* otherwise wait until reset completes */
+		if (mmc_host_is_spi(host)) {
+			/*
+			 * Both R1_SPI_IDLE and MMC_CARD_BUSY indicate
+			 * an initialized card under SPI, but some cards
+			 * (Marvell's) only behave when looking at this
+			 * one.
+			 */
+			if (cmd.resp[1] & MMC_CARD_BUSY)
+				break;
+		} else {
+			if (cmd.resp[0] & MMC_CARD_BUSY)
+				break;
+		}
 
 		err = -ETIMEDOUT;
 
@@ -46,7 +62,7 @@ int mmc_send_io_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	}
 
 	if (rocr)
-		*rocr = cmd.resp[0];
+		*rocr = cmd.resp[mmc_host_is_spi(host) ? 1 : 0];
 
 	return err;
 }
@@ -68,21 +84,29 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 	cmd.arg |= (write && out) ? 0x08000000 : 0x00000000;
 	cmd.arg |= addr << 9;
 	cmd.arg |= in;
-	cmd.flags = MMC_RSP_R5 | MMC_CMD_AC;
+	cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err)
 		return err;
 
-	if (cmd.resp[0] & R5_ERROR)
-		return -EIO;
-	if (cmd.resp[0] & R5_FUNCTION_NUMBER)
-		return -EINVAL;
-	if (cmd.resp[0] & R5_OUT_OF_RANGE)
-		return -ERANGE;
+	if (mmc_host_is_spi(card->host)) {
+		/* host driver already reported errors */
+	} else {
+		if (cmd.resp[0] & R5_ERROR)
+			return -EIO;
+		if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+			return -EINVAL;
+		if (cmd.resp[0] & R5_OUT_OF_RANGE)
+			return -ERANGE;
+	}
 
-	if (out)
-		*out = cmd.resp[0] & 0xFF;
+	if (out) {
+		if (mmc_host_is_spi(card->host))
+			*out = (cmd.resp[0] >> 8) & 0xFF;
+		else
+			*out = cmd.resp[0] & 0xFF;
+	}
 
 	return 0;
 }
@@ -117,7 +141,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 		cmd.arg |= (blksz == 512) ? 0 : blksz;	/* byte mode */
 	else
 		cmd.arg |= 0x08000000 | blocks;		/* block mode */
-	cmd.flags = MMC_RSP_R5 | MMC_CMD_ADTC;
+	cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_ADTC;
 
 	data.blksz = blksz;
 	data.blocks = blocks;
@@ -136,12 +160,16 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	if (data.error)
 		return data.error;
 
-	if (cmd.resp[0] & R5_ERROR)
-		return -EIO;
-	if (cmd.resp[0] & R5_FUNCTION_NUMBER)
-		return -EINVAL;
-	if (cmd.resp[0] & R5_OUT_OF_RANGE)
-		return -ERANGE;
+	if (mmc_host_is_spi(card->host)) {
+		/* host driver already reported errors */
+	} else {
+		if (cmd.resp[0] & R5_ERROR)
+			return -EIO;
+		if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+			return -EINVAL;
+		if (cmd.resp[0] & R5_OUT_OF_RANGE)
+			return -ERANGE;
+	}
 
 	return 0;
 }

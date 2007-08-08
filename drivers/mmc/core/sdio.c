@@ -270,6 +270,15 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 		goto err;
 
 	/*
+	 * For SPI, enable CRC as appropriate.
+	 */
+	if (mmc_host_is_spi(host)) {
+		err = mmc_spi_set_crc(host, use_spi_crc);
+		if (err)
+			goto err;
+	}
+
+	/*
 	 * The number of functions on the card is encoded inside
 	 * the ocr.
 	 */
@@ -290,20 +299,24 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	host->card = card;
 
 	/*
-	 * Set card RCA.
+	 * For native busses:  set card RCA and quit open drain mode.
 	 */
-	err = mmc_send_relative_addr(host, &card->rca);
-	if (err)
-		goto remove;
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_send_relative_addr(host, &card->rca);
+		if (err)
+			goto remove;
 
-	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+	}
 
 	/*
 	 * Select card, as all following commands rely on that.
 	 */
-	err = mmc_select_card(card);
-	if (err)
-		goto remove;
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_select_card(card);
+		if (err)
+			goto remove;
+	}
 
 	/*
 	 * Read the common registers.

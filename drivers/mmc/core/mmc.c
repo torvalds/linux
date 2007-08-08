@@ -165,8 +165,6 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 
 	BUG_ON(!card);
 
-	err = -EIO;
-
 	if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
 		return 0;
 
@@ -280,9 +278,21 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 
 	/*
+	 * For SPI, enable CRC as appropriate.
+	 */
+	if (mmc_host_is_spi(host)) {
+		err = mmc_spi_set_crc(host, use_spi_crc);
+		if (err)
+			goto err;
+	}
+
+	/*
 	 * Fetch CID from card.
 	 */
-	err = mmc_all_send_cid(host, cid);
+	if (mmc_host_is_spi(host))
+		err = mmc_send_cid(host, cid);
+	else
+		err = mmc_all_send_cid(host, cid);
 	if (err)
 		goto err;
 
@@ -309,13 +319,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
-	 * Set card RCA.
+	 * For native busses:  set card RCA and quit open drain mode.
 	 */
-	err = mmc_set_relative_addr(card);
-	if (err)
-		goto free_card;
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_set_relative_addr(card);
+		if (err)
+			goto free_card;
 
-	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+	}
 
 	if (!oldcard) {
 		/*
@@ -336,13 +348,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Select card, as all following commands rely on that.
 	 */
-	err = mmc_select_card(card);
-	if (err)
-		goto free_card;
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_select_card(card);
+		if (err)
+			goto free_card;
+	}
 
 	if (!oldcard) {
 		/*
-		 * Fetch and process extened CSD.
+		 * Fetch and process extended CSD.
 		 */
 		err = mmc_read_ext_csd(card);
 		if (err)
@@ -502,7 +516,8 @@ static void mmc_suspend(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	mmc_deselect_cards(host);
+	if (!mmc_host_is_spi(host))
+		mmc_deselect_cards(host);
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_release_host(host);
 }
@@ -561,6 +576,15 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	WARN_ON(!host->claimed);
 
 	mmc_attach_bus(host, &mmc_ops);
+
+	/*
+	 * We need to get OCR a different way for SPI.
+	 */
+	if (mmc_host_is_spi(host)) {
+		err = mmc_spi_read_ocr(host, 1, &ocr);
+		if (err)
+			goto err;
+	}
 
 	/*
 	 * Sanity check the voltages that the card claims to

@@ -33,10 +33,10 @@ static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 
 	if (card) {
 		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
 	} else {
 		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_BCR;
+		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_BCR;
 	}
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
@@ -44,7 +44,7 @@ static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 		return err;
 
 	/* Check that card supported application commands */
-	if (!(cmd.resp[0] & R1_APP_CMD))
+	if (!mmc_host_is_spi(host) && !(cmd.resp[0] & R1_APP_CMD))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -83,8 +83,14 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		memset(&mrq, 0, sizeof(struct mmc_request));
 
 		err = mmc_app_cmd(host, card);
-		if (err)
+		if (err) {
+			/* no point in retrying; no APP commands allowed */
+			if (mmc_host_is_spi(host)) {
+				if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
+					break;
+			}
 			continue;
+		}
 
 		memset(&mrq, 0, sizeof(struct mmc_request));
 
@@ -99,6 +105,12 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		err = cmd->error;
 		if (!cmd->error)
 			break;
+
+		/* no point in retrying illegal APP commands */
+		if (mmc_host_is_spi(host)) {
+			if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
+				break;
+		}
 	}
 
 	return err;
@@ -147,23 +159,36 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_APP_OP_COND;
-	cmd.arg = ocr;
-	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
+	if (mmc_host_is_spi(host))
+		cmd.arg = ocr & (1 << 30); /* SPI only defines one bit */
+	else
+		cmd.arg = ocr;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_app_cmd(host, NULL, &cmd, MMC_CMD_RETRIES);
 		if (err)
 			break;
 
-		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
+		/* if we're just probing, do a single pass */
+		if (ocr == 0)
 			break;
+
+		/* otherwise wait until reset completes */
+		if (mmc_host_is_spi(host)) {
+			if (!(cmd.resp[0] & R1_SPI_IDLE))
+				break;
+		} else {
+			if (cmd.resp[0] & MMC_CARD_BUSY)
+				break;
+		}
 
 		err = -ETIMEDOUT;
 
 		mmc_delay(10);
 	}
 
-	if (rocr)
+	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
 
 	return err;
@@ -174,6 +199,7 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	struct mmc_command cmd;
 	int err;
 	static const u8 test_pattern = 0xAA;
+	u8 result_pattern;
 
 	/*
 	 * To support SD 2.0 cards, we must always invoke SD_SEND_IF_COND
@@ -182,13 +208,18 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	 */
 	cmd.opcode = SD_SEND_IF_COND;
 	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | test_pattern;
-	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
+	cmd.flags = MMC_RSP_SPI_R7 | MMC_RSP_R7 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
 		return err;
 
-	if ((cmd.resp[0] & 0xFF) != test_pattern)
+	if (mmc_host_is_spi(host))
+		result_pattern = cmd.resp[1] & 0xFF;
+	else
+		result_pattern = cmd.resp[0] & 0xFF;
+
+	if (result_pattern != test_pattern)
 		return -EIO;
 
 	return 0;
@@ -229,6 +260,8 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 	BUG_ON(!card->host);
 	BUG_ON(!scr);
 
+	/* NOTE: caller guarantees scr is heap-allocated */
+
 	err = mmc_app_cmd(card->host, card);
 	if (err)
 		return err;
@@ -242,7 +275,7 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 
 	cmd.opcode = SD_APP_SEND_SCR;
 	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	data.blksz = 8;
 	data.blocks = 1;
@@ -278,6 +311,8 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	BUG_ON(!card);
 	BUG_ON(!card->host);
 
+	/* NOTE: caller guarantees resp is heap-allocated */
+
 	mode = !!mode;
 	value &= 0xF;
 
@@ -292,7 +327,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	cmd.arg = mode << 31 | 0x00FFFFFF;
 	cmd.arg &= ~(0xF << (group * 4));
 	cmd.arg |= value << (group * 4);
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	data.blksz = 64;
 	data.blocks = 1;

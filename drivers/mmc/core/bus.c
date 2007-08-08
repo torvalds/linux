@@ -243,10 +243,17 @@ int mmc_add_card(struct mmc_card *card)
 		break;
 	}
 
-	printk(KERN_INFO "%s: new %s%s card at address %04x\n",
-		mmc_hostname(card->host),
-		mmc_card_highspeed(card) ? "high speed " : "",
-		type, card->rca);
+	if (mmc_host_is_spi(card->host)) {
+		printk(KERN_INFO "%s: new %s%s card on SPI\n",
+			mmc_hostname(card->host),
+			mmc_card_highspeed(card) ? "high speed " : "",
+			type);
+	} else {
+		printk(KERN_INFO "%s: new %s%s card at address %04x\n",
+			mmc_hostname(card->host),
+			mmc_card_highspeed(card) ? "high speed " : "",
+			type, card->rca);
+	}
 
 	card->dev.uevent_suppress = 1;
 
@@ -278,8 +285,13 @@ int mmc_add_card(struct mmc_card *card)
 void mmc_remove_card(struct mmc_card *card)
 {
 	if (mmc_card_present(card)) {
-		printk(KERN_INFO "%s: card %04x removed\n",
-			mmc_hostname(card->host), card->rca);
+		if (mmc_host_is_spi(card->host)) {
+			printk(KERN_INFO "%s: SPI card removed\n",
+				mmc_hostname(card->host));
+		} else {
+			printk(KERN_INFO "%s: card %04x removed\n",
+				mmc_hostname(card->host), card->rca);
+		}
 
 		if (card->host->bus_ops->sysfs_remove)
 			card->host->bus_ops->sysfs_remove(card->host, card);
