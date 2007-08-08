@@ -792,6 +792,78 @@ out:
 	return ret;
 }
 
+static int ucma_set_option_id(struct ucma_context *ctx, int optname,
+			      void *optval, size_t optlen)
+{
+	int ret = 0;
+
+	switch (optname) {
+	case RDMA_OPTION_ID_TOS:
+		if (optlen != sizeof(u8)) {
+			ret = -EINVAL;
+			break;
+		}
+		rdma_set_service_type(ctx->cm_id, *((u8 *) optval));
+		break;
+	default:
+		ret = -ENOSYS;
+	}
+
+	return ret;
+}
+
+static int ucma_set_option_level(struct ucma_context *ctx, int level,
+				 int optname, void *optval, size_t optlen)
+{
+	int ret;
+
+	switch (level) {
+	case RDMA_OPTION_ID:
+		ret = ucma_set_option_id(ctx, optname, optval, optlen);
+		break;
+	default:
+		ret = -ENOSYS;
+	}
+
+	return ret;
+}
+
+static ssize_t ucma_set_option(struct ucma_file *file, const char __user *inbuf,
+			       int in_len, int out_len)
+{
+	struct rdma_ucm_set_option cmd;
+	struct ucma_context *ctx;
+	void *optval;
+	int ret;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	ctx = ucma_get_ctx(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	optval = kmalloc(cmd.optlen, GFP_KERNEL);
+	if (!optval) {
+		ret = -ENOMEM;
+		goto out1;
+	}
+
+	if (copy_from_user(optval, (void __user *) (unsigned long) cmd.optval,
+			   cmd.optlen)) {
+		ret = -EFAULT;
+		goto out2;
+	}
+
+	ret = ucma_set_option_level(ctx, cmd.level, cmd.optname, optval,
+				    cmd.optlen);
+out2:
+	kfree(optval);
+out1:
+	ucma_put_ctx(ctx);
+	return ret;
+}
+
 static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
 			   int in_len, int out_len)
 {
@@ -936,7 +1008,7 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_INIT_QP_ATTR]	= ucma_init_qp_attr,
 	[RDMA_USER_CM_CMD_GET_EVENT]	= ucma_get_event,
 	[RDMA_USER_CM_CMD_GET_OPTION]	= NULL,
-	[RDMA_USER_CM_CMD_SET_OPTION]	= NULL,
+	[RDMA_USER_CM_CMD_SET_OPTION]	= ucma_set_option,
 	[RDMA_USER_CM_CMD_NOTIFY]	= ucma_notify,
 	[RDMA_USER_CM_CMD_JOIN_MCAST]	= ucma_join_multicast,
 	[RDMA_USER_CM_CMD_LEAVE_MCAST]	= ucma_leave_multicast,
