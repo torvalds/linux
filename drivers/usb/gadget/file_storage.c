@@ -1,7 +1,7 @@
 /*
  * file_storage.c -- File-backed USB Storage Gadget, for USB development
  *
- * Copyright (C) 2003-2005 Alan Stern
+ * Copyright (C) 2003-2007 Alan Stern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,7 +218,7 @@
 
 
 /* #define VERBOSE_DEBUG */
-#undef DUMP_MSGS
+/* #define DUMP_MSGS */
 
 
 #include <linux/blkdev.h>
@@ -249,7 +249,7 @@
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
-#define DRIVER_VERSION		"28 November 2005"
+#define DRIVER_VERSION		"7 August 2007"
 
 static const char longname[] = DRIVER_DESC;
 static const char shortname[] = DRIVER_NAME;
@@ -275,12 +275,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 /*-------------------------------------------------------------------------*/
 
-#define yprintk(l,level,fmt,args...) \
-	dev_printk(level , &(l)->dev , fmt , ## args)
-
 #ifdef DEBUG
 #define LDBG(lun,fmt,args...) \
-	yprintk(lun , KERN_DEBUG , fmt , ## args)
+	dev_dbg(&(lun)->dev , fmt , ## args)
 #define MDBG(fmt,args...) \
 	printk(KERN_DEBUG DRIVER_NAME ": " fmt , ## args)
 #else
@@ -300,11 +297,11 @@ MODULE_LICENSE("Dual BSD/GPL");
 #endif /* VERBOSE_DEBUG */
 
 #define LERROR(lun,fmt,args...) \
-	yprintk(lun , KERN_ERR , fmt , ## args)
+	dev_err(&(lun)->dev , fmt , ## args)
 #define LWARN(lun,fmt,args...) \
-	yprintk(lun , KERN_WARNING , fmt , ## args)
+	dev_warn(&(lun)->dev , fmt , ## args)
 #define LINFO(lun,fmt,args...) \
-	yprintk(lun , KERN_INFO , fmt , ## args)
+	dev_info(&(lun)->dev , fmt , ## args)
 
 #define MINFO(fmt,args...) \
 	printk(KERN_INFO DRIVER_NAME ": " fmt , ## args)
@@ -558,7 +555,7 @@ struct lun {
 
 #define backing_file_is_open(curlun)	((curlun)->filp != NULL)
 
-static inline struct lun *dev_to_lun(struct device *dev)
+static struct lun *dev_to_lun(struct device *dev)
 {
 	return container_of(dev, struct lun, dev);
 }
@@ -691,13 +688,13 @@ struct fsg_dev {
 
 typedef void (*fsg_routine_t)(struct fsg_dev *);
 
-static int inline exception_in_progress(struct fsg_dev *fsg)
+static int exception_in_progress(struct fsg_dev *fsg)
 {
 	return (fsg->state > FSG_STATE_IDLE);
 }
 
 /* Make bulk-out requests be divisible by the maxpacket size */
-static void inline set_bulk_out_req_length(struct fsg_dev *fsg,
+static void set_bulk_out_req_length(struct fsg_dev *fsg,
 		struct fsg_buffhd *bh, unsigned int length)
 {
 	unsigned int	rem;
@@ -723,50 +720,36 @@ static void	close_all_backing_files(struct fsg_dev *fsg);
 static void dump_msg(struct fsg_dev *fsg, const char *label,
 		const u8 *buf, unsigned int length)
 {
-	unsigned int	start, num, i;
-	char		line[52], *p;
-
-	if (length >= 512)
-		return;
-	DBG(fsg, "%s, length %u:\n", label, length);
-
-	start = 0;
-	while (length > 0) {
-		num = min(length, 16u);
-		p = line;
-		for (i = 0; i < num; ++i) {
-			if (i == 8)
-				*p++ = ' ';
-			sprintf(p, " %02x", buf[i]);
-			p += 3;
-		}
-		*p = 0;
-		printk(KERN_DEBUG "%6x: %s\n", start, line);
-		buf += num;
-		start += num;
-		length -= num;
+	if (length < 512) {
+		DBG(fsg, "%s, length %u:\n", label, length);
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,
+				16, 1, buf, length, 0);
 	}
 }
 
-static void inline dump_cdb(struct fsg_dev *fsg)
+static void dump_cdb(struct fsg_dev *fsg)
 {}
 
 #else
 
-static void inline dump_msg(struct fsg_dev *fsg, const char *label,
+static void dump_msg(struct fsg_dev *fsg, const char *label,
 		const u8 *buf, unsigned int length)
 {}
 
-static void inline dump_cdb(struct fsg_dev *fsg)
-{
-	int	i;
-	char	cmdbuf[3*MAX_COMMAND_SIZE + 1];
+#ifdef VERBOSE_DEBUG
 
-	for (i = 0; i < fsg->cmnd_size; ++i)
-		sprintf(cmdbuf + i*3, " %02x", fsg->cmnd[i]);
-	VDBG(fsg, "SCSI CDB: %s\n", cmdbuf);
+static void dump_cdb(struct fsg_dev *fsg)
+{
+	print_hex_dump(KERN_DEBUG, "SCSI CDB: ", DUMP_PREFIX_NONE,
+			16, 1, fsg->cmnd, fsg->cmnd_size, 0);
 }
 
+#else
+
+static void dump_cdb(struct fsg_dev *fsg)
+{}
+
+#endif /* VERBOSE_DEBUG */
 #endif /* DUMP_MSGS */
 
 
@@ -789,24 +772,24 @@ static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
 
 /* Routines for unaligned data access */
 
-static u16 inline get_be16(u8 *buf)
+static u16 get_be16(u8 *buf)
 {
 	return ((u16) buf[0] << 8) | ((u16) buf[1]);
 }
 
-static u32 inline get_be32(u8 *buf)
+static u32 get_be32(u8 *buf)
 {
 	return ((u32) buf[0] << 24) | ((u32) buf[1] << 16) |
 			((u32) buf[2] << 8) | ((u32) buf[3]);
 }
 
-static void inline put_be16(u8 *buf, u16 val)
+static void put_be16(u8 *buf, u16 val)
 {
 	buf[0] = val >> 8;
 	buf[1] = val;
 }
 
-static void inline put_be32(u8 *buf, u32 val)
+static void put_be32(u8 *buf, u32 val)
 {
 	buf[0] = val >> 24;
 	buf[1] = val >> 16;
@@ -992,7 +975,7 @@ static const struct usb_descriptor_header *hs_function[] = {
 #define HS_FUNCTION_PRE_EP_ENTRIES	2
 
 /* Maxpacket and other transfer characteristics vary by speed. */
-static inline struct usb_endpoint_descriptor *
+static struct usb_endpoint_descriptor *
 ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
 		struct usb_endpoint_descriptor *hs)
 {
@@ -1616,7 +1599,8 @@ static int do_read(struct fsg_dev *fsg)
 		/* Wait for the next buffer to become available */
 		bh = fsg->next_buffhd_to_fill;
 		while (bh->state != BUF_STATE_EMPTY) {
-			if ((rc = sleep_thread(fsg)) != 0)
+			rc = sleep_thread(fsg);
+			if (rc)
 				return rc;
 		}
 
@@ -1855,7 +1839,8 @@ static int do_write(struct fsg_dev *fsg)
 		}
 
 		/* Wait for something to happen */
-		if ((rc = sleep_thread(fsg)) != 0)
+		rc = sleep_thread(fsg);
+		if (rc)
 			return rc;
 	}
 
@@ -2339,7 +2324,8 @@ static int pad_with_zeros(struct fsg_dev *fsg)
 
 		/* Wait for the next buffer to be free */
 		while (bh->state != BUF_STATE_EMPTY) {
-			if ((rc = sleep_thread(fsg)) != 0)
+			rc = sleep_thread(fsg);
+			if (rc)
 				return rc;
 		}
 
@@ -2399,7 +2385,8 @@ static int throw_away_data(struct fsg_dev *fsg)
 		}
 
 		/* Otherwise wait for something to happen */
-		if ((rc = sleep_thread(fsg)) != 0)
+		rc = sleep_thread(fsg);
+		if (rc)
 			return rc;
 	}
 	return 0;
@@ -2521,7 +2508,8 @@ static int send_status(struct fsg_dev *fsg)
 	/* Wait for the next buffer to become available */
 	bh = fsg->next_buffhd_to_fill;
 	while (bh->state != BUF_STATE_EMPTY) {
-		if ((rc = sleep_thread(fsg)) != 0)
+		rc = sleep_thread(fsg);
+		if (rc)
 			return rc;
 	}
 
@@ -2741,9 +2729,10 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	/* Wait for the next buffer to become available for data or status */
 	bh = fsg->next_buffhd_to_drain = fsg->next_buffhd_to_fill;
 	while (bh->state != BUF_STATE_EMPTY) {
-		if ((rc = sleep_thread(fsg)) != 0)
+		rc = sleep_thread(fsg);
+		if (rc)
 			return rc;
-		}
+	}
 	fsg->phase_error = 0;
 	fsg->short_packet_received = 0;
 
@@ -3015,9 +3004,10 @@ static int get_next_command(struct fsg_dev *fsg)
 		/* Wait for the next buffer to become available */
 		bh = fsg->next_buffhd_to_fill;
 		while (bh->state != BUF_STATE_EMPTY) {
-			if ((rc = sleep_thread(fsg)) != 0)
+			rc = sleep_thread(fsg);
+			if (rc)
 				return rc;
-			}
+		}
 
 		/* Queue a request to read a Bulk-only CBW */
 		set_bulk_out_req_length(fsg, bh, USB_BULK_CB_WRAP_LEN);
@@ -3031,9 +3021,10 @@ static int get_next_command(struct fsg_dev *fsg)
 
 		/* Wait for the CBW to arrive */
 		while (bh->state != BUF_STATE_FULL) {
-			if ((rc = sleep_thread(fsg)) != 0)
+			rc = sleep_thread(fsg);
+			if (rc)
 				return rc;
-			}
+		}
 		smp_rmb();
 		rc = received_cbw(fsg, bh);
 		bh->state = BUF_STATE_EMPTY;
@@ -3042,9 +3033,10 @@ static int get_next_command(struct fsg_dev *fsg)
 
 		/* Wait for the next command to arrive */
 		while (fsg->cbbuf_cmnd_size == 0) {
-			if ((rc = sleep_thread(fsg)) != 0)
+			rc = sleep_thread(fsg);
+			if (rc)
 				return rc;
-			}
+		}
 
 		/* Is the previous status interrupt request still busy?
 		 * The host is allowed to skip reading the status,
@@ -3565,7 +3557,8 @@ static ssize_t show_ro(struct device *dev, struct device_attribute *attr, char *
 	return sprintf(buf, "%d\n", curlun->ro);
 }
 
-static ssize_t show_file(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_file(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct lun	*curlun = dev_to_lun(dev);
 	struct fsg_dev	*fsg = dev_get_drvdata(dev);
@@ -3574,8 +3567,8 @@ static ssize_t show_file(struct device *dev, struct device_attribute *attr, char
 
 	down_read(&fsg->filesem);
 	if (backing_file_is_open(curlun)) {	// Get the complete pathname
-		p = d_path(curlun->filp->f_path.dentry, curlun->filp->f_path.mnt,
-				buf, PAGE_SIZE - 1);
+		p = d_path(curlun->filp->f_path.dentry,
+				curlun->filp->f_path.mnt, buf, PAGE_SIZE - 1);
 		if (IS_ERR(p))
 			rc = PTR_ERR(p);
 		else {
@@ -3593,7 +3586,8 @@ static ssize_t show_file(struct device *dev, struct device_attribute *attr, char
 }
 
 
-static ssize_t store_ro(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t store_ro(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	ssize_t		rc = count;
 	struct lun	*curlun = dev_to_lun(dev);
@@ -3617,7 +3611,8 @@ static ssize_t store_ro(struct device *dev, struct device_attribute *attr, const
 	return rc;
 }
 
-static ssize_t store_file(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t store_file(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct lun	*curlun = dev_to_lun(dev);
 	struct fsg_dev	*fsg = dev_get_drvdata(dev);
