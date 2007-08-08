@@ -273,55 +273,58 @@ static int ps3stor_wait_for_completion(u64 dev_id, u64 tag,
 
 static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 {
+	int error = -ENODEV;
 	int result;
 	const u64 notification_dev_id = (u64)-1LL;
 	const unsigned int timeout = HZ;
 	u64 lpar;
 	u64 tag;
+	void *buf;
+	enum ps3_notify_type {
+		notify_device_ready = 0,
+		notify_region_probe = 1,
+		notify_region_update = 2,
+	};
 	struct {
 		u64 operation_code;	/* must be zero */
-		u64 event_mask;		/* 1 = device ready */
+		u64 event_mask;		/* OR of 1UL << enum ps3_notify_type */
 	} *notify_cmd;
 	struct {
-		u64 event_type;		/* notify_device_ready */
+		u64 event_type;		/* enum ps3_notify_type */
 		u64 bus_id;
 		u64 dev_id;
 		u64 dev_type;
 		u64 dev_port;
 	} *notify_event;
-	enum {
-		notify_device_ready = 1
-	};
 
 	pr_debug(" -> %s:%u: bus_id %u, dev_id %u, dev_type %u\n", __func__,
 		 __LINE__, repo->bus_id, repo->dev_id, repo->dev_type);
 
-	notify_cmd = kzalloc(512, GFP_KERNEL);
-	notify_event = (void *)notify_cmd;
-	if (!notify_cmd)
+	buf = kzalloc(512, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
-	lpar = ps3_mm_phys_to_lpar(__pa(notify_cmd));
+	lpar = ps3_mm_phys_to_lpar(__pa(buf));
+	notify_cmd = buf;
+	notify_event = buf;
 
 	result = lv1_open_device(repo->bus_id, notification_dev_id, 0);
 	if (result) {
 		printk(KERN_ERR "%s:%u: lv1_open_device %s\n", __func__,
 		       __LINE__, ps3_result(result));
-		result = -ENODEV;
 		goto fail_free;
 	}
 
 	/* Setup and write the request for device notification. */
 
-	notify_cmd->operation_code = 0;	/* must be zero */
-	notify_cmd->event_mask = 0x01;	/* device ready */
+	notify_cmd->operation_code = 0; /* must be zero */
+	notify_cmd->event_mask = 1UL << notify_region_probe;
 
 	result = lv1_storage_write(notification_dev_id, 0, 0, 1, 0, lpar,
 				   &tag);
 	if (result) {
 		printk(KERN_ERR "%s:%u: write failed %s\n", __func__, __LINE__,
 		       ps3_result(result));
-		result = -ENODEV;
 		goto fail_close;
 	}
 
@@ -332,13 +335,11 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 	if (result) {
 		printk(KERN_ERR "%s:%u: write not completed %s\n", __func__,
 		       __LINE__, ps3_result(result));
-		result = -ENODEV;
 		goto fail_close;
 	}
 
 	/* Loop here processing the requested notification events. */
 
-	result = -ENODEV;
 	while (1) {
 		memset(notify_event, 0, sizeof(*notify_event));
 
@@ -358,7 +359,7 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 			break;
 		}
 
-		if (notify_event->event_type != notify_device_ready ||
+		if (notify_event->event_type != notify_region_probe ||
 		    notify_event->bus_id != repo->bus_id) {
 			pr_debug("%s:%u: bad notify_event: event %lu, "
 				 "dev_id %lu, dev_type %lu\n",
@@ -386,9 +387,9 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 fail_close:
 	lv1_close_device(repo->bus_id, notification_dev_id);
 fail_free:
-	kfree(notify_cmd);
+	kfree(buf);
 	pr_debug(" <- %s:%u\n", __func__, __LINE__);
-	return result;
+	return error;
 }
 
 static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
