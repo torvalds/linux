@@ -308,6 +308,7 @@ config NUMA
 
 config NODES_SHIFT
 	int
+	default "3" if CPU_SUBTYPE_SHX3
 	default "1"
 	depends on NEED_MULTIPLE_NODES
 
