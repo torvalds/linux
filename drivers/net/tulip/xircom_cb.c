@@ -271,7 +271,6 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	dev->hard_start_xmit = &xircom_start_xmit;
 	dev->stop = &xircom_close;
 	dev->get_stats = &xircom_get_stats;
-	dev->priv = private;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = &xircom_poll_controller;
 #endif
