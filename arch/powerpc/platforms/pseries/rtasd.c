@@ -361,25 +361,16 @@ static int enable_surveillance(int timeout)
 
 static int get_eventscan_parms(void)
 {
-	struct device_node *node;
-	const int *ip;
-
-	node = of_find_node_by_path("/rtas");
-
-	ip = of_get_property(node, "rtas-event-scan-rate", NULL);
-	if (ip == NULL) {
+	rtas_event_scan_rate = rtas_token("rtas-event-scan-rate");
+	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_ERR "rtasd: no rtas-event-scan-rate\n");
-		of_node_put(node);
 		return -1;
 	}
-	rtas_event_scan_rate = *ip;
 	DEBUG("rtas-event-scan-rate %d\n", rtas_event_scan_rate);
 
 	/* Make room for the sequence number */
 	rtas_error_log_max = rtas_get_error_log_max();
 	rtas_error_log_buffer_max = rtas_error_log_max + sizeof(int);
-
-	of_node_put(node);
 
 	return 0;
 }
