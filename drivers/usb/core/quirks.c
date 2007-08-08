@@ -70,6 +70,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Philips PSC805 audio device */
 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
 
+	/* Alcor multi-card reader */
+	{ USB_DEVICE(0x058f, 0x6366), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
 	/* RIM Blackberry */
 	{ USB_DEVICE(0x0fca, 0x0001), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	{ USB_DEVICE(0x0fca, 0x0004), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
