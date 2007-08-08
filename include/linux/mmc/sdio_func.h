@@ -43,7 +43,8 @@ struct sdio_func {
 	unsigned short		vendor;		/* vendor id */
 	unsigned short		device;		/* device id */
 
-	unsigned short		blksize;	/* maximum block size */
+	unsigned		max_blksize;	/* maximum block size */
+	unsigned		cur_blksize;	/* current block size */
 
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
@@ -110,6 +111,8 @@ extern void sdio_release_host(struct sdio_func *func);
 
 extern int sdio_enable_func(struct sdio_func *func);
 extern int sdio_disable_func(struct sdio_func *func);
+
+extern int sdio_set_block_size(struct sdio_func *func, unsigned blksz);
 
 extern int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
 extern int sdio_release_irq(struct sdio_func *func);

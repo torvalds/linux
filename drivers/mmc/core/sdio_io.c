@@ -141,6 +141,55 @@ err:
 EXPORT_SYMBOL_GPL(sdio_disable_func);
 
 /**
+ *	sdio_set_block_size - set the block size of an SDIO function
+ *	@func: SDIO function to change
+ *	@blksz: new block size or 0 to use the default.
+ *
+ *	The default block size is the largest supported by both the function
+ *	and the host, with a maximum of 512 to ensure that arbitrarily sized
+ *	data transfer use the optimal (least) number of commands.
+ *
+ *	A driver may call this to override the default block size set by the
+ *	core. This can be used to set a block size greater than the maximum
+ *	that reported by the card; it is the driver's responsibility to ensure
+ *	it uses a value that the card supports.
+ *
+ *	Returns 0 on success, -EINVAL if the host does not support the
+ *	requested block size, or -EIO (etc.) if one of the resultant FBR block
+ *	size register writes failed.
+ *
+ */
+int sdio_set_block_size(struct sdio_func *func, unsigned blksz)
+{
+	int ret;
+
+	if (blksz > func->card->host->max_blk_size)
+		return -EINVAL;
+
+	if (blksz == 0) {
+		blksz = min(min(
+			func->max_blksize,
+			func->card->host->max_blk_size),
+			512u);
+	}
+
+	ret = mmc_io_rw_direct(func->card, 1, 0,
+		SDIO_FBR_BASE(func->num) + SDIO_FBR_BLKSIZE,
+		blksz & 0xff, NULL);
+	if (ret)
+		return ret;
+	ret = mmc_io_rw_direct(func->card, 1, 0,
+		SDIO_FBR_BASE(func->num) + SDIO_FBR_BLKSIZE + 1,
+		(blksz >> 8) & 0xff, NULL);
+	if (ret)
+		return ret;
+	func->cur_blksize = blksz;
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(sdio_set_block_size);
+
+/**
  *	sdio_readb - read a single byte from a SDIO function
  *	@func: SDIO function to access
  *	@addr: address to read

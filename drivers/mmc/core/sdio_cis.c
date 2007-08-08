@@ -79,7 +79,7 @@ static int cistpl_funce_func(struct sdio_func *func,
 		return -EINVAL;
 
 	/* TPLFE_MAX_BLK_SIZE */
-	func->blksize = buf[12] | (buf[13] << 8);
+	func->max_blksize = buf[12] | (buf[13] << 8);
 
 	return 0;
 }
