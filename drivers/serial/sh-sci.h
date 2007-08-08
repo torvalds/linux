@@ -653,6 +653,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xffc60000)
 		return ctrl_inw(SCSPTR3) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #endif
 
