@@ -189,6 +189,67 @@ int sdio_set_block_size(struct sdio_func *func, unsigned blksz)
 
 EXPORT_SYMBOL_GPL(sdio_set_block_size);
 
+/* Split an arbitrarily sized data transfer into several
+ * IO_RW_EXTENDED commands. */
+static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
+	unsigned addr, int incr_addr, u8 *buf, unsigned size)
+{
+	unsigned remainder = size;
+	unsigned max_blocks;
+	int ret;
+
+	/* Do the bulk of the transfer using block mode (if supported). */
+	if (func->card->cccr.multi_block) {
+		/* Blocks per command is limited by host count, host transfer
+		 * size (we only use a single sg entry) and the maximum for
+		 * IO_RW_EXTENDED of 511 blocks. */
+		max_blocks = min(min(
+			func->card->host->max_blk_count,
+			func->card->host->max_seg_size / func->cur_blksize),
+			511u);
+
+		while (remainder > func->cur_blksize) {
+			unsigned blocks;
+
+			blocks = remainder / func->cur_blksize;
+			if (blocks > max_blocks)
+				blocks = max_blocks;
+			size = blocks * func->cur_blksize;
+
+			ret = mmc_io_rw_extended(func->card, write,
+				func->num, addr, incr_addr, buf,
+				blocks, func->cur_blksize);
+			if (ret)
+				return ret;
+
+			remainder -= size;
+			buf += size;
+			if (incr_addr)
+				addr += size;
+		}
+	}
+
+	/* Write the remainder using byte mode. */
+	while (remainder > 0) {
+		size = remainder;
+		if (size > func->cur_blksize)
+			size = func->cur_blksize;
+		if (size > 512)
+			size = 512; /* maximum size for byte mode */
+
+		ret = mmc_io_rw_extended(func->card, write, func->num, addr,
+			 incr_addr, buf, 1, size);
+		if (ret)
+			return ret;
+
+		remainder -= size;
+		buf += size;
+		if (incr_addr)
+			addr += size;
+	}
+	return 0;
+}
+
 /**
  *	sdio_readb - read a single byte from a SDIO function
  *	@func: SDIO function to access
@@ -252,15 +313,13 @@ EXPORT_SYMBOL_GPL(sdio_writeb);
  *	@addr: address to begin reading from
  *	@count: number of bytes to read
  *
- *	Reads up to 512 bytes from the address space of a given SDIO
- *	function. Return value indicates if the transfer succeeded or
- *	not.
+ *	Reads from the address space of a given SDIO function. Return
+ *	value indicates if the transfer succeeded or not.
  */
 int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
 	unsigned int addr, int count)
 {
-	return mmc_io_rw_extended(func->card, 0, func->num, addr, 0, dst,
-		count);
+	return sdio_io_rw_ext_helper(func, 0, addr, 1, dst, count);
 }
 EXPORT_SYMBOL_GPL(sdio_memcpy_fromio);
 
@@ -271,15 +330,13 @@ EXPORT_SYMBOL_GPL(sdio_memcpy_fromio);
  *	@src: buffer that contains the data to write
  *	@count: number of bytes to write
  *
- *	Writes up to 512 bytes to the address space of a given SDIO
- *	function. Return value indicates if the transfer succeeded or
- *	not.
+ *	Writes to the address space of a given SDIO function. Return
+ *	value indicates if the transfer succeeded or not.
  */
 int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
 	void *src, int count)
 {
-	return mmc_io_rw_extended(func->card, 1, func->num, addr, 0, src,
-		count);
+	return sdio_io_rw_ext_helper(func, 1, addr, 1, src, count);
 }
 EXPORT_SYMBOL_GPL(sdio_memcpy_toio);
 
@@ -290,15 +347,13 @@ EXPORT_SYMBOL_GPL(sdio_memcpy_toio);
  *	@addr: address of (single byte) FIFO
  *	@count: number of bytes to read
  *
- *	Reads up to 512 bytes from the specified FIFO of a given SDIO
- *	function. Return value indicates if the transfer succeeded or
- *	not.
+ *	Reads from the specified FIFO of a given SDIO function. Return
+ *	value indicates if the transfer succeeded or not.
  */
 int sdio_readsb(struct sdio_func *func, void *dst, unsigned int addr,
 	int count)
 {
-	return mmc_io_rw_extended(func->card, 0, func->num, addr, 1, dst,
-		count);
+	return sdio_io_rw_ext_helper(func, 0, addr, 0, dst, count);
 }
 
 EXPORT_SYMBOL_GPL(sdio_readsb);
@@ -310,15 +365,13 @@ EXPORT_SYMBOL_GPL(sdio_readsb);
  *	@src: buffer that contains the data to write
  *	@count: number of bytes to write
  *
- *	Writes up to 512 bytes to the specified FIFO of a given SDIO
- *	function. Return value indicates if the transfer succeeded or
- *	not.
+ *	Writes to the specified FIFO of a given SDIO function. Return
+ *	value indicates if the transfer succeeded or not.
  */
 int sdio_writesb(struct sdio_func *func, unsigned int addr, void *src,
 	int count)
 {
-	return mmc_io_rw_extended(func->card, 1, func->num, addr, 1, src,
-		count);
+	return sdio_io_rw_ext_helper(func, 1, addr, 0, src, count);
 }
 EXPORT_SYMBOL_GPL(sdio_writesb);
 
