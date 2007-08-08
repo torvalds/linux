@@ -405,6 +405,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 
 	if (len > mm->task_size)
 		return -ENOMEM;
+	if (len & ((1ul << pshift) - 1))
+		return -EINVAL;
 	if (fixed && (addr & ((1ul << pshift) - 1)))
 		return -EINVAL;
 	if (fixed && addr > (mm->task_size - len))
