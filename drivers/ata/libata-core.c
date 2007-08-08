@@ -1618,6 +1618,9 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
  *	devices.  This function also issues ATA_CMD_INIT_DEV_PARAMS
  *	for pre-ATA4 drives.
  *
+ *	FIXME: ATA_CMD_ID_ATA is optional for early drives and right
+ *	now we abort if we hit that case. 
+ *
  *	LOCKING:
  *	Kernel thread context (may sleep)
  *
@@ -1745,10 +1748,13 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 		/*
 		 * The exact sequence expected by certain pre-ATA4 drives is:
 		 * SRST RESET
-		 * IDENTIFY
-		 * INITIALIZE DEVICE PARAMETERS
+		 * IDENTIFY (optional in early ATA)
+		 * INITIALIZE DEVICE PARAMETERS (later IDE and ATA)
 		 * anything else..
 		 * Some drives were very specific about that exact sequence.
+		 *
+		 * Note that ATA4 says lba is mandatory so the second check
+		 * shoud never trigger.
 		 */
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
 			err_mask = ata_dev_init_params(dev, id[3], id[6]);
