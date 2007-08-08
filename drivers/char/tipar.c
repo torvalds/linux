@@ -441,8 +441,8 @@ tipar_register(int nr, struct parport *port)
 		goto out;
 	}
 
-	class_device_create(tipar_class, NULL, MKDEV(TIPAR_MAJOR,
-			TIPAR_MINOR + nr), port->dev, "par%d", nr);
+	device_create(tipar_class, port->dev, MKDEV(TIPAR_MAJOR,
+			TIPAR_MINOR + nr), "par%d", nr);
 
 	/* Display informations */
 	pr_info("tipar%d: using %s (%s)\n", nr, port->name, (port->irq ==
@@ -534,7 +534,7 @@ tipar_cleanup_module(void)
 		if (table[i].dev == NULL)
 			continue;
 		parport_unregister_device(table[i].dev);
-		class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, i));
+		device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, i));
 	}
 	class_destroy(tipar_class);
 

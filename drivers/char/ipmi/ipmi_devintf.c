@@ -865,7 +865,7 @@ static void ipmi_new_smi(int if_num, struct device *device)
 	entry->dev = dev;
 
 	mutex_lock(&reg_list_mutex);
-	class_device_create(ipmi_class, NULL, dev, device, "ipmi%d", if_num);
+	device_create(ipmi_class, device, dev, "ipmi%d", if_num);
 	list_add(&entry->link, &reg_list);
 	mutex_unlock(&reg_list_mutex);
 }
@@ -883,7 +883,7 @@ static void ipmi_smi_gone(int if_num)
 			break;
 		}
 	}
-	class_device_destroy(ipmi_class, dev);
+	device_destroy(ipmi_class, dev);
 	mutex_unlock(&reg_list_mutex);
 }
 
@@ -938,7 +938,7 @@ static __exit void cleanup_ipmi(void)
 	mutex_lock(&reg_list_mutex);
 	list_for_each_entry_safe(entry, entry2, &reg_list, link) {
 		list_del(&entry->link);
-		class_device_destroy(ipmi_class, entry->dev);
+		device_destroy(ipmi_class, entry->dev);
 		kfree(entry);
 	}
 	mutex_unlock(&reg_list_mutex);
