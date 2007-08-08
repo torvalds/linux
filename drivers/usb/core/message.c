@@ -1173,6 +1173,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	struct usb_host_interface *alt;
 	int ret;
 	int manual = 0;
+	int changed;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -1212,7 +1213,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
-	if (device_is_registered(&iface->dev))
+	changed = (iface->cur_altsetting != alt);
+	if (changed && device_is_registered(&iface->dev))
 		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
@@ -1249,7 +1251,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
 	usb_enable_interface(dev, iface);
-	if (device_is_registered(&iface->dev))
+	if (changed && device_is_registered(&iface->dev))
 		usb_create_sysfs_intf_files(iface);
 
 	return 0;
