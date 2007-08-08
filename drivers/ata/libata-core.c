@@ -3985,6 +3985,11 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	/* A clean abort indicates an original or just out of spec drive
+	   and we should continue as we issue the setup based on the
+	   drive reported working geometry */
+	if (err_mask == AC_ERR_DEV && (tf.feature & ATA_ABORTED))
+		err_mask = 0;
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
