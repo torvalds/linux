@@ -5906,6 +5906,10 @@ int ata_flush_cache(struct ata_device *dev)
 	else
 		cmd = ATA_CMD_FLUSH;
 
+	/* This is wrong. On a failed flush we get back the LBA of the lost
+	   sector and we should (assuming it wasn't aborted as unknown) issue
+	   a further flush command to continue the writeback until it 
+	   does not error */
 	err_mask = ata_do_simple_cmd(dev, cmd);
 	if (err_mask) {
 		ata_dev_printk(dev, KERN_ERR, "failed to flush cache\n");
