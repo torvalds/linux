@@ -422,38 +422,6 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 
 EXPORT_SYMBOL(snd_pcm_format_set_silence);
 
-/* [width][unsigned][bigendian] */
-static int linear_formats[4][2][2] = {
-	{{ SNDRV_PCM_FORMAT_S8, SNDRV_PCM_FORMAT_S8},
-	 { SNDRV_PCM_FORMAT_U8, SNDRV_PCM_FORMAT_U8}},
-	{{SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_FORMAT_S16_BE},
-	 {SNDRV_PCM_FORMAT_U16_LE, SNDRV_PCM_FORMAT_U16_BE}},
-	{{SNDRV_PCM_FORMAT_S24_LE, SNDRV_PCM_FORMAT_S24_BE},
-	 {SNDRV_PCM_FORMAT_U24_LE, SNDRV_PCM_FORMAT_U24_BE}},
-	{{SNDRV_PCM_FORMAT_S32_LE, SNDRV_PCM_FORMAT_S32_BE},
-	 {SNDRV_PCM_FORMAT_U32_LE, SNDRV_PCM_FORMAT_U32_BE}}
-};
-
-/**
- * snd_pcm_build_linear_format - return the suitable linear format for the given condition
- * @width: the bit-width
- * @unsignd: 1 if unsigned, 0 if signed.
- * @big_endian: 1 if big-endian, 0 if little-endian
- *
- * Returns the suitable linear format for the given condition.
- */
-snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_endian)
-{
-	if (width & 7)
-		return SND_PCM_FORMAT_UNKNOWN;
-	width = (width / 8) - 1;
-	if (width < 0 || width >= 4)
-		return SND_PCM_FORMAT_UNKNOWN;
-	return linear_formats[width][!!unsignd][!!big_endian];
-}
-
-EXPORT_SYMBOL(snd_pcm_build_linear_format);
-
 /**
  * snd_pcm_limit_hw_rates - determine rate_min/rate_max fields
  * @runtime: the runtime instance
