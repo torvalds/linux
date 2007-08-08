@@ -53,6 +53,7 @@ EXPORT_SYMBOL(get_vm_area);
 EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_interruptible);
+EXPORT_SYMBOL(__down_trylock);
 
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__ndelay);
@@ -140,12 +141,6 @@ EXPORT_SYMBOL(__flush_purge_region);
 #if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
 	(defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB))
 EXPORT_SYMBOL(clear_user_page);
-#endif
-
-EXPORT_SYMBOL(__down_trylock);
-
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(synchronize_irq);
 #endif
 
 EXPORT_SYMBOL(csum_partial);
