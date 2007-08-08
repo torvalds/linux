@@ -865,12 +865,15 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 	struct inode *inode;
 	u32 goal = 0, block;
 	u64 no_addr;
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
 
 	for(;;) {
 		if (goal >= rgd->rd_data)
 			break;
+		down_write(&sdp->sd_log_flush_lock);
 		block = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
 				     GFS2_BLKST_UNLINKED);
+		up_write(&sdp->sd_log_flush_lock);
 		if (block == BFITNOENT)
 			break;
 		/* rgblk_search can return a block < goal, so we need to
@@ -1295,7 +1298,9 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 	   allocatable block anywhere else, we want to be able wrap around and
 	   search in the first part of our first-searched bit block.  */
 	for (x = 0; x <= length; x++) {
-		if (bi->bi_clone)
+		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
+		   bitmaps, so we must search the originals for that. */
+		if (old_state != GFS2_BLKST_UNLINKED && bi->bi_clone)
 			blk = gfs2_bitfit(rgd, bi->bi_clone + bi->bi_offset,
 					  bi->bi_len, goal, old_state);
 		else
