@@ -30,7 +30,7 @@ static int sdio_read_fbr(struct sdio_func *func)
 	unsigned char data;
 
 	ret = mmc_io_rw_direct(func->card, 0, 0,
-		func->num * 0x100 + SDIO_FBR_STD_IF, 0, &data);
+		SDIO_FBR_BASE(func->num) + SDIO_FBR_STD_IF, 0, &data);
 	if (ret)
 		goto out;
 
@@ -38,7 +38,7 @@ static int sdio_read_fbr(struct sdio_func *func)
 
 	if (data == 0x0f) {
 		ret = mmc_io_rw_direct(func->card, 0, 0,
-			func->num * 0x100 + SDIO_FBR_STD_IF_EXT, 0, &data);
+			SDIO_FBR_BASE(func->num) + SDIO_FBR_STD_IF_EXT, 0, &data);
 		if (ret)
 			goto out;
 	}

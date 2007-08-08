@@ -145,7 +145,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			fn = 0;
 
 		ret = mmc_io_rw_direct(card, 0, 0,
-				       fn * 0x100 + SDIO_FBR_CIS + i, 0, &x);
+			SDIO_FBR_BASE(fn) + SDIO_FBR_CIS + i, 0, &x);
 		if (ret)
 			return ret;
 		ptr |= x << (i * 8);

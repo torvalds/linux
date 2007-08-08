@@ -132,6 +132,8 @@
  * Function Basic Registers (FBR)
  */
 
+#define SDIO_FBR_BASE(f)	((f) * 0x100) /* base of function f's FBRs */
+
 #define SDIO_FBR_STD_IF		0x00
 
 #define  SDIO_FBR_SUPPORTS_CSA	0x40	/* supports Code Storage Area */
