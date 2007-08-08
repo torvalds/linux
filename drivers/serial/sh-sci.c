@@ -1432,7 +1432,7 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
-	dev_info(&dev->dev, "sci: CPU frequency notifier registered\n");
+	dev_info(&dev->dev, "CPU frequency notifier registered\n");
 #endif
 
 #ifdef CONFIG_SH_STANDARD_BIOS
