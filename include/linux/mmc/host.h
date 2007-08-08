@@ -91,6 +91,7 @@ struct mmc_host {
 #define MMC_CAP_MMC_HIGHSPEED	(1 << 2)	/* Can do MMC high-speed timing */
 #define MMC_CAP_SD_HIGHSPEED	(1 << 3)	/* Can do SD high-speed timing */
 #define MMC_CAP_SDIO_IRQ	(1 << 4)	/* Can signal pending SDIO IRQs */
+#define MMC_CAP_SPI		(1 << 5)	/* Talks only SPI protocols */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
@@ -107,6 +108,14 @@ struct mmc_host {
 	struct mmc_ios		ios;		/* current io bus settings */
 	u32			ocr;		/* the current OCR setting */
 
+	/* group bitfields together to minimize padding */
+	unsigned int		use_spi_crc:1;
+	unsigned int		claimed:1;	/* host exclusively claimed */
+	unsigned int		bus_dead:1;	/* bus has been released */
+#ifdef CONFIG_MMC_DEBUG
+	unsigned int		removed:1;	/* host is being removed */
+#endif
+
 	unsigned int		mode;		/* current card mode of host */
 #define MMC_MODE_MMC		0
 #define MMC_MODE_SD		1
@@ -114,16 +123,11 @@ struct mmc_host {
 	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;
-	unsigned int		claimed:1;	/* host exclusively claimed */
 
 	struct delayed_work	detect;
-#ifdef CONFIG_MMC_DEBUG
-	unsigned int		removed:1;	/* host is being removed */
-#endif
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
 	unsigned int		bus_refs;	/* reference counter */
-	unsigned int		bus_dead:1;	/* bus has been released */
 
 	unsigned int		sdio_irqs;
 	struct task_struct	*sdio_irq_thread;
@@ -141,6 +145,8 @@ static inline void *mmc_priv(struct mmc_host *host)
 {
 	return (void *)host->private;
 }
+
+#define mmc_host_is_spi(host)	((host)->caps & MMC_CAP_SPI)
 
 #define mmc_dev(x)	((x)->parent)
 #define mmc_classdev(x)	(&(x)->class_dev)
