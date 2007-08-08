@@ -1650,6 +1650,7 @@ static int ieee80211_master_start_xmit(struct sk_buff *skb,
 	if (skb_headroom(skb) < headroom) {
 		if (pskb_expand_head(skb, headroom, 0, GFP_ATOMIC)) {
 			dev_kfree_skb(skb);
+			dev_put(odev);
 			return 0;
 		}
 	}
