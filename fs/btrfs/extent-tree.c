@@ -1018,7 +1018,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (num_blocks == 0) {
 		fill_prealloc = 1;
 		num_blocks = 1;
-		total_needed = (min(level + 1, BTRFS_MAX_LEVEL) + 2) * 3;
+		total_needed = (min(level + 1, BTRFS_MAX_LEVEL)) * 6;
 	}
 	if (fill_prealloc) {
 		u64 first;
@@ -1300,6 +1300,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			ins->objectid;
 		ret = update_block_group(trans, root,
 					 ins->objectid, ins->offset, 1, 0, 0);
+		WARN_ON(info->extent_tree_insert_nr >
+			ARRAY_SIZE(info->extent_tree_insert));
 		BUG_ON(ret);
 		return 0;
 	}
@@ -1628,7 +1630,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (wret < 0)
 			ret = wret;
 		num_walks++;
-		if (num_walks > 10) {
+		if (num_walks > 2) {
 			ret = -EAGAIN;
 			get_bh(root->node);
 			break;

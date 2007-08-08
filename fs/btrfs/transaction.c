@@ -354,6 +354,7 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 				mutex_unlock(&info->fs_mutex);
 
 				btrfs_btree_balance_dirty(root);
+				cond_resched();
 
 				mutex_lock(&info->fs_mutex);
 				trans = btrfs_start_transaction(tree_root, 1);
@@ -394,6 +395,12 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 				ret = err;
 			ret = btrfs_end_transaction(trans, tree_root);
 			BUG_ON(ret);
+			mutex_unlock(&tree_root->fs_info->fs_mutex);
+
+			btrfs_btree_balance_dirty(tree_root);
+			schedule();
+
+			mutex_lock(&tree_root->fs_info->fs_mutex);
 		}
 		BUG_ON(ret);
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
@@ -406,6 +413,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
 		btrfs_btree_balance_dirty(tree_root);
+		schedule();
 	}
 	return ret;
 }

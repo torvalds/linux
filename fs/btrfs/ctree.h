@@ -300,9 +300,9 @@ struct btrfs_fs_info {
 	struct radix_tree_root block_group_data_radix;
 	struct radix_tree_root extent_map_radix;
 
-	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 3];
+	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 6];
 	int extent_tree_insert_nr;
-	u64 extent_tree_prealloc[BTRFS_MAX_LEVEL * 3];
+	u64 extent_tree_prealloc[BTRFS_MAX_LEVEL * 6];
 	int extent_tree_prealloc_nr;
 
 	u64 generation;
