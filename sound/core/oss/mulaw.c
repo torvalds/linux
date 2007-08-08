@@ -22,9 +22,6 @@
  */
   
 #include <sound/driver.h>
-
-#ifdef CONFIG_SND_PCM_OSS_PLUGINS
-
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -328,5 +325,3 @@ int snd_pcm_plugin_build_mulaw(struct snd_pcm_substream *plug,
 	*r_plugin = plugin;
 	return 0;
 }
-
-#endif
