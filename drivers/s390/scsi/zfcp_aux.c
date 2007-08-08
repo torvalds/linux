@@ -1503,7 +1503,7 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
 			data->ct.pool = pool;
 		}
 	} else {
-		data = kmalloc(sizeof(struct zfcp_gid_pn_data), GFP_ATOMIC);
+		data = kmem_cache_alloc(zfcp_data.gid_pn_cache, GFP_ATOMIC);
 	}
 
         if (NULL == data)
@@ -1531,7 +1531,7 @@ static void zfcp_gid_pn_buffers_free(struct zfcp_gid_pn_data *gid_pn)
 	if (gid_pn->ct.pool)
 		mempool_free(gid_pn, gid_pn->ct.pool);
 	else
-		kfree(gid_pn);
+		kmem_cache_free(zfcp_data.gid_pn_cache, gid_pn);
 }
 
 /**
