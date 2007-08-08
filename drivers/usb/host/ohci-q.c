@@ -74,6 +74,7 @@ __acquires(ohci->lock)
 #endif
 
 	/* urb->complete() can reenter this HCD */
+	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
 	usb_hcd_giveback_urb (ohci_to_hcd(ohci), urb);
 	spin_lock (&ohci->lock);

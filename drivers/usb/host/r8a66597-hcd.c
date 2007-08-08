@@ -784,6 +784,9 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		if (urb) {
 			urb->status = -ENODEV;
 			urb->hcpriv = NULL;
+			usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597),
+					urb);
+
 			spin_unlock(&r8a66597->lock);
 			usb_hcd_giveback_urb(r8a66597_to_hcd(r8a66597), urb);
 			spin_lock(&r8a66597->lock);
@@ -1131,6 +1134,8 @@ static void done(struct r8a66597 *r8a66597, struct r8a66597_td *td,
 			urb->start_frame = r8a66597_get_frame(hcd);
 
 		urb->hcpriv = NULL;
+		usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
+
 		spin_unlock(&r8a66597->lock);
 		usb_hcd_giveback_urb(hcd, urb);
 		spin_lock(&r8a66597->lock);
@@ -1722,20 +1727,24 @@ static struct r8a66597_td *r8a66597_make_td(struct r8a66597 *r8a66597,
 }
 
 static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
-				struct usb_host_endpoint *hep,
 				struct urb *urb,
 				gfp_t mem_flags)
 {
+	struct usb_host_endpoint *hep = urb->ep;
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
 	struct r8a66597_td *td = NULL;
-	int ret = 0, request = 0;
+	int ret, request = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&r8a66597->lock, flags);
 	if (!get_urb_to_r8a66597_dev(r8a66597, urb)) {
 		ret = -ENODEV;
-		goto error;
+		goto error_not_linked;
 	}
+
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret)
+		goto error_not_linked;
 
 	if (!hep->hcpriv) {
 		hep->hcpriv = kzalloc(sizeof(struct r8a66597_pipe),
@@ -1761,15 +1770,7 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 	if (list_empty(&r8a66597->pipe_queue[td->pipenum]))
 		request = 1;
 	list_add_tail(&td->queue, &r8a66597->pipe_queue[td->pipenum]);
-
-	spin_lock(&urb->lock);
-	if (urb->status != -EINPROGRESS) {
-		spin_unlock(&urb->lock);
-		ret = -EPIPE;
-		goto error;
-	}
 	urb->hcpriv = td;
-	spin_unlock(&urb->lock);
 
 	if (request) {
 		ret = start_transfer(r8a66597, td);
@@ -1781,17 +1782,26 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 		set_td_timer(r8a66597, td);
 
 error:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+error_not_linked:
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 	return ret;
 }
 
-static int r8a66597_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int r8a66597_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
+		int status)
 {
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
 	struct r8a66597_td *td;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&r8a66597->lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	if (urb->hcpriv) {
 		td = urb->hcpriv;
 		pipe_stop(r8a66597, td->pipe);
@@ -1799,8 +1809,9 @@ static int r8a66597_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 		disable_irq_empty(r8a66597, td->pipenum);
 		done(r8a66597, td, td->pipenum, urb);
 	}
+ done:
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
-	return 0;
+	return rc;
 }
 
 static void r8a66597_endpoint_disable(struct usb_hcd *hcd,

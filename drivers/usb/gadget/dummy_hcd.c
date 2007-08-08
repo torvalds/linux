@@ -962,13 +962,13 @@ static struct platform_driver dummy_udc_driver = {
 
 static int dummy_urb_enqueue (
 	struct usb_hcd			*hcd,
-	struct usb_host_endpoint	*ep,
 	struct urb			*urb,
 	gfp_t				mem_flags
 ) {
 	struct dummy	*dum;
 	struct urbp	*urbp;
 	unsigned long	flags;
+	int		rc;
 
 	if (!urb->transfer_buffer && urb->transfer_buffer_length)
 		return -EINVAL;
@@ -980,6 +980,11 @@ static int dummy_urb_enqueue (
 
 	dum = hcd_to_dummy (hcd);
 	spin_lock_irqsave (&dum->lock, flags);
+	rc = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (rc) {
+		kfree(urbp);
+		goto done;
+	}
 
 	if (!dum->udev) {
 		dum->udev = urb->dev;
@@ -997,22 +1002,28 @@ static int dummy_urb_enqueue (
 		mod_timer (&dum->timer, jiffies + 1);
 
 	spin_unlock_irqrestore (&dum->lock, flags);
-	return 0;
+ done:
+	return rc;
 }
 
-static int dummy_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
+static int dummy_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct dummy	*dum;
 	unsigned long	flags;
+	int		rc;
 
 	/* giveback happens automatically in timer callback,
 	 * so make sure the callback happens */
 	dum = hcd_to_dummy (hcd);
 	spin_lock_irqsave (&dum->lock, flags);
-	if (dum->rh_state != DUMMY_RH_RUNNING && !list_empty(&dum->urbp_list))
+
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (!rc && dum->rh_state != DUMMY_RH_RUNNING &&
+			!list_empty(&dum->urbp_list))
 		mod_timer (&dum->timer, jiffies);
+
 	spin_unlock_irqrestore (&dum->lock, flags);
-	return 0;
+	return rc;
 }
 
 static void maybe_set_status (struct urb *urb, int status)
@@ -1511,6 +1522,7 @@ return_urb:
 		if (ep)
 			ep->already_seen = ep->setup_stage = 0;
 
+		usb_hcd_unlink_urb_from_ep(dummy_to_hcd(dum), urb);
 		spin_unlock (&dum->lock);
 		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb);
 		spin_lock (&dum->lock);

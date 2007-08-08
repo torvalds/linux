@@ -1376,7 +1376,6 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 }
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
-		struct usb_host_endpoint *hep,
 		struct urb *urb, gfp_t mem_flags)
 {
 	int ret;
@@ -1387,19 +1386,19 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
-	ret = urb->status;
-	if (ret != -EINPROGRESS)		/* URB already unlinked! */
-		goto done;
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret)
+		goto done_not_linked;
 
 	ret = -ENOMEM;
 	urbp = uhci_alloc_urb_priv(uhci, urb);
 	if (!urbp)
 		goto done;
 
-	if (hep->hcpriv)
-		qh = (struct uhci_qh *) hep->hcpriv;
+	if (urb->ep->hcpriv)
+		qh = urb->ep->hcpriv;
 	else {
-		qh = uhci_alloc_qh(uhci, urb->dev, hep);
+		qh = uhci_alloc_qh(uhci, urb->dev, urb->ep);
 		if (!qh)
 			goto err_no_qh;
 	}
@@ -1440,27 +1439,29 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 err_submit_failed:
 	if (qh->state == QH_STATE_IDLE)
 		uhci_make_qh_idle(uhci, qh);	/* Reclaim unused QH */
-
 err_no_qh:
 	uhci_free_urb_priv(uhci, urbp);
-
 done:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+done_not_linked:
 	spin_unlock_irqrestore(&uhci->lock, flags);
 	return ret;
 }
 
-static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned long flags;
-	struct urb_priv *urbp;
 	struct uhci_qh *qh;
+	int rc;
 
 	spin_lock_irqsave(&uhci->lock, flags);
-	urbp = urb->hcpriv;
-	if (!urbp)			/* URB was never linked! */
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
 		goto done;
-	qh = urbp->qh;
+
+	qh = ((struct urb_priv *) urb->hcpriv)->qh;
 
 	/* Remove Isochronous TDs from the frame list ASAP */
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
@@ -1477,7 +1478,7 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 
 done:
 	spin_unlock_irqrestore(&uhci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*
@@ -1529,6 +1530,7 @@ __acquires(uhci->lock)
 	}
 
 	uhci_free_urb_priv(uhci, urbp);
+	usb_hcd_unlink_urb_from_ep(uhci_to_hcd(uhci), urb);
 
 	spin_unlock(&uhci->lock);
 	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);

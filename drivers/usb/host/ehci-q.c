@@ -262,6 +262,7 @@ __acquires(ehci->lock)
 #endif
 
 	/* complete() can reenter this HCD */
+	usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
 	spin_unlock (&ehci->lock);
 	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb);
 	spin_lock (&ehci->lock);
@@ -913,7 +914,6 @@ static struct ehci_qh *qh_append_tds (
 static int
 submit_async (
 	struct ehci_hcd		*ehci,
-	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
 	gfp_t			mem_flags
@@ -922,10 +922,10 @@ submit_async (
 	int			epnum;
 	unsigned long		flags;
 	struct ehci_qh		*qh = NULL;
-	int			rc = 0;
+	int			rc;
 
 	qtd = list_entry (qtd_list->next, struct ehci_qtd, qtd_list);
-	epnum = ep->desc.bEndpointAddress;
+	epnum = urb->ep->desc.bEndpointAddress;
 
 #ifdef EHCI_URB_TRACE
 	ehci_dbg (ehci,
@@ -933,7 +933,7 @@ submit_async (
 		__FUNCTION__, urb->dev->devpath, urb,
 		epnum & 0x0f, (epnum & USB_DIR_IN) ? "in" : "out",
 		urb->transfer_buffer_length,
-		qtd, ep->hcpriv);
+		qtd, urb->ep->hcpriv);
 #endif
 
 	spin_lock_irqsave (&ehci->lock, flags);
@@ -942,9 +942,13 @@ submit_async (
 		rc = -ESHUTDOWN;
 		goto done;
 	}
+	rc = usb_hcd_link_urb_to_ep(ehci_to_hcd(ehci), urb);
+	if (unlikely(rc))
+		goto done;
 
-	qh = qh_append_tds (ehci, urb, qtd_list, epnum, &ep->hcpriv);
+	qh = qh_append_tds(ehci, urb, qtd_list, epnum, &urb->ep->hcpriv);
 	if (unlikely(qh == NULL)) {
+		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
 		rc = -ENOMEM;
 		goto done;
 	}

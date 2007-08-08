@@ -189,11 +189,10 @@ struct hc_driver {
 	int	(*get_frame_number) (struct usb_hcd *hcd);
 
 	/* manage i/o requests, device state */
-	int	(*urb_enqueue) (struct usb_hcd *hcd,
-					struct usb_host_endpoint *ep,
-					struct urb *urb,
-					gfp_t mem_flags);
-	int	(*urb_dequeue) (struct usb_hcd *hcd, struct urb *urb);
+	int	(*urb_enqueue)(struct usb_hcd *hcd,
+				struct urb *urb, gfp_t mem_flags);
+	int	(*urb_dequeue)(struct usb_hcd *hcd,
+				struct urb *urb, int status);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
 	void 	(*endpoint_disable)(struct usb_hcd *hcd,
@@ -210,6 +209,11 @@ struct hc_driver {
 	void		(*hub_irq_enable)(struct usb_hcd *);
 		/* Needed only if port-change IRQs are level-triggered */
 };
+
+extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
+extern int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
+		int status);
+extern void usb_hcd_unlink_urb_from_ep(struct usb_hcd *hcd, struct urb *urb);
 
 extern int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags);
 extern int usb_hcd_unlink_urb (struct urb *urb, int status);

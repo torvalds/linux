@@ -719,7 +719,6 @@ dead:
  */
 static int ehci_urb_enqueue (
 	struct usb_hcd	*hcd,
-	struct usb_host_endpoint *ep,
 	struct urb	*urb,
 	gfp_t		mem_flags
 ) {
@@ -734,12 +733,12 @@ static int ehci_urb_enqueue (
 	default:
 		if (!qh_urb_transaction (ehci, urb, &qtd_list, mem_flags))
 			return -ENOMEM;
-		return submit_async (ehci, ep, urb, &qtd_list, mem_flags);
+		return submit_async(ehci, urb, &qtd_list, mem_flags);
 
 	case PIPE_INTERRUPT:
 		if (!qh_urb_transaction (ehci, urb, &qtd_list, mem_flags))
 			return -ENOMEM;
-		return intr_submit (ehci, ep, urb, &qtd_list, mem_flags);
+		return intr_submit(ehci, urb, &qtd_list, mem_flags);
 
 	case PIPE_ISOCHRONOUS:
 		if (urb->dev->speed == USB_SPEED_HIGH)
@@ -777,13 +776,18 @@ static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
  * completions normally happen asynchronously
  */
 
-static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
+static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	struct ehci_qh		*qh;
 	unsigned long		flags;
+	int			rc;
 
 	spin_lock_irqsave (&ehci->lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	switch (usb_pipetype (urb->pipe)) {
 	// case PIPE_CONTROL:
 	// case PIPE_BULK:
@@ -838,7 +842,7 @@ static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 	}
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/

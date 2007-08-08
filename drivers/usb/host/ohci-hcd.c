@@ -117,7 +117,6 @@ MODULE_PARM_DESC (no_handshake, "true (not default) disables BIOS handshake");
  */
 static int ohci_urb_enqueue (
 	struct usb_hcd	*hcd,
-	struct usb_host_endpoint *ep,
 	struct urb	*urb,
 	gfp_t		mem_flags
 ) {
@@ -134,7 +133,7 @@ static int ohci_urb_enqueue (
 #endif
 
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
-	if (! (ed = ed_get (ohci, ep, urb->dev, pipe, urb->interval)))
+	if (! (ed = ed_get (ohci, urb->ep, urb->dev, pipe, urb->interval)))
 		return -ENOMEM;
 
 	/* for the private part of the URB we need the number of TDs (size) */
@@ -199,22 +198,17 @@ static int ohci_urb_enqueue (
 		retval = -ENODEV;
 		goto fail;
 	}
-
-	/* in case of unlink-during-submit */
-	spin_lock (&urb->lock);
-	if (urb->status != -EINPROGRESS) {
-		spin_unlock (&urb->lock);
-		urb->hcpriv = urb_priv;
-		finish_urb (ohci, urb);
-		retval = 0;
+	retval = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (retval)
 		goto fail;
-	}
 
 	/* schedule the ed if needed */
 	if (ed->state == ED_IDLE) {
 		retval = ed_schedule (ohci, ed);
-		if (retval < 0)
-			goto fail0;
+		if (retval < 0) {
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
+			goto fail;
+		}
 		if (ed->type == PIPE_ISOCHRONOUS) {
 			u16	frame = ohci_frame_no(ohci);
 
@@ -238,8 +232,6 @@ static int ohci_urb_enqueue (
 	urb->hcpriv = urb_priv;
 	td_submit_urb (ohci, urb);
 
-fail0:
-	spin_unlock (&urb->lock);
 fail:
 	if (retval)
 		urb_free_priv (ohci, urb_priv);
@@ -253,17 +245,21 @@ fail:
  * asynchronously, and we might be dealing with an urb that's
  * partially transferred, or an ED with other urbs being unlinked.
  */
-static int ohci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
+static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	unsigned long		flags;
+	int			rc;
 
 #ifdef OHCI_VERBOSE_DEBUG
 	urb_print (urb, "UNLINK", 1);
 #endif
 
 	spin_lock_irqsave (&ohci->lock, flags);
-	if (HC_IS_RUNNING(hcd->state)) {
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc) {
+		;	/* Do nothing */
+	} else if (HC_IS_RUNNING(hcd->state)) {
 		urb_priv_t  *urb_priv;
 
 		/* Unless an IRQ completed the unlink while it was being
@@ -284,7 +280,7 @@ static int ohci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 			finish_urb (ohci, urb);
 	}
 	spin_unlock_irqrestore (&ohci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/

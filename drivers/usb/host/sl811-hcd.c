@@ -441,6 +441,7 @@ static void finish_request(
 	urb->hcpriv = NULL;
 	spin_unlock(&urb->lock);
 
+	usb_hcd_unlink_urb_from_ep(sl811_to_hcd(sl811), urb);
 	spin_unlock(&sl811->lock);
 	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb);
 	spin_lock(&sl811->lock);
@@ -807,7 +808,6 @@ static int balance(struct sl811 *sl811, u16 period, u16 load)
 
 static int sl811h_urb_enqueue(
 	struct usb_hcd		*hcd,
-	struct usb_host_endpoint *hep,
 	struct urb		*urb,
 	gfp_t			mem_flags
 ) {
@@ -820,7 +820,8 @@ static int sl811h_urb_enqueue(
 	struct sl811h_ep	*ep = NULL;
 	unsigned long		flags;
 	int			i;
-	int			retval = 0;
+	int			retval;
+	struct usb_host_endpoint	*hep = urb->ep;
 
 #ifdef	DISABLE_ISO
 	if (type == PIPE_ISOCHRONOUS)
@@ -838,7 +839,12 @@ static int sl811h_urb_enqueue(
 			|| !HC_IS_RUNNING(hcd->state)) {
 		retval = -ENODEV;
 		kfree(ep);
-		goto fail;
+		goto fail_not_linked;
+	}
+	retval = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (retval) {
+		kfree(ep);
+		goto fail_not_linked;
 	}
 
 	if (hep->hcpriv) {
@@ -965,23 +971,27 @@ static int sl811h_urb_enqueue(
 	start_transfer(sl811);
 	sl811_write(sl811, SL11H_IRQ_ENABLE, sl811->irq_enable);
 fail:
+	if (retval)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+fail_not_linked:
 	spin_unlock_irqrestore(&sl811->lock, flags);
 	return retval;
 }
 
-static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
 	struct usb_host_endpoint *hep;
 	unsigned long		flags;
 	struct sl811h_ep	*ep;
-	int			retval = 0;
+	int			retval;
 
 	spin_lock_irqsave(&sl811->lock, flags);
-	hep = urb->hcpriv;
-	if (!hep)
+	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (retval)
 		goto fail;
 
+	hep = urb->hcpriv;
 	ep = hep->hcpriv;
 	if (ep) {
 		/* finish right away if this urb can't be active ...
@@ -1029,8 +1039,8 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 			VDBG("dequeue, urb %p active %s; wait4irq\n", urb,
 				(sl811->active_a == ep) ? "A" : "B");
 	} else
-fail:
 		retval = -EINVAL;
+ fail:
 	spin_unlock_irqrestore(&sl811->lock, flags);
 	return retval;
 }

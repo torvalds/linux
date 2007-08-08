@@ -356,10 +356,16 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	const u8	*bufp = tbuf;
 	int		len = 0;
 	int		patch_wakeup = 0;
-	int		status = 0;
+	int		status;
 	int		n;
 
 	might_sleep();
+
+	spin_lock_irq(&hcd_root_hub_lock);
+	status = usb_hcd_link_urb_to_ep(hcd, urb);
+	spin_unlock_irq(&hcd_root_hub_lock);
+	if (status)
+		return status;
 
 	cmd = (struct usb_ctrlrequest *) urb->setup_packet;
 	typeReq  = (cmd->bRequestType << 8) | cmd->bRequest;
@@ -525,10 +531,9 @@ error:
 
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
-	spin_lock(&urb->lock);
 	if (urb->status == -EINPROGRESS)
 		urb->status = status;
-	spin_unlock(&urb->lock);
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 	/* This peculiar use of spinlocks echoes what real HC drivers do.
 	 * Avoiding calls to local_irq_disable/enable makes the code
@@ -571,26 +576,21 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 		spin_lock_irqsave(&hcd_root_hub_lock, flags);
 		urb = hcd->status_urb;
 		if (urb) {
-			spin_lock(&urb->lock);
-			if (urb->status == -EINPROGRESS) {
-				hcd->poll_pending = 0;
-				hcd->status_urb = NULL;
-				urb->status = 0;
-				urb->hcpriv = NULL;
-				urb->actual_length = length;
-				memcpy(urb->transfer_buffer, buffer, length);
-			} else		/* urb has been unlinked */
-				length = 0;
-			spin_unlock(&urb->lock);
+			hcd->poll_pending = 0;
+			hcd->status_urb = NULL;
+			urb->status = 0;
+			urb->hcpriv = NULL;
+			urb->actual_length = length;
+			memcpy(urb->transfer_buffer, buffer, length);
 
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb);
 			spin_lock(&hcd_root_hub_lock);
-		} else
+		} else {
 			length = 0;
-
-		if (length <= 0)
 			hcd->poll_pending = 1;
+		}
 		spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	}
 
@@ -619,24 +619,26 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 	int		len = 1 + (urb->dev->maxchild / 8);
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
-	if (urb->status != -EINPROGRESS)	/* already unlinked */
-		retval = urb->status;
-	else if (hcd->status_urb || urb->transfer_buffer_length < len) {
+	if (hcd->status_urb || urb->transfer_buffer_length < len) {
 		dev_dbg (hcd->self.controller, "not queuing rh status urb\n");
 		retval = -EINVAL;
-	} else {
-		hcd->status_urb = urb;
-		urb->hcpriv = hcd;	/* indicate it's queued */
-
-		if (!hcd->uses_new_polling)
-			mod_timer (&hcd->rh_timer,
-				(jiffies/(HZ/4) + 1) * (HZ/4));
-
-		/* If a status change has already occurred, report it ASAP */
-		else if (hcd->poll_pending)
-			mod_timer (&hcd->rh_timer, jiffies);
-		retval = 0;
+		goto done;
 	}
+
+	retval = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (retval)
+		goto done;
+
+	hcd->status_urb = urb;
+	urb->hcpriv = hcd;	/* indicate it's queued */
+	if (!hcd->uses_new_polling)
+		mod_timer(&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
+
+	/* If a status change has already occurred, report it ASAP */
+	else if (hcd->poll_pending)
+		mod_timer(&hcd->rh_timer, jiffies);
+	retval = 0;
+ done:
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 	return retval;
 }
@@ -655,11 +657,16 @@ static int rh_urb_enqueue (struct usb_hcd *hcd, struct urb *urb)
 /* Unlinks of root-hub control URBs are legal, but they don't do anything
  * since these URBs always execute synchronously.
  */
-static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
+static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	unsigned long	flags;
+	int		rc;
 
 	spin_lock_irqsave(&hcd_root_hub_lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	if (usb_endpoint_num(&urb->ep->desc) == 0) {	/* Control URB */
 		;	/* Do nothing */
 
@@ -669,14 +676,16 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
 			urb->hcpriv = NULL;
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb);
 			spin_lock(&hcd_root_hub_lock);
 		}
 	}
+ done:
 	spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
-	return 0;
+	return rc;
 }
 
 
@@ -977,12 +986,26 @@ EXPORT_SYMBOL (usb_calc_bus_time);
 
 /*-------------------------------------------------------------------------*/
 
-static int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
+/**
+ * usb_hcd_link_urb_to_ep - add an URB to its endpoint queue
+ * @hcd: host controller to which @urb was submitted
+ * @urb: URB being submitted
+ *
+ * Host controller drivers should call this routine in their enqueue()
+ * method.  The HCD's private spinlock must be held and interrupts must
+ * be disabled.  The actions carried out here are required for URB
+ * submission, as well as for endpoint shutdown and for usb_kill_urb.
+ *
+ * Returns 0 for no error, otherwise a negative error code (in which case
+ * the enqueue() method must fail).  If no error occurs but enqueue() fails
+ * anyway, it must call usb_hcd_unlink_urb_from_ep() before releasing
+ * the private spinlock and returning.
+ */
+int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
 {
-	unsigned long	flags;
 	int		rc = 0;
 
-	spin_lock_irqsave(&hcd_urb_list_lock, flags);
+	spin_lock(&hcd_urb_list_lock);
 
 	/* Check that the URB isn't being killed */
 	if (unlikely(urb->reject)) {
@@ -1009,48 +1032,48 @@ static int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
 		goto done;
 	}
  done:
-	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
+	spin_unlock(&hcd_urb_list_lock);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(usb_hcd_link_urb_to_ep);
 
-static int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
+/**
+ * usb_hcd_check_unlink_urb - check whether an URB may be unlinked
+ * @hcd: host controller to which @urb was submitted
+ * @urb: URB being checked for unlinkability
+ * @status: error code to store in @urb if the unlink succeeds
+ *
+ * Host controller drivers should call this routine in their dequeue()
+ * method.  The HCD's private spinlock must be held and interrupts must
+ * be disabled.  The actions carried out here are required for making
+ * sure than an unlink is valid.
+ *
+ * Returns 0 for no error, otherwise a negative error code (in which case
+ * the dequeue() method must fail).  The possible error codes are:
+ *
+ *	-EIDRM: @urb was not submitted or has already completed.
+ *		The completion function may not have been called yet.
+ *
+ *	-EBUSY: @urb has already been unlinked.
+ */
+int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 		int status)
 {
-	unsigned long		flags;
 	struct list_head	*tmp;
-	int			rc = 0;
-
-	/*
-	 * we contend for urb->status with the hcd core,
-	 * which changes it while returning the urb.
-	 *
-	 * Caller guaranteed that the urb pointer hasn't been freed, and
-	 * that it was submitted.  But as a rule it can't know whether or
-	 * not it's already been unlinked ... so we respect the reversed
-	 * lock sequence needed for the usb_hcd_giveback_urb() code paths
-	 * (urb lock, then hcd_urb_list_lock) in case some other CPU is now
-	 * unlinking it.
-	 */
-	spin_lock_irqsave(&urb->lock, flags);
-	spin_lock(&hcd_urb_list_lock);
 
 	/* insist the urb is still queued */
 	list_for_each(tmp, &urb->ep->urb_list) {
 		if (tmp == &urb->urb_list)
 			break;
 	}
-	if (tmp != &urb->urb_list) {
-		rc = -EIDRM;
-		goto done;
-	}
+	if (tmp != &urb->urb_list)
+		return -EIDRM;
 
 	/* Any status except -EINPROGRESS means something already started to
 	 * unlink this URB from the hardware.  So there's no more work to do.
 	 */
-	if (urb->status != -EINPROGRESS) {
-		rc = -EBUSY;
-		goto done;
-	}
+	if (urb->status != -EINPROGRESS)
+		return -EBUSY;
 	urb->status = status;
 
 	/* IRQ setup can easily be broken so that USB controllers
@@ -1065,21 +1088,28 @@ static int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 	}
 
- done:
-	spin_unlock(&hcd_urb_list_lock);
-	spin_unlock_irqrestore (&urb->lock, flags);
-	return rc;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_hcd_check_unlink_urb);
 
-static void usb_hcd_unlink_urb_from_ep(struct usb_hcd *hcd, struct urb *urb)
+/**
+ * usb_hcd_unlink_urb_from_ep - remove an URB from its endpoint queue
+ * @hcd: host controller to which @urb was submitted
+ * @urb: URB being unlinked
+ *
+ * Host controller drivers should call this routine before calling
+ * usb_hcd_giveback_urb().  The HCD's private spinlock must be held and
+ * interrupts must be disabled.  The actions carried out here are required
+ * for URB completion.
+ */
+void usb_hcd_unlink_urb_from_ep(struct usb_hcd *hcd, struct urb *urb)
 {
-	unsigned long		flags;
-
 	/* clear all state linking urb to this dev (and hcd) */
-	spin_lock_irqsave(&hcd_urb_list_lock, flags);
+	spin_lock(&hcd_urb_list_lock);
 	list_del_init(&urb->urb_list);
-	spin_unlock_irqrestore(&hcd_urb_list_lock, flags);
+	spin_unlock(&hcd_urb_list_lock);
 }
+EXPORT_SYMBOL_GPL(usb_hcd_unlink_urb_from_ep);
 
 static void map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
@@ -1153,20 +1183,15 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	 * URBs must be submitted in process context with interrupts
 	 * enabled.
 	 */
-	status = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (!status) {
-		map_urb_for_dma(hcd, urb);
-		if (is_root_hub(urb->dev))
-			status = rh_urb_enqueue(hcd, urb);
-		else
-			status = hcd->driver->urb_enqueue(hcd, urb->ep, urb,
-					mem_flags);
-	}
+	map_urb_for_dma(hcd, urb);
+	if (is_root_hub(urb->dev))
+		status = rh_urb_enqueue(hcd, urb);
+	else
+		status = hcd->driver->urb_enqueue(hcd, urb, mem_flags);
 
 	if (unlikely(status)) {
 		usbmon_urb_submit_error(&hcd->self, urb, status);
 		unmap_urb_for_dma(hcd, urb);
-		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		INIT_LIST_HEAD(&urb->urb_list);
 		atomic_dec(&urb->use_count);
 		if (urb->reject)
@@ -1183,24 +1208,19 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
  * soon as practical.  we've already set up the urb's return status,
  * but we can't know if the callback completed already.
  */
-static int
-unlink1 (struct usb_hcd *hcd, struct urb *urb)
+static int unlink1(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	int		value;
 
 	if (is_root_hub(urb->dev))
-		value = usb_rh_urb_dequeue (hcd, urb);
+		value = usb_rh_urb_dequeue(hcd, urb, status);
 	else {
 
 		/* The only reason an HCD might fail this call is if
 		 * it has not yet fully queued the urb to begin with.
 		 * Such failures should be harmless. */
-		value = hcd->driver->urb_dequeue (hcd, urb);
+		value = hcd->driver->urb_dequeue(hcd, urb, status);
 	}
-
-	if (value != 0)
-		dev_dbg (hcd->self.controller, "dequeue %p --> %d\n",
-				urb, value);
 	return value;
 }
 
@@ -1216,14 +1236,11 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 	int			retval;
 
 	hcd = bus_to_hcd(urb->dev->bus);
-
-	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
-	if (!retval)
-		retval = unlink1(hcd, urb);
+	retval = unlink1(hcd, urb, status);
 
 	if (retval == 0)
 		retval = -EINPROGRESS;
-	else if (retval != -EIDRM)
+	else if (retval != -EIDRM && retval != -EBUSY)
 		dev_dbg(&urb->dev->dev, "hcd_unlink_urb %p fail %d\n",
 				urb, retval);
 	return retval;
@@ -1245,7 +1262,6 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  */
 void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 {
-	usb_hcd_unlink_urb_from_ep(hcd, urb);
 	unmap_urb_for_dma(hcd, urb);
 	usbmon_urb_complete (&hcd->self, urb);
 	usb_unanchor_urb(urb);
@@ -1282,7 +1298,6 @@ void usb_hcd_endpoint_disable (struct usb_device *udev,
 rescan:
 	spin_lock_irq(&hcd_urb_list_lock);
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
-		int	tmp;
 		int	is_in;
 
 		/* the urb may already have been unlinked */
@@ -1292,34 +1307,26 @@ rescan:
 		is_in = usb_urb_dir_in(urb);
 		spin_unlock(&hcd_urb_list_lock);
 
-		spin_lock (&urb->lock);
-		tmp = urb->status;
-		if (tmp == -EINPROGRESS)
-			urb->status = -ESHUTDOWN;
-		spin_unlock (&urb->lock);
+		/* kick hcd */
+		unlink1(hcd, urb, -ESHUTDOWN);
+		dev_dbg (hcd->self.controller,
+			"shutdown urb %p ep%d%s%s\n",
+			urb, usb_endpoint_num(&ep->desc),
+			is_in ? "in" : "out",
+			({	char *s;
 
-		/* kick hcd unless it's already returning this */
-		if (tmp == -EINPROGRESS) {
-			unlink1 (hcd, urb);
-			dev_dbg (hcd->self.controller,
-				"shutdown urb %p ep%d%s%s\n",
-				urb, usb_endpoint_num(&ep->desc),
-				is_in ? "in" : "out",
-				({	char *s;
-
-					switch (usb_endpoint_type(&ep->desc)) {
-					case USB_ENDPOINT_XFER_CONTROL:
-						s = ""; break;
-					case USB_ENDPOINT_XFER_BULK:
-						s = "-bulk"; break;
-					case USB_ENDPOINT_XFER_INT:
-						s = "-intr"; break;
-					default:
-				 		s = "-iso"; break;
-					};
-					s;
-				}));
-		}
+				 switch (usb_endpoint_type(&ep->desc)) {
+				 case USB_ENDPOINT_XFER_CONTROL:
+					s = ""; break;
+				 case USB_ENDPOINT_XFER_BULK:
+					s = "-bulk"; break;
+				 case USB_ENDPOINT_XFER_INT:
+					s = "-intr"; break;
+				 default:
+			 		s = "-iso"; break;
+				};
+				s;
+			}));
 		usb_put_urb (urb);
 
 		/* list contents may have changed */
