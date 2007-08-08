@@ -64,8 +64,6 @@ volatile int error_log_cnt = 0;
  */
 static unsigned char logdata[RTAS_ERROR_LOG_MAX];
 
-static int get_eventscan_parms(void);
-
 static char *rtas_type[] = {
 	"Unknown", "Retry", "TCE Error", "Internal Device Failure",
 	"Timeout", "Data Parity", "Address Parity", "Cache Parity",
@@ -169,9 +167,9 @@ static int log_rtas_len(char * buf)
 		len += err->extended_log_length;
 	}
 
-	if (rtas_error_log_max == 0) {
-		get_eventscan_parms();
-	}
+	if (rtas_error_log_max == 0)
+		rtas_error_log_max = rtas_get_error_log_max();
+
 	if (len > rtas_error_log_max)
 		len = rtas_error_log_max;
 
@@ -359,22 +357,6 @@ static int enable_surveillance(int timeout)
 	return -1;
 }
 
-static int get_eventscan_parms(void)
-{
-	rtas_event_scan_rate = rtas_token("rtas-event-scan-rate");
-	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "rtasd: no rtas-event-scan-rate\n");
-		return -1;
-	}
-	DEBUG("rtas-event-scan-rate %d\n", rtas_event_scan_rate);
-
-	/* Make room for the sequence number */
-	rtas_error_log_max = rtas_get_error_log_max();
-	rtas_error_log_buffer_max = rtas_error_log_max + sizeof(int);
-
-	return 0;
-}
-
 static void do_event_scan(void)
 {
 	int error;
@@ -424,22 +406,11 @@ static int rtasd(void *unused)
 
 	daemonize("rtasd");
 
-	if (get_eventscan_parms() == -1)
-		goto error;
-
-	rtas_log_buf = vmalloc(rtas_error_log_buffer_max*LOG_NUMBER);
-	if (!rtas_log_buf) {
-		printk(KERN_ERR "rtasd: no memory\n");
-		goto error;
-	}
-
 	printk(KERN_DEBUG "RTAS daemon started\n");
-
 	DEBUG("will sleep for %d milliseconds\n", (30000/rtas_event_scan_rate));
 
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
-
 	rc = nvram_read_error_log(logdata, rtas_error_log_max, &err_type);
 
 	/* We can use rtas_log_buf now */
@@ -466,8 +437,6 @@ static int rtasd(void *unused)
 	for (;;)
 		do_event_scan_all_cpus(30000/rtas_event_scan_rate);
 
-error:
-	/* Should delete proc entries */
 	return -EINVAL;
 }
 
@@ -483,6 +452,22 @@ static int __init rtas_init(void)
 	if (event_scan == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_DEBUG "rtasd: no event-scan on system\n");
 		return -ENODEV;
+	}
+
+	rtas_event_scan_rate = rtas_token("rtas-event-scan-rate");
+	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
+		printk(KERN_ERR "rtasd: no rtas-event-scan-rate on system\n");
+		return -ENODEV;
+	}
+
+	/* Make room for the sequence number */
+	rtas_error_log_max = rtas_get_error_log_max();
+	rtas_error_log_buffer_max = rtas_error_log_max + sizeof(int);
+
+	rtas_log_buf = vmalloc(rtas_error_log_buffer_max*LOG_NUMBER);
+	if (!rtas_log_buf) {
+		printk(KERN_ERR "rtasd: no memory\n");
+		return -ENOMEM;
 	}
 
 	entry = create_proc_entry("ppc64/rtas/error_log", S_IRUSR, NULL);
