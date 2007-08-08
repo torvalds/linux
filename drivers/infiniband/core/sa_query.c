@@ -123,14 +123,10 @@ static u32 tid;
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field path_rec_table[] = {
-	{ RESERVED,
+	{ PATH_REC_FIELD(service_id),
 	  .offset_words = 0,
 	  .offset_bits  = 0,
-	  .size_bits    = 32 },
-	{ RESERVED,
-	  .offset_words = 1,
-	  .offset_bits  = 0,
-	  .size_bits    = 32 },
+	  .size_bits    = 64 },
 	{ PATH_REC_FIELD(dgid),
 	  .offset_words = 2,
 	  .offset_bits  = 0,
@@ -179,7 +175,7 @@ static const struct ib_field path_rec_table[] = {
 	  .offset_words = 12,
 	  .offset_bits  = 16,
 	  .size_bits    = 16 },
-	{ RESERVED,
+	{ PATH_REC_FIELD(qos_class),
 	  .offset_words = 13,
 	  .offset_bits  = 0,
 	  .size_bits    = 12 },
