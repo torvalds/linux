@@ -391,6 +391,10 @@ config SH_LBOX_RE2
 	help
 	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
+config SH_X3PROTO
+	bool "SH-X3 Prototype board"
+	depends on CPU_SUBTYPE_SHX3
+
 endmenu
 
 source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
