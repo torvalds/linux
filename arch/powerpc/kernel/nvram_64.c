@@ -34,11 +34,6 @@
 
 #undef DEBUG_NVRAM
 
-static int nvram_scan_partitions(void);
-static int nvram_setup_partition(void);
-static int nvram_create_os_partition(void);
-static int nvram_remove_os_partition(void);
-
 static struct nvram_partition * nvram_part;
 static long nvram_error_log_index = -1;
 static long nvram_error_log_size = 0;
