@@ -1316,18 +1316,18 @@ static int rtl8139_open (struct net_device *dev)
 	if (retval)
 		return retval;
 
-	tp->tx_bufs = pci_alloc_consistent(tp->pci_dev, TX_BUF_TOT_LEN,
-					   &tp->tx_bufs_dma);
-	tp->rx_ring = pci_alloc_consistent(tp->pci_dev, RX_BUF_TOT_LEN,
-					   &tp->rx_ring_dma);
+	tp->tx_bufs = dma_alloc_coherent(&tp->pci_dev->dev, TX_BUF_TOT_LEN,
+					   &tp->tx_bufs_dma, GFP_KERNEL);
+	tp->rx_ring = dma_alloc_coherent(&tp->pci_dev->dev, RX_BUF_TOT_LEN,
+					   &tp->rx_ring_dma, GFP_KERNEL);
 	if (tp->tx_bufs == NULL || tp->rx_ring == NULL) {
 		free_irq(dev->irq, dev);
 
 		if (tp->tx_bufs)
-			pci_free_consistent(tp->pci_dev, TX_BUF_TOT_LEN,
+			dma_free_coherent(&tp->pci_dev->dev, TX_BUF_TOT_LEN,
 					    tp->tx_bufs, tp->tx_bufs_dma);
 		if (tp->rx_ring)
-			pci_free_consistent(tp->pci_dev, RX_BUF_TOT_LEN,
+			dma_free_coherent(&tp->pci_dev->dev, RX_BUF_TOT_LEN,
 					    tp->rx_ring, tp->rx_ring_dma);
 
 		return -ENOMEM;
@@ -2246,10 +2246,10 @@ static int rtl8139_close (struct net_device *dev)
 
 	rtl8139_tx_clear (tp);
 
-	pci_free_consistent(tp->pci_dev, RX_BUF_TOT_LEN,
-			    tp->rx_ring, tp->rx_ring_dma);
-	pci_free_consistent(tp->pci_dev, TX_BUF_TOT_LEN,
-			    tp->tx_bufs, tp->tx_bufs_dma);
+	dma_free_coherent(&tp->pci_dev->dev, RX_BUF_TOT_LEN,
+			  tp->rx_ring, tp->rx_ring_dma);
+	dma_free_coherent(&tp->pci_dev->dev, TX_BUF_TOT_LEN,
+			  tp->tx_bufs, tp->tx_bufs_dma);
 	tp->rx_ring = NULL;
 	tp->tx_bufs = NULL;
 
