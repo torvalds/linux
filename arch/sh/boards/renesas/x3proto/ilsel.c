@@ -140,12 +140,12 @@ void ilsel_disable(unsigned int irq)
 	unsigned long addr;
 	unsigned int tmp;
 
-	addr = mk_ilsel_addr(bit);
+	addr = mk_ilsel_addr(irq);
 
 	tmp = ctrl_inw(addr);
-	tmp &= ~(0xf << mk_ilsel_shift(bit));
+	tmp &= ~(0xf << mk_ilsel_shift(irq));
 	ctrl_outw(tmp, addr);
 
-	clear_bit(bit, &ilsel_level_map);
+	clear_bit(irq, &ilsel_level_map);
 }
 EXPORT_SYMBOL_GPL(ilsel_disable);
