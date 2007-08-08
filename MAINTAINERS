@@ -2567,6 +2567,12 @@ M:	drzeus-mmc@drzeus.cx
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MULTIMEDIA CARD (MMC) ETC. OVER SPI
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
+L:	linux-kernel@vger.kernel.org
+S:	Odd fixes
+
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
 M:	andrewtv@usa.net

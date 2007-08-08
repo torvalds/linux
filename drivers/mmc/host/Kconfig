@@ -100,3 +100,16 @@ config MMC_TIFM_SD
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
 
+config MMC_SPI
+	tristate "MMC/SD over SPI (EXPERIMENTAL)"
+	depends on MMC && SPI_MASTER && !HIGHMEM && EXPERIMENTAL
+	select CRC7
+	select CRC_ITU_T
+	help
+	  Some systems accss MMC/SD cards using a SPI controller instead of
+	  using a "native" MMC/SD controller.  This has a disadvantage of
+	  being relatively high overhead, but a compensating advantage of
+	  working on many systems without dedicated MMC/SD controllers.
+
+	  If unsure, or if your system has no SPI master driver, say N.
+
