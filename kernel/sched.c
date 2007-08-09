@@ -1949,8 +1949,6 @@ static void update_cpu_load(struct rq *this_rq)
 	struct load_stat *ls = &this_rq->ls;
 	int i, scale;
 
-	__update_rq_clock(this_rq);
-
 	this_rq->nr_load_updates++;
 	if (unlikely(!(sysctl_sched_features & SCHED_FEAT_PRECISE_CPU_LOAD)))
 		goto do_avg;
@@ -3301,6 +3299,7 @@ void scheduler_tick(void)
 	struct task_struct *curr = rq->curr;
 
 	spin_lock(&rq->lock);
+	__update_rq_clock(rq);
 	update_cpu_load(rq);
 	if (curr != rq->idle) /* FIXME: needed? */
 		curr->sched_class->task_tick(rq, curr);
