@@ -225,8 +225,8 @@ static int macrisc_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops macrisc_pci_ops =
 {
-	macrisc_read_config,
-	macrisc_write_config
+	.read = macrisc_read_config,
+	.write = macrisc_write_config,
 };
 
 #ifdef CONFIG_PPC32
@@ -280,8 +280,8 @@ chaos_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops chaos_pci_ops =
 {
-	chaos_read_config,
-	chaos_write_config
+	.read = chaos_read_config,
+	.write = chaos_write_config,
 };
 
 static void __init setup_chaos(struct pci_controller *hose,
@@ -456,8 +456,8 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops u3_ht_pci_ops =
 {
-	u3_ht_read_config,
-	u3_ht_write_config
+	.read = u3_ht_read_config,
+	.write = u3_ht_write_config,
 };
 
 #define U4_PCIE_CFA0(devfn, off)	\
@@ -561,8 +561,8 @@ static int u4_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops u4_pcie_pci_ops =
 {
-	u4_pcie_read_config,
-	u4_pcie_write_config
+	.read = u4_pcie_read_config,
+	.write = u4_pcie_write_config,
 };
 
 #endif /* CONFIG_PPC64 */
