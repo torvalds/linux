@@ -853,8 +853,7 @@ static void enqueue_task(struct rq *rq, struct task_struct *p, int wakeup)
 	p->se.on_rq = 1;
 }
 
-static void
-dequeue_task(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+static void dequeue_task(struct rq *rq, struct task_struct *p, int sleep)
 {
 	p->sched_class->dequeue_task(rq, p, sleep);
 	p->se.on_rq = 0;
@@ -949,7 +948,7 @@ deactivate_task(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 
-	dequeue_task(rq, p, sleep, now);
+	dequeue_task(rq, p, sleep);
 	dec_nr_running(p, rq);
 }
 
@@ -3922,7 +3921,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	oldprio = p->prio;
 	on_rq = p->se.on_rq;
 	if (on_rq)
-		dequeue_task(rq, p, 0, now);
+		dequeue_task(rq, p, 0);
 
 	if (rt_prio(prio))
 		p->sched_class = &rt_sched_class;
@@ -3978,7 +3977,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	}
 	on_rq = p->se.on_rq;
 	if (on_rq) {
-		dequeue_task(rq, p, 0, now);
+		dequeue_task(rq, p, 0);
 		dec_load(rq, p);
 	}
 
