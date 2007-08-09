@@ -78,8 +78,8 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops rtas_pci_ops = {
-	rtas_read_config,
-	rtas_write_config
+	.read = rtas_read_config,
+	.write = rtas_write_config,
 };
 
 
