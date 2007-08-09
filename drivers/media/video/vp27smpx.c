@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007 Hans Verkuil <hverkuil@xs4all.nl>
  *
- * Special thanks to Kazz for the i2c data.
+ * Based on a tvaudio patch from Kazuhiko Kawakami <kazz-0@mail.goo.ne.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
