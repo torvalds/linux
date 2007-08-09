@@ -117,7 +117,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	struct mmc_host *host = card->host;
 	u64 limit = BLK_BOUNCE_HIGH;
 	int ret;
-	unsigned int bouncesz;
 
 	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
 		limit = *mmc_dev(host)->dma_mask;
@@ -134,6 +133,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 #ifdef CONFIG_MMC_BLOCK_BOUNCE
 	if (host->max_hw_segs == 1) {
+		unsigned int bouncesz;
+
 		bouncesz = MMC_QUEUE_BOUNCESZ;
 
 		if (bouncesz > host->max_req_size)
@@ -156,14 +157,14 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 				GFP_KERNEL);
 			if (!mq->sg) {
 				ret = -ENOMEM;
-				goto free_bounce_buf;
+				goto cleanup_queue;
 			}
 
 			mq->bounce_sg = kmalloc(sizeof(struct scatterlist) *
 				bouncesz / 512, GFP_KERNEL);
 			if (!mq->bounce_sg) {
 				ret = -ENOMEM;
-				goto free_sg;
+				goto cleanup_queue;
 			}
 		}
 	}
@@ -197,14 +198,13 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
  	if (mq->bounce_sg)
  		kfree(mq->bounce_sg);
  	mq->bounce_sg = NULL;
- free_sg:
-	kfree(mq->sg);
+ cleanup_queue:
+ 	if (mq->sg)
+		kfree(mq->sg);
 	mq->sg = NULL;
- free_bounce_buf:
 	if (mq->bounce_buf)
 		kfree(mq->bounce_buf);
 	mq->bounce_buf = NULL;
- cleanup_queue:
 	blk_cleanup_queue(mq->queue);
 	return ret;
 }
