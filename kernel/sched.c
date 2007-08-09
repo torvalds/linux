@@ -846,8 +846,7 @@ static void set_load_weight(struct task_struct *p)
 	p->se.load.inv_weight = prio_to_wmult[p->static_prio - MAX_RT_PRIO];
 }
 
-static void
-enqueue_task(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
+static void enqueue_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	sched_info_queued(p);
 	p->sched_class->enqueue_task(rq, p, wakeup);
@@ -920,7 +919,7 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
 
-	enqueue_task(rq, p, wakeup, now);
+	enqueue_task(rq, p, wakeup);
 	inc_nr_running(p, rq);
 }
 
@@ -937,7 +936,7 @@ static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
 
-	enqueue_task(rq, p, 0, now);
+	enqueue_task(rq, p, 0);
 	inc_nr_running(p, rq);
 }
 
@@ -3933,7 +3932,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	p->prio = prio;
 
 	if (on_rq) {
-		enqueue_task(rq, p, 0, now);
+		enqueue_task(rq, p, 0);
 		/*
 		 * Reschedule if we are currently running on this runqueue and
 		 * our priority decreased, or if we are not currently running on
@@ -3990,7 +3989,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	delta = p->prio - old_prio;
 
 	if (on_rq) {
-		enqueue_task(rq, p, 0, now);
+		enqueue_task(rq, p, 0);
 		inc_load(rq, p);
 		/*
 		 * If the task increased its priority or is running and
