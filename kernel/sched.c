@@ -2231,32 +2231,49 @@ out:
 }
 
 /*
- * move_tasks tries to move up to max_nr_move tasks and max_load_move weighted
- * load from busiest to this_rq, as part of a balancing operation within
- * "domain". Returns the number of tasks moved.
+ * move_tasks tries to move up to max_load_move weighted load from busiest to
+ * this_rq, as part of a balancing operation within domain "sd".
+ * Returns 1 if successful and 0 otherwise.
  *
  * Called with both runqueues locked.
  */
 static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		      unsigned long max_nr_move, unsigned long max_load_move,
+		      unsigned long max_load_move,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned)
 {
 	struct sched_class *class = sched_class_highest;
-	unsigned long load_moved, total_nr_moved = 0, nr_moved;
-	long rem_load_move = max_load_move;
+	unsigned long total_load_moved = 0;
 
 	do {
-		nr_moved = class->load_balance(this_rq, this_cpu, busiest,
-				max_nr_move, (unsigned long)rem_load_move,
-				sd, idle, all_pinned, &load_moved);
-		total_nr_moved += nr_moved;
-		max_nr_move -= nr_moved;
-		rem_load_move -= load_moved;
+		total_load_moved +=
+			class->load_balance(this_rq, this_cpu, busiest,
+				ULONG_MAX, max_load_move - total_load_moved,
+				sd, idle, all_pinned);
 		class = class->next;
-	} while (class && max_nr_move && rem_load_move > 0);
+	} while (class && max_load_move > total_load_moved);
 
-	return total_nr_moved;
+	return total_load_moved > 0;
+}
+
+/*
+ * move_one_task tries to move exactly one task from busiest to this_rq, as
+ * part of active balancing operations within "domain".
+ * Returns 1 if successful and 0 otherwise.
+ *
+ * Called with both runqueues locked.
+ */
+static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
+			 struct sched_domain *sd, enum cpu_idle_type idle)
+{
+	struct sched_class *class;
+
+	for (class = sched_class_highest; class; class = class->next)
+		if (class->load_balance(this_rq, this_cpu, busiest,
+					1, ULONG_MAX, sd, idle, NULL))
+			return 1;
+
+	return 0;
 }
 
 /*
@@ -2588,11 +2605,6 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
  */
 #define MAX_PINNED_INTERVAL	512
 
-static inline unsigned long minus_1_or_zero(unsigned long n)
-{
-	return n > 0 ? n - 1 : 0;
-}
-
 /*
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
@@ -2601,7 +2613,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 			struct sched_domain *sd, enum cpu_idle_type idle,
 			int *balance)
 {
-	int nr_moved, all_pinned = 0, active_balance = 0, sd_idle = 0;
+	int ld_moved, all_pinned = 0, active_balance = 0, sd_idle = 0;
 	struct sched_group *group;
 	unsigned long imbalance;
 	struct rq *busiest;
@@ -2642,18 +2654,17 @@ redo:
 
 	schedstat_add(sd, lb_imbalance[idle], imbalance);
 
-	nr_moved = 0;
+	ld_moved = 0;
 	if (busiest->nr_running > 1) {
 		/*
 		 * Attempt to move tasks. If find_busiest_group has found
 		 * an imbalance but busiest->nr_running <= 1, the group is
-		 * still unbalanced. nr_moved simply stays zero, so it is
+		 * still unbalanced. ld_moved simply stays zero, so it is
 		 * correctly treated as an imbalance.
 		 */
 		local_irq_save(flags);
 		double_rq_lock(this_rq, busiest);
-		nr_moved = move_tasks(this_rq, this_cpu, busiest,
-				      minus_1_or_zero(busiest->nr_running),
+		ld_moved = move_tasks(this_rq, this_cpu, busiest,
 				      imbalance, sd, idle, &all_pinned);
 		double_rq_unlock(this_rq, busiest);
 		local_irq_restore(flags);
@@ -2661,7 +2672,7 @@ redo:
 		/*
 		 * some other cpu did the load balance for us.
 		 */
-		if (nr_moved && this_cpu != smp_processor_id())
+		if (ld_moved && this_cpu != smp_processor_id())
 			resched_cpu(this_cpu);
 
 		/* All tasks on this runqueue were pinned by CPU affinity */
@@ -2673,7 +2684,7 @@ redo:
 		}
 	}
 
-	if (!nr_moved) {
+	if (!ld_moved) {
 		schedstat_inc(sd, lb_failed[idle]);
 		sd->nr_balance_failed++;
 
@@ -2722,10 +2733,10 @@ redo:
 			sd->balance_interval *= 2;
 	}
 
-	if (!nr_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
+	if (!ld_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		return -1;
-	return nr_moved;
+	return ld_moved;
 
 out_balanced:
 	schedstat_inc(sd, lb_balanced[idle]);
@@ -2757,7 +2768,7 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	struct sched_group *group;
 	struct rq *busiest = NULL;
 	unsigned long imbalance;
-	int nr_moved = 0;
+	int ld_moved = 0;
 	int sd_idle = 0;
 	int all_pinned = 0;
 	cpumask_t cpus = CPU_MASK_ALL;
@@ -2792,12 +2803,11 @@ redo:
 
 	schedstat_add(sd, lb_imbalance[CPU_NEWLY_IDLE], imbalance);
 
-	nr_moved = 0;
+	ld_moved = 0;
 	if (busiest->nr_running > 1) {
 		/* Attempt to move tasks */
 		double_lock_balance(this_rq, busiest);
-		nr_moved = move_tasks(this_rq, this_cpu, busiest,
-					minus_1_or_zero(busiest->nr_running),
+		ld_moved = move_tasks(this_rq, this_cpu, busiest,
 					imbalance, sd, CPU_NEWLY_IDLE,
 					&all_pinned);
 		spin_unlock(&busiest->lock);
@@ -2809,7 +2819,7 @@ redo:
 		}
 	}
 
-	if (!nr_moved) {
+	if (!ld_moved) {
 		schedstat_inc(sd, lb_failed[CPU_NEWLY_IDLE]);
 		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
 		    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
@@ -2817,7 +2827,7 @@ redo:
 	} else
 		sd->nr_balance_failed = 0;
 
-	return nr_moved;
+	return ld_moved;
 
 out_balanced:
 	schedstat_inc(sd, lb_balanced[CPU_NEWLY_IDLE]);
@@ -2905,8 +2915,8 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 	if (likely(sd)) {
 		schedstat_inc(sd, alb_cnt);
 
-		if (move_tasks(target_rq, target_cpu, busiest_rq, 1,
-			       ULONG_MAX, sd, CPU_IDLE, NULL))
+		if (move_one_task(target_rq, target_cpu, busiest_rq,
+				  sd, CPU_IDLE))
 			schedstat_inc(sd, alb_pushed);
 		else
 			schedstat_inc(sd, alb_failed);

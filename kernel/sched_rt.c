@@ -172,15 +172,16 @@ static struct task_struct *load_balance_next_rt(void *arg)
 	return p;
 }
 
-static int
+static unsigned long
 load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, unsigned long *load_moved)
+			int *all_pinned)
 {
 	int this_best_prio, best_prio, best_prio_seen = 0;
 	int nr_moved;
 	struct rq_iterator rt_rq_iterator;
+	unsigned long load_moved;
 
 	best_prio = sched_find_first_bit(busiest->rt.active.bitmap);
 	this_best_prio = sched_find_first_bit(this_rq->rt.active.bitmap);
@@ -203,11 +204,11 @@ load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	rt_rq_iterator.arg = busiest;
 
 	nr_moved = balance_tasks(this_rq, this_cpu, busiest, max_nr_move,
-			max_load_move, sd, idle, all_pinned, load_moved,
+			max_load_move, sd, idle, all_pinned, &load_moved,
 			this_best_prio, best_prio, best_prio_seen,
 			&rt_rq_iterator);
 
-	return nr_moved;
+	return load_moved;
 }
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)

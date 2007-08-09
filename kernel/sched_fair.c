@@ -944,11 +944,11 @@ static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
 	return p->prio;
 }
 
-static int
+static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, unsigned long *total_load_moved)
+			int *all_pinned)
 {
 	struct cfs_rq *busy_cfs_rq;
 	unsigned long load_moved, total_nr_moved = 0, nr_moved;
@@ -1006,9 +1006,7 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			break;
 	}
 
-	*total_load_moved = max_load_move - rem_load_move;
-
-	return total_nr_moved;
+	return max_load_move - rem_load_move;
 }
 
 /*
