@@ -782,8 +782,7 @@ static inline int is_same_group(struct task_struct *curr, struct task_struct *p)
  * increased. Here we update the fair scheduling stats and
  * then put the task into the rbtree:
  */
-static void
-enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
+static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;

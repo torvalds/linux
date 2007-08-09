@@ -25,8 +25,7 @@ static inline void update_curr_rt(struct rq *rq)
 	curr->se.exec_start = rq->clock;
 }
 
-static void
-enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
+static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 

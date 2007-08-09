@@ -855,8 +855,7 @@ struct sched_domain;
 struct sched_class {
 	struct sched_class *next;
 
-	void (*enqueue_task) (struct rq *rq, struct task_struct *p,
-			      int wakeup, u64 now);
+	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p,
 			      int sleep, u64 now);
 	void (*yield_task) (struct rq *rq, struct task_struct *p);

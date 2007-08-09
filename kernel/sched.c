@@ -852,7 +852,7 @@ static void
 enqueue_task(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
 {
 	sched_info_queued(p);
-	p->sched_class->enqueue_task(rq, p, wakeup, now);
+	p->sched_class->enqueue_task(rq, p, wakeup);
 	p->se.on_rq = 1;
 }
 
