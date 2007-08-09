@@ -624,7 +624,7 @@ __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 }
 
 static inline void
-set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	/*
 	 * Any task has to be enqueued before it get to execute on
@@ -642,7 +642,7 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq, u64 now)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
 
-	set_next_entity(cfs_rq, se, now);
+	set_next_entity(cfs_rq, se);
 
 	return se;
 }
@@ -1073,7 +1073,7 @@ static void set_curr_task_fair(struct rq *rq)
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		set_next_entity(cfs_rq, se, now);
+		set_next_entity(cfs_rq, se);
 	}
 }
 #else
