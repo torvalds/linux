@@ -1,8 +1,7 @@
-/* $Id: oplib.h,v 1.14 2001/12/19 00:29:51 davem Exp $
- * oplib.h:  Describes the interface and available routines in the
+/* oplib.h:  Describes the interface and available routines in the
  *           Linux Prom library.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
@@ -31,8 +30,10 @@ extern int prom_chosen_node;
 extern const char prom_peer_name[];
 extern const char prom_compatible_name[];
 extern const char prom_root_compatible[];
+extern const char prom_cpu_compatible[];
 extern const char prom_finddev_name[];
 extern const char prom_chosen_path[];
+extern const char prom_cpu_path[];
 extern const char prom_getprop_name[];
 extern const char prom_mmu_name[];
 extern const char prom_callmethod_name[];

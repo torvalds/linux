@@ -13,7 +13,7 @@
 #include <asm/fpumacro.h>
 #include <asm/cpudata.h>
 #include <asm/spitfire.h>
-#include <asm/prom.h>
+#include <asm/oplib.h>
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 
@@ -69,36 +69,24 @@ unsigned int fsr_storage;
 
 static void __init sun4v_cpu_probe(void)
 {
-	struct device_node *dp;
-	const char *compat;
-	int len;
-
-	dp = of_find_node_by_name(NULL, "cpu");
-	if (!dp)
-		goto no_compat;
-
-	compat = of_get_property(dp, "compatible", &len);
-	if (!compat)
-		goto no_compat;
-
-	if (of_find_in_proplist(compat, "SUNW,UltraSPARC-T1", len)) {
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_NIAGARA1:
 		sparc_cpu_type = "UltraSparc T1 (Niagara)";
 		sparc_fpu_type = "UltraSparc T1 integrated FPU";
-	} else if (of_find_in_proplist(compat, "SUNW,UltraSPARC-T2", len)) {
+		break;
+
+	case SUN4V_CHIP_NIAGARA2:
 		sparc_cpu_type = "UltraSparc T2 (Niagara2)";
 		sparc_fpu_type = "UltraSparc T2 integrated FPU";
-	} else
-		goto unknown;
+		break;
 
-	return;
-
-no_compat:
-	compat = "no property";
-
-unknown:
-	printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n", compat);
-	sparc_cpu_type = "Unknown SUN4V CPU";
-	sparc_fpu_type = "Unknown SUN4V FPU";
+	default:
+		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
+		       prom_cpu_compatible);
+		sparc_cpu_type = "Unknown SUN4V CPU";
+		sparc_fpu_type = "Unknown SUN4V FPU";
+		break;
+	}
 }
 
 void __init cpu_probe(void)
