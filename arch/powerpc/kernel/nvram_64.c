@@ -38,8 +38,6 @@ static struct nvram_partition * nvram_part;
 static long nvram_error_log_index = -1;
 static long nvram_error_log_size = 0;
 
-extern volatile int error_log_cnt;
-
 struct err_log_info {
 	int error_type;
 	unsigned int seq_num;
@@ -627,7 +625,8 @@ void __exit nvram_cleanup(void)
  * sequence #: The unique sequence # for each event. (until it wraps)
  * error log: The error log from event_scan
  */
-int nvram_write_error_log(char * buff, int length, unsigned int err_type)
+int nvram_write_error_log(char * buff, int length,
+                          unsigned int err_type, unsigned int error_log_cnt)
 {
 	int rc;
 	loff_t tmp_index;
@@ -665,7 +664,8 @@ int nvram_write_error_log(char * buff, int length, unsigned int err_type)
  *
  * Reads nvram for error log for at most 'length'
  */
-int nvram_read_error_log(char * buff, int length, unsigned int * err_type)
+int nvram_read_error_log(char * buff, int length,
+                         unsigned int * err_type, unsigned int * error_log_cnt)
 {
 	int rc;
 	loff_t tmp_index;
@@ -691,7 +691,7 @@ int nvram_read_error_log(char * buff, int length, unsigned int * err_type)
 		return rc;
 	}
 
-	error_log_cnt = info.seq_num;
+	*error_log_cnt = info.seq_num;
 	*err_type = info.error_type;
 
 	return 0;

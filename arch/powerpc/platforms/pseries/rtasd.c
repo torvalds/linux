@@ -56,7 +56,7 @@ static int full_rtas_msgs = 0;
 /* Stop logging to nvram after first fatal error */
 static int no_more_logging;
 
-volatile int error_log_cnt = 0;
+static int error_log_cnt;
 
 /*
  * Since we use 32 bit RTAS, the physical address of this must be below
@@ -218,7 +218,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 
 	/* Write error to NVRAM */
 	if (!no_more_logging && !(err_type & ERR_FLAG_BOOT))
-		nvram_write_error_log(buf, len, err_type);
+		nvram_write_error_log(buf, len, err_type, error_log_cnt);
 
 	/*
 	 * rtas errors can occur during boot, and we do want to capture
@@ -412,7 +412,8 @@ static int rtasd(void *unused)
 
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
-	rc = nvram_read_error_log(logdata, rtas_error_log_max, &err_type);
+	rc = nvram_read_error_log(logdata, rtas_error_log_max,
+	                          &err_type, &error_log_cnt);
 
 	if (!rc) {
 		if (err_type != ERR_FLAG_ALREADY_LOGGED) {
