@@ -281,7 +281,7 @@ add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
  * are not in our scheduling class.
  */
 static inline void
-__update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
+__update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	unsigned long delta, delta_exec, delta_fair, delta_mine;
 	struct load_weight *lw = &cfs_rq->load;
@@ -320,7 +320,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 	add_wait_runtime(cfs_rq, curr, delta_mine - delta_exec);
 }
 
-static void update_curr(struct cfs_rq *cfs_rq, u64 now)
+static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq_curr(cfs_rq);
 	unsigned long delta_exec;
@@ -338,7 +338,7 @@ static void update_curr(struct cfs_rq *cfs_rq, u64 now)
 	curr->delta_exec += delta_exec;
 
 	if (unlikely(curr->delta_exec > sysctl_sched_stat_granularity)) {
-		__update_curr(cfs_rq, curr, now);
+		__update_curr(cfs_rq, curr);
 		curr->delta_exec = 0;
 	}
 	curr->exec_start = rq_of(cfs_rq)->clock;
@@ -453,7 +453,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 static inline void
 update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
-	update_curr(cfs_rq, now);
+	update_curr(cfs_rq);
 	/*
 	 * Mark the end of the wait period if dequeueing a
 	 * waiting task:
@@ -579,7 +579,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	/*
 	 * Update the fair clock.
 	 */
-	update_curr(cfs_rq, now);
+	update_curr(cfs_rq);
 
 	if (wakeup)
 		enqueue_sleeper(cfs_rq, se, now);
@@ -660,7 +660,7 @@ put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev, u64 now)
 	 * was not called and update_curr() has to be done:
 	 */
 	if (prev->on_rq)
-		update_curr(cfs_rq, now);
+		update_curr(cfs_rq);
 
 	update_stats_curr_end(cfs_rq, prev, now);
 
@@ -851,7 +851,7 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
-		update_curr(cfs_rq, rq->clock);
+		update_curr(cfs_rq);
 		resched_task(curr);
 		return;
 	}
