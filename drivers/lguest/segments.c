@@ -43,22 +43,6 @@
  * begin.
  */
 
-/* Is the descriptor the Guest wants us to put in OK?
- *
- * The flag which Intel says must be zero: must be zero.  The descriptor must
- * be present, (this is actually checked earlier but is here for thorougness),
- * and the descriptor type must be 1 (a memory segment).  */
-static int desc_ok(const struct desc_struct *gdt)
-{
-	return ((gdt->b & 0x00209000) == 0x00009000);
-}
-
-/* Is the segment present?  (Otherwise it can't be used by the Guest). */
-static int segment_present(const struct desc_struct *gdt)
-{
-	return gdt->b & 0x8000;
-}
-
 /* There are several entries we don't let the Guest set.  The TSS entry is the
  * "Task State Segment" which controls all kinds of delicate things.  The
  * LGUEST_CS and LGUEST_DS entries are reserved for the Switcher, and the
@@ -71,37 +55,11 @@ static int ignored_gdt(unsigned int num)
 		|| num == GDT_ENTRY_DOUBLEFAULT_TSS);
 }
 
-/* If the Guest asks us to remove an entry from the GDT, we have to be careful.
- * If one of the segment registers is pointing at that entry the Switcher will
- * crash when it tries to reload the segment registers for the Guest.
- *
- * It doesn't make much sense for the Guest to try to remove its own code, data
- * or stack segments while they're in use: assume that's a Guest bug.  If it's
- * one of the lesser segment registers using the removed entry, we simply set
- * that register to 0 (unusable). */
-static void check_segment_use(struct lguest *lg, unsigned int desc)
-{
-	/* GDT entries are 8 bytes long, so we divide to get the index and
-	 * ignore the bottom bits. */
-	if (lg->regs->gs / 8 == desc)
-		lg->regs->gs = 0;
-	if (lg->regs->fs / 8 == desc)
-		lg->regs->fs = 0;
-	if (lg->regs->es / 8 == desc)
-		lg->regs->es = 0;
-	if (lg->regs->ds / 8 == desc
-	    || lg->regs->cs / 8 == desc
-	    || lg->regs->ss / 8 == desc)
-		kill_guest(lg, "Removed live GDT entry %u", desc);
-}
-/*:*/
-/*M:009 We wouldn't need to check for removal of in-use segments if we handled
- * faults in the Switcher.  However, it's probably not a worthwhile
- * optimization. :*/
-
-/*H:610 Once the GDT has been changed, we look through the changed entries and
- * see if they're OK.  If not, we'll call kill_guest() and the Guest will never
- * get to use the invalid entries. */
+/*H:610 Once the GDT has been changed, we fix the new entries up a little.  We
+ * don't care if they're invalid: the worst that can happen is a General
+ * Protection Fault in the Switcher when it restores a Guest segment register
+ * which tries to use that entry.  Then we kill the Guest for causing such a
+ * mess: the message will be "unhandled trap 256". */
 static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
 {
 	unsigned int i;
@@ -111,16 +69,6 @@ static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
 		 * they say */
 		if (ignored_gdt(i))
 			continue;
-
-		/* We could fault in switch_to_guest if they are using
-		 * a removed segment. */
-		if (!segment_present(&lg->gdt[i])) {
-			check_segment_use(lg, i);
-			continue;
-		}
-
-		if (!desc_ok(&lg->gdt[i]))
-			kill_guest(lg, "Bad GDT descriptor %i", i);
 
 		/* Segment descriptors contain a privilege level: the Guest is
 		 * sometimes careless and leaves this as 0, even though it's

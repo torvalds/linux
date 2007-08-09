@@ -453,6 +453,11 @@ static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
 	 * lguest_pages". */
 	copy_in_guest_info(lg, pages);
 
+	/* Set the trap number to 256 (impossible value).  If we fault while
+	 * switching to the Guest (bad segment registers or bug), this will
+	 * cause us to abort the Guest. */
+	lg->regs->trapnum = 256;
+
 	/* Now: we push the "eflags" register on the stack, then do an "lcall".
 	 * This is how we change from using the kernel code segment to using
 	 * the dedicated lguest code segment, as well as jumping into the

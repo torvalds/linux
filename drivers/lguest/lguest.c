@@ -323,9 +323,12 @@ static void lguest_write_gdt_entry(struct desc_struct *dt,
  * __thread variables).  So we have a hypercall specifically for this case. */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {
+	/* There's one problem which normal hardware doesn't have: the Host
+	 * can't handle us removing entries we're currently using.  So we clear
+	 * the GS register here: if it's needed it'll be reloaded anyway. */
+	loadsegment(gs, 0);
 	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
 }
-/*:*/
 
 /*G:038 That's enough excitement for now, back to ploughing through each of
  * the paravirt_ops (we're about 1/3 of the way through).
