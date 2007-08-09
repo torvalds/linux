@@ -106,7 +106,7 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 		(long long)wait_runtime_rq_sum);
 }
 
-void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
+void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
 	SEQ_printf(m, "\ncfs_rq %p\n", cfs_rq);
 
@@ -166,7 +166,7 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(cpu_load[4]);
 #undef P
 
-	print_cfs_stats(m, cpu, now);
+	print_cfs_stats(m, cpu);
 
 	print_rq(m, rq, cpu, now);
 }

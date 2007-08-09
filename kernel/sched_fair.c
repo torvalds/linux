@@ -1108,12 +1108,12 @@ struct sched_class fair_sched_class __read_mostly = {
 };
 
 #ifdef CONFIG_SCHED_DEBUG
-static void print_cfs_stats(struct seq_file *m, int cpu, u64 now)
+static void print_cfs_stats(struct seq_file *m, int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	struct cfs_rq *cfs_rq;
 
 	for_each_leaf_cfs_rq(rq, cfs_rq)
-		print_cfs_rq(m, cpu, cfs_rq, now);
+		print_cfs_rq(m, cpu, cfs_rq);
 }
 #endif
