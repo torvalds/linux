@@ -804,8 +804,7 @@ static inline void inc_load(struct rq *rq, const struct task_struct *p)
 	update_load_add(&rq->ls.load, p->se.load.weight);
 }
 
-static inline void
-dec_load(struct rq *rq, const struct task_struct *p, u64 now)
+static inline void dec_load(struct rq *rq, const struct task_struct *p)
 {
 	update_curr_load(rq);
 	update_load_sub(&rq->ls.load, p->se.load.weight);
@@ -820,7 +819,7 @@ static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
 static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
 {
 	rq->nr_running--;
-	dec_load(rq, p, now);
+	dec_load(rq, p);
 }
 
 static void set_load_weight(struct task_struct *p)
@@ -3981,7 +3980,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	on_rq = p->se.on_rq;
 	if (on_rq) {
 		dequeue_task(rq, p, 0, now);
-		dec_load(rq, p, now);
+		dec_load(rq, p);
 	}
 
 	p->static_prio = NICE_TO_PRIO(nice);
