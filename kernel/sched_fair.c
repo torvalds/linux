@@ -638,7 +638,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	set_cfs_rq_curr(cfs_rq, se);
 }
 
-static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq, u64 now)
+static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
 
@@ -871,7 +871,7 @@ static struct task_struct *pick_next_task_fair(struct rq *rq, u64 now)
 		return NULL;
 
 	do {
-		se = pick_next_entity(cfs_rq, now);
+		se = pick_next_entity(cfs_rq);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 
