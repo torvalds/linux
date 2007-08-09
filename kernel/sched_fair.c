@@ -345,7 +345,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 }
 
 static inline void
-update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	se->wait_start_fair = cfs_rq->fair_clock;
 	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
@@ -386,7 +386,7 @@ update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	 * a dequeue/enqueue event is a NOP)
 	 */
 	if (se != cfs_rq_curr(cfs_rq))
-		update_stats_wait_start(cfs_rq, se, now);
+		update_stats_wait_start(cfs_rq, se);
 	/*
 	 * Update the key:
 	 */
@@ -665,7 +665,7 @@ put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev, u64 now)
 	update_stats_curr_end(cfs_rq, prev, now);
 
 	if (prev->on_rq)
-		update_stats_wait_start(cfs_rq, prev, now);
+		update_stats_wait_start(cfs_rq, prev);
 	set_cfs_rq_curr(cfs_rq, NULL);
 }
 
