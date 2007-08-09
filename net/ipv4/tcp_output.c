@@ -739,7 +739,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 			/* Adjust Reno SACK estimate. */
 			if (!tp->rx_opt.sack_ok) {
 				tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
-				tcp_sync_left_out(tp);
+				tcp_verify_left_out(tp);
 			}
 
 			tcp_dec_pcount_approx_int(&tp->fackets_out, diff);
@@ -1774,7 +1774,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	if (!lost)
 		return;
 
-	tcp_sync_left_out(tp);
+	tcp_verify_left_out(tp);
 
 	/* Don't muck with the congestion window here.
 	 * Reason is that we do not increase amount of _data_
