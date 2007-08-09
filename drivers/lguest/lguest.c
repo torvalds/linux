@@ -687,7 +687,8 @@ static struct clocksource lguest_clock = {
 	.rating		= 400,
 	.read		= lguest_clock_read,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1,
+	.mult		= 1 << 22,
+	.shift		= 22,
 };
 
 /* The "scheduler clock" is just our real clock, adjusted to start at zero */
@@ -770,7 +771,6 @@ static void lguest_time_init(void)
 	 * way, the "rating" is initialized so high that it's always chosen
 	 * over any other clocksource. */
 	if (lguest_data.tsc_khz) {
-		lguest_clock.shift = 22;
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
 							 lguest_clock.shift);
 		lguest_clock.flags = CLOCK_SOURCE_IS_CONTINUOUS;
