@@ -942,8 +942,7 @@ static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 /*
  * deactivate_task - remove a task from the runqueue.
  */
-static void
-deactivate_task(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep)
 {
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
@@ -2128,7 +2127,7 @@ static void pull_task(struct rq *src_rq, struct task_struct *p,
 		      struct rq *this_rq, int this_cpu)
 {
 	update_rq_clock(src_rq);
-	deactivate_task(src_rq, p, 0, src_rq->clock);
+	deactivate_task(src_rq, p, 0);
 	set_task_cpu(p, this_cpu);
 	activate_task(this_rq, p, 0);
 	/*
@@ -3458,7 +3457,7 @@ need_resched_nonpreemptible:
 				unlikely(signal_pending(prev)))) {
 			prev->state = TASK_RUNNING;
 		} else {
-			deactivate_task(rq, prev, 1, now);
+			deactivate_task(rq, prev, 1);
 		}
 		switch_count = &prev->nvcsw;
 	}
@@ -4228,7 +4227,7 @@ recheck:
 	on_rq = p->se.on_rq;
 	if (on_rq) {
 		update_rq_clock(rq);
-		deactivate_task(rq, p, 0, rq->clock);
+		deactivate_task(rq, p, 0);
 	}
 	oldprio = p->prio;
 	__setscheduler(rq, p, policy, param->sched_priority);
@@ -4983,7 +4982,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	on_rq = p->se.on_rq;
 	if (on_rq) {
 		update_rq_clock(rq_src);
-		deactivate_task(rq_src, p, 0, rq_src->clock);
+		deactivate_task(rq_src, p, 0);
 	}
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
@@ -5404,7 +5403,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		/* Idle task back to normal (off runqueue, low prio) */
 		rq = task_rq_lock(rq->idle, &flags);
 		update_rq_clock(rq);
-		deactivate_task(rq, rq->idle, 0, rq->clock);
+		deactivate_task(rq, rq->idle, 0);
 		rq->idle->static_prio = MAX_PRIO;
 		__setscheduler(rq, rq->idle, SCHED_NORMAL, 0);
 		rq->idle->sched_class = &idle_sched_class;
@@ -6644,7 +6643,7 @@ void normalize_rt_tasks(void)
 		on_rq = p->se.on_rq;
 		if (on_rq) {
 			update_rq_clock(task_rq(p));
-			deactivate_task(task_rq(p), p, 0, task_rq(p)->clock);
+			deactivate_task(task_rq(p), p, 0);
 		}
 		__setscheduler(rq, p, SCHED_NORMAL, 0);
 		if (on_rq) {
