@@ -844,7 +844,8 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 	unsigned long gran;
 
 	if (unlikely(rt_prio(p->prio))) {
-		update_curr(cfs_rq, rq_clock(rq));
+		update_rq_clock(rq);
+		update_curr(cfs_rq, rq->clock);
 		resched_task(curr);
 		return;
 	}
@@ -1063,8 +1064,11 @@ static void set_curr_task_fair(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se;
-	u64 now = rq_clock(rq);
+	u64 now;
 	struct cfs_rq *cfs_rq;
+
+	update_rq_clock(rq);
+	now = rq->clock;
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);

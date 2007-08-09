@@ -927,7 +927,10 @@ static int effective_prio(struct task_struct *p)
  */
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
-	u64 now = rq_clock(rq);
+	u64 now;
+
+	update_rq_clock(rq);
+	now = rq->clock;
 
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
@@ -941,7 +944,10 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
  */
 static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 {
-	u64 now = rq_clock(rq);
+	u64 now;
+
+	update_rq_clock(rq);
+	now = rq->clock;
 
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
@@ -1664,7 +1670,8 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
 	this_cpu = smp_processor_id(); /* parent's CPU */
-	now = rq_clock(rq);
+	update_rq_clock(rq);
+	now = rq->clock;
 
 	p->prio = effective_prio(p);
 
@@ -2134,7 +2141,8 @@ void sched_exec(void)
 static void pull_task(struct rq *src_rq, struct task_struct *p,
 		      struct rq *this_rq, int this_cpu)
 {
-	deactivate_task(src_rq, p, 0, rq_clock(src_rq));
+	update_rq_clock(src_rq);
+	deactivate_task(src_rq, p, 0, src_rq->clock);
 	set_task_cpu(p, this_cpu);
 	activate_task(this_rq, p, 0);
 	/*
@@ -3221,7 +3229,8 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	rq = task_rq_lock(p, &flags);
 	ns = p->se.sum_exec_runtime;
 	if (rq->curr == p) {
-		delta_exec = rq_clock(rq) - p->se.exec_start;
+		update_rq_clock(rq);
+		delta_exec = rq->clock - p->se.exec_start;
 		if ((s64)delta_exec > 0)
 			ns += delta_exec;
 	}
@@ -3919,7 +3928,8 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	BUG_ON(prio < 0 || prio > MAX_PRIO);
 
 	rq = task_rq_lock(p, &flags);
-	now = rq_clock(rq);
+	update_rq_clock(rq);
+	now = rq->clock;
 
 	oldprio = p->prio;
 	on_rq = p->se.on_rq;
@@ -3966,7 +3976,8 @@ void set_user_nice(struct task_struct *p, long nice)
 	 * the task might be in the middle of scheduling on another CPU.
 	 */
 	rq = task_rq_lock(p, &flags);
-	now = rq_clock(rq);
+	update_rq_clock(rq);
+	now = rq->clock;
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
 	 * allow the 'normal' nice value to be set - but as expected
@@ -4228,8 +4239,10 @@ recheck:
 		goto recheck;
 	}
 	on_rq = p->se.on_rq;
-	if (on_rq)
-		deactivate_task(rq, p, 0, rq_clock(rq));
+	if (on_rq) {
+		update_rq_clock(rq);
+		deactivate_task(rq, p, 0, rq->clock);
+	}
 	oldprio = p->prio;
 	__setscheduler(rq, p, policy, param->sched_priority);
 	if (on_rq) {
@@ -4981,8 +4994,10 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		goto out;
 
 	on_rq = p->se.on_rq;
-	if (on_rq)
-		deactivate_task(rq_src, p, 0, rq_clock(rq_src));
+	if (on_rq) {
+		update_rq_clock(rq_src);
+		deactivate_task(rq_src, p, 0, rq_src->clock);
+	}
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
 		activate_task(rq_dest, p, 0);
@@ -5215,7 +5230,8 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 	for ( ; ; ) {
 		if (!rq->nr_running)
 			break;
-		next = pick_next_task(rq, rq->curr, rq_clock(rq));
+		update_rq_clock(rq);
+		next = pick_next_task(rq, rq->curr, rq->clock);
 		if (!next)
 			break;
 		migrate_dead(dead_cpu, next);
@@ -5400,7 +5416,8 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		rq->migration_thread = NULL;
 		/* Idle task back to normal (off runqueue, low prio) */
 		rq = task_rq_lock(rq->idle, &flags);
-		deactivate_task(rq, rq->idle, 0, rq_clock(rq));
+		update_rq_clock(rq);
+		deactivate_task(rq, rq->idle, 0, rq->clock);
 		rq->idle->static_prio = MAX_PRIO;
 		__setscheduler(rq, rq->idle, SCHED_NORMAL, 0);
 		rq->idle->sched_class = &idle_sched_class;
@@ -6638,8 +6655,10 @@ void normalize_rt_tasks(void)
 #endif
 
 		on_rq = p->se.on_rq;
-		if (on_rq)
-			deactivate_task(task_rq(p), p, 0, rq_clock(task_rq(p)));
+		if (on_rq) {
+			update_rq_clock(task_rq(p));
+			deactivate_task(task_rq(p), p, 0, task_rq(p)->clock);
+		}
 		__setscheduler(rq, p, SCHED_NORMAL, 0);
 		if (on_rq) {
 			activate_task(task_rq(p), p, 0);
