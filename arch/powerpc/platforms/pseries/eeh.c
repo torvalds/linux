@@ -955,7 +955,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	pdn->eeh_freeze_count = 0;
 	pdn->eeh_false_positives = 0;
 
-	if (status && strcmp(status, "ok") != 0)
+	if (status && strncmp(status, "ok", 2) != 0)
 		return NULL;	/* ignore devices with bad status */
 
 	/* Ignore bad nodes. */
