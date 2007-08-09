@@ -940,10 +940,9 @@ static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 /*
  * deactivate_task - remove a task from the runqueue.
  */
-static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep)
+static void
+deactivate_task(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 {
-	u64 now = rq_clock(rq);
-
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 
@@ -2122,7 +2121,7 @@ void sched_exec(void)
 static void pull_task(struct rq *src_rq, struct task_struct *p,
 		      struct rq *this_rq, int this_cpu)
 {
-	deactivate_task(src_rq, p, 0);
+	deactivate_task(src_rq, p, 0, rq_clock(src_rq));
 	set_task_cpu(p, this_cpu);
 	activate_task(this_rq, p, 0);
 	/*
@@ -3446,13 +3445,14 @@ need_resched_nonpreemptible:
 
 	spin_lock_irq(&rq->lock);
 	clear_tsk_need_resched(prev);
+	now = __rq_clock(rq);
 
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely((prev->state & TASK_INTERRUPTIBLE) &&
 				unlikely(signal_pending(prev)))) {
 			prev->state = TASK_RUNNING;
 		} else {
-			deactivate_task(rq, prev, 1);
+			deactivate_task(rq, prev, 1, now);
 		}
 		switch_count = &prev->nvcsw;
 	}
@@ -3460,7 +3460,6 @@ need_resched_nonpreemptible:
 	if (unlikely(!rq->nr_running))
 		idle_balance(cpu, rq);
 
-	now = __rq_clock(rq);
 	prev->sched_class->put_prev_task(rq, prev, now);
 	next = pick_next_task(rq, prev, now);
 
@@ -4220,7 +4219,7 @@ recheck:
 	}
 	on_rq = p->se.on_rq;
 	if (on_rq)
-		deactivate_task(rq, p, 0);
+		deactivate_task(rq, p, 0, rq_clock(rq));
 	oldprio = p->prio;
 	__setscheduler(rq, p, policy, param->sched_priority);
 	if (on_rq) {
@@ -4973,7 +4972,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 
 	on_rq = p->se.on_rq;
 	if (on_rq)
-		deactivate_task(rq_src, p, 0);
+		deactivate_task(rq_src, p, 0, rq_clock(rq_src));
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
 		activate_task(rq_dest, p, 0);
@@ -5387,7 +5386,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		rq->migration_thread = NULL;
 		/* Idle task back to normal (off runqueue, low prio) */
 		rq = task_rq_lock(rq->idle, &flags);
-		deactivate_task(rq, rq->idle, 0);
+		deactivate_task(rq, rq->idle, 0, rq_clock(rq));
 		rq->idle->static_prio = MAX_PRIO;
 		__setscheduler(rq, rq->idle, SCHED_NORMAL, 0);
 		rq->idle->sched_class = &idle_sched_class;
@@ -6626,7 +6625,7 @@ void normalize_rt_tasks(void)
 
 		on_rq = p->se.on_rq;
 		if (on_rq)
-			deactivate_task(task_rq(p), p, 0);
+			deactivate_task(task_rq(p), p, 0, rq_clock(task_rq(p)));
 		__setscheduler(rq, p, SCHED_NORMAL, 0);
 		if (on_rq) {
 			activate_task(task_rq(p), p, 0);
