@@ -1053,16 +1053,10 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
  */
 static void set_curr_task_fair(struct rq *rq)
 {
-	struct task_struct *curr = rq->curr;
-	struct sched_entity *se = &curr->se;
-	struct cfs_rq *cfs_rq;
+	struct sched_entity *se = &rq->curr.se;
 
-	update_rq_clock(rq);
-
-	for_each_sched_entity(se) {
-		cfs_rq = cfs_rq_of(se);
-		set_next_entity(cfs_rq, se);
-	}
+	for_each_sched_entity(se)
+		set_next_entity(cfs_rq_of(se), se);
 }
 #else
 static void set_curr_task_fair(struct rq *rq)
@@ -1093,10 +1087,9 @@ struct sched_class fair_sched_class __read_mostly = {
 #ifdef CONFIG_SCHED_DEBUG
 static void print_cfs_stats(struct seq_file *m, int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
 	struct cfs_rq *cfs_rq;
 
-	for_each_leaf_cfs_rq(rq, cfs_rq)
+	for_each_leaf_cfs_rq(cpu_rq(cpu), cfs_rq)
 		print_cfs_rq(m, cpu, cfs_rq);
 }
 #endif
