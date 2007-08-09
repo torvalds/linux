@@ -39,37 +39,6 @@
 
 #include "../pci.h"
 #include "pciehp.h"
-#ifdef DEBUG
-#define DBG_K_TRACE_ENTRY      ((unsigned int)0x00000001)	/* On function entry */
-#define DBG_K_TRACE_EXIT       ((unsigned int)0x00000002)	/* On function exit */
-#define DBG_K_INFO             ((unsigned int)0x00000004)	/* Info messages */
-#define DBG_K_ERROR            ((unsigned int)0x00000008)	/* Error messages */
-#define DBG_K_TRACE            (DBG_K_TRACE_ENTRY|DBG_K_TRACE_EXIT)
-#define DBG_K_STANDARD         (DBG_K_INFO|DBG_K_ERROR|DBG_K_TRACE)
-/* Redefine this flagword to set debug level */
-#define DEBUG_LEVEL            DBG_K_STANDARD
-
-#define DEFINE_DBG_BUFFER     char __dbg_str_buf[256];
-
-#define DBG_PRINT( dbg_flags, args... )              \
-	do {                                             \
-	  if ( DEBUG_LEVEL & ( dbg_flags ) )             \
-	  {                                              \
-	    int len;                                     \
-	    len = sprintf( __dbg_str_buf, "%s:%d: %s: ", \
-		  __FILE__, __LINE__, __FUNCTION__ );    \
-	    sprintf( __dbg_str_buf + len, args );        \
-	    printk( KERN_NOTICE "%s\n", __dbg_str_buf ); \
-	  }                                              \
-	} while (0)
-
-#define DBG_ENTER_ROUTINE	DBG_PRINT (DBG_K_TRACE_ENTRY, "%s", "[Entry]");
-#define DBG_LEAVE_ROUTINE	DBG_PRINT (DBG_K_TRACE_EXIT, "%s", "[Exit]");
-#else
-#define DEFINE_DBG_BUFFER
-#define DBG_ENTER_ROUTINE
-#define DBG_LEAVE_ROUTINE
-#endif				/* DEBUG */
 
 static atomic_t pciehp_num_controllers = ATOMIC_INIT(0);
 
@@ -221,8 +190,6 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define EMI_STATE		0x0080
 #define EMI_STATUS_BIT		7
 
-DEFINE_DBG_BUFFER		/* Debug string buffer for entire HPC defined here */
-
 static irqreturn_t pcie_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
 
@@ -230,8 +197,6 @@ static void start_int_poll_timer(struct controller *ctrl, int sec);
 static void int_poll_timeout(unsigned long data)
 {
 	struct controller *ctrl = (struct controller *)data;
-
-	DBG_ENTER_ROUTINE
 
 	/* Poll for interrupt events.  regs == NULL => polling */
 	pcie_isr(0, ctrl);
@@ -289,8 +254,6 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 	u16 slot_ctrl;
 	unsigned long flags;
 
-	DBG_ENTER_ROUTINE 
-
 	mutex_lock(&ctrl->ctrl_lock);
 
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
@@ -332,7 +295,6 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 		retval = pcie_wait_cmd(ctrl);
  out:
 	mutex_unlock(&ctrl->ctrl_lock);
-	DBG_LEAVE_ROUTINE 
 	return retval;
 }
 
@@ -340,8 +302,6 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
-
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readw(ctrl, LNKSTATUS, &lnk_status);
 	if (retval) {
@@ -357,7 +317,6 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 		return retval;
 	}
 
-	DBG_LEAVE_ROUTINE 
 	return retval;
 }
 
@@ -368,8 +327,6 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	u16 slot_ctrl;
 	u8 atten_led_state;
 	int retval = 0;
-	
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
 	if (retval) {
@@ -400,7 +357,6 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 		break;
 	}
 
-	DBG_LEAVE_ROUTINE 
 	return 0;
 }
 
@@ -410,8 +366,6 @@ static int hpc_get_power_status(struct slot *slot, u8 *status)
 	u16 slot_ctrl;
 	u8 pwr_state;
 	int	retval = 0;
-	
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
 	if (retval) {
@@ -435,7 +389,6 @@ static int hpc_get_power_status(struct slot *slot, u8 *status)
 		break;
 	}
 
-	DBG_LEAVE_ROUTINE 
 	return retval;
 }
 
@@ -446,8 +399,6 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 	u16 slot_status;
 	int retval = 0;
 
-	DBG_ENTER_ROUTINE 
-
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
 		err("%s: Cannot read SLOTSTATUS register\n", __FUNCTION__);
@@ -456,7 +407,6 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 
 	*status = (((slot_status & MRL_STATE) >> 5) == 0) ? 0 : 1;  
 
-	DBG_LEAVE_ROUTINE 
 	return 0;
 }
 
@@ -467,8 +417,6 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 	u8 card_state;
 	int retval = 0;
 
-	DBG_ENTER_ROUTINE 
-
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
 		err("%s: Cannot read SLOTSTATUS register\n", __FUNCTION__);
@@ -477,7 +425,6 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 	card_state = (u8)((slot_status & PRSN_STATE) >> 6);
 	*status = (card_state == 1) ? 1 : 0;
 
-	DBG_LEAVE_ROUTINE 
 	return 0;
 }
 
@@ -488,8 +435,6 @@ static int hpc_query_power_fault(struct slot *slot)
 	u8 pwr_fault;
 	int retval = 0;
 
-	DBG_ENTER_ROUTINE 
-
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
 		err("%s: Cannot check for power fault\n", __FUNCTION__);
@@ -497,7 +442,6 @@ static int hpc_query_power_fault(struct slot *slot)
 	}
 	pwr_fault = (u8)((slot_status & PWR_FAULT_DETECTED) >> 1);
 	
-	DBG_LEAVE_ROUTINE
 	return pwr_fault;
 }
 
@@ -507,8 +451,6 @@ static int hpc_get_emi_status(struct slot *slot, u8 *status)
 	u16 slot_status;
 	int retval = 0;
 
-	DBG_ENTER_ROUTINE
-
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
 		err("%s : Cannot check EMI status\n", __FUNCTION__);
@@ -516,7 +458,6 @@ static int hpc_get_emi_status(struct slot *slot, u8 *status)
 	}
 	*status = (slot_status & EMI_STATE) >> EMI_STATUS_BIT;
 
-	DBG_LEAVE_ROUTINE
 	return retval;
 }
 
@@ -525,8 +466,6 @@ static int hpc_toggle_emi(struct slot *slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int rc;
-
-	DBG_ENTER_ROUTINE
 
 	slot_cmd = EMI_CTRL;
 	cmd_mask = EMI_CTRL;
@@ -537,7 +476,7 @@ static int hpc_toggle_emi(struct slot *slot)
 
 	rc = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	slot->last_emi_toggle = get_seconds();
-	DBG_LEAVE_ROUTINE
+
 	return rc;
 }
 
@@ -547,8 +486,6 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int rc;
-
-	DBG_ENTER_ROUTINE
 
 	cmd_mask = ATTN_LED_CTRL;
 	switch (value) {
@@ -573,7 +510,6 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 	
-	DBG_LEAVE_ROUTINE
 	return rc;
 }
 
@@ -584,8 +520,6 @@ static void hpc_set_green_led_on(struct slot *slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
        	
-	DBG_ENTER_ROUTINE
-
 	slot_cmd = 0x0100;
 	cmd_mask = PWR_LED_CTRL;
 	if (!pciehp_poll_mode) {
@@ -597,8 +531,6 @@ static void hpc_set_green_led_on(struct slot *slot)
 
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-	DBG_LEAVE_ROUTINE
-	return;
 }
 
 static void hpc_set_green_led_off(struct slot *slot)
@@ -606,8 +538,6 @@ static void hpc_set_green_led_off(struct slot *slot)
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
-
-	DBG_ENTER_ROUTINE
 
 	slot_cmd = 0x0300;
 	cmd_mask = PWR_LED_CTRL;
@@ -619,9 +549,6 @@ static void hpc_set_green_led_off(struct slot *slot)
 	pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-
-	DBG_LEAVE_ROUTINE
-	return;
 }
 
 static void hpc_set_green_led_blink(struct slot *slot)
@@ -630,8 +557,6 @@ static void hpc_set_green_led_blink(struct slot *slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	
-	DBG_ENTER_ROUTINE
-
 	slot_cmd = 0x0200;
 	cmd_mask = PWR_LED_CTRL;
 	if (!pciehp_poll_mode) {
@@ -643,14 +568,10 @@ static void hpc_set_green_led_blink(struct slot *slot)
 
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-	DBG_LEAVE_ROUTINE
-	return;
 }
 
 static void hpc_release_ctlr(struct controller *ctrl)
 {
-	DBG_ENTER_ROUTINE 
-
 	if (pciehp_poll_mode)
 		del_timer(&ctrl->poll_timer);
 	else
@@ -662,8 +583,6 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	 */
 	if (atomic_dec_and_test(&pciehp_num_controllers))
 		destroy_workqueue(pciehp_wq);
-
-	DBG_LEAVE_ROUTINE
 }
 
 static int hpc_power_on_slot(struct slot * slot)
@@ -673,8 +592,6 @@ static int hpc_power_on_slot(struct slot * slot)
 	u16 cmd_mask;
 	u16 slot_status;
 	int retval = 0;
-
-	DBG_ENTER_ROUTINE 
 
 	dbg("%s: slot->hp_slot %x\n", __FUNCTION__, slot->hp_slot);
 
@@ -719,8 +636,6 @@ static int hpc_power_on_slot(struct slot * slot)
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 
-	DBG_LEAVE_ROUTINE
-
 	return retval;
 }
 
@@ -730,8 +645,6 @@ static int hpc_power_off_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int retval = 0;
-
-	DBG_ENTER_ROUTINE 
 
 	dbg("%s: slot->hp_slot %x\n", __FUNCTION__, slot->hp_slot);
 
@@ -763,8 +676,6 @@ static int hpc_power_off_slot(struct slot * slot)
 	}
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-
-	DBG_LEAVE_ROUTINE
 
 	return retval;
 }
@@ -915,8 +826,6 @@ static int hpc_get_max_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 	u32	lnk_cap;
 	int retval = 0;
 
-	DBG_ENTER_ROUTINE 
-
 	retval = pciehp_readl(ctrl, LNKCAP, &lnk_cap);
 	if (retval) {
 		err("%s: Cannot read LNKCAP register\n", __FUNCTION__);
@@ -934,7 +843,7 @@ static int hpc_get_max_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 
 	*value = lnk_speed;
 	dbg("Max link speed = %d\n", lnk_speed);
-	DBG_LEAVE_ROUTINE 
+
 	return retval;
 }
 
@@ -944,8 +853,6 @@ static int hpc_get_max_lnk_width (struct slot *slot, enum pcie_link_width *value
 	enum pcie_link_width lnk_wdth;
 	u32	lnk_cap;
 	int retval = 0;
-
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readl(ctrl, LNKCAP, &lnk_cap);
 	if (retval) {
@@ -985,7 +892,7 @@ static int hpc_get_max_lnk_width (struct slot *slot, enum pcie_link_width *value
 
 	*value = lnk_wdth;
 	dbg("Max link width = %d\n", lnk_wdth);
-	DBG_LEAVE_ROUTINE 
+
 	return retval;
 }
 
@@ -995,8 +902,6 @@ static int hpc_get_cur_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
 	int retval = 0;
 	u16 lnk_status;
-
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readw(ctrl, LNKSTATUS, &lnk_status);
 	if (retval) {
@@ -1015,7 +920,7 @@ static int hpc_get_cur_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 
 	*value = lnk_speed;
 	dbg("Current link speed = %d\n", lnk_speed);
-	DBG_LEAVE_ROUTINE 
+
 	return retval;
 }
 
@@ -1025,8 +930,6 @@ static int hpc_get_cur_lnk_width (struct slot *slot, enum pcie_link_width *value
 	enum pcie_link_width lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
 	int retval = 0;
 	u16 lnk_status;
-
-	DBG_ENTER_ROUTINE 
 
 	retval = pciehp_readw(ctrl, LNKSTATUS, &lnk_status);
 	if (retval) {
@@ -1066,7 +969,7 @@ static int hpc_get_cur_lnk_width (struct slot *slot, enum pcie_link_width *value
 
 	*value = lnk_wdth;
 	dbg("Current link width = %d\n", lnk_wdth);
-	DBG_LEAVE_ROUTINE 
+
 	return retval;
 }
 
@@ -1177,8 +1080,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	u16 slot_status, slot_ctrl;
 	struct pci_dev *pdev;
 
-	DBG_ENTER_ROUTINE
-	
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;	/* save pci_dev in context */
 
@@ -1376,7 +1277,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	ctrl->hpc_ops = &pciehp_hpc_ops;
 
-	DBG_LEAVE_ROUTINE
 	return 0;
 
 	/* We end up here for the many possible ways to fail this API.  */
@@ -1396,6 +1296,5 @@ abort_free_irq:
 		free_irq(ctrl->pci_dev->irq, ctrl);
 
 abort_free_ctlr:
-	DBG_LEAVE_ROUTINE
 	return -1;
 }
