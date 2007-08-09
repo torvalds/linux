@@ -774,13 +774,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		new = create_client(clname, dname);
 		if (new == NULL)
 			goto out;
-		copy_verf(new, &clverifier);
-		new->cl_addr = sin->sin_addr.s_addr;
-		copy_cred(&new->cl_cred,&rqstp->rq_cred);
 		gen_clid(new);
-		gen_confirm(new);
-		gen_callback(new, setclid);
-		add_to_unconfirmed(new, strhashval);
 	} else if (same_verf(&conf->cl_verifier, &clverifier)) {
 		/*
 		 * CASE 1:
@@ -806,13 +800,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		new = create_client(clname, dname);
 		if (new == NULL)
 			goto out;
-		copy_verf(new,&conf->cl_verifier);
-		new->cl_addr = sin->sin_addr.s_addr;
-		copy_cred(&new->cl_cred,&rqstp->rq_cred);
 		copy_clid(new, conf);
-		gen_confirm(new);
-		gen_callback(new, setclid);
-		add_to_unconfirmed(new,strhashval);
 	} else if (!unconf) {
 		/*
 		 * CASE 2:
@@ -825,13 +813,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		new = create_client(clname, dname);
 		if (new == NULL)
 			goto out;
-		copy_verf(new,&clverifier);
-		new->cl_addr = sin->sin_addr.s_addr;
-		copy_cred(&new->cl_cred,&rqstp->rq_cred);
 		gen_clid(new);
-		gen_confirm(new);
-		gen_callback(new, setclid);
-		add_to_unconfirmed(new, strhashval);
 	} else if (!same_verf(&conf->cl_confirm, &unconf->cl_confirm)) {
 		/*	
 		 * CASE3:
@@ -852,19 +834,19 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		new = create_client(clname, dname);
 		if (new == NULL)
 			goto out;
-		copy_verf(new,&clverifier);
-		new->cl_addr = sin->sin_addr.s_addr;
-		copy_cred(&new->cl_cred,&rqstp->rq_cred);
 		gen_clid(new);
-		gen_confirm(new);
-		gen_callback(new, setclid);
-		add_to_unconfirmed(new, strhashval);
 	} else {
 		/* No cases hit !!! */
 		status = nfserr_inval;
 		goto out;
 
 	}
+	copy_verf(new, &clverifier);
+	new->cl_addr = sin->sin_addr.s_addr;
+	copy_cred(&new->cl_cred, &rqstp->rq_cred);
+	gen_confirm(new);
+	gen_callback(new, setclid);
+	add_to_unconfirmed(new, strhashval);
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;
 	setclid->se_clientid.cl_id = new->cl_clientid.cl_id;
 	memcpy(setclid->se_confirm.data, new->cl_confirm.data, sizeof(setclid->se_confirm.data));
