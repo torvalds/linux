@@ -353,7 +353,7 @@ static unsigned long long __rq_clock(struct rq *rq)
 	return clock;
 }
 
-static inline unsigned long long rq_clock(struct rq *rq)
+static unsigned long long rq_clock(struct rq *rq)
 {
 	int this_cpu = smp_processor_id();
 
