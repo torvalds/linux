@@ -193,8 +193,8 @@ void tsi108_clear_pci_cfg_error(void)
 }
 
 static struct pci_ops tsi108_direct_pci_ops = {
-	tsi108_direct_read_config,
-	tsi108_direct_write_config
+	.read = tsi108_direct_read_config,
+	.write = tsi108_direct_write_config,
 };
 
 int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
