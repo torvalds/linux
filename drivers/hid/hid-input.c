@@ -53,7 +53,7 @@ static const unsigned char hid_keyboard[256] = {
 	115,114,unk,unk,unk,121,unk, 89, 93,124, 92, 94, 95,unk,unk,unk,
 	122,123, 90, 91, 85,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
-	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+	unk,unk,unk,unk,unk,unk,179,180,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	 29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
@@ -85,6 +85,10 @@ static const struct {
 
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
+
+/* hardware needing special handling due to colliding MSVENDOR page usages */
+#define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
+#define IS_MS_NEK4K(x) (x->vendor == 0x045e && x->product == 0x00db)
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -614,6 +618,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x19e: map_key_clear(KEY_COFFEE);		break;
 				case 0x1a6: map_key_clear(KEY_HELP);		break;
 				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
+				case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
 				case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
 				case 0x1bd: map_key_clear(KEY_INFO);		break;
 				case 0x201: map_key_clear(KEY_NEW);		break;
@@ -720,8 +725,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_MSVENDOR:
 
-			/* special case - Chicony Chicony KU-0418 tactical pad */
-			if (device->vendor == 0x04f2 && device->product == 0x0418) {
+			/* Unfortunately, there are multiple devices which
+			 * emit usages from MSVENDOR page that require different
+			 * handling. If this list grows too much in the future,
+			 * more general handling will have to be introduced here
+			 * (i.e. another blacklist).
+			 */
+
+			/* Chicony Chicony KU-0418 tactical pad */
+			if (IS_CHICONY_TACTICAL_PAD(device)) {
 				set_bit(EV_REP, input->evbit);
 				switch(usage->hid & HID_USAGE) {
 					case 0xff01: map_key_clear(BTN_1);		break;
@@ -736,6 +748,20 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 					case 0xff0a: map_key_clear(BTN_A);		break;
 					case 0xff0b: map_key_clear(BTN_B);		break;
 					default:    goto ignore;
+				}
+
+			/* Microsoft Natural Ergonomic Keyboard 4000 */
+			} else if (IS_MS_NEK4K(device)) {
+				switch(usage->hid & HID_USAGE) {
+					case 0xff05:
+						set_bit(EV_REP, input->evbit);
+						map_key_clear(BTN_0);
+						set_bit(BTN_1, input->keybit);
+						set_bit(BTN_2, input->keybit);
+						set_bit(BTN_3, input->keybit);
+						set_bit(BTN_4, input->keybit);
+						set_bit(BTN_5, input->keybit);
+					default:	goto ignore;
 				}
 			} else {
 				goto ignore;
@@ -989,6 +1015,26 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			input_sync(input);
 		}
 		return;
+	}
+
+	/* Handling MS NEK4K special buttons */
+	if (IS_MS_NEK4K(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+		int key = 0;
+		static int last_key = 0;
+		switch (value) {
+			case 0x01: key = BTN_1; break;
+			case 0x02: key = BTN_2; break;
+			case 0x04: key = BTN_3; break;
+			case 0x08: key = BTN_4; break;
+			case 0x10: key = BTN_5; break;
+			default: break;
+		}
+		if (key) {
+			input_event(input, usage->type, key, 1);
+			last_key = key;
+		} else {
+			input_event(input, usage->type, last_key, 0);
+		}
 	}
 
 	input_event(input, usage->type, usage->code, value);

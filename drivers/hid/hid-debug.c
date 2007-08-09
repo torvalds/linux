@@ -697,7 +697,7 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_DEL_LINE] = "DeleteLine",
 	[KEY_SEND] = "Send",			[KEY_REPLY] = "Reply",
 	[KEY_FORWARDMAIL] = "ForwardMail",	[KEY_SAVE] = "Save",
-	[KEY_DOCUMENTS] = "Documents",
+	[KEY_DOCUMENTS] = "Documents",		[KEY_SPELLCHECK] = "SpellCheck",
 	[KEY_FN] = "Fn",			[KEY_FN_ESC] = "Fn+ESC",
 	[KEY_FN_1] = "Fn+1",			[KEY_FN_2] = "Fn+2",
 	[KEY_FN_B] = "Fn+B",			[KEY_FN_D] = "Fn+D",
