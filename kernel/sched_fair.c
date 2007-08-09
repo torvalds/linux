@@ -465,7 +465,7 @@ update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
  * We are picking a new current task - update its stats:
  */
 static inline void
-update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	/*
 	 * We are starting a new run period:
@@ -638,7 +638,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	 * updated rq->fair_clock - used by update_stats_wait_end())
 	 */
 	update_stats_wait_end(cfs_rq, se);
-	update_stats_curr_start(cfs_rq, se, now);
+	update_stats_curr_start(cfs_rq, se);
 	set_cfs_rq_curr(cfs_rq, se);
 }
 
