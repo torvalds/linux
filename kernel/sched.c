@@ -782,7 +782,7 @@ static void __update_curr_load(struct rq *rq, struct load_stat *ls)
  * This function is called /before/ updating rq->ls.load
  * and when switching tasks.
  */
-static void update_curr_load(struct rq *rq, u64 now)
+static void update_curr_load(struct rq *rq)
 {
 	struct load_stat *ls = &rq->ls;
 	u64 start;
@@ -801,14 +801,14 @@ static void update_curr_load(struct rq *rq, u64 now)
 static inline void
 inc_load(struct rq *rq, const struct task_struct *p, u64 now)
 {
-	update_curr_load(rq, now);
+	update_curr_load(rq);
 	update_load_add(&rq->ls.load, p->se.load.weight);
 }
 
 static inline void
 dec_load(struct rq *rq, const struct task_struct *p, u64 now)
 {
-	update_curr_load(rq, now);
+	update_curr_load(rq);
 	update_load_sub(&rq->ls.load, p->se.load.weight);
 }
 
@@ -1971,7 +1971,7 @@ static void update_cpu_load(struct rq *this_rq)
 		goto do_avg;
 
 	/* Update delta_fair/delta_exec fields first */
-	update_curr_load(this_rq, now);
+	update_curr_load(this_rq);
 
 	fair_delta64 = ls->delta_fair + 1;
 	ls->delta_fair = 0;
