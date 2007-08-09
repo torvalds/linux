@@ -798,8 +798,7 @@ static void update_curr_load(struct rq *rq)
 		__update_curr_load(rq, ls);
 }
 
-static inline void
-inc_load(struct rq *rq, const struct task_struct *p, u64 now)
+static inline void inc_load(struct rq *rq, const struct task_struct *p)
 {
 	update_curr_load(rq);
 	update_load_add(&rq->ls.load, p->se.load.weight);
@@ -815,7 +814,7 @@ dec_load(struct rq *rq, const struct task_struct *p, u64 now)
 static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
 {
 	rq->nr_running++;
-	inc_load(rq, p, now);
+	inc_load(rq, p);
 }
 
 static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
@@ -3993,7 +3992,7 @@ void set_user_nice(struct task_struct *p, long nice)
 
 	if (on_rq) {
 		enqueue_task(rq, p, 0, now);
-		inc_load(rq, p, now);
+		inc_load(rq, p);
 		/*
 		 * If the task increased its priority or is running and
 		 * lowered its priority, then reschedule its CPU:
