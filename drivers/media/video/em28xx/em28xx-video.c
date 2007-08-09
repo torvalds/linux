@@ -1772,6 +1772,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (dev->alt_max_pkt_size == NULL) {
 		em28xx_errdev("out of memory!\n");
 		em28xx_devused&=~(1<<nr);
+		kfree(dev);
 		return -ENOMEM;
 	}
 
