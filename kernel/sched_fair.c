@@ -570,8 +570,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static void
-enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
-	       int wakeup, u64 now)
+enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 {
 	/*
 	 * Update the fair clock.
@@ -680,7 +679,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 * position within the tree:
 	 */
 	dequeue_entity(cfs_rq, curr, 0, now);
-	enqueue_entity(cfs_rq, curr, 0, now);
+	enqueue_entity(cfs_rq, curr, 0);
 
 	/*
 	 * Reschedule if another task tops the current one.
@@ -795,7 +794,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
 		if (se->on_rq)
 			break;
 		cfs_rq = cfs_rq_of(se);
-		enqueue_entity(cfs_rq, se, wakeup, now);
+		enqueue_entity(cfs_rq, se, wakeup);
 	}
 }
 
@@ -834,7 +833,7 @@ static void yield_task_fair(struct rq *rq, struct task_struct *p)
 	 * position within the tree:
 	 */
 	dequeue_entity(cfs_rq, &p->se, 0, now);
-	enqueue_entity(cfs_rq, &p->se, 0, now);
+	enqueue_entity(cfs_rq, &p->se, 0);
 }
 
 /*
