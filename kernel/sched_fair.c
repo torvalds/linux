@@ -416,7 +416,7 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Note: must be called with a freshly updated rq->fair_clock.
  */
 static inline void
-__update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+__update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long delta_fair = se->delta_fair_run;
 
@@ -441,7 +441,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	se->delta_fair_run += delta_fair;
 	if (unlikely(abs(se->delta_fair_run) >=
 				sysctl_sched_stat_granularity)) {
-		__update_stats_wait_end(cfs_rq, se, now);
+		__update_stats_wait_end(cfs_rq, se);
 		se->delta_fair_run = 0;
 	}
 
