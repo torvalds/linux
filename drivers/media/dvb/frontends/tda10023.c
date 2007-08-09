@@ -500,8 +500,8 @@ static struct dvb_frontend_ops tda10023_ops = {
 		.name = "Philips TDA10023 DVB-C",
 		.type = FE_QAM,
 		.frequency_stepsize = 62500,
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
+		.frequency_min = 47000000,
+		.frequency_max = 862000000,
 		.symbol_rate_min = (SYSCLK/2)/64,     /* SACLK/64 == (SYSCLK/2)/64 */
 		.symbol_rate_max = (SYSCLK/2)/4,      /* SACLK/4 */
 		.caps = 0x400 | //FE_CAN_QAM_4
