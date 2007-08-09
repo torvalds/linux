@@ -450,7 +450,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static inline void
-update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_curr(cfs_rq);
 	/*
@@ -591,7 +591,7 @@ static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	       int sleep, u64 now)
 {
-	update_stats_dequeue(cfs_rq, se, now);
+	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
 		se->sleep_start_fair = cfs_rq->fair_clock;
 #ifdef CONFIG_SCHEDSTATS
