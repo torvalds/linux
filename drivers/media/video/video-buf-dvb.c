@@ -56,7 +56,6 @@ static int videobuf_dvb_thread(void *data)
 				 struct videobuf_buffer, stream);
 		list_del(&buf->stream);
 		err = videobuf_waiton(buf,0,1);
-		BUG_ON(0 != err);
 
 		/* no more feeds left or stop_feed() asked us to quit */
 		if (0 == dvb->nfeeds)
