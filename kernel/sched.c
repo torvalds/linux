@@ -816,7 +816,7 @@ static void inc_nr_running(struct task_struct *p, struct rq *rq)
 	inc_load(rq, p);
 }
 
-static void dec_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+static void dec_nr_running(struct task_struct *p, struct rq *rq)
 {
 	rq->nr_running--;
 	dec_load(rq, p);
@@ -951,7 +951,7 @@ deactivate_task(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 		rq->nr_uninterruptible++;
 
 	dequeue_task(rq, p, sleep, now);
-	dec_nr_running(p, rq, now);
+	dec_nr_running(p, rq);
 }
 
 /**
