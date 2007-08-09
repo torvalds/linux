@@ -366,11 +366,8 @@ after_lock_tlb:
 	call		hard_smp_processor_id
 	 nop
 	
-	mov		%o0, %o1
-	mov		0, %o0
-	mov		0, %o2
-	call		sun4v_init_mondo_queues
-	 mov		1, %o3
+	call		sun4v_register_mondo_queues
+	 nop
 
 1:	call		init_cur_cpu_trap
 	 ldx		[%l0], %o0
