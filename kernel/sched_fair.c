@@ -486,8 +486,7 @@ update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Scheduling class queueing methods:
  */
 
-static void
-__enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long load = cfs_rq->load.weight, delta_fair;
 	long prev_runtime;
@@ -537,7 +536,7 @@ enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	se->delta_fair_sleep += delta_fair;
 	if (unlikely(abs(se->delta_fair_sleep) >=
 				sysctl_sched_stat_granularity)) {
-		__enqueue_sleeper(cfs_rq, se, now);
+		__enqueue_sleeper(cfs_rq, se);
 		se->delta_fair_sleep = 0;
 	}
 
