@@ -540,10 +540,6 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
-#ifdef CONFIG_HOTPLUG_PCI_PCIE_POLL_EVENT_MODE
-	pciehp_poll_mode = 1;
-#endif
-
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);
   	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
