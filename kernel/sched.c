@@ -1967,8 +1967,11 @@ static void update_cpu_load(struct rq *this_rq)
 	unsigned long total_load = this_rq->ls.load.weight;
 	unsigned long this_load =  total_load;
 	struct load_stat *ls = &this_rq->ls;
-	u64 now = __rq_clock(this_rq);
+	u64 now;
 	int i, scale;
+
+	__update_rq_clock(this_rq);
+	now = this_rq->clock;
 
 	this_rq->nr_load_updates++;
 	if (unlikely(!(sysctl_sched_features & SCHED_FEAT_PRECISE_CPU_LOAD)))
@@ -3458,7 +3461,8 @@ need_resched_nonpreemptible:
 
 	spin_lock_irq(&rq->lock);
 	clear_tsk_need_resched(prev);
-	now = __rq_clock(rq);
+	__update_rq_clock(rq);
+	now = rq->clock;
 
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely((prev->state & TASK_INTERRUPTIBLE) &&
