@@ -431,7 +431,7 @@ __update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static void
-update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long delta_fair;
 
@@ -458,7 +458,7 @@ update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	 * waiting task:
 	 */
 	if (se != cfs_rq_curr(cfs_rq))
-		update_stats_wait_end(cfs_rq, se, now);
+		update_stats_wait_end(cfs_rq, se);
 }
 
 /*
@@ -637,7 +637,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	 * done a put_prev_task_fair() shortly before this, which
 	 * updated rq->fair_clock - used by update_stats_wait_end())
 	 */
-	update_stats_wait_end(cfs_rq, se, now);
+	update_stats_wait_end(cfs_rq, se);
 	update_stats_curr_start(cfs_rq, se, now);
 	set_cfs_rq_curr(cfs_rq, se);
 }
