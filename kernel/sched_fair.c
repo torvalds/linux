@@ -222,21 +222,25 @@ niced_granularity(struct sched_entity *curr, unsigned long granularity)
 {
 	u64 tmp;
 
-	/*
-	 * Negative nice levels get the same granularity as nice-0:
-	 */
-	if (likely(curr->load.weight >= NICE_0_LOAD))
+	if (likely(curr->load.weight == NICE_0_LOAD))
 		return granularity;
 	/*
-	 * Positive nice level tasks get linearly finer
+	 * Positive nice levels get the same granularity as nice-0:
+	 */
+	if (likely(curr->load.weight < NICE_0_LOAD)) {
+		tmp = curr->load.weight * (u64)granularity;
+		return (long) (tmp >> NICE_0_SHIFT);
+	}
+	/*
+	 * Negative nice level tasks get linearly finer
 	 * granularity:
 	 */
-	tmp = curr->load.weight * (u64)granularity;
+	tmp = curr->load.inv_weight * (u64)granularity;
 
 	/*
 	 * It will always fit into 'long':
 	 */
-	return (long) (tmp >> NICE_0_SHIFT);
+	return (long) (tmp >> WMULT_SHIFT);
 }
 
 static inline void
