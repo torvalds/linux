@@ -520,8 +520,7 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
-static void
-enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	struct task_struct *tsk = task_of(se);
 	unsigned long delta_fair;
@@ -580,7 +579,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	update_curr(cfs_rq);
 
 	if (wakeup)
-		enqueue_sleeper(cfs_rq, se, now);
+		enqueue_sleeper(cfs_rq, se);
 
 	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
