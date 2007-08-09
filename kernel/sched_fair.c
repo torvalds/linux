@@ -667,10 +667,8 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	struct rq *rq = rq_of(cfs_rq);
 	struct sched_entity *next;
-	u64 now;
 
 	__update_rq_clock(rq);
-	now = rq->clock;
 
 	/*
 	 * Dequeue and enqueue the task to update its
@@ -820,10 +818,8 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 static void yield_task_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
-	u64 now;
 
 	__update_rq_clock(rq);
-	now = rq->clock;
 	/*
 	 * Dequeue and enqueue the task to update its
 	 * position within the tree:
@@ -1062,11 +1058,9 @@ static void set_curr_task_fair(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se;
-	u64 now;
 	struct cfs_rq *cfs_rq;
 
 	update_rq_clock(rq);
-	now = rq->clock;
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);

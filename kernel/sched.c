@@ -910,10 +910,7 @@ static int effective_prio(struct task_struct *p)
  */
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
-	u64 now;
-
 	update_rq_clock(rq);
-	now = rq->clock;
 
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
@@ -927,10 +924,7 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
  */
 static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 {
-	u64 now;
-
 	update_rq_clock(rq);
-	now = rq->clock;
 
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
@@ -1647,13 +1641,11 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	unsigned long flags;
 	struct rq *rq;
 	int this_cpu;
-	u64 now;
 
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
 	this_cpu = smp_processor_id(); /* parent's CPU */
 	update_rq_clock(rq);
-	now = rq->clock;
 
 	p->prio = effective_prio(p);
 
@@ -1955,11 +1947,9 @@ static void update_cpu_load(struct rq *this_rq)
 	unsigned long total_load = this_rq->ls.load.weight;
 	unsigned long this_load =  total_load;
 	struct load_stat *ls = &this_rq->ls;
-	u64 now;
 	int i, scale;
 
 	__update_rq_clock(this_rq);
-	now = this_rq->clock;
 
 	this_rq->nr_load_updates++;
 	if (unlikely(!(sysctl_sched_features & SCHED_FEAT_PRECISE_CPU_LOAD)))
@@ -3431,7 +3421,6 @@ asmlinkage void __sched schedule(void)
 	struct task_struct *prev, *next;
 	long *switch_count;
 	struct rq *rq;
-	u64 now;
 	int cpu;
 
 need_resched:
@@ -3450,7 +3439,6 @@ need_resched_nonpreemptible:
 	spin_lock_irq(&rq->lock);
 	clear_tsk_need_resched(prev);
 	__update_rq_clock(rq);
-	now = rq->clock;
 
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely((prev->state & TASK_INTERRUPTIBLE) &&
@@ -3909,13 +3897,11 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	unsigned long flags;
 	int oldprio, on_rq;
 	struct rq *rq;
-	u64 now;
 
 	BUG_ON(prio < 0 || prio > MAX_PRIO);
 
 	rq = task_rq_lock(p, &flags);
 	update_rq_clock(rq);
-	now = rq->clock;
 
 	oldprio = p->prio;
 	on_rq = p->se.on_rq;
@@ -3953,7 +3939,6 @@ void set_user_nice(struct task_struct *p, long nice)
 	int old_prio, delta, on_rq;
 	unsigned long flags;
 	struct rq *rq;
-	u64 now;
 
 	if (TASK_NICE(p) == nice || nice < -20 || nice > 19)
 		return;
@@ -3963,7 +3948,6 @@ void set_user_nice(struct task_struct *p, long nice)
 	 */
 	rq = task_rq_lock(p, &flags);
 	update_rq_clock(rq);
-	now = rq->clock;
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
 	 * allow the 'normal' nice value to be set - but as expected
