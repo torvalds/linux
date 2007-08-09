@@ -13,7 +13,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p)
 	resched_task(rq->idle);
 }
 
-static struct task_struct *pick_next_task_idle(struct rq *rq, u64 now)
+static struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	schedstat_inc(rq, sched_goidle);
 
@@ -25,7 +25,7 @@ static struct task_struct *pick_next_task_idle(struct rq *rq, u64 now)
  * message if some code attempts to do it:
  */
 static void
-dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
 {
 	spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
@@ -33,15 +33,15 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 	spin_lock_irq(&rq->lock);
 }
 
-static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, u64 now)
+static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
 
-static int
+static unsigned long
 load_balance_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, unsigned long *total_load_moved)
+			int *all_pinned, int *this_best_prio)
 {
 	return 0;
 }

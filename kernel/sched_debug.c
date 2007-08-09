@@ -29,7 +29,7 @@
  } while (0)
 
 static void
-print_task(struct seq_file *m, struct rq *rq, struct task_struct *p, u64 now)
+print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
 	if (rq->curr == p)
 		SEQ_printf(m, "R");
@@ -56,7 +56,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p, u64 now)
 #endif
 }
 
-static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu, u64 now)
+static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 {
 	struct task_struct *g, *p;
 
@@ -77,7 +77,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu, u64 now)
 		if (!p->se.on_rq || task_cpu(p) != rq_cpu)
 			continue;
 
-		print_task(m, rq, p, now);
+		print_task(m, rq, p);
 	} while_each_thread(g, p);
 
 	read_unlock_irq(&tasklist_lock);
@@ -106,7 +106,7 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 		(long long)wait_runtime_rq_sum);
 }
 
-void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
+void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
 	SEQ_printf(m, "\ncfs_rq %p\n", cfs_rq);
 
@@ -124,7 +124,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
 	print_cfs_rq_runtime_sum(m, cpu, cfs_rq);
 }
 
-static void print_cpu(struct seq_file *m, int cpu, u64 now)
+static void print_cpu(struct seq_file *m, int cpu)
 {
 	struct rq *rq = &per_cpu(runqueues, cpu);
 
@@ -166,9 +166,9 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(cpu_load[4]);
 #undef P
 
-	print_cfs_stats(m, cpu, now);
+	print_cfs_stats(m, cpu);
 
-	print_rq(m, rq, cpu, now);
+	print_rq(m, rq, cpu);
 }
 
 static int sched_debug_show(struct seq_file *m, void *v)
@@ -184,7 +184,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	SEQ_printf(m, "now at %Lu nsecs\n", (unsigned long long)now);
 
 	for_each_online_cpu(cpu)
-		print_cpu(m, cpu, now);
+		print_cpu(m, cpu);
 
 	SEQ_printf(m, "\n");
 

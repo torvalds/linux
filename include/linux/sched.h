@@ -139,7 +139,7 @@ struct cfs_rq;
 extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
 extern void
-print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now);
+print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
 #else
 static inline void
 proc_sched_show_task(struct task_struct *p, struct seq_file *m)
@@ -149,7 +149,7 @@ static inline void proc_sched_set_task(struct task_struct *p)
 {
 }
 static inline void
-print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
+print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
 }
 #endif
@@ -855,26 +855,24 @@ struct sched_domain;
 struct sched_class {
 	struct sched_class *next;
 
-	void (*enqueue_task) (struct rq *rq, struct task_struct *p,
-			      int wakeup, u64 now);
-	void (*dequeue_task) (struct rq *rq, struct task_struct *p,
-			      int sleep, u64 now);
+	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
+	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
 	void (*yield_task) (struct rq *rq, struct task_struct *p);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
 
-	struct task_struct * (*pick_next_task) (struct rq *rq, u64 now);
-	void (*put_prev_task) (struct rq *rq, struct task_struct *p, u64 now);
+	struct task_struct * (*pick_next_task) (struct rq *rq);
+	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
 
-	int (*load_balance) (struct rq *this_rq, int this_cpu,
+	unsigned long (*load_balance) (struct rq *this_rq, int this_cpu,
 			struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, unsigned long *total_load_moved);
+			int *all_pinned, int *this_best_prio);
 
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p);
-	void (*task_new) (struct rq *rq, struct task_struct *p, u64 now);
+	void (*task_new) (struct rq *rq, struct task_struct *p);
 };
 
 struct load_weight {
