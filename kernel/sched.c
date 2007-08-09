@@ -361,13 +361,6 @@ static void update_rq_clock(struct rq *rq)
 		__update_rq_clock(rq);
 }
 
-static u64 __rq_clock(struct rq *rq)
-{
-	__update_rq_clock(rq);
-
-	return rq->clock;
-}
-
 /*
  * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
  * See detach_destroy_domains: synchronize_sched for details.
