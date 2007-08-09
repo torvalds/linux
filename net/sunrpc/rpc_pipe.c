@@ -132,8 +132,7 @@ rpc_close_pipes(struct inode *inode)
 		rpci->nwriters = 0;
 		if (ops->release_pipe)
 			ops->release_pipe(inode);
-		cancel_delayed_work(&rpci->queue_timeout);
-		flush_workqueue(rpciod_workqueue);
+		cancel_delayed_work_sync(&rpci->queue_timeout);
 	}
 	rpc_inode_setowner(inode, NULL);
 	mutex_unlock(&inode->i_mutex);

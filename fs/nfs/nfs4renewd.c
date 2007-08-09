@@ -127,16 +127,15 @@ nfs4_schedule_state_renewal(struct nfs_client *clp)
 void
 nfs4_renewd_prepare_shutdown(struct nfs_server *server)
 {
-	flush_scheduled_work();
+	cancel_delayed_work(&server->nfs_client->cl_renewd);
 }
 
 void
 nfs4_kill_renewd(struct nfs_client *clp)
 {
 	down_read(&clp->cl_sem);
-	cancel_delayed_work(&clp->cl_renewd);
+	cancel_delayed_work_sync(&clp->cl_renewd);
 	up_read(&clp->cl_sem);
-	flush_scheduled_work();
 }
 
 /*

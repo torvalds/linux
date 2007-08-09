@@ -50,8 +50,6 @@ static RPC_WAITQ(delay_queue, "delayq");
 /*
  * rpciod-related stuff
  */
-static DEFINE_MUTEX(rpciod_mutex);
-static atomic_t rpciod_users = ATOMIC_INIT(0);
 struct workqueue_struct *rpciod_workqueue;
 
 /*
@@ -961,60 +959,49 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	spin_unlock(&clnt->cl_lock);
 }
 
+int rpciod_up(void)
+{
+	return try_module_get(THIS_MODULE) ? 0 : -EINVAL;
+}
+
+void rpciod_down(void)
+{
+	module_put(THIS_MODULE);
+}
+
 /*
- * Start up the rpciod process if it's not already running.
+ * Start up the rpciod workqueue.
  */
-int
-rpciod_up(void)
+static int rpciod_start(void)
 {
 	struct workqueue_struct *wq;
-	int error = 0;
 
-	if (atomic_inc_not_zero(&rpciod_users))
-		return 0;
-
-	mutex_lock(&rpciod_mutex);
-
-	/* Guard against races with rpciod_down() */
-	if (rpciod_workqueue != NULL)
-		goto out_ok;
 	/*
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	error = -ENOMEM;
 	wq = create_workqueue("rpciod");
-	if (wq == NULL)
-		goto out;
-
 	rpciod_workqueue = wq;
-	error = 0;
-out_ok:
-	atomic_inc(&rpciod_users);
-out:
-	mutex_unlock(&rpciod_mutex);
-	return error;
+	return rpciod_workqueue != NULL;
 }
 
-void
-rpciod_down(void)
+static void rpciod_stop(void)
 {
-	if (!atomic_dec_and_test(&rpciod_users))
-		return;
+	struct workqueue_struct *wq = NULL;
 
-	mutex_lock(&rpciod_mutex);
+	if (rpciod_workqueue == NULL)
+		return;
 	dprintk("RPC:       destroying workqueue rpciod\n");
 
-	if (atomic_read(&rpciod_users) == 0 && rpciod_workqueue != NULL) {
-		destroy_workqueue(rpciod_workqueue);
-		rpciod_workqueue = NULL;
-	}
-	mutex_unlock(&rpciod_mutex);
+	wq = rpciod_workqueue;
+	rpciod_workqueue = NULL;
+	destroy_workqueue(wq);
 }
 
 void
 rpc_destroy_mempool(void)
 {
+	rpciod_stop();
 	if (rpc_buffer_mempool)
 		mempool_destroy(rpc_buffer_mempool);
 	if (rpc_task_mempool)
@@ -1047,6 +1034,8 @@ rpc_init_mempool(void)
 	rpc_buffer_mempool = mempool_create_slab_pool(RPC_BUFFER_POOLSIZE,
 						      rpc_buffer_slabp);
 	if (!rpc_buffer_mempool)
+		goto err_nomem;
+	if (!rpciod_start())
 		goto err_nomem;
 	return 0;
 err_nomem:
