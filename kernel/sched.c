@@ -788,8 +788,8 @@ static void update_curr_load(struct rq *rq, u64 now)
 	u64 start;
 
 	start = ls->load_update_start;
-	ls->load_update_start = now;
-	ls->delta_stat += now - start;
+	ls->load_update_start = rq->clock;
+	ls->delta_stat += rq->clock - start;
 	/*
 	 * Stagger updates to ls->delta_fair. Very frequent updates
 	 * can be expensive.
@@ -1979,8 +1979,8 @@ static void update_cpu_load(struct rq *this_rq)
 	exec_delta64 = ls->delta_exec + 1;
 	ls->delta_exec = 0;
 
-	sample_interval64 = now - ls->load_update_last;
-	ls->load_update_last = now;
+	sample_interval64 = this_rq->clock - ls->load_update_last;
+	ls->load_update_last = this_rq->clock;
 
 	if ((s64)sample_interval64 < (s64)TICK_NSEC)
 		sample_interval64 = TICK_NSEC;

@@ -333,7 +333,7 @@ static void update_curr(struct cfs_rq *cfs_rq, u64 now)
 	 * since the last time we changed load (this cannot
 	 * overflow on 32 bits):
 	 */
-	delta_exec = (unsigned long)(now - curr->exec_start);
+	delta_exec = (unsigned long)(rq_of(cfs_rq)->clock - curr->exec_start);
 
 	curr->delta_exec += delta_exec;
 
@@ -341,14 +341,14 @@ static void update_curr(struct cfs_rq *cfs_rq, u64 now)
 		__update_curr(cfs_rq, curr, now);
 		curr->delta_exec = 0;
 	}
-	curr->exec_start = now;
+	curr->exec_start = rq_of(cfs_rq)->clock;
 }
 
 static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	se->wait_start_fair = cfs_rq->fair_clock;
-	schedstat_set(se->wait_start, now);
+	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
 }
 
 /*
@@ -421,7 +421,8 @@ __update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 {
 	unsigned long delta_fair = se->delta_fair_run;
 
-	schedstat_set(se->wait_max, max(se->wait_max, now - se->wait_start));
+	schedstat_set(se->wait_max, max(se->wait_max,
+			rq_of(cfs_rq)->clock - se->wait_start));
 
 	if (unlikely(se->load.weight != NICE_0_LOAD))
 		delta_fair = calc_weighted(delta_fair, se->load.weight,
@@ -470,7 +471,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 	/*
 	 * We are starting a new run period:
 	 */
-	se->exec_start = now;
+	se->exec_start = rq_of(cfs_rq)->clock;
 }
 
 /*
@@ -545,7 +546,7 @@ enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 
 #ifdef CONFIG_SCHEDSTATS
 	if (se->sleep_start) {
-		u64 delta = now - se->sleep_start;
+		u64 delta = rq_of(cfs_rq)->clock - se->sleep_start;
 
 		if ((s64)delta < 0)
 			delta = 0;
@@ -557,7 +558,7 @@ enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
 		se->sum_sleep_runtime += delta;
 	}
 	if (se->block_start) {
-		u64 delta = now - se->block_start;
+		u64 delta = rq_of(cfs_rq)->clock - se->block_start;
 
 		if ((s64)delta < 0)
 			delta = 0;
@@ -599,9 +600,9 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			struct task_struct *tsk = task_of(se);
 
 			if (tsk->state & TASK_INTERRUPTIBLE)
-				se->sleep_start = now;
+				se->sleep_start = rq_of(cfs_rq)->clock;
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
-				se->block_start = now;
+				se->block_start = rq_of(cfs_rq)->clock;
 		}
 		cfs_rq->wait_runtime -= se->wait_runtime;
 #endif
