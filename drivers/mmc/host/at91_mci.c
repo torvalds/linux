@@ -428,6 +428,14 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 	}
 
 	if (data) {
+
+		if ( data->blksz & 0x3 ) {
+			pr_debug("Unsupported block size\n");
+			cmd->error = -EINVAL;
+			mmc_request_done(host->mmc, host->request);
+			return;
+		}
+
 		block_length = data->blksz;
 		blocks = data->blocks;
 
