@@ -2,6 +2,7 @@
  *    pata_artop.c - ARTOP ATA controller driver
  *
  *	(C) 2006 Red Hat <alan@redhat.com>
+ *	(C) 2007 Bartlomiej Zolnierkiewicz
  *
  *    Based in part on drivers/ide/pci/aec62xx.c
  *	Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
@@ -28,7 +29,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.3"
+#define DRV_VERSION	"0.4.4"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -430,12 +431,20 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &artop6260_ops,
 	};
-	static const struct ata_port_info info_626x_fast = {
+	static const struct ata_port_info info_628x = {
 		.sht		= &artop_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask 	= ATA_UDMA5,
+		.port_ops	= &artop6260_ops,
+	};
+	static const struct ata_port_info info_628x_fast = {
+		.sht		= &artop_sht,
+		.flags		= ATA_FLAG_SLAVE_POSS,
+		.pio_mask	= 0x1f,	/* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask 	= ATA_UDMA6,
 		.port_ops	= &artop6260_ops,
 	};
 	const struct ata_port_info *ppi[] = { NULL, NULL };
@@ -455,13 +464,13 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	else if (id->driver_data == 1)	/* 6260 */
 		ppi[0] = &info_626x;
-	else if (id->driver_data == 2)	{ /* 6260 or 6260 + fast */
+	else if (id->driver_data == 2)	{ /* 6280 or 6280 + fast */
 		unsigned long io = pci_resource_start(pdev, 4);
 		u8 reg;
 
-		ppi[0] = &info_626x;
+		ppi[0] = &info_628x;
 		if (inb(io) & 0x10)
-			ppi[0] = &info_626x_fast;
+			ppi[0] = &info_628x_fast;
 		/* Mac systems come up with some registers not set as we
 		   will need them */
 
