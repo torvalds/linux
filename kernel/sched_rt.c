@@ -7,7 +7,7 @@
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
  */
-static inline void update_curr_rt(struct rq *rq, u64 now)
+static inline void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	u64 delta_exec;
@@ -42,7 +42,7 @@ dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
-	update_curr_rt(rq, now);
+	update_curr_rt(rq);
 
 	list_del(&p->run_list);
 	if (list_empty(array->queue + p->prio))
@@ -96,7 +96,7 @@ static struct task_struct *pick_next_task_rt(struct rq *rq, u64 now)
 
 static void put_prev_task_rt(struct rq *rq, struct task_struct *p, u64 now)
 {
-	update_curr_rt(rq, now);
+	update_curr_rt(rq);
 	p->se.exec_start = 0;
 }
 
