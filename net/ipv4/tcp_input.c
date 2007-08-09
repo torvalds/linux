@@ -2187,7 +2187,7 @@ static void tcp_mtup_probe_success(struct sock *sk, struct sk_buff *skb)
  * tcp_xmit_retransmit_queue().
  */
 static void
-tcp_fastretrans_alert(struct sock *sk, int prior_packets, int flag)
+tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2273,12 +2273,8 @@ tcp_fastretrans_alert(struct sock *sk, int prior_packets, int flag)
 		if (!(flag & FLAG_SND_UNA_ADVANCED)) {
 			if (IsReno(tp) && is_dupack)
 				tcp_add_reno_sack(sk);
-		} else {
-			int acked = prior_packets - tp->packets_out;
-			if (IsReno(tp))
-				tcp_remove_reno_sacks(sk, acked);
-			do_lost = tcp_try_undo_partial(sk, acked);
-		}
+		} else
+			do_lost = tcp_try_undo_partial(sk, pkts_acked);
 		break;
 	case TCP_CA_Loss:
 		if (flag&FLAG_DATA_ACKED)
@@ -2576,6 +2572,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk);
+
+		if (IsReno(tp))
+			tcp_remove_reno_sacks(sk, pkts_acked);
 
 		if (ca_ops->pkts_acked) {
 			s32 rtt_us = -1;
@@ -2927,7 +2926,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 		if ((flag & FLAG_DATA_ACKED) && !frto_cwnd &&
 		    tcp_may_raise_cwnd(sk, flag))
 			tcp_cong_avoid(sk, ack, prior_in_flight, 0);
-		tcp_fastretrans_alert(sk, prior_packets, flag);
+		tcp_fastretrans_alert(sk, prior_packets - tp->packets_out, flag);
 	} else {
 		if ((flag & FLAG_DATA_ACKED) && !frto_cwnd)
 			tcp_cong_avoid(sk, ack, prior_in_flight, 1);

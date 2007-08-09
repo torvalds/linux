@@ -759,8 +759,7 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 }
 
 /* Use define here intentionally to get BUG_ON location shown at the caller */
-#define tcp_verify_left_out(tp) \
-	BUG_ON(tp->rx_opt.sack_ok && (tcp_left_out(tp) > tp->packets_out))
+#define tcp_verify_left_out(tp)	BUG_ON(tcp_left_out(tp) > tp->packets_out)
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
