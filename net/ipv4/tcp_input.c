@@ -1969,7 +1969,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	printk(KERN_DEBUG "Undo %s %u.%u.%u.%u/%u c%u l%u ss%u/%u p%u\n",
 	       msg,
 	       NIPQUAD(inet->daddr), ntohs(inet->dport),
-	       tp->snd_cwnd, tp->sacked_out + tp->lost_out,
+	       tp->snd_cwnd, tcp_left_out(tp),
 	       tp->snd_ssthresh, tp->prior_ssthresh,
 	       tp->packets_out);
 }

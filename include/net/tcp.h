@@ -719,6 +719,11 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
 		icsk->icsk_ca_ops->cwnd_event(sk, event);
 }
 
+static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
+{
+	return tp->sacked_out + tp->lost_out;
+}
+
 /* This determines how many packets are "in the network" to the best
  * of our knowledge.  In many cases it is conservative, but where
  * detailed information is available from the receiver (via SACK
@@ -735,8 +740,7 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
  */
 static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
-	return tp->packets_out - (tp->sacked_out + tp->lost_out) +
-		tp->retrans_out;
+	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
 }
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
@@ -756,8 +760,7 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
-	BUG_ON(tp->rx_opt.sack_ok &&
-	       (tp->sacked_out + tp->lost_out > tp->packets_out));
+	BUG_ON(tp->rx_opt.sack_ok && (tcp_left_out(tp) > tp->packets_out));
 }
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
