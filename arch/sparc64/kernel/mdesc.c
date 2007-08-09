@@ -568,20 +568,6 @@ static void __init report_platform_properties(void)
 	mdesc_release(hp);
 }
 
-static int inline find_in_proplist(const char *list, const char *match, int len)
-{
-	while (len > 0) {
-		int l;
-
-		if (!strcmp(list, match))
-			return 1;
-		l = strlen(list) + 1;
-		list += l;
-		len -= l;
-	}
-	return 0;
-}
-
 static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
 					struct mdesc_handle *hp,
 					u64 mp)
@@ -596,10 +582,10 @@ static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
 
 	switch (*level) {
 	case 1:
-		if (find_in_proplist(type, "instn", type_len)) {
+		if (of_find_in_proplist(type, "instn", type_len)) {
 			c->icache_size = *size;
 			c->icache_line_size = *line_size;
-		} else if (find_in_proplist(type, "data", type_len)) {
+		} else if (of_find_in_proplist(type, "data", type_len)) {
 			c->dcache_size = *size;
 			c->dcache_line_size = *line_size;
 		}
@@ -677,7 +663,7 @@ static void __devinit set_core_ids(struct mdesc_handle *hp)
 			continue;
 
 		type = mdesc_get_property(hp, mp, "type", &len);
-		if (!find_in_proplist(type, "instn", len))
+		if (!of_find_in_proplist(type, "instn", len))
 			continue;
 
 		mark_core_ids(hp, mp, idx);
@@ -718,8 +704,8 @@ static void __devinit __set_proc_ids(struct mdesc_handle *hp,
 		int len;
 
 		type = mdesc_get_property(hp, mp, "type", &len);
-		if (!find_in_proplist(type, "int", len) &&
-		    !find_in_proplist(type, "integer", len))
+		if (!of_find_in_proplist(type, "int", len) &&
+		    !of_find_in_proplist(type, "integer", len))
 			continue;
 
 		mark_proc_ids(hp, mp, idx);

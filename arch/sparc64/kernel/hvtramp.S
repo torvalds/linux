@@ -115,11 +115,8 @@ hv_cpu_startup:
 	call		hard_smp_processor_id
 	 nop
 
-	mov		%o0, %o1
-	mov		0, %o0
-	mov		0, %o2
-	call		sun4v_init_mondo_queues
-	 mov		1, %o3
+	call		sun4v_register_mondo_queues
+	 nop
 
 	call		init_cur_cpu_trap
 	 mov		%g6, %o0

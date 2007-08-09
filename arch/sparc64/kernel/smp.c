@@ -334,8 +334,6 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 }
 #endif
 
-extern void sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load);
-
 extern unsigned long sparc64_cpu_startup;
 
 /* The OBP cpu startup callback truncates the 3rd arg cookie to
@@ -359,9 +357,6 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	cpu_new_thread = task_thread_info(p);
 
 	if (tlb_type == hypervisor) {
-		/* Alloc the mondo queues, cpu will load them.  */
-		sun4v_init_mondo_queues(0, cpu, 1, 0);
-
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
 		if (ldom_domaining_enabled)
 			ldom_startcpu_cpuid(cpu,

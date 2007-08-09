@@ -16,21 +16,6 @@
 #include <asm/mdesc.h>
 #include <asm/vio.h>
 
-static inline int find_in_proplist(const char *list, const char *match,
-				   int len)
-{
-	while (len > 0) {
-		int l;
-
-		if (!strcmp(list, match))
-			return 1;
-		l = strlen(list) + 1;
-		list += l;
-		len -= l;
-	}
-	return 0;
-}
-
 static const struct vio_device_id *vio_match_device(
 	const struct vio_device_id *matches,
 	const struct vio_dev *dev)
@@ -49,7 +34,7 @@ static const struct vio_device_id *vio_match_device(
 
 		if (matches->compat[0]) {
 			match &= len &&
-				find_in_proplist(compat, matches->compat, len);
+				of_find_in_proplist(compat, matches->compat, len);
 		}
 		if (match)
 			return matches;
@@ -406,7 +391,7 @@ static int __init vio_init(void)
 		       "property\n");
 		goto out_release;
 	}
-	if (!find_in_proplist(compat, channel_devices_compat, len)) {
+	if (!of_find_in_proplist(compat, channel_devices_compat, len)) {
 		printk(KERN_ERR "VIO: Channel devices node lacks (%s) "
 		       "compat entry.\n", channel_devices_compat);
 		goto out_release;

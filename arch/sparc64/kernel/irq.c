@@ -929,7 +929,7 @@ static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type
 	}
 }
 
-static void __cpuinit sun4v_register_mondo_queues(int this_cpu)
+void __cpuinit sun4v_register_mondo_queues(int this_cpu)
 {
 	struct trap_per_cpu *tb = &trap_block[this_cpu];
 
@@ -943,20 +943,10 @@ static void __cpuinit sun4v_register_mondo_queues(int this_cpu)
 			   tb->nonresum_qmask);
 }
 
-static void __cpuinit alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask, int use_bootmem)
+static void __init alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask)
 {
 	unsigned long size = PAGE_ALIGN(qmask + 1);
-	unsigned long order = get_order(size);
-	void *p = NULL;
-
-	if (use_bootmem) {
-		p = __alloc_bootmem_low(size, size, 0);
-	} else {
-		struct page *page = alloc_pages(GFP_ATOMIC | __GFP_ZERO, order);
-		if (page)
-			p = page_address(page);
-	}
-
+	void *p = __alloc_bootmem_low(size, size, 0);
 	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate mondo queue.\n");
 		prom_halt();
@@ -965,19 +955,10 @@ static void __cpuinit alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask
 	*pa_ptr = __pa(p);
 }
 
-static void __cpuinit alloc_one_kbuf(unsigned long *pa_ptr, unsigned long qmask, int use_bootmem)
+static void __init alloc_one_kbuf(unsigned long *pa_ptr, unsigned long qmask)
 {
 	unsigned long size = PAGE_ALIGN(qmask + 1);
-	unsigned long order = get_order(size);
-	void *p = NULL;
-
-	if (use_bootmem) {
-		p = __alloc_bootmem_low(size, size, 0);
-	} else {
-		struct page *page = alloc_pages(GFP_ATOMIC | __GFP_ZERO, order);
-		if (page)
-			p = page_address(page);
-	}
+	void *p = __alloc_bootmem_low(size, size, 0);
 
 	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate kbuf page.\n");
@@ -987,18 +968,14 @@ static void __cpuinit alloc_one_kbuf(unsigned long *pa_ptr, unsigned long qmask,
 	*pa_ptr = __pa(p);
 }
 
-static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb, int use_bootmem)
+static void __init init_cpu_send_mondo_info(struct trap_per_cpu *tb)
 {
 #ifdef CONFIG_SMP
 	void *page;
 
 	BUILD_BUG_ON((NR_CPUS * sizeof(u16)) > (PAGE_SIZE - 64));
 
-	if (use_bootmem)
-		page = alloc_bootmem_low_pages(PAGE_SIZE);
-	else
-		page = (void *) get_zeroed_page(GFP_ATOMIC);
-
+	page = alloc_bootmem_low_pages(PAGE_SIZE);
 	if (!page) {
 		prom_printf("SUN4V: Error, cannot allocate cpu mondo page.\n");
 		prom_halt();
@@ -1009,30 +986,27 @@ static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb, int use_
 #endif
 }
 
-/* Allocate and register the mondo and error queues for this cpu.  */
-void __cpuinit sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load)
+/* Allocate mondo and error queues for all possible cpus.  */
+static void __init sun4v_init_mondo_queues(void)
 {
-	struct trap_per_cpu *tb = &trap_block[cpu];
+	int cpu;
 
-	if (alloc) {
-		alloc_one_mondo(&tb->cpu_mondo_pa, tb->cpu_mondo_qmask, use_bootmem);
-		alloc_one_mondo(&tb->dev_mondo_pa, tb->dev_mondo_qmask, use_bootmem);
-		alloc_one_mondo(&tb->resum_mondo_pa, tb->resum_qmask, use_bootmem);
-		alloc_one_kbuf(&tb->resum_kernel_buf_pa, tb->resum_qmask, use_bootmem);
-		alloc_one_mondo(&tb->nonresum_mondo_pa, tb->nonresum_qmask, use_bootmem);
-		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, tb->nonresum_qmask, use_bootmem);
+	for_each_possible_cpu(cpu) {
+		struct trap_per_cpu *tb = &trap_block[cpu];
 
-		init_cpu_send_mondo_info(tb, use_bootmem);
+		alloc_one_mondo(&tb->cpu_mondo_pa, tb->cpu_mondo_qmask);
+		alloc_one_mondo(&tb->dev_mondo_pa, tb->dev_mondo_qmask);
+		alloc_one_mondo(&tb->resum_mondo_pa, tb->resum_qmask);
+		alloc_one_kbuf(&tb->resum_kernel_buf_pa, tb->resum_qmask);
+		alloc_one_mondo(&tb->nonresum_mondo_pa, tb->nonresum_qmask);
+		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa,
+			       tb->nonresum_qmask);
+
+		init_cpu_send_mondo_info(tb);
 	}
 
-	if (load) {
-		if (cpu != hard_smp_processor_id()) {
-			prom_printf("SUN4V: init mondo on cpu %d not %d\n",
-				    cpu, hard_smp_processor_id());
-			prom_halt();
-		}
-		sun4v_register_mondo_queues(cpu);
-	}
+	/* Load up the boot cpu's entries.  */
+	sun4v_register_mondo_queues(hard_smp_processor_id());
 }
 
 static struct irqaction timer_irq_action = {
@@ -1047,7 +1021,7 @@ void __init init_IRQ(void)
 	memset(&ivector_table[0], 0, sizeof(ivector_table));
 
 	if (tlb_type == hypervisor)
-		sun4v_init_mondo_queues(1, hard_smp_processor_id(), 1, 1);
+		sun4v_init_mondo_queues();
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the
