@@ -39,6 +39,8 @@ struct btrfs_trans_handle {
 	unsigned long blocks_used;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_group_cache *block_group;
+	u64 alloc_exclude_start;
+	u64 alloc_exclude_nr;
 };
 
 

@@ -299,12 +299,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root block_group_radix;
 	struct radix_tree_root block_group_data_radix;
 	struct radix_tree_root extent_map_radix;
-
-	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 6];
-	int extent_tree_insert_nr;
-	u64 extent_tree_prealloc[BTRFS_MAX_LEVEL * 6];
-	int extent_tree_prealloc_nr;
-
+	struct radix_tree_root extent_ins_radix;
 	u64 generation;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;

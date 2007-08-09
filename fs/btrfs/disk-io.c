@@ -427,6 +427,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
 	init_bit_radix(&fs_info->extent_map_radix);
+	init_bit_radix(&fs_info->extent_ins_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);
 	INIT_RADIX_TREE(&fs_info->block_group_data_radix, GFP_KERNEL);
@@ -443,8 +444,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	fs_info->do_barriers = 1;
-	fs_info->extent_tree_insert_nr = 0;
-	fs_info->extent_tree_prealloc_nr = 0;
 	fs_info->closing = 0;
 
 	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);

@@ -109,6 +109,8 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 	h->blocks_reserved = num_blocks;
 	h->blocks_used = 0;
 	h->block_group = NULL;
+	h->alloc_exclude_nr = 0;
+	h->alloc_exclude_start = 0;
 	root->fs_info->running_transaction->use_count++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 	return h;
