@@ -283,8 +283,7 @@ add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
 static inline void
 __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 {
-	unsigned long delta, delta_exec, delta_fair;
-	long delta_mine;
+	unsigned long delta, delta_exec, delta_fair, delta_mine;
 	struct load_weight *lw = &cfs_rq->load;
 	unsigned long load = lw->weight;
 
