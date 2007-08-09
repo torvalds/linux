@@ -1138,6 +1138,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		dbg("Trying to get hotplug control for %s \n",
 			(char *)string.pointer);
 		status = pci_osc_control_set(handle,
+				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL |
 				OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
 		if (status == AE_NOT_FOUND)
 			status = acpi_run_oshp(handle);
