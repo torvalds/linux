@@ -1008,8 +1008,8 @@ exit:
 
 #define NR_OOB_SCAN_PAGES 4
 
-/* For historical reasons we use only 12 bytes for OOB clean marker */
-#define OOB_CM_SIZE 12
+/* For historical reasons we use only 8 bytes for OOB clean marker */
+#define OOB_CM_SIZE 8
 
 static const struct jffs2_unknown_node oob_cleanmarker =
 {
