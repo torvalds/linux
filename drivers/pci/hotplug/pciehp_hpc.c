@@ -129,10 +129,10 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 /* Link Width Encoding */
 #define LNK_X1		0x01
 #define LNK_X2		0x02
-#define LNK_X4		0x04	
+#define LNK_X4		0x04
 #define LNK_X8		0x08
 #define LNK_X12		0x0C
-#define LNK_X16		0x10	
+#define LNK_X16		0x10
 #define LNK_X32		0x20
 
 /*Field definitions of Link Status Register */
@@ -262,7 +262,7 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 		goto out;
 	}
 
-	if ((slot_status & CMD_COMPLETED) == CMD_COMPLETED ) { 
+	if ((slot_status & CMD_COMPLETED) == CMD_COMPLETED ) {
 		/* After 1 sec and CMD_COMPLETED still not set, just
 		   proceed forward to issue the next command according
 		   to spec.  Just print out the error message */
@@ -310,7 +310,7 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 	}
 
 	dbg("%s: lnk_status = %x\n", __FUNCTION__, lnk_status);
-	if ( (lnk_status & LNK_TRN) || (lnk_status & LNK_TRN_ERR) || 
+	if ( (lnk_status & LNK_TRN) || (lnk_status & LNK_TRN_ERR) ||
 		!(lnk_status & NEG_LINK_WD)) {
 		err("%s : Link Training Error occurs \n", __FUNCTION__);
 		retval = -1;
@@ -382,7 +382,7 @@ static int hpc_get_power_status(struct slot *slot, u8 *status)
 		*status = 1;
 		break;
 	case 1:
-		*status = 0;	
+		*status = 0;
 		break;
 	default:
 		*status = 0xFF;
@@ -405,7 +405,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 		return retval;
 	}
 
-	*status = (((slot_status & MRL_STATE) >> 5) == 0) ? 0 : 1;  
+	*status = (((slot_status & MRL_STATE) >> 5) == 0) ? 0 : 1;
 
 	return 0;
 }
@@ -441,7 +441,7 @@ static int hpc_query_power_fault(struct slot *slot)
 		return retval;
 	}
 	pwr_fault = (u8)((slot_status & PWR_FAULT_DETECTED) >> 1);
-	
+
 	return pwr_fault;
 }
 
@@ -509,7 +509,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	rc = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-	
+
 	return rc;
 }
 
@@ -519,7 +519,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
-       	
+
 	slot_cmd = 0x0100;
 	cmd_mask = PWR_LED_CTRL;
 	if (!pciehp_poll_mode) {
@@ -556,7 +556,7 @@ static void hpc_set_green_led_blink(struct slot *slot)
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
-	
+
 	slot_cmd = 0x0200;
 	cmd_mask = PWR_LED_CTRL;
 	if (!pciehp_poll_mode) {
@@ -736,7 +736,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		}
 		dbg("%s: pciehp_readw(SLOTSTATUS) with value %x\n",
 		    __FUNCTION__, slot_status);
-		
+
 		/* Clear command complete interrupt caused by this write */
 		temp_word = 0x1f;
 		rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
@@ -746,10 +746,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 			return IRQ_NONE;
 		}
 	}
-	
+
 	if (intr_loc & CMD_COMPLETED) {
-		/* 
-		 * Command Complete Interrupt Pending 
+		/*
+		 * Command Complete Interrupt Pending
 		 */
 		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
@@ -803,7 +803,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 			    __FUNCTION__);
 			return IRQ_NONE;
 		}
-		
+
 		/* Clear command complete interrupt caused by this write */
 		temp_word = 0x1F;
 		rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
@@ -815,7 +815,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		dbg("%s: pciehp_writew(SLOTSTATUS) with value %x\n",
 		    __FUNCTION__, temp_word);
 	}
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -936,7 +936,7 @@ static int hpc_get_cur_lnk_width (struct slot *slot, enum pcie_link_width *value
 		err("%s: Cannot read LNKSTATUS register\n", __FUNCTION__);
 		return retval;
 	}
-	
+
 	switch ((lnk_status & 0x03F0) >> 4){
 	case 0:
 		lnk_wdth = PCIE_LNK_WIDTH_RESRV;
@@ -988,12 +988,12 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.get_cur_bus_speed		= hpc_get_cur_lnk_speed,
 	.get_max_lnk_width		= hpc_get_max_lnk_width,
 	.get_cur_lnk_width		= hpc_get_cur_lnk_width,
-	
+
 	.query_power_fault		= hpc_query_power_fault,
 	.green_led_on			= hpc_set_green_led_on,
 	.green_led_off			= hpc_set_green_led_off,
 	.green_led_blink		= hpc_set_green_led_blink,
-	
+
 	.release_ctlr			= hpc_release_ctlr,
 	.check_lnk_status		= hpc_check_lnk_status,
 };
@@ -1144,7 +1144,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 			    (unsigned long long)pci_resource_start(pdev, rc),
 			    (unsigned long long)pci_resource_len(pdev, rc));
 
-	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, 
+	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device,
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
 	mutex_init(&ctrl->crit_sect);
@@ -1232,14 +1232,14 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	if (ATTN_BUTTN(slot_cap))
 		intr_enable = intr_enable | ATTN_BUTTN_ENABLE;
-	
+
 	if (POWER_CTRL(slot_cap))
 		intr_enable = intr_enable | PWR_FAULT_DETECT_ENABLE;
-	
+
 	if (MRL_SENS(slot_cap))
 		intr_enable = intr_enable | MRL_DETECT_ENABLE;
 
-	temp_word = (temp_word & ~intr_enable) | intr_enable; 
+	temp_word = (temp_word & ~intr_enable) | intr_enable;
 
 	if (pciehp_poll_mode) {
 		temp_word = (temp_word & ~HP_INTR_ENABLE) | 0x0;
@@ -1258,14 +1258,14 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		err("%s: Cannot read SLOTSTATUS register\n", __FUNCTION__);
 		goto abort_disable_intr;
 	}
-	
+
 	temp_word =  0x1F; /* Clear all events */
 	rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
 	if (rc) {
 		err("%s: Cannot write to SLOTSTATUS register\n", __FUNCTION__);
 		goto abort_disable_intr;
 	}
-	
+
 	if (pciehp_force) {
 		dbg("Bypassing BIOS check for pciehp use on %s\n",
 				pci_name(ctrl->pci_dev));
