@@ -242,8 +242,8 @@ static int celleb_fake_pci_write_config(struct pci_bus *bus,
 }
 
 static struct pci_ops celleb_fake_pci_ops = {
-	celleb_fake_pci_read_config,
-	celleb_fake_pci_write_config
+	.read = celleb_fake_pci_read_config,
+	.write = celleb_fake_pci_write_config,
 };
 
 static inline void celleb_setup_pci_base_addrs(struct pci_controller *hose,
