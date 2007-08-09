@@ -376,8 +376,7 @@ calc_weighted(unsigned long delta, unsigned long weight, int shift)
 /*
  * Task is being enqueued - update stats:
  */
-static void
-update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	s64 key;
 
@@ -584,7 +583,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	if (wakeup)
 		enqueue_sleeper(cfs_rq, se, now);
 
-	update_stats_enqueue(cfs_rq, se, now);
+	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
 }
 
@@ -1035,7 +1034,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p, u64 now)
 
 	sched_info_queued(p);
 
-	update_stats_enqueue(cfs_rq, se, now);
+	update_stats_enqueue(cfs_rq, se);
 	/*
 	 * Child runs first: we let it run before the parent
 	 * until it reschedules once. We set up the key so that
