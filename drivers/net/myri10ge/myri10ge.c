@@ -191,6 +191,7 @@ struct myri10ge_priv {
 	struct timer_list watchdog_timer;
 	int watchdog_tx_done;
 	int watchdog_tx_req;
+	int watchdog_pause;
 	int watchdog_resets;
 	int tx_linearized;
 	int pause;
@@ -2800,6 +2801,7 @@ static void myri10ge_watchdog(struct work_struct *work)
 static void myri10ge_watchdog_timer(unsigned long arg)
 {
 	struct myri10ge_priv *mgp;
+	u32 rx_pause_cnt;
 
 	mgp = (struct myri10ge_priv *)arg;
 
@@ -2816,19 +2818,28 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 		    myri10ge_fill_thresh)
 			mgp->rx_big.watchdog_needed = 0;
 	}
+	rx_pause_cnt = ntohl(mgp->fw_stats->dropped_pause);
 
 	if (mgp->tx.req != mgp->tx.done &&
 	    mgp->tx.done == mgp->watchdog_tx_done &&
-	    mgp->watchdog_tx_req != mgp->watchdog_tx_done)
+	    mgp->watchdog_tx_req != mgp->watchdog_tx_done) {
 		/* nic seems like it might be stuck.. */
-		schedule_work(&mgp->watchdog_work);
-	else
-		/* rearm timer */
-		mod_timer(&mgp->watchdog_timer,
-			  jiffies + myri10ge_watchdog_timeout * HZ);
-
+		if (rx_pause_cnt != mgp->watchdog_pause) {
+			if (net_ratelimit())
+				printk(KERN_WARNING "myri10ge %s:"
+				       "TX paused, check link partner\n",
+				       mgp->dev->name);
+		} else {
+			schedule_work(&mgp->watchdog_work);
+			return;
+		}
+	}
+	/* rearm timer */
+	mod_timer(&mgp->watchdog_timer,
+		  jiffies + myri10ge_watchdog_timeout * HZ);
 	mgp->watchdog_tx_done = mgp->tx.done;
 	mgp->watchdog_tx_req = mgp->tx.req;
+	mgp->watchdog_pause = rx_pause_cnt;
 }
 
 static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
