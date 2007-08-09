@@ -910,8 +910,6 @@ static int effective_prio(struct task_struct *p)
  */
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
-	update_rq_clock(rq);
-
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible--;
 
@@ -1510,6 +1508,7 @@ out_set_cpu:
 
 out_activate:
 #endif /* CONFIG_SMP */
+	update_rq_clock(rq);
 	activate_task(rq, p, 1);
 	/*
 	 * Sync wakeups (i.e. those types of wakeups where the waker
@@ -2117,6 +2116,7 @@ static void pull_task(struct rq *src_rq, struct task_struct *p,
 	update_rq_clock(src_rq);
 	deactivate_task(src_rq, p, 0);
 	set_task_cpu(p, this_cpu);
+	__update_rq_clock(this_rq);
 	activate_task(this_rq, p, 0);
 	/*
 	 * Note that idle threads have a prio of MAX_PRIO, for this test
@@ -4207,11 +4207,10 @@ recheck:
 		spin_unlock_irqrestore(&p->pi_lock, flags);
 		goto recheck;
 	}
+	update_rq_clock(rq);
 	on_rq = p->se.on_rq;
-	if (on_rq) {
-		update_rq_clock(rq);
+	if (on_rq)
 		deactivate_task(rq, p, 0);
-	}
 	oldprio = p->prio;
 	__setscheduler(rq, p, policy, param->sched_priority);
 	if (on_rq) {
@@ -4969,6 +4968,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	}
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
+		update_rq_clock(rq_dest);
 		activate_task(rq_dest, p, 0);
 		check_preempt_curr(rq_dest, p);
 	}
@@ -6623,14 +6623,13 @@ void normalize_rt_tasks(void)
 			goto out_unlock;
 #endif
 
+		update_rq_clock(rq);
 		on_rq = p->se.on_rq;
-		if (on_rq) {
-			update_rq_clock(task_rq(p));
-			deactivate_task(task_rq(p), p, 0);
-		}
+		if (on_rq)
+			deactivate_task(rq, p, 0);
 		__setscheduler(rq, p, SCHED_NORMAL, 0);
 		if (on_rq) {
-			activate_task(task_rq(p), p, 0);
+			activate_task(rq, p, 0);
 			resched_task(rq->curr);
 		}
 #ifdef CONFIG_SMP
