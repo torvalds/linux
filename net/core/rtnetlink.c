@@ -713,7 +713,7 @@ cont:
 	return skb->len;
 }
 
-static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
+const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
 	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
 	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
@@ -937,6 +937,48 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
+struct net_device *rtnl_create_link(char *ifname,
+		const struct rtnl_link_ops *ops, struct nlattr *tb[])
+{
+	int err;
+	struct net_device *dev;
+
+	err = -ENOMEM;
+	dev = alloc_netdev(ops->priv_size, ifname, ops->setup);
+	if (!dev)
+		goto err;
+
+	if (strchr(dev->name, '%')) {
+		err = dev_alloc_name(dev, dev->name);
+		if (err < 0)
+			goto err_free;
+	}
+
+	dev->rtnl_link_ops = ops;
+
+	if (tb[IFLA_MTU])
+		dev->mtu = nla_get_u32(tb[IFLA_MTU]);
+	if (tb[IFLA_ADDRESS])
+		memcpy(dev->dev_addr, nla_data(tb[IFLA_ADDRESS]),
+				nla_len(tb[IFLA_ADDRESS]));
+	if (tb[IFLA_BROADCAST])
+		memcpy(dev->broadcast, nla_data(tb[IFLA_BROADCAST]),
+				nla_len(tb[IFLA_BROADCAST]));
+	if (tb[IFLA_TXQLEN])
+		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
+	if (tb[IFLA_OPERSTATE])
+		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+	if (tb[IFLA_LINKMODE])
+		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
+
+	return dev;
+
+err_free:
+	free_netdev(dev);
+err:
+	return ERR_PTR(err);
+}
+
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	const struct rtnl_link_ops *ops;
@@ -1049,38 +1091,17 @@ replay:
 
 		if (!ifname[0])
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
-		dev = alloc_netdev(ops->priv_size, ifname, ops->setup);
-		if (!dev)
-			return -ENOMEM;
 
-		if (strchr(dev->name, '%')) {
-			err = dev_alloc_name(dev, dev->name);
-			if (err < 0)
-				goto err_free;
-		}
-		dev->rtnl_link_ops = ops;
+		dev = rtnl_create_link(ifname, ops, tb);
 
-		if (tb[IFLA_MTU])
-			dev->mtu = nla_get_u32(tb[IFLA_MTU]);
-		if (tb[IFLA_ADDRESS])
-			memcpy(dev->dev_addr, nla_data(tb[IFLA_ADDRESS]),
-			       nla_len(tb[IFLA_ADDRESS]));
-		if (tb[IFLA_BROADCAST])
-			memcpy(dev->broadcast, nla_data(tb[IFLA_BROADCAST]),
-			       nla_len(tb[IFLA_BROADCAST]));
-		if (tb[IFLA_TXQLEN])
-			dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
-		if (tb[IFLA_OPERSTATE])
-			set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
-		if (tb[IFLA_LINKMODE])
-			dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
-
-		if (ops->newlink)
+		if (IS_ERR(dev))
+			err = PTR_ERR(dev);
+		else if (ops->newlink)
 			err = ops->newlink(dev, tb, data);
 		else
 			err = register_netdevice(dev);
-err_free:
-		if (err < 0)
+
+		if (err < 0 && !IS_ERR(dev))
 			free_netdev(dev);
 		return err;
 	}
@@ -1329,3 +1350,5 @@ EXPORT_SYMBOL(rtnl_unlock);
 EXPORT_SYMBOL(rtnl_unicast);
 EXPORT_SYMBOL(rtnl_notify);
 EXPORT_SYMBOL(rtnl_set_sk_err);
+EXPORT_SYMBOL(rtnl_create_link);
+EXPORT_SYMBOL(ifla_policy);
