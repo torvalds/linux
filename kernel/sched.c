@@ -2017,6 +2017,8 @@ static void double_rq_lock(struct rq *rq1, struct rq *rq2)
 			spin_lock(&rq1->lock);
 		}
 	}
+	update_rq_clock(rq1);
+	update_rq_clock(rq2);
 }
 
 /*
@@ -2113,10 +2115,8 @@ void sched_exec(void)
 static void pull_task(struct rq *src_rq, struct task_struct *p,
 		      struct rq *this_rq, int this_cpu)
 {
-	update_rq_clock(src_rq);
 	deactivate_task(src_rq, p, 0);
 	set_task_cpu(p, this_cpu);
-	__update_rq_clock(this_rq);
 	activate_task(this_rq, p, 0);
 	/*
 	 * Note that idle threads have a prio of MAX_PRIO, for this test
@@ -2798,6 +2798,8 @@ redo:
 	if (busiest->nr_running > 1) {
 		/* Attempt to move tasks */
 		double_lock_balance(this_rq, busiest);
+		/* this_rq->clock is already updated */
+		update_rq_clock(busiest);
 		ld_moved = move_tasks(this_rq, this_cpu, busiest,
 					imbalance, sd, CPU_NEWLY_IDLE,
 					&all_pinned);
@@ -2895,6 +2897,8 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 
 	/* move a task from busiest_rq to target_rq */
 	double_lock_balance(busiest_rq, target_rq);
+	update_rq_clock(busiest_rq);
+	update_rq_clock(target_rq);
 
 	/* Search for an sd spanning us and the target CPU. */
 	for_each_domain(target_cpu, sd) {
@@ -4962,13 +4966,11 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		goto out;
 
 	on_rq = p->se.on_rq;
-	if (on_rq) {
-		update_rq_clock(rq_src);
+	if (on_rq)
 		deactivate_task(rq_src, p, 0);
-	}
+
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
-		update_rq_clock(rq_dest);
 		activate_task(rq_dest, p, 0);
 		check_preempt_curr(rq_dest, p);
 	}
