@@ -732,10 +732,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
 			tp->retrans_out -= diff;
 
-		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
 			tp->lost_out -= diff;
-			tp->left_out -= diff;
-		}
 
 		if (diff > 0) {
 			/* Adjust Reno SACK estimate. */
@@ -1727,15 +1725,11 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked&(TCPCB_EVER_RETRANS|TCPCB_AT_TAIL);
 		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_SACKED_RETRANS)
 			tp->retrans_out -= tcp_skb_pcount(next_skb);
-		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST) {
+		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST)
 			tp->lost_out -= tcp_skb_pcount(next_skb);
-			tp->left_out -= tcp_skb_pcount(next_skb);
-		}
 		/* Reno case is special. Sigh... */
-		if (!tp->rx_opt.sack_ok && tp->sacked_out) {
+		if (!tp->rx_opt.sack_ok && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
-			tp->left_out -= tcp_skb_pcount(next_skb);
-		}
 
 		/* Not quite right: it can be > snd.fack, but
 		 * it is better to underestimate fackets.

@@ -405,7 +405,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
-		newtp->left_out = 0;
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;

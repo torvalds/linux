@@ -735,7 +735,8 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
  */
 static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
-	return (tp->packets_out - tp->left_out + tp->retrans_out);
+	return tp->packets_out - (tp->sacked_out + tp->lost_out) +
+		tp->retrans_out;
 }
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
@@ -757,7 +758,6 @@ static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
 	BUG_ON(tp->rx_opt.sack_ok &&
 	       (tp->sacked_out + tp->lost_out > tp->packets_out));
-	tp->left_out = tp->sacked_out + tp->lost_out;
 }
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
