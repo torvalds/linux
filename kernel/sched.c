@@ -318,15 +318,19 @@ static inline int cpu_of(struct rq *rq)
 }
 
 /*
- * Per-runqueue clock, as finegrained as the platform can give us:
+ * Update the per-runqueue clock, as finegrained as the platform can give
+ * us, but without assuming monotonicity, etc.:
  */
-static unsigned long long __rq_clock(struct rq *rq)
+static void __update_rq_clock(struct rq *rq)
 {
 	u64 prev_raw = rq->prev_clock_raw;
 	u64 now = sched_clock();
 	s64 delta = now - prev_raw;
 	u64 clock = rq->clock;
 
+#ifdef CONFIG_SCHED_DEBUG
+	WARN_ON_ONCE(cpu_of(rq) != smp_processor_id());
+#endif
 	/*
 	 * Protect against sched_clock() occasionally going backwards:
 	 */
@@ -349,17 +353,24 @@ static unsigned long long __rq_clock(struct rq *rq)
 
 	rq->prev_clock_raw = now;
 	rq->clock = clock;
-
-	return clock;
 }
 
-static unsigned long long rq_clock(struct rq *rq)
+static void update_rq_clock(struct rq *rq)
 {
-	int this_cpu = smp_processor_id();
+	if (likely(smp_processor_id() == cpu_of(rq)))
+		__update_rq_clock(rq);
+}
 
-	if (this_cpu == cpu_of(rq))
-		return __rq_clock(rq);
+static u64 __rq_clock(struct rq *rq)
+{
+	__update_rq_clock(rq);
 
+	return rq->clock;
+}
+
+static u64 rq_clock(struct rq *rq)
+{
+	update_rq_clock(rq);
 	return rq->clock;
 }
 
@@ -386,9 +397,12 @@ unsigned long long cpu_clock(int cpu)
 {
 	unsigned long long now;
 	unsigned long flags;
+	struct rq *rq;
 
 	local_irq_save(flags);
-	now = rq_clock(cpu_rq(cpu));
+	rq = cpu_rq(cpu);
+	update_rq_clock(rq);
+	now = rq->clock;
 	local_irq_restore(flags);
 
 	return now;
