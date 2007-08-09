@@ -3400,7 +3400,7 @@ static inline void schedule_debug(struct task_struct *prev)
  * Pick up the highest-prio task:
  */
 static inline struct task_struct *
-pick_next_task(struct rq *rq, struct task_struct *prev, u64 now)
+pick_next_task(struct rq *rq, struct task_struct *prev)
 {
 	struct sched_class *class;
 	struct task_struct *p;
@@ -3471,7 +3471,7 @@ need_resched_nonpreemptible:
 		idle_balance(cpu, rq);
 
 	prev->sched_class->put_prev_task(rq, prev, now);
-	next = pick_next_task(rq, prev, now);
+	next = pick_next_task(rq, prev);
 
 	sched_info_switch(prev, next);
 
@@ -5222,7 +5222,7 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 		if (!rq->nr_running)
 			break;
 		update_rq_clock(rq);
-		next = pick_next_task(rq, rq->curr, rq->clock);
+		next = pick_next_task(rq, rq->curr);
 		if (!next)
 			break;
 		migrate_dead(dead_cpu, next);
