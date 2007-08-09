@@ -929,6 +929,7 @@ static struct task_struct *load_balance_next_fair(void *arg)
 	return __load_balance_iterator(cfs_rq, cfs_rq->rb_load_balance_curr);
 }
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
 static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr;
@@ -942,12 +943,13 @@ static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
 
 	return p->prio;
 }
+#endif
 
 static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
-			unsigned long max_nr_move, unsigned long max_load_move,
-			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned)
+		  unsigned long max_nr_move, unsigned long max_load_move,
+		  struct sched_domain *sd, enum cpu_idle_type idle,
+		  int *all_pinned, int *this_best_prio)
 {
 	struct cfs_rq *busy_cfs_rq;
 	unsigned long load_moved, total_nr_moved = 0, nr_moved;
@@ -958,10 +960,10 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	cfs_rq_iterator.next = load_balance_next_fair;
 
 	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
+#ifdef CONFIG_FAIR_GROUP_SCHED
 		struct cfs_rq *this_cfs_rq;
-		long imbalance;
+		long imbalances;
 		unsigned long maxload;
-		int this_best_prio, best_prio, best_prio_seen = 0;
 
 		this_cfs_rq = cpu_cfs_rq(busy_cfs_rq, this_cpu);
 
@@ -975,27 +977,17 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		imbalance /= 2;
 		maxload = min(rem_load_move, imbalance);
 
-		this_best_prio = cfs_rq_best_prio(this_cfs_rq);
-		best_prio = cfs_rq_best_prio(busy_cfs_rq);
-
-		/*
-		 * Enable handling of the case where there is more than one task
-		 * with the best priority. If the current running task is one
-		 * of those with prio==best_prio we know it won't be moved
-		 * and therefore it's safe to override the skip (based on load)
-		 * of any task we find with that prio.
-		 */
-		if (cfs_rq_curr(busy_cfs_rq) == &busiest->curr->se)
-			best_prio_seen = 1;
-
+		*this_best_prio = cfs_rq_best_prio(this_cfs_rq);
+#else
+#define maxload rem_load_move
+#endif
 		/* pass busy_cfs_rq argument into
 		 * load_balance_[start|next]_fair iterators
 		 */
 		cfs_rq_iterator.arg = busy_cfs_rq;
 		nr_moved = balance_tasks(this_rq, this_cpu, busiest,
 				max_nr_move, maxload, sd, idle, all_pinned,
-				&load_moved, this_best_prio, best_prio,
-				best_prio_seen, &cfs_rq_iterator);
+				&load_moved, this_best_prio, &cfs_rq_iterator);
 
 		total_nr_moved += nr_moved;
 		max_nr_move -= nr_moved;

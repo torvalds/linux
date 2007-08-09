@@ -176,25 +176,11 @@ static unsigned long
 load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned)
+			int *all_pinned, int *this_best_prio)
 {
-	int this_best_prio, best_prio, best_prio_seen = 0;
 	int nr_moved;
 	struct rq_iterator rt_rq_iterator;
 	unsigned long load_moved;
-
-	best_prio = sched_find_first_bit(busiest->rt.active.bitmap);
-	this_best_prio = sched_find_first_bit(this_rq->rt.active.bitmap);
-
-	/*
-	 * Enable handling of the case where there is more than one task
-	 * with the best priority.   If the current running task is one
-	 * of those with prio==best_prio we know it won't be moved
-	 * and therefore it's safe to override the skip (based on load)
-	 * of any task we find with that prio.
-	 */
-	if (busiest->curr->prio == best_prio)
-		best_prio_seen = 1;
 
 	rt_rq_iterator.start = load_balance_start_rt;
 	rt_rq_iterator.next = load_balance_next_rt;
@@ -205,8 +191,7 @@ load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 	nr_moved = balance_tasks(this_rq, this_cpu, busiest, max_nr_move,
 			max_load_move, sd, idle, all_pinned, &load_moved,
-			this_best_prio, best_prio, best_prio_seen,
-			&rt_rq_iterator);
+			this_best_prio, &rt_rq_iterator);
 
 	return load_moved;
 }

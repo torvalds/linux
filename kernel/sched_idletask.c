@@ -41,7 +41,7 @@ static unsigned long
 load_balance_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned)
+			int *all_pinned, int *this_best_prio)
 {
 	return 0;
 }

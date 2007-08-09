@@ -745,8 +745,7 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      unsigned long max_nr_move, unsigned long max_load_move,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned, unsigned long *load_moved,
-		      int this_best_prio, int best_prio, int best_prio_seen,
-		      struct rq_iterator *iterator);
+		      int *this_best_prio, struct rq_iterator *iterator);
 
 #include "sched_stats.h"
 #include "sched_rt.c"
@@ -2165,8 +2164,7 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      unsigned long max_nr_move, unsigned long max_load_move,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned, unsigned long *load_moved,
-		      int this_best_prio, int best_prio, int best_prio_seen,
-		      struct rq_iterator *iterator)
+		      int *this_best_prio, struct rq_iterator *iterator)
 {
 	int pulled = 0, pinned = 0, skip_for_load;
 	struct task_struct *p;
@@ -2191,12 +2189,8 @@ next:
 	 */
 	skip_for_load = (p->se.load.weight >> 1) > rem_load_move +
 							 SCHED_LOAD_SCALE_FUZZ;
-	if (skip_for_load && p->prio < this_best_prio)
-		skip_for_load = !best_prio_seen && p->prio == best_prio;
-	if (skip_for_load ||
+	if ((skip_for_load && p->prio >= *this_best_prio) ||
 	    !can_migrate_task(p, busiest, this_cpu, sd, idle, &pinned)) {
-
-		best_prio_seen |= p->prio == best_prio;
 		p = iterator->next(iterator->arg);
 		goto next;
 	}
@@ -2210,8 +2204,8 @@ next:
 	 * and the prescribed amount of weighted load.
 	 */
 	if (pulled < max_nr_move && rem_load_move > 0) {
-		if (p->prio < this_best_prio)
-			this_best_prio = p->prio;
+		if (p->prio < *this_best_prio)
+			*this_best_prio = p->prio;
 		p = iterator->next(iterator->arg);
 		goto next;
 	}
@@ -2243,12 +2237,13 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 {
 	struct sched_class *class = sched_class_highest;
 	unsigned long total_load_moved = 0;
+	int this_best_prio = this_rq->curr->prio;
 
 	do {
 		total_load_moved +=
 			class->load_balance(this_rq, this_cpu, busiest,
 				ULONG_MAX, max_load_move - total_load_moved,
-				sd, idle, all_pinned);
+				sd, idle, all_pinned, &this_best_prio);
 		class = class->next;
 	} while (class && max_load_move > total_load_moved);
 
@@ -2266,10 +2261,12 @@ static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			 struct sched_domain *sd, enum cpu_idle_type idle)
 {
 	struct sched_class *class;
+	int this_best_prio = MAX_PRIO;
 
 	for (class = sched_class_highest; class; class = class->next)
 		if (class->load_balance(this_rq, this_cpu, busiest,
-					1, ULONG_MAX, sd, idle, NULL))
+					1, ULONG_MAX, sd, idle, NULL,
+					&this_best_prio))
 			return 1;
 
 	return 0;
@@ -3184,8 +3181,7 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      unsigned long max_nr_move, unsigned long max_load_move,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned, unsigned long *load_moved,
-		      int this_best_prio, int best_prio, int best_prio_seen,
-		      struct rq_iterator *iterator)
+		      int *this_best_prio, struct rq_iterator *iterator)
 {
 	*load_moved = 0;
 
