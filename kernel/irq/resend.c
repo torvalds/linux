@@ -62,15 +62,6 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	 */
 	desc->chip->enable(irq);
 
-	/*
-	 * Temporary hack to figure out more about the problem, which
-	 * is causing the ancient network cards to die.
-	 */
-	if (desc->handle_irq != handle_edge_irq) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
 	if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
 		desc->status = (status & ~IRQ_PENDING) | IRQ_REPLAY;
 
