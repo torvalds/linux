@@ -287,14 +287,14 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 	struct load_weight *lw = &cfs_rq->load;
 	unsigned long load = lw->weight;
 
-	if (unlikely(!load))
-		return;
-
 	delta_exec = curr->delta_exec;
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
 	cfs_rq->exec_clock += delta_exec;
+
+	if (unlikely(!load))
+		return;
 
 	delta_fair = calc_delta_fair(delta_exec, lw);
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
