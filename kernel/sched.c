@@ -810,7 +810,7 @@ static inline void dec_load(struct rq *rq, const struct task_struct *p)
 	update_load_sub(&rq->ls.load, p->se.load.weight);
 }
 
-static void inc_nr_running(struct task_struct *p, struct rq *rq, u64 now)
+static void inc_nr_running(struct task_struct *p, struct rq *rq)
 {
 	rq->nr_running++;
 	inc_load(rq, p);
@@ -921,7 +921,7 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 		rq->nr_uninterruptible--;
 
 	enqueue_task(rq, p, wakeup, now);
-	inc_nr_running(p, rq, now);
+	inc_nr_running(p, rq);
 }
 
 /*
@@ -938,7 +938,7 @@ static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
 		rq->nr_uninterruptible--;
 
 	enqueue_task(rq, p, 0, now);
-	inc_nr_running(p, rq, now);
+	inc_nr_running(p, rq);
 }
 
 /*
@@ -1671,7 +1671,7 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		 * management (if any):
 		 */
 		p->sched_class->task_new(rq, p);
-		inc_nr_running(p, rq, now);
+		inc_nr_running(p, rq);
 	}
 	check_preempt_curr(rq, p);
 	task_rq_unlock(rq, &flags);
