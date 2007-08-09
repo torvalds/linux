@@ -44,9 +44,12 @@ static unsigned long rtas_log_start;
 static unsigned long rtas_log_size;
 
 static int surveillance_timeout = -1;
-static unsigned int rtas_event_scan_rate;
 static unsigned int rtas_error_log_max;
 static unsigned int rtas_error_log_buffer_max;
+
+/* RTAS service tokens */
+static unsigned int event_scan;
+static unsigned int rtas_event_scan_rate;
 
 static int full_rtas_msgs = 0;
 
@@ -381,7 +384,7 @@ static int get_eventscan_parms(void)
 	return 0;
 }
 
-static void do_event_scan(int event_scan)
+static void do_event_scan(void)
 {
 	int error;
 	do {
@@ -408,7 +411,7 @@ static void do_event_scan_all_cpus(long delay)
 	cpu = first_cpu(cpu_online_map);
 	for (;;) {
 		set_cpus_allowed(current, cpumask_of_cpu(cpu));
-		do_event_scan(rtas_token("event-scan"));
+		do_event_scan();
 		set_cpus_allowed(current, CPU_MASK_ALL);
 
 		/* Drop hotplug lock, and sleep for the specified delay */
@@ -426,12 +429,11 @@ static void do_event_scan_all_cpus(long delay)
 static int rtasd(void *unused)
 {
 	unsigned int err_type;
-	int event_scan = rtas_token("event-scan");
 	int rc;
 
 	daemonize("rtasd");
 
-	if (event_scan == RTAS_UNKNOWN_SERVICE || get_eventscan_parms() == -1)
+	if (get_eventscan_parms() == -1)
 		goto error;
 
 	rtas_log_buf = vmalloc(rtas_error_log_buffer_max*LOG_NUMBER);
@@ -486,7 +488,8 @@ static int __init rtas_init(void)
 		return 0;
 
 	/* No RTAS */
-	if (rtas_token("event-scan") == RTAS_UNKNOWN_SERVICE) {
+	event_scan = rtas_token("event-scan");
+	if (event_scan == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_DEBUG "rtasd: no event-scan on system\n");
 		return -ENODEV;
 	}
