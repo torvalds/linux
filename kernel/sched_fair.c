@@ -585,8 +585,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 }
 
 static void
-dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
-	       int sleep, u64 now)
+dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
@@ -678,7 +677,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 * Dequeue and enqueue the task to update its
 	 * position within the tree:
 	 */
-	dequeue_entity(cfs_rq, curr, 0, now);
+	dequeue_entity(cfs_rq, curr, 0);
 	enqueue_entity(cfs_rq, curr, 0);
 
 	/*
@@ -811,7 +810,7 @@ dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep, u64 now)
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		dequeue_entity(cfs_rq, se, sleep, now);
+		dequeue_entity(cfs_rq, se, sleep);
 		/* Don't dequeue parent if it has other entities besides us */
 		if (cfs_rq->load.weight)
 			break;
@@ -832,7 +831,7 @@ static void yield_task_fair(struct rq *rq, struct task_struct *p)
 	 * Dequeue and enqueue the task to update its
 	 * position within the tree:
 	 */
-	dequeue_entity(cfs_rq, &p->se, 0, now);
+	dequeue_entity(cfs_rq, &p->se, 0);
 	enqueue_entity(cfs_rq, &p->se, 0);
 }
 
