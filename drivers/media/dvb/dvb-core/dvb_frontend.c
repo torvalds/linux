@@ -697,17 +697,35 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 	return 0;
 }
 
+static void dvb_frontend_get_frequeny_limits(struct dvb_frontend *fe,
+					u32 *freq_min, u32 *freq_max)
+{
+	*freq_min = max(fe->ops.info.frequency_min, fe->ops.tuner_ops.info.frequency_min);
+
+	if (fe->ops.info.frequency_max == 0)
+		*freq_max = fe->ops.tuner_ops.info.frequency_max;
+	else if (fe->ops.tuner_ops.info.frequency_max == 0)
+		*freq_max = fe->ops.info.frequency_max;
+	else
+		*freq_max = min(fe->ops.info.frequency_max, fe->ops.tuner_ops.info.frequency_max);
+
+	if (*freq_min == 0 || *freq_max == 0)
+		printk(KERN_WARNING "DVB: frontend %u frequency limits undefined - fix the driver\n",
+		       fe->dvb->num);
+}
+
 static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 				struct dvb_frontend_parameters *parms)
 {
+	u32 freq_min;
+	u32 freq_max;
+
 	/* range check: frequency */
-	if ((fe->ops.info.frequency_min &&
-	     parms->frequency < fe->ops.info.frequency_min) ||
-	    (fe->ops.info.frequency_max &&
-	     parms->frequency > fe->ops.info.frequency_max)) {
+	dvb_frontend_get_frequeny_limits(fe, &freq_min, &freq_max);
+	if ((freq_min && parms->frequency < freq_min) ||
+	    (freq_max && parms->frequency > freq_max)) {
 		printk(KERN_WARNING "DVB: frontend %u frequency %u out of range (%u..%u)\n",
-		       fe->dvb->num, parms->frequency,
-		       fe->ops.info.frequency_min, fe->ops.info.frequency_max);
+		       fe->dvb->num, parms->frequency, freq_min, freq_max);
 		return -EINVAL;
 	}
 
@@ -763,6 +781,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	case FE_GET_INFO: {
 		struct dvb_frontend_info* info = parg;
 		memcpy(info, &fe->ops.info, sizeof(struct dvb_frontend_info));
+		dvb_frontend_get_frequeny_limits(fe, &info->frequency_min, &info->frequency_max);
 
 		/* Force the CAN_INVERSION_AUTO bit on. If the frontend doesn't
 		 * do it, it is done for it. */
