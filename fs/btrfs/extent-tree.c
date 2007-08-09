@@ -1312,7 +1312,10 @@ static void reada_walk_down(struct btrfs_root *root,
 		BUG_ON(ret);
 		if (refs != 1)
 			continue;
+		mutex_unlock(&root->fs_info->fs_mutex);
 		ret = readahead_tree_block(root, blocknr);
+		cond_resched();
+		mutex_lock(&root->fs_info->fs_mutex);
 		if (ret)
 			break;
 	}
@@ -1445,7 +1448,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_path *path;
 	int i;
 	int orig_level;
-	int num_walks = 0;
 	struct btrfs_root_item *root_item = &root->root_item;
 
 	path = btrfs_alloc_path();
@@ -1486,12 +1488,9 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
-		num_walks++;
-		if (num_walks > 2) {
-			ret = -EAGAIN;
-			get_bh(root->node);
-			break;
-		}
+		ret = -EAGAIN;
+		get_bh(root->node);
+		break;
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

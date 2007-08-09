@@ -148,7 +148,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int level;
 	int orig_level;
 	int i;
-	int num_runs = 0;
 
 	if (root->ref_cows == 0) {
 		goto out;
@@ -200,10 +199,8 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			break;
 		if (wret < 0)
 			ret = wret;
-		if (num_runs++ > 8) {
-			ret = -EAGAIN;
-			break;
-		}
+		ret = -EAGAIN;
+		break;
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

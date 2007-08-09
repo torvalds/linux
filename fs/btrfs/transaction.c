@@ -364,6 +364,9 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 					break;
 			}
 			root->defrag_running = 0;
+			radix_tree_tag_clear(&info->fs_roots_radix,
+				     (unsigned long)root->root_key.objectid,
+				     BTRFS_ROOT_DEFRAG_TAG);
 		}
 	}
 	btrfs_end_transaction(trans, tree_root);
