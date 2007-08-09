@@ -122,8 +122,8 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops pa_pxp_ops = {
-	pa_pxp_read_config,
-	pa_pxp_write_config,
+	.read = pa_pxp_read_config,
+	.write = pa_pxp_write_config,
 };
 
 static void __init setup_pa_pxp(struct pci_controller *hose)
