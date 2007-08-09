@@ -771,6 +771,8 @@ int ipath_set_linkstate(struct ipath_devdata *, u8);
 int ipath_set_mtu(struct ipath_devdata *, u16);
 int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
+void ipath_enable_armlaunch(struct ipath_devdata *);
+void ipath_disable_armlaunch(struct ipath_devdata *);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd

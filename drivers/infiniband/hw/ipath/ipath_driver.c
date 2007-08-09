@@ -334,6 +334,8 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 		udelay(1);
 	}
 
+	ipath_disable_armlaunch(dd);
+
 	writeq(0, piobuf); /* length 0, no dwords actually sent */
 	ipath_flush_wc();
 
@@ -365,6 +367,7 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 done:
 	/* disarm piobuf, so it's available again */
 	ipath_disarm_piobufs(dd, pbnum, 1);
+	ipath_enable_armlaunch(dd);
 }
 
 static int __devinit ipath_init_one(struct pci_dev *pdev,
@@ -2271,5 +2274,34 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv)
 	}
 	return 0;
 }
+
+/*
+ * Disable and enable the armlaunch error.  Used for PIO bandwidth testing on
+ * the 7220, which is count-based, rather than trigger-based.  Safe for the
+ * driver check, since it's at init.   Not completely safe when used for
+ * user-mode checking, since some error checking can be lost, but not
+ * particularly risky, and only has problematic side-effects in the face of
+ * very buggy user code.  There is no reference counting, but that's also
+ * fine, given the intended use.
+ */
+void ipath_enable_armlaunch(struct ipath_devdata *dd)
+{
+	dd->ipath_lasterror &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
+		INFINIPATH_E_SPIOARMLAUNCH);
+	dd->ipath_errormask |= INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		dd->ipath_errormask);
+}
+
+void ipath_disable_armlaunch(struct ipath_devdata *dd)
+{
+	/* so don't re-enable if already set */
+	dd->ipath_maskederrs &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	dd->ipath_errormask &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		dd->ipath_errormask);
+}
+
 module_init(infinipath_init);
 module_exit(infinipath_cleanup);

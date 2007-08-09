@@ -443,8 +443,9 @@ struct ipath_user_info {
 #define IPATH_CMD_UNUSED_2	26
 #define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
 #define IPATH_CMD_POLL_TYPE	28	/* set the kind of polling we want */
+#define IPATH_CMD_ARMLAUNCH_CTRL	29 /* armlaunch detection control */
 
-#define IPATH_CMD_MAX		28
+#define IPATH_CMD_MAX		29
 
 /*
  * Poll types
@@ -487,6 +488,8 @@ struct ipath_cmd {
 		__u64 port_info;
 		/* enable/disable receipt of packets */
 		__u32 recv_ctrl;
+		/* enable/disable armlaunch errors (non-zero to enable) */
+		__u32 armlaunch_ctrl;
 		/* partition key to set */
 		__u16 part_key;
 		/* user address of __u32 bitmask of active slaves */

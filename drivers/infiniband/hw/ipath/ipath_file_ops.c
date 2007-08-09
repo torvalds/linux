@@ -2224,6 +2224,11 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		dest = &cmd.cmd.poll_type;
 		src = &ucmd->cmd.poll_type;
 		break;
+	case IPATH_CMD_ARMLAUNCH_CTRL:
+		copy = sizeof(cmd.cmd.armlaunch_ctrl);
+		dest = &cmd.cmd.armlaunch_ctrl;
+		src = &ucmd->cmd.armlaunch_ctrl;
+		break;
 	default:
 		ret = -EINVAL;
 		goto bail;
@@ -2298,6 +2303,12 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		break;
 	case IPATH_CMD_POLL_TYPE:
 		pd->poll_type = cmd.cmd.poll_type;
+		break;
+	case IPATH_CMD_ARMLAUNCH_CTRL:
+		if (cmd.cmd.armlaunch_ctrl)
+			ipath_enable_armlaunch(pd->port_dd);
+		else
+			ipath_disable_armlaunch(pd->port_dd);
 		break;
 	}
 
