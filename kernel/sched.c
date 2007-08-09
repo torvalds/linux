@@ -3298,9 +3298,9 @@ void scheduler_tick(void)
 	struct task_struct *curr = rq->curr;
 
 	spin_lock(&rq->lock);
+	update_cpu_load(rq);
 	if (curr != rq->idle) /* FIXME: needed? */
 		curr->sched_class->task_tick(rq, curr);
-	update_cpu_load(rq);
 	spin_unlock(&rq->lock);
 
 #ifdef CONFIG_SMP
