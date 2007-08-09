@@ -33,7 +33,7 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
 	spin_lock_irq(&rq->lock);
 }
 
-static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, u64 now)
+static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
 

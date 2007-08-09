@@ -3470,7 +3470,7 @@ need_resched_nonpreemptible:
 	if (unlikely(!rq->nr_running))
 		idle_balance(cpu, rq);
 
-	prev->sched_class->put_prev_task(rq, prev, now);
+	prev->sched_class->put_prev_task(rq, prev);
 	next = pick_next_task(rq, prev);
 
 	sched_info_switch(prev, next);

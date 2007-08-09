@@ -92,7 +92,7 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 	return next;
 }
 
-static void put_prev_task_rt(struct rq *rq, struct task_struct *p, u64 now)
+static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 {
 	update_curr_rt(rq);
 	p->se.exec_start = 0;
