@@ -144,8 +144,8 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops indirect_pci_ops =
 {
-	indirect_read_config,
-	indirect_write_config
+	.read = indirect_read_config,
+	.write = indirect_write_config,
 };
 
 void __init
