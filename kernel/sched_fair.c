@@ -665,10 +665,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
-	struct rq *rq = rq_of(cfs_rq);
 	struct sched_entity *next;
-
-	__update_rq_clock(rq);
 
 	/*
 	 * Dequeue and enqueue the task to update its
