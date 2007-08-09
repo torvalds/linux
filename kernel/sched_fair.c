@@ -647,8 +647,7 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 	return se;
 }
 
-static void
-put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev, u64 now)
+static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 {
 	/*
 	 * If still on the runqueue then deactivate_task()
@@ -888,7 +887,7 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev, u64 now)
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		put_prev_entity(cfs_rq, se, now);
+		put_prev_entity(cfs_rq, se);
 	}
 }
 
