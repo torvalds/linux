@@ -4473,10 +4473,8 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 out_unlock:
 	read_unlock(&tasklist_lock);
 	mutex_unlock(&sched_hotcpu_mutex);
-	if (retval)
-		return retval;
 
-	return 0;
+	return retval;
 }
 
 /**
