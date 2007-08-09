@@ -86,8 +86,8 @@ int gg2_write_config(struct pci_bus *bus, unsigned int devfn, int off,
 
 static struct pci_ops gg2_pci_ops =
 {
-	gg2_read_config,
-	gg2_write_config
+	.read = gg2_read_config,
+	.write = gg2_write_config,
 };
 
 /*
@@ -124,8 +124,8 @@ int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops rtas_pci_ops =
 {
-	rtas_read_config,
-	rtas_write_config
+	.read = rtas_read_config,
+	.write = rtas_write_config,
 };
 
 volatile struct Hydra __iomem *Hydra = NULL;
