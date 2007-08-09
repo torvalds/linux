@@ -300,7 +300,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr, u64 now)
 	delta_fair = calc_delta_fair(delta_exec, lw);
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
-	if (cfs_rq->sleeper_bonus > sysctl_sched_stat_granularity) {
+	if (cfs_rq->sleeper_bonus > sysctl_sched_granularity) {
 		delta = calc_delta_mine(cfs_rq->sleeper_bonus,
 					curr->load.weight, lw);
 		if (unlikely(delta > cfs_rq->sleeper_bonus))
