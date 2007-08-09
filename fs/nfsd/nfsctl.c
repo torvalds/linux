@@ -298,7 +298,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	 * qword quoting is used, so filehandle will be \x....
 	 */
 	char *dname, *path;
-	int maxsize;
+	int uninitialized_var(maxsize);
 	char *mesg = buf;
 	int len;
 	struct auth_domain *dom;
