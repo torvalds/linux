@@ -107,15 +107,12 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 	switch (len) {
 	case 1:
 		out_8(addr, val);
-		(void) in_8(addr);
 		break;
 	case 2:
 		out_le16(addr, val);
-		(void) in_le16(addr);
 		break;
 	default:
 		out_le32(addr, val);
-		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
