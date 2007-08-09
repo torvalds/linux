@@ -1672,7 +1672,7 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		 * Let the scheduling class do new task startup
 		 * management (if any):
 		 */
-		p->sched_class->task_new(rq, p, now);
+		p->sched_class->task_new(rq, p);
 		inc_nr_running(p, rq, now);
 	}
 	check_preempt_curr(rq, p);

@@ -1020,7 +1020,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
  * monopolize the CPU. Note: the parent runqueue is locked,
  * the child is not running yet.
  */
-static void task_new_fair(struct rq *rq, struct task_struct *p, u64 now)
+static void task_new_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 	struct sched_entity *se = &p->se;
