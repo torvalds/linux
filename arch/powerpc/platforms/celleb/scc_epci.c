@@ -278,8 +278,8 @@ static int celleb_epci_write_config(struct pci_bus *bus,
 }
 
 struct pci_ops celleb_epci_ops = {
-	celleb_epci_read_config,
-	celleb_epci_write_config,
+	.read = celleb_epci_read_config,
+	.write = celleb_epci_write_config,
 };
 
 /* to be moved in FW */
