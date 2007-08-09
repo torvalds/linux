@@ -1266,7 +1266,7 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	return 0;
 }
 
-static void __devexit wbsd_free_mmc(struct device *dev)
+static void wbsd_free_mmc(struct device *dev)
 {
 	struct mmc_host *mmc;
 	struct wbsd_host *host;
@@ -1358,7 +1358,7 @@ static int __devinit wbsd_request_region(struct wbsd_host *host, int base)
 	return 0;
 }
 
-static void __devexit wbsd_release_regions(struct wbsd_host *host)
+static void wbsd_release_regions(struct wbsd_host *host)
 {
 	if (host->base)
 		release_region(host->base, 8);
@@ -1434,7 +1434,7 @@ err:
 		"Falling back on FIFO.\n", dma);
 }
 
-static void __devexit wbsd_release_dma(struct wbsd_host *host)
+static void wbsd_release_dma(struct wbsd_host *host)
 {
 	if (host->dma_addr) {
 		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
@@ -1484,7 +1484,7 @@ static int __devinit wbsd_request_irq(struct wbsd_host *host, int irq)
 	return 0;
 }
 
-static void __devexit wbsd_release_irq(struct wbsd_host *host)
+static void  wbsd_release_irq(struct wbsd_host *host)
 {
 	if (!host->irq)
 		return;
@@ -1535,7 +1535,7 @@ static int __devinit wbsd_request_resources(struct wbsd_host *host,
  * Release all resources for the host.
  */
 
-static void __devexit wbsd_release_resources(struct wbsd_host *host)
+static void wbsd_release_resources(struct wbsd_host *host)
 {
 	wbsd_release_dma(host);
 	wbsd_release_irq(host);
