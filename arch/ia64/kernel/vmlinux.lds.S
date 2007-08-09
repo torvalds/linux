@@ -20,6 +20,7 @@ PHDRS {
   code   PT_LOAD;
   percpu PT_LOAD;
   data   PT_LOAD;
+  note   PT_NOTE;
 }
 SECTIONS
 {
@@ -61,6 +62,9 @@ SECTIONS
   _etext = .;
 
   /* Read-only data */
+
+  NOTES :code :note		/* put .notes in text and mark in PT_NOTE  */
+  code_continues : {} :code	/* switch back to regular program...  */
 
   /* Exception table */
   . = ALIGN(16);
@@ -276,10 +280,6 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
   /* These must appear regardless of  .  */
-  /* Discard them for now since Intel SoftSDV cannot handle them.
-  .comment 0 : { *(.comment) }
-  .note 0 : { *(.note) }
-  */
   /DISCARD/ : { *(.comment) }
   /DISCARD/ : { *(.note) }
 }
