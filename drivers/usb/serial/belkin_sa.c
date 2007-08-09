@@ -383,6 +383,10 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	}
 
 	baud = tty_get_baud_rate(port->tty);
+	if (baud == 0) {
+		dbg("%s - tty_get_baud_rate says 0 baud", __FUNCTION__);
+		return;
+	}
 	urb_value = BELKIN_SA_BAUD(baud);
 	/* Clip to maximum speed */
 	if (urb_value == 0)
