@@ -202,7 +202,7 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 {
 	struct mmc_request mrq;
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
 
@@ -333,7 +333,7 @@ void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 	host->claimed = 0;
@@ -531,7 +531,7 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 	BUG_ON(!host);
 	BUG_ON(!ops);
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -555,8 +555,8 @@ void mmc_detach_bus(struct mmc_host *host)
 
 	BUG_ON(!host);
 
-	BUG_ON(!host->claimed);
-	BUG_ON(!host->bus_ops);
+	WARN_ON(!host->claimed);
+	WARN_ON(!host->bus_ops);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -584,7 +584,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
 	spin_lock_irqsave(&host->lock, flags);
-	BUG_ON(host->removed);
+	WARN_ON(host->removed);
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 

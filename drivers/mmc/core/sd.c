@@ -166,8 +166,6 @@ static int mmc_decode_scr(struct mmc_card *card)
 	unsigned int scr_struct;
 	u32 resp[4];
 
-	BUG_ON(!mmc_card_sd(card));
-
 	resp[3] = card->raw_scr[1];
 	resp[2] = card->raw_scr[0];
 
@@ -300,7 +298,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	unsigned int max_dtr;
 
 	BUG_ON(!host);
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -620,7 +618,7 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	int err;
 
 	BUG_ON(!host);
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	mmc_attach_bus(host, &mmc_sd_ops);
 

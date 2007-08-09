@@ -230,7 +230,7 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	struct mmc_card *card;
 
 	BUG_ON(!host);
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	mmc_attach_bus(host, &mmc_sdio_ops);
 

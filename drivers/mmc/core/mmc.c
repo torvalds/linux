@@ -264,7 +264,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	unsigned int max_dtr;
 
 	BUG_ON(!host);
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -558,7 +558,7 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	int err;
 
 	BUG_ON(!host);
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	mmc_attach_bus(host, &mmc_ops);
 
