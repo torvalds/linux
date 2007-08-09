@@ -299,7 +299,7 @@ static int hidinput_getkeycode(struct input_dev *dev, int scancode,
 {
 	struct hid_device *hid = dev->private;
 	struct hid_usage *usage;
-	
+
 	usage = hidinput_find_key(hid, scancode, 0);
 	if (usage) {
 		*keycode = usage->code;
@@ -314,15 +314,15 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 	struct hid_device *hid = dev->private;
 	struct hid_usage *usage;
 	int old_keycode;
-	
+
 	if (keycode < 0 || keycode > KEY_MAX)
 		return -EINVAL;
-	
+
 	usage = hidinput_find_key(hid, scancode, 0);
 	if (usage) {
 		old_keycode = usage->code;
 		usage->code = keycode;
-		
+
 		clear_bit(old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
 		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
@@ -330,10 +330,10 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 		 * by another key */
 		if (hidinput_find_key (hid, 0, old_keycode))
 			set_bit(old_keycode, dev->keybit);
-		
+
 		return 0;
 	}
-	
+
 	return -EINVAL;
 }
 
