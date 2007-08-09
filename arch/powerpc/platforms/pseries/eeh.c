@@ -969,23 +969,6 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	}
 	pdn->class_code = *class_code;
 
-	/*
-	 * Now decide if we are going to "Disable" EEH checking
-	 * for this device.  We still run with the EEH hardware active,
-	 * but we won't be checking for ff's.  This means a driver
-	 * could return bad data (very bad!), an interrupt handler could
-	 * hang waiting on status bits that won't change, etc.
-	 * But there are a few cases like display devices that make sense.
-	 */
-	enable = 1;	/* i.e. we will do checking */
-#if 0
-	if ((*class_code >> 16) == PCI_BASE_CLASS_DISPLAY)
-		enable = 0;
-#endif
-
-	if (!enable)
-		pdn->eeh_mode |= EEH_MODE_NOCHECK;
-
 	/* Ok... see if this device supports EEH.  Some do, some don't,
 	 * and the only way to find out is to check each and every one. */
 	regs = of_get_property(dn, "reg", NULL);
