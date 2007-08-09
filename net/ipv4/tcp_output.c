@@ -737,7 +737,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 
 		if (diff > 0) {
 			/* Adjust Reno SACK estimate. */
-			if (!tp->rx_opt.sack_ok) {
+			if (tcp_is_reno(tp)) {
 				tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
 				tcp_verify_left_out(tp);
 			}
@@ -1728,7 +1728,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST)
 			tp->lost_out -= tcp_skb_pcount(next_skb);
 		/* Reno case is special. Sigh... */
-		if (!tp->rx_opt.sack_ok && tp->sacked_out)
+		if (tcp_is_reno(tp) && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
 
 		/* Not quite right: it can be > snd.fack, but
@@ -1976,7 +1976,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		return;
 
 	/* No forward retransmissions in Reno are possible. */
-	if (!tp->rx_opt.sack_ok)
+	if (tcp_is_reno(tp))
 		return;
 
 	/* Yeah, we have to make difficult choice between forward transmission
