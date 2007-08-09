@@ -25,7 +25,7 @@ static struct task_struct *pick_next_task_idle(struct rq *rq, u64 now)
  * message if some code attempts to do it:
  */
 static void
-dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
 {
 	spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");

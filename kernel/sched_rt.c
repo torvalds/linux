@@ -36,8 +36,7 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 /*
  * Adding/removing a task to/from a priority array:
  */
-static void
-dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
