@@ -1008,6 +1008,8 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	cinergyt2_sleep(cinergyt2, 1);
 	mutex_unlock(&cinergyt2->sem);
 
+	mutex_unlock(&cinergyt2->wq_sem);
+
 	return 0;
 }
 
