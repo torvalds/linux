@@ -477,7 +477,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * We are descheduling a task - update its stats:
  */
 static inline void
-update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se, u64 now)
+update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	se->exec_start = 0;
 }
@@ -661,7 +661,7 @@ put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev, u64 now)
 	if (prev->on_rq)
 		update_curr(cfs_rq);
 
-	update_stats_curr_end(cfs_rq, prev, now);
+	update_stats_curr_end(cfs_rq, prev);
 
 	if (prev->on_rq)
 		update_stats_wait_start(cfs_rq, prev);
