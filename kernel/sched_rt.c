@@ -73,7 +73,7 @@ static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p)
 		resched_task(rq->curr);
 }
 
-static struct task_struct *pick_next_task_rt(struct rq *rq, u64 now)
+static struct task_struct *pick_next_task_rt(struct rq *rq)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 	struct task_struct *next;

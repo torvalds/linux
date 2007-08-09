@@ -859,7 +859,7 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 		__check_preempt_curr_fair(cfs_rq, &p->se, &curr->se, gran);
 }
 
-static struct task_struct *pick_next_task_fair(struct rq *rq, u64 now)
+static struct task_struct *pick_next_task_fair(struct rq *rq)
 {
 	struct cfs_rq *cfs_rq = &rq->cfs;
 	struct sched_entity *se;

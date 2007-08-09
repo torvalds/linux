@@ -13,7 +13,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p)
 	resched_task(rq->idle);
 }
 
-static struct task_struct *pick_next_task_idle(struct rq *rq, u64 now)
+static struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	schedstat_inc(rq, sched_goidle);
 

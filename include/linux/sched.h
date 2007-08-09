@@ -861,7 +861,7 @@ struct sched_class {
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
 
-	struct task_struct * (*pick_next_task) (struct rq *rq, u64 now);
+	struct task_struct * (*pick_next_task) (struct rq *rq);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p, u64 now);
 
 	unsigned long (*load_balance) (struct rq *this_rq, int this_cpu,

@@ -3410,14 +3410,14 @@ pick_next_task(struct rq *rq, struct task_struct *prev, u64 now)
 	 * the fair class we can call that function directly:
 	 */
 	if (likely(rq->nr_running == rq->cfs.nr_running)) {
-		p = fair_sched_class.pick_next_task(rq, now);
+		p = fair_sched_class.pick_next_task(rq);
 		if (likely(p))
 			return p;
 	}
 
 	class = sched_class_highest;
 	for ( ; ; ) {
-		p = class->pick_next_task(rq, now);
+		p = class->pick_next_task(rq);
 		if (p)
 			return p;
 		/*
