@@ -405,7 +405,8 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 					(WMULT_SHIFT - NICE_0_SHIFT);
 		} else {
 			tmp = se->wait_runtime;
-			key -= (tmp * se->load.weight) >> NICE_0_SHIFT;
+			key -= (tmp * se->load.inv_weight) >>
+					(WMULT_SHIFT - NICE_0_SHIFT);
 		}
 	}
 
