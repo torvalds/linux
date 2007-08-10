@@ -283,6 +283,8 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 		ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
 		if (status_event[dev->type].encode) /* set data values */
 			status_event[dev->type].encode(dev, ev);
+		if (dev->type >= ST_SPECIAL)
+			dev->type = ST_INVALID;
 		rc = 1;
 	} else 	if (dev->type == ST_SYSEX) {
 		if (c == MIDI_CMD_COMMON_SYSEX_END ||
