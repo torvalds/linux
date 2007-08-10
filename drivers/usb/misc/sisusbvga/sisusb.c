@@ -32,7 +32,7 @@
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
+ * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
  */
 
@@ -962,12 +962,12 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			   packet.address = 0x00000194;
 			   packet.data    = addr;
 			   ret = sisusb_send_bridge_packet(sisusb, 10,
-			   					&packet, 0);
+								&packet, 0);
 			   packet.header  = 0x001f;
 			   packet.address = 0x00000190;
 			   packet.data    = (length & ~3);
 			   ret |= sisusb_send_bridge_packet(sisusb, 10,
-			   					&packet, 0);
+								&packet, 0);
 			   if (sisusb->flagb0 != 0x16) {
 				packet.header  = 0x001f;
 				packet.address = 0x00000180;
@@ -1019,7 +1019,7 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 	    }
 
 	    if (ret)
-	    	break;
+		break;
 
 	}
 
@@ -1305,7 +1305,7 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 	    }
 
 	    if (ret)
-	    	break;
+		break;
 	}
 
 	return ret;
@@ -1533,9 +1533,9 @@ sisusb_clear_vram(struct sisusb_usb_data *sisusb, u32 address, int length)
 #define SETIREGAND(r,i,a)	sisusb_setidxregand(sisusb, r, i, a)
 #define SETIREGANDOR(r,i,a,o)	sisusb_setidxregandor(sisusb, r, i, a, o)
 #define READL(a,d)	sisusb_read_memio_long(sisusb, SISUSB_TYPE_MEM, a, d)
-#define WRITEL(a,d) 	sisusb_write_memio_long(sisusb, SISUSB_TYPE_MEM, a, d)
+#define WRITEL(a,d)	sisusb_write_memio_long(sisusb, SISUSB_TYPE_MEM, a, d)
 #define READB(a,d)	sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, a, d)
-#define WRITEB(a,d) 	sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM, a, d)
+#define WRITEB(a,d)	sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM, a, d)
 
 static int
 sisusb_triggersr16(struct sisusb_usb_data *sisusb, u8 ramtype)
@@ -2008,7 +2008,7 @@ sisusb_set_default_mode(struct sisusb_usb_data *sisusb, int touchengines)
 		SETIREG(SISSR, 0x26, 0x00);
 	}
 
-	SETIREG(SISCR, 0x34, 0x44);  	/* we just set std mode #44 */
+	SETIREG(SISCR, 0x34, 0x44);	/* we just set std mode #44 */
 
 	return ret;
 }
@@ -2942,7 +2942,7 @@ static int
 sisusb_handle_command(struct sisusb_usb_data *sisusb, struct sisusb_command *y,
 							unsigned long arg)
 {
-	int 	retval, port, length;
+	int	retval, port, length;
 	u32	address;
 
 	/* All our commands require the device
@@ -3065,12 +3065,12 @@ sisusb_handle_command(struct sisusb_usb_data *sisusb, struct sisusb_command *y,
 
 static int
 sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	     						unsigned long arg)
+							unsigned long arg)
 {
 	struct sisusb_usb_data *sisusb;
 	struct sisusb_info x;
 	struct sisusb_command y;
-	int 	retval = 0;
+	int	retval = 0;
 	u32 __user *argp = (u32 __user *)arg;
 
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
@@ -3095,7 +3095,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		case SISUSB_GET_CONFIG:
 
-			x.sisusb_id   	    = SISUSB_ID;
+			x.sisusb_id	    = SISUSB_ID;
 			x.sisusb_version    = SISUSB_VERSION;
 			x.sisusb_revision   = SISUSB_REVISION;
 			x.sisusb_patchlevel = SISUSB_PATCHLEVEL;
@@ -3164,7 +3164,7 @@ static const struct file_operations usb_sisusb_fops = {
 	.release =	sisusb_release,
 	.read =		sisusb_read,
 	.write =	sisusb_write,
-	.llseek = 	sisusb_lseek,
+	.llseek =	sisusb_lseek,
 #ifdef SISUSB_NEW_CONFIG_COMPAT
 	.compat_ioctl = sisusb_compat_ioctl,
 #endif

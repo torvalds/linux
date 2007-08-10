@@ -30,7 +30,7 @@
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
+ * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
  */
 
@@ -53,7 +53,7 @@
 /* Version Information */
 
 #define SISUSB_VERSION		0
-#define SISUSB_REVISION 	0
+#define SISUSB_REVISION		0
 #define SISUSB_PATCHLEVEL	8
 
 /* Include console and mode switching code? */
@@ -93,7 +93,7 @@
  */
 
 #ifdef __BIG_ENDIAN
-#define SISUSB_CORRECT_ENDIANNESS_PACKET(p) 		\
+#define SISUSB_CORRECT_ENDIANNESS_PACKET(p)		\
 	do {						\
 		p->header  = cpu_to_le16(p->header);	\
 		p->address = cpu_to_le32(p->address);	\

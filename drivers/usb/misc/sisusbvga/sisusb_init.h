@@ -46,7 +46,7 @@
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
+ * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
  */
 
@@ -82,7 +82,7 @@
 /* Infoflag */
 #define SupportTV		0x0008
 #define SupportTV1024		0x0800
-#define SupportCHTV 		0x0800
+#define SupportCHTV		0x0800
 #define Support64048060Hz	0x0800  /* Special for 640x480 LCD */
 #define SupportHiVision		0x0010
 #define SupportYPbPr750p	0x1000
