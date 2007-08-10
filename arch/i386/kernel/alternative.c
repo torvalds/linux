@@ -388,7 +388,7 @@ void __init alternative_instructions(void)
 	   that might execute the to be patched code.
 	   Other CPUs are not running. */
 	stop_nmi();
-#ifdef CONFIG_MCE
+#ifdef CONFIG_X86_MCE
 	stop_mce();
 #endif
 
@@ -426,7 +426,7 @@ void __init alternative_instructions(void)
 	local_irq_restore(flags);
 
 	restart_nmi();
-#ifdef CONFIG_MCE
+#ifdef CONFIG_X86_MCE
 	restart_mce();
 #endif
 }
