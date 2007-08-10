@@ -104,7 +104,7 @@ static int mtdoops_inc_counter(struct mtdoops_context *cxt)
 	ret = mtd->read(mtd, cxt->nextpage * OOPS_PAGE_SIZE, 4,
 			&retlen, (u_char *) &count);
 	if ((retlen != 4) || (ret < 0)) {
-		printk(KERN_ERR "mtdoops: Read failure at %d (%d of 4 read)"
+		printk(KERN_ERR "mtdoops: Read failure at %d (%td of 4 read)"
 				", err %d.\n", cxt->nextpage * OOPS_PAGE_SIZE,
 				retlen, ret);
 		return 1;
@@ -273,7 +273,7 @@ static void mtdoops_console_sync(void)
 	cxt->writecount = 0;
 
 	if ((retlen != OOPS_PAGE_SIZE) || (ret < 0))
-		printk(KERN_ERR "mtdoops: Write failure at %d (%d of %d written), err %d.\n",
+		printk(KERN_ERR "mtdoops: Write failure at %d (%td of %d written), err %d.\n",
 			cxt->nextpage * OOPS_PAGE_SIZE, retlen,	OOPS_PAGE_SIZE, ret);
 
 	ret = mtdoops_inc_counter(cxt);
