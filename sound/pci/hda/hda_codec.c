@@ -494,6 +494,10 @@ static int read_widget_caps(struct hda_codec *codec, hda_nid_t fg_node)
 }
 
 
+static void init_hda_cache(struct hda_cache_rec *cache,
+			   unsigned int record_size);
+static inline void free_hda_cache(struct hda_cache_rec *cache);
+
 /*
  * codec destructor
  */
@@ -505,12 +509,10 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
-	kfree(codec->amp_info);
+	free_hda_cache(&codec->amp_cache);
 	kfree(codec->wcaps);
 	kfree(codec);
 }
-
-static void init_amp_hash(struct hda_codec *codec);
 
 /**
  * snd_hda_codec_new - create a HDA codec
@@ -545,7 +547,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	codec->bus = bus;
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
-	init_amp_hash(codec);
+	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 
 	list_add_tail(&codec->list, &bus->codec_list);
 	bus->caddr_tbl[codec_addr] = codec;
@@ -664,57 +666,70 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 #define INFO_AMP_VOL(ch)	(1 << (1 + (ch)))
 
 /* initialize the hash table */
-static void __devinit init_amp_hash(struct hda_codec *codec)
+static void __devinit init_hda_cache(struct hda_cache_rec *cache,
+				     unsigned int record_size)
 {
-	memset(codec->amp_hash, 0xff, sizeof(codec->amp_hash));
-	codec->num_amp_entries = 0;
-	codec->amp_info_size = 0;
-	codec->amp_info = NULL;
+	memset(cache, 0, sizeof(*cache));
+	memset(cache->hash, 0xff, sizeof(cache->hash));
+	cache->record_size = record_size;
+}
+
+static inline void free_hda_cache(struct hda_cache_rec *cache)
+{
+	kfree(cache->buffer);
 }
 
 /* query the hash.  allocate an entry if not found. */
-static struct hda_amp_info *get_alloc_amp_hash(struct hda_codec *codec, u32 key)
+static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
+					      u32 key)
 {
-	u16 idx = key % (u16)ARRAY_SIZE(codec->amp_hash);
-	u16 cur = codec->amp_hash[idx];
-	struct hda_amp_info *info;
+	u16 idx = key % (u16)ARRAY_SIZE(cache->hash);
+	u16 cur = cache->hash[idx];
+	struct hda_cache_head *info;
 
 	while (cur != 0xffff) {
-		info = &codec->amp_info[cur];
+		info = (struct hda_cache_head *)(cache->buffer +
+						 cur * cache->record_size);
 		if (info->key == key)
 			return info;
 		cur = info->next;
 	}
 
 	/* add a new hash entry */
-	if (codec->num_amp_entries >= codec->amp_info_size) {
+	if (cache->num_entries >= cache->size) {
 		/* reallocate the array */
-		int new_size = codec->amp_info_size + 64;
-		struct hda_amp_info *new_info;
-		new_info = kcalloc(new_size, sizeof(struct hda_amp_info),
-				   GFP_KERNEL);
-		if (!new_info) {
+		unsigned int new_size = cache->size + 64;
+		void *new_buffer;
+		new_buffer = kcalloc(new_size, cache->record_size, GFP_KERNEL);
+		if (!new_buffer) {
 			snd_printk(KERN_ERR "hda_codec: "
 				   "can't malloc amp_info\n");
 			return NULL;
 		}
-		if (codec->amp_info) {
-			memcpy(new_info, codec->amp_info,
-			       codec->amp_info_size *
-			       sizeof(struct hda_amp_info));
-			kfree(codec->amp_info);
+		if (cache->buffer) {
+			memcpy(new_buffer, cache->buffer,
+			       cache->size * cache->record_size);
+			kfree(cache->buffer);
 		}
-		codec->amp_info_size = new_size;
-		codec->amp_info = new_info;
+		cache->size = new_size;
+		cache->buffer = new_buffer;
 	}
-	cur = codec->num_amp_entries++;
-	info = &codec->amp_info[cur];
+	cur = cache->num_entries++;
+	info = (struct hda_cache_head *)(cache->buffer +
+					 cur * cache->record_size);
 	info->key = key;
-	info->status = 0; /* not initialized yet */
-	info->next = codec->amp_hash[idx];
-	codec->amp_hash[idx] = cur;
+	info->val = 0;
+	info->next = cache->hash[idx];
+	cache->hash[idx] = cur;
 
 	return info;
+}
+
+/* query and allocate an amp hash entry */
+static inline struct hda_amp_info *
+get_alloc_amp_hash(struct hda_codec *codec, u32 key)
+{
+	return (struct hda_amp_info *)get_alloc_hash(&codec->amp_cache, key);
 }
 
 /*
@@ -727,7 +742,7 @@ static u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 	info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, 0));
 	if (!info)
 		return 0;
-	if (!(info->status & INFO_AMP_CAPS)) {
+	if (!(info->head.val & INFO_AMP_CAPS)) {
 		if (!(get_wcaps(codec, nid) & AC_WCAP_AMP_OVRD))
 			nid = codec->afg;
 		info->amp_caps = snd_hda_param_read(codec, nid,
@@ -735,7 +750,7 @@ static u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 						    AC_PAR_AMP_OUT_CAP :
 						    AC_PAR_AMP_IN_CAP);
 		if (info->amp_caps)
-			info->status |= INFO_AMP_CAPS;
+			info->head.val |= INFO_AMP_CAPS;
 	}
 	return info->amp_caps;
 }
@@ -749,7 +764,7 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 	if (!info)
 		return -EINVAL;
 	info->amp_caps = caps;
-	info->status |= INFO_AMP_CAPS;
+	info->head.val |= INFO_AMP_CAPS;
 	return 0;
 }
 
@@ -763,7 +778,7 @@ static unsigned int get_vol_mute(struct hda_codec *codec,
 {
 	u32 val, parm;
 
-	if (info->status & INFO_AMP_VOL(ch))
+	if (info->head.val & INFO_AMP_VOL(ch))
 		return info->vol[ch];
 
 	parm = ch ? AC_AMP_GET_RIGHT : AC_AMP_GET_LEFT;
@@ -772,7 +787,7 @@ static unsigned int get_vol_mute(struct hda_codec *codec,
 	val = snd_hda_codec_read(codec, nid, 0,
 				 AC_VERB_GET_AMP_GAIN_MUTE, parm);
 	info->vol[ch] = val & 0xff;
-	info->status |= INFO_AMP_VOL(ch);
+	info->head.val |= INFO_AMP_VOL(ch);
 	return info->vol[ch];
 }
 

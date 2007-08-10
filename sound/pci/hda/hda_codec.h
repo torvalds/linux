@@ -480,12 +480,24 @@ struct hda_codec_ops {
 };
 
 /* record for amp information cache */
-struct hda_amp_info {
+struct hda_cache_head {
 	u32 key;		/* hash key */
+	u16 val;		/* assigned value */
+	u16 next;		/* next link; -1 = terminal */
+};
+
+struct hda_amp_info {
+	struct hda_cache_head head;
 	u32 amp_caps;		/* amp capabilities */
 	u16 vol[2];		/* current volume & mute */
-	u16 status;		/* update flag */
-	u16 next;		/* next link */
+};
+
+struct hda_cache_rec {
+	u16 hash[64];			/* hash table for index */
+	unsigned int num_entries;	/* number of assigned entries */
+	unsigned int size;		/* allocated size */
+	unsigned int record_size;	/* record size (including header) */
+	void *buffer;			/* hash table entries */
 };
 
 /* PCM callbacks */
@@ -557,11 +569,7 @@ struct hda_codec {
 	hda_nid_t start_nid;
 	u32 *wcaps;
 
-	/* hash for amp access */
-	u16 amp_hash[32];
-	int num_amp_entries;
-	int amp_info_size;
-	struct hda_amp_info *amp_info;
+	struct hda_cache_rec amp_cache;	/* cache for amp access */
 
 	struct mutex spdif_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
