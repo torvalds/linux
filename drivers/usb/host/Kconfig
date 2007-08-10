@@ -237,7 +237,7 @@ config USB_SL811_CS
 	  module will be called "sl811_cs".
 
 config USB_R8A66597_HCD
-	tristate "R8A66597 HCD suppoort"
+	tristate "R8A66597 HCD support"
 	depends on USB
 	help
 	  The R8A66597 is a USB 2.0 host and peripheral controller.
