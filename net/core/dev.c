@@ -3993,6 +3993,45 @@ static int __init netdev_dma_register(void)
 static int __init netdev_dma_register(void) { return -ENODEV; }
 #endif /* CONFIG_NET_DMA */
 
+/**
+ *	netdev_compute_feature - compute conjunction of two feature sets
+ *	@all: first feature set
+ *	@one: second feature set
+ *
+ *	Computes a new feature set after adding a device with feature set
+ *	@one to the master device with current feature set @all.  Returns
+ *	the new feature set.
+ */
+int netdev_compute_features(unsigned long all, unsigned long one)
+{
+	/* if device needs checksumming, downgrade to hw checksumming */
+	if (all & NETIF_F_NO_CSUM && !(one & NETIF_F_NO_CSUM))
+		all ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
+
+	/* if device can't do all checksum, downgrade to ipv4/ipv6 */
+	if (all & NETIF_F_HW_CSUM && !(one & NETIF_F_HW_CSUM))
+		all ^= NETIF_F_HW_CSUM
+			| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+
+	if (one & NETIF_F_GSO)
+		one |= NETIF_F_GSO_SOFTWARE;
+	one |= NETIF_F_GSO;
+
+	/* If even one device supports robust GSO, enable it for all. */
+	if (one & NETIF_F_GSO_ROBUST)
+		all |= NETIF_F_GSO_ROBUST;
+
+	all &= one | NETIF_F_LLTX;
+
+	if (!(all & NETIF_F_ALL_CSUM))
+		all &= ~NETIF_F_SG;
+	if (!(all & NETIF_F_SG))
+		all &= ~NETIF_F_GSO_MASK;
+
+	return all;
+}
+EXPORT_SYMBOL(netdev_compute_features);
+
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
  *	unhooks any devices that fail to initialise (normally hardware not

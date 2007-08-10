@@ -349,43 +349,15 @@ int br_min_mtu(const struct net_bridge *br)
 void br_features_recompute(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
-	unsigned long features, checksum;
+	unsigned long features;
 
-	checksum = br->feature_mask & NETIF_F_ALL_CSUM ? NETIF_F_NO_CSUM : 0;
-	features = br->feature_mask & ~NETIF_F_ALL_CSUM;
+	features = br->feature_mask;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		unsigned long feature = p->dev->features;
-
-		/* if device needs checksumming, downgrade to hw checksumming */
-		if (checksum & NETIF_F_NO_CSUM && !(feature & NETIF_F_NO_CSUM))
-			checksum ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
-
-		/* if device can't do all checksum, downgrade to ipv4/ipv6 */
-		if (checksum & NETIF_F_HW_CSUM && !(feature & NETIF_F_HW_CSUM))
-			checksum ^= NETIF_F_HW_CSUM
-				| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-
-		if (checksum & NETIF_F_IPV6_CSUM && !(feature & NETIF_F_IPV6_CSUM))
-			checksum &= ~NETIF_F_IPV6_CSUM;
-
-		if (!(feature & NETIF_F_IP_CSUM))
-			checksum = 0;
-
-		if (feature & NETIF_F_GSO)
-			feature |= NETIF_F_GSO_SOFTWARE;
-		feature |= NETIF_F_GSO;
-
-		features &= feature;
+		features = netdev_compute_features(features, p->dev->features);
 	}
 
-	if (!(checksum & NETIF_F_ALL_CSUM))
-		features &= ~NETIF_F_SG;
-	if (!(features & NETIF_F_SG))
-		features &= ~NETIF_F_GSO_MASK;
-
-	br->dev->features = features | checksum | NETIF_F_LLTX |
-			    NETIF_F_GSO_ROBUST;
+	br->dev->features = features;
 }
 
 /* called with RTNL */
