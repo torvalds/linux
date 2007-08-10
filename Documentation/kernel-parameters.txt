@@ -1922,7 +1922,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/wd7000.c.
 
 	wdt=		[WDT] Watchdog
-			See Documentation/watchdog/watchdog.txt.
+			See Documentation/watchdog/wdt.txt.
 
 	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
 	xd_geo=		See header of drivers/block/xd.c.
