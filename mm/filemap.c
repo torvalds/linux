@@ -843,7 +843,7 @@ static void shrink_readahead_size_eio(struct file *filp,
 /**
  * do_generic_mapping_read - generic file read routine
  * @mapping:	address_space to be read
- * @ra:		file's readahead state
+ * @_ra:	file's readahead state
  * @filp:	the file to read
  * @ppos:	current file position
  * @desc:	read_descriptor
