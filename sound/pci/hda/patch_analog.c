@@ -318,31 +318,11 @@ static void ad198x_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-#ifdef CONFIG_PM
-static int ad198x_resume(struct hda_codec *codec)
-{
-	struct ad198x_spec *spec = codec->spec;
-	int i;
-
-	codec->patch_ops.init(codec);
-	for (i = 0; i < spec->num_mixers; i++)
-		snd_hda_resume_ctls(codec, spec->mixers[i]);
-	if (spec->multiout.dig_out_nid)
-		snd_hda_resume_spdif_out(codec);
-	if (spec->dig_in_nid)
-		snd_hda_resume_spdif_in(codec);
-	return 0;
-}
-#endif
-
 static struct hda_codec_ops ad198x_patch_ops = {
 	.build_controls = ad198x_build_controls,
 	.build_pcms = ad198x_build_pcms,
 	.init = ad198x_init,
 	.free = ad198x_free,
-#ifdef CONFIG_PM
-	.resume = ad198x_resume,
-#endif
 };
 
 
@@ -376,12 +356,12 @@ static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
 	eapd = ucontrol->value.integer.value[0];
 	if (invert)
 		eapd = !eapd;
-	if (eapd == spec->cur_eapd && ! codec->in_resume)
+	if (eapd == spec->cur_eapd)
 		return 0;
 	spec->cur_eapd = eapd;
-	snd_hda_codec_write(codec, nid,
-			    0, AC_VERB_SET_EAPD_BTLENABLE,
-			    eapd ? 0x02 : 0x00);
+	snd_hda_codec_write_cache(codec, nid,
+				  0, AC_VERB_SET_EAPD_BTLENABLE,
+				  eapd ? 0x02 : 0x00);
 	return 1;
 }
 
@@ -882,8 +862,9 @@ static int ad1983_spdif_route_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 
 	if (spec->spdif_route != ucontrol->value.enumerated.item[0]) {
 		spec->spdif_route = ucontrol->value.enumerated.item[0];
-		snd_hda_codec_write(codec, spec->multiout.dig_out_nid, 0,
-				    AC_VERB_SET_CONNECT_SEL, spec->spdif_route);
+		snd_hda_codec_write_cache(codec, spec->multiout.dig_out_nid, 0,
+					  AC_VERB_SET_CONNECT_SEL,
+					  spec->spdif_route);
 		return 1;
 	}
 	return 0;
@@ -1824,33 +1805,34 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 					 AC_VERB_GET_AMP_GAIN_MUTE,
 					 AC_AMP_GET_INPUT);
 		change = sel & 0x80;
-		if (change || codec->in_resume) {
-			snd_hda_codec_write(codec, 0x1d, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(0));
-			snd_hda_codec_write(codec, 0x1d, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_MUTE(1));
+		if (change) {
+			snd_hda_codec_write_cache(codec, 0x1d, 0,
+						  AC_VERB_SET_AMP_GAIN_MUTE,
+						  AMP_IN_UNMUTE(0));
+			snd_hda_codec_write_cache(codec, 0x1d, 0,
+						  AC_VERB_SET_AMP_GAIN_MUTE,
+						  AMP_IN_MUTE(1));
 		}
 	} else {
 		sel = snd_hda_codec_read(codec, 0x1d, 0,
 					 AC_VERB_GET_AMP_GAIN_MUTE,
 					 AC_AMP_GET_INPUT | 0x01);
 		change = sel & 0x80;
-		if (change || codec->in_resume) {
-			snd_hda_codec_write(codec, 0x1d, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_MUTE(0));
-			snd_hda_codec_write(codec, 0x1d, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(1));
+		if (change) {
+			snd_hda_codec_write_cache(codec, 0x1d, 0,
+						  AC_VERB_SET_AMP_GAIN_MUTE,
+						  AMP_IN_MUTE(0));
+			snd_hda_codec_write_cache(codec, 0x1d, 0,
+						  AC_VERB_SET_AMP_GAIN_MUTE,
+						  AMP_IN_UNMUTE(1));
 		}
 		sel = snd_hda_codec_read(codec, 0x0b, 0,
 					 AC_VERB_GET_CONNECT_SEL, 0) + 1;
 		change |= sel != val;
-		if (change || codec->in_resume)
-			snd_hda_codec_write(codec, 0x0b, 0,
-					    AC_VERB_SET_CONNECT_SEL, val - 1);
+		if (change)
+			snd_hda_codec_write_cache(codec, 0x0b, 0,
+						  AC_VERB_SET_CONNECT_SEL,
+						  val - 1);
 	}
 	return change;
 }

@@ -218,9 +218,9 @@ static int unmute_output(struct hda_codec *codec, struct hda_gnode *node)
 	ofs = (node->amp_out_caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
 	if (val >= ofs)
 		val -= ofs;
-	val |= AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT;
-	val |= AC_AMP_SET_OUTPUT;
-	return snd_hda_codec_write(codec, node->nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, val);
+	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_OUTPUT, 0, 0xff, val);
+	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_OUTPUT, 1, 0xff, val);
+	return 0;
 }
 
 /*
@@ -234,11 +234,11 @@ static int unmute_input(struct hda_codec *codec, struct hda_gnode *node, unsigne
 	ofs = (node->amp_in_caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
 	if (val >= ofs)
 		val -= ofs;
-	val |= AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT;
-	val |= AC_AMP_SET_INPUT;
-	// awk added - fixed to allow unmuting of indexed amps
-	val |= index << AC_AMP_SET_INDEX_SHIFT;
-	return snd_hda_codec_write(codec, node->nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, val);
+	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_INPUT, index,
+				 0xff, val);
+	snd_hda_codec_amp_update(codec, node->nid, 1, HDA_INPUT, index,
+				 0xff, val);
+	return 0;
 }
 
 /*
@@ -248,7 +248,8 @@ static int select_input_connection(struct hda_codec *codec, struct hda_gnode *no
 				   unsigned int index)
 {
 	snd_printdd("CONNECT: NID=0x%x IDX=0x%x\n", node->nid, index);
-	return snd_hda_codec_write(codec, node->nid, 0, AC_VERB_SET_CONNECT_SEL, index);
+	return snd_hda_codec_write_cache(codec, node->nid, 0,
+					 AC_VERB_SET_CONNECT_SEL, index);
 }
 
 /*
@@ -379,7 +380,7 @@ static struct hda_gnode *parse_output_jack(struct hda_codec *codec,
 			/* unmute the PIN output */
 			unmute_output(codec, node);
 			/* set PIN-Out enable */
-			snd_hda_codec_write(codec, node->nid, 0,
+			snd_hda_codec_write_cache(codec, node->nid, 0,
 					    AC_VERB_SET_PIN_WIDGET_CONTROL,
 					    AC_PINCTL_OUT_EN |
 					    ((node->pin_caps & AC_PINCAP_HP_DRV) ?
@@ -570,7 +571,8 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 	/* unmute the PIN external input */
 	unmute_input(codec, node, 0); /* index = 0? */
 	/* set PIN-In enable */
-	snd_hda_codec_write(codec, node->nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pinctl);
+	snd_hda_codec_write_cache(codec, node->nid, 0,
+				  AC_VERB_SET_PIN_WIDGET_CONTROL, pinctl);
 
 	return 1; /* found */
 }

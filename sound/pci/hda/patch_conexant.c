@@ -311,23 +311,6 @@ static void conexant_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-#ifdef CONFIG_PM
-static int conexant_resume(struct hda_codec *codec)
-{
-	struct conexant_spec *spec = codec->spec;
-	int i;
-
-	codec->patch_ops.init(codec);
-	for (i = 0; i < spec->num_mixers; i++)
-		snd_hda_resume_ctls(codec, spec->mixers[i]);
-	if (spec->multiout.dig_out_nid)
-		snd_hda_resume_spdif_out(codec);
-	if (spec->dig_in_nid)
-		snd_hda_resume_spdif_in(codec);
-	return 0;
-}
-#endif
-
 static int conexant_build_controls(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -358,9 +341,6 @@ static struct hda_codec_ops conexant_patch_ops = {
 	.build_pcms = conexant_build_pcms,
 	.init = conexant_init,
 	.free = conexant_free,
-#ifdef CONFIG_PM
-	.resume = conexant_resume,
-#endif
 };
 
 /*
@@ -396,13 +376,13 @@ static int cxt_eapd_put(struct snd_kcontrol *kcontrol,
 	eapd = ucontrol->value.integer.value[0];
 	if (invert)
 		eapd = !eapd;
-	if (eapd == spec->cur_eapd && !codec->in_resume)
+	if (eapd == spec->cur_eapd)
 		return 0;
 	
 	spec->cur_eapd = eapd;
-	snd_hda_codec_write(codec, nid,
-			    0, AC_VERB_SET_EAPD_BTLENABLE,
-			    eapd ? 0x02 : 0x00);
+	snd_hda_codec_write_cache(codec, nid,
+				  0, AC_VERB_SET_EAPD_BTLENABLE,
+				  eapd ? 0x02 : 0x00);
 	return 1;
 }
 

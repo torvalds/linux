@@ -543,27 +543,6 @@ static int via_init(struct hda_codec *codec)
  	return 0;
 }
 
-#ifdef CONFIG_PM
-/*
- * resume
- */
-static int via_resume(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int i;
-
-	via_init(codec);
-	for (i = 0; i < spec->num_mixers; i++)
-		snd_hda_resume_ctls(codec, spec->mixers[i]);
-	if (spec->multiout.dig_out_nid)
-		snd_hda_resume_spdif_out(codec);
-	if (spec->dig_in_nid)
-		snd_hda_resume_spdif_in(codec);
-
-	return 0;
-}
-#endif
-
 /*
  */
 static struct hda_codec_ops via_patch_ops = {
@@ -571,9 +550,6 @@ static struct hda_codec_ops via_patch_ops = {
 	.build_pcms = via_build_pcms,
 	.init = via_init,
 	.free = via_free,
-#ifdef CONFIG_PM
-	.resume = via_resume,
-#endif
 };
 
 /* fill in the dac_nids table from the parsed pin configuration */

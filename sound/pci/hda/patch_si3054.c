@@ -78,6 +78,8 @@
 /* si3054 codec registers (nodes) access macros */
 #define GET_REG(codec,reg) (snd_hda_codec_read(codec,reg,0,SI3054_VERB_READ_NODE,0))
 #define SET_REG(codec,reg,val) (snd_hda_codec_write(codec,reg,0,SI3054_VERB_WRITE_NODE,val))
+#define SET_REG_CACHE(codec,reg,val) \
+	snd_hda_codec_write_cache(codec,reg,0,SI3054_VERB_WRITE_NODE,val)
 
 
 struct si3054_spec {
@@ -113,9 +115,9 @@ static int si3054_switch_put(struct snd_kcontrol *kcontrol,
 	u16 reg  = PRIVATE_REG(kcontrol->private_value);
 	u16 mask = PRIVATE_MASK(kcontrol->private_value);
 	if (uvalue->value.integer.value[0])
-		SET_REG(codec, reg, (GET_REG(codec, reg)) | mask);
+		SET_REG_CACHE(codec, reg, (GET_REG(codec, reg)) | mask);
 	else
-		SET_REG(codec, reg, (GET_REG(codec, reg)) & ~mask);
+		SET_REG_CACHE(codec, reg, (GET_REG(codec, reg)) & ~mask);
 	return 0;
 }
 
@@ -267,10 +269,6 @@ static struct hda_codec_ops si3054_patch_ops = {
 	.build_pcms = si3054_build_pcms,
 	.init = si3054_init,
 	.free = si3054_free,
-#ifdef CONFIG_PM
-	//.suspend = si3054_suspend,
-	.resume = si3054_init,
-#endif
 };
 
 static int patch_si3054(struct hda_codec *codec)

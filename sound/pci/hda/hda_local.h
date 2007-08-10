@@ -84,7 +84,9 @@ int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int direction, int index);
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val);
+#ifdef CONFIG_PM
 void snd_hda_codec_resume_amp(struct hda_codec *codec);
+#endif
 
 /* mono switch binding multiple inputs */
 #define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \
@@ -255,15 +257,6 @@ int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
 			       const struct snd_pci_quirk *pci_list);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 struct snd_kcontrol_new *knew);
-
-/*
- * power management
- */
-#ifdef CONFIG_PM
-int snd_hda_resume_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew);
-int snd_hda_resume_spdif_out(struct hda_codec *codec);
-int snd_hda_resume_spdif_in(struct hda_codec *codec);
-#endif
 
 /*
  * unsolicited event handler

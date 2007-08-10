@@ -836,12 +836,13 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 		return 0;
 	val &= mask;
 	val |= get_vol_mute(codec, info, nid, ch, direction, idx) & ~mask;
-	if (info->vol[ch] == val && !codec->in_resume)
+	if (info->vol[ch] == val)
 		return 0;
 	put_vol_mute(codec, info, nid, ch, direction, idx, val);
 	return 1;
 }
 
+#ifdef CONFIG_PM
 /* resume the all amp commands from the cache */
 void snd_hda_codec_resume_amp(struct hda_codec *codec)
 {
@@ -865,6 +866,7 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 		}
 	}
 }
+#endif /* CONFIG_PM */
 
 /*
  * AMP control callbacks
@@ -1272,11 +1274,13 @@ static int snd_hda_spdif_default_put(struct snd_kcontrol *kcontrol,
 	change = codec->spdif_ctls != val;
 	codec->spdif_ctls = val;
 
-	if (change || codec->in_resume) {
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-				    val & 0xff);
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_2,
-				    val >> 8);
+	if (change) {
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_DIGI_CONVERT_1,
+					  val & 0xff);
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_DIGI_CONVERT_2,
+					  val >> 8);
 	}
 
 	mutex_unlock(&codec->spdif_mutex);
@@ -1307,17 +1311,19 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0])
 		val |= AC_DIG1_ENABLE;
 	change = codec->spdif_ctls != val;
-	if (change || codec->in_resume) {
+	if (change) {
 		codec->spdif_ctls = val;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-				    val & 0xff);
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_DIGI_CONVERT_1,
+					  val & 0xff);
 		/* unmute amp switch (if any) */
 		if ((get_wcaps(codec, nid) & AC_WCAP_OUT_AMP) &&
-		    (val & AC_DIG1_ENABLE))
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT |
-					    AC_AMP_SET_OUTPUT);
+		    (val & AC_DIG1_ENABLE)) {
+			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
+						 0x80, 0x00);
+			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
+						 0x80, 0x00);
+		}
 	}
 	mutex_unlock(&codec->spdif_mutex);
 	return change;
@@ -1409,10 +1415,10 @@ static int snd_hda_spdif_in_switch_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&codec->spdif_mutex);
 	change = codec->spdif_in_enable != val;
-	if (change || codec->in_resume) {
+	if (change) {
 		codec->spdif_in_enable = val;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-				    val);
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_DIGI_CONVERT_1, val);
 	}
 	mutex_unlock(&codec->spdif_mutex);
 	return change;
@@ -1482,6 +1488,10 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/*
+ * command cache
+ */
 
 /* build a 32bit cache key with the widget id and the command parameter */
 #define build_cmd_cache_key(nid, verb)	((verb << 8) | nid)
@@ -1548,6 +1558,7 @@ void snd_hda_sequence_write_cache(struct hda_codec *codec,
 		snd_hda_codec_write_cache(codec, seq->nid, 0, seq->verb,
 					  seq->param);
 }
+#endif /* CONFIG_PM */
 
 /*
  * set power state of the codec
@@ -2122,12 +2133,12 @@ int snd_hda_ch_mode_put(struct hda_codec *codec,
 
 	mode = ucontrol->value.enumerated.item[0];
 	snd_assert(mode < num_chmodes, return -EINVAL);
-	if (*max_channelsp == chmode[mode].channels && !codec->in_resume)
+	if (*max_channelsp == chmode[mode].channels)
 		return 0;
 	/* change the current channel setting */
 	*max_channelsp = chmode[mode].channels;
 	if (chmode[mode].sequence)
-		snd_hda_sequence_write(codec, chmode[mode].sequence);
+		snd_hda_sequence_write_cache(codec, chmode[mode].sequence);
 	return 1;
 }
 
@@ -2160,10 +2171,10 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL,
-			    imux->items[idx].index);
+	snd_hda_codec_write_cache(codec, nid, 0, AC_VERB_SET_CONNECT_SEL,
+				  imux->items[idx].index);
 	*cur_val = idx;
 	return 1;
 }
@@ -2608,65 +2619,13 @@ int snd_hda_resume(struct hda_bus *bus)
 				    AC_PWRST_D0);
 		if (codec->patch_ops.resume)
 			codec->patch_ops.resume(codec);
-	}
-	return 0;
-}
-
-/**
- * snd_hda_resume_ctls - resume controls in the new control list
- * @codec: the HDA codec
- * @knew: the array of struct snd_kcontrol_new
- *
- * This function resumes the mixer controls in the struct snd_kcontrol_new array,
- * originally for snd_hda_add_new_ctls().
- * The array must be terminated with an empty entry as terminator.
- */
-int snd_hda_resume_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
-{
-	struct snd_ctl_elem_value *val;
-
-	val = kmalloc(sizeof(*val), GFP_KERNEL);
-	if (!val)
-		return -ENOMEM;
-	codec->in_resume = 1;
-	for (; knew->name; knew++) {
-		int i, count;
-		count = knew->count ? knew->count : 1;
-		for (i = 0; i < count; i++) {
-			memset(val, 0, sizeof(*val));
-			val->id.iface = knew->iface;
-			val->id.device = knew->device;
-			val->id.subdevice = knew->subdevice;
-			strcpy(val->id.name, knew->name);
-			val->id.index = knew->index ? knew->index : i;
-			/* Assume that get callback reads only from cache,
-			 * not accessing to the real hardware
-			 */
-			if (snd_ctl_elem_read(codec->bus->card, val) < 0)
-				continue;
-			snd_ctl_elem_write(codec->bus->card, NULL, val);
+		else {
+			codec->patch_ops.init(codec);
+			snd_hda_codec_resume_amp(codec);
+			snd_hda_codec_resume_cache(codec);
 		}
 	}
-	codec->in_resume = 0;
-	kfree(val);
 	return 0;
 }
 
-/**
- * snd_hda_resume_spdif_out - resume the digital out
- * @codec: the HDA codec
- */
-int snd_hda_resume_spdif_out(struct hda_codec *codec)
-{
-	return snd_hda_resume_ctls(codec, dig_mixes);
-}
-
-/**
- * snd_hda_resume_spdif_in - resume the digital in
- * @codec: the HDA codec
- */
-int snd_hda_resume_spdif_in(struct hda_codec *codec)
-{
-	return snd_hda_resume_ctls(codec, dig_in_ctls);
-}
 #endif

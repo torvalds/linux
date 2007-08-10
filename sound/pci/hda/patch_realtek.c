@@ -442,8 +442,9 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
 	change = pinctl != alc_pin_mode_values[val];
 	if (change) {
 		/* Set pin mode to that requested */
-		snd_hda_codec_write(codec,nid,0,AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    alc_pin_mode_values[val]);
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  alc_pin_mode_values[val]);
 
 		/* Also enable the retasking pin's input/output as required 
 		 * for the requested pin mode.  Enum values of 2 or less are
@@ -456,19 +457,23 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
 		 * this turns out to be necessary in the future.
 		 */
 		if (val <= 2) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_OUT_MUTE);
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(0));
+			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
+						 0x80, 0x80);
+			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
+						 0x80, 0x80);
+			snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT, 0,
+						 0x80, 0x00);
+			snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT, 0,
+						 0x80, 0x00);
 		} else {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_MUTE(0));
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_OUT_UNMUTE);
+			snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT, 0,
+						 0x80, 0x80);
+			snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT, 0,
+						 0x80, 0x80);
+			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
+						 0x80, 0x00);
+			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
+						 0x80, 0x00);
 		}
 	}
 	return change;
@@ -520,7 +525,8 @@ static int alc_gpio_data_put(struct snd_kcontrol *kcontrol,
 		gpio_data &= ~mask;
 	else
 		gpio_data |= mask;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_GPIO_DATA, gpio_data);
+	snd_hda_codec_write_cache(codec, nid, 0,
+				  AC_VERB_SET_GPIO_DATA, gpio_data);
 
 	return change;
 }
@@ -573,8 +579,8 @@ static int alc_spdif_ctrl_put(struct snd_kcontrol *kcontrol,
 		ctrl_data &= ~mask;
 	else
 		ctrl_data |= mask;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-			    ctrl_data);
+	snd_hda_codec_write_cache(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				  ctrl_data);
 
 	return change;
 }
@@ -2026,27 +2032,6 @@ static void alc_unsol_event(struct hda_codec *codec, unsigned int res)
 		spec->unsol_event(codec, res);
 }
 
-#ifdef CONFIG_PM
-/*
- * resume
- */
-static int alc_resume(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	int i;
-
-	alc_init(codec);
-	for (i = 0; i < spec->num_mixers; i++)
-		snd_hda_resume_ctls(codec, spec->mixers[i]);
-	if (spec->multiout.dig_out_nid)
-		snd_hda_resume_spdif_out(codec);
-	if (spec->dig_in_nid)
-		snd_hda_resume_spdif_in(codec);
-
-	return 0;
-}
-#endif
-
 /*
  * Analog playback callbacks
  */
@@ -2278,9 +2263,6 @@ static struct hda_codec_ops alc_patch_ops = {
 	.init = alc_init,
 	.free = alc_free,
 	.unsol_event = alc_unsol_event,
-#ifdef CONFIG_PM
-	.resume = alc_resume,
-#endif
 };
 
 
@@ -2377,11 +2359,15 @@ static int alc_test_pin_ctl_put(struct snd_kcontrol *kcontrol,
 				     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 	new_ctl = ctls[ucontrol->value.enumerated.item[0]];
 	if (old_ctl != new_ctl) {
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, new_ctl);
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    (ucontrol->value.enumerated.item[0] >= 3 ?
-				     0xb080 : 0xb000));
+		int val;
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  new_ctl);
+		val = ucontrol->value.enumerated.item[0] >= 3 ? 0x80 : 0x00;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
+					 0x80, val);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
+					 0x80, val);
 		return 1;
 	}
 	return 0;
@@ -2424,7 +2410,8 @@ static int alc_test_pin_src_put(struct snd_kcontrol *kcontrol,
 	sel = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONNECT_SEL, 0) & 3;
 	if (ucontrol->value.enumerated.item[0] != sel) {
 		sel = ucontrol->value.enumerated.item[0] & 3;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, sel);
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_CONNECT_SEL, sel);
 		return 1;
 	}
 	return 0;
@@ -4054,13 +4041,17 @@ static void alc260_replacer_672v_automute(struct hda_codec *codec)
         present = snd_hda_codec_read(codec, 0x0f, 0,
                                      AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
 	if (present) {
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 1);
-		snd_hda_codec_write(codec, 0x0f, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		snd_hda_codec_write_cache(codec, 0x01, 0,
+					  AC_VERB_SET_GPIO_DATA, 1);
+		snd_hda_codec_write_cache(codec, 0x0f, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  PIN_HP);
 	} else {
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 0);
-		snd_hda_codec_write(codec, 0x0f, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		snd_hda_codec_write_cache(codec, 0x01, 0,
+					  AC_VERB_SET_GPIO_DATA, 0);
+		snd_hda_codec_write_cache(codec, 0x0f, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  PIN_OUT);
 	}
 }
 
@@ -4797,12 +4788,16 @@ static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    v | (imux->items[i].index << 8));
+		unsigned int v = (i == idx) ? 0x00 : 0x80;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+					 imux->items[i].index,
+					 0x80, v);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
+					 imux->items[i].index,
+					 0x80, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -5187,7 +5182,8 @@ static void alc882_targa_automute(struct hda_codec *codec)
 				 0x80, present ? 0x80 : 0);
 	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
 				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_write(codec, 1, 0, AC_VERB_SET_GPIO_DATA, present ? 1 : 3);
+	snd_hda_codec_write_cache(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
+				  present ? 1 : 3);
 }
 
 static void alc882_targa_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -5777,12 +5773,16 @@ static int alc883_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    v | (imux->items[i].index << 8));
+		unsigned int v = (i == idx) ? 0x00 : 0x80;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+					 imux->items[i].index,
+					 0x80, v);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
+					 imux->items[i].index,
+					 0x80, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -6509,8 +6509,8 @@ static void alc883_tagra_automute(struct hda_codec *codec)
 				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
 				 0x80, bits);
-	snd_hda_codec_write(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
-			    present ? 1 : 3);
+	snd_hda_codec_write_cache(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
+				  present ? 1 : 3);
 }
 
 static void alc883_tagra_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -7510,8 +7510,8 @@ static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
 					  0x80, valp[0] ? 0 : 0x80);
 	change |= snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
 					   0x80, valp[1] ? 0 : 0x80);
-	if (change || codec->in_resume)
-		alc262_fujitsu_automute(codec, codec->in_resume);
+	if (change)
+		alc262_fujitsu_automute(codec, 0);
 	return change;
 }
 
@@ -8328,14 +8328,17 @@ static int alc268_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    v | (imux->items[i].index << 8));
-                snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL,
-				    idx );
+		unsigned int v = (i == idx) ? 0x00 : 0x80;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
+                snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_CONNECT_SEL,
+					  idx );
 	}
 	*cur_val = idx;
 	return 1;
@@ -9916,12 +9919,14 @@ static int alc861vd_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    v | (imux->items[i].index << 8));
+		unsigned int v = (i == idx) ? 0x00 : 0x80;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -10847,12 +10852,14 @@ static int alc662_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && !codec->in_resume)
+	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    v | (imux->items[i].index << 8));
+		unsigned int v = (i == idx) ? 0x00 : 0x80;
+		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
+		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
+					 imux->items[i].index, 0x80, v);
 	}
 	*cur_val = idx;
 	return 1;

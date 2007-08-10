@@ -874,16 +874,16 @@ static void stac92xx_enable_gpio_mask(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	/* Configure GPIOx as output */
-	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DIRECTION, spec->gpio_mask);
+	snd_hda_codec_write_cache(codec, codec->afg, 0,
+				  AC_VERB_SET_GPIO_DIRECTION, spec->gpio_mask);
 	/* Configure GPIOx as CMOS */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0x00000000);
+	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7e7, 0x00000000);
 	/* Assert GPIOx */
-	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
+	snd_hda_codec_write_cache(codec, codec->afg, 0,
+				  AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	/* Enable GPIOx */
-	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
+	snd_hda_codec_write_cache(codec, codec->afg, 0,
+				  AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
 }
 
 /*
@@ -1082,7 +1082,8 @@ static unsigned int stac92xx_get_vref(struct hda_codec *codec, hda_nid_t nid)
 static void stac92xx_auto_set_pinctl(struct hda_codec *codec, hda_nid_t nid, int pin_type)
 
 {
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
+	snd_hda_codec_write_cache(codec, nid, 0,
+				  AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
 }
 
 #define stac92xx_io_switch_info		snd_ctl_boolean_mono_info
@@ -1291,8 +1292,8 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
 		spec->multiout.num_dacs++;
 		if (conn_len > 1) {
 			/* select this DAC in the pin's input mux */
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_CONNECT_SEL, j);
+			snd_hda_codec_write_cache(codec, nid, 0,
+						  AC_VERB_SET_CONNECT_SEL, j);
 
 		}
 	}
@@ -1545,9 +1546,9 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		 * NID lists.  Hopefully this won't get confused.
 		 */
 		for (i = 0; i < spec->num_muxes; i++) {
-			snd_hda_codec_write(codec, spec->mux_nids[i], 0,
-					    AC_VERB_SET_CONNECT_SEL,
-					    imux->items[0].index);
+			snd_hda_codec_write_cache(codec, spec->mux_nids[i], 0,
+						  AC_VERB_SET_CONNECT_SEL,
+						  imux->items[0].index);
 		}
 	}
 
@@ -1879,7 +1880,7 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
 		pin_ctl &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
 	
-	snd_hda_codec_write(codec, nid, 0,
+	snd_hda_codec_write_cache(codec, nid, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pin_ctl | flag);
 }
@@ -1889,7 +1890,7 @@ static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
-	snd_hda_codec_write(codec, nid, 0,
+	snd_hda_codec_write_cache(codec, nid, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pin_ctl & ~flag);
 }
@@ -1948,21 +1949,10 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 #ifdef CONFIG_PM
 static int stac92xx_resume(struct hda_codec *codec)
 {
-	struct sigmatel_spec *spec = codec->spec;
-	int i;
-
 	stac92xx_set_config_regs(codec);
-	if (spec->gpio_mask && spec->gpio_data)
-		stac92xx_enable_gpio_mask(codec);
 	stac92xx_init(codec);
-	snd_hda_resume_ctls(codec, spec->mixer);
-	for (i = 0; i < spec->num_mixers; i++)
-		snd_hda_resume_ctls(codec, spec->mixers[i]);
-	if (spec->multiout.dig_out_nid)
-		snd_hda_resume_spdif_out(codec);
-	if (spec->dig_in_nid)
-		snd_hda_resume_spdif_in(codec);
-
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
 	return 0;
 }
 #endif

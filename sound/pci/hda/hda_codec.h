@@ -552,11 +552,6 @@ struct hda_codec {
 	/* set by patch */
 	struct hda_codec_ops patch_ops;
 
-	/* resume phase - all controls should update even if
-	 * the values are not changed
-	 */
-	unsigned int in_resume;
-
 	/* PCM to create, set by patch_ops.build_pcms callback */
 	unsigned int num_pcms;
 	struct hda_pcm *pcm_info;
@@ -622,11 +617,16 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
 
 /* cached write */
+#ifdef CONFIG_PM
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
 				  const struct hda_verb *seq);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
+#else
+#define snd_hda_codec_write_cache	snd_hda_codec_write
+#define snd_hda_sequence_write_cache	snd_hda_sequence_write
+#endif
 
 /*
  * Mixer
