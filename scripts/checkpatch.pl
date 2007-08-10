@@ -9,7 +9,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.08';
+my $V = '0.09';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -311,7 +311,7 @@ sub process {
 
 	my $Ident	= qr{[A-Za-z\d_]+};
 	my $Storage	= qr{extern|static};
-	my $Sparse	= qr{__user|__kernel|__force|__iomem};
+	my $Sparse	= qr{__user|__kernel|__force|__iomem|__must_check|__init_refok};
 	my $NonptrType	= qr{
 				\b
 				(?:const\s+)?
@@ -325,6 +325,7 @@ sub process {
 					unsigned|
 					float|
 					double|
+					bool|
 					long\s+int|
 					long\s+long|
 					long\s+long\s+int|
@@ -340,7 +341,8 @@ sub process {
 			  }x;
 	my $Type	= qr{
 				\b$NonptrType\b
-				(?:\s*\*+\s*const|\s*\*+)?
+				(?:\s*\*+\s*const|\s*\*+|(?:\s*\[\s*\])+)?
+				(?:\s+$Sparse)*
 			  }x;
 	my $Declare	= qr{(?:$Storage\s+)?$Type};
 	my $Attribute	= qr{const|__read_mostly|__init|__initdata|__meminit};
@@ -494,16 +496,15 @@ sub process {
 			ERROR("use tabs not spaces\n" . $herevet);
 		}
 
-		#
-		# The rest of our checks refer specifically to C style
-		# only apply those _outside_ comments.
-		#
-		next if ($in_comment);
-
 # Remove comments from the line before processing.
-		$line =~ s@/\*.*\*/@@g;
-		$line =~ s@/\*.*@@;
-		$line =~ s@.*\*/@@;
+		my $comment_edge = ($line =~ s@/\*.*\*/@@g) +
+				   ($line =~ s@/\*.*@@) +
+				   ($line =~ s@^(.).*\*/@$1@);
+
+# The rest of our checks refer specifically to C style
+# only apply those _outside_ comments.  Only skip
+# lines in the middle of comments.
+		next if (!$comment_edge && $in_comment);
 
 # Standardise the strings and chars within the input to simplify matching.
 		$line = sanitise_line($line);
@@ -599,7 +600,7 @@ sub process {
 			if (($prevline !~ /^}/) &&
 			   ($prevline !~ /^\+}/) &&
 			   ($prevline !~ /^ }/) &&
-			   ($prevline !~ /\s$name(?:\s+$Attribute)?\s*(?:;|=)/)) {
+			   ($prevline !~ /\b\Q$name\E(?:\s+$Attribute)?\s*(?:;|=)/)) {
 				WARN("EXPORT_SYMBOL(foo); should immediately follow its function/variable\n" . $herecurr);
 			}
 		}
@@ -680,9 +681,9 @@ sub process {
 
 # check for spaces between functions and their parentheses.
 		if ($line =~ /($Ident)\s+\(/ &&
-		    $1 !~ /^(?:if|for|while|switch|return|volatile)$/ &&
+		    $1 !~ /^(?:if|for|while|switch|return|volatile|__volatile__|__attribute__|format|__extension__|Copyright)$/ &&
 		    $line !~ /$Type\s+\(/ && $line !~ /^.\#\s*define\b/) {
-			ERROR("no space between function name and open parenthesis '('\n" . $herecurr);
+			WARN("no space between function name and open parenthesis '('\n" . $herecurr);
 		}
 # Check operator spacing.
 		# Note we expand the line with the leading + as the real
@@ -712,6 +713,7 @@ sub process {
 					$c = 'W' if ($elements[$n + 2] =~ /^\s/);
 					$c = 'B' if ($elements[$n + 2] =~ /^(\)|\]|;)/);
 					$c = 'O' if ($elements[$n + 2] eq '');
+					$c = 'E' if ($elements[$n + 2] =~ /\s*\\$/);
 				} else {
 					$c = 'E';
 				}
@@ -812,7 +814,11 @@ sub process {
 
 				# All the others need spaces both sides.
 				} elsif ($ctx !~ /[EW]x[WE]/) {
-					ERROR("need spaces around that '$op' $at\n" . $hereptr);
+					# Ignore email addresses <foo@bar>
+					if (!($op eq '<' && $cb =~ /$;\S+\@\S+>/) &&
+					    !($op eq '>' && $cb =~ /<\S+\@\S+$;/)) {
+						ERROR("need spaces around that '$op' $at\n" . $hereptr);
+					}
 				}
 				$off += length($elements[$n + 1]);
 			}
@@ -823,15 +829,24 @@ sub process {
 			WARN("multiple assignments should be avoided\n" . $herecurr);
 		}
 
-# check for multiple declarations, allowing for a function declaration
-# continuation.
-		if ($line =~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Ident.*/ &&
-		    $line !~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Type\s*$Ident.*/) {
-			WARN("declaring multiple variables together should be avoided\n" . $herecurr);
-		}
+## # check for multiple declarations, allowing for a function declaration
+## # continuation.
+## 		if ($line =~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Ident.*/ &&
+## 		    $line !~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Type\s*$Ident.*/) {
+##
+## 			# Remove any bracketed sections to ensure we do not
+## 			# falsly report the parameters of functions.
+## 			my $ln = $line;
+## 			while ($ln =~ s/\([^\(\)]*\)//g) {
+## 			}
+## 			if ($ln =~ /,/) {
+## 				WARN("declaring multiple variables together should be avoided\n" . $herecurr);
+## 			}
+## 		}
 
 #need space before brace following if, while, etc
-		if ($line =~ /\(.*\){/ || $line =~ /do{/) {
+		if (($line =~ /\(.*\){/ && $line !~ /\($Type\){/) ||
+		    $line =~ /do{/) {
 			ERROR("need a space before the open brace '{'\n" . $herecurr);
 		}
 
@@ -839,6 +854,22 @@ sub process {
 # on the line
 		if ($line =~ /}(?!(?:,|;|\)))\S/) {
 			ERROR("need a space after that close brace '}'\n" . $herecurr);
+		}
+
+# check spacing on square brackets
+		if ($line =~ /\[\s/ && $line !~ /\[\s*$/) {
+			ERROR("no space after that open square bracket '['\n" . $herecurr);
+		}
+		if ($line =~ /\s\]/) {
+			ERROR("no space before that close square bracket ']'\n" . $herecurr);
+		}
+
+# check spacing on paretheses
+		if ($line =~ /\(\s/ && $line !~ /\(\s*$/) {
+			ERROR("no space after that open parenthesis '('\n" . $herecurr);
+		}
+		if ($line =~ /\s\)/) {
+			ERROR("no space before that close parenthesis ')'\n" . $herecurr);
 		}
 
 #goto labels aren't indented, allow a single space however
@@ -910,7 +941,7 @@ sub process {
 			# grabbing the statement after the identifier
 			$prevline =~ m{^(.#\s*define\s*$Ident(?:\([^\)]*\))?\s*)(.*)\\\s*$};
 			##print "1<$1> 2<$2>\n";
-			if ($2 ne '') {
+			if (defined $2 && $2 ne '') {
 				$off = length($1);
 				$ln--;
 				$cnt++;
@@ -950,8 +981,10 @@ sub process {
 				my ($lvl, @block) = ctx_block_level($nr, $cnt);
 
 				my $stmt = join(' ', @block);
-				$stmt =~ s/^[^{]*{//;
-				$stmt =~ s/}[^}]*$//;
+				$stmt =~ s/(^[^{]*){//;
+				my $before = $1;
+				$stmt =~ s/}([^}]*$)//;
+				my $after = $1;
 
 				#print "block<" . join(' ', @block) . "><" . scalar(@block) . ">\n";
 				#print "stmt<$stmt>\n\n";
@@ -963,12 +996,14 @@ sub process {
 				# Also nested if's often require braces to
 				# disambiguate the else binding so shhh there.
 				my @semi = ($stmt =~ /;/g);
+				push(@semi, "/**/") if ($stmt =~ m@/\*@);
 				##print "semi<" . scalar(@semi) . ">\n";
 				if ($lvl == 0 && scalar(@semi) < 2 &&
-				    $stmt !~ /{/ && $stmt !~ /\bif\b/) {
+				    $stmt !~ /{/ && $stmt !~ /\bif\b/ &&
+				    $before !~ /}/ && $after !~ /{/) {
 				    	my $herectx = "$here\n" . join("\n", @control, @block[1 .. $#block]) . "\n";
 				    	shift(@block);
-					ERROR("braces {} are not necessary for single statement blocks\n" . $herectx);
+					WARN("braces {} are not necessary for single statement blocks\n" . $herectx);
 				}
 			}
 		}
@@ -1013,6 +1048,11 @@ sub process {
 #			$clean = 0;
 #		}
 
+# warn about spacing in #ifdefs
+		if ($line =~ /^.#\s*(ifdef|ifndef|elif)\s\s+/) {
+			ERROR("exactly one space required after that #$1\n" . $herecurr);
+		}
+
 # check for spinlock_t definitions without a comment.
 		if ($line =~ /^.\s*(struct\s+mutex|spinlock_t)\s+\S+;/) {
 			my $which = $1;
@@ -1027,14 +1067,14 @@ sub process {
 			}
 		}
 # check of hardware specific defines
-		if ($line =~ m@^.#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@) {
+		if ($line =~ m@^.#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
 			CHK("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
 # check the location of the inline attribute, that it is between
 # storage class and type.
-		if ($line =~ /$Type\s+(?:inline|__always_inline)\b/ ||
-		    $line =~ /\b(?:inline|always_inline)\s+$Storage/) {
+		if ($line =~ /$Type\s+(?:inline|__always_inline|noinline)\b/ ||
+		    $line =~ /\b(?:inline|__always_inline|noinline)\s+$Storage/) {
 			ERROR("inline keyword should sit between storage class and type\n" . $herecurr);
 		}
 
