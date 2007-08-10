@@ -34,6 +34,12 @@ Examples:
 
  insmod netconsole netconsole=@/,@10.0.0.2/
 
+It also supports logging to multiple remote agents by specifying
+parameters for the multiple agents separated by semicolons and the
+complete string enclosed in "quotes", thusly:
+
+ modprobe netconsole netconsole="@/,@10.0.0.2/;@/eth1,6892@10.0.0.3/"
+
 Built-in netconsole starts immediately after the TCP stack is
 initialized and attempts to bring up the supplied dev at the supplied
 address.
