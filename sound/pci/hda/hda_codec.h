@@ -570,6 +570,7 @@ struct hda_codec {
 	u32 *wcaps;
 
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
+	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
 	struct mutex spdif_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
@@ -619,6 +620,13 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 
 /* unsolicited event */
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
+
+/* cached write */
+int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
+			      int direct, unsigned int verb, unsigned int parm);
+void snd_hda_sequence_write_cache(struct hda_codec *codec,
+				  const struct hda_verb *seq);
+void snd_hda_codec_resume_cache(struct hda_codec *codec);
 
 /*
  * Mixer

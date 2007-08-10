@@ -84,6 +84,7 @@ int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int direction, int index);
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val);
+void snd_hda_codec_resume_amp(struct hda_codec *codec);
 
 /* mono switch binding multiple inputs */
 #define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \

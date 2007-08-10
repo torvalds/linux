@@ -510,6 +510,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
 	free_hda_cache(&codec->amp_cache);
+	free_hda_cache(&codec->cmd_cache);
 	kfree(codec->wcaps);
 	kfree(codec);
 }
@@ -548,6 +549,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
+	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 
 	list_add_tail(&codec->list, &bus->codec_list);
 	bus->caddr_tbl[codec_addr] = codec;
@@ -840,6 +842,29 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 	return 1;
 }
 
+/* resume the all amp commands from the cache */
+void snd_hda_codec_resume_amp(struct hda_codec *codec)
+{
+	struct hda_amp_info *buffer = codec->amp_cache.buffer;
+	int i;
+
+	for (i = 0; i < codec->amp_cache.size; i++, buffer++) {
+		u32 key = buffer->head.key;
+		hda_nid_t nid;
+		unsigned int idx, dir, ch;
+		if (!key)
+			continue;
+		nid = key & 0xff;
+		idx = (key >> 16) & 0xff;
+		dir = (key >> 24) & 0xff;
+		for (ch = 0; ch < 2; ch++) {
+			if (!(buffer->head.val & INFO_AMP_VOL(ch)))
+				continue;
+			put_vol_mute(codec, buffer, nid, ch, dir, idx,
+				     buffer->vol[ch]);
+		}
+	}
+}
 
 /*
  * AMP control callbacks
@@ -1457,6 +1482,72 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	return 0;
 }
 
+
+/* build a 32bit cache key with the widget id and the command parameter */
+#define build_cmd_cache_key(nid, verb)	((verb << 8) | nid)
+#define get_cmd_cache_nid(key)		((key) & 0xff)
+#define get_cmd_cache_cmd(key)		(((key) >> 8) & 0xffff)
+
+/**
+ * snd_hda_codec_write_cache - send a single command with caching
+ * @codec: the HDA codec
+ * @nid: NID to send the command
+ * @direct: direct flag
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * Send a single command without waiting for response.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
+			      int direct, unsigned int verb, unsigned int parm)
+{
+	int err;
+	mutex_lock(&codec->bus->cmd_mutex);
+	err = codec->bus->ops.command(codec, nid, direct, verb, parm);
+	if (!err) {
+		struct hda_cache_head *c;
+		u32 key = build_cmd_cache_key(nid, verb);
+		c = get_alloc_hash(&codec->cmd_cache, key);
+		if (c)
+			c->val = parm;
+	}
+	mutex_unlock(&codec->bus->cmd_mutex);
+	return err;
+}
+
+/* resume the all commands from the cache */
+void snd_hda_codec_resume_cache(struct hda_codec *codec)
+{
+	struct hda_cache_head *buffer = codec->cmd_cache.buffer;
+	int i;
+
+	for (i = 0; i < codec->cmd_cache.size; i++, buffer++) {
+		u32 key = buffer->key;
+		if (!key)
+			continue;
+		snd_hda_codec_write(codec, get_cmd_cache_nid(key), 0,
+				    get_cmd_cache_cmd(key), buffer->val);
+	}
+}
+
+/**
+ * snd_hda_sequence_write_cache - sequence writes with caching
+ * @codec: the HDA codec
+ * @seq: VERB array to send
+ *
+ * Send the commands sequentially from the given array.
+ * Thte commands are recorded on cache for power-save and resume.
+ * The array must be terminated with NID=0.
+ */
+void snd_hda_sequence_write_cache(struct hda_codec *codec,
+				  const struct hda_verb *seq)
+{
+	for (; seq->nid; seq++)
+		snd_hda_codec_write_cache(codec, seq->nid, 0, seq->verb,
+					  seq->param);
+}
 
 /*
  * set power state of the codec
