@@ -1709,6 +1709,24 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Stanton/N2IT Final Scratch v1 device ('Scratchamp') */
+{
+	USB_DEVICE(0x103d, 0x0100),
+		.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Stanton",
+		.product_name = "ScratchAmp",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+{
+	USB_DEVICE(0x103d, 0x0101),
+		.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Stanton",
+		.product_name = "ScratchAmp",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+
 /* Novation EMS devices */
 {
 	USB_DEVICE_VENDOR_SPEC(0x1235, 0x0001),
