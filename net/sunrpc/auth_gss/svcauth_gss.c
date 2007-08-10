@@ -631,7 +631,8 @@ svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 	return 0;
 }
 
-/* Verify the checksum on the header and return SVC_OK on success.
+/*
+ * Verify the checksum on the header and return SVC_OK on success.
  * Otherwise, return SVC_DROP (in the case of a bad sequence number)
  * or return SVC_DENIED and indicate error in authp.
  */
@@ -961,6 +962,78 @@ gss_write_init_verf(struct svc_rqst *rqstp, struct rsi *rsip)
 }
 
 /*
+ * Having read the cred already and found we're in the context
+ * initiation case, read the verifier and initiate (or check the results
+ * of) upcalls to userspace for help with context initiation.  If
+ * the upcall results are available, write the verifier and result.
+ * Otherwise, drop the request pending an answer to the upcall.
+ */
+static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
+			struct rpc_gss_wire_cred *gc, __be32 *authp)
+{
+	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct kvec *resv = &rqstp->rq_res.head[0];
+	struct xdr_netobj tmpobj;
+	struct rsi *rsip, rsikey;
+
+	/* Read the verifier; should be NULL: */
+	*authp = rpc_autherr_badverf;
+	if (argv->iov_len < 2 * 4)
+		return SVC_DENIED;
+	if (svc_getnl(argv) != RPC_AUTH_NULL)
+		return SVC_DENIED;
+	if (svc_getnl(argv) != 0)
+		return SVC_DENIED;
+
+	/* Martial context handle and token for upcall: */
+	*authp = rpc_autherr_badcred;
+	if (gc->gc_proc == RPC_GSS_PROC_INIT && gc->gc_ctx.len != 0)
+		return SVC_DENIED;
+	memset(&rsikey, 0, sizeof(rsikey));
+	if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
+		return SVC_DROP;
+	*authp = rpc_autherr_badverf;
+	if (svc_safe_getnetobj(argv, &tmpobj)) {
+		kfree(rsikey.in_handle.data);
+		return SVC_DENIED;
+	}
+	if (dup_netobj(&rsikey.in_token, &tmpobj)) {
+		kfree(rsikey.in_handle.data);
+		return SVC_DROP;
+	}
+
+	/* Perform upcall, or find upcall result: */
+	rsip = rsi_lookup(&rsikey);
+	rsi_free(&rsikey);
+	if (!rsip)
+		return SVC_DROP;
+	switch (cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
+	case -EAGAIN:
+	case -ETIMEDOUT:
+	case -ENOENT:
+		/* No upcall result: */
+		return SVC_DROP;
+	case 0:
+		/* Got an answer to the upcall; use it: */
+		if (gss_write_init_verf(rqstp, rsip))
+			return SVC_DROP;
+		if (resv->iov_len + 4 > PAGE_SIZE)
+			return SVC_DROP;
+		svc_putnl(resv, RPC_SUCCESS);
+		if (svc_safe_putnetobj(resv, &rsip->out_handle))
+			return SVC_DROP;
+		if (resv->iov_len + 3 * 4 > PAGE_SIZE)
+			return SVC_DROP;
+		svc_putnl(resv, rsip->major_status);
+		svc_putnl(resv, rsip->minor_status);
+		svc_putnl(resv, GSS_SEQ_WIN);
+		if (svc_safe_putnetobj(resv, &rsip->out_token))
+			return SVC_DROP;
+	}
+	return SVC_COMPLETE;
+}
+
+/*
  * Accept an rpcsec packet.
  * If context establishment, punt to user space
  * If data exchange, verify/decrypt
@@ -974,11 +1047,9 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 	u32		crlen;
-	struct xdr_netobj tmpobj;
 	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc;
 	struct rsc	*rsci = NULL;
-	struct rsi	*rsip, rsikey;
 	__be32		*rpcstart;
 	__be32		*reject_stat = resv->iov_base + resv->iov_len;
 	int		ret;
@@ -1023,30 +1094,14 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	if ((gc->gc_proc != RPC_GSS_PROC_DATA) && (rqstp->rq_proc != 0))
 		goto auth_err;
 
-	/*
-	 * We've successfully parsed the credential. Let's check out the
-	 * verifier.  An AUTH_NULL verifier is allowed (and required) for
-	 * INIT and CONTINUE_INIT requests. AUTH_RPCSEC_GSS is required for
-	 * PROC_DATA and PROC_DESTROY.
-	 *
-	 * AUTH_NULL verifier is 0 (AUTH_NULL), 0 (length).
-	 * AUTH_RPCSEC_GSS verifier is:
-	 *   6 (AUTH_RPCSEC_GSS), length, checksum.
-	 * checksum is calculated over rpcheader from xid up to here.
-	 */
 	*authp = rpc_autherr_badverf;
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_INIT:
 	case RPC_GSS_PROC_CONTINUE_INIT:
-		if (argv->iov_len < 2 * 4)
-			goto auth_err;
-		if (svc_getnl(argv) != RPC_AUTH_NULL)
-			goto auth_err;
-		if (svc_getnl(argv) != 0)
-			goto auth_err;
-		break;
+		return svcauth_gss_handle_init(rqstp, gc, authp);
 	case RPC_GSS_PROC_DATA:
 	case RPC_GSS_PROC_DESTROY:
+		/* Look up the context, and check the verifier: */
 		*authp = rpcsec_gsserr_credproblem;
 		rsci = gss_svc_searchbyctx(&gc->gc_ctx);
 		if (!rsci)
@@ -1067,51 +1122,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 
 	/* now act upon the command: */
 	switch (gc->gc_proc) {
-	case RPC_GSS_PROC_INIT:
-	case RPC_GSS_PROC_CONTINUE_INIT:
-		*authp = rpc_autherr_badcred;
-		if (gc->gc_proc == RPC_GSS_PROC_INIT && gc->gc_ctx.len != 0)
-			goto auth_err;
-		memset(&rsikey, 0, sizeof(rsikey));
-		if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
-			goto drop;
-		*authp = rpc_autherr_badverf;
-		if (svc_safe_getnetobj(argv, &tmpobj)) {
-			kfree(rsikey.in_handle.data);
-			goto auth_err;
-		}
-		if (dup_netobj(&rsikey.in_token, &tmpobj)) {
-			kfree(rsikey.in_handle.data);
-			goto drop;
-		}
-
-		rsip = rsi_lookup(&rsikey);
-		rsi_free(&rsikey);
-		if (!rsip) {
-			goto drop;
-		}
-		switch(cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
-		case -EAGAIN:
-		case -ETIMEDOUT:
-		case -ENOENT:
-			goto drop;
-		case 0:
-			if (gss_write_init_verf(rqstp, rsip))
-				goto drop;
-			if (resv->iov_len + 4 > PAGE_SIZE)
-				goto drop;
-			svc_putnl(resv, RPC_SUCCESS);
-			if (svc_safe_putnetobj(resv, &rsip->out_handle))
-				goto drop;
-			if (resv->iov_len + 3 * 4 > PAGE_SIZE)
-				goto drop;
-			svc_putnl(resv, rsip->major_status);
-			svc_putnl(resv, rsip->minor_status);
-			svc_putnl(resv, GSS_SEQ_WIN);
-			if (svc_safe_putnetobj(resv, &rsip->out_token))
-				goto drop;
-		}
-		goto complete;
 	case RPC_GSS_PROC_DESTROY:
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
@@ -1158,7 +1168,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		goto out;
 	}
 auth_err:
-	/* Restore write pointer to original value: */
+	/* Restore write pointer to its original value: */
 	xdr_ressize_check(rqstp, reject_stat);
 	ret = SVC_DENIED;
 	goto out;
