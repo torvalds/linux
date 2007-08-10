@@ -1015,6 +1015,7 @@ check_failed:
 	ins->objectid = search_start;
 	ins->offset = 0;
 	start_found = 0;
+	path->reada = 1;
 
 	ret = btrfs_search_slot(trans, root, ins, path, 0, 0);
 	if (ret < 0)
@@ -1264,6 +1265,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	WARN_ON(buffer_dirty(buf));
 	set_buffer_uptodate(buf);
 	set_buffer_checked(buf);
+	set_buffer_defrag(buf);
 	set_radix_bit(&trans->transaction->dirty_pages, buf->b_page->index);
 	return buf;
 }

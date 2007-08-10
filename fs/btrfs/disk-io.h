@@ -25,8 +25,10 @@
 
 enum btrfs_bh_state_bits {
 	BH_Checked = BH_PrivateStart,
+	BH_Defrag,
 };
 BUFFER_FNS(Checked, checked);
+BUFFER_FNS(Defrag, defrag);
 
 static inline struct btrfs_node *btrfs_buffer_node(struct buffer_head *bh)
 {

@@ -86,7 +86,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		if (cache_only) {
 			next = btrfs_find_tree_block(root, blocknr);
 			if (!next || !buffer_uptodate(next) ||
-			   buffer_locked(next)) {
+			   buffer_locked(next) || !buffer_defrag(next)) {
 				brelse(next);
 				path->slots[*level]++;
 				continue;
@@ -142,6 +142,7 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			root->defrag_level = i;
 			return 0;
 		} else {
+			clear_buffer_defrag(path->nodes[*level]);
 			btrfs_block_release(root, path->nodes[*level]);
 			path->nodes[*level] = NULL;
 			*level = i + 1;

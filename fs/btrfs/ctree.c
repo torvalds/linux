@@ -175,6 +175,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	int end_slot;
 	int i;
 	int err = 0;
+	int parent_level;
 
 	if (trans->transaction != root->fs_info->running_transaction) {
 		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
@@ -188,6 +189,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	}
 	parent_node = btrfs_buffer_node(parent);
 	parent_nritems = btrfs_header_nritems(&parent_node->header);
+	parent_level = btrfs_header_level(&parent_node->header);
 
 	start_slot = 0;
 	end_slot = parent_nritems;
@@ -215,13 +217,16 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 		cur_bh = btrfs_find_tree_block(root, blocknr);
 		if (!cur_bh || !buffer_uptodate(cur_bh) ||
-		    buffer_locked(cur_bh)) {
+		    buffer_locked(cur_bh) || !buffer_defrag(cur_bh)) {
 			if (cache_only) {
 				brelse(cur_bh);
 				continue;
 			}
-			brelse(cur_bh);
-			cur_bh = read_tree_block(root, blocknr);
+			if (!cur_bh || !buffer_uptodate(cur_bh) ||
+			    buffer_locked(cur_bh)) {
+				brelse(cur_bh);
+				cur_bh = read_tree_block(root, blocknr);
+			}
 		}
 		if (search_start == 0)
 			search_start = last_block & ~((u64)65535);
@@ -232,6 +237,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		if (err)
 			break;
 		search_start = bh_blocknr(tmp_bh);
+		*last_ret = search_start;
+		if (parent_level == 1)
+			clear_buffer_defrag(tmp_bh);
 		brelse(tmp_bh);
 	}
 	return err;
@@ -811,16 +819,10 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 			clear_radix_bit(&found, blocknr);
 			if (nread > 32)
 				continue;
-			if (direction > 0 && cluster_start <= blocknr &&
-			    cluster_start + 8 > blocknr) {
-				cluster_start = blocknr;
+			if (close_blocks(cluster_start, blocknr)) {
 				readahead_tree_block(root, blocknr);
 				nread++;
-			} else if (direction < 0 && cluster_start >= blocknr &&
-				   blocknr + 8 > cluster_start) {
 				cluster_start = blocknr;
-				readahead_tree_block(root, blocknr);
-				nread++;
 			}
 		}
 	}
