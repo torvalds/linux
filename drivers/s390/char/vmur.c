@@ -202,7 +202,7 @@ static int do_ur_io(struct urdev *urd, struct ccw1 *cpa)
 {
 	int rc;
 	struct ccw_device *cdev = urd->cdev;
-	DECLARE_COMPLETION(event);
+	DECLARE_COMPLETION_ONSTACK(event);
 
 	TRACE("do_ur_io: cpa=%p\n", cpa);
 
