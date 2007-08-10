@@ -2408,13 +2408,13 @@ static int vaio_master_vol_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
-					  0x7f, valp[0] & 0x7f);
+					  HDA_AMP_VOLMASK, valp[0]);
 	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
-					   0x7f, valp[1] & 0x7f);
+					   HDA_AMP_VOLMASK, valp[1]);
 	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 0x7f, valp[0] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[0]);
 	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 0x7f, valp[1] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[1]);
 	return change;
 }
 
@@ -2427,13 +2427,15 @@ static int vaio_master_sw_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
-					  0x80, (valp[0] ? 0 : 0x80));
+					  HDA_AMP_MUTE,
+					  (valp[0] ? 0 : HDA_AMP_MUTE));
 	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
-					   0x80, (valp[1] ? 0 : 0x80));
+					   HDA_AMP_MUTE,
+					   (valp[1] ? 0 : HDA_AMP_MUTE));
 	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 0x80, (valp[0] ? 0 : 0x80));
+				 HDA_AMP_MUTE, (valp[0] ? 0 : HDA_AMP_MUTE));
 	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 0x80, (valp[1] ? 0 : 0x80));
+				 HDA_AMP_MUTE, (valp[1] ? 0 : HDA_AMP_MUTE));
 	return change;
 }
 

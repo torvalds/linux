@@ -84,9 +84,16 @@ int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int direction, int index);
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val);
+int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
+			     int dir, int idx, int mask, int val);
 #ifdef CONFIG_PM
 void snd_hda_codec_resume_amp(struct hda_codec *codec);
 #endif
+
+/* amp value bits */
+#define HDA_AMP_MUTE	0x80
+#define HDA_AMP_UNMUTE	0x00
+#define HDA_AMP_VOLMASK	0x7f
 
 /* mono switch binding multiple inputs */
 #define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \

@@ -842,6 +842,19 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 	return 1;
 }
 
+/*
+ * update the AMP stereo with the same mask and value
+ */
+int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
+			     int direction, int idx, int mask, int val)
+{
+	int ch, ret = 0;
+	for (ch = 0; ch < 2; ch++)
+		ret |= snd_hda_codec_amp_update(codec, nid, ch, direction,
+						idx, mask, val);
+	return ret;
+}
+
 #ifdef CONFIG_PM
 /* resume the all amp commands from the cache */
 void snd_hda_codec_resume_amp(struct hda_codec *codec)
@@ -913,9 +926,11 @@ int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol,
 	long *valp = ucontrol->value.integer.value;
 
 	if (chs & 1)
-		*valp++ = snd_hda_codec_amp_read(codec, nid, 0, dir, idx) & 0x7f;
+		*valp++ = snd_hda_codec_amp_read(codec, nid, 0, dir, idx)
+			& HDA_AMP_VOLMASK;
 	if (chs & 2)
-		*valp = snd_hda_codec_amp_read(codec, nid, 1, dir, idx) & 0x7f;
+		*valp = snd_hda_codec_amp_read(codec, nid, 1, dir, idx)
+			& HDA_AMP_VOLMASK;
 	return 0;
 }
 
@@ -992,10 +1007,10 @@ int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol,
 
 	if (chs & 1)
 		*valp++ = (snd_hda_codec_amp_read(codec, nid, 0, dir, idx) &
-			   0x80) ? 0 : 1;
+			   HDA_AMP_MUTE) ? 0 : 1;
 	if (chs & 2)
 		*valp = (snd_hda_codec_amp_read(codec, nid, 1, dir, idx) &
-			 0x80) ? 0 : 1;
+			 HDA_AMP_MUTE) ? 0 : 1;
 	return 0;
 }
 
@@ -1012,12 +1027,14 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 
 	if (chs & 1) {
 		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
-						  0x80, *valp ? 0 : 0x80);
+						  HDA_AMP_MUTE,
+						  *valp ? 0 : HDA_AMP_MUTE);
 		valp++;
 	}
 	if (chs & 2)
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x80, *valp ? 0 : 0x80);
+						   HDA_AMP_MUTE,
+						   *valp ? 0 : HDA_AMP_MUTE);
 	
 	return change;
 }
@@ -1318,12 +1335,9 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol,
 					  val & 0xff);
 		/* unmute amp switch (if any) */
 		if ((get_wcaps(codec, nid) & AC_WCAP_OUT_AMP) &&
-		    (val & AC_DIG1_ENABLE)) {
-			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
-						 0x80, 0x00);
-			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
-						 0x80, 0x00);
-		}
+		    (val & AC_DIG1_ENABLE))
+			snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+						 HDA_AMP_MUTE, 0);
 	}
 	mutex_unlock(&codec->spdif_mutex);
 	return change;

@@ -472,13 +472,13 @@ static int cxt5045_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	/* toggle internal speakers mute depending of presence of
 	 * the headphone jack
 	 */
-	bits = (!spec->hp_present && spec->cur_eapd) ? 0 : 0x80;
-	snd_hda_codec_amp_update(codec, 0x10, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x10, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = (!spec->hp_present && spec->cur_eapd) ? 0 : HDA_AMP_MUTE;
+	snd_hda_codec_amp_stereo(codec, 0x10, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 
-	bits = spec->cur_eapd ? 0 : 0x80;
-	snd_hda_codec_amp_update(codec, 0x11, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x11, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = spec->cur_eapd ? 0 : HDA_AMP_MUTE;
+	snd_hda_codec_amp_stereo(codec, 0x11, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 	return 1;
 }
 
@@ -491,13 +491,13 @@ static int cxt5045_hp_master_vol_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x10, 0, HDA_OUTPUT, 0,
-					  0x7f, valp[0] & 0x7f);
+					  HDA_AMP_VOLMASK, valp[0]);
 	change |= snd_hda_codec_amp_update(codec, 0x10, 1, HDA_OUTPUT, 0,
-					   0x7f, valp[1] & 0x7f);
+					   HDA_AMP_VOLMASK, valp[1]);
 	snd_hda_codec_amp_update(codec, 0x11, 0, HDA_OUTPUT, 0,
-				 0x7f, valp[0] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[0]);
 	snd_hda_codec_amp_update(codec, 0x11, 1, HDA_OUTPUT, 0,
-				 0x7f, valp[1] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[1]);
 	return change;
 }
 
@@ -534,9 +534,9 @@ static void cxt5045_hp_automute(struct hda_codec *codec)
 	spec->hp_present = snd_hda_codec_read(codec, 0x11, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
 
-	bits = (spec->hp_present || !spec->cur_eapd) ? 0x80 : 0; 
-	snd_hda_codec_amp_update(codec, 0x10, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x10, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = (spec->hp_present || !spec->cur_eapd) ? HDA_AMP_MUTE : 0; 
+	snd_hda_codec_amp_stereo(codec, 0x10, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -887,12 +887,12 @@ static int cxt5047_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	/* toggle internal speakers mute depending of presence of
 	 * the headphone jack
 	 */
-	bits = (!spec->hp_present && spec->cur_eapd) ? 0 : 0x80;
-	snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0, 0x80, bits);
-	bits = spec->cur_eapd ? 0 : 0x80;
-	snd_hda_codec_amp_update(codec, 0x13, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x13, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = (!spec->hp_present && spec->cur_eapd) ? 0 : HDA_AMP_MUTE;
+	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
+	bits = spec->cur_eapd ? 0 : HDA_AMP_MUTE;
+	snd_hda_codec_amp_stereo(codec, 0x13, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 	return 1;
 }
 
@@ -905,13 +905,13 @@ static int cxt5047_hp_master_vol_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0,
-					  0x7f, valp[0] & 0x7f);
+					  HDA_AMP_VOLMASK, valp[0]);
 	change |= snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0,
-					   0x7f, valp[1] & 0x7f);
+					   HDA_AMP_VOLMASK, valp[1]);
 	snd_hda_codec_amp_update(codec, 0x13, 0, HDA_OUTPUT, 0,
-				 0x7f, valp[0] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[0]);
 	snd_hda_codec_amp_update(codec, 0x13, 1, HDA_OUTPUT, 0,
-				 0x7f, valp[1] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[1]);
 	return change;
 }
 
@@ -924,12 +924,12 @@ static void cxt5047_hp_automute(struct hda_codec *codec)
 	spec->hp_present = snd_hda_codec_read(codec, 0x13, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
 
-	bits = (spec->hp_present || !spec->cur_eapd) ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = (spec->hp_present || !spec->cur_eapd) ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 	/* Mute/Unmute PCM 2 for good measure - some systems need this */
-	snd_hda_codec_amp_update(codec, 0x1c, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1c, 1, HDA_OUTPUT, 0, 0x80, bits);
+	snd_hda_codec_amp_stereo(codec, 0x1c, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 /* mute internal speaker if HP is plugged */
@@ -941,12 +941,12 @@ static void cxt5047_hp2_automute(struct hda_codec *codec)
 	spec->hp_present = snd_hda_codec_read(codec, 0x13, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
 
-	bits = spec->hp_present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0, 0x80, bits);
+	bits = spec->hp_present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 	/* Mute/Unmute PCM 2 for good measure - some systems need this */
-	snd_hda_codec_amp_update(codec, 0x1c, 0, HDA_OUTPUT, 0, 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1c, 1, HDA_OUTPUT, 0, 0x80, bits);
+	snd_hda_codec_amp_stereo(codec, 0x1c, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 /* toggle input of built-in and mic jack appropriately */

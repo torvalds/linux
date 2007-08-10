@@ -457,23 +457,15 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
 		 * this turns out to be necessary in the future.
 		 */
 		if (val <= 2) {
-			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
-						 0x80, 0x80);
-			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
-						 0x80, 0x80);
-			snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT, 0,
-						 0x80, 0x00);
-			snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT, 0,
-						 0x80, 0x00);
+			snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+						 HDA_AMP_MUTE, HDA_AMP_MUTE);
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, 0,
+						 HDA_AMP_MUTE, 0);
 		} else {
-			snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT, 0,
-						 0x80, 0x80);
-			snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT, 0,
-						 0x80, 0x80);
-			snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
-						 0x80, 0x00);
-			snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
-						 0x80, 0x00);
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, 0,
+						 HDA_AMP_MUTE, HDA_AMP_MUTE);
+			snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+						 HDA_AMP_MUTE, 0);
 		}
 	}
 	return change;
@@ -1559,15 +1551,11 @@ static void alc880_uniwill_hp_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x16, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x16, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
+	snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 /* auto-toggle front mic */
@@ -1578,11 +1566,8 @@ static void alc880_uniwill_mic_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x18, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1, HDA_AMP_MUTE, bits);
 }
 
 static void alc880_uniwill_automute(struct hda_codec *codec)
@@ -1614,11 +1599,8 @@ static void alc880_uniwill_p53_hp_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_INPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_INPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_INPUT, 0, HDA_AMP_MUTE, bits);
 }
 
 static void alc880_uniwill_p53_dcvol_automute(struct hda_codec *codec)
@@ -1626,19 +1608,14 @@ static void alc880_uniwill_p53_dcvol_automute(struct hda_codec *codec)
 	unsigned int present;
 	
 	present = snd_hda_codec_read(codec, 0x21, 0,
-				     AC_VERB_GET_VOLUME_KNOB_CONTROL, 0) & 0x7f;
-
-	snd_hda_codec_amp_update(codec, 0x0c, 0, HDA_OUTPUT, 0,
-				 0x7f, present);
-	snd_hda_codec_amp_update(codec, 0x0c, 1, HDA_OUTPUT, 0,
-				 0x7f,  present);
-
-	snd_hda_codec_amp_update(codec, 0x0d, 0, HDA_OUTPUT, 0,
-				 0x7f,  present);
-	snd_hda_codec_amp_update(codec, 0x0d, 1, HDA_OUTPUT, 0,
-				 0x7f, present);
-
+				     AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
+	present &= HDA_AMP_VOLMASK;
+	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_OUTPUT, 0,
+				 HDA_AMP_VOLMASK, present);
+	snd_hda_codec_amp_stereo(codec, 0x0d, HDA_OUTPUT, 0,
+				 HDA_AMP_VOLMASK, present);
 }
+
 static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 					   unsigned int res)
 {
@@ -1891,11 +1868,9 @@ static void alc880_lg_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x17, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x17, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x17, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc880_lg_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1990,11 +1965,9 @@ static void alc880_lg_lw_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc880_lg_lw_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -2363,11 +2336,10 @@ static int alc_test_pin_ctl_put(struct snd_kcontrol *kcontrol,
 		snd_hda_codec_write_cache(codec, nid, 0,
 					  AC_VERB_SET_PIN_WIDGET_CONTROL,
 					  new_ctl);
-		val = ucontrol->value.enumerated.item[0] >= 3 ? 0x80 : 0x00;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_OUTPUT, 0,
-					 0x80, val);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_OUTPUT, 0,
-					 0x80, val);
+		val = ucontrol->value.enumerated.item[0] >= 3 ?
+			HDA_AMP_MUTE : 0;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, val);
 		return 1;
 	}
 	return 0;
@@ -4791,13 +4763,10 @@ static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x00 : 0x80;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
 					 imux->items[i].index,
-					 0x80, v);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
-					 imux->items[i].index,
-					 0x80, v);
+					 HDA_AMP_MUTE, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -5134,14 +5103,10 @@ static void alc885_imac24_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x18, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x18, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x1a, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x1a, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_stereo(codec, 0x18, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
 
 /* Processes unsolicited events. */
@@ -5178,10 +5143,8 @@ static void alc882_targa_automute(struct hda_codec *codec)
  
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x1b, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_stereo(codec, 0x1b, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 	snd_hda_codec_write_cache(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
 				  present ? 1 : 3);
 }
@@ -5776,13 +5739,10 @@ static int alc883_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x00 : 0x80;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
+		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
 					 imux->items[i].index,
-					 0x80, v);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
-					 imux->items[i].index,
-					 0x80, v);
+					 HDA_AMP_MUTE, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -6421,15 +6381,10 @@ static void alc888_lenovo_ms7195_front_automute(struct hda_codec *codec)
  
  	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
 
 /* toggle RCA according to the front-jack state */
@@ -6439,12 +6394,10 @@ static void alc888_lenovo_ms7195_rca_automute(struct hda_codec *codec)
  
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
+
 static void alc883_lenovo_ms7195_unsol_event(struct hda_codec *codec,
 					     unsigned int res)
 {
@@ -6483,10 +6436,8 @@ static void alc883_medion_md2_automute(struct hda_codec *codec)
  
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
 
 static void alc883_medion_md2_unsol_event(struct hda_codec *codec,
@@ -6504,11 +6455,9 @@ static void alc883_tagra_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x1b, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x1b, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_write_cache(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
 				  present ? 1 : 3);
 }
@@ -6526,11 +6475,9 @@ static void alc883_lenovo_101e_ispeaker_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc883_lenovo_101e_all_automute(struct hda_codec *codec)
@@ -6540,15 +6487,11 @@ static void alc883_lenovo_101e_all_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc883_lenovo_101e_unsol_event(struct hda_codec *codec,
@@ -7347,18 +7290,13 @@ static void alc262_hippo_automute(struct hda_codec *codec)
 	spec->jack_present = (present & 0x80000000) != 0;
 	if (spec->jack_present) {
 		/* mute internal speaker */
-		snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					 0x80, 0x80);
-		snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					 0x80, 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
 	} else {
 		/* unmute internal speaker if necessary */
 		mute = snd_hda_codec_amp_read(codec, 0x15, 0, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
-		mute = snd_hda_codec_amp_read(codec, 0x15, 1, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
 	}
 }
 
@@ -7382,18 +7320,13 @@ static void alc262_hippo1_automute(struct hda_codec *codec)
 	present = (present & 0x80000000) != 0;
 	if (present) {
 		/* mute internal speaker */
-		snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					 0x80, 0x80);
-		snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					 0x80, 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
 	} else {
 		/* unmute internal speaker if necessary */
 		mute = snd_hda_codec_amp_read(codec, 0x1b, 0, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
-		mute = snd_hda_codec_amp_read(codec, 0x1b, 1, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
 	}
 }
 
@@ -7455,18 +7388,13 @@ static void alc262_fujitsu_automute(struct hda_codec *codec, int force)
 	}
 	if (spec->jack_present) {
 		/* mute internal speaker */
-		snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-					 0x80, 0x80);
-		snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-					 0x80, 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
 	} else {
 		/* unmute internal speaker if necessary */
 		mute = snd_hda_codec_amp_read(codec, 0x14, 0, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
-		mute = snd_hda_codec_amp_read(codec, 0x14, 1, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-					 0x80, mute & 0x80);
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
 	}
 }
 
@@ -7488,13 +7416,13 @@ static int alc262_fujitsu_master_vol_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x0c, 0, HDA_OUTPUT, 0,
-					  0x7f, valp[0] & 0x7f);
+					  HDA_AMP_VOLMASK, valp[0]);
 	change |= snd_hda_codec_amp_update(codec, 0x0c, 1, HDA_OUTPUT, 0,
-					   0x7f, valp[1] & 0x7f);
+					   HDA_AMP_VOLMASK, valp[1]);
 	snd_hda_codec_amp_update(codec, 0x0d, 0, HDA_OUTPUT, 0,
-				 0x7f, valp[0] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[0]);
 	snd_hda_codec_amp_update(codec, 0x0d, 1, HDA_OUTPUT, 0,
-				 0x7f, valp[1] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[1]);
 	return change;
 }
 
@@ -7507,9 +7435,11 @@ static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					  0x80, valp[0] ? 0 : 0x80);
+					  HDA_AMP_MUTE,
+					  valp[0] ? 0 : HDA_AMP_MUTE);
 	change |= snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					   0x80, valp[1] ? 0 : 0x80);
+					   HDA_AMP_MUTE,
+					   valp[1] ? 0 : HDA_AMP_MUTE);
 	if (change)
 		alc262_fujitsu_automute(codec, 0);
 	return change;
@@ -8331,11 +8261,10 @@ static int alc268_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x00 : 0x80;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
+		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
+					 imux->items[i].index,
+					 HDA_AMP_MUTE, v);
                 snd_hda_codec_write_cache(codec, nid, 0,
 					  AC_VERB_SET_CONNECT_SEL,
 					  idx );
@@ -9328,14 +9257,10 @@ static void alc861_toshiba_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x0f, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x16, 0, HDA_INPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x16, 1, HDA_INPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x1a, 0, HDA_INPUT, 3,
-				 0x80, present ? 0 : 0x80);
-	snd_hda_codec_amp_update(codec, 0x1a, 1, HDA_INPUT, 3,
-				 0x80, present ? 0 : 0x80);
+	snd_hda_codec_amp_stereo(codec, 0x16, HDA_INPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_INPUT, 3,
+				 HDA_AMP_MUTE, present ? 0 : HDA_AMP_MUTE);
 }
 
 static void alc861_toshiba_unsol_event(struct hda_codec *codec,
@@ -9922,11 +9847,10 @@ static int alc861vd_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x00 : 0x80;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
+		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
+					 imux->items[i].index,
+					 HDA_AMP_MUTE, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -10261,11 +10185,9 @@ static void alc861vd_lenovo_hp_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc861vd_lenovo_mic_automute(struct hda_codec *codec)
@@ -10275,11 +10197,9 @@ static void alc861vd_lenovo_mic_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x18, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc861vd_lenovo_automute(struct hda_codec *codec)
@@ -10353,10 +10273,8 @@ static void alc861vd_dallas_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x15, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
 
 static void alc861vd_dallas_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -10855,11 +10773,10 @@ static int alc662_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (*cur_val == idx)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0x00 : 0x80;
-		snd_hda_codec_amp_update(codec, nid, 0, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
-		snd_hda_codec_amp_update(codec, nid, 1, HDA_INPUT,
-					 imux->items[i].index, 0x80, v);
+		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
+					 imux->items[i].index,
+					 HDA_AMP_MUTE, v);
 	}
 	*cur_val = idx;
 	return 1;
@@ -11204,11 +11121,9 @@ static void alc662_lenovo_101e_ispeaker_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc662_lenovo_101e_all_automute(struct hda_codec *codec)
@@ -11218,15 +11133,11 @@ static void alc662_lenovo_101e_all_automute(struct hda_codec *codec)
 
  	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	bits = present ? 0x80 : 0;
-	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, bits);
-	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, bits);
+	bits = present ? HDA_AMP_MUTE : 0;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc662_lenovo_101e_unsol_event(struct hda_codec *codec,

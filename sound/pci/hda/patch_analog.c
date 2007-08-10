@@ -1120,10 +1120,9 @@ static int ad1981_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* toggle HP mute appropriately */
-	snd_hda_codec_amp_update(codec, 0x06, 0, HDA_OUTPUT, 0,
-				 0x80, spec->cur_eapd ? 0 : 0x80);
-	snd_hda_codec_amp_update(codec, 0x06, 1, HDA_OUTPUT, 0,
-				 0x80, spec->cur_eapd ? 0 : 0x80);
+	snd_hda_codec_amp_stereo(codec, 0x06, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE,
+				 spec->cur_eapd ? 0 : HDA_AMP_MUTE);
 	return 1;
 }
 
@@ -1136,13 +1135,13 @@ static int ad1981_hp_master_vol_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-					  0x7f, valp[0] & 0x7f);
+					  HDA_AMP_VOLMASK, valp[0]);
 	change |= snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-					   0x7f, valp[1] & 0x7f);
+					   HDA_AMP_VOLMASK, valp[1]);
 	snd_hda_codec_amp_update(codec, 0x06, 0, HDA_OUTPUT, 0,
-				 0x7f, valp[0] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[0]);
 	snd_hda_codec_amp_update(codec, 0x06, 1, HDA_OUTPUT, 0,
-				 0x7f, valp[1] & 0x7f);
+				 HDA_AMP_VOLMASK, valp[1]);
 	return change;
 }
 
@@ -1153,10 +1152,8 @@ static void ad1981_hp_automute(struct hda_codec *codec)
 
 	present = snd_hda_codec_read(codec, 0x06, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_stereo(codec, 0x05, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
 
 /* toggle input of built-in and mic jack appropriately */

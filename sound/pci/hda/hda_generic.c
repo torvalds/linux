@@ -218,8 +218,7 @@ static int unmute_output(struct hda_codec *codec, struct hda_gnode *node)
 	ofs = (node->amp_out_caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
 	if (val >= ofs)
 		val -= ofs;
-	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_OUTPUT, 0, 0xff, val);
-	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_OUTPUT, 1, 0xff, val);
+	snd_hda_codec_amp_stereo(codec, node->nid, HDA_OUTPUT, 0, 0xff, val);
 	return 0;
 }
 
@@ -234,10 +233,7 @@ static int unmute_input(struct hda_codec *codec, struct hda_gnode *node, unsigne
 	ofs = (node->amp_in_caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
 	if (val >= ofs)
 		val -= ofs;
-	snd_hda_codec_amp_update(codec, node->nid, 0, HDA_INPUT, index,
-				 0xff, val);
-	snd_hda_codec_amp_update(codec, node->nid, 1, HDA_INPUT, index,
-				 0xff, val);
+	snd_hda_codec_amp_stereo(codec, node->nid, HDA_INPUT, index, 0xff, val);
 	return 0;
 }
 
