@@ -556,7 +556,9 @@ static int verify_device(struct urdev *urd)
 		rc = diag_read_next_file_info(&fcb, 0);
 		if (rc)
 			return rc;
-
+		/* if file is in hold status, we do not read it */
+		if (fcb.file_stat & (FLG_SYSTEM_HOLD | FLG_USER_HOLD))
+			return -EPERM;
 		/* open file on virtual reader	*/
 		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!buf)
