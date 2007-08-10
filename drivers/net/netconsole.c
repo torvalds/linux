@@ -67,9 +67,6 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 	int frag, left;
 	unsigned long flags;
 
-	if (!np.dev)
-		return;
-
 	local_irq_save(flags);
 
 	for (left = len; left;) {
