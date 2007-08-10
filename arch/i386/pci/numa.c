@@ -96,10 +96,14 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 		pci_read_config_byte(d, reg++, &suba);
 		pci_read_config_byte(d, reg++, &subb);
 		DBG("i450NX PXB %d: %02x/%02x/%02x\n", pxb, busno, suba, subb);
-		if (busno)
-			pci_scan_bus(QUADLOCAL2BUS(quad,busno), &pci_root_ops, NULL);	/* Bus A */
-		if (suba < subb)
-			pci_scan_bus(QUADLOCAL2BUS(quad,suba+1), &pci_root_ops, NULL);	/* Bus B */
+		if (busno) {
+			/* Bus A */
+			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, busno));
+		}
+		if (suba < subb) {
+			/* Bus B */
+			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, suba+1));
+		}
 	}
 	pcibios_last_bus = -1;
 }
@@ -123,8 +127,7 @@ static int __init pci_numa_init(void)
 				continue;
 			printk("Scanning PCI bus %d for quad %d\n", 
 				QUADLOCAL2BUS(quad,0), quad);
-			pci_scan_bus(QUADLOCAL2BUS(quad,0), 
-				&pci_root_ops, NULL);
+			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, 0));
 		}
 	return 0;
 }
