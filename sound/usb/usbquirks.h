@@ -1254,7 +1254,28 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 	/* TODO: add Edirol PC-80 support */
-	/* TODO: add Edirol UA-1EX support */
+{
+	USB_DEVICE(0x0582, 0x0096),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "UA-1EX",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 {
 	USB_DEVICE(0x0582, 0x009a),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
