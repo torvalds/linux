@@ -332,7 +332,8 @@ struct tcp_sock {
 
 	struct tcp_sack_block_wire recv_sack_cache[4];
 
-	u32	highest_sack;	/* Start seq of globally highest revd SACK (valid only in slowpath) */
+	u32	highest_sack;	/* Start seq of globally highest revd SACK
+				 * (validity guaranteed only if sacked_out > 0) */
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
