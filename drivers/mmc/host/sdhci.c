@@ -1347,12 +1347,11 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	 */
 	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
 	if (mmc->max_blk_size >= 3) {
-		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+		printk(KERN_WARNING "%s: Invalid maximum block size, assuming 512\n",
 			host->slot_descr);
-		ret = -ENODEV;
-		goto unmap;
-	}
-	mmc->max_blk_size = 512 << mmc->max_blk_size;
+		mmc->max_blk_size = 512;
+	} else
+		mmc->max_blk_size = 512 << mmc->max_blk_size;
 
 	/*
 	 * Maximum block count.
