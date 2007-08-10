@@ -263,6 +263,7 @@ struct rq {
 
 	unsigned int clock_warps, clock_overflows;
 	unsigned int clock_unstable_events;
+	u64 tick_timestamp;
 
 	atomic_t nr_iowait;
 
@@ -341,8 +342,11 @@ static void __update_rq_clock(struct rq *rq)
 		/*
 		 * Catch too large forward jumps too:
 		 */
-		if (unlikely(delta > 2*TICK_NSEC)) {
-			clock++;
+		if (unlikely(clock + delta > rq->tick_timestamp + TICK_NSEC)) {
+			if (clock < rq->tick_timestamp + TICK_NSEC)
+				clock = rq->tick_timestamp + TICK_NSEC;
+			else
+				clock++;
 			rq->clock_overflows++;
 		} else {
 			if (unlikely(delta > rq->clock_max_delta))
@@ -3308,9 +3312,16 @@ void scheduler_tick(void)
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
 	struct task_struct *curr = rq->curr;
+	u64 next_tick = rq->tick_timestamp + TICK_NSEC;
 
 	spin_lock(&rq->lock);
 	__update_rq_clock(rq);
+	/*
+	 * Let rq->clock advance by at least TICK_NSEC:
+	 */
+	if (unlikely(rq->clock < next_tick))
+		rq->clock = next_tick;
+	rq->tick_timestamp = rq->clock;
 	update_cpu_load(rq);
 	if (curr != rq->idle) /* FIXME: needed? */
 		curr->sched_class->task_tick(rq, curr);
