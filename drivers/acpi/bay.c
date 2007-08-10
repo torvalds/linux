@@ -337,7 +337,7 @@ static void bay_notify(acpi_handle handle, u32 event, void *data)
 	char *envp[] = { event_string, NULL };
 
 	bay_dprintk(handle, "Bay event");
-	sprintf(event_string, "BAY_EVENT=%d\n", event);
+	sprintf(event_string, "BAY_EVENT=%d", event);
 	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 
