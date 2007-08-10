@@ -17,6 +17,8 @@
 #include <linux/parser.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
@@ -256,6 +258,15 @@ static int hypfs_parse_options(char *options, struct super_block *sb)
 	return 0;
 }
 
+static int hypfs_show_options(struct seq_file *s, struct vfsmount *mnt)
+{
+	struct hypfs_sb_info *hypfs_info = mnt->mnt_sb->s_fs_info;
+
+	seq_printf(s, ",uid=%u", hypfs_info->uid);
+	seq_printf(s, ",gid=%u", hypfs_info->gid);
+	return 0;
+}
+
 static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *root_inode;
@@ -459,6 +470,7 @@ static struct file_system_type hypfs_type = {
 static struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= hypfs_drop_inode,
+	.show_options	= hypfs_show_options,
 };
 
 static decl_subsys(s390, NULL, NULL);
