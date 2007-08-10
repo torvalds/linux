@@ -1390,7 +1390,7 @@ static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct 
 	filp = lookup_instantiate_filp(nd, path->dentry, NULL);
 	if (!IS_ERR(filp)) {
 		struct nfs_open_context *ctx;
-		ctx = (struct nfs_open_context *)filp->private_data;
+		ctx = nfs_file_open_context(filp);
 		ctx->state = state;
 		return 0;
 	}
@@ -3303,7 +3303,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	status = -ENOMEM;
 	if (seqid == NULL)
 		goto out;
-	task = nfs4_do_unlck(request, request->fl_file->private_data, lsp, seqid);
+	task = nfs4_do_unlck(request, nfs_file_open_context(request->fl_file), lsp, seqid);
 	status = PTR_ERR(task);
 	if (IS_ERR(task))
 		goto out;
@@ -3447,7 +3447,7 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 	int ret;
 
 	dprintk("%s: begin!\n", __FUNCTION__);
-	data = nfs4_alloc_lockdata(fl, fl->fl_file->private_data,
+	data = nfs4_alloc_lockdata(fl, nfs_file_open_context(fl->fl_file),
 			fl->fl_u.nfs4_fl.owner);
 	if (data == NULL)
 		return -ENOMEM;
@@ -3573,7 +3573,7 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	int status;
 
 	/* verify open state */
-	ctx = (struct nfs_open_context *)filp->private_data;
+	ctx = nfs_file_open_context(filp);
 	state = ctx->state;
 
 	if (request->fl_start < 0 || request->fl_end < 0)

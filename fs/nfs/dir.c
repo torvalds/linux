@@ -558,7 +558,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	memset(desc, 0, sizeof(*desc));
 
 	desc->file = filp;
-	desc->dir_cookie = &((struct nfs_open_context *)filp->private_data)->dir_cookie;
+	desc->dir_cookie = &nfs_file_open_context(filp)->dir_cookie;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
 	desc->plus = NFS_USE_READDIRPLUS(inode);
 
@@ -623,7 +623,7 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 	}
 	if (offset != filp->f_pos) {
 		filp->f_pos = offset;
-		((struct nfs_open_context *)filp->private_data)->dir_cookie = 0;
+		nfs_file_open_context(filp)->dir_cookie = 0;
 	}
 out:
 	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);

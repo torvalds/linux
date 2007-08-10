@@ -368,7 +368,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 		return -ENOMEM;
 
 	dreq->inode = inode;
-	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
+	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
@@ -718,7 +718,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 		sync = FLUSH_STABLE;
 
 	dreq->inode = inode;
-	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
+	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 

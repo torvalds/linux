@@ -208,7 +208,7 @@ static int nfs_do_fsync(struct nfs_open_context *ctx, struct inode *inode)
 static int
 nfs_file_flush(struct file *file, fl_owner_t id)
 {
-	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode	*inode = file->f_path.dentry->d_inode;
 	int		status;
 
@@ -296,7 +296,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 static int
 nfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
 
 	dfprintk(VFS, "nfs: fsync(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
@@ -395,7 +395,7 @@ static int nfs_need_sync_write(struct file *filp, struct inode *inode)
 
 	if (IS_SYNC(inode) || (filp->f_flags & O_SYNC))
 		return 1;
-	ctx = filp->private_data;
+	ctx = nfs_file_open_context(filp);
 	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags))
 		return 1;
 	return 0;
@@ -438,7 +438,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
 	/* Return error values for O_SYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
-		int err = nfs_do_fsync(iocb->ki_filp->private_data, inode);
+		int err = nfs_do_fsync(nfs_file_open_context(iocb->ki_filp), inode);
 		if (err < 0)
 			result = err;
 	}

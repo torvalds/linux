@@ -497,8 +497,7 @@ int nfs_readpage(struct file *file, struct page *page)
 		if (ctx == NULL)
 			goto out_unlock;
 	} else
-		ctx = get_nfs_open_context((struct nfs_open_context *)
-				file->private_data);
+		ctx = get_nfs_open_context(nfs_file_open_context(file));
 
 	error = nfs_readpage_async(ctx, inode, page);
 
@@ -576,8 +575,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 		if (desc.ctx == NULL)
 			return -EBADF;
 	} else
-		desc.ctx = get_nfs_open_context((struct nfs_open_context *)
-				filp->private_data);
+		desc.ctx = get_nfs_open_context(nfs_file_open_context(filp));
 	if (rsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
 	else

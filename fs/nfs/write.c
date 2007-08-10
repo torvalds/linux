@@ -667,7 +667,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 
 int nfs_flush_incompatible(struct file *file, struct page *page)
 {
-	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct nfs_page	*req;
 	int do_flush, status;
 	/*
@@ -701,7 +701,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 int nfs_updatepage(struct file *file, struct page *page,
 		unsigned int offset, unsigned int count)
 {
-	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode	*inode = page->mapping->host;
 	int		status = 0;
 
