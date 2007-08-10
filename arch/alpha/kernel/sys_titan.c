@@ -271,6 +271,19 @@ titan_dispatch_irqs(u64 mask)
  * Titan Family
  */
 static void __init
+titan_request_irq(unsigned int irq, irq_handler_t handler,
+		  unsigned long irqflags, const char *devname,
+		  void *dev_id)
+{
+	int err;
+	err = request_irq(irq, handler, irqflags, devname, dev_id);
+	if (err) {
+		printk("titan_request_irq for IRQ %d returned %d; ignoring\n",
+		       irq, err);
+	}
+}
+
+static void __init
 titan_late_init(void)
 {
 	/*
@@ -278,15 +291,15 @@ titan_late_init(void)
 	 * all reported to the kernel as machine checks, so the handler
 	 * is a nop so it can be called to count the individual events.
 	 */
-	request_irq(63+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(63+16, titan_intr_nop, IRQF_DISABLED,
 		    "CChip Error", NULL);
-	request_irq(62+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(62+16, titan_intr_nop, IRQF_DISABLED,
 		    "PChip 0 H_Error", NULL);
-	request_irq(61+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(61+16, titan_intr_nop, IRQF_DISABLED,
 		    "PChip 1 H_Error", NULL);
-	request_irq(60+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(60+16, titan_intr_nop, IRQF_DISABLED,
 		    "PChip 0 C_Error", NULL);
-	request_irq(59+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(59+16, titan_intr_nop, IRQF_DISABLED,
 		    "PChip 1 C_Error", NULL);
 
 	/* 
@@ -345,9 +358,9 @@ privateer_init_pci(void)
 	 * Hook a couple of extra err interrupts that the
 	 * common titan code won't.
 	 */
-	request_irq(53+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(53+16, titan_intr_nop, IRQF_DISABLED,
 		    "NMI", NULL);
-	request_irq(50+16, titan_intr_nop, IRQF_DISABLED,
+	titan_request_irq(50+16, titan_intr_nop, IRQF_DISABLED,
 		    "Temperature Warning", NULL);
 
 	/*
