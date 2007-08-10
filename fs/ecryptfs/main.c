@@ -813,6 +813,15 @@ out:
 	return rc;
 }
 
+static void do_sysfs_unregistration(void)
+{
+	sysfs_remove_file(&ecryptfs_subsys.kobj,
+			  &sysfs_attr_version.attr);
+	sysfs_remove_file(&ecryptfs_subsys.kobj,
+			  &sysfs_attr_version_str.attr);
+	subsystem_unregister(&ecryptfs_subsys);
+}
+
 static int __init ecryptfs_init(void)
 {
 	int rc;
@@ -851,6 +860,9 @@ static int __init ecryptfs_init(void)
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failure occured while attempting to "
 				"initialize the eCryptfs netlink socket\n");
+		do_sysfs_unregistration();
+		unregister_filesystem(&ecryptfs_fs_type);
+		ecryptfs_free_kmem_caches();
 	}
 out:
 	return rc;
@@ -858,11 +870,7 @@ out:
 
 static void __exit ecryptfs_exit(void)
 {
-	sysfs_remove_file(&ecryptfs_subsys.kobj,
-			  &sysfs_attr_version.attr);
-	sysfs_remove_file(&ecryptfs_subsys.kobj,
-			  &sysfs_attr_version_str.attr);
-	subsystem_unregister(&ecryptfs_subsys);
+	do_sysfs_unregistration();
 	ecryptfs_release_messaging(ecryptfs_transport);
 	unregister_filesystem(&ecryptfs_fs_type);
 	ecryptfs_free_kmem_caches();
