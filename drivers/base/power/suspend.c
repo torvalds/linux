@@ -54,7 +54,7 @@ suspend_device_dbg(struct device *dev, pm_message_t state, char *info)
  *	@state:	Power state device is entering.
  */
 
-int suspend_device(struct device * dev, pm_message_t state)
+static int suspend_device(struct device * dev, pm_message_t state)
 {
 	int error = 0;
 

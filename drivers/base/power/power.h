@@ -55,12 +55,6 @@ extern void dpm_sysfs_remove(struct device *);
 
 extern void dpm_resume(void);
 extern void dpm_power_up(void);
-extern int resume_device(struct device *);
-
-/*
- * suspend.c
- */
-extern int suspend_device(struct device *, pm_message_t);
 
 #else /* CONFIG_PM_SLEEP */
 
