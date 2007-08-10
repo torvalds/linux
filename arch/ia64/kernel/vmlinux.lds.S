@@ -21,6 +21,7 @@ PHDRS {
   percpu PT_LOAD;
   data   PT_LOAD;
   note   PT_NOTE;
+  unwind 0x70000001; /* PT_IA_64_UNWIND, but ld doesn't match the name */
 }
 SECTIONS
 {
@@ -103,7 +104,8 @@ SECTIONS
 	  __start_unwind = .;
 	  *(.IA_64.unwind*)
 	  __end_unwind = .;
-	}
+	} :code :unwind
+  code_continues2 : {} : code
 
   RODATA
 
