@@ -791,10 +791,8 @@ static void setup_APIC_timer(unsigned int clocks)
 
 	/* wait for irq slice */
 	if (hpet_address && hpet_use_timer) {
-		int trigger = hpet_readl(HPET_T0_CMP);
-		while (hpet_readl(HPET_COUNTER) >= trigger)
-			/* do nothing */ ;
-		while (hpet_readl(HPET_COUNTER) <  trigger)
+		u32 trigger = hpet_readl(HPET_T0_CMP);
+		while (hpet_readl(HPET_T0_CMP) == trigger)
 			/* do nothing */ ;
 	} else {
 		int c1, c2;
