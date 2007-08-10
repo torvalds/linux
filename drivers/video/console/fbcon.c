@@ -127,7 +127,19 @@ static int last_fb_vc = MAX_NR_CONSOLES - 1;
 static int fbcon_is_default = 1; 
 static int fbcon_has_exited;
 static int primary_device = -1;
+
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
 static int map_override;
+
+static inline void fbcon_map_override(void)
+{
+	map_override = 1;
+}
+#else
+static inline void fbcon_map_override(void)
+{
+}
+#endif /* CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY */
 
 /* font data */
 static char fontname[40];
@@ -506,7 +518,7 @@ static int __init fb_console_setup(char *this_opt)
 						(options[j++]-'0') % FB_MAX;
 				}
 
-				map_override = 1;
+				fbcon_map_override();
 			}
 
 			return 1;
