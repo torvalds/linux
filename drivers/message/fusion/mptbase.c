@@ -1458,18 +1458,18 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct proc_dir_entry *dent, *ent;
 #endif
 
-	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
-	if (ioc == NULL) {
-		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
-		return -ENOMEM;
-	}
-
-	ioc->debug_level = mpt_debug_level;
 	if (mpt_debug_level)
 		printk(KERN_INFO MYNAM ": mpt_debug_level=%xh\n", mpt_debug_level);
 
 	if (pci_enable_device(pdev))
 		return r;
+
+	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
+	if (ioc == NULL) {
+		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
+		return -ENOMEM;
+	}
+	ioc->debug_level = mpt_debug_level;
 
 	dinitprintk(ioc, printk(KERN_WARNING MYNAM ": mpt_adapter_install\n"));
 
@@ -1478,6 +1478,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 			": 64 BIT PCI BUS DMA ADDRESSING SUPPORTED\n"));
 	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING MYNAM ": 32 BIT PCI BUS DMA ADDRESSING NOT SUPPORTED\n");
+		kfree(ioc);
 		return r;
 	}
 
