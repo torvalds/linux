@@ -44,7 +44,7 @@
 #include <linux/mutex.h>
 
 /* For older kernels, support for text consoles is by default
- * off. To ensable text console support, change the following:
+ * off. To enable text console support, change the following:
  */
 /* #define CONFIG_USB_SISUSBVGA_CON */
 
