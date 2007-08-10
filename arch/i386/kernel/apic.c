@@ -61,8 +61,9 @@ static int enable_local_apic __initdata = 0;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
-/* Disable local APIC timer from the kernel commandline or via dmi quirk */
-static int local_apic_timer_disabled;
+/* Disable local APIC timer from the kernel commandline or via dmi quirk
+   or using CPU MSR check */
+int local_apic_timer_disabled;
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
@@ -370,12 +371,9 @@ void __init setup_boot_APIC_clock(void)
 	long delta, deltapm;
 	int pm_referenced = 0;
 
-	if (boot_cpu_has(X86_FEATURE_LAPIC_TIMER_BROKEN))
-		local_apic_timer_disabled = 1;
-
 	/*
 	 * The local apic timer can be disabled via the kernel
-	 * commandline or from the test above. Register the lapic
+	 * commandline or from the CPU detection code. Register the lapic
 	 * timer as a dummy clock event source on SMP systems, so the
 	 * broadcast mechanism is used. On UP systems simply ignore it.
 	 */
