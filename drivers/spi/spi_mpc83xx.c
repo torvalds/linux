@@ -148,6 +148,8 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 	if (value == BITBANG_CS_ACTIVE) {
 		u32 regval = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 		u32 len = spi->bits_per_word;
+		u8 pm;
+
 		if (len == 32)
 			len = 0;
 		else
@@ -170,7 +172,7 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 		regval |= SPMODE_LEN(len);
 
 		if ((mpc83xx_spi->spibrg / spi->max_speed_hz) >= 64) {
-			u8 pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 64);
+			pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 64) - 1;
 			if (pm > 0x0f) {
 				dev_err(&spi->dev, "Requested speed is too "
 					"low: %d Hz. Will use %d Hz instead.\n",
@@ -180,7 +182,9 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 			}
 			regval |= SPMODE_PM(pm) | SPMODE_DIV16;
 		} else {
-			u8 pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 4);
+			pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 4);
+			if (pm)
+				pm--;
 			regval |= SPMODE_PM(pm);
 		}
 
