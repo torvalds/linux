@@ -97,6 +97,12 @@ M:	philb@gnu.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+3C59X NETWORK DRIVER
+P:	Steffen Klassert
+M:	klassert@mathematik.tu-chemnitz.de
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 3CR990 NETWORK DRIVER
 P:	David Dillow
 M:	dave@thedillows.org
